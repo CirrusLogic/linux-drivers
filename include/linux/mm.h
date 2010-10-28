@@ -3161,6 +3161,7 @@ unsigned long wp_shared_mapping_range(struct address_space *mapping,
 #endif
 
 extern int sysctl_nr_trim_pages;
+extern int min_filelist_kbytes;
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */
