@@ -359,6 +359,10 @@ int snd_soc_dapm_new_controls(struct snd_soc_dapm_context *dapm,
 int snd_soc_dapm_new_dai_widgets(struct snd_soc_dapm_context *dapm,
 				 struct snd_soc_dai *dai);
 int snd_soc_dapm_link_dai_widgets(struct snd_soc_card *card);
+int snd_soc_dapm_new_pcm(struct snd_soc_card *card,
+			 const struct snd_soc_pcm_stream *params,
+			 struct snd_soc_dapm_widget *source,
+			 struct snd_soc_dapm_widget *sink);
 
 /* dapm path setup */
 int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm);
@@ -432,6 +436,7 @@ enum snd_soc_dapm_type {
 	snd_soc_dapm_aif_out,		/* audio interface output */
 	snd_soc_dapm_siggen,		/* signal generator */
 	snd_soc_dapm_dai,		/* link to DAI structure */
+	snd_soc_dapm_dai_link,		/* link between two DAI structures */
 };
 
 enum snd_soc_dapm_subclass {
@@ -490,6 +495,7 @@ struct snd_soc_dapm_widget {
 	struct snd_soc_dapm_context *dapm;
 
 	void *priv;				/* widget specific data */
+	const struct snd_soc_pcm_stream *params; /* params for dai links */
 
 	/* dapm control */
 	short reg;						/* negative reg = no direct dapm */
