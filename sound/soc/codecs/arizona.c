@@ -217,6 +217,14 @@ int arizona_init_spk(struct snd_soc_codec *codec)
 		break;
 	}
 
+	switch (arizona->type) {
+	case WM8997:
+		spkr = false;
+		break;
+	default:
+		break;
+	}
+
 	if (spkl)
 		ret = snd_soc_dapm_new_controls(&codec->dapm,
 						&arizona_spkl, 1);
