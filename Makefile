@@ -904,6 +904,10 @@ endif
 # arch Makefile may override CC so keep this after arch Makefile is included
 NOSTDINC_FLAGS += -nostdinc -isystem $(shell $(CC) -print-file-name=include)
 
+ifdef CONFIG_ERROR_ON_WARNING
+KBUILD_CFLAGS += -Werror
+endif
+
 # warn about C99 declaration after statement
 KBUILD_CFLAGS += -Wdeclaration-after-statement
 
