@@ -154,6 +154,7 @@ int wm5102_patch(struct arizona *arizona)
 	default:
 		wm5102_patch = wm5102_revb_patch;
 		patch_size = ARRAY_SIZE(wm5102_revb_patch);
+		break;
 	}
 
 	ret = regmap_multi_reg_write_bypassed(arizona->regmap,
