@@ -583,7 +583,7 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x0000043E, 0x0080 },    /* R1086  - DAC Volume Limit 6R */
 	{ 0x0000043F, 0x0800 },    /* R1087  - Noise Gate Select 6R */
 	{ 0x00000450, 0x0000 },    /* R1104  - DAC AEC Control 1 */
-	{ 0x00000458, 0x0001 },    /* R1112  - Noise Gate Control */
+	{ 0x00000458, 0x0000 },    /* R1112  - Noise Gate Control */
 	{ 0x00000480, 0x0040 },    /* R1152  - Class W ANC Threshold 1 */
 	{ 0x00000481, 0x0040 },    /* R1153  - Class W ANC Threshold 2 */
 	{ 0x00000490, 0x0069 },    /* R1168  - PDM SPK1 CTRL 1 */
@@ -1171,18 +1171,18 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000C23, 0x0000 },    /* R3107  - Misc Pad Ctrl 4 */
 	{ 0x00000C24, 0x0000 },    /* R3108  - Misc Pad Ctrl 5 */
 	{ 0x00000C25, 0x0000 },    /* R3109  - Misc Pad Ctrl 6 */
-	{ 0x00000C30, 0x8282 },    /* R3120  - Misc Pad Ctrl 7 */
-	{ 0x00000C31, 0x0082 },    /* R3121  - Misc Pad Ctrl 8 */
-	{ 0x00000C32, 0x8282 },    /* R3122  - Misc Pad Ctrl 9 */
-	{ 0x00000C33, 0x8282 },    /* R3123  - Misc Pad Ctrl 10 */
-	{ 0x00000C34, 0x8282 },    /* R3124  - Misc Pad Ctrl 11 */
-	{ 0x00000C35, 0x8282 },    /* R3125  - Misc Pad Ctrl 12 */
-	{ 0x00000C36, 0x8282 },    /* R3126  - Misc Pad Ctrl 13 */
-	{ 0x00000C37, 0x8282 },    /* R3127  - Misc Pad Ctrl 14 */
-	{ 0x00000C38, 0x8282 },    /* R3128  - Misc Pad Ctrl 15 */
-	{ 0x00000C39, 0x8282 },    /* R3129  - Misc Pad Ctrl 16 */
-	{ 0x00000C3A, 0x8282 },    /* R3130  - Misc Pad Ctrl 17 */
-	{ 0x00000C3B, 0x8282 },    /* R3131  - Misc Pad Ctrl 18 */
+	{ 0x00000C30, 0x3E3E },    /* R3120  - Misc Pad Ctrl 7 */
+	{ 0x00000C31, 0x003E },    /* R3121  - Misc Pad Ctrl 8 */
+	{ 0x00000C32, 0x3E3E },    /* R3122  - Misc Pad Ctrl 9 */
+	{ 0x00000C33, 0x3E3E },    /* R3123  - Misc Pad Ctrl 10 */
+	{ 0x00000C34, 0x3E3E },    /* R3124  - Misc Pad Ctrl 11 */
+	{ 0x00000C35, 0x3E3E },    /* R3125  - Misc Pad Ctrl 12 */
+	{ 0x00000C36, 0x3E3E },    /* R3126  - Misc Pad Ctrl 13 */
+	{ 0x00000C37, 0x3E3E },    /* R3127  - Misc Pad Ctrl 14 */
+	{ 0x00000C38, 0x3E3E },    /* R3128  - Misc Pad Ctrl 15 */
+	{ 0x00000C39, 0x3E3E },    /* R3129  - Misc Pad Ctrl 16 */
+	{ 0x00000C3A, 0x3E3E },    /* R3130  - Misc Pad Ctrl 17 */
+	{ 0x00000C3B, 0x3E3E },    /* R3131  - Misc Pad Ctrl 18 */
 	{ 0x00000D08, 0xFFFF },    /* R3336  - Interrupt Status 1 Mask */
 	{ 0x00000D09, 0xFFFF },    /* R3337  - Interrupt Status 2 Mask */
 	{ 0x00000D0A, 0xFFFF },    /* R3338  - Interrupt Status 3 Mask */
