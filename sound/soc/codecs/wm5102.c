@@ -1010,6 +1010,8 @@ SND_SOC_DAPM_INPUT("IN2R"),
 SND_SOC_DAPM_INPUT("IN3L"),
 SND_SOC_DAPM_INPUT("IN3R"),
 
+SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
+
 SND_SOC_DAPM_PGA_E("IN1L PGA", ARIZONA_INPUT_ENABLES, ARIZONA_IN1L_ENA_SHIFT,
 		   0, NULL, 0, arizona_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
@@ -1626,6 +1628,9 @@ static const struct snd_soc_dapm_route wm5102_dapm_routes[] = {
 	{ "MICBIAS1", NULL, "SYSCLK" },
 	{ "MICBIAS2", NULL, "SYSCLK" },
 	{ "MICBIAS3", NULL, "SYSCLK" },
+
+	{ "DRC1 Signal Activity", NULL, "DRC1L" },
+	{ "DRC1 Signal Activity", NULL, "DRC1R" },
 };
 
 static int wm5102_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
@@ -1789,6 +1794,7 @@ static int wm5102_codec_probe(struct snd_soc_codec *codec)
 		return ret;
 
 	arizona_init_spk(codec);
+	arizona_init_gpio(codec);
 
 	ret = snd_soc_add_codec_controls(codec, wm_adsp_fw_controls, 2);
 	if (ret != 0)
