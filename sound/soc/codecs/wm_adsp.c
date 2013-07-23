@@ -148,7 +148,7 @@
 #define ADSP2_RAM_RDY_SHIFT                    0
 #define ADSP2_RAM_RDY_WIDTH                    1
 
-#define WM_ADSP_NUM_FW 14
+#define WM_ADSP_NUM_FW 15
 
 #define WM_ADSP_FW_MBC_VSS        0
 #define WM_ADSP_FW_TX             1
@@ -164,6 +164,7 @@
 #define WM_ADSP_FW_EZ2GROUPTALK_TX 11
 #define WM_ADSP_FW_EZ2GROUPTALK_RX 12
 #define WM_ADSP_FW_EZ2RECORD       13
+#define WM_ADSP_FW_EZ2CONTROL     14
 
 static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_MBC_VSS] =    "MBC/VSS",
@@ -180,11 +181,23 @@ static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_EZ2GROUPTALK_TX] = "Ez2GroupTalk Tx",
 	[WM_ADSP_FW_EZ2GROUPTALK_RX] = "Ez2GroupTalk Rx",
 	[WM_ADSP_FW_EZ2RECORD] = "Ez2Record",
+	[WM_ADSP_FW_EZ2CONTROL] = "Ez2Control",
 };
 
 struct wm_adsp_fw_caps {
 	u32 id;
 	struct snd_codec_desc desc;
+};
+
+static const struct wm_adsp_fw_caps ez2control_caps[] = {
+	{
+		.id = SND_AUDIOCODEC_PCM,
+		.desc = {
+			.max_ch = 1,
+			.sample_rates = SNDRV_PCM_RATE_16000,
+			.formats = SNDRV_PCM_FMTBIT_S16_LE,
+		},
+	},
 };
 
 static const struct {
@@ -207,6 +220,12 @@ static const struct {
 	[WM_ADSP_FW_EZ2GROUPTALK_TX] = { .file = "ez2grouptalk-tx" },
 	[WM_ADSP_FW_EZ2GROUPTALK_RX] = { .file = "ez2grouptalk-rx" },
 	[WM_ADSP_FW_EZ2RECORD] = { .file = "ez2record" },
+	[WM_ADSP_FW_EZ2CONTROL] = {
+		.file = "ez2-control",
+		.compr_direction = SND_COMPRESS_CAPTURE,
+		.num_caps = ARRAY_SIZE(ez2control_caps),
+		.caps = ez2control_caps,
+	},
 };
 
 struct wm_coeff_ctl_ops {
