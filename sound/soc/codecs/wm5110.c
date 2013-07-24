@@ -1627,6 +1627,11 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 	},
 };
 
+static irqreturn_t adsp2_irq(int irq, void *data)
+{
+	return IRQ_HANDLED;
+}
+
 static int wm5110_open(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
@@ -1655,8 +1660,14 @@ static int wm5110_open(struct snd_compr_stream *stream)
 		goto out;
 	}
 
-	wm5110->compr_info.stream = stream;
+	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
+				  "ADSP2 interrupt 1", adsp2_irq, wm5110);
+	if (ret != 0) {
+		dev_err(arizona->dev, "Failed to request DSP IRQ: %d\n", ret);
+		goto out;
+	}
 
+	wm5110->compr_info.stream = stream;
 out:
 	mutex_unlock(&wm5110->compr_info.lock);
 
@@ -1667,8 +1678,11 @@ static int wm5110_free(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct wm5110_priv *wm5110 = snd_soc_codec_get_drvdata(rtd->codec);
+	struct arizona *arizona = wm5110->core.arizona;
 
 	mutex_lock(&wm5110->compr_info.lock);
+
+	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, wm5110);
 
 	wm5110->compr_info.stream = NULL;
 
