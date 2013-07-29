@@ -202,6 +202,59 @@ static inline struct snd_soc_card *dapm_get_soc_card(
 	return NULL;
 }
 
+struct dapm_kcontrol_data {
+	struct snd_soc_dapm_widget_list wlist;
+};
+
+static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
+	struct snd_kcontrol *kcontrol)
+{
+	struct dapm_kcontrol_data *data;
+
+	data = kzalloc(sizeof(*data) + sizeof(widget), GFP_KERNEL);
+	if (!data) {
+		dev_err(widget->dapm->dev,
+				"ASoC: can't allocate kcontrol data for %s\n",
+				widget->name);
+		return -ENOMEM;
+	}
+
+	data->wlist.widgets[0] = widget;
+	data->wlist.num_widgets = 1;
+
+	kcontrol->private_data = &data->wlist;
+
+	return 0;
+}
+
+static void dapm_kcontrol_free(struct snd_kcontrol *kctl)
+{
+	struct dapm_kcontrol_data *data = container_of(snd_kcontrol_chip(kctl),
+		struct dapm_kcontrol_data, wlist);
+	kfree(data);
+}
+
+static int dapm_kcontrol_add_widget(struct snd_kcontrol *kcontrol,
+	struct snd_soc_dapm_widget *widget)
+{
+	struct dapm_kcontrol_data *data = container_of(
+		snd_kcontrol_chip(kcontrol), struct dapm_kcontrol_data, wlist);
+	struct dapm_kcontrol_data *new_data;
+	unsigned int n = data->wlist.num_widgets + 1;
+
+	new_data = krealloc(data, sizeof(*data) + sizeof(widget) * n,
+		GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->wlist.widgets[n - 1] = widget;
+	data->wlist.num_widgets = n;
+
+	kcontrol->private_data = &data->wlist;
+
+	return 0;
+}
+
 static void dapm_reset(struct snd_soc_card *card)
 {
 	struct snd_soc_dapm_widget *w;
@@ -520,9 +573,6 @@ static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
 	size_t prefix_len;
 	int shared;
 	struct snd_kcontrol *kcontrol;
-	struct snd_soc_dapm_widget_list *wlist;
-	int wlistentries;
-	size_t wlistsize;
 	bool wname_in_long_name, kcname_in_long_name;
 	size_t name_len;
 	char *long_name;
@@ -541,25 +591,6 @@ static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
 
 	shared = dapm_is_shared_kcontrol(dapm, w, &w->kcontrol_news[kci],
 					 &kcontrol);
-
-	if (kcontrol) {
-		wlist = kcontrol->private_data;
-		wlistentries = wlist->num_widgets + 1;
-	} else {
-		wlist = NULL;
-		wlistentries = 1;
-	}
-
-	wlistsize = sizeof(struct snd_soc_dapm_widget_list) +
-			wlistentries * sizeof(struct snd_soc_dapm_widget *);
-	wlist = krealloc(wlist, wlistsize, GFP_KERNEL);
-	if (wlist == NULL) {
-		dev_err(dapm->dev, "ASoC: can't allocate widget list for %s\n",
-			w->name);
-		return -ENOMEM;
-	}
-	wlist->num_widgets = wlistentries;
-	wlist->widgets[wlistentries - 1] = w;
 
 	if (!kcontrol) {
 		if (shared) {
@@ -583,7 +614,6 @@ static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
 				kcname_in_long_name = false;
 				break;
 			default:
-				kfree(wlist);
 				return -EINVAL;
 			}
 		}
@@ -593,10 +623,8 @@ static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
 				   strlen(w->kcontrol_news[kci].name) + 1;
 
 			long_name = kmalloc(name_len, GFP_KERNEL);
-			if (long_name == NULL) {
-				kfree(wlist);
+			if (long_name == NULL)
 				return -ENOMEM;
-			}
 
 			/*
 			 * The control will get a prefix from the control
@@ -618,22 +646,33 @@ static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
 			name = w->kcontrol_news[kci].name;
 		}
 
-		kcontrol = snd_soc_cnew(&w->kcontrol_news[kci], wlist, name,
+		kcontrol = snd_soc_cnew(&w->kcontrol_news[kci], NULL, name,
 					prefix);
+		kcontrol->private_free = dapm_kcontrol_free;
+
+		ret = dapm_kcontrol_data_alloc(w, kcontrol);
+		if (ret) {
+			snd_ctl_free_one(kcontrol);
+			kfree(long_name);
+			return ret;
+		}
+
 		ret = snd_ctl_add(card, kcontrol);
 		if (ret < 0) {
 			dev_err(dapm->dev,
 				"ASoC: failed to add widget %s dapm kcontrol %s: %d\n",
 				w->name, name, ret);
-			kfree(wlist);
 			kfree(long_name);
 			return ret;
 		}
 
 		path->long_name = long_name;
+	} else {
+		ret = dapm_kcontrol_add_widget(kcontrol, w);
+		if (ret)
+			return ret;
 	}
 
-	kcontrol->private_data = wlist;
 	w->kcontrols[kci] = kcontrol;
 	path->kcontrol = kcontrol;
 
