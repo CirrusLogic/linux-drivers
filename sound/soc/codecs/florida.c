@@ -1692,6 +1692,15 @@ static int florida_open(struct snd_compr_stream *stream)
 		goto out;
 	}
 
+	ret = irq_set_irq_wake(arizona->irq, 1);
+	if (ret) {
+		dev_err(arizona->dev,
+			"Failed to set DSP IRQ to wake source: %d\n",
+			ret);
+		arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, florida);
+		goto out;
+	}
+
 	florida->compr_info.stream = stream;
 out:
 	mutex_unlock(&florida->compr_info.lock);
@@ -1707,6 +1716,7 @@ static int florida_free(struct snd_compr_stream *stream)
 
 	mutex_lock(&florida->compr_info.lock);
 
+	irq_set_irq_wake(arizona->irq, 0);
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, florida);
 
 	florida->compr_info.stream = NULL;
