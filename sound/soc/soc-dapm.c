@@ -246,13 +246,13 @@ static int dapm_kcontrol_add_widget(struct snd_kcontrol *kcontrol,
 
 	new_data = krealloc(data, sizeof(*data) + sizeof(widget) * n,
 		GFP_KERNEL);
-	if (!data)
+	if (!new_data)
 		return -ENOMEM;
 
-	data->wlist.widgets[n - 1] = widget;
-	data->wlist.num_widgets = n;
+	new_data->wlist.widgets[n - 1] = widget;
+	new_data->wlist.num_widgets = n;
 
-	kcontrol->private_data = &data->wlist;
+	kcontrol->private_data = &new_data->wlist;
 
 	return 0;
 }
