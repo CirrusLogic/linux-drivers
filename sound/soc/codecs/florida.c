@@ -1633,7 +1633,7 @@ static struct snd_soc_dai_driver florida_dai[] = {
 static irqreturn_t adsp2_irq(int irq, void *data)
 {
 	struct florida_priv *florida = data;
-	int ret;
+	int ret, avail;
 
 	mutex_lock(&florida->compr_info.lock);
 
@@ -1646,6 +1646,10 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 	}
 
 	florida->compr_info.total_copied += ret;
+
+	avail = wm_adsp_stream_avail(florida->compr_info.adsp);
+	if (avail > FLORIDA_DEFAULT_FRAGMENT_SIZE)
+		snd_compr_fragment_elapsed(florida->compr_info.stream);
 
 out:
 	mutex_unlock(&florida->compr_info.lock);
@@ -1777,13 +1781,34 @@ static int florida_trigger(struct snd_compr_stream *stream, int cmd)
 static int florida_pointer(struct snd_compr_stream *stream,
 			  struct snd_compr_tstamp *tstamp)
 {
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct florida_priv *florida = snd_soc_codec_get_drvdata(rtd->codec);
+
+	mutex_lock(&florida->compr_info.lock);
+	tstamp->byte_offset = 0;
+	tstamp->copied_total = florida->compr_info.total_copied;
+	mutex_unlock(&florida->compr_info.lock);
+
 	return 0;
 }
 
 static int florida_copy(struct snd_compr_stream *stream, char __user *buf,
 		       size_t count)
 {
-	return 0;
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct florida_priv *florida = snd_soc_codec_get_drvdata(rtd->codec);
+	int ret;
+
+	mutex_lock(&florida->compr_info.lock);
+
+	if (stream->direction == SND_COMPRESS_PLAYBACK)
+		ret = -EINVAL;
+	else
+		ret = wm_adsp_stream_read(florida->compr_info.adsp, buf, count);
+
+	mutex_unlock(&florida->compr_info.lock);
+
+	return ret;
 }
 
 static int florida_get_caps(struct snd_compr_stream *stream,
