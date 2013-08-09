@@ -42,6 +42,8 @@ struct florida_compr {
 
 	struct snd_compr_stream *stream;
 	struct wm_adsp* adsp;
+
+	size_t total_copied;
 };
 
 struct florida_priv {
@@ -1630,6 +1632,24 @@ static struct snd_soc_dai_driver florida_dai[] = {
 
 static irqreturn_t adsp2_irq(int irq, void *data)
 {
+	struct florida_priv *florida = data;
+	int ret;
+
+	mutex_lock(&florida->compr_info.lock);
+
+	ret = wm_adsp_stream_capture(florida->compr_info.adsp);
+	if (ret < 0) {
+		dev_err(florida->core.arizona->dev,
+			"Failed to capture DSP data: %d\n",
+			ret);
+		goto out;
+	}
+
+	florida->compr_info.total_copied += ret;
+
+out:
+	mutex_unlock(&florida->compr_info.lock);
+
 	return IRQ_HANDLED;
 }
 
@@ -1686,6 +1706,7 @@ static int florida_free(struct snd_compr_stream *stream)
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, florida);
 
 	florida->compr_info.stream = NULL;
+	florida->compr_info.total_copied = 0;
 
 	wm_adsp_stream_free(florida->compr_info.adsp);
 
