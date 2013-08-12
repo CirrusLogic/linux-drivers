@@ -699,7 +699,6 @@ static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
 
 	w->kcontrols[kci] = kcontrol;
 	path->kcontrol = kcontrol;
-	dapm_kcontrol_add_path(kcontrol, path);
 
 	return 0;
 }
@@ -727,6 +726,8 @@ static int dapm_new_mixer(struct snd_soc_dapm_widget *w)
 			ret = dapm_create_or_share_mixmux_kcontrol(w, i, path);
 			if (ret < 0)
 				return ret;
+
+			dapm_kcontrol_add_path(w->kcontrols[i], path);
 		}
 	}
 
