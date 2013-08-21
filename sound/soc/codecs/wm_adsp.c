@@ -2570,7 +2570,7 @@ int wm_adsp_stream_capture(struct wm_adsp *adsp)
 	if (avail > adsp->low_water_mark)
 		adsp->buffer_drain_pending = true;
 
-	return total_read;
+	return total_read * adsp->sample_size;
 }
 EXPORT_SYMBOL_GPL(wm_adsp_stream_capture);
 
