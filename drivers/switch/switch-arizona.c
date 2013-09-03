@@ -46,6 +46,26 @@
 #define HPDET_DEBOUNCE 500
 #define DEFAULT_MICD_TIMEOUT 2000
 
+enum {
+	MICD_LVL_0 = 0x004,
+	MICD_LVL_1 = 0x008,
+	MICD_LVL_2 = 0x010,
+	MICD_LVL_3 = 0x020,
+	MICD_LVL_4 = 0x040,
+	MICD_LVL_5 = 0x080,
+	MICD_LVL_6 = 0x100,
+	MICD_LVL_7 = 0x200,
+	MICD_LVL_8 = 0x400,
+
+	MICD_LVL_1_TO_7 = MICD_LVL_1 | MICD_LVL_2 | MICD_LVL_3 |
+			  MICD_LVL_4 | MICD_LVL_5 | MICD_LVL_6 |
+			  MICD_LVL_7,
+
+	MICD_LVL_0_TO_7 = MICD_LVL_0 | MICD_LVL_1_TO_7,
+
+	MICD_LVL_0_TO_8 = MICD_LVL_0_TO_7 | MICD_LVL_8,
+};
+
 struct arizona_extcon_info {
 	struct device *dev;
 	struct arizona *arizona;
@@ -739,7 +759,7 @@ static void arizona_micd_detect(struct work_struct *work)
 
 	mutex_lock(&info->lock);
 
-	for (i = 0; i < 10 && !(val & 0x7fc); i++) {
+	for (i = 0; i < 10 && !(val & MICD_LVL_0_TO_8); i++) {
 		ret = regmap_read(arizona->regmap, ARIZONA_MIC_DETECT_3, &val);
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to read MICDET: %d\n", ret);
@@ -756,7 +776,7 @@ static void arizona_micd_detect(struct work_struct *work)
 		}
 	}
 
-	if (i == 10 && !(val & 0x7fc)) {
+	if (i == 10 && !(val & MICD_LVL_0_TO_8)) {
 		dev_err(arizona->dev, "Failed to get valid MICDET value\n");
 		mutex_unlock(&info->lock);
 		return;
@@ -770,7 +790,7 @@ static void arizona_micd_detect(struct work_struct *work)
 	}
 
 	/* If we got a high impedence we should have a headset, report it. */
-	if (info->detecting && (val & 0x400)) {
+	if (info->detecting && (val & MICD_LVL_8)) {
 		info->mic = true;
 
 		arizona_identify_headphone(info);
@@ -787,7 +807,7 @@ static void arizona_micd_detect(struct work_struct *work)
 	 * plain headphones.  If both polarities report a low
 	 * impedence then give up and report headphones.
 	 */
-	if (info->detecting && (val & 0x3f8)) {
+	if (info->detecting && (val & MICD_LVL_1_TO_7)) {
 		if (info->jack_flips >= info->micd_num_modes * 10) {
 			dev_dbg(arizona->dev, "Detected HP/line\n");
 			arizona_identify_headphone(info);
@@ -811,7 +831,7 @@ static void arizona_micd_detect(struct work_struct *work)
 	 * If we're still detecting and we detect a short then we've
 	 * got a headphone.  Otherwise it's a button press.
 	 */
-	if (val & 0x3fc) {
+	if (val & MICD_LVL_0_TO_7) {
 		if (info->mic) {
 			dev_dbg(arizona->dev, "Mic button detected\n");
 
