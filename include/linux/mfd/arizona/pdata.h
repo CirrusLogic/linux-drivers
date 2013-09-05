@@ -210,6 +210,9 @@ struct arizona_pdata {
 
 	/** GPIO for primary IRQ (used for edge triggered emulation) */
 	int irq_gpio;
+
+	/** wm5102t output power */
+	int wm5102t_output_pwr;
 };
 
 #endif
