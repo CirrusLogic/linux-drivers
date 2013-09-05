@@ -119,6 +119,9 @@ int arizona_request_irq(struct arizona *arizona, int irq, char *name,
 void arizona_free_irq(struct arizona *arizona, int irq, void *data);
 int arizona_set_irq_wake(struct arizona *arizona, int irq, int on);
 
+extern int wm5102_apply_patch(struct arizona *arizona,
+			      const struct reg_default *wm5102_patch,
+			      const int patch_size);
 int wm5102_patch(struct arizona *arizona);
 int wm5110_patch(struct arizona *arizona);
 
