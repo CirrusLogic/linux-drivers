@@ -212,7 +212,7 @@ struct arizona_pdata {
 	int irq_gpio;
 
 	/** wm5102t output power */
-	int wm5102t_output_pwr;
+	unsigned int wm5102t_output_pwr;
 };
 
 #endif
