@@ -191,6 +191,7 @@ extern const int arizona_sample_rate_val[ARIZONA_SAMPLE_RATE_ENUM_SIZE];
 
 extern const struct soc_enum arizona_sample_rate[];
 extern const struct soc_enum arizona_isrc_fsl[];
+extern const struct soc_enum arizona_isrc_fsh[];
 
 extern const struct soc_enum arizona_in_vi_ramp;
 extern const struct soc_enum arizona_in_vd_ramp;
