@@ -74,8 +74,6 @@
 
 #define ARIZONA_MAX_PDM_SPK 2
 
-#define ARIZONA_NUM_MICD_LEVEL 4
-
 #define ARIZONA_MAX_AIF 3
 
 struct regulator_init_data;
