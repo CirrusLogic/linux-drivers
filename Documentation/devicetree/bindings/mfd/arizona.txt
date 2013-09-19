@@ -41,6 +41,11 @@ Optional properties:
     the chip default will be used.  If present exactly five values must
     be specified.
 
+  - wlf,max-channels-clocked : The maximum number of channels to be clocked on
+    each AIF, useful for I2S systems with multiple data lines being mastered.
+    If specified three cells must supplied one for each AIF, specify zero for
+    AIFs that should be handled normally.
+
   - wlf,inmode : A list of INn_MODE register values, where n is the number
     of input signals. Valid values are 0 (Differential), 1 (Single-ended) and
     2 (Digital Microphone). If absent, INn_MODE registers set to 0 by default.
@@ -78,4 +83,6 @@ codec: wm5102@1a {
 		0xffffffff
 		0xffffffff
 	>;
+
+	wlf,max-channels-clocked = <2 0 0>;
 };
