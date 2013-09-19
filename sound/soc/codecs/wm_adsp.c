@@ -31,6 +31,7 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
+#include <linux/mfd/arizona/core.h>
 #include <linux/mfd/arizona/registers.h>
 
 #include "arizona.h"
@@ -2074,23 +2075,6 @@ err:
 EXPORT_SYMBOL_GPL(wm_adsp2_event);
 
 #ifdef CONFIG_OF
-int wm_property_read_u32_index(const struct device_node *np,
-	                                        const char *propname,
-	                                        u32 index, u32 *out_value)
-{
-	const u32 *val;
-	int len = (index + 1) * sizeof(*out_value);
-
-	struct property *prop = of_find_property(np, propname, NULL);
-
-	if (!prop || !prop->value || len > prop->length)
-		return -1;
-
-	val = prop->value;
-	*out_value = be32_to_cpup(((__be32 *)val) + index);
-		return 0;
-}
-
 static int wm_adsp_of_parse_caps(struct wm_adsp *adsp,
 				 struct device_node *np,
 				 struct wm_adsp_fw_defs *fw)
@@ -2127,28 +2111,28 @@ static int wm_adsp_of_parse_caps(struct wm_adsp *adsp,
 	       ez2control_regions,
 	       sizeof(ez2control_regions));
 
-	ret = wm_property_read_u32_index(np, prop, 0, &of_cap);
+	ret = arizona_of_read_u32_index(np, prop, 0, &of_cap);
 	if (ret < 0) {
 		dev_err(adsp->dev,"Firmware caps-id missing/malformed");
 		return ret;
 	}
 	fw->caps->id = of_cap;
 
-	ret = wm_property_read_u32_index(np, prop, 1, &of_cap);
+	ret = arizona_of_read_u32_index(np, prop, 1, &of_cap);
 	if (ret < 0) {
 		dev_err(adsp->dev,"Firmware max_ch unsupported");
 		return ret;
 	}
 	fw->caps->desc.max_ch = of_cap;
 
-	ret = wm_property_read_u32_index(np, prop, 2, &of_cap);
+	ret = arizona_of_read_u32_index(np, prop, 2, &of_cap);
 	if (ret < 0) {
 		dev_err(adsp->dev,"Firmware formats unsupported");
 		return ret;
 	}
 	fw->caps->desc.formats = of_cap;
 
-	ret = wm_property_read_u32_index(np, prop, 3, &of_cap);
+	ret = arizona_of_read_u32_index(np, prop, 3, &of_cap);
 	if (ret < 0) {
 		dev_err(adsp->dev,"Firmware compr_dir unsupported");
 		return ret;
@@ -2156,7 +2140,7 @@ static int wm_adsp_of_parse_caps(struct wm_adsp *adsp,
 	fw->compr_direction = of_cap;
 
 	for (i = 4; i < len_prop; ++i) {
-		ret = wm_property_read_u32_index(np, prop, i, &of_cap);
+		ret = arizona_of_read_u32_index(np, prop, i, &of_cap);
 		if (ret < 0) {
 			dev_err(adsp->dev,"Firmware sample_rates unsupported");
 			return ret;
