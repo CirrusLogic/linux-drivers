@@ -947,6 +947,11 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 
 	arizona_of_get_gpio_defaults(arizona, "wlf,gpio-defaults");
 
+	arizona_of_read_u32_array(arizona, "wlf,max-channels-clocked",
+				  false,
+				  pdata->max_channels_clocked,
+				  ARRAY_SIZE(pdata->max_channels_clocked));
+
 	arizona_of_read_u32_array(arizona, "wlf,out-mono", false,
 				  out_mono, ARRAY_SIZE(out_mono));
 	for (i = 0; i < ARRAY_SIZE(pdata->out_mono); ++i)
