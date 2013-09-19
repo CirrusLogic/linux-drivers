@@ -519,47 +519,80 @@ int arizona_of_get_named_gpio(struct arizona *arizona, const char *prop,
 }
 EXPORT_SYMBOL_GPL(arizona_of_get_named_gpio);
 
+static int arizona_of_read_u32_array(struct arizona *arizona,
+				     const char *prop, bool mandatory,
+				     u32 *data, size_t num)
+{
+	int ret;
+
+	ret = of_property_read_u32_array(arizona->dev->of_node, prop,
+					 data, num);
+
+	if (ret >= 0)
+		return 0;
+
+	switch (ret) {
+	case -EINVAL:
+		if (mandatory)
+			dev_err(arizona->dev,
+				"Mandatory DT property %s is missing\n",
+				prop);
+		break;
+	default:
+		dev_err(arizona->dev,
+			"DT property %s is malformed: %d\n",
+			prop, ret);
+	}
+
+	return ret;
+}
+
+static int arizona_of_read_u32(struct arizona *arizona,
+			       const char* prop, bool mandatory,
+			       u32 *data)
+{
+	return arizona_of_read_u32_array(arizona, prop, mandatory, data, 1);
+}
+
+static int arizona_of_get_gpio_defaults(struct arizona *arizona,
+					const char *prop)
+{
+	struct arizona_pdata *pdata = &arizona->pdata;
+	int i, ret;
+
+	ret = arizona_of_read_u32_array(arizona, prop, false,
+					pdata->gpio_defaults,
+					ARRAY_SIZE(pdata->gpio_defaults));
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * All values are literal except out of range values
+	 * which are chip default, translate into platform
+	 * data which uses 0 as chip default and out of range
+	 * as zero.
+	 */
+	for (i = 0; i < ARRAY_SIZE(pdata->gpio_defaults); i++) {
+		if (pdata->gpio_defaults[i] > 0xffff)
+			pdata->gpio_defaults[i] = 0;
+		else if (pdata->gpio_defaults[i] == 0)
+			pdata->gpio_defaults[i] = 0x10000;
+	}
+
+	return ret;
+}
+
 static int arizona_of_get_core_pdata(struct arizona *arizona)
 {
 	struct arizona_pdata *pdata = &arizona->pdata;
-	struct property *prop;
-	const __be32 *cur;
-	u32 val;
-	int ret, i;
-	int count = 0;
 
 	pdata->reset = arizona_of_get_named_gpio(arizona, "wlf,reset", true);
+	pdata->ldoena = arizona_of_get_named_gpio(arizona, "wlf,ldoena", true);
 
-	ret = of_property_read_u32_array(arizona->dev->of_node,
-					 "wlf,gpio-defaults",
-					 arizona->pdata.gpio_defaults,
-					 ARRAY_SIZE(arizona->pdata.gpio_defaults));
-	if (ret >= 0) {
-		/*
-		 * All values are literal except out of range values
-		 * which are chip default, translate into platform
-		 * data which uses 0 as chip default and out of range
-		 * as zero.
-		 */
-		for (i = 0; i < ARRAY_SIZE(arizona->pdata.gpio_defaults); i++) {
-			if (arizona->pdata.gpio_defaults[i] > 0xffff)
-				arizona->pdata.gpio_defaults[i] = 0;
-			else if (arizona->pdata.gpio_defaults[i] == 0)
-				arizona->pdata.gpio_defaults[i] = 0x10000;
-		}
-	} else {
-		dev_err(arizona->dev, "Failed to parse GPIO defaults: %d\n",
-			ret);
-	}
+	arizona_of_get_gpio_defaults(arizona, "wlf,gpio-defaults");
 
-	of_property_for_each_u32(arizona->dev->of_node, "wlf,inmode", prop,
-				 cur, val) {
-		if (count == ARRAY_SIZE(arizona->pdata.inmode))
-			break;
-
-		arizona->pdata.inmode[count] = val;
-		count++;
-	}
+	arizona_of_read_u32_array(arizona, "wlf,inmode", false,
+				  pdata->inmode, ARRAY_SIZE(pdata->inmode));
 
 	return 0;
 }
