@@ -1221,6 +1221,10 @@ static int __devinit wm5110_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm5110);
 
+	/* Set of_node to parent from the SPI device to allow DAPM to
+	 * locate regulator supplies */
+	pdev->dev.of_node = arizona->dev->of_node;
+
 	wm5110->core.arizona = arizona;
 	wm5110->core.num_inputs = 8;
 
