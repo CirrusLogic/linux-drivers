@@ -1032,10 +1032,7 @@ static void arizona_micd_set_level(struct arizona *arizona, int index,
 static int arizona_extcon_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
-	struct arizona_pdata *pdata;
 	struct arizona_extcon_info *info;
-
-	pdata = dev_get_platdata(arizona->dev);
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info) {
@@ -1087,7 +1084,7 @@ static void arizona_probe_work(struct work_struct *work)
 							struct arizona_extcon_info,
 							probe_work.work);
 	struct arizona *arizona = info->arizona;
-	struct arizona_pdata *pdata = dev_get_platdata(arizona->dev);
+	struct arizona_pdata *pdata = &arizona->pdata;
 	unsigned int val;
 	int jack_irq_fall, jack_irq_rise;
 	int ret, mode, i, j;
