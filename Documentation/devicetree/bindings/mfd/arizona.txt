@@ -89,6 +89,10 @@ Optional properties:
     If specified three cells must supplied one for each AIF, specify zero for
     AIFs that should be handled normally.
 
+  - wlf,dmic-ref : DMIC reference for each input, must contain four cells if
+    specified. 0 indicates MICVDD and is the default, 1,2,3 indicate the
+    respective MICBIAS.
+
   - wlf,inmode : A list of INn_MODE register values, where n is the number
     of input signals. Valid values are 0 (Differential), 1 (Single-ended) and
     2 (Digital Microphone). If absent, INn_MODE registers set to 0 by default.
@@ -139,6 +143,8 @@ codec: wm5102@1a {
 	>;
 
 	wlf,micbias2 = <2600 0 1 1 0>;
+
+	wlf,dmic-ref = <0 0 1 0>;
 
 	wlf,gpio-defaults = <
 		0x00000000 /* AIF1TXLRCLK */
