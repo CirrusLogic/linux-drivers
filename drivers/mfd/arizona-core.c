@@ -540,9 +540,9 @@ int arizona_of_get_named_gpio(struct arizona *arizona, const char *prop,
 }
 EXPORT_SYMBOL_GPL(arizona_of_get_named_gpio);
 
-static int arizona_of_read_u32_array(struct arizona *arizona,
-				     const char *prop, bool mandatory,
-				     u32 *data, size_t num)
+int arizona_of_read_u32_array(struct arizona *arizona,
+			      const char *prop, bool mandatory,
+			      u32 *data, size_t num)
 {
 	int ret;
 
@@ -567,13 +567,15 @@ static int arizona_of_read_u32_array(struct arizona *arizona,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(arizona_of_read_u32_array);
 
-static int arizona_of_read_u32(struct arizona *arizona,
+int arizona_of_read_u32(struct arizona *arizona,
 			       const char* prop, bool mandatory,
 			       u32 *data)
 {
 	return arizona_of_read_u32_array(arizona, prop, mandatory, data, 1);
 }
+EXPORT_SYMBOL_GPL(arizona_of_read_u32);
 
 static int arizona_of_get_gpio_defaults(struct arizona *arizona,
 					const char *prop)
