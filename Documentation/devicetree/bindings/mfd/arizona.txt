@@ -100,6 +100,10 @@ Optional properties:
     input singals. If values less than the number of input signals, elements
     that has not been specifed are set to 0 by default.
 
+  - wlf,use-jd-gpio : Use GPIO input for jack detection.
+  - wlf,use-jd-gpio-nopull : Internal pull on GPIO is disabled when used for
+    jack detection.
+
   - DCVDD-supply, MICVDD-supply : Power supplies, only need to be specified if
     they are being externally supplied. As covered in
     Documentation/devicetree/bindings/regulator/regulator.txt
