@@ -430,6 +430,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		}
 
 		val &= ARIZONA_HP_LVL_B_MASK;
+		val /= 2;
 
 		regmap_read(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
 			    &range);
@@ -1088,6 +1089,16 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 			info->micd_clamp = true;
 			info->hpdet_ip = 1;
 			break;
+		}
+		break;
+	case WM5110:
+		switch (arizona->rev) {
+			case 0 ... 2:
+				break;
+			default:
+				info->micd_clamp = true;
+				info->hpdet_ip = 2;
+				break;
 		}
 		break;
 	default:
