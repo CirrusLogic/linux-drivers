@@ -775,6 +775,12 @@ static void arizona_micd_detect(struct work_struct *work)
 
 	mutex_lock(&info->lock);
 
+	if (!info->cable) {
+		dev_dbg(arizona->dev, "Ignoring MICDET for removed cable\n");
+		mutex_unlock(&info->lock);
+		return;
+	}
+
 	if (info->detecting && arizona->pdata.micd_software_compare) {
 		/* Must disable MICD before we read the ADCVAL */
 		regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
