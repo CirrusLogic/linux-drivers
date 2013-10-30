@@ -1637,6 +1637,10 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 
 	mutex_lock(&florida->compr_info.lock);
 
+	if (florida->core.arizona->pdata.ez2ctrl_trigger &&
+	    !florida->compr_info.total_copied)
+		florida->core.arizona->pdata.ez2ctrl_trigger();
+
 	ret = wm_adsp_stream_capture(florida->compr_info.adsp);
 	if (ret < 0) {
 		dev_err(florida->core.arizona->dev,
