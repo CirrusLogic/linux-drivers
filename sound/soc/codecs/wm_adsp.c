@@ -630,7 +630,8 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 				      GFP_KERNEL | GFP_DMA);
 			if (!buf) {
 				adsp_err(dsp, "Out of memory\n");
-				return -ENOMEM;
+				ret = -ENOMEM;
+				goto out_fw;
 			}
 
 			ret = regmap_raw_write(regmap, reg, buf,
