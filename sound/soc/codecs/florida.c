@@ -1728,32 +1728,6 @@ static int florida_open(struct snd_compr_stream *stream)
 		goto out;
 	}
 
-	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
-				  "ADSP2 interrupt 1", adsp2_irq, florida);
-	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to request DSP IRQ: %d\n", ret);
-		goto out;
-	}
-
-	ret = irq_set_irq_wake(arizona->irq, 1);
-	if (ret) {
-		dev_err(arizona->dev,
-			"Failed to set DSP IRQ to wake source: %d\n",
-			ret);
-		arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, florida);
-		goto out;
-	}
-
-	ret = regmap_update_bits(arizona->regmap, ARIZONA_IRQ2_STATUS_3_MASK,
-				 ARIZONA_IM_DRC2_SIG_DET_EINT2,
-				 ARIZONA_IM_DRC2_SIG_DET_EINT2);
-	if (ret != 0) {
-		dev_err(arizona->dev,
-			"Failed to unmask DRC2 IRQ for DSP: %d\n",
-			ret);
-		goto out;
-	}
-
 	florida->compr_info.stream = stream;
 out:
 	mutex_unlock(&florida->compr_info.lock);
@@ -1765,15 +1739,8 @@ static int florida_free(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct florida_priv *florida = snd_soc_codec_get_drvdata(rtd->codec);
-	struct arizona *arizona = florida->core.arizona;
 
 	mutex_lock(&florida->compr_info.lock);
-
-	irq_set_irq_wake(arizona->irq, 0);
-	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, florida);
-	regmap_update_bits(arizona->regmap, ARIZONA_IRQ2_STATUS_3_MASK,
-			   ARIZONA_IM_DRC2_SIG_DET_EINT2,
-			   0);
 
 	florida->compr_info.stream = NULL;
 	florida->compr_info.total_copied = 0;
@@ -1910,6 +1877,7 @@ static int florida_get_codec_caps(struct snd_compr_stream *stream,
 static int florida_codec_probe(struct snd_soc_codec *codec)
 {
 	struct florida_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->core.arizona;
 	int ret;
 
 	codec->control_data = priv->core.arizona->regmap;
@@ -1930,12 +1898,45 @@ static int florida_codec_probe(struct snd_soc_codec *codec)
 
 	priv->core.arizona->dapm = &codec->dapm;
 
+	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
+				  "ADSP2 interrupt 1", adsp2_irq, priv);
+	if (ret != 0) {
+		dev_err(arizona->dev, "Failed to request DSP IRQ: %d\n", ret);
+		return ret;
+	}
+
+	ret = irq_set_irq_wake(arizona->irq, 1);
+	if (ret) {
+		dev_err(arizona->dev,
+			"Failed to set DSP IRQ to wake source: %d\n",
+			ret);
+		arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
+		return ret;
+	}
+
+	ret = regmap_update_bits(arizona->regmap, ARIZONA_IRQ2_STATUS_3_MASK,
+				 ARIZONA_IM_DRC2_SIG_DET_EINT2,
+				 ARIZONA_IM_DRC2_SIG_DET_EINT2);
+	if (ret != 0) {
+		dev_err(arizona->dev,
+			"Failed to unmask DRC2 IRQ for DSP: %d\n",
+			ret);
+		return ret;
+	}
+
 	return 0;
 }
 
 static int florida_codec_remove(struct snd_soc_codec *codec)
 {
 	struct florida_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->core.arizona;
+
+	irq_set_irq_wake(arizona->irq, 0);
+	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
+	regmap_update_bits(arizona->regmap, ARIZONA_IRQ2_STATUS_3_MASK,
+			   ARIZONA_IM_DRC2_SIG_DET_EINT2,
+			   0);
 
 	priv->core.arizona->dapm = NULL;
 
