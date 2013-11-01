@@ -625,6 +625,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		goto out_fw;
 	}
 	dsp->fw_ver = header->ver;
+	adsp_info(dsp, "Firmware version: %d\n", dsp->fw_ver);
 
 	if (header->core != dsp->type) {
 		adsp_err(dsp, "%s: invalid core %d != %d\n",
