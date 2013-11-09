@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
+#include <linux/of.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -417,7 +418,7 @@ static int wm_adsp_fw_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static const struct soc_enum wm_adsp_fw_enum[] = {
+static struct soc_enum wm_adsp_fw_enum[] = {
 	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(wm_adsp_fw_text), wm_adsp_fw_text),
 	SOC_ENUM_SINGLE(0, 1, ARRAY_SIZE(wm_adsp_fw_text), wm_adsp_fw_text),
 	SOC_ENUM_SINGLE(0, 2, ARRAY_SIZE(wm_adsp_fw_text), wm_adsp_fw_text),
@@ -2112,6 +2113,108 @@ err:
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_event);
 
+#ifdef CONFIG_OF
+static int wm_adsp_of_parse_firmware(struct wm_adsp *adsp,
+				     struct device_node *np)
+{
+	struct device_node *fws;
+	struct device_node *fw = NULL;
+	const char **ctl_names;
+	int ret;
+	int i;
+
+	for_each_child_of_node(adsp->dev->of_node,fws)
+		if (fws->name && (of_node_cmp(fws->name,"firmware") == 0))
+			break;
+	if (!fws)
+		return 0;
+
+	i = 0;
+	while ((fw = of_get_next_child(fws, fw)) != NULL)
+		i++;
+
+	if (i == 0)
+		return 0;
+
+	adsp->num_firmwares = i;
+
+	adsp->firmwares = devm_kzalloc(adsp->dev,
+				       i * sizeof(struct wm_adsp_fw_defs),
+				       GFP_KERNEL);
+	if (!adsp->firmwares)
+		return -ENOMEM;
+
+	ctl_names = devm_kzalloc(adsp->dev,
+				 i * sizeof(const char *),
+				 GFP_KERNEL);
+	if (!ctl_names)
+		return -ENOMEM;
+
+	i = 0;
+	while ((fw = of_get_next_child(fws, fw)) != NULL) {
+		ctl_names[i] = fw->name;
+
+		ret = of_property_read_string(fw, "wlf,wmfw-file",
+					      &adsp->firmwares[i].file);
+		if (ret < 0) {
+			dev_err(adsp->dev,
+				"Firmware filename missing/malformed: %d\n",
+				ret);
+			return ret;
+		}
+
+		ret = of_property_read_string(fw, "wlf,bin-file",
+					      &adsp->firmwares[i].binfile);
+		if (ret < 0)
+			adsp->firmwares[i].binfile = NULL;
+
+		i++;
+	}
+
+	wm_adsp_fw_enum[adsp->num - 1].max = adsp->num_firmwares;
+	wm_adsp_fw_enum[adsp->num - 1].texts = ctl_names;
+
+	return adsp->num_firmwares;
+}
+
+static int wm_adsp_of_parse_adsp(struct wm_adsp *adsp)
+{
+	struct device_node *np;
+	struct device_node *core = NULL;
+	unsigned int addr;
+	int ret;
+
+	for_each_child_of_node(adsp->dev->of_node,np)
+		if (np->name && (of_node_cmp(np->name,"adsps") == 0))
+			break;
+	if (!np)
+		return 0;
+
+	while ((core = of_get_next_child(np, core)) != NULL) {
+		ret = of_property_read_u32(core, "reg", &addr);
+		if (ret < 0) {
+			dev_err(adsp->dev,
+				"Failed to get ADSP base address: %d\n",
+				ret);
+			return ret;
+		}
+
+		if (addr == adsp->base)
+			break;
+	}
+
+	if (!core)
+		return 0;
+
+	return wm_adsp_of_parse_firmware(adsp, core);
+}
+#else
+static inline int wm_adsp_of_parse_adsp(struct wm_adsp *adsp)
+{
+	return 0;
+}
+#endif
+
 int wm_adsp2_init(struct wm_adsp *adsp, bool dvfs, struct mutex *fw_lock)
 {
 	int ret;
@@ -2164,8 +2267,10 @@ int wm_adsp2_init(struct wm_adsp *adsp, bool dvfs, struct mutex *fw_lock)
 		}
 	}
 
-	adsp->num_firmwares = WM_ADSP_NUM_FW;
-	adsp->firmwares = wm_adsp_fw;
+	if (!adsp->dev->of_node || wm_adsp_of_parse_adsp(adsp) <= 0) {
+		adsp->num_firmwares = WM_ADSP_NUM_FW;
+		adsp->firmwares = wm_adsp_fw;
+	}
 
 	return 0;
 }
