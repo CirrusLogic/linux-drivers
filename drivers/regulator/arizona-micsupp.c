@@ -28,6 +28,9 @@
 
 #define ARIZONA_MICSUPP_MAX_SELECTOR 0x1f
 
+#define ARIZONA_MICSUPP_RANGE1_MAX_SELECTOR 0x14
+#define ARIZONA_MICSUPP_RANGE2_MAX_SELECTOR 0x27
+
 struct arizona_micsupp {
 	struct regulator_dev *regulator;
 	struct arizona *arizona;
@@ -36,8 +39,7 @@ struct arizona_micsupp {
 	struct regulator_init_data init_data;
 };
 
-static int arizona_micsupp_reg_list_voltage(struct regulator_dev *rdev,
-					    unsigned int selector)
+static int arizona_micsupp_sel_to_voltage(unsigned int selector)
 {
 	if (selector > ARIZONA_MICSUPP_MAX_SELECTOR)
 		return -EINVAL;
@@ -46,6 +48,32 @@ static int arizona_micsupp_reg_list_voltage(struct regulator_dev *rdev,
 		return 3300000;
 	else
 		return (selector * 50000) + 1700000;
+}
+
+static int arizona_micsupp_ext_sel_to_voltage(unsigned int selector)
+{
+	if (selector > ARIZONA_MICSUPP_RANGE2_MAX_SELECTOR)
+		return -EINVAL;
+
+	if (selector < ARIZONA_MICSUPP_RANGE1_MAX_SELECTOR) {
+		return (selector * 25000) + 900000;
+	} else {
+		selector -= ARIZONA_MICSUPP_RANGE1_MAX_SELECTOR;
+		return (selector * 100000) + 1400000;
+	}
+}
+
+static int arizona_micsupp_reg_list_voltage(struct regulator_dev *rdev,
+					    unsigned int selector)
+{
+	struct arizona_micsupp *micsupp = rdev_get_drvdata(rdev);
+
+	switch (micsupp->arizona->type) {
+	case WM5110:
+		return arizona_micsupp_ext_sel_to_voltage(selector);
+	default:
+		return arizona_micsupp_sel_to_voltage(selector);
+	}
 }
 
 static int arizona_micsupp_reg_is_enabled(struct regulator_dev *rdev)
@@ -134,6 +162,14 @@ static struct regulator_desc arizona_micsupp = {
 	.owner = THIS_MODULE,
 };
 
+static struct regulator_desc arizona_micsupp_ext = {
+	.name = "MICVDD",
+	.type = REGULATOR_VOLTAGE,
+	.n_voltages = ARIZONA_MICSUPP_RANGE2_MAX_SELECTOR + 1,
+	.ops = &arizona_micsupp_ops,
+	.owner = THIS_MODULE,
+};
+
 static const struct regulator_init_data arizona_micsupp_default = {
 	.constraints = {
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS |
@@ -145,9 +181,21 @@ static const struct regulator_init_data arizona_micsupp_default = {
 	.num_consumer_supplies = 1,
 };
 
+static const struct regulator_init_data arizona_micsupp_ext_default = {
+	.constraints = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS |
+				REGULATOR_CHANGE_VOLTAGE,
+		.min_uV = 900000,
+		.max_uV = 3300000,
+	},
+
+	.num_consumer_supplies = 1,
+};
+
 static __devinit int arizona_micsupp_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
+	struct regulator_desc *desc;
 	struct arizona_micsupp *micsupp;
 	struct regulator_init_data *init_data;
 	int ret, i;
@@ -165,7 +213,17 @@ static __devinit int arizona_micsupp_probe(struct platform_device *pdev)
 	 * default init_data for it.  This will be overridden with
 	 * platform data if provided.
 	 */
-	micsupp->init_data = arizona_micsupp_default;
+	switch (arizona->type) {
+	case WM5110:
+		desc = &arizona_micsupp_ext;
+		micsupp->init_data = arizona_micsupp_ext_default;
+		break;
+	default:
+		desc = &arizona_micsupp;
+		micsupp->init_data = arizona_micsupp_default;
+		break;
+	}
+
 	micsupp->init_data.consumer_supplies = micsupp->supply;
 	micsupp->init_data.num_consumer_supplies = ARRAY_SIZE(micsupp->supply);
 	for (i = 0; i < ARRAY_SIZE(micsupp->supply); i++) {
@@ -185,7 +243,7 @@ static __devinit int arizona_micsupp_probe(struct platform_device *pdev)
 	regmap_update_bits(arizona->regmap, ARIZONA_MIC_CHARGE_PUMP_1,
 			   ARIZONA_CPMIC_BYPASS, 0);
 
-	micsupp->regulator = regulator_register(&arizona_micsupp,
+	micsupp->regulator = regulator_register(desc,
 						arizona->dev, init_data,
 						micsupp, NULL);
 
