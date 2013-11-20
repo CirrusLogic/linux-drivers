@@ -209,16 +209,16 @@ int arizona_irq_init(struct arizona *arizona)
 		arizona->ctrlif_error = false;
 		break;
 #endif
-#ifdef CONFIG_MFD_WM5110
+#ifdef CONFIG_MFD_FLORIDA
 	case WM5110:
-		aod = &wm5110_aod;
+		aod = &florida_aod;
 
 		switch (arizona->rev) {
 		case 0 ... 2:
-			irq = &wm5110_irq;
+			irq = &florida_irq;
 			break;
 		default:
-			irq = &wm5110_revd_irq;
+			irq = &florida_revd_irq;
 			break;
 		}
 
