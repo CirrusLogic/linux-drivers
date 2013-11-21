@@ -43,6 +43,7 @@ static int arizona_i2c_probe(struct i2c_client *i2c,
 		break;
 #endif
 #ifdef CONFIG_MFD_FLORIDA
+	case WM8280:
 	case WM5110:
 		regmap_config = &florida_i2c_regmap;
 		break;
@@ -86,6 +87,7 @@ static int arizona_i2c_remove(struct i2c_client *i2c)
 
 static const struct i2c_device_id arizona_i2c_id[] = {
 	{ "wm5102", WM5102 },
+	{ "wm8280", WM8280 },
 	{ "wm5110", WM5110 },
 	{ "wm8997", WM8997 },
 	{ }
