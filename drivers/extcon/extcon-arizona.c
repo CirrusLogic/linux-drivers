@@ -161,6 +161,7 @@ static void arizona_extcon_do_magic(struct arizona_extcon_info *info,
 	int ret;
 
 	switch (arizona->type) {
+	case WM8280:
 	case WM5110:
 		mask = 0x0007;
 		if (magic)
@@ -1277,6 +1278,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 			break;
 		}
 		break;
+	case WM8280:
 	case WM5110:
 		switch (arizona->rev) {
 		case 0 ... 2:
