@@ -1,5 +1,5 @@
 /*
- * wm5110.c  --  WM5110 ALSA SoC Audio driver
+ * florida.c -- ALSA SoC Audio driver for Florida-class codecs
  *
  * Copyright 2012 Wolfson Microelectronics plc
  *
@@ -31,51 +31,51 @@
 
 #include "arizona.h"
 #include "wm_adsp.h"
-#include "wm5110.h"
+#include "florida.h"
 
-#define WM5110_NUM_ADSP 4
+#define FLORIDA_NUM_ADSP 4
 
-struct wm5110_priv {
+struct florida_priv {
 	struct arizona_priv core;
 	struct arizona_fll fll[2];
 };
 
-static const struct wm_adsp_region wm5110_dsp1_regions[] = {
+static const struct wm_adsp_region florida_dsp1_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x100000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x180000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x190000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x1a8000 },
 };
 
-static const struct wm_adsp_region wm5110_dsp2_regions[] = {
+static const struct wm_adsp_region florida_dsp2_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x200000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x280000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x290000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x2a8000 },
 };
 
-static const struct wm_adsp_region wm5110_dsp3_regions[] = {
+static const struct wm_adsp_region florida_dsp3_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x300000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x380000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x390000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x3a8000 },
 };
 
-static const struct wm_adsp_region wm5110_dsp4_regions[] = {
+static const struct wm_adsp_region florida_dsp4_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x400000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x480000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x490000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x4a8000 },
 };
 
-static const struct wm_adsp_region *wm5110_dsp_regions[] = {
-	wm5110_dsp1_regions,
-	wm5110_dsp2_regions,
-	wm5110_dsp3_regions,
-	wm5110_dsp4_regions,
+static const struct wm_adsp_region *florida_dsp_regions[] = {
+	florida_dsp1_regions,
+	florida_dsp2_regions,
+	florida_dsp3_regions,
+	florida_dsp4_regions,
 };
 
-static const struct reg_default wm5110_sysclk_revd_patch[] = {
+static const struct reg_default florida_sysclk_revd_patch[] = {
 	{ 0x3093, 0x1001 },
 	{ 0x30E3, 0x1301 },
 	{ 0x3133, 0x1201 },
@@ -83,7 +83,7 @@ static const struct reg_default wm5110_sysclk_revd_patch[] = {
 	{ 0x31D3, 0x1401 },
 };
 
-static int wm5110_sysclk_ev(struct snd_soc_dapm_widget *w,
+static int florida_sysclk_ev(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
@@ -94,8 +94,8 @@ static int wm5110_sysclk_ev(struct snd_soc_dapm_widget *w,
 
 	switch (arizona->rev) {
 	case 3:
-		patch = wm5110_sysclk_revd_patch;
-		patch_size = ARRAY_SIZE(wm5110_sysclk_revd_patch);
+		patch = florida_sysclk_revd_patch;
+		patch_size = ARRAY_SIZE(florida_sysclk_revd_patch);
 		break;
 	default:
 		return 0;
@@ -122,7 +122,7 @@ static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
 static DECLARE_TLV_DB_SCALE(noise_tlv, 0, 600, 0);
 static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 
-#define WM5110_NG_SRC(name, base) \
+#define FLORIDA_NG_SRC(name, base) \
 	SOC_SINGLE(name " NG HPOUT1L Switch",  base,  0, 1, 0), \
 	SOC_SINGLE(name " NG HPOUT1R Switch",  base,  1, 1, 0), \
 	SOC_SINGLE(name " NG HPOUT2L Switch",  base,  2, 1, 0), \
@@ -136,7 +136,7 @@ static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 	SOC_SINGLE(name " NG SPKDAT2L Switch", base, 10, 1, 0), \
 	SOC_SINGLE(name " NG SPKDAT2R Switch", base, 11, 1, 0)
 
-static const struct snd_kcontrol_new wm5110_snd_controls[] = {
+static const struct snd_kcontrol_new florida_snd_controls[] = {
 SOC_ENUM("IN1 OSR", arizona_in_dmic_osr[0]),
 SOC_ENUM("IN2 OSR", arizona_in_dmic_osr[1]),
 SOC_ENUM("IN3 OSR", arizona_in_dmic_osr[2]),
@@ -355,18 +355,18 @@ SOC_SINGLE_TLV("Noise Gate Threshold Volume", ARIZONA_NOISE_GATE_CONTROL,
 	       ARIZONA_NGATE_THR_SHIFT, 7, 1, ng_tlv),
 SOC_ENUM("Noise Gate Hold", arizona_ng_hold),
 
-WM5110_NG_SRC("HPOUT1L", ARIZONA_NOISE_GATE_SELECT_1L),
-WM5110_NG_SRC("HPOUT1R", ARIZONA_NOISE_GATE_SELECT_1R),
-WM5110_NG_SRC("HPOUT2L", ARIZONA_NOISE_GATE_SELECT_2L),
-WM5110_NG_SRC("HPOUT2R", ARIZONA_NOISE_GATE_SELECT_2R),
-WM5110_NG_SRC("HPOUT3L", ARIZONA_NOISE_GATE_SELECT_3L),
-WM5110_NG_SRC("HPOUT3R", ARIZONA_NOISE_GATE_SELECT_3R),
-WM5110_NG_SRC("SPKOUTL", ARIZONA_NOISE_GATE_SELECT_4L),
-WM5110_NG_SRC("SPKOUTR", ARIZONA_NOISE_GATE_SELECT_4R),
-WM5110_NG_SRC("SPKDAT1L", ARIZONA_NOISE_GATE_SELECT_5L),
-WM5110_NG_SRC("SPKDAT1R", ARIZONA_NOISE_GATE_SELECT_5R),
-WM5110_NG_SRC("SPKDAT2L", ARIZONA_NOISE_GATE_SELECT_6L),
-WM5110_NG_SRC("SPKDAT2R", ARIZONA_NOISE_GATE_SELECT_6R),
+FLORIDA_NG_SRC("HPOUT1L", ARIZONA_NOISE_GATE_SELECT_1L),
+FLORIDA_NG_SRC("HPOUT1R", ARIZONA_NOISE_GATE_SELECT_1R),
+FLORIDA_NG_SRC("HPOUT2L", ARIZONA_NOISE_GATE_SELECT_2L),
+FLORIDA_NG_SRC("HPOUT2R", ARIZONA_NOISE_GATE_SELECT_2R),
+FLORIDA_NG_SRC("HPOUT3L", ARIZONA_NOISE_GATE_SELECT_3L),
+FLORIDA_NG_SRC("HPOUT3R", ARIZONA_NOISE_GATE_SELECT_3R),
+FLORIDA_NG_SRC("SPKOUTL", ARIZONA_NOISE_GATE_SELECT_4L),
+FLORIDA_NG_SRC("SPKOUTR", ARIZONA_NOISE_GATE_SELECT_4R),
+FLORIDA_NG_SRC("SPKDAT1L", ARIZONA_NOISE_GATE_SELECT_5L),
+FLORIDA_NG_SRC("SPKDAT1R", ARIZONA_NOISE_GATE_SELECT_5R),
+FLORIDA_NG_SRC("SPKDAT2L", ARIZONA_NOISE_GATE_SELECT_6L),
+FLORIDA_NG_SRC("SPKDAT2R", ARIZONA_NOISE_GATE_SELECT_6R),
 
 ARIZONA_MIXER_CONTROLS("AIF1TX1", ARIZONA_AIF1TX1MIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("AIF1TX2", ARIZONA_AIF1TX2MIX_INPUT_1_SOURCE),
@@ -510,42 +510,42 @@ ARIZONA_MUX_ENUMS(ISRC3DEC2, ARIZONA_ISRC3DEC2MIX_INPUT_1_SOURCE);
 ARIZONA_MUX_ENUMS(ISRC3DEC3, ARIZONA_ISRC3DEC3MIX_INPUT_1_SOURCE);
 ARIZONA_MUX_ENUMS(ISRC3DEC4, ARIZONA_ISRC3DEC4MIX_INPUT_1_SOURCE);
 
-static const char * const wm5110_memory_mux_texts[] = {
+static const char * const florida_memory_mux_texts[] = {
 	"None",
 	"Shared Memory",
 };
 
-static const struct soc_enum wm5110_memory_enum =
-	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(wm5110_memory_mux_texts),
-			wm5110_memory_mux_texts);
+static const struct soc_enum florida_memory_enum =
+	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(florida_memory_mux_texts),
+			florida_memory_mux_texts);
 
-static const struct snd_kcontrol_new wm5110_memory_mux[] = {
-	SOC_DAPM_ENUM_VIRT("DSP2 Virtual Input", wm5110_memory_enum),
-	SOC_DAPM_ENUM_VIRT("DSP3 Virtual Input", wm5110_memory_enum),
+static const struct snd_kcontrol_new florida_memory_mux[] = {
+	SOC_DAPM_ENUM_VIRT("DSP2 Virtual Input", florida_memory_enum),
+	SOC_DAPM_ENUM_VIRT("DSP3 Virtual Input", florida_memory_enum),
 };
 
-static const char *wm5110_aec_loopback_texts[] = {
+static const char *florida_aec_loopback_texts[] = {
 	"HPOUT1L", "HPOUT1R", "HPOUT2L", "HPOUT2R", "HPOUT3L", "HPOUT3R",
 	"SPKOUTL", "SPKOUTR", "SPKDAT1L", "SPKDAT1R", "SPKDAT2L", "SPKDAT2R",
 };
 
-static const unsigned int wm5110_aec_loopback_values[] = {
+static const unsigned int florida_aec_loopback_values[] = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
 };
 
-static const struct soc_enum wm5110_aec_loopback =
+static const struct soc_enum florida_aec_loopback =
 	SOC_VALUE_ENUM_SINGLE(ARIZONA_DAC_AEC_CONTROL_1,
 			      ARIZONA_AEC_LOOPBACK_SRC_SHIFT, 0xf,
-			      ARRAY_SIZE(wm5110_aec_loopback_texts),
-			      wm5110_aec_loopback_texts,
-			      wm5110_aec_loopback_values);
+			      ARRAY_SIZE(florida_aec_loopback_texts),
+			      florida_aec_loopback_texts,
+			      florida_aec_loopback_values);
 
-static const struct snd_kcontrol_new wm5110_aec_loopback_mux =
-	SOC_DAPM_VALUE_ENUM("AEC Loopback", wm5110_aec_loopback);
+static const struct snd_kcontrol_new florida_aec_loopback_mux =
+	SOC_DAPM_VALUE_ENUM("AEC Loopback", florida_aec_loopback);
 
-static const struct snd_soc_dapm_widget wm5110_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget florida_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", ARIZONA_SYSTEM_CLOCK_1, ARIZONA_SYSCLK_ENA_SHIFT,
-		    0, wm5110_sysclk_ev, SND_SOC_DAPM_POST_PMU),
+		    0, florida_sysclk_ev, SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_SUPPLY("ASYNCCLK", ARIZONA_ASYNC_CLOCK_1,
 		    ARIZONA_ASYNC_CLK_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("OPCLK", ARIZONA_OUTPUT_SYSTEM_CLOCK,
@@ -725,7 +725,7 @@ SND_SOC_DAPM_PGA("ISRC3DEC4", ARIZONA_ISRC_3_CTRL_3,
 
 SND_SOC_DAPM_VALUE_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
 		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
-		       &wm5110_aec_loopback_mux),
+		       &florida_aec_loopback_mux),
 
 SND_SOC_DAPM_AIF_OUT("AIF1TX1", NULL, 0,
 		     ARIZONA_AIF1_TX_ENABLES, ARIZONA_AIF1TX1_ENA_SHIFT, 0),
@@ -951,9 +951,9 @@ ARIZONA_DSP_WIDGETS(DSP3, "DSP3"),
 ARIZONA_DSP_WIDGETS(DSP4, "DSP4"),
 
 SND_SOC_DAPM_VIRT_MUX("DSP2 Virtual Input", SND_SOC_NOPM, 0, 0,
-		      &wm5110_memory_mux[0]),
+		      &florida_memory_mux[0]),
 SND_SOC_DAPM_VIRT_MUX("DSP3 Virtual Input", SND_SOC_NOPM, 0, 0,
-		      &wm5110_memory_mux[1]),
+		      &florida_memory_mux[1]),
 
 ARIZONA_MUX_WIDGETS(ISRC1DEC1, "ISRC1DEC1"),
 ARIZONA_MUX_WIDGETS(ISRC1DEC2, "ISRC1DEC2"),
@@ -1105,7 +1105,7 @@ SND_SOC_DAPM_OUTPUT("SPKDAT2R"),
 	{ name, "DSP4.5", "DSP4" }, \
 	{ name, "DSP4.6", "DSP4" }
 
-static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
+static const struct snd_soc_dapm_route florida_dapm_routes[] = {
 	{ "AIF2 Capture", NULL, "DBVDD2" },
 	{ "AIF2 Playback", NULL, "DBVDD2" },
 
@@ -1375,158 +1375,158 @@ static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
 	{ "DRC2 Signal Activity", NULL, "DRC2R" },
 };
 
-static int wm5110_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
+static int florida_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 			  unsigned int Fref, unsigned int Fout)
 {
-	struct wm5110_priv *wm5110 = snd_soc_codec_get_drvdata(codec);
+	struct florida_priv *florida = snd_soc_codec_get_drvdata(codec);
 
 	switch (fll_id) {
-	case WM5110_FLL1:
-		return arizona_set_fll(&wm5110->fll[0], source, Fref, Fout);
-	case WM5110_FLL2:
-		return arizona_set_fll(&wm5110->fll[1], source, Fref, Fout);
-	case WM5110_FLL1_REFCLK:
-		return arizona_set_fll_refclk(&wm5110->fll[0], source, Fref,
+	case FLORIDA_FLL1:
+		return arizona_set_fll(&florida->fll[0], source, Fref, Fout);
+	case FLORIDA_FLL2:
+		return arizona_set_fll(&florida->fll[1], source, Fref, Fout);
+	case FLORIDA_FLL1_REFCLK:
+		return arizona_set_fll_refclk(&florida->fll[0], source, Fref,
 					      Fout);
-	case WM5110_FLL2_REFCLK:
-		return arizona_set_fll_refclk(&wm5110->fll[1], source, Fref,
+	case FLORIDA_FLL2_REFCLK:
+		return arizona_set_fll_refclk(&florida->fll[1], source, Fref,
 					      Fout);
 	default:
 		return -EINVAL;
 	}
 }
 
-#define WM5110_RATES SNDRV_PCM_RATE_8000_192000
+#define FLORIDA_RATES SNDRV_PCM_RATE_8000_192000
 
-#define WM5110_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
+#define FLORIDA_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_driver wm5110_dai[] = {
+static struct snd_soc_dai_driver florida_dai[] = {
 	{
-		.name = "wm5110-aif1",
+		.name = "florida-aif1",
 		.id = 1,
 		.base = ARIZONA_AIF1_BCLK_CTRL,
 		.playback = {
 			.stream_name = "AIF1 Playback",
 			.channels_min = 1,
 			.channels_max = 8,
-			.rates = WM5110_RATES,
-			.formats = WM5110_FORMATS,
+			.rates = FLORIDA_RATES,
+			.formats = FLORIDA_FORMATS,
 		},
 		.capture = {
 			 .stream_name = "AIF1 Capture",
 			 .channels_min = 1,
 			 .channels_max = 8,
-			 .rates = WM5110_RATES,
-			 .formats = WM5110_FORMATS,
+			 .rates = FLORIDA_RATES,
+			 .formats = FLORIDA_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
 		.symmetric_rates = 1,
 	},
 	{
-		.name = "wm5110-aif2",
+		.name = "florida-aif2",
 		.id = 2,
 		.base = ARIZONA_AIF2_BCLK_CTRL,
 		.playback = {
 			.stream_name = "AIF2 Playback",
 			.channels_min = 1,
 			.channels_max = 6,
-			.rates = WM5110_RATES,
-			.formats = WM5110_FORMATS,
+			.rates = FLORIDA_RATES,
+			.formats = FLORIDA_FORMATS,
 		},
 		.capture = {
 			 .stream_name = "AIF2 Capture",
 			 .channels_min = 1,
 			 .channels_max = 6,
-			 .rates = WM5110_RATES,
-			 .formats = WM5110_FORMATS,
+			 .rates = FLORIDA_RATES,
+			 .formats = FLORIDA_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
 		.symmetric_rates = 1,
 	},
 	{
-		.name = "wm5110-aif3",
+		.name = "florida-aif3",
 		.id = 3,
 		.base = ARIZONA_AIF3_BCLK_CTRL,
 		.playback = {
 			.stream_name = "AIF3 Playback",
 			.channels_min = 1,
 			.channels_max = 2,
-			.rates = WM5110_RATES,
-			.formats = WM5110_FORMATS,
+			.rates = FLORIDA_RATES,
+			.formats = FLORIDA_FORMATS,
 		},
 		.capture = {
 			 .stream_name = "AIF3 Capture",
 			 .channels_min = 1,
 			 .channels_max = 2,
-			 .rates = WM5110_RATES,
-			 .formats = WM5110_FORMATS,
+			 .rates = FLORIDA_RATES,
+			 .formats = FLORIDA_FORMATS,
 		 },
 		.ops = &arizona_dai_ops,
 		.symmetric_rates = 1,
 	},
 	{
-		.name = "wm5110-slim1",
+		.name = "florida-slim1",
 		.id = 4,
 		.playback = {
 			.stream_name = "Slim1 Playback",
 			.channels_min = 1,
 			.channels_max = 4,
-			.rates = WM5110_RATES,
-			.formats = WM5110_FORMATS,
+			.rates = FLORIDA_RATES,
+			.formats = FLORIDA_FORMATS,
 		},
 		.capture = {
 			 .stream_name = "Slim1 Capture",
 			 .channels_min = 1,
 			 .channels_max = 4,
-			 .rates = WM5110_RATES,
-			 .formats = WM5110_FORMATS,
+			 .rates = FLORIDA_RATES,
+			 .formats = FLORIDA_FORMATS,
 		 },
 		.ops = &arizona_simple_dai_ops,
 	},
 	{
-		.name = "wm5110-slim2",
+		.name = "florida-slim2",
 		.id = 5,
 		.playback = {
 			.stream_name = "Slim2 Playback",
 			.channels_min = 1,
 			.channels_max = 2,
-			.rates = WM5110_RATES,
-			.formats = WM5110_FORMATS,
+			.rates = FLORIDA_RATES,
+			.formats = FLORIDA_FORMATS,
 		},
 		.capture = {
 			 .stream_name = "Slim2 Capture",
 			 .channels_min = 1,
 			 .channels_max = 2,
-			 .rates = WM5110_RATES,
-			 .formats = WM5110_FORMATS,
+			 .rates = FLORIDA_RATES,
+			 .formats = FLORIDA_FORMATS,
 		 },
 		.ops = &arizona_simple_dai_ops,
 	},
 	{
-		.name = "wm5110-slim3",
+		.name = "florida-slim3",
 		.id = 6,
 		.playback = {
 			.stream_name = "Slim3 Playback",
 			.channels_min = 1,
 			.channels_max = 2,
-			.rates = WM5110_RATES,
-			.formats = WM5110_FORMATS,
+			.rates = FLORIDA_RATES,
+			.formats = FLORIDA_FORMATS,
 		},
 		.capture = {
 			 .stream_name = "Slim3 Capture",
 			 .channels_min = 1,
 			 .channels_max = 2,
-			 .rates = WM5110_RATES,
-			 .formats = WM5110_FORMATS,
+			 .rates = FLORIDA_RATES,
+			 .formats = FLORIDA_FORMATS,
 		 },
 		.ops = &arizona_simple_dai_ops,
 	},
 };
 
-static int wm5110_codec_probe(struct snd_soc_codec *codec)
+static int florida_codec_probe(struct snd_soc_codec *codec)
 {
-	struct wm5110_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct florida_priv *priv = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	codec->control_data = priv->core.arizona->regmap;
@@ -1550,18 +1550,18 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int wm5110_codec_remove(struct snd_soc_codec *codec)
+static int florida_codec_remove(struct snd_soc_codec *codec)
 {
-	struct wm5110_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct florida_priv *priv = snd_soc_codec_get_drvdata(codec);
 
 	priv->core.arizona->dapm = NULL;
 
 	return 0;
 }
 
-#define WM5110_DIG_VU 0x0200
+#define FLORIDA_DIG_VU 0x0200
 
-static unsigned int wm5110_digital_vu[] = {
+static unsigned int florida_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_1L,
 	ARIZONA_DAC_DIGITAL_VOLUME_1R,
 	ARIZONA_DAC_DIGITAL_VOLUME_2L,
@@ -1576,69 +1576,69 @@ static unsigned int wm5110_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_6R,
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_wm5110 = {
-	.probe = wm5110_codec_probe,
-	.remove = wm5110_codec_remove,
+static struct snd_soc_codec_driver soc_codec_dev_florida = {
+	.probe = florida_codec_probe,
+	.remove = florida_codec_remove,
 
 	.idle_bias_off = true,
 
 	.set_sysclk = arizona_set_sysclk,
-	.set_pll = wm5110_set_fll,
+	.set_pll = florida_set_fll,
 
-	.controls = wm5110_snd_controls,
-	.num_controls = ARRAY_SIZE(wm5110_snd_controls),
-	.dapm_widgets = wm5110_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm5110_dapm_widgets),
-	.dapm_routes = wm5110_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm5110_dapm_routes),
+	.controls = florida_snd_controls,
+	.num_controls = ARRAY_SIZE(florida_snd_controls),
+	.dapm_widgets = florida_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(florida_dapm_widgets),
+	.dapm_routes = florida_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(florida_dapm_routes),
 };
 
-static int __devinit wm5110_probe(struct platform_device *pdev)
+static int __devinit florida_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
-	struct wm5110_priv *wm5110;
+	struct florida_priv *florida;
 	int i, ret;
 
-	wm5110 = devm_kzalloc(&pdev->dev, sizeof(struct wm5110_priv),
+	florida = devm_kzalloc(&pdev->dev, sizeof(struct florida_priv),
 			      GFP_KERNEL);
-	if (wm5110 == NULL)
+	if (florida == NULL)
 		return -ENOMEM;
-	platform_set_drvdata(pdev, wm5110);
+	platform_set_drvdata(pdev, florida);
 
 	/* Set of_node to parent from the SPI device to allow DAPM to
 	 * locate regulator supplies */
 	pdev->dev.of_node = arizona->dev->of_node;
 
-	wm5110->core.arizona = arizona;
-	wm5110->core.num_inputs = 8;
+	florida->core.arizona = arizona;
+	florida->core.num_inputs = 8;
 
-	for (i = 0; i < WM5110_NUM_ADSP; i++) {
-		wm5110->core.adsp[i].part = "wm5110";
-		wm5110->core.adsp[i].num = i + 1;
-		wm5110->core.adsp[i].type = WMFW_ADSP2;
-		wm5110->core.adsp[i].dev = arizona->dev;
-		wm5110->core.adsp[i].regmap = arizona->regmap;
+	for (i = 0; i < FLORIDA_NUM_ADSP; i++) {
+		florida->core.adsp[i].part = "florida";
+		florida->core.adsp[i].num = i + 1;
+		florida->core.adsp[i].type = WMFW_ADSP2;
+		florida->core.adsp[i].dev = arizona->dev;
+		florida->core.adsp[i].regmap = arizona->regmap;
 
-		wm5110->core.adsp[i].base = ARIZONA_DSP1_CONTROL_1
+		florida->core.adsp[i].base = ARIZONA_DSP1_CONTROL_1
 			+ (0x100 * i);
-		wm5110->core.adsp[i].mem = wm5110_dsp_regions[i];
-		wm5110->core.adsp[i].num_mems
-			= ARRAY_SIZE(wm5110_dsp1_regions);
+		florida->core.adsp[i].mem = florida_dsp_regions[i];
+		florida->core.adsp[i].num_mems
+			= ARRAY_SIZE(florida_dsp1_regions);
 
-	        ret = wm_adsp2_init(&wm5110->core.adsp[i], false);
+	        ret = wm_adsp2_init(&florida->core.adsp[i], false);
 		if (ret != 0)
 			return ret;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(wm5110->fll); i++)
-		wm5110->fll[i].vco_mult = 3;
+	for (i = 0; i < ARRAY_SIZE(florida->fll); i++)
+		florida->fll[i].vco_mult = 3;
 
 	arizona_init_fll(arizona, 1, ARIZONA_FLL1_CONTROL_1 - 1,
 			 ARIZONA_IRQ_FLL1_LOCK, ARIZONA_IRQ_FLL1_CLOCK_OK,
-			 &wm5110->fll[0]);
+			 &florida->fll[0]);
 	arizona_init_fll(arizona, 2, ARIZONA_FLL2_CONTROL_1 - 1,
 			 ARIZONA_IRQ_FLL2_LOCK, ARIZONA_IRQ_FLL2_CLOCK_OK,
-			 &wm5110->fll[1]);
+			 &florida->fll[1]);
 
 	/* SR2 fixed at 8kHz, SR3 fixed at 16kHz */
 	regmap_update_bits(arizona->regmap, ARIZONA_SAMPLE_RATE_2,
@@ -1646,22 +1646,22 @@ static int __devinit wm5110_probe(struct platform_device *pdev)
 	regmap_update_bits(arizona->regmap, ARIZONA_SAMPLE_RATE_3,
 			   ARIZONA_SAMPLE_RATE_3_MASK, 0x12);
 
-	for (i = 0; i < ARRAY_SIZE(wm5110_dai); i++)
-		arizona_init_dai(&wm5110->core, i);
+	for (i = 0; i < ARRAY_SIZE(florida_dai); i++)
+		arizona_init_dai(&florida->core, i);
 
 	/* Latch volume update bits */
-	for (i = 0; i < ARRAY_SIZE(wm5110_digital_vu); i++)
-		regmap_update_bits(arizona->regmap, wm5110_digital_vu[i],
-				   WM5110_DIG_VU, WM5110_DIG_VU);
+	for (i = 0; i < ARRAY_SIZE(florida_digital_vu); i++)
+		regmap_update_bits(arizona->regmap, florida_digital_vu[i],
+				   FLORIDA_DIG_VU, FLORIDA_DIG_VU);
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
-	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm5110,
-				      wm5110_dai, ARRAY_SIZE(wm5110_dai));
+	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_florida,
+				      florida_dai, ARRAY_SIZE(florida_dai));
 }
 
-static int __devexit wm5110_remove(struct platform_device *pdev)
+static int __devexit florida_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -1669,18 +1669,18 @@ static int __devexit wm5110_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver wm5110_codec_driver = {
+static struct platform_driver florida_codec_driver = {
 	.driver = {
-		.name = "wm5110-codec",
+		.name = "florida-codec",
 		.owner = THIS_MODULE,
 	},
-	.probe = wm5110_probe,
-	.remove = __devexit_p(wm5110_remove),
+	.probe = florida_probe,
+	.remove = __devexit_p(florida_remove),
 };
 
-module_platform_driver(wm5110_codec_driver);
+module_platform_driver(florida_codec_driver);
 
-MODULE_DESCRIPTION("ASoC WM5110 driver");
+MODULE_DESCRIPTION("ASoC Florida driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:wm5110-codec");
+MODULE_ALIAS("platform:florida-codec");
