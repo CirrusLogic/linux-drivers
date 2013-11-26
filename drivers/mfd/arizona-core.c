@@ -367,6 +367,7 @@ static int arizona_runtime_resume(struct device *dev)
 
 	switch (arizona->type) {
 	case WM5110:
+	case WM8280:
 		if (arizona->rev == 3) {
 			ret = arizona_soft_reset(arizona);
 			if (ret != 0)
@@ -548,6 +549,7 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 
 const struct of_device_id arizona_of_match[] = {
 	{ .compatible = "wlf,wm5102", .data = (void *)WM5102 },
+	{ .compatible = "wlf,wm8280", .data = (void *)WM8280 },
 	{ .compatible = "wlf,wm5110", .data = (void *)WM5110 },
 	{ .compatible = "wlf,wm8997", .data = (void *)WM8997 },
 	{},
@@ -595,6 +597,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	const char *type_name = "Unknown";
 	unsigned int reg, val;
 	int (*apply_patch)(struct arizona *) = NULL;
+	char revision_char;
 	int ret, i;
 
 	dev_set_drvdata(arizona->dev, arizona);
@@ -614,6 +617,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	case WM5102:
 	case WM5110:
 	case WM8997:
+	case WM8280:
 		for (i = 0; i < ARRAY_SIZE(wm5102_core_supplies); i++)
 			arizona->core_supplies[i].supply
 				= wm5102_core_supplies[i];
@@ -753,20 +757,28 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		}
 		apply_patch = wm5102_patch;
 		arizona->rev &= 0x7;
+		revision_char = arizona->rev + 'A';
 		break;
 #endif
 #ifdef CONFIG_MFD_FLORIDA
 	case 0x5110:
 		switch (arizona->type) {
+		case WM8280:
+			type_name = "WM8280";
+			revision_char = arizona->rev + 61;
+			break;
+
 		case WM5110:
 			type_name = "WM5110";
+			revision_char = arizona->rev + 'A';
 			break;
 
 		default:
 			dev_err(arizona->dev, "Florida codec registered as %d\n",
 				arizona->type);
-			arizona->type = WM5110;
+			arizona->type = WM8280;
 			type_name = "Florida";
+			revision_char = arizona->rev + 61;
 			break;
 		}
 
@@ -782,6 +794,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 			arizona->type = WM8997;
 		}
 		apply_patch = wm8997_patch;
+		revision_char = arizona->rev + 'A';
 		break;
 #endif
 	default:
@@ -789,7 +802,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		goto err_reset;
 	}
 
-	dev_info(dev, "%s revision %c\n", type_name, arizona->rev + 'A');
+	dev_info(dev, "%s revision %c\n", type_name, revision_char);
 
 	if (apply_patch) {
 		ret = apply_patch(arizona);
@@ -969,6 +982,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		ret = mfd_add_devices(arizona->dev, -1, wm5102_devs,
 				      ARRAY_SIZE(wm5102_devs), NULL, 0);
 		break;
+	case WM8280:
 	case WM5110:
 		ret = mfd_add_devices(arizona->dev, -1, florida_devs,
 				      ARRAY_SIZE(florida_devs), NULL, 0);
