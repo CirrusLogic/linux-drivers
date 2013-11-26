@@ -231,7 +231,7 @@ static __devinit int arizona_micsupp_probe(struct platform_device *pdev)
 	}
 	micsupp->supply[0].dev_name = dev_name(arizona->dev);
 	micsupp->supply[1].dev_name = "wm5102-codec";
-	micsupp->supply[2].dev_name = "wm5110-codec";
+	micsupp->supply[2].dev_name = "florida-codec";
 	micsupp->supply[3].dev_name = "wm8997-codec";
 
 	if (arizona->pdata.micvdd)
