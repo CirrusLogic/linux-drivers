@@ -365,10 +365,16 @@ static int arizona_runtime_resume(struct device *dev)
 
 	regcache_cache_only(arizona->regmap, false);
 
-	if (arizona->rev == 3 && arizona->type == WM5110) {
-		ret = arizona_soft_reset(arizona);
-		if (ret != 0)
-			goto err;
+	switch (arizona->type) {
+	case WM5110:
+		if (arizona->rev == 3) {
+			ret = arizona_soft_reset(arizona);
+			if (ret != 0)
+				goto err;
+		}
+		break;
+	default:
+		break;
 	}
 
 	switch (arizona->type) {
@@ -566,12 +572,12 @@ static struct mfd_cell wm5102_devs[] = {
 	{ .name = "wm5102-codec" },
 };
 
-static struct mfd_cell wm5110_devs[] = {
+static struct mfd_cell florida_devs[] = {
 	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-extcon" },
 	{ .name = "arizona-gpio" },
 	{ .name = "arizona-pwm" },
-	{ .name = "wm5110-codec" },
+	{ .name = "florida-codec" },
 };
 
 static struct mfd_cell wm8997_devs[] = {
@@ -586,7 +592,7 @@ static struct mfd_cell wm8997_devs[] = {
 int __devinit arizona_dev_init(struct arizona *arizona)
 {
 	struct device *dev = arizona->dev;
-	const char *type_name;
+	const char *type_name = "Unknown";
 	unsigned int reg, val;
 	int (*apply_patch)(struct arizona *) = NULL;
 	int ret, i;
@@ -749,15 +755,22 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		arizona->rev &= 0x7;
 		break;
 #endif
-#ifdef CONFIG_MFD_WM5110
+#ifdef CONFIG_MFD_FLORIDA
 	case 0x5110:
-		type_name = "WM5110";
-		if (arizona->type != WM5110) {
-			dev_err(arizona->dev, "WM5110 registered as %d\n",
+		switch (arizona->type) {
+		case WM5110:
+			type_name = "WM5110";
+			break;
+
+		default:
+			dev_err(arizona->dev, "Florida codec registered as %d\n",
 				arizona->type);
 			arizona->type = WM5110;
+			type_name = "Florida";
+			break;
 		}
-		apply_patch = wm5110_patch;
+
+		apply_patch = florida_patch;
 		break;
 #endif
 #ifdef CONFIG_MFD_WM8997
@@ -957,8 +970,8 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 				      ARRAY_SIZE(wm5102_devs), NULL, 0);
 		break;
 	case WM5110:
-		ret = mfd_add_devices(arizona->dev, -1, wm5110_devs,
-				      ARRAY_SIZE(wm5110_devs), NULL, 0);
+		ret = mfd_add_devices(arizona->dev, -1, florida_devs,
+				      ARRAY_SIZE(florida_devs), NULL, 0);
 		break;
 	case WM8997:
 		ret = mfd_add_devices(arizona->dev, -1, wm8997_devs,
