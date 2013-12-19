@@ -69,7 +69,10 @@ struct wm_adsp {
 	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD }
 
 #define WM_ADSP2(wname, num) \
-{	.id = snd_soc_dapm_pga, .name = wname, .reg = SND_SOC_NOPM, \
+{	.id = snd_soc_dapm_dai_link, .name = wname " Preloader", \
+	.reg = SND_SOC_NOPM, .shift = num, .event = wm_adsp2_early_event, \
+	.event_flags = SND_SOC_DAPM_PRE_PMU }, \
+{	.id = snd_soc_dapm_out_drv, .name = wname, .reg = SND_SOC_NOPM, \
 	.shift = num, .event = wm_adsp2_event, \
 	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD }
 
@@ -78,6 +81,8 @@ extern const struct snd_kcontrol_new wm_adsp_fw_controls[];
 int wm_adsp2_init(struct wm_adsp *adsp, bool dvfs);
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
+int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
+			 struct snd_kcontrol *kcontrol, int event);
 int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 
