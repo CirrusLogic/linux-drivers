@@ -356,6 +356,9 @@ SOC_ENUM("ISRC2 FSH", arizona_isrc_fsh[1]),
 SOC_ENUM("ISRC3 FSH", arizona_isrc_fsh[2]),
 SOC_ENUM("ASRC RATE 1", arizona_asrc_rate1),
 
+SOC_ENUM("Sample Rate 2", arizona_sample_rate[0]),
+SOC_ENUM("Sample Rate 3", arizona_sample_rate[1]),
+
 ARIZONA_MIXER_CONTROLS("DSP1L", ARIZONA_DSP1LMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("DSP1R", ARIZONA_DSP1RMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("DSP2L", ARIZONA_DSP2LMIX_INPUT_1_SOURCE),
@@ -2099,12 +2102,6 @@ static int florida_probe(struct platform_device *pdev)
 	arizona_init_fll(arizona, 2, ARIZONA_FLL2_CONTROL_1 - 1,
 			 ARIZONA_IRQ_FLL2_LOCK, ARIZONA_IRQ_FLL2_CLOCK_OK,
 			 &florida->fll[1]);
-
-	/* SR2 fixed at 8kHz, SR3 fixed at 16kHz */
-	regmap_update_bits(arizona->regmap, ARIZONA_SAMPLE_RATE_2,
-			   ARIZONA_SAMPLE_RATE_2_MASK, 0x11);
-	regmap_update_bits(arizona->regmap, ARIZONA_SAMPLE_RATE_3,
-			   ARIZONA_SAMPLE_RATE_3_MASK, 0x12);
 
 	for (i = 0; i < ARRAY_SIZE(florida_dai); i++)
 		arizona_init_dai(&florida->core, i);
