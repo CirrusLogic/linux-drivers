@@ -953,6 +953,15 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		goto err_enable;
 	}
 
+	switch (arizona->type) {
+	case WM5110:
+	case WM8280:
+		msleep(5);
+		break;
+	default:
+		break;
+	}
+
 	if (arizona->pdata.control_init_time)
 		msleep(arizona->pdata.control_init_time);
 
