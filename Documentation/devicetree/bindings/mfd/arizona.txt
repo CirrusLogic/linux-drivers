@@ -109,6 +109,8 @@ Optional properties:
     specified. 0 indicates Differential, 1 indicates Single Ended and 2
     indicates a digital microphone.
 
+    wlf,wm5102t-output-pwr : Output power setting (WM5102T only)
+
 Example:
 
 codec: wm5102@1a {
