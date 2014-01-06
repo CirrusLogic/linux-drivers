@@ -575,6 +575,9 @@ static const struct reg_default wm5102_sysclk_revb_patch[] = {
 	{ 0x3083, 0x00ED },
 	{ 0x30C1, 0x08FE },
 	{ 0x30C3, 0x00ED },
+};
+
+static const struct reg_default wm5102t_sysclk_pwr[] = {
 	{ 0x3125, 0x0A03 },
 	{ 0x3127, 0x0A03 },
 	{ 0x3129, 0x0A03 },
@@ -587,7 +590,7 @@ static int wm5102_sysclk_ev(struct snd_soc_dapm_widget *w,
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 	struct regmap *regmap = arizona->regmap;
 	const struct reg_default *patch = NULL;
-	int i, patch_size;
+	int patch_size;
 
 	switch (arizona->rev) {
 	case 0:
@@ -603,9 +606,12 @@ static int wm5102_sysclk_ev(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		if (patch)
-			for (i = 0; i < patch_size; i++)
-				regmap_write_async(regmap, patch[i].reg,
-						   patch[i].def);
+			regmap_multi_reg_write_bypassed(regmap, patch, patch_size);
+
+		if (arizona->pdata.wm5102t_output_pwr)
+			regmap_multi_reg_write_bypassed(regmap,
+							wm5102t_sysclk_pwr,
+							ARRAY_SIZE(wm5102t_sysclk_pwr));
 		break;
 
 	default:
