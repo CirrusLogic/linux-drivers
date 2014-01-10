@@ -1892,7 +1892,7 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 			kfree(alg_region);
 		}
 
-		adsp_dbg(dsp, "Shutdown complete\n");
+		adsp_info(dsp, "Shutdown complete\n");
 		break;
 
 	default:
