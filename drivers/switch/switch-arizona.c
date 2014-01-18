@@ -1557,6 +1557,9 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 			info->mic = false;
 			info->jack_flips = 0;
 
+			if (arizona->pdata.init_mic_delay)
+				msleep(arizona->pdata.init_mic_delay);
+
 			if (arizona->pdata.custom_jd)
 				arizona_jds_set_state(info,
 						      arizona->pdata.custom_jd);

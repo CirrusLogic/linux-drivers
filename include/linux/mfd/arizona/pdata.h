@@ -209,6 +209,9 @@ struct arizona_pdata {
 	/** Declare an open circuit as a 4 pole jack */
 	bool micd_open_circuit_declare;
 
+	/** Delay between jack detection and MICBIAS ramp */
+	int init_mic_delay;
+
 	/** Mic detect level parameters */
 	const struct arizona_micd_range *micd_ranges;
 	int num_micd_ranges;
