@@ -236,7 +236,7 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 
 static const char *arizona_extcon_get_micbias(struct arizona_extcon_info *info)
 {
-	switch (info->micd_modes[0].bias >> ARIZONA_MICD_BIAS_SRC_SHIFT) {
+	switch (info->micd_modes[0].bias) {
 	case 1:
 		return "MICBIAS1";
 	case 2:
