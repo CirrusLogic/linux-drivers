@@ -164,6 +164,9 @@ struct arizona_pdata {
 	/** Force MICBIAS on for mic detect */
 	bool micd_force_micbias;
 
+	/** Declare an open circuit as a 4 pole jack */
+	bool micd_open_circuit_declare;
+
 	/** Mic detect level parameters */
 	const struct arizona_micd_range *micd_ranges;
 	int num_micd_ranges;
