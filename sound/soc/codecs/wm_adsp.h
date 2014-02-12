@@ -87,6 +87,7 @@ struct wm_adsp {
 	bool running;
 
 	struct regulator *dvfs;
+	struct mutex ctl_lock;
 
 	u32 host_buf_ptr;
 
