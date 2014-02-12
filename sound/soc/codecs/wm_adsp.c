@@ -1042,6 +1042,7 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 		region_name = "ZM";
 		break;
 	default:
+		kfree(name);
 		return -EINVAL;
 	}
 
@@ -1053,6 +1054,8 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 		if (!strcmp(ctl->name, name)) {
 			if (!ctl->enabled)
 				ctl->enabled = 1;
+
+			kfree(name);
 			return 0;
 		}
 	}
