@@ -850,7 +850,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 				if (!buf) {
 					adsp_err(dsp, "Out of memory\n");
 					ret = -ENOMEM;
-					goto out_fw;
+					goto out_buf;
 				}
 
 				ret = regmap_raw_write_async(regmap, reg,
@@ -862,7 +862,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 						file, regions,
 						to_write, offset,
 						region_name, ret);
-					goto out_fw;
+					goto out_buf;
 				}
 
 				data += to_write;
@@ -878,16 +878,16 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 	ret = regmap_async_complete(regmap);
 	if (ret != 0) {
 		adsp_err(dsp, "Failed to complete async write: %d\n", ret);
-		goto out_fw;
+		goto out_buf;
 	}
 
 	if (pos > firmware->size)
 		adsp_warn(dsp, "%s.%d: %zu bytes at end of file\n",
 			  file, regions, pos - firmware->size);
 
-out_fw:
-	regmap_async_complete(regmap);
+out_buf:
 	wm_adsp_buf_free(&buf_list);
+out_fw:
 	release_firmware(firmware);
 out:
 	kfree(file);
