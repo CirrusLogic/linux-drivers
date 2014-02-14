@@ -356,6 +356,9 @@ static void arizona_extcon_pulse_micbias(struct arizona_extcon_info *info)
 
 	snd_soc_dapm_sync(dapm);
 
+	if (arizona->pdata.micd_force_micbias_initial && info->detecting)
+		return;
+
 	if (!arizona->pdata.micd_force_micbias) {
 		mutex_lock(&dapm->card->mutex);
 
