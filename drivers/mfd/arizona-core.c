@@ -485,6 +485,8 @@ static int arizona_suspend(struct device *dev)
 	dev_dbg(arizona->dev, "Suspend, disabling IRQ\n");
 	disable_irq(arizona->irq);
 
+	arizona->irq_sem = 1;
+
 	return 0;
 }
 
@@ -493,7 +495,10 @@ static int arizona_resume(struct device *dev)
 	struct arizona *arizona = dev_get_drvdata(dev);
 
 	dev_dbg(arizona->dev, "Resume, reenabling IRQ\n");
-	enable_irq(arizona->irq);
+	if (arizona->irq_sem) {
+		enable_irq(arizona->irq);
+		arizona->irq_sem = 0;
+	}
 
 	return 0;
 }
