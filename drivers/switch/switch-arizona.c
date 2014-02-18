@@ -1000,10 +1000,16 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 
 	if (arizona->pdata.jd_gpio5) {
 		mask = ARIZONA_MICD_CLAMP_STS;
-		present = 0;
+		if (arizona->pdata.jd_invert)
+			present = ARIZONA_MICD_CLAMP_STS;
+		else
+			present = 0;
 	} else {
 		mask = ARIZONA_JD1_STS;
-		present = ARIZONA_JD1_STS;
+		if (arizona->pdata.jd_invert)
+			present = 0;
+		else
+			present = ARIZONA_JD1_STS;
 	}
 
 	ret = regmap_read(arizona->regmap, ARIZONA_AOD_IRQ_RAW_STATUS, &val);
@@ -1189,6 +1195,7 @@ static void arizona_probe_work(struct work_struct *work)
 	struct arizona *arizona = info->arizona;
 	struct arizona_pdata *pdata = &arizona->pdata;
 	unsigned int val;
+	unsigned int clamp_mode;
 	int jack_irq_fall, jack_irq_rise;
 	int ret, mode, i, j;
 
@@ -1349,14 +1356,20 @@ static void arizona_probe_work(struct work_struct *work)
 			regmap_write(arizona->regmap, ARIZONA_GPIO5_CTRL,
 				     val);
 
-			regmap_update_bits(arizona->regmap,
-					   ARIZONA_MICD_CLAMP_CONTROL,
-					   ARIZONA_MICD_CLAMP_MODE_MASK, 9);
+			if (arizona->pdata.jd_invert)
+				clamp_mode = 0xb;
+			else
+				clamp_mode = 0x9;
 		} else {
-			regmap_update_bits(arizona->regmap,
-					   ARIZONA_MICD_CLAMP_CONTROL,
-					   ARIZONA_MICD_CLAMP_MODE_MASK, 4);
+			if (arizona->pdata.jd_invert)
+				clamp_mode = 0x5;
+			else
+				clamp_mode = 0x4;
 		}
+
+		regmap_update_bits(arizona->regmap,
+				   ARIZONA_MICD_CLAMP_CONTROL,
+				   ARIZONA_MICD_CLAMP_MODE_MASK, clamp_mode);
 
 		regmap_update_bits(arizona->regmap,
 				   ARIZONA_JACK_DETECT_DEBOUNCE,
