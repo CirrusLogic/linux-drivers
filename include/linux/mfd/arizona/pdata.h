@@ -220,6 +220,9 @@ struct arizona_pdata {
 
 	/** wm5102t output power */
 	unsigned int wm5102t_output_pwr;
+
+	/** General purpose switch control */
+	int gpsw;
 };
 
 #endif
