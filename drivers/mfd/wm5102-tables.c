@@ -176,8 +176,6 @@ int wm5102_patch(struct arizona *arizona)
 		break;
 	}
 
-	regcache_cache_bypass(arizona->regmap, true);
-
 	ret = wm5102_apply_patch(arizona, wm5102_patch, patch_size);
 	if (ret != 0)
 		goto out;
@@ -190,7 +188,6 @@ int wm5102_patch(struct arizona *arizona)
 		dev_err(arizona->dev, "Invalid wm5102t output power\n");
 
 out:
-	regcache_cache_bypass(arizona->regmap, false);
 	return ret;
 }
 
