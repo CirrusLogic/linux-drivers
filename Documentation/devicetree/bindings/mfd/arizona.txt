@@ -43,6 +43,9 @@ Optional properties:
   - wlf,out-mono : Mono bit for each output, must contain six cells if
     specified. A non-zero value indicates the corresponding output is mono.
 
+  - wlf,fixed-hpdet-imp : Do not perform any headphone detection, just use
+    the fixed value specified here as the headphone impedance.
+
 Example:
 
 codec: wm5102@1a {
@@ -62,4 +65,6 @@ codec: wm5102@1a {
 		0xffffffff,
 		0xffffffff,
 	>;
+	wlf,fixed-hpdet-imp = <8>;
+
 };
