@@ -135,6 +135,9 @@ struct arizona_pdata {
 	/** set to true if jackdet contact opens on insert */
 	bool jd_invert;
 
+	/** If non-zero don't run headphone detection, report this value */
+	int fixed_hpdet_imp;
+
 	/** Use the headphone detect circuit to identify the accessory */
 	bool hpdet_acc_id;
 

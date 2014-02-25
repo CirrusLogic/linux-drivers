@@ -123,6 +123,9 @@ Optional subnodes:
   - micvdd : Initial data for the MICVDD regulator, as covered in
     Documentation/devicetree/bindings/regulator/regulator.txt
 
+  - wlf,fixed-hpdet-imp : Do not perform any headphone detection, just use
+    the fixed value specified here as the headphone impedance.
+
 Example:
 
 codec: wm5102@1a {
@@ -154,6 +157,7 @@ codec: wm5102@1a {
 		0x1 1 0
 		0x0 2 1
 	>;
+	wlf,fixed-hpdet-imp = <8>;
 
 	wlf,micbias2 = <2600 0 1 1 0>;
 	wlf,init-mic-delay = <10>;
