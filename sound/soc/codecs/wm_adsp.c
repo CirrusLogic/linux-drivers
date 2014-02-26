@@ -148,7 +148,7 @@
 #define ADSP2_RAM_RDY_SHIFT                    0
 #define ADSP2_RAM_RDY_WIDTH                    1
 
-#define WM_ADSP_NUM_FW 13
+#define WM_ADSP_NUM_FW 14
 
 #define WM_ADSP_FW_MBC_VSS        0
 #define WM_ADSP_FW_TX             1
@@ -163,6 +163,7 @@
 #define WM_ADSP_FW_EZ2FACETALK_RX 10
 #define WM_ADSP_FW_EZ2GROUPTALK_TX 11
 #define WM_ADSP_FW_EZ2GROUPTALK_RX 12
+#define WM_ADSP_FW_EZ2RECORD       13
 
 static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_MBC_VSS] =    "MBC/VSS",
@@ -178,6 +179,7 @@ static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_EZ2FACETALK_RX] = "Ez2FaceTalk Rx",
 	[WM_ADSP_FW_EZ2GROUPTALK_TX] = "Ez2GroupTalk Tx",
 	[WM_ADSP_FW_EZ2GROUPTALK_RX] = "Ez2GroupTalk Rx",
+	[WM_ADSP_FW_EZ2RECORD] = "Ez2Record",
 };
 
 static struct {
@@ -196,6 +198,7 @@ static struct {
 	[WM_ADSP_FW_EZ2FACETALK_RX] = { .file = "ez2facetalk-rx" },
 	[WM_ADSP_FW_EZ2GROUPTALK_TX] = { .file = "ez2grouptalk-tx" },
 	[WM_ADSP_FW_EZ2GROUPTALK_RX] = { .file = "ez2grouptalk-rx" },
+	[WM_ADSP_FW_EZ2RECORD] = { .file = "ez2record" },
 };
 
 struct wm_coeff_ctl_ops {
