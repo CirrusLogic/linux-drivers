@@ -148,7 +148,7 @@
 #define ADSP2_RAM_RDY_SHIFT                    0
 #define ADSP2_RAM_RDY_WIDTH                    1
 
-#define WM_ADSP_NUM_FW 6
+#define WM_ADSP_NUM_FW 9
 
 #define WM_ADSP_FW_MBC_VSS        0
 #define WM_ADSP_FW_TX             1
@@ -156,6 +156,9 @@
 #define WM_ADSP_FW_RX_ANC         3
 #define WM_ADSP_FW_EZ2LISTEN_SP   4
 #define WM_ADSP_FW_EZ2LISTEN_HP   5
+#define WM_ADSP_FW_EZ2HEAR_SP_TX  6
+#define WM_ADSP_FW_EZ2HEAR_HS_TX  7
+#define WM_ADSP_FW_EZ2HEAR_RX     8
 
 static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_MBC_VSS] =    "MBC/VSS",
@@ -164,6 +167,9 @@ static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_RX_ANC] =     "Rx ANC",
 	[WM_ADSP_FW_EZ2LISTEN_SP] = "Ez2Listen SP",
 	[WM_ADSP_FW_EZ2LISTEN_HP] = "Ez2Listen HP",
+	[WM_ADSP_FW_EZ2HEAR_SP_TX] = "Ez2HearSP Tx",
+	[WM_ADSP_FW_EZ2HEAR_HS_TX] = "Ez2HearHS Tx",
+	[WM_ADSP_FW_EZ2HEAR_RX] = "Ez2Hear Rx",
 };
 
 static struct {
@@ -175,6 +181,9 @@ static struct {
 	[WM_ADSP_FW_RX_ANC] =     { .file = "rx-anc" },
 	[WM_ADSP_FW_EZ2LISTEN_SP] = { .file = "ez2listen-sp" },
 	[WM_ADSP_FW_EZ2LISTEN_HP] = { .file = "ez2listen-hp" },
+        [WM_ADSP_FW_EZ2HEAR_SP_TX] = { .file = "ez2hear-sp-tx" },
+        [WM_ADSP_FW_EZ2HEAR_HS_TX] = { .file = "ez2hear-hs-tx" },
+        [WM_ADSP_FW_EZ2HEAR_RX] = { .file = "ez2hear-rx" },
 };
 
 struct wm_coeff_ctl_ops {
