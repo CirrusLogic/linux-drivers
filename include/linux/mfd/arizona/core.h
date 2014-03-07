@@ -184,4 +184,6 @@ extern int arizona_of_read_u32_array(struct arizona *arizona, const char *prop,
 extern int arizona_of_read_u32(struct arizona *arizona, const char* prop,
 			       bool mandatory, u32 *data);
 
+extern void arizona_florida_clear_input(struct arizona *arizona);
+
 #endif
