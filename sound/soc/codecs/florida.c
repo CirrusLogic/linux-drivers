@@ -1628,6 +1628,11 @@ static struct snd_soc_dai_driver florida_dai[] = {
 	},
 };
 
+static irqreturn_t adsp2_irq(int irq, void *data)
+{
+	return IRQ_HANDLED;
+}
+
 static int florida_open(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
@@ -1656,8 +1661,14 @@ static int florida_open(struct snd_compr_stream *stream)
 		goto out;
 	}
 
-	florida->compr_info.stream = stream;
+	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
+				  "ADSP2 interrupt 1", adsp2_irq, florida);
+	if (ret != 0) {
+		dev_err(arizona->dev, "Failed to request DSP IRQ: %d\n", ret);
+		goto out;
+	}
 
+	florida->compr_info.stream = stream;
 out:
 	mutex_unlock(&florida->compr_info.lock);
 
@@ -1668,8 +1679,11 @@ static int florida_free(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct florida_priv *florida = snd_soc_codec_get_drvdata(rtd->codec);
+	struct arizona *arizona = florida->core.arizona;
 
 	mutex_lock(&florida->compr_info.lock);
+
+	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, florida);
 
 	florida->compr_info.stream = NULL;
 
