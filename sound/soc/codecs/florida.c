@@ -1592,6 +1592,57 @@ static struct snd_soc_dai_driver florida_dai[] = {
 	},
 };
 
+static int florida_open(struct snd_compr_stream *stream)
+{
+	return 0;
+}
+
+static int florida_free(struct snd_compr_stream *stream)
+{
+	return 0;
+}
+
+static int florida_set_params(struct snd_compr_stream *stream,
+			     struct snd_compr_params *params)
+{
+	return 0;
+}
+
+static int florida_get_params(struct snd_compr_stream *stream,
+			     struct snd_codec *params)
+{
+	return 0;
+}
+
+static int florida_trigger(struct snd_compr_stream *stream, int cmd)
+{
+	return 0;
+}
+
+static int florida_pointer(struct snd_compr_stream *stream,
+			  struct snd_compr_tstamp *tstamp)
+{
+	return 0;
+}
+
+static int florida_copy(struct snd_compr_stream *stream, char __user *buf,
+		       size_t count)
+{
+	return 0;
+}
+
+static int florida_get_caps(struct snd_compr_stream *stream,
+			   struct snd_compr_caps *caps)
+{
+	return 0;
+}
+
+static int florida_get_codec_caps(struct snd_compr_stream *stream,
+				 struct snd_compr_codec_caps *codec)
+{
+	return 0;
+}
+
 static int florida_codec_probe(struct snd_soc_codec *codec)
 {
 	struct florida_priv *priv = snd_soc_codec_get_drvdata(codec);
@@ -1661,6 +1712,22 @@ static struct snd_soc_codec_driver soc_codec_dev_florida = {
 	.num_dapm_routes = ARRAY_SIZE(florida_dapm_routes),
 };
 
+static struct snd_compr_ops florida_compr_ops = {
+	.open = florida_open,
+	.free = florida_free,
+	.set_params = florida_set_params,
+	.get_params = florida_get_params,
+	.trigger = florida_trigger,
+	.pointer = florida_pointer,
+	.copy = florida_copy,
+	.get_caps = florida_get_caps,
+	.get_codec_caps = florida_get_codec_caps,
+};
+
+static struct snd_soc_platform_driver florida_compr_platform = {
+	.compr_ops = &florida_compr_ops,
+};
+
 static int __devinit florida_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
@@ -1719,8 +1786,25 @@ static int __devinit florida_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
-	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_florida,
-				      florida_dai, ARRAY_SIZE(florida_dai));
+	ret = snd_soc_register_platform(&pdev->dev, &florida_compr_platform);
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"Failed to register platform: %d\n",
+			ret);
+		goto error;
+	}
+
+	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_florida,
+				     florida_dai, ARRAY_SIZE(florida_dai));
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"Failed to register codec: %d\n",
+			ret);
+		snd_soc_unregister_platform(&pdev->dev);
+	}
+
+error:
+	return ret;
 }
 
 static int __devexit florida_remove(struct platform_device *pdev)
