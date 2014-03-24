@@ -67,8 +67,8 @@ Configure ASYNCCLK rate [note 5]                      Y       Y       Y      Y
 Configure analogue mic bias [note 1]                  Y       Y       Y      Y
 Configure mapping of headset button resistance
               to key event [note 1]                   Y       Y       Y      Y
-Support Ez2Control                                    -       N       N      N
-Support trace firmware                                -       N       N      N
+Support Ez2Control                                    -       N       Y      Y
+Support trace firmware                                -       N       Y      Y
 
 Notes:
 1. Integration-time configuration. Not possible to change at runtime
