@@ -1,78 +1,92 @@
 This document lists the features of the Wolfson 'Arizona' class audio hubs
-supported by the kernel drivers (WM8997, WM5102, WM8280, WM8281). Note that
-some features are covered by other classes of driver (extcon, regulator, etc.)
-and this list below shows the full set of features related to sound:
+supported by the kernel drivers (WM8997, WM5102, WM8280, WM8281).
+Note that some features are covered by other classes of driver (extcon,
+regulator, etc.) and this list below shows the full set of features related
+to sound:
 
 '-' means not relevant for that audio hub model
 
-
-Feature                                            WM8997  WM5102  WM8280  WM8281
----------------------------------------------------------------------------------
-24-bit samples                                        Y       Y       Y      Y
-192kHz sample rate                                    Y       Y       Y      Y
-Routing controlled via ALSA controls                  Y       Y       Y      Y
-Volume control on all mixer inputs                    Y       Y       Y      Y
-Volume control on all outputs                         Y       Y       Y      Y
-Mute control on all outputs                           Y       Y       Y      Y
-Output DRE control                                    -       Y       N      N
-Output OSR control                                    Y       Y       Y      Y
-Input ramp control                                    Y       Y       Y      Y
-Output ramp control                                   Y       Y       Y      Y
-Route any audio input to any mixer input              Y       Y       Y      Y
-Route internal signals to mixer inputs                Y       Y       Y      Y
-Route audio path through ISRC                         Y       Y       Y      Y
-Route audio path through ASRC                         -       Y       Y      Y
-Route audio path through EQs                          Y       Y       Y      Y
-Route audio path through low/high pass filters        Y       Y       Y      Y
-Route audio path through DRCs                         Y       Y       Y      Y
-Route audio path through ADSP cores                   -       Y       Y      Y
-Set EQ coefficient through ALSA controls              Y       Y       Y      Y
-Set low/high pass filter coeffs through ALSA controls Y       Y       Y      Y
-Set DRC coefficient through ALSA controls             Y       Y       Y      Y
-Noise Gates controlled via ALSA controls              Y       Y       Y      Y
-Configure inputs as analogue or digital mic [note 1]  Y       Y       Y      Y
+                                                                   WM8280
+Feature                                            WM8997  WM5102  WM8281
+-------------------------------------------------------------------------
+24-bit samples                                        Y       Y       Y
+192kHz sample rate                                    Y       Y       Y
+Routing controlled via ALSA controls                  Y       Y       Y
+Volume control on all mixer inputs                    Y       Y       Y
+Volume control on all outputs                         Y       Y       Y
+Mute control on all outputs                           Y       Y       Y
+Output DRE control                                    -       Y       Y
+Output OSR control                                    Y       Y       -
+Input ramp control                                    Y       Y       Y
+Output ramp control                                   Y       Y       Y
+Route any audio input to any mixer input              Y       Y       Y
+Route internal signals to mixer inputs                Y       Y       Y
+Route audio path through ISRC                         Y       Y       Y
+Route audio path through ASRC                         -       Y       Y
+Route audio path through EQs                          Y       Y       Y
+Route audio path through low/high pass filters        Y       Y       Y
+Route audio path through DRCs                         Y       Y       Y
+Route audio path through ADSP cores                   -       Y       Y
+Set EQ coefficient through ALSA controls              Y       Y       Y
+Set low/high pass filter coeffs through ALSA controls Y       Y       Y
+Set DRC coefficient through ALSA controls             Y       Y       Y
+Noise Gates controlled via ALSA controls              Y       Y       Y
+Configure inputs as analogue or digital mic [note 1]  Y       Y       Y
 Config analogue inputs as single-ended
-          or differential [note 1]                    Y       Y       Y      Y
-Host I2S routing to any AIF                           Y       Y       Y      Y
-I2S TDM (multi-channel) [note 2]                      Y       Y       Y      Y
-Configure TDM slot order                              N       N       N      N
-AEC loopback control                                  Y       Y       Y      Y
-Configure ADSP firmware for each ADSP core [note 3]   -       Y       Y      Y
-Runtime-configurable ADSP firmware selection [note 6] -       Y       Y      Y
-Auto-load ADSP firmware when ADSP is in audio path    -       Y       Y      Y
-Load algorithm tuning data with firmware              -       Y       Y      Y
-Control firmware coefficients via ALSA controls       -       Y       Y      Y
-Connect Noise Generator to any mixer input            Y       Y       Y      Y
-Connect Tone Generator 1/2 to any mixer input         Y       Y       Y      Y
-Configure sample-rate domain frequencies [note 4]     Y       Y       Y      Y
-Set ISRC sample rate domain                           Y       Y       Y      Y
-Set ASRC sample rate domain                           -       Y       Y      Y
-Auto sample-rate                                      N       N       N      N
-Speaker short-circuit protection                      -       N       N      N
-Use write sequencer                                   N       N       N      N
-Codec control over SPI                                -       Y       Y      Y
-Codec control over I2C                                Y       Y       Y      Y
-DAPM-based power up/down                              Y       Y       Y      Y
-Jack insert detection                                 Y       Y       Y      Y
-Headset mic detection                                 Y       Y       Y      Y
-Headset button detection                              Y       Y       Y      Y
-Headphone speaker impedance detection                 Y       Y       Y      Y
-Codec internal LDOVDD regulator control               Y       Y       Y      Y
-Support for external LDO regulator                    Y       Y       Y      Y
-Build as loadable module                              Y       Y       Y      Y
-Configure via pdata                                   Y       Y       Y      Y
-Configure via device tree                             N       N       N      N
-Configure SYSCLK rate [note 5]                        Y       Y       Y      Y
-Configure ASYNCCLK rate [note 5]                      Y       Y       Y      Y
-Configure analogue mic bias [note 1]                  Y       Y       Y      Y
+          or differential [note 1]                    Y       Y       Y
+Host I2S routing to any AIF                           Y       Y       Y
+I2S TDM (multi-channel) [note 2]                      Y       Y       Y
+Configure TDM active slots [note 2]                   N       N       N
+Configure TDM slot size [note 2]                      N       N       N
+AEC loopback control                                  Y       Y       Y
+ANC block control                                     -       -       Y
+Configure ADSP firmware for each ADSP core [note 3]   -       Y       Y
+Runtime-configurable ADSP firmware selection [note 6] -       Y       Y
+Auto-load ADSP firmware when ADSP is in audio path    -       Y       Y
+Load algorithm tuning data with firmware              -       Y       Y
+Control firmware coefficients via ALSA controls       -       Y       Y
+Connect Noise Generator to any mixer input            Y       Y       Y
+Connect Tone Generator 1/2 to any mixer input         Y       Y       Y
+Configure sample-rate domain frequencies [note 4]     Y       Y       Y
+Set ISRC sample rate domain                           Y       Y       Y
+Set ASRC sample rate domain                           -       Y       Y
+Auto sample-rate                                      N       N       N
+Speaker short-circuit protection reporting            -       N       N
+Use write sequencer                                   N       N       N
+Codec control over SPI                                -       Y       Y
+Codec control over I2C                                Y       Y       Y
+DAPM-based power up/down                              Y       Y       Y
+Jack insert detection                                 Y       Y       Y
+Headset mic detection                                 Y       Y       Y
+Headset button detection                              Y       Y       Y
+Headphone speaker impedance detection                 Y       Y       Y
+Codec internal LDOVDD regulator control               Y       Y       Y
+Support for external DCVDD regulator                  Y       Y       Y
+Build as loadable module                              Y       Y       Y
+Configure via pdata                                   Y       Y       Y
+Configure via device tree [note 7]                    Y       Y       Y
+Configure SYSCLK rate [note 5]                        Y       Y       Y
+Configure ASYNCCLK rate [note 5]                      Y       Y       Y
+Configure analogue mic bias [note 1]                  Y       Y       Y
 Configure mapping of headset button resistance
-              to key event [note 1]                   Y       Y       Y      Y
-Support Ez2Control                                    -       N       Y      Y
-Support trace firmware                                -       N       Y      Y
+              to key event [note 1]                   Y       Y       Y
+Configure firmware list [note 9]                      -       Y       Y
+Support Ez2Control                                    -       Y       Y
+Support trace firmware                                -       -       Y
+Support Ez2FaceTalk                                   -       -       Y
+Support Ez2GroupTalk                                  -       -       Y
+Support Ez2Hear                                       -       -       Y
+Support Ez2Listen                                     -       -       Y
+Support Ez2Record                                     -       -       Y
 
 Notes:
 1. Integration-time configuration. Not possible to change at runtime
-2. TDM is only possible if host I2S controller and driver support TDM
+2. TDM is only possible if host I2S controller and I2S driver support TDM
+    The set_tdm_slot() function is implemented to enable configuration of the
+    slot size and which slots the codec will use. Codec channels are mapped in
+    ascending order to the active slots - for example if the active TX slots in
+    the I2S frame are 0, 1, and 7 then they will be mapped
+    0->AIFTX1 1->AIFTX2 7->AIFTX3
 3. Currently limited to set of known firmwares
 4. Limited control of domain 2/3 frequency
 5. Configured in ASoC machine driver
@@ -80,3 +94,52 @@ Notes:
         it must be removed from an active path to power-down and the new
         firmware will be loaded when it is next powered-up as part of an
         active path
+7. Configuration from device tree is work-in-progress so there may be some
+        pdata settings that have not yet been migrated to device tree
+9. The list of firmwares selectable by the "DSPn Firmware" ALSA controls is
+        configurable via pdata or device tree
+
+
+How firmwares are loaded
+========================
+The driver exposes an ALSA control to set the firmware for each ADSP on the
+codec. These are named:
+
+    DSP1 Firmware
+    DSP2 Firmware
+    ... etc.
+
+The control is an enumeration of the available firmwares by function. It does
+not directly set the actual filename of the firmware to be loaded. The mapping
+between control values and actual firmware filename can be found in the file
+sound/soc/codecs/wm_adsp.c
+
+Setting this control tells the driver what firmware to load WHEN THE ADSP IS
+NEXT POWERED UP. Setting the control does not force the firmware to be loaded
+immediately, nor does it reboot the ADSP if it is currently running a different
+firmware.
+
+To load a firmware, or to reboot the ADSP with different firmware you must:
+    - Disconnect the ADSP from any active audio path so that it will be powered-down
+    - Set the firmware control to the firmware you want to load
+    - Connect the ADSP to an active audio path so it will be powered-up
+
+Firmware files can have an associated file called a "bin file". This has the
+same name as the firmware file, but with the extension .bin, and goes in the
+same directory as the firmware file. The bin file contains settings to be
+patched in the ADSP memory after the firmware has been loaded. When the driver
+loads a firmware it will look for a bin file and if found will apply the patches
+from that bin file.
+
+The purpose of the bin file is to allow tuning data to be applied to the firmware
+without the need to rebuild the firmware to include this data. For example,
+some audio algorithms must be tuned to the acoustic properties of the enclosure
+the microphones or speakers are in - it would be impractical to build a new
+firmware for each device with its unique parameters; instead the device is tuned
+and the tuning data is put into the bin file.
+
+The bin file is not intended for setting parameters that are runtime-modifiable,
+such as volume controls, since the bin file is a one-shot set of parameters
+that are patched when the firmware is loaded. Runtime modifiable controls should
+be exposed by the firmware as such and the driver will create ALSA controls for
+them.
