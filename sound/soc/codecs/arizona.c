@@ -713,6 +713,178 @@ const struct soc_enum arizona_in_dmic_osr[] = {
 };
 EXPORT_SYMBOL_GPL(arizona_in_dmic_osr);
 
+static const char *arizona_anc_input_src_text[] = {
+	"None", "IN1L", "IN1R", "IN1L + IN1R", "IN2L", "IN2R", "IN2L + IN2R",
+	"IN3L", "IN3R", "IN3L + IN3R", "IN4L", "IN4R", "IN4L + IN4R",
+};
+static const int arizona_anc_input_src_val[] = {
+	0x0000, 0x0101, 0x0102, 0x0103, 0x0201, 0x0202, 0x0203,
+	0x0301, 0x0302, 0x0303, 0x0401, 0x0402, 0x0403,
+};
+
+static int arizona_anc_reformatter_mask_shift(unsigned int reg,
+					      unsigned int *mask,
+					      unsigned int *shift)
+{
+	switch (reg) {
+	case ARIZONA_FCL_ADC_REFORMATTER_CONTROL:
+		*mask = ARIZONA_IN_RXANCL_SEL_MASK;
+		*shift = ARIZONA_IN_RXANCL_SEL_SHIFT;
+		return 0;
+	case ARIZONA_FCR_ADC_REFORMATTER_CONTROL:
+		*mask = ARIZONA_IN_RXANCR_SEL_MASK;
+		*shift = ARIZONA_IN_RXANCR_SEL_SHIFT;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+int arizona_get_anc_input(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int reg_val, sel, mask, shift;
+	int ret;
+
+	ret = arizona_anc_reformatter_mask_shift(e->reg, &mask, &shift);
+	if (ret)
+		return ret;
+
+	ret = snd_soc_component_read(dapm->component, e->reg, &reg_val);
+	if (ret)
+		return ret;
+
+	sel = ((reg_val >> e->shift_l) & 0xFF) << 8;
+
+	ret = snd_soc_component_read(dapm->component, ARIZONA_ANC_SRC,
+				     &reg_val);
+	if (ret)
+		return ret;
+
+	sel |= ((reg_val & mask) >> shift);
+
+	ucontrol->value.enumerated.item[0] = snd_soc_enum_val_to_item(e, sel);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_get_anc_input);
+
+int arizona_put_anc_input(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	int sel = ucontrol->value.enumerated.item[0];
+	unsigned int val, mask, shift;
+	bool changed;
+	int ret;
+
+	if (sel >= e->items)
+		return -EINVAL;
+
+	ret = arizona_anc_reformatter_mask_shift(e->reg, &mask, &shift);
+	if (ret)
+		return ret;
+
+	val = (e->values[sel] & 0xFF00) >> 8;
+	changed = snd_soc_component_test_bits(dapm->component, e->reg, 0xFF,
+					      val << e->shift_l);
+	if (changed) {
+		ret = snd_soc_component_write(dapm->component, e->reg,
+					val << e->shift_l);
+		if (ret)
+			return ret;
+	}
+
+	val = (e->values[sel] & 0xFF);
+	ret = snd_soc_component_update_bits(dapm->component, ARIZONA_ANC_SRC,
+					    mask, val << shift);
+	if (ret < 0)
+		return ret;
+
+	if (ret == 1)
+		changed = true;
+
+	if (changed)
+		return snd_soc_dapm_mux_update_power(dapm, kcontrol, sel,
+						     e, NULL);
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_put_anc_input);
+
+const struct soc_enum arizona_anc_input_src[] = {
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_FCL_ADC_REFORMATTER_CONTROL,
+			      ARIZONA_FCL_MIC_MODE_SEL_SHIFT, 0xFF,
+			      ARRAY_SIZE(arizona_anc_input_src_text),
+			      arizona_anc_input_src_text,
+			      arizona_anc_input_src_val),
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_FCR_ADC_REFORMATTER_CONTROL,
+			      ARIZONA_FCR_MIC_MODE_SEL_SHIFT, 0xFF,
+			      ARRAY_SIZE(arizona_anc_input_src_text),
+			      arizona_anc_input_src_text,
+			      arizona_anc_input_src_val),
+};
+EXPORT_SYMBOL_GPL(arizona_anc_input_src);
+
+static const char *arizona_output_anc_src_text[] = {
+	"None", "RXANCL", "RXANCR",
+};
+
+const struct soc_enum arizona_output_anc_src[] = {
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_1L,
+			ARIZONA_OUT1L_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_1R,
+			ARIZONA_OUT1R_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_2L,
+			ARIZONA_OUT2L_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_2R,
+			ARIZONA_OUT2R_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_3L,
+			ARIZONA_OUT3L_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_DAC_VOLUME_LIMIT_3R,
+			ARIZONA_OUT3R_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_4L,
+			ARIZONA_OUT4L_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_4R,
+			ARIZONA_OUT4R_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_5L,
+			ARIZONA_OUT5L_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_5R,
+			ARIZONA_OUT5R_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_6L,
+			ARIZONA_OUT6L_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_OUTPUT_PATH_CONFIG_6R,
+			ARIZONA_OUT6R_ANC_SRC_SHIFT,
+			ARRAY_SIZE(arizona_output_anc_src_text),
+			arizona_output_anc_src_text),
+};
+EXPORT_SYMBOL_GPL(arizona_output_anc_src);
+
 static void arizona_in_set_vu(struct snd_soc_codec *codec, int ena)
 {
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
@@ -1116,6 +1288,29 @@ int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 	return arizona_out_ev(w, kcontrol, event);
 }
 EXPORT_SYMBOL_GPL(arizona_hp_ev);
+
+int arizona_anc_ev(struct snd_soc_dapm_widget *w,
+		   struct snd_kcontrol *kcontrol,
+		   int event)
+{
+	unsigned int mask = 0x3 << w->shift;
+	unsigned int val;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		val = 1 << w->shift;
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		val = 1 << (w->shift + 1);
+	default:
+		return 0;
+	}
+
+	snd_soc_update_bits(w->codec, ARIZONA_CLOCK_CONTROL, mask, val);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_anc_ev);
 
 static unsigned int arizona_sysclk_48k_rates[] = {
 	6144000,
