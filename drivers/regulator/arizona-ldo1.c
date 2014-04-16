@@ -199,6 +199,15 @@ static const struct regulator_init_data arizona_ldo1_default = {
 	.num_consumer_supplies = 1,
 };
 
+static int arizona_ldo1_of_get_pdata(struct arizona *arizona)
+{
+	struct arizona_pdata *pdata = &arizona->pdata;
+
+	pdata->ldoena = arizona_of_get_named_gpio(arizona, "wlf,ldoena", true);
+
+	return 0;
+}
+
 static __devinit int arizona_ldo1_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
@@ -206,10 +215,20 @@ static __devinit int arizona_ldo1_probe(struct platform_device *pdev)
 	struct regulator_init_data *init_data;
 	int ret;
 
+	arizona->external_dcvdd = false;
+
 	ldo1 = devm_kzalloc(&pdev->dev, sizeof(*ldo1), GFP_KERNEL);
 	if (ldo1 == NULL) {
 		dev_err(&pdev->dev, "Unable to allocate private data\n");
 		return -ENOMEM;
+	}
+
+	if (IS_ENABLED(CONFIG_OF)) {
+		if (!dev_get_platdata(arizona->dev)) {
+			ret = arizona_ldo1_of_get_pdata(arizona);
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	if (arizona->pdata.ldoena) {
@@ -247,6 +266,13 @@ static __devinit int arizona_ldo1_probe(struct platform_device *pdev)
 		init_data = arizona->pdata.ldo1;
 	else
 		init_data = &ldo1->init_data;
+
+	/*
+	 * LDO1 can only be used to supply DCVDD so if it has no
+	 * consumers then DCVDD is supplied externally.
+	 */
+	if (init_data->num_consumer_supplies == 0)
+		arizona->external_dcvdd = true;
 
 	ldo1->regulator = regulator_register(&arizona_ldo1,
 					     arizona->dev, init_data,
