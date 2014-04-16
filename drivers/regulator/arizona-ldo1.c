@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
 
@@ -199,20 +200,61 @@ static const struct regulator_init_data arizona_ldo1_default = {
 	.num_consumer_supplies = 1,
 };
 
-static int arizona_ldo1_of_get_pdata(struct arizona *arizona)
+#ifdef CONFIG_OF
+static int arizona_ldo1_of_get_pdata(struct arizona *arizona,
+				     struct arizona_ldo1 *ldo1,
+				     struct device_node **of_node)
 {
 	struct arizona_pdata *pdata = &arizona->pdata;
+	struct device_node *init_node, *dcvdd_node;
+	struct regulator_init_data *init_data;
 
 	pdata->ldoena = arizona_of_get_named_gpio(arizona, "wlf,ldoena", true);
 
+	for_each_child_of_node(arizona->dev->of_node, init_node)
+		if (init_node->name &&
+		    (of_node_cmp(init_node->name, "ldo1") == 0))
+			break;
+
+	dcvdd_node = of_parse_phandle(arizona->dev->of_node, "DCVDD-supply", 0);
+
+	if (init_node) {
+		*of_node = init_node;
+
+		init_data = of_get_regulator_init_data(arizona->dev, init_node);
+
+		if (init_data) {
+			init_data->consumer_supplies = &ldo1->supply;
+			init_data->num_consumer_supplies = 1;
+
+			if (dcvdd_node && dcvdd_node != init_node)
+				arizona->external_dcvdd = true;
+
+			pdata->ldo1 = init_data;
+		}
+	} else if (dcvdd_node) {
+		arizona->external_dcvdd = true;
+	}
+
+	of_node_put(dcvdd_node);
+
 	return 0;
 }
+#else
+static int arizona_ldo1_of_get_pdata(struct arizona *arizona,
+				     struct arizona_ldo1 *ldo1,
+				     struct device_node **of_node)
+{
+	return 0;
+}
+#endif
 
 static __devinit int arizona_ldo1_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	struct arizona_ldo1 *ldo1;
 	struct regulator_init_data *init_data;
+	struct device_node *of_node = NULL;
 	int ret;
 
 	arizona->external_dcvdd = false;
@@ -225,7 +267,7 @@ static __devinit int arizona_ldo1_probe(struct platform_device *pdev)
 
 	if (IS_ENABLED(CONFIG_OF)) {
 		if (!dev_get_platdata(arizona->dev)) {
-			ret = arizona_ldo1_of_get_pdata(arizona);
+			ret = arizona_ldo1_of_get_pdata(arizona, ldo1, &of_node);
 			if (ret < 0)
 				return ret;
 		}
@@ -276,7 +318,7 @@ static __devinit int arizona_ldo1_probe(struct platform_device *pdev)
 
 	ldo1->regulator = regulator_register(&arizona_ldo1,
 					     arizona->dev, init_data,
-					     ldo1, NULL);
+					     ldo1, of_node);
 
 	if (IS_ERR(ldo1->regulator)) {
 		ret = PTR_ERR(ldo1->regulator);
@@ -284,6 +326,8 @@ static __devinit int arizona_ldo1_probe(struct platform_device *pdev)
 			ret);
 		return ret;
 	}
+
+	of_node_put(of_node);
 
 	platform_set_drvdata(pdev, ldo1);
 
