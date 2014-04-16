@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
 
@@ -193,12 +194,51 @@ static const struct regulator_init_data arizona_micsupp_ext_default = {
 	.num_consumer_supplies = 1,
 };
 
+#ifdef CONFIG_OF
+static int arizona_micsupp_of_get_pdata(struct arizona *arizona,
+					struct arizona_micsupp *micsupp,
+					struct device_node **of_node)
+{
+	struct arizona_pdata *pdata = &arizona->pdata;
+	struct device_node *np;
+	struct regulator_init_data *init_data;
+
+	for_each_child_of_node(arizona->dev->of_node, np)
+		if (np->name &&
+		    (of_node_cmp(np->name, "micvdd") == 0))
+			break;
+
+	if (np) {
+		*of_node = np;
+
+		init_data = of_get_regulator_init_data(arizona->dev, np);
+
+		if (init_data) {
+			init_data->consumer_supplies = &micsupp->supply;
+			init_data->num_consumer_supplies = 1;
+
+			pdata->micvdd = init_data;
+		}
+	}
+
+	return 0;
+}
+#else
+static int arizona_micsupp_of_get_pdata(struct arizona *arizona,
+					struct arizona_micsupp *micsupp,
+					struct device_node **of_node)
+{
+	return 0;
+}
+#endif
+
 static __devinit int arizona_micsupp_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_desc *desc;
 	struct arizona_micsupp *micsupp;
 	struct regulator_init_data *init_data;
+	struct device_node *of_node = NULL;
 	int ret, i;
 
 	micsupp = devm_kzalloc(&pdev->dev, sizeof(*micsupp), GFP_KERNEL);
@@ -236,6 +276,14 @@ static __devinit int arizona_micsupp_probe(struct platform_device *pdev)
 	micsupp->supply[2].dev_name = "florida-codec";
 	micsupp->supply[3].dev_name = "wm8997-codec";
 
+	if (IS_ENABLED(CONFIG_OF)) {
+		if (!dev_get_platdata(arizona->dev)) {
+			ret = arizona_micsupp_of_get_pdata(arizona, micsupp, &of_node);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
 	if (arizona->pdata.micvdd)
 		init_data = arizona->pdata.micvdd;
 	else
@@ -247,7 +295,7 @@ static __devinit int arizona_micsupp_probe(struct platform_device *pdev)
 
 	micsupp->regulator = regulator_register(desc,
 						arizona->dev, init_data,
-						micsupp, NULL);
+						micsupp, of_node);
 
 	if (IS_ERR(micsupp->regulator)) {
 		ret = PTR_ERR(micsupp->regulator);
@@ -255,6 +303,8 @@ static __devinit int arizona_micsupp_probe(struct platform_device *pdev)
 			ret);
 		return ret;
 	}
+
+	of_node_put(of_node);
 
 	platform_set_drvdata(pdev, micsupp);
 
