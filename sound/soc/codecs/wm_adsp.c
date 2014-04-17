@@ -1987,7 +1987,7 @@ int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 		break;
 	default:
 		break;
-	};
+	}
 
 	return 0;
 }
