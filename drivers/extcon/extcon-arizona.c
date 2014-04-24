@@ -1238,6 +1238,9 @@ static int arizona_extcon_get_pdata(struct arizona *arizona)
 	pdata->jd_gpio5_nopull = of_property_read_bool(arizona->dev->of_node,
 						       "wlf,jd-gpio-nopull");
 
+	pdata->jd_invert = of_property_read_bool(arizona->dev->of_node,
+						 "wlf,jd-invert");
+
 	arizona_of_read_u32(arizona, "wlf,gpsw", false, &pdata->gpsw);
 
 	arizona_of_read_u32(arizona, "wlf,init-mic-delay", false,
