@@ -307,7 +307,12 @@ static const struct wm_adsp_fw_caps trace_caps[] = {
 		.id = SND_AUDIOCODEC_PCM,
 		.desc = {
 			.max_ch = 8,
-			.sample_rates = SNDRV_PCM_RATE_8000_192000,
+			.sample_rates = {
+				4000,8000,11025,12000,16000,22050,
+				24000,32000,44100,48000,64000,88200,
+				96000,176400,192000
+			},
+			.num_sample_rates = 15,
 			.formats = SNDRV_PCM_FMTBIT_S16_LE,
 		},
 		.num_host_regions = ARRAY_SIZE(trace_regions),
