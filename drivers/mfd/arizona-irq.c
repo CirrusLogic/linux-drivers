@@ -276,6 +276,9 @@ int arizona_irq_init(struct arizona *arizona)
 	flags |= arizona->pdata.irq_flags;
 
         /* set up virtual IRQs */
+	if (!arizona->pdata.irq_base)
+		arizona->pdata.irq_base = -1;
+
 	irq_base = irq_alloc_descs(arizona->pdata.irq_base, 0,
 				   ARRAY_SIZE(arizona->virq), 0);
 	if (irq_base < 0) {
@@ -283,6 +286,8 @@ int arizona_irq_init(struct arizona *arizona)
 			 irq_base);
 		return irq_base;
 	}
+
+	arizona->pdata.irq_base = irq_base;
 
 	arizona->virq[0] = irq_base;
 	arizona->virq[1] = irq_base + 1;
