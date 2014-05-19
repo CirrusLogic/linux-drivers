@@ -921,14 +921,13 @@ static int arizona_update_input(struct arizona* arizona, bool enable)
 		return 0;
 	}
 
+	mutex_lock(&arizona->reg_setting_lock);
+	regmap_write(arizona->regmap, 0x80,  0x3);
+
 	if (enable) {
-		regmap_write(arizona->regmap, 0x80,  0x3);
 		regmap_write(arizona->regmap, 0x3A6, 0x5555);
 		regmap_write(arizona->regmap, 0x3A5, 0x3);
-		regmap_write(arizona->regmap, 0x80,  0x0);
 	} else {
-		regmap_write(arizona->regmap, 0x80,  0x3);
-
 		regmap_read(arizona->regmap, 0x3A5, &val);
 		if (val) {
 			msleep(10);
@@ -936,9 +935,10 @@ static int arizona_update_input(struct arizona* arizona, bool enable)
 			regmap_write(arizona->regmap, 0x3A6, 0x0);
 			msleep(5);
 		}
-
-		regmap_write(arizona->regmap, 0x80,  0x0);
 	}
+
+	regmap_write(arizona->regmap, 0x80,  0x0);
+	mutex_unlock(&arizona->reg_setting_lock);
 
 	return 0;
 }
