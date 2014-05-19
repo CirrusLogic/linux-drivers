@@ -146,6 +146,8 @@ struct arizona {
 
 	uint16_t dac_comp_coeff;
 	uint8_t dac_comp_enabled;
+
+	struct mutex reg_setting_lock;
 };
 
 int arizona_clk32k_enable(struct arizona *arizona);
