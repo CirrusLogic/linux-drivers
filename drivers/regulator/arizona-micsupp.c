@@ -139,9 +139,16 @@ static int arizona_micsupp_reg_set_voltage_sel(struct regulator_dev *rdev,
 				  ARIZONA_LDO2_VSEL_MASK, sel);
 }
 
-static int arizona_micsupp_enable_time(struct regulator_dev *dev)
+static int arizona_micsupp_enable_time(struct regulator_dev *rdev)
 {
-	return 3000;
+	struct arizona_micsupp *micsupp = rdev_get_drvdata(rdev);
+	switch (micsupp->arizona->type) {
+	case WM8280:
+	case WM5110:
+		return 3000;
+	default:
+		return 6000;
+	}
 }
 
 static struct regulator_ops arizona_micsupp_ops = {
