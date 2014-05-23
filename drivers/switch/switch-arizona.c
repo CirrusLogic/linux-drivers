@@ -590,6 +590,8 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		}
 	}
 
+	arizona->hp_impedance = val;
+
 	dev_dbg(arizona->dev, "HP impedance %d ohms\n", val);
 	return val;
 }
@@ -1122,6 +1124,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 		info->mic = false;
 		info->hpdet_done = false;
 		info->hpdet_retried = false;
+		arizona->hp_impedance = 0;
 
 		for (i = 0; i < info->num_micd_ranges; i++)
 			input_report_key(info->input,
