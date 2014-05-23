@@ -149,6 +149,11 @@ enum headset_state {
 	BIT_HEADSET_NO_MIC = (1 << 1),
 };
 
+static ssize_t arizona_extcon_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf);
+DEVICE_ATTR(hp_impedance, S_IRUGO, arizona_extcon_show, NULL);
+
 static void arizona_probe_work(struct work_struct *work);
 static void arizona_start_hpdet_acc_id(struct arizona_extcon_info *info);
 
@@ -1176,6 +1181,16 @@ static void arizona_micd_set_level(struct arizona *arizona, int index,
 	regmap_update_bits(arizona->regmap, reg, mask, level);
 }
 
+static ssize_t arizona_extcon_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct arizona_extcon_info *info = platform_get_drvdata(pdev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", info->arizona->hp_impedance);
+}
+
 static int arizona_extcon_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
@@ -1514,6 +1529,12 @@ static void arizona_probe_work(struct work_struct *work)
 		dev_err(info->dev, "Can't register input device: %d\n", ret);
 		goto err_hpdet;
 	}
+
+	ret = device_create_file(info->dev, &dev_attr_hp_impedance);
+	if (ret != 0)
+		dev_err(info->dev,
+			"Failed to create sysfs node for hp_impedance %d\n",
+			ret);
 
 	return;
 
