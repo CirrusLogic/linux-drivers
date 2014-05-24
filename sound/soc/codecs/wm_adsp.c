@@ -2052,9 +2052,9 @@ static int wm_adsp_of_parse_firmware(struct wm_adsp *adsp,
 		ret = of_property_read_string(fw, "wlf,wmfw-file",
 					      &adsp->firmwares[i].file);
 		if (ret < 0) {
-			dev_err(adsp->dev,
-				"Firmware filename missing/malformed: %d\n",
-				ret);
+			adsp_err(adsp,
+				 "Firmware filename missing/malformed: %d\n",
+				 ret);
 			return ret;
 		}
 
@@ -2088,9 +2088,9 @@ static int wm_adsp_of_parse_adsp(struct wm_adsp *adsp)
 	while ((core = of_get_next_child(np, core)) != NULL) {
 		ret = of_property_read_u32(core, "reg", &addr);
 		if (ret < 0) {
-			dev_err(adsp->dev,
-				"Failed to get ADSP base address: %d\n",
-				ret);
+			adsp_err(adsp,
+				 "Failed to get ADSP base address: %d\n",
+				 ret);
 			return ret;
 		}
 
