@@ -373,6 +373,8 @@ static struct {
 	{ 169, 11065, 65460395 },
 };
 
+#define ARIZONA_HPDET_B_RANGE_MAX 0x3fb
+
 static struct {
 	int min;
 	int max;
@@ -428,7 +430,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 
 		if (range < ARRAY_SIZE(arizona_hpdet_b_ranges) - 1 &&
 		    (val < arizona_hpdet_b_ranges[range].threshold ||
-		     val >= 0x3fb)) {
+		     val >= ARIZONA_HPDET_B_RANGE_MAX)) {
 			range++;
 			dev_dbg(arizona->dev,
 				"Moving to HPDET range %d (%x)\n",
@@ -443,7 +445,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 
 		/* If we go out of range report top of range */
 		if (val < arizona_hpdet_b_ranges[range].threshold ||
-		    val >= 0x3fb) {
+		    val >= ARIZONA_HPDET_B_RANGE_MAX) {
 			dev_dbg(arizona->dev, "Measurement out of range: %x\n",
 				val);
 			return ARIZONA_HPDET_MAX;
