@@ -448,8 +448,8 @@ SOC_ENUM("ISRC2 FSH", arizona_isrc_fsh[1]),
 SOC_ENUM("ISRC3 FSH", arizona_isrc_fsh[2]),
 SOC_ENUM("ASRC RATE 1", arizona_asrc_rate1),
 
-SOC_ENUM("Sample Rate 2", arizona_sample_rate[0]),
-SOC_ENUM("Sample Rate 3", arizona_sample_rate[1]),
+ARIZONA_SAMPLE_RATE_CONTROL("Sample Rate 2", 2),
+ARIZONA_SAMPLE_RATE_CONTROL("Sample Rate 3", 3),
 
 ARIZONA_MIXER_CONTROLS("DSP1L", ARIZONA_DSP1LMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("DSP1R", ARIZONA_DSP1RMIX_INPUT_1_SOURCE),
