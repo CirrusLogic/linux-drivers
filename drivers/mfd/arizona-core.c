@@ -610,6 +610,9 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 {
 	struct arizona_pdata *pdata = &arizona->pdata;
 	int ret, i;
+	u32 out_mono[ARRAY_SIZE(pdata->out_mono)];
+
+	memset(&out_mono, 0, sizeof(out_mono));
 
 	pdata->reset = arizona_of_get_named_gpio(arizona, "wlf,reset", true);
 
@@ -634,6 +637,11 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 		dev_err(arizona->dev, "Failed to parse GPIO defaults: %d\n",
 			ret);
 	}
+
+	arizona_of_read_u32_array(arizona, "wlf,out-mono", false,
+				  out_mono, ARRAY_SIZE(out_mono));
+	for (i = 0; i < ARRAY_SIZE(pdata->out_mono); ++i)
+		pdata->out_mono[i] = !!out_mono[i];
 
 	return 0;
 }
