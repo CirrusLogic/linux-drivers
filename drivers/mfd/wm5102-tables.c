@@ -492,6 +492,7 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000458, 0x000B },   /* R1112  - Noise Gate Control */ 
 	{ 0x00000490, 0x0069 },   /* R1168  - PDM SPK1 CTRL 1 */ 
 	{ 0x00000491, 0x0000 },   /* R1169  - PDM SPK1 CTRL 2 */ 
+	{ 0x000004dd, 0x0000 },   /* R1245  - DAC COMP 2 */ 
 	{ 0x00000500, 0x000C },   /* R1280  - AIF1 BCLK Ctrl */ 
 	{ 0x00000501, 0x0008 },   /* R1281  - AIF1 Tx Pin Ctrl */ 
 	{ 0x00000502, 0x0000 },   /* R1282  - AIF1 Rx Pin Ctrl */ 
