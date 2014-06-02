@@ -192,6 +192,9 @@ static struct irq_chip arizona_irq_chip = {
 	.name			= "arizona",
 	.irq_disable		= arizona_irq_dummy,
 	.irq_enable		= arizona_irq_dummy,
+	.irq_ack		= arizona_irq_dummy,
+	.irq_mask		= arizona_irq_dummy,
+	.irq_unmask		= arizona_irq_dummy,
 };
 
 int arizona_irq_init(struct arizona *arizona)
