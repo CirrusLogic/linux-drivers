@@ -144,11 +144,7 @@ static irqreturn_t arizona_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void arizona_irq_enable(struct irq_data *data)
-{
-}
-
-static void arizona_irq_disable(struct irq_data *data)
+static void arizona_irq_dummy(struct irq_data *data)
 {
 }
 
@@ -160,10 +156,13 @@ static int arizona_irq_set_wake(struct irq_data *data, unsigned int on)
 }
 
 static struct irq_chip arizona_irq_chip = {
-	.name			= "arizona",
-	.irq_disable		= arizona_irq_disable,
-	.irq_enable		= arizona_irq_enable,
-	.irq_set_wake		= arizona_irq_set_wake,
+	.name        	= "arizona",
+	.irq_disable	= arizona_irq_dummy,
+	.irq_enable 	= arizona_irq_dummy,
+	.irq_ack    	= arizona_irq_dummy,
+	.irq_mask   	= arizona_irq_dummy,
+	.irq_unmask 	= arizona_irq_dummy,
+	.irq_set_wake	= arizona_irq_set_wake,
 };
 
 static int arizona_irq_map(struct irq_domain *h, unsigned int virq,
