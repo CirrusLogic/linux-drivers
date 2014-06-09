@@ -100,12 +100,6 @@ static int arizona_ldo_reg_set_voltage_sel(struct regulator_dev *rdev,
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_update_bits(ldo1->arizona->regmap,
-				  ARIZONA_DYNAMIC_FREQUENCY_SCALING_1,
-				  ARIZONA_SUBSYS_MAX_FREQ, val);
-	if (ret < 0)
-		return ret;
-
 	if (val)
 		return 0;
 

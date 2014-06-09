@@ -87,8 +87,6 @@ struct wm_adsp {
 	bool running;
 	int fw_ver;
 
-	struct regulator *dvfs;
-
 	struct mutex ctl_lock;
 	struct list_head ctl_list;
 
@@ -115,17 +113,20 @@ struct wm_adsp {
 	.shift = num, .event = wm_adsp1_event, \
 	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD }
 
-#define WM_ADSP2(wname, num) \
+#define WM_ADSP2_E(wname, num, event_fn) \
 {	.id = snd_soc_dapm_pga, .name = wname " Preloader", \
-	.reg = SND_SOC_NOPM, .shift = num, .event = wm_adsp2_early_event, \
-	.event_flags = SND_SOC_DAPM_PRE_PMU }, \
-{	.id = snd_soc_dapm_out_drv, .name = wname, .reg = SND_SOC_NOPM, \
-	.shift = num, .event = wm_adsp2_event, \
+	.reg = SND_SOC_NOPM, .shift = num, .event = event_fn, \
+	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD }, \
+{	.id = snd_soc_dapm_out_drv, .name = wname, \
+	.reg = SND_SOC_NOPM, .shift = num, .event = wm_adsp2_event, \
 	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD }
+
+#define WM_ADSP2(wname, num) \
+	WM_ADSP2_E(wname, num, wm_adsp2_early_event)
 
 extern const struct snd_kcontrol_new wm_adsp_fw_controls[];
 
-int wm_adsp2_init(struct wm_adsp *adsp, bool dvfs, struct mutex *fw_lock);
+int wm_adsp2_init(struct wm_adsp *adsp, struct mutex *fw_lock);
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
