@@ -1728,7 +1728,7 @@ static int arizona_hw_params_rate(struct snd_pcm_substream *substream,
 	struct arizona *arizona = priv->arizona;
 	struct arizona_dai_priv *dai_priv = &priv->dai[dai->id - 1];
 	int base = dai->driver->base;
-	int i, sr_val;
+	int i, sr_val, ret;
 
 	/*
 	 * We will need to be more flexible than this in future,
@@ -1757,6 +1757,27 @@ static int arizona_hw_params_rate(struct snd_pcm_substream *substream,
 			mutex_unlock(&arizona->reg_setting_lock);
 		}
 		break;
+
+	default:
+		break;
+	}
+
+	switch (priv->arizona->type) {
+	case WM5102:
+	case WM8997:
+		if (arizona_sr_vals[sr_val] >= 88200)
+			ret = arizona_dvfs_up(priv->arizona,
+					      ARIZONA_DVFS_SR1_RQ);
+		else
+			ret = arizona_dvfs_down(priv->arizona,
+						ARIZONA_DVFS_SR1_RQ);
+
+		if (ret != 0) {
+			arizona_aif_err(dai, "Failed to change DVFS %d\n", ret);
+			return ret;
+		}
+		break;
+
 	default:
 		break;
 	}
