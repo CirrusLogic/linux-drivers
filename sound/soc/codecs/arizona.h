@@ -273,6 +273,9 @@ extern int arizona_init_dai(struct arizona_priv *priv, int dai);
 int arizona_set_output_mode(struct snd_soc_codec *codec, int output,
 			    bool diff);
 
+extern int arizona_set_hpdet_cb(struct snd_soc_codec *codec,
+				void (*hpdet_cb)(unsigned int measurement,
+						 bool mic));
 extern int arizona_set_ez2ctrl_cb(struct snd_soc_codec *codec,
 				  void (*ez2ctrl_trigger)(void));
 extern int arizona_set_custom_jd(struct snd_soc_codec *codec,
