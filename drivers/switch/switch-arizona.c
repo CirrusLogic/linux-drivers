@@ -29,6 +29,7 @@
 #include <linux/delay.h>
 #include <linux/regmap.h>
 #include <linux/switch-arizona.h>
+#include <linux/wakelock.h>
 
 #include <sound/soc.h>
 
@@ -99,6 +100,8 @@ struct arizona_extcon_info {
 
 	const struct arizona_jd_state *state;
 	struct delayed_work state_timeout_work;
+
+	struct wake_lock detection_wake_lock;
 };
 
 static const struct arizona_micd_config micd_default_modes[] = {
@@ -1439,6 +1442,10 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 					   ARIZONA_OUTPUT_ENABLES_1,
 					   info->spk_clamp, 0);
 
+		if (arizona->pdata.jd_wake_time)
+			wake_lock_timeout(&info->detection_wake_lock,
+				msecs_to_jiffies(arizona->pdata.jd_wake_time));
+
 		if (!arizona->pdata.hpdet_acc_id) {
 			info->mic = false;
 			info->jack_flips = 0;
@@ -1571,6 +1578,8 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&info->lock);
+	wake_lock_init(&info->detection_wake_lock, WAKE_LOCK_SUSPEND,
+		       "arizona-jack-detection");
 	info->arizona = arizona;
 	info->dev = &pdev->dev;
 	info->last_jackdet = ~(ARIZONA_MICD_CLAMP_STS | ARIZONA_JD1_STS);
@@ -1637,7 +1646,7 @@ static void arizona_probe_work(struct work_struct *work)
 	if (ret < 0) {
 		dev_err(arizona->dev, "extcon_dev_register() failed: %d\n",
 			ret);
-		return;
+		goto err_wakelock;
 	}
 
 	if (pdata->num_micd_configs) {
@@ -1910,6 +1919,8 @@ err_input:
 err_register:
 	pm_runtime_disable(info->dev);
 	switch_dev_unregister(&info->sdev);
+err_wakelock:
+	wake_lock_destroy(&info->detection_wake_lock);
 }
 
 static int arizona_extcon_remove(struct platform_device *pdev)
@@ -1942,7 +1953,9 @@ static int arizona_extcon_remove(struct platform_device *pdev)
 	regmap_update_bits(arizona->regmap, ARIZONA_JACK_DETECT_ANALOGUE,
 			   ARIZONA_JD1_ENA, 0);
 	arizona_clk32k_disable(arizona);
+
 	switch_dev_unregister(&info->sdev);
+	wake_lock_destroy(&info->detection_wake_lock);
 
 	return 0;
 }

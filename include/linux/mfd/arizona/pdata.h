@@ -129,6 +129,9 @@ struct arizona_pdata {
 	/** Pin state for GPIO pins */
 	int gpio_defaults[ARIZONA_MAX_GPIO];
 
+	/** Time in milliseconds to keep wake lock during jack detection */
+	int jd_wake_time;
+
 	/** GPIO5 is used for jack detection */
 	bool jd_gpio5;
 
