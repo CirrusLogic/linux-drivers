@@ -38,6 +38,7 @@
 struct wm5110_priv {
 	struct arizona_priv core;
 	struct arizona_fll fll[2];
+	struct mutex fw_lock;
 };
 
 static const struct wm_adsp_region wm5110_dsp1_regions[] = {
@@ -1674,6 +1675,7 @@ static int wm5110_probe(struct platform_device *pdev)
 	if (wm5110 == NULL)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm5110);
+	mutex_init(&wm5110->fw_lock);
 
 	wm5110->core.arizona = arizona;
 	wm5110->core.num_inputs = 8;
@@ -1691,7 +1693,8 @@ static int wm5110_probe(struct platform_device *pdev)
 		wm5110->core.adsp[i].num_mems
 			= ARRAY_SIZE(wm5110_dsp1_regions);
 
-		ret = wm_adsp2_init(&wm5110->core.adsp[i], false);
+		ret = wm_adsp2_init(&wm5110->core.adsp[i], false,
+				    &wm5110->fw_lock);
 		if (ret != 0)
 			return ret;
 	}
