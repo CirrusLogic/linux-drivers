@@ -152,7 +152,7 @@
 /* Must remain a power of two */
 #define WM_ADSP_CAPTURE_BUFFER_SIZE      1048576
 
-#define WM_ADSP_NUM_FW 17
+#define WM_ADSP_NUM_FW 18
 
 #define WM_ADSP_FW_MBC_VSS        0
 #define WM_ADSP_FW_TX             1
@@ -171,6 +171,7 @@
 #define WM_ADSP_FW_EZ2CONTROL     14
 #define WM_ADSP_FW_TRACE          15
 #define WM_ADSP_FW_EDAC           16
+#define WM_ADSP_FW_ASR_ASSIST     17
 
 static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_MBC_VSS] =    "MBC/VSS",
@@ -190,6 +191,7 @@ static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_EZ2CONTROL] = "Ez2Control",
 	[WM_ADSP_FW_TRACE] =      "Trace",
 	[WM_ADSP_FW_EDAC] =       "EDAC",
+	[WM_ADSP_FW_ASR_ASSIST] = "ASR Assist",
 };
 
 struct wm_adsp_system_config_xm_hdr {
@@ -351,6 +353,7 @@ static struct wm_adsp_fw_defs wm_adsp_fw[WM_ADSP_NUM_FW] = {
 		.caps = trace_caps,
 	},
 	[WM_ADSP_FW_EDAC] =     { .file = "edac" },
+	[WM_ADSP_FW_ASR_ASSIST] =     { .file = "asr-assist" },
 };
 
 struct wm_coeff_ctl_ops {
