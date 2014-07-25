@@ -2239,6 +2239,7 @@ EXPORT_SYMBOL_GPL(arizona_dev_init);
 int arizona_dev_exit(struct arizona *arizona)
 {
 	pm_runtime_disable(arizona->dev);
+	disable_irq(arizona->irq);
 
 	regulator_disable(arizona->dcvdd);
 	regulator_unregister_notifier(arizona->dcvdd, &arizona->dcvdd_notifier);
