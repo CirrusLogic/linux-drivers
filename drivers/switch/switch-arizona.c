@@ -285,7 +285,7 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 	}
 
 	/* Restore the desired state while not doing the magic */
-	if (!clamp && arizona->hp_impedance > ARIZONA_HP_SHORT_IMPEDANCE) {
+	if (!clamp && (arizona->hp_impedance > arizona->pdata.hpdet_short_circuit_imp)) {
 		ret = regmap_update_bits(arizona->regmap,
 					 ARIZONA_OUTPUT_ENABLES_1,
 					 ARIZONA_OUT1L_ENA |
@@ -753,7 +753,7 @@ int arizona_wm1814_tune_headphone(struct arizona_extcon_info *info,
 	const struct reg_default *patch;
 	int i, ret, size;
 
-	if (reading <= ARIZONA_HP_SHORT_IMPEDANCE) {
+	if (reading <= arizona->pdata.hpdet_short_circuit_imp) {
 		/* Headphones are always off here so just mark them */
 		dev_warn(arizona->dev, "Possible HP short, disabling\n");
 		return 0;
