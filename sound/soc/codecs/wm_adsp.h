@@ -105,6 +105,7 @@ struct wm_adsp {
 	int num_firmwares;
 	struct wm_adsp_fw_defs *firmwares;
 
+	struct mutex *fw_lock;
 	struct work_struct boot_work;
 };
 
@@ -123,7 +124,7 @@ struct wm_adsp {
 
 extern const struct snd_kcontrol_new wm_adsp_fw_controls[];
 
-int wm_adsp2_init(struct wm_adsp *adsp, bool dvfs);
+int wm_adsp2_init(struct wm_adsp *adsp, bool dvfs, struct mutex *fw_lock);
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
