@@ -8,6 +8,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/kernel.h>
+
 #ifndef _ARIZONA_PDATA_H
 #define _ARIZONA_PDATA_H
 
@@ -75,6 +77,9 @@
 #define ARIZONA_MAX_PDM_SPK 2
 
 #define ARIZONA_MAX_AIF 3
+
+/* Treat INT_MAX impedance as open circuit */
+#define ARIZONA_HP_Z_OPEN INT_MAX
 
 struct regulator_init_data;
 
