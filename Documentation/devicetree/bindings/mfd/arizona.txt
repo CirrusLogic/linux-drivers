@@ -61,12 +61,12 @@ codec: wm5102@1a {
 	gpio-controller;
 	#gpio-cells = <2>;
 
-	gpio-defaults = <
-		0x00000000, /* AIF1TXLRCLK */
-		0xffffffff,
-		0xffffffff,
-		0xffffffff,
-		0xffffffff,
+	wlf,gpio-defaults = <
+		0x00000000 /* AIF1TXLRCLK */
+		0xffffffff
+		0xffffffff
+		0xffffffff
+		0xffffffff
 	>;
 	wlf,fixed-hpdet-imp = <8>;
 
