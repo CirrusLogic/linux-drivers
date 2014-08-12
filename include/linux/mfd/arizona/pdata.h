@@ -83,6 +83,8 @@
 
 struct regulator_init_data;
 
+struct arizona_jd_state;
+
 struct arizona_micbias {
 	int mV;                    /** Regulated voltage */
 	unsigned int ext_cap:1;    /** External capacitor fitted */
@@ -234,6 +236,9 @@ struct arizona_pdata {
 
 	/** Callback which is called when the trigger phrase is detected */
 	void (*ez2ctrl_trigger)(void);
+
+	/** Override the normal jack detection */
+	const struct arizona_jd_state *custom_jd;
 };
 
 #endif
