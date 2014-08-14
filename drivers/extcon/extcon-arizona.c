@@ -1205,7 +1205,7 @@ static void arizona_micd_set_level(struct arizona *arizona, int index,
 }
 
 #ifdef CONFIG_OF
-static int arizona_extcon_get_pdata(struct arizona *arizona)
+static int arizona_extcon_of_get_pdata(struct arizona *arizona)
 {
 	struct arizona_pdata *pdata = &arizona->pdata;
 
@@ -1255,7 +1255,7 @@ static int arizona_extcon_get_pdata(struct arizona *arizona)
 	return 0;
 }
 #else
-static inline int arizona_extcon_get_pdata(struct arizona *arizona)
+static inline int arizona_extcon_of_get_pdata(struct arizona *arizona)
 {
 	return 0;
 }
@@ -1284,11 +1284,17 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	if (!arizona->dapm || !arizona->dapm->card)
 		return -EPROBE_DEFER;
 
-	arizona_extcon_get_pdata(arizona);
-
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
+
+	if (IS_ENABLED(CONFIG_OF)) {
+		if (!dev_get_platdata(arizona->dev)) {
+			ret = arizona_extcon_of_get_pdata(arizona);
+			if (ret < 0)
+				return ret;
+		}
+	}
 
 	/* Set of_node to parent from the SPI device to allow
 	 * location regulator supplies */
@@ -1620,6 +1626,8 @@ err_rise:
 err_input:
 err_register:
 	pm_runtime_disable(&pdev->dev);
+	extcon_dev_unregister(&info->edev);
+
 	return ret;
 }
 
