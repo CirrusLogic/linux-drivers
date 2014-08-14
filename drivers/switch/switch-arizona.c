@@ -1574,12 +1574,11 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	struct arizona_extcon_info *info;
+	int ret;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		dev_err(&pdev->dev, "Failed to allocate memory\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	/* Set of_node to parent from the SPI device to allow
 	 * location regulator supplies */
@@ -1587,9 +1586,9 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 
 	info->micvdd = devm_regulator_get(&pdev->dev, "MICVDD");
 	if (IS_ERR(info->micvdd)) {
-		dev_err(arizona->dev, "Failed to get MICVDD: %ld\n",
-			PTR_ERR(info->micvdd));
-		return PTR_ERR(info->micvdd);
+		ret = PTR_ERR(info->micvdd);
+		dev_err(arizona->dev, "Failed to get MICVDD: %d\n", ret);
+		return ret;
 	}
 
 	mutex_init(&info->lock);
