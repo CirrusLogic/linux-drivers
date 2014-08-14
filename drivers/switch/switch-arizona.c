@@ -1581,7 +1581,11 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	info->micvdd = devm_regulator_get(arizona->dev, "MICVDD");
+	/* Set of_node to parent from the SPI device to allow
+	 * location regulator supplies */
+	pdev->dev.of_node = arizona->dev->of_node;
+
+	info->micvdd = devm_regulator_get(&pdev->dev, "MICVDD");
 	if (IS_ERR(info->micvdd)) {
 		dev_err(arizona->dev, "Failed to get MICVDD: %ld\n",
 			PTR_ERR(info->micvdd));
