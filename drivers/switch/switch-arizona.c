@@ -987,8 +987,6 @@ EXPORT_SYMBOL_GPL(arizona_micd_button_reading);
 
 int arizona_micd_mic_start(struct arizona_extcon_info *info)
 {
-	struct arizona *arizona = info->arizona;
-
 	info->detecting = true;
 
 	return arizona_micd_start(info);
@@ -997,8 +995,6 @@ EXPORT_SYMBOL_GPL(arizona_micd_mic_start);
 
 void arizona_micd_mic_stop(struct arizona_extcon_info *info)
 {
-	struct arizona *arizona = info->arizona;
-
 	arizona_micd_stop(info);
 
 	info->detecting = false;
