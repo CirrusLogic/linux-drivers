@@ -251,6 +251,9 @@ struct arizona_pdata {
 
 	/** Override the normal jack detection */
 	const struct arizona_jd_state *custom_jd;
+
+	/** Some platforms add a series resistor for hpdet to suppress pops */
+	int hpdet_ext_res;
 };
 
 #endif
