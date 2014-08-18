@@ -60,6 +60,8 @@
 #define HP_NORMAL_IMPEDANCE     0
 #define HP_LOW_IMPEDANCE        1
 
+#define HP_LOW_IMPEDANCE_LIMIT 13
+
 struct arizona_extcon_info {
 	struct device *dev;
 	struct arizona *arizona;
@@ -685,11 +687,11 @@ int arizona_wm5110_tune_headphone(struct arizona_extcon_info *info,
 	const struct reg_default *patch;
 	int i, ret, size;
 
-	if (reading <= ARIZONA_HP_SHORT_IMPEDANCE) {
+	if (reading <= arizona->pdata.hpdet_short_circuit_imp) {
 		/* Headphones are always off here so just mark them */
 		dev_warn(arizona->dev, "Possible HP short, disabling\n");
 		return 0;
-	} else if (reading <= 13) {
+	} else if (reading <= HP_LOW_IMPEDANCE_LIMIT) {
 		if (info->hp_imp_level == HP_LOW_IMPEDANCE)
 			return 0;
 
@@ -1678,6 +1680,11 @@ static void arizona_probe_work(struct work_struct *work)
 			ret);
 		goto err_wakelock;
 	}
+
+	if (pdata->hpdet_short_circuit_imp < 1)
+		pdata->hpdet_short_circuit_imp = ARIZONA_HP_SHORT_IMPEDANCE;
+	else if	(pdata->hpdet_short_circuit_imp >= HP_LOW_IMPEDANCE_LIMIT)
+		pdata->hpdet_short_circuit_imp = HP_LOW_IMPEDANCE_LIMIT - 1;
 
 	if (pdata->num_micd_configs) {
 		info->micd_modes = pdata->micd_configs;
