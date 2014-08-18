@@ -46,6 +46,9 @@ Optional properties:
   - wlf,fixed-hpdet-imp : Do not perform any headphone detection, just use
     the fixed value specified here as the headphone impedance.
 
+  - wlf,hpdet-short-circuit-imp : Specifies the maximum impedance in ohms
+    that will be considered as a short circuit
+
 Example:
 
 codec: wm5102@1a {
