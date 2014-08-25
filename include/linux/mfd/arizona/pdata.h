@@ -78,6 +78,8 @@
 
 #define ARIZONA_MAX_AIF 3
 
+#define ARIZONA_MAX_DSP	4
+
 /* Treat INT_MAX impedance as open circuit */
 #define ARIZONA_HP_Z_OPEN INT_MAX
 
@@ -259,6 +261,9 @@ struct arizona_pdata {
 
 	/** Some platforms add a series resistor for hpdet to suppress pops */
 	int hpdet_ext_res;
+
+	struct wm_adsp_fw_defs *fw_defs[ARIZONA_MAX_DSP];
+	int num_fw_defs[ARIZONA_MAX_DSP];
 };
 
 #endif
