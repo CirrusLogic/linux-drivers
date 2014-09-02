@@ -315,7 +315,7 @@ int arizona_irq_init(struct arizona *arizona)
 
 	for (i = 0; i < ARRAY_SIZE(arizona->virq); i++) {
 		irq_set_chip_and_handler(arizona->virq[i], &arizona_irq_chip,
-					 handle_edge_irq);
+					 handle_simple_irq);
 		irq_set_nested_thread(arizona->virq[i], 1);
 
                 /* ARM needs us to explicitly flag the IRQ as valid
