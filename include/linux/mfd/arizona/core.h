@@ -153,6 +153,8 @@ struct arizona {
 	uint8_t dac_comp_enabled;
 
 	struct mutex reg_setting_lock;
+
+	bool bypass_cache;
 };
 
 #define ARIZONA_DVFS_SR1_RQ          0x00000001
