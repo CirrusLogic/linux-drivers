@@ -917,6 +917,8 @@ static int arizona_update_input(struct arizona* arizona, bool enable)
 	switch (arizona->type) {
 	case WM8280:
 	case WM5110:
+		if (arizona->rev >= 6)
+			return 0;
 		break;
 	default:
 		return 0;
