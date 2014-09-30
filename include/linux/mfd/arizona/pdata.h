@@ -71,17 +71,17 @@
 
 #define ARIZONA_MAX_OUTPUT 6
 
+#define ARIZONA_MAX_AIF 3
+
 #define ARIZONA_HAP_ACT_ERM 0
 #define ARIZONA_HAP_ACT_LRA 2
 
 #define ARIZONA_MAX_PDM_SPK 2
 
-#define ARIZONA_MAX_AIF 3
-
-#define ARIZONA_MAX_DSP	4
-
 /* Treat INT_MAX impedance as open circuit */
 #define ARIZONA_HP_Z_OPEN INT_MAX
+
+#define ARIZONA_MAX_DSP	4
 
 struct regulator_init_data;
 
@@ -130,6 +130,13 @@ struct arizona_pdata {
 
 	/** Pin state for GPIO pins */
 	int gpio_defaults[ARIZONA_MAX_GPIO];
+
+	/**
+	 * Maximum number of channels clocks will be generated for,
+	 * useful for systems where and I2S bus with multiple data
+	 * lines is mastered.
+	 */
+	int max_channels_clocked[ARIZONA_MAX_AIF];
 
 	/** Time in milliseconds to keep wake lock during jack detection */
 	int jd_wake_time;
@@ -237,21 +244,11 @@ struct arizona_pdata {
 	/** Extra microphone clamping enabled by speaker driver? */
 	unsigned int mic_spk_clamp;
 
-	/**
-	 * Maximum number of channels clocks will be generated for,
-	 * useful for systems where and I2S bus with multiple data
-	 * lines is mastered.
-	 */
-	int max_channels_clocked[ARIZONA_MAX_AIF];
-
 	/** Callback run at the end of mfd probe() */
 	void (*init_done)(void);
 
 	/** GPIO for primary IRQ (used for edge triggered emulation) */
 	int irq_gpio;
-
-	/** wm5102t output power */
-	unsigned int wm5102t_output_pwr;
 
 	/** General purpose switch control */
 	int gpsw;
@@ -259,14 +256,17 @@ struct arizona_pdata {
 	/** Callback which is called when the trigger phrase is detected */
 	void (*ez2ctrl_trigger)(void);
 
+	/** wm5102t output power */
+	unsigned int wm5102t_output_pwr;
+
 	/** Override the normal jack detection */
 	const struct arizona_jd_state *custom_jd;
 
-	/** Some platforms add a series resistor for hpdet to suppress pops */
-	int hpdet_ext_res;
-
 	struct wm_adsp_fw_defs *fw_defs[ARIZONA_MAX_DSP];
 	int num_fw_defs[ARIZONA_MAX_DSP];
+
+	/** Some platforms add a series resistor for hpdet to suppress pops */
+	int hpdet_ext_res;
 };
 
 #endif
