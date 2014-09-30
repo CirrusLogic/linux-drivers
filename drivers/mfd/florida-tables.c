@@ -1497,6 +1497,7 @@ static const struct reg_default florida_reg_default[] = {
 	{ 0x00000C04, 0xA101 },    /* R3076  - GPIO5 CTRL */
 	{ 0x00000C0F, 0x0400 },    /* R3087  - IRQ CTRL 1 */
 	{ 0x00000C10, 0x1000 },    /* R3088  - GPIO Debounce Config */
+	{ 0x00000C18, 0x0000 },    /* R3096  - GP Switch 1 */
 	{ 0x00000C20, 0x8002 },    /* R3104  - Misc Pad Ctrl 1 */
 	{ 0x00000C21, 0x8001 },    /* R3105  - Misc Pad Ctrl 2 */
 	{ 0x00000C22, 0x0000 },    /* R3106  - Misc Pad Ctrl 3 */
@@ -2713,6 +2714,7 @@ static bool florida_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_GPIO5_CTRL:
 	case ARIZONA_IRQ_CTRL_1:
 	case ARIZONA_GPIO_DEBOUNCE_CONFIG:
+	case ARIZONA_GP_SWITCH_1:
 	case ARIZONA_MISC_PAD_CTRL_1:
 	case ARIZONA_MISC_PAD_CTRL_2:
 	case ARIZONA_MISC_PAD_CTRL_3:
