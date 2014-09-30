@@ -262,6 +262,8 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 
 	mutex_lock(&arizona->dapm->card->mutex);
 
+	arizona->hpdet_clamp = clamp;
+
 	/* Keep the HP output stages disabled while doing the clamp */
 	if (clamp) {
 		ret = regmap_update_bits(arizona->regmap,
