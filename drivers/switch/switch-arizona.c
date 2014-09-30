@@ -37,8 +37,6 @@
 #include <linux/mfd/arizona/pdata.h>
 #include <linux/mfd/arizona/registers.h>
 
-#define ARIZONA_DEFAULT_HP 32
-
 #define ARIZONA_MAX_MICD_RANGE 8
 
 #define ARIZONA_ACCDET_MODE_MIC     0
