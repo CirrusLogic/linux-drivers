@@ -1835,12 +1835,6 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		ret = arizona_soft_reset(arizona);
 		if (ret != 0)
 			goto err_reset;
-
-		ret = regcache_sync(arizona->regmap);
-		if (ret != 0) {
-			dev_err(dev, "Failed to sync device: %d\n", ret);
-			goto err_reset;
-		}
 	}
 
 	/* Ensure device startup is complete */
