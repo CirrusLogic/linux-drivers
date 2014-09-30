@@ -284,7 +284,7 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 				 ret);
 	}
 
-	/* Restore the desired state while not doing the magic */
+	/* Restore the desired state while not doing the clamp */
 	if (!clamp && (arizona->hp_impedance > arizona->pdata.hpdet_short_circuit_imp)) {
 		ret = regmap_update_bits(arizona->regmap,
 					 ARIZONA_OUTPUT_ENABLES_1,
@@ -563,6 +563,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		}
 
 		val &= ARIZONA_HP_LVL_B_MASK;
+		/* Convert to ohms, the value is in 0.5 ohm increments */
 		val /= 2;
 
 		regmap_read(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
@@ -587,7 +588,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 
 		if (range && (val < arizona_hpdet_c_ranges[range].min)) {
 			dev_dbg(arizona->dev, "Reporting range boundary %d\n",
-					arizona_hpdet_c_ranges[range].min);
+				arizona_hpdet_c_ranges[range].min);
 			val = arizona_hpdet_c_ranges[range].min;
 		}
 	}
@@ -801,7 +802,7 @@ void arizona_set_headphone_imp(struct arizona_extcon_info *info, int imp)
 		arizona_wm5110_tune_headphone(info, arizona->hp_impedance);
 		break;
 	case WM1814:
-		arizona_wm1814_tune_headphone(info, imp);
+		arizona_wm1814_tune_headphone(info, arizona->hp_impedance);
 		break;
 	default:
 		break;
@@ -1698,12 +1699,12 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	case WM8280:
 	case WM5110:
 		switch (arizona->rev) {
-			case 0 ... 2:
-				break;
-			default:
-				info->micd_clamp = true;
-				info->hpdet_ip = 2;
-				break;
+		case 0 ... 2:
+			break;
+		default:
+			info->micd_clamp = true;
+			info->hpdet_ip = 2;
+			break;
 		}
 		break;
 	case WM8998:
@@ -1763,7 +1764,7 @@ static void arizona_probe_work(struct work_struct *work)
 
 	if (arizona->pdata.gpsw > 0)
 		regmap_update_bits(arizona->regmap, ARIZONA_GP_SWITCH_1,
-				ARIZONA_SW1_MODE_MASK, arizona->pdata.gpsw);
+				   ARIZONA_SW1_MODE_MASK, arizona->pdata.gpsw);
 
 	if (arizona->pdata.micd_pol_gpio > 0) {
 		if (info->micd_modes[0].gpio)
