@@ -26,6 +26,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/switch.h>
+#include <linux/of.h>
+#include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/regmap.h>
 #include <linux/switch-arizona.h>
@@ -1664,6 +1666,83 @@ static void arizona_micd_set_level(struct arizona *arizona, int index,
 	regmap_update_bits(arizona->regmap, reg, mask, level);
 }
 
+#ifdef CONFIG_OF
+static int arizona_extcon_of_get_pdata(struct arizona *arizona)
+{
+	struct arizona_pdata *pdata = &arizona->pdata;
+
+	arizona_of_read_u32(arizona, "wlf,micd-detect-debounce", false,
+			    &pdata->micd_detect_debounce);
+
+	pdata->micd_pol_gpio = arizona_of_get_named_gpio(arizona,
+							 "wlf,micd-pol-gpio",
+							 false);
+
+	arizona_of_read_u32(arizona, "wlf,micd-bias-start-time", false,
+			    &pdata->micd_bias_start_time);
+
+	arizona_of_read_u32(arizona, "wlf,micd-rate", false,
+			    &pdata->micd_rate);
+
+	arizona_of_read_u32(arizona, "wlf,micd-dbtime", false,
+			    &pdata->micd_dbtime);
+
+	arizona_of_read_u32(arizona, "wlf,micd-timeout", false,
+			    &pdata->micd_timeout);
+
+	pdata->micd_force_micbias =
+		of_property_read_bool(arizona->dev->of_node,
+				      "wlf,micd-force-micbias");
+
+	pdata->micd_force_micbias_initial =
+		of_property_read_bool(arizona->dev->of_node,
+				      "wlf,micd-force-micbias-initial");
+	pdata->micd_software_compare =
+			of_property_read_bool(arizona->dev->of_node,
+					      "wlf,micd-software-compare");
+
+	pdata->micd_open_circuit_declare =
+			of_property_read_bool(arizona->dev->of_node,
+					      "wlf,micd-open-circuit-declare");
+
+	pdata->jd_gpio5 = of_property_read_bool(arizona->dev->of_node,
+						"wlf,use-jd-gpio");
+
+	pdata->jd_gpio5_nopull = of_property_read_bool(arizona->dev->of_node,
+						       "wlf,jd-gpio-nopull");
+
+	pdata->jd_invert = of_property_read_bool(arizona->dev->of_node,
+						 "wlf,jd-invert");
+
+	arizona_of_read_u32(arizona, "wlf,gpsw", false, &pdata->gpsw);
+
+	arizona_of_read_u32(arizona, "wlf,init-mic-delay", false,
+			    &pdata->init_mic_delay);
+
+	arizona_of_read_u32(arizona, "wlf,fixed-hpdet-imp", false,
+			    &pdata->fixed_hpdet_imp);
+
+	arizona_of_read_u32(arizona, "wlf,hpdet-moisture-imp", false,
+			    &pdata->hpdet_moisture_imp);
+
+	arizona_of_read_u32(arizona, "wlf,hpdet-short-circuit-imp", false,
+			    &pdata->hpdet_short_circuit_imp);
+
+	arizona_of_read_u32(arizona, "wlf,hpdet-channel", false,
+			    &pdata->hpdet_channel);
+
+	arizona_of_read_u32(arizona, "wlf,jd-wake-time", false,
+			    &pdata->jd_wake_time);
+
+	return 0;
+}
+#else
+static inline int arizona_extcon_of_get_pdata(struct arizona *arizona)
+{
+	return 0;
+}
+#endif
+
 static ssize_t arizona_extcon_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
@@ -1683,6 +1762,14 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
+
+	if (IS_ENABLED(CONFIG_OF)) {
+		if (!dev_get_platdata(arizona->dev)) {
+			ret = arizona_extcon_of_get_pdata(arizona);
+			if (ret < 0)
+				return ret;
+		}
+	}
 
 	/* Set of_node to parent from the SPI device to allow
 	 * location regulator supplies */
