@@ -869,8 +869,6 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	mutex_init(&arizona->subsys_max_lock);
 	mutex_init(&arizona->reg_setting_lock);
 
-	arizona_of_get_core_pdata(arizona);
-
 	if (dev_get_platdata(arizona->dev))
 		memcpy(&arizona->pdata, dev_get_platdata(arizona->dev),
 		       sizeof(arizona->pdata));
