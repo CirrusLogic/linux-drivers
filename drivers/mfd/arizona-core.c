@@ -364,7 +364,6 @@ static int arizona_exec_with_sysclk(struct arizona* arizona,
 			ret);
 		return ret;
 	}
-
 	ret = regmap_read(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, &sysclk);
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to cache SYSCLK settings: %d\n",
@@ -381,7 +380,6 @@ static int arizona_exec_with_sysclk(struct arizona* arizona,
 			ret);
 		return ret;
 	}
-
 	ret = arizona_poll_reg(arizona, 25, ARIZONA_INTERRUPT_RAW_STATUS_5,
 			       ARIZONA_FLL1_CLOCK_OK_STS,
 			       ARIZONA_FLL1_CLOCK_OK_STS);
@@ -652,7 +650,7 @@ static int arizona_suspend(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
 
-	dev_dbg(arizona->dev, "Suspend, disabling IRQ\n");
+	dev_dbg(arizona->dev, "Early suspend, disabling IRQ\n");
 	disable_irq(arizona->irq);
 
 	arizona->irq_sem = 1;
@@ -664,7 +662,7 @@ static int arizona_resume(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
 
-	dev_dbg(arizona->dev, "Resume, reenabling IRQ\n");
+	dev_dbg(arizona->dev, "Late resume, reenabling IRQ\n");
 	if (arizona->irq_sem) {
 		enable_irq(arizona->irq);
 		arizona->irq_sem = 0;
@@ -781,8 +779,8 @@ static int arizona_of_get_gpio_defaults(struct arizona *arizona,
 static int arizona_of_get_core_pdata(struct arizona *arizona)
 {
 	struct arizona_pdata *pdata = &arizona->pdata;
-	int ret, i;
 	u32 out_mono[ARRAY_SIZE(pdata->out_mono)];
+	int i;
 
 	memset(&out_mono, 0, sizeof(out_mono));
 
@@ -811,7 +809,7 @@ const struct of_device_id arizona_of_match[] = {
 };
 EXPORT_SYMBOL_GPL(arizona_of_match);
 #else
-static int arizona_of_get_core_pdata(struct arizona *arizona)
+static inline int arizona_of_get_core_pdata(struct arizona *arizona)
 {
 	return 0;
 }
@@ -825,6 +823,7 @@ static struct mfd_cell wm5102_devs[] = {
 	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-extcon" },
 	{ .name = "arizona-gpio" },
+	{ .name = "arizona-haptics" },
 	{ .name = "arizona-pwm" },
 	{ .name = "wm5102-codec" },
 };
@@ -833,15 +832,16 @@ static struct mfd_cell florida_devs[] = {
 	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-extcon" },
 	{ .name = "arizona-gpio" },
+	{ .name = "arizona-haptics" },
 	{ .name = "arizona-pwm" },
 	{ .name = "florida-codec" },
 };
 
 static struct mfd_cell wm8997_devs[] = {
+	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-extcon" },
 	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
-	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-pwm" },
 	{ .name = "wm8997-codec" },
 };
@@ -861,8 +861,8 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	const char *type_name = "Unknown";
 	unsigned int reg, val, mask;
 	int (*apply_patch)(struct arizona *) = NULL;
-	char revision_char;
 	int ret, i;
+	char revision_char;
 
 	dev_set_drvdata(arizona->dev, arizona);
 	mutex_init(&arizona->clk_lock);
@@ -882,8 +882,8 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	switch (arizona->type) {
 	case WM5102:
 	case WM5110:
-	case WM8997:
 	case WM8280:
+	case WM8997:
 	case WM8998:
 	case WM1814:
 		for (i = 0; i < ARRAY_SIZE(wm5102_core_supplies); i++)
@@ -1064,20 +1064,19 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 			revision_char = arizona->rev + 61;
 			break;
 		}
-
 		apply_patch = florida_patch;
 		break;
 #endif
 #ifdef CONFIG_MFD_WM8997
 	case 0x8997:
 		type_name = "WM8997";
+		revision_char = arizona->rev + 'A';
 		if (arizona->type != WM8997) {
 			dev_err(arizona->dev, "WM8997 registered as %d\n",
 				arizona->type);
 			arizona->type = WM8997;
 		}
 		apply_patch = wm8997_patch;
-		revision_char = arizona->rev + 'A';
 		break;
 #endif
 #ifdef CONFIG_MFD_WM8998
@@ -1313,7 +1312,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 
 	/**
 	 * Give us a sane default for the headphone impedance in case the
-	 * switch driver is not used
+	 * extcon driver is not used
 	 */
 	arizona->hp_impedance = 32;
 
