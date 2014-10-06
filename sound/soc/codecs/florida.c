@@ -214,7 +214,7 @@ static int florida_sysclk_ev(struct snd_soc_dapm_widget *w,
 		break;
 	}
 
-	msleep(10);
+	udelay(1000);
 
 	return 0;
 }
