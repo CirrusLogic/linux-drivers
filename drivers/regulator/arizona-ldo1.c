@@ -116,6 +116,7 @@ static int arizona_ldo_enable_time(struct regulator_dev *rdev)
 
 	switch (ldo1->arizona->type) {
 	case WM5102:
+	case WM8997:
 	case WM8998:
 	case WM1814:
 		return 1500;
@@ -290,6 +291,7 @@ static __devinit int arizona_ldo1_probe(struct platform_device *pdev)
 	 */
 	switch (arizona->type) {
 	case WM5102:
+	case WM8997:
 	case WM8998:
 	case WM1814:
 		ldo1->init_data = arizona_ldo1_dvfs;
