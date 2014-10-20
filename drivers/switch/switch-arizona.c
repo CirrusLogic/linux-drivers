@@ -46,6 +46,11 @@
 #define ARIZONA_ACCDET_MODE_ADC     7
 #define ARIZONA_ACCDET_MODE_INVALID 8
 
+#define ARIZONA_MICD_CLAMP_MODE_JDL      0x4
+#define ARIZONA_MICD_CLAMP_MODE_JDH      0x5
+#define ARIZONA_MICD_CLAMP_MODE_JDL_GP5H 0x9
+#define ARIZONA_MICD_CLAMP_MODE_JDH_GP5H 0xb
+
 #define ARIZONA_HPDET_MAX 10000
 
 #define HPDET_DEBOUNCE 500
@@ -1896,14 +1901,14 @@ static void arizona_probe_work(struct work_struct *work)
 				     val);
 
 			if (arizona->pdata.jd_invert)
-				clamp_mode = 0xb;
+				clamp_mode = ARIZONA_MICD_CLAMP_MODE_JDH_GP5H;
 			else
-				clamp_mode = 0x9;
+				clamp_mode = ARIZONA_MICD_CLAMP_MODE_JDL_GP5H;
 		} else {
 			if (arizona->pdata.jd_invert)
-				clamp_mode = 0x5;
+				clamp_mode = ARIZONA_MICD_CLAMP_MODE_JDH;
 			else
-				clamp_mode = 0x4;
+				clamp_mode = ARIZONA_MICD_CLAMP_MODE_JDL;
 		}
 
 		regmap_update_bits(arizona->regmap,
