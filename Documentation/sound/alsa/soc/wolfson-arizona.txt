@@ -96,6 +96,79 @@ Notes:
         active path
 7. Configuration from device tree is work-in-progress so there may be some
         pdata settings that have not yet been migrated to device tree
+8. See below for a description of the input mux routing on WM8998. The input
+        mux should be set _before_ connecting it into an audio path. If one
+        input is configured as digital, that setting will be applied only when
+        the input is powered up as part of an active audio route - the
+        digital/analogue setting of the input path cannot be changed while the
+        input is part of an active audio route.
+
+
+INPUT MUXES ON WM8998
+=====================
+The WM8998 has two physical input paths, IN1 and IN2, and both paths have an
+input mux to select between two possible external input sources for that
+path.
+
+  - The IN1 path can be selected between IN1A or IN1B pins. The left and right
+    channels have separate mux controls
+
+  - The IN2 path can be selected between IN2A or IN2B and is mono
+
+A diagram of the route through the input muxes is:
+
+Input pin      ALSA control        Internal signal path
+-------------------------------------------------------
+
+           +-----------------+
+IN1AL ---> |                 |
+           | "IN1MUXL Input" | --> IN1L
+IN1BL ---> |                 |
+           +-----------------+
+
+           +-----------------+
+IN1AR ---> |                 |
+           | "IN1MUXR Input" | --> IN1R
+IN1BR ---> |                 |
+           +-----------------+
+
+           +-----------------+
+IN2A  ---> |                 |
+           | "IN2MUX Input"  | --> IN2L
+IN2B  ---> |                 |
+           +-----------------+
+
+IN1A and IN2A can be set as digital. IN1B and IN2B are analogue only.
+
+It is important to note that although the left and right paths of IN1 have
+separate mux controls, these only separate for the analogue path. The setting
+of digital/analogue applies jointly to both channels of IN1. Because of this,
+if IN1A is digital _both_ the left and right mux must be set to IN1A before
+connecting the input to any internal codec blocks. When IN1 is part of an
+active path the whole of IN1 will be set to digital or analogue depending on
+mux setting and this cannot be changed while IN1 is part of an active path.
+
+To change from a digital IN1A to an analogue IN1B follow this sequence:
+
+1) Disconnect IN1 from the input of any codec blocks
+2) Change the IN1MUXL and IN1MUXR to IN1B
+3) Connect IN1 as an input to codec blocks
+
+The input mode pdata for WM8998 is defined as:
+
+ pdata      affects  legal values            behaviour
+ inmode[0]  IN1      ARIZONA_INMODE_DIFF (0) IN1A and IN1B analogue differential
+                     ARIZONA_INMODE_SE   (1) IN1A and IN1B analogue single-ended
+                     ARIZONA_INMODE_DMIC (2) IN1A digital, IN1B analogue differential
+                     ARIZONA_INMODE_DMIC |
+                       ARIZONA_INMODE_SE (3) IN1A digital, IN1B analogue single-ended
+
+ inmode[1]  IN2      ARIZONA_INMODE_DIFF (0) IN2A and IN2B analogue differential
+                     ARIZONA_INMODE_SE   (1) IN2A and IN2B analogue single-ended
+                     ARIZONA_INMODE_DMIC (2) IN2A digital, IN2B analogue differential
+                     ARIZONA_INMODE_DMIC |
+                       ARIZONA_INMODE_SE (3) IN2A digital, IN2B analogue single-ended
+
 9. The list of firmwares selectable by the "DSPn Firmware" ALSA controls is
         configurable via pdata or device tree
 
