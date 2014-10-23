@@ -1,6 +1,7 @@
 /*
  * Arizona core driver
  *
+ * Copyright 2014 CirrusLogic, Inc.
  * Copyright 2012 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
@@ -1069,6 +1070,8 @@ const struct of_device_id arizona_of_match[] = {
 	{ .compatible = "wlf,wm8997", .data = (void *)WM8997 },
 	{ .compatible = "wlf,wm8998", .data = (void *)WM8998 },
 	{ .compatible = "wlf,wm1814", .data = (void *)WM1814 },
+	{ .compatible = "wlf,wm1831", .data = (void *)WM1831 },
+	{ .compatible = "cirrus,cs47l24", .data = (void *)CS47L24 },
 	{},
 };
 EXPORT_SYMBOL_GPL(arizona_of_match);
@@ -1099,6 +1102,13 @@ static struct mfd_cell florida_devs[] = {
 	{ .name = "arizona-haptics" },
 	{ .name = "arizona-pwm" },
 	{ .name = "florida-codec" },
+};
+
+static struct mfd_cell cs47l24_devs[] = {
+	{ .name = "arizona-gpio" },
+	{ .name = "arizona-haptics" },
+	{ .name = "arizona-pwm" },
+	{ .name = "cs47l24-codec" },
 };
 
 static struct mfd_cell wm8997_devs[] = {
@@ -1279,6 +1289,8 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	case WM8997:
 	case WM8998:
 	case WM1814:
+	case WM1831:
+	case CS47L24:
 		for (i = 0; i < ARRAY_SIZE(wm5102_core_supplies); i++)
 			arizona->core_supplies[i].supply
 				= wm5102_core_supplies[i];
@@ -1293,11 +1305,18 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	/* Mark DCVDD as external, LDO1 driver will clear if internal */
 	arizona->external_dcvdd = true;
 
-	ret = mfd_add_devices(arizona->dev, -1, early_devs,
-			      ARRAY_SIZE(early_devs), NULL, 0);
-	if (ret != 0) {
-		dev_err(dev, "Failed to add early children: %d\n", ret);
-		return ret;
+	switch (arizona->type) {
+	case WM1831:
+	case CS47L24:
+		break;
+	default:
+		ret = mfd_add_devices(arizona->dev, -1, early_devs,
+				      ARRAY_SIZE(early_devs), NULL, 0);
+		if (ret != 0) {
+			dev_err(dev, "Failed to add early children: %d\n", ret);
+			return ret;
+		}
+		break;
 	}
 
 	ret = devm_regulator_bulk_get(dev, arizona->num_core_supplies,
@@ -1376,6 +1395,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	case 0x5102:
 	case 0x5110:
 	case 0x6349:
+	case 0x6363:
 	case 0x8997:
 		break;
 	default:
@@ -1468,6 +1488,30 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 			break;
 		}
 		apply_patch = florida_patch;
+		break;
+#endif
+#ifdef CONFIG_MFD_CS47L24
+	case 0x6363:
+		switch (arizona->type) {
+		case CS47L24:
+			type_name = "CS47L24";
+			revision_char = arizona->rev + 'A';
+			break;
+
+		case WM1831:
+			type_name = "WM1831";
+			revision_char = arizona->rev + 'A';
+			break;
+
+		default:
+			dev_err(arizona->dev, "CS47L24 codec registered as %d\n",
+				arizona->type);
+			arizona->type = CS47L24;
+			type_name = "CS47L24";
+			revision_char = arizona->rev + 'A';
+			break;
+		}
+		apply_patch = cs47l24_patch;
 		break;
 #endif
 #ifdef CONFIG_MFD_WM8997
@@ -1728,6 +1772,11 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	case WM5110:
 		ret = mfd_add_devices(arizona->dev, -1, florida_devs,
 				      ARRAY_SIZE(florida_devs), NULL, 0);
+		break;
+	case WM1831:
+	case CS47L24:
+		ret = mfd_add_devices(arizona->dev, -1, cs47l24_devs,
+				      ARRAY_SIZE(cs47l24_devs), NULL, 0);
 		break;
 	case WM8997:
 		ret = mfd_add_devices(arizona->dev, -1, wm8997_devs,

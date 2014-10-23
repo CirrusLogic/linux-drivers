@@ -1,6 +1,7 @@
 /*
  * Arizona interrupt support
  *
+ * Copyright 2014 CirrusLogic, Inc.
  * Copyright 2012 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
@@ -34,7 +35,10 @@ static int arizona_map_irq(struct arizona *arizona, int irq)
 	case ARIZONA_IRQ_JD_RISE:
 	case ARIZONA_IRQ_MICD_CLAMP_FALL:
 	case ARIZONA_IRQ_MICD_CLAMP_RISE:
-		return arizona->pdata.irq_base + 2 + irq;
+		if (arizona->aod_irq_chip)
+			return arizona->pdata.irq_base + 2 + irq;
+		else
+			return -EINVAL;
 	default:
 		return arizona->pdata.irq_base + 2 + ARIZONA_NUM_IRQ + irq;
 	}
@@ -65,6 +69,9 @@ EXPORT_SYMBOL_GPL(arizona_free_irq);
 int arizona_set_irq_wake(struct arizona *arizona, int irq, int on)
 {
 	int val = 0;
+
+	if (!arizona->aod_irq_chip)
+		return -EINVAL;
 
 	if (on) {
 		val = 0xffff;
@@ -148,8 +155,8 @@ static irqreturn_t arizona_irq_thread(int irq, void *data)
 	do {
 		poll = false;
 
-		/* Always handle the AoD domain */
-		handle_nested_irq(arizona->virq[0]);
+		if (arizona->aod_irq_chip)
+			handle_nested_irq(arizona->virq[0]);
 
 		/*
 		 * Check if one of the main interrupts is asserted and only
@@ -228,6 +235,15 @@ int arizona_irq_init(struct arizona *arizona)
 			irq = &florida_revd_irq;
 			break;
 		}
+
+		ctrlif_error = false;
+		break;
+#endif
+#ifdef CONFIG_MFD_CS47L24
+	case WM1831:
+	case CS47L24:
+		aod = NULL;
+		irq = &cs47l24_irq;
 
 		ctrlif_error = false;
 		break;
@@ -328,13 +344,16 @@ int arizona_irq_init(struct arizona *arizona)
 
 	}
 
-	ret = regmap_add_irq_chip(arizona->regmap,
-				  arizona->virq[0],
-				  IRQF_ONESHOT, irq_base, aod,
-				  &arizona->aod_irq_chip);
-	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to add AOD IRQs: %d\n", ret);
-		goto err_domain;
+	if (aod) {
+		ret = regmap_add_irq_chip(arizona->regmap,
+					  arizona->virq[0],
+					  IRQF_ONESHOT, irq_base, aod,
+					  &arizona->aod_irq_chip);
+		if (ret != 0) {
+			dev_err(arizona->dev, "Failed to add AOD IRQs: %d\n",
+				ret);
+			goto err_domain;
+		}
 	}
 
 	ret = regmap_add_irq_chip(arizona->regmap,
