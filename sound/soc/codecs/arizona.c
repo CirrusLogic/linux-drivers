@@ -2489,6 +2489,28 @@ static int arizona_is_enabled_fll(struct arizona_fll *fll)
 	return reg & ARIZONA_FLL1_ENA;
 }
 
+static int arizona_wait_for_fll(struct arizona_fll *fll, bool requested)
+{
+	struct arizona *arizona = fll->arizona;
+	unsigned int val = 0;
+	bool status;
+	int i;
+
+	arizona_fll_dbg(fll, "Waiting for FLL...\n");
+
+	for (i = 0; i < 25; i++) {
+		regmap_read(arizona->regmap, ARIZONA_INTERRUPT_RAW_STATUS_5, &val);
+		status = val & (ARIZONA_FLL1_CLOCK_OK_STS << (fll->id - 1));
+		if (status == requested)
+			return 0;
+		msleep(10);
+	}
+
+	arizona_fll_warn(fll, "Timed out waiting for lock\n");
+
+	return -ETIMEDOUT;
+}
+
 static int arizona_enable_fll(struct arizona_fll *fll)
 {
 	struct arizona *arizona = fll->arizona;
@@ -2569,21 +2591,8 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 		regmap_update_bits(arizona->regmap, fll->base + 1,
 				   ARIZONA_FLL1_FREERUN, 0);
 
-	if (fll_change ||  !already_enabled) {
-		int i;
-		unsigned int val = 0;
-		arizona_fll_dbg(fll, "Waiting for FLL lock...\n");
-		for (i = 0; i < 25; i++) {
-			regmap_read(arizona->regmap,
-				    ARIZONA_INTERRUPT_RAW_STATUS_5,
-				    &val);
-			if (val & (ARIZONA_FLL1_CLOCK_OK_STS << (fll->id - 1)))
-				break;
-			msleep(10);
-		}
-		if (i == 25)
-			arizona_fll_warn(fll, "Timed out waiting for lock\n");
-	}
+	if (fll_change || !already_enabled)
+		arizona_wait_for_fll(fll, true);
 
 	return 0;
 }
@@ -2592,8 +2601,6 @@ static void arizona_disable_fll(struct arizona_fll *fll)
 {
 	struct arizona *arizona = fll->arizona;
 	bool change;
-	int i;
-	unsigned int val = 0;
 
 	arizona_fll_dbg(fll, "Disabling FLL\n");
 
@@ -2606,17 +2613,7 @@ static void arizona_disable_fll(struct arizona_fll *fll)
 	regmap_update_bits(arizona->regmap, fll->base + 1,
 			   ARIZONA_FLL1_FREERUN, 0);
 
-	arizona_fll_dbg(fll, "Waiting for FLL disable...\n");
-	for (i = 0; i < 25; i++) {
-		regmap_read(arizona->regmap,
-			    ARIZONA_INTERRUPT_RAW_STATUS_5,
-			    &val);
-		if (!(val & (ARIZONA_FLL1_CLOCK_OK_STS << (fll->id - 1))))
-			break;
-		msleep(10);
-	}
-	if (i == 25)
-		arizona_fll_warn(fll, "Timed out waiting for disable\n");
+	arizona_wait_for_fll(fll, false);
 
 	if (change)
 		pm_runtime_put_sync(arizona->dev);
