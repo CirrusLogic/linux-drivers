@@ -248,13 +248,12 @@ extern unsigned int arizona_v2_mixer_values[ARIZONA_V2_NUM_MIXER_INPUTS];
 			snd_soc_get_value_enum_double,        \
 			arizona_put_sample_rate_enum)
 
-#define ARIZONA_EQ_CONTROL(xname, xbase) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	   \
-	.info = snd_soc_bytes_info, .get = snd_soc_bytes_get,      \
-	.put = arizona_eq_coeff_put, .private_value =		   \
-	((unsigned long)&(struct soc_bytes)			   \
-		{.base = xbase, .num_regs = 20, \
-		 .mask = ~ARIZONA_EQ1_B1_MODE }) }
+#define ARIZONA_EQ_CONTROL(xname, xbase)                      \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,   \
+	.info = snd_soc_bytes_info, .get = snd_soc_bytes_get, \
+	.put = arizona_eq_coeff_put, .private_value =         \
+	((unsigned long)&(struct soc_bytes) { .base = xbase,  \
+	 .num_regs = 20, .mask = ~ARIZONA_EQ1_B1_MODE }) }
 
 #define CLEARWATER_OSR_ENUM_SIZE 5
 #define ARIZONA_RATE_ENUM_SIZE 5
