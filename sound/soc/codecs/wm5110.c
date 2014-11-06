@@ -1693,8 +1693,7 @@ static int wm5110_probe(struct platform_device *pdev)
 		wm5110->core.adsp[i].num_mems
 			= ARRAY_SIZE(wm5110_dsp1_regions);
 
-		ret = wm_adsp2_init(&wm5110->core.adsp[i], false,
-				    &wm5110->fw_lock);
+		ret = wm_adsp2_init(&wm5110->core.adsp[i], &wm5110->fw_lock);
 		if (ret != 0)
 			return ret;
 	}
