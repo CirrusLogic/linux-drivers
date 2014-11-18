@@ -57,6 +57,7 @@ struct wm8285_compr {
 	struct wm_adsp *adsp;
 
 	size_t total_copied;
+	bool allocated;
 	bool trig;
 	bool forced;
 };
@@ -2208,7 +2209,7 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 		wm8285->compr_info.trig = true;
 	}
 
-	if (!wm8285->compr_info.stream)
+	if (!wm8285->compr_info.allocated)
 		goto out;
 
 	ret = wm_adsp_stream_handle_irq(wm8285->compr_info.adsp);
@@ -2279,6 +2280,7 @@ static int wm8285_free(struct snd_compr_stream *stream)
 
 	mutex_lock(&wm8285->compr_info.lock);
 
+	wm8285->compr_info.allocated = false;
 	wm8285->compr_info.stream = NULL;
 	wm8285->compr_info.total_copied = 0;
 	if (!wm8285->compr_info.forced)
@@ -2313,6 +2315,8 @@ static int wm8285_set_params(struct snd_compr_stream *stream,
 	}
 
 	ret = wm_adsp_stream_alloc(compr->adsp, params);
+	if (ret == 0)
+		compr->allocated = true;
 
 out:
 	mutex_unlock(&compr->lock);
