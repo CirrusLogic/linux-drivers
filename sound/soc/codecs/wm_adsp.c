@@ -1136,7 +1136,8 @@ static void wm_adsp_ctl_work(struct work_struct *work)
 }
 
 static int wm_adsp_create_control(struct wm_adsp *dsp,
-				  const struct wm_adsp_alg_region *alg_region)
+				  const struct wm_adsp_alg_region *alg_region,
+				  unsigned int len)
 {
 	struct wm_coeff_ctl *ctl;
 	struct wmfw_ctl_work *ctl_work;
@@ -1198,7 +1199,12 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	ctl->ops.xput = wm_coeff_put;
 	ctl->dsp = dsp;
 
-	ctl->len = alg_region->len;
+	if (len > 512) {
+		adsp_warn(dsp, "Truncating control %s from %d\n",
+			  ctl->name, len);
+		len = 512;
+	}
+	ctl->len = len;
 	ctl->cache = kzalloc(ctl->len, GFP_KERNEL);
 	if (!ctl->cache) {
 		ret = -ENOMEM;
@@ -1348,13 +1354,12 @@ static int wm_adsp1_setup_algs(struct wm_adsp *dsp)
 		alg_region->type = WMFW_ADSP1_DM;
 		alg_region->alg = be32_to_cpu(adsp1_alg[i].alg.id);
 		alg_region->base = be32_to_cpu(adsp1_alg[i].dm);
-		alg_region->len = 0;
 		list_add_tail(&alg_region->list, &dsp->alg_regions);
 		if (i + 1 < n_algs) {
-			alg_region->len = be32_to_cpu(adsp1_alg[i + 1].dm);
-			alg_region->len -= be32_to_cpu(adsp1_alg[i].dm);
-			alg_region->len *= 4;
-			wm_adsp_create_control(dsp, alg_region);
+			len = be32_to_cpu(adsp1_alg[i + 1].dm);
+			len -= be32_to_cpu(adsp1_alg[i].dm);
+			len *= 4;
+			wm_adsp_create_control(dsp, alg_region, len);
 		} else {
 			adsp_warn(dsp,
 				  "Missing length info for region DM with ID %x\n",
@@ -1369,13 +1374,12 @@ static int wm_adsp1_setup_algs(struct wm_adsp *dsp)
 		alg_region->type = WMFW_ADSP1_ZM;
 		alg_region->alg = be32_to_cpu(adsp1_alg[i].alg.id);
 		alg_region->base = be32_to_cpu(adsp1_alg[i].zm);
-		alg_region->len = 0;
 		list_add_tail(&alg_region->list, &dsp->alg_regions);
 		if (i + 1 < n_algs) {
-			alg_region->len = be32_to_cpu(adsp1_alg[i + 1].zm);
-			alg_region->len -= be32_to_cpu(adsp1_alg[i].zm);
-			alg_region->len *= 4;
-			wm_adsp_create_control(dsp, alg_region);
+			len = be32_to_cpu(adsp1_alg[i + 1].zm);
+			len -= be32_to_cpu(adsp1_alg[i].zm);
+			len *= 4;
+			wm_adsp_create_control(dsp, alg_region, len);
 		} else {
 			adsp_warn(dsp,
 				  "Missing length info for region ZM with ID %x\n",
@@ -1469,13 +1473,12 @@ static int wm_adsp2_setup_algs(struct wm_adsp *dsp)
 		alg_region->type = WMFW_ADSP2_XM;
 		alg_region->alg = be32_to_cpu(adsp2_alg[i].alg.id);
 		alg_region->base = be32_to_cpu(adsp2_alg[i].xm);
-		alg_region->len = 0;
 		list_add_tail(&alg_region->list, &dsp->alg_regions);
 		if (i + 1 < n_algs) {
-			alg_region->len = be32_to_cpu(adsp2_alg[i + 1].xm);
-			alg_region->len -= be32_to_cpu(adsp2_alg[i].xm);
-			alg_region->len *= 4;
-			wm_adsp_create_control(dsp, alg_region);
+			len = be32_to_cpu(adsp2_alg[i + 1].xm);
+			len -= be32_to_cpu(adsp2_alg[i].xm);
+			len *= 4;
+			wm_adsp_create_control(dsp, alg_region, len);
 		} else {
 			adsp_warn(dsp,
 				  "Missing length info for region XM with ID %x\n",
@@ -1490,13 +1493,12 @@ static int wm_adsp2_setup_algs(struct wm_adsp *dsp)
 		alg_region->type = WMFW_ADSP2_YM;
 		alg_region->alg = be32_to_cpu(adsp2_alg[i].alg.id);
 		alg_region->base = be32_to_cpu(adsp2_alg[i].ym);
-		alg_region->len = 0;
 		list_add_tail(&alg_region->list, &dsp->alg_regions);
 		if (i + 1 < n_algs) {
-			alg_region->len = be32_to_cpu(adsp2_alg[i + 1].ym);
-			alg_region->len -= be32_to_cpu(adsp2_alg[i].ym);
-			alg_region->len *= 4;
-			wm_adsp_create_control(dsp, alg_region);
+			len = be32_to_cpu(adsp2_alg[i + 1].ym);
+			len -= be32_to_cpu(adsp2_alg[i].ym);
+			len *= 4;
+			wm_adsp_create_control(dsp, alg_region, len);
 		} else {
 			adsp_warn(dsp,
 				  "Missing length info for region YM with ID %x\n",
@@ -1511,13 +1513,12 @@ static int wm_adsp2_setup_algs(struct wm_adsp *dsp)
 		alg_region->type = WMFW_ADSP2_ZM;
 		alg_region->alg = be32_to_cpu(adsp2_alg[i].alg.id);
 		alg_region->base = be32_to_cpu(adsp2_alg[i].zm);
-		alg_region->len = 0;
 		list_add_tail(&alg_region->list, &dsp->alg_regions);
 		if (i + 1 < n_algs) {
-			alg_region->len = be32_to_cpu(adsp2_alg[i + 1].zm);
-			alg_region->len -= be32_to_cpu(adsp2_alg[i].zm);
-			alg_region->len *= 4;
-			wm_adsp_create_control(dsp, alg_region);
+			len = be32_to_cpu(adsp2_alg[i + 1].zm);
+			len -= be32_to_cpu(adsp2_alg[i].zm);
+			len *= 4;
+			wm_adsp_create_control(dsp, alg_region, len);
 		} else {
 			adsp_warn(dsp,
 				  "Missing length info for region ZM with ID %x\n",
