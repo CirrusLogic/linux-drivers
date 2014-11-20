@@ -563,10 +563,9 @@ static int wm_coeff_info(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int wm_coeff_write_control(struct snd_kcontrol *kcontrol,
+static int wm_coeff_write_control(struct wm_coeff_ctl *ctl,
 				  const void *buf, size_t len)
 {
-	struct wm_coeff_ctl *ctl = (struct wm_coeff_ctl *)kcontrol->private_value;
 	struct wm_adsp_alg_region *alg_region = &ctl->alg_region;
 	const struct wm_adsp_region *mem;
 	struct wm_adsp *dsp = ctl->dsp;
@@ -619,15 +618,14 @@ static int wm_coeff_put(struct snd_kcontrol *kcontrol,
 		return 0;
 	}
 
-	ret = wm_coeff_write_control(kcontrol, p, ctl->len);
+	ret = wm_coeff_write_control(ctl, p, ctl->len);
 	mutex_unlock(&ctl->lock);
 	return ret;
 }
 
-static int wm_coeff_read_control(struct snd_kcontrol *kcontrol,
+static int wm_coeff_read_control(struct wm_coeff_ctl *ctl,
 				 void *buf, size_t len)
 {
-	struct wm_coeff_ctl *ctl = (struct wm_coeff_ctl *)kcontrol->private_value;
 	struct wm_adsp_alg_region *alg_region = &ctl->alg_region;
 	const struct wm_adsp_region *mem;
 	struct wm_adsp *dsp = ctl->dsp;
@@ -674,7 +672,7 @@ static int wm_coeff_get(struct snd_kcontrol *kcontrol,
 	mutex_lock(&ctl->lock);
 
 	if (dsp->running)
-		wm_coeff_read_control(kcontrol, ctl->cache, ctl->len);
+		wm_coeff_read_control(ctl, ctl->cache, ctl->len);
 
 	memcpy(p, ctl->cache, ctl->len);
 	mutex_unlock(&ctl->lock);
@@ -962,7 +960,7 @@ static int wm_coeff_init_control_caches(struct wm_adsp *dsp)
 		if (!ctl->enabled || ctl->set)
 			continue;
 		mutex_lock(&ctl->lock);
-		ret = wm_coeff_read_control(ctl->kcontrol,
+		ret = wm_coeff_read_control(ctl,
 					    ctl->cache,
 					    ctl->len);
 		mutex_unlock(&ctl->lock);
@@ -983,7 +981,7 @@ static int wm_coeff_sync_controls(struct wm_adsp *dsp)
 			continue;
 		if (ctl->set) {
 			mutex_lock(&ctl->lock);
-			ret = wm_coeff_write_control(ctl->kcontrol,
+			ret = wm_coeff_write_control(ctl,
 						     ctl->cache,
 						     ctl->len);
 			mutex_unlock(&ctl->lock);
