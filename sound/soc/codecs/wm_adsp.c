@@ -37,6 +37,8 @@
 #include "arizona.h"
 #include "wm_adsp.h"
 
+#define WM_ADSP_CONTROL_MAX 44
+
 #define adsp_crit(_dsp, fmt, ...) \
 	dev_crit(_dsp->dev, "DSP%d: " fmt, _dsp->num, ##__VA_ARGS__)
 #define adsp_err(_dsp, fmt, ...) \
@@ -1092,7 +1094,7 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	char *region_name;
 	int ret;
 
-	name = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	name = kmalloc(WM_ADSP_CONTROL_MAX, GFP_KERNEL);
 	if (!name)
 		return -ENOMEM;
 
@@ -1117,7 +1119,7 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 		return -EINVAL;
 	}
 
-	snprintf(name, PAGE_SIZE, "DSP%d %s %x",
+	snprintf(name, WM_ADSP_CONTROL_MAX, "DSP%d %s %x",
 		 dsp->num, region_name, alg_region->alg);
 
 	list_for_each_entry(ctl, &dsp->ctl_list,
