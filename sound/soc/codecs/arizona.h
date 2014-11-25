@@ -328,6 +328,8 @@ struct arizona_fll {
 	struct completion ok;
 
 	unsigned int fvco;
+	int min_outdiv;
+	int max_outdiv;
 	int outdiv;
 	unsigned int fout;
 	int sync_src;
