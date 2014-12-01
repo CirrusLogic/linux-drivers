@@ -40,7 +40,11 @@ static int arizona_map_irq(struct arizona *arizona, int irq)
 		else
 			return -EINVAL;
 	default:
-		return arizona->pdata.irq_base + 2 + ARIZONA_NUM_IRQ + irq;
+		if (arizona->irq_chip)
+			return arizona->pdata.irq_base + 2 +
+				ARIZONA_NUM_IRQ + irq;
+		else
+			return arizona->pdata.irq_base + 2 + irq;
 	}
 }
 
@@ -158,17 +162,20 @@ static irqreturn_t arizona_irq_thread(int irq, void *data)
 		if (arizona->aod_irq_chip)
 			handle_nested_irq(arizona->virq[0]);
 
-		/*
-		 * Check if one of the main interrupts is asserted and only
-		 * check that domain if it is.
-		 */
-		ret = regmap_read(arizona->regmap, ARIZONA_IRQ_PIN_STATUS,
-				  &val);
-		if (ret == 0 && val & ARIZONA_IRQ1_STS) {
-			handle_nested_irq(arizona->virq[1]);
-		} else if (ret != 0) {
-			dev_err(arizona->dev,
-				"Failed to read main IRQ status: %d\n", ret);
+		if (arizona->irq_chip) {
+			/*
+			 * Check if one of the main interrupts is asserted and only
+			 * check that domain if it is.
+			 */
+			ret = regmap_read(arizona->regmap,
+					  ARIZONA_IRQ_PIN_STATUS, &val);
+			if (ret == 0 && val & ARIZONA_IRQ1_STS) {
+				handle_nested_irq(arizona->virq[1]);
+			} else if (ret != 0) {
+				dev_err(arizona->dev,
+					"Failed to read main IRQ status: %d\n",
+					ret);
+			}
 		}
 
 		/*
@@ -235,6 +242,15 @@ int arizona_irq_init(struct arizona *arizona)
 			irq = &florida_revd_irq;
 			break;
 		}
+
+		ctrlif_error = false;
+		break;
+#endif
+#ifdef CONFIG_MFD_WM8285
+	case WM8285:
+	case WM1840:
+		aod = &wm8285_irq;
+		irq = NULL;
 
 		ctrlif_error = false;
 		break;
@@ -356,13 +372,17 @@ int arizona_irq_init(struct arizona *arizona)
 		}
 	}
 
-	ret = regmap_add_irq_chip(arizona->regmap,
-				  arizona->virq[1],
-				  IRQF_ONESHOT, irq_base + ARIZONA_NUM_IRQ, irq,
-				  &arizona->irq_chip);
-	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to add main IRQs: %d\n", ret);
-		goto err_aod;
+	if (irq) {
+		ret = regmap_add_irq_chip(arizona->regmap,
+					  arizona->virq[1],
+					  IRQF_ONESHOT,
+					  irq_base + ARIZONA_NUM_IRQ, irq,
+					  &arizona->irq_chip);
+		if (ret != 0) {
+			dev_err(arizona->dev,
+				"Failed to add main IRQs: %d\n", ret);
+			goto err_aod;
+		}
 	}
 
 	/* Make sure the boot done IRQ is unmasked for resumes */

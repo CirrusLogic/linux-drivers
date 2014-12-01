@@ -26,6 +26,11 @@ extern const struct regmap_config wm5102_spi_regmap;
 extern const struct regmap_config florida_i2c_regmap;
 extern const struct regmap_config florida_spi_regmap;
 
+extern const struct regmap_config wm8285_16bit_i2c_regmap;
+extern const struct regmap_config wm8285_16bit_spi_regmap;
+extern const struct regmap_config wm8285_32bit_spi_regmap;
+extern const struct regmap_config wm8285_32bit_i2c_regmap;
+
 extern const struct regmap_config wm8997_i2c_regmap;
 
 extern const struct regmap_config wm8998_i2c_regmap;
@@ -42,6 +47,8 @@ extern const struct of_device_id arizona_of_match[];
 extern struct regmap_irq_chip florida_aod;
 extern struct regmap_irq_chip florida_irq;
 extern struct regmap_irq_chip florida_revd_irq;
+
+extern struct regmap_irq_chip wm8285_irq;
 
 extern struct regmap_irq_chip wm8997_aod;
 extern struct regmap_irq_chip wm8997_irq;
