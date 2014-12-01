@@ -1931,6 +1931,8 @@ static bool florida_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_5:
 	case ARIZONA_ALWAYS_ON_TRIGGERS_SEQUENCE_SELECT_6:
 	case ARIZONA_COMFORT_NOISE_GENERATOR:
+	case ARIZONA_HP_DETECT_CALIBRATION_1:
+	case ARIZONA_HP_DETECT_CALIBRATION_2:
 	case ARIZONA_HAPTICS_CONTROL_1:
 	case ARIZONA_HAPTICS_CONTROL_2:
 	case ARIZONA_HAPTICS_PHASE_1_INTENSITY:
@@ -2011,6 +2013,7 @@ static bool florida_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_ACCESSORY_DETECT_MODE_1:
 	case ARIZONA_HEADPHONE_DETECT_1:
 	case ARIZONA_HEADPHONE_DETECT_2:
+	case ARIZONA_HEADPHONE_DETECT_3:
 	case ARIZONA_MICD_CLAMP_CONTROL:
 	case ARIZONA_MIC_DETECT_1:
 	case ARIZONA_MIC_DETECT_2:
@@ -2122,6 +2125,7 @@ static bool florida_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_HP1_SHORT_CIRCUIT_CTRL:
 	case ARIZONA_HP2_SHORT_CIRCUIT_CTRL:
 	case ARIZONA_HP3_SHORT_CIRCUIT_CTRL:
+	case ARIZONA_HP_TEST_CTRL_1:
 	case ARIZONA_SPK_CTRL_3:
 	case ARIZONA_AIF1_BCLK_CTRL:
 	case ARIZONA_AIF1_TX_PIN_CTRL:
@@ -3061,6 +3065,8 @@ static bool florida_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_WRITE_SEQUENCER_CTRL_0:
 	case ARIZONA_WRITE_SEQUENCER_CTRL_1:
 	case ARIZONA_WRITE_SEQUENCER_CTRL_2:
+	case ARIZONA_HP_DETECT_CALIBRATION_1:
+	case ARIZONA_HP_DETECT_CALIBRATION_2:
 	case ARIZONA_HAPTICS_STATUS:
 	case ARIZONA_SAMPLE_RATE_1_STATUS:
 	case ARIZONA_SAMPLE_RATE_2_STATUS:
@@ -3076,6 +3082,7 @@ static bool florida_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_HP_CTRL_3L:
 	case ARIZONA_HP_CTRL_3R:
 	case ARIZONA_HEADPHONE_DETECT_2:
+	case ARIZONA_HEADPHONE_DETECT_3:
 	case ARIZONA_INPUT_ENABLES_STATUS:
 	case ARIZONA_OUTPUT_STATUS_1:
 	case ARIZONA_RAW_OUTPUT_STATUS_1:
@@ -3085,6 +3092,7 @@ static bool florida_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_ADC_VCO_CAL_7:
 	case ARIZONA_ADC_VCO_CAL_8:
 	case ARIZONA_ADC_VCO_CAL_9:
+	case ARIZONA_HP_TEST_CTRL_1:
 	case ARIZONA_SLIMBUS_RX_PORT_STATUS:
 	case ARIZONA_SLIMBUS_TX_PORT_STATUS:
 	case ARIZONA_INTERRUPT_STATUS_1:
