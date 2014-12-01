@@ -20,6 +20,8 @@
 
 #define ARIZONA_MAX_CORE_SUPPLIES 2
 
+struct device_node;
+
 enum arizona_type {
 	WM5102 = 1,
 	WM5110 = 2,
