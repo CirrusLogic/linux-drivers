@@ -70,11 +70,15 @@ struct wm_adsp {
 	const char *part;
 	int num;
 	int type;
+	int rev;
 	struct device *dev;
 	struct regmap *regmap;
 	struct snd_soc_card *card;
 
 	int base;
+
+	unsigned int rate_cache;
+	struct mutex rate_lock;
 
 	struct list_head alg_regions;
 
@@ -125,6 +129,7 @@ struct wm_adsp {
 	WM_ADSP2_E(wname, num, wm_adsp2_early_event)
 
 extern const struct snd_kcontrol_new wm_adsp_fw_controls[];
+extern const struct snd_kcontrol_new wm_adsp2v2_fw_controls[];
 
 int wm_adsp2_init(struct wm_adsp *adsp, struct mutex *fw_lock);
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
