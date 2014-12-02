@@ -431,10 +431,17 @@ static const struct file_operations regmap_access_fops = {
 	.llseek = default_llseek,
 };
 
-void regmap_debugfs_init(struct regmap *map)
+void regmap_debugfs_init(struct regmap *map, const char *name)
 {
-	map->debugfs = debugfs_create_dir(dev_name(map->dev),
-					  regmap_debugfs_root);
+	if (name) {
+		map->debugfs_name = kasprintf(GFP_KERNEL, "%s-%s",
+					      dev_name(map->dev), name);
+		name = map->debugfs_name;
+	} else {
+		name = dev_name(map->dev);
+	}
+
+	map->debugfs = debugfs_create_dir(name, regmap_debugfs_root);
 	if (!map->debugfs) {
 		dev_warn(map->dev, "Failed to create debugfs directory\n");
 		return;
@@ -472,6 +479,7 @@ void regmap_debugfs_exit(struct regmap *map)
 	mutex_lock(&map->cache_lock);
 	regmap_debugfs_free_dump_cache(map);
 	mutex_unlock(&map->cache_lock);
+	kfree(map->debugfs_name);
 }
 
 void regmap_debugfs_initcall(void)
