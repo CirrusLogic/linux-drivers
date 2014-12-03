@@ -385,19 +385,22 @@ static __devinit int arizona_ldo1_probe(struct platform_device *pdev)
 	ldo1->regulator = regulator_register(desc,
 					     arizona->dev, init_data,
 					     ldo1, of_node);
+	of_node_put(of_node);
 
 	if (IS_ERR(ldo1->regulator)) {
 		ret = PTR_ERR(ldo1->regulator);
 		dev_err(arizona->dev, "Failed to register LDO1 supply: %d\n",
 			ret);
-		return ret;
+		goto err_gpio;
 	}
-
-	of_node_put(of_node);
 
 	platform_set_drvdata(pdev, ldo1);
 
 	return 0;
+
+err_gpio:
+	gpio_free(ldo1->ena);
+	return ret;
 }
 
 static __devexit int arizona_ldo1_remove(struct platform_device *pdev)
@@ -405,6 +408,9 @@ static __devexit int arizona_ldo1_remove(struct platform_device *pdev)
 	struct arizona_ldo1 *ldo1 = platform_get_drvdata(pdev);
 
 	regulator_unregister(ldo1->regulator);
+
+	if (ldo1->ena)
+		gpio_free(ldo1->ena);
 
 	return 0;
 }
