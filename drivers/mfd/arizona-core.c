@@ -2128,8 +2128,11 @@ int __devexit arizona_dev_exit(struct arizona *arizona)
 	arizona_free_irq(arizona, ARIZONA_IRQ_OVERCLOCKED, arizona);
 	arizona_free_irq(arizona, ARIZONA_IRQ_CLKGEN_ERR, arizona);
 	arizona_irq_exit(arizona);
-	if (arizona->pdata.reset)
+
+	if (arizona->pdata.reset) {
 		gpio_set_value_cansleep(arizona->pdata.reset, 0);
+		gpio_free(arizona->pdata.reset);
+	}
 
 	regulator_bulk_disable(arizona->num_core_supplies,
 			       arizona->core_supplies);
