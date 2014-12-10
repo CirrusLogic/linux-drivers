@@ -2157,7 +2157,7 @@ static struct snd_soc_dai_driver wm8285_dai[] = {
 		.capture = {
 			.stream_name = "Voice Control CPU",
 			.channels_min = 1,
-			.channels_max = 1,
+			.channels_max = 2,
 			.rates = WM8285_RATES,
 			.formats = WM8285_FORMATS,
 		},
@@ -2168,7 +2168,7 @@ static struct snd_soc_dai_driver wm8285_dai[] = {
 		.capture = {
 			.stream_name = "Voice Control DSP",
 			.channels_min = 1,
-			.channels_max = 1,
+			.channels_max = 2,
 			.rates = WM8285_RATES,
 			.formats = WM8285_FORMATS,
 		},
