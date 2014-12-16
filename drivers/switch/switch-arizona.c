@@ -1155,6 +1155,7 @@ int arizona_micd_start(struct arizona_extcon_info *info)
 		case WM8998:
 		case WM1814:
 		case WM8280:
+			break;
 		default:
 			dev_dbg(arizona->dev, "Disabling MICD_OVD\n");
 			regmap_update_bits(arizona->regmap,
@@ -1239,6 +1240,7 @@ void arizona_micd_stop(struct arizona_extcon_info *info)
 		case WM8998:
 		case WM1814:
 		case WM8280:
+			break;
 		default:
 			dev_dbg(arizona->dev, "Enabling MICD_OVD\n");
 			regmap_update_bits(arizona->regmap,
