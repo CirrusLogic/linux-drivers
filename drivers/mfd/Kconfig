@@ -890,9 +890,15 @@ config MFD_PM8XXX_IRQ
 	default y if MFD_PM8XXX
 	help
 	  This is the IRQ driver for Qualcomm PM 8xxx PMIC chips.
-
 	  This is required to use certain other PM 8xxx features, such as GPIO
 	  and MPP.
+
+config MFD_CLEARWATER
+	bool "Wolfson Microelectronics ClearWater class codecs"
+	depends on MFD_ARIZONA
+	help
+	  Support for Wolfson Microelectronics ClearWater class low power audio SoC
+	  such as the WM8285
 
 config TPS65911_COMPARATOR
 	tristate
