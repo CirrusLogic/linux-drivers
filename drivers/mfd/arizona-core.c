@@ -391,13 +391,13 @@ static int arizona_wait_for_boot(struct arizona *arizona)
 				     ARIZONA_BOOT_DONE_STS);
 		break;
 	default:
-		ret = arizona_poll_reg(arizona, 5, WM8285_IRQ1_RAW_STATUS_1,
-				       WM8285_BOOT_DONE_STS1,
-				       WM8285_BOOT_DONE_STS1);
+		ret = arizona_poll_reg(arizona, 5, CLEARWATER_IRQ1_RAW_STATUS_1,
+				       CLEARWATER_BOOT_DONE_STS1,
+				       CLEARWATER_BOOT_DONE_STS1);
 
 		if (!ret)
-			regmap_write(arizona->regmap, WM8285_IRQ1_STATUS_1,
-				     WM8285_BOOT_DONE_EINT1);
+			regmap_write(arizona->regmap, CLEARWATER_IRQ1_STATUS_1,
+				     CLEARWATER_BOOT_DONE_EINT1);
 		break;
 	}
 
@@ -1263,7 +1263,7 @@ static const struct mfd_cell wm8998_devs[] = {
 	},
 };
 
-static const char *wm8285_supplies[] = {
+static const char *clearwater_supplies[] = {
 	"MICVDD",
 	"DBVDD2",
 	"DBVDD3",
@@ -1273,16 +1273,16 @@ static const char *wm8285_supplies[] = {
 	"SPKVDDR",
 };
 
-static const struct mfd_cell wm8285_devs[] = {
+static const struct mfd_cell clearwater_devs[] = {
 	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-extcon" },
 	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
 	{ .name = "arizona-pwm" },
 	{
-		.name = "wm8285-codec",
-		.parent_supplies = wm8285_supplies,
-		.num_parent_supplies = ARRAY_SIZE(wm8285_supplies),
+		.name = "clearwater-codec",
+		.parent_supplies = clearwater_supplies,
+		.num_parent_supplies = ARRAY_SIZE(clearwater_supplies),
 	},
 };
 
@@ -1712,7 +1712,7 @@ int arizona_dev_init(struct arizona *arizona)
 		revision_char = arizona->rev + 'A';
 		break;
 #endif
-#ifdef CONFIG_MFD_WM8285
+#ifdef CONFIG_MFD_CLEARWATER
 	case 0x6338:
 		switch (arizona->type) {
 		case WM8285:
@@ -1730,7 +1730,7 @@ int arizona_dev_init(struct arizona *arizona)
 		}
 
 		revision_char = arizona->rev + 'A';
-		apply_patch = wm8285_patch;
+		apply_patch = clearwater_patch;
 		break;
 #endif
 	default:
@@ -1795,7 +1795,7 @@ int arizona_dev_init(struct arizona *arizona)
 			if (!arizona->pdata.gpio_defaults[i])
 				continue;
 
-			regmap_write(arizona->regmap, WM8285_GPIO1_CTRL_1 + i,
+			regmap_write(arizona->regmap, CLEARWATER_GPIO1_CTRL_1 + i,
 				     arizona->pdata.gpio_defaults[i]);
 		}
 		break;
@@ -1976,8 +1976,8 @@ int arizona_dev_init(struct arizona *arizona)
 		break;
 	case WM8285:
 	case WM1840:
-		ret = mfd_add_devices(arizona->dev, -1, wm8285_devs,
-				      ARRAY_SIZE(wm8285_devs), NULL, 0, NULL);
+		ret = mfd_add_devices(arizona->dev, -1, clearwater_devs,
+				      ARRAY_SIZE(clearwater_devs), NULL, 0, NULL);
 		break;
 	}
 
