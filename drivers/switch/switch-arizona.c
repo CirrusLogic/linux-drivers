@@ -98,6 +98,9 @@ struct arizona_extcon_info {
 	int micd_res_old;
 	int micd_debounce;
 	int micd_count;
+	int antenna_res_old;
+	int antenna_debounce;
+	int antenna_count;
 
 	struct delayed_work probe_work;
 	struct delayed_work hpdet_work;
@@ -1351,6 +1354,9 @@ static int arizona_antenna_mic_reading(struct arizona_extcon_info *info, int val
 		return val;
 
 	if (!(val & ARIZONA_MICD_STS)) {
+		info->antenna_res_old = 0;
+		info->antenna_debounce = 0;
+		info->antenna_count = 0;
 		arizona_extcon_report(info, BIT_ANTENNA);
 		arizona_jds_set_state(info, &arizona_antenna_oc_det);
 	} else {
@@ -1375,6 +1381,7 @@ static int arizona_antenna_mic_reading(struct arizona_extcon_info *info, int val
 static int arizona_antenna_oc_reading(struct arizona_extcon_info *info, int val)
 {
 	struct arizona *arizona = info->arizona;
+	int debounce_lim = arizona->pdata.antenna_manual_debounce;
 	int ret;
 
 	if (val < 0)
@@ -1382,6 +1389,32 @@ static int arizona_antenna_oc_reading(struct arizona_extcon_info *info, int val)
 
 	if (!(val & ARIZONA_MICD_STS))
 		return 0;
+
+	if (debounce_lim) {
+		if (info->antenna_debounce != val)
+			info->antenna_count = 0;
+
+		info->antenna_debounce = val;
+		info->antenna_count++;
+
+		if (info->antenna_count == debounce_lim) {
+			info->antenna_count = 0;
+			if (val == info->antenna_res_old)
+				return 0;
+
+			info->antenna_res_old = val;
+		} else {
+			dev_dbg(arizona->dev, "Antenna software debounce: %d,%x\n",
+				info->antenna_count, val);
+			regmap_update_bits(arizona->regmap,
+					   ARIZONA_MIC_DETECT_1,
+					   ARIZONA_MICD_ENA, 0);
+			regmap_update_bits(arizona->regmap,
+					   ARIZONA_MIC_DETECT_1,
+					   ARIZONA_MICD_ENA, ARIZONA_MICD_ENA);
+			return -EAGAIN;
+		}
+	}
 
 	info->mic = val & ARIZONA_MICD_LVL_8 ? true : false;
 
@@ -2097,6 +2130,9 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 		info->micd_res_old = 0;
 		info->micd_debounce = 0;
 		info->micd_count = 0;
+		info->antenna_res_old = 0;
+		info->antenna_debounce = 0;
+		info->antenna_count = 0;
 		arizona->hp_impedance = 0;
 		arizona_jds_set_state(info, NULL);
 
@@ -2185,6 +2221,9 @@ static int arizona_extcon_of_get_pdata(struct arizona *arizona)
 
 	arizona_of_read_u32(arizona, "wlf,micd-manual-debounce", false,
 			    &pdata->micd_manual_debounce);
+
+	arizona_of_read_u32(arizona, "wlf,antenna-manual-debounce", false,
+			    &pdata->antenna_manual_debounce);
 
 	pdata->micd_pol_gpio = arizona_of_get_named_gpio(arizona,
 							 "wlf,micd-pol-gpio",
