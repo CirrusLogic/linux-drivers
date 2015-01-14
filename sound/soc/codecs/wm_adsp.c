@@ -351,7 +351,7 @@ static struct wm_adsp_fw_caps ez2control_caps[] = {
 	{
 		.id = SND_AUDIOCODEC_PCM,
 		.desc = {
-			.max_ch = 1,
+			.max_ch = 2,
 			.sample_rates = { 16000 },
 			.num_sample_rates = 1,
 			.formats = SNDRV_PCM_FMTBIT_S16_LE,

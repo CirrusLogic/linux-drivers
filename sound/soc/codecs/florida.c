@@ -2118,7 +2118,7 @@ static struct snd_soc_dai_driver florida_dai[] = {
 		.capture = {
 			.stream_name = "Voice Control CPU",
 			.channels_min = 1,
-			.channels_max = 1,
+			.channels_max = 2,
 			.rates = FLORIDA_RATES,
 			.formats = FLORIDA_FORMATS,
 		},
@@ -2129,7 +2129,7 @@ static struct snd_soc_dai_driver florida_dai[] = {
 		.capture = {
 			.stream_name = "Voice Control DSP",
 			.channels_min = 1,
-			.channels_max = 1,
+			.channels_max = 2,
 			.rates = FLORIDA_RATES,
 			.formats = FLORIDA_FORMATS,
 		},
