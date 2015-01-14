@@ -1772,7 +1772,7 @@ static struct snd_soc_dai_driver marley_dai[] = {
 		.capture = {
 			.stream_name = "Voice Control CPU",
 			.channels_min = 1,
-			.channels_max = 1,
+			.channels_max = 2,
 			.rates = MARLEY_RATES,
 			.formats = MARLEY_FORMATS,
 		},
@@ -1783,7 +1783,7 @@ static struct snd_soc_dai_driver marley_dai[] = {
 		.capture = {
 			.stream_name = "Voice Control DSP",
 			.channels_min = 1,
-			.channels_max = 1,
+			.channels_max = 2,
 			.rates = MARLEY_RATES,
 			.formats = MARLEY_FORMATS,
 		},
