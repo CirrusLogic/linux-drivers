@@ -1120,9 +1120,6 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 		largo->compr_info.trig = true;
 	}
 
-	if (!largo->compr_info.allocated)
-		goto out;
-
 	ret = wm_adsp_stream_handle_irq(largo->compr_info.adsp);
 	if (ret < 0) {
 		dev_err(largo->core.arizona->dev,
@@ -1133,9 +1130,11 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 
 	largo->compr_info.total_copied += ret;
 
-	avail = wm_adsp_stream_avail(largo->compr_info.adsp);
-	if (avail > LARGO_DEFAULT_FRAGMENT_SIZE)
-		snd_compr_fragment_elapsed(largo->compr_info.stream);
+	if (!largo->compr_info.allocated) {
+		avail = wm_adsp_stream_avail(largo->compr_info.adsp);
+		if (avail > LARGO_DEFAULT_FRAGMENT_SIZE)
+			snd_compr_fragment_elapsed(largo->compr_info.stream);
+	}
 
 out:
 	mutex_unlock(&largo->compr_info.lock);
