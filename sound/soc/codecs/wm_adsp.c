@@ -3057,14 +3057,17 @@ static inline int wm_adsp_host_buffer_read(struct wm_adsp *dsp,
 					   unsigned int field_offset, u32 *data)
 {
 	return wm_adsp_read_data_word(dsp, WMFW_ADSP2_XM,
-				      dsp->host_buf_ptr + field_offset, data);
+				      dsp->host_buf_info.host_buf_ptr +
+				      field_offset,
+				      data);
 }
 
 static inline int wm_adsp_host_buffer_write(struct wm_adsp *dsp,
 					    unsigned int field_offset, u32 data)
 {
 	return wm_adsp_write_data_word(dsp, WMFW_ADSP2_XM,
-				       dsp->host_buf_ptr + field_offset,
+				       dsp->host_buf_info.host_buf_ptr +
+				       field_offset,
 				       data);
 }
 
@@ -3077,7 +3080,7 @@ static int wm_adsp_populate_buffer_regions(struct wm_adsp *dsp)
 	struct wm_adsp_buffer_region *region;
 
 	for (i = 0; i < dsp->firmwares[dsp->fw].caps->num_host_regions; ++i) {
-		region = &dsp->host_regions[i];
+		region = &dsp->host_buf_info.host_regions[i];
 
 		region->offset = offset;
 		region->mem_type = host_region_defs[i].mem_type;
@@ -3105,6 +3108,52 @@ static int wm_adsp_populate_buffer_regions(struct wm_adsp *dsp)
 	return 0;
 }
 
+static int wm_adsp_init_host_buf_info(struct wm_adsp *dsp)
+{
+	u32 xm_base, magic;
+	int i, ret;
+
+	dsp->host_buf_info.error = 0;
+
+	ret = wm_adsp_read_data_word(dsp, WMFW_ADSP2_XM,
+				     ADSP2_SYSTEM_CONFIG_XM_PTR, &xm_base);
+	if (ret < 0)
+		return ret;
+
+	ret = wm_adsp_read_data_word(dsp, WMFW_ADSP2_XM,
+				     xm_base + WM_ADSP_ALG_XM_PTR +
+				     ALG_XM_FIELD(magic),
+				     &magic);
+	if (ret < 0)
+		return ret;
+
+	if (magic != WM_ADSP_ALG_XM_STRUCT_MAGIC)
+		return -EINVAL;
+
+	for (i = 0; i < 5; ++i) {
+		ret = wm_adsp_read_data_word(dsp, WMFW_ADSP2_XM,
+					     xm_base + WM_ADSP_ALG_XM_PTR +
+					     ALG_XM_FIELD(host_buf_ptr),
+					     &dsp->host_buf_info.host_buf_ptr);
+		if (ret < 0)
+			return ret;
+
+		if (dsp->host_buf_info.host_buf_ptr)
+			break;
+
+		msleep(1);
+	}
+
+	if (!dsp->host_buf_info.host_buf_ptr)
+		return -EIO;
+
+	ret = wm_adsp_populate_buffer_regions(dsp);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int wm_adsp_read_buffer(struct wm_adsp *dsp, int32_t read_index,
 			       int avail)
 {
@@ -3115,6 +3164,8 @@ static int wm_adsp_read_buffer(struct wm_adsp *dsp, int32_t read_index,
 	u8 *capt_buf = (u8 *)dsp->capt_buf.buf;
 	int capt_buf_h = dsp->capt_buf.head;
 	int capt_buf_mask = dsp->capt_buf_size - 1;
+	struct wm_adsp_buffer_region *host_regions =
+				dsp->host_buf_info.host_regions;
 	int mem_type;
 	unsigned int adsp_addr;
 	int num_words;
@@ -3122,17 +3173,17 @@ static int wm_adsp_read_buffer(struct wm_adsp *dsp, int32_t read_index,
 
 	/* Calculate read parameters */
 	for (i = 0; i < dsp->firmwares[dsp->fw].caps->num_host_regions; ++i) {
-		if (read_index < dsp->host_regions[i].cumulative_size)
+		if (read_index < host_regions[i].cumulative_size)
 			break;
 	}
 
 	if (i == dsp->firmwares[dsp->fw].caps->num_host_regions)
 		return -EINVAL;
 
-	num_words = dsp->host_regions[i].cumulative_size - read_index;
-	mem_type = dsp->host_regions[i].mem_type;
-	adsp_addr = dsp->host_regions[i].base_addr +
-		    (read_index - dsp->host_regions[i].offset);
+	num_words = host_regions[i].cumulative_size - read_index;
+	mem_type = host_regions[i].mem_type;
+	adsp_addr = host_regions[i].base_addr +
+		    (read_index - host_regions[i].offset);
 
 	if (circ_space_words < num_words)
 		num_words = circ_space_words;
@@ -3169,8 +3220,10 @@ static int wm_adsp_read_buffer(struct wm_adsp *dsp, int32_t read_index,
 
 static int wm_adsp_capture_block(struct wm_adsp *dsp, int *avail)
 {
+	struct wm_adsp_buffer_region *host_regions =
+				      dsp->host_buf_info.host_regions;
 	int last_region = dsp->firmwares[dsp->fw].caps->num_host_regions - 1;
-	int host_size = dsp->host_regions[last_region].cumulative_size;
+	int host_size = host_regions[last_region].cumulative_size;
 	int num_words;
 	u32 next_read_index, next_write_index;
 	int32_t write_index, read_index;
@@ -3223,8 +3276,6 @@ int wm_adsp_stream_alloc(struct wm_adsp *dsp,
 	int ret;
 	unsigned int size;
 
-	dsp->dsp_error = 0;
-
 	if (!dsp->capt_buf.buf) {
 		dsp->capt_buf_size = WM_ADSP_CAPTURE_BUFFER_SIZE;
 		dsp->capt_buf.buf = vmalloc(dsp->capt_buf_size);
@@ -3246,12 +3297,12 @@ int wm_adsp_stream_alloc(struct wm_adsp *dsp,
 		}
 	}
 
-	if (!dsp->host_regions) {
+	if (!dsp->host_buf_info.host_regions) {
 		size = dsp->firmwares[dsp->fw].caps->num_host_regions *
-		       sizeof(*dsp->host_regions);
-		dsp->host_regions = kzalloc(size, GFP_KERNEL);
+		       sizeof(*dsp->host_buf_info.host_regions);
+		dsp->host_buf_info.host_regions = kzalloc(size, GFP_KERNEL);
 
-		if (!dsp->host_regions) {
+		if (!dsp->host_buf_info.host_regions) {
 			ret = -ENOMEM;
 			goto err_raw_capt_buf;
 		}
@@ -3280,8 +3331,8 @@ EXPORT_SYMBOL_GPL(wm_adsp_stream_alloc);
 
 int wm_adsp_stream_free(struct wm_adsp *dsp)
 {
-	kfree(dsp->host_regions);
-	dsp->host_regions = NULL;
+	kfree(dsp->host_buf_info.host_regions);
+	dsp->host_buf_info.host_regions = NULL;
 
 	kfree(dsp->raw_capt_buf);
 	dsp->raw_capt_buf = NULL;
@@ -3297,45 +3348,13 @@ EXPORT_SYMBOL_GPL(wm_adsp_stream_free);
 
 int wm_adsp_stream_start(struct wm_adsp *dsp)
 {
-	u32 xm_base, magic;
-	int i, ret;
+	int ret;
 
-	ret = wm_adsp_read_data_word(dsp, WMFW_ADSP2_XM,
-				     ADSP2_SYSTEM_CONFIG_XM_PTR, &xm_base);
+	ret = wm_adsp_init_host_buf_info(dsp);
 	if (ret < 0)
 		return ret;
-
-	ret = wm_adsp_read_data_word(dsp, WMFW_ADSP2_XM,
-				     xm_base + WM_ADSP_ALG_XM_PTR +
-				     ALG_XM_FIELD(magic),
-				     &magic);
-	if (ret < 0)
-		return ret;
-
-	if (magic != WM_ADSP_ALG_XM_STRUCT_MAGIC)
-		return -EINVAL;
-
-	for (i = 0; i < 5; ++i) {
-		ret = wm_adsp_read_data_word(dsp, WMFW_ADSP2_XM,
-					     xm_base + WM_ADSP_ALG_XM_PTR +
-					     ALG_XM_FIELD(host_buf_ptr),
-					     &dsp->host_buf_ptr);
-		if (ret < 0)
-			return ret;
-
-		if (dsp->host_buf_ptr)
-			break;
-
-		msleep(1);
-	}
-
-	if (!dsp->host_buf_ptr)
-		return -EIO;
 
 	dsp->max_dsp_read_bytes = WM_ADSP_MAX_READ_SIZE * sizeof(u32);
-	ret = wm_adsp_populate_buffer_regions(dsp);
-	if (ret < 0)
-		return ret;
 
 	ret = wm_adsp_host_buffer_write(dsp,
 					HOST_BUFFER_FIELD(high_water_mark),
@@ -3403,11 +3422,12 @@ int wm_adsp_stream_handle_irq(struct wm_adsp *dsp)
 
 	ret = wm_adsp_host_buffer_read(dsp,
 				       HOST_BUFFER_FIELD(error),
-				       &dsp->dsp_error);
+				       &dsp->host_buf_info.error);
 	if (ret < 0)
 		return ret;
-	if (dsp->dsp_error != 0) {
-		adsp_err(dsp, "DSP error occurred: %d\n", dsp->dsp_error);
+	if (dsp->host_buf_info.error != 0) {
+		adsp_err(dsp, "DSP error occurred: %d\n",
+			 dsp->host_buf_info.error);
 		return -EIO;
 	}
 
