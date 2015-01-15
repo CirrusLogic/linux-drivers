@@ -2211,9 +2211,6 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 		florida->compr_info.trig = true;
 	}
 
-	if (!florida->compr_info.allocated)
-		goto out;
-
 	ret = wm_adsp_stream_handle_irq(florida->compr_info.adsp);
 	if (ret < 0) {
 		dev_err(florida->core.arizona->dev,
@@ -2224,9 +2221,11 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 
 	florida->compr_info.total_copied += ret;
 
-	avail = wm_adsp_stream_avail(florida->compr_info.adsp);
-	if (avail > FLORIDA_DEFAULT_FRAGMENT_SIZE)
-		snd_compr_fragment_elapsed(florida->compr_info.stream);
+	if (florida->compr_info.allocated) {
+		avail = wm_adsp_stream_avail(florida->compr_info.adsp);
+		if (avail > FLORIDA_DEFAULT_FRAGMENT_SIZE)
+			snd_compr_fragment_elapsed(florida->compr_info.stream);
+	}
 
 out:
 	mutex_unlock(&florida->compr_info.lock);

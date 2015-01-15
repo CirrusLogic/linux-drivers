@@ -136,6 +136,7 @@ struct wm_adsp {
 	int capt_buf_size;
 	u32 capt_watermark;
 	bool buffer_drain_pending;
+	bool stream_allocated;
 
 	int num_firmwares;
 	struct wm_adsp_fw_defs *firmwares;

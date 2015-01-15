@@ -2672,9 +2672,6 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 		moon->compr_info.trig = true;
 	}
 
-	if (!moon->compr_info.allocated)
-		goto out;
-
 	ret = wm_adsp_stream_handle_irq(moon->compr_info.adsp);
 	if (ret < 0) {
 		dev_err(moon->core.arizona->dev,
@@ -2685,9 +2682,11 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 
 	moon->compr_info.total_copied += ret;
 
-	avail = wm_adsp_stream_avail(moon->compr_info.adsp);
-	if (avail > MOON_DEFAULT_FRAGMENT_SIZE)
-		snd_compr_fragment_elapsed(moon->compr_info.stream);
+	if (moon->compr_info.allocated) {
+		avail = wm_adsp_stream_avail(moon->compr_info.adsp);
+		if (avail > MOON_DEFAULT_FRAGMENT_SIZE)
+			snd_compr_fragment_elapsed(moon->compr_info.stream);
+	}
 
 out:
 	mutex_unlock(&moon->compr_info.lock);

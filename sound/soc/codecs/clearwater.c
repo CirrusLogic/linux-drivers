@@ -2715,9 +2715,6 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 		clearwater->compr_info.trig = true;
 	}
 
-	if (!clearwater->compr_info.allocated)
-		goto out;
-
 	ret = wm_adsp_stream_handle_irq(clearwater->compr_info.adsp);
 	if (ret < 0) {
 		dev_err(clearwater->core.arizona->dev,
@@ -2728,9 +2725,11 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 
 	clearwater->compr_info.total_copied += ret;
 
-	avail = wm_adsp_stream_avail(clearwater->compr_info.adsp);
-	if (avail > CLEARWATER_DEFAULT_FRAGMENT_SIZE)
-		snd_compr_fragment_elapsed(clearwater->compr_info.stream);
+	if (clearwater->compr_info.allocated) {
+		avail = wm_adsp_stream_avail(clearwater->compr_info.adsp);
+		if (avail > CLEARWATER_DEFAULT_FRAGMENT_SIZE)
+			snd_compr_fragment_elapsed(clearwater->compr_info.stream);
+	}
 
 out:
 	mutex_unlock(&clearwater->compr_info.lock);

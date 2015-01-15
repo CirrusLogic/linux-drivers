@@ -3378,6 +3378,8 @@ int wm_adsp_stream_alloc(struct wm_adsp *dsp,
 				DIV_ROUND_UP(size, WM_ADSP_DATA_WORD_SIZE);
 	}
 
+	dsp->stream_allocated = true;
+
 	return 0;
 
 err_capt_buf:
@@ -3389,6 +3391,8 @@ EXPORT_SYMBOL_GPL(wm_adsp_stream_alloc);
 
 int wm_adsp_stream_free(struct wm_adsp *dsp)
 {
+	dsp->stream_allocated = false;
+
 	kfree(dsp->raw_capt_buf);
 	dsp->raw_capt_buf = NULL;
 
@@ -3517,15 +3521,17 @@ int wm_adsp_stream_handle_irq(struct wm_adsp *dsp)
 		goto out_unlock;
 	}
 
-	bytes_captured = wm_adsp_stream_capture(dsp);
-	if (bytes_captured < 0) {
-		ret = bytes_captured;
-		goto out_unlock;
-	}
+	if (dsp->stream_allocated) {
+		bytes_captured = wm_adsp_stream_capture(dsp);
+		if (bytes_captured < 0) {
+			ret = bytes_captured;
+			goto out_unlock;
+		}
 
-	ret = wm_adsp_ack_buffer_interrupt(dsp);
-	if (ret < 0)
-		goto out_unlock;
+		ret = wm_adsp_ack_buffer_interrupt(dsp);
+		if (ret < 0)
+			goto out_unlock;
+	}
 
 	ret = bytes_captured;
 
@@ -3596,9 +3602,12 @@ EXPORT_SYMBOL_GPL(wm_adsp_stream_read);
 
 int wm_adsp_stream_avail(const struct wm_adsp *dsp)
 {
-	return CIRC_CNT(dsp->capt_buf.head,
-			dsp->capt_buf.tail,
-			dsp->capt_buf_size);
+	if (!dsp->stream_allocated)
+		return 0;
+	else
+		return CIRC_CNT(dsp->capt_buf.head,
+				dsp->capt_buf.tail,
+				dsp->capt_buf_size);
 }
 EXPORT_SYMBOL_GPL(wm_adsp_stream_avail);
 
