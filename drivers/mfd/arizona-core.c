@@ -1360,12 +1360,12 @@ static const char *cs47l24_supplies[] = {
 	"SPKVDD",
 };
 
-static const struct mfd_cell cs47l24_devs[] = {
+static const struct mfd_cell largo_devs[] = {
 	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
 	{ .name = "arizona-pwm" },
 	{
-		.name = "cs47l24-codec",
+		.name = "largo-codec",
 		.parent_supplies = cs47l24_supplies,
 		.num_parent_supplies = ARRAY_SIZE(cs47l24_supplies),
 	},
@@ -1816,7 +1816,7 @@ int arizona_dev_init(struct arizona *arizona)
 		apply_patch = florida_patch;
 		break;
 #endif
-#ifdef CONFIG_MFD_CS47L24
+#ifdef CONFIG_MFD_LARGO
 	case 0x6363:
 		switch (arizona->type) {
 		case CS47L24:
@@ -1830,14 +1830,14 @@ int arizona_dev_init(struct arizona *arizona)
 			break;
 
 		default:
-			dev_err(arizona->dev, "CS47L24 codec registered as %d\n",
+			dev_err(arizona->dev, "Largo codec registered as %d\n",
 				arizona->type);
 			arizona->type = CS47L24;
-			type_name = "CS47L24";
+			type_name = "Largo";
 			revision_char = arizona->rev + 'A';
 			break;
 		}
-		apply_patch = cs47l24_patch;
+		apply_patch = largo_patch;
 		break;
 #endif
 #ifdef CONFIG_MFD_WM8997
@@ -2165,8 +2165,8 @@ int arizona_dev_init(struct arizona *arizona)
 		break;
 	case WM1831:
 	case CS47L24:
-		ret = mfd_add_devices(arizona->dev, -1, cs47l24_devs,
-				      ARRAY_SIZE(cs47l24_devs), NULL, 0, NULL);
+		ret = mfd_add_devices(arizona->dev, -1, largo_devs,
+				      ARRAY_SIZE(largo_devs), NULL, 0, NULL);
 		break;
 	case WM8997:
 		ret = mfd_add_devices(arizona->dev, -1, wm8997_devs,
