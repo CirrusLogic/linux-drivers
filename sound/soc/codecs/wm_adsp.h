@@ -83,6 +83,12 @@ struct wm_adsp_fw_features {
 	bool ez2control_trigger:1;
 };
 
+struct wm_adsp_host_buf_info {
+	struct wm_adsp_buffer_region *host_regions;
+	u32 host_buf_ptr;
+	u32 error;
+};
+
 struct wm_adsp {
 	const char *part;
 	int rev;
@@ -112,16 +118,14 @@ struct wm_adsp {
 
 	struct mutex ctl_lock;
 
-	u32 host_buf_ptr;
+	struct wm_adsp_host_buf_info host_buf_info;
 
 
 	int max_dsp_read_bytes;
-	u32 dsp_error;
 	u32 *raw_capt_buf;
 	struct circ_buf capt_buf;
 	int capt_buf_size;
 	u32 capt_watermark;
-	struct wm_adsp_buffer_region *host_regions;
 	bool buffer_drain_pending;
 
 	int num_firmwares;
