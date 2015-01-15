@@ -81,6 +81,7 @@ struct wm_adsp_fw_defs {
 struct wm_adsp_fw_features {
 	bool shutdown:1;
 	bool ez2control_trigger:1;
+	bool host_read_buf:1;
 };
 
 struct wm_adsp_host_buf_info {
