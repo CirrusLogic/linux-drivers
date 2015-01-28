@@ -125,6 +125,14 @@
 #define ADSP2V2_WDMA_CONFIG_2 0x32
 #define ADSP2_RDMA_CONFIG_1   0x34
 
+#define ADSP2_SCRATCH0        0x40
+#define ADSP2_SCRATCH1        0x41
+#define ADSP2_SCRATCH2        0x42
+#define ADSP2_SCRATCH3        0x43
+
+#define ADSP2V2_SCRATCH0_1        0x40
+#define ADSP2V2_SCRATCH2_3        0x42
+
 /*
  * ADSP2 Control
  */
@@ -2347,6 +2355,7 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 	struct wm_adsp *dsp = &dsps[w->shift];
 	struct wm_adsp_alg_region *alg_region;
 	struct wm_coeff_ctl *ctl;
+	unsigned int scratch1 = 0xFFFFFFFF;
 	int ret;
 
 	switch (event) {
@@ -2366,6 +2375,23 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
+		/* Capture DSP_SCRATCH1, it can be useful for analysis */
+		switch (dsp->rev) {
+		case 0:
+			ret = regmap_read(dsp->regmap,
+					  dsp->base + ADSP2_SCRATCH1,
+					  &scratch1);
+			break;
+		default:
+			ret = regmap_read(dsp->regmap,
+					  dsp->base + ADSP2V2_SCRATCH0_1,
+					  &scratch1);
+			break;
+		}
+
+		if (ret < 0)
+			adsp_err(dsp, "Failed to read SCRATCH1 %d\n", ret);
+
 		if (dsp->fw_features.shutdown)
 			wm_adsp_edac_shutdown(dsp);
 
@@ -2413,7 +2439,7 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 			kfree(alg_region);
 		}
 
-		adsp_info(dsp, "Shutdown complete\n");
+		adsp_info(dsp, "Shutdown complete (SCRATCH1:0x%x)\n", scratch1);
 		break;
 
 	default:
