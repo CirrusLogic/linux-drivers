@@ -1771,9 +1771,9 @@ static bool marley_32bit_readable_register(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case ARIZONA_WSEQ_SEQUENCE_1 ... ARIZONA_WSEQ_SEQUENCE_252:
 	case MARLEY_OTP_HPDET_CALIB_1 ... MARLEY_OTP_HPDET_CALIB_2:
-	case CLEARWATER_DSP1_CONFIG ... CLEARWATER_DSP1_SCRATCH_3:
-	case CLEARWATER_DSP2_CONFIG ... CLEARWATER_DSP2_SCRATCH_3:
-	case CLEARWATER_DSP3_CONFIG ... CLEARWATER_DSP3_SCRATCH_3:
+	case CLEARWATER_DSP1_CONFIG ... CLEARWATER_DSP1_SCRATCH_2_3:
+	case CLEARWATER_DSP2_CONFIG ... CLEARWATER_DSP2_SCRATCH_2_3:
+	case CLEARWATER_DSP3_CONFIG ... CLEARWATER_DSP3_SCRATCH_2_3:
 		return true;
 	default:
 		return marley_is_adsp_memory(dev, reg);
@@ -1785,9 +1785,9 @@ static bool marley_32bit_volatile_register(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case ARIZONA_WSEQ_SEQUENCE_1 ... ARIZONA_WSEQ_SEQUENCE_252:
 	case MARLEY_OTP_HPDET_CALIB_1 ... MARLEY_OTP_HPDET_CALIB_2:
-	case CLEARWATER_DSP1_CONFIG ... CLEARWATER_DSP1_SCRATCH_3:
-	case CLEARWATER_DSP2_CONFIG ... CLEARWATER_DSP2_SCRATCH_3:
-	case CLEARWATER_DSP3_CONFIG ... CLEARWATER_DSP3_SCRATCH_3:
+	case CLEARWATER_DSP1_CONFIG ... CLEARWATER_DSP1_SCRATCH_2_3:
+	case CLEARWATER_DSP2_CONFIG ... CLEARWATER_DSP2_SCRATCH_2_3:
+	case CLEARWATER_DSP3_CONFIG ... CLEARWATER_DSP3_SCRATCH_2_3:
 		return true;
 	default:
 		return marley_is_adsp_memory(dev, reg);
@@ -1832,7 +1832,7 @@ const struct regmap_config marley_32bit_spi_regmap = {
 	.pad_bits = 16,
 	.val_bits = 32,
 
-	.max_register = CLEARWATER_DSP3_SCRATCH_3,
+	.max_register = CLEARWATER_DSP3_SCRATCH_2_3,
 	.readable_reg = marley_32bit_readable_register,
 	.volatile_reg = marley_32bit_volatile_register,
 
@@ -1846,7 +1846,7 @@ const struct regmap_config marley_32bit_i2c_regmap = {
 	.reg_stride = 2,
 	.val_bits = 32,
 
-	.max_register = CLEARWATER_DSP3_SCRATCH_3,
+	.max_register = CLEARWATER_DSP3_SCRATCH_2_3,
 	.readable_reg = marley_32bit_readable_register,
 	.volatile_reg = marley_32bit_volatile_register,
 
