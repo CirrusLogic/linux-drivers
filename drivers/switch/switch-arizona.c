@@ -132,9 +132,13 @@ struct arizona_extcon_info {
 	struct switch_dev sdev;
 
 	const struct arizona_jd_state *state;
+	const struct arizona_jd_state *old_state;
 	struct delayed_work state_timeout_work;
 
 	struct wakeup_source detection_wake_lock;
+
+	int mic_impedance;
+	struct completion manual_mic_completion;
 };
 
 static const struct arizona_micd_config micd_default_modes[] = {
@@ -174,6 +178,11 @@ static ssize_t arizona_extcon_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf);
 DEVICE_ATTR(hp_impedance, S_IRUGO, arizona_extcon_show, NULL);
+
+static ssize_t arizona_extcon_mic_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf);
+DEVICE_ATTR(mic_impedance, S_IRUGO, arizona_extcon_mic_show, NULL);
 
 static void arizona_probe_work(struct work_struct *work);
 
@@ -2560,6 +2569,55 @@ static ssize_t arizona_extcon_show(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%d\n", info->arizona->hp_impedance);
 }
 
+static void arizona_micd_manual_timeout(struct arizona_extcon_info *info)
+{
+	dev_dbg(info->arizona->dev, "Manual MICD timed out\n");
+
+	info->mic_impedance = -EINVAL;
+
+	arizona_jds_set_state(info, info->old_state);
+
+	complete(&info->manual_mic_completion);
+}
+
+static int arizona_micd_manual_reading(struct arizona_extcon_info *info, int val)
+{
+	info->mic_impedance = val;
+
+	arizona_jds_set_state(info, info->old_state);
+
+	complete(&info->manual_mic_completion);
+
+	return val;
+}
+
+const struct arizona_jd_state arizona_micd_manual = {
+	.mode = ARIZONA_ACCDET_MODE_ADC,
+	.start = arizona_micd_mic_start,
+	.reading = arizona_micd_manual_reading,
+	.stop = arizona_micd_mic_stop,
+
+	.timeout_ms = arizona_micd_mic_timeout_ms,
+	.timeout = arizona_micd_manual_timeout,
+};
+
+static ssize_t arizona_extcon_mic_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct arizona_extcon_info *info = platform_get_drvdata(pdev);
+
+	mutex_lock(&info->lock);
+	info->old_state = info->state;
+	arizona_jds_set_state(info, &arizona_micd_manual);
+	mutex_unlock(&info->lock);
+
+	wait_for_completion(&info->manual_mic_completion);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", info->mic_impedance);
+}
+
 static int arizona_hp_trim_signify(int raw, int value_mask)
 {
 	if (raw > value_mask)
@@ -2774,6 +2832,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&info->lock);
+	init_completion(&info->manual_mic_completion);
 	wakeup_source_init(&info->detection_wake_lock, "arizona-jack-detection");
 	info->arizona = arizona;
 	info->dev = &pdev->dev;
@@ -3123,6 +3182,12 @@ static void arizona_probe_work(struct work_struct *work)
 	if (ret != 0)
 		dev_err(info->dev,
 			"Failed to create sysfs node for hp_impedance %d\n",
+			ret);
+
+	ret = device_create_file(info->dev, &dev_attr_mic_impedance);
+	if (ret != 0)
+		dev_err(info->dev,
+			"Failed to create sysfs node for mic_impedance %d\n",
 			ret);
 
 	return;
