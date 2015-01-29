@@ -1064,8 +1064,8 @@ static int arizona_hpdet_moisture_start(struct arizona_extcon_info *info)
 		break;
 	default:
 		regmap_update_bits(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
-				   WM8285_HP_RATE_MASK,
-				   0x2 << WM8285_HP_RATE_SHIFT);
+				   CLEARWATER_HP_RATE_MASK,
+				   0x2 << CLEARWATER_HP_RATE_SHIFT);
 		break;
 	}
 
@@ -1096,7 +1096,7 @@ static void arizona_hpdet_moisture_stop(struct arizona_extcon_info *info)
 		break;
 	default:
 		regmap_update_bits(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
-				   WM8285_HP_RATE_MASK, 0);
+				   CLEARWATER_HP_RATE_MASK, 0);
 		break;
 	}
 }
@@ -1159,8 +1159,8 @@ int arizona_micd_start(struct arizona_extcon_info *info)
 		default:
 			dev_dbg(arizona->dev, "Disabling MICD_OVD\n");
 			regmap_update_bits(arizona->regmap,
-					   WM8285_MICD_CLAMP_CONTROL,
-					   WM8285_MICD_CLAMP_OVD_MASK, 0);
+					   CLEARWATER_MICD_CLAMP_CONTROL,
+					   CLEARWATER_MICD_CLAMP_OVD_MASK, 0);
 			break;
 		}
 	}
@@ -1244,9 +1244,9 @@ void arizona_micd_stop(struct arizona_extcon_info *info)
 		default:
 			dev_dbg(arizona->dev, "Enabling MICD_OVD\n");
 			regmap_update_bits(arizona->regmap,
-					   WM8285_MICD_CLAMP_CONTROL,
-					   WM8285_MICD_CLAMP_OVD_MASK,
-					   WM8285_MICD_CLAMP_OVD);
+					   CLEARWATER_MICD_CLAMP_CONTROL,
+					   CLEARWATER_MICD_CLAMP_OVD_MASK,
+					   CLEARWATER_MICD_CLAMP_OVD);
 			break;
 		}
 	}
@@ -1781,7 +1781,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 		break;
 	default:
 		if (arizona->pdata.jd_gpio5) {
-			mask = WM8285_MICD_CLAMP_RISE_STS1;
+			mask = CLEARWATER_MICD_CLAMP_RISE_STS1;
 			present = 0;
 		} else {
 			mask = ARIZONA_JD1_STS;
@@ -1791,7 +1791,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 				present = ARIZONA_JD1_STS;
 		}
 
-		reg = WM8285_IRQ1_RAW_STATUS_7;
+		reg = CLEARWATER_IRQ1_RAW_STATUS_7;
 		break;
 	}
 
@@ -1829,10 +1829,10 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 		mask = ARIZONA_MICD_CLAMP_DB | ARIZONA_JD1_DB;
 		break;
 	default:
-		reg = WM8285_INTERRUPT_DEBOUNCE_7;
-		mask = WM8285_MICD_CLAMP_DB | WM8285_JD1_DB;
+		reg = CLEARWATER_INTERRUPT_DEBOUNCE_7;
+		mask = CLEARWATER_MICD_CLAMP_DB | CLEARWATER_JD1_DB;
 		if (arizona->pdata.jd_gpio5)
-			mask |= WM8285_JD2_DB;
+			mask |= CLEARWATER_JD2_DB;
 		break;
 	}
 
@@ -2161,12 +2161,12 @@ static void arizona_extcon_set_micd_clamp_mode(struct arizona *arizona)
 		clamp_db_val = ARIZONA_MICD_CLAMP_DB;
 		break;
 	default:
-		clamp_ctrl_reg = WM8285_MICD_CLAMP_CONTROL;
+		clamp_ctrl_reg = CLEARWATER_MICD_CLAMP_CONTROL;
 		clamp_ctrl_mask = ARIZONA_MICD_CLAMP_MODE_MASK;
 
-		clamp_db_reg = WM8285_INTERRUPT_DEBOUNCE_7;
-		clamp_db_mask = WM8285_MICD_CLAMP_DB;
-		clamp_db_val = WM8285_MICD_CLAMP_DB;
+		clamp_db_reg = CLEARWATER_INTERRUPT_DEBOUNCE_7;
+		clamp_db_mask = CLEARWATER_MICD_CLAMP_DB;
+		clamp_db_val = CLEARWATER_MICD_CLAMP_DB;
 
 		break;
 	}
@@ -2363,7 +2363,7 @@ static void arizona_probe_work(struct work_struct *work)
 		reg = ARIZONA_GP_SWITCH_1;
 		break;
 	default:
-		reg = WM8285_GP_SWITCH_1;
+		reg = CLEARWATER_GP_SWITCH_1;
 		break;
 	}
 
@@ -2587,13 +2587,13 @@ static void arizona_probe_work(struct work_struct *work)
 		analog_val = ARIZONA_JD1_ENA;
 		break;
 	default:
-		debounce_reg = WM8285_INTERRUPT_DEBOUNCE_7;
+		debounce_reg = CLEARWATER_INTERRUPT_DEBOUNCE_7;
 
 		if (arizona->pdata.jd_gpio5) {
-			debounce_val = WM8285_JD1_DB | WM8285_JD2_DB;
+			debounce_val = CLEARWATER_JD1_DB | CLEARWATER_JD2_DB;
 			analog_val = ARIZONA_JD1_ENA | ARIZONA_JD2_ENA;
 		} else {
-			debounce_val = WM8285_JD1_DB;
+			debounce_val = CLEARWATER_JD1_DB;
 			analog_val = ARIZONA_JD1_ENA;
 		}
 		break;
@@ -2659,7 +2659,7 @@ static int arizona_extcon_remove(struct platform_device *pdev)
 				   ARIZONA_MICD_CLAMP_MODE_MASK, 0);
 		break;
 	default:
-		regmap_update_bits(arizona->regmap, WM8285_MICD_CLAMP_CONTROL,
+		regmap_update_bits(arizona->regmap, CLEARWATER_MICD_CLAMP_CONTROL,
 				   ARIZONA_MICD_CLAMP_MODE_MASK, 0);
 		break;
 	}
