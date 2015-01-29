@@ -2082,7 +2082,9 @@ static irqreturn_t arizona_hpdet_handler(int irq, void *data)
 	case ARIZONA_ACCDET_MODE_HPL:
 	case ARIZONA_ACCDET_MODE_HPR:
 	case ARIZONA_ACCDET_MODE_HPM:
-		break;
+		/* Fall through to spurious if no jack present */
+		if (arizona_jack_present(info, NULL) > 0)
+			break;
 	default:
 		dev_warn(arizona->dev, "Spurious HPDET IRQ\n");
 		arizona_jds_start_timeout(info);
@@ -2119,6 +2121,9 @@ static void arizona_micd_handler(struct work_struct *work)
 
 	mutex_lock(&info->lock);
 
+	if (arizona_jack_present(info, NULL) <= 0)
+		goto spurious;
+
 	switch (arizona_jds_get_mode(info)) {
 	case ARIZONA_ACCDET_MODE_MIC:
 		ret = arizona_micd_read(info);
@@ -2127,10 +2132,7 @@ static void arizona_micd_handler(struct work_struct *work)
 		ret = arizona_micd_adc_read(info);
 		break;
 	default:
-		dev_warn(arizona->dev, "Spurious MICDET IRQ\n");
-		arizona_jds_start_timeout(info);
-		mutex_unlock(&info->lock);
-		return;
+		goto spurious;
 	}
 
 	if (ret == -EAGAIN)
@@ -2145,6 +2147,13 @@ out:
 
 	pm_runtime_mark_last_busy(info->dev);
 
+	mutex_unlock(&info->lock);
+
+	return;
+
+spurious:
+	dev_warn(arizona->dev, "Spurious MICDET IRQ\n");
+	arizona_jds_start_timeout(info);
 	mutex_unlock(&info->lock);
 }
 
