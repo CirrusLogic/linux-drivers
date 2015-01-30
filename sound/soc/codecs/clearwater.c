@@ -285,7 +285,7 @@ static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 	{ name " ANC Source", "RXANCL", "RXANCL" }, \
 	{ name " ANC Source", "RXANCR", "RXANCR" }
 
-int clearwater_cp_mode_get(struct snd_kcontrol *kcontrol,
+static int clearwater_cp_mode_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
@@ -302,7 +302,7 @@ int clearwater_cp_mode_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-int clearwater_cp_mode_put(struct snd_kcontrol *kcontrol,
+static int clearwater_cp_mode_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
@@ -329,11 +329,11 @@ int clearwater_cp_mode_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-const char *clearwater_cp_mode_text[2] = {
+static const char *clearwater_cp_mode_text[2] = {
 	"Default", "Inverting",
 };
 
-const struct soc_enum clearwater_cp_mode[] = {
+static const struct soc_enum clearwater_cp_mode[] = {
 	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(clearwater_cp_mode_text),
 		clearwater_cp_mode_text),
 };
