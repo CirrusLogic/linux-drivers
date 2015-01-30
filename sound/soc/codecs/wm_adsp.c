@@ -1645,7 +1645,7 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 	struct wm_adsp_alg_region *alg_region;
 	struct wm_coeff_ctl *ctl;
 	int ret;
-	int val;
+	unsigned int val;
 
 	dsp->card = codec->component.card;
 
