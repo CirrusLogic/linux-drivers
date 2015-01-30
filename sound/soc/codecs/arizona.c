@@ -510,7 +510,7 @@ const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 };
 EXPORT_SYMBOL_GPL(arizona_mixer_texts);
 
-int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS] = {
+unsigned int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS] = {
 	0x00,  /* None */
 	0x04,  /* Tone */
 	0x05,
@@ -790,7 +790,7 @@ const char *arizona_v2_mixer_texts[ARIZONA_V2_NUM_MIXER_INPUTS] = {
 };
 EXPORT_SYMBOL_GPL(arizona_v2_mixer_texts);
 
-int arizona_v2_mixer_values[ARIZONA_V2_NUM_MIXER_INPUTS] = {
+unsigned int arizona_v2_mixer_values[ARIZONA_V2_NUM_MIXER_INPUTS] = {
 	0x00,  /* None */
 	0x04,  /* Tone */
 	0x05,
@@ -942,7 +942,7 @@ const char *arizona_sample_rate_text[ARIZONA_SAMPLE_RATE_ENUM_SIZE] = {
 };
 EXPORT_SYMBOL_GPL(arizona_sample_rate_text);
 
-const int arizona_sample_rate_val[ARIZONA_SAMPLE_RATE_ENUM_SIZE] = {
+const unsigned int arizona_sample_rate_val[ARIZONA_SAMPLE_RATE_ENUM_SIZE] = {
 	0x01, 0x02, 0x03, 0x04, 0x05, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
 	0x10, 0x11, 0x12, 0x13,
 };
@@ -1008,7 +1008,7 @@ const struct soc_enum arizona_spdif_rate =
 			      arizona_rate_val);
 EXPORT_SYMBOL_GPL(arizona_spdif_rate);
 
-const int arizona_rate_val[ARIZONA_RATE_ENUM_SIZE] = {
+const unsigned int arizona_rate_val[ARIZONA_RATE_ENUM_SIZE] = {
 	0x0, 0x1, 0x2, 0x8, 0x9,
 };
 EXPORT_SYMBOL_GPL(arizona_rate_val);
@@ -1199,7 +1199,7 @@ static const char * const clearwater_in_dmic_osr_text[CLEARWATER_OSR_ENUM_SIZE] 
 	"384kHz", "768kHz", "1.536MHz", "3.072MHz", "6.144MHz",
 };
 
-static const int clearwater_in_dmic_osr_val[CLEARWATER_OSR_ENUM_SIZE] = {
+static const unsigned int clearwater_in_dmic_osr_val[CLEARWATER_OSR_ENUM_SIZE] = {
 	2, 3, 4, 5, 6,
 };
 
@@ -1231,7 +1231,7 @@ static const char *arizona_anc_input_src_text[ARIZONA_ANC_INPUT_ENUM_SIZE] = {
 	"IN5R", "IN5L + IN5R", "IN6L", "IN6R", "IN6L + IN6R",
 };
 
-static const int arizona_anc_input_src_val[] = {
+static const unsigned int arizona_anc_input_src_val[] = {
 	0x0000, 0x0101, 0x0102, 0x0103, 0x0201, 0x0202, 0x0203,
 	0x0301, 0x0302, 0x0303, 0x0401, 0x0402, 0x0403,0x0501,
 	0x0502, 0x0503, 0x0601, 0x0602, 0x0603,
@@ -2245,7 +2245,7 @@ int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	unsigned int mask = ARIZONA_SYSCLK_FREQ_MASK | ARIZONA_SYSCLK_SRC_MASK;
 	unsigned int val = source << ARIZONA_SYSCLK_SRC_SHIFT;
 	int clk_freq;
-	unsigned int *clk;
+	int *clk;
 
 	switch (arizona->type) {
 	case WM8997:
