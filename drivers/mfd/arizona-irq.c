@@ -84,6 +84,19 @@ int arizona_set_irq_wake(struct arizona *arizona, int irq, int on)
 		irq_set_irq_wake(arizona->irq, 0);
 	}
 
+	switch (arizona->type) {
+	case WM5102:
+	case WM8280:
+	case WM5110:
+	case WM8997:
+	case WM8998:
+	case WM1814:
+		break;
+
+	default:
+		return 0;
+	}
+
 	switch (irq) {
 	case ARIZONA_IRQ_MICD_CLAMP_RISE:
 		return regmap_update_bits(arizona->regmap,

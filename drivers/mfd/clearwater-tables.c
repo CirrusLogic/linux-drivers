@@ -1904,7 +1904,6 @@ static bool clearwater_16bit_readable_register(struct device *dev, unsigned int 
 	case ARIZONA_PWM_DRIVE_1:
 	case ARIZONA_PWM_DRIVE_2:
 	case ARIZONA_PWM_DRIVE_3:
-	case ARIZONA_WAKE_CONTROL:
 	case ARIZONA_SEQUENCE_CONTROL:
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_1:
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_2:
