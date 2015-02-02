@@ -1411,15 +1411,11 @@ void arizona_micd_stop(struct arizona_extcon_info *info)
 }
 EXPORT_SYMBOL_GPL(arizona_micd_stop);
 
-int arizona_micd_button_reading(struct arizona_extcon_info *info,
-				int val)
+static int arizona_micd_button_debounce(struct arizona_extcon_info *info,
+					int val)
 {
 	struct arizona *arizona = info->arizona;
 	int debounce_lim = arizona->pdata.micd_manual_debounce;
-	int i, key;
-
-	if (val < 0)
-		return val;
 
 	if ((debounce_lim) &&
 		( !(info->antenna_skip_btn_db))) {
@@ -1447,6 +1443,15 @@ int arizona_micd_button_reading(struct arizona_extcon_info *info,
 			return -EAGAIN;
 		}
 	}
+
+	return 0;
+}
+
+static int arizona_micd_button_process(struct arizona_extcon_info *info,
+				       int val)
+{
+	struct arizona *arizona = info->arizona;
+	int i, key;
 
 	if (val < MICROPHONE_MIN_OHM) {
 		dev_dbg(arizona->dev, "Mic button detected\n");
@@ -1477,6 +1482,21 @@ int arizona_micd_button_reading(struct arizona_extcon_info *info,
 	}
 
 	return 0;
+}
+
+int arizona_micd_button_reading(struct arizona_extcon_info *info,
+				int val)
+{
+	int ret;
+
+	if (val < 0)
+		return val;
+
+	ret = arizona_micd_button_debounce(info, val);
+	if (ret < 0)
+		return ret;
+
+	return arizona_micd_button_process(info, val);
 }
 EXPORT_SYMBOL_GPL(arizona_micd_button_reading);
 
