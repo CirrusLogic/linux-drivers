@@ -545,6 +545,8 @@ SOC_ENUM("Sample Rate 2", arizona_sample_rate[0]),
 SOC_ENUM("Sample Rate 3", arizona_sample_rate[1]),
 SOC_ENUM("ASYNC Sample Rate 2", arizona_sample_rate[2]),
 
+SOC_ENUM("FX Rate", arizona_fx_rate),
+
 SOC_ENUM("ISRC1 FSL", arizona_isrc_fsl[0]),
 SOC_ENUM("ISRC2 FSL", arizona_isrc_fsl[1]),
 SOC_ENUM("ISRC3 FSL", arizona_isrc_fsl[2]),
