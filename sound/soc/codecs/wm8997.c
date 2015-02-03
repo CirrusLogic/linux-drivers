@@ -244,6 +244,7 @@ SOC_VALUE_ENUM("Sample Rate 3", arizona_sample_rate[1]),
 
 SOC_VALUE_ENUM("ISRC1 FSL", arizona_isrc_fsl[0]),
 SOC_VALUE_ENUM("ISRC2 FSL", arizona_isrc_fsl[1]),
+SOC_VALUE_ENUM("ASRC RATE 1", arizona_asrc_rate1),
 
 ARIZONA_MIXER_CONTROLS("Mic", ARIZONA_MICMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("Noise", ARIZONA_NOISEMIX_INPUT_1_SOURCE),
