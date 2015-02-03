@@ -440,6 +440,7 @@ SOC_ENUM("ISRC1 FSH", arizona_isrc_fsh[0]),
 SOC_ENUM("ISRC2 FSH", arizona_isrc_fsh[1]),
 SOC_ENUM("ISRC3 FSH", arizona_isrc_fsh[2]),
 SOC_ENUM("ASRC RATE 1", arizona_asrc_rate1),
+SOC_ENUM("ASRC RATE 2", arizona_asrc_rate2),
 
 ARIZONA_SAMPLE_RATE_CONTROL("Sample Rate 2", 2),
 ARIZONA_SAMPLE_RATE_CONTROL("Sample Rate 3", 3),
