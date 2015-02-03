@@ -1112,10 +1112,12 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 	mutex_lock(&largo->compr_info.lock);
 
 	if (!largo->compr_info.trig &&
+	    largo->core.adsp[2].running &&
 	    largo->core.adsp[2].fw_features.ez2control_trigger &&
-	    largo->core.adsp[2].running) {
+	    !wm_adsp_stream_has_error(&largo->core.adsp[2])) {
 		if (largo->core.arizona->pdata.ez2ctrl_trigger)
 			largo->core.arizona->pdata.ez2ctrl_trigger();
+
 		largo->compr_info.trig = true;
 	}
 

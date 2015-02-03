@@ -2665,8 +2665,9 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 	mutex_lock(&moon->compr_info.lock);
 
 	if (!moon->compr_info.trig &&
+	    moon->core.adsp[5].running &&
 	    moon->core.adsp[5].fw_features.ez2control_trigger &&
-	     moon->core.adsp[5].running) {
+	    !wm_adsp_stream_has_error(&moon->core.adsp[5])) {
 		if (moon->core.arizona->pdata.ez2ctrl_trigger)
 			moon->core.arizona->pdata.ez2ctrl_trigger();
 		moon->compr_info.trig = true;

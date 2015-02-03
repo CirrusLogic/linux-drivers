@@ -2708,10 +2708,12 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 	mutex_lock(&clearwater->compr_info.lock);
 
 	if (!clearwater->compr_info.trig &&
+	    clearwater->core.adsp[5].running &&
 	    clearwater->core.adsp[5].fw_features.ez2control_trigger &&
-	    clearwater->core.adsp[5].running) {
+	    !wm_adsp_stream_has_error(&clearwater->core.adsp[5])) {
 		if (clearwater->core.arizona->pdata.ez2ctrl_trigger)
 			clearwater->core.arizona->pdata.ez2ctrl_trigger();
+
 		clearwater->compr_info.trig = true;
 	}
 

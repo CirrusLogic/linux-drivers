@@ -2204,10 +2204,12 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 	mutex_lock(&florida->compr_info.lock);
 
 	if (!florida->compr_info.trig &&
+	    florida->core.adsp[2].running &&
 	    florida->core.adsp[2].fw_features.ez2control_trigger &&
-	    florida->core.adsp[2].running) {
+	    !wm_adsp_stream_has_error(&florida->core.adsp[2])) {
 		if (florida->core.arizona->pdata.ez2ctrl_trigger)
 			florida->core.arizona->pdata.ez2ctrl_trigger();
+
 		florida->compr_info.trig = true;
 	}
 
