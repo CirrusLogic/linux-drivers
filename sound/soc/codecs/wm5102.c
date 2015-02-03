@@ -875,6 +875,7 @@ ARIZONA_SAMPLE_RATE_CONTROL_DVFS("Sample Rate 3", 3),
 
 SOC_ENUM("ISRC1 FSL", arizona_isrc_fsl[0]),
 SOC_ENUM("ISRC2 FSL", arizona_isrc_fsl[1]),
+SOC_ENUM("ASRC RATE 1", arizona_asrc_rate1),
 
 SOC_ENUM("FX Rate", arizona_fx_rate),
 
