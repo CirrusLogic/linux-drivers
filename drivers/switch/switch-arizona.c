@@ -2676,7 +2676,6 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 		info->micd_debounce = 0;
 		info->micd_count = 0;
 		info->moisture_count = 0;
-		arizona->hp_impedance = 0;
 		arizona_jds_set_state(info, NULL);
 
 		for (i = 0; i < info->num_micd_ranges; i++)
@@ -2688,21 +2687,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 
 		regmap_update_bits(arizona->regmap, reg, mask, mask);
 
-		switch (arizona->type) {
-		case WM5110:
-			arizona_wm5110_tune_headphone(info, ARIZONA_HP_Z_OPEN);
-			break;
-		case WM1814:
-			arizona_wm1814_tune_headphone(info, ARIZONA_HP_Z_OPEN);
-			break;
-		default:
-			break;
-		}
-
-		/* Use a sufficiently large number to indicate open circuit */
-		if (arizona->pdata.hpdet_cb) {
-			arizona->pdata.hpdet_cb(ARIZONA_HP_Z_OPEN);
-		}
+		arizona_set_headphone_imp(info, ARIZONA_HP_Z_OPEN);
 
 		if (arizona->pdata.micd_cb)
 			arizona->pdata.micd_cb(false);
