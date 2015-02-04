@@ -480,22 +480,6 @@ static int arizona_micd_adc_read(struct arizona_extcon_info *info)
 	regmap_read(arizona->regmap, ARIZONA_ACCESSORY_DETECT_MODE_1, &val);
 	val &= ARIZONA_ACCDET_MODE_MASK;
 
-	if ((info->detecting) && (val == ARIZONA_ACCDET_MODE_ADC)) {
-		bool micd_ena;
-
-		/* Must disable MICD before we read the ADCVAL */
-		ret = regmap_update_bits_check(arizona->regmap,
-					       ARIZONA_MIC_DETECT_1,
-					       ARIZONA_MICD_ENA, 0,
-					       &micd_ena);
-		if (ret != 0) {
-			dev_err(arizona->dev,
-				"Failed to disable MICD: %d\n",
-				ret);
-			return ret;
-		}
-	}
-
 	/* Must disable MICD before we read the ADCVAL */
 	ret = regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
 				 ARIZONA_MICD_ENA, 0);
