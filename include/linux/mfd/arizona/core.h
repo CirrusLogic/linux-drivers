@@ -168,7 +168,7 @@ struct arizona {
 	struct mutex reg_setting_lock;
 
 	bool bypass_cache;
-#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_SND_SOC_ARIZONA_DEFERRED_RESUME)
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_MFD_ARIZONA_DEFERRED_RESUME)
 	struct work_struct deferred_resume_work;
 #endif
 };
