@@ -1888,6 +1888,7 @@ static int marley_open(struct snd_compr_stream *stream)
 
 	marley->compr_info.adsp = &marley->core.adsp[n_adsp];
 	marley->compr_info.stream = stream;
+	stream->runtime->private_data = &marley->compr_info;
 out:
 	mutex_unlock(&marley->compr_info.lock);
 
@@ -1896,19 +1897,24 @@ out:
 
 static int marley_free(struct snd_compr_stream *stream)
 {
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct marley_priv *marley = snd_soc_codec_get_drvdata(rtd->codec);
+	struct marley_compr *compr =
+			(struct marley_compr *)stream->runtime->private_data;
 
-	mutex_lock(&marley->compr_info.lock);
+	if (!compr)
+		return -EINVAL;
 
-	wm_adsp_stream_free(marley->compr_info.adsp);
+	mutex_lock(&compr->lock);
 
-	marley->compr_info.allocated = false;
-	marley->compr_info.stream = NULL;
-	marley->compr_info.adsp = NULL;
-	marley->compr_info.total_copied = 0;
+	wm_adsp_stream_free(compr->adsp);
 
-	mutex_unlock(&marley->compr_info.lock);
+	compr->allocated = false;
+	compr->stream = NULL;
+	compr->adsp = NULL;
+	compr->total_copied = 0;
+
+	stream->runtime->private_data = NULL;
+
+	mutex_unlock(&compr->lock);
 
 	return 0;
 }
@@ -1919,7 +1925,8 @@ static int marley_set_params(struct snd_compr_stream *stream,
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct marley_priv *marley = snd_soc_codec_get_drvdata(rtd->codec);
 	struct arizona *arizona = marley->core.arizona;
-	struct marley_compr *compr = &marley->compr_info;
+	struct marley_compr *compr =
+			(struct marley_compr *)stream->runtime->private_data;
 	int ret = 0;
 
 	mutex_lock(&compr->lock);
@@ -1954,20 +1961,22 @@ static int marley_trigger(struct snd_compr_stream *stream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct marley_priv *marley = snd_soc_codec_get_drvdata(rtd->codec);
+	struct marley_compr *compr =
+			(struct marley_compr *)stream->runtime->private_data;
 	int ret = 0;
 	bool pending = false;
 
-	mutex_lock(&marley->compr_info.lock);
+	mutex_lock(&compr->lock);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		ret = wm_adsp_stream_start(marley->compr_info.adsp);
+		ret = wm_adsp_stream_start(compr->adsp);
 
 		/**
 		 * If the stream has already triggered before the stream
 		 * opened better process any outstanding data
 		 */
-		if (marley->compr_info.trig)
+		if (compr->trig)
 			pending = true;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -1977,7 +1986,7 @@ static int marley_trigger(struct snd_compr_stream *stream, int cmd)
 		break;
 	}
 
-	mutex_unlock(&marley->compr_info.lock);
+	mutex_unlock(&compr->lock);
 
 	if (pending)
 		adsp2_irq(0, marley);
@@ -1988,13 +1997,13 @@ static int marley_trigger(struct snd_compr_stream *stream, int cmd)
 static int marley_pointer(struct snd_compr_stream *stream,
 			  struct snd_compr_tstamp *tstamp)
 {
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct marley_priv *marley = snd_soc_codec_get_drvdata(rtd->codec);
+	struct marley_compr *compr =
+			(struct marley_compr *)stream->runtime->private_data;
 
-	mutex_lock(&marley->compr_info.lock);
+	mutex_lock(&compr->lock);
 	tstamp->byte_offset = 0;
-	tstamp->copied_total = marley->compr_info.total_copied;
-	mutex_unlock(&marley->compr_info.lock);
+	tstamp->copied_total = compr->total_copied;
+	mutex_unlock(&compr->lock);
 
 	return 0;
 }
@@ -2002,18 +2011,18 @@ static int marley_pointer(struct snd_compr_stream *stream,
 static int marley_copy(struct snd_compr_stream *stream, char __user *buf,
 		       size_t count)
 {
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct marley_priv *marley = snd_soc_codec_get_drvdata(rtd->codec);
+	struct marley_compr *compr =
+			(struct marley_compr *)stream->runtime->private_data;
 	int ret;
 
-	mutex_lock(&marley->compr_info.lock);
+	mutex_lock(&compr->lock);
 
 	if (stream->direction == SND_COMPRESS_PLAYBACK)
 		ret = -EINVAL;
 	else
-		ret = wm_adsp_stream_read(marley->compr_info.adsp, buf, count);
+		ret = wm_adsp_stream_read(compr->adsp, buf, count);
 
-	mutex_unlock(&marley->compr_info.lock);
+	mutex_unlock(&compr->lock);
 
 	return ret;
 }
@@ -2021,10 +2030,10 @@ static int marley_copy(struct snd_compr_stream *stream, char __user *buf,
 static int marley_get_caps(struct snd_compr_stream *stream,
 			   struct snd_compr_caps *caps)
 {
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct marley_priv *marley = snd_soc_codec_get_drvdata(rtd->codec);
+	struct marley_compr *compr =
+			(struct marley_compr *)stream->runtime->private_data;
 
-	mutex_lock(&marley->compr_info.lock);
+	mutex_lock(&compr->lock);
 
 	memset(caps, 0, sizeof(*caps));
 
@@ -2034,9 +2043,9 @@ static int marley_get_caps(struct snd_compr_stream *stream,
 	caps->min_fragments = MARLEY_DEFAULT_FRAGMENTS;
 	caps->max_fragments = MARLEY_DEFAULT_FRAGMENTS;
 
-	wm_adsp_get_caps(marley->compr_info.adsp, stream, caps);
+	wm_adsp_get_caps(compr->adsp, stream, caps);
 
-	mutex_unlock(&marley->compr_info.lock);
+	mutex_unlock(&compr->lock);
 
 	return 0;
 }
