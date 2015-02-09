@@ -2741,6 +2741,7 @@ static int moon_open(struct snd_compr_stream *stream)
 
 	moon->compr_info.adsp = &moon->core.adsp[n_adsp];
 	moon->compr_info.stream = stream;
+	stream->runtime->private_data = &moon->compr_info;
 out:
 	mutex_unlock(&moon->compr_info.lock);
 
@@ -2749,19 +2750,24 @@ out:
 
 static int moon_free(struct snd_compr_stream *stream)
 {
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct moon_priv *moon = snd_soc_codec_get_drvdata(rtd->codec);
+	struct moon_compr *compr =
+			(struct moon_compr *)stream->runtime->private_data;
 
-	mutex_lock(&moon->compr_info.lock);
+	if (!compr)
+		return -EINVAL;
 
-	wm_adsp_stream_free(moon->compr_info.adsp);
+	mutex_lock(&compr->lock);
 
-	moon->compr_info.allocated = false;
-	moon->compr_info.stream = NULL;
-	moon->compr_info.adsp = NULL;
-	moon->compr_info.total_copied = 0;
+	wm_adsp_stream_free(compr->adsp);
 
-	mutex_unlock(&moon->compr_info.lock);
+	compr->allocated = false;
+	compr->stream = NULL;
+	compr->adsp = NULL;
+	compr->total_copied = 0;
+
+	stream->runtime->private_data = NULL;
+
+	mutex_unlock(&compr->lock);
 
 	return 0;
 }
@@ -2772,7 +2778,8 @@ static int moon_set_params(struct snd_compr_stream *stream,
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct moon_priv *moon = snd_soc_codec_get_drvdata(rtd->codec);
 	struct arizona *arizona = moon->core.arizona;
-	struct moon_compr *compr = &moon->compr_info;
+	struct moon_compr *compr =
+			(struct moon_compr *)stream->runtime->private_data;
 	int ret = 0;
 
 	mutex_lock(&compr->lock);
@@ -2808,20 +2815,22 @@ static int moon_trigger(struct snd_compr_stream *stream, int cmd)
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct moon_priv *moon = snd_soc_codec_get_drvdata(rtd->codec);
 	struct arizona *arizona = moon->core.arizona;
+	struct moon_compr *compr =
+			(struct moon_compr *)stream->runtime->private_data;
 	int ret = 0;
 	bool pending = false;
 
-	mutex_lock(&moon->compr_info.lock);
+	mutex_lock(&compr->lock);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		ret = wm_adsp_stream_start(moon->compr_info.adsp);
+		ret = wm_adsp_stream_start(compr->adsp);
 
 		/**
 		 * If the stream has already triggered before the stream
 		 * opened better process any outstanding data
 		 */
-		if (moon->compr_info.trig)
+		if (compr->trig)
 			pending = true;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -2831,7 +2840,7 @@ static int moon_trigger(struct snd_compr_stream *stream, int cmd)
 		break;
 	}
 
-	mutex_unlock(&moon->compr_info.lock);
+	mutex_unlock(&compr->lock);
 
 	/*
 	* Stream has already trigerred, force irq handler to run
@@ -2847,13 +2856,13 @@ static int moon_trigger(struct snd_compr_stream *stream, int cmd)
 static int moon_pointer(struct snd_compr_stream *stream,
 			  struct snd_compr_tstamp *tstamp)
 {
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct moon_priv *moon = snd_soc_codec_get_drvdata(rtd->codec);
+	struct moon_compr *compr =
+			(struct moon_compr *)stream->runtime->private_data;
 
-	mutex_lock(&moon->compr_info.lock);
+	mutex_lock(&compr->lock);
 	tstamp->byte_offset = 0;
-	tstamp->copied_total = moon->compr_info.total_copied;
-	mutex_unlock(&moon->compr_info.lock);
+	tstamp->copied_total = compr->total_copied;
+	mutex_unlock(&compr->lock);
 
 	return 0;
 }
@@ -2861,18 +2870,18 @@ static int moon_pointer(struct snd_compr_stream *stream,
 static int moon_copy(struct snd_compr_stream *stream, char __user *buf,
 		       size_t count)
 {
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct moon_priv *moon = snd_soc_codec_get_drvdata(rtd->codec);
+	struct moon_compr *compr =
+			(struct moon_compr *)stream->runtime->private_data;
 	int ret;
 
-	mutex_lock(&moon->compr_info.lock);
+	mutex_lock(&compr->lock);
 
 	if (stream->direction == SND_COMPRESS_PLAYBACK)
 		ret = -EINVAL;
 	else
-		ret = wm_adsp_stream_read(moon->compr_info.adsp, buf, count);
+		ret = wm_adsp_stream_read(compr->adsp, buf, count);
 
-	mutex_unlock(&moon->compr_info.lock);
+	mutex_unlock(&compr->lock);
 
 	return ret;
 }
@@ -2880,10 +2889,10 @@ static int moon_copy(struct snd_compr_stream *stream, char __user *buf,
 static int moon_get_caps(struct snd_compr_stream *stream,
 			   struct snd_compr_caps *caps)
 {
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct moon_priv *moon = snd_soc_codec_get_drvdata(rtd->codec);
+	struct moon_compr *compr =
+			(struct moon_compr *)stream->runtime->private_data;
 
-	mutex_lock(&moon->compr_info.lock);
+	mutex_lock(&compr->lock);
 
 	memset(caps, 0, sizeof(*caps));
 
@@ -2893,9 +2902,9 @@ static int moon_get_caps(struct snd_compr_stream *stream,
 	caps->min_fragments = MOON_DEFAULT_FRAGMENTS;
 	caps->max_fragments = MOON_DEFAULT_FRAGMENTS;
 
-	wm_adsp_get_caps(moon->compr_info.adsp, stream, caps);
+	wm_adsp_get_caps(compr->adsp, stream, caps);
 
-	mutex_unlock(&moon->compr_info.lock);
+	mutex_unlock(&compr->lock);
 
 	return 0;
 }

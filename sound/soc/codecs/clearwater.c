@@ -2778,6 +2778,7 @@ static int clearwater_open(struct snd_compr_stream *stream)
 
 	clearwater->compr_info.adsp = &clearwater->core.adsp[n_adsp];
 	clearwater->compr_info.stream = stream;
+	stream->runtime->private_data = &clearwater->compr_info;
 out:
 	mutex_unlock(&clearwater->compr_info.lock);
 
@@ -2786,20 +2787,24 @@ out:
 
 static int clearwater_free(struct snd_compr_stream *stream)
 {
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct clearwater_priv *clearwater = snd_soc_codec_get_drvdata(rtd->codec);
+	struct clearwater_compr *compr =
+		(struct clearwater_compr *)stream->runtime->private_data;
 
-	mutex_lock(&clearwater->compr_info.lock);
+	if (!compr)
+		return -EINVAL;
 
-	wm_adsp_stream_free(clearwater->compr_info.adsp);
+	mutex_lock(&compr->lock);
 
-	clearwater->compr_info.allocated = false;
-	clearwater->compr_info.stream = NULL;
-	clearwater->compr_info.adsp = NULL;
-	clearwater->compr_info.total_copied = 0;
+	wm_adsp_stream_free(compr->adsp);
 
+	compr->allocated = false;
+	compr->stream = NULL;
+	compr->adsp = NULL;
+	compr->total_copied = 0;
 
-	mutex_unlock(&clearwater->compr_info.lock);
+	stream->runtime->private_data = NULL;
+
+	mutex_unlock(&compr->lock);
 
 	return 0;
 }
@@ -2810,7 +2815,8 @@ static int clearwater_set_params(struct snd_compr_stream *stream,
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct clearwater_priv *clearwater = snd_soc_codec_get_drvdata(rtd->codec);
 	struct arizona *arizona = clearwater->core.arizona;
-	struct clearwater_compr *compr = &clearwater->compr_info;
+	struct clearwater_compr *compr =
+		(struct clearwater_compr *)stream->runtime->private_data;
 	int ret = 0;
 
 	mutex_lock(&compr->lock);
@@ -2846,20 +2852,22 @@ static int clearwater_trigger(struct snd_compr_stream *stream, int cmd)
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct clearwater_priv *clearwater = snd_soc_codec_get_drvdata(rtd->codec);
 	struct arizona *arizona = clearwater->core.arizona;
+	struct clearwater_compr *compr =
+		(struct clearwater_compr *)stream->runtime->private_data;
 	int ret = 0;
 	bool pending = false;
 
-	mutex_lock(&clearwater->compr_info.lock);
+	mutex_lock(&compr->lock);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		ret = wm_adsp_stream_start(clearwater->compr_info.adsp);
+		ret = wm_adsp_stream_start(compr->adsp);
 
 		/**
 		 * If the stream has already triggered before the stream
 		 * opened better process any outstanding data
 		 */
-		if (clearwater->compr_info.trig)
+		if (compr->trig)
 			pending = true;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -2869,7 +2877,7 @@ static int clearwater_trigger(struct snd_compr_stream *stream, int cmd)
 		break;
 	}
 
-	mutex_unlock(&clearwater->compr_info.lock);
+	mutex_unlock(&compr->lock);
 
 	/*
 	* Stream has already trigerred, force irq handler to run
@@ -2884,13 +2892,13 @@ static int clearwater_trigger(struct snd_compr_stream *stream, int cmd)
 static int clearwater_pointer(struct snd_compr_stream *stream,
 			  struct snd_compr_tstamp *tstamp)
 {
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct clearwater_priv *clearwater = snd_soc_codec_get_drvdata(rtd->codec);
+	struct clearwater_compr *compr =
+		(struct clearwater_compr *)stream->runtime->private_data;
 
-	mutex_lock(&clearwater->compr_info.lock);
+	mutex_lock(&compr->lock);
 	tstamp->byte_offset = 0;
-	tstamp->copied_total = clearwater->compr_info.total_copied;
-	mutex_unlock(&clearwater->compr_info.lock);
+	tstamp->copied_total = compr->total_copied;
+	mutex_unlock(&compr->lock);
 
 	return 0;
 }
@@ -2898,18 +2906,18 @@ static int clearwater_pointer(struct snd_compr_stream *stream,
 static int clearwater_copy(struct snd_compr_stream *stream, char __user *buf,
 		       size_t count)
 {
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct clearwater_priv *clearwater = snd_soc_codec_get_drvdata(rtd->codec);
+	struct clearwater_compr *compr =
+		(struct clearwater_compr *)stream->runtime->private_data;
 	int ret;
 
-	mutex_lock(&clearwater->compr_info.lock);
+	mutex_lock(&compr->lock);
 
 	if (stream->direction == SND_COMPRESS_PLAYBACK)
 		ret = -EINVAL;
 	else
-		ret = wm_adsp_stream_read(clearwater->compr_info.adsp, buf, count);
+		ret = wm_adsp_stream_read(compr->adsp, buf, count);
 
-	mutex_unlock(&clearwater->compr_info.lock);
+	mutex_unlock(&compr->lock);
 
 	return ret;
 }
@@ -2917,10 +2925,10 @@ static int clearwater_copy(struct snd_compr_stream *stream, char __user *buf,
 static int clearwater_get_caps(struct snd_compr_stream *stream,
 			   struct snd_compr_caps *caps)
 {
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct clearwater_priv *clearwater = snd_soc_codec_get_drvdata(rtd->codec);
+	struct clearwater_compr *compr =
+		(struct clearwater_compr *)stream->runtime->private_data;
 
-	mutex_lock(&clearwater->compr_info.lock);
+	mutex_lock(&compr->lock);
 
 	memset(caps, 0, sizeof(*caps));
 
@@ -2930,9 +2938,9 @@ static int clearwater_get_caps(struct snd_compr_stream *stream,
 	caps->min_fragments = CLEARWATER_DEFAULT_FRAGMENTS;
 	caps->max_fragments = CLEARWATER_DEFAULT_FRAGMENTS;
 
-	wm_adsp_get_caps(clearwater->compr_info.adsp, stream, caps);
+	wm_adsp_get_caps(compr->adsp, stream, caps);
 
-	mutex_unlock(&clearwater->compr_info.lock);
+	mutex_unlock(&compr->lock);
 
 	return 0;
 }
