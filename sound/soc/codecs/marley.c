@@ -35,6 +35,11 @@
 
 #define MARLEY_NUM_ADSP 3
 
+/* Number of compressed DAI hookups, each pair of DSP and dummy CPU
+ * are counted as one DAI
+ */
+#define MARLEY_NUM_COMPR_DAI 2
+
 #define MARLEY_DEFAULT_FRAGMENTS       1
 #define MARLEY_DEFAULT_FRAGMENT_SIZE   4096
 
@@ -134,21 +139,37 @@ static int marley_rate_put(struct snd_kcontrol *kcontrol,
 
 struct marley_compr {
 	struct mutex lock;
+	const char *dai_name;
 
-	struct snd_compr_stream *stream;
 	struct wm_adsp *adsp;
 
 	size_t total_copied;
 	bool allocated;
 	bool trig;
+
+	struct snd_compr_stream *stream;
 };
 
 struct marley_priv {
 	struct arizona_priv core;
 	struct arizona_fll fll[MARLEY_FLL_COUNT];
-	struct marley_compr compr_info;
+	struct marley_compr compr_info[MARLEY_NUM_COMPR_DAI];
 
 	struct mutex fw_lock;
+};
+
+static const struct {
+	const char *dai_name;
+	int adsp_num;
+} compr_dai_mapping[MARLEY_NUM_COMPR_DAI] = {
+	{
+		.dai_name = "marley-dsp-voicectrl",
+		.adsp_num = 2,
+	},
+	{
+		.dai_name = "marley-dsp-trace",
+		.adsp_num = 0,
+	},
 };
 
 static const struct wm_adsp_region marley_dsp1_regions[] = {
@@ -437,7 +458,7 @@ static int marley_adsp_power_ev(struct snd_soc_dapm_widget *w,
 	struct arizona_priv *priv = &marley->core;
 	struct arizona *arizona = priv->arizona;
 	unsigned int freq;
-	int ret;
+	int i, ret;
 
 	ret = regmap_read(arizona->regmap, CLEARWATER_DSP_CLOCK_1, &freq);
 	if (ret != 0) {
@@ -451,10 +472,13 @@ static int marley_adsp_power_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		if (w->shift == 2) {
-			mutex_lock(&marley->compr_info.lock);
-			marley->compr_info.trig = false;
-			mutex_unlock(&marley->compr_info.lock);
+		for (i = 0; i < ARRAY_SIZE(marley->compr_info); ++i) {
+			if (marley->compr_info[i].adsp->num != w->shift + 1)
+				continue;
+
+			mutex_lock(&marley->compr_info[i].lock);
+			marley->compr_info[i].trig = false;
+			mutex_unlock(&marley->compr_info[i].lock);
 		}
 		break;
 	default:
@@ -1706,47 +1730,69 @@ static struct snd_soc_dai_driver marley_dai[] = {
 	},
 };
 
-static irqreturn_t adsp2_irq(int irq, void *data)
+static void marley_compr_irq(struct marley_priv *marley,
+			     struct marley_compr *compr)
 {
-	struct marley_priv *marley = data;
-	struct marley_compr *compr_info = &marley->compr_info;
 	struct arizona *arizona = marley->core.arizona;
-	struct wm_adsp *adsp3 = &marley->core.adsp[2];
-	struct wm_adsp *adsp1 = &marley->core.adsp[0];
 	bool trigger;
 	int ret, avail;
 
-	mutex_lock(&marley->compr_info.lock);
+	mutex_lock(&compr->lock);
 
-	if (adsp3->running) {
-		ret = wm_adsp_stream_handle_irq(adsp3, &trigger);
-		if (ret >= 0) {
-			if (adsp3 == compr_info->adsp)
-				compr_info->total_copied += ret;
-
-			if (!compr_info->trig && trigger) {
-				compr_info->trig = true;
-				if (arizona->pdata.ez2ctrl_trigger &&
-				    adsp3->fw_features.ez2control_trigger)
-					arizona->pdata.ez2ctrl_trigger();
-			}
-		}
-	} else if (adsp1->running) {
-		ret = wm_adsp_stream_handle_irq(adsp1, &trigger);
-
-		if (ret >= 0 && (adsp1 == compr_info->adsp))
-			compr_info->total_copied += ret;
+	ret = wm_adsp_stream_handle_irq(compr->adsp, &trigger);
+	if (ret < 0) {
+		dev_err(arizona->dev,
+			"Failed to capture DSP%d data: %d\n",
+			compr->adsp->num, ret);
+		goto out;
 	}
 
-	if (compr_info->allocated) {
-		avail = wm_adsp_stream_avail(compr_info->adsp);
+	compr->total_copied += ret;
+
+	if (trigger && !compr->trig) {
+		compr->trig = true;
+
+		if (compr->adsp->fw_features.ez2control_trigger &&
+		    arizona->pdata.ez2ctrl_trigger)
+			arizona->pdata.ez2ctrl_trigger();
+	}
+
+	if (compr->allocated) {
+		avail = wm_adsp_stream_avail(compr->adsp);
 		if (avail > MARLEY_DEFAULT_FRAGMENT_SIZE)
-			snd_compr_fragment_elapsed(compr_info->stream);
+			snd_compr_fragment_elapsed(compr->stream);
 	}
 
-	mutex_unlock(&marley->compr_info.lock);
+out:
+	mutex_unlock(&compr->lock);
+}
 
+static irqreturn_t marley_adsp2_irq(int irq, void *data)
+{
+	struct marley_priv *marley = data;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(marley->compr_info); ++i) {
+		if (!marley->compr_info[i].adsp->running)
+			continue;
+
+		marley_compr_irq(marley, &marley->compr_info[i]);
+	}
 	return IRQ_HANDLED;
+}
+
+static struct marley_compr *marley_get_compr(struct snd_soc_pcm_runtime *rtd,
+					     struct marley_priv *marley)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(marley->compr_info); ++i) {
+		if (strcmp(rtd->codec_dai->name,
+			   marley->compr_info[i].dai_name) == 0)
+			return &marley->compr_info[i];
+	}
+
+	return NULL;
 }
 
 static int marley_open(struct snd_compr_stream *stream)
@@ -1754,39 +1800,37 @@ static int marley_open(struct snd_compr_stream *stream)
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct marley_priv *marley = snd_soc_codec_get_drvdata(rtd->codec);
 	struct arizona *arizona = marley->core.arizona;
-	int n_adsp, ret = 0;
+	struct marley_compr *compr;
+	int ret = 0;
 
-	mutex_lock(&marley->compr_info.lock);
+	/* Find a compr_info for this DAI */
+	compr = marley_get_compr(rtd, marley);
+	if (!compr) {
+		dev_err(arizona->dev,
+			"No suitable compressed stream for dai '%s'\n",
+			rtd->codec_dai->name);
+		return -EINVAL;
+	}
 
-	if (marley->compr_info.stream) {
+	mutex_lock(&compr->lock);
+
+	if (compr->stream) {
 		ret = -EBUSY;
 		goto out;
 	}
 
-	if (strcmp(rtd->codec_dai->name, "marley-dsp-voicectrl") == 0) {
-		n_adsp = 2;
-	} else if (strcmp(rtd->codec_dai->name, "marley-dsp-trace") == 0) {
-		n_adsp = 0;
-	} else {
+	if (!wm_adsp_compress_supported(compr->adsp, stream)) {
 		dev_err(arizona->dev,
-			"No suitable compressed stream for dai '%s'\n",
+			"No suitable firmware for DAI '%s'\n",
 			rtd->codec_dai->name);
 		ret = -EINVAL;
 		goto out;
 	}
 
-	if (!wm_adsp_compress_supported(&marley->core.adsp[n_adsp], stream)) {
-		dev_err(arizona->dev,
-			"No suitable firmware for compressed stream\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	marley->compr_info.adsp = &marley->core.adsp[n_adsp];
-	marley->compr_info.stream = stream;
-	stream->runtime->private_data = &marley->compr_info;
+	compr->stream = stream;
+	stream->runtime->private_data = compr;
 out:
-	mutex_unlock(&marley->compr_info.lock);
+	mutex_unlock(&compr->lock);
 
 	return ret;
 }
@@ -1805,7 +1849,6 @@ static int marley_free(struct snd_compr_stream *stream)
 
 	compr->allocated = false;
 	compr->stream = NULL;
-	compr->adsp = NULL;
 	compr->total_copied = 0;
 
 	stream->runtime->private_data = NULL;
@@ -1857,6 +1900,7 @@ static int marley_trigger(struct snd_compr_stream *stream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct marley_priv *marley = snd_soc_codec_get_drvdata(rtd->codec);
+	struct arizona *arizona = marley->core.arizona;
 	struct marley_compr *compr =
 			(struct marley_compr *)stream->runtime->private_data;
 	int ret = 0;
@@ -1884,8 +1928,12 @@ static int marley_trigger(struct snd_compr_stream *stream, int cmd)
 
 	mutex_unlock(&compr->lock);
 
+	/*
+	* Stream has already trigerred, force irq handler to run
+	* by generating interrupt.
+	*/
 	if (pending)
-		adsp2_irq(0, marley);
+		regmap_write(arizona->regmap, CLEARWATER_ADSP2_IRQ0, 0x01);
 
 	return ret;
 }
@@ -1991,7 +2039,7 @@ static int marley_codec_probe(struct snd_soc_codec *codec)
 	priv->core.arizona->dapm = &codec->dapm;
 
 	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
-				  "ADSP2 interrupt 1", adsp2_irq, priv);
+				  "ADSP2 interrupt 1", marley_adsp2_irq, priv);
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to request DSP IRQ: %d\n", ret);
 		return ret;
@@ -2083,6 +2131,30 @@ static struct snd_soc_platform_driver marley_compr_platform = {
 	.compr_ops = &marley_compr_ops,
 };
 
+static void marley_init_compr_info(struct marley_priv *marley)
+{
+	int i;
+
+	BUILD_BUG_ON(ARRAY_SIZE(marley->compr_info) !=
+		     ARRAY_SIZE(compr_dai_mapping));
+
+	for (i = 0; i < ARRAY_SIZE(marley->compr_info); ++i) {
+		mutex_init(&marley->compr_info[i].lock);
+		marley->compr_info[i].dai_name =
+			compr_dai_mapping[i].dai_name;
+		marley->compr_info[i].adsp =
+			&marley->core.adsp[compr_dai_mapping[i].adsp_num];
+	}
+}
+
+static void marley_destroy_compr_info(struct marley_priv *marley)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(marley->compr_info); ++i)
+		mutex_destroy(&marley->compr_info[i].lock);
+}
+
 static int marley_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
@@ -2101,7 +2173,6 @@ static int marley_probe(struct platform_device *pdev)
 	 * locate regulator supplies */
 	pdev->dev.of_node = arizona->dev->of_node;
 
-	mutex_init(&marley->compr_info.lock);
 	mutex_init(&marley->fw_lock);
 
 	marley->core.arizona = arizona;
@@ -2136,6 +2207,8 @@ static int marley_probe(struct platform_device *pdev)
 		if (ret != 0)
 			return ret;
 	}
+
+	marley_init_compr_info(marley);
 
 	for (i = 0; i < ARRAY_SIZE(marley->fll); i++) {
 		marley->fll[i].vco_mult = 3;
@@ -2180,7 +2253,7 @@ static int marley_probe(struct platform_device *pdev)
 	return ret;
 
 error:
-	mutex_destroy(&marley->compr_info.lock);
+	marley_destroy_compr_info(marley);
 	mutex_destroy(&marley->fw_lock);
 
 	return ret;
@@ -2193,7 +2266,7 @@ static int marley_remove(struct platform_device *pdev)
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	mutex_destroy(&marley->compr_info.lock);
+	marley_destroy_compr_info(marley);
 	mutex_destroy(&marley->fw_lock);
 
 	return 0;

@@ -33,26 +33,43 @@
 #include "wm_adsp.h"
 #include "largo.h"
 
+/* Number of compressed DAI hookups, each pair of DSP and dummy CPU
+ * are counted as one DAI
+ */
+#define LARGO_NUM_COMPR_DAI 1
+
 #define LARGO_DEFAULT_FRAGMENTS       1
 #define LARGO_DEFAULT_FRAGMENT_SIZE   4096
 
 struct largo_compr {
 	struct mutex lock;
+	const char *dai_name;
 
-	struct snd_compr_stream *stream;
 	struct wm_adsp *adsp;
 
 	size_t total_copied;
 	bool allocated;
 	bool trig;
+
+	struct snd_compr_stream *stream;
 };
 
 struct largo_priv {
 	struct arizona_priv core;
 	struct arizona_fll fll[2];
-	struct largo_compr compr_info;
+	struct largo_compr compr_info[LARGO_NUM_COMPR_DAI];
 
 	struct mutex fw_lock;
+};
+
+static const struct {
+	const char *dai_name;
+	int adsp_num;
+} compr_dai_mapping[LARGO_NUM_COMPR_DAI] = {
+	{
+		.dai_name = "largo-dsp-voicectrl",
+		.adsp_num = 2,
+	},
 };
 
 static const struct wm_adsp_region largo_dsp2_regions[] = {
@@ -82,6 +99,7 @@ static int largo_adsp_power_ev(struct snd_soc_dapm_widget *w,
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 	unsigned int v;
 	int ret;
+	int i;
 
 	ret = regmap_read(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, &v);
 	if (ret != 0) {
@@ -94,10 +112,13 @@ static int largo_adsp_power_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		if (w->shift == 2) {
-			mutex_lock(&largo->compr_info.lock);
-			largo->compr_info.trig = false;
-			mutex_unlock(&largo->compr_info.lock);
+		for (i = 0; i < ARRAY_SIZE(largo->compr_info); ++i) {
+			if (largo->compr_info[i].adsp->num != w->shift + 1)
+				continue;
+
+			mutex_lock(&largo->compr_info[i].lock);
+			largo->compr_info[i].trig = false;
+			mutex_unlock(&largo->compr_info[i].lock);
 		}
 		break;
 	default:
@@ -1104,46 +1125,70 @@ static struct snd_soc_dai_driver largo_dai[] = {
 	},
 };
 
-static irqreturn_t adsp2_irq(int irq, void *data)
+static void largo_compr_irq(struct largo_priv *largo,
+			    struct largo_compr *compr)
 {
-	struct largo_priv *largo = data;
 	struct arizona *arizona = largo->core.arizona;
-	struct wm_adsp *adsp3 = &largo->core.adsp[2];
-	struct wm_adsp *adsp1 = &largo->core.adsp[0];
 	bool trigger;
 	int ret, avail;
 
-	mutex_lock(&largo->compr_info.lock);
+	mutex_lock(&compr->lock);
 
-	if (adsp3->running) {
-		ret = wm_adsp_stream_handle_irq(adsp3, &trigger);
-		if (ret >= 0) {
-			if (adsp3 == largo->compr_info.adsp)
-				largo->compr_info.total_copied += ret;
-
-			if (!largo->compr_info.trig && trigger) {
-				largo->compr_info.trig = true;
-				if (arizona->pdata.ez2ctrl_trigger &&
-				    adsp3->fw_features.ez2control_trigger)
-					arizona->pdata.ez2ctrl_trigger();
-			}
-		}
-	} else if (adsp1->running) {
-		ret = wm_adsp_stream_handle_irq(adsp1, &trigger);
-
-		if (ret >= 0 && (adsp1 == largo->compr_info.adsp))
-			largo->compr_info.total_copied += ret;
+	ret = wm_adsp_stream_handle_irq(compr->adsp, &trigger);
+	if (ret < 0) {
+		dev_err(arizona->dev,
+			"Failed to capture DSP%d data: %d\n",
+			compr->adsp->num, ret);
+		goto out;
 	}
 
-	if (largo->compr_info.allocated) {
-		avail = wm_adsp_stream_avail(largo->compr_info.adsp);
+	compr->total_copied += ret;
+
+	if (trigger && !compr->trig) {
+		compr->trig = true;
+
+		if (compr->adsp->fw_features.ez2control_trigger &&
+		    arizona->pdata.ez2ctrl_trigger)
+			arizona->pdata.ez2ctrl_trigger();
+	}
+
+	if (compr->allocated) {
+		avail = wm_adsp_stream_avail(compr->adsp);
 		if (avail > LARGO_DEFAULT_FRAGMENT_SIZE)
-			snd_compr_fragment_elapsed(largo->compr_info.stream);
+			snd_compr_fragment_elapsed(compr->stream);
 	}
 
-	mutex_unlock(&largo->compr_info.lock);
+out:
+	mutex_unlock(&compr->lock);
+}
+
+static irqreturn_t largo_adsp2_irq(int irq, void *data)
+{
+	struct largo_priv *largo = data;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(largo->compr_info); ++i) {
+		if (!largo->compr_info[i].adsp->running)
+			continue;
+
+		largo_compr_irq(largo, &largo->compr_info[i]);
+	}
 
 	return IRQ_HANDLED;
+}
+
+static struct largo_compr *largo_get_compr(struct snd_soc_pcm_runtime *rtd,
+					   struct largo_priv *largo)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(largo->compr_info); ++i) {
+		if (strcmp(rtd->codec_dai->name,
+			   largo->compr_info[i].dai_name) == 0)
+			return &largo->compr_info[i];
+	}
+
+	return NULL;
 }
 
 static int largo_open(struct snd_compr_stream *stream)
@@ -1151,37 +1196,36 @@ static int largo_open(struct snd_compr_stream *stream)
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct largo_priv *largo = snd_soc_codec_get_drvdata(rtd->codec);
 	struct arizona *arizona = largo->core.arizona;
-	int n_adsp, ret = 0;
+	struct largo_compr *compr;
+	int ret = 0;
 
-	mutex_lock(&largo->compr_info.lock);
+	/* Find a compr_info for this DAI */
+	compr = largo_get_compr(rtd, largo);
+	if (!compr) {
+		dev_err(arizona->dev,
+			"No suitable compressed stream for dai '%s'\n",
+			rtd->codec_dai->name);
+		return -EINVAL;
+	}
 
-	if (largo->compr_info.stream) {
+	mutex_lock(&compr->lock);
+
+	if (compr->stream) {
 		ret = -EBUSY;
 		goto out;
 	}
 
-	if (strcmp(rtd->codec_dai->name, "largo-dsp-voicectrl") == 0) {
-		n_adsp = 2;
-	} else {
-		dev_err(arizona->dev,
-			"No suitable compressed stream for dai '%s'\n",
-			rtd->codec_dai->name);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (!wm_adsp_compress_supported(&largo->core.adsp[n_adsp], stream)) {
+	if (!wm_adsp_compress_supported(compr->adsp, stream)) {
 		dev_err(arizona->dev,
 			"No suitable firmware for compressed stream\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
-	largo->compr_info.adsp = &largo->core.adsp[n_adsp];
-	largo->compr_info.stream = stream;
-	stream->runtime->private_data = &largo->compr_info;
+	compr->stream = stream;
+	stream->runtime->private_data = compr;
 out:
-	mutex_unlock(&largo->compr_info.lock);
+	mutex_unlock(&compr->lock);
 
 	return ret;
 }
@@ -1200,7 +1244,6 @@ static int largo_free(struct snd_compr_stream *stream)
 
 	compr->allocated = false;
 	compr->stream = NULL;
-	compr->adsp = NULL;
 	compr->total_copied = 0;
 
 	stream->runtime->private_data = NULL;
@@ -1280,7 +1323,7 @@ static int largo_trigger(struct snd_compr_stream *stream, int cmd)
 	mutex_unlock(&compr->lock);
 
 	if (pending)
-		adsp2_irq(0, largo);
+		largo_compr_irq(largo, compr);
 
 	return ret;
 }
@@ -1384,7 +1427,7 @@ static int largo_codec_probe(struct snd_soc_codec *codec)
 	priv->core.arizona->dapm = &codec->dapm;
 
 	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
-				  "ADSP2 interrupt 1", adsp2_irq, priv);
+				  "ADSP2 interrupt 1", largo_adsp2_irq, priv);
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to request DSP IRQ: %d\n", ret);
 		return ret;
@@ -1473,6 +1516,29 @@ static struct snd_soc_platform_driver largo_compr_platform = {
 	.compr_ops = &largo_compr_ops,
 };
 
+static void largo_init_compr_info(struct largo_priv *largo)
+{
+	int i;
+
+	BUILD_BUG_ON(ARRAY_SIZE(largo->compr_info) !=
+		     ARRAY_SIZE(compr_dai_mapping));
+
+	for (i = 0; i < ARRAY_SIZE(largo->compr_info); ++i) {
+		mutex_init(&largo->compr_info[i].lock);
+		largo->compr_info[i].dai_name = compr_dai_mapping[i].dai_name;
+		largo->compr_info[i].adsp =
+			&largo->core.adsp[compr_dai_mapping[i].adsp_num];
+	}
+}
+
+static void largo_destroy_compr_info(struct largo_priv *largo)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(largo->compr_info); ++i)
+		mutex_destroy(&largo->compr_info[i].lock);
+}
+
 static int largo_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
@@ -1491,7 +1557,6 @@ static int largo_probe(struct platform_device *pdev)
 	 * locate regulator supplies */
 	pdev->dev.of_node = arizona->dev->of_node;
 
-	mutex_init(&largo->compr_info.lock);
 	mutex_init(&largo->fw_lock);
 
 	largo->core.arizona = arizona;
@@ -1522,6 +1587,8 @@ static int largo_probe(struct platform_device *pdev)
 		if (ret != 0)
 			goto error;
 	}
+
+	largo_init_compr_info(largo);
 
 	for (i = 0; i < ARRAY_SIZE(largo->fll); i++)
 		largo->fll[i].vco_mult = 3;
@@ -1565,7 +1632,7 @@ static int largo_probe(struct platform_device *pdev)
 	return ret;
 
 error:
-	mutex_destroy(&largo->compr_info.lock);
+	largo_destroy_compr_info(largo);
 	mutex_destroy(&largo->fw_lock);
 
 	return ret;
@@ -1578,7 +1645,7 @@ static int largo_remove(struct platform_device *pdev)
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	mutex_destroy(&largo->compr_info.lock);
+	largo_destroy_compr_info(largo);
 	mutex_destroy(&largo->fw_lock);
 
 	return 0;

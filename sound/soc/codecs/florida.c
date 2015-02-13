@@ -34,26 +34,48 @@
 #include "florida.h"
 
 #define FLORIDA_NUM_ADSP 4
+
+/* Number of compressed DAI hookups, each pair of DSP and dummy CPU
+ * are counted as one DAI
+ */
+#define FLORIDA_NUM_COMPR_DAI 2
+
 #define FLORIDA_DEFAULT_FRAGMENTS       1
 #define FLORIDA_DEFAULT_FRAGMENT_SIZE   4096
 
 struct florida_compr {
 	struct mutex lock;
+	const char *dai_name;
 
-	struct snd_compr_stream *stream;
 	struct wm_adsp *adsp;
 
 	size_t total_copied;
 	bool allocated;
 	bool trig;
+
+	struct snd_compr_stream *stream;
 };
 
 struct florida_priv {
 	struct arizona_priv core;
 	struct arizona_fll fll[2];
-	struct florida_compr compr_info;
+	struct florida_compr compr_info[FLORIDA_NUM_COMPR_DAI];
 
 	struct mutex fw_lock;
+};
+
+static const struct {
+	const char *dai_name;
+	int adsp_num;
+} compr_dai_mapping[FLORIDA_NUM_COMPR_DAI] = {
+	{
+		.dai_name = "florida-dsp-voicectrl",
+		.adsp_num = 2,
+	},
+	{
+		.dai_name = "florida-dsp-trace",
+		.adsp_num = 0,
+	},
 };
 
 static const struct wm_adsp_region florida_dsp1_regions[] = {
@@ -212,6 +234,7 @@ static int florida_adsp_power_ev(struct snd_soc_dapm_widget *w,
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 	unsigned int v;
 	int ret;
+	int i;
 
 	ret = regmap_read(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, &v);
 	if (ret != 0) {
@@ -224,10 +247,13 @@ static int florida_adsp_power_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		if (w->shift == 2) {
-			mutex_lock(&florida->compr_info.lock);
-			florida->compr_info.trig = false;
-			mutex_unlock(&florida->compr_info.lock);
+		for (i = 0; i < ARRAY_SIZE(florida->compr_info); ++i) {
+			if (florida->compr_info[i].adsp->num != w->shift + 1)
+				continue;
+
+			mutex_lock(&florida->compr_info[i].lock);
+			florida->compr_info[i].trig = false;
+			mutex_unlock(&florida->compr_info[i].lock);
 		}
 		break;
 	default:
@@ -2196,46 +2222,70 @@ static struct snd_soc_dai_driver florida_dai[] = {
 	},
 };
 
-static irqreturn_t adsp2_irq(int irq, void *data)
+static void florida_compr_irq(struct florida_priv *florida,
+				struct florida_compr *compr)
 {
-	struct florida_priv *florida = data;
 	struct arizona *arizona = florida->core.arizona;
-	struct wm_adsp *adsp3 = &florida->core.adsp[2];
-	struct wm_adsp *adsp1 = &florida->core.adsp[0];
 	bool trigger;
 	int ret, avail;
 
-	mutex_lock(&florida->compr_info.lock);
+	mutex_lock(&compr->lock);
 
-	if (adsp3->running) {
-		ret = wm_adsp_stream_handle_irq(adsp3, &trigger);
-		if (ret >= 0) {
-			if (adsp3 == florida->compr_info.adsp)
-				florida->compr_info.total_copied += ret;
-
-			if (!florida->compr_info.trig && trigger) {
-				florida->compr_info.trig = true;
-				if (arizona->pdata.ez2ctrl_trigger &&
-				    adsp3->fw_features.ez2control_trigger)
-					arizona->pdata.ez2ctrl_trigger();
-			}
-		}
-	} else if (adsp1->running) {
-		ret = wm_adsp_stream_handle_irq(adsp1, &trigger);
-
-		if (ret >= 0 && (adsp1 == florida->compr_info.adsp))
-			florida->compr_info.total_copied += ret;
+	ret = wm_adsp_stream_handle_irq(compr->adsp, &trigger);
+	if (ret < 0) {
+		dev_err(arizona->dev,
+			"Failed to capture DSP%d data: %d\n",
+			compr->adsp->num, ret);
+		goto out;
 	}
 
-	if (florida->compr_info.allocated) {
-		avail = wm_adsp_stream_avail(florida->compr_info.adsp);
+	compr->total_copied += ret;
+
+	if (trigger && !compr->trig) {
+		compr->trig = true;
+
+		if (compr->adsp->fw_features.ez2control_trigger &&
+		    arizona->pdata.ez2ctrl_trigger)
+			arizona->pdata.ez2ctrl_trigger();
+	}
+
+	if (compr->allocated) {
+		avail = wm_adsp_stream_avail(compr->adsp);
 		if (avail > FLORIDA_DEFAULT_FRAGMENT_SIZE)
-			snd_compr_fragment_elapsed(florida->compr_info.stream);
+			snd_compr_fragment_elapsed(compr->stream);
 	}
 
-	mutex_unlock(&florida->compr_info.lock);
+out:
+	mutex_unlock(&compr->lock);
+}
+
+static irqreturn_t florida_adsp2_irq(int irq, void *data)
+{
+	struct florida_priv *florida = data;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(florida->compr_info); ++i) {
+		if (!florida->compr_info[i].adsp->running)
+			continue;
+
+		florida_compr_irq(florida, &florida->compr_info[i]);
+	}
 
 	return IRQ_HANDLED;
+}
+
+static struct florida_compr *florida_get_compr(struct snd_soc_pcm_runtime *rtd,
+					       struct florida_priv *florida)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(florida->compr_info); ++i) {
+		if (strcmp(rtd->codec_dai->name,
+			   florida->compr_info[i].dai_name) == 0)
+			return &florida->compr_info[i];
+	}
+
+	return NULL;
 }
 
 static int florida_open(struct snd_compr_stream *stream)
@@ -2243,39 +2293,36 @@ static int florida_open(struct snd_compr_stream *stream)
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct florida_priv *florida = snd_soc_codec_get_drvdata(rtd->codec);
 	struct arizona *arizona = florida->core.arizona;
-	int n_adsp, ret = 0;
+	struct florida_compr *compr;
+	int ret = 0;
 
-	mutex_lock(&florida->compr_info.lock);
+	/* Find a compr_info for this DAI */
+	compr = florida_get_compr(rtd, florida);
+	if (!compr) {
+		dev_err(arizona->dev,
+			"No suitable compressed stream for dai '%s'\n",
+			rtd->codec_dai->name);
+		return -EINVAL;
+	}
 
-	if (florida->compr_info.stream) {
+	mutex_lock(&compr->lock);
+
+	if (compr->stream) {
 		ret = -EBUSY;
 		goto out;
 	}
 
-	if (strcmp(rtd->codec_dai->name, "florida-dsp-voicectrl") == 0) {
-		n_adsp = 2;
-	} else if (strcmp(rtd->codec_dai->name, "florida-dsp-trace") == 0) {
-		n_adsp = 0;
-	} else {
-		dev_err(arizona->dev,
-			"No suitable compressed stream for dai '%s'\n",
-			rtd->codec_dai->name);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (!wm_adsp_compress_supported(&florida->core.adsp[n_adsp], stream)) {
+	if (!wm_adsp_compress_supported(compr->adsp, stream)) {
 		dev_err(arizona->dev,
 			"No suitable firmware for compressed stream\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
-	florida->compr_info.adsp = &florida->core.adsp[n_adsp];
-	florida->compr_info.stream = stream;
-	stream->runtime->private_data = &florida->compr_info;
+	compr->stream = stream;
+	stream->runtime->private_data = compr;
 out:
-	mutex_unlock(&florida->compr_info.lock);
+	mutex_unlock(&compr->lock);
 
 	return ret;
 }
@@ -2294,7 +2341,6 @@ static int florida_free(struct snd_compr_stream *stream)
 
 	compr->allocated = false;
 	compr->stream = NULL;
-	compr->adsp = NULL;
 	compr->total_copied = 0;
 
 	stream->runtime->private_data = NULL;
@@ -2374,7 +2420,7 @@ static int florida_trigger(struct snd_compr_stream *stream, int cmd)
 	mutex_unlock(&compr->lock);
 
 	if (pending)
-		adsp2_irq(0, florida);
+		florida_compr_irq(florida, compr);
 
 	return ret;
 }
@@ -2476,7 +2522,8 @@ static int florida_codec_probe(struct snd_soc_codec *codec)
 	priv->core.arizona->dapm = &codec->dapm;
 
 	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
-				  "ADSP2 interrupt 1", adsp2_irq, priv);
+				  "ADSP2 interrupt 1",
+				  florida_adsp2_irq, priv);
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to request DSP IRQ: %d\n", ret);
 		return ret;
@@ -2575,6 +2622,29 @@ static struct snd_soc_platform_driver florida_compr_platform = {
 	.compr_ops = &florida_compr_ops,
 };
 
+static void florida_init_compr_info(struct florida_priv *florida)
+{
+	int i;
+
+	BUILD_BUG_ON(ARRAY_SIZE(florida->compr_info) !=
+		     ARRAY_SIZE(compr_dai_mapping));
+
+	for (i = 0; i < ARRAY_SIZE(florida->compr_info); ++i) {
+		mutex_init(&florida->compr_info[i].lock);
+		florida->compr_info[i].dai_name = compr_dai_mapping[i].dai_name;
+		florida->compr_info[i].adsp =
+			&florida->core.adsp[compr_dai_mapping[i].adsp_num];
+	}
+}
+
+static void florida_destroy_compr_info(struct florida_priv *florida)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(florida->compr_info); ++i)
+		mutex_destroy(&florida->compr_info[i].lock);
+}
+
 static int __devinit florida_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
@@ -2589,7 +2659,6 @@ static int __devinit florida_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, florida);
 
-	mutex_init(&florida->compr_info.lock);
 	mutex_init(&florida->fw_lock);
 
 	/* Set of_node to parent from the SPI device to allow DAPM to
@@ -2624,6 +2693,8 @@ static int __devinit florida_probe(struct platform_device *pdev)
 		if (ret != 0)
 			goto error;
 	}
+
+	florida_init_compr_info(florida);
 
 	for (i = 0; i < ARRAY_SIZE(florida->fll); i++)
 		florida->fll[i].vco_mult = 3;
@@ -2667,7 +2738,7 @@ static int __devinit florida_probe(struct platform_device *pdev)
 	return ret;
 
 error:
-	mutex_destroy(&florida->compr_info.lock);
+	florida_destroy_compr_info(florida);
 	mutex_destroy(&florida->fw_lock);
 
 	return ret;
@@ -2680,7 +2751,7 @@ static int __devexit florida_remove(struct platform_device *pdev)
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	mutex_destroy(&florida->compr_info.lock);
+	florida_destroy_compr_info(florida);
 	mutex_destroy(&florida->fw_lock);
 
 	return 0;
