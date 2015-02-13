@@ -37,6 +37,11 @@
 		WM_ADSP2_REGION_8 | WM_ADSP2_REGION_9)
 #define WM_ADSP2_REGION_ALL (WM_ADSP2_REGION_0 | WM_ADSP2_REGION_1_9)
 
+#define WM_ADSP2_DEFAULT_FRAGMENTS       1
+#define WM_ADSP2_DEFAULT_FRAGMENT_SIZE   4096
+
+struct wm_adsp;
+
 struct wm_adsp_region {
 	int type;
 	unsigned int base;
@@ -91,6 +96,20 @@ struct wm_adsp_host_buf_info {
 	u32 error;
 };
 
+struct wm_adsp_compr {
+	struct mutex lock;
+	struct wm_adsp *dsp;
+
+	bool allocated;
+
+	u32 irq_watermark;
+	int max_dsp_read_bytes;
+
+	size_t total_copied;
+
+	struct snd_compr_stream *stream;
+};
+
 struct wm_adsp {
 	const char *part;
 	int rev;
@@ -121,15 +140,10 @@ struct wm_adsp {
 	struct mutex ctl_lock;
 
 	struct wm_adsp_host_buf_info host_buf_info;
-
-
-	int max_dsp_read_bytes;
 	u32 *raw_capt_buf;
 	struct circ_buf capt_buf;
 	int capt_buf_size;
-	u32 capt_watermark;
 	bool buffer_drain_pending;
-	bool stream_allocated;
 
 	int num_firmwares;
 	struct wm_adsp_fw_defs *firmwares;
@@ -187,25 +201,25 @@ static inline bool wm_adsp_fw_has_voice_trig(const struct wm_adsp *dsp)
 	return dsp->fw_features.ez2control_trigger;
 }
 
-extern bool wm_adsp_compress_supported(const struct wm_adsp *adsp,
-				       const struct snd_compr_stream *stream);
-extern bool wm_adsp_format_supported(const struct wm_adsp *adsp,
-				     const struct snd_compr_stream *stream,
-				     const struct snd_compr_params *params);
-extern void wm_adsp_get_caps(const struct wm_adsp *adsp,
-			     const struct snd_compr_stream *stream,
-			     struct snd_compr_caps *caps);
-
-extern int wm_adsp_stream_alloc(struct wm_adsp *adsp,
-				const struct snd_compr_params *params);
-extern int wm_adsp_stream_free(struct wm_adsp *adsp);
-extern int wm_adsp_stream_start(struct wm_adsp *adsp);
-
-extern int wm_adsp_stream_has_error(struct wm_adsp *dsp);
-extern int wm_adsp_stream_handle_irq(struct wm_adsp *adsp, bool *trigger);
-extern int wm_adsp_stream_read(struct wm_adsp *adsp, char __user *buf,
-			       size_t count);
-extern int wm_adsp_stream_avail(const struct wm_adsp *adsp);
+extern int wm_adsp_compr_irq(struct wm_adsp_compr *compr, bool *trigger);
+extern int wm_adsp_compr_open(struct wm_adsp_compr *compr,
+				struct snd_compr_stream *stream);
+extern int wm_adsp_compr_free(struct snd_compr_stream *stream);
+extern int wm_adsp_compr_set_params(struct snd_compr_stream *stream,
+				    struct snd_compr_params *params);
+extern int wm_adsp_compr_get_params(struct snd_compr_stream *stream,
+				    struct snd_codec *params);
+extern int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd);
+extern int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
+				 struct snd_compr_tstamp *tstamp);
+extern int wm_adsp_compr_copy(struct snd_compr_stream *stream,
+			      char __user *buf, size_t count);
+extern int wm_adsp_compr_get_caps(struct snd_compr_stream *stream,
+				  struct snd_compr_caps *caps);
+extern int wm_adsp_compr_get_codec_caps(struct snd_compr_stream *stream,
+					struct snd_compr_codec_caps *codec);
+extern void wm_adsp_compr_init(struct wm_adsp *dsp, struct wm_adsp_compr *compr);
+extern void wm_adsp_compr_destroy(struct wm_adsp_compr *compr);
 
 #endif
 
