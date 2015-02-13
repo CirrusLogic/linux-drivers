@@ -40,9 +40,6 @@
  */
 #define MOON_NUM_COMPR_DAI 2
 
-#define MOON_DEFAULT_FRAGMENTS       1
-#define MOON_DEFAULT_FRAGMENT_SIZE   4096
-
 #define MOON_FRF_COEFFICIENT_LEN 4
 
 static int moon_frf_bytes_put(struct snd_kcontrol *kcontrol,
@@ -186,17 +183,13 @@ static int moon_rate_put(struct snd_kcontrol *kcontrol,
 	.get = snd_soc_get_value_enum_double, .put = moon_rate_put, \
 	.private_value = (unsigned long)&xenum }
 
+struct moon_priv;
+
 struct moon_compr {
-	struct mutex lock;
+	struct wm_adsp_compr adsp_compr;
 	const char *dai_name;
-
-	struct wm_adsp *adsp;
-
-	size_t total_copied;
-	bool allocated;
 	bool trig;
-
-	struct snd_compr_stream *stream;
+	struct moon_priv *priv;
 };
 
 struct moon_priv {
@@ -636,12 +629,13 @@ static int moon_adsp_power_ev(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		for (i = 0; i < ARRAY_SIZE(moon->compr_info); ++i) {
-			if (moon->compr_info[i].adsp->num != w->shift + 1)
+			if (moon->compr_info[i].adsp_compr.dsp->num !=
+			    w->shift + 1)
 				continue;
 
-			mutex_lock(&moon->compr_info[i].lock);
+			mutex_lock(&moon->compr_info[i].adsp_compr.lock);
 			moon->compr_info[i].trig = false;
-			mutex_unlock(&moon->compr_info[i].lock);
+			mutex_unlock(&moon->compr_info[i].adsp_compr.lock);
 		}
 		break;
 	default:
@@ -2692,36 +2686,23 @@ static void moon_compr_irq(struct moon_priv *moon,
 {
 	struct arizona *arizona = moon->core.arizona;
 	bool trigger;
-	int ret, avail;
+	int ret;
 
-	mutex_lock(&compr->lock);
+	ret = wm_adsp_compr_irq(&compr->adsp_compr, &trigger);
+	if (ret < 0)
+		return;
 
-	ret = wm_adsp_stream_handle_irq(compr->adsp, &trigger);
-	if (ret < 0) {
-		dev_err(arizona->dev,
-			"Failed to capture DSP%d data: %d\n",
-			compr->adsp->num, ret);
-		goto out;
+	if (trigger && arizona->pdata.ez2ctrl_trigger) {
+		mutex_lock(&compr->adsp_compr.lock);
+		if (!compr->trig) {
+			compr->trig = true;
+
+			if (arizona->pdata.ez2ctrl_trigger &&
+			    wm_adsp_fw_has_voice_trig(compr->adsp_compr.dsp))
+				arizona->pdata.ez2ctrl_trigger();
+		}
+		mutex_unlock(&compr->adsp_compr.lock);
 	}
-
-	compr->total_copied += ret;
-
-	if (trigger && !compr->trig) {
-		compr->trig = true;
-
-		if (wm_adsp_fw_has_voice_trig(compr->adsp) &&
-		    arizona->pdata.ez2ctrl_trigger)
-			arizona->pdata.ez2ctrl_trigger();
-	}
-
-	if (compr->allocated) {
-		avail = wm_adsp_stream_avail(compr->adsp);
-		if (avail > MOON_DEFAULT_FRAGMENT_SIZE)
-			snd_compr_fragment_elapsed(compr->stream);
-	}
-
-out:
-	mutex_unlock(&compr->lock);
 }
 
 static irqreturn_t moon_adsp2_irq(int irq, void *data)
@@ -2730,7 +2711,7 @@ static irqreturn_t moon_adsp2_irq(int irq, void *data)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(moon->compr_info); ++i) {
-		if (!moon->compr_info[i].adsp->running)
+		if (!moon->compr_info[i].adsp_compr.dsp->running)
 			continue;
 
 		moon_compr_irq(moon, &moon->compr_info[i]);
@@ -2752,210 +2733,51 @@ static struct moon_compr *moon_get_compr(struct snd_soc_pcm_runtime *rtd,
 	return NULL;
 }
 
-static int moon_open(struct snd_compr_stream *stream)
+static int moon_compr_open(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct moon_priv *moon = snd_soc_codec_get_drvdata(rtd->codec);
-	struct arizona *arizona = moon->core.arizona;
 	struct moon_compr *compr;
-	int ret = 0;
 
-	/* Find a compr_info for this DAI */
 	compr = moon_get_compr(rtd, moon);
 	if (!compr) {
-		dev_err(arizona->dev,
-			"No suitable compressed stream for dai '%s'\n",
+		dev_err(moon->core.arizona->dev,
+			"No compressed stream for dai '%s'\n",
 			rtd->codec_dai->name);
 		return -EINVAL;
 	}
 
-	mutex_lock(&compr->lock);
-
-	if (compr->stream) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	if (!wm_adsp_compress_supported(compr->adsp, stream)) {
-		dev_err(arizona->dev,
-			"No suitable firmware for DAI '%s'\n",
-			rtd->codec_dai->name);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	compr->stream = stream;
-	stream->runtime->private_data = compr;
-out:
-	mutex_unlock(&compr->lock);
-
-	return ret;
+	return wm_adsp_compr_open(&compr->adsp_compr, stream);
 }
 
-static int moon_free(struct snd_compr_stream *stream)
+static int moon_compr_trigger(struct snd_compr_stream *stream, int cmd)
 {
-	struct moon_compr *compr =
-			(struct moon_compr *)stream->runtime->private_data;
+	struct wm_adsp_compr *adsp_compr =
+			(struct wm_adsp_compr *)stream->runtime->private_data;
+	struct moon_compr *compr = container_of(adsp_compr,
+						struct moon_compr,
+						adsp_compr);
+	struct arizona *arizona = compr->priv->core.arizona;
+	int ret;
 
-	if (!compr)
-		return -EINVAL;
-
-	mutex_lock(&compr->lock);
-
-	wm_adsp_stream_free(compr->adsp);
-
-	compr->allocated = false;
-	compr->stream = NULL;
-	compr->total_copied = 0;
-
-	stream->runtime->private_data = NULL;
-
-	mutex_unlock(&compr->lock);
-
-	return 0;
-}
-
-static int moon_set_params(struct snd_compr_stream *stream,
-			     struct snd_compr_params *params)
-{
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct moon_priv *moon = snd_soc_codec_get_drvdata(rtd->codec);
-	struct arizona *arizona = moon->core.arizona;
-	struct moon_compr *compr =
-			(struct moon_compr *)stream->runtime->private_data;
-	int ret = 0;
-
-	mutex_lock(&compr->lock);
-
-	if (!wm_adsp_format_supported(compr->adsp, stream, params)) {
-		dev_err(arizona->dev,
-			"Invalid params: id:%u, chan:%u,%u, rate:%u format:%u\n",
-			params->codec.id, params->codec.ch_in,
-			params->codec.ch_out, params->codec.sample_rate,
-			params->codec.format);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = wm_adsp_stream_alloc(compr->adsp, params);
-	if (ret == 0)
-		compr->allocated = true;
-
-out:
-	mutex_unlock(&compr->lock);
-
-	return ret;
-}
-
-static int moon_get_params(struct snd_compr_stream *stream,
-			     struct snd_codec *params)
-{
-	return 0;
-}
-
-static int moon_trigger(struct snd_compr_stream *stream, int cmd)
-{
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct moon_priv *moon = snd_soc_codec_get_drvdata(rtd->codec);
-	struct arizona *arizona = moon->core.arizona;
-	struct moon_compr *compr =
-			(struct moon_compr *)stream->runtime->private_data;
-	int ret = 0;
-	bool pending = false;
-
-	mutex_lock(&compr->lock);
+	ret = wm_adsp_compr_trigger(stream, cmd);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		ret = wm_adsp_stream_start(compr->adsp);
-
-		/**
-		 * If the stream has already triggered before the stream
-		 * opened better process any outstanding data
-		 */
 		if (compr->trig)
-			pending = true;
-		break;
-	case SNDRV_PCM_TRIGGER_STOP:
+			/*
+			 * If the firmware already triggered before the stream
+			 * was opened trigger another interrupt so irq handler
+			 * will run and process any outstanding data
+			 */
+			regmap_write(arizona->regmap,
+				     CLEARWATER_ADSP2_IRQ0, 0x01);
 		break;
 	default:
-		ret = -EINVAL;
 		break;
 	}
 
-	mutex_unlock(&compr->lock);
-
-	/*
-	* Stream has already trigerred, force irq handler to run
-	* by generating interrupt.
-	*/
-	if (pending)
-		regmap_write(arizona->regmap, CLEARWATER_ADSP2_IRQ0, 0x01);
-
-
 	return ret;
-}
-
-static int moon_pointer(struct snd_compr_stream *stream,
-			  struct snd_compr_tstamp *tstamp)
-{
-	struct moon_compr *compr =
-			(struct moon_compr *)stream->runtime->private_data;
-
-	mutex_lock(&compr->lock);
-	tstamp->byte_offset = 0;
-	tstamp->copied_total = compr->total_copied;
-	mutex_unlock(&compr->lock);
-
-	return 0;
-}
-
-static int moon_copy(struct snd_compr_stream *stream, char __user *buf,
-		       size_t count)
-{
-	struct moon_compr *compr =
-			(struct moon_compr *)stream->runtime->private_data;
-	int ret;
-
-	mutex_lock(&compr->lock);
-
-	if (stream->direction == SND_COMPRESS_PLAYBACK)
-		ret = -EINVAL;
-	else
-		ret = wm_adsp_stream_read(compr->adsp, buf, count);
-
-	mutex_unlock(&compr->lock);
-
-	return ret;
-}
-
-static int moon_get_caps(struct snd_compr_stream *stream,
-			   struct snd_compr_caps *caps)
-{
-	struct moon_compr *compr =
-			(struct moon_compr *)stream->runtime->private_data;
-
-	mutex_lock(&compr->lock);
-
-	memset(caps, 0, sizeof(*caps));
-
-	caps->direction = stream->direction;
-	caps->min_fragment_size = MOON_DEFAULT_FRAGMENT_SIZE;
-	caps->max_fragment_size = MOON_DEFAULT_FRAGMENT_SIZE;
-	caps->min_fragments = MOON_DEFAULT_FRAGMENTS;
-	caps->max_fragments = MOON_DEFAULT_FRAGMENTS;
-
-	wm_adsp_get_caps(compr->adsp, stream, caps);
-
-	mutex_unlock(&compr->lock);
-
-	return 0;
-}
-
-static int moon_get_codec_caps(struct snd_compr_stream *stream,
-				 struct snd_compr_codec_caps *codec)
-{
-	return 0;
 }
 
 static int moon_codec_probe(struct snd_soc_codec *codec)
@@ -3094,15 +2916,15 @@ static struct snd_soc_codec_driver soc_codec_dev_moon = {
 };
 
 static struct snd_compr_ops moon_compr_ops = {
-	.open = moon_open,
-	.free = moon_free,
-	.set_params = moon_set_params,
-	.get_params = moon_get_params,
-	.trigger = moon_trigger,
-	.pointer = moon_pointer,
-	.copy = moon_copy,
-	.get_caps = moon_get_caps,
-	.get_codec_caps = moon_get_codec_caps,
+	.open = moon_compr_open,
+	.free = wm_adsp_compr_free,
+	.set_params = wm_adsp_compr_set_params,
+	.get_params = wm_adsp_compr_get_params,
+	.trigger = moon_compr_trigger,
+	.pointer = wm_adsp_compr_pointer,
+	.copy = wm_adsp_compr_copy,
+	.get_caps = wm_adsp_compr_get_caps,
+	.get_codec_caps = wm_adsp_compr_get_codec_caps,
 };
 
 static struct snd_soc_platform_driver moon_compr_platform = {
@@ -3111,17 +2933,20 @@ static struct snd_soc_platform_driver moon_compr_platform = {
 
 static void moon_init_compr_info(struct moon_priv *moon)
 {
+	struct wm_adsp *dsp;
 	int i;
 
 	BUILD_BUG_ON(ARRAY_SIZE(moon->compr_info) !=
 		     ARRAY_SIZE(compr_dai_mapping));
 
 	for (i = 0; i < ARRAY_SIZE(moon->compr_info); ++i) {
-		mutex_init(&moon->compr_info[i].lock);
+		moon->compr_info[i].priv = moon;
+
 		moon->compr_info[i].dai_name =
 			compr_dai_mapping[i].dai_name;
-		moon->compr_info[i].adsp =
-			&moon->core.adsp[compr_dai_mapping[i].adsp_num];
+
+		dsp = &moon->core.adsp[compr_dai_mapping[i].adsp_num],
+		wm_adsp_compr_init(dsp, &moon->compr_info[i].adsp_compr);
 	}
 }
 
@@ -3130,7 +2955,7 @@ static void moon_destroy_compr_info(struct moon_priv *moon)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(moon->compr_info); ++i)
-		mutex_destroy(&moon->compr_info[i].lock);
+		wm_adsp_compr_destroy(&moon->compr_info[i].adsp_compr);
 }
 
 static int moon_probe(struct platform_device *pdev)
