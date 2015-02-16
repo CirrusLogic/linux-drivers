@@ -1899,7 +1899,7 @@ int florida_put_dre(struct snd_kcontrol *kcontrol,
 	unsigned int lshift = mc->shift;
 	unsigned int rshift = mc->rshift;
 
-	mutex_lock(&arizona->dapm->card->dapm_mutex);
+	mutex_lock_nested(&arizona->dapm->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 
 	florida_set_dre(arizona, lshift, !!ucontrol->value.integer.value[0]);
 	florida_set_dre(arizona, rshift, !!ucontrol->value.integer.value[1]);
@@ -1917,7 +1917,7 @@ int clearwater_put_dre(struct snd_kcontrol *kcontrol,
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 	int ret;
 
-	mutex_lock(&arizona->dapm->card->dapm_mutex);
+	mutex_lock_nested(&arizona->dapm->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 
 	ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
