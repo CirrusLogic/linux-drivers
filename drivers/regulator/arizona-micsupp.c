@@ -289,7 +289,7 @@ static __devinit int arizona_micsupp_probe(struct platform_device *pdev)
 	micsupp->supply[1].dev_name = "wm5102-codec";
 	micsupp->supply[2].dev_name = "florida-codec";
 	micsupp->supply[3].dev_name = "wm8997-codec";
-	micsupp->supply[4].dev_name = "wm8998-codec";
+	micsupp->supply[4].dev_name = "vegas-codec";
 
 	if (IS_ENABLED(CONFIG_OF)) {
 		if (!dev_get_platdata(arizona->dev)) {
