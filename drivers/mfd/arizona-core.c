@@ -1294,13 +1294,13 @@ static struct mfd_cell wm8997_devs[] = {
 	{ .name = "wm8997-codec" },
 };
 
-static struct mfd_cell wm8998_devs[] = {
+static struct mfd_cell vegas_devs[] = {
 	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-extcon" },
 	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
 	{ .name = "arizona-pwm" },
-	{ .name = "wm8998-codec" },
+	{ .name = "vegas-codec" },
 };
 
 static struct mfd_cell clearwater_devs[] = {
@@ -1729,7 +1729,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		apply_patch = wm8997_patch;
 		break;
 #endif
-#ifdef CONFIG_MFD_WM8998
+#ifdef CONFIG_MFD_VEGAS
 	case 0x6349:
 		switch (arizona->type) {
 		case WM8998:
@@ -1746,7 +1746,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 			arizona->type = WM8998;
 		}
 
-		apply_patch = wm8998_patch;
+		apply_patch = vegas_patch;
 		revision_char = arizona->rev + 'A';
 		break;
 #endif
@@ -2070,8 +2070,8 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		break;
 	case WM8998:
 	case WM1814:
-		ret = mfd_add_devices(arizona->dev, -1, wm8998_devs,
-				      ARRAY_SIZE(wm8998_devs), NULL, 0);
+		ret = mfd_add_devices(arizona->dev, -1, vegas_devs,
+				      ARRAY_SIZE(vegas_devs), NULL, 0);
 		break;
 	case WM8285:
 	case WM1840:
