@@ -2789,6 +2789,7 @@ static int clearwater_trigger(struct snd_compr_stream *stream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct clearwater_priv *clearwater = snd_soc_codec_get_drvdata(rtd->codec);
+	struct arizona *arizona = clearwater->core.arizona;
 	int ret = 0;
 	bool pending = false;
 
@@ -2814,8 +2815,12 @@ static int clearwater_trigger(struct snd_compr_stream *stream, int cmd)
 
 	mutex_unlock(&clearwater->compr_info.lock);
 
+	/*
+	* Stream has already trigerred, force irq handler to run
+	* by generating interrupt.
+	*/
 	if (pending)
-		adsp2_irq(0, clearwater);
+		regmap_write(arizona->regmap, CLEARWATER_ADSP2_IRQ0, 0x01);
 
 	return ret;
 }
