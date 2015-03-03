@@ -622,7 +622,7 @@ static int arizona_hpdet_d_calibrate(const struct arizona_extcon_info *info,
 	s64 val = dacval;
 	s64 n;
 
-	dev_warn(info->arizona->dev, "hpdet_d calib range %d dac %d\n", range, dacval);
+	dev_dbg(info->arizona->dev, "hpdet_d calib range %d dac %d\n", range, dacval);
 
 	val = (val * 1000000) + info->calib_data[range].dacval_adjust;
 	val = div64_s64(val, info->calib_data[range].C2);
