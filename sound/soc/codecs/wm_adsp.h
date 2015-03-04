@@ -20,8 +20,6 @@
 
 #include "wmfw.h"
 
-struct regulator;
-
 struct wm_adsp_region {
 	int type;
 	unsigned int base;
