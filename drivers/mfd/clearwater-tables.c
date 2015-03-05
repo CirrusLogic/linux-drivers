@@ -418,7 +418,7 @@ static const struct regmap_irq clearwater_irqs[ARIZONA_NUM_IRQ] = {
 				.mask = CLEARWATER_SPK_SHUTDOWN_EINT1},
 };
 
-const struct regmap_irq_chip clearwater_irq = {
+struct regmap_irq_chip clearwater_irq = {
 	.name = "clearwater IRQ",
 	.status_base = CLEARWATER_IRQ1_STATUS_1,
 	.mask_base = CLEARWATER_IRQ1_MASK_1,

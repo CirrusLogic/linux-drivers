@@ -178,7 +178,7 @@ static const struct regmap_irq largo_irqs[ARIZONA_NUM_IRQ] = {
 	},
 };
 
-const struct regmap_irq_chip largo_irq = {
+struct regmap_irq_chip largo_irq = {
 	.name = "largo IRQ",
 	.status_base = ARIZONA_INTERRUPT_STATUS_1,
 	.mask_base = ARIZONA_INTERRUPT_STATUS_1_MASK,
