@@ -72,7 +72,7 @@
 #define ANTENNA_3_POLE_INSERTED 0x2
 #define ANTENNA_4_POLE_INSERTED 0x4
 
-static struct arizona_hpdet_calibration_data {
+struct arizona_hpdet_calibration_data {
 	int	min;
 	int	max;
 	s64	C0;		/* value * 1000000 */
