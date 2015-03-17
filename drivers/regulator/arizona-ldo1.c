@@ -145,6 +145,27 @@ static int arizona_ldo_reg_set_voltage_sel(struct regulator_dev *rdev,
 				  ARIZONA_LDO1_VSEL_MASK, sel);
 }
 
+static int arizona_ldo_reg_set_voltage_time_sel(struct regulator_dev *rdev,
+						unsigned int old_selector,
+						unsigned int new_selector)
+{
+	struct arizona_ldo1 *ldo1 = rdev_get_drvdata(rdev);
+
+	switch (ldo1->arizona->type) {
+	case WM5102:
+	case WM8997:
+	case WM8998:
+	case WM1814:
+		/* if moving to 1.8v allow time for it to reach voltage */
+		if (new_selector == rdev->desc->n_voltages - 1)
+			return 25;
+		else
+			return 0;
+	default:
+		return 0;
+	}
+}
+
 static int arizona_ldo_enable_time(struct regulator_dev *rdev)
 {
 	struct arizona_ldo1 *ldo1 = rdev_get_drvdata(rdev);
@@ -204,6 +225,7 @@ static struct regulator_ops arizona_ldo1_ops = {
 	.get_voltage_sel = arizona_ldo_reg_get_voltage_sel,
 	.set_voltage_sel = arizona_ldo_reg_set_voltage_sel,
 	.enable_time = arizona_ldo_enable_time,
+	.set_voltage_time_sel = arizona_ldo_reg_set_voltage_time_sel,
 };
 
 static struct regulator_desc arizona_ldo1 = {
