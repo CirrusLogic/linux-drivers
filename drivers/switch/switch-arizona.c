@@ -1200,14 +1200,12 @@ static int arizona_hpdet_moisture_start(struct arizona_extcon_info *info)
 	case WM1831:
 	case CS47L24:
 		regmap_update_bits(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
-				   ARIZONA_HP_RATE | ARIZONA_HP_FAST_MODE,
-				   ARIZONA_HP_RATE | ARIZONA_HP_FAST_MODE);
+				   ARIZONA_HP_FAST_MODE, ARIZONA_HP_FAST_MODE);
 		break;
 	case WM8998:
 	case WM1814:
 		regmap_update_bits(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
-				   ARIZONA_HP_RATE | VEGAS_HP_FAST_MODE,
-				   ARIZONA_HP_RATE | VEGAS_HP_FAST_MODE);
+				   VEGAS_HP_FAST_MODE, VEGAS_HP_FAST_MODE);
 		break;
 	default:
 		regmap_update_bits(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
@@ -1240,12 +1238,12 @@ static void arizona_hpdet_moisture_stop(struct arizona_extcon_info *info)
 	case WM1831:
 	case CS47L24:
 		regmap_update_bits(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
-				   ARIZONA_HP_RATE | ARIZONA_HP_FAST_MODE, 0);
+				   ARIZONA_HP_FAST_MODE, 0);
 		break;
 	case WM8998:
 	case WM1814:
 		regmap_update_bits(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
-				   ARIZONA_HP_RATE | VEGAS_HP_FAST_MODE, 0);
+				   VEGAS_HP_FAST_MODE, 0);
 		break;
 	default:
 		regmap_update_bits(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
