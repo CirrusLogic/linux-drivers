@@ -667,14 +667,31 @@ static int arizona_runtime_resume(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
 	int ret;
+	bool in_reset = false;
 
 	dev_dbg(arizona->dev, "Leaving AoD mode\n");
+
+	if (arizona->has_fully_powered_off) {
+		dev_dbg(arizona->dev, "Re-enabling core supplies\n");
+
+		ret = regulator_bulk_enable(arizona->num_core_supplies,
+					    arizona->core_supplies);
+		if (ret) {
+			dev_err(dev, "Failed to enable core supplies: %d\n",
+				ret);
+			return ret;
+		}
+
+		in_reset = true;
+	}
 
 	switch (arizona->type) {
 	case WM5110:
 	case WM8280:
-		if (arizona->rev == 3)
+		if (arizona->rev == 3) {
 			arizona_enable_reset(arizona);
+			in_reset = true;
+		}
 		break;
 	case WM5102:
 	case WM8997:
@@ -684,15 +701,28 @@ static int arizona_runtime_resume(struct device *dev)
 	case CS47L24:
 		break;
 	default:
-		if (arizona->external_dcvdd)
+		if (arizona->external_dcvdd) {
 			arizona_enable_reset(arizona);
+			in_reset = true;
+		}
 		break;
 	};
 
 	ret = regulator_enable(arizona->dcvdd);
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to enable DCVDD: %d\n", ret);
+		if (arizona->has_fully_powered_off)
+			regulator_bulk_disable(arizona->num_core_supplies,
+					       arizona->core_supplies);
 		return ret;
+	}
+
+	if (in_reset)
+		arizona_disable_reset(arizona);
+
+	if (arizona->has_fully_powered_off) {
+		enable_irq(arizona->irq);
+		arizona->has_fully_powered_off = false;
 	}
 
 	regcache_cache_only(arizona->regmap, false);
@@ -732,8 +762,6 @@ static int arizona_runtime_resume(struct device *dev)
 				ret = arizona_soft_reset(arizona);
 				if (ret != 0)
 					goto err;
-			} else {
-				arizona_disable_reset(arizona);
 			}
 		}
 
@@ -765,6 +793,14 @@ static int arizona_runtime_resume(struct device *dev)
 				goto err;
 			}
 		}
+
+		ret = wm5110_apply_sleep_patch(arizona);
+		if (ret) {
+			dev_err(arizona->dev,
+				"Failed to re-apply sleep patch: %d\n",
+				ret);
+			goto err;
+		}
 		break;
 	case WM8997:
 	case WM8998:
@@ -788,9 +824,6 @@ static int arizona_runtime_resume(struct device *dev)
 		}
 		break;
 	default:
-		if (arizona->external_dcvdd)
-			arizona_disable_reset(arizona);
-
 		ret = arizona_wait_for_boot(arizona);
 		if (ret != 0) {
 			goto err;
@@ -841,9 +874,16 @@ err:
 static int arizona_runtime_suspend(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
+	unsigned int val;
 	int ret;
 
 	dev_dbg(arizona->dev, "Entering AoD mode\n");
+
+	ret = regmap_read(arizona->regmap, ARIZONA_JACK_DETECT_ANALOGUE, &val);
+	if (ret) {
+		dev_err(dev, "Failed to check jack det status: %d\n", ret);
+		return ret;
+	}
 
 	switch(arizona->type) {
 	case WM5102:
@@ -883,27 +923,39 @@ static int arizona_runtime_suspend(struct device *dev)
 		default:
 			break;
 		}
-	} else {
-		switch (arizona->type) {
-		case WM5110:
-		case WM8280:
-			/*
-			 * As this is only called for the internal regulator
-			 * (where we know voltage ranges available) it is ok
-			 * to request an exact range.
-			 */
-			ret = regulator_set_voltage(arizona->dcvdd,
-						    1175000, 1175000);
-			if (ret < 0) {
-				dev_err(arizona->dev,
-					"Failed to set suspend voltage: %d\n",
-					ret);
-				goto err;
-			}
+	}
+
+	switch (arizona->type) {
+	case WM5110:
+	case WM8280:
+		if (arizona->external_dcvdd)
 			break;
-		default:
-			break;
+
+		/*
+		 * As this is only called for the internal regulator
+		 * (where we know voltage ranges available) it is ok
+		 * to request an exact range.
+		 */
+		ret = regulator_set_voltage(arizona->dcvdd, 1175000, 1175000);
+		if (ret < 0) {
+			dev_err(arizona->dev,
+				"Failed to set suspend voltage: %d\n", ret);
+			goto err;
 		}
+		break;
+	case WM5102:
+		if (!(val & ARIZONA_JD1_ENA))
+			ret = regmap_write(arizona->regmap,
+					   ARIZONA_WRITE_SEQUENCER_CTRL_3, 0x0);
+			if (ret) {
+				dev_err(arizona->dev,
+					"Failed to clear write sequencer: %d\n",
+					ret);
+				return ret;
+			}
+		break;
+	default:
+		break;
 	}
 
 	regcache_cache_only(arizona->regmap, true);
@@ -911,6 +963,18 @@ static int arizona_runtime_suspend(struct device *dev)
 	if (arizona->regmap_32bit)
 		regcache_mark_dirty(arizona->regmap_32bit);
 	regulator_disable(arizona->dcvdd);
+
+	/* Allow us to completely power down if no jack detection */
+	if (!(val & ARIZONA_JD1_ENA)) {
+		dev_dbg(arizona->dev, "Fully powering off\n");
+
+		arizona->has_fully_powered_off = true;
+
+		disable_irq(arizona->irq);
+		arizona_enable_reset(arizona);
+		regulator_bulk_disable(arizona->num_core_supplies,
+				       arizona->core_supplies);
+	}
 
 	return 0;
 err:
