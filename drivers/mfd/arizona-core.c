@@ -410,6 +410,29 @@ static int arizona_wait_for_boot(struct arizona *arizona)
 	return ret;
 }
 
+static inline void arizona_enable_reset(struct arizona *arizona)
+{
+	if (arizona->pdata.reset)
+		gpio_set_value_cansleep(arizona->pdata.reset, 0);
+}
+
+static void arizona_disable_reset(struct arizona *arizona)
+{
+	if (arizona->pdata.reset) {
+		switch (arizona->type) {
+		case WM5110:
+		case WM8280:
+			msleep(5);
+			break;
+		default:
+			break;
+		}
+
+		gpio_set_value_cansleep(arizona->pdata.reset, 1);
+		msleep(1);
+	}
+}
+
 struct arizona_sysclk_state {
 	unsigned int fll;
 	unsigned int sysclk;
@@ -623,8 +646,8 @@ static int arizona_runtime_resume(struct device *dev)
 	switch (arizona->type) {
 	case WM5110:
 	case WM8280:
-		if (arizona->rev == 3 && arizona->pdata.reset)
-			gpio_set_value_cansleep(arizona->pdata.reset, 0);
+		if (arizona->rev == 3)
+			arizona_enable_reset(arizona);
 		break;
 	case WM5102:
 	case WM8997:
@@ -634,9 +657,8 @@ static int arizona_runtime_resume(struct device *dev)
 	case CS47L24:
 		break;
 	default:
-		if (arizona->pdata.reset && arizona->external_dcvdd) {
-			gpio_set_value_cansleep(arizona->pdata.reset, 0);
-		}
+		if (arizona->external_dcvdd)
+			arizona_enable_reset(arizona);
 		break;
 	};
 
@@ -684,8 +706,7 @@ static int arizona_runtime_resume(struct device *dev)
 				if (ret != 0)
 					goto err;
 			} else {
-				gpio_set_value_cansleep(arizona->pdata.reset, 1);
-				msleep(1);
+				arizona_disable_reset(arizona);
 			}
 		}
 
@@ -740,10 +761,8 @@ static int arizona_runtime_resume(struct device *dev)
 		}
 		break;
 	default:
-		if (arizona->pdata.reset && arizona->external_dcvdd) {
-			gpio_set_value_cansleep(arizona->pdata.reset, 1);
-			msleep(1);
-		}
+		if (arizona->external_dcvdd)
+			arizona_disable_reset(arizona);
 
 		ret = arizona_wait_for_boot(arizona);
 		if (ret != 0) {
@@ -1668,19 +1687,7 @@ int arizona_dev_init(struct arizona *arizona)
 		goto err_enable;
 	}
 
-	switch (arizona->type) {
-	case WM5110:
-	case WM8280:
-		msleep(5);
-		break;
-	default:
-		break;
-	}
-
-	if (arizona->pdata.reset) {
-		gpio_set_value_cansleep(arizona->pdata.reset, 1);
-		msleep(1);
-	}
+	arizona_disable_reset(arizona);
 
 	regcache_cache_only(arizona->regmap, false);
 
@@ -2201,8 +2208,7 @@ default:
 err_irq:
 	arizona_irq_exit(arizona);
 err_reset:
-	if (arizona->pdata.reset)
-		gpio_set_value_cansleep(arizona->pdata.reset, 0);
+	arizona_enable_reset(arizona);
 	regulator_disable(arizona->dcvdd);
 err_enable:
 	regulator_bulk_disable(arizona->num_core_supplies,
@@ -2230,8 +2236,7 @@ int arizona_dev_exit(struct arizona *arizona)
 	arizona_free_irq(arizona, ARIZONA_IRQ_OVERCLOCKED, arizona);
 	arizona_free_irq(arizona, ARIZONA_IRQ_CLKGEN_ERR, arizona);
 	arizona_irq_exit(arizona);
-	if (arizona->pdata.reset)
-		gpio_set_value_cansleep(arizona->pdata.reset, 0);
+	arizona_enable_reset(arizona);
 
 	regulator_bulk_disable(arizona->num_core_supplies,
 			       arizona->core_supplies);
