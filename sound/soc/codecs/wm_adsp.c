@@ -2043,7 +2043,8 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 				mem = wm_adsp_find_region(dsp, type);
 				if (!mem) {
 					adsp_err(dsp, "No ZM\n");
-					break;
+					ret = -EINVAL;
+					goto out_fw;
 				}
 				reg = wm_adsp_region_to_reg(mem, 0);
 
@@ -2064,7 +2065,8 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 			mem = wm_adsp_find_region(dsp, type);
 			if (!mem) {
 				adsp_err(dsp, "No base for region %x\n", type);
-				break;
+				ret = -EINVAL;
+				goto out_fw;
 			}
 
 			reg = 0;
@@ -2080,15 +2082,19 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 				}
 			}
 
-			if (reg == 0)
+			if (reg == 0) {
 				adsp_err(dsp, "No %x for algorithm %x\n",
 					 type, le32_to_cpu(blk->id));
+				ret = -EINVAL;
+				goto out_fw;
+			}
 			break;
 
 		default:
 			adsp_err(dsp, "%s.%d: Unknown region type %x at %d\n",
 				 file, blocks, type, pos);
-			break;
+			ret = -EINVAL;
+			goto out_fw;
 		}
 
 		if (reg) {
@@ -2100,6 +2106,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 				adsp_err(dsp,
 					"%s.%d: Failed to write to %x in %s: %d\n",
 					file, blocks, reg, region_name, ret);
+				goto out_fw;
 			}
 		}
 
