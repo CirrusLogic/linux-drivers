@@ -2051,7 +2051,6 @@ out:
 
 static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 {
-	struct regmap *regmap = dsp->regmap;
 	struct wmfw_coeff_hdr *hdr;
 	struct wmfw_coeff_item *blk;
 	const struct firmware *firmware;
@@ -2060,7 +2059,6 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	const char *region_name;
 	int ret, pos, blocks, type, offset, reg;
 	char *file;
-	void *buf;
 
 	if (dsp->firmwares[dsp->fw].binfile &&
 	    !(strcmp(dsp->firmwares[dsp->fw].binfile, "None")))
@@ -2198,22 +2196,15 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 		}
 
 		if (reg) {
-			buf = kmemdup(blk->data, le32_to_cpu(blk->len),
-				      GFP_KERNEL | GFP_DMA);
-			if (!buf) {
-				adsp_err(dsp, "Out of memory\n");
-				return -ENOMEM;
-			}
+			ret = wm_adsp_write_blocks(dsp, blk->data,
+						   le32_to_cpu(blk->len),
+						   reg);
 
-			ret = regmap_raw_write(regmap, reg, buf,
-					       le32_to_cpu(blk->len));
 			if (ret != 0) {
 				adsp_err(dsp,
 					"%s.%d: Failed to write to %x in %s: %d\n",
 					file, blocks, reg, region_name, ret);
 			}
-
-			kfree(buf);
 		}
 
 		pos += (le32_to_cpu(blk->len) + sizeof(*blk) + 3) & ~0x03;
