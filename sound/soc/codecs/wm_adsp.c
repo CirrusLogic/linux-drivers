@@ -1272,10 +1272,50 @@ static int wm_adsp_parse_coeff(struct wm_adsp *dsp,
 	return 0;
 }
 
+static int wm_adsp_write_blocks(struct wm_adsp *dsp,
+				const u8 *data, size_t len, unsigned reg)
+
+{
+	size_t to_write = PAGE_SIZE;
+	size_t remain = len;
+	void *buf;
+	int ret;
+
+	buf = kmalloc(PAGE_SIZE, GFP_KERNEL | GFP_DMA);
+	if (!buf) {
+		adsp_err(dsp, "Out of memory\n");
+		return -ENOMEM;
+	}
+
+	ret = 0;
+	while (remain > 0) {
+		if (remain < PAGE_SIZE)
+			to_write = remain;
+
+		memcpy(buf, data, to_write);
+
+		ret = regmap_raw_write(dsp->regmap, reg, buf, to_write);
+		if (ret != 0) {
+			adsp_err(dsp,
+				 "Failed to write %zd bytes at %d\n",
+				 to_write, reg);
+
+			break;
+		}
+
+		data += to_write;
+		reg += to_write / 2;
+		remain -= to_write;
+	}
+
+	kfree(buf);
+
+	return ret;
+}
+
 static int wm_adsp_load(struct wm_adsp *dsp)
 {
 	const struct firmware *firmware;
-	struct regmap *regmap = dsp->regmap;
 	unsigned int pos = 0;
 	const struct wmfw_header *header;
 	const struct wmfw_adsp1_sizes *adsp1_sizes;
@@ -1285,7 +1325,6 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 	const struct wm_adsp_region *mem;
 	const char *region_name;
 	char *file, *text;
-	void *buf;
 	unsigned int reg;
 	int regions = 0;
 	int ret, offset, type, sizes;
@@ -1405,7 +1444,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		offset = le32_to_cpu(region->offset) & 0xffffff;
 		type = be32_to_cpu(region->type) & 0xff;
 		mem = wm_adsp_find_region(dsp, type);
-		
+
 		switch (type) {
 		case WMFW_NAME_TEXT:
 			region_name = "Firmware name";
@@ -1470,43 +1509,16 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		}
 
 		if (reg) {
-			size_t to_write = PAGE_SIZE;
-			size_t remain = le32_to_cpu(region->len);
-			const u8 *data = region->data;
-
-			buf = kmalloc(PAGE_SIZE, GFP_KERNEL | GFP_DMA);
-			if (!buf) {
-				adsp_err(dsp, "Out of memory\n");
-				ret = -ENOMEM;
+			ret = wm_adsp_write_blocks(dsp, region->data,
+						   le32_to_cpu(region->len),
+						   reg);
+			if (ret != 0) {
+				adsp_err(dsp,
+					"%s.%d: Failed writing data at %d in %s: %d\n",
+					file, regions,
+					offset, region_name, ret);
 				goto out_fw;
 			}
-
-			ret = 0;
-			while (remain > 0) {
-				if (remain < PAGE_SIZE)
-					to_write = remain;
-
-				memcpy(buf, data, to_write);
-				ret = regmap_raw_write(regmap, reg,
-							buf, to_write);
-				if (ret != 0) {
-					adsp_err(dsp,
-						"%s.%d: Failed to write %zd bytes at %d in %s: %d\n",
-						file, regions,
-						to_write, offset,
-						region_name, ret);
-					break;
-				}
-
-				data += to_write;
-				reg += to_write / 2;
-				remain -= to_write;
-			}
-
-			kfree(buf);
-
-			if (ret != 0)
-				goto out_fw;
 		}
 
 		pos += le32_to_cpu(region->len) + sizeof(*region);
