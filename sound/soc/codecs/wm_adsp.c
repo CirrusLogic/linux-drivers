@@ -1963,7 +1963,6 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	int ret = 0;
 	int err, pos, blocks, type, offset, reg;
 	char *file;
-	struct wm_adsp_buf *buf;
 
 	if (dsp->firmwares[dsp->fw].binfile &&
 	    !(strcmp(dsp->firmwares[dsp->fw].binfile, "None")))
@@ -2102,20 +2101,10 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 		}
 
 		if (reg) {
-			buf = wm_adsp_buf_alloc(blk->data,
-						le32_to_cpu(blk->len),
-						&buf_list);
-			if (!buf) {
-				adsp_err(dsp, "Out of memory\n");
-				ret = -ENOMEM;
-				goto out_async;
-			}
+			ret = wm_adsp_write_blocks(dsp, blk->data,
+						   le32_to_cpu(blk->len),
+						   reg, &buf_list);
 
-			adsp_dbg(dsp, "%s.%d: Writing %d bytes at %x\n",
-				 file, blocks, le32_to_cpu(blk->len),
-				 reg);
-			ret = regmap_raw_write_async(regmap, reg, buf->buf,
-						     le32_to_cpu(blk->len));
 			if (ret != 0) {
 				adsp_err(dsp,
 					"%s.%d: Failed to write to %x in %s: %d\n",
@@ -2132,8 +2121,6 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 			  file, blocks, pos - firmware->size);
 
 	wm_adsp_debugfs_save_binname(dsp, file);
-
-out_async:
 	err = regmap_async_complete(regmap);
 	if (err != 0) {
 		adsp_err(dsp, "Failed to complete async write: %d\n", err);
