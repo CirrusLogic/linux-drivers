@@ -249,6 +249,34 @@ int arizona_cache_and_clear_sources(struct arizona *arizona,
 }
 EXPORT_SYMBOL_GPL(arizona_cache_and_clear_sources);
 
+void clearwater_spin_sysclk(struct arizona *arizona)
+{
+	unsigned int val, res;
+	int ret, i;
+
+	/* Skip this if the chip is down */
+	if (pm_runtime_suspended(arizona->dev))
+		return;
+
+	/*
+	 * Just read a register a few times to ensure the internal
+	 * oscillator sends out a few clocks.
+	 */
+	for (i = 0; i < 4; i++)
+		regmap_read(arizona->regmap, 0x2c2, &val);
+
+	val = (~val) & 0x7;
+
+	regmap_write(arizona->regmap, 0x2c2, val);
+	ret = regmap_read(arizona->regmap, 0x2c2, &res);
+
+	if (ret == 0 && val != res)
+		dev_err(arizona->dev,
+			"Failed to toggle flag register (%x,%x)\n",
+			val, res);
+}
+EXPORT_SYMBOL_GPL(clearwater_spin_sysclk);
+
 int arizona_restore_sources(struct arizona *arizona,
 			    const int *sources,
 			    int *cache,
@@ -3041,6 +3069,7 @@ static int arizona_hw_params_rate(struct snd_pcm_substream *substream,
 			goto out;
 		}
 
+		clearwater_spin_sysclk(priv->arizona);
 		udelay(300);
 	}
 
@@ -3096,8 +3125,10 @@ static int arizona_hw_params_rate(struct snd_pcm_substream *substream,
 		ret = -EINVAL;
 	}
 
-	if (change_rate)
+	if (change_rate) {
+		clearwater_spin_sysclk(priv->arizona);
 		udelay(300);
+	}
 
 out:
 	if (change_rate) {
