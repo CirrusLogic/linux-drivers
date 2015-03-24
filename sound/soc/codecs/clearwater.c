@@ -490,10 +490,12 @@ static int clearwater_rate_put(struct snd_kcontrol *kcontrol,
 	}
 
 	/* Apply the rate through the original callback */
+	clearwater_spin_sysclk(arizona);
 	udelay(300);
 	mutex_lock(&codec->mutex);
 	ret = snd_soc_update_bits(codec, e->reg, mask, val);
 	mutex_unlock(&codec->mutex);
+	clearwater_spin_sysclk(arizona);
 	udelay(300);
 
 out:
@@ -552,9 +554,11 @@ static int clearwater_adsp_rate_put_cb(struct wm_adsp *adsp,
 		goto out;
 	}
 
+	clearwater_spin_sysclk(arizona);
 	udelay(300);
 	/* Apply the rate */
 	ret = regmap_update_bits(adsp->regmap, adsp->base, mask, val);
+	clearwater_spin_sysclk(arizona);
 	udelay(300);
 
 out:
@@ -570,6 +574,20 @@ out:
 
 	mutex_unlock(&arizona->rate_lock);
 	return ret;
+}
+
+static int clearwater_sysclk_ev(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct clearwater_priv *clearwater = snd_soc_codec_get_drvdata(codec);
+	struct arizona_priv *priv = &clearwater->core;
+	struct arizona *arizona = priv->arizona;
+
+	clearwater_spin_sysclk(arizona);
+	udelay(300);
+
+	return 0;
 }
 
 static int clearwater_adsp_power_ev(struct snd_soc_dapm_widget *w,
@@ -1321,7 +1339,8 @@ static const struct snd_kcontrol_new clearwater_output_anc_src[] = {
 
 static const struct snd_soc_dapm_widget clearwater_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", ARIZONA_SYSTEM_CLOCK_1, ARIZONA_SYSCLK_ENA_SHIFT,
-		    0, NULL, SND_SOC_DAPM_POST_PMU),
+		    0, clearwater_sysclk_ev,
+		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 SND_SOC_DAPM_SUPPLY("ASYNCCLK", ARIZONA_ASYNC_CLOCK_1,
 		    ARIZONA_ASYNC_CLK_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("OPCLK", ARIZONA_OUTPUT_SYSTEM_CLOCK,
