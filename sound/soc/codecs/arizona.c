@@ -416,6 +416,7 @@ int arizona_init_spk(struct snd_soc_codec *codec)
 	case WM8997:
 	case WM1831:
 	case CS47L24:
+	case CS47L35:
 		break;
 	default:
 		ret = snd_soc_dapm_new_controls(&codec->dapm,
@@ -560,6 +561,13 @@ static const char * const arizona_dmic_refs[] = {
 	"MICBIAS3",
 };
 
+static const char * const marley_dmic_refs[] = {
+	"MICVDD",
+	"MICBIAS1B",
+	"MICBIAS2A",
+	"MICBIAS2B",
+};
+
 static const char * const arizona_dmic_inputs[] = {
 	"IN1L",
 	"IN1R",
@@ -586,6 +594,13 @@ static const char * const clearwater_dmic_inputs[] = {
 	"IN6R",
 };
 
+static const char * const marley_dmic_inputs[] = {
+	"IN1L Mux",
+	"IN1R Mux",
+	"IN2L",
+	"IN2R",
+};
+
 int arizona_init_input(struct snd_soc_codec *codec)
 {
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
@@ -597,14 +612,28 @@ int arizona_init_input(struct snd_soc_codec *codec)
 	memset(&routes, 0, sizeof(routes));
 
 	for (i = 0; i < priv->num_inputs / 2; ++i) {
-		routes[0].source = arizona_dmic_refs[pdata->dmic_ref[i]];
-		routes[1].source = arizona_dmic_refs[pdata->dmic_ref[i]];
+		switch (arizona->type) {
+		case CS47L35:
+			routes[0].source = marley_dmic_refs[pdata->dmic_ref[i]];
+			routes[1].source = marley_dmic_refs[pdata->dmic_ref[i]];
+			break;
+		default:
+			routes[0].source =
+				arizona_dmic_refs[pdata->dmic_ref[i]];
+			routes[1].source =
+				arizona_dmic_refs[pdata->dmic_ref[i]];
+			break;
+		}
 
 		switch (arizona->type) {
 		case WM8285:
 		case WM1840:
 			routes[0].sink = clearwater_dmic_inputs[i * 2];
 			routes[1].sink = clearwater_dmic_inputs[(i * 2) + 1];
+			break;
+		case CS47L35:
+			routes[0].sink = marley_dmic_inputs[i * 2];
+			routes[1].sink = marley_dmic_inputs[(i * 2) + 1];
 			break;
 		default:
 			routes[0].sink = arizona_dmic_inputs[i * 2];
@@ -2255,6 +2284,7 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 				break;
 			case WM8285:
 			case WM1840:
+			case CS47L35:
 				clearwater_hp_post_enable(w);
 				break;
 			default:
@@ -2334,6 +2364,7 @@ int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 			break;
 		case WM8285:
 		case WM1840:
+		case CS47L35:
 			ret = arizona_out_ev(w, kcontrol, event);
 			clearwater_hp_post_disable(w);
 			break;
