@@ -1075,6 +1075,12 @@ config MFD_LARGO
 	help
 	  Support for Cirrus Logic Largo low power audio SoC
 
+config MFD_MARLEY
+	bool "Cirrus Logic Marley"
+	depends on MFD_ARIZONA
+	help
+	  Support for Cirrus Logic Marley low power audio SoC
+
 config MFD_WM8400
 	bool "Wolfson Microelectronics WM8400"
 	select MFD_CORE

@@ -52,6 +52,9 @@ endif
 ifneq ($(CONFIG_MFD_CLEARWATER),n)
 obj-$(CONFIG_MFD_ARIZONA)	+= clearwater-tables.o
 endif
+ifneq ($(CONFIG_MFD_MARLEY),n)
+obj-$(CONFIG_MFD_ARIZONA)	+= marley-tables.o
+endif
 ifneq ($(CONFIG_MFD_LARGO),n)
 obj-$(CONFIG_MFD_ARIZONA)	+= largo-tables.o
 endif
