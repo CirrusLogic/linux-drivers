@@ -273,6 +273,15 @@ int arizona_irq_init(struct arizona *arizona)
 		arizona->ctrlif_error = false;
 		break;
 #endif
+#ifdef CONFIG_MFD_MARLEY
+	case CS47L35:
+		aod = &marley_irq;
+		irq = NULL;
+
+		arizona->ctrlif_error = false;
+		irq_ctrl_reg = CLEARWATER_IRQ1_CTRL;
+		break;
+#endif
 	default:
 		BUG_ON("Unknown Arizona class device" == NULL);
 		return -EINVAL;

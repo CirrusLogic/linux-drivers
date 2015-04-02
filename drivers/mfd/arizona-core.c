@@ -1304,6 +1304,7 @@ const struct of_device_id arizona_of_match[] = {
 	{ .compatible = "wlf,wm1840", .data = (void *)WM1840 },
 	{ .compatible = "wlf,wm1831", .data = (void *)WM1831 },
 	{ .compatible = "cirrus,cs47l24", .data = (void *)CS47L24 },
+	{ .compatible = "cirrus,cs47l35", .data = (void *)CS47L35 },
 	{},
 };
 EXPORT_SYMBOL_GPL(arizona_of_match);
@@ -1435,6 +1436,27 @@ static const struct mfd_cell clearwater_devs[] = {
 		.name = "clearwater-codec",
 		.parent_supplies = clearwater_supplies,
 		.num_parent_supplies = ARRAY_SIZE(clearwater_supplies),
+	},
+};
+
+static const char *marley_supplies[] = {
+	"MICVDD",
+	"DBVDD2",
+	"CPVDD",
+	"SPKVDD",
+};
+
+static const struct mfd_cell marley_devs[] = {
+	{ .name = "arizona-micsupp" },
+	{ .name = "arizona-extcon" },
+	{ .name = "arizona-gpio" },
+	{ .name = "arizona-haptics" },
+	{ .name = "arizona-pwm" },
+	{ .name = "marley-codec" },
+	{
+		.name = "marley-codec",
+		.parent_supplies = marley_supplies,
+		.num_parent_supplies = ARRAY_SIZE(marley_supplies),
 	},
 };
 
@@ -1603,6 +1625,7 @@ int arizona_dev_init(struct arizona *arizona)
 	case WM1840:
 	case WM1831:
 	case CS47L24:
+	case CS47L35:
 		for (i = 0; i < ARRAY_SIZE(wm5102_core_supplies); i++)
 			arizona->core_supplies[i].supply
 				= wm5102_core_supplies[i];
@@ -1625,6 +1648,7 @@ int arizona_dev_init(struct arizona *arizona)
 	switch (arizona->type) {
 	case WM1831:
 	case CS47L24:
+	case CS47L35:
 		break;
 	default:
 		ret = mfd_add_devices(arizona->dev, -1, early_devs,
@@ -1723,6 +1747,7 @@ int arizona_dev_init(struct arizona *arizona)
 	case 0x6363:
 	case 0x8997:
 	case 0x6338:
+	case 0x6360:
 		break;
 	default:
 		dev_err(arizona->dev, "Unknown device ID: %x\n", reg);
@@ -1902,7 +1927,24 @@ int arizona_dev_init(struct arizona *arizona)
 		apply_patch = clearwater_patch;
 		break;
 #endif
-	default:
+#ifdef CONFIG_MFD_MARLEY
+	case 0x6360:
+		switch (arizona->type) {
+		case CS47L35:
+			type_name = "CS47L35";
+			break;
+
+		default:
+			dev_err(arizona->dev,
+			   "Unknown Marley codec registered as CS47L35\n");
+			arizona->type = CS47L35;
+		}
+
+		revision_char = arizona->rev + 'A';
+		apply_patch = marley_patch;
+		break;
+#endif
+default:
 		dev_err(arizona->dev, "Unknown device ID %x\n", reg);
 		goto err_reset;
 	}
@@ -2189,6 +2231,10 @@ int arizona_dev_init(struct arizona *arizona)
 	case WM1840:
 		ret = mfd_add_devices(arizona->dev, -1, clearwater_devs,
 				      ARRAY_SIZE(clearwater_devs), NULL, 0, NULL);
+		break;
+	case CS47L35:
+		ret = mfd_add_devices(arizona->dev, -1, marley_devs,
+				      ARRAY_SIZE(marley_devs), NULL, 0, NULL);
 		break;
 	}
 
