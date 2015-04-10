@@ -217,50 +217,32 @@
 /* Must remain a power of two */
 #define WM_ADSP_CAPTURE_BUFFER_SIZE      1048576
 
-#define WM_ADSP_FW_MBC_VSS        0
-#define WM_ADSP_FW_TX             1
-#define WM_ADSP_FW_TX_SPK         2
-#define WM_ADSP_FW_RX_ANC         3
-#define WM_ADSP_FW_EZ2CONTROL     4
-#define WM_ADSP_FW_TRACE          5
-#define WM_ADSP_FW_EDAC           6
-#define WM_ADSP_FW_EZ2LISTEN_SP   7
-#define WM_ADSP_FW_EZ2LISTEN_HP   8
-#define WM_ADSP_FW_EZ2HEAR_SP_TX  9
-#define WM_ADSP_FW_EZ2HEAR_HS_TX  10
-#define WM_ADSP_FW_EZ2HEAR_RX     11
-#define WM_ADSP_FW_EZ2FACETALK_TX 12
-#define WM_ADSP_FW_EZ2FACETALK_RX 13
-#define WM_ADSP_FW_EZ2GROUPTALK_TX 14
-#define WM_ADSP_FW_EZ2GROUPTALK_RX 15
-#define WM_ADSP_FW_EZ2RECORD       16
-#define WM_ADSP_FW_ASR_ASSIST     17
-#define WM_ADSP_FW_MASTERHIFI     18
-#define WM_ADSP_FW_SPEAKERPROTECT 19
+#define WM_ADSP_FW_MBC_VSS  0
+#define WM_ADSP_FW_HIFI     1
+#define WM_ADSP_FW_TX       2
+#define WM_ADSP_FW_TX_SPK   3
+#define WM_ADSP_FW_RX       4
+#define WM_ADSP_FW_RX_ANC   5
+#define WM_ADSP_FW_CTRL     6
+#define WM_ADSP_FW_ASR      7
+#define WM_ADSP_FW_TRACE    8
+#define WM_ADSP_FW_SPK_PROT 9
+#define WM_ADSP_FW_MISC     10
 
-#define WM_ADSP_NUM_FW            20
+#define WM_ADSP_NUM_FW      11
 
 static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
-	[WM_ADSP_FW_MBC_VSS] =    "MBC/VSS",
-	[WM_ADSP_FW_TX] =         "Tx",
-	[WM_ADSP_FW_TX_SPK] =     "Tx Speaker",
-	[WM_ADSP_FW_RX_ANC] =     "Rx ANC",
-	[WM_ADSP_FW_EZ2CONTROL] = "Ez2Control",
-	[WM_ADSP_FW_TRACE] =      "Trace",
-	[WM_ADSP_FW_EDAC] =       "EDAC",
-	[WM_ADSP_FW_EZ2LISTEN_SP] = "Ez2Listen SP",
-	[WM_ADSP_FW_EZ2LISTEN_HP] = "Ez2Listen HP",
-	[WM_ADSP_FW_EZ2HEAR_SP_TX] = "Ez2HearSP Tx",
-	[WM_ADSP_FW_EZ2HEAR_HS_TX] = "Ez2HearHS Tx",
-	[WM_ADSP_FW_EZ2HEAR_RX] = "Ez2Hear Rx",
-	[WM_ADSP_FW_EZ2FACETALK_TX] = "Ez2FaceTalk Tx",
-	[WM_ADSP_FW_EZ2FACETALK_RX] = "Ez2FaceTalk Rx",
-	[WM_ADSP_FW_EZ2GROUPTALK_TX] = "Ez2GroupTalk Tx",
-	[WM_ADSP_FW_EZ2GROUPTALK_RX] = "Ez2GroupTalk Rx",
-	[WM_ADSP_FW_EZ2RECORD] = "Ez2Record",
-	[WM_ADSP_FW_ASR_ASSIST] = "ASR Assist",
-	[WM_ADSP_FW_MASTERHIFI] = "MasterHiFi",
-	[WM_ADSP_FW_SPEAKERPROTECT] = "Speaker Protect",
+	[WM_ADSP_FW_MBC_VSS] =  "MBC/VSS",
+	[WM_ADSP_FW_HIFI] =     "MasterHiFi",
+	[WM_ADSP_FW_TX] =       "Tx",
+	[WM_ADSP_FW_TX_SPK] =   "Tx Speaker",
+	[WM_ADSP_FW_RX] =       "Rx",
+	[WM_ADSP_FW_RX_ANC] =   "Rx ANC",
+	[WM_ADSP_FW_CTRL] =     "Voice Ctrl",
+	[WM_ADSP_FW_ASR] =      "ASR Assist",
+	[WM_ADSP_FW_TRACE] =    "Dbg Trace",
+	[WM_ADSP_FW_SPK_PROT] = "Protection",
+	[WM_ADSP_FW_MISC] =     "Misc",
 };
 
 struct wm_adsp_system_config_xm_hdr {
@@ -395,36 +377,27 @@ static struct wm_adsp_fw_caps trace_caps[] = {
 };
 
 static struct wm_adsp_fw_defs wm_adsp_fw[WM_ADSP_NUM_FW] = {
-	[WM_ADSP_FW_MBC_VSS] =    { .file = "mbc-vss" },
-	[WM_ADSP_FW_TX] =         { .file = "tx" },
-	[WM_ADSP_FW_TX_SPK] =     { .file = "tx-spk" },
-	[WM_ADSP_FW_RX_ANC] =     { .file = "rx-anc" },
-	[WM_ADSP_FW_EZ2CONTROL] = {
-		.file = "ez2-control",
+	[WM_ADSP_FW_MBC_VSS] =  { .file = "mbc-vss" },
+	[WM_ADSP_FW_HIFI] =     { .file = "hifi" },
+	[WM_ADSP_FW_TX] =       { .file = "tx" },
+	[WM_ADSP_FW_TX_SPK] =   { .file = "tx-spk" },
+	[WM_ADSP_FW_RX] =       { .file = "rx" },
+	[WM_ADSP_FW_RX_ANC] =   { .file = "rx-anc" },
+	[WM_ADSP_FW_CTRL] =     {
+		.file = "ctrl",
 		.compr_direction = SND_COMPRESS_CAPTURE,
 		.num_caps = ARRAY_SIZE(ez2control_caps),
 		.caps = ez2control_caps,
 	},
-	[WM_ADSP_FW_TRACE] = {
+	[WM_ADSP_FW_ASR] =      { .file = "asr" },
+	[WM_ADSP_FW_TRACE] =    {
 		.file = "trace",
 		.compr_direction = SND_COMPRESS_CAPTURE,
 		.num_caps = ARRAY_SIZE(trace_caps),
 		.caps = trace_caps,
 	},
-	[WM_ADSP_FW_EDAC] =     { .file = "edac" },
-	[WM_ADSP_FW_EZ2LISTEN_SP] = { .file = "ez2listen-sp" },
-	[WM_ADSP_FW_EZ2LISTEN_HP] = { .file = "ez2listen-hp" },
-	[WM_ADSP_FW_EZ2HEAR_SP_TX] = { .file = "ez2hear-sp-tx" },
-	[WM_ADSP_FW_EZ2HEAR_HS_TX] = { .file = "ez2hear-hs-tx" },
-	[WM_ADSP_FW_EZ2HEAR_RX] = { .file = "ez2hear-rx" },
-	[WM_ADSP_FW_EZ2FACETALK_TX] = { .file = "ez2facetalk-tx" },
-	[WM_ADSP_FW_EZ2FACETALK_RX] = { .file = "ez2facetalk-rx" },
-	[WM_ADSP_FW_EZ2GROUPTALK_TX] = { .file = "ez2grouptalk-tx" },
-	[WM_ADSP_FW_EZ2GROUPTALK_RX] = { .file = "ez2grouptalk-rx" },
-	[WM_ADSP_FW_EZ2RECORD] = { .file = "ez2record" },
-	[WM_ADSP_FW_ASR_ASSIST] =     { .file = "asr-assist" },
-	[WM_ADSP_FW_MASTERHIFI] =     { .file = "masterhifi" },
-	[WM_ADSP_FW_SPEAKERPROTECT] = { .file = "speaker-protect" },
+	[WM_ADSP_FW_SPK_PROT] = { .file = "spk-prot" },
+	[WM_ADSP_FW_MISC] =     { .file = "misc" },
 };
 
 struct wm_coeff_ctl_ops {
