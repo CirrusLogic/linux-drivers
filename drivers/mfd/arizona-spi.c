@@ -115,6 +115,7 @@ static const struct spi_device_id arizona_spi_ids[] = {
 	{ "wm1840", WM1840 },
 	{ "wm1831", WM1831 },
 	{ "cs47l24", CS47L24 },
+	{ "cs47l85", WM8285 },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, arizona_spi_ids);

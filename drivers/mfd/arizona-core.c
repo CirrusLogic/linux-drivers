@@ -1255,6 +1255,7 @@ const struct of_device_id arizona_of_match[] = {
 	{ .compatible = "wlf,wm1840", .data = (void *)WM1840 },
 	{ .compatible = "wlf,wm1831", .data = (void *)WM1831 },
 	{ .compatible = "cirrus,cs47l24", .data = (void *)CS47L24 },
+	{ .compatible = "cirrus,cs47l85", .data = (void *)WM8285 },
 	{},
 };
 EXPORT_SYMBOL_GPL(arizona_of_match);
@@ -1764,7 +1765,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	case 0x6338:
 		switch (arizona->type) {
 		case WM8285:
-			type_name = "WM8285";
+			type_name = "CS47L85";
 			break;
 
 		case WM1840:
@@ -1773,7 +1774,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 
 		default:
 			dev_err(arizona->dev,
-				"Unknown Clearwater codec registered as WM8285\n");
+				"Unknown Clearwater codec registered as CS47L85\n");
 			arizona->type = WM8285;
 		}
 

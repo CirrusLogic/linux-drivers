@@ -502,11 +502,11 @@ config MFD_WM8997
 	help
 	  Support for Wolfson Microelectronics WM8997 low power audio SoC
 
-config MFD_WM8285
-	bool "Wolfson Microelectronics WM8285"
+config MFD_CLEARWATER
+	bool "Cirrus Logic ClearWater class codecs"
 	depends on MFD_ARIZONA
 	help
-	  Support for Wolfson Microelectronics WM8285 low power audio SoC
+	  Support for Cirrus Logic ClearWater class low power audio SoC
 
 config MFD_LARGO
 	bool "Cirrus Logic Largo"
@@ -892,13 +892,6 @@ config MFD_PM8XXX_IRQ
 	  This is the IRQ driver for Qualcomm PM 8xxx PMIC chips.
 	  This is required to use certain other PM 8xxx features, such as GPIO
 	  and MPP.
-
-config MFD_CLEARWATER
-	bool "Wolfson Microelectronics ClearWater class codecs"
-	depends on MFD_ARIZONA
-	help
-	  Support for Wolfson Microelectronics ClearWater class low power audio SoC
-	  such as the WM8285
 
 config TPS65911_COMPARATOR
 	tristate

@@ -120,6 +120,7 @@ static const struct i2c_device_id arizona_i2c_id[] = {
 	{ "wm1814", WM1814 },
 	{ "wm8285", WM8285 },
 	{ "wm1840", WM1840 },
+	{ "cs47l85", WM8285 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, arizona_i2c_id);
