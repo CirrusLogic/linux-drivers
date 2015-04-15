@@ -1253,7 +1253,7 @@ static int arizona_of_get_micbias(struct arizona *arizona,
 static int arizona_of_get_core_pdata(struct arizona *arizona)
 {
 	struct arizona_pdata *pdata = &arizona->pdata;
-	u32 out_mono[ARRAY_SIZE(pdata->out_mono)];
+	u32 out_mono[ARIZONA_MAX_OUTPUT];
 	int i;
 
 	memset(&out_mono, 0, sizeof(out_mono));
@@ -1278,13 +1278,13 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 
 	arizona_of_read_u32_array(arizona, "wlf,out-mono", false,
 				  out_mono, ARRAY_SIZE(out_mono));
-	for (i = 0; i < ARRAY_SIZE(pdata->out_mono); ++i)
+	for (i = 0; i < ARRAY_SIZE(out_mono); ++i)
 		pdata->out_mono[i] = !!out_mono[i];
 
 	arizona_of_read_u32(arizona, "wlf,wm5102t-output-pwr", false,
 				&pdata->wm5102t_output_pwr);
 
-	arizona_of_read_u32(arizona, "wlf,hpdet-ext-res", false,
+	arizona_of_read_s32(arizona, "wlf,hpdet-ext-res", false,
 				&pdata->hpdet_ext_res);
 
 	pdata->rev_specific_fw = of_property_read_bool(arizona->dev->of_node,
