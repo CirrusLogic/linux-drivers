@@ -1918,6 +1918,8 @@ static int wm5102_codec_probe(struct snd_soc_codec *codec)
 	struct arizona *arizona = priv->core.arizona;
 	int ret;
 
+	wm_adsp_init_debugfs(&priv->core.adsp[0], codec);
+
 	codec->control_data = priv->core.arizona->regmap;
 
 	ret = snd_soc_codec_set_cache_io(codec, 32, 16, SND_SOC_REGMAP);
@@ -1965,6 +1967,8 @@ static int wm5102_codec_remove(struct snd_soc_codec *codec)
 {
 	struct wm5102_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->core.arizona;
+
+	wm_adsp_cleanup_debugfs(&priv->core.adsp[0]);
 
 	irq_set_irq_wake(arizona->irq, 0);
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
