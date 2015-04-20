@@ -986,9 +986,6 @@ static int wm_coeff_put(struct snd_kcontrol *kcontrol,
 	char *p = ucontrol->value.bytes.data;
 	int ret = 0;
 
-	if (ctl->flags && !(ctl->flags & WMFW_CTL_FLAG_WRITEABLE))
-		return -EPERM;
-
 	mutex_lock(&ctl->lock);
 
 	memcpy(ctl->cache, p, ctl->len);
@@ -1050,9 +1047,6 @@ static int wm_coeff_get(struct snd_kcontrol *kcontrol,
 	char *p = ucontrol->value.bytes.data;
 	int ret = 0;
 
-	if (ctl->flags && !(ctl->flags & WMFW_CTL_FLAG_READABLE))
-		return -EPERM;
-
 	mutex_lock(&ctl->lock);
 
 	if (ctl->flags & WMFW_CTL_FLAG_VOLATILE) {
@@ -1094,6 +1088,17 @@ static int wmfw_add_ctl(struct wm_adsp *dsp, struct wm_coeff_ctl *ctl)
 	kcontrol->get = wm_coeff_get;
 	kcontrol->put = wm_coeff_put;
 	kcontrol->private_value = (unsigned long)ctl;
+
+	if (ctl->flags) {
+		if (ctl->flags & WMFW_CTL_FLAG_WRITEABLE)
+			kcontrol->access |= SNDRV_CTL_ELEM_ACCESS_WRITE;
+		if (ctl->flags & WMFW_CTL_FLAG_READABLE)
+			kcontrol->access |= SNDRV_CTL_ELEM_ACCESS_READ;
+		if (ctl->flags & WMFW_CTL_FLAG_VOLATILE)
+			kcontrol->access |= SNDRV_CTL_ELEM_ACCESS_VOLATILE;
+	} else {
+		kcontrol->access = SNDRV_CTL_ELEM_ACCESS_READWRITE;
+	}
 
 	ret = snd_soc_add_card_controls(dsp->card,
 					kcontrol, 1);
