@@ -1923,6 +1923,14 @@ out:
 	return 0;
 }
 
+int wm_adsp1_init(struct wm_adsp *adsp)
+{
+	INIT_LIST_HEAD(&adsp->alg_regions);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm_adsp1_init);
+
 static int wm_adsp_get_features(struct wm_adsp *dsp)
 {
 	memset(&dsp->fw_features, 0, sizeof(dsp->fw_features));
@@ -1946,7 +1954,6 @@ static int wm_adsp_get_features(struct wm_adsp *dsp)
 
 	return 0;
 }
-
 
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol,
