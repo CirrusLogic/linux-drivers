@@ -2894,7 +2894,10 @@ static int clearwater_codec_probe(struct snd_soc_codec *codec)
 {
 	struct clearwater_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->core.arizona;
-	int ret;
+	int i, ret;
+
+	for (i = 0; i < CLEARWATER_NUM_ADSP; i++)
+		wm_adsp_init_debugfs(&priv->core.adsp[i], codec);
 
 	codec->control_data = priv->core.arizona->regmap;
 	priv->core.arizona->dapm = &codec->dapm;
@@ -2956,6 +2959,10 @@ static int clearwater_codec_remove(struct snd_soc_codec *codec)
 {
 	struct clearwater_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->core.arizona;
+	int i;
+
+	for (i = 0; i < CLEARWATER_NUM_ADSP; i++)
+		wm_adsp_cleanup_debugfs(&priv->core.adsp[i]);
 
 	irq_set_irq_wake(arizona->irq, 0);
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
