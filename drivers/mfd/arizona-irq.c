@@ -282,6 +282,16 @@ int arizona_irq_init(struct arizona *arizona)
 		irq_ctrl_reg = CLEARWATER_IRQ1_CTRL;
 		break;
 #endif
+#ifdef CONFIG_MFD_MOON
+	case CS47L90:
+	case CS47L91:
+		aod = &moon_irq;
+		irq = NULL;
+
+		arizona->ctrlif_error = false;
+		irq_ctrl_reg = CLEARWATER_IRQ1_CTRL;
+		break;
+#endif
 	default:
 		BUG_ON("Unknown Arizona class device" == NULL);
 		return -EINVAL;
