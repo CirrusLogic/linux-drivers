@@ -82,6 +82,9 @@ struct wm_adsp {
 	struct snd_soc_card *card;
 
 	int base;
+	int sysclk_reg;
+	int sysclk_mask;
+	int sysclk_shift;
 
 	unsigned int rate_cache;
 	struct mutex rate_lock;
