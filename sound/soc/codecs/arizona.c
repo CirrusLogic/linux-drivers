@@ -744,6 +744,19 @@ static const char * const marley_dmic_inputs[] = {
 	"IN2R",
 };
 
+static const char * const moon_dmic_inputs[] = {
+	"IN1L Mux",
+	"IN1R Mux",
+	"IN2L Mux",
+	"IN2R",
+	"IN3L",
+	"IN3R",
+	"IN4L",
+	"IN4R",
+	"IN5L",
+	"IN5R",
+};
+
 int arizona_init_input(struct snd_soc_codec *codec)
 {
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
@@ -769,6 +782,17 @@ int arizona_init_input(struct snd_soc_codec *codec)
 		}
 
 		switch (arizona->type) {
+		case WM5102:
+		case WM5110:
+		case WM8997:
+		case WM8280:
+		case WM8998:
+		case WM1814:
+		case WM1831:
+		case CS47L24:
+			routes[0].sink = arizona_dmic_inputs[i * 2];
+			routes[1].sink = arizona_dmic_inputs[(i * 2) + 1];
+			break;
 		case WM8285:
 		case WM1840:
 			routes[0].sink = clearwater_dmic_inputs[i * 2];
@@ -779,8 +803,8 @@ int arizona_init_input(struct snd_soc_codec *codec)
 			routes[1].sink = marley_dmic_inputs[(i * 2) + 1];
 			break;
 		default:
-			routes[0].sink = arizona_dmic_inputs[i * 2];
-			routes[1].sink = arizona_dmic_inputs[(i * 2) + 1];
+			routes[0].sink = moon_dmic_inputs[i * 2];
+			routes[1].sink = moon_dmic_inputs[(i * 2) + 1];
 			break;
 		}
 
@@ -1248,6 +1272,14 @@ const char * const arizona_v2_mixer_texts[ARIZONA_V2_NUM_MIXER_INPUTS] = {
 	"ISRC4INT2",
 	"ISRC4DEC1",
 	"ISRC4DEC2",
+	"DFC1",
+	"DFC2",
+	"DFC3",
+	"DFC4",
+	"DFC5",
+	"DFC6",
+	"DFC7",
+	"DFC8",
 };
 EXPORT_SYMBOL_GPL(arizona_v2_mixer_texts);
 
@@ -1390,6 +1422,14 @@ unsigned int arizona_v2_mixer_values[ARIZONA_V2_NUM_MIXER_INPUTS] = {
 	0xb9,
 	0xbc,  /* ISRC4DEC1 */
 	0xbd,
+	0xf8, /* DFC1 */
+	0xf9,
+	0xfa,
+	0xfb,
+	0xfc,
+	0xfd,
+	0xfe,
+	0xff, /* DFC8 */
 };
 EXPORT_SYMBOL_GPL(arizona_v2_mixer_values);
 
@@ -1465,6 +1505,324 @@ const struct soc_enum arizona_input_rate =
 			      arizona_rate_text,
 			      arizona_rate_val);
 EXPORT_SYMBOL_GPL(arizona_input_rate);
+
+const struct soc_enum moon_input_rate[] = {
+	SOC_VALUE_ENUM_SINGLE(MOON_IN1L_RATE_CONTROL,
+		MOON_IN1L_RATE_SHIFT,
+		MOON_IN1L_RATE_MASK >> MOON_IN1L_RATE_SHIFT,
+		ARIZONA_SYNC_RATE_ENUM_SIZE,
+		arizona_rate_text,
+		arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_IN1R_RATE_CONTROL,
+		MOON_IN1R_RATE_SHIFT,
+		MOON_IN1R_RATE_MASK >> MOON_IN1R_RATE_SHIFT,
+		ARIZONA_SYNC_RATE_ENUM_SIZE,
+		arizona_rate_text,
+		arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_IN2L_RATE_CONTROL,
+		MOON_IN2L_RATE_SHIFT,
+		MOON_IN2L_RATE_MASK >> MOON_IN2L_RATE_SHIFT,
+		ARIZONA_SYNC_RATE_ENUM_SIZE,
+		arizona_rate_text,
+		arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_IN2R_RATE_CONTROL,
+		MOON_IN2R_RATE_SHIFT,
+		MOON_IN2R_RATE_MASK >> MOON_IN2R_RATE_SHIFT,
+		ARIZONA_SYNC_RATE_ENUM_SIZE,
+		arizona_rate_text,
+		arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_IN3L_RATE_CONTROL,
+		MOON_IN3L_RATE_SHIFT,
+		MOON_IN3L_RATE_MASK >> MOON_IN3L_RATE_SHIFT,
+		ARIZONA_SYNC_RATE_ENUM_SIZE,
+		arizona_rate_text,
+		arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_IN3R_RATE_CONTROL,
+		MOON_IN3R_RATE_SHIFT,
+		MOON_IN3R_RATE_MASK >> MOON_IN3R_RATE_SHIFT,
+		ARIZONA_SYNC_RATE_ENUM_SIZE,
+		arizona_rate_text,
+		arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_IN4L_RATE_CONTROL,
+		MOON_IN4L_RATE_SHIFT,
+		MOON_IN4L_RATE_MASK >> MOON_IN4L_RATE_SHIFT,
+		ARIZONA_SYNC_RATE_ENUM_SIZE,
+		arizona_rate_text,
+		arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_IN4R_RATE_CONTROL,
+		MOON_IN4R_RATE_SHIFT,
+		MOON_IN4R_RATE_MASK >> MOON_IN4R_RATE_SHIFT,
+		ARIZONA_SYNC_RATE_ENUM_SIZE,
+		arizona_rate_text,
+		arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_IN5L_RATE_CONTROL,
+		MOON_IN5L_RATE_SHIFT,
+		MOON_IN5L_RATE_MASK >> MOON_IN5L_RATE_SHIFT,
+		ARIZONA_SYNC_RATE_ENUM_SIZE,
+		arizona_rate_text,
+		arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_IN5R_RATE_CONTROL,
+		MOON_IN5R_RATE_SHIFT,
+		MOON_IN5R_RATE_MASK >> MOON_IN5R_RATE_SHIFT,
+		ARIZONA_SYNC_RATE_ENUM_SIZE,
+		arizona_rate_text,
+		arizona_rate_val),
+};
+EXPORT_SYMBOL_GPL(moon_input_rate);
+
+const char * const moon_dfc_width_text[MOON_DFC_WIDTH_ENUM_SIZE] = {
+	"8bit", "16bit", "20bit", "24bit", "32bit",
+};
+EXPORT_SYMBOL_GPL(moon_dfc_width_text);
+
+const unsigned int moon_dfc_width_val[MOON_DFC_WIDTH_ENUM_SIZE] = {
+	7, 15, 19, 23, 31,
+};
+EXPORT_SYMBOL_GPL(moon_dfc_width_val);
+
+const char * const moon_dfc_type_text[MOON_DFC_TYPE_ENUM_SIZE] = {
+	"Fixed", "Unsigned Fixed", "Single Precision Floating",
+	"Half Precision Floating", "Arm Alternative Floating",
+};
+EXPORT_SYMBOL_GPL(moon_dfc_type_text);
+
+const unsigned int moon_dfc_type_val[MOON_DFC_TYPE_ENUM_SIZE] = {
+	0, 1, 2, 4, 5,
+};
+EXPORT_SYMBOL_GPL(moon_dfc_type_val);
+
+
+const struct soc_enum moon_dfc_width[] = {
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC1_RX,
+		MOON_DFC1_RX_DATA_WIDTH_SHIFT,
+		MOON_DFC1_RX_DATA_WIDTH_MASK >>
+		MOON_DFC1_RX_DATA_WIDTH_SHIFT,
+		ARRAY_SIZE(moon_dfc_width_text),
+		moon_dfc_width_text,
+		moon_dfc_width_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC1_TX,
+		MOON_DFC1_TX_DATA_WIDTH_SHIFT,
+		MOON_DFC1_TX_DATA_WIDTH_MASK >>
+		MOON_DFC1_TX_DATA_WIDTH_SHIFT,
+		ARRAY_SIZE(moon_dfc_width_text),
+		moon_dfc_width_text,
+		moon_dfc_width_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC2_RX,
+		MOON_DFC1_RX_DATA_WIDTH_SHIFT,
+		MOON_DFC1_RX_DATA_WIDTH_MASK >>
+		MOON_DFC1_RX_DATA_WIDTH_SHIFT,
+		ARRAY_SIZE(moon_dfc_width_text),
+		moon_dfc_width_text,
+		moon_dfc_width_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC2_TX,
+		MOON_DFC1_TX_DATA_WIDTH_SHIFT,
+		MOON_DFC1_TX_DATA_WIDTH_MASK >>
+		MOON_DFC1_TX_DATA_WIDTH_SHIFT,
+		ARRAY_SIZE(moon_dfc_width_text),
+		moon_dfc_width_text,
+		moon_dfc_width_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC3_RX,
+		MOON_DFC1_RX_DATA_WIDTH_SHIFT,
+		MOON_DFC1_RX_DATA_WIDTH_MASK >>
+		MOON_DFC1_RX_DATA_WIDTH_SHIFT,
+		ARRAY_SIZE(moon_dfc_width_text),
+		moon_dfc_width_text,
+		moon_dfc_width_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC3_TX,
+		MOON_DFC1_TX_DATA_WIDTH_SHIFT,
+		MOON_DFC1_TX_DATA_WIDTH_MASK >>
+		MOON_DFC1_TX_DATA_WIDTH_SHIFT,
+		ARRAY_SIZE(moon_dfc_width_text),
+		moon_dfc_width_text,
+		moon_dfc_width_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC4_RX,
+		MOON_DFC1_RX_DATA_WIDTH_SHIFT,
+		MOON_DFC1_RX_DATA_WIDTH_MASK >>
+		MOON_DFC1_RX_DATA_WIDTH_SHIFT,
+		ARRAY_SIZE(moon_dfc_width_text),
+		moon_dfc_width_text,
+		moon_dfc_width_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC4_TX,
+		MOON_DFC1_TX_DATA_WIDTH_SHIFT,
+		MOON_DFC1_TX_DATA_WIDTH_MASK >>
+		MOON_DFC1_TX_DATA_WIDTH_SHIFT,
+		ARRAY_SIZE(moon_dfc_width_text),
+		moon_dfc_width_text,
+		moon_dfc_width_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC5_RX,
+		MOON_DFC1_RX_DATA_WIDTH_SHIFT,
+		MOON_DFC1_RX_DATA_WIDTH_MASK >>
+		MOON_DFC1_RX_DATA_WIDTH_SHIFT,
+		ARRAY_SIZE(moon_dfc_width_text),
+		moon_dfc_width_text,
+		moon_dfc_width_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC5_TX,
+		MOON_DFC1_TX_DATA_WIDTH_SHIFT,
+		MOON_DFC1_TX_DATA_WIDTH_MASK >>
+		MOON_DFC1_TX_DATA_WIDTH_SHIFT,
+		ARRAY_SIZE(moon_dfc_width_text),
+		moon_dfc_width_text,
+		moon_dfc_width_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC6_RX,
+		MOON_DFC1_RX_DATA_WIDTH_SHIFT,
+		MOON_DFC1_RX_DATA_WIDTH_MASK >>
+		MOON_DFC1_RX_DATA_WIDTH_SHIFT,
+		ARRAY_SIZE(moon_dfc_width_text),
+		moon_dfc_width_text,
+		moon_dfc_width_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC6_TX,
+		MOON_DFC1_TX_DATA_WIDTH_SHIFT,
+		MOON_DFC1_TX_DATA_WIDTH_MASK >>
+		MOON_DFC1_TX_DATA_WIDTH_SHIFT,
+		ARRAY_SIZE(moon_dfc_width_text),
+		moon_dfc_width_text,
+		moon_dfc_width_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC7_RX,
+		MOON_DFC1_RX_DATA_WIDTH_SHIFT,
+		MOON_DFC1_RX_DATA_WIDTH_MASK >>
+		MOON_DFC1_RX_DATA_WIDTH_SHIFT,
+		ARRAY_SIZE(moon_dfc_width_text),
+		moon_dfc_width_text,
+		moon_dfc_width_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC7_TX,
+		MOON_DFC1_TX_DATA_WIDTH_SHIFT,
+		MOON_DFC1_TX_DATA_WIDTH_MASK >>
+		MOON_DFC1_TX_DATA_WIDTH_SHIFT,
+		ARRAY_SIZE(moon_dfc_width_text),
+		moon_dfc_width_text,
+		moon_dfc_width_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC8_RX,
+		MOON_DFC1_RX_DATA_WIDTH_SHIFT,
+		MOON_DFC1_RX_DATA_WIDTH_MASK >>
+		MOON_DFC1_RX_DATA_WIDTH_SHIFT,
+		ARRAY_SIZE(moon_dfc_width_text),
+		moon_dfc_width_text,
+		moon_dfc_width_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC8_TX,
+		MOON_DFC1_TX_DATA_WIDTH_SHIFT,
+		MOON_DFC1_TX_DATA_WIDTH_MASK >>
+		MOON_DFC1_TX_DATA_WIDTH_SHIFT,
+		ARRAY_SIZE(moon_dfc_width_text),
+		moon_dfc_width_text,
+		moon_dfc_width_val),
+};
+EXPORT_SYMBOL_GPL(moon_dfc_width);
+
+const struct soc_enum moon_dfc_type[] = {
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC1_RX,
+		MOON_DFC1_RX_DATA_TYPE_SHIFT,
+		MOON_DFC1_RX_DATA_TYPE_MASK >>
+		MOON_DFC1_RX_DATA_TYPE_SHIFT,
+		ARRAY_SIZE(moon_dfc_type_text),
+		moon_dfc_type_text,
+		moon_dfc_type_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC1_TX,
+		MOON_DFC1_TX_DATA_TYPE_SHIFT,
+		MOON_DFC1_TX_DATA_TYPE_MASK >>
+		MOON_DFC1_TX_DATA_TYPE_SHIFT,
+		ARRAY_SIZE(moon_dfc_type_text),
+		moon_dfc_type_text,
+		moon_dfc_type_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC2_RX,
+		MOON_DFC1_RX_DATA_TYPE_SHIFT,
+		MOON_DFC1_RX_DATA_TYPE_MASK >>
+		MOON_DFC1_RX_DATA_TYPE_SHIFT,
+		ARRAY_SIZE(moon_dfc_type_text),
+		moon_dfc_type_text,
+		moon_dfc_type_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC2_TX,
+		MOON_DFC1_TX_DATA_TYPE_SHIFT,
+		MOON_DFC1_TX_DATA_TYPE_MASK >>
+		MOON_DFC1_TX_DATA_TYPE_SHIFT,
+		ARRAY_SIZE(moon_dfc_type_text),
+		moon_dfc_type_text,
+		moon_dfc_type_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC3_RX,
+		MOON_DFC1_RX_DATA_TYPE_SHIFT,
+		MOON_DFC1_RX_DATA_TYPE_MASK >>
+		MOON_DFC1_RX_DATA_TYPE_SHIFT,
+		ARRAY_SIZE(moon_dfc_type_text),
+		moon_dfc_type_text,
+		moon_dfc_type_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC3_TX,
+		MOON_DFC1_TX_DATA_TYPE_SHIFT,
+		MOON_DFC1_TX_DATA_TYPE_MASK >>
+		MOON_DFC1_TX_DATA_TYPE_SHIFT,
+		ARRAY_SIZE(moon_dfc_type_text),
+		moon_dfc_type_text,
+		moon_dfc_type_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC4_RX,
+		MOON_DFC1_RX_DATA_TYPE_SHIFT,
+		MOON_DFC1_RX_DATA_TYPE_MASK >>
+		MOON_DFC1_RX_DATA_TYPE_SHIFT,
+		ARRAY_SIZE(moon_dfc_type_text),
+		moon_dfc_type_text,
+		moon_dfc_type_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC4_TX,
+		MOON_DFC1_TX_DATA_TYPE_SHIFT,
+		MOON_DFC1_TX_DATA_TYPE_MASK >>
+		MOON_DFC1_TX_DATA_TYPE_SHIFT,
+		ARRAY_SIZE(moon_dfc_type_text),
+		moon_dfc_type_text,
+		moon_dfc_type_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC5_RX,
+		MOON_DFC1_RX_DATA_TYPE_SHIFT,
+		MOON_DFC1_RX_DATA_TYPE_MASK >>
+		MOON_DFC1_RX_DATA_TYPE_SHIFT,
+		ARRAY_SIZE(moon_dfc_type_text),
+		moon_dfc_type_text,
+		moon_dfc_type_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC5_TX,
+		MOON_DFC1_TX_DATA_TYPE_SHIFT,
+		MOON_DFC1_TX_DATA_TYPE_MASK >>
+		MOON_DFC1_TX_DATA_TYPE_SHIFT,
+		ARRAY_SIZE(moon_dfc_type_text),
+		moon_dfc_type_text,
+		moon_dfc_type_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC6_RX,
+		MOON_DFC1_RX_DATA_TYPE_SHIFT,
+		MOON_DFC1_RX_DATA_TYPE_MASK >>
+		MOON_DFC1_RX_DATA_TYPE_SHIFT,
+		ARRAY_SIZE(moon_dfc_type_text),
+		moon_dfc_type_text,
+		moon_dfc_type_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC6_TX,
+		MOON_DFC1_TX_DATA_TYPE_SHIFT,
+		MOON_DFC1_TX_DATA_TYPE_MASK >>
+		MOON_DFC1_TX_DATA_TYPE_SHIFT,
+		ARRAY_SIZE(moon_dfc_type_text),
+		moon_dfc_type_text,
+		moon_dfc_type_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC7_RX,
+		MOON_DFC1_RX_DATA_TYPE_SHIFT,
+		MOON_DFC1_RX_DATA_TYPE_MASK >>
+		MOON_DFC1_RX_DATA_TYPE_SHIFT,
+		ARRAY_SIZE(moon_dfc_type_text),
+		moon_dfc_type_text,
+		moon_dfc_type_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC7_TX,
+		MOON_DFC1_TX_DATA_TYPE_SHIFT,
+		MOON_DFC1_TX_DATA_TYPE_MASK >>
+		MOON_DFC1_TX_DATA_TYPE_SHIFT,
+		ARRAY_SIZE(moon_dfc_type_text),
+		moon_dfc_type_text,
+		moon_dfc_type_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC8_RX,
+		MOON_DFC1_RX_DATA_TYPE_SHIFT,
+		MOON_DFC1_RX_DATA_TYPE_MASK >>
+		MOON_DFC1_RX_DATA_TYPE_SHIFT,
+		ARRAY_SIZE(moon_dfc_type_text),
+		moon_dfc_type_text,
+		moon_dfc_type_val),
+	SOC_VALUE_ENUM_SINGLE(MOON_DFC8_TX,
+		MOON_DFC1_TX_DATA_TYPE_SHIFT,
+		MOON_DFC1_TX_DATA_TYPE_MASK >>
+		MOON_DFC1_TX_DATA_TYPE_SHIFT,
+		ARRAY_SIZE(moon_dfc_type_text),
+		moon_dfc_type_text,
+		moon_dfc_type_val),
+};
+EXPORT_SYMBOL_GPL(moon_dfc_type);
 
 const struct soc_enum arizona_fx_rate =
 	SOC_VALUE_ENUM_SINGLE(ARIZONA_FX_CTRL1,
@@ -1880,6 +2238,60 @@ exit:
 }
 EXPORT_SYMBOL_GPL(arizona_ip_mode_put);
 
+int moon_in_rate_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int reg, mask;
+	int ret = 0;
+
+	mutex_lock_nested(&codec->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+
+	/* Cannot change rate on an active input */
+	reg = snd_soc_read(codec, ARIZONA_INPUT_ENABLES);
+	mask = (e->reg - ARIZONA_IN1L_CONTROL) / 4;
+	mask ^= 0x1; /* Flip bottom bit for channel order */
+
+	if (reg & mask) {
+		ret = -EBUSY;
+		goto exit;
+	}
+
+	ret = snd_soc_put_value_enum_double(kcontrol, ucontrol);
+exit:
+	mutex_unlock(&codec->card->dapm_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(moon_in_rate_put);
+
+int moon_dfc_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int reg = e->reg;
+	unsigned int val;
+	int ret = 0;
+
+	reg = ((reg / 6) * 6) - 2;
+
+	mutex_lock_nested(&codec->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+
+	/* Cannot change dfc settings when its on */
+	val = snd_soc_read(codec, reg);
+	if (val & MOON_DFC1_ENA) {
+		ret = -EBUSY;
+		goto exit;
+	}
+
+	ret = snd_soc_put_value_enum_double(kcontrol, ucontrol);
+exit:
+	mutex_unlock(&codec->card->dapm_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(moon_dfc_put);
+
 static void arizona_in_set_vu(struct snd_soc_codec *codec, int ena)
 {
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
@@ -2214,6 +2626,113 @@ int clearwater_hp_ev(struct snd_soc_dapm_widget *w,
 	}
 }
 EXPORT_SYMBOL_GPL(clearwater_hp_ev);
+
+static void moon_analog_post_enable(struct snd_soc_dapm_widget *w)
+{
+	unsigned int mask, val;
+
+	switch (w->shift) {
+	case ARIZONA_OUT1L_ENA_SHIFT:
+	case ARIZONA_OUT1R_ENA_SHIFT:
+		mask = ARIZONA_HP1_EDRE_STEREO_MASK;
+		val = ARIZONA_HP1_EDRE_STEREO;
+		break;
+	case ARIZONA_OUT2L_ENA_SHIFT:
+	case ARIZONA_OUT2R_ENA_SHIFT:
+		mask = ARIZONA_HP2_EDRE_STEREO_MASK;
+		val = ARIZONA_HP2_EDRE_STEREO;
+		break;
+	case ARIZONA_OUT3L_ENA_SHIFT:
+	case ARIZONA_OUT3R_ENA_SHIFT:
+		mask = ARIZONA_HP3_EDRE_STEREO_MASK;
+		val = ARIZONA_HP3_EDRE_STEREO;
+		break;
+	default:
+		return;
+	}
+
+	snd_soc_update_bits(w->codec,
+		CLEARWATER_EDRE_HP_STEREO_CONTROL,
+		mask, val);
+}
+
+static void moon_analog_post_disable(struct snd_soc_dapm_widget *w)
+{
+	unsigned int mask;
+
+	switch (w->shift) {
+	case ARIZONA_OUT1L_ENA_SHIFT:
+	case ARIZONA_OUT1R_ENA_SHIFT:
+		mask = ARIZONA_HP1_EDRE_STEREO_MASK;
+		break;
+	case ARIZONA_OUT2L_ENA_SHIFT:
+	case ARIZONA_OUT2R_ENA_SHIFT:
+		mask = ARIZONA_HP2_EDRE_STEREO_MASK;
+		break;
+	case ARIZONA_OUT3L_ENA_SHIFT:
+	case ARIZONA_OUT3R_ENA_SHIFT:
+		mask = ARIZONA_HP3_EDRE_STEREO_MASK;
+		break;
+	default:
+		return;
+	}
+
+	snd_soc_update_bits(w->codec,
+		CLEARWATER_EDRE_HP_STEREO_CONTROL,
+		mask, 0);
+}
+
+int moon_hp_ev(struct snd_soc_dapm_widget *w,
+		     struct snd_kcontrol *kcontrol, int event)
+{
+	int ret;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+	case SND_SOC_DAPM_PRE_PMD:
+		return arizona_hp_ev(w, kcontrol, event);
+	case SND_SOC_DAPM_POST_PMU:
+		ret = arizona_hp_ev(w, kcontrol, event);
+		if (ret < 0)
+			return ret;
+
+		moon_analog_post_enable(w);
+		return 0;
+	case SND_SOC_DAPM_POST_PMD:
+		ret = arizona_hp_ev(w, kcontrol, event);
+		moon_analog_post_disable(w);
+		return ret;
+	default:
+		return -EINVAL;
+	}
+}
+EXPORT_SYMBOL_GPL(moon_hp_ev);
+
+int moon_analog_ev(struct snd_soc_dapm_widget *w,
+		     struct snd_kcontrol *kcontrol, int event)
+{
+	int ret;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+	case SND_SOC_DAPM_PRE_PMD:
+		return arizona_out_ev(w, kcontrol, event);
+	case SND_SOC_DAPM_POST_PMU:
+		ret = arizona_out_ev(w, kcontrol, event);
+		if (ret < 0)
+			return ret;
+
+		moon_analog_post_enable(w);
+		return 0;
+	case SND_SOC_DAPM_POST_PMD:
+		ret = arizona_out_ev(w, kcontrol, event);
+		moon_analog_post_disable(w);
+		return ret;
+	default:
+		return -EINVAL;
+	}
+}
+EXPORT_SYMBOL_GPL(moon_analog_ev);
 
 int arizona_anc_ev(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol,

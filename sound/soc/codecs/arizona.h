@@ -115,7 +115,7 @@ struct arizona_priv {
 };
 
 #define ARIZONA_NUM_MIXER_INPUTS 134
-#define ARIZONA_V2_NUM_MIXER_INPUTS 138
+#define ARIZONA_V2_NUM_MIXER_INPUTS 146
 
 extern const unsigned int arizona_mixer_tlv[];
 extern const char * const arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS];
@@ -279,11 +279,17 @@ extern unsigned int arizona_v2_mixer_values[ARIZONA_V2_NUM_MIXER_INPUTS];
 #define ARIZONA_SYNC_RATE_ENUM_SIZE 3
 #define ARIZONA_ASYNC_RATE_ENUM_SIZE 2
 #define ARIZONA_SAMPLE_RATE_ENUM_SIZE 14
+#define MOON_DFC_TYPE_ENUM_SIZE  5
+#define MOON_DFC_WIDTH_ENUM_SIZE 5
 
 extern const char * const arizona_rate_text[ARIZONA_RATE_ENUM_SIZE];
 extern const unsigned int arizona_rate_val[ARIZONA_RATE_ENUM_SIZE];
 extern const char * const arizona_sample_rate_text[ARIZONA_SAMPLE_RATE_ENUM_SIZE];
 extern const unsigned int arizona_sample_rate_val[ARIZONA_SAMPLE_RATE_ENUM_SIZE];
+extern const char * const moon_dfc_width_text[MOON_DFC_WIDTH_ENUM_SIZE];
+extern const unsigned int moon_dfc_width_val[MOON_DFC_WIDTH_ENUM_SIZE];
+extern const char * const moon_dfc_type_text[MOON_DFC_TYPE_ENUM_SIZE];
+extern const unsigned int moon_dfc_type_val[MOON_DFC_TYPE_ENUM_SIZE];
 
 extern const struct soc_enum arizona_sample_rate[];
 extern const struct soc_enum arizona_isrc_fsl[];
@@ -296,6 +302,9 @@ extern const struct soc_enum arizona_input_rate;
 extern const struct soc_enum arizona_output_rate;
 extern const struct soc_enum arizona_fx_rate;
 extern const struct soc_enum arizona_spdif_rate;
+extern const struct soc_enum moon_input_rate[];
+extern const struct soc_enum moon_dfc_width[];
+extern const struct soc_enum moon_dfc_type[];
 
 extern const struct soc_enum arizona_in_vi_ramp;
 extern const struct soc_enum arizona_in_vd_ramp;
@@ -323,6 +332,12 @@ extern const struct soc_enum arizona_ip_mode[];
 extern int arizona_ip_mode_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 
+extern int moon_in_rate_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol);
+
+extern int moon_dfc_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol);
+
 extern int arizona_in_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event);
@@ -333,6 +348,12 @@ extern int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event);
 extern int clearwater_hp_ev(struct snd_soc_dapm_widget *w,
+			    struct snd_kcontrol *kcontrol,
+			    int event);
+extern int moon_hp_ev(struct snd_soc_dapm_widget *w,
+			    struct snd_kcontrol *kcontrol,
+			    int event);
+extern int moon_analog_ev(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol,
 			    int event);
 extern int arizona_anc_ev(struct snd_soc_dapm_widget *w,
