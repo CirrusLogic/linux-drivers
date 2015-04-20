@@ -70,6 +70,10 @@
 #define ARIZONA_DMIC_MICBIAS3 3
 
 #define ARIZONA_MAX_MICBIAS 4
+#define ARIZONA_MAX_CHILD_MICBIAS 4
+
+#define MARLEY_NUM_CHILD_MICBIAS 2
+#define MOON_NUM_CHILD_MICBIAS 4
 
 #define ARIZONA_INMODE_DIFF 0
 #define ARIZONA_INMODE_SE   1
@@ -96,13 +100,15 @@ struct arizona_jd_state;
 struct arizona_micbias {
 	int mV;                    /** Regulated voltage */
 	unsigned int ext_cap:1;    /** External capacitor fitted */
-	unsigned int discharge:1;  /** Actively discharge */
+	/** Actively discharge */
+	unsigned int discharge[ARIZONA_MAX_CHILD_MICBIAS];
 	unsigned int soft_start:1; /** Disable aggressive startup ramp rate */
 	unsigned int bypass:1;     /** Use bypass mode */
 };
 
 struct arizona_micd_config {
 	unsigned int src;
+	unsigned int gnd;
 	unsigned int bias;
 	bool gpio;
 };
@@ -272,6 +278,9 @@ struct arizona_pdata {
 
 	/** Reference voltage for DMIC inputs */
 	int dmic_ref[ARIZONA_MAX_INPUT];
+
+	/** Clock Source for DMIC's */
+	int dmic_clksrc[ARIZONA_MAX_INPUT];
 
 	/** MICBIAS configurations */
 	struct arizona_micbias micbias[ARIZONA_MAX_MICBIAS];
