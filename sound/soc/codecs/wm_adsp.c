@@ -1402,11 +1402,11 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 	struct wmfw_adsp2_id_hdr adsp2_id;
 	struct wmfw_adsp1_alg_hdr *adsp1_alg, adsp1_alg_tmp;
 	struct wmfw_adsp2_alg_hdr *adsp2_alg, adsp2_alg_tmp;
-	void *alg;
+	void *alg, *buf;
 	struct wm_adsp_alg_region *region;
 	const struct wm_adsp_region *mem;
 	unsigned int pos, term;
-	size_t algs;
+	size_t algs, buf_size;
 	__be32 val;
 	int i, ret;
 
@@ -1436,6 +1436,9 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 				 ret);
 			return ret;
 		}
+
+		buf = &adsp1_id;
+		buf_size = sizeof(adsp1_id);
 
 		algs = be32_to_cpu(adsp1_id.algs);
 		dsp->fw_id = be32_to_cpu(adsp1_id.fw.id);
@@ -1487,6 +1490,9 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 				 ret);
 			return ret;
 		}
+
+		buf = &adsp2_id;
+		buf_size = sizeof(adsp2_id);
 
 		algs = be32_to_cpu(adsp2_id.algs);
 		dsp->fw_id = be32_to_cpu(adsp2_id.fw.id);
@@ -1546,6 +1552,13 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 
 	if (algs == 0) {
 		adsp_err(dsp, "No algorithms\n");
+		return -EINVAL;
+	}
+
+	if (algs > 1024) {
+		adsp_err(dsp, "Algorithm count %zx excessive\n", algs);
+		print_hex_dump_bytes(dev_name(dsp->dev), DUMP_PREFIX_OFFSET,
+				     buf, buf_size);
 		return -EINVAL;
 	}
 
