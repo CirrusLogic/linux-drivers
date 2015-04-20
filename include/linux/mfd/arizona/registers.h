@@ -151,6 +151,17 @@
 #define ARIZONA_FLL3_SYNCHRONISER_7              0x1C7
 #define ARIZONA_FLL3_SPREAD_SPECTRUM             0x1C9
 #define ARIZONA_FLL3_GPIO_CLOCK                  0x1CA
+#define MOON_FLLAO_CONTROL_1                     0x1D1
+#define MOON_FLLAO_CONTROL_2                     0x1D2
+#define MOON_FLLAO_CONTROL_3                     0x1D3
+#define MOON_FLLAO_CONTROL_4                     0x1D4
+#define MOON_FLLAO_CONTROL_5                     0x1D5
+#define MOON_FLLAO_CONTROL_6                     0x1D6
+#define MOON_FLLAO_CONTROL_7                     0x1D8
+#define MOON_FLLAO_CONTROL_8                     0x1DA
+#define MOON_FLLAO_CONTROL_9                     0x1DB
+#define MOON_FLLAO_CONTROL_10                    0x1DC
+#define MOON_FLLAO_CONTROL_11                    0x1DD
 #define ARIZONA_MIC_CHARGE_PUMP_1                0x200
 #define CLEARWATER_CP_MODE                       0x20B
 #define ARIZONA_LDO1_CONTROL_1                   0x210
@@ -172,11 +183,13 @@
 #define ARIZONA_DCS_HP1R_CONTROL                 0x238
 #define CLEARWATER_EDRE_HP_STEREO_CONTROL        0x27E
 #define ARIZONA_ACCESSORY_DETECT_MODE_1          0x293
+#define MOON_HEADPHONE_DETECT_0                  0x299
 #define ARIZONA_HEADPHONE_DETECT_1               0x29B
 #define ARIZONA_HEADPHONE_DETECT_2               0x29C
 #define ARIZONA_HEADPHONE_DETECT_3               0x29D
 #define ARIZONA_HP_DACVAL                        0x29F
 #define ARIZONA_MICD_CLAMP_CONTROL               0x2A2
+#define MOON_MIC_DETECT_0                        0x2A2
 #define ARIZONA_MIC_DETECT_1                     0x2A3
 #define ARIZONA_MIC_DETECT_2                     0x2A4
 #define ARIZONA_MIC_DETECT_3                     0x2A5
@@ -185,6 +198,15 @@
 #define ARIZONA_MIC_DETECT_LEVEL_3               0x2A8
 #define ARIZONA_MIC_DETECT_LEVEL_4               0x2A9
 #define ARIZONA_MIC_DETECT_4                     0x2AB
+#define MOON_MICDET2_CONTROL_0                   0x2B2
+#define MOON_MICDET2_CONTROL_1                   0x2B3
+#define MOON_MICDET2_CONTROL_2                   0x2B4
+#define MOON_MICDET2_CONTROL_3                   0x2B5
+#define MOON_MICDET2_LEVEL_1                     0x2B6
+#define MOON_MICDET2_LEVEL_2                     0x2B7
+#define MOON_MICDET2_LEVEL_3                     0x2B8
+#define MOON_MICDET2_LEVEL_4                     0x2B9
+#define MOON_MICDET2_CONTROL_4                   0x2BB
 #define ARIZONA_MIC_NOISE_MIX_CONTROL_1          0x2C3
 #define CLEARWATER_MICD_CLAMP_CONTROL            0x2C6
 #define ARIZONA_ISOLATION_CONTROL                0x2CB
@@ -197,33 +219,43 @@
 #define ARIZONA_IN1L_CONTROL                     0x310
 #define ARIZONA_ADC_DIGITAL_VOLUME_1L            0x311
 #define ARIZONA_DMIC1L_CONTROL                   0x312
+#define MOON_IN1L_RATE_CONTROL                   0x313
 #define ARIZONA_IN1R_CONTROL                     0x314
 #define ARIZONA_ADC_DIGITAL_VOLUME_1R            0x315
 #define ARIZONA_DMIC1R_CONTROL                   0x316
+#define MOON_IN1R_RATE_CONTROL                   0x317
 #define ARIZONA_IN2L_CONTROL                     0x318
 #define ARIZONA_ADC_DIGITAL_VOLUME_2L            0x319
 #define ARIZONA_DMIC2L_CONTROL                   0x31A
+#define MOON_IN2L_RATE_CONTROL                   0x31B
 #define ARIZONA_IN2R_CONTROL                     0x31C
 #define ARIZONA_ADC_DIGITAL_VOLUME_2R            0x31D
 #define ARIZONA_DMIC2R_CONTROL                   0x31E
+#define MOON_IN2R_RATE_CONTROL                   0x31F
 #define ARIZONA_IN3L_CONTROL                     0x320
 #define ARIZONA_ADC_DIGITAL_VOLUME_3L            0x321
 #define ARIZONA_DMIC3L_CONTROL                   0x322
+#define MOON_IN3L_RATE_CONTROL                   0x323
 #define ARIZONA_IN3R_CONTROL                     0x324
 #define ARIZONA_ADC_DIGITAL_VOLUME_3R            0x325
 #define ARIZONA_DMIC3R_CONTROL                   0x326
+#define MOON_IN3R_RATE_CONTROL                   0x327
 #define ARIZONA_IN4L_CONTROL                     0x328
 #define ARIZONA_ADC_DIGITAL_VOLUME_4L            0x329
 #define ARIZONA_DMIC4L_CONTROL                   0x32A
+#define MOON_IN4L_RATE_CONTROL                   0x32B
 #define ARIZONA_IN4R_CONTROL                     0x32C
 #define ARIZONA_ADC_DIGITAL_VOLUME_4R            0x32D
 #define ARIZONA_DMIC4R_CONTROL                   0x32E
+#define MOON_IN4R_RATE_CONTROL                   0x32F
 #define ARIZONA_IN5L_CONTROL                     0x330
 #define ARIZONA_ADC_DIGITAL_VOLUME_5L            0x331
 #define ARIZONA_DMIC5L_CONTROL                   0x332
+#define MOON_IN5L_RATE_CONTROL                   0x333
 #define ARIZONA_IN5R_CONTROL                     0x334
 #define ARIZONA_ADC_DIGITAL_VOLUME_5R            0x335
 #define ARIZONA_DMIC5R_CONTROL                   0x336
+#define MOON_IN5R_RATE_CONTROL                   0x337
 #define ARIZONA_IN6L_CONTROL                     0x338
 #define ARIZONA_ADC_DIGITAL_VOLUME_6L            0x339
 #define ARIZONA_DMIC6L_CONTROL                   0x33A
@@ -245,6 +277,7 @@
 #define ARIZONA_OUTPUT_PATH_CONFIG_1L            0x410
 #define ARIZONA_DAC_DIGITAL_VOLUME_1L            0x411
 #define ARIZONA_DAC_VOLUME_LIMIT_1L              0x412
+#define MOON_OUT1_CONFIG                         0x412
 #define ARIZONA_NOISE_GATE_SELECT_1L             0x413
 #define ARIZONA_OUTPUT_PATH_CONFIG_1R            0x414
 #define ARIZONA_DAC_DIGITAL_VOLUME_1R            0x415
@@ -253,6 +286,7 @@
 #define ARIZONA_OUTPUT_PATH_CONFIG_2L            0x418
 #define ARIZONA_DAC_DIGITAL_VOLUME_2L            0x419
 #define ARIZONA_DAC_VOLUME_LIMIT_2L              0x41A
+#define MOON_OUT2_CONFIG                         0x41A
 #define ARIZONA_NOISE_GATE_SELECT_2L             0x41B
 #define ARIZONA_OUTPUT_PATH_CONFIG_2R            0x41C
 #define ARIZONA_DAC_DIGITAL_VOLUME_2R            0x41D
@@ -1143,6 +1177,14 @@
 #define ARIZONA_AOD_IRQ_MASK_IRQ2                0xD54
 #define ARIZONA_AOD_IRQ_RAW_STATUS               0xD55
 #define ARIZONA_JACK_DETECT_DEBOUNCE             0xD56
+#define MOON_DFC1MIX_INPUT_1_SOURCE              0xDC0
+#define MOON_DFC2MIX_INPUT_1_SOURCE              0xDC8
+#define MOON_DFC3MIX_INPUT_1_SOURCE              0xDD0
+#define MOON_DFC4MIX_INPUT_1_SOURCE              0xDD8
+#define MOON_DFC5MIX_INPUT_1_SOURCE              0xDE0
+#define MOON_DFC6MIX_INPUT_1_SOURCE              0xDE8
+#define MOON_DFC7MIX_INPUT_1_SOURCE              0xDF0
+#define MOON_DFC8MIX_INPUT_1_SOURCE              0xDF8
 #define ARIZONA_FX_CTRL1                         0xE00
 #define ARIZONA_FX_CTRL2                         0xE01
 #define ARIZONA_EQ1_1                            0xE10
@@ -1475,6 +1517,31 @@
 #define ARIZONA_DSP4_SCRATCH_1                   0x1441
 #define ARIZONA_DSP4_SCRATCH_2                   0x1442
 #define ARIZONA_DSP4_SCRATCH_3                   0x1443
+#define MOON_DFC1_CTRL                           0x1480
+#define MOON_DFC1_RX                             0x1482
+#define MOON_DFC1_TX                             0x1484
+#define MOON_DFC2_CTRL                           0x1486
+#define MOON_DFC2_RX                             0x1488
+#define MOON_DFC2_TX                             0x148A
+#define MOON_DFC3_CTRL                           0x148C
+#define MOON_DFC3_RX                             0x148E
+#define MOON_DFC3_TX                             0x1490
+#define MOON_DFC4_CTRL                           0x1492
+#define MOON_DFC4_RX                             0x1494
+#define MOON_DFC4_TX                             0x1496
+#define MOON_DFC5_CTRL                           0x1498
+#define MOON_DFC5_RX                             0x149A
+#define MOON_DFC5_TX                             0x149C
+#define MOON_DFC6_CTRL                           0x149E
+#define MOON_DFC6_RX                             0x14A0
+#define MOON_DFC6_TX                             0x14A2
+#define MOON_DFC7_CTRL                           0x14A4
+#define MOON_DFC7_RX                             0x14A6
+#define MOON_DFC7_TX                             0x14A8
+#define MOON_DFC8_CTRL                           0x14AA
+#define MOON_DFC8_RX                             0x14AC
+#define MOON_DFC8_TX                             0x14AE
+#define MOON_DFC_STATUS                          0x14B6
 #define ARIZONA_FRF_COEFF_1                      0x1700
 #define ARIZONA_FRF_COEFF_2                      0x1701
 #define ARIZONA_FRF_COEFF_3                      0x1702
@@ -1592,6 +1659,7 @@
 #define CLEARWATER_IRQ1_STATUS_30                0x181D
 #define CLEARWATER_IRQ1_STATUS_31                0x181E
 #define CLEARWATER_IRQ1_STATUS_32                0x181F
+#define MOON_IRQ1_STATUS_33                      0x1820
 #define CLEARWATER_IRQ1_MASK_1                   0x1840
 #define CLEARWATER_IRQ1_MASK_2                   0x1841
 #define CLEARWATER_IRQ1_MASK_3                   0x1842
@@ -1607,19 +1675,24 @@
 #define CLEARWATER_IRQ1_MASK_13                  0x184C
 #define CLEARWATER_IRQ1_MASK_14                  0x184D
 #define CLEARWATER_IRQ1_MASK_15                  0x184E
+#define MOON_IRQ1_MASK_16                        0x184F
 #define CLEARWATER_IRQ1_MASK_17                  0x1850
 #define CLEARWATER_IRQ1_MASK_18                  0x1851
 #define CLEARWATER_IRQ1_MASK_19                  0x1852
+#define MOON_IRQ1_MASK_20                        0x1853
 #define CLEARWATER_IRQ1_MASK_21                  0x1854
 #define CLEARWATER_IRQ1_MASK_22                  0x1855
 #define CLEARWATER_IRQ1_MASK_23                  0x1856
 #define CLEARWATER_IRQ1_MASK_24                  0x1857
 #define CLEARWATER_IRQ1_MASK_25                  0x1858
+#define MOON_IRQ1_MASK_26                        0x1859
 #define CLEARWATER_IRQ1_MASK_27                  0x185A
 #define CLEARWATER_IRQ1_MASK_28                  0x185B
+#define MOON_IRQ1_MASK_29                        0x185C
 #define CLEARWATER_IRQ1_MASK_30                  0x185D
 #define CLEARWATER_IRQ1_MASK_31                  0x185E
 #define CLEARWATER_IRQ1_MASK_32                  0x185F
+#define MOON_IRQ1_MASK_33                        0x1860
 #define CLEARWATER_IRQ1_RAW_STATUS_1             0x1880
 #define CLEARWATER_IRQ1_RAW_STATUS_2             0x1881
 #define CLEARWATER_IRQ1_RAW_STATUS_6             0x1885
@@ -2230,59 +2303,129 @@
 #define CLEARWATER_DSP1_CONFIG                   0x0FFE00
 #define CLEARWATER_DSP1_STATUS_1                 0x0FFE04
 #define CLEARWATER_DSP1_STATUS_2                 0x0FFE06
+#define MOON_DSP1_WATCHDOG                       0x0FFE0A
 #define CLEARWATER_DSP1_WDMA_CONFIG_1            0x0FFE30
 #define CLEARWATER_DSP1_WDMA_CONFIG_2            0x0FFE32
 #define CLEARWATER_DSP1_RDMA_CONFIG_1            0x0FFE34
 #define CLEARWATER_DSP1_SCRATCH_0_1              0x0FFE40
 #define CLEARWATER_DSP1_SCRATCH_2_3              0x0FFE42
+#define MOON_DSP1_BUS_ERR_ADDR                   0x0FFE52
+#define MOON_DSP1_REGION_LOCK_STATUS             0x0FFE64
+#define MOON_DSP1_LOCK_REGION_1_LOCK_REGION_0    0x0FFE66
+#define MOON_DSP1_LOCK_REGION_3_LOCK_REGION_2    0x0FFE68
+#define MOON_DSP1_LOCK_REGION_5_LOCK_REGION_4    0x0FFE6A
+#define MOON_DSP1_LOCK_REGION_7_LOCK_REGION_6    0x0FFE6C
+#define MOON_DSP1_LOCK_REGION_9_LOCK_REGION_8    0x0FFE6E
+#define MOON_DSP1_LOCK_REGION_CTRL               0x0FFE7A
+#define MOON_DSP1_PMEM_ERR_ADDR_XMEM_ERR_ADDR    0x0FFE7C
 #define CLEARWATER_DSP2_CONFIG                   0x17FE00
 #define CLEARWATER_DSP2_STATUS_1                 0x17FE04
 #define CLEARWATER_DSP2_STATUS_2                 0x17FE06
+#define MOON_DSP2_WATCHDOG                       0x17FE0A
 #define CLEARWATER_DSP2_WDMA_CONFIG_1            0x17FE30
 #define CLEARWATER_DSP2_WDMA_CONFIG_2            0x17FE32
 #define CLEARWATER_DSP2_RDMA_CONFIG_1            0x17FE34
 #define CLEARWATER_DSP2_SCRATCH_0_1              0x17FE40
 #define CLEARWATER_DSP2_SCRATCH_2_3              0x17FE42
+#define MOON_DSP2_BUS_ERR_ADDR                   0x17FE52
+#define MOON_DSP2_REGION_LOCK_STATUS             0x17FE64
+#define MOON_DSP2_LOCK_REGION_1_LOCK_REGION_0    0x17FE66
+#define MOON_DSP2_LOCK_REGION_3_LOCK_REGION_2    0x17FE68
+#define MOON_DSP2_LOCK_REGION_5_LOCK_REGION_4    0x17FE6A
+#define MOON_DSP2_LOCK_REGION_7_LOCK_REGION_6    0x17FE6C
+#define MOON_DSP2_LOCK_REGION_9_LOCK_REGION_8    0x17FE6E
+#define MOON_DSP2_LOCK_REGION_CTRL               0x17FE7A
+#define MOON_DSP2_PMEM_ERR_ADDR_XMEM_ERR_ADDR    0x17FE7C
 #define CLEARWATER_DSP3_CONFIG                   0x1FFE00
 #define CLEARWATER_DSP3_STATUS_1                 0x1FFE04
 #define CLEARWATER_DSP3_STATUS_2                 0x1FFE06
+#define MOON_DSP3_WATCHDOG                       0x1FFE0A
 #define CLEARWATER_DSP3_WDMA_CONFIG_1            0x1FFE30
 #define CLEARWATER_DSP3_WDMA_CONFIG_2            0x1FFE32
 #define CLEARWATER_DSP3_RDMA_CONFIG_1            0x1FFE34
 #define CLEARWATER_DSP3_SCRATCH_0_1              0x1FFE40
 #define CLEARWATER_DSP3_SCRATCH_2_3              0x1FFE42
+#define MOON_DSP3_BUS_ERR_ADDR                   0x1FFE52
+#define MOON_DSP3_REGION_LOCK_STATUS             0x1FFE64
+#define MOON_DSP3_LOCK_REGION_1_LOCK_REGION_0    0x1FFE66
+#define MOON_DSP3_LOCK_REGION_3_LOCK_REGION_2    0x1FFE68
+#define MOON_DSP3_LOCK_REGION_5_LOCK_REGION_4    0x1FFE6A
+#define MOON_DSP3_LOCK_REGION_7_LOCK_REGION_6    0x1FFE6C
+#define MOON_DSP3_LOCK_REGION_9_LOCK_REGION_8    0x1FFE6E
+#define MOON_DSP3_LOCK_REGION_CTRL               0x1FFE7A
+#define MOON_DSP3_PMEM_ERR_ADDR_XMEM_ERR_ADDR    0x1FFE7C
 #define CLEARWATER_DSP4_CONFIG                   0x27FE00
 #define CLEARWATER_DSP4_STATUS_1                 0x27FE04
 #define CLEARWATER_DSP4_STATUS_2                 0x27FE06
+#define MOON_DSP4_WATCHDOG                       0x27FE0A
 #define CLEARWATER_DSP4_WDMA_CONFIG_1            0x27FE30
 #define CLEARWATER_DSP4_WDMA_CONFIG_2            0x27FE32
 #define CLEARWATER_DSP4_RDMA_CONFIG_1            0x27FE34
 #define CLEARWATER_DSP4_SCRATCH_0_1              0x27FE40
 #define CLEARWATER_DSP4_SCRATCH_2_3              0x27FE42
+#define MOON_DSP4_BUS_ERR_ADDR                   0x27FE52
+#define MOON_DSP4_REGION_LOCK_STATUS             0x27FE64
+#define MOON_DSP4_LOCK_REGION_1_LOCK_REGION_0    0x27FE66
+#define MOON_DSP4_LOCK_REGION_3_LOCK_REGION_2    0x27FE68
+#define MOON_DSP4_LOCK_REGION_5_LOCK_REGION_4    0x27FE6A
+#define MOON_DSP4_LOCK_REGION_7_LOCK_REGION_6    0x27FE6C
+#define MOON_DSP4_LOCK_REGION_9_LOCK_REGION_8    0x27FE6E
+#define MOON_DSP4_LOCK_REGION_CTRL               0x27FE7A
+#define MOON_DSP4_PMEM_ERR_ADDR_XMEM_ERR_ADDR    0x27FE7C
 #define CLEARWATER_DSP5_CONFIG                   0x2FFE00
 #define CLEARWATER_DSP5_STATUS_1                 0x2FFE04
 #define CLEARWATER_DSP5_STATUS_2                 0x2FFE06
+#define MOON_DSP5_WATCHDOG                       0x2FFE0A
 #define CLEARWATER_DSP5_WDMA_CONFIG_1            0x2FFE30
 #define CLEARWATER_DSP5_WDMA_CONFIG_2            0x2FFE32
 #define CLEARWATER_DSP5_RDMA_CONFIG_1            0x2FFE34
 #define CLEARWATER_DSP5_SCRATCH_0_1              0x2FFE40
 #define CLEARWATER_DSP5_SCRATCH_2_3              0x2FFE42
+#define MOON_DSP5_BUS_ERR_ADDR                   0x2FFE52
+#define MOON_DSP5_REGION_LOCK_STATUS             0x2FFE64
+#define MOON_DSP5_LOCK_REGION_1_LOCK_REGION_0    0x2FFE66
+#define MOON_DSP5_LOCK_REGION_3_LOCK_REGION_2    0x2FFE68
+#define MOON_DSP5_LOCK_REGION_5_LOCK_REGION_4    0x2FFE6A
+#define MOON_DSP5_LOCK_REGION_7_LOCK_REGION_6    0x2FFE6C
+#define MOON_DSP5_LOCK_REGION_9_LOCK_REGION_8    0x2FFE6E
+#define MOON_DSP5_LOCK_REGION_CTRL               0x2FFE7A
+#define MOON_DSP5_PMEM_ERR_ADDR_XMEM_ERR_ADDR    0x2FFE7C
 #define CLEARWATER_DSP6_CONFIG                   0x37FE00
 #define CLEARWATER_DSP6_STATUS_1                 0x37FE04
 #define CLEARWATER_DSP6_STATUS_2                 0x37FE06
+#define MOON_DSP6_WATCHDOG                       0x37FE0A
 #define CLEARWATER_DSP6_WDMA_CONFIG_1            0x37FE30
 #define CLEARWATER_DSP6_WDMA_CONFIG_2            0x37FE32
 #define CLEARWATER_DSP6_RDMA_CONFIG_1            0x37FE34
 #define CLEARWATER_DSP6_SCRATCH_0_1              0x37FE40
 #define CLEARWATER_DSP6_SCRATCH_2_3              0x37FE42
+#define MOON_DSP6_BUS_ERR_ADDR                   0x37FE52
+#define MOON_DSP6_REGION_LOCK_STATUS             0x37FE64
+#define MOON_DSP6_LOCK_REGION_1_LOCK_REGION_0    0x37FE66
+#define MOON_DSP6_LOCK_REGION_3_LOCK_REGION_2    0x37FE68
+#define MOON_DSP6_LOCK_REGION_5_LOCK_REGION_4    0x37FE6A
+#define MOON_DSP6_LOCK_REGION_7_LOCK_REGION_6    0x37FE6C
+#define MOON_DSP6_LOCK_REGION_9_LOCK_REGION_8    0x37FE6E
+#define MOON_DSP6_LOCK_REGION_CTRL               0x37FE7A
+#define MOON_DSP6_PMEM_ERR_ADDR_XMEM_ERR_ADDR    0x37FE7C
 #define CLEARWATER_DSP7_CONFIG                   0x3FFE00
 #define CLEARWATER_DSP7_STATUS_1                 0x3FFE04
 #define CLEARWATER_DSP7_STATUS_2                 0x3FFE06
+#define MOON_DSP7_WATCHDOG                       0x3FFE0A
 #define CLEARWATER_DSP7_WDMA_CONFIG_1            0x3FFE30
 #define CLEARWATER_DSP7_WDMA_CONFIG_2            0x3FFE32
 #define CLEARWATER_DSP7_RDMA_CONFIG_1            0x3FFE34
 #define CLEARWATER_DSP7_SCRATCH_0_1              0x3FFE40
 #define CLEARWATER_DSP7_SCRATCH_2_3              0x3FFE42
+#define MOON_DSP7_BUS_ERR_ADDR                   0x3FFE52
+#define MOON_DSP7_REGION_LOCK_STATUS             0x3FFE64
+#define MOON_DSP7_LOCK_REGION_1_LOCK_REGION_0    0x3FFE66
+#define MOON_DSP7_LOCK_REGION_3_LOCK_REGION_2    0x3FFE68
+#define MOON_DSP7_LOCK_REGION_5_LOCK_REGION_4    0x3FFE6A
+#define MOON_DSP7_LOCK_REGION_7_LOCK_REGION_6    0x3FFE6C
+#define MOON_DSP7_LOCK_REGION_9_LOCK_REGION_8    0x3FFE6E
+#define MOON_DSP7_LOCK_REGION_CTRL               0x3FFE7A
+#define MOON_DSP7_PMEM_ERR_ADDR_XMEM_ERR_ADDR    0x3FFE7C
 
 /*
  * Field Definitions.
@@ -3433,6 +3576,161 @@
 #define ARIZONA_FLL3_GPDIV_ENA_WIDTH                  1  /* FLL3_GPDIV_ENA */
 
 /*
+ * R465 (0x1D1) - MOON_FLLAO_CONTROL_1
+ */
+#define MOON_FLL_AO_HOLD                         0x0004  /* FLL_AO_HOLD */
+#define MOON_FLL_AO_HOLD_MASK                    0x0004  /* FLL_AO_HOLD */
+#define MOON_FLL_AO_HOLD_SHIFT                        2  /* FLL_AO_HOLD */
+#define MOON_FLL_AO_HOLD_WIDTH                        1  /* FLL_AO_HOLD */
+#define MOON_FLL_AO_FREERUN                      0x0002  /* FLL_AO_FREERUN */
+#define MOON_FLL_AO_FREERUN_MASK                 0x0002  /* FLL_AO_FREERUN */
+#define MOON_FLL_AO_FREERUN_SHIFT                     1  /* FLL_AO_FREERUN */
+#define MOON_FLL_AO_FREERUN_WIDTH                     1  /* FLL_AO_FREERUN */
+#define MOON_FLL_AO_ENA                          0x0001  /* FLL_AO_ENA */
+#define MOON_FLL_AO_ENA_MASK                     0x0001  /* FLL_AO_ENA */
+#define MOON_FLL_AO_ENA_SHIFT                         0  /* FLL_AO_ENA */
+#define MOON_FLL_AO_ENA_WIDTH                         1  /* FLL_AO_ENA */
+
+/*
+ * R466 (0x1D2) - MOON_FLLAO_CONTROL_2
+ */
+#define MOON_FLL_AO_CTRL_UPD                      0x8000  /* FLL_AO_CTRL_UPD */
+#define MOON_FLL_AO_CTRL_UPD_MASK                 0x8000  /* FLL_AO_CTRL_UPD */
+#define MOON_FLL_AO_CTRL_UPD_SHIFT                    15  /* FLL_AO_CTRL_UPD */
+#define MOON_FLL_AO_CTRL_UPD_WIDTH                     1  /* FLL_AO_CTRL_UPD */
+#define MOON_FLL_AO_N                             0x03FF  /* FLL_AO_N - [9:0] */
+#define MOON_FLL_AO_N_MASK                        0x03FF  /* FLL_AO_N - [9:0] */
+#define MOON_FLL_AO_N_SHIFT                            0  /* FLL_AO_N - [9:0] */
+#define MOON_FLL_AO_N_WIDTH                           10  /* FLL_AO_N - [9:0] */
+
+/*
+ * R467 (0x1D3) - MOON_FLLAO_CONTROL_3
+ */
+#define MOON_FLL_AO_THETA_MASK                    0x00FF  /* FLL_AO_THETA - [7:0] */
+#define MOON_FLL_AO_THETA_SHIFT                        0  /* FLL_AO_THETA - [7:0] */
+#define MOON_FLL_AO_THETA_WIDTH                        8  /* FLL_AO_THETA - [7:0] */
+
+/*
+ * R468 (0x1D4) - MOON_FLLAO_CONTROL_4
+ */
+#define MOON_FLL_AO_LAMBDA_MASK                   0x00FF  /* FLL_AO_LAMBDA - [7:0] */
+#define MOON_FLL_AO_LAMBDA_SHIFT                       0  /* FLL_AO_LAMBDA - [7:0] */
+#define MOON_FLL_AO_LAMBDA_WIDTH                       8  /* FLL_AO_LAMBDA - [7:0] */
+
+/*
+ * R469 (0x1D5) - MOON_FLLAO_CONTROL_5
+ */
+#define MOON_FLL_AO_FB_DIV_MASK                   0x00FF  /* FLL_AO_FB_DIV - [7:0] */
+#define MOON_FLL_AO_FB_DIV_SHIFT                       0  /* FLL_AO_FB_DIV - [7:0] */
+#define MOON_FLL_AO_FB_DIV_WIDTH                       8  /* FLL_AO_FB_DIV - [7:0] */
+
+/*
+ * R470 (0x1D6) - MOON_FLLAO_CONTROL_6
+ */
+#define MOON_FLL_AO_REFDET_ENA                    0x8000  /* FLL_AO_REFDET_ENA */
+#define MOON_FLL_AO_REFDET_ENA_MASK               0x8000  /* FLL_AO_REFDET_ENA */
+#define MOON_FLL_AO_REFDET_ENA_SHIFT                  15  /* FLL_AO_REFDET_ENA */
+#define MOON_FLL_AO_REFDET_ENA_WIDTH                   1  /* FLL_AO_REFDET_ENA */
+#define MOON_FLL_AO_REFCLK_DIV                    0x00C0  /* FLL_AO_REFCLK_DIV - [7:6] */
+#define MOON_FLL_AO_REFCLK_DIV_MASK               0x00C0  /* FLL_AO_REFCLK_DIV - [7:6] */
+#define MOON_FLL_AO_REFCLK_DIV_SHIFT                   6  /* FLL_AO_REFCLK_DIV - [7:6] */
+#define MOON_FLL_AO_REFCLK_DIV_WIDTH                   2  /* FLL_AO_REFCLK_DIV - [7:6] */
+#define MOON_FLL_AO_REFCLK_SRC                    0x000F  /* FLL_AO_REFCLK_SRC - [3:0] */
+#define MOON_FLL_AO_REFCLK_SRC_MASK               0x000F  /* FLL_AO_REFCLK_SRC - [3:0] */
+#define MOON_FLL_AO_REFCLK_SRC_SHIFT                   0  /* FLL_AO_REFCLK_SRC - [3:0] */
+#define MOON_FLL_AO_REFCLK_SRC_WIDTH                   4  /* FLL_AO_REFCLK_SRC - [3:0] */
+
+/*
+ * R472 (0x1D8) - MOON_FLLAO_CONTROL_7
+ */
+#define MOON_FLL_AO_GAIN_MASK                     0x000F  /* FLL_AO_GAIN - [3:0] */
+#define MOON_FLL_AO_GAIN_SHIFT                         0  /* FLL_AO_GAIN - [3:0] */
+#define MOON_FLL_AO_GAIN_WIDTH                         4  /* FLL_AO_GAIN - [3:0] */
+
+/*
+ * R474 (0x1DA) - MOON_FLLAO_CONTROL_8
+ */
+#define MOON_FLL_AO_HS_DITH_TUNE                  0xF000  /* FLL_AO_HS_DITH_TUNE - [15:12] */
+#define MOON_FLL_AO_HS_DITH_TUNE_MASK             0xF000  /* FLL_AO_HS_DITH_TUNE - [15:12] */
+#define MOON_FLL_AO_HS_DITH_TUNE_SHIFT                12  /* FLL_AO_HS_DITH_TUNE - [15:12] */
+#define MOON_FLL_AO_HS_DITH_TUNE_WIDTH                 4  /* FLL_AO_HS_DITH_TUNE - [15:12] */
+#define MOON_FLL_AO_LS_DITH_TUNE_SHAPED           0x00F0  /* FLL_AO_LS_DITH_TUNE_SHAPED - [7:4] */
+#define MOON_FLL_AO_LS_DITH_TUNE_SHAPED_MASK      0x00F0  /* FLL_AO_LS_DITH_TUNE_SHAPED - [7:4] */
+#define MOON_FLL_AO_LS_DITH_TUNE_SHAPED_SHIFT          4  /* FLL_AO_LS_DITH_TUNE_SHAPED - [7:4] */
+#define MOON_FLL_AO_LS_DITH_TUNE_SHAPED_WIDTH          4  /* FLL_AO_LS_DITH_TUNE_SHAPED - [7:4] */
+#define MOON_FLL_AO_LS_DITH_TUNE_NONSHAPED        0x000F  /* FLL_AO_LS_DITH_TUNE_NONSHAPED - [3:0] */
+#define MOON_FLL_AO_LS_DITH_TUNE_NONSHAPED_MASK   0x000F  /* FLL_AO_LS_DITH_TUNE_NONSHAPED - [3:0] */
+#define MOON_FLL_AO_LS_DITH_TUNE_NONSHAPED_SHIFT       0  /* FLL_AO_LS_DITH_TUNE_NONSHAPED - [3:0] */
+#define MOON_FLL_AO_LS_DITH_TUNE_NONSHAPED_WIDTH       4  /* FLL_AO_LS_DITH_TUNE_NONSHAPED - [3:0] */
+
+/*
+ * R475 (0x1DB) - MOON_FLLAO_CONTROL_9
+ */
+#define MOON_FLL_AO_TR_RATE_MASK                  0x000F  /* FLL_AO_TR_RATE - [3:0] */
+#define MOON_FLL_AO_TR_RATE_SHIFT                      0  /* FLL_AO_TR_RATE - [3:0] */
+#define MOON_FLL_AO_TR_RATE_WIDTH                      4  /* FLL_AO_TR_RATE - [3:0] */
+
+/*
+ * R476 (0x1DC) - MOON_FLLAO_CONTROL_10
+ */
+#define MOON_FLL_AO_PHASEDET_ENA                  0x1000  /* FLL_AO_PHASEDET_ENA */
+#define MOON_FLL_AO_PHASEDET_ENA_MASK             0x1000  /* FLL_AO_PHASEDET_ENA */
+#define MOON_FLL_AO_PHASEDET_ENA_SHIFT                12  /* FLL_AO_PHASEDET_ENA */
+#define MOON_FLL_AO_PHASEDET_ENA_WIDTH                 1  /* FLL_AO_PHASEDET_ENA */
+#define MOON_FLL_AO_WLR_SDM_FRC_ENA               0x0800  /* FLL_AO_WLR_SDM_FRC_ENA */
+#define MOON_FLL_AO_WLR_SDM_FRC_ENA_MASK          0x0800  /* FLL_AO_WLR_SDM_FRC_ENA */
+#define MOON_FLL_AO_WLR_SDM_FRC_ENA_SHIFT             11  /* FLL_AO_WLR_SDM_FRC_ENA */
+#define MOON_FLL_AO_WLR_SDM_FRC_ENA_WIDTH              1  /* FLL_AO_WLR_SDM_FRC_ENA */
+#define MOON_FLL_AO_WLR_SDM_ENA                   0x0400  /* FLL_AO_WLR_SDM_ENA */
+#define MOON_FLL_AO_WLR_SDM_ENA_MASK              0x0400  /* FLL_AO_WLR_SDM_ENA */
+#define MOON_FLL_AO_WLR_SDM_ENA_SHIFT                 10  /* FLL_AO_WLR_SDM_ENA */
+#define MOON_FLL_AO_WLR_SDM_ENA_WIDTH                  1  /* FLL_AO_WLR_SDM_ENA */
+#define MOON_FLL_AO_SYNC_EFS_ENA                  0x0200  /* FLL_AO_SYNC_EFS_ENA */
+#define MOON_FLL_AO_SYNC_EFS_ENA_MASK             0x0200  /* FLL_AO_SYNC_EFS_ENA */
+#define MOON_FLL_AO_SYNC_EFS_ENA_SHIFT                 9  /* FLL_AO_SYNC_EFS_ENA */
+#define MOON_FLL_AO_SYNC_EFS_ENA_WIDTH                 1  /* FLL_AO_SYNC_EFS_ENA */
+#define MOON_FLL_AO_LS_DITH_ENA                   0x0080  /* FLL_AO_LS_DITH_ENA */
+#define MOON_FLL_AO_LS_DITH_ENA_MASK              0x0080  /* FLL_AO_LS_DITH_ENA */
+#define MOON_FLL_AO_LS_DITH_ENA_SHIFT                  7  /* FLL_AO_LS_DITH_ENA */
+#define MOON_FLL_AO_LS_DITH_ENA_WIDTH                  1  /* FLL_AO_LS_DITH_ENA */
+#define MOON_FLL_AO_HS_DITH_ENA                   0x0040  /* FLL_AO_HS_DITH_ENA */
+#define MOON_FLL_AO_HS_DITH_ENA_MASK              0x0040  /* FLL_AO_HS_DITH_ENA */
+#define MOON_FLL_AO_HS_DITH_ENA_SHIFT                  6  /* FLL_AO_HS_DITH_ENA */
+#define MOON_FLL_AO_HS_DITH_ENA_WIDTH                  1  /* FLL_AO_HS_DITH_ENA */
+#define MOON_FLL_AO_OSF_FRC_ENA                   0x0010  /* FLL_AO_OSF_FRC_ENA */
+#define MOON_FLL_AO_OSF_FRC_ENA_MASK              0x0010  /* FLL_AO_OSF_FRC_ENA */
+#define MOON_FLL_AO_OSF_FRC_ENA_SHIFT                  4  /* FLL_AO_OSF_FRC_ENA */
+#define MOON_FLL_AO_OSF_FRC_ENA_WIDTH                  1  /* FLL_AO_OSF_FRC_ENA */
+#define MOON_FLL_AO_OSF_ENA                       0x0008  /* FLL_AO_OSF_ENA */
+#define MOON_FLL_AO_OSF_ENA_MASK                  0x0008  /* FLL_AO_OSF_ENA */
+#define MOON_FLL_AO_OSF_ENA_SHIFT                      3  /* FLL_AO_OSF_ENA */
+#define MOON_FLL_AO_OSF_ENA_WIDTH                      1  /* FLL_AO_OSF_ENA */
+#define MOON_FLL_AO_AUTO_DFSAT_ENA                0x0002  /* FLL_AO_AUTO_DFSAT_ENA */
+#define MOON_FLL_AO_AUTO_DFSAT_ENA_MASK           0x0002  /* FLL_AO_AUTO_DFSAT_ENA */
+#define MOON_FLL_AO_AUTO_DFSAT_ENA_SHIFT               1  /* FLL_AO_AUTO_DFSAT_ENA */
+#define MOON_FLL_AO_AUTO_DFSAT_ENA_WIDTH               1  /* FLL_AO_AUTO_DFSAT_ENA */
+#define MOON_FLL_AO_DFSAT_ENA                     0x0001  /* FLL_AO_DFSAT_ENA */
+#define MOON_FLL_AO_DFSAT_ENA_MASK                0x0001  /* FLL_AO_DFSAT_ENA */
+#define MOON_FLL_AO_DFSAT_ENA_SHIFT                    0  /* FLL_AO_DFSAT_ENA */
+#define MOON_FLL_AO_DFSAT_ENA_WIDTH                    1  /* FLL_AO_DFSAT_ENA */
+
+/*
+ * R477 (0x1DD) - MOON_FLLAO_CONTROL_11
+ */
+#define MOON_FLL_AO_LOCKDET_PHASE_MASK            0x0080  /* FLL_AO_LOCKDET_PHASE_MASK */
+#define MOON_FLL_AO_LOCKDET_PHASE_MASK_MASK       0x0080  /* FLL_AO_LOCKDET_PHASE_MASK */
+#define MOON_FLL_AO_LOCKDET_PHASE_MASK_SHIFT           7  /* FLL_AO_LOCKDET_PHASE_MASK */
+#define MOON_FLL_AO_LOCKDET_PHASE_MASK_WIDTH           1  /* FLL_AO_LOCKDET_PHASE_MASK */
+#define MOON_FLL_AO_LOCKDET_THR                   0x001E  /* FLL_AO_LOCKDET_THR - [4:1] */
+#define MOON_FLL_AO_LOCKDET_THR_MASK              0x001E  /* FLL_AO_LOCKDET_THR - [4:1] */
+#define MOON_FLL_AO_LOCKDET_THR_SHIFT                  1  /* FLL_AO_LOCKDET_THR - [4:1] */
+#define MOON_FLL_AO_LOCKDET_THR_WIDTH                  4  /* FLL_AO_LOCKDET_THR - [4:1] */
+#define MOON_FLL_AO_LOCKDET_ENA                   0x0001  /* FLL_AO_LOCKDET_ENA */
+#define MOON_FLL_AO_LOCKDET_ENA_MASK              0x0001  /* FLL_AO_LOCKDET_ENA */
+#define MOON_FLL_AO_LOCKDET_ENA_SHIFT                  0  /* FLL_AO_LOCKDET_ENA */
+#define MOON_FLL_AO_LOCKDET_ENA_WIDTH                  1  /* FLL_AO_LOCKDET_ENA */
+
+/*
  * R512 (0x200) - Mic Charge Pump 1
  */
 #define ARIZONA_CPMIC_DISCH                      0x0004  /* CPMIC_DISCH */
@@ -3628,6 +3926,34 @@
 /*
  * R540 (0x21C) - Mic Bias Ctrl 5
  */
+#define ARIZONA_MICB1D_BYP                       0x4000  /* MICB1D_BYP */
+#define ARIZONA_MICB1D_BYP_MASK                  0x4000  /* MICB1D_BYP */
+#define ARIZONA_MICB1D_BYP_SHIFT                     14  /* MICB1D_BYP */
+#define ARIZONA_MICB1D_BYP_WIDTH                      1  /* MICB1D_BYP */
+#define ARIZONA_MICB1D_DISCH                     0x2000  /* MICB1D_DISCH */
+#define ARIZONA_MICB1D_DISCH_MASK                0x2000  /* MICB1D_DISCH */
+#define ARIZONA_MICB1D_DISCH_SHIFT                   13  /* MICB1D_DISCH */
+#define ARIZONA_MICB1D_DISCH_WIDTH                    1  /* MICB1D_DISCH */
+#define ARIZONA_MICB1D_ENA                       0x1000  /* MICB1D_ENA */
+#define ARIZONA_MICB1D_ENA_MASK                  0x1000  /* MICB1D_ENA */
+#define ARIZONA_MICB1D_ENA_SHIFT                     12  /* MICB1D_ENA */
+#define ARIZONA_MICB1D_ENA_WIDTH                      1  /* MICB1D_ENA */
+#define ARIZONA_MICB1C_BYP                       0x0400  /* MICB1C_BYP */
+#define ARIZONA_MICB1C_BYP_MASK                  0x0400  /* MICB1C_BYP */
+#define ARIZONA_MICB1C_BYP_SHIFT                     10  /* MICB1C_BYP */
+#define ARIZONA_MICB1C_BYP_WIDTH                      1  /* MICB1C_BYP */
+#define ARIZONA_MICB1C_DISCH                     0x0200  /* MICB1C_DISCH */
+#define ARIZONA_MICB1C_DISCH_MASK                0x0200  /* MICB1C_DISCH */
+#define ARIZONA_MICB1C_DISCH_SHIFT                    9  /* MICB1C_DISCH */
+#define ARIZONA_MICB1C_DISCH_WIDTH                    1  /* MICB1C_DISCH */
+#define ARIZONA_MICB1C_ENA                       0x0100  /* MICB1C_ENA */
+#define ARIZONA_MICB1C_ENA_MASK                  0x0100  /* MICB1C_ENA */
+#define ARIZONA_MICB1C_ENA_SHIFT                      8  /* MICB1C_ENA */
+#define ARIZONA_MICB1C_ENA_WIDTH                      1  /* MICB1C_ENA */
+#define ARIZONA_MICB1B_BYP                       0x0040  /* MICB1B_BYP */
+#define ARIZONA_MICB1B_BYP_MASK                  0x0040  /* MICB1B_BYP */
+#define ARIZONA_MICB1B_BYP_SHIFT                      6  /* MICB1B_BYP */
+#define ARIZONA_MICB1B_BYP_WIDTH                      1  /* MICB1B_BYP */
 #define ARIZONA_MICB1B_DISCH                     0x0020  /* MICB1B_DISCH */
 #define ARIZONA_MICB1B_DISCH_MASK                0x0020  /* MICB1B_DISCH */
 #define ARIZONA_MICB1B_DISCH_SHIFT                    5  /* MICB1B_DISCH */
@@ -3636,6 +3962,10 @@
 #define ARIZONA_MICB1B_ENA_MASK                  0x0010  /* MICB1B_ENA */
 #define ARIZONA_MICB1B_ENA_SHIFT                      4  /* MICB1B_ENA */
 #define ARIZONA_MICB1B_ENA_WIDTH                      1  /* MICB1B_ENA */
+#define ARIZONA_MICB1A_BYP                       0x0004  /* MICB1A_BYP */
+#define ARIZONA_MICB1A_BYP_MASK                  0x0004  /* MICB1A_BYP */
+#define ARIZONA_MICB1A_BYP_SHIFT                      2  /* MICB1A_BYP */
+#define ARIZONA_MICB1A_BYP_WIDTH                      1  /* MICB1A_BYP */
 #define ARIZONA_MICB1A_DISCH                     0x0002  /* MICB1A_DISCH */
 #define ARIZONA_MICB1A_DISCH_MASK                0x0002  /* MICB1A_DISCH */
 #define ARIZONA_MICB1A_DISCH_SHIFT                    1  /* MICB1A_DISCH */
@@ -3648,6 +3978,34 @@
 /*
  * R542 (0x21E) - Mic Bias Ctrl 6
  */
+#define ARIZONA_MICB2D_BYP                       0x4000  /* MICB2D_BYP */
+#define ARIZONA_MICB2D_BYP_MASK                  0x4000  /* MICB2D_BYP */
+#define ARIZONA_MICB2D_BYP_SHIFT                     14  /* MICB2D_BYP */
+#define ARIZONA_MICB2D_BYP_WIDTH                      1  /* MICB2D_BYP */
+#define ARIZONA_MICB2D_DISCH                     0x2000  /* MICB2D_DISCH */
+#define ARIZONA_MICB2D_DISCH_MASK                0x2000  /* MICB2D_DISCH */
+#define ARIZONA_MICB2D_DISCH_SHIFT                   13  /* MICB2D_DISCH */
+#define ARIZONA_MICB2D_DISCH_WIDTH                    1  /* MICB2D_DISCH */
+#define ARIZONA_MICB2D_ENA                       0x1000  /* MICB2D_ENA */
+#define ARIZONA_MICB2D_ENA_MASK                  0x1000  /* MICB2D_ENA */
+#define ARIZONA_MICB2D_ENA_SHIFT                     12  /* MICB2D_ENA */
+#define ARIZONA_MICB2D_ENA_WIDTH                      1  /* MICB2D_ENA */
+#define ARIZONA_MICB2C_BYP                       0x0400  /* MICB2C_BYP */
+#define ARIZONA_MICB2C_BYP_MASK                  0x0400  /* MICB2C_BYP */
+#define ARIZONA_MICB2C_BYP_SHIFT                     10  /* MICB2C_BYP */
+#define ARIZONA_MICB2C_BYP_WIDTH                      1  /* MICB2C_BYP */
+#define ARIZONA_MICB2C_DISCH                     0x0200  /* MICB2C_DISCH */
+#define ARIZONA_MICB2C_DISCH_MASK                0x0200  /* MICB2C_DISCH */
+#define ARIZONA_MICB2C_DISCH_SHIFT                    9  /* MICB2C_DISCH */
+#define ARIZONA_MICB2C_DISCH_WIDTH                    1  /* MICB2C_DISCH */
+#define ARIZONA_MICB2C_ENA                       0x0100  /* MICB2C_ENA */
+#define ARIZONA_MICB2C_ENA_MASK                  0x0100  /* MICB2C_ENA */
+#define ARIZONA_MICB2C_ENA_SHIFT                      8  /* MICB2C_ENA */
+#define ARIZONA_MICB2C_ENA_WIDTH                      1  /* MICB2C_ENA */
+#define ARIZONA_MICB2B_BYP                       0x0040  /* MICB2B_BYP */
+#define ARIZONA_MICB2B_BYP_MASK                  0x0040  /* MICB2B_BYP */
+#define ARIZONA_MICB2B_BYP_SHIFT                      6  /* MICB2B_BYP */
+#define ARIZONA_MICB2B_BYP_WIDTH                      1  /* MICB2B_BYP */
 #define ARIZONA_MICB2B_DISCH                     0x0020  /* MICB2B_DISCH */
 #define ARIZONA_MICB2B_DISCH_MASK                0x0020  /* MICB2B_DISCH */
 #define ARIZONA_MICB2B_DISCH_SHIFT                    5  /* MICB2B_DISCH */
@@ -3656,6 +4014,10 @@
 #define ARIZONA_MICB2B_ENA_MASK                  0x0010  /* MICB2B_ENA */
 #define ARIZONA_MICB2B_ENA_SHIFT                      4  /* MICB2B_ENA */
 #define ARIZONA_MICB2B_ENA_WIDTH                      1  /* MICB2B_ENA */
+#define ARIZONA_MICB2A_BYP                       0x0004  /* MICB2A_BYP */
+#define ARIZONA_MICB2A_BYP_MASK                  0x0004  /* MICB2A_BYP */
+#define ARIZONA_MICB2A_BYP_SHIFT                      2  /* MICB2A_BYP */
+#define ARIZONA_MICB2A_BYP_WIDTH                      1  /* MICB2A_BYP */
 #define ARIZONA_MICB2A_DISCH                     0x0002  /* MICB2A_DISCH */
 #define ARIZONA_MICB2A_DISCH_MASK                0x0002  /* MICB2A_DISCH */
 #define ARIZONA_MICB2A_DISCH_SHIFT                    1  /* MICB2A_DISCH */
@@ -3735,6 +4097,30 @@
 #define ARIZONA_ACCDET_MODE_MASK                 0x0007  /* ACCDET_MODE - [2:0] */
 #define ARIZONA_ACCDET_MODE_SHIFT                     0  /* ACCDET_MODE - [2:0] */
 #define ARIZONA_ACCDET_MODE_WIDTH                     3  /* ACCDET_MODE - [2:0] */
+
+/*
+ * R665 (0x299) - MOON_HEADPHONE_DETECT_0
+ */
+#define MOON_HPD_GND_SEL                         0x0007  /*HPD_GND_SEL[2:0]*/
+#define MOON_HPD_GND_SEL_MASK                    0x0007  /*HPD_GND_SEL[2:0]*/
+#define MOON_HPD_GND_SEL_SHIFT                        0  /*HPD_GND_SEL[2:0]*/
+#define MOON_HPD_GND_SEL_WIDTH                        3  /*HPD_GND_SEL[2:0]*/
+#define MOON_HPD_SENSE_SEL                       0x0070  /*HPD_SENSE_SEL[4:6]*/
+#define MOON_HPD_SENSE_SEL_MASK                  0x0070  /*HPD_SENSE_SEL[4:6]*/
+#define MOON_HPD_SENSE_SEL_SHIFT                      4  /*HPD_SENSE_SEL[4:6]*/
+#define MOON_HPD_SENSE_SEL_WIDTH                      3  /*HPD_SENSE_SEL[4:6]*/
+#define MOON_HPD_FRC_SEL                         0x0700  /*HPD_FRC_SEL[8:10]*/
+#define MOON_HPD_FRC_SEL_MASK                    0x0700  /*HPD_FRC_SEL[8:10]*/
+#define MOON_HPD_FRC_SEL_SHIFT                        8  /*HPD_FRC_SEL[8:10]*/
+#define MOON_HPD_FRC_SEL_WIDTH                        3  /*HPD_FRC_SEL[8:10]*/
+#define MOON_HPD_OUT_SEL                         0x7000  /*HPD_OUT_SEL[12:14]*/
+#define MOON_HPD_OUT_SEL_MASK                    0x7000  /*HPD_OUT_SEL[12:14]*/
+#define MOON_HPD_OUT_SEL_SHIFT                       12  /*HPD_OUT_SEL[12:14]*/
+#define MOON_HPD_OUT_SEL_WIDTH                        3  /*HPD_OUT_SEL[12:14]*/
+#define MOON_HPD_OVD_ENA_SEL                     0x8000  /*HPD_OVD_ENA[15]]*/
+#define MOON_HPD_OVD_ENA_SEL_MASK                0x8000  /*HPD_OVD_ENA[15]]*/
+#define MOON_HPD_OVD_ENA_SEL_SHIFT                   15  /*HPD_OVD_ENA[15]]*/
+#define MOON_HPD_OVD_ENA_SEL_WIDTH                    1  /*HPD_OVD_ENA[15]]*/
 
 /*
  * R667 (0x29B) - Headphone Detect 1
@@ -3819,6 +4205,19 @@
 #define ARIZONA_MICD_CLAMP_MODE_WIDTH                 4  /* MICD_CLAMP_MODE - [3:0] */
 
 /*
+ * R674 (0x2A2) - MOON_MIC_DETECT_0
+ */
+#define MOON_MICD1_GND_MASK                      0x0007  /* MICD1_GND_SEL - [2:0] */
+#define MOON_MICD1_GND_SHIFT                          0  /* MICD1_GND_SEL - [2:0] */
+#define MOON_MICD1_GND_WIDTH                          3  /* MICD1_GND_SEL - [2:0] */
+#define MOON_MICD1_SENSE_MASK                    0x0070  /* MICD1_SENSE_SEL - [2:0] */
+#define MOON_MICD1_SENSE_SHIFT                        4  /* MICD1_SENSE_SEL - [2:0] */
+#define MOON_MICD1_SENSE_WIDTH                        3  /* MICD1_SENSE_SEL - [2:0] */
+#define MOON_MICD1_ADC_MODE_MASK                 0x8000  /* MICD1_ADC_MODE - [2:0] */
+#define MOON_MICD1_ADC_MODE_SHIFT                    15  /* MICD1_ADC_MODE - [2:0] */
+#define MOON_MICD1_ADC_MODE_WIDTH                     1  /* MICD1_ADC_MODE - [2:0] */
+
+/*
  * R675 (0x2A3) - Mic Detect 1
  */
 #define ARIZONA_MICD_BIAS_STARTTIME_MASK         0xF000  /* MICD_BIAS_STARTTIME - [15:12] */
@@ -3830,6 +4229,9 @@
 #define ARIZONA_MICD_BIAS_SRC_MASK               0x0030  /* MICD_BIAS_SRC - [5:4] */
 #define ARIZONA_MICD_BIAS_SRC_SHIFT                   4  /* MICD_BIAS_SRC - [5:4] */
 #define ARIZONA_MICD_BIAS_SRC_WIDTH                   2  /* MICD_BIAS_SRC - [5:4] */
+#define MOON_MICD_BIAS_SRC_MASK                  0x00F0  /* MICD_BIAS_SRC - [7:4] */
+#define MOON_MICD_BIAS_SRC_SHIFT                      4  /* MICD_BIAS_SRC - [7:4] */
+#define MOON_MICD_BIAS_SRC_WIDTH                      4  /* MICD_BIAS_SRC - [7:4] */
 #define ARIZONA_MICD_DBTIME                      0x0002  /* MICD_DBTIME */
 #define ARIZONA_MICD_DBTIME_MASK                 0x0002  /* MICD_DBTIME */
 #define ARIZONA_MICD_DBTIME_SHIFT                     1  /* MICD_DBTIME */
@@ -3879,6 +4281,81 @@
 #define ARIZONA_MICDET_ADCVAL_MASK               0x007F  /* MICDET_ADCVAL - [15:8] */
 #define ARIZONA_MICDET_ADCVAL_SHIFT                   0  /* MICDET_ADCVAL - [15:8] */
 #define ARIZONA_MICDET_ADCVAL_WIDTH                   7  /* MICDET_ADCVAL - [15:8] */
+
+/*
+ * R690 (0x2B2) - MICDET2_CONTROL_0
+ */
+#define MOON_MICD2_ADC_MODE                      0x8000  /* MICD2_ADC_MODE */
+#define MOON_MICD2_ADC_MODE_MASK                 0x8000  /* MICD2_ADC_MODE */
+#define MOON_MICD2_ADC_MODE_SHIFT                    15  /* MICD2_ADC_MODE */
+#define MOON_MICD2_ADC_MODE_WIDTH                     1  /* MICD2_ADC_MODE */
+#define MOON_MICD2_SENSE_SEL                     0x0070  /* MICD2_SENSE_SEL - [6:4] */
+#define MOON_MICD2_SENSE_SEL_MASK                0x0070  /* MICD2_SENSE_SEL - [6:4] */
+#define MOON_MICD2_SENSE_SEL_SHIFT                    4  /* MICD2_SENSE_SEL - [6:4] */
+#define MOON_MICD2_SENSE_SEL_WIDTH                    3  /* MICD2_SENSE_SEL - [6:4] */
+#define MOON_MICD2_GND_SEL                       0x0007  /* MICD2_GND_SEL - [2:0] */
+#define MOON_MICD2_GND_SEL_MASK                  0x0007  /* MICD2_GND_SEL - [2:0] */
+#define MOON_MICD2_GND_SEL_SHIFT                      0  /* MICD2_GND_SEL - [2:0] */
+#define MOON_MICD2_GND_SEL_WIDTH                      3  /* MICD2_GND_SEL - [2:0] */
+
+/*
+ * R691 (0x2B3) - MICDET2_CONTROL_1
+ */
+#define MOON_MICD2_BIAS_STARTTIME                0xF000  /* MICD2_BIAS_STARTTIME - [15:12] */
+#define MOON_MICD2_BIAS_STARTTIME_MASK           0xF000  /* MICD2_BIAS_STARTTIME - [15:12] */
+#define MOON_MICD2_BIAS_STARTTIME_SHIFT              12  /* MICD2_BIAS_STARTTIME - [15:12] */
+#define MOON_MICD2_BIAS_STARTTIME_WIDTH               4  /* MICD2_BIAS_STARTTIME - [15:12] */
+#define MOON_MICD2_RATE                          0x0F00  /* MICD2_RATE - [11:8] */
+#define MOON_MICD2_RATE_MASK                     0x0F00  /* MICD2_RATE - [11:8] */
+#define MOON_MICD2_RATE_SHIFT                         8  /* MICD2_RATE - [11:8] */
+#define MOON_MICD2_RATE_WIDTH                         4  /* MICD2_RATE - [11:8] */
+#define MOON_MICD2_BIAS_SRC                      0x00F0  /* MICD2_BIAS_SRC - [7:4] */
+#define MOON_MICD2_BIAS_SRC_MASK                 0x00F0  /* MICD2_BIAS_SRC - [7:4] */
+#define MOON_MICD2_BIAS_SRC_SHIFT                     4  /* MICD2_BIAS_SRC - [7:4] */
+#define MOON_MICD2_BIAS_SRC_WIDTH                     4  /* MICD2_BIAS_SRC - [7:4] */
+#define MOON_MICD2_DBTIME                        0x0002  /* MICD2_DBTIME */
+#define MOON_MICD2_DBTIME_MASK                   0x0002  /* MICD2_DBTIME */
+#define MOON_MICD2_DBTIME_SHIFT                       1  /* MICD2_DBTIME */
+#define MOON_MICD2_DBTIME_WIDTH                       1  /* MICD2_DBTIME */
+#define MOON_MICD2_ENA                           0x0001  /* MICD2_ENA */
+#define MOON_MICD2_ENA_MASK                      0x0001  /* MICD2_ENA */
+#define MOON_MICD2_ENA_SHIFT                          0  /* MICD2_ENA */
+#define MOON_MICD2_ENA_WIDTH                          1  /* MICD2_ENA */
+
+/*
+ * R692 (0x2B4) - MICDET2_CONTROL_2
+ */
+#define MOON_MICD2_LVL_SEL_MASK                  0x00FF  /* MICD2_LVL_SEL - [7:0] */
+#define MOON_MICD2_LVL_SEL_SHIFT                      0  /* MICD2_LVL_SEL - [7:0] */
+#define MOON_MICD2_LVL_SEL_WIDTH                      8  /* MICD2_LVL_SEL - [7:0] */
+
+/*
+ * R693 (0x2B5) - MICDET2_CONTROL_3
+ */
+#define MOON_MICD2_LVL                           0x07FC  /* MICD2_LVL - [10:2] */
+#define MOON_MICD2_LVL_MASK                      0x07FC  /* MICD2_LVL - [10:2] */
+#define MOON_MICD2_LVL_SHIFT                          2  /* MICD2_LVL - [10:2] */
+#define MOON_MICD2_LVL_WIDTH                          9  /* MICD2_LVL - [10:2] */
+#define MOON_MICD2_VALID                         0x0002  /* MICD2_VALID */
+#define MOON_MICD2_VALID_MASK                    0x0002  /* MICD2_VALID */
+#define MOON_MICD2_VALID_SHIFT                        1  /* MICD2_VALID */
+#define MOON_MICD2_VALID_WIDTH                        1  /* MICD2_VALID */
+#define MOON_MICD2_STS                           0x0001  /* MICD2_STS */
+#define MOON_MICD2_STS_MASK                      0x0001  /* MICD2_STS */
+#define MOON_MICD2_STS_SHIFT                          0  /* MICD2_STS */
+#define MOON_MICD2_STS_WIDTH                          1  /* MICD2_STS */
+
+/*
+ * R699 (0x2BB) - MICDET2_CONTROL_4
+ */
+#define MOON_MICD2_ADCVAL_DIFF                   0xFF00  /* MICD2_ADCVAL_DIFF - [15:8] */
+#define MOON_MICD2_ADCVAL_DIFF_MASK              0xFF00  /* MICD2_ADCVAL_DIFF - [15:8] */
+#define MOON_MICD2_ADCVAL_DIFF_SHIFT                  8  /* MICD2_ADCVAL_DIFF - [15:8] */
+#define MOON_MICD2_ADCVAL_DIFF_WIDTH                  8  /* MICD2_ADCVAL_DIFF - [15:8] */
+#define MOON_MICD2_ADCVAL                        0x007F  /* MICD2_ADCVAL - [6:0] */
+#define MOON_MICD2_ADCVAL_MASK                   0x007F  /* MICD2_ADCVAL - [6:0] */
+#define MOON_MICD2_ADCVAL_SHIFT                       0  /* MICD2_ADCVAL - [6:0] */
+#define MOON_MICD2_ADCVAL_WIDTH                       7  /* MICD2_ADCVAL - [6:0] */
 
 /*
  * R707 (0x2C3) - Mic noise mix control 1
@@ -3977,6 +4454,9 @@
 #define ARIZONA_IN_RATE_MASK                     0x7800  /* IN_RATE - [14:11] */
 #define ARIZONA_IN_RATE_SHIFT                        11  /* IN_RATE - [14:11] */
 #define ARIZONA_IN_RATE_WIDTH                         4  /* IN_RATE - [14:11] */
+#define MOON_IN_MODE_MASK                        0x0400  /* IN_RATE_MODE */
+#define MOON_IN_MODE_SHIFT                           10  /* IN_RATE_MODE */
+#define MOON_IN_MODE_WIDTH                            1  /* IN_RATE_MODE */
 
 /*
  * R777 (0x309) - Input Volume Ramp
@@ -4049,6 +4529,13 @@
 #define CLEARWATER_IN1_OSR_WIDTH                      3  /* IN1_OSR - [8:10] */
 
 /*
+* R787 (0x313) - IN1L Rate Control
+*/
+#define MOON_IN1L_RATE_MASK                      0x7800  /* IN_RATE - [3:0] */
+#define MOON_IN1L_RATE_SHIFT                         11  /* IN_RATE - [3:0] */
+#define MOON_IN1L_RATE_WIDTH                          4  /* IN_RATE - [3:0] */
+
+/*
  * R788 (0x314) - IN1R Control
  */
 #define ARIZONA_IN1R_HPF_MASK                    0x8000  /* IN1R_HPF - [15] */
@@ -4057,6 +4544,9 @@
 #define ARIZONA_IN1R_PGA_VOL_MASK                0x00FE  /* IN1R_PGA_VOL - [7:1] */
 #define ARIZONA_IN1R_PGA_VOL_SHIFT                    1  /* IN1R_PGA_VOL - [7:1] */
 #define ARIZONA_IN1R_PGA_VOL_WIDTH                    7  /* IN1R_PGA_VOL - [7:1] */
+#define MOON_IN1_DMICCLK_SRC_MASK                0x1800  /* DMICCLK_SRC[1:0] */
+#define MOON_IN1_DMICCLK_SRC_SHIFT                   11  /* DMICCLK_SRC[1:0] */
+#define MOON_IN1_DMICCLK_SRC_WIDTH                    2  /* DMICCLK_SRC[1:0] */
 
 /*
  * R789 (0x315) - ADC Digital Volume 1R
@@ -4085,6 +4575,13 @@
 #define ARIZONA_IN1_DMICR_DLY_MASK               0x003F  /* IN1_DMICR_DLY - [5:0] */
 #define ARIZONA_IN1_DMICR_DLY_SHIFT                   0  /* IN1_DMICR_DLY - [5:0] */
 #define ARIZONA_IN1_DMICR_DLY_WIDTH                   6  /* IN1_DMICR_DLY - [5:0] */
+
+/*
+* R791 (0x317) - IN1R Rate Control
+*/
+#define MOON_IN1R_RATE_MASK                      0x7800  /* IN_RATE - [3:0] */
+#define MOON_IN1R_RATE_SHIFT                         11  /* IN_RATE - [3:0] */
+#define MOON_IN1R_RATE_WIDTH                          4  /* IN_RATE - [3:0] */
 
 /*
  * R792 (0x318) - IN2L Control
@@ -4140,6 +4637,13 @@
 #define CLEARWATER_IN2_OSR_WIDTH                      3  /* IN2_OSR - [8:10] */
 
 /*
+* R795 (0x31B) - IN2L Rate Control
+*/
+#define MOON_IN2L_RATE_MASK                      0x7800  /* IN_RATE - [3:0] */
+#define MOON_IN2L_RATE_SHIFT                         11  /* IN_RATE - [3:0] */
+#define MOON_IN2L_RATE_WIDTH                          4  /* IN_RATE - [3:0] */
+
+/*
  * R796 (0x31C) - IN2R Control
  */
 #define ARIZONA_IN2R_HPF_MASK                    0x8000  /* IN2R_HPF - [15] */
@@ -4148,6 +4652,9 @@
 #define ARIZONA_IN2R_PGA_VOL_MASK                0x00FE  /* IN2R_PGA_VOL - [7:1] */
 #define ARIZONA_IN2R_PGA_VOL_SHIFT                    1  /* IN2R_PGA_VOL - [7:1] */
 #define ARIZONA_IN2R_PGA_VOL_WIDTH                    7  /* IN2R_PGA_VOL - [7:1] */
+#define MOON_IN2_DMICCLK_SRC_MASK                0x1800  /* DMICCLK_SRC[1:0] */
+#define MOON_IN2_DMICCLK_SRC_SHIFT                   11  /* DMICCLK_SRC[1:0] */
+#define MOON_IN2_DMICCLK_SRC_WIDTH                    2  /* DMICCLK_SRC[1:0] */
 
 /*
  * R797 (0x31D) - ADC Digital Volume 2R
@@ -4176,6 +4683,13 @@
 #define ARIZONA_IN2_DMICR_DLY_MASK               0x003F  /* IN2_DMICR_DLY - [5:0] */
 #define ARIZONA_IN2_DMICR_DLY_SHIFT                   0  /* IN2_DMICR_DLY - [5:0] */
 #define ARIZONA_IN2_DMICR_DLY_WIDTH                   6  /* IN2_DMICR_DLY - [5:0] */
+
+/*
+* R799 (0x31F) - IN2R Rate Control
+*/
+#define MOON_IN2R_RATE_MASK                      0x7800  /* IN_RATE - [3:0] */
+#define MOON_IN2R_RATE_SHIFT                         11  /* IN_RATE - [3:0] */
+#define MOON_IN2R_RATE_WIDTH                          4  /* IN_RATE - [3:0] */
 
 /*
  * R800 (0x320) - IN3L Control
@@ -4225,6 +4739,13 @@
 #define CLEARWATER_IN3_OSR_WIDTH                      3  /* IN3_OSR - [8:10] */
 
 /*
+* R803 (0x323) - IN3L Rate Control
+*/
+#define MOON_IN3L_RATE_MASK                      0x7800  /* IN_RATE - [3:0] */
+#define MOON_IN3L_RATE_SHIFT                         11  /* IN_RATE - [3:0] */
+#define MOON_IN3L_RATE_WIDTH                          4  /* IN_RATE - [3:0] */
+
+/*
  * R804 (0x324) - IN3R Control
  */
 #define ARIZONA_IN3R_HPF_MASK                    0x8000  /* IN3R_HPF - [15] */
@@ -4233,6 +4754,9 @@
 #define ARIZONA_IN3R_PGA_VOL_MASK                0x00FE  /* IN3R_PGA_VOL - [7:1] */
 #define ARIZONA_IN3R_PGA_VOL_SHIFT                    1  /* IN3R_PGA_VOL - [7:1] */
 #define ARIZONA_IN3R_PGA_VOL_WIDTH                    7  /* IN3R_PGA_VOL - [7:1] */
+#define MOON_IN3_DMICCLK_SRC_MASK                0x1800  /* DMICCLK_SRC[1:0] */
+#define MOON_IN3_DMICCLK_SRC_SHIFT                   11  /* DMICCLK_SRC[1:0] */
+#define MOON_IN3_DMICCLK_SRC_WIDTH                    2  /* DMICCLK_SRC[1:0] */
 
 /*
  * R805 (0x325) - ADC Digital Volume 3R
@@ -4255,6 +4779,13 @@
 #define ARIZONA_IN3_DMICR_DLY_MASK               0x003F  /* IN3_DMICR_DLY - [5:0] */
 #define ARIZONA_IN3_DMICR_DLY_SHIFT                   0  /* IN3_DMICR_DLY - [5:0] */
 #define ARIZONA_IN3_DMICR_DLY_WIDTH                   6  /* IN3_DMICR_DLY - [5:0] */
+
+/*
+* R807 (0x327) - IN3R Rate Control
+*/
+#define MOON_IN3R_RATE_MASK                      0x7800  /* IN_RATE - [3:0] */
+#define MOON_IN3R_RATE_SHIFT                         11  /* IN_RATE - [3:0] */
+#define MOON_IN3R_RATE_WIDTH                          4  /* IN_RATE - [3:0] */
 
 /*
  * R808 (0x328) - IN4 Control
@@ -4295,11 +4826,21 @@
 #define CLEARWATER_IN4_OSR_WIDTH                      3  /* IN4_OSR - [8:10] */
 
 /*
+* R811 (0x32B) - IN4L Rate Control
+*/
+#define MOON_IN4L_RATE_MASK                      0x7800  /* IN_RATE - [3:0] */
+#define MOON_IN4L_RATE_SHIFT                         11  /* IN_RATE - [3:0] */
+#define MOON_IN4L_RATE_WIDTH                          4  /* IN_RATE - [3:0] */
+
+/*
  * R812 (0x32C) - IN4R Control
  */
 #define ARIZONA_IN4R_HPF_MASK                    0x8000  /* IN4R_HPF - [15] */
 #define ARIZONA_IN4R_HPF_SHIFT                       15  /* IN4R_HPF - [15] */
 #define ARIZONA_IN4R_HPF_WIDTH                        1  /* IN4R_HPF - [15] */
+#define MOON_IN4_DMICCLK_SRC_MASK                0x1800  /* DMICCLK_SRC[1:0] */
+#define MOON_IN4_DMICCLK_SRC_SHIFT                   11  /* DMICCLK_SRC[1:0] */
+#define MOON_IN4_DMICCLK_SRC_WIDTH                    2  /* DMICCLK_SRC[1:0] */
 
 /*
  * R813 (0x32D) - ADC Digital Volume 4R
@@ -4322,6 +4863,13 @@
 #define ARIZONA_IN4R_DMIC_DLY_MASK               0x003F  /* IN4R_DMIC_DLY - [5:0] */
 #define ARIZONA_IN4R_DMIC_DLY_SHIFT                   0  /* IN4R_DMIC_DLY - [5:0] */
 #define ARIZONA_IN4R_DMIC_DLY_WIDTH                   6  /* IN4R_DMIC_DLY - [5:0] */
+
+/*
+* R815 (0x32F) - IN4R Rate Control
+*/
+#define MOON_IN4R_RATE_MASK                      0x7800  /* IN_RATE - [3:0] */
+#define MOON_IN4R_RATE_SHIFT                         11  /* IN_RATE - [3:0] */
+#define MOON_IN4R_RATE_WIDTH                          4  /* IN_RATE - [3:0] */
 
 /*
  * R816 (0x330) - IN5L Control
@@ -4362,11 +4910,21 @@
 #define CLEARWATER_IN5_OSR_WIDTH                      3  /* IN5_OSR - [8:10] */
 
 /*
+* R819 (0x333) - IN5L Rate Control
+*/
+#define MOON_IN5L_RATE_MASK                      0x7800  /* IN_RATE - [3:0] */
+#define MOON_IN5L_RATE_SHIFT                         11  /* IN_RATE - [3:0] */
+#define MOON_IN5L_RATE_WIDTH                          4  /* IN_RATE - [3:0] */
+
+/*
  * R820 (0x334) - IN5R Control
  */
 #define ARIZONA_IN5R_HPF_MASK                    0x8000  /* IN5R_HPF - [15] */
 #define ARIZONA_IN5R_HPF_SHIFT                       15  /* IN5R_HPF - [15] */
 #define ARIZONA_IN5R_HPF_WIDTH                        1  /* IN5R_HPF - [15] */
+#define MOON_IN5_DMICCLK_SRC_MASK                0x1800  /* DMICCLK_SRC[1:0] */
+#define MOON_IN5_DMICCLK_SRC_SHIFT                   11  /* DMICCLK_SRC[1:0] */
+#define MOON_IN5_DMICCLK_SRC_WIDTH                    2  /* DMICCLK_SRC[1:0] */
 
 /*
  * R821 (0x335) - ADC Digital Volume 5R
@@ -4389,6 +4947,13 @@
 #define ARIZONA_IN5R_DMIC_DLY_MASK               0x003F  /* IN5R_DMIC_DLY - [5:0] */
 #define ARIZONA_IN5R_DMIC_DLY_SHIFT                   0  /* IN5R_DMIC_DLY - [5:0] */
 #define ARIZONA_IN5R_DMIC_DLY_WIDTH                   6  /* IN5R_DMIC_DLY - [5:0] */
+
+/*
+* R823 (0x337) - IN5R Rate Control
+*/
+#define MOON_IN5R_RATE_MASK                      0x7800  /* IN_RATE - [3:0] */
+#define MOON_IN5R_RATE_SHIFT                         11  /* IN_RATE - [3:0] */
+#define MOON_IN5R_RATE_WIDTH                          4  /* IN_RATE - [3:0] */
 
 /*
  * R824 (0x338) - IN6L Control
@@ -4645,6 +5210,13 @@
 #define ARIZONA_OUT1L_VOL_LIM_WIDTH                   8  /* OUT1L_VOL_LIM - [7:0] */
 
 /*
+ * R1042 (0x412) - MOON_OUT1_CONFIG
+ */
+#define MOON_HP1_GND_SEL_MASK                    0x0007  /* HP1_GND_SEL[2:0] */
+#define MOON_HP1_GND_SEL_SHIFT                        0  /* HP1_GND_SEL[2:0] */
+#define MOON_HP1_GND_SEL_WIDTH                        3  /* HP1_GND_SEL[2:0] */
+
+/*
  * R1043 (0x413) - Noise Gate Select 1L
  */
 #define ARIZONA_OUT1L_NGATE_SRC_MASK             0x0FFF  /* OUT1L_NGATE_SRC - [11:0] */
@@ -4733,6 +5305,13 @@
 #define ARIZONA_OUT2L_VOL_LIM_MASK               0x00FF  /* OUT2L_VOL_LIM - [7:0] */
 #define ARIZONA_OUT2L_VOL_LIM_SHIFT                   0  /* OUT2L_VOL_LIM - [7:0] */
 #define ARIZONA_OUT2L_VOL_LIM_WIDTH                   8  /* OUT2L_VOL_LIM - [7:0] */
+
+/*
+ * R1050 (0x41A) - MOON_OUT2_CONFIG
+ */
+#define MOON_HP2_GND_SEL_MASK                    0x0007  /* HP2_GND_SEL[2:0] */
+#define MOON_HP2_GND_SEL_SHIFT                        0  /* HP2_GND_SEL[2:0] */
+#define MOON_HP2_GND_SEL_WIDTH                        3  /* HP2_GND_SEL[2:0] */
 
 /*
  * R1051 (0x41B) - Noise Gate Select 2L
@@ -10557,6 +11136,46 @@
 #define CLEARWATER_FRF_COEFF_6R_4_WIDTH              16  /* FRF_COEFF_6R_4 - [15:0] */
 
 /*
+ * R1675 (0x1480) - DFC1_CTRL
+ */
+#define MOON_DFC1_RATE                           0x003C  /* DFC1_RATE - [5:2] */
+#define MOON_DFC1_RATE_MASK                      0x003C  /* DFC1_RATE - [5:2] */
+#define MOON_DFC1_RATE_SHIFT                          2  /* DFC1_RATE - [5:2] */
+#define MOON_DFC1_RATE_WIDTH                          4  /* DFC1_RATE - [5:2] */
+#define MOON_DFC1_DITH_ENA                       0x0002  /* DFC1_DITH_ENA */
+#define MOON_DFC1_DITH_ENA_MASK                  0x0002  /* DFC1_DITH_ENA */
+#define MOON_DFC1_DITH_ENA_SHIFT                      1  /* DFC1_DITH_ENA */
+#define MOON_DFC1_DITH_ENA_WIDTH                      1  /* DFC1_DITH_ENA */
+#define MOON_DFC1_ENA                            0x0001  /* DFC1_ENA */
+#define MOON_DFC1_ENA_MASK                       0x0001  /* DFC1_ENA */
+#define MOON_DFC1_ENA_SHIFT                           0  /* DFC1_ENA */
+#define MOON_DFC1_ENA_WIDTH                           1  /* DFC1_ENA */
+
+/*
+ * R1677 (0x1482) - DFC1_RX
+ */
+#define MOON_DFC1_RX_DATA_WIDTH                  0x1F00  /* DFC1_RX_DATA_WIDTH - [12:8] */
+#define MOON_DFC1_RX_DATA_WIDTH_MASK             0x1F00  /* DFC1_RX_DATA_WIDTH - [12:8] */
+#define MOON_DFC1_RX_DATA_WIDTH_SHIFT                 8  /* DFC1_RX_DATA_WIDTH - [12:8] */
+#define MOON_DFC1_RX_DATA_WIDTH_WIDTH                 5  /* DFC1_RX_DATA_WIDTH - [12:8] */
+#define MOON_DFC1_RX_DATA_TYPE                   0x0007  /* DFC1_RX_DATA_TYPE - [2:0] */
+#define MOON_DFC1_RX_DATA_TYPE_MASK              0x0007  /* DFC1_RX_DATA_TYPE - [2:0] */
+#define MOON_DFC1_RX_DATA_TYPE_SHIFT                  0  /* DFC1_RX_DATA_TYPE - [2:0] */
+#define MOON_DFC1_RX_DATA_TYPE_WIDTH                  3  /* DFC1_RX_DATA_TYPE - [2:0] */
+
+/*
+ * R1679 (0x1484) - DFC1_TX
+ */
+#define MOON_DFC1_TX_DATA_WIDTH                  0x1F00  /* DFC1_TX_DATA_WIDTH - [12:8] */
+#define MOON_DFC1_TX_DATA_WIDTH_MASK             0x1F00  /* DFC1_TX_DATA_WIDTH - [12:8] */
+#define MOON_DFC1_TX_DATA_WIDTH_SHIFT                 8  /* DFC1_TX_DATA_WIDTH - [12:8] */
+#define MOON_DFC1_TX_DATA_WIDTH_WIDTH                 5  /* DFC1_TX_DATA_WIDTH - [12:8] */
+#define MOON_DFC1_TX_DATA_TYPE                   0x0007  /* DFC1_TX_DATA_TYPE - [2:0] */
+#define MOON_DFC1_TX_DATA_TYPE_MASK              0x0007  /* DFC1_TX_DATA_TYPE - [2:0] */
+#define MOON_DFC1_TX_DATA_TYPE_SHIFT                  0  /* DFC1_TX_DATA_TYPE - [2:0] */
+#define MOON_DFC1_TX_DATA_TYPE_WIDTH                  3  /* DFC1_TX_DATA_TYPE - [2:0] */
+
+/*
  * R6144 (0x1800) - IRQ1 Status 1
  */
 #define CLEARWATER_DSP_SHARED_WR_COLL_EINT1      0x8000  /* DSP_SHARED_WR_COLL_EINT1 */
@@ -10583,6 +11202,10 @@
 /*
  * R6145 (0x1801) - IRQ1 Status 2
  */
+#define MOON_FLLAO_LOCK_EINT1                    0x0800  /* FLLAO_LOCK_EINT1 */
+#define MOON_FLLAO_LOCK_EINT1_MASK               0x0800  /* FLLAO_LOCK_EINT1 */
+#define MOON_FLLAO_LOCK_EINT1_SHIFT                  11  /* FLLAO_LOCK_EINT1 */
+#define MOON_FLLAO_LOCK_EINT1_WIDTH                   1  /* FLLAO_LOCK_EINT1 */
 #define CLEARWATER_FLL3_LOCK_EINT1               0x0400  /* FLL3_LOCK_EINT1 */
 #define CLEARWATER_FLL3_LOCK_EINT1_MASK          0x0400  /* FLL3_LOCK_EINT1 */
 #define CLEARWATER_FLL3_LOCK_EINT1_SHIFT             10  /* FLL3_LOCK_EINT1 */
@@ -10603,6 +11226,10 @@
 #define CLEARWATER_MICDET_EINT1_MASK             0x0100  /* MICDET_EINT1 */
 #define CLEARWATER_MICDET_EINT1_SHIFT                 8  /* MICDET_EINT1 */
 #define CLEARWATER_MICDET_EINT1_WIDTH                 1  /* MICDET_EINT1 */
+#define MOON_MICDET2_EINT1                       0x0200  /* MICDET2_EINT1 */
+#define MOON_MICDET2_EINT1_MASK                  0x0200  /* MICDET2_EINT1 */
+#define MOON_MICDET2_EINT1_SHIFT                      9  /* MICDET2_EINT1 */
+#define MOON_MICDET2_EINT1_WIDTH                      1  /* MICDET2_EINT1 */
 #define CLEARWATER_HPDET_EINT1                   0x0001  /* HPDET_EINT1 */
 #define CLEARWATER_HPDET_EINT1_MASK              0x0001  /* HPDET_EINT1 */
 #define CLEARWATER_HPDET_EINT1_SHIFT                  0  /* HPDET_EINT1 */
@@ -10855,6 +11482,38 @@
 #define CLEARWATER_SPK_SHUTDOWN_EINT1_MASK             0x0001  /* SPK_SHUTDOWN_EINT1 */
 #define CLEARWATER_SPK_SHUTDOWN_EINT1_SHIFT                 0  /* SPK_SHUTDOWN_EINT1 */
 #define CLEARWATER_SPK_SHUTDOWN_EINT1_WIDTH                 1  /* SPK_SHUTDOWN_EINT1 */
+
+/*
+ * R6176 (0x1820) - IRQ1 Status 33
+ */
+#define MOON_ADSP_ERROR_STATUS_DSP7                    0x0040  /* IRQ_DSP7_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP7_MASK               0x0040  /* IRQ_DSP7_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP7_SHIFT                   6  /* IRQ_DSP7_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP7_WIDTH                   1  /* IRQ_DSP7_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP6                    0x0020  /* IRQ_DSP6_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP6_MASK               0x0020  /* IRQ_DSP6_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP6_SHIFT                   5  /* IRQ_DSP6_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP6_WIDTH                   1  /* IRQ_DSP6_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP5                    0x0010  /* IRQ_DSP5_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP5_MASK               0x0010  /* IRQ_DSP5_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP5_SHIFT                   4  /* IRQ_DSP5_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP5_WIDTH                   1  /* IRQ_DSP5_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP4                    0x0008  /* IRQ_DSP4_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP4_MASK               0x0008  /* IRQ_DSP4_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP4_SHIFT                   3  /* IRQ_DSP4_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP4_WIDTH                   1  /* IRQ_DSP4_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP3                    0x0004  /* IRQ_DSP3_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP3_MASK               0x0004  /* IRQ_DSP3_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP3_SHIFT                   2  /* IRQ_DSP3_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP3_WIDTH                   1  /* IRQ_DSP3_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP2                    0x0002  /* IRQ_DSP2_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP2_MASK               0x0002  /* IRQ_DSP2_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP2_SHIFT                   1  /* IRQ_DSP2_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP2_WIDTH                   1  /* IRQ_DSP2_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP1                    0x0001  /* IRQ_DSP1_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP1_MASK               0x0001  /* IRQ_DSP1_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP1_SHIFT                   0  /* IRQ_DSP1_BUS_ERR_EINT1 */
+#define MOON_ADSP_ERROR_STATUS_DSP1_WIDTH                   1  /* IRQ_DSP1_BUS_ERR_EINT1 */
 
 /*
  * R6208 (0x1840) - IRQ1 Mask 1
@@ -11659,6 +12318,10 @@
 /*
  * R6273 (0x1881) - IRQ1 Raw Status 2
  */
+#define MOON_FLLAO_LOCK_STS1                          0x0800  /* FLLAO_LOCK_STS1 */
+#define MOON_FLLAO_LOCK_STS1_MASK                     0x0800  /* FLLAO_LOCK_STS1 */
+#define MOON_FLLAO_LOCK_STS1_SHIFT                        11  /* FLLAO_LOCK_STS1 */
+#define MOON_FLLAO_LOCK_STS1_WIDTH                         1  /* FLLAO_LOCK_STS1 */
 #define CLEARWATER_FLL3_LOCK_STS1                     0x0400  /* FLL3_LOCK_STS1 */
 #define CLEARWATER_FLL3_LOCK_STS1_MASK                0x0400  /* FLL3_LOCK_STS1 */
 #define CLEARWATER_FLL3_LOCK_STS1_SHIFT                   10  /* FLL3_LOCK_STS1 */

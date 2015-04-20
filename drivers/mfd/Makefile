@@ -58,6 +58,9 @@ endif
 ifeq ($(CONFIG_MFD_LARGO),y)
 obj-$(CONFIG_MFD_ARIZONA)	+= largo-tables.o
 endif
+ifeq ($(CONFIG_MFD_MOON), y)
+obj-$(CONFIG_MFD_ARIZONA)	+= moon-tables.o
+endif
 obj-$(CONFIG_MFD_WM8400)	+= wm8400-core.o
 wm831x-objs			:= wm831x-core.o wm831x-irq.o wm831x-otp.o
 wm831x-objs			+= wm831x-auxadc.o

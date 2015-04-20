@@ -33,6 +33,8 @@ enum arizona_type {
 	WM1831 = 9,
 	CS47L24 = 10,
 	CS47L35 = 11,
+	CS47L90 = 12,
+	CS47L91 = 13,
 };
 
 #define ARIZONA_IRQ_GP1                    0
@@ -112,8 +114,17 @@ enum arizona_type {
 #define ARIZONA_IRQ_HP1L_SC_POS           74
 #define ARIZONA_IRQ_FLL3_LOCK             75
 #define ARIZONA_IRQ_FLL3_CLOCK_OK         76
+#define MOON_IRQ_FLLAO_CLOCK_OK           77
+#define MOON_IRQ_MICDET2                  78
+#define MOON_IRQ_DSP1_BUS_ERROR           79
+#define MOON_IRQ_DSP2_BUS_ERROR           80
+#define MOON_IRQ_DSP3_BUS_ERROR           81
+#define MOON_IRQ_DSP4_BUS_ERROR           82
+#define MOON_IRQ_DSP5_BUS_ERROR           83
+#define MOON_IRQ_DSP6_BUS_ERROR           84
+#define MOON_IRQ_DSP7_BUS_ERROR           85
 
-#define ARIZONA_NUM_IRQ                   77
+#define ARIZONA_NUM_IRQ                   86
 
 #define ARIZONA_HP_SHORT_IMPEDANCE        4
 struct snd_soc_dapm_context;
@@ -194,6 +205,7 @@ int vegas_patch(struct arizona *arizona);
 int clearwater_patch(struct arizona *arizona);
 int largo_patch(struct arizona *arizona);
 int marley_patch(struct arizona *arizona);
+int moon_patch(struct arizona *arizona);
 
 extern int arizona_of_get_named_gpio(struct arizona *arizona, const char *prop,
 				     bool mandatory);

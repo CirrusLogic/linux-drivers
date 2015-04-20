@@ -68,6 +68,13 @@ static int arizona_spi_probe(struct spi_device *spi)
 		regmap_32bit_config = &marley_32bit_spi_regmap;
 		break;
 #endif
+#ifdef CONFIG_MFD_MOON
+	case CS47L90:
+	case CS47L91:
+		regmap_config = &moon_16bit_spi_regmap;
+		regmap_32bit_config = &moon_32bit_spi_regmap;
+		break;
+#endif
 	default:
 		dev_err(&spi->dev, "Unknown device type %ld\n",
 			id->driver_data);
@@ -123,6 +130,8 @@ static const struct spi_device_id arizona_spi_ids[] = {
 	{ "cs47l24", CS47L24 },
 	{ "cs47l35", CS47L35 },
 	{ "cs47l85", WM8285 },
+	{ "cs47l90", CS47L90 },
+	{ "cs47l91", CS47L91 },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, arizona_spi_ids);
