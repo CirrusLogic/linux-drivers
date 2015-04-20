@@ -1474,7 +1474,6 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	int ret, pos, blocks, type, offset, reg;
 	char *file;
 	void *buf;
-	int tmp;
 
 	if (dsp->firmwares[dsp->fw].binfile &&
 	    !(strcmp(dsp->firmwares[dsp->fw].binfile, "None")))
@@ -1630,12 +1629,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 			kfree(buf);
 		}
 
-		tmp = le32_to_cpu(blk->len) % 4;
-		if (tmp)
-			pos += le32_to_cpu(blk->len) + (4 - tmp) + sizeof(*blk);
-		else
-			pos += le32_to_cpu(blk->len) + sizeof(*blk);
-
+		pos += (le32_to_cpu(blk->len) + sizeof(*blk) + 3) & ~0x03;
 		blocks++;
 	}
 
