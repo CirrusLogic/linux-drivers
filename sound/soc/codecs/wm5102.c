@@ -1922,7 +1922,7 @@ static int wm5102_codec_probe(struct snd_soc_codec *codec)
 	arizona_init_spk(codec);
 	arizona_init_gpio(codec);
 
-	ret = snd_soc_add_codec_controls(codec, wm_adsp_fw_controls, 2);
+	ret = snd_soc_add_codec_controls(codec, wm_adsp2_fw_controls, 2);
 	if (ret != 0)
 		return ret;
 

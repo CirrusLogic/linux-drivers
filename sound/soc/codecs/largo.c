@@ -1338,7 +1338,7 @@ static int largo_codec_probe(struct snd_soc_codec *codec)
 	arizona_init_mono(codec);
 	arizona_init_input(codec);
 
-	ret = snd_soc_add_codec_controls(codec, &wm_adsp_fw_controls[2], 4);
+	ret = snd_soc_add_codec_controls(codec, &wm_adsp2_fw_controls[2], 4);
 	if (ret != 0)
 		return ret;
 
