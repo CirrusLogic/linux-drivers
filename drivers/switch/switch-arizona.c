@@ -313,6 +313,7 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 		break;
 	case WM8285:
 	case WM1840:
+	case CS47L35:
 		edre_reg = CLEARWATER_EDRE_MANUAL;
 		mask = ARIZONA_HP1L_SHRTO | ARIZONA_HP1L_FLWR |
 			   ARIZONA_HP1L_SHRTI;
@@ -405,17 +406,33 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 
 static const char *arizona_extcon_get_micbias(struct arizona_extcon_info *info)
 {
-	switch (info->micd_modes[0].bias) {
-	case 1:
-		return "MICBIAS1";
-	case 2:
-		return "MICBIAS2";
-	case 3:
-		return "MICBIAS3";
-	case 4:
-		return "MICBIAS4";
+	struct arizona *arizona = info->arizona;
+
+	switch (arizona->type) {
+	case CS47L35:
+		switch (info->micd_modes[0].bias) {
+		case 1:
+			return "MICBIAS1A";
+		case 2:
+			return "MICBIAS1B";
+		case 3:
+			return "MICBIAS2A";
+		default:
+			return "MICVDD";
+		}
 	default:
-		return "MICVDD";
+		switch (info->micd_modes[0].bias) {
+		case 1:
+			return "MICBIAS1";
+		case 2:
+			return "MICBIAS2";
+		case 3:
+			return "MICBIAS3";
+		case 4:
+			return "MICBIAS4";
+		default:
+			return "MICVDD";
+		}
 	}
 }
 
@@ -3048,9 +3065,21 @@ static int arizona_hpdet_clearwater_read_calibration(struct arizona_extcon_info 
 	struct arizona_hpdet_d_trims *trims;
 	int ret = -EIO;
 	unsigned int offset, gradient, interim_val;
+	unsigned int otp_hpdet_calib_1, otp_hpdet_calib_2;
+
+	switch (arizona->type) {
+	case CS47L35:
+		otp_hpdet_calib_1 = MARLEY_OTP_HPDET_CALIB_1;
+		otp_hpdet_calib_2 = MARLEY_OTP_HPDET_CALIB_2;
+		break;
+	default:
+		otp_hpdet_calib_1 = CLEARWATER_OTP_HPDET_CALIB_1;
+		otp_hpdet_calib_2 = CLEARWATER_OTP_HPDET_CALIB_2;
+		break;
+	}
 
 	ret = regmap_read(arizona->regmap_32bit,
-			  CLEARWATER_OTP_HPDET_CALIB_1,
+			  otp_hpdet_calib_1,
 			  &offset);
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to read HP CALIB OFFSET value: %d\n",
@@ -3059,7 +3088,7 @@ static int arizona_hpdet_clearwater_read_calibration(struct arizona_extcon_info 
 	}
 
 	ret = regmap_read(arizona->regmap_32bit,
-			  CLEARWATER_OTP_HPDET_CALIB_2,
+			  otp_hpdet_calib_2,
 			  &gradient);
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to read HP CALIB OFFSET value: %d\n",
@@ -3293,6 +3322,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		break;
 	case WM8285:
 	case WM1840:
+	case CS47L35:
 		info->micd_clamp = true;
 		info->hpdet_ip = 4;
 		break;
