@@ -213,6 +213,17 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 
 		arizona_gpio->gpio_chip.ngpio = 16;
 		break;
+	case CS47L90:
+	case CS47L91:
+		arizona_gpio->gpio_chip.direction_input =
+			clearwater_gpio_direction_in;
+		arizona_gpio->gpio_chip.get = clearwater_gpio_get;
+		arizona_gpio->gpio_chip.direction_output =
+			clearwater_gpio_direction_out;
+		arizona_gpio->gpio_chip.set = clearwater_gpio_set;
+
+		arizona_gpio->gpio_chip.ngpio = 38;
+		break;
 	default:
 		dev_err(&pdev->dev, "Unknown chip variant %d\n",
 			arizona->type);
