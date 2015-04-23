@@ -252,17 +252,33 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 
 static const char *arizona_extcon_get_micbias(struct arizona_extcon_info *info)
 {
-	switch (info->micd_modes[0].bias) {
-	case 1:
-		return "MICBIAS1";
-	case 2:
-		return "MICBIAS2";
-	case 3:
-		return "MICBIAS3";
-	case 4:
-		return "MICBIAS4";
+	struct arizona *arizona = info->arizona;
+
+	switch (arizona->type) {
+	case CS47L35:
+		switch (info->micd_modes[0].bias) {
+		case 1:
+			return "MICBIAS1A";
+		case 2:
+			return "MICBIAS1B";
+		case 3:
+			return "MICBIAS2A";
+		default:
+			return "MICVDD";
+		}
 	default:
-		return "MICVDD";
+		switch (info->micd_modes[0].bias) {
+		case 1:
+			return "MICBIAS1";
+		case 2:
+			return "MICBIAS2";
+		case 3:
+			return "MICBIAS3";
+		case 4:
+			return "MICBIAS4";
+		default:
+			return "MICVDD";
+		}
 	}
 }
 
