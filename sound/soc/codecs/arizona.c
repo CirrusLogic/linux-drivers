@@ -2969,8 +2969,8 @@ static int arizona_hw_params_rate(struct snd_pcm_substream *substream,
 	struct arizona_dai_priv *dai_priv = &priv->dai[dai->id - 1];
 	int base = dai->driver->base;
 	int ret = 0, err;
-	int i, sr_val, lim;
-	const int *sources;
+	int i, sr_val, lim = 0;
+	const int *sources = NULL;
 	unsigned int cur, tar;
 	bool change_rate = true;
 
