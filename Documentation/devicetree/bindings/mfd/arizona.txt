@@ -117,6 +117,9 @@ Optional properties:
     If present, values must be specified less than or equal to the number of
     input singals. If values less than the number of input signals, elements
     that has not been specifed are set to 0 by default.
+    For most codecs the entries map to <IN1, IN2, IN3, IN4>
+    wm8998: entries are for <IN1A, IN2A, IN1B, IN2B>
+    cs47l85, wm8285: entries are for <IN1L, IN1R, IN2L, IN2R, IN3L, IN3R>
 
   - wlf,out-mono : Mono bit for each output, must contain six cells if
     specified. A non-zero value indicates the corresponding output is mono.
