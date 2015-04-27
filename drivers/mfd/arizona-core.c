@@ -2002,18 +2002,20 @@ default:
 	case WM5110:
 	case WM8997:
 	case WM8280:
-	case WM8998:
-	case WM1814:
 	case WM1831:
 	case CS47L24:
-		/* These arizona chips have only 4 inputs and
+		/* These arizona chips have 4 inputs and
 		settings for INxL and INxR are same*/
-		max_inputs = ARIZONA_MAX_INPUT / 2 - 2;
+		max_inputs = 4;
+		break;
+	case WM8998:
+	case WM1814:
+		max_inputs = 2;
 		break;
 	default:
-		/*DMIC Ref for IN4-6 is fixed for WM8285/1840 and
+		/* DMIC Ref for IN4-6 is fixed for WM8285/1840 and
 		settings for INxL and INxR are different*/
-		max_inputs = ARIZONA_MAX_INPUT / 2 - 3;
+		max_inputs = 3;
 		break;
 	}
 
