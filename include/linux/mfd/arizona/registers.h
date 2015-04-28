@@ -159,8 +159,8 @@
 #define ARIZONA_MIC_BIAS_CTRL_2                  0x219
 #define ARIZONA_MIC_BIAS_CTRL_3                  0x21A
 #define ARIZONA_MIC_BIAS_CTRL_4                  0x21B
-#define MARLEY_MIC_BIAS_CTRL_5                   0x21C
-#define MARLEY_MIC_BIAS_CTRL_6                   0x21E
+#define ARIZONA_MIC_BIAS_CTRL_5                  0x21C
+#define ARIZONA_MIC_BIAS_CTRL_6                  0x21E
 #define ARIZONA_HP_CTRL_1L                       0x225
 #define ARIZONA_HP_CTRL_1R                       0x226
 #define ARIZONA_HP_CTRL_2L                       0x227
@@ -3601,6 +3601,46 @@
 #define ARIZONA_MICB4_ENA_MASK                   0x0001  /* MICB4_ENA */
 #define ARIZONA_MICB4_ENA_SHIFT                       0  /* MICB4_ENA */
 #define ARIZONA_MICB4_ENA_WIDTH                       1  /* MICB4_ENA */
+
+/*
+ * R540 (0x21C) - Mic Bias Ctrl 5
+ */
+#define ARIZONA_MICB1B_DISCH                     0x0020  /* MICB1B_DISCH */
+#define ARIZONA_MICB1B_DISCH_MASK                0x0020  /* MICB1B_DISCH */
+#define ARIZONA_MICB1B_DISCH_SHIFT                    5  /* MICB1B_DISCH */
+#define ARIZONA_MICB1B_DISCH_WIDTH                    1  /* MICB1B_DISCH */
+#define ARIZONA_MICB1B_ENA                       0x0010  /* MICB1B_ENA */
+#define ARIZONA_MICB1B_ENA_MASK                  0x0010  /* MICB1B_ENA */
+#define ARIZONA_MICB1B_ENA_SHIFT                      4  /* MICB1B_ENA */
+#define ARIZONA_MICB1B_ENA_WIDTH                      1  /* MICB1B_ENA */
+#define ARIZONA_MICB1A_DISCH                     0x0002  /* MICB1A_DISCH */
+#define ARIZONA_MICB1A_DISCH_MASK                0x0002  /* MICB1A_DISCH */
+#define ARIZONA_MICB1A_DISCH_SHIFT                    1  /* MICB1A_DISCH */
+#define ARIZONA_MICB1A_DISCH_WIDTH                    1  /* MICB1A_DISCH */
+#define ARIZONA_MICB1A_ENA                       0x0001  /* MICB1A_ENA */
+#define ARIZONA_MICB1A_ENA_MASK                  0x0001  /* MICB1A_ENA */
+#define ARIZONA_MICB1A_ENA_SHIFT                      0  /* MICB1A_ENA */
+#define ARIZONA_MICB1A_ENA_WIDTH                      1  /* MICB1A_ENA */
+
+/*
+ * R542 (0x21E) - Mic Bias Ctrl 6
+ */
+#define ARIZONA_MICB2B_DISCH                     0x0020  /* MICB2B_DISCH */
+#define ARIZONA_MICB2B_DISCH_MASK                0x0020  /* MICB2B_DISCH */
+#define ARIZONA_MICB2B_DISCH_SHIFT                    5  /* MICB2B_DISCH */
+#define ARIZONA_MICB2B_DISCH_WIDTH                    1  /* MICB2B_DISCH */
+#define ARIZONA_MICB2B_ENA                       0x0010  /* MICB2B_ENA */
+#define ARIZONA_MICB2B_ENA_MASK                  0x0010  /* MICB2B_ENA */
+#define ARIZONA_MICB2B_ENA_SHIFT                      4  /* MICB2B_ENA */
+#define ARIZONA_MICB2B_ENA_WIDTH                      1  /* MICB2B_ENA */
+#define ARIZONA_MICB2A_DISCH                     0x0002  /* MICB2A_DISCH */
+#define ARIZONA_MICB2A_DISCH_MASK                0x0002  /* MICB2A_DISCH */
+#define ARIZONA_MICB2A_DISCH_SHIFT                    1  /* MICB2A_DISCH */
+#define ARIZONA_MICB2A_DISCH_WIDTH                    1  /* MICB2A_DISCH */
+#define ARIZONA_MICB2A_ENA                       0x0001  /* MICB2A_ENA */
+#define ARIZONA_MICB2A_ENA_MASK                  0x0001  /* MICB2A_ENA */
+#define ARIZONA_MICB2A_ENA_SHIFT                      0  /* MICB2A_ENA */
+#define ARIZONA_MICB2A_ENA_WIDTH                      1  /* MICB2A_ENA */
 
 /*
  * R549 (0x225) - HP Ctrl 1L
