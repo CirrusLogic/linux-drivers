@@ -18,25 +18,10 @@
 
 #include "arizona.h"
 
-static const struct reg_default marley_16_micbias_patch[] = {
-	{ 0x21c, 0x23 },
-	{ 0x21e, 0x23 },
-};
-
 /* We use a function so we can use ARRAY_SIZE() */
 int marley_patch(struct arizona *arizona)
 {
-	int ret = 0;
-	const struct reg_default *patch16 = marley_16_micbias_patch;
-	unsigned int num16 = ARRAY_SIZE(marley_16_micbias_patch);
-
-	ret = regmap_register_patch(arizona->regmap, patch16, num16);
-	if (ret < 0) {
-		dev_err(arizona->dev,
-			"Error in applying 16-bit patch: %d\n", ret);
-	}
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(marley_patch);
 
@@ -171,8 +156,8 @@ static const struct reg_default marley_reg_default[] = {
 	{ 0x00000213, 0x03e4 }, /* R531 (0x213) - LDO2 Control 1 */
 	{ 0x00000218, 0x00e6 }, /* R536 (0x218) - Mic Bias Ctrl 1 */
 	{ 0x00000219, 0x00e6 }, /* R537 (0x219) - Mic Bias Ctrl 2 */
-	{ 0x0000021c, 0x0023 }, /* R540 (0x21c) - Mic Bias Ctrl 5 */
-	{ 0x0000021d, 0x0023 }, /* R541 (0x21d) - Mic Bias Ctrl 6 */
+	{ 0x0000021c, 0x0022 }, /* R540 (0x21c) - Mic Bias Ctrl 5 */
+	{ 0x0000021e, 0x0022 }, /* R542 (0x21e) - Mic Bias Ctrl 6 */
 	{ 0x0000027e, 0x0000 }, /* R638 (0x27E) - EDRE HP stereo control */
 	{ 0x00000293, 0x0080 }, /* R659 (0x293) - Accessory Detect Mode 1 */
 	{ 0x0000029b, 0x0000 }, /* R667 (0x29B) - Headphone Detect 1 */
@@ -955,8 +940,8 @@ static bool marley_16bit_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_LDO2_CONTROL_1:
 	case ARIZONA_MIC_BIAS_CTRL_1:
 	case ARIZONA_MIC_BIAS_CTRL_2:
-	case MARLEY_MIC_BIAS_CTRL_5:
-	case MARLEY_MIC_BIAS_CTRL_6:
+	case ARIZONA_MIC_BIAS_CTRL_5:
+	case ARIZONA_MIC_BIAS_CTRL_6:
 	case ARIZONA_HP_CTRL_1L:
 	case ARIZONA_HP_CTRL_1R:
 	case ARIZONA_DCS_HP1L_CONTROL:
