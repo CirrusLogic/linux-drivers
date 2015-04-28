@@ -3320,9 +3320,11 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 			break;
 		}
 		break;
+	case CS47L35:
+		arizona->pdata.micd_force_micbias = true;
+		/* fall through to next case to set common properties */
 	case WM8285:
 	case WM1840:
-	case CS47L35:
 		info->micd_clamp = true;
 		info->hpdet_ip = 4;
 		break;
