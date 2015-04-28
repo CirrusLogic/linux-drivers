@@ -1518,6 +1518,9 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 			break;
 		}
 		break;
+	case CS47L35:
+		arizona->pdata.micd_force_micbias = true;
+		/* fall through to default case to set common properties */
 	default:
 		info->micd_clamp = true;
 		info->hpdet_ip = 2;
