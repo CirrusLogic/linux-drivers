@@ -2331,6 +2331,7 @@ int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
 	unsigned int mask = 1 << w->shift;
 	unsigned int val;
+	unsigned int ep_sel = 0;
 	int ret;
 
 	switch (event) {
@@ -2382,9 +2383,22 @@ int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 	priv->arizona->hp_ena &= ~mask;
 	priv->arizona->hp_ena |= val;
 
+	/* in case of Marley check if OUT1 is routed to EPOUT, do not disable
+	 * OUT1 in this case */
+	switch (priv->arizona->type) {
+	case CS47L35:
+		regmap_read(priv->arizona->regmap, ARIZONA_OUTPUT_ENABLES_1,
+				&ep_sel);
+		ep_sel &= ARIZONA_EP_SEL_MASK;
+		break;
+	default:
+		break;
+	}
+
 	/* Force off if HPDET clamp is active */
-	if (priv->arizona->hpdet_clamp ||
-	    priv->arizona->hp_impedance <= priv->arizona->pdata.hpdet_short_circuit_imp)
+	if ((priv->arizona->hpdet_clamp ||
+	     priv->arizona->hp_impedance <=
+	     priv->arizona->pdata.hpdet_short_circuit_imp) && !ep_sel)
 		val = 0;
 
 	snd_soc_update_bits(w->codec, ARIZONA_OUTPUT_ENABLES_1, mask, val);

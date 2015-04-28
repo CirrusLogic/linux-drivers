@@ -204,6 +204,101 @@ static const struct snd_kcontrol_new marley_in1mux[2] = {
 	SOC_DAPM_ENUM("IN1R Mux", marley_in1muxr_enum),
 };
 
+static const char * const marley_outdemux_texts[] = {
+	"HPOUT",
+	"EPOUT",
+};
+
+static int marley_put_demux(struct snd_kcontrol *kcontrol,
+		     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
+	struct snd_soc_codec *codec = widget->codec;
+	struct snd_soc_card *card = codec->card;
+	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int ep_sel, mux, change;
+	unsigned int mask;
+	int ret;
+
+	if (ucontrol->value.enumerated.item[0] > e->max - 1)
+		return -EINVAL;
+	mux = ucontrol->value.enumerated.item[0];
+	ep_sel = mux << e->shift_l;
+	mask = e->mask << e->shift_l;
+
+	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+
+	change = snd_soc_test_bits(codec, e->reg, mask, ep_sel);
+	if (change) {
+		/* if HP detection clamp is applied while switching to HPOUT
+		 * disable OUT1 and set EDRE Manual */
+		if (!ep_sel && (arizona->hpdet_clamp || (arizona->hp_impedance
+				<= arizona->pdata.hpdet_short_circuit_imp))) {
+			ret = regmap_update_bits(arizona->regmap,
+						 ARIZONA_OUTPUT_ENABLES_1,
+						 ARIZONA_OUT1L_ENA |
+						 ARIZONA_OUT1R_ENA, 0);
+			if (ret)
+				dev_warn(arizona->dev,
+					 "Failed to disable headphone outputs"
+					 ": %d\n", ret);
+		}
+		if (!ep_sel && arizona->hpdet_clamp) {
+			ret = regmap_write(arizona->regmap,
+					   CLEARWATER_EDRE_MANUAL, 0x3);
+			if (ret)
+				dev_warn(arizona->dev,
+					 "Failed to set EDRE Manual: %d\n",
+					 ret);
+		}
+
+		ret = regmap_update_bits(arizona->regmap,
+					 ARIZONA_OUTPUT_ENABLES_1,
+					 ARIZONA_EP_SEL, ep_sel);
+		if (ret)
+			dev_err(arizona->dev, "Failed to set OUT1 demux: %d\n",
+					ret);
+
+		/* provided the switch back to EPOUT succeeded make sure OUT1
+		 * is restored to a desired value (retained by arizona->hp_ena)
+		 * and EDRE Manual is set to the proper value
+		 * */
+		if (ep_sel && !ret) {
+			ret = regmap_update_bits(arizona->regmap,
+						 ARIZONA_OUTPUT_ENABLES_1,
+						 ARIZONA_OUT1L_ENA |
+						 ARIZONA_OUT1R_ENA,
+						 arizona->hp_ena);
+			if (ret)
+				dev_warn(arizona->dev,
+					 "Failed to restore earpiece outputs:"
+					 " %d\n", ret);
+			ret = regmap_write(arizona->regmap,
+					   CLEARWATER_EDRE_MANUAL, 0);
+			if (ret)
+				dev_warn(arizona->dev,
+					 "Failed to restore EDRE Manual: %d\n",
+					 ret);
+		}
+
+	}
+
+	mutex_unlock(&card->dapm_mutex);
+
+	return snd_soc_dapm_put_enum_virt(kcontrol, ucontrol);
+}
+
+static const SOC_ENUM_SINGLE_DECL(marley_outdemux_enum,
+				  ARIZONA_OUTPUT_ENABLES_1,
+				  ARIZONA_EP_SEL_SHIFT,
+				  marley_outdemux_texts);
+
+static const struct snd_kcontrol_new marley_outdemux =
+	SOC_DAPM_ENUM_EXT("OUT1 Demux", marley_outdemux_enum,
+			snd_soc_dapm_get_enum_double, marley_put_demux);
+
 static int marley_frf_bytes_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
@@ -471,8 +566,8 @@ static DECLARE_TLV_DB_SCALE(noise_tlv, -11400, 600, 0);
 static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 
 #define MARLEY_NG_SRC(name, base) \
-	SOC_SINGLE(name " NG HPOUTL Switch",  base,  0, 1, 0), \
-	SOC_SINGLE(name " NG HPOUTR Switch",  base,  1, 1, 0), \
+	SOC_SINGLE(name " NG OUT1L Switch",  base,  0, 1, 0), \
+	SOC_SINGLE(name " NG OUT1R Switch",  base,  1, 1, 0), \
 	SOC_SINGLE(name " NG SPKOUT Switch",  base,  6, 1, 0), \
 	SOC_SINGLE(name " NG SPKDATL Switch", base,  8, 1, 0), \
 	SOC_SINGLE(name " NG SPKDATR Switch", base,  9, 1, 0)
@@ -681,31 +776,31 @@ ARIZONA_MIXER_CONTROLS("DSP3R", ARIZONA_DSP3RMIX_INPUT_1_SOURCE),
 SOC_SINGLE_TLV("Noise Generator Volume", CLEARWATER_COMFORT_NOISE_GENERATOR,
 	       CLEARWATER_NOISE_GEN_GAIN_SHIFT, 0x12, 0, noise_tlv),
 
-ARIZONA_MIXER_CONTROLS("HPOUTL", ARIZONA_OUT1LMIX_INPUT_1_SOURCE),
-ARIZONA_MIXER_CONTROLS("HPOUTR", ARIZONA_OUT1RMIX_INPUT_1_SOURCE),
+ARIZONA_MIXER_CONTROLS("OUT1L", ARIZONA_OUT1LMIX_INPUT_1_SOURCE),
+ARIZONA_MIXER_CONTROLS("OUT1R", ARIZONA_OUT1RMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("SPKOUT", ARIZONA_OUT4LMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("SPKDATL", ARIZONA_OUT5LMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("SPKDATR", ARIZONA_OUT5RMIX_INPUT_1_SOURCE),
 
-SOC_SINGLE("HPOUT SC Protect Switch", ARIZONA_HP1_SHORT_CIRCUIT_CTRL,
+SOC_SINGLE("OUT1 SC Protect Switch", ARIZONA_HP1_SHORT_CIRCUIT_CTRL,
 	   ARIZONA_HP1_SC_ENA_SHIFT, 1, 0),
 
-SOC_SINGLE("HPOUTL ONEFLT Switch", ARIZONA_HP_TEST_CTRL_5,
+SOC_SINGLE("OUT1L ONEFLT Switch", ARIZONA_HP_TEST_CTRL_5,
 				    ARIZONA_HP1L_ONEFLT_SHIFT, 1, 0),
-SOC_SINGLE("HPOUTR ONEFLT Switch", ARIZONA_HP_TEST_CTRL_6,
+SOC_SINGLE("OUT1R ONEFLT Switch", ARIZONA_HP_TEST_CTRL_6,
 				    ARIZONA_HP1R_ONEFLT_SHIFT, 1, 0),
 
 SOC_SINGLE("SPKDAT High Performance Switch", ARIZONA_OUTPUT_PATH_CONFIG_5L,
 	   ARIZONA_OUT5_OSR_SHIFT, 1, 0),
 
-SOC_DOUBLE_R("HPOUT Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_1L,
+SOC_DOUBLE_R("OUT1 Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_1L,
 	     ARIZONA_DAC_DIGITAL_VOLUME_1R, ARIZONA_OUT1L_MUTE_SHIFT, 1, 1),
 SOC_SINGLE("Speaker Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_4L,
 	   ARIZONA_OUT4L_MUTE_SHIFT, 1, 1),
 SOC_DOUBLE_R("SPKDAT Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_5L,
 	     ARIZONA_DAC_DIGITAL_VOLUME_5R, ARIZONA_OUT5L_MUTE_SHIFT, 1, 1),
 
-SOC_DOUBLE_R_TLV("HPOUT Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_1L,
+SOC_DOUBLE_R_TLV("OUT1 Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_1L,
 		 ARIZONA_DAC_DIGITAL_VOLUME_1R, ARIZONA_OUT1L_VOL_SHIFT,
 		 0xbf, 0, digital_tlv),
 SOC_SINGLE_TLV("Speaker Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_4L,
@@ -717,11 +812,11 @@ SOC_DOUBLE_R_TLV("SPKDAT Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_5L,
 SOC_DOUBLE("SPKDAT Switch", ARIZONA_PDM_SPK1_CTRL_1, ARIZONA_SPK1L_MUTE_SHIFT,
 	   ARIZONA_SPK1R_MUTE_SHIFT, 1, 1),
 
-SOC_DOUBLE_EXT("HPOUT DRE Switch", ARIZONA_DRE_ENABLE,
+SOC_DOUBLE_EXT("OUT1 DRE Switch", ARIZONA_DRE_ENABLE,
 	   ARIZONA_DRE1L_ENA_SHIFT, ARIZONA_DRE1R_ENA_SHIFT, 1, 0,
 	   snd_soc_get_volsw, clearwater_put_dre),
 
-SOC_DOUBLE("HPOUT EDRE Switch", CLEARWATER_EDRE_ENABLE,
+SOC_DOUBLE("OUT1 EDRE Switch", CLEARWATER_EDRE_ENABLE,
 	   CLEARWATER_EDRE_OUT1L_THR1_ENA_SHIFT,
 	   CLEARWATER_EDRE_OUT1R_THR1_ENA_SHIFT, 1, 0),
 
@@ -742,8 +837,8 @@ SOC_ENUM("Noise Gate Hold", arizona_ng_hold),
 MARLEY_RATE_ENUM("Output Rate 1", arizona_output_rate),
 SOC_VALUE_ENUM("In Rate", arizona_input_rate),
 
-MARLEY_NG_SRC("HPOUTL", ARIZONA_NOISE_GATE_SELECT_1L),
-MARLEY_NG_SRC("HPOUTR", ARIZONA_NOISE_GATE_SELECT_1R),
+MARLEY_NG_SRC("OUT1L", ARIZONA_NOISE_GATE_SELECT_1L),
+MARLEY_NG_SRC("OUT1R", ARIZONA_NOISE_GATE_SELECT_1R),
 MARLEY_NG_SRC("SPKOUT", ARIZONA_NOISE_GATE_SELECT_4L),
 MARLEY_NG_SRC("SPKDATL", ARIZONA_NOISE_GATE_SELECT_5L),
 MARLEY_NG_SRC("SPKDATR", ARIZONA_NOISE_GATE_SELECT_5R),
@@ -879,7 +974,7 @@ static const struct snd_kcontrol_new marley_memory_mux[] = {
 };
 
 static const char * const marley_aec_loopback_texts[] = {
-	"HPOUTL", "HPOUTR", "SPKOUT", "SPKDATL", "SPKDATR",
+	"OUT1L", "OUT1R", "SPKOUT", "SPKDATL", "SPKDATR",
 };
 
 static const unsigned int marley_aec_loopback_values[] = {
@@ -923,6 +1018,8 @@ SND_SOC_DAPM_INPUT("IN2R"),
 
 SND_SOC_DAPM_MUX("IN1L Mux", SND_SOC_NOPM, 0, 0, &marley_in1mux[0]),
 SND_SOC_DAPM_MUX("IN1R Mux", SND_SOC_NOPM, 0, 0, &marley_in1mux[1]),
+
+SND_SOC_DAPM_DEMUX("OUT1 Demux", SND_SOC_NOPM, 0, 0, &marley_outdemux),
 
 SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
@@ -1164,8 +1261,8 @@ ARIZONA_MIXER_WIDGETS(LHPF4, "LHPF4"),
 ARIZONA_MIXER_WIDGETS(PWM1, "PWM1"),
 ARIZONA_MIXER_WIDGETS(PWM2, "PWM2"),
 
-ARIZONA_MIXER_WIDGETS(OUT1L, "HPOUTL"),
-ARIZONA_MIXER_WIDGETS(OUT1R, "HPOUTR"),
+ARIZONA_MIXER_WIDGETS(OUT1L, "OUT1L"),
+ARIZONA_MIXER_WIDGETS(OUT1R, "OUT1R"),
 ARIZONA_MIXER_WIDGETS(SPKOUT, "SPKOUT"),
 ARIZONA_MIXER_WIDGETS(SPKDAT1L, "SPKDATL"),
 ARIZONA_MIXER_WIDGETS(SPKDAT1R, "SPKDATR"),
@@ -1227,6 +1324,8 @@ ARIZONA_MUX_WIDGETS(ISRC2INT4, "ISRC2INT4"),
 
 SND_SOC_DAPM_OUTPUT("HPOUTL"),
 SND_SOC_DAPM_OUTPUT("HPOUTR"),
+SND_SOC_DAPM_OUTPUT("EPOUTP"),
+SND_SOC_DAPM_OUTPUT("EPOUTN"),
 SND_SOC_DAPM_OUTPUT("SPKOUTN"),
 SND_SOC_DAPM_OUTPUT("SPKOUTP"),
 SND_SOC_DAPM_OUTPUT("SPKDATL"),
@@ -1433,8 +1532,8 @@ static const struct snd_soc_dapm_route marley_dapm_routes[] = {
 	{ "IN2L PGA", NULL, "IN2L" },
 	{ "IN2R PGA", NULL, "IN2R" },
 
-	ARIZONA_MIXER_ROUTES("OUT1L", "HPOUTL"),
-	ARIZONA_MIXER_ROUTES("OUT1R", "HPOUTR"),
+	ARIZONA_MIXER_ROUTES("OUT1L", "OUT1L"),
+	ARIZONA_MIXER_ROUTES("OUT1R", "OUT1R"),
 
 	ARIZONA_MIXER_ROUTES("OUT4L", "SPKOUT"),
 
@@ -1515,14 +1614,19 @@ static const struct snd_soc_dapm_route marley_dapm_routes[] = {
 	ARIZONA_MUX_ROUTES("ISRC2DEC3", "ISRC2DEC3"),
 	ARIZONA_MUX_ROUTES("ISRC2DEC4", "ISRC2DEC4"),
 
-	{ "AEC Loopback", "HPOUTL", "OUT1L" },
-	{ "AEC Loopback", "HPOUTR", "OUT1R" },
-	{ "HPOUTL", NULL, "OUT1L" },
-	{ "HPOUTR", NULL, "OUT1R" },
+	{ "AEC Loopback", "OUT1L", "OUT1L" },
+	{ "AEC Loopback", "OUT1R", "OUT1R" },
+	{ "OUT1 Demux", NULL, "OUT1L" },
+	{ "OUT1 Demux", NULL, "OUT1R" },
 
 	{ "AEC Loopback", "SPKOUT", "OUT4L" },
 	{ "SPKOUTN", NULL, "OUT4L" },
 	{ "SPKOUTP", NULL, "OUT4L" },
+
+	{ "HPOUTL", "HPOUT", "OUT1 Demux" },
+	{ "HPOUTR", "HPOUT", "OUT1 Demux" },
+	{ "EPOUTP", "EPOUT", "OUT1 Demux" },
+	{ "EPOUTN", "EPOUT", "OUT1 Demux" },
 
 	{ "AEC Loopback", "SPKDATL", "OUT5L" },
 	{ "AEC Loopback", "SPKDATR", "OUT5R" },
