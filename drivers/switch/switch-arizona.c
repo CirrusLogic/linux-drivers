@@ -2986,6 +2986,28 @@ static int arizona_extcon_of_get_pdata(struct arizona *arizona)
 	if (pdata->hs_mic > ARIZONA_MAX_INPUT)
 		pdata->hs_mic = 0;
 
+	pdata->hpd_l_pins.clamp_pin = MOON_HPD_OUT_OUT1L;
+	pdata->hpd_l_pins.impd_pin = MOON_HPD_SENSE_HPDET1;
+	of_property_read_u32_index(arizona->dev->of_node,
+		"wlf,hpd-left-pins", 0,
+		&(pdata->hpd_l_pins.clamp_pin));
+	of_property_read_u32_index(arizona->dev->of_node,
+		"wlf,hpd-left-pins", 1,
+		&(pdata->hpd_l_pins.impd_pin));
+
+	pdata->hpd_r_pins.clamp_pin = MOON_HPD_OUT_OUT1R;
+	pdata->hpd_r_pins.impd_pin = MOON_HPD_SENSE_HPDET1;
+	of_property_read_u32_index(arizona->dev->of_node,
+		"wlf,hpd-right-pins", 0,
+		&(pdata->hpd_r_pins.clamp_pin));
+	of_property_read_u32_index(arizona->dev->of_node,
+		"wlf,hpd-right-pins", 1,
+		&(pdata->hpd_r_pins.impd_pin));
+
+	pdata->moisture_pin = MOON_HPD_SENSE_JD2;
+	arizona_of_read_u32(arizona, "wlf,moisture-detect-pin", false,
+		&pdata->moisture_pin);
+
 	return 0;
 }
 #else
