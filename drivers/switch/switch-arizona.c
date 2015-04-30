@@ -185,6 +185,7 @@ struct arizona_extcon_info {
 	int button_impedance;
 	int button_check;
 	bool wait_for_mic;
+	int accdet_ip;
 };
 
 static const struct arizona_micd_config micd_default_modes[] = {
@@ -3422,6 +3423,24 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	default:
 		info->micd_clamp = true;
 		info->hpdet_ip_version = 2;
+		break;
+	}
+
+	switch (arizona->type) {
+	case WM5102:
+	case WM5110:
+	case WM8997:
+	case WM8280:
+	case WM8998:
+	case WM1814:
+	case WM8285:
+	case WM1840:
+	case WM1831:
+	case CS47L24:
+		info->accdet_ip = 0;
+		break;
+	default:
+		info->accdet_ip = 1;
 		break;
 	}
 
