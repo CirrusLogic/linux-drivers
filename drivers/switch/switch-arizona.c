@@ -478,6 +478,29 @@ static const char *arizona_extcon_get_micbias(struct arizona_extcon_info *info)
 		default:
 			return "MICVDD";
 		}
+	case CS47L90:
+	case CS47L91:
+		switch (info->micd_modes[0].bias) {
+		case 0:
+			return "MICBIAS1A";
+		case 1:
+			return "MICBIAS1B";
+		case 2:
+			return "MICBIAS1C";
+		case 3:
+			return "MICBIAS1D";
+		case 4:
+			return "MICBIAS2A";
+		case 5:
+			return "MICBIAS2B";
+		case 6:
+			return "MICBIAS2C";
+		case 7:
+			return "MICBIAS2D";
+		default:
+			return "MICVDD";
+		}
+		break;
 	default:
 		switch (info->micd_modes[0].bias) {
 		case 1:
