@@ -95,6 +95,11 @@ struct arizona_micd_range {
 	int key;  /** Key to report to input layer */
 };
 
+struct arizona_hpd_pins {
+	unsigned int clamp_pin;
+	unsigned int impd_pin;
+};
+
 struct arizona_pdata {
 	int reset;      /** GPIO controlling /RESET, if any */
 	int ldoena;     /** GPIO controlling LODENA, if any */
@@ -249,6 +254,24 @@ struct arizona_pdata {
 	/** Headset polarity configurations */
 	struct arizona_micd_config *micd_configs;
 	int num_micd_configs;
+
+	/**
+	* [clamp_pin, impedance_measurement_pin] for HPL
+	* of 3.5mm Jack
+	*/
+	struct arizona_hpd_pins hpd_l_pins;
+
+	/**
+	* [clamp_pin, impedance_measurement_pin] for HPR
+	* of 3.5mm Jack
+	*/
+	struct arizona_hpd_pins hpd_r_pins;
+
+	/**
+	* impedance_measurement_pin for
+	* detecting moisture
+	*/
+	unsigned int moisture_pin;
 
 	/** Reference voltage for DMIC inputs */
 	int dmic_ref[ARIZONA_MAX_INPUT];
