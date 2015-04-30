@@ -391,6 +391,14 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 			edre_val = 0;
 		}
 		break;
+	case CS47L90:
+	case CS47L91:
+		mask = MOON_HPD_OVD_ENA_SEL_MASK;
+		if (clamp)
+			val = MOON_HPD_OVD_ENA_SEL_MASK;
+		else
+			val = 0;
+		break;
 	default:
 		mask = 0;
 		break;
@@ -419,17 +427,26 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 	}
 
 	if (mask) {
-		ret = regmap_update_bits(arizona->regmap, ARIZONA_HP_CTRL_1L,
-					 mask, val);
-		if (ret != 0)
-			dev_warn(arizona->dev, "Failed to do clamp: %d\n",
-				 ret);
-
-		ret = regmap_update_bits(arizona->regmap, ARIZONA_HP_CTRL_1R,
-					 mask, val);
-		if (ret != 0)
-			dev_warn(arizona->dev, "Failed to do clamp: %d\n",
-				 ret);
+		if (info->accdet_ip == 1) {
+			ret = regmap_update_bits(arizona->regmap,
+					MOON_HEADPHONE_DETECT_0,
+					MOON_HPD_OVD_ENA_SEL_MASK,
+					val);
+			if (ret != 0)
+				dev_warn(arizona->dev, "Failed to do clamp: %d\n",
+					ret);
+		} else {
+			ret = regmap_update_bits(arizona->regmap,
+					ARIZONA_HP_CTRL_1L, mask, val);
+			if (ret != 0)
+				dev_warn(arizona->dev, "Failed to do clamp: %d\n",
+					ret);
+			ret = regmap_update_bits(arizona->regmap,
+					ARIZONA_HP_CTRL_1R, mask, val);
+			if (ret != 0)
+				dev_warn(arizona->dev, "Failed to do clamp: %d\n",
+					ret);
+		}
 	}
 
 	/* Restore the desired state while not doing the clamp */
