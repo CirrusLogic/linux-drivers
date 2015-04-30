@@ -739,15 +739,31 @@ static int arizona_hpdet_d_calibrate(const struct arizona_extcon_info *info,
 static int arizona_hpdet_read(struct arizona_extcon_info *info)
 {
 	struct arizona *arizona = info->arizona;
-	unsigned int val, range;
+	unsigned int val, range, sense_pin;
 	int ret;
 	unsigned int val_down;
+	bool is_jdx_micdetx_pin = false;
 
 	ret = regmap_read(arizona->regmap, ARIZONA_HEADPHONE_DETECT_2, &val);
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to read HPDET status: %d\n",
 			ret);
 		return ret;
+	}
+
+	if (info->accdet_ip == 1) {
+		regmap_read(arizona->regmap, MOON_HEADPHONE_DETECT_0,
+				&sense_pin);
+		sense_pin = (sense_pin & MOON_HPD_SENSE_SEL_MASK)
+				>> MOON_HPD_SENSE_SEL_SHIFT;
+		switch (sense_pin) {
+		case MOON_HPD_SENSE_HPDET1:
+		case MOON_HPD_SENSE_HPDET2:
+			is_jdx_micdetx_pin = false;
+			break;
+		default:
+			is_jdx_micdetx_pin = true;;
+		}
 	}
 
 	switch (info->hpdet_ip_version) {
@@ -825,6 +841,9 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		/* Convert to ohms, the value is in 0.5 ohm increments */
 		val /= 2;
 
+		if (is_jdx_micdetx_pin)
+			goto exit;
+
 		regmap_read(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
 			    &range);
 		range = (range & ARIZONA_HP_IMPEDANCE_RANGE_MASK)
@@ -862,6 +881,9 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 
 		val &= ARIZONA_HP_LVL_B_MASK;
 		val /= 2;
+
+		if (is_jdx_micdetx_pin)
+			goto exit;
 
 		regmap_read(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
 			    &range);
@@ -927,9 +949,8 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		}
 	}
 
+exit:
 	dev_dbg(arizona->dev, "HP impedance %d ohms\n", val);
-
-
 	return val;
 }
 
@@ -1228,6 +1249,7 @@ int arizona_hpdet_start(struct arizona_extcon_info *info)
 {
 	struct arizona *arizona = info->arizona;
 	int ret;
+	unsigned int hpd_sense, hpd_clamp, val, hpd_gnd;
 
 	dev_dbg(arizona->dev, "Starting HPDET\n");
 
@@ -1244,16 +1266,45 @@ int arizona_hpdet_start(struct arizona_extcon_info *info)
 	/* Make sure we keep the device enabled during the measurement */
 	pm_runtime_get_sync(info->dev);
 
-	arizona_extcon_hp_clamp(info, true);
+	if (info->accdet_ip == 1) {
+		if (info->state->mode == ARIZONA_ACCDET_MODE_HPL) {
+			hpd_clamp = arizona->pdata.hpd_l_pins.clamp_pin;
+			hpd_sense = arizona->pdata.hpd_l_pins.impd_pin;
+		} else {
+			hpd_clamp = arizona->pdata.hpd_r_pins.clamp_pin;
+			hpd_sense = arizona->pdata.hpd_r_pins.impd_pin;
+		}
 
-	ret = regmap_update_bits(arizona->regmap,
-				 ARIZONA_ACCESSORY_DETECT_MODE_1,
-				 ARIZONA_ACCDET_MODE_MASK,
-				 info->state->mode);
-	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to set HPDET mode (%d): %d\n",
-			info->state->mode, ret);
-		goto err;
+		hpd_gnd = info->micd_modes[info->micd_mode].gnd;
+
+		val = (hpd_sense << MOON_HPD_SENSE_SEL_SHIFT) |
+				(hpd_clamp << MOON_HPD_OUT_SEL_SHIFT) |
+				(hpd_sense << MOON_HPD_FRC_SEL_SHIFT) |
+				(hpd_gnd << MOON_HPD_GND_SEL_SHIFT);
+		ret = regmap_update_bits(arizona->regmap,
+				MOON_HEADPHONE_DETECT_0,
+				MOON_HPD_GND_SEL_MASK |
+				MOON_HPD_SENSE_SEL_MASK |
+				MOON_HPD_FRC_SEL_MASK |
+				MOON_HPD_OUT_SEL_MASK,
+				val);
+		if (ret != 0) {
+			dev_err(arizona->dev, "Failed to set HPDET sense: %d\n",
+				ret);
+			goto err;
+		}
+		arizona_extcon_hp_clamp(info, true);
+	} else {
+		arizona_extcon_hp_clamp(info, true);
+		ret = regmap_update_bits(arizona->regmap,
+					 ARIZONA_ACCESSORY_DETECT_MODE_1,
+					 ARIZONA_ACCDET_MODE_MASK,
+					 info->state->mode);
+		if (ret != 0) {
+			dev_err(arizona->dev, "Failed to set HPDET mode (%d): %d\n",
+				info->state->mode, ret);
+			goto err;
+		}
 	}
 
 	ret = regmap_update_bits(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
@@ -1302,10 +1353,12 @@ void arizona_hpdet_stop(struct arizona_extcon_info *info)
 			   ARIZONA_HP_IMPEDANCE_RANGE_MASK |
 			   ARIZONA_HP_POLL, 0);
 
-	/* Reset to default mode */
-	regmap_update_bits(arizona->regmap,
-			   ARIZONA_ACCESSORY_DETECT_MODE_1,
-			   ARIZONA_ACCDET_MODE_MASK, 0);
+	if (info->accdet_ip != 1) {
+		/* Reset to default mode */
+		regmap_update_bits(arizona->regmap,
+				   ARIZONA_ACCESSORY_DETECT_MODE_1,
+				   ARIZONA_ACCDET_MODE_MASK, 0);
+	}
 
 	arizona_extcon_hp_clamp(info, false);
 
@@ -1317,7 +1370,8 @@ EXPORT_SYMBOL_GPL(arizona_hpdet_stop);
 static int arizona_hpdet_moisture_start(struct arizona_extcon_info *info)
 {
 	struct arizona *arizona = info->arizona;
-	int ret;
+	int ret = 0;
+	unsigned int hpd_sense, hpd_gnd, val;
 
 	switch (arizona->type) {
 	case WM5102:
@@ -1344,10 +1398,45 @@ static int arizona_hpdet_moisture_start(struct arizona_extcon_info *info)
 		break;
 	}
 
-	ret = arizona_hpdet_start(info);
+	if (info->accdet_ip == 1) {
+		/* Make sure we keep the device enabled
+		   during the measurement */
+		pm_runtime_get_sync(info->dev);
 
-	arizona_extcon_hp_clamp(info, false);
+		hpd_sense = arizona->pdata.moisture_pin;
+		hpd_gnd = info->micd_modes[info->micd_mode].gnd;
 
+		val = (hpd_sense << MOON_HPD_SENSE_SEL_SHIFT) |
+				(hpd_sense << MOON_HPD_FRC_SEL_SHIFT) |
+				(hpd_gnd << MOON_HPD_GND_SEL_SHIFT);
+		ret = regmap_update_bits(arizona->regmap,
+				MOON_HEADPHONE_DETECT_0,
+				MOON_HPD_GND_SEL_MASK |
+				MOON_HPD_SENSE_SEL_MASK |
+				MOON_HPD_FRC_SEL_MASK,
+				val);
+		if (ret != 0) {
+			dev_err(arizona->dev, "Failed to set HPDET sense: %d\n",
+				ret);
+			goto err;
+		}
+
+		ret = regmap_update_bits(arizona->regmap,
+				ARIZONA_HEADPHONE_DETECT_1,
+				ARIZONA_HP_POLL, ARIZONA_HP_POLL);
+		if (ret != 0) {
+			dev_err(arizona->dev, "Can't start HPDET measurement: %d\n",
+				ret);
+			goto err;
+		}
+	} else {
+		ret = arizona_hpdet_start(info);
+		arizona_extcon_hp_clamp(info, false);
+	}
+
+	return ret;
+err:
+	pm_runtime_put_autosuspend(info->dev);
 	return ret;
 }
 
@@ -1355,7 +1444,18 @@ static void arizona_hpdet_moisture_stop(struct arizona_extcon_info *info)
 {
 	struct arizona *arizona = info->arizona;
 
-	arizona_hpdet_stop(info);
+	if (info->accdet_ip == 1) {
+		/* Reset back to starting range */
+		regmap_update_bits(arizona->regmap,
+				   ARIZONA_HEADPHONE_DETECT_1,
+				   ARIZONA_HP_IMPEDANCE_RANGE_MASK |
+				   ARIZONA_HP_POLL, 0);
+
+		pm_runtime_mark_last_busy(info->dev);
+		pm_runtime_put_autosuspend(info->dev);
+	} else {
+		arizona_hpdet_stop(info);
+	}
 
 	switch (arizona->type) {
 	case WM5102:
@@ -2217,7 +2317,6 @@ static int arizona_hpdet_acc_id_reading(struct arizona_extcon_info *info,
 				   ARIZONA_ACCDET_MODE_MASK,
 				   info->micd_modes[0].src |
 				   ARIZONA_ACCDET_MODE_HPR);
-
 		gpio_set_value_cansleep(id_gpio, 1);
 
 		return -EAGAIN;
@@ -2268,6 +2367,9 @@ static int arizona_hpdet_acc_id_start(struct arizona_extcon_info *info)
 	int hp_reading = 32;
 	int ret;
 
+	if (info->accdet_ip == 1)
+		return -EINVAL;
+
 	dev_dbg(arizona->dev, "Starting identification via HPDET\n");
 
 	/* Make sure we keep the device enabled during the measurement */
@@ -2309,7 +2411,6 @@ err:
 	arizona_extcon_hp_clamp(info, false);
 
 	pm_runtime_put_autosuspend(info->dev);
-
 	/* Just report headphone */
 	arizona_extcon_report(info, BIT_HEADSET_NO_MIC);
 
