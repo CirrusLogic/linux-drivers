@@ -189,8 +189,15 @@ struct arizona_extcon_info {
 };
 
 static const struct arizona_micd_config micd_default_modes[] = {
-	{ ARIZONA_ACCDET_SRC, 1, 0 },
-	{ 0,                  2, 1 },
+	{ ARIZONA_ACCDET_SRC, ARIZONA_ACCDET_SRC, 1, 0 },
+	{ 0,                  0,                  2, 1 },
+};
+
+static const struct arizona_micd_config moon_micd_default_modes[] = {
+	{ MOON_MICD1_SENSE_MICDET1, MOON_MICD1_SENSE_MICDET2,
+	  MOON_MICD_BIAS_SRC_MICBIAS1A, 0 },
+	{ MOON_MICD1_SENSE_MICDET2, MOON_MICD1_SENSE_MICDET1,
+	  MOON_MICD_BIAS_SRC_MICBIAS1B, 1 },
 };
 
 static struct arizona_micd_range micd_default_ranges[] = {
@@ -450,12 +457,33 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 	if (arizona->pdata.micd_pol_gpio > 0)
 		gpio_set_value_cansleep(arizona->pdata.micd_pol_gpio,
 					info->micd_modes[mode].gpio);
-	regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
-			   ARIZONA_MICD_BIAS_SRC_MASK,
-			   info->micd_modes[mode].bias <<
-			   ARIZONA_MICD_BIAS_SRC_SHIFT);
-	regmap_update_bits(arizona->regmap, ARIZONA_ACCESSORY_DETECT_MODE_1,
-			   ARIZONA_ACCDET_SRC, info->micd_modes[mode].src);
+
+	if (info->accdet_ip == 1) {
+		regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
+			MOON_MICD_BIAS_SRC_MASK,
+			info->micd_modes[mode].bias <<
+			MOON_MICD_BIAS_SRC_SHIFT);
+		regmap_update_bits(arizona->regmap, MOON_MIC_DETECT_0,
+			MOON_MICD1_SENSE_MASK,
+			info->micd_modes[mode].src <<
+			MOON_MICD1_SENSE_SHIFT);
+		regmap_update_bits(arizona->regmap, MOON_MIC_DETECT_0,
+			MOON_MICD1_GND_MASK,
+			info->micd_modes[mode].gnd <<
+			MOON_MICD1_GND_SHIFT);
+		regmap_update_bits(arizona->regmap, MOON_OUT1_CONFIG,
+			MOON_HP1_GND_SEL_MASK,
+			info->micd_modes[mode].gnd <<
+			MOON_HP1_GND_SEL_SHIFT);
+	} else {
+		regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
+			ARIZONA_MICD_BIAS_SRC_MASK,
+			info->micd_modes[mode].bias <<
+			ARIZONA_MICD_BIAS_SRC_SHIFT);
+		regmap_update_bits(arizona->regmap,
+			ARIZONA_ACCESSORY_DETECT_MODE_1,
+			ARIZONA_ACCDET_SRC, info->micd_modes[mode].src);
+	}
 
 	info->micd_mode = mode;
 
@@ -3513,8 +3541,14 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		info->micd_modes = pdata->micd_configs;
 		info->micd_num_modes = pdata->num_micd_configs;
 	} else {
-		info->micd_modes = micd_default_modes;
-		info->micd_num_modes = ARRAY_SIZE(micd_default_modes);
+		if (info->accdet_ip == 1) {
+			info->micd_modes = moon_micd_default_modes;
+			info->micd_num_modes =
+				ARRAY_SIZE(moon_micd_default_modes);
+		} else {
+			info->micd_modes = micd_default_modes;
+			info->micd_num_modes = ARRAY_SIZE(micd_default_modes);
+		}
 	}
 
 	switch (arizona->type) {
