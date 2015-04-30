@@ -1443,6 +1443,7 @@ int arizona_micd_start(struct arizona_extcon_info *info)
 {
 	struct arizona *arizona = info->arizona;
 	int ret;
+	unsigned int micd_mode;
 
 	/* Microphone detection can't use idle mode */
 	pm_runtime_get_sync(info->dev);
@@ -1479,8 +1480,20 @@ int arizona_micd_start(struct arizona_extcon_info *info)
 		mutex_unlock(&arizona->reg_setting_lock);
 	}
 
-	regmap_update_bits(arizona->regmap, ARIZONA_ACCESSORY_DETECT_MODE_1,
-			   ARIZONA_ACCDET_MODE_MASK, info->state->mode);
+	if (info->accdet_ip == 1) {
+		if (info->state->mode == ARIZONA_ACCDET_MODE_ADC)
+			micd_mode = MOON_MICD1_ADC_MODE_MASK;
+		else
+			micd_mode = 0;
+
+		regmap_update_bits(arizona->regmap, MOON_MIC_DETECT_0,
+			MOON_MICD1_ADC_MODE_MASK, micd_mode);
+	} else {
+		regmap_update_bits(arizona->regmap,
+			ARIZONA_ACCESSORY_DETECT_MODE_1,
+			ARIZONA_ACCDET_MODE_MASK, info->state->mode);
+	}
+
 
 	arizona_extcon_pulse_micbias(info);
 
@@ -1521,10 +1534,12 @@ void arizona_micd_stop(struct arizona_extcon_info *info)
 		mutex_unlock(&arizona->reg_setting_lock);
 	}
 
-	/* Reset to default mode */
-	regmap_update_bits(arizona->regmap,
-			   ARIZONA_ACCESSORY_DETECT_MODE_1,
-			   ARIZONA_ACCDET_MODE_MASK, 0);
+	if (info->accdet_ip != 1) {
+		/* Reset to default mode */
+		regmap_update_bits(arizona->regmap,
+				   ARIZONA_ACCESSORY_DETECT_MODE_1,
+				   ARIZONA_ACCDET_MODE_MASK, 0);
+	}
 
 	regulator_disable(info->micvdd);
 
