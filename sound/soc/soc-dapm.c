@@ -63,6 +63,7 @@ static int dapm_up_seq[] = {
 	[snd_soc_dapm_mux] = 5,
 	[snd_soc_dapm_virt_mux] = 5,
 	[snd_soc_dapm_value_mux] = 5,
+	[snd_soc_dapm_demux] = 5,
 	[snd_soc_dapm_dac] = 6,
 	[snd_soc_dapm_mixer] = 7,
 	[snd_soc_dapm_mixer_named_ctl] = 7,
@@ -91,6 +92,7 @@ static int dapm_down_seq[] = {
 	[snd_soc_dapm_mux] = 9,
 	[snd_soc_dapm_virt_mux] = 9,
 	[snd_soc_dapm_value_mux] = 9,
+	[snd_soc_dapm_demux] = 9,
 	[snd_soc_dapm_aif_in] = 10,
 	[snd_soc_dapm_aif_out] = 10,
 	[snd_soc_dapm_dai_in] = 10,
@@ -434,7 +436,8 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 		p->connect = !!val;
 	}
 	break;
-	case snd_soc_dapm_mux: {
+	case snd_soc_dapm_mux:
+	case snd_soc_dapm_demux: {
 		struct soc_enum *e = (struct soc_enum *)
 			w->kcontrol_news[i].private_value;
 		int val, item;
@@ -530,7 +533,10 @@ static int dapm_connect_mux(struct snd_soc_dapm_context *dapm,
 			list_add(&path->list_sink, &dest->sources);
 			list_add(&path->list_source, &src->sinks);
 			path->name = (char*)e->texts[i];
-			dapm_set_path_status(dest, path, 0);
+			if (src->id == snd_soc_dapm_demux)
+				dapm_set_path_status(src, path, 0);
+			else
+				dapm_set_path_status(dest, path, 0);
 			return 0;
 		}
 	}
@@ -634,6 +640,7 @@ static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
 			case snd_soc_dapm_mux:
 			case snd_soc_dapm_virt_mux:
 			case snd_soc_dapm_value_mux:
+			case snd_soc_dapm_demux:
 				wname_in_long_name = true;
 				kcname_in_long_name = false;
 				break;
@@ -738,20 +745,38 @@ static int dapm_new_mixer(struct snd_soc_dapm_widget *w)
 static int dapm_new_mux(struct snd_soc_dapm_widget *w)
 {
 	struct snd_soc_dapm_context *dapm = w->dapm;
-	struct snd_soc_dapm_path *path;
+	struct snd_soc_dapm_path *path = NULL;
+	const char *type;
 	int ret;
+
+	switch (w->id) {
+	case snd_soc_dapm_mux:
+	case snd_soc_dapm_virt_mux:
+	case snd_soc_dapm_value_mux:
+		type = "mux";
+		break;
+	case snd_soc_dapm_demux:
+		type = "demux";
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	if (w->num_kcontrols != 1) {
 		dev_err(dapm->dev,
-			"ASoC: mux %s has incorrect number of controls\n",
+			"ASoC: %s %s has incorrect number of controls\n", type,
 			w->name);
 		return -EINVAL;
 	}
 
-	path = list_first_entry(&w->sources, struct snd_soc_dapm_path,
+	if (w->id == snd_soc_dapm_demux)
+		path = list_first_entry(&w->sinks, struct snd_soc_dapm_path,
+				list_source);
+	else
+		path = list_first_entry(&w->sources, struct snd_soc_dapm_path,
 				list_sink);
 	if (!path) {
-		dev_err(dapm->dev, "ASoC: mux %s has no paths\n", w->name);
+		dev_err(dapm->dev, "ASoC: %s %s has no paths\n", type, w->name);
 		return -EINVAL;
 	}
 
@@ -759,9 +784,16 @@ static int dapm_new_mux(struct snd_soc_dapm_widget *w)
 	if (ret < 0)
 		return ret;
 
-	list_for_each_entry(path, &w->sources, list_sink) {
-		path->kcontrol = w->kcontrols[0];
-		dapm_kcontrol_add_path(w->kcontrols[0], path);
+	if (w->id == snd_soc_dapm_demux) {
+		list_for_each_entry(path, &w->sinks, list_source) {
+			path->kcontrol = w->kcontrols[0];
+			dapm_kcontrol_add_path(w->kcontrols[0], path);
+		}
+	} else {
+		list_for_each_entry(path, &w->sources, list_sink) {
+			path->kcontrol = w->kcontrols[0];
+			dapm_kcontrol_add_path(w->kcontrols[0], path);
+		}
 	}
 
 	return 0;
@@ -1999,7 +2031,8 @@ static int soc_dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
 
 	if (widget->id != snd_soc_dapm_mux &&
 	    widget->id != snd_soc_dapm_virt_mux &&
-	    widget->id != snd_soc_dapm_value_mux)
+	    widget->id != snd_soc_dapm_value_mux &&
+	    widget->id != snd_soc_dapm_demux)
 		return -ENODEV;
 
 	/* find dapm widget path assoc with kcontrol */
@@ -2259,6 +2292,53 @@ int snd_soc_dapm_sync(struct snd_soc_dapm_context *dapm)
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_sync);
 
+static int snd_soc_dapm_check_dynamic_path(struct snd_soc_dapm_context *dapm,
+	struct snd_soc_dapm_widget *source, struct snd_soc_dapm_widget *sink,
+	const char *control)
+{
+	bool dynamic_source = false;
+	bool dynamic_sink = false;
+
+	if (!control)
+		return 0;
+
+	switch (source->id) {
+	case snd_soc_dapm_demux:
+		dynamic_source = true;
+		break;
+	default:
+		break;
+	}
+
+	switch (sink->id) {
+	case snd_soc_dapm_mux:
+	case snd_soc_dapm_virt_mux:
+	case snd_soc_dapm_value_mux:
+	case snd_soc_dapm_switch:
+	case snd_soc_dapm_mixer:
+	case snd_soc_dapm_mixer_named_ctl:
+		dynamic_sink = true;
+		break;
+	default:
+		break;
+	}
+
+	if (dynamic_source && dynamic_sink) {
+		dev_err(dapm->dev,
+			"Direct connection between demux and mixer/mux not " \
+			"supported for path %s -> [%s] -> %s\n",
+			source->name, control, sink->name);
+		return -EINVAL;
+	} else if (!dynamic_source && !dynamic_sink) {
+		dev_err(dapm->dev,
+			"Control not supported for path %s -> [%s] -> %s\n",
+			source->name, control, sink->name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 				  const struct snd_soc_dapm_route *route)
 {
@@ -2354,6 +2434,19 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 		return 0;
 	}
 
+	ret = snd_soc_dapm_check_dynamic_path(dapm, wsource, wsink, control);
+
+	if (ret)
+		goto dynamic_path_err;
+
+	if (wsource->id == snd_soc_dapm_demux) {
+		ret = dapm_connect_mux(dapm, wsource, wsink, path, control,
+				&wsource->kcontrol_news[0]);
+		if (ret != 0)
+			goto err;
+		goto end;
+	}
+
 	/* connect dynamic paths */
 	switch (wsink->id) {
 	case snd_soc_dapm_adc:
@@ -2375,6 +2468,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 	case snd_soc_dapm_dai_in:
 	case snd_soc_dapm_dai_out:
 	case snd_soc_dapm_dai_link:
+	case snd_soc_dapm_demux:
 		list_add(&path->list, &dapm->card->paths);
 		list_add(&path->list_sink, &wsink->sources);
 		list_add(&path->list_source, &wsource->sinks);
@@ -2406,6 +2500,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 		return 0;
 	}
 
+end:
 	dapm_mark_dirty(wsource, "Route added");
 	dapm_mark_dirty(wsink, "Route added");
 
@@ -2414,6 +2509,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 err:
 	dev_warn(dapm->dev, "ASoC: no dapm match for %s --> %s --> %s\n",
 		 source, control, sink);
+dynamic_path_err:
 	kfree(path);
 	return ret;
 }
@@ -2650,6 +2746,7 @@ int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
 		case snd_soc_dapm_mux:
 		case snd_soc_dapm_virt_mux:
 		case snd_soc_dapm_value_mux:
+		case snd_soc_dapm_demux:
 			dapm_new_mux(w);
 			break;
 		case snd_soc_dapm_pga:
@@ -3180,6 +3277,7 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 	case snd_soc_dapm_mux:
 	case snd_soc_dapm_virt_mux:
 	case snd_soc_dapm_value_mux:
+	case snd_soc_dapm_demux:
 		w->power_check = dapm_generic_check_power;
 		break;
 	case snd_soc_dapm_adc:
