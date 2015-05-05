@@ -185,6 +185,7 @@ struct arizona {
 #endif
 
 	struct mutex rate_lock;
+	struct mutex dspclk_ena_lock;
 };
 
 #define ARIZONA_DVFS_SR1_RQ          0x00000001
