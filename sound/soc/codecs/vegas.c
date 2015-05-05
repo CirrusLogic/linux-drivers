@@ -98,8 +98,10 @@ static int vegas_asrc_ev(struct snd_soc_dapm_widget *w,
 		val >>= ARIZONA_ASRC_RATE1_SHIFT;
 
 		val = snd_soc_read(w->codec, ARIZONA_SAMPLE_RATE_1 + val);
-		if (val >= 0x11)
+		if (val >= 0x11) {
 			dev_warn(w->codec->dev, "Unsupported ASRC rate1\n");
+			return -EINVAL;
+		}
 
 		val = snd_soc_read(w->codec, ARIZONA_ASRC_RATE2);
 		val &= ARIZONA_ASRC_RATE2_MASK;
@@ -107,8 +109,10 @@ static int vegas_asrc_ev(struct snd_soc_dapm_widget *w,
 		val -= 0x8;
 
 		val = snd_soc_read(w->codec, ARIZONA_ASYNC_SAMPLE_RATE_1 + val);
-		if (val >= 0x11)
+		if (val >= 0x11) {
 			dev_warn(w->codec->dev, "Unsupported ASRC rate2\n");
+			return -EINVAL;
+		}
 		break;
 	default:
 		return -EINVAL;
