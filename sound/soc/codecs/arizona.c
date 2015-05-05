@@ -1534,6 +1534,19 @@ const unsigned int arizona_sample_rate_val[ARIZONA_SAMPLE_RATE_ENUM_SIZE] = {
 };
 EXPORT_SYMBOL_GPL(arizona_sample_rate_val);
 
+const char *arizona_sample_rate_val_to_name(unsigned int rate_val)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(arizona_sample_rate_val); ++i) {
+		if (arizona_sample_rate_val[i] == rate_val)
+			return arizona_sample_rate_text[i];
+	}
+
+	return "Illegal";
+}
+EXPORT_SYMBOL_GPL(arizona_sample_rate_val_to_name);
+
 const struct soc_enum arizona_sample_rate[] = {
 	SOC_VALUE_ENUM_SINGLE(ARIZONA_SAMPLE_RATE_2,
 			      ARIZONA_SAMPLE_RATE_2_SHIFT, 0x1f,

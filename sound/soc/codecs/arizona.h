@@ -481,4 +481,6 @@ arizona_get_extcon_info(struct snd_soc_codec *codec);
 extern int arizona_enable_force_bypass(struct snd_soc_codec *codec);
 extern int arizona_disable_force_bypass(struct snd_soc_codec *codec);
 
+extern const char *arizona_sample_rate_val_to_name(unsigned int rate_val);
+
 #endif

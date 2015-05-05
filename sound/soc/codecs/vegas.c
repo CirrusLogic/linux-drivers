@@ -97,22 +97,50 @@ static int vegas_asrc_ev(struct snd_soc_dapm_widget *w,
 		val &= ARIZONA_ASRC_RATE1_MASK;
 		val >>= ARIZONA_ASRC_RATE1_SHIFT;
 
-		val = snd_soc_read(w->codec, ARIZONA_SAMPLE_RATE_1 + val);
-		if (val >= 0x11) {
-			dev_warn(w->codec->dev, "Unsupported ASRC rate1\n");
+		switch (val) {
+		case 0:
+		case 1:
+		case 2:
+			val = snd_soc_read(w->codec,
+					   ARIZONA_SAMPLE_RATE_1 + val);
+			if (val >= 0x11) {
+				dev_warn(w->codec->dev,
+					 "Unsupported ASRC rate1 (%s)\n",
+					 arizona_sample_rate_val_to_name(val));
+			return -EINVAL;
+			}
+			break;
+		default:
+			dev_err(w->codec->dev,
+				"Illegal ASRC rate1 selector (0x%x)\n",
+				val);
 			return -EINVAL;
 		}
 
 		val = snd_soc_read(w->codec, ARIZONA_ASRC_RATE2);
 		val &= ARIZONA_ASRC_RATE2_MASK;
 		val >>= ARIZONA_ASRC_RATE2_SHIFT;
-		val -= 0x8;
 
-		val = snd_soc_read(w->codec, ARIZONA_ASYNC_SAMPLE_RATE_1 + val);
-		if (val >= 0x11) {
-			dev_warn(w->codec->dev, "Unsupported ASRC rate2\n");
+		switch (val) {
+		case 8:
+		case 9:
+			val -= 0x8;
+			val = snd_soc_read(w->codec,
+					   ARIZONA_ASYNC_SAMPLE_RATE_1 + val);
+			if (val >= 0x11) {
+				dev_warn(w->codec->dev,
+					 "Unsupported ASRC rate2 (%s)\n",
+					 arizona_sample_rate_val_to_name(val));
+				return -EINVAL;
+			}
+			break;
+		default:
+			dev_err(w->codec->dev,
+				"Illegal ASRC rate2 selector (0x%x)\n",
+				val);
 			return -EINVAL;
 		}
+
 		break;
 	default:
 		return -EINVAL;
