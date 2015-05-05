@@ -1692,6 +1692,7 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	mutex_init(&arizona->subsys_max_lock);
 	mutex_init(&arizona->reg_setting_lock);
 	mutex_init(&arizona->rate_lock);
+	mutex_init(&arizona->dspclk_ena_lock);
 
 	if (dev_get_platdata(arizona->dev))
 		memcpy(&arizona->pdata, dev_get_platdata(arizona->dev),
