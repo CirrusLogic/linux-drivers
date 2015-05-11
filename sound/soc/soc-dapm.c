@@ -368,6 +368,35 @@ static int soc_widget_update_bits_locked(struct snd_soc_dapm_widget *w,
 	return change;
 }
 
+static struct snd_soc_dapm_widget *
+dapm_wcache_lookup(struct snd_soc_dapm_wcache *wcache, const char *name)
+{
+	struct snd_soc_dapm_widget *w = wcache->widget;
+	struct list_head *wlist;
+	const int depth = 2;
+	int i = 0;
+
+	if (w) {
+		wlist = &w->dapm->card->widgets;
+
+		list_for_each_entry_from(w, wlist, list) {
+			if (!strcmp(name, w->name))
+				return w;
+
+			if (++i == depth)
+				break;
+		}
+	}
+
+	return NULL;
+}
+
+static inline void dapm_wcache_update(struct snd_soc_dapm_wcache *wcache,
+				      struct snd_soc_dapm_widget *w)
+{
+	wcache->widget = w;
+}
+
 /**
  * snd_soc_dapm_set_bias_level - set the bias level for the system
  * @dapm: DAPM context
@@ -2364,6 +2393,12 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 		source = route->source;
 	}
 
+	wsource = dapm_wcache_lookup(&dapm->path_source_cache, source);
+	wsink = dapm_wcache_lookup(&dapm->path_sink_cache, sink);
+
+	if (wsink && wsource)
+		goto skip_search;
+
 	/*
 	 * find src and dest widgets over all widgets but favor a widget from
 	 * current DAPM context
@@ -2403,6 +2438,10 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 			route->sink);
 		return -ENODEV;
 	}
+
+skip_search:
+	dapm_wcache_update(&dapm->path_sink_cache, wsink);
+	dapm_wcache_update(&dapm->path_source_cache, wsource);
 
 	path = kzalloc(sizeof(struct snd_soc_dapm_path), GFP_KERNEL);
 	if (!path)
