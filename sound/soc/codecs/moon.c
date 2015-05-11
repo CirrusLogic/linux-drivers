@@ -194,7 +194,7 @@ struct moon_compr {
 
 struct moon_priv {
 	struct arizona_priv core;
-	struct arizona_fll fll[2];
+	struct arizona_fll fll[3];
 	struct moon_compr compr_info;
 
 	struct mutex fw_lock;
@@ -2436,6 +2436,8 @@ static int moon_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 		return arizona_set_fll(&moon->fll[0], source, Fref, Fout);
 	case MOON_FLL2:
 		return arizona_set_fll(&moon->fll[1], source, Fref, Fout);
+	case MOON_FLLAO:
+		return arizona_set_fll_ao(&moon->fll[2], source, Fref, Fout);
 	case MOON_FLL1_REFCLK:
 		return arizona_set_fll_refclk(&moon->fll[0], source, Fref,
 					      Fout);
@@ -3101,6 +3103,9 @@ static int moon_probe(struct platform_device *pdev)
 	arizona_init_fll(arizona, 2, ARIZONA_FLL2_CONTROL_1 - 1,
 			 ARIZONA_IRQ_FLL2_LOCK, ARIZONA_IRQ_FLL2_CLOCK_OK,
 			 &moon->fll[1]);
+	arizona_init_fll(arizona, 4, MOON_FLLAO_CONTROL_1 - 1,
+			 MOON_IRQ_FLLAO_CLOCK_OK, MOON_IRQ_FLLAO_CLOCK_OK,
+			 &moon->fll[2]);
 
 	for (i = 0; i < ARRAY_SIZE(moon_dai); i++)
 		arizona_init_dai(&moon->core, i);

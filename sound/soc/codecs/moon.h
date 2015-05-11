@@ -19,5 +19,6 @@
 #define MOON_FLL2        2
 #define MOON_FLL1_REFCLK 3
 #define MOON_FLL2_REFCLK 4
+#define MOON_FLLAO       5
 
 #endif
