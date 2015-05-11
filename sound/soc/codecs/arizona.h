@@ -33,11 +33,13 @@
 #define ARIZONA_CLK_SRC_FLL1		0x4
 #define ARIZONA_CLK_SRC_FLL2		0x5
 #define ARIZONA_CLK_SRC_FLL3		0x6
+#define ARIZONA_CLK_SRC_FLLAO_HI	0x7
 #define CLEARWATER_CLK_SRC_FLL1_DIV6	0x7
 #define ARIZONA_CLK_SRC_AIF1BCLK	0x8
 #define ARIZONA_CLK_SRC_AIF2BCLK	0x9
 #define ARIZONA_CLK_SRC_AIF3BCLK	0xa
 #define ARIZONA_CLK_SRC_AIF4BCLK	0xb
+#define ARIZONA_CLK_SRC_FLLAO		0xF
 
 #define ARIZONA_FLL_SRC_NONE      -1
 #define ARIZONA_FLL_SRC_MCLK1      0
@@ -435,6 +437,8 @@ extern int arizona_set_fll_refclk(struct arizona_fll *fll, int source,
 				  unsigned int fin, unsigned int fout);
 extern int arizona_set_fll(struct arizona_fll *fll, int source,
 			   unsigned int fin, unsigned int fout);
+extern int arizona_set_fll_ao(struct arizona_fll *fll, int source,
+		    unsigned int fin, unsigned int fout);
 
 extern int arizona_init_spk(struct snd_soc_codec *codec);
 extern int arizona_init_gpio(struct snd_soc_codec *codec);

@@ -56,6 +56,9 @@
 
 #define ARIZONA_FLL_VCO_CORNER 141900000
 #define ARIZONA_FLL_MAX_FREF   13500000
+#define ARIZONA_FLLAO_MAX_FREF 12288000
+#define ARIZONA_FLLAO_MIN_N    4
+#define ARIZONA_FLLAO_MAX_N    1023
 #define ARIZONA_FLL_MIN_FVCO   90000000
 #define ARIZONA_FLL_MAX_FRATIO 16
 #define ARIZONA_FLL_MAX_REFDIV 8
@@ -175,6 +178,13 @@ static const int arizona_aif4_inputs[8] = {
 };
 
 static unsigned int arizona_aif_sources_cache[ARRAY_SIZE(arizona_aif1_inputs)];
+
+static const struct reg_sequence fll_ao_32K_patch[] = {
+	{ MOON_FLLAO_CONTROL_11, 0x0091 },
+	{ MOON_FLLAO_CONTROL_10, 0x06DA },
+	{ MOON_FLLAO_CONTROL_8,   0x0045 },
+	{ MOON_FLLAO_CONTROL_6,   0x8001 },
+};
 
 static int arizona_get_sources(struct arizona *arizona,
 			       struct snd_soc_dai *dai,
@@ -4597,6 +4607,195 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(arizona_set_fll);
+
+static int arizona_enable_fll_ao(struct arizona_fll *fll,
+	struct arizona_fll_cfg *cfg, const struct reg_sequence *patch,
+	unsigned int patch_size)
+{
+	struct arizona *arizona = fll->arizona;
+	int already_enabled = arizona_is_enabled_fll(fll);
+	unsigned int phasedet_ena;
+
+	if (already_enabled < 0)
+		return already_enabled;
+
+	arizona_fll_dbg(fll, "Enabling FLL, initially %s\n",
+			already_enabled ? "enabled" : "disabled");
+
+	if (already_enabled) {
+		/* Facilitate smooth refclk across the transition */
+		regmap_update_bits(fll->arizona->regmap, fll->base + 1,
+				   MOON_FLL_AO_HOLD, MOON_FLL_AO_HOLD);
+	} else {
+		regmap_update_bits(fll->arizona->regmap, fll->base + 1,
+				   MOON_FLL_AO_HOLD, 0);
+	}
+
+	if (patch) {
+		regmap_multi_reg_write(arizona->regmap, patch,
+			patch_size);
+	}
+
+	regmap_update_bits(arizona->regmap, fll->base + 3,
+			   MOON_FLL_AO_THETA_MASK, cfg->theta);
+	regmap_update_bits(arizona->regmap, fll->base + 4,
+			   MOON_FLL_AO_LAMBDA_MASK, cfg->lambda);
+	regmap_update_bits(arizona->regmap, fll->base + 5,
+			   MOON_FLL_AO_FB_DIV_MASK, cfg->fratio);
+	regmap_update_bits(arizona->regmap, fll->base + 6,
+			   MOON_FLL_AO_REFCLK_DIV_MASK |
+			   MOON_FLL_AO_REFCLK_SRC_MASK,
+			   cfg->refdiv << MOON_FLL_AO_REFCLK_DIV_SHIFT |
+			   fll->ref_src << MOON_FLL_AO_REFCLK_SRC_SHIFT);
+	regmap_update_bits(arizona->regmap, fll->base + 0x8,
+			   MOON_FLL_AO_GAIN_MASK, cfg->gain);
+
+	phasedet_ena = cfg->theta ? 0 : MOON_FLL_AO_PHASEDET_ENA_MASK;
+	regmap_update_bits(arizona->regmap, fll->base + 12,
+			   MOON_FLL_AO_PHASEDET_ENA_MASK, phasedet_ena);
+
+	regmap_update_bits(arizona->regmap, fll->base + 2,
+			   MOON_FLL_AO_CTRL_UPD_MASK | MOON_FLL_AO_N_MASK,
+			   MOON_FLL_AO_CTRL_UPD_MASK | cfg->n);
+
+	arizona_fll_dbg(fll, "fll_ao params: fin=%d, fout=%d,"
+		"refsrc=%d, refdiv=%d, n=%d, theta=%d, lambda=%d,"
+		"fbdiv=%d, gain=%d, phasedet=%d\n", fll->ref_src,
+		fll->fout, fll->ref_src, cfg->refdiv, cfg->n, cfg->theta,
+		cfg->lambda, cfg->fratio, cfg->gain,
+		phasedet_ena >> MOON_FLL_AO_PHASEDET_ENA_SHIFT);
+
+	if (!already_enabled)
+		pm_runtime_get(arizona->dev);
+
+	regmap_update_bits(arizona->regmap, fll->base + 1,
+			   MOON_FLL_AO_ENA, MOON_FLL_AO_ENA);
+
+	if (already_enabled)
+		regmap_update_bits(arizona->regmap, fll->base + 1,
+				   MOON_FLL_AO_HOLD, 0);
+
+	if (!already_enabled)
+		arizona_wait_for_fll(fll, true);
+
+	return 0;
+}
+
+static int arizona_disable_fll_ao(struct arizona_fll *fll)
+{
+	struct arizona *arizona = fll->arizona;
+	bool change;
+
+	arizona_fll_dbg(fll, "Disabling FLL\n");
+
+	regmap_update_bits(arizona->regmap, fll->base + 1,
+			   MOON_FLL_AO_HOLD, MOON_FLL_AO_HOLD);
+	regmap_update_bits_check(arizona->regmap, fll->base + 1,
+			   MOON_FLL_AO_ENA, 0, &change);
+	regmap_update_bits(arizona->regmap, fll->base + 1,
+			   MOON_FLL_AO_HOLD, 0);
+
+	arizona_wait_for_fll(fll, false);
+
+	if (change)
+		pm_runtime_put_autosuspend(arizona->dev);
+
+	return 0;
+}
+
+int arizona_set_fll_ao(struct arizona_fll *fll, int source,
+		    unsigned int fin, unsigned int fout)
+{
+	unsigned int floop = 0;
+	int div = 0;
+	int ret = 0;
+	struct arizona_fll_cfg cfg;
+	int n;
+	unsigned int gcd_fll;
+	unsigned int fref = fin;
+	const struct reg_sequence *patch = NULL;
+	unsigned int patch_size = 0;;
+
+	if (fll->ref_src == source &&
+	    fll->ref_freq == fin && fll->fout == fout)
+		return 0;
+
+	if (fout) {
+		/* Restrict fin to 32KHz */
+		switch (fin) {
+		case 32768:
+			patch = fll_ao_32K_patch;
+			patch_size = ARRAY_SIZE(fll_ao_32K_patch);
+			break;
+		default:
+			arizona_fll_err(fll,
+				"FLL_AO input needs to be 32768Hz\n");
+			return -EINVAL;
+		}
+
+		if (fll->fout && fout != fll->fout) {
+			arizona_fll_err(fll,
+					"Can't change output on active FLL\n");
+			return -EINVAL;
+		}
+		if (fin / ARIZONA_FLL_MAX_REFDIV >
+			ARIZONA_FLLAO_MAX_FREF) {
+			arizona_fll_err(fll,
+					"Can't scale %dMHz in to <=12.288MHz\n",
+					fin);
+			return -EINVAL;
+		}
+		if ((fout / (fin / ARIZONA_FLL_MAX_REFDIV)) <
+			ARIZONA_FLLAO_MIN_N) {
+			arizona_fll_err(fll,
+					"Can't configure N < 4\n");
+			return -EINVAL;
+		}
+
+		/* Fref must be <=12.288MHz, find refdiv */
+		div = 1;
+		cfg.refdiv = 0;
+		while ((fref > ARIZONA_FLLAO_MAX_FREF) ||
+			(fout / fref < ARIZONA_FLLAO_MIN_N)) {
+			div *= 2;
+			fref /= 2;
+			cfg.refdiv++;
+		}
+
+		cfg.gain = fref <= 32768 ? 3 : 0;
+
+		n =  fout / fref;
+		floop = fout;
+
+		/* N must be <= 1023, find fbdiv(fratio) */
+		div = 1;
+		while (n > ARIZONA_FLLAO_MAX_N) {
+			div++;
+			floop = fout / div;
+			n = floop / fref;
+		}
+
+		cfg.fratio = div;
+		cfg.n = n;
+
+		gcd_fll = gcd(floop, fref);
+		arizona_fll_dbg(fll, "GCD=%u\n", gcd_fll);
+		cfg.theta = (floop - (cfg.n * fref)) / gcd_fll;
+		cfg.lambda =  fref / gcd_fll;
+	}
+
+	fll->ref_src = source;
+	fll->ref_freq = fin;
+	fll->fout = fout;
+
+	if (fout)
+		ret = arizona_enable_fll_ao(fll, &cfg, patch, patch_size);
+	else
+		arizona_disable_fll_ao(fll);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(arizona_set_fll_ao);
 
 int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 		     int ok_irq, struct arizona_fll *fll)
