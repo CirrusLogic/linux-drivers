@@ -161,7 +161,12 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 {
 	struct arizona *arizona = info->arizona;
 	unsigned int mask, val = 0;
+	unsigned int ep_sel = 0;
 	int ret;
+
+	mutex_lock_nested(&arizona->dapm->card->dapm_mutex,
+			  SND_SOC_DAPM_CLASS_RUNTIME);
+
 
 	switch (arizona->type) {
 	case WM5102:
@@ -179,17 +184,21 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 		else
 			val = ARIZONA_HP1L_FLWR | ARIZONA_HP1L_SHRTI;
 		break;
+	case CS47L35:
+		/* check whether audio is routed to EPOUT, do not disable OUT1
+		 * in that case */
+		regmap_read(arizona->regmap, ARIZONA_OUTPUT_ENABLES_1, &ep_sel);
+		ep_sel &= ARIZONA_EP_SEL_MASK;
+		/* fall through to next step to set common variables */
 	default:
 		mask = 0;
 		break;
 	};
 
-	mutex_lock(&arizona->dapm->card->dapm_mutex);
-
 	arizona->hpdet_clamp = clamp;
 
 	/* Keep the HP output stages disabled while doing the clamp */
-	if (clamp) {
+	if (clamp && !ep_sel) {
 		ret = regmap_update_bits(arizona->regmap,
 					 ARIZONA_OUTPUT_ENABLES_1,
 					 ARIZONA_OUT1L_ENA |
@@ -215,7 +224,7 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 	}
 
 	/* Restore the desired state while not doing the clamp */
-	if (!clamp) {
+	if (!clamp && !ep_sel) {
 		ret = regmap_update_bits(arizona->regmap,
 					 ARIZONA_OUTPUT_ENABLES_1,
 					 ARIZONA_OUT1L_ENA |
