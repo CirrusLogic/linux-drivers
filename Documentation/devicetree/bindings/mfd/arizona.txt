@@ -17,6 +17,7 @@ Required properties:
         "wlf,wm1840"
         "wlf,wm1831"
         "cirrus,cs47l24"
+        "cirrus,cs47l85"
 
   - reg : I2C slave address when connected using I2C, chip select number when
     using SPI.
