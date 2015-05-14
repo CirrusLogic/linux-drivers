@@ -1,0 +1,168 @@
+/*
+ * cs35l33.h -- CS35L33 ALSA SoC audio driver
+ *
+ * Copyright 2013 Cirrus Logic, Inc.
+ *
+ * Author: Paul Handrigan <paul.handrigan@cirrus.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ */
+
+#ifndef __CS35L33_H__
+#define __CS35L33_H__
+
+#define CS35L33_FIRSTREG	0x01
+#define CS35L33_LASTREG		0x40
+#define CS35L33_CHIP_ID		0x00035A33
+#define CS35L33_DEVID_AB	0x01	/* Device ID A & B [RO] */
+#define CS35L33_DEVID_CD	0x02    /* Device ID C & D [RO] */
+#define CS35L33_DEVID_E		0x03    /* Device ID E [RO] */
+#define CS35L33_FAB_ID		0x04	/* Fab ID [RO] */
+#define CS35L33_REV_ID		0x05	/* Revision ID [RO] */
+#define CS35L33_PWRCTL1		0x06    /* Power Ctl 1 */
+#define CS35L33_PWRCTL2		0x07    /* Power Ctl 2 */
+#define CS35L33_CLK_CTL		0x08	/* Clock Ctl */
+#define CS35L33_BST_PEAK_CTL	0x09	/* Max Current for Boost */
+#define CS35L33_PROTECT_CTL	0x0A	/* Amp Protection Parameters */
+#define CS35L33_BST_CTL1	0x0B	/* Boost Converter CTL1 */
+#define CS35L33_BST_CTL2	0x0C	/* Boost Converter CTL2 */
+#define CS35L33_ADSP_CTL	0x0D	/* Serial Port Control */
+#define CS35L33_ADC_CTL		0x0E	/* ADC Control */
+#define CS35L33_DAC_CTL		0x0F	/* DAC Control */
+#define CS35L33_DIG_VOL_CTL	0x10	/* Digital Volume CTL */
+#define CS35L33_CLASSD_CTL	0x11	/* Class D Amp CTL */
+#define CS35L33_AMP_CTL		0x12	/* Amp Gain/Protecton Release CTL */
+#define CS35L33_INT_MASK_1	0x13	/* Interrupt Mask 1 */
+#define CS35L33_INT_MASK_2	0x14	/* Interrupt Mask 2 */
+#define CS35L33_INT_STATUS_1	0x15	/* Interrupt Status 1 [RO] */
+#define CS35L33_INT_STATUS_2	0x16	/* Interrupt Status 2 [RO] */
+#define CS35L33_HG_MEMLDO_CTL	0x23	/* H/G Memory/LDO CTL */
+#define CS35L33_HG_REL_RATE	0x24	/* H/G Release Rate */
+#define CS35L33_LDO_DEL		0x25	/* LDO Entry Delay/VPhg Control 1 */
+#define CS35L33_HG_PATH_DEL	0x26	/* H/G Path Delay */
+#define CS35L33_HGLDO_PATH_DEL	0x27	/* H/G LDO Path Delay */
+#define CS35L33_HGLDO_CNT	0x28	/* H/G LDO Counter */
+#define CS35L33_HG_HEAD		0x29	/* H/G Headroom */
+#define CS35L33_HG_EN		0x2A	/* H/G Enable/VPhg CNT2 */
+#define CS35L33_HG_STATUS	0x3F	/* H/G Status */
+
+#define CS35L33_BST_CTL3	0x2C	/* Boost Converter Control 3 */
+#define CS35L33_BST_CTL4	0x39	/* Boost Converter Control 4 */
+#define CS35L33_BST_CTL5	0x3F	/* Boost Converter Control 5 */
+#define CS35L33_MAX_REGISTER	0x3F
+#define CS35L33_REGISTER_COUNT	0x1B
+
+#define CS35L33_MCLK_5644	5644800
+#define CS35L33_MCLK_6144	6144000
+#define CS35L33_MCLK_6		6000000
+#define CS35L33_MCLK_11289	11289600
+#define CS35L33_MCLK_12		12000000
+#define CS35L33_MCLK_12288	12288000
+
+/* CS35L33_PWRCTL1 */
+
+#define PDN_AMP			(1 << 7)
+#define PDN_BST			(1 << 2)
+#define PDN_ALL			1
+
+/* CS35L33_PWRCTL2 */
+#define PDN_VMON		(1 << 7)
+#define PDN_IMON		(1 << 6)
+#define PDN_VPMON		(1 << 5)
+#define PDN_VBSTMON		(1 << 4)
+#define SDOUT_3ST_I2S		(1 << 3)
+#define PDN_SDIN		(1 << 2)
+#define PDN_TDM			1
+
+/* CS35L33_CLK_CTL */
+#define MCLKDIS			(1 << 7)
+#define MCLKDIV2		(1 << 6)
+#define SDOUT_3ST_TDM		(1 << 5)
+#define INT_FS_RATE		(1 << 4)
+#define ADSP_FS			0xF
+
+/* CS35L33_PROTECT_CTL */
+#define ALIVE_WD_DIS		(3 << 2)
+
+/* CS35L33_BST_CTL1 */
+#define BST_CTL_SRC		(1 << 6)
+#define BST_CTL			0x3F
+#define CS35L33_BST_CTL_SHIFT	(1 << 5)
+#define CS35L33_BST_CTL_MASK	0x3F
+
+/* CS35L33_BST_CTL2 */
+#define TDM_WD_SEL		(1 << 4)
+#define ALIVE_WD_DIS2		(1 << 3)
+#define VBST_SR_STEP		0x3
+
+/* CS35L33_ADSP_CTL */
+#define ADSP_DRIVE		(1 << 7)
+#define MS_MASK			(1 << 6)
+#define SDIN_LOC		(3 << 4)
+#define ALIVE_RATE		0x3
+
+/* CS35L33_ADC_CTL */
+#define INV_VMON		(1 << 7)
+#define INV_IMON		(1 << 6)
+#define ADC_NOTCH_DIS		(1 << 5)
+#define IMON_SCALE		0xF
+
+/* CS35L33_DAC_CTL */
+#define INV_DAC			(1 << 7)
+#define DAC_NOTCH_DIS		(1 << 5)
+#define DIGSFT			(1 << 4)
+#define DSR_RATE		0xF
+
+/* CS35L33_CLASSD_CTL */
+#define AMP_SD			(1 << 6)
+#define AMP_DRV_SEL_SRC		(1 << 5)
+#define AMP_DRV_SEL_MASK	0x10
+#define AMP_DRV_SEL_SHIFT	4
+#define AMP_CAL			(1 << 3)
+#define GAIN_CHG_ZC_MASK	0x04
+#define GAIN_CHG_ZC_SHIFT	2
+#define CLASS_D_CTL_MASK	0x3F
+
+/* CS35L33_AMP_CTL */
+#define AMP_GAIN		0xF0
+#define CAL_ERR_RLS		(1 << 3)
+#define AMP_SHORT_RLS		(1 << 2)
+#define OTW_RLS			(1 << 1)
+#define OTE_RLS			1
+
+/* CS35L33_INT_STATUS_1 */
+#define CAL_ERR			(1 << 6)
+#define ALIVE_ERR		(1 << 5)
+#define ADSPCLK_ERR		(1 << 4)
+#define MCLK_ERR		(1 << 3)
+#define OTW			(1 << 2)
+#define OTE			1
+
+/* CS35L33_INT_STATUS_2 */
+#define VMON_OVFL		(1 << 7)
+#define IMON_OVFL		(1 << 6)
+#define VPMON_OVFL		(1 << 5)
+#define VBSTMON_OVFL		(1 << 4)
+#define PDN_DONE		1
+
+/* CS35L33_BST_CTL3 */
+#define BST_COEFF1		0xF0
+#define BST_COEFF2		0xF
+
+/* CS35L33_BST_CTL4 */
+#define BST_RGS			0x70
+#define BST_COEFF3		0xF
+
+/* CS35L33_BST_CTL3 */
+#define BST_IPK_TRIM		0x3F
+
+
+#define CS35L33_RATES (SNDRV_PCM_RATE_48000)
+#define CS35L33_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
+			SNDRV_PCM_FMTBIT_S24_LE | \
+			SNDRV_PCM_FMTBIT_S32_LE)
+
+#endif
