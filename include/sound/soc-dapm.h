@@ -159,6 +159,11 @@ struct device;
 {	.id = snd_soc_dapm_virt_mux, .name = wname, .reg = wreg, .shift = wshift, \
 	.invert = winvert, .kcontrol_news = wcontrols, .num_kcontrols = 1, \
 	.event = wevent, .event_flags = wflags}
+#define SND_SOC_DAPM_DEMUX_E(wname, wreg, wshift, winvert, wcontrols, wevent, \
+	wflags) \
+{	.id = snd_soc_dapm_demux, .name = wname, .reg = wreg, .shift = wshift, \
+	.invert = winvert, .kcontrol_news = wcontrols, .num_kcontrols = 1, \
+	.event = wevent, .event_flags = wflags}
 
 /* additional sequencing control within an event type */
 #define SND_SOC_DAPM_PGA_S(wname, wsubseq, wreg, wshift, winvert, \
