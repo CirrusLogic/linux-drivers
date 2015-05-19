@@ -269,6 +269,16 @@ static const int wm_adsp2_control_bases[] = {
 	CLEARWATER_DSP7_CONFIG,
 };
 
+static const int moon_adsp_bus_error_irqs[MOON_NUM_ADSP] = {
+	MOON_IRQ_DSP1_BUS_ERROR,
+	MOON_IRQ_DSP2_BUS_ERROR,
+	MOON_IRQ_DSP3_BUS_ERROR,
+	MOON_IRQ_DSP4_BUS_ERROR,
+	MOON_IRQ_DSP5_BUS_ERROR,
+	MOON_IRQ_DSP6_BUS_ERROR,
+	MOON_IRQ_DSP7_BUS_ERROR,
+};
+
 static const char * const moon_inmux_texts[] = {
 	"A",
 	"B",
@@ -2666,6 +2676,12 @@ out:
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t moon_adsp_bus_error(int irq, void *data)
+{
+	struct wm_adsp *adsp = (struct wm_adsp *)data;
+	return wm_adsp2_bus_error(adsp);
+}
+
 static int moon_open(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
@@ -2869,7 +2885,7 @@ static int moon_codec_probe(struct snd_soc_codec *codec)
 {
 	struct moon_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->core.arizona;
-	int ret;
+	int ret, i, j;
 
 	codec->control_data = priv->core.arizona->regmap;
 	priv->core.arizona->dapm = &codec->dapm;
@@ -2909,6 +2925,24 @@ static int moon_codec_probe(struct snd_soc_codec *codec)
 			"Failed to set DSP IRQ to wake source: %d\n",
 			ret);
 
+	for (i = 0; i < MOON_NUM_ADSP; i++) {
+		ret = arizona_request_irq(arizona,
+				moon_adsp_bus_error_irqs[i],
+				"ADSP2 bus error",
+				moon_adsp_bus_error,
+				&priv->core.adsp[i]);
+		if (ret != 0) {
+			dev_err(arizona->dev,
+				"Failed to request DSP Lock region IRQ: %d\n",
+				ret);
+			for (j = 0; j < i; j++)
+				arizona_free_irq(arizona,
+					moon_adsp_bus_error_irqs[j],
+					&priv->core.adsp[j]);
+			return ret;
+		}
+	}
+
 	mutex_lock(&codec->card->dapm_mutex);
 	snd_soc_dapm_enable_pin(&codec->dapm, "DRC2 Signal Activity");
 	mutex_unlock(&codec->card->dapm_mutex);
@@ -2920,23 +2954,33 @@ static int moon_codec_probe(struct snd_soc_codec *codec)
 		dev_err(arizona->dev,
 			"Failed to unmask DRC2 IRQ for DSP: %d\n",
 			ret);
-		return ret;
+		goto err_drc;
 	}
 
 	return 0;
+
+err_drc:
+	for (i = 0; i < MOON_NUM_ADSP; i++)
+		arizona_free_irq(arizona, moon_adsp_bus_error_irqs[i],
+				 &priv->core.adsp[i]);
+
+	return ret;
 }
 
 static int moon_codec_remove(struct snd_soc_codec *codec)
 {
+	int i;
 	struct moon_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->core.arizona;
 
 	irq_set_irq_wake(arizona->irq, 0);
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
+	for (i = 0; i < MOON_NUM_ADSP; i++)
+		arizona_free_irq(arizona, moon_adsp_bus_error_irqs[i],
+				 &priv->core.adsp[i]);
 	regmap_update_bits(arizona->regmap, CLEARWATER_IRQ2_MASK_9,
 			   CLEARWATER_DRC2_SIG_DET_EINT2,
 			   0);
-
 	priv->core.arizona->dapm = NULL;
 
 	return 0;
@@ -3037,6 +3081,8 @@ static int moon_probe(struct platform_device *pdev)
 
 		moon->core.adsp[i].rate_put_cb =
 					moon_adsp_rate_put_cb;
+
+		moon->core.adsp[i].lock_regions = WM_ADSP2_REGION_1_9;
 
 		ret = wm_adsp2_init(&moon->core.adsp[i], &moon->fw_lock);
 		if (ret != 0)
