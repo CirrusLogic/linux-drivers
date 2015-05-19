@@ -20,6 +20,23 @@
 
 #include "wmfw.h"
 
+#define WM_ADSP2_REGION_0 BIT(0)
+#define WM_ADSP2_REGION_1 BIT(1)
+#define WM_ADSP2_REGION_2 BIT(2)
+#define WM_ADSP2_REGION_3 BIT(3)
+#define WM_ADSP2_REGION_4 BIT(4)
+#define WM_ADSP2_REGION_5 BIT(5)
+#define WM_ADSP2_REGION_6 BIT(6)
+#define WM_ADSP2_REGION_7 BIT(7)
+#define WM_ADSP2_REGION_8 BIT(8)
+#define WM_ADSP2_REGION_9 BIT(9)
+#define WM_ADSP2_REGION_1_9 (WM_ADSP2_REGION_1 | \
+		WM_ADSP2_REGION_2 | WM_ADSP2_REGION_3 | \
+		WM_ADSP2_REGION_4 | WM_ADSP2_REGION_5 | \
+		WM_ADSP2_REGION_6 | WM_ADSP2_REGION_7 | \
+		WM_ADSP2_REGION_8 | WM_ADSP2_REGION_9)
+#define WM_ADSP2_REGION_ALL (WM_ADSP2_REGION_0 | WM_ADSP2_REGION_1_9)
+
 struct wm_adsp_region {
 	int type;
 	unsigned int base;
@@ -126,6 +143,7 @@ struct wm_adsp {
 	char *bin_file_loaded;
 #endif
 
+	unsigned int lock_regions;
 };
 
 #define WM_ADSP1(wname, num) \
@@ -177,6 +195,9 @@ static inline int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 #endif
+
+int wm_adsp2_lock(struct wm_adsp *adsp, unsigned int regions);
+irqreturn_t wm_adsp2_bus_error(struct wm_adsp *adsp);
 
 int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);

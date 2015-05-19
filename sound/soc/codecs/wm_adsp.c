@@ -181,6 +181,38 @@
 #define ADSP2_RAM_RDY_SHIFT                    0
 #define ADSP2_RAM_RDY_WIDTH                    1
 
+/*
+ * ADSP2 Lock support
+ */
+
+#define ADSP2_LOCK_CODE_0                    0x5555
+#define ADSP2_LOCK_CODE_1                    0xAAAA
+
+#define ADSP2_WATCHDOG                       0x0A
+#define ADSP2_BUS_ERR_ADDR                   0x52
+#define ADSP2_REGION_LOCK_STATUS             0x64
+#define ADSP2_LOCK_REGION_1_LOCK_REGION_0    0x66
+#define ADSP2_LOCK_REGION_3_LOCK_REGION_2    0x68
+#define ADSP2_LOCK_REGION_5_LOCK_REGION_4    0x6A
+#define ADSP2_LOCK_REGION_7_LOCK_REGION_6    0x6C
+#define ADSP2_LOCK_REGION_9_LOCK_REGION_8    0x6E
+#define ADSP2_LOCK_REGION_CTRL               0x7A
+#define ADSP2_PMEM_ERR_ADDR_XMEM_ERR_ADDR    0x7C
+
+#define ADSP2_REGION_LOCK_ERR_MASK           0x8000
+#define ADSP2_SLAVE_ERR_MASK                 0x4000
+#define ADSP2_WDT_TIMEOUT_STS_MASK           0x2000
+#define ADSP2_CTRL_ERR_PAUSE_ENA             0x0002
+#define ADSP2_CTRL_ERR_EINT                  0x0001
+
+#define ADSP2_BUS_ERR_ADDR_MASK              0x00FFFFFF
+#define ADSP2_XMEM_ERR_ADDR_MASK             0x0000FFFF
+#define ADSP2_PMEM_ERR_ADDR_MASK             0x7FFF0000
+#define ADSP2_PMEM_ERR_ADDR_SHIFT            16
+#define ADSP2_WDT_ENA_MASK                   0xFFFFFFFD
+
+#define ADSP2_LOCK_REGION_SHIFT              16
+
 struct wm_adsp_buf {
 	struct list_head list;
 	void *buf;
@@ -2445,6 +2477,19 @@ static void wm_adsp_edac_shutdown(struct wm_adsp *dsp)
 		adsp_err(dsp, "Failed to shutdown eDAC firmware\n");
 }
 
+static inline void wm_adsp_stop_watchdog(struct wm_adsp *adsp)
+{
+	switch (adsp->rev) {
+	case 0:
+	case 1:
+		return;
+	default:
+		regmap_update_bits(adsp->regmap,
+			adsp->base + ADSP2_WATCHDOG,
+			ADSP2_WDT_ENA_MASK, 0);
+	}
+}
+
 int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event)
 {
@@ -2461,6 +2506,8 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 
 		if (!dsp->running)
 			return -EIO;
+
+		wm_adsp2_lock(dsp, dsp->lock_regions);
 
 		ret = regmap_update_bits(dsp->regmap,
 			 dsp->base + ADSP2_CONTROL,
@@ -2484,6 +2531,8 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 
 		if (dsp->fw_features.shutdown)
 			wm_adsp_edac_shutdown(dsp);
+
+		wm_adsp_stop_watchdog(dsp);
 
 		dsp->running = false;
 
@@ -3304,6 +3353,103 @@ int wm_adsp_stream_avail(const struct wm_adsp *dsp)
 			dsp->capt_buf_size);
 }
 EXPORT_SYMBOL_GPL(wm_adsp_stream_avail);
+
+/* DSP lock region support */
+int wm_adsp2_lock(struct wm_adsp *adsp, unsigned int lock_regions)
+{
+	struct regmap *regmap_32bit = adsp->regmap;
+	unsigned int lockcode0, lockcode1, lock_reg;
+
+	if (!(lock_regions & WM_ADSP2_REGION_ALL))
+		return 0;
+
+	lock_regions &= WM_ADSP2_REGION_ALL;
+	lock_reg = adsp->base +
+		ADSP2_LOCK_REGION_1_LOCK_REGION_0;
+
+	while (lock_regions) {
+		lockcode0 = lockcode1 = 0;
+		if (lock_regions & BIT(0)) {
+			lockcode0 = ADSP2_LOCK_CODE_0;
+			lockcode1 = ADSP2_LOCK_CODE_1;
+		}
+		if (lock_regions & BIT(1)) {
+			lockcode0 |= ADSP2_LOCK_CODE_0 <<
+				ADSP2_LOCK_REGION_SHIFT;
+			lockcode1 |= ADSP2_LOCK_CODE_1 <<
+				ADSP2_LOCK_REGION_SHIFT;
+		}
+		regmap_write(regmap_32bit,
+			lock_reg, lockcode0);
+		regmap_write(regmap_32bit,
+			lock_reg, lockcode1);
+		lock_regions >>= 2;
+		lock_reg += 2;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm_adsp2_lock);
+
+irqreturn_t wm_adsp2_bus_error(struct wm_adsp *adsp)
+{
+	unsigned int reg_val;
+	int ret = 0;
+	struct regmap *regmap = adsp->regmap;
+
+	ret = regmap_read(regmap, adsp->base +
+			ADSP2_LOCK_REGION_CTRL, &reg_val);
+	if (ret != 0) {
+		adsp_err(adsp,
+			"Failed to read Region Lock Ctrl register: %d\n",
+			ret);
+		goto exit;
+	}
+
+	if (reg_val & ADSP2_WDT_TIMEOUT_STS_MASK) {
+		adsp_err(adsp, "watchdog timeout error\n");
+		wm_adsp_stop_watchdog(adsp);
+	}
+
+	if (reg_val & (ADSP2_SLAVE_ERR_MASK | ADSP2_REGION_LOCK_ERR_MASK)) {
+		if (reg_val & ADSP2_SLAVE_ERR_MASK)
+			adsp_err(adsp, "bus error: slave error\n");
+		else
+			adsp_err(adsp, "bus error: region lock error\n");
+
+		ret = regmap_read(regmap, adsp->base +
+				ADSP2_BUS_ERR_ADDR, &reg_val);
+		if (ret != 0) {
+			adsp_err(adsp,
+				"Failed to read Bus Err Addr register: %d\n",
+				ret);
+			goto exit;
+		}
+		adsp_err(adsp, "bus error address = 0x%x\n",
+			(reg_val & ADSP2_BUS_ERR_ADDR_MASK));
+
+		ret = regmap_read(regmap, adsp->base +
+				ADSP2_PMEM_ERR_ADDR_XMEM_ERR_ADDR,
+				&reg_val);
+		if (ret != 0) {
+			adsp_err(adsp,
+				"Failed to read Pmem Xmem Err Addr register: %d\n",
+				ret);
+			goto exit;
+		}
+		adsp_err(adsp, "xmem error address = 0x%x\n",
+			(reg_val & ADSP2_XMEM_ERR_ADDR_MASK));
+		adsp_err(adsp, "pmem error address = 0x%x\n",
+			(reg_val & ADSP2_PMEM_ERR_ADDR_MASK)
+			>> ADSP2_PMEM_ERR_ADDR_SHIFT);
+	}
+
+	regmap_write(regmap, adsp->base + ADSP2_LOCK_REGION_CTRL,
+		     ADSP2_CTRL_ERR_EINT);
+exit:
+	return IRQ_HANDLED;
+}
+EXPORT_SYMBOL_GPL(wm_adsp2_bus_error);
 
 #ifdef CONFIG_DEBUG_FS
 static void wm_adsp_debugfs_save_wmfwname(struct wm_adsp *dsp, const char *s)
