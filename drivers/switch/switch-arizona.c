@@ -132,6 +132,11 @@ struct arizona_hpdet_d_trims {
 	int grad_x4;
 };
 
+struct arizona_micd_bias {
+	unsigned int bias;
+	bool enabled;
+};
+
 struct arizona_extcon_info {
 	struct device *dev;
 	struct arizona *arizona;
@@ -190,6 +195,8 @@ struct arizona_extcon_info {
 	int button_check;
 	bool wait_for_mic;
 	int accdet_ip;
+
+	struct arizona_micd_bias micd_bias;
 };
 
 static const struct arizona_micd_config micd_default_modes[] = {
@@ -469,6 +476,87 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 	mutex_unlock(&arizona->dapm->card->dapm_mutex);
 }
 
+static const char *arizona_extcon_get_micbias_src(
+	struct arizona_extcon_info *info, unsigned int bias)
+{
+	struct arizona *arizona = info->arizona;
+
+	switch (arizona->type) {
+	case CS47L90:
+	case CS47L91:
+		switch (bias) {
+		case 0:
+		case 1:
+		case 2:
+		case 3:
+			return "MICBIAS1";
+		case 4:
+		case 5:
+		case 6:
+		case 7:
+			return "MICBIAS2";
+		default:
+			return "MICVDD";
+		}
+		break;
+	default:
+		return NULL;
+	}
+}
+
+static int arizona_extcon_set_micd_bias(struct arizona_extcon_info *info,
+	unsigned int bias, bool enable)
+{
+	struct arizona *arizona = info->arizona;
+	struct snd_soc_dapm_context *dapm = arizona->dapm;
+	struct arizona_micd_bias *micd_bias = &(info->micd_bias);
+	const char *old_widget =
+		arizona_extcon_get_micbias_src(info, micd_bias->bias);
+	const char *new_widget = arizona_extcon_get_micbias_src(info, bias);
+	bool same_bias_src;
+	int ret = 0;
+
+	switch (arizona->type) {
+	case CS47L90:
+	case CS47L91:
+		break;
+	default:
+		return 0;
+	};
+
+	micd_bias->bias = bias;
+	same_bias_src = !strcmp(old_widget, new_widget);
+
+	if ((same_bias_src) &&
+		(micd_bias->enabled == enable))
+		return 0;
+
+	if (micd_bias->enabled) {
+		mutex_lock(&dapm->card->dapm_mutex);
+		ret = snd_soc_dapm_disable_pin(dapm, old_widget);
+		if (ret != 0)
+			dev_warn(arizona->dev,
+				 "Failed to disable %s: %d\n",
+				 old_widget, ret);
+		mutex_unlock(&dapm->card->dapm_mutex);
+		snd_soc_dapm_sync(dapm);
+	}
+
+	if (enable) {
+		mutex_lock(&dapm->card->dapm_mutex);
+		ret = snd_soc_dapm_force_enable_pin(dapm, new_widget);
+		if (ret != 0)
+			dev_warn(arizona->dev, "Failed to enable %s: %d\n",
+				 new_widget, ret);
+		mutex_unlock(&dapm->card->dapm_mutex);
+		snd_soc_dapm_sync(dapm);
+	}
+
+	micd_bias->enabled = enable;
+
+	return ret;
+}
+
 static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 {
 	struct arizona *arizona = info->arizona;
@@ -507,6 +595,9 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 	}
 
 	info->micd_mode = mode;
+
+	arizona_extcon_set_micd_bias(info, info->micd_modes[mode].bias,
+		info->micd_bias.enabled);
 
 	dev_dbg(arizona->dev, "Set jack polarity to %d\n", mode);
 }
@@ -1686,6 +1777,8 @@ int arizona_micd_start(struct arizona_extcon_info *info)
 			ARIZONA_ACCDET_MODE_MASK, info->state->mode);
 	}
 
+	arizona_extcon_set_micd_bias(info,
+		info->micd_modes[info->micd_mode].bias, true);
 
 	arizona_extcon_pulse_micbias(info);
 
@@ -1717,6 +1810,9 @@ void arizona_micd_stop(struct arizona_extcon_info *info)
 	mutex_unlock(&dapm->card->dapm_mutex);
 
 	snd_soc_dapm_sync(dapm);
+
+	arizona_extcon_set_micd_bias(info,
+		info->micd_modes[info->micd_mode].bias, false);
 
 	if (info->micd_reva) {
 		mutex_lock(&arizona->reg_setting_lock);
