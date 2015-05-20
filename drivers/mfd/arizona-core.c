@@ -1850,8 +1850,6 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		break;
 	}
 
-	pm_runtime_enable(arizona->dev);
-
 	/* Chip default */
 	if (!arizona->pdata.clk32k_src)
 		arizona->pdata.clk32k_src = ARIZONA_32KZ_MCLK2;
@@ -1874,6 +1872,11 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		ret = -EINVAL;
 		goto err_reset;
 	}
+
+#ifdef CONFIG_PM_RUNTIME
+	arizona_runtime_suspend(arizona->dev);
+#endif
+	pm_runtime_enable(arizona->dev);
 
 	for (i = 0; i < ARIZONA_MAX_MICBIAS; i++) {
 		if (!arizona->pdata.micbias[i].mV &&
@@ -2098,10 +2101,6 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 
 	if (arizona->pdata.init_done)
 		arizona->pdata.init_done();
-
-#ifdef CONFIG_PM_RUNTIME
-	regulator_disable(arizona->dcvdd);
-#endif
 
 	return 0;
 
