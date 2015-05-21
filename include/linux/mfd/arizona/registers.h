@@ -4479,10 +4479,10 @@
 /*
  * R1024 (0x400) - Output Enables 1
  */
-#define ARIZONA_HP_SEL                           0x8000  /* HP_SEL */
-#define ARIZONA_HP_SEL_MASK                      0x8000  /* HP_SEL */
-#define ARIZONA_HP_SEL_SHIFT                         15  /* HP_SEL */
-#define ARIZONA_HP_SEL_WIDTH                          1  /* HP_SEL */
+#define ARIZONA_EP_SEL                           0x8000  /* EP_SEL */
+#define ARIZONA_EP_SEL_MASK                      0x8000  /* EP_SEL */
+#define ARIZONA_EP_SEL_SHIFT                         15  /* EP_SEL */
+#define ARIZONA_EP_SEL_WIDTH                          1  /* EP_SEL */
 #define ARIZONA_OUT6L_ENA                        0x0800  /* OUT6L_ENA */
 #define ARIZONA_OUT6L_ENA_MASK                   0x0800  /* OUT6L_ENA */
 #define ARIZONA_OUT6L_ENA_SHIFT                      11  /* OUT6L_ENA */
