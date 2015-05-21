@@ -563,10 +563,6 @@ SOC_SINGLE_TLV("IN2L Digital Volume", ARIZONA_ADC_DIGITAL_VOLUME_2L,
 SOC_SINGLE_TLV("IN2R Digital Volume", ARIZONA_ADC_DIGITAL_VOLUME_2R,
 	       ARIZONA_IN2R_DIG_VOL_SHIFT, 0xbf, 0, digital_tlv),
 
-SOC_ENUM_EXT("IN1 Mode", arizona_ip_mode[0],
-		snd_soc_get_enum_double, arizona_ip_mode_put),
-SOC_ENUM_EXT("IN2 Mode", arizona_ip_mode[1],
-		snd_soc_get_enum_double, arizona_ip_mode_put),
 SOC_ENUM_EXT("CP Mode", marley_cp_mode[0],
 			marley_cp_mode_get, marley_cp_mode_put),
 
