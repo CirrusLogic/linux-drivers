@@ -821,7 +821,7 @@ static int arizona_runtime_suspend(struct device *dev)
 				dev_err(arizona->dev,
 					"Failed to set suspend voltage: %d\n",
 					ret);
-				return ret;
+				goto err;
 			}
 			break;
 		default:
