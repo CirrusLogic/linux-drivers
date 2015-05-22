@@ -7,69 +7,69 @@ to sound:
 '-' means not relevant for that audio hub model
 
                                                                 WM8280
-Feature                                    WM8997 WM8998 WM5102 WM8281 CS47L24
-------------------------------------------------------------------------------
-24-bit samples                                Y      Y      Y      Y      Y
-192kHz sample rate                            Y      Y      Y      Y      Y
-Routing controlled via ALSA controls          Y      Y      Y      Y      Y
-Volume control on all mixer inputs            Y      Y      Y      Y      Y
-Volume control on all outputs                 Y      Y      Y      Y      Y
-Mute control on all outputs                   Y      Y      Y      Y      Y
-Output DRE control                            -      Y      Y      Y      -
-Output OSR control                            Y      -      Y      Y      Y
-Input ramp control                            Y      Y      Y      Y      Y
-Output ramp control                           Y      Y      Y      Y      Y
-Route any audio input to any mixer input      Y      Y      Y      Y      Y
-Route internal signals to mixer inputs        Y      Y      Y      Y      Y
-Route audio path through ISRC                 Y      Y      Y      Y      Y
-Route audio path through ASRC                 -      Y      Y      Y      Y
-Route audio path through EQs                  Y      Y      Y      Y      Y
-Route audio path through LHPFs                Y      Y      Y      Y      Y
-Route audio path through DRCs                 Y      Y      Y      Y      Y
-Route audio path through ADSP cores           -      -      Y      Y      Y
-Set EQ coefficient through ALSA controls      Y      Y      Y      Y      Y
-Set LHPF coeffs through ALSA controls         Y      Y      Y      Y      Y
-Set DRC coefficient through ALSA controls     Y      Y      Y      Y      Y
-Set Noise Gates through ALSA controls         Y      Y      Y      Y      Y
-Config inputs analogue/digital mode [note 1]  Y      Y      Y      Y      -
-Input HPF control                             -      Y      -      Y      Y
-Input mux controls [note 8]                   -      Y      -      -      -
+Feature                                    WM8997 WM8998 WM5102 WM8281 CS47L24 CS47L85
+--------------------------------------------------------------------------------------
+24-bit samples                                Y      Y      Y      Y      Y      Y
+192kHz sample rate                            Y      Y      Y      Y      Y      Y
+Routing controlled via ALSA controls          Y      Y      Y      Y      Y      Y
+Volume control on all mixer inputs            Y      Y      Y      Y      Y      Y
+Volume control on all outputs                 Y      Y      Y      Y      Y      Y
+Mute control on all outputs                   Y      Y      Y      Y      Y      Y
+Output DRE control                            -      Y      Y      Y      -      Y
+Output OSR control                            Y      -      Y      Y      Y      Y
+Input ramp control                            Y      Y      Y      Y      Y      Y
+Output ramp control                           Y      Y      Y      Y      Y      Y
+Route any audio input to any mixer input      Y      Y      Y      Y      Y      Y
+Route internal signals to mixer inputs        Y      Y      Y      Y      Y      Y
+Route audio path through ISRC                 Y      Y      Y      Y      Y      Y
+Route audio path through ASRC                 -      Y      Y      Y      Y      Y
+Route audio path through EQs                  Y      Y      Y      Y      Y      Y
+Route audio path through LHPFs                Y      Y      Y      Y      Y      Y
+Route audio path through DRCs                 Y      Y      Y      Y      Y      Y
+Route audio path through ADSP cores           -      -      Y      Y      Y      Y
+Set EQ coefficient through ALSA controls      Y      Y      Y      Y      Y      Y
+Set LHPF coeffs through ALSA controls         Y      Y      Y      Y      Y      Y
+Set DRC coefficient through ALSA controls     Y      Y      Y      Y      Y      Y
+Set Noise Gates through ALSA controls         Y      Y      Y      Y      Y      Y
+Config inputs analogue/digital mode [note 1]  Y      Y      Y      Y      -      Y
+Input HPF control                             -      Y      -      Y      Y      Y
+Input mux controls [note 8]                   -      Y      -      -      -      Y
 Config analogue inputs as single-ended
-          or differential [note 1]            Y      Y      Y      Y      -
-Host I2S routing to any AIF                   Y      Y      Y      Y      Y
-I2S TDM (multi-channel) [note 2]              Y      Y      Y      Y      Y
-Configure TDM active slots [note 2]           Y      Y      Y      Y      Y
-Configure TDM slot size [note 2]              Y      Y      Y      Y      Y
-AEC loopback control                          Y      Y      Y      Y      Y
-ANC block control                             -      -      -      Y      -
-Select firmware by ALSA control [note 6]      -      -      Y      Y      Y
-Load ADSP firmware via DAPM power-up          -      -      Y      Y      Y
-Load tuning data (.bin) with firmware         -      -      Y      Y      Y
-Expose firmware controls via ALSA             -      -      Y      Y      Y
-Set sample-rate domain frequencies [note 4]   Y      Y      Y      Y      Y
-Auto sample-rate                              N      N      N      N      N
-Speaker short-circuit protection              -      N      N      N      N
-Use write sequencer                           N      N      N      N      N
-Codec control over SPI                        -      -      Y      Y      Y
-Codec control over I2C                        Y      Y      Y      Y      -
-DAPM-based power up/down                      Y      Y      Y      Y      Y
-Jack insert detection                         Y      Y      Y      Y      -
-Headset mic detection                         Y      Y      Y      Y      -
-Headset button detection                      Y      Y      Y      Y      -
-Headphone speaker impedance detection         Y      Y      Y      Y      -
-Codec internal LDOVDD regulator control       Y      Y      Y      Y      -
-Support for external DCVDD regulator          Y      Y      Y      Y      Y
-Build as loadable module                      Y      Y      Y      Y      Y
-Configure via pdata                           Y      Y      Y      Y      Y
-Configure via device tree [note 7]            Y      Y      Y      Y      Y
-Configure SYSCLK rate [note 5]                Y      Y      Y      Y      Y
-Configure ASYNCCLK rate [note 5]              Y      Y      Y      Y      Y
-Configure analogue mic bias [note 1]          Y      Y      Y      Y      -
+          or differential [note 1]            Y      Y      Y      Y      -      Y
+Host I2S routing to any AIF                   Y      Y      Y      Y      Y      Y
+I2S TDM (multi-channel) [note 2]              Y      Y      Y      Y      Y      Y
+Configure TDM active slots [note 2]           Y      Y      Y      Y      Y      Y
+Configure TDM slot size [note 2]              Y      Y      Y      Y      Y      Y
+AEC loopback control                          Y      Y      Y      Y      Y      Y
+ANC block control                             -      -      -      Y      -      Y
+Select firmware by ALSA control [note 6]      -      -      Y      Y      Y      Y
+Load ADSP firmware via DAPM power-up          -      -      Y      Y      Y      Y
+Load tuning data (.bin) with firmware         -      -      Y      Y      Y      Y
+Expose firmware controls via ALSA             -      -      Y      Y      Y      Y
+Set sample-rate domain frequencies [note 4]   Y      Y      Y      Y      Y      Y
+Auto sample-rate                              N      N      N      N      N      N
+Speaker short-circuit protection              -      N      N      N      N      N
+Use write sequencer                           N      N      N      N      N      N
+Codec control over SPI                        -      -      Y      Y      Y      Y
+Codec control over I2C                        Y      Y      Y      Y      -      Y
+DAPM-based power up/down                      Y      Y      Y      Y      Y      Y
+Jack insert detection                         Y      Y      Y      Y      -      Y
+Headset mic detection                         Y      Y      Y      Y      -      Y
+Headset button detection                      Y      Y      Y      Y      -      Y
+Headphone speaker impedance detection         Y      Y      Y      Y      -      Y
+Codec internal LDOVDD regulator control       Y      Y      Y      Y      -      Y
+Support for external DCVDD regulator          Y      Y      Y      Y      Y      Y
+Build as loadable module                      Y      Y      Y      Y      Y      Y
+Configure via pdata                           Y      Y      Y      Y      Y      Y
+Configure via device tree [note 7]            Y      Y      Y      Y      Y      Y
+Configure SYSCLK rate [note 5]                Y      Y      Y      Y      Y      Y
+Configure ASYNCCLK rate [note 5]              Y      Y      Y      Y      Y      Y
+Configure analogue mic bias [note 1]          Y      Y      Y      Y      -      Y
 Configure mapping of headset button
-    resistance to key event [note 1]          Y      Y      Y      Y      -
-Configure available firmwares [note 3]        -      -      Y      Y      Y
-Support Ez2Control                            -      -      N      Y      Y
-Support trace firmware                        -      -      -      Y      N
+    resistance to key event [note 1]          Y      Y      Y      Y      -      Y
+Configure available firmwares [note 3]        -      -      Y      Y      Y      Y
+Support Ez2Control                            -      -      N      Y      Y      Y
+Support trace firmware                        -      -      -      Y      N      Y
 
 Notes:
 1. Integration-time configuration. Not possible to change at runtime
