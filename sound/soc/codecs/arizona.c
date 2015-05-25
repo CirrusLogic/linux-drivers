@@ -2370,7 +2370,7 @@ int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 			clearwater_hp_post_disable(w);
 			break;
 		default:
-			ret = 0;
+			ret = arizona_out_ev(w, kcontrol, event);
 			break;
 		}
 
