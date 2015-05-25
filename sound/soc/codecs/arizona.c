@@ -2269,25 +2269,12 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol,
 		   int event)
 {
-	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
-
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		switch (w->shift) {
 		case ARIZONA_OUT1L_ENA_SHIFT:
 		case ARIZONA_OUT1R_ENA_SHIFT:
 			msleep(17);
-
-			switch (priv->arizona->type) {
-			case WM8285:
-			case WM1840:
-			case CS47L35:
-				clearwater_hp_post_enable(w);
-				break;
-			default:
-				break;
-			}
-
 			break;
 		case ARIZONA_OUT2L_ENA_SHIFT:
 		case ARIZONA_OUT2R_ENA_SHIFT:
@@ -2329,7 +2316,6 @@ int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 	unsigned int mask = 1 << w->shift;
 	unsigned int val;
 	unsigned int ep_sel = 0;
-	int ret;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -2341,19 +2327,7 @@ int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 		val = 0;
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		switch (priv->arizona->type) {
-		case WM8285:
-		case WM1840:
-		case CS47L35:
-			ret = arizona_out_ev(w, kcontrol, event);
-			clearwater_hp_post_disable(w);
-			break;
-		default:
-			ret = arizona_out_ev(w, kcontrol, event);
-			break;
-		}
-
-		return ret;
+		return arizona_out_ev(w, kcontrol, event);
 	default:
 		return -EINVAL;
 	}
@@ -2415,6 +2389,32 @@ int florida_hp_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 	return arizona_hp_ev(w, kcontrol, event);
 }
 EXPORT_SYMBOL_GPL(florida_hp_ev);
+
+int clearwater_hp_ev(struct snd_soc_dapm_widget *w,
+		     struct snd_kcontrol *kcontrol, int event)
+{
+	int ret;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+	case SND_SOC_DAPM_PRE_PMD:
+		return arizona_hp_ev(w, kcontrol, event);
+	case SND_SOC_DAPM_POST_PMU:
+		ret = arizona_hp_ev(w, kcontrol, event);
+		if (ret < 0)
+			return ret;
+
+		clearwater_hp_post_enable(w);
+		return 0;
+	case SND_SOC_DAPM_POST_PMD:
+		ret = arizona_hp_ev(w, kcontrol, event);
+		clearwater_hp_post_disable(w);
+		return ret;
+	default:
+		return -EINVAL;
+	}
+}
+EXPORT_SYMBOL_GPL(clearwater_hp_ev);
 
 int arizona_anc_ev(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol,
