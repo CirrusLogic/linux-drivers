@@ -2279,9 +2279,6 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 			msleep(17);
 
 			switch (priv->arizona->type) {
-			case WM5110:
-				florida_hp_post_enable(w);
-				break;
 			case WM8285:
 			case WM1840:
 			case CS47L35:
@@ -2336,33 +2333,15 @@ int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		switch (priv->arizona->type) {
-		case WM5110:
-			florida_hp_pre_enable(w);
-			break;
-		default:
-			break;
-		}
 		return 0;
 	case SND_SOC_DAPM_POST_PMU:
 		val = mask;
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		val = 0;
-		switch (priv->arizona->type) {
-		case WM5110:
-			florida_hp_pre_disable(w);
-			break;
-		default:
-			break;
-		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		switch (priv->arizona->type) {
-		case WM5110:
-			florida_hp_post_disable(w);
-			ret = arizona_out_ev(w, kcontrol, event);
-			break;
 		case WM8285:
 		case WM1840:
 		case CS47L35:
@@ -2406,6 +2385,36 @@ int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 	return arizona_out_ev(w, kcontrol, event);
 }
 EXPORT_SYMBOL_GPL(arizona_hp_ev);
+
+int florida_hp_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
+		  int event)
+{
+	int ret;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		florida_hp_pre_enable(w);
+		return 0;
+	case SND_SOC_DAPM_POST_PMU:
+		ret = arizona_hp_ev(w, kcontrol, event);
+		if (ret < 0)
+			return ret;
+
+		florida_hp_post_enable(w);
+		return 0;
+	case SND_SOC_DAPM_PRE_PMD:
+		florida_hp_pre_disable(w);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		florida_hp_post_disable(w);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return arizona_hp_ev(w, kcontrol, event);
+}
+EXPORT_SYMBOL_GPL(florida_hp_ev);
 
 int arizona_anc_ev(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol,
