@@ -1968,16 +1968,17 @@ static int florida_hp_pre_enable(struct snd_soc_dapm_widget *w)
 
 static int florida_hp_post_enable(struct snd_soc_dapm_widget *w)
 {
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
 	unsigned int val = snd_soc_read(w->codec, ARIZONA_DRE_ENABLE);
 
 	switch (w->shift) {
 	case ARIZONA_OUT1L_ENA_SHIFT:
 		if (!(val & ARIZONA_DRE1L_ENA_MASK))
-			msleep(10);
+			priv->out_up_delay += 10;
 		break;
 	case ARIZONA_OUT1R_ENA_SHIFT:
 		if (!(val & ARIZONA_DRE1R_ENA_MASK))
-			msleep(10);
+			priv->out_up_delay += 10;
 		break;
 
 	default:
@@ -2020,16 +2021,17 @@ static int florida_hp_pre_disable(struct snd_soc_dapm_widget *w)
 
 static int florida_hp_post_disable(struct snd_soc_dapm_widget *w)
 {
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
 	unsigned int val = snd_soc_read(w->codec, ARIZONA_DRE_ENABLE);
 
 	switch (w->shift) {
 	case ARIZONA_OUT1L_ENA_SHIFT:
 		if (!(val & ARIZONA_DRE1L_ENA_MASK))
-			msleep(17);
+			priv->out_down_delay += 17;
 		break;
 	case ARIZONA_OUT1R_ENA_SHIFT:
 		if (!(val & ARIZONA_DRE1R_ENA_MASK))
-			msleep(17);
+			priv->out_down_delay += 17;
 		break;
 
 	default:
@@ -2384,19 +2386,13 @@ EXPORT_SYMBOL_GPL(arizona_hp_ev);
 int florida_hp_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		  int event)
 {
-	int ret;
-
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		florida_hp_pre_enable(w);
 		break;
 	case SND_SOC_DAPM_POST_PMU:
-		ret = arizona_hp_ev(w, kcontrol, event);
-		if (ret < 0)
-			return ret;
-
 		florida_hp_post_enable(w);
-		return 0;
+		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		florida_hp_pre_disable(w);
 		break;
