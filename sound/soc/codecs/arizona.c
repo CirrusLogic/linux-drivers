@@ -1999,10 +1999,6 @@ static int florida_hp_pre_disable(struct snd_soc_dapm_widget *w)
 				      ARIZONA_WSEQ_ENA | ARIZONA_WSEQ_START |
 				      0x138);
 			msleep(10);
-			snd_soc_update_bits(w->codec,
-					    ARIZONA_OUTPUT_PATH_CONFIG_1L,
-					    ARIZONA_OUT1L_PGA_VOL_MASK,
-					    0x56);
 		}
 		break;
 	case ARIZONA_OUT1R_ENA_SHIFT:
@@ -2012,10 +2008,6 @@ static int florida_hp_pre_disable(struct snd_soc_dapm_widget *w)
 				      ARIZONA_WSEQ_ENA | ARIZONA_WSEQ_START |
 				      0x13d);
 			msleep(10);
-			snd_soc_update_bits(w->codec,
-					    ARIZONA_OUTPUT_PATH_CONFIG_1R,
-					    ARIZONA_OUT1R_PGA_VOL_MASK,
-					    0x56);
 		}
 		break;
 
@@ -2032,22 +2024,12 @@ static int florida_hp_post_disable(struct snd_soc_dapm_widget *w)
 
 	switch (w->shift) {
 	case ARIZONA_OUT1L_ENA_SHIFT:
-		if (!(val & ARIZONA_DRE1L_ENA_MASK)) {
+		if (!(val & ARIZONA_DRE1L_ENA_MASK))
 			msleep(17);
-			snd_soc_update_bits(w->codec,
-					    ARIZONA_OUTPUT_PATH_CONFIG_1L,
-					    ARIZONA_OUT1L_PGA_VOL_MASK,
-					    0x80);
-		}
 		break;
 	case ARIZONA_OUT1R_ENA_SHIFT:
-		if (!(val & ARIZONA_DRE1R_ENA_MASK)) {
+		if (!(val & ARIZONA_DRE1R_ENA_MASK))
 			msleep(17);
-			snd_soc_update_bits(w->codec,
-					    ARIZONA_OUTPUT_PATH_CONFIG_1R,
-					    ARIZONA_OUT1R_PGA_VOL_MASK,
-					    0x80);
-		}
 		break;
 
 	default:
