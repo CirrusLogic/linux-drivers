@@ -333,7 +333,7 @@ out:
 }
 
 /* Allow the worst case number of sources (FX Rate currently) */
-static int mixer_sources_cache[ARRAY_SIZE(clearwater_fx_inputs)];
+static unsigned int mixer_sources_cache[ARRAY_SIZE(clearwater_fx_inputs)];
 
 static int clearwater_get_sources(unsigned int reg,
 				  const int **cur_sources, int *lim)

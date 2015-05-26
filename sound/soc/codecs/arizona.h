@@ -332,12 +332,12 @@ extern int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 
 extern int arizona_cache_and_clear_sources(struct arizona *arizona,
 					   const int *sources,
-					   int *cache,
+					   unsigned int *cache,
 					   int lim);
 
 extern int arizona_restore_sources(struct arizona *arizona,
 				   const int *sources,
-				   int *cache,
+				   unsigned int *cache,
 				   int lim);
 
 extern void clearwater_spin_sysclk(struct arizona *arizona);
