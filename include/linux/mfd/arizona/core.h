@@ -134,6 +134,7 @@ struct arizona {
 	struct regulator_bulk_data core_supplies[ARIZONA_MAX_CORE_SUPPLIES];
 	struct regulator *dcvdd;
 	struct notifier_block dcvdd_notifier;
+	bool has_fully_powered_off;
 
 	struct arizona_pdata pdata;
 
