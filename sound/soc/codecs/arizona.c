@@ -173,7 +173,7 @@ static const int arizona_aif4_inputs[8] = {
 	ARIZONA_AIF4TX2MIX_INPUT_4_SOURCE,
 };
 
-static int arizona_aif_sources_cache[ARRAY_SIZE(arizona_aif1_inputs)];
+static unsigned int arizona_aif_sources_cache[ARRAY_SIZE(arizona_aif1_inputs)];
 
 static int arizona_get_sources(struct arizona *arizona,
 			       struct snd_soc_dai *dai,
@@ -206,7 +206,7 @@ static int arizona_get_sources(struct arizona *arizona,
 
 int arizona_cache_and_clear_sources(struct arizona *arizona,
 				    const int *sources,
-				    int *cache,
+				    unsigned int *cache,
 				    int lim)
 {
 	int ret = 0;
@@ -278,7 +278,7 @@ EXPORT_SYMBOL_GPL(clearwater_spin_sysclk);
 
 int arizona_restore_sources(struct arizona *arizona,
 			    const int *sources,
-			    int *cache,
+			    unsigned int *cache,
 			    int lim)
 {
 	int ret = 0;
