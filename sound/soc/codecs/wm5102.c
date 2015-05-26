@@ -1340,8 +1340,8 @@ SND_SOC_DAPM_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
 		  ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
 		  &wm5102_aec_loopback_mux),
 
-SND_SOC_DAPM_MUX_E("DSP Virtual Output Mux", SND_SOC_NOPM, 0, 0,
-		   &wm5102_dsp_output_mux, 0, 0),
+SND_SOC_DAPM_MUX("DSP Virtual Output Mux", SND_SOC_NOPM, 0, 0,
+		   &wm5102_dsp_output_mux),
 
 SND_SOC_DAPM_PGA_E("OUT1L", SND_SOC_NOPM,
 		   ARIZONA_OUT1L_ENA_SHIFT, 0, NULL, 0, arizona_hp_ev,
