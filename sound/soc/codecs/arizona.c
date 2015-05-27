@@ -3135,6 +3135,17 @@ static int clearwater_get_dspclk_setting(unsigned int freq)
 	}
 }
 
+static int moon_get_dspclk_setting(unsigned int freq, unsigned int *val)
+{
+	if (freq > 150000000)
+		return -EINVAL;
+
+	/* freq * (2^6) / (10^6) */
+	*val = freq / 15625;
+
+	return 0;
+}
+
 int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		       int source, unsigned int freq, int dir)
 {
@@ -3143,10 +3154,13 @@ int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	int ret = 0;
 	char *name;
 	unsigned int reg;
+	unsigned int reg2, val2;
 	unsigned int mask = ARIZONA_SYSCLK_FREQ_MASK | ARIZONA_SYSCLK_SRC_MASK;
 	unsigned int val = source << ARIZONA_SYSCLK_SRC_SHIFT;
 	int clk_freq;
 	int *clk;
+
+	reg2 = val2 = 0;
 
 	switch (arizona->type) {
 	case WM8997:
@@ -3178,7 +3192,9 @@ int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 			return -EINVAL;
 		}
 		break;
-	default:
+	case CS47L35:
+	case WM8285:
+	case WM1840:
 		switch (clk_id) {
 		case ARIZONA_CLK_SYSCLK:
 			name = "SYSCLK";
@@ -3206,15 +3222,60 @@ int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 			return -EINVAL;
 		}
 		break;
+	default:
+		switch (clk_id) {
+		case ARIZONA_CLK_SYSCLK:
+			name = "SYSCLK";
+			reg = ARIZONA_SYSTEM_CLOCK_1;
+			clk = &priv->sysclk;
+			clk_freq = clearwater_get_sysclk_setting(freq);
+			mask |= ARIZONA_SYSCLK_FRAC;
+			break;
+		case ARIZONA_CLK_ASYNCCLK:
+			name = "ASYNCCLK";
+			reg = ARIZONA_ASYNC_CLOCK_1;
+			clk = &priv->asyncclk;
+			clk_freq = clearwater_get_sysclk_setting(freq);
+			break;
+		case ARIZONA_CLK_OPCLK:
+		case ARIZONA_CLK_ASYNC_OPCLK:
+			return arizona_set_opclk(codec, clk_id, freq);
+		case ARIZONA_CLK_DSPCLK:
+			name = "DSPCLK";
+			reg = CLEARWATER_DSP_CLOCK_1;
+			mask = ARIZONA_SYSCLK_SRC_MASK;
+			reg2 = CLEARWATER_DSP_CLOCK_2;
+			clk = &priv->dspclk;
+			ret = moon_get_dspclk_setting(freq, &val2);
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
 	}
 
-	if (clk_freq < 0) {
-		dev_err(arizona->dev, "Failed to get clk setting for %dHZ\n",
-			freq);
-		return ret;
-	}
+	if (reg2) {
+		if (ret < 0) {
+			dev_err(arizona->dev, "Failed to get clk setting for %dHZ\n",
+				freq);
+			return ret;
+		}
+		ret = regmap_write(arizona->regmap,
+				   reg2, val2);
+		if (ret != 0) {
+			dev_err(arizona->dev,
+				"Failed to set dsp freq to %d\n", val2);
+			return ret;
+		}
+	} else {
+		if (clk_freq < 0) {
+			dev_err(arizona->dev, "Failed to get clk setting for %dHZ\n",
+				freq);
+			return ret;
+		}
 
-	val |= clk_freq;
+		val |= clk_freq;
+	}
 
 	if (freq == 0) {
 		dev_dbg(arizona->dev, "%s cleared\n", name);
