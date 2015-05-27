@@ -595,15 +595,12 @@ static int moon_adsp_power_ev(struct snd_soc_dapm_widget *w,
 	unsigned int freq;
 	int ret;
 
-	ret = regmap_read(arizona->regmap, CLEARWATER_DSP_CLOCK_1, &freq);
+	ret = regmap_read(arizona->regmap, CLEARWATER_DSP_CLOCK_2, &freq);
 	if (ret != 0) {
 		dev_err(arizona->dev,
-			"Failed to read CLEARWATER_DSP_CLOCK_1: %d\n", ret);
+			"Failed to read CLEARWATER_DSP_CLOCK_2: %d\n", ret);
 		return ret;
 	}
-
-	freq &= CLEARWATER_DSP_CLK_FREQ_LEGACY_MASK;
-	freq >>= CLEARWATER_DSP_CLK_FREQ_LEGACY_SHIFT;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -3021,7 +3018,7 @@ static int moon_probe(struct platform_device *pdev)
 			moon->core.adsp[i].part_rev = 'a' + arizona->rev;
 		moon->core.adsp[i].num = i + 1;
 		moon->core.adsp[i].type = WMFW_ADSP2;
-		moon->core.adsp[i].rev = 1;
+		moon->core.adsp[i].rev = 2;
 		moon->core.adsp[i].dev = arizona->dev;
 		moon->core.adsp[i].regmap = arizona->regmap_32bit;
 

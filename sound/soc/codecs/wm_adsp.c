@@ -119,6 +119,7 @@
 
 #define ADSP2_CONTROL        0x0
 #define ADSP2_CLOCKING       0x1
+#define ADSP2V2_CLOCKING     0x2
 #define ADSP2_STATUS1        0x4
 #define ADSP2_WDMA_CONFIG_1   0x30
 #define ADSP2_WDMA_CONFIG_2   0x31
@@ -2329,7 +2330,7 @@ err:
 static void wm_adsp2_set_dspclk(struct wm_adsp *dsp, unsigned int freq)
 {
 	int ret;
-	int mask;
+	unsigned int mask, val;
 
 	switch (dsp->rev) {
 	case 0:
@@ -2345,11 +2346,32 @@ static void wm_adsp2_set_dspclk(struct wm_adsp *dsp, unsigned int freq)
 	default:
 		mutex_lock(&dsp->rate_lock);
 
-		mask = ADSP2V2_CLK_SEL_MASK | ADSP2V2_RATE_MASK;
-		freq <<= ADSP2V2_CLK_SEL_SHIFT;
-		freq |= dsp->rate_cache << ADSP2V2_RATE_SHIFT;
+		mask = ADSP2V2_RATE_MASK;
+		val = dsp->rate_cache << ADSP2V2_RATE_SHIFT;
 
-		ret = dsp->rate_put_cb(dsp, mask, freq);
+		switch (dsp->rev) {
+		case 0:
+		case 1:
+			/* use legacy frequency registers */
+			mask |= ADSP2V2_CLK_SEL_MASK;
+			val |= (freq << ADSP2V2_CLK_SEL_SHIFT);
+			break;
+		default:
+			/* Configure exact dsp frequency */
+			ret = regmap_write(dsp->regmap,
+					dsp->base + ADSP2V2_CLOCKING,
+					freq);
+			if (ret != 0) {
+				adsp_err(dsp,
+					 "Failed to set DSP freq: %d\n",
+					 ret);
+				mutex_unlock(&dsp->rate_lock);
+				return;
+			}
+			break;
+		}
+
+		ret = dsp->rate_put_cb(dsp, mask, val);
 		if (ret != 0) {
 			adsp_err(dsp, "Failed to set DSP_CLK rate: %d\n", ret);
 			mutex_unlock(&dsp->rate_lock);
