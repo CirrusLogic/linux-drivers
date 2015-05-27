@@ -124,7 +124,7 @@ struct arizona_extcon_info {
 	bool detecting;
 	int jack_flips;
 
-	int hpdet_ip;
+	int hpdet_ip_version;
 	const struct arizona_hpdet_d_trims *hpdet_d_trims;
 	const struct arizona_hpdet_calibration_data *calib_data;
 	int calib_data_size;
@@ -655,7 +655,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		return ret;
 	}
 
-	switch (info->hpdet_ip) {
+	switch (info->hpdet_ip_version) {
 	case 0:
 		if (!(val & ARIZONA_HP_DONE)) {
 			dev_err(arizona->dev, "HPDET did not complete: %x\n",
@@ -716,7 +716,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 
 	default:
 		dev_warn(arizona->dev, "Unknown HPDET IP revision %d\n",
-			 info->hpdet_ip);
+			 info->hpdet_ip_version);
 	case 2:
 		if (!(val & ARIZONA_HP_DONE_B)) {
 			dev_err(arizona->dev, "HPDET did not complete: %x\n",
@@ -796,7 +796,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		}
 		val = (val >> ARIZONA_HP_DACVAL_SHIFT) & ARIZONA_HP_DACVAL_MASK;
 
-		if (info->hpdet_ip == 4) {
+		if (info->hpdet_ip_version == 4) {
 			ret = regmap_read(arizona->regmap,
 					  ARIZONA_HP_DACVAL,
 					  &val_down);
@@ -3282,7 +3282,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 			break;
 		default:
 			info->micd_clamp = true;
-			info->hpdet_ip = 1;
+			info->hpdet_ip_version = 1;
 			break;
 		}
 		break;
@@ -3293,7 +3293,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 			break;
 		default:
 			info->micd_clamp = true;
-			info->hpdet_ip = 3;
+			info->hpdet_ip_version = 3;
 			break;
 		}
 		break;
@@ -3303,11 +3303,11 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	case WM8285:
 	case WM1840:
 		info->micd_clamp = true;
-		info->hpdet_ip = 4;
+		info->hpdet_ip_version = 4;
 		break;
 	default:
 		info->micd_clamp = true;
-		info->hpdet_ip = 2;
+		info->hpdet_ip_version = 2;
 		break;
 	}
 
@@ -3457,16 +3457,16 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	pm_runtime_idle(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
-	switch (info->hpdet_ip) {
+	switch (info->hpdet_ip_version) {
 	case 3:
 		arizona_hpdet_d_read_calibration(info);
 		if (!info->hpdet_d_trims)
-			info->hpdet_ip = 2;
+			info->hpdet_ip_version = 2;
 		break;
 	case 4:
 		arizona_hpdet_clearwater_read_calibration(info);
 		if (!info->hpdet_d_trims)
-			info->hpdet_ip = 2;
+			info->hpdet_ip_version = 2;
 		else
 			/* as per the hardware steps - below bit needs to be set
 			 * for clearwater for accurate HP impedance detection */
