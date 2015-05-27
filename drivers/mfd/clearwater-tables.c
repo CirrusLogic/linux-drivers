@@ -2076,12 +2076,6 @@ static bool clearwater_16bit_readable_register(struct device *dev, unsigned int 
 	case ARIZONA_IN6R_CONTROL:
 	case ARIZONA_ADC_DIGITAL_VOLUME_6R:
 	case ARIZONA_DMIC6R_CONTROL:
-	case ARIZONA_ADC_VCO_CAL_4:
-	case ARIZONA_ADC_VCO_CAL_5:
-	case ARIZONA_ADC_VCO_CAL_6:
-	case ARIZONA_ADC_VCO_CAL_7:
-	case ARIZONA_ADC_VCO_CAL_8:
-	case ARIZONA_ADC_VCO_CAL_9:
 	case ARIZONA_OUTPUT_ENABLES_1:
 	case ARIZONA_OUTPUT_STATUS_1:
 	case ARIZONA_OUTPUT_STANDBY_1:
