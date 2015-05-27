@@ -2033,7 +2033,6 @@ static bool clearwater_16bit_readable_register(struct device *dev, unsigned int 
 	case ARIZONA_MIC_DETECT_LEVEL_4:
 	case ARIZONA_MIC_NOISE_MIX_CONTROL_1:
 	case CLEARWATER_GP_SWITCH_1:
-	case ARIZONA_ISOLATION_CONTROL:
 	case ARIZONA_JACK_DETECT_ANALOGUE:
 	case ARIZONA_INPUT_ENABLES:
 	case ARIZONA_INPUT_ENABLES_STATUS:
