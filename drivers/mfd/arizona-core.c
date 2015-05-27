@@ -2113,16 +2113,17 @@ default:
 	switch (arizona->type) {
 	case WM5102:
 	case WM5110:
-	case WM8997:
 	case WM8280:
-	case WM1831:
-	case CS47L24:
 		/* These arizona chips have 4 inputs and
 		settings for INxL and INxR are same*/
 		max_inputs = 4;
 		break;
+	case WM8997:
+	case WM1831:
+	case CS47L24:
 	case WM8998:
 	case WM1814:
+	case CS47L35:
 		max_inputs = 2;
 		break;
 	default:
