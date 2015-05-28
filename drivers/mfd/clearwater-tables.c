@@ -437,7 +437,6 @@ static const struct reg_default clearwater_reg_default[] = {
 	{ 0x00000016, 0x0000 }, /* R22 (0x16) - Write Sequencer Ctrl 0 */
 	{ 0x00000017, 0x0000 }, /* R23 (0x17) - Write Sequencer Ctrl 1 */
 	{ 0x00000018, 0x0000 }, /* R24 (0x18) - Write Sequencer Ctrl 2 */
-	{ 0x0000001a, 0x0000 }, /* R26 (0x1A) - Write Sequencer PROM */
 	{ 0x00000020, 0x0000 }, /* R32 (0x20) - Tone Generator 1 */
 	{ 0x00000021, 0x1000 }, /* R33 (0x21) - Tone Generator 2 */
 	{ 0x00000022, 0x0000 }, /* R34 (0x22) - Tone Generator 3 */
@@ -638,12 +637,9 @@ static const struct reg_default clearwater_reg_default[] = {
 	{ 0x0000043d, 0x0180 }, /* R1085 (0x43D) - DAC Digital Volume 6R */
 	{ 0x0000043f, 0x0800 }, /* R1087 (0x43F) - Noise Gate Select 6R */
 	{ 0x00000440, 0x003f }, /* R1088 (0x440) - DRE Enable */
-	{ 0x00000441, 0xC050 }, /* R1089  - DRE Control 1 */
-	{ 0x00000442, 0x0305 }, /* R1090 (0x442) - DRE Control 2 */
-	{ 0x00000443, 0x5cfa }, /* R1091 (0x443) - DRE Control 3 */
 	{ 0x00000448, 0x0fff }, /* R1096 (0x448) - eDRE Enable */
 	{ 0x00000450, 0x0000 }, /* R1104 (0x450) - DAC AEC Control 1 */
-	{ 0x00000451, 0x0000 },
+	{ 0x00000451, 0x0000 }, /* R1105  - DAC AEC Control 2 */
 	{ 0x00000458, 0x0000 }, /* R1112 (0x458) - Noise Gate Control */
 	{ 0x00000490, 0x0069 }, /* R1168 (0x490) - PDM SPK1 CTRL 1 */
 	{ 0x00000491, 0x0000 }, /* R1169 (0x491) - PDM SPK1 CTRL 2 */
@@ -654,11 +650,6 @@ static const struct reg_default clearwater_reg_default[] = {
 	{ 0x000004A2, 0x3200 }, /* R1186  - HP3 Short Circuit Ctrl */
 	{ 0x000004A8, 0x7020 }, /* R1192  - HP Test Ctrl 5 */
 	{ 0x000004A9, 0x7020 }, /* R1193  - HP Test Ctrl 6 */
-	{ 0x000004b5, 0x0000 },
-	{ 0x000004b6, 0x8080 },
-	{ 0x000004dc, 0x6000 }, /* R1244 (0x4DC) - DAC comp 1 */
-	{ 0x000004de, 0x0000 }, /* R1246 (0x4DE) - DAC comp 3 */
-	{ 0x000004df, 0x0000 }, /* R1247 (0x4DF) - DAC comp 4 */
 	{ 0x00000500, 0x000c }, /* R1280 (0x500) - AIF1 BCLK Ctrl */
 	{ 0x00000501, 0x0000 }, /* R1281 (0x501) - AIF1 Tx Pin Ctrl */
 	{ 0x00000502, 0x0000 }, /* R1282 (0x502) - AIF1 Rx Pin Ctrl */
@@ -686,7 +677,6 @@ static const struct reg_default clearwater_reg_default[] = {
 	{ 0x00000518, 0x0007 }, /* R1304 (0x518) - AIF1 Frame Ctrl 18 */
 	{ 0x00000519, 0x0000 }, /* R1305 (0x519) - AIF1 Tx Enables */
 	{ 0x0000051a, 0x0000 }, /* R1306 (0x51A) - AIF1 Rx Enables */
-	{ 0x0000051b, 0x0000 }, /* R1307 (0x51B) - AIF1 Force Write */
 	{ 0x00000540, 0x000c }, /* R1344 (0x540) - AIF2 BCLK Ctrl */
 	{ 0x00000541, 0x0000 }, /* R1345 (0x541) - AIF2 Tx Pin Ctrl */
 	{ 0x00000542, 0x0000 }, /* R1346 (0x542) - AIF2 Rx Pin Ctrl */
@@ -714,7 +704,6 @@ static const struct reg_default clearwater_reg_default[] = {
 	{ 0x00000558, 0x0007 }, /* R1368  - AIF2 Frame Ctrl 18 */
 	{ 0x00000559, 0x0000 }, /* R1369 (0x559) - AIF2 Tx Enables */
 	{ 0x0000055a, 0x0000 }, /* R1370 (0x55A) - AIF2 Rx Enables */
-	{ 0x0000055b, 0x0000 }, /* R1371 (0x55B) - AIF2 Force Write */
 	{ 0x00000580, 0x000c }, /* R1408 (0x580) - AIF3 BCLK Ctrl */
 	{ 0x00000581, 0x0000 }, /* R1409 (0x581) - AIF3 Tx Pin Ctrl */
 	{ 0x00000582, 0x0000 }, /* R1410 (0x582) - AIF3 Rx Pin Ctrl */
@@ -730,7 +719,6 @@ static const struct reg_default clearwater_reg_default[] = {
 	{ 0x00000592, 0x0001 }, /* R1426 (0x592) - AIF3 Frame Ctrl 12 */
 	{ 0x00000599, 0x0000 }, /* R1433 (0x599) - AIF3 Tx Enables */
 	{ 0x0000059a, 0x0000 }, /* R1434 (0x59A) - AIF3 Rx Enables */
-	{ 0x0000059b, 0x0000 }, /* R1435 (0x59B) - AIF3 Force Write */
 	{ 0x000005a0, 0x000c }, /* R1440  - AIF4 BCLK Ctrl */
 	{ 0x000005a1, 0x0000 }, /* R1441  - AIF4 Tx Pin Ctrl */
 	{ 0x000005a2, 0x0000 }, /* R1442  - AIF4 Rx Pin Ctrl */
@@ -746,7 +734,6 @@ static const struct reg_default clearwater_reg_default[] = {
 	{ 0x000005b2, 0x0001 }, /* R1458  - AIF4 Frame Ctrl 12 */
 	{ 0x000005b9, 0x0000 }, /* R1465  - AIF4 Tx Enables */
 	{ 0x000005ba, 0x0000 }, /* R1466  - AIF4 Rx Enables */
-	{ 0x000005bb, 0x0000 }, /* R1467  - AIF4 Force Write */
 	{ 0x000005C2, 0x0000 }, /* R1474  - SPD1 TX Control */
 	{ 0x000005e3, 0x0000 }, /* R1507 (0x5E3) - SLIMbus Framer Ref Gear */
 	{ 0x000005e5, 0x0000 }, /* R1509 (0x5E5) - SLIMbus Rates 1 */
@@ -1684,19 +1671,8 @@ static const struct reg_default clearwater_reg_default[] = {
 	{ 0x00000FC3, 0x0000 }, /* R4035  - ANC Coefficient */
 	{ 0x00000FC4, 0x0000 }, /* R4036  - ANC Coefficient */
 	{ 0x00000FC5, 0x0000 }, /* R4037  - ANC Coefficient */
-	{ 0x00001200, 0x0000 },
-	{ 0x00001204, 0x0000 },
-	{ 0x00001206, 0x0000 },
-	{ 0x00001210, 0x0000 },
-	{ 0x00001212, 0x0000 },
-	{ 0x00001214, 0x0000 },
-	{ 0x00001216, 0x0000 },
 	{ 0x00001300, 0x0000 }, /* R4864  - DAC Comp 1 */
 	{ 0x00001302, 0x0000 }, /* R4866  - DAC Comp 2 */
-	{ 0x00001340, 0x0000 },
-	{ 0x00001341, 0x0000 },
-	{ 0x00001342, 0x0000 },
-	{ 0x00001343, 0x0000 },
 	{ 0x00001380, 0x0000 },
 	{ 0x00001381, 0x0000 },
 	{ 0x00001382, 0x0000 },
@@ -1891,8 +1867,6 @@ static bool clearwater_16bit_readable_register(struct device *dev, unsigned int 
 	case ARIZONA_CTRL_IF_SPI_CFG_1:
 	case ARIZONA_CTRL_IF_I2C1_CFG_1:
 	case ARIZONA_CTRL_IF_I2C2_CFG_1:
-	case ARIZONA_CTRL_IF_I2C1_CFG_2:
-	case ARIZONA_CTRL_IF_I2C2_CFG_2:
 	case ARIZONA_WRITE_SEQUENCER_CTRL_0:
 	case ARIZONA_WRITE_SEQUENCER_CTRL_1:
 	case ARIZONA_WRITE_SEQUENCER_CTRL_2:
@@ -1904,7 +1878,6 @@ static bool clearwater_16bit_readable_register(struct device *dev, unsigned int 
 	case ARIZONA_PWM_DRIVE_1:
 	case ARIZONA_PWM_DRIVE_2:
 	case ARIZONA_PWM_DRIVE_3:
-	case ARIZONA_WAKE_CONTROL:
 	case ARIZONA_SEQUENCE_CONTROL:
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_1:
 	case ARIZONA_SAMPLE_RATE_SEQUENCE_SELECT_2:
@@ -2079,61 +2052,49 @@ static bool clearwater_16bit_readable_register(struct device *dev, unsigned int 
 	case ARIZONA_DMIC6R_CONTROL:
 	case ARIZONA_OUTPUT_ENABLES_1:
 	case ARIZONA_OUTPUT_STATUS_1:
-	case ARIZONA_OUTPUT_STANDBY_1:
 	case ARIZONA_RAW_OUTPUT_STATUS_1:
 	case ARIZONA_OUTPUT_RATE_1:
 	case ARIZONA_OUTPUT_VOLUME_RAMP:
 	case ARIZONA_OUTPUT_PATH_CONFIG_1L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_1L:
-	case ARIZONA_DAC_VOLUME_LIMIT_1L:
 	case ARIZONA_NOISE_GATE_SELECT_1L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_1R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_1R:
-	case ARIZONA_DAC_VOLUME_LIMIT_1R:
 	case ARIZONA_NOISE_GATE_SELECT_1R:
 	case ARIZONA_OUTPUT_PATH_CONFIG_2L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_2L:
-	case ARIZONA_DAC_VOLUME_LIMIT_2L:
 	case ARIZONA_NOISE_GATE_SELECT_2L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_2R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_2R:
-	case ARIZONA_DAC_VOLUME_LIMIT_2R:
 	case ARIZONA_NOISE_GATE_SELECT_2R:
 	case ARIZONA_OUTPUT_PATH_CONFIG_3L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_3L:
-	case ARIZONA_DAC_VOLUME_LIMIT_3L:
 	case ARIZONA_NOISE_GATE_SELECT_3L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_3R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_3R:
-	case ARIZONA_DAC_VOLUME_LIMIT_3R:
 	case ARIZONA_NOISE_GATE_SELECT_3R:
 	case ARIZONA_OUTPUT_PATH_CONFIG_4L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_4L:
-	case ARIZONA_OUT_VOLUME_4L:
 	case ARIZONA_NOISE_GATE_SELECT_4L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_4R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_4R:
-	case ARIZONA_OUT_VOLUME_4R:
 	case ARIZONA_NOISE_GATE_SELECT_4R:
 	case ARIZONA_OUTPUT_PATH_CONFIG_5L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_5L:
-	case ARIZONA_DAC_VOLUME_LIMIT_5L:
 	case ARIZONA_NOISE_GATE_SELECT_5L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_5R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_5R:
-	case ARIZONA_DAC_VOLUME_LIMIT_5R:
 	case ARIZONA_NOISE_GATE_SELECT_5R:
 	case ARIZONA_OUTPUT_PATH_CONFIG_6L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_6L:
-	case ARIZONA_DAC_VOLUME_LIMIT_6L:
 	case ARIZONA_NOISE_GATE_SELECT_6L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_6R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_6R:
-	case ARIZONA_DAC_VOLUME_LIMIT_6R:
 	case ARIZONA_NOISE_GATE_SELECT_6R:
 	case ARIZONA_DRE_ENABLE:
 	case CLEARWATER_EDRE_ENABLE:
 	case ARIZONA_DAC_AEC_CONTROL_1:
+	case ARIZONA_DAC_AEC_CONTROL_2:
 	case ARIZONA_NOISE_GATE_CONTROL:
 	case ARIZONA_PDM_SPK1_CTRL_1:
 	case ARIZONA_PDM_SPK1_CTRL_2:
@@ -2144,7 +2105,6 @@ static bool clearwater_16bit_readable_register(struct device *dev, unsigned int 
 	case ARIZONA_HP3_SHORT_CIRCUIT_CTRL:
 	case ARIZONA_HP_TEST_CTRL_5:
 	case ARIZONA_HP_TEST_CTRL_6:
-	case ARIZONA_SPK_CTRL_3:
 	case ARIZONA_AIF1_BCLK_CTRL:
 	case ARIZONA_AIF1_TX_PIN_CTRL:
 	case ARIZONA_AIF1_RX_PIN_CTRL:
@@ -2470,6 +2430,22 @@ static bool clearwater_16bit_readable_register(struct device *dev, unsigned int 
 	case ARIZONA_AIF2TX6MIX_INPUT_3_VOLUME:
 	case ARIZONA_AIF2TX6MIX_INPUT_4_SOURCE:
 	case ARIZONA_AIF2TX6MIX_INPUT_4_VOLUME:
+	case ARIZONA_AIF2TX7MIX_INPUT_1_SOURCE:
+	case ARIZONA_AIF2TX7MIX_INPUT_1_VOLUME:
+	case ARIZONA_AIF2TX7MIX_INPUT_2_SOURCE:
+	case ARIZONA_AIF2TX7MIX_INPUT_2_VOLUME:
+	case ARIZONA_AIF2TX7MIX_INPUT_3_SOURCE:
+	case ARIZONA_AIF2TX7MIX_INPUT_3_VOLUME:
+	case ARIZONA_AIF2TX7MIX_INPUT_4_SOURCE:
+	case ARIZONA_AIF2TX7MIX_INPUT_4_VOLUME:
+	case ARIZONA_AIF2TX8MIX_INPUT_1_SOURCE:
+	case ARIZONA_AIF2TX8MIX_INPUT_1_VOLUME:
+	case ARIZONA_AIF2TX8MIX_INPUT_2_SOURCE:
+	case ARIZONA_AIF2TX8MIX_INPUT_2_VOLUME:
+	case ARIZONA_AIF2TX8MIX_INPUT_3_SOURCE:
+	case ARIZONA_AIF2TX8MIX_INPUT_3_VOLUME:
+	case ARIZONA_AIF2TX8MIX_INPUT_4_SOURCE:
+	case ARIZONA_AIF2TX8MIX_INPUT_4_VOLUME:
 	case ARIZONA_AIF3TX1MIX_INPUT_1_SOURCE:
 	case ARIZONA_AIF3TX1MIX_INPUT_1_VOLUME:
 	case ARIZONA_AIF3TX1MIX_INPUT_2_SOURCE:
@@ -2566,6 +2542,10 @@ static bool clearwater_16bit_readable_register(struct device *dev, unsigned int 
 	case ARIZONA_SLIMTX8MIX_INPUT_3_VOLUME:
 	case ARIZONA_SLIMTX8MIX_INPUT_4_SOURCE:
 	case ARIZONA_SLIMTX8MIX_INPUT_4_VOLUME:
+	case ARIZONA_SPDIFTX1MIX_INPUT_1_SOURCE:
+	case ARIZONA_SPDIFTX1MIX_INPUT_1_VOLUME:
+	case ARIZONA_SPDIFTX2MIX_INPUT_1_SOURCE:
+	case ARIZONA_SPDIFTX2MIX_INPUT_1_VOLUME:
 	case ARIZONA_EQ1MIX_INPUT_1_SOURCE:
 	case ARIZONA_EQ1MIX_INPUT_1_VOLUME:
 	case ARIZONA_EQ1MIX_INPUT_2_SOURCE:
@@ -3150,19 +3130,6 @@ static bool clearwater_16bit_readable_register(struct device *dev, unsigned int 
 	case CLEARWATER_IRQ1_MASK_13:
 	case CLEARWATER_IRQ1_MASK_14:
 	case CLEARWATER_IRQ1_MASK_15:
-	case CLEARWATER_IRQ1_MASK_17:
-	case CLEARWATER_IRQ1_MASK_18:
-	case CLEARWATER_IRQ1_MASK_19:
-	case CLEARWATER_IRQ1_MASK_21:
-	case CLEARWATER_IRQ1_MASK_22:
-	case CLEARWATER_IRQ1_MASK_23:
-	case CLEARWATER_IRQ1_MASK_24:
-	case CLEARWATER_IRQ1_MASK_25:
-	case CLEARWATER_IRQ1_MASK_27:
-	case CLEARWATER_IRQ1_MASK_28:
-	case CLEARWATER_IRQ1_MASK_30:
-	case CLEARWATER_IRQ1_MASK_31:
-	case CLEARWATER_IRQ1_MASK_32:
 	case CLEARWATER_IRQ1_RAW_STATUS_1:
 	case CLEARWATER_IRQ1_RAW_STATUS_2:
 	case CLEARWATER_IRQ1_RAW_STATUS_7:
@@ -3222,12 +3189,6 @@ static bool clearwater_16bit_volatile_register(struct device *dev, unsigned int 
 	case ARIZONA_INPUT_ENABLES_STATUS:
 	case ARIZONA_OUTPUT_STATUS_1:
 	case ARIZONA_RAW_OUTPUT_STATUS_1:
-	case ARIZONA_ADC_VCO_CAL_4:
-	case ARIZONA_ADC_VCO_CAL_5:
-	case ARIZONA_ADC_VCO_CAL_6:
-	case ARIZONA_ADC_VCO_CAL_7:
-	case ARIZONA_ADC_VCO_CAL_8:
-	case ARIZONA_ADC_VCO_CAL_9:
 	case ARIZONA_SPD1_TX_CHANNEL_STATUS_1:
 	case ARIZONA_SPD1_TX_CHANNEL_STATUS_2:
 	case ARIZONA_SPD1_TX_CHANNEL_STATUS_3:

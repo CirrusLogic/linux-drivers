@@ -713,7 +713,6 @@ static const struct reg_default largo_reg_default[] = {
 	{ 0x00000D1D, 0xD005 },    /* R3357  - IRQ2 Status 6 Mask */
 	{ 0x00000D1F, 0x0000 },    /* R3359  - IRQ2 Control */
 	{ 0x00000E00, 0x0000 },    /* R3584  - FX_Ctrl1 */
-	{ 0x00000E01, 0x0000 },    /* R3585  - FX_Ctrl2 */
 	{ 0x00000E10, 0x6318 },    /* R3600  - EQ1_1 */
 	{ 0x00000E11, 0x6300 },    /* R3601  - EQ1_2 */
 	{ 0x00000E12, 0x0FC8 },    /* R3602  - EQ1_3 */
@@ -916,7 +915,6 @@ static bool largo_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DMIC2R_CONTROL:
 	case ARIZONA_OUTPUT_ENABLES_1:
 	case ARIZONA_OUTPUT_STATUS_1:
-	case ARIZONA_OUTPUT_STANDBY_1:
 	case ARIZONA_RAW_OUTPUT_STATUS_1:
 	case ARIZONA_OUTPUT_RATE_1:
 	case ARIZONA_OUTPUT_VOLUME_RAMP:
@@ -933,7 +931,6 @@ static bool largo_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DAC_AEC_CONTROL_1:
 	case ARIZONA_NOISE_GATE_CONTROL:
 	case ARIZONA_HP1_SHORT_CIRCUIT_CTRL:
-	case ARIZONA_SPK_CTRL_3:
 	case ARIZONA_AIF1_BCLK_CTRL:
 	case ARIZONA_AIF1_TX_PIN_CTRL:
 	case ARIZONA_AIF1_RX_PIN_CTRL:
@@ -1529,12 +1526,6 @@ static bool largo_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_INPUT_ENABLES_STATUS:
 	case ARIZONA_OUTPUT_STATUS_1:
 	case ARIZONA_RAW_OUTPUT_STATUS_1:
-	case ARIZONA_ADC_VCO_CAL_4:
-	case ARIZONA_ADC_VCO_CAL_5:
-	case ARIZONA_ADC_VCO_CAL_6:
-	case ARIZONA_ADC_VCO_CAL_7:
-	case ARIZONA_ADC_VCO_CAL_8:
-	case ARIZONA_ADC_VCO_CAL_9:
 	case ARIZONA_INTERRUPT_STATUS_1:
 	case ARIZONA_INTERRUPT_STATUS_2:
 	case ARIZONA_INTERRUPT_STATUS_3:

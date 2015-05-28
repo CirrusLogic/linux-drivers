@@ -93,7 +93,6 @@ static const struct reg_default marley_reg_default[] = {
 	{ 0x00000016, 0x0000 }, /* R22 (0x16) - Write Sequencer Ctrl 0 */
 	{ 0x00000017, 0x0000 }, /* R23 (0x17) - Write Sequencer Ctrl 1 */
 	{ 0x00000018, 0x0000 }, /* R24 (0x18) - Write Sequencer Ctrl 2 */
-	{ 0x0000001a, 0x0000 }, /* R26 (0x1A) - Write Sequencer PROM */
 	{ 0x00000020, 0x0000 }, /* R32 (0x20) - Tone Generator 1 */
 	{ 0x00000021, 0x1000 }, /* R33 (0x21) - Tone Generator 2 */
 	{ 0x00000022, 0x0000 }, /* R34 (0x22) - Tone Generator 3 */
@@ -107,10 +106,8 @@ static const struct reg_default marley_reg_default[] = {
 	{ 0x00000062, 0x01ff }, /* R98 (0x62) - Sample Rate Sequence Select 2 */
 	{ 0x00000063, 0x01ff }, /* R99 (0x63) - Sample Rate Sequence Select 3 */
 	{ 0x00000064, 0x01ff }, /* R100 (0x64) - Sample Rate Sequence Select 4*/
-	{ 0x00000066, 0x01ff }, /* R102 (0x66) - Always On Triggers Sequence
-				   Select 1*/
-	{ 0x00000067, 0x01ff }, /* R103 (0x67) - Always On Triggers Sequence
-				   Select 2*/
+	{ 0x00000066, 0x01ff }, /* R102 (0x66) - Always On Triggers Sequence Select 1*/
+	{ 0x00000067, 0x01ff }, /* R103 (0x67) - Always On Triggers Sequence Select 2*/
 	{ 0x00000090, 0x0000 }, /* R144 (0x90) - Haptics Control 1 */
 	{ 0x00000091, 0x7fff }, /* R145 (0x91) - Haptics Control 2 */
 	{ 0x00000092, 0x0000 }, /* R146 (0x92) - Haptics phase 1 intensity */
@@ -153,6 +150,7 @@ static const struct reg_default marley_reg_default[] = {
 	{ 0x00000187, 0x0000 }, /* R391 (0x187) - FLL1 Spread Spectrum */
 	{ 0x00000188, 0x000c }, /* R392 (0x188) - FLL1 GPIO Clock */
 	{ 0x00000200, 0x0006 }, /* R512 (0x200) - Mic Charge Pump 1 */
+	{ 0x0000020B, 0x0400 }, /* R523 (0x20B) - HP Charge Pump 8 */
 	{ 0x00000213, 0x03e4 }, /* R531 (0x213) - LDO2 Control 1 */
 	{ 0x00000218, 0x00e6 }, /* R536 (0x218) - Mic Bias Ctrl 1 */
 	{ 0x00000219, 0x00e6 }, /* R537 (0x219) - Mic Bias Ctrl 2 */
@@ -171,6 +169,7 @@ static const struct reg_default marley_reg_default[] = {
 	{ 0x000002c6, 0x0010 }, /* R710 (0x2c5) - Mic Clamp control */
 	{ 0x000002c8, 0x0000 }, /* R712 (0x2C8) - GP switch 1 */
 	{ 0x000002d3, 0x0000 }, /* R723 (0x2D3) - Jack detect analogue */
+	{ 0x00000300, 0x0000 }, /* R768 (0x300) - Input Enables */
 	{ 0x00000308, 0x0000 }, /* R776 (0x308) - Input Rate */
 	{ 0x00000309, 0x0022 }, /* R777 (0x309) - Input Volume Ramp */
 	{ 0x0000030c, 0x0002 }, /* R780 (0x30C) - HPF Control */
@@ -205,19 +204,14 @@ static const struct reg_default marley_reg_default[] = {
 	{ 0x00000435, 0x0180 }, /* R1077 (0x435) - DAC Digital Volume 5R */
 	{ 0x00000437, 0x0200 }, /* R1079 (0x437) - Noise Gate Select 5R */
 	{ 0x00000440, 0x0003 }, /* R1088 (0x440) - DRE Enable */
-	{ 0x00000441, 0xC050 }, /* R1089 (0x441) - DRE Control 1 */
-	{ 0x00000442, 0x0305 }, /* R1090 (0x442) - DRE Control 2 */
-	{ 0x00000443, 0x5cfa }, /* R1091 (0x443) - DRE Control 3 */
 	{ 0x00000448, 0x0a83 }, /* R1096 (0x448) - eDRE Enable */
 	{ 0x00000450, 0x0000 }, /* R1104 (0x450) - DAC AEC Control 1 */
-	{ 0x00000451, 0x0000 }, /* R1105 (0x451) - DAC AEC Control 2*/
 	{ 0x00000458, 0x0000 }, /* R1112 (0x458) - Noise Gate Control */
 	{ 0x00000490, 0x0069 }, /* R1168 (0x490) - PDM SPK1 CTRL 1 */
 	{ 0x00000491, 0x0000 }, /* R1169 (0x491) - PDM SPK1 CTRL 2 */
 	{ 0x000004a0, 0x3080 }, /* R1184 (0x4a0) - HP1 Short Circuit Ctrl */
 	{ 0x000004a8, 0x7120 }, /* R1192 (0x4a8) - HP Test Ctrl 5 */
 	{ 0x000004a9, 0x7120 }, /* R1193 (0x4a9) - HP Test Ctrl 6 */
-	{ 0x000004b6, 0x0080 }, /* R1206 (0x4b6) - SPK IF Control 9*/
 	{ 0x00000500, 0x000c }, /* R1280 (0x500) - AIF1 BCLK Ctrl */
 	{ 0x00000501, 0x0000 }, /* R1281 (0x501) - AIF1 Tx Pin Ctrl */
 	{ 0x00000502, 0x0000 }, /* R1282 (0x502) - AIF1 Rx Pin Ctrl */
@@ -241,7 +235,6 @@ static const struct reg_default marley_reg_default[] = {
 	{ 0x00000516, 0x0005 }, /* R1302 (0x516) - AIF1 Frame Ctrl 16 */
 	{ 0x00000519, 0x0000 }, /* R1305 (0x519) - AIF1 Tx Enables */
 	{ 0x0000051a, 0x0000 }, /* R1306 (0x51A) - AIF1 Rx Enables */
-	{ 0x0000051b, 0x0000 }, /* R1307 (0x51B) - AIF1 Force Write */
 	{ 0x00000540, 0x000c }, /* R1344 (0x540) - AIF2 BCLK Ctrl */
 	{ 0x00000541, 0x0000 }, /* R1345 (0x541) - AIF2 Tx Pin Ctrl */
 	{ 0x00000542, 0x0000 }, /* R1346 (0x542) - AIF2 Rx Pin Ctrl */
@@ -257,7 +250,6 @@ static const struct reg_default marley_reg_default[] = {
 	{ 0x00000552, 0x0001 }, /* R1362 (0x552) - AIF2 Frame Ctrl 12 */
 	{ 0x00000559, 0x0000 }, /* R1369 (0x559) - AIF2 Tx Enables */
 	{ 0x0000055a, 0x0000 }, /* R1370 (0x55A) - AIF2 Rx Enables */
-	{ 0x0000055b, 0x0000 }, /* R1371 (0x55B) - AIF2 Force Write */
 	{ 0x00000580, 0x000c }, /* R1408 (0x580) - AIF3 BCLK Ctrl */
 	{ 0x00000581, 0x0000 }, /* R1409 (0x581) - AIF3 Tx Pin Ctrl */
 	{ 0x00000582, 0x0000 }, /* R1410 (0x582) - AIF3 Rx Pin Ctrl */
@@ -273,7 +265,6 @@ static const struct reg_default marley_reg_default[] = {
 	{ 0x00000592, 0x0001 }, /* R1426 (0x592) - AIF3 Frame Ctrl 12 */
 	{ 0x00000599, 0x0000 }, /* R1433 (0x599) - AIF3 Tx Enables */
 	{ 0x0000059a, 0x0000 }, /* R1434 (0x59A) - AIF3 Rx Enables */
-	{ 0x0000059b, 0x0000 }, /* R1435 (0x59B) - AIF3 Force Write */
 	{ 0x000005c2, 0x0000 }, /* R1474 (0x5c2) - SPD1 TX Control */
 	{ 0x000005e3, 0x0000 }, /* R1507 (0x5E3) - SLIMbus Framer Ref Gear */
 	{ 0x000005e5, 0x0000 }, /* R1509 (0x5E5) - SLIMbus Rates 1 */
@@ -759,20 +750,8 @@ static const struct reg_default marley_reg_default[] = {
 	{ 0x00000ef3, 0x0000 }, /* R3827 (0xef3) - ISRC 2 CTRL 1 */
 	{ 0x00000ef4, 0x0001 }, /* R3828 (0xef4) - ISRC 2 CTRL 2 */
 	{ 0x00000ef5, 0x0000 }, /* R3829 (0xef5) - ISRC 2 CTRL 3 */
-	{ 0x00001200, 0x0000 }, /* R4608 (0x1200) - Clock enable overrides 1 */
-	{ 0x00001204, 0x0000 }, /* R4612 (0x1204) - Clock enable overrides 3 */
-	{ 0x00001206, 0x0000 }, /* R4614 (0x1206) - Clock enable overrides 4 */
-	{ 0x00001210, 0x0000 }, /* R4624 (0x1210) - Clock enable overrides 9 */
-	{ 0x00001212, 0x0000 }, /* R4626 (0x1212) - Clock enable overrides 10 */
-	{ 0x00001214, 0x0000 }, /* R4628 (0x1214) - Clock enable overrides 11 */
-	{ 0x00001216, 0x0000 }, /* R4630 (0x1216) - Clock enable overrides 12 */
 	{ 0x00001300, 0x0000 }, /* R4864 (0x1300) - DAC Comp 1 */
 	{ 0x00001302, 0x0000 }, /* R4866 (0x1302) - DAC Comp 2 */
-	{ 0x00001340, 0x0000 }, /* R4928 (0x1340) - DAC comp 1L */
-	{ 0x00001341, 0x0000 }, /* R4929 (0x1341) - DAC comp 1R */
-	{ 0x00001346, 0x0000 }, /* R4929 (0x1346) - DAC comp 4L */
-	{ 0x00001348, 0x0000 }, /* R4936 (0x1348) - DAC comp 5L */
-	{ 0x00001349, 0x0000 }, /* R4937 (0x1349) - DAC comp 5R */
 	{ 0x00001380, 0x0000 }, /* R4992 (0x1380) - FRF Coefficient 1L 1 */
 	{ 0x00001381, 0x0000 }, /* R4993 (0x1381) - FRF Coefficient 1L 2 */
 	{ 0x00001382, 0x0000 }, /* R4994 (0x1382) - FRF Coefficient 1L 3 */
@@ -984,33 +963,23 @@ static bool marley_16bit_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DMIC2R_CONTROL:
 	case ARIZONA_OUTPUT_ENABLES_1:
 	case ARIZONA_OUTPUT_STATUS_1:
-	case ARIZONA_OUTPUT_STANDBY_1:
 	case ARIZONA_RAW_OUTPUT_STATUS_1:
 	case ARIZONA_OUTPUT_RATE_1:
 	case ARIZONA_OUTPUT_VOLUME_RAMP:
 	case ARIZONA_OUTPUT_PATH_CONFIG_1L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_1L:
-	case ARIZONA_DAC_VOLUME_LIMIT_1L:
 	case ARIZONA_NOISE_GATE_SELECT_1L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_1R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_1R:
-	case ARIZONA_DAC_VOLUME_LIMIT_1R:
 	case ARIZONA_NOISE_GATE_SELECT_1R:
 	case ARIZONA_OUTPUT_PATH_CONFIG_4L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_4L:
-	case ARIZONA_OUT_VOLUME_4L:
 	case ARIZONA_NOISE_GATE_SELECT_4L:
-	case ARIZONA_OUTPUT_PATH_CONFIG_4R:
-	case ARIZONA_DAC_DIGITAL_VOLUME_4R:
-	case ARIZONA_OUT_VOLUME_4R:
-	case ARIZONA_NOISE_GATE_SELECT_4R:
 	case ARIZONA_OUTPUT_PATH_CONFIG_5L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_5L:
-	case ARIZONA_DAC_VOLUME_LIMIT_5L:
 	case ARIZONA_NOISE_GATE_SELECT_5L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_5R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_5R:
-	case ARIZONA_DAC_VOLUME_LIMIT_5R:
 	case ARIZONA_NOISE_GATE_SELECT_5R:
 	case ARIZONA_DRE_ENABLE:
 	case CLEARWATER_EDRE_ENABLE:
@@ -1021,7 +990,6 @@ static bool marley_16bit_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_HP1_SHORT_CIRCUIT_CTRL:
 	case ARIZONA_HP_TEST_CTRL_5:
 	case ARIZONA_HP_TEST_CTRL_6:
-	case ARIZONA_SPK_CTRL_3:
 	case ARIZONA_AIF1_BCLK_CTRL:
 	case ARIZONA_AIF1_TX_PIN_CTRL:
 	case ARIZONA_AIF1_RX_PIN_CTRL:
@@ -1274,6 +1242,10 @@ static bool marley_16bit_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_SLIMTX6MIX_INPUT_3_VOLUME:
 	case ARIZONA_SLIMTX6MIX_INPUT_4_SOURCE:
 	case ARIZONA_SLIMTX6MIX_INPUT_4_VOLUME:
+	case ARIZONA_SPDIFTX1MIX_INPUT_1_SOURCE:
+	case ARIZONA_SPDIFTX1MIX_INPUT_1_VOLUME:
+	case ARIZONA_SPDIFTX2MIX_INPUT_1_SOURCE:
+	case ARIZONA_SPDIFTX2MIX_INPUT_1_VOLUME:
 	case ARIZONA_EQ1MIX_INPUT_1_SOURCE:
 	case ARIZONA_EQ1MIX_INPUT_1_VOLUME:
 	case ARIZONA_EQ1MIX_INPUT_2_SOURCE:
@@ -1648,17 +1620,6 @@ static bool marley_16bit_readable_register(struct device *dev, unsigned int reg)
 	case CLEARWATER_IRQ1_MASK_13:
 	case CLEARWATER_IRQ1_MASK_14:
 	case CLEARWATER_IRQ1_MASK_15:
-	case CLEARWATER_IRQ1_MASK_17:
-	case CLEARWATER_IRQ1_MASK_21:
-	case CLEARWATER_IRQ1_MASK_22:
-	case CLEARWATER_IRQ1_MASK_23:
-	case CLEARWATER_IRQ1_MASK_24:
-	case CLEARWATER_IRQ1_MASK_25:
-	case CLEARWATER_IRQ1_MASK_27:
-	case CLEARWATER_IRQ1_MASK_28:
-	case CLEARWATER_IRQ1_MASK_30:
-	case CLEARWATER_IRQ1_MASK_31:
-	case CLEARWATER_IRQ1_MASK_32:
 	case CLEARWATER_IRQ1_RAW_STATUS_1:
 	case CLEARWATER_IRQ1_RAW_STATUS_2:
 	case CLEARWATER_IRQ1_RAW_STATUS_7:
@@ -1708,10 +1669,6 @@ static bool marley_16bit_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_INPUT_ENABLES_STATUS:
 	case ARIZONA_OUTPUT_STATUS_1:
 	case ARIZONA_RAW_OUTPUT_STATUS_1:
-	case ARIZONA_ADC_VCO_CAL_4:
-	case ARIZONA_ADC_VCO_CAL_5:
-	case ARIZONA_ADC_VCO_CAL_6:
-	case ARIZONA_ADC_VCO_CAL_7:
 	case ARIZONA_SPD1_TX_CHANNEL_STATUS_1:
 	case ARIZONA_SPD1_TX_CHANNEL_STATUS_2:
 	case ARIZONA_SPD1_TX_CHANNEL_STATUS_3:
