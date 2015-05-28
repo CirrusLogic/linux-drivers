@@ -869,19 +869,19 @@ err_kcontrol:
 static int wm_coeff_init_control_caches(struct wm_adsp *dsp)
 {
 	struct wm_coeff_ctl *ctl;
-	int ret;
+	int ret = 0;
 
 	list_for_each_entry(ctl, &dsp->ctl_list, list) {
-		if (!ctl->enabled || ctl->set)
-			continue;
-		if (ctl->flags & WMFW_CTL_FLAG_VOLATILE)
+		if (!ctl->enabled || (ctl->flags & WMFW_CTL_FLAG_VOLATILE))
 			continue;
 
 		mutex_lock(&ctl->lock);
-		ret = wm_coeff_read_control(ctl,
-					    ctl->cache,
-					    ctl->len);
+
+		if (!ctl->set)
+			ret = wm_coeff_read_control(ctl, ctl->cache, ctl->len);
+
 		mutex_unlock(&ctl->lock);
+
 		if (ret < 0)
 			return ret;
 	}
@@ -892,20 +892,21 @@ static int wm_coeff_init_control_caches(struct wm_adsp *dsp)
 static int wm_coeff_sync_controls(struct wm_adsp *dsp)
 {
 	struct wm_coeff_ctl *ctl;
-	int ret;
+	int ret = 0;
 
 	list_for_each_entry(ctl, &dsp->ctl_list, list) {
-		if (!ctl->enabled)
+		if (!ctl->enabled || (ctl->flags & WMFW_CTL_FLAG_VOLATILE))
 			continue;
-		if (ctl->set && !(ctl->flags & WMFW_CTL_FLAG_VOLATILE)) {
-			mutex_lock(&ctl->lock);
-			ret = wm_coeff_write_control(ctl,
-						     ctl->cache,
-						     ctl->len);
-			mutex_unlock(&ctl->lock);
-			if (ret < 0)
-				return ret;
-		}
+
+		mutex_lock(&ctl->lock);
+
+		if (ctl->set)
+			ret = wm_coeff_write_control(ctl, ctl->cache, ctl->len);
+
+		mutex_unlock(&ctl->lock);
+
+		if (ret < 0)
+			return ret;
 	}
 
 	return 0;
