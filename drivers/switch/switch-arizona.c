@@ -66,11 +66,15 @@
 
 #define HP_NORMAL_IMPEDANCE     0
 #define HP_LOW_IMPEDANCE        1
+#define HP_HIGH_IMPEDANCE       2
 
 #define HP_LOW_IMPEDANCE_LIMIT 13
 
 #define ARIZONA_MIC_MUTE		1
 #define ARIZONA_MIC_UNMUTE		0
+
+#define MOON_HP_LOW_IMPEDANCE_LIMIT    11
+#define MOON_HP_MEDIUM_IMPEDANCE_LIMIT 23
 
 #define MOON_HPD_SENSE_MICDET1 0
 #define MOON_HPD_SENSE_MICDET2 1
@@ -1077,6 +1081,24 @@ static const struct reg_default clearwater_normal_impedance_patch[] = {
 	{ 0x483, 0x0023 },
 };
 
+static const struct reg_default moon_low_impedance_patch[] = {
+	{ 0x465, 0x5AD5 },
+	{ 0x469, 0x3950 },
+	{ 0x46D, 0x203A },
+};
+
+static const struct reg_default moon_normal_impedance_patch[] = {
+	{ 0x465, 0x804E },
+	{ 0x469, 0x50F4 },
+	{ 0x46D, 0x2D86 },
+};
+
+static const struct reg_default moon_high_impedance_patch[] = {
+	{ 0x465, 0x987D },
+	{ 0x469, 0x65EA },
+	{ 0x46D, 0x404E },
+};
+
 static void arizona_hs_mic_control(struct arizona *arizona, int state)
 {
 	unsigned int addr = ARIZONA_ADC_DIGITAL_VOLUME_1L;
@@ -1240,6 +1262,55 @@ static int arizona_clearwater_tune_headphone(struct arizona_extcon_info *info,
 	return 0;
 }
 
+static int arizona_moon_tune_headphone(struct arizona_extcon_info *info,
+					     int reading)
+{
+	struct arizona *arizona = info->arizona;
+	const struct reg_default *patch;
+	int i, ret, size;
+
+	if (reading <= arizona->pdata.hpdet_short_circuit_imp) {
+		/* Headphones are always off here so just mark them */
+		dev_warn(arizona->dev, "Possible HP short, disabling\n");
+		return 0;
+	} else if (reading <= MOON_HP_LOW_IMPEDANCE_LIMIT) {
+		if (info->hp_imp_level == HP_LOW_IMPEDANCE)
+			return 0;
+
+		info->hp_imp_level = HP_LOW_IMPEDANCE;
+
+		patch = moon_low_impedance_patch;
+		size = ARRAY_SIZE(moon_low_impedance_patch);
+	} else if (reading <= MOON_HP_MEDIUM_IMPEDANCE_LIMIT) {
+		if (info->hp_imp_level == HP_NORMAL_IMPEDANCE)
+			return 0;
+
+		info->hp_imp_level = HP_NORMAL_IMPEDANCE;
+
+		patch = moon_normal_impedance_patch;
+		size = ARRAY_SIZE(moon_normal_impedance_patch);
+	} else {
+		if (info->hp_imp_level == HP_HIGH_IMPEDANCE)
+			return 0;
+
+		info->hp_imp_level = HP_HIGH_IMPEDANCE;
+
+		patch = moon_high_impedance_patch;
+		size = ARRAY_SIZE(moon_high_impedance_patch);
+	}
+
+	for (i = 0; i < size; ++i) {
+		ret = regmap_write(arizona->regmap,
+				   patch[i].reg, patch[i].def);
+		if (ret != 0)
+			dev_warn(arizona->dev,
+				 "Failed to write headphone patch: %x <= %x\n",
+				 patch[i].reg, patch[i].def);
+	}
+
+	return 0;
+}
+
 void arizona_set_headphone_imp(struct arizona_extcon_info *info, int imp)
 {
 	struct arizona *arizona = info->arizona;
@@ -1259,6 +1330,10 @@ void arizona_set_headphone_imp(struct arizona_extcon_info *info, int imp)
 	case WM8285:
 	case WM1840:
 		arizona_clearwater_tune_headphone(info, arizona->hp_impedance);
+		break;
+	case CS47L90:
+	case CS47L91:
+		arizona_moon_tune_headphone(info, arizona->hp_impedance);
 		break;
 	default:
 		break;
