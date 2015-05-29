@@ -700,6 +700,49 @@ static unsigned int wm_adsp_region_to_reg(struct wm_adsp_region const *mem,
 	}
 }
 
+static void wm_adsp2_show_fw_status(struct wm_adsp *dsp)
+{
+	u16 scratch[4];
+	int ret;
+
+	ret = regmap_raw_read(dsp->regmap, dsp->base + ADSP2_SCRATCH0,
+				scratch, sizeof(scratch));
+
+	if (ret) {
+		adsp_err(dsp, "Failed to read SCRATCH regs: %d\n", ret);
+		return;
+	}
+
+	adsp_dbg(dsp, "FW SCRATCH 0:0x%x 1:0x%x 2:0x%x 3:0x%x\n",
+		 be16_to_cpu(scratch[0]),
+		 be16_to_cpu(scratch[1]),
+		 be16_to_cpu(scratch[2]),
+		 be16_to_cpu(scratch[3]));
+}
+
+static void wm_adsp2v2_show_fw_status(struct wm_adsp *dsp)
+{
+	u32 scratch[2];
+	int ret;
+
+	ret = regmap_raw_read(dsp->regmap, dsp->base + ADSP2V2_SCRATCH0_1,
+				scratch, sizeof(scratch));
+
+	if (ret) {
+		adsp_err(dsp, "Failed to read SCRATCH regs: %d\n", ret);
+		return;
+	}
+
+	scratch[0] = be32_to_cpu(scratch[0]);
+	scratch[1] = be32_to_cpu(scratch[1]);
+
+	adsp_dbg(dsp, "FW SCRATCH 0:0x%x 1:0x%x 2:0x%x 3:0x%x\n",
+		 scratch[0] & 0xFFFF,
+		 scratch[0] >> 16,
+		 scratch[1] & 0xFFFF,
+		 scratch[1] >> 16);
+}
+
 static int wm_coeff_info(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_info *uinfo)
 {
@@ -2381,7 +2424,6 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 	struct wm_adsp *dsp = &dsps[w->shift];
 	struct wm_adsp_alg_region *alg_region;
 	struct wm_coeff_ctl *ctl;
-	unsigned int scratch1 = 0xFFFFFFFF;
 	int ret;
 
 	switch (event) {
@@ -2401,22 +2443,15 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
-		/* Capture DSP_SCRATCH1, it can be useful for analysis */
+		/* Log firmware state, it can be useful for analysis */
 		switch (dsp->rev) {
 		case 0:
-			ret = regmap_read(dsp->regmap,
-					  dsp->base + ADSP2_SCRATCH1,
-					  &scratch1);
+			wm_adsp2_show_fw_status(dsp);
 			break;
 		default:
-			ret = regmap_read(dsp->regmap,
-					  dsp->base + ADSP2V2_SCRATCH0_1,
-					  &scratch1);
+			wm_adsp2v2_show_fw_status(dsp);
 			break;
-		}
-
-		if (ret < 0)
-			adsp_err(dsp, "Failed to read SCRATCH1 %d\n", ret);
+		};
 
 		if (dsp->fw_features.shutdown)
 			wm_adsp_edac_shutdown(dsp);
@@ -2468,7 +2503,7 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 			kfree(alg_region);
 		}
 
-		adsp_info(dsp, "Shutdown complete (SCRATCH1:0x%x)\n", scratch1);
+		adsp_info(dsp, "Shutdown complete\n");
 		break;
 
 	default:
