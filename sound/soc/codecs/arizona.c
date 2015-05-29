@@ -2135,6 +2135,7 @@ static int florida_hp_post_enable(struct snd_soc_dapm_widget *w)
 
 static int florida_hp_pre_disable(struct snd_soc_dapm_widget *w)
 {
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
 	unsigned int val = snd_soc_read(w->codec, ARIZONA_DRE_ENABLE);
 
 	switch (w->shift) {
@@ -2144,7 +2145,7 @@ static int florida_hp_pre_disable(struct snd_soc_dapm_widget *w)
 					    ARIZONA_WS_TRG1, ARIZONA_WS_TRG1);
 			snd_soc_update_bits(w->codec, ARIZONA_SPARE_TRIGGERS,
 					    ARIZONA_WS_TRG1, 0);
-			msleep(10);
+			priv->out_down_delay += 10;
 		}
 		break;
 	case ARIZONA_OUT1R_ENA_SHIFT:
@@ -2153,7 +2154,7 @@ static int florida_hp_pre_disable(struct snd_soc_dapm_widget *w)
 					    ARIZONA_WS_TRG2, ARIZONA_WS_TRG2);
 			snd_soc_update_bits(w->codec, ARIZONA_SPARE_TRIGGERS,
 					    ARIZONA_WS_TRG2, 0);
-			msleep(10);
+			priv->out_down_delay += 10;
 		}
 		break;
 
