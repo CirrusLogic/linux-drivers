@@ -916,6 +916,13 @@ static const struct snd_soc_dapm_route vegas_dapm_routes[] = {
 	{ "OUT5L", NULL, "SYSCLK" },
 	{ "OUT5R", NULL, "SYSCLK" },
 
+	{ "IN1AL", NULL, "SYSCLK" },
+	{ "IN1AR", NULL, "SYSCLK" },
+	{ "IN1BL", NULL, "SYSCLK" },
+	{ "IN1BR", NULL, "SYSCLK" },
+	{ "IN2A", NULL, "SYSCLK" },
+	{ "IN2B", NULL, "SYSCLK" },
+
 	{ "SPD1", NULL, "SYSCLK" },
 	{ "SPD1", NULL, "SPD1TX1" },
 	{ "SPD1", NULL, "SPD1TX2" },
@@ -923,6 +930,9 @@ static const struct snd_soc_dapm_route vegas_dapm_routes[] = {
 	{ "MICBIAS1", NULL, "MICVDD" },
 	{ "MICBIAS2", NULL, "MICVDD" },
 	{ "MICBIAS3", NULL, "MICVDD" },
+
+	{ "Tone Generator 1", NULL, "SYSCLK" },
+	{ "Tone Generator 2", NULL, "SYSCLK" },
 
 	{ "Tone Generator 1", NULL, "TONE" },
 	{ "Tone Generator 2", NULL, "TONE" },
@@ -1110,6 +1120,8 @@ static const struct snd_soc_dapm_route vegas_dapm_routes[] = {
 	{ "AEC2 Loopback", "SPKDATR", "OUT5R" },
 	{ "SPKDATL", NULL, "OUT5L" },
 	{ "SPKDATR", NULL, "OUT5R" },
+
+	{ "MICSUPP", NULL, "SYSCLK" },
 
 	{ "DRC1 Signal Activity", NULL, "DRC1L" },
 	{ "DRC1 Signal Activity", NULL, "DRC1R" },
