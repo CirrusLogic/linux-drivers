@@ -2088,6 +2088,7 @@ static int florida_hp_pre_enable(struct snd_soc_dapm_widget *w)
 			regmap_multi_reg_write(priv->arizona->regmap,
 					       florida_no_dre_left_enable,
 					       ARRAY_SIZE(florida_no_dre_left_enable));
+			priv->out_up_delay += 10;
 		}
 		udelay(1000);
 		break;
@@ -2100,30 +2101,9 @@ static int florida_hp_pre_enable(struct snd_soc_dapm_widget *w)
 			regmap_multi_reg_write(priv->arizona->regmap,
 					       florida_no_dre_right_enable,
 					       ARRAY_SIZE(florida_no_dre_right_enable));
+			priv->out_up_delay += 10;
 		}
 		udelay(1000);
-		break;
-
-	default:
-		break;
-	}
-
-	return 0;
-}
-
-static int florida_hp_post_enable(struct snd_soc_dapm_widget *w)
-{
-	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
-	unsigned int val = snd_soc_read(w->codec, ARIZONA_DRE_ENABLE);
-
-	switch (w->shift) {
-	case ARIZONA_OUT1L_ENA_SHIFT:
-		if (!(val & ARIZONA_DRE1L_ENA_MASK))
-			priv->out_up_delay += 10;
-		break;
-	case ARIZONA_OUT1R_ENA_SHIFT:
-		if (!(val & ARIZONA_DRE1R_ENA_MASK))
-			priv->out_up_delay += 10;
 		break;
 
 	default:
@@ -2145,7 +2125,7 @@ static int florida_hp_pre_disable(struct snd_soc_dapm_widget *w)
 					    ARIZONA_WS_TRG1, ARIZONA_WS_TRG1);
 			snd_soc_update_bits(w->codec, ARIZONA_SPARE_TRIGGERS,
 					    ARIZONA_WS_TRG1, 0);
-			priv->out_down_delay += 10;
+			priv->out_down_delay += 27;
 		}
 		break;
 	case ARIZONA_OUT1R_ENA_SHIFT:
@@ -2154,30 +2134,8 @@ static int florida_hp_pre_disable(struct snd_soc_dapm_widget *w)
 					    ARIZONA_WS_TRG2, ARIZONA_WS_TRG2);
 			snd_soc_update_bits(w->codec, ARIZONA_SPARE_TRIGGERS,
 					    ARIZONA_WS_TRG2, 0);
-			priv->out_down_delay += 10;
+			priv->out_down_delay += 27;
 		}
-		break;
-
-	default:
-		break;
-	}
-
-	return 0;
-}
-
-static int florida_hp_post_disable(struct snd_soc_dapm_widget *w)
-{
-	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
-	unsigned int val = snd_soc_read(w->codec, ARIZONA_DRE_ENABLE);
-
-	switch (w->shift) {
-	case ARIZONA_OUT1L_ENA_SHIFT:
-		if (!(val & ARIZONA_DRE1L_ENA_MASK))
-			priv->out_down_delay += 17;
-		break;
-	case ARIZONA_OUT1R_ENA_SHIFT:
-		if (!(val & ARIZONA_DRE1R_ENA_MASK))
-			priv->out_down_delay += 17;
 		break;
 
 	default:
@@ -2480,17 +2438,11 @@ int florida_hp_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 	case SND_SOC_DAPM_PRE_PMU:
 		florida_hp_pre_enable(w);
 		break;
-	case SND_SOC_DAPM_POST_PMU:
-		florida_hp_post_enable(w);
-		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		florida_hp_pre_disable(w);
 		break;
-	case SND_SOC_DAPM_POST_PMD:
-		florida_hp_post_disable(w);
-		break;
 	default:
-		return -EINVAL;
+		break;
 	}
 
 	return arizona_hp_ev(w, kcontrol, event);
