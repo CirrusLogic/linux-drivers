@@ -2756,7 +2756,7 @@ int wm_adsp_stream_alloc(struct wm_adsp *dsp,
 
 	if (!dsp->raw_capt_buf) {
 		size = WM_ADSP_MAX_READ_SIZE * sizeof(*dsp->raw_capt_buf);
-		dsp->raw_capt_buf = kzalloc(size, GFP_KERNEL);
+		dsp->raw_capt_buf = kzalloc(size, GFP_DMA | GFP_KERNEL);
 
 		if (!dsp->raw_capt_buf) {
 			ret = -ENOMEM;
