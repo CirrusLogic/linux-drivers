@@ -694,6 +694,8 @@ static int arizona_runtime_resume(struct device *dev)
 	}
 
 	regcache_cache_only(arizona->regmap, false);
+	if (arizona->regmap_32bit)
+		regcache_cache_only(arizona->regmap_32bit, false);
 
 	switch (arizona->type) {
 	case WM5102:
@@ -832,6 +834,8 @@ static int arizona_runtime_resume(struct device *dev)
 
 err:
 	regcache_cache_only(arizona->regmap, true);
+	if (arizona->regmap_32bit)
+		regcache_cache_only(arizona->regmap_32bit, true);
 	regulator_disable(arizona->dcvdd);
 	return ret;
 }
@@ -906,8 +910,10 @@ static int arizona_runtime_suspend(struct device *dev)
 
 	regcache_cache_only(arizona->regmap, true);
 	regcache_mark_dirty(arizona->regmap);
-	if (arizona->regmap_32bit)
+	if (arizona->regmap_32bit) {
+		regcache_cache_only(arizona->regmap_32bit, true);
 		regcache_mark_dirty(arizona->regmap_32bit);
+	}
 	regulator_disable(arizona->dcvdd);
 
 	return 0;
@@ -1691,6 +1697,8 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 		arizona_of_get_core_pdata(arizona);
 
 	regcache_cache_only(arizona->regmap, true);
+	if (arizona->regmap_32bit)
+		regcache_cache_only(arizona->regmap_32bit, true);
 
 	switch (arizona->type) {
 	case WM5102:
@@ -1797,6 +1805,8 @@ int __devinit arizona_dev_init(struct arizona *arizona)
 	arizona_disable_reset(arizona);
 
 	regcache_cache_only(arizona->regmap, false);
+	if (arizona->regmap_32bit)
+		regcache_cache_only(arizona->regmap_32bit, false);
 
 	/* Verify that this is a chip we know about */
 	ret = regmap_read(arizona->regmap, ARIZONA_SOFTWARE_RESET, &reg);
