@@ -85,6 +85,21 @@ static int vegas_put_spk_edre(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 
+static int vegas_sysclk_ev(struct snd_soc_dapm_widget *w,
+			   struct snd_kcontrol *kcontrol, int event)
+{
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		break;
+	default:
+		return 0;
+	}
+
+	return arizona_dvfs_sysclk_ev(w, kcontrol, event);
+}
 static int vegas_asrc_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol,
 			  int event)
@@ -685,7 +700,9 @@ static const struct snd_kcontrol_new vegas_aec_loopback_mux[] = {
 
 static const struct snd_soc_dapm_widget vegas_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", ARIZONA_SYSTEM_CLOCK_1,
-		    ARIZONA_SYSCLK_ENA_SHIFT, 0, NULL, 0),
+		    ARIZONA_SYSCLK_ENA_SHIFT, 0,
+		    vegas_sysclk_ev,
+		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 SND_SOC_DAPM_SUPPLY("ASYNCCLK", ARIZONA_ASYNC_CLOCK_1,
 		    ARIZONA_ASYNC_CLK_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("OPCLK", ARIZONA_OUTPUT_SYSTEM_CLOCK,
@@ -1544,6 +1561,8 @@ static int vegas_probe(struct platform_device *pdev)
 
 	vegas->core.arizona = arizona;
 	vegas->core.num_inputs = 3;	/* IN1L, IN1R, IN2 */
+
+	arizona_init_dvfs(&vegas->core);
 
 	for (i = 0; i < ARRAY_SIZE(vegas->fll); i++)
 		vegas->fll[i].vco_mult = 1;

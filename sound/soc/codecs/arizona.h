@@ -78,6 +78,13 @@
 #define ARIZONA_MAX_DAI  11
 #define ARIZONA_MAX_ADSP 7
 
+#define ARIZONA_DVFS_SR1_RQ	0x001
+#define ARIZONA_DVFS_SR2_RQ	0x002
+#define ARIZONA_DVFS_SR3_RQ	0x004
+#define ARIZONA_DVFS_ASR1_RQ	0x008
+#define ARIZONA_DVFS_ASR2_RQ	0x010
+#define ARIZONA_DVFS_ADSP1_RQ	0x100
+
 struct arizona;
 struct wm_adsp;
 struct arizona_jd_state;
@@ -104,6 +111,9 @@ struct arizona_priv {
 
 	unsigned int spk_mute_cache;
 	unsigned int spk_thr2_cache;
+	unsigned int dvfs_reqs;
+	struct mutex dvfs_lock;
+	bool dvfs_cached;
 };
 
 #define ARIZONA_NUM_MIXER_INPUTS 134
@@ -437,6 +447,12 @@ struct arizona_fll {
 	struct arizona_fll_cfg ref_cfg;
 	struct arizona_fll_cfg sync_cfg;
 };
+
+extern int arizona_dvfs_up(struct snd_soc_codec *codec, unsigned int flags);
+extern int arizona_dvfs_down(struct snd_soc_codec *codec, unsigned int flags);
+extern int arizona_dvfs_sysclk_ev(struct snd_soc_dapm_widget *w,
+				  struct snd_kcontrol *kcontrol, int event);
+extern void arizona_init_dvfs(struct arizona_priv *priv);
 
 extern int arizona_init_fll(struct arizona *arizona, int id, int base,
 			    int lock_irq, int ok_irq, struct arizona_fll *fll);
