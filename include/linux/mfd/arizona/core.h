@@ -167,7 +167,6 @@ struct arizona {
 
 	struct mutex subsys_max_lock;
 	unsigned int subsys_max_rq;
-	bool subsys_max_cached;
 
 	struct snd_soc_dapm_context *dapm;
 
