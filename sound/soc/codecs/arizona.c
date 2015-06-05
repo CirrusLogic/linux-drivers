@@ -2140,19 +2140,19 @@ static int florida_hp_pre_disable(struct snd_soc_dapm_widget *w)
 	switch (w->shift) {
 	case ARIZONA_OUT1L_ENA_SHIFT:
 		if (!(val & ARIZONA_DRE1L_ENA_MASK)) {
-			snd_soc_write(w->codec,
-				      ARIZONA_WRITE_SEQUENCER_CTRL_0,
-				      ARIZONA_WSEQ_ENA | ARIZONA_WSEQ_START |
-				      0x138);
+			snd_soc_update_bits(w->codec, ARIZONA_SPARE_TRIGGERS,
+					    ARIZONA_WS_TRG1, ARIZONA_WS_TRG1);
+			snd_soc_update_bits(w->codec, ARIZONA_SPARE_TRIGGERS,
+					    ARIZONA_WS_TRG1, 0);
 			msleep(10);
 		}
 		break;
 	case ARIZONA_OUT1R_ENA_SHIFT:
 		if (!(val & ARIZONA_DRE1R_ENA_MASK)) {
-			snd_soc_write(w->codec,
-				      ARIZONA_WRITE_SEQUENCER_CTRL_0,
-				      ARIZONA_WSEQ_ENA | ARIZONA_WSEQ_START |
-				      0x13d);
+			snd_soc_update_bits(w->codec, ARIZONA_SPARE_TRIGGERS,
+					    ARIZONA_WS_TRG2, ARIZONA_WS_TRG2);
+			snd_soc_update_bits(w->codec, ARIZONA_SPARE_TRIGGERS,
+					    ARIZONA_WS_TRG2, 0);
 			msleep(10);
 		}
 		break;
