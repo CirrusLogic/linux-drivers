@@ -249,6 +249,16 @@ static const struct reg_default florida_revd_patch[] = {
 	{ 0x80, 0x0 },
 };
 
+/* Add extra headphone write sequence locations */
+static const struct reg_default florida_reve_patch[] = {
+	{ 0x80, 0x3 },
+	{ 0x80, 0x3 },
+	{ 0x4b, 0x138 },
+	{ 0x4c, 0x13d },
+	{ 0x80, 0x0 },
+	{ 0x80, 0x0 },
+};
+
 /* We use a function so we can use ARRAY_SIZE() */
 int florida_patch(struct arizona *arizona)
 {
@@ -266,7 +276,9 @@ int florida_patch(struct arizona *arizona)
 					     florida_revd_patch,
 					     ARRAY_SIZE(florida_revd_patch));
 	default:
-		return 0;
+		return regmap_register_patch(arizona->regmap,
+					     florida_reve_patch,
+					     ARRAY_SIZE(florida_reve_patch));
 	}
 }
 EXPORT_SYMBOL_GPL(florida_patch);
