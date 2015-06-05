@@ -1818,7 +1818,7 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 	mutex_lock(&marley->compr_info.lock);
 
 	if (!marley->compr_info.trig &&
-	    marley->core.adsp[2].fw_id == 0x8000d &&
+	    marley->core.adsp[2].fw_features.ez2control_trigger &&
 	    marley->core.adsp[2].running) {
 		if (marley->core.arizona->pdata.ez2ctrl_trigger)
 			marley->core.arizona->pdata.ez2ctrl_trigger();
