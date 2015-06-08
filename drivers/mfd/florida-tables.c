@@ -1660,7 +1660,6 @@ static const struct reg_default florida_reg_default[] = {
 	{ 0x00000EF6, 0x0000 },    /* R3830  - ISRC 3 CTRL 1 */
 	{ 0x00000EF7, 0x0000 },    /* R3831  - ISRC 3 CTRL 2 */
 	{ 0x00000EF8, 0x0000 },    /* R3832  - ISRC 3 CTRL 3 */
-	{ 0x00000F00, 0x0000 },    /* R3840  - Clock Control */
 	{ 0x00000F01, 0x0000 },    /* R3841  - ANC_SRC */
 	{ 0x00000F08, 0x001c },    /* R3848  - ANC Coefficient */
 	{ 0x00000F09, 0x0000 },    /* R3849  - ANC Coefficient */
@@ -3128,6 +3127,7 @@ static bool florida_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_AOD_IRQ_RAW_STATUS:
 	case ARIZONA_FX_CTRL2:
 	case ARIZONA_ASRC_STATUS:
+	case ARIZONA_CLOCK_CONTROL:
 	case ARIZONA_DSP_STATUS:
 	case ARIZONA_DSP1_STATUS_1:
 	case ARIZONA_DSP1_STATUS_2:

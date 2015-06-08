@@ -1504,7 +1504,6 @@ static const struct reg_default clearwater_reg_default[] = {
 	{ 0x00000ef9, 0x0000 }, /* R3833  - ISRC 4 CTRL 1 */
 	{ 0x00000efa, 0x0001 }, /* R3834  - ISRC 4 CTRL 2 */
 	{ 0x00000efb, 0x0000 }, /* R3835  - ISRC 4 CTRL 3 */
-	{ 0x00000f00, 0x0000 }, /* R3840 (0xF00) - Clock Control */
 	{ 0x00000F01, 0x0000 }, /* R3841  - ANC_SRC */
 	{ 0x00000F02, 0x0000 }, /* R3842  - Arizona DSP Status */
 	{ 0x00000F08, 0x001c }, /* R3848  - ANC Coefficient */
@@ -3190,6 +3189,7 @@ static bool clearwater_16bit_volatile_register(struct device *dev, unsigned int 
 	case ARIZONA_FX_CTRL2:
 	case CLEARWATER_ASRC2_STATUS:
 	case CLEARWATER_ASRC1_STATUS:
+	case ARIZONA_CLOCK_CONTROL:
 	case CLEARWATER_GPIO1_CTRL_1:
 	case CLEARWATER_GPIO2_CTRL_1:
 	case CLEARWATER_GPIO3_CTRL_1:
