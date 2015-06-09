@@ -294,6 +294,12 @@ struct arizona_pdata {
 
 	/** Load firmwares for specific chip revisions */
 	bool rev_specific_fw;
+
+	/**
+	 * Specify an input to mute during headset button presses and jack
+	 * removal: 1 - IN1L, 2 - IN1R, ..., n - IN[n]R
+	 */
+	unsigned int hs_mic;
 };
 
 #endif
