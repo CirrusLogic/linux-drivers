@@ -69,6 +69,9 @@
 
 #define HP_LOW_IMPEDANCE_LIMIT 13
 
+#define ARIZONA_MIC_MUTE		1
+#define ARIZONA_MIC_UNMUTE		0
+
 struct arizona_hpdet_calibration_data {
 	int	min;
 	int	max;
@@ -938,6 +941,37 @@ static const struct reg_default clearwater_normal_impedance_patch[] = {
 	{ 0x483, 0x0023 },
 };
 
+static void arizona_hs_mic_control(struct arizona *arizona, int state)
+{
+	unsigned int addr = ARIZONA_ADC_DIGITAL_VOLUME_1L;
+	int val;
+
+	if (!arizona->pdata.hs_mic)
+		return;
+
+	addr += (arizona->pdata.hs_mic - 1) * 4;
+
+	switch (state) {
+	case ARIZONA_MIC_MUTE:
+		dev_dbg(arizona->dev, "Mute headset mic: 0x%04x\n",
+			addr);
+		val = ARIZONA_MIC_MUTE;
+		break;
+	case ARIZONA_MIC_UNMUTE:
+		dev_dbg(arizona->dev, "Unmute headset mic: 0x%04x\n",
+			addr);
+		val = ARIZONA_MIC_UNMUTE;
+		break;
+	default:
+		dev_err(arizona->dev,
+			"Unknown headset mic control state: %d\n", state);
+		return;
+	}
+
+	val <<= ARIZONA_IN1L_MUTE_SHIFT;
+	regmap_update_bits(arizona->regmap, addr, ARIZONA_IN1L_MUTE_MASK, val);
+}
+
 static int arizona_wm5110_tune_headphone(struct arizona_extcon_info *info,
 					 int reading)
 {
@@ -1488,6 +1522,8 @@ static int arizona_micd_button_process(struct arizona_extcon_info *info,
 				 "Button level %u out of range\n", val);
 	} else {
 		dev_dbg(arizona->dev, "Mic button released\n");
+		arizona_hs_mic_control(arizona, ARIZONA_MIC_UNMUTE);
+
 		for (i = 0; i < info->num_micd_ranges; i++)
 			input_report_key(info->input,
 					 info->micd_ranges[i].key, 0);
@@ -1980,6 +2016,9 @@ int arizona_micd_mic_reading(struct arizona_extcon_info *info, int val)
 	if (val >= MICROPHONE_MIN_OHM) {
 		dev_dbg(arizona->dev, "Detected headset\n");
 		info->mic = true;
+
+		arizona_hs_mic_control(arizona, ARIZONA_MIC_UNMUTE);
+
 		goto done;
 	}
 
@@ -2317,6 +2356,8 @@ static void arizona_micd_handler(struct work_struct *work)
 
 	if (arizona_jack_present(info, NULL) <= 0)
 		goto spurious;
+
+	arizona_hs_mic_control(arizona, ARIZONA_MIC_MUTE);
 
 	switch (arizona_jds_get_mode(info)) {
 	case ARIZONA_ACCDET_MODE_MIC:
@@ -2659,6 +2700,8 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 	} else {
 		dev_dbg(arizona->dev, "Detected jack removal\n");
 
+		arizona_hs_mic_control(arizona, ARIZONA_MIC_MUTE);
+
 		info->num_hpdet_res = 0;
 		for (i = 0; i < ARRAY_SIZE(info->hpdet_res); i++)
 			info->hpdet_res[i] = 0;
@@ -2870,6 +2913,11 @@ static int arizona_extcon_of_get_pdata(struct arizona *arizona)
 
 	arizona_of_read_u32(arizona, "wlf,micd-clamp-mode", false,
 			    &pdata->micd_clamp_mode);
+
+	arizona_of_read_u32(arizona, "wlf,hs-mic", false,
+			    &pdata->hs_mic);
+	if (pdata->hs_mic > ARIZONA_MAX_INPUT)
+		pdata->hs_mic = 0;
 
 	return 0;
 }
