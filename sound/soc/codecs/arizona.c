@@ -2761,7 +2761,6 @@ int arizona_anc_ev(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol,
 		   int event)
 {
-	unsigned int mask = 0x3 << w->shift;
 	unsigned int val;
 
 	switch (event) {
@@ -2775,7 +2774,7 @@ int arizona_anc_ev(struct snd_soc_dapm_widget *w,
 		return 0;
 	}
 
-	snd_soc_update_bits(w->codec, ARIZONA_CLOCK_CONTROL, mask, val);
+	snd_soc_write(w->codec, ARIZONA_CLOCK_CONTROL, val);
 
 	return 0;
 }
