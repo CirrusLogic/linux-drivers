@@ -2436,6 +2436,18 @@ static inline int wm_adsp_of_parse_adsp(struct wm_adsp *dsp)
 }
 #endif
 
+int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm_adsp2_codec_probe);
+
+int wm_adsp2_codec_remove(struct wm_adsp *dsp, struct snd_soc_codec *codec)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm_adsp2_codec_remove);
+
 int wm_adsp2_init(struct wm_adsp *dsp, struct mutex *fw_lock)
 {
 	int ret, i;
