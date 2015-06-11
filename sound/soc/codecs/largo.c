@@ -1274,10 +1274,6 @@ static int largo_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	ret = snd_soc_add_codec_controls(codec, &wm_adsp2_fw_controls[2], 4);
-	if (ret != 0)
-		return ret;
-
 	mutex_lock(&codec->card->dapm_mutex);
 	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
 	mutex_unlock(&codec->card->dapm_mutex);
