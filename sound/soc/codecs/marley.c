@@ -2063,6 +2063,12 @@ static int marley_codec_probe(struct snd_soc_codec *codec)
 	regmap_update_bits(arizona->regmap, ARIZONA_SAMPLE_RATE_1,
 			   ARIZONA_SAMPLE_RATE_1_MASK, 0x03);
 
+	for (i = 0; i < MARLEY_NUM_ADSP; ++i) {
+		ret = wm_adsp2_codec_probe(&priv->core.adsp[i], codec);
+		if (ret)
+			return ret;
+	}
+
 	ret = snd_soc_add_codec_controls(codec, wm_adsp2v2_fw_controls, 6);
 	if (ret != 0)
 		return ret;
@@ -2114,6 +2120,9 @@ static int marley_codec_remove(struct snd_soc_codec *codec)
 	regmap_update_bits(arizona->regmap, CLEARWATER_IRQ2_MASK_9,
 			   CLEARWATER_DRC2_SIG_DET_EINT2,
 			   0);
+
+	for (i = 0; i < MARLEY_NUM_ADSP; ++i)
+		wm_adsp2_codec_remove(&priv->core.adsp[i], codec);
 
 	priv->core.arizona->dapm = NULL;
 
