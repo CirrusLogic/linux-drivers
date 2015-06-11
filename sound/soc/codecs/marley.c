@@ -2045,7 +2045,7 @@ static int marley_codec_probe(struct snd_soc_codec *codec)
 {
 	struct marley_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->core.arizona;
-	int ret;
+	int i, ret;
 
 	priv->core.arizona->dapm = &codec->dapm;
 
@@ -2057,6 +2057,12 @@ static int marley_codec_probe(struct snd_soc_codec *codec)
 	/* Update Sample Rate 1 to 48kHz for cases when no AIF1 hw_params */
 	regmap_update_bits(arizona->regmap, ARIZONA_SAMPLE_RATE_1,
 			   ARIZONA_SAMPLE_RATE_1_MASK, 0x03);
+
+	for (i = 0; i < MARLEY_NUM_ADSP; ++i) {
+		ret = wm_adsp2_codec_probe(&priv->core.adsp[i], codec);
+		if (ret)
+			return ret;
+	}
 
 	ret = snd_soc_add_codec_controls(codec, wm_adsp2v2_fw_controls, 6);
 	if (ret != 0)
@@ -2098,12 +2104,16 @@ static int marley_codec_remove(struct snd_soc_codec *codec)
 {
 	struct marley_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->core.arizona;
+	int i;
 
 	irq_set_irq_wake(arizona->irq, 0);
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
 	regmap_update_bits(arizona->regmap, CLEARWATER_IRQ2_MASK_9,
 			   CLEARWATER_DRC2_SIG_DET_EINT2,
 			   CLEARWATER_DRC2_SIG_DET_EINT2);
+
+	for (i = 0; i < MARLEY_NUM_ADSP; ++i)
+		wm_adsp2_codec_remove(&priv->core.adsp[i], codec);
 
 	priv->core.arizona->dapm = NULL;
 

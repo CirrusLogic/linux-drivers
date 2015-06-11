@@ -1331,6 +1331,14 @@ static int largo_codec_probe(struct snd_soc_codec *codec)
 	arizona_init_mono(codec);
 	arizona_init_input(codec);
 
+	ret = wm_adsp2_codec_probe(&priv->core.adsp[1], codec);
+	if (ret)
+		return ret;
+
+	ret = wm_adsp2_codec_probe(&priv->core.adsp[2], codec);
+	if (ret)
+		return ret;
+
 	ret = snd_soc_add_codec_controls(codec, &wm_adsp2_fw_controls[2], 4);
 	if (ret != 0)
 		return ret;
@@ -1377,6 +1385,9 @@ static int largo_codec_remove(struct snd_soc_codec *codec)
 	regmap_update_bits(arizona->regmap, ARIZONA_IRQ2_STATUS_3_MASK,
 			   ARIZONA_IM_DRC2_SIG_DET_EINT2,
 			   ARIZONA_IM_DRC2_SIG_DET_EINT2);
+
+	wm_adsp2_codec_remove(&priv->core.adsp[1], codec);
+	wm_adsp2_codec_remove(&priv->core.adsp[2], codec);
 
 	priv->core.arizona->dapm = NULL;
 

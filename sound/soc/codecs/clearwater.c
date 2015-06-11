@@ -2964,7 +2964,7 @@ static int clearwater_codec_probe(struct snd_soc_codec *codec)
 {
 	struct clearwater_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->core.arizona;
-	int ret;
+	int i, ret;
 
 	priv->core.arizona->dapm = &codec->dapm;
 
@@ -2972,6 +2972,12 @@ static int clearwater_codec_probe(struct snd_soc_codec *codec)
 	arizona_init_gpio(codec);
 	arizona_init_mono(codec);
 	arizona_init_input(codec);
+
+	for (i = 0; i < CLEARWATER_NUM_ADSP; ++i) {
+		ret = wm_adsp2_codec_probe(&priv->core.adsp[i], codec);
+		if (ret)
+			return ret;
+	}
 
 	/* Update Sample Rate 1 to 48kHz for cases when no AIF1 hw_params */
 	regmap_update_bits(arizona->regmap, ARIZONA_SAMPLE_RATE_1,
@@ -3017,12 +3023,16 @@ static int clearwater_codec_remove(struct snd_soc_codec *codec)
 {
 	struct clearwater_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->core.arizona;
+	int i;
 
 	irq_set_irq_wake(arizona->irq, 0);
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
 	regmap_update_bits(arizona->regmap, CLEARWATER_IRQ2_MASK_9,
 			   CLEARWATER_DRC2_SIG_DET_EINT2,
 			   CLEARWATER_DRC2_SIG_DET_EINT2);
+
+	for (i = 0; i < CLEARWATER_NUM_ADSP; ++i)
+		wm_adsp2_codec_remove(&priv->core.adsp[i], codec);
 
 	priv->core.arizona->dapm = NULL;
 
