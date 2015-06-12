@@ -18,6 +18,8 @@ Required properties:
         "wlf,wm1831"
         "cirrus,cs47l24"
         "cirrus,cs47l85"
+        "cirrus,cs47l90"
+        "cirrus,cs47l91"
 
   - reg : I2C slave address when connected using I2C, chip select number when
     using SPI.
@@ -49,10 +51,10 @@ Optional properties:
   - wlf,clk32k-src : set input source for codec 32kHz clock.
       0 = default, 1 = MCLK1, 2 = MCLK2, 3 = None
 
-  - wlf,micd-software-compare : Use a software comparison to determine mic
-    presence
   - wlf,micd-detect-debounce : Additional software microphone detection
     debounce specified in milliseconds
+  - wlf,micd-manual-debounce : Additional software button detection
+    debounce specified as a number
   - wlf,micd-pol-gpio : GPIO specifier for the GPIO controlling the headset
     polarity if one exists
   - wlf,micd-bias-start-time : Time allowed for MICBIAS to startup prior to
@@ -65,40 +67,112 @@ Optional properties:
   - wlf,micd-timeout : Timeout for microphone detection, specified in
     milliseconds
   - wlf,micd-force-micbias : Force MICBIAS continuously on during microphone
-    detection
+    detection and button detection
+  - wlf,micd-force-micbias-initial : Force MICBIAS continuously on during
+    microphone detection
+  - wlf,micd-software-compare : Use a software comparison to determine mic
+    presence
+  - wlf,use-jd-gpio : Use GPIO input alongwith JD1 for dual jack detection. For
+    later arizona chips which have JD1 and JD2, setting this property will use
+    both JD1 and JD2 for dual jack detect and does not require an additional
+    GPIO
+  - wlf,usr-jd-gpio-nopull : Internal pull on GPIO is disabled when used for
+    jack detection.
+  - wlf,gpsw : Settings for the general purpose switch, set as per the
+    SW1_MODE bits in the GP Switch 1 register
+  - wlf,init-mic-delay : Adds a delay in milliseconds between jack detection
+    and beginning ramp of MICBIAS.
+  - wlf,fixed-hpdet-imp : Do not perform any headphone detection, just use
+    the fixed value specified here as the headphone impedance.
+  - wlf,hpdet-moisture-imp : This value specifies the  threshold impedance in
+    ohms above which it will be considered a false detection due to moisture,
+    a valid headphone impedance measurement must be less than this threshold
+  - wlf,hpdet-moisture-debounce: Software debounces for moisture detect, if
+    moisture is detected this many number of times then it would be decalred
+    as moisture without any furthur retries
+  - wlf,hpdet-short-circuit-imp : Specifies the maximum impedance in ohms
+    that will be considered as a short circuit
+  - wlf,hpdet-channel : When this property is set then right channel is used
+    for headphone impedance measurement else the left headphone channel is
+    used
+  - wlf,moisture-det-channel : When this property is set then right channel
+    is used for moisture detect else the left headphone channel is used.
+    This property is used only for arizona chips which do not belong to
+    moon (cs47l90, cs47l91) class of arizona codecs
+  - wlf,micd-clamp-mode : Specifies the logic of the micdetect clamp block
+  - wlf,hpd-left-pins : This field is only for moon (cs47l90, cs47l91) class
+    of arizona codecs. It is a 2 cell long field where the first cell
+    represents the pin that needs to be unclamped when measuring headphone
+    left channel impedance as per the HPD_OUT_SEL field of HEADPHONE_DETECT_0
+    register and the second pin represents the impedance sense pin as per the
+    HPD_SENSE_SEL field of HEADPHONE_DETECT_0 register
+  - wlf,hpd-right-pins : See wlf,hpd-left-pins which is for left headphone
+    channel and this field is similar but for right headphone channel
+  - wlf,moisture-detect-pin : This field is only for moon (cs47l90, cs47l91)
+    class of arizona codecs. It specifies the impedance sense pin that is used
+    for moisture detect as per HPD_SENSE_SEL field of HEADPHONE_DETECT_0
+    register
   - wlf,micd-ranges : Microphone detection level and key configuration, this
     field can be of variable length but should always be a multiple of 2 cells
     long, each two cell group represents one button configuration
     The first cell is the maximum impedance for this button in ohms
     The second cell the key that should be reported to the input layer
   - wlf,micd-configs : Headset polarity configurations, the field can be of
-    variable length but should always be a multiple of 3 cells long, each two
-    cell group represents one polarity configration
-    The first cell is the accessory detection source as per the ACCDET_SRC bits
-    in the ACCESSORY_DETECT_MODE_1 register
-    The second cell represents the MICBIAS to be used as per the MICD_BIAS_SRC
-    bits in the MIC_DETECT_1 register
-    The third cell represents the value of the micd-pol-gpio pin, a non-zero
-    value indicates this should be on
-  - wlf,init-mic-delay : Adds a delay in milliseconds between jack detection
-    and beginning ramp of MICBIAS.
-  - wlf,micd-clamp-mode: Specifies the logic of the micdetect clamp block
-  - wlf,hs-mic: Specify an input to mute during headset button presses and
-    jack removal: 1 - IN1L, 2 - IN1R, ..., n - IN[n]R
-
-  - wlf,micbias1 : Configuration for the micbias regulator, should include 5
-    cells.
+    variable length. But is should always be a multiple of 4 cells long for Moon
+    class (cs47l90, cs47l91) of Arizona chips and should always be a multiple
+    of 3 cells long for other Arizona chips, each two cell group represents one
+    polarity configration
+    For Moon class (cs47l90, cs47l91) of Arizona chips the first cell is the
+    accessory detection source as per the MICD_SENSE_SEL field of
+    MIC_DETECT_1_CONTROL_0 regiser and for other Arizona chips its the accessory
+    detection source as per the ACCDET_SRC bits in the ACCESSORY_DETECT_MODE_1 register
+    For Moon class (cs47l90, cs47l91) of Arizona chips the second cell is the accessory
+    detection ground as per the MICD_GND_SEL field of MIC_DETECT_1_CONTROL_0 regiser
+    and for other Arizona chips the second cell represents the MICBIAS to be used as
+    per the MICD_BIAS_SRC bits in the MIC_DETECT_1 register
+    For Moon class (cs47l90, cs47l91) of Arizona chips the third cell represents
+    the MICBIAS to be used as per the MICD_BIAS_SRC bits in the MIC_DETECT_1_CONTROL_1
+    register and for other Arizona chips the third cell represents the value of the
+    micd-pol-gpio pin, a non-zero value indicates this should be on
+    For Moon class (cs47l90, cs47l91) of Arizona chips the fourth cell represents
+    the value of the micd-pol-gpio pin, a non-zero value indicates this should be on
+    and for other Arizona chips there are only three cells and fourth cell should
+    not be specified
+  - wlf,micbias1 : Configuration for the micbias regulator, number of cells
+    here will depend on the arizona chip and will be 4 + n (number of
+    children micbiases). For Marley (cs47l35) n is 2, for Moon
+    (cs47l90, cs47l91) n is 4 and for other arizona chips n is 1.
     The first cell is the output voltage in millivolts
     The second cell a non-zero value indicates an external capacitor is fitted
-    The third cell a non-zero value indicates the micbias should be actively
-    discharged
-    The four cell a non-zero value indicates that the micbias should be
+    Starting from third cell the next n cells with a non-zero value indicates
+    the micbias (or children micbiases if n > 1) should be actively discharged
+    In the (3 + n)'th cell a non-zero value indicates that the micbias should be
     brought up slowly to reduce pops
-    The fifth cell a non-zero value indicates the micbias should be bypassed
+    In the (4 + n)'th cell a non-zero value indicates the micbias should be bypassed
     and simply output MICVDD
   - wlf,micbias2 : See wlf,micbias1
   - wlf,micbias3 : See wlf,micbias1
   - wlf,micbias4 : See wlf,micbias1
+
+  - wlf,hs-mic: Specify an input to mute during headset button presses and
+    jack removal: 1 - IN1L, 2 - IN1R, ..., n - IN[n]R
+
+  - wlf,dmic-ref : DMIC reference for each input, must contain four cells if
+    specified. 0 indicates MICVDD and is the default, 1,2,3 indicate the
+    respective MICBIAS.
+
+  - wlf,inmode : Input mode for each input, must contain four cells if
+    specified. 0 indicates Differential, 1 indicates Single Ended and 2
+    indicates a digital microphone.
+    For most codecs the entries map to <IN1, IN2, IN3, IN4>
+    wm8998: entries are for <IN1A, IN2A, IN1B, IN2B>
+    cs47l85, wm8285, cs47l90, cs47l91: entries are for <IN1L, IN1R, IN2L,
+    IN2R, IN3L, IN3R>
+
+  - wlf,dmic-clksrc : DMIC clock source for each input. This field is only for
+    moon class of arizona codecs (cs47l90, cs47l91) and a value of 0 will source
+    DMIC from internally generated clock within the ADC subsystem and a value of
+    1 will source DMIC and External digital speakers with same clock
 
   - wlf,gpio-defaults : A list of GPIO configuration register values. Defines
     for the appropriate values can found in <dt-bindings/mfd/arizona.txt>. If
@@ -111,34 +185,10 @@ Optional properties:
     Specify one cell for each AIF, specify zero for AIFs that should be handled
     normally.
 
-  - wlf,dmic-ref : DMIC reference for each input, must contain four cells if
-    specified. 0 indicates MICVDD and is the default, 1,2,3 indicate the
-    respective MICBIAS.
-
-  - wlf,inmode : Input mode for each input, must contain four cells if
-    specified. 0 indicates Differential, 1 indicates Single Ended and 2
-    indicates a digital microphone.
-    For most codecs the entries map to <IN1, IN2, IN3, IN4>
-    wm8998: entries are for <IN1A, IN2A, IN1B, IN2B>
-    cs47l85, wm8285: entries are for <IN1L, IN1R, IN2L, IN2R, IN3L, IN3R>
-
   - wlf,out-mono : Mono bit for each output, must contain six cells if
     specified. A non-zero value indicates the corresponding output is mono.
 
-  - wlf,use-jd-gpio : Use GPIO input for jack detection.
-  - wlf,usr-jd-gpio-nopull : Internal pull on GPIO is disabled when used for
-    jack detection.
-
-  - wlf,gpsw : Settings for the general purpose switch, set as per the
-    SW1_MODE bits in the GP Switch 1 register
-
-    wlf,wm5102t-output-pwr : Output power setting (WM5102T only)
-
-  - wlf,fixed-hpdet-imp : Do not perform any headphone detection, just use
-    the fixed value specified here as the headphone impedance.
-
-  - wlf,hpdet-short-circuit-imp : Specifies the maximum impedance in ohms
-    that will be considered as a short circuit
+  - wlf,wm5102t-output-pwr : Output power setting (WM5102T only)
 
   - DCVDD-supply, MICVDD-supply : Power supplies, only need to be specified if
     they are being externally supplied. As covered in
