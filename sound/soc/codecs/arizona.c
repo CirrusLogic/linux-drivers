@@ -2472,6 +2472,7 @@ int arizona_anc_ev(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		val = 1 << (w->shift + 1);
+		break;
 	default:
 		return 0;
 	}
