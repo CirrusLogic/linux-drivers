@@ -3599,6 +3599,9 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 			return init_ratio;
 		break;
 	default:
+		if (Fref == 11289600 && target == 90316800)
+			return init_ratio;
+
 		if (sync)
 			return init_ratio;
 	}
