@@ -2602,9 +2602,9 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 {
 	struct arizona_extcon_info *info = data;
 	struct arizona *arizona = info->arizona;
-	unsigned int reg, val, present, mask;
+	unsigned int reg, val, mask;
 	bool cancelled_hp, cancelled_state;
-	int i;
+	int i, present;
 
 	cancelled_hp = cancel_delayed_work_sync(&info->hpdet_work);
 	cancelled_state = arizona_jds_cancel_timeout(info);
