@@ -4210,6 +4210,11 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 		if (fll->arizona->rev < 3 || sync)
 			return init_ratio;
 		break;
+	case CS47L90:
+	case CS47L91:
+		if (!sync)
+			cfg->fratio = init_ratio - 1;
+		return init_ratio;
 	default:
 		if (Fref == 11289600 && target == 90316800)
 			return init_ratio;
