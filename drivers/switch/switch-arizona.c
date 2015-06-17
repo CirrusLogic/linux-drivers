@@ -269,8 +269,15 @@ static void arizona_jds_timeout_work(struct work_struct *work)
 
 	mutex_lock(&info->lock);
 
-	info->state->timeout(info);
-	arizona_jds_start_timeout(info);
+	if (!info->state) {
+		dev_warn(info->arizona->dev, "Spurious timeout in idle state\n");
+	} else if (!info->state->timeout) {
+		dev_warn(info->arizona->dev, "Spurious timeout state.mode=%d\n",
+			 info->state->mode);
+	} else {
+		info->state->timeout(info);
+		arizona_jds_start_timeout(info);
+	}
 
 	mutex_unlock(&info->lock);
 }
