@@ -251,8 +251,8 @@ EXPORT_SYMBOL_GPL(arizona_cache_and_clear_sources);
 
 void clearwater_spin_sysclk(struct arizona *arizona)
 {
-	unsigned int val, res;
-	int ret, i;
+	unsigned int val;
+	int i;
 
 	/* Skip this if the chip is down */
 	if (pm_runtime_suspended(arizona->dev))
@@ -263,17 +263,7 @@ void clearwater_spin_sysclk(struct arizona *arizona)
 	 * oscillator sends out a few clocks.
 	 */
 	for (i = 0; i < 4; i++)
-		regmap_read(arizona->regmap, 0x2c2, &val);
-
-	val = (~val) & 0x7;
-
-	regmap_write(arizona->regmap, 0x2c2, val);
-	ret = regmap_read(arizona->regmap, 0x2c2, &res);
-
-	if (ret == 0 && val != res)
-		dev_err(arizona->dev,
-			"Failed to toggle flag register (%x,%x)\n",
-			val, res);
+		regmap_read(arizona->regmap, ARIZONA_SOFTWARE_RESET, &val);
 }
 EXPORT_SYMBOL_GPL(clearwater_spin_sysclk);
 
