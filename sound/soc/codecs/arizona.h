@@ -362,6 +362,9 @@ extern int moon_osr_put(struct snd_kcontrol *kcontrol,
 extern int moon_lp_mode_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 
+extern const struct snd_kcontrol_new arizona_adsp2_rate_controls[];
+extern const struct snd_kcontrol_new arizona_adsp2v2_rate_controls[];
+
 extern int arizona_in_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event);

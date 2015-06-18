@@ -2336,6 +2336,12 @@ static int florida_codec_probe(struct snd_soc_codec *codec)
 			return ret;
 	}
 
+	ret = snd_soc_add_codec_controls(codec,
+					 arizona_adsp2_rate_controls,
+					 FLORIDA_NUM_ADSP);
+	if (ret)
+		return ret;
+
 	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
 
 	priv->core.arizona->dapm = &codec->dapm;

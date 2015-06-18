@@ -2806,6 +2806,12 @@ static int moon_codec_probe(struct snd_soc_codec *codec)
 			return ret;
 	}
 
+	ret = snd_soc_add_codec_controls(codec,
+					 arizona_adsp2v2_rate_controls,
+					 MOON_NUM_ADSP);
+	if (ret)
+		return ret;
+
 	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
 
 	priv->core.arizona->dapm = &codec->dapm;

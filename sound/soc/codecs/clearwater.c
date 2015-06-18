@@ -2862,6 +2862,12 @@ static int clearwater_codec_probe(struct snd_soc_codec *codec)
 			return ret;
 	}
 
+	ret = snd_soc_add_codec_controls(codec,
+					 arizona_adsp2v2_rate_controls,
+					 CLEARWATER_NUM_ADSP);
+	if (ret)
+		return ret;
+
 	/* Update Sample Rate 1 to 48kHz for cases when no AIF1 hw_params */
 	regmap_update_bits(arizona->regmap, ARIZONA_SAMPLE_RATE_1,
 			   ARIZONA_SAMPLE_RATE_1_MASK, 0x03);

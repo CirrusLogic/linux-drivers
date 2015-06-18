@@ -73,6 +73,10 @@
 #define ARIZONA_FMT_I2S_MODE            2
 #define ARIZONA_FMT_LEFT_JUSTIFIED_MODE 3
 
+#define ADSP2V2_RATE_MASK                   0x7800  /* DSP_RATE */
+#define ADSP2V2_RATE_SHIFT                      11  /* DSP_RATE */
+#define ADSP2V2_RATE_WIDTH                       4  /* DSP_RATE */
+
 #define arizona_fll_err(_fll, fmt, ...) \
 	dev_err(_fll->arizona->dev, "FLL%d: " fmt, _fll->id, ##__VA_ARGS__)
 #define arizona_fll_warn(_fll, fmt, ...) \
@@ -5250,6 +5254,123 @@ int arizona_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
 	return snd_soc_bytes_put(kcontrol, ucontrol);
 }
 EXPORT_SYMBOL_GPL(arizona_lhpf_coeff_put);
+
+static int arizona_adsp2v2_rate_get(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	struct wm_adsp *dsps = snd_soc_codec_get_drvdata(codec);
+	struct wm_adsp *dsp = &dsps[e->shift_l];
+	unsigned int item;
+
+	mutex_lock(&dsp->rate_lock);
+
+	for (item = 0; item < e->items; item++) {
+		if (e->values[item] == dsp->rate_cache) {
+			ucontrol->value.enumerated.item[0] = item;
+			mutex_unlock(&dsp->rate_lock);
+			return 0;
+		}
+	}
+
+	mutex_unlock(&dsp->rate_lock);
+
+	return -EINVAL;
+}
+
+static int arizona_adsp2v2_rate_put(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	struct wm_adsp *dsps = snd_soc_codec_get_drvdata(codec);
+	struct wm_adsp *dsp = &dsps[e->shift_l];
+	unsigned int item = ucontrol->value.enumerated.item[0];
+	unsigned int val;
+	int ret = 0;
+
+	if (item >= e->items)
+		return -EINVAL;
+
+	mutex_lock(&dsp->rate_lock);
+
+	if (e->values[item] != dsp->rate_cache) {
+		val = e->values[item];
+		dsp->rate_cache = val;
+
+		if (dsp->running) {
+			ret = dsp->rate_put_cb(dsp, ADSP2V2_RATE_MASK,
+						val << ADSP2V2_RATE_SHIFT);
+		}
+	}
+
+	mutex_unlock(&dsp->rate_lock);
+
+	return ret;
+}
+
+static const struct soc_enum arizona_adsp2_rate_enum[] = {
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_DSP1_CONTROL_1,
+			      ARIZONA_DSP1_RATE_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_DSP2_CONTROL_1,
+			      ARIZONA_DSP1_RATE_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_DSP3_CONTROL_1,
+			      ARIZONA_DSP1_RATE_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_DSP4_CONTROL_1,
+			      ARIZONA_DSP1_RATE_SHIFT, 0xf,
+			      ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+};
+
+const struct snd_kcontrol_new arizona_adsp2_rate_controls[] = {
+	SOC_ENUM("DSP1 Rate", arizona_adsp2_rate_enum[0]),
+	SOC_ENUM("DSP2 Rate", arizona_adsp2_rate_enum[1]),
+	SOC_ENUM("DSP3 Rate", arizona_adsp2_rate_enum[2]),
+	SOC_ENUM("DSP4 Rate", arizona_adsp2_rate_enum[3]),
+};
+EXPORT_SYMBOL_GPL(arizona_adsp2_rate_controls);
+
+static const struct soc_enum arizona_adsp2v2_rate_enum[] = {
+	SOC_VALUE_ENUM_SINGLE(0, 0, 0xf, ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(0, 1, 0xf, ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(0, 2, 0xf, ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(0, 3, 0xf, ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(0, 4, 0xf, ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(0, 5, 0xf, ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+	SOC_VALUE_ENUM_SINGLE(0, 6, 0xf, ARIZONA_RATE_ENUM_SIZE,
+			      arizona_rate_text, arizona_rate_val),
+};
+
+const struct snd_kcontrol_new arizona_adsp2v2_rate_controls[] = {
+	SOC_ENUM_EXT("DSP1 Rate", arizona_adsp2v2_rate_enum[0],
+		     arizona_adsp2v2_rate_get, arizona_adsp2v2_rate_put),
+	SOC_ENUM_EXT("DSP2 Rate", arizona_adsp2v2_rate_enum[1],
+		     arizona_adsp2v2_rate_get, arizona_adsp2v2_rate_put),
+	SOC_ENUM_EXT("DSP3 Rate", arizona_adsp2v2_rate_enum[2],
+		     arizona_adsp2v2_rate_get, arizona_adsp2v2_rate_put),
+	SOC_ENUM_EXT("DSP4 Rate", arizona_adsp2v2_rate_enum[3],
+		     arizona_adsp2v2_rate_get, arizona_adsp2v2_rate_put),
+	SOC_ENUM_EXT("DSP5 Rate", arizona_adsp2v2_rate_enum[4],
+		     arizona_adsp2v2_rate_get, arizona_adsp2v2_rate_put),
+	SOC_ENUM_EXT("DSP6 Rate", arizona_adsp2v2_rate_enum[5],
+		     arizona_adsp2v2_rate_get, arizona_adsp2v2_rate_put),
+	SOC_ENUM_EXT("DSP7 Rate", arizona_adsp2v2_rate_enum[6],
+		     arizona_adsp2v2_rate_get, arizona_adsp2v2_rate_put),
+};
+EXPORT_SYMBOL_GPL(arizona_adsp2v2_rate_controls);
 
 MODULE_DESCRIPTION("ASoC Wolfson Arizona class device support");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
