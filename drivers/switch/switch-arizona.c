@@ -2360,26 +2360,40 @@ static void arizona_micd_handler(struct work_struct *work)
 			     struct arizona_extcon_info,
 			     micd_detect_work.work);
 	struct arizona *arizona = info->arizona;
+	int mode;
 	int ret;
 
 	arizona_jds_cancel_timeout(info);
 
 	mutex_lock(&info->lock);
 
+	/* Must check that we are in a micd state before accessing
+	 * any codec registers
+	 */
+	mode = arizona_jds_get_mode(info);
+	switch (mode) {
+	case ARIZONA_ACCDET_MODE_MIC:
+	case ARIZONA_ACCDET_MODE_ADC:
+		break;
+	default:
+		goto spurious;
+	}
+
 	if (arizona_jack_present(info, NULL) <= 0)
 		goto spurious;
 
 	arizona_hs_mic_control(arizona, ARIZONA_MIC_MUTE);
 
-	switch (arizona_jds_get_mode(info)) {
+	switch (mode) {
 	case ARIZONA_ACCDET_MODE_MIC:
 		ret = arizona_micd_read(info);
 		break;
 	case ARIZONA_ACCDET_MODE_ADC:
 		ret = arizona_micd_adc_read(info);
 		break;
-	default:
-		goto spurious;
+	default:	/* we can't get here but compiler still warns */
+		ret = 0;
+		break;
 	}
 
 	if (ret == -EAGAIN)
