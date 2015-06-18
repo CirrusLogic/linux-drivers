@@ -2465,11 +2465,12 @@ static irqreturn_t arizona_micdet(int irq, void *data)
 
 	mutex_unlock(&info->lock);
 
-	if (debounce)
-		schedule_delayed_work(&info->micd_detect_work,
-				      msecs_to_jiffies(debounce));
-	else
-		arizona_micd_handler(&info->micd_detect_work.work);
+	/* Defer to the workqueue to ensure serialization
+	 * and prevent race conditions if an IRQ occurs while
+	 * running the delayed work
+	 */
+	schedule_delayed_work(&info->micd_detect_work,
+				msecs_to_jiffies(debounce));
 
 	return IRQ_HANDLED;
 }
