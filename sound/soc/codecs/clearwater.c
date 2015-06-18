@@ -2871,6 +2871,12 @@ static int clearwater_codec_probe(struct snd_soc_codec *codec)
 			return ret;
 	}
 
+	ret = snd_soc_add_codec_controls(codec,
+					 arizona_adsp2v2_rate_controls,
+					 CLEARWATER_NUM_ADSP);
+	if (ret)
+		return ret;
+
 	mutex_lock(&codec->card->dapm_mutex);
 	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
 	mutex_unlock(&codec->card->dapm_mutex);
