@@ -1608,9 +1608,13 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 			return ret;
 	}
 
-	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
+	ret = snd_soc_add_codec_controls(codec,
+					 arizona_adsp2_rate_controls,
+					 WM5110_NUM_ADSP);
+	if (ret)
+		return ret;
 
-	priv->core.arizona->dapm = &codec->dapm;
+	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
 
 	return 0;
 }
