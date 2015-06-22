@@ -252,7 +252,7 @@ EXPORT_SYMBOL_GPL(arizona_cache_and_clear_sources);
 void clearwater_spin_sysclk(struct arizona *arizona)
 {
 	unsigned int val;
-	int i;
+	int ret, i;
 
 	/* Skip this if the chip is down */
 	if (pm_runtime_suspended(arizona->dev))
@@ -262,8 +262,15 @@ void clearwater_spin_sysclk(struct arizona *arizona)
 	 * Just read a register a few times to ensure the internal
 	 * oscillator sends out a few clocks.
 	 */
-	for (i = 0; i < 4; i++)
-		regmap_read(arizona->regmap, ARIZONA_SOFTWARE_RESET, &val);
+	for (i = 0; i < 4; i++) {
+		ret = regmap_read(arizona->regmap,
+				  ARIZONA_SOFTWARE_RESET,
+				  &val);
+		if (ret != 0)
+			dev_err(arizona->dev,
+				"%s Failed to read register: %d (%d)\n",
+				__func__, ret, i);
+	}
 }
 EXPORT_SYMBOL_GPL(clearwater_spin_sysclk);
 
