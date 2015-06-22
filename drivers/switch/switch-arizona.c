@@ -1852,7 +1852,7 @@ static int arizona_antenna_button_start(struct arizona_extcon_info *info)
 	struct arizona_pdata *pdata = &arizona->pdata;
 	int i;
 	unsigned int micd_lvl = ARIZONA_NUM_MICD_BUTTON_LEVELS;
-	int hp_imp_range_hi = -1;
+	unsigned int hp_imp_range_hi = ARIZONA_NUM_MICD_BUTTON_LEVELS;
 
 	info->button_impedance = 0;
 	info->button_check = 0;
