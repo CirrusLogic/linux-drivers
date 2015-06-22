@@ -2703,38 +2703,42 @@ static struct snd_soc_dai_driver clearwater_dai[] = {
 static irqreturn_t adsp2_irq(int irq, void *data)
 {
 	struct clearwater_priv *clearwater = data;
+	struct clearwater_compr *compr_info = &clearwater->compr_info;
+	struct arizona *arizona = clearwater->core.arizona;
+	struct wm_adsp *adsp6 = &clearwater->core.adsp[5];
+	struct wm_adsp *adsp1 = &clearwater->core.adsp[0];
+	bool trigger;
 	int ret, avail;
 
 	mutex_lock(&clearwater->compr_info.lock);
 
-	if (!clearwater->compr_info.trig &&
-	    clearwater->core.adsp[5].running &&
-	    clearwater->core.adsp[5].fw_features.ez2control_trigger &&
-	    !wm_adsp_stream_has_error(&clearwater->core.adsp[5])) {
-		if (clearwater->core.arizona->pdata.ez2ctrl_trigger)
-			clearwater->core.arizona->pdata.ez2ctrl_trigger();
+	if (adsp6->running) {
+		ret = wm_adsp_stream_handle_irq(adsp6, &trigger);
+		if (ret >= 0) {
+			if (adsp6 == compr_info->adsp)
+				compr_info->total_copied += ret;
 
-		clearwater->compr_info.trig = true;
+			if (!compr_info->trig && trigger) {
+				compr_info->trig = true;
+				if (arizona->pdata.ez2ctrl_trigger &&
+				    adsp6->fw_features.ez2control_trigger)
+					arizona->pdata.ez2ctrl_trigger();
+			}
+		}
+	} else if (adsp1->running) {
+		ret = wm_adsp_stream_handle_irq(adsp1, &trigger);
+
+		if (ret >= 0 && (adsp1 == compr_info->adsp))
+			compr_info->total_copied += ret;
 	}
 
-	ret = wm_adsp_stream_handle_irq(clearwater->compr_info.adsp, NULL);
-	if (ret < 0) {
-		dev_err(clearwater->core.arizona->dev,
-			"Failed to capture DSP data: %d\n",
-			ret);
-		goto out;
-	}
-
-	clearwater->compr_info.total_copied += ret;
-
-	if (clearwater->compr_info.allocated) {
-		avail = wm_adsp_stream_avail(clearwater->compr_info.adsp);
+	if (compr_info->allocated) {
+		avail = wm_adsp_stream_avail(compr_info->adsp);
 		if (avail > CLEARWATER_DEFAULT_FRAGMENT_SIZE)
-			snd_compr_fragment_elapsed(clearwater->compr_info.stream);
+			snd_compr_fragment_elapsed(compr_info->stream);
 	}
 
-out:
-	mutex_unlock(&clearwater->compr_info.lock);
+	mutex_unlock(&compr_info->lock);
 
 	return IRQ_HANDLED;
 }
@@ -2787,11 +2791,13 @@ static int clearwater_free(struct snd_compr_stream *stream)
 
 	mutex_lock(&clearwater->compr_info.lock);
 
+	wm_adsp_stream_free(clearwater->compr_info.adsp);
+
 	clearwater->compr_info.allocated = false;
 	clearwater->compr_info.stream = NULL;
+	clearwater->compr_info.adsp = NULL;
 	clearwater->compr_info.total_copied = 0;
 
-	wm_adsp_stream_free(clearwater->compr_info.adsp);
 
 	mutex_unlock(&clearwater->compr_info.lock);
 

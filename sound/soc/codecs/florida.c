@@ -2199,29 +2199,33 @@ static struct snd_soc_dai_driver florida_dai[] = {
 static irqreturn_t adsp2_irq(int irq, void *data)
 {
 	struct florida_priv *florida = data;
+	struct arizona *arizona = florida->core.arizona;
+	struct wm_adsp *adsp3 = &florida->core.adsp[2];
+	struct wm_adsp *adsp1 = &florida->core.adsp[0];
+	bool trigger;
 	int ret, avail;
 
 	mutex_lock(&florida->compr_info.lock);
 
-	if (!florida->compr_info.trig &&
-	    florida->core.adsp[2].running &&
-	    florida->core.adsp[2].fw_features.ez2control_trigger &&
-	    !wm_adsp_stream_has_error(&florida->core.adsp[2])) {
-		if (florida->core.arizona->pdata.ez2ctrl_trigger)
-			florida->core.arizona->pdata.ez2ctrl_trigger();
+	if (adsp3->running) {
+		ret = wm_adsp_stream_handle_irq(adsp3, &trigger);
+		if (ret >= 0) {
+			if (adsp3 == florida->compr_info.adsp)
+				florida->compr_info.total_copied += ret;
 
-		florida->compr_info.trig = true;
+			if (!florida->compr_info.trig && trigger) {
+				florida->compr_info.trig = true;
+				if (arizona->pdata.ez2ctrl_trigger &&
+				    adsp3->fw_features.ez2control_trigger)
+					arizona->pdata.ez2ctrl_trigger();
+			}
+		}
+	} else if (adsp1->running) {
+		ret = wm_adsp_stream_handle_irq(adsp1, &trigger);
+
+		if (ret >= 0 && (adsp1 == florida->compr_info.adsp))
+			florida->compr_info.total_copied += ret;
 	}
-
-	ret = wm_adsp_stream_handle_irq(florida->compr_info.adsp, NULL);
-	if (ret < 0) {
-		dev_err(florida->core.arizona->dev,
-			"Failed to capture DSP data: %d\n",
-			ret);
-		goto out;
-	}
-
-	florida->compr_info.total_copied += ret;
 
 	if (florida->compr_info.allocated) {
 		avail = wm_adsp_stream_avail(florida->compr_info.adsp);
@@ -2229,7 +2233,6 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 			snd_compr_fragment_elapsed(florida->compr_info.stream);
 	}
 
-out:
 	mutex_unlock(&florida->compr_info.lock);
 
 	return IRQ_HANDLED;
@@ -2283,11 +2286,12 @@ static int florida_free(struct snd_compr_stream *stream)
 
 	mutex_lock(&florida->compr_info.lock);
 
+	wm_adsp_stream_free(florida->compr_info.adsp);
+
 	florida->compr_info.allocated = false;
 	florida->compr_info.stream = NULL;
+	florida->compr_info.adsp = NULL;
 	florida->compr_info.total_copied = 0;
-
-	wm_adsp_stream_free(florida->compr_info.adsp);
 
 	mutex_unlock(&florida->compr_info.lock);
 

@@ -1709,36 +1709,41 @@ static struct snd_soc_dai_driver marley_dai[] = {
 static irqreturn_t adsp2_irq(int irq, void *data)
 {
 	struct marley_priv *marley = data;
+	struct marley_compr *compr_info = &marley->compr_info;
+	struct arizona *arizona = marley->core.arizona;
+	struct wm_adsp *adsp3 = &marley->core.adsp[2];
+	struct wm_adsp *adsp1 = &marley->core.adsp[0];
+	bool trigger;
 	int ret, avail;
 
 	mutex_lock(&marley->compr_info.lock);
 
-	if (!marley->compr_info.trig &&
-	    marley->core.adsp[2].running &&
-	    marley->core.adsp[2].fw_features.ez2control_trigger &&
-	    !wm_adsp_stream_has_error(&marley->core.adsp[2])) {
-		if (marley->core.arizona->pdata.ez2ctrl_trigger)
-			marley->core.arizona->pdata.ez2ctrl_trigger();
-		marley->compr_info.trig = true;
+	if (adsp3->running) {
+		ret = wm_adsp_stream_handle_irq(adsp3, &trigger);
+		if (ret >= 0) {
+			if (adsp3 == compr_info->adsp)
+				compr_info->total_copied += ret;
+
+			if (!compr_info->trig && trigger) {
+				compr_info->trig = true;
+				if (arizona->pdata.ez2ctrl_trigger &&
+				    adsp3->fw_features.ez2control_trigger)
+					arizona->pdata.ez2ctrl_trigger();
+			}
+		}
+	} else if (adsp1->running) {
+		ret = wm_adsp_stream_handle_irq(adsp1, &trigger);
+
+		if (ret >= 0 && (adsp1 == compr_info->adsp))
+			compr_info->total_copied += ret;
 	}
 
-	ret = wm_adsp_stream_handle_irq(marley->compr_info.adsp, NULL);
-	if (ret < 0) {
-		dev_err(marley->core.arizona->dev,
-			"Failed to capture DSP data: %d\n",
-			ret);
-		goto out;
-	}
-
-	marley->compr_info.total_copied += ret;
-
-	if (marley->compr_info.allocated) {
-		avail = wm_adsp_stream_avail(marley->compr_info.adsp);
+	if (compr_info->allocated) {
+		avail = wm_adsp_stream_avail(compr_info->adsp);
 		if (avail > MARLEY_DEFAULT_FRAGMENT_SIZE)
-			snd_compr_fragment_elapsed(marley->compr_info.stream);
+			snd_compr_fragment_elapsed(compr_info->stream);
 	}
 
-out:
 	mutex_unlock(&marley->compr_info.lock);
 
 	return IRQ_HANDLED;
@@ -1792,11 +1797,12 @@ static int marley_free(struct snd_compr_stream *stream)
 
 	mutex_lock(&marley->compr_info.lock);
 
+	wm_adsp_stream_free(marley->compr_info.adsp);
+
 	marley->compr_info.allocated = false;
 	marley->compr_info.stream = NULL;
+	marley->compr_info.adsp = NULL;
 	marley->compr_info.total_copied = 0;
-
-	wm_adsp_stream_free(marley->compr_info.adsp);
 
 	mutex_unlock(&marley->compr_info.lock);
 

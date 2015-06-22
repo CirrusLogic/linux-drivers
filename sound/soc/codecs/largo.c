@@ -1107,37 +1107,40 @@ static struct snd_soc_dai_driver largo_dai[] = {
 static irqreturn_t adsp2_irq(int irq, void *data)
 {
 	struct largo_priv *largo = data;
+	struct arizona *arizona = largo->core.arizona;
+	struct wm_adsp *adsp3 = &largo->core.adsp[2];
+	struct wm_adsp *adsp1 = &largo->core.adsp[0];
+	bool trigger;
 	int ret, avail;
 
 	mutex_lock(&largo->compr_info.lock);
 
-	if (!largo->compr_info.trig &&
-	    largo->core.adsp[2].running &&
-	    largo->core.adsp[2].fw_features.ez2control_trigger &&
-	    !wm_adsp_stream_has_error(&largo->core.adsp[2])) {
-		if (largo->core.arizona->pdata.ez2ctrl_trigger)
-			largo->core.arizona->pdata.ez2ctrl_trigger();
+	if (adsp3->running) {
+		ret = wm_adsp_stream_handle_irq(adsp3, &trigger);
+		if (ret >= 0) {
+			if (adsp3 == largo->compr_info.adsp)
+				largo->compr_info.total_copied += ret;
 
-		largo->compr_info.trig = true;
+			if (!largo->compr_info.trig && trigger) {
+				largo->compr_info.trig = true;
+				if (arizona->pdata.ez2ctrl_trigger &&
+				    adsp3->fw_features.ez2control_trigger)
+					arizona->pdata.ez2ctrl_trigger();
+			}
+		}
+	} else if (adsp1->running) {
+		ret = wm_adsp_stream_handle_irq(adsp1, &trigger);
+
+		if (ret >= 0 && (adsp1 == largo->compr_info.adsp))
+			largo->compr_info.total_copied += ret;
 	}
 
-	ret = wm_adsp_stream_handle_irq(largo->compr_info.adsp, NULL);
-	if (ret < 0) {
-		dev_err(largo->core.arizona->dev,
-			"Failed to capture DSP data: %d\n",
-			ret);
-		goto out;
-	}
-
-	largo->compr_info.total_copied += ret;
-
-	if (!largo->compr_info.allocated) {
+	if (largo->compr_info.allocated) {
 		avail = wm_adsp_stream_avail(largo->compr_info.adsp);
 		if (avail > LARGO_DEFAULT_FRAGMENT_SIZE)
 			snd_compr_fragment_elapsed(largo->compr_info.stream);
 	}
 
-out:
 	mutex_unlock(&largo->compr_info.lock);
 
 	return IRQ_HANDLED;
@@ -1189,11 +1192,12 @@ static int largo_free(struct snd_compr_stream *stream)
 
 	mutex_lock(&largo->compr_info.lock);
 
+	wm_adsp_stream_free(largo->compr_info.adsp);
+
 	largo->compr_info.allocated = false;
 	largo->compr_info.stream = NULL;
+	largo->compr_info.adsp = NULL;
 	largo->compr_info.total_copied = 0;
-
-	wm_adsp_stream_free(largo->compr_info.adsp);
 
 	mutex_unlock(&largo->compr_info.lock);
 
