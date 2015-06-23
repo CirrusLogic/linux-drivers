@@ -254,6 +254,9 @@ static int arizona_micsupp_of_get_pdata(struct arizona *arizona,
 			init_data->consumer_supplies = &micsupp->supply;
 			init_data->num_consumer_supplies = 1;
 
+			init_data->constraints.valid_ops_mask |=
+					REGULATOR_CHANGE_BYPASS;
+
 			pdata->micvdd = init_data;
 		}
 	}
