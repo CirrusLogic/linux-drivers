@@ -264,6 +264,33 @@ static int arizona_micsupp_of_get_pdata(struct arizona *arizona,
 	return 0;
 }
 
+static unsigned int arizona_get_max_micbias(struct arizona *arizona)
+{
+	unsigned int num_micbias, i, max_micbias, micbias_mv;
+	int ret;
+
+	arizona_get_num_micbias(arizona, &num_micbias, NULL);
+
+	max_micbias = 0;
+	for (i = 0; i < num_micbias; i++) {
+		ret = regmap_read(arizona->regmap,
+			ARIZONA_MIC_BIAS_CTRL_1 + i, &micbias_mv);
+		if (ret != 0) {
+			dev_err(arizona->dev,
+				"Failed to read micbias level: %d\n", ret);
+			return 0;
+		}
+
+		micbias_mv = (micbias_mv & ARIZONA_MICB1_LVL_MASK) >>
+			ARIZONA_MICB1_LVL_SHIFT;
+		micbias_mv = (1500) + (100 * micbias_mv);
+		if (micbias_mv > max_micbias)
+			max_micbias = micbias_mv;
+	}
+
+	return (max_micbias * 1000);
+}
+
 static int arizona_micsupp_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
@@ -271,6 +298,7 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 	struct arizona_micsupp *micsupp;
 	int ret;
+	unsigned int max_micbias;
 
 	micsupp = devm_kzalloc(&pdev->dev, sizeof(*micsupp), GFP_KERNEL);
 	if (micsupp == NULL) {
@@ -315,10 +343,29 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 		}
 	}
 
+	max_micbias = arizona_get_max_micbias(arizona);
+	if (max_micbias) {
+		/* micvdd must be 200mV more than maximum micbias */
+		max_micbias += 200000;
+		if (micsupp->init_data.constraints.max_uV >= max_micbias) {
+			micsupp->init_data.constraints.max_uV = max_micbias;
+			micsupp->init_data.constraints.min_uV = max_micbias;
+			micsupp->init_data.constraints.apply_uV = true;
+			micsupp->init_data.constraints.valid_ops_mask &=
+				~REGULATOR_CHANGE_VOLTAGE;
+		}
+	}
+
 	if (arizona->pdata.micvdd)
 		config.init_data = arizona->pdata.micvdd;
 	else
 		config.init_data = &micsupp->init_data;
+
+	if (max_micbias) {
+		if (config.init_data->constraints.max_uV < max_micbias)
+			dev_err(arizona->dev, "micvdd must be atleast set to %duV\n",
+				max_micbias);
+	}
 
 	/* Default to regulated mode until the API supports bypass */
 	regmap_update_bits(arizona->regmap, ARIZONA_MIC_CHARGE_PUMP_1,
