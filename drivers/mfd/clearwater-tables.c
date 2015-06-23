@@ -558,6 +558,7 @@ static const struct reg_default clearwater_reg_default[] = {
 	{ 0x000002c6, 0x0010 },
 	{ 0x000002c8, 0x0000 }, /* R712 (0x2C8) - GP switch 1 */
 	{ 0x000002d3, 0x0000 }, /* R723 (0x2D3) - Jack detect analogue */
+	{ 0x00000300, 0x0000 }, /* R768  - Input Enables */
 	{ 0x00000308, 0x0000 }, /* R776 (0x308) - Input Rate */
 	{ 0x00000309, 0x0022 }, /* R777 (0x309) - Input Volume Ramp */
 	{ 0x0000030c, 0x0002 }, /* R780 (0x30C) - HPF Control */
