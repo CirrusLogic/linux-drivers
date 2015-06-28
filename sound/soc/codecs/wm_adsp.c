@@ -3461,6 +3461,39 @@ static ssize_t wm_adsp_debugfs_fwver_read(struct file *file,
 					dsp->fw_id_version);
 }
 
+static ssize_t wm_adsp_debugfs_buffererror_read(struct file *file,
+					    char __user *user_buf,
+					    size_t count, loff_t *ppos)
+{
+	struct wm_adsp *dsp = file->private_data;
+	int ret;
+	u32 host_buffer_error;
+
+	if (!dsp->card)
+		return 0;
+
+	mutex_lock(&dsp->card->dapm_mutex);
+
+	if (!dsp->running || !dsp->host_buf_ptr) {
+		mutex_unlock(&dsp->card->dapm_mutex);
+		return 0;
+	}
+
+	ret = wm_adsp_host_buffer_read(dsp,
+				       HOST_BUFFER_FIELD(error),
+				       &host_buffer_error);
+
+	mutex_unlock(&dsp->card->dapm_mutex);
+
+	if (ret < 0) {
+		adsp_err(dsp, "Failed to read host buffer: %d\n", ret);
+		return 0;
+	}
+
+	return wm_adsp_debugfs_x32_read(dsp, user_buf, count, ppos,
+					host_buffer_error);
+}
+
 static const struct {
 	const char *name;
 	const struct file_operations fops;
@@ -3502,9 +3535,15 @@ static const struct {
 	},
 };
 
+static const struct file_operations wm_adsp_debugfs_buffererror_fops = {
+	.open = simple_open,
+	.read = wm_adsp_debugfs_buffererror_read,
+};
+
 void wm_adsp_init_debugfs(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 {
 	struct dentry *root = NULL;
+	struct dentry *buffer_dentry = NULL;
 	char *root_name;
 	int i;
 
@@ -3530,6 +3569,14 @@ void wm_adsp_init_debugfs(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 					 &wm_adsp_debugfs_fops[i].fops))
 			goto err;
 	}
+
+	buffer_dentry = debugfs_create_dir("buffer0", root);
+	if (!buffer_dentry)
+		goto err;
+
+	if (!debugfs_create_file("error", S_IRUGO, buffer_dentry, dsp,
+				 &wm_adsp_debugfs_buffererror_fops))
+		goto err;
 
 	dsp->debugfs_root = root;
 	return;
