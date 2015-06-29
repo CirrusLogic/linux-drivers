@@ -20,4 +20,9 @@ config SWITCH_ARIZONA
 	  with Wolfson Arizona devices. These are audio CODECs with
 	  advanced audio accessory detection support.
 
+config SWITCH_ARIZONA_INPUT_EVENT
+	bool "Report events through input key events"
+	depends on SWITCH_ARIZONA
+	default n
+
 endif # SWITCH

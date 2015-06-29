@@ -260,8 +260,41 @@ static inline bool arizona_is_lineout(struct arizona_extcon_info *info)
 
 inline void arizona_extcon_report(struct arizona_extcon_info *info, int state)
 {
+	struct input_dev *input = info->input;
+
 	dev_dbg(info->arizona->dev, "Switch Report: %d\n", state);
 	switch_set_state(&info->edev, state);
+
+	if (IS_ENABLED(CONFIG_SWITCH_ARIZONA_INPUT_EVENT)) {
+		switch (state) {
+		case BIT_HEADSET:
+			input_report_switch(input, SW_LINEOUT_INSERT, 0);
+			input_report_switch(input, SW_JACK_PHYSICAL_INSERT, 1);
+			input_report_switch(input, SW_HEADPHONE_INSERT, 1);
+			input_report_switch(input, SW_MICROPHONE_INSERT, 1);
+			break;
+		case BIT_HEADSET_NO_MIC:
+			input_report_switch(input, SW_LINEOUT_INSERT, 0);
+			input_report_switch(input, SW_MICROPHONE_INSERT, 0);
+			input_report_switch(input, SW_JACK_PHYSICAL_INSERT, 1);
+			input_report_switch(input, SW_HEADPHONE_INSERT, 1);
+			break;
+		case BIT_LINEOUT:
+			input_report_switch(input, SW_MICROPHONE_INSERT, 0);
+			input_report_switch(input, SW_HEADPHONE_INSERT, 0);
+			input_report_switch(input, SW_LINEOUT_INSERT, 1);
+			input_report_switch(input, SW_JACK_PHYSICAL_INSERT, 1);
+			break;
+		default:
+			input_report_switch(input, SW_HEADPHONE_INSERT, 0);
+			input_report_switch(input, SW_MICROPHONE_INSERT, 0);
+			input_report_switch(input, SW_LINEOUT_INSERT, 0);
+			input_report_switch(input, SW_JACK_PHYSICAL_INSERT, 0);
+			break;
+		}
+
+		input_sync(input);
+	}
 }
 EXPORT_SYMBOL_GPL(arizona_extcon_report);
 
@@ -4102,6 +4135,13 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 
 	pm_runtime_put(&pdev->dev);
 
+	if (IS_ENABLED(CONFIG_SWITCH_ARIZONA_INPUT_EVENT)) {
+		input_set_capability(info->input, EV_SW, SW_MICROPHONE_INSERT);
+		input_set_capability(info->input, EV_SW, SW_HEADPHONE_INSERT);
+		input_set_capability(info->input, EV_SW, SW_LINEOUT_INSERT);
+		input_set_capability(info->input, EV_SW,
+				     SW_JACK_PHYSICAL_INSERT);
+	}
 	ret = input_register_device(info->input);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't register input device: %d\n", ret);
