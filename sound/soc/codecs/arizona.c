@@ -4951,6 +4951,7 @@ static int arizona_set_force_bypass(struct snd_soc_codec *codec,
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 	struct arizona_micbias *micbias = arizona->pdata.micbias;
 	unsigned int i, cp_bypass = 0, micbias_bypass = 0;
+	unsigned int num_micbiases;
 
 	if (set_bypass) {
 		cp_bypass = ARIZONA_CPMIC_BYPASS;
@@ -4977,7 +4978,9 @@ static int arizona_set_force_bypass(struct snd_soc_codec *codec,
 		mutex_unlock(&arizona->dapm->card->dapm_mutex);
 	}
 
-	for (i = 0; i < ARIZONA_MAX_MICBIAS; i++) {
+	arizona_get_num_micbias(arizona, &num_micbiases, NULL);
+
+	for (i = 0; i < num_micbiases; i++) {
 		if ((set_bypass) ||
 			(!micbias[i].bypass && micbias[i].mV))
 			regmap_update_bits(arizona->regmap,
