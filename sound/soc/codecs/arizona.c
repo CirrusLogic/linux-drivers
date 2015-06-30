@@ -4945,68 +4945,59 @@ arizona_get_extcon_info(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(arizona_get_extcon_info);
 
-int arizona_enable_force_bypass(struct snd_soc_codec *codec)
+static int arizona_set_force_bypass(struct snd_soc_codec *codec,
+	bool set_bypass)
 {
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	struct arizona_micbias *micbias = arizona->pdata.micbias;
+	unsigned int i, cp_bypass = 0, micbias_bypass = 0;
+
+	if (set_bypass) {
+		cp_bypass = ARIZONA_CPMIC_BYPASS;
+		micbias_bypass = ARIZONA_MICB1_BYPASS;
+	}
 
 	mutex_lock(&arizona->dapm->card->dapm_mutex);
 	if (arizona->micvdd_regulated) {
-		snd_soc_dapm_disable_pin(arizona->dapm, "MICSUPP");
+		if (set_bypass)
+			snd_soc_dapm_disable_pin(arizona->dapm,
+				"MICSUPP");
+		else
+			snd_soc_dapm_force_enable_pin(arizona->dapm,
+				"MICSUPP");
+
 		mutex_unlock(&arizona->dapm->card->dapm_mutex);
 
 		snd_soc_dapm_sync(arizona->dapm);
 
-		regmap_update_bits(arizona->regmap, ARIZONA_MIC_CHARGE_PUMP_1,
-				   ARIZONA_CPMIC_BYPASS, ARIZONA_CPMIC_BYPASS);
+		regmap_update_bits(arizona->regmap,
+			ARIZONA_MIC_CHARGE_PUMP_1,
+			ARIZONA_CPMIC_BYPASS, cp_bypass);
 	} else {
 		mutex_unlock(&arizona->dapm->card->dapm_mutex);
 	}
 
-	regmap_update_bits(arizona->regmap, ARIZONA_MIC_BIAS_CTRL_1,
-			   ARIZONA_MICB1_BYPASS, ARIZONA_MICB1_BYPASS);
-	regmap_update_bits(arizona->regmap, ARIZONA_MIC_BIAS_CTRL_2,
-			   ARIZONA_MICB2_BYPASS, ARIZONA_MICB2_BYPASS);
-	regmap_update_bits(arizona->regmap, ARIZONA_MIC_BIAS_CTRL_3,
-			   ARIZONA_MICB3_BYPASS, ARIZONA_MICB3_BYPASS);
-	regmap_update_bits(arizona->regmap, ARIZONA_MIC_BIAS_CTRL_4,
-			   ARIZONA_MICB4_BYPASS, ARIZONA_MICB4_BYPASS);
+	for (i = 0; i < ARIZONA_MAX_MICBIAS; i++) {
+		if ((set_bypass) ||
+			(!micbias[i].bypass && micbias[i].mV))
+			regmap_update_bits(arizona->regmap,
+				ARIZONA_MIC_BIAS_CTRL_1 + i,
+				ARIZONA_MICB1_BYPASS,
+				micbias_bypass);
+	}
 
 	return 0;
+}
+
+int arizona_enable_force_bypass(struct snd_soc_codec *codec)
+{
+	return arizona_set_force_bypass(codec, true);
 }
 EXPORT_SYMBOL_GPL(arizona_enable_force_bypass);
 
 int arizona_disable_force_bypass(struct snd_soc_codec *codec)
 {
-	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
-	struct arizona_micbias *micbias = arizona->pdata.micbias;
-
-	mutex_lock(&arizona->dapm->card->dapm_mutex);
-	if (arizona->micvdd_regulated) {
-		snd_soc_dapm_force_enable_pin(arizona->dapm, "MICSUPP");
-		mutex_unlock(&arizona->dapm->card->dapm_mutex);
-
-		snd_soc_dapm_sync(arizona->dapm);
-
-		regmap_update_bits(arizona->regmap, ARIZONA_MIC_CHARGE_PUMP_1,
-				   ARIZONA_CPMIC_BYPASS, 0);
-	} else {
-		mutex_unlock(&arizona->dapm->card->dapm_mutex);
-	}
-
-	if (!micbias[0].bypass && micbias[0].mV)
-		regmap_update_bits(arizona->regmap, ARIZONA_MIC_BIAS_CTRL_1,
-				   ARIZONA_MICB1_BYPASS, 0);
-	if (!micbias[1].bypass && micbias[1].mV)
-		regmap_update_bits(arizona->regmap, ARIZONA_MIC_BIAS_CTRL_2,
-				   ARIZONA_MICB2_BYPASS, 0);
-	if (!micbias[2].bypass && micbias[2].mV)
-		regmap_update_bits(arizona->regmap, ARIZONA_MIC_BIAS_CTRL_3,
-				   ARIZONA_MICB3_BYPASS, 0);
-	if (!micbias[3].bypass && micbias[3].mV)
-		regmap_update_bits(arizona->regmap, ARIZONA_MIC_BIAS_CTRL_4,
-				   ARIZONA_MICB4_BYPASS, 0);
-
-	return 0;
+	return arizona_set_force_bypass(codec, false);
 }
 EXPORT_SYMBOL_GPL(arizona_disable_force_bypass);
 
