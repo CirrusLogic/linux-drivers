@@ -217,6 +217,8 @@ extern int arizona_of_read_u32(struct arizona *arizona, const char* prop,
 extern void arizona_florida_mute_analog(struct arizona* arizona,
 					unsigned int mute);
 extern void arizona_florida_clear_input(struct arizona *arizona);
+extern int arizona_get_num_micbias(struct arizona *arizona,
+	unsigned int *micbiases, unsigned int *child_micbiases);
 
 static inline int arizona_of_read_s32(struct arizona *arizona, const char *prop,
 				      bool mandatory, s32 *data)

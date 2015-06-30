@@ -1517,14 +1517,55 @@ void arizona_florida_clear_input(struct arizona *arizona)
 }
 EXPORT_SYMBOL_GPL(arizona_florida_clear_input);
 
+int arizona_get_num_micbias(struct arizona *arizona,
+	unsigned int *micbiases, unsigned int *child_micbiases)
+{
+	unsigned int num_micbiases, num_child_micbiases;
+
+	if (!arizona)
+		return -EINVAL;
+
+	switch (arizona->type) {
+	case WM5102:
+	case WM5110:
+	case WM8997:
+	case WM8280:
+	case WM8998:
+	case WM1814:
+	case WM8285:
+	case WM1840:
+	case WM1831:
+	case CS47L24:
+		num_micbiases = ARIZONA_MAX_MICBIAS;
+		num_child_micbiases = 0;
+		break;
+	case CS47L35:
+		num_micbiases = MARLEY_NUM_MICBIAS;
+		num_child_micbiases = MARLEY_NUM_CHILD_MICBIAS;
+		break;
+	default:
+		num_micbiases = MOON_NUM_MICBIAS;
+		num_child_micbiases = MOON_NUM_CHILD_MICBIAS;
+		break;
+	}
+
+	if (micbiases)
+		*micbiases = num_micbiases;
+	if (child_micbiases)
+		*child_micbiases = num_child_micbiases;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_get_num_micbias);
+
 int arizona_dev_init(struct arizona *arizona)
 {
 	struct device *dev = arizona->dev;
 	const char *type_name = "Unknown";
 	unsigned int reg, val, mask;
 	int (*apply_patch)(struct arizona *) = NULL;
-	int ret, i, max_inputs, max_micbias, j;
-	int num_child_micbias = 0;
+	int ret, i, max_inputs, j;
+	unsigned int max_micbias = 0, num_child_micbias = 0;
 	unsigned int num_dmic_clksrc = 0;
 
 	dev_set_drvdata(arizona->dev, arizona);
@@ -1967,29 +2008,7 @@ int arizona_dev_init(struct arizona *arizona)
 	pm_runtime_use_autosuspend(arizona->dev);
 	pm_runtime_enable(arizona->dev);
 
-	switch (arizona->type) {
-	case WM5102:
-	case WM5110:
-	case WM8997:
-	case WM8280:
-	case WM8998:
-	case WM1814:
-	case WM8285:
-	case WM1840:
-	case WM1831:
-	case CS47L24:
-		max_micbias = ARIZONA_MAX_MICBIAS;
-		num_child_micbias = 0;
-		break;
-	case CS47L35:
-		max_micbias = 2;
-		num_child_micbias = MARLEY_NUM_CHILD_MICBIAS;
-		break;
-	default:
-		max_micbias = 2;
-		num_child_micbias = MOON_NUM_CHILD_MICBIAS;
-		break;
-	}
+	arizona_get_num_micbias(arizona, &max_micbias, &num_child_micbias);
 
 	for (i = 0; i < max_micbias; i++) {
 		if (!arizona->pdata.micbias[i].mV &&
