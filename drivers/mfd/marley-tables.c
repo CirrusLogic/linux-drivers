@@ -841,6 +841,7 @@ static const struct reg_default marley_reg_default[] = {
 	{ 0x0000184d, 0xffff }, /* R6221 (0x184d) - IRQ1 Mask 14 */
 	{ 0x0000184e, 0xffff }, /* R6222 (0x184e) - IRQ1 Mask 15 */
 	{ 0x00001948, 0xffff }, /* R6472 (0x1948) - IRQ2 Mask 9 */
+	{ 0x00001A06, 0x0000 }, /* R6662 (0x1a06) - Interrupt Debounce 7 */
 	{ 0x00001a80, 0x4400 }, /* R6784 (0x1a80) - IRQ1 CTRL */
 };
 
@@ -1678,6 +1679,7 @@ static bool marley_16bit_readable_register(struct device *dev, unsigned int reg)
 	case CLEARWATER_IRQ2_STATUS_9:
 	case CLEARWATER_IRQ2_MASK_9:
 	case CLEARWATER_IRQ2_RAW_STATUS_9:
+	case CLEARWATER_INTERRUPT_DEBOUNCE_7:
 	case CLEARWATER_IRQ1_CTRL:
 		return true;
 	default:
