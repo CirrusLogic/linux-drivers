@@ -1841,6 +1841,7 @@ static const struct reg_default clearwater_reg_default[] = {
 	{ 0x0000184D, 0xFFFF }, /* R6221  - IRQ1 Mask 14 */
 	{ 0x0000184E, 0xFFFF }, /* R6222  - IRQ1 Mask 15 */
 	{ 0x00001948, 0xFFFF }, /* R6472  - IRQ2 Mask 9 */
+	{ 0x00001A06, 0x0000 }, /* R6662  - Interrupt Debounce 7 */
 	{ 0x00001A80, 0x4400 }, /* R6784  - IRQ1 CTRL */
 };
 
@@ -2847,7 +2848,6 @@ static bool clearwater_16bit_readable_register(struct device *dev, unsigned int 
 	case CLEARWATER_DSP7AUX4MIX_INPUT_1_SOURCE:
 	case CLEARWATER_DSP7AUX5MIX_INPUT_1_SOURCE:
 	case CLEARWATER_DSP7AUX6MIX_INPUT_1_SOURCE:
-	case ARIZONA_JACK_DETECT_DEBOUNCE:
 	case ARIZONA_FX_CTRL1:
 	case ARIZONA_FX_CTRL2:
 	case ARIZONA_EQ1_1:
@@ -3186,6 +3186,7 @@ static bool clearwater_16bit_readable_register(struct device *dev, unsigned int 
 	case CLEARWATER_IRQ2_STATUS_9:
 	case CLEARWATER_IRQ2_MASK_9:
 	case CLEARWATER_IRQ2_RAW_STATUS_9:
+	case CLEARWATER_INTERRUPT_DEBOUNCE_7:
 	case CLEARWATER_IRQ1_CTRL:
 		return true;
 	default:
