@@ -1495,6 +1495,7 @@ static const struct reg_default moon_reg_default[] = {
 	{ 0x0000185F, 0x0007 }, /* R6239  - IRQ1 Mask 32 */
 	{ 0x00001860, 0x007F }, /* R6240  - IRQ1 Mask 33 */
 	{ 0x00001948, 0x0F07 }, /* R6472  - IRQ2 Mask 9 */
+	{ 0x00001A06, 0x0000 }, /* R6662 - Interrupt Debounce 7 */
 	{ 0x00001A80, 0x4400 }, /* R6784  - IRQ1 CTRL */
 };
 
@@ -2798,6 +2799,7 @@ static bool moon_16bit_readable_register(struct device *dev, unsigned int reg)
 	case CLEARWATER_IRQ2_STATUS_9:
 	case CLEARWATER_IRQ2_MASK_9:
 	case CLEARWATER_IRQ2_RAW_STATUS_9:
+	case CLEARWATER_INTERRUPT_DEBOUNCE_7:
 	case CLEARWATER_IRQ1_CTRL:
 	case MOON_IRQ1_STATUS_33:
 		return true;
