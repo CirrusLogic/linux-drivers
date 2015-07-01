@@ -2263,7 +2263,7 @@ int moon_in_rate_put(struct snd_kcontrol *kcontrol,
 	mask = (e->reg - ARIZONA_IN1L_CONTROL) / 4;
 	mask ^= 0x1; /* Flip bottom bit for channel order */
 
-	if (reg & mask) {
+	if ((reg) & (1 << mask)) {
 		ret = -EBUSY;
 		goto exit;
 	}
