@@ -675,8 +675,10 @@ static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 	{ name " ANC Source", "RXANCR", "RXANCR" }
 
 static const struct snd_kcontrol_new moon_snd_controls[] = {
-SOC_VALUE_ENUM("IN1 OSR", clearwater_in_dmic_osr[0]),
-SOC_VALUE_ENUM("IN2 OSR", clearwater_in_dmic_osr[1]),
+SOC_VALUE_ENUM_EXT("IN1 OSR", clearwater_in_dmic_osr[0],
+	snd_soc_get_value_enum_double, moon_osr_put),
+SOC_VALUE_ENUM_EXT("IN2 OSR", clearwater_in_dmic_osr[1],
+	snd_soc_get_value_enum_double, moon_osr_put),
 SOC_VALUE_ENUM("IN3 OSR", clearwater_in_dmic_osr[2]),
 SOC_VALUE_ENUM("IN4 OSR", clearwater_in_dmic_osr[3]),
 SOC_VALUE_ENUM("IN5 OSR", clearwater_in_dmic_osr[4]),

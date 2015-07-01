@@ -2302,6 +2302,25 @@ exit:
 }
 EXPORT_SYMBOL_GPL(moon_dfc_put);
 
+int moon_osr_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int mode;
+
+	/* for analog mode osr is fixed */
+	mode = snd_soc_read(codec, e->reg - 2);
+	if (!(mode & ARIZONA_IN1_MODE_MASK)) {
+		dev_err(codec->dev,
+			"OSR is fixed to 3.072MHz in analog mode\n");
+		return -EINVAL;
+	}
+
+	return snd_soc_put_value_enum_double(kcontrol, ucontrol);
+}
+EXPORT_SYMBOL_GPL(moon_osr_put);
+
 static void arizona_in_set_vu(struct snd_soc_codec *codec, int ena)
 {
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
