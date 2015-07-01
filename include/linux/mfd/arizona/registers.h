@@ -4506,6 +4506,10 @@
 #define ARIZONA_IN1L_SRC_SE_MASK                 0x2000  /* IN1L_SRC - [13] */
 #define ARIZONA_IN1L_SRC_SE_SHIFT                    13  /* IN1L_SRC - [13] */
 #define ARIZONA_IN1L_SRC_SE_WIDTH                     1  /* IN1L_SRC - [13] */
+#define MOON_IN1L_LP_MODE                        0x0800  /* LP_MODE - [9] */
+#define MOON_IN1L_LP_MODE_MASK                   0x0800  /* LP_MODE - [9] */
+#define MOON_IN1L_LP_MODE_SHIFT                      11  /* LP_MODE - [9] */
+#define MOON_IN1L_LP_MODE_WIDTH                       1  /* LP_MODE - [9] */
 #define ARIZONA_IN_VU                            0x0200  /* IN_VU */
 #define ARIZONA_IN_VU_MASK                       0x0200  /* IN_VU */
 #define ARIZONA_IN_VU_SHIFT                           9  /* IN_VU */
