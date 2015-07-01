@@ -2321,6 +2321,38 @@ int moon_osr_put(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(moon_osr_put);
 
+int moon_lp_mode_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	unsigned int reg, mask;
+	int ret;
+
+
+	mutex_lock_nested(&codec->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+
+	/* Cannot change lp mode on an active input */
+	reg = snd_soc_read(codec, ARIZONA_INPUT_ENABLES);
+	mask = (mc->reg - ARIZONA_ADC_DIGITAL_VOLUME_1L) / 4;
+	mask ^= 0x1; /* Flip bottom bit for channel order */
+
+	if ((reg) & (1 << mask)) {
+		ret = -EBUSY;
+		dev_err(codec->dev,
+			"Can't change lp mode on an active input\n");
+		goto exit;
+	}
+
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
+
+exit:
+	mutex_unlock(&codec->card->dapm_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(moon_lp_mode_put);
+
 static void arizona_in_set_vu(struct snd_soc_codec *codec, int ena)
 {
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
