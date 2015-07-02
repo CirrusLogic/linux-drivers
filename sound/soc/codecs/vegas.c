@@ -37,38 +37,6 @@ struct vegas_priv {
 	struct arizona_fll fll[2];
 };
 
-static const struct reg_default vegas_sysclk_edre_patch[] = {
-	{ 0x3138, 0x0001 },
-	{ 0x3139, 0x0000 },
-	{ 0x3144, 0x0001 },
-	{ 0x3145, 0x0000 },
-	{ 0x3164, 0x0001 },
-	{ 0x3165, 0x0000 },
-	{ 0x3170, 0x0001 },
-	{ 0x3171, 0x0000 },
-};
-
-static int vegas_sysclk_ev(struct snd_soc_dapm_widget *w,
-			   struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_codec *codec = w->codec;
-	struct regmap *regmap = codec->control_data;
-	int i;
-
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		for (i = 0; i < ARRAY_SIZE(vegas_sysclk_edre_patch); i++)
-			regmap_write(regmap, vegas_sysclk_edre_patch[i].reg,
-					     vegas_sysclk_edre_patch[i].def);
-		break;
-
-	default:
-		break;
-	}
-
-	return 0;
-}
-
 static int vegas_asrc_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol,
 			  int event)
@@ -579,8 +547,7 @@ static const struct snd_kcontrol_new vegas_aec_loopback_mux[] = {
 
 static const struct snd_soc_dapm_widget vegas_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", ARIZONA_SYSTEM_CLOCK_1,
-		    ARIZONA_SYSCLK_ENA_SHIFT, 0,
-		    vegas_sysclk_ev, SND_SOC_DAPM_POST_PMU),
+		    ARIZONA_SYSCLK_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("ASYNCCLK", ARIZONA_ASYNC_CLOCK_1,
 		    ARIZONA_ASYNC_CLK_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("OPCLK", ARIZONA_OUTPUT_SYSTEM_CLOCK,
