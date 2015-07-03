@@ -37,6 +37,49 @@ struct vegas_priv {
 	struct arizona_fll fll[2];
 };
 
+static int vegas_put_volsw_locked(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	int ret;
+
+	mutex_lock_nested(&codec->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
+
+	mutex_unlock(&codec->card->dapm_mutex);
+
+	return ret;
+}
+
+static int vegas_put_spk_edre(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	unsigned int val = 0;
+
+	mutex_lock_nested(&codec->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+
+	if (ucontrol->value.integer.value[0] != 0)
+		val |= CLEARWATER_EDRE_OUT4L_THR1_ENA_MASK |
+			CLEARWATER_EDRE_OUT4L_THR2_ENA_MASK;
+
+	if (ucontrol->value.integer.value[1] != 0)
+		val |= CLEARWATER_EDRE_OUT4R_THR1_ENA_MASK |
+			CLEARWATER_EDRE_OUT4R_THR2_ENA_MASK;
+
+	snd_soc_update_bits(codec, CLEARWATER_EDRE_ENABLE,
+			    CLEARWATER_EDRE_OUT4L_THR1_ENA_MASK |
+			    CLEARWATER_EDRE_OUT4R_THR1_ENA_MASK |
+			    CLEARWATER_EDRE_OUT4L_THR2_ENA_MASK |
+			    CLEARWATER_EDRE_OUT4R_THR2_ENA_MASK,
+			    val);
+
+	mutex_unlock(&codec->card->dapm_mutex);
+
+	return 0;
+}
+
 static int vegas_asrc_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol,
 			  int event)
@@ -335,8 +378,17 @@ SOC_DOUBLE_R("LINEOUT Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_2L,
 	     ARIZONA_DAC_DIGITAL_VOLUME_2R, ARIZONA_OUT2L_MUTE_SHIFT, 1, 1),
 SOC_SINGLE("EPOUT Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_3L,
 	     ARIZONA_OUT3L_MUTE_SHIFT, 1, 1),
-SOC_DOUBLE_R("Speaker Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_4L,
-	     ARIZONA_DAC_DIGITAL_VOLUME_4R, ARIZONA_OUT4L_MUTE_SHIFT, 1, 1),
+
+/* There isn't a SOC_DOUBLE_R_EXT macro that we can use for this */
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = "Speaker Digital Switch",
+	.info = snd_soc_info_volsw,
+	.get = snd_soc_get_volsw, .put = vegas_put_volsw_locked,
+	.private_value = SOC_DOUBLE_R_VALUE(ARIZONA_DAC_DIGITAL_VOLUME_4L,
+					    ARIZONA_DAC_DIGITAL_VOLUME_4R,
+					    ARIZONA_OUT4L_MUTE_SHIFT,
+					    1, 1)
+},
+
 SOC_DOUBLE_R("SPKDAT Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_5L,
 	     ARIZONA_DAC_DIGITAL_VOLUME_5R, ARIZONA_OUT5L_MUTE_SHIFT, 1, 1),
 
@@ -377,18 +429,21 @@ SOC_SINGLE("DRE TC Fast", ARIZONA_DRE_CONTROL_1,
 SOC_SINGLE("DRE Analogue Volume Delay", ARIZONA_DRE_CONTROL_2,
 	   ARIZONA_DRE_ALOG_VOL_DELAY_SHIFT, 15, 0),
 
-SOC_DOUBLE("HPOUT EDRE Switch", CLEARWATER_EDRE_ENABLE,
+SOC_DOUBLE_EXT("HPOUT EDRE Switch", CLEARWATER_EDRE_ENABLE,
 	   CLEARWATER_EDRE_OUT1L_THR1_ENA_SHIFT,
-	   CLEARWATER_EDRE_OUT1R_THR1_ENA_SHIFT, 1, 0),
-SOC_DOUBLE("LINEOUT EDRE Switch", CLEARWATER_EDRE_ENABLE,
+	   CLEARWATER_EDRE_OUT1R_THR1_ENA_SHIFT, 1, 0,
+	   snd_soc_get_volsw, vegas_put_volsw_locked),
+SOC_DOUBLE_EXT("LINEOUT EDRE Switch", CLEARWATER_EDRE_ENABLE,
 	   CLEARWATER_EDRE_OUT2L_THR1_ENA_SHIFT,
-	   CLEARWATER_EDRE_OUT2R_THR1_ENA_SHIFT, 1, 0),
-SOC_SINGLE("EPOUT EDRE Switch", CLEARWATER_EDRE_ENABLE,
-	   CLEARWATER_EDRE_OUT3L_THR1_ENA_SHIFT, 1, 0),
+	   CLEARWATER_EDRE_OUT2R_THR1_ENA_SHIFT, 1, 0,
+	   snd_soc_get_volsw, vegas_put_volsw_locked),
+SOC_SINGLE_EXT("EPOUT EDRE Switch", CLEARWATER_EDRE_ENABLE,
+	   CLEARWATER_EDRE_OUT3L_THR1_ENA_SHIFT, 1, 0,
+	   snd_soc_get_volsw, vegas_put_volsw_locked),
 SOC_DOUBLE_EXT("SPKOUT EDRE Switch", CLEARWATER_EDRE_ENABLE,
 	   CLEARWATER_EDRE_OUT4L_THR1_ENA_SHIFT,
 	   CLEARWATER_EDRE_OUT4R_THR1_ENA_SHIFT, 1, 0,
-	   snd_soc_get_volsw, arizona_put_out4_edre),
+	   snd_soc_get_volsw, vegas_put_spk_edre),
 
 SOC_ENUM("Output Ramp Up", arizona_out_vi_ramp),
 SOC_ENUM("Output Ramp Down", arizona_out_vd_ramp),
