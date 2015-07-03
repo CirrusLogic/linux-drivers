@@ -354,6 +354,125 @@ static int arizona_check_speaker_overheat(struct arizona *arizona,
 	return 0;
 }
 
+static int vegas_spk_pre_enable(struct snd_soc_dapm_widget *w,
+				struct snd_kcontrol *kcontrol,
+				int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
+	unsigned int mute_reg, mute_mask, thr2_mask;
+
+	switch (w->shift) {
+	case ARIZONA_OUT4L_ENA_SHIFT:
+		mute_reg = ARIZONA_DAC_DIGITAL_VOLUME_4L;
+		mute_mask = ARIZONA_OUT4L_MUTE_MASK;
+		thr2_mask = CLEARWATER_EDRE_OUT4L_THR2_ENA_MASK;
+		break;
+	case ARIZONA_OUT4R_ENA_SHIFT:
+		mute_reg = ARIZONA_DAC_DIGITAL_VOLUME_4R;
+		mute_mask = ARIZONA_OUT4R_MUTE_MASK;
+		thr2_mask = CLEARWATER_EDRE_OUT4R_THR2_ENA_MASK;
+		break;
+	default:
+		return 0;
+	}
+
+	/* mute to prevent pops */
+	priv->spk_mute_cache &= ~mute_mask;
+	priv->spk_mute_cache |= snd_soc_read(codec, mute_reg) & mute_mask;
+	snd_soc_update_bits(codec, mute_reg, mute_mask, mute_mask);
+
+	/* disable thr2 while we enable */
+	priv->spk_thr2_cache &=  ~thr2_mask;
+	priv->spk_thr2_cache |=
+		snd_soc_read(codec, CLEARWATER_EDRE_ENABLE) & thr2_mask;
+	snd_soc_update_bits(codec, CLEARWATER_EDRE_ENABLE, thr2_mask,
+			    0);
+
+	return 0;
+}
+
+static int vegas_spk_post_enable(struct snd_soc_dapm_widget *w,
+				struct snd_kcontrol *kcontrol,
+				int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
+	unsigned int mute_reg, mute_mask, thr1_mask, thr2_mask, val;
+
+	switch (w->shift) {
+	case ARIZONA_OUT4L_ENA_SHIFT:
+		mute_reg = ARIZONA_DAC_DIGITAL_VOLUME_4L;
+		mute_mask = ARIZONA_OUT4L_MUTE_MASK;
+		thr1_mask = CLEARWATER_EDRE_OUT4L_THR1_ENA_MASK;
+		thr2_mask = CLEARWATER_EDRE_OUT4L_THR2_ENA_MASK;
+		break;
+	case ARIZONA_OUT4R_ENA_SHIFT:
+		mute_reg = ARIZONA_DAC_DIGITAL_VOLUME_4R;
+		mute_mask = ARIZONA_OUT4R_MUTE_MASK;
+		thr1_mask = CLEARWATER_EDRE_OUT4R_THR1_ENA_MASK;
+		thr2_mask = CLEARWATER_EDRE_OUT4R_THR2_ENA_MASK;
+		break;
+	default:
+		return 0;
+	}
+
+	/* write sequencer sets OUT4R_THR2_ENA - update cache */
+	snd_soc_update_bits(codec, CLEARWATER_EDRE_ENABLE,
+			    thr2_mask, thr2_mask);
+
+	/* restore THR2 to what it was at the start of the sequence */
+	snd_soc_update_bits(codec, CLEARWATER_EDRE_ENABLE, thr2_mask,
+			    priv->spk_thr2_cache);
+
+	/* disable THR2 if THR1 disabled */
+	val = snd_soc_read(codec, CLEARWATER_EDRE_ENABLE);
+	if ((val & thr1_mask) == 0)
+		snd_soc_update_bits(codec, CLEARWATER_EDRE_ENABLE,
+				    thr2_mask, 0);
+
+	/* restore mute state */
+	snd_soc_update_bits(codec, mute_reg, mute_mask, priv->spk_mute_cache);
+
+	return 0;
+}
+
+static int vegas_spk_post_disable(struct snd_soc_dapm_widget *w,
+				struct snd_kcontrol *kcontrol,
+				int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
+	unsigned int thr2_mask;
+
+	switch (w->shift) {
+	case ARIZONA_OUT4L_ENA_SHIFT:
+		thr2_mask = CLEARWATER_EDRE_OUT4L_THR2_ENA_MASK;
+		break;
+	case ARIZONA_OUT4R_ENA_SHIFT:
+		thr2_mask = CLEARWATER_EDRE_OUT4R_THR2_ENA_MASK;
+		break;
+	default:
+		return 0;
+	}
+
+	/* Read the current value of THR2 in to the cache so we can restore
+	 * it after the write sequencer has executed
+	 */
+	priv->spk_thr2_cache &= ~thr2_mask;
+	priv->spk_thr2_cache |=
+			snd_soc_read(codec, CLEARWATER_EDRE_ENABLE) & thr2_mask;
+
+	/* write sequencer clears OUT4R_THR2_ENA - update cache */
+	snd_soc_update_bits(codec, CLEARWATER_EDRE_ENABLE, thr2_mask, 0);
+
+	/* Restore the previous value after the write sequencer update */
+	snd_soc_update_bits(codec, CLEARWATER_EDRE_ENABLE, thr2_mask,
+			    priv->spk_thr2_cache);
+
+	return 0;
+}
+
 static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol,
 			  int event)
@@ -364,6 +483,16 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 	int ret;
 
 	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		switch (arizona->type) {
+		case WM8998:
+		case WM1814:
+			vegas_spk_pre_enable(w, kcontrol, event);
+			break;
+		default:
+			break;
+		}
+		break;
 	case SND_SOC_DAPM_POST_PMU:
 		ret = arizona_check_speaker_overheat(arizona, &warn, &shutdown);
 		if (ret)
@@ -386,6 +515,11 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 		case CS47L24:
 			msleep(10);
 			break;
+		case WM8998:
+		case WM1814:
+			msleep(10); /* wait for wseq to end */
+			vegas_spk_post_enable(w, kcontrol, event);
+			break;
 		default:
 			break;
 		};
@@ -395,6 +529,17 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 		regmap_update_bits_async(arizona->regmap,
 					 ARIZONA_OUTPUT_ENABLES_1,
 					 1 << w->shift, 0);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		switch (arizona->type) {
+		case WM8998:
+		case WM1814:
+			msleep(5); /* wait for wseq to end */
+			vegas_spk_post_disable(w, kcontrol, event);
+			break;
+		default:
+			break;
+		}
 		break;
 	}
 
@@ -439,12 +584,14 @@ static irqreturn_t arizona_thermal_shutdown(int irq, void *data)
 static const struct snd_soc_dapm_widget arizona_spkl =
 	SND_SOC_DAPM_PGA_E("OUT4L", SND_SOC_NOPM,
 			   ARIZONA_OUT4L_ENA_SHIFT, 0, NULL, 0, arizona_spk_ev,
-			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU);
+			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU);
 
 static const struct snd_soc_dapm_widget arizona_spkr =
 	SND_SOC_DAPM_PGA_E("OUT4R", SND_SOC_NOPM,
 			   ARIZONA_OUT4R_ENA_SHIFT, 0, NULL, 0, arizona_spk_ev,
-			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU);
+			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU);
 
 int arizona_init_spk(struct snd_soc_codec *codec)
 {
@@ -2571,62 +2718,6 @@ int clearwater_put_dre(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(clearwater_put_dre);
-
-int arizona_put_out4_edre(struct snd_kcontrol *kcontrol,
-			  struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
-	unsigned int mask_l, mask_r, old_val, out_ena;
-	unsigned int val_l = 0, val_r = 0;
-	int ret = 0;
-
-	switch (priv->arizona->type) {
-	case WM1814:
-	case WM8998:
-		mask_l = CLEARWATER_EDRE_OUT4L_THR1_ENA |
-			 CLEARWATER_EDRE_OUT4L_THR2_ENA;
-		mask_r = CLEARWATER_EDRE_OUT4R_THR1_ENA |
-			 CLEARWATER_EDRE_OUT4R_THR2_ENA;
-		break;
-	default:
-		return 0;
-	}
-
-	if (ucontrol->value.integer.value[0])
-		val_l = mask_l;
-
-	if (ucontrol->value.integer.value[1])
-		val_r = mask_r;
-
-	mutex_lock_nested(&codec->component.card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
-
-	/* Check what will change so we know which output enables to test */
-	old_val = snd_soc_read(codec, CLEARWATER_EDRE_ENABLE);
-	if ((old_val & mask_l) == val_l)
-		mask_l = 0;
-
-	if ((old_val & mask_r) == val_r)
-		mask_r = 0;
-
-	if ((mask_l | mask_r) == 0)
-		goto out;
-
-	out_ena = snd_soc_read(codec, ARIZONA_OUTPUT_ENABLES_1);
-	if ((mask_l && (out_ena & ARIZONA_OUT4L_ENA_MASK)) ||
-	    (mask_r && (out_ena & ARIZONA_OUT4R_ENA_MASK))) {
-		dev_warn(codec->dev, "Cannot change OUT4 eDRE with output on\n");
-		ret = -EBUSY;
-		goto out;
-	}
-
-	snd_soc_update_bits(codec, CLEARWATER_EDRE_ENABLE,
-			    mask_l | mask_r, val_l | val_r);
-out:
-	mutex_unlock(&codec->component.card->dapm_mutex);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(arizona_put_out4_edre);
 
 int arizona_out_ev(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol,
