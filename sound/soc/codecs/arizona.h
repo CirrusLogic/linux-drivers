@@ -100,6 +100,8 @@ struct arizona_priv {
 	unsigned int out_up_delay;
 	unsigned int out_down_pending;
 	unsigned int out_down_delay;
+
+	unsigned int spk_mute_cache;
 };
 
 #define ARIZONA_NUM_MIXER_INPUTS 134
@@ -455,8 +457,6 @@ extern int florida_put_dre(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol);
 extern int clearwater_put_dre(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol);
-extern int arizona_put_out4_edre(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol);
 
 extern struct regmap *arizona_get_regmap_dsp(struct snd_soc_codec *codec);
 
