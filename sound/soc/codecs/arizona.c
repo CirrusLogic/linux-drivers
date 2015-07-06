@@ -314,16 +314,18 @@ static int vegas_spk_pre_enable(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
-	unsigned int mute_reg, mute_mask;
+	unsigned int mute_reg, mute_mask, thr2_mask;
 
 	switch (w->shift) {
 	case ARIZONA_OUT4L_ENA_SHIFT:
 		mute_reg = ARIZONA_DAC_DIGITAL_VOLUME_4L;
 		mute_mask = ARIZONA_OUT4L_MUTE_MASK;
+		thr2_mask = CLEARWATER_EDRE_OUT4L_THR2_ENA_MASK;
 		break;
 	case ARIZONA_OUT4R_ENA_SHIFT:
 		mute_reg = ARIZONA_DAC_DIGITAL_VOLUME_4R;
 		mute_mask = ARIZONA_OUT4R_MUTE_MASK;
+		thr2_mask = CLEARWATER_EDRE_OUT4R_THR2_ENA_MASK;
 		break;
 	default:
 		return 0;
@@ -333,6 +335,13 @@ static int vegas_spk_pre_enable(struct snd_soc_dapm_widget *w,
 	priv->spk_mute_cache &= ~mute_mask;
 	priv->spk_mute_cache |= snd_soc_read(codec, mute_reg) & mute_mask;
 	snd_soc_update_bits(codec, mute_reg, mute_mask, mute_mask);
+
+	/* disable thr2 while we enable */
+	priv->spk_thr2_cache &=  ~thr2_mask;
+	priv->spk_thr2_cache |=
+		snd_soc_read(codec, CLEARWATER_EDRE_ENABLE) & thr2_mask;
+	snd_soc_update_bits(codec, CLEARWATER_EDRE_ENABLE, thr2_mask,
+			    0);
 
 	return 0;
 }
@@ -365,6 +374,10 @@ static int vegas_spk_post_enable(struct snd_soc_dapm_widget *w,
 	/* write sequencer sets OUT4R_THR2_ENA - update cache */
 	snd_soc_update_bits(codec, CLEARWATER_EDRE_ENABLE, thr2_mask, thr2_mask);
 
+	/* restore THR2 to what it was at the start of the sequence */
+	snd_soc_update_bits(codec, CLEARWATER_EDRE_ENABLE, thr2_mask,
+			    priv->spk_thr2_cache);
+
 	/* disable THR2 if THR1 disabled */
 	val = snd_soc_read(codec, CLEARWATER_EDRE_ENABLE);
 	if ((val & thr1_mask) == 0)
@@ -381,6 +394,7 @@ static int vegas_spk_post_disable(struct snd_soc_dapm_widget *w,
 				int event)
 {
 	struct snd_soc_codec *codec = w->codec;
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
 	unsigned int thr2_mask;
 
 	switch (w->shift) {
@@ -394,8 +408,19 @@ static int vegas_spk_post_disable(struct snd_soc_dapm_widget *w,
 		return 0;
 	}
 
+	/* Read the current value of THR2 in to the cache so we can restore
+	 * it after the write sequencer has executed
+	 */
+	priv->spk_thr2_cache &= ~thr2_mask;
+	priv->spk_thr2_cache |=
+			snd_soc_read(codec, CLEARWATER_EDRE_ENABLE) & thr2_mask;
+
 	/* write sequencer clears OUT4R_THR2_ENA - update cache */
 	snd_soc_update_bits(codec, CLEARWATER_EDRE_ENABLE, thr2_mask, 0);
+
+	/* Restore the previous value after the write sequencer update */
+	snd_soc_update_bits(codec, CLEARWATER_EDRE_ENABLE, thr2_mask,
+			    priv->spk_thr2_cache);
 
 	return 0;
 }
