@@ -1302,15 +1302,24 @@ static const unsigned int clearwater_aec_loopback_values[] = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
 };
 
-static const struct soc_enum clearwater_aec_loopback =
+static const struct soc_enum clearwater_aec1_loopback =
 	SOC_VALUE_ENUM_SINGLE(ARIZONA_DAC_AEC_CONTROL_1,
 			      ARIZONA_AEC_LOOPBACK_SRC_SHIFT, 0xf,
 			      ARRAY_SIZE(clearwater_aec_loopback_texts),
 			      clearwater_aec_loopback_texts,
 			      clearwater_aec_loopback_values);
 
-static const struct snd_kcontrol_new clearwater_aec_loopback_mux =
-	SOC_DAPM_VALUE_ENUM("AEC Loopback", clearwater_aec_loopback);
+static const struct soc_enum clearwater_aec2_loopback =
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_DAC_AEC_CONTROL_2,
+			      ARIZONA_AEC_LOOPBACK_SRC_SHIFT, 0xf,
+			      ARRAY_SIZE(clearwater_aec_loopback_texts),
+			      clearwater_aec_loopback_texts,
+			      clearwater_aec_loopback_values);
+
+static const struct snd_kcontrol_new clearwater_aec_loopback_mux[] = {
+	SOC_DAPM_VALUE_ENUM("AEC1 Loopback", clearwater_aec1_loopback),
+	SOC_DAPM_VALUE_ENUM("AEC2 Loopback", clearwater_aec2_loopback),
+};
 
 static const struct snd_kcontrol_new clearwater_anc_input_mux[] = {
 	SOC_DAPM_ENUM_EXT("RXANCL Input", clearwater_anc_input_src[0],
@@ -1561,9 +1570,13 @@ SND_SOC_DAPM_PGA("ISRC4DEC1", ARIZONA_ISRC_4_CTRL_3,
 SND_SOC_DAPM_PGA("ISRC4DEC2", ARIZONA_ISRC_4_CTRL_3,
 		 ARIZONA_ISRC4_DEC1_ENA_SHIFT, 0, NULL, 0),
 
-SND_SOC_DAPM_VALUE_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
+SND_SOC_DAPM_VALUE_MUX("AEC1 Loopback", ARIZONA_DAC_AEC_CONTROL_1,
 		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
-		       &clearwater_aec_loopback_mux),
+		       &clearwater_aec_loopback_mux[0]),
+SND_SOC_DAPM_VALUE_MUX("AEC2 Loopback", ARIZONA_DAC_AEC_CONTROL_2,
+		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
+		       &clearwater_aec_loopback_mux[1]),
+
 
 SND_SOC_DAPM_MUX("RXANCL Input", SND_SOC_NOPM, 0, 0, &clearwater_anc_input_mux[0]),
 SND_SOC_DAPM_MUX("RXANCR Input", SND_SOC_NOPM, 0, 0, &clearwater_anc_input_mux[1]),
@@ -1931,7 +1944,8 @@ SND_SOC_DAPM_OUTPUT("MICSUPP"),
 	{ name, "Tone Generator 1", "Tone Generator 1" }, \
 	{ name, "Tone Generator 2", "Tone Generator 2" }, \
 	{ name, "Haptics", "HAPTICS" }, \
-	{ name, "AEC", "AEC Loopback" }, \
+	{ name, "AEC", "AEC1 Loopback" }, \
+	{ name, "AEC2", "AEC2 Loopback" }, \
 	{ name, "IN1L", "IN1L PGA" }, \
 	{ name, "IN1R", "IN1R PGA" }, \
 	{ name, "IN2L", "IN2L PGA" }, \
@@ -2387,36 +2401,48 @@ static const struct snd_soc_dapm_route clearwater_dapm_routes[] = {
 	ARIZONA_MUX_ROUTES("ISRC4DEC1", "ISRC4DEC1"),
 	ARIZONA_MUX_ROUTES("ISRC4DEC2", "ISRC4DEC2"),
 
-	{ "AEC Loopback", "HPOUT1L", "OUT1L" },
-	{ "AEC Loopback", "HPOUT1R", "OUT1R" },
+	{ "AEC1 Loopback", "HPOUT1L", "OUT1L" },
+	{ "AEC1 Loopback", "HPOUT1R", "OUT1R" },
+	{ "AEC2 Loopback", "HPOUT1L", "OUT1L" },
+	{ "AEC2 Loopback", "HPOUT1R", "OUT1R" },
 	{ "HPOUT1L", NULL, "OUT1L" },
 	{ "HPOUT1R", NULL, "OUT1R" },
 
-	{ "AEC Loopback", "HPOUT2L", "OUT2L" },
-	{ "AEC Loopback", "HPOUT2R", "OUT2R" },
+	{ "AEC1 Loopback", "HPOUT2L", "OUT2L" },
+	{ "AEC1 Loopback", "HPOUT2R", "OUT2R" },
+	{ "AEC2 Loopback", "HPOUT2L", "OUT2L" },
+	{ "AEC2 Loopback", "HPOUT2R", "OUT2R" },
 	{ "HPOUT2L", NULL, "OUT2L" },
 	{ "HPOUT2R", NULL, "OUT2R" },
 
-	{ "AEC Loopback", "HPOUT3L", "OUT3L" },
-	{ "AEC Loopback", "HPOUT3R", "OUT3R" },
+	{ "AEC1 Loopback", "HPOUT3L", "OUT3L" },
+	{ "AEC1 Loopback", "HPOUT3R", "OUT3R" },
+	{ "AEC2 Loopback", "HPOUT3L", "OUT3L" },
+	{ "AEC2 Loopback", "HPOUT3R", "OUT3R" },
 	{ "HPOUT3L", NULL, "OUT3L" },
 	{ "HPOUT3R", NULL, "OUT3R" },
 
-	{ "AEC Loopback", "SPKOUTL", "OUT4L" },
+	{ "AEC1 Loopback", "SPKOUTL", "OUT4L" },
+	{ "AEC2 Loopback", "SPKOUTL", "OUT4L" },
 	{ "SPKOUTLN", NULL, "OUT4L" },
 	{ "SPKOUTLP", NULL, "OUT4L" },
 
-	{ "AEC Loopback", "SPKOUTR", "OUT4R" },
+	{ "AEC1 Loopback", "SPKOUTR", "OUT4R" },
+	{ "AEC2 Loopback", "SPKOUTR", "OUT4R" },
 	{ "SPKOUTRN", NULL, "OUT4R" },
 	{ "SPKOUTRP", NULL, "OUT4R" },
 
-	{ "AEC Loopback", "SPKDAT1L", "OUT5L" },
-	{ "AEC Loopback", "SPKDAT1R", "OUT5R" },
+	{ "AEC1 Loopback", "SPKDAT1L", "OUT5L" },
+	{ "AEC1 Loopback", "SPKDAT1R", "OUT5R" },
+	{ "AEC2 Loopback", "SPKDAT1L", "OUT5L" },
+	{ "AEC2 Loopback", "SPKDAT1R", "OUT5R" },
 	{ "SPKDAT1L", NULL, "OUT5L" },
 	{ "SPKDAT1R", NULL, "OUT5R" },
 
-	{ "AEC Loopback", "SPKDAT2L", "OUT6L" },
-	{ "AEC Loopback", "SPKDAT2R", "OUT6R" },
+	{ "AEC1 Loopback", "SPKDAT2L", "OUT6L" },
+	{ "AEC1 Loopback", "SPKDAT2R", "OUT6R" },
+	{ "AEC2 Loopback", "SPKDAT2L", "OUT6L" },
+	{ "AEC2 Loopback", "SPKDAT2R", "OUT6R" },
 	{ "SPKDAT2L", NULL, "OUT6L" },
 	{ "SPKDAT2R", NULL, "OUT6R" },
 
