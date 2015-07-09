@@ -300,41 +300,40 @@ static const struct reg_default florida_dre_right_enable[] = {
 static int florida_hp_pre_enable(struct snd_soc_dapm_widget *w)
 {
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
+	struct arizona *arizona = priv->arizona;
 	unsigned int val = snd_soc_read(w->codec, ARIZONA_DRE_ENABLE);
+	const struct reg_default *wseq;
+	int nregs;
+	int ret;
 
 	switch (w->shift) {
 	case ARIZONA_OUT1L_ENA_SHIFT:
 		if (val & ARIZONA_DRE1L_ENA_MASK) {
-			regmap_multi_reg_write(priv->arizona->regmap,
-				florida_dre_left_enable,
-				ARRAY_SIZE(florida_dre_left_enable));
+			wseq = florida_dre_left_enable;
+			nregs = ARRAY_SIZE(florida_dre_left_enable);
 		} else {
-			regmap_multi_reg_write(priv->arizona->regmap,
-				florida_no_dre_left_enable,
-				ARRAY_SIZE(florida_no_dre_left_enable));
+			wseq = florida_no_dre_left_enable;
+			nregs = ARRAY_SIZE(florida_no_dre_left_enable);
 			priv->out_up_delay += 10;
 		}
-		udelay(1000);
 		break;
 	case ARIZONA_OUT1R_ENA_SHIFT:
 		if (val & ARIZONA_DRE1R_ENA_MASK) {
-			regmap_multi_reg_write(priv->arizona->regmap,
-				florida_dre_right_enable,
-				ARRAY_SIZE(florida_dre_right_enable));
+			wseq = florida_dre_right_enable;
+			nregs = ARRAY_SIZE(florida_dre_right_enable);
 		} else {
-			regmap_multi_reg_write(priv->arizona->regmap,
-				florida_no_dre_right_enable,
-				ARRAY_SIZE(florida_no_dre_right_enable));
+			wseq = florida_no_dre_right_enable;
+			nregs = ARRAY_SIZE(florida_no_dre_right_enable);
 			priv->out_up_delay += 10;
 		}
-		udelay(1000);
 		break;
-
 	default:
-		break;
+		return 0;
 	}
 
-	return 0;
+	ret = regmap_multi_reg_write(arizona->regmap, wseq, nregs);
+	udelay(1000);
+	return ret;
 }
 
 static int florida_hp_pre_disable(struct snd_soc_dapm_widget *w)
@@ -372,24 +371,46 @@ static int florida_hp_pre_disable(struct snd_soc_dapm_widget *w)
 static int florida_hp_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event)
 {
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		florida_hp_pre_enable(w);
-		break;
-	case SND_SOC_DAPM_PRE_PMD:
-		florida_hp_pre_disable(w);
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
+
+	switch (priv->arizona->rev) {
+	case 0 ... 3:
 		break;
 	default:
+		switch (event) {
+		case SND_SOC_DAPM_PRE_PMU:
+			florida_hp_pre_enable(w);
+			break;
+		case SND_SOC_DAPM_PRE_PMD:
+			florida_hp_pre_disable(w);
+			break;
+		default:
+			break;
+		}
 		break;
 	}
 
 	return arizona_hp_ev(w, kcontrol, event);
 }
 
+static int florida_clear_pga_volume(struct arizona *arizona, int output)
+{
+	struct reg_default clear_pga = {
+		ARIZONA_OUTPUT_PATH_CONFIG_1L + output * 4, 0x80
+	};
+	int ret;
+
+	ret = regmap_multi_reg_write_bypassed(arizona->regmap, &clear_pga, 1);
+	if (ret)
+		dev_err(arizona->dev, "Failed to clear PGA (0x%x): %d\n",
+			clear_pga.reg, ret);
+
+	return ret;
+}
+
 static int florida_set_dre(struct arizona *arizona, unsigned int shift,
 			   bool enable)
 {
-	unsigned int pga = ARIZONA_OUTPUT_PATH_CONFIG_1L + shift * 4;
 	unsigned int mask = 1 << shift;
 	unsigned int val = 0;
 	const struct reg_default *wseq;
@@ -423,10 +444,7 @@ static int florida_set_dre(struct arizona *arizona, unsigned int shift,
 			return 0;
 
 		/* Force reset of PGA Vol */
-		regmap_update_bits(arizona->regmap, pga,
-				   ARIZONA_OUT1L_PGA_VOL_MASK, 0x7F);
-		regmap_update_bits(arizona->regmap, pga,
-				   ARIZONA_OUT1L_PGA_VOL_MASK, 0x80);
+		florida_clear_pga_volume(arizona, shift);
 
 		switch (shift) {
 		case ARIZONA_DRE1L_ENA_SHIFT:
