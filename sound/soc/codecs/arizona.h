@@ -359,9 +359,6 @@ extern int arizona_out_ev(struct snd_soc_dapm_widget *w,
 extern int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event);
-extern int florida_hp_ev(struct snd_soc_dapm_widget *w,
-			 struct snd_kcontrol *kcontrol,
-			 int event);
 extern int clearwater_hp_ev(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol,
 			    int event);
@@ -465,8 +462,6 @@ extern int arizona_set_ez2ctrl_cb(struct snd_soc_codec *codec,
 extern int arizona_set_custom_jd(struct snd_soc_codec *codec,
 				 const struct arizona_jd_state *custom_jd);
 
-extern int florida_put_dre(struct snd_kcontrol *kcontrol,
-			   struct snd_ctl_elem_value *ucontrol);
 extern int clearwater_put_dre(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol);
 extern int arizona_put_out4_edre(struct snd_kcontrol *kcontrol,
