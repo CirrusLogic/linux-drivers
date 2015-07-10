@@ -2767,15 +2767,23 @@ int wm_adsp2_init(struct wm_adsp *dsp, struct mutex *fw_lock)
 	int ret, i;
 	const char **ctl_names;
 
-	/*
-	 * Disable the DSP memory by default when in reset for a small
-	 * power saving.
-	 */
-	ret = regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
-				 ADSP2_MEM_ENA, 0);
-	if (ret != 0) {
-		adsp_err(dsp, "Failed to clear memory retention: %d\n", ret);
-		return ret;
+	switch (dsp->rev) {
+	case 0:
+		/*
+		 * Disable the DSP memory by default when in reset for a small
+		 * power saving
+		 */
+		ret = regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
+					 ADSP2_MEM_ENA, 0);
+		if (ret != 0) {
+			adsp_err(dsp, "Failed to clear memory retention: %d\n",
+				 ret);
+			return ret;
+		}
+		break;
+
+	default:
+		break;
 	}
 
 	INIT_LIST_HEAD(&dsp->alg_regions);
