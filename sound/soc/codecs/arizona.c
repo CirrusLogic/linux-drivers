@@ -644,7 +644,7 @@ int arizona_mux_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		val = e->values[w->value];
+		val = e->values[w->value] << e->shift_l;
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		val  = 0;
