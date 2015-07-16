@@ -225,7 +225,7 @@ static int florida_adsp_power_ev(struct snd_soc_dapm_widget *w,
 	return arizona_adsp_power_ev(w, kcontrol, event);
 }
 
-static const struct reg_default florida_no_dre_left_enable[] = {
+static const struct reg_sequence florida_no_dre_left_enable[] = {
 	{ 0x3024, 0xE410 },
 	{ 0x3025, 0x0056 },
 	{ 0x301B, 0x0224 },
@@ -243,7 +243,7 @@ static const struct reg_default florida_no_dre_left_enable[] = {
 	{ 0x3039, 0x3080 },
 };
 
-static const struct reg_default florida_dre_left_enable[] = {
+static const struct reg_sequence florida_dre_left_enable[] = {
 	{ 0x3024, 0x0231 },
 	{ 0x3025, 0x0B00 },
 	{ 0x301B, 0x0227 },
@@ -261,7 +261,7 @@ static const struct reg_default florida_dre_left_enable[] = {
 	{ 0x3039, 0x0B00 },
 };
 
-static const struct reg_default florida_no_dre_right_enable[] = {
+static const struct reg_sequence florida_no_dre_right_enable[] = {
 	{ 0x3074, 0xE414 },
 	{ 0x3075, 0x0056 },
 	{ 0x306B, 0x0224 },
@@ -279,7 +279,7 @@ static const struct reg_default florida_no_dre_right_enable[] = {
 	{ 0x3089, 0x3080 },
 };
 
-static const struct reg_default florida_dre_right_enable[] = {
+static const struct reg_sequence florida_dre_right_enable[] = {
 	{ 0x3074, 0x0231 },
 	{ 0x3075, 0x0B00 },
 	{ 0x306B, 0x0227 },
@@ -302,7 +302,7 @@ static int florida_hp_pre_enable(struct snd_soc_dapm_widget *w)
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
 	struct arizona *arizona = priv->arizona;
 	unsigned int val = snd_soc_read(w->codec, ARIZONA_DRE_ENABLE);
-	const struct reg_default *wseq;
+	const struct reg_sequence *wseq;
 	int nregs;
 	int ret;
 
@@ -395,7 +395,7 @@ static int florida_hp_ev(struct snd_soc_dapm_widget *w,
 
 static int florida_clear_pga_volume(struct arizona *arizona, int output)
 {
-	struct reg_default clear_pga = {
+	struct reg_sequence clear_pga = {
 		ARIZONA_OUTPUT_PATH_CONFIG_1L + output * 4, 0x80
 	};
 	int ret;
@@ -413,7 +413,7 @@ static int florida_set_dre(struct arizona *arizona, unsigned int shift,
 {
 	unsigned int mask = 1 << shift;
 	unsigned int val = 0;
-	const struct reg_default *wseq;
+	const struct reg_sequence *wseq;
 	int nregs;
 	bool change;
 

@@ -21,7 +21,7 @@
 #define WM5102_NUM_AOD_ISR 2
 #define WM5102_NUM_ISR 5
 
-static const struct reg_default wm5102_reva_patch[] = {
+static const struct reg_sequence wm5102_reva_patch[] = {
 	{ 0x80, 0x0003 },
 	{ 0x221, 0x0090 },
 	{ 0x211, 0x0014 },
@@ -57,7 +57,7 @@ static const struct reg_default wm5102_reva_patch[] = {
 	{ 0x80, 0x0000 },
 };
 
-static const struct reg_default wm5102_revb_patch[] = {
+static const struct reg_sequence wm5102_revb_patch[] = {
 	{ 0x19, 0x0001 },
 	{ 0x80, 0x0003 },
 	{ 0x081, 0xE022 },
@@ -77,13 +77,13 @@ static const struct reg_default wm5102_revb_patch[] = {
 	{ 0x80, 0x0000 },
 };
 
-static const struct reg_default wm5102t_pwr_1[] = {
+static const struct reg_sequence wm5102t_pwr_1[] = {
 	{ 0x46C, 0xC01 },
 	{ 0x46E, 0xC01 },
 	{ 0x470, 0xC01 },
 };
 
-static const struct reg_default wm5102t_pwr_2[] = {
+static const struct reg_sequence wm5102t_pwr_2[] = {
 	{ 0x462, 0xC00 },
 	{ 0x464, 0xC00 },
 	{ 0x466, 0xC00 },
@@ -95,7 +95,7 @@ static const struct reg_default wm5102t_pwr_2[] = {
 	{ 0x476, 0x806 },
 };
 
-static const struct reg_default wm5102t_pwr_3[] = {
+static const struct reg_sequence wm5102t_pwr_3[] = {
 	{ 0x462, 0xC00 },
 	{ 0x464, 0xC00 },
 	{ 0x466, 0xC00 },
@@ -109,7 +109,7 @@ static const struct reg_default wm5102t_pwr_3[] = {
 	{ 0x47e, 0x80e },
 };
 
-static const struct reg_default wm5102t_pwr_4[] = {
+static const struct reg_sequence wm5102t_pwr_4[] = {
 	{ 0x462, 0xC00 },
 	{ 0x464, 0xC00 },
 	{ 0x466, 0xC00 },
@@ -128,7 +128,7 @@ static const struct reg_default wm5102t_pwr_4[] = {
 };
 
 static const struct {
-	const struct reg_default *patch;
+	const struct reg_sequence *patch;
 	int size;
 } wm5102t_pwr[] = {
 	{ NULL, 0 },
@@ -141,7 +141,7 @@ static const struct {
 /* We use a function so we can use ARRAY_SIZE() */
 int wm5102_patch(struct arizona *arizona)
 {
-	const struct reg_default *wm5102_patch;
+	const struct reg_sequence *wm5102_patch;
 	int ret;
 	int patch_size;
 	int pwr_index = arizona->pdata.wm5102t_output_pwr;
