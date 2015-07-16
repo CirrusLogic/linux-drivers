@@ -179,7 +179,7 @@ static const int arizona_aif4_inputs[8] = {
 
 static unsigned int arizona_aif_sources_cache[ARRAY_SIZE(arizona_aif1_inputs)];
 
-static const struct reg_default fll_ao_32K_patch[] = {
+static const struct reg_sequence fll_ao_32K_patch[] = {
 	{ MOON_FLLAO_CONTROL_11, 0x0091 },
 	{ MOON_FLLAO_CONTROL_10, 0x06DA },
 	{ MOON_FLLAO_CONTROL_8,   0x0045 },
@@ -3451,7 +3451,7 @@ static void arizona_wm5102_set_dac_comp(struct snd_soc_codec *codec,
 {
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->arizona;
-	struct reg_default dac_comp[] = {
+	struct reg_sequence dac_comp[] = {
 		{ 0x80, 0x3 },
 		{ ARIZONA_DAC_COMP_1, 0 },
 		{ ARIZONA_DAC_COMP_2, 0 },
@@ -4510,7 +4510,7 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 EXPORT_SYMBOL_GPL(arizona_set_fll);
 
 static int arizona_enable_fll_ao(struct arizona_fll *fll,
-	struct arizona_fll_cfg *cfg, const struct reg_default *patch,
+	struct arizona_fll_cfg *cfg, const struct reg_sequence *patch,
 	unsigned int patch_size)
 {
 	struct arizona *arizona = fll->arizona;
@@ -4623,7 +4623,7 @@ int arizona_set_fll_ao(struct arizona_fll *fll, int source,
 	struct arizona_fll_cfg cfg;
 	unsigned int gcd_fll;
 	unsigned int fref = fin;
-	const struct reg_default *patch = NULL;
+	const struct reg_sequence *patch = NULL;
 	unsigned int patch_size = 0;;
 
 	if (fll->ref_src == source &&
