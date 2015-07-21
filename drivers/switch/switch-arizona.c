@@ -443,15 +443,8 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 	}
 
 	if (mask) {
-		if (info->accdet_ip == 1) {
-			ret = regmap_update_bits(arizona->regmap,
-					MOON_HEADPHONE_DETECT_0,
-					MOON_HPD_OVD_ENA_SEL_MASK,
-					val);
-			if (ret != 0)
-				dev_warn(arizona->dev, "Failed to do clamp: %d\n",
-					ret);
-		} else {
+		switch (info->accdet_ip) {
+		case 0:
 			ret = regmap_update_bits(arizona->regmap,
 					ARIZONA_HP_CTRL_1L, mask, val);
 			if (ret != 0)
@@ -462,6 +455,16 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 			if (ret != 0)
 				dev_warn(arizona->dev, "Failed to do clamp: %d\n",
 					ret);
+			break;
+		default:
+			ret = regmap_update_bits(arizona->regmap,
+					MOON_HEADPHONE_DETECT_0,
+					MOON_HPD_OVD_ENA_SEL_MASK,
+					val);
+			if (ret != 0)
+				dev_warn(arizona->dev, "Failed to do clamp: %d\n",
+					ret);
+			break;
 		}
 	}
 
@@ -572,7 +575,17 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 		gpio_set_value_cansleep(arizona->pdata.micd_pol_gpio,
 					info->micd_modes[mode].gpio);
 
-	if (info->accdet_ip == 1) {
+	switch (info->accdet_ip) {
+	case 0:
+		regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
+			ARIZONA_MICD_BIAS_SRC_MASK,
+			info->micd_modes[mode].bias <<
+			ARIZONA_MICD_BIAS_SRC_SHIFT);
+		regmap_update_bits(arizona->regmap,
+			ARIZONA_ACCESSORY_DETECT_MODE_1,
+			ARIZONA_ACCDET_SRC, info->micd_modes[mode].src);
+		break;
+	default:
 		regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
 			MOON_MICD_BIAS_SRC_MASK,
 			info->micd_modes[mode].bias <<
@@ -589,14 +602,7 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 			MOON_HP1_GND_SEL_MASK,
 			info->micd_modes[mode].gnd <<
 			MOON_HP1_GND_SEL_SHIFT);
-	} else {
-		regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
-			ARIZONA_MICD_BIAS_SRC_MASK,
-			info->micd_modes[mode].bias <<
-			ARIZONA_MICD_BIAS_SRC_SHIFT);
-		regmap_update_bits(arizona->regmap,
-			ARIZONA_ACCESSORY_DETECT_MODE_1,
-			ARIZONA_ACCDET_SRC, info->micd_modes[mode].src);
+		break;
 	}
 
 	info->micd_mode = mode;
@@ -871,7 +877,10 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		return ret;
 	}
 
-	if (info->accdet_ip == 1) {
+	switch (info->accdet_ip) {
+	case 0:
+		break;
+	default:
 		regmap_read(arizona->regmap, MOON_HEADPHONE_DETECT_0,
 				&sense_pin);
 		sense_pin = (sense_pin & MOON_HPD_SENSE_SEL_MASK)
@@ -884,6 +893,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		default:
 			is_jdx_micdetx_pin = true;;
 		}
+		break;
 	}
 
 	switch (info->hpdet_ip_version) {
@@ -1457,7 +1467,20 @@ int arizona_hpdet_start(struct arizona_extcon_info *info)
 	/* Make sure we keep the device enabled during the measurement */
 	pm_runtime_get_sync(info->dev);
 
-	if (info->accdet_ip == 1) {
+	switch (info->accdet_ip) {
+	case 0:
+		arizona_extcon_hp_clamp(info, true);
+		ret = regmap_update_bits(arizona->regmap,
+					 ARIZONA_ACCESSORY_DETECT_MODE_1,
+					 ARIZONA_ACCDET_MODE_MASK,
+					 info->state->mode);
+		if (ret != 0) {
+			dev_err(arizona->dev, "Failed to set HPDET mode (%d): %d\n",
+				info->state->mode, ret);
+			goto err;
+		}
+		break;
+	default:
 		if (info->state->mode == ARIZONA_ACCDET_MODE_HPL) {
 			hpd_clamp = arizona->pdata.hpd_l_pins.clamp_pin;
 			hpd_sense = arizona->pdata.hpd_l_pins.impd_pin;
@@ -1485,17 +1508,7 @@ int arizona_hpdet_start(struct arizona_extcon_info *info)
 			goto err;
 		}
 		arizona_extcon_hp_clamp(info, true);
-	} else {
-		arizona_extcon_hp_clamp(info, true);
-		ret = regmap_update_bits(arizona->regmap,
-					 ARIZONA_ACCESSORY_DETECT_MODE_1,
-					 ARIZONA_ACCDET_MODE_MASK,
-					 info->state->mode);
-		if (ret != 0) {
-			dev_err(arizona->dev, "Failed to set HPDET mode (%d): %d\n",
-				info->state->mode, ret);
-			goto err;
-		}
+		break;
 	}
 
 	ret = regmap_update_bits(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
@@ -1544,11 +1557,15 @@ void arizona_hpdet_stop(struct arizona_extcon_info *info)
 			   ARIZONA_HP_IMPEDANCE_RANGE_MASK |
 			   ARIZONA_HP_POLL, 0);
 
-	if (info->accdet_ip != 1) {
+	switch (info->accdet_ip) {
+	case 0:
 		/* Reset to default mode */
 		regmap_update_bits(arizona->regmap,
 				   ARIZONA_ACCESSORY_DETECT_MODE_1,
 				   ARIZONA_ACCDET_MODE_MASK, 0);
+		break;
+	default:
+		break;
 	}
 
 	arizona_extcon_hp_clamp(info, false);
@@ -1589,7 +1606,12 @@ static int arizona_hpdet_moisture_start(struct arizona_extcon_info *info)
 		break;
 	}
 
-	if (info->accdet_ip == 1) {
+	switch (info->accdet_ip) {
+	case 0:
+		ret = arizona_hpdet_start(info);
+		arizona_extcon_hp_clamp(info, false);
+		break;
+	default:
 		/* Make sure we keep the device enabled
 		   during the measurement */
 		pm_runtime_get_sync(info->dev);
@@ -1620,9 +1642,7 @@ static int arizona_hpdet_moisture_start(struct arizona_extcon_info *info)
 				ret);
 			goto err;
 		}
-	} else {
-		ret = arizona_hpdet_start(info);
-		arizona_extcon_hp_clamp(info, false);
+		break;
 	}
 
 	return ret;
@@ -1635,7 +1655,11 @@ static void arizona_hpdet_moisture_stop(struct arizona_extcon_info *info)
 {
 	struct arizona *arizona = info->arizona;
 
-	if (info->accdet_ip == 1) {
+	switch (info->accdet_ip) {
+	case 0:
+		arizona_hpdet_stop(info);
+		break;
+	default:
 		/* Reset back to starting range */
 		regmap_update_bits(arizona->regmap,
 				   ARIZONA_HEADPHONE_DETECT_1,
@@ -1644,8 +1668,7 @@ static void arizona_hpdet_moisture_stop(struct arizona_extcon_info *info)
 
 		pm_runtime_mark_last_busy(info->dev);
 		pm_runtime_put_autosuspend(info->dev);
-	} else {
-		arizona_hpdet_stop(info);
+		break;
 	}
 
 	switch (arizona->type) {
@@ -1767,7 +1790,13 @@ int arizona_micd_start(struct arizona_extcon_info *info)
 		mutex_unlock(&arizona->reg_setting_lock);
 	}
 
-	if (info->accdet_ip == 1) {
+	switch (info->accdet_ip) {
+	case 0:
+		regmap_update_bits(arizona->regmap,
+			ARIZONA_ACCESSORY_DETECT_MODE_1,
+			ARIZONA_ACCDET_MODE_MASK, info->state->mode);
+		break;
+	default:
 		if (info->state->mode == ARIZONA_ACCDET_MODE_ADC)
 			micd_mode = MOON_MICD1_ADC_MODE_MASK;
 		else
@@ -1775,10 +1804,7 @@ int arizona_micd_start(struct arizona_extcon_info *info)
 
 		regmap_update_bits(arizona->regmap, MOON_MIC_DETECT_0,
 			MOON_MICD1_ADC_MODE_MASK, micd_mode);
-	} else {
-		regmap_update_bits(arizona->regmap,
-			ARIZONA_ACCESSORY_DETECT_MODE_1,
-			ARIZONA_ACCDET_MODE_MASK, info->state->mode);
+		break;
 	}
 
 	arizona_extcon_set_micd_bias(info,
@@ -1826,11 +1852,15 @@ void arizona_micd_stop(struct arizona_extcon_info *info)
 		mutex_unlock(&arizona->reg_setting_lock);
 	}
 
-	if (info->accdet_ip != 1) {
+	switch (info->accdet_ip) {
+	case 0:
 		/* Reset to default mode */
 		regmap_update_bits(arizona->regmap,
 				   ARIZONA_ACCESSORY_DETECT_MODE_1,
 				   ARIZONA_ACCDET_MODE_MASK, 0);
+		break;
+	default:
+		break;
 	}
 
 	regulator_disable(info->micvdd);
@@ -2563,8 +2593,12 @@ static int arizona_hpdet_acc_id_start(struct arizona_extcon_info *info)
 	int hp_reading = 32;
 	int ret;
 
-	if (info->accdet_ip == 1)
+	switch (info->accdet_ip) {
+	case 0:
+		break;
+	default:
 		return -EINVAL;
+	}
 
 	dev_dbg(arizona->dev, "Starting identification via HPDET\n");
 
@@ -3837,13 +3871,16 @@ static void arizona_probe_work(struct work_struct *work)
 		info->micd_modes = pdata->micd_configs;
 		info->micd_num_modes = pdata->num_micd_configs;
 	} else {
-		if (info->accdet_ip == 1) {
+		switch (info->accdet_ip) {
+		case 0:
+			info->micd_modes = micd_default_modes;
+			info->micd_num_modes = ARRAY_SIZE(micd_default_modes);
+			break;
+		default:
 			info->micd_modes = moon_micd_default_modes;
 			info->micd_num_modes =
 				ARRAY_SIZE(moon_micd_default_modes);
-		} else {
-			info->micd_modes = micd_default_modes;
-			info->micd_num_modes = ARRAY_SIZE(micd_default_modes);
+			break;
 		}
 	}
 
