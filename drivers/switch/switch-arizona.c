@@ -3749,6 +3749,10 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	arizona->extcon_info = info;
 
 	switch (arizona->type) {
+	case WM8997:
+		info->micd_clamp = true;
+		info->hpdet_ip_version = 1;
+		break;
 	case WM5102:
 		switch (arizona->rev) {
 		case 0:
@@ -3759,6 +3763,11 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 			info->hpdet_ip_version = 1;
 			break;
 		}
+		break;
+	case WM8998:
+	case WM1814:
+		info->micd_clamp = true;
+		info->hpdet_ip_version = 2;
 		break;
 	case WM8280:
 	case WM5110:
