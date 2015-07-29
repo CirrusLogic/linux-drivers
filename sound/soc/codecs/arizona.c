@@ -2399,9 +2399,9 @@ static int clearwater_get_dspclk_setting(unsigned int freq,
 	}
 }
 
-void clearwater_get_dsp_reg_seq(unsigned int cur, unsigned int tar,
-				unsigned int reg, unsigned int mask,
-				struct reg_sequence *s)
+static void clearwater_get_dsp_reg_seq(unsigned int cur, unsigned int tar,
+				       unsigned int reg, unsigned int mask,
+				       struct reg_sequence *s)
 {
 	/* To transition DSPCLK to a new source and frequency we must:
 	 * - Disable DSPCLK_ENA
