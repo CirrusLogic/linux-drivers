@@ -2623,8 +2623,8 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 	mutex_lock(&moon->compr_info.lock);
 
 	if (!moon->compr_info.trig &&
-	    moon->core.adsp[5].fw_id == 0x9000d &&
-	    moon->core.adsp[5].running) {
+	    moon->core.adsp[5].fw_features.ez2control_trigger &&
+	     moon->core.adsp[5].running) {
 		if (moon->core.arizona->pdata.ez2ctrl_trigger)
 			moon->core.arizona->pdata.ez2ctrl_trigger();
 		moon->compr_info.trig = true;
