@@ -1011,13 +1011,9 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 {
 	struct wm_coeff_ctl *ctl;
 	struct wmfw_ctl_work *ctl_work;
-	char *name;
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	char *region_name;
 	int ret;
-
-	name = kmalloc(SNDRV_CTL_ELEM_ID_NAME_MAXLEN, GFP_KERNEL);
-	if (!name)
-		return -ENOMEM;
 
 	switch (alg_region->type) {
 	case WMFW_ADSP1_PM:
@@ -1094,8 +1090,6 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	schedule_work(&ctl_work->work);
 
 found:
-	kfree(name);
-
 	return 0;
 
 err_ctl_cache:
@@ -1104,8 +1098,7 @@ err_ctl_name:
 	kfree(ctl->name);
 err_ctl:
 	kfree(ctl);
-err_name:
-	kfree(name);
+
 	return ret;
 }
 
