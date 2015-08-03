@@ -590,6 +590,27 @@ static int clearwater_sysclk_ev(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int clearwater_dspclk_ev(struct snd_soc_dapm_widget *w,
+			struct snd_kcontrol *kcontrol,
+			int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct clearwater_priv *clearwater = snd_soc_codec_get_drvdata(codec);
+	struct arizona_priv *priv = &clearwater->core;
+	struct arizona *arizona = priv->arizona;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_REG:
+		mutex_lock(&arizona->dspclk_ena_lock);
+		break;
+	case SND_SOC_DAPM_POST_REG:
+		mutex_unlock(&arizona->dspclk_ena_lock);
+		break;
+	}
+
+	return 0;
+}
+
 static int clearwater_adsp_power_ev(struct snd_soc_dapm_widget *w,
 				    struct snd_kcontrol *kcontrol,
 				    int event)
@@ -1357,7 +1378,8 @@ SND_SOC_DAPM_SUPPLY("OPCLK", ARIZONA_OUTPUT_SYSTEM_CLOCK,
 SND_SOC_DAPM_SUPPLY("ASYNCOPCLK", ARIZONA_OUTPUT_ASYNC_CLOCK,
 		    ARIZONA_OPCLK_ASYNC_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("DSPCLK", CLEARWATER_DSP_CLOCK_1, 6,
-		    0, NULL, 0),
+		    0, clearwater_dspclk_ev,
+		    SND_SOC_DAPM_PRE_REG | SND_SOC_DAPM_POST_REG),
 
 
 SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD2", 0, 0),

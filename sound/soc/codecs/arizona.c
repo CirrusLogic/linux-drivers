@@ -2989,18 +2989,65 @@ static int clearwater_get_sysclk_setting(unsigned int freq)
 	}
 }
 
-static int clearwater_get_dspclk_setting(unsigned int freq)
+static int clearwater_get_dspclk_setting(unsigned int freq,
+					 struct arizona *arizona,
+					 int source)
 {
 	switch (freq) {
 	case 0:
 		return 0;
-	/* For now we only support top speed for the DSP */
+	case 45158400:
+	case 49152000:
+		switch (arizona->type) {
+		case WM1840:
+		case WM8285:
+			if (arizona->rev >= 3 &&
+			    source == CLEARWATER_CLK_SRC_FLL1_DIV6)
+				return ARIZONA_CLK_49MHZ <<
+				       ARIZONA_SYSCLK_FREQ_SHIFT;
+			else
+				return -EINVAL;
+		default:
+			return -EINVAL;
+		}
 	case 135475200:
 	case 147456000:
 		return CLEARWATER_DSP_CLK_147MHZ << ARIZONA_SYSCLK_FREQ_SHIFT;
 	default:
 		return -EINVAL;
 	}
+}
+
+void clearwater_get_dsp_reg_seq(unsigned int cur, unsigned int tar,
+				unsigned int reg, unsigned int mask,
+				struct reg_sequence *s)
+{
+	/* To transition DSPCLK to a new source and frequency we must:
+	 * - Disable DSPCLK_ENA
+	 * - Wait 34us
+	 * - Write the new source, freq and enable in one write
+	 */
+	unsigned int tmp;
+
+	mask |= CLEARWATER_DSP_CLK_ENA_MASK;
+
+	s[0].reg = reg;
+	s[0].def = (cur & ~CLEARWATER_DSP_CLK_ENA_MASK);
+	/* The required delay is one worst case clock period (32kHz) + 2 us */
+	s[0].delay_us = 34;
+
+	/* Clear the fields we care about */
+	tmp = (cur & ~mask);
+
+	/* Update the fields */
+	tmp |= tar & mask;
+
+	/* Re-set the enable bit */
+	tmp |= CLEARWATER_DSP_CLK_ENA_MASK;
+
+	s[1].reg = reg;
+	s[1].def = tmp;
+	s[1].delay_us = 0;
 }
 
 static int moon_get_dspclk_setting(unsigned int freq, unsigned int *val)
@@ -3027,6 +3074,9 @@ int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	unsigned int val = source << ARIZONA_SYSCLK_SRC_SHIFT;
 	int clk_freq;
 	int *clk;
+	unsigned int cw_dspclk_change = 0;
+	unsigned int cw_dspclk_val;
+	struct reg_sequence cw_dspclk_seq[2];
 
 	reg2 = val2 = 0;
 
@@ -3084,7 +3134,17 @@ int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 			name = "DSPCLK";
 			reg = CLEARWATER_DSP_CLOCK_1;
 			clk = &priv->dspclk;
-			clk_freq = clearwater_get_dspclk_setting(freq);
+			clk_freq = clearwater_get_dspclk_setting(freq,
+						arizona,
+						source);
+			switch (arizona->type) {
+			case WM1840:
+			case WM8285:
+				cw_dspclk_change = 1;
+				break;
+			default:
+				break;
+			}
 			break;
 		default:
 			return -EINVAL;
@@ -3158,7 +3218,49 @@ int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 
 	dev_dbg(arizona->dev, "%s set to %uHz", name, freq);
 
-	return regmap_update_bits(arizona->regmap, reg, mask, val);
+	/* For the cases where we are changing DSPCLK on the fly we need to
+	 * make sure DSPCLK_ENA is disabled for at least 32uS before changing it
+	 */
+	if (cw_dspclk_change) {
+		mutex_lock(&arizona->dspclk_ena_lock);
+
+		/* Is DSPCLK_ENA on? */
+		ret = regmap_read(arizona->regmap, reg, &cw_dspclk_val);
+		if (ret != 0) {
+			dev_err(arizona->dev, "Failed to read 0x%04x: %d\n",
+				reg, ret);
+			goto err;
+		}
+
+		if (cw_dspclk_val & CLEARWATER_DSP_CLK_ENA_MASK) {
+			clearwater_get_dsp_reg_seq(cw_dspclk_val, val, reg, mask,
+						    cw_dspclk_seq);
+
+			ret = regmap_multi_reg_write(arizona->regmap,
+						     cw_dspclk_seq,
+						     ARRAY_SIZE(cw_dspclk_seq));
+
+			if (ret != 0) {
+				dev_err(arizona->dev,
+					"Failed to write dspclk_seq: %d\n",
+					ret);
+				goto err;
+			}
+		} else {
+			ret = regmap_update_bits(arizona->regmap, reg, mask,
+						 val);
+		}
+
+		mutex_unlock(&arizona->dspclk_ena_lock);
+	} else {
+		ret = regmap_update_bits(arizona->regmap, reg, mask, val);
+	}
+
+	return ret;
+
+err:
+	mutex_unlock(&arizona->dspclk_ena_lock);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(arizona_set_sysclk);
 
