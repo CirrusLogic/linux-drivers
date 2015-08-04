@@ -318,6 +318,44 @@ int arizona_restore_sources(struct arizona *arizona,
 }
 EXPORT_SYMBOL_GPL(arizona_restore_sources);
 
+static int arizona_check_speaker_overheat(struct arizona *arizona,
+					  bool *warn, bool *shutdown)
+{
+	unsigned int reg, mask_warn, mask_shutdown, val;
+	int ret;
+
+	switch (arizona->type) {
+	case WM8997:
+	case WM5102:
+	case WM8280:
+	case WM5110:
+	case WM8998:
+	case WM1814:
+	case CS47L24:
+	case WM1831:
+		reg = ARIZONA_INTERRUPT_RAW_STATUS_3;
+		mask_warn = ARIZONA_SPK_OVERHEAT_WARN_STS;
+		mask_shutdown = ARIZONA_SPK_OVERHEAT_STS;
+		break;
+	default:
+		reg = CLEARWATER_IRQ1_RAW_STATUS_15;
+		mask_warn = CLEARWATER_SPK_OVERHEAT_WARN_STS1;
+		mask_shutdown = CLEARWATER_SPK_OVERHEAT_STS1;
+		break;
+	}
+
+	ret = regmap_read(arizona->regmap, reg, &val);
+	if (ret) {
+		dev_err(arizona->dev, "Failed to read thermal status: %d\n",
+			ret);
+		return ret;
+	}
+
+	*warn = val & mask_warn ? true : false;
+	*shutdown = val & mask_shutdown ? true : false;
+	return 0;
+}
+
 static int vegas_spk_pre_enable(struct snd_soc_dapm_widget *w,
 				struct snd_kcontrol *kcontrol,
 				int event)
@@ -441,7 +479,8 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
-	int val;
+	bool warn, shutdown;
+	int ret;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -455,8 +494,11 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case SND_SOC_DAPM_POST_PMU:
-		val = snd_soc_read(codec, ARIZONA_INTERRUPT_RAW_STATUS_3);
-		if (val & ARIZONA_SPK_OVERHEAT_STS) {
+		ret = arizona_check_speaker_overheat(arizona, &warn, &shutdown);
+		if (ret)
+			return ret;
+
+		if (shutdown) {
 			dev_crit(arizona->dev,
 				 "Speaker not enabled due to temperature\n");
 			return -EBUSY;
@@ -504,17 +546,12 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 static irqreturn_t arizona_thermal_warn(int irq, void *data)
 {
 	struct arizona *arizona = data;
-	unsigned int val;
+	bool warn, shutdown;
 	int ret;
 
-	ret = regmap_read(arizona->regmap, ARIZONA_INTERRUPT_RAW_STATUS_3,
-			  &val);
-	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to read thermal status: %d\n",
-			ret);
-	} else if (val & ARIZONA_SPK_OVERHEAT_WARN_STS) {
+	ret = arizona_check_speaker_overheat(arizona, &warn, &shutdown);
+	if ((ret == 0) && warn)
 		dev_crit(arizona->dev, "Thermal warning\n");
-	}
 
 	return IRQ_HANDLED;
 }
@@ -522,15 +559,11 @@ static irqreturn_t arizona_thermal_warn(int irq, void *data)
 static irqreturn_t arizona_thermal_shutdown(int irq, void *data)
 {
 	struct arizona *arizona = data;
-	unsigned int val;
+	bool warn, shutdown;
 	int ret;
 
-	ret = regmap_read(arizona->regmap, ARIZONA_INTERRUPT_RAW_STATUS_3,
-			  &val);
-	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to read thermal status: %d\n",
-			ret);
-	} else if (val & ARIZONA_SPK_OVERHEAT_STS) {
+	ret = arizona_check_speaker_overheat(arizona, &warn, &shutdown);
+	if ((ret == 0) && shutdown) {
 		dev_crit(arizona->dev, "Thermal shutdown\n");
 		ret = regmap_update_bits(arizona->regmap,
 					 ARIZONA_OUTPUT_ENABLES_1,
