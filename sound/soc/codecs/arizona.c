@@ -4753,6 +4753,16 @@ static int arizona_disable_fll_ao(struct arizona_fll *fll)
 
 	arizona_wait_for_fll(fll, false);
 
+	/* ctrl_up gates the writes to all fll_ao register,
+	setting it to 0 here ensures that after a runtime
+	suspend/resume cycle when one enables the
+	fllao then ctrl_up is the last bit that is configured
+	by the fllao enable code rather than the cache
+	sync operation which would have updated it
+	much earlier before writing out all fllao registers */
+	regmap_update_bits(arizona->regmap, fll->base + 2,
+			   MOON_FLL_AO_CTRL_UPD_MASK, 0);
+
 	if (change)
 		pm_runtime_put_autosuspend(arizona->dev);
 
