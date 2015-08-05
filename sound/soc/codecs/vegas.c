@@ -168,7 +168,7 @@ static int vegas_in1mux_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = widget->codec;
 	struct vegas_priv *vegas = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = vegas->core.arizona;
-	const struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int mux, inmode;
 	unsigned int mode_val, src_val;
 
