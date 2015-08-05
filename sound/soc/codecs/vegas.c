@@ -112,7 +112,7 @@ static int vegas_in1mux_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = widget->codec;
 	struct vegas_priv *vegas = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = vegas->core.arizona;
-	const struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int mux, inmode;
 	unsigned int mode_val, src_val;
 
@@ -157,7 +157,8 @@ static int vegas_in1mux_put(struct snd_kcontrol *kcontrol,
 		break;
 	}
 
-	return snd_soc_dapm_mux_update_power(widget->dapm, kcontrol, mux, e, NULL);
+	return snd_soc_dapm_mux_update_power(widget->dapm, kcontrol,
+					     mux, e, NULL);
 }
 
 static int vegas_in2mux_put(struct snd_kcontrol *kcontrol,
@@ -169,7 +170,7 @@ static int vegas_in2mux_put(struct snd_kcontrol *kcontrol,
 	struct vegas_priv *vegas = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = vegas->core.arizona;
 	unsigned int mux, inmode, src_val, mode_val;
-	const struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 
 	mux = ucontrol->value.enumerated.item[0];
 	if (mux > 1)
