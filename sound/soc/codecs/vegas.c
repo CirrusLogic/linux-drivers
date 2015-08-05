@@ -52,14 +52,17 @@ static int vegas_sysclk_ev(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	struct regmap *regmap = codec->control_data;
+	struct vegas_priv *vegas = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = vegas->core.arizona;
+
 	int i;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		for (i = 0; i < ARRAY_SIZE(vegas_sysclk_edre_patch); i++)
-			regmap_write(regmap, vegas_sysclk_edre_patch[i].reg,
-					     vegas_sysclk_edre_patch[i].def);
+			regmap_write(arizona->regmap,
+				     vegas_sysclk_edre_patch[i].reg,
+				     vegas_sysclk_edre_patch[i].def);
 		break;
 
 	default:
@@ -1350,7 +1353,6 @@ static int vegas_codec_probe(struct snd_soc_codec *codec)
 	struct vegas_priv *priv = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	codec->control_data = priv->core.arizona->regmap;
 	priv->core.arizona->dapm = &codec->dapm;
 
 	arizona_init_spk(codec);

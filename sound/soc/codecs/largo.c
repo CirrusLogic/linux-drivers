@@ -1327,7 +1327,6 @@ static int largo_codec_probe(struct snd_soc_codec *codec)
 	wm_adsp_init_debugfs(&priv->core.adsp[1], codec);
 	wm_adsp_init_debugfs(&priv->core.adsp[2], codec);
 
-	codec->control_data = priv->core.arizona->regmap;
 	priv->core.arizona->dapm = &codec->dapm;
 
 	arizona_init_spk(codec);

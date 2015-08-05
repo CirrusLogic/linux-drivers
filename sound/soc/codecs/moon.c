@@ -2885,7 +2885,6 @@ static int moon_codec_probe(struct snd_soc_codec *codec)
 	for (i = 0; i < MOON_NUM_ADSP; i++)
 		wm_adsp_init_debugfs(&priv->core.adsp[i], codec);
 
-	codec->control_data = priv->core.arizona->regmap;
 	priv->core.arizona->dapm = &codec->dapm;
 
 	arizona_init_gpio(codec);

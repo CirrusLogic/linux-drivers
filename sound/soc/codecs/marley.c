@@ -320,8 +320,7 @@ static int marley_frf_bytes_put(struct snd_kcontrol *kcontrol,
 	mutex_lock(&arizona->reg_setting_lock);
 	regmap_write(arizona->regmap, 0x80, 0x3);
 
-	ret = regmap_raw_write(codec->control_data, params->base,
-			       data, len);
+	ret = regmap_raw_write(arizona->regmap, params->base, data, len);
 
 	regmap_write(arizona->regmap, 0x80, 0x0);
 	mutex_unlock(&arizona->reg_setting_lock);
@@ -2052,7 +2051,6 @@ static int marley_codec_probe(struct snd_soc_codec *codec)
 	for (i = 0; i < MARLEY_NUM_ADSP; ++i)
 		wm_adsp_init_debugfs(&priv->core.adsp[i], codec);
 
-	codec->control_data = priv->core.arizona->regmap;
 	priv->core.arizona->dapm = &codec->dapm;
 
 	arizona_init_spk(codec);
