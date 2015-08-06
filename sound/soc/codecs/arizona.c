@@ -3854,6 +3854,7 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 	int already_enabled = arizona_is_enabled_fll(fll);
 	struct arizona_fll_cfg cfg;
 	bool fll_change;
+	unsigned int fsync_freq;
 
 	if (already_enabled < 0)
 		return already_enabled;
@@ -3881,7 +3882,7 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 				  false);
 		if (fll->sync_src >= 0) {
 			arizona_calc_fll(fll, &cfg, fll->sync_freq, true);
-
+			fsync_freq = fll->sync_freq / (1 << cfg.refdiv);
 			fll_change |= arizona_apply_fll(arizona, fll->base + 0x10, &cfg,
 					  fll->sync_src, true);
 			use_sync = true;
@@ -3903,7 +3904,7 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 	 * Increase the bandwidth if we're not using a low frequency
 	 * sync source.
 	 */
-	if (use_sync && fll->sync_freq > 100000)
+	if (use_sync && fsync_freq > 128000)
 		regmap_update_bits(arizona->regmap, fll->base + 0x17,
 				   ARIZONA_FLL1_SYNC_BW, 0);
 	else
