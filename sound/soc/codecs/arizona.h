@@ -407,9 +407,9 @@ extern void arizona_init_dvfs(struct arizona_priv *priv);
 extern int arizona_init_fll(struct arizona *arizona, int id, int base,
 			    int lock_irq, int ok_irq, struct arizona_fll *fll);
 extern int arizona_set_fll_refclk(struct arizona_fll *fll, int source,
-				  unsigned int Fref, unsigned int Fout);
+				  unsigned int fin, unsigned int fout);
 extern int arizona_set_fll(struct arizona_fll *fll, int source,
-			   unsigned int Fref, unsigned int Fout);
+			   unsigned int fin, unsigned int fout);
 
 extern int arizona_init_spk(struct snd_soc_codec *codec);
 extern int arizona_init_gpio(struct snd_soc_codec *codec);
