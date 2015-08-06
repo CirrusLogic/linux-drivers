@@ -3919,9 +3919,6 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 	if (!already_enabled)
 		pm_runtime_get(arizona->dev);
 
-	/* Clear any pending completions */
-	try_wait_for_completion(&fll->ok);
-
 	regmap_update_bits(arizona->regmap, fll->base + 1,
 			   ARIZONA_FLL1_ENA, ARIZONA_FLL1_ENA);
 	if (use_sync)
@@ -4041,8 +4038,6 @@ int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 {
 	unsigned int val;
 
-	init_completion(&fll->ok);
-
 	fll->id = id;
 	fll->base = base;
 	fll->arizona = arizona;
@@ -4064,10 +4059,6 @@ int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 		fll->ref_src = ARIZONA_FLL_SRC_NONE;
 	}
 	fll->ref_freq = 32768;
-
-	snprintf(fll->lock_name, sizeof(fll->lock_name), "FLL%d lock", id);
-	snprintf(fll->clock_ok_name, sizeof(fll->clock_ok_name),
-		 "FLL%d clock OK", id);
 
 	regmap_update_bits(arizona->regmap, fll->base + 1,
 			   ARIZONA_FLL1_FREERUN, 0);
