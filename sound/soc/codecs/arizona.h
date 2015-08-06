@@ -411,14 +411,11 @@ extern void clearwater_spin_sysclk(struct arizona *arizona);
 extern const struct snd_soc_dai_ops arizona_dai_ops;
 extern const struct snd_soc_dai_ops arizona_simple_dai_ops;
 
-#define ARIZONA_FLL_NAME_LEN 20
-
 struct arizona_fll {
 	struct arizona *arizona;
 	int id;
 	unsigned int base;
 	unsigned int vco_mult;
-	struct completion ok;
 
 	unsigned int fvco;
 	int min_outdiv;
@@ -429,9 +426,6 @@ struct arizona_fll {
 	unsigned int sync_freq;
 	int ref_src;
 	unsigned int ref_freq;
-
-	char lock_name[ARIZONA_FLL_NAME_LEN];
-	char clock_ok_name[ARIZONA_FLL_NAME_LEN];
 };
 
 extern int arizona_init_fll(struct arizona *arizona, int id, int base,
