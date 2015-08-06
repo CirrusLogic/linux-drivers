@@ -1535,11 +1535,17 @@ int arizona_get_num_micbias(struct arizona *arizona,
 	case WM8280:
 	case WM8998:
 	case WM1814:
-	case WM8285:
-	case WM1840:
+		num_micbiases = WM5102_NUM_MICBIAS;
+		num_child_micbiases = 0;
+		break;
 	case WM1831:
 	case CS47L24:
-		num_micbiases = ARIZONA_MAX_MICBIAS;
+		num_micbiases = LARGO_NUM_MICBIAS;
+		num_child_micbiases = 0;
+		break;
+	case WM8285:
+	case WM1840:
+		num_micbiases = CLEARWATER_NUM_MICBIAS;
 		num_child_micbiases = 0;
 		break;
 	case CS47L35:
