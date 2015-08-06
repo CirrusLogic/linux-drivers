@@ -4175,16 +4175,6 @@ static struct {
 	{ 1000000, 13500000, 4 },
 };
 
-struct arizona_fll_cfg {
-	int n;
-	int theta;
-	int lambda;
-	int refdiv;
-	int outdiv;
-	int fratio;
-	int gain;
-};
-
 static int arizona_validate_fll(struct arizona_fll *fll,
 				unsigned int fin,
 				unsigned int fvco)
@@ -4322,8 +4312,14 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 
 	arizona_fll_dbg(fll, "fin=%u fout=%u\n", fin, fll->fout);
 
-	fvco = fll->fvco;
 	cfg->outdiv = fll->outdiv;
+
+	if (cfg->fin == fin && cfg->fvco == fll->fvco) {
+		/* use the pre-computed fll configuration */
+		return 0;
+	}
+
+	fvco = fll->fvco;
 
 	arizona_fll_dbg(fll, "fvco=%dHz\n", fvco);
 
@@ -4369,6 +4365,9 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 				fref);
 		return -EINVAL;
 	}
+
+	cfg->fin = fin;
+	cfg->fvco = fll->fvco;
 
 	arizona_fll_dbg(fll, "N=%x THETA=%x LAMBDA=%x\n",
 			cfg->n, cfg->theta, cfg->lambda);
@@ -4489,7 +4488,8 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 	struct arizona *arizona = fll->arizona;
 	bool use_sync = false;
 	int already_enabled = arizona_is_enabled_fll(fll);
-	struct arizona_fll_cfg cfg;
+	struct arizona_fll_cfg *ref_cfg = &(fll->ref_cfg);
+	struct arizona_fll_cfg *sync_cfg = &(fll->sync_cfg);
 	bool fll_change;
 	unsigned int fsync_freq;
 
@@ -4513,21 +4513,21 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 	 */
 	if (fll->ref_src >= 0 && fll->ref_freq &&
 	    fll->ref_src != fll->sync_src) {
-		arizona_calc_fll(fll, &cfg, fll->ref_freq, false);
+		arizona_calc_fll(fll, ref_cfg, fll->ref_freq, false);
 
-		fll_change = arizona_apply_fll(arizona, fll->base, &cfg, fll->ref_src,
+		fll_change = arizona_apply_fll(arizona, fll->base, ref_cfg, fll->ref_src,
 				  false);
 		if (fll->sync_src >= 0) {
-			arizona_calc_fll(fll, &cfg, fll->sync_freq, true);
-			fsync_freq = fll->sync_freq / (1 << cfg.refdiv);
-			fll_change |= arizona_apply_fll(arizona, fll->base + 0x10, &cfg,
+			arizona_calc_fll(fll, sync_cfg, fll->sync_freq, true);
+			fsync_freq = fll->sync_freq / (1 << sync_cfg->refdiv);
+			fll_change |= arizona_apply_fll(arizona, fll->base + 0x10, sync_cfg,
 					  fll->sync_src, true);
 			use_sync = true;
 		}
 	} else if (fll->sync_src >= 0) {
-		arizona_calc_fll(fll, &cfg, fll->sync_freq, false);
+		arizona_calc_fll(fll, ref_cfg, fll->sync_freq, false);
 
-		fll_change = arizona_apply_fll(arizona, fll->base, &cfg,
+		fll_change = arizona_apply_fll(arizona, fll->base, ref_cfg,
 				  fll->sync_src, false);
 
 		regmap_update_bits(arizona->regmap, fll->base + 0x11,
