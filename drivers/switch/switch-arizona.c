@@ -3779,6 +3779,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	case WM1840:
 	case WM1831:
 	case CS47L24:
+	case CS47L35:
 		info->accdet_ip = 0;
 		break;
 	default:
