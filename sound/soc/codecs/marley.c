@@ -443,7 +443,7 @@ static int marley_rate_put(struct snd_kcontrol *kcontrol,
 	udelay(300);
 	mutex_lock(&codec->mutex);
 	ret = snd_soc_update_bits(codec, e->reg, mask, val);
-	mutex_lock(&codec->mutex);
+	mutex_unlock(&codec->mutex);
 	clearwater_spin_sysclk(arizona);
 	udelay(300);
 
