@@ -1258,6 +1258,7 @@ static bool wm5102_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_NOISE_GATE_CONTROL:
 	case ARIZONA_PDM_SPK1_CTRL_1:
 	case ARIZONA_PDM_SPK1_CTRL_2:
+	case ARIZONA_SPK_CTRL_5:
 	case ARIZONA_DAC_COMP_1:
 	case ARIZONA_DAC_COMP_2:
 	case ARIZONA_DAC_COMP_3:

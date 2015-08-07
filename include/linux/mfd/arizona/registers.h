@@ -348,6 +348,7 @@
 #define ARIZONA_HP_TEST_CTRL_6                   0x4A9
 #define ARIZONA_SPK_CTRL_2                       0x4B5
 #define ARIZONA_SPK_CTRL_3                       0x4B6
+#define ARIZONA_SPK_CTRL_5                       0x4B8
 #define ARIZONA_DAC_COMP_1                       0x4DC
 #define ARIZONA_DAC_COMP_2                       0x4DD
 #define ARIZONA_DAC_COMP_3                       0x4DE
@@ -6021,6 +6022,20 @@
 #define ARIZONA_HP1R_TST_IBIAS_MASK              0x0003  /* HP1R_TST_IBIAS - [1:0] */
 #define ARIZONA_HP1R_TST_IBIAS_SHIFT                  0  /* HP1R_TST_IBIAS - [1:0] */
 #define ARIZONA_HP1R_TST_IBIAS_WIDTH                  2  /* HP1R_TST_IBIAS - [1:0] */
+
+/*
+ * R1208 (0x4B8) - Speaker control 5
+ */
+#define ARIZONA_SPK_THERM_ENA                    0x1000  /* SPK_THERM_ENA */
+#define ARIZONA_SPK_THERM_ENA_MASK               0x1000  /* SPK_THERM_ENA */
+#define ARIZONA_SPK_THERM_ENA_SHIFT                  12  /* SPK_THERM_ENA */
+#define ARIZONA_SPK_THERM_ENA_WIDTH                   1  /* SPK_THERM_ENA */
+#define FLORIDA_SPK_THERM_ENA                    0x0800  /* SPK_THERM_ENA */
+#define FLORIDA_SPK_THERM_ENA_MASK               0x0800  /* SPK_THERM_ENA */
+#define FLORIDA_SPK_THERM_ENA_SHIFT                  11  /* SPK_THERM_ENA */
+#define FLORIDA_SPK_THERM_ENA_WIDTH                   1  /* SPK_THERM_ENA */
+
+
 
 /*
  * R1244 (0x4DC) - DAC comp 1
