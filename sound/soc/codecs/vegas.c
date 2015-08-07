@@ -109,12 +109,14 @@ static int vegas_in1mux_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dapm_widget_list *wlist = snd_soc_dapm_kcontrol_widget_list(kcontrol);
 	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
-	struct snd_soc_codec *codec = widget->codec;
-	struct vegas_priv *vegas = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct vegas_priv *vegas = snd_soc_codec_get_drvdata(widget->codec);
 	struct arizona *arizona = vegas->core.arizona;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int mux, inmode;
 	unsigned int mode_val, src_val;
+	bool changed = false;
+	int ret;
 
 	mux = ucontrol->value.enumerated.item[0];
 	if (mux > 1)
@@ -133,32 +135,57 @@ static int vegas_in1mux_put(struct snd_kcontrol *kcontrol,
 		else
 			mode_val = 1 << ARIZONA_IN1_MODE_SHIFT;
 
-		snd_soc_update_bits(codec, ARIZONA_IN1L_CONTROL,
-				    ARIZONA_IN1_MODE_MASK, mode_val);
+		ret = snd_soc_component_update_bits(dapm->component,
+						    ARIZONA_IN1L_CONTROL,
+						    ARIZONA_IN1_MODE_MASK,
+						    mode_val);
+		if (ret < 0)
+			return ret;
+		else if (ret)
+			changed = true;
 
 		/* IN1A is digital so L and R must change together */
 		/* src_val setting same for both registers */
-		snd_soc_update_bits(codec,
-				    ARIZONA_ADC_DIGITAL_VOLUME_1L,
-				    ARIZONA_IN1L_SRC_MASK |
-				    ARIZONA_IN1L_SRC_SE_MASK, src_val);
-		snd_soc_update_bits(codec,
-				    ARIZONA_ADC_DIGITAL_VOLUME_1R,
-				    ARIZONA_IN1R_SRC_MASK |
-				    ARIZONA_IN1R_SRC_SE_MASK, src_val);
+		ret = snd_soc_component_update_bits(dapm->component,
+						ARIZONA_ADC_DIGITAL_VOLUME_1L,
+						ARIZONA_IN1L_SRC_MASK |
+						ARIZONA_IN1L_SRC_SE_MASK,
+						src_val);
+		if (ret < 0)
+			return ret;
+		else if (ret)
+			changed = true;
+
+		ret = snd_soc_component_update_bits(dapm->component,
+						ARIZONA_ADC_DIGITAL_VOLUME_1R,
+						ARIZONA_IN1R_SRC_MASK |
+						ARIZONA_IN1R_SRC_SE_MASK,
+						src_val);
+
+		if (ret < 0)
+			return ret;
+		else if (ret)
+			changed = true;
 		break;
 	default:
 		/* both analogue */
-		snd_soc_update_bits(codec,
-				    e->reg,
-				    ARIZONA_IN1L_SRC_MASK |
-				    ARIZONA_IN1L_SRC_SE_MASK,
-				    src_val);
+		ret = snd_soc_component_update_bits(dapm->component,
+						    e->reg,
+						    ARIZONA_IN1L_SRC_MASK |
+						    ARIZONA_IN1L_SRC_SE_MASK,
+						    src_val);
+		if (ret < 0)
+			return ret;
+		else if (ret)
+			changed = true;
 		break;
 	}
 
-	return snd_soc_dapm_mux_update_power(widget->dapm, kcontrol,
-					     mux, e, NULL);
+	if (changed)
+		return snd_soc_dapm_mux_update_power(dapm, kcontrol,
+						     mux, e, NULL);
+	else
+		return 0;
 }
 
 static int vegas_in2mux_put(struct snd_kcontrol *kcontrol,
@@ -166,11 +193,13 @@ static int vegas_in2mux_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dapm_widget_list *wlist = snd_soc_dapm_kcontrol_widget_list(kcontrol);
 	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
-	struct snd_soc_codec *codec = widget->codec;
-	struct vegas_priv *vegas = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct vegas_priv *vegas = snd_soc_codec_get_drvdata(widget->codec);
 	struct arizona *arizona = vegas->core.arizona;
 	unsigned int mux, inmode, src_val, mode_val;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	bool changed = false;
+	int ret;
 
 	mux = ucontrol->value.enumerated.item[0];
 	if (mux > 1)
@@ -186,14 +215,29 @@ static int vegas_in2mux_put(struct snd_kcontrol *kcontrol,
 	if (inmode & ARIZONA_INMODE_SE)
 		src_val |= 1 << ARIZONA_IN2L_SRC_SE_SHIFT;
 
-	snd_soc_update_bits(codec, ARIZONA_IN2L_CONTROL,
-			    ARIZONA_IN2_MODE_MASK, mode_val);
+	ret = snd_soc_component_update_bits(dapm->component,
+					    ARIZONA_IN2L_CONTROL,
+					    ARIZONA_IN2_MODE_MASK, mode_val);
+	if (ret < 0)
+		return ret;
+	else if (ret)
+		changed = true;
 
-	snd_soc_update_bits(codec, ARIZONA_ADC_DIGITAL_VOLUME_2L,
-			    ARIZONA_IN2L_SRC_MASK | ARIZONA_IN2L_SRC_SE_MASK,
-			    src_val);
+	ret = snd_soc_component_update_bits(dapm->component,
+					    ARIZONA_ADC_DIGITAL_VOLUME_2L,
+					    ARIZONA_IN2L_SRC_MASK |
+					    ARIZONA_IN2L_SRC_SE_MASK,
+					    src_val);
+	if (ret < 0)
+		return ret;
+	else if (ret)
+		changed = true;
 
-	return snd_soc_dapm_mux_update_power(widget->dapm, kcontrol, mux, e, NULL);
+	if (changed)
+		return snd_soc_dapm_mux_update_power(dapm, kcontrol,
+						     mux, e, NULL);
+	else
+		return 0;
 }
 
 static const char * const vegas_inmux_texts[] = {
