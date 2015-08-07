@@ -44,11 +44,13 @@ static const struct reg_default clearwater_reva_16_patch[] = {
 	{ 0x27E, 0x0000 },
 	{ 0x80,  0x0000 },
 	{ 0x80,  0x0000 },
+	{ 0x448, 0x003f },
 };
 
 static const struct reg_default clearwater_revc_16_patch[] = {
 	{ 0x27E, 0x0000 },
 	{ 0x2C2, 0x5 },
+	{ 0x448, 0x003f },
 };
 
 /* this patch is required for EDRE on RevA*/
@@ -640,7 +642,7 @@ static const struct reg_default clearwater_reg_default[] = {
 	{ 0x00000441, 0xC050 }, /* R1089  - DRE Control 1 */
 	{ 0x00000442, 0x0305 }, /* R1090 (0x442) - DRE Control 2 */
 	{ 0x00000443, 0x5cfa }, /* R1091 (0x443) - DRE Control 3 */
-	{ 0x00000448, 0x0fff }, /* R1096 (0x448) - eDRE Enable */
+	{ 0x00000448, 0x003f }, /* R1096 (0x448) - eDRE Enable */
 	{ 0x00000450, 0x0000 }, /* R1104 (0x450) - DAC AEC Control 1 */
 	{ 0x00000451, 0x0000 },
 	{ 0x00000458, 0x0000 }, /* R1112 (0x458) - Noise Gate Control */
