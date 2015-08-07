@@ -931,6 +931,7 @@ static bool largo_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DAC_AEC_CONTROL_1:
 	case ARIZONA_NOISE_GATE_CONTROL:
 	case ARIZONA_HP1_SHORT_CIRCUIT_CTRL:
+	case ARIZONA_SPK_CTRL_5:
 	case ARIZONA_AIF1_BCLK_CTRL:
 	case ARIZONA_AIF1_TX_PIN_CTRL:
 	case ARIZONA_AIF1_RX_PIN_CTRL:
