@@ -4776,22 +4776,21 @@ int arizona_set_fll_ao(struct arizona_fll *fll, int source,
 	unsigned int floop = 0;
 	int div = 0;
 	int ret = 0;
-	struct arizona_fll_cfg cfg;
+	struct arizona_fll_cfg *cfg = &(fll->ref_cfg);
 	unsigned int gcd_fll;
 	unsigned int fref = fin;
-	const struct reg_sequence *patch = NULL;
-	unsigned int patch_size = 0;;
 
 	if (fll->ref_src == source &&
 	    fll->ref_freq == fin && fll->fout == fout)
 		return 0;
 
-	if (fout) {
+	if ((fout) && (cfg->fin != fin ||
+	     cfg->fvco != fout)) {
 		/* Restrict fin to 32KHz */
 		switch (fin) {
 		case 32768:
-			patch = fll_ao_32K_patch;
-			patch_size = ARRAY_SIZE(fll_ao_32K_patch);
+			cfg->patch = fll_ao_32K_patch;
+			cfg->patch_size = ARRAY_SIZE(fll_ao_32K_patch);
 			break;
 		default:
 			arizona_fll_err(fll,
@@ -4820,31 +4819,31 @@ int arizona_set_fll_ao(struct arizona_fll *fll, int source,
 
 		/* Fref must be <=12.288MHz, find refdiv */
 		div = 1;
-		cfg.refdiv = 0;
+		cfg->refdiv = 0;
 		while ((fref > ARIZONA_FLLAO_MAX_FREF) ||
 			(fout / fref < ARIZONA_FLLAO_MIN_N)) {
 			div *= 2;
 			fref /= 2;
-			cfg.refdiv++;
+			cfg->refdiv++;
 		}
 
-		cfg.gain = fref <= 32768 ? 3 : 0;
+		cfg->gain = fref <= 32768 ? 3 : 0;
 
-		cfg.fratio = 1; /* start with fb_div as 1 */
+		cfg->fratio = 1; /* start with fb_div as 1 */
 		floop = fout;
-		cfg.n =  floop / fref;
+		cfg->n =  floop / fref;
 
 		/* N must be <= 1023, find fbdiv(fratio) */
 		div = 2;
-		while (cfg.n > ARIZONA_FLLAO_MAX_N &&
+		while (cfg->n > ARIZONA_FLLAO_MAX_N &&
 		            div <= ARIZONA_FLLAO_MAX_FBDIV) {
 			floop = fout / div;
-			cfg.fratio = div;
-			cfg.n = floop / fref;
+			cfg->fratio = div;
+			cfg->n = floop / fref;
 			div += 2;
 		}
 
-		if (cfg.n > ARIZONA_FLLAO_MAX_N) {
+		if (cfg->n > ARIZONA_FLLAO_MAX_N) {
 			arizona_fll_err(fll,
 					"Can't configure N > 1023\n");
 			return -EINVAL;
@@ -4852,8 +4851,10 @@ int arizona_set_fll_ao(struct arizona_fll *fll, int source,
 
 		gcd_fll = gcd(floop, fref);
 		arizona_fll_dbg(fll, "GCD=%u\n", gcd_fll);
-		cfg.theta = (floop - (cfg.n * fref)) / gcd_fll;
-		cfg.lambda =  fref / gcd_fll;
+		cfg->theta = (floop - (cfg->n * fref)) / gcd_fll;
+		cfg->lambda =  fref / gcd_fll;
+		cfg->fin = fin;
+		cfg->fvco = fout;
 	}
 
 	fll->ref_src = source;
@@ -4861,7 +4862,7 @@ int arizona_set_fll_ao(struct arizona_fll *fll, int source,
 	fll->fout = fout;
 
 	if (fout)
-		ret = arizona_enable_fll_ao(fll, &cfg, patch, patch_size);
+		ret = arizona_enable_fll_ao(fll, cfg, cfg->patch, cfg->patch_size);
 	else
 		arizona_disable_fll_ao(fll);
 
