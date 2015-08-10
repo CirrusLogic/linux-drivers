@@ -2227,6 +2227,7 @@ static int marley_probe(struct platform_device *pdev)
 		marley->fll[i].vco_mult = 3;
 		marley->fll[i].min_outdiv = 3;
 		marley->fll[i].max_outdiv = 3;
+		marley->fll[i].sync_offset = 0xE;
 	}
 
 	arizona_init_fll(arizona, 1, ARIZONA_FLL1_CONTROL_1 - 1,
