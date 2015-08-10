@@ -401,6 +401,7 @@ struct arizona_fll {
 	struct arizona *arizona;
 	int id;
 	unsigned int base;
+	unsigned int sync_offset;
 	unsigned int vco_mult;
 
 	unsigned int fvco;
