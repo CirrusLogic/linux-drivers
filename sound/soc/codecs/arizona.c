@@ -65,6 +65,7 @@
 #define ARIZONA_FLL_MAX_REFDIV 8
 #define ARIZONA_FLL_MIN_OUTDIV 2
 #define ARIZONA_FLL_MAX_OUTDIV 7
+#define ARIZONA_FLL_SYNC_OFFSET 0x10
 
 #define ARIZONA_FMT_DSP_MODE_A          0
 #define ARIZONA_FMT_DSP_MODE_B          1
@@ -4482,7 +4483,8 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 		if (fll->sync_src >= 0) {
 			arizona_calc_fll(fll, sync_cfg, fll->sync_freq, true);
 			fsync_freq = fll->sync_freq / (1 << sync_cfg->refdiv);
-			fll_change |= arizona_apply_fll(arizona, fll->base + 0x10,
+			fll_change |= arizona_apply_fll(arizona,
+					fll->base + fll->sync_offset,
 					sync_cfg, fll->sync_src, true);
 			use_sync = true;
 		}
@@ -4492,8 +4494,9 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 		fll_change = arizona_apply_fll(arizona, fll->base, ref_cfg,
 				fll->sync_src, false);
 
-		regmap_update_bits_async(arizona->regmap, fll->base + 0x11,
-					 ARIZONA_FLL1_SYNC_ENA, 0);
+		regmap_update_bits_async(arizona->regmap,
+			fll->base + fll->sync_offset + 0x1,
+			ARIZONA_FLL1_SYNC_ENA, 0);
 	} else {
 		arizona_fll_err(fll, "No clocks provided\n");
 		return -EINVAL;
@@ -4504,12 +4507,14 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 	 * sync source.
 	 */
 	if (use_sync && fsync_freq > 128000)
-		regmap_update_bits_async(arizona->regmap, fll->base + 0x17,
-					 ARIZONA_FLL1_SYNC_BW, 0);
+		regmap_update_bits_async(arizona->regmap,
+			fll->base + fll->sync_offset + 0x7,
+			ARIZONA_FLL1_SYNC_BW, 0);
 	else
-		regmap_update_bits_async(arizona->regmap, fll->base + 0x17,
-					 ARIZONA_FLL1_SYNC_BW,
-					 ARIZONA_FLL1_SYNC_BW);
+		regmap_update_bits_async(arizona->regmap,
+			fll->base + fll->sync_offset + 0x7,
+			ARIZONA_FLL1_SYNC_BW,
+			ARIZONA_FLL1_SYNC_BW);
 
 	if (!already_enabled)
 		pm_runtime_get(arizona->dev);
@@ -4517,9 +4522,10 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 	regmap_update_bits_async(arizona->regmap, fll->base + 1,
 				 ARIZONA_FLL1_ENA, ARIZONA_FLL1_ENA);
 	if (use_sync)
-		regmap_update_bits_async(arizona->regmap, fll->base + 0x11,
-					 ARIZONA_FLL1_SYNC_ENA,
-					 ARIZONA_FLL1_SYNC_ENA);
+		regmap_update_bits_async(arizona->regmap,
+			fll->base + fll->sync_offset + 0x1,
+			ARIZONA_FLL1_SYNC_ENA,
+			ARIZONA_FLL1_SYNC_ENA);
 
 	if (already_enabled)
 		regmap_update_bits_async(arizona->regmap, fll->base + 1,
@@ -4542,8 +4548,9 @@ static void arizona_disable_fll(struct arizona_fll *fll)
 				 ARIZONA_FLL1_FREERUN, ARIZONA_FLL1_FREERUN);
 	regmap_update_bits_check(arizona->regmap, fll->base + 1,
 				 ARIZONA_FLL1_ENA, 0, &change);
-	regmap_update_bits(arizona->regmap, fll->base + 0x11,
-			   ARIZONA_FLL1_SYNC_ENA, 0);
+	regmap_update_bits(arizona->regmap,
+		fll->base + fll->sync_offset + 0x1,
+		ARIZONA_FLL1_SYNC_ENA, 0);
 	regmap_update_bits_async(arizona->regmap, fll->base + 1,
 				 ARIZONA_FLL1_FREERUN, 0);
 
@@ -4847,6 +4854,8 @@ int arizona_init_fll(struct arizona *arizona, int id, int base, int lock_irq,
 		fll->min_outdiv = ARIZONA_FLL_MIN_OUTDIV;
 	if (!fll->max_outdiv)
 		fll->max_outdiv = ARIZONA_FLL_MAX_OUTDIV;
+	if (!fll->sync_offset)
+		fll->sync_offset = ARIZONA_FLL_SYNC_OFFSET;
 
 	/* Configure default refclk to 32kHz if we have one */
 	regmap_read(arizona->regmap, ARIZONA_CLOCK_32K_1, &val);
