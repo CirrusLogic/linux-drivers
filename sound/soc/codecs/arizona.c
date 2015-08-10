@@ -59,6 +59,7 @@
 #define ARIZONA_FLLAO_MAX_FREF 12288000
 #define ARIZONA_FLLAO_MIN_N    4
 #define ARIZONA_FLLAO_MAX_N    1023
+#define ARIZONA_FLLAO_MAX_FBDIV 254
 #define ARIZONA_FLL_MIN_FVCO   90000000
 #define ARIZONA_FLL_MAX_FRATIO 16
 #define ARIZONA_FLL_MAX_REFDIV 8
@@ -4776,7 +4777,6 @@ int arizona_set_fll_ao(struct arizona_fll *fll, int source,
 	int div = 0;
 	int ret = 0;
 	struct arizona_fll_cfg cfg;
-	int n;
 	unsigned int gcd_fll;
 	unsigned int fref = fin;
 	const struct reg_sequence *patch = NULL;
@@ -4830,19 +4830,25 @@ int arizona_set_fll_ao(struct arizona_fll *fll, int source,
 
 		cfg.gain = fref <= 32768 ? 3 : 0;
 
-		n =  fout / fref;
+		cfg.fratio = 1; /* start with fb_div as 1 */
 		floop = fout;
+		cfg.n =  floop / fref;
 
 		/* N must be <= 1023, find fbdiv(fratio) */
-		div = 1;
-		while (n > ARIZONA_FLLAO_MAX_N) {
-			div++;
+		div = 2;
+		while (cfg.n > ARIZONA_FLLAO_MAX_N &&
+		            div <= ARIZONA_FLLAO_MAX_FBDIV) {
 			floop = fout / div;
-			n = floop / fref;
+			cfg.fratio = div;
+			cfg.n = floop / fref;
+			div += 2;
 		}
 
-		cfg.fratio = div;
-		cfg.n = n;
+		if (cfg.n > ARIZONA_FLLAO_MAX_N) {
+			arizona_fll_err(fll,
+					"Can't configure N > 1023\n");
+			return -EINVAL;
+		}
 
 		gcd_fll = gcd(floop, fref);
 		arizona_fll_dbg(fll, "GCD=%u\n", gcd_fll);
