@@ -35,7 +35,7 @@
 
 #include "arizona.h"
 
-static const char *wm5102_core_supplies[] = {
+static const char * const wm5102_core_supplies[] = {
 	"AVDD",
 	"DBVDD1",
 };
@@ -1481,7 +1481,7 @@ static const struct mfd_cell early_devs[] = {
 	{ .name = "arizona-ldo1" },
 };
 
-static const char *wm5102_supplies[] = {
+static const char * const wm5102_supplies[] = {
 	"MICVDD",
 	"DBVDD2",
 	"DBVDD3",
@@ -1524,7 +1524,7 @@ static const struct mfd_cell florida_devs[] = {
 	},
 };
 
-static const char *cs47l24_supplies[] = {
+static const char * const cs47l24_supplies[] = {
 	"MICVDD",
 	"CPVDD",
 	"SPKVDD",
@@ -1541,7 +1541,7 @@ static const struct mfd_cell largo_devs[] = {
 	},
 };
 
-static const char *wm8997_supplies[] = {
+static const char * const wm8997_supplies[] = {
 	"MICVDD",
 	"DBVDD2",
 	"CPVDD",
@@ -1578,7 +1578,7 @@ static const struct mfd_cell vegas_devs[] = {
 	},
 };
 
-static const char *clearwater_supplies[] = {
+static const char * const clearwater_supplies[] = {
 	"MICVDD",
 	"DBVDD2",
 	"DBVDD3",
@@ -1601,7 +1601,7 @@ static const struct mfd_cell clearwater_devs[] = {
 	},
 };
 
-static const char *marley_supplies[] = {
+static const char * const marley_supplies[] = {
 	"MICVDD",
 	"DBVDD2",
 	"CPVDD",
