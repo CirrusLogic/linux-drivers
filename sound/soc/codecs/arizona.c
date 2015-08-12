@@ -56,6 +56,7 @@
 
 #define ARIZONA_FLL_VCO_CORNER 141900000
 #define ARIZONA_FLL_MAX_FREF   13500000
+#define ARIZONA_FLL_MAX_N      1023
 #define ARIZONA_FLLAO_MAX_FREF 12288000
 #define ARIZONA_FLLAO_MIN_N    4
 #define ARIZONA_FLLAO_MAX_N    1023
@@ -4296,9 +4297,34 @@ static int arizona_validate_fll(struct arizona_fll *fll,
 	return 0;
 }
 
-static int arizona_find_fratio(unsigned int fref, int *fratio)
+static int arizona_find_fratio(struct arizona_fll *fll, unsigned int fref,
+	unsigned int fvco, int *fratio, bool sync)
 {
-	int i;
+	int i, ratio;
+
+	switch (fll->arizona->type) {
+	case WM5102:
+	case WM5110:
+	case WM8997:
+	case WM8280:
+	case WM8998:
+	case WM1814:
+	case WM8285:
+	case WM1840:
+	case WM1831:
+	case CS47L24:
+	case CS47L35:
+		break;
+	default:
+		if (!sync) {
+			ratio = 1;
+			while ((fvco / (ratio * fref)) > ARIZONA_FLL_MAX_N)
+				ratio++;
+			*fratio = ratio - 1;
+			return ratio;
+		}
+		break;
+	}
 
 	/* Find an appropriate FLL_FRATIO */
 	for (i = 0; i < ARRAY_SIZE(fll_fratios); i++) {
@@ -4334,7 +4360,7 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 	}
 
 	/* Find an appropriate FLL_FRATIO */
-	init_ratio = arizona_find_fratio(fref, &cfg->fratio);
+	init_ratio = arizona_find_fratio(fll, fref, fvco, &cfg->fratio, sync);
 	if (init_ratio < 0) {
 		arizona_fll_err(fll, "Unable to find FRATIO for fref=%uHz\n",
 				fref);
@@ -4350,12 +4376,13 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 		if (fll->arizona->rev < 3 || sync)
 			return init_ratio;
 		break;
-	case CS47L90:
-	case CS47L91:
-		if (!sync)
-			cfg->fratio = init_ratio - 1;
-		return init_ratio;
-	default:
+	case WM8998:
+	case WM1814:
+	case WM8285:
+	case WM1840:
+	case WM1831:
+	case CS47L24:
+	case CS47L35:
 		if (fref == 11289600 && fvco == 90316800) {
 			if (!sync)
 				cfg->fratio = init_ratio - 1;
@@ -4364,6 +4391,9 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 
 		if (sync)
 			return init_ratio;
+		break;
+	default:
+		return init_ratio;
 	}
 
 	cfg->fratio = init_ratio - 1;
@@ -4396,7 +4426,7 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 		div *= 2;
 		fref /= 2;
 		refdiv++;
-		init_ratio = arizona_find_fratio(fref, NULL);
+		init_ratio = arizona_find_fratio(fll, fref, fvco, NULL, sync);
 	}
 
 	arizona_fll_warn(fll, "Falling back to integer mode operation\n");
@@ -4455,16 +4485,37 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 		cfg->lambda >>= 1;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(fll_gains); i++) {
-		if (fll_gains[i].min <= fref && fref <= fll_gains[i].max) {
-			cfg->gain = fll_gains[i].gain;
+
+	switch (fll->arizona->type) {
+	default:
+		if (!sync) {
+			cfg->gain = fref > 768000 ? 3 : 2;
 			break;
 		}
-	}
-	if (i == ARRAY_SIZE(fll_gains)) {
-		arizona_fll_err(fll, "Unable to find gain for fref=%uHz\n",
-				fref);
-		return -EINVAL;
+		/* for sync loop fall through */
+	case WM5102:
+	case WM5110:
+	case WM8997:
+	case WM8280:
+	case WM8998:
+	case WM1814:
+	case WM8285:
+	case WM1840:
+	case WM1831:
+	case CS47L24:
+	case CS47L35:
+		for (i = 0; i < ARRAY_SIZE(fll_gains); i++) {
+			if (fll_gains[i].min <= fref && fref <= fll_gains[i].max) {
+				cfg->gain = fll_gains[i].gain;
+				break;
+			}
+		}
+		if (i == ARRAY_SIZE(fll_gains)) {
+			arizona_fll_err(fll, "Unable to find gain for fref=%uHz\n",
+					fref);
+			return -EINVAL;
+		}
+		break;
 	}
 
 	cfg->fin = fin;
@@ -4592,7 +4643,7 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 	int already_enabled = arizona_is_enabled_fll(fll);
 	struct arizona_fll_cfg *ref_cfg = &(fll->ref_cfg);
 	struct arizona_fll_cfg *sync_cfg = &(fll->sync_cfg);
-	bool fll_change;
+	bool fll_change, change;
 	unsigned int fsync_freq;
 
 	if (already_enabled < 0)
@@ -4655,6 +4706,39 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 			fll->base + fll->sync_offset + 0x7,
 			ARIZONA_FLL1_SYNC_BW,
 			ARIZONA_FLL1_SYNC_BW);
+
+	switch (fll->arizona->type) {
+	case WM5102:
+	case WM5110:
+	case WM8997:
+	case WM8280:
+	case WM8998:
+	case WM1814:
+	case WM8285:
+	case WM1840:
+	case WM1831:
+	case CS47L24:
+	case CS47L35:
+		break;
+	default:
+		if ((!use_sync) && (ref_cfg->theta == 0))
+			regmap_update_bits_check(arizona->regmap,
+				fll->base + 0xA,
+				ARIZONA_FLL1_PHASE_ENA_MASK |
+				ARIZONA_FLL1_PHASE_GAIN_MASK,
+				(1 << ARIZONA_FLL1_PHASE_ENA_SHIFT) |
+				(2 << ARIZONA_FLL1_PHASE_GAIN_SHIFT),
+				&change);
+		else
+			regmap_update_bits_check(arizona->regmap,
+				fll->base + 0xA,
+				ARIZONA_FLL1_PHASE_ENA_MASK |
+				ARIZONA_FLL1_PHASE_GAIN_MASK,
+				2 << ARIZONA_FLL1_PHASE_GAIN_SHIFT,
+				&change);
+		fll_change |= change;
+		break;
+	}
 
 	if (!already_enabled)
 		pm_runtime_get(arizona->dev);
