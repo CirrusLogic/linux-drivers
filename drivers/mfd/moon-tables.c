@@ -215,6 +215,7 @@ static const struct reg_default moon_reg_default[] = {
 	{ 0x00000177, 0x0281 }, /* R375 (0x177) - FLL1 Loop Filter Test 1 */
 	{ 0x00000178, 0x0000 },
 	{ 0x00000179, 0x0000 }, /* R377 (0x179) - FLL1 Control 7 */
+	{ 0x0000017a, 0x2906 }, /* R377 (0x17A) - FLL1 Efs 2 */
 	{ 0x00000181, 0x0000 }, /* R385 (0x181) - FLL1 Synchroniser 1 */
 	{ 0x00000182, 0x0000 }, /* R386 (0x182) - FLL1 Synchroniser 2 */
 	{ 0x00000183, 0x0000 }, /* R387 (0x183) - FLL1 Synchroniser 3 */
@@ -233,6 +234,7 @@ static const struct reg_default moon_reg_default[] = {
 	{ 0x00000197, 0x0281 }, /* R407 (0x197) - FLL2 Loop Filter Test 1 */
 	{ 0x00000198, 0x0000 },
 	{ 0x00000199, 0x0000 }, /* R409 (0x199) - FLL2 Control 7 */
+	{ 0x0000019a, 0x2906 }, /* R410 (0x19A) - FLL2 Efs 2 */
 	{ 0x000001a1, 0x0000 }, /* R417 (0x1A1) - FLL2 Synchroniser 1 */
 	{ 0x000001a2, 0x0000 }, /* R418 (0x1A2) - FLL2 Synchroniser 2 */
 	{ 0x000001a3, 0x0000 }, /* R419 (0x1A3) - FLL2 Synchroniser 3 */
@@ -1643,6 +1645,7 @@ static bool moon_16bit_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_FLL1_CONTROL_5:
 	case ARIZONA_FLL1_CONTROL_6:
 	case ARIZONA_FLL1_CONTROL_7:
+	case ARIZONA_FLL1_EFS_2:
 	case ARIZONA_FLL1_LOOP_FILTER_TEST_1:
 	case ARIZONA_FLL1_NCO_TEST_0:
 	case ARIZONA_FLL1_SYNCHRONISER_1:
@@ -1661,6 +1664,7 @@ static bool moon_16bit_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_FLL2_CONTROL_5:
 	case ARIZONA_FLL2_CONTROL_6:
 	case ARIZONA_FLL2_CONTROL_7:
+	case ARIZONA_FLL2_EFS_2:
 	case ARIZONA_FLL2_LOOP_FILTER_TEST_1:
 	case ARIZONA_FLL2_NCO_TEST_0:
 	case ARIZONA_FLL2_SYNCHRONISER_1:

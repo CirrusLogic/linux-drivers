@@ -97,6 +97,7 @@
 #define ARIZONA_FLL1_LOOP_FILTER_TEST_1          0x177
 #define ARIZONA_FLL1_NCO_TEST_0                  0x178
 #define ARIZONA_FLL1_CONTROL_7                   0x179
+#define ARIZONA_FLL1_EFS_2                       0x17A
 #define ARIZONA_FLL1_SYNCHRONISER_1              0x181
 #define ARIZONA_FLL1_SYNCHRONISER_2              0x182
 #define ARIZONA_FLL1_SYNCHRONISER_3              0x183
@@ -124,6 +125,7 @@
 #define ARIZONA_FLL2_LOOP_FILTER_TEST_1          0x197
 #define ARIZONA_FLL2_NCO_TEST_0                  0x198
 #define ARIZONA_FLL2_CONTROL_7                   0x199
+#define ARIZONA_FLL2_EFS_2                       0x19A
 #define ARIZONA_FLL2_SYNCHRONISER_1              0x1A1
 #define ARIZONA_FLL2_SYNCHRONISER_2              0x1A2
 #define ARIZONA_FLL2_SYNCHRONISER_3              0x1A3
@@ -3190,6 +3192,16 @@
 #define ARIZONA_FLL1_GAIN_MASK                   0x003c  /* FLL1_GAIN */
 #define ARIZONA_FLL1_GAIN_SHIFT                       2  /* FLL1_GAIN */
 #define ARIZONA_FLL1_GAIN_WIDTH                       4  /* FLL1_GAIN */
+
+/*
+ * R378 (0x17A) - FLL1 EFS 2
+ */
+#define ARIZONA_FLL1_PHASE_GAIN_MASK             0xF000  /* FLL1_PHASE_GAIN */
+#define ARIZONA_FLL1_PHASE_GAIN_SHIFT                12  /* FLL1_PHASE_GAIN */
+#define ARIZONA_FLL1_PHASE_GAIN_WIDTH                 4  /* FLL1_PHASE_GAIN */
+#define ARIZONA_FLL1_PHASE_ENA_MASK              0x0800  /* FLL1_PHASE_ENA */
+#define ARIZONA_FLL1_PHASE_ENA_SHIFT                 11  /* FLL1_PHASE_ENA */
+#define ARIZONA_FLL1_PHASE_ENA_WIDTH                  1  /* FLL1_PHASE_ENA */
 
 /*
  * R385 (0x181) - FLL1 Synchroniser 1
