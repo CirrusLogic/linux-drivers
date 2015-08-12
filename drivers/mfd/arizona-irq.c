@@ -49,7 +49,7 @@ static int arizona_map_irq(struct arizona *arizona, int irq)
 	}
 }
 
-int arizona_request_irq(struct arizona *arizona, int irq, char *name,
+int arizona_request_irq(struct arizona *arizona, int irq, const char *name,
 			   irq_handler_t handler, void *data)
 {
 	irq = arizona_map_irq(arizona, irq);
