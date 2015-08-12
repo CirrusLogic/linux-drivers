@@ -174,9 +174,6 @@ struct arizona {
 	uint8_t out_comp_enabled;
 
 	bool micvdd_regulated;
-#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_MFD_ARIZONA_DEFERRED_RESUME)
-	struct work_struct deferred_resume_work;
-#endif
 
 	struct mutex rate_lock;
 	struct mutex dspclk_ena_lock;
