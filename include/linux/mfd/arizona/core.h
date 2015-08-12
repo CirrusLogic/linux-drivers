@@ -187,7 +187,7 @@ struct arizona {
 int arizona_clk32k_enable(struct arizona *arizona);
 int arizona_clk32k_disable(struct arizona *arizona);
 
-int arizona_request_irq(struct arizona *arizona, int irq, char *name,
+int arizona_request_irq(struct arizona *arizona, int irq, const char *name,
 			irq_handler_t handler, void *data);
 void arizona_free_irq(struct arizona *arizona, int irq, void *data);
 int arizona_set_irq_wake(struct arizona *arizona, int irq, int on);
