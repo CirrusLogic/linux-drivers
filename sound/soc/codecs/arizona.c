@@ -182,10 +182,10 @@ static const int arizona_aif4_inputs[8] = {
 static unsigned int arizona_aif_sources_cache[ARRAY_SIZE(arizona_aif1_inputs)];
 
 static const struct reg_sequence fll_ao_32K_patch[] = {
-	{ MOON_FLLAO_CONTROL_11, 0x0091 },
+	{ MOON_FLLAO_CONTROL_11, 0x0085 },
 	{ MOON_FLLAO_CONTROL_10, 0x06DA },
-	{ MOON_FLLAO_CONTROL_8,   0x0045 },
-	{ MOON_FLLAO_CONTROL_6,   0x8001 },
+	{ MOON_FLLAO_CONTROL_8,  0x0077 },
+	{ MOON_FLLAO_CONTROL_6,  0x8001 },
 };
 
 static int arizona_get_sources(struct arizona *arizona,
@@ -5021,7 +5021,10 @@ int arizona_set_fll_ao(struct arizona_fll *fll, int source,
 			cfg->refdiv++;
 		}
 
-		cfg->gain = fref <= 32768 ? 3 : 0;
+		/* currently we only support fin=32KHz
+		so fref will be <= 32KHz for which gain
+		is fixed to 4 */
+		cfg->gain = 4;
 
 		cfg->fratio = 1; /* start with fb_div as 1 */
 		floop = fout;
