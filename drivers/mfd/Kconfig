@@ -132,6 +132,12 @@ config MFD_MADERA_SPI
 	  Support for the Cirrus Logic Madera platform audio SoC
 	  core functionality controlled via I2C.
 
+config MFD_CS47L85
+	bool "Cirrus Logic CS47L85"
+	depends on MFD_MADERA
+	help
+	  Support for Cirrus Logic CS47L85 Smart Codec
+
 config MFD_ASIC3
 	bool "Compaq ASIC3"
 	depends on GPIOLIB && ARM

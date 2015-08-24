@@ -63,6 +63,9 @@ obj-$(CONFIG_MFD_WM8994)	+= wm8994-core.o wm8994-irq.o wm8994-regmap.o
 obj-$(CONFIG_MFD_MADERA)	+= madera-core.o madera-irq.o
 obj-$(CONFIG_MFD_MADERA_I2C)	+= madera-i2c.o
 obj-$(CONFIG_MFD_MADERA_SPI)	+= madera-spi.o
+ifneq ($(CONFIG_MFD_CS47L85),n)
+obj-$(CONFIG_MFD_MADERA)	+= cs47l85-tables.o
+endif
 
 obj-$(CONFIG_TPS6105X)		+= tps6105x.o
 obj-$(CONFIG_TPS65010)		+= tps65010.o
