@@ -68,11 +68,13 @@ struct wm_adsp_fw_features {
 
 struct wm_adsp {
 	const char *part;
+	int rev;
 	int num;
 	int type;
 	struct device *dev;
 	struct regmap *regmap;
 	struct snd_soc_card *card;
+	struct snd_soc_codec *codec;
 
 	int base;
 	int sysclk_reg;
