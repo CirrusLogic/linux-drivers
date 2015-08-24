@@ -1,0 +1,40 @@
+Cirrus Logic Madera class audio codecs
+
+See also the core bindings for the parent MFD driver:
+See Documentation/devicetree/bindinge/mfd/madera.txt
+
+Optional properties:
+  - cirrus,dmic-ref : DMIC reference for each input, one cell per input
+    <IN1 IN2 IN3 ...>
+    A value of 0 indicates MICVDD and is the default, other
+    values depend on the codec - see the datasheet for the INn_DMIC_SUP field
+
+  - cirrus,dmic-clksrc : DMIC clock source for each input (CS47L90, CS47L91).
+    One cell per input. A value of 0 will source DMIC from the internally
+    generated clock within the ADC subsystem and a value of 1 will source DMIC
+    and External digital speakers with same clock
+
+  - cirrus,inmode : A list of INn_MODE register values, where n is the number
+    of input signals. Valid values are 0 (Differential), 1 (Single-ended) and
+    2 (Digital Microphone). If absent, INn_MODE registers set to 0 by default.
+    One cell per input channel <IN1L IN1R IN2L IN2R IN3L IN3R>
+
+  - cirrus,out-mono : Mono bit for each output, must contain six cells if
+    specified. A non-zero value indicates the corresponding output is mono.
+
+  - cirrus,max-channels-clocked : The maximum number of channels to be clocked
+    on each AIF, useful for I2S systems with multiple data lines being mastered.
+    One cell for each AIF, use a value of zero for AIFs that should be handled
+    normally.
+
+Example:
+
+codec: cs47l85@0 {
+	compatible = "cirrus,cs47l85";
+
+	cirrus,dmic-ref = <0 0 1 0>;
+	cirrus,dmic-clksrc = <0 0 0 0>;
+	cirrus,inmode = <0 0 2 2 0 0>;
+	cirrus,outmono = <0 0 0 0 0 0>;
+	cirrus,max-channels-clocked = <2 0 0>;
+};
