@@ -667,31 +667,23 @@ static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 	SOC_SINGLE(name " NG SPKDAT2R Switch", base, 11, 1, 0)
 
 #define CLEARWATER_RXANC_INPUT_ROUTES(widget, name) \
-	{ widget, NULL, name " Input" }, \
-	{ name " Input", "IN1L", "IN1L PGA" }, \
-	{ name " Input", "IN1R", "IN1R PGA" }, \
-	{ name " Input", "IN1L + IN1R", "IN1L PGA" }, \
-	{ name " Input", "IN1L + IN1R", "IN1R PGA" }, \
-	{ name " Input", "IN2L", "IN2L PGA" }, \
-	{ name " Input", "IN2R", "IN2R PGA" }, \
-	{ name " Input", "IN2L + IN2R", "IN2L PGA" }, \
-	{ name " Input", "IN2L + IN2R", "IN2R PGA" }, \
-	{ name " Input", "IN3L", "IN3L PGA" }, \
-	{ name " Input", "IN3R", "IN3R PGA" }, \
-	{ name " Input", "IN3L + IN3R", "IN3L PGA" }, \
-	{ name " Input", "IN3L + IN3R", "IN3R PGA" }, \
-	{ name " Input", "IN4L", "IN4L PGA" }, \
-	{ name " Input", "IN4R", "IN4R PGA" }, \
-	{ name " Input", "IN4L + IN4R", "IN4L PGA" }, \
-	{ name " Input", "IN4L + IN4R", "IN4R PGA" }, \
-	{ name " Input", "IN5L", "IN5L PGA" }, \
-	{ name " Input", "IN5R", "IN5R PGA" }, \
-	{ name " Input", "IN5L + IN5R", "IN5L PGA" }, \
-	{ name " Input", "IN5L + IN5R", "IN5R PGA" }, \
-	{ name " Input", "IN6L", "IN6L PGA" }, \
-	{ name " Input", "IN6R", "IN6R PGA" }, \
-	{ name " Input", "IN6L + IN6R", "IN6L PGA" }, \
-	{ name " Input", "IN6L + IN6R", "IN6R PGA" }
+	{ widget, NULL, name " Channel" }, \
+	{ name " Channel", "Left", name " Left Input" }, \
+	{ name " Channel", "Combine", name " Left Input" }, \
+	{ name " Channel", "Right", name " Right Input" }, \
+	{ name " Channel", "Combine", name " Right Input" }, \
+	{ name " Left Input", "IN1", "IN1L PGA" }, \
+	{ name " Right Input", "IN1", "IN1R PGA" }, \
+	{ name " Left Input", "IN2", "IN2L PGA" }, \
+	{ name " Right Input", "IN2", "IN2R PGA" }, \
+	{ name " Left Input", "IN3", "IN3L PGA" }, \
+	{ name " Right Input", "IN3", "IN3R PGA" }, \
+	{ name " Left Input", "IN4", "IN4L PGA" }, \
+	{ name " Right Input", "IN4", "IN4R PGA" }, \
+	{ name " Left Input", "IN5", "IN5L PGA" }, \
+	{ name " Right Input", "IN5", "IN5R PGA" }, \
+	{ name " Left Input", "IN6", "IN6L PGA" }, \
+	{ name " Right Input", "IN6", "IN6R PGA" }
 
 #define CLEARWATER_RXANC_OUTPUT_ROUTES(widget, name) \
 	{ widget, NULL, name " ANC Source" }, \
@@ -1334,10 +1326,10 @@ static const struct snd_kcontrol_new clearwater_aec_loopback_mux[] = {
 };
 
 static const struct snd_kcontrol_new clearwater_anc_input_mux[] = {
-	SOC_DAPM_ENUM_EXT("RXANCL Input", clearwater_anc_input_src[0],
-			  arizona_get_anc_input, arizona_put_anc_input),
-	SOC_DAPM_ENUM_EXT("RXANCR Input", clearwater_anc_input_src[1],
-			  arizona_get_anc_input, arizona_put_anc_input),
+	SOC_DAPM_ENUM("RXANCL Input", clearwater_anc_input_src[0]),
+	SOC_DAPM_ENUM("RXANCL Channel", clearwater_anc_input_src[1]),
+	SOC_DAPM_ENUM("RXANCR Input", clearwater_anc_input_src[2]),
+	SOC_DAPM_ENUM("RXANCR Channel", clearwater_anc_input_src[3]),
 };
 
 static const struct snd_kcontrol_new clearwater_output_anc_src[] = {
@@ -1590,8 +1582,18 @@ SND_SOC_DAPM_MUX("AEC2 Loopback", ARIZONA_DAC_AEC_CONTROL_2,
 			ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
 			&clearwater_aec_loopback_mux[1]),
 
-SND_SOC_DAPM_MUX("RXANCL Input", SND_SOC_NOPM, 0, 0, &clearwater_anc_input_mux[0]),
-SND_SOC_DAPM_MUX("RXANCR Input", SND_SOC_NOPM, 0, 0, &clearwater_anc_input_mux[1]),
+SND_SOC_DAPM_MUX("RXANCL Left Input", SND_SOC_NOPM, 0, 0,
+		 &clearwater_anc_input_mux[0]),
+SND_SOC_DAPM_MUX("RXANCL Right Input", SND_SOC_NOPM, 0, 0,
+		 &clearwater_anc_input_mux[0]),
+SND_SOC_DAPM_MUX("RXANCL Channel", SND_SOC_NOPM, 0, 0,
+		 &clearwater_anc_input_mux[1]),
+SND_SOC_DAPM_MUX("RXANCR Left Input", SND_SOC_NOPM, 0, 0,
+		 &clearwater_anc_input_mux[2]),
+SND_SOC_DAPM_MUX("RXANCR Right Input", SND_SOC_NOPM, 0, 0,
+		 &clearwater_anc_input_mux[2]),
+SND_SOC_DAPM_MUX("RXANCR Channel", SND_SOC_NOPM, 0, 0,
+		 &clearwater_anc_input_mux[3]),
 
 SND_SOC_DAPM_PGA_E("RXANCL", SND_SOC_NOPM, ARIZONA_CLK_L_ENA_SET_SHIFT,
 		   0, NULL, 0, arizona_anc_ev,

@@ -2128,137 +2128,51 @@ const struct soc_enum clearwater_in_dmic_osr[] = {
 };
 EXPORT_SYMBOL_GPL(clearwater_in_dmic_osr);
 
-static const char * const arizona_anc_input_src_text[ARIZONA_ANC_INPUT_ENUM_SIZE] = {
-	"None", "IN1L", "IN1R", "IN1L + IN1R", "IN2L", "IN2R", "IN2L + IN2R",
-	"IN3L", "IN3R", "IN3L + IN3R", "IN4L", "IN4R", "IN4L + IN4R", "IN5L",
-	"IN5R", "IN5L + IN5R", "IN6L", "IN6R", "IN6L + IN6R",
+static const char * const arizona_anc_input_src_text[] = {
+	"None", "IN1", "IN2", "IN3", "IN4", "IN5", "IN6",
 };
 
-static const unsigned int arizona_anc_input_src_val[] = {
-	0x0000, 0x0101, 0x0102, 0x0103, 0x0201, 0x0202, 0x0203,
-	0x0301, 0x0302, 0x0303, 0x0401, 0x0402, 0x0403,0x0501,
-	0x0502, 0x0503, 0x0601, 0x0602, 0x0603,
+static const char * const arizona_anc_channel_src_text[] = {
+	"None", "Left", "Right", "Combine",
 };
-
-static int arizona_anc_reformatter_mask_shift(unsigned int reg,
-					      unsigned int *mask,
-					      unsigned int *shift)
-{
-	switch (reg) {
-	case ARIZONA_FCL_ADC_REFORMATTER_CONTROL:
-		*mask = ARIZONA_IN_RXANCL_SEL_MASK;
-		*shift = ARIZONA_IN_RXANCL_SEL_SHIFT;
-		return 0;
-	case ARIZONA_FCR_ADC_REFORMATTER_CONTROL:
-	case CLEARWATER_FCR_ADC_REFORMATTER_CONTROL:
-		*mask = ARIZONA_IN_RXANCR_SEL_MASK;
-		*shift = ARIZONA_IN_RXANCR_SEL_SHIFT;
-		return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
-int arizona_get_anc_input(struct snd_kcontrol *kcontrol,
-			  struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
-	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int reg_val, sel, mask, shift;
-	int ret;
-
-	ret = arizona_anc_reformatter_mask_shift(e->reg, &mask, &shift);
-	if (ret)
-		return ret;
-
-	ret = snd_soc_component_read(dapm->component, e->reg, &reg_val);
-	if (ret)
-		return ret;
-
-	sel = ((reg_val >> e->shift_l) & 0xFF) << 8;
-
-	ret = snd_soc_component_read(dapm->component, ARIZONA_ANC_SRC,
-				     &reg_val);
-	if (ret)
-		return ret;
-
-	sel |= ((reg_val & mask) >> shift);
-
-	ucontrol->value.enumerated.item[0] = snd_soc_enum_val_to_item(e, sel);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(arizona_get_anc_input);
-
-int arizona_put_anc_input(struct snd_kcontrol *kcontrol,
-			  struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
-	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	int sel = ucontrol->value.enumerated.item[0];
-	unsigned int val, mask, shift;
-	bool changed;
-	int ret;
-
-	if (sel >= e->items)
-		return -EINVAL;
-
-	ret = arizona_anc_reformatter_mask_shift(e->reg, &mask, &shift);
-	if (ret)
-		return ret;
-
-	val = (e->values[sel] & 0xFF00) >> 8;
-	changed = snd_soc_component_test_bits(dapm->component, e->reg, 0xFF,
-					      val << e->shift_l);
-	if (changed) {
-		ret = snd_soc_component_write(dapm->component, e->reg,
-					val << e->shift_l);
-		if (ret)
-			return ret;
-	}
-
-	val = (e->values[sel] & 0xFF);
-	ret = snd_soc_component_update_bits(dapm->component, ARIZONA_ANC_SRC,
-					    mask, val << shift);
-	if (ret < 0)
-		return ret;
-
-	if (ret == 1)
-		changed = true;
-
-	if (changed)
-		return snd_soc_dapm_mux_update_power(dapm, kcontrol, sel,
-						     e, NULL);
-	else
-		return 0;
-}
-EXPORT_SYMBOL_GPL(arizona_put_anc_input);
 
 const struct soc_enum arizona_anc_input_src[] = {
-	SOC_VALUE_ENUM_SINGLE(ARIZONA_FCL_ADC_REFORMATTER_CONTROL,
-			      ARIZONA_FCL_MIC_MODE_SEL_SHIFT, 0xFF,
-			      WM8280_ANC_INPUT_ENUM_SIZE,
-			      arizona_anc_input_src_text,
-			      arizona_anc_input_src_val),
-	SOC_VALUE_ENUM_SINGLE(ARIZONA_FCR_ADC_REFORMATTER_CONTROL,
-			      ARIZONA_FCR_MIC_MODE_SEL_SHIFT, 0xFF,
-			      WM8280_ANC_INPUT_ENUM_SIZE,
-			      arizona_anc_input_src_text,
-			      arizona_anc_input_src_val),
+	SOC_ENUM_SINGLE(ARIZONA_ANC_SRC,
+			ARIZONA_IN_RXANCL_SEL_SHIFT,
+			ARRAY_SIZE(arizona_anc_input_src_text),
+			arizona_anc_input_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_FCL_ADC_REFORMATTER_CONTROL,
+			ARIZONA_FCL_MIC_MODE_SEL,
+			ARRAY_SIZE(arizona_anc_channel_src_text),
+			arizona_anc_channel_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_ANC_SRC,
+			ARIZONA_IN_RXANCR_SEL_SHIFT,
+			ARRAY_SIZE(arizona_anc_input_src_text),
+			arizona_anc_input_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_FCR_ADC_REFORMATTER_CONTROL,
+			ARIZONA_FCR_MIC_MODE_SEL,
+			ARRAY_SIZE(arizona_anc_channel_src_text),
+			arizona_anc_channel_src_text),
 };
 EXPORT_SYMBOL_GPL(arizona_anc_input_src);
 
 const struct soc_enum clearwater_anc_input_src[] = {
-	SOC_VALUE_ENUM_SINGLE(ARIZONA_FCL_ADC_REFORMATTER_CONTROL,
-			      ARIZONA_FCL_MIC_MODE_SEL_SHIFT, 0xFF,
-			      CLEARWATER_ANC_INPUT_ENUM_SIZE,
-			      arizona_anc_input_src_text,
-			      arizona_anc_input_src_val),
-	SOC_VALUE_ENUM_SINGLE(CLEARWATER_FCR_ADC_REFORMATTER_CONTROL,
-			      ARIZONA_FCR_MIC_MODE_SEL_SHIFT, 0xFF,
-			      CLEARWATER_ANC_INPUT_ENUM_SIZE,
-			      arizona_anc_input_src_text,
-			      arizona_anc_input_src_val),
+	SOC_ENUM_SINGLE(ARIZONA_ANC_SRC,
+			ARIZONA_IN_RXANCL_SEL_SHIFT,
+			ARRAY_SIZE(arizona_anc_input_src_text),
+			arizona_anc_input_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_FCL_ADC_REFORMATTER_CONTROL,
+			ARIZONA_FCL_MIC_MODE_SEL,
+			ARRAY_SIZE(arizona_anc_channel_src_text),
+			arizona_anc_channel_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_ANC_SRC,
+			ARIZONA_IN_RXANCR_SEL_SHIFT,
+			ARRAY_SIZE(arizona_anc_input_src_text),
+			arizona_anc_input_src_text),
+	SOC_ENUM_SINGLE(CLEARWATER_FCR_ADC_REFORMATTER_CONTROL,
+			ARIZONA_FCR_MIC_MODE_SEL,
+			ARRAY_SIZE(arizona_anc_channel_src_text),
+			arizona_anc_channel_src_text),
 };
 EXPORT_SYMBOL_GPL(clearwater_anc_input_src);
 
