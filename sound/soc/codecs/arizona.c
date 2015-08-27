@@ -2176,6 +2176,16 @@ const struct soc_enum clearwater_anc_input_src[] = {
 };
 EXPORT_SYMBOL_GPL(clearwater_anc_input_src);
 
+static const char * const arizona_anc_ng_texts[] = {
+	"None",
+	"Internal",
+	"External",
+};
+
+SOC_ENUM_SINGLE_DECL(arizona_anc_ng_enum, SND_SOC_NOPM, 0,
+		     arizona_anc_ng_texts);
+EXPORT_SYMBOL_GPL(arizona_anc_ng_enum);
+
 static const char * const arizona_output_anc_src_text[] = {
 	"None", "RXANCL", "RXANCR",
 };
