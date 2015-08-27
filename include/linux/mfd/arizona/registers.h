@@ -10702,6 +10702,14 @@
 /*
  * R3840 (0xF00) - Clock Control
  */
+#define ARIZONA_EXT_NG_SEL_CLR                   0x0080  /* EXT_NG_SEL_CLR */
+#define ARIZONA_EXT_NG_SEL_CLR_MASK              0x0080  /* EXT_NG_SEL_CLR */
+#define ARIZONA_EXT_NG_SEL_CLR_SHIFT                  7  /* EXT_NG_SEL_CLR */
+#define ARIZONA_EXT_NG_SEL_CLR_WIDTH                  1  /* EXT_NG_SEL_CLR */
+#define ARIZONA_EXT_NG_SEL_SET                   0x0040  /* EXT_NG_SEL_SET */
+#define ARIZONA_EXT_NG_SEL_SET_MASK              0x0040  /* EXT_NG_SEL_SET */
+#define ARIZONA_EXT_NG_SEL_SET_SHIFT                  6  /* EXT_NG_SEL_SET */
+#define ARIZONA_EXT_NG_SEL_SET_WIDTH                  1  /* EXT_NG_SEL_SET */
 #define ARIZONA_CLK_R_ENA_CLR                    0x0020  /* CLK_R_ENA_CLR */
 #define ARIZONA_CLK_R_ENA_CLR_MASK               0x0020  /* CLK_R_ENA_CLR */
 #define ARIZONA_CLK_R_ENA_CLR_SHIFT                   5  /* CLK_R_ENA_CLR */
@@ -10710,6 +10718,14 @@
 #define ARIZONA_CLK_R_ENA_SET_MASK               0x0010  /* CLK_R_ENA_SET */
 #define ARIZONA_CLK_R_ENA_SET_SHIFT                   4  /* CLK_R_ENA_SET */
 #define ARIZONA_CLK_R_ENA_SET_WIDTH                   1  /* CLK_R_ENA_SET */
+#define ARIZONA_CLK_NG_ENA_CLR                   0x0008  /* CLK_NG_ENA_CLR */
+#define ARIZONA_CLK_NG_ENA_CLR_MASK              0x0008  /* CLK_NG_ENA_CLR */
+#define ARIZONA_CLK_NG_ENA_CLR_SHIFT                  3  /* CLK_NG_ENA_CLR */
+#define ARIZONA_CLK_NG_ENA_CLR_WIDTH                  1  /* CLK_NG_ENA_CLR */
+#define ARIZONA_CLK_NG_ENA_SET                   0x0004  /* CLK_NG_ENA_SET */
+#define ARIZONA_CLK_NG_ENA_SET_MASK              0x0004  /* CLK_NG_ENA_SET */
+#define ARIZONA_CLK_NG_ENA_SET_SHIFT                  2  /* CLK_NG_ENA_SET */
+#define ARIZONA_CLK_NG_ENA_SET_WIDTH                  1  /* CLK_NG_ENA_SET */
 #define ARIZONA_CLK_L_ENA_CLR                    0x0002  /* CLK_L_ENA_CLR */
 #define ARIZONA_CLK_L_ENA_CLR_MASK               0x0002  /* CLK_L_ENA_CLR */
 #define ARIZONA_CLK_L_ENA_CLR_SHIFT                   1  /* CLK_L_ENA_CLR */
