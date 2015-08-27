@@ -280,9 +280,6 @@ extern unsigned int arizona_v2_mixer_values[ARIZONA_V2_NUM_MIXER_INPUTS];
 #define ARIZONA_SYNC_RATE_ENUM_SIZE 3
 #define ARIZONA_ASYNC_RATE_ENUM_SIZE 2
 #define ARIZONA_SAMPLE_RATE_ENUM_SIZE 14
-#define ARIZONA_ANC_INPUT_ENUM_SIZE 19
-#define WM8280_ANC_INPUT_ENUM_SIZE 13
-#define CLEARWATER_ANC_INPUT_ENUM_SIZE 19
 #define MOON_DFC_TYPE_ENUM_SIZE  5
 #define MOON_DFC_WIDTH_ENUM_SIZE 5
 
@@ -346,9 +343,6 @@ extern int moon_osr_put(struct snd_kcontrol *kcontrol,
 
 extern int moon_lp_mode_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
-
-extern int arizona_put_anc_input(struct snd_kcontrol *kcontrol,
-			  struct snd_ctl_elem_value *ucontrol);
 
 extern int arizona_in_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,

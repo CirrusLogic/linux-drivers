@@ -2104,81 +2104,51 @@ const struct soc_enum clearwater_in_dmic_osr[] = {
 };
 EXPORT_SYMBOL_GPL(clearwater_in_dmic_osr);
 
-static const char * const arizona_anc_input_src_text[ARIZONA_ANC_INPUT_ENUM_SIZE] = {
-	"None", "IN1L", "IN1R", "IN1L + IN1R", "IN2L", "IN2R", "IN2L + IN2R",
-	"IN3L", "IN3R", "IN3L + IN3R", "IN4L", "IN4R", "IN4L + IN4R", "IN5L",
-	"IN5R", "IN5L + IN5R", "IN6L", "IN6R", "IN6L + IN6R",
+static const char * const arizona_anc_input_src_text[] = {
+	"None", "IN1", "IN2", "IN3", "IN4", "IN5", "IN6",
 };
 
-static const unsigned int arizona_anc_input_src_val[ARIZONA_ANC_INPUT_ENUM_SIZE] = {
-	0x0000, 0x0101, 0x0201, 0x0301, 0x0102, 0x0202, 0x0302,
-	0x0103, 0x0203, 0x0303, 0x0104, 0x0204, 0x0304, 0x0105,
-	0x0205, 0x0305, 0x0106, 0x0206, 0x0306,
+static const char * const arizona_anc_channel_src_text[] = {
+	"None", "Left", "Right", "Combine",
 };
-
-int arizona_put_anc_input(struct snd_kcontrol *kcontrol,
-			  struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
-	struct snd_soc_codec *codec = widget->codec;
-	struct soc_enum *e =
-		(struct soc_enum *)kcontrol->private_value;
-	int sel = ucontrol->value.enumerated.item[0];
-	unsigned int val, mask, shift;
-
-	if (sel >= e->max)
-		return -EINVAL;
-
-	switch (e->reg) {
-	case ARIZONA_FCL_ADC_REFORMATTER_CONTROL:
-		mask = ARIZONA_IN_RXANCL_SEL_MASK;
-		shift = ARIZONA_IN_RXANCL_SEL_SHIFT;
-		break;
-	case ARIZONA_FCR_ADC_REFORMATTER_CONTROL:
-	case CLEARWATER_FCR_ADC_REFORMATTER_CONTROL:
-		mask = ARIZONA_IN_RXANCR_SEL_MASK;
-		shift = ARIZONA_IN_RXANCR_SEL_SHIFT;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	val = (e->values[sel] & 0xFF00) >> 8;
-	snd_soc_write(codec, e->reg, val << e->shift_l);
-
-	val = (e->values[sel] & 0xFF);
-	snd_soc_update_bits(codec, ARIZONA_ANC_SRC, mask, val << shift);
-
-	return snd_soc_dapm_put_enum_virt(kcontrol, ucontrol);
-}
-EXPORT_SYMBOL_GPL(arizona_put_anc_input);
 
 const struct soc_enum arizona_anc_input_src[] = {
-	SOC_VALUE_ENUM_SINGLE(ARIZONA_FCL_ADC_REFORMATTER_CONTROL,
-			      ARIZONA_FCL_MIC_MODE_SEL_SHIFT, 0,
-			      WM8280_ANC_INPUT_ENUM_SIZE,
-			      arizona_anc_input_src_text,
-			      arizona_anc_input_src_val),
-	SOC_VALUE_ENUM_SINGLE(ARIZONA_FCR_ADC_REFORMATTER_CONTROL,
-			      ARIZONA_FCR_MIC_MODE_SEL_SHIFT, 0,
-			      WM8280_ANC_INPUT_ENUM_SIZE,
-			      arizona_anc_input_src_text,
-			      arizona_anc_input_src_val),
+	SOC_ENUM_SINGLE(ARIZONA_ANC_SRC,
+			ARIZONA_IN_RXANCL_SEL_SHIFT,
+			ARRAY_SIZE(arizona_anc_input_src_text),
+			arizona_anc_input_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_FCL_ADC_REFORMATTER_CONTROL,
+			ARIZONA_FCL_MIC_MODE_SEL,
+			ARRAY_SIZE(arizona_anc_channel_src_text),
+			arizona_anc_channel_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_ANC_SRC,
+			ARIZONA_IN_RXANCR_SEL_SHIFT,
+			ARRAY_SIZE(arizona_anc_input_src_text),
+			arizona_anc_input_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_FCR_ADC_REFORMATTER_CONTROL,
+			ARIZONA_FCR_MIC_MODE_SEL,
+			ARRAY_SIZE(arizona_anc_channel_src_text),
+			arizona_anc_channel_src_text),
 };
 EXPORT_SYMBOL_GPL(arizona_anc_input_src);
 
 const struct soc_enum clearwater_anc_input_src[] = {
-	SOC_VALUE_ENUM_SINGLE(ARIZONA_FCL_ADC_REFORMATTER_CONTROL,
-			      ARIZONA_FCL_MIC_MODE_SEL_SHIFT, 0,
-			      CLEARWATER_ANC_INPUT_ENUM_SIZE,
-			      arizona_anc_input_src_text,
-			      arizona_anc_input_src_val),
-	SOC_VALUE_ENUM_SINGLE(CLEARWATER_FCR_ADC_REFORMATTER_CONTROL,
-			      ARIZONA_FCR_MIC_MODE_SEL_SHIFT, 0,
-			      CLEARWATER_ANC_INPUT_ENUM_SIZE,
-			      arizona_anc_input_src_text,
-			      arizona_anc_input_src_val),
+	SOC_ENUM_SINGLE(ARIZONA_ANC_SRC,
+			ARIZONA_IN_RXANCL_SEL_SHIFT,
+			ARRAY_SIZE(arizona_anc_input_src_text),
+			arizona_anc_input_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_FCL_ADC_REFORMATTER_CONTROL,
+			ARIZONA_FCL_MIC_MODE_SEL,
+			ARRAY_SIZE(arizona_anc_channel_src_text),
+			arizona_anc_channel_src_text),
+	SOC_ENUM_SINGLE(ARIZONA_ANC_SRC,
+			ARIZONA_IN_RXANCR_SEL_SHIFT,
+			ARRAY_SIZE(arizona_anc_input_src_text),
+			arizona_anc_input_src_text),
+	SOC_ENUM_SINGLE(CLEARWATER_FCR_ADC_REFORMATTER_CONTROL,
+			ARIZONA_FCR_MIC_MODE_SEL,
+			ARRAY_SIZE(arizona_anc_channel_src_text),
+			arizona_anc_channel_src_text),
 };
 EXPORT_SYMBOL_GPL(clearwater_anc_input_src);
 
