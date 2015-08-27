@@ -315,6 +315,7 @@ extern const struct soc_enum clearwater_in_dmic_osr[];
 
 extern const struct soc_enum arizona_anc_input_src[];
 extern const struct soc_enum clearwater_anc_input_src[];
+extern const struct soc_enum arizona_anc_ng_enum;
 extern const struct soc_enum arizona_output_anc_src[];
 extern const struct soc_enum clearwater_output_anc_src_defs[];
 extern const struct soc_enum arizona_ip_mode[];
