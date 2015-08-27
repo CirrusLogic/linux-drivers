@@ -644,7 +644,14 @@ static DECLARE_TLV_DB_SCALE(ng_tlv, -12000, 600, 0);
 	SOC_SINGLE(name " NG SPKDAT1R Switch", base,  9, 1, 0)
 
 #define MOON_RXANC_INPUT_ROUTES(widget, name) \
-	{ widget, NULL, name " Channel" }, \
+	{ widget, NULL, name " NG Mux" }, \
+	{ name " NG Internal", NULL, "RXANC NG Clock" }, \
+	{ name " NG Internal", NULL, name " Channel" }, \
+	{ name " NG External", NULL, "RXANC NG External Clock" }, \
+	{ name " NG External", NULL, name " Channel" }, \
+	{ name " NG Mux", "None", name " Channel" }, \
+	{ name " NG Mux", "Internal", name " NG Internal" }, \
+	{ name " NG Mux", "External", name " NG External" }, \
 	{ name " Channel", "Left", name " Left Input" }, \
 	{ name " Channel", "Combine", name " Left Input" }, \
 	{ name " Channel", "Right", name " Right Input" }, \
@@ -745,9 +752,6 @@ SOC_SINGLE_TLV("IN5R Digital Volume", ARIZONA_ADC_DIGITAL_VOLUME_5R,
 SOC_ENUM("Input Ramp Up", arizona_in_vi_ramp),
 SOC_ENUM("Input Ramp Down", arizona_in_vd_ramp),
 
-SND_SOC_BYTES_MASK("RXANC Config", ARIZONA_CLOCK_CONTROL, 1,
-		   ARIZONA_CLK_R_ENA_CLR | ARIZONA_CLK_R_ENA_SET |
-		   ARIZONA_CLK_L_ENA_CLR | ARIZONA_CLK_L_ENA_SET),
 SND_SOC_BYTES("RXANC Coefficients", ARIZONA_ANC_COEFF_START,
 	      ARIZONA_ANC_COEFF_END - ARIZONA_ANC_COEFF_START + 1),
 SND_SOC_BYTES("RXANCL Config", ARIZONA_FCL_FILTER_CONTROL, 1),
@@ -1295,6 +1299,9 @@ static const struct snd_kcontrol_new moon_anc_input_mux[] = {
 	SOC_DAPM_ENUM("RXANCR Channel", clearwater_anc_input_src[3]),
 };
 
+static const struct snd_kcontrol_new moon_anc_ng_mux =
+	SOC_DAPM_ENUM_VIRT("RXANC NG Source", arizona_anc_ng_enum);
+
 static const struct snd_kcontrol_new moon_output_anc_src[] = {
 	SOC_DAPM_ENUM("HPOUT1L ANC Source", arizona_output_anc_src[0]),
 	SOC_DAPM_ENUM("HPOUT1R ANC Source", arizona_output_anc_src[1]),
@@ -1539,16 +1546,30 @@ SND_SOC_DAPM_VALUE_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
 		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
 		       &moon_aec_loopback_mux),
 
+SND_SOC_DAPM_SUPPLY("RXANC NG External Clock", SND_SOC_NOPM,
+		    ARIZONA_EXT_NG_SEL_SET_SHIFT, 0, arizona_anc_ev,
+		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_PGA("RXANCL NG External", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("RXANCR NG External", SND_SOC_NOPM, 0, 0, NULL, 0),
+
+SND_SOC_DAPM_SUPPLY("RXANC NG Clock", SND_SOC_NOPM,
+		    ARIZONA_CLK_NG_ENA_SET_SHIFT, 0, arizona_anc_ev,
+		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_PGA("RXANCL NG Internal", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("RXANCR NG Internal", SND_SOC_NOPM, 0, 0, NULL, 0),
+
 SND_SOC_DAPM_MUX("RXANCL Left Input", SND_SOC_NOPM, 0, 0,
 		 &moon_anc_input_mux[0]),
 SND_SOC_DAPM_MUX("RXANCL Right Input", SND_SOC_NOPM, 0, 0,
 		 &moon_anc_input_mux[0]),
 SND_SOC_DAPM_MUX("RXANCL Channel", SND_SOC_NOPM, 0, 0, &moon_anc_input_mux[1]),
+SND_SOC_DAPM_VIRT_MUX("RXANCL NG Mux", SND_SOC_NOPM, 0, 0, &moon_anc_ng_mux),
 SND_SOC_DAPM_MUX("RXANCR Left Input", SND_SOC_NOPM, 0, 0,
 		 &moon_anc_input_mux[2]),
 SND_SOC_DAPM_MUX("RXANCR Right Input", SND_SOC_NOPM, 0, 0,
 		 &moon_anc_input_mux[2]),
 SND_SOC_DAPM_MUX("RXANCR Channel", SND_SOC_NOPM, 0, 0, &moon_anc_input_mux[3]),
+SND_SOC_DAPM_VIRT_MUX("RXANCR NG Mux", SND_SOC_NOPM, 0, 0, &moon_anc_ng_mux),
 
 SND_SOC_DAPM_PGA_E("RXANCL", SND_SOC_NOPM, ARIZONA_CLK_L_ENA_SET_SHIFT,
 		   0, NULL, 0, arizona_anc_ev,
