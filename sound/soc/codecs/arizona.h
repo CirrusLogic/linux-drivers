@@ -164,7 +164,7 @@ struct arizona_enum {
 #define ARIZONA_MUX_CTL_DECL(xname) \
 	const struct snd_kcontrol_new xname##_mux = { \
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = "Route", \
-		.info = arizona_mux_info, \
+		.info = snd_soc_info_enum_double, \
 		.get = arizona_mux_get, \
 		.put = arizona_mux_put, \
 		.private_value = (unsigned long)&xname##_enum }
@@ -213,7 +213,8 @@ struct arizona_enum {
 {	.id = snd_soc_dapm_mux, .name = wname, .reg = SND_SOC_NOPM, \
 	.shift = 0, .kcontrol_news = wctrl, \
 	.num_kcontrols = 1, .event = arizona_mux_event, \
-	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD }
+	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD | \
+		       SND_SOC_DAPM_PRE_REG | SND_SOC_DAPM_POST_REG}
 
 #define ARIZONA_MUX_WIDGETS(name, name_str) \
 	ARIZONA_MUX(name_str " Input", &name##_mux)
@@ -381,8 +382,6 @@ extern int arizona_anc_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol,
 			  int event);
 
-extern int arizona_mux_info(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo);
 extern int arizona_mux_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 extern int arizona_mux_put(struct snd_kcontrol *kcontrol,

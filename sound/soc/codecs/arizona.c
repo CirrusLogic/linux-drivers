@@ -639,26 +639,6 @@ int arizona_init_spk(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(arizona_init_spk);
 
-
-int arizona_mux_info(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
-{
-	struct arizona_enum *arz_enum = (struct arizona_enum *)kcontrol->private_value;
-	struct soc_enum *e = (struct soc_enum *)&(arz_enum->mixer_enum);
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = e->shift_l == e->shift_r ? 1 : 2;
-	uinfo->value.enumerated.items = e->items;
-
-	if (uinfo->value.enumerated.item >= e->items)
-		uinfo->value.enumerated.item = e->items - 1;
-	strlcpy(uinfo->value.enumerated.name,
-		e->texts[uinfo->value.enumerated.item],
-		sizeof(uinfo->value.enumerated.name));
-	return 0;
-}
-EXPORT_SYMBOL_GPL(arizona_mux_info);
-
 int arizona_mux_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
@@ -671,39 +651,26 @@ int arizona_mux_get(struct snd_kcontrol *kcontrol,
 EXPORT_SYMBOL_GPL(arizona_mux_get);
 
 int arizona_mux_put(struct snd_kcontrol *kcontrol,
-		    struct snd_ctl_elem_value *ucontrol)
+	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget_list *wlist = snd_soc_dapm_kcontrol_widget_list(kcontrol);
-	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
-	struct snd_soc_codec *codec = widget->codec;
-	struct snd_soc_card *card = widget->dapm->card;
-	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
 	struct arizona_enum *arz_enum = (struct arizona_enum *)kcontrol->private_value;
 	struct soc_enum *e = &(arz_enum->mixer_enum);
-	unsigned int val, mask;
-	int ret, mux;
+	struct snd_soc_dapm_update update;
+	int mux;
 
 	mux = ucontrol->value.enumerated.item[0];
 
 	if (arz_enum->val == mux)
 		return 0;
-	else
-		arz_enum->val = mux;
 
-	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
-	ret = widget->power_check(widget);
-	if (ret) {
-		val = e->values[mux];
-		val <<= e->shift_l;
-		mask = e->mask << e->shift_l;
+	arz_enum->val = mux;
+	update.kcontrol = kcontrol;
+	update.reg = e->reg;
+	update.mask = e->mask;
+	update.val = snd_soc_enum_item_to_val(e, mux);
 
-		mutex_lock(&arizona->rate_lock);
-		snd_soc_update_bits(codec, e->reg, mask, val);
-		mutex_unlock(&arizona->rate_lock);
-	}
-	mutex_unlock(&card->dapm_mutex);
-
-	return snd_soc_dapm_mux_update_power(widget->dapm, kcontrol, mux, e, NULL);
+	return snd_soc_dapm_mux_update_power(dapm, kcontrol, mux, e, &update);
 }
 EXPORT_SYMBOL_GPL(arizona_mux_put);
 
@@ -712,6 +679,7 @@ int arizona_mux_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	struct snd_soc_dapm_update *update = w->dapm->card->update;
 	struct arizona_enum *arz_enum;
 	struct soc_enum *e;
 	unsigned int val, mask;
@@ -723,12 +691,23 @@ int arizona_mux_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		val = e->values[arz_enum->val];
+		val = snd_soc_enum_item_to_val(e, arz_enum->val);
 		val <<= e->shift_l;
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		val  = 0;
 		break;
+	case SND_SOC_DAPM_PRE_REG:
+		ret = regmap_read(arizona->regmap, e->reg, &val);
+		if (ret)
+			return ret;
+		if (val == 0)
+			update->val = 0;
+		mutex_lock(&arizona->rate_lock);
+		return 0;
+	case SND_SOC_DAPM_POST_REG:
+		mutex_unlock(&arizona->rate_lock);
+		return 0;
 	default:
 		return -EINVAL;
 	}
