@@ -66,6 +66,9 @@ obj-$(CONFIG_MFD_MADERA_SPI)	+= madera-spi.o
 ifneq ($(CONFIG_MFD_CS47L85),n)
 obj-$(CONFIG_MFD_MADERA)	+= cs47l85-tables.o
 endif
+ifneq ($(CONFIG_MFD_CS47L90),n)
+obj-$(CONFIG_MFD_MADERA)	+= cs47l90-tables.o
+endif
 
 obj-$(CONFIG_TPS6105X)		+= tps6105x.o
 obj-$(CONFIG_TPS65010)		+= tps65010.o
