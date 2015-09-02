@@ -152,13 +152,6 @@ struct arizona_pdata {
 	/** set to true if jackdet contact opens on insert */
 	bool jd_invert;
 
-	/**
-	* Set to true to support antenna cable. antenna cable is a 4 pole
-	* cable with open circuit impedance and the usual 3 pole (headphone)
-	* or 4 pole (headset) cables can be plugged into the antenna cable
-	*/
-	bool antenna_supported;
-
 	/** If non-zero don't run headphone detection, report this value */
 	int fixed_hpdet_imp;
 
@@ -183,21 +176,6 @@ struct arizona_pdata {
 	int hpdet_short_circuit_imp;
 
 	/**
-	 * Channel to use for moisture detection, valid values are 0 for
-	 * left and 1 for right
-	 */
-	unsigned int moisture_det_channel;
-
-	/**
-	* This value specifies the  threshold impedance in ohms above
-	* which it will be considered a false detection
-	*/
-	int hpdet_moisture_imp;
-
-	/** Software debounces for moisture detect */
-	int hpdet_moisture_debounce;
-
-	/**
 	 * Channel to use for headphone detection, valid values are 0 for
 	 * left and 1 for right
 	 */
@@ -211,16 +189,6 @@ struct arizona_pdata {
 
 	/** Extra software debounces during button detection */
 	int micd_manual_debounce;
-
-	/** Software debounces during 3/4 pole plugin into antenna cable */
-	int antenna_manual_debounce;
-
-	/** Software debounces during 3/4 pole plugout from antenna cable */
-	int antenna_manual_db_plugout;
-
-	/** range around hp impedance to be rejected to prevent false button events */
-	int antenna_hp_imp_range_lo;
-	int antenna_hp_imp_range_hi;
 
 	/** GPIO for mic detection polarity */
 	int micd_pol_gpio;
@@ -271,12 +239,6 @@ struct arizona_pdata {
 	* of 3.5mm Jack
 	*/
 	struct arizona_hpd_pins hpd_r_pins;
-
-	/**
-	* impedance_measurement_pin for
-	* detecting moisture
-	*/
-	unsigned int moisture_pin;
 
 	/** Reference voltage for DMIC inputs */
 	int dmic_ref[ARIZONA_MAX_INPUT];
