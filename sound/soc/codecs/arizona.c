@@ -5145,7 +5145,6 @@ static int arizona_set_force_bypass(struct snd_soc_codec *codec,
 		micbias_bypass = ARIZONA_MICB1_BYPASS;
 	}
 
-	mutex_lock(&arizona->dapm->card->dapm_mutex);
 	if (arizona->micvdd_regulated) {
 		if (set_bypass)
 			snd_soc_dapm_disable_pin(arizona->dapm,
@@ -5154,15 +5153,11 @@ static int arizona_set_force_bypass(struct snd_soc_codec *codec,
 			snd_soc_dapm_force_enable_pin(arizona->dapm,
 				"MICSUPP");
 
-		mutex_unlock(&arizona->dapm->card->dapm_mutex);
-
 		snd_soc_dapm_sync(arizona->dapm);
 
 		regmap_update_bits(arizona->regmap,
 			ARIZONA_MIC_CHARGE_PUMP_1,
 			ARIZONA_CPMIC_BYPASS, cp_bypass);
-	} else {
-		mutex_unlock(&arizona->dapm->card->dapm_mutex);
 	}
 
 	arizona_get_num_micbias(arizona, &num_micbiases, NULL);
