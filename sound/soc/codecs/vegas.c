@@ -167,10 +167,9 @@ static int vegas_asrc_ev(struct snd_soc_dapm_widget *w,
 static int vegas_in1mux_put(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget_list *wlist = snd_soc_dapm_kcontrol_widget_list(kcontrol);
-	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
+	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
 	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
-	struct vegas_priv *vegas = snd_soc_codec_get_drvdata(widget->codec);
+	struct vegas_priv *vegas = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = vegas->core.arizona;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int mux, inmode;
@@ -251,10 +250,9 @@ static int vegas_in1mux_put(struct snd_kcontrol *kcontrol,
 static int vegas_in2mux_put(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget_list *wlist = snd_soc_dapm_kcontrol_widget_list(kcontrol);
-	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
+	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
 	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
-	struct vegas_priv *vegas = snd_soc_codec_get_drvdata(widget->codec);
+	struct vegas_priv *vegas = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = vegas->core.arizona;
 	unsigned int mux, inmode, src_val, mode_val;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
