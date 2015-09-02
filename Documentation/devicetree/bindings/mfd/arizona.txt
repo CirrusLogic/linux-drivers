@@ -84,21 +84,11 @@ Optional properties:
     and beginning ramp of MICBIAS.
   - wlf,fixed-hpdet-imp : Do not perform any headphone detection, just use
     the fixed value specified here as the headphone impedance.
-  - wlf,hpdet-moisture-imp : This value specifies the  threshold impedance in
-    ohms above which it will be considered a false detection due to moisture,
-    a valid headphone impedance measurement must be less than this threshold
-  - wlf,hpdet-moisture-debounce: Software debounces for moisture detect, if
-    moisture is detected this many number of times then it would be decalred
-    as moisture without any furthur retries
   - wlf,hpdet-short-circuit-imp : Specifies the maximum impedance in ohms
     that will be considered as a short circuit
   - wlf,hpdet-channel : When this property is set then right channel is used
     for headphone impedance measurement else the left headphone channel is
     used
-  - wlf,moisture-det-channel : When this property is set then right channel
-    is used for moisture detect else the left headphone channel is used.
-    This property is used only for arizona chips which do not belong to
-    moon (cs47l90, cs47l91) class of arizona codecs
   - wlf,micd-clamp-mode : Specifies the logic of the micdetect clamp block
   - wlf,hpd-left-pins : This field is only for moon (cs47l90, cs47l91) class
     of arizona codecs. It is a 2 cell long field where the first cell
@@ -108,10 +98,6 @@ Optional properties:
     HPD_SENSE_SEL field of HEADPHONE_DETECT_0 register
   - wlf,hpd-right-pins : See wlf,hpd-left-pins which is for left headphone
     channel and this field is similar but for right headphone channel
-  - wlf,moisture-detect-pin : This field is only for moon (cs47l90, cs47l91)
-    class of arizona codecs. It specifies the impedance sense pin that is used
-    for moisture detect as per HPD_SENSE_SEL field of HEADPHONE_DETECT_0
-    register
   - wlf,micd-ranges : Microphone detection level and key configuration, this
     field can be of variable length but should always be a multiple of 2 cells
     long, each two cell group represents one button configuration
