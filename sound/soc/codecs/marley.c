@@ -212,9 +212,8 @@ static const char * const marley_outdemux_texts[] = {
 static int marley_put_demux(struct snd_kcontrol *kcontrol,
 		     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget_list *wlist = snd_soc_dapm_kcontrol_widget_list(kcontrol);
-	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
-	struct snd_soc_codec *codec = widget->codec;
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
 	struct snd_soc_card *card = codec->component.card;
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
@@ -287,7 +286,7 @@ static int marley_put_demux(struct snd_kcontrol *kcontrol,
 
 	mutex_unlock(&card->dapm_mutex);
 
-	return snd_soc_dapm_mux_update_power(widget->dapm, kcontrol, mux, e, NULL);
+	return snd_soc_dapm_mux_update_power(dapm, kcontrol, mux, e, NULL);
 }
 
 static const SOC_ENUM_SINGLE_DECL(marley_outdemux_enum,
