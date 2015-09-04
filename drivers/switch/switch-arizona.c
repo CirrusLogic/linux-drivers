@@ -536,6 +536,8 @@ static int arizona_extcon_set_micd_bias(struct arizona_extcon_info *info,
 		return 0;
 
 	if (micd_bias->enabled) {
+		dev_dbg(arizona->dev, "disabling %s\n", old_widget);
+
 		ret = snd_soc_dapm_disable_pin(dapm, old_widget);
 		if (ret != 0)
 			dev_warn(arizona->dev,
@@ -545,6 +547,8 @@ static int arizona_extcon_set_micd_bias(struct arizona_extcon_info *info,
 	}
 
 	if (enable) {
+		dev_dbg(arizona->dev, "enabling %s\n", new_widget);
+
 		ret = snd_soc_dapm_force_enable_pin(dapm, new_widget);
 		if (ret != 0)
 			dev_warn(arizona->dev, "Failed to enable %s: %d\n",
@@ -560,8 +564,6 @@ static int arizona_extcon_set_micd_bias(struct arizona_extcon_info *info,
 static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 {
 	struct arizona *arizona = info->arizona;
-
-	mode %= info->micd_num_modes;
 
 	if (arizona->pdata.micd_pol_gpio > 0)
 		gpio_set_value_cansleep(arizona->pdata.micd_pol_gpio,
@@ -599,9 +601,6 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 
 	info->micd_mode = mode;
 
-	arizona_extcon_set_micd_bias(info, info->micd_modes[mode].bias,
-		info->micd_bias.enabled);
-
 	dev_dbg(arizona->dev, "Set jack polarity to %d\n", mode);
 }
 
@@ -611,7 +610,7 @@ static const char *arizona_extcon_get_micbias(struct arizona_extcon_info *info)
 
 	switch (arizona->type) {
 	case CS47L35:
-		switch (info->micd_modes[0].bias) {
+		switch (info->micd_modes[info->micd_mode].bias) {
 		case 1:
 			return "MICBIAS1A";
 		case 2:
@@ -623,7 +622,7 @@ static const char *arizona_extcon_get_micbias(struct arizona_extcon_info *info)
 		}
 	case CS47L90:
 	case CS47L91:
-		switch (info->micd_modes[0].bias) {
+		switch (info->micd_modes[info->micd_mode].bias) {
 		case 0:
 			return "MICBIAS1A";
 		case 1:
@@ -645,7 +644,7 @@ static const char *arizona_extcon_get_micbias(struct arizona_extcon_info *info)
 		}
 		break;
 	default:
-		switch (info->micd_modes[0].bias) {
+		switch (info->micd_modes[info->micd_mode].bias) {
 		case 1:
 			return "MICBIAS1";
 		case 2:
@@ -667,6 +666,8 @@ static void arizona_extcon_pulse_micbias(struct arizona_extcon_info *info)
 	struct snd_soc_dapm_context *dapm = arizona->dapm;
 	int ret;
 
+	dev_dbg(arizona->dev, "enabling %s\n", widget);
+
 	ret = snd_soc_dapm_force_enable_pin(dapm, widget);
 	if (ret != 0)
 		dev_warn(arizona->dev, "Failed to enable %s: %d\n",
@@ -678,12 +679,56 @@ static void arizona_extcon_pulse_micbias(struct arizona_extcon_info *info)
 		return;
 
 	if (!arizona->pdata.micd_force_micbias) {
+		dev_dbg(arizona->dev, "disabling %s\n", widget);
+
 		ret = snd_soc_dapm_disable_pin(arizona->dapm, widget);
 		if (ret != 0)
 			dev_warn(arizona->dev, "Failed to disable %s: %d\n",
 				 widget, ret);
 
 		snd_soc_dapm_sync(dapm);
+	}
+}
+
+static void arizona_extcon_change_mode(struct arizona_extcon_info *info)
+{
+	struct arizona *arizona = info->arizona;
+	int old_mode = info->micd_mode;
+	int new_mode = (info->micd_mode + 1) % info->micd_num_modes;
+	bool change_bias = false;
+	const char *widget;
+	int ret;
+
+	dev_dbg(arizona->dev, "change micd mode %d->%d (bias %d->%d\n)",
+		old_mode, new_mode,
+		info->micd_modes[old_mode].bias,
+		info->micd_modes[new_mode].bias);
+
+	if (info->micd_modes[old_mode].bias !=
+	    info->micd_modes[new_mode].bias) {
+		change_bias = true;
+
+		if (arizona->pdata.micd_force_micbias) {
+			widget = arizona_extcon_get_micbias(info);
+			dev_dbg(arizona->dev, "disabling %s\n", widget);
+
+			ret = snd_soc_dapm_disable_pin(arizona->dapm, widget);
+			if (ret)
+				dev_warn(arizona->dev,
+					 "Failed to disable %s: %d\n",
+					 widget, ret);
+
+			snd_soc_dapm_sync(arizona->dapm);
+		}
+	}
+
+	arizona_extcon_set_mode(info, new_mode);
+
+	if (change_bias) {
+		arizona_extcon_set_micd_bias(info,
+					     info->micd_modes[new_mode].bias,
+					     info->micd_bias.enabled);
+		arizona_extcon_pulse_micbias(info);
 	}
 }
 
@@ -1682,6 +1727,8 @@ void arizona_micd_stop(struct arizona_extcon_info *info)
 	regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
 			   ARIZONA_MICD_ENA, 0);
 
+	dev_dbg(arizona->dev, "disabling %s\n", widget);
+
 	ret = snd_soc_dapm_disable_pin(dapm, widget);
 	if (ret != 0)
 		dev_warn(arizona->dev,
@@ -1906,10 +1953,7 @@ int arizona_micd_mic_reading(struct arizona_extcon_info *info, int val)
 			dev_dbg(arizona->dev, "Detected HP/line\n");
 			goto done;
 		} else {
-			info->micd_mode++;
-			if (info->micd_mode == info->micd_num_modes)
-				info->micd_mode = 0;
-			arizona_extcon_set_mode(info, info->micd_mode);
+			arizona_extcon_change_mode(info);
 
 			info->jack_flips++;
 
