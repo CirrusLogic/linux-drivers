@@ -563,7 +563,7 @@ static DECLARE_TLV_DB_SCALE(ana_tlv, 0, 100, 0);
 static DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
 static DECLARE_TLV_DB_SCALE(noise_tlv, -13200, 600, 0);
-static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
+static DECLARE_TLV_DB_SCALE(ng_tlv, -12000, 600, 0);
 
 #define MARLEY_NG_SRC(name, base) \
 	SOC_SINGLE(name " NG OUT1L Switch",  base,  0, 1, 0), \
