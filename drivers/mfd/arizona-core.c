@@ -987,8 +987,6 @@ static int arizona_of_get_gpio_defaults(struct arizona *arizona,
 
 		pdata->gpio_defaults[i++] = val;
 	}
-	if (!i)
-		return 0;
 
 	/*
 	 * All values are literal except out of range values
@@ -996,7 +994,8 @@ static int arizona_of_get_gpio_defaults(struct arizona *arizona,
 	 * data which uses 0 as chip default and out of range
 	 * as zero.
 	 */
-	for (i = 0; i < ARRAY_SIZE(pdata->gpio_defaults); i++) {
+	while (i > 0) {
+		--i;
 		if (pdata->gpio_defaults[i] > 0xffff)
 			pdata->gpio_defaults[i] = 0;
 		else if (pdata->gpio_defaults[i] == 0)
