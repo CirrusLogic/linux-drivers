@@ -2798,10 +2798,9 @@ int wm_adsp2_init(struct wm_adsp *dsp, struct mutex *fw_lock)
 		if (!dsp->dev->of_node || wm_adsp_of_parse_adsp(dsp) <= 0) {
 			dsp->num_firmwares = WM_ADSP_NUM_FW;
 			dsp->firmwares = wm_adsp_fw;
+			for (i = 0; i < dsp->num_firmwares; i++)
+				dsp->firmwares[i].name = wm_adsp_fw_text[i];
 		}
-
-		for (i = 0; i < dsp->num_firmwares; i++)
-			dsp->firmwares[i].name = wm_adsp_fw_text[i];
 	} else {
 		ctl_names = devm_kzalloc(dsp->dev,
 				dsp->num_firmwares * sizeof(const char *),
