@@ -164,14 +164,8 @@ static const struct regmap_irq largo_irqs[ARIZONA_NUM_IRQ] = {
 	[ARIZONA_IRQ_SPK1L_SHORT] = {
 		.reg_offset = 5, .mask = ARIZONA_SPK1L_SHORT_EINT1
 	},
-	[ARIZONA_IRQ_HP1R_SC_NEG] = {
-		.reg_offset = 5, .mask = ARIZONA_HP1R_SC_NEG_EINT1
-	},
 	[ARIZONA_IRQ_HP1R_SC_POS] = {
 		.reg_offset = 5, .mask = ARIZONA_HP1R_SC_POS_EINT1
-	},
-	[ARIZONA_IRQ_HP1L_SC_NEG] = {
-		.reg_offset = 5, .mask = ARIZONA_HP1L_SC_NEG_EINT1
 	},
 	[ARIZONA_IRQ_HP1L_SC_POS] = {
 		.reg_offset = 5, .mask = ARIZONA_HP1L_SC_POS_EINT1
