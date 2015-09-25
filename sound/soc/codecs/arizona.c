@@ -4215,8 +4215,12 @@ static int arizona_find_fratio(struct arizona_fll *fll, unsigned int fref,
 	case WM1840:
 	case WM1831:
 	case CS47L24:
-	case CS47L35:
 		break;
+	case CS47L35:
+		/* rev A0 is like Clearwater, so break */
+		if (fll->arizona->rev == 0)
+			break;
+		/* rev A1 works similar to Moon, so fall through to default */
 	default:
 		if (!sync) {
 			ratio = 1;
@@ -4289,7 +4293,6 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 	case WM1840:
 	case WM1831:
 	case CS47L24:
-	case CS47L35:
 		if (fref == 11289600 && fvco == 90316800) {
 			if (!sync)
 				cfg->fratio = init_ratio - 1;
@@ -4299,6 +4302,19 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 		if (sync)
 			return init_ratio;
 		break;
+	case CS47L35:
+		if (fll->arizona->rev == 0) {
+			if (fref == 11289600 && fvco == 90316800) {
+				if (!sync)
+					cfg->fratio = init_ratio - 1;
+				return init_ratio;
+			}
+
+			if (sync)
+				return init_ratio;
+			break;
+		}
+		return init_ratio;
 	default:
 		return init_ratio;
 	}
@@ -4415,7 +4431,6 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 	case WM1840:
 	case WM1831:
 	case CS47L24:
-	case CS47L35:
 		for (i = 0; i < size_fll_gain; i++) {
 			if (fll_gain[i].min <= fref &&
 			    fref <= fll_gain[i].max) {
@@ -4652,8 +4667,11 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 	case WM1840:
 	case WM1831:
 	case CS47L24:
-	case CS47L35:
 		break;
+	case CS47L35:
+		if (fll->arizona->rev == 0)
+			break;
+		/* for rev A1 fall through */
 	default:
 		if ((!use_sync) && (ref_cfg->theta == 0))
 			regmap_update_bits_check(arizona->regmap,
