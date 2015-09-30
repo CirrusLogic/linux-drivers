@@ -70,6 +70,15 @@ static const struct regmap_irq marley_irqs[ARIZONA_NUM_IRQ] = {
 	[ARIZONA_IRQ_DSP_IRQ8] = { .reg_offset = 10,
 				  .mask = CLEARWATER_DSP_IRQ8_EINT1},
 
+	[ARIZONA_IRQ_HP2R_SC_POS] = { .reg_offset = 11,
+				      .mask = CLEARWATER_HP2R_SC_EINT1},
+	[ARIZONA_IRQ_HP2L_SC_POS] = { .reg_offset = 11,
+				      .mask = CLEARWATER_HP2L_SC_EINT1},
+	[ARIZONA_IRQ_HP1R_SC_POS] = { .reg_offset = 11,
+				      .mask = CLEARWATER_HP1R_SC_EINT1},
+	[ARIZONA_IRQ_HP1L_SC_POS] = { .reg_offset = 11,
+				      .mask = CLEARWATER_HP1L_SC_EINT1},
+
 	[ARIZONA_IRQ_SPK_OVERHEAT_WARN] = { .reg_offset = 14,
 				.mask = CLEARWATER_SPK_OVERHEAT_WARN_EINT1},
 	[ARIZONA_IRQ_SPK_OVERHEAT] = { .reg_offset = 14,
