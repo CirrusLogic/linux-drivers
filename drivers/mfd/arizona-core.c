@@ -1256,7 +1256,6 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 	memset(&out_mono, 0, sizeof(out_mono));
 
 	pdata->reset = arizona_of_get_named_gpio(arizona, "wlf,reset", true);
-	pdata->ldoena = arizona_of_get_named_gpio(arizona, "wlf,ldoena", true);
 
 	arizona_of_read_s32(arizona, "wlf,clk32k-src", false,
 				&pdata->clk32k_src);
