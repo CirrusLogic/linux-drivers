@@ -77,8 +77,7 @@ static int arizona_spi_probe(struct spi_device *spi)
 		break;
 #endif
 	default:
-		dev_err(&spi->dev, "Unknown device type %ld\n",
-			id->driver_data);
+		dev_err(&spi->dev, "Unknown device type %ld\n", type);
 		return -EINVAL;
 	}
 
@@ -106,7 +105,7 @@ static int arizona_spi_probe(struct spi_device *spi)
 		}
 	}
 
-	arizona->type = id->driver_data;
+	arizona->type = type;
 	arizona->dev = &spi->dev;
 	arizona->irq = spi->irq;
 
