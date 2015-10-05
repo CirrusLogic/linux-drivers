@@ -81,6 +81,23 @@ static bool cs35l33_volatile_register(struct device *dev, unsigned int reg)
 	}
 }
 
+static bool cs35l33_writeable_register(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	/* these are read only registers */
+	case CS35L33_DEVID_AB:
+	case CS35L33_DEVID_CD:
+	case CS35L33_DEVID_E:
+	case CS35L33_REV_ID:
+	case CS35L33_INT_STATUS_1:
+	case CS35L33_INT_STATUS_2:
+	case CS35L33_HG_STATUS:
+		return false;
+	default:
+		return true;
+	}
+}
+
 static bool cs35l33_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -479,6 +496,7 @@ static struct regmap_config cs35l33_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(cs35l33_reg),
 	.volatile_reg = cs35l33_volatile_register,
 	.readable_reg = cs35l33_readable_register,
+	.writeable_reg = cs35l33_writeable_register,
 	.cache_type = REGCACHE_RBTREE,
 };
 
