@@ -39,6 +39,9 @@
 #define CS35L33_INT_MASK_2	0x14	/* Interrupt Mask 2 */
 #define CS35L33_INT_STATUS_1	0x15	/* Interrupt Status 1 [RO] */
 #define CS35L33_INT_STATUS_2	0x16	/* Interrupt Status 2 [RO] */
+#define CS35L33_DIAG_LOCK	0x17	/* Diagnostic Mode Register Lock */
+#define CS35L33_DIAG_CTRL_1	0x18	/* Diagnostic Mode Register Control */
+#define CS35L33_DIAG_CTRL_2	0x19	/* Diagnostic Mode Register Control 2 */
 #define CS35L33_HG_MEMLDO_CTL	0x23	/* H/G Memory/LDO CTL */
 #define CS35L33_HG_REL_RATE	0x24	/* H/G Release Rate */
 #define CS35L33_LDO_DEL		0x25	/* LDO Entry Delay/VPhg Control 1 */
@@ -47,10 +50,21 @@
 #define CS35L33_HGLDO_CNT	0x28	/* H/G LDO Counter */
 #define CS35L33_HG_HEAD		0x29	/* H/G Headroom */
 #define CS35L33_HG_EN		0x2A	/* H/G Enable/VPhg CNT2 */
-#define CS35L33_HG_STATUS	0x3F	/* H/G Status */
-
 #define CS35L33_BST_CTL3	0x2C	/* Boost Converter Control 3 */
+#define CS35L33_TX_VMON  	0x2D	/* TDM TX Control 1 (VMON) */
+#define CS35L33_TX_IMON  	0x2E	/* TDM TX Control 2 (IMON) */
+#define CS35L33_TX_VPMON	0x2F	/* TDM TX Control 3 (VPMON) */
+#define CS35L33_TX_VBSTMON	0x30	/* TDM TX Control 4 (VBSTMON) */
+#define CS35L33_TX_FLAG  	0x31	/* TDM TX Control 5 (FLAG) */
+#define CS35L33_TX_EN1		0x32	/* TDM TX Enable 1 */
+#define CS35L33_TX_EN2		0x33	/* TDM TX Enable 2 */
+#define CS35L33_TX_EN3		0x34	/* TDM TX Enable 3 */
+#define CS35L33_TX_EN4		0x35	/* TDM TX Enable 4 */
+#define CS35L33_RX_AUD		0x36	/* TDM RX Control 1 */
+#define CS35L33_RX_SPLY 	0x37	/* TDM RX Control 2 */
+#define CS35L33_RX_ALIVE	0x38	/* TDM RX Control 3 */
 #define CS35L33_BST_CTL4	0x39	/* Boost Converter Control 4 */
+#define CS35L33_HG_STATUS	0x3F	/* H/G Status */
 #define CS35L33_BST_CTL5	0x3F	/* Boost Converter Control 5 */
 #define CS35L33_MAX_REGISTER	0x3F
 #define CS35L33_REGISTER_COUNT	0x1B
