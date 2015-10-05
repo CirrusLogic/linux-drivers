@@ -176,32 +176,46 @@ static const struct snd_kcontrol_new cs35l33_snd_controls[] = {
 	SOC_SINGLE("Monitor Select", CS35L33_PWRCTL2, 3, 1, 1),
 };
 
-static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
+static int cs35l33_spkrdrv_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct cs35l33_private *priv = snd_soc_codec_get_drvdata(codec);
 	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		if (!priv->amp_cal) {
-			msleep(10);
-			snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
-				    AMP_CAL, AMP_CAL);
-		}
-	break;
 	case SND_SOC_DAPM_POST_PMU:
-		/* Wait 8ms after amp is powered up to complete
-		 *  calibration.
-		 */
 		if (!priv->amp_cal) {
 			msleep(8);
 			priv->amp_cal = true;
+			snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
+				    AMP_CAL, 0);
 		}
 	break;
 	default:
 		pr_err("Invalid event = 0x%x\n", event);
 
 	}
+
+	return 0;
+}
+
+static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct cs35l33_private *priv = snd_soc_codec_get_drvdata(codec);
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		if (!priv->amp_cal) {
+			snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
+				    AMP_CAL, AMP_CAL);
+			msleep(10);
+		}
+	break;
+	default:
+		pr_err("Invalid event = 0x%x\n", event);
+
+	}
+
 	return 0;
 }
 
@@ -220,10 +234,10 @@ static const struct snd_kcontrol_new vbstmon_ctl =
 static const struct snd_soc_dapm_widget cs35l33_dapm_widgets[] = {
 
 	SND_SOC_DAPM_OUTPUT("SPK"),
-	SND_SOC_DAPM_OUT_DRV("SPKDRV", CS35L33_PWRCTL1, 7, 1, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV_E("SPKDRV", CS35L33_PWRCTL1, 7, 1, NULL, 0,
+		cs35l33_spkrdrv_event, SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_AIF_IN_E("SDIN", NULL, 0, SND_SOC_NOPM,
-			      0, 0, cs35l33_sdin_event,
-				SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
+		0, 0, cs35l33_sdin_event, SND_SOC_DAPM_POST_PMU),
 
 	SND_SOC_DAPM_INPUT("VP"),
 	SND_SOC_DAPM_INPUT("ISENSE"),
