@@ -623,26 +623,7 @@ static struct i2c_driver cs35l33_i2c_driver = {
 	.remove = cs35l33_i2c_remove,
 
 };
-
-static int __init cs35l33_modinit(void)
-{
-	int ret;
-	ret = i2c_add_driver(&cs35l33_i2c_driver);
-	if (ret != 0) {
-		pr_err("Failed to register CS35L33 I2C driver: %d\n", ret);
-		return ret;
-	}
-	return 0;
-}
-
-module_init(cs35l33_modinit);
-
-static void __exit cs35l33_exit(void)
-{
-	i2c_del_driver(&cs35l33_i2c_driver);
-}
-
-module_exit(cs35l33_exit);
+module_i2c_driver(cs35l33_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC CS35L33 driver");
 MODULE_AUTHOR("Paul Handrigan, Cirrus Logic Inc, <paul.handrigan@cirrus.com>");
