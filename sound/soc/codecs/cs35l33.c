@@ -38,8 +38,6 @@ struct  cs35l33_private {
 	struct snd_soc_codec *codec;
 	struct cs35l33_pdata pdata;
 	struct regmap *regmap;
-	enum snd_soc_control_type control_type;
-	void *control_data;
 	bool amp_cal;
 	int mclk_int;
 };
@@ -407,16 +405,8 @@ static struct snd_soc_dai_driver cs35l33_dai = {
 
 static int cs35l33_probe(struct snd_soc_codec *codec)
 {
-	int ret;
 	struct cs35l33_private *cs35l33 = snd_soc_codec_get_drvdata(codec);
 	u8 reg;
-
-	codec->control_data = cs35l33->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	reg = snd_soc_read(codec, CS35L33_PROTECT_CTL);
 	reg &= ~(1 << 2);
@@ -444,7 +434,7 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 				cs35l33->pdata.amp_drv_sel <<
 				AMP_DRV_SEL_SHIFT);
 
-	return ret;
+	return 0;
 }
 
 static int cs35l33_remove(struct snd_soc_codec *codec)
@@ -453,10 +443,18 @@ static int cs35l33_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static struct regmap *cs35l33_get_regmap(struct device *dev)
+{
+       struct cs35l33_private *cs35l33 = dev_get_drvdata(dev);
+
+       return cs35l33->regmap;
+}
+
 static struct snd_soc_codec_driver soc_codec_dev_cs35l33 = {
 	.probe = cs35l33_probe,
 	.remove = cs35l33_remove,
 
+	.get_regmap = cs35l33_get_regmap,
 	.set_bias_level = cs35l33_set_bias_level,
 
 	.dapm_widgets = cs35l33_dapm_widgets,
