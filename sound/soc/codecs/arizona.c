@@ -3008,7 +3008,24 @@ static int arizona_set_opclk(struct snd_soc_codec *codec, unsigned int clk,
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
 	unsigned int reg;
 	unsigned int *rates;
-	int ref, div, refclk;
+	int ref, refclk;
+	unsigned int div, div_incr;
+
+	switch (priv->arizona->type) {
+	case WM5102:
+	case WM5110:
+	case WM8280:
+	case WM8998:
+	case WM1814:
+	case CS47L24:
+	case WM1831:
+	case WM8997:
+		div_incr = 1;
+		break;
+	default:
+		div_incr = 2;
+		break;
+	}
 
 	switch (clk) {
 	case ARIZONA_CLK_OPCLK:
@@ -3030,7 +3047,7 @@ static int arizona_set_opclk(struct snd_soc_codec *codec, unsigned int clk,
 
 	for (ref = 0; ref < ARRAY_SIZE(arizona_sysclk_48k_rates) &&
 		     rates[ref] <= refclk; ref++) {
-		div = 1;
+		div = div_incr;
 		while (rates[ref] / div >= freq && div < 32) {
 			if (rates[ref] / div == freq) {
 				dev_dbg(codec->dev, "Configured %dHz OPCLK\n",
@@ -3043,7 +3060,7 @@ static int arizona_set_opclk(struct snd_soc_codec *codec, unsigned int clk,
 						    ref);
 				return 0;
 			}
-			div++;
+			div += div_incr;
 		}
 	}
 
