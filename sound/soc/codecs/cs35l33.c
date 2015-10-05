@@ -204,13 +204,21 @@ static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = w->codec;
 	struct cs35l33_private *priv = snd_soc_codec_get_drvdata(codec);
 	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		snd_soc_update_bits(codec, CS35L33_PWRCTL1,
+				    PDN_BST, 0);
+		break;
 	case SND_SOC_DAPM_POST_PMU:
 		if (!priv->amp_cal) {
 			snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
 				    AMP_CAL, AMP_CAL);
 			msleep(10);
 		}
-	break;
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		snd_soc_update_bits(codec, CS35L33_PWRCTL1,
+				    PDN_BST, PDN_BST);
+		break;
 	default:
 		pr_err("Invalid event = 0x%x\n", event);
 
@@ -236,8 +244,9 @@ static const struct snd_soc_dapm_widget cs35l33_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("SPK"),
 	SND_SOC_DAPM_OUT_DRV_E("SPKDRV", CS35L33_PWRCTL1, 7, 1, NULL, 0,
 		cs35l33_spkrdrv_event, SND_SOC_DAPM_POST_PMU),
-	SND_SOC_DAPM_AIF_IN_E("SDIN", NULL, 0, SND_SOC_NOPM,
-		0, 0, cs35l33_sdin_event, SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_AIF_IN_E("SDIN", NULL, 0, CS35L33_PWRCTL2,
+		2, 1, cs35l33_sdin_event, SND_SOC_DAPM_PRE_PMU |
+		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	SND_SOC_DAPM_INPUT("VP"),
 	SND_SOC_DAPM_INPUT("ISENSE"),
@@ -278,13 +287,11 @@ static int cs35l33_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		snd_soc_update_bits(codec, CS35L33_PWRCTL1,
-				    PDN_ALL | PDN_BST, 0);
-		snd_soc_update_bits(codec, CS35L33_PWRCTL2,
-				    PDN_SDIN, 0);
+				    PDN_ALL, 0);
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		snd_soc_update_bits(codec, CS35L33_PWRCTL1,
-				    PDN_BST | PDN_ALL, PDN_BST | PDN_ALL);
+				    PDN_ALL, PDN_ALL);
 		break;
 	case SND_SOC_BIAS_OFF:
 		break;
