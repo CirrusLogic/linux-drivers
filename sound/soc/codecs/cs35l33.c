@@ -68,6 +68,10 @@ static const struct reg_default cs35l33_reg[] = {
 static bool cs35l33_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case CS35L33_DEVID_AB:
+	case CS35L33_DEVID_CD:
+	case CS35L33_DEVID_E:
+	case CS35L33_REV_ID:
 	case CS35L33_INT_STATUS_1:
 	case CS35L33_INT_STATUS_2:
 	case CS35L33_HG_STATUS:
