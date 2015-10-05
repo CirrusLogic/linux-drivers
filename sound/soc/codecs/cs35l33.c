@@ -241,7 +241,7 @@ static const struct snd_soc_dapm_widget cs35l33_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route cs35l33_audio_map[] = {
-
+	{"SDIN", NULL, "CS35L33 Playback"},
 	{"SPKDRV", NULL, "SDIN"},
 	{"SPK", NULL, "SPKDRV"},
 
