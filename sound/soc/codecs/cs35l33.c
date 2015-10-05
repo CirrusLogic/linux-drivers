@@ -400,10 +400,9 @@ static int cs35l33_set_tristate(struct snd_soc_dai *dai, int tristate)
 	return 0;
 }
 
-static int cs35l33_codec_set_sysclk(struct snd_soc_dai *dai,
-		int clk_id, unsigned int freq, int dir)
+static int cs35l33_codec_set_sysclk(struct snd_soc_codec *codec,
+		int clk_id, int source, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = dai->codec;
 	struct cs35l33_private *cs35l33 = snd_soc_codec_get_drvdata(codec);
 	switch (freq) {
 	case CS35L33_MCLK_5644:
@@ -432,7 +431,6 @@ static const struct snd_soc_dai_ops cs35l33_ops = {
 	.set_tristate = cs35l33_set_tristate,
 	.set_fmt = cs35l33_set_dai_fmt,
 	.hw_params = cs35l33_pcm_hw_params,
-	.set_sysclk = cs35l33_codec_set_sysclk,
 };
 
 static struct snd_soc_dai_driver cs35l33_dai = {
@@ -509,6 +507,7 @@ static struct snd_soc_codec_driver soc_codec_dev_cs35l33 = {
 
 	.get_regmap = cs35l33_get_regmap,
 	.set_bias_level = cs35l33_set_bias_level,
+	.set_sysclk = cs35l33_codec_set_sysclk,
 
 	.dapm_widgets = cs35l33_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(cs35l33_dapm_widgets),
