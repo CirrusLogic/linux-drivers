@@ -189,7 +189,7 @@ static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
 				    AMP_CAL, AMP_CAL);
 		}
 	break;
-	case SND_SOC_DAPM_POST_PMD:
+	case SND_SOC_DAPM_POST_PMU:
 		/* Wait 8ms after amp is powered up to complete
 		 *  calibration.
 		 */
