@@ -195,7 +195,6 @@ static const struct snd_kcontrol_new cs35l33_snd_controls[] = {
 		       4, 0x09, 0, classd_ctl_tlv),
 	SOC_SINGLE_SX_TLV("DAC Volume", CS35L33_DIG_VOL_CTL,
 			0, 0x34, 0xE4, dac_tlv),
-	SOC_SINGLE("Monitor Select", CS35L33_PWRCTL2, 3, 1, 1),
 };
 
 static int cs35l33_spkrdrv_event(struct snd_soc_dapm_widget *w,
@@ -225,10 +224,15 @@ static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct cs35l33_private *priv = snd_soc_codec_get_drvdata(codec);
+	unsigned int val;
+
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		snd_soc_update_bits(codec, CS35L33_PWRCTL1,
 				    PDN_BST, 0);
+		val = priv->is_tdm_mode ? 0 : PDN_TDM;
+		snd_soc_update_bits(codec, CS35L33_PWRCTL2,
+				    PDN_TDM, val);
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		if (!priv->amp_cal) {
@@ -240,11 +244,54 @@ static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMD:
 		snd_soc_update_bits(codec, CS35L33_PWRCTL1,
 				    PDN_BST, PDN_BST);
+		snd_soc_update_bits(codec, CS35L33_PWRCTL2,
+				    PDN_TDM, PDN_TDM);
 		break;
 	default:
 		pr_err("Invalid event = 0x%x\n", event);
 
 	}
+
+	return 0;
+}
+
+static int cs35l33_sdout_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct cs35l33_private *priv = snd_soc_codec_get_drvdata(codec);
+	unsigned int mask, val, mask2, val2;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		if (priv->is_tdm_mode) {
+			/* set sdout_3st_i2s and reset pdn_tdm */
+			mask = (SDOUT_3ST_I2S | PDN_TDM);
+			val = SDOUT_3ST_I2S;
+			/* reset sdout_3st_tdm */
+			mask2 = SDOUT_3ST_TDM;
+			val2 = 0;
+		} else {
+			/* reset sdout_3st_i2s and set pdn_tdm */
+			mask = (SDOUT_3ST_I2S | PDN_TDM);
+			val = PDN_TDM;
+			/* set sdout_3st_tdm */
+			mask2 = val2 = SDOUT_3ST_TDM;
+		}
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		mask = val = (SDOUT_3ST_I2S | PDN_TDM);
+		mask2 = val2 = SDOUT_3ST_TDM;
+		break;
+	default:
+		pr_err("Invalid event = 0x%x\n", event);
+		return 0;
+	}
+
+	snd_soc_update_bits(codec, CS35L33_PWRCTL2,
+		mask, val);
+	snd_soc_update_bits(codec, CS35L33_CLK_CTL,
+		mask2, val2);
 
 	return 0;
 }
@@ -269,7 +316,9 @@ static const struct snd_soc_dapm_widget cs35l33_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("VBSTMON", NULL,
 		CS35L33_PWRCTL2, PDN_VBSTMON_SHIFT, 1),
 
-	SND_SOC_DAPM_AIF_OUT("SDOUT", NULL, 0, CS35L33_PWRCTL2, 3, 1),
+	SND_SOC_DAPM_AIF_OUT_E("SDOUT", NULL, 0, SND_SOC_NOPM, 0, 0,
+		cs35l33_sdout_event, SND_SOC_DAPM_PRE_PMU |
+		SND_SOC_DAPM_PRE_PMD),
 };
 
 static const struct snd_soc_dapm_route cs35l33_audio_map[] = {
@@ -459,16 +508,23 @@ static int cs35l33_pcm_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-
 static int cs35l33_set_tristate(struct snd_soc_dai *dai, int tristate)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	if (tristate)
+
+	if (tristate) {
 		snd_soc_update_bits(codec, CS35L33_PWRCTL2,
-		SDOUT_3ST_I2S, SDOUT_3ST_I2S);
-	else
+			SDOUT_3ST_I2S, SDOUT_3ST_I2S);
+		snd_soc_update_bits(codec, CS35L33_CLK_CTL,
+			SDOUT_3ST_TDM, SDOUT_3ST_TDM);
+	}
+	else {
 		snd_soc_update_bits(codec, CS35L33_PWRCTL2,
-		SDOUT_3ST_I2S, 0);
+			SDOUT_3ST_I2S, 0);
+		snd_soc_update_bits(codec, CS35L33_CLK_CTL,
+			SDOUT_3ST_TDM, 0);
+	}
+
 	return 0;
 }
 
