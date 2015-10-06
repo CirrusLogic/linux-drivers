@@ -232,4 +232,8 @@
 #define X_LOC_SHIFT		0
 #define X_LOC   		(0x1F << X_LOC_SHIFT)
 
+/* CS35L33_RX_AUD */
+#define AUDIN_RX_DEPTH_SHIFT	5
+#define AUDIN_RX_DEPTH  	(0x7 << AUDIN_RX_DEPTH_SHIFT)
+
 #endif
