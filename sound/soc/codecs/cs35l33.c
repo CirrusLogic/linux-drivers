@@ -295,6 +295,11 @@ static const struct snd_soc_dapm_route cs35l33_audio_map[] = {
 	{"CS35L33 Capture", NULL, "SDOUT"},
 };
 
+static const struct snd_soc_dapm_route cs35l33_vphg_auto_route[] = {
+	{"SPKDRV", NULL, "VPMON"},
+	{"VPMON", NULL, "CS35L33 Playback"},
+};
+
 static int cs35l33_set_bias_level(struct snd_soc_codec *codec,
 				  enum snd_soc_bias_level level)
 {
@@ -491,6 +496,52 @@ static struct snd_soc_dai_driver cs35l33_dai = {
 		.symmetric_rates = 1,
 };
 
+int cs35l33_set_hg_data(struct snd_soc_codec *codec, struct cs35l33_pdata *pdata)
+{
+	struct cs35l33_hg *hg_config = &pdata->hg_config;
+
+	if (hg_config->enable_hg_algo) {
+		snd_soc_update_bits(codec, CS35L33_HG_MEMLDO_CTL,
+			MEM_DEPTH_MASK,
+			hg_config->mem_depth << MEM_DEPTH_SHIFT);
+		snd_soc_write(codec, CS35L33_HG_REL_RATE,
+			hg_config->release_rate);
+		snd_soc_update_bits(codec, CS35L33_HG_HEAD,
+			HD_RM_MASK,
+			hg_config->hd_rm << HD_RM_SHIFT);
+		snd_soc_update_bits(codec, CS35L33_HG_MEMLDO_CTL,
+			LDO_THLD_MASK,
+			hg_config->ldo_thld << LDO_THLD_SHIFT);
+		snd_soc_update_bits(codec, CS35L33_HG_MEMLDO_CTL,
+			LDO_DISABLE_MASK,
+			hg_config->ldo_path_disable << LDO_DISABLE_SHIFT);
+		snd_soc_update_bits(codec, CS35L33_LDO_DEL,
+			LDO_ENTRY_DELAY_MASK,
+			hg_config->ldo_entry_delay << LDO_ENTRY_DELAY_SHIFT);
+		if (hg_config->vp_hg_auto) {
+			snd_soc_update_bits(codec, CS35L33_HG_EN,
+				VP_HG_AUTO_MASK,
+				VP_HG_AUTO_MASK);
+			snd_soc_dapm_add_routes(&codec->dapm,
+				cs35l33_vphg_auto_route,
+				ARRAY_SIZE(cs35l33_vphg_auto_route));
+		}
+		snd_soc_update_bits(codec, CS35L33_HG_EN,
+			VP_HG_MASK,
+			hg_config->vp_hg << VP_HG_SHIFT);
+		snd_soc_update_bits(codec, CS35L33_LDO_DEL,
+			VP_HG_RATE_MASK,
+			hg_config->vp_hg_rate << VP_HG_RATE_SHIFT);
+		snd_soc_update_bits(codec, CS35L33_LDO_DEL,
+			VP_HG_VA_MASK,
+			hg_config->vp_hg_va << VP_HG_VA_SHIFT);
+		snd_soc_update_bits(codec, CS35L33_HG_EN,
+			CLASS_HG_EN_MASK, CLASS_HG_EN_MASK);
+	}
+
+	return 0;
+}
+
 static int cs35l33_probe(struct snd_soc_codec *codec)
 {
 	struct cs35l33_private *cs35l33 = snd_soc_codec_get_drvdata(codec);
@@ -527,6 +578,8 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 	if (cs35l33->pdata.boost_ipk)
 		snd_soc_write(codec, CS35L33_BST_PEAK_CTL,
 			cs35l33->pdata.boost_ipk);
+
+	cs35l33_set_hg_data(codec, &(cs35l33->pdata));
 
 	pm_runtime_put_sync(codec->dev);
 
@@ -642,6 +695,42 @@ const struct dev_pm_ops cs35l33_pm_ops = {
 			   NULL)
 };
 
+int cs35l33_get_hg_data(const struct device_node *np, struct cs35l33_pdata *pdata)
+{
+	struct device_node *hg;
+	struct cs35l33_hg *hg_config = &pdata->hg_config;
+	u32 val32;
+
+	hg = of_get_child_by_name(np, "hg-algo");
+	hg_config->enable_hg_algo = hg ? true : false;
+
+	if (hg_config->enable_hg_algo) {
+		if (of_property_read_u32(hg, "mem-depth", &val32) >= 0)
+			hg_config->mem_depth = val32;
+		if (of_property_read_u32(hg, "release-rate", &val32) >= 0)
+			hg_config->release_rate = val32;
+		if (of_property_read_u32(hg, "hd-rm", &val32) >= 0)
+			hg_config->hd_rm = val32;
+		if (of_property_read_u32(hg, "ldo-thld", &val32) >= 0)
+			hg_config->ldo_thld = val32;
+		if (of_property_read_u32(hg, "ldo-path-disable", &val32) >= 0)
+			hg_config->ldo_path_disable = val32;
+		if (of_property_read_u32(hg, "ldo-entry-delay", &val32) >= 0)
+			hg_config->ldo_entry_delay = val32;
+		hg_config->vp_hg_auto = of_property_read_bool(hg, "vp-hg-auto");
+		if (of_property_read_u32(hg, "vp-hg", &val32) >= 0)
+			hg_config->vp_hg = val32;
+		if (of_property_read_u32(hg, "vp-hg-rate", &val32) >= 0)
+			hg_config->vp_hg_rate = val32;
+		if (of_property_read_u32(hg, "vp-hg-va", &val32) >= 0)
+			hg_config->vp_hg_va = val32;
+	}
+
+	of_node_put(hg);
+
+	return 0;
+}
+
 static const char *cs35l33_core_supplies[] = {
 	"VA",
 	"VP",
@@ -716,6 +805,8 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 			if (of_property_read_u32(i2c_client->dev.of_node,
 				"boost-ipk", &val32) >= 0)
 				pdata->boost_ipk = val32;
+
+			cs35l33_get_hg_data(i2c_client->dev.of_node, pdata);
 		}
 		cs35l33->pdata = *pdata;
 	}
