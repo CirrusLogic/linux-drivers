@@ -48,6 +48,7 @@ struct  cs35l33_private {
 	int mclk_int;
 	struct regulator_bulk_data core_supplies[2];
 	int num_core_supplies;
+	bool is_tdm_mode;
 };
 
 static const struct reg_default cs35l33_reg[] = {
@@ -248,18 +249,6 @@ static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static const struct snd_kcontrol_new imon_ctl =
-	SOC_DAPM_SINGLE("Switch", CS35L33_PWRCTL2, 6, 1, 1);
-
-static const struct snd_kcontrol_new vmon_ctl =
-	SOC_DAPM_SINGLE("Switch", CS35L33_PWRCTL2, 7, 1, 1);
-
-static const struct snd_kcontrol_new vpmon_ctl =
-	SOC_DAPM_SINGLE("Switch", CS35L33_PWRCTL2, 5, 1, 1);
-
-static const struct snd_kcontrol_new vbstmon_ctl =
-	SOC_DAPM_SINGLE("Switch", CS35L33_PWRCTL2, 4, 1, 1);
-
 static const struct snd_soc_dapm_widget cs35l33_dapm_widgets[] = {
 
 	SND_SOC_DAPM_OUTPUT("SPK"),
@@ -269,19 +258,18 @@ static const struct snd_soc_dapm_widget cs35l33_dapm_widgets[] = {
 		2, 1, cs35l33_sdin_event, SND_SOC_DAPM_PRE_PMU |
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_INPUT("VP"),
-	SND_SOC_DAPM_INPUT("ISENSE"),
-	SND_SOC_DAPM_INPUT("VSENSE"),
-	SND_SOC_DAPM_INPUT("VBST"),
+	SND_SOC_DAPM_INPUT("MON"),
 
-	SND_SOC_DAPM_SWITCH("VMON ADC", CS35L33_PWRCTL2, 7, 1, &vmon_ctl),
-	SND_SOC_DAPM_SWITCH("IMON ADC", CS35L33_PWRCTL2, 6, 1, &imon_ctl),
-	SND_SOC_DAPM_SWITCH("VPMON ADC", CS35L33_PWRCTL2, 5, 1, &vpmon_ctl),
-	SND_SOC_DAPM_SWITCH("VBSTMON ADC", CS35L33_PWRCTL2, 4, 1,
-		&vbstmon_ctl),
+	SND_SOC_DAPM_ADC("VMON", NULL,
+		CS35L33_PWRCTL2, PDN_VMON_SHIFT, 1),
+	SND_SOC_DAPM_ADC("IMON", NULL,
+		CS35L33_PWRCTL2, PDN_IMON_SHIFT, 1),
+	SND_SOC_DAPM_ADC("VPMON", NULL,
+		CS35L33_PWRCTL2, PDN_VPMON_SHIFT, 1),
+	SND_SOC_DAPM_ADC("VBSTMON", NULL,
+		CS35L33_PWRCTL2, PDN_VBSTMON_SHIFT, 1),
 
 	SND_SOC_DAPM_AIF_OUT("SDOUT", NULL, 0, CS35L33_PWRCTL2, 3, 1),
-
 };
 
 static const struct snd_soc_dapm_route cs35l33_audio_map[] = {
@@ -289,20 +277,24 @@ static const struct snd_soc_dapm_route cs35l33_audio_map[] = {
 	{"SPKDRV", NULL, "SDIN"},
 	{"SPK", NULL, "SPKDRV"},
 
-	{"VMON ADC", "Switch", "VP"},
-	{"IMON ADC", "Switch", "ISENSE"},
-	{"VPMON ADC", "Switch", "VSENSE"},
-	{"VBSTMON ADC", "Switch", "VBST"},
+	{"VMON", NULL, "MON"},
+	{"IMON", NULL, "MON"},
 
-	{"SDOUT", NULL, "IMON ADC"},
-	{"SDOUT", NULL, "VMON ADC"},
-	{"SDOUT", NULL, "VBSTMON ADC"},
+	{"SDOUT", NULL, "VMON"},
+	{"SDOUT", NULL, "IMON"},
 	{"CS35L33 Capture", NULL, "SDOUT"},
 };
 
 static const struct snd_soc_dapm_route cs35l33_vphg_auto_route[] = {
 	{"SPKDRV", NULL, "VPMON"},
 	{"VPMON", NULL, "CS35L33 Playback"},
+};
+
+static const struct snd_soc_dapm_route cs35l33_vp_vbst_mon_route[] = {
+	{"SDOUT", NULL, "VPMON"},
+	{"VPMON", NULL, "MON"},
+	{"SDOUT", NULL, "VBSTMON"},
+	{"VBSTMON", NULL, "MON"},
 };
 
 static int cs35l33_set_bias_level(struct snd_soc_codec *codec,
@@ -386,6 +378,7 @@ static int cs35l33_get_mclk_coeff(int mclk, int srate)
 static int cs35l33_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
+	struct cs35l33_private *priv = snd_soc_codec_get_drvdata(codec);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -395,6 +388,19 @@ static int cs35l33_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_CBS_CFS:
 		snd_soc_update_bits(codec, CS35L33_ADSP_CTL,
 				    MS_MASK, 0);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_DSP_A:
+		/* tdm mode in cs35l33 resembles dsp-a mode very
+		closely, it is dsp-a with fsync shifted left by half bclk */
+		priv->is_tdm_mode = true;
+		break;
+	case SND_SOC_DAIFMT_I2S:
+		priv->is_tdm_mode = false;
 		break;
 	default:
 		return -EINVAL;
@@ -456,6 +462,78 @@ static int cs35l33_set_tristate(struct snd_soc_dai *dai, int tristate)
 	return 0;
 }
 
+static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
+				unsigned int rx_mask, int slots, int slot_width)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	unsigned int reg, bit_pos, i;
+	int slot, slot_num;
+
+	if (slot_width != 8)
+		return -EINVAL;
+
+	/* scan rx_mask for aud slot */
+	slot = ffs(rx_mask) - 1;
+	if (slot >= 0)
+		snd_soc_update_bits(codec, CS35L33_RX_AUD,
+			X_LOC, slot);
+
+	/* scan tx_mask: vmon(2 slots); imon (2 slots); vpmon (1 slot) vbstmon (1 slot) */
+	slot = ffs(tx_mask) - 1;
+	slot_num = 0;
+
+	for (i = 0; i < 2 ; i++) {
+		/* disable vpmon/vbstmon: enable later if set in tx_mask */
+		snd_soc_update_bits(codec, CS35L33_TX_VPMON + i,
+			X_STATE | X_LOC, X_STATE | X_LOC);
+	}
+
+	/* disconnect {vp,vbst}_mon routes: eanble later if set in tx_mask*/
+	snd_soc_dapm_del_routes(&codec->dapm,
+		cs35l33_vp_vbst_mon_route,
+		ARRAY_SIZE(cs35l33_vp_vbst_mon_route));
+
+	while (slot >= 0) {
+		/* configure VMON_TX_LOC */
+		if (slot_num == 0)
+			snd_soc_update_bits(codec, CS35L33_TX_VMON,
+				X_STATE | X_LOC, slot);
+
+		/* configure IMON_TX_LOC */
+		if (slot_num == 2)
+			snd_soc_update_bits(codec, CS35L33_TX_IMON,
+				X_STATE | X_LOC, slot);
+
+		/* configure VPMON_TX_LOC */
+		if (slot_num == 4) {
+			snd_soc_update_bits(codec, CS35L33_TX_VPMON,
+				X_STATE | X_LOC, slot);
+			snd_soc_dapm_add_routes(&codec->dapm,
+				&cs35l33_vp_vbst_mon_route[0], 2);
+		}
+
+		/* configure VBSTMON_TX_LOC */
+		if (slot_num == 5) {
+			snd_soc_update_bits(codec, CS35L33_TX_VBSTMON,
+				X_STATE | X_LOC, slot);
+			snd_soc_dapm_add_routes(&codec->dapm,
+				&cs35l33_vp_vbst_mon_route[2], 2);
+		}
+
+		/* Enable the relevant tx slot */
+		reg = CS35L33_TX_EN4 - (slot/8);
+		bit_pos = slot - ((slot / 8) * (8));
+		snd_soc_update_bits(codec, reg,
+			1 << bit_pos, 1 << bit_pos);
+
+		tx_mask &= ~(1 << slot);
+		slot = ffs(tx_mask) - 1;
+		slot_num++;
+	}
+
+	return 0;
+}
+
 static int cs35l33_codec_set_sysclk(struct snd_soc_codec *codec,
 		int clk_id, int source, unsigned int freq, int dir)
 {
@@ -487,6 +565,7 @@ static const struct snd_soc_dai_ops cs35l33_ops = {
 	.set_tristate = cs35l33_set_tristate,
 	.set_fmt = cs35l33_set_dai_fmt,
 	.hw_params = cs35l33_pcm_hw_params,
+	.set_tdm_slot = cs35l33_set_tdm_slot,
 };
 
 static struct snd_soc_dai_driver cs35l33_dai = {

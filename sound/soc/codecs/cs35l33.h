@@ -83,13 +83,20 @@
 #define PDN_ALL			1
 
 /* CS35L33_PWRCTL2 */
-#define PDN_VMON		(1 << 7)
-#define PDN_IMON		(1 << 6)
-#define PDN_VPMON		(1 << 5)
-#define PDN_VBSTMON		(1 << 4)
-#define SDOUT_3ST_I2S		(1 << 3)
-#define PDN_SDIN		(1 << 2)
-#define PDN_TDM			1
+#define PDN_VMON_SHIFT  	7
+#define PDN_VMON		(1 << PDN_VMON_SHIFT)
+#define PDN_IMON_SHIFT  	6
+#define PDN_IMON		(1 << PDN_IMON_SHIFT)
+#define PDN_VPMON_SHIFT  	5
+#define PDN_VPMON		(1 << PDN_VPMON_SHIFT)
+#define PDN_VBSTMON_SHIFT  	4
+#define PDN_VBSTMON		(1 << PDN_VBSTMON_SHIFT)
+#define SDOUT_3ST_I2S_SHIFT  	3
+#define SDOUT_3ST_I2S		(1 << SDOUT_3ST_I2S_SHIFT)
+#define PDN_SDIN_SHIFT  	2
+#define PDN_SDIN		(1 << PDN_SDIN_SHIFT)
+#define PDN_TDM_SHIFT   	1
+#define PDN_TDM 		(1 << PDN_TDM_SHIFT)
 
 /* CS35L33_CLK_CTL */
 #define MCLKDIS			(1 << 7)
@@ -218,5 +225,11 @@
 #define CS35L33_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | \
 			SNDRV_PCM_FMTBIT_S32_LE)
+
+/* CS35L33_{RX,TX}_X */
+#define X_STATE_SHIFT   	7
+#define X_STATE 		(1 << X_STATE_SHIFT)
+#define X_LOC_SHIFT		0
+#define X_LOC   		(0x1F << X_LOC_SHIFT)
 
 #endif
