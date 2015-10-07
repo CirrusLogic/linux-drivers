@@ -153,6 +153,8 @@ static bool cs35l33_readable_register(struct device *dev, unsigned int reg)
 	case CS35L33_AMP_CTL:
 	case CS35L33_INT_MASK_1:
 	case CS35L33_INT_MASK_2:
+	case CS35L33_INT_STATUS_1:
+	case CS35L33_INT_STATUS_2:
 	case CS35L33_DIAG_LOCK:
 	case CS35L33_DIAG_CTRL_1:
 	case CS35L33_DIAG_CTRL_2:
