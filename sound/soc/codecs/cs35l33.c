@@ -35,6 +35,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/machine.h>
 #include <linux/of_gpio.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_irq.h>
 
 #include "cs35l33.h"
 
@@ -743,6 +746,15 @@ int cs35l33_get_hg_data(const struct device_node *np, struct cs35l33_pdata *pdat
 	return 0;
 }
 
+static irqreturn_t cs35l33_irq_thread(int irq, void *data)
+{
+	struct cs35l33_private *cs35l33 = data;
+
+	/* TODO: handle interrupts */
+
+	return IRQ_HANDLED;
+}
+
 static const char *cs35l33_core_supplies[] = {
 	"VA",
 	"VP",
@@ -818,10 +830,36 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 				"boost-ipk", &val32) >= 0)
 				pdata->boost_ipk = val32;
 
+			pdata->irq = irq_of_parse_and_map(i2c_client->dev.of_node, 0);
+			pdata->gpio_irq = of_get_named_gpio(i2c_client->dev.of_node, "irq-gpios", 0);
+
 			cs35l33_get_hg_data(i2c_client->dev.of_node, pdata);
 		}
 		cs35l33->pdata = *pdata;
 	}
+
+	if (pdata->gpio_irq > 0) {
+		if (gpio_to_irq(pdata->gpio_irq) != pdata->irq) {
+			dev_err(&i2c_client->dev, "IRQ %d is not GPIO %d (%d)\n",
+				 pdata->irq, pdata->gpio_irq,
+				 gpio_to_irq(pdata->gpio_irq));
+			pdata->irq = gpio_to_irq(pdata->gpio_irq);
+		}
+
+		ret = devm_gpio_request_one(&i2c_client->dev,
+						pdata->gpio_irq,
+						GPIOF_IN, "cs35l33 IRQ");
+		if (ret != 0) {
+			dev_err(&i2c_client->dev, "Failed to request IRQ GPIO %d:: %d\n",
+				pdata->gpio_irq, ret);
+			pdata->gpio_irq = 0;
+		}
+	}
+
+	ret = request_threaded_irq(pdata->irq, NULL, cs35l33_irq_thread,
+			IRQF_ONESHOT | IRQF_TRIGGER_LOW, "cs35l33", cs35l33);
+	if (ret != 0)
+		dev_err(&i2c_client->dev, "Failed to request irq\n");
 
 	/* We could issue !RST or skip it based on AMP topology */
 	if (cs35l33->pdata.gpio_nreset > 0) {
@@ -916,6 +954,7 @@ static int cs35l33_i2c_remove(struct i2c_client *client)
 	pm_runtime_disable(&client->dev);
 	regulator_bulk_disable(cs35l33->num_core_supplies,
 		cs35l33->core_supplies);
+	free_irq(cs35l33->pdata.irq, cs35l33);
 	kfree(i2c_get_clientdata(client));
 
 	return 0;

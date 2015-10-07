@@ -33,6 +33,9 @@ struct cs35l33_pdata {
 	/* GPIO for IRQ */
 	int gpio_irq;
 
+	/* irq line */
+	int irq;
+
 	/* Boost Controller Voltage Setting */
 	unsigned int boost_ctl;
 
