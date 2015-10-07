@@ -150,6 +150,44 @@ static void clearwater_gpio_set(struct gpio_chip *chip, unsigned offset, int val
 			   CLEARWATER_GPN_LVL, value);
 }
 
+static int clearwater_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
+	struct arizona *arizona = arizona_gpio->arizona;
+	int irq;
+
+	switch (offset) {
+	case 0:
+		irq = ARIZONA_IRQ_GP1;
+		break;
+	case 1:
+		irq = ARIZONA_IRQ_GP2;
+		break;
+	case 2:
+		irq = ARIZONA_IRQ_GP3;
+		break;
+	case 3:
+		irq = ARIZONA_IRQ_GP4;
+		break;
+	case 4:
+		irq = ARIZONA_IRQ_GP5;
+		break;
+	case 5:
+		irq = ARIZONA_IRQ_GP6;
+		break;
+	case 6:
+		irq = ARIZONA_IRQ_GP7;
+		break;
+	case 7:
+		irq = ARIZONA_IRQ_GP8;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return arizona_map_irq(arizona, irq);
+}
+
 static struct gpio_chip template_chip = {
 	.label			= "arizona",
 	.owner			= THIS_MODULE,
@@ -221,6 +259,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 		arizona_gpio->gpio_chip.direction_output =
 			clearwater_gpio_direction_out;
 		arizona_gpio->gpio_chip.set = clearwater_gpio_set;
+		arizona_gpio->gpio_chip.to_irq = clearwater_gpio_to_irq;
 
 		arizona_gpio->gpio_chip.ngpio = 38;
 		break;
