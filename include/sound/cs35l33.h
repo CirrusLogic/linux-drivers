@@ -22,6 +22,9 @@ struct cs35l33_pdata {
 	/* Boost Controller Voltage Setting */
 	unsigned int boost_ctl;
 
+	/* Boost Controller Peak Current */
+	unsigned int boost_ipk;
+
 	/* Gain Change Zero Cross */
 	unsigned int gain_zc;
 

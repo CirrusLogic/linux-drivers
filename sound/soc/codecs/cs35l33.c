@@ -506,6 +506,10 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 				cs35l33->pdata.amp_drv_sel <<
 				AMP_DRV_SEL_SHIFT);
 
+	if (cs35l33->pdata.boost_ipk)
+		snd_soc_write(codec, CS35L33_BST_PEAK_CTL,
+			cs35l33->pdata.boost_ipk);
+
 	return 0;
 }
 
@@ -601,6 +605,10 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 
 			pdata->gpio_nreset = of_get_named_gpio(i2c_client->dev.of_node,
 							       "reset-gpios", 0);
+
+			if (of_property_read_u32(i2c_client->dev.of_node,
+				"boost-ipk", &val32) >= 0)
+				pdata->boost_ipk = val32;
 		}
 		cs35l33->pdata = *pdata;
 	}
