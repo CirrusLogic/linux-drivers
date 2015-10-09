@@ -1434,81 +1434,43 @@ static const struct reg_default moon_reg_default[] = {
 	{ 0x000014AA, 0x0000 },
 	{ 0x000014AC, 0x1F00 },
 	{ 0x000014AE, 0x1F00 }, /*R5294  -  DFC8_TX */
-	{ 0x00001700, 0x2001 }, /* R5888  - GPIO1 Control 1 */
 	{ 0x00001701, 0xF000 }, /* R5889  - GPIO1 Control 2 */
-	{ 0x00001702, 0x2001 }, /* R5890  - GPIO2 Control 1 */
 	{ 0x00001703, 0xF000 }, /* R5891  - GPIO2 Control 2 */
-	{ 0x00001704, 0x2001 }, /* R5892  - GPIO3 Control 1 */
 	{ 0x00001705, 0xF000 }, /* R5893  - GPIO3 Control 2 */
-	{ 0x00001706, 0x2001 }, /* R5894  - GPIO4 Control 1 */
 	{ 0x00001707, 0xF000 }, /* R5895  - GPIO4 Control 2 */
-	{ 0x00001708, 0x2001 }, /* R5896  - GPIO5 Control 1 */
 	{ 0x00001709, 0xF000 }, /* R5897  - GPIO5 Control 2 */
-	{ 0x0000170A, 0x2001 }, /* R5898  - GPIO6 Control 1 */
 	{ 0x0000170B, 0xF000 }, /* R5899  - GPIO6 Control 2 */
-	{ 0x0000170C, 0x2001 }, /* R5900  - GPIO7 Control 1 */
 	{ 0x0000170D, 0xF000 }, /* R5901  - GPIO7 Control 2 */
-	{ 0x0000170E, 0x2001 }, /* R5902  - GPIO8 Control 1 */
 	{ 0x0000170F, 0xF000 }, /* R5903  - GPIO8 Control 2 */
-	{ 0x00001710, 0x2001 }, /* R5904  - GPIO9 Control 1 */
 	{ 0x00001711, 0xF000 }, /* R5905  - GPIO9 Control 2 */
-	{ 0x00001712, 0x2001 }, /* R5906  - GPIO10 Control 1 */
 	{ 0x00001713, 0xF000 }, /* R5907  - GPIO10 Control 2 */
-	{ 0x00001714, 0x2001 }, /* R5908  - GPIO11 Control 1 */
 	{ 0x00001715, 0xF000 }, /* R5909  - GPIO11 Control 2 */
-	{ 0x00001716, 0x2001 }, /* R5910  - GPIO12 Control 1 */
 	{ 0x00001717, 0xF000 }, /* R5911  - GPIO12 Control 2 */
-	{ 0x00001718, 0x2001 }, /* R5912  - GPIO13 Control 1 */
 	{ 0x00001719, 0xF000 }, /* R5913  - GPIO13 Control 2 */
-	{ 0x0000171A, 0x2001 }, /* R5914  - GPIO14 Control 1 */
 	{ 0x0000171B, 0xF000 }, /* R5915  - GPIO14 Control 2 */
-	{ 0x0000171C, 0x2001 }, /* R5916  - GPIO15 Control 1 */
 	{ 0x0000171D, 0xF000 }, /* R5917  - GPIO15 Control 2 */
-	{ 0x0000171E, 0x2001 }, /* R5918  - GPIO16 Control 1 */
 	{ 0x0000171F, 0xF000 }, /* R5919  - GPIO16 Control 2 */
-	{ 0x00001720, 0x2001 }, /* R5920  - GPIO17 Control 1 */
 	{ 0x00001721, 0xF000 }, /* R5921  - GPIO17 Control 2 */
-	{ 0x00001722, 0x2001 }, /* R5922  - GPIO18 Control 1 */
 	{ 0x00001723, 0xF000 }, /* R5923  - GPIO18 Control 2 */
-	{ 0x00001724, 0x2001 }, /* R5924  - GPIO19 Control 1 */
 	{ 0x00001725, 0xF000 }, /* R5925  - GPIO19 Control 2 */
-	{ 0x00001726, 0x2001 }, /* R5926  - GPIO20 Control 1 */
 	{ 0x00001727, 0xF000 }, /* R5927  - GPIO20 Control 2 */
-	{ 0x00001728, 0x2001 }, /* R5928  - GPIO21 Control 1 */
 	{ 0x00001729, 0xF000 }, /* R5929  - GPIO21 Control 2 */
-	{ 0x0000172A, 0x2001 }, /* R5930  - GPIO22 Control 1 */
 	{ 0x0000172B, 0xF000 }, /* R5931  - GPIO22 Control 2 */
-	{ 0x0000172C, 0x2001 }, /* R5932  - GPIO23 Control 1 */
 	{ 0x0000172D, 0xF000 }, /* R5933  - GPIO23 Control 2 */
-	{ 0x0000172E, 0x2001 }, /* R5934  - GPIO24 Control 1 */
 	{ 0x0000172F, 0xF000 }, /* R5935  - GPIO24 Control 2 */
-	{ 0x00001730, 0x2001 }, /* R5936  - GPIO25 Control 1 */
 	{ 0x00001731, 0xF000 }, /* R5937  - GPIO25 Control 2 */
-	{ 0x00001732, 0x2001 }, /* R5938  - GPIO26 Control 1 */
 	{ 0x00001733, 0xF000 }, /* R5939  - GPIO26 Control 2 */
-	{ 0x00001734, 0x2001 }, /* R5940  - GPIO27 Control 1 */
 	{ 0x00001735, 0xF000 }, /* R5941  - GPIO27 Control 2 */
-	{ 0x00001736, 0x2001 }, /* R5942  - GPIO28 Control 1 */
 	{ 0x00001737, 0xF000 }, /* R5943  - GPIO28 Control 2 */
-	{ 0x00001738, 0x2001 }, /* R5944  - GPIO29 Control 1 */
 	{ 0x00001739, 0xF000 }, /* R5945  - GPIO29 Control 2 */
-	{ 0x0000173A, 0x2001 }, /* R5946  - GPIO30 Control 1 */
 	{ 0x0000173B, 0xF000 }, /* R5947  - GPIO30 Control 2 */
-	{ 0x0000173C, 0x2001 }, /* R5948  - GPIO31 Control 1 */
 	{ 0x0000173D, 0xF000 }, /* R5949  - GPIO31 Control 2 */
-	{ 0x0000173E, 0x2001 }, /* R5950  - GPIO32 Control 1 */
 	{ 0x0000173F, 0xF000 }, /* R5951  - GPIO32 Control 2 */
-	{ 0x00001740, 0x2001 }, /* R5952  - GPIO33 Control 1 */
 	{ 0x00001741, 0xF000 }, /* R5953  - GPIO33 Control 2 */
-	{ 0x00001742, 0x2001 }, /* R5954  - GPIO34 Control 1 */
 	{ 0x00001743, 0xF000 }, /* R5955  - GPIO34 Control 2 */
-	{ 0x00001744, 0x2001 }, /* R5956  - GPIO35 Control 1 */
 	{ 0x00001745, 0xF000 }, /* R5957  - GPIO35 Control 2 */
-	{ 0x00001746, 0x2001 }, /* R5958  - GPIO36 Control 1 */
 	{ 0x00001747, 0xF000 }, /* R5959  - GPIO36 Control 2 */
-	{ 0x00001748, 0x2001 }, /* R5960  - GPIO37 Control 1 */
 	{ 0x00001749, 0xF000 }, /* R5961  - GPIO37 Control 2 */
-	{ 0x0000174A, 0x2001 }, /* R5962  - GPIO38 Control 1 */
 	{ 0x0000174B, 0xF000 }, /* R5963  - GPIO38 Control 2 */
 	{ 0x00001840, 0x9200 }, /* R6208  - IRQ1 Mask 1 */
 	{ 0x00001841, 0xFB00 }, /* R6209  - IRQ1 Mask 2 */
@@ -2912,6 +2874,44 @@ static bool moon_16bit_volatile_register(struct device *dev, unsigned int reg)
 	case CLEARWATER_ASRC1_STATUS:
 	case ARIZONA_CLOCK_CONTROL:
 	case MOON_DFC_STATUS:
+	case CLEARWATER_GPIO1_CTRL_1:
+	case CLEARWATER_GPIO2_CTRL_1:
+	case CLEARWATER_GPIO3_CTRL_1:
+	case CLEARWATER_GPIO4_CTRL_1:
+	case CLEARWATER_GPIO5_CTRL_1:
+	case CLEARWATER_GPIO6_CTRL_1:
+	case CLEARWATER_GPIO7_CTRL_1:
+	case CLEARWATER_GPIO8_CTRL_1:
+	case CLEARWATER_GPIO9_CTRL_1:
+	case CLEARWATER_GPIO10_CTRL_1:
+	case CLEARWATER_GPIO11_CTRL_1:
+	case CLEARWATER_GPIO12_CTRL_1:
+	case CLEARWATER_GPIO13_CTRL_1:
+	case CLEARWATER_GPIO14_CTRL_1:
+	case CLEARWATER_GPIO15_CTRL_1:
+	case CLEARWATER_GPIO16_CTRL_1:
+	case CLEARWATER_GPIO17_CTRL_1:
+	case CLEARWATER_GPIO18_CTRL_1:
+	case CLEARWATER_GPIO19_CTRL_1:
+	case CLEARWATER_GPIO20_CTRL_1:
+	case CLEARWATER_GPIO21_CTRL_1:
+	case CLEARWATER_GPIO22_CTRL_1:
+	case CLEARWATER_GPIO23_CTRL_1:
+	case CLEARWATER_GPIO24_CTRL_1:
+	case CLEARWATER_GPIO25_CTRL_1:
+	case CLEARWATER_GPIO26_CTRL_1:
+	case CLEARWATER_GPIO27_CTRL_1:
+	case CLEARWATER_GPIO28_CTRL_1:
+	case CLEARWATER_GPIO29_CTRL_1:
+	case CLEARWATER_GPIO30_CTRL_1:
+	case CLEARWATER_GPIO31_CTRL_1:
+	case CLEARWATER_GPIO32_CTRL_1:
+	case CLEARWATER_GPIO33_CTRL_1:
+	case CLEARWATER_GPIO34_CTRL_1:
+	case CLEARWATER_GPIO35_CTRL_1:
+	case CLEARWATER_GPIO36_CTRL_1:
+	case CLEARWATER_GPIO37_CTRL_1:
+	case CLEARWATER_GPIO38_CTRL_1:
 	case CLEARWATER_IRQ1_STATUS_1:
 	case CLEARWATER_IRQ1_STATUS_2:
 	case CLEARWATER_IRQ1_STATUS_6:

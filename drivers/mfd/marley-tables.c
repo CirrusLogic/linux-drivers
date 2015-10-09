@@ -781,37 +781,21 @@ static const struct reg_default marley_reg_default[] = {
 	{ 0x000013c1, 0x0000 }, /* R5041 (0x13c1) - FRF Coefficient 5R 2 */
 	{ 0x000013c2, 0x0000 }, /* R5042 (0x13c2) - FRF Coefficient 5R 3 */
 	{ 0x000013c3, 0x0000 }, /* R5043 (0x13c3) - FRF Coefficient 5R 4 */
-	{ 0x00001700, 0x2001 }, /* R5888 (0x1700) - GPIO1 Control 1 */
 	{ 0x00001701, 0xf000 }, /* R5889 (0x1701) - GPIO1 Control 2 */
-	{ 0x00001702, 0x2001 }, /* R5890 (0x1702) - GPIO2 Control 1 */
 	{ 0x00001703, 0xf000 }, /* R5891 (0x1703) - GPIO2 Control 2 */
-	{ 0x00001704, 0x2001 }, /* R5892 (0x1704) - GPIO3 Control 1 */
 	{ 0x00001705, 0xf000 }, /* R5893 (0x1705) - GPIO3 Control 2 */
-	{ 0x00001706, 0x2001 }, /* R5894 (0x1706) - GPIO4 Control 1 */
 	{ 0x00001707, 0xf000 }, /* R5895 (0x1707) - GPIO4 Control 2 */
-	{ 0x00001708, 0x2001 }, /* R5896 (0x1708) - GPIO5 Control 1 */
 	{ 0x00001709, 0xf000 }, /* R5897 (0x1709) - GPIO5 Control 2 */
-	{ 0x0000170a, 0x2001 }, /* R5898 (0x170a) - GPIO6 Control 1 */
 	{ 0x0000170b, 0xf000 }, /* R5899 (0x170b) - GPIO6 Control 2 */
-	{ 0x0000170c, 0x2001 }, /* R5900 (0x170c) - GPIO7 Control 1 */
 	{ 0x0000170d, 0xf000 }, /* R5901 (0x170d) - GPIO7 Control 2 */
-	{ 0x0000170e, 0x2001 }, /* R5902 (0x170e) - GPIO8 Control 1 */
 	{ 0x0000170f, 0xf000 }, /* R5903 (0x170f) - GPIO8 Control 2 */
-	{ 0x00001710, 0x2001 }, /* R5904 (0x1710) - GPIO9 Control 1 */
 	{ 0x00001711, 0xf000 }, /* R5905 (0x1711) - GPIO9 Control 2 */
-	{ 0x00001712, 0x2001 }, /* R5906 (0x1712) - GPIO10 Control 1 */
 	{ 0x00001713, 0xf000 }, /* R5907 (0x1713) - GPIO10 Control 2 */
-	{ 0x00001714, 0x2001 }, /* R5908 (0x1714) - GPIO11 Control 1 */
 	{ 0x00001715, 0xf000 }, /* R5909 (0x1715) - GPIO11 Control 2 */
-	{ 0x00001716, 0x2001 }, /* R5910 (0x1716) - GPIO12 Control 1 */
 	{ 0x00001717, 0xf000 }, /* R5911 (0x1717) - GPIO12 Control 2 */
-	{ 0x00001718, 0x2001 }, /* R5912 (0x1718) - GPIO13 Control 1 */
 	{ 0x00001719, 0xf000 }, /* R5913 (0x1719) - GPIO13 Control 2 */
-	{ 0x0000171A, 0x2001 }, /* R5914 (0x171A) - GPIO14 Control 1 */
 	{ 0x0000171B, 0xf000 }, /* R5915 (0x171B) - GPIO14 Control 2 */
-	{ 0x0000171C, 0x2001 }, /* R5916 (0x171C) - GPIO15 Control 1 */
 	{ 0x0000171D, 0xf000 }, /* R5917 (0x171D) - GPIO15 Control 2 */
-	{ 0x0000171E, 0x2001 }, /* R5918 (0x171E) - GPIO16 Control 1 */
 	{ 0x0000171F, 0xf000 }, /* R5919 (0x171F) - GPIO16 Control 2 */
 	{ 0x00001802, 0x0000 },
 	{ 0x00001803, 0x0000 },
@@ -1704,6 +1688,22 @@ static bool marley_16bit_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_SLIMBUS_RX_PORT_STATUS:
 	case ARIZONA_SLIMBUS_TX_PORT_STATUS:
 	case ARIZONA_FX_CTRL2:
+	case CLEARWATER_GPIO1_CTRL_1:
+	case CLEARWATER_GPIO2_CTRL_1:
+	case CLEARWATER_GPIO3_CTRL_1:
+	case CLEARWATER_GPIO4_CTRL_1:
+	case CLEARWATER_GPIO5_CTRL_1:
+	case CLEARWATER_GPIO6_CTRL_1:
+	case CLEARWATER_GPIO7_CTRL_1:
+	case CLEARWATER_GPIO8_CTRL_1:
+	case CLEARWATER_GPIO9_CTRL_1:
+	case CLEARWATER_GPIO10_CTRL_1:
+	case CLEARWATER_GPIO11_CTRL_1:
+	case CLEARWATER_GPIO12_CTRL_1:
+	case CLEARWATER_GPIO13_CTRL_1:
+	case CLEARWATER_GPIO14_CTRL_1:
+	case CLEARWATER_GPIO15_CTRL_1:
+	case CLEARWATER_GPIO16_CTRL_1:
 	case CLEARWATER_IRQ1_STATUS_1:
 	case CLEARWATER_IRQ1_STATUS_2:
 	case CLEARWATER_IRQ1_STATUS_6:
