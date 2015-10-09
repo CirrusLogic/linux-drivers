@@ -19,6 +19,7 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/mfd/arizona/core.h>
 #include <linux/mfd/arizona/pdata.h>
@@ -105,14 +106,17 @@ static int clearwater_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 	offset *= 2;
 
+	pm_runtime_get_sync(arizona->dev);
+
 	ret = regmap_read(arizona->regmap, CLEARWATER_GPIO1_CTRL_1 + offset, &val);
 	if (ret < 0)
-		return ret;
+		goto err;
 
-	if (val & CLEARWATER_GPN_LVL)
-		return 1;
-	else
-		return 0;
+	ret = val & CLEARWATER_GPN_LVL ? 1 : 0;
+
+err:
+	pm_runtime_put_sync(arizona->dev);
+	return ret;
 }
 
 static int clearwater_gpio_direction_out(struct gpio_chip *chip,
@@ -121,33 +125,60 @@ static int clearwater_gpio_direction_out(struct gpio_chip *chip,
 	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
 	int ret;
+	unsigned int old_val, new_val;
 
 	offset *= 2;
 
 	if (value)
 		value = CLEARWATER_GPN_LVL;
 
+	pm_runtime_get_sync(arizona->dev);
+
 	ret = regmap_update_bits(arizona->regmap, CLEARWATER_GPIO1_CTRL_2 + offset,
 				  ARIZONA_GPN_DIR, 0);
 	if (ret < 0)
-		return ret;
+		goto err;
 
-	return regmap_update_bits(arizona->regmap, CLEARWATER_GPIO1_CTRL_1 + offset,
-				  CLEARWATER_GPN_LVL, value);
+	ret = regmap_read(arizona->regmap, CLEARWATER_GPIO1_CTRL_1 + offset, &old_val);
+	if (ret == 0) {
+		new_val = (old_val) & (~CLEARWATER_GPN_LVL);
+		new_val |= value;
+		if (new_val != old_val) {
+			regmap_write(arizona->regmap, CLEARWATER_GPIO1_CTRL_1 + offset, new_val);
+			arizona->pdata.gpio_defaults[offset] = new_val;
+		}
+	}
+
+err:
+	pm_runtime_put_sync(arizona->dev);
+	return ret;
 }
 
 static void clearwater_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
+	unsigned int old_val, new_val;
+	int ret;
 
 	offset *= 2;
 
 	if (value)
 		value = CLEARWATER_GPN_LVL;
 
-	regmap_update_bits(arizona->regmap, CLEARWATER_GPIO1_CTRL_1 + offset,
-			   CLEARWATER_GPN_LVL, value);
+	pm_runtime_get_sync(arizona->dev);
+
+	ret = regmap_read(arizona->regmap, CLEARWATER_GPIO1_CTRL_1 + offset, &old_val);
+	if (ret == 0) {
+		new_val = (old_val) & (~CLEARWATER_GPN_LVL);
+		new_val |= value;
+		if (new_val != old_val) {
+			regmap_write(arizona->regmap, CLEARWATER_GPIO1_CTRL_1 + offset, new_val);
+			arizona->pdata.gpio_defaults[offset] = new_val;
+		}
+	}
+
+	pm_runtime_put_sync(arizona->dev);
 }
 
 static int clearwater_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
