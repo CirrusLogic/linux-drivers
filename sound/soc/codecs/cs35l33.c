@@ -31,6 +31,9 @@
 #include <sound/tlv.h>
 #include <linux/gpio.h>
 #include <sound/cs35l33.h>
+#include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
+#include <linux/regulator/machine.h>
 
 #include "cs35l33.h"
 
@@ -40,6 +43,8 @@ struct  cs35l33_private {
 	struct regmap *regmap;
 	bool amp_cal;
 	int mclk_int;
+	struct regulator_bulk_data core_supplies[2];
+	int num_core_supplies;
 };
 
 static const struct reg_default cs35l33_reg[] = {
@@ -480,6 +485,8 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 	struct cs35l33_private *cs35l33 = snd_soc_codec_get_drvdata(codec);
 	u8 reg;
 
+	pm_runtime_get_sync(codec->dev);
+
 	reg = snd_soc_read(codec, CS35L33_PROTECT_CTL);
 	reg &= ~(1 << 2);
 	reg |= 1 << 3;
@@ -509,6 +516,8 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 	if (cs35l33->pdata.boost_ipk)
 		snd_soc_write(codec, CS35L33_BST_PEAK_CTL,
 			cs35l33->pdata.boost_ipk);
+
+	pm_runtime_put_sync(codec->dev);
 
 	return 0;
 }
@@ -562,12 +571,77 @@ static inline void cs35l33_wait_for_boot(void)
 	msleep(50);
 }
 
+static int cs35l33_runtime_resume(struct device *dev)
+{
+	struct cs35l33_private *cs35l33 = dev_get_drvdata(dev);
+	int ret;
+
+	if (cs35l33->pdata.gpio_nreset > 0)
+		gpio_set_value_cansleep(cs35l33->pdata.gpio_nreset, 0);
+
+	ret = regulator_bulk_enable(cs35l33->num_core_supplies,
+		cs35l33->core_supplies);
+	if (ret != 0) {
+		dev_err(dev, "Failed to enable core supplies: %d\n",
+			ret);
+		return ret;
+	}
+
+	regcache_cache_only(cs35l33->regmap, false);
+
+	if (cs35l33->pdata.gpio_nreset > 0)
+		gpio_set_value_cansleep(cs35l33->pdata.gpio_nreset, 1);
+
+	cs35l33_wait_for_boot();
+
+	ret = regcache_sync(cs35l33->regmap);
+	if (ret != 0) {
+		dev_err(dev, "Failed to restore register cache\n");
+		goto err;
+	}
+
+	return 0;
+
+err:
+	regcache_cache_only(cs35l33->regmap, true);
+	regulator_bulk_disable(cs35l33->num_core_supplies,
+		cs35l33->core_supplies);
+
+	return ret;
+}
+
+static int cs35l33_runtime_suspend(struct device *dev)
+{
+	struct cs35l33_private *cs35l33 = dev_get_drvdata(dev);
+
+	/* redo the calibration in next power up */
+	cs35l33->amp_cal = false;
+
+	regcache_cache_only(cs35l33->regmap, true);
+	regcache_mark_dirty(cs35l33->regmap);
+	regulator_bulk_disable(cs35l33->num_core_supplies,
+		cs35l33->core_supplies);
+
+	return 0;
+}
+
+const struct dev_pm_ops cs35l33_pm_ops = {
+	SET_RUNTIME_PM_OPS(cs35l33_runtime_suspend,
+			   cs35l33_runtime_resume,
+			   NULL)
+};
+
+static const char *cs35l33_core_supplies[] = {
+	"VA",
+	"VP",
+};
+
 static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 				       const struct i2c_device_id *id)
 {
 	struct cs35l33_private *cs35l33;
 	struct cs35l33_pdata *pdata = dev_get_platdata(&i2c_client->dev);
-	int ret, devid;
+	int ret, devid, i;
 	unsigned int reg;
 	u32 val32;
 
@@ -584,6 +658,22 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 		ret = PTR_ERR(cs35l33->regmap);
 		dev_err(&i2c_client->dev, "regmap_init() failed: %d\n", ret);
 		goto err;
+	}
+
+	regcache_cache_only(cs35l33->regmap, true);
+
+	for (i = 0; i < ARRAY_SIZE(cs35l33_core_supplies); i++)
+		cs35l33->core_supplies[i].supply
+			= cs35l33_core_supplies[i];
+	cs35l33->num_core_supplies = ARRAY_SIZE(cs35l33_core_supplies);
+
+	ret = devm_regulator_bulk_get(&i2c_client->dev,
+			cs35l33->num_core_supplies,
+			cs35l33->core_supplies);
+	if (ret != 0) {
+		dev_err(&i2c_client->dev, "Failed to request core supplies: %d\n",
+			ret);
+		goto err_regmap;
 	}
 
 	if (pdata) {
@@ -629,11 +719,21 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 			dev_err(&i2c_client->dev, "Failed to request /RESET: %d\n", ret);
 			goto err_regmap;
 		}
-
-		gpio_set_value_cansleep(cs35l33->pdata.gpio_nreset, 1);
 	}
 
+	ret = regulator_bulk_enable(cs35l33->num_core_supplies,
+					cs35l33->core_supplies);
+	if (ret != 0) {
+		dev_err(&i2c_client->dev, "Failed to enable core supplies: %d\n",
+			ret);
+		goto err_regmap;
+	}
+
+	if (cs35l33->pdata.gpio_nreset > 0)
+		gpio_set_value_cansleep(cs35l33->pdata.gpio_nreset, 1);
+
 	cs35l33_wait_for_boot();
+	regcache_cache_only(cs35l33->regmap, false);
 
 	/* initialize codec */
 	ret = regmap_read(cs35l33->regmap, CS35L33_DEVID_AB, &reg);
@@ -647,17 +747,22 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 		dev_err(&i2c_client->dev,
 			"CS35L33 Device ID (%X). Expected ID %X\n",
 			devid, CS35L33_CHIP_ID);
-		goto err_regmap;
+		goto err_enable;
 	}
 
 	ret = regmap_read(cs35l33->regmap, CS35L33_REV_ID, &reg);
 	if (ret < 0) {
 		dev_err(&i2c_client->dev, "Get Revision ID failed\n");
-		goto err_regmap;
+		goto err_enable;
 	}
 
 	dev_info(&i2c_client->dev,
 		 "Cirrus Logic CS35L33, Revision: %02X\n", ret & 0xFF);
+
+	pm_runtime_set_autosuspend_delay(&i2c_client->dev, 100);
+	pm_runtime_use_autosuspend(&i2c_client->dev);
+	pm_runtime_set_active(&i2c_client->dev);
+	pm_runtime_enable(&i2c_client->dev);
 
 	ret =  snd_soc_register_codec(&i2c_client->dev,
 			&soc_codec_dev_cs35l33, &cs35l33_dai, 1);
@@ -670,9 +775,11 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 
 	return 0;
 
+err_enable:
+	regulator_bulk_disable(cs35l33->num_core_supplies,
+			       cs35l33->core_supplies);
 err_regmap:
 	regmap_exit(cs35l33->regmap);
-
 err:
 	return ret;
 }
@@ -684,6 +791,9 @@ static int cs35l33_i2c_remove(struct i2c_client *client)
 	snd_soc_unregister_codec(&client->dev);
 	if (cs35l33->pdata.gpio_nreset > 0)
 		gpio_set_value_cansleep(cs35l33->pdata.gpio_nreset, 0);
+	pm_runtime_disable(&client->dev);
+	regulator_bulk_disable(cs35l33->num_core_supplies,
+		cs35l33->core_supplies);
 	kfree(i2c_get_clientdata(client));
 
 	return 0;
@@ -706,6 +816,7 @@ static struct i2c_driver cs35l33_i2c_driver = {
 	.driver = {
 		.name = "cs35l33",
 		.owner = THIS_MODULE,
+		.pm = &cs35l33_pm_ops,
 		.of_match_table = cs35l33_of_match,
 
 		},
