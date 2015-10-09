@@ -599,25 +599,23 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 				"amp-drv-sel", &val32) >= 0)
 				pdata->amp_drv_sel = val32;
 
-			if (of_property_read_u32(i2c_client->dev.of_node,
-				"reset-gpios", &val32) >= 0)
-				pdata->gpio_nreset = val32;
+			pdata->gpio_nreset = of_get_named_gpio(i2c_client->dev.of_node,
+							       "reset-gpios", 0);
 		}
 		cs35l33->pdata = *pdata;
 	}
 
 	/* We could issue !RST or skip it based on AMP topology */
-	if (cs35l33->pdata.gpio_nreset) {
-
-		ret = gpio_request(cs35l33->pdata.gpio_nreset,
-				   "CS35L33 /RST");
-		if (ret < 0) {
-			dev_err(&i2c_client->dev,
-				"Failed to request /RST %d: %d\n",
-				cs35l33->pdata.gpio_nreset, ret);
-			return ret;
+	if (cs35l33->pdata.gpio_nreset > 0) {
+		ret = devm_gpio_request_one(&i2c_client->dev,
+				cs35l33->pdata.gpio_nreset,
+				GPIOF_DIR_OUT | GPIOF_INIT_LOW,
+				"CS35L33 /RESET");
+		if (ret != 0) {
+			dev_err(&i2c_client->dev, "Failed to request /RESET: %d\n", ret);
+			goto err_regmap;
 		}
-		gpio_direction_output(cs35l33->pdata.gpio_nreset, 0);
+
 		gpio_set_value_cansleep(cs35l33->pdata.gpio_nreset, 1);
 	}
 
@@ -665,8 +663,13 @@ err:
 
 static int cs35l33_i2c_remove(struct i2c_client *client)
 {
+	struct cs35l33_private *cs35l33 = i2c_get_clientdata(client);
+
 	snd_soc_unregister_codec(&client->dev);
+	if (cs35l33->pdata.gpio_nreset > 0)
+		gpio_set_value_cansleep(cs35l33->pdata.gpio_nreset, 0);
 	kfree(i2c_get_clientdata(client));
+
 	return 0;
 }
 
