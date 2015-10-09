@@ -518,6 +518,7 @@ static int arizona_runtime_resume(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
 	int ret;
+	unsigned int offset, num_gpios = 0;
 
 	dev_dbg(arizona->dev, "Leaving AoD mode\n");
 
@@ -667,6 +668,28 @@ static int arizona_runtime_resume(struct device *dev)
 		}
 		break;
 	}
+
+	switch (arizona->type) {
+	case WM8285:
+	case WM1840:
+		num_gpios = CLEARWATER_NUM_GPIOS;
+		break;
+	case CS47L35:
+		num_gpios = MARLEY_NUM_GPIOS;
+		break;
+	case CS47L90:
+	case CS47L91:
+		num_gpios = MOON_NUM_GPIOS;
+		break;
+	default:
+		break;
+	}
+
+	/* sync the gpio registers */
+	for (offset = 0; offset < num_gpios; offset++)
+		regmap_write(arizona->regmap,
+			CLEARWATER_GPIO1_CTRL_1 + (offset * 2),
+			arizona->pdata.gpio_defaults[offset * 2]);
 
 	ret = regcache_sync(arizona->regmap);
 	if (ret != 0) {
