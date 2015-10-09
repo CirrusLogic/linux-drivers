@@ -40,7 +40,7 @@ static int arizona_map_irq(struct arizona *arizona, int irq)
 	if (arizona->irq_chip)
 		return regmap_irq_get_virq(arizona->irq_chip, irq);
 
-	return 0;
+	return -EINVAL;
 }
 
 int arizona_request_irq(struct arizona *arizona, int irq, const char *name,
