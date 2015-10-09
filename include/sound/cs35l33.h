@@ -14,10 +14,10 @@
 struct cs35l33_pdata {
 
 	/* GPIO for !RST */
-	unsigned int gpio_nreset;
+	int gpio_nreset;
 
 	/* GPIO for IRQ */
-	unsigned int gpio_irq;
+	int gpio_irq;
 
 	/* Boost Controller Voltage Setting */
 	unsigned int boost_ctl;
