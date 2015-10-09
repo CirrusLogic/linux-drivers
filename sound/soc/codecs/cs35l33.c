@@ -557,6 +557,11 @@ static struct regmap_config cs35l33_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
+static inline void cs35l33_wait_for_boot(void)
+{
+	msleep(50);
+}
+
 static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 				       const struct i2c_device_id *id)
 {
@@ -627,6 +632,8 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 
 		gpio_set_value_cansleep(cs35l33->pdata.gpio_nreset, 1);
 	}
+
+	cs35l33_wait_for_boot();
 
 	/* initialize codec */
 	ret = regmap_read(cs35l33->regmap, CS35L33_DEVID_AB, &reg);
