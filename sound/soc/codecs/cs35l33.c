@@ -538,9 +538,10 @@ static struct snd_soc_codec_driver soc_codec_dev_cs35l33 = {
 	.num_dapm_widgets = ARRAY_SIZE(cs35l33_dapm_widgets),
 	.dapm_routes = cs35l33_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(cs35l33_audio_map),
-
 	.controls = cs35l33_snd_controls,
 	.num_controls = ARRAY_SIZE(cs35l33_snd_controls),
+
+	.idle_bias_off = true,
 };
 
 static struct regmap_config cs35l33_regmap = {
