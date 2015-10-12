@@ -10,7 +10,6 @@
  * published by the Free Software Foundation.
  *
  */
-
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/version.h>
@@ -562,6 +561,8 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 	struct cs35l33_private *cs35l33 = snd_soc_codec_get_drvdata(codec);
 	u8 reg;
 
+	cs35l33->codec = codec;
+
 	pm_runtime_get_sync(codec->dev);
 
 	reg = snd_soc_read(codec, CS35L33_PROTECT_CTL);
@@ -595,6 +596,12 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 			cs35l33->pdata.boost_ipk);
 
 	cs35l33_set_hg_data(codec, &(cs35l33->pdata));
+
+	/* unmask important interrupts that causes the chip to enter
+	speaker safe mode and hence deserves user attention */
+	snd_soc_update_bits(codec, CS35L33_INT_MASK_1,
+		M_OTE | M_OTW | M_AMP_SHORT |
+		M_CAL_ERR, 0);
 
 	pm_runtime_put_sync(codec->dev);
 
@@ -749,8 +756,99 @@ int cs35l33_get_hg_data(const struct device_node *np, struct cs35l33_pdata *pdat
 static irqreturn_t cs35l33_irq_thread(int irq, void *data)
 {
 	struct cs35l33_private *cs35l33 = data;
+	struct snd_soc_codec *codec = cs35l33->codec;
+	unsigned int sticky_val, current_val;
+	bool poll = false;
 
-	/* TODO: handle interrupts */
+	do {
+		dev_dbg(codec->dev, "t-bone irq received\n");
+
+		if (cs35l33->pdata.gpio_irq > 0) {
+			if (gpio_get_value_cansleep(cs35l33->pdata.gpio_irq))
+				break;
+			else
+				poll = true;
+		}
+
+		/* ack the irq by reading both status registers */
+		regmap_read(cs35l33->regmap, CS35L33_INT_STATUS_2, &sticky_val);
+		regmap_read(cs35l33->regmap, CS35L33_INT_STATUS_1, &sticky_val);
+
+		/* read the current value */
+		regmap_read(cs35l33->regmap, CS35L33_INT_STATUS_1, &current_val);
+
+		/* handle the interrupts */
+
+		if (sticky_val & AMP_SHORT) {
+			dev_err(codec->dev,
+				"t-bone entering speaker safe mode on amp short error\n");
+			if (!(current_val & AMP_SHORT)) {
+				dev_dbg(codec->dev,
+					"t-bone - executing amp short error release sequence\n");
+				regmap_update_bits(cs35l33->regmap,
+					CS35L33_AMP_CTL, AMP_SHORT_RLS, 0);
+				regmap_update_bits(cs35l33->regmap,
+					CS35L33_AMP_CTL, AMP_SHORT_RLS,
+					AMP_SHORT_RLS);
+				regmap_update_bits(cs35l33->regmap,
+					CS35L33_AMP_CTL, AMP_SHORT_RLS, 0);
+			}
+		}
+
+		if (sticky_val & CAL_ERR) {
+			dev_err(codec->dev,
+				"t-bone entering speaker safe mode on cal error\n");
+
+			/* redo the calibration in next power up */
+			cs35l33->amp_cal = false;
+
+			if (!(current_val & CAL_ERR)) {
+				dev_dbg(codec->dev,
+					"t-bone - executing cal error release sequence\n");
+				regmap_update_bits(cs35l33->regmap,
+					CS35L33_AMP_CTL, CAL_ERR_RLS, 0);
+				regmap_update_bits(cs35l33->regmap,
+					CS35L33_AMP_CTL, CAL_ERR_RLS,
+					CAL_ERR_RLS);
+				regmap_update_bits(cs35l33->regmap,
+					CS35L33_AMP_CTL, CAL_ERR_RLS, 0);
+			}
+		}
+
+		if (sticky_val & OTE) {
+			dev_err(codec->dev,
+				"t-bone entering speaker safe mode on over tempreature error\n");
+			if (!(current_val & OTE)) {
+				dev_dbg(codec->dev,
+					"t-bone - executing over tempreature release sequence\n");
+				regmap_update_bits(cs35l33->regmap,
+					CS35L33_AMP_CTL, OTE_RLS, 0);
+				regmap_update_bits(cs35l33->regmap,
+					CS35L33_AMP_CTL, OTE_RLS, OTE_RLS);
+				regmap_update_bits(cs35l33->regmap,
+					CS35L33_AMP_CTL, OTE_RLS, 0);
+			}
+		}
+
+		if (sticky_val & OTW) {
+			dev_err(codec->dev,
+				"t-bone entering speaker safe mode on over tempreature warning\n");
+			if (!(current_val & OTW)) {
+				dev_dbg(codec->dev,
+					"t-bone - executing over tempreature warning sequence\n");
+				regmap_update_bits(cs35l33->regmap,
+					CS35L33_AMP_CTL, OTW_RLS, 0);
+				regmap_update_bits(cs35l33->regmap,
+					CS35L33_AMP_CTL, OTW_RLS, OTW_RLS);
+				regmap_update_bits(cs35l33->regmap,
+					CS35L33_AMP_CTL, OTW_RLS, 0);
+			}
+		}
+
+		if (sticky_val & ALIVE_ERR)
+			dev_err(codec->dev,
+				"t-bone entering speaker safe mode on alive error\n");
+	} while (poll);
 
 	return IRQ_HANDLED;
 }

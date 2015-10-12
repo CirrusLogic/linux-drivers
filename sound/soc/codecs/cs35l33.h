@@ -147,13 +147,26 @@
 #define OTW_RLS			(1 << 1)
 #define OTE_RLS			1
 
+/* CS35L33_INT_MASK_1 */
+#define M_OTE_SHIFT		0
+#define M_OTE   		(1 << M_OTE_SHIFT)
+#define M_OTW_SHIFT		1
+#define M_OTW   		(1 << M_OTW_SHIFT)
+#define M_AMP_SHORT_SHIFT	2
+#define M_AMP_SHORT		(1 << M_AMP_SHORT_SHIFT)
+#define M_ALIVE_ERR_SHIFT	5
+#define M_ALIVE_ERR		(1 << M_ALIVE_ERR_SHIFT)
+#define M_CAL_ERR_SHIFT 	6
+#define M_CAL_ERR		(1 << M_CAL_ERR_SHIFT)
+
 /* CS35L33_INT_STATUS_1 */
 #define CAL_ERR			(1 << 6)
 #define ALIVE_ERR		(1 << 5)
 #define ADSPCLK_ERR		(1 << 4)
 #define MCLK_ERR		(1 << 3)
-#define OTW			(1 << 2)
-#define OTE			1
+#define AMP_SHORT		(1 << 2)
+#define OTW			(1 << 1)
+#define OTE			(1 << 0)
 
 /* CS35L33_INT_STATUS_2 */
 #define VMON_OVFL		(1 << 7)
