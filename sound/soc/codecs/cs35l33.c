@@ -305,16 +305,25 @@ static const struct snd_soc_dapm_route cs35l33_vphg_auto_route[] = {
 static int cs35l33_set_bias_level(struct snd_soc_codec *codec,
 				  enum snd_soc_bias_level level)
 {
+	unsigned int val;
+
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		snd_soc_update_bits(codec, CS35L33_PWRCTL1,
 				    PDN_ALL, 0);
+		snd_soc_update_bits(codec, CS35L33_CLK_CTL,
+				    MCLKDIS, 0);
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		snd_soc_update_bits(codec, CS35L33_PWRCTL1,
 				    PDN_ALL, PDN_ALL);
+		val = snd_soc_read(codec, CS35L33_INT_STATUS_2);
+		if (val & PDN_DONE) {
+			snd_soc_update_bits(codec, CS35L33_CLK_CTL,
+					    MCLKDIS, MCLKDIS);
+		}
 		break;
 	case SND_SOC_BIAS_OFF:
 		break;
