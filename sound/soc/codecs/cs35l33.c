@@ -83,7 +83,18 @@ static const struct reg_default cs35l33_reg[] = {
 	{0x36, 0x40}, /* TDM RX Control 1 */
 	{0x37, 0x03}, /* TDM RX Control 2 */
 	{0x38, 0x04}, /* TDM RX Control 3 */
-	{0x39, 0x63}, /* Boost Converter Control 4 */
+	{0x39, 0x45}, /* Boost Converter Control 4 */
+};
+
+static const struct reg_default cs35l33_patch[] = {
+	{ 0x00,  0x99 },
+	{ 0x59,  0x02 },
+	{ 0x52,  0x30 },
+	{ 0x39,  0x45 },
+	{ 0x57,  0x30 },
+	{ 0x2C,  0x68 },
+	{ 0x55,  0xC0 },
+	{ 0x00,  0x00 },
 };
 
 static bool cs35l33_volatile_register(struct device *dev, unsigned int reg)
@@ -758,6 +769,14 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 
 	dev_info(&i2c_client->dev,
 		 "Cirrus Logic CS35L33, Revision: %02X\n", ret & 0xFF);
+
+	ret = regmap_register_patch(cs35l33->regmap,
+			cs35l33_patch, ARRAY_SIZE(cs35l33_patch));
+	if (ret < 0) {
+		dev_err(&i2c_client->dev,
+			"Error in applying regmap patch: %d\n", ret);
+		goto err_enable;
+	}
 
 	pm_runtime_set_autosuspend_delay(&i2c_client->dev, 100);
 	pm_runtime_use_autosuspend(&i2c_client->dev);

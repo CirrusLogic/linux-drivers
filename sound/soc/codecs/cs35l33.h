@@ -66,7 +66,7 @@
 #define CS35L33_BST_CTL4	0x39	/* Boost Converter Control 4 */
 #define CS35L33_HG_STATUS	0x3F	/* H/G Status */
 #define CS35L33_BST_CTL5	0x3F	/* Boost Converter Control 5 */
-#define CS35L33_MAX_REGISTER	0x3F
+#define CS35L33_MAX_REGISTER	0x59
 #define CS35L33_REGISTER_COUNT	0x1B
 
 #define CS35L33_MCLK_5644	5644800
