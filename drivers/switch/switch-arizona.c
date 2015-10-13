@@ -73,6 +73,8 @@
 #define ARIZONA_MIC_MUTE		1
 #define ARIZONA_MIC_UNMUTE		0
 
+#define ARIZONA_HP_TUNING_INVALID	-1
+
 #define MOON_HP_LOW_IMPEDANCE_LIMIT    11
 #define MOON_HP_MEDIUM_IMPEDANCE_LIMIT 23
 
@@ -3389,6 +3391,10 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		arizona_extcon_set_micd_clamp_mode(arizona);
 
 	arizona_extcon_set_mode(info, 0);
+
+	/* Invalidate the tuning level so that the first detection
+	 * will always apply a tuning */
+	info->hp_imp_level = ARIZONA_HP_TUNING_INVALID;
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
