@@ -2422,12 +2422,9 @@ static int florida_codec_probe(struct snd_soc_codec *codec)
 {
 	struct florida_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->core.arizona;
-	int i, ret;
+	int ret;
 
 	priv->core.arizona->dapm = &codec->dapm;
-
-	for (i = 0; i < FLORIDA_NUM_ADSP; i++)
-		wm_adsp_init_debugfs(&priv->core.adsp[i], codec);
 
 	arizona_init_spk(codec);
 	arizona_init_gpio(codec);
@@ -2473,10 +2470,6 @@ static int florida_codec_remove(struct snd_soc_codec *codec)
 {
 	struct florida_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->core.arizona;
-	int i;
-
-	for (i = 0; i < FLORIDA_NUM_ADSP; i++)
-		wm_adsp_cleanup_debugfs(&priv->core.adsp[i]);
 
 	irq_set_irq_wake(arizona->irq, 0);
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);

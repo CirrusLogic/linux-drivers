@@ -106,14 +106,13 @@ struct wm_adsp {
 	struct list_head alg_regions;
 
 	int fw_id;
-	int fw_id_version;
 
 	const struct wm_adsp_region *mem;
 	int num_mems;
 
 	int fw;
 	int fw_ver;
-	u32 running;
+	bool running;
 
 	struct mutex ctl_lock;
 
@@ -139,12 +138,6 @@ struct wm_adsp {
 	struct mutex *fw_lock;
 	struct work_struct boot_work;
 
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_root;
-	char *wmfw_file_loaded;
-	char *bin_file_loaded;
-#endif
-
 	unsigned int lock_regions;
 };
 
@@ -166,21 +159,6 @@ extern const struct snd_kcontrol_new wm_adsp2v2_fw_controls[];
 
 int wm_adsp1_init(struct wm_adsp *dsp);
 int wm_adsp2_init(struct wm_adsp *dsp, struct mutex *fw_lock);
-
-#ifdef CONFIG_DEBUG_FS
-void wm_adsp_init_debugfs(struct wm_adsp *dsp, struct snd_soc_codec *codec);
-void wm_adsp_cleanup_debugfs(struct wm_adsp *dsp);
-#else
-static inline void wm_adsp_init_debugfs(struct wm_adsp *dsp,
-					struct snd_soc_codec *codec)
-{
-}
-
-void wm_adsp_cleanup_debugfs(struct wm_adsp *dsp)
-{
-}
-#endif
-
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 
