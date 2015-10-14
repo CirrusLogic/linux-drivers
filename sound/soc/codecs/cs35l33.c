@@ -588,19 +588,19 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 		}
 		if (i2c_client->dev.of_node) {
 			if (of_property_read_u32(i2c_client->dev.of_node,
-				"boost_ctl", &val32) >= 0)
+				"boost-ctl", &val32) >= 0)
 				pdata->boost_ctl = val32;
 
 			if (of_property_read_u32(i2c_client->dev.of_node,
-				"gain_zc", &val32) >= 0)
+				"gain-zc", &val32) >= 0)
 				pdata->gain_zc = val32;
 
 			if (of_property_read_u32(i2c_client->dev.of_node,
-				"amp_drv_sel", &val32) >= 0)
+				"amp-drv-sel", &val32) >= 0)
 				pdata->amp_drv_sel = val32;
 
 			if (of_property_read_u32(i2c_client->dev.of_node,
-				"gpio_nreset", &val32) >= 0)
+				"reset-gpios", &val32) >= 0)
 				pdata->gpio_nreset = val32;
 		}
 		cs35l33->pdata = *pdata;
