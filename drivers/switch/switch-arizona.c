@@ -868,6 +868,18 @@ static const struct arizona_hpdet_calibration_data arizona_hpdet_clearwater_rang
 	{ 1000,  10000, 100684000,  -949400, 7300,    63200000,    55,    250000,    500000},
 };
 
+static const struct arizona_hpdet_calibration_data
+	arizona_hpdet_moon_ranges[] = {
+	{ 4,    30,    1014000,   -4300,   3950, 69300000, 381150, 700000,
+	  500000},
+	{ 8,    100,   1014000,   -8600,   7975, 69600000, 382800, 700000,
+	  500000},
+	{ 100,  1000,  9744000,   -79500,  7300, 62900000, 345950, 700000,
+	  500000},
+	{ 1000, 10000, 101158000, -949400, 7300, 63200000, 347600, 700000,
+	  500000},
+};
+
 static int arizona_hpdet_d_calibrate(const struct arizona_extcon_info *info,
 					int dacval, int range)
 {
@@ -1088,17 +1100,27 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		val = (val >> ARIZONA_HP_DACVAL_SHIFT) & ARIZONA_HP_DACVAL_MASK;
 
 		if (info->hpdet_ip_version == 4) {
-			ret = regmap_read(arizona->regmap,
-					  ARIZONA_HP_DACVAL,
-					  &val_down);
-			if (ret != 0) {
-				dev_err(arizona->dev, "Failed to read HP DACVAL value: %d\n",
-					ret);
-				return -EAGAIN;
+			switch (arizona->type) {
+			case CS47L35:
+			case WM8285:
+			case WM1840:
+				ret = regmap_read(arizona->regmap,
+						  ARIZONA_HP_DACVAL,
+						  &val_down);
+				if (ret != 0) {
+					dev_err(arizona->dev,
+					 "Failed to read HP DACVAL value: %d\n",
+					 ret);
+					return -EAGAIN;
+				}
+				val_down = (val_down >>
+					    ARIZONA_HP_DACVAL_DOWN_SHIFT) &
+					    ARIZONA_HP_DACVAL_DOWN_MASK;
+				val = (val + val_down) / 2;
+				break;
+			default:
+				break;
 			}
-			val_down = (val_down >> ARIZONA_HP_DACVAL_DOWN_SHIFT) &
-				ARIZONA_HP_DACVAL_DOWN_MASK;
-			val = (val + val_down) / 2;
 		}
 		val = arizona_hpdet_d_calibrate(info, val, range);
 
@@ -2920,13 +2942,18 @@ static int arizona_hpdet_clearwater_read_calibration(struct arizona_extcon_info 
 	unsigned int otp_hpdet_calib_1, otp_hpdet_calib_2;
 
 	switch (arizona->type) {
+	case WM8285:
+	case WM1840:
+		otp_hpdet_calib_1 = CLEARWATER_OTP_HPDET_CALIB_1;
+		otp_hpdet_calib_2 = CLEARWATER_OTP_HPDET_CALIB_2;
+		break;
 	case CS47L35:
 		otp_hpdet_calib_1 = MARLEY_OTP_HPDET_CALIB_1;
 		otp_hpdet_calib_2 = MARLEY_OTP_HPDET_CALIB_2;
 		break;
 	default:
-		otp_hpdet_calib_1 = CLEARWATER_OTP_HPDET_CALIB_1;
-		otp_hpdet_calib_2 = CLEARWATER_OTP_HPDET_CALIB_2;
+		otp_hpdet_calib_1 = MOON_OTP_HPDET_CALIB_1;
+		otp_hpdet_calib_2 = MOON_OTP_HPDET_CALIB_2;
 		break;
 	}
 
@@ -2991,8 +3018,20 @@ static int arizona_hpdet_clearwater_read_calibration(struct arizona_extcon_info 
 	trims[3].grad_x4 = trims[2].grad_x4;
 
 	info->hpdet_d_trims = trims;
-	info->calib_data = arizona_hpdet_clearwater_ranges;
-	info->calib_data_size = ARRAY_SIZE(arizona_hpdet_clearwater_ranges);
+	switch (arizona->type) {
+	case WM8285:
+	case WM1840:
+	case CS47L35:
+		info->calib_data = arizona_hpdet_clearwater_ranges;
+		info->calib_data_size =
+			ARRAY_SIZE(arizona_hpdet_clearwater_ranges);
+		break;
+	default:
+		info->calib_data = arizona_hpdet_moon_ranges;
+		info->calib_data_size =
+			ARRAY_SIZE(arizona_hpdet_moon_ranges);
+		break;
+	}
 
 	return 0;
 }
@@ -3191,7 +3230,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		break;
 	default:
 		info->micd_clamp = true;
-		info->hpdet_ip_version = 2;
+		info->hpdet_ip_version = 4;
 		info->accdet_ip = 1;
 		break;
 	}
@@ -3359,14 +3398,25 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		break;
 	case 4:
 		arizona_hpdet_clearwater_read_calibration(info);
-		if (!info->hpdet_d_trims)
+		if (!info->hpdet_d_trims) {
 			info->hpdet_ip_version = 2;
-		else
-			/* as per the hardware steps - below bit needs to be set
-			 * for clearwater for accurate HP impedance detection */
-			regmap_update_bits(arizona->regmap, ARIZONA_ACCESSORY_DETECT_MODE_1,
-					   ARIZONA_ACCDET_POLARITY_INV_ENA_MASK,
-					   1 << ARIZONA_ACCDET_POLARITY_INV_ENA_SHIFT);
+		} else {
+			switch (arizona->type) {
+			case CS47L35:
+			case WM8285:
+			case WM1840:
+				/* as per the hardware steps - below bit needs
+				 * to be set for clearwater for accurate HP
+				 * impedance detection */
+				regmap_update_bits(arizona->regmap,
+				   ARIZONA_ACCESSORY_DETECT_MODE_1,
+				   ARIZONA_ACCDET_POLARITY_INV_ENA_MASK,
+				   1 << ARIZONA_ACCDET_POLARITY_INV_ENA_SHIFT);
+				break;
+			default:
+				break;
+			}
+		}
 		break;
 	default:
 		break;
