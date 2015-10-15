@@ -119,7 +119,7 @@ struct arizona_hpdet_calibration_data {
 	int	min;
 	int	max;
 	s64	C0;		/* value * 1000000 */
-	s64	C1;		/* value * 10000 */
+	s64	C1;		/* value * 1000000 */
 	s64	C2;		/* not multiplied */
 	s64	C3;		/* value * 1000000 */
 	s64	C4_x_C3;	/* value * 1000000 */
@@ -2970,7 +2970,7 @@ static int arizona_hpdet_clearwater_read_calibration(struct arizona_extcon_info 
 			  otp_hpdet_calib_2,
 			  &gradient);
 	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to read HP CALIB OFFSET value: %d\n",
+		dev_err(arizona->dev, "Failed to read HP CALIB GRADIENT value: %d\n",
 			ret);
 		return ret;
 	}
