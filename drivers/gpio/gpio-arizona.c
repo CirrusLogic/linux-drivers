@@ -263,7 +263,7 @@ static int __devinit arizona_gpio_probe(struct platform_device *pdev)
 			clearwater_gpio_direction_out;
 		arizona_gpio->gpio_chip.set = clearwater_gpio_set;
 
-		arizona_gpio->gpio_chip.ngpio = 40;
+		arizona_gpio->gpio_chip.ngpio = CLEARWATER_NUM_GPIOS;
 		break;
 	case WM1831:
 	case CS47L24:
@@ -277,7 +277,7 @@ static int __devinit arizona_gpio_probe(struct platform_device *pdev)
 			clearwater_gpio_direction_out;
 		arizona_gpio->gpio_chip.set = clearwater_gpio_set;
 
-		arizona_gpio->gpio_chip.ngpio = 16;
+		arizona_gpio->gpio_chip.ngpio = MARLEY_NUM_GPIOS;
 		break;
 	case CS47L90:
 	case CS47L91:
@@ -289,7 +289,7 @@ static int __devinit arizona_gpio_probe(struct platform_device *pdev)
 		arizona_gpio->gpio_chip.set = clearwater_gpio_set;
 		arizona_gpio->gpio_chip.to_irq = clearwater_gpio_to_irq;
 
-		arizona_gpio->gpio_chip.ngpio = 38;
+		arizona_gpio->gpio_chip.ngpio = MOON_NUM_GPIOS;
 		break;
 	default:
 		dev_err(&pdev->dev, "Unknown chip variant %d\n",
