@@ -6132,6 +6132,10 @@
 /*
  * R1282 (0x502) - AIF1 Rx Pin Ctrl
  */
+#define ARIZONA_AIF1RX_LRCLK_ADV                 0x0008  /* AIF1RX_LRCLK_ADV */
+#define ARIZONA_AIF1RX_LRCLK_ADV_MASK            0x0008  /* AIF1RX_LRCLK_ADV */
+#define ARIZONA_AIF1RX_LRCLK_ADV_SHIFT                3  /* AIF1RX_LRCLK_ADV */
+#define ARIZONA_AIF1RX_LRCLK_ADV_WIDTH                1  /* AIF1RX_LRCLK_ADV */
 #define ARIZONA_AIF1RX_LRCLK_INV                 0x0004  /* AIF1RX_LRCLK_INV */
 #define ARIZONA_AIF1RX_LRCLK_INV_MASK            0x0004  /* AIF1RX_LRCLK_INV */
 #define ARIZONA_AIF1RX_LRCLK_INV_SHIFT                2  /* AIF1RX_LRCLK_INV */

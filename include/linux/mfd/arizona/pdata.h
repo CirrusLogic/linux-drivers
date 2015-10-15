@@ -299,6 +299,10 @@ struct arizona_pdata {
 	 * removal: 1 - IN1L, 2 - IN1R, ..., n - IN[n]R
 	 */
 	unsigned int hs_mic;
+
+	/* If lrclk_adv is set then in dsp-a mode,
+	fsync is shifted left by half bclk */
+	int lrclk_adv[ARIZONA_MAX_AIF];
 };
 
 #endif

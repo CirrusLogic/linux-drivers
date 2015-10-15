@@ -939,6 +939,27 @@ static int arizona_of_get_inmode(struct arizona *arizona,
 	return 0;
 }
 
+static int arizona_of_get_lrclk_adv(struct arizona *arizona,
+					const char *prop)
+{
+	struct arizona_pdata *pdata = &arizona->pdata;
+	struct device_node *np = arizona->dev->of_node;
+	struct property *tempprop;
+	const __be32 *cur;
+	u32 val;
+	int i;
+
+	i = 0;
+	of_property_for_each_u32(np, prop, tempprop, cur, val) {
+		if (i == ARRAY_SIZE(pdata->lrclk_adv))
+			break;
+
+		pdata->lrclk_adv[i++] = val;
+	}
+
+	return 0;
+}
+
 static int arizona_of_get_dmicref(struct arizona *arizona,
 					const char *prop)
 {
@@ -1247,6 +1268,9 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 
 	pdata->rev_specific_fw = of_property_read_bool(arizona->dev->of_node,
 						       "wlf,rev-specific-fw");
+
+	arizona_of_get_lrclk_adv(arizona, "wlf,aif-lrclk-advance");
+
 	return 0;
 }
 
