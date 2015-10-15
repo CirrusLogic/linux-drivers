@@ -2312,6 +2312,8 @@
 #define MARLEY_OTP_HPDET_CALIB_2                 0x31FA
 #define CLEARWATER_OTP_HPDET_CALIB_1             0x33F8
 #define CLEARWATER_OTP_HPDET_CALIB_2             0x33FA
+#define MOON_OTP_HPDET_CALIB_1                   0x020004
+#define MOON_OTP_HPDET_CALIB_2                   0x020006
 #define CLEARWATER_DSP1_CONFIG                   0x0FFE00
 #define CLEARWATER_DSP1_STATUS_1                 0x0FFE04
 #define CLEARWATER_DSP1_STATUS_2                 0x0FFE06
