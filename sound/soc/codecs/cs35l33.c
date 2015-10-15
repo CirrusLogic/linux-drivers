@@ -140,7 +140,6 @@ static bool cs35l33_readable_register(struct device *dev, unsigned int reg)
 	case CS35L33_DEVID_AB:
 	case CS35L33_DEVID_CD:
 	case CS35L33_DEVID_E:
-	case CS35L33_FAB_ID:
 	case CS35L33_REV_ID:
 	case CS35L33_PWRCTL1:
 	case CS35L33_PWRCTL2:
