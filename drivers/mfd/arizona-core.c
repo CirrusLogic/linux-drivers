@@ -1101,6 +1101,7 @@ static int arizona_of_get_micd_configs(struct arizona *arizona,
 	case WM1840:
 	case WM1831:
 	case CS47L24:
+	case CS47L35:
 		group_size = 3;
 		break;
 	default:
