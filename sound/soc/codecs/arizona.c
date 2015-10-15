@@ -3443,7 +3443,10 @@ EXPORT_SYMBOL_GPL(arizona_set_sysclk);
 static int arizona_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
 	int lrclk, bclk, mode, base;
+	unsigned int mask;
 
 	base = dai->driver->base;
 
@@ -3521,9 +3524,22 @@ static int arizona_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	snd_soc_update_bits(codec, base + ARIZONA_AIF_TX_PIN_CTRL,
 			    ARIZONA_AIF1TX_LRCLK_INV |
 			    ARIZONA_AIF1TX_LRCLK_MSTR, lrclk);
+
+	mask = ARIZONA_AIF1RX_LRCLK_INV | ARIZONA_AIF1RX_LRCLK_MSTR;
+	switch (arizona->type) {
+	case CS47L90:
+	case CS47L91:
+		mask |= ARIZONA_AIF1RX_LRCLK_ADV;
+		if (arizona->pdata.lrclk_adv[dai->id - 1] &&
+			mode == SND_SOC_DAIFMT_DSP_A)
+			lrclk |= ARIZONA_AIF1RX_LRCLK_ADV;
+		break;
+	default:
+		break;
+	}
+
 	snd_soc_update_bits(codec, base + ARIZONA_AIF_RX_PIN_CTRL,
-			    ARIZONA_AIF1RX_LRCLK_INV |
-			    ARIZONA_AIF1RX_LRCLK_MSTR, lrclk);
+			    mask, lrclk);
 	snd_soc_update_bits(codec, base + ARIZONA_AIF_FORMAT,
 			    ARIZONA_AIF1_FMT_MASK, mode);
 
