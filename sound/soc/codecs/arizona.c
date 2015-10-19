@@ -4852,14 +4852,9 @@ static int arizona_enable_fll_ao(struct arizona_fll *fll,
 	arizona_fll_dbg(fll, "Enabling FLL, initially %s\n",
 			already_enabled ? "enabled" : "disabled");
 
-	if (already_enabled) {
-		/* Facilitate smooth refclk across the transition */
-		regmap_update_bits(fll->arizona->regmap, fll->base + 1,
-				   MOON_FLL_AO_HOLD, MOON_FLL_AO_HOLD);
-	} else {
-		regmap_update_bits(fll->arizona->regmap, fll->base + 1,
-				   MOON_FLL_AO_HOLD, 0);
-	}
+	/* FLL_AO_HOLD must be set before configuring any registers */
+	regmap_update_bits(fll->arizona->regmap, fll->base + 1,
+		MOON_FLL_AO_HOLD, MOON_FLL_AO_HOLD);
 
 	if (patch) {
 		regmap_multi_reg_write(arizona->regmap, patch,
@@ -4901,9 +4896,9 @@ static int arizona_enable_fll_ao(struct arizona_fll *fll,
 	regmap_update_bits(arizona->regmap, fll->base + 1,
 			   MOON_FLL_AO_ENA, MOON_FLL_AO_ENA);
 
-	if (already_enabled)
-		regmap_update_bits(arizona->regmap, fll->base + 1,
-				   MOON_FLL_AO_HOLD, 0);
+	/* Release the hold so that fll_ao locks to external frequency */
+	regmap_update_bits(arizona->regmap, fll->base + 1,
+		MOON_FLL_AO_HOLD, 0);
 
 	if (!already_enabled)
 		arizona_wait_for_fll(fll, true);
@@ -4922,8 +4917,6 @@ static int arizona_disable_fll_ao(struct arizona_fll *fll)
 			   MOON_FLL_AO_HOLD, MOON_FLL_AO_HOLD);
 	regmap_update_bits_check(arizona->regmap, fll->base + 1,
 			   MOON_FLL_AO_ENA, 0, &change);
-	regmap_update_bits(arizona->regmap, fll->base + 1,
-			   MOON_FLL_AO_HOLD, 0);
 
 	arizona_wait_for_fll(fll, false);
 
