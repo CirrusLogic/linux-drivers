@@ -425,6 +425,7 @@ struct arizona_fll_cfg {
 	int outdiv;
 	int fratio;
 	int gain;
+	int intg_gain;
 	const struct reg_sequence *patch;
 	unsigned int patch_size;
 };
