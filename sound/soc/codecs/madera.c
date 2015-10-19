@@ -2592,24 +2592,18 @@ int madera_anc_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(madera_anc_ev);
 
-static const unsigned int madera_sysclk_48k_rates[] = {
+static const unsigned int madera_opclk_ref_48k_rates[] = {
 	6144000,
 	12288000,
 	24576000,
 	49152000,
-	73728000,
-	98304000,
-	147456000,
 };
 
-static const unsigned int madera_sysclk_44k1_rates[] = {
+static const unsigned int madera_opclk_ref_44k1_rates[] = {
 	5644800,
 	11289600,
 	22579200,
 	45158400,
-	67737600,
-	90316800,
-	135475200,
 };
 
 static int madera_set_opclk(struct snd_soc_codec *codec, unsigned int clk,
@@ -2619,6 +2613,9 @@ static int madera_set_opclk(struct snd_soc_codec *codec, unsigned int clk,
 	unsigned int reg;
 	const unsigned int *rates;
 	int ref, div, refclk;
+
+	BUILD_BUG_ON(ARRAY_SIZE(madera_opclk_ref_48k_rates) !=
+		     ARRAY_SIZE(madera_opclk_ref_44k1_rates));
 
 	switch (clk) {
 	case MADERA_CLK_OPCLK:
@@ -2634,14 +2631,16 @@ static int madera_set_opclk(struct snd_soc_codec *codec, unsigned int clk,
 	}
 
 	if (refclk % 8000)
-		rates = madera_sysclk_44k1_rates;
+		rates = madera_opclk_ref_44k1_rates;
 	else
-		rates = madera_sysclk_48k_rates;
+		rates = madera_opclk_ref_48k_rates;
 
-	for (ref = 0; ref < ARRAY_SIZE(madera_sysclk_48k_rates) &&
-		      rates[ref] <= refclk; ref++) {
-		div = 1;
-		while (rates[ref] / div >= freq && div < 32) {
+	for (ref = 0; ref < ARRAY_SIZE(madera_opclk_ref_48k_rates); ++ref) {
+		if (rates[ref] > refclk)
+			continue;
+
+		div = 2;
+		while ((rates[ref] / div >= freq) && (div <= 30)) {
 			if (rates[ref] / div == freq) {
 				dev_dbg(codec->dev, "Configured %dHz OPCLK\n",
 					freq);
@@ -2653,7 +2652,7 @@ static int madera_set_opclk(struct snd_soc_codec *codec, unsigned int clk,
 						    ref);
 				return 0;
 			}
-			div++;
+			div += 2;
 		}
 	}
 
