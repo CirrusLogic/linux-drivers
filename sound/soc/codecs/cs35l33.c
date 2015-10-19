@@ -34,6 +34,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/machine.h>
+#include <linux/of_gpio.h>
 
 #include "cs35l33.h"
 
