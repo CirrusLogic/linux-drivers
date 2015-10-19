@@ -4210,14 +4210,24 @@ static struct {
 	{ 1000000, 13500000, 0,  1 },
 };
 
-static struct {
+struct arizona_fll_gain {
 	unsigned int min;
 	unsigned int max;
 	u16 gain;
-} fll_gains[] = {
+};
+
+static struct arizona_fll_gain fll_gains[] = {
 	{       0,   256000, 0 },
 	{  256000,  1000000, 2 },
 	{ 1000000, 13500000, 4 },
+};
+
+static struct arizona_fll_gain fll_moon_gains[] = {
+	{       0,   100000, 0 },
+	{  100000,   375000, 2 },
+	{  375000,  1500000, 3 },
+	{ 1500000,  6000000, 4 },
+	{ 6000000, 13500000, 5 },
 };
 
 static int arizona_validate_fll(struct arizona_fll *fll,
@@ -4383,6 +4393,8 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 	unsigned int fvco, gcd_fll;
 	int i, ratio;
 	unsigned int fref;
+	struct arizona_fll_gain *fll_gain;
+	unsigned int size_fll_gain;
 
 	arizona_fll_dbg(fll, "fin=%u fout=%u\n", fin, fll->fout);
 
@@ -4428,13 +4440,17 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 		cfg->lambda >>= 1;
 	}
 
+	fll_gain = fll_gains;
+	size_fll_gain = ARRAY_SIZE(fll_gains);
+
 	switch (fll->arizona->type) {
 	default:
 		if (!sync) {
-			cfg->gain = fref > 768000 ? 3 : 2;
-			break;
+			cfg->intg_gain = fref > 768000 ? 3 : 2;
+			fll_gain = fll_moon_gains;
+			size_fll_gain = ARRAY_SIZE(fll_moon_gains);
 		}
-		/* for sync loop fall through */
+		/* fall-through */
 	case WM5102:
 	case WM5110:
 	case WM8997:
@@ -4446,13 +4462,14 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 	case WM1831:
 	case CS47L24:
 	case CS47L35:
-		for (i = 0; i < ARRAY_SIZE(fll_gains); i++) {
-			if (fll_gains[i].min <= fref && fref <= fll_gains[i].max) {
-				cfg->gain = fll_gains[i].gain;
+		for (i = 0; i < size_fll_gain; i++) {
+			if (fll_gain[i].min <= fref &&
+			    fref <= fll_gain[i].max) {
+				cfg->gain = fll_gain[i].gain;
 				break;
 			}
 		}
-		if (i == ARRAY_SIZE(fll_gains)) {
+		if (i == size_fll_gain) {
 			arizona_fll_err(fll, "Unable to find gain for fref=%uHz\n",
 					fref);
 			return -EINVAL;
@@ -4475,7 +4492,7 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 
 static bool arizona_apply_fll(struct arizona *arizona, unsigned int base,
 			      struct arizona_fll_cfg *cfg, int source,
-			      bool sync)
+			      int gain, bool sync)
 {
 	bool change, fll_change;
 
@@ -4500,7 +4517,7 @@ static bool arizona_apply_fll(struct arizona *arizona, unsigned int base,
 	if (sync) {
 		regmap_update_bits_check(arizona->regmap, base + 0x7,
 				   ARIZONA_FLL1_GAIN_MASK,
-				   cfg->gain << ARIZONA_FLL1_GAIN_SHIFT, &change);
+				   gain << ARIZONA_FLL1_GAIN_SHIFT, &change);
 		fll_change |= change;
 	} else {
 		regmap_update_bits(arizona->regmap, base + 0x5,
@@ -4508,7 +4525,7 @@ static bool arizona_apply_fll(struct arizona *arizona, unsigned int base,
 				   cfg->outdiv << ARIZONA_FLL1_OUTDIV_SHIFT);
 		regmap_update_bits_check(arizona->regmap, base + 0x9,
 				   ARIZONA_FLL1_GAIN_MASK,
-				   cfg->gain << ARIZONA_FLL1_GAIN_SHIFT, &change);
+				   gain << ARIZONA_FLL1_GAIN_SHIFT, &change);
 		fll_change |= change;
 	}
 
@@ -4586,6 +4603,7 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 	struct arizona_fll_cfg *sync_cfg = &(fll->sync_cfg);
 	bool fll_change, change;
 	unsigned int fsync_freq;
+	int gain;
 
 	if (already_enabled < 0)
 		return already_enabled;
@@ -4610,19 +4628,41 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 		arizona_calc_fll(fll, ref_cfg, fll->ref_freq, false);
 
 		fll_change = arizona_apply_fll(arizona, fll->base, ref_cfg, fll->ref_src,
-				  false);
+				  ref_cfg->gain, false);
 		if (fll->sync_src >= 0) {
 			arizona_calc_fll(fll, sync_cfg, fll->sync_freq, true);
 			fsync_freq = fll->sync_freq / (1 << sync_cfg->refdiv);
 			fll_change |= arizona_apply_fll(arizona, fll->base + fll->sync_offset,
-							sync_cfg, fll->sync_src, true);
+					sync_cfg, fll->sync_src,
+					sync_cfg->gain, true);
 			use_sync = true;
 		}
 	} else if (fll->sync_src >= 0) {
 		arizona_calc_fll(fll, ref_cfg, fll->sync_freq, false);
 
+		gain = ref_cfg->gain;
+
+		switch (fll->arizona->type) {
+		case WM5102:
+		case WM5110:
+		case WM8997:
+		case WM8280:
+		case WM8998:
+		case WM1814:
+		case WM8285:
+		case WM1840:
+		case WM1831:
+		case CS47L24:
+		case CS47L35:
+			break;
+		default:
+			if (ref_cfg->theta == 0)
+				gain = ref_cfg->intg_gain;
+			break;
+		}
+
 		fll_change = arizona_apply_fll(arizona, fll->base, ref_cfg,
-				  fll->sync_src, false);
+				fll->sync_src, gain, false);
 
 		regmap_update_bits(arizona->regmap, fll->base +
 				   fll->sync_offset + 0x1,
