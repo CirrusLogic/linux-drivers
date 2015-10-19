@@ -191,6 +191,7 @@ int arizona_request_irq(struct arizona *arizona, int irq, const char *name,
 			irq_handler_t handler, void *data);
 void arizona_free_irq(struct arizona *arizona, int irq, void *data);
 int arizona_set_irq_wake(struct arizona *arizona, int irq, int on);
+int arizona_map_irq(struct arizona *arizona, int irq);
 
 #ifdef CONFIG_MFD_WM5102
 int wm5102_patch(struct arizona *arizona);
