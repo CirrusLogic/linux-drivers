@@ -794,6 +794,7 @@ static struct regmap_config cs35l33_regmap = {
 	.readable_reg = cs35l33_readable_register,
 	.writeable_reg = cs35l33_writeable_register,
 	.cache_type = REGCACHE_RBTREE,
+	.use_single_rw = true,
 };
 
 static inline void cs35l33_wait_for_boot(void)
