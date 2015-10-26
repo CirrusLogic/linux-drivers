@@ -208,6 +208,19 @@ static int florida_adsp_power_ev(struct snd_soc_dapm_widget *w,
 				 int event)
 {
 	struct florida_priv *florida = snd_soc_codec_get_drvdata(w->codec);
+	struct snd_soc_codec *codec = w->codec;
+	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	unsigned int v;
+	int ret;
+
+	ret = regmap_read(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, &v);
+	if (ret != 0) {
+		dev_err(codec->dev,
+			"Failed to read SYSCLK state: %d\n", ret);
+		return -EIO;
+	}
+
+	v = (v & ARIZONA_SYSCLK_FREQ_MASK) >> ARIZONA_SYSCLK_FREQ_SHIFT;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -221,7 +234,7 @@ static int florida_adsp_power_ev(struct snd_soc_dapm_widget *w,
 		break;
 	}
 
-	return arizona_adsp_power_ev(w, kcontrol, event);
+	return wm_adsp2_early_event(w, kcontrol, event, v);
 }
 
 static const struct reg_default florida_no_dre_left_enable[] = {

@@ -174,18 +174,9 @@ int wm_adsp2_codec_remove(struct wm_adsp *dsp, struct snd_soc_codec *codec);
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 
-#if defined(CONFIG_SND_SOC_WM_ADSP)
 int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event,
 			 unsigned int freq);
-#else
-static inline int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
-				       struct snd_kcontrol *kcontrol, int event,
-				       unsigned int freq)
-{
-	return 0;
-}
-#endif
 
 int wm_adsp2_lock(struct wm_adsp *adsp, unsigned int regions);
 irqreturn_t wm_adsp2_bus_error(struct wm_adsp *adsp);
