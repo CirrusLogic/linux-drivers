@@ -55,6 +55,8 @@
 #define MADERA_MAX_MICBIAS		4
 #define MADERA_MAX_CHILD_MICBIAS	4
 
+#define MADERA_MAX_GPSW			2
+
 #define MADERA_HAP_ACT_ERM		0
 #define MADERA_HAP_ACT_LRA		2
 
@@ -180,7 +182,7 @@ struct madera_pdata {
 	/** General purpose switch mode setting
 	 * See the SW1_MODE field in the datasheet for the available values
 	 */
-	unsigned int gpsw;
+	unsigned int gpsw[MADERA_MAX_GPSW];
 
 	/** If non-zero don't run headphone detection, just report this value */
 	int fixed_hpdet_imp;

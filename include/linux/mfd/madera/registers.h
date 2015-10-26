@@ -3960,6 +3960,9 @@
 /*
  * R712 (0x2C8) - GP Switch 1
  */
+#define MADERA_SW2_MODE_MASK				0x000C
+#define MADERA_SW2_MODE_SHIFT				     2
+#define MADERA_SW2_MODE_WIDTH				     2
 #define MADERA_SW1_MODE_MASK				0x0003
 #define MADERA_SW1_MODE_SHIFT				     0
 #define MADERA_SW1_MODE_WIDTH				     2
