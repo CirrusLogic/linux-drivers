@@ -611,7 +611,7 @@ static int wm5102_sysclk_ev(struct snd_soc_dapm_widget *w,
 		break;
 	}
 
-	return 0;
+	return wm_adsp2_early_event(w, kcontrol, event, v);
 }
 
 static int wm5102_out_comp_coeff_get(struct snd_kcontrol *kcontrol,
