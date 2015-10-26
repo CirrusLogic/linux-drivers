@@ -2226,7 +2226,8 @@ static int madera_extcon_of_get_pdata(struct madera *madera)
 	pdata->jd_invert = of_property_read_bool(madera->dev->of_node,
 						 "cirrus,jd-invert");
 
-	madera_of_read_uint(madera, "cirrus,gpsw", false, &pdata->gpsw);
+	madera_of_read_uint_array(madera, "cirrus,gpsw", false,
+				  pdata->gpsw, 0, ARRAY_SIZE(pdata->gpsw));
 
 	madera_of_read_int(madera, "cirrus,fixed-hpdet-imp", false,
 			   &pdata->fixed_hpdet_imp);
@@ -2605,11 +2606,25 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (madera->pdata.gpsw > 0)
+	if (madera->pdata.gpsw[0] > 0)
 		regmap_update_bits(madera->regmap,
 				   MADERA_GP_SWITCH_1,
 				   MADERA_SW1_MODE_MASK,
-				   madera->pdata.gpsw);
+				   madera->pdata.gpsw[0] <<
+				   MADERA_SW1_MODE_SHIFT);
+	switch (madera->type) {
+	case CS47L90:
+	case CS47L91:
+		if (madera->pdata.gpsw[1] > 0)
+			regmap_update_bits(madera->regmap,
+					   MADERA_GP_SWITCH_1,
+					   MADERA_SW2_MODE_MASK,
+					   madera->pdata.gpsw[1] <<
+					   MADERA_SW2_MODE_SHIFT);
+		break;
+	default:
+		break;
+	}
 
 	if (madera->pdata.micd_pol_gpio > 0) {
 		if (info->micd_modes[0].gpio)
