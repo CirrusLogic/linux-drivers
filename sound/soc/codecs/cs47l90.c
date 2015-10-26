@@ -2535,7 +2535,7 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 	mutex_lock(&cs47l90->compr_info.lock);
 
 	if (!cs47l90->compr_info.trig &&
-	    cs47l90->core.adsp[5].fw_id == 0x9000d &&
+	    cs47l90->core.adsp[5].fw_features.ez2control_trigger &&
 	    cs47l90->core.adsp[5].running) {
 		if (cs47l90->core.madera->pdata.voice_trigger)
 			cs47l90->core.madera->pdata.voice_trigger();
