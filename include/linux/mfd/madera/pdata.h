@@ -68,9 +68,9 @@ struct madera_jd_state;
 struct madera_micbias {
 	int mV;                    /** Regulated voltage */
 	unsigned int ext_cap:1;    /** External capacitor fitted */
+	unsigned int discharge[MADERA_MAX_CHILD_MICBIAS]; /** Actively discharge */
 	unsigned int soft_start:1; /** Disable aggressive startup ramp rate */
 	unsigned int bypass:1;     /** Use bypass mode */
-	unsigned int discharge[MADERA_MAX_CHILD_MICBIAS]; /** Actively discharge */
 };
 
 struct madera_micd_config {
