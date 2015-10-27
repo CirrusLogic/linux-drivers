@@ -3514,7 +3514,7 @@ static const struct {
 	unsigned int max;
 	u16 fratio;
 	int ratio;
-} fll_fratios[] = {
+} fll_sync_fratios[] = {
 	{       0,    64000, 4, 16 },
 	{   64000,   128000, 3,  8 },
 	{  128000,   256000, 2,  4 },
@@ -3550,36 +3550,52 @@ static int madera_validate_fll(struct madera_fll *fll,
 	return 0;
 }
 
+static int madera_find_sync_fratio(unsigned int fref, int *fratio)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fll_sync_fratios); i++) {
+		if (fll_sync_fratios[i].min <= fref &&
+		    fref <= fll_sync_fratios[i].max) {
+			if (fratio)
+				*fratio = fll_sync_fratios[i].fratio;
+
+			return fll_sync_fratios[i].ratio;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static int madera_find_main_fratio(unsigned int fref, unsigned int fvco,
+				   int *fratio)
+{
+	int ratio = 1;
+
+	while ((fvco / (ratio * fref)) > MADERA_FLL_MAX_N)
+		ratio++;
+
+	if (fratio)
+		*fratio = ratio - 1;
+
+	return ratio;
+}
+
 static int madera_find_fratio(struct madera_fll *fll, unsigned int fref,
 			      unsigned int fvco, bool sync, int *fratio)
 {
-	int i, ratio;
-
 	switch (fll->madera->type) {
 	case CS47L35:
 	case CS47L85:
 	case WM1840:
-		break;
+		/* these use the same calculation for main and sync loops */
+		return madera_find_sync_fratio(fref, fratio);
 	default:
-		if (!sync) {
-			ratio = 1;
-			while ((fvco / (ratio * fref)) > MADERA_FLL_MAX_N)
-				ratio++;
-			*fratio = ratio - 1;
-			return ratio;
-		}
-		break;
+		if (sync)
+			return madera_find_sync_fratio(fref, fratio);
+		else
+			return madera_find_main_fratio(fref, fvco, fratio);
 	}
-
-	/* Find an appropriate FLL_FRATIO */
-	for (i = 0; i < ARRAY_SIZE(fll_fratios); i++) {
-		if (fll_fratios[i].min <= fref && fref <= fll_fratios[i].max) {
-			if (fratio)
-				*fratio = fll_fratios[i].fratio;
-			return fll_fratios[i].ratio;
-		}
-	}
-	return -EINVAL;
 }
 
 static int madera_calc_fratio(struct madera_fll *fll,
