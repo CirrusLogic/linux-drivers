@@ -3868,6 +3868,29 @@ static int madera_wait_for_fll(struct madera_fll *fll, bool requested)
 	return -ETIMEDOUT;
 }
 
+static bool madera_set_fll_phase_integrator(struct madera_fll *fll,
+					    struct madera_fll_cfg *ref_cfg,
+					    bool sync)
+{
+	unsigned int val;
+	bool reg_change;
+
+	if (!sync && (ref_cfg->theta == 0))
+		val = (1 << MADERA_FLL1_PHASE_ENA_SHIFT) |
+			(2 << MADERA_FLL1_PHASE_GAIN_SHIFT);
+	else
+		val = 2 << MADERA_FLL1_PHASE_GAIN_SHIFT;
+
+	regmap_update_bits_check(fll->madera->regmap,
+				 fll->base + 0xA,
+				 MADERA_FLL1_PHASE_ENA_MASK |
+				 MADERA_FLL1_PHASE_GAIN_MASK,
+				 val,
+				 &reg_change);
+
+	return reg_change;
+}
+
 static int madera_enable_fll(struct madera_fll *fll)
 {
 	struct madera *madera = fll->madera;
@@ -3875,7 +3898,7 @@ static int madera_enable_fll(struct madera_fll *fll)
 	int already_enabled = madera_is_enabled_fll(fll);
 	struct madera_fll_cfg ref_cfg, sync_cfg;
 	unsigned int sync_reg_base;
-	bool fll_change, reg_change;
+	bool fll_change;
 
 	switch (madera->type) {
 	case CS47L35:
@@ -3951,22 +3974,8 @@ static int madera_enable_fll(struct madera_fll *fll)
 	case WM1840:
 		break;
 	default:
-		if ((!use_sync) && (ref_cfg.theta == 0))
-			regmap_update_bits_check(madera->regmap,
-				fll->base + 0xA,
-				MADERA_FLL1_PHASE_ENA_MASK |
-				MADERA_FLL1_PHASE_GAIN_MASK,
-				(1 << MADERA_FLL1_PHASE_ENA_SHIFT) |
-				(2 << MADERA_FLL1_PHASE_GAIN_SHIFT),
-				&reg_change);
-		else
-			regmap_update_bits_check(madera->regmap,
-				fll->base + 0xA,
-				MADERA_FLL1_PHASE_ENA_MASK |
-				MADERA_FLL1_PHASE_GAIN_MASK,
-				2 << MADERA_FLL1_PHASE_GAIN_SHIFT,
-				&reg_change);
-		fll_change |= reg_change;
+		fll_change = madera_set_fll_phase_integrator(fll, &ref_cfg,
+							     use_sync);
 		break;
 	}
 
