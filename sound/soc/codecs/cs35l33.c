@@ -739,6 +739,16 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 		snd_soc_write(codec, CS35L33_BST_PEAK_CTL,
 			cs35l33->pdata.boost_ipk);
 
+	if (cs35l33->pdata.enable_soft_ramp) {
+		snd_soc_update_bits(codec, CS35L33_DAC_CTL,
+			DIGSFT, DIGSFT);
+		snd_soc_update_bits(codec, CS35L33_DAC_CTL,
+			DSR_RATE, cs35l33->pdata.ramp_rate);
+	} else {
+		snd_soc_update_bits(codec, CS35L33_DAC_CTL,
+			DIGSFT, 0);
+	}
+
 	cs35l33_set_hg_data(codec, &(cs35l33->pdata));
 
 	/* unmask important interrupts that causes the chip to enter
@@ -1065,6 +1075,14 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 			if (of_property_read_u32(i2c_client->dev.of_node,
 				"amp-drv-sel", &val32) >= 0)
 				pdata->amp_drv_sel = val32;
+
+			if (of_property_read_u32(i2c_client->dev.of_node,
+				"ramp-rate", &val32) >= 0) {
+				pdata->ramp_rate = val32;
+				cs35l33->pdata.enable_soft_ramp = true;
+			} else {
+				cs35l33->pdata.enable_soft_ramp = false;
+			}
 
 			pdata->gpio_nreset = of_get_named_gpio(i2c_client->dev.of_node,
 							       "reset-gpios", 0);

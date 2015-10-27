@@ -48,6 +48,12 @@ struct cs35l33_pdata {
 	/* Amplifier Drive Select */
 	unsigned int amp_drv_sel;
 
+	/* enable soft volume ramp */
+	bool enable_soft_ramp;
+
+	/* soft volume ramp rate */
+	unsigned int ramp_rate;
+
 	/* H/G algo configuration */
 	struct cs35l33_hg hg_config;
 };
