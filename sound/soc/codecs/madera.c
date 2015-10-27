@@ -3522,14 +3522,21 @@ static const struct {
 	{ 1000000, 13500000, 0,  1 },
 };
 
-static const struct {
+struct madera_fll_gains {
 	unsigned int min;
 	unsigned int max;
 	u16 gain;
-} fll_gains[] = {
+};
+
+static const struct madera_fll_gains madera_fll_sync_gains[] = {
 	{       0,   256000, 0 },
 	{  256000,  1000000, 2 },
 	{ 1000000, 13500000, 4 },
+};
+
+static const struct madera_fll_gains madera_fll_main_gains[] = {
+	{      0,   767999, 2 },
+	{ 768000, 13500000, 3 },
 };
 
 static int madera_validate_fll(struct madera_fll *fll,
@@ -3677,12 +3684,34 @@ static int madera_calc_fratio(struct madera_fll *fll,
 	return cfg->fratio + 1;
 }
 
+static int madera_find_fll_gain(struct madera_fll *fll,
+				struct madera_fll_cfg *cfg,
+				unsigned int fref,
+				const struct madera_fll_gains *gains,
+				int n_gains)
+{
+	int i;
+
+	for (i = 0; i < n_gains; i++) {
+		if (gains[i].min <= fref && fref <= gains[i].max) {
+			cfg->gain = gains[i].gain;
+			return 0;
+		}
+	}
+
+	madera_fll_err(fll, "Unable to find gain for fref=%uHz\n", fref);
+
+	return -EINVAL;
+}
+
 static int madera_calc_fll(struct madera_fll *fll,
 			   struct madera_fll_cfg *cfg,
 			   unsigned int fref, bool sync)
 {
 	unsigned int target, gcd_fll;
-	int i, ratio;
+	const struct madera_fll_gains *gains;
+	int n_gains;
+	int ratio, ret;
 
 	madera_fll_dbg(fll, "fref=%u Fout=%u\n", fref, fll->fout);
 
@@ -3725,29 +3754,25 @@ static int madera_calc_fll(struct madera_fll *fll,
 	case CS47L35:
 	case CS47L85:
 	case WM1840:
+		/* These use the sync gains for both loops */
+		gains = madera_fll_sync_gains,
+		n_gains = ARRAY_SIZE(madera_fll_sync_gains);
 		break;
 	default:
-		if (!sync) {
-			cfg->gain = fref > 768000 ? 3 : 2;
-			goto out;
+		if (sync) {
+			gains = madera_fll_sync_gains,
+			n_gains = ARRAY_SIZE(madera_fll_sync_gains);
+		} else {
+			gains = madera_fll_main_gains;
+			n_gains = ARRAY_SIZE(madera_fll_main_gains);
 		}
 		break;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(fll_gains); i++) {
-		if (fll_gains[i].min <= fref && fref <= fll_gains[i].max) {
-			cfg->gain = fll_gains[i].gain;
-				break;
-		}
-	}
+	ret = madera_find_fll_gain(fll, cfg, fref, gains, n_gains);
+	if (ret)
+		return ret;
 
-	if (i == ARRAY_SIZE(fll_gains)) {
-		madera_fll_err(fll,
-				"Unable to find gain for fref=%uHz\n", fref);
-		return -EINVAL;
-	}
-
-out:
 	madera_fll_dbg(fll, "N=%x THETA=%x LAMBDA=%x\n",
 			cfg->n, cfg->theta, cfg->lambda);
 	madera_fll_dbg(fll, "FRATIO=%x(%d) REFCLK_DIV=%x\n",
