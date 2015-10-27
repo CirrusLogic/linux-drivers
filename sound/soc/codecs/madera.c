@@ -3593,6 +3593,18 @@ static int madera_find_fratio(struct madera_fll *fll, unsigned int fref,
 {
 	switch (fll->madera->type) {
 	case CS47L35:
+		switch(fll->madera->rev) {
+		case 0:
+			/* rev A0 uses sync calculation for both loops */
+			return madera_find_sync_fratio(fref, fratio);
+		default:
+			if (sync)
+				return madera_find_sync_fratio(fref, fratio);
+			else
+				return madera_find_main_fratio(fref, fvco,
+								fratio);
+		}
+		break;
 	case CS47L85:
 	case WM1840:
 		/* these use the same calculation for main and sync loops */
@@ -3638,6 +3650,15 @@ static int madera_calc_fratio(struct madera_fll *fll,
 
 	switch (fll->madera->type) {
 	case CS47L35:
+		switch (fll->madera->rev) {
+		case 0:
+			if (sync)
+				return init_ratio;
+			break;
+		default:
+			return init_ratio;
+		}
+		break;
 	case CS47L85:
 	case WM1840:
 		if (sync)
@@ -3647,7 +3668,7 @@ static int madera_calc_fratio(struct madera_fll *fll,
 		return init_ratio;
 	}
 
-	/* For CS47L35, CS47L85 and WM1840 adjust FRATIO/refdiv to avoid
+	/* For CS47L35 rev A0, CS47L85 and WM1840 adjust FRATIO/refdiv to avoid
 	 * integer mode if possible
 	 */
 	refdiv = cfg->refdiv;
@@ -3752,6 +3773,23 @@ static int madera_calc_fll(struct madera_fll *fll,
 
 	switch (fll->madera->type) {
 	case CS47L35:
+		switch (fll->madera->rev) {
+		case 0:
+			/* Rev A0 uses the sync gains for both loops */
+			gains = madera_fll_sync_gains,
+			n_gains = ARRAY_SIZE(madera_fll_sync_gains);
+			break;
+		default:
+			if (sync) {
+				gains = madera_fll_sync_gains,
+				n_gains = ARRAY_SIZE(madera_fll_sync_gains);
+			} else {
+				gains = madera_fll_main_gains;
+				n_gains = ARRAY_SIZE(madera_fll_main_gains);
+			}
+			break;
+		}
+		break;
 	case CS47L85:
 	case WM1840:
 		/* These use the sync gains for both loops */
@@ -3970,6 +4008,16 @@ static int madera_enable_fll(struct madera_fll *fll)
 
 	switch (madera->type) {
 	case CS47L35:
+		switch (fll->madera->rev) {
+		case 0:
+			break;
+		default:
+			fll_change =
+				madera_set_fll_phase_integrator(fll, &ref_cfg,
+								use_sync);
+			break;
+		}
+		break;
 	case CS47L85:
 	case WM1840:
 		break;
