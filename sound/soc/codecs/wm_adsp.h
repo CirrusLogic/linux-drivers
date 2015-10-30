@@ -84,6 +84,7 @@ struct wm_adsp_fw_features {
 };
 
 struct wm_adsp_host_buf_info {
+	struct mutex lock;
 	struct wm_adsp_buffer_region *host_regions;
 	u32 host_buf_ptr;
 	u32 error;
