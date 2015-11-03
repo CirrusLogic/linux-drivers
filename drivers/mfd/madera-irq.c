@@ -1,5 +1,5 @@
 /*
- * madera-irq.c  --  interrupt support for Cirrus Logic Madera codecs
+ * Interrupt support for Cirrus Logic Madera codecs
  *
  * Copyright 2015 Cirrus Logic
  *

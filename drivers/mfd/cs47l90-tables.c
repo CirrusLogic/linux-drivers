@@ -1,5 +1,5 @@
 /*
- * cs47l90-tables.c  --  data tables for CS47L90 codec
+ * Data tables for CS47L90 codec
  *
  * Copyright 2015 Cirrus Logic
  *
