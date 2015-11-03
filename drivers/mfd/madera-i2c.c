@@ -1,5 +1,5 @@
 /*
- * madera-i2c.c  --  I2C bus interface to Cirrus Logic Madera codecs
+ * I2C bus interface to Cirrus Logic Madera codecs
  *
  * Copyright 2015 Cirrus Logic
  *

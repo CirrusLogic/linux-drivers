@@ -1,5 +1,5 @@
 /*
- * madera-core.c  --  core MFD support for Cirrus Logic Madera codecs
+ * Core MFD support for Cirrus Logic Madera codecs
  *
  * Copyright 2015 Cirrus Logic
  *
