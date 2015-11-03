@@ -1,5 +1,5 @@
 /*
- * cs47l35-tables.c  --  data tables for CS47L35 codec
+ * Data tables for CS47L35 codec
  *
  * Copyright 2015 Cirrus Logic
  *

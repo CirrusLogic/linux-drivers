@@ -1,5 +1,5 @@
 /*
- * madera-spi.c  --  SPI bus interface to Cirrus Logic Madera codecs
+ * SPI bus interface to Cirrus Logic Madera codecs
  *
  * Copyright 2015 Cirrus Logic
  *
