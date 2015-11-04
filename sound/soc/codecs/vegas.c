@@ -255,20 +255,20 @@ static const char * const vegas_inmux_texts[] = {
 	"B",
 };
 
-static const SOC_ENUM_SINGLE_DECL(vegas_in1muxl_enum,
-				  ARIZONA_ADC_DIGITAL_VOLUME_1L,
-				  ARIZONA_IN1L_SRC_SHIFT,
-				  vegas_inmux_texts);
+static SOC_ENUM_SINGLE_DECL(vegas_in1muxl_enum,
+			    ARIZONA_ADC_DIGITAL_VOLUME_1L,
+			    ARIZONA_IN1L_SRC_SHIFT,
+			    vegas_inmux_texts);
 
-static const SOC_ENUM_SINGLE_DECL(vegas_in1muxr_enum,
-				  ARIZONA_ADC_DIGITAL_VOLUME_1R,
-				  ARIZONA_IN1R_SRC_SHIFT,
-				  vegas_inmux_texts);
+static SOC_ENUM_SINGLE_DECL(vegas_in1muxr_enum,
+			    ARIZONA_ADC_DIGITAL_VOLUME_1R,
+			    ARIZONA_IN1R_SRC_SHIFT,
+			    vegas_inmux_texts);
 
-static const SOC_ENUM_SINGLE_DECL(vegas_in2mux_enum,
-				  ARIZONA_ADC_DIGITAL_VOLUME_2L,
-				  ARIZONA_IN2L_SRC_SHIFT,
-				  vegas_inmux_texts);
+static SOC_ENUM_SINGLE_DECL(vegas_in2mux_enum,
+			    ARIZONA_ADC_DIGITAL_VOLUME_2L,
+			    ARIZONA_IN2L_SRC_SHIFT,
+			    vegas_inmux_texts);
 
 static const struct snd_kcontrol_new vegas_in1mux[2] = {
 	SOC_DAPM_ENUM_EXT("IN1L Mux", vegas_in1muxl_enum,
@@ -631,17 +631,17 @@ static const unsigned int vegas_aec_loopback_values[] = {
 	0, 1, 2, 3, 4, 6, 7, 8, 9,
 };
 
-static const SOC_VALUE_ENUM_SINGLE_DECL(vegas_aec1_loopback,
-					ARIZONA_DAC_AEC_CONTROL_1,
-					ARIZONA_AEC_LOOPBACK_SRC_SHIFT, 0xf,
-					vegas_aec_loopback_texts,
-					vegas_aec_loopback_values);
+static SOC_VALUE_ENUM_SINGLE_DECL(vegas_aec1_loopback,
+				  ARIZONA_DAC_AEC_CONTROL_1,
+				  ARIZONA_AEC_LOOPBACK_SRC_SHIFT, 0xf,
+				  vegas_aec_loopback_texts,
+				  vegas_aec_loopback_values);
 
-static const SOC_VALUE_ENUM_SINGLE_DECL(vegas_aec2_loopback,
-					ARIZONA_DAC_AEC_CONTROL_2,
-					ARIZONA_AEC_LOOPBACK_SRC_SHIFT, 0xf,
-					vegas_aec_loopback_texts,
-					vegas_aec_loopback_values);
+static SOC_VALUE_ENUM_SINGLE_DECL(vegas_aec2_loopback,
+				  ARIZONA_DAC_AEC_CONTROL_2,
+				  ARIZONA_AEC_LOOPBACK_SRC_SHIFT, 0xf,
+				  vegas_aec_loopback_texts,
+				  vegas_aec_loopback_values);
 
 static const struct snd_kcontrol_new vegas_aec_loopback_mux[] = {
 	SOC_DAPM_VALUE_ENUM("AEC1 Loopback", vegas_aec1_loopback),
