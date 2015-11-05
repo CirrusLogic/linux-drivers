@@ -752,18 +752,13 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, CS35L33_BST_CTL2,
 				    ALIVE_WD_DIS2, ALIVE_WD_DIS2);
 
-
 	/* Set Platform Data */
-	if (cs35l33->pdata.boost_ctl)
-		snd_soc_update_bits(codec, CS35L33_BST_CTL1,
-				   CS35L33_BST_CTL_MASK,
-				cs35l33->pdata.boost_ctl);
-
-	if (cs35l33->pdata.amp_drv_sel)
-		snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
-				   AMP_DRV_SEL_MASK,
-				cs35l33->pdata.amp_drv_sel <<
-				AMP_DRV_SEL_SHIFT);
+	snd_soc_update_bits(codec, CS35L33_BST_CTL1,
+		CS35L33_BST_CTL_MASK,
+		cs35l33->pdata.boost_ctl);
+	snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
+		AMP_DRV_SEL_MASK,
+		cs35l33->pdata.amp_drv_sel << AMP_DRV_SEL_SHIFT);
 
 	if (cs35l33->pdata.boost_ipk)
 		snd_soc_write(codec, CS35L33_BST_PEAK_CTL,
@@ -1101,12 +1096,13 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 		}
 		if (i2c_client->dev.of_node) {
 			if (of_property_read_u32(i2c_client->dev.of_node,
-				"boost-ctl", &val32) >= 0)
+				"boost-ctl", &val32) >= 0) {
 				pdata->boost_ctl = val32;
-
-			if (of_property_read_u32(i2c_client->dev.of_node,
-				"amp-drv-sel", &val32) >= 0)
-				pdata->amp_drv_sel = val32;
+				pdata->amp_drv_sel = 1;
+			} else {
+				pdata->boost_ctl = 0;
+				pdata->amp_drv_sel = 0;
+			}
 
 			if (of_property_read_u32(i2c_client->dev.of_node,
 				"ramp-rate", &val32) >= 0) {
