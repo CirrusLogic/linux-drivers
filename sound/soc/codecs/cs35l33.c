@@ -208,7 +208,9 @@ static int cs35l33_spkrdrv_event(struct snd_soc_dapm_widget *w,
 			priv->amp_cal = true;
 			snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
 				    AMP_CAL, 0);
+			dev_dbg(w->codec->dev, "amp calibration done\n");
 		}
+		dev_info(w->codec->dev, "amp turned On\n");
 	break;
 	default:
 		pr_err("Invalid event = 0x%x\n", event);
@@ -232,11 +234,14 @@ static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
 		val = priv->is_tdm_mode ? 0 : PDN_TDM;
 		snd_soc_update_bits(codec, CS35L33_PWRCTL2,
 				    PDN_TDM, val);
+		dev_dbg(w->codec->dev, "bst turned On\n");
 		break;
 	case SND_SOC_DAPM_POST_PMU:
+		dev_dbg(w->codec->dev, "sdin turned On\n");
 		if (!priv->amp_cal) {
 			snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
 				    AMP_CAL, AMP_CAL);
+			dev_dbg(w->codec->dev, "amp calibration started\n");
 			msleep(10);
 		}
 		break;
@@ -277,6 +282,7 @@ static int cs35l33_sdout_event(struct snd_soc_dapm_widget *w,
 			/* set sdout_3st_tdm */
 			mask2 = val2 = SDOUT_3ST_TDM;
 		}
+		dev_info(w->codec->dev, "sdout turned On\n");
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		mask = val = (SDOUT_3ST_I2S | PDN_TDM);
@@ -358,6 +364,7 @@ static int cs35l33_set_bias_level(struct snd_soc_codec *codec,
 				    PDN_ALL, 0);
 		snd_soc_update_bits(codec, CS35L33_CLK_CTL,
 				    MCLKDIS, 0);
+		dev_dbg(codec->dev, "take amp out of standby\n");
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		snd_soc_update_bits(codec, CS35L33_PWRCTL1,
@@ -367,6 +374,7 @@ static int cs35l33_set_bias_level(struct snd_soc_codec *codec,
 			snd_soc_update_bits(codec, CS35L33_CLK_CTL,
 					    MCLKDIS, MCLKDIS);
 		}
+		dev_dbg(codec->dev, "put amp in standby\n");
 		break;
 	case SND_SOC_BIAS_OFF:
 		break;
@@ -432,10 +440,12 @@ static int cs35l33_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_CBM_CFM:
 		snd_soc_update_bits(codec, CS35L33_ADSP_CTL,
 				    MS_MASK, MS_MASK);
+		dev_dbg(codec->dev, "audio port in master mode\n");
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
 		snd_soc_update_bits(codec, CS35L33_ADSP_CTL,
 				    MS_MASK, 0);
+		dev_dbg(codec->dev, "audio port in slave mode\n");
 		break;
 	default:
 		return -EINVAL;
@@ -446,9 +456,11 @@ static int cs35l33_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		/* tdm mode in cs35l33 resembles dsp-a mode very
 		closely, it is dsp-a with fsync shifted left by half bclk */
 		priv->is_tdm_mode = true;
+		dev_dbg(codec->dev, "audio port in tdm mode\n");
 		break;
 	case SND_SOC_DAIFMT_I2S:
 		priv->is_tdm_mode = false;
+		dev_dbg(codec->dev, "audio port in i2s mode\n");
 		break;
 	default:
 		return -EINVAL;
@@ -483,6 +495,9 @@ static int cs35l33_pcm_hw_params(struct snd_pcm_substream *substream,
 			AUDIN_RX_DEPTH,
 			sample_size << AUDIN_RX_DEPTH_SHIFT);
 	}
+
+	dev_dbg(codec->dev, "sample rate=%d, bits per sample=%d\n",
+		params_rate(params), params_width(params));
 
 	return 0;
 }
@@ -539,9 +554,11 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 
 	/* scan rx_mask for aud slot */
 	slot = ffs(rx_mask) - 1;
-	if (slot >= 0)
+	if (slot >= 0) {
 		snd_soc_update_bits(codec, CS35L33_RX_AUD,
 			X_LOC, slot);
+		dev_dbg(codec->dev, "Audio starts from slots %d", slot);
+	}
 
 	/* scan tx_mask: vmon(2 slots); imon (2 slots); vpmon (1 slot) vbstmon (1 slot) */
 	slot = ffs(tx_mask) - 1;
@@ -560,14 +577,20 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 
 	while (slot >= 0) {
 		/* configure VMON_TX_LOC */
-		if (slot_num == 0)
+		if (slot_num == 0) {
 			snd_soc_update_bits(codec, CS35L33_TX_VMON,
 				X_STATE | X_LOC, slot);
+			dev_dbg(codec->dev, "VMON enabled in slots %d-%d",
+				slot, slot + 1);
+		}
 
 		/* configure IMON_TX_LOC */
-		if (slot_num == 2)
+		if (slot_num == 2) {
 			snd_soc_update_bits(codec, CS35L33_TX_IMON,
 				X_STATE | X_LOC, slot);
+			dev_dbg(codec->dev, "IMON enabled in slots %d-%d",
+				slot, slot + 1);
+		}
 
 		/* configure VPMON_TX_LOC */
 		if (slot_num == 4) {
@@ -575,6 +598,7 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 				X_STATE | X_LOC, slot);
 			snd_soc_dapm_add_routes(&codec->dapm,
 				&cs35l33_vp_vbst_mon_route[0], 2);
+			dev_dbg(codec->dev, "VPMON enabled in slots %d", slot);
 		}
 
 		/* configure VBSTMON_TX_LOC */
@@ -583,6 +607,7 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 				X_STATE | X_LOC, slot);
 			snd_soc_dapm_add_routes(&codec->dapm,
 				&cs35l33_vp_vbst_mon_route[2], 2);
+			dev_dbg(codec->dev, "VBSTMON enabled in slots %d", slot);
 		}
 
 		/* Enable the relevant tx slot */
@@ -622,6 +647,11 @@ static int cs35l33_codec_set_sysclk(struct snd_soc_codec *codec,
 		cs35l33->mclk_int = 0;
 		return -EINVAL;
 	}
+
+	dev_dbg(codec->dev,
+		"external mclk freq=%d, internal mclk freq=%d\n",
+		freq, cs35l33->mclk_int);
+
 	return 0;
 }
 
@@ -683,6 +713,10 @@ int cs35l33_set_hg_data(struct snd_soc_codec *codec, struct cs35l33_pdata *pdata
 			snd_soc_dapm_add_routes(&codec->dapm,
 				cs35l33_vphg_auto_route,
 				ARRAY_SIZE(cs35l33_vphg_auto_route));
+			dev_info(codec->dev,
+				"H/G algorithm (with auto vp tracking) controls the amplifier voltage\n");
+		} else {
+			dev_info(codec->dev, "H/G algorithm controls the amplifier voltage\n");
 		}
 		snd_soc_update_bits(codec, CS35L33_HG_EN,
 			VP_HG_MASK,
@@ -695,6 +729,8 @@ int cs35l33_set_hg_data(struct snd_soc_codec *codec, struct cs35l33_pdata *pdata
 			hg_config->vp_hg_va << VP_HG_VA_SHIFT);
 		snd_soc_update_bits(codec, CS35L33_HG_EN,
 			CLASS_HG_EN_MASK, CLASS_HG_EN_MASK);
+	} else {
+		dev_info(codec->dev, "Amplifier voltage controlled via the I2C port\n");
 	}
 
 	return 0;
@@ -841,6 +877,9 @@ static int cs35l33_runtime_resume(struct device *dev)
 		goto err;
 	}
 
+	dev_dbg(cs35l33->codec->dev,
+		"turn On regulator supplies and disable cache only mode\n");
+
 	return 0;
 
 err:
@@ -862,6 +901,9 @@ static int cs35l33_runtime_suspend(struct device *dev)
 	regcache_mark_dirty(cs35l33->regmap);
 	regulator_bulk_disable(cs35l33->num_core_supplies,
 		cs35l33->core_supplies);
+
+	dev_dbg(cs35l33->codec->dev,
+		"turn Off regulator supplies and enable cache only mode\n");
 
 	return 0;
 }
