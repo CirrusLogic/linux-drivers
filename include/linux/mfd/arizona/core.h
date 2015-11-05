@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/notifier.h>
 #include <linux/mfd/arizona/pdata.h>
 
 #define ARIZONA_MAX_CORE_SUPPLIES 2
