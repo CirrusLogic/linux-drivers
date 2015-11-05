@@ -759,12 +759,6 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 				   CS35L33_BST_CTL_MASK,
 				cs35l33->pdata.boost_ctl);
 
-	if (cs35l33->pdata.gain_zc)
-		snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
-				   GAIN_CHG_ZC_MASK ,
-				cs35l33->pdata.gain_zc <<
-				GAIN_CHG_ZC_SHIFT);
-
 	if (cs35l33->pdata.amp_drv_sel)
 		snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
 				   AMP_DRV_SEL_MASK,
@@ -1109,10 +1103,6 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 			if (of_property_read_u32(i2c_client->dev.of_node,
 				"boost-ctl", &val32) >= 0)
 				pdata->boost_ctl = val32;
-
-			if (of_property_read_u32(i2c_client->dev.of_node,
-				"gain-zc", &val32) >= 0)
-				pdata->gain_zc = val32;
 
 			if (of_property_read_u32(i2c_client->dev.of_node,
 				"amp-drv-sel", &val32) >= 0)

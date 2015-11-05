@@ -42,9 +42,6 @@ struct cs35l33_pdata {
 	/* Boost Controller Peak Current */
 	unsigned int boost_ipk;
 
-	/* Gain Change Zero Cross */
-	unsigned int gain_zc;
-
 	/* Amplifier Drive Select */
 	unsigned int amp_drv_sel;
 
