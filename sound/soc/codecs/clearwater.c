@@ -2717,7 +2717,7 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 		clearwater->compr_info.trig = true;
 	}
 
-	ret = wm_adsp_stream_handle_irq(clearwater->compr_info.adsp);
+	ret = wm_adsp_stream_handle_irq(clearwater->compr_info.adsp, NULL);
 	if (ret < 0) {
 		dev_err(clearwater->core.arizona->dev,
 			"Failed to capture DSP data: %d\n",

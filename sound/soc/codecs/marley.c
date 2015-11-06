@@ -1722,7 +1722,7 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 		marley->compr_info.trig = true;
 	}
 
-	ret = wm_adsp_stream_handle_irq(marley->compr_info.adsp);
+	ret = wm_adsp_stream_handle_irq(marley->compr_info.adsp, NULL);
 	if (ret < 0) {
 		dev_err(marley->core.arizona->dev,
 			"Failed to capture DSP data: %d\n",

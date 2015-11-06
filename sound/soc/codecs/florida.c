@@ -2213,7 +2213,7 @@ static irqreturn_t adsp2_irq(int irq, void *data)
 		florida->compr_info.trig = true;
 	}
 
-	ret = wm_adsp_stream_handle_irq(florida->compr_info.adsp);
+	ret = wm_adsp_stream_handle_irq(florida->compr_info.adsp, NULL);
 	if (ret < 0) {
 		dev_err(florida->core.arizona->dev,
 			"Failed to capture DSP data: %d\n",
