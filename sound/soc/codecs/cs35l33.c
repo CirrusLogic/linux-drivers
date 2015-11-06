@@ -41,6 +41,7 @@
 #include "cs35l33.h"
 
 struct  cs35l33_private {
+	struct device *dev;
 	struct snd_soc_codec *codec;
 	struct cs35l33_pdata pdata;
 	struct regmap *regmap;
@@ -891,7 +892,7 @@ static int cs35l33_runtime_suspend(struct device *dev)
 	regulator_bulk_disable(cs35l33->num_core_supplies,
 		cs35l33->core_supplies);
 
-	dev_dbg(cs35l33->codec->dev,
+	dev_dbg(cs35l33->dev,
 		"turn Off regulator supplies and enable cache only mode\n");
 
 	return 0;
@@ -1060,6 +1061,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 		return -ENOMEM;
 	}
 
+	cs35l33->dev = &i2c_client->dev;
 	i2c_set_clientdata(i2c_client, cs35l33);
 	cs35l33->regmap = regmap_init_i2c(i2c_client, &cs35l33_regmap);
 	if (IS_ERR(cs35l33->regmap)) {
