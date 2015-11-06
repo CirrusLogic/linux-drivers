@@ -3177,7 +3177,7 @@ static int wm_adsp_capture_block(struct wm_adsp *dsp, int *avail)
 	write_index = sign_extend32(next_write_index, 23);
 
 	if (read_index < 0)
-		return -EIO;	/* stream has not yet started */
+		return 0;	/* stream has not yet started */
 
 	*avail = write_index - read_index;
 	if (*avail < 0)
@@ -3369,9 +3369,10 @@ static int wm_adsp_stream_capture(struct wm_adsp *dsp)
 	return total_read * WM_ADSP_DATA_WORD_SIZE;
 }
 
-static int wm_adsp_ack_buffer_interrupt(struct wm_adsp *dsp)
+static int wm_adsp_stream_update_irq_count(struct wm_adsp *dsp, bool enable,
+					   u32 *old_count)
 {
-	u32 irq_ack;
+	u32 irq_count;
 	int ret;
 
 	lockdep_assert_held(&dsp->host_buf_info.lock);
@@ -3383,22 +3384,32 @@ static int wm_adsp_ack_buffer_interrupt(struct wm_adsp *dsp)
 
 	ret = wm_adsp_host_buffer_read(dsp,
 				       HOST_BUFFER_FIELD(irq_count),
-				       &irq_ack);
+				       &irq_count);
 	if (ret < 0)
 		return ret;
 
-	if (!dsp->buffer_drain_pending)
-		irq_ack |= 1;		/* enable further IRQs */
+	if (old_count)
+		*old_count = irq_count;
 
-	ret = wm_adsp_host_buffer_write(dsp,
-					HOST_BUFFER_FIELD(irq_ack),
-					irq_ack);
-	return ret;
+	if (irq_count == 0)
+		return 0;	/* don't ack if there haven't been any IRQs */
+
+	if (!enable || dsp->buffer_drain_pending)
+		return 0;
+
+	return wm_adsp_host_buffer_write(dsp,
+					 HOST_BUFFER_FIELD(irq_ack),
+					 irq_count | 1);
 }
 
-int wm_adsp_stream_handle_irq(struct wm_adsp *dsp)
+int wm_adsp_stream_handle_irq(struct wm_adsp *dsp, bool *trigger)
 {
 	int ret, bytes_captured = 0;
+	u32 old_irq_count;
+	bool enable_irqs = false;
+
+	if (trigger)
+		*trigger = false;
 
 	mutex_lock(&dsp->host_buf_info.lock);
 
@@ -3419,10 +3430,16 @@ int wm_adsp_stream_handle_irq(struct wm_adsp *dsp)
 			goto out_unlock;
 		}
 
-		ret = wm_adsp_ack_buffer_interrupt(dsp);
-		if (ret < 0)
-			goto out_unlock;
+		enable_irqs = true;
 	}
+
+	ret = wm_adsp_stream_update_irq_count(dsp, enable_irqs, &old_irq_count);
+	if (ret < 0)
+		goto out_unlock;
+
+	/* irq_count = 2 only on the initial trigger */
+	if (trigger && (old_irq_count == 2))
+		*trigger = true;
 
 	ret = bytes_captured;
 
@@ -3481,7 +3498,9 @@ int wm_adsp_stream_read(struct wm_adsp *dsp, char __user *buf, size_t count)
 		if (ret >= 0) {
 			ret = wm_adsp_stream_capture(dsp);
 			if (ret >= 0)
-				ret = wm_adsp_ack_buffer_interrupt(dsp);
+				ret = wm_adsp_stream_update_irq_count(dsp,
+								      true,
+								      NULL);
 		}
 
 		mutex_unlock(&dsp->host_buf_info.lock);
