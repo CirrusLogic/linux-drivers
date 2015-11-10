@@ -2246,6 +2246,12 @@ static void dapm_free_path(struct snd_soc_dapm_path *path)
 	kfree(path);
 }
 
+void snd_soc_dapm_reset_cache(struct snd_soc_dapm_context *dapm)
+{
+	dapm->path_sink_cache.widget = NULL;
+	dapm->path_source_cache.widget = NULL;
+}
+
 /* free all dapm widgets and resources */
 static void dapm_free_widgets(struct snd_soc_dapm_context *dapm)
 {
@@ -2271,6 +2277,7 @@ static void dapm_free_widgets(struct snd_soc_dapm_context *dapm)
 		kfree(w->name);
 		kfree(w);
 	}
+	snd_soc_dapm_reset_cache(dapm);
 }
 
 static struct snd_soc_dapm_widget *dapm_find_widget(
