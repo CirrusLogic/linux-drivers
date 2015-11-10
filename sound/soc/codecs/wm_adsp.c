@@ -2315,6 +2315,7 @@ static int wm_adsp_get_features(struct wm_adsp *dsp)
 	case 0x70036:
 	case 0x8000d:
 	case 0x80053:
+	case 0x9000d:
 		dsp->fw_features.ez2control_trigger = true;
 		break;
 	case 0x40019:
