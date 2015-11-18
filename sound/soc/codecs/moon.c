@@ -665,9 +665,7 @@ static DECLARE_TLV_DB_SCALE(ng_tlv, -12000, 600, 0);
 	{ name " Left Input", "IN4", "IN4L PGA" }, \
 	{ name " Right Input", "IN4", "IN4R PGA" }, \
 	{ name " Left Input", "IN5", "IN5L PGA" }, \
-	{ name " Right Input", "IN5", "IN5R PGA" }, \
-	{ name " Left Input", "IN6", "IN6L PGA" }, \
-	{ name " Right Input", "IN6", "IN6R PGA" }
+	{ name " Right Input", "IN5", "IN5R PGA" }
 
 #define MOON_RXANC_OUTPUT_ROUTES(widget, name) \
 	{ widget, NULL, name " ANC Source" }, \
