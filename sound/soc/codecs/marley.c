@@ -189,15 +189,15 @@ static const char * const marley_inmux_texts[] = {
 	"B",
 };
 
-static const SOC_ENUM_SINGLE_DECL(marley_in1muxl_enum,
-				  ARIZONA_ADC_DIGITAL_VOLUME_1L,
-				  ARIZONA_IN1L_SRC_SHIFT,
-				  marley_inmux_texts);
+static SOC_ENUM_SINGLE_DECL(marley_in1muxl_enum,
+			    ARIZONA_ADC_DIGITAL_VOLUME_1L,
+			    ARIZONA_IN1L_SRC_SHIFT,
+			    marley_inmux_texts);
 
-static const SOC_ENUM_SINGLE_DECL(marley_in1muxr_enum,
-				  ARIZONA_ADC_DIGITAL_VOLUME_1R,
-				  ARIZONA_IN1R_SRC_SHIFT,
-				  marley_inmux_texts);
+static SOC_ENUM_SINGLE_DECL(marley_in1muxr_enum,
+			    ARIZONA_ADC_DIGITAL_VOLUME_1R,
+			    ARIZONA_IN1R_SRC_SHIFT,
+			    marley_inmux_texts);
 
 static const struct snd_kcontrol_new marley_in1mux[2] = {
 	SOC_DAPM_ENUM("IN1L Mux", marley_in1muxl_enum),
@@ -290,10 +290,10 @@ static int marley_put_demux(struct snd_kcontrol *kcontrol,
 	return snd_soc_dapm_put_enum_virt(kcontrol, ucontrol);
 }
 
-static const SOC_ENUM_SINGLE_DECL(marley_outdemux_enum,
-				  ARIZONA_OUTPUT_ENABLES_1,
-				  ARIZONA_EP_SEL_SHIFT,
-				  marley_outdemux_texts);
+static SOC_ENUM_SINGLE_DECL(marley_outdemux_enum,
+			    ARIZONA_OUTPUT_ENABLES_1,
+			    ARIZONA_EP_SEL_SHIFT,
+			    marley_outdemux_texts);
 
 static const struct snd_kcontrol_new marley_outdemux =
 	SOC_DAPM_ENUM_EXT("OUT1 Demux", marley_outdemux_enum,
