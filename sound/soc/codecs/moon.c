@@ -284,20 +284,20 @@ static const char * const moon_inmux_texts[] = {
 	"B",
 };
 
-static const SOC_ENUM_SINGLE_DECL(moon_in1muxl_enum,
-				  ARIZONA_ADC_DIGITAL_VOLUME_1L,
-				  ARIZONA_IN1L_SRC_SHIFT,
-				  moon_inmux_texts);
+static SOC_ENUM_SINGLE_DECL(moon_in1muxl_enum,
+			    ARIZONA_ADC_DIGITAL_VOLUME_1L,
+			    ARIZONA_IN1L_SRC_SHIFT,
+			    moon_inmux_texts);
 
-static const SOC_ENUM_SINGLE_DECL(moon_in1muxr_enum,
-				  ARIZONA_ADC_DIGITAL_VOLUME_1R,
-				  ARIZONA_IN1R_SRC_SHIFT,
-				  moon_inmux_texts);
+static SOC_ENUM_SINGLE_DECL(moon_in1muxr_enum,
+			    ARIZONA_ADC_DIGITAL_VOLUME_1R,
+			    ARIZONA_IN1R_SRC_SHIFT,
+			    moon_inmux_texts);
 
-static const SOC_ENUM_SINGLE_DECL(moon_in2muxl_enum,
-				  ARIZONA_ADC_DIGITAL_VOLUME_2L,
-				  ARIZONA_IN2L_SRC_SHIFT,
-				  moon_inmux_texts);
+static SOC_ENUM_SINGLE_DECL(moon_in2muxl_enum,
+			    ARIZONA_ADC_DIGITAL_VOLUME_2L,
+			    ARIZONA_IN2L_SRC_SHIFT,
+			    moon_inmux_texts);
 
 static const struct snd_kcontrol_new moon_in1mux[2] = {
 	SOC_DAPM_ENUM("IN1L Mux", moon_in1muxl_enum),
