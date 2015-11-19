@@ -2042,76 +2042,76 @@ static const char * const arizona_vol_ramp_text[] = {
 	"15ms/6dB", "30ms/6dB",
 };
 
-const SOC_ENUM_SINGLE_DECL(arizona_in_vd_ramp,
-			   ARIZONA_INPUT_VOLUME_RAMP,
-			   ARIZONA_IN_VD_RAMP_SHIFT,
-			   arizona_vol_ramp_text);
+SOC_ENUM_SINGLE_DECL(arizona_in_vd_ramp,
+		     ARIZONA_INPUT_VOLUME_RAMP,
+		     ARIZONA_IN_VD_RAMP_SHIFT,
+		     arizona_vol_ramp_text);
 EXPORT_SYMBOL_GPL(arizona_in_vd_ramp);
 
-const SOC_ENUM_SINGLE_DECL(arizona_in_vi_ramp,
-			   ARIZONA_INPUT_VOLUME_RAMP,
-			   ARIZONA_IN_VI_RAMP_SHIFT,
-			   arizona_vol_ramp_text);
+SOC_ENUM_SINGLE_DECL(arizona_in_vi_ramp,
+		     ARIZONA_INPUT_VOLUME_RAMP,
+		     ARIZONA_IN_VI_RAMP_SHIFT,
+		     arizona_vol_ramp_text);
 EXPORT_SYMBOL_GPL(arizona_in_vi_ramp);
 
-const SOC_ENUM_SINGLE_DECL(arizona_out_vd_ramp,
-			   ARIZONA_OUTPUT_VOLUME_RAMP,
-			   ARIZONA_OUT_VD_RAMP_SHIFT,
-			   arizona_vol_ramp_text);
+SOC_ENUM_SINGLE_DECL(arizona_out_vd_ramp,
+		     ARIZONA_OUTPUT_VOLUME_RAMP,
+		     ARIZONA_OUT_VD_RAMP_SHIFT,
+		     arizona_vol_ramp_text);
 EXPORT_SYMBOL_GPL(arizona_out_vd_ramp);
 
-const SOC_ENUM_SINGLE_DECL(arizona_out_vi_ramp,
-			   ARIZONA_OUTPUT_VOLUME_RAMP,
-			   ARIZONA_OUT_VI_RAMP_SHIFT,
-			   arizona_vol_ramp_text);
+SOC_ENUM_SINGLE_DECL(arizona_out_vi_ramp,
+		     ARIZONA_OUTPUT_VOLUME_RAMP,
+		     ARIZONA_OUT_VI_RAMP_SHIFT,
+		     arizona_vol_ramp_text);
 EXPORT_SYMBOL_GPL(arizona_out_vi_ramp);
 
 static const char * const arizona_lhpf_mode_text[] = {
 	"Low-pass", "High-pass"
 };
 
-const SOC_ENUM_SINGLE_DECL(arizona_lhpf1_mode,
-			   ARIZONA_HPLPF1_1,
-			   ARIZONA_LHPF1_MODE_SHIFT,
-			   arizona_lhpf_mode_text);
+SOC_ENUM_SINGLE_DECL(arizona_lhpf1_mode,
+		     ARIZONA_HPLPF1_1,
+		     ARIZONA_LHPF1_MODE_SHIFT,
+		     arizona_lhpf_mode_text);
 EXPORT_SYMBOL_GPL(arizona_lhpf1_mode);
 
-const SOC_ENUM_SINGLE_DECL(arizona_lhpf2_mode,
-			   ARIZONA_HPLPF2_1,
-			   ARIZONA_LHPF2_MODE_SHIFT,
-			   arizona_lhpf_mode_text);
+SOC_ENUM_SINGLE_DECL(arizona_lhpf2_mode,
+		     ARIZONA_HPLPF2_1,
+		     ARIZONA_LHPF2_MODE_SHIFT,
+		     arizona_lhpf_mode_text);
 EXPORT_SYMBOL_GPL(arizona_lhpf2_mode);
 
-const SOC_ENUM_SINGLE_DECL(arizona_lhpf3_mode,
-			   ARIZONA_HPLPF3_1,
-			   ARIZONA_LHPF3_MODE_SHIFT,
-			   arizona_lhpf_mode_text);
+SOC_ENUM_SINGLE_DECL(arizona_lhpf3_mode,
+		     ARIZONA_HPLPF3_1,
+		     ARIZONA_LHPF3_MODE_SHIFT,
+		     arizona_lhpf_mode_text);
 EXPORT_SYMBOL_GPL(arizona_lhpf3_mode);
 
-const SOC_ENUM_SINGLE_DECL(arizona_lhpf4_mode,
-			   ARIZONA_HPLPF4_1,
-			   ARIZONA_LHPF4_MODE_SHIFT,
-			   arizona_lhpf_mode_text);
+SOC_ENUM_SINGLE_DECL(arizona_lhpf4_mode,
+		     ARIZONA_HPLPF4_1,
+		     ARIZONA_LHPF4_MODE_SHIFT,
+		     arizona_lhpf_mode_text);
 EXPORT_SYMBOL_GPL(arizona_lhpf4_mode);
 
 static const char * const arizona_ng_hold_text[] = {
 	"30ms", "120ms", "250ms", "500ms",
 };
 
-const SOC_ENUM_SINGLE_DECL(arizona_ng_hold,
-			   ARIZONA_NOISE_GATE_CONTROL,
-			   ARIZONA_NGATE_HOLD_SHIFT,
-			   arizona_ng_hold_text);
+SOC_ENUM_SINGLE_DECL(arizona_ng_hold,
+		     ARIZONA_NOISE_GATE_CONTROL,
+		     ARIZONA_NGATE_HOLD_SHIFT,
+		     arizona_ng_hold_text);
 EXPORT_SYMBOL_GPL(arizona_ng_hold);
 
 static const char * const arizona_in_hpf_cut_text[] = {
 	"2.5Hz", "5Hz", "10Hz", "20Hz", "40Hz"
 };
 
-const SOC_ENUM_SINGLE_DECL(arizona_in_hpf_cut_enum,
-			   ARIZONA_HPF_CONTROL,
-			   ARIZONA_IN_HPF_CUT_SHIFT,
-			   arizona_in_hpf_cut_text);
+SOC_ENUM_SINGLE_DECL(arizona_in_hpf_cut_enum,
+		     ARIZONA_HPF_CONTROL,
+		     ARIZONA_IN_HPF_CUT_SHIFT,
+		     arizona_in_hpf_cut_text);
 EXPORT_SYMBOL_GPL(arizona_in_hpf_cut_enum);
 
 static const char * const arizona_in_dmic_osr_text[] = {
