@@ -1081,7 +1081,7 @@ static const char * const wm5102_dsp_output_texts[] = {
 	"DSP1",
 };
 
-static SOC_ENUM_SINGLE_DECL(wm5102_dsp_output_enum, 0, 0,
+static SOC_ENUM_SINGLE_DECL(wm5102_dsp_output_enum, SND_SOC_NOPM, 0,
 			    wm5102_dsp_output_texts);
 
 static const struct snd_kcontrol_new wm5102_dsp_output_mux =
