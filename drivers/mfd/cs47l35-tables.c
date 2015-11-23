@@ -89,6 +89,15 @@ static const struct regmap_irq cs47l35_irqs[MADERA_NUM_IRQ] = {
 	[MADERA_IRQ_DSP_IRQ16] = { .reg_offset = 10,
 				  .mask = MADERA_DSP_IRQ16_EINT1},
 
+	[MADERA_IRQ_HP2R_SC] = { .reg_offset = 11,
+				.mask = MADERA_HP2R_SC_EINT1},
+	[MADERA_IRQ_HP2L_SC] = { .reg_offset = 11,
+				.mask = MADERA_HP2L_SC_EINT1},
+	[MADERA_IRQ_HP1R_SC] = { .reg_offset = 11,
+				.mask = MADERA_HP1R_SC_EINT1},
+	[MADERA_IRQ_HP1L_SC] = { .reg_offset = 11,
+				.mask = MADERA_HP1L_SC_EINT1},
+
 	[MADERA_IRQ_SPK_OVERHEAT_WARN] = { .reg_offset = 14,
 				.mask = MADERA_SPK_OVERHEAT_WARN_EINT1},
 	[MADERA_IRQ_SPK_OVERHEAT] = { .reg_offset = 14,
