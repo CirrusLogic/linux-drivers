@@ -2630,7 +2630,7 @@ static int madera_set_opclk(struct snd_soc_codec *codec, unsigned int clk,
 		return -EINVAL;
 	}
 
-	if (refclk % 8000)
+	if (refclk % 4000)
 		rates = madera_opclk_ref_44k1_rates;
 	else
 		rates = madera_opclk_ref_48k_rates;
@@ -3039,7 +3039,7 @@ static int madera_startup(struct snd_pcm_substream *substream,
 	if (base_rate == 0)
 		return 0;
 
-	if (base_rate % 8000)
+	if (base_rate % 4000)
 		constraint = &madera_44k1_constraint;
 	else
 		constraint = &madera_48k_constraint;
@@ -3230,7 +3230,7 @@ static int madera_hw_params(struct snd_pcm_substream *substream,
 	bool reconfig;
 	unsigned int aif_tx_state = 0, aif_rx_state = 0;
 
-	if (params_rate(params) % 8000)
+	if (params_rate(params) % 4000)
 		rates = &madera_44k1_bclk_rates[0];
 	else
 		rates = &madera_48k_bclk_rates[0];
