@@ -1989,76 +1989,76 @@ static const char * const madera_vol_ramp_text[] = {
 	"15ms/6dB", "30ms/6dB",
 };
 
-const SOC_ENUM_SINGLE_DECL(madera_in_vd_ramp,
-			   MADERA_INPUT_VOLUME_RAMP,
-			   MADERA_IN_VD_RAMP_SHIFT,
-			   madera_vol_ramp_text);
+SOC_ENUM_SINGLE_DECL(madera_in_vd_ramp,
+		     MADERA_INPUT_VOLUME_RAMP,
+		     MADERA_IN_VD_RAMP_SHIFT,
+		     madera_vol_ramp_text);
 EXPORT_SYMBOL_GPL(madera_in_vd_ramp);
 
-const SOC_ENUM_SINGLE_DECL(madera_in_vi_ramp,
-			   MADERA_INPUT_VOLUME_RAMP,
-			   MADERA_IN_VI_RAMP_SHIFT,
-			   madera_vol_ramp_text);
+SOC_ENUM_SINGLE_DECL(madera_in_vi_ramp,
+		     MADERA_INPUT_VOLUME_RAMP,
+		     MADERA_IN_VI_RAMP_SHIFT,
+		     madera_vol_ramp_text);
 EXPORT_SYMBOL_GPL(madera_in_vi_ramp);
 
-const SOC_ENUM_SINGLE_DECL(madera_out_vd_ramp,
-			   MADERA_OUTPUT_VOLUME_RAMP,
-			   MADERA_OUT_VD_RAMP_SHIFT,
-			   madera_vol_ramp_text);
+SOC_ENUM_SINGLE_DECL(madera_out_vd_ramp,
+		     MADERA_OUTPUT_VOLUME_RAMP,
+		     MADERA_OUT_VD_RAMP_SHIFT,
+		     madera_vol_ramp_text);
 EXPORT_SYMBOL_GPL(madera_out_vd_ramp);
 
-const SOC_ENUM_SINGLE_DECL(madera_out_vi_ramp,
-			   MADERA_OUTPUT_VOLUME_RAMP,
-			   MADERA_OUT_VI_RAMP_SHIFT,
-			   madera_vol_ramp_text);
+SOC_ENUM_SINGLE_DECL(madera_out_vi_ramp,
+		     MADERA_OUTPUT_VOLUME_RAMP,
+		     MADERA_OUT_VI_RAMP_SHIFT,
+		     madera_vol_ramp_text);
 EXPORT_SYMBOL_GPL(madera_out_vi_ramp);
 
 static const char * const madera_lhpf_mode_text[] = {
 	"Low-pass", "High-pass"
 };
 
-const SOC_ENUM_SINGLE_DECL(madera_lhpf1_mode,
-			   MADERA_HPLPF1_1,
-			   MADERA_LHPF1_MODE_SHIFT,
-			   madera_lhpf_mode_text);
+SOC_ENUM_SINGLE_DECL(madera_lhpf1_mode,
+		     MADERA_HPLPF1_1,
+		     MADERA_LHPF1_MODE_SHIFT,
+		     madera_lhpf_mode_text);
 EXPORT_SYMBOL_GPL(madera_lhpf1_mode);
 
-const SOC_ENUM_SINGLE_DECL(madera_lhpf2_mode,
-			   MADERA_HPLPF2_1,
-			   MADERA_LHPF2_MODE_SHIFT,
-			   madera_lhpf_mode_text);
+SOC_ENUM_SINGLE_DECL(madera_lhpf2_mode,
+		     MADERA_HPLPF2_1,
+		     MADERA_LHPF2_MODE_SHIFT,
+		     madera_lhpf_mode_text);
 EXPORT_SYMBOL_GPL(madera_lhpf2_mode);
 
-const SOC_ENUM_SINGLE_DECL(madera_lhpf3_mode,
-			   MADERA_HPLPF3_1,
-			   MADERA_LHPF3_MODE_SHIFT,
-			   madera_lhpf_mode_text);
+SOC_ENUM_SINGLE_DECL(madera_lhpf3_mode,
+		     MADERA_HPLPF3_1,
+		     MADERA_LHPF3_MODE_SHIFT,
+		     madera_lhpf_mode_text);
 EXPORT_SYMBOL_GPL(madera_lhpf3_mode);
 
-const SOC_ENUM_SINGLE_DECL(madera_lhpf4_mode,
-			   MADERA_HPLPF4_1,
-			   MADERA_LHPF4_MODE_SHIFT,
-			   madera_lhpf_mode_text);
+SOC_ENUM_SINGLE_DECL(madera_lhpf4_mode,
+		     MADERA_HPLPF4_1,
+		     MADERA_LHPF4_MODE_SHIFT,
+		     madera_lhpf_mode_text);
 EXPORT_SYMBOL_GPL(madera_lhpf4_mode);
 
 static const char * const madera_ng_hold_text[] = {
 	"30ms", "120ms", "250ms", "500ms",
 };
 
-const SOC_ENUM_SINGLE_DECL(madera_ng_hold,
-			   MADERA_NOISE_GATE_CONTROL,
-			   MADERA_NGATE_HOLD_SHIFT,
-			   madera_ng_hold_text);
+SOC_ENUM_SINGLE_DECL(madera_ng_hold,
+		     MADERA_NOISE_GATE_CONTROL,
+		     MADERA_NGATE_HOLD_SHIFT,
+		     madera_ng_hold_text);
 EXPORT_SYMBOL_GPL(madera_ng_hold);
 
 static const char * const madera_in_hpf_cut_text[] = {
 	"2.5Hz", "5Hz", "10Hz", "20Hz", "40Hz"
 };
 
-const SOC_ENUM_SINGLE_DECL(madera_in_hpf_cut_enum,
-			   MADERA_HPF_CONTROL,
-			   MADERA_IN_HPF_CUT_SHIFT,
-			   madera_in_hpf_cut_text);
+SOC_ENUM_SINGLE_DECL(madera_in_hpf_cut_enum,
+		     MADERA_HPF_CONTROL,
+		     MADERA_IN_HPF_CUT_SHIFT,
+		     madera_in_hpf_cut_text);
 EXPORT_SYMBOL_GPL(madera_in_hpf_cut_enum);
 
 static const char * const madera_in_dmic_osr_text[MADERA_OSR_ENUM_SIZE] = {

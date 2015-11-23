@@ -244,20 +244,20 @@ static const char * const cs47l90_inmux_texts[] = {
 	"B",
 };
 
-static const SOC_ENUM_SINGLE_DECL(cs47l90_in1muxl_enum,
-				  MADERA_ADC_DIGITAL_VOLUME_1L,
-				  MADERA_IN1L_SRC_SHIFT,
-				  cs47l90_inmux_texts);
+static SOC_ENUM_SINGLE_DECL(cs47l90_in1muxl_enum,
+			    MADERA_ADC_DIGITAL_VOLUME_1L,
+			    MADERA_IN1L_SRC_SHIFT,
+			    cs47l90_inmux_texts);
 
-static const SOC_ENUM_SINGLE_DECL(cs47l90_in1muxr_enum,
-				  MADERA_ADC_DIGITAL_VOLUME_1R,
-				  MADERA_IN1R_SRC_SHIFT,
-				  cs47l90_inmux_texts);
+static SOC_ENUM_SINGLE_DECL(cs47l90_in1muxr_enum,
+			    MADERA_ADC_DIGITAL_VOLUME_1R,
+			    MADERA_IN1R_SRC_SHIFT,
+			    cs47l90_inmux_texts);
 
-static const SOC_ENUM_SINGLE_DECL(cs47l90_in2muxl_enum,
-				  MADERA_ADC_DIGITAL_VOLUME_2L,
-				  MADERA_IN2L_SRC_SHIFT,
-				  cs47l90_inmux_texts);
+static SOC_ENUM_SINGLE_DECL(cs47l90_in2muxl_enum,
+			    MADERA_ADC_DIGITAL_VOLUME_2L,
+			    MADERA_IN2L_SRC_SHIFT,
+			    cs47l90_inmux_texts);
 
 static const struct snd_kcontrol_new cs47l90_in1mux[2] = {
 	SOC_DAPM_ENUM("IN1L Mux", cs47l90_in1muxl_enum),
