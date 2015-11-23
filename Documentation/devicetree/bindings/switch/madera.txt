@@ -7,7 +7,7 @@ Optional properties:
   - cirrus,micd-pol-gpios : GPIO specifier for the GPIO controlling the headset
     polarity if one exists
 
-  - cirrus,micd-detect-debounce : Additional software microphone detection
+  - cirrus,micd-detect-debounce-ms : Additional software microphone detection
     debounce specified in milliseconds
 
   - cirrus,micd-manual-debounce : Additional software button detection
@@ -24,7 +24,7 @@ Optional properties:
   - cirrus,micd-dbtime : Microphone detection hardware debounce level, specified
     as per the MICD_DBTIME bits in the register MIC_DETECT_1
 
-  - cirrus,micd-timeout : Timeout for microphone detection, specified in
+  - cirrus,micd-timeout-ms : Timeout for microphone detection, specified in
     milliseconds
 
   - cirrus,micd-force-micbias : Force MICBIAS continuously on during microphone
@@ -88,11 +88,11 @@ codec: cs47l85@0 {
 
 	cirrus,micd-pol-gpios = <&gpio 0>
 
-	cirrus,micd-detect-debounce = <10>;
+	cirrus,micd-detect-debounce-ms = <10>;
 	cirrus,micd-bias-start-time = <0x1>;
 	cirrus,micd-rate = <0x1>;
 	cirrus,micd-dbtime = <0x1>;
-	cirrus,micd-timeout = <10>;
+	cirrus,micd-timeout-ms = <10>;
 	cirrus,micd-force-micbias;
 	cirrus,micd-ranges = <
 		11 0x100

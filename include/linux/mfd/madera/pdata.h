@@ -208,8 +208,8 @@ struct madera_pdata {
 	 */
 	int hpdet_channel;
 
-	/** Extra debounce timeout used during initial mic detection (ms) */
-	int micd_detect_debounce;
+	/** Extra debounce timeout during initial mic detect (milliseconds) */
+	int micd_detect_debounce_ms;
 
 	/** Extra software debounces during button detection */
 	int micd_manual_debounce;
@@ -228,8 +228,8 @@ struct madera_pdata {
 	/** Mic detect debounce level */
 	int micd_dbtime;
 
-	/** Mic detect timeout (ms) */
-	int micd_timeout;
+	/** Mic detect timeout (milliseconds) */
+	int micd_timeout_ms;
 
 	/** Mic detect clamp function */
 	unsigned int micd_clamp_mode;

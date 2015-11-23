@@ -45,7 +45,7 @@
 #define MADERA_HPDET_MAX		10000
 
 #define MADERA_HPDET_DEBOUNCE		500
-#define MADERA_DEFAULT_MICD_TIMEOUT	2000
+#define MADERA_DEFAULT_MICD_TIMEOUT_MS	2000
 
 #define MADERA_MICROPHONE_MIN_OHM	1258
 #define MADERA_MICROPHONE_MAX_OHM	30000
@@ -1520,10 +1520,10 @@ EXPORT_SYMBOL_GPL(madera_micd_mic_reading);
 
 int madera_micd_mic_timeout_ms(struct madera_extcon_info *info)
 {
-	if (info->madera->pdata.micd_timeout)
-		return info->madera->pdata.micd_timeout;
+	if (info->madera->pdata.micd_timeout_ms)
+		return info->madera->pdata.micd_timeout_ms;
 	else
-		return MADERA_DEFAULT_MICD_TIMEOUT;
+		return MADERA_DEFAULT_MICD_TIMEOUT_MS;
 }
 EXPORT_SYMBOL_GPL(madera_micd_mic_timeout_ms);
 
@@ -1821,7 +1821,7 @@ static irqreturn_t madera_micdet(int irq, void *data)
 {
 	struct madera_extcon_info *info = data;
 	struct madera *madera = info->madera;
-	int debounce = madera->pdata.micd_detect_debounce;
+	int debounce = madera->pdata.micd_detect_debounce_ms;
 
 	dev_dbg(madera->dev, "micdet IRQ");
 
@@ -2175,8 +2175,8 @@ static int madera_extcon_of_get_pdata(struct madera *madera)
 {
 	struct madera_pdata *pdata = &madera->pdata;
 
-	madera_of_read_int(madera, "cirrus,micd-detect-debounce", false,
-			   &pdata->micd_detect_debounce);
+	madera_of_read_int(madera, "cirrus,micd-detect-debounce-ms", false,
+			   &pdata->micd_detect_debounce_ms);
 
 	madera_of_read_int(madera, "cirrus,micd-manual-debounce", false,
 			   &pdata->micd_manual_debounce);
@@ -2205,8 +2205,8 @@ static int madera_extcon_of_get_pdata(struct madera *madera)
 	madera_of_read_int(madera, "cirrus,micd-dbtime", false,
 			   &pdata->micd_dbtime);
 
-	madera_of_read_int(madera, "cirrus,micd-timeout", false,
-			   &pdata->micd_timeout);
+	madera_of_read_int(madera, "cirrus,micd-timeout-ms", false,
+			   &pdata->micd_timeout_ms);
 
 	pdata->micd_force_micbias =
 		of_property_read_bool(madera->dev->of_node,
