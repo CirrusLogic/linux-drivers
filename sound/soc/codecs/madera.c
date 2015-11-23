@@ -4206,14 +4206,63 @@ int madera_init_fll(struct madera *madera, int id, int base,
 }
 EXPORT_SYMBOL_GPL(madera_init_fll);
 
+static const struct reg_default madera_fll_ao_32K_49M_patch[] = {
+	{ MADERA_FLLAO_CONTROL_2,  0x02EE },
+	{ MADERA_FLLAO_CONTROL_3,  0x0000 },
+	{ MADERA_FLLAO_CONTROL_4,  0x0001 },
+	{ MADERA_FLLAO_CONTROL_5,  0x0002 },
+	{ MADERA_FLLAO_CONTROL_6,  0x8001 },
+	{ MADERA_FLLAO_CONTROL_7,  0x0004 },
+	{ MADERA_FLLAO_CONTROL_8,  0x0077 },
+	{ MADERA_FLLAO_CONTROL_10, 0x06D8 },
+	{ MADERA_FLLAO_CONTROL_11, 0x0085 },
+	{ MADERA_FLLAO_CONTROL_2,  0x82EE },
+};
+
+static const struct reg_default madera_fll_ao_32K_45M_patch[] = {
+	{ MADERA_FLLAO_CONTROL_2,  0x02B1 },
+	{ MADERA_FLLAO_CONTROL_3,  0x0001 },
+	{ MADERA_FLLAO_CONTROL_4,  0x0010 },
+	{ MADERA_FLLAO_CONTROL_5,  0x0002 },
+	{ MADERA_FLLAO_CONTROL_6,  0x8001 },
+	{ MADERA_FLLAO_CONTROL_7,  0x0004 },
+	{ MADERA_FLLAO_CONTROL_8,  0x0077 },
+	{ MADERA_FLLAO_CONTROL_10, 0x06D8 },
+	{ MADERA_FLLAO_CONTROL_11, 0x0005 },
+	{ MADERA_FLLAO_CONTROL_2,  0x82B1 },
+};
+
+struct madera_fllao_patch {
+	unsigned int fin;
+	unsigned int fout;
+	const struct reg_default *patch;
+	unsigned int patch_size;
+};
+
+static const struct madera_fllao_patch madera_fllao_settings[] = {
+	{
+		.fin = 32768,
+		.fout = 49152000,
+		.patch = madera_fll_ao_32K_49M_patch,
+		.patch_size = ARRAY_SIZE(madera_fll_ao_32K_49M_patch),
+
+	},
+	{
+		.fin = 32768,
+		.fout = 45158400,
+		.patch = madera_fll_ao_32K_45M_patch,
+		.patch_size = ARRAY_SIZE(madera_fll_ao_32K_45M_patch),
+	},
+};
+
 static int madera_enable_fll_ao(struct madera_fll *fll,
-				struct madera_fll_cfg *cfg,
 				const struct reg_default *patch,
 				unsigned int patch_size)
 {
 	struct madera *madera = fll->madera;
 	int already_enabled = madera_is_enabled_fll(fll);
-	unsigned int phasedet_ena;
+	unsigned int val;
+	int i;
 
 	if (already_enabled < 0)
 		return already_enabled;
@@ -4225,37 +4274,18 @@ static int madera_enable_fll_ao(struct madera_fll *fll,
 	regmap_update_bits(fll->madera->regmap, fll->base + 1,
 			   MADERA_FLL_AO_HOLD, MADERA_FLL_AO_HOLD);
 
-	if (patch)
-		regmap_multi_reg_write(madera->regmap, patch, patch_size);
+	for (i = 0; i < patch_size; i++) {
+		val = patch[i].def;
 
-	regmap_update_bits(madera->regmap, fll->base + 3,
-			   MADERA_FLL_AO_THETA_MASK, cfg->theta);
-	regmap_update_bits(madera->regmap, fll->base + 4,
-			   MADERA_FLL_AO_LAMBDA_MASK, cfg->lambda);
-	regmap_update_bits(madera->regmap, fll->base + 5,
-			   MADERA_FLL_AO_FB_DIV_MASK, cfg->fratio);
-	regmap_update_bits(madera->regmap, fll->base + 6,
-			   MADERA_FLL_AO_REFCLK_DIV_MASK |
-			   MADERA_FLL_AO_REFCLK_SRC_MASK,
-			   cfg->refdiv << MADERA_FLL_AO_REFCLK_DIV_SHIFT |
-			   fll->ref_src << MADERA_FLL_AO_REFCLK_SRC_SHIFT);
-	regmap_update_bits(madera->regmap, fll->base + 0x8,
-			   MADERA_FLL_AO_GAIN_MASK, cfg->gain);
+		/* modify the patch to apply fll->ref_src is input clock */
+		if (patch[i].reg == MADERA_FLLAO_CONTROL_6) {
+			val &= ~MADERA_FLL_AO_REFCLK_SRC_MASK;
+			val |= (fll->ref_src << MADERA_FLL_AO_REFCLK_SRC_SHIFT)
+				& MADERA_FLL_AO_REFCLK_SRC_MASK;
+		}
 
-	phasedet_ena = cfg->theta ? 0 : MADERA_FLL_AO_PHASEDET_ENA_MASK;
-	regmap_update_bits(madera->regmap, fll->base + 12,
-			   MADERA_FLL_AO_PHASEDET_ENA_MASK, phasedet_ena);
-
-	regmap_update_bits(madera->regmap, fll->base + 2,
-			   MADERA_FLL_AO_CTRL_UPD_MASK | MADERA_FLL_AO_N_MASK,
-			   MADERA_FLL_AO_CTRL_UPD_MASK | cfg->n);
-
-	madera_fll_dbg(fll, "fll_ao params: fin=%d, fout=%d,"
-		      "refsrc=%d, refdiv=%d, n=%d, theta=%d, lambda=%d,"
-		      "fbdiv=%d, gain=%d, phasedet=%d\n",
-		      fll->ref_src, fll->fout, fll->ref_src, cfg->refdiv,
-		      cfg->n, cfg->theta, cfg->lambda, cfg->fratio, cfg->gain,
-		      phasedet_ena >> MADERA_FLL_AO_PHASEDET_ENA_SHIFT);
+		regmap_write(madera->regmap, patch[i].def, val);
+	}
 
 	if (!already_enabled)
 		pm_runtime_get(madera->dev);
@@ -4303,95 +4333,33 @@ static int madera_disable_fll_ao(struct madera_fll *fll)
 	return 0;
 }
 
-static const struct reg_default madera_fll_ao_32k_patch[] = {
-	{ MADERA_FLLAO_CONTROL_11, 0x0085 },
-	{ MADERA_FLLAO_CONTROL_10, 0x06DA },
-	{ MADERA_FLLAO_CONTROL_8,  0x0077 },
-	{ MADERA_FLLAO_CONTROL_6,  0x8001 },
-};
-
 int madera_set_fll_ao(struct madera_fll *fll, int source,
 		      unsigned int fin, unsigned int fout)
 {
-	unsigned int floop = 0;
-	int div = 0;
 	int ret = 0;
-	struct madera_fll_cfg *cfg = &(fll->ref_cfg);
-	unsigned int gcd_fll;
-	unsigned int fref = fin;
+	const struct reg_default *patch = NULL;
+	int patch_size = 0;
+	unsigned int i;
 
 	if (fll->ref_src == source &&
 	    fll->ref_freq == fin && fll->fout == fout)
 		return 0;
 
 	if (fout && (fll->ref_freq != fin || fll->fout != fout)) {
-		/* Restrict fin to 32KHz */
-		switch (fin) {
-		case 32768:
-			break;
-		default:
-			madera_fll_err(fll, "FLL_AO input must be 32768Hz\n");
-			return -EINVAL;
+		for (i = 0; i < ARRAY_SIZE(madera_fllao_settings); i++) {
+			if (madera_fllao_settings[i].fin == fin &&
+			    madera_fllao_settings[i].fout == fout)
+				break;
 		}
 
-		if (fll->fout && fout != fll->fout) {
+		if (i == ARRAY_SIZE(madera_fllao_settings)) {
 			madera_fll_err(fll,
-					"Can't change output on active FLL\n");
+					"No matching configuration for FLL_AO\n");
 			return -EINVAL;
 		}
 
-		if ((fin / MADERA_FLL_MAX_REFDIV) > MADERA_FLLAO_MAX_FREF) {
-			madera_fll_err(fll,
-					"Can't scale %dMHz in to <=12.288MHz\n",
-					fin);
-			return -EINVAL;
-		}
-
-		if ((fout / (fin / MADERA_FLL_MAX_REFDIV)) <
-		    MADERA_FLLAO_MIN_N) {
-			madera_fll_err(fll, "Can't configure N < 4\n");
-			return -EINVAL;
-		}
-
-		/* Fref must be <=12.288MHz, find refdiv */
-		div = 1;
-		cfg->refdiv = 0;
-		while ((fref > MADERA_FLLAO_MAX_FREF) ||
-			(fout / fref < MADERA_FLLAO_MIN_N)) {
-			div *= 2;
-			fref /= 2;
-			cfg->refdiv++;
-		}
-
-		/* currently we only support fin=32KHz so fref will be <= 32KHz
-		 * for which gain is fixed to 4
-		 */
-		cfg->gain = 4;
-
-		cfg->fratio = 1; /* start with fb_div as 1 */
-		floop = fout;
-		cfg->n = floop / fref;
-
-		/* N must be <= 1023, find fbdiv(fratio) */
-		div = 2;
-		while ((cfg->n > MADERA_FLLAO_MAX_N) &&
-		       (div <= MADERA_FLLAO_MAX_FBDIV)) {
-			floop = fout / div;
-			cfg->fratio = div;
-			cfg->n = floop / fref;
-			div += 2;
-		}
-
-		if (cfg->n > MADERA_FLLAO_MAX_N) {
-			madera_fll_err(fll, "Can't configure N > 1023\n");
-			return -EINVAL;
-		}
-
-		gcd_fll = gcd(floop, fref);
-		madera_fll_dbg(fll, "GCD=%u\n", gcd_fll);
-
-		cfg->theta = (floop - (cfg->n * fref)) / gcd_fll;
-		cfg->lambda =  fref / gcd_fll;
+		patch = madera_fllao_settings[i].patch;
+		patch_size = madera_fllao_settings[i].patch_size;
 	}
 
 	fll->ref_src = source;
@@ -4399,9 +4367,7 @@ int madera_set_fll_ao(struct madera_fll *fll, int source,
 	fll->fout = fout;
 
 	if (fout)
-		ret = madera_enable_fll_ao(fll, cfg,
-					   madera_fll_ao_32k_patch,
-					   ARRAY_SIZE(madera_fll_ao_32k_patch));
+		ret = madera_enable_fll_ao(fll, patch, patch_size);
 	else
 		madera_disable_fll_ao(fll);
 
