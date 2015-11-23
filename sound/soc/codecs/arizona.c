@@ -214,7 +214,7 @@ static struct reg_sequence fll_ao_32K_45M_patch[] = {
 	{ MOON_FLLAO_CONTROL_2,  0x82B1 },
 };
 
-static struct fllao_patch fllao_settings [] = {
+static struct fllao_patch fllao_settings[] = {
 	{
 		.fin = 32768,
 		.fout = 49152000,
