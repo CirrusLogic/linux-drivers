@@ -138,6 +138,7 @@ struct madera_fll_cfg {
 	int refdiv;
 	int fratio;
 	int gain;
+	int alt_gain;
 };
 
 struct madera_fll {
