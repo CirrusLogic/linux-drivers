@@ -3580,8 +3580,6 @@ static void arizona_probe_work(struct work_struct *work)
 		goto err_micdet;
 	}
 
-	arizona_clk32k_enable(arizona);
-
 	switch (arizona->type) {
 	case WM5102:
 	case WM5110:
@@ -3697,7 +3695,6 @@ static int arizona_extcon_remove(struct platform_device *pdev)
 	input_unregister_device(info->input);
 	regmap_update_bits(arizona->regmap, ARIZONA_JACK_DETECT_ANALOGUE,
 			   ARIZONA_JD1_ENA | ARIZONA_JD2_ENA, 0);
-	arizona_clk32k_disable(arizona);
 
 	switch_dev_unregister(&info->sdev);
 	wakeup_source_trash(&info->detection_wake_lock);
