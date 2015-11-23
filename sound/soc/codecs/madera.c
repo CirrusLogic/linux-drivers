@@ -4221,13 +4221,9 @@ static int madera_enable_fll_ao(struct madera_fll *fll,
 	madera_fll_dbg(fll, "Enabling FLL_AO, initially %s\n",
 			already_enabled ? "enabled" : "disabled");
 
-	/* If already enabled facilitate smooth refclk across the transition */
-	if (already_enabled)
-		regmap_update_bits(fll->madera->regmap, fll->base + 1,
-				   MADERA_FLL_AO_HOLD, MADERA_FLL_AO_HOLD);
-	else
-		regmap_update_bits(fll->madera->regmap, fll->base + 1,
-				   MADERA_FLL_AO_HOLD, 0);
+	/* FLL_AO_HOLD must be set before configuring any registers */
+	regmap_update_bits(fll->madera->regmap, fll->base + 1,
+			   MADERA_FLL_AO_HOLD, MADERA_FLL_AO_HOLD);
 
 	if (patch)
 		regmap_multi_reg_write(madera->regmap, patch, patch_size);
@@ -4267,10 +4263,11 @@ static int madera_enable_fll_ao(struct madera_fll *fll,
 	regmap_update_bits(madera->regmap, fll->base + 1,
 			   MADERA_FLL_AO_ENA, MADERA_FLL_AO_ENA);
 
-	if (already_enabled)
-		regmap_update_bits(madera->regmap, fll->base + 1,
-				   MADERA_FLL_AO_HOLD, 0);
-	else
+	/* Release the hold so that fll_ao locks to external frequency */
+	regmap_update_bits(madera->regmap, fll->base + 1,
+			   MADERA_FLL_AO_HOLD, 0);
+
+	if (!already_enabled)
 		madera_wait_for_fll(fll, true);
 
 	return 0;
@@ -4287,8 +4284,6 @@ static int madera_disable_fll_ao(struct madera_fll *fll)
 			   MADERA_FLL_AO_HOLD, MADERA_FLL_AO_HOLD);
 	regmap_update_bits_check(madera->regmap, fll->base + 1,
 			   MADERA_FLL_AO_ENA, 0, &change);
-	regmap_update_bits(madera->regmap, fll->base + 1,
-			   MADERA_FLL_AO_HOLD, 0);
 
 	madera_wait_for_fll(fll, false);
 
