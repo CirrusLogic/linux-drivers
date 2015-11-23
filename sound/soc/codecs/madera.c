@@ -3525,18 +3525,23 @@ static const struct {
 struct madera_fll_gains {
 	unsigned int min;
 	unsigned int max;
-	u16 gain;
+	int gain;		/* main gain */
+	int alt_gain;		/* alternate integer gain */
 };
 
 static const struct madera_fll_gains madera_fll_sync_gains[] = {
-	{       0,   256000, 0 },
-	{  256000,  1000000, 2 },
-	{ 1000000, 13500000, 4 },
+	{       0,   256000, 0, -1 },
+	{  256000,  1000000, 2, -1 },
+	{ 1000000, 13500000, 4, -1 },
 };
 
 static const struct madera_fll_gains madera_fll_main_gains[] = {
-	{      0,   767999, 2 },
-	{ 768000, 13500000, 3 },
+	{       0,   100000, 0, 2 },
+	{  100000,   375000, 2, 2 },
+	{  375000,   768000, 3, 2 },
+	{  768001,  1500000, 3, 3 },
+	{ 1500000,  6000000, 4, 3 },
+	{ 6000000, 13500000, 5, 3 },
 };
 
 static int madera_validate_fll(struct madera_fll *fll,
@@ -3716,6 +3721,7 @@ static int madera_find_fll_gain(struct madera_fll *fll,
 	for (i = 0; i < n_gains; i++) {
 		if (gains[i].min <= fref && fref <= gains[i].max) {
 			cfg->gain = gains[i].gain;
+			cfg->alt_gain = gains[i].alt_gain;
 			return 0;
 		}
 	}
@@ -3823,7 +3829,7 @@ static int madera_calc_fll(struct madera_fll *fll,
 
 static bool madera_apply_fll(struct madera *madera, unsigned int base,
 			     struct madera_fll_cfg *cfg, int source,
-			     bool sync)
+			     bool sync, int gain)
 {
 	bool change, fll_change;
 
@@ -3847,23 +3853,23 @@ static bool madera_apply_fll(struct madera *madera, unsigned int base,
 
 	if (sync) {
 		regmap_update_bits_check_async(madera->regmap, base + 0x7,
-				   MADERA_FLL1_GAIN_MASK,
-				   cfg->gain << MADERA_FLL1_GAIN_SHIFT, &change);
+				MADERA_FLL1_GAIN_MASK,
+				gain << MADERA_FLL1_GAIN_SHIFT, &change);
 		fll_change |= change;
 	} else {
 		regmap_update_bits_async(madera->regmap, base + 0x5,
-				 MADERA_FLL1_OUTDIV_MASK,
-				 MADERA_FLL_OUTDIV << MADERA_FLL1_OUTDIV_SHIFT);
+				MADERA_FLL1_OUTDIV_MASK,
+				MADERA_FLL_OUTDIV << MADERA_FLL1_OUTDIV_SHIFT);
 
 		regmap_update_bits_check_async(madera->regmap, base + 0x9,
-				   MADERA_FLL1_GAIN_MASK,
-				   cfg->gain << MADERA_FLL1_GAIN_SHIFT, &change);
+				MADERA_FLL1_GAIN_MASK,
+				gain << MADERA_FLL1_GAIN_SHIFT, &change);
 		fll_change |= change;
 	}
 
 	regmap_update_bits_check_async(madera->regmap, base + 2,
-			   MADERA_FLL1_CTRL_UPD | MADERA_FLL1_N_MASK,
-			   MADERA_FLL1_CTRL_UPD | cfg->n, &change);
+				MADERA_FLL1_CTRL_UPD | MADERA_FLL1_N_MASK,
+				MADERA_FLL1_CTRL_UPD | cfg->n, &change);
 	fll_change |= change;
 
 	return fll_change;
@@ -3936,6 +3942,7 @@ static int madera_enable_fll(struct madera_fll *fll)
 	int already_enabled = madera_is_enabled_fll(fll);
 	struct madera_fll_cfg ref_cfg, sync_cfg;
 	unsigned int sync_reg_base;
+	int gain;
 	bool fll_change;
 
 	switch (madera->type) {
@@ -3962,30 +3969,47 @@ static int madera_enable_fll(struct madera_fll *fll)
 					 MADERA_FLL1_FREERUN);
 	}
 
-	/*
-	 * If we have both REFCLK and SYNCCLK then enable both,
-	 * otherwise apply the SYNCCLK settings to REFCLK.
-	 */
 	if (fll->ref_src >= 0 && fll->ref_freq &&
 	    fll->ref_src != fll->sync_src) {
+		/* we have both REFCLK and SYNCCLK so enable both */
 		madera_calc_fll(fll, &ref_cfg, fll->ref_freq, false);
 
 		fll_change = madera_apply_fll(madera, fll->base, &ref_cfg,
-					      fll->ref_src, false);
+					      fll->ref_src, false,
+					      ref_cfg.gain);
 		if (fll->sync_src >= 0) {
 			madera_calc_fll(fll, &sync_cfg, fll->sync_freq, true);
 
 			fll_change |= madera_apply_fll(madera,
 							sync_reg_base + 0,
 							&sync_cfg,
-							fll->sync_src, true);
+							fll->sync_src, true,
+							sync_cfg.gain);
 			use_sync = true;
 		}
 	} else if (fll->sync_src >= 0) {
 		madera_calc_fll(fll, &ref_cfg, fll->sync_freq, false);
 
+		/* apply the SYNCCLK settings to REFCLK and allow possible
+		 * alternate gain setting in this configuration
+		 */
+		switch (fll->madera->type) {
+		case CS47L35:
+		case CS47L85:
+		case WM1840:
+			/* alt_gain mode not required */
+			gain = ref_cfg.gain;
+			break;
+		default:
+			if (ref_cfg.theta == 0)
+				gain = ref_cfg.alt_gain;
+			else
+				gain = ref_cfg.gain;
+			break;
+		}
+
 		fll_change = madera_apply_fll(madera, fll->base, &ref_cfg,
-					      fll->sync_src, false);
+					      fll->sync_src, false, gain);
 
 		regmap_update_bits_async(madera->regmap, sync_reg_base + 1,
 					 MADERA_FLL1_SYNC_ENA, 0);
