@@ -1752,7 +1752,7 @@ static void marley_compr_irq(struct marley_priv *marley,
 	if (trigger && !compr->trig) {
 		compr->trig = true;
 
-		if (compr->adsp->fw_features.ez2control_trigger &&
+		if (wm_adsp_fw_has_voice_trig(compr->adsp) &&
 		    arizona->pdata.ez2ctrl_trigger)
 			arizona->pdata.ez2ctrl_trigger();
 	}
