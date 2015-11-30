@@ -182,6 +182,11 @@ irqreturn_t wm_adsp2_bus_error(struct wm_adsp *adsp);
 int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 
+static inline bool wm_adsp_fw_has_voice_trig(const struct wm_adsp *dsp)
+{
+	return dsp->fw_features.ez2control_trigger;
+}
+
 extern bool wm_adsp_compress_supported(const struct wm_adsp *adsp,
 				       const struct snd_compr_stream *stream);
 extern bool wm_adsp_format_supported(const struct wm_adsp *adsp,
