@@ -2591,15 +2591,15 @@ static void wm_adsp_edac_shutdown(struct wm_adsp *dsp)
 		adsp_err(dsp, "Failed to shutdown eDAC firmware\n");
 }
 
-static inline void wm_adsp_stop_watchdog(struct wm_adsp *adsp)
+static inline void wm_adsp_stop_watchdog(struct wm_adsp *dsp)
 {
-	switch (adsp->rev) {
+	switch (dsp->rev) {
 	case 0:
 	case 1:
 		return;
 	default:
-		regmap_update_bits(adsp->regmap,
-			adsp->base + ADSP2_WATCHDOG,
+		regmap_update_bits(dsp->regmap,
+			dsp->base + ADSP2_WATCHDOG,
 			ADSP2_WDT_ENA_MASK, 0);
 	}
 }
@@ -3766,16 +3766,16 @@ EXPORT_SYMBOL_GPL(wm_adsp_compr_destroy);
 
 
 /* DSP lock region support */
-int wm_adsp2_lock(struct wm_adsp *adsp, unsigned int lock_regions)
+int wm_adsp2_lock(struct wm_adsp *dsp, unsigned int lock_regions)
 {
-	struct regmap *regmap_32bit = adsp->regmap;
+	struct regmap *regmap_32bit = dsp->regmap;
 	unsigned int lockcode0, lockcode1, lock_reg;
 
 	if (!(lock_regions & WM_ADSP2_REGION_ALL))
 		return 0;
 
 	lock_regions &= WM_ADSP2_REGION_ALL;
-	lock_reg = adsp->base +
+	lock_reg = dsp->base +
 		ADSP2_LOCK_REGION_1_LOCK_REGION_0;
 
 	while (lock_regions) {
@@ -3802,60 +3802,60 @@ int wm_adsp2_lock(struct wm_adsp *adsp, unsigned int lock_regions)
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_lock);
 
-irqreturn_t wm_adsp2_bus_error(struct wm_adsp *adsp)
+irqreturn_t wm_adsp2_bus_error(struct wm_adsp *dsp)
 {
 	unsigned int reg_val;
 	int ret = 0;
-	struct regmap *regmap = adsp->regmap;
+	struct regmap *regmap = dsp->regmap;
 
-	ret = regmap_read(regmap, adsp->base +
+	ret = regmap_read(regmap, dsp->base +
 			ADSP2_LOCK_REGION_CTRL, &reg_val);
 	if (ret != 0) {
-		adsp_err(adsp,
+		adsp_err(dsp,
 			"Failed to read Region Lock Ctrl register: %d\n",
 			ret);
 		goto exit;
 	}
 
 	if (reg_val & ADSP2_WDT_TIMEOUT_STS_MASK) {
-		adsp_err(adsp, "watchdog timeout error\n");
-		wm_adsp_stop_watchdog(adsp);
+		adsp_err(dsp, "watchdog timeout error\n");
+		wm_adsp_stop_watchdog(dsp);
 	}
 
 	if (reg_val & (ADSP2_SLAVE_ERR_MASK | ADSP2_REGION_LOCK_ERR_MASK)) {
 		if (reg_val & ADSP2_SLAVE_ERR_MASK)
-			adsp_err(adsp, "bus error: slave error\n");
+			adsp_err(dsp, "bus error: slave error\n");
 		else
-			adsp_err(adsp, "bus error: region lock error\n");
+			adsp_err(dsp, "bus error: region lock error\n");
 
-		ret = regmap_read(regmap, adsp->base +
+		ret = regmap_read(regmap, dsp->base +
 				ADSP2_BUS_ERR_ADDR, &reg_val);
 		if (ret != 0) {
-			adsp_err(adsp,
+			adsp_err(dsp,
 				"Failed to read Bus Err Addr register: %d\n",
 				ret);
 			goto exit;
 		}
-		adsp_err(adsp, "bus error address = 0x%x\n",
+		adsp_err(dsp, "bus error address = 0x%x\n",
 			(reg_val & ADSP2_BUS_ERR_ADDR_MASK));
 
-		ret = regmap_read(regmap, adsp->base +
+		ret = regmap_read(regmap, dsp->base +
 				ADSP2_PMEM_ERR_ADDR_XMEM_ERR_ADDR,
 				&reg_val);
 		if (ret != 0) {
-			adsp_err(adsp,
+			adsp_err(dsp,
 				"Failed to read Pmem Xmem Err Addr register: %d\n",
 				ret);
 			goto exit;
 		}
-		adsp_err(adsp, "xmem error address = 0x%x\n",
+		adsp_err(dsp, "xmem error address = 0x%x\n",
 			(reg_val & ADSP2_XMEM_ERR_ADDR_MASK));
-		adsp_err(adsp, "pmem error address = 0x%x\n",
+		adsp_err(dsp, "pmem error address = 0x%x\n",
 			(reg_val & ADSP2_PMEM_ERR_ADDR_MASK)
 			>> ADSP2_PMEM_ERR_ADDR_SHIFT);
 	}
 
-	regmap_write(regmap, adsp->base + ADSP2_LOCK_REGION_CTRL,
+	regmap_write(regmap, dsp->base + ADSP2_LOCK_REGION_CTRL,
 		     ADSP2_CTRL_ERR_EINT);
 exit:
 	return IRQ_HANDLED;
