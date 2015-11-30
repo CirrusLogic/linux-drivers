@@ -719,7 +719,9 @@ static void arizona_extcon_change_mode(struct arizona_extcon_info *info)
 	    info->micd_modes[new_mode].bias) {
 		change_bias = true;
 
-		if (arizona->pdata.micd_force_micbias) {
+		if ((arizona->pdata.micd_force_micbias) ||
+		    (arizona->pdata.micd_force_micbias_initial &&
+		     info->detecting)) {
 			widget = arizona_extcon_get_micbias(info);
 			dev_dbg(arizona->dev, "disabling %s\n", widget);
 
