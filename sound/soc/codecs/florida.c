@@ -2244,7 +2244,7 @@ static void florida_compr_irq(struct florida_priv *florida,
 	if (trigger && !compr->trig) {
 		compr->trig = true;
 
-		if (compr->adsp->fw_features.ez2control_trigger &&
+		if (wm_adsp_fw_has_voice_trig(compr->adsp) &&
 		    arizona->pdata.ez2ctrl_trigger)
 			arizona->pdata.ez2ctrl_trigger();
 	}
