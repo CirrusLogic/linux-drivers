@@ -327,8 +327,13 @@ struct wm_adsp_host_buffer {
 	__be32 words_written[2];	/* total words written (64 bit) */
 };
 
-#define WM_ADSP_DATA_WORD_SIZE         3
-#define WM_ADSP_MAX_READ_SIZE          256
+#define WM_ADSP_DATA_WORD_SIZE		3
+#define WM_ADSP_MIN_FRAGMENTS		1
+#define WM_ADSP_MAX_FRAGMENTS		256
+#define WM_ADSP_MIN_FRAGMENT_SIZE	(64 * WM_ADSP_DATA_WORD_SIZE)
+#define WM_ADSP_MAX_FRAGMENT_SIZE	(4096 * WM_ADSP_DATA_WORD_SIZE)
+
+
 #define WM_ADSP_ALG_XM_STRUCT_MAGIC    0x49aec7
 
 #define WM_ADSP_DEFAULT_WATERMARK      DIV_ROUND_UP(2048, WM_ADSP_DATA_WORD_SIZE)
@@ -3062,73 +3067,6 @@ static void wm_adsp_free_host_buf_info(struct wm_adsp *dsp)
 	kfree(host_regions);
 }
 
-static int wm_adsp_read_buffer(struct wm_adsp_compr *compr, int32_t read_index,
-			       int avail)
-{
-	struct wm_adsp *dsp = compr->dsp;
-	int circ_space_words = CIRC_SPACE(dsp->capt_buf.head,
-					  dsp->capt_buf.tail,
-					  dsp->capt_buf_size) /
-			       WM_ADSP_DATA_WORD_SIZE;
-	u8 *capt_buf = (u8 *)dsp->capt_buf.buf;
-	int capt_buf_h = dsp->capt_buf.head;
-	int capt_buf_mask = dsp->capt_buf_size - 1;
-	struct wm_adsp_buffer_region *host_regions =
-				dsp->host_buf_info.host_regions;
-	int mem_type;
-	unsigned int adsp_addr;
-	int num_words;
-	int i, ret;
-
-	lockdep_assert_held(&dsp->host_buf_info.lock);
-	BUG_ON(!host_regions);	/* should have been checked by caller */
-
-	/* Calculate read parameters */
-	for (i = 0; i < dsp->firmwares[dsp->fw].caps->num_host_regions; ++i) {
-		if (read_index < host_regions[i].cumulative_size)
-			break;
-	}
-
-	if (i == dsp->firmwares[dsp->fw].caps->num_host_regions)
-		return -EINVAL;
-
-	num_words = host_regions[i].cumulative_size - read_index;
-	mem_type = host_regions[i].mem_type;
-	adsp_addr = host_regions[i].base_addr +
-		    (read_index - host_regions[i].offset);
-
-	if (circ_space_words < num_words)
-		num_words = circ_space_words;
-	if (avail < num_words)
-		num_words = avail;
-	if (num_words >= WM_ADSP_MAX_READ_SIZE) {
-		num_words = WM_ADSP_MAX_READ_SIZE;
-	}
-	if (!num_words)
-		return 0;
-
-	/* Read data from DSP */
-	ret = wm_adsp_read_data_block(dsp, mem_type, adsp_addr,
-				      num_words, dsp->raw_capt_buf);
-	if (ret != 0)
-		return ret;
-
-	/* Copy to circular buffer */
-	for (i = 0; i < num_words; ++i) {
-		u32 x = dsp->raw_capt_buf[i];
-
-		capt_buf[capt_buf_h++] = (u8)((x >> 0) & 0xff);
-		capt_buf_h &= capt_buf_mask;
-		capt_buf[capt_buf_h++] = (u8)((x >> 8) & 0xff);
-		capt_buf_h &= capt_buf_mask;
-		capt_buf[capt_buf_h++] = (u8)((x >> 16) & 0xff);
-		capt_buf_h &= capt_buf_mask;
-	}
-
-	dsp->capt_buf.head = capt_buf_h;
-	return num_words;
-}
-
 static inline int wm_adsp_buffer_size(struct wm_adsp_compr *compr)
 {
 	const struct wm_adsp *dsp = compr->dsp;
@@ -3184,42 +3122,6 @@ static int wm_adsp_buffer_update_avail(struct wm_adsp_compr *compr)
 	return 0;
 }
 
-static int wm_adsp_capture_block(struct wm_adsp_compr *compr)
-{
-	struct wm_adsp *dsp = compr->dsp;
-	int num_words;
-	int ret;
-
-	lockdep_assert_held(&dsp->host_buf_info.lock);
-	BUG_ON(!dsp->host_buf_info.host_regions);
-
-	ret = wm_adsp_buffer_update_avail(compr);
-	if (ret < 0)
-		return ret;
-
-	if (compr->buf_read_index < 0)
-		return 0;	/* stream has not yet started */
-
-	/* Read data from DSP buffer */
-	num_words = wm_adsp_read_buffer(compr, compr->buf_read_index,
-					compr->buf_avail);
-	if (num_words <= 0)
-		return num_words;
-
-	/* update read index to account for words read */
-	compr->buf_read_index += num_words;
-	if (compr->buf_read_index == wm_adsp_buffer_size(compr))
-		compr->buf_read_index = 0;
-
-	ret = wm_adsp_host_buffer_write(dsp,
-					HOST_BUFFER_FIELD(next_read_index),
-					compr->buf_read_index);
-	if (ret < 0)
-		return ret;
-
-	return num_words;
-}
-
 static int wm_adsp_stream_has_error_locked(struct wm_adsp *dsp)
 {
 	int ret;
@@ -3247,50 +3149,142 @@ static int wm_adsp_stream_has_error_locked(struct wm_adsp *dsp)
 	return 0;
 }
 
+static int wm_adsp_buffer_capture_block(struct wm_adsp_compr *compr, int target)
+{
+	struct wm_adsp *dsp = compr->dsp;
+	const struct wm_adsp_buffer_region *host_regions =
+					dsp->host_buf_info.host_regions;
+	int num_regions = dsp->firmwares[dsp->fw].caps->num_host_regions;
+	u8 *pack_in = (u8 *)compr->capt_buf;
+	u8 *pack_out = (u8 *)compr->capt_buf;
+	unsigned int adsp_addr;
+	int mem_type, nwords;
+	int i, j, ret;
+
+	lockdep_assert_held(&dsp->host_buf_info.lock);
+	BUG_ON(!dsp->host_buf_info.host_regions);
+
+	/* Calculate read parameters */
+	for (i = 0; i < num_regions; ++i)
+		if (compr->buf_read_index < host_regions[i].cumulative_size)
+			break;
+
+	if (i == num_regions)
+		return -EINVAL;
+
+	mem_type = host_regions[i].mem_type;
+	adsp_addr = host_regions[i].base_addr +
+		    (compr->buf_read_index - host_regions[i].offset);
+
+	nwords = host_regions[i].cumulative_size - compr->buf_read_index;
+
+	if (nwords > target)
+		nwords = target;
+	if (nwords > compr->buf_avail)
+		nwords = compr->buf_avail;
+	if (nwords > compr->max_read_words)
+		nwords = compr->max_read_words;
+	if (!nwords)
+		return 0;
+
+	/* Read data from DSP */
+	ret = wm_adsp_read_data_block(dsp, mem_type, adsp_addr,
+				      nwords, compr->capt_buf);
+	if (ret < 0)
+		return ret;
+
+	/* Remove the padding bytes from the data read from the DSP */
+	for (i = 0; i < nwords; i++) {
+		for (j = 0; j < WM_ADSP_DATA_WORD_SIZE; j++)
+			*pack_out++ = *pack_in++;
+
+		pack_in += sizeof(*(compr->capt_buf)) - WM_ADSP_DATA_WORD_SIZE;
+	}
+
+	/* update read index to account for words read */
+	compr->buf_read_index += nwords;
+	if (compr->buf_read_index == wm_adsp_buffer_size(compr))
+		compr->buf_read_index = 0;
+
+	ret = wm_adsp_host_buffer_write(dsp, HOST_BUFFER_FIELD(next_read_index),
+					compr->buf_read_index);
+	if (ret < 0)
+		return ret;
+
+	/* update avail to account for words read */
+	compr->buf_avail -= nwords;
+
+	return nwords;
+}
+
+static int wm_adsp_compr_read(struct wm_adsp_compr *compr,
+			      char __user *buf, size_t count)
+{
+	struct wm_adsp *dsp = compr->dsp;
+	int ntotal = 0;
+	int nwords, nbytes;
+	int ret;
+
+	lockdep_assert_held(&dsp->host_buf_info.lock);
+	BUG_ON(!dsp->host_buf_info.host_regions);
+
+	adsp_dbg(dsp, "Requested read of %d bytes\n", count);
+
+	ret = wm_adsp_stream_has_error_locked(dsp);
+	if (ret)
+		return ret;
+
+	count /= WM_ADSP_DATA_WORD_SIZE;
+
+	do {
+		nwords = wm_adsp_buffer_capture_block(compr, count);
+		if (nwords < 0) {
+			adsp_err(dsp, "Failed to capture block: %d\n", nwords);
+			return nwords;
+		}
+
+		nbytes = nwords * WM_ADSP_DATA_WORD_SIZE;
+
+		adsp_dbg(dsp, "Read %d bytes\n", nbytes);
+
+		if (copy_to_user(buf + ntotal, compr->capt_buf, nbytes)) {
+			adsp_err(dsp, "Failed to copy data to user: %d, %d\n",
+				 ntotal, nbytes);
+			return -EFAULT;
+		}
+
+		count -= nwords;
+		ntotal += nbytes;
+	} while (nwords > 0 && count > 0);
+
+	compr->copied_total += ntotal;
+
+	return ntotal;
+}
+
 static int wm_adsp_streambuf_alloc(struct wm_adsp_compr *compr,
 			 const struct snd_compr_params *params)
 {
-	struct wm_adsp *dsp = compr->dsp;
-	int ret;
 	unsigned int size;
 
-	if (!dsp->capt_buf.buf) {
-		dsp->capt_buf_size = WM_ADSP_CAPTURE_BUFFER_SIZE;
-		dsp->capt_buf.buf = vmalloc(dsp->capt_buf_size);
+	if (params->buffer.fragment_size == 0)
+		return -EINVAL;
 
-		if (!dsp->capt_buf.buf)
+	compr->max_read_words =
+		params->buffer.fragment_size / WM_ADSP_DATA_WORD_SIZE;
+
+	if (!compr->capt_buf) {
+		size = compr->max_read_words * sizeof(*compr->capt_buf);
+		compr->capt_buf = kmalloc(size, GFP_DMA | GFP_KERNEL);
+
+		if (!compr->capt_buf)
 			return -ENOMEM;
 	}
 
-	dsp->capt_buf.head = 0;
-	dsp->capt_buf.tail = 0;
-
-	if (!dsp->raw_capt_buf) {
-		size = WM_ADSP_MAX_READ_SIZE * sizeof(*dsp->raw_capt_buf);
-		dsp->raw_capt_buf = kzalloc(size, GFP_DMA | GFP_KERNEL);
-
-		if (!dsp->raw_capt_buf) {
-			ret = -ENOMEM;
-			goto err_capt_buf;
-		}
-	}
-
-	size = params->buffer.fragment_size;
-	if (size == 0) {
-		compr->irq_watermark = WM_ADSP_DEFAULT_WATERMARK;
-		adsp_warn(dsp, "No fragment size, assuming %u",
-				compr->irq_watermark * WM_ADSP_DATA_WORD_SIZE);
-	} else {
-		compr->irq_watermark =
-				DIV_ROUND_UP(size, WM_ADSP_DATA_WORD_SIZE);
-	}
+	compr->irq_watermark = DIV_ROUND_UP(params->buffer.fragment_size,
+					    WM_ADSP_DATA_WORD_SIZE);
 
 	return 0;
-
-err_capt_buf:
-	vfree(dsp->capt_buf.buf);
-
-	return ret;
 }
 
 static int wm_adsp_stream_start(struct wm_adsp_compr *compr)
@@ -3308,7 +3302,6 @@ static int wm_adsp_stream_start(struct wm_adsp_compr *compr)
 
 	compr->buf_read_index = -1;
 	compr->buf_avail = 0;
-	compr->max_dsp_read_bytes = WM_ADSP_MAX_READ_SIZE * sizeof(u32);
 
 	ret = wm_adsp_host_buffer_write(dsp,
 					HOST_BUFFER_FIELD(high_water_mark),
@@ -3322,51 +3315,6 @@ out_unlock:
 	mutex_unlock(&dsp->host_buf_info.lock);
 
 	return ret;
-}
-
-static int wm_adsp_stream_capture(struct wm_adsp_compr *compr)
-{
-	struct wm_adsp *dsp = compr->dsp;
-	int amount_read;
-	int total_read = 0;
-	int ret = 0;
-
-	dsp->buffer_drain_pending = false;
-
-	lockdep_assert_held(&dsp->host_buf_info.lock);
-
-	if (!dsp->host_buf_info.host_regions) {
-		adsp_warn(dsp, "No host buffer info\n");
-		return -EIO;
-	}
-
-	do {
-		amount_read = 0;
-		do {
-			ret = wm_adsp_capture_block(compr);
-			if (ret < 0)
-				return ret;
-
-			amount_read += ret;
-		} while (ret > 0);
-
-		total_read += amount_read;
-	} while (amount_read > 0 && compr->buf_avail > WM_ADSP_MAX_READ_SIZE);
-
-	if (compr->buf_avail > WM_ADSP_MAX_READ_SIZE)
-		dsp->buffer_drain_pending = true;
-
-	return total_read * WM_ADSP_DATA_WORD_SIZE;
-}
-
-static int wm_adsp_stream_avail(const struct wm_adsp_compr *compr)
-{
-	if (!compr->allocated)
-		return 0;
-	else
-		return CIRC_CNT(compr->dsp->capt_buf.head,
-				compr->dsp->capt_buf.tail,
-				compr->dsp->capt_buf_size);
 }
 
 static int wm_adsp_stream_update_irq_count(struct wm_adsp *dsp, bool enable,
@@ -3406,9 +3354,8 @@ static int wm_adsp_stream_update_irq_count(struct wm_adsp *dsp, bool enable,
 int wm_adsp_compr_irq(struct wm_adsp_compr *compr, bool *trigger)
 {
 	struct wm_adsp *dsp = compr->dsp;
-	int ret, avail, bytes_captured = 0;
 	u32 old_irq_count;
-	bool enable_irqs = false;
+	int ret;
 
 	if (trigger)
 		*trigger = false;
@@ -3427,38 +3374,25 @@ int wm_adsp_compr_irq(struct wm_adsp_compr *compr, bool *trigger)
 
 	mutex_lock(&compr->lock);
 
-	/* If the firmware buffer has data available read it now,
-	 * no need to wait for the firmware to issue an interrupt.
-	 */
+	/* Fetch read_index and update count of available data */
 	if (compr->allocated) {
-		bytes_captured = wm_adsp_stream_capture(compr);
-		if (bytes_captured < 0) {
-			ret = bytes_captured;
+		ret = wm_adsp_buffer_update_avail(compr);
+		if (ret < 0) {
+			adsp_err(dsp, "Error reading read_index: %d\n", ret);
 			goto out_compr_unlock;
 		}
-
-		/* allow more interrupts if our buffer is not full */
-		if (!dsp->buffer_drain_pending)
-			enable_irqs = true;
 	}
 
-	ret = wm_adsp_stream_update_irq_count(dsp, enable_irqs, &old_irq_count);
+	ret = wm_adsp_stream_update_irq_count(dsp, false, &old_irq_count);
 	if (ret < 0)
 		goto out_compr_unlock;
 
-	compr->total_copied += bytes_captured;
-
-	if (compr->allocated) {
-		avail = wm_adsp_stream_avail(compr);
-		if (avail > WM_ADSP2_DEFAULT_FRAGMENT_SIZE)
-			snd_compr_fragment_elapsed(compr->stream);
-	}
+	if (compr->allocated)
+		snd_compr_fragment_elapsed(compr->stream);
 
 	/* irq_count = 2 only on the initial trigger */
 	if (trigger && (old_irq_count == 2))
 		*trigger = true;
-
-	ret = bytes_captured;
 
 out_compr_unlock:
 	mutex_unlock(&compr->lock);
@@ -3467,71 +3401,6 @@ out_buf_unlock:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm_adsp_compr_irq);
-
-static int wm_adsp_stream_read(struct wm_adsp_compr *compr,
-			       char __user *buf, size_t count)
-{
-	struct wm_adsp *dsp = compr->dsp;
-	int avail, to_end;
-	int ret;
-
-	if (!dsp->running)
-		return -EIO;
-
-	avail = CIRC_CNT(dsp->capt_buf.head,
-			 dsp->capt_buf.tail,
-			 dsp->capt_buf_size);
-	to_end = CIRC_CNT_TO_END(dsp->capt_buf.head,
-				 dsp->capt_buf.tail,
-				 dsp->capt_buf_size);
-
-	if (avail < count)
-		count = avail;
-
-	adsp_dbg(dsp, "%s: avail=%d toend=%d count=%zo\n",
-		 __func__, avail, to_end, count);
-
-	if (count > to_end) {
-		if (copy_to_user(buf,
-				 dsp->capt_buf.buf +
-				 dsp->capt_buf.tail,
-				 to_end))
-			return -EFAULT;
-		if (copy_to_user(buf + to_end, dsp->capt_buf.buf,
-				 count - to_end))
-			return -EFAULT;
-	} else {
-		if (copy_to_user(buf,
-				 dsp->capt_buf.buf +
-				 dsp->capt_buf.tail,
-				 count))
-			return -EFAULT;
-	}
-
-	dsp->capt_buf.tail += count;
-	dsp->capt_buf.tail &= dsp->capt_buf_size - 1;
-
-	if (dsp->buffer_drain_pending) {
-		mutex_lock(&dsp->host_buf_info.lock);
-
-		ret = wm_adsp_stream_has_error_locked(dsp);
-		if (ret >= 0) {
-			ret = wm_adsp_stream_capture(compr);
-			if (ret >= 0)
-				ret = wm_adsp_stream_update_irq_count(
-						dsp,
-						!dsp->buffer_drain_pending,
-						NULL);
-		}
-
-		mutex_unlock(&dsp->host_buf_info.lock);
-
-		if (ret < 0)
-			return ret;
-	}
-
-	return count;
-}
 
 int wm_adsp_compr_open(struct wm_adsp_compr *compr,
 			struct snd_compr_stream *stream)
@@ -3571,19 +3440,15 @@ int wm_adsp_compr_free(struct snd_compr_stream *stream)
 	mutex_lock(&compr->lock);
 
 	compr->allocated = false;
-	compr->total_copied = 0;
+	compr->copied_total = 0;
 	compr->stream = NULL;
 	stream->runtime->private_data = NULL;
 
-	kfree(compr->dsp->raw_capt_buf);
-	compr->dsp->raw_capt_buf = NULL;
-
-	if (compr->dsp->capt_buf.buf) {
-		vfree(compr->dsp->capt_buf.buf);
-		compr->dsp->capt_buf.buf = NULL;
-	}
+	kfree(compr->capt_buf);
+	compr->capt_buf = NULL;
 
 	mutex_unlock(&compr->lock);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm_adsp_compr_free);
@@ -3593,6 +3458,13 @@ int wm_adsp_compr_set_params(struct snd_compr_stream *stream,
 {
 	struct wm_adsp_compr *compr = stream->runtime->private_data;
 	int ret = 0;
+
+	if ((params->buffer.fragment_size % WM_ADSP_DATA_WORD_SIZE) != 0) {
+		adsp_warn(compr->dsp,
+			  "Fragment size %u not a multiple of DSP word size %u\n",
+			  params->buffer.fragment_size, WM_ADSP_DATA_WORD_SIZE);
+		return -EINVAL;
+	}
 
 	mutex_lock(&compr->lock);
 
@@ -3654,13 +3526,52 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 			  struct snd_compr_tstamp *tstamp)
 {
 	struct wm_adsp_compr *compr = stream->runtime->private_data;
+	int ret = 0;
+
+	mutex_unlock(&compr->dsp->host_buf_info.lock);
+
+	ret = wm_adsp_stream_has_error_locked(compr->dsp);
+	if (ret)
+		goto out_buf_unlock;
 
 	mutex_lock(&compr->lock);
-	tstamp->byte_offset = 0;
-	tstamp->copied_total = compr->total_copied;
+
+	if (compr->buf_avail < compr->max_read_words) {
+		ret = wm_adsp_buffer_update_avail(compr);
+		if (ret < 0) {
+			adsp_err(compr->dsp, "Error reading avail: %d\n", ret);
+			goto out;
+		}
+
+		/*
+		 * If we really have less than 1 fragment available ack the
+		 * last DSP IRQ and rely on the IRQ to inform us when a whole
+		 * fragment is available.
+		 */
+		if (compr->buf_avail < compr->max_read_words) {
+			ret = wm_adsp_stream_update_irq_count(compr->dsp,
+							      true, NULL);
+			if (ret < 0) {
+				adsp_err(compr->dsp,
+					"Failed to ack buffer IRQ: %d\n", ret);
+				goto out;
+			}
+		}
+	}
+
+	tstamp->copied_total = compr->copied_total;
+	tstamp->copied_total += compr->buf_avail * WM_ADSP_DATA_WORD_SIZE;
+
+out:
+	adsp_dbg(compr->dsp, "tstamp->copied_total=%d (avail=%d)\n",
+		 tstamp->copied_total, compr->buf_avail);
+
 	mutex_unlock(&compr->lock);
 
-	return 0;
+out_buf_unlock:
+	mutex_unlock(&compr->dsp->host_buf_info.lock);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(wm_adsp_compr_pointer);
 
@@ -3672,10 +3583,10 @@ int wm_adsp_compr_copy(struct snd_compr_stream *stream,
 
 	mutex_lock(&compr->lock);
 
-	if (stream->direction == SND_COMPRESS_PLAYBACK)
-		ret = -EINVAL;
+	if (stream->direction == SND_COMPRESS_CAPTURE)
+		ret = wm_adsp_compr_read(compr, buf, count);
 	else
-		ret = wm_adsp_stream_read(compr, buf, count);
+		ret = -ENOTSUPP;
 
 	mutex_unlock(&compr->lock);
 
@@ -3695,10 +3606,10 @@ int wm_adsp_compr_get_caps(struct snd_compr_stream *stream,
 	memset(caps, 0, sizeof(*caps));
 
 	caps->direction = stream->direction;
-	caps->min_fragment_size = WM_ADSP2_DEFAULT_FRAGMENT_SIZE;
-	caps->max_fragment_size = WM_ADSP2_DEFAULT_FRAGMENT_SIZE;
-	caps->min_fragments = WM_ADSP2_DEFAULT_FRAGMENTS;
-	caps->max_fragments = WM_ADSP2_DEFAULT_FRAGMENTS;
+	caps->min_fragment_size = WM_ADSP_MIN_FRAGMENT_SIZE;
+	caps->max_fragment_size = WM_ADSP_MAX_FRAGMENT_SIZE;
+	caps->min_fragments = WM_ADSP_MIN_FRAGMENTS;
+	caps->max_fragments = WM_ADSP_MAX_FRAGMENTS;
 
 	if (dsp->firmwares[dsp->fw].caps) {
 		for (i = 0; i < dsp->firmwares[dsp->fw].num_caps; i++)
