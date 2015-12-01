@@ -192,9 +192,6 @@ struct arizona_extcon_info {
 	int mic_impedance;
 	struct completion manual_mic_completion;
 
-	int button_impedance;
-	int button_check;
-	bool wait_for_mic;
 	int accdet_ip;
 
 	struct arizona_micd_bias micd_bias;
