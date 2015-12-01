@@ -102,6 +102,9 @@ struct wm_adsp_compr {
 
 	bool allocated;
 
+	int buf_read_index;
+	int buf_avail;
+
 	u32 irq_watermark;
 	int max_dsp_read_bytes;
 

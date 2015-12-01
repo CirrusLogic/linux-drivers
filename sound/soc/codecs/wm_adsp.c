@@ -3129,20 +3129,22 @@ static int wm_adsp_read_buffer(struct wm_adsp_compr *compr, int32_t read_index,
 	return num_words;
 }
 
-static int wm_adsp_capture_block(struct wm_adsp_compr *compr, int *avail)
+static inline int wm_adsp_buffer_size(struct wm_adsp_compr *compr)
+{
+	const struct wm_adsp *dsp = compr->dsp;
+	int last_region = dsp->firmwares[dsp->fw].caps->num_host_regions - 1;
+
+	return dsp->host_buf_info.host_regions[last_region].cumulative_size;
+}
+
+static int wm_adsp_buffer_update_avail(struct wm_adsp_compr *compr)
 {
 	struct wm_adsp *dsp = compr->dsp;
-	const struct wm_adsp_buffer_region *host_regions =
-					dsp->host_buf_info.host_regions;
-	int last_region = dsp->firmwares[dsp->fw].caps->num_host_regions - 1;
-	int host_size = host_regions[last_region].cumulative_size;
-	int num_words;
 	u32 next_read_index, next_write_index;
-	int32_t write_index, read_index;
+	int write_index, avail;
 	int ret;
 
 	lockdep_assert_held(&dsp->host_buf_info.lock);
-	BUG_ON(!host_regions);	/* should have been checked by caller */
 
 	/* Get current host buffer status */
 	ret = wm_adsp_host_buffer_read(dsp,
@@ -3157,29 +3159,54 @@ static int wm_adsp_capture_block(struct wm_adsp_compr *compr, int *avail)
 	if (ret < 0)
 		return ret;
 
-	read_index = sign_extend32(next_read_index, 23);
+	compr->buf_read_index = sign_extend32(next_read_index, 23);
 	write_index = sign_extend32(next_write_index, 23);
 
-	if (read_index < 0)
+	if (compr->buf_read_index < 0)
+		return 0;
+
+	avail = write_index - compr->buf_read_index;
+	if (avail < 0)
+		avail += wm_adsp_buffer_size(compr);
+
+	adsp_dbg(dsp, "readindex=0x%x, writeindex=0x%x, avail=%d\n",
+		 compr->buf_read_index, write_index, avail);
+
+	compr->buf_avail = avail;
+
+	return 0;
+}
+
+static int wm_adsp_capture_block(struct wm_adsp_compr *compr)
+{
+	struct wm_adsp *dsp = compr->dsp;
+	int num_words;
+	int ret;
+
+	lockdep_assert_held(&dsp->host_buf_info.lock);
+	BUG_ON(!dsp->host_buf_info.host_regions);
+
+	ret = wm_adsp_buffer_update_avail(compr);
+	if (ret < 0)
+		return ret;
+
+	if (compr->buf_read_index < 0)
 		return 0;	/* stream has not yet started */
 
-	*avail = write_index - read_index;
-	if (*avail < 0)
-		*avail += host_size;
-
-	/* Read data from DSP */
-	num_words = wm_adsp_read_buffer(compr, read_index, *avail);
+	/* Read data from DSP buffer */
+	num_words = wm_adsp_read_buffer(compr, compr->buf_read_index,
+					compr->buf_avail);
 	if (num_words <= 0)
 		return num_words;
 
 	/* update read index to account for words read */
-	next_read_index += num_words;
-	if (next_read_index == host_size)
-		next_read_index = 0;
+	compr->buf_read_index += num_words;
+	if (compr->buf_read_index == wm_adsp_buffer_size(compr))
+		compr->buf_read_index = 0;
 
 	ret = wm_adsp_host_buffer_write(dsp,
 					HOST_BUFFER_FIELD(next_read_index),
-					next_read_index);
+					compr->buf_read_index);
 	if (ret < 0)
 		return ret;
 
@@ -3272,6 +3299,7 @@ static int wm_adsp_stream_start(struct wm_adsp_compr *compr)
 		goto out_unlock;
 	}
 
+	compr->buf_avail = 0;
 	compr->max_dsp_read_bytes = WM_ADSP_MAX_READ_SIZE * sizeof(u32);
 
 	ret = wm_adsp_host_buffer_write(dsp,
@@ -3291,7 +3319,6 @@ out_unlock:
 static int wm_adsp_stream_capture(struct wm_adsp_compr *compr)
 {
 	struct wm_adsp *dsp = compr->dsp;
-	int avail = 0;
 	int amount_read;
 	int total_read = 0;
 	int ret = 0;
@@ -3308,7 +3335,7 @@ static int wm_adsp_stream_capture(struct wm_adsp_compr *compr)
 	do {
 		amount_read = 0;
 		do {
-			ret = wm_adsp_capture_block(compr, &avail);
+			ret = wm_adsp_capture_block(compr);
 			if (ret < 0)
 				return ret;
 
@@ -3316,9 +3343,9 @@ static int wm_adsp_stream_capture(struct wm_adsp_compr *compr)
 		} while (ret > 0);
 
 		total_read += amount_read;
-	} while (amount_read > 0 && avail > WM_ADSP_MAX_READ_SIZE);
+	} while (amount_read > 0 && compr->buf_avail > WM_ADSP_MAX_READ_SIZE);
 
-	if (avail > WM_ADSP_MAX_READ_SIZE)
+	if (compr->buf_avail > WM_ADSP_MAX_READ_SIZE)
 		dsp->buffer_drain_pending = true;
 
 	return total_read * WM_ADSP_DATA_WORD_SIZE;
