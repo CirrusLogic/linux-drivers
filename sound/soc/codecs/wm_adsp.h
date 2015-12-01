@@ -38,9 +38,6 @@
 #define WM_ADSP2_REGION_ALL (WM_ADSP2_REGION_0 | WM_ADSP2_REGION_1_9)
 
 struct regulator;
-#define WM_ADSP2_DEFAULT_FRAGMENTS       1
-#define WM_ADSP2_DEFAULT_FRAGMENT_SIZE   4096
-
 struct wm_adsp;
 
 struct wm_adsp_region {
@@ -106,10 +103,12 @@ struct wm_adsp_compr {
 	int buf_read_index;
 	int buf_avail;
 
-	u32 irq_watermark;
-	int max_dsp_read_bytes;
+	u32 *capt_buf;
 
-	size_t total_copied;
+	u32 irq_watermark;
+	int max_read_words;
+
+	size_t copied_total;
 
 	struct snd_compr_stream *stream;
 };
@@ -150,10 +149,6 @@ struct wm_adsp {
 	struct list_head ctl_list;
 
 	struct wm_adsp_host_buf_info host_buf_info;
-	u32 *raw_capt_buf;
-	struct circ_buf capt_buf;
-	int capt_buf_size;
-	bool buffer_drain_pending;
 
 	int num_firmwares;
 	struct wm_adsp_fw_defs *firmwares;
