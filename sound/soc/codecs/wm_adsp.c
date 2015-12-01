@@ -3141,17 +3141,28 @@ static int wm_adsp_buffer_update_avail(struct wm_adsp_compr *compr)
 {
 	struct wm_adsp *dsp = compr->dsp;
 	u32 next_read_index, next_write_index;
-	int write_index, avail;
+	int write_index, read_index, avail;
 	int ret;
 
 	lockdep_assert_held(&dsp->host_buf_info.lock);
 
-	/* Get current host buffer status */
-	ret = wm_adsp_host_buffer_read(dsp,
-				       HOST_BUFFER_FIELD(next_read_index),
-				       &next_read_index);
-	if (ret < 0)
-		return ret;
+	/* Only sync the read index if we haven't already read a valid index */
+	if (compr->buf_read_index < 0) {
+		ret = wm_adsp_host_buffer_read(dsp,
+					HOST_BUFFER_FIELD(next_read_index),
+					&next_read_index);
+		if (ret < 0)
+			return ret;
+
+		read_index = sign_extend32(next_read_index, 23);
+
+		if (read_index < 0) {
+			adsp_dbg(dsp, "Avail check on unstarted stream\n");
+			return 0;
+		}
+
+		compr->buf_read_index = read_index;
+	}
 
 	ret = wm_adsp_host_buffer_read(dsp,
 				       HOST_BUFFER_FIELD(next_write_index),
@@ -3159,11 +3170,7 @@ static int wm_adsp_buffer_update_avail(struct wm_adsp_compr *compr)
 	if (ret < 0)
 		return ret;
 
-	compr->buf_read_index = sign_extend32(next_read_index, 23);
 	write_index = sign_extend32(next_write_index, 23);
-
-	if (compr->buf_read_index < 0)
-		return 0;
 
 	avail = write_index - compr->buf_read_index;
 	if (avail < 0)
@@ -3299,6 +3306,7 @@ static int wm_adsp_stream_start(struct wm_adsp_compr *compr)
 		goto out_unlock;
 	}
 
+	compr->buf_read_index = -1;
 	compr->buf_avail = 0;
 	compr->max_dsp_read_bytes = WM_ADSP_MAX_READ_SIZE * sizeof(u32);
 
