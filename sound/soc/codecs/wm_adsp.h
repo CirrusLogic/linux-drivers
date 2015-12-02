@@ -87,7 +87,7 @@ struct wm_adsp_fw_features {
 	bool host_read_buf:1;
 };
 
-struct wm_adsp_host_buf_info {
+struct wm_adsp_compr_buf {
 	struct mutex lock;
 	struct wm_adsp_buffer_region *host_regions;
 	u32 host_buf_ptr;
@@ -149,7 +149,7 @@ struct wm_adsp {
 	struct mutex ctl_lock;
 	struct list_head ctl_list;
 
-	struct wm_adsp_host_buf_info host_buf_info;
+	struct wm_adsp_compr_buf compr_buf;
 
 	int num_firmwares;
 	struct wm_adsp_fw_defs *firmwares;
