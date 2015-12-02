@@ -92,6 +92,7 @@ struct wm_adsp_host_buf_info {
 	struct wm_adsp_buffer_region *host_regions;
 	u32 host_buf_ptr;
 	u32 error;
+	u32 irq_ack;
 };
 
 struct wm_adsp_compr {
