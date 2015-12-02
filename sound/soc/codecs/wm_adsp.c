@@ -3025,6 +3025,7 @@ static int wm_adsp_init_host_buf_info(struct wm_adsp *dsp)
 	mutex_lock(&dsp->host_buf_info.lock);
 
 	dsp->host_buf_info.error = 0;
+	dsp->host_buf_info.irq_ack = 0xFFFFFFFF;
 
 	for (i = 0; i < 5; ++i) {
 		ret = wm_adsp_read_data_word(dsp, WMFW_ADSP2_XM,
@@ -3317,48 +3318,10 @@ out_unlock:
 	return ret;
 }
 
-static int wm_adsp_stream_update_irq_count(struct wm_adsp *dsp, bool enable,
-					   u32 *old_count)
-{
-	u32 irq_count;
-	int ret;
-
-	lockdep_assert_held(&dsp->host_buf_info.lock);
-
-	if (!dsp->host_buf_info.host_buf_ptr) {
-		adsp_warn(dsp, "No host buffer info\n");
-		return -EIO;
-	}
-
-	ret = wm_adsp_host_buffer_read(dsp,
-				       HOST_BUFFER_FIELD(irq_count),
-				       &irq_count);
-	if (ret < 0)
-		return ret;
-
-	if (old_count)
-		*old_count = irq_count;
-
-	if (irq_count == 0)
-		return 0;	/* don't ack if there haven't been any IRQs */
-
-	if (enable)
-		return wm_adsp_host_buffer_write(dsp,
-						 HOST_BUFFER_FIELD(irq_ack),
-						 irq_count | 1);
-	else
-		return 0;
-
-}
-
 int wm_adsp_compr_irq(struct wm_adsp_compr *compr, bool *trigger)
 {
 	struct wm_adsp *dsp = compr->dsp;
-	u32 old_irq_count;
 	int ret;
-
-	if (trigger)
-		*trigger = false;
 
 	mutex_lock(&dsp->host_buf_info.lock);
 
@@ -3372,6 +3335,21 @@ int wm_adsp_compr_irq(struct wm_adsp_compr *compr, bool *trigger)
 	if (ret)
 		goto out_buf_unlock;
 
+	ret = wm_adsp_host_buffer_read(dsp, HOST_BUFFER_FIELD(irq_count),
+					&dsp->host_buf_info.irq_ack);
+	if (ret < 0) {
+		adsp_err(dsp, "Failed to get irq_count: %d\n", ret);
+		goto out_buf_unlock;
+	}
+
+	if (trigger) {
+		/* irq_count = 2 only on the initial trigger */
+		if (dsp->host_buf_info.irq_ack == 2)
+			*trigger = true;
+		else
+			*trigger = false;
+	}
+
 	mutex_lock(&compr->lock);
 
 	/* Fetch read_index and update count of available data */
@@ -3381,18 +3359,9 @@ int wm_adsp_compr_irq(struct wm_adsp_compr *compr, bool *trigger)
 			adsp_err(dsp, "Error reading read_index: %d\n", ret);
 			goto out_compr_unlock;
 		}
-	}
 
-	ret = wm_adsp_stream_update_irq_count(dsp, false, &old_irq_count);
-	if (ret < 0)
-		goto out_compr_unlock;
-
-	if (compr->allocated)
 		snd_compr_fragment_elapsed(compr->stream);
-
-	/* irq_count = 2 only on the initial trigger */
-	if (trigger && (old_irq_count == 2))
-		*trigger = true;
+	}
 
 out_compr_unlock:
 	mutex_unlock(&compr->lock);
@@ -3401,6 +3370,20 @@ out_buf_unlock:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm_adsp_compr_irq);
+
+static int wm_adsp_buffer_ack_irq(struct wm_adsp *dsp)
+{
+	if (dsp->host_buf_info.irq_ack & 0x01)
+		return 0;
+
+	adsp_dbg(dsp, "Acking buffer IRQ(0x%x)\n",
+		 dsp->host_buf_info.irq_ack);
+
+	dsp->host_buf_info.irq_ack |= 0x01;
+
+	return wm_adsp_host_buffer_write(dsp, HOST_BUFFER_FIELD(irq_ack),
+					 dsp->host_buf_info.irq_ack);
+}
 
 int wm_adsp_compr_open(struct wm_adsp_compr *compr,
 			struct snd_compr_stream *stream)
@@ -3549,8 +3532,7 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 		 * fragment is available.
 		 */
 		if (compr->buf_avail < compr->max_read_words) {
-			ret = wm_adsp_stream_update_irq_count(compr->dsp,
-							      true, NULL);
+			ret = wm_adsp_buffer_ack_irq(compr->dsp);
 			if (ret < 0) {
 				adsp_err(compr->dsp,
 					"Failed to ack buffer IRQ: %d\n", ret);
