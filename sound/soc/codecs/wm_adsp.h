@@ -89,20 +89,21 @@ struct wm_adsp_fw_features {
 
 struct wm_adsp_compr_buf {
 	struct mutex lock;
+	struct wm_adsp *dsp;
 	struct wm_adsp_buffer_region *host_regions;
 	u32 host_buf_ptr;
 	u32 error;
 	u32 irq_ack;
+	int read_index;
+	int avail;
 };
 
 struct wm_adsp_compr {
 	struct mutex lock;
 	struct wm_adsp *dsp;
+	struct wm_adsp_compr_buf *buf;
 
 	bool allocated;
-
-	int buf_read_index;
-	int buf_avail;
 
 	u32 *capt_buf;
 
