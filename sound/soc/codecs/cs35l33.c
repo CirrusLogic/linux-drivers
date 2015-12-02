@@ -202,10 +202,11 @@ static int cs35l33_spkrdrv_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct cs35l33_private *priv = snd_soc_codec_get_drvdata(codec);
+
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		if (!priv->amp_cal) {
-			msleep(8);
+			mdelay(8);
 			priv->amp_cal = true;
 			snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
 				    AMP_CAL, 0);
@@ -246,7 +247,7 @@ static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
 			snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
 				    AMP_CAL, AMP_CAL);
 			dev_dbg(w->codec->dev, "amp calibration started\n");
-			msleep(10);
+			mdelay(10);
 		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
@@ -430,6 +431,7 @@ static struct cs35l33_mclk_div cs35l33_mclk_coeffs[] = {
 static int cs35l33_get_mclk_coeff(int mclk, int srate)
 {
 	int i;
+
 	for (i = 0; i < ARRAY_SIZE(cs35l33_mclk_coeffs); i++) {
 		if (cs35l33_mclk_coeffs[i].mclk == mclk &&
 			cs35l33_mclk_coeffs[i].srate == srate)
@@ -538,8 +540,7 @@ static int cs35l33_set_tristate(struct snd_soc_dai *dai, int tristate)
 			SDOUT_3ST_I2S, SDOUT_3ST_I2S);
 		snd_soc_update_bits(codec, CS35L33_CLK_CTL,
 			SDOUT_3ST_TDM, SDOUT_3ST_TDM);
-	}
-	else {
+	} else {
 		snd_soc_update_bits(codec, CS35L33_PWRCTL2,
 			SDOUT_3ST_I2S, 0);
 		snd_soc_update_bits(codec, CS35L33_CLK_CTL,
@@ -567,7 +568,9 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		dev_dbg(codec->dev, "Audio starts from slots %d", slot);
 	}
 
-	/* scan tx_mask: vmon(2 slots); imon (2 slots); vpmon (1 slot) vbstmon (1 slot) */
+	/* scan tx_mask: vmon(2 slots); imon (2 slots);
+	vpmon (1 slot) vbstmon (1 slot) */
+
 	slot = ffs(tx_mask) - 1;
 	slot_num = 0;
 
@@ -614,7 +617,8 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 				X_STATE | X_LOC, slot);
 			snd_soc_dapm_add_routes(&codec->dapm,
 				&cs35l33_vp_vbst_mon_route[2], 2);
-			dev_dbg(codec->dev, "VBSTMON enabled in slots %d", slot);
+			dev_dbg(codec->dev,
+				"VBSTMON enabled in slots %d", slot);
 		}
 
 		/* Enable the relevant tx slot */
@@ -635,6 +639,7 @@ static int cs35l33_codec_set_sysclk(struct snd_soc_codec *codec,
 		int clk_id, int source, unsigned int freq, int dir)
 {
 	struct cs35l33_private *cs35l33 = snd_soc_codec_get_drvdata(codec);
+
 	switch (freq) {
 	case CS35L33_MCLK_5644:
 	case CS35L33_MCLK_6:
@@ -691,7 +696,8 @@ static struct snd_soc_dai_driver cs35l33_dai = {
 		.symmetric_rates = 1,
 };
 
-int cs35l33_set_hg_data(struct snd_soc_codec *codec, struct cs35l33_pdata *pdata)
+int cs35l33_set_hg_data(struct snd_soc_codec *codec,
+			struct cs35l33_pdata *pdata)
 {
 	struct cs35l33_hg *hg_config = &pdata->hg_config;
 
@@ -797,14 +803,15 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 static int cs35l33_remove(struct snd_soc_codec *codec)
 {
 	cs35l33_set_bias_level(codec, SND_SOC_BIAS_OFF);
+
 	return 0;
 }
 
 static struct regmap *cs35l33_get_regmap(struct device *dev)
 {
-       struct cs35l33_private *cs35l33 = dev_get_drvdata(dev);
+	struct cs35l33_private *cs35l33 = dev_get_drvdata(dev);
 
-       return cs35l33->regmap;
+	return cs35l33->regmap;
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_cs35l33 = {
@@ -910,7 +917,8 @@ const struct dev_pm_ops cs35l33_pm_ops = {
 			   NULL)
 };
 
-int cs35l33_get_hg_data(const struct device_node *np, struct cs35l33_pdata *pdata)
+int cs35l33_get_hg_data(const struct device_node *np,
+			struct cs35l33_pdata *pdata)
 {
 	struct device_node *hg;
 	struct cs35l33_hg *hg_config = &pdata->hg_config;
@@ -959,8 +967,7 @@ static irqreturn_t cs35l33_irq_thread(int irq, void *data)
 		if (cs35l33->pdata.gpio_irq > 0) {
 			if (gpio_get_value_cansleep(cs35l33->pdata.gpio_irq))
 				break;
-			else
-				poll = true;
+			poll = true;
 		}
 
 		/* ack the irq by reading both status registers */
@@ -968,7 +975,8 @@ static irqreturn_t cs35l33_irq_thread(int irq, void *data)
 		regmap_read(cs35l33->regmap, CS35L33_INT_STATUS_1, &sticky_val);
 
 		/* read the current value */
-		regmap_read(cs35l33->regmap, CS35L33_INT_STATUS_1, &current_val);
+		regmap_read(cs35l33->regmap, CS35L33_INT_STATUS_1,
+			&current_val);
 
 		/* handle the interrupts */
 
@@ -1046,7 +1054,7 @@ static irqreturn_t cs35l33_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static const char *cs35l33_core_supplies[] = {
+static const char * const cs35l33_core_supplies[] = {
 	"VA",
 	"VP",
 };
@@ -1061,11 +1069,8 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 	u32 val32;
 
 	cs35l33 = kzalloc(sizeof(struct cs35l33_private), GFP_KERNEL);
-	if (!cs35l33) {
-		dev_err(&i2c_client->dev,
-			"could not allocate codec\n");
+	if (!cs35l33)
 		return -ENOMEM;
-	}
 
 	cs35l33->dev = &i2c_client->dev;
 	i2c_set_clientdata(i2c_client, cs35l33);
@@ -1120,15 +1125,19 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 				cs35l33->pdata.enable_soft_ramp = false;
 			}
 
-			pdata->gpio_nreset = of_get_named_gpio(i2c_client->dev.of_node,
-							       "reset-gpios", 0);
+			pdata->gpio_nreset = of_get_named_gpio(
+						i2c_client->dev.of_node,
+						"reset-gpios", 0);
 
 			if (of_property_read_u32(i2c_client->dev.of_node,
 				"boost-ipk", &val32) >= 0)
 				pdata->boost_ipk = val32;
 
-			pdata->irq = irq_of_parse_and_map(i2c_client->dev.of_node, 0);
-			pdata->gpio_irq = of_get_named_gpio(i2c_client->dev.of_node, "irq-gpios", 0);
+			pdata->irq = irq_of_parse_and_map(
+					i2c_client->dev.of_node, 0);
+			pdata->gpio_irq = of_get_named_gpio(
+						i2c_client->dev.of_node,
+						"irq-gpios", 0);
 
 			cs35l33_get_hg_data(i2c_client->dev.of_node, pdata);
 		}
@@ -1165,7 +1174,8 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 				GPIOF_DIR_OUT | GPIOF_INIT_LOW,
 				"CS35L33 /RESET");
 		if (ret != 0) {
-			dev_err(&i2c_client->dev, "Failed to request /RESET: %d\n", ret);
+			dev_err(&i2c_client->dev,
+				"Failed to request /RESET: %d\n", ret);
 			goto err_regmap;
 		}
 	}
