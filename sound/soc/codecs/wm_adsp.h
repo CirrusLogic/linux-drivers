@@ -215,8 +215,6 @@ extern int wm_adsp_compr_open(struct wm_adsp_compr *compr,
 extern int wm_adsp_compr_free(struct snd_compr_stream *stream);
 extern int wm_adsp_compr_set_params(struct snd_compr_stream *stream,
 				    struct snd_compr_params *params);
-extern int wm_adsp_compr_get_params(struct snd_compr_stream *stream,
-				    struct snd_codec *params);
 extern int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd);
 extern int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 				 struct snd_compr_tstamp *tstamp);
@@ -224,8 +222,6 @@ extern int wm_adsp_compr_copy(struct snd_compr_stream *stream,
 			      char __user *buf, size_t count);
 extern int wm_adsp_compr_get_caps(struct snd_compr_stream *stream,
 				  struct snd_compr_caps *caps);
-extern int wm_adsp_compr_get_codec_caps(struct snd_compr_stream *stream,
-					struct snd_compr_codec_caps *codec);
 extern void wm_adsp_compr_init(struct wm_adsp *dsp, struct wm_adsp_compr *compr);
 extern void wm_adsp_compr_destroy(struct wm_adsp_compr *compr);
 

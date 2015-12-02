@@ -2945,12 +2945,10 @@ static struct snd_compr_ops clearwater_compr_ops = {
 	.open = clearwater_compr_open,
 	.free = wm_adsp_compr_free,
 	.set_params = wm_adsp_compr_set_params,
-	.get_params = wm_adsp_compr_get_params,
 	.trigger = clearwater_compr_trigger,
 	.pointer = wm_adsp_compr_pointer,
 	.copy = wm_adsp_compr_copy,
 	.get_caps = wm_adsp_compr_get_caps,
-	.get_codec_caps = wm_adsp_compr_get_codec_caps,
 };
 
 static struct snd_soc_platform_driver clearwater_compr_platform = {
