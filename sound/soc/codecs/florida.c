@@ -2436,12 +2436,10 @@ static struct snd_compr_ops florida_compr_ops = {
 	.open = florida_compr_open,
 	.free = wm_adsp_compr_free,
 	.set_params = wm_adsp_compr_set_params,
-	.get_params = wm_adsp_compr_get_params,
 	.trigger = florida_compr_trigger,
 	.pointer = wm_adsp_compr_pointer,
 	.copy = wm_adsp_compr_copy,
 	.get_caps = wm_adsp_compr_get_caps,
-	.get_codec_caps = wm_adsp_compr_get_codec_caps,
 };
 
 static struct snd_soc_platform_driver florida_compr_platform = {
