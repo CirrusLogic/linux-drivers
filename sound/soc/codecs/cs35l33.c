@@ -1268,7 +1268,7 @@ static int cs35l33_i2c_remove(struct i2c_client *client)
 }
 
 static const struct of_device_id cs35l33_of_match[] = {
-	{ .compatible = "crus,cs35l33", },
+	{ .compatible = "cirrus,cs35l33", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, cs35l33_of_match);
