@@ -212,10 +212,13 @@ static int cs35l33_spkrdrv_event(struct snd_soc_dapm_widget *w,
 			dev_dbg(w->codec->dev, "amp calibration done\n");
 		}
 		dev_info(w->codec->dev, "amp turned On\n");
-	break;
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		dev_info(w->codec->dev, "amp turned Off\n");
+		break;
 	default:
 		pr_err("Invalid event = 0x%x\n", event);
-
+		break;
 	}
 
 	return 0;
@@ -235,10 +238,10 @@ static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
 		val = priv->is_tdm_mode ? 0 : PDN_TDM;
 		snd_soc_update_bits(codec, CS35L33_PWRCTL2,
 				    PDN_TDM, val);
-		dev_dbg(w->codec->dev, "bst turned On\n");
+		dev_info(w->codec->dev, "bst turned On\n");
 		break;
 	case SND_SOC_DAPM_POST_PMU:
-		dev_dbg(w->codec->dev, "sdin turned On\n");
+		dev_info(w->codec->dev, "sdin turned On\n");
 		if (!priv->amp_cal) {
 			snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
 				    AMP_CAL, AMP_CAL);
@@ -251,6 +254,7 @@ static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
 				    PDN_BST, PDN_BST);
 		snd_soc_update_bits(codec, CS35L33_PWRCTL2,
 				    PDN_TDM, PDN_TDM);
+		dev_info(w->codec->dev, "bst and sdin turned Off\n");
 		break;
 	default:
 		pr_err("Invalid event = 0x%x\n", event);
@@ -288,6 +292,7 @@ static int cs35l33_sdout_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMD:
 		mask = val = (SDOUT_3ST_I2S | PDN_TDM);
 		mask2 = val2 = SDOUT_3ST_TDM;
+		dev_info(w->codec->dev, "sdout turned Off\n");
 		break;
 	default:
 		pr_err("Invalid event = 0x%x\n", event);
@@ -306,7 +311,8 @@ static const struct snd_soc_dapm_widget cs35l33_dapm_widgets[] = {
 
 	SND_SOC_DAPM_OUTPUT("SPK"),
 	SND_SOC_DAPM_OUT_DRV_E("SPKDRV", CS35L33_PWRCTL1, 7, 1, NULL, 0,
-		cs35l33_spkrdrv_event, SND_SOC_DAPM_POST_PMU),
+		cs35l33_spkrdrv_event, SND_SOC_DAPM_POST_PMU |
+		SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_AIF_IN_E("SDIN", NULL, 0, CS35L33_PWRCTL2,
 		2, 1, cs35l33_sdin_event, SND_SOC_DAPM_PRE_PMU |
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
