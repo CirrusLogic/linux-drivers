@@ -3039,37 +3039,54 @@ int wm_adsp_compr_free(struct snd_compr_stream *stream)
 }
 EXPORT_SYMBOL_GPL(wm_adsp_compr_free);
 
-static bool wm_adsp_format_supported(const struct wm_adsp *dsp,
-			      const struct snd_compr_stream *stream,
-			      const struct snd_compr_params *params)
+static int wm_adsp_compr_check_params(struct snd_compr_stream *stream,
+				      struct snd_compr_params *params)
 {
+	struct wm_adsp_compr *compr = stream->runtime->private_data;
+	struct wm_adsp *dsp = compr->dsp;
 	const struct wm_adsp_fw_caps *caps;
+	const struct snd_codec_desc *desc;
 	int i, j;
+
+	if (params->buffer.fragment_size < WM_ADSP_MIN_FRAGMENT_SIZE ||
+	    params->buffer.fragment_size > WM_ADSP_MAX_FRAGMENT_SIZE ||
+	    params->buffer.fragments < WM_ADSP_MIN_FRAGMENTS ||
+	    params->buffer.fragments > WM_ADSP_MAX_FRAGMENTS ||
+	    params->buffer.fragment_size % WM_ADSP_DATA_WORD_SIZE) {
+		adsp_err(dsp, "Invalid buffer fragsize=%d fragments=%d\n",
+			 params->buffer.fragment_size,
+			 params->buffer.fragments);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < dsp->firmwares[dsp->fw].num_caps; i++) {
 		caps = &dsp->firmwares[dsp->fw].caps[i];
+		desc = &caps->desc;
 
 		if (caps->id != params->codec.id)
 			continue;
 
 		if (stream->direction == SND_COMPRESS_PLAYBACK) {
-			if (caps->desc.max_ch < params->codec.ch_out)
+			if (desc->max_ch < params->codec.ch_out)
 				continue;
 		} else {
-			if (caps->desc.max_ch < params->codec.ch_in)
+			if (desc->max_ch < params->codec.ch_in)
 				continue;
 		}
 
-		if (!(caps->desc.formats & (1 << params->codec.format)))
+		if (!(desc->formats & (1 << params->codec.format)))
 			continue;
 
-		for (j = 0; j < caps->desc.num_sample_rates; ++j)
-			if (caps->desc.sample_rates[j] ==
-			    params->codec.sample_rate)
-				return true;
+		for (j = 0; j < desc->num_sample_rates; ++j)
+			if (desc->sample_rates[j] == params->codec.sample_rate)
+				return 0;
 	}
 
-	return false;
+	adsp_err(dsp, "Invalid params id=%u ch=%u,%u rate=%u fmt=%u\n",
+		 params->codec.id, params->codec.ch_in, params->codec.ch_out,
+		 params->codec.sample_rate, params->codec.format);
+
+	return -EINVAL;
 }
 
 static int wm_adsp_streambuf_alloc(struct wm_adsp_compr *compr,
@@ -3101,26 +3118,13 @@ int wm_adsp_compr_set_params(struct snd_compr_stream *stream,
 			     struct snd_compr_params *params)
 {
 	struct wm_adsp_compr *compr = stream->runtime->private_data;
-	int ret = 0;
+	int ret;
 
-	if ((params->buffer.fragment_size % WM_ADSP_DATA_WORD_SIZE) != 0) {
-		adsp_warn(compr->dsp,
-			  "Fragment size %u not a multiple of DSP word size %u\n",
-			  params->buffer.fragment_size, WM_ADSP_DATA_WORD_SIZE);
-		return -EINVAL;
-	}
+	ret = wm_adsp_compr_check_params(stream, params);
+	if (ret)
+		return ret;
 
 	mutex_lock(&compr->lock);
-
-	if (!wm_adsp_format_supported(compr->dsp, stream, params)) {
-		adsp_err(compr->dsp,
-			"Invalid params: id:%u, chan:%u,%u, rate:%u format:%u\n",
-			params->codec.id, params->codec.ch_in,
-			params->codec.ch_out, params->codec.sample_rate,
-			params->codec.format);
-		ret = -EINVAL;
-		goto out;
-	}
 
 	ret = wm_adsp_streambuf_alloc(compr, params);
 	if (ret < 0)
