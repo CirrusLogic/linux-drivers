@@ -3474,13 +3474,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(wm_adsp_compr_set_params);
 
-int wm_adsp_compr_get_params(struct snd_compr_stream *stream,
-			     struct snd_codec *params)
-{
-	return 0;
-}
-EXPORT_SYMBOL_GPL(wm_adsp_compr_get_params);
-
 int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd)
 {
 	struct wm_adsp_compr *compr = stream->runtime->private_data;
@@ -3606,13 +3599,6 @@ int wm_adsp_compr_get_caps(struct snd_compr_stream *stream,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm_adsp_compr_get_caps);
-
-int wm_adsp_compr_get_codec_caps(struct snd_compr_stream *stream,
-				 struct snd_compr_codec_caps *codec)
-{
-	return 0;
-}
-EXPORT_SYMBOL_GPL(wm_adsp_compr_get_codec_caps);
 
 void wm_adsp_compr_init(struct wm_adsp *dsp, struct wm_adsp_compr *compr)
 {
