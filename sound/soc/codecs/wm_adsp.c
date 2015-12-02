@@ -2801,7 +2801,7 @@ int wm_adsp2_init(struct wm_adsp *dsp, struct mutex *fw_lock)
 	INIT_LIST_HEAD(&dsp->ctl_list);
 	INIT_WORK(&dsp->boot_work, wm_adsp2_boot_work);
 	mutex_init(&dsp->ctl_lock);
-	mutex_init(&dsp->host_buf_info.lock);
+	mutex_init(&dsp->compr_buf.lock);
 
 	dsp->fw_lock = fw_lock;
 
@@ -3083,10 +3083,10 @@ static int wm_adsp_write_data_word(struct wm_adsp *dsp, int mem_type,
 static inline int wm_adsp_host_buffer_read(struct wm_adsp *dsp,
 					   unsigned int field_offset, u32 *data)
 {
-	lockdep_assert_held(&dsp->host_buf_info.lock);
+	lockdep_assert_held(&dsp->compr_buf.lock);
 
 	return wm_adsp_read_data_word(dsp, WMFW_ADSP2_XM,
-				      dsp->host_buf_info.host_buf_ptr +
+				      dsp->compr_buf.host_buf_ptr +
 				      field_offset,
 				      data);
 }
@@ -3094,10 +3094,10 @@ static inline int wm_adsp_host_buffer_read(struct wm_adsp *dsp,
 static inline int wm_adsp_host_buffer_write(struct wm_adsp *dsp,
 					    unsigned int field_offset, u32 data)
 {
-	lockdep_assert_held(&dsp->host_buf_info.lock);
+	lockdep_assert_held(&dsp->compr_buf.lock);
 
 	return wm_adsp_write_data_word(dsp, WMFW_ADSP2_XM,
-				       dsp->host_buf_info.host_buf_ptr +
+				       dsp->compr_buf.host_buf_ptr +
 				       field_offset,
 				       data);
 }
@@ -3110,20 +3110,20 @@ static int wm_adsp_populate_buffer_regions(struct wm_adsp *dsp)
 		dsp->firmwares[dsp->fw].caps->host_region_defs;
 	struct wm_adsp_buffer_region *region;
 
-	lockdep_assert_held(&dsp->host_buf_info.lock);
+	lockdep_assert_held(&dsp->compr_buf.lock);
 
-	BUG_ON(dsp->host_buf_info.host_regions != NULL);
+	BUG_ON(dsp->compr_buf.host_regions != NULL);
 
-	dsp->host_buf_info.host_regions =
+	dsp->compr_buf.host_regions =
 		kcalloc(dsp->firmwares[dsp->fw].caps->num_host_regions,
-			sizeof(*dsp->host_buf_info.host_regions),
+			sizeof(*dsp->compr_buf.host_regions),
 			GFP_KERNEL);
 
-	if (!dsp->host_buf_info.host_regions)
+	if (!dsp->compr_buf.host_regions)
 		return -ENOMEM;
 
 	for (i = 0; i < dsp->firmwares[dsp->fw].caps->num_host_regions; ++i) {
-		region = &dsp->host_buf_info.host_regions[i];
+		region = &dsp->compr_buf.host_regions[i];
 
 		region->offset = offset;
 		region->mem_type = host_region_defs[i].mem_type;
@@ -3171,33 +3171,33 @@ static int wm_adsp_init_host_buf_info(struct wm_adsp *dsp)
 	if (magic != WM_ADSP_ALG_XM_STRUCT_MAGIC)
 		return -EINVAL;
 
-	mutex_lock(&dsp->host_buf_info.lock);
+	mutex_lock(&dsp->compr_buf.lock);
 
-	dsp->host_buf_info.error = 0;
-	dsp->host_buf_info.irq_ack = 0xFFFFFFFF;
+	dsp->compr_buf.error = 0;
+	dsp->compr_buf.irq_ack = 0xFFFFFFFF;
 
 	for (i = 0; i < 5; ++i) {
 		ret = wm_adsp_read_data_word(dsp, WMFW_ADSP2_XM,
 					     xm_base + WM_ADSP_ALG_XM_PTR +
 					     ALG_XM_FIELD(host_buf_ptr),
-					     &dsp->host_buf_info.host_buf_ptr);
+					     &dsp->compr_buf.host_buf_ptr);
 		if (ret < 0)
 			goto out;
 
-		if (dsp->host_buf_info.host_buf_ptr)
+		if (dsp->compr_buf.host_buf_ptr)
 			break;
 
 		msleep(1);
 	}
 
-	if (!dsp->host_buf_info.host_buf_ptr) {
+	if (!dsp->compr_buf.host_buf_ptr) {
 		ret = -EIO;
 		goto out;
 	}
 
 	ret = wm_adsp_populate_buffer_regions(dsp);
 out:
-	mutex_unlock(&dsp->host_buf_info.lock);
+	mutex_unlock(&dsp->compr_buf.lock);
 
 	return ret;
 }
@@ -3206,13 +3206,13 @@ static void wm_adsp_free_host_buf_info(struct wm_adsp *dsp)
 {
 	struct wm_adsp_buffer_region *host_regions;
 
-	mutex_lock(&dsp->host_buf_info.lock);
+	mutex_lock(&dsp->compr_buf.lock);
 
-	host_regions = dsp->host_buf_info.host_regions;
-	dsp->host_buf_info.host_regions = NULL;
-	dsp->host_buf_info.host_buf_ptr = 0;
+	host_regions = dsp->compr_buf.host_regions;
+	dsp->compr_buf.host_regions = NULL;
+	dsp->compr_buf.host_buf_ptr = 0;
 
-	mutex_unlock(&dsp->host_buf_info.lock);
+	mutex_unlock(&dsp->compr_buf.lock);
 
 	kfree(host_regions);
 }
@@ -3222,7 +3222,7 @@ static inline int wm_adsp_buffer_size(struct wm_adsp_compr *compr)
 	const struct wm_adsp *dsp = compr->dsp;
 	int last_region = dsp->firmwares[dsp->fw].caps->num_host_regions - 1;
 
-	return dsp->host_buf_info.host_regions[last_region].cumulative_size;
+	return dsp->compr_buf.host_regions[last_region].cumulative_size;
 }
 
 static int wm_adsp_stream_start(struct wm_adsp_compr *compr)
@@ -3230,9 +3230,9 @@ static int wm_adsp_stream_start(struct wm_adsp_compr *compr)
 	struct wm_adsp *dsp = compr->dsp;
 	int ret;
 
-	mutex_lock(&dsp->host_buf_info.lock);
+	mutex_lock(&dsp->compr_buf.lock);
 
-	if (!dsp->host_buf_info.host_buf_ptr) {
+	if (!dsp->compr_buf.host_buf_ptr) {
 		adsp_warn(dsp, "No host buffer info\n");
 		ret = -EIO;
 		goto out_unlock;
@@ -3250,7 +3250,7 @@ static int wm_adsp_stream_start(struct wm_adsp_compr *compr)
 	adsp_dbg(dsp, "Set watermark to %u\n", compr->irq_watermark);
 
 out_unlock:
-	mutex_unlock(&dsp->host_buf_info.lock);
+	mutex_unlock(&dsp->compr_buf.lock);
 
 	return ret;
 }
@@ -3286,7 +3286,7 @@ static int wm_adsp_buffer_update_avail(struct wm_adsp_compr *compr)
 	int write_index, read_index, avail;
 	int ret;
 
-	lockdep_assert_held(&dsp->host_buf_info.lock);
+	lockdep_assert_held(&dsp->compr_buf.lock);
 
 	/* Only sync the read index if we haven't already read a valid index */
 	if (compr->buf_read_index < 0) {
@@ -3330,23 +3330,23 @@ static int wm_adsp_stream_has_error_locked(struct wm_adsp *dsp)
 {
 	int ret;
 
-	lockdep_assert_held(&dsp->host_buf_info.lock);
+	lockdep_assert_held(&dsp->compr_buf.lock);
 
-	if (dsp->host_buf_info.error != 0)
+	if (dsp->compr_buf.error != 0)
 		return -EIO;
 
 	ret = wm_adsp_host_buffer_read(dsp,
 					HOST_BUFFER_FIELD(error),
-					&dsp->host_buf_info.error);
+					&dsp->compr_buf.error);
 	if (ret < 0) {
 		adsp_err(dsp, "Failed to read error field: %d\n", ret);
 		return ret;
 	}
 
-	if (dsp->host_buf_info.error != 0) {
+	if (dsp->compr_buf.error != 0) {
 		/* log the first time we see the error */
 		adsp_warn(dsp,  "DSP stream error occurred: %d\n",
-			  dsp->host_buf_info.error);
+			  dsp->compr_buf.error);
 		return -EIO;
 	}
 
@@ -3358,9 +3358,9 @@ int wm_adsp_compr_irq(struct wm_adsp_compr *compr, bool *trigger)
 	struct wm_adsp *dsp = compr->dsp;
 	int ret;
 
-	mutex_lock(&dsp->host_buf_info.lock);
+	mutex_lock(&dsp->compr_buf.lock);
 
-	if (!dsp->host_buf_info.host_buf_ptr) {
+	if (!dsp->compr_buf.host_buf_ptr) {
 		adsp_warn(dsp, "No host buffer info\n");
 		ret = -EIO;
 		goto out_buf_unlock;
@@ -3371,7 +3371,7 @@ int wm_adsp_compr_irq(struct wm_adsp_compr *compr, bool *trigger)
 		goto out_buf_unlock;
 
 	ret = wm_adsp_host_buffer_read(dsp, HOST_BUFFER_FIELD(irq_count),
-				  &dsp->host_buf_info.irq_ack);
+				  &dsp->compr_buf.irq_ack);
 	if (ret < 0) {
 		adsp_err(dsp, "Failed to get irq_count: %d\n", ret);
 		goto out_buf_unlock;
@@ -3379,7 +3379,7 @@ int wm_adsp_compr_irq(struct wm_adsp_compr *compr, bool *trigger)
 
 	if (trigger) {
 		/* irq_count = 2 only on the initial trigger */
-		if (dsp->host_buf_info.irq_ack == 2)
+		if (dsp->compr_buf.irq_ack == 2)
 			*trigger = true;
 		else
 			*trigger = false;
@@ -3401,23 +3401,23 @@ int wm_adsp_compr_irq(struct wm_adsp_compr *compr, bool *trigger)
 out_compr_unlock:
 	mutex_unlock(&compr->lock);
 out_buf_unlock:
-	mutex_unlock(&dsp->host_buf_info.lock);
+	mutex_unlock(&dsp->compr_buf.lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm_adsp_compr_irq);
 
 static int wm_adsp_buffer_ack_irq(struct wm_adsp *dsp)
 {
-	if (dsp->host_buf_info.irq_ack & 0x01)
+	if (dsp->compr_buf.irq_ack & 0x01)
 		return 0;
 
 	adsp_dbg(dsp, "Acking buffer IRQ(0x%x)\n",
-		 dsp->host_buf_info.irq_ack);
+		 dsp->compr_buf.irq_ack);
 
-	dsp->host_buf_info.irq_ack |= 0x01;
+	dsp->compr_buf.irq_ack |= 0x01;
 
 	return wm_adsp_host_buffer_write(dsp, HOST_BUFFER_FIELD(irq_ack),
-					 dsp->host_buf_info.irq_ack);
+					 dsp->compr_buf.irq_ack);
 }
 
 int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
@@ -3426,7 +3426,7 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 	struct wm_adsp_compr *compr = stream->runtime->private_data;
 	int ret = 0;
 
-	mutex_unlock(&compr->dsp->host_buf_info.lock);
+	mutex_lock(&compr->dsp->compr_buf.lock);
 
 	ret = wm_adsp_stream_has_error_locked(compr->dsp);
 	if (ret)
@@ -3466,7 +3466,7 @@ out:
 	mutex_unlock(&compr->lock);
 
 out_buf_unlock:
-	mutex_unlock(&compr->dsp->host_buf_info.lock);
+	mutex_unlock(&compr->dsp->compr_buf.lock);
 
 	return ret;
 }
@@ -3476,7 +3476,7 @@ static int wm_adsp_buffer_capture_block(struct wm_adsp_compr *compr, int target)
 {
 	struct wm_adsp *dsp = compr->dsp;
 	const struct wm_adsp_buffer_region *host_regions =
-					dsp->host_buf_info.host_regions;
+					dsp->compr_buf.host_regions;
 	int num_regions = dsp->firmwares[dsp->fw].caps->num_host_regions;
 	u8 *pack_in = (u8 *)compr->capt_buf;
 	u8 *pack_out = (u8 *)compr->capt_buf;
@@ -3484,8 +3484,8 @@ static int wm_adsp_buffer_capture_block(struct wm_adsp_compr *compr, int target)
 	int mem_type, nwords;
 	int i, j, ret;
 
-	lockdep_assert_held(&dsp->host_buf_info.lock);
-	BUG_ON(!dsp->host_buf_info.host_regions);
+	lockdep_assert_held(&dsp->compr_buf.lock);
+	BUG_ON(!dsp->compr_buf.host_regions);
 
 	/* Calculate read parameters */
 	for (i = 0; i < num_regions; ++i)
@@ -3548,8 +3548,8 @@ static int wm_adsp_compr_read(struct wm_adsp_compr *compr,
 	int nwords, nbytes;
 	int ret;
 
-	lockdep_assert_held(&dsp->host_buf_info.lock);
-	BUG_ON(!dsp->host_buf_info.host_regions);
+	lockdep_assert_held(&dsp->compr_buf.lock);
+	BUG_ON(!dsp->compr_buf.host_regions);
 
 	adsp_dbg(dsp, "Requested read of %d bytes\n", count);
 
