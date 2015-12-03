@@ -140,6 +140,7 @@ struct marley_compr {
 	struct wm_adsp_compr adsp_compr;
 	const char *dai_name;
 	bool trig;
+	struct mutex trig_lock;
 	struct marley_priv *priv;
 };
 
@@ -470,9 +471,9 @@ static int marley_adsp_power_ev(struct snd_soc_dapm_widget *w,
 			    w->shift + 1)
 				continue;
 
-			mutex_lock(&marley->compr_info[i].adsp_compr.lock);
+			mutex_lock(&marley->compr_info[i].trig_lock);
 			marley->compr_info[i].trig = false;
-			mutex_unlock(&marley->compr_info[i].adsp_compr.lock);
+			mutex_unlock(&marley->compr_info[i].trig_lock);
 		}
 		break;
 	default:
@@ -1736,7 +1737,7 @@ static void marley_compr_irq(struct marley_priv *marley,
 		return;
 
 	if (trigger && arizona->pdata.ez2ctrl_trigger) {
-		mutex_lock(&compr->adsp_compr.lock);
+		mutex_lock(&compr->trig_lock);
 		if (!compr->trig) {
 			compr->trig = true;
 
@@ -1744,7 +1745,7 @@ static void marley_compr_irq(struct marley_priv *marley,
 			    wm_adsp_fw_has_voice_trig(compr->adsp_compr.dsp))
 				arizona->pdata.ez2ctrl_trigger();
 		}
-		mutex_unlock(&compr->adsp_compr.lock);
+		mutex_unlock(&compr->trig_lock);
 	}
 }
 
@@ -1967,6 +1968,8 @@ static void marley_init_compr_info(struct marley_priv *marley)
 
 		dsp = &marley->core.adsp[compr_dai_mapping[i].adsp_num],
 		wm_adsp_compr_init(dsp, &marley->compr_info[i].adsp_compr);
+
+		mutex_init(&marley->compr_info[i].trig_lock);
 	}
 }
 

@@ -189,6 +189,7 @@ struct moon_compr {
 	struct wm_adsp_compr adsp_compr;
 	const char *dai_name;
 	bool trig;
+	struct mutex trig_lock;
 	struct moon_priv *priv;
 };
 
@@ -633,9 +634,9 @@ static int moon_adsp_power_ev(struct snd_soc_dapm_widget *w,
 			    w->shift + 1)
 				continue;
 
-			mutex_lock(&moon->compr_info[i].adsp_compr.lock);
+			mutex_lock(&moon->compr_info[i].trig_lock);
 			moon->compr_info[i].trig = false;
-			mutex_unlock(&moon->compr_info[i].adsp_compr.lock);
+			mutex_unlock(&moon->compr_info[i].trig_lock);
 		}
 		break;
 	default:
@@ -2693,7 +2694,7 @@ static void moon_compr_irq(struct moon_priv *moon,
 		return;
 
 	if (trigger && arizona->pdata.ez2ctrl_trigger) {
-		mutex_lock(&compr->adsp_compr.lock);
+		mutex_lock(&compr->trig_lock);
 		if (!compr->trig) {
 			compr->trig = true;
 
@@ -2701,7 +2702,7 @@ static void moon_compr_irq(struct moon_priv *moon,
 			    wm_adsp_fw_has_voice_trig(compr->adsp_compr.dsp))
 				arizona->pdata.ez2ctrl_trigger();
 		}
-		mutex_unlock(&compr->adsp_compr.lock);
+		mutex_unlock(&compr->trig_lock);
 	}
 }
 
@@ -2945,6 +2946,8 @@ static void moon_init_compr_info(struct moon_priv *moon)
 
 		dsp = &moon->core.adsp[compr_dai_mapping[i].adsp_num],
 		wm_adsp_compr_init(dsp, &moon->compr_info[i].adsp_compr);
+
+		mutex_init(&moon->compr_info[i].trig_lock);
 	}
 }
 

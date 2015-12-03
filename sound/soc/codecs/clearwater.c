@@ -193,6 +193,7 @@ struct clearwater_compr {
 	struct wm_adsp_compr adsp_compr;
 	const char *dai_name;
 	bool trig;
+	struct mutex trig_lock;
 	struct clearwater_priv *priv;
 };
 
@@ -628,9 +629,9 @@ static int clearwater_adsp_power_ev(struct snd_soc_dapm_widget *w,
 			    w->shift + 1)
 				continue;
 
-			mutex_lock(&clearwater->compr_info[i].adsp_compr.lock);
+			mutex_lock(&clearwater->compr_info[i].trig_lock);
 			clearwater->compr_info[i].trig = false;
-			mutex_unlock(&clearwater->compr_info[i].adsp_compr.lock);
+			mutex_unlock(&clearwater->compr_info[i].trig_lock);
 		}
 		break;
 	default:
@@ -2730,7 +2731,7 @@ static void clearwater_compr_irq(struct clearwater_priv *clearwater,
 		return;
 
 	if (trigger && arizona->pdata.ez2ctrl_trigger) {
-		mutex_lock(&compr->adsp_compr.lock);
+		mutex_lock(&compr->trig_lock);
 		if (!compr->trig) {
 			compr->trig = true;
 
@@ -2738,7 +2739,7 @@ static void clearwater_compr_irq(struct clearwater_priv *clearwater,
 			    wm_adsp_fw_has_voice_trig(compr->adsp_compr.dsp))
 				arizona->pdata.ez2ctrl_trigger();
 		}
-		mutex_unlock(&compr->adsp_compr.lock);
+		mutex_unlock(&compr->trig_lock);
 	}
 }
 
@@ -2971,6 +2972,8 @@ static void clearwater_init_compr_info(struct clearwater_priv *clearwater)
 
 		dsp = &clearwater->core.adsp[compr_dai_mapping[i].adsp_num],
 		wm_adsp_compr_init(dsp, &clearwater->compr_info[i].adsp_compr);
+
+		mutex_init(&clearwater->compr_info[i].trig_lock);
 	}
 }
 
