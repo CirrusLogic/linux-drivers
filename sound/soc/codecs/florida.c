@@ -44,6 +44,7 @@ struct florida_compr {
 	struct wm_adsp_compr adsp_compr;
 	const char *dai_name;
 	bool trig;
+	struct mutex trig_lock;
 };
 
 struct florida_priv {
@@ -242,9 +243,9 @@ static int florida_adsp_power_ev(struct snd_soc_dapm_widget *w,
 			    w->shift + 1)
 				continue;
 
-			mutex_lock(&florida->compr_info[i].adsp_compr.lock);
+			mutex_lock(&florida->compr_info[i].trig_lock);
 			florida->compr_info[i].trig = false;
-			mutex_unlock(&florida->compr_info[i].adsp_compr.lock);
+			mutex_unlock(&florida->compr_info[i].trig_lock);
 		}
 		break;
 	default:
@@ -2225,7 +2226,7 @@ static void florida_compr_irq(struct florida_priv *florida,
 		return;
 
 	if (trigger && arizona->pdata.ez2ctrl_trigger) {
-		mutex_lock(&compr->adsp_compr.lock);
+		mutex_lock(&compr->trig_lock);
 		if (!compr->trig) {
 			compr->trig = true;
 
@@ -2233,7 +2234,7 @@ static void florida_compr_irq(struct florida_priv *florida,
 			    wm_adsp_fw_has_voice_trig(compr->adsp_compr.dsp))
 				arizona->pdata.ez2ctrl_trigger();
 		}
-		mutex_unlock(&compr->adsp_compr.lock);
+		mutex_unlock(&compr->trig_lock);
 	}
 }
 
@@ -2459,6 +2460,8 @@ static void florida_init_compr_info(struct florida_priv *florida)
 
 		dsp = &florida->core.adsp[compr_dai_mapping[i].adsp_num],
 		wm_adsp_compr_init(dsp, &florida->compr_info[i].adsp_compr);
+
+		mutex_init(&florida->compr_info[i].trig_lock);
 	}
 }
 
