@@ -98,7 +98,6 @@ struct wm_adsp_compr_buf {
 };
 
 struct wm_adsp_compr {
-	struct mutex lock;
 	struct wm_adsp *dsp;
 	struct wm_adsp_compr_buf *buf;
 
