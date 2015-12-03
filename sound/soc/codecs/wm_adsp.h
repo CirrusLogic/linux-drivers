@@ -103,8 +103,6 @@ struct wm_adsp_compr {
 	struct wm_adsp *dsp;
 	struct wm_adsp_compr_buf *buf;
 
-	bool allocated;
-
 	u32 *capt_buf;
 
 	u32 irq_watermark;
