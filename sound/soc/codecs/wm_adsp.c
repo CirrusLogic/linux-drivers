@@ -2889,7 +2889,6 @@ int wm_adsp_compr_free(struct snd_compr_stream *stream)
 
 	mutex_lock(&compr->lock);
 
-	compr->allocated = false;
 	compr->copied_total = 0;
 	compr->stream = NULL;
 	compr->buf = NULL;
@@ -2992,12 +2991,7 @@ int wm_adsp_compr_set_params(struct snd_compr_stream *stream,
 	mutex_lock(&compr->lock);
 
 	ret = wm_adsp_streambuf_alloc(compr, params);
-	if (ret < 0)
-		goto out;
 
-	compr->allocated = true;
-
-out:
 	mutex_unlock(&compr->lock);
 
 	return ret;
@@ -3397,16 +3391,14 @@ int wm_adsp_compr_irq(struct wm_adsp_compr *compr, bool *trigger)
 	mutex_lock(&compr->lock);
 
 	/* Fetch read_index and update count of available data */
-	if (compr->allocated) {
-		ret = wm_adsp_buffer_update_avail(buf);
-		if (ret < 0) {
-			adsp_err(buf->dsp, "Error reading read_index: %d\n",
-				 ret);
-			goto out_compr_unlock;
-		}
-
-		snd_compr_fragment_elapsed(compr->stream);
+	ret = wm_adsp_buffer_update_avail(buf);
+	if (ret < 0) {
+		adsp_err(buf->dsp, "Error reading read_index: %d\n", ret);
+		goto out_compr_unlock;
 	}
+
+	if (compr->stream)
+		snd_compr_fragment_elapsed(compr->stream);
 
 out_compr_unlock:
 	mutex_unlock(&compr->lock);
