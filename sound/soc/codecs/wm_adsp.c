@@ -3096,6 +3096,45 @@ static inline int wm_adsp_host_buffer_write(struct wm_adsp_compr_buf *buf,
 				       data);
 }
 
+static int wm_adsp_buffer_locate(struct wm_adsp_compr_buf *buf)
+{
+	struct wm_adsp_alg_region *alg_region;
+	struct wm_adsp *dsp = buf->dsp;
+	u32 xmalg, addr, magic;
+	int i, ret;
+
+	alg_region = wm_adsp_find_alg_region(dsp, WMFW_ADSP2_XM, dsp->fw_id);
+	xmalg = sizeof(struct wm_adsp_system_config_xm_hdr) / sizeof(__be32);
+
+	addr = alg_region->base + xmalg + ALG_XM_FIELD(magic);
+	ret = wm_adsp_read_data_word(dsp, WMFW_ADSP2_XM, addr, &magic);
+	if (ret < 0)
+		return ret;
+
+	if (magic != WM_ADSP_ALG_XM_STRUCT_MAGIC)
+		return -EINVAL;
+
+	addr = alg_region->base + xmalg + ALG_XM_FIELD(host_buf_ptr);
+	for (i = 0; i < 5; ++i) {
+		ret = wm_adsp_read_data_word(dsp, WMFW_ADSP2_XM, addr,
+					     &buf->host_buf_ptr);
+		if (ret < 0)
+			return ret;
+
+		if (buf->host_buf_ptr)
+			break;
+
+		msleep(10);
+	}
+
+	if (!buf->host_buf_ptr)
+		return -EIO;
+
+	adsp_dbg(dsp, "host_buf_ptr=%x\n", buf->host_buf_ptr);
+
+	return 0;
+}
+
 static int wm_adsp_populate_buffer_regions(struct wm_adsp_compr_buf *buf)
 {
 	int i, ret;
@@ -3148,23 +3187,7 @@ static int wm_adsp_populate_buffer_regions(struct wm_adsp_compr_buf *buf)
 
 static int wm_adsp_init_host_buf_info(struct wm_adsp_compr_buf *buf)
 {
-	u32 xm_base, magic;
-	int i, ret;
-
-	ret = wm_adsp_read_data_word(buf->dsp, WMFW_ADSP2_XM,
-				     ADSP2_SYSTEM_CONFIG_XM_PTR, &xm_base);
-	if (ret < 0)
-		return ret;
-
-	ret = wm_adsp_read_data_word(buf->dsp, WMFW_ADSP2_XM,
-				     xm_base + WM_ADSP_ALG_XM_PTR +
-				     ALG_XM_FIELD(magic),
-				     &magic);
-	if (ret < 0)
-		return ret;
-
-	if (magic != WM_ADSP_ALG_XM_STRUCT_MAGIC)
-		return -EINVAL;
+	int ret;
 
 	mutex_lock(&buf->lock);
 
@@ -3173,26 +3196,16 @@ static int wm_adsp_init_host_buf_info(struct wm_adsp_compr_buf *buf)
 	buf->error = 0;
 	buf->avail = 0;
 
-	for (i = 0; i < 5; ++i) {
-		ret = wm_adsp_read_data_word(buf->dsp, WMFW_ADSP2_XM,
-					     xm_base + WM_ADSP_ALG_XM_PTR +
-					     ALG_XM_FIELD(host_buf_ptr),
-					     &buf->host_buf_ptr);
-		if (ret < 0)
-			goto out;
-
-		if (buf->host_buf_ptr)
-			break;
-
-		msleep(1);
-	}
-
-	if (!buf->host_buf_ptr) {
-		ret = -EIO;
+	ret = wm_adsp_buffer_locate(buf);
+	if (ret < 0) {
+		adsp_err(buf->dsp, "Failed to acquire host buffer: %d\n", ret);
 		goto out;
 	}
 
 	ret = wm_adsp_populate_buffer_regions(buf);
+	if (ret < 0)
+		adsp_err(buf->dsp, "Failed to populate host buffer: %d\n", ret);
+
 out:
 	mutex_unlock(&buf->lock);
 
