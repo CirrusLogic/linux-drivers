@@ -89,7 +89,7 @@ static const struct reg_default cs35l33_reg[] = {
 	{0x36, 0x40}, /* TDM RX Control 1 */
 	{0x37, 0x03}, /* TDM RX Control 2 */
 	{0x38, 0x04}, /* TDM RX Control 3 */
-	{0x39, 0x45}, /* Boost Converter Control 4 */
+	{0x39, 0x63}, /* Boost Converter Control 4 */
 };
 
 static const struct reg_default cs35l33_patch[] = {
