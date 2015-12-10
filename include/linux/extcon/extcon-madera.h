@@ -32,6 +32,7 @@ struct madera_hpdet_notify_data {
 struct madera_micdet_notify_data {
 	unsigned int impedance_x100;	/* ohms * 100 */
 	bool present;
+	int out_num;			/* 1 = OUT1, 2 = OUT2 */
 };
 
 struct madera_extcon_info;

@@ -679,7 +679,7 @@ static bool madera_is_hp_shorted(const struct madera *madera,
 	if (index >= MADERA_MAX_ACCESSORY)
 		return false;
 
-	return (madera->hp_impedance_x100 <=
+	return (madera->hp_impedance_x100[index] <=
 		madera->pdata.accdet[index].hpdet_short_circuit_imp * 100);
 }
 
@@ -725,10 +725,11 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	/* if HP detection clamp is applied while switching to HPOUT
 	 * OUT1 should remain disabled and EDRE should be set to manual
 	 */
-	if (!ep_sel && (madera->hpdet_clamp || madera_is_hp_shorted(madera, 0)))
+	if (!ep_sel &&
+	    (madera->hpdet_clamp[0] || madera_is_hp_shorted(madera, 0)))
 		restore_out = false;
 
-	if (!ep_sel && madera->hpdet_clamp) {
+	if (!ep_sel && madera->hpdet_clamp[0]) {
 		ret = regmap_write(madera->regmap, MADERA_EDRE_MANUAL, 0x3);
 		if (ret)
 			dev_warn(madera->dev,
@@ -2876,6 +2877,7 @@ int madera_hp_ev(struct snd_soc_dapm_widget *w,
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(w->codec);
 	struct madera *madera = priv->madera;
 	unsigned int mask = 1 << w->shift;
+	unsigned int out_num = w->shift / 2;
 	unsigned int val;
 	unsigned int ep_sel = 0;
 
@@ -2901,9 +2903,9 @@ int madera_hp_ev(struct snd_soc_dapm_widget *w,
 	regmap_read(priv->madera->regmap, MADERA_OUTPUT_ENABLES_1, &ep_sel);
 	ep_sel &= MADERA_EP_SEL_MASK;
 
-	/* Force off if HPDET clamp is active */
-	if ((priv->madera->hpdet_clamp ||
-	    madera_is_hp_shorted(madera, w->shift)) && !ep_sel)
+	/* Force off if HPDET clamp is active for this output */
+	if ((priv->madera->hpdet_clamp[out_num] ||
+	    madera_is_hp_shorted(madera, out_num)) && !ep_sel)
 		val = 0;
 
 	regmap_update_bits_async(madera->regmap, MADERA_OUTPUT_ENABLES_1,

@@ -137,9 +137,10 @@ struct madera {
 	struct regmap_irq_chip_data *irq_data;
 	struct irq_domain *edge_domain;
 
-	bool hpdet_clamp;
+	bool hpdet_clamp[MADERA_MAX_ACCESSORY];
 	unsigned int hp_ena;
-	unsigned int hp_impedance_x100;
+	unsigned int hp_impedance_x100[MADERA_MAX_ACCESSORY];
+
 	struct madera_extcon_info *extcon_info;
 
 	struct snd_soc_dapm_context *dapm;
