@@ -21,6 +21,7 @@
 #include <linux/mfd/madera/registers.h>
 #include <linux/mfd/madera/pdata.h>
 #include <sound/madera-pdata.h>
+#include <linux/extcon/extcon-madera-pdata.h>
 
 #include <dt-bindings/sound/madera.h>
 
@@ -672,10 +673,14 @@ int madera_mux_ev(struct snd_soc_dapm_widget *w,
 }
 EXPORT_SYMBOL_GPL(madera_mux_ev);
 
-static bool madera_is_hp_shorted(const struct madera *madera)
+static bool madera_is_hp_shorted(const struct madera *madera,
+				 unsigned int index)
 {
+	if (index >= MADERA_MAX_ACCESSORY)
+		return false;
+
 	return (madera->hp_impedance_x100 <=
-		(madera->pdata.hpdet_short_circuit_imp * 100));
+		madera->pdata.accdet[index].hpdet_short_circuit_imp * 100);
 }
 
 int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
@@ -720,7 +725,7 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	/* if HP detection clamp is applied while switching to HPOUT
 	 * OUT1 should remain disabled and EDRE should be set to manual
 	 */
-	if (!ep_sel && (madera->hpdet_clamp || madera_is_hp_shorted(madera)))
+	if (!ep_sel && (madera->hpdet_clamp || madera_is_hp_shorted(madera, 0)))
 		restore_out = false;
 
 	if (!ep_sel && madera->hpdet_clamp) {
@@ -2898,7 +2903,7 @@ int madera_hp_ev(struct snd_soc_dapm_widget *w,
 
 	/* Force off if HPDET clamp is active */
 	if ((priv->madera->hpdet_clamp ||
-	    madera_is_hp_shorted(madera)) && !ep_sel)
+	    madera_is_hp_shorted(madera, w->shift)) && !ep_sel)
 		val = 0;
 
 	regmap_update_bits_async(madera->regmap, MADERA_OUTPUT_ENABLES_1,
@@ -4731,11 +4736,15 @@ int madera_set_output_mode(struct snd_soc_codec *codec, int output, bool diff)
 EXPORT_SYMBOL_GPL(madera_set_output_mode);
 
 int madera_set_custom_jd(struct snd_soc_codec *codec,
-			 const struct madera_jd_state *custom_jd)
+			 const struct madera_jd_state *custom_jd,
+			 unsigned int index)
 {
 	struct madera *madera = dev_get_drvdata(codec->dev->parent);
 
-	madera->pdata.custom_jd = custom_jd;
+	if (index >= MADERA_MAX_ACCESSORY)
+		return -EINVAL;
+
+	madera->pdata.accdet[index].custom_jd = custom_jd;
 
 	return 0;
 }
