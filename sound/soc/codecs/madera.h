@@ -514,7 +514,8 @@ extern int madera_set_output_mode(struct snd_soc_codec *codec, int output,
 
 /* Following functions are for use by machine drivers */
 extern int madera_set_custom_jd(struct snd_soc_codec *codec,
-				const struct madera_jd_state *custom_jd);
+				const struct madera_jd_state *custom_jd,
+				unsigned int index);
 
 extern int madera_enable_force_bypass(struct snd_soc_codec *codec);
 extern int madera_disable_force_bypass(struct snd_soc_codec *codec);
