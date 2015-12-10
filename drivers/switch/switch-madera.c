@@ -398,10 +398,10 @@ static ssize_t madera_extcon_show(struct device *dev,
 	struct madera_extcon_info *info = platform_get_drvdata(pdev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n",
-			 info->madera->hp_impedance_x100);
+			 info->madera->hp_impedance_x100[0]);
 }
 
-static DEVICE_ATTR(hp_impedance, S_IRUGO, madera_extcon_show, NULL);
+static DEVICE_ATTR(hp1_impedance, S_IRUGO, madera_extcon_show, NULL);
 
 inline void madera_extcon_report(struct madera_extcon_info *info, int state)
 {
@@ -532,7 +532,7 @@ static void madera_extcon_hp_clamp(struct madera_extcon_info *info,
 		break;
 	};
 
-	madera->hpdet_clamp = clamp;
+	madera->hpdet_clamp[0] = clamp;
 
 	/* Keep the HP output stages disabled while doing the clamp */
 	if (clamp && !ep_sel) {
@@ -581,7 +581,7 @@ static void madera_extcon_hp_clamp(struct madera_extcon_info *info,
 	}
 
 	/* Restore the desired state while not doing the clamp */
-	if (!clamp && (HOHM_TO_OHM(madera->hp_impedance_x100) >
+	if (!clamp && (HOHM_TO_OHM(madera->hp_impedance_x100[0]) >
 			info->pdata->hpdet_short_circuit_imp) && !ep_sel) {
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_OUTPUT_ENABLES_1,
@@ -950,6 +950,7 @@ static void madera_extcon_notify_micd(const struct madera_extcon_info *info,
 
 	data.present = present;
 	data.impedance_x100 = impedance;
+	data.out_num = 1;
 
 	madera_call_notifiers(info->madera, MADERA_NOTIFY_MICDET, &data);
 }
@@ -1202,7 +1203,7 @@ void madera_set_headphone_imp(struct madera_extcon_info *info, int imp)
 	struct madera *madera = info->madera;
 	struct madera_hpdet_notify_data data;
 
-	madera->hp_impedance_x100 = imp;
+	madera->hp_impedance_x100[0] = imp;
 
 	data.impedance_x100 = imp;
 	madera_call_notifiers(madera, MADERA_NOTIFY_HPDET, &data);
@@ -2984,7 +2985,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		goto err_hpdet;
 	}
 
-	ret = device_create_file(&pdev->dev, &dev_attr_hp_impedance);
+	ret = device_create_file(&pdev->dev, &dev_attr_hp1_impedance);
 	if (ret)
 		dev_warn(&pdev->dev,
 			"Failed to create sysfs node for hp_impedance %d\n",
@@ -3042,7 +3043,7 @@ static int madera_extcon_remove(struct platform_device *pdev)
 	regmap_update_bits(madera->regmap, MADERA_JACK_DETECT_ANALOGUE,
 			   MADERA_JD1_ENA | MADERA_JD2_ENA, 0);
 
-	device_remove_file(&pdev->dev, &dev_attr_hp_impedance);
+	device_remove_file(&pdev->dev, &dev_attr_hp1_impedance);
 	switch_dev_unregister(&info->edev);
 	wakeup_source_trash(&info->detection_wake_lock);
 	kfree(info->hpdet_trims);
