@@ -731,14 +731,15 @@ int madera_dev_init(struct madera *madera)
 	unsigned int hwid, reg;
 	int (*patch_fn)(struct madera *) = NULL;
 	const struct mfd_cell *mfd_devs;
-	int n_devs;
+	int n_devs, i;
 	int ret;
 
 	dev_set_drvdata(madera->dev, madera);
 	mutex_init(&madera->reg_setting_lock);
 
 	/* default headphone impedance in case the extcon driver is not used */
-	madera->hp_impedance_x100 = 3200;
+	for (i = 0; i < ARRAY_SIZE(madera->hp_impedance_x100); ++i)
+		madera->hp_impedance_x100[i] = 3200;
 
 	if (dev_get_platdata(madera->dev))
 		memcpy(&madera->pdata, dev_get_platdata(madera->dev),
