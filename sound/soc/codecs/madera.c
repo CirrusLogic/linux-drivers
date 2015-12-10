@@ -599,6 +599,12 @@ int madera_mux_ev(struct snd_soc_dapm_widget *w,
 }
 EXPORT_SYMBOL_GPL(madera_mux_ev);
 
+static bool madera_is_hp_shorted(const struct madera *madera)
+{
+	return (madera->hp_impedance <=
+		madera->pdata.hpdet_short_circuit_imp);
+}
+
 int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
@@ -625,8 +631,8 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	if (change) {
 		/* if HP detection clamp is applied while switching to HPOUT
 		 * disable OUT1 and set EDRE Manual */
-		if (!ep_sel && (madera->hpdet_clamp || (madera->hp_impedance
-				<= madera->pdata.hpdet_short_circuit_imp))) {
+		if (!ep_sel && (madera->hpdet_clamp ||
+				madera_is_hp_shorted(madera))) {
 			ret = regmap_update_bits(madera->regmap,
 						 MADERA_OUTPUT_ENABLES_1,
 						 MADERA_OUT1L_ENA |
@@ -2520,12 +2526,6 @@ int madera_out_ev(struct snd_soc_dapm_widget *w,
 }
 EXPORT_SYMBOL_GPL(madera_out_ev);
 
-static bool madera_is_hp_short_circuit(struct madera_priv *priv)
-{
-	return (priv->madera->hp_impedance <=
-		priv->madera->pdata.hpdet_short_circuit_imp);
-}
-
 int madera_hp_ev(struct snd_soc_dapm_widget *w,
 		 struct snd_kcontrol *kcontrol, int event)
 {
@@ -2560,7 +2560,7 @@ int madera_hp_ev(struct snd_soc_dapm_widget *w,
 
 	/* Force off if HPDET clamp is active */
 	if ((priv->madera->hpdet_clamp ||
-	    madera_is_hp_short_circuit(priv)) && !ep_sel)
+	    madera_is_hp_shorted(madera)) && !ep_sel)
 		val = 0;
 
 	regmap_update_bits_async(madera->regmap, MADERA_OUTPUT_ENABLES_1,
