@@ -29,6 +29,7 @@
 #include <sound/soc.h>
 
 #include <linux/extcon/extcon-madera.h>
+#include <linux/extcon/extcon-madera-pdata.h>
 
 #include <linux/mfd/madera/core.h>
 #include <linux/mfd/madera/pdata.h>
@@ -112,6 +113,7 @@ struct madera_hpdet_trims {
 struct madera_extcon_info {
 	struct device *dev;
 	struct madera *madera;
+	const struct madera_accdet_pdata *pdata;
 	struct mutex lock;
 	struct regulator *micvdd;
 	struct input_dev *input;
@@ -580,7 +582,7 @@ static void madera_extcon_hp_clamp(struct madera_extcon_info *info,
 
 	/* Restore the desired state while not doing the clamp */
 	if (!clamp && (HOHM_TO_OHM(madera->hp_impedance_x100) >
-			madera->pdata.hpdet_short_circuit_imp) && !ep_sel) {
+			info->pdata->hpdet_short_circuit_imp) && !ep_sel) {
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_OUTPUT_ENABLES_1,
 					 MADERA_OUT1L_ENA | MADERA_OUT1R_ENA,
@@ -752,7 +754,7 @@ static void madera_extcon_enable_micbias(struct madera_extcon_info *info)
 	/* If forced we must manually control the pin state, otherwise
 	 * the codec will manage this automatically
 	 */
-	if (madera->pdata.micd_force_micbias)
+	if (info->pdata->micd_force_micbias)
 		madera_extcon_enable_micbias_pin(info, widget);
 }
 
@@ -774,7 +776,7 @@ static void madera_extcon_disable_micbias(struct madera_extcon_info *info)
 	/* If forced we must manually control the pin state, otherwise
 	 * the codec will manage this automatically
 	 */
-	if (madera->pdata.micd_force_micbias)
+	if (info->pdata->micd_force_micbias)
 		madera_extcon_disable_micbias_pin(info, widget);
 }
 
@@ -787,8 +789,8 @@ static void madera_extcon_set_mode(struct madera_extcon_info *info, int mode)
 		info->micd_modes[mode].src, info->micd_modes[mode].gnd,
 		info->micd_modes[mode].bias, info->micd_modes[mode].gpio);
 
-	if (madera->pdata.micd_pol_gpio > 0)
-		gpio_set_value_cansleep(madera->pdata.micd_pol_gpio,
+	if (info->pdata->micd_pol_gpio > 0)
+		gpio_set_value_cansleep(info->pdata->micd_pol_gpio,
 					info->micd_modes[mode].gpio);
 
 	switch (madera->type) {
@@ -1118,20 +1120,20 @@ static int madera_hpdet_read(struct madera_extcon_info *info)
 		}
 	}
 
-	if (madera->pdata.hpdet_ext_res_x100) {
-		if (madera->pdata.hpdet_ext_res_x100 >= OHM_TO_HOHM(val)) {
+	if (info->pdata->hpdet_ext_res_x100) {
+		if (info->pdata->hpdet_ext_res_x100 >= OHM_TO_HOHM(val)) {
 			dev_warn(madera->dev,
 				"External resistor (%d.%02d) >= measurement (%d.00)\n",
-				madera->pdata.hpdet_ext_res_x100 / 100,
-				madera->pdata.hpdet_ext_res_x100 % 100,
+				info->pdata->hpdet_ext_res_x100 / 100,
+				info->pdata->hpdet_ext_res_x100 % 100,
 				val);
 		} else {
 			dev_dbg(madera->dev,
 				"Compensating for external %d.%02d ohm resistor\n",
-				madera->pdata.hpdet_ext_res_x100 / 100,
-				madera->pdata.hpdet_ext_res_x100 % 100);
+				info->pdata->hpdet_ext_res_x100 / 100,
+				info->pdata->hpdet_ext_res_x100 % 100);
 
-			val -= HOHM_TO_OHM(madera->pdata.hpdet_ext_res_x100);
+			val -= HOHM_TO_OHM(info->pdata->hpdet_ext_res_x100);
 		}
 	}
 
@@ -1162,7 +1164,7 @@ static int madera_tune_headphone(struct madera_extcon_info *info, int reading)
 		return 0;
 	}
 
-	if (reading <= madera->pdata.hpdet_short_circuit_imp) {
+	if (reading <= info->pdata->hpdet_short_circuit_imp) {
 		/* Headphones are always off here so just mark them */
 		dev_warn(madera->dev, "Possible HP short, disabling\n");
 		return 0;
@@ -1231,14 +1233,14 @@ static void madera_hpdet_stop_micd(struct madera_extcon_info *info)
 	struct madera *madera = info->madera;
 	unsigned int start_time = 1, dbtime = 1, rate = 1;
 
-	if (madera->pdata.micd_bias_start_time)
-		start_time = madera->pdata.micd_bias_start_time;
+	if (info->pdata->micd_bias_start_time)
+		start_time = info->pdata->micd_bias_start_time;
 
-	if (madera->pdata.micd_rate)
-		rate = madera->pdata.micd_rate;
+	if (info->pdata->micd_rate)
+		rate = info->pdata->micd_rate;
 
-	if (madera->pdata.micd_dbtime)
-		dbtime = madera->pdata.micd_dbtime;
+	if (info->pdata->micd_dbtime)
+		dbtime = info->pdata->micd_dbtime;
 
 	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
 			   MADERA_MICD_BIAS_STARTTIME_MASK |
@@ -1268,9 +1270,9 @@ int madera_hpdet_start(struct madera_extcon_info *info)
 	dev_dbg(madera->dev, "Starting HPDET\n");
 
 	/* If we specified to assume a fixed impedance skip HPDET */
-	if (madera->pdata.fixed_hpdet_imp_x100) {
+	if (info->pdata->fixed_hpdet_imp_x100) {
 		madera_set_headphone_imp(info,
-					 madera->pdata.fixed_hpdet_imp_x100);
+					 info->pdata->fixed_hpdet_imp_x100);
 		ret = -EEXIST;
 		goto skip;
 	}
@@ -1295,11 +1297,11 @@ int madera_hpdet_start(struct madera_extcon_info *info)
 		break;
 	default:
 		if (info->state->mode == MADERA_ACCDET_MODE_HPL) {
-			hpd_clamp = madera->pdata.hpd_pins[0];
-			hpd_sense = madera->pdata.hpd_pins[1];
+			hpd_clamp = info->pdata->hpd_pins[0];
+			hpd_sense = info->pdata->hpd_pins[1];
 		} else {
-			hpd_clamp = madera->pdata.hpd_pins[2];
-			hpd_sense = madera->pdata.hpd_pins[3];
+			hpd_clamp = info->pdata->hpd_pins[2];
+			hpd_sense = info->pdata->hpd_pins[3];
 		}
 
 		hpd_gnd = info->micd_modes[info->micd_mode].gnd;
@@ -1520,7 +1522,7 @@ static void madera_micd_restart(struct madera_extcon_info *info)
 static int madera_micd_button_debounce(struct madera_extcon_info *info, int val)
 {
 	struct madera *madera = info->madera;
-	int debounce_lim = madera->pdata.micd_manual_debounce;
+	int debounce_lim = info->pdata->micd_manual_debounce;
 
 	if (debounce_lim) {
 		if (info->micd_debounce != val)
@@ -1643,7 +1645,7 @@ int madera_micd_mic_reading(struct madera_extcon_info *info, int val)
 	/* Due to jack detect this should never happen */
 	if (val > MADERA_MICROPHONE_MAX_OHM) {
 		dev_warn(madera->dev, "Detected open circuit\n");
-		info->have_mic = madera->pdata.micd_open_circuit_declare;
+		info->have_mic = info->pdata->micd_open_circuit_declare;
 		goto done;
 	}
 
@@ -1683,7 +1685,7 @@ int madera_micd_mic_reading(struct madera_extcon_info *info, int val)
 done:
 	pm_runtime_mark_last_busy(info->dev);
 
-	if (madera->pdata.hpdet_channel)
+	if (info->pdata->hpdet_channel)
 		ret = madera_jds_set_state(info, &madera_hpdet_right);
 	else
 		ret = madera_jds_set_state(info, &madera_hpdet_left);
@@ -1702,8 +1704,8 @@ EXPORT_SYMBOL_GPL(madera_micd_mic_reading);
 
 int madera_micd_mic_timeout_ms(struct madera_extcon_info *info)
 {
-	if (info->madera->pdata.micd_timeout_ms)
-		return info->madera->pdata.micd_timeout_ms;
+	if (info->pdata->micd_timeout_ms)
+		return info->pdata->micd_timeout_ms;
 	else
 		return MADERA_DEFAULT_MICD_TIMEOUT_MS;
 }
@@ -1711,12 +1713,11 @@ EXPORT_SYMBOL_GPL(madera_micd_mic_timeout_ms);
 
 void madera_micd_mic_timeout(struct madera_extcon_info *info)
 {
-	struct madera *madera = info->madera;
 	int ret;
 
 	dev_dbg(info->madera->dev, "MICD timed out, reporting HP\n");
 
-	if (madera->pdata.hpdet_channel)
+	if (info->pdata->hpdet_channel)
 		ret = madera_jds_set_state(info, &madera_hpdet_right);
 	else
 		ret = madera_jds_set_state(info, &madera_hpdet_left);
@@ -1729,7 +1730,7 @@ static int madera_hpdet_acc_id_reading(struct madera_extcon_info *info,
 					int reading)
 {
 	struct madera *madera = info->madera;
-	int id_gpio = madera->pdata.hpdet_id_gpio;
+	int id_gpio = info->pdata->hpdet_id_gpio;
 
 	if (reading < 0)
 		return reading;
@@ -1843,7 +1844,7 @@ err:
 static void madera_hpdet_acc_id_stop(struct madera_extcon_info *info)
 {
 	struct madera *madera = info->madera;
-	int id_gpio = madera->pdata.hpdet_id_gpio;
+	int id_gpio = info->pdata->hpdet_id_gpio;
 
 	/* Make sure everything is reset back to the real polarity */
 	regmap_update_bits(madera->regmap,
@@ -1874,10 +1875,10 @@ static int madera_jack_present(struct madera_extcon_info *info,
 
 	dev_dbg(madera->dev, "IRQ1_RAW_STATUS_7=0x%x\n", val);
 
-	if (madera->pdata.jd_use_jd2) {
+	if (info->pdata->jd_use_jd2) {
 		val &= MADERA_MICD_CLAMP_RISE_STS1;
 		present = 0;
-	} else if (madera->pdata.jd_invert) {
+	} else if (info->pdata->jd_invert) {
 		val &= MADERA_JD1_FALL_STS1_MASK;
 		present = MADERA_JD1_FALL_STS1;
 	} else {
@@ -2005,7 +2006,7 @@ static irqreturn_t madera_micdet(int irq, void *data)
 {
 	struct madera_extcon_info *info = data;
 	struct madera *madera = info->madera;
-	int debounce = madera->pdata.micd_detect_debounce_ms;
+	int debounce = info->pdata->micd_detect_debounce_ms;
 
 	dev_dbg(madera->dev, "micdet IRQ");
 
@@ -2134,22 +2135,22 @@ static irqreturn_t madera_jackdet(int irq, void *data)
 
 	mask = MADERA_MICD_CLAMP_DB | MADERA_JD1_DB;
 
-	if (madera->pdata.jd_use_jd2)
+	if (info->pdata->jd_use_jd2)
 		mask |= MADERA_JD2_DB;
 
 	if (present) {
 		dev_dbg(madera->dev, "Detected jack\n");
 
-		if (madera->pdata.jd_wake_time)
+		if (info->pdata->jd_wake_time)
 			__pm_wakeup_event(&info->detection_wake_lock,
-					  madera->pdata.jd_wake_time);
+					  info->pdata->jd_wake_time);
 
 		info->have_mic = false;
 		info->jack_flips = 0;
 
-		if (madera->pdata.custom_jd)
-			madera_jds_set_state(info, madera->pdata.custom_jd);
-		else if (madera->pdata.micd_software_compare)
+		if (info->pdata->custom_jd)
+			madera_jds_set_state(info, info->pdata->custom_jd);
+		else if (info->pdata->micd_software_compare)
 			madera_jds_set_state(info, &madera_micd_adc_mic);
 		else
 			madera_jds_set_state(info, &madera_micd_microphone);
@@ -2253,6 +2254,7 @@ static int madera_extcon_of_read_part_array(struct madera *madera,
 }
 
 static int madera_extcon_of_get_micd_ranges(struct madera *madera,
+					    struct madera_accdet_pdata *pdata,
 					    const char *prop)
 {
 	struct madera_micd_range *micd_ranges;
@@ -2279,8 +2281,8 @@ static int madera_extcon_of_get_micd_ranges(struct madera *madera,
 		micd_ranges[i].key = values[1];
 	}
 
-	madera->pdata.micd_ranges = micd_ranges;
-	madera->pdata.num_micd_ranges = nranges;
+	pdata->micd_ranges = micd_ranges;
+	pdata->num_micd_ranges = nranges;
 
 	return ret;
 
@@ -2291,6 +2293,7 @@ error:
 }
 
 static int madera_extcon_of_get_micd_configs(struct madera *madera,
+					     struct madera_accdet_pdata *pdata,
 					     const char *prop)
 {
 	struct madera_micd_config *micd_configs;
@@ -2319,8 +2322,8 @@ static int madera_extcon_of_get_micd_configs(struct madera *madera,
 		micd_configs[i].gpio = values[3];
 	}
 
-	madera->pdata.micd_configs = micd_configs;
-	madera->pdata.num_micd_configs = nconfigs;
+	pdata->micd_configs = micd_configs;
+	pdata->num_micd_configs = nconfigs;
 
 	return ret;
 
@@ -2331,9 +2334,9 @@ error:
 	return ret;
 }
 
-static void madera_extcon_of_get_hpd_pins(struct madera *madera)
+static void madera_extcon_of_get_hpd_pins(struct madera *madera,
+					  struct madera_accdet_pdata *pdata)
 {
-	struct madera_pdata *pdata = &madera->pdata;
 	int i;
 
 	BUILD_BUG_ON(ARRAY_SIZE(pdata->hpd_pins) !=
@@ -2354,10 +2357,9 @@ static void madera_extcon_of_get_hpd_pins(struct madera *madera)
 	}
 }
 
-static int madera_extcon_of_get_pdata(struct madera *madera)
+static int madera_extcon_of_get_pdata(struct madera *madera,
+				      struct madera_accdet_pdata *pdata)
 {
-	struct madera_pdata *pdata = &madera->pdata;
-
 	madera_of_read_int(madera, "cirrus,micd-detect-debounce-ms", false,
 			   &pdata->micd_detect_debounce_ms);
 
@@ -2376,8 +2378,8 @@ static int madera_extcon_of_get_pdata(struct madera *madera)
 	}
 
 
-	madera_extcon_of_get_micd_ranges(madera, "cirrus,micd-ranges");
-	madera_extcon_of_get_micd_configs(madera, "cirrus,micd-configs");
+	madera_extcon_of_get_micd_ranges(madera, pdata, "cirrus,micd-ranges");
+	madera_extcon_of_get_micd_configs(madera, pdata, "cirrus,micd-configs");
 
 	madera_of_read_int(madera, "cirrus,micd-bias-start-time", false,
 			   &pdata->micd_bias_start_time);
@@ -2409,9 +2411,6 @@ static int madera_extcon_of_get_pdata(struct madera *madera)
 	pdata->jd_invert = of_property_read_bool(madera->dev->of_node,
 						 "cirrus,jd-invert");
 
-	madera_of_read_uint_array(madera, "cirrus,gpsw", false,
-				  pdata->gpsw, 0, ARRAY_SIZE(pdata->gpsw));
-
 	madera_of_read_int(madera, "cirrus,fixed-hpdet-imp", false,
 			   &pdata->fixed_hpdet_imp_x100);
 
@@ -2427,10 +2426,17 @@ static int madera_extcon_of_get_pdata(struct madera *madera)
 	madera_of_read_uint(madera, "cirrus,micd-clamp-mode", false,
 			   &pdata->micd_clamp_mode);
 
-	madera_extcon_of_get_hpd_pins(madera);
+	madera_extcon_of_get_hpd_pins(madera, pdata);
 
 	madera_of_read_int(madera, "cirrus,hpdet-ext-res", false,
 			   &pdata->hpdet_ext_res_x100);
+
+	/* a GPSW is not necessarily exclusive to a single accessory detect
+	 * channel so this is stored in the global device pdata
+	 */
+	madera_of_read_uint_array(madera, "cirrus,gpsw", false,
+				  madera->pdata.gpsw, 0,
+				  ARRAY_SIZE(madera->pdata.gpsw));
 
 	return 0;
 }
@@ -2532,33 +2538,33 @@ static int madera_extcon_read_calibration(struct madera_extcon_info *info)
 	return 0;
 }
 
-static void madera_extcon_set_micd_clamp_mode(struct madera *madera)
+static void madera_extcon_set_micd_clamp_mode(struct madera_extcon_info *info)
 {
 	unsigned int clamp_ctrl_val;
 
 	/* If the user has supplied a micd_clamp_mode, assume they know
 	 * what they are doing and just write it out
 	 */
-	if (madera->pdata.micd_clamp_mode) {
-		clamp_ctrl_val = madera->pdata.micd_clamp_mode;
-	} else if (madera->pdata.jd_use_jd2) {
-		if (madera->pdata.jd_invert)
+	if (info->pdata->micd_clamp_mode) {
+		clamp_ctrl_val = info->pdata->micd_clamp_mode;
+	} else if (info->pdata->jd_use_jd2) {
+		if (info->pdata->jd_invert)
 			clamp_ctrl_val = MADERA_MICD_CLAMP_MODE_JD1H_JD2H;
 		else
 			clamp_ctrl_val = MADERA_MICD_CLAMP_MODE_JD1L_JD2L;
 	} else {
-		if (madera->pdata.jd_invert)
+		if (info->pdata->jd_invert)
 			clamp_ctrl_val = MADERA_MICD_CLAMP_MODE_JD1H;
 		else
 			clamp_ctrl_val = MADERA_MICD_CLAMP_MODE_JD1L;
 	}
 
-	regmap_update_bits(madera->regmap,
+	regmap_update_bits(info->madera->regmap,
 			   MADERA_MICD_CLAMP_CONTROL,
 			   MADERA_MICD_CLAMP_MODE_MASK,
 			   clamp_ctrl_val);
 
-	regmap_update_bits(madera->regmap,
+	regmap_update_bits(info->madera->regmap,
 			   MADERA_INTERRUPT_DEBOUNCE_7,
 			   MADERA_MICD_CLAMP_DB,
 			   MADERA_MICD_CLAMP_DB);
@@ -2615,7 +2621,7 @@ err_input:
 static int madera_extcon_init_micd_ranges(struct madera_extcon_info *info)
 {
 	struct madera *madera = info->madera;
-	const struct madera_pdata *pdata = &madera->pdata;
+	const struct madera_accdet_pdata *pdata = info->pdata;
 	struct madera_micd_range *ranges;
 	int i;
 
@@ -2660,7 +2666,7 @@ err_free:
 	return -EINVAL;
 }
 
-static void madera_extcon_xlate_pdata(struct madera_pdata *pdata)
+static void madera_extcon_xlate_pdata(struct madera_accdet_pdata *pdata)
 {
 	int i;
 
@@ -2679,7 +2685,7 @@ static void madera_extcon_xlate_pdata(struct madera_pdata *pdata)
 static int madera_extcon_probe(struct platform_device *pdev)
 {
 	struct madera *madera = dev_get_drvdata(pdev->dev.parent);
-	struct madera_pdata *pdata = &madera->pdata;
+	struct madera_accdet_pdata *pdata = &madera->pdata.accdet[0];
 	struct madera_extcon_info *info;
 	unsigned int debounce_val, analog_val;
 	int jack_irq_fall, jack_irq_rise;
@@ -2692,9 +2698,13 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	if (!info)
 		return -ENOMEM;
 
+	info->pdata = pdata;
+	info->madera = madera;
+	info->dev = &pdev->dev;
+
 	if (IS_ENABLED(CONFIG_OF)) {
 		if (!dev_get_platdata(madera->dev)) {
-			ret = madera_extcon_of_get_pdata(madera);
+			ret = madera_extcon_of_get_pdata(madera, pdata);
 			if (ret < 0)
 				return ret;
 		}
@@ -2707,7 +2717,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 
 	switch (madera->type) {
 	case CS47L35:
-		madera->pdata.micd_force_micbias = true;
+		pdata->micd_force_micbias = true;
 		info->hpdet_ranges = cs47l85_hpdet_ranges;
 		info->num_hpdet_ranges = ARRAY_SIZE(cs47l85_hpdet_ranges);
 		break;
@@ -2736,8 +2746,6 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	mutex_init(&info->lock);
 	init_completion(&info->manual_mic_completion);
 	wakeup_source_init(&info->detection_wake_lock, "madera-jack-detection");
-	info->madera = madera;
-	info->dev = &pdev->dev;
 	INIT_DELAYED_WORK(&info->hpdet_work, madera_hpdet_work);
 	INIT_DELAYED_WORK(&info->micd_detect_work, madera_micd_handler);
 	INIT_DELAYED_WORK(&info->state_timeout_work, madera_jds_timeout_work);
@@ -2810,54 +2818,54 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		break;
 	}
 
-	if (madera->pdata.micd_pol_gpio > 0) {
+	if (info->pdata->micd_pol_gpio > 0) {
 		if (info->micd_modes[0].gpio)
 			mode = GPIOF_OUT_INIT_HIGH;
 		else
 			mode = GPIOF_OUT_INIT_LOW;
 
 		ret = devm_gpio_request_one(&pdev->dev,
-					    madera->pdata.micd_pol_gpio,
+					    info->pdata->micd_pol_gpio,
 					    mode,
 					    "MICD polarity");
 		if (ret) {
 			dev_err(madera->dev, "Failed to request GPIO%d: %d\n",
-				madera->pdata.micd_pol_gpio, ret);
+				info->pdata->micd_pol_gpio, ret);
 			goto err_register;
 		}
 	}
 
-	if (madera->pdata.hpdet_id_gpio > 0) {
+	if (info->pdata->hpdet_id_gpio > 0) {
 		ret = devm_gpio_request_one(&pdev->dev,
-					    madera->pdata.hpdet_id_gpio,
+					    info->pdata->hpdet_id_gpio,
 					    GPIOF_OUT_INIT_LOW,
 					    "HPDET");
 		if (ret) {
 			dev_err(madera->dev, "Failed to request GPIO%d: %d\n",
-				madera->pdata.hpdet_id_gpio, ret);
+				info->pdata->hpdet_id_gpio, ret);
 			goto err_register;
 		}
 	}
 
-	if (madera->pdata.micd_bias_start_time)
+	if (info->pdata->micd_bias_start_time)
 		regmap_update_bits(madera->regmap,
 				   MADERA_MIC_DETECT_1_CONTROL_1,
 				   MADERA_MICD_BIAS_STARTTIME_MASK,
-				   madera->pdata.micd_bias_start_time
+				   info->pdata->micd_bias_start_time
 				   << MADERA_MICD_BIAS_STARTTIME_SHIFT);
 
-	if (madera->pdata.micd_rate)
+	if (info->pdata->micd_rate)
 		regmap_update_bits(madera->regmap,
 				   MADERA_MIC_DETECT_1_CONTROL_1,
 				   MADERA_MICD_RATE_MASK,
-				   madera->pdata.micd_rate
+				   info->pdata->micd_rate
 				   << MADERA_MICD_RATE_SHIFT);
 
-	if (madera->pdata.micd_dbtime)
+	if (info->pdata->micd_dbtime)
 		regmap_update_bits(madera->regmap,
 				   MADERA_MIC_DETECT_1_CONTROL_1,
 				   MADERA_MICD_DBTIME_MASK,
-				   madera->pdata.micd_dbtime
+				   info->pdata->micd_dbtime
 				   << MADERA_MICD_DBTIME_SHIFT);
 
 	ret = madera_extcon_init_micd_ranges(info);
@@ -2868,7 +2876,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_input;
 
-	madera_extcon_set_micd_clamp_mode(madera);
+	madera_extcon_set_micd_clamp_mode(info);
 
 	madera_extcon_set_mode(info, 0);
 
@@ -2899,7 +2907,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (madera->pdata.jd_use_jd2) {
+	if (info->pdata->jd_use_jd2) {
 		jack_irq_rise = MADERA_IRQ_MICD_CLAMP_RISE;
 		jack_irq_fall = MADERA_IRQ_MICD_CLAMP_FALL;
 	} else {
@@ -2950,7 +2958,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		goto err_micdet;
 	}
 
-	if (madera->pdata.jd_use_jd2) {
+	if (info->pdata->jd_use_jd2) {
 		debounce_val = MADERA_JD1_DB | MADERA_JD2_DB;
 		analog_val = MADERA_JD1_ENA | MADERA_JD2_ENA;
 	} else {
@@ -3016,7 +3024,7 @@ static int madera_extcon_remove(struct platform_device *pdev)
 	regmap_update_bits(madera->regmap, MADERA_MICD_CLAMP_CONTROL,
 			   MADERA_MICD_CLAMP_MODE_MASK, 0);
 
-	if (madera->pdata.jd_use_jd2) {
+	if (info->pdata->jd_use_jd2) {
 		jack_irq_rise = MADERA_IRQ_MICD_CLAMP_RISE;
 		jack_irq_fall = MADERA_IRQ_MICD_CLAMP_FALL;
 	} else {
