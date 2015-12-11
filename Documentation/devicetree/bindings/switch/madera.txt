@@ -1,9 +1,21 @@
 Cirrus Logic Madera class audio codecs switch driver
 
-See also the core bindings for the parent MFD driver:
+The switch configuration settings are a child node of type "cirrus,accdet"
+within the parent MFD driver devicetree binding.
 See Documentation/devicetree/bindinge/mfd/madera.txt
 
-Optional properties:
+This node contains one or more child nodes to describe the accessory detect
+configuration.
+
+Mandatory properties:
+  - #address-cells : must be 1
+  - #size-cells : must be 0
+
+
+Child node mandatory properties:
+  - reg : output number this configuration applies to, 1=OUT1, 2=OUT2, ...
+
+Child node optional properties:
   - cirrus,micd-pol-gpios : GPIO specifier for the GPIO controlling the headset
     polarity if one exists
 
@@ -90,29 +102,35 @@ Example:
 codec: cs47l85@0 {
 	compatible = "cirrus,cs47l85";
 
-	cirrus,micd-pol-gpios = <&gpio 0>
+	cirrus,accdet {
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-	cirrus,micd-detect-debounce-ms = <10>;
-	cirrus,micd-bias-start-time = <0x1>;
-	cirrus,micd-rate = <0x1>;
-	cirrus,micd-dbtime = <0x1>;
-	cirrus,micd-timeout-ms = <10>;
-	cirrus,micd-force-micbias;
-	cirrus,micd-ranges = <
-		11 0x100
-		28 0x101
-		54 0x102
-		100 0x103
-		186 0x104
-		430 0x105
-	>;
-	cirrus,micd-configs = <
-		0x1 0 1 0
-		0x0 0 2 1
-	>;
-	cirrus,fixed-hpdet-imp = <8>;
+		acc@1 {
+			reg = <1>;
 
-	cirrus,micd-clamp-mode = <0xb>;
-
-	cirrus,gpsw = <0x3>;
+			cirrus,micd-pol-gpios = <&gpio 0>
+			cirrus,micd-detect-debounce-ms = <10>;
+			cirrus,micd-bias-start-time = <0x1>;
+			cirrus,micd-rate = <0x1>;
+			cirrus,micd-dbtime = <0x1>;
+			cirrus,micd-timeout-ms = <10>;
+			cirrus,micd-force-micbias;
+			cirrus,micd-ranges = <
+				11 0x100
+				28 0x101
+				54 0x102
+				100 0x103
+				186 0x104
+				430 0x105
+			>;
+			cirrus,micd-configs = <
+				0x1 0 1 0
+				0x0 0 2 1
+			>;
+			cirrus,fixed-hpdet-imp = <8>;
+			cirrus,micd-clamp-mode = <0xb>;
+			cirrus,gpsw = <0x3>;
+		};
+	};
 };
