@@ -44,7 +44,7 @@
 
 #define MADERA_HPDET_MAX		10000
 
-#define MADERA_HPDET_DEBOUNCE		500
+#define MADERA_HPDET_DEBOUNCE_MS	500
 #define MADERA_DEFAULT_MICD_TIMEOUT_MS	2000
 
 #define MADERA_MICROPHONE_MIN_OHM	1258
@@ -2023,7 +2023,7 @@ static irqreturn_t madera_jackdet(int irq, void *data)
 		dev_dbg(madera->dev, "Suppressing duplicate JACKDET\n");
 		if (cancelled_hp)
 			schedule_delayed_work(&info->hpdet_work,
-				msecs_to_jiffies(MADERA_HPDET_DEBOUNCE));
+				msecs_to_jiffies(MADERA_HPDET_DEBOUNCE_MS));
 
 		if (cancelled_state)
 			madera_jds_start_timeout(info);
