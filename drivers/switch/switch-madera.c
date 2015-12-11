@@ -2218,13 +2218,24 @@ static void madera_micd_set_level(struct madera *madera, int index,
 }
 
 #ifdef CONFIG_OF
+static void madera_extcon_of_get_int(struct device_node *node, const char *prop,
+				     int *value)
+{
+	u32 v;
+
+	if (of_property_read_u32(node, prop, &v) == 0)
+		*value = v;
+}
+
+
 static int madera_extcon_of_get_u32_num_groups(struct madera *madera,
+						struct device_node *node,
 						const char *prop,
 						int group_size)
 {
 	int len_prop, num_groups;
 
-	if (!of_get_property(madera->dev->of_node, prop, &len_prop))
+	if (!of_get_property(node, prop, &len_prop))
 		return -EINVAL;
 
 	num_groups =  len_prop / (group_size * sizeof(u32));
@@ -2239,14 +2250,14 @@ static int madera_extcon_of_get_u32_num_groups(struct madera *madera,
 }
 
 static int madera_extcon_of_read_part_array(struct madera *madera,
+					    struct device_node *node,
 					    const char *prop,
 					    int index, u32 *out, int num)
 {
 	int ret;
 
 	for (; num > 0; --num) {
-		ret = of_property_read_u32_index(madera->dev->of_node,
-						 prop, index++, out++);
+		ret = of_property_read_u32_index(node, prop, index++, out++);
 		if (ret < 0)
 			return ret;
 	}
@@ -2255,15 +2266,16 @@ static int madera_extcon_of_read_part_array(struct madera *madera,
 }
 
 static int madera_extcon_of_get_micd_ranges(struct madera *madera,
-					    struct madera_accdet_pdata *pdata,
-					    const char *prop)
+					    struct device_node *node,
+					    struct madera_accdet_pdata *pdata)
 {
 	struct madera_micd_range *micd_ranges;
 	u32 values[2];
 	int nranges, i;
 	int ret = 0;
 
-	nranges = madera_extcon_of_get_u32_num_groups(madera, prop, 2);
+	nranges = madera_extcon_of_get_u32_num_groups(madera, node,
+						      "cirrus,micd-ranges", 2);
 	if (nranges < 0)
 		return nranges;
 
@@ -2273,7 +2285,8 @@ static int madera_extcon_of_get_micd_ranges(struct madera *madera,
 				   GFP_KERNEL);
 
 	for (i = 0; i < nranges; ++i) {
-		ret = madera_extcon_of_read_part_array(madera, prop,
+		ret = madera_extcon_of_read_part_array(madera, node,
+							"cirrus,micd-ranges",
 							i * 2, values, 2);
 		if (ret < 0)
 			goto error;
@@ -2289,20 +2302,23 @@ static int madera_extcon_of_get_micd_ranges(struct madera *madera,
 
 error:
 	devm_kfree(madera->dev, micd_ranges);
-	dev_err(madera->dev, "DT property %s is malformed: %d\n", prop, ret);
+	dev_err(madera->dev,
+		"DT property cirrus,micd-ranges is malformed: %d\n", ret);
 	return ret;
 }
 
 static int madera_extcon_of_get_micd_configs(struct madera *madera,
-					     struct madera_accdet_pdata *pdata,
-					     const char *prop)
+					     struct device_node *node,
+					     struct madera_accdet_pdata *pdata)
 {
 	struct madera_micd_config *micd_configs;
 	u32 values[4];
 	int nconfigs, i;
 	int ret = 0;
 
-	nconfigs = madera_extcon_of_get_u32_num_groups(madera, prop, 4);
+	nconfigs = madera_extcon_of_get_u32_num_groups(madera, node,
+							"cirrus,micd-configs",
+							4);
 	if (nconfigs < 0)
 		return nconfigs;
 
@@ -2312,7 +2328,8 @@ static int madera_extcon_of_get_micd_configs(struct madera *madera,
 				    GFP_KERNEL);
 
 	for (i = 0; i < nconfigs; ++i) {
-		ret = madera_extcon_of_read_part_array(madera, prop,
+		ret = madera_extcon_of_read_part_array(madera, node,
+							"cirrus,micd-configs",
 							i * 4, values, 4);
 		if (ret < 0)
 			goto error;
@@ -2330,15 +2347,18 @@ static int madera_extcon_of_get_micd_configs(struct madera *madera,
 
 error:
 	devm_kfree(madera->dev, micd_configs);
-	dev_err(madera->dev, "DT property %s is malformed: %d\n", prop, ret);
+	dev_err(madera->dev,
+		"DT property cirrus,micd-configs is malformed: %d\n", ret);
 
 	return ret;
 }
 
 static void madera_extcon_of_get_hpd_pins(struct madera *madera,
+					  struct device_node *node,
 					  struct madera_accdet_pdata *pdata)
 {
-	int i;
+	u32 values[ARRAY_SIZE(pdata->hpd_pins)];
+	int i, ret;
 
 	BUILD_BUG_ON(ARRAY_SIZE(pdata->hpd_pins) !=
 		     ARRAY_SIZE(madera_default_hpd_pins));
@@ -2346,28 +2366,56 @@ static void madera_extcon_of_get_hpd_pins(struct madera *madera,
 	memcpy(pdata->hpd_pins, madera_default_hpd_pins,
 		sizeof(pdata->hpd_pins));
 
-	madera_of_read_uint_array(madera, "cirrus,hpd-pins", false,
-				  pdata->hpd_pins,
-				  ARRAY_SIZE(pdata->hpd_pins),
-				  ARRAY_SIZE(pdata->hpd_pins));
+	ret = of_property_read_u32_array(node, "cirrus,hpd-pins",
+					 values, sizeof(values));
+	if (ret) {
+		if (ret != -EINVAL)
+			dev_err(madera->dev,
+				 "Malformed cirrus,hpd-pins: %d\n", ret);
+		return;
+	}
 
-	/* supply default values where requested */
-	for (i = 0; i < ARRAY_SIZE(pdata->hpd_pins); ++i) {
-		if (pdata->hpd_pins[i] > 0xFFFF)
+	/* copy values, supplying defaults where requested */
+	for (i = 0; i < ARRAY_SIZE(values); ++i) {
+		if (values[i] > 0xFFFF)
 			pdata->hpd_pins[i] = madera_default_hpd_pins[i];
+		else
+			pdata->hpd_pins[i] = values[i];
 	}
 }
 
-static int madera_extcon_of_get_pdata(struct madera *madera,
-				      struct madera_accdet_pdata *pdata)
+static void madera_extcon_of_process(struct madera *madera,
+				     struct device_node *node)
 {
-	madera_of_read_int(madera, "cirrus,micd-detect-debounce-ms", false,
-			   &pdata->micd_detect_debounce_ms);
+	struct madera_accdet_pdata *pdata;
+	u32 out_num;
+	int ret;
 
-	madera_of_read_int(madera, "cirrus,micd-manual-debounce", false,
-			   &pdata->micd_manual_debounce);
+	ret = of_property_read_u32_index(node, "reg", 0, &out_num);
+	if (ret != 0) {
+		dev_err(madera->dev,
+			"failed to read reg property from %s (%d)\n",
+			node->name, ret);
+		return;
+	}
 
-	pdata->micd_pol_gpio = of_get_named_gpio(madera->dev->of_node,
+	if ((out_num == 0) || (out_num > ARRAY_SIZE(madera->pdata.accdet))) {
+		dev_warn(madera->dev, "accdet node illegal reg %u\n", out_num);
+		return;
+	}
+
+	dev_dbg(madera->dev, "processing: %s reg=%u\n", node->name, out_num);
+
+	pdata = &madera->pdata.accdet[out_num - 1];
+	pdata->enabled = true;	/* implied by presence of DT node */
+
+	madera_extcon_of_get_int(node, "cirrus,micd-detect-debounce-ms",
+				 &pdata->micd_detect_debounce_ms);
+
+	madera_extcon_of_get_int(node, "cirrus,micd-manual-debounce",
+				 &pdata->micd_manual_debounce);
+
+	pdata->micd_pol_gpio = of_get_named_gpio(node,
 						 "cirrus,micd-pol-gpios", 0);
 	if (pdata->micd_pol_gpio < 0) {
 		if (pdata->micd_pol_gpio != -ENOENT)
@@ -2379,58 +2427,58 @@ static int madera_extcon_of_get_pdata(struct madera *madera,
 	}
 
 
-	madera_extcon_of_get_micd_ranges(madera, pdata, "cirrus,micd-ranges");
-	madera_extcon_of_get_micd_configs(madera, pdata, "cirrus,micd-configs");
+	madera_extcon_of_get_micd_ranges(madera, node, pdata);
+	madera_extcon_of_get_micd_configs(madera, node, pdata);
 
-	madera_of_read_int(madera, "cirrus,micd-bias-start-time", false,
-			   &pdata->micd_bias_start_time);
+	madera_extcon_of_get_int(node, "cirrus,micd-bias-start-time",
+				 &pdata->micd_bias_start_time);
 
-	madera_of_read_int(madera, "cirrus,micd-rate", false,
-			   &pdata->micd_rate);
+	madera_extcon_of_get_int(node, "cirrus,micd-rate",
+				 &pdata->micd_rate);
 
-	madera_of_read_int(madera, "cirrus,micd-dbtime", false,
-			   &pdata->micd_dbtime);
+	madera_extcon_of_get_int(node, "cirrus,micd-dbtime",
+				 &pdata->micd_dbtime);
 
-	madera_of_read_int(madera, "cirrus,micd-timeout-ms", false,
-			   &pdata->micd_timeout_ms);
+	madera_extcon_of_get_int(node, "cirrus,micd-timeout-ms",
+				 &pdata->micd_timeout_ms);
 
 	pdata->micd_force_micbias =
-		of_property_read_bool(madera->dev->of_node,
-				      "cirrus,micd-force-micbias");
+		of_property_read_bool(node, "cirrus,micd-force-micbias");
 
 	pdata->micd_software_compare =
-			of_property_read_bool(madera->dev->of_node,
-					      "cirrus,micd-software-compare");
+		of_property_read_bool(node, "cirrus,micd-software-compare");
 
 	pdata->micd_open_circuit_declare =
-			of_property_read_bool(madera->dev->of_node,
-					      "cirrus,micd-open-circuit-declare");
+		of_property_read_bool(node, "cirrus,micd-open-circuit-declare");
 
-	pdata->jd_use_jd2 = of_property_read_bool(madera->dev->of_node,
-						"cirrus,jd-use-jd2");
+	pdata->jd_use_jd2 = of_property_read_bool(node, "cirrus,jd-use-jd2");
 
-	pdata->jd_invert = of_property_read_bool(madera->dev->of_node,
-						 "cirrus,jd-invert");
+	pdata->jd_invert = of_property_read_bool(node, "cirrus,jd-invert");
 
-	madera_of_read_int(madera, "cirrus,fixed-hpdet-imp", false,
-			   &pdata->fixed_hpdet_imp_x100);
+	madera_extcon_of_get_int(node, "cirrus,fixed-hpdet-imp",
+				 &pdata->fixed_hpdet_imp_x100);
 
-	madera_of_read_int(madera, "cirrus,hpdet-short-circuit-imp", false,
-			   &pdata->hpdet_short_circuit_imp);
+	madera_extcon_of_get_int(node, "cirrus,hpdet-short-circuit-imp",
+				 &pdata->hpdet_short_circuit_imp);
 
-	madera_of_read_int(madera, "cirrus,hpdet-channel", false,
-			   &pdata->hpdet_channel);
+	madera_extcon_of_get_int(node, "cirrus,hpdet-channel",
+				 &pdata->hpdet_channel);
 
-	madera_of_read_int(madera, "cirrus,jd-wake-time", false,
-			   &pdata->jd_wake_time);
+	madera_extcon_of_get_int(node, "cirrus,jd-wake-time",
+				 &pdata->jd_wake_time);
 
-	madera_of_read_uint(madera, "cirrus,micd-clamp-mode", false,
-			   &pdata->micd_clamp_mode);
+	madera_extcon_of_get_int(node, "cirrus,micd-clamp-mode",
+				 &pdata->micd_clamp_mode);
 
-	madera_extcon_of_get_hpd_pins(madera, pdata);
+	madera_extcon_of_get_hpd_pins(madera, node, pdata);
 
-	madera_of_read_int(madera, "cirrus,hpdet-ext-res", false,
-			   &pdata->hpdet_ext_res_x100);
+	madera_extcon_of_get_int(node, "cirrus,hpdet-ext-res",
+				 &pdata->hpdet_ext_res_x100);
+}
+
+static int madera_extcon_of_get_pdata(struct madera *madera)
+{
+	struct device_node *parent, *child;
 
 	/* a GPSW is not necessarily exclusive to a single accessory detect
 	 * channel so this is stored in the global device pdata
@@ -2438,6 +2486,18 @@ static int madera_extcon_of_get_pdata(struct madera *madera,
 	madera_of_read_uint_array(madera, "cirrus,gpsw", false,
 				  madera->pdata.gpsw, 0,
 				  ARRAY_SIZE(madera->pdata.gpsw));
+
+	parent = of_get_child_by_name(madera->dev->of_node, "cirrus,accdet");
+	if (!parent) {
+		dev_dbg(madera->dev, "No DT nodes\n");
+		return 0;
+	}
+
+	for_each_child_of_node(parent, child) {
+		madera_extcon_of_process(madera, child);
+	}
+
+	of_node_put(parent);
 
 	return 0;
 }
@@ -2705,7 +2765,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 
 	if (IS_ENABLED(CONFIG_OF)) {
 		if (!dev_get_platdata(madera->dev)) {
-			ret = madera_extcon_of_get_pdata(madera, pdata);
+			ret = madera_extcon_of_get_pdata(madera);
 			if (ret < 0)
 				return ret;
 		}
