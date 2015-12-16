@@ -2904,9 +2904,6 @@ static int moon_codec_probe(struct snd_soc_codec *codec)
 	struct arizona *arizona = priv->core.arizona;
 	int ret, i, j;
 
-	for (i = 0; i < MOON_NUM_ADSP; i++)
-		wm_adsp_init_debugfs(&priv->core.adsp[i], codec);
-
 	codec->control_data = priv->core.arizona->regmap;
 	priv->core.arizona->dapm = &codec->dapm;
 
@@ -2992,9 +2989,6 @@ static int moon_codec_remove(struct snd_soc_codec *codec)
 	int i;
 	struct moon_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->core.arizona;
-
-	for (i = 0; i < MOON_NUM_ADSP; i++)
-		wm_adsp_cleanup_debugfs(&priv->core.adsp[i]);
 
 	irq_set_irq_wake(arizona->irq, 0);
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
