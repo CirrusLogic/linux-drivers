@@ -3115,8 +3115,8 @@ static int wm_adsp_streambuf_alloc(struct wm_adsp_compr *compr,
 			return -ENOMEM;
 	}
 
-	compr->irq_watermark = DIV_ROUND_UP(params->buffer.fragment_size,
-					    WM_ADSP_DATA_WORD_SIZE);
+	compr->irq_watermark = params->buffer.fragment_size /
+				WM_ADSP_DATA_WORD_SIZE;
 
 	return 0;
 }
