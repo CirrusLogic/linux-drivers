@@ -2238,6 +2238,7 @@ int arizona_dev_init(struct arizona *arizona)
 	case CS47L35:
 		ret = mfd_add_devices(arizona->dev, -1, marley_devs,
 				      ARRAY_SIZE(marley_devs), NULL, 0, NULL);
+		break;
 	case CS47L90:
 	case CS47L91:
 		ret = mfd_add_devices(arizona->dev, -1, moon_devs,
