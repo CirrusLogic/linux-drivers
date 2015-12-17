@@ -488,15 +488,14 @@ static int cs35l33_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct cs35l33_private *priv = snd_soc_codec_get_drvdata(codec);
 	int sample_size = params_width(params);
 	int coeff = cs35l33_get_mclk_coeff(priv->mclk_int, params_rate(params));
-	u8 clk_reg;
 
 	if (coeff < 0)
 		return coeff;
 
-	clk_reg = snd_soc_read(codec, CS35L33_CLK_CTL);
-	clk_reg |= (cs35l33_mclk_coeffs[coeff].int_fs_ratio |
+	snd_soc_update_bits(codec, CS35L33_CLK_CTL,
+		INT_FS_RATE | ADSP_FS,
+		cs35l33_mclk_coeffs[coeff].int_fs_ratio |
 		cs35l33_mclk_coeffs[coeff].adsp_rate);
-	snd_soc_write(codec, CS35L33_CLK_CTL, clk_reg);
 
 	if (priv->is_tdm_mode) {
 		sample_size = (sample_size / 8) - 1;
