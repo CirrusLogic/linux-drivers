@@ -1227,6 +1227,11 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 		goto err_enable;
 	}
 
+	/* disable mclk and tdm */
+	regmap_update_bits(cs35l33->regmap, CS35L33_CLK_CTL,
+		MCLKDIS |SDOUT_3ST_TDM,
+		MCLKDIS |SDOUT_3ST_TDM);
+
 	pm_runtime_set_autosuspend_delay(&i2c_client->dev, 100);
 	pm_runtime_use_autosuspend(&i2c_client->dev);
 	pm_runtime_set_active(&i2c_client->dev);
