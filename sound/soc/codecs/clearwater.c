@@ -3017,7 +3017,7 @@ static int clearwater_codec_probe(struct snd_soc_codec *codec)
 
 	ret = regmap_update_bits(arizona->regmap, CLEARWATER_IRQ2_MASK_9,
 				 CLEARWATER_DRC2_SIG_DET_EINT2,
-				 CLEARWATER_DRC2_SIG_DET_EINT2);
+				 0);
 	if (ret != 0) {
 		dev_err(arizona->dev,
 			"Failed to unmask DRC2 IRQ for DSP: %d\n",
@@ -3038,7 +3038,7 @@ static int clearwater_codec_remove(struct snd_soc_codec *codec)
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
 	regmap_update_bits(arizona->regmap, CLEARWATER_IRQ2_MASK_9,
 			   CLEARWATER_DRC2_SIG_DET_EINT2,
-			   0);
+			   CLEARWATER_DRC2_SIG_DET_EINT2);
 
 	for (i = 0; i < CLEARWATER_NUM_ADSP; ++i)
 		wm_adsp2_codec_remove(&priv->core.adsp[i], codec);
