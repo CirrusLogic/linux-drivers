@@ -3028,6 +3028,9 @@ static int madera_startup(struct snd_pcm_substream *substream,
 	const struct snd_pcm_hw_constraint_list *constraint;
 	unsigned int base_rate;
 
+	if (!substream->runtime)
+		return 0;
+
 	switch (dai_priv->clk) {
 	case MADERA_CLK_SYSCLK:
 	case MADERA_CLK_SYSCLK_2:
