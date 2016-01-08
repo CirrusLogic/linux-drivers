@@ -2589,7 +2589,7 @@ static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	ret = madera_init_gpio(codec);
+	ret = madera_init_drc(codec);
 	if (ret)
 		return ret;
 
