@@ -1807,19 +1807,11 @@ static int cs47l35_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
-
-	snd_soc_dapm_enable_pin(&codec->dapm, "DRC2 Signal Activity");
-
-	ret = regmap_update_bits(madera->regmap, MADERA_IRQ2_MASK_9,
-				 MADERA_DRC2_SIG_DET_EINT2,
-				 0);
-	if (ret != 0) {
-		dev_err(madera->dev,
-			"Failed to unmask DRC2 IRQ for DSP: %d\n",
-			ret);
+	ret = madera_init_drc2_trigger(codec);
+	if (ret)
 		return ret;
-	}
+
+	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
 
 	ret = snd_soc_add_codec_controls(codec, madera_adsp_rate_controls,
 					 CS47L35_NUM_ADSP);
@@ -1839,7 +1831,6 @@ static int cs47l35_codec_probe(struct snd_soc_codec *codec)
 static int cs47l35_codec_remove(struct snd_soc_codec *codec)
 {
 	struct cs47l35 *cs47l35 = snd_soc_codec_get_drvdata(codec);
-	struct madera *madera = cs47l35->core.madera;
 	int i;
 
 	madera_destroy_dsp_irq(codec, cs47l35);
@@ -1847,9 +1838,7 @@ static int cs47l35_codec_remove(struct snd_soc_codec *codec)
 	for (i = 0; i < CS47L35_NUM_ADSP; i++)
 		wm_adsp2_codec_remove(&cs47l35->core.adsp[i], codec);
 
-	regmap_update_bits(madera->regmap, MADERA_IRQ2_MASK_9,
-			   MADERA_DRC2_SIG_DET_EINT2,
-			   MADERA_DRC2_SIG_DET_EINT2);
+	madera_destroy_drc2_trigger(codec);
 
 	cs47l35->core.madera->dapm = NULL;
 
