@@ -2599,24 +2599,6 @@ static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_disable_pin(madera->dapm, "HAPTICS");
 
-	for (i = 0; i < CS47L90_NUM_ADSP; i++) {
-		ret = madera_request_irq(madera,
-					 cs47l90_dsp_bus_error_irqs[i],
-					 "ADSP2 bus error",
-					 cs47l90_dsp_bus_error,
-					 &cs47l90->core.adsp[i]);
-		if (ret) {
-			dev_err(madera->dev,
-				"Failed to request DSP Lock region IRQ: %d\n",
-				ret);
-			for (j = 0; j < i; j++)
-				madera_free_irq(madera,
-						cs47l90_dsp_bus_error_irqs[j],
-						&cs47l90->core.adsp[j]);
-			return ret;
-		}
-	}
-
 	ret = snd_soc_add_codec_controls(codec, madera_adsp_rate_controls,
 					 CS47L90_NUM_ADSP);
 	if (ret)
@@ -2630,8 +2612,26 @@ static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	for (i = 0; i < CS47L90_NUM_ADSP; i++)
+	for (i = 0; i < CS47L90_NUM_ADSP; i++) {
 		wm_adsp2_codec_probe(&cs47l90->core.adsp[i], codec);
+
+		ret = madera_request_irq(madera,
+					 cs47l90_dsp_bus_error_irqs[i],
+					 "ADSP2 bus error",
+					 cs47l90_dsp_bus_error,
+					 &cs47l90->core.adsp[i]);
+		if (ret) {
+			dev_err(madera->dev,
+				"Failed to request DSP Lock region IRQ: %d\n",
+				ret);
+			madera_free_irq(madera, MADERA_IRQ_DSP_IRQ1, cs47l90);
+			for (j = 0; j < i; j++)
+				madera_free_irq(madera,
+						cs47l90_dsp_bus_error_irqs[j],
+						&cs47l90->core.adsp[j]);
+			return ret;
+		}
+	}
 
 	return 0;
 }
