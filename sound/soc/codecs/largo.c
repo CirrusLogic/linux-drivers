@@ -45,7 +45,6 @@ struct largo_compr {
 	size_t total_copied;
 	bool allocated;
 	bool trig;
-	bool forced;
 };
 
 struct largo_priv {
@@ -75,30 +74,24 @@ static const struct wm_adsp_region *largo_dsp_regions[] = {
 	largo_dsp3_regions,
 };
 
-static int largo_virt_dsp_power_ev(struct snd_soc_dapm_widget *w,
-				    struct snd_kcontrol *kcontrol, int event)
+static int largo_adsp_power_ev(struct snd_soc_dapm_widget *w,
+			       struct snd_kcontrol *kcontrol, int event)
 {
 	struct largo_priv *largo = snd_soc_codec_get_drvdata(w->codec);
 
-	mutex_lock(&largo->compr_info.lock);
-
-	if (!largo->compr_info.stream)
-		largo->compr_info.trig = false;
-
 	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		largo->compr_info.forced = true;
-		break;
-	case SND_SOC_DAPM_PRE_PMD:
-		largo->compr_info.forced = false;
+	case SND_SOC_DAPM_PRE_PMU:
+		if (w->shift == 2) {
+			mutex_lock(&largo->compr_info.lock);
+			largo->compr_info.trig = false;
+			mutex_unlock(&largo->compr_info.lock);
+		}
 		break;
 	default:
 		break;
 	}
 
-	mutex_unlock(&largo->compr_info.lock);
-
-	return 0;
+	return arizona_adsp_power_ev(w, kcontrol, event);
 }
 
 static DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
@@ -487,8 +480,8 @@ SND_SOC_DAPM_PGA("ASRC2L", ARIZONA_ASRC_ENABLE, ARIZONA_ASRC2L_ENA_SHIFT, 0,
 SND_SOC_DAPM_PGA("ASRC2R", ARIZONA_ASRC_ENABLE, ARIZONA_ASRC2R_ENA_SHIFT, 0,
 		 NULL, 0),
 
-WM_ADSP2("DSP2", 1, arizona_adsp_power_ev),
-WM_ADSP2("DSP3", 2, arizona_adsp_power_ev),
+WM_ADSP2("DSP2", 1, largo_adsp_power_ev),
+WM_ADSP2("DSP3", 2, largo_adsp_power_ev),
 
 SND_SOC_DAPM_PGA("ISRC1INT1", ARIZONA_ISRC_1_CTRL_3,
 		 ARIZONA_ISRC1_INT0_ENA_SHIFT, 0, NULL, 0),
@@ -679,9 +672,8 @@ SND_SOC_DAPM_VIRT_MUX("DSP2 Virtual Input", SND_SOC_NOPM, 0, 0,
 SND_SOC_DAPM_VIRT_MUX("DSP3 Virtual Input", SND_SOC_NOPM, 0, 0,
 		      &largo_memory_mux[1]),
 
-SND_SOC_DAPM_VIRT_MUX_E("DSP Virtual Output Mux", SND_SOC_NOPM, 0, 0,
-		      &largo_dsp_output_mux[0], largo_virt_dsp_power_ev,
-		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_VIRT_MUX("DSP Virtual Output Mux", SND_SOC_NOPM, 0, 0,
+		      &largo_dsp_output_mux[0]),
 
 ARIZONA_MUX_WIDGETS(ISRC1DEC1, "ISRC1DEC1"),
 ARIZONA_MUX_WIDGETS(ISRC1DEC2, "ISRC1DEC2"),
@@ -1185,8 +1177,6 @@ static int largo_free(struct snd_compr_stream *stream)
 	largo->compr_info.allocated = false;
 	largo->compr_info.stream = NULL;
 	largo->compr_info.total_copied = 0;
-	if (!largo->compr_info.forced)
-		largo->compr_info.trig = false;
 
 	wm_adsp_stream_free(largo->compr_info.adsp);
 
