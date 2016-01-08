@@ -2834,7 +2834,26 @@ static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 			"Failed to set DSP IRQ to wake source: %d\n",
 			ret);
 
+	snd_soc_dapm_enable_pin(&codec->dapm, "DRC2 Signal Activity");
+
+	ret = regmap_update_bits(madera->regmap, MADERA_IRQ2_MASK_9,
+				 MADERA_DRC2_SIG_DET_EINT2,
+				 0);
+	if (ret) {
+		dev_err(madera->dev,
+			"Failed to unmask DRC2 IRQ for DSP: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = snd_soc_add_codec_controls(codec, madera_adsp_rate_controls,
+					 CS47L90_NUM_ADSP);
+	if (ret)
+		return ret;
+
 	for (i = 0; i < CS47L90_NUM_ADSP; i++) {
+		wm_adsp2_codec_probe(&cs47l90->core.adsp[i], codec);
+
 		ret = madera_request_irq(madera,
 					 cs47l90_dsp_bus_error_irqs[i],
 					 "ADSP2 bus error",
@@ -2852,34 +2871,7 @@ static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 		}
 	}
 
-	snd_soc_dapm_enable_pin(&codec->dapm, "DRC2 Signal Activity");
-
-	ret = regmap_update_bits(madera->regmap, MADERA_IRQ2_MASK_9,
-				 MADERA_DRC2_SIG_DET_EINT2,
-				 0);
-	if (ret) {
-		dev_err(madera->dev,
-			"Failed to unmask DRC2 IRQ for DSP: %d\n",
-			ret);
-		goto err_drc;
-	}
-
-	ret = snd_soc_add_codec_controls(codec, madera_adsp_rate_controls,
-					 CS47L90_NUM_ADSP);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < CS47L90_NUM_ADSP; i++)
-		wm_adsp2_codec_probe(&cs47l90->core.adsp[i], codec);
-
 	return 0;
-
-err_drc:
-	for (i = 0; i < CS47L90_NUM_ADSP; i++)
-		madera_free_irq(madera, cs47l90_dsp_bus_error_irqs[i],
-				 &cs47l90->core.adsp[i]);
-
-	return ret;
 }
 
 static int cs47l90_codec_remove(struct snd_soc_codec *codec)
