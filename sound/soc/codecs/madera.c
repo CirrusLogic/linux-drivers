@@ -1170,7 +1170,7 @@ int madera_init_outputs(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(madera_init_outputs);
 
-int madera_init_gpio(struct snd_soc_codec *codec)
+int madera_init_drc(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
@@ -1203,7 +1203,7 @@ int madera_init_gpio(struct snd_soc_codec *codec)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(madera_init_gpio);
+EXPORT_SYMBOL_GPL(madera_init_drc);
 
 const char * const madera_mixer_texts[] = {
 	"None",
