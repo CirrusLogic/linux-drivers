@@ -1185,6 +1185,42 @@ int madera_init_aif(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(madera_init_aif);
 
+int madera_init_dsp_irq(struct snd_soc_codec *codec,
+			irq_handler_t handler, void *data)
+{
+	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct madera *madera = priv->madera;
+	int ret;
+
+	ret = madera_request_irq(madera, MADERA_IRQ_DSP_IRQ1,
+				 "ADSP2 IRQ1", handler, data);
+	if (ret) {
+		dev_err(madera->dev, "Failed to request DSP IRQ1: %d\n", ret);
+		return ret;
+	}
+
+	/* Wake isn't mandatory so failure to set this isn't treated
+	 * as an error
+	 */
+	ret = irq_set_irq_wake(madera->irq, 1);
+	if (ret)
+		dev_warn(madera->dev,
+			"Failed to set DSP IRQ to wake source: %d\n", ret);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(madera_init_dsp_irq);
+
+void madera_destroy_dsp_irq(struct snd_soc_codec *codec, void *data)
+{
+	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct madera *madera = priv->madera;
+
+	irq_set_irq_wake(madera->irq, 0);
+	madera_free_irq(madera, MADERA_IRQ_DSP_IRQ1, data);
+}
+EXPORT_SYMBOL_GPL(madera_destroy_dsp_irq);
+
 const char * const madera_mixer_texts[] = {
 	"None",
 	"Tone Generator 1",

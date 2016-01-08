@@ -2825,19 +2825,6 @@ static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
 
-	ret = madera_request_irq(madera, MADERA_IRQ_DSP_IRQ1,
-				  "ADSP2 interrupt 1", adsp2_irq, cs47l90);
-	if (ret) {
-		dev_err(madera->dev, "Failed to request DSP IRQ: %d\n", ret);
-		return ret;
-	}
-
-	ret = irq_set_irq_wake(madera->irq, 1);
-	if (ret)
-		dev_err(madera->dev,
-			"Failed to set DSP IRQ to wake source: %d\n",
-			ret);
-
 	snd_soc_dapm_enable_pin(&codec->dapm, "DRC2 Signal Activity");
 
 	ret = regmap_update_bits(madera->regmap, MADERA_IRQ2_MASK_9,
@@ -2852,6 +2839,10 @@ static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 
 	ret = snd_soc_add_codec_controls(codec, madera_adsp_rate_controls,
 					 CS47L90_NUM_ADSP);
+	if (ret)
+		return ret;
+
+	ret = madera_init_dsp_irq(codec, adsp2_irq, cs47l90);
 	if (ret)
 		return ret;
 
@@ -2871,11 +2862,17 @@ static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 				madera_free_irq(madera,
 						cs47l90_dsp_bus_error_irqs[j],
 						&cs47l90->core.adsp[j]);
-			return ret;
+			goto err_free_dsp_irq;
 		}
 	}
 
+
 	return 0;
+
+err_free_dsp_irq:
+	madera_destroy_dsp_irq(codec, cs47l90);
+
+	return ret;
 }
 
 static int cs47l90_codec_remove(struct snd_soc_codec *codec)
@@ -2884,14 +2881,13 @@ static int cs47l90_codec_remove(struct snd_soc_codec *codec)
 	struct cs47l90_priv *cs47l90 = snd_soc_codec_get_drvdata(codec);
 	struct madera *madera = cs47l90->core.madera;
 
+	madera_destroy_dsp_irq(codec, cs47l90);
+
 	for (i = 0; i < CS47L90_NUM_ADSP; i++) {
 		wm_adsp2_codec_remove(&cs47l90->core.adsp[i], codec);
 		madera_free_irq(madera, cs47l90_dsp_bus_error_irqs[i],
 				 &cs47l90->core.adsp[i]);
 	}
-
-	irq_set_irq_wake(madera->irq, 0);
-	madera_free_irq(madera, MADERA_IRQ_DSP_IRQ1, cs47l90);
 
 	regmap_update_bits(madera->regmap, MADERA_IRQ2_MASK_9,
 			   MADERA_DRC2_SIG_DET_EINT2,
