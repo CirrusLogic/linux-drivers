@@ -2603,10 +2603,6 @@ static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	/* Update Sample Rate 1 to 48kHz for cases when no AIF1 hw_params */
-	regmap_update_bits(madera->regmap, MADERA_SAMPLE_RATE_1,
-			   MADERA_SAMPLE_RATE_1_MASK, 0x03);
-
 	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
 
 	ret = snd_soc_add_codec_controls(codec, madera_adsp_rate_controls,
