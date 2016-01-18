@@ -2312,6 +2312,7 @@ static int wm_adsp_get_features(struct wm_adsp *dsp)
 		dsp->fw_features.host_read_buf = true;
 		break;
 	case 0x4001e:
+	case 0x5001e:
 	case 0x6001e:
 	case 0x7001e:
 	case 0x8001e:
