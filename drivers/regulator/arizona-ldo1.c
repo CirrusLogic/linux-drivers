@@ -276,6 +276,13 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* Note - we use 0 to mean invalid in pdata so that if it's not
+	 * explicitly set to a value we will ignore it. Convert this to an
+	 * invalid value before using it
+	 */
+	if (arizona->pdata.ldoena == 0)
+		arizona->pdata.ldoena = -1;
+
 	config.ena_gpio = arizona->pdata.ldoena;
 	config.ena_gpio_flags = GPIOF_OUT_INIT_LOW;
 
