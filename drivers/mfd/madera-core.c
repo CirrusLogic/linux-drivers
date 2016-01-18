@@ -233,9 +233,6 @@ static int madera_runtime_resume(struct device *dev)
 
 	dev_dbg(madera->dev, "Leaving sleep mode\n");
 
-	if (!madera->internal_dcvdd)
-		madera_enable_reset(madera);
-
 	ret = regulator_enable(madera->dcvdd);
 	if (ret) {
 		dev_err(madera->dev, "Failed to enable DCVDD: %d\n", ret);
@@ -244,9 +241,6 @@ static int madera_runtime_resume(struct device *dev)
 
 	regcache_cache_only(madera->regmap, false);
 	regcache_cache_only(madera->regmap_32bit, false);
-
-	if (!madera->internal_dcvdd)
-		madera_disable_reset(madera);
 
 	ret = madera_wait_for_boot(madera);
 	if (ret)
