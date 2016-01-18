@@ -33,9 +33,25 @@
 #include "wm5102.h"
 #include "wm_adsp.h"
 
+#define WM5102_NUM_ADSP 1
+
+#define WM5102_DEFAULT_FRAGMENTS       1
+#define WM5102_DEFAULT_FRAGMENT_SIZE   4096
+
+struct wm5102_compr {
+	struct mutex lock;
+
+	struct snd_compr_stream *stream;
+	struct wm_adsp *adsp;
+
+	size_t total_copied;
+	bool allocated;
+};
+
 struct wm5102_priv {
 	struct arizona_priv core;
 	struct arizona_fll fll[2];
+	struct wm5102_compr compr_info;
 
 	struct mutex fw_lock;
 };
@@ -1636,6 +1652,11 @@ static const struct snd_soc_dapm_route wm5102_dapm_routes[] = {
 	{ "Slim2 Capture", NULL, "SYSCLK" },
 	{ "Slim3 Capture", NULL, "SYSCLK" },
 
+	{ "Trace CPU", NULL, "Trace DSP" },
+	{ "Trace DSP", NULL, "DSP1" },
+	{ "Trace CPU", NULL, "SYSCLK" },
+	{ "Trace DSP", NULL, "SYSCLK" },
+
 	{ "IN1L PGA", NULL, "IN1L" },
 	{ "IN1R PGA", NULL, "IN1R" },
 
@@ -1902,17 +1923,241 @@ static struct snd_soc_dai_driver wm5102_dai[] = {
 		 },
 		.ops = &arizona_simple_dai_ops,
 	},
+	{
+		.name = "wm5102-cpu-trace",
+		.capture = {
+			.stream_name = "Trace CPU",
+			.channels_min = 2,
+			.channels_max = 8,
+			.rates = WM5102_RATES,
+			.formats = WM5102_FORMATS,
+		},
+		.compress_dai = 1,
+	},
+	{
+		.name = "wm5102-dsp-trace",
+		.capture = {
+			.stream_name = "Trace DSP",
+			.channels_min = 2,
+			.channels_max = 8,
+			.rates = WM5102_RATES,
+			.formats = WM5102_FORMATS,
+		},
+	},
 };
 
 static irqreturn_t adsp2_irq(int irq, void *data)
 {
 	struct wm5102_priv *wm5102 = data;
+	int ret, avail;
+
+	mutex_lock(&wm5102->compr_info.lock);
 
 	if (wm5102->core.arizona->pdata.ez2ctrl_trigger &&
 	    wm5102->core.adsp[0].fw_features.ez2control_trigger)
 		wm5102->core.arizona->pdata.ez2ctrl_trigger();
 
+	if (!wm5102->compr_info.allocated)
+		goto out;
+
+	ret = wm_adsp_stream_handle_irq(wm5102->compr_info.adsp);
+	if (ret < 0) {
+		dev_err(wm5102->core.arizona->dev,
+			"Failed to capture DSP data: %d\n",
+			ret);
+		goto out;
+	}
+
+	wm5102->compr_info.total_copied += ret;
+
+	avail = wm_adsp_stream_avail(wm5102->compr_info.adsp);
+	if (avail > WM5102_DEFAULT_FRAGMENT_SIZE)
+		snd_compr_fragment_elapsed(wm5102->compr_info.stream);
+
+out:
+	mutex_unlock(&wm5102->compr_info.lock);
+
 	return IRQ_HANDLED;
+}
+
+static int wm5102_open(struct snd_compr_stream *stream)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct wm5102_priv *wm5102 = snd_soc_codec_get_drvdata(rtd->codec);
+	struct arizona *arizona = wm5102->core.arizona;
+	int n_adsp, ret = 0;
+
+	mutex_lock(&wm5102->compr_info.lock);
+
+	if (wm5102->compr_info.stream) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	if (strcmp(rtd->codec_dai->name, "wm5102-dsp-trace") == 0) {
+		n_adsp = 0;
+	} else {
+		dev_err(arizona->dev,
+			"No suitable compressed stream for dai '%s'\n",
+			rtd->codec_dai->name);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (!wm_adsp_compress_supported(&wm5102->core.adsp[n_adsp], stream)) {
+		dev_err(arizona->dev,
+			"No suitable firmware for compressed stream\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	wm5102->compr_info.adsp = &wm5102->core.adsp[n_adsp];
+	wm5102->compr_info.stream = stream;
+out:
+	mutex_unlock(&wm5102->compr_info.lock);
+
+	return ret;
+}
+
+static int wm5102_free(struct snd_compr_stream *stream)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct wm5102_priv *wm5102 = snd_soc_codec_get_drvdata(rtd->codec);
+
+	mutex_lock(&wm5102->compr_info.lock);
+
+	wm5102->compr_info.allocated = false;
+	wm5102->compr_info.stream = NULL;
+	wm5102->compr_info.total_copied = 0;
+
+	wm_adsp_stream_free(wm5102->compr_info.adsp);
+
+	mutex_unlock(&wm5102->compr_info.lock);
+
+	return 0;
+}
+
+static int wm5102_set_params(struct snd_compr_stream *stream,
+			     struct snd_compr_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct wm5102_priv *wm5102 = snd_soc_codec_get_drvdata(rtd->codec);
+	struct arizona *arizona = wm5102->core.arizona;
+	struct wm5102_compr *compr = &wm5102->compr_info;
+	int ret = 0;
+
+	mutex_lock(&compr->lock);
+
+	if (!wm_adsp_format_supported(compr->adsp, stream, params)) {
+		dev_err(arizona->dev,
+			"Invalid params: id:%u, chan:%u,%u, rate:%u format:%u\n",
+			params->codec.id, params->codec.ch_in,
+			params->codec.ch_out, params->codec.sample_rate,
+			params->codec.format);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = wm_adsp_stream_alloc(compr->adsp, params);
+	if (ret == 0)
+		compr->allocated = true;
+
+out:
+	mutex_unlock(&compr->lock);
+
+	return ret;
+}
+
+static int wm5102_get_params(struct snd_compr_stream *stream,
+			     struct snd_codec *params)
+{
+	return 0;
+}
+
+static int wm5102_trigger(struct snd_compr_stream *stream, int cmd)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct wm5102_priv *wm5102 = snd_soc_codec_get_drvdata(rtd->codec);
+	int ret = 0;
+
+	mutex_lock(&wm5102->compr_info.lock);
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+		ret = wm_adsp_stream_start(wm5102->compr_info.adsp);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	mutex_unlock(&wm5102->compr_info.lock);
+
+	return ret;
+}
+
+static int wm5102_pointer(struct snd_compr_stream *stream,
+			  struct snd_compr_tstamp *tstamp)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct wm5102_priv *wm5102 = snd_soc_codec_get_drvdata(rtd->codec);
+
+	mutex_lock(&wm5102->compr_info.lock);
+	tstamp->byte_offset = 0;
+	tstamp->copied_total = wm5102->compr_info.total_copied;
+	mutex_unlock(&wm5102->compr_info.lock);
+
+	return 0;
+}
+
+static int wm5102_copy(struct snd_compr_stream *stream, char __user *buf,
+		       size_t count)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct wm5102_priv *wm5102 = snd_soc_codec_get_drvdata(rtd->codec);
+	int ret;
+
+	mutex_lock(&wm5102->compr_info.lock);
+
+	if (stream->direction == SND_COMPRESS_PLAYBACK)
+		ret = -EINVAL;
+	else
+		ret = wm_adsp_stream_read(wm5102->compr_info.adsp, buf, count);
+
+	mutex_unlock(&wm5102->compr_info.lock);
+
+	return ret;
+}
+
+static int wm5102_get_caps(struct snd_compr_stream *stream,
+			   struct snd_compr_caps *caps)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct wm5102_priv *wm5102 = snd_soc_codec_get_drvdata(rtd->codec);
+
+	mutex_lock(&wm5102->compr_info.lock);
+
+	memset(caps, 0, sizeof(*caps));
+
+	caps->direction = stream->direction;
+	caps->min_fragment_size = WM5102_DEFAULT_FRAGMENT_SIZE;
+	caps->max_fragment_size = WM5102_DEFAULT_FRAGMENT_SIZE;
+	caps->min_fragments = WM5102_DEFAULT_FRAGMENTS;
+	caps->max_fragments = WM5102_DEFAULT_FRAGMENTS;
+
+	wm_adsp_get_caps(wm5102->compr_info.adsp, stream, caps);
+
+	mutex_unlock(&wm5102->compr_info.lock);
+
+	return 0;
+}
+
+static int wm5102_get_codec_caps(struct snd_compr_stream *stream,
+				 struct snd_compr_codec_caps *codec)
+{
+	return 0;
 }
 
 static int wm5102_codec_probe(struct snd_soc_codec *codec)
@@ -2017,6 +2262,22 @@ static struct snd_soc_codec_driver soc_codec_dev_wm5102 = {
 	.num_dapm_routes = ARRAY_SIZE(wm5102_dapm_routes),
 };
 
+static struct snd_compr_ops wm5102_compr_ops = {
+	.open = wm5102_open,
+	.free = wm5102_free,
+	.set_params = wm5102_set_params,
+	.get_params = wm5102_get_params,
+	.trigger = wm5102_trigger,
+	.pointer = wm5102_pointer,
+	.copy = wm5102_copy,
+	.get_caps = wm5102_get_caps,
+	.get_codec_caps = wm5102_get_codec_caps,
+};
+
+static struct snd_soc_platform_driver wm5102_compr_platform = {
+	.compr_ops = &wm5102_compr_ops,
+};
+
 static int wm5102_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
@@ -2033,6 +2294,7 @@ static int wm5102_probe(struct platform_device *pdev)
 	 * locate regulator supplies */
 	pdev->dev.of_node = arizona->dev->of_node;
 
+	mutex_init(&wm5102->compr_info.lock);
 	mutex_init(&wm5102->fw_lock);
 
 	wm5102->core.arizona = arizona;
@@ -2082,14 +2344,42 @@ static int wm5102_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
-	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm5102,
+	ret = snd_soc_register_platform(&pdev->dev, &wm5102_compr_platform);
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"Failed to register platform: %d\n",
+			ret);
+		goto error;
+	}
+
+	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm5102,
 				      wm5102_dai, ARRAY_SIZE(wm5102_dai));
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"Failed to register codec: %d\n",
+			ret);
+		snd_soc_unregister_platform(&pdev->dev);
+		goto error;
+	}
+
+	return ret;
+
+error:
+	mutex_destroy(&wm5102->compr_info.lock);
+	mutex_destroy(&wm5102->fw_lock);
+
+	return ret;
 }
 
 static int wm5102_remove(struct platform_device *pdev)
 {
+	struct wm5102_priv *wm5102 = platform_get_drvdata(pdev);
+
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	mutex_destroy(&wm5102->compr_info.lock);
+	mutex_destroy(&wm5102->fw_lock);
 
 	return 0;
 }
