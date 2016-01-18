@@ -158,13 +158,13 @@ static int madera_ldo1_probe(struct platform_device *pdev)
 	if (madera->pdata.ldoena == 0)
 		madera->pdata.ldoena = -1;
 
+	if (madera->pdata.ldo1)
+		ldo1->init_data = *madera->pdata.ldo1;
+
 	config.ena_gpio = madera->pdata.ldoena;
 	config.ena_gpio_flags = GPIOF_OUT_INIT_LOW;
 
-	if (madera->pdata.ldo1)
-		config.init_data = madera->pdata.ldo1;
-	else
-		config.init_data = &ldo1->init_data;
+	config.init_data = &ldo1->init_data;
 
 	/*
 	 * LDO1 can only be used to supply DCVDD so if it has no
