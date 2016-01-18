@@ -152,6 +152,12 @@ static int madera_ldo1_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* pdata entries default to 0 if not explicitly set. If the
+	 * value is 0 this means 'undefined'
+	 */
+	if (madera->pdata.ldoena == 0)
+		madera->pdata.ldoena = -1;
+
 	config.ena_gpio = madera->pdata.ldoena;
 	config.ena_gpio_flags = GPIOF_OUT_INIT_LOW;
 
