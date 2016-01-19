@@ -214,15 +214,15 @@ static int cs35l33_spkrdrv_event(struct snd_soc_dapm_widget *w,
 			priv->amp_cal = true;
 			snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
 				    AMP_CAL, 0);
-			dev_dbg(w->codec->dev, "amp calibration done\n");
+			dev_dbg(w->codec->dev, "Amp calibration done\n");
 		}
-		dev_info(w->codec->dev, "amp turned On\n");
+		dev_info(w->codec->dev, "Amp turned on\n");
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		dev_info(w->codec->dev, "amp turned Off\n");
+		dev_info(w->codec->dev, "Amp turned off\n");
 		break;
 	default:
-		pr_err("Invalid event = 0x%x\n", event);
+		dev_err(w->codec->dev, "Invalid event = 0x%x\n", event);
 		break;
 	}
 
@@ -243,14 +243,14 @@ static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
 		val = priv->is_tdm_mode ? 0 : PDN_TDM;
 		snd_soc_update_bits(codec, CS35L33_PWRCTL2,
 				    PDN_TDM, val);
-		dev_info(w->codec->dev, "bst turned On\n");
+		dev_info(w->codec->dev, "BST turned on\n");
 		break;
 	case SND_SOC_DAPM_POST_PMU:
-		dev_info(w->codec->dev, "sdin turned On\n");
+		dev_info(w->codec->dev, "SDIN turned on\n");
 		if (!priv->amp_cal) {
 			snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
 				    AMP_CAL, AMP_CAL);
-			dev_dbg(w->codec->dev, "amp calibration started\n");
+			dev_dbg(w->codec->dev, "Amp calibration started\n");
 		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
@@ -258,10 +258,10 @@ static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
 				    PDN_BST, PDN_BST);
 		snd_soc_update_bits(codec, CS35L33_PWRCTL2,
 				    PDN_TDM, PDN_TDM);
-		dev_info(w->codec->dev, "bst and sdin turned Off\n");
+		dev_info(w->codec->dev, "BST and SDIN turned off\n");
 		break;
 	default:
-		pr_err("Invalid event = 0x%x\n", event);
+		dev_err(w->codec->dev, "Invalid event = 0x%x\n", event);
 
 	}
 
@@ -291,15 +291,15 @@ static int cs35l33_sdout_event(struct snd_soc_dapm_widget *w,
 			/* set sdout_3st_tdm */
 			mask2 = val2 = SDOUT_3ST_TDM;
 		}
-		dev_info(w->codec->dev, "sdout turned On\n");
+		dev_info(w->codec->dev, "SDOUT turned on\n");
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		mask = val = (SDOUT_3ST_I2S | PDN_TDM);
 		mask2 = val2 = SDOUT_3ST_TDM;
-		dev_info(w->codec->dev, "sdout turned Off\n");
+		dev_info(w->codec->dev, "SDOUT turned off\n");
 		break;
 	default:
-		pr_err("Invalid event = 0x%x\n", event);
+		dev_err(w->codec->dev, "Invalid event = 0x%x\n", event);
 		return 0;
 	}
 
@@ -375,7 +375,6 @@ static int cs35l33_set_bias_level(struct snd_soc_codec *codec,
 				    PDN_ALL, 0);
 		snd_soc_update_bits(codec, CS35L33_CLK_CTL,
 				    MCLKDIS, 0);
-		dev_dbg(codec->dev, "take amp out of standby\n");
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		snd_soc_update_bits(codec, CS35L33_PWRCTL1,
@@ -385,14 +384,15 @@ static int cs35l33_set_bias_level(struct snd_soc_codec *codec,
 			snd_soc_update_bits(codec, CS35L33_CLK_CTL,
 					    MCLKDIS, MCLKDIS);
 		}
-		dev_dbg(codec->dev, "put amp in standby\n");
 		break;
 	case SND_SOC_BIAS_OFF:
 		break;
 	default:
 		return -EINVAL;
 	}
+
 	codec->dapm.bias_level = level;
+
 	return 0;
 }
 
@@ -452,12 +452,12 @@ static int cs35l33_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_CBM_CFM:
 		snd_soc_update_bits(codec, CS35L33_ADSP_CTL,
 				    MS_MASK, MS_MASK);
-		dev_dbg(codec->dev, "audio port in master mode\n");
+		dev_dbg(codec->dev, "Audio port in master mode\n");
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
 		snd_soc_update_bits(codec, CS35L33_ADSP_CTL,
 				    MS_MASK, 0);
-		dev_dbg(codec->dev, "audio port in slave mode\n");
+		dev_dbg(codec->dev, "Audio port in slave mode\n");
 		break;
 	default:
 		return -EINVAL;
@@ -468,11 +468,11 @@ static int cs35l33_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		/* tdm mode in cs35l33 resembles dsp-a mode very
 		closely, it is dsp-a with fsync shifted left by half bclk */
 		priv->is_tdm_mode = true;
-		dev_dbg(codec->dev, "audio port in tdm mode\n");
+		dev_dbg(codec->dev, "Audio port in TDM mode\n");
 		break;
 	case SND_SOC_DAIFMT_I2S:
 		priv->is_tdm_mode = false;
-		dev_dbg(codec->dev, "audio port in i2s mode\n");
+		dev_dbg(codec->dev, "Audio port in I2S mode\n");
 		break;
 	default:
 		return -EINVAL;
@@ -662,8 +662,7 @@ static int cs35l33_codec_set_sysclk(struct snd_soc_codec *codec,
 		return -EINVAL;
 	}
 
-	dev_dbg(codec->dev,
-		"external mclk freq=%d, internal mclk freq=%d\n",
+	dev_dbg(codec->dev, "external mclk freq=%d, internal mclk freq=%d\n",
 		freq, cs35l33->mclk_int);
 
 	return 0;
@@ -722,14 +721,14 @@ int cs35l33_set_hg_data(struct snd_soc_codec *codec,
 			LDO_ENTRY_DELAY_MASK,
 			hg_config->ldo_entry_delay << LDO_ENTRY_DELAY_SHIFT);
 		if (hg_config->vp_hg_auto) {
+			dev_info(codec->dev,
+				"H/G algorithm (with auto VP tracking) controls the amplifier voltage\n");
 			snd_soc_update_bits(codec, CS35L33_HG_EN,
 				VP_HG_AUTO_MASK,
 				VP_HG_AUTO_MASK);
 			snd_soc_dapm_add_routes(&codec->dapm,
 				cs35l33_vphg_auto_route,
 				ARRAY_SIZE(cs35l33_vphg_auto_route));
-			dev_info(codec->dev,
-				"H/G algorithm (with auto vp tracking) controls the amplifier voltage\n");
 		} else {
 			dev_info(codec->dev, "H/G algorithm controls the amplifier voltage\n");
 		}
@@ -858,6 +857,9 @@ static int cs35l33_runtime_resume(struct device *dev)
 	struct cs35l33_private *cs35l33 = dev_get_drvdata(dev);
 	int ret;
 
+	dev_dbg(cs35l33->codec->dev,
+		"Turn on regulator supplies and disable cache only mode\n");
+
 	if (cs35l33->pdata.gpio_nreset > 0)
 		gpio_set_value_cansleep(cs35l33->pdata.gpio_nreset, 0);
 
@@ -882,9 +884,6 @@ static int cs35l33_runtime_resume(struct device *dev)
 		goto err;
 	}
 
-	dev_dbg(cs35l33->codec->dev,
-		"turn On regulator supplies and disable cache only mode\n");
-
 	return 0;
 
 err:
@@ -899,6 +898,9 @@ static int cs35l33_runtime_suspend(struct device *dev)
 {
 	struct cs35l33_private *cs35l33 = dev_get_drvdata(dev);
 
+	dev_dbg(cs35l33->dev,
+		"Turn off regulator supplies and enable cache only mode\n");
+
 	/* redo the calibration in next power up */
 	cs35l33->amp_cal = false;
 
@@ -906,9 +908,6 @@ static int cs35l33_runtime_suspend(struct device *dev)
 	regcache_mark_dirty(cs35l33->regmap);
 	regulator_bulk_disable(cs35l33->num_core_supplies,
 		cs35l33->core_supplies);
-
-	dev_dbg(cs35l33->dev,
-		"turn Off regulator supplies and enable cache only mode\n");
 
 	return 0;
 }
@@ -964,7 +963,7 @@ static irqreturn_t cs35l33_irq_thread(int irq, void *data)
 	bool poll = false;
 
 	do {
-		dev_dbg(codec->dev, "t-bone irq received\n");
+		dev_dbg(codec->dev, "IRQ received\n");
 
 		if (cs35l33->pdata.gpio_irq > 0) {
 			if (gpio_get_value_cansleep(cs35l33->pdata.gpio_irq))
@@ -984,10 +983,10 @@ static irqreturn_t cs35l33_irq_thread(int irq, void *data)
 
 		if (sticky_val & AMP_SHORT) {
 			dev_err(codec->dev,
-				"t-bone entering speaker safe mode on amp short error\n");
+				"Entering speaker safe mode on short\n");
 			if (!(current_val & AMP_SHORT)) {
 				dev_dbg(codec->dev,
-					"t-bone - executing amp short error release sequence\n");
+					"Executing short release\n");
 				regmap_update_bits(cs35l33->regmap,
 					CS35L33_AMP_CTL, AMP_SHORT_RLS, 0);
 				regmap_update_bits(cs35l33->regmap,
@@ -1000,14 +999,14 @@ static irqreturn_t cs35l33_irq_thread(int irq, void *data)
 
 		if (sticky_val & CAL_ERR) {
 			dev_err(codec->dev,
-				"t-bone entering speaker safe mode on cal error\n");
+				"Entering speaker safe mode on cal error\n");
 
 			/* redo the calibration in next power up */
 			cs35l33->amp_cal = false;
 
 			if (!(current_val & CAL_ERR)) {
 				dev_dbg(codec->dev,
-					"t-bone - executing cal error release sequence\n");
+					"Executing cal error release\n");
 				regmap_update_bits(cs35l33->regmap,
 					CS35L33_AMP_CTL, CAL_ERR_RLS, 0);
 				regmap_update_bits(cs35l33->regmap,
@@ -1020,10 +1019,10 @@ static irqreturn_t cs35l33_irq_thread(int irq, void *data)
 
 		if (sticky_val & OTE) {
 			dev_err(codec->dev,
-				"t-bone entering speaker safe mode on over tempreature error\n");
+				"Entering speaker safe mode on temp error\n");
 			if (!(current_val & OTE)) {
 				dev_dbg(codec->dev,
-					"t-bone - executing over tempreature release sequence\n");
+					"Executing temp error release\n");
 				regmap_update_bits(cs35l33->regmap,
 					CS35L33_AMP_CTL, OTE_RLS, 0);
 				regmap_update_bits(cs35l33->regmap,
@@ -1035,10 +1034,10 @@ static irqreturn_t cs35l33_irq_thread(int irq, void *data)
 
 		if (sticky_val & OTW) {
 			dev_err(codec->dev,
-				"t-bone entering speaker safe mode on over tempreature warning\n");
+				"Entering speaker safe mode on temp warning\n");
 			if (!(current_val & OTW)) {
 				dev_dbg(codec->dev,
-					"t-bone - executing over tempreature warning sequence\n");
+					"Executing temp warning sequence\n");
 				regmap_update_bits(cs35l33->regmap,
 					CS35L33_AMP_CTL, OTW_RLS, 0);
 				regmap_update_bits(cs35l33->regmap,
@@ -1050,7 +1049,7 @@ static irqreturn_t cs35l33_irq_thread(int irq, void *data)
 
 		if (sticky_val & ALIVE_ERR)
 			dev_err(codec->dev,
-				"t-bone entering speaker safe mode on alive error\n");
+				"Entering speaker safe mode on alive error\n");
 	} while (poll);
 
 	return IRQ_HANDLED;
@@ -1106,7 +1105,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 				     sizeof(struct cs35l33_pdata),
 				GFP_KERNEL);
 		if (!pdata) {
-			dev_err(&i2c_client->dev, "could not allocate pdata\n");
+			dev_err(&i2c_client->dev, "Could not allocate pdata\n");
 			return -ENOMEM;
 		}
 		if (i2c_client->dev.of_node) {
@@ -1146,9 +1145,10 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 
 	if (pdata->gpio_irq > 0) {
 		if (gpio_to_irq(pdata->gpio_irq) != pdata->irq) {
-			dev_err(&i2c_client->dev, "IRQ %d is not GPIO %d (%d)\n",
-				 pdata->irq, pdata->gpio_irq,
-				 gpio_to_irq(pdata->gpio_irq));
+			dev_err(&i2c_client->dev,
+				"IRQ %d is not GPIO %d (%d)\n",
+				pdata->irq, pdata->gpio_irq,
+				gpio_to_irq(pdata->gpio_irq));
 			pdata->irq = gpio_to_irq(pdata->gpio_irq);
 		}
 
@@ -1156,7 +1156,8 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 						pdata->gpio_irq,
 						GPIOF_IN, "cs35l33 IRQ");
 		if (ret != 0) {
-			dev_err(&i2c_client->dev, "Failed to request IRQ GPIO %d:: %d\n",
+			dev_err(&i2c_client->dev,
+				"Failed to request IRQ GPIO %d:: %d\n",
 				pdata->gpio_irq, ret);
 			pdata->gpio_irq = 0;
 		}
@@ -1165,7 +1166,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 	ret = request_threaded_irq(pdata->irq, NULL, cs35l33_irq_thread,
 			IRQF_ONESHOT | IRQF_TRIGGER_LOW, "cs35l33", cs35l33);
 	if (ret != 0)
-		dev_err(&i2c_client->dev, "Failed to request irq\n");
+		dev_err(&i2c_client->dev, "Failed to request IRQ\n");
 
 	/* We could issue !RST or skip it based on AMP topology */
 	if (cs35l33->pdata.gpio_nreset > 0) {
@@ -1183,7 +1184,8 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 	ret = regulator_bulk_enable(cs35l33->num_core_supplies,
 					cs35l33->core_supplies);
 	if (ret != 0) {
-		dev_err(&i2c_client->dev, "Failed to enable core supplies: %d\n",
+		dev_err(&i2c_client->dev,
+			"Failed to enable core supplies: %d\n",
 			ret);
 		goto err_regmap;
 	}
