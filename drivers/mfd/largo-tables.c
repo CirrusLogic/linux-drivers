@@ -297,6 +297,7 @@ static const struct reg_default largo_reg_default[] = {
 	{ 0x00000502, 0x0000 },    /* R1282  - AIF1 Rx Pin Ctrl */
 	{ 0x00000503, 0x0000 },    /* R1283  - AIF1 Rate Ctrl */
 	{ 0x00000504, 0x0000 },    /* R1284  - AIF1 Format */
+	{ 0x00000505, 0x0040 },    /* R1285  - AIF1 Tx BCLK Rate */
 	{ 0x00000506, 0x0040 },    /* R1286  - AIF1 Rx BCLK Rate */
 	{ 0x00000507, 0x1818 },    /* R1287  - AIF1 Frame Ctrl 1 */
 	{ 0x00000508, 0x1818 },    /* R1288  - AIF1 Frame Ctrl 2 */
@@ -931,6 +932,7 @@ static bool largo_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_AIF1_RX_PIN_CTRL:
 	case ARIZONA_AIF1_RATE_CTRL:
 	case ARIZONA_AIF1_FORMAT:
+	case ARIZONA_AIF1_TX_BCLK_RATE:
 	case ARIZONA_AIF1_RX_BCLK_RATE:
 	case ARIZONA_AIF1_FRAME_CTRL_1:
 	case ARIZONA_AIF1_FRAME_CTRL_2:
