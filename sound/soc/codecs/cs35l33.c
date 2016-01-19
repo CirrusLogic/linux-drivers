@@ -50,6 +50,7 @@ struct  cs35l33_private {
 	struct regulator_bulk_data core_supplies[2];
 	int num_core_supplies;
 	bool is_tdm_mode;
+	bool enable_soft_ramp;
 };
 
 static const struct reg_default cs35l33_reg[] = {
@@ -778,7 +779,7 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 		snd_soc_write(codec, CS35L33_BST_PEAK_CTL,
 			cs35l33->pdata.boost_ipk);
 
-	if (cs35l33->pdata.enable_soft_ramp) {
+	if (cs35l33->enable_soft_ramp) {
 		snd_soc_update_bits(codec, CS35L33_DAC_CTL,
 			DIGSFT, DIGSFT);
 		snd_soc_update_bits(codec, CS35L33_DAC_CTL,
@@ -1121,9 +1122,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 			if (of_property_read_u32(i2c_client->dev.of_node,
 				"ramp-rate", &val32) >= 0) {
 				pdata->ramp_rate = val32;
-				cs35l33->pdata.enable_soft_ramp = true;
-			} else {
-				cs35l33->pdata.enable_soft_ramp = false;
+				cs35l33->enable_soft_ramp = true;
 			}
 
 			pdata->gpio_nreset = of_get_named_gpio(
