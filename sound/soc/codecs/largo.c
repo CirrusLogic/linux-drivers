@@ -1507,6 +1507,10 @@ static int largo_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	largo_destroy_compr_info(largo);
+
+	wm_adsp2_remove(&largo->core.adsp[1]);
+	wm_adsp2_remove(&largo->core.adsp[2]);
+
 	mutex_destroy(&largo->fw_lock);
 
 	return 0;

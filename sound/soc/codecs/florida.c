@@ -2579,12 +2579,17 @@ error:
 static int florida_remove(struct platform_device *pdev)
 {
 	struct florida_priv *florida = platform_get_drvdata(pdev);
+	int i;
 
 	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	florida_destroy_compr_info(florida);
+
+	for (i = 0; i < FLORIDA_NUM_ADSP; i++)
+		wm_adsp2_remove(&florida->core.adsp[i]);
+
 	mutex_destroy(&florida->fw_lock);
 
 	return 0;

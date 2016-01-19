@@ -3090,12 +3090,17 @@ error:
 static int moon_remove(struct platform_device *pdev)
 {
 	struct moon_priv *moon = platform_get_drvdata(pdev);
+	int i;
 
 	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	moon_destroy_compr_info(moon);
+
+	for (i = 0; i < MOON_NUM_ADSP; i++)
+		wm_adsp2_remove(&moon->core.adsp[i]);
+
 	mutex_destroy(&moon->fw_lock);
 
 	return 0;

@@ -2256,6 +2256,8 @@ static int wm5102_remove(struct platform_device *pdev)
 
 	wm5102_destroy_compr_info(wm5102);
 
+	wm_adsp2_remove(&wm5102->core.adsp[0]);
+
 	return 0;
 }
 
