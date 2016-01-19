@@ -1586,6 +1586,10 @@ static void arizona_hpdet_start_micd(struct arizona_extcon_info *info)
 {
 	struct arizona *arizona = info->arizona;
 
+	regmap_update_bits(arizona->regmap, CLEARWATER_IRQ1_MASK_6,
+			   CLEARWATER_IM_MICDET_EINT1,
+			   CLEARWATER_IM_MICDET_EINT1);
+
 	regmap_update_bits(arizona->regmap, MOON_MIC_DETECT_0,
 			   MOON_MICD1_ADC_MODE_MASK,
 			   MOON_MICD1_ADC_MODE_MASK);
@@ -1618,6 +1622,14 @@ static void arizona_hpdet_stop_micd(struct arizona_extcon_info *info)
 			   start_time << ARIZONA_MICD_BIAS_STARTTIME_SHIFT |
 			   rate << ARIZONA_MICD_RATE_SHIFT |
 			   dbtime << ARIZONA_MICD_DBTIME_SHIFT);
+
+	udelay(100);
+
+	/* Clear any spurious IRQs that have happened */
+	regmap_write(arizona->regmap, CLEARWATER_IRQ1_STATUS_6,
+		     CLEARWATER_MICDET_EINT1);
+	regmap_update_bits(arizona->regmap, CLEARWATER_IRQ1_MASK_6,
+		     CLEARWATER_IM_MICDET_EINT1, 0);
 }
 
 int arizona_hpdet_start(struct arizona_extcon_info *info)
