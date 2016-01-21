@@ -268,7 +268,7 @@ static unsigned int arizona_get_max_micbias(struct arizona *arizona)
 			max_micbias = micbias_mv;
 	}
 
-	return (max_micbias * 1000);
+	return max_micbias * 1000;
 }
 
 static __devinit int arizona_micsupp_probe(struct platform_device *pdev)
