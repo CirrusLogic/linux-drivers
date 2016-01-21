@@ -3091,6 +3091,7 @@ static int moon_remove(struct platform_device *pdev)
 {
 	struct moon_priv *moon = platform_get_drvdata(pdev);
 
+	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
