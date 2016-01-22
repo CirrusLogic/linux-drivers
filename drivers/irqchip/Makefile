@@ -25,6 +25,16 @@ obj-$(CONFIG_ARM_VIC)			+= irq-vic.o
 obj-$(CONFIG_ATMEL_AIC_IRQ)		+= irq-atmel-aic-common.o irq-atmel-aic.o
 obj-$(CONFIG_ATMEL_AIC5_IRQ)	+= irq-atmel-aic-common.o irq-atmel-aic5.o
 obj-$(CONFIG_IMGPDC_IRQ)		+= irq-imgpdc.o
+obj-$(CONFIG_MADERA_IRQ)		+= irq-madera.o
+ifneq ($(CONFIG_MMADERA_IRQ_CS47L35),n)
+obj-$(CONFIG_MADERA_IRQ)		+= irq-madera-cs47l35.o
+endif
+ifneq ($(CONFIG_MMADERA_IRQ_CS47L85),n)
+obj-$(CONFIG_MADERA_IRQ)		+= irq-madera-cs47l85.o
+endif
+ifneq ($(CONFIG_MMADERA_IRQ_CS47L90),n)
+obj-$(CONFIG_MADERA_IRQ)		+= irq-madera-cs47l90.o
+endif
 obj-$(CONFIG_SIRF_IRQ)			+= irq-sirfsoc.o
 obj-$(CONFIG_RENESAS_INTC_IRQPIN)	+= irq-renesas-intc-irqpin.o
 obj-$(CONFIG_RENESAS_IRQC)		+= irq-renesas-irqc.o

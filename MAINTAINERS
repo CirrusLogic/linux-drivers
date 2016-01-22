@@ -2436,8 +2436,10 @@ T:	git https://github.com/CirrusLogic/linux-drivers.git
 W:	https://github.com/CirrusLogic/linux-drivers
 S:	Supported
 F:	Documentation/devicetree/bindings/mfd/madera.txt
+F:	Documentation/devicetree/bindings/interrupt-controller/cirrus,madera.txt
 F:	drivers/extcon/extcon-madera.c
 F:	drivers/gpio/gpio-madera.c
+F:	drivers/irqchip/irq-madera*
 F:	drivers/mfd/madera*
 F:	drivers/mfd/cs47l*
 F:	drivers/regulator/madera*.c
@@ -2447,6 +2449,7 @@ F:	include/linux/mfd/madera/
 F:	include/linux/extcon/extcon-madera*
 F:	include/linux/regulator/madera*
 F:	include/sound/madera-pdata.h
+F:	include/linux/irqchip/irq-madera*
 F:	sound/soc/codecs/madera.?
 F:	sound/soc/codecs/cs47l*
 
