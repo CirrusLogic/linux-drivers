@@ -3064,6 +3064,7 @@ static int cs47l90_remove(struct platform_device *pdev)
 {
 	struct cs47l90_priv *cs47l90 = platform_get_drvdata(pdev);
 
+	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
