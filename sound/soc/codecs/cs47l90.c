@@ -388,6 +388,10 @@ static int cs47l90_adsp_power_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+		ret = madera_set_adsp_clk(&cs47l90->core.adsp[w->shift], freq);
+		if (ret)
+			return ret;
+
 		if (w->shift == 5) {
 			mutex_lock(&cs47l90->compr_info.lock);
 			cs47l90->compr_info.trig = false;
