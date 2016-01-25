@@ -445,6 +445,8 @@ extern int madera_adsp_rate_put(struct snd_kcontrol *kcontrol,
 extern int madera_dspclk_ev(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol, int event);
 
+extern int madera_set_adsp_clk(struct wm_adsp *dsp, unsigned int freq);
+
 extern int madera_rate_put(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol);
 
@@ -495,10 +497,6 @@ extern int madera_init_inputs(struct snd_soc_codec *codec,
 			      const char * const *dmic_refs,
 			      int n_dmic_refs);
 extern int madera_init_outputs(struct snd_soc_codec *codec);
-
-extern int madera_adsp_power_ev(struct snd_soc_dapm_widget *w,
-				struct snd_kcontrol *kcontrol,
-				int event);
 
 extern int madera_init_dai(struct madera_priv *priv, int dai);
 

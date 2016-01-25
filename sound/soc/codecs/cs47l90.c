@@ -371,6 +371,16 @@ static int cs47l90_adsp_power_ev(struct snd_soc_dapm_widget *w,
 		return ret;
 	}
 
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		ret = madera_set_adsp_clk(&cs47l90->core.adsp[w->shift], freq);
+		if (ret)
+			return ret;
+		break;
+	default:
+		break;
+	}
+
 	return wm_adsp2_early_event(w, kcontrol, event, freq);
 }
 
