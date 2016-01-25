@@ -278,19 +278,19 @@ static const char * const clearwater_inmux_texts[] = {
 	"B",
 };
 
-static SOC_ENUM_SINGLE_DECL(clearwater_in1mux_enum,
-			    ARIZONA_ADC_DIGITAL_VOLUME_1L,
-			    ARIZONA_IN1L_SRC_SHIFT,
-			    clearwater_inmux_texts);
+static const SOC_ENUM_SINGLE_DECL(clearwater_in1mux_enum,
+				  ARIZONA_ADC_DIGITAL_VOLUME_1L,
+				  ARIZONA_IN1L_SRC_SHIFT,
+				  clearwater_inmux_texts);
 
-static SOC_ENUM_SINGLE_DECL(clearwater_in2muxl_enum,
-			    ARIZONA_ADC_DIGITAL_VOLUME_2L,
-			    ARIZONA_IN2L_SRC_SHIFT,
-			    clearwater_inmux_texts);
-static SOC_ENUM_SINGLE_DECL(clearwater_in2muxr_enum,
-			    ARIZONA_ADC_DIGITAL_VOLUME_2R,
-			    ARIZONA_IN2R_SRC_SHIFT,
-			    clearwater_inmux_texts);
+static const SOC_ENUM_SINGLE_DECL(clearwater_in2muxl_enum,
+				  ARIZONA_ADC_DIGITAL_VOLUME_2L,
+				  ARIZONA_IN2L_SRC_SHIFT,
+				  clearwater_inmux_texts);
+static const SOC_ENUM_SINGLE_DECL(clearwater_in2muxr_enum,
+				  ARIZONA_ADC_DIGITAL_VOLUME_2R,
+				  ARIZONA_IN2R_SRC_SHIFT,
+				  clearwater_inmux_texts);
 
 static const struct snd_kcontrol_new clearwater_in1mux =
 	SOC_DAPM_ENUM("IN1L Mux", clearwater_in1mux_enum);
