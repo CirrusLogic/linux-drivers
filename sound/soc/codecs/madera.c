@@ -814,7 +814,7 @@ static int madera_write_adsp_clk_setting(struct wm_adsp *dsp, unsigned int freq)
 	return ret;
 }
 
-static int madera_set_adsp_clk(struct wm_adsp *dsp, unsigned int freq)
+int madera_set_adsp_clk(struct wm_adsp *dsp, unsigned int freq)
 {
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(dsp->codec);
 	struct madera *madera = priv->madera;
@@ -871,39 +871,7 @@ out:
 	mutex_unlock(&priv->rate_lock);
 	return ret;
 }
-
-int madera_adsp_power_ev(struct snd_soc_dapm_widget *w,
-			 struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct wm_adsp *dsp = &priv->adsp[w->shift];
-	unsigned int freq;
-	int ret;
-
-	ret = regmap_read(priv->madera->regmap, MADERA_SYSTEM_CLOCK_1, &freq);
-	if (ret) {
-		dev_err(codec->dev,
-			"Failed to read SYSCLK state: %d\n", ret);
-		return -EIO;
-	}
-
-	freq = (freq & MADERA_SYSCLK_FREQ_MASK) >> MADERA_SYSCLK_FREQ_SHIFT;
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		/* We need to do some special handling of the DSP clock */
-		ret = madera_set_adsp_clk(dsp, freq);
-		if (ret)
-			return ret;
-		break;
-	default:
-		break;
-	}
-
-	return wm_adsp2_early_event(w, kcontrol, event, freq);
-}
-EXPORT_SYMBOL_GPL(madera_adsp_power_ev);
+EXPORT_SYMBOL_GPL(madera_set_adsp_clk);
 
 int madera_dspclk_ev(struct snd_soc_dapm_widget *w,
 		     struct snd_kcontrol *kcontrol, int event)
