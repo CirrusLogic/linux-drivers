@@ -4549,6 +4549,7 @@ int madera_frf_bytes_put(struct snd_kcontrol *kcontrol,
 	kfree(data);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(madera_frf_bytes_put);
 
 static bool madera_eq_filter_unstable(bool mode, __be16 _a, __be16 _b)
 {
