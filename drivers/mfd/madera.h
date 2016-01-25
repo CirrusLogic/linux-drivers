@@ -37,21 +37,18 @@ extern const struct regmap_config cs47l35_16bit_spi_regmap;
 extern const struct regmap_config cs47l35_32bit_spi_regmap;
 extern const struct regmap_config cs47l35_16bit_i2c_regmap;
 extern const struct regmap_config cs47l35_32bit_i2c_regmap;
-extern const struct regmap_irq_chip cs47l35_irq;
 extern int cs47l35_patch(struct madera *madera);
 
 extern const struct regmap_config cs47l85_16bit_spi_regmap;
 extern const struct regmap_config cs47l85_32bit_spi_regmap;
 extern const struct regmap_config cs47l85_16bit_i2c_regmap;
 extern const struct regmap_config cs47l85_32bit_i2c_regmap;
-extern const struct regmap_irq_chip cs47l85_irq;
 extern int cs47l85_patch(struct madera *madera);
 
 extern const struct regmap_config cs47l90_16bit_spi_regmap;
 extern const struct regmap_config cs47l90_32bit_spi_regmap;
 extern const struct regmap_config cs47l90_16bit_i2c_regmap;
 extern const struct regmap_config cs47l90_32bit_i2c_regmap;
-extern const struct regmap_irq_chip cs47l90_irq;
 extern int cs47l90_patch(struct madera *madera);
 
 #endif
