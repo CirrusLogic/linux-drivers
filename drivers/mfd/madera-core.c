@@ -716,10 +716,17 @@ int madera_dev_init(struct madera *madera)
 
 	switch (madera->type) {
 	case CS47L35:
-	case CS47L85:
 	case CS47L90:
 	case CS47L91:
+		break;
+	case CS47L85:
 	case WM1840:
+		ret = mfd_add_devices(madera->dev, -1, madera_ldo1_devs,
+			      ARRAY_SIZE(madera_ldo1_devs), NULL, 0, NULL);
+		if (ret != 0) {
+			dev_err(dev, "Failed to add LDO1 child: %d\n", ret);
+			return ret;
+		}
 		break;
 	default:
 		dev_err(madera->dev, "Unknown device type %d\n", madera->type);
