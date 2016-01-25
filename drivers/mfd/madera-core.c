@@ -11,7 +11,6 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
-#include <linux/interrupt.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -57,6 +56,7 @@ static const char * const cs47l35_supplies[] = {
 };
 
 static const struct mfd_cell cs47l35_devs[] = {
+	{ .name = "madera-irq" },
 	{ .name = "madera-micsupp" },
 	{ .name = "madera-extcon" },
 	{ .name = "madera-gpio" },
@@ -81,6 +81,7 @@ static const char * const cs47l85_supplies[] = {
 };
 
 static const struct mfd_cell cs47l85_devs[] = {
+	{ .name = "madera-irq" },
 	{ .name = "madera-micsupp" },
 	{ .name = "madera-extcon" },
 	{ .name = "madera-gpio" },
@@ -103,6 +104,7 @@ static const char * const cs47l90_supplies[] = {
 };
 
 static const struct mfd_cell cs47l90_devs[] = {
+	{ .name = "madera-irq" },
 	{ .name = "madera-micsupp" },
 	{ .name = "madera-extcon" },
 	{ .name = "madera-gpio" },
@@ -145,15 +147,6 @@ const struct of_device_id madera_of_match[] = {
 };
 EXPORT_SYMBOL_GPL(madera_of_match);
 #endif
-
-static irqreturn_t madera_boot_done(int irq, void *data)
-{
-	struct madera *madera = data;
-
-	dev_dbg(madera->dev, "Boot done\n");
-
-	return IRQ_HANDLED;
-}
 
 static int madera_poll_reg(struct madera *madera,
 			   int timeout, unsigned int reg,
@@ -339,68 +332,10 @@ static int madera_runtime_suspend(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_SLEEP
-static int madera_suspend_noirq(struct device *dev)
-{
-	struct madera *madera = dev_get_drvdata(dev);
-
-	dev_dbg(madera->dev, "Late suspend, reenabling IRQ\n");
-
-	if (madera->irq_sem) {
-		enable_irq(madera->irq);
-		madera->irq_sem = 0;
-	}
-
-	return 0;
-}
-
-static int madera_suspend(struct device *dev)
-{
-	struct madera *madera = dev_get_drvdata(dev);
-
-	dev_dbg(madera->dev, "Early suspend, disabling IRQ\n");
-
-	disable_irq(madera->irq);
-	madera->irq_sem = 1;
-
-	return 0;
-}
-
-static int madera_resume_noirq(struct device *dev)
-{
-	struct madera *madera = dev_get_drvdata(dev);
-
-	dev_dbg(madera->dev, "Early resume, disabling IRQ\n");
-	disable_irq(madera->irq);
-
-	madera->irq_sem = 1;
-
-	return 0;
-}
-
-static int madera_resume(struct device *dev)
-{
-	struct madera *madera = dev_get_drvdata(dev);
-
-	dev_dbg(madera->dev, "Late resume, reenabling IRQ\n");
-	if (madera->irq_sem) {
-		enable_irq(madera->irq);
-		madera->irq_sem = 0;
-	}
-
-	return 0;
-}
-#endif
-
 const struct dev_pm_ops madera_pm_ops = {
 	SET_RUNTIME_PM_OPS(madera_runtime_suspend,
 			   madera_runtime_resume,
 			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(madera_suspend, madera_resume)
-#ifdef CONFIG_PM_SLEEP
-	.suspend_noirq = madera_suspend_noirq,
-	.resume_noirq = madera_resume_noirq,
-#endif
 };
 EXPORT_SYMBOL_GPL(madera_pm_ops);
 
@@ -596,9 +531,6 @@ static int madera_of_get_core_pdata(struct madera *madera)
 
 	madera_of_read_uint(madera, "cirrus,clk32k-src", false,
 			    &pdata->clk32k_src);
-
-	madera_of_read_uint(madera, "cirrus,irq_flags", false,
-			    &pdata->irq_flags);
 
 	madera_of_get_micbias(madera, "cirrus,micbias1", 0);
 	madera_of_get_micbias(madera, "cirrus,micbias2", 1);
@@ -958,32 +890,17 @@ int madera_dev_init(struct madera *madera)
 
 	pm_runtime_set_active(madera->dev);
 	pm_runtime_enable(madera->dev);
-
-	ret = madera_irq_init(madera);
-	if (ret)
-		goto err_reset;
-
 	pm_runtime_set_autosuspend_delay(madera->dev, 100);
 	pm_runtime_use_autosuspend(madera->dev);
-
-	ret = madera_request_irq(madera, MADERA_IRQ_BOOT_DONE, "Boot done",
-				 madera_boot_done, madera);
-	if (ret) {
-		dev_err(madera->dev,
-			"Failed to request boot done: %d\n", ret);
-		goto err_reset;
-	}
 
 	ret = mfd_add_devices(madera->dev, -1, mfd_devs, n_devs, NULL, 0, NULL);
 	if (ret) {
 		dev_err(madera->dev, "Failed to add subdevices: %d\n", ret);
-		goto err_irq;
+		goto err_reset;
 	}
 
 	return 0;
 
-err_irq:
-	madera_irq_exit(madera);
 err_reset:
 	madera_enable_reset(madera);
 	regulator_disable(madera->dcvdd);
@@ -1009,8 +926,6 @@ int madera_dev_exit(struct madera *madera)
 	regulator_put(madera->dcvdd);
 
 	mfd_remove_devices(madera->dev);
-	madera_free_irq(madera, MADERA_IRQ_BOOT_DONE, madera);
-	madera_irq_exit(madera);
 	madera_enable_reset(madera);
 
 	regulator_bulk_disable(madera->num_core_supplies,

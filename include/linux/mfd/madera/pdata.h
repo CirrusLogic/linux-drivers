@@ -16,6 +16,7 @@
 #include <dt-bindings/mfd/madera.h>
 #include <linux/regulator/madera-ldo1.h>
 #include <linux/regulator/madera-micsupp.h>
+#include <linux/irqchip/irq-madera-pdata.h>
 #include <sound/madera-pdata.h>
 #include <linux/extcon/extcon-madera-pdata.h>
 
@@ -49,17 +50,14 @@ struct madera_pdata {
 	/** Substruct of pdata for the MICSUPP regulator */
 	struct madera_micsupp_pdata micsupp;
 
+	/** Substruct of pdata for the irqchip driver */
+	struct madera_irqchip_pdata irqchip;
+
 	/** If a direct 32kHz clock is provided on an MCLK specify it here */
 	unsigned int clk32k_src;
 
-	/** Mode for primary IRQ (defaults to active low) */
-	unsigned int irq_flags;
-
 	/** Base GPIO */
 	int gpio_base;
-
-	/** GPIO for primary IRQ (used for edge triggered emulation) */
-	int irq_gpio;
 
 	/** Pin state for GPIO pins
 	 * Defines default pin function and state for each GPIO. The values in

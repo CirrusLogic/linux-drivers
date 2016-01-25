@@ -6,6 +6,7 @@ of analogue I/O.
 See also the child driver bindings in:
 bindings/extcon/extcon-madera.txt
 bindings/gpio/gpio-madera.txt
+bindings/interrupt-controller/cirrus,madera.txt
 bindings/regulator/madera-ldo1.txt
 bindings/regulator/madera-micsupp.txt
 bindings/sound/madera.txt
@@ -22,19 +23,6 @@ Required properties:
 
   - reg : I2C slave address when connected using I2C, chip select number when
     using SPI.
-
-  - interrupts : The interrupt line the /IRQ signal for the device is
-    connected to.
-
-  - interrupt-controller : Madera class devices contain interrupt controllers
-    and may provide interrupt services to other devices.
-
-  - interrupt-parent : The parent interrupt controller.
-
-  - #interrupt-cells: the number of cells to describe an IRQ, this should be 2.
-    The first cell is the IRQ number.
-    The second cell is the flags, encoded as the trigger masks from
-    bindings/interrupts.txt
 
   - DCVDD-supply : Power supply for the device as defined in
     bindings/regulator/regulator.txt
@@ -88,10 +76,6 @@ Example:
 codec: cs47l85@0 {
 	compatible = "cirrus,cs47l85";
 	reg = <0>;
-	interrupts = <347>;
-	interrupt-controller;
-	#interrupt-cells = <2>;
-        interrupt-parent = <&gic>;
 
         cirrus,reset-gpios = <&gpio 0>;
 
