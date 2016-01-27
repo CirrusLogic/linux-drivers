@@ -1410,6 +1410,8 @@ static int largo_probe(struct platform_device *pdev)
 				= arizona->pdata.num_fw_defs[i];
 		}
 
+		largo->core.adsp[i].hpimp_cb = arizona_hpimp_cb;
+
 		ret = wm_adsp2_init(&largo->core.adsp[i], &largo->fw_lock);
 		if (ret != 0)
 			goto error;

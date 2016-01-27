@@ -2802,6 +2802,14 @@ int arizona_anc_ev(struct snd_soc_dapm_widget *w,
 }
 EXPORT_SYMBOL_GPL(arizona_anc_ev);
 
+unsigned int arizona_hpimp_cb(struct device *dev)
+{
+	struct arizona *arizona = dev_get_drvdata(dev);
+
+	return arizona->hp_impedance_x100;
+}
+EXPORT_SYMBOL_GPL(arizona_hpimp_cb);
+
 static int arizona_dvfs_enable(struct snd_soc_codec *codec)
 {
 	const struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);

@@ -2251,6 +2251,8 @@ static int marley_probe(struct platform_device *pdev)
 
 		marley->core.adsp[i].rate_put_cb = marley_adsp_rate_put_cb;
 
+		marley->core.adsp[i].hpimp_cb = arizona_hpimp_cb;
+
 		ret = wm_adsp2_init(&marley->core.adsp[i], &marley->fw_lock);
 		if (ret != 0)
 			return ret;

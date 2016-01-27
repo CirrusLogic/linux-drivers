@@ -3022,6 +3022,8 @@ static int moon_probe(struct platform_device *pdev)
 
 		moon->core.adsp[i].lock_regions = WM_ADSP2_REGION_1_9;
 
+		moon->core.adsp[i].hpimp_cb = arizona_hpimp_cb;
+
 		ret = wm_adsp2_init(&moon->core.adsp[i], &moon->fw_lock);
 		if (ret != 0)
 			return ret;

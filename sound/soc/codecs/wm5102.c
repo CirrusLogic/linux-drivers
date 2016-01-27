@@ -2190,6 +2190,8 @@ static int wm5102_probe(struct platform_device *pdev)
 			= arizona->pdata.num_fw_defs[0];
 	}
 
+	wm5102->core.adsp[0].hpimp_cb = arizona_hpimp_cb;
+
 	ret = wm_adsp2_init(&wm5102->core.adsp[0], &wm5102->fw_lock);
 	if (ret != 0)
 		return ret;

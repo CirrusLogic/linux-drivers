@@ -3057,6 +3057,8 @@ static int clearwater_probe(struct platform_device *pdev)
 		clearwater->core.adsp[i].rate_put_cb =
 					clearwater_adsp_rate_put_cb;
 
+		clearwater->core.adsp[i].hpimp_cb = arizona_hpimp_cb;
+
 		ret = wm_adsp2_init(&clearwater->core.adsp[i], &clearwater->fw_lock);
 		if (ret != 0)
 			return ret;

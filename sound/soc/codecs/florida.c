@@ -2517,6 +2517,8 @@ static int florida_probe(struct platform_device *pdev)
 				= arizona->pdata.num_fw_defs[i];
 		}
 
+		florida->core.adsp[i].hpimp_cb = arizona_hpimp_cb;
+
 		ret = wm_adsp2_init(&florida->core.adsp[i], &florida->fw_lock);
 		if (ret != 0)
 			goto error;
