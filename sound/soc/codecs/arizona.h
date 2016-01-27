@@ -364,6 +364,8 @@ extern int arizona_anc_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol,
 			  int event);
 
+extern unsigned int arizona_hpimp_cb(struct device *dev);
+
 extern int arizona_mux_put(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol);
 extern int arizona_mux_event(struct snd_soc_dapm_widget *w,
