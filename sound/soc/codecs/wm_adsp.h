@@ -167,6 +167,7 @@ struct wm_adsp {
 	char *bin_file_name;
 #endif
 
+	unsigned int (*hpimp_cb)(struct device *dev);
 };
 
 #define WM_ADSP1(wname, num) \

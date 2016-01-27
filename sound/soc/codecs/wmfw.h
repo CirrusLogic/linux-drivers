@@ -26,6 +26,11 @@
 #define WMFW_CTL_FLAG_WRITEABLE   0x0002
 #define WMFW_CTL_FLAG_READABLE    0x0001
 
+/* Non-ALSA coefficient types start at 0x1000 */
+#define WMFW_CTL_TYPE_HP_IMP      0x1003 /* headphone impedance */
+
+#define WMFW_CTL_HP_IMP_LEN                  4
+
 struct wmfw_header {
 	char magic[4];
 	__le32 len;
