@@ -167,6 +167,8 @@ struct wm_adsp {
 #endif
 
 	unsigned int lock_regions;
+
+	unsigned int (*hpimp_cb)(struct device *dev);
 };
 
 #define WM_ADSP1(wname, num) \
