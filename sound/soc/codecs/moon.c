@@ -2488,7 +2488,7 @@ static int moon_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	}
 }
 
-#define MOON_RATES SNDRV_PCM_RATE_8000_192000
+#define MOON_RATES SNDRV_PCM_RATE_KNOT
 
 #define MOON_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
