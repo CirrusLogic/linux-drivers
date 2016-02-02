@@ -109,6 +109,8 @@ struct wm_adsp_compr {
 	size_t copied_total;
 
 	struct snd_compr_stream *stream;
+
+	unsigned int sample_rate;
 };
 
 struct wm_adsp {
