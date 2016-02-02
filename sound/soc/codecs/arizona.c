@@ -4241,6 +4241,25 @@ static struct {
 	{ 1000000, 13500000, 0,  1 },
 };
 
+static const unsigned int pseudo_fref_max[ARIZONA_FLL_MAX_FRATIO] = {
+	13500000,
+	 6144000,
+	 6144000,
+	 3072000,
+	 3072000,
+	 2822400,
+	 2822400,
+	 1536000,
+	 1536000,
+	 1536000,
+	 1536000,
+	 1536000,
+	 1536000,
+	 1536000,
+	 1536000,
+	  768000,
+};
+
 struct arizona_fll_gain {
 	unsigned int min;
 	unsigned int max;
@@ -4401,16 +4420,32 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 	/* Adjust FRATIO/refdiv to avoid integer mode if possible */
 	refdiv = cfg->refdiv;
 
+	arizona_fll_dbg(fll, "pseudo: initial ratio=%u fref=%u refdiv=%u\n",
+			init_ratio, fref, refdiv);
+
 	while (div <= ARIZONA_FLL_MAX_REFDIV) {
 		for (ratio = init_ratio; ratio <= ARIZONA_FLL_MAX_FRATIO;
 		     ratio++) {
 			if ((ARIZONA_FLL_VCO_CORNER / 2) /
-			    (fll->vco_mult * ratio) < fref)
+			    (fll->vco_mult * ratio) < fref) {
+				arizona_fll_dbg(fll, "pseudo: hit VCO corner\n");
 				break;
+			}
+
+			if (fref > pseudo_fref_max[ratio - 1]) {
+				arizona_fll_dbg(fll,
+					"pseudo: exceeded max fref(%u) for ratio=%u\n",
+					pseudo_fref_max[ratio - 1],
+					ratio);
+				break;
+			}
 
 			if (fvco % (ratio * fref)) {
 				cfg->refdiv = refdiv;
 				cfg->fratio = ratio - 1;
+				arizona_fll_dbg(fll,
+					"pseudo: found fref=%u refdiv=%d(%d) ratio=%d\n",
+					fref, refdiv, div, ratio);
 				return ratio;
 			}
 		}
@@ -4419,6 +4454,9 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 			if (fvco % (ratio * fref)) {
 				cfg->refdiv = refdiv;
 				cfg->fratio = ratio - 1;
+				arizona_fll_dbg(fll,
+					"pseudo: found fref=%u refdiv=%d(%d) ratio=%d\n",
+					fref, refdiv, div, ratio);
 				return ratio;
 			}
 		}
@@ -4427,6 +4465,9 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 		fref /= 2;
 		refdiv++;
 		init_ratio = arizona_find_fratio(fll, fref, fvco, NULL, sync);
+		arizona_fll_dbg(fll,
+				"pseudo: change fref=%u refdiv=%d(%d) ratio=%u\n",
+				fref, refdiv, div, init_ratio);
 	}
 
 	arizona_fll_warn(fll, "Falling back to integer mode operation\n");
