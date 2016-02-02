@@ -236,7 +236,7 @@ static int marley_put_demux(struct snd_kcontrol *kcontrol,
 	unsigned int ep_sel, mux, change;
 	unsigned int mask;
 	int ret, demux_change_ret;
-	bool restore_out = true;
+	bool restore_out = true, out_mono;
 
 	if (ucontrol->value.enumerated.item[0] > e->max - 1)
 		return -EINVAL;
@@ -251,7 +251,8 @@ static int marley_put_demux(struct snd_kcontrol *kcontrol,
 	if (!change)
 		goto end;
 
-	/* EP_SEL should not be modified while HP or EP driver is enabled
+	/* EP_SEL and OUT1_MONO should not be modified while HP or EP driver
+	 * is enabled
 	 */
 	ret = regmap_update_bits(arizona->regmap,
 				 ARIZONA_OUTPUT_ENABLES_1,
@@ -282,9 +283,23 @@ static int marley_put_demux(struct snd_kcontrol *kcontrol,
 	demux_change_ret = regmap_update_bits(arizona->regmap,
 					      ARIZONA_OUTPUT_ENABLES_1,
 					      ARIZONA_EP_SEL, ep_sel);
-	if (demux_change_ret)
+	if (demux_change_ret) {
 		dev_err(arizona->dev, "Failed to set EP_SEL: %d\n",
 			demux_change_ret);
+	} else { /* provided the switch to HP/EP was successful, update output
+		    mode accordingly */
+		/* when switching to stereo headphone */
+		if (!ep_sel && !arizona->pdata.out_mono[0])
+			out_mono = false;
+		/* when switching to mono headphone, or any earpiece */
+		else
+			out_mono = true;
+
+		ret = arizona_set_output_mode(codec, 1, out_mono);
+		if (ret < 0)
+			dev_warn(arizona->dev,
+				 "Failed to set output mode: %d\n", ret);
+	}
 
 	/* restore outputs to the desired state, or keep them disabled provided
 	 * condition [1] arose
