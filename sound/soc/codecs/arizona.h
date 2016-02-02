@@ -430,8 +430,8 @@ struct arizona_fll {
 	unsigned int sync_freq;
 	int ref_src;
 	unsigned int ref_freq;
+
 	struct arizona_fll_cfg ref_cfg;
-	struct arizona_fll_cfg sync_cfg;
 };
 
 extern int arizona_dvfs_up(struct snd_soc_codec *codec, unsigned int flags);
