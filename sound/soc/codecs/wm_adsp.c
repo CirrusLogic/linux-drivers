@@ -3077,6 +3077,7 @@ int wm_adsp_compr_free(struct snd_compr_stream *stream)
 	}
 
 	compr->copied_total = 0;
+	compr->sample_rate = 0;
 
 	stream->runtime->private_data = NULL;
 
@@ -3173,6 +3174,8 @@ int wm_adsp_compr_set_params(struct snd_compr_stream *stream,
 		return ret;
 
 	ret = wm_adsp_streambuf_alloc(compr, params);
+
+	compr->sample_rate = params->codec.sample_rate;
 
 	return ret;
 }
@@ -3640,6 +3643,7 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 
 	tstamp->copied_total = compr->copied_total;
 	tstamp->copied_total += buf->avail * WM_ADSP_DATA_WORD_SIZE;
+	tstamp->sampling_rate = compr->sample_rate;
 
 	adsp_dbg(compr->dsp, "tstamp->copied_total=%d (avail=%d)\n",
 		 tstamp->copied_total, buf->avail);
