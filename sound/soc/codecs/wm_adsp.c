@@ -3240,9 +3240,12 @@ static int wm_adsp_stream_start(struct wm_adsp_compr *compr)
 	struct wm_adsp_compr_buf *buf = compr->buf;
 	int ret;
 
+	mutex_lock(&buf->lock);
+
 	if (!buf->host_buf_ptr) {
 		adsp_warn(buf->dsp, "No host buffer info\n");
-		return -EIO;
+		ret = -EIO;
+		goto out_unlock;
 	}
 
 	buf->read_index = -1;
@@ -3252,11 +3255,14 @@ static int wm_adsp_stream_start(struct wm_adsp_compr *compr)
 					HOST_BUFFER_FIELD(high_water_mark),
 					compr->irq_watermark);
 	if (ret < 0)
-		return ret;
+		goto out_unlock;
 
 	adsp_dbg(buf->dsp, "Set watermark to %u\n", compr->irq_watermark);
 
-	return 0;
+out_unlock:
+	mutex_unlock(&buf->lock);
+
+	return ret;
 }
 
 int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd)
@@ -3535,6 +3541,7 @@ static int wm_adsp_compr_read(struct wm_adsp_compr *compr,
 	int nwords, nbytes;
 	int ret;
 
+	lockdep_assert_held(&compr->buf->lock);
 	BUG_ON(!compr->buf->host_regions);
 
 	adsp_dbg(dsp, "Requested read of %d bytes\n", count);
@@ -3575,11 +3582,18 @@ int wm_adsp_compr_copy(struct snd_compr_stream *stream,
 		       char __user *buf, size_t count)
 {
 	struct wm_adsp_compr *compr = stream->runtime->private_data;
+	int ret;
+
+	mutex_lock(&compr->buf->lock);
 
 	if (stream->direction == SND_COMPRESS_CAPTURE)
-		return wm_adsp_compr_read(compr, buf, count);
+		ret = wm_adsp_compr_read(compr, buf, count);
 	else
-		return -ENOTSUPP;
+		ret = -ENOTSUPP;
+
+	mutex_unlock(&compr->buf->lock);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(wm_adsp_compr_copy);
 
