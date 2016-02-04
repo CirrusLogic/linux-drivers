@@ -2428,6 +2428,9 @@ static int wm_adsp_get_features(struct wm_adsp *dsp)
 	case 0x8000d:
 	case 0x80053:
 	case 0x9000d:
+	case 0x90036:
+	case 0x90037:
+	case 0x90053:
 		/* ez2control */
 		dsp->fw_features.ez2control_trigger = true;
 		dsp->fw_features.host_read_buf = true;
