@@ -1080,15 +1080,13 @@ static int wmfw_add_ctl(struct wm_adsp *dsp, struct wm_coeff_ctl *ctl)
 		kcontrol->access = SNDRV_CTL_ELEM_ACCESS_READWRITE;
 	}
 
-	ret = snd_soc_add_card_controls(dsp->card,
-					kcontrol, 1);
+	ret = snd_soc_add_card_controls(dsp->card, kcontrol, 1);
 	if (ret < 0)
 		goto err_kcontrol;
 
 	kfree(kcontrol);
 
-	ctl->kcontrol = snd_soc_card_get_kcontrol(dsp->card,
-						  ctl->name);
+	ctl->kcontrol = snd_soc_card_get_kcontrol(dsp->card, ctl->name);
 
 	return 0;
 
@@ -1807,8 +1805,7 @@ static void *wm_adsp_read_algs(struct wm_adsp *dsp, size_t n_algs,
 
 	ret = regmap_raw_read(dsp->regmap, pos, alg, len * 2);
 	if (ret != 0) {
-		adsp_err(dsp, "Failed to read algorithm list: %d\n",
-			 ret);
+		adsp_err(dsp, "Failed to read algorithm list: %d\n", ret);
 		kfree(alg);
 		return ERR_PTR(ret);
 	}
@@ -2364,8 +2361,7 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 				return ret;
 			}
 
-			val = (val & dsp->sysclk_mask)
-				>> dsp->sysclk_shift;
+			val = (val & dsp->sysclk_mask) >> dsp->sysclk_shift;
 
 			ret = regmap_update_bits(dsp->regmap,
 						 dsp->base + ADSP1_CONTROL_31,
@@ -2456,7 +2452,8 @@ static int wm_adsp2_ena(struct wm_adsp *dsp)
 
 		/* Wait for the RAM to start, should be near instantaneous */
 		for (count = 0; count < 10; ++count) {
-			ret = regmap_read(dsp->regmap, dsp->base + ADSP2_STATUS1,
+			ret = regmap_read(dsp->regmap,
+					  dsp->base + ADSP2_STATUS1,
 					  &val);
 			if (ret != 0)
 				return ret;
