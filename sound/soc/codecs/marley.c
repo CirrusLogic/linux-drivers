@@ -235,7 +235,8 @@ static int marley_put_demux(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int ep_sel, mux, change;
 	unsigned int mask;
-	int ret;
+	int ret, demux_change_ret;
+	bool restore_out = true;
 
 	if (ucontrol->value.enumerated.item[0] > e->max - 1)
 		return -EINVAL;
@@ -246,60 +247,77 @@ static int marley_put_demux(struct snd_kcontrol *kcontrol,
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 
 	change = snd_soc_test_bits(codec, e->reg, mask, ep_sel);
-	if (change) {
-		/* if HP detection clamp is applied while switching to HPOUT
-		 * disable OUT1 and set EDRE Manual */
-		if (!ep_sel && (arizona->hpdet_clamp || (arizona->hp_impedance
-				<= arizona->pdata.hpdet_short_circuit_imp))) {
-			ret = regmap_update_bits(arizona->regmap,
-						 ARIZONA_OUTPUT_ENABLES_1,
-						 ARIZONA_OUT1L_ENA |
-						 ARIZONA_OUT1R_ENA, 0);
-			if (ret)
-				dev_warn(arizona->dev,
-					 "Failed to disable headphone outputs"
-					 ": %d\n", ret);
-		}
-		if (!ep_sel && arizona->hpdet_clamp) {
-			ret = regmap_write(arizona->regmap,
-					   CLEARWATER_EDRE_MANUAL, 0x3);
-			if (ret)
-				dev_warn(arizona->dev,
-					 "Failed to set EDRE Manual: %d\n",
-					 ret);
-		}
+	/* if no change is required, skip */
+	if (!change)
+		goto end;
 
-		ret = regmap_update_bits(arizona->regmap,
-					 ARIZONA_OUTPUT_ENABLES_1,
-					 ARIZONA_EP_SEL, ep_sel);
+	/* EP_SEL should not be modified while HP or EP driver is enabled
+	 */
+	ret = regmap_update_bits(arizona->regmap,
+				 ARIZONA_OUTPUT_ENABLES_1,
+				 ARIZONA_OUT1L_ENA |
+				 ARIZONA_OUT1R_ENA, 0);
+	if (ret)
+		dev_warn(arizona->dev,
+			 "Failed to disable outputs: %d\n", ret);
+
+	usleep_range(2000, 3000); /* wait for wseq to complete */
+
+	/* [1] if HP detection clamp is applied while switching to HPOUT, OUT1
+	 * should remain disabled and EDRE should be set to Manual
+	 */
+	if (!ep_sel && (arizona->hpdet_clamp || (arizona->hp_impedance
+			<= arizona->pdata.hpdet_short_circuit_imp)))
+		restore_out = false;
+
+	if (!ep_sel && arizona->hpdet_clamp) {
+		ret = regmap_write(arizona->regmap, CLEARWATER_EDRE_MANUAL,
+				   0x3);
 		if (ret)
-			dev_err(arizona->dev, "Failed to set OUT1 demux: %d\n",
-					ret);
-
-		/* provided the switch back to EPOUT succeeded make sure OUT1
-		 * is restored to a desired value (retained by arizona->hp_ena)
-		 * and EDRE Manual is set to the proper value
-		 * */
-		if (ep_sel && !ret) {
-			ret = regmap_update_bits(arizona->regmap,
-						 ARIZONA_OUTPUT_ENABLES_1,
-						 ARIZONA_OUT1L_ENA |
-						 ARIZONA_OUT1R_ENA,
-						 arizona->hp_ena);
-			if (ret)
-				dev_warn(arizona->dev,
-					 "Failed to restore earpiece outputs:"
-					 " %d\n", ret);
-			ret = regmap_write(arizona->regmap,
-					   CLEARWATER_EDRE_MANUAL, 0);
-			if (ret)
-				dev_warn(arizona->dev,
-					 "Failed to restore EDRE Manual: %d\n",
-					 ret);
-		}
-
+			dev_warn(arizona->dev,
+				 "Failed to set EDRE Manual: %d\n", ret);
 	}
 
+	/* change demux setting */
+	demux_change_ret = regmap_update_bits(arizona->regmap,
+					      ARIZONA_OUTPUT_ENABLES_1,
+					      ARIZONA_EP_SEL, ep_sel);
+	if (demux_change_ret)
+		dev_err(arizona->dev, "Failed to set EP_SEL: %d\n",
+			demux_change_ret);
+
+	/* restore outputs to the desired state, or keep them disabled provided
+	 * condition [1] arose
+	 */
+	if (restore_out) {
+		ret = regmap_update_bits(arizona->regmap,
+					 ARIZONA_OUTPUT_ENABLES_1,
+					 ARIZONA_OUT1L_ENA |
+					 ARIZONA_OUT1R_ENA,
+					 arizona->hp_ena);
+		if (ret) {
+			dev_warn(arizona->dev,
+				 "Failed to restore outputs: %d\n", ret);
+		} else {
+			/* wait for wseq */
+			if (arizona->hp_ena)
+				msleep(34); /* enable delay */
+			else
+				usleep_range(2000, 3000); /* disable delay */
+		}
+	}
+
+	/* provided a switch to EPOUT occured and succeded, set EDRE Manual
+	 * to the proper value
+	 */
+	if (ep_sel && !demux_change_ret) {
+		ret = regmap_write(arizona->regmap, CLEARWATER_EDRE_MANUAL, 0);
+		if (ret)
+			dev_warn(arizona->dev,
+				 "Failed to restore EDRE Manual: %d\n", ret);
+	}
+
+end:
 	mutex_unlock(&card->dapm_mutex);
 
 	return snd_soc_dapm_put_enum_virt(kcontrol, ucontrol);
