@@ -41,7 +41,6 @@
 #include "cs35l33.h"
 
 struct cs35l33_private {
-	struct device *dev;
 	struct snd_soc_codec *codec;
 	struct cs35l33_pdata pdata;
 	struct regmap *regmap;
@@ -870,8 +869,7 @@ static int cs35l33_runtime_resume(struct device *dev)
 	struct cs35l33_private *cs35l33 = dev_get_drvdata(dev);
 	int ret;
 
-	dev_dbg(cs35l33->codec->dev,
-		"Turn on regulator supplies and disable cache only mode\n");
+	dev_dbg(dev, "Turn on regulator supplies and disable cache only mode\n");
 
 	if (cs35l33->pdata.gpio_nreset > 0)
 		gpio_set_value_cansleep(cs35l33->pdata.gpio_nreset, 0);
@@ -911,8 +909,7 @@ static int cs35l33_runtime_suspend(struct device *dev)
 {
 	struct cs35l33_private *cs35l33 = dev_get_drvdata(dev);
 
-	dev_dbg(cs35l33->dev,
-		"Turn off regulator supplies and enable cache only mode\n");
+	dev_dbg(dev, "Turn off regulator supplies and enable cache only mode\n");
 
 	/* redo the calibration in next power up */
 	cs35l33->amp_cal = false;
@@ -1127,7 +1124,6 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 	if (!cs35l33)
 		return -ENOMEM;
 
-	cs35l33->dev = &i2c_client->dev;
 	i2c_set_clientdata(i2c_client, cs35l33);
 	cs35l33->regmap = regmap_init_i2c(i2c_client, &cs35l33_regmap);
 	if (IS_ERR(cs35l33->regmap)) {
