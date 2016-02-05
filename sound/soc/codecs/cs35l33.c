@@ -213,15 +213,15 @@ static int cs35l33_spkrdrv_event(struct snd_soc_dapm_widget *w,
 			priv->amp_cal = true;
 			regmap_update_bits(priv->regmap, CS35L33_CLASSD_CTL,
 				    CS35L33_AMP_CAL, 0);
-			dev_dbg(w->codec->dev, "Amp calibration done\n");
+			dev_dbg(codec->dev, "Amp calibration done\n");
 		}
-		dev_info(w->codec->dev, "Amp turned on\n");
+		dev_dbg(codec->dev, "Amp turned on\n");
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		dev_info(w->codec->dev, "Amp turned off\n");
+		dev_dbg(codec->dev, "Amp turned off\n");
 		break;
 	default:
-		dev_err(w->codec->dev, "Invalid event = 0x%x\n", event);
+		dev_err(codec->dev, "Invalid event = 0x%x\n", event);
 		break;
 	}
 
@@ -242,14 +242,14 @@ static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
 		val = priv->is_tdm_mode ? 0 : CS35L33_PDN_TDM;
 		regmap_update_bits(priv->regmap, CS35L33_PWRCTL2,
 				    CS35L33_PDN_TDM, val);
-		dev_info(w->codec->dev, "BST turned on\n");
+		dev_dbg(codec->dev, "BST turned on\n");
 		break;
 	case SND_SOC_DAPM_POST_PMU:
-		dev_info(w->codec->dev, "SDIN turned on\n");
+		dev_dbg(codec->dev, "SDIN turned on\n");
 		if (!priv->amp_cal) {
 			regmap_update_bits(priv->regmap, CS35L33_CLASSD_CTL,
 				    CS35L33_AMP_CAL, CS35L33_AMP_CAL);
-			dev_dbg(w->codec->dev, "Amp calibration started\n");
+			dev_dbg(codec->dev, "Amp calibration started\n");
 		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
@@ -258,10 +258,10 @@ static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
 		usleep_range(4000, 4100);
 		regmap_update_bits(priv->regmap, CS35L33_PWRCTL1,
 				    CS35L33_PDN_BST, CS35L33_PDN_BST);
-		dev_info(w->codec->dev, "BST and SDIN turned off\n");
+		dev_dbg(codec->dev, "BST and SDIN turned off\n");
 		break;
 	default:
-		dev_err(w->codec->dev, "Invalid event = 0x%x\n", event);
+		dev_err(codec->dev, "Invalid event = 0x%x\n", event);
 
 	}
 
@@ -291,15 +291,15 @@ static int cs35l33_sdout_event(struct snd_soc_dapm_widget *w,
 			/* set sdout_3st_tdm */
 			mask2 = val2 = CS35L33_SDOUT_3ST_TDM;
 		}
-		dev_info(w->codec->dev, "SDOUT turned on\n");
+		dev_dbg(codec->dev, "SDOUT turned on\n");
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		mask = val = (CS35L33_SDOUT_3ST_I2S | CS35L33_PDN_TDM);
 		mask2 = val2 = CS35L33_SDOUT_3ST_TDM;
-		dev_info(w->codec->dev, "SDOUT turned off\n");
+		dev_dbg(codec->dev, "SDOUT turned off\n");
 		break;
 	default:
-		dev_err(w->codec->dev, "Invalid event = 0x%x\n", event);
+		dev_err(codec->dev, "Invalid event = 0x%x\n", event);
 		return 0;
 	}
 
@@ -731,7 +731,7 @@ static int cs35l33_set_hg_data(struct snd_soc_codec *codec,
 			hg_config->ldo_entry_delay <<
 				CS35L33_LDO_ENTRY_DELAY_SHIFT);
 		if (hg_config->vp_hg_auto) {
-			dev_info(codec->dev,
+			dev_dbg(codec->dev,
 				"H/G algorithm (with auto VP tracking) controls the amplifier voltage\n");
 			regmap_update_bits(priv->regmap, CS35L33_HG_EN,
 				CS35L33_VP_HG_AUTO_MASK,
@@ -739,7 +739,7 @@ static int cs35l33_set_hg_data(struct snd_soc_codec *codec,
 			snd_soc_dapm_add_routes(dapm, cs35l33_vphg_auto_route,
 				ARRAY_SIZE(cs35l33_vphg_auto_route));
 		} else {
-			dev_info(codec->dev, "H/G algorithm controls the amplifier voltage\n");
+			dev_dbg(codec->dev, "H/G algorithm controls the amplifier voltage\n");
 		}
 		regmap_update_bits(priv->regmap, CS35L33_HG_EN,
 			CS35L33_VP_HG_MASK,
@@ -753,7 +753,7 @@ static int cs35l33_set_hg_data(struct snd_soc_codec *codec,
 		regmap_update_bits(priv->regmap, CS35L33_HG_EN,
 			CS35L33_CLASS_HG_EN_MASK, CS35L33_CLASS_HG_EN_MASK);
 	} else {
-		dev_info(codec->dev, "Amplifier voltage controlled via the I2C port\n");
+		dev_dbg(codec->dev, "Amplifier voltage controlled via the I2C port\n");
 	}
 
 	return 0;
@@ -877,8 +877,7 @@ static int cs35l33_runtime_resume(struct device *dev)
 	ret = regulator_bulk_enable(cs35l33->num_core_supplies,
 		cs35l33->core_supplies);
 	if (ret != 0) {
-		dev_err(dev, "Failed to enable core supplies: %d\n",
-			ret);
+		dev_err(dev, "Failed to enable core supplies: %d\n", ret);
 		return ret;
 	}
 
@@ -1188,7 +1187,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 	ret = request_threaded_irq(pdata->irq, NULL, cs35l33_irq_thread,
 			IRQF_ONESHOT | IRQF_TRIGGER_LOW, "cs35l33", cs35l33);
 	if (ret != 0)
-		dev_err(&i2c_client->dev, "Failed to request IRQ\n");
+		dev_err(&i2c_client->dev, "Failed to request IRQ: %d\n", ret);
 
 	/* We could issue !RST or skip it based on AMP topology */
 	if (cs35l33->pdata.gpio_nreset > 0) {
