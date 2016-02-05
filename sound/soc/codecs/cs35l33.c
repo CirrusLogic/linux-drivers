@@ -678,7 +678,7 @@ static const struct snd_soc_dai_ops cs35l33_ops = {
 };
 
 static struct snd_soc_dai_driver cs35l33_dai = {
-		.name = "cs35l33",
+		.name = "cs35l33-dai",
 		.id = 0,
 		.playback = {
 			.stream_name = "CS35L33 Playback",
