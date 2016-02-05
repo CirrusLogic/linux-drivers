@@ -1,7 +1,7 @@
 /*
  * cs35l33.h -- CS35L33 ALSA SoC audio driver
  *
- * Copyright 2013 Cirrus Logic, Inc.
+ * Copyright 2016 Cirrus Logic, Inc.
  *
  * Author: Paul Handrigan <paul.handrigan@cirrus.com>
  *
@@ -16,12 +16,12 @@
 
 #define CS35L33_CHIP_ID		0x00035A33
 #define CS35L33_DEVID_AB	0x01	/* Device ID A & B [RO] */
-#define CS35L33_DEVID_CD	0x02    /* Device ID C & D [RO] */
-#define CS35L33_DEVID_E		0x03    /* Device ID E [RO] */
+#define CS35L33_DEVID_CD	0x02	/* Device ID C & D [RO] */
+#define CS35L33_DEVID_E		0x03	/* Device ID E [RO] */
 #define CS35L33_FAB_ID		0x04	/* Fab ID [RO] */
 #define CS35L33_REV_ID		0x05	/* Revision ID [RO] */
-#define CS35L33_PWRCTL1		0x06    /* Power Ctl 1 */
-#define CS35L33_PWRCTL2		0x07    /* Power Ctl 2 */
+#define CS35L33_PWRCTL1		0x06	/* Power Ctl 1 */
+#define CS35L33_PWRCTL2		0x07	/* Power Ctl 2 */
 #define CS35L33_CLK_CTL		0x08	/* Clock Ctl */
 #define CS35L33_BST_PEAK_CTL	0x09	/* Max Current for Boost */
 #define CS35L33_PROTECT_CTL	0x0A	/* Amp Protection Parameters */
@@ -48,17 +48,18 @@
 #define CS35L33_HGLDO_CNT	0x28	/* H/G LDO Counter */
 #define CS35L33_HG_HEAD		0x29	/* H/G Headroom */
 #define CS35L33_HG_EN		0x2A	/* H/G Enable/VPhg CNT2 */
-#define CS35L33_TX_VMON  	0x2D	/* TDM TX Control 1 (VMON) */
-#define CS35L33_TX_IMON  	0x2E	/* TDM TX Control 2 (IMON) */
+#define CS35L33_BST_CTL3	0x2C	/* Boost Converter Control 3 */
+#define CS35L33_TX_VMON		0x2D	/* TDM TX Control 1 (VMON) */
+#define CS35L33_TX_IMON		0x2E	/* TDM TX Control 2 (IMON) */
 #define CS35L33_TX_VPMON	0x2F	/* TDM TX Control 3 (VPMON) */
 #define CS35L33_TX_VBSTMON	0x30	/* TDM TX Control 4 (VBSTMON) */
-#define CS35L33_TX_FLAG  	0x31	/* TDM TX Control 5 (FLAG) */
+#define CS35L33_TX_FLAG		0x31	/* TDM TX Control 5 (FLAG) */
 #define CS35L33_TX_EN1		0x32	/* TDM TX Enable 1 */
 #define CS35L33_TX_EN2		0x33	/* TDM TX Enable 2 */
 #define CS35L33_TX_EN3		0x34	/* TDM TX Enable 3 */
 #define CS35L33_TX_EN4		0x35	/* TDM TX Enable 4 */
 #define CS35L33_RX_AUD		0x36	/* TDM RX Control 1 */
-#define CS35L33_RX_SPLY 	0x37	/* TDM RX Control 2 */
+#define CS35L33_RX_SPLY		0x37	/* TDM RX Control 2 */
 #define CS35L33_RX_ALIVE	0x38	/* TDM RX Control 3 */
 #define CS35L33_BST_CTL4	0x39	/* Boost Converter Control 4 */
 #define CS35L33_HG_STATUS	0x3F	/* H/G Status */
@@ -72,7 +73,6 @@
 #define CS35L33_MCLK_12288	12288000
 
 /* CS35L33_PWRCTL1 */
-
 #define CS35L33_PDN_AMP			(1 << 7)
 #define CS35L33_PDN_BST			(1 << 2)
 #define CS35L33_PDN_ALL			1

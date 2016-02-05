@@ -1,7 +1,7 @@
 /*
  * cs35l33.c -- CS35L33 ALSA SoC audio driver
  *
- * Copyright 2013 Cirrus Logic, Inc.
+ * Copyright 2016 Cirrus Logic, Inc.
  *
  * Author: Paul Handrigan <paul.handrigan@cirrus.com>
  *
@@ -40,7 +40,7 @@
 
 #include "cs35l33.h"
 
-struct  cs35l33_private {
+struct cs35l33_private {
 	struct device *dev;
 	struct snd_soc_codec *codec;
 	struct cs35l33_pdata pdata;
@@ -317,7 +317,7 @@ static const struct snd_soc_dapm_widget cs35l33_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("SPK"),
 	SND_SOC_DAPM_OUT_DRV_E("SPKDRV", CS35L33_PWRCTL1, 7, 1, NULL, 0,
 		cs35l33_spkrdrv_event, SND_SOC_DAPM_PRE_PMU |
-		SND_SOC_DAPM_POST_PMU |SND_SOC_DAPM_POST_PMD),
+		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_AIF_IN_E("SDIN", NULL, 0, CS35L33_PWRCTL2,
 		2, 1, cs35l33_sdin_event, SND_SOC_DAPM_PRE_PMU |
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
@@ -367,6 +367,7 @@ static int cs35l33_set_bias_level(struct snd_soc_codec *codec,
 				  enum snd_soc_bias_level level)
 {
 	unsigned int val;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct cs35l33_private *priv = snd_soc_codec_get_drvdata(codec);
 
 	switch (level) {
@@ -393,7 +394,7 @@ static int cs35l33_set_bias_level(struct snd_soc_codec *codec,
 		return -EINVAL;
 	}
 
-	codec->dapm.bias_level = level;
+	dapm->bias_level = level;
 
 	return 0;
 }
@@ -405,8 +406,7 @@ struct cs35l33_mclk_div {
 	u8 int_fs_ratio;
 };
 
-static struct cs35l33_mclk_div cs35l33_mclk_coeffs[] = {
-
+static const struct cs35l33_mclk_div cs35l33_mclk_coeffs[] = {
 	/* MCLK, Sample Rate, adsp_rate, int_fs_ratio */
 	{5644800, 11025, 0x4, CS35L33_INT_FS_RATE},
 	{5644800, 22050, 0x8, CS35L33_INT_FS_RATE},
@@ -467,8 +467,10 @@ static int cs35l33_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
-		/* tdm mode in cs35l33 resembles dsp-a mode very
-		closely, it is dsp-a with fsync shifted left by half bclk */
+		/*
+		 * tdm mode in cs35l33 resembles dsp-a mode very
+		 * closely, it is dsp-a with fsync shifted left by half bclk
+		 */
 		priv->is_tdm_mode = true;
 		dev_dbg(codec->dev, "Audio port in TDM mode\n");
 		break;
@@ -515,13 +517,12 @@ static int cs35l33_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int cs35l33_src_rates[] = {
+static const unsigned int cs35l33_src_rates[] = {
 	8000, 11025, 11029, 12000, 16000, 22050,
 	22059, 24000, 32000, 44100, 44118, 48000
 };
 
-
-static struct snd_pcm_hw_constraint_list cs35l33_constraints = {
+static const struct snd_pcm_hw_constraint_list cs35l33_constraints = {
 	.count  = ARRAY_SIZE(cs35l33_src_rates),
 	.list   = cs35l33_src_rates,
 };
@@ -559,6 +560,7 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 				unsigned int rx_mask, int slots, int slot_width)
 {
 	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct cs35l33_private *priv = snd_soc_codec_get_drvdata(codec);
 	unsigned int reg, bit_pos, i;
 	int slot, slot_num;
@@ -574,9 +576,10 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		dev_dbg(codec->dev, "Audio starts from slots %d", slot);
 	}
 
-	/* scan tx_mask: vmon(2 slots); imon (2 slots);
-	vpmon (1 slot) vbstmon (1 slot) */
-
+	/*
+	 * scan tx_mask: vmon(2 slots); imon (2 slots);
+	 * vpmon (1 slot) vbstmon (1 slot)
+	 */
 	slot = ffs(tx_mask) - 1;
 	slot_num = 0;
 
@@ -588,8 +591,7 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	}
 
 	/* disconnect {vp,vbst}_mon routes: eanble later if set in tx_mask*/
-	snd_soc_dapm_del_routes(&codec->dapm,
-		cs35l33_vp_vbst_mon_route,
+	snd_soc_dapm_del_routes(dapm, cs35l33_vp_vbst_mon_route,
 		ARRAY_SIZE(cs35l33_vp_vbst_mon_route));
 
 	while (slot >= 0) {
@@ -613,7 +615,7 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		if (slot_num == 4) {
 			regmap_update_bits(priv->regmap, CS35L33_TX_VPMON,
 				CS35L33_X_STATE | CS35L33_X_LOC, slot);
-			snd_soc_dapm_add_routes(&codec->dapm,
+			snd_soc_dapm_add_routes(dapm,
 				&cs35l33_vp_vbst_mon_route[0], 2);
 			dev_dbg(codec->dev, "VPMON enabled in slots %d", slot);
 		}
@@ -622,7 +624,7 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		if (slot_num == 5) {
 			regmap_update_bits(priv->regmap, CS35L33_TX_VBSTMON,
 				CS35L33_X_STATE | CS35L33_X_LOC, slot);
-			snd_soc_dapm_add_routes(&codec->dapm,
+			snd_soc_dapm_add_routes(dapm,
 				&cs35l33_vp_vbst_mon_route[2], 2);
 			dev_dbg(codec->dev,
 				"VBSTMON enabled in slots %d", slot);
@@ -702,10 +704,11 @@ static struct snd_soc_dai_driver cs35l33_dai = {
 		.symmetric_rates = 1,
 };
 
-int cs35l33_set_hg_data(struct snd_soc_codec *codec,
-			struct cs35l33_pdata *pdata)
+static int cs35l33_set_hg_data(struct snd_soc_codec *codec,
+			       struct cs35l33_pdata *pdata)
 {
 	struct cs35l33_hg *hg_config = &pdata->hg_config;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct cs35l33_private *priv = snd_soc_codec_get_drvdata(codec);
 
 	if (hg_config->enable_hg_algo) {
@@ -734,8 +737,7 @@ int cs35l33_set_hg_data(struct snd_soc_codec *codec,
 			regmap_update_bits(priv->regmap, CS35L33_HG_EN,
 				CS35L33_VP_HG_AUTO_MASK,
 				CS35L33_VP_HG_AUTO_MASK);
-			snd_soc_dapm_add_routes(&codec->dapm,
-				cs35l33_vphg_auto_route,
+			snd_soc_dapm_add_routes(dapm, cs35l33_vphg_auto_route,
 				ARRAY_SIZE(cs35l33_vphg_auto_route));
 		} else {
 			dev_info(codec->dev, "H/G algorithm controls the amplifier voltage\n");
@@ -799,8 +801,10 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 
 	cs35l33_set_hg_data(codec, &(cs35l33->pdata));
 
-	/* unmask important interrupts that causes the chip to enter
-	speaker safe mode and hence deserves user attention */
+	/*
+	 * unmask important interrupts that causes the chip to enter
+	 * speaker safe mode and hence deserves user attention
+	 */
 	regmap_update_bits(cs35l33->regmap, CS35L33_INT_MASK_1,
 		CS35L33_M_OTE | CS35L33_M_OTW | CS35L33_M_AMP_SHORT |
 		CS35L33_M_CAL_ERR, 0);
@@ -842,7 +846,7 @@ static struct snd_soc_codec_driver soc_codec_dev_cs35l33 = {
 	.idle_bias_off = true,
 };
 
-static struct regmap_config cs35l33_regmap = {
+static const struct regmap_config cs35l33_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -921,14 +925,14 @@ static int cs35l33_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-const struct dev_pm_ops cs35l33_pm_ops = {
+static const struct dev_pm_ops cs35l33_pm_ops = {
 	SET_RUNTIME_PM_OPS(cs35l33_runtime_suspend,
 			   cs35l33_runtime_resume,
 			   NULL)
 };
 
-int cs35l33_get_hg_data(const struct device_node *np,
-			struct cs35l33_pdata *pdata)
+static int cs35l33_get_hg_data(const struct device_node *np,
+			       struct cs35l33_pdata *pdata)
 {
 	struct device_node *hg;
 	struct cs35l33_hg *hg_config = &pdata->hg_config;
@@ -1155,10 +1159,8 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 		pdata = devm_kzalloc(&i2c_client->dev,
 				     sizeof(struct cs35l33_pdata),
 				GFP_KERNEL);
-		if (!pdata) {
-			dev_err(&i2c_client->dev, "Could not allocate pdata\n");
+		if (!pdata)
 			return -ENOMEM;
-		}
 
 		if (i2c_client->dev.of_node)
 			cs35l33_of_get_pdata(cs35l33, i2c_client->dev.of_node,
@@ -1269,7 +1271,6 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 			__func__);
 		goto err_regmap;
 	}
-
 
 	return 0;
 
