@@ -54,42 +54,42 @@ struct  cs35l33_private {
 };
 
 static const struct reg_default cs35l33_reg[] = {
-	{0x6, 0x85}, /* PWR CTL 1 */
-	{0x7, 0xFE}, /* PWR CTL 2 */
-	{0x8, 0x0C}, /* CLK CTL */
-	{0x9, 0x90}, /* BST PEAK */
-	{0xA, 0x55}, /* PROTECTION CTL */
-	{0xB, 0x00}, /* BST CTL 1 */
-	{0xC, 0x01}, /* BST CTL 2 */
-	{0xD, 0x00}, /* ADSP CTL */
-	{0xE, 0xC8}, /* ADC CTL */
-	{0xF, 0x14}, /* DAC CTL */
-	{0x10, 0x00}, /* DAC VOL */
-	{0x11, 0x04}, /* AMP CTL */
-	{0x12, 0x90}, /* AMP GAIN CTL */
-	{0x13, 0xFF}, /* INT MASK 1 */
-	{0x14, 0xFF}, /* INT MASK 2 */
-	{0x17, 0x00}, /* Diagnostic Mode Register Lock */
-	{0x18, 0x40}, /* Diagnostic Mode Register Control */
-	{0x19, 0x00}, /* Diagnostic Mode Register Control 2 */
-	{0x23, 0x62}, /* HG MEM/LDO CTL */
-	{0x24, 0x03}, /* HG RELEASE RATE */
-	{0x25, 0x12}, /* LDO ENTRY DELAY */
-	{0x29, 0x0A}, /* HG HEADROOM */
-	{0x2A, 0x05}, /* HG ENABLE/VP CTL2 */
-	{0x2D, 0x00}, /* TDM TX Control 1 (VMON) */
-	{0x2E, 0x03}, /* TDM TX Control 2 (IMON) */
-	{0x2F, 0x02}, /* TDM TX Control 3 (VPMON) */
-	{0x30, 0x05}, /* TDM TX Control 4 (VBSTMON) */
-	{0x31, 0x06}, /* TDM TX Control 5 (FLAG) */
-	{0x32, 0x00}, /* TDM TX Enable 1 */
-	{0x33, 0x00}, /* TDM TX Enable 2 */
-	{0x34, 0x00}, /* TDM TX Enable 3 */
-	{0x35, 0x00}, /* TDM TX Enable 4 */
-	{0x36, 0x40}, /* TDM RX Control 1 */
-	{0x37, 0x03}, /* TDM RX Control 2 */
-	{0x38, 0x04}, /* TDM RX Control 3 */
-	{0x39, 0x63}, /* Boost Converter Control 4 */
+	{CS35L33_PWRCTL1, 0x85},
+	{CS35L33_PWRCTL2, 0xFE},
+	{CS35L33_CLK_CTL, 0x0C},
+	{CS35L33_BST_PEAK_CTL, 0x90},
+	{CS35L33_PROTECT_CTL, 0x55},
+	{CS35L33_BST_CTL1, 0x00},
+	{CS35L33_BST_CTL2, 0x01},
+	{CS35L33_ADSP_CTL, 0x00},
+	{CS35L33_ADC_CTL, 0xC8},
+	{CS35L33_DAC_CTL, 0x14},
+	{CS35L33_DIG_VOL_CTL, 0x00},
+	{CS35L33_CLASSD_CTL, 0x04},
+	{CS35L33_AMP_CTL, 0x90},
+	{CS35L33_INT_MASK_1, 0xFF},
+	{CS35L33_INT_MASK_2, 0xFF},
+	{CS35L33_DIAG_LOCK, 0x00},
+	{CS35L33_DIAG_CTRL_1, 0x40},
+	{CS35L33_DIAG_CTRL_2, 0x00},
+	{CS35L33_HG_MEMLDO_CTL, 0x62},
+	{CS35L33_HG_REL_RATE, 0x03},
+	{CS35L33_LDO_DEL, 0x12},
+	{CS35L33_HG_HEAD, 0x0A},
+	{CS35L33_HG_EN, 0x05},
+	{CS35L33_TX_VMON, 0x00},
+	{CS35L33_TX_IMON, 0x03},
+	{CS35L33_TX_VPMON, 0x02},
+	{CS35L33_TX_VBSTMON, 0x05},
+	{CS35L33_TX_FLAG, 0x06},
+	{CS35L33_TX_EN1, 0x00},
+	{CS35L33_TX_EN2, 0x00},
+	{CS35L33_TX_EN3, 0x00},
+	{CS35L33_TX_EN4, 0x00},
+	{CS35L33_RX_AUD, 0x40},
+	{CS35L33_RX_SPLY, 0x03},
+	{CS35L33_RX_ALIVE, 0x04},
+	{CS35L33_BST_CTL4, 0x63},
 };
 
 static const struct reg_default cs35l33_patch[] = {
