@@ -213,7 +213,7 @@ static int cs35l33_spkrdrv_event(struct snd_soc_dapm_widget *w,
 			mdelay(8);
 			priv->amp_cal = true;
 			snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
-				    AMP_CAL, 0);
+				    CS35L33_AMP_CAL, 0);
 			dev_dbg(w->codec->dev, "Amp calibration done\n");
 		}
 		dev_info(w->codec->dev, "Amp turned on\n");
@@ -239,26 +239,26 @@ static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		snd_soc_update_bits(codec, CS35L33_PWRCTL1,
-				    PDN_BST, 0);
-		val = priv->is_tdm_mode ? 0 : PDN_TDM;
+				    CS35L33_PDN_BST, 0);
+		val = priv->is_tdm_mode ? 0 : CS35L33_PDN_TDM;
 		snd_soc_update_bits(codec, CS35L33_PWRCTL2,
-				    PDN_TDM, val);
+				    CS35L33_PDN_TDM, val);
 		dev_info(w->codec->dev, "BST turned on\n");
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		dev_info(w->codec->dev, "SDIN turned on\n");
 		if (!priv->amp_cal) {
 			snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
-				    AMP_CAL, AMP_CAL);
+				    CS35L33_AMP_CAL, CS35L33_AMP_CAL);
 			dev_dbg(w->codec->dev, "Amp calibration started\n");
 		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		snd_soc_update_bits(codec, CS35L33_PWRCTL2,
-				    PDN_TDM, PDN_TDM);
+				    CS35L33_PDN_TDM, CS35L33_PDN_TDM);
 		usleep_range(4000, 4100);
 		snd_soc_update_bits(codec, CS35L33_PWRCTL1,
-				    PDN_BST, PDN_BST);
+				    CS35L33_PDN_BST, CS35L33_PDN_BST);
 		dev_info(w->codec->dev, "BST and SDIN turned off\n");
 		break;
 	default:
@@ -280,23 +280,23 @@ static int cs35l33_sdout_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMU:
 		if (priv->is_tdm_mode) {
 			/* set sdout_3st_i2s and reset pdn_tdm */
-			mask = (SDOUT_3ST_I2S | PDN_TDM);
-			val = SDOUT_3ST_I2S;
+			mask = (CS35L33_SDOUT_3ST_I2S | CS35L33_PDN_TDM);
+			val = CS35L33_SDOUT_3ST_I2S;
 			/* reset sdout_3st_tdm */
-			mask2 = SDOUT_3ST_TDM;
+			mask2 = CS35L33_SDOUT_3ST_TDM;
 			val2 = 0;
 		} else {
 			/* reset sdout_3st_i2s and set pdn_tdm */
-			mask = (SDOUT_3ST_I2S | PDN_TDM);
-			val = PDN_TDM;
+			mask = (CS35L33_SDOUT_3ST_I2S | CS35L33_PDN_TDM);
+			val = CS35L33_PDN_TDM;
 			/* set sdout_3st_tdm */
-			mask2 = val2 = SDOUT_3ST_TDM;
+			mask2 = val2 = CS35L33_SDOUT_3ST_TDM;
 		}
 		dev_info(w->codec->dev, "SDOUT turned on\n");
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		mask = val = (SDOUT_3ST_I2S | PDN_TDM);
-		mask2 = val2 = SDOUT_3ST_TDM;
+		mask = val = (CS35L33_SDOUT_3ST_I2S | CS35L33_PDN_TDM);
+		mask2 = val2 = CS35L33_SDOUT_3ST_TDM;
 		dev_info(w->codec->dev, "SDOUT turned off\n");
 		break;
 	default:
@@ -325,13 +325,13 @@ static const struct snd_soc_dapm_widget cs35l33_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("MON"),
 
 	SND_SOC_DAPM_ADC("VMON", NULL,
-		CS35L33_PWRCTL2, PDN_VMON_SHIFT, 1),
+		CS35L33_PWRCTL2, CS35L33_PDN_VMON_SHIFT, 1),
 	SND_SOC_DAPM_ADC("IMON", NULL,
-		CS35L33_PWRCTL2, PDN_IMON_SHIFT, 1),
+		CS35L33_PWRCTL2, CS35L33_PDN_IMON_SHIFT, 1),
 	SND_SOC_DAPM_ADC("VPMON", NULL,
-		CS35L33_PWRCTL2, PDN_VPMON_SHIFT, 1),
+		CS35L33_PWRCTL2, CS35L33_PDN_VPMON_SHIFT, 1),
 	SND_SOC_DAPM_ADC("VBSTMON", NULL,
-		CS35L33_PWRCTL2, PDN_VBSTMON_SHIFT, 1),
+		CS35L33_PWRCTL2, CS35L33_PDN_VBSTMON_SHIFT, 1),
 
 	SND_SOC_DAPM_AIF_OUT_E("SDOUT", NULL, 0, SND_SOC_NOPM, 0, 0,
 		cs35l33_sdout_event, SND_SOC_DAPM_PRE_PMU |
@@ -373,18 +373,18 @@ static int cs35l33_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		snd_soc_update_bits(codec, CS35L33_PWRCTL1,
-				    PDN_ALL, 0);
+				    CS35L33_PDN_ALL, 0);
 		snd_soc_update_bits(codec, CS35L33_CLK_CTL,
-				    MCLKDIS, 0);
+				    CS35L33_MCLKDIS, 0);
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		snd_soc_update_bits(codec, CS35L33_PWRCTL1,
-				    PDN_ALL, PDN_ALL);
+				    CS35L33_PDN_ALL, CS35L33_PDN_ALL);
 		val = snd_soc_read(codec, CS35L33_INT_STATUS_2);
 		usleep_range(1000, 1100);
-		if (val & PDN_DONE)
+		if (val & CS35L33_PDN_DONE)
 			snd_soc_update_bits(codec, CS35L33_CLK_CTL,
-					    MCLKDIS, MCLKDIS);
+					    CS35L33_MCLKDIS, CS35L33_MCLKDIS);
 		break;
 	case SND_SOC_BIAS_OFF:
 		break;
@@ -407,9 +407,9 @@ struct cs35l33_mclk_div {
 static struct cs35l33_mclk_div cs35l33_mclk_coeffs[] = {
 
 	/* MCLK, Sample Rate, adsp_rate, int_fs_ratio */
-	{5644800, 11025, 0x4, INT_FS_RATE},
-	{5644800, 22050, 0x8, INT_FS_RATE},
-	{5644800, 44100, 0xC, INT_FS_RATE},
+	{5644800, 11025, 0x4, CS35L33_INT_FS_RATE},
+	{5644800, 22050, 0x8, CS35L33_INT_FS_RATE},
+	{5644800, 44100, 0xC, CS35L33_INT_FS_RATE},
 
 	{6000000,  8000, 0x1, 0},
 	{6000000, 11025, 0x2, 0},
@@ -424,12 +424,12 @@ static struct cs35l33_mclk_div cs35l33_mclk_coeffs[] = {
 	{6000000, 44118, 0xB, 0},
 	{6000000, 48000, 0xC, 0},
 
-	{6144000,  8000, 0x1, INT_FS_RATE},
-	{6144000, 12000, 0x4, INT_FS_RATE},
-	{6144000, 16000, 0x5, INT_FS_RATE},
-	{6144000, 24000, 0x8, INT_FS_RATE},
-	{6144000, 32000, 0x9, INT_FS_RATE},
-	{6144000, 48000, 0xC, INT_FS_RATE},
+	{6144000,  8000, 0x1, CS35L33_INT_FS_RATE},
+	{6144000, 12000, 0x4, CS35L33_INT_FS_RATE},
+	{6144000, 16000, 0x5, CS35L33_INT_FS_RATE},
+	{6144000, 24000, 0x8, CS35L33_INT_FS_RATE},
+	{6144000, 32000, 0x9, CS35L33_INT_FS_RATE},
+	{6144000, 48000, 0xC, CS35L33_INT_FS_RATE},
 };
 
 static int cs35l33_get_mclk_coeff(int mclk, int srate)
@@ -452,12 +452,12 @@ static int cs35l33_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
 		snd_soc_update_bits(codec, CS35L33_ADSP_CTL,
-				    MS_MASK, MS_MASK);
+				    CS35L33_MS_MASK, CS35L33_MS_MASK);
 		dev_dbg(codec->dev, "Audio port in master mode\n");
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
 		snd_soc_update_bits(codec, CS35L33_ADSP_CTL,
-				    MS_MASK, 0);
+				    CS35L33_MS_MASK, 0);
 		dev_dbg(codec->dev, "Audio port in slave mode\n");
 		break;
 	default:
@@ -495,7 +495,7 @@ static int cs35l33_pcm_hw_params(struct snd_pcm_substream *substream,
 		return coeff;
 
 	snd_soc_update_bits(codec, CS35L33_CLK_CTL,
-		INT_FS_RATE | ADSP_FS,
+		CS35L33_INT_FS_RATE | CS35L33_ADSP_FS,
 		cs35l33_mclk_coeffs[coeff].int_fs_ratio |
 		cs35l33_mclk_coeffs[coeff].adsp_rate);
 
@@ -504,8 +504,8 @@ static int cs35l33_pcm_hw_params(struct snd_pcm_substream *substream,
 		if (sample_size > 2)
 			sample_size = 2;
 		snd_soc_update_bits(codec, CS35L33_RX_AUD,
-			AUDIN_RX_DEPTH,
-			sample_size << AUDIN_RX_DEPTH_SHIFT);
+			CS35L33_AUDIN_RX_DEPTH,
+			sample_size << CS35L33_AUDIN_RX_DEPTH_SHIFT);
 	}
 
 	dev_dbg(codec->dev, "sample rate=%d, bits per sample=%d\n",
@@ -540,14 +540,14 @@ static int cs35l33_set_tristate(struct snd_soc_dai *dai, int tristate)
 
 	if (tristate) {
 		snd_soc_update_bits(codec, CS35L33_PWRCTL2,
-			SDOUT_3ST_I2S, SDOUT_3ST_I2S);
+			CS35L33_SDOUT_3ST_I2S, CS35L33_SDOUT_3ST_I2S);
 		snd_soc_update_bits(codec, CS35L33_CLK_CTL,
-			SDOUT_3ST_TDM, SDOUT_3ST_TDM);
+			CS35L33_SDOUT_3ST_TDM, CS35L33_SDOUT_3ST_TDM);
 	} else {
 		snd_soc_update_bits(codec, CS35L33_PWRCTL2,
-			SDOUT_3ST_I2S, 0);
+			CS35L33_SDOUT_3ST_I2S, 0);
 		snd_soc_update_bits(codec, CS35L33_CLK_CTL,
-			SDOUT_3ST_TDM, 0);
+			CS35L33_SDOUT_3ST_TDM, 0);
 	}
 
 	return 0;
@@ -567,7 +567,7 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	slot = ffs(rx_mask) - 1;
 	if (slot >= 0) {
 		snd_soc_update_bits(codec, CS35L33_RX_AUD,
-			X_LOC, slot);
+			CS35L33_X_LOC, slot);
 		dev_dbg(codec->dev, "Audio starts from slots %d", slot);
 	}
 
@@ -580,7 +580,8 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	for (i = 0; i < 2 ; i++) {
 		/* disable vpmon/vbstmon: enable later if set in tx_mask */
 		snd_soc_update_bits(codec, CS35L33_TX_VPMON + i,
-			X_STATE | X_LOC, X_STATE | X_LOC);
+			CS35L33_X_STATE | CS35L33_X_LOC, CS35L33_X_STATE
+			| CS35L33_X_LOC);
 	}
 
 	/* disconnect {vp,vbst}_mon routes: eanble later if set in tx_mask*/
@@ -592,7 +593,7 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		/* configure VMON_TX_LOC */
 		if (slot_num == 0) {
 			snd_soc_update_bits(codec, CS35L33_TX_VMON,
-				X_STATE | X_LOC, slot);
+				CS35L33_X_STATE | CS35L33_X_LOC, slot);
 			dev_dbg(codec->dev, "VMON enabled in slots %d-%d",
 				slot, slot + 1);
 		}
@@ -600,7 +601,7 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		/* configure IMON_TX_LOC */
 		if (slot_num == 2) {
 			snd_soc_update_bits(codec, CS35L33_TX_IMON,
-				X_STATE | X_LOC, slot);
+				CS35L33_X_STATE | CS35L33_X_LOC, slot);
 			dev_dbg(codec->dev, "IMON enabled in slots %d-%d",
 				slot, slot + 1);
 		}
@@ -608,7 +609,7 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		/* configure VPMON_TX_LOC */
 		if (slot_num == 4) {
 			snd_soc_update_bits(codec, CS35L33_TX_VPMON,
-				X_STATE | X_LOC, slot);
+				CS35L33_X_STATE | CS35L33_X_LOC, slot);
 			snd_soc_dapm_add_routes(&codec->dapm,
 				&cs35l33_vp_vbst_mon_route[0], 2);
 			dev_dbg(codec->dev, "VPMON enabled in slots %d", slot);
@@ -617,7 +618,7 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		/* configure VBSTMON_TX_LOC */
 		if (slot_num == 5) {
 			snd_soc_update_bits(codec, CS35L33_TX_VBSTMON,
-				X_STATE | X_LOC, slot);
+				CS35L33_X_STATE | CS35L33_X_LOC, slot);
 			snd_soc_dapm_add_routes(&codec->dapm,
 				&cs35l33_vp_vbst_mon_route[2], 2);
 			dev_dbg(codec->dev,
@@ -648,14 +649,14 @@ static int cs35l33_codec_set_sysclk(struct snd_soc_codec *codec,
 	case CS35L33_MCLK_6:
 	case CS35L33_MCLK_6144:
 		snd_soc_update_bits(codec, CS35L33_CLK_CTL,
-			MCLKDIV2, 0);
+			CS35L33_MCLKDIV2, 0);
 		cs35l33->mclk_int = freq;
 		break;
 	case CS35L33_MCLK_11289:
 	case CS35L33_MCLK_12:
 	case CS35L33_MCLK_12288:
 		snd_soc_update_bits(codec, CS35L33_CLK_CTL,
-			MCLKDIV2, MCLKDIV2);
+			CS35L33_MCLKDIV2, CS35L33_MCLKDIV2);
 			cs35l33->mclk_int = freq/2;
 		break;
 	default:
@@ -705,28 +706,30 @@ int cs35l33_set_hg_data(struct snd_soc_codec *codec,
 
 	if (hg_config->enable_hg_algo) {
 		snd_soc_update_bits(codec, CS35L33_HG_MEMLDO_CTL,
-			MEM_DEPTH_MASK,
-			hg_config->mem_depth << MEM_DEPTH_SHIFT);
+			CS35L33_MEM_DEPTH_MASK,
+			hg_config->mem_depth << CS35L33_MEM_DEPTH_SHIFT);
 		snd_soc_write(codec, CS35L33_HG_REL_RATE,
 			hg_config->release_rate);
 		snd_soc_update_bits(codec, CS35L33_HG_HEAD,
-			HD_RM_MASK,
-			hg_config->hd_rm << HD_RM_SHIFT);
+			CS35L33_HD_RM_MASK,
+			hg_config->hd_rm << CS35L33_HD_RM_SHIFT);
 		snd_soc_update_bits(codec, CS35L33_HG_MEMLDO_CTL,
-			LDO_THLD_MASK,
-			hg_config->ldo_thld << LDO_THLD_SHIFT);
+			CS35L33_LDO_THLD_MASK,
+			hg_config->ldo_thld << CS35L33_LDO_THLD_SHIFT);
 		snd_soc_update_bits(codec, CS35L33_HG_MEMLDO_CTL,
-			LDO_DISABLE_MASK,
-			hg_config->ldo_path_disable << LDO_DISABLE_SHIFT);
+			CS35L33_LDO_DISABLE_MASK,
+			hg_config->ldo_path_disable <<
+				CS35L33_LDO_DISABLE_SHIFT);
 		snd_soc_update_bits(codec, CS35L33_LDO_DEL,
-			LDO_ENTRY_DELAY_MASK,
-			hg_config->ldo_entry_delay << LDO_ENTRY_DELAY_SHIFT);
+			CS35L33_LDO_ENTRY_DELAY_MASK,
+			hg_config->ldo_entry_delay <<
+				CS35L33_LDO_ENTRY_DELAY_SHIFT);
 		if (hg_config->vp_hg_auto) {
 			dev_info(codec->dev,
 				"H/G algorithm (with auto VP tracking) controls the amplifier voltage\n");
 			snd_soc_update_bits(codec, CS35L33_HG_EN,
-				VP_HG_AUTO_MASK,
-				VP_HG_AUTO_MASK);
+				CS35L33_VP_HG_AUTO_MASK,
+				CS35L33_VP_HG_AUTO_MASK);
 			snd_soc_dapm_add_routes(&codec->dapm,
 				cs35l33_vphg_auto_route,
 				ARRAY_SIZE(cs35l33_vphg_auto_route));
@@ -734,16 +737,16 @@ int cs35l33_set_hg_data(struct snd_soc_codec *codec,
 			dev_info(codec->dev, "H/G algorithm controls the amplifier voltage\n");
 		}
 		snd_soc_update_bits(codec, CS35L33_HG_EN,
-			VP_HG_MASK,
-			hg_config->vp_hg << VP_HG_SHIFT);
+			CS35L33_VP_HG_MASK,
+			hg_config->vp_hg << CS35L33_VP_HG_SHIFT);
 		snd_soc_update_bits(codec, CS35L33_LDO_DEL,
-			VP_HG_RATE_MASK,
-			hg_config->vp_hg_rate << VP_HG_RATE_SHIFT);
+			CS35L33_VP_HG_RATE_MASK,
+			hg_config->vp_hg_rate << CS35L33_VP_HG_RATE_SHIFT);
 		snd_soc_update_bits(codec, CS35L33_LDO_DEL,
-			VP_HG_VA_MASK,
-			hg_config->vp_hg_va << VP_HG_VA_SHIFT);
+			CS35L33_VP_HG_VA_MASK,
+			hg_config->vp_hg_va << CS35L33_VP_HG_VA_SHIFT);
 		snd_soc_update_bits(codec, CS35L33_HG_EN,
-			CLASS_HG_EN_MASK, CLASS_HG_EN_MASK);
+			CS35L33_CLASS_HG_EN_MASK, CS35L33_CLASS_HG_EN_MASK);
 	} else {
 		dev_info(codec->dev, "Amplifier voltage controlled via the I2C port\n");
 	}
@@ -765,15 +768,17 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 	reg |= 1 << 3;
 	snd_soc_write(codec, CS35L33_PROTECT_CTL, reg);
 	snd_soc_update_bits(codec, CS35L33_BST_CTL2,
-				    ALIVE_WD_DIS2, ALIVE_WD_DIS2);
+				CS35L33_ALIVE_WD_DIS2,
+				CS35L33_ALIVE_WD_DIS2);
 
 	/* Set Platform Data */
 	snd_soc_update_bits(codec, CS35L33_BST_CTL1,
 		CS35L33_BST_CTL_MASK,
 		cs35l33->pdata.boost_ctl);
 	snd_soc_update_bits(codec, CS35L33_CLASSD_CTL,
-		AMP_DRV_SEL_MASK,
-		cs35l33->pdata.amp_drv_sel << AMP_DRV_SEL_SHIFT);
+		CS35L33_AMP_DRV_SEL_MASK,
+		cs35l33->pdata.amp_drv_sel <<
+		CS35L33_AMP_DRV_SEL_SHIFT);
 
 	if (cs35l33->pdata.boost_ipk)
 		snd_soc_write(codec, CS35L33_BST_PEAK_CTL,
@@ -781,26 +786,26 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 
 	if (cs35l33->enable_soft_ramp) {
 		snd_soc_update_bits(codec, CS35L33_DAC_CTL,
-			DIGSFT, DIGSFT);
+			CS35L33_DIGSFT, CS35L33_DIGSFT);
 		snd_soc_update_bits(codec, CS35L33_DAC_CTL,
-			DSR_RATE, cs35l33->pdata.ramp_rate);
+			CS35L33_DSR_RATE, cs35l33->pdata.ramp_rate);
 	} else {
 		snd_soc_update_bits(codec, CS35L33_DAC_CTL,
-			DIGSFT, 0);
+			CS35L33_DIGSFT, 0);
 	}
 
 	/* update IMON scaling rate if different from default of 0x8 */
 	if (cs35l33->pdata.imon_adc_scale != 0x8)
 		snd_soc_update_bits(codec, CS35L33_ADC_CTL,
-			IMON_SCALE, cs35l33->pdata.imon_adc_scale);
+			CS35L33_IMON_SCALE, cs35l33->pdata.imon_adc_scale);
 
 	cs35l33_set_hg_data(codec, &(cs35l33->pdata));
 
 	/* unmask important interrupts that causes the chip to enter
 	speaker safe mode and hence deserves user attention */
 	snd_soc_update_bits(codec, CS35L33_INT_MASK_1,
-		M_OTE | M_OTW | M_AMP_SHORT |
-		M_CAL_ERR, 0);
+		CS35L33_M_OTE | CS35L33_M_OTW | CS35L33_M_AMP_SHORT |
+		CS35L33_M_CAL_ERR, 0);
 
 	pm_runtime_put_sync(codec->dev);
 
@@ -1028,75 +1033,76 @@ static irqreturn_t cs35l33_irq_thread(int irq, void *data)
 
 		/* handle the interrupts */
 
-		if (sticky_val & AMP_SHORT) {
-			dev_err(codec->dev,
-				"Entering speaker safe mode on short\n");
-			if (!(current_val & AMP_SHORT)) {
+		if (sticky_val & CS35L33_AMP_SHORT) {
+			dev_err(codec->dev, "Amp short error\n");
+			if (!(current_val & CS35L33_AMP_SHORT)) {
 				dev_dbg(codec->dev,
-					"Executing short release\n");
+					"Amp short error release\n");
 				regmap_update_bits(cs35l33->regmap,
-					CS35L33_AMP_CTL, AMP_SHORT_RLS, 0);
+					CS35L33_AMP_CTL,
+					CS35L33_AMP_SHORT_RLS, 0);
 				regmap_update_bits(cs35l33->regmap,
-					CS35L33_AMP_CTL, AMP_SHORT_RLS,
-					AMP_SHORT_RLS);
+					CS35L33_AMP_CTL,
+					CS35L33_AMP_SHORT_RLS,
+					CS35L33_AMP_SHORT_RLS);
 				regmap_update_bits(cs35l33->regmap,
-					CS35L33_AMP_CTL, AMP_SHORT_RLS, 0);
+					CS35L33_AMP_CTL, CS35L33_AMP_SHORT_RLS,
+					0);
 			}
 		}
 
-		if (sticky_val & CAL_ERR) {
-			dev_err(codec->dev,
-				"Entering speaker safe mode on cal error\n");
+		if (sticky_val & CS35L33_CAL_ERR) {
+			dev_err(codec->dev, "Cal error\n");
 
 			/* redo the calibration in next power up */
 			cs35l33->amp_cal = false;
 
-			if (!(current_val & CAL_ERR)) {
-				dev_dbg(codec->dev,
-					"Executing cal error release\n");
+			if (!(current_val & CS35L33_CAL_ERR)) {
+				dev_dbg(codec->dev, "Cal error release\n");
 				regmap_update_bits(cs35l33->regmap,
-					CS35L33_AMP_CTL, CAL_ERR_RLS, 0);
+					CS35L33_AMP_CTL, CS35L33_CAL_ERR_RLS,
+					0);
 				regmap_update_bits(cs35l33->regmap,
-					CS35L33_AMP_CTL, CAL_ERR_RLS,
-					CAL_ERR_RLS);
+					CS35L33_AMP_CTL, CS35L33_CAL_ERR_RLS,
+					CS35L33_CAL_ERR_RLS);
 				regmap_update_bits(cs35l33->regmap,
-					CS35L33_AMP_CTL, CAL_ERR_RLS, 0);
+					CS35L33_AMP_CTL, CS35L33_CAL_ERR_RLS,
+					0);
 			}
 		}
 
-		if (sticky_val & OTE) {
-			dev_err(codec->dev,
-				"Entering speaker safe mode on temp error\n");
-			if (!(current_val & OTE)) {
+		if (sticky_val & CS35L33_OTE) {
+			dev_err(codec->dev, "Over temperature error\n");
+			if (!(current_val & CS35L33_OTE)) {
 				dev_dbg(codec->dev,
-					"Executing temp error release\n");
+					"Over temperature error release\n");
 				regmap_update_bits(cs35l33->regmap,
-					CS35L33_AMP_CTL, OTE_RLS, 0);
+					CS35L33_AMP_CTL, CS35L33_OTE_RLS, 0);
 				regmap_update_bits(cs35l33->regmap,
-					CS35L33_AMP_CTL, OTE_RLS, OTE_RLS);
+					CS35L33_AMP_CTL, CS35L33_OTE_RLS,
+					CS35L33_OTE_RLS);
 				regmap_update_bits(cs35l33->regmap,
-					CS35L33_AMP_CTL, OTE_RLS, 0);
+					CS35L33_AMP_CTL, CS35L33_OTE_RLS, 0);
 			}
 		}
 
-		if (sticky_val & OTW) {
-			dev_err(codec->dev,
-				"Entering speaker safe mode on temp warning\n");
-			if (!(current_val & OTW)) {
+		if (sticky_val & CS35L33_OTW) {
+			dev_err(codec->dev, "Over temperature warning\n");
+			if (!(current_val & CS35L33_OTW)) {
 				dev_dbg(codec->dev,
-					"Executing temp warning sequence\n");
+					"Over temperature warning release\n");
 				regmap_update_bits(cs35l33->regmap,
-					CS35L33_AMP_CTL, OTW_RLS, 0);
+					CS35L33_AMP_CTL, CS35L33_OTW_RLS, 0);
 				regmap_update_bits(cs35l33->regmap,
-					CS35L33_AMP_CTL, OTW_RLS, OTW_RLS);
+					CS35L33_AMP_CTL, CS35L33_OTW_RLS,
+					CS35L33_OTW_RLS);
 				regmap_update_bits(cs35l33->regmap,
-					CS35L33_AMP_CTL, OTW_RLS, 0);
+					CS35L33_AMP_CTL, CS35L33_OTW_RLS, 0);
 			}
 		}
 
-		if (sticky_val & ALIVE_ERR)
-			dev_err(codec->dev,
-				"Entering speaker safe mode on alive error\n");
+		if (sticky_val & CS35L33_ALIVE_ERR)
+			dev_err(codec->dev, "Alive error\n");
 	} while (poll);
 
 	return IRQ_HANDLED;
@@ -1139,7 +1145,8 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 			cs35l33->num_core_supplies,
 			cs35l33->core_supplies);
 	if (ret != 0) {
-		dev_err(&i2c_client->dev, "Failed to request core supplies: %d\n",
+		dev_err(&i2c_client->dev,
+			"Failed to request core supplies: %d\n",
 			ret);
 		goto err_regmap;
 	}
@@ -1176,7 +1183,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 						GPIOF_IN, "cs35l33 IRQ");
 		if (ret != 0) {
 			dev_err(&i2c_client->dev,
-				"Failed to request IRQ GPIO %d:: %d\n",
+				"Failed to request IRQ GPIO %d: %d\n",
 				pdata->gpio_irq, ret);
 			pdata->gpio_irq = 0;
 		}
@@ -1249,8 +1256,8 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 
 	/* disable mclk and tdm */
 	regmap_update_bits(cs35l33->regmap, CS35L33_CLK_CTL,
-		MCLKDIS |SDOUT_3ST_TDM,
-		MCLKDIS |SDOUT_3ST_TDM);
+		CS35L33_MCLKDIS | CS35L33_SDOUT_3ST_TDM,
+		CS35L33_MCLKDIS | CS35L33_SDOUT_3ST_TDM);
 
 	pm_runtime_set_autosuspend_delay(&i2c_client->dev, 100);
 	pm_runtime_use_autosuspend(&i2c_client->dev);

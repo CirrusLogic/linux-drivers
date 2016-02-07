@@ -73,141 +73,140 @@
 
 /* CS35L33_PWRCTL1 */
 
-#define PDN_AMP			(1 << 7)
-#define PDN_BST			(1 << 2)
-#define PDN_ALL			1
+#define CS35L33_PDN_AMP			(1 << 7)
+#define CS35L33_PDN_BST			(1 << 2)
+#define CS35L33_PDN_ALL			1
 
 /* CS35L33_PWRCTL2 */
-#define PDN_VMON_SHIFT  	7
-#define PDN_VMON		(1 << PDN_VMON_SHIFT)
-#define PDN_IMON_SHIFT  	6
-#define PDN_IMON		(1 << PDN_IMON_SHIFT)
-#define PDN_VPMON_SHIFT  	5
-#define PDN_VPMON		(1 << PDN_VPMON_SHIFT)
-#define PDN_VBSTMON_SHIFT  	4
-#define PDN_VBSTMON		(1 << PDN_VBSTMON_SHIFT)
-#define SDOUT_3ST_I2S_SHIFT  	3
-#define SDOUT_3ST_I2S		(1 << SDOUT_3ST_I2S_SHIFT)
-#define PDN_SDIN_SHIFT  	2
-#define PDN_SDIN		(1 << PDN_SDIN_SHIFT)
-#define PDN_TDM_SHIFT   	1
-#define PDN_TDM 		(1 << PDN_TDM_SHIFT)
+#define CS35L33_PDN_VMON_SHIFT		7
+#define CS35L33_PDN_VMON		(1 << CS35L33_PDN_VMON_SHIFT)
+#define CS35L33_PDN_IMON_SHIFT		6
+#define CS35L33_PDN_IMON		(1 << CS35L33_PDN_IMON_SHIFT)
+#define CS35L33_PDN_VPMON_SHIFT		5
+#define CS35L33_PDN_VPMON		(1 << CS35L33_PDN_VPMON_SHIFT)
+#define CS35L33_PDN_VBSTMON_SHIFT	4
+#define CS35L33_PDN_VBSTMON		(1 << CS35L33_PDN_VBSTMON_SHIFT)
+#define CS35L33_SDOUT_3ST_I2S_SHIFT	3
+#define CS35L33_SDOUT_3ST_I2S		(1 << CS35L33_SDOUT_3ST_I2S_SHIFT)
+#define CS35L33_PDN_SDIN_SHIFT		2
+#define CS35L33_PDN_SDIN		(1 << CS35L33_PDN_SDIN_SHIFT)
+#define CS35L33_PDN_TDM_SHIFT		1
+#define CS35L33_PDN_TDM			(1 << CS35L33_PDN_TDM_SHIFT)
 
 /* CS35L33_CLK_CTL */
-#define MCLKDIS			(1 << 7)
-#define MCLKDIV2		(1 << 6)
-#define SDOUT_3ST_TDM		(1 << 5)
-#define INT_FS_RATE		(1 << 4)
-#define ADSP_FS			0xF
+#define CS35L33_MCLKDIS			(1 << 7)
+#define CS35L33_MCLKDIV2		(1 << 6)
+#define CS35L33_SDOUT_3ST_TDM		(1 << 5)
+#define CS35L33_INT_FS_RATE		(1 << 4)
+#define CS35L33_ADSP_FS			0xF
 
 /* CS35L33_PROTECT_CTL */
-#define ALIVE_WD_DIS		(3 << 2)
+#define CS35L33_ALIVE_WD_DIS		(3 << 2)
 
 /* CS35L33_BST_CTL1 */
-#define BST_CTL_SRC		(1 << 6)
-#define BST_CTL			0x3F
+#define CS35L33_BST_CTL_SRC		(1 << 6)
 #define CS35L33_BST_CTL_SHIFT	(1 << 5)
 #define CS35L33_BST_CTL_MASK	0x3F
 
 /* CS35L33_BST_CTL2 */
-#define TDM_WD_SEL		(1 << 4)
-#define ALIVE_WD_DIS2		(1 << 3)
-#define VBST_SR_STEP		0x3
+#define CS35L33_TDM_WD_SEL		(1 << 4)
+#define CS35L33_ALIVE_WD_DIS2		(1 << 3)
+#define CS35L33_VBST_SR_STEP		0x3
 
 /* CS35L33_ADSP_CTL */
-#define ADSP_DRIVE		(1 << 7)
-#define MS_MASK			(1 << 6)
-#define SDIN_LOC		(3 << 4)
-#define ALIVE_RATE		0x3
+#define CS35L33_ADSP_DRIVE		(1 << 7)
+#define CS35L33_MS_MASK			(1 << 6)
+#define CS35L33_SDIN_LOC		(3 << 4)
+#define CS35L33_ALIVE_RATE		0x3
 
 /* CS35L33_ADC_CTL */
-#define INV_VMON		(1 << 7)
-#define INV_IMON		(1 << 6)
-#define ADC_NOTCH_DIS		(1 << 5)
-#define IMON_SCALE		0xF
+#define CS35L33_INV_VMON		(1 << 7)
+#define CS35L33_INV_IMON		(1 << 6)
+#define CS35L33_ADC_NOTCH_DIS		(1 << 5)
+#define CS35L33_IMON_SCALE		0xF
 
 /* CS35L33_DAC_CTL */
-#define INV_DAC			(1 << 7)
-#define DAC_NOTCH_DIS		(1 << 5)
-#define DIGSFT			(1 << 4)
-#define DSR_RATE		0xF
+#define CS35L33_INV_DAC			(1 << 7)
+#define CS35L33_DAC_NOTCH_DIS		(1 << 5)
+#define CS35L33_DIGSFT			(1 << 4)
+#define CS35L33_DSR_RATE		0xF
 
 /* CS35L33_CLASSD_CTL */
-#define AMP_SD			(1 << 6)
-#define AMP_DRV_SEL_SRC		(1 << 5)
-#define AMP_DRV_SEL_MASK	0x10
-#define AMP_DRV_SEL_SHIFT	4
-#define AMP_CAL			(1 << 3)
-#define GAIN_CHG_ZC_MASK	0x04
-#define GAIN_CHG_ZC_SHIFT	2
-#define CLASS_D_CTL_MASK	0x3F
+#define CS35L33_AMP_SD			(1 << 6)
+#define CS35L33_AMP_DRV_SEL_SRC		(1 << 5)
+#define CS35L33_AMP_DRV_SEL_MASK	0x10
+#define CS35L33_AMP_DRV_SEL_SHIFT	4
+#define CS35L33_AMP_CAL			(1 << 3)
+#define CS35L33_GAIN_CHG_ZC_MASK	0x04
+#define CS35L33_GAIN_CHG_ZC_SHIFT	2
+#define CS35L33_CLASS_D_CTL_MASK	0x3F
 
 /* CS35L33_AMP_CTL */
-#define AMP_GAIN		0xF0
-#define CAL_ERR_RLS		(1 << 3)
-#define AMP_SHORT_RLS		(1 << 2)
-#define OTW_RLS			(1 << 1)
-#define OTE_RLS			1
+#define CS35L33_AMP_GAIN		0xF0
+#define CS35L33_CAL_ERR_RLS		(1 << 3)
+#define CS35L33_AMP_SHORT_RLS		(1 << 2)
+#define CS35L33_OTW_RLS			(1 << 1)
+#define CS35L33_OTE_RLS			1
 
 /* CS35L33_INT_MASK_1 */
-#define M_OTE_SHIFT		0
-#define M_OTE   		(1 << M_OTE_SHIFT)
-#define M_OTW_SHIFT		1
-#define M_OTW   		(1 << M_OTW_SHIFT)
-#define M_AMP_SHORT_SHIFT	2
-#define M_AMP_SHORT		(1 << M_AMP_SHORT_SHIFT)
-#define M_ALIVE_ERR_SHIFT	5
-#define M_ALIVE_ERR		(1 << M_ALIVE_ERR_SHIFT)
-#define M_CAL_ERR_SHIFT 	6
-#define M_CAL_ERR		(1 << M_CAL_ERR_SHIFT)
+#define CS35L33_M_CAL_ERR_SHIFT		6
+#define CS35L33_M_CAL_ERR		(1 << CS35L33_M_CAL_ERR_SHIFT)
+#define CS35L33_M_ALIVE_ERR_SHIFT	5
+#define CS35L33_M_ALIVE_ERR		(1 << CS35L33_M_ALIVE_ERR_SHIFT)
+#define CS35L33_M_AMP_SHORT_SHIFT	2
+#define CS35L33_M_AMP_SHORT		(1 << CS35L33_M_AMP_SHORT_SHIFT)
+#define CS35L33_M_OTW_SHIFT		1
+#define CS35L33_M_OTW			(1 << CS35L33_M_OTW_SHIFT)
+#define CS35L33_M_OTE_SHIFT		0
+#define CS35L33_M_OTE			(1 << CS35L33_M_OTE_SHIFT)
 
 /* CS35L33_INT_STATUS_1 */
-#define CAL_ERR			(1 << 6)
-#define ALIVE_ERR		(1 << 5)
-#define ADSPCLK_ERR		(1 << 4)
-#define MCLK_ERR		(1 << 3)
-#define AMP_SHORT		(1 << 2)
-#define OTW			(1 << 1)
-#define OTE			(1 << 0)
+#define CS35L33_CAL_ERR			(1 << 6)
+#define CS35L33_ALIVE_ERR		(1 << 5)
+#define CS35L33_ADSPCLK_ERR		(1 << 4)
+#define CS35L33_MCLK_ERR		(1 << 3)
+#define CS35L33_AMP_SHORT		(1 << 2)
+#define CS35L33_OTW			(1 << 1)
+#define CS35L33_OTE			(1 << 0)
 
 /* CS35L33_INT_STATUS_2 */
-#define VMON_OVFL		(1 << 7)
-#define IMON_OVFL		(1 << 6)
-#define VPMON_OVFL		(1 << 5)
-#define VBSTMON_OVFL		(1 << 4)
-#define PDN_DONE		1
+#define CS35L33_VMON_OVFL		(1 << 7)
+#define CS35L33_IMON_OVFL		(1 << 6)
+#define CS35L33_VPMON_OVFL		(1 << 5)
+#define CS35L33_VBSTMON_OVFL		(1 << 4)
+#define CS35L33_PDN_DONE		1
 
 /* CS35L33_BST_CTL4 */
-#define BST_RGS			0x70
-#define BST_COEFF3		0xF
+#define CS35L33_BST_RGS			0x70
+#define CS35L33_BST_COEFF3		0xF
 
 /* CS35L33_HG_MEMLDO_CTL */
-#define MEM_DEPTH_SHIFT 	5
-#define MEM_DEPTH_MASK		(0x3 << MEM_DEPTH_SHIFT)
-#define LDO_THLD_SHIFT  	1
-#define LDO_THLD_MASK		(0xF << LDO_THLD_SHIFT)
-#define LDO_DISABLE_SHIFT	0
-#define LDO_DISABLE_MASK	(0x1 << LDO_DISABLE_SHIFT)
+#define CS35L33_MEM_DEPTH_SHIFT		5
+#define CS35L33_MEM_DEPTH_MASK		(0x3 << CS35L33_MEM_DEPTH_SHIFT)
+#define CS35L33_LDO_THLD_SHIFT		1
+#define CS35L33_LDO_THLD_MASK		(0xF << CS35L33_LDO_THLD_SHIFT)
+#define CS35L33_LDO_DISABLE_SHIFT	0
+#define CS35L33_LDO_DISABLE_MASK	(0x1 << CS35L33_LDO_DISABLE_SHIFT)
 
 /* CS35L33_LDO_DEL */
-#define VP_HG_RATE_SHIFT	0
-#define VP_HG_RATE_MASK 	(0x3 << VP_HG_RATE_SHIFT)
-#define LDO_ENTRY_DELAY_SHIFT	2
-#define LDO_ENTRY_DELAY_MASK	(0x7 << LDO_ENTRY_DELAY_SHIFT)
-#define VP_HG_VA_SHIFT  	5
-#define VP_HG_VA_MASK   	(0x7 << VP_HG_VA_SHIFT)
+#define CS35L33_VP_HG_VA_SHIFT		5
+#define CS35L33_VP_HG_VA_MASK		(0x7 << CS35L33_VP_HG_VA_SHIFT)
+#define CS35L33_LDO_ENTRY_DELAY_SHIFT	2
+#define CS35L33_LDO_ENTRY_DELAY_MASK	(0x7 << CS35L33_LDO_ENTRY_DELAY_SHIFT)
+#define CS35L33_VP_HG_RATE_SHIFT	0
+#define CS35L33_VP_HG_RATE_MASK		(0x3 << CS35L33_VP_HG_RATE_SHIFT)
 
 /* CS35L33_HG_HEAD */
-#define HD_RM_SHIFT		0
-#define HD_RM_MASK		(0x7F << HD_RM_SHIFT)
+#define CS35L33_HD_RM_SHIFT		0
+#define CS35L33_HD_RM_MASK		(0x7F << CS35L33_HD_RM_SHIFT)
 
 /* CS35L33_HG_EN */
-#define VP_HG_SHIFT		0
-#define VP_HG_MASK		(0x1F << VP_HG_SHIFT)
-#define VP_HG_AUTO_SHIFT	6
-#define VP_HG_AUTO_MASK 	(0x1 << VP_HG_AUTO_SHIFT)
-#define CLASS_HG_ENA_SHIFT	7
-#define CLASS_HG_EN_MASK 	(0x1 << CLASS_HG_ENA_SHIFT)
+#define CS35L33_CLASS_HG_ENA_SHIFT	7
+#define CS35L33_CLASS_HG_EN_MASK	(0x1 << CS35L33_CLASS_HG_ENA_SHIFT)
+#define CS35L33_VP_HG_AUTO_SHIFT	6
+#define CS35L33_VP_HG_AUTO_MASK		(0x1 << 6)
+#define CS35L33_VP_HG_SHIFT		0
+#define CS35L33_VP_HG_MASK		(0x1F << CS35L33_VP_HG_SHIFT)
 
 #define CS35L33_RATES (SNDRV_PCM_RATE_48000)
 #define CS35L33_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
@@ -215,13 +214,13 @@
 			SNDRV_PCM_FMTBIT_S32_LE)
 
 /* CS35L33_{RX,TX}_X */
-#define X_STATE_SHIFT   	7
-#define X_STATE 		(1 << X_STATE_SHIFT)
-#define X_LOC_SHIFT		0
-#define X_LOC   		(0x1F << X_LOC_SHIFT)
+#define CS35L33_X_STATE_SHIFT		7
+#define CS35L33_X_STATE			(1 << CS35L33_X_STATE_SHIFT)
+#define CS35L33_X_LOC_SHIFT		0
+#define CS35L33_X_LOC			(0x1F << CS35L33_X_LOC_SHIFT)
 
 /* CS35L33_RX_AUD */
-#define AUDIN_RX_DEPTH_SHIFT	5
-#define AUDIN_RX_DEPTH  	(0x7 << AUDIN_RX_DEPTH_SHIFT)
+#define CS35L33_AUDIN_RX_DEPTH_SHIFT	5
+#define CS35L33_AUDIN_RX_DEPTH		(0x7 << CS35L33_AUDIN_RX_DEPTH_SHIFT)
 
 #endif
