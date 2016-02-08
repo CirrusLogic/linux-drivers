@@ -813,13 +813,6 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int cs35l33_remove(struct snd_soc_codec *codec)
-{
-	cs35l33_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
 static struct regmap *cs35l33_get_regmap(struct device *dev)
 {
 	struct cs35l33_private *cs35l33 = dev_get_drvdata(dev);
@@ -829,7 +822,6 @@ static struct regmap *cs35l33_get_regmap(struct device *dev)
 
 static struct snd_soc_codec_driver soc_codec_dev_cs35l33 = {
 	.probe = cs35l33_probe,
-	.remove = cs35l33_remove,
 
 	.get_regmap = cs35l33_get_regmap,
 	.set_bias_level = cs35l33_set_bias_level,
