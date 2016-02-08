@@ -14,8 +14,6 @@
 #ifndef __CS35L33_H__
 #define __CS35L33_H__
 
-#define CS35L33_FIRSTREG	0x01
-#define CS35L33_LASTREG		0x40
 #define CS35L33_CHIP_ID		0x00035A33
 #define CS35L33_DEVID_AB	0x01	/* Device ID A & B [RO] */
 #define CS35L33_DEVID_CD	0x02    /* Device ID C & D [RO] */
@@ -50,7 +48,6 @@
 #define CS35L33_HGLDO_CNT	0x28	/* H/G LDO Counter */
 #define CS35L33_HG_HEAD		0x29	/* H/G Headroom */
 #define CS35L33_HG_EN		0x2A	/* H/G Enable/VPhg CNT2 */
-#define CS35L33_BST_CTL3	0x2C	/* Boost Converter Control 3 */
 #define CS35L33_TX_VMON  	0x2D	/* TDM TX Control 1 (VMON) */
 #define CS35L33_TX_IMON  	0x2E	/* TDM TX Control 2 (IMON) */
 #define CS35L33_TX_VPMON	0x2F	/* TDM TX Control 3 (VPMON) */
@@ -65,9 +62,7 @@
 #define CS35L33_RX_ALIVE	0x38	/* TDM RX Control 3 */
 #define CS35L33_BST_CTL4	0x39	/* Boost Converter Control 4 */
 #define CS35L33_HG_STATUS	0x3F	/* H/G Status */
-#define CS35L33_BST_CTL5	0x3F	/* Boost Converter Control 5 */
 #define CS35L33_MAX_REGISTER	0x59
-#define CS35L33_REGISTER_COUNT	0x1B
 
 #define CS35L33_MCLK_5644	5644800
 #define CS35L33_MCLK_6144	6144000
@@ -182,16 +177,9 @@
 #define VBSTMON_OVFL		(1 << 4)
 #define PDN_DONE		1
 
-/* CS35L33_BST_CTL3 */
-#define BST_COEFF1		0xF0
-#define BST_COEFF2		0xF
-
 /* CS35L33_BST_CTL4 */
 #define BST_RGS			0x70
 #define BST_COEFF3		0xF
-
-/* CS35L33_BST_CTL3 */
-#define BST_IPK_TRIM		0x3F
 
 /* CS35L33_HG_MEMLDO_CTL */
 #define MEM_DEPTH_SHIFT 	5
