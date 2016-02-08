@@ -973,9 +973,6 @@ static void cs35l33_of_get_pdata(struct cs35l33_private *cs35l33,
 	if (of_property_read_u32(np, "boost-ctl", &val32) >= 0) {
 		pdata->boost_ctl = val32;
 		pdata->amp_drv_sel = 1;
-	} else {
-		pdata->boost_ctl = 0;
-		pdata->amp_drv_sel = 0;
 	}
 
 	if (of_property_read_u32(np, "ramp-rate", &val32) >= 0) {
