@@ -272,29 +272,28 @@ static int cs35l33_sdout_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct cs35l33_private *priv = snd_soc_codec_get_drvdata(codec);
-	unsigned int mask, val, mask2, val2;
+	unsigned int mask = CS35L33_SDOUT_3ST_I2S | CS35L33_PDN_TDM;
+	unsigned int mask2 = CS35L33_SDOUT_3ST_TDM;
+	unsigned int val, val2;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		if (priv->is_tdm_mode) {
 			/* set sdout_3st_i2s and reset pdn_tdm */
-			mask = (CS35L33_SDOUT_3ST_I2S | CS35L33_PDN_TDM);
 			val = CS35L33_SDOUT_3ST_I2S;
 			/* reset sdout_3st_tdm */
-			mask2 = CS35L33_SDOUT_3ST_TDM;
 			val2 = 0;
 		} else {
 			/* reset sdout_3st_i2s and set pdn_tdm */
-			mask = (CS35L33_SDOUT_3ST_I2S | CS35L33_PDN_TDM);
 			val = CS35L33_PDN_TDM;
 			/* set sdout_3st_tdm */
-			mask2 = val2 = CS35L33_SDOUT_3ST_TDM;
+			val2 = CS35L33_SDOUT_3ST_TDM;
 		}
 		dev_dbg(codec->dev, "SDOUT turned on\n");
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		mask = val = (CS35L33_SDOUT_3ST_I2S | CS35L33_PDN_TDM);
-		mask2 = val2 = CS35L33_SDOUT_3ST_TDM;
+		val = CS35L33_SDOUT_3ST_I2S | CS35L33_PDN_TDM;
+		val2 = CS35L33_SDOUT_3ST_TDM;
 		dev_dbg(codec->dev, "SDOUT turned off\n");
 		break;
 	default:
