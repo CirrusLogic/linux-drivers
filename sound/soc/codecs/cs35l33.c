@@ -205,10 +205,6 @@ static int cs35l33_spkrdrv_event(struct snd_soc_dapm_widget *w,
 	struct cs35l33_private *priv = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		if (!priv->amp_cal)
-			mdelay(10);
-		break;
 	case SND_SOC_DAPM_POST_PMU:
 		if (!priv->amp_cal) {
 			mdelay(8);
@@ -252,6 +248,7 @@ static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
 			regmap_update_bits(priv->regmap, CS35L33_CLASSD_CTL,
 				    CS35L33_AMP_CAL, CS35L33_AMP_CAL);
 			dev_dbg(codec->dev, "Amp calibration started\n");
+			mdelay(10);
 		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
@@ -317,7 +314,7 @@ static const struct snd_soc_dapm_widget cs35l33_dapm_widgets[] = {
 
 	SND_SOC_DAPM_OUTPUT("SPK"),
 	SND_SOC_DAPM_OUT_DRV_E("SPKDRV", CS35L33_PWRCTL1, 7, 1, NULL, 0,
-		cs35l33_spkrdrv_event, SND_SOC_DAPM_PRE_PMU |
+		cs35l33_spkrdrv_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_AIF_IN_E("SDIN", NULL, 0, CS35L33_PWRCTL2,
 		2, 1, cs35l33_sdin_event, SND_SOC_DAPM_PRE_PMU |
