@@ -207,7 +207,7 @@ static int cs35l33_spkrdrv_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		if (!priv->amp_cal) {
-			mdelay(8);
+			usleep_range(8000, 9000);
 			priv->amp_cal = true;
 			regmap_update_bits(priv->regmap, CS35L33_CLASSD_CTL,
 				    CS35L33_AMP_CAL, 0);
@@ -248,7 +248,7 @@ static int cs35l33_sdin_event(struct snd_soc_dapm_widget *w,
 			regmap_update_bits(priv->regmap, CS35L33_CLASSD_CTL,
 				    CS35L33_AMP_CAL, CS35L33_AMP_CAL);
 			dev_dbg(codec->dev, "Amp calibration started\n");
-			mdelay(10);
+			usleep_range(10000, 11000);
 		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
