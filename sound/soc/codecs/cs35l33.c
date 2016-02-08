@@ -1105,16 +1105,17 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 	int ret, devid, i;
 	unsigned int reg;
 
-	cs35l33 = kzalloc(sizeof(struct cs35l33_private), GFP_KERNEL);
+	cs35l33 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs35l33_private),
+			       GFP_KERNEL);
 	if (!cs35l33)
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c_client, cs35l33);
-	cs35l33->regmap = regmap_init_i2c(i2c_client, &cs35l33_regmap);
+	cs35l33->regmap = devm_regmap_init_i2c(i2c_client, &cs35l33_regmap);
 	if (IS_ERR(cs35l33->regmap)) {
 		ret = PTR_ERR(cs35l33->regmap);
 		dev_err(&i2c_client->dev, "regmap_init() failed: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	regcache_cache_only(cs35l33->regmap, true);
@@ -1131,7 +1132,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 		dev_err(&i2c_client->dev,
 			"Failed to request core supplies: %d\n",
 			ret);
-		goto err_regmap;
+		return ret;
 	}
 
 	if (pdata) {
@@ -1184,7 +1185,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 		if (ret != 0) {
 			dev_err(&i2c_client->dev,
 				"Failed to request /RESET: %d\n", ret);
-			goto err_regmap;
+			goto err_irq;
 		}
 	}
 
@@ -1194,7 +1195,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 		dev_err(&i2c_client->dev,
 			"Failed to enable core supplies: %d\n",
 			ret);
-		goto err_regmap;
+		goto err_irq;
 	}
 
 	if (cs35l33->pdata.gpio_nreset > 0)
@@ -1250,7 +1251,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 	if (ret < 0) {
 		dev_err(&i2c_client->dev, "%s: Register codec failed\n",
 			__func__);
-		goto err_regmap;
+		goto err_irq;
 	}
 
 	return 0;
@@ -1258,9 +1259,9 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 err_enable:
 	regulator_bulk_disable(cs35l33->num_core_supplies,
 			       cs35l33->core_supplies);
-err_regmap:
-	regmap_exit(cs35l33->regmap);
-err:
+err_irq:
+	free_irq(cs35l33->pdata.irq, cs35l33);
+
 	return ret;
 }
 
@@ -1275,7 +1276,6 @@ static int cs35l33_i2c_remove(struct i2c_client *client)
 	regulator_bulk_disable(cs35l33->num_core_supplies,
 		cs35l33->core_supplies);
 	free_irq(cs35l33->pdata.irq, cs35l33);
-	kfree(i2c_get_clientdata(client));
 
 	return 0;
 }
