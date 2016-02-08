@@ -40,6 +40,8 @@
 
 #include "cs35l33.h"
 
+#define CS35L33_BOOT_DELAY 50
+
 struct cs35l33_private {
 	struct snd_soc_codec *codec;
 	struct cs35l33_pdata pdata;
@@ -851,11 +853,6 @@ static const struct regmap_config cs35l33_regmap = {
 	.use_single_rw = true,
 };
 
-static inline void cs35l33_wait_for_boot(void)
-{
-	msleep(50);
-}
-
 static int cs35l33_runtime_resume(struct device *dev)
 {
 	struct cs35l33_private *cs35l33 = dev_get_drvdata(dev);
@@ -878,7 +875,7 @@ static int cs35l33_runtime_resume(struct device *dev)
 	if (cs35l33->pdata.gpio_nreset > 0)
 		gpio_set_value_cansleep(cs35l33->pdata.gpio_nreset, 1);
 
-	cs35l33_wait_for_boot();
+	msleep(CS35L33_BOOT_DELAY);
 
 	ret = regcache_sync(cs35l33->regmap);
 	if (ret != 0) {
@@ -1203,7 +1200,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 	if (cs35l33->pdata.gpio_nreset > 0)
 		gpio_set_value_cansleep(cs35l33->pdata.gpio_nreset, 1);
 
-	cs35l33_wait_for_boot();
+	msleep(CS35L33_BOOT_DELAY);
 	regcache_cache_only(cs35l33->regmap, false);
 
 	/* initialize codec */
