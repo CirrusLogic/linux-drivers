@@ -949,44 +949,6 @@ static int cs35l33_get_hg_data(const struct device_node *np,
 	return 0;
 }
 
-static void cs35l33_of_get_pdata(struct cs35l33_private *cs35l33,
-				 struct device_node *np,
-				 struct cs35l33_pdata *pdata)
-{
-	u32 val32;
-
-	if (of_property_read_u32(np, "boost-ctl", &val32) >= 0) {
-		pdata->boost_ctl = val32;
-		pdata->amp_drv_sel = 1;
-	}
-
-	if (of_property_read_u32(np, "ramp-rate", &val32) >= 0) {
-		pdata->ramp_rate = val32;
-		cs35l33->enable_soft_ramp = true;
-	}
-
-	pdata->gpio_nreset = of_get_named_gpio(np, "reset-gpios", 0);
-
-	if (of_property_read_u32(np, "boost-ipk", &val32) >= 0)
-		pdata->boost_ipk = val32;
-
-	pdata->irq = irq_of_parse_and_map(np, 0);
-	pdata->gpio_irq = of_get_named_gpio(np, "irq-gpios", 0);
-
-	if (of_property_read_u32(np, "imon-adc-scale", &val32) >= 0) {
-		if ((val32 == 0x0) || (val32 == 0x7) || (val32 == 0x6))
-			pdata->imon_adc_scale = val32;
-		else
-			/* use default value */
-			pdata->imon_adc_scale = 0x8;
-	} else {
-		/* use default value */
-		pdata->imon_adc_scale = 0x8;
-	}
-
-	cs35l33_get_hg_data(np, pdata);
-}
-
 static irqreturn_t cs35l33_irq_thread(int irq, void *data)
 {
 	struct cs35l33_private *cs35l33 = data;
@@ -1093,6 +1055,50 @@ static const char * const cs35l33_core_supplies[] = {
 	"VP",
 };
 
+static int cs35l33_of_get_pdata(struct device *dev,
+				struct cs35l33_private *cs35l33)
+{
+	struct device_node *np = dev->of_node;
+	struct cs35l33_pdata *pdata = &cs35l33->pdata;
+	u32 val32;
+
+	if (!np)
+		return 0;
+
+	if (of_property_read_u32(np, "boost-ctl", &val32) >= 0) {
+		pdata->boost_ctl = val32;
+		pdata->amp_drv_sel = 1;
+	}
+
+	if (of_property_read_u32(np, "ramp-rate", &val32) >= 0) {
+		pdata->ramp_rate = val32;
+		cs35l33->enable_soft_ramp = true;
+	}
+
+	pdata->gpio_nreset = of_get_named_gpio(np, "reset-gpios", 0);
+
+	if (of_property_read_u32(np, "boost-ipk", &val32) >= 0)
+		pdata->boost_ipk = val32;
+
+	pdata->irq = irq_of_parse_and_map(np, 0);
+	pdata->gpio_irq = of_get_named_gpio(np, "irq-gpios", 0);
+
+	if (of_property_read_u32(np, "imon-adc-scale", &val32) >= 0) {
+		if ((val32 == 0x0) || (val32 == 0x7) || (val32 == 0x6))
+			pdata->imon_adc_scale = val32;
+		else
+			/* use default value */
+			pdata->imon_adc_scale = 0x8;
+	} else {
+		/* use default value */
+		pdata->imon_adc_scale = 0x8;
+	}
+
+	cs35l33_get_hg_data(np, pdata);
+
+	return 0;
+}
+
 static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 				       const struct i2c_device_id *id)
 {
@@ -1134,17 +1140,8 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 	if (pdata) {
 		cs35l33->pdata = *pdata;
 	} else {
-		pdata = devm_kzalloc(&i2c_client->dev,
-				     sizeof(struct cs35l33_pdata),
-				GFP_KERNEL);
-		if (!pdata)
-			return -ENOMEM;
-
-		if (i2c_client->dev.of_node)
-			cs35l33_of_get_pdata(cs35l33, i2c_client->dev.of_node,
-					     pdata);
-
-		cs35l33->pdata = *pdata;
+		cs35l33_of_get_pdata(&i2c_client->dev, cs35l33);
+		pdata = &cs35l33->pdata;
 	}
 
 	if (pdata->gpio_irq > 0) {
