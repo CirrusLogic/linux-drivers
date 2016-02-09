@@ -686,10 +686,13 @@ static int arizona_runtime_resume(struct device *dev)
 	}
 
 	/* sync the gpio registers */
-	for (offset = 0; offset < num_gpios; offset++)
+	for (offset = 0; offset < num_gpios; offset++) {
+		if (!arizona->pdata.gpio_defaults[offset * 2])
+			continue;
 		regmap_write(arizona->regmap,
 			CLEARWATER_GPIO1_CTRL_1 + (offset * 2),
 			arizona->pdata.gpio_defaults[offset * 2]);
+	}
 
 	ret = regcache_sync(arizona->regmap);
 	if (ret != 0) {
