@@ -3536,6 +3536,25 @@ static const struct {
 	{ 1000000, 13500000, 0,  1 },
 };
 
+static const unsigned int pseudo_fref_max[MADERA_FLL_MAX_FRATIO] = {
+	13500000,
+	 6144000,
+	 6144000,
+	 3072000,
+	 3072000,
+	 2822400,
+	 2822400,
+	 1536000,
+	 1536000,
+	 1536000,
+	 1536000,
+	 1536000,
+	 1536000,
+	 1536000,
+	 1536000,
+	  768000,
+};
+
 struct madera_fll_gains {
 	unsigned int min;
 	unsigned int max;
@@ -3697,6 +3716,9 @@ static int madera_calc_fratio(struct madera_fll *fll,
 		     ratio++) {
 			if ((MADERA_FLL_VCO_CORNER / 2) /
 			    (MADERA_FLL_VCO_MULT * ratio) < Fref)
+				break;
+
+			if (Fref > pseudo_fref_max[ratio - 1])
 				break;
 
 			if (fvco % (ratio * Fref)) {
