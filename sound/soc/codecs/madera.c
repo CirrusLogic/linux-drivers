@@ -3997,9 +3997,10 @@ static int madera_enable_fll(struct madera_fll *fll)
 		/* Facilitate smooth refclk across the transition */
 		regmap_update_bits_async(fll->madera->regmap, fll->base + 0x7,
 					 MADERA_FLL1_GAIN_MASK, 0);
-		regmap_update_bits_async(fll->madera->regmap, fll->base + 1,
-					 MADERA_FLL1_FREERUN,
-					 MADERA_FLL1_FREERUN);
+		regmap_update_bits(fll->madera->regmap, fll->base + 1,
+				   MADERA_FLL1_FREERUN,
+				   MADERA_FLL1_FREERUN);
+		udelay(32);
 	}
 
 	if (fll->ref_src >= 0 && fll->ref_freq &&
