@@ -214,16 +214,6 @@ static const int cs47l90_dsp_control_bases[] = {
 	MADERA_DSP7_CONFIG_1,
 };
 
-static const int cs47l90_dsp_bus_error_irqs[CS47L90_NUM_ADSP] = {
-	MADERA_IRQ_DSP1_BUS_ERROR,
-	MADERA_IRQ_DSP2_BUS_ERROR,
-	MADERA_IRQ_DSP3_BUS_ERROR,
-	MADERA_IRQ_DSP4_BUS_ERROR,
-	MADERA_IRQ_DSP5_BUS_ERROR,
-	MADERA_IRQ_DSP6_BUS_ERROR,
-	MADERA_IRQ_DSP7_BUS_ERROR,
-};
-
 static const char * const cs47l90_inmux_texts[] = {
 	"A",
 	"B",
@@ -2583,7 +2573,7 @@ static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 {
 	struct cs47l90_priv *cs47l90 = snd_soc_codec_get_drvdata(codec);
 	struct madera *madera = cs47l90->core.madera;
-	int ret, i, j;
+	int ret, i;
 
 	cs47l90->core.madera->dapm = &codec->dapm;
 
@@ -2621,20 +2611,12 @@ static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 	for (i = 0; i < CS47L90_NUM_ADSP; i++) {
 		wm_adsp2_codec_probe(&cs47l90->core.adsp[i], codec);
 
-		ret = madera_request_irq(madera,
-					 cs47l90_dsp_bus_error_irqs[i],
-					 "ADSP2 bus error",
-					 cs47l90_dsp_bus_error,
-					 &cs47l90->core.adsp[i]);
+		ret = madera_init_bus_error_irq(codec, i,
+						cs47l90_dsp_bus_error);
 		if (ret) {
-			dev_err(madera->dev,
-				"Failed to request DSP Lock region IRQ: %d\n",
-				ret);
 			madera_free_irq(madera, MADERA_IRQ_DSP_IRQ1, cs47l90);
-			for (j = 0; j < i; j++)
-				madera_free_irq(madera,
-						cs47l90_dsp_bus_error_irqs[j],
-						&cs47l90->core.adsp[j]);
+			for (--i; i >= 0; --i)
+				madera_destroy_bus_error_irq(codec, i);
 			return ret;
 		}
 	}
@@ -2650,8 +2632,7 @@ static int cs47l90_codec_remove(struct snd_soc_codec *codec)
 
 	for (i = 0; i < CS47L90_NUM_ADSP; i++) {
 		wm_adsp2_codec_remove(&cs47l90->core.adsp[i], codec);
-		madera_free_irq(madera, cs47l90_dsp_bus_error_irqs[i],
-				 &cs47l90->core.adsp[i]);
+		madera_destroy_bus_error_irq(codec, i);
 	}
 
 	madera_free_irq(madera, MADERA_IRQ_DSP_IRQ1, cs47l90);
