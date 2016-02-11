@@ -3605,6 +3605,12 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 
 	mutex_lock(&buf->lock);
 
+	if (!buf->host_buf_ptr) {
+		adsp_warn(buf->dsp, "No host buffer info\n");
+		ret = -EIO;
+		goto out_buf_unlock;
+	}
+
 	ret = wm_adsp_buffer_has_error_locked(buf);
 	if (ret)
 		goto out_buf_unlock;
@@ -3765,11 +3771,19 @@ int wm_adsp_compr_copy(struct snd_compr_stream *stream,
 
 	mutex_lock(&compr->buf->lock);
 
+
+	if (!compr->buf->host_buf_ptr) {
+		adsp_warn(compr->buf->dsp, "No host buffer info\n");
+		ret = -EIO;
+		goto out_buf_unlock;
+	}
+
 	if (stream->direction == SND_COMPRESS_CAPTURE)
 		ret = wm_adsp_compr_read(compr, buf, count);
 	else
 		ret = -ENOTSUPP;
 
+out_buf_unlock:
 	mutex_unlock(&compr->buf->lock);
 
 	return ret;
