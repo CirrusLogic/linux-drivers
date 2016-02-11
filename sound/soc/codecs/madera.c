@@ -95,6 +95,16 @@
 #define madera_aif_dbg(_dai, fmt, ...) \
 	dev_dbg(_dai->dev, "AIF%d: " fmt, _dai->id, ##__VA_ARGS__)
 
+static const int madera_dsp_bus_error_irqs[MADERA_MAX_ADSP] = {
+	MADERA_IRQ_DSP1_BUS_ERROR,
+	MADERA_IRQ_DSP2_BUS_ERROR,
+	MADERA_IRQ_DSP3_BUS_ERROR,
+	MADERA_IRQ_DSP4_BUS_ERROR,
+	MADERA_IRQ_DSP5_BUS_ERROR,
+	MADERA_IRQ_DSP6_BUS_ERROR,
+	MADERA_IRQ_DSP7_BUS_ERROR,
+};
+
 static const unsigned int madera_aif1_inputs[32] = {
 	MADERA_AIF1TX1MIX_INPUT_1_SOURCE,
 	MADERA_AIF1TX1MIX_INPUT_2_SOURCE,
@@ -1172,6 +1182,37 @@ int madera_init_drc(struct snd_soc_codec *codec)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(madera_init_drc);
+
+int madera_init_bus_error_irq(struct snd_soc_codec *codec, int dsp_num,
+			      irq_handler_t handler)
+{
+	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct madera *madera = priv->madera;
+	int ret;
+
+	ret = madera_request_irq(madera,
+				 madera_dsp_bus_error_irqs[dsp_num],
+				 "ADSP2 bus error",
+				 handler,
+				 &priv->adsp[dsp_num]);
+	if (ret)
+		dev_err(madera->dev,
+			"Failed to request DSP Lock region IRQ: %d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(madera_init_bus_error_irq);
+
+void madera_destroy_bus_error_irq(struct snd_soc_codec *codec, int dsp_num)
+{
+	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct madera *madera = priv->madera;
+
+	madera_free_irq(madera,
+			madera_dsp_bus_error_irqs[dsp_num],
+			&priv->adsp[dsp_num]);
+}
+EXPORT_SYMBOL_GPL(madera_destroy_bus_error_irq);
 
 const char * const madera_mixer_texts[] = {
 	"None",
