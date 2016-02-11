@@ -503,6 +503,10 @@ extern int madera_init_aif(struct snd_soc_codec *codec);
 extern int madera_init_dsp_irq(struct snd_soc_codec *codec,
 				irq_handler_t handler, void *data);
 extern void madera_destroy_dsp_irq(struct snd_soc_codec *codec, void *data);
+extern int madera_init_bus_error_irq(struct snd_soc_codec *codec, int dsp_num,
+				     irq_handler_t handler);
+extern void madera_destroy_bus_error_irq(struct snd_soc_codec *codec,
+					 int dsp_num);
 
 extern int madera_init_dai(struct madera_priv *priv, int dai);
 
