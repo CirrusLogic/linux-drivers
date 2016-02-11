@@ -18,6 +18,7 @@ Required properties:
         "wlf,wm1831"
         "cirrus,cs47l24"
         "cirrus,cs47l85"
+        "cirrus,cs47l35"
         "cirrus,cs47l90"
         "cirrus,cs47l91"
 
@@ -40,8 +41,8 @@ Required properties:
 
   - AVDD-supply, DBVDD1-supply, DBVDD2-supply, DBVDD3-supply (wm5102, wm5110),
     DBVDD4-supply (wm8285), CPVDD-supply, SPKVDDL-supply (wm5102, wm5110),
-    SPKVDDR-supply (wm5102, wm5110), SPKVDD-supply (wm8997, cs47l24) : Power
-    supplies for the device, as covered in
+    SPKVDDR-supply (wm5102, wm5110), SPKVDD-supply (wm8997, cs47l24, cs47l35) :
+    Power supplies for the device, as covered in
     Documentation/devicetree/bindings/regulator/regulator.txt
 
 Optional properties:
@@ -154,6 +155,7 @@ Optional properties:
     wm8998: entries are for <IN1A, IN2A, IN1B, IN2B>
     cs47l85, wm8285, cs47l90, cs47l91: entries are for <IN1L, IN1R, IN2L,
     IN2R, IN3L, IN3R>
+    cs47l35: entries are for <IN1A, IN2, IN1B>
 
   - wlf,dmic-clksrc : DMIC clock source for each input. This field is only for
     moon class of arizona codecs (cs47l90, cs47l91) and a value of 0 will source
@@ -170,9 +172,6 @@ Optional properties:
     each AIF, useful for I2S systems with multiple data lines being mastered.
     Specify one cell for each AIF, specify zero for AIFs that should be handled
     normally.
-
-  - wlf,out-mono : Mono bit for each output, must contain six cells if
-    specified. A non-zero value indicates the corresponding output is mono.
 
   - wlf,wm5102t-output-pwr : Output power setting (WM5102T only)
 
