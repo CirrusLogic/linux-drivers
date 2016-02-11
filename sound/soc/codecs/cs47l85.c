@@ -2821,7 +2821,6 @@ static int cs47l85_codec_probe(struct snd_soc_codec *codec)
 static int cs47l85_codec_remove(struct snd_soc_codec *codec)
 {
 	struct cs47l85 *cs47l85 = snd_soc_codec_get_drvdata(codec);
-	struct madera *madera = cs47l85->core.madera;
 	int i;
 
 	madera_destroy_dsp_irq(codec, cs47l85);
@@ -2831,7 +2830,7 @@ static int cs47l85_codec_remove(struct snd_soc_codec *codec)
 
 	madera_destroy_drc2_trigger(codec);
 
-	madera->dapm = NULL;
+	cs47l85->core.madera->dapm = NULL;
 
 	return 0;
 }
