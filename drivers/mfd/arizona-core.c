@@ -2131,6 +2131,7 @@ int arizona_dev_init(struct arizona *arizona)
 			break;
 		case WM8998:
 		case WM1814:
+		case CS47L35:
 			val = arizona->pdata.dmic_ref[i]
 				<< ARIZONA_IN1_DMIC_SUP_SHIFT;
 			val |= (arizona->pdata.inmode[i] & 2)
