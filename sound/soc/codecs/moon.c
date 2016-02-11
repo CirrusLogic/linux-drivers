@@ -1317,7 +1317,7 @@ static const struct snd_kcontrol_new moon_anc_input_mux[] = {
 };
 
 static const struct snd_kcontrol_new moon_anc_ng_mux =
-	SOC_DAPM_ENUM("RXANC NG Source", arizona_anc_ng_enum);
+	SOC_DAPM_ENUM_VIRT("RXANC NG Source", arizona_anc_ng_enum);
 
 static const struct snd_kcontrol_new moon_output_anc_src[] = {
 	SOC_DAPM_ENUM("HPOUT1L ANC Source", arizona_output_anc_src[0]),
@@ -1421,13 +1421,13 @@ SND_SOC_DAPM_MUX("RXANCL Left Input", SND_SOC_NOPM, 0, 0,
 SND_SOC_DAPM_MUX("RXANCL Right Input", SND_SOC_NOPM, 0, 0,
 		 &moon_anc_input_mux[0]),
 SND_SOC_DAPM_MUX("RXANCL Channel", SND_SOC_NOPM, 0, 0, &moon_anc_input_mux[1]),
-SND_SOC_DAPM_MUX("RXANCL NG Mux", SND_SOC_NOPM, 0, 0, &moon_anc_ng_mux),
+SND_SOC_DAPM_VIRT_MUX("RXANCL NG Mux", SND_SOC_NOPM, 0, 0, &moon_anc_ng_mux),
 SND_SOC_DAPM_MUX("RXANCR Left Input", SND_SOC_NOPM, 0, 0,
 		 &moon_anc_input_mux[2]),
 SND_SOC_DAPM_MUX("RXANCR Right Input", SND_SOC_NOPM, 0, 0,
 		 &moon_anc_input_mux[2]),
 SND_SOC_DAPM_MUX("RXANCR Channel", SND_SOC_NOPM, 0, 0, &moon_anc_input_mux[3]),
-SND_SOC_DAPM_MUX("RXANCR NG Mux", SND_SOC_NOPM, 0, 0, &moon_anc_ng_mux),
+SND_SOC_DAPM_VIRT_MUX("RXANCR NG Mux", SND_SOC_NOPM, 0, 0, &moon_anc_ng_mux),
 
 SND_SOC_DAPM_PGA_E("RXANCL", SND_SOC_NOPM, ARIZONA_CLK_L_ENA_SET_SHIFT,
 		   0, NULL, 0, arizona_anc_ev,
