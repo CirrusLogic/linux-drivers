@@ -204,6 +204,87 @@ static const char * const marley_inmux_texts[] = {
 	"B",
 };
 
+static int marley_in1mux_put(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
+	struct snd_soc_codec *codec = widget->codec;
+	struct marley_priv *marley = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = marley->core.arizona;
+	struct soc_enum *e = (struct soc_enum *) kcontrol->private_value;
+	unsigned int mux, inmode;
+	unsigned int mode_val, src_val;
+	bool changed = false;
+	int ret;
+
+	mux = ucontrol->value.enumerated.item[0];
+	if (mux > 1)
+		return -EINVAL;
+
+	/* L and R registers have same shift and mask */
+	inmode = arizona->pdata.inmode[2 * mux];
+	src_val = mux << ARIZONA_IN1L_SRC_SHIFT;
+	if (inmode & ARIZONA_INMODE_SE)
+		src_val |= 1 << ARIZONA_IN1L_SRC_SE_SHIFT;
+
+	switch (arizona->pdata.inmode[0]) {
+	case ARIZONA_INMODE_DMIC:
+		if (mux)
+			mode_val = 0; /* B always analogue */
+		else
+			mode_val = 1 << ARIZONA_IN1_MODE_SHIFT;
+
+		ret = snd_soc_update_bits(codec, ARIZONA_IN1L_CONTROL,
+						 ARIZONA_IN1_MODE_MASK,
+						 mode_val);
+		if (ret < 0)
+			return ret;
+		else if (ret)
+			changed = true;
+
+		/* IN1A is digital so L and R must change together */
+		/* src_val setting same for both registers */
+
+		ret = snd_soc_update_bits(codec, ARIZONA_ADC_DIGITAL_VOLUME_1L,
+						 ARIZONA_IN1L_SRC_MASK |
+						 ARIZONA_IN1L_SRC_SE_MASK,
+						 src_val);
+		if (ret < 0)
+			return ret;
+		else if (ret)
+			changed = true;
+
+		ret = snd_soc_update_bits(codec, ARIZONA_ADC_DIGITAL_VOLUME_1R,
+						 ARIZONA_IN1R_SRC_MASK |
+						 ARIZONA_IN1R_SRC_SE_MASK,
+						 src_val);
+
+		if (ret < 0)
+			return ret;
+		else if (ret)
+			changed = true;
+		break;
+	default:
+		/* both analogue */
+		ret = snd_soc_update_bits(codec, e->reg,
+						 ARIZONA_IN1L_SRC_MASK |
+						 ARIZONA_IN1L_SRC_SE_MASK,
+						 src_val);
+		if (ret < 0)
+			return ret;
+		else if (ret)
+			changed = true;
+		break;
+	}
+
+	if (changed)
+		return snd_soc_dapm_mux_update_power(widget, kcontrol,
+						     mux, e);
+	else
+		return 0;
+}
+
 static const SOC_ENUM_SINGLE_DECL(marley_in1muxl_enum,
 				  ARIZONA_ADC_DIGITAL_VOLUME_1L,
 				  ARIZONA_IN1L_SRC_SHIFT,
@@ -215,8 +296,10 @@ static const SOC_ENUM_SINGLE_DECL(marley_in1muxr_enum,
 				  marley_inmux_texts);
 
 static const struct snd_kcontrol_new marley_in1mux[2] = {
-	SOC_DAPM_ENUM("IN1L Mux", marley_in1muxl_enum),
-	SOC_DAPM_ENUM("IN1R Mux", marley_in1muxr_enum),
+	SOC_DAPM_ENUM_EXT("IN1L Mux", marley_in1muxl_enum,
+			  snd_soc_dapm_get_enum_double, marley_in1mux_put),
+	SOC_DAPM_ENUM_EXT("IN1R Mux", marley_in1muxr_enum,
+			  snd_soc_dapm_get_enum_double, marley_in1mux_put),
 };
 
 static const char * const marley_outdemux_texts[] = {
