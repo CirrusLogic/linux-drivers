@@ -2809,12 +2809,12 @@ static int cs47l85_probe(struct platform_device *pdev)
 		cs47l85->core.adsp[i].num_mems
 			= ARRAY_SIZE(cs47l85_dsp1_regions);
 
-		if (madera->pdata.num_fw_defs[i]) {
+		if (madera->pdata.codec.num_fw_defs[i]) {
 			cs47l85->core.adsp[i].firmwares
-				= madera->pdata.fw_defs[i];
+				= madera->pdata.codec.fw_defs[i];
 
 			cs47l85->core.adsp[i].num_firmwares
-				= madera->pdata.num_fw_defs[i];
+				= madera->pdata.codec.num_fw_defs[i];
 		}
 
 		ret = wm_adsp2_init(&cs47l85->core.adsp[i],

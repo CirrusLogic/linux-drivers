@@ -14,6 +14,7 @@
 #define _MADERA_PDATA_H
 
 #include <dt-bindings/mfd/madera.h>
+#include <sound/madera-pdata.h>
 
 #define MADERA_GPN_LVL_MASK		0x8000
 #define MADERA_GPN_LVL_SHIFT		    15
@@ -51,12 +52,6 @@
 #define CS47L85_NUM_GPIOS	40
 #define CS47L90_NUM_GPIOS	38
 
-#define MADERA_MAX_INPUT		6
-#define MADERA_MAX_MUXED_CHANNELS	4
-#define MADERA_MAX_OUTPUT		6
-#define MADERA_MAX_AIF			4
-#define MADERA_MAX_PDM_SPK		2
-#define MADERA_MAX_DSP			7
 #define MADERA_MAX_MICBIAS		4
 #define MADERA_MAX_CHILD_MICBIAS	4
 
@@ -129,53 +124,13 @@ struct madera_pdata {
 	 */
 	unsigned int gpio_defaults[MADERA_MAX_GPIO_REGS];
 
-	/**
-	 * Maximum number of channels clocks will be generated for,
-	 * useful for systems where and I2S bus with multiple data
-	 * lines is mastered.
-	 */
-	int max_channels_clocked[MADERA_MAX_AIF];
-
 	/** MICBIAS configurations */
 	struct madera_micbias micbias[MADERA_MAX_MICBIAS];
 
-	/** Reference voltage for DMIC inputs */
-	int dmic_ref[MADERA_MAX_INPUT];
-
-	/** Clock Source for DMIC's.
-	 * The meaning of the values here depends on the codec. See the
-	 * datasheet for a list of valid values for the INn_DMIC_SUP fields
-	 * [0] = IN1, [1]=IN2 [2]=IN3
+	/** Substructure of pdata for the ASoC codec driver
+	 * See include/sound/madera-pdata.h
 	 */
-	int dmic_clksrc[MADERA_MAX_INPUT];
-
-	/**
-	 * Mode of input structures
-	 * One of the MADERA_INMODE_xxx values
-	 * Two-dimensional array [input_number][channel number]
-	 * Four slots per input in the order:
-	 * [n][0]=INnAL [n][1]=INnAR [n][2]=INnBL [n][3]=INnBR
-	 */
-	int inmode[MADERA_MAX_INPUT][MADERA_MAX_MUXED_CHANNELS];
-
-	/** For each output set the value to TRUE to indicates that
-	 * the output is mono
-	 * [0]=OUT1, [1]=OUT2, ... */
-	bool out_mono[MADERA_MAX_OUTPUT];
-
-	/** PDM mute control settings.
-	 *
-	 * See the PDM_SPKn_CTRL_1 register in the datasheet for the
-	 * meaning of the values.
-	 */
-	unsigned int pdm_mute[MADERA_MAX_PDM_SPK];
-
-	/** PDM speaker format
-	 *
-	 * See the PDM_SPKn_FMT field in the datasheet for the
-	 * meaning of the values
-	 */
-	unsigned int pdm_fmt[MADERA_MAX_PDM_SPK];
+	struct madera_codec_pdata codec;
 
 	/** Time in milliseconds to keep wake lock during jack detection */
 	int jd_wake_time;
@@ -275,9 +230,6 @@ struct madera_pdata {
 
 	/** Haptic actuator type */
 	unsigned int hap_type;
-
-	struct wm_adsp_fw_defs *fw_defs[MADERA_MAX_DSP];
-	int num_fw_defs[MADERA_MAX_DSP];
 };
 
 #endif

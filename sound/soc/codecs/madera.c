@@ -19,6 +19,8 @@
 
 #include <linux/mfd/madera/core.h>
 #include <linux/mfd/madera/registers.h>
+#include <linux/mfd/madera/pdata.h>
+#include <sound/madera-pdata.h>
 
 #include "madera.h"
 
@@ -496,12 +498,12 @@ static void madera_get_inmode_from_of(struct madera *madera)
 	u32 val;
 	int in_n = 0, ch_n = 0;
 
-	BUILD_BUG_ON(ARRAY_SIZE(madera->pdata.inmode) != MADERA_MAX_INPUT);
-	BUILD_BUG_ON(ARRAY_SIZE(madera->pdata.inmode[0]) !=
+	BUILD_BUG_ON(ARRAY_SIZE(madera->pdata.codec.inmode) != MADERA_MAX_INPUT);
+	BUILD_BUG_ON(ARRAY_SIZE(madera->pdata.codec.inmode[0]) !=
 		     MADERA_MAX_MUXED_CHANNELS);
 
 	of_property_for_each_u32(np, "cirrus,inmode", tempprop, cur, val) {
-		madera->pdata.inmode[in_n][ch_n] = val;
+		madera->pdata.codec.inmode[in_n][ch_n] = val;
 
 		if (++ch_n == MADERA_MAX_MUXED_CHANNELS) {
 			ch_n = 0;
@@ -517,7 +519,7 @@ static void madera_get_inmode_from_of(struct madera *madera)
 
 static void madera_get_pdata_from_of(struct madera *madera)
 {
-	struct madera_pdata *pdata = &madera->pdata;
+	struct madera_codec_pdata *pdata = &madera->pdata.codec;
 	unsigned int out_mono[ARRAY_SIZE(pdata->out_mono)];
 	int i;
 
@@ -736,7 +738,7 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 			demux_change_ret);
 	} else {
 		/* apply correct setting for mono mode */
-		if (!ep_sel && !madera->pdata.out_mono[0])
+		if (!ep_sel && !madera->pdata.codec.out_mono[0])
 			out_mono = false; /* stereo HP */
 		else
 			out_mono = true; /* EP or mono HP */
@@ -803,30 +805,30 @@ static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 
 	switch (e->reg) {
 	case MADERA_ADC_DIGITAL_VOLUME_1L:
-		inmode_a = madera->pdata.inmode[0][0];
-		inmode = madera->pdata.inmode[0][2 * mux];
-		inmode_gang = madera->pdata.inmode[0][1 + (2 * mux)];
+		inmode_a = madera->pdata.codec.inmode[0][0];
+		inmode = madera->pdata.codec.inmode[0][2 * mux];
+		inmode_gang = madera->pdata.codec.inmode[0][1 + (2 * mux)];
 		gang_reg = MADERA_ADC_DIGITAL_VOLUME_1R;
 		dmode_reg = MADERA_IN1L_CONTROL;
 		break;
 	case MADERA_ADC_DIGITAL_VOLUME_1R:
-		inmode_a = madera->pdata.inmode[0][0];
-		inmode = madera->pdata.inmode[0][1 + (2 * mux)];
-		inmode_gang = madera->pdata.inmode[0][2 * mux];
+		inmode_a = madera->pdata.codec.inmode[0][0];
+		inmode = madera->pdata.codec.inmode[0][1 + (2 * mux)];
+		inmode_gang = madera->pdata.codec.inmode[0][2 * mux];
 		gang_reg = MADERA_ADC_DIGITAL_VOLUME_1L;
 		dmode_reg = MADERA_IN1L_CONTROL;
 		break;
 	case MADERA_ADC_DIGITAL_VOLUME_2L:
-		inmode_a = madera->pdata.inmode[1][0];
-		inmode = madera->pdata.inmode[1][2 * mux];
-		inmode_gang = madera->pdata.inmode[1][1 + (2 * mux)];
+		inmode_a = madera->pdata.codec.inmode[1][0];
+		inmode = madera->pdata.codec.inmode[1][2 * mux];
+		inmode_gang = madera->pdata.codec.inmode[1][1 + (2 * mux)];
 		gang_reg = MADERA_ADC_DIGITAL_VOLUME_2R;
 		dmode_reg = MADERA_IN2L_CONTROL;
 		break;
 	case MADERA_ADC_DIGITAL_VOLUME_2R:
-		inmode_a = madera->pdata.inmode[1][0];
-		inmode = madera->pdata.inmode[1][1 + (2 * mux)];
-		inmode_gang = madera->pdata.inmode[1][2 * mux];
+		inmode_a = madera->pdata.codec.inmode[1][0];
+		inmode = madera->pdata.codec.inmode[1][1 + (2 * mux)];
+		inmode_gang = madera->pdata.codec.inmode[1][2 * mux];
 		gang_reg = MADERA_ADC_DIGITAL_VOLUME_2L;
 		dmode_reg = MADERA_IN2L_CONTROL;
 		break;
@@ -1245,7 +1247,7 @@ static void madera_configure_input_mode(struct madera *madera)
 	}
 
 	for (i = 0; i < num_dmic_clksrc; i++) {
-		val = madera->pdata.dmic_clksrc[i] <<
+		val = madera->pdata.codec.dmic_clksrc[i] <<
 			MADERA_IN1_DMICCLK_SRC_SHIFT;
 		regmap_update_bits(madera->regmap,
 				   MADERA_IN1R_CONTROL + (i * 8),
@@ -1258,15 +1260,15 @@ static void madera_configure_input_mode(struct madera *madera)
 	 */
 	for (i = 0; i < max_analogue_inputs; i++) {
 		dev_dbg(madera->dev, "IN%d mode %d:%d:%d:%d\n", i + 1,
-			madera->pdata.inmode[i][0],
-			madera->pdata.inmode[i][1],
-			madera->pdata.inmode[i][2],
-			madera->pdata.inmode[i][3]);
+			madera->pdata.codec.inmode[i][0],
+			madera->pdata.codec.inmode[i][1],
+			madera->pdata.codec.inmode[i][2],
+			madera->pdata.codec.inmode[i][3]);
 
-		dig_mode = madera->pdata.dmic_ref[i] <<
+		dig_mode = madera->pdata.codec.dmic_ref[i] <<
 			   MADERA_IN1_DMIC_SUP_SHIFT;
 
-		switch (madera->pdata.inmode[i][0]) {
+		switch (madera->pdata.codec.inmode[i][0]) {
 		case MADERA_INMODE_DIFF:
 			ana_mode_l = 0;
 			break;
@@ -1280,11 +1282,11 @@ static void madera_configure_input_mode(struct madera *madera)
 		default:
 			dev_warn(madera->dev,
 				 "IN%dAL Illegal inmode %d ignored\n",
-				 i + 1, madera->pdata.inmode[i][0]);
+				 i + 1, madera->pdata.codec.inmode[i][0]);
 			continue;
 		}
 
-		switch (madera->pdata.inmode[i][1]) {
+		switch (madera->pdata.codec.inmode[i][1]) {
 		case MADERA_INMODE_DIFF:
 		case MADERA_INMODE_DMIC:
 			ana_mode_r = 0;
@@ -1295,7 +1297,7 @@ static void madera_configure_input_mode(struct madera *madera)
 		default:
 			dev_warn(madera->dev,
 				 "IN%dAR Illegal inmode %d ignored\n",
-				 i + 1, madera->pdata.inmode[i][1]);
+				 i + 1, madera->pdata.codec.inmode[i][1]);
 			continue;
 		}
 
@@ -1325,7 +1327,6 @@ int madera_init_inputs(struct snd_soc_codec *codec,
 {
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct madera *madera = priv->madera;
-	const struct madera_pdata *pdata = &madera->pdata;
 	unsigned int ref;
 	int i, ret;
 	struct snd_soc_dapm_route routes[2];
@@ -1335,7 +1336,7 @@ int madera_init_inputs(struct snd_soc_codec *codec,
 	madera_configure_input_mode(madera);
 
 	for (i = 0; i < n_dmic_inputs / 2; ++i) {
-		ref = pdata->dmic_ref[i];
+		ref = madera->pdata.codec.dmic_ref[i];
 		if (ref >= n_dmic_refs) {
 			dev_err(madera->dev,
 				"Illegal DMIC ref %u for IN%d\n", ref, i);
@@ -1358,7 +1359,7 @@ int madera_init_outputs(struct snd_soc_codec *codec)
 {
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct madera *madera = priv->madera;
-	const struct madera_pdata *pdata = &madera->pdata;
+	const struct madera_codec_pdata *pdata = &madera->pdata.codec;
 	unsigned int val;
 	int i;
 
@@ -3530,7 +3531,7 @@ static int madera_hw_params(struct snd_pcm_substream *substream,
 	const int *rates;
 	int i, ret, val;
 	int channels = params_channels(params);
-	int chan_limit = madera->pdata.max_channels_clocked[dai->id - 1];
+	int chan_limit = madera->pdata.codec.max_channels_clocked[dai->id - 1];
 	int tdm_width = madera->tdm_width[dai->id - 1];
 	int tdm_slots = madera->tdm_slots[dai->id - 1];
 	int bclk, lrclk, wl, frame, bclk_target;

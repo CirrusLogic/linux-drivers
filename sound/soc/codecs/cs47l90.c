@@ -2837,12 +2837,12 @@ static int cs47l90_probe(struct platform_device *pdev)
 		cs47l90->core.adsp[i].num_mems
 			= ARRAY_SIZE(cs47l90_dsp1_regions);
 
-		if (madera->pdata.num_fw_defs[i]) {
+		if (madera->pdata.codec.num_fw_defs[i]) {
 			cs47l90->core.adsp[i].firmwares
-				= madera->pdata.fw_defs[i];
+				= madera->pdata.codec.fw_defs[i];
 
 			cs47l90->core.adsp[i].num_firmwares
-				= madera->pdata.num_fw_defs[i];
+				= madera->pdata.codec.num_fw_defs[i];
 		}
 
 		cs47l90->core.adsp[i].lock_regions = WM_ADSP2_REGION_1_9;

@@ -2443,6 +2443,7 @@ F:	drivers/mfd/cs47l*
 F:	drivers/regulator/madera*.c
 F:	include/linux/mfd/madera/
 F:	include/linux/extcon/extcon-madera*
+F:	include/sound/madera-pdata.h
 F:	sound/soc/codecs/madera.?
 F:	sound/soc/codecs/cs47l*
 
