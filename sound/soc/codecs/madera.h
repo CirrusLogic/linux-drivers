@@ -98,6 +98,7 @@ struct madera_jd_state;
 
 struct madera_dai_priv {
 	int clk;
+	struct snd_pcm_hw_constraint_list constraint;
 };
 
 struct madera_priv {
@@ -334,7 +335,7 @@ extern unsigned int madera_mixer_values[MADERA_NUM_MIXER_INPUTS];
 	MADERA_MIXER_INPUTS_4_N(_reg + 16, 8),	\
 	MADERA_MIXER_INPUTS_2_N(_reg + 48, 8)
 
-#define MADERA_RATES SNDRV_PCM_RATE_8000_192000
+#define MADERA_RATES SNDRV_PCM_RATE_KNOT
 
 #define MADERA_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
