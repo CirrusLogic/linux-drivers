@@ -3014,29 +3014,6 @@ static const int madera_48k_bclk_rates[] = {
 	24576000,
 };
 
-static const unsigned int madera_48k_rates[] = {
-	12000,
-	24000,
-	48000,
-	96000,
-	192000,
-	384000,
-	768000,
-	4000,
-	8000,
-	16000,
-	32000,
-	64000,
-	128000,
-	256000,
-	512000,
-};
-
-static const struct snd_pcm_hw_constraint_list madera_48k_constraint = {
-	.count	= ARRAY_SIZE(madera_48k_rates),
-	.list	= madera_48k_rates,
-};
-
 static const int madera_44k1_bclk_rates[] = {
 	-1,
 	44100,
@@ -3059,22 +3036,7 @@ static const int madera_44k1_bclk_rates[] = {
 	22579200,
 };
 
-static const unsigned int madera_44k1_rates[] = {
-	11025,
-	22050,
-	44100,
-	88200,
-	176400,
-	352800,
-	705600,
-};
-
-static const struct snd_pcm_hw_constraint_list madera_44k1_constraint = {
-	.count	= ARRAY_SIZE(madera_44k1_rates),
-	.list	= madera_44k1_rates,
-};
-
-static int madera_sr_vals[] = {
+static const unsigned int madera_sr_vals[] = {
 	0,
 	12000,
 	24000,
@@ -3101,13 +3063,21 @@ static int madera_sr_vals[] = {
 	512000,
 };
 
+#define MADERA_48K_RATE_MASK	0x0F003E
+#define MADERA_44K1_RATE_MASK	0x003E00
+#define MADERA_RATE_MASK	(MADERA_48K_RATE_MASK | MADERA_44K1_RATE_MASK)
+
+static const struct snd_pcm_hw_constraint_list madera_constraint = {
+	.count	= ARRAY_SIZE(madera_sr_vals),
+	.list	= madera_sr_vals,
+};
+
 static int madera_startup(struct snd_pcm_substream *substream,
 			  struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct madera_dai_priv *dai_priv = &priv->dai[dai->id - 1];
-	const struct snd_pcm_hw_constraint_list *constraint;
 	unsigned int base_rate;
 
 	if (!substream->runtime)
@@ -3128,16 +3098,15 @@ static int madera_startup(struct snd_pcm_substream *substream,
 	}
 
 	if (base_rate == 0)
-		return 0;
-
-	if (base_rate % 4000)
-		constraint = &madera_44k1_constraint;
+		dai_priv->constraint.mask = MADERA_RATE_MASK;
+	else if (base_rate % 4000)
+		dai_priv->constraint.mask = MADERA_44K1_RATE_MASK;
 	else
-		constraint = &madera_48k_constraint;
+		dai_priv->constraint.mask = MADERA_48K_RATE_MASK;
 
 	return snd_pcm_hw_constraint_list(substream->runtime, 0,
 					  SNDRV_PCM_HW_PARAM_RATE,
-					  constraint);
+					  &dai_priv->constraint);
 }
 
 static int madera_hw_params_rate(struct snd_pcm_substream *substream,
@@ -3595,6 +3564,7 @@ int madera_init_dai(struct madera_priv *priv, int id)
 	struct madera_dai_priv *dai_priv = &priv->dai[id];
 
 	dai_priv->clk = MADERA_CLK_SYSCLK;
+	dai_priv->constraint = madera_constraint;
 
 	return 0;
 }
