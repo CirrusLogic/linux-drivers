@@ -2263,7 +2263,7 @@ static int wm_adsp_get_features(struct wm_adsp *dsp)
 	case 0x4001f:
 	case 0x5001f:
 	case 0x7001f:
-		dsp->fw_features.shutdown = true;
+		dsp->fw_features.edac_shutdown = true;
 	default:
 		break;
 	}
@@ -2651,7 +2651,7 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 			break;
 		};
 
-		if (dsp->fw_features.shutdown)
+		if (dsp->fw_features.edac_shutdown)
 			wm_adsp_edac_shutdown(dsp);
 
 		wm_adsp_stop_watchdog(dsp);
