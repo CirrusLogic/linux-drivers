@@ -215,6 +215,10 @@
 
 #define WM_ADSP_ACKED_CTL_TIMEOUT_MS         100
 #define WM_ADSP_ACKED_CTL_N_QUICKPOLLS       10
+#define WM_ADSP_ACKED_CTL_MIN_VALUE          0
+#define WM_ADSP_ACKED_CTL_MAX_VALUE          0xFFFFFF
+/* ADSP2V1  accessed through 16-bit register map so only low 16-bits atomic */
+#define WM_ADSP_ACKED_CTL_MAX_VALUE_V1       0xFFFF
 
 /*
  * Event control messages
@@ -828,8 +832,30 @@ static int wm_coeff_info(struct snd_kcontrol *kcontrol,
 {
 	struct wm_coeff_ctl *ctl = (struct wm_coeff_ctl *)kcontrol->private_value;
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BYTES;
-	uinfo->count = ctl->len;
+	switch (ctl->type) {
+	case WMFW_CTL_TYPE_ACKED:
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+		uinfo->value.integer.min = WM_ADSP_ACKED_CTL_MIN_VALUE;
+
+		switch (ctl->dsp->rev) {
+		case 0:
+			uinfo->value.integer.max =
+				WM_ADSP_ACKED_CTL_MAX_VALUE_V1;
+			break;
+		default:
+			uinfo->value.integer.max = WM_ADSP_ACKED_CTL_MAX_VALUE;
+			break;
+		}
+
+		uinfo->value.integer.step = 1;
+		uinfo->count = 1;
+		break;
+	default:
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_BYTES;
+		uinfo->count = ctl->len;
+		break;
+	}
+
 	return 0;
 }
 
@@ -890,6 +916,22 @@ static int wm_coeff_write_acked_control(struct wm_coeff_ctl *ctl,
 			ctl->offset);
 
 	return -ETIMEDOUT;
+}
+
+static int wm_coeff_put_acked(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct wm_coeff_ctl *ctl =
+				(struct wm_coeff_ctl *)kcontrol->private_value;
+	unsigned int val = ucontrol->value.integer.value[0];
+
+	if (!ctl->enabled)
+		return -EPERM;
+
+	if (val == 0)
+		return 0;	/* 0 means no event */
+
+	return wm_coeff_write_acked_control(ctl, val);
 }
 
 static int wm_coeff_write_control(struct wm_coeff_ctl *ctl,
@@ -1002,6 +1044,20 @@ out:
 	return ret;
 }
 
+static int wm_coeff_get_acked(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	/* Although it's not useful to read an acked control, we must satisfy
+	 * user-side assumptions that all controls are readable and that a
+	 * write of the same value should be filtered out (it's valid to send
+	 * the same event number again to the firmware). We therefore return 0,
+	 * meaning "no event" so valid event numbers will always be a change
+	 */
+	ucontrol->value.integer.value[0] = 0;
+
+	return 0;
+}
+
 struct wmfw_ctl_work {
 	struct wm_adsp *dsp;
 	struct wm_coeff_ctl *ctl;
@@ -1023,8 +1079,6 @@ static int wmfw_add_ctl(struct wm_adsp *dsp, struct wm_coeff_ctl *ctl)
 
 	kcontrol->name = ctl->name;
 	kcontrol->info = wm_coeff_info;
-	kcontrol->get = wm_coeff_get;
-	kcontrol->put = wm_coeff_put;
 	kcontrol->private_value = (unsigned long)ctl;
 
 	if (ctl->flags) {
@@ -1037,6 +1091,17 @@ static int wmfw_add_ctl(struct wm_adsp *dsp, struct wm_coeff_ctl *ctl)
 	} else {
 		kcontrol->access = SNDRV_CTL_ELEM_ACCESS_READWRITE;
 		kcontrol->access |= SNDRV_CTL_ELEM_ACCESS_VOLATILE;
+	}
+
+	switch (ctl->type) {
+	case WMFW_CTL_TYPE_ACKED:
+		kcontrol->get = wm_coeff_get_acked;
+		kcontrol->put = wm_coeff_put_acked;
+		break;
+	default:
+		kcontrol->get = wm_coeff_get;
+		kcontrol->put = wm_coeff_put;
+		break;
 	}
 
 	ret = snd_soc_add_card_controls(dsp->card, kcontrol, 1);
@@ -1495,6 +1560,18 @@ static int wm_adsp_parse_coeff(struct wm_adsp *dsp,
 					 coeff_blk.len);
 				continue;
 			}
+			break;
+		case WMFW_CTL_TYPE_ACKED:
+			if (coeff_blk.flags & WMFW_CTL_FLAG_SYS)
+				continue;	/* ignore */
+
+			ret = wm_adsp_check_coeff_flags(dsp, &coeff_blk,
+						WMFW_CTL_FLAG_VOLATILE |
+						WMFW_CTL_FLAG_WRITEABLE |
+						WMFW_CTL_FLAG_READABLE,
+						0);
+			if (ret)
+				return -EINVAL;
 			break;
 		case WMFW_CTL_TYPE_HOSTEVENT:
 			ret = wm_adsp_check_coeff_flags(dsp, &coeff_blk,
