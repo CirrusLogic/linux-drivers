@@ -1821,7 +1821,8 @@ err_rise:
 err_input:
 err_register:
 	pm_runtime_disable(&pdev->dev);
-	extcon_dev_unregister(&info->edev);
+	extcon_dev_unregister(info->edev);
+
 	return ret;
 }
 
