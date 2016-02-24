@@ -248,8 +248,8 @@ static int madera_runtime_resume(struct device *dev)
 
 	mutex_lock(&madera->reg_setting_lock);
 	regmap_write(madera->regmap, 0x80, 0x3);
-	ret = regcache_sync_region(madera->regmap, MADERA_CP_MODE,
-				   MADERA_CP_MODE);
+	ret = regcache_sync_region(madera->regmap, MADERA_HP_CHARGE_PUMP_8,
+				   MADERA_HP_CHARGE_PUMP_8);
 	regmap_write(madera->regmap, 0x80, 0x0);
 	mutex_unlock(&madera->reg_setting_lock);
 
@@ -818,12 +818,13 @@ int madera_dev_init(struct madera *madera)
 		goto err_reset;
 	}
 
-	ret = regmap_read(madera->regmap, MADERA_DEVICE_REVISION, &madera->rev);
+	ret = regmap_read(madera->regmap, MADERA_HARDWARE_REVISION,
+			  &madera->rev);
 	if (ret) {
 		dev_err(dev, "Failed to read revision register: %d\n", ret);
 		goto err_reset;
 	}
-	madera->rev &= MADERA_DEVICE_REVISION_MASK;
+	madera->rev &= MADERA_HW_REVISION_MASK;
 
 	name = madera_name_from_type(madera->type);
 
