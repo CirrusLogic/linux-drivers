@@ -238,7 +238,7 @@ extern unsigned int madera_mixer_values[MADERA_NUM_MIXER_INPUTS];
 			SND_SOC_DAPM_PRE_REG | SND_SOC_DAPM_POST_REG }
 
 #define MADERA_MUX_WIDGETS(name, name_str) \
-	MADERA_MUX(name_str " Input", &name##_mux)
+	MADERA_MUX(name_str " Input 1", &name##_mux)
 
 #define MADERA_MIXER_WIDGETS(name, name_str)	\
 	MADERA_MUX(name_str " Input 1", &name##_in1_mux), \
@@ -258,8 +258,8 @@ extern unsigned int madera_mixer_values[MADERA_NUM_MIXER_INPUTS];
 	MADERA_MUX(name_str " Aux 6", &name##_aux6_mux)
 
 #define MADERA_MUX_ROUTES(widget, name) \
-	{ widget, NULL, name " Input" }, \
-	MADERA_MIXER_INPUT_ROUTES(name " Input")
+	{ widget, NULL, name " Input 1" }, \
+	MADERA_MIXER_INPUT_ROUTES(name " Input 1")
 
 #define MADERA_MIXER_ROUTES(widget, name)		\
 	{ widget, NULL, name " Mixer" },		\
