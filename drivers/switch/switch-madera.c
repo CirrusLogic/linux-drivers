@@ -789,7 +789,8 @@ static void madera_extcon_set_mode(struct madera_extcon_info *info, int mode)
 	case CS47L35:
 	case CS47L85:
 	case WM1840:
-		regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1,
+		regmap_update_bits(madera->regmap,
+				   MADERA_MIC_DETECT_1_CONTROL_1,
 				   MADERA_MICD_BIAS_SRC_MASK,
 				   info->micd_modes[mode].bias <<
 				   MADERA_MICD_BIAS_SRC_SHIFT);
@@ -799,19 +800,23 @@ static void madera_extcon_set_mode(struct madera_extcon_info *info, int mode)
 				   info->micd_modes[mode].src);
 		break;
 	default:
-		regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1,
+		regmap_update_bits(madera->regmap,
+				   MADERA_MIC_DETECT_1_CONTROL_1,
 				   MADERA_MICD_BIAS_SRC_MASK,
 				   info->micd_modes[mode].bias <<
 				   MADERA_MICD_BIAS_SRC_SHIFT);
-		regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_0,
+		regmap_update_bits(madera->regmap,
+				   MADERA_MIC_DETECT_1_CONTROL_0,
 				   MADERA_MICD1_SENSE_MASK,
 				   info->micd_modes[mode].src <<
 				   MADERA_MICD1_SENSE_SHIFT);
-		regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_0,
+		regmap_update_bits(madera->regmap,
+				   MADERA_MIC_DETECT_1_CONTROL_0,
 				   MADERA_MICD1_GND_MASK,
 				   info->micd_modes[mode].gnd <<
 				   MADERA_MICD1_GND_SHIFT);
-		regmap_update_bits(madera->regmap, MADERA_OUT1_CONFIG,
+		regmap_update_bits(madera->regmap,
+				   MADERA_OUTPUT_PATH_CONFIG_1,
 				   MADERA_HP1_GND_SEL_MASK,
 				   info->micd_modes[mode].gnd <<
 				   MADERA_HP1_GND_SEL_SHIFT);
@@ -855,14 +860,14 @@ static int madera_micd_adc_read(struct madera_extcon_info *info)
 	int ret;
 
 	/* Must disable MICD before we read the ADCVAL */
-	ret = regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1,
+	ret = regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
 				 MADERA_MICD_ENA, 0);
 	if (ret) {
 		dev_err(madera->dev, "Failed to disable MICD: %d\n", ret);
 		return ret;
 	}
 
-	ret = regmap_read(madera->regmap, MADERA_MIC_DETECT_4, &val);
+	ret = regmap_read(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_4, &val);
 	if (ret) {
 		dev_err(madera->dev, "Failed to read MICDET_ADCVAL: %d\n", ret);
 		return ret;
@@ -886,7 +891,8 @@ static int madera_micd_read(struct madera_extcon_info *info)
 	int ret, i;
 
 	for (i = 0; i < 10 && !(val & MADERA_MICD_LVL_0_TO_8); i++) {
-		ret = regmap_read(madera->regmap, MADERA_MIC_DETECT_3, &val);
+		ret = regmap_read(madera->regmap,
+				  MADERA_MIC_DETECT_1_CONTROL_3, &val);
 		if (ret) {
 			dev_err(madera->dev,
 				"Failed to read MICDET: %d\n", ret);
@@ -1365,14 +1371,15 @@ int madera_micd_start(struct madera_extcon_info *info)
 		else
 			micd_mode = 0;
 
-		regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_0,
+		regmap_update_bits(madera->regmap,
+				   MADERA_MIC_DETECT_1_CONTROL_0,
 				   MADERA_MICD1_ADC_MODE_MASK, micd_mode);
 		break;
 	}
 
 	madera_extcon_enable_micbias(info);
 
-	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1,
+	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
 			   MADERA_MICD_ENA, MADERA_MICD_ENA);
 
 	return 0;
@@ -1383,7 +1390,7 @@ void madera_micd_stop(struct madera_extcon_info *info)
 {
 	struct madera *madera = info->madera;
 
-	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1,
+	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
 			   MADERA_MICD_ENA, 0);
 
 	madera_extcon_disable_micbias(info);
@@ -1416,9 +1423,9 @@ static void madera_micd_restart(struct madera_extcon_info *info)
 {
 	struct madera *madera = info->madera;
 
-	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1,
+	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
 			   MADERA_MICD_ENA, 0);
-	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1,
+	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
 			   MADERA_MICD_ENA, MADERA_MICD_ENA);
 }
 
@@ -2103,7 +2110,7 @@ static void madera_micd_set_level(struct madera *madera, int index,
 	int reg;
 	unsigned int mask;
 
-	reg = MADERA_MIC_DETECT_LEVEL_4 - (index / 2);
+	reg = MADERA_MIC_DETECT_1_LEVEL_4 - (index / 2);
 
 	if (!(index % 2)) {
 		mask = 0x3f00;
@@ -2352,17 +2359,17 @@ static int madera_extcon_read_calibration(struct madera_extcon_info *info)
 
 	switch (madera->type) {
 	case CS47L35:
-		otp_hpdet_calib_1 = CS47L35_OTP_HPDET_CALIB_1;
-		otp_hpdet_calib_2 = CS47L35_OTP_HPDET_CALIB_2;
+		otp_hpdet_calib_1 = CS47L35_OTP_HPDET_CAL_1;
+		otp_hpdet_calib_2 = CS47L35_OTP_HPDET_CAL_2;
 		break;
 	case CS47L85:
 	case WM1840:
-		otp_hpdet_calib_1 = CS47L85_OTP_HPDET_CALIB_1;
-		otp_hpdet_calib_2 = CS47L85_OTP_HPDET_CALIB_2;
+		otp_hpdet_calib_1 = CS47L85_OTP_HPDET_CAL_1;
+		otp_hpdet_calib_2 = CS47L85_OTP_HPDET_CAL_2;
 		break;
 	default:
-		otp_hpdet_calib_1 = MADERA_OTP_HPDET_CALIB_1;
-		otp_hpdet_calib_2 = MADERA_OTP_HPDET_CALIB_2;
+		otp_hpdet_calib_1 = MADERA_OTP_HPDET_CAL_1;
+		otp_hpdet_calib_2 = MADERA_OTP_HPDET_CAL_2;
 		break;
 	}
 
@@ -2475,7 +2482,7 @@ static int madera_extcon_add_micd_levels(struct madera_extcon_info *info)
 		     MADERA_NUM_MICD_BUTTON_LEVELS);
 
 	/* Disable all buttons by default */
-	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_2,
+	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_2,
 			   MADERA_MICD_LVL_SEL_MASK, 0x81);
 
 	/* Set up all the buttons the user specified */
@@ -2500,7 +2507,8 @@ static int madera_extcon_add_micd_levels(struct madera_extcon_info *info)
 					     info->micd_ranges[i].key);
 
 		/* Enable reporting of that range */
-		regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_2,
+		regmap_update_bits(madera->regmap,
+				   MADERA_MIC_DETECT_1_CONTROL_2,
 				   1 << i, 1 << i);
 	}
 
@@ -2740,19 +2748,22 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	}
 
 	if (madera->pdata.micd_bias_start_time)
-		regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1,
+		regmap_update_bits(madera->regmap,
+				   MADERA_MIC_DETECT_1_CONTROL_1,
 				   MADERA_MICD_BIAS_STARTTIME_MASK,
 				   madera->pdata.micd_bias_start_time
 				   << MADERA_MICD_BIAS_STARTTIME_SHIFT);
 
 	if (madera->pdata.micd_rate)
-		regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1,
+		regmap_update_bits(madera->regmap,
+				   MADERA_MIC_DETECT_1_CONTROL_1,
 				   MADERA_MICD_RATE_MASK,
 				   madera->pdata.micd_rate
 				   << MADERA_MICD_RATE_SHIFT);
 
 	if (madera->pdata.micd_dbtime)
-		regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1,
+		regmap_update_bits(madera->regmap,
+				   MADERA_MIC_DETECT_1_CONTROL_1,
 				   MADERA_MICD_DBTIME_MASK,
 				   madera->pdata.micd_dbtime
 				   << MADERA_MICD_DBTIME_SHIFT);
