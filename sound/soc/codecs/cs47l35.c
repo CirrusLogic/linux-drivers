@@ -1372,10 +1372,11 @@ static int cs47l35_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	struct cs47l35 *cs47l35 = snd_soc_codec_get_drvdata(codec);
 
 	switch (fll_id) {
-	case MADERA_FLL1:
-		return madera_set_fll(&cs47l35->fll, source, fref, fout);
 	case MADERA_FLL1_REFCLK:
 		return madera_set_fll_refclk(&cs47l35->fll, source, fref,
+					     fout);
+	case MADERA_FLL1_SYNCCLK:
+		return madera_set_fll_syncclk(&cs47l35->fll, source, fref,
 					      fout);
 	default:
 		return -EINVAL;

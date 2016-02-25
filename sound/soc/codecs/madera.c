@@ -4021,12 +4021,23 @@ static bool madera_set_fll_phase_integrator(struct madera_fll *fll,
 static int madera_enable_fll(struct madera_fll *fll)
 {
 	struct madera *madera = fll->madera;
-	bool use_sync = false;
+	bool have_sync = false;
 	int already_enabled = madera_is_enabled_fll(fll);
-	struct madera_fll_cfg ref_cfg, sync_cfg;
+	struct madera_fll_cfg cfg;
 	unsigned int sync_reg_base;
 	int gain;
-	bool fll_change;
+	bool fll_change = false;
+
+	if (already_enabled < 0)
+		return already_enabled;	/* error getting current state */
+
+	if ((fll->ref_src < 0) || (fll->ref_freq == 0)) {
+		madera_fll_err(fll, "No REFCLK\n");
+		return -EINVAL;
+	}
+
+	madera_fll_dbg(fll, "Enabling FLL, initially %s\n",
+			already_enabled ? "enabled" : "disabled");
 
 	switch (madera->type) {
 	case CS47L35:
@@ -4036,12 +4047,6 @@ static int madera_enable_fll(struct madera_fll *fll)
 		sync_reg_base = fll->base + MADERA_FLL_SYNCHRONISER_OFFS;
 		break;
 	}
-
-	if (already_enabled < 0)
-		return already_enabled;
-
-	madera_fll_dbg(fll, "Enabling FLL, initially %s\n",
-			already_enabled ? "enabled" : "disabled");
 
 	if (already_enabled) {
 		/* Facilitate smooth refclk across the transition */
@@ -4053,87 +4058,61 @@ static int madera_enable_fll(struct madera_fll *fll)
 		udelay(32);
 	}
 
-	if (fll->ref_src >= 0 && fll->ref_freq &&
-	    fll->ref_src != fll->sync_src) {
-		/* we have both REFCLK and SYNCCLK so enable both */
-		madera_calc_fll(fll, &ref_cfg, fll->ref_freq, false);
+	/* Apply SYNCCLK setting */
+	if (fll->sync_src >= 0) {
+		madera_calc_fll(fll, &cfg, fll->sync_freq, true);
 
-		fll_change = madera_apply_fll(madera, fll->base, &ref_cfg,
-					      fll->ref_src, false,
-					      ref_cfg.gain);
-		if (fll->sync_src >= 0) {
-			madera_calc_fll(fll, &sync_cfg, fll->sync_freq, true);
+		fll_change |= madera_apply_fll(madera, sync_reg_base + 0,
+						&cfg, fll->sync_src,
+						true, cfg.gain);
+		have_sync = true;
+	}
 
-			fll_change |= madera_apply_fll(madera,
-							sync_reg_base + 0,
-							&sync_cfg,
-							fll->sync_src, true,
-							sync_cfg.gain);
-			use_sync = true;
-		}
-	} else if (fll->sync_src >= 0) {
-		madera_calc_fll(fll, &ref_cfg, fll->sync_freq, false);
+	/* Apply REFCLK setting */
+	madera_calc_fll(fll, &cfg, fll->ref_freq, false);
 
-		/* apply the SYNCCLK settings to REFCLK and allow possible
-		 * alternate gain setting in this configuration
-		 */
-		switch (fll->madera->type) {
-		case CS47L35:
-		case CS47L85:
-		case WM1840:
-			/* alt_gain mode not required */
-			gain = ref_cfg.gain;
+	switch (fll->madera->type) {
+	case CS47L35:
+		switch (fll->madera->rev) {
+		case 0:
 			break;
 		default:
-			if (ref_cfg.theta == 0)
-				gain = ref_cfg.alt_gain;
-			else
-				gain = ref_cfg.gain;
+			fll_change |=
+				madera_set_fll_phase_integrator(fll, &cfg,
+								have_sync);
 			break;
 		}
-
-		fll_change = madera_apply_fll(madera, fll->base, &ref_cfg,
-					      fll->sync_src, false, gain);
-
-		regmap_update_bits_async(madera->regmap, sync_reg_base + 1,
-					 MADERA_FLL1_SYNC_ENA, 0);
-	} else {
-		madera_fll_err(fll, "No clocks provided\n");
-		return -EINVAL;
+		gain = cfg.gain;
+		break;
+	case CS47L85:
+	case WM1840:
+		gain = cfg.gain;
+		break;
+	default:
+		fll_change |= madera_set_fll_phase_integrator(fll, &cfg,
+							      have_sync);
+		if (!have_sync && (cfg.theta == 0))
+			gain = cfg.alt_gain;
+		else
+			gain = cfg.gain;
+		break;
 	}
+
+	fll_change |= madera_apply_fll(madera, fll->base,
+				      &cfg, fll->ref_src,
+				      false, gain);
 
 	/*
 	 * Increase the bandwidth if we're not using a low frequency
 	 * sync source.
 	 */
-	if (use_sync && fll->sync_freq > 100000)
+	if (have_sync && fll->sync_freq > 100000)
 		regmap_update_bits_async(madera->regmap, sync_reg_base + 7,
 					 MADERA_FLL1_SYNC_BW, 0);
 	else
 		regmap_update_bits_async(madera->regmap, sync_reg_base + 7,
 					 MADERA_FLL1_SYNC_BW,
 					 MADERA_FLL1_SYNC_BW);
-
-	switch (madera->type) {
-	case CS47L35:
-		switch (fll->madera->rev) {
-		case 0:
-			break;
-		default:
-			fll_change =
-				madera_set_fll_phase_integrator(fll, &ref_cfg,
-								use_sync);
-			break;
-		}
-		break;
-	case CS47L85:
-	case WM1840:
-		break;
-	default:
-		fll_change = madera_set_fll_phase_integrator(fll, &ref_cfg,
-							     use_sync);
-		break;
-	}
 
 	if (!already_enabled)
 		pm_runtime_get(madera->dev);
@@ -4143,7 +4122,7 @@ static int madera_enable_fll(struct madera_fll *fll)
 
 	regmap_update_bits_async(madera->regmap, fll->base + 1,
 				 MADERA_FLL1_ENA, MADERA_FLL1_ENA);
-	if (use_sync)
+	if (have_sync)
 		regmap_update_bits_async(madera->regmap, sync_reg_base + 1,
 					 MADERA_FLL1_SYNC_ENA,
 					 MADERA_FLL1_SYNC_ENA);
@@ -4190,12 +4169,12 @@ static void madera_disable_fll(struct madera_fll *fll)
 		pm_runtime_put_autosuspend(madera->dev);
 }
 
-int madera_set_fll_refclk(struct madera_fll *fll, int source,
-			  unsigned int fref, unsigned int Fout)
+int madera_set_fll_syncclk(struct madera_fll *fll, int source,
+			   unsigned int fref, unsigned int Fout)
 {
 	int ret = 0;
 
-	if (fll->ref_src == source && fll->ref_freq == fref)
+	if (fll->sync_src == source && fll->sync_freq == fref)
 		return 0;
 
 	if (fll->fout && fref > 0) {
@@ -4204,24 +4183,24 @@ int madera_set_fll_refclk(struct madera_fll *fll, int source,
 			return ret;
 	}
 
-	fll->ref_src = source;
-	fll->ref_freq = fref;
+	fll->sync_src = source;
+	fll->sync_freq = fref;
 
 	if (fll->fout && fref > 0)
 		ret = madera_enable_fll(fll);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(madera_set_fll_refclk);
+EXPORT_SYMBOL_GPL(madera_set_fll_syncclk);
 
-int madera_set_fll(struct madera_fll *fll, int source,
-		   unsigned int fref, unsigned int fout)
+int madera_set_fll_refclk(struct madera_fll *fll, int source,
+			   unsigned int fref, unsigned int fout)
 {
 	unsigned int fvco = 0;
 	int ret = 0;
 
-	if (fll->sync_src == source &&
-	    fll->sync_freq == fref && fll->fout == fout)
+	if (fll->ref_src == source &&
+	    fll->ref_freq == fref && fll->fout == fout)
 		return 0;
 
 	if (fout) {
@@ -4234,19 +4213,13 @@ int madera_set_fll(struct madera_fll *fll, int source,
 
 		fvco = fout * MADERA_FLL_OUTDIV / MADERA_FLL_VCO_MULT;
 
-		if (fll->ref_src >= 0) {
-			ret = madera_validate_fll(fll, fll->ref_freq, fvco);
-			if (ret != 0)
-				return ret;
-		}
-
 		ret = madera_validate_fll(fll, fref, fvco);
 		if (ret != 0)
 			return ret;
 	}
 
-	fll->sync_src = source;
-	fll->sync_freq = fref;
+	fll->ref_src = source;
+	fll->ref_freq = fref;
 	fll->fvco = fvco;
 	fll->fout = fout;
 
@@ -4257,31 +4230,18 @@ int madera_set_fll(struct madera_fll *fll, int source,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(madera_set_fll);
+EXPORT_SYMBOL_GPL(madera_set_fll_refclk);
 
 int madera_init_fll(struct madera *madera, int id, int base,
 		    struct madera_fll *fll)
 {
-	unsigned int val;
-
 	init_completion(&fll->ok);
 
 	fll->id = id;
 	fll->base = base;
 	fll->madera = madera;
+	fll->ref_src = MADERA_FLL_SRC_NONE;
 	fll->sync_src = MADERA_FLL_SRC_NONE;
-
-	/* Configure default refclk to 32kHz if we have one */
-	regmap_read(madera->regmap, MADERA_CLOCK_32K_1, &val);
-	switch (val & MADERA_CLK_32K_SRC_MASK) {
-	case MADERA_CLK_SRC_MCLK1:
-	case MADERA_CLK_SRC_MCLK2:
-		fll->ref_src = val & MADERA_CLK_32K_SRC_MASK;
-		break;
-	default:
-		fll->ref_src = MADERA_FLL_SRC_NONE;
-	}
-	fll->ref_freq = 32768;
 
 	regmap_update_bits(madera->regmap, fll->base + 1,
 			   MADERA_FLL1_FREERUN, 0);
@@ -4417,8 +4377,8 @@ static int madera_disable_fll_ao(struct madera_fll *fll)
 	return 0;
 }
 
-int madera_set_fll_ao(struct madera_fll *fll, int source,
-		      unsigned int fin, unsigned int fout)
+int madera_set_fll_ao_refclk(struct madera_fll *fll, int source,
+			     unsigned int fin, unsigned int fout)
 {
 	int ret = 0;
 	const struct reg_default *patch = NULL;
@@ -4457,7 +4417,7 @@ int madera_set_fll_ao(struct madera_fll *fll, int source,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(madera_set_fll_ao);
+EXPORT_SYMBOL_GPL(madera_set_fll_ao_refclk);
 
 /**
  * madera_set_output_mode - Set the mode of the specified output
