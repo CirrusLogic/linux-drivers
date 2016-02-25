@@ -17,13 +17,29 @@
 
 #include "wm_adsp.h"
 
-#define MADERA_FLL1			1
-#define MADERA_FLL2			2
-#define MADERA_FLL3			3
-#define MADERA_FLL1_REFCLK		4
-#define MADERA_FLL2_REFCLK		5
-#define MADERA_FLL3_REFCLK		6
-#define MADERA_FLLAO			7
+#define MADERA_FLL1_REFCLK		1
+#define MADERA_FLL2_REFCLK		2
+#define MADERA_FLL3_REFCLK		3
+#define MADERA_FLLAO_REFCLK		4
+#define MADERA_FLL1_SYNCCLK		5
+#define MADERA_FLL2_SYNCCLK		6
+#define MADERA_FLL3_SYNCCLK		7
+#define MADERA_FLLAO_SYNCCLK		8
+
+#define MADERA_FLL_SRC_NONE		-1
+#define MADERA_FLL_SRC_MCLK1		0
+#define MADERA_FLL_SRC_MCLK2		1
+#define MADERA_FLL_SRC_SLIMCLK		3
+#define MADERA_FLL_SRC_FLL1		4
+#define MADERA_FLL_SRC_FLL2		5
+#define MADERA_FLL_SRC_AIF1BCLK		8
+#define MADERA_FLL_SRC_AIF2BCLK		9
+#define MADERA_FLL_SRC_AIF3BCLK		10
+#define MADERA_FLL_SRC_AIF4BCLK		11
+#define MADERA_FLL_SRC_AIF1LRCLK	12
+#define MADERA_FLL_SRC_AIF2LRCLK	13
+#define MADERA_FLL_SRC_AIF3LRCLK	14
+#define MADERA_FLL_SRC_AIF4LRCLK	15
 
 #define MADERA_CLK_SYSCLK		1
 #define MADERA_CLK_ASYNCCLK		2
@@ -46,21 +62,6 @@
 #define MADERA_CLK_SRC_AIF3BCLK		0xA
 #define MADERA_CLK_SRC_AIF4BCLK		0xB
 #define MADERA_CLK_SRC_FLLAO		0xF
-
-#define MADERA_FLL_SRC_NONE		-1
-#define MADERA_FLL_SRC_MCLK1		0
-#define MADERA_FLL_SRC_MCLK2		1
-#define MADERA_FLL_SRC_SLIMCLK		3
-#define MADERA_FLL_SRC_FLL1		4
-#define MADERA_FLL_SRC_FLL2		5
-#define MADERA_FLL_SRC_AIF1BCLK		8
-#define MADERA_FLL_SRC_AIF2BCLK		9
-#define MADERA_FLL_SRC_AIF3BCLK		10
-#define MADERA_FLL_SRC_AIF4BCLK		11
-#define MADERA_FLL_SRC_AIF1LRCLK	12
-#define MADERA_FLL_SRC_AIF2LRCLK	13
-#define MADERA_FLL_SRC_AIF3LRCLK	14
-#define MADERA_FLL_SRC_AIF4LRCLK	15
 
 #define MADERA_MIXER_VOL_MASK		0x00FE
 #define MADERA_MIXER_VOL_SHIFT		     1
@@ -483,10 +484,10 @@ extern int madera_init_fll(struct madera *madera, int id, int base,
 			   struct madera_fll *fll);
 extern int madera_set_fll_refclk(struct madera_fll *fll, int source,
 				 unsigned int Fref, unsigned int Fout);
-extern int madera_set_fll(struct madera_fll *fll, int source,
-			  unsigned int Fref, unsigned int Fout);
-extern int madera_set_fll_ao(struct madera_fll *fll, int source,
-			     unsigned int fin, unsigned int fout);
+extern int madera_set_fll_syncclk(struct madera_fll *fll, int source,
+				  unsigned int Fref, unsigned int Fout);
+extern int madera_set_fll_ao_refclk(struct madera_fll *fll, int source,
+				    unsigned int fin, unsigned int fout);
 
 extern int madera_core_init(struct madera_priv *priv);
 extern int madera_core_destroy(struct madera_priv *priv);
