@@ -455,6 +455,33 @@ int madera_init_spk(struct snd_soc_codec *codec, int n_channels)
 }
 EXPORT_SYMBOL_GPL(madera_init_spk);
 
+static void madera_get_inmode_from_of(struct madera *madera)
+{
+	struct device_node *np = madera->dev->of_node;
+	struct property *tempprop;
+	const __be32 *cur;
+	u32 val;
+	int in_n = 0, ch_n = 0;
+
+	BUILD_BUG_ON(ARRAY_SIZE(madera->pdata.inmode) != MADERA_MAX_INPUT);
+	BUILD_BUG_ON(ARRAY_SIZE(madera->pdata.inmode[0]) !=
+		     MADERA_MAX_MUXED_CHANNELS);
+
+	of_property_for_each_u32(np, "cirrus,inmode", tempprop, cur, val) {
+		madera->pdata.inmode[in_n][ch_n] = val;
+
+		if (++ch_n == MADERA_MAX_MUXED_CHANNELS) {
+			ch_n = 0;
+			if (++in_n == MADERA_MAX_INPUT)
+				break;
+		}
+	}
+
+	if (ch_n != 0)
+		dev_warn(madera->dev, "%s not a multiple of %d entries\n",
+			 "cirrus,inmode", MADERA_MAX_MUXED_CHANNELS);
+}
+
 static void madera_get_pdata_from_of(struct madera *madera)
 {
 	struct madera_pdata *pdata = &madera->pdata;
@@ -467,8 +494,7 @@ static void madera_get_pdata_from_of(struct madera *madera)
 				 pdata->max_channels_clocked,
 				0, ARRAY_SIZE(pdata->max_channels_clocked));
 
-	madera_of_read_uint_array(madera, "cirrus,inmode", false,
-				pdata->inmode, 0, ARRAY_SIZE(pdata->inmode));
+	madera_get_inmode_from_of(madera);
 
 	madera_of_read_uint_array(madera, "cirrus,out-mono", false,
 				 out_mono,
@@ -1005,11 +1031,20 @@ static void madera_configure_input_mode(struct madera *madera)
 		dev_dbg(madera->dev, "IN%d DMICCLK_SRC=0x%x\n", i + 1, val);
 	}
 
+	/* Initialize input modes from the A settings. For muxed inputs the
+	 * B settings will be applied if the mux is changed
+	 */
 	for (i = 0; i < max_analogue_inputs; i++) {
+		dev_dbg(madera->dev, "IN%d mode %d:%d:%d:%d\n", i + 1,
+			madera->pdata.inmode[i][0],
+			madera->pdata.inmode[i][1],
+			madera->pdata.inmode[i][2],
+			madera->pdata.inmode[i][3]);
+
 		dig_mode = madera->pdata.dmic_ref[i] <<
 			   MADERA_IN1_DMIC_SUP_SHIFT;
 
-		switch (madera->pdata.inmode[2 * i]) {
+		switch (madera->pdata.inmode[i][0]) {
 		case MADERA_INMODE_DIFF:
 			ana_mode_l = 0;
 			break;
@@ -1022,12 +1057,12 @@ static void madera_configure_input_mode(struct madera *madera)
 			break;
 		default:
 			dev_warn(madera->dev,
-				 "IN%d Illegal inmode %d ignored\n",
-				 i + 1, madera->pdata.inmode[2 * i]);
+				 "IN%dAL Illegal inmode %d ignored\n",
+				 i + 1, madera->pdata.inmode[i][0]);
 			continue;
 		}
 
-		switch (madera->pdata.inmode[(2 * i) + 1]) {
+		switch (madera->pdata.inmode[i][1]) {
 		case MADERA_INMODE_DIFF:
 		case MADERA_INMODE_DMIC:
 			ana_mode_r = 0;
@@ -1037,13 +1072,13 @@ static void madera_configure_input_mode(struct madera *madera)
 			break;
 		default:
 			dev_warn(madera->dev,
-				 "IN%d Illegal inmode %d ignored\n",
-				 i + 1, madera->pdata.inmode[(2 * i) + 1]);
+				 "IN%dAR Illegal inmode %d ignored\n",
+				 i + 1, madera->pdata.inmode[i][1]);
 			continue;
 		}
 
 		dev_dbg(madera->dev,
-			"IN%d DMIC mode=0x%x Analogue mode=0x%x,0x%x\n",
+			"IN%dA DMIC mode=0x%x Analogue mode=0x%x,0x%x\n",
 			i + 1, dig_mode, ana_mode_l, ana_mode_r);
 
 		regmap_update_bits(madera->regmap,
