@@ -220,6 +220,21 @@ Optional subnodes:
   - micvdd : Initial data for the MICVDD regulator, as covered in
     Documentation/devicetree/bindings/regulator/regulator.txt
 
+  - adsps : Contains nodes representing cores and further subnodes which
+    represent each firmware that can be loaded on that core.
+    Required properties:
+    - #address-cells : Must be set to 1
+    - #size-cells : Must be set to 0
+    Each core node:
+    - reg : Should specify the base address of the core
+    Each firmware node, the name of which will be displayed in the firmware
+    control.
+    - wlf,wmfw-file : Specifies the file name of the firmware
+    - wlf,bin-file : Specifies the file name of the bin file optional
+    - wlf,compr-caps : At least 5 entries specifying ID, max channels,
+      supported formats, direction and then entries for each supported sample
+      rate.
+
 Example:
 
 codec: wm5102@1a {
@@ -270,4 +285,24 @@ codec: wm5102@1a {
 	>;
 
 	wlf,max-channels-clocked = <2 0 0>;
+
+	adsps {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* DSP-1 */
+		adsp@1100 {
+			reg = <0x1100>;
+			firmware {
+				EDAC {
+					wlf,wmfw-file = "edac";
+					wlf,bin-file = "edac";
+				};
+				TRACE {
+					wlf,wmfw-file = "trace";
+					wlf,compr-caps = <1 8 0x4 1 8000 16000 24000>;
+				};
+			};
+		};
+	};
 };
