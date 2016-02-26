@@ -52,6 +52,7 @@
 #define CS47L90_NUM_GPIOS	38
 
 #define MADERA_MAX_INPUT		6
+#define MADERA_MAX_MUXED_CHANNELS	4
 #define MADERA_MAX_OUTPUT		6
 #define MADERA_MAX_AIF			4
 #define MADERA_MAX_PDM_SPK		2
@@ -151,9 +152,11 @@ struct madera_pdata {
 	/**
 	 * Mode of input structures
 	 * One of the MADERA_INMODE_xxx values
-	 * [0]=IN1L [1]=IN1R [2]=IN2L [3]=IN2R [4]=IN3L [5]=IN3R
+	 * Two-dimensional array [input_number][channel number]
+	 * Four slots per input in the order:
+	 * [n][0]=INnAL [n][1]=INnAR [n][2]=INnBL [n][3]=INnBR
 	 */
-	int inmode[MADERA_MAX_INPUT * 2];
+	int inmode[MADERA_MAX_INPUT][MADERA_MAX_MUXED_CHANNELS];
 
 	/** For each output set the value to TRUE to indicates that
 	 * the output is mono
