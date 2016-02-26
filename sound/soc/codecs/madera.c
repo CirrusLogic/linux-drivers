@@ -458,7 +458,7 @@ EXPORT_SYMBOL_GPL(madera_init_spk);
 static void madera_get_pdata_from_of(struct madera *madera)
 {
 	struct madera_pdata *pdata = &madera->pdata;
-	unsigned int out_mono[MADERA_MAX_OUTPUT];
+	unsigned int out_mono[ARRAY_SIZE(pdata->out_mono)];
 	int i;
 
 	memset(&out_mono, 0, sizeof(out_mono));
@@ -1105,7 +1105,7 @@ int madera_init_outputs(struct snd_soc_codec *codec)
 	unsigned int val;
 	int i;
 
-	for (i = 0; i < MADERA_MAX_OUTPUT; i++) {
+	for (i = 0; i < ARRAY_SIZE(pdata->out_mono); i++) {
 		/* Default is 0 so noop with defaults */
 		if (pdata->out_mono[i]) {
 			val = MADERA_OUT1_MONO;

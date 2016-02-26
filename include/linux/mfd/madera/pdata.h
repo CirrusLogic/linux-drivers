@@ -51,7 +51,7 @@
 #define CS47L85_NUM_GPIOS	40
 #define CS47L90_NUM_GPIOS	38
 
-#define MADERA_MAX_INPUT		12
+#define MADERA_MAX_INPUT		6
 #define MADERA_MAX_OUTPUT		6
 #define MADERA_MAX_AIF			4
 #define MADERA_MAX_PDM_SPK		2
@@ -153,7 +153,7 @@ struct madera_pdata {
 	 * One of the MADERA_INMODE_xxx values
 	 * [0]=IN1L [1]=IN1R [2]=IN2L [3]=IN2R [4]=IN3L [5]=IN3R
 	 */
-	int inmode[MADERA_MAX_INPUT];
+	int inmode[MADERA_MAX_INPUT * 2];
 
 	/** For each output set the value to TRUE to indicates that
 	 * the output is mono

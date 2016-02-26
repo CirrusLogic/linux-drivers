@@ -89,8 +89,6 @@
 
 #define MADERA_NUM_MIXER_INPUTS		146
 
-#define MADERA_MAX_OUTPUT		6
-
 #define MADERA_FRF_COEFFICIENT_LEN	4
 
 struct madera;
