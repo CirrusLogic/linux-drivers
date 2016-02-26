@@ -732,7 +732,7 @@ SND_SOC_DAPM_INPUT("IN2R"),
 SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
 
-SND_SOC_DAPM_OUTPUT("DSP Virtual Output"),
+SND_SOC_DAPM_OUTPUT("DSP Trigger Out"),
 
 SND_SOC_DAPM_MUX("IN1L Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[0]),
 SND_SOC_DAPM_MUX("IN1R Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[1]),
@@ -1005,12 +1005,12 @@ SND_SOC_DAPM_MUX("DSP2 Virtual Input", SND_SOC_NOPM, 0, 0,
 SND_SOC_DAPM_MUX("DSP3 Virtual Input", SND_SOC_NOPM, 0, 0,
 		      &cs47l35_memory_mux[1]),
 
-SND_SOC_DAPM_MUX("DSP1 Virtual Output Mux", SND_SOC_NOPM, 0, 0,
-		      &madera_dsp_virt_output_mux[0]),
-SND_SOC_DAPM_MUX("DSP2 Virtual Output Mux", SND_SOC_NOPM, 0, 0,
-		      &madera_dsp_virt_output_mux[1]),
-SND_SOC_DAPM_MUX("DSP3 Virtual Output Mux", SND_SOC_NOPM, 0, 0,
-		      &madera_dsp_virt_output_mux[2]),
+SND_SOC_DAPM_MUX("DSP1 Trigger Output", SND_SOC_NOPM, 0, 0,
+		      &madera_dsp_trigger_output_mux[0]),
+SND_SOC_DAPM_MUX("DSP2 Trigger Output", SND_SOC_NOPM, 0, 0,
+		      &madera_dsp_trigger_output_mux[1]),
+SND_SOC_DAPM_MUX("DSP3 Trigger Output", SND_SOC_NOPM, 0, 0,
+		      &madera_dsp_trigger_output_mux[2]),
 
 MADERA_MUX_WIDGETS(ISRC1DEC1, "ISRC1DEC1"),
 MADERA_MUX_WIDGETS(ISRC1DEC2, "ISRC1DEC2"),
@@ -1298,14 +1298,14 @@ static const struct snd_soc_dapm_route cs47l35_dapm_routes[] = {
 	{ "DSP3 Preloader", NULL, "DSP3 Virtual Input" },
 	{ "DSP3 Virtual Input", "Shared Memory", "DSP2" },
 
-	{ "DSP Virtual Output", NULL, "SYSCLK" },
-	{ "DSP Virtual Output", NULL, "DSP1 Virtual Output Mux" },
-	{ "DSP Virtual Output", NULL, "DSP2 Virtual Output Mux" },
-	{ "DSP Virtual Output", NULL, "DSP3 Virtual Output Mux" },
+	{ "DSP Trigger Out", NULL, "SYSCLK" },
+	{ "DSP Trigger Out", NULL, "DSP1 Trigger Output" },
+	{ "DSP Trigger Out", NULL, "DSP2 Trigger Output" },
+	{ "DSP Trigger Out", NULL, "DSP3 Trigger Output" },
 
-	{ "DSP1 Virtual Output Mux", "DSP", "DSP1" },
-	{ "DSP2 Virtual Output Mux", "DSP", "DSP2" },
-	{ "DSP3 Virtual Output Mux", "DSP", "DSP3" },
+	{ "DSP1 Trigger Output", "Enable", "DSP1" },
+	{ "DSP2 Trigger Output", "Enable", "DSP2" },
+	{ "DSP3 Trigger Output", "Enable", "DSP3" },
 
 	MADERA_MUX_ROUTES("ISRC1INT1", "ISRC1INT1"),
 	MADERA_MUX_ROUTES("ISRC1INT2", "ISRC1INT2"),
@@ -1700,6 +1700,7 @@ static int cs47l35_codec_probe(struct snd_soc_codec *codec)
 		return ret;
 
 	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
+	snd_soc_dapm_disable_pin(&codec->dapm, "DSP Trigger Out");
 
 	ret = snd_soc_add_codec_controls(codec, madera_adsp_rate_controls,
 					 CS47L35_NUM_ADSP);

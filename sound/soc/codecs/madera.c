@@ -2648,26 +2648,26 @@ exit:
 }
 EXPORT_SYMBOL_GPL(madera_lp_mode_put);
 
-static const char * const madera_dsp_virt_output_texts[] = {
-	"None",
-	"DSP",
+static const char * const madera_disable_enable_texts[] = {
+	"Disable",
+	"Enable",
 };
 
-static const struct soc_enum madera_dsp_virt_output_enum =
+static const struct soc_enum madera_dsp_trigger_output_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			ARRAY_SIZE(madera_dsp_virt_output_texts),
-			madera_dsp_virt_output_texts);
+			ARRAY_SIZE(madera_disable_enable_texts),
+			madera_disable_enable_texts);
 
-const struct snd_kcontrol_new madera_dsp_virt_output_mux[] = {
-	SOC_DAPM_ENUM("DSP1 Virtual Output Mux", madera_dsp_virt_output_enum),
-	SOC_DAPM_ENUM("DSP2 Virtual Output Mux", madera_dsp_virt_output_enum),
-	SOC_DAPM_ENUM("DSP3 Virtual Output Mux", madera_dsp_virt_output_enum),
-	SOC_DAPM_ENUM("DSP4 Virtual Output Mux", madera_dsp_virt_output_enum),
-	SOC_DAPM_ENUM("DSP5 Virtual Output Mux", madera_dsp_virt_output_enum),
-	SOC_DAPM_ENUM("DSP6 Virtual Output Mux", madera_dsp_virt_output_enum),
-	SOC_DAPM_ENUM("DSP7 Virtual Output Mux", madera_dsp_virt_output_enum),
+const struct snd_kcontrol_new madera_dsp_trigger_output_mux[] = {
+	SOC_DAPM_ENUM("DSP1 Trigger Output", madera_dsp_trigger_output_enum),
+	SOC_DAPM_ENUM("DSP2 Trigger Output", madera_dsp_trigger_output_enum),
+	SOC_DAPM_ENUM("DSP3 Trigger Output", madera_dsp_trigger_output_enum),
+	SOC_DAPM_ENUM("DSP4 Trigger Output", madera_dsp_trigger_output_enum),
+	SOC_DAPM_ENUM("DSP5 Trigger Output", madera_dsp_trigger_output_enum),
+	SOC_DAPM_ENUM("DSP6 Trigger Output", madera_dsp_trigger_output_enum),
+	SOC_DAPM_ENUM("DSP7 Trigger Output", madera_dsp_trigger_output_enum),
 };
-EXPORT_SYMBOL_GPL(madera_dsp_virt_output_mux);
+EXPORT_SYMBOL_GPL(madera_dsp_trigger_output_mux);
 
 static void madera_in_set_vu(struct madera_priv *priv, bool enable)
 {
