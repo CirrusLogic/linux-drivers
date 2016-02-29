@@ -2197,27 +2197,17 @@
 #define MADERA_DSP7_PMEM_ERR_ADDR___XMEM_ERR_ADDR	0x3FFE7C
 
 
-/*
- * Field Definitions.
- */
-
-/*
- * R0 (0x00) - software reset
- */
+/* (0x0000)  Software_Reset */
 #define MADERA_SW_RST_DEV_ID1_MASK			0xFFFF
 #define MADERA_SW_RST_DEV_ID1_SHIFT			     0
 #define MADERA_SW_RST_DEV_ID1_WIDTH			    16
 
-/*
- * R1 (0x01) - Device Revision
- */
+/* (0x0001)  Hardware_Revision */
 #define MADERA_HW_REVISION_MASK				0x00FF
 #define MADERA_HW_REVISION_SHIFT			     0
 #define MADERA_HW_REVISION_WIDTH			     8
 
-/*
- * R8 (0x08) - Ctrl IF SPI CFG 1
- */
+/* (0x0008)  Ctrl_IF_CFG_1 */
 #define MADERA_SPI_CFG					0x0010
 #define MADERA_SPI_CFG_MASK				0x0010
 #define MADERA_SPI_CFG_SHIFT				     4
@@ -2230,16 +2220,12 @@
 #define MADERA_SPI_AUTO_INC_SHIFT			     0
 #define MADERA_SPI_AUTO_INC_WIDTH			     2
 
-/*
- * R9 (0x09) - Ctrl IF I2C1 CFG 1
- */
+/* (0x0009)  Ctrl_IF_CFG_2 */
 #define MADERA_I2C1_AUTO_INC_MASK			0x0003
 #define MADERA_I2C1_AUTO_INC_SHIFT			     0
 #define MADERA_I2C1_AUTO_INC_WIDTH			     2
 
-/*
- * R22 (0x16) - Write Sequencer Ctrl 0
- */
+/* (0x0016)  Write_Sequencer_Ctrl_0 */
 #define MADERA_WSEQ_ABORT				0x0800
 #define MADERA_WSEQ_ABORT_MASK				0x0800
 #define MADERA_WSEQ_ABORT_SHIFT				    11
@@ -2256,9 +2242,7 @@
 #define MADERA_WSEQ_START_INDEX_SHIFT			     0
 #define MADERA_WSEQ_START_INDEX_WIDTH			     9
 
-/*
- * R23 (0x17) - Write Sequencer Ctrl 1
- */
+/* (0x0017)  Write_Sequencer_Ctrl_1 */
 #define MADERA_WSEQ_BUSY				0x0200
 #define MADERA_WSEQ_BUSY_MASK				0x0200
 #define MADERA_WSEQ_BUSY_SHIFT				     9
@@ -2267,9 +2251,7 @@
 #define MADERA_WSEQ_CURRENT_INDEX_SHIFT			     0
 #define MADERA_WSEQ_CURRENT_INDEX_WIDTH			     9
 
-/*
- * R24 (0x18) - Write Sequencer Ctrl 2
- */
+/* (0x0018)  Write_Sequencer_Ctrl_2 */
 #define MADERA_LOAD_DEFAULTS				0x0002
 #define MADERA_LOAD_DEFAULTS_MASK			0x0002
 #define MADERA_LOAD_DEFAULTS_SHIFT			     1
@@ -2279,9 +2261,7 @@
 #define MADERA_WSEQ_LOAD_MEM_SHIFT			     0
 #define MADERA_WSEQ_LOAD_MEM_WIDTH			     1
 
-/*
- * R32 (0x20) - Tone Generator 1
- */
+/* (0x0020)  Tone_Generator_1 */
 #define MADERA_TONE_RATE_MASK				0x7800
 #define MADERA_TONE_RATE_SHIFT				    11
 #define MADERA_TONE_RATE_WIDTH				     4
@@ -2305,37 +2285,27 @@
 #define MADERA_TONE1_ENA_SHIFT				     0
 #define MADERA_TONE1_ENA_WIDTH				     1
 
-/*
- * R33 (0x21) - Tone Generator 2
- */
+/* (0x0021)  Tone_Generator_2 */
 #define MADERA_TONE1_LVL_0_MASK				0xFFFF
 #define MADERA_TONE1_LVL_0_SHIFT			     0
 #define MADERA_TONE1_LVL_0_WIDTH			    16
 
-/*
- * R34 (0x22) - Tone Generator 3
- */
+/* (0x0022)  Tone_Generator_3 */
 #define MADERA_TONE1_LVL_MASK				0x00FF
 #define MADERA_TONE1_LVL_SHIFT				     0
 #define MADERA_TONE1_LVL_WIDTH				     8
 
-/*
- * R35 (0x23) - Tone Generator 4
- */
+/* (0x0023)  Tone_Generator_4 */
 #define MADERA_TONE2_LVL_0_MASK				0xFFFF
 #define MADERA_TONE2_LVL_0_SHIFT			     0
 #define MADERA_TONE2_LVL_0_WIDTH			    16
 
-/*
- * R36 (0x24) - Tone Generator 5
- */
+/* (0x0024)  Tone_Generator_5 */
 #define MADERA_TONE2_LVL_MASK				0x00FF
 #define MADERA_TONE2_LVL_SHIFT				     0
 #define MADERA_TONE2_LVL_WIDTH				     8
 
-/*
- * R48 (0x30) - PWM Drive 1
- */
+/* (0x0030)  PWM_Drive_1 */
 #define MADERA_PWM_RATE_MASK				0x7800
 #define MADERA_PWM_RATE_SHIFT				    11
 #define MADERA_PWM_RATE_WIDTH				     4
@@ -2359,23 +2329,17 @@
 #define MADERA_PWM1_ENA_SHIFT				     0
 #define MADERA_PWM1_ENA_WIDTH				     1
 
-/*
- * R49 (0x31) - PWM Drive 2
- */
+/* (0x0031)  PWM_Drive_2 */
 #define MADERA_PWM1_LVL_MASK				0x03FF
 #define MADERA_PWM1_LVL_SHIFT				     0
 #define MADERA_PWM1_LVL_WIDTH				    10
 
-/*
- * R50 (0x32) - PWM Drive 3
- */
+/* (0x0032)  PWM_Drive_3 */
 #define MADERA_PWM2_LVL_MASK				0x03FF
 #define MADERA_PWM2_LVL_SHIFT				     0
 #define MADERA_PWM2_LVL_WIDTH				    10
 
-/*
- * R65 (0x41) - Sequence control
- */
+/* (0x0041)  Sequence_control */
 #define MADERA_WSEQ_ENA_GP5_FALL			0x0020
 #define MADERA_WSEQ_ENA_GP5_FALL_MASK			0x0020
 #define MADERA_WSEQ_ENA_GP5_FALL_SHIFT			     5
@@ -2401,9 +2365,7 @@
 #define MADERA_WSEQ_ENA_JD2_RISE_SHIFT			     0
 #define MADERA_WSEQ_ENA_JD2_RISE_WIDTH			     1
 
-/*
- * R144 (0x90) - Haptics Control 1
- */
+/* (0x0090)  Haptics_Control_1 */
 #define MADERA_HAP_RATE_MASK				0x7800
 #define MADERA_HAP_RATE_SHIFT				    11
 #define MADERA_HAP_RATE_WIDTH				     4
@@ -2419,66 +2381,48 @@
 #define MADERA_HAP_ACT_SHIFT				     1
 #define MADERA_HAP_ACT_WIDTH				     1
 
-/*
- * R145 (0x91) - Haptics Control 2
- */
+/* (0x0091)  Haptics_Control_2 */
 #define MADERA_LRA_FREQ_MASK				0x7FFF
 #define MADERA_LRA_FREQ_SHIFT				     0
 #define MADERA_LRA_FREQ_WIDTH				    15
 
-/*
- * R146 (0x92) - Haptics phase 1 intensity
- */
+/* (0x0092)  Haptics_phase_1_intensity */
 #define MADERA_PHASE1_INTENSITY_MASK			0x00FF
 #define MADERA_PHASE1_INTENSITY_SHIFT			     0
 #define MADERA_PHASE1_INTENSITY_WIDTH			     8
 
-/*
- * R147 (0x93) - Haptics phase 1 duration
- */
+/* (0x0093)  Haptics_phase_1_duration */
 #define MADERA_PHASE1_DURATION_MASK			0x01FF
 #define MADERA_PHASE1_DURATION_SHIFT			     0
 #define MADERA_PHASE1_DURATION_WIDTH			     9
 
-/*
- * R148 (0x94) - Haptics phase 2 intensity
- */
+/* (0x0094)  Haptics_phase_2_intensity */
 #define MADERA_PHASE2_INTENSITY_MASK			0x00FF
 #define MADERA_PHASE2_INTENSITY_SHIFT			     0
 #define MADERA_PHASE2_INTENSITY_WIDTH			     8
 
-/*
- * R149 (0x95) - Haptics phase 2 duration
- */
+/* (0x0095)  Haptics_phase_2_duration */
 #define MADERA_PHASE2_DURATION_MASK			0x07FF
 #define MADERA_PHASE2_DURATION_SHIFT			     0
 #define MADERA_PHASE2_DURATION_WIDTH			    11
 
-/*
- * R150 (0x96) - Haptics phase 3 intensity
- */
+/* (0x0096)  Haptics_phase_3_intensity */
 #define MADERA_PHASE3_INTENSITY_MASK			0x00FF
 #define MADERA_PHASE3_INTENSITY_SHIFT			     0
 #define MADERA_PHASE3_INTENSITY_WIDTH			     8
 
-/*
- * R151 (0x97) - Haptics phase 3 duration
- */
+/* (0x0097)  Haptics_phase_3_duration */
 #define MADERA_PHASE3_DURATION_MASK			0x01FF
 #define MADERA_PHASE3_DURATION_SHIFT			     0
 #define MADERA_PHASE3_DURATION_WIDTH			     9
 
-/*
- * R152 (0x98) - Haptics Status
- */
+/* (0x0098)  Haptics_Status */
 #define MADERA_ONESHOT_STS				0x0001
 #define MADERA_ONESHOT_STS_MASK				0x0001
 #define MADERA_ONESHOT_STS_SHIFT			     0
 #define MADERA_ONESHOT_STS_WIDTH			     1
 
-/*
- * R160 (0xA0) - Comfort Noise Generator
- */
+/* (0x00A0)  Comfort_Noise_Generator */
 #define MADERA_NOISE_GEN_ENA				0x0020
 #define MADERA_NOISE_GEN_ENA_MASK			0x0020
 #define MADERA_NOISE_GEN_ENA_SHIFT			     5
@@ -2487,9 +2431,7 @@
 #define MADERA_NOISE_GEN_GAIN_SHIFT			     0
 #define MADERA_NOISE_GEN_GAIN_WIDTH			     5
 
-/*
- * R256 (0x100) - Clock 32k 1
- */
+/* (0x0100)  Clock_32k_1 */
 #define MADERA_CLK_32K_ENA				0x0040
 #define MADERA_CLK_32K_ENA_MASK				0x0040
 #define MADERA_CLK_32K_ENA_SHIFT			     6
@@ -2498,9 +2440,7 @@
 #define MADERA_CLK_32K_SRC_SHIFT			     0
 #define MADERA_CLK_32K_SRC_WIDTH			     2
 
-/*
- * R257 (0x101) - System Clock 1
- */
+/* (0x0101)  System_Clock_1 */
 #define MADERA_SYSCLK_FRAC				0x8000
 #define MADERA_SYSCLK_FRAC_MASK				0x8000
 #define MADERA_SYSCLK_FRAC_SHIFT			    15
@@ -2516,51 +2456,37 @@
 #define MADERA_SYSCLK_SRC_SHIFT				     0
 #define MADERA_SYSCLK_SRC_WIDTH				     4
 
-/*
- * R258 (0x102) - Sample rate 1
- */
+/* (0x0102)  Sample_rate_1 */
 #define MADERA_SAMPLE_RATE_1_MASK			0x001F
 #define MADERA_SAMPLE_RATE_1_SHIFT			     0
 #define MADERA_SAMPLE_RATE_1_WIDTH			     5
 
-/*
- * R259 (0x103) - Sample rate 2
- */
+/* (0x0103)  Sample_rate_2 */
 #define MADERA_SAMPLE_RATE_2_MASK			0x001F
 #define MADERA_SAMPLE_RATE_2_SHIFT			     0
 #define MADERA_SAMPLE_RATE_2_WIDTH			     5
 
-/*
- * R260 (0x104) - Sample rate 3
- */
+/* (0x0104)  Sample_rate_3 */
 #define MADERA_SAMPLE_RATE_3_MASK			0x001F
 #define MADERA_SAMPLE_RATE_3_SHIFT			     0
 #define MADERA_SAMPLE_RATE_3_WIDTH			     5
 
-/*
- * R266 (0x10A) - Sample rate 1 status
- */
+/* (0x010A)  Sample_rate_1_status */
 #define MADERA_SAMPLE_RATE_1_STS_MASK			0x001F
 #define MADERA_SAMPLE_RATE_1_STS_SHIFT			     0
 #define MADERA_SAMPLE_RATE_1_STS_WIDTH			     5
 
-/*
- * R267 (0x10B) - Sample rate 2 status
- */
+/* (0x010B)  Sample_rate_2_status */
 #define MADERA_SAMPLE_RATE_2_STS_MASK			0x001F
 #define MADERA_SAMPLE_RATE_2_STS_SHIFT			     0
 #define MADERA_SAMPLE_RATE_2_STS_WIDTH			     5
 
-/*
- * R268 (0x10C) - Sample rate 3 status
- */
+/* (0x010C)  Sample_rate_3_status */
 #define MADERA_SAMPLE_RATE_3_STS_MASK			0x001F
 #define MADERA_SAMPLE_RATE_3_STS_SHIFT			     0
 #define MADERA_SAMPLE_RATE_3_STS_WIDTH			     5
 
-/*
- * R274 (0x112) - Async clock 1
- */
+/* (0x0112)  Async_clock_1 */
 #define MADERA_ASYNC_CLK_FREQ_MASK			0x0700
 #define MADERA_ASYNC_CLK_FREQ_SHIFT			     8
 #define MADERA_ASYNC_CLK_FREQ_WIDTH			     3
@@ -2572,37 +2498,27 @@
 #define MADERA_ASYNC_CLK_SRC_SHIFT			     0
 #define MADERA_ASYNC_CLK_SRC_WIDTH			     4
 
-/*
- * R275 (0x113) - Async sample rate 1
- */
+/* (0x0113)  Async_sample_rate_1 */
 #define MADERA_ASYNC_SAMPLE_RATE_1_MASK			0x001F
 #define MADERA_ASYNC_SAMPLE_RATE_1_SHIFT		     0
 #define MADERA_ASYNC_SAMPLE_RATE_1_WIDTH		     5
 
-/*
- * R276 (0x114) - Async sample rate 2
- */
+/* (0x0114)  Async_sample_rate_2 */
 #define MADERA_ASYNC_SAMPLE_RATE_2_MASK			0x001F
 #define MADERA_ASYNC_SAMPLE_RATE_2_SHIFT		     0
 #define MADERA_ASYNC_SAMPLE_RATE_2_WIDTH		     5
 
-/*
- * R283 (0x11B) - Async sample rate 1 status
- */
+/* (0x011B)  Async_sample_rate_1_status */
 #define MADERA_ASYNC_SAMPLE_RATE_1_STS_MASK		0x001F
 #define MADERA_ASYNC_SAMPLE_RATE_1_STS_SHIFT		     0
 #define MADERA_ASYNC_SAMPLE_RATE_1_STS_WIDTH		     5
 
-/*
- * R284 (0x11C) - Async sample rate 2 status
- */
+/* (0x011C)  Async_sample_rate_2_status */
 #define MADERA_ASYNC_SAMPLE_RATE_2_STS_MASK		0x001F
 #define MADERA_ASYNC_SAMPLE_RATE_2_STS_SHIFT		     0
 #define MADERA_ASYNC_SAMPLE_RATE_2_STS_WIDTH		     5
 
-/*
- * R109 (0x120) - DSP_Clock_1
- */
+/* (0x0120)  DSP_Clock_1 */
 #define MADERA_DSP_CLK_FREQ_LEGACY			0x0700
 #define MADERA_DSP_CLK_FREQ_LEGACY_MASK			0x0700
 #define MADERA_DSP_CLK_FREQ_LEGACY_SHIFT		     8
@@ -2616,16 +2532,12 @@
 #define MADERA_DSP_CLK_SRC_SHIFT			     0
 #define MADERA_DSP_CLK_SRC_WIDTH			     4
 
-/*
- * R110 (0x122) - DSP_Clock_2
- */
+/* (0x0122)  DSP_Clock_2 */
 #define MADERA_DSP_CLK_FREQ_MASK			0x03FF
 #define MADERA_DSP_CLK_FREQ_SHIFT			     0
 #define MADERA_DSP_CLK_FREQ_WIDTH			    10
 
-/*
- * R329 (0x149) - Output system clock
- */
+/* (0x0149)  Output_system_clock */
 #define MADERA_OPCLK_ENA				0x8000
 #define MADERA_OPCLK_ENA_MASK				0x8000
 #define MADERA_OPCLK_ENA_SHIFT				    15
@@ -2637,9 +2549,7 @@
 #define MADERA_OPCLK_SEL_SHIFT				     0
 #define MADERA_OPCLK_SEL_WIDTH				     3
 
-/*
- * R330 (0x14A) - Output async clock
- */
+/* (0x014A)  Output_async_clock */
 #define MADERA_OPCLK_ASYNC_ENA				0x8000
 #define MADERA_OPCLK_ASYNC_ENA_MASK			0x8000
 #define MADERA_OPCLK_ASYNC_ENA_SHIFT			    15
@@ -2651,9 +2561,7 @@
 #define MADERA_OPCLK_ASYNC_SEL_SHIFT			     0
 #define MADERA_OPCLK_ASYNC_SEL_WIDTH			     3
 
-/*
- * R338 (0x152) - Rate Estimator 1
- */
+/* (0x0152)  Rate_Estimator_1 */
 #define MADERA_TRIG_ON_STARTUP				0x0010
 #define MADERA_TRIG_ON_STARTUP_MASK			0x0010
 #define MADERA_TRIG_ON_STARTUP_SHIFT			     4
@@ -2666,37 +2574,27 @@
 #define MADERA_RATE_EST_ENA_SHIFT			     0
 #define MADERA_RATE_EST_ENA_WIDTH			     1
 
-/*
- * R339 (0x153) - Rate Estimator 2
- */
+/* (0x0153)  Rate_Estimator_2 */
 #define MADERA_SAMPLE_RATE_DETECT_A_MASK		0x001F
 #define MADERA_SAMPLE_RATE_DETECT_A_SHIFT		     0
 #define MADERA_SAMPLE_RATE_DETECT_A_WIDTH		     5
 
-/*
- * R340 (0x154) - Rate Estimator 3
- */
+/* (0x0154)  Rate_Estimator_3 */
 #define MADERA_SAMPLE_RATE_DETECT_B_MASK		0x001F
 #define MADERA_SAMPLE_RATE_DETECT_B_SHIFT		     0
 #define MADERA_SAMPLE_RATE_DETECT_B_WIDTH		     5
 
-/*
- * R341 (0x155) - Rate Estimator 4
- */
+/* (0x0155)  Rate_Estimator_4 */
 #define MADERA_SAMPLE_RATE_DETECT_C_MASK		0x001F
 #define MADERA_SAMPLE_RATE_DETECT_C_SHIFT		     0
 #define MADERA_SAMPLE_RATE_DETECT_C_WIDTH		     5
 
-/*
- * R342 (0x156) - Rate Estimator 5
- */
+/* (0x0156)  Rate_Estimator_5 */
 #define MADERA_SAMPLE_RATE_DETECT_D_MASK		0x001F
 #define MADERA_SAMPLE_RATE_DETECT_D_SHIFT		     0
 #define MADERA_SAMPLE_RATE_DETECT_D_WIDTH		     5
 
-/*
- * R369 (0x171) - FLL1 Control 1
- */
+/* (0x0171)  FLL1_Control_1 */
 #define MADERA_FLL1_FREERUN				0x0002
 #define MADERA_FLL1_FREERUN_MASK			0x0002
 #define MADERA_FLL1_FREERUN_SHIFT			     1
@@ -2706,9 +2604,7 @@
 #define MADERA_FLL1_ENA_SHIFT				     0
 #define MADERA_FLL1_ENA_WIDTH				     1
 
-/*
- * R370 (0x172) - FLL1 Control 2
- */
+/* (0x0172)  FLL1_Control_2 */
 #define MADERA_FLL1_CTRL_UPD				0x8000
 #define MADERA_FLL1_CTRL_UPD_MASK			0x8000
 #define MADERA_FLL1_CTRL_UPD_SHIFT			    15
@@ -2717,23 +2613,17 @@
 #define MADERA_FLL1_N_SHIFT				     0
 #define MADERA_FLL1_N_WIDTH				    10
 
-/*
- * R371 (0x173) - FLL1 Control 3
- */
+/* (0x0173)  FLL1_Control_3 */
 #define MADERA_FLL1_THETA_MASK				0xFFFF
 #define MADERA_FLL1_THETA_SHIFT				     0
 #define MADERA_FLL1_THETA_WIDTH				    16
 
-/*
- * R372 (0x174) - FLL1 Control 4
- */
+/* (0x0174)  FLL1_Control_4 */
 #define MADERA_FLL1_LAMBDA_MASK				0xFFFF
 #define MADERA_FLL1_LAMBDA_SHIFT			     0
 #define MADERA_FLL1_LAMBDA_WIDTH			    16
 
-/*
- * R373 (0x175) - FLL1 Control 5
- */
+/* (0x0175)  FLL1_Control_5 */
 #define MADERA_FLL1_FRATIO_MASK				0x0F00
 #define MADERA_FLL1_FRATIO_SHIFT			     8
 #define MADERA_FLL1_FRATIO_WIDTH			     4
@@ -2741,9 +2631,7 @@
 #define MADERA_FLL1_OUTDIV_SHIFT			     1
 #define MADERA_FLL1_OUTDIV_WIDTH			     3
 
-/*
- * R374 (0x176) - FLL1 Control 6
- */
+/* (0x0176)  FLL1_Control_6 */
 #define MADERA_FLL1_CLK_REF_DIV_MASK			0x00C0
 #define MADERA_FLL1_CLK_REF_DIV_SHIFT			     6
 #define MADERA_FLL1_CLK_REF_DIV_WIDTH			     2
@@ -2751,9 +2639,7 @@
 #define MADERA_FLL1_CLK_REF_SRC_SHIFT			     0
 #define MADERA_FLL1_CLK_REF_SRC_WIDTH			     4
 
-/*
- * R375 (0x177) - FLL1 Loop Filter Test 1
- */
+/* (0x0177)  FLL1_Loop_Filter_Test_1 */
 #define MADERA_FLL1_FRC_INTEG_UPD			0x8000
 #define MADERA_FLL1_FRC_INTEG_UPD_MASK			0x8000
 #define MADERA_FLL1_FRC_INTEG_UPD_SHIFT			    15
@@ -2762,16 +2648,12 @@
 #define MADERA_FLL1_FRC_INTEG_VAL_SHIFT			     0
 #define MADERA_FLL1_FRC_INTEG_VAL_WIDTH			    12
 
-/*
- * R377 (0x179) - FLL1 Control 7
- */
+/* (0x0179)  FLL1_Control_7 */
 #define MADERA_FLL1_GAIN_MASK				0x003c
 #define MADERA_FLL1_GAIN_SHIFT				     2
 #define MADERA_FLL1_GAIN_WIDTH				     4
 
-/*
- * R378 (0x17A) - FLL1 EFS 2
- */
+/* (0x017A)  FLL1_EFS_2 */
 #define MADERA_FLL1_PHASE_GAIN_MASK			0xF000
 #define MADERA_FLL1_PHASE_GAIN_SHIFT			    12
 #define MADERA_FLL1_PHASE_GAIN_WIDTH			     4
@@ -2779,45 +2661,33 @@
 #define MADERA_FLL1_PHASE_ENA_SHIFT			    11
 #define MADERA_FLL1_PHASE_ENA_WIDTH			     1
 
-/*
- * R385 (0x181) - FLL1 Synchroniser 1
- */
+/* (0x0181)  FLL1_Synchroniser_1 */
 #define MADERA_FLL1_SYNC_ENA				0x0001
 #define MADERA_FLL1_SYNC_ENA_MASK			0x0001
 #define MADERA_FLL1_SYNC_ENA_SHIFT			     0
 #define MADERA_FLL1_SYNC_ENA_WIDTH			     1
 
-/*
- * R386 (0x182) - FLL1 Synchroniser 2
- */
+/* (0x0182)  FLL1_Synchroniser_2 */
 #define MADERA_FLL1_SYNC_N_MASK				0x03FF
 #define MADERA_FLL1_SYNC_N_SHIFT			     0
 #define MADERA_FLL1_SYNC_N_WIDTH			    10
 
-/*
- * R387 (0x183) - FLL1 Synchroniser 3
- */
+/* (0x0183)  FLL1_Synchroniser_3 */
 #define MADERA_FLL1_SYNC_THETA_MASK			0xFFFF
 #define MADERA_FLL1_SYNC_THETA_SHIFT			     0
 #define MADERA_FLL1_SYNC_THETA_WIDTH			    16
 
-/*
- * R388 (0x184) - FLL1 Synchroniser 4
- */
+/* (0x0184)  FLL1_Synchroniser_4 */
 #define MADERA_FLL1_SYNC_LAMBDA_MASK			0xFFFF
 #define MADERA_FLL1_SYNC_LAMBDA_SHIFT			     0
 #define MADERA_FLL1_SYNC_LAMBDA_WIDTH			    16
 
-/*
- * R389 (0x185) - FLL1 Synchroniser 5
- */
+/* (0x0185)  FLL1_Synchroniser_5 */
 #define MADERA_FLL1_SYNC_FRATIO_MASK			0x0700
 #define MADERA_FLL1_SYNC_FRATIO_SHIFT			     8
 #define MADERA_FLL1_SYNC_FRATIO_WIDTH			     3
 
-/*
- * R390 (0x186) - FLL1 Synchroniser 6
- */
+/* (0x0186)  FLL1_Synchroniser_6 */
 #define MADERA_FLL1_CLK_SYNC_DIV_MASK			0x00C0
 #define MADERA_FLL1_CLK_SYNC_DIV_SHIFT			     6
 #define MADERA_FLL1_CLK_SYNC_DIV_WIDTH			     2
@@ -2825,9 +2695,7 @@
 #define MADERA_FLL1_CLK_SYNC_SRC_SHIFT			     0
 #define MADERA_FLL1_CLK_SYNC_SRC_WIDTH			     4
 
-/*
- * R391 (0x187) - FLL1 Synchroniser 7
- */
+/* (0x0187)  FLL1_Synchroniser_7 */
 #define MADERA_FLL1_SYNC_GAIN_MASK			0x003c
 #define MADERA_FLL1_SYNC_GAIN_SHIFT			     2
 #define MADERA_FLL1_SYNC_GAIN_WIDTH			     4
@@ -2836,9 +2704,7 @@
 #define MADERA_FLL1_SYNC_BW_SHIFT			     0
 #define MADERA_FLL1_SYNC_BW_WIDTH			     1
 
-/*
- * R393 (0x189) - FLL1 Spread Spectrum
- */
+/* (0x0189)  FLL1_Spread_Spectrum */
 #define MADERA_FLL1_SS_AMPL_MASK			0x0030
 #define MADERA_FLL1_SS_AMPL_SHIFT			     4
 #define MADERA_FLL1_SS_AMPL_WIDTH			     2
@@ -2849,9 +2715,7 @@
 #define MADERA_FLL1_SS_SEL_SHIFT			     0
 #define MADERA_FLL1_SS_SEL_WIDTH			     2
 
-/*
- * R394 (0x18A) - FLL1 GPIO Clock
- */
+/* (0x018A)  FLL1_GPIO_Clock */
 #define MADERA_FLL1_GPDIV_MASK				0x00FE
 #define MADERA_FLL1_GPDIV_SHIFT				     1
 #define MADERA_FLL1_GPDIV_WIDTH				     7
@@ -2860,9 +2724,7 @@
 #define MADERA_FLL1_GPDIV_ENA_SHIFT			     0
 #define MADERA_FLL1_GPDIV_ENA_WIDTH			     1
 
-/*
- * R401 (0x191) - FLL2 Control 1
- */
+/* (0x0191)  FLL2_Control_1 */
 #define MADERA_FLL2_FREERUN				0x0002
 #define MADERA_FLL2_FREERUN_MASK			0x0002
 #define MADERA_FLL2_FREERUN_SHIFT			     1
@@ -2872,9 +2734,7 @@
 #define MADERA_FLL2_ENA_SHIFT				     0
 #define MADERA_FLL2_ENA_WIDTH				     1
 
-/*
- * R402 (0x192) - FLL2 Control 2
- */
+/* (0x0192)  FLL2_Control_2 */
 #define MADERA_FLL2_CTRL_UPD				0x8000
 #define MADERA_FLL2_CTRL_UPD_MASK			0x8000
 #define MADERA_FLL2_CTRL_UPD_SHIFT			    15
@@ -2883,23 +2743,17 @@
 #define MADERA_FLL2_N_SHIFT				     0
 #define MADERA_FLL2_N_WIDTH				    10
 
-/*
- * R403 (0x193) - FLL2 Control 3
- */
+/* (0x0193)  FLL2_Control_3 */
 #define MADERA_FLL2_THETA_MASK				0xFFFF
 #define MADERA_FLL2_THETA_SHIFT				     0
 #define MADERA_FLL2_THETA_WIDTH				    16
 
-/*
- * R404 (0x194) - FLL2 Control 4
- */
+/* (0x0194)  FLL2_Control_4 */
 #define MADERA_FLL2_LAMBDA_MASK				0xFFFF
 #define MADERA_FLL2_LAMBDA_SHIFT			     0
 #define MADERA_FLL2_LAMBDA_WIDTH			    16
 
-/*
- * R405 (0x195) - FLL2 Control 5
- */
+/* (0x0195)  FLL2_Control_5 */
 #define MADERA_FLL2_FRATIO_MASK				0x0700
 #define MADERA_FLL2_FRATIO_SHIFT			     8
 #define MADERA_FLL2_FRATIO_WIDTH			     3
@@ -2907,9 +2761,7 @@
 #define MADERA_FLL2_OUTDIV_SHIFT			     1
 #define MADERA_FLL2_OUTDIV_WIDTH			     3
 
-/*
- * R406 (0x196) - FLL2 Control 6
- */
+/* (0x0196)  FLL2_Control_6 */
 #define MADERA_FLL2_CLK_REF_DIV_MASK			0x00C0
 #define MADERA_FLL2_CLK_REF_DIV_SHIFT			     6
 #define MADERA_FLL2_CLK_REF_DIV_WIDTH			     2
@@ -2917,9 +2769,7 @@
 #define MADERA_FLL2_CLK_REF_SRC_SHIFT			     0
 #define MADERA_FLL2_CLK_REF_SRC_WIDTH			     4
 
-/*
- * R407 (0x197) - FLL2 Loop Filter Test 1
- */
+/* (0x0197)  FLL2_Loop_Filter_Test_1 */
 #define MADERA_FLL2_FRC_INTEG_UPD			0x8000
 #define MADERA_FLL2_FRC_INTEG_UPD_MASK			0x8000
 #define MADERA_FLL2_FRC_INTEG_UPD_SHIFT			    15
@@ -2928,16 +2778,12 @@
 #define MADERA_FLL2_FRC_INTEG_VAL_SHIFT			     0
 #define MADERA_FLL2_FRC_INTEG_VAL_WIDTH			    12
 
-/*
- * R409 (0x199) - FLL2 Control 7
- */
+/* (0x0199)  FLL2_Control_7 */
 #define MADERA_FLL2_GAIN_MASK				0x003c
 #define MADERA_FLL2_GAIN_SHIFT				     2
 #define MADERA_FLL2_GAIN_WIDTH				     4
 
-/*
- * R410 (0x19A) - FLL2 EFS 2
- */
+/* (0x019A)  FLL2_EFS_2 */
 #define MADERA_FLL2_PHASE_GAIN_MASK			0xF000
 #define MADERA_FLL2_PHASE_GAIN_SHIFT			    12
 #define MADERA_FLL2_PHASE_GAIN_WIDTH			     4
@@ -2945,45 +2791,33 @@
 #define MADERA_FLL2_PHASE_ENA_SHIFT			    11
 #define MADERA_FLL2_PHASE_ENA_WIDTH			     1
 
-/*
- * R417 (0x1A1) - FLL2 Synchroniser 1
- */
+/* (0x01A1)  FLL2_Synchroniser_1 */
 #define MADERA_FLL2_SYNC_ENA				0x0001
 #define MADERA_FLL2_SYNC_ENA_MASK			0x0001
 #define MADERA_FLL2_SYNC_ENA_SHIFT			     0
 #define MADERA_FLL2_SYNC_ENA_WIDTH			     1
 
-/*
- * R418 (0x1A2) - FLL2 Synchroniser 2
- */
+/* (0x01A2)  FLL2_Synchroniser_2 */
 #define MADERA_FLL2_SYNC_N_MASK				0x03FF
 #define MADERA_FLL2_SYNC_N_SHIFT			     0
 #define MADERA_FLL2_SYNC_N_WIDTH			    10
 
-/*
- * R419 (0x1A3) - FLL2 Synchroniser 3
- */
+/* (0x01A3)  FLL2_Synchroniser_3 */
 #define MADERA_FLL2_SYNC_THETA_MASK			0xFFFF
 #define MADERA_FLL2_SYNC_THETA_SHIFT			     0
 #define MADERA_FLL2_SYNC_THETA_WIDTH			    16
 
-/*
- * R420 (0x1A4) - FLL2 Synchroniser 4
- */
+/* (0x01A4)  FLL2_Synchroniser_4 */
 #define MADERA_FLL2_SYNC_LAMBDA_MASK			0xFFFF
 #define MADERA_FLL2_SYNC_LAMBDA_SHIFT			     0
 #define MADERA_FLL2_SYNC_LAMBDA_WIDTH			    16
 
-/*
- * R421 (0x1A5) - FLL2 Synchroniser 5
- */
+/* (0x01A5)  FLL2_Synchroniser_5 */
 #define MADERA_FLL2_SYNC_FRATIO_MASK			0x0700
 #define MADERA_FLL2_SYNC_FRATIO_SHIFT			     8
 #define MADERA_FLL2_SYNC_FRATIO_WIDTH			     3
 
-/*
- * R422 (0x1A6) - FLL2 Synchroniser 6
- */
+/* (0x01A6)  FLL2_Synchroniser_6 */
 #define MADERA_FLL2_CLK_SYNC_DIV_MASK			0x00C0
 #define MADERA_FLL2_CLK_SYNC_DIV_SHIFT			     6
 #define MADERA_FLL2_CLK_SYNC_DIV_WIDTH			     2
@@ -2991,9 +2825,7 @@
 #define MADERA_FLL2_CLK_SYNC_SRC_SHIFT			     0
 #define MADERA_FLL2_CLK_SYNC_SRC_WIDTH			     4
 
-/*
- * R423 (0x1A7) - FLL2 Synchroniser 7
- */
+/* (0x01A7)  FLL2_Synchroniser_7 */
 #define MADERA_FLL2_SYNC_GAIN_MASK			0x003c
 #define MADERA_FLL2_SYNC_GAIN_SHIFT			     2
 #define MADERA_FLL2_SYNC_GAIN_WIDTH			     4
@@ -3002,9 +2834,7 @@
 #define MADERA_FLL2_SYNC_BW_SHIFT			     0
 #define MADERA_FLL2_SYNC_BW_WIDTH			     1
 
-/*
- * R425 (0x1A9) - FLL2 Spread Spectrum
- */
+/* (0x01A9)  FLL2_Spread_Spectrum */
 #define MADERA_FLL2_SS_AMPL_MASK			0x0030
 #define MADERA_FLL2_SS_AMPL_SHIFT			     4
 #define MADERA_FLL2_SS_AMPL_WIDTH			     2
@@ -3015,9 +2845,7 @@
 #define MADERA_FLL2_SS_SEL_SHIFT			     0
 #define MADERA_FLL2_SS_SEL_WIDTH			     2
 
-/*
- * R426 (0x1AA) - FLL2 GPIO Clock
- */
+/* (0x01AA)  FLL2_GPIO_Clock */
 #define MADERA_FLL2_GPDIV_MASK				0x00FE
 #define MADERA_FLL2_GPDIV_SHIFT				     1
 #define MADERA_FLL2_GPDIV_WIDTH				     7
@@ -3026,9 +2854,7 @@
 #define MADERA_FLL2_GPDIV_ENA_SHIFT			     0
 #define MADERA_FLL2_GPDIV_ENA_WIDTH			     1
 
-/*
- * R433 (0x1B1) - FLL3 Control 1
- */
+/* (0x01B1)  FLL3_Control_1 */
 #define MADERA_FLL3_FREERUN				0x0002
 #define MADERA_FLL3_FREERUN_MASK			0x0002
 #define MADERA_FLL3_FREERUN_SHIFT			     1
@@ -3038,9 +2864,7 @@
 #define MADERA_FLL3_ENA_SHIFT				     0
 #define MADERA_FLL3_ENA_WIDTH				     1
 
-/*
- * R434 (0x1B2) - FLL3 Control 2
- */
+/* (0x01B2)  FLL3_Control_2 */
 #define MADERA_FLL3_CTRL_UPD				0x8000
 #define MADERA_FLL3_CTRL_UPD_MASK			0x8000
 #define MADERA_FLL3_CTRL_UPD_SHIFT			    15
@@ -3049,23 +2873,17 @@
 #define MADERA_FLL3_N_SHIFT				     0
 #define MADERA_FLL3_N_WIDTH				    10
 
-/*
- * R435 (0x1B3) - FLL3 Control 3
- */
+/* (0x01B3)  FLL3_Control_3 */
 #define MADERA_FLL3_THETA_MASK				0xFFFF
 #define MADERA_FLL3_THETA_SHIFT				     0
 #define MADERA_FLL3_THETA_WIDTH				    16
 
-/*
- * R436 (0x1B4) - FLL3 Control 4
- */
+/* (0x01B4)  FLL3_Control_4 */
 #define MADERA_FLL3_LAMBDA_MASK				0xFFFF
 #define MADERA_FLL3_LAMBDA_SHIFT			     0
 #define MADERA_FLL3_LAMBDA_WIDTH			    16
 
-/*
- * R437 (0x1B5) - FLL3 Control 5
- */
+/* (0x01B5)  FLL3_Control_5 */
 #define MADERA_FLL3_FRATIO_MASK				0x0700
 #define MADERA_FLL3_FRATIO_SHIFT			     8
 #define MADERA_FLL3_FRATIO_WIDTH			     3
@@ -3073,9 +2891,7 @@
 #define MADERA_FLL3_OUTDIV_SHIFT			     1
 #define MADERA_FLL3_OUTDIV_WIDTH			     3
 
-/*
- * R438 (0x1B6) - FLL3 Control 6
- */
+/* (0x01B6)  FLL3_Control_6 */
 #define MADERA_FLL3_CLK_REF_DIV_MASK			0x00C0
 #define MADERA_FLL3_CLK_REF_DIV_SHIFT			     6
 #define MADERA_FLL3_CLK_REF_DIV_WIDTH			     2
@@ -3083,9 +2899,7 @@
 #define MADERA_FLL3_CLK_REF_SRC_SHIFT			     0
 #define MADERA_FLL3_CLK_REF_SRC_WIDTH			     4
 
-/*
- * R439 (0x1B7) - FLL3 Loop Filter Test 1
- */
+/* (0x01B7)  FLL3_Loop_Filter_Test_1 */
 #define MADERA_FLL3_FRC_INTEG_UPD			0x8000
 #define MADERA_FLL3_FRC_INTEG_UPD_MASK			0x8000
 #define MADERA_FLL3_FRC_INTEG_UPD_SHIFT			    15
@@ -3094,52 +2908,38 @@
 #define MADERA_FLL3_FRC_INTEG_VAL_SHIFT			     0
 #define MADERA_FLL3_FRC_INTEG_VAL_WIDTH			    12
 
-/*
- * R441 (0x1B9) - FLL3 Control 7
- */
+/* (0x01B9)  FLL3_Control_7 */
 #define MADERA_FLL3_GAIN_MASK				0x003c
 #define MADERA_FLL3_GAIN_SHIFT				     2
 #define MADERA_FLL3_GAIN_WIDTH				     4
 
-/*
- * R449 (0x1C1) - FLL3 Synchroniser 1
- */
+/* (0x01C1)  FLL3_Synchroniser_1 */
 #define MADERA_FLL3_SYNC_ENA				0x0001
 #define MADERA_FLL3_SYNC_ENA_MASK			0x0001
 #define MADERA_FLL3_SYNC_ENA_SHIFT			     0
 #define MADERA_FLL3_SYNC_ENA_WIDTH			     1
 
-/*
- * R450 (0x1C2) - FLL3 Synchroniser 2
- */
+/* (0x01C2)  FLL3_Synchroniser_2 */
 #define MADERA_FLL3_SYNC_N_MASK				0x03FF
 #define MADERA_FLL3_SYNC_N_SHIFT			     0
 #define MADERA_FLL3_SYNC_N_WIDTH			    10
 
-/*
- * R451 (0x1C3) - FLL3 Synchroniser 3
- */
+/* (0x01C3)  FLL3_Synchroniser_3 */
 #define MADERA_FLL3_SYNC_THETA_MASK			0xFFFF
 #define MADERA_FLL3_SYNC_THETA_SHIFT			     0
 #define MADERA_FLL3_SYNC_THETA_WIDTH			    16
 
-/*
- * R452 (0x1C4) - FLL3 Synchroniser 4
- */
+/* (0x01C4)  FLL3_Synchroniser_4 */
 #define MADERA_FLL3_SYNC_LAMBDA_MASK			0xFFFF
 #define MADERA_FLL3_SYNC_LAMBDA_SHIFT			     0
 #define MADERA_FLL3_SYNC_LAMBDA_WIDTH			    16
 
-/*
- * R453 (0x1C5) - FLL3 Synchroniser 5
- */
+/* (0x01C5)  FLL3_Synchroniser_5 */
 #define MADERA_FLL3_SYNC_FRATIO_MASK			0x0700
 #define MADERA_FLL3_SYNC_FRATIO_SHIFT			     8
 #define MADERA_FLL3_SYNC_FRATIO_WIDTH			     3
 
-/*
- * R454 (0x1C6) - FLL3 Synchroniser 6
- */
+/* (0x01C6)  FLL3_Synchroniser_6 */
 #define MADERA_FLL3_CLK_SYNC_DIV_MASK			0x00C0
 #define MADERA_FLL3_CLK_SYNC_DIV_SHIFT			     6
 #define MADERA_FLL3_CLK_SYNC_DIV_WIDTH			     2
@@ -3147,9 +2947,7 @@
 #define MADERA_FLL3_CLK_SYNC_SRC_SHIFT			     0
 #define MADERA_FLL3_CLK_SYNC_SRC_WIDTH			     4
 
-/*
- * R455 (0x1C7) - FLL3 Synchroniser 7
- */
+/* (0x01C7)  FLL3_Synchroniser_7 */
 #define MADERA_FLL3_SYNC_GAIN_MASK			0x003c
 #define MADERA_FLL3_SYNC_GAIN_SHIFT			     2
 #define MADERA_FLL3_SYNC_GAIN_WIDTH			     4
@@ -3158,9 +2956,7 @@
 #define MADERA_FLL3_SYNC_BW_SHIFT			     0
 #define MADERA_FLL3_SYNC_BW_WIDTH			     1
 
-/*
- * R457 (0x1C9) - FLL3 Spread Spectrum
- */
+/* (0x01C9)  FLL3_Spread_Spectrum */
 #define MADERA_FLL3_SS_AMPL_MASK			0x0030
 #define MADERA_FLL3_SS_AMPL_SHIFT			     4
 #define MADERA_FLL3_SS_AMPL_WIDTH			     2
@@ -3171,9 +2967,7 @@
 #define MADERA_FLL3_SS_SEL_SHIFT			     0
 #define MADERA_FLL3_SS_SEL_WIDTH			     2
 
-/*
- * R458 (0x1CA) - FLL3 GPIO Clock
- */
+/* (0x01CA)  FLL3_GPIO_Clock */
 #define MADERA_FLL3_GPDIV_MASK				0x00FE
 #define MADERA_FLL3_GPDIV_SHIFT				     1
 #define MADERA_FLL3_GPDIV_WIDTH				     7
@@ -3182,9 +2976,7 @@
 #define MADERA_FLL3_GPDIV_ENA_SHIFT			     0
 #define MADERA_FLL3_GPDIV_ENA_WIDTH			     1
 
-/*
- * R465 (0x1D1) - MADERA_FLLAO_CONTROL_1
- */
+/* (0x01D1)  FLL_AO_Control_1 */
 #define MADERA_FLL_AO_HOLD				0x0004
 #define MADERA_FLL_AO_HOLD_MASK				0x0004
 #define MADERA_FLL_AO_HOLD_SHIFT			     2
@@ -3198,9 +2990,7 @@
 #define MADERA_FLL_AO_ENA_SHIFT				     0
 #define MADERA_FLL_AO_ENA_WIDTH				     1
 
-/*
- * R466 (0x1D2) - MADERA_FLLAO_CONTROL_2
- */
+/* (0x01D2)  FLL_AO_Control_2 */
 #define MADERA_FLL_AO_CTRL_UPD				0x8000
 #define MADERA_FLL_AO_CTRL_UPD_MASK			0x8000
 #define MADERA_FLL_AO_CTRL_UPD_SHIFT			    15
@@ -3210,30 +3000,22 @@
 #define MADERA_FLL_AO_N_SHIFT				     0
 #define MADERA_FLL_AO_N_WIDTH				    10
 
-/*
- * R467 (0x1D3) - MADERA_FLLAO_CONTROL_3
- */
+/* (0x01D3)  FLL_AO_Control_3 */
 #define MADERA_FLL_AO_THETA_MASK			0x00FF
 #define MADERA_FLL_AO_THETA_SHIFT			     0
 #define MADERA_FLL_AO_THETA_WIDTH			     8
 
-/*
- * R468 (0x1D4) - MADERA_FLLAO_CONTROL_4
- */
+/* (0x01D4)  FLL_AO_Control_4 */
 #define MADERA_FLL_AO_LAMBDA_MASK			0x00FF
 #define MADERA_FLL_AO_LAMBDA_SHIFT			     0
 #define MADERA_FLL_AO_LAMBDA_WIDTH			     8
 
-/*
- * R469 (0x1D5) - MADERA_FLLAO_CONTROL_5
- */
+/* (0x01D5)  FLL_AO_Control_5 */
 #define MADERA_FLL_AO_FB_DIV_MASK			0x00FF
 #define MADERA_FLL_AO_FB_DIV_SHIFT			     0
 #define MADERA_FLL_AO_FB_DIV_WIDTH			     8
 
-/*
- * R470 (0x1D6) - MADERA_FLLAO_CONTROL_6
- */
+/* (0x01D6)  FLL_AO_Control_6 */
 #define MADERA_FLL_AO_REFDET_ENA			0x8000
 #define MADERA_FLL_AO_REFDET_ENA_MASK			0x8000
 #define MADERA_FLL_AO_REFDET_ENA_SHIFT			    15
@@ -3247,16 +3029,12 @@
 #define MADERA_FLL_AO_REFCLK_SRC_SHIFT			     0
 #define MADERA_FLL_AO_REFCLK_SRC_WIDTH			     4
 
-/*
- * R472 (0x1D8) - MADERA_FLLAO_CONTROL_7
- */
+/* (0x01D8)  FLL_AO_Control_7 */
 #define MADERA_FLL_AO_GAIN_MASK				0x000F
 #define MADERA_FLL_AO_GAIN_SHIFT			     0
 #define MADERA_FLL_AO_GAIN_WIDTH			     4
 
-/*
- * R474 (0x1DA) - MADERA_FLLAO_CONTROL_8
- */
+/* (0x01DA)  FLL_AO_Control_8 */
 #define MADERA_FLL_AO_HS_DITH_TUNE			0xF000
 #define MADERA_FLL_AO_HS_DITH_TUNE_MASK			0xF000
 #define MADERA_FLL_AO_HS_DITH_TUNE_SHIFT		    12
@@ -3270,16 +3048,12 @@
 #define MADERA_FLL_AO_LS_DITH_TUNE_NONSHAPED_SHIFT	     0
 #define MADERA_FLL_AO_LS_DITH_TUNE_NONSHAPED_WIDTH	     4
 
-/*
- * R475 (0x1DB) - MADERA_FLLAO_CONTROL_9
- */
+/* (0x01DB)  FLL_AO_Control_9 */
 #define MADERA_FLL_AO_TR_RATE_MASK			0x000F
 #define MADERA_FLL_AO_TR_RATE_SHIFT			     0
 #define MADERA_FLL_AO_TR_RATE_WIDTH			     4
 
-/*
- * R476 (0x1DC) - MADERA_FLLAO_CONTROL_10
- */
+/* (0x01DC)  FLL_AO_Control_10 */
 #define MADERA_FLL_AO_PHASEDET_ENA			0x1000
 #define MADERA_FLL_AO_PHASEDET_ENA_MASK			0x1000
 #define MADERA_FLL_AO_PHASEDET_ENA_SHIFT		    12
@@ -3321,9 +3095,7 @@
 #define MADERA_FLL_AO_DFSAT_ENA_SHIFT			     0
 #define MADERA_FLL_AO_DFSAT_ENA_WIDTH			     1
 
-/*
- * R477 (0x1DD) - MADERA_FLLAO_CONTROL_11
- */
+/* (0x01DD)  FLL_AO_Control_11 */
 #define MADERA_FLL_AO_LOCKDET_PHASE_MASK		0x0080
 #define MADERA_FLL_AO_LOCKDET_PHASE_MASK_MASK		0x0080
 #define MADERA_FLL_AO_LOCKDET_PHASE_MASK_SHIFT		     7
@@ -3337,9 +3109,7 @@
 #define MADERA_FLL_AO_LOCKDET_ENA_SHIFT			     0
 #define MADERA_FLL_AO_LOCKDET_ENA_WIDTH			     1
 
-/*
- * R512 (0x200) - Mic Charge Pump 1
- */
+/* (0x0200)  Mic_Charge_Pump_1 */
 #define MADERA_CPMIC_DISCH				0x0004
 #define MADERA_CPMIC_DISCH_MASK				0x0004
 #define MADERA_CPMIC_DISCH_SHIFT			     2
@@ -3353,9 +3123,7 @@
 #define MADERA_CPMIC_ENA_SHIFT				     0
 #define MADERA_CPMIC_ENA_WIDTH				     1
 
-/*
- * R528 (0x210) - LDO1 Control 1
- */
+/* (0x0210)  LDO1_Control_1 */
 #define MADERA_LDO1_VSEL_MASK				0x07E0
 #define MADERA_LDO1_VSEL_SHIFT				     5
 #define MADERA_LDO1_VSEL_WIDTH				     6
@@ -3376,9 +3144,7 @@
 #define MADERA_LDO1_ENA_SHIFT				     0
 #define MADERA_LDO1_ENA_WIDTH				     1
 
-/*
- * R531 (0x213) - LDO2 Control 1
- */
+/* (0x0213)  LDO2_Control_1 */
 #define MADERA_LDO2_VSEL_MASK				0x07E0
 #define MADERA_LDO2_VSEL_SHIFT				     5
 #define MADERA_LDO2_VSEL_WIDTH				     6
@@ -3399,9 +3165,7 @@
 #define MADERA_LDO2_ENA_SHIFT				     0
 #define MADERA_LDO2_ENA_WIDTH				     1
 
-/*
- * R536 (0x218) - Mic Bias Ctrl 1
- */
+/* (0x0218)  Mic_Bias_Ctrl_1 */
 #define MADERA_MICB1_EXT_CAP				0x8000
 #define MADERA_MICB1_EXT_CAP_MASK			0x8000
 #define MADERA_MICB1_EXT_CAP_SHIFT			    15
@@ -3430,9 +3194,7 @@
 #define MADERA_MICB1_ENA_SHIFT				     0
 #define MADERA_MICB1_ENA_WIDTH				     1
 
-/*
- * R537 (0x219) - Mic Bias Ctrl 2
- */
+/* (0x0219)  Mic_Bias_Ctrl_2 */
 #define MADERA_MICB2_EXT_CAP				0x8000
 #define MADERA_MICB2_EXT_CAP_MASK			0x8000
 #define MADERA_MICB2_EXT_CAP_SHIFT			    15
@@ -3461,9 +3223,7 @@
 #define MADERA_MICB2_ENA_SHIFT				     0
 #define MADERA_MICB2_ENA_WIDTH				     1
 
-/*
- * R538 (0x21A) - Mic Bias Ctrl 3
- */
+/* (0x021A)  Mic_Bias_Ctrl_3 */
 #define MADERA_MICB3_EXT_CAP				0x8000
 #define MADERA_MICB3_EXT_CAP_MASK			0x8000
 #define MADERA_MICB3_EXT_CAP_SHIFT			    15
@@ -3492,9 +3252,7 @@
 #define MADERA_MICB3_ENA_SHIFT				     0
 #define MADERA_MICB3_ENA_WIDTH				     1
 
-/*
- * R539 (0x21B) - Mic Bias Ctrl 4
- */
+/* (0x021B)  Mic_Bias_Ctrl_4 */
 #define MADERA_MICB4_EXT_CAP				0x8000
 #define MADERA_MICB4_EXT_CAP_MASK			0x8000
 #define MADERA_MICB4_EXT_CAP_SHIFT			    15
@@ -3523,9 +3281,7 @@
 #define MADERA_MICB4_ENA_SHIFT				     0
 #define MADERA_MICB4_ENA_WIDTH				     1
 
-/*
- * R540 (0x21C) - Mic Bias Ctrl 5
- */
+/* (0x021C)  Mic_Bias_Ctrl_5 */
 #define MADERA_MICB1D_BYP				0x4000
 #define MADERA_MICB1D_BYP_MASK				0x4000
 #define MADERA_MICB1D_BYP_SHIFT				    14
@@ -3575,9 +3331,7 @@
 #define MADERA_MICB1A_ENA_SHIFT				     0
 #define MADERA_MICB1A_ENA_WIDTH				     1
 
-/*
- * R542 (0x21E) - Mic Bias Ctrl 6
- */
+/* (0x021E)  Mic_Bias_Ctrl_6 */
 #define MADERA_MICB2D_BYP				0x4000
 #define MADERA_MICB2D_BYP_MASK				0x4000
 #define MADERA_MICB2D_BYP_SHIFT				    14
@@ -3627,9 +3381,7 @@
 #define MADERA_MICB2A_ENA_SHIFT				     0
 #define MADERA_MICB2A_ENA_WIDTH				     1
 
-/*
- * R549 (0x225) - HP Ctrl 1L
- */
+/* (0x0225) - HP Ctrl 1L */
 #define MADERA_RMV_SHRT_HP1L				0x4000
 #define MADERA_RMV_SHRT_HP1L_MASK			0x4000
 #define MADERA_RMV_SHRT_HP1L_SHIFT			    14
@@ -3647,9 +3399,7 @@
 #define MADERA_HP1L_SHRTO_SHIFT				     0
 #define MADERA_HP1L_SHRTO_WIDTH				     1
 
-/*
- * R550 (0x226) - HP Ctrl 1R
- */
+/* (0x0226) - HP Ctrl 1R */
 #define MADERA_RMV_SHRT_HP1R				0x4000
 #define MADERA_RMV_SHRT_HP1R_MASK			0x4000
 #define MADERA_RMV_SHRT_HP1R_SHIFT			    14
@@ -3667,9 +3417,7 @@
 #define MADERA_HP1R_SHRTO_SHIFT				     0
 #define MADERA_HP1R_SHRTO_WIDTH				     1
 
-/*
- * R638 (0x27E) - EDRE HP stereo control
- */
+/* (0x027E) - EDRE HP stereo control */
 #define MADERA_HP3_EDRE_STEREO				0x0004
 #define MADERA_HP3_EDRE_STEREO_MASK			0x0004
 #define MADERA_HP3_EDRE_STEREO_SHIFT			     2
@@ -3683,9 +3431,7 @@
 #define MADERA_HP1_EDRE_STEREO_SHIFT			     0
 #define MADERA_HP1_EDRE_STEREO_WIDTH			     1
 
-/*
- * R659 (0x293) - Accessory Detect Mode 1
- */
+/* (0x0293)  Accessory_Detect_Mode_1 */
 #define MADERA_ACCDET_SRC				0x2000
 #define MADERA_ACCDET_SRC_MASK				0x2000
 #define MADERA_ACCDET_SRC_SHIFT				    13
@@ -3698,9 +3444,7 @@
 #define MADERA_ACCDET_MODE_SHIFT			     0
 #define MADERA_ACCDET_MODE_WIDTH			     3
 
-/*
- * R665 (0x299) - MADERA_HEADPHONE_DETECT_0
- */
+/* (0x0299)  Headphone_Detect_0 */
 #define MADERA_HPD_GND_SEL				0x0007
 #define MADERA_HPD_GND_SEL_MASK				0x0007
 #define MADERA_HPD_GND_SEL_SHIFT			     0
@@ -3722,9 +3466,7 @@
 #define MADERA_HPD_OVD_ENA_SEL_SHIFT			    15
 #define MADERA_HPD_OVD_ENA_SEL_WIDTH			     1
 
-/*
- * R667 (0x29B) - Headphone Detect 1
- */
+/* (0x029B)  Headphone_Detect_1 */
 #define MADERA_HP_IMPEDANCE_RANGE_MASK			0x0600
 #define MADERA_HP_IMPEDANCE_RANGE_SHIFT			     9
 #define MADERA_HP_IMPEDANCE_RANGE_WIDTH			     2
@@ -3750,9 +3492,7 @@
 #define MADERA_HP_POLL_SHIFT				     0
 #define MADERA_HP_POLL_WIDTH				     1
 
-/*
- * R668 (0x29C) - Headphone Detect 2
- */
+/* (0x029C)  Headphone_Detect_2 */
 #define MADERA_HP_DONE					0x0080
 #define MADERA_HP_DONE_MASK				0x0080
 #define MADERA_HP_DONE_SHIFT				     7
@@ -3769,23 +3509,17 @@
 #define MADERA_HP_LVL_B_SHIFT				     0
 #define MADERA_HP_LVL_B_WIDTH				    15
 
-/*
- * R669 (0x29D) - Headphone Detect 3
- */
+/* (0x029D)  Headphone_Detect_3 */
 #define MADERA_HP_DACVAL_MASK				0x03FF
 #define MADERA_HP_DACVAL_SHIFT				     0
 #define MADERA_HP_DACVAL_WIDTH				    10
 
-/*
- * R669 (0x29F) - Headphone Detect 5
- */
+/* (0x029F) - Headphone Detect 5 */
 #define MADERA_HP_DACVAL_DOWN_MASK			0x03FF
 #define MADERA_HP_DACVAL_DOWN_SHIFT			     0
 #define MADERA_HP_DACVAL_DOWN_WIDTH			    10
 
-/*
- * R674 (0x2A2) - MADERA_MIC_DETECT_0
- */
+/* (0x02A2)  Mic_Detect_1_Control_0 */
 #define MADERA_MICD1_GND_MASK				0x0007
 #define MADERA_MICD1_GND_SHIFT				     0
 #define MADERA_MICD1_GND_WIDTH				     3
@@ -3796,9 +3530,7 @@
 #define MADERA_MICD1_ADC_MODE_SHIFT			    15
 #define MADERA_MICD1_ADC_MODE_WIDTH			     1
 
-/*
- * R675 (0x2A3) - Mic Detect 1
- */
+/* (0x02A3)  Mic_Detect_1_Control_1 */
 #define MADERA_MICD_BIAS_STARTTIME_MASK			0xF000
 #define MADERA_MICD_BIAS_STARTTIME_SHIFT		    12
 #define MADERA_MICD_BIAS_STARTTIME_WIDTH		     4
@@ -3817,16 +3549,12 @@
 #define MADERA_MICD_ENA_SHIFT				     0
 #define MADERA_MICD_ENA_WIDTH				     1
 
-/*
- * R676 (0x2A4) - Mic Detect 2
- */
+/* (0x02A4)  Mic_Detect_1_Control_2 */
 #define MADERA_MICD_LVL_SEL_MASK			0x00FF
 #define MADERA_MICD_LVL_SEL_SHIFT			     0
 #define MADERA_MICD_LVL_SEL_WIDTH			     8
 
-/*
- * R677 (0x2A5) - Mic Detect 3
- */
+/* (0x02A5)  Mic_Detect_1_Control_3 */
 #define MADERA_MICD_LVL_0				0x0004
 #define MADERA_MICD_LVL_1				0x0008
 #define MADERA_MICD_LVL_2				0x0010
@@ -3848,9 +3576,7 @@
 #define MADERA_MICD_STS_SHIFT				     0
 #define MADERA_MICD_STS_WIDTH				     1
 
-/*
- * R683 (0x2AB) - Mic Detect 4
- */
+/* (0x02AB)  Mic_Detect_1_Control_4 */
 #define MADERA_MICDET_ADCVAL_DIFF_MASK			0xFF00
 #define MADERA_MICDET_ADCVAL_DIFF_SHIFT			     8
 #define MADERA_MICDET_ADCVAL_DIFF_WIDTH			     8
@@ -3858,9 +3584,7 @@
 #define MADERA_MICDET_ADCVAL_SHIFT			     0
 #define MADERA_MICDET_ADCVAL_WIDTH			     7
 
-/*
- * R690 (0x2B2) - MICDET2_CONTROL_0
- */
+/* (0x02B2)  Mic_Detect_2_Control_0 */
 #define MADERA_MICD2_ADC_MODE				0x8000
 #define MADERA_MICD2_ADC_MODE_MASK			0x8000
 #define MADERA_MICD2_ADC_MODE_SHIFT			    15
@@ -3874,9 +3598,7 @@
 #define MADERA_MICD2_GND_SEL_SHIFT			     0
 #define MADERA_MICD2_GND_SEL_WIDTH			     3
 
-/*
- * R691 (0x2B3) - MICDET2_CONTROL_1
- */
+/* (0x02B3)  Mic_Detect_2_Control_1 */
 #define MADERA_MICD2_BIAS_STARTTIME			0xF000
 #define MADERA_MICD2_BIAS_STARTTIME_MASK		0xF000
 #define MADERA_MICD2_BIAS_STARTTIME_SHIFT		    12
@@ -3898,16 +3620,12 @@
 #define MADERA_MICD2_ENA_SHIFT				     0
 #define MADERA_MICD2_ENA_WIDTH				     1
 
-/*
- * R692 (0x2B4) - MICDET2_CONTROL_2
- */
+/* (0x02B4)  Mic_Detect_2_Control_2 */
 #define MADERA_MICD2_LVL_SEL_MASK			0x00FF
 #define MADERA_MICD2_LVL_SEL_SHIFT			     0
 #define MADERA_MICD2_LVL_SEL_WIDTH			     8
 
-/*
- * R693 (0x2B5) - MICDET2_CONTROL_3
- */
+/* (0x02B5)  Mic_Detect_2_Control_3 */
 #define MADERA_MICD2_LVL				0x07FC
 #define MADERA_MICD2_LVL_MASK				0x07FC
 #define MADERA_MICD2_LVL_SHIFT				     2
@@ -3921,9 +3639,7 @@
 #define MADERA_MICD2_STS_SHIFT				     0
 #define MADERA_MICD2_STS_WIDTH				     1
 
-/*
- * R699 (0x2BB) - MICDET2_CONTROL_4
- */
+/* (0x02BB)  Mic_Detect_2_Control_4 */
 #define MADERA_MICD2_ADCVAL_DIFF			0xFF00
 #define MADERA_MICD2_ADCVAL_DIFF_MASK			0xFF00
 #define MADERA_MICD2_ADCVAL_DIFF_SHIFT			     8
@@ -3933,9 +3649,7 @@
 #define MADERA_MICD2_ADCVAL_SHIFT			     0
 #define MADERA_MICD2_ADCVAL_WIDTH			     7
 
-/*
- * R710 (0x2C6) - Micd Clamp control
- */
+/* (0x02C6)  Micd_Clamp_control */
 #define MADERA_MICD_CLAMP_OVD				0x0010
 #define MADERA_MICD_CLAMP_OVD_MASK			0x0010
 #define MADERA_MICD_CLAMP_OVD_SHIFT			     4
@@ -3944,9 +3658,7 @@
 #define MADERA_MICD_CLAMP_MODE_SHIFT			     0
 #define MADERA_MICD_CLAMP_MODE_WIDTH			     4
 
-/*
- * R712 (0x2C8) - GP Switch 1
- */
+/* (0x02C8)  GP_Switch_1 */
 #define MADERA_SW2_MODE_MASK				0x000C
 #define MADERA_SW2_MODE_SHIFT				     2
 #define MADERA_SW2_MODE_WIDTH				     2
@@ -3954,9 +3666,7 @@
 #define MADERA_SW1_MODE_SHIFT				     0
 #define MADERA_SW1_MODE_WIDTH				     2
 
-/*
- * R723 (0x2D3) - Jack detect analogue
- */
+/* (0x02D3)  Jack_detect_analogue */
 #define MADERA_JD2_ENA					0x0002
 #define MADERA_JD2_ENA_MASK				0x0002
 #define MADERA_JD2_ENA_SHIFT				     1
@@ -3966,9 +3676,7 @@
 #define MADERA_JD1_ENA_SHIFT				     0
 #define MADERA_JD1_ENA_WIDTH				     1
 
-/*
- * R768 (0x300) - Input Enables
- */
+/* (0x0300)  Input_Enables */
 #define MADERA_IN6L_ENA					0x0800
 #define MADERA_IN6L_ENA_MASK				0x0800
 #define MADERA_IN6L_ENA_SHIFT				    11
@@ -4018,9 +3726,7 @@
 #define MADERA_IN1R_ENA_SHIFT				     0
 #define MADERA_IN1R_ENA_WIDTH				     1
 
-/*
- * R776 (0x308) - Input Rate
- */
+/* (0x0308)  Input_Rate */
 #define MADERA_IN_RATE_MASK				0x7800
 #define MADERA_IN_RATE_SHIFT				    11
 #define MADERA_IN_RATE_WIDTH				     4
@@ -4028,9 +3734,7 @@
 #define MADERA_IN_MODE_SHIFT				    10
 #define MADERA_IN_MODE_WIDTH				     1
 
-/*
- * R777 (0x309) - Input Volume Ramp
- */
+/* (0x0309)  Input_Volume_Ramp */
 #define MADERA_IN_VD_RAMP_MASK				0x0070
 #define MADERA_IN_VD_RAMP_SHIFT				     4
 #define MADERA_IN_VD_RAMP_WIDTH				     3
@@ -4038,16 +3742,12 @@
 #define MADERA_IN_VI_RAMP_SHIFT				     0
 #define MADERA_IN_VI_RAMP_WIDTH				     3
 
-/*
- * R780 (0x30C) - HPF Control
- */
+/* (0x030C)  HPF_Control */
 #define MADERA_IN_HPF_CUT_MASK				0x0007
 #define MADERA_IN_HPF_CUT_SHIFT				     0
 #define MADERA_IN_HPF_CUT_WIDTH				     3
 
-/*
- * R784 (0x310) - IN1L Control
- */
+/* (0x0310)  IN1L_Control */
 #define MADERA_IN1L_HPF_MASK				0x8000
 #define MADERA_IN1L_HPF_SHIFT				    15
 #define MADERA_IN1L_HPF_WIDTH				     1
@@ -4064,9 +3764,7 @@
 #define MADERA_IN1L_PGA_VOL_SHIFT			     1
 #define MADERA_IN1L_PGA_VOL_WIDTH			     7
 
-/*
- * R785 (0x311) - ADC Digital Volume 1L
- */
+/* (0x0311)  ADC_Digital_Volume_1L */
 #define MADERA_IN1L_SRC_MASK				0x4000
 #define MADERA_IN1L_SRC_SHIFT				    14
 #define MADERA_IN1L_SRC_WIDTH				     1
@@ -4089,9 +3787,7 @@
 #define MADERA_IN1L_DIG_VOL_SHIFT			     0
 #define MADERA_IN1L_DIG_VOL_WIDTH			     8
 
-/*
- * R786 (0x312) - DMIC1L Control
- */
+/* (0x0312)  DMIC1L_Control */
 #define MADERA_IN1_DMICL_DLY_MASK			0x003F
 #define MADERA_IN1_DMICL_DLY_SHIFT			     0
 #define MADERA_IN1_DMICL_DLY_WIDTH			     6
@@ -4099,16 +3795,12 @@
 #define MADERA_IN1_OSR_SHIFT				     8
 #define MADERA_IN1_OSR_WIDTH				     3
 
-/*
- * R787 (0x313) - IN1L Rate Control
- */
+/* (0x0313)  IN1L_Rate_Control */
 #define MADERA_IN1L_RATE_MASK				0x7800
 #define MADERA_IN1L_RATE_SHIFT				    11
 #define MADERA_IN1L_RATE_WIDTH				     4
 
-/*
- * R788 (0x314) - IN1R Control
- */
+/* (0x0314)  IN1R_Control */
 #define MADERA_IN1R_HPF_MASK				0x8000
 #define MADERA_IN1R_HPF_SHIFT				    15
 #define MADERA_IN1R_HPF_WIDTH				     1
@@ -4119,9 +3811,7 @@
 #define MADERA_IN1_DMICCLK_SRC_SHIFT			    11
 #define MADERA_IN1_DMICCLK_SRC_WIDTH			     2
 
-/*
- * R789 (0x315) - ADC Digital Volume 1R
- */
+/* (0x0315)  ADC_Digital_Volume_1R */
 #define MADERA_IN1R_SRC_MASK				0x4000
 #define MADERA_IN1R_SRC_SHIFT				    14
 #define MADERA_IN1R_SRC_WIDTH				     1
@@ -4144,23 +3834,17 @@
 #define MADERA_IN1R_DIG_VOL_SHIFT			     0
 #define MADERA_IN1R_DIG_VOL_WIDTH			     8
 
-/*
- * R790 (0x316) - DMIC1R Control
- */
+/* (0x0316)  DMIC1R_Control */
 #define MADERA_IN1_DMICR_DLY_MASK			0x003F
 #define MADERA_IN1_DMICR_DLY_SHIFT			     0
 #define MADERA_IN1_DMICR_DLY_WIDTH			     6
 
-/*
- * R791 (0x317) - IN1R Rate Control
- */
+/* (0x0317)  IN1R_Rate_Control */
 #define MADERA_IN1R_RATE_MASK				0x7800
 #define MADERA_IN1R_RATE_SHIFT				    11
 #define MADERA_IN1R_RATE_WIDTH				     4
 
-/*
- * R792 (0x318) - IN2L Control
- */
+/* (0x0318)  IN2L_Control */
 #define MADERA_IN2L_HPF_MASK				0x8000
 #define MADERA_IN2L_HPF_SHIFT				    15
 #define MADERA_IN2L_HPF_WIDTH				     1
@@ -4177,9 +3861,7 @@
 #define MADERA_IN2L_PGA_VOL_SHIFT			     1
 #define MADERA_IN2L_PGA_VOL_WIDTH			     7
 
-/*
- * R793 (0x319) - ADC Digital Volume 2L
- */
+/* (0x0319)  ADC_Digital_Volume_2L */
 #define MADERA_IN2L_SRC_MASK				0x4000
 #define MADERA_IN2L_SRC_SHIFT				    14
 #define MADERA_IN2L_SRC_WIDTH				     1
@@ -4202,9 +3884,7 @@
 #define MADERA_IN2L_DIG_VOL_SHIFT			     0
 #define MADERA_IN2L_DIG_VOL_WIDTH			     8
 
-/*
- * R794 (0x31A) - DMIC2L Control
- */
+/* (0x031A)  DMIC2L_Control */
 #define MADERA_IN2_DMICL_DLY_MASK			0x003F
 #define MADERA_IN2_DMICL_DLY_SHIFT			     0
 #define MADERA_IN2_DMICL_DLY_WIDTH			     6
@@ -4212,16 +3892,12 @@
 #define MADERA_IN2_OSR_SHIFT				     8
 #define MADERA_IN2_OSR_WIDTH				     3
 
-/*
- * R795 (0x31B) - IN2L Rate Control
- */
+/* (0x031B)  IN2L_Rate_Control */
 #define MADERA_IN2L_RATE_MASK				0x7800
 #define MADERA_IN2L_RATE_SHIFT				    11
 #define MADERA_IN2L_RATE_WIDTH				     4
 
-/*
- * R796 (0x31C) - IN2R Control
- */
+/* (0x031C)  IN2R_Control */
 #define MADERA_IN2R_HPF_MASK				0x8000
 #define MADERA_IN2R_HPF_SHIFT				    15
 #define MADERA_IN2R_HPF_WIDTH				     1
@@ -4232,9 +3908,7 @@
 #define MADERA_IN2_DMICCLK_SRC_SHIFT			    11
 #define MADERA_IN2_DMICCLK_SRC_WIDTH			     2
 
-/*
- * R797 (0x31D) - ADC Digital Volume 2R
- */
+/* (0x031D)  ADC_Digital_Volume_2R */
 #define MADERA_IN2R_SRC_MASK				0x4000
 #define MADERA_IN2R_SRC_SHIFT				    14
 #define MADERA_IN2R_SRC_WIDTH				     1
@@ -4257,23 +3931,17 @@
 #define MADERA_IN2R_DIG_VOL_SHIFT			     0
 #define MADERA_IN2R_DIG_VOL_WIDTH			     8
 
-/*
- * R798 (0x31E) - DMIC2R Control
- */
+/* (0x031E)  DMIC2R_Control */
 #define MADERA_IN2_DMICR_DLY_MASK			0x003F
 #define MADERA_IN2_DMICR_DLY_SHIFT			     0
 #define MADERA_IN2_DMICR_DLY_WIDTH			     6
 
-/*
- * R799 (0x31F) - IN2R Rate Control
- */
+/* (0x031F)  IN2R_Rate_Control */
 #define MADERA_IN2R_RATE_MASK				0x7800
 #define MADERA_IN2R_RATE_SHIFT				    11
 #define MADERA_IN2R_RATE_WIDTH				     4
 
-/*
- * R800 (0x320) - IN3L Control
- */
+/* (0x0320)  IN3L_Control */
 #define MADERA_IN3L_HPF_MASK				0x8000
 #define MADERA_IN3L_HPF_SHIFT				    15
 #define MADERA_IN3L_HPF_WIDTH				     1
@@ -4290,9 +3958,7 @@
 #define MADERA_IN3L_PGA_VOL_SHIFT			     1
 #define MADERA_IN3L_PGA_VOL_WIDTH			     7
 
-/*
- * R801 (0x321) - ADC Digital Volume 3L
- */
+/* (0x0321)  ADC_Digital_Volume_3L */
 #define MADERA_IN_VU					0x0200
 #define MADERA_IN_VU_MASK				0x0200
 #define MADERA_IN_VU_SHIFT				     9
@@ -4305,9 +3971,7 @@
 #define MADERA_IN3L_DIG_VOL_SHIFT			     0
 #define MADERA_IN3L_DIG_VOL_WIDTH			     8
 
-/*
- * R802 (0x322) - DMIC3L Control
- */
+/* (0x0322)  DMIC3L_Control */
 #define MADERA_IN3_DMICL_DLY_MASK			0x003F
 #define MADERA_IN3_DMICL_DLY_SHIFT			     0
 #define MADERA_IN3_DMICL_DLY_WIDTH			     6
@@ -4315,16 +3979,12 @@
 #define MADERA_IN3_OSR_SHIFT				     8
 #define MADERA_IN3_OSR_WIDTH				     3
 
-/*
- * R803 (0x323) - IN3L Rate Control
- */
+/* (0x0323)  IN3L_Rate_Control */
 #define MADERA_IN3L_RATE_MASK				0x7800
 #define MADERA_IN3L_RATE_SHIFT				    11
 #define MADERA_IN3L_RATE_WIDTH				     4
 
-/*
- * R804 (0x324) - IN3R Control
- */
+/* (0x0324)  IN3R_Control */
 #define MADERA_IN3R_HPF_MASK				0x8000
 #define MADERA_IN3R_HPF_SHIFT				    15
 #define MADERA_IN3R_HPF_WIDTH				     1
@@ -4335,9 +3995,7 @@
 #define MADERA_IN3_DMICCLK_SRC_SHIFT			    11
 #define MADERA_IN3_DMICCLK_SRC_WIDTH			     2
 
-/*
- * R805 (0x325) - ADC Digital Volume 3R
- */
+/* (0x0325)  ADC_Digital_Volume_3R */
 #define MADERA_IN_VU					0x0200
 #define MADERA_IN_VU_MASK				0x0200
 #define MADERA_IN_VU_SHIFT				     9
@@ -4350,23 +4008,17 @@
 #define MADERA_IN3R_DIG_VOL_SHIFT			     0
 #define MADERA_IN3R_DIG_VOL_WIDTH			     8
 
-/*
- * R806 (0x326) - DMIC3R Control
- */
+/* (0x0326)  DMIC3R_Control */
 #define MADERA_IN3_DMICR_DLY_MASK			0x003F
 #define MADERA_IN3_DMICR_DLY_SHIFT			     0
 #define MADERA_IN3_DMICR_DLY_WIDTH			     6
 
-/*
- * R807 (0x327) - IN3R Rate Control
- */
+/* (0x0327)  IN3R_Rate_Control */
 #define MADERA_IN3R_RATE_MASK				0x7800
 #define MADERA_IN3R_RATE_SHIFT				    11
 #define MADERA_IN3R_RATE_WIDTH				     4
 
-/*
- * R808 (0x328) - IN4 Control
- */
+/* (0x0328)  IN4L_Control */
 #define MADERA_IN4L_HPF_MASK				0x8000
 #define MADERA_IN4L_HPF_SHIFT				    15
 #define MADERA_IN4L_HPF_WIDTH				     1
@@ -4374,9 +4026,7 @@
 #define MADERA_IN4_DMIC_SUP_SHIFT			    11
 #define MADERA_IN4_DMIC_SUP_WIDTH			     2
 
-/*
- * R809 (0x329) - ADC Digital Volume 4L
- */
+/* (0x0329)  ADC_Digital_Volume_4L */
 #define MADERA_IN_VU					0x0200
 #define MADERA_IN_VU_MASK				0x0200
 #define MADERA_IN_VU_SHIFT				     9
@@ -4389,9 +4039,7 @@
 #define MADERA_IN4L_DIG_VOL_SHIFT			     0
 #define MADERA_IN4L_DIG_VOL_WIDTH			     8
 
-/*
- * R810 (0x32A) - DMIC4L Control
- */
+/* (0x032A)  DMIC4L_Control */
 #define MADERA_IN4L_DMIC_DLY_MASK			0x003F
 #define MADERA_IN4L_DMIC_DLY_SHIFT			     0
 #define MADERA_IN4L_DMIC_DLY_WIDTH			     6
@@ -4399,16 +4047,12 @@
 #define MADERA_IN4_OSR_SHIFT				     8
 #define MADERA_IN4_OSR_WIDTH				     3
 
-/*
- * R811 (0x32B) - IN4L Rate Control
- */
+/* (0x032B)  IN4L_Rate_Control */
 #define MADERA_IN4L_RATE_MASK				0x7800
 #define MADERA_IN4L_RATE_SHIFT				    11
 #define MADERA_IN4L_RATE_WIDTH				     4
 
-/*
- * R812 (0x32C) - IN4R Control
- */
+/* (0x032C)  IN4R_Control */
 #define MADERA_IN4R_HPF_MASK				0x8000
 #define MADERA_IN4R_HPF_SHIFT				    15
 #define MADERA_IN4R_HPF_WIDTH				     1
@@ -4416,9 +4060,7 @@
 #define MADERA_IN4_DMICCLK_SRC_SHIFT			    11
 #define MADERA_IN4_DMICCLK_SRC_WIDTH			     2
 
-/*
- * R813 (0x32D) - ADC Digital Volume 4R
- */
+/* (0x032D)  ADC_Digital_Volume_4R */
 #define MADERA_IN_VU					0x0200
 #define MADERA_IN_VU_MASK				0x0200
 #define MADERA_IN_VU_SHIFT				     9
@@ -4431,23 +4073,17 @@
 #define MADERA_IN4R_DIG_VOL_SHIFT			     0
 #define MADERA_IN4R_DIG_VOL_WIDTH			     8
 
-/*
- * R814 (0x32E) - DMIC4R Control
- */
+/* (0x032E)  DMIC4R_Control */
 #define MADERA_IN4R_DMIC_DLY_MASK			0x003F
 #define MADERA_IN4R_DMIC_DLY_SHIFT			     0
 #define MADERA_IN4R_DMIC_DLY_WIDTH			     6
 
-/*
- * R815 (0x32F) - IN4R Rate Control
- */
+/* (0x032F)  IN4R_Rate_Control */
 #define MADERA_IN4R_RATE_MASK				0x7800
 #define MADERA_IN4R_RATE_SHIFT				    11
 #define MADERA_IN4R_RATE_WIDTH				     4
 
-/*
- * R816 (0x330) - IN5L Control
- */
+/* (0x0330)  IN5L_Control */
 #define MADERA_IN5L_HPF_MASK				0x8000
 #define MADERA_IN5L_HPF_SHIFT				    15
 #define MADERA_IN5L_HPF_WIDTH				     1
@@ -4455,9 +4091,7 @@
 #define MADERA_IN5_DMIC_SUP_SHIFT			    11
 #define MADERA_IN5_DMIC_SUP_WIDTH			     2
 
-/*
- * R817 (0x331) - ADC Digital Volume 5L
- */
+/* (0x0331)  ADC_Digital_Volume_5L */
 #define MADERA_IN_VU					0x0200
 #define MADERA_IN_VU_MASK				0x0200
 #define MADERA_IN_VU_SHIFT				     9
@@ -4470,9 +4104,7 @@
 #define MADERA_IN5L_DIG_VOL_SHIFT			     0
 #define MADERA_IN5L_DIG_VOL_WIDTH			     8
 
-/*
- * R818 (0x332) - DMIC5L Control
- */
+/* (0x0332)  DMIC5L_Control */
 #define MADERA_IN5L_DMIC_DLY_MASK			0x003F
 #define MADERA_IN5L_DMIC_DLY_SHIFT			     0
 #define MADERA_IN5L_DMIC_DLY_WIDTH			     6
@@ -4480,16 +4112,12 @@
 #define MADERA_IN5_OSR_SHIFT				     8
 #define MADERA_IN5_OSR_WIDTH				     3
 
-/*
- * R819 (0x333) - IN5L Rate Control
- */
+/* (0x0333)  IN5L_Rate_Control */
 #define MADERA_IN5L_RATE_MASK				0x7800
 #define MADERA_IN5L_RATE_SHIFT				    11
 #define MADERA_IN5L_RATE_WIDTH				     4
 
-/*
- * R820 (0x334) - IN5R Control
- */
+/* (0x0334)  IN5R_Control */
 #define MADERA_IN5R_HPF_MASK				0x8000
 #define MADERA_IN5R_HPF_SHIFT				    15
 #define MADERA_IN5R_HPF_WIDTH				     1
@@ -4497,9 +4125,7 @@
 #define MADERA_IN5_DMICCLK_SRC_SHIFT			    11
 #define MADERA_IN5_DMICCLK_SRC_WIDTH			     2
 
-/*
- * R821 (0x335) - ADC Digital Volume 5R
- */
+/* (0x0335)  ADC_Digital_Volume_5R */
 #define MADERA_IN_VU					0x0200
 #define MADERA_IN_VU_MASK				0x0200
 #define MADERA_IN_VU_SHIFT				     9
@@ -4512,23 +4138,17 @@
 #define MADERA_IN5R_DIG_VOL_SHIFT			     0
 #define MADERA_IN5R_DIG_VOL_WIDTH			     8
 
-/*
- * R822 (0x336) - DMIC5R Control
- */
+/* (0x0336)  DMIC5R_Control */
 #define MADERA_IN5R_DMIC_DLY_MASK			0x003F
 #define MADERA_IN5R_DMIC_DLY_SHIFT			     0
 #define MADERA_IN5R_DMIC_DLY_WIDTH			     6
 
-/*
- * R823 (0x337) - IN5R Rate Control
- */
+/* (0x0337)  IN5R_Rate_Control */
 #define MADERA_IN5R_RATE_MASK				0x7800
 #define MADERA_IN5R_RATE_SHIFT				    11
 #define MADERA_IN5R_RATE_WIDTH				     4
 
-/*
- * R824 (0x338) - IN6L Control
- */
+/* (0x0338)  IN6L_Control */
 #define MADERA_IN6L_HPF_MASK				0x8000
 #define MADERA_IN6L_HPF_SHIFT				    15
 #define MADERA_IN6L_HPF_WIDTH				     1
@@ -4536,9 +4156,7 @@
 #define MADERA_IN6_DMIC_SUP_SHIFT			    11
 #define MADERA_IN6_DMIC_SUP_WIDTH			     2
 
-/*
- * R825 (0x339) - ADC Digital Volume 6L
- */
+/* (0x0339)  ADC_Digital_Volume_6L */
 #define MADERA_IN_VU					0x0200
 #define MADERA_IN_VU_MASK				0x0200
 #define MADERA_IN_VU_SHIFT				     9
@@ -4551,9 +4169,7 @@
 #define MADERA_IN6L_DIG_VOL_SHIFT			     0
 #define MADERA_IN6L_DIG_VOL_WIDTH			     8
 
-/*
- * R826 (0x33A) - DMIC6L Control
- */
+/* (0x033A)  DMIC6L_Control */
 #define MADERA_IN6L_DMIC_DLY_MASK			0x003F
 #define MADERA_IN6L_DMIC_DLY_SHIFT			     0
 #define MADERA_IN6L_DMIC_DLY_WIDTH			     6
@@ -4561,16 +4177,12 @@
 #define MADERA_IN6_OSR_SHIFT				     8
 #define MADERA_IN6_OSR_WIDTH				     3
 
-/*
- * R828 (0x33C) - IN6R Control
- */
+/* (0x033C)  IN6R_Control */
 #define MADERA_IN6R_HPF_MASK				0x8000
 #define MADERA_IN6R_HPF_SHIFT				    15
 #define MADERA_IN6R_HPF_WIDTH				     1
 
-/*
- * R829 (0x33D) - ADC Digital Volume 6R
- */
+/* (0x033D)  ADC_Digital_Volume_6R */
 #define MADERA_IN_VU					0x0200
 #define MADERA_IN_VU_MASK				0x0200
 #define MADERA_IN_VU_SHIFT				     9
@@ -4583,9 +4195,7 @@
 #define MADERA_IN6R_DIG_VOL_SHIFT			     0
 #define MADERA_IN6R_DIG_VOL_WIDTH			     8
 
-/*
- * R830 (0x33E) - DMIC6R Control
- */
+/* (0x033E)  DMIC6R_Control */
 #define MADERA_IN6R_DMIC_DLY_MASK			0x003F
 #define MADERA_IN6R_DMIC_DLY_SHIFT			     0
 #define MADERA_IN6R_DMIC_DLY_WIDTH			     6
@@ -4593,9 +4203,7 @@
 #define MADERA_IN6_DMICCLK_SRC_SHIFT			    11
 #define MADERA_IN6_DMICCLK_SRC_WIDTH			     2
 
-/*
- * R1024 (0x400) - Output Enables 1
- */
+/* (0x0400)  Output_Enables_1 */
 #define MADERA_EP_SEL					0x8000
 #define MADERA_EP_SEL_MASK				0x8000
 #define MADERA_EP_SEL_SHIFT				    15
@@ -4649,9 +4257,7 @@
 #define MADERA_OUT1R_ENA_SHIFT				     0
 #define MADERA_OUT1R_ENA_WIDTH				     1
 
-/*
- * R1025 (0x401) - Output Status 1
- */
+/* (0x0401)  Output_Status_1 */
 #define MADERA_OUT6L_ENA_STS				0x0800
 #define MADERA_OUT6L_ENA_STS_MASK			0x0800
 #define MADERA_OUT6L_ENA_STS_SHIFT			    11
@@ -4677,16 +4283,12 @@
 #define MADERA_OUT4R_ENA_STS_SHIFT			     6
 #define MADERA_OUT4R_ENA_STS_WIDTH			     1
 
-/*
- * R1032 (0x408) - Output Rate 1
- */
+/* (0x0408)  Output_Rate_1 */
 #define MADERA_OUT_RATE_MASK				0x7800
 #define MADERA_OUT_RATE_SHIFT				    11
 #define MADERA_OUT_RATE_WIDTH				     4
 
-/*
- * R1033 (0x409) - Output Volume Ramp
- */
+/* (0x0409)  Output_Volume_Ramp */
 #define MADERA_OUT_VD_RAMP_MASK				0x0070
 #define MADERA_OUT_VD_RAMP_SHIFT			     4
 #define MADERA_OUT_VD_RAMP_WIDTH			     3
@@ -4694,9 +4296,7 @@
 #define MADERA_OUT_VI_RAMP_SHIFT			     0
 #define MADERA_OUT_VI_RAMP_WIDTH			     3
 
-/*
- * R1040 (0x410) - Output Path Config 1L
- */
+/* (0x0410)  Output_Path_Config_1L */
 #define MADERA_OUT1_LP_MODE				0x8000
 #define MADERA_OUT1_LP_MODE_MASK			0x8000
 #define MADERA_OUT1_LP_MODE_SHIFT			    15
@@ -4716,9 +4316,7 @@
 #define MADERA_OUT1L_PGA_VOL_SHIFT			     1
 #define MADERA_OUT1L_PGA_VOL_WIDTH			     7
 
-/*
- * R1041 (0x411) - DAC Digital Volume 1L
- */
+/* (0x0411)  DAC_Digital_Volume_1L */
 #define MADERA_OUT1L_VU					0x0200
 #define MADERA_OUT1L_VU_MASK				0x0200
 #define MADERA_OUT1L_VU_SHIFT				     9
@@ -4731,23 +4329,17 @@
 #define MADERA_OUT1L_VOL_SHIFT				     0
 #define MADERA_OUT1L_VOL_WIDTH				     8
 
-/*
- * R1042 (0x412) - MADERA_OUTPUT_PATH_CONFIG_1
- */
+/* (0x0412)  Output_Path_Config_1 */
 #define MADERA_HP1_GND_SEL_MASK				0x0007
 #define MADERA_HP1_GND_SEL_SHIFT			     0
 #define MADERA_HP1_GND_SEL_WIDTH			     3
 
-/*
- * R1043 (0x413) - Noise Gate Select 1L
- */
+/* (0x0413)  Noise_Gate_Select_1L */
 #define MADERA_OUT1L_NGATE_SRC_MASK			0x0FFF
 #define MADERA_OUT1L_NGATE_SRC_SHIFT			     0
 #define MADERA_OUT1L_NGATE_SRC_WIDTH			    12
 
-/*
- * R1044 (0x414) - Output Path Config 1R
- */
+/* (0x0414)  Output_Path_Config_1R */
 #define MADERA_OUT1R_ANC_SRC_MASK			0x0C00
 #define MADERA_OUT1R_ANC_SRC_SHIFT			    10
 #define MADERA_OUT1R_ANC_SRC_WIDTH			     2
@@ -4755,9 +4347,7 @@
 #define MADERA_OUT1R_PGA_VOL_SHIFT			     1
 #define MADERA_OUT1R_PGA_VOL_WIDTH			     7
 
-/*
- * R1045 (0x415) - DAC Digital Volume 1R
- */
+/* (0x0415)  DAC_Digital_Volume_1R */
 #define MADERA_OUT1R_VU					0x0200
 #define MADERA_OUT1R_VU_MASK				0x0200
 #define MADERA_OUT1R_VU_SHIFT				     9
@@ -4770,16 +4360,12 @@
 #define MADERA_OUT1R_VOL_SHIFT				     0
 #define MADERA_OUT1R_VOL_WIDTH				     8
 
-/*
- * R1047 (0x417) - Noise Gate Select 1R
- */
+/* (0x0417)  Noise_Gate_Select_1R */
 #define MADERA_OUT1R_NGATE_SRC_MASK			0x0FFF
 #define MADERA_OUT1R_NGATE_SRC_SHIFT			     0
 #define MADERA_OUT1R_NGATE_SRC_WIDTH			    12
 
-/*
- * R1048 (0x418) - Output Path Config 2L
- */
+/* (0x0418)  Output_Path_Config_2L */
 #define MADERA_OUT2_LP_MODE				0x8000
 #define MADERA_OUT2_LP_MODE_MASK			0x8000
 #define MADERA_OUT2_LP_MODE_SHIFT			    15
@@ -4799,9 +4385,7 @@
 #define MADERA_OUT2L_PGA_VOL_SHIFT			     1
 #define MADERA_OUT2L_PGA_VOL_WIDTH			     7
 
-/*
- * R1049 (0x419) - DAC Digital Volume 2L
- */
+/* (0x0419)  DAC_Digital_Volume_2L */
 #define MADERA_OUT2L_VU					0x0200
 #define MADERA_OUT2L_VU_MASK				0x0200
 #define MADERA_OUT2L_VU_SHIFT				     9
@@ -4814,23 +4398,17 @@
 #define MADERA_OUT2L_VOL_SHIFT				     0
 #define MADERA_OUT2L_VOL_WIDTH				     8
 
-/*
- * R1050 (0x41A) - MADERA_OUTPUT_PATH_CONFIG_2
- */
+/* (0x041A)  Output_Path_Config_2 */
 #define MADERA_HP2_GND_SEL_MASK				0x0007
 #define MADERA_HP2_GND_SEL_SHIFT			     0
 #define MADERA_HP2_GND_SEL_WIDTH			     3
 
-/*
- * R1051 (0x41B) - Noise Gate Select 2L
- */
+/* (0x041B)  Noise_Gate_Select_2L */
 #define MADERA_OUT2L_NGATE_SRC_MASK			0x0FFF
 #define MADERA_OUT2L_NGATE_SRC_SHIFT			     0
 #define MADERA_OUT2L_NGATE_SRC_WIDTH			    12
 
-/*
- * R1052 (0x41C) - Output Path Config 2R
- */
+/* (0x041C)  Output_Path_Config_2R */
 #define MADERA_OUT2R_ANC_SRC_MASK			0x0C00
 #define MADERA_OUT2R_ANC_SRC_SHIFT			    10
 #define MADERA_OUT2R_ANC_SRC_WIDTH			     2
@@ -4838,9 +4416,7 @@
 #define MADERA_OUT2R_PGA_VOL_SHIFT			     1
 #define MADERA_OUT2R_PGA_VOL_WIDTH			     7
 
-/*
- * R1053 (0x41D) - DAC Digital Volume 2R
- */
+/* (0x041D)  DAC_Digital_Volume_2R */
 #define MADERA_OUT2R_VU					0x0200
 #define MADERA_OUT2R_VU_MASK				0x0200
 #define MADERA_OUT2R_VU_SHIFT				     9
@@ -4853,16 +4429,12 @@
 #define MADERA_OUT2R_VOL_SHIFT				     0
 #define MADERA_OUT2R_VOL_WIDTH				     8
 
-/*
- * R1055 (0x41F) - Noise Gate Select 2R
- */
+/* (0x041F)  Noise_Gate_Select_2R */
 #define MADERA_OUT2R_NGATE_SRC_MASK			0x0FFF
 #define MADERA_OUT2R_NGATE_SRC_SHIFT			     0
 #define MADERA_OUT2R_NGATE_SRC_WIDTH			    12
 
-/*
- * R1056 (0x420) - Output Path Config 3L
- */
+/* (0x0420)  Output_Path_Config_3L */
 #define MADERA_OUT3_LP_MODE				0x8000
 #define MADERA_OUT3_LP_MODE_MASK			0x8000
 #define MADERA_OUT3_LP_MODE_SHIFT			    15
@@ -4882,9 +4454,7 @@
 #define MADERA_OUT3L_PGA_VOL_SHIFT			     1
 #define MADERA_OUT3L_PGA_VOL_WIDTH			     7
 
-/*
- * R1057 (0x421) - DAC Digital Volume 3L
- */
+/* (0x0421)  DAC_Digital_Volume_3L */
 #define MADERA_OUT3L_VU					0x0200
 #define MADERA_OUT3L_VU_MASK				0x0200
 #define MADERA_OUT3L_VU_SHIFT				     9
@@ -4897,16 +4467,12 @@
 #define MADERA_OUT3L_VOL_SHIFT				     0
 #define MADERA_OUT3L_VOL_WIDTH				     8
 
-/*
- * R1059 (0x423) - Noise Gate Select 3L
- */
+/* (0x0423)  Noise_Gate_Select_3L */
 #define MADERA_OUT3_NGATE_SRC_MASK			0x0FFF
 #define MADERA_OUT3_NGATE_SRC_SHIFT			     0
 #define MADERA_OUT3_NGATE_SRC_WIDTH			    12
 
-/*
- * R1060 (0x424) - Output Path Config 3R
- */
+/* (0x0424)  Output_Path_Config_3R */
 #define MADERA_OUT3R_ANC_SRC_MASK			0x0C00
 #define MADERA_OUT3R_ANC_SRC_SHIFT			    10
 #define MADERA_OUT3R_ANC_SRC_WIDTH			     2
@@ -4914,9 +4480,7 @@
 #define MADERA_OUT3R_PGA_VOL_SHIFT			     1
 #define MADERA_OUT3R_PGA_VOL_WIDTH			     7
 
-/*
- * R1061 (0x425) - DAC Digital Volume 3R
- */
+/* (0x0425)  DAC_Digital_Volume_3R */
 #define MADERA_OUT3R_VU					0x0200
 #define MADERA_OUT3R_VU_MASK				0x0200
 #define MADERA_OUT3R_VU_SHIFT				     9
@@ -4929,9 +4493,7 @@
 #define MADERA_OUT3R_VOL_SHIFT				     0
 #define MADERA_OUT3R_VOL_WIDTH				     8
 
-/*
- * R1064 (0x428) - Output Path Config 4L
- */
+/* (0x0428)  Output_Path_Config_4L */
 #define MADERA_OUT4_OSR					0x2000
 #define MADERA_OUT4_OSR_MASK				0x2000
 #define MADERA_OUT4_OSR_SHIFT				    13
@@ -4940,9 +4502,7 @@
 #define MADERA_OUT4L_ANC_SRC_SHIFT			    10
 #define MADERA_OUT4L_ANC_SRC_WIDTH			     2
 
-/*
- * R1065 (0x429) - DAC Digital Volume 4L
- */
+/* (0x0429)  DAC_Digital_Volume_4L */
 #define MADERA_OUT4L_VU					0x0200
 #define MADERA_OUT4L_VU_MASK				0x0200
 #define MADERA_OUT4L_VU_SHIFT				     9
@@ -4955,23 +4515,17 @@
 #define MADERA_OUT4L_VOL_SHIFT				     0
 #define MADERA_OUT4L_VOL_WIDTH				     8
 
-/*
- * R1067 (0x42B) - Noise Gate Select 4L
- */
+/* (0x042B)  Noise_Gate_Select_4L */
 #define MADERA_OUT4L_NGATE_SRC_MASK			0x0FFF
 #define MADERA_OUT4L_NGATE_SRC_SHIFT			     0
 #define MADERA_OUT4L_NGATE_SRC_WIDTH			    12
 
-/*
- * R1068 (0x42C) - Output Path Config 4R
- */
+/* (0x042C)  Output_Path_Config_4R */
 #define MADERA_OUT4R_ANC_SRC_MASK			0x0C00
 #define MADERA_OUT4R_ANC_SRC_SHIFT			    10
 #define MADERA_OUT4R_ANC_SRC_WIDTH			     2
 
-/*
- * R1069 (0x42D) - DAC Digital Volume 4R
- */
+/* (0x042D)  DAC_Digital_Volume_4R */
 #define MADERA_OUT4R_VU					0x0200
 #define MADERA_OUT4R_VU_MASK				0x0200
 #define MADERA_OUT4R_VU_SHIFT				     9
@@ -4984,16 +4538,12 @@
 #define MADERA_OUT4R_VOL_SHIFT				     0
 #define MADERA_OUT4R_VOL_WIDTH				     8
 
-/*
- * R1071 (0x42F) - Noise Gate Select 4R
- */
+/* (0x042F)  Noise_Gate_Select_4R */
 #define MADERA_OUT4R_NGATE_SRC_MASK			0x0FFF
 #define MADERA_OUT4R_NGATE_SRC_SHIFT			     0
 #define MADERA_OUT4R_NGATE_SRC_WIDTH			    12
 
-/*
- * R1072 (0x430) - Output Path Config 5L
- */
+/* (0x0430)  Output_Path_Config_5L */
 #define MADERA_OUT5_OSR					0x2000
 #define MADERA_OUT5_OSR_MASK				0x2000
 #define MADERA_OUT5_OSR_SHIFT				    13
@@ -5002,9 +4552,7 @@
 #define MADERA_OUT5L_ANC_SRC_SHIFT			    10
 #define MADERA_OUT5L_ANC_SRC_WIDTH			     2
 
-/*
- * R1073 (0x431) - DAC Digital Volume 5L
- */
+/* (0x0431)  DAC_Digital_Volume_5L */
 #define MADERA_OUT5L_VU					0x0200
 #define MADERA_OUT5L_VU_MASK				0x0200
 #define MADERA_OUT5L_VU_SHIFT				     9
@@ -5017,23 +4565,17 @@
 #define MADERA_OUT5L_VOL_SHIFT				     0
 #define MADERA_OUT5L_VOL_WIDTH				     8
 
-/*
- * R1075 (0x433) - Noise Gate Select 5L
- */
+/* (0x0433)  Noise_Gate_Select_5L */
 #define MADERA_OUT5L_NGATE_SRC_MASK			0x0FFF
 #define MADERA_OUT5L_NGATE_SRC_SHIFT			     0
 #define MADERA_OUT5L_NGATE_SRC_WIDTH			    12
 
-/*
- * R1076 (0x434) - Output Path Config 5R
- */
+/* (0x0434)  Output_Path_Config_5R */
 #define MADERA_OUT5R_ANC_SRC_MASK			0x0C00
 #define MADERA_OUT5R_ANC_SRC_SHIFT			    10
 #define MADERA_OUT5R_ANC_SRC_WIDTH			     2
 
-/*
- * R1077 (0x435) - DAC Digital Volume 5R
- */
+/* (0x0435)  DAC_Digital_Volume_5R */
 #define MADERA_OUT5R_VU					0x0200
 #define MADERA_OUT5R_VU_MASK				0x0200
 #define MADERA_OUT5R_VU_SHIFT				     9
@@ -5046,16 +4588,12 @@
 #define MADERA_OUT5R_VOL_SHIFT				     0
 #define MADERA_OUT5R_VOL_WIDTH				     8
 
-/*
- * R1079 (0x437) - Noise Gate Select 5R
- */
+/* (0x0437)  Noise_Gate_Select_5R */
 #define MADERA_OUT5R_NGATE_SRC_MASK			0x0FFF
 #define MADERA_OUT5R_NGATE_SRC_SHIFT			     0
 #define MADERA_OUT5R_NGATE_SRC_WIDTH			    12
 
-/*
- * R1080 (0x438) - Output Path Config 6L
- */
+/* (0x0438)  Output_Path_Config_6L */
 #define MADERA_OUT6_OSR					0x2000
 #define MADERA_OUT6_OSR_MASK				0x2000
 #define MADERA_OUT6_OSR_SHIFT				    13
@@ -5064,9 +4602,7 @@
 #define MADERA_OUT6L_ANC_SRC_SHIFT			    10
 #define MADERA_OUT6L_ANC_SRC_WIDTH			     2
 
-/*
- * R1081 (0x439) - DAC Digital Volume 6L
- */
+/* (0x0439)  DAC_Digital_Volume_6L */
 #define MADERA_OUT6L_VU					0x0200
 #define MADERA_OUT6L_VU_MASK				0x0200
 #define MADERA_OUT6L_VU_SHIFT				     9
@@ -5079,23 +4615,17 @@
 #define MADERA_OUT6L_VOL_SHIFT				     0
 #define MADERA_OUT6L_VOL_WIDTH				     8
 
-/*
- * R1083 (0x43B) - Noise Gate Select 6L
- */
+/* (0x043B)  Noise_Gate_Select_6L */
 #define MADERA_OUT6L_NGATE_SRC_MASK			0x0FFF
 #define MADERA_OUT6L_NGATE_SRC_SHIFT			     0
 #define MADERA_OUT6L_NGATE_SRC_WIDTH			    12
 
-/*
- * R1084 (0x43C) - Output Path Config 6R
- */
+/* (0x043C)  Output_Path_Config_6R */
 #define MADERA_OUT6R_ANC_SRC_MASK			0x0C00
 #define MADERA_OUT6R_ANC_SRC_SHIFT			    10
 #define MADERA_OUT6R_ANC_SRC_WIDTH			     2
 
-/*
- * R1085 (0x43D) - DAC Digital Volume 6R
- */
+/* (0x043D)  DAC_Digital_Volume_6R */
 #define MADERA_OUT6R_VU					0x0200
 #define MADERA_OUT6R_VU_MASK				0x0200
 #define MADERA_OUT6R_VU_SHIFT				     9
@@ -5108,16 +4638,12 @@
 #define MADERA_OUT6R_VOL_SHIFT				     0
 #define MADERA_OUT6R_VOL_WIDTH				     8
 
-/*
- * R1087 (0x43F) - Noise Gate Select 6R
- */
+/* (0x043F)  Noise_Gate_Select_6R */
 #define MADERA_OUT6R_NGATE_SRC_MASK			0x0FFF
 #define MADERA_OUT6R_NGATE_SRC_SHIFT			     0
 #define MADERA_OUT6R_NGATE_SRC_WIDTH			    12
 
-/*
- * R1088 (0x440) - DRE Enable
- */
+/* (0x0440) - DRE Enable */
 #define MADERA_DRE3R_ENA				0x0020
 #define MADERA_DRE3R_ENA_MASK				0x0020
 #define MADERA_DRE3R_ENA_SHIFT				     5
@@ -5143,9 +4669,7 @@
 #define MADERA_DRE1L_ENA_SHIFT				     0
 #define MADERA_DRE1L_ENA_WIDTH				     1
 
-/*
- * R486 (0x448) - EDRE_Enable
- */
+/* (0x0448) - EDRE_Enable */
 #define MADERA_EDRE_OUT4L_THR3_ENA			0x0800
 #define MADERA_EDRE_OUT4L_THR3_ENA_MASK			0x0800
 #define MADERA_EDRE_OUT4L_THR3_ENA_SHIFT		    11
@@ -5195,9 +4719,7 @@
 #define MADERA_EDRE_OUT1R_THR1_ENA_SHIFT		     0
 #define MADERA_EDRE_OUT1R_THR1_ENA_WIDTH		     1
 
-/*
- * R1104 (0x450) - DAC AEC Control 1
- */
+/* (0x0450) - DAC AEC Control 1 */
 #define MADERA_AEC1_LOOPBACK_SRC_MASK			0x003C
 #define MADERA_AEC1_LOOPBACK_SRC_SHIFT			     2
 #define MADERA_AEC1_LOOPBACK_SRC_WIDTH			     4
@@ -5210,9 +4732,7 @@
 #define MADERA_AEC1_LOOPBACK_ENA_SHIFT			     0
 #define MADERA_AEC1_LOOPBACK_ENA_WIDTH			     1
 
-/*
- * R1105 (0x451) - DAC AEC Control 2
- */
+/* (0x0451)  DAC_AEC_Control_2 */
 #define MADERA_AEC2_LOOPBACK_SRC_MASK			0x003C
 #define MADERA_AEC2_LOOPBACK_SRC_SHIFT			     2
 #define MADERA_AEC2_LOOPBACK_SRC_WIDTH			     4
@@ -5225,9 +4745,7 @@
 #define MADERA_AEC2_LOOPBACK_ENA_SHIFT			     0
 #define MADERA_AEC2_LOOPBACK_ENA_WIDTH			     1
 
-/*
- * R1112 (0x458) - Noise Gate Control
- */
+/* (0x0458)  Noise_Gate_Control */
 #define MADERA_NGATE_HOLD_MASK				0x0030
 #define MADERA_NGATE_HOLD_SHIFT				     4
 #define MADERA_NGATE_HOLD_WIDTH				     2
@@ -5239,9 +4757,7 @@
 #define MADERA_NGATE_ENA_SHIFT				     0
 #define MADERA_NGATE_ENA_WIDTH				     1
 
-/*
- * R1168 (0x490) - PDM SPK1 CTRL 1
- */
+/* (0x0490)  PDM_SPK1_CTRL_1 */
 #define MADERA_SPK1R_MUTE				0x2000
 #define MADERA_SPK1R_MUTE_MASK				0x2000
 #define MADERA_SPK1R_MUTE_SHIFT				    13
@@ -5258,17 +4774,13 @@
 #define MADERA_SPK1_MUTE_SEQ1_SHIFT			     0
 #define MADERA_SPK1_MUTE_SEQ1_WIDTH			     8
 
-/*
- * R1169 (0x491) - PDM SPK1 CTRL 2
- */
+/* (0x0491)  PDM_SPK1_CTRL_2 */
 #define MADERA_SPK1_FMT					0x0001
 #define MADERA_SPK1_FMT_MASK				0x0001
 #define MADERA_SPK1_FMT_SHIFT				     0
 #define MADERA_SPK1_FMT_WIDTH				     1
 
-/*
- * R1170 (0x492) - PDM SPK2 CTRL 1
- */
+/* (0x0492)  PDM_SPK2_CTRL_1 */
 #define MADERA_SPK2R_MUTE				0x2000
 #define MADERA_SPK2R_MUTE_MASK				0x2000
 #define MADERA_SPK2R_MUTE_SHIFT				    13
@@ -5285,48 +4797,36 @@
 #define MADERA_SPK2_MUTE_SEQ_SHIFT			     0
 #define MADERA_SPK2_MUTE_SEQ_WIDTH			     8
 
-/*
- * R1171 (0x493) - PDM SPK2 CTRL 2
- */
+/* (0x0493)  PDM_SPK2_CTRL_2 */
 #define MADERA_SPK2_FMT					0x0001
 #define MADERA_SPK2_FMT_MASK				0x0001
 #define MADERA_SPK2_FMT_SHIFT				     0
 #define MADERA_SPK2_FMT_WIDTH				     1
 
-/*
- * R1184 (0x4A0) - HP1 Short Circuit Ctrl
- */
+/* (0x04A0) - HP1 Short Circuit Ctrl */
 #define MADERA_HP1_SC_ENA				0x1000
 #define MADERA_HP1_SC_ENA_MASK				0x1000
 #define MADERA_HP1_SC_ENA_SHIFT				    12
 #define MADERA_HP1_SC_ENA_WIDTH				     1
 
-/*
- * R1185 (0x4A1) - HP2 Short Circuit Ctrl
- */
+/* (0x04A1) - HP2 Short Circuit Ctrl */
 #define MADERA_HP2_SC_ENA				0x1000
 #define MADERA_HP2_SC_ENA_MASK				0x1000
 #define MADERA_HP2_SC_ENA_SHIFT				    12
 #define MADERA_HP2_SC_ENA_WIDTH				     1
 
-/*
- * R1186 (0x4A2) - HP3 Short Circuit Ctrl
- */
+/* (0x04A2) - HP3 Short Circuit Ctrl */
 #define MADERA_HP3_SC_ENA				0x1000
 #define MADERA_HP3_SC_ENA_MASK				0x1000
 #define MADERA_HP3_SC_ENA_SHIFT				    12
 #define MADERA_HP3_SC_ENA_WIDTH				     1
 
-/*
- * R1188 (0x4A4) HP Test Ctrl 1
- */
+/* (0x04A4) HP Test Ctrl 1 */
 #define MADERA_HP1_TST_CAP_SEL_MASK			0x0003
 #define MADERA_HP1_TST_CAP_SEL_SHIFT			     0
 #define MADERA_HP1_TST_CAP_SEL_WIDTH			     2
 
-/*
- * R539 (0x4A8) - HP_Test_Ctrl_5
- */
+/* (0x04A8) - HP_Test_Ctrl_5 */
 #define MADERA_HP1L_TST_CINT				0x4000
 #define MADERA_HP1L_TST_CINT_MASK			0x4000
 #define MADERA_HP1L_TST_CINT_SHIFT			    14
@@ -5368,9 +4868,7 @@
 #define MADERA_HP1L_TST_IBIAS_SHIFT			     0
 #define MADERA_HP1L_TST_IBIAS_WIDTH			     2
 
-/*
- * R540 (0x4A9) - HP_Test_Ctrl_6
- */
+/* (0x04A9) - HP_Test_Ctrl_6 */
 #define MADERA_HP1R_TST_CINT				0x4000
 #define MADERA_HP1R_TST_CINT_MASK			0x4000
 #define MADERA_HP1R_TST_CINT_SHIFT			    14
@@ -5412,9 +4910,7 @@
 #define MADERA_HP1R_TST_IBIAS_SHIFT			     0
 #define MADERA_HP1R_TST_IBIAS_WIDTH			     2
 
-/*
- * R1280 (0x500) - AIF1 BCLK Ctrl
- */
+/* (0x0500)  AIF1_BCLK_Ctrl */
 #define MADERA_AIF1_BCLK_INV				0x0080
 #define MADERA_AIF1_BCLK_INV_MASK			0x0080
 #define MADERA_AIF1_BCLK_INV_SHIFT			     7
@@ -5431,9 +4927,7 @@
 #define MADERA_AIF1_BCLK_FREQ_SHIFT			     0
 #define MADERA_AIF1_BCLK_FREQ_WIDTH			     5
 
-/*
- * R1281 (0x501) - AIF1 Tx Pin Ctrl
- */
+/* (0x0501)  AIF1_Tx_Pin_Ctrl */
 #define MADERA_AIF1TX_DAT_TRI				0x0020
 #define MADERA_AIF1TX_DAT_TRI_MASK			0x0020
 #define MADERA_AIF1TX_DAT_TRI_SHIFT			     5
@@ -5455,9 +4949,7 @@
 #define MADERA_AIF1TX_LRCLK_MSTR_SHIFT			     0
 #define MADERA_AIF1TX_LRCLK_MSTR_WIDTH			     1
 
-/*
- * R1282 (0x502) - AIF1 Rx Pin Ctrl
- */
+/* (0x0502)  AIF1_Rx_Pin_Ctrl */
 #define MADERA_AIF1RX_LRCLK_INV				0x0004
 #define MADERA_AIF1RX_LRCLK_INV_MASK			0x0004
 #define MADERA_AIF1RX_LRCLK_INV_SHIFT			     2
@@ -5471,9 +4963,7 @@
 #define MADERA_AIF1RX_LRCLK_MSTR_SHIFT			     0
 #define MADERA_AIF1RX_LRCLK_MSTR_WIDTH			     1
 
-/*
- * R1283 (0x503) - AIF1 Rate Ctrl
- */
+/* (0x0503)  AIF1_Rate_Ctrl */
 #define MADERA_AIF1_RATE_MASK				0x7800
 #define MADERA_AIF1_RATE_SHIFT				    11
 #define MADERA_AIF1_RATE_WIDTH				     4
@@ -5482,30 +4972,22 @@
 #define MADERA_AIF1_TRI_SHIFT				     6
 #define MADERA_AIF1_TRI_WIDTH				     1
 
-/*
- * R1284 (0x504) - AIF1 Format
- */
+/* (0x0504)  AIF1_Format */
 #define MADERA_AIF1_FMT_MASK				0x0007
 #define MADERA_AIF1_FMT_SHIFT				     0
 #define MADERA_AIF1_FMT_WIDTH				     3
 
-/*
- * R1285 (0x505) - AIF1 Tx BCLK Rate
- */
+/* (0x0505) - AIF1 Tx BCLK Rate */
 #define MADERA_AIF1TX_BCPF_MASK				0x1FFF
 #define MADERA_AIF1TX_BCPF_SHIFT			     0
 #define MADERA_AIF1TX_BCPF_WIDTH			    13
 
-/*
- * R1286 (0x506) - AIF1 Rx BCLK Rate
- */
+/* (0x0506)  AIF1_Rx_BCLK_Rate */
 #define MADERA_AIF1RX_BCPF_MASK				0x1FFF
 #define MADERA_AIF1RX_BCPF_SHIFT			     0
 #define MADERA_AIF1RX_BCPF_WIDTH			    13
 
-/*
- * R1287 (0x507) - AIF1 Frame Ctrl 1
- */
+/* (0x0507)  AIF1_Frame_Ctrl_1 */
 #define MADERA_AIF1TX_WL_MASK				0x3F00
 #define MADERA_AIF1TX_WL_SHIFT				     8
 #define MADERA_AIF1TX_WL_WIDTH				     6
@@ -5513,9 +4995,7 @@
 #define MADERA_AIF1TX_SLOT_LEN_SHIFT			     0
 #define MADERA_AIF1TX_SLOT_LEN_WIDTH			     8
 
-/*
- * R1288 (0x508) - AIF1 Frame Ctrl 2
- */
+/* (0x0508)  AIF1_Frame_Ctrl_2 */
 #define MADERA_AIF1RX_WL_MASK				0x3F00
 #define MADERA_AIF1RX_WL_SHIFT				     8
 #define MADERA_AIF1RX_WL_WIDTH				     6
@@ -5523,121 +5003,87 @@
 #define MADERA_AIF1RX_SLOT_LEN_SHIFT			     0
 #define MADERA_AIF1RX_SLOT_LEN_WIDTH			     8
 
-/*
- * R1289 (0x509) - AIF1 Frame Ctrl 3
- */
+/* (0x0509)  AIF1_Frame_Ctrl_3 */
 #define MADERA_AIF1TX1_SLOT_MASK			0x003F
 #define MADERA_AIF1TX1_SLOT_SHIFT			     0
 #define MADERA_AIF1TX1_SLOT_WIDTH			     6
 
-/*
- * R1290 (0x50A) - AIF1 Frame Ctrl 4
- */
+/* (0x050A)  AIF1_Frame_Ctrl_4 */
 #define MADERA_AIF1TX2_SLOT_MASK			0x003F
 #define MADERA_AIF1TX2_SLOT_SHIFT			     0
 #define MADERA_AIF1TX2_SLOT_WIDTH			     6
 
-/*
- * R1291 (0x50B) - AIF1 Frame Ctrl 5
- */
+/* (0x050B)  AIF1_Frame_Ctrl_5 */
 #define MADERA_AIF1TX3_SLOT_MASK			0x003F
 #define MADERA_AIF1TX3_SLOT_SHIFT			     0
 #define MADERA_AIF1TX3_SLOT_WIDTH			     6
 
-/*
- * R1292 (0x50C) - AIF1 Frame Ctrl 6
- */
+/* (0x050C)  AIF1_Frame_Ctrl_6 */
 #define MADERA_AIF1TX4_SLOT_MASK			0x003F
 #define MADERA_AIF1TX4_SLOT_SHIFT			     0
 #define MADERA_AIF1TX4_SLOT_WIDTH			     6
 
-/*
- * R1293 (0x50D) - AIF1 Frame Ctrl 7
- */
+/* (0x050D)  AIF1_Frame_Ctrl_7 */
 #define MADERA_AIF1TX5_SLOT_MASK			0x003F
 #define MADERA_AIF1TX5_SLOT_SHIFT			     0
 #define MADERA_AIF1TX5_SLOT_WIDTH			     6
 
-/*
- * R1294 (0x50E) - AIF1 Frame Ctrl 8
- */
+/* (0x050E)  AIF1_Frame_Ctrl_8 */
 #define MADERA_AIF1TX6_SLOT_MASK			0x003F
 #define MADERA_AIF1TX6_SLOT_SHIFT			     0
 #define MADERA_AIF1TX6_SLOT_WIDTH			     6
 
-/*
- * R1295 (0x50F) - AIF1 Frame Ctrl 9
- */
+/* (0x050F)  AIF1_Frame_Ctrl_9 */
 #define MADERA_AIF1TX7_SLOT_MASK			0x003F
 #define MADERA_AIF1TX7_SLOT_SHIFT			     0
 #define MADERA_AIF1TX7_SLOT_WIDTH			     6
 
-/*
- * R1296 (0x510) - AIF1 Frame Ctrl 10
- */
+/* (0x0510)  AIF1_Frame_Ctrl_10 */
 #define MADERA_AIF1TX8_SLOT_MASK			0x003F
 #define MADERA_AIF1TX8_SLOT_SHIFT			     0
 #define MADERA_AIF1TX8_SLOT_WIDTH			     6
 
-/*
- * R1297 (0x511) - AIF1 Frame Ctrl 11
- */
+/* (0x0511)  AIF1_Frame_Ctrl_11 */
 #define MADERA_AIF1RX1_SLOT_MASK			0x003F
 #define MADERA_AIF1RX1_SLOT_SHIFT			     0
 #define MADERA_AIF1RX1_SLOT_WIDTH			     6
 
-/*
- * R1298 (0x512) - AIF1 Frame Ctrl 12
- */
+/* (0x0512)  AIF1_Frame_Ctrl_12 */
 #define MADERA_AIF1RX2_SLOT_MASK			0x003F
 #define MADERA_AIF1RX2_SLOT_SHIFT			     0
 #define MADERA_AIF1RX2_SLOT_WIDTH			     6
 
-/*
- * R1299 (0x513) - AIF1 Frame Ctrl 13
- */
+/* (0x0513)  AIF1_Frame_Ctrl_13 */
 #define MADERA_AIF1RX3_SLOT_MASK			0x003F
 #define MADERA_AIF1RX3_SLOT_SHIFT			     0
 #define MADERA_AIF1RX3_SLOT_WIDTH			     6
 
-/*
- * R1300 (0x514) - AIF1 Frame Ctrl 14
- */
+/* (0x0514)  AIF1_Frame_Ctrl_14 */
 #define MADERA_AIF1RX4_SLOT_MASK			0x003F
 #define MADERA_AIF1RX4_SLOT_SHIFT			     0
 #define MADERA_AIF1RX4_SLOT_WIDTH			     6
 
-/*
- * R1301 (0x515) - AIF1 Frame Ctrl 15
- */
+/* (0x0515)  AIF1_Frame_Ctrl_15 */
 #define MADERA_AIF1RX5_SLOT_MASK			0x003F
 #define MADERA_AIF1RX5_SLOT_SHIFT			     0
 #define MADERA_AIF1RX5_SLOT_WIDTH			     6
 
-/*
- * R1302 (0x516) - AIF1 Frame Ctrl 16
- */
+/* (0x0516)  AIF1_Frame_Ctrl_16 */
 #define MADERA_AIF1RX6_SLOT_MASK			0x003F
 #define MADERA_AIF1RX6_SLOT_SHIFT			     0
 #define MADERA_AIF1RX6_SLOT_WIDTH			     6
 
-/*
- * R1303 (0x517) - AIF1 Frame Ctrl 17
- */
+/* (0x0517)  AIF1_Frame_Ctrl_17 */
 #define MADERA_AIF1RX7_SLOT_MASK			0x003F
 #define MADERA_AIF1RX7_SLOT_SHIFT			     0
 #define MADERA_AIF1RX7_SLOT_WIDTH			     6
 
-/*
- * R1304 (0x518) - AIF1 Frame Ctrl 18
- */
+/* (0x0518)  AIF1_Frame_Ctrl_18 */
 #define MADERA_AIF1RX8_SLOT_MASK			0x003F
 #define MADERA_AIF1RX8_SLOT_SHIFT			     0
 #define MADERA_AIF1RX8_SLOT_WIDTH			     6
 
-/*
- * R1305 (0x519) - AIF1 Tx Enables
- */
+/* (0x0519)  AIF1_Tx_Enables */
 #define MADERA_AIF1TX8_ENA				0x0080
 #define MADERA_AIF1TX8_ENA_MASK				0x0080
 #define MADERA_AIF1TX8_ENA_SHIFT			     7
@@ -5671,9 +5117,7 @@
 #define MADERA_AIF1TX1_ENA_SHIFT			     0
 #define MADERA_AIF1TX1_ENA_WIDTH			     1
 
-/*
- * R1306 (0x51A) - AIF1 Rx Enables
- */
+/* (0x051A)  AIF1_Rx_Enables */
 #define MADERA_AIF1RX8_ENA				0x0080
 #define MADERA_AIF1RX8_ENA_MASK				0x0080
 #define MADERA_AIF1RX8_ENA_SHIFT			     7
@@ -5707,17 +5151,13 @@
 #define MADERA_AIF1RX1_ENA_SHIFT			     0
 #define MADERA_AIF1RX1_ENA_WIDTH			     1
 
-/*
- * R1307 (0x51B) - AIF1 Force Write
- */
+/* (0x051B) - AIF1 Force Write */
 #define MADERA_AIF1_FRC_WR				0x0001
 #define MADERA_AIF1_FRC_WR_MASK				0x0001
 #define MADERA_AIF1_FRC_WR_SHIFT			     0
 #define MADERA_AIF1_FRC_WR_WIDTH			     1
 
-/*
- * R1344 (0x540) - AIF2 BCLK Ctrl
- */
+/* (0x0540)  AIF2_BCLK_Ctrl */
 #define MADERA_AIF2_BCLK_INV				0x0080
 #define MADERA_AIF2_BCLK_INV_MASK			0x0080
 #define MADERA_AIF2_BCLK_INV_SHIFT			     7
@@ -5734,9 +5174,7 @@
 #define MADERA_AIF2_BCLK_FREQ_SHIFT			     0
 #define MADERA_AIF2_BCLK_FREQ_WIDTH			     5
 
-/*
- * R1345 (0x541) - AIF2 Tx Pin Ctrl
- */
+/* (0x0541)  AIF2_Tx_Pin_Ctrl */
 #define MADERA_AIF2TX_DAT_TRI				0x0020
 #define MADERA_AIF2TX_DAT_TRI_MASK			0x0020
 #define MADERA_AIF2TX_DAT_TRI_SHIFT			     5
@@ -5758,9 +5196,7 @@
 #define MADERA_AIF2TX_LRCLK_MSTR_SHIFT			     0
 #define MADERA_AIF2TX_LRCLK_MSTR_WIDTH			     1
 
-/*
- * R1346 (0x542) - AIF2 Rx Pin Ctrl
- */
+/* (0x0542)  AIF2_Rx_Pin_Ctrl */
 #define MADERA_AIF2RX_LRCLK_INV				0x0004
 #define MADERA_AIF2RX_LRCLK_INV_MASK			0x0004
 #define MADERA_AIF2RX_LRCLK_INV_SHIFT			     2
@@ -5774,9 +5210,7 @@
 #define MADERA_AIF2RX_LRCLK_MSTR_SHIFT			     0
 #define MADERA_AIF2RX_LRCLK_MSTR_WIDTH			     1
 
-/*
- * R1347 (0x543) - AIF2 Rate Ctrl
- */
+/* (0x0543)  AIF2_Rate_Ctrl */
 #define MADERA_AIF2_RATE_MASK				0x7800
 #define MADERA_AIF2_RATE_SHIFT				    11
 #define MADERA_AIF2_RATE_WIDTH				     4
@@ -5785,30 +5219,22 @@
 #define MADERA_AIF2_TRI_SHIFT				     6
 #define MADERA_AIF2_TRI_WIDTH				     1
 
-/*
- * R1348 (0x544) - AIF2 Format
- */
+/* (0x0544)  AIF2_Format */
 #define MADERA_AIF2_FMT_MASK				0x0007
 #define MADERA_AIF2_FMT_SHIFT				     0
 #define MADERA_AIF2_FMT_WIDTH				     3
 
-/*
- * R1349 (0x545) - AIF2 Tx BCLK Rate
- */
+/* (0x0545) - AIF2 Tx BCLK Rate */
 #define MADERA_AIF2TX_BCPF_MASK				0x1FFF
 #define MADERA_AIF2TX_BCPF_SHIFT			     0
 #define MADERA_AIF2TX_BCPF_WIDTH			    13
 
-/*
- * R1350 (0x546) - AIF2 Rx BCLK Rate
- */
+/* (0x0546)  AIF2_Rx_BCLK_Rate */
 #define MADERA_AIF2RX_BCPF_MASK				0x1FFF
 #define MADERA_AIF2RX_BCPF_SHIFT			     0
 #define MADERA_AIF2RX_BCPF_WIDTH			    13
 
-/*
- * R1351 (0x547) - AIF2 Frame Ctrl 1
- */
+/* (0x0547)  AIF2_Frame_Ctrl_1 */
 #define MADERA_AIF2TX_WL_MASK				0x3F00
 #define MADERA_AIF2TX_WL_SHIFT				     8
 #define MADERA_AIF2TX_WL_WIDTH				     6
@@ -5816,9 +5242,7 @@
 #define MADERA_AIF2TX_SLOT_LEN_SHIFT			     0
 #define MADERA_AIF2TX_SLOT_LEN_WIDTH			     8
 
-/*
- * R1352 (0x548) - AIF2 Frame Ctrl 2
- */
+/* (0x0548)  AIF2_Frame_Ctrl_2 */
 #define MADERA_AIF2RX_WL_MASK				0x3F00
 #define MADERA_AIF2RX_WL_SHIFT				     8
 #define MADERA_AIF2RX_WL_WIDTH				     6
@@ -5826,121 +5250,87 @@
 #define MADERA_AIF2RX_SLOT_LEN_SHIFT			     0
 #define MADERA_AIF2RX_SLOT_LEN_WIDTH			     8
 
-/*
- * R1353 (0x549) - AIF2 Frame Ctrl 3
- */
+/* (0x0549)  AIF2_Frame_Ctrl_3 */
 #define MADERA_AIF2TX1_SLOT_MASK			0x003F
 #define MADERA_AIF2TX1_SLOT_SHIFT			     0
 #define MADERA_AIF2TX1_SLOT_WIDTH			     6
 
-/*
- * R1354 (0x54A) - AIF2 Frame Ctrl 4
- */
+/* (0x054A)  AIF2_Frame_Ctrl_4 */
 #define MADERA_AIF2TX2_SLOT_MASK			0x003F
 #define MADERA_AIF2TX2_SLOT_SHIFT			     0
 #define MADERA_AIF2TX2_SLOT_WIDTH			     6
 
-/*
- * R1355 (0x54B) - AIF2 Frame Ctrl 5
- */
+/* (0x054B)  AIF2_Frame_Ctrl_5 */
 #define MADERA_AIF2TX3_SLOT_MASK			0x003F
 #define MADERA_AIF2TX3_SLOT_SHIFT			     0
 #define MADERA_AIF2TX3_SLOT_WIDTH			     6
 
-/*
- * R1356 (0x54C) - AIF2 Frame Ctrl 6
- */
+/* (0x054C)  AIF2_Frame_Ctrl_6 */
 #define MADERA_AIF2TX4_SLOT_MASK			0x003F
 #define MADERA_AIF2TX4_SLOT_SHIFT			     0
 #define MADERA_AIF2TX4_SLOT_WIDTH			     6
 
 
-/*
- * R1357 (0x54D) - AIF2 Frame Ctrl 7
- */
+/* (0x054D)  AIF2_Frame_Ctrl_7 */
 #define MADERA_AIF2TX5_SLOT_MASK			0x003F
 #define MADERA_AIF2TX5_SLOT_SHIFT			     0
 #define MADERA_AIF2TX5_SLOT_WIDTH			     6
 
-/*
- * R1358 (0x54E) - AIF2 Frame Ctrl 8
- */
+/* (0x054E)  AIF2_Frame_Ctrl_8 */
 #define MADERA_AIF2TX6_SLOT_MASK			0x003F
 #define MADERA_AIF2TX6_SLOT_SHIFT			     0
 #define MADERA_AIF2TX6_SLOT_WIDTH			     6
 
-/*
- * R1359 (0x54F) - AIF2 Frame Ctrl 9
- */
+/* (0x054F)  AIF2_Frame_Ctrl_9 */
 #define MADERA_AIF2TX7_SLOT_MASK			0x003F
 #define MADERA_AIF2TX7_SLOT_SHIFT			     0
 #define MADERA_AIF2TX7_SLOT_WIDTH			     6
-/*
- * R1360 (0x550) - AIF2 Frame Ctrl 10
- */
+/* (0x0550)  AIF2_Frame_Ctrl_10 */
 #define MADERA_AIF2TX8_SLOT_MASK			0x003F
 #define MADERA_AIF2TX8_SLOT_SHIFT			     0
 #define MADERA_AIF2TX8_SLOT_WIDTH			     6
 
-/*
- * R1361 (0x551) - AIF2 Frame Ctrl 11
- */
+/* (0x0551)  AIF2_Frame_Ctrl_11 */
 #define MADERA_AIF2RX1_SLOT_MASK			0x003F
 #define MADERA_AIF2RX1_SLOT_SHIFT			     0
 #define MADERA_AIF2RX1_SLOT_WIDTH			     6
 
-/*
- * R1362 (0x552) - AIF2 Frame Ctrl 12
- */
+/* (0x0552)  AIF2_Frame_Ctrl_12 */
 #define MADERA_AIF2RX2_SLOT_MASK			0x003F
 #define MADERA_AIF2RX2_SLOT_SHIFT			     0
 #define MADERA_AIF2RX2_SLOT_WIDTH			     6
 
-/*
- * R1363 (0x553) - AIF2 Frame Ctrl 13
- */
+/* (0x0553)  AIF2_Frame_Ctrl_13 */
 #define MADERA_AIF2RX3_SLOT_MASK			0x003F
 #define MADERA_AIF2RX3_SLOT_SHIFT			     0
 #define MADERA_AIF2RX3_SLOT_WIDTH			     6
 
-/*
- * R1364 (0x554) - AIF2 Frame Ctrl 14
- */
+/* (0x0554)  AIF2_Frame_Ctrl_14 */
 #define MADERA_AIF2RX4_SLOT_MASK			0x003F
 #define MADERA_AIF2RX4_SLOT_SHIFT			     0
 #define MADERA_AIF2RX4_SLOT_WIDTH			     6
 
-/*
- * R1365 (0x555) - AIF2 Frame Ctrl 15
- */
+/* (0x0555)  AIF2_Frame_Ctrl_15 */
 #define MADERA_AIF2RX5_SLOT_MASK			0x003F
 #define MADERA_AIF2RX5_SLOT_SHIFT			     0
 #define MADERA_AIF2RX5_SLOT_WIDTH			     6
 
-/*
- * R1366 (0x556) - AIF2 Frame Ctrl 16
- */
+/* (0x0556)  AIF2_Frame_Ctrl_16 */
 #define MADERA_AIF2RX6_SLOT_MASK			0x003F
 #define MADERA_AIF2RX6_SLOT_SHIFT			     0
 #define MADERA_AIF2RX6_SLOT_WIDTH			     6
 
-/*
- * R1367 (0x557) - AIF2 Frame Ctrl 17
- */
+/* (0x0557)  AIF2_Frame_Ctrl_17 */
 #define MADERA_AIF2RX7_SLOT_MASK			0x003F
 #define MADERA_AIF2RX7_SLOT_SHIFT			     0
 #define MADERA_AIF2RX7_SLOT_WIDTH			     6
 
-/*
- * R1368 (0x558) - AIF2 Frame Ctrl 18
- */
+/* (0x0558)  AIF2_Frame_Ctrl_18 */
 #define MADERA_AIF2RX8_SLOT_MASK			0x003F
 #define MADERA_AIF2RX8_SLOT_SHIFT			     0
 #define MADERA_AIF2RX8_SLOT_WIDTH			     6
 
-/*
- * R1369 (0x559) - AIF2 Tx Enables
- */
+/* (0x0559)  AIF2_Tx_Enables */
 #define MADERA_AIF2TX8_ENA				0x0080
 #define MADERA_AIF2TX8_ENA_MASK				0x0080
 #define MADERA_AIF2TX8_ENA_SHIFT			     7
@@ -5974,9 +5364,7 @@
 #define MADERA_AIF2TX1_ENA_SHIFT			     0
 #define MADERA_AIF2TX1_ENA_WIDTH			     1
 
-/*
- * R1370 (0x55A) - AIF2 Rx Enables
- */
+/* (0x055A)  AIF2_Rx_Enables */
 #define MADERA_AIF2RX8_ENA				0x0080
 #define MADERA_AIF2RX8_ENA_MASK				0x0080
 #define MADERA_AIF2RX8_ENA_SHIFT			     7
@@ -6010,17 +5398,13 @@
 #define MADERA_AIF2RX1_ENA_SHIFT			     0
 #define MADERA_AIF2RX1_ENA_WIDTH			     1
 
-/*
- * R1371 (0x55B) - AIF2 Force Write
- */
+/* (0x055B) - AIF2 Force Write */
 #define MADERA_AIF2_FRC_WR				0x0001
 #define MADERA_AIF2_FRC_WR_MASK				0x0001
 #define MADERA_AIF2_FRC_WR_SHIFT			     0
 #define MADERA_AIF2_FRC_WR_WIDTH			     1
 
-/*
- * R1408 (0x580) - AIF3 BCLK Ctrl
- */
+/* (0x0580)  AIF3_BCLK_Ctrl */
 #define MADERA_AIF3_BCLK_INV				0x0080
 #define MADERA_AIF3_BCLK_INV_MASK			0x0080
 #define MADERA_AIF3_BCLK_INV_SHIFT			     7
@@ -6037,9 +5421,7 @@
 #define MADERA_AIF3_BCLK_FREQ_SHIFT			     0
 #define MADERA_AIF3_BCLK_FREQ_WIDTH			     5
 
-/*
- * R1409 (0x581) - AIF3 Tx Pin Ctrl
- */
+/* (0x0581)  AIF3_Tx_Pin_Ctrl */
 #define MADERA_AIF3TX_DAT_TRI				0x0020
 #define MADERA_AIF3TX_DAT_TRI_MASK			0x0020
 #define MADERA_AIF3TX_DAT_TRI_SHIFT			     5
@@ -6061,9 +5443,7 @@
 #define MADERA_AIF3TX_LRCLK_MSTR_SHIFT			     0
 #define MADERA_AIF3TX_LRCLK_MSTR_WIDTH			     1
 
-/*
- * R1410 (0x582) - AIF3 Rx Pin Ctrl
- */
+/* (0x0582)  AIF3_Rx_Pin_Ctrl */
 #define MADERA_AIF3RX_LRCLK_INV				0x0004
 #define MADERA_AIF3RX_LRCLK_INV_MASK			0x0004
 #define MADERA_AIF3RX_LRCLK_INV_SHIFT			     2
@@ -6077,9 +5457,7 @@
 #define MADERA_AIF3RX_LRCLK_MSTR_SHIFT			     0
 #define MADERA_AIF3RX_LRCLK_MSTR_WIDTH			     1
 
-/*
- * R1411 (0x583) - AIF3 Rate Ctrl
- */
+/* (0x0583)  AIF3_Rate_Ctrl */
 #define MADERA_AIF3_RATE_MASK				0x7800
 #define MADERA_AIF3_RATE_SHIFT				    11
 #define MADERA_AIF3_RATE_WIDTH				     4
@@ -6088,30 +5466,22 @@
 #define MADERA_AIF3_TRI_SHIFT				     6
 #define MADERA_AIF3_TRI_WIDTH				     1
 
-/*
- * R1412 (0x584) - AIF3 Format
- */
+/* (0x0584)  AIF3_Format */
 #define MADERA_AIF3_FMT_MASK				0x0007
 #define MADERA_AIF3_FMT_SHIFT				     0
 #define MADERA_AIF3_FMT_WIDTH				     3
 
-/*
- * R1413 (0x585) - AIF3 Tx BCLK Rate
- */
+/* (0x0585) - AIF3 Tx BCLK Rate */
 #define MADERA_AIF3TX_BCPF_MASK				0x1FFF
 #define MADERA_AIF3TX_BCPF_SHIFT			     0
 #define MADERA_AIF3TX_BCPF_WIDTH			    13
 
-/*
- * R1414 (0x586) - AIF3 Rx BCLK Rate
- */
+/* (0x0586)  AIF3_Rx_BCLK_Rate */
 #define MADERA_AIF3RX_BCPF_MASK				0x1FFF
 #define MADERA_AIF3RX_BCPF_SHIFT			     0
 #define MADERA_AIF3RX_BCPF_WIDTH			    13
 
-/*
- * R1415 (0x587) - AIF3 Frame Ctrl 1
- */
+/* (0x0587)  AIF3_Frame_Ctrl_1 */
 #define MADERA_AIF3TX_WL_MASK				0x3F00
 #define MADERA_AIF3TX_WL_SHIFT				     8
 #define MADERA_AIF3TX_WL_WIDTH				     6
@@ -6119,9 +5489,7 @@
 #define MADERA_AIF3TX_SLOT_LEN_SHIFT			     0
 #define MADERA_AIF3TX_SLOT_LEN_WIDTH			     8
 
-/*
- * R1416 (0x588) - AIF3 Frame Ctrl 2
- */
+/* (0x0588)  AIF3_Frame_Ctrl_2 */
 #define MADERA_AIF3RX_WL_MASK				0x3F00
 #define MADERA_AIF3RX_WL_SHIFT				     8
 #define MADERA_AIF3RX_WL_WIDTH				     6
@@ -6129,37 +5497,27 @@
 #define MADERA_AIF3RX_SLOT_LEN_SHIFT			     0
 #define MADERA_AIF3RX_SLOT_LEN_WIDTH			     8
 
-/*
- * R1417 (0x589) - AIF3 Frame Ctrl 3
- */
+/* (0x0589)  AIF3_Frame_Ctrl_3 */
 #define MADERA_AIF3TX1_SLOT_MASK			0x003F
 #define MADERA_AIF3TX1_SLOT_SHIFT			     0
 #define MADERA_AIF3TX1_SLOT_WIDTH			     6
 
-/*
- * R1418 (0x58A) - AIF3 Frame Ctrl 4
- */
+/* (0x058A)  AIF3_Frame_Ctrl_4 */
 #define MADERA_AIF3TX2_SLOT_MASK			0x003F
 #define MADERA_AIF3TX2_SLOT_SHIFT			     0
 #define MADERA_AIF3TX2_SLOT_WIDTH			     6
 
-/*
- * R1425 (0x591) - AIF3 Frame Ctrl 11
- */
+/* (0x0591)  AIF3_Frame_Ctrl_11 */
 #define MADERA_AIF3RX1_SLOT_MASK			0x003F
 #define MADERA_AIF3RX1_SLOT_SHIFT			     0
 #define MADERA_AIF3RX1_SLOT_WIDTH			     6
 
-/*
- * R1426 (0x592) - AIF3 Frame Ctrl 12
- */
+/* (0x0592)  AIF3_Frame_Ctrl_12 */
 #define MADERA_AIF3RX2_SLOT_MASK			0x003F
 #define MADERA_AIF3RX2_SLOT_SHIFT			     0
 #define MADERA_AIF3RX2_SLOT_WIDTH			     6
 
-/*
- * R1433 (0x599) - AIF3 Tx Enables
- */
+/* (0x0599)  AIF3_Tx_Enables */
 #define MADERA_AIF3TX2_ENA				0x0002
 #define MADERA_AIF3TX2_ENA_MASK				0x0002
 #define MADERA_AIF3TX2_ENA_SHIFT			     1
@@ -6169,9 +5527,7 @@
 #define MADERA_AIF3TX1_ENA_SHIFT			     0
 #define MADERA_AIF3TX1_ENA_WIDTH			     1
 
-/*
- * R1434 (0x59A) - AIF3 Rx Enables
- */
+/* (0x059A)  AIF3_Rx_Enables */
 #define MADERA_AIF3RX2_ENA				0x0002
 #define MADERA_AIF3RX2_ENA_MASK				0x0002
 #define MADERA_AIF3RX2_ENA_SHIFT			     1
@@ -6181,17 +5537,13 @@
 #define MADERA_AIF3RX1_ENA_SHIFT			     0
 #define MADERA_AIF3RX1_ENA_WIDTH			     1
 
-/*
- * R1435 (0x59B) - AIF3 Force Write
- */
+/* (0x059B) - AIF3 Force Write */
 #define MADERA_AIF3_FRC_WR				0x0001
 #define MADERA_AIF3_FRC_WR_MASK				0x0001
 #define MADERA_AIF3_FRC_WR_SHIFT			     0
 #define MADERA_AIF3_FRC_WR_WIDTH			     1
 
-/*
- * R1440 (0x5A0) - AIF4 BCLK Ctrl
- */
+/* (0x05A0)  AIF4_BCLK_Ctrl */
 #define MADERA_AIF4_BCLK_INV				0x0080
 #define MADERA_AIF4_BCLK_INV_MASK			0x0080
 #define MADERA_AIF4_BCLK_INV_SHIFT			     7
@@ -6208,9 +5560,7 @@
 #define MADERA_AIF4_BCLK_FREQ_SHIFT			     0
 #define MADERA_AIF4_BCLK_FREQ_WIDTH			     5
 
-/*
- * R1441 (0x5A1) - AIF4 Tx Pin Ctrl
- */
+/* (0x05A1)  AIF4_Tx_Pin_Ctrl */
 #define MADERA_AIF4TX_DAT_TRI				0x0020
 #define MADERA_AIF4TX_DAT_TRI_MASK			0x0020
 #define MADERA_AIF4TX_DAT_TRI_SHIFT			     5
@@ -6232,9 +5582,7 @@
 #define MADERA_AIF4TX_LRCLK_MSTR_SHIFT			     0
 #define MADERA_AIF4TX_LRCLK_MSTR_WIDTH			     1
 
-/*
- * R1442 (0x5A2) - AIF4 Rx Pin Ctrl
- */
+/* (0x05A2)  AIF4_Rx_Pin_Ctrl */
 #define MADERA_AIF4RX_LRCLK_INV				0x0004
 #define MADERA_AIF4RX_LRCLK_INV_MASK			0x0004
 #define MADERA_AIF4RX_LRCLK_INV_SHIFT			     2
@@ -6248,9 +5596,7 @@
 #define MADERA_AIF4RX_LRCLK_MSTR_SHIFT			     0
 #define MADERA_AIF4RX_LRCLK_MSTR_WIDTH			     1
 
-/*
- * R1443 (0x5A3) - AIF4 Rate Ctrl
- */
+/* (0x05A3)  AIF4_Rate_Ctrl */
 #define MADERA_AIF4_RATE_MASK				0x7800
 #define MADERA_AIF4_RATE_SHIFT				    11
 #define MADERA_AIF4_RATE_WIDTH				     4
@@ -6259,30 +5605,22 @@
 #define MADERA_AIF4_TRI_SHIFT				     6
 #define MADERA_AIF4_TRI_WIDTH				     1
 
-/*
- * R1444 (0x5A4) - AIF4 Format
- */
+/* (0x05A4)  AIF4_Format */
 #define MADERA_AIF4_FMT_MASK				0x0007
 #define MADERA_AIF4_FMT_SHIFT				     0
 #define MADERA_AIF4_FMT_WIDTH				     3
 
-/*
- * R1445 (0x5A5) - AIF4 Tx BCLK Rate
- */
+/* (0x05A5) - AIF4 Tx BCLK Rate */
 #define MADERA_AIF4TX_BCPF_MASK				0x1FFF
 #define MADERA_AIF4TX_BCPF_SHIFT			     0
 #define MADERA_AIF4TX_BCPF_WIDTH			    13
 
-/*
- * R1446 (0x5A6) - AIF4 Rx BCLK Rate
- */
+/* (0x05A6)  AIF4_Rx_BCLK_Rate */
 #define MADERA_AIF4RX_BCPF_MASK				0x1FFF
 #define MADERA_AIF4RX_BCPF_SHIFT			     0
 #define MADERA_AIF4RX_BCPF_WIDTH			    13
 
-/*
- * R1447 (0x5A7) - AIF4 Frame Ctrl 1
- */
+/* (0x05A7)  AIF4_Frame_Ctrl_1 */
 #define MADERA_AIF4TX_WL_MASK				0x3F00
 #define MADERA_AIF4TX_WL_SHIFT				     8
 #define MADERA_AIF4TX_WL_WIDTH				     6
@@ -6290,9 +5628,7 @@
 #define MADERA_AIF4TX_SLOT_LEN_SHIFT			     0
 #define MADERA_AIF4TX_SLOT_LEN_WIDTH			     8
 
-/*
- * R1448 (0x5A8) - AIF4 Frame Ctrl 2
- */
+/* (0x05A8)  AIF4_Frame_Ctrl_2 */
 #define MADERA_AIF4RX_WL_MASK				0x3F00
 #define MADERA_AIF4RX_WL_SHIFT				     8
 #define MADERA_AIF4RX_WL_WIDTH				     6
@@ -6300,37 +5636,27 @@
 #define MADERA_AIF4RX_SLOT_LEN_SHIFT			     0
 #define MADERA_AIF4RX_SLOT_LEN_WIDTH			     8
 
-/*
- * R1449 (0x5A9) - AIF4 Frame Ctrl 3
- */
+/* (0x05A9)  AIF4_Frame_Ctrl_3 */
 #define MADERA_AIF4TX1_SLOT_MASK			0x003F
 #define MADERA_AIF4TX1_SLOT_SHIFT			     0
 #define MADERA_AIF4TX1_SLOT_WIDTH			     6
 
-/*
- * R1450 (0x5AA) - AIF4 Frame Ctrl 4
- */
+/* (0x05AA)  AIF4_Frame_Ctrl_4 */
 #define MADERA_AIF4TX2_SLOT_MASK			0x003F
 #define MADERA_AIF4TX2_SLOT_SHIFT			     0
 #define MADERA_AIF4TX2_SLOT_WIDTH			     6
 
-/*
- * R1457 (0x5B1) - AIF4 Frame Ctrl 11
- */
+/* (0x05B1)  AIF4_Frame_Ctrl_11 */
 #define MADERA_AIF4RX1_SLOT_MASK			0x003F
 #define MADERA_AIF4RX1_SLOT_SHIFT			     0
 #define MADERA_AIF4RX1_SLOT_WIDTH			     6
 
-/*
- * R1458 (0x5B2) - AIF4 Frame Ctrl 12
- */
+/* (0x05B2)  AIF4_Frame_Ctrl_12 */
 #define MADERA_AIF4RX2_SLOT_MASK			0x003F
 #define MADERA_AIF4RX2_SLOT_SHIFT			     0
 #define MADERA_AIF4RX2_SLOT_WIDTH			     6
 
-/*
- * R1465 (0x5B9) - AIF4 Tx Enables
- */
+/* (0x05B9)  AIF4_Tx_Enables */
 #define MADERA_AIF4TX2_ENA				0x0002
 #define MADERA_AIF4TX2_ENA_MASK				0x0002
 #define MADERA_AIF4TX2_ENA_SHIFT			     1
@@ -6340,9 +5666,7 @@
 #define MADERA_AIF4TX1_ENA_SHIFT			     0
 #define MADERA_AIF4TX1_ENA_WIDTH			     1
 
-/*
- * R1466 (0x5BA) - AIF4 Rx Enables
- */
+/* (0x05BA)  AIF4_Rx_Enables */
 #define MADERA_AIF4RX2_ENA				0x0002
 #define MADERA_AIF4RX2_ENA_MASK				0x0002
 #define MADERA_AIF4RX2_ENA_SHIFT			     1
@@ -6352,17 +5676,13 @@
 #define MADERA_AIF4RX1_ENA_SHIFT			     0
 #define MADERA_AIF4RX1_ENA_WIDTH			     1
 
-/*
- * R1467 (0x5BB) - AIF4 Force Write
- */
+/* (0x05BB) - AIF4 Force Write */
 #define MADERA_AIF4_FRC_WR				0x0001
 #define MADERA_AIF4_FRC_WR_MASK				0x0001
 #define MADERA_AIF4_FRC_WR_SHIFT			     0
 #define MADERA_AIF4_FRC_WR_WIDTH			     1
 
-/*
- * R1474 (0x5C2) - SPD1 TX Control
- */
+/* (0x05C2)  SPD1_TX_Control */
 #define MADERA_SPD1_VAL2				0x2000
 #define MADERA_SPD1_VAL2_MASK				0x2000
 #define MADERA_SPD1_VAL2_SHIFT				    13
@@ -6379,9 +5699,7 @@
 #define MADERA_SPD1_ENA_SHIFT				     0
 #define MADERA_SPD1_ENA_WIDTH				     1
 
-/*
- * R1475 (0x5C3) - SPD1 TX Channel Status 1
- */
+/* (0x05C3)  SPD1_TX_Channel_Status_1 */
 #define MADERA_SPD1_CATCODE_MASK			0xFF00
 #define MADERA_SPD1_CATCODE_SHIFT			     8
 #define MADERA_SPD1_CATCODE_WIDTH			     8
@@ -6404,9 +5722,7 @@
 #define MADERA_SPD1_PRO_SHIFT				     0
 #define MADERA_SPD1_PRO_WIDTH				     1
 
-/*
- * R1475 (0x5C4) - SPD1 TX Channel Status 2
- */
+/* (0x05C4)  SPD1_TX_Channel_Status_2 */
 #define MADERA_SPD1_FREQ_MASK				0xF000
 #define MADERA_SPD1_FREQ_SHIFT				    12
 #define MADERA_SPD1_FREQ_WIDTH				     4
@@ -6420,9 +5736,7 @@
 #define MADERA_SPD1_SRCNUM_SHIFT			     0
 #define MADERA_SPD1_SRCNUM_WIDTH			     4
 
-/*
- * R1475 (0x5C5) - SPD1 TX Channel Status 3
- */
+/* (0x05C5)  SPD1_TX_Channel_Status_3 */
 #define MADERA_SPD1_ORGSAMP_MASK			0x0F00
 #define MADERA_SPD1_ORGSAMP_SHIFT			     8
 #define MADERA_SPD1_ORGSAMP_WIDTH			     4
@@ -6440,9 +5754,7 @@
 #define MADERA_SPD1_CLKACU_SHIFT			     2
 #define MADERA_SPD1_CLKACU_WIDTH			     0
 
-/*
- * R1507 (0x5E3) - SLIMbus Framer Ref Gear
- */
+/* (0x05E3)  SLIMbus_Framer_Ref_Gear */
 #define MADERA_SLIMCLK_SRC				0x0010
 #define MADERA_SLIMCLK_SRC_MASK				0x0010
 #define MADERA_SLIMCLK_SRC_SHIFT			     4
@@ -6451,9 +5763,7 @@
 #define MADERA_FRAMER_REF_GEAR_SHIFT			     0
 #define MADERA_FRAMER_REF_GEAR_WIDTH			     4
 
-/*
- * R1509 (0x5E5) - SLIMbus Rates 1
- */
+/* (0x05E5)  SLIMbus_Rates_1 */
 #define MADERA_SLIMRX2_RATE_MASK			0x7800
 #define MADERA_SLIMRX2_RATE_SHIFT			    11
 #define MADERA_SLIMRX2_RATE_WIDTH			     4
@@ -6461,9 +5771,7 @@
 #define MADERA_SLIMRX1_RATE_SHIFT			     3
 #define MADERA_SLIMRX1_RATE_WIDTH			     4
 
-/*
- * R1510 (0x5E6) - SLIMbus Rates 2
- */
+/* (0x05E6)  SLIMbus_Rates_2 */
 #define MADERA_SLIMRX4_RATE_MASK			0x7800
 #define MADERA_SLIMRX4_RATE_SHIFT			    11
 #define MADERA_SLIMRX4_RATE_WIDTH			     4
@@ -6471,9 +5779,7 @@
 #define MADERA_SLIMRX3_RATE_SHIFT			     3
 #define MADERA_SLIMRX3_RATE_WIDTH			     4
 
-/*
- * R1511 (0x5E7) - SLIMbus Rates 3
- */
+/* (0x05E7)  SLIMbus_Rates_3 */
 #define MADERA_SLIMRX6_RATE_MASK			0x7800
 #define MADERA_SLIMRX6_RATE_SHIFT			    11
 #define MADERA_SLIMRX6_RATE_WIDTH			     4
@@ -6481,9 +5787,7 @@
 #define MADERA_SLIMRX5_RATE_SHIFT			     3
 #define MADERA_SLIMRX5_RATE_WIDTH			     4
 
-/*
- * R1512 (0x5E8) - SLIMbus Rates 4
- */
+/* (0x05E8)  SLIMbus_Rates_4 */
 #define MADERA_SLIMRX8_RATE_MASK			0x7800
 #define MADERA_SLIMRX8_RATE_SHIFT			    11
 #define MADERA_SLIMRX8_RATE_WIDTH			     4
@@ -6491,9 +5795,7 @@
 #define MADERA_SLIMRX7_RATE_SHIFT			     3
 #define MADERA_SLIMRX7_RATE_WIDTH			     4
 
-/*
- * R1513 (0x5E9) - SLIMbus Rates 5
- */
+/* (0x05E9)  SLIMbus_Rates_5 */
 #define MADERA_SLIMTX2_RATE_MASK			0x7800
 #define MADERA_SLIMTX2_RATE_SHIFT			    11
 #define MADERA_SLIMTX2_RATE_WIDTH			     4
@@ -6501,9 +5803,7 @@
 #define MADERA_SLIMTX1_RATE_SHIFT			     3
 #define MADERA_SLIMTX1_RATE_WIDTH			     4
 
-/*
- * R1514 (0x5EA) - SLIMbus Rates 6
- */
+/* (0x05EA)  SLIMbus_Rates_6 */
 #define MADERA_SLIMTX4_RATE_MASK			0x7800
 #define MADERA_SLIMTX4_RATE_SHIFT			    11
 #define MADERA_SLIMTX4_RATE_WIDTH			     4
@@ -6511,9 +5811,7 @@
 #define MADERA_SLIMTX3_RATE_SHIFT			     3
 #define MADERA_SLIMTX3_RATE_WIDTH			     4
 
-/*
- * R1515 (0x5EB) - SLIMbus Rates 7
- */
+/* (0x05EB)  SLIMbus_Rates_7 */
 #define MADERA_SLIMTX6_RATE_MASK			0x7800
 #define MADERA_SLIMTX6_RATE_SHIFT			    11
 #define MADERA_SLIMTX6_RATE_WIDTH			     4
@@ -6521,9 +5819,7 @@
 #define MADERA_SLIMTX5_RATE_SHIFT			     3
 #define MADERA_SLIMTX5_RATE_WIDTH			     4
 
-/*
- * R1516 (0x5EC) - SLIMbus Rates 8
- */
+/* (0x05EC)  SLIMbus_Rates_8 */
 #define MADERA_SLIMTX8_RATE_MASK			0x7800
 #define MADERA_SLIMTX8_RATE_SHIFT			    11
 #define MADERA_SLIMTX8_RATE_WIDTH			     4
@@ -6531,9 +5827,7 @@
 #define MADERA_SLIMTX7_RATE_SHIFT			     3
 #define MADERA_SLIMTX7_RATE_WIDTH			     4
 
-/*
- * R1525 (0x5F5) - SLIMbus RX Channel Enable
- */
+/* (0x05F5)  SLIMbus_RX_Channel_Enable */
 #define MADERA_SLIMRX8_ENA				0x0080
 #define MADERA_SLIMRX8_ENA_MASK				0x0080
 #define MADERA_SLIMRX8_ENA_SHIFT			     7
@@ -6567,9 +5861,7 @@
 #define MADERA_SLIMRX1_ENA_SHIFT			     0
 #define MADERA_SLIMRX1_ENA_WIDTH			     1
 
-/*
- * R1526 (0x5F6) - SLIMbus TX Channel Enable
- */
+/* (0x05F6)  SLIMbus_TX_Channel_Enable */
 #define MADERA_SLIMTX8_ENA				0x0080
 #define MADERA_SLIMTX8_ENA_MASK				0x0080
 #define MADERA_SLIMTX8_ENA_SHIFT			     7
@@ -6603,9 +5895,7 @@
 #define MADERA_SLIMTX1_ENA_SHIFT			     0
 #define MADERA_SLIMTX1_ENA_WIDTH			     1
 
-/*
- * R1527 (0x5F7) - SLIMbus RX Port Status
- */
+/* (0x05F7)  SLIMbus_RX_Port_Status */
 #define MADERA_SLIMRX8_PORT_STS				0x0080
 #define MADERA_SLIMRX8_PORT_STS_MASK			0x0080
 #define MADERA_SLIMRX8_PORT_STS_SHIFT			     7
@@ -6639,9 +5929,7 @@
 #define MADERA_SLIMRX1_PORT_STS_SHIFT			     0
 #define MADERA_SLIMRX1_PORT_STS_WIDTH			     1
 
-/*
- * R1528 (0x5F8) - SLIMbus TX Port Status
- */
+/* (0x05F8)  SLIMbus_TX_Port_Status */
 #define MADERA_SLIMTX8_PORT_STS				0x0080
 #define MADERA_SLIMTX8_PORT_STS_MASK			0x0080
 #define MADERA_SLIMTX8_PORT_STS_SHIFT			     7
@@ -6675,23 +5963,17 @@
 #define MADERA_SLIMTX1_PORT_STS_SHIFT			     0
 #define MADERA_SLIMTX1_PORT_STS_WIDTH			     1
 
-/*
- * R3584 (0xE00) - FX_Ctrl1
- */
+/* (0x0E00)  FX_Ctrl1 */
 #define MADERA_FX_RATE_MASK				0x7800
 #define MADERA_FX_RATE_SHIFT				    11
 #define MADERA_FX_RATE_WIDTH				     4
 
-/*
- * R3585 (0xE01) - FX_Ctrl2
- */
+/* (0x0E01)  FX_Ctrl2 */
 #define MADERA_FX_STS_MASK				0xFFF0
 #define MADERA_FX_STS_SHIFT				     4
 #define MADERA_FX_STS_WIDTH				    12
 
-/*
- * R3600 (0xE10) - EQ1_1
- */
+/* (0x0E10)  EQ1_1 */
 #define MADERA_EQ1_B1_GAIN_MASK				0xF800
 #define MADERA_EQ1_B1_GAIN_SHIFT			    11
 #define MADERA_EQ1_B1_GAIN_WIDTH			     5
@@ -6706,9 +5988,7 @@
 #define MADERA_EQ1_ENA_SHIFT				     0
 #define MADERA_EQ1_ENA_WIDTH				     1
 
-/*
- * R3601 (0xE11) - EQ1_2
- */
+/* (0x0E11)  EQ1_2 */
 #define MADERA_EQ1_B4_GAIN_MASK				0xF800
 #define MADERA_EQ1_B4_GAIN_SHIFT			    11
 #define MADERA_EQ1_B4_GAIN_WIDTH			     5
@@ -6720,142 +6000,102 @@
 #define MADERA_EQ1_B1_MODE_SHIFT			     0
 #define MADERA_EQ1_B1_MODE_WIDTH			     1
 
-/*
- * R3602 (0xE12) - EQ1_3
- */
+/* (0x0E12)  EQ1_3 */
 #define MADERA_EQ1_B1_A_MASK				0xFFFF
 #define MADERA_EQ1_B1_A_SHIFT				     0
 #define MADERA_EQ1_B1_A_WIDTH				    16
 
-/*
- * R3603 (0xE13) - EQ1_4
- */
+/* (0x0E13)  EQ1_4 */
 #define MADERA_EQ1_B1_B_MASK				0xFFFF
 #define MADERA_EQ1_B1_B_SHIFT				     0
 #define MADERA_EQ1_B1_B_WIDTH				    16
 
-/*
- * R3604 (0xE14) - EQ1_5
- */
+/* (0x0E14)  EQ1_5 */
 #define MADERA_EQ1_B1_PG_MASK				0xFFFF
 #define MADERA_EQ1_B1_PG_SHIFT				     0
 #define MADERA_EQ1_B1_PG_WIDTH				    16
 
-/*
- * R3605 (0xE15) - EQ1_6
- */
+/* (0x0E15)  EQ1_6 */
 #define MADERA_EQ1_B2_A_MASK				0xFFFF
 #define MADERA_EQ1_B2_A_SHIFT				     0
 #define MADERA_EQ1_B2_A_WIDTH				    16
 
-/*
- * R3606 (0xE16) - EQ1_7
- */
+/* (0x0E16)  EQ1_7 */
 #define MADERA_EQ1_B2_B_MASK				0xFFFF
 #define MADERA_EQ1_B2_B_SHIFT				     0
 #define MADERA_EQ1_B2_B_WIDTH				    16
 
-/*
- * R3607 (0xE17) - EQ1_8
- */
+/* (0x0E17)  EQ1_8 */
 #define MADERA_EQ1_B2_C_MASK				0xFFFF
 #define MADERA_EQ1_B2_C_SHIFT				     0
 #define MADERA_EQ1_B2_C_WIDTH				    16
 
-/*
- * R3608 (0xE18) - EQ1_9
- */
+/* (0x0E18)  EQ1_9 */
 #define MADERA_EQ1_B2_PG_MASK				0xFFFF
 #define MADERA_EQ1_B2_PG_SHIFT				     0
 #define MADERA_EQ1_B2_PG_WIDTH				    16
 
-/*
- * R3609 (0xE19) - EQ1_10
- */
+/* (0x0E19)  EQ1_10 */
 #define MADERA_EQ1_B3_A_MASK				0xFFFF
 #define MADERA_EQ1_B3_A_SHIFT				     0
 #define MADERA_EQ1_B3_A_WIDTH				    16
 
-/*
- * R3610 (0xE1A) - EQ1_11
- */
+/* (0x0E1A)  EQ1_11 */
 #define MADERA_EQ1_B3_B_MASK				0xFFFF
 #define MADERA_EQ1_B3_B_SHIFT				     0
 #define MADERA_EQ1_B3_B_WIDTH				    16
 
-/*
- * R3611 (0xE1B) - EQ1_12
- */
+/* (0x0E1B)  EQ1_12 */
 #define MADERA_EQ1_B3_C_MASK				0xFFFF
 #define MADERA_EQ1_B3_C_SHIFT				     0
 #define MADERA_EQ1_B3_C_WIDTH				    16
 
-/*
- * R3612 (0xE1C) - EQ1_13
- */
+/* (0x0E1C)  EQ1_13 */
 #define MADERA_EQ1_B3_PG_MASK				0xFFFF
 #define MADERA_EQ1_B3_PG_SHIFT				     0
 #define MADERA_EQ1_B3_PG_WIDTH				    16
 
-/*
- * R3613 (0xE1D) - EQ1_14
- */
+/* (0x0E1D)  EQ1_14 */
 #define MADERA_EQ1_B4_A_MASK				0xFFFF
 #define MADERA_EQ1_B4_A_SHIFT				     0
 #define MADERA_EQ1_B4_A_WIDTH				    16
 
-/*
- * R3614 (0xE1E) - EQ1_15
- */
+/* (0x0E1E)  EQ1_15 */
 #define MADERA_EQ1_B4_B_MASK				0xFFFF
 #define MADERA_EQ1_B4_B_SHIFT				     0
 #define MADERA_EQ1_B4_B_WIDTH				    16
 
-/*
- * R3615 (0xE1F) - EQ1_16
- */
+/* (0x0E1F)  EQ1_16 */
 #define MADERA_EQ1_B4_C_MASK				0xFFFF
 #define MADERA_EQ1_B4_C_SHIFT				     0
 #define MADERA_EQ1_B4_C_WIDTH				    16
 
-/*
- * R3616 (0xE20) - EQ1_17
- */
+/* (0x0E20)  EQ1_17 */
 #define MADERA_EQ1_B4_PG_MASK				0xFFFF
 #define MADERA_EQ1_B4_PG_SHIFT				     0
 #define MADERA_EQ1_B4_PG_WIDTH				    16
 
-/*
- * R3617 (0xE21) - EQ1_18
- */
+/* (0x0E21)  EQ1_18 */
 #define MADERA_EQ1_B5_A_MASK				0xFFFF
 #define MADERA_EQ1_B5_A_SHIFT				     0
 #define MADERA_EQ1_B5_A_WIDTH				    16
 
-/*
- * R3618 (0xE22) - EQ1_19
- */
+/* (0x0E22)  EQ1_19 */
 #define MADERA_EQ1_B5_B_MASK				0xFFFF
 #define MADERA_EQ1_B5_B_SHIFT				     0
 #define MADERA_EQ1_B5_B_WIDTH				    16
 
-/*
- * R3619 (0xE23) - EQ1_20
- */
+/* (0x0E23)  EQ1_20 */
 #define MADERA_EQ1_B5_PG_MASK				0xFFFF
 #define MADERA_EQ1_B5_PG_SHIFT				     0
 #define MADERA_EQ1_B5_PG_WIDTH				    16
 
-/*
- * R3620 (0xE24) - EQ1_21
- */
+/* (0x0E24)  EQ1_21 */
 #define MADERA_EQ1_B1_C_MASK				0xFFFF
 #define MADERA_EQ1_B1_C_SHIFT				     0
 #define MADERA_EQ1_B1_C_WIDTH				    16
 
-/*
- * R3622 (0xE26) - EQ2_1
- */
+/* (0x0E26)  EQ2_1 */
 #define MADERA_EQ2_B1_GAIN_MASK				0xF800
 #define MADERA_EQ2_B1_GAIN_SHIFT			    11
 #define MADERA_EQ2_B1_GAIN_WIDTH			     5
@@ -6870,9 +6110,7 @@
 #define MADERA_EQ2_ENA_SHIFT				     0
 #define MADERA_EQ2_ENA_WIDTH				     1
 
-/*
- * R3623 (0xE27) - EQ2_2
- */
+/* (0x0E27)  EQ2_2 */
 #define MADERA_EQ2_B4_GAIN_MASK				0xF800
 #define MADERA_EQ2_B4_GAIN_SHIFT			    11
 #define MADERA_EQ2_B4_GAIN_WIDTH			     5
@@ -6884,142 +6122,102 @@
 #define MADERA_EQ2_B1_MODE_SHIFT			     0
 #define MADERA_EQ2_B1_MODE_WIDTH			     1
 
-/*
- * R3624 (0xE28) - EQ2_3
- */
+/* (0x0E28)  EQ2_3 */
 #define MADERA_EQ2_B1_A_MASK				0xFFFF
 #define MADERA_EQ2_B1_A_SHIFT				     0
 #define MADERA_EQ2_B1_A_WIDTH				    16
 
-/*
- * R3625 (0xE29) - EQ2_4
- */
+/* (0x0E29)  EQ2_4 */
 #define MADERA_EQ2_B1_B_MASK				0xFFFF
 #define MADERA_EQ2_B1_B_SHIFT				     0
 #define MADERA_EQ2_B1_B_WIDTH				    16
 
-/*
- * R3626 (0xE2A) - EQ2_5
- */
+/* (0x0E2A)  EQ2_5 */
 #define MADERA_EQ2_B1_PG_MASK				0xFFFF
 #define MADERA_EQ2_B1_PG_SHIFT				     0
 #define MADERA_EQ2_B1_PG_WIDTH				    16
 
-/*
- * R3627 (0xE2B) - EQ2_6
- */
+/* (0x0E2B)  EQ2_6 */
 #define MADERA_EQ2_B2_A_MASK				0xFFFF
 #define MADERA_EQ2_B2_A_SHIFT				     0
 #define MADERA_EQ2_B2_A_WIDTH				    16
 
-/*
- * R3628 (0xE2C) - EQ2_7
- */
+/* (0x0E2C)  EQ2_7 */
 #define MADERA_EQ2_B2_B_MASK				0xFFFF
 #define MADERA_EQ2_B2_B_SHIFT				     0
 #define MADERA_EQ2_B2_B_WIDTH				    16
 
-/*
- * R3629 (0xE2D) - EQ2_8
- */
+/* (0x0E2D)  EQ2_8 */
 #define MADERA_EQ2_B2_C_MASK				0xFFFF
 #define MADERA_EQ2_B2_C_SHIFT				     0
 #define MADERA_EQ2_B2_C_WIDTH				    16
 
-/*
- * R3630 (0xE2E) - EQ2_9
- */
+/* (0x0E2E)  EQ2_9 */
 #define MADERA_EQ2_B2_PG_MASK				0xFFFF
 #define MADERA_EQ2_B2_PG_SHIFT				     0
 #define MADERA_EQ2_B2_PG_WIDTH				    16
 
-/*
- * R3631 (0xE2F) - EQ2_10
- */
+/* (0x0E2F)  EQ2_10 */
 #define MADERA_EQ2_B3_A_MASK				0xFFFF
 #define MADERA_EQ2_B3_A_SHIFT				     0
 #define MADERA_EQ2_B3_A_WIDTH				    16
 
-/*
- * R3632 (0xE30) - EQ2_11
- */
+/* (0x0E30)  EQ2_11 */
 #define MADERA_EQ2_B3_B_MASK				0xFFFF
 #define MADERA_EQ2_B3_B_SHIFT				     0
 #define MADERA_EQ2_B3_B_WIDTH				    16
 
-/*
- * R3633 (0xE31) - EQ2_12
- */
+/* (0x0E31)  EQ2_12 */
 #define MADERA_EQ2_B3_C_MASK				0xFFFF
 #define MADERA_EQ2_B3_C_SHIFT				     0
 #define MADERA_EQ2_B3_C_WIDTH				    16
 
-/*
- * R3634 (0xE32) - EQ2_13
- */
+/* (0x0E32)  EQ2_13 */
 #define MADERA_EQ2_B3_PG_MASK				0xFFFF
 #define MADERA_EQ2_B3_PG_SHIFT				     0
 #define MADERA_EQ2_B3_PG_WIDTH				    16
 
-/*
- * R3635 (0xE33) - EQ2_14
- */
+/* (0x0E33)  EQ2_14 */
 #define MADERA_EQ2_B4_A_MASK				0xFFFF
 #define MADERA_EQ2_B4_A_SHIFT				     0
 #define MADERA_EQ2_B4_A_WIDTH				    16
 
-/*
- * R3636 (0xE34) - EQ2_15
- */
+/* (0x0E34)  EQ2_15 */
 #define MADERA_EQ2_B4_B_MASK				0xFFFF
 #define MADERA_EQ2_B4_B_SHIFT				     0
 #define MADERA_EQ2_B4_B_WIDTH				    16
 
-/*
- * R3637 (0xE35) - EQ2_16
- */
+/* (0x0E35)  EQ2_16 */
 #define MADERA_EQ2_B4_C_MASK				0xFFFF
 #define MADERA_EQ2_B4_C_SHIFT				     0
 #define MADERA_EQ2_B4_C_WIDTH				    16
 
-/*
- * R3638 (0xE36) - EQ2_17
- */
+/* (0x0E36)  EQ2_17 */
 #define MADERA_EQ2_B4_PG_MASK				0xFFFF
 #define MADERA_EQ2_B4_PG_SHIFT				     0
 #define MADERA_EQ2_B4_PG_WIDTH				    16
 
-/*
- * R3639 (0xE37) - EQ2_18
- */
+/* (0x0E37)  EQ2_18 */
 #define MADERA_EQ2_B5_A_MASK				0xFFFF
 #define MADERA_EQ2_B5_A_SHIFT				     0
 #define MADERA_EQ2_B5_A_WIDTH				    16
 
-/*
- * R3640 (0xE38) - EQ2_19
- */
+/* (0x0E38)  EQ2_19 */
 #define MADERA_EQ2_B5_B_MASK				0xFFFF
 #define MADERA_EQ2_B5_B_SHIFT				     0
 #define MADERA_EQ2_B5_B_WIDTH				    16
 
-/*
- * R3641 (0xE39) - EQ2_20
- */
+/* (0x0E39)  EQ2_20 */
 #define MADERA_EQ2_B5_PG_MASK				0xFFFF
 #define MADERA_EQ2_B5_PG_SHIFT				     0
 #define MADERA_EQ2_B5_PG_WIDTH				    16
 
-/*
- * R3642 (0xE3A) - EQ2_21
- */
+/* (0x0E3A)  EQ2_21 */
 #define MADERA_EQ2_B1_C_MASK				0xFFFF
 #define MADERA_EQ2_B1_C_SHIFT				     0
 #define MADERA_EQ2_B1_C_WIDTH				    16
 
-/*
- * R3644 (0xE3C) - EQ3_1
- */
+/* (0x0E3C)  EQ3_1 */
 #define MADERA_EQ3_B1_GAIN_MASK				0xF800
 #define MADERA_EQ3_B1_GAIN_SHIFT			    11
 #define MADERA_EQ3_B1_GAIN_WIDTH			     5
@@ -7034,9 +6232,7 @@
 #define MADERA_EQ3_ENA_SHIFT				     0
 #define MADERA_EQ3_ENA_WIDTH				     1
 
-/*
- * R3645 (0xE3D) - EQ3_2
- */
+/* (0x0E3D)  EQ3_2 */
 #define MADERA_EQ3_B4_GAIN_MASK				0xF800
 #define MADERA_EQ3_B4_GAIN_SHIFT			    11
 #define MADERA_EQ3_B4_GAIN_WIDTH			     5
@@ -7048,142 +6244,102 @@
 #define MADERA_EQ3_B1_MODE_SHIFT			     0
 #define MADERA_EQ3_B1_MODE_WIDTH			     1
 
-/*
- * R3646 (0xE3E) - EQ3_3
- */
+/* (0x0E3E)  EQ3_3 */
 #define MADERA_EQ3_B1_A_MASK				0xFFFF
 #define MADERA_EQ3_B1_A_SHIFT				     0
 #define MADERA_EQ3_B1_A_WIDTH				    16
 
-/*
- * R3647 (0xE3F) - EQ3_4
- */
+/* (0x0E3F)  EQ3_4 */
 #define MADERA_EQ3_B1_B_MASK				0xFFFF
 #define MADERA_EQ3_B1_B_SHIFT				     0
 #define MADERA_EQ3_B1_B_WIDTH				    16
 
-/*
- * R3648 (0xE40) - EQ3_5
- */
+/* (0x0E40)  EQ3_5 */
 #define MADERA_EQ3_B1_PG_MASK				0xFFFF
 #define MADERA_EQ3_B1_PG_SHIFT				     0
 #define MADERA_EQ3_B1_PG_WIDTH				    16
 
-/*
- * R3649 (0xE41) - EQ3_6
- */
+/* (0x0E41)  EQ3_6 */
 #define MADERA_EQ3_B2_A_MASK				0xFFFF
 #define MADERA_EQ3_B2_A_SHIFT				     0
 #define MADERA_EQ3_B2_A_WIDTH				    16
 
-/*
- * R3650 (0xE42) - EQ3_7
- */
+/* (0x0E42)  EQ3_7 */
 #define MADERA_EQ3_B2_B_MASK				0xFFFF
 #define MADERA_EQ3_B2_B_SHIFT				     0
 #define MADERA_EQ3_B2_B_WIDTH				    16
 
-/*
- * R3651 (0xE43) - EQ3_8
- */
+/* (0x0E43)  EQ3_8 */
 #define MADERA_EQ3_B2_C_MASK				0xFFFF
 #define MADERA_EQ3_B2_C_SHIFT				     0
 #define MADERA_EQ3_B2_C_WIDTH				    16
 
-/*
- * R3652 (0xE44) - EQ3_9
- */
+/* (0x0E44)  EQ3_9 */
 #define MADERA_EQ3_B2_PG_MASK				0xFFFF
 #define MADERA_EQ3_B2_PG_SHIFT				     0
 #define MADERA_EQ3_B2_PG_WIDTH				    16
 
-/*
- * R3653 (0xE45) - EQ3_10
- */
+/* (0x0E45)  EQ3_10 */
 #define MADERA_EQ3_B3_A_MASK				0xFFFF
 #define MADERA_EQ3_B3_A_SHIFT				     0
 #define MADERA_EQ3_B3_A_WIDTH				    16
 
-/*
- * R3654 (0xE46) - EQ3_11
- */
+/* (0x0E46)  EQ3_11 */
 #define MADERA_EQ3_B3_B_MASK				0xFFFF
 #define MADERA_EQ3_B3_B_SHIFT				     0
 #define MADERA_EQ3_B3_B_WIDTH				    16
 
-/*
- * R3655 (0xE47) - EQ3_12
- */
+/* (0x0E47)  EQ3_12 */
 #define MADERA_EQ3_B3_C_MASK				0xFFFF
 #define MADERA_EQ3_B3_C_SHIFT				     0
 #define MADERA_EQ3_B3_C_WIDTH				    16
 
-/*
- * R3656 (0xE48) - EQ3_13
- */
+/* (0x0E48)  EQ3_13 */
 #define MADERA_EQ3_B3_PG_MASK				0xFFFF
 #define MADERA_EQ3_B3_PG_SHIFT				     0
 #define MADERA_EQ3_B3_PG_WIDTH				    16
 
-/*
- * R3657 (0xE49) - EQ3_14
- */
+/* (0x0E49)  EQ3_14 */
 #define MADERA_EQ3_B4_A_MASK				0xFFFF
 #define MADERA_EQ3_B4_A_SHIFT				     0
 #define MADERA_EQ3_B4_A_WIDTH				    16
 
-/*
- * R3658 (0xE4A) - EQ3_15
- */
+/* (0x0E4A)  EQ3_15 */
 #define MADERA_EQ3_B4_B_MASK				0xFFFF
 #define MADERA_EQ3_B4_B_SHIFT				     0
 #define MADERA_EQ3_B4_B_WIDTH				    16
 
-/*
- * R3659 (0xE4B) - EQ3_16
- */
+/* (0x0E4B)  EQ3_16 */
 #define MADERA_EQ3_B4_C_MASK				0xFFFF
 #define MADERA_EQ3_B4_C_SHIFT				     0
 #define MADERA_EQ3_B4_C_WIDTH				    16
 
-/*
- * R3660 (0xE4C) - EQ3_17
- */
+/* (0x0E4C)  EQ3_17 */
 #define MADERA_EQ3_B4_PG_MASK				0xFFFF
 #define MADERA_EQ3_B4_PG_SHIFT				     0
 #define MADERA_EQ3_B4_PG_WIDTH				    16
 
-/*
- * R3661 (0xE4D) - EQ3_18
- */
+/* (0x0E4D)  EQ3_18 */
 #define MADERA_EQ3_B5_A_MASK				0xFFFF
 #define MADERA_EQ3_B5_A_SHIFT				     0
 #define MADERA_EQ3_B5_A_WIDTH				    16
 
-/*
- * R3662 (0xE4E) - EQ3_19
- */
+/* (0x0E4E)  EQ3_19 */
 #define MADERA_EQ3_B5_B_MASK				0xFFFF
 #define MADERA_EQ3_B5_B_SHIFT				     0
 #define MADERA_EQ3_B5_B_WIDTH				    16
 
-/*
- * R3663 (0xE4F) - EQ3_20
- */
+/* (0x0E4F)  EQ3_20 */
 #define MADERA_EQ3_B5_PG_MASK				0xFFFF
 #define MADERA_EQ3_B5_PG_SHIFT				     0
 #define MADERA_EQ3_B5_PG_WIDTH				    16
 
-/*
- * R3664 (0xE50) - EQ3_21
- */
+/* (0x0E50)  EQ3_21 */
 #define MADERA_EQ3_B1_C_MASK				0xFFFF
 #define MADERA_EQ3_B1_C_SHIFT				     0
 #define MADERA_EQ3_B1_C_WIDTH				    16
 
-/*
- * R3666 (0xE52) - EQ4_1
- */
+/* (0x0E52)  EQ4_1 */
 #define MADERA_EQ4_B1_GAIN_MASK				0xF800
 #define MADERA_EQ4_B1_GAIN_SHIFT			    11
 #define MADERA_EQ4_B1_GAIN_WIDTH			     5
@@ -7198,9 +6354,7 @@
 #define MADERA_EQ4_ENA_SHIFT				     0
 #define MADERA_EQ4_ENA_WIDTH				     1
 
-/*
- * R3667 (0xE53) - EQ4_2
- */
+/* (0x0E53)  EQ4_2 */
 #define MADERA_EQ4_B4_GAIN_MASK				0xF800
 #define MADERA_EQ4_B4_GAIN_SHIFT			    11
 #define MADERA_EQ4_B4_GAIN_WIDTH			     5
@@ -7212,142 +6366,102 @@
 #define MADERA_EQ4_B1_MODE_SHIFT			     0
 #define MADERA_EQ4_B1_MODE_WIDTH			     1
 
-/*
- * R3668 (0xE54) - EQ4_3
- */
+/* (0x0E54)  EQ4_3 */
 #define MADERA_EQ4_B1_A_MASK				0xFFFF
 #define MADERA_EQ4_B1_A_SHIFT				     0
 #define MADERA_EQ4_B1_A_WIDTH				    16
 
-/*
- * R3669 (0xE55) - EQ4_4
- */
+/* (0x0E55)  EQ4_4 */
 #define MADERA_EQ4_B1_B_MASK				0xFFFF
 #define MADERA_EQ4_B1_B_SHIFT				     0
 #define MADERA_EQ4_B1_B_WIDTH				    16
 
-/*
- * R3670 (0xE56) - EQ4_5
- */
+/* (0x0E56)  EQ4_5 */
 #define MADERA_EQ4_B1_PG_MASK				0xFFFF
 #define MADERA_EQ4_B1_PG_SHIFT				     0
 #define MADERA_EQ4_B1_PG_WIDTH				    16
 
-/*
- * R3671 (0xE57) - EQ4_6
- */
+/* (0x0E57)  EQ4_6 */
 #define MADERA_EQ4_B2_A_MASK				0xFFFF
 #define MADERA_EQ4_B2_A_SHIFT				     0
 #define MADERA_EQ4_B2_A_WIDTH				    16
 
-/*
- * R3672 (0xE58) - EQ4_7
- */
+/* (0x0E58)  EQ4_7 */
 #define MADERA_EQ4_B2_B_MASK				0xFFFF
 #define MADERA_EQ4_B2_B_SHIFT				     0
 #define MADERA_EQ4_B2_B_WIDTH				    16
 
-/*
- * R3673 (0xE59) - EQ4_8
- */
+/* (0x0E59)  EQ4_8 */
 #define MADERA_EQ4_B2_C_MASK				0xFFFF
 #define MADERA_EQ4_B2_C_SHIFT				     0
 #define MADERA_EQ4_B2_C_WIDTH				    16
 
-/*
- * R3674 (0xE5A) - EQ4_9
- */
+/* (0x0E5A)  EQ4_9 */
 #define MADERA_EQ4_B2_PG_MASK				0xFFFF
 #define MADERA_EQ4_B2_PG_SHIFT				     0
 #define MADERA_EQ4_B2_PG_WIDTH				    16
 
-/*
- * R3675 (0xE5B) - EQ4_10
- */
+/* (0x0E5B)  EQ4_10 */
 #define MADERA_EQ4_B3_A_MASK				0xFFFF
 #define MADERA_EQ4_B3_A_SHIFT				     0
 #define MADERA_EQ4_B3_A_WIDTH				    16
 
-/*
- * R3676 (0xE5C) - EQ4_11
- */
+/* (0x0E5C)  EQ4_11 */
 #define MADERA_EQ4_B3_B_MASK				0xFFFF
 #define MADERA_EQ4_B3_B_SHIFT				     0
 #define MADERA_EQ4_B3_B_WIDTH				    16
 
-/*
- * R3677 (0xE5D) - EQ4_12
- */
+/* (0x0E5D)  EQ4_12 */
 #define MADERA_EQ4_B3_C_MASK				0xFFFF
 #define MADERA_EQ4_B3_C_SHIFT				     0
 #define MADERA_EQ4_B3_C_WIDTH				    16
 
-/*
- * R3678 (0xE5E) - EQ4_13
- */
+/* (0x0E5E)  EQ4_13 */
 #define MADERA_EQ4_B3_PG_MASK				0xFFFF
 #define MADERA_EQ4_B3_PG_SHIFT				     0
 #define MADERA_EQ4_B3_PG_WIDTH				    16
 
-/*
- * R3679 (0xE5F) - EQ4_14
- */
+/* (0x0E5F)  EQ4_14 */
 #define MADERA_EQ4_B4_A_MASK				0xFFFF
 #define MADERA_EQ4_B4_A_SHIFT				     0
 #define MADERA_EQ4_B4_A_WIDTH				    16
 
-/*
- * R3680 (0xE60) - EQ4_15
- */
+/* (0x0E60)  EQ4_15 */
 #define MADERA_EQ4_B4_B_MASK				0xFFFF
 #define MADERA_EQ4_B4_B_SHIFT				     0
 #define MADERA_EQ4_B4_B_WIDTH				    16
 
-/*
- * R3681 (0xE61) - EQ4_16
- */
+/* (0x0E61)  EQ4_16 */
 #define MADERA_EQ4_B4_C_MASK				0xFFFF
 #define MADERA_EQ4_B4_C_SHIFT				     0
 #define MADERA_EQ4_B4_C_WIDTH				    16
 
-/*
- * R3682 (0xE62) - EQ4_17
- */
+/* (0x0E62)  EQ4_17 */
 #define MADERA_EQ4_B4_PG_MASK				0xFFFF
 #define MADERA_EQ4_B4_PG_SHIFT				     0
 #define MADERA_EQ4_B4_PG_WIDTH				    16
 
-/*
- * R3683 (0xE63) - EQ4_18
- */
+/* (0x0E63)  EQ4_18 */
 #define MADERA_EQ4_B5_A_MASK				0xFFFF
 #define MADERA_EQ4_B5_A_SHIFT				     0
 #define MADERA_EQ4_B5_A_WIDTH				    16
 
-/*
- * R3684 (0xE64) - EQ4_19
- */
+/* (0x0E64)  EQ4_19 */
 #define MADERA_EQ4_B5_B_MASK				0xFFFF
 #define MADERA_EQ4_B5_B_SHIFT				     0
 #define MADERA_EQ4_B5_B_WIDTH				    16
 
-/*
- * R3685 (0xE65) - EQ4_20
- */
+/* (0x0E65)  EQ4_20 */
 #define MADERA_EQ4_B5_PG_MASK				0xFFFF
 #define MADERA_EQ4_B5_PG_SHIFT				     0
 #define MADERA_EQ4_B5_PG_WIDTH				    16
 
-/*
- * R3686 (0xE66) - EQ4_21
- */
+/* (0x0E66)  EQ4_21 */
 #define MADERA_EQ4_B1_C_MASK				0xFFFF
 #define MADERA_EQ4_B1_C_SHIFT				     0
 #define MADERA_EQ4_B1_C_WIDTH				    16
 
-/*
- * R3712 (0xE80) - DRC1 ctrl1
- */
+/* (0x0E80)  DRC1_ctrl1 */
 #define MADERA_DRC1_SIG_DET_RMS_MASK			0xF800
 #define MADERA_DRC1_SIG_DET_RMS_SHIFT			    11
 #define MADERA_DRC1_SIG_DET_RMS_WIDTH			     5
@@ -7387,9 +6501,7 @@
 #define MADERA_DRC1R_ENA_SHIFT				     0
 #define MADERA_DRC1R_ENA_WIDTH				     1
 
-/*
- * R3713 (0xE81) - DRC1 ctrl2
- */
+/* (0x0E81)  DRC1_ctrl2 */
 #define MADERA_DRC1_ATK_MASK				0x1E00
 #define MADERA_DRC1_ATK_SHIFT				     9
 #define MADERA_DRC1_ATK_WIDTH				     4
@@ -7403,9 +6515,7 @@
 #define MADERA_DRC1_MAXGAIN_SHIFT			     0
 #define MADERA_DRC1_MAXGAIN_WIDTH			     2
 
-/*
- * R3714 (0xE82) - DRC1 ctrl3
- */
+/* (0x0E82)  DRC1_ctrl3 */
 #define MADERA_DRC1_NG_MINGAIN_MASK			0xF000
 #define MADERA_DRC1_NG_MINGAIN_SHIFT			    12
 #define MADERA_DRC1_NG_MINGAIN_WIDTH			     4
@@ -7425,9 +6535,7 @@
 #define MADERA_DRC1_LO_COMP_SHIFT			     0
 #define MADERA_DRC1_LO_COMP_WIDTH			     3
 
-/*
- * R3715 (0xE83) - DRC1 ctrl4
- */
+/* (0x0E83)  DRC1_ctrl4 */
 #define MADERA_DRC1_KNEE_IP_MASK			0x07E0
 #define MADERA_DRC1_KNEE_IP_SHIFT			     5
 #define MADERA_DRC1_KNEE_IP_WIDTH			     6
@@ -7435,9 +6543,7 @@
 #define MADERA_DRC1_KNEE_OP_SHIFT			     0
 #define MADERA_DRC1_KNEE_OP_WIDTH			     5
 
-/*
- * R3716 (0xE84) - DRC1 ctrl5
- */
+/* (0x0E84)  DRC1_ctrl5 */
 #define MADERA_DRC1_KNEE2_IP_MASK			0x03E0
 #define MADERA_DRC1_KNEE2_IP_SHIFT			     5
 #define MADERA_DRC1_KNEE2_IP_WIDTH			     5
@@ -7445,9 +6551,7 @@
 #define MADERA_DRC1_KNEE2_OP_SHIFT			     0
 #define MADERA_DRC1_KNEE2_OP_WIDTH			     5
 
-/*
- * R3720 (0xE88) - DRC2 ctrl1
- */
+/* (0x0E88)  DRC2_ctrl1 */
 #define MADERA_DRC2_SIG_DET_RMS_MASK			0xF800
 #define MADERA_DRC2_SIG_DET_RMS_SHIFT			    11
 #define MADERA_DRC2_SIG_DET_RMS_WIDTH			     5
@@ -7487,9 +6591,7 @@
 #define MADERA_DRC2R_ENA_SHIFT				     0
 #define MADERA_DRC2R_ENA_WIDTH				     1
 
-/*
- * R3721 (0xE89) - DRC2 ctrl2
- */
+/* (0x0E89)  DRC2_ctrl2 */
 #define MADERA_DRC2_ATK_MASK				0x1E00
 #define MADERA_DRC2_ATK_SHIFT				     9
 #define MADERA_DRC2_ATK_WIDTH				     4
@@ -7503,9 +6605,7 @@
 #define MADERA_DRC2_MAXGAIN_SHIFT			     0
 #define MADERA_DRC2_MAXGAIN_WIDTH			     2
 
-/*
- * R3722 (0xE8A) - DRC2 ctrl3
- */
+/* (0x0E8A)  DRC2_ctrl3 */
 #define MADERA_DRC2_NG_MINGAIN_MASK			0xF000
 #define MADERA_DRC2_NG_MINGAIN_SHIFT			    12
 #define MADERA_DRC2_NG_MINGAIN_WIDTH			     4
@@ -7525,9 +6625,7 @@
 #define MADERA_DRC2_LO_COMP_SHIFT			     0
 #define MADERA_DRC2_LO_COMP_WIDTH			     3
 
-/*
- * R3723 (0xE8B) - DRC2 ctrl4
- */
+/* (0x0E8B)  DRC2_ctrl4 */
 #define MADERA_DRC2_KNEE_IP_MASK			0x07E0
 #define MADERA_DRC2_KNEE_IP_SHIFT			     5
 #define MADERA_DRC2_KNEE_IP_WIDTH			     6
@@ -7535,9 +6633,7 @@
 #define MADERA_DRC2_KNEE_OP_SHIFT			     0
 #define MADERA_DRC2_KNEE_OP_WIDTH			     5
 
-/*
- * R3724 (0xE8C) - DRC2 ctrl5
- */
+/* (0x0E8C)  DRC2_ctrl5 */
 #define MADERA_DRC2_KNEE2_IP_MASK			0x03E0
 #define MADERA_DRC2_KNEE2_IP_SHIFT			     5
 #define MADERA_DRC2_KNEE2_IP_WIDTH			     5
@@ -7545,9 +6641,7 @@
 #define MADERA_DRC2_KNEE2_OP_SHIFT			     0
 #define MADERA_DRC2_KNEE2_OP_WIDTH			     5
 
-/*
- * R3776 (0xEC0) - HPLPF1_1
- */
+/* (0x0EC0)  HPLPF1_1 */
 #define MADERA_LHPF1_MODE				0x0002
 #define MADERA_LHPF1_MODE_MASK				0x0002
 #define MADERA_LHPF1_MODE_SHIFT				     1
@@ -7557,16 +6651,12 @@
 #define MADERA_LHPF1_ENA_SHIFT				     0
 #define MADERA_LHPF1_ENA_WIDTH				     1
 
-/*
- * R3777 (0xEC1) - HPLPF1_2
- */
+/* (0x0EC1)  HPLPF1_2 */
 #define MADERA_LHPF1_COEFF_MASK				0xFFFF
 #define MADERA_LHPF1_COEFF_SHIFT			     0
 #define MADERA_LHPF1_COEFF_WIDTH			    16
 
-/*
- * R3780 (0xEC4) - HPLPF2_1
- */
+/* (0x0EC4)  HPLPF2_1 */
 #define MADERA_LHPF2_MODE				0x0002
 #define MADERA_LHPF2_MODE_MASK				0x0002
 #define MADERA_LHPF2_MODE_SHIFT				     1
@@ -7576,16 +6666,12 @@
 #define MADERA_LHPF2_ENA_SHIFT				     0
 #define MADERA_LHPF2_ENA_WIDTH				     1
 
-/*
- * R3781 (0xEC5) - HPLPF2_2
- */
+/* (0x0EC5)  HPLPF2_2 */
 #define MADERA_LHPF2_COEFF_MASK				0xFFFF
 #define MADERA_LHPF2_COEFF_SHIFT			     0
 #define MADERA_LHPF2_COEFF_WIDTH			    16
 
-/*
- * R3784 (0xEC8) - HPLPF3_1
- */
+/* (0x0EC8)  HPLPF3_1 */
 #define MADERA_LHPF3_MODE				0x0002
 #define MADERA_LHPF3_MODE_MASK				0x0002
 #define MADERA_LHPF3_MODE_SHIFT				     1
@@ -7595,16 +6681,12 @@
 #define MADERA_LHPF3_ENA_SHIFT				     0
 #define MADERA_LHPF3_ENA_WIDTH				     1
 
-/*
- * R3785 (0xEC9) - HPLPF3_2
- */
+/* (0x0EC9)  HPLPF3_2 */
 #define MADERA_LHPF3_COEFF_MASK				0xFFFF
 #define MADERA_LHPF3_COEFF_SHIFT			     0
 #define MADERA_LHPF3_COEFF_WIDTH			    16
 
-/*
- * R3788 (0xECC) - HPLPF4_1
- */
+/* (0x0ECC)  HPLPF4_1 */
 #define MADERA_LHPF4_MODE				0x0002
 #define MADERA_LHPF4_MODE_MASK				0x0002
 #define MADERA_LHPF4_MODE_SHIFT				     1
@@ -7614,16 +6696,12 @@
 #define MADERA_LHPF4_ENA_SHIFT				     0
 #define MADERA_LHPF4_ENA_WIDTH				     1
 
-/*
- * R3789 (0xECD) - HPLPF4_2
- */
+/* (0x0ECD)  HPLPF4_2 */
 #define MADERA_LHPF4_COEFF_MASK				0xFFFF
 #define MADERA_LHPF4_COEFF_SHIFT			     0
 #define MADERA_LHPF4_COEFF_WIDTH			    16
 
-/*
- * R3808 (0xED0) - ASRC2_ENABLE
- */
+/* (0x0ED0)  ASRC2_ENABLE */
 #define MADERA_ASRC2_IN2L_ENA				0x0008
 #define MADERA_ASRC2_IN2L_ENA_MASK			0x0008
 #define MADERA_ASRC2_IN2L_ENA_SHIFT			     3
@@ -7641,23 +6719,17 @@
 #define MADERA_ASRC2_IN1R_ENA_SHIFT			     0
 #define MADERA_ASRC2_IN1R_ENA_WIDTH			     1
 
-/*
- * R3810 (0xED2) - ASRC2_RATE1
- */
+/* (0x0ED2)  ASRC2_RATE1 */
 #define MADERA_ASRC2_RATE1_MASK				0x7800
 #define MADERA_ASRC2_RATE1_SHIFT			    11
 #define MADERA_ASRC2_RATE1_WIDTH			     4
 
-/*
- * R3811 (0xED3) - ASRC2_RATE2
- */
+/* (0x0ED3)  ASRC2_RATE2 */
 #define MADERA_ASRC2_RATE2_MASK				0x7800
 #define MADERA_ASRC2_RATE2_SHIFT			    11
 #define MADERA_ASRC2_RATE2_WIDTH			     4
 
-/*
- * R3808 (0xEE0) - ASRC1_ENABLE
- */
+/* (0x0EE0)  ASRC1_ENABLE */
 #define MADERA_ASRC1_IN2L_ENA				0x0008
 #define MADERA_ASRC1_IN2L_ENA_MASK			0x0008
 #define MADERA_ASRC1_IN2L_ENA_SHIFT			     3
@@ -7675,23 +6747,17 @@
 #define MADERA_ASRC1_IN1R_ENA_SHIFT			     0
 #define MADERA_ASRC1_IN1R_ENA_WIDTH			     1
 
-/*
- * R3810 (0xEE2) - ASRC1_RATE1
- */
+/* (0x0EE2)  ASRC1_RATE1 */
 #define MADERA_ASRC1_RATE1_MASK				0x7800
 #define MADERA_ASRC1_RATE1_SHIFT			    11
 #define MADERA_ASRC1_RATE1_WIDTH			     4
 
-/*
- * R3811 (0xEE3) - ASRC1_RATE2
- */
+/* (0x0EE3)  ASRC1_RATE2 */
 #define MADERA_ASRC1_RATE2_MASK				0x7800
 #define MADERA_ASRC1_RATE2_SHIFT			    11
 #define MADERA_ASRC1_RATE2_WIDTH			     4
 
-/*
- * R3824 (0xEF0) - ISRC1 CTRL 1
- */
+/* (0x0EF0) - ISRC1 CTRL 1 */
 #define MADERA_ISRC1_FSH_MASK				0x7800
 #define MADERA_ISRC1_FSH_SHIFT				    11
 #define MADERA_ISRC1_FSH_WIDTH				     4
@@ -7699,16 +6765,12 @@
 #define MADERA_ISRC1_CLK_SEL_SHIFT			     8
 #define MADERA_ISRC1_CLK_SEL_WIDTH			     3
 
-/*
- * R3825 (0xEF1) - ISRC` CTRL 2
- */
+/* (0x0EF1)  ISRC1_CTRL_2 */
 #define MADERA_ISRC1_FSL_MASK				0x7800
 #define MADERA_ISRC1_FSL_SHIFT				    11
 #define MADERA_ISRC1_FSL_WIDTH				     4
 
-/*
- * R3826 (0xEF2) - ISRC1 CTRL 3
- */
+/* (0x0EF2)  ISRC1_CTRL_3 */
 #define MADERA_ISRC1_INT0_ENA				0x8000
 #define MADERA_ISRC1_INT0_ENA_MASK			0x8000
 #define MADERA_ISRC1_INT0_ENA_SHIFT			    15
@@ -7746,9 +6808,7 @@
 #define MADERA_ISRC1_NOTCH_ENA_SHIFT			     0
 #define MADERA_ISRC1_NOTCH_ENA_WIDTH			     1
 
-/*
- * R3827 (0xEF3) - ISRC2 CTRL 1
- */
+/* (0x0EF3)  ISRC2_CTRL_1 */
 #define MADERA_ISRC2_FSH_MASK				0x7800
 #define MADERA_ISRC2_FSH_SHIFT				    11
 #define MADERA_ISRC2_FSH_WIDTH				     4
@@ -7756,16 +6816,12 @@
 #define MADERA_ISRC2_CLK_SEL_SHIFT			     8
 #define MADERA_ISRC2_CLK_SEL_WIDTH			     3
 
-/*
- * R3828 (0xEF4) - ISRC2 CTRL 2
- */
+/* (0x0EF4)  ISRC2_CTRL_2 */
 #define MADERA_ISRC2_FSL_MASK				0x7800
 #define MADERA_ISRC2_FSL_SHIFT				    11
 #define MADERA_ISRC2_FSL_WIDTH				     4
 
-/*
- * R3829 (0xEF5) - ISRC2 CTRL 3
- */
+/* (0x0EF5)  ISRC2_CTRL_3 */
 #define MADERA_ISRC2_INT0_ENA				0x8000
 #define MADERA_ISRC2_INT0_ENA_MASK			0x8000
 #define MADERA_ISRC2_INT0_ENA_SHIFT			    15
@@ -7803,9 +6859,7 @@
 #define MADERA_ISRC2_NOTCH_ENA_SHIFT			     0
 #define MADERA_ISRC2_NOTCH_ENA_WIDTH			     1
 
-/*
- * R3830 (0xEF6) - ISRC3 CTRL 1
- */
+/* (0x0EF6)  ISRC3_CTRL_1 */
 #define MADERA_ISRC3_FSH_MASK				0x7800
 #define MADERA_ISRC3_FSH_SHIFT				    11
 #define MADERA_ISRC3_FSH_WIDTH				     4
@@ -7813,16 +6867,12 @@
 #define MADERA_ISRC3_CLK_SEL_SHIFT			     8
 #define MADERA_ISRC3_CLK_SEL_WIDTH			     3
 
-/*
- * R3831 (0xEF7) - ISRC3 CTRL 2
- */
+/* (0x0EF7)  ISRC3_CTRL_2 */
 #define MADERA_ISRC3_FSL_MASK				0x7800
 #define MADERA_ISRC3_FSL_SHIFT				    11
 #define MADERA_ISRC3_FSL_WIDTH				     4
 
-/*
- * R3832 (0xEF8) - ISRC3 CTRL 3
- */
+/* (0x0EF8)  ISRC3_CTRL_3 */
 #define MADERA_ISRC3_INT0_ENA				0x8000
 #define MADERA_ISRC3_INT0_ENA_MASK			0x8000
 #define MADERA_ISRC3_INT0_ENA_SHIFT			    15
@@ -7860,9 +6910,7 @@
 #define MADERA_ISRC3_NOTCH_ENA_SHIFT			     0
 #define MADERA_ISRC3_NOTCH_ENA_WIDTH			     1
 
-/*
- * R3833 (0xEF9) - ISRC4 CTRL 1
- */
+/* (0x0EF9)  ISRC4_CTRL_1 */
 #define MADERA_ISRC4_FSH_MASK				0x7800
 #define MADERA_ISRC4_FSH_SHIFT				    11
 #define MADERA_ISRC4_FSH_WIDTH				     4
@@ -7870,16 +6918,12 @@
 #define MADERA_ISRC4_CLK_SEL_SHIFT			     8
 #define MADERA_ISRC4_CLK_SEL_WIDTH			     3
 
-/*
- * R3834 (0xEFA) - ISRC4 CTRL 2
- */
+/* (0x0EFA)  ISRC4_CTRL_2 */
 #define MADERA_ISRC4_FSL_MASK				0x7800
 #define MADERA_ISRC4_FSL_SHIFT				    11
 #define MADERA_ISRC4_FSL_WIDTH				     4
 
-/*
- * R3835 (0xEFB) - ISRC4 CTRL 3
- */
+/* (0x0EFB)  ISRC4_CTRL_3 */
 #define MADERA_ISRC4_INT0_ENA				0x8000
 #define MADERA_ISRC4_INT0_ENA_MASK			0x8000
 #define MADERA_ISRC4_INT0_ENA_SHIFT			    15
@@ -7917,9 +6961,7 @@
 #define MADERA_ISRC4_NOTCH_ENA_SHIFT			     0
 #define MADERA_ISRC4_NOTCH_ENA_WIDTH			     1
 
-/*
- * R3840 (0xF00) - Clock Control
- */
+/* (0x0F00)  Clock_Control */
 #define MADERA_EXT_NG_SEL_CLR				0x0080
 #define MADERA_EXT_NG_SEL_CLR_MASK			0x0080
 #define MADERA_EXT_NG_SEL_CLR_SHIFT			     7
@@ -7953,9 +6995,7 @@
 #define MADERA_CLK_L_ENA_SET_SHIFT			     0
 #define MADERA_CLK_L_ENA_SET_WIDTH			     1
 
-/*
- * R3841 (0xF01) - ANC SRC
- */
+/* (0x0F01)  ANC_SRC */
 #define MADERA_IN_RXANCR_SEL_MASK			0x0070
 #define MADERA_IN_RXANCR_SEL_SHIFT			     4
 #define MADERA_IN_RXANCR_SEL_WIDTH			     3
@@ -7963,23 +7003,17 @@
 #define MADERA_IN_RXANCL_SEL_SHIFT			     0
 #define MADERA_IN_RXANCL_SEL_WIDTH			     3
 
-/*
- * R3863 (0xF17) - FCL ADC Reformatter Control
- */
+/* (0x0F17)  FCL_ADC_reformatter_control */
 #define MADERA_FCL_MIC_MODE_SEL				0x000C
 #define MADERA_FCL_MIC_MODE_SEL_SHIFT			     2
 #define MADERA_FCL_MIC_MODE_SEL_WIDTH			     2
 
-/*
- * R3955 (0xF73) - FCR ADC Reformatter Control
- */
+/* (0x0F73)  FCR_ADC_reformatter_control */
 #define MADERA_FCR_MIC_MODE_SEL				0x000C
 #define MADERA_FCR_MIC_MODE_SEL_SHIFT			     2
 #define MADERA_FCR_MIC_MODE_SEL_WIDTH			     2
 
-/*
- * R1675 (0x1480) - DFC1_CTRL
- */
+/* (0x1480)  DFC1_CTRL_W0 */
 #define MADERA_DFC1_RATE				0x003C
 #define MADERA_DFC1_RATE_MASK				0x003C
 #define MADERA_DFC1_RATE_SHIFT				     2
@@ -7993,9 +7027,7 @@
 #define MADERA_DFC1_ENA_SHIFT				     0
 #define MADERA_DFC1_ENA_WIDTH				     1
 
-/*
- * R1677 (0x1482) - DFC1_RX
- */
+/* (0x1482)  DFC1_RX_W0 */
 #define MADERA_DFC1_RX_DATA_WIDTH			0x1F00
 #define MADERA_DFC1_RX_DATA_WIDTH_MASK			0x1F00
 #define MADERA_DFC1_RX_DATA_WIDTH_SHIFT			     8
@@ -8005,9 +7037,7 @@
 #define MADERA_DFC1_RX_DATA_TYPE_SHIFT			     0
 #define MADERA_DFC1_RX_DATA_TYPE_WIDTH			     3
 
-/*
- * R1679 (0x1484) - DFC1_TX
- */
+/* (0x1484)  DFC1_TX_W0 */
 #define MADERA_DFC1_TX_DATA_WIDTH			0x1F00
 #define MADERA_DFC1_TX_DATA_WIDTH_MASK			0x1F00
 #define MADERA_DFC1_TX_DATA_WIDTH_SHIFT			     8
@@ -8017,57 +7047,39 @@
 #define MADERA_DFC1_TX_DATA_TYPE_SHIFT			     0
 #define MADERA_DFC1_TX_DATA_TYPE_WIDTH			     3
 
-/*
- * R5632 (0x1600) - ADSP2_IRQ0
- */
+/* (0x1600)  ADSP2_IRQ0 */
 #define MADERA_DSP_IRQ1					0x0001
 #define MADERA_DSP_IRQ2					0x0002
 
-/*
- * R5633 (0x1601) - ADSP2_IRQ1
- */
+/* (0x1601)  ADSP2_IRQ1 */
 #define MADERA_DSP_IRQ3					0x0001
 #define MADERA_DSP_IRQ4					0x0002
 
-/*
- * R5634 (0x1602) - ADSP2_IRQ2
- */
+/* (0x1602)  ADSP2_IRQ2 */
 #define MADERA_DSP_IRQ5					0x0001
 #define MADERA_DSP_IRQ6					0x0002
 
-/*
- * R5635 (0x1603) - ADSP2_IRQ3
- */
+/* (0x1603)  ADSP2_IRQ3 */
 #define MADERA_DSP_IRQ7					0x0001
 #define MADERA_DSP_IRQ8					0x0002
 
-/*
- * R5636 (0x1604) - ADSP2_IRQ4
- */
+/* (0x1604)  ADSP2_IRQ4 */
 #define MADERA_DSP_IRQ9					0x0001
 #define MADERA_DSP_IRQ10				0x0002
 
-/*
- * R5637 (0x1605) - ADSP2_IRQ5
- */
+/* (0x1605)  ADSP2_IRQ5 */
 #define MADERA_DSP_IRQ11				0x0001
 #define MADERA_DSP_IRQ12				0x0002
 
-/*
- * R5638 (0x1606) - ADSP2_IRQ6
- */
+/* (0x1606)  ADSP2_IRQ6 */
 #define MADERA_DSP_IRQ13				0x0001
 #define MADERA_DSP_IRQ14				0x0002
 
-/*
- * R5639 (0x1607) - ADSP2_IRQ7
- */
+/* (0x1607)  ADSP2_IRQ7 */
 #define MADERA_DSP_IRQ15				0x0001
 #define MADERA_DSP_IRQ16				0x0002
 
-/*
- * R5888 (0x1700) - GPIO1_CTRL_1
- */
+/* (0x1700)  GPIO1_CTRL_1 */
 #define MADERA_GP1_LVL					0x8000
 #define MADERA_GP1_LVL_MASK				0x8000
 #define MADERA_GP1_LVL_SHIFT				    15
@@ -8088,10 +7100,7 @@
 #define MADERA_GP1_FN_SHIFT				     0
 #define MADERA_GP1_FN_WIDTH				     9
 
-/*
- * R5889 (0x1701) - GPIO1_CTRL_2
- */
-
+/* (0x1701)  GPIO1_CTRL_2 */
 #define MADERA_GP1_DIR					0x8000
 #define MADERA_GP1_DIR_MASK				0x8000
 #define MADERA_GP1_DIR_SHIFT				    15
@@ -8109,9 +7118,7 @@
 #define MADERA_GP1_DRV_STR_SHIFT			    12
 #define MADERA_GP1_DRV_STR_WIDTH			     1
 
-/*
- * R6144 (0x1800) - IRQ1 Status 1
- */
+/* (0x1800)  IRQ1_Status_1 */
 #define MADERA_DSP_SHARED_WR_COLL_EINT1			0x8000
 #define MADERA_DSP_SHARED_WR_COLL_EINT1_MASK		0x8000
 #define MADERA_DSP_SHARED_WR_COLL_EINT1_SHIFT		    15
@@ -8133,9 +7140,7 @@
 #define MADERA_BOOT_DONE_EINT1_SHIFT			     7
 #define MADERA_BOOT_DONE_EINT1_WIDTH			     1
 
-/*
- * R6145 (0x1801) - IRQ1 Status 2
- */
+/* (0x1801)  IRQ1_Status_2 */
 #define MADERA_FLLAO_LOCK_EINT1				0x0800
 #define MADERA_FLLAO_LOCK_EINT1_MASK			0x0800
 #define MADERA_FLLAO_LOCK_EINT1_SHIFT			    11
@@ -8153,9 +7158,7 @@
 #define MADERA_FLL1_LOCK_EINT1_SHIFT			     8
 #define MADERA_FLL1_LOCK_EINT1_WIDTH			     1
 
-/*
- * R6149 (0x1805) - IRQ1 Status 6
- */
+/* (0x1805)  IRQ1_Status_6 */
 #define MADERA_MICDET2_EINT1				0x0200
 #define MADERA_MICDET2_EINT1_MASK			0x0200
 #define MADERA_MICDET2_EINT1_SHIFT			     9
@@ -8169,9 +7172,7 @@
 #define MADERA_HPDET_EINT1_SHIFT			     0
 #define MADERA_HPDET_EINT1_WIDTH			     1
 
-/*
- * R6150 (0x1806) - IRQ1 Status 7
- */
+/* (0x1806)  IRQ1_Status_7 */
 #define MADERA_MICD_CLAMP_FALL_EINT1			0x0020
 #define MADERA_MICD_CLAMP_FALL_EINT1_MASK		0x0020
 #define MADERA_MICD_CLAMP_FALL_EINT1_SHIFT		     5
@@ -8197,9 +7198,7 @@
 #define MADERA_JD1_RISE_EINT1_SHIFT			     0
 #define MADERA_JD1_RISE_EINT1_WIDTH			     1
 
-/*
- * R6152 (0x1808) - IRQ1 Status 9
- */
+/* (0x1808)  IRQ1_Status_9 */
 #define MADERA_ASRC2_IN2_LOCK_EINT1			0x0800
 #define MADERA_ASRC2_IN2_LOCK_EINT1_MASK		0x0800
 #define MADERA_ASRC2_IN2_LOCK_EINT1_SHIFT		    11
@@ -8225,9 +7224,7 @@
 #define MADERA_DRC1_SIG_DET_EINT1_SHIFT			     0
 #define MADERA_DRC1_SIG_DET_EINT1_WIDTH			     1
 
-/*
- * R6154 (0x180A) - IRQ1 Status 11
- */
+/* (0x180A)  IRQ1_Status_11 */
 #define MADERA_DSP_IRQ16_EINT1				0x8000
 #define MADERA_DSP_IRQ16_EINT1_MASK			0x8000
 #define MADERA_DSP_IRQ16_EINT1_SHIFT			    15
@@ -8293,9 +7290,7 @@
 #define MADERA_DSP_IRQ1_EINT1_SHIFT			     0
 #define MADERA_DSP_IRQ1_EINT1_WIDTH			     1
 
-/*
- * R6155 (0x180B) - IRQ1 Status 12
- */
+/* (0x180B)  IRQ1_Status_12 */
 #define MADERA_SPKOUTR_SC_EINT1				0x0080
 #define MADERA_SPKOUTR_SC_EINT1_MASK			0x0080
 #define MADERA_SPKOUTR_SC_EINT1_SHIFT			     7
@@ -8329,9 +7324,7 @@
 #define MADERA_HP1L_SC_EINT1_SHIFT			     0
 #define MADERA_HP1L_SC_EINT1_WIDTH			     1
 
-/*
- * R6156 (0x180C) - IRQ1 Status 13
- */
+/* (0x180C)  IRQ1_Status_13 */
 #define MADERA_SPKOUTR_ENABLE_DONE_EINT1		0x0080
 #define MADERA_SPKOUTR_ENABLE_DONE_EINT1_MASK		0x0080
 #define MADERA_SPKOUTR_ENABLE_DONE_EINT1_SHIFT		     7
@@ -8365,9 +7358,7 @@
 #define MADERA_HP1L_ENABLE_DONE_EINT1_SHIFT		     0
 #define MADERA_HP1L_ENABLE_DONE_EINT1_WIDTH		     1
 
-/*
- * R6157 (0x180D) - IRQ1 Status 14
- */
+/* (0x180D)  IRQ1_Status_14 */
 #define MADERA_SPKOUTR_DISABLE_DONE_EINT1		0x0080
 #define MADERA_SPKOUTR_DISABLE_DONE_EINT1_MASK		0x0080
 #define MADERA_SPKOUTR_DISABLE_DONE_EINT1_SHIFT		     7
@@ -8401,9 +7392,7 @@
 #define MADERA_HP1L_DISABLE_DONE_EINT1_SHIFT		     0
 #define MADERA_HP1L_DISABLE_DONE_EINT1_WIDTH		     1
 
-/*
- * R6158 (0x180E) - IRQ1 Status 15
- */
+/* (0x180E)  IRQ1_Status_15 */
 #define MADERA_SPK_OVERHEAT_WARN_EINT1			0x0004
 #define MADERA_SPK_OVERHEAT_WARN_EINT1_MASK		0x0004
 #define MADERA_SPK_OVERHEAT_WARN_EINT1_SHIFT		     2
@@ -8417,9 +7406,7 @@
 #define MADERA_SPK_SHUTDOWN_EINT1_SHIFT			     0
 #define MADERA_SPK_SHUTDOWN_EINT1_WIDTH			     1
 
-/*
- * R6176 (0x1820) - IRQ1 Status 33
- */
+/* (0x1820) - IRQ1 Status 33 */
 #define MADERA_ADSP_ERROR_STATUS_DSP7			0x0040
 #define MADERA_ADSP_ERROR_STATUS_DSP7_MASK		0x0040
 #define MADERA_ADSP_ERROR_STATUS_DSP7_SHIFT		     6
@@ -8449,9 +7436,7 @@
 #define MADERA_ADSP_ERROR_STATUS_DSP1_SHIFT		     0
 #define MADERA_ADSP_ERROR_STATUS_DSP1_WIDTH		     1
 
-/*
- * R6208 (0x1840) - IRQ1 Mask 1
- */
+/* (0x1840)  IRQ1_Mask_1 */
 #define MADERA_IM_DSP_SHARED_WR_COLL_EINT1		0x8000
 #define MADERA_IM_DSP_SHARED_WR_COLL_EINT1_MASK		0x8000
 #define MADERA_IM_DSP_SHARED_WR_COLL_EINT1_SHIFT	    15
@@ -8473,9 +7458,7 @@
 #define MADERA_IM_BOOT_DONE_EINT1_SHIFT			     7
 #define MADERA_IM_BOOT_DONE_EINT1_WIDTH			     1
 
-/*
- * R6209 (0x1841) - IRQ1 Mask 2
- */
+/* (0x1841)  IRQ1_Mask_2 */
 #define MADERA_IM_FLL3_LOCK_EINT1			0x0400
 #define MADERA_IM_FLL3_LOCK_EINT1_MASK			0x0400
 #define MADERA_IM_FLL3_LOCK_EINT1_SHIFT			    10
@@ -8489,9 +7472,7 @@
 #define MADERA_IM_FLL1_LOCK_EINT1_SHIFT			     8
 #define MADERA_IM_FLL1_LOCK_EINT1_WIDTH			     1
 
-/*
- * R6213 (0x1845) - IRQ1 Mask 6
- */
+/* (0x1845)  IRQ1_Mask_6 */
 #define MADERA_IM_MICDET_EINT1				0x0100
 #define MADERA_IM_MICDET_EINT1_MASK			0x0100
 #define MADERA_IM_MICDET_EINT1_SHIFT			     8
@@ -8501,9 +7482,7 @@
 #define MADERA_IM_HPDET_EINT1_SHIFT			     0
 #define MADERA_IM_HPDET_EINT1_WIDTH			     1
 
-/*
- * R6214 (0x1846) - IRQ1 Mask 7
- */
+/* (0x1846)  IRQ1_Mask_7 */
 #define MADERA_IM_MICD_CLAMP_FALL_EINT1			0x0020
 #define MADERA_IM_MICD_CLAMP_FALL_EINT1_MASK		0x0020
 #define MADERA_IM_MICD_CLAMP_FALL_EINT1_SHIFT		     5
@@ -8529,9 +7508,7 @@
 #define MADERA_IM_JD1_RISE_EINT1_SHIFT			     0
 #define MADERA_IM_JD1_RISE_EINT1_WIDTH			     1
 
-/*
- * R6216 (0x1848) - IRQ1 Mask 9
- */
+/* (0x1848)  IRQ1_Mask_9 */
 #define MADERA_IM_ASRC2_IN2_LOCK_EINT1			0x0800
 #define MADERA_IM_ASRC2_IN2_LOCK_EINT1_MASK		0x0800
 #define MADERA_IM_ASRC2_IN2_LOCK_EINT1_SHIFT		    11
@@ -8557,9 +7534,7 @@
 #define MADERA_IM_DRC1_SIG_DET_EINT1_SHIFT		     0
 #define MADERA_IM_DRC1_SIG_DET_EINT1_WIDTH		     1
 
-/*
- * R6218 (0x184A) - IRQ1 Mask 11
- */
+/* (0x184A)  IRQ1_Mask_11 */
 #define MADERA_IM_DSP_IRQ16_EINT1			0x8000
 #define MADERA_IM_DSP_IRQ16_EINT1_MASK			0x8000
 #define MADERA_IM_DSP_IRQ16_EINT1_SHIFT			    15
@@ -8625,9 +7600,7 @@
 #define MADERA_IM_DSP_IRQ1_EINT1_SHIFT			     0
 #define MADERA_IM_DSP_IRQ1_EINT1_WIDTH			     1
 
-/*
- * R6219 (0x184B) - IRQ1 Mask 12
- */
+/* (0x184B)  IRQ1_Mask_12 */
 #define MADERA_IM_SPKOUTR_SC_EINT1			0x0080
 #define MADERA_IM_SPKOUTR_SC_EINT1_MASK			0x0080
 #define MADERA_IM_SPKOUTR_SC_EINT1_SHIFT		     7
@@ -8661,9 +7634,7 @@
 #define MADERA_IM_HP1L_SC_EINT1_SHIFT			     0
 #define MADERA_IM_HP1L_SC_EINT1_WIDTH			     1
 
-/*
- * R6220 (0x184C) - IRQ1 Mask 13
- */
+/* (0x184C)  IRQ1_Mask_13 */
 #define MADERA_IM_SPKOUTR_ENABLE_DONE_EINT1		0x0080
 #define MADERA_IM_SPKOUTR_ENABLE_DONE_EINT1_MASK	0x0080
 #define MADERA_IM_SPKOUTR_ENABLE_DONE_EINT1_SHIFT	     7
@@ -8697,9 +7668,7 @@
 #define MADERA_IM_HP1L_ENABLE_DONE_EINT1_SHIFT		     0
 #define MADERA_IM_HP1L_ENABLE_DONE_EINT1_WIDTH		     1
 
-/*
- * R6221 (0x184D) - IRQ1 Mask 14
- */
+/* (0x184D)  IRQ1_Mask_14 */
 #define MADERA_IM_SPKOUTR_DISABLE_DONE_EINT1		0x0080
 #define MADERA_IM_SPKOUTR_DISABLE_DONE_EINT1_MASK	0x0080
 #define MADERA_IM_SPKOUTR_DISABLE_DONE_EINT1_SHIFT	     7
@@ -8733,9 +7702,7 @@
 #define MADERA_IM_HP1L_DISABLE_DONE_EINT1_SHIFT		     0
 #define MADERA_IM_HP1L_DISABLE_DONE_EINT1_WIDTH		     1
 
-/*
- * R6222 (0x184E) - IRQ1 Mask 15
- */
+/* (0x184E)  IRQ1_Mask_15 */
 #define MADERA_IM_SPK_OVERHEAT_WARN_EINT1		0x0004
 #define MADERA_IM_SPK_OVERHEAT_WARN_EINT1_MASK		0x0004
 #define MADERA_IM_SPK_OVERHEAT_WARN_EINT1_SHIFT		     2
@@ -8749,9 +7716,7 @@
 #define MADERA_IM_SPK_SHUTDOWN_EINT1_SHIFT		     0
 #define MADERA_IM_SPK_SHUTDOWN_EINT1_WIDTH		     1
 
-/*
- * R6272 (0x1880) - IRQ1 Raw Status 1
- */
+/* (0x1880) - IRQ1 Raw Status 1 */
 #define MADERA_DSP_SHARED_WR_COLL_STS1			0x8000
 #define MADERA_DSP_SHARED_WR_COLL_STS1_MASK		0x8000
 #define MADERA_DSP_SHARED_WR_COLL_STS1_SHIFT		    15
@@ -8773,9 +7738,7 @@
 #define MADERA_BOOT_DONE_STS1_SHIFT			     7
 #define MADERA_BOOT_DONE_STS1_WIDTH			     1
 
-/*
- * R6273 (0x1881) - IRQ1 Raw Status 2
- */
+/* (0x1881) - IRQ1 Raw Status 2 */
 #define MADERA_FLL3_LOCK_STS1				0x0400
 #define MADERA_FLL3_LOCK_STS1_MASK			0x0400
 #define MADERA_FLL3_LOCK_STS1_SHIFT			    10
@@ -8789,9 +7752,7 @@
 #define MADERA_FLL1_LOCK_STS1_SHIFT			     8
 #define MADERA_FLL1_LOCK_STS1_WIDTH			     1
 
-/*
- * R6277 (0x1885) - IRQ1 Raw Status 6
- */
+/* (0x1885) - IRQ1 Raw Status 6 */
 #define MADERA_MICDET_STS1				0x0100
 #define MADERA_MICDET_STS1_MASK				0x0100
 #define MADERA_MICDET_STS1_SHIFT			     8
@@ -8801,9 +7762,7 @@
 #define MADERA_HPDET_STS1_SHIFT				     0
 #define MADERA_HPDET_STS1_WIDTH				     1
 
-/*
- * R6278 (0x1886) - IRQ1 Raw Status 7
- */
+/* (0x1886) - IRQ1 Raw Status 7 */
 #define MADERA_MICD_CLAMP_FALL_STS1			0x0020
 #define MADERA_MICD_CLAMP_FALL_STS1_MASK		0x0020
 #define MADERA_MICD_CLAMP_FALL_STS1_SHIFT		     5
@@ -8829,9 +7788,7 @@
 #define MADERA_JD1_RISE_STS1_SHIFT			     0
 #define MADERA_JD1_RISE_STS1_WIDTH			     1
 
-/*
- * R6280 (0x1888) - IRQ1 Raw Status 9
- */
+/* (0x1888) - IRQ1 Raw Status 9 */
 #define MADERA_ASRC2_IN2_LOCK_STS1			0x0800
 #define MADERA_ASRC2_IN2_LOCK_STS1_MASK			0x0800
 #define MADERA_ASRC2_IN2_LOCK_STS1_SHIFT		    11
@@ -8857,9 +7814,7 @@
 #define MADERA_DRC1_SIG_DET_STS1_SHIFT			     0
 #define MADERA_DRC1_SIG_DET_STS1_WIDTH			     1
 
-/*
- * R6282 (0x188A) - IRQ1 Raw Status 11
- */
+/* (0x188A) - IRQ1 Raw Status 11 */
 #define MADERA_DSP_IRQ16_STS1				0x8000
 #define MADERA_DSP_IRQ16_STS1_MASK			0x8000
 #define MADERA_DSP_IRQ16_STS1_SHIFT			    15
@@ -8926,9 +7881,7 @@
 #define MADERA_DSP_IRQ1_STS1_WIDTH			     1
 
 
-/*
- * R6283 (0x188B) - IRQ1 Raw Status 12
- */
+/* (0x188B) - IRQ1 Raw Status 12 */
 #define MADERA_SPKOUTR_SC_STS1				0x0080
 #define MADERA_SPKOUTR_SC_STS1_MASK			0x0080
 #define MADERA_SPKOUTR_SC_STS1_SHIFT			     7
@@ -8962,9 +7915,7 @@
 #define MADERA_HP1L_SC_STS1_SHIFT			     0
 #define MADERA_HP1L_SC_STS1_WIDTH			     1
 
-/*
- * R6284 (0x188C) - IRQ1 Raw Status 13
- */
+/* (0x188C) - IRQ1 Raw Status 13 */
 #define MADERA_SPKOUTR_ENABLE_DONE_STS1			0x0080
 #define MADERA_SPKOUTR_ENABLE_DONE_STS1_MASK		0x0080
 #define MADERA_SPKOUTR_ENABLE_DONE_STS1_SHIFT		     7
@@ -8998,9 +7949,7 @@
 #define MADERA_HP1L_ENABLE_DONE_STS1_SHIFT		     0
 #define MADERA_HP1L_ENABLE_DONE_STS1_WIDTH		     1
 
-/*
- * R6285 (0x188D) - IRQ1 Raw Status 14
- */
+/* (0x188D) - IRQ1 Raw Status 14 */
 #define MADERA_SPKOUTR_DISABLE_DONE_STS1		0x0080
 #define MADERA_SPKOUTR_DISABLE_DONE_STS1_MASK		0x0080
 #define MADERA_SPKOUTR_DISABLE_DONE_STS1_SHIFT		     7
@@ -9034,9 +7983,7 @@
 #define MADERA_HP1L_DISABLE_DONE_STS1_SHIFT		     0
 #define MADERA_HP1L_DISABLE_DONE_STS1_WIDTH		     1
 
-/*
- * R6286 (0x188E) - IRQ1 Raw Status 15
- */
+/* (0x188E) - IRQ1 Raw Status 15 */
 #define MADERA_SPK_OVERHEAT_WARN_STS1			0x0004
 #define MADERA_SPK_OVERHEAT_WARN_STS1_MASK		0x0004
 #define MADERA_SPK_OVERHEAT_WARN_STS1_SHIFT		     2
@@ -9050,9 +7997,7 @@
 #define MADERA_SPK_SHUTDOWN_STS1_SHIFT			     0
 #define MADERA_SPK_SHUTDOWN_STS1_WIDTH			     1
 
-/*
- * R6400 (0x1900) - IRQ2 Status 1
- */
+/* (0x1900)  IRQ2_Status_1 */
 #define MADERA_DSP_SHARED_WR_COLL_EINT2			0x8000
 #define MADERA_DSP_SHARED_WR_COLL_EINT2_MASK		0x8000
 #define MADERA_DSP_SHARED_WR_COLL_EINT2_SHIFT		    15
@@ -9074,9 +8019,7 @@
 #define MADERA_BOOT_DONE_EINT2_SHIFT			     7
 #define MADERA_BOOT_DONE_EINT2_WIDTH			     1
 
-/*
- * R6401 (0x1901) - IRQ2 Status 2
- */
+/* (0x1901)  IRQ2_Status_2 */
 #define MADERA_FLL3_LOCK_EINT2				0x0400
 #define MADERA_FLL3_LOCK_EINT2_MASK			0x0400
 #define MADERA_FLL3_LOCK_EINT2_SHIFT			    10
@@ -9090,9 +8033,7 @@
 #define MADERA_FLL1_LOCK_EINT2_SHIFT			     8
 #define MADERA_FLL1_LOCK_EINT2_WIDTH			     1
 
-/*
- * R6405 (0x1905) - IRQ2 Status 6
- */
+/* (0x1905)  IRQ2_Status_6 */
 #define MADERA_MICDET_EINT2				0x0100
 #define MADERA_MICDET_EINT2_MASK			0x0100
 #define MADERA_MICDET_EINT2_SHIFT			     8
@@ -9102,9 +8043,7 @@
 #define MADERA_HPDET_EINT2_SHIFT			     0
 #define MADERA_HPDET_EINT2_WIDTH			     1
 
-/*
- * R6406 (0x1906) - IRQ2 Status 7
- */
+/* (0x1906)  IRQ2_Status_7 */
 #define MADERA_MICD_CLAMP_FALL_EINT2			0x0020
 #define MADERA_MICD_CLAMP_FALL_EINT2_MASK		0x0020
 #define MADERA_MICD_CLAMP_FALL_EINT2_SHIFT		     5
@@ -9130,9 +8069,7 @@
 #define MADERA_JD1_RISE_EINT2_SHIFT			     0
 #define MADERA_JD1_RISE_EINT2_WIDTH			     1
 
-/*
- * R6408 (0x1908) - IRQ2 Status 9
- */
+/* (0x1908)  IRQ2_Status_9 */
 #define MADERA_ASRC2_IN2_LOCK_EINT2			0x0800
 #define MADERA_ASRC2_IN2_LOCK_EINT2_MASK		0x0800
 #define MADERA_ASRC2_IN2_LOCK_EINT2_SHIFT		    11
@@ -9158,9 +8095,7 @@
 #define MADERA_DRC1_SIG_DET_EINT2_SHIFT			     0
 #define MADERA_DRC1_SIG_DET_EINT2_WIDTH			     1
 
-/*
- * R6410 (0x190A) - IRQ2 Status 11
- */
+/* (0x190A)  IRQ2_Status_11 */
 #define MADERA_DSP_IRQ16_EINT2				0x8000
 #define MADERA_DSP_IRQ16_EINT2_MASK			0x8000
 #define MADERA_DSP_IRQ16_EINT2_SHIFT			    15
@@ -9226,9 +8161,7 @@
 #define MADERA_DSP_IRQ1_EINT2_SHIFT			     0
 #define MADERA_DSP_IRQ1_EINT2_WIDTH			     1
 
-/*
- * R6411 (0x190B) - IRQ2 Status 12
- */
+/* (0x190B)  IRQ2_Status_12 */
 #define MADERA_SPKOUTR_SC_EINT2				0x0080
 #define MADERA_SPKOUTR_SC_EINT2_MASK			0x0080
 #define MADERA_SPKOUTR_SC_EINT2_SHIFT			     7
@@ -9262,9 +8195,7 @@
 #define MADERA_HP1L_SC_EINT2_SHIFT			     0
 #define MADERA_HP1L_SC_EINT2_WIDTH			     1
 
-/*
- * R6412 (0x190C) - IRQ2 Status 13
- */
+/* (0x190C)  IRQ2_Status_13 */
 #define MADERA_SPKOUTR_ENABLE_DONE_EINT2		0x0080
 #define MADERA_SPKOUTR_ENABLE_DONE_EINT2_MASK		0x0080
 #define MADERA_SPKOUTR_ENABLE_DONE_EINT2_SHIFT		     7
@@ -9298,9 +8229,7 @@
 #define MADERA_HP1L_ENABLE_DONE_EINT2_SHIFT		     0
 #define MADERA_HP1L_ENABLE_DONE_EINT2_WIDTH		     1
 
-/*
- * R6413 (0x190D) - IRQ2 Status 14
- */
+/* (0x190D)  IRQ2_Status_14 */
 #define MADERA_SPKOUTR_DISABLE_DONE_EINT2		0x0080
 #define MADERA_SPKOUTR_DISABLE_DONE_EINT2_MASK		0x0080
 #define MADERA_SPKOUTR_DISABLE_DONE_EINT2_SHIFT		     7
@@ -9334,9 +8263,7 @@
 #define MADERA_HP1L_DISABLE_DONE_EINT2_SHIFT		     0
 #define MADERA_HP1L_DISABLE_DONE_EINT2_WIDTH		     1
 
-/*
- * R6414 (0x190E) - IRQ2 Status 15
- */
+/* (0x190E)  IRQ2_Status_15 */
 #define MADERA_SPK_OVERHEAT_WARN_EINT2			0x0004
 #define MADERA_SPK_OVERHEAT_WARN_EINT2_MASK		0x0004
 #define MADERA_SPK_OVERHEAT_WARN_EINT2_SHIFT		     2
@@ -9350,9 +8277,7 @@
 #define MADERA_SPK_SHUTDOWN_EINT2_SHIFT			     0
 #define MADERA_SPK_SHUTDOWN_EINT2_WIDTH			     1
 
-/*
- * R6464 (0x1940) - IRQ2 Mask 1
- */
+/* (0x1940)  IRQ2_Mask_1 */
 #define MADERA_IM_DSP_SHARED_WR_COLL_EINT2		0x8000
 #define MADERA_IM_DSP_SHARED_WR_COLL_EINT2_MASK		0x8000
 #define MADERA_IM_DSP_SHARED_WR_COLL_EINT2_SHIFT	    15
@@ -9374,9 +8299,7 @@
 #define MADERA_IM_BOOT_DONE_EINT2_SHIFT			     7
 #define MADERA_IM_BOOT_DONE_EINT2_WIDTH			     1
 
-/*
- * R6465 (0x1941) - IRQ2 Mask 2
- */
+/* (0x1941)  IRQ2_Mask_2 */
 #define MADERA_IM_FLL3_LOCK_EINT2			0x0400
 #define MADERA_IM_FLL3_LOCK_EINT2_MASK			0x0400
 #define MADERA_IM_FLL3_LOCK_EINT2_SHIFT			    10
@@ -9390,9 +8313,7 @@
 #define MADERA_IM_FLL1_LOCK_EINT2_SHIFT			     8
 #define MADERA_IM_FLL1_LOCK_EINT2_WIDTH			     1
 
-/*
- * R6469 (0x1945) - IRQ2 Mask 6
- */
+/* (0x1945)  IRQ2_Mask_6 */
 #define MADERA_IM_MICDET_EINT2				0x0100
 #define MADERA_IM_MICDET_EINT2_MASK			0x0100
 #define MADERA_IM_MICDET_EINT2_SHIFT			     8
@@ -9402,9 +8323,7 @@
 #define MADERA_IM_HPDET_EINT2_SHIFT			     0
 #define MADERA_IM_HPDET_EINT2_WIDTH			     1
 
-/*
- * R6470 (0x1946) - IRQ2 Mask 7
- */
+/* (0x1946)  IRQ2_Mask_7 */
 #define MADERA_IM_MICD_CLAMP_FALL_EINT2			0x0020
 #define MADERA_IM_MICD_CLAMP_FALL_EINT2_MASK		0x0020
 #define MADERA_IM_MICD_CLAMP_FALL_EINT2_SHIFT		     5
@@ -9430,9 +8349,7 @@
 #define MADERA_IM_JD1_RISE_EINT2_SHIFT			     0
 #define MADERA_IM_JD1_RISE_EINT2_WIDTH			     1
 
-/*
- * R6472 (0x1948) - IRQ2 Mask 9
- */
+/* (0x1948)  IRQ2_Mask_9 */
 #define MADERA_IM_ASRC2_IN2_LOCK_EINT2			0x0800
 #define MADERA_IM_ASRC2_IN2_LOCK_EINT2_MASK		0x0800
 #define MADERA_IM_ASRC2_IN2_LOCK_EINT2_SHIFT		    11
@@ -9458,9 +8375,7 @@
 #define MADERA_IM_DRC1_SIG_DET_EINT2_SHIFT		     0
 #define MADERA_IM_DRC1_SIG_DET_EINT2_WIDTH		     1
 
-/*
- * R6474 (0x194A) - IRQ2 Mask 11
- */
+/* (0x194A)  IRQ2_Mask_11 */
 #define MADERA_IM_DSP_IRQ16_EINT2			0x8000
 #define MADERA_IM_DSP_IRQ16_EINT2_MASK			0x8000
 #define MADERA_IM_DSP_IRQ16_EINT2_SHIFT			    15
@@ -9526,9 +8441,7 @@
 #define MADERA_IM_DSP_IRQ1_EINT2_SHIFT			     0
 #define MADERA_IM_DSP_IRQ1_EINT2_WIDTH			     1
 
-/*
- * R6475 (0x194B) - IRQ2 Mask 12
- */
+/* (0x194B)  IRQ2_Mask_12 */
 #define MADERA_IM_SPKOUTR_SC_EINT2			0x0080
 #define MADERA_IM_SPKOUTR_SC_EINT2_MASK			0x0080
 #define MADERA_IM_SPKOUTR_SC_EINT2_SHIFT		     7
@@ -9562,9 +8475,7 @@
 #define MADERA_IM_HP1L_SC_EINT2_SHIFT			     0
 #define MADERA_IM_HP1L_SC_EINT2_WIDTH			     1
 
-/*
- * R6476 (0x194C) - IRQ2 Mask 13
- */
+/* (0x194C)  IRQ2_Mask_13 */
 #define MADERA_IM_SPKOUTR_ENABLE_DONE_EINT2		0x0080
 #define MADERA_IM_SPKOUTR_ENABLE_DONE_EINT2_MASK	0x0080
 #define MADERA_IM_SPKOUTR_ENABLE_DONE_EINT2_SHIFT	     7
@@ -9598,9 +8509,7 @@
 #define MADERA_IM_HP1L_ENABLE_DONE_EINT2_SHIFT		     0
 #define MADERA_IM_HP1L_ENABLE_DONE_EINT2_WIDTH		     1
 
-/*
- * R6477 (0x194D) - IRQ2 Mask 14
- */
+/* (0x194D)  IRQ2_Mask_14 */
 #define MADERA_IM_SPKOUTR_DISABLE_DONE_EINT2		0x0080
 #define MADERA_IM_SPKOUTR_DISABLE_DONE_EINT2_MASK	0x0080
 #define MADERA_IM_SPKOUTR_DISABLE_DONE_EINT2_SHIFT	     7
@@ -9634,9 +8543,7 @@
 #define MADERA_IM_HP1L_DISABLE_DONE_EINT2_SHIFT		     0
 #define MADERA_IM_HP1L_DISABLE_DONE_EINT2_WIDTH		     1
 
-/*
- * R6478 (0x194E) - IRQ2 Mask 15
- */
+/* (0x194E)  IRQ2_Mask_15 */
 #define MADERA_IM_SPK_OVERHEAT_WARN_EINT2		0x0004
 #define MADERA_IM_SPK_OVERHEAT_WARN_EINT2_MASK		0x0004
 #define MADERA_IM_SPK_OVERHEAT_WARN_EINT2_SHIFT		     2
@@ -9650,9 +8557,7 @@
 #define MADERA_IM_SPK_SHUTDOWN_EINT2_SHIFT		     0
 #define MADERA_IM_SPK_SHUTDOWN_EINT2_WIDTH		     1
 
-/*
- * R6528 (0x1980) - IRQ2 Raw Status 1
- */
+/* (0x1980)  IRQ2_Raw_Status_1 */
 #define MADERA_DSP_SHARED_WR_COLL_STS2			0x8000
 #define MADERA_DSP_SHARED_WR_COLL_STS2_MASK		0x8000
 #define MADERA_DSP_SHARED_WR_COLL_STS2_SHIFT		    15
@@ -9674,9 +8579,7 @@
 #define MADERA_BOOT_DONE_STS2_SHIFT			     7
 #define MADERA_BOOT_DONE_STS2_WIDTH			     1
 
-/*
- * R6529 (0x1981) - IRQ2 Raw Status 2
- */
+/* (0x1981)  IRQ2_Raw_Status_2 */
 #define MADERA_FLL3_LOCK_STS2				0x0400
 #define MADERA_FLL3_LOCK_STS2_MASK			0x0400
 #define MADERA_FLL3_LOCK_STS2_SHIFT			    10
@@ -9690,9 +8593,7 @@
 #define MADERA_FLL1_LOCK_STS2_SHIFT			     8
 #define MADERA_FLL1_LOCK_STS2_WIDTH			     1
 
-/*
- * R6533 (0x1985) - IRQ2 Raw Status 6
- */
+/* (0x1985) - IRQ2 Raw Status 6 */
 #define MADERA_MICDET_STS2				0x0100
 #define MADERA_MICDET_STS2_MASK				0x0100
 #define MADERA_MICDET_STS2_SHIFT			     8
@@ -9702,9 +8603,7 @@
 #define MADERA_HPDET_STS2_SHIFT				     0
 #define MADERA_HPDET_STS2_WIDTH				     1
 
-/*
- * R6534 (0x1986) - IRQ2 Raw Status 7
- */
+/* (0x1986)  IRQ2_Raw_Status_7 */
 #define MADERA_MICD_CLAMP_FALL_STS2			0x0020
 #define MADERA_MICD_CLAMP_FALL_STS2_MASK		0x0020
 #define MADERA_MICD_CLAMP_FALL_STS2_SHIFT		     5
@@ -9730,9 +8629,7 @@
 #define MADERA_JD1_RISE_STS2_SHIFT			     0
 #define MADERA_JD1_RISE_STS2_WIDTH			     1
 
-/*
- * R6536 (0x1988) - IRQ2 Raw Status 9
- */
+/* (0x1988)  IRQ2_Raw_Status_9 */
 #define MADERA_ASRC2_IN2_LOCK_STS2			0x0800
 #define MADERA_ASRC2_IN2_LOCK_STS2_MASK			0x0800
 #define MADERA_ASRC2_IN2_LOCK_STS2_SHIFT		    11
@@ -9758,9 +8655,7 @@
 #define MADERA_DRC1_SIG_DET_STS2_SHIFT			     0
 #define MADERA_DRC1_SIG_DET_STS2_WIDTH			     1
 
-/*
- * R6538 (0x198A) - IRQ2 Raw Status 11
- */
+/* (0x198A) - IRQ2 Raw Status 11 */
 #define MADERA_DSP_IRQ26_STS2				0x8000
 #define MADERA_DSP_IRQ26_STS2_MASK			0x8000
 #define MADERA_DSP_IRQ26_STS2_SHIFT			    15
@@ -9826,10 +8721,7 @@
 #define MADERA_DSP_IRQ1_STS2_SHIFT			     0
 #define MADERA_DSP_IRQ1_STS2_WIDTH			     1
 
-
-/*
- * R6539 (0x198B) - IRQ2 Raw Status 12
- */
+/* (0x198B)  IRQ2_Raw_Status_12 */
 #define MADERA_SPKOUTR_SC_STS2				0x0080
 #define MADERA_SPKOUTR_SC_STS2_MASK			0x0080
 #define MADERA_SPKOUTR_SC_STS2_SHIFT			     7
@@ -9863,9 +8755,7 @@
 #define MADERA_HP1L_SC_STS2_SHIFT			     0
 #define MADERA_HP1L_SC_STS2_WIDTH			     1
 
-/*
- * R6540 (0x198C) - IRQ2 Raw Status 13
- */
+/* (0x198C)  IRQ2_Raw_Status_13 */
 #define MADERA_SPKOUTR_ENABLE_DONE_STS2			0x0080
 #define MADERA_SPKOUTR_ENABLE_DONE_STS2_MASK		0x0080
 #define MADERA_SPKOUTR_ENABLE_DONE_STS2_SHIFT		     7
@@ -9899,9 +8789,7 @@
 #define MADERA_HP1L_ENABLE_DONE_STS2_SHIFT		     0
 #define MADERA_HP1L_ENABLE_DONE_STS2_WIDTH		     1
 
-/*
- * R6541 (0x198D) - IRQ2 Raw Status 14
- */
+/* (0x198D)  IRQ2_Raw_Status_14 */
 #define MADERA_SPKOUTR_DISABLE_DONE_STS2		0x0080
 #define MADERA_SPKOUTR_DISABLE_DONE_STS2_MASK		0x0080
 #define MADERA_SPKOUTR_DISABLE_DONE_STS2_SHIFT		     7
@@ -9935,9 +8823,7 @@
 #define MADERA_HP1L_DISABLE_DONE_STS2_SHIFT		     0
 #define MADERA_HP1L_DISABLE_DONE_STS2_WIDTH		     1
 
-/*
- * R6542 (0x198E) - IRQ2 Raw Status 15
- */
+/* (0x198E)  IRQ2_Raw_Status_15 */
 #define MADERA_SPK_OVERHEAT_WARN_STS2			0x0004
 #define MADERA_SPK_OVERHEAT_WARN_STS2_MASK		0x0004
 #define MADERA_SPK_OVERHEAT_WARN_STS2_SHIFT		     2
@@ -9951,9 +8837,7 @@
 #define MADERA_SPK_SHUTDOWN_STS2_SHIFT			     0
 #define MADERA_SPK_SHUTDOWN_STS2_WIDTH			     1
 
-/*
- * R6662 (0x1A06) - Interrupt Debounce 7
- */
+/* (0x1A06)  Interrupt_Debounce_7 */
 #define MADERA_MICD_CLAMP_DB				0x0010
 #define MADERA_MICD_CLAMP_DB_MASK			0x0010
 #define MADERA_MICD_CLAMP_DB_SHIFT			     4
@@ -9967,9 +8851,7 @@
 #define MADERA_JD1_DB_SHIFT				     0
 #define MADERA_JD1_DB_WIDTH				     1
 
-/*
- * R6670 (0x1A0E) - Interrupt Debounce 15
- */
+/* (0x1A0E)  Interrupt_Debounce_15 */
 #define MADERA_SPK_OVERHEAT_WARN_DB			0x0004
 #define MADERA_SPK_OVERHEAT_WARN_DB_MASK		0x0004
 #define MADERA_SPK_OVERHEAT_WARN_DB_SHIFT		     2
@@ -9979,9 +8861,7 @@
 #define MADERA_SPK_OVERHEAT_DB_SHIFT			     1
 #define MADERA_SPK_OVERHEAT_DB_WIDTH			     1
 
-/*
- * R6784  (0x1A80) - IRQ1_CTRL
- */
+/* (0x1A80)  IRQ1_CTRL */
 #define MADERA_IM_IRQ1					0x0800
 #define MADERA_IM_IRQ1_MASK				0x0800
 #define MADERA_IM_IRQ1_SHIFT				    11
@@ -9991,9 +8871,7 @@
 #define MADERA_IM_IRQ_POL_SHIFT				    10
 #define MADERA_IM_IRQ_POL_WIDTH				     1
 
-/*
- * R131076 (0x20004) - OTP HPDET Calibration 1
- */
+/* (0x20004)  OTP_HPDET_Cal_1 */
 #define MADERA_OTP_HPDET_CALIB_OFFSET_11	    0xFF000000
 #define MADERA_OTP_HPDET_CALIB_OFFSET_11_MASK	    0xFF000000
 #define MADERA_OTP_HPDET_CALIB_OFFSET_11_SHIFT		    24
@@ -10011,9 +8889,7 @@
 #define MADERA_OTP_HPDET_CALIB_OFFSET_00_SHIFT		     0
 #define MADERA_OTP_HPDET_CALIB_OFFSET_00_WIDTH		     8
 
-/*
- * R131078 (0x20006) - OTP HPDET Calibration 2
- */
+/* (0x20006)  OTP_HPDET_Cal_2 */
 #define MADERA_OTP_HPDET_GRADIENT_1X		    0x0000FF00
 #define MADERA_OTP_HPDET_GRADIENT_1X_MASK	    0x0000FF00
 #define MADERA_OTP_HPDET_GRADIENT_1X_SHIFT		     8
