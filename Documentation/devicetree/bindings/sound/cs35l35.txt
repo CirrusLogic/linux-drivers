@@ -1,0 +1,27 @@
+CS35L35 Speaker Amplifier
+
+Required properties:
+
+  - compatible : "cirrus,cs35l35"
+
+  - reg : the I2C address of the device for I2C
+
+  - VA-supply, VP-supply : power supplies for the device,
+    as covered in
+    Documentation/devicetree/bindings/regulator/regulator.txt.
+
+Optional properties:
+
+  - cirrus,reset-gpios : gpio used to reset the amplifier
+
+Example:
+
+cs35l35: cs35l35@20 {
+	compatible = "cirrus,cs35l35";
+	reg = <0x20>;
+
+	VA-supply = <&dummy_vreg>;
+	VP-supply = <&dummy_vreg>;
+
+	reset-gpios = <&axi_gpio 54 0>;
+};
