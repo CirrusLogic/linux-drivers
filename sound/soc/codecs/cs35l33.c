@@ -789,6 +789,11 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 			DIGSFT, 0);
 	}
 
+	/* update IMON scaling rate if different from default of 0x8 */
+	if (cs35l33->pdata.imon_adc_scale != 0x8)
+		snd_soc_update_bits(codec, CS35L33_ADC_CTL,
+			IMON_SCALE, cs35l33->pdata.imon_adc_scale);
+
 	cs35l33_set_hg_data(codec, &(cs35l33->pdata));
 
 	/* unmask important interrupts that causes the chip to enter
@@ -982,6 +987,17 @@ static void cs35l33_of_get_pdata(struct cs35l33_private *cs35l33,
 
 	pdata->irq = irq_of_parse_and_map(np, 0);
 	pdata->gpio_irq = of_get_named_gpio(np, "irq-gpios", 0);
+
+	if (of_property_read_u32(np, "imon-adc-scale", &val32) >= 0) {
+		if ((val32 == 0x0) || (val32 == 0x7) || (val32 == 0x6))
+			pdata->imon_adc_scale = val32;
+		else
+			/* use default value */
+			pdata->imon_adc_scale = 0x8;
+	} else {
+		/* use default value */
+		pdata->imon_adc_scale = 0x8;
+	}
 
 	cs35l33_get_hg_data(np, pdata);
 }

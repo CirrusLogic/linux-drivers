@@ -48,6 +48,9 @@ struct cs35l33_pdata {
 	/* soft volume ramp */
 	unsigned int ramp_rate;
 
+	/* IMON adc scale */
+	unsigned int imon_adc_scale;
+
 	/* H/G algo configuration */
 	struct cs35l33_hg hg_config;
 };
