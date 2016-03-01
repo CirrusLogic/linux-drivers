@@ -1756,14 +1756,20 @@ static int cs47l35_probe(struct platform_device *pdev)
 	return ret;
 
 error:
+	madera_core_destroy(&cs47l35->core);
+
 	return ret;
 }
 
 static int cs47l35_remove(struct platform_device *pdev)
 {
+	struct cs47l35 *cs47l35 = platform_get_drvdata(pdev);
+
 	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	madera_core_destroy(&cs47l35->core);
 
 	return 0;
 }
