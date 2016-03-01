@@ -50,8 +50,6 @@ struct cs47l35 {
 	struct madera_priv core;
 	struct madera_fll fll;
 	struct cs47l35_compr compr_info;
-
-	struct mutex fw_lock;
 };
 
 static const int cs47l35_fx_inputs[] = {
@@ -1989,7 +1987,6 @@ static int cs47l35_probe(struct platform_device *pdev)
 
 error:
 	mutex_destroy(&cs47l35->compr_info.lock);
-	mutex_destroy(&cs47l35->fw_lock);
 
 	return ret;
 }
@@ -2003,7 +2000,6 @@ static int cs47l35_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	mutex_destroy(&cs47l35->compr_info.lock);
-	mutex_destroy(&cs47l35->fw_lock);
 
 	return 0;
 }
