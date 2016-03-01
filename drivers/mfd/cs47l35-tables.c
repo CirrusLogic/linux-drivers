@@ -193,7 +193,6 @@ static const struct reg_default cs47l35_reg_default[] = {
 	{ 0x000002a7, 0x3d3d }, /* R679 (0x2A7) - Mic Detect Level 2 */
 	{ 0x000002a8, 0x333d }, /* R680 (0x2A8) - Mic Detect Level 3 */
 	{ 0x000002a9, 0x202d }, /* R681 (0x2A9) - Mic Detect Level 4 */
-	{ 0x000002c3, 0x0000 }, /* R707 (0x2c3) - Mic noise mix control 1 */
 	{ 0x000002c6, 0x0010 }, /* R710 (0x2c5) - Mic Clamp control */
 	{ 0x000002c8, 0x0000 }, /* R712 (0x2C8) - GP switch 1 */
 	{ 0x000002d3, 0x0000 }, /* R723 (0x2D3) - Jack detect analogue */
@@ -990,7 +989,6 @@ static bool cs47l35_16bit_readable_register(struct device *dev,
 	case MADERA_MIC_DETECT_1_LEVEL_3:
 	case MADERA_MIC_DETECT_1_LEVEL_4:
 	case MADERA_MIC_DETECT_1_CONTROL_4:
-	case MADERA_MIC_NOISE_MIX_CONTROL_1:
 	case MADERA_GP_SWITCH_1:
 	case MADERA_JACK_DETECT_ANALOGUE:
 	case MADERA_INPUT_ENABLES:
