@@ -34,24 +34,9 @@
 
 #define CS47L90_NUM_ADSP 7
 
-#define CS47L90_DEFAULT_FRAGMENTS       1
-#define CS47L90_DEFAULT_FRAGMENT_SIZE   4096
-
-struct cs47l90_compr {
-	struct mutex lock;
-
-	struct snd_compr_stream *stream;
-	struct wm_adsp *adsp;
-
-	size_t total_copied;
-	bool allocated;
-	bool trig;
-};
-
 struct cs47l90_priv {
 	struct madera_priv core;
 	struct madera_fll fll[3];
-	struct cs47l90_compr compr_info;
 };
 
 static const int cs47l90_fx_inputs[] = {
@@ -381,12 +366,6 @@ static int cs47l90_adsp_power_ev(struct snd_soc_dapm_widget *w,
 		ret = madera_set_adsp_clk(&cs47l90->core.adsp[w->shift], freq);
 		if (ret)
 			return ret;
-
-		if (w->shift == 5) {
-			mutex_lock(&cs47l90->compr_info.lock);
-			cs47l90->compr_info.trig = false;
-			mutex_unlock(&cs47l90->compr_info.lock);
-		}
 		break;
 	default:
 		break;
@@ -2480,7 +2459,7 @@ static struct snd_soc_dai_driver cs47l90_dai[] = {
 		 },
 		.ops = &madera_simple_dai_ops,
 	},
-	{
+/*	{
 		.name = "cs47l90-cpu6-voicectrl",
 		.capture = {
 			.stream_name = "Voice Control CPU6",
@@ -2521,251 +2500,14 @@ static struct snd_soc_dai_driver cs47l90_dai[] = {
 			.rates = MADERA_RATES,
 			.formats = MADERA_FORMATS,
 		},
-	},
+	},*/
 };
-
-static irqreturn_t adsp2_irq(int irq, void *data)
-{
-	struct cs47l90_priv *cs47l90 = data;
-	int ret, avail;
-
-	mutex_lock(&cs47l90->compr_info.lock);
-
-	if (!cs47l90->compr_info.trig &&
-	    cs47l90->core.adsp[5].fw_features.ez2control_trigger &&
-	    cs47l90->core.adsp[5].running) {
-		if (cs47l90->core.madera->pdata.voice_trigger)
-			cs47l90->core.madera->pdata.voice_trigger();
-		cs47l90->compr_info.trig = true;
-	}
-
-	if (!cs47l90->compr_info.allocated)
-		goto out;
-
-	ret = wm_adsp_stream_handle_irq(cs47l90->compr_info.adsp);
-	if (ret < 0) {
-		dev_err(cs47l90->core.madera->dev,
-			"Failed to capture DSP data: %d\n",
-			ret);
-		goto out;
-	}
-
-	cs47l90->compr_info.total_copied += ret;
-
-	avail = wm_adsp_stream_avail(cs47l90->compr_info.adsp);
-	if (avail > CS47L90_DEFAULT_FRAGMENT_SIZE)
-		snd_compr_fragment_elapsed(cs47l90->compr_info.stream);
-
-out:
-	mutex_unlock(&cs47l90->compr_info.lock);
-
-	return IRQ_HANDLED;
-}
 
 static irqreturn_t cs47l90_dsp_bus_error(int irq, void *data)
 {
 	struct wm_adsp *dsp = (struct wm_adsp *)data;
 
 	return wm_adsp2_bus_error(dsp);
-}
-
-static int cs47l90_open(struct snd_compr_stream *stream)
-{
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct cs47l90_priv *cs47l90 = snd_soc_codec_get_drvdata(rtd->codec);
-	struct madera *madera = cs47l90->core.madera;
-	int n_adsp, ret = 0;
-
-	mutex_lock(&cs47l90->compr_info.lock);
-
-	if (cs47l90->compr_info.stream) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	if (strcmp(rtd->codec_dai->name, "cs47l90-dsp6-voicectrl") == 0) {
-		n_adsp = 5;
-	} else if (strcmp(rtd->codec_dai->name, "cs47l90-dsp1-trace") == 0) {
-		n_adsp = 0;
-	} else {
-		dev_err(madera->dev,
-			"No suitable compressed stream for dai '%s'\n",
-			rtd->codec_dai->name);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (!wm_adsp_compress_supported(&cs47l90->core.adsp[n_adsp], stream)) {
-		dev_err(madera->dev,
-			"No suitable firmware for compressed stream\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	cs47l90->compr_info.adsp = &cs47l90->core.adsp[n_adsp];
-	cs47l90->compr_info.stream = stream;
-out:
-	mutex_unlock(&cs47l90->compr_info.lock);
-
-	return ret;
-}
-
-static int cs47l90_free(struct snd_compr_stream *stream)
-{
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct cs47l90_priv *cs47l90 = snd_soc_codec_get_drvdata(rtd->codec);
-
-	mutex_lock(&cs47l90->compr_info.lock);
-
-	cs47l90->compr_info.allocated = false;
-	cs47l90->compr_info.stream = NULL;
-	cs47l90->compr_info.total_copied = 0;
-
-	wm_adsp_stream_free(cs47l90->compr_info.adsp);
-
-	mutex_unlock(&cs47l90->compr_info.lock);
-
-	return 0;
-}
-
-static int cs47l90_set_params(struct snd_compr_stream *stream,
-			     struct snd_compr_params *params)
-{
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct cs47l90_priv *cs47l90 = snd_soc_codec_get_drvdata(rtd->codec);
-	struct madera *madera = cs47l90->core.madera;
-	struct cs47l90_compr *compr = &cs47l90->compr_info;
-	int ret = 0;
-
-	mutex_lock(&compr->lock);
-
-	if (!wm_adsp_format_supported(compr->adsp, stream, params)) {
-		dev_err(madera->dev,
-			"Invalid params: id:%u, chan:%u,%u, rate:%u format:%u\n",
-			params->codec.id, params->codec.ch_in,
-			params->codec.ch_out, params->codec.sample_rate,
-			params->codec.format);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = wm_adsp_stream_alloc(compr->adsp, params);
-	if (ret == 0)
-		compr->allocated = true;
-
-out:
-	mutex_unlock(&compr->lock);
-
-	return ret;
-}
-
-static int cs47l90_get_params(struct snd_compr_stream *stream,
-			     struct snd_codec *params)
-{
-	return 0;
-}
-
-static int cs47l90_trigger(struct snd_compr_stream *stream, int cmd)
-{
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct cs47l90_priv *cs47l90 = snd_soc_codec_get_drvdata(rtd->codec);
-	struct madera *madera = cs47l90->core.madera;
-	int ret = 0;
-	bool pending = false;
-
-	mutex_lock(&cs47l90->compr_info.lock);
-
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-		ret = wm_adsp_stream_start(cs47l90->compr_info.adsp);
-
-		/**
-		 * If the stream has already triggered before the stream
-		 * opened better process any outstanding data
-		 */
-		if (cs47l90->compr_info.trig)
-			pending = true;
-		break;
-	case SNDRV_PCM_TRIGGER_STOP:
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	mutex_unlock(&cs47l90->compr_info.lock);
-
-	/*
-	* Stream has already trigerred, force irq handler to run
-	* by generating interrupt.
-	*/
-	if (pending)
-		regmap_write(madera->regmap, MADERA_ADSP2_IRQ0, 0x01);
-
-
-	return ret;
-}
-
-static int cs47l90_pointer(struct snd_compr_stream *stream,
-			  struct snd_compr_tstamp *tstamp)
-{
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct cs47l90_priv *cs47l90 = snd_soc_codec_get_drvdata(rtd->codec);
-
-	mutex_lock(&cs47l90->compr_info.lock);
-	tstamp->byte_offset = 0;
-	tstamp->copied_total = cs47l90->compr_info.total_copied;
-	mutex_unlock(&cs47l90->compr_info.lock);
-
-	return 0;
-}
-
-static int cs47l90_copy(struct snd_compr_stream *stream, char __user *buf,
-		       size_t count)
-{
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct cs47l90_priv *cs47l90 = snd_soc_codec_get_drvdata(rtd->codec);
-	int ret;
-
-	mutex_lock(&cs47l90->compr_info.lock);
-
-	if (stream->direction == SND_COMPRESS_PLAYBACK)
-		ret = -EINVAL;
-	else
-		ret = wm_adsp_stream_read(cs47l90->compr_info.adsp, buf, count);
-
-	mutex_unlock(&cs47l90->compr_info.lock);
-
-	return ret;
-}
-
-static int cs47l90_get_caps(struct snd_compr_stream *stream,
-			   struct snd_compr_caps *caps)
-{
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct cs47l90_priv *cs47l90 = snd_soc_codec_get_drvdata(rtd->codec);
-
-	mutex_lock(&cs47l90->compr_info.lock);
-
-	memset(caps, 0, sizeof(*caps));
-
-	caps->direction = stream->direction;
-	caps->min_fragment_size = CS47L90_DEFAULT_FRAGMENT_SIZE;
-	caps->max_fragment_size = CS47L90_DEFAULT_FRAGMENT_SIZE;
-	caps->min_fragments = CS47L90_DEFAULT_FRAGMENTS;
-	caps->max_fragments = CS47L90_DEFAULT_FRAGMENTS;
-
-	wm_adsp_get_caps(cs47l90->compr_info.adsp, stream, caps);
-
-	mutex_unlock(&cs47l90->compr_info.lock);
-
-	return 0;
-}
-
-static int cs47l90_get_codec_caps(struct snd_compr_stream *stream,
-				 struct snd_compr_codec_caps *codec)
-{
-	return 0;
 }
 
 static const char * const cs47l90_dmic_refs[] = {
@@ -2826,10 +2568,6 @@ static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	ret = madera_init_dsp_irq(codec, adsp2_irq, cs47l90);
-	if (ret)
-		return ret;
-
 	for (i = 0; i < CS47L90_NUM_ADSP; i++) {
 		wm_adsp2_codec_probe(&cs47l90->core.adsp[i], codec);
 
@@ -2847,7 +2585,6 @@ static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 
 err_free_dsp_irq:
-	madera_destroy_dsp_irq(codec, cs47l90);
 
 	return ret;
 }
@@ -2856,8 +2593,6 @@ static int cs47l90_codec_remove(struct snd_soc_codec *codec)
 {
 	int i;
 	struct cs47l90_priv *cs47l90 = snd_soc_codec_get_drvdata(codec);
-
-	madera_destroy_dsp_irq(codec, cs47l90);
 
 	for (i = 0; i < CS47L90_NUM_ADSP; i++) {
 		wm_adsp2_codec_remove(&cs47l90->core.adsp[i], codec);
@@ -2909,22 +2644,6 @@ static struct snd_soc_codec_driver soc_codec_dev_cs47l90 = {
 	.num_dapm_routes = ARRAY_SIZE(cs47l90_dapm_routes),
 };
 
-static struct snd_compr_ops cs47l90_compr_ops = {
-	.open = cs47l90_open,
-	.free = cs47l90_free,
-	.set_params = cs47l90_set_params,
-	.get_params = cs47l90_get_params,
-	.trigger = cs47l90_trigger,
-	.pointer = cs47l90_pointer,
-	.copy = cs47l90_copy,
-	.get_caps = cs47l90_get_caps,
-	.get_codec_caps = cs47l90_get_codec_caps,
-};
-
-static struct snd_soc_platform_driver cs47l90_compr_platform = {
-	.compr_ops = &cs47l90_compr_ops,
-};
-
 static int cs47l90_probe(struct platform_device *pdev)
 {
 	struct madera *madera = dev_get_drvdata(pdev->dev.parent);
@@ -2952,7 +2671,6 @@ static int cs47l90_probe(struct platform_device *pdev)
 	cs47l90->core.madera = madera;
 	cs47l90->core.num_inputs = 10;
 	cs47l90->core.get_sources = cs47l90_get_sources;
-	mutex_init(&cs47l90->compr_info.lock);
 
 	ret = madera_core_init(&cs47l90->core);
 	if (ret)
@@ -3005,26 +2723,17 @@ static int cs47l90_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
-	ret = snd_soc_register_platform(&pdev->dev, &cs47l90_compr_platform);
-	if (ret < 0) {
-		dev_err(&pdev->dev,
-			"Failed to register platform: %d\n", ret);
-		goto error;
-	}
-
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_cs47l90,
 				     cs47l90_dai, ARRAY_SIZE(cs47l90_dai));
 	if (ret < 0) {
 		dev_err(&pdev->dev,
 			"Failed to register codec: %d\n", ret);
-		snd_soc_unregister_platform(&pdev->dev);
 		goto error;
 	}
 
 	return ret;
 
 error:
-	mutex_destroy(&cs47l90->compr_info.lock);
 	madera_core_destroy(&cs47l90->core);
 	return ret;
 }
@@ -3033,11 +2742,9 @@ static int cs47l90_remove(struct platform_device *pdev)
 {
 	struct cs47l90_priv *cs47l90 = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	mutex_destroy(&cs47l90->compr_info.lock);
 	madera_core_destroy(&cs47l90->core);
 	return 0;
 }
