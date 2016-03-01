@@ -1987,6 +1987,7 @@ static int cs47l35_probe(struct platform_device *pdev)
 
 error:
 	mutex_destroy(&cs47l35->compr_info.lock);
+	madera_core_destroy(&cs47l35->core);
 
 	return ret;
 }
@@ -2000,6 +2001,7 @@ static int cs47l35_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	mutex_destroy(&cs47l35->compr_info.lock);
+	madera_core_destroy(&cs47l35->core);
 
 	return 0;
 }
