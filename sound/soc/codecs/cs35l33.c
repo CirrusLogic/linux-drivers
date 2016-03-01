@@ -956,6 +956,36 @@ int cs35l33_get_hg_data(const struct device_node *np,
 	return 0;
 }
 
+static void cs35l33_of_get_pdata(struct cs35l33_private *cs35l33,
+				 struct device_node *np,
+				 struct cs35l33_pdata *pdata)
+{
+	u32 val32;
+
+	if (of_property_read_u32(np, "boost-ctl", &val32) >= 0) {
+		pdata->boost_ctl = val32;
+		pdata->amp_drv_sel = 1;
+	} else {
+		pdata->boost_ctl = 0;
+		pdata->amp_drv_sel = 0;
+	}
+
+	if (of_property_read_u32(np, "ramp-rate", &val32) >= 0) {
+		pdata->ramp_rate = val32;
+		cs35l33->enable_soft_ramp = true;
+	}
+
+	pdata->gpio_nreset = of_get_named_gpio(np, "reset-gpios", 0);
+
+	if (of_property_read_u32(np, "boost-ipk", &val32) >= 0)
+		pdata->boost_ipk = val32;
+
+	pdata->irq = irq_of_parse_and_map(np, 0);
+	pdata->gpio_irq = of_get_named_gpio(np, "irq-gpios", 0);
+
+	cs35l33_get_hg_data(np, pdata);
+}
+
 static irqreturn_t cs35l33_irq_thread(int irq, void *data)
 {
 	struct cs35l33_private *cs35l33 = data;
@@ -1068,7 +1098,6 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 	struct cs35l33_pdata *pdata = dev_get_platdata(&i2c_client->dev);
 	int ret, devid, i;
 	unsigned int reg;
-	u32 val32;
 
 	cs35l33 = kzalloc(sizeof(struct cs35l33_private), GFP_KERNEL);
 	if (!cs35l33)
@@ -1109,38 +1138,11 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 			dev_err(&i2c_client->dev, "Could not allocate pdata\n");
 			return -ENOMEM;
 		}
-		if (i2c_client->dev.of_node) {
-			if (of_property_read_u32(i2c_client->dev.of_node,
-				"boost-ctl", &val32) >= 0) {
-				pdata->boost_ctl = val32;
-				pdata->amp_drv_sel = 1;
-			} else {
-				pdata->boost_ctl = 0;
-				pdata->amp_drv_sel = 0;
-			}
 
-			if (of_property_read_u32(i2c_client->dev.of_node,
-				"ramp-rate", &val32) >= 0) {
-				pdata->ramp_rate = val32;
-				cs35l33->enable_soft_ramp = true;
-			}
+		if (i2c_client->dev.of_node)
+			cs35l33_of_get_pdata(cs35l33, i2c_client->dev.of_node,
+					     pdata);
 
-			pdata->gpio_nreset = of_get_named_gpio(
-						i2c_client->dev.of_node,
-						"reset-gpios", 0);
-
-			if (of_property_read_u32(i2c_client->dev.of_node,
-				"boost-ipk", &val32) >= 0)
-				pdata->boost_ipk = val32;
-
-			pdata->irq = irq_of_parse_and_map(
-					i2c_client->dev.of_node, 0);
-			pdata->gpio_irq = of_get_named_gpio(
-						i2c_client->dev.of_node,
-						"irq-gpios", 0);
-
-			cs35l33_get_hg_data(i2c_client->dev.of_node, pdata);
-		}
 		cs35l33->pdata = *pdata;
 	}
 
