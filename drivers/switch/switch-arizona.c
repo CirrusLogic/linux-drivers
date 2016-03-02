@@ -56,7 +56,7 @@
 #define ARIZONA_MICD_CLAMP_MODE_JDL_GP5H 0x9
 #define ARIZONA_MICD_CLAMP_MODE_JDH_GP5H 0xb
 
-#define ARIZONA_HPDET_MAX 10000
+#define ARIZONA_HPDET_MAX 1000000 /* 10,000 ohms */
 
 #define HPDET_DEBOUNCE 500
 #define DEFAULT_MICD_TIMEOUT 2000
@@ -462,7 +462,7 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 	}
 
 	/* Restore the desired state while not doing the clamp */
-	if (!clamp && (arizona->hp_impedance >
+	if (!clamp && (HOHM_TO_OHM(arizona->hp_impedance_x100) >
 			arizona->pdata.hpdet_short_circuit_imp) && !ep_sel) {
 		ret = regmap_update_bits(arizona->regmap,
 					 ARIZONA_OUTPUT_ENABLES_1,
@@ -832,39 +832,43 @@ static struct {
 	int min;
 	int max;
 } arizona_hpdet_c_ranges[] = {
-	{ 0,       30 },
-	{ 8,      100 },
-	{ 100,   1000 },
-	{ 1000, 10000 },
+	{ 0,         3000 },
+	{ 800,      10000 },
+	{ 10000,   100000 },
+	{ 100000, 1000000 },
 };
 
 static const struct arizona_hpdet_calibration_data arizona_hpdet_d_ranges[] = {
-	{ 0,       30, 1007000,   -7200,   4003, 69300000, 381150, 250000, 1500000},
-	{ 8,      100, 1007000,   -7200,   7975, 69600000, 382800, 250000, 1500000},
-	{ 100,   1000, 9696000,   -79500,  7300, 62900000, 345950, 250000, 1500000},
-	{ 1000, 10000, 100684000, -949400, 7300, 63200000, 347600, 250000, 1500000},
+	{ 0,      3000,    1007000,   -7200,   4003, 69300000, 381150,
+	  250000, 1500000},
+	{ 800,    10000,   1007000,   -7200,   7975, 69600000, 382800,
+	  250000, 1500000},
+	{ 10000,  100000,  9696000,   -79500,  7300, 62900000, 345950,
+	  250000, 1500000},
+	{ 100000, 1000000, 100684000, -949400, 7300, 63200000, 347600,
+	  250000, 1500000},
 };
 
 static const struct arizona_hpdet_calibration_data arizona_hpdet_clearwater_ranges[] = {
-	{ 4,     30,    1007000,    -7200,   4003,    69300000,    381150,
-	  250000,    500000},
-	{ 8,     100,   1007000,    -7200,   7975,    69600000,    382800,
-	  250000,    500000},
-	{ 100,   1000,  9696000,    -79500,  7300,    62900000,    345950,
-	  250000,    500000},
-	{ 1000,  10000, 100684000,  -949400, 7300,    63200000,    347600,
-	  250000,    500000},
+	{ 400,    3000,    1007000,   -7200,   4003, 69300000, 381150,
+	  250000, 500000},
+	{ 800,    10000,   1007000,   -7200,   7975, 69600000, 382800,
+	  250000, 500000},
+	{ 10000,  100000,  9696000,   -79500,  7300, 62900000, 345950,
+	  250000, 500000},
+	{ 100000, 1000000, 100684000, -949400, 7300, 63200000, 347600,
+	  250000, 500000},
 };
 
 static const struct arizona_hpdet_calibration_data
 	arizona_hpdet_moon_ranges[] = {
-	{ 4,    30,    1014000,   -4300,   3950, 69300000, 381150, 700000,
+	{ 400,    3000,    1014000,   -4300,   3950, 69300000, 381150, 700000,
 	  500000},
-	{ 8,    100,   1014000,   -8600,   7975, 69600000, 382800, 700000,
+	{ 800,    10000,   1014000,   -8600,   7975, 69600000, 382800, 700000,
 	  500000},
-	{ 100,  1000,  9744000,   -79500,  7300, 62900000, 345950, 700000,
+	{ 10000,  100000,  9744000,   -79500,  7300, 62900000, 345950, 700000,
 	  500000},
-	{ 1000, 10000, 101158000, -949400, 7300, 63200000, 347600, 700000,
+	{ 100000, 1000000, 101158000, -949400, 7300, 63200000, 347600, 700000,
 	  500000},
 };
 
@@ -895,8 +899,8 @@ static int arizona_hpdet_d_calibrate(const struct arizona_extcon_info *info,
 	val -= info->calib_data[range].C5;
 
 	/* Round up */
-	val += 500000;
-	val = div_s64(val, 1000000);
+	val += 5000;
+	val = div_s64(val, 10000);
 
 	if (val < 0)
 		return 0;
@@ -949,6 +953,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		}
 
 		val &= ARIZONA_HP_LVL_MASK;
+		val = OHM_TO_HOHM(val);
 		break;
 
 	case 1:
@@ -994,7 +999,8 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		dev_dbg(arizona->dev, "HPDET read %d in range %d\n",
 			val, range);
 
-		val = arizona_hpdet_b_ranges[range].factor_b
+		/* Multiply numerator to get hundredths of an ohm. */
+		val = (arizona_hpdet_b_ranges[range].factor_b * 100)
 			/ ((val * 100) -
 			   arizona_hpdet_b_ranges[range].factor_a);
 		break;
@@ -1010,8 +1016,9 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		}
 
 		val &= ARIZONA_HP_LVL_B_MASK;
-		/* Convert to ohms, the value is in 0.5 ohm increments */
-		val /= 2;
+		/* Convert to hundredths of an ohm, the value is currently in
+		0.5 ohm increments */
+		val *= 50;
 
 		if (is_jdx_micdetx_pin)
 			goto exit;
@@ -1036,7 +1043,8 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 			return -EAGAIN;
 		}
 
-		if (range && (val < arizona_hpdet_c_ranges[range].min)) {
+		if (range &&
+		    (val < arizona_hpdet_c_ranges[range].min)) {
 			dev_dbg(arizona->dev, "Reporting range boundary %d\n",
 				arizona_hpdet_c_ranges[range].min);
 			val = arizona_hpdet_c_ranges[range].min;
@@ -1052,7 +1060,9 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		}
 
 		val &= ARIZONA_HP_LVL_B_MASK;
-		val /= 2;
+		/* Convert to hundredths of an ohm, the value is currently in
+		0.5 ohm increments */
+		val *= 50;
 
 		if (is_jdx_micdetx_pin)
 			goto exit;
@@ -1117,22 +1127,23 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 
 	if (info->arizona->pdata.hpdet_ext_res) {
 
-		if (info->arizona->pdata.hpdet_ext_res >=  val) {
+		if (OHM_TO_HOHM(info->arizona->pdata.hpdet_ext_res) >=  val) {
 			dev_err(arizona->dev,
 				"External resistor (%d) >= measurement (%d)\n",
 				info->arizona->pdata.hpdet_ext_res,
-				val);
+				HOHM_TO_OHM(val));
 		} else {
 			dev_dbg(arizona->dev,
 				"Compensating for external %d ohm resistor\n",
 				info->arizona->pdata.hpdet_ext_res);
 
-			val -= info->arizona->pdata.hpdet_ext_res;
+			val -= OHM_TO_HOHM(info->arizona->pdata.hpdet_ext_res);
 		}
 	}
 
 exit:
-	dev_dbg(arizona->dev, "HP impedance %d ohms\n", val);
+	dev_dbg(arizona->dev, "HP impedance %d.%02d ohms\n", (val / 100),
+		(val % 100));
 	return val;
 }
 
@@ -1665,28 +1676,28 @@ void arizona_set_headphone_imp(struct arizona_extcon_info *info, int imp)
 {
 	struct arizona *arizona = info->arizona;
 
-	arizona->hp_impedance = imp;
+	arizona->hp_impedance_x100 = imp;
 
 	if (arizona->pdata.hpdet_cb)
-		arizona->pdata.hpdet_cb(arizona->hp_impedance);
+		arizona->pdata.hpdet_cb(HOHM_TO_OHM(imp));
 
 	switch (arizona->type) {
 	case WM5110:
-		arizona_wm5110_tune_headphone(info, arizona->hp_impedance);
+		arizona_wm5110_tune_headphone(info, HOHM_TO_OHM(imp));
 		break;
 	case WM1814:
-		arizona_wm1814_tune_headphone(info, arizona->hp_impedance);
+		arizona_wm1814_tune_headphone(info, HOHM_TO_OHM(imp));
 		break;
 	case WM8285:
 	case WM1840:
-		arizona_clearwater_tune_headphone(info, arizona->hp_impedance);
+		arizona_clearwater_tune_headphone(info, HOHM_TO_OHM(imp));
 		break;
 	case CS47L35:
-		arizona_marley_tune_headphone(info, arizona->hp_impedance);
+		arizona_marley_tune_headphone(info, HOHM_TO_OHM(imp));
 		break;
 	case CS47L90:
 	case CS47L91:
-		arizona_moon_tune_headphone(info, arizona->hp_impedance);
+		arizona_moon_tune_headphone(info, HOHM_TO_OHM(imp));
 		break;
 	default:
 		break;
@@ -1756,7 +1767,7 @@ int arizona_hpdet_start(struct arizona_extcon_info *info)
 	if (info->arizona->pdata.fixed_hpdet_imp) {
 		int imp = info->arizona->pdata.fixed_hpdet_imp;
 
-		arizona_set_headphone_imp(info, imp);
+		arizona_set_headphone_imp(info, OHM_TO_HOHM(imp));
 
 		ret = -EEXIST;
 		goto skip;
@@ -2282,6 +2293,8 @@ static int arizona_hpdet_acc_id_reading(struct arizona_extcon_info *info,
 	if (reading < 0)
 		return reading;
 
+	reading = HOHM_TO_OHM(reading);  /* Extra precision not required. */
+
 	/*
 	 * When we're using HPDET for accessory identification we need
 	 * to take multiple measurements, step through them in sequence.
@@ -2311,7 +2324,7 @@ static int arizona_hpdet_acc_id_reading(struct arizona_extcon_info *info,
 	reading = info->hpdet_res[0];
 
 	/* Sometimes we get false readings due to slow insert */
-	if (reading >= ARIZONA_HPDET_MAX && !info->hpdet_retried) {
+	if (reading >= HOHM_TO_OHM(ARIZONA_HPDET_MAX) && !info->hpdet_retried) {
 		dev_dbg(arizona->dev, "Retrying high impedance\n");
 
 		info->num_hpdet_res = 0;
@@ -2387,7 +2400,7 @@ static int arizona_hpdet_acc_id_start(struct arizona_extcon_info *info)
 		 * If we are not identifying line outputs fake the first
 		 * reading at 32 ohms
 		 */
-		arizona_hpdet_acc_id_reading(info, hp_reading);
+		arizona_hpdet_acc_id_reading(info, OHM_TO_HOHM(hp_reading));
 	}
 
 	return 0;
@@ -3026,7 +3039,8 @@ static ssize_t arizona_extcon_show(struct device *dev,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct arizona_extcon_info *info = platform_get_drvdata(pdev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", info->arizona->hp_impedance);
+	return scnprintf(buf, PAGE_SIZE, "%d\n",
+			 HOHM_TO_OHM(info->arizona->hp_impedance_x100));
 }
 
 static void arizona_micd_manual_timeout(struct arizona_extcon_info *info)

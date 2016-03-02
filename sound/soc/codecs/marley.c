@@ -351,8 +351,9 @@ static int marley_put_demux(struct snd_kcontrol *kcontrol,
 	/* [1] if HP detection clamp is applied while switching to HPOUT, OUT1
 	 * should remain disabled and EDRE should be set to Manual
 	 */
-	if (!ep_sel && (arizona->hpdet_clamp || (arizona->hp_impedance
-			<= arizona->pdata.hpdet_short_circuit_imp)))
+	if (!ep_sel && (arizona->hpdet_clamp ||
+			(arizona->hp_impedance_x100 <=
+			 OHM_TO_HOHM(arizona->pdata.hpdet_short_circuit_imp))))
 		restore_out = false;
 
 	if (!ep_sel && arizona->hpdet_clamp) {
