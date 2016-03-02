@@ -2720,8 +2720,9 @@ int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 
 	/* Force off if HPDET clamp is active */
 	if ((priv->arizona->hpdet_clamp ||
-	     priv->arizona->hp_impedance <=
-	     priv->arizona->pdata.hpdet_short_circuit_imp) && !ep_sel)
+	     priv->arizona->hp_impedance_x100 <=
+	     OHM_TO_HOHM(priv->arizona->pdata.hpdet_short_circuit_imp)) &&
+	    !ep_sel)
 		val = 0;
 
 	snd_soc_update_bits(w->codec, ARIZONA_OUTPUT_ENABLES_1, mask, val);
