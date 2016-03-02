@@ -3450,6 +3450,7 @@ static int arizona_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	mask = ARIZONA_AIF1RX_LRCLK_INV | ARIZONA_AIF1RX_LRCLK_MSTR;
 	switch (arizona->type) {
+	case CS47L35:
 	case CS47L90:
 	case CS47L91:
 		mask |= ARIZONA_AIF1RX_LRCLK_ADV;
