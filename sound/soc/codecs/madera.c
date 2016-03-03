@@ -652,7 +652,8 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int ep_sel, mux, change;
 	unsigned int mask;
-	int ret;
+	int ret, demux_change_ret;
+	bool restore_out = true;
 
 	if (ucontrol->value.enumerated.item[0] > e->items - 1)
 		return -EINVAL;
@@ -664,60 +665,70 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 
 	change = snd_soc_test_bits(codec, e->reg, mask, ep_sel);
-	if (change) {
-		/* if HP detection clamp is applied while switching to HPOUT
-		 * disable OUT1 and set EDRE Manual */
-		if (!ep_sel && (madera->hpdet_clamp ||
-				madera_is_hp_shorted(madera))) {
-			ret = regmap_update_bits(madera->regmap,
-						 MADERA_OUTPUT_ENABLES_1,
-						 MADERA_OUT1L_ENA |
-						 MADERA_OUT1R_ENA, 0);
-			if (ret)
-				dev_warn(madera->dev,
-					 "Failed to disable headphone outputs: %d\n",
-					 ret);
-		}
-		if (!ep_sel && madera->hpdet_clamp) {
-			ret = regmap_write(madera->regmap,
-					   MADERA_EDRE_MANUAL, 0x3);
-			if (ret)
-				dev_warn(madera->dev,
-					 "Failed to set EDRE Manual: %d\n",
-					 ret);
-		}
 
-		ret = regmap_update_bits(madera->regmap,
-					 MADERA_OUTPUT_ENABLES_1,
-					 MADERA_EP_SEL, ep_sel);
+	/* if no change is required, skip */
+	if (!change)
+		goto end;
+
+	/* EP_SEL should not be modified while HP or EP driver is enabled */
+	ret = regmap_update_bits(madera->regmap,
+				 MADERA_OUTPUT_ENABLES_1,
+				 MADERA_OUT1L_ENA |
+				 MADERA_OUT1R_ENA, 0);
+	if (ret)
+		dev_warn(madera->dev, "Failed to disable outputs: %d\n", ret);
+
+	usleep_range(2000, 3000); /* wait for wseq to complete */
+
+	/* if HP detection clamp is applied while switching to HPOUT
+	 * OUT1 should remain disabled and EDRE should be set to manual
+	 */
+	if (!ep_sel && (madera->hpdet_clamp || madera_is_hp_shorted(madera)))
+		restore_out = false;
+
+	if (!ep_sel && madera->hpdet_clamp) {
+		ret = regmap_write(madera->regmap, MADERA_EDRE_MANUAL, 0x3);
 		if (ret)
-			dev_err(madera->dev, "Failed to set OUT1 demux: %d\n",
-				ret);
-
-		/* provided the switch back to EPOUT succeeded make sure OUT1
-		 * is restored to a desired value (retained by madera->hp_ena)
-		 * and EDRE Manual is set to the proper value
-		 * */
-		if (ep_sel && !ret) {
-			ret = regmap_update_bits(madera->regmap,
-						 MADERA_OUTPUT_ENABLES_1,
-						 MADERA_OUT1L_ENA |
-						 MADERA_OUT1R_ENA,
-						 madera->hp_ena);
-			if (ret)
-				dev_warn(madera->dev,
-					 "Failed to restore earpiece outputs: %d\n",
-					 ret);
-			ret = regmap_write(madera->regmap,
-					   MADERA_EDRE_MANUAL, 0);
-			if (ret)
-				dev_warn(madera->dev,
-					 "Failed to restore EDRE Manual: %d\n",
-					 ret);
-		}
-
+			dev_warn(madera->dev,
+				 "Failed to set EDRE Manual: %d\n",
+				 ret);
 	}
 
+	/* change demux setting */
+	demux_change_ret = regmap_update_bits(madera->regmap,
+					      MADERA_OUTPUT_ENABLES_1,
+					      MADERA_EP_SEL, ep_sel);
+	if (demux_change_ret)
+		dev_err(madera->dev, "Failed to set OUT1 demux: %d\n",
+			demux_change_ret);
+
+	/* restore output state if allowed */
+	if (restore_out) {
+		ret = regmap_update_bits(madera->regmap,
+					 MADERA_OUTPUT_ENABLES_1,
+					 MADERA_OUT1L_ENA |
+					 MADERA_OUT1R_ENA,
+					 madera->hp_ena);
+		if (ret)
+			dev_warn(madera->dev,
+				 "Failed to restore earpiece outputs: %d\n",
+				 ret);
+		else if (madera->hp_ena)
+			msleep(34); /* wait for enable wseq */
+		else
+			usleep_range(2000, 3000); /* wait for disable wseq */
+	}
+
+	/* if a switch to EPOUT occurred restore EDRE setting */
+	if (ep_sel && !demux_change_ret) {
+		ret = regmap_write(madera->regmap, MADERA_EDRE_MANUAL, 0);
+		if (ret)
+			dev_warn(madera->dev,
+				 "Failed to restore EDRE Manual: %d\n",
+				 ret);
+	}
+
+end:
 	mutex_unlock(&card->dapm_mutex);
 
 	return snd_soc_dapm_mux_update_power(dapm, kcontrol, mux, e, NULL);
