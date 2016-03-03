@@ -751,10 +751,14 @@ EXPORT_SYMBOL_GPL(madera_out1_demux_put);
 static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
 	struct snd_soc_dapm_context *dapm =
 		snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct madera *madera = dev_get_drvdata(codec->dev->parent);
 	struct soc_enum *e = (struct soc_enum *) kcontrol->private_value;
-	unsigned int mux, src_val, src_mask;
+	unsigned int mux, src_val, src_mask, gang_reg;
+	unsigned int inmode_a;
+	bool changed = false;
 	int ret;
 
 	mux = ucontrol->value.enumerated.item[0];
@@ -764,6 +768,27 @@ static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 	src_val = mux << e->shift_l;
 	src_mask = e->mask << e->shift_l;
 
+	switch (e->reg) {
+	case MADERA_ADC_DIGITAL_VOLUME_1L:
+		inmode_a = madera->pdata.inmode[0][0];
+		gang_reg = MADERA_ADC_DIGITAL_VOLUME_1R;
+		break;
+	case MADERA_ADC_DIGITAL_VOLUME_1R:
+		inmode_a = madera->pdata.inmode[0][0];
+		gang_reg = MADERA_ADC_DIGITAL_VOLUME_1L;
+		break;
+	case MADERA_ADC_DIGITAL_VOLUME_2L:
+		inmode_a = madera->pdata.inmode[1][0];
+		gang_reg = MADERA_ADC_DIGITAL_VOLUME_2R;
+		break;
+	case MADERA_ADC_DIGITAL_VOLUME_2R:
+		inmode_a = madera->pdata.inmode[1][0];
+		gang_reg = MADERA_ADC_DIGITAL_VOLUME_2L;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	ret = snd_soc_component_update_bits(dapm->component,
 					    e->reg,
 					    src_mask,
@@ -771,6 +796,37 @@ static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 	if (ret < 0)
 		return ret;
 	else if (ret)
+		changed = true;
+
+	/* if the A input is digital we must switch both channels together */
+	if (inmode_a == MADERA_INMODE_DMIC) {
+		switch (madera->type) {
+		case CS47L85:
+		case WM1840:
+			if (e->reg == MADERA_ADC_DIGITAL_VOLUME_1L)
+				goto out;	/* not ganged */
+			break;
+		case CS47L90:
+		case CS47L91:
+			if (e->reg == MADERA_ADC_DIGITAL_VOLUME_2L)
+				goto out;	/* not ganged */
+			break;
+		default:
+			break;
+		}
+
+		ret = snd_soc_component_update_bits(dapm->component,
+						    gang_reg,
+						    src_mask,
+						    src_val);
+		if (ret < 0)
+			return ret;
+		else if (ret)
+			changed |= true;
+	}
+
+out:
+	if (changed)
 		return snd_soc_dapm_mux_update_power(dapm, kcontrol,
 						     mux, e, NULL);
 	else
