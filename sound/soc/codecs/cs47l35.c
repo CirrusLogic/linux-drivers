@@ -32,9 +32,32 @@
 
 #define CS47L35_NUM_ADSP 3
 
+struct cs47l35;
+
+static const struct madera_compr_dai_mapping cs47l35_compr_dai_map[] = {
+	{
+		.dai_name = "cs47l35-dsp3-voicectrl",
+		.dsp_num = 2,
+	},
+	{
+		.dai_name = "cs47l35-dsp1-trace",
+		.dsp_num = 0,
+	},
+};
+
+struct cs47l35_compr {
+	struct wm_adsp_compr adsp_compr;
+	const char *dai_name;
+	bool trig;
+	struct mutex trig_lock;
+	struct cs47l35 *priv;
+};
+
 struct cs47l35 {
 	struct madera_priv core;
 	struct madera_fll fll;
+
+	struct cs47l35_compr compr_info[ARRAY_SIZE(cs47l35_compr_dai_map)];
 };
 
 static const int cs47l35_fx_inputs[] = {
@@ -221,7 +244,7 @@ static int cs47l35_adsp_power_ev(struct snd_soc_dapm_widget *w,
 	struct madera_priv *priv = &cs47l35->core;
 	struct madera *madera = priv->madera;
 	unsigned int freq;
-	int ret;
+	int i, ret;
 
 	ret = regmap_read(madera->regmap, MADERA_DSP_CLOCK_1, &freq);
 	if (ret != 0) {
@@ -235,6 +258,16 @@ static int cs47l35_adsp_power_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+		for (i = 0; i < ARRAY_SIZE(cs47l35->compr_info); ++i) {
+			if (cs47l35->compr_info[i].adsp_compr.dsp->num !=
+			    w->shift + 1)
+				continue;
+
+			mutex_lock(&cs47l35->compr_info[i].trig_lock);
+			cs47l35->compr_info[i].trig = false;
+			mutex_unlock(&cs47l35->compr_info[i].trig_lock);
+		}
+
 		ret = madera_set_adsp_clk(&cs47l35->core.adsp[w->shift], freq);
 		if (ret)
 			return ret;
@@ -1464,7 +1497,7 @@ static struct snd_soc_dai_driver cs47l35_dai[] = {
 		 },
 		.ops = &madera_simple_dai_ops,
 	},
-/*	{
+	{
 		.name = "cs47l35-cpu3-voicectrl",
 		.capture = {
 			.stream_name = "Voice Control CPU3",
@@ -1505,7 +1538,137 @@ static struct snd_soc_dai_driver cs47l35_dai[] = {
 			.rates = MADERA_RATES,
 			.formats = MADERA_FORMATS,
 		},
-	},*/
+	},
+};
+
+static void cs47l35_compr_irq(struct cs47l35 *cs47l35,
+			      struct cs47l35_compr *compr)
+{
+	struct madera *madera = cs47l35->core.madera;
+	bool trigger;
+	int ret;
+
+	ret = wm_adsp_compr_irq(&compr->adsp_compr, &trigger);
+	if (ret < 0)
+		return;
+
+	if (trigger && madera->pdata.voice_trigger) {
+		mutex_lock(&compr->trig_lock);
+		if (!compr->trig) {
+			compr->trig = true;
+
+			if (madera->pdata.voice_trigger &&
+			    wm_adsp_fw_has_voice_trig(compr->adsp_compr.dsp))
+				madera->pdata.voice_trigger();
+		}
+		mutex_unlock(&compr->trig_lock);
+	}
+}
+
+static irqreturn_t cs47l35_adsp2_irq(int irq, void *data)
+{
+	struct cs47l35 *cs47l35 = data;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(cs47l35->compr_info); ++i) {
+		if (!cs47l35->compr_info[i].adsp_compr.dsp->running)
+			continue;
+
+		cs47l35_compr_irq(cs47l35, &cs47l35->compr_info[i]);
+	}
+	return IRQ_HANDLED;
+}
+
+static int cs47l35_compr_open(struct snd_compr_stream *stream)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct cs47l35 *cs47l35 = snd_soc_codec_get_drvdata(rtd->codec);
+	int compr_idx;
+
+	compr_idx = madera_get_compr_map_idx(rtd,
+					     cs47l35_compr_dai_map,
+					     ARRAY_SIZE(cs47l35_compr_dai_map));
+	if (compr_idx < 0) {
+		dev_err(cs47l35->core.madera->dev,
+			"No compressed stream for dai '%s'\n",
+			rtd->codec_dai->name);
+		return -EINVAL;
+	}
+
+	/* 1:1 mapping between dai map entries and compr_info entries */
+	return wm_adsp_compr_open(&cs47l35->compr_info[compr_idx].adsp_compr,
+				  stream);
+}
+
+static int cs47l35_compr_trigger(struct snd_compr_stream *stream, int cmd)
+{
+	struct wm_adsp_compr *adsp_compr = stream->runtime->private_data;
+	struct cs47l35_compr *compr = container_of(adsp_compr,
+						   struct cs47l35_compr,
+						   adsp_compr);
+	struct madera *madera = compr->priv->core.madera;
+	int ret;
+
+	ret = wm_adsp_compr_trigger(stream, cmd);
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+		if (compr->trig)
+			/*
+			 * If the firmware already triggered before the stream
+			 * was opened trigger another interrupt so irq handler
+			 * will run and process any outstanding data
+			 */
+			regmap_write(madera->regmap, MADERA_ADSP2_IRQ0, 0x01);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static void cs47l35_init_compr_info(struct cs47l35 *cs47l35)
+{
+	struct wm_adsp *dsp;
+	int i;
+
+	/*BUILD_BUG_ON(ARRAY_SIZE(moon->compr_info) !=
+		     ARRAY_SIZE(compr_dai_mapping));*/
+
+	for (i = 0; i < ARRAY_SIZE(cs47l35->compr_info); ++i) {
+		cs47l35->compr_info[i].priv = cs47l35;
+
+		cs47l35->compr_info[i].dai_name =
+			cs47l35_compr_dai_map[i].dai_name;
+
+		dsp = &cs47l35->core.adsp[cs47l35_compr_dai_map[i].dsp_num],
+		wm_adsp_compr_init(dsp, &cs47l35->compr_info[i].adsp_compr);
+
+		mutex_init(&cs47l35->compr_info[i].trig_lock);
+	}
+}
+
+static void cs47l35_destroy_compr_info(struct cs47l35 *cs47l35)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(cs47l35->compr_info); ++i)
+		wm_adsp_compr_destroy(&cs47l35->compr_info[i].adsp_compr);
+}
+
+static struct snd_compr_ops cs47l35_compr_ops = {
+	.open = cs47l35_compr_open,
+	.free = wm_adsp_compr_free,
+	.set_params = wm_adsp_compr_set_params,
+	.trigger = cs47l35_compr_trigger,
+	.pointer = wm_adsp_compr_pointer,
+	.copy = wm_adsp_compr_copy,
+	.get_caps = wm_adsp_compr_get_caps,
+};
+
+static struct snd_soc_platform_driver cs47l35_compr_platform = {
+	.compr_ops = &cs47l35_compr_ops,
 };
 
 static const char * const cs47l35_dmic_refs[] = {
@@ -1565,6 +1728,10 @@ static int cs47l35_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
+	ret = madera_init_dsp_irq(codec, cs47l35_adsp2_irq, cs47l35);
+	if (ret)
+		return ret;
+
 	for (i = 0; i < CS47L35_NUM_ADSP; i++)
 		wm_adsp2_codec_probe(&cs47l35->core.adsp[i], codec);
 
@@ -1575,6 +1742,8 @@ static int cs47l35_codec_remove(struct snd_soc_codec *codec)
 {
 	struct cs47l35 *cs47l35 = snd_soc_codec_get_drvdata(codec);
 	int i;
+
+	madera_destroy_dsp_irq(codec, cs47l35);
 
 	for (i = 0; i < CS47L35_NUM_ADSP; i++)
 		wm_adsp2_codec_remove(&cs47l35->core.adsp[i], codec);
@@ -1678,6 +1847,8 @@ static int cs47l35_probe(struct platform_device *pdev)
 			return ret;
 	}
 
+	cs47l35_init_compr_info(cs47l35);
+
 	madera_init_fll(madera, 1, MADERA_FLL1_CONTROL_1 - 1, &cs47l35->fll);
 
 	for (i = 0; i < ARRAY_SIZE(cs47l35_dai); i++)
@@ -1691,6 +1862,14 @@ static int cs47l35_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
+	ret = snd_soc_register_platform(&pdev->dev, &cs47l35_compr_platform);
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"Failed to register compr platform: %d\n",
+			ret);
+		goto error;
+	}
+
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_cs47l35,
 				      cs47l35_dai, ARRAY_SIZE(cs47l35_dai));
 	if (ret < 0) {
@@ -1703,6 +1882,7 @@ static int cs47l35_probe(struct platform_device *pdev)
 	return ret;
 
 error:
+	cs47l35_destroy_compr_info(cs47l35);
 	madera_core_destroy(&cs47l35->core);
 
 	return ret;
@@ -1711,6 +1891,8 @@ error:
 static int cs47l35_remove(struct platform_device *pdev)
 {
 	struct cs47l35 *cs47l35 = platform_get_drvdata(pdev);
+
+	cs47l35_destroy_compr_info(cs47l35);
 
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);

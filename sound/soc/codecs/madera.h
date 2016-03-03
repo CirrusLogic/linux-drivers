@@ -158,6 +158,11 @@ struct madera_fll {
 	struct madera_fll_cfg ref_cfg;
 };
 
+struct madera_compr_dai_mapping {
+	const char *dai_name;
+	int dsp_num;
+};
+
 struct madera_enum {
 	struct soc_enum mixer_enum;
 	int val;
@@ -512,6 +517,10 @@ extern int madera_init_dai(struct madera_priv *priv, int dai);
 
 extern int madera_set_output_mode(struct snd_soc_codec *codec, int output,
 				  bool diff);
+
+extern int madera_get_compr_map_idx(struct snd_soc_pcm_runtime *rtd,
+				    const struct madera_compr_dai_mapping *map,
+				    int n_mappings);
 
 /* Following functions are for use by machine drivers */
 extern int madera_set_hpdet_cb(struct snd_soc_codec *codec,

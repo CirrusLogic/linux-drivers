@@ -4698,6 +4698,20 @@ int madera_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(madera_lhpf_coeff_put);
 
+int madera_get_compr_map_idx(struct snd_soc_pcm_runtime *rtd,
+			     const struct madera_compr_dai_mapping *map,
+			     int n_mappings)
+{
+	int i;
+
+	for (i = 0; i < n_mappings; ++i)
+		if (strcmp(rtd->codec_dai->name, map[i].dai_name) == 0)
+			return i;
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(madera_get_compr_map_idx);
+
 MODULE_DESCRIPTION("ASoC Cirrus Logic Madera codec support");
 MODULE_AUTHOR("Charles Keepax <ckeepax@opensource.wolfsonmicro.com>");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.wolfsonmicro.com>");
