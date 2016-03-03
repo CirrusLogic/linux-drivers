@@ -239,33 +239,6 @@ static const unsigned int wm_adsp2_control_bases[] = {
 	MADERA_DSP7_CONFIG_1,
 };
 
-static const char * const cs47l85_inmux_texts[] = {
-	"A",
-	"B",
-};
-
-static SOC_ENUM_SINGLE_DECL(cs47l85_in1mux_enum,
-			    MADERA_ADC_DIGITAL_VOLUME_1L,
-			    MADERA_IN1L_SRC_SHIFT,
-			    cs47l85_inmux_texts);
-
-static SOC_ENUM_SINGLE_DECL(cs47l85_in2muxl_enum,
-			    MADERA_ADC_DIGITAL_VOLUME_2L,
-			    MADERA_IN2L_SRC_SHIFT,
-			    cs47l85_inmux_texts);
-static SOC_ENUM_SINGLE_DECL(cs47l85_in2muxr_enum,
-			    MADERA_ADC_DIGITAL_VOLUME_2R,
-			    MADERA_IN2R_SRC_SHIFT,
-			    cs47l85_inmux_texts);
-
-static const struct snd_kcontrol_new cs47l85_in1mux =
-	SOC_DAPM_ENUM("IN1L Mux", cs47l85_in1mux_enum);
-
-static const struct snd_kcontrol_new cs47l85_in2mux[2] = {
-	SOC_DAPM_ENUM("IN2L Mux", cs47l85_in2muxl_enum),
-	SOC_DAPM_ENUM("IN2R Mux", cs47l85_in2muxr_enum),
-};
-
 static int cs47l85_get_sources(unsigned int reg,
 				const unsigned int **cur_sources, int *lim)
 {
@@ -1184,9 +1157,9 @@ SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
 
 SND_SOC_DAPM_OUTPUT("DSP Virtual Output"),
 
-SND_SOC_DAPM_MUX("IN1L Mux", SND_SOC_NOPM, 0, 0, &cs47l85_in1mux),
-SND_SOC_DAPM_MUX("IN2L Mux", SND_SOC_NOPM, 0, 0, &cs47l85_in2mux[0]),
-SND_SOC_DAPM_MUX("IN2R Mux", SND_SOC_NOPM, 0, 0, &cs47l85_in2mux[1]),
+SND_SOC_DAPM_MUX("IN1L Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[0]),
+SND_SOC_DAPM_MUX("IN2L Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[2]),
+SND_SOC_DAPM_MUX("IN2R Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[3]),
 
 SND_SOC_DAPM_PGA("PWM1 Driver", MADERA_PWM_DRIVE_1, MADERA_PWM1_ENA_SHIFT,
 		 0, NULL, 0),

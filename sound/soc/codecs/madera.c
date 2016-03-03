@@ -747,6 +747,39 @@ end:
 }
 EXPORT_SYMBOL_GPL(madera_out1_demux_put);
 
+static const char * const madera_inmux_texts[] = {
+	"A",
+	"B",
+};
+
+static SOC_ENUM_SINGLE_DECL(madera_in1muxl_enum,
+			    MADERA_ADC_DIGITAL_VOLUME_1L,
+			    MADERA_IN1L_SRC_SHIFT,
+			    madera_inmux_texts);
+
+static SOC_ENUM_SINGLE_DECL(madera_in1muxr_enum,
+			    MADERA_ADC_DIGITAL_VOLUME_1R,
+			    MADERA_IN1R_SRC_SHIFT,
+			    madera_inmux_texts);
+
+static SOC_ENUM_SINGLE_DECL(madera_in2muxl_enum,
+			    MADERA_ADC_DIGITAL_VOLUME_2L,
+			    MADERA_IN2L_SRC_SHIFT,
+			    madera_inmux_texts);
+
+static SOC_ENUM_SINGLE_DECL(madera_in2muxr_enum,
+			    MADERA_ADC_DIGITAL_VOLUME_2R,
+			    MADERA_IN2R_SRC_SHIFT,
+			    madera_inmux_texts);
+
+const struct snd_kcontrol_new madera_inmux[] = {
+	SOC_DAPM_ENUM("IN1L Mux", madera_in1muxl_enum),
+	SOC_DAPM_ENUM("IN1R Mux", madera_in1muxr_enum),
+	SOC_DAPM_ENUM("IN2L Mux", madera_in2muxl_enum),
+	SOC_DAPM_ENUM("IN2R Mux", madera_in2muxr_enum),
+};
+EXPORT_SYMBOL_GPL(madera_inmux);
+
 int madera_adsp_rate_get(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
