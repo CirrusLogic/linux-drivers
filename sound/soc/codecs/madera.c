@@ -653,7 +653,7 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	unsigned int ep_sel, mux, change;
 	unsigned int mask;
 	int ret, demux_change_ret;
-	bool restore_out = true;
+	bool out_mono, restore_out = true;
 
 	if (ucontrol->value.enumerated.item[0] > e->items - 1)
 		return -EINVAL;
@@ -698,9 +698,21 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	demux_change_ret = regmap_update_bits(madera->regmap,
 					      MADERA_OUTPUT_ENABLES_1,
 					      MADERA_EP_SEL, ep_sel);
-	if (demux_change_ret)
+	if (demux_change_ret) {
 		dev_err(madera->dev, "Failed to set OUT1 demux: %d\n",
 			demux_change_ret);
+	} else {
+		/* apply correct setting for mono mode */
+		if (!ep_sel && !madera->pdata.out_mono[0])
+			out_mono = false; /* stereo HP */
+		else
+			out_mono = true; /* EP or mono HP */
+
+		ret = madera_set_output_mode(codec, 1, out_mono);
+		if (ret)
+			dev_warn(madera->dev,
+				 "Failed to set output mode: %d\n", ret);
+	}
 
 	/* restore output state if allowed */
 	if (restore_out) {
