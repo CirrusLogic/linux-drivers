@@ -3935,11 +3935,11 @@ static int madera_calc_fll(struct madera_fll *fll,
 	if (ret)
 		return ret;
 
-	madera_fll_dbg(fll, "N=%x THETA=%x LAMBDA=%x\n",
+	madera_fll_dbg(fll, "N=%d THETA=%d LAMBDA=%d\n",
 			cfg->n, cfg->theta, cfg->lambda);
-	madera_fll_dbg(fll, "FRATIO=%x(%d) REFCLK_DIV=%x\n",
-			cfg->fratio, cfg->fratio, cfg->refdiv);
-	madera_fll_dbg(fll, "GAIN=%d\n", cfg->gain);
+	madera_fll_dbg(fll, "FRATIO=0x%x(%d) REFCLK_DIV=0x%x(%d)\n",
+			cfg->fratio, ratio, cfg->refdiv, 1 << cfg->refdiv);
+	madera_fll_dbg(fll, "GAIN=0x%x(%d)\n", cfg->gain, 1 << cfg->gain);
 
 	return 0;
 
