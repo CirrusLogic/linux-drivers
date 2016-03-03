@@ -747,6 +747,36 @@ end:
 }
 EXPORT_SYMBOL_GPL(madera_out1_demux_put);
 
+
+static int madera_inmux_put(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct soc_enum *e = (struct soc_enum *) kcontrol->private_value;
+	unsigned int mux, src_val, src_mask;
+	int ret;
+
+	mux = ucontrol->value.enumerated.item[0];
+	if (mux > 1)
+		return -EINVAL;
+
+	src_val = mux << e->shift_l;
+	src_mask = e->mask << e->shift_l;
+
+	ret = snd_soc_component_update_bits(dapm->component,
+					    e->reg,
+					    src_mask,
+					    src_val);
+	if (ret < 0)
+		return ret;
+	else if (ret)
+		return snd_soc_dapm_mux_update_power(dapm, kcontrol,
+						     mux, e, NULL);
+	else
+		return 0;
+}
+
 static const char * const madera_inmux_texts[] = {
 	"A",
 	"B",
@@ -773,10 +803,14 @@ static SOC_ENUM_SINGLE_DECL(madera_in2muxr_enum,
 			    madera_inmux_texts);
 
 const struct snd_kcontrol_new madera_inmux[] = {
-	SOC_DAPM_ENUM("IN1L Mux", madera_in1muxl_enum),
-	SOC_DAPM_ENUM("IN1R Mux", madera_in1muxr_enum),
-	SOC_DAPM_ENUM("IN2L Mux", madera_in2muxl_enum),
-	SOC_DAPM_ENUM("IN2R Mux", madera_in2muxr_enum),
+	SOC_DAPM_ENUM_EXT("IN1L Mux", madera_in1muxl_enum,
+			  snd_soc_dapm_get_enum_double, madera_inmux_put),
+	SOC_DAPM_ENUM_EXT("IN1R Mux", madera_in1muxr_enum,
+			  snd_soc_dapm_get_enum_double, madera_inmux_put),
+	SOC_DAPM_ENUM_EXT("IN2L Mux", madera_in2muxl_enum,
+			  snd_soc_dapm_get_enum_double, madera_inmux_put),
+	SOC_DAPM_ENUM_EXT("IN2R Mux", madera_in2muxr_enum,
+			  snd_soc_dapm_get_enum_double, madera_inmux_put),
 };
 EXPORT_SYMBOL_GPL(madera_inmux);
 
