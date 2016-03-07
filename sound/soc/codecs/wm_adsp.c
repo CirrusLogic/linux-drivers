@@ -3855,8 +3855,8 @@ irqreturn_t wm_adsp2_bus_error(struct wm_adsp *dsp)
 			>> ADSP2_PMEM_ERR_ADDR_SHIFT);
 	}
 
-	regmap_write(regmap, dsp->base + ADSP2_LOCK_REGION_CTRL,
-		     ADSP2_CTRL_ERR_EINT);
+	regmap_update_bits(regmap, dsp->base + ADSP2_LOCK_REGION_CTRL,
+			   ADSP2_CTRL_ERR_EINT, ADSP2_CTRL_ERR_EINT);
 exit:
 	return IRQ_HANDLED;
 }
