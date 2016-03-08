@@ -28,7 +28,7 @@
 
 #include <sound/soc.h>
 
-#include <linux/switch-madera.h>
+#include <linux/extcon/extcon-madera.h>
 
 #include <linux/mfd/madera/core.h>
 #include <linux/mfd/madera/pdata.h>
