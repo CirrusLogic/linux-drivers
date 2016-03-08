@@ -2499,30 +2499,37 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		case 0:
 			regmap_update_bits(dsp->regmap,
 					   dsp->base + ADSP2_CONTROL,
-					   ADSP2_SYS_ENA | ADSP2_CORE_ENA |
-					   ADSP2_START, 0);
-
-			/* Make sure DMAs are quiesced */
-			regmap_write(dsp->regmap,
-				     dsp->base + ADSP2_WDMA_CONFIG_1, 0);
-			regmap_write(dsp->regmap,
-				     dsp->base + ADSP2_WDMA_CONFIG_2, 0);
-			regmap_write(dsp->regmap,
-				     dsp->base + ADSP2_RDMA_CONFIG_1, 0);
-			break;
-		default:
-			regmap_update_bits(dsp->regmap,
-					   dsp->base + ADSP2_CONTROL,
-					   ADSP2_MEM_ENA | ADSP2_SYS_ENA |
 					   ADSP2_CORE_ENA | ADSP2_START, 0);
 
 			/* Make sure DMAs are quiesced */
 			regmap_write(dsp->regmap,
+				     dsp->base + ADSP2_RDMA_CONFIG_1, 0);
+			regmap_write(dsp->regmap,
+				     dsp->base + ADSP2_WDMA_CONFIG_1, 0);
+			regmap_write(dsp->regmap,
+				     dsp->base + ADSP2_WDMA_CONFIG_2, 0);
+
+			regmap_update_bits(dsp->regmap,
+					   dsp->base + ADSP2_CONTROL,
+					   ADSP2_SYS_ENA, 0);
+			break;
+		default:
+			regmap_update_bits(dsp->regmap,
+					   dsp->base + ADSP2_CONTROL,
+					   ADSP2_CORE_ENA | ADSP2_START, 0);
+
+			/* Make sure DMAs are quiesced */
+			regmap_write(dsp->regmap,
+				     dsp->base + ADSP2_RDMA_CONFIG_1, 0);
+			regmap_write(dsp->regmap,
 				     dsp->base + ADSP2_WDMA_CONFIG_1, 0);
 			regmap_write(dsp->regmap,
 				     dsp->base + ADSP2V2_WDMA_CONFIG_2, 0);
-			regmap_write(dsp->regmap,
-				     dsp->base + ADSP2_RDMA_CONFIG_1, 0);
+
+			regmap_update_bits(dsp->regmap,
+					   dsp->base + ADSP2_CONTROL,
+					   ADSP2_SYS_ENA | ADSP2_MEM_ENA, 0);
+
 			break;
 		}
 
