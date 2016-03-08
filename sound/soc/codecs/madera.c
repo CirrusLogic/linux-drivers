@@ -637,8 +637,8 @@ EXPORT_SYMBOL_GPL(madera_mux_ev);
 
 static bool madera_is_hp_shorted(const struct madera *madera)
 {
-	return (madera->hp_impedance <=
-		madera->pdata.hpdet_short_circuit_imp);
+	return (madera->hp_impedance_x100 <=
+		(madera->pdata.hpdet_short_circuit_imp * 100));
 }
 
 int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
