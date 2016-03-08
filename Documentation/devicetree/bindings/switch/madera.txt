@@ -44,7 +44,11 @@ Optional properties:
     Second cell is the value for the SW2_MODE (cs47l90, cs47l91)
 
   - cirrus,fixed-hpdet-imp : Do not perform any headphone detection, just use
-    the fixed value specified here as the headphone impedance.
+    the fixed value specified here as the headphone impedance. Value is in
+    hundredths-of-an-ohm (ohms * 100)
+
+  - cirrus,hpdet-ext-res : Impedance of external series resistor on hpdet.
+    Value is in hundredths-of-an-ohm (ohms * 100)
 
   - cirrus,hpdet-short-circuit-imp : Specifies the maximum impedance in ohms
     that will be considered as a short circuit

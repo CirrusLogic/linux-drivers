@@ -191,11 +191,15 @@ struct madera_pdata {
 	 */
 	unsigned int gpsw[MADERA_MAX_GPSW];
 
-	/** If non-zero don't run headphone detection, just report this value */
-	int fixed_hpdet_imp;
+	/** If non-zero don't run headphone detection, just report this value
+	 * Specified as hundredths-of-an-ohm, that is (ohms * 100)
+	 */
+	int fixed_hpdet_imp_x100;
 
-	/** Impedance of external series resistor on hpdet */
-	int hpdet_ext_res;
+	/** Impedance of external series resistor on hpdet.
+	 * Specified as hundredths-of-an-ohm, that is (ohms * 100)
+	 */
+	int hpdet_ext_res_x100;
 
 	/** If non-zero, specifies the maximum impedance in ohms
 	 * that will be considered as a short circuit.
