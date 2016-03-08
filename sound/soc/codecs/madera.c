@@ -756,8 +756,8 @@ static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 		snd_soc_dapm_kcontrol_dapm(kcontrol);
 	struct madera *madera = dev_get_drvdata(codec->dev->parent);
 	struct soc_enum *e = (struct soc_enum *) kcontrol->private_value;
-	unsigned int mux, src_val, src_mask, gang_reg;
-	unsigned int inmode_a;
+	unsigned int mux, src_val, src_mask, gang_reg, dmode_reg, dmode_val;
+	unsigned int inmode_a, inmode_gang, inmode;
 	bool changed = false;
 	int ret;
 
@@ -771,23 +771,44 @@ static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 	switch (e->reg) {
 	case MADERA_ADC_DIGITAL_VOLUME_1L:
 		inmode_a = madera->pdata.inmode[0][0];
+		inmode = madera->pdata.inmode[0][2 * mux];
+		inmode_gang = madera->pdata.inmode[0][1 + (2 * mux)];
 		gang_reg = MADERA_ADC_DIGITAL_VOLUME_1R;
+		dmode_reg = MADERA_IN1L_CONTROL;
 		break;
 	case MADERA_ADC_DIGITAL_VOLUME_1R:
 		inmode_a = madera->pdata.inmode[0][0];
+		inmode = madera->pdata.inmode[0][1 + (2 * mux)];
+		inmode_gang = madera->pdata.inmode[0][2 * mux];
 		gang_reg = MADERA_ADC_DIGITAL_VOLUME_1L;
+		dmode_reg = MADERA_IN1L_CONTROL;
 		break;
 	case MADERA_ADC_DIGITAL_VOLUME_2L:
 		inmode_a = madera->pdata.inmode[1][0];
+		inmode = madera->pdata.inmode[1][2 * mux];
+		inmode_gang = madera->pdata.inmode[1][1 + (2 * mux)];
 		gang_reg = MADERA_ADC_DIGITAL_VOLUME_2R;
+		dmode_reg = MADERA_IN2L_CONTROL;
 		break;
 	case MADERA_ADC_DIGITAL_VOLUME_2R:
 		inmode_a = madera->pdata.inmode[1][0];
+		inmode = madera->pdata.inmode[1][1 + (2 * mux)];
+		inmode_gang = madera->pdata.inmode[1][2 * mux];
 		gang_reg = MADERA_ADC_DIGITAL_VOLUME_2L;
+		dmode_reg = MADERA_IN2L_CONTROL;
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	/* SE mask and shift is same for all channels */
+	src_mask |= MADERA_IN1L_SRC_SE_MASK;
+	if (inmode & MADERA_INMODE_SE)
+		src_val |= 1 << MADERA_IN1L_SRC_SE_SHIFT;
+
+	dev_dbg(madera->dev,
+		"mux=%u reg=0x%x inmode_a=0x%x inmode=0x%x mask=0x%x val=0x%x\n",
+		mux, e->reg, inmode_a, inmode, src_mask, src_val);
 
 	ret = snd_soc_component_update_bits(dapm->component,
 					    e->reg,
@@ -815,6 +836,21 @@ static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 			break;
 		}
 
+		/* ganged channels can have different analogue modes */
+		if (inmode_gang & MADERA_INMODE_SE)
+			src_val |= 1 << MADERA_IN1L_SRC_SE_SHIFT;
+		else
+			src_val &= ~(1 << MADERA_IN1L_SRC_SE_SHIFT);
+
+		if (mux)
+			dmode_val = 0; /* B always analogue */
+		else
+			dmode_val = 1 << MADERA_IN1_MODE_SHIFT; /* DMIC */
+
+		dev_dbg(madera->dev,
+			"gang_reg=0x%x inmode_gang=0x%x gang_val=0x%x dmode_val=0x%x\n",
+			gang_reg, inmode_gang, src_val, dmode_val);
+
 		ret = snd_soc_component_update_bits(dapm->component,
 						    gang_reg,
 						    src_mask,
@@ -823,6 +859,11 @@ static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 			return ret;
 		else if (ret)
 			changed |= true;
+
+		ret = snd_soc_component_update_bits(dapm->component,
+						    dmode_reg,
+						    MADERA_IN1_MODE_MASK,
+						    dmode_val);
 	}
 
 out:
