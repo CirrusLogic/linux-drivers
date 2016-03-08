@@ -131,7 +131,7 @@ struct madera {
 
 	bool hpdet_clamp;
 	unsigned int hp_ena;
-	unsigned int hp_impedance;
+	unsigned int hp_impedance_x100;
 	struct madera_extcon_info *extcon_info;
 
 	struct snd_soc_dapm_context *dapm;

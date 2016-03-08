@@ -697,7 +697,7 @@ int madera_dev_init(struct madera *madera)
 	mutex_init(&madera->reg_setting_lock);
 
 	/* default headphone impedance in case the extcon driver is not used */
-	madera->hp_impedance = 32;
+	madera->hp_impedance_x100 = 3200;
 
 	if (dev_get_platdata(madera->dev))
 		memcpy(&madera->pdata, dev_get_platdata(madera->dev),

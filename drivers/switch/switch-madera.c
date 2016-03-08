@@ -94,6 +94,11 @@
 
 #define MADERA_HP_TUNING_INVALID	-1
 
+/* Conversion between ohms and hundredths of an ohm. */
+#define HOHM_TO_OHM(X)	(((X) == INT_MAX || (X) == MADERA_HP_Z_OPEN) ? \
+			 (X) : ((X) + 50) / 100)
+#define OHM_TO_HOHM(X)	((X) * 100)
+
 struct madera_micd_bias {
 	unsigned int bias;
 	bool enabled;
@@ -390,7 +395,8 @@ static ssize_t madera_extcon_show(struct device *dev,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct madera_extcon_info *info = platform_get_drvdata(pdev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", info->madera->hp_impedance);
+	return scnprintf(buf, PAGE_SIZE, "%d\n",
+			 info->madera->hp_impedance_x100);
 }
 
 static DEVICE_ATTR(hp_impedance, S_IRUGO, madera_extcon_show, NULL);
@@ -573,7 +579,7 @@ static void madera_extcon_hp_clamp(struct madera_extcon_info *info,
 	}
 
 	/* Restore the desired state while not doing the clamp */
-	if (!clamp && (madera->hp_impedance >
+	if (!clamp && (HOHM_TO_OHM(madera->hp_impedance_x100) >
 			madera->pdata.hpdet_short_circuit_imp) && !ep_sel) {
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_OUTPUT_ENABLES_1,
@@ -1178,12 +1184,12 @@ void madera_set_headphone_imp(struct madera_extcon_info *info, int imp)
 {
 	struct madera *madera = info->madera;
 
-	madera->hp_impedance = imp;
+	madera->hp_impedance_x100 = imp;
 
 	if (madera->pdata.hpdet_cb)
-		madera->pdata.hpdet_cb(madera->hp_impedance);
+		madera->pdata.hpdet_cb(madera->hp_impedance_x100);
 
-	madera_tune_headphone(info, madera->hp_impedance);
+	madera_tune_headphone(info, HOHM_TO_OHM(imp));
 }
 EXPORT_SYMBOL_GPL(madera_set_headphone_imp);
 
@@ -1199,7 +1205,7 @@ int madera_hpdet_start(struct madera_extcon_info *info)
 	if (info->madera->pdata.fixed_hpdet_imp) {
 		int imp = info->madera->pdata.fixed_hpdet_imp;
 
-		madera_set_headphone_imp(info, imp);
+		madera_set_headphone_imp(info, OHM_TO_HOHM(imp));
 
 		ret = -EEXIST;
 		goto skip;
@@ -1320,7 +1326,7 @@ EXPORT_SYMBOL_GPL(madera_hpdet_stop);
 
 int madera_hpdet_reading(struct madera_extcon_info *info, int val)
 {
-	dev_dbg(info->madera->dev, "Reading HPDET\n");
+	dev_dbg(info->madera->dev, "Reading HPDET %d\n", val);
 
 	if (val < 0)
 		return val;
@@ -1834,6 +1840,7 @@ static irqreturn_t madera_hpdet_handler(int irq, void *data)
 	if (ret == -EAGAIN)
 		goto out;
 
+	ret = OHM_TO_HOHM(ret);
 	madera_jds_reading(info, ret);
 
 out:
