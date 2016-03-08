@@ -1106,17 +1106,20 @@ static int madera_hpdet_read(struct madera_extcon_info *info)
 		}
 	}
 
-	if (info->madera->pdata.hpdet_ext_res) {
-		if (info->madera->pdata.hpdet_ext_res >=  val) {
+	if (madera->pdata.hpdet_ext_res_x100) {
+		if (madera->pdata.hpdet_ext_res_x100 >= OHM_TO_HOHM(val)) {
 			dev_warn(madera->dev,
-				"External resistor (%d) >= measurement (%d)\n",
-				info->madera->pdata.hpdet_ext_res, val);
+				"External resistor (%d.%02d) >= measurement (%d.00)\n",
+				madera->pdata.hpdet_ext_res_x100 / 100,
+				madera->pdata.hpdet_ext_res_x100 % 100,
+				val);
 		} else {
 			dev_dbg(madera->dev,
-				"Compensating for external %d ohm resistor\n",
-				info->madera->pdata.hpdet_ext_res);
+				"Compensating for external %d.%02d ohm resistor\n",
+				madera->pdata.hpdet_ext_res_x100 / 100,
+				madera->pdata.hpdet_ext_res_x100 % 100);
 
-			val -= info->madera->pdata.hpdet_ext_res;
+			val -= HOHM_TO_OHM(madera->pdata.hpdet_ext_res_x100);
 		}
 	}
 
@@ -1202,11 +1205,9 @@ int madera_hpdet_start(struct madera_extcon_info *info)
 	dev_dbg(madera->dev, "Starting HPDET\n");
 
 	/* If we specified to assume a fixed impedance skip HPDET */
-	if (info->madera->pdata.fixed_hpdet_imp) {
-		int imp = info->madera->pdata.fixed_hpdet_imp;
-
-		madera_set_headphone_imp(info, OHM_TO_HOHM(imp));
-
+	if (madera->pdata.fixed_hpdet_imp_x100) {
+		madera_set_headphone_imp(info,
+					 madera->pdata.fixed_hpdet_imp_x100);
 		ret = -EEXIST;
 		goto skip;
 	}
@@ -2333,7 +2334,7 @@ static int madera_extcon_of_get_pdata(struct madera *madera)
 				  pdata->gpsw, 0, ARRAY_SIZE(pdata->gpsw));
 
 	madera_of_read_int(madera, "cirrus,fixed-hpdet-imp", false,
-			   &pdata->fixed_hpdet_imp);
+			   &pdata->fixed_hpdet_imp_x100);
 
 	madera_of_read_int(madera, "cirrus,hpdet-short-circuit-imp", false,
 			   &pdata->hpdet_short_circuit_imp);
@@ -2350,7 +2351,7 @@ static int madera_extcon_of_get_pdata(struct madera *madera)
 	madera_extcon_of_get_hpd_pins(madera);
 
 	madera_of_read_int(madera, "cirrus,hpdet-ext-res", false,
-			   &pdata->hpdet_ext_res);
+			   &pdata->hpdet_ext_res_x100);
 
 	return 0;
 }
