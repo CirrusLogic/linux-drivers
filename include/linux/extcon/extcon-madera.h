@@ -1,5 +1,5 @@
 /*
- * switch-madera.h - Switch driver for Cirrus Logic Madera codecs
+ * extcon-madera.h - public extcon driver API for Cirrus Logic Madera codecs
  *
  * Copyright 2015 Cirrus Logic
  *
@@ -8,10 +8,9 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _SWITCH_MADERA_H_
-#define _SWITCH_MADERA_H_
+#ifndef _EXTCON_MADERA_H_
+#define _EXTCON_MADERA_H_
 
-#include <linux/switch.h>
 #include <linux/mfd/madera/registers.h>
 
 #define MADERA_MICD_LVL_1_TO_7 \
@@ -48,10 +47,10 @@ struct madera_jd_state {
 };
 
 int madera_jds_set_state(struct madera_extcon_info *info,
-			  const struct madera_jd_state *new_state);
+			 const struct madera_jd_state *new_state);
 
 extern void madera_set_headphone_imp(struct madera_extcon_info *info,
-				      int imp);
+				     int imp);
 
 extern const struct madera_jd_state madera_hpdet_moisture;
 extern const struct madera_jd_state madera_hpdet_moisture_r;
