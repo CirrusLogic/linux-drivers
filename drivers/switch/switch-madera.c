@@ -940,6 +940,18 @@ static int madera_micd_read(struct madera_extcon_info *info)
 	return val;
 }
 
+static void madera_extcon_notify_micd(const struct madera_extcon_info *info,
+				      bool present,
+				      unsigned int impedance)
+{
+	struct madera_micdet_notify_data data;
+
+	data.present = present;
+	data.impedance_x100 = impedance;
+
+	madera_call_notifiers(info->madera, MADERA_NOTIFY_MICDET, &data);
+}
+
 static int madera_hpdet_calc_calibration(const struct madera_extcon_info *info,
 			int dacval, const struct madera_hpdet_trims *trims,
 			const struct madera_hpdet_calibration_data *calib)
@@ -1186,11 +1198,12 @@ static int madera_tune_headphone(struct madera_extcon_info *info, int reading)
 void madera_set_headphone_imp(struct madera_extcon_info *info, int imp)
 {
 	struct madera *madera = info->madera;
+	struct madera_hpdet_notify_data data;
 
 	madera->hp_impedance_x100 = imp;
 
-	if (madera->pdata.hpdet_cb)
-		madera->pdata.hpdet_cb(madera->hp_impedance_x100);
+	data.impedance_x100 = imp;
+	madera_call_notifiers(madera, MADERA_NOTIFY_HPDET, &data);
 
 	madera_tune_headphone(info, HOHM_TO_OHM(imp));
 }
@@ -1681,8 +1694,7 @@ done:
 			madera_extcon_report(info, BIT_HEADSET_NO_MIC);
 	}
 
-	if (madera->pdata.micd_cb)
-		madera->pdata.micd_cb(info->have_mic);
+	madera_extcon_notify_micd(info, info->have_mic, val);
 
 	return 0;
 }
@@ -2171,8 +2183,7 @@ static irqreturn_t madera_jackdet(int irq, void *data)
 
 		madera_set_headphone_imp(info, MADERA_HP_Z_OPEN);
 
-		if (madera->pdata.micd_cb)
-			madera->pdata.micd_cb(false);
+		madera_extcon_notify_micd(info, false, 0);
 	}
 
 out:

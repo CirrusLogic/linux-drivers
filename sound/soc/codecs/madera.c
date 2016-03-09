@@ -4728,28 +4728,6 @@ int madera_set_output_mode(struct snd_soc_codec *codec, int output, bool diff)
 }
 EXPORT_SYMBOL_GPL(madera_set_output_mode);
 
-int madera_set_hpdet_cb(struct snd_soc_codec *codec,
-			void (*hpdet_cb)(unsigned int measurement))
-{
-	struct madera *madera = dev_get_drvdata(codec->dev->parent);
-
-	madera->pdata.hpdet_cb = hpdet_cb;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(madera_set_hpdet_cb);
-
-int madera_set_micd_cb(struct snd_soc_codec *codec,
-			void (*micd_cb)(bool mic))
-{
-	struct madera *madera = dev_get_drvdata(codec->dev->parent);
-
-	madera->pdata.micd_cb = micd_cb;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(madera_set_micd_cb);
-
 int madera_set_custom_jd(struct snd_soc_codec *codec,
 			 const struct madera_jd_state *custom_jd)
 {

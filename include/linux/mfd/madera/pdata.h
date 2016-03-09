@@ -273,12 +273,6 @@ struct madera_pdata {
 	/** Override the normal jack detection */
 	const struct madera_jd_state *custom_jd;
 
-	/** Callback notifying HPDET result */
-	void (*hpdet_cb)(unsigned int measurement);
-
-	/** Callback notifying mic presence */
-	void (*micd_cb)(bool mic);
-
 	/** Haptic actuator type */
 	unsigned int hap_type;
 
