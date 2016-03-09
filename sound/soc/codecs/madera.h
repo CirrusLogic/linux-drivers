@@ -510,10 +510,6 @@ extern int madera_set_output_mode(struct snd_soc_codec *codec, int output,
 				  bool diff);
 
 /* Following functions are for use by machine drivers */
-extern int madera_set_hpdet_cb(struct snd_soc_codec *codec,
-				void (*hpdet_cb)(unsigned int measurement));
-extern int madera_set_micd_cb(struct snd_soc_codec *codec,
-				void (*micd_cb)(bool mic));
 extern int madera_set_custom_jd(struct snd_soc_codec *codec,
 				const struct madera_jd_state *custom_jd);
 
