@@ -23,6 +23,17 @@
 
 #define MADERA_MICD_LVL_0_TO_8 (MADERA_MICD_LVL_0_TO_7 | MADERA_MICD_LVL_8)
 
+/* Notify data structure for MADERA_NOTIFY_HPDET */
+struct madera_hpdet_notify_data {
+	unsigned int impedance_x100;	/* ohms * 100 */
+};
+
+/* Notify data structure for MADERA_NOTIFY_MICDET */
+struct madera_micdet_notify_data {
+	unsigned int impedance_x100;	/* ohms * 100 */
+	bool present;
+};
+
 struct madera_extcon_info;
 
 enum madera_accdet_mode {
