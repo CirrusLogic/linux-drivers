@@ -36,11 +36,11 @@ struct cs47l35;
 
 static const struct madera_compr_dai_mapping cs47l35_compr_dai_map[] = {
 	{
-		.dai_name = "cs47l35-dsp3-voicectrl",
+		.dai_name = "cs47l35-dsp-voicectrl",
 		.dsp_num = 2,
 	},
 	{
-		.dai_name = "cs47l35-dsp1-trace",
+		.dai_name = "cs47l35-dsp-trace",
 		.dsp_num = 0,
 	},
 };
@@ -1221,15 +1221,15 @@ static const struct snd_soc_dapm_route cs47l35_dapm_routes[] = {
 	{ "Slim1 Capture", NULL, "SYSCLK" },
 	{ "Slim2 Capture", NULL, "SYSCLK" },
 
-	{ "Voice Control CPU3", NULL, "Voice Control DSP3" },
-	{ "Voice Control DSP3", NULL, "DSP3" },
-	{ "Voice Control CPU3", NULL, "SYSCLK" },
-	{ "Voice Control DSP3", NULL, "SYSCLK" },
+	{ "Voice Control CPU", NULL, "Voice Control DSP" },
+	{ "Voice Control DSP", NULL, "DSP" },
+	{ "Voice Control CPU", NULL, "SYSCLK" },
+	{ "Voice Control DSP", NULL, "SYSCLK" },
 
-	{ "Trace CPU1", NULL, "Trace DSP1" },
-	{ "Trace DSP1", NULL, "DSP1" },
-	{ "Trace CPU1", NULL, "SYSCLK" },
-	{ "Trace DSP1", NULL, "SYSCLK" },
+	{ "Trace CPU", NULL, "Trace DSP" },
+	{ "Trace DSP", NULL, "DSP1" },
+	{ "Trace CPU", NULL, "SYSCLK" },
+	{ "Trace DSP", NULL, "SYSCLK" },
 
 	{ "IN1L Mux", "A", "IN1AL" },
 	{ "IN1L Mux", "B", "IN1BL" },
@@ -1478,9 +1478,9 @@ static struct snd_soc_dai_driver cs47l35_dai[] = {
 		.ops = &madera_simple_dai_ops,
 	},
 	{
-		.name = "cs47l35-cpu3-voicectrl",
+		.name = "cs47l35-cpu-voicectrl",
 		.capture = {
-			.stream_name = "Voice Control CPU3",
+			.stream_name = "Voice Control CPU",
 			.channels_min = 1,
 			.channels_max = 2,
 			.rates = MADERA_RATES,
@@ -1489,9 +1489,9 @@ static struct snd_soc_dai_driver cs47l35_dai[] = {
 		.compress_dai = 1,
 	},
 	{
-		.name = "cs47l35-dsp3-voicectrl",
+		.name = "cs47l35-dsp-voicectrl",
 		.capture = {
-			.stream_name = "Voice Control DSP3",
+			.stream_name = "Voice Control DSP",
 			.channels_min = 1,
 			.channels_max = 2,
 			.rates = MADERA_RATES,
@@ -1499,9 +1499,9 @@ static struct snd_soc_dai_driver cs47l35_dai[] = {
 		},
 	},
 	{
-		.name = "cs47l35-cpu1-trace",
+		.name = "cs47l35-cpu-trace",
 		.capture = {
-			.stream_name = "Trace CPU1",
+			.stream_name = "Trace CPU",
 			.channels_min = 2,
 			.channels_max = 8,
 			.rates = MADERA_RATES,
@@ -1510,9 +1510,9 @@ static struct snd_soc_dai_driver cs47l35_dai[] = {
 		.compress_dai = 1,
 	},
 	{
-		.name = "cs47l35-dsp1-trace",
+		.name = "cs47l35-dsp-trace",
 		.capture = {
-			.stream_name = "Trace DSP1",
+			.stream_name = "Trace DSP",
 			.channels_min = 2,
 			.channels_max = 8,
 			.rates = MADERA_RATES,
