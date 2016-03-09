@@ -2531,14 +2531,14 @@ static void cs47l90_compr_irq(struct cs47l90_priv *cs47l90,
 	if (ret < 0)
 		return;
 
-	if (trigger && madera->pdata.voice_trigger) {
+	if (trigger && wm_adsp_fw_has_voice_trig(compr->adsp_compr.dsp)) {
 		mutex_lock(&compr->trig_lock);
 		if (!compr->trig) {
 			compr->trig = true;
 
-			if (madera->pdata.voice_trigger &&
-			    wm_adsp_fw_has_voice_trig(compr->adsp_compr.dsp))
-				madera->pdata.voice_trigger();
+			madera_call_notifiers(madera,
+					      MADERA_NOTIFY_VOICE_TRIGGER,
+					      NULL);
 		}
 		mutex_unlock(&compr->trig_lock);
 	}

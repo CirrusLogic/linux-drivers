@@ -104,6 +104,9 @@ enum madera_type {
 
 #define MADERA_MAX_CORE_SUPPLIES 2
 
+/* Notifier events */
+#define MADERA_NOTIFY_VOICE_TRIGGER	0x1
+
 struct snd_soc_dapm_context;
 struct madera_extcon_info;
 

@@ -4750,17 +4750,6 @@ int madera_set_micd_cb(struct snd_soc_codec *codec,
 }
 EXPORT_SYMBOL_GPL(madera_set_micd_cb);
 
-int madera_set_voice_cb(struct snd_soc_codec *codec,
-			void (*voice_trigger)(void))
-{
-	struct madera *madera = dev_get_drvdata(codec->dev->parent);
-
-	madera->pdata.voice_trigger = voice_trigger;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(madera_set_voice_cb);
-
 int madera_set_custom_jd(struct snd_soc_codec *codec,
 			 const struct madera_jd_state *custom_jd)
 {

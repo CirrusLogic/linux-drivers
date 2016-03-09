@@ -282,9 +282,6 @@ struct madera_pdata {
 	/** Haptic actuator type */
 	unsigned int hap_type;
 
-	/** Callback which is called when voice trigger phrase is detected */
-	void (*voice_trigger)(void);
-
 	struct wm_adsp_fw_defs *fw_defs[MADERA_MAX_DSP];
 	int num_fw_defs[MADERA_MAX_DSP];
 };
