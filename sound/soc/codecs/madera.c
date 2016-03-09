@@ -1402,38 +1402,6 @@ int madera_init_drc(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(madera_init_drc);
 
-int madera_init_drc2_trigger(struct snd_soc_codec *codec)
-{
-	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct madera *madera = priv->madera;
-	int ret;
-
-	snd_soc_dapm_enable_pin(&codec->dapm, "DRC2 Signal Activity");
-
-	ret = regmap_update_bits(madera->regmap, MADERA_IRQ2_MASK_9,
-				 MADERA_DRC2_SIG_DET_EINT2,
-				 0);
-	if (ret) {
-		dev_err(madera->dev,
-			"Failed to unmask DRC2 IRQ for DSP: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(madera_init_drc2_trigger);
-
-void madera_destroy_drc2_trigger(struct snd_soc_codec *codec)
-{
-	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct madera *madera = priv->madera;
-
-	regmap_update_bits(madera->regmap, MADERA_IRQ2_MASK_9,
-			   MADERA_DRC2_SIG_DET_EINT2,
-			   MADERA_DRC2_SIG_DET_EINT2);
-}
-EXPORT_SYMBOL_GPL(madera_destroy_drc2_trigger);
-
 int madera_init_aif(struct snd_soc_codec *codec)
 {
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
@@ -2668,6 +2636,17 @@ const struct snd_kcontrol_new madera_dsp_trigger_output_mux[] = {
 	SOC_DAPM_ENUM("DSP7 Trigger Output", madera_dsp_trigger_output_enum),
 };
 EXPORT_SYMBOL_GPL(madera_dsp_trigger_output_mux);
+
+static const struct soc_enum madera_drc_activity_output_enum =
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0,
+			ARRAY_SIZE(madera_disable_enable_texts),
+			madera_disable_enable_texts);
+
+const struct snd_kcontrol_new madera_drc_activity_output_mux[] = {
+	SOC_DAPM_ENUM("DRC1 Activity Output", madera_drc_activity_output_enum),
+	SOC_DAPM_ENUM("DRC2 Activity Output", madera_drc_activity_output_enum),
+};
+EXPORT_SYMBOL_GPL(madera_drc_activity_output_mux);
 
 static void madera_in_set_vu(struct madera_priv *priv, bool enable)
 {

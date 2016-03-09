@@ -397,6 +397,7 @@ extern const struct soc_enum madera_anc_ng_enum;
 extern const struct soc_enum madera_ip_mode[];
 
 extern const struct snd_kcontrol_new madera_dsp_trigger_output_mux[];
+extern const struct snd_kcontrol_new madera_drc_activity_output_mux[];
 
 extern const struct snd_kcontrol_new madera_adsp_rate_controls[];
 
@@ -498,8 +499,6 @@ extern int madera_core_init(struct madera_priv *priv);
 extern int madera_core_destroy(struct madera_priv *priv);
 extern int madera_init_spk(struct snd_soc_codec *codec, int n_channels);
 extern int madera_init_drc(struct snd_soc_codec *codec);
-extern int madera_init_drc2_trigger(struct snd_soc_codec *codec);
-extern void madera_destroy_drc2_trigger(struct snd_soc_codec *codec);
 extern int madera_init_inputs(struct snd_soc_codec *codec,
 			      const char * const *dmic_inputs,
 			      int n_dmic_inputs,

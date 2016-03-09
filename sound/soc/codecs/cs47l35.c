@@ -959,6 +959,11 @@ MADERA_MIXER_WIDGETS(DRC1R, "DRC1R"),
 MADERA_MIXER_WIDGETS(DRC2L, "DRC2L"),
 MADERA_MIXER_WIDGETS(DRC2R, "DRC2R"),
 
+SND_SOC_DAPM_MUX("DRC1 Activity Output", SND_SOC_NOPM, 0, 0,
+		      &madera_drc_activity_output_mux[0]),
+SND_SOC_DAPM_MUX("DRC2 Activity Output", SND_SOC_NOPM, 0, 0,
+		      &madera_drc_activity_output_mux[1]),
+
 MADERA_MIXER_WIDGETS(LHPF1, "LHPF1"),
 MADERA_MIXER_WIDGETS(LHPF2, "LHPF2"),
 MADERA_MIXER_WIDGETS(LHPF3, "LHPF3"),
@@ -1350,10 +1355,12 @@ static const struct snd_soc_dapm_route cs47l35_dapm_routes[] = {
 
 	{ "MICSUPP", NULL, "SYSCLK" },
 
-	{ "DRC1 Signal Activity", NULL, "DRC1L" },
-	{ "DRC1 Signal Activity", NULL, "DRC1R" },
-	{ "DRC2 Signal Activity", NULL, "DRC2L" },
-	{ "DRC2 Signal Activity", NULL, "DRC2R" },
+	{ "DRC1 Signal Activity", NULL, "DRC1 Activity Output" },
+	{ "DRC2 Signal Activity", NULL, "DRC2 Activity Output" },
+	{ "DRC1 Activity Output", "Enable", "DRC1L" },
+	{ "DRC1 Activity Output", "Enable", "DRC1R" },
+	{ "DRC2 Activity Output", "Enable", "DRC2L" },
+	{ "DRC2 Activity Output", "Enable", "DRC2R" },
 };
 
 static int cs47l35_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
@@ -1695,10 +1702,6 @@ static int cs47l35_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	ret = madera_init_drc2_trigger(codec);
-	if (ret)
-		return ret;
-
 	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
 	snd_soc_dapm_disable_pin(&codec->dapm, "DSP Trigger Out");
 
@@ -1726,8 +1729,6 @@ static int cs47l35_codec_remove(struct snd_soc_codec *codec)
 
 	for (i = 0; i < CS47L35_NUM_ADSP; i++)
 		wm_adsp2_codec_remove(&cs47l35->core.adsp[i], codec);
-
-	madera_destroy_drc2_trigger(codec);
 
 	cs47l35->core.madera->dapm = NULL;
 
