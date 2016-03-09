@@ -392,6 +392,7 @@ extern const struct soc_enum madera_anc_ng_enum;
 extern const struct soc_enum madera_ip_mode[];
 
 extern const struct snd_kcontrol_new madera_dsp_trigger_output_mux[];
+extern const struct snd_kcontrol_new madera_drc_activity_output_mux[];
 
 extern const struct snd_kcontrol_new madera_adsp_rate_controls[];
 

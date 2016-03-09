@@ -1597,6 +1597,11 @@ MADERA_MIXER_WIDGETS(DRC1R, "DRC1R"),
 MADERA_MIXER_WIDGETS(DRC2L, "DRC2L"),
 MADERA_MIXER_WIDGETS(DRC2R, "DRC2R"),
 
+SND_SOC_DAPM_MUX("DRC1 Activity Output", SND_SOC_NOPM, 0, 0,
+		      &madera_drc_activity_output_mux[0]),
+SND_SOC_DAPM_MUX("DRC2 Activity Output", SND_SOC_NOPM, 0, 0,
+		      &madera_drc_activity_output_mux[1]),
+
 MADERA_MIXER_WIDGETS(LHPF1, "LHPF1"),
 MADERA_MIXER_WIDGETS(LHPF2, "LHPF2"),
 MADERA_MIXER_WIDGETS(LHPF3, "LHPF3"),
@@ -2246,10 +2251,12 @@ static const struct snd_soc_dapm_route cs47l90_dapm_routes[] = {
 
 	{ "MICSUPP", NULL, "SYSCLK" },
 
-	{ "DRC1 Signal Activity", NULL, "DRC1L" },
-	{ "DRC1 Signal Activity", NULL, "DRC1R" },
-	{ "DRC2 Signal Activity", NULL, "DRC2L" },
-	{ "DRC2 Signal Activity", NULL, "DRC2R" },
+	{ "DRC1 Signal Activity", NULL, "DRC1 Activity Output" },
+	{ "DRC2 Signal Activity", NULL, "DRC2 Activity Output" },
+	{ "DRC1 Activity Output", "Enable", "DRC1L" },
+	{ "DRC1 Activity Output", "Enable", "DRC1R" },
+	{ "DRC2 Activity Output", "Enable", "DRC2L" },
+	{ "DRC2 Activity Output", "Enable", "DRC2R" },
 
 	MADERA_MUX_ROUTES("DFC1", "DFC1"),
 	MADERA_MUX_ROUTES("DFC2", "DFC2"),
