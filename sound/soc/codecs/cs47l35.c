@@ -1530,6 +1530,10 @@ static irqreturn_t cs47l35_adsp2_irq(int irq, void *data)
 		ret = wm_adsp_compr_handle_irq(&priv->adsp[i]);
 		if (ret != -ENODEV)
 			serviced++;
+		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER)
+			madera_call_notifiers(madera,
+					      MADERA_NOTIFY_VOICE_TRIGGER,
+					      (void *)i);
 	}
 
 	if (!serviced) {
