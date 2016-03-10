@@ -2207,24 +2207,6 @@
 #define MADERA_HW_REVISION_SHIFT			     0
 #define MADERA_HW_REVISION_WIDTH			     8
 
-/* (0x0008)  Ctrl_IF_CFG_1 */
-#define MADERA_SPI_CFG					0x0010
-#define MADERA_SPI_CFG_MASK				0x0010
-#define MADERA_SPI_CFG_SHIFT				     4
-#define MADERA_SPI_CFG_WIDTH				     1
-#define MADERA_SPI_4WIRE				0x0008
-#define MADERA_SPI_4WIRE_MASK				0x0008
-#define MADERA_SPI_4WIRE_SHIFT				     3
-#define MADERA_SPI_4WIRE_WIDTH				     1
-#define MADERA_SPI_AUTO_INC_MASK			0x0003
-#define MADERA_SPI_AUTO_INC_SHIFT			     0
-#define MADERA_SPI_AUTO_INC_WIDTH			     2
-
-/* (0x0009)  Ctrl_IF_CFG_2 */
-#define MADERA_I2C1_AUTO_INC_MASK			0x0003
-#define MADERA_I2C1_AUTO_INC_SHIFT			     0
-#define MADERA_I2C1_AUTO_INC_WIDTH			     2
-
 /* (0x0016)  Write_Sequencer_Ctrl_0 */
 #define MADERA_WSEQ_ABORT				0x0800
 #define MADERA_WSEQ_ABORT_MASK				0x0800
