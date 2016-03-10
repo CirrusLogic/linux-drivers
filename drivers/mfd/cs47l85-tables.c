@@ -372,7 +372,7 @@ static const struct regmap_irq cs47l85_irqs[MADERA_NUM_IRQ] = {
 				  .mask = MADERA_FLL3_LOCK_EINT1},
 
 	[MADERA_IRQ_MICDET1] = { .reg_offset = 5,
-				  .mask = MADERA_MICDET_EINT1 },
+				  .mask = MADERA_MICDET1_EINT1 },
 	[MADERA_IRQ_HPDET] = { .reg_offset = 5,
 				  .mask = MADERA_HPDET_EINT1},
 
