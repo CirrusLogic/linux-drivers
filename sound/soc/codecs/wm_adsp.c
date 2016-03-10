@@ -3552,7 +3552,7 @@ int wm_adsp_compr_irq(struct wm_adsp_compr *compr, bool *trigger)
 
 	ret = wm_adsp_buffer_has_error_locked(buf);
 	if (ret)
-		goto out_buf_unlock;
+		goto out_notify; /* Wake the poll to report error */
 
 	ret = wm_adsp_host_buffer_read(buf, HOST_BUFFER_FIELD(irq_count),
 					&buf->irq_ack);
@@ -3576,6 +3576,7 @@ int wm_adsp_compr_irq(struct wm_adsp_compr *compr, bool *trigger)
 		goto out_buf_unlock;
 	}
 
+out_notify:
 	if (compr->stream)
 		snd_compr_fragment_elapsed(compr->stream);
 
