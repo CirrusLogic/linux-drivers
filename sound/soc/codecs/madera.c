@@ -74,8 +74,40 @@
 #define MADERA_FLLAO_MAX_N		     1023
 #define MADERA_FLLAO_MAX_FBDIV		      254
 
-#define MADERA_FLL_SYNCHRONISER_OFFS	0x10
-#define CS47L35_FLL_SYNCHRONISER_OFFS	0xE
+#define MADERA_FLL_SYNCHRONISER_OFFS		0x10
+#define CS47L35_FLL_SYNCHRONISER_OFFS		0xE
+
+#define MADERA_FLL_CONTROL_1_OFFS		0x1
+#define MADERA_FLL_CONTROL_2_OFFS		0x2
+#define MADERA_FLL_CONTROL_3_OFFS		0x3
+#define MADERA_FLL_CONTROL_4_OFFS		0x4
+#define MADERA_FLL_CONTROL_5_OFFS		0x5
+#define MADERA_FLL_CONTROL_6_OFFS		0x6
+#define MADERA_FLL_LOOP_FILTER_TEST_1_OFFS	0x7
+#define MADERA_FLL_NCO_TEST_0_OFFS		0x8
+#define MADERA_FLL_CONTROL_7_OFFS		0x9
+#define MADERA_FLL_EFS_2_OFFS			0xA
+#define MADERA_FLL_SYNCHRONISER_1_OFFS		0x1
+#define MADERA_FLL_SYNCHRONISER_2_OFFS		0x2
+#define MADERA_FLL_SYNCHRONISER_3_OFFS		0x3
+#define MADERA_FLL_SYNCHRONISER_4_OFFS		0x4
+#define MADERA_FLL_SYNCHRONISER_5_OFFS		0x5
+#define MADERA_FLL_SYNCHRONISER_6_OFFS		0x6
+#define MADERA_FLL_SYNCHRONISER_7_OFFS		0x7
+#define MADERA_FLL_SPREAD_SPECTRUM_OFFS		0x9
+#define MADERA_FLL_GPIO_CLOCK_OFFS		0xA
+
+#define MADERA_FLLAO_CONTROL_1_OFFS		0x1
+#define MADERA_FLLAO_CONTROL_2_OFFS		0x2
+#define MADERA_FLLAO_CONTROL_3_OFFS		0x3
+#define MADERA_FLLAO_CONTROL_4_OFFS		0x4
+#define MADERA_FLLAO_CONTROL_5_OFFS		0x5
+#define MADERA_FLLAO_CONTROL_6_OFFS		0x6
+#define MADERA_FLLAO_CONTROL_7_OFFS		0x8
+#define MADERA_FLLAO_CONTROL_8_OFFS		0xA
+#define MADERA_FLLAO_CONTROL_9_OFFS		0xB
+#define MADERA_FLLAO_CONTROL_10_OFFS		0xC
+#define MADERA_FLLAO_CONTROL_11_OFFS		0xD
 
 #define MADERA_FMT_DSP_MODE_A		0
 #define MADERA_FMT_DSP_MODE_B		1
@@ -4123,36 +4155,47 @@ static bool madera_apply_fll(struct madera *madera, unsigned int base,
 	bool change, fll_change;
 
 	fll_change = false;
-	regmap_update_bits_check_async(madera->regmap, base + 3,
-			   MADERA_FLL1_THETA_MASK, cfg->theta, &change);
+	regmap_update_bits_check_async(madera->regmap,
+				       base + MADERA_FLL_CONTROL_3_OFFS,
+				       MADERA_FLL1_THETA_MASK,
+				       cfg->theta, &change);
 	fll_change |= change;
-	regmap_update_bits_check_async(madera->regmap, base + 4,
-			   MADERA_FLL1_LAMBDA_MASK, cfg->lambda, &change);
+	regmap_update_bits_check_async(madera->regmap,
+				       base + MADERA_FLL_CONTROL_4_OFFS,
+				       MADERA_FLL1_LAMBDA_MASK,
+				       cfg->lambda, &change);
 	fll_change |= change;
-	regmap_update_bits_check_async(madera->regmap, base + 5,
-			   MADERA_FLL1_FRATIO_MASK,
-			   cfg->fratio << MADERA_FLL1_FRATIO_SHIFT, &change);
+	regmap_update_bits_check_async(madera->regmap,
+				       base + MADERA_FLL_CONTROL_5_OFFS,
+				       MADERA_FLL1_FRATIO_MASK,
+				       cfg->fratio << MADERA_FLL1_FRATIO_SHIFT,
+				       &change);
 	fll_change |= change;
-	regmap_update_bits_check_async(madera->regmap, base + 6,
-			   MADERA_FLL1_REFCLK_DIV_MASK |
-			   MADERA_FLL1_REFCLK_SRC_MASK,
-			   cfg->refdiv << MADERA_FLL1_REFCLK_DIV_SHIFT |
-			   source << MADERA_FLL1_REFCLK_SRC_SHIFT, &change);
+	regmap_update_bits_check_async(madera->regmap,
+				base + MADERA_FLL_CONTROL_6_OFFS,
+				MADERA_FLL1_REFCLK_DIV_MASK |
+				MADERA_FLL1_REFCLK_SRC_MASK,
+				cfg->refdiv << MADERA_FLL1_REFCLK_DIV_SHIFT |
+				source << MADERA_FLL1_REFCLK_SRC_SHIFT,
+				&change);
 	fll_change |= change;
 
 	if (sync) {
-		regmap_update_bits_check_async(madera->regmap, base + 0x7,
+		regmap_update_bits_check_async(madera->regmap,
+				base + MADERA_FLL_SYNCHRONISER_7_OFFS,
 				MADERA_FLL1_GAIN_MASK,
 				gain << MADERA_FLL1_GAIN_SHIFT, &change);
 		fll_change |= change;
 	} else {
-		regmap_update_bits_check_async(madera->regmap, base + 0x9,
+		regmap_update_bits_check_async(madera->regmap,
+				base + MADERA_FLL_CONTROL_7_OFFS,
 				MADERA_FLL1_GAIN_MASK,
 				gain << MADERA_FLL1_GAIN_SHIFT, &change);
 		fll_change |= change;
 	}
 
-	regmap_update_bits_check_async(madera->regmap, base + 2,
+	regmap_update_bits_check_async(madera->regmap,
+				base + MADERA_FLL_CONTROL_2_OFFS,
 				MADERA_FLL1_CTRL_UPD | MADERA_FLL1_N_MASK,
 				MADERA_FLL1_CTRL_UPD | cfg->n, &change);
 	fll_change |= change;
@@ -4166,7 +4209,8 @@ static int madera_is_enabled_fll(struct madera_fll *fll)
 	unsigned int reg;
 	int ret;
 
-	ret = regmap_read(madera->regmap, fll->base + 1, &reg);
+	ret = regmap_read(madera->regmap,
+			  fll->base + MADERA_FLL_CONTROL_1_OFFS, &reg);
 	if (ret != 0) {
 		madera_fll_err(fll, "Failed to read current state: %d\n", ret);
 		return ret;
@@ -4211,7 +4255,7 @@ static bool madera_set_fll_phase_integrator(struct madera_fll *fll,
 		val = 2 << MADERA_FLL1_PHASE_GAIN_SHIFT;
 
 	regmap_update_bits_check(fll->madera->regmap,
-				 fll->base + 0xA,
+				 fll->base + MADERA_FLL_EFS_2_OFFS,
 				 MADERA_FLL1_PHASE_ENA_MASK |
 				 MADERA_FLL1_PHASE_GAIN_MASK,
 				 val,
@@ -4252,9 +4296,11 @@ static int madera_enable_fll(struct madera_fll *fll)
 
 	if (already_enabled) {
 		/* Facilitate smooth refclk across the transition */
-		regmap_update_bits_async(fll->madera->regmap, fll->base + 0x9,
+		regmap_update_bits_async(fll->madera->regmap,
+					 fll->base + MADERA_FLL_CONTROL_7_OFFS,
 					 MADERA_FLL1_GAIN_MASK, 0);
-		regmap_update_bits(fll->madera->regmap, fll->base + 1,
+		regmap_update_bits(fll->madera->regmap,
+				   fll->base + MADERA_FLL_CONTROL_1_OFFS,
 				   MADERA_FLL1_FREERUN,
 				   MADERA_FLL1_FREERUN);
 		udelay(32);
@@ -4264,7 +4310,7 @@ static int madera_enable_fll(struct madera_fll *fll)
 	if (fll->sync_src >= 0) {
 		madera_calc_fll(fll, &cfg, fll->sync_freq, true);
 
-		fll_change |= madera_apply_fll(madera, sync_reg_base + 0,
+		fll_change |= madera_apply_fll(madera, sync_reg_base,
 						&cfg, fll->sync_src,
 						true, cfg.gain);
 		have_sync = true;
@@ -4309,12 +4355,14 @@ static int madera_enable_fll(struct madera_fll *fll)
 	 * sync source.
 	 */
 	if (have_sync && fll->sync_freq > 100000)
-		regmap_update_bits_async(madera->regmap, sync_reg_base + 7,
-					 MADERA_FLL1_SYNC_DFSAT_MASK, 0);
+		regmap_update_bits_async(madera->regmap,
+				sync_reg_base + MADERA_FLL_SYNCHRONISER_7_OFFS,
+				MADERA_FLL1_SYNC_DFSAT_MASK, 0);
 	else
-		regmap_update_bits_async(madera->regmap, sync_reg_base + 7,
-					 MADERA_FLL1_SYNC_DFSAT_MASK,
-					 MADERA_FLL1_SYNC_DFSAT);
+		regmap_update_bits_async(madera->regmap,
+				sync_reg_base + MADERA_FLL_SYNCHRONISER_7_OFFS,
+				MADERA_FLL1_SYNC_DFSAT_MASK,
+				MADERA_FLL1_SYNC_DFSAT);
 
 	if (!already_enabled)
 		pm_runtime_get(madera->dev);
@@ -4322,15 +4370,18 @@ static int madera_enable_fll(struct madera_fll *fll)
 	/* Clear any pending completions */
 	try_wait_for_completion(&fll->ok);
 
-	regmap_update_bits_async(madera->regmap, fll->base + 1,
+	regmap_update_bits_async(madera->regmap,
+				 fll->base + MADERA_FLL_CONTROL_1_OFFS,
 				 MADERA_FLL1_ENA, MADERA_FLL1_ENA);
 	if (have_sync)
-		regmap_update_bits_async(madera->regmap, sync_reg_base + 1,
-					 MADERA_FLL1_SYNC_ENA,
-					 MADERA_FLL1_SYNC_ENA);
+		regmap_update_bits_async(madera->regmap,
+				sync_reg_base + MADERA_FLL_SYNCHRONISER_1_OFFS,
+				MADERA_FLL1_SYNC_ENA,
+				MADERA_FLL1_SYNC_ENA);
 
 	if (already_enabled)
-		regmap_update_bits_async(madera->regmap, fll->base + 1,
+		regmap_update_bits_async(madera->regmap,
+					 fll->base + MADERA_FLL_CONTROL_1_OFFS,
 					 MADERA_FLL1_FREERUN, 0);
 
 	if (fll_change || !already_enabled)
@@ -4356,13 +4407,17 @@ static void madera_disable_fll(struct madera_fll *fll)
 
 	madera_fll_dbg(fll, "Disabling FLL\n");
 
-	regmap_update_bits_async(madera->regmap, fll->base + 1,
+	regmap_update_bits_async(madera->regmap,
+				 fll->base + MADERA_FLL_CONTROL_1_OFFS,
 				 MADERA_FLL1_FREERUN, MADERA_FLL1_FREERUN);
-	regmap_update_bits_check(madera->regmap, fll->base + 1,
+	regmap_update_bits_check(madera->regmap,
+				 fll->base + MADERA_FLL_CONTROL_1_OFFS,
 				 MADERA_FLL1_ENA, 0, &change);
-	regmap_update_bits(madera->regmap, sync_reg_base + 1,
+	regmap_update_bits(madera->regmap,
+			   sync_reg_base + MADERA_FLL_SYNCHRONISER_1_OFFS,
 			   MADERA_FLL1_SYNC_ENA, 0);
-	regmap_update_bits_async(madera->regmap, fll->base + 1,
+	regmap_update_bits_async(madera->regmap,
+				 fll->base + MADERA_FLL_CONTROL_1_OFFS,
 				 MADERA_FLL1_FREERUN, 0);
 
 	madera_wait_for_fll(fll, false);
@@ -4440,7 +4495,8 @@ int madera_init_fll(struct madera *madera, int id, int base,
 	fll->ref_src = MADERA_FLL_SRC_NONE;
 	fll->sync_src = MADERA_FLL_SRC_NONE;
 
-	regmap_update_bits(madera->regmap, fll->base + 1,
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_1_OFFS,
 			   MADERA_FLL1_FREERUN, 0);
 
 	return 0;
@@ -4512,7 +4568,8 @@ static int madera_enable_fll_ao(struct madera_fll *fll,
 			already_enabled ? "enabled" : "disabled");
 
 	/* FLL_AO_HOLD must be set before configuring any registers */
-	regmap_update_bits(fll->madera->regmap, fll->base + 1,
+	regmap_update_bits(fll->madera->regmap,
+			   fll->base + MADERA_FLLAO_CONTROL_1_OFFS,
 			   MADERA_FLL_AO_HOLD, MADERA_FLL_AO_HOLD);
 
 	for (i = 0; i < patch_size; i++) {
@@ -4531,11 +4588,13 @@ static int madera_enable_fll_ao(struct madera_fll *fll,
 	if (!already_enabled)
 		pm_runtime_get(madera->dev);
 
-	regmap_update_bits(madera->regmap, fll->base + 1,
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLLAO_CONTROL_1_OFFS,
 			   MADERA_FLL_AO_ENA, MADERA_FLL_AO_ENA);
 
 	/* Release the hold so that fll_ao locks to external frequency */
-	regmap_update_bits(madera->regmap, fll->base + 1,
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLLAO_CONTROL_1_OFFS,
 			   MADERA_FLL_AO_HOLD, 0);
 
 	if (!already_enabled)
@@ -4551,10 +4610,12 @@ static int madera_disable_fll_ao(struct madera_fll *fll)
 
 	madera_fll_dbg(fll, "Disabling FLL\n");
 
-	regmap_update_bits(madera->regmap, fll->base + 1,
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLLAO_CONTROL_1_OFFS,
 			   MADERA_FLL_AO_HOLD, MADERA_FLL_AO_HOLD);
-	regmap_update_bits_check(madera->regmap, fll->base + 1,
-			   MADERA_FLL_AO_ENA, 0, &change);
+	regmap_update_bits_check(madera->regmap,
+				 fll->base + MADERA_FLLAO_CONTROL_1_OFFS,
+				 MADERA_FLL_AO_ENA, 0, &change);
 
 	madera_wait_for_fll(fll, false);
 
@@ -4565,7 +4626,8 @@ static int madera_disable_fll_ao(struct madera_fll *fll)
 	 * would have updated it much earlier before writing out all fllao
 	 * registers
 	 */
-	regmap_update_bits(madera->regmap, fll->base + 2,
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLLAO_CONTROL_2_OFFS,
 			   MADERA_FLL_AO_CTRL_UPD_MASK, 0);
 
 	if (change)
