@@ -7046,9 +7046,9 @@
 #define MADERA_GP1_POL_MASK				0x1000
 #define MADERA_GP1_POL_SHIFT				    12
 #define MADERA_GP1_POL_WIDTH				     1
-#define MADERA_GP1_FN_MASK				0x01FF
+#define MADERA_GP1_FN_MASK				0x03FF
 #define MADERA_GP1_FN_SHIFT				     0
-#define MADERA_GP1_FN_WIDTH				     9
+#define MADERA_GP1_FN_WIDTH				    10
 
 /* (0x1701)  GPIO1_CTRL_2 */
 #define MADERA_GP1_DIR					0x8000

@@ -27,9 +27,9 @@
 #define MADERA_GPN_POL_MASK		0x0800
 #define MADERA_GPN_POL_SHIFT		    11
 #define MADERA_GPN_POL_WIDTH		     1
-#define MADERA_GPN_FN_MASK		0x01FF
+#define MADERA_GPN_FN_MASK		0x03FF
 #define MADERA_GPN_FN_SHIFT		     0
-#define MADERA_GPN_FN_WIDTH		     9
+#define MADERA_GPN_FN_WIDTH		    10
 
 
 #define MADERA_GPN_DIR_MASK		0x8000
