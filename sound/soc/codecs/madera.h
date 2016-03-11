@@ -147,7 +147,6 @@ struct madera_fll {
 	unsigned int base;
 	struct completion ok;
 
-	unsigned int fvco;
 	unsigned int fout;
 
 	int sync_src;
