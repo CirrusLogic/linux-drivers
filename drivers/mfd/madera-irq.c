@@ -197,7 +197,7 @@ int madera_irq_init(struct madera *madera)
 
 	if (flags & (IRQF_TRIGGER_HIGH | IRQF_TRIGGER_RISING)) {
 		ret = regmap_update_bits(madera->regmap, MADERA_IRQ1_CTRL,
-					 MADERA_IM_IRQ_POL, 0);
+					 MADERA_IRQ_POL_MASK, 0);
 		if (ret) {
 			dev_err(madera->dev,
 				"Couldn't set IRQ polarity: %d\n", ret);
