@@ -685,6 +685,7 @@ int driver_probe_done(void)
 		return -EBUSY;
 	return 0;
 }
+EXPORT_SYMBOL(driver_probe_done);
 
 /**
  * wait_for_device_probe
