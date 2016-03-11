@@ -4148,10 +4148,6 @@ static bool madera_apply_fll(struct madera *madera, unsigned int base,
 				gain << MADERA_FLL1_GAIN_SHIFT, &change);
 		fll_change |= change;
 	} else {
-		regmap_update_bits_async(madera->regmap, base + 0x5,
-				MADERA_FLL1_OUTDIV_MASK,
-				MADERA_FLL_OUTDIV << MADERA_FLL1_OUTDIV_SHIFT);
-
 		regmap_update_bits_check_async(madera->regmap, base + 0x9,
 				MADERA_FLL1_GAIN_MASK,
 				gain << MADERA_FLL1_GAIN_SHIFT, &change);
