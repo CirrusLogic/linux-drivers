@@ -4252,7 +4252,7 @@ static int madera_enable_fll(struct madera_fll *fll)
 
 	if (already_enabled) {
 		/* Facilitate smooth refclk across the transition */
-		regmap_update_bits_async(fll->madera->regmap, fll->base + 0x7,
+		regmap_update_bits_async(fll->madera->regmap, fll->base + 0x9,
 					 MADERA_FLL1_GAIN_MASK, 0);
 		regmap_update_bits(fll->madera->regmap, fll->base + 1,
 				   MADERA_FLL1_FREERUN,
