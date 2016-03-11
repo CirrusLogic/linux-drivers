@@ -4136,10 +4136,10 @@ static bool madera_apply_fll(struct madera *madera, unsigned int base,
 			   cfg->fratio << MADERA_FLL1_FRATIO_SHIFT, &change);
 	fll_change |= change;
 	regmap_update_bits_check_async(madera->regmap, base + 6,
-			   MADERA_FLL1_CLK_REF_DIV_MASK |
-			   MADERA_FLL1_CLK_REF_SRC_MASK,
-			   cfg->refdiv << MADERA_FLL1_CLK_REF_DIV_SHIFT |
-			   source << MADERA_FLL1_CLK_REF_SRC_SHIFT, &change);
+			   MADERA_FLL1_REFCLK_DIV_MASK |
+			   MADERA_FLL1_REFCLK_SRC_MASK,
+			   cfg->refdiv << MADERA_FLL1_REFCLK_DIV_SHIFT |
+			   source << MADERA_FLL1_REFCLK_SRC_SHIFT, &change);
 	fll_change |= change;
 
 	if (sync) {
@@ -4312,11 +4312,11 @@ static int madera_enable_fll(struct madera_fll *fll)
 	 */
 	if (have_sync && fll->sync_freq > 100000)
 		regmap_update_bits_async(madera->regmap, sync_reg_base + 7,
-					 MADERA_FLL1_SYNC_BW, 0);
+					 MADERA_FLL1_SYNC_DFSAT_MASK, 0);
 	else
 		regmap_update_bits_async(madera->regmap, sync_reg_base + 7,
-					 MADERA_FLL1_SYNC_BW,
-					 MADERA_FLL1_SYNC_BW);
+					 MADERA_FLL1_SYNC_DFSAT_MASK,
+					 MADERA_FLL1_SYNC_DFSAT);
 
 	if (!already_enabled)
 		pm_runtime_get(madera->dev);
