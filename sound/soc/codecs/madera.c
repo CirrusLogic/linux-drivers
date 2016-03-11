@@ -3838,7 +3838,7 @@ static int madera_find_main_fratio(unsigned int fref, unsigned int fout,
 }
 
 static int madera_find_fratio(struct madera_fll *fll, unsigned int fref,
-			      unsigned int fout, bool sync, int *fratio)
+			      bool sync, int *fratio)
 {
 	switch (fll->madera->type) {
 	case CS47L35:
@@ -3850,8 +3850,9 @@ static int madera_find_fratio(struct madera_fll *fll, unsigned int fref,
 			if (sync)
 				return madera_find_sync_fratio(fref, fratio);
 			else
-				return madera_find_main_fratio(fref, fout,
-								fratio);
+				return madera_find_main_fratio(fref,
+							       fll->fout,
+							       fratio);
 		}
 		break;
 	case CS47L85:
@@ -3862,13 +3863,12 @@ static int madera_find_fratio(struct madera_fll *fll, unsigned int fref,
 		if (sync)
 			return madera_find_sync_fratio(fref, fratio);
 		else
-			return madera_find_main_fratio(fref, fout, fratio);
+			return madera_find_main_fratio(fref, fll->fout, fratio);
 	}
 }
 
 static int madera_calc_fratio(struct madera_fll *fll,
 			      struct madera_fll_cfg *cfg,
-			      unsigned int fout,
 			      unsigned int Fref, bool sync)
 {
 	int init_ratio, ratio;
@@ -3887,7 +3887,7 @@ static int madera_calc_fratio(struct madera_fll *fll,
 	}
 
 	/* Find an appropriate FLL_FRATIO */
-	init_ratio = madera_find_fratio(fll, Fref, fout, sync, &cfg->fratio);
+	init_ratio = madera_find_fratio(fll, Fref, sync, &cfg->fratio);
 	if (init_ratio < 0) {
 		madera_fll_err(fll, "Unable to find FRATIO for Fref=%uHz\n",
 				Fref);
@@ -3932,7 +3932,7 @@ static int madera_calc_fratio(struct madera_fll *fll,
 			if (Fref > pseudo_fref_max[ratio - 1])
 				break;
 
-			if (fout % (ratio * Fref)) {
+			if (fll->fout % (ratio * Fref)) {
 				cfg->refdiv = refdiv;
 				cfg->fratio = ratio - 1;
 				return ratio;
@@ -3940,7 +3940,7 @@ static int madera_calc_fratio(struct madera_fll *fll,
 		}
 
 		for (ratio = init_ratio - 1; ratio > 0; ratio--) {
-			if (fout % (ratio * Fref)) {
+			if (fll->fout % (ratio * Fref)) {
 				cfg->refdiv = refdiv;
 				cfg->fratio = ratio - 1;
 				return ratio;
@@ -3950,7 +3950,7 @@ static int madera_calc_fratio(struct madera_fll *fll,
 		div *= 2;
 		Fref /= 2;
 		refdiv++;
-		init_ratio = madera_find_fratio(fll, Fref, fout, sync, NULL);
+		init_ratio = madera_find_fratio(fll, Fref, sync, NULL);
 	}
 
 	madera_fll_warn(fll, "Falling back to integer mode operation\n");
@@ -3982,7 +3982,7 @@ static int madera_calc_fll(struct madera_fll *fll,
 			   struct madera_fll_cfg *cfg,
 			   unsigned int fref, bool sync)
 {
-	unsigned int target, gcd_fll;
+	unsigned int gcd_fll;
 	const struct madera_fll_gains *gains;
 	int n_gains;
 	int ratio, ret;
@@ -3990,23 +3990,21 @@ static int madera_calc_fll(struct madera_fll *fll,
 	madera_fll_dbg(fll, "fref=%u Fout=%u fvco=%u\n",
 			fref, fll->fout, fll->fout * MADERA_FLL_VCO_MULT);
 
-	target = fll->fout;
-
 	/* Find an appropriate FLL_FRATIO and refdiv */
-	ratio = madera_calc_fratio(fll, cfg, target, fref, sync);
+	ratio = madera_calc_fratio(fll, cfg, fref, sync);
 	if (ratio < 0)
 		return ratio;
 
 	/* Apply the division for our remaining calculations */
 	fref = fref / (1 << cfg->refdiv);
 
-	cfg->n = target / (ratio * fref);
+	cfg->n = fll->fout / (ratio * fref);
 
-	if (target % (ratio * fref)) {
-		gcd_fll = gcd(target, ratio * fref);
+	if (fll->fout % (ratio * fref)) {
+		gcd_fll = gcd(fll->fout, ratio * fref);
 		madera_fll_dbg(fll, "GCD=%u\n", gcd_fll);
 
-		cfg->theta = (target - (cfg->n * ratio * fref))
+		cfg->theta = (fll->fout - (cfg->n * ratio * fref))
 			/ gcd_fll;
 		cfg->lambda = (ratio * fref) / gcd_fll;
 	} else {
