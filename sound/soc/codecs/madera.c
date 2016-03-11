@@ -63,7 +63,8 @@
 #define MADERA_FLL_VCO_CORNER		141900000
 #define MADERA_FLL_MAX_FREF		 13500000
 #define MADERA_FLL_MAX_N		     1023
-#define MADERA_FLL_MIN_FVCO		 90000000
+#define MADERA_FLL_MIN_FOUT		 90000000
+#define MADERA_FLL_MAX_FOUT		100000000
 #define MADERA_FLL_MAX_FRATIO		       16
 #define MADERA_FLL_MAX_REFDIV			8
 #define MADERA_FLL_OUTDIV			3
@@ -3786,9 +3787,9 @@ static const struct madera_fll_gains madera_fll_main_gains[] = {
 
 static int madera_validate_fll(struct madera_fll *fll,
 				unsigned int Fref,
-				unsigned int Fvco)
+				unsigned int Fout)
 {
-	if (fll->fvco && Fvco != fll->fvco) {
+	if (fll->fout && Fout != fll->fout) {
 		madera_fll_err(fll, "Can't change output on active FLL\n");
 		return -EINVAL;
 	}
@@ -3819,12 +3820,12 @@ static int madera_find_sync_fratio(unsigned int fref, int *fratio)
 	return -EINVAL;
 }
 
-static int madera_find_main_fratio(unsigned int fref, unsigned int fvco,
+static int madera_find_main_fratio(unsigned int fref, unsigned int fout,
 				   int *fratio)
 {
 	int ratio = 1;
 
-	while ((fvco / (ratio * fref)) > MADERA_FLL_MAX_N)
+	while ((fout / (ratio * fref)) > MADERA_FLL_MAX_N)
 		ratio++;
 
 	if (fratio)
@@ -3834,7 +3835,7 @@ static int madera_find_main_fratio(unsigned int fref, unsigned int fvco,
 }
 
 static int madera_find_fratio(struct madera_fll *fll, unsigned int fref,
-			      unsigned int fvco, bool sync, int *fratio)
+			      unsigned int fout, bool sync, int *fratio)
 {
 	switch (fll->madera->type) {
 	case CS47L35:
@@ -3846,7 +3847,7 @@ static int madera_find_fratio(struct madera_fll *fll, unsigned int fref,
 			if (sync)
 				return madera_find_sync_fratio(fref, fratio);
 			else
-				return madera_find_main_fratio(fref, fvco,
+				return madera_find_main_fratio(fref, fout,
 								fratio);
 		}
 		break;
@@ -3858,13 +3859,13 @@ static int madera_find_fratio(struct madera_fll *fll, unsigned int fref,
 		if (sync)
 			return madera_find_sync_fratio(fref, fratio);
 		else
-			return madera_find_main_fratio(fref, fvco, fratio);
+			return madera_find_main_fratio(fref, fout, fratio);
 	}
 }
 
 static int madera_calc_fratio(struct madera_fll *fll,
 			      struct madera_fll_cfg *cfg,
-			      unsigned int fvco,
+			      unsigned int fout,
 			      unsigned int Fref, bool sync)
 {
 	int init_ratio, ratio;
@@ -3883,7 +3884,7 @@ static int madera_calc_fratio(struct madera_fll *fll,
 	}
 
 	/* Find an appropriate FLL_FRATIO */
-	init_ratio = madera_find_fratio(fll, Fref, fvco, sync, &cfg->fratio);
+	init_ratio = madera_find_fratio(fll, Fref, fout, sync, &cfg->fratio);
 	if (init_ratio < 0) {
 		madera_fll_err(fll, "Unable to find FRATIO for Fref=%uHz\n",
 				Fref);
@@ -3928,7 +3929,7 @@ static int madera_calc_fratio(struct madera_fll *fll,
 			if (Fref > pseudo_fref_max[ratio - 1])
 				break;
 
-			if (fvco % (ratio * Fref)) {
+			if (fout % (ratio * Fref)) {
 				cfg->refdiv = refdiv;
 				cfg->fratio = ratio - 1;
 				return ratio;
@@ -3936,7 +3937,7 @@ static int madera_calc_fratio(struct madera_fll *fll,
 		}
 
 		for (ratio = init_ratio - 1; ratio > 0; ratio--) {
-			if (fvco % (ratio * Fref)) {
+			if (fout % (ratio * Fref)) {
 				cfg->refdiv = refdiv;
 				cfg->fratio = ratio - 1;
 				return ratio;
@@ -3946,7 +3947,7 @@ static int madera_calc_fratio(struct madera_fll *fll,
 		div *= 2;
 		Fref /= 2;
 		refdiv++;
-		init_ratio = madera_find_fratio(fll, Fref, fvco, sync, NULL);
+		init_ratio = madera_find_fratio(fll, Fref, fout, sync, NULL);
 	}
 
 	madera_fll_warn(fll, "Falling back to integer mode operation\n");
@@ -3983,11 +3984,10 @@ static int madera_calc_fll(struct madera_fll *fll,
 	int n_gains;
 	int ratio, ret;
 
-	madera_fll_dbg(fll, "fref=%u Fout=%u\n", fref, fll->fout);
+	madera_fll_dbg(fll, "fref=%u Fout=%u fvco=%u\n",
+			fref, fll->fout, fll->fout * MADERA_FLL_VCO_MULT);
 
-	target = fll->fvco;
-
-	madera_fll_dbg(fll, "Fvco=%dHz\n", target);
+	target = fll->fout;
 
 	/* Find an appropriate FLL_FRATIO and refdiv */
 	ratio = madera_calc_fratio(fll, cfg, target, fref, sync);
@@ -4334,7 +4334,7 @@ int madera_set_fll_syncclk(struct madera_fll *fll, int source,
 		return 0;
 
 	if (fll->fout && fref > 0) {
-		ret = madera_validate_fll(fll, fref, fll->fvco);
+		ret = madera_validate_fll(fll, fref, fll->fout);
 		if (ret != 0)
 			return ret;
 	}
@@ -4352,7 +4352,6 @@ EXPORT_SYMBOL_GPL(madera_set_fll_syncclk);
 int madera_set_fll_refclk(struct madera_fll *fll, int source,
 			   unsigned int fref, unsigned int fout)
 {
-	unsigned int fvco = 0;
 	int ret = 0;
 
 	if (fll->ref_src == source &&
@@ -4360,23 +4359,19 @@ int madera_set_fll_refclk(struct madera_fll *fll, int source,
 		return 0;
 
 	if (fout) {
-		if (fout * MADERA_FLL_OUTDIV <
-		    MADERA_FLL_MIN_FVCO * MADERA_FLL_VCO_MULT) {
-			madera_fll_err(fll,
-				       "No FLL_OUTDIV for fout=%uHz\n", fout);
+		if ((fout < MADERA_FLL_MIN_FOUT) ||
+		    (fout > MADERA_FLL_MAX_FOUT)) {
+			madera_fll_err(fll, "invalid fout %uHz\n", fout);
 			return -EINVAL;
 		}
 
-		fvco = fout * MADERA_FLL_OUTDIV / MADERA_FLL_VCO_MULT;
-
-		ret = madera_validate_fll(fll, fref, fvco);
+		ret = madera_validate_fll(fll, fref, fout);
 		if (ret != 0)
 			return ret;
 	}
 
 	fll->ref_src = source;
 	fll->ref_freq = fref;
-	fll->fvco = fvco;
 	fll->fout = fout;
 
 	if (fout)
