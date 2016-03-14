@@ -1508,6 +1508,8 @@ int madera_micd_button_reading(struct madera_extcon_info *info, int val)
 	if (val < 0)
 		return val;
 
+	val = HOHM_TO_OHM(val);
+
 	ret = madera_micd_button_debounce(info, val);
 	if (ret < 0)
 		return ret;
@@ -1553,6 +1555,8 @@ int madera_micd_mic_reading(struct madera_extcon_info *info, int val)
 
 	if (val < 0)
 		return val;
+
+	val = HOHM_TO_OHM(val);
 
 	/* Due to jack detect this should never happen */
 	if (val > MADERA_MICROPHONE_MAX_OHM) {
@@ -1649,6 +1653,8 @@ static int madera_hpdet_acc_id_reading(struct madera_extcon_info *info,
 	if (reading < 0)
 		return reading;
 
+	reading = HOHM_TO_OHM(reading);
+
 	/*
 	 * When we're using HPDET for accessory identification we need
 	 * to take multiple measurements, step through them in sequence.
@@ -1710,7 +1716,6 @@ static int madera_hpdet_acc_id_reading(struct madera_extcon_info *info,
 static int madera_hpdet_acc_id_start(struct madera_extcon_info *info)
 {
 	struct madera *madera = info->madera;
-	int hp_reading = 32;
 	int ret;
 
 	switch (madera->type) {
@@ -1740,7 +1745,7 @@ static int madera_hpdet_acc_id_start(struct madera_extcon_info *info)
 	}
 
 	/* fake the first reading at 32 ohms */
-	madera_hpdet_acc_id_reading(info, hp_reading);
+	madera_hpdet_acc_id_reading(info, OHM_TO_HOHM(32));
 
 	return 0;
 
@@ -1898,7 +1903,7 @@ static void madera_micd_handler(struct work_struct *work)
 
 	dev_dbg(madera->dev, "Mic impedance %d ohms\n", ret);
 
-	madera_jds_reading(info, ret);
+	madera_jds_reading(info, OHM_TO_HOHM(ret));
 
 out:
 	madera_jds_start_timeout(info);
