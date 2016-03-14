@@ -122,6 +122,7 @@ struct madera {
 	bool internal_dcvdd;
 	bool micvdd_regulated;
 	bool bypass_cache;
+	bool dcvdd_powered_off;
 
 	struct madera_pdata pdata;
 
