@@ -236,6 +236,9 @@ static int madera_dcvdd_notify(struct notifier_block *nb,
 
 	dev_dbg(madera->dev, "DCVDD notify %lx\n", action);
 
+	if (action & REGULATOR_EVENT_DISABLE)
+		madera->dcvdd_powered_off = true;
+
 	return NOTIFY_DONE;
 }
 
@@ -243,9 +246,21 @@ static int madera_dcvdd_notify(struct notifier_block *nb,
 static int madera_runtime_resume(struct device *dev)
 {
 	struct madera *madera = dev_get_drvdata(dev);
+	bool force_reset = false;
 	int ret;
 
 	dev_dbg(madera->dev, "Leaving sleep mode\n");
+
+	/* If DCVDD didn't power off we must force a reset so that the
+	 * cache syncs correctly. If we have a hardware reset this must
+	 * be done before powering up DCVDD. If not, we'll use a software
+	 * reset after powering-up DCVDD
+	 */
+	if (!madera->dcvdd_powered_off) {
+		dev_dbg(madera->dev, "DCVDD did not power off, forcing reset\n");
+		force_reset = true;
+		madera_enable_reset(madera);
+	}
 
 	ret = regulator_enable(madera->dcvdd);
 	if (ret) {
@@ -255,6 +270,16 @@ static int madera_runtime_resume(struct device *dev)
 
 	regcache_cache_only(madera->regmap, false);
 	regcache_cache_only(madera->regmap_32bit, false);
+
+	if (force_reset) {
+		if (!madera->pdata.reset) {
+			ret = madera_soft_reset(madera);
+			if (ret)
+				goto err;
+		} else {
+			madera_disable_reset(madera);
+		}
+	}
 
 	ret = madera_wait_for_boot(madera);
 	if (ret)
@@ -291,6 +316,7 @@ static int madera_runtime_resume(struct device *dev)
 err:
 	regcache_cache_only(madera->regmap_32bit, true);
 	regcache_cache_only(madera->regmap, true);
+	madera->dcvdd_powered_off = false;
 	regulator_disable(madera->dcvdd);
 	return ret;
 }
@@ -306,6 +332,7 @@ static int madera_runtime_suspend(struct device *dev)
 	regcache_cache_only(madera->regmap_32bit, true);
 	regcache_mark_dirty(madera->regmap_32bit);
 
+	madera->dcvdd_powered_off = false;
 	regulator_disable(madera->dcvdd);
 
 	return 0;
