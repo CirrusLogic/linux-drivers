@@ -51,7 +51,8 @@ static const struct mfd_cell madera_ldo1_devs[] = {
 static const char * const cs47l35_supplies[] = {
 	"MICVDD",
 	"DBVDD2",
-	"CPVDD",
+	"CPVDD1",
+	"CPVDD2",
 	"SPKVDD",
 };
 
@@ -73,7 +74,8 @@ static const char * const cs47l85_supplies[] = {
 	"DBVDD2",
 	"DBVDD3",
 	"DBVDD4",
-	"CPVDD",
+	"CPVDD1",
+	"CPVDD2",
 	"SPKVDDL",
 	"SPKVDDR",
 };
@@ -96,7 +98,8 @@ static const char * const cs47l90_supplies[] = {
 	"DBVDD2",
 	"DBVDD3",
 	"DBVDD4",
-	"CPVDD",
+	"CPVDD1",
+	"CPVDD2",
 };
 
 static const struct mfd_cell cs47l90_devs[] = {

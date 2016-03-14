@@ -129,7 +129,7 @@ static const struct regulator_linear_range madera_micsupp_ranges[] = {
 
 static const struct regulator_desc madera_micsupp = {
 	.name = "MICVDD",
-	.supply_name = "CPVDD",
+	.supply_name = "CPVDD1",
 	.type = REGULATOR_VOLTAGE,
 	.n_voltages = 40,
 	.ops = &madera_micsupp_ops,

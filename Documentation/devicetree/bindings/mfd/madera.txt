@@ -41,8 +41,8 @@ Required properties:
     Mandatory on CS47L35, CS47L90, CS47L91
     Optional on CS47L85, WM1840
 
-  - AVDD-supply, DBVDD1-supply, DBVDD2-supply, CPVDD-supply : Power supplies
-    for the device
+  - AVDD-supply, DBVDD1-supply, DBVDD2-supply, CPVDD1-supply, CPVDD2-supply :
+    Power supplies for the device
 
   - DBVDD3-supply, DBVDD4-supply : Power supplies for the device
     (CS47L85, CS47L90, CS47L91, WM1840)
