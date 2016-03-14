@@ -2896,7 +2896,6 @@ EXPORT_SYMBOL_GPL(madera_hp_ev);
 int madera_anc_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		  int event)
 {
-	unsigned int mask = 0x3 << w->shift;
 	unsigned int val;
 
 	switch (event) {
@@ -2910,7 +2909,7 @@ int madera_anc_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		return 0;
 	}
 
-	snd_soc_update_bits(w->codec, MADERA_CLOCK_CONTROL, mask, val);
+	snd_soc_write(w->codec, MADERA_CLOCK_CONTROL, val);
 
 	return 0;
 }
