@@ -953,19 +953,17 @@ int madera_dev_init(struct madera *madera)
 	if (ret)
 		goto err_reset;
 
-#ifdef CONFIG_PM_RUNTIME
-	madera_runtime_suspend(madera->dev);
-#endif
-
-	pm_runtime_set_autosuspend_delay(madera->dev, 100);
-	pm_runtime_use_autosuspend(madera->dev);
-	pm_runtime_enable(madera->dev);
-
 	madera_configure_micbias(madera);
+
+	pm_runtime_set_active(madera->dev);
+	pm_runtime_enable(madera->dev);
 
 	ret = madera_irq_init(madera);
 	if (ret)
 		goto err_reset;
+
+	pm_runtime_set_autosuspend_delay(madera->dev, 100);
+	pm_runtime_use_autosuspend(madera->dev);
 
 	ret = madera_request_irq(madera, MADERA_IRQ_BOOT_DONE, "Boot done",
 				 madera_boot_done, madera);
