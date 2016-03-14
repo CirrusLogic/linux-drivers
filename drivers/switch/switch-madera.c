@@ -1196,6 +1196,56 @@ void madera_set_headphone_imp(struct madera_extcon_info *info, int imp)
 }
 EXPORT_SYMBOL_GPL(madera_set_headphone_imp);
 
+static void madera_hpdet_start_micd(struct madera_extcon_info *info)
+{
+	struct madera *madera = info->madera;
+
+	regmap_update_bits(madera->regmap, MADERA_IRQ1_MASK_6,
+			   MADERA_IM_MICDET1_EINT1_MASK,
+			   MADERA_IM_MICDET1_EINT1);
+	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_0,
+			   MADERA_MICD1_ADC_MODE_MASK,
+			   MADERA_MICD1_ADC_MODE_MASK);
+	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
+			   MADERA_MICD_BIAS_STARTTIME_MASK |
+			   MADERA_MICD_RATE_MASK |
+			   MADERA_MICD_DBTIME_MASK |
+			   MADERA_MICD_ENA, MADERA_MICD_ENA);
+}
+
+static void madera_hpdet_stop_micd(struct madera_extcon_info *info)
+{
+	struct madera *madera = info->madera;
+	unsigned int start_time = 1, dbtime = 1, rate = 1;
+
+	if (madera->pdata.micd_bias_start_time)
+		start_time = madera->pdata.micd_bias_start_time;
+
+	if (madera->pdata.micd_rate)
+		rate = madera->pdata.micd_rate;
+
+	if (madera->pdata.micd_dbtime)
+		dbtime = madera->pdata.micd_dbtime;
+
+	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
+			   MADERA_MICD_BIAS_STARTTIME_MASK |
+			   MADERA_MICD_RATE_MASK |
+			   MADERA_MICD_DBTIME_MASK |
+			   MADERA_MICD_ENA,
+			   start_time << MADERA_MICD_BIAS_STARTTIME_SHIFT |
+			   rate << MADERA_MICD_RATE_SHIFT |
+			   dbtime << MADERA_MICD_DBTIME_SHIFT);
+
+
+	udelay(100);
+
+	/* Clear any spurious IRQs that have happened */
+	regmap_write(madera->regmap, MADERA_IRQ1_STATUS_6,
+		     MADERA_MICDET1_EINT1);
+	regmap_update_bits(madera->regmap, MADERA_IRQ1_MASK_6,
+		     MADERA_IM_MICDET1_EINT1_MASK, 0);
+}
+
 int madera_hpdet_start(struct madera_extcon_info *info)
 {
 	struct madera *madera = info->madera;
@@ -1259,6 +1309,7 @@ int madera_hpdet_start(struct madera_extcon_info *info)
 			goto err;
 		}
 		madera_extcon_hp_clamp(info, true);
+		madera_hpdet_start_micd(info);
 		break;
 	}
 
@@ -1287,8 +1338,23 @@ void madera_hpdet_restart(struct madera_extcon_info *info)
 	struct madera *madera = info->madera;
 
 	/* Reset back to starting range */
+	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
+			   MADERA_MICD_ENA_MASK, 0);
+
 	regmap_update_bits(madera->regmap, MADERA_HEADPHONE_DETECT_1,
 			   MADERA_HP_IMPEDANCE_RANGE_MASK | MADERA_HP_POLL, 0);
+
+	switch (madera->type) {
+	case CS47L35:
+	case CS47L85:
+	case WM1840:
+		break;
+	default:
+		regmap_update_bits(madera->regmap,
+				   MADERA_MIC_DETECT_1_CONTROL_1,
+				   MADERA_MICD_ENA_MASK, MADERA_MICD_ENA);
+		break;
+	}
 
 	regmap_update_bits(madera->regmap, MADERA_HEADPHONE_DETECT_1,
 			   MADERA_HP_POLL, MADERA_HP_POLL);
@@ -1302,6 +1368,8 @@ void madera_hpdet_stop(struct madera_extcon_info *info)
 	dev_dbg(madera->dev, "Stopping HPDET\n");
 
 	/* Reset back to starting range */
+	madera_hpdet_stop_micd(info);
+
 	regmap_update_bits(madera->regmap, MADERA_HEADPHONE_DETECT_1,
 			   MADERA_HP_IMPEDANCE_RANGE_MASK | MADERA_HP_POLL, 0);
 
