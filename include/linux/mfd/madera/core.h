@@ -118,6 +118,7 @@ struct madera {
 	int num_core_supplies;
 	struct regulator_bulk_data core_supplies[MADERA_MAX_CORE_SUPPLIES];
 	struct regulator *dcvdd;
+	struct notifier_block dcvdd_notifier;
 	bool internal_dcvdd;
 	bool micvdd_regulated;
 	bool bypass_cache;

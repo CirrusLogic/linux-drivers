@@ -228,6 +228,17 @@ static int madera_soft_reset(struct madera *madera)
 	return 0;
 }
 
+static int madera_dcvdd_notify(struct notifier_block *nb,
+			       unsigned long action, void *data)
+{
+	struct madera *madera = container_of(nb, struct madera,
+					     dcvdd_notifier);
+
+	dev_dbg(madera->dev, "DCVDD notify %lx\n", action);
+
+	return NOTIFY_DONE;
+}
+
 #ifdef CONFIG_PM_RUNTIME
 static int madera_runtime_resume(struct device *dev)
 {
@@ -750,6 +761,14 @@ int madera_dev_init(struct madera *madera)
 		goto err_devs;
 	}
 
+	madera->dcvdd_notifier.notifier_call = madera_dcvdd_notify;
+	ret = regulator_register_notifier(madera->dcvdd,
+					  &madera->dcvdd_notifier);
+	if (ret) {
+		dev_err(dev, "Failed to register DCVDD notifier %d\n", ret);
+		goto err_dcvdd;
+	}
+
 	if (madera->pdata.reset) {
 		/* Start out with /RESET low to put the chip into reset */
 		ret = devm_gpio_request_one(madera->dev, madera->pdata.reset,
@@ -757,7 +776,7 @@ int madera_dev_init(struct madera *madera)
 					    "madera /RESET");
 		if (ret) {
 			dev_err(dev, "Failed to request /RESET: %d\n", ret);
-			goto err_dcvdd;
+			goto err_notifier;
 		}
 	}
 
@@ -768,7 +787,7 @@ int madera_dev_init(struct madera *madera)
 				    madera->core_supplies);
 	if (ret) {
 		dev_err(dev, "Failed to enable core supplies: %d\n", ret);
-		goto err_dcvdd;
+		goto err_notifier;
 	}
 
 	ret = regulator_enable(madera->dcvdd);
@@ -945,6 +964,8 @@ err_reset:
 err_enable:
 	regulator_bulk_disable(madera->num_core_supplies,
 			       madera->core_supplies);
+err_notifier:
+	regulator_unregister_notifier(madera->dcvdd, &madera->dcvdd_notifier);
 err_dcvdd:
 	regulator_put(madera->dcvdd);
 err_devs:
@@ -958,6 +979,7 @@ int madera_dev_exit(struct madera *madera)
 	pm_runtime_disable(madera->dev);
 
 	regulator_disable(madera->dcvdd);
+	regulator_unregister_notifier(madera->dcvdd, &madera->dcvdd_notifier);
 	regulator_put(madera->dcvdd);
 
 	mfd_remove_devices(madera->dev);
