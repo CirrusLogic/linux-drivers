@@ -4890,6 +4890,24 @@ int madera_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(madera_lhpf_coeff_put);
 
+int madera_register_notifier(struct snd_soc_codec *codec,
+			     struct notifier_block *nb)
+{
+	struct madera *madera = dev_get_drvdata(codec->dev->parent);
+
+	return blocking_notifier_chain_register(&madera->notifier, nb);
+}
+EXPORT_SYMBOL_GPL(madera_register_notifier);
+
+int madera_unregister_notifier(struct snd_soc_codec *codec,
+			       struct notifier_block *nb)
+{
+	struct madera *madera = dev_get_drvdata(codec->dev->parent);
+
+	return blocking_notifier_chain_unregister(&madera->notifier, nb);
+}
+EXPORT_SYMBOL_GPL(madera_unregister_notifier);
+
 MODULE_DESCRIPTION("ASoC Cirrus Logic Madera codec support");
 MODULE_AUTHOR("Charles Keepax <ckeepax@opensource.wolfsonmicro.com>");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.wolfsonmicro.com>");
