@@ -2724,6 +2724,18 @@ int madera_out_ev(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct madera *madera = priv->madera;
+	int out_up_delay;
+
+	switch (madera->type) {
+	case CS47L90:
+	case CS47L91:
+		out_up_delay = 6;
+		break;
+	default:
+		out_up_delay = 17;
+		break;
+	}
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -2735,7 +2747,7 @@ int madera_out_ev(struct snd_soc_dapm_widget *w,
 		case MADERA_OUT3L_ENA_SHIFT:
 		case MADERA_OUT3R_ENA_SHIFT:
 			priv->out_up_pending++;
-			priv->out_up_delay += 17;
+			priv->out_up_delay += out_up_delay;
 			break;
 		default:
 			break;
