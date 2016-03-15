@@ -4952,6 +4952,24 @@ int madera_get_compr_map_idx(struct snd_soc_pcm_runtime *rtd,
 }
 EXPORT_SYMBOL_GPL(madera_get_compr_map_idx);
 
+int madera_register_notifier(struct snd_soc_codec *codec,
+			     struct notifier_block *nb)
+{
+	struct madera *madera = dev_get_drvdata(codec->dev->parent);
+
+	return blocking_notifier_chain_register(&madera->notifier, nb);
+}
+EXPORT_SYMBOL_GPL(madera_register_notifier);
+
+int madera_unregister_notifier(struct snd_soc_codec *codec,
+			       struct notifier_block *nb)
+{
+	struct madera *madera = dev_get_drvdata(codec->dev->parent);
+
+	return blocking_notifier_chain_unregister(&madera->notifier, nb);
+}
+EXPORT_SYMBOL_GPL(madera_unregister_notifier);
+
 MODULE_DESCRIPTION("ASoC Cirrus Logic Madera codec support");
 MODULE_AUTHOR("Charles Keepax <ckeepax@opensource.wolfsonmicro.com>");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.wolfsonmicro.com>");

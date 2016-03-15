@@ -535,4 +535,8 @@ extern int madera_set_custom_jd(struct snd_soc_codec *codec,
 extern int madera_enable_force_bypass(struct snd_soc_codec *codec);
 extern int madera_disable_force_bypass(struct snd_soc_codec *codec);
 
+extern int madera_register_notifier(struct snd_soc_codec *codec,
+				    struct notifier_block *nb);
+extern int madera_unregister_notifier(struct snd_soc_codec *codec,
+				      struct notifier_block *nb);
 #endif

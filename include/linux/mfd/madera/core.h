@@ -13,6 +13,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/regmap.h>
+#include <linux/notifier.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/madera/pdata.h>
 
@@ -142,6 +143,8 @@ struct madera {
 	int tdm_slots[MADERA_MAX_AIF];
 
 	struct mutex reg_setting_lock;
+
+	struct blocking_notifier_head notifier;
 };
 
 extern int madera_request_irq(struct madera *madera, int irq, const char *name,
@@ -169,4 +172,10 @@ static inline int madera_of_read_int(struct madera *madera, const char *prop,
 				   (unsigned int *)data);
 }
 
+static inline int madera_call_notifiers(struct madera *madera,
+					unsigned long event,
+					void *data)
+{
+	return blocking_notifier_call_chain(&madera->notifier, event, data);
+}
 #endif
