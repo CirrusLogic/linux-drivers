@@ -2663,6 +2663,18 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 		   int event)
 {
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
+	struct arizona *arizona = priv->arizona;
+	int out_up_delay;
+
+	switch (arizona->type) {
+	case CS47L90:
+	case CS47L91:
+		out_up_delay = 6;
+		break;
+	default:
+		out_up_delay = 17;
+		break;
+	}
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -2674,7 +2686,7 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 		case ARIZONA_OUT3L_ENA_SHIFT:
 		case ARIZONA_OUT3R_ENA_SHIFT:
 			priv->out_up_pending++;
-			priv->out_up_delay += 17;
+			priv->out_up_delay += out_up_delay;
 			break;
 		default:
 			break;
