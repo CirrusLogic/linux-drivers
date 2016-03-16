@@ -16,36 +16,6 @@
 #include <dt-bindings/mfd/madera.h>
 #include <sound/madera-pdata.h>
 
-#define MADERA_GPN_LVL_MASK		0x8000
-#define MADERA_GPN_LVL_SHIFT		    15
-#define MADERA_GPN_LVL_WIDTH		     1
-#define MADERA_GPN_OP_CFG_MASK		0x4000
-#define MADERA_GPN_OP_CFG_SHIFT		    14
-#define MADERA_GPN_OP_CFG_WIDTH		     1
-#define MADERA_GPN_DB_MASK		0x2000
-#define MADERA_GPN_DB_SHIFT		    13
-#define MADERA_GPN_DB_WIDTH		     1
-#define MADERA_GPN_POL_MASK		0x0800
-#define MADERA_GPN_POL_SHIFT		    11
-#define MADERA_GPN_POL_WIDTH		     1
-#define MADERA_GPN_FN_MASK		0x03FF
-#define MADERA_GPN_FN_SHIFT		     0
-#define MADERA_GPN_FN_WIDTH		    10
-
-
-#define MADERA_GPN_DIR_MASK		0x8000
-#define MADERA_GPN_DIR_SHIFT		    15
-#define MADERA_GPN_DIR_WIDTH		     1
-#define MADERA_GPN_PU_MASK		0x4000
-#define MADERA_GPN_PU_SHIFT		    14
-#define MADERA_GPN_PU_WIDTH		     1
-#define MADERA_GPN_PD_MASK		0x2000
-#define MADERA_GPN_PD_SHIFT		    13
-#define MADERA_GPN_PD_WIDTH		     1
-#define MADERA_GPN_DBTIME_MASK		0x000F
-#define MADERA_GPN_DBTIME_SHIFT		     0
-#define MADERA_GPN_DBTIME_WIDTH		     4
-
 #define MADERA_MAX_GPIO_REGS		80
 
 #define CS47L35_NUM_GPIOS	16
