@@ -3532,8 +3532,8 @@ static int madera_hw_params(struct snd_pcm_substream *substream,
 	int i, ret, val;
 	int channels = params_channels(params);
 	int chan_limit = madera->pdata.codec.max_channels_clocked[dai->id - 1];
-	int tdm_width = madera->tdm_width[dai->id - 1];
-	int tdm_slots = madera->tdm_slots[dai->id - 1];
+	int tdm_width = priv->tdm_width[dai->id - 1];
+	int tdm_slots = priv->tdm_slots[dai->id - 1];
 	int bclk, lrclk, wl, frame, bclk_target;
 	bool reconfig;
 	unsigned int aif_tx_state = 0, aif_rx_state = 0;
@@ -3770,7 +3770,6 @@ static int madera_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct madera *madera = priv->madera;
 	int base = dai->driver->base;
 	int rx_max_chan = dai->driver->playback.channels_max;
 	int tx_max_chan = dai->driver->capture.channels_max;
@@ -3789,8 +3788,8 @@ static int madera_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	madera_set_channels_to_mask(dai, base + MADERA_AIF_FRAME_CTRL_11,
 				    rx_max_chan, rx_mask);
 
-	madera->tdm_width[dai->id - 1] = slot_width;
-	madera->tdm_slots[dai->id - 1] = slots;
+	priv->tdm_width[dai->id - 1] = slot_width;
+	priv->tdm_slots[dai->id - 1] = slots;
 
 	return 0;
 }

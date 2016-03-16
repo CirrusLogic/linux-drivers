@@ -124,6 +124,9 @@ struct madera_priv {
 	struct mutex rate_lock;
 	struct mutex adsp_fw_lock;
 
+	int tdm_width[MADERA_MAX_AIF];
+	int tdm_slots[MADERA_MAX_AIF];
+
 	unsigned int aif_sources_cache[MADERA_MAX_AIF_SOURCES];
 	unsigned int mixer_sources_cache[MADERA_MAX_MIXER_SOURCES];
 
