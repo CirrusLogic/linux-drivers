@@ -1410,7 +1410,7 @@ int madera_init_drc(struct snd_soc_codec *codec)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(madera->pdata.gpio_defaults); i++) {
-		switch (madera->pdata.gpio_defaults[i] & MADERA_GPN_FN_MASK) {
+		switch (madera->pdata.gpio_defaults[i] & MADERA_GP1_FN_MASK) {
 		case MADERA_GP_FN_DRC1_SIGNAL_DETECT:
 			enable_drc1 = true;
 			break;
