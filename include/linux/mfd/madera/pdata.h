@@ -27,9 +27,6 @@
 
 #define MADERA_MAX_GPSW			2
 
-#define MADERA_HAP_ACT_ERM		0
-#define MADERA_HAP_ACT_LRA		2
-
 /* Treat INT_MAX impedance as open circuit */
 #define MADERA_HP_Z_OPEN		INT_MAX
 #define MADERA_HP_SHORT_IMPEDANCE	4
@@ -197,9 +194,6 @@ struct madera_pdata {
 
 	/** Override the normal jack detection */
 	const struct madera_jd_state *custom_jd;
-
-	/** Haptic actuator type */
-	unsigned int hap_type;
 };
 
 #endif
