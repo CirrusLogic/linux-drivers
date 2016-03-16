@@ -1,5 +1,5 @@
 /*
- * madera.h - Cirrus Logic Madera class codecs common support
+ * madera.c - Cirrus Logic Madera class codecs common support
  *
  * Copyright 2015 Cirrus Logic
  *
