@@ -22,6 +22,8 @@
 #include <linux/mfd/madera/pdata.h>
 #include <sound/madera-pdata.h>
 
+#include <dt-bindings/sound/madera.h>
+
 #include "madera.h"
 
 #define MADERA_AIF_BCLK_CTRL		0x00
