@@ -22,7 +22,7 @@ Optional properties:
     that input set the mode of the left and right A inputs and the second two
     cells set the mode of the left and right B inputs.
     Valid mode values are one of the MADERA_INMODE_xxx (see
-    include/dt-bindings/mfd/madera.h). If the array is shorter than the number
+    include/dt-bindings/sound/madera.h). If the array is shorter than the number
     of inputs the unspecified inputs default to MADERA_INMODE_DIFF.
 
   - cirrus,out-mono : Mono bit for each output, must contain six cells if
