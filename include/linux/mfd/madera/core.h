@@ -144,9 +144,6 @@ struct madera {
 
 	struct snd_soc_dapm_context *dapm;
 
-	int tdm_width[MADERA_MAX_AIF];
-	int tdm_slots[MADERA_MAX_AIF];
-
 	struct mutex reg_setting_lock;
 
 	struct blocking_notifier_head notifier;
