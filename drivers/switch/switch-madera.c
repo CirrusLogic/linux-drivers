@@ -2508,6 +2508,75 @@ static inline int madera_extcon_of_get_pdata(struct madera *madera)
 }
 #endif
 
+#ifdef DEBUG
+#define MADERA_EXTCON_DUMP(x, f) \
+	dev_dbg(madera->dev, "\t" #x ": " f "\n", pdata->x)
+
+static void madera_extcon_dump_pdata(struct madera *madera)
+{
+	const struct madera_accdet_pdata *pdata;
+	int i, j;
+
+	dev_dbg(madera->dev, "extcon pdata gpsw=[0x%x 0x%x]\n",
+		madera->pdata.gpsw[0], madera->pdata.gpsw[1]);
+
+	for (i = 0; i < ARRAY_SIZE(madera->pdata.accdet); ++i) {
+		pdata = &madera->pdata.accdet[i];
+
+		dev_dbg(madera->dev, "extcon pdata OUT%u\n", i + 1);
+		MADERA_EXTCON_DUMP(enabled, "%u");
+		MADERA_EXTCON_DUMP(jd_wake_time, "%d");
+		MADERA_EXTCON_DUMP(jd_use_jd2, "%u");
+		MADERA_EXTCON_DUMP(jd_invert, "%u");
+		MADERA_EXTCON_DUMP(fixed_hpdet_imp_x100, "%d");
+		MADERA_EXTCON_DUMP(hpdet_ext_res_x100, "%d");
+		MADERA_EXTCON_DUMP(hpdet_short_circuit_imp, "%d");
+		MADERA_EXTCON_DUMP(hpdet_id_gpio, "%d");
+		MADERA_EXTCON_DUMP(hpdet_channel, "%d");
+		MADERA_EXTCON_DUMP(micd_detect_debounce_ms, "%d");
+		MADERA_EXTCON_DUMP(hpdet_short_circuit_imp, "%d");
+		MADERA_EXTCON_DUMP(hpdet_id_gpio, "%d");
+		MADERA_EXTCON_DUMP(hpdet_channel, "%d");
+		MADERA_EXTCON_DUMP(micd_detect_debounce_ms, "%d");
+		MADERA_EXTCON_DUMP(micd_manual_debounce, "%d");
+		MADERA_EXTCON_DUMP(micd_pol_gpio, "%d");
+		MADERA_EXTCON_DUMP(micd_bias_start_time, "%d");
+		MADERA_EXTCON_DUMP(micd_rate, "%d");
+		MADERA_EXTCON_DUMP(micd_dbtime, "%d");
+		MADERA_EXTCON_DUMP(micd_timeout_ms, "%d");
+		MADERA_EXTCON_DUMP(micd_clamp_mode, "%u");
+		MADERA_EXTCON_DUMP(micd_force_micbias, "%u");
+		MADERA_EXTCON_DUMP(micd_open_circuit_declare, "%u");
+		MADERA_EXTCON_DUMP(micd_software_compare, "%u");
+
+		dev_dbg(madera->dev, "\tmicd_ranges {\n");
+		for (j = 0; j < pdata->num_micd_ranges; ++j)
+			dev_dbg(madera->dev, "\t\tmax: %d key: %d\n",
+				pdata->micd_ranges[j].max,
+				pdata->micd_ranges[j].key);
+		dev_dbg(madera->dev, "\t}\n");
+
+		dev_dbg(madera->dev, "\tmicd_configs {\n");
+		for (j = 0; j < pdata->num_micd_configs; ++j)
+			dev_dbg(madera->dev,
+				"\t\tsrc: 0x%x gnd: 0x%x bias: %u gpio: %u\n",
+				pdata->micd_configs[j].src,
+				pdata->micd_configs[j].gnd,
+				pdata->micd_configs[j].bias,
+				pdata->micd_configs[j].gpio);
+		dev_dbg(madera->dev, "\t}\n");
+
+		dev_dbg(madera->dev, "\thpd_pins: %u %u %u %u\n",
+			pdata->hpd_pins[0], pdata->hpd_pins[1],
+			pdata->hpd_pins[2], pdata->hpd_pins[3]);
+	}
+}
+#else
+static inline void madera_extcon_dump_pdata(struct madera *madera)
+{
+}
+#endif
+
 static int madera_extcon_read_calibration(struct madera_extcon_info *info)
 {
 	struct madera *madera = info->madera;
@@ -2772,6 +2841,8 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	} else {
 		madera_extcon_xlate_pdata(pdata);
 	}
+
+	madera_extcon_dump_pdata(madera);
 
 	if (pdata->hpdet_short_circuit_imp < 1)
 		pdata->hpdet_short_circuit_imp = MADERA_HP_SHORT_IMPEDANCE;
