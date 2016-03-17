@@ -2445,6 +2445,7 @@ F:	include/dt-bindings/sound/madera.h
 F:	include/dt-bindings/mfd/madera.h
 F:	include/linux/mfd/madera/
 F:	include/linux/extcon/extcon-madera*
+F:	include/linux/regulator/madera*
 F:	include/sound/madera-pdata.h
 F:	sound/soc/codecs/madera.?
 F:	sound/soc/codecs/cs47l*

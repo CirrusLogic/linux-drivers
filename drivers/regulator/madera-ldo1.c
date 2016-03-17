@@ -22,6 +22,8 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 
+#include <linux/regulator/madera-ldo1.h>
+
 #include <linux/mfd/madera/core.h>
 #include <linux/mfd/madera/pdata.h>
 #include <linux/mfd/madera/registers.h>
@@ -88,22 +90,23 @@ static int madera_ldo1_of_get_pdata(struct madera *madera,
 			if (dcvdd_node && dcvdd_node != init_node)
 				madera->internal_dcvdd = false;
 
-			pdata->ldo1 = init_data;
+			pdata->ldo1.init_data = init_data;
 		}
 	} else if (dcvdd_node) {
 		madera->internal_dcvdd = false;
 	}
 
 	if (madera->internal_dcvdd) {
-		pdata->ldoena = of_get_named_gpio(madera->dev->of_node,
-						 "cirrus,ldoena-gpios", 0);
-		if (pdata->ldoena < 0) {
-			if (pdata->ldoena != -ENOENT)
+		pdata->ldo1.ldoena = of_get_named_gpio(madera->dev->of_node,
+							"cirrus,ldoena-gpios",
+							0);
+		if (pdata->ldo1.ldoena < 0) {
+			if (pdata->ldo1.ldoena != -ENOENT)
 				dev_warn(madera->dev,
 					 "Malformed cirrus,ldoena-gpios ignored: %d\n",
-					 pdata->ldoena);
+					 pdata->ldo1.ldoena);
 
-			pdata->ldoena = 0;
+			pdata->ldo1.ldoena = 0;
 		}
 	}
 
@@ -153,13 +156,13 @@ static int madera_ldo1_probe(struct platform_device *pdev)
 	/* pdata entries default to 0 if not explicitly set. If the
 	 * value is 0 this means 'undefined'
 	 */
-	if (madera->pdata.ldoena == 0)
-		madera->pdata.ldoena = -1;
+	if (madera->pdata.ldo1.ldoena == 0)
+		madera->pdata.ldo1.ldoena = -1;
 
-	if (madera->pdata.ldo1)
-		ldo1->init_data = *madera->pdata.ldo1;
+	if (madera->pdata.ldo1.init_data)
+		ldo1->init_data = *madera->pdata.ldo1.init_data;
 
-	config.ena_gpio = madera->pdata.ldoena;
+	config.ena_gpio = madera->pdata.ldo1.ldoena;
 	config.ena_gpio_flags = GPIOF_OUT_INIT_LOW;
 
 	config.init_data = &ldo1->init_data;
