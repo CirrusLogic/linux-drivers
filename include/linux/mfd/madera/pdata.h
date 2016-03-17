@@ -15,6 +15,7 @@
 
 #include <dt-bindings/mfd/madera.h>
 #include <linux/regulator/madera-ldo1.h>
+#include <linux/regulator/madera-micsupp.h>
 #include <sound/madera-pdata.h>
 #include <linux/extcon/extcon-madera-pdata.h>
 
@@ -45,8 +46,8 @@ struct madera_pdata {
 	/** Substruct of pdata for the LDO1 regulator */
 	struct madera_ldo1_pdata ldo1;
 
-	/** Regulator configuration for MICVDD */
-	const struct regulator_init_data *micvdd;
+	/** Substruct of pdata for the MICSUPP regulator */
+	struct madera_micsupp_pdata micsupp;
 
 	/** If a direct 32kHz clock is provided on an MCLK specify it here */
 	unsigned int clk32k_src;

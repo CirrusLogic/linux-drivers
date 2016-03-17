@@ -24,6 +24,8 @@
 #include <linux/workqueue.h>
 #include <sound/soc.h>
 
+#include <linux/regulator/madera-micsupp.h>
+
 #include <linux/mfd/madera/core.h>
 #include <linux/mfd/madera/pdata.h>
 #include <linux/mfd/madera/registers.h>
@@ -180,7 +182,7 @@ static int madera_micsupp_of_get_pdata(struct madera *madera,
 			init_data->consumer_supplies = &micsupp->supply;
 			init_data->num_consumer_supplies = 1;
 
-			pdata->micvdd = init_data;
+			pdata->micsupp.init_data = init_data;
 		}
 	}
 
@@ -268,8 +270,8 @@ static int madera_micsupp_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (madera->pdata.micvdd)
-		config.init_data = madera->pdata.micvdd;
+	if (madera->pdata.micsupp.init_data)
+		config.init_data = madera->pdata.micsupp.init_data;
 	else
 		config.init_data = &micsupp->init_data;
 
