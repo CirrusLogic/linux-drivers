@@ -1131,6 +1131,9 @@ static int wm8997_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm8997);
 
+	/* Set of_node to parent from the SPI device*/
+	pdev->dev.of_node = arizona->dev->of_node;
+
 	wm8997->core.arizona = arizona;
 	wm8997->core.num_inputs = 4;
 

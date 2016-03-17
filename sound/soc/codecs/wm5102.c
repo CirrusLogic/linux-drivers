@@ -2163,6 +2163,9 @@ static int wm5102_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm5102);
 
+	/* Set of_node to parent from the SPI device*/
+	pdev->dev.of_node = arizona->dev->of_node;
+
 	mutex_init(&wm5102->fw_lock);
 
 	wm5102->core.arizona = arizona;

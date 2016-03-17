@@ -2488,6 +2488,9 @@ static int florida_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, florida);
 
+	/* Set of_node to parent from the SPI device*/
+	pdev->dev.of_node = arizona->dev->of_node;
+
 	mutex_init(&florida->fw_lock);
 
 	florida->core.arizona = arizona;
