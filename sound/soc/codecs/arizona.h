@@ -360,12 +360,6 @@ extern int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 extern int clearwater_hp_ev(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol,
 			    int event);
-extern int moon_hp_ev(struct snd_soc_dapm_widget *w,
-			    struct snd_kcontrol *kcontrol,
-			    int event);
-extern int moon_analog_ev(struct snd_soc_dapm_widget *w,
-			    struct snd_kcontrol *kcontrol,
-			    int event);
 extern int arizona_anc_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol,
 			  int event);
