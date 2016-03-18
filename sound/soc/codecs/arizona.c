@@ -2587,61 +2587,6 @@ static void clearwater_hp_post_disable(struct snd_soc_dapm_widget *w)
 			    0);
 }
 
-static void moon_analog_post_enable(struct snd_soc_dapm_widget *w)
-{
-	unsigned int mask, val;
-
-	switch (w->shift) {
-	case ARIZONA_OUT1L_ENA_SHIFT:
-	case ARIZONA_OUT1R_ENA_SHIFT:
-		mask = ARIZONA_HP1_EDRE_STEREO_MASK;
-		val = ARIZONA_HP1_EDRE_STEREO;
-		break;
-	case ARIZONA_OUT2L_ENA_SHIFT:
-	case ARIZONA_OUT2R_ENA_SHIFT:
-		mask = ARIZONA_HP2_EDRE_STEREO_MASK;
-		val = ARIZONA_HP2_EDRE_STEREO;
-		break;
-	case ARIZONA_OUT3L_ENA_SHIFT:
-	case ARIZONA_OUT3R_ENA_SHIFT:
-		mask = ARIZONA_HP3_EDRE_STEREO_MASK;
-		val = ARIZONA_HP3_EDRE_STEREO;
-		break;
-	default:
-		return;
-	}
-
-	snd_soc_update_bits(w->codec,
-		CLEARWATER_EDRE_HP_STEREO_CONTROL,
-		mask, val);
-}
-
-static void moon_analog_post_disable(struct snd_soc_dapm_widget *w)
-{
-	unsigned int mask;
-
-	switch (w->shift) {
-	case ARIZONA_OUT1L_ENA_SHIFT:
-	case ARIZONA_OUT1R_ENA_SHIFT:
-		mask = ARIZONA_HP1_EDRE_STEREO_MASK;
-		break;
-	case ARIZONA_OUT2L_ENA_SHIFT:
-	case ARIZONA_OUT2R_ENA_SHIFT:
-		mask = ARIZONA_HP2_EDRE_STEREO_MASK;
-		break;
-	case ARIZONA_OUT3L_ENA_SHIFT:
-	case ARIZONA_OUT3R_ENA_SHIFT:
-		mask = ARIZONA_HP3_EDRE_STEREO_MASK;
-		break;
-	default:
-		return;
-	}
-
-	snd_soc_update_bits(w->codec,
-		CLEARWATER_EDRE_HP_STEREO_CONTROL,
-		mask, 0);
-}
-
 int clearwater_put_dre(struct snd_kcontrol *kcontrol,
 		    struct snd_ctl_elem_value *ucontrol)
 {
@@ -2831,58 +2776,6 @@ int clearwater_hp_ev(struct snd_soc_dapm_widget *w,
 	}
 }
 EXPORT_SYMBOL_GPL(clearwater_hp_ev);
-
-int moon_hp_ev(struct snd_soc_dapm_widget *w,
-		     struct snd_kcontrol *kcontrol, int event)
-{
-	int ret;
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-	case SND_SOC_DAPM_PRE_PMD:
-		return arizona_hp_ev(w, kcontrol, event);
-	case SND_SOC_DAPM_POST_PMU:
-		ret = arizona_hp_ev(w, kcontrol, event);
-		if (ret < 0)
-			return ret;
-
-		moon_analog_post_enable(w);
-		return 0;
-	case SND_SOC_DAPM_POST_PMD:
-		ret = arizona_hp_ev(w, kcontrol, event);
-		moon_analog_post_disable(w);
-		return ret;
-	default:
-		return -EINVAL;
-	}
-}
-EXPORT_SYMBOL_GPL(moon_hp_ev);
-
-int moon_analog_ev(struct snd_soc_dapm_widget *w,
-		     struct snd_kcontrol *kcontrol, int event)
-{
-	int ret;
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-	case SND_SOC_DAPM_PRE_PMD:
-		return arizona_out_ev(w, kcontrol, event);
-	case SND_SOC_DAPM_POST_PMU:
-		ret = arizona_out_ev(w, kcontrol, event);
-		if (ret < 0)
-			return ret;
-
-		moon_analog_post_enable(w);
-		return 0;
-	case SND_SOC_DAPM_POST_PMD:
-		ret = arizona_out_ev(w, kcontrol, event);
-		moon_analog_post_disable(w);
-		return ret;
-	default:
-		return -EINVAL;
-	}
-}
-EXPORT_SYMBOL_GPL(moon_analog_ev);
 
 int arizona_anc_ev(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol,
