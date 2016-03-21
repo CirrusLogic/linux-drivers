@@ -3208,6 +3208,9 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 
 	mutex_lock(&dsp->pwr_lock);
 
+	tstamp->copied_total = compr->copied_total;
+	tstamp->sampling_rate = compr->sample_rate;
+
 	buf = compr->buf;
 
 	if (!compr->buf) {
@@ -3246,12 +3249,15 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 		}
 	}
 
-	tstamp->copied_total = compr->copied_total;
 	tstamp->copied_total += buf->avail * WM_ADSP_DATA_WORD_SIZE;
-	tstamp->sampling_rate = compr->sample_rate;
 
 out:
 	mutex_unlock(&dsp->pwr_lock);
+
+	/* On error get user-space to issue a read so it can detect the error */
+	if (ret < 0)
+		tstamp->copied_total += wm_adsp_compr_frag_words(compr) *
+					WM_ADSP_DATA_WORD_SIZE;
 
 	return ret;
 }
