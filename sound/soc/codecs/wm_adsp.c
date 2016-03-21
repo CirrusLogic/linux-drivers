@@ -3560,6 +3560,9 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 
 	mutex_lock(&buf->lock);
 
+	tstamp->copied_total = compr->copied_total;
+	tstamp->sampling_rate = compr->sample_rate;
+
 	if (!buf->host_buf_ptr) {
 		adsp_warn(buf->dsp, "No host buffer info\n");
 		ret = -EIO;
@@ -3592,14 +3595,19 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 		}
 	}
 
-	tstamp->copied_total = compr->copied_total;
 	tstamp->copied_total += buf->avail * WM_ADSP_DATA_WORD_SIZE;
-	tstamp->sampling_rate = compr->sample_rate;
 
 	adsp_dbg(compr->dsp, "tstamp->copied_total=%d (avail=%d)\n",
 		 tstamp->copied_total, buf->avail);
 
+	mutex_unlock(&buf->lock);
+
+	return ret;
+
 out_buf_unlock:
+	/* Get user-space to issue a read so it can detect the error */
+	tstamp->copied_total += compr->irq_watermark * WM_ADSP_DATA_WORD_SIZE;
+
 	mutex_unlock(&buf->lock);
 
 	return ret;
