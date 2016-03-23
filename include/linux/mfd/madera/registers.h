@@ -1,7 +1,7 @@
 /*
  * Madera register definitions
  *
- * Copyright 2016 Cirrus Logic
+ * Copyright 2015-2016 Cirrus Logic
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
