@@ -1,7 +1,7 @@
 /*
  * cs47l35.c  --  ALSA SoC Audio driver for CS47L35 codecs
  *
- * Copyright 2015 Cirrus Logic Inc.
+ * Copyright 2015-2016 Cirrus Logic Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
