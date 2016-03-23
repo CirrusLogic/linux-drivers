@@ -418,107 +418,6 @@ static int cs47l90_adsp_power_ev(struct snd_soc_dapm_widget *w,
 	{ name " ANC Source", "RXANCL", "RXANCL" }, \
 	{ name " ANC Source", "RXANCR", "RXANCR" }
 
-static void cs47l90_analog_post_enable(struct snd_soc_dapm_widget *w)
-{
-	unsigned int mask, val;
-
-	switch (w->shift) {
-	case MADERA_OUT1L_ENA_SHIFT:
-	case MADERA_OUT1R_ENA_SHIFT:
-		mask = MADERA_HP1_EDRE_STEREO_MASK;
-		val = MADERA_HP1_EDRE_STEREO;
-		break;
-	case MADERA_OUT2L_ENA_SHIFT:
-	case MADERA_OUT2R_ENA_SHIFT:
-		mask = MADERA_HP2_EDRE_STEREO_MASK;
-		val = MADERA_HP2_EDRE_STEREO;
-		break;
-	case MADERA_OUT3L_ENA_SHIFT:
-	case MADERA_OUT3R_ENA_SHIFT:
-		mask = MADERA_HP3_EDRE_STEREO_MASK;
-		val = MADERA_HP3_EDRE_STEREO;
-		break;
-	default:
-		return;
-	}
-
-	snd_soc_update_bits(w->codec, MADERA_EDRE_HP_STEREO_CONTROL, mask, val);
-}
-
-static void cs47l90_analog_post_disable(struct snd_soc_dapm_widget *w)
-{
-	unsigned int mask;
-
-	switch (w->shift) {
-	case MADERA_OUT1L_ENA_SHIFT:
-	case MADERA_OUT1R_ENA_SHIFT:
-		mask = MADERA_HP1_EDRE_STEREO_MASK;
-		break;
-	case MADERA_OUT2L_ENA_SHIFT:
-	case MADERA_OUT2R_ENA_SHIFT:
-		mask = MADERA_HP2_EDRE_STEREO_MASK;
-		break;
-	case MADERA_OUT3L_ENA_SHIFT:
-	case MADERA_OUT3R_ENA_SHIFT:
-		mask = MADERA_HP3_EDRE_STEREO_MASK;
-		break;
-	default:
-		return;
-	}
-
-	snd_soc_update_bits(w->codec, MADERA_EDRE_HP_STEREO_CONTROL, mask, 0);
-}
-
-static int cs47l90_hp_ev(struct snd_soc_dapm_widget *w,
-			 struct snd_kcontrol *kcontrol, int event)
-{
-	int ret;
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-	case SND_SOC_DAPM_PRE_PMD:
-		return madera_hp_ev(w, kcontrol, event);
-	case SND_SOC_DAPM_POST_PMU:
-		ret = madera_hp_ev(w, kcontrol, event);
-		if (ret < 0)
-			return ret;
-
-		cs47l90_analog_post_enable(w);
-		return 0;
-	case SND_SOC_DAPM_POST_PMD:
-		ret = madera_hp_ev(w, kcontrol, event);
-		cs47l90_analog_post_disable(w);
-		return ret;
-	default:
-		return -EINVAL;
-	}
-}
-
-static int cs47l90_analog_ev(struct snd_soc_dapm_widget *w,
-			     struct snd_kcontrol *kcontrol, int event)
-{
-	int ret;
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-	case SND_SOC_DAPM_PRE_PMD:
-		return madera_out_ev(w, kcontrol, event);
-	case SND_SOC_DAPM_POST_PMU:
-		ret = madera_out_ev(w, kcontrol, event);
-		if (ret < 0)
-			return ret;
-
-		cs47l90_analog_post_enable(w);
-		return 0;
-	case SND_SOC_DAPM_POST_PMD:
-		ret = madera_out_ev(w, kcontrol, event);
-		cs47l90_analog_post_disable(w);
-		return ret;
-	default:
-		return -EINVAL;
-	}
-}
-
 static const struct snd_kcontrol_new cs47l90_snd_controls[] = {
 SOC_ENUM("IN1 OSR", madera_in_dmic_osr[0]),
 SOC_ENUM("IN2 OSR", madera_in_dmic_osr[1]),
@@ -1339,27 +1238,27 @@ SND_SOC_DAPM_AIF_OUT("AIF4TX2", NULL, 0,
 		     MADERA_AIF4_TX_ENABLES, MADERA_AIF4TX2_ENA_SHIFT, 0),
 
 SND_SOC_DAPM_PGA_E("OUT1L", SND_SOC_NOPM,
-		   MADERA_OUT1L_ENA_SHIFT, 0, NULL, 0, cs47l90_hp_ev,
+		   MADERA_OUT1L_ENA_SHIFT, 0, NULL, 0, madera_hp_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT1R", SND_SOC_NOPM,
-		   MADERA_OUT1R_ENA_SHIFT, 0, NULL, 0, cs47l90_hp_ev,
+		   MADERA_OUT1R_ENA_SHIFT, 0, NULL, 0, madera_hp_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT2L", MADERA_OUTPUT_ENABLES_1,
-		   MADERA_OUT2L_ENA_SHIFT, 0, NULL, 0, cs47l90_analog_ev,
+		   MADERA_OUT2L_ENA_SHIFT, 0, NULL, 0, madera_out_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT2R", MADERA_OUTPUT_ENABLES_1,
-		   MADERA_OUT2R_ENA_SHIFT, 0, NULL, 0, cs47l90_analog_ev,
+		   MADERA_OUT2R_ENA_SHIFT, 0, NULL, 0, madera_out_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT3L", MADERA_OUTPUT_ENABLES_1,
-		   MADERA_OUT3L_ENA_SHIFT, 0, NULL, 0, cs47l90_analog_ev,
+		   MADERA_OUT3L_ENA_SHIFT, 0, NULL, 0, madera_out_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT3R", MADERA_OUTPUT_ENABLES_1,
-		   MADERA_OUT3R_ENA_SHIFT, 0, NULL, 0, cs47l90_analog_ev,
+		   MADERA_OUT3R_ENA_SHIFT, 0, NULL, 0, madera_out_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT5L", MADERA_OUTPUT_ENABLES_1,
