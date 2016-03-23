@@ -4020,7 +4020,18 @@ static int madera_calc_fratio(struct madera_fll *fll,
 	refdiv = cfg->refdiv;
 
 	while (div <= MADERA_FLL_MAX_REFDIV) {
-		for (ratio = init_ratio; ratio <= MADERA_FLL_MAX_FRATIO;
+		/* start from init_ratio because this may already give a
+		 * fractional N.K
+		 */
+		for (ratio = init_ratio; ratio > 0; ratio--) {
+			if (fll->fout % (ratio * Fref)) {
+				cfg->refdiv = refdiv;
+				cfg->fratio = ratio - 1;
+				return ratio;
+			}
+		}
+
+		for (ratio = init_ratio + 1; ratio <= MADERA_FLL_MAX_FRATIO;
 		     ratio++) {
 			if ((MADERA_FLL_VCO_CORNER / 2) /
 			    (MADERA_FLL_VCO_MULT * ratio) < Fref)
@@ -4029,14 +4040,6 @@ static int madera_calc_fratio(struct madera_fll *fll,
 			if (Fref > pseudo_fref_max[ratio - 1])
 				break;
 
-			if (fll->fout % (ratio * Fref)) {
-				cfg->refdiv = refdiv;
-				cfg->fratio = ratio - 1;
-				return ratio;
-			}
-		}
-
-		for (ratio = init_ratio - 1; ratio > 0; ratio--) {
 			if (fll->fout % (ratio * Fref)) {
 				cfg->refdiv = refdiv;
 				cfg->fratio = ratio - 1;
