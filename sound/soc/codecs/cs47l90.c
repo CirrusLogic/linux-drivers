@@ -1,7 +1,7 @@
 /*
  * cs47l90.c  --  ALSA SoC Audio driver for CS47L90 codecs
  *
- * Copyright 2015 Cirrus Logic
+ * Copyright 2015-2016 Cirrus Logic
  *
  * Author: Nikesh Oswal <nikesh@opensource.wolfsonmicro.com>
  *
