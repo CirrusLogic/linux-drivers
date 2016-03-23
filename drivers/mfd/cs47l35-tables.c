@@ -1,7 +1,7 @@
 /*
  * Data tables for CS47L35 codec
  *
- * Copyright 2015 Cirrus Logic
+ * Copyright 2015-2016 Cirrus Logic
  *
  * Author: Piotr Stankiewicz <piotrs@opensource.wolfsonmicro.com>
  *
