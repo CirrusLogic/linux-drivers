@@ -8,10 +8,10 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/kernel.h>
-
 #ifndef _MADERA_PDATA_H
 #define _MADERA_PDATA_H
+
+#include <linux/kernel.h>
 
 #include <dt-bindings/mfd/madera.h>
 #include <linux/regulator/madera-ldo1.h>
