@@ -44,6 +44,7 @@
 #define MADERA_MICD_CLAMP_MODE_JD1H_JD2H 0xb
 
 #define MADERA_HPDET_MAX		10000
+#define MADERA_HP_SHORT_IMPEDANCE_MIN	4
 
 #define MADERA_HPDET_DEBOUNCE_MS	500
 #define MADERA_DEFAULT_MICD_TIMEOUT_MS	2000
@@ -2851,8 +2852,8 @@ static int madera_extcon_probe(struct platform_device *pdev)
 
 	madera_extcon_dump_pdata(madera);
 
-	if (pdata->hpdet_short_circuit_imp < 1)
-		pdata->hpdet_short_circuit_imp = MADERA_HP_SHORT_IMPEDANCE;
+	if (pdata->hpdet_short_circuit_imp < MADERA_HP_SHORT_IMPEDANCE_MIN)
+		pdata->hpdet_short_circuit_imp = MADERA_HP_SHORT_IMPEDANCE_MIN;
 
 	switch (madera->type) {
 	case CS47L35:
