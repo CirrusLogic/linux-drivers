@@ -1123,11 +1123,12 @@ static int madera_hpdet_read(struct madera_extcon_info *info)
 
 	if (info->pdata->hpdet_ext_res_x100) {
 		if (info->pdata->hpdet_ext_res_x100 >= OHM_TO_HOHM(val)) {
-			dev_warn(madera->dev,
+			dev_dbg(madera->dev,
 				"External resistor (%d.%02d) >= measurement (%d.00)\n",
 				info->pdata->hpdet_ext_res_x100 / 100,
 				info->pdata->hpdet_ext_res_x100 % 100,
 				val);
+			val = 0;	/* treat as a short */
 		} else {
 			dev_dbg(madera->dev,
 				"Compensating for external %d.%02d ohm resistor\n",
