@@ -17,7 +17,6 @@
 
 /* Treat INT_MAX impedance as open circuit */
 #define MADERA_HP_Z_OPEN		INT_MAX
-#define MADERA_HP_SHORT_IMPEDANCE	4
 
 struct madera_jd_state;
 
