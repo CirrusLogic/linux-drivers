@@ -1128,10 +1128,11 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 	if (info->arizona->pdata.hpdet_ext_res) {
 
 		if (OHM_TO_HOHM(info->arizona->pdata.hpdet_ext_res) >=  val) {
-			dev_err(arizona->dev,
+			dev_dbg(arizona->dev,
 				"External resistor (%d) >= measurement (%d)\n",
 				info->arizona->pdata.hpdet_ext_res,
 				HOHM_TO_OHM(val));
+			val = 0;	/* treat as a short */
 		} else {
 			dev_dbg(arizona->dev,
 				"Compensating for external %d ohm resistor\n",
