@@ -986,6 +986,8 @@ int madera_rate_put(struct snd_kcontrol *kcontrol,
 	madera_spin_sysclk(priv);
 	mutex_lock(&codec->mutex);
 	ret = snd_soc_update_bits(codec, e->reg, mask, val);
+	if (ret > 0)
+		ret = 0; /* snd_soc_update_bits returns 1 if bits changed ok */
 	mutex_unlock(&codec->mutex);
 	madera_spin_sysclk(priv);
 
@@ -3525,14 +3527,19 @@ static int madera_set_tristate(struct snd_soc_dai *dai, int tristate)
 	struct snd_soc_codec *codec = dai->codec;
 	int base = dai->driver->base;
 	unsigned int reg;
+	int ret;
 
 	if (tristate)
 		reg = MADERA_AIF1_TRI;
 	else
 		reg = 0;
 
-	return snd_soc_update_bits(codec, base + MADERA_AIF_RATE_CTRL,
-				   MADERA_AIF1_TRI, reg);
+	ret = snd_soc_update_bits(codec, base + MADERA_AIF_RATE_CTRL,
+				  MADERA_AIF1_TRI, reg);
+	if (ret < 0)
+		return ret;
+	else
+		return 0;
 }
 
 static void madera_set_channels_to_mask(struct snd_soc_dai *dai,
@@ -4484,6 +4491,7 @@ EXPORT_SYMBOL_GPL(madera_set_fll_ao_refclk);
 int madera_set_output_mode(struct snd_soc_codec *codec, int output, bool diff)
 {
 	unsigned int reg, val;
+	int ret;
 
 	if (output < 1 || output > MADERA_MAX_OUTPUT)
 		return -EINVAL;
@@ -4495,7 +4503,11 @@ int madera_set_output_mode(struct snd_soc_codec *codec, int output, bool diff)
 	else
 		val = 0;
 
-	return snd_soc_update_bits(codec, reg, MADERA_OUT1_MONO, val);
+	ret = snd_soc_update_bits(codec, reg, MADERA_OUT1_MONO, val);
+	if (ret < 0)
+		return ret;
+	else
+		return 0;
 }
 EXPORT_SYMBOL_GPL(madera_set_output_mode);
 
