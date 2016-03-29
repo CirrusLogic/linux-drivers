@@ -2773,6 +2773,12 @@ static int cs47l85_probe(struct platform_device *pdev)
 
 	BUILD_BUG_ON(ARRAY_SIZE(cs47l85_dai) > MADERA_MAX_DAI);
 
+	/* quick exit if Madera irqchip driver hasn't completed probe */
+	if (!madera->irq_dev) {
+		dev_dbg(&pdev->dev, "irqchip driver not ready\n");
+		return -EPROBE_DEFER;
+	}
+
 	/* FX Rate has the largest number of sources */
 	BUILD_BUG_ON(ARRAY_SIZE(cs47l85->core.mixer_sources_cache) <
 		     ARRAY_SIZE(cs47l85_fx_inputs));

@@ -1785,6 +1785,12 @@ static int cs47l35_probe(struct platform_device *pdev)
 	BUILD_BUG_ON(ARRAY_SIZE(cs47l35->core.mixer_sources_cache) <
 		     ARRAY_SIZE(cs47l35_fx_inputs));
 
+	/* quick exit if Madera irqchip driver hasn't completed probe */
+	if (!madera->irq_dev) {
+		dev_dbg(&pdev->dev, "irqchip driver not ready\n");
+		return -EPROBE_DEFER;
+	}
+
 	cs47l35 = devm_kzalloc(&pdev->dev, sizeof(struct cs47l35), GFP_KERNEL);
 	if (!cs47l35)
 		return -ENOMEM;
