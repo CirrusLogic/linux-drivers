@@ -2821,6 +2821,12 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	int jack_irq_fall, jack_irq_rise;
 	int ret, mode;
 
+	/* quick exit if Madera irqchip driver hasn't completed probe */
+	if (!madera->irq_dev) {
+		dev_dbg(madera->dev, "irqchip driver not ready\n");
+		return -EPROBE_DEFER;
+	}
+
 	if (!madera->dapm || !madera->dapm->card)
 		return -EPROBE_DEFER;
 
