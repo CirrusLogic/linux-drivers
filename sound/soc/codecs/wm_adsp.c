@@ -2355,6 +2355,7 @@ static int wm_adsp_get_features(struct wm_adsp *dsp)
 	case 0x5f003:
 	case 0x6000d:
 	case 0x60037:
+	case 0x60053:
 	case 0x7000d:
 	case 0x70036:
 	case 0x8000d:
