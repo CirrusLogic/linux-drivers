@@ -11,17 +11,64 @@ Required properties:
     Documentation/devicetree/bindings/regulator/regulator.txt.
 
 Optional properties:
-
   - cirrus,reset-gpios : gpio used to reset the amplifier
+
+  - cirrus,stereo-config : Boolean to determine if there are 2 AMPs for a
+  Stereo configuration
+
+  - cirrus,shared-boost : Boolean to enable ClassH tracking of Advisory Signal
+  if 2 Devices share Boost BST_CTL
+
+  - cirrus,sp-drv-strength : Value for setting the Serial Port drive strength
+  Table 3-10 of the datasheet lists drive-strength specifications
+  0 = 1x (Default)
+  1 = .5x
+
+  - cirrus,bst-pdn-fet-on : Boolean to determine if the Boost PDN control
+  powers down with a rectification FET On or Off. If VSPK is supplied
+  externally then FET is off.
+
+  - cirrus,boost-ctl : Boost Converter control word. Step Size of 0.1V
+  0x00 = (Default) VP
+  0x41 = 9.0V
+
+  - cirrus,amp-gain-zc : Boolean to determine if to use Amplifier gain-change
+  zero-cross
+
+  - cirrus,audio-channel : Set Location of Audio Signal on Serial Port
+  0 = Data Packet received on Left I2S Channel
+  1 = Data Packet received on Right I2S Channel
+
+  - cirrus,advisory-channel : Set Location of Advisory Signal on Serial Port
+  0 = Data Packet received on Left I2S Channel
+  1 = Data Packet received on Right I2S Channel
+
+  - cirrus,classh-internal-algo : Settings for the Internal Class H Algorithm
+  Can also be controlled by Mixer Settings for runtime tuning if this is not
+  set
 
 Example:
 
 cs35l35: cs35l35@20 {
 	compatible = "cirrus,cs35l35";
 	reg = <0x20>;
-
 	VA-supply = <&dummy_vreg>;
 	VP-supply = <&dummy_vreg>;
-
 	reset-gpios = <&axi_gpio 54 0>;
+	boost-ctl = <0x41>;
+
+	classh-internal-algo {
+		classh-bst-ctl-override;
+		classh-bst-max-limit = <0x01>;
+		classh-mem-depth = <0x01>;
+		classh-release-rate = <0x08>;
+		classh-headroom = <0x0B>;
+		classh-wk-fet-disable = <0x01>;
+		classh-wk-fet-delay = <0x04>;
+		classh-wk-fet-thld = <0x01>;
+		classh-vpch-auto = <0x01>;
+		classh-vpch-rate = <0x02>;
+		classh-vpch-man = <0x05>;
+	};
+
 };

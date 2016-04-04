@@ -22,6 +22,7 @@
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/regmap.h>
@@ -226,25 +227,29 @@ static int cs35l35_main_amp_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct cs35l35_private *priv = snd_soc_codec_get_drvdata(codec);
+	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		regmap_update_bits(priv->regmap, CS35L35_BST_CVTR_V_CTL,
-			CS35L35_BST_CTL_MASK,
-			0x30);
+	case SND_SOC_DAPM_PRE_PMU:
+		if (cs35l35->pdata.bst_pdn_fet_on)
+			regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
+				CS35L35_PDN_BST_MASK,
+				0 << CS35L35_PDN_BST_FETON_SHIFT);
+		else
+			regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
+				CS35L35_PDN_BST_MASK,
+				0 << CS35L35_PDN_BST_FETOFF_SHIFT);
 		usleep_range(5000, 5100);
-		regmap_update_bits(priv->regmap, CS35L35_PROTECT_CTL,
-			CS35L35_AMP_MUTE_MASK,
-			0 << CS35L35_AMP_MUTE_SHIFT);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		regmap_update_bits(priv->regmap, CS35L35_BST_CVTR_V_CTL,
-					CS35L35_BST_CTL_MASK,
-					0x00);
-		regmap_update_bits(priv->regmap, CS35L35_PROTECT_CTL,
-					CS35L35_AMP_MUTE_MASK,
-					1 << CS35L35_AMP_MUTE_SHIFT);
+		if (cs35l35->pdata.bst_pdn_fet_on)
+			regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
+				CS35L35_PDN_BST_MASK,
+				1 << CS35L35_PDN_BST_FETON_SHIFT);
+		else
+			regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
+				CS35L35_PDN_BST_MASK,
+				1 << CS35L35_PDN_BST_FETOFF_SHIFT);
 		usleep_range(5000, 5100);
 		break;
 	default:
@@ -253,8 +258,45 @@ static int cs35l35_main_amp_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static DECLARE_TLV_DB_SCALE(amp_gain_tlv, 0, 1, 0);
+static DECLARE_TLV_DB_SCALE(amp_gain_tlv, 0, 1, 1);
 static DECLARE_TLV_DB_SCALE(dig_vol_tlv, -10200, 50, 0);
+
+static const char * const ch_vpman_txt[] = {
+	"Disabled", "Enabled"
+};
+
+static const char * const ch_wkfet_txt[] = {
+	"Weak FET", "ALC Path"
+};
+
+static const char * const ch_vprate_txt[] = {
+	"128", "2048", "32768", "524288"
+};
+
+static const char * const ch_mem_depth_txt[] = {
+	"8FS", "16FS"
+};
+
+static const char * const ch_vbst_ovr_txt[] = {
+	"Internal", "VBST CTL"
+};
+
+static const char * const classh_ctl_txt[] = {
+	"On", "Off"
+};
+
+static SOC_ENUM_SINGLE_DECL(ch_vpman, CS35L35_CLASS_H_VP_CTL,
+				0, ch_vpman_txt);
+static SOC_ENUM_SINGLE_DECL(ch_wkfet, CS35L35_CLASS_H_FET_DRIVE_CTL,
+				7, ch_wkfet_txt);
+static SOC_ENUM_SINGLE_DECL(ch_vprate, CS35L35_CLASS_H_VP_CTL,
+				5, ch_vprate_txt);
+static SOC_ENUM_SINGLE_DECL(ch_mem_depth, CS35L35_CLASS_H_CTL,
+				0, ch_mem_depth_txt);
+static SOC_ENUM_SINGLE_DECL(ch_vbst_ovr, CS35L35_CLASS_H_CTL,
+				2, ch_vbst_ovr_txt);
+static SOC_ENUM_SINGLE_DECL(classh_ctl, CS35L35_PWRCTL2,
+				5, ch_vbst_ovr_txt);
 
 static const struct snd_kcontrol_new cs35l35_aud_controls[] = {
 	SOC_SINGLE_SX_TLV("Digital Audio Volume", CS35L35_AMP_DIG_VOL,
@@ -266,10 +308,28 @@ static const struct snd_kcontrol_new cs35l35_aud_controls[] = {
 };
 
 static const struct snd_kcontrol_new cs35l35_adv_controls[] = {
-	SOC_SINGLE_SX_TLV("Digital Advisory Volume", CS35L35_AMP_DIG_VOL,
+	SOC_SINGLE_SX_TLV("Digital Advisory Volume", CS35L35_ADV_DIG_VOL,
 		      0, 0x34, 0xE4, dig_vol_tlv),
 	SOC_SINGLE_TLV("AMP Advisory Gain", CS35L35_AMP_GAIN_ADV_CTL, 0, 19, 0,
 			amp_gain_tlv),
+};
+
+static const struct snd_kcontrol_new cs35l35_classh_controls[] = {
+
+	SOC_ENUM("ClassH", classh_ctl),
+	SOC_SINGLE_RANGE("ClassH Headroom", CS35L35_CLASS_H_HEADRM_CTL,
+		      0, 0x00, 0x3F, 0),
+	SOC_SINGLE_RANGE("ClassH Release", CS35L35_CLASS_H_RELEASE_RATE,
+			 0, 0x03, 0xFF, 0),
+	SOC_ENUM("ClassH FET Switch", ch_wkfet),
+	SOC_ENUM("ClassH VPCH Switch", ch_vpman),
+	SOC_ENUM("ClassH VPCH Rate", ch_vprate),
+	SOC_SINGLE_RANGE("ClassH VPCH", CS35L35_CLASS_H_VP_CTL,
+			 0, 0x03, 0x1E, 0),
+	SOC_ENUM("ClassH MEM Depth", ch_mem_depth),
+	SOC_SINGLE_RANGE("VBST Control", CS35L35_BST_CVTR_V_CTL,
+			 0, 0x00, 0x41, 0),
+	SOC_ENUM("ClassH VBST Ctl Switch", ch_vbst_ovr),
 };
 
 static const struct snd_soc_dapm_widget cs35l35_dapm_widgets[] = {
@@ -288,30 +348,31 @@ static const struct snd_soc_dapm_widget cs35l35_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("VPMON ADC", NULL, CS35L35_PWRCTL3, 3, 1),
 	SND_SOC_DAPM_ADC("VBSTMON ADC", NULL, CS35L35_PWRCTL3, 4, 1),
 	SND_SOC_DAPM_ADC("CLASS H", NULL, CS35L35_PWRCTL2, 5, 1),
-	SND_SOC_DAPM_ADC("BOOST", NULL, CS35L35_PWRCTL2, 2, 1),
 
 	SND_SOC_DAPM_OUT_DRV_E("Main AMP", CS35L35_PWRCTL2, 0, 1, NULL, 0,
-		cs35l35_main_amp_event, SND_SOC_DAPM_POST_PMU |
+		cs35l35_main_amp_event, SND_SOC_DAPM_PRE_PMU |
 			SND_SOC_DAPM_POST_PMD),
 };
 
 static const struct snd_soc_dapm_route cs35l35_audio_map[] = {
-	{"SDIN", NULL, "AMP Playback"},
-	{"BOOST", NULL, "SDIN"},
-	{"CLASS H", NULL, "BOOST"},
-	{"Main AMP", NULL, "CLASS H"},
-	{"SPK", NULL, "Main AMP"},
-
-	{"VPMON ADC", NULL, "CLASS H"},
-	{"VBSTMON ADC", NULL, "CLASS H"},
-	{"SPK", NULL, "VPMON ADC"},
-	{"SPK", NULL, "VBSTMON ADC"},
-
 	{"IMON ADC", NULL, "ISENSE"},
 	{"VMON ADC", NULL, "VSENSE"},
 	{"SDOUT", NULL, "IMON ADC"},
 	{"SDOUT", NULL, "VMON ADC"},
 	{"AMP Capture", NULL, "SDOUT"},
+};
+
+static const struct snd_soc_dapm_route cs35l35_classh_man_map[] = {
+	{"SDIN", NULL, "AMP Playback"},
+	{"Main AMP", NULL, "SDIN"},
+	{"SPK", NULL, "Main AMP"},
+};
+
+static const struct snd_soc_dapm_route cs35l35_classh_auto_map[] = {
+	{"SDIN", NULL, "AMP Playback"},
+	{"CLASS H", NULL, "SDIN"},
+	{"Main AMP", NULL, "CLASS H"},
+	{"SPK", NULL, "Main AMP"},
 };
 
 static int cs35l35_set_bias_level(struct snd_soc_codec *codec,
@@ -397,7 +458,7 @@ struct cs35l35_mclk_config {
 	u8 clk_cfg;
 };
 
-static struct cs35l35_mclk_config cs35l34_clk_ctl[] = {
+static struct cs35l35_mclk_config cs35l35_clk_ctl[] = {
 
 	/* MCLK, Sample Rate, Serial Port Cfg */
 	{5644800, 44100, 0x00},
@@ -446,10 +507,10 @@ static int cs35l35_get_clk_config(int mclk, int srate)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(cs35l34_clk_ctl); i++) {
-		if (cs35l34_clk_ctl[i].mclk == mclk &&
-			cs35l34_clk_ctl[i].srate == srate)
-			return cs35l34_clk_ctl[i].clk_cfg;
+	for (i = 0; i < ARRAY_SIZE(cs35l35_clk_ctl); i++) {
+		if (cs35l35_clk_ctl[i].mclk == mclk &&
+			cs35l35_clk_ctl[i].srate == srate)
+			return cs35l35_clk_ctl[i].clk_cfg;
 	}
 	return -EINVAL;
 }
@@ -500,7 +561,7 @@ static int cs35l35_pcm_hw_params(struct snd_pcm_substream *substream,
 					CS35L35_AUDIN_DEPTH_MASK,
 					audin_format <<
 					CS35L35_AUDIN_DEPTH_SHIFT);
-		if (cs35l35->stereo_boost)
+		if (cs35l35->pdata.stereo)
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_AUDIN_DEPTH_CTL,
 					CS35L35_ADVIN_DEPTH_MASK,
@@ -727,8 +788,131 @@ static int cs35l35_codec_set_sysclk(struct snd_soc_codec *codec,
 	return 0;
 }
 
+static int cs35l35_codec_probe(struct snd_soc_codec *codec)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
+	struct classh_cfg *cs35l35_classh = &cs35l35->pdata.classh_algo;
+	int ret;
+
+	/* Set Platform Data */
+	if (cs35l35->pdata.bst_vctl)
+		regmap_update_bits(cs35l35->regmap, CS35L35_BST_CVTR_V_CTL,
+				CS35L35_BST_CTL_MASK,
+				cs35l35->pdata.bst_vctl);
+
+	if (cs35l35->pdata.gain_zc)
+		regmap_update_bits(cs35l35->regmap, CS35L35_PROTECT_CTL,
+				CS35L35_AMP_GAIN_ZC_MASK,
+				cs35l35->pdata.gain_zc <<
+				CS35L35_AMP_GAIN_ZC_SHIFT);
+
+	if (cs35l35->pdata.aud_channel)
+		regmap_update_bits(cs35l35->regmap,
+				CS35L35_AUDIN_RXLOC_CTL,
+				CS35L35_AUD_IN_LR_MASK,
+				cs35l35->pdata.aud_channel <<
+				CS35L35_AUD_IN_LR_SHIFT);
+
+	if (cs35l35->pdata.stereo) {
+		regmap_update_bits(cs35l35->regmap,
+				CS35L35_ADVIN_RXLOC_CTL,
+				CS35L35_ADV_IN_LR_MASK,
+				cs35l35->pdata.adv_channel <<
+				CS35L35_ADV_IN_LR_SHIFT);
+		ret = snd_soc_add_codec_controls(codec, cs35l35_adv_controls,
+					ARRAY_SIZE(cs35l35_adv_controls));
+		if (ret)
+			return ret;
+	}
+
+	if (cs35l35->pdata.sp_drv_str)
+		regmap_update_bits(cs35l35->regmap, CS35L35_CLK_CTL1,
+				CS35L35_SP_DRV_MASK,
+				cs35l35->pdata.sp_drv_str <<
+				CS35L35_SP_DRV_SHIFT);
+
+	if (cs35l35->pdata.shared_bst)
+		regmap_update_bits(cs35l35->regmap, CS35L35_CLASS_H_CTL,
+				CS35L35_CH_STEREO_MASK,
+				1 << CS35L35_CH_STEREO_SHIFT);
+
+	if (cs35l35_classh->classh_algo_enable) {
+		regmap_update_bits(cs35l35->regmap, CS35L35_CLASS_H_CTL,
+					CS35L35_CH_BST_OVR_MASK,
+					cs35l35_classh->classh_bst_override <<
+					CS35L35_CH_BST_OVR_SHIFT);
+		regmap_update_bits(cs35l35->regmap, CS35L35_CLASS_H_CTL,
+					CS35L35_CH_BST_LIM_MASK,
+					cs35l35_classh->classh_bst_max_limit <<
+					CS35L35_CH_BST_LIM_SHIFT);
+		regmap_update_bits(cs35l35->regmap, CS35L35_CLASS_H_CTL,
+					CS35L35_CH_MEM_DEPTH_MASK,
+					cs35l35_classh->classh_mem_depth <<
+					CS35L35_CH_MEM_DEPTH_SHIFT);
+		regmap_update_bits(cs35l35->regmap, CS35L35_CLASS_H_HEADRM_CTL,
+					CS35L35_CH_HDRM_CTL_MASK,
+					cs35l35_classh->classh_headroom <<
+					CS35L35_CH_HDRM_CTL_SHIFT);
+		regmap_update_bits(cs35l35->regmap, CS35L35_CLASS_H_RELEASE_RATE,
+					CS35L35_CH_REL_RATE_MASK,
+					cs35l35_classh->classh_release_rate <<
+					CS35L35_CH_REL_RATE_SHIFT);
+		regmap_update_bits(cs35l35->regmap, CS35L35_CLASS_H_FET_DRIVE_CTL,
+					CS35L35_CH_WKFET_DIS_MASK,
+					cs35l35_classh->classh_wk_fet_disable <<
+					CS35L35_CH_WKFET_DIS_SHIFT);
+		regmap_update_bits(cs35l35->regmap, CS35L35_CLASS_H_FET_DRIVE_CTL,
+					CS35L35_CH_WKFET_DEL_MASK,
+					cs35l35_classh->classh_wk_fet_delay <<
+					CS35L35_CH_WKFET_DEL_SHIFT);
+		regmap_update_bits(cs35l35->regmap, CS35L35_CLASS_H_FET_DRIVE_CTL,
+					CS35L35_CH_WKFET_THLD_MASK,
+					cs35l35_classh->classh_wk_fet_thld <<
+					CS35L35_CH_WKFET_THLD_SHIFT);
+		regmap_update_bits(cs35l35->regmap, CS35L35_CLASS_H_VP_CTL,
+					CS35L35_CH_VP_AUTO_MASK,
+					cs35l35_classh->classh_vpch_auto <<
+					CS35L35_CH_VP_AUTO_SHIFT);
+		regmap_update_bits(cs35l35->regmap, CS35L35_CLASS_H_VP_CTL,
+					CS35L35_CH_VP_RATE_MASK,
+					cs35l35_classh->classh_vpch_rate <<
+					CS35L35_CH_VP_RATE_SHIFT);
+		regmap_update_bits(cs35l35->regmap, CS35L35_CLASS_H_VP_CTL,
+					CS35L35_CH_VP_MAN_MASK,
+					cs35l35_classh->classh_vpch_man <<
+					CS35L35_CH_VP_MAN_SHIFT);
+
+		ret = snd_soc_dapm_add_routes(dapm, cs35l35_classh_auto_map,
+				      ARRAY_SIZE(cs35l35_classh_auto_map));
+		if (ret)
+			return ret;
+
+	} else {
+		ret = snd_soc_dapm_add_routes(dapm, cs35l35_classh_man_map,
+				      ARRAY_SIZE(cs35l35_classh_man_map));
+		if (ret)
+			return ret;
+		ret = snd_soc_add_codec_controls(codec, cs35l35_classh_controls,
+					ARRAY_SIZE(cs35l35_classh_controls));
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+static struct regmap *cs35l35_get_regmap(struct device *dev)
+{
+	struct cs35l35_private *cs35l35 = dev_get_drvdata(dev);
+
+	return cs35l35->regmap;
+}
+
+
 static struct snd_soc_codec_driver soc_codec_dev_cs35l35 = {
 	.probe = cs35l35_codec_probe,
+	.get_regmap = cs35l35_get_regmap,
 
 	.set_bias_level = cs35l35_set_bias_level,
 	.set_sysclk = cs35l35_codec_set_sysclk,
@@ -758,15 +942,81 @@ static struct regmap_config cs35l35_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-
-
 static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 				struct cs35l35_platform_data *pdata)
 {
-#if 0
 	struct device_node *np = i2c_client->dev.of_node;
-	unsigned int val = 0;
-#endif
+	struct device_node *classh;
+	struct classh_cfg *classh_config = &pdata->classh_algo;
+	unsigned int val32 = 0;
+
+	if (!np)
+		return 0;
+
+	if (of_property_read_bool(np, "cirrus,boost-pdn-fet-on"))
+		pdata->bst_pdn_fet_on = true;
+
+	if (of_property_read_u32(np, "cirrus,boost-ctl", &val32) >= 0)
+		pdata->bst_vctl = val32;
+
+	if (of_property_read_u32(np, "cirrus,sp-drv-strength", &val32) >= 0)
+		pdata->sp_drv_str = val32;
+
+	if (of_property_read_u32(np, "cirrus,audio-channel", &val32) >= 0)
+		pdata->aud_channel = val32;
+
+	if (of_property_read_bool(np, "cirrus,stereo-config")) {
+		pdata->stereo = true;
+		if (of_property_read_u32(np, "cirrus,advisory-channel",
+					&val32) >= 0)
+			pdata->adv_channel = val32;
+		if (of_property_read_bool(np, "cirrus,shared-boost"))
+			pdata->shared_bst = true;
+	}
+
+	if (of_property_read_bool(np, "cirrus,amp-gain-zc"))
+		pdata->gain_zc = true;
+
+	classh = of_get_child_by_name(np, "classh-internal-algo");
+	classh_config->classh_algo_enable = classh ? true : false;
+
+	if (classh_config->classh_algo_enable) {
+		if (of_property_read_bool(np, "cirrus,classh-bst-overide"))
+			classh_config->classh_bst_override = true;
+		if (of_property_read_u32(classh, "classh-bst-max-limit",
+					&val32) >= 0)
+			classh_config->classh_bst_max_limit = val32;
+		if (of_property_read_u32(classh, "classh-mem-depth",
+					&val32) >= 0)
+			classh_config->classh_mem_depth = val32;
+		if (of_property_read_u32(classh, "classh-release-rate",
+					&val32) >= 0)
+			classh_config->classh_release_rate = val32;
+		if (of_property_read_u32(classh, "classh-headroom",
+					&val32) >= 0)
+			classh_config->classh_headroom = val32;
+		if (of_property_read_u32(classh, "classh-wk-fet-disable",
+					&val32) >= 0)
+			classh_config->classh_wk_fet_disable = val32;
+		if (of_property_read_u32(classh, "classh-wk-fet-delay",
+					&val32) >= 0)
+			classh_config->classh_wk_fet_delay = val32;
+		if (of_property_read_u32(classh, "classh-wk-fet-thld",
+					&val32) >= 0)
+			classh_config->classh_wk_fet_thld = val32;
+		if (of_property_read_u32(classh, "classh-vpch-auto",
+					&val32) >= 0)
+			classh_config->classh_vpch_auto = val32;
+		if (of_property_read_u32(classh, "classh-vpch-rate",
+					&val32) >= 0)
+			classh_config->classh_vpch_rate = val32;
+		if (of_property_read_u32(classh, "classh-vpch-man",
+					&val32) >= 0)
+			classh_config->classh_vpch_man = val32;
+	}
+
+	of_node_put(classh);
+
 	return 0;
 }
 
@@ -890,20 +1140,6 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 	regmap_update_bits(cs35l35->regmap, CS35L35_PROTECT_CTL,
 		CS35L35_AMP_MUTE_MASK, 1 << CS35L35_AMP_MUTE_SHIFT);
 
-#if 0
-	/* Set Platform Data */
-	if (cs35l35->pdata.boost_ctl)
-		regmap_update_bits(cs35l35->regmap, CS35L35_BST_CVTR_V_CTL,
-				CS35L35_BST_CTL_MASK,
-				cs35l35->pdata.boost_ctl);
-
-	if (cs35l35->pdata.gain_zc) {
-		regmap_update_bits(cs35l35->regmap, CS35L35_PROTECT_CTL,
-				AMP_GAIN_ZC_MASK,
-				cs35l35->pdata.gain_zc << AMP_GAIN_ZC_SHIFT);
-	}
-
-#endif
 	ret =  snd_soc_register_codec(&i2c_client->dev,
 			&soc_codec_dev_cs35l35, cs35l35_dai,
 			ARRAY_SIZE(cs35l35_dai));
@@ -944,8 +1180,7 @@ static struct i2c_driver cs35l35_i2c_driver = {
 		.name = "cs35l35",
 		.owner = THIS_MODULE,
 		.of_match_table = cs35l35_of_match,
-
-		},
+	},
 	.id_table = cs35l35_id,
 	.probe = cs35l35_i2c_probe,
 	.remove = cs35l35_i2c_remove,
