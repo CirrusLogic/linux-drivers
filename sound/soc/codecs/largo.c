@@ -38,9 +38,6 @@
  */
 #define LARGO_NUM_COMPR_DAI 2
 
-#define LARGO_DEFAULT_FRAGMENTS       1
-#define LARGO_DEFAULT_FRAGMENT_SIZE   4096
-
 struct largo_compr {
 	struct wm_adsp_compr adsp_compr;
 	const char *dai_name;
