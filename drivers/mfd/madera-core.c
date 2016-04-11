@@ -196,13 +196,13 @@ static int madera_wait_for_boot(struct madera *madera)
 
 static inline void madera_enable_reset(struct madera *madera)
 {
-	if (madera->pdata.reset)
+	if (gpio_is_valid(madera->pdata.reset))
 		gpio_set_value_cansleep(madera->pdata.reset, 0);
 }
 
 static void madera_disable_reset(struct madera *madera)
 {
-	if (madera->pdata.reset) {
+	if (gpio_is_valid(madera->pdata.reset)) {
 		gpio_set_value_cansleep(madera->pdata.reset, 1);
 		msleep(1);
 	}
@@ -265,12 +265,12 @@ static int madera_runtime_resume(struct device *dev)
 	regcache_cache_only(madera->regmap_32bit, false);
 
 	if (force_reset) {
-		if (!madera->pdata.reset) {
+		if (gpio_is_valid(madera->pdata.reset)) {
+			madera_disable_reset(madera);
+		} else {
 			ret = madera_soft_reset(madera);
 			if (ret)
 				goto err;
-		} else {
-			madera_disable_reset(madera);
 		}
 	}
 
@@ -673,11 +673,18 @@ int madera_dev_init(struct madera *madera)
 	for (i = 0; i < ARRAY_SIZE(madera->hp_impedance_x100); ++i)
 		madera->hp_impedance_x100[i] = 3200;
 
-	if (dev_get_platdata(madera->dev))
+	if (dev_get_platdata(madera->dev)) {
 		memcpy(&madera->pdata, dev_get_platdata(madera->dev),
 		       sizeof(madera->pdata));
-	else if (IS_ENABLED(CONFIG_OF))
+
+		/* We use 0 in pdata to indicate a GPIO has not been set,
+		 * translate to -1 so that gpio_is_valid() will work
+		 */
+		if (!madera->pdata.reset)
+			madera->pdata.reset = -1;
+	} else if (IS_ENABLED(CONFIG_OF)) {
 		madera_of_get_core_pdata(madera);
+	}
 
 	regcache_cache_only(madera->regmap, true);
 	regcache_cache_only(madera->regmap_32bit, true);
@@ -729,7 +736,7 @@ int madera_dev_init(struct madera *madera)
 		goto err_dcvdd;
 	}
 
-	if (madera->pdata.reset) {
+	if (gpio_is_valid(madera->pdata.reset)) {
 		/* Start out with /RESET low to put the chip into reset */
 		ret = devm_gpio_request_one(madera->dev, madera->pdata.reset,
 					    GPIOF_DIR_OUT | GPIOF_INIT_LOW,
