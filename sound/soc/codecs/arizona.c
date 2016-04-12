@@ -4607,12 +4607,23 @@ static int arizona_wait_for_fll(struct arizona_fll *fll, bool requested)
 		break;
 	}
 
-	for (i = 0; i < 25; i++) {
+	for (i = 0; i < 30; i++) {
 		regmap_read(arizona->regmap, reg, &val);
 		status = val & (mask << (fll->id - 1));
 		if (status == requested)
 			return 0;
-		msleep(10);
+
+		switch (i) {
+		case 0 ... 5:
+			usleep_range(75, 125);
+			break;
+		case 11 ... 20:
+			usleep_range(750, 1250);
+			break;
+		case 21 ... 30:
+			msleep(20);
+			break;
+		}
 	}
 
 	arizona_fll_warn(fll, "Timed out waiting for lock\n");
