@@ -1160,8 +1160,7 @@ static void largo_compr_irq(struct largo_priv *largo, struct largo_compr *compr)
 		if (!compr->trig) {
 			compr->trig = true;
 
-			if (arizona->pdata.ez2ctrl_trigger &&
-			    wm_adsp_fw_has_voice_trig(compr->adsp_compr.dsp))
+			if (wm_adsp_fw_has_voice_trig(compr->adsp_compr.dsp))
 				arizona->pdata.ez2ctrl_trigger();
 		}
 		mutex_unlock(&compr->trig_lock);
