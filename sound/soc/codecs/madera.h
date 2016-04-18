@@ -500,6 +500,7 @@ extern int madera_set_fll_ao_refclk(struct madera_fll *fll, int source,
 extern int madera_core_init(struct madera_priv *priv);
 extern int madera_core_destroy(struct madera_priv *priv);
 extern int madera_init_spk(struct snd_soc_codec *codec, int n_channels);
+extern int madera_free_spk(struct snd_soc_codec *codec);
 extern int madera_init_drc(struct snd_soc_codec *codec);
 extern int madera_init_inputs(struct snd_soc_codec *codec,
 			      const char * const *dmic_inputs,

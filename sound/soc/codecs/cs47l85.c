@@ -2718,6 +2718,8 @@ static int cs47l85_codec_remove(struct snd_soc_codec *codec)
 	for (i = 0; i < CS47L85_NUM_ADSP; i++)
 		wm_adsp2_codec_remove(&cs47l85->core.adsp[i], codec);
 
+	madera_free_spk(codec);
+
 	cs47l85->core.madera->dapm = NULL;
 
 	return 0;
