@@ -2604,6 +2604,8 @@ static int cs47l85_codec_remove(struct snd_soc_codec *codec)
 
 	madera_free_irq(madera, MADERA_IRQ_DSP_IRQ1, cs47l85);
 
+	madera_free_spk(codec);
+
 	cs47l85->core.madera->dapm = NULL;
 
 	return 0;
