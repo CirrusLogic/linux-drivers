@@ -493,6 +493,18 @@ int madera_init_spk(struct snd_soc_codec *codec, int n_channels)
 }
 EXPORT_SYMBOL_GPL(madera_init_spk);
 
+int madera_free_spk(struct snd_soc_codec *codec)
+{
+	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct madera *madera = priv->madera;
+
+	madera_free_irq(madera, MADERA_IRQ_SPK_OVERHEAT_WARN, madera);
+	madera_free_irq(madera, MADERA_IRQ_SPK_OVERHEAT, madera);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(madera_free_spk);
+
 static void madera_get_inmode_from_of(struct madera *madera)
 {
 	struct device_node *np = madera->dev->of_node;
