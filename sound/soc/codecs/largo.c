@@ -36,7 +36,7 @@
 /* Number of compressed DAI hookups, each pair of DSP and dummy CPU
  * are counted as one DAI
  */
-#define LARGO_NUM_COMPR_DAI 1
+#define LARGO_NUM_COMPR_DAI 2
 
 #define LARGO_DEFAULT_FRAGMENTS       1
 #define LARGO_DEFAULT_FRAGMENT_SIZE   4096
@@ -63,6 +63,10 @@ static const struct {
 	{
 		.dai_name = "largo-dsp-voicectrl",
 		.adsp_num = 2,
+	},
+	{
+		.dai_name = "largo-dsp-trace",
+		.adsp_num = 1,
 	},
 };
 
@@ -895,6 +899,11 @@ static const struct snd_soc_dapm_route largo_dapm_routes[] = {
 	{ "Voice Control CPU", NULL, "SYSCLK" },
 	{ "Voice Control DSP", NULL, "SYSCLK" },
 
+	{ "Trace CPU", NULL, "Trace DSP" },
+	{ "Trace DSP", NULL, "DSP2" },
+	{ "Trace CPU", NULL, "SYSCLK" },
+	{ "Trace DSP", NULL, "SYSCLK" },
+
 	{ "IN1L PGA", NULL, "IN1L" },
 	{ "IN1R PGA", NULL, "IN1R" },
 
@@ -1112,6 +1121,27 @@ static struct snd_soc_dai_driver largo_dai[] = {
 			.stream_name = "Voice Control DSP",
 			.channels_min = 1,
 			.channels_max = 2,
+			.rates = LARGO_RATES,
+			.formats = LARGO_FORMATS,
+		},
+	},
+	{
+		.name = "largo-cpu-trace",
+		.capture = {
+			.stream_name = "Trace CPU",
+			.channels_min = 1,
+			.channels_max = 6,
+			.rates = LARGO_RATES,
+			.formats = LARGO_FORMATS,
+		},
+		.compress_dai = 1,
+	},
+	{
+		.name = "largo-dsp-trace",
+		.capture = {
+			.stream_name = "Trace DSP",
+			.channels_min = 1,
+			.channels_max = 6,
 			.rates = LARGO_RATES,
 			.formats = LARGO_FORMATS,
 		},
