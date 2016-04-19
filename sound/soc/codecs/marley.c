@@ -653,6 +653,19 @@ out:
 	return ret;
 }
 
+static int marley_sysclk_ev(struct snd_soc_dapm_widget *w,
+			    struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct marley_priv *marley = snd_soc_codec_get_drvdata(codec);
+	struct arizona_priv *priv = &marley->core;
+	struct arizona *arizona = priv->arizona;
+
+	clearwater_spin_sysclk(arizona);
+
+	return 0;
+}
+
 static int marley_adsp_power_ev(struct snd_soc_dapm_widget *w,
 				struct snd_kcontrol *kcontrol,
 				int event)
@@ -1127,7 +1140,8 @@ static const struct snd_kcontrol_new marley_aec_loopback_mux =
 
 static const struct snd_soc_dapm_widget marley_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", ARIZONA_SYSTEM_CLOCK_1, ARIZONA_SYSCLK_ENA_SHIFT,
-		    0, NULL, SND_SOC_DAPM_POST_PMU),
+		    0, marley_sysclk_ev,
+		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 SND_SOC_DAPM_SUPPLY("OPCLK", ARIZONA_OUTPUT_SYSTEM_CLOCK,
 		    ARIZONA_OPCLK_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("DSPCLK", CLEARWATER_DSP_CLOCK_1, 6,
