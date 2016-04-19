@@ -290,6 +290,10 @@ int arizona_cache_and_clear_sources(struct arizona *arizona,
 			break;
 		}
 
+		/* Don't bother to set to zero if it already is */
+		if (!cache[i])
+			continue;
+
 		ret = regmap_write(arizona->regmap,
 				   sources[i],
 				   0);
@@ -347,6 +351,10 @@ int arizona_restore_sources(struct arizona *arizona,
 		dev_dbg(arizona->dev,
 			"%s addr: 0x%04x value: 0x%04x\n",
 			__func__, sources[i], cache[i]);
+
+		/* All mixers will be at zero no need to write to zero again */
+		if (!cache[i])
+			continue;
 
 		ret = regmap_write(arizona->regmap,
 				   sources[i],
