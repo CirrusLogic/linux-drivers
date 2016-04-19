@@ -329,6 +329,8 @@ void clearwater_spin_sysclk(struct arizona *arizona)
 				"%s Failed to read register: %d (%d)\n",
 				__func__, ret, i);
 	}
+
+	udelay(300);
 }
 EXPORT_SYMBOL_GPL(clearwater_spin_sysclk);
 
@@ -3728,7 +3730,6 @@ static int arizona_hw_params_rate(struct snd_pcm_substream *substream,
 		}
 
 		clearwater_spin_sysclk(priv->arizona);
-		udelay(300);
 	}
 
 	switch (dai_priv->clk) {
@@ -3783,10 +3784,8 @@ static int arizona_hw_params_rate(struct snd_pcm_substream *substream,
 		ret = -EINVAL;
 	}
 
-	if (change_rate) {
+	if (change_rate)
 		clearwater_spin_sysclk(priv->arizona);
-		udelay(300);
-	}
 
 out:
 	if (change_rate) {
