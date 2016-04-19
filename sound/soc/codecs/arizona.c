@@ -271,9 +271,6 @@ int arizona_cache_and_clear_sources(struct arizona *arizona,
 	int ret = 0;
 	int i;
 
-	for (i = 0; i < lim; i++)
-		cache[i] = 0;
-
 	for (i = 0; i < lim; i++) {
 		ret = regmap_read(arizona->regmap,
 				  sources[i],
@@ -287,7 +284,8 @@ int arizona_cache_and_clear_sources(struct arizona *arizona,
 			dev_err(arizona->dev,
 				"%s Failed to cache AIF:0x%04x inputs: %d\n",
 				__func__, sources[i], ret);
-			break;
+			cache[i] = 0;
+			continue;
 		}
 
 		/* Don't bother to set to zero if it already is */
