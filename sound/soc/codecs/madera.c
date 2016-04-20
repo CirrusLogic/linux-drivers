@@ -577,6 +577,10 @@ int madera_core_init(struct madera_priv *priv)
 	BUILD_BUG_ON(ARRAY_SIZE(madera_mixer_values) != MADERA_NUM_MIXER_INPUTS);
 	BUILD_BUG_ON(ARRAY_SIZE(priv->aif_sources_cache) <
 				ARRAY_SIZE(madera_aif1_inputs));
+	BUILD_BUG_ON(madera_sample_rate_text[MADERA_SAMPLE_RATE_ENUM_SIZE - 1]
+		     == NULL);
+	BUILD_BUG_ON(madera_sample_rate_val[MADERA_SAMPLE_RATE_ENUM_SIZE - 1]
+		     == 0);
 
 	if (IS_ENABLED(CONFIG_OF))
 		if (!dev_get_platdata(priv->madera->dev))
