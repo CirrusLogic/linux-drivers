@@ -2862,10 +2862,6 @@ static int clearwater_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	/* Update Sample Rate 1 to 48kHz for cases when no AIF1 hw_params */
-	regmap_update_bits(arizona->regmap, ARIZONA_SAMPLE_RATE_1,
-			   ARIZONA_SAMPLE_RATE_1_MASK, 0x03);
-
 	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
 
 	priv->core.arizona->dapm = &codec->dapm;
