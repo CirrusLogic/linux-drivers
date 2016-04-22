@@ -2625,7 +2625,8 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		if (ret != 0)
 			goto err;
 
-		if (dsp->fw_features.host_read_buf) {
+		if (dsp->fw_features.host_read_buf &&
+		    dsp->firmwares[dsp->fw].num_caps != 0) {
 			ret = wm_adsp_init_host_buf_info(&dsp->compr_buf);
 			if (ret < 0) {
 				adsp_err(dsp,
