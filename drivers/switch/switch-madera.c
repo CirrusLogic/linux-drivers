@@ -94,6 +94,12 @@
 #define MADERA_MICD_BIAS_SRC_MICBIAS2D	0x7
 #define MADERA_MICD_BIAS_SRC_MICVDD	0xF
 
+#define MADERA_ACCD_SENSE_MICDET1	0
+#define MADERA_ACCD_SENSE_MICDET2	1
+
+#define MADERA_ACCD_BIAS_SRC_MICBIAS1	1
+#define MADERA_ACCD_BIAS_SRC_MICBIAS2	2
+
 #define MADERA_HP_TUNING_INVALID	-1
 
 /* Conversion between ohms and hundredths of an ohm. */
@@ -161,8 +167,8 @@ struct madera_extcon_info {
 };
 
 static const struct madera_micd_config cs47l85_micd_default_modes[] = {
-	{ 1, 1, 1, 0 },
-	{ 0, 0, 2, 1 },
+	{ MADERA_ACCD_SENSE_MICDET2, 0, MADERA_ACCD_BIAS_SRC_MICBIAS1, 0 },
+	{ MADERA_ACCD_SENSE_MICDET1, 0, MADERA_ACCD_BIAS_SRC_MICBIAS2, 1 },
 };
 
 static const struct madera_micd_config madera_micd_default_modes[] = {
