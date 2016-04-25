@@ -1456,20 +1456,6 @@ int madera_init_drc(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(madera_init_drc);
 
-int madera_init_aif(struct snd_soc_codec *codec)
-{
-	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct madera *madera = priv->madera;
-	int ret;
-
-	/* Update Sample Rate 1 to 48kHz for cases when no AIF1 hw_params */
-	ret = regmap_update_bits(madera->regmap, MADERA_SAMPLE_RATE_1,
-				 MADERA_SAMPLE_RATE_1_MASK, 0x03);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(madera_init_aif);
-
 int madera_init_dsp_irq(struct snd_soc_codec *codec,
 			irq_handler_t handler, void *data)
 {

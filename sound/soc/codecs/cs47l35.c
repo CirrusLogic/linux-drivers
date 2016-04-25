@@ -1702,10 +1702,6 @@ static int cs47l35_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	ret = madera_init_aif(codec);
-	if (ret)
-		return ret;
-
 	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
 	snd_soc_dapm_disable_pin(&codec->dapm, "DSP Trigger Out");
 

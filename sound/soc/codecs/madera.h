@@ -508,7 +508,6 @@ extern int madera_init_inputs(struct snd_soc_codec *codec,
 			      const char * const *dmic_refs,
 			      int n_dmic_refs);
 extern int madera_init_outputs(struct snd_soc_codec *codec);
-extern int madera_init_aif(struct snd_soc_codec *codec);
 extern int madera_init_dsp_irq(struct snd_soc_codec *codec,
 				irq_handler_t handler, void *data);
 extern void madera_destroy_dsp_irq(struct snd_soc_codec *codec, void *data);
