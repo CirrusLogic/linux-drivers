@@ -2589,6 +2589,7 @@ F:	drivers/mfd/cs47l*
 F:	drivers/regulator/madera*.c
 F:	include/dt-bindings/sound/madera.h
 F:	include/dt-bindings/mfd/madera.h
+F:	include/dt-bindings/extcon/madera.h
 F:	include/linux/mfd/madera/
 F:	include/linux/extcon/extcon-madera*
 F:	include/linux/regulator/madera*
