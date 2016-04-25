@@ -87,9 +87,9 @@ Child node optional properties:
   - cirrus,micd-configs : Headset polarity configurations, variable length but
     must be a multiple of 8 cells, each two cell group represents one
     polarity configration
-    first cell is the accessory detection source as per the
-       MICD_SENSE_SEL register field (CS47L90, CS47L91) or
-       ACCDET_SRC register field (CS47L35, CS47L85, WM1840).
+    first cell is the value of
+       ACCDET_SRC register field (CS47L35, CS47L85, WM1840),
+       MICD_SENSE_SEL register field (all other codecs)
     second cell is the accessory detection ground as per the MICD_GND_SEL
       register field
     the third cell is the MICBIAS to be used as per the MICD_BIAS_SRC register

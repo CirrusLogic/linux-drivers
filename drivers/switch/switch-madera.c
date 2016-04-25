@@ -161,8 +161,8 @@ struct madera_extcon_info {
 };
 
 static const struct madera_micd_config cs47l85_micd_default_modes[] = {
-	{ MADERA_ACCDET_SRC, MADERA_ACCDET_SRC, 1, 0 },
-	{ 0,                 0,                 2, 1 },
+	{ 1, 1, 1, 0 },
+	{ 0, 0, 2, 1 },
 };
 
 static const struct madera_micd_config madera_micd_default_modes[] = {
@@ -887,7 +887,8 @@ static void madera_extcon_set_mode(struct madera_extcon_info *info, int mode)
 		regmap_update_bits(madera->regmap,
 				   MADERA_ACCESSORY_DETECT_MODE_1,
 				   MADERA_ACCDET_SRC,
-				   info->micd_modes[mode].src);
+				   info->micd_modes[mode].src <<
+				   MADERA_ACCDET_SRC_SHIFT);
 		break;
 	default:
 		regmap_update_bits(madera->regmap,
@@ -1838,7 +1839,8 @@ static int madera_hpdet_acc_id_reading(struct madera_extcon_info *info,
 		regmap_update_bits(madera->regmap,
 				   MADERA_ACCESSORY_DETECT_MODE_1,
 				   MADERA_ACCDET_SRC | MADERA_ACCDET_MODE_MASK,
-				   info->micd_modes[0].src |
+				   (info->micd_modes[0].src <<
+				    MADERA_ACCDET_SRC_SHIFT) |
 				   MADERA_ACCDET_MODE_HPR);
 		gpio_set_value_cansleep(id_gpio, 1);
 
@@ -1862,7 +1864,8 @@ static int madera_hpdet_acc_id_reading(struct madera_extcon_info *info,
 		regmap_update_bits(madera->regmap,
 				   MADERA_ACCESSORY_DETECT_MODE_1,
 				   MADERA_ACCDET_SRC | MADERA_ACCDET_MODE_MASK,
-				   info->micd_modes[0].src |
+				   (info->micd_modes[0].src  <<
+				    MADERA_ACCDET_SRC_SHIFT) |
 				   MADERA_ACCDET_MODE_HPL);
 
 		return -EAGAIN;
@@ -1907,7 +1910,8 @@ static int madera_hpdet_acc_id_start(struct madera_extcon_info *info)
 	ret = regmap_update_bits(madera->regmap,
 				 MADERA_ACCESSORY_DETECT_MODE_1,
 				 MADERA_ACCDET_SRC | MADERA_ACCDET_MODE_MASK,
-				 info->micd_modes[0].src |
+				 (info->micd_modes[0].src <<
+				  MADERA_ACCDET_SRC_SHIFT) |
 				 MADERA_ACCDET_MODE_HPL);
 	if (ret) {
 		dev_err(madera->dev, "Failed to set HPDETL mode: %d\n", ret);
@@ -1938,7 +1942,7 @@ static void madera_hpdet_acc_id_stop(struct madera_extcon_info *info)
 	regmap_update_bits(madera->regmap,
 			   MADERA_ACCESSORY_DETECT_MODE_1,
 			   MADERA_ACCDET_SRC,
-			   info->micd_modes[0].src);
+			   info->micd_modes[0].src << MADERA_ACCDET_SRC_SHIFT);
 
 	if (id_gpio)
 		gpio_set_value_cansleep(id_gpio, 0);
