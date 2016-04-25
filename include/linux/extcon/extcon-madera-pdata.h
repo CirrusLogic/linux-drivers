@@ -20,10 +20,25 @@
 
 struct madera_jd_state;
 
+/** Bias and sense configuration for probing MICDET */
 struct madera_micd_config {
+	/** cs47l35, cs47l85, WM1840: value of the ACCDET_SRC field
+	 *  other codecs: value of MICDn_SENSE_SEL field
+	 * See datasheet for field values
+	 */
 	unsigned int src;
+
+	/** cs47l35, cs47l85, wm1840: unused
+	 *  other codecs: value of MICDn_GND_SEL
+	 *
+	 * See datasheet for field values
+	 */
 	unsigned int gnd;
+
+	/** MICBIAS number to enable */
 	unsigned int bias;
+
+	/** State of polarity gpio during probe (true == gpio asserted) */
 	bool gpio;
 };
 
