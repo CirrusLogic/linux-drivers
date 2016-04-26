@@ -174,13 +174,6 @@ static int madera_ldo1_probe(struct platform_device *pdev)
 	if (config.init_data->num_consumer_supplies == 0)
 		madera->internal_dcvdd = false;
 
-
-	if (madera->internal_dcvdd && !gpio_is_valid(config.ena_gpio)) {
-		dev_warn(madera->dev,
-			 "No LDOENA: regulator will be always-on\n");
-		ldo1->init_data.constraints.always_on = true;
-	}
-
 	ldo1->regulator = devm_regulator_register(&pdev->dev, desc, &config);
 
 	of_node_put(config.of_node);
