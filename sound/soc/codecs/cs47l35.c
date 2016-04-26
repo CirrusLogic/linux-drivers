@@ -1831,8 +1831,12 @@ static int cs47l35_probe(struct platform_device *pdev)
 
 		ret = wm_adsp2_init(&cs47l35->core.adsp[i],
 				    &cs47l35->core.adsp_fw_lock);
-		if (ret != 0)
+		if (ret != 0) {
+			for (--i; i >= 0; --i)
+				wm_adsp2_remove(&cs47l35->core.adsp[i]);
+
 			return ret;
+		}
 	}
 
 	cs47l35_init_compr_info(cs47l35);
@@ -1870,6 +1874,9 @@ static int cs47l35_probe(struct platform_device *pdev)
 	return ret;
 
 error:
+	for (i = 0; i < CS47L35_NUM_ADSP; i++)
+		wm_adsp2_remove(&cs47l35->core.adsp[i]);
+
 	cs47l35_destroy_compr_info(cs47l35);
 	madera_core_destroy(&cs47l35->core);
 
@@ -1879,11 +1886,15 @@ error:
 static int cs47l35_remove(struct platform_device *pdev)
 {
 	struct cs47l35 *cs47l35 = platform_get_drvdata(pdev);
+	int i;
 
 	cs47l35_destroy_compr_info(cs47l35);
 
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	for (i = 0; i < CS47L35_NUM_ADSP; i++)
+		wm_adsp2_remove(&cs47l35->core.adsp[i]);
 
 	madera_core_destroy(&cs47l35->core);
 
