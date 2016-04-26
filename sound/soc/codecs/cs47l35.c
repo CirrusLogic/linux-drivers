@@ -1725,8 +1725,11 @@ static int cs47l35_probe(struct platform_device *pdev)
 			= ARRAY_SIZE(cs47l35_dsp1_regions);
 
 		ret = wm_adsp2_init(&cs47l35->core.adsp[i]);
-		if (ret != 0)
-			return ret;
+		if (ret != 0) {
+			for (--i; i >= 0; --i)
+				wm_adsp2_remove(&cs47l35->core.adsp[i]);
+			goto error_core;
+		}
 	}
 
 	madera_init_fll(madera, 1, MADERA_FLL1_CONTROL_1 - 1, &cs47l35->fll);
@@ -1745,7 +1748,7 @@ static int cs47l35_probe(struct platform_device *pdev)
 	ret = snd_soc_register_platform(&pdev->dev, &cs47l35_compr_platform);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register platform: %d\n", ret);
-		return ret;
+		goto error;
 	}
 
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_cs47l35,
@@ -1761,6 +1764,9 @@ static int cs47l35_probe(struct platform_device *pdev)
 	return ret;
 
 error:
+	for (i = 0; i < CS47L35_NUM_ADSP; i++)
+		wm_adsp2_remove(&cs47l35->core.adsp[i]);
+error_core:
 	madera_core_destroy(&cs47l35->core);
 
 	return ret;
@@ -1769,10 +1775,14 @@ error:
 static int cs47l35_remove(struct platform_device *pdev)
 {
 	struct cs47l35 *cs47l35 = platform_get_drvdata(pdev);
+	int i;
 
 	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	for (i = 0; i < CS47L35_NUM_ADSP; i++)
+		wm_adsp2_remove(&cs47l35->core.adsp[i]);
 
 	madera_core_destroy(&cs47l35->core);
 
