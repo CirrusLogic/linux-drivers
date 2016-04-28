@@ -64,10 +64,10 @@
 #define MADERA_HPD_SENSE_JD1		6
 #define MADERA_HPD_SENSE_JD2		7
 
-#define MADERA_HPD_GND_MICDET1		0
-#define MADERA_HPD_GND_MICDET2		1
-#define MADERA_HPD_GND_MICDET3		2
-#define MADERA_HPD_GND_MICDET4		3
+#define MADERA_HPD_GND_HPOUTFB1		0
+#define MADERA_HPD_GND_HPOUTFB2		1
+#define MADERA_HPD_GND_HPOUTFB3		2
+#define MADERA_HPD_GND_HPOUTFB4		3
 
 #define MADERA_HPD_OUT_OUT1L		0
 #define MADERA_HPD_OUT_OUT1R		1
@@ -167,15 +167,15 @@ struct madera_extcon_info {
 };
 
 static const struct madera_micd_config cs47l85_micd_default_modes[] = {
-	{ MADERA_ACCD_SENSE_MICDET2, 0, MADERA_ACCD_BIAS_SRC_MICBIAS1, 0 },
-	{ MADERA_ACCD_SENSE_MICDET1, 0, MADERA_ACCD_BIAS_SRC_MICBIAS2, 1 },
+	{ MADERA_ACCD_SENSE_MICDET2, 0, MADERA_ACCD_BIAS_SRC_MICBIAS1, 0, 0 },
+	{ MADERA_ACCD_SENSE_MICDET1, 0, MADERA_ACCD_BIAS_SRC_MICBIAS2, 1, 0 },
 };
 
 static const struct madera_micd_config madera_micd_default_modes[] = {
 	{ MADERA_MICD1_SENSE_MICDET1, MADERA_MICD1_GND_MICDET2,
-	  MADERA_MICD_BIAS_SRC_MICBIAS1A, 0 },
+	  MADERA_MICD_BIAS_SRC_MICBIAS1A, 0, MADERA_HPD_GND_HPOUTFB1 },
 	{ MADERA_MICD1_SENSE_MICDET2, MADERA_MICD1_GND_MICDET1,
-	  MADERA_MICD_BIAS_SRC_MICBIAS1B, 1 },
+	  MADERA_MICD_BIAS_SRC_MICBIAS1B, 1, MADERA_HPD_GND_HPOUTFB1 },
 };
 
 static const unsigned int madera_default_hpd_pins[4] = {
@@ -2409,13 +2409,13 @@ static int madera_extcon_of_get_micd_configs(struct madera *madera,
 					     struct madera_accdet_pdata *pdata)
 {
 	struct madera_micd_config *micd_configs;
-	u32 values[4];
+	u32 values[5];
 	int nconfigs, i;
 	int ret = 0;
 
 	nconfigs = madera_extcon_of_get_u32_num_groups(madera, node,
 							"cirrus,micd-configs",
-							4);
+							ARRAY_SIZE(values));
 	if (nconfigs < 0)
 		return nconfigs;
 
@@ -2427,7 +2427,9 @@ static int madera_extcon_of_get_micd_configs(struct madera *madera,
 	for (i = 0; i < nconfigs; ++i) {
 		ret = madera_extcon_of_read_part_array(madera, node,
 							"cirrus,micd-configs",
-							i * 4, values, 4);
+							i * ARRAY_SIZE(values),
+							values,
+							ARRAY_SIZE(values));
 		if (ret < 0)
 			goto error;
 
@@ -2435,6 +2437,7 @@ static int madera_extcon_of_get_micd_configs(struct madera *madera,
 		micd_configs[i].gnd = values[1];
 		micd_configs[i].bias = values[2];
 		micd_configs[i].gpio = values[3];
+		micd_configs[i].hp_gnd = values[4];
 	}
 
 	pdata->micd_configs = micd_configs;
