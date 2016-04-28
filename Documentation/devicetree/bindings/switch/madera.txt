@@ -85,8 +85,8 @@ Child node optional properties:
     The second cell the key that should be reported to the input layer
 
   - cirrus,micd-configs : Headset polarity configurations, variable length but
-    must be a multiple of 8 cells, each two cell group represents one
-    polarity configration
+    must be a multiple of 5 cells, each two cell group represents one
+    polarity configuration
     first cell is the value of
        ACCDET_SRC register field (CS47L35, CS47L85, WM1840),
        MICD_SENSE_SEL register field (all other codecs)
@@ -96,6 +96,9 @@ Child node optional properties:
       field
     fourth cell is the value of the micd-pol-gpio pin, a non-zero value
       indicates this should be on
+    fifth cell is
+      set to zero (cs47l35, cs47l85)
+      value of HPn_GND_SEL register field (all other codecs)
 
 Example:
 
@@ -125,8 +128,8 @@ codec: cs47l85@0 {
 				430 0x105
 			>;
 			cirrus,micd-configs = <
-				0x1 0 1 0
-				0x0 0 2 1
+				0x1 0 1 0 2
+				0x0 0 2 1 2
 			>;
 			cirrus,fixed-hpdet-imp = <8>;
 			cirrus,micd-clamp-mode = <0xb>;

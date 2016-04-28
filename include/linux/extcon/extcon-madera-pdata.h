@@ -40,6 +40,14 @@ struct madera_micd_config {
 
 	/** State of polarity gpio during probe (true == gpio asserted) */
 	bool gpio;
+
+	/** cs47l35, cs47l85, wm1840: unused
+	 *  other codecs: value of HPn_GND_SEL
+	 *
+	 * See datasheet for field values
+	 */
+	unsigned int hp_gnd;
+
 };
 
 struct madera_micd_range {
