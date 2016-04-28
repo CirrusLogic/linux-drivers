@@ -1132,6 +1132,16 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 			CS35L35_PWR2_PDN_MASK,
 			CS35L35_PWR2_PDN_MASK);
 
+	/* PDN Boost on FET usage */
+	if (cs35l35->pdata.bst_pdn_fet_on)
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
+					CS35L35_PDN_BST_MASK,
+					1 << CS35L35_PDN_BST_FETON_SHIFT);
+	else
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
+					CS35L35_PDN_BST_MASK,
+					1 << CS35L35_PDN_BST_FETOFF_SHIFT);
+
 	regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL3,
 			CS35L35_PWR3_PDN_MASK,
 			CS35L35_PWR3_PDN_MASK);
