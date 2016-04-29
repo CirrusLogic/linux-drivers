@@ -289,6 +289,7 @@ extern unsigned int madera_mixer_values[MADERA_NUM_MIXER_INPUTS];
 	{ name, NULL, name " Preloader"},		\
 	{ name " Preloader", NULL, "SYSCLK"},		\
 	{ name " Preloader", NULL, "DSPCLK"},		\
+	{ name " Preload", NULL, name " Preloader"},	\
 	{ name, NULL, name " Aux 1" },	\
 	{ name, NULL, name " Aux 2" },	\
 	{ name, NULL, name " Aux 3" },	\
