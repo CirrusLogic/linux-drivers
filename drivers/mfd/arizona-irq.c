@@ -131,13 +131,9 @@ static irqreturn_t arizona_irq_thread(int irq, void *data)
 	}
 
 	do {
-		if (arizona->aod_irq_chip) {
-			/*
-			 * Check the AOD status register to determine whether
-			 * the nested IRQ handler should be called.
-			 */
-			ret = regmap_read(arizona->regmap,
-					  ARIZONA_AOD_IRQ1,
+		if (arizona->aod_irq_chip && arizona->irq_chip) {
+			/* Only handle each domain if it has triggered an IRQ */
+			ret = regmap_read(arizona->regmap, ARIZONA_AOD_IRQ1,
 					  &val);
 			if (ret == 0 && val != 0) {
 				nest_irq = irq_find_mapping(arizona->virq, 0);
@@ -147,44 +143,23 @@ static irqreturn_t arizona_irq_thread(int irq, void *data)
 					"Failed to read AOD IRQ1 %d\n",
 					ret);
 			}
+
+			ret = regmap_read(arizona->regmap,
+					  ARIZONA_IRQ_PIN_STATUS,
+					  &val);
+			if (ret == 0 && val & ARIZONA_IRQ1_STS) {
+				nest_irq = irq_find_mapping(arizona->virq, 1);
+				handle_nested_irq(nest_irq);
+			} else if (ret != 0) {
+				dev_err(arizona->dev,
+					"Failed to read main IRQ status: %d\n",
+					ret);
+			}
+		} else if (arizona->aod_irq_chip) {
+			handle_nested_irq(irq_find_mapping(arizona->virq, 0));
+		} else if (arizona->irq_chip) {
+			handle_nested_irq(irq_find_mapping(arizona->virq, 1));
 		}
-
-		/*
-		 * Check if one of the main interrupts is asserted and
-		 * only check that domain if it is.
-		 */
-		ret = regmap_read(arizona->regmap,
-				  ARIZONA_IRQ_PIN_STATUS,
-				  &val);
-		if (ret == 0 && val & ARIZONA_IRQ1_STS) {
-			nest_irq = irq_find_mapping(arizona->virq, 1);
-			handle_nested_irq(nest_irq);
-		} else if (ret != 0) {
-			dev_err(arizona->dev,
-				"Failed to read main IRQ status: %d\n",
-				ret);
-		}
-	} while (arizona_irq_still_pending(arizona));
-
-	pm_runtime_mark_last_busy(arizona->dev);
-	pm_runtime_put_autosuspend(arizona->dev);
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t arizona_aodonly_irq_thread(int irq, void *data)
-{
-	struct arizona *arizona = data;
-	int ret;
-
-	ret = pm_runtime_get_sync(arizona->dev);
-	if (ret < 0) {
-		dev_err(arizona->dev, "Failed to resume device: %d\n", ret);
-		return IRQ_NONE;
-	}
-
-	do {
-		handle_nested_irq(irq_find_mapping(arizona->virq, 0));
 	} while (arizona_irq_still_pending(arizona));
 
 	pm_runtime_mark_last_busy(arizona->dev);
@@ -250,12 +225,10 @@ int arizona_irq_init(struct arizona *arizona)
 	bool ctrlif_error = true;
 	struct irq_data *irq_data;
 	unsigned int irq_ctrl_reg = ARIZONA_IRQ_CTRL_1;
-	irq_handler_t irq_thread_handler = NULL;
 
 	switch (arizona->type) {
 #ifdef CONFIG_MFD_WM5102
 	case WM5102:
-		irq_thread_handler = arizona_irq_thread;
 		aod = &wm5102_aod;
 		irq = &wm5102_irq;
 
@@ -265,7 +238,6 @@ int arizona_irq_init(struct arizona *arizona)
 #ifdef CONFIG_MFD_FLORIDA
 	case WM8280:
 	case WM5110:
-		irq_thread_handler = arizona_irq_thread;
 		aod = &florida_aod;
 
 		switch (arizona->rev) {
@@ -283,7 +255,6 @@ int arizona_irq_init(struct arizona *arizona)
 #ifdef CONFIG_MFD_CLEARWATER
 	case WM8285:
 	case WM1840:
-		irq_thread_handler = arizona_aodonly_irq_thread;
 		aod = &clearwater_irq;
 		irq = NULL;
 
@@ -294,7 +265,6 @@ int arizona_irq_init(struct arizona *arizona)
 #ifdef CONFIG_MFD_LARGO
 	case WM1831:
 	case CS47L24:
-		irq_thread_handler = arizona_irq_thread;
 		aod = NULL;
 		irq = &largo_irq;
 
@@ -303,7 +273,6 @@ int arizona_irq_init(struct arizona *arizona)
 #endif
 #ifdef CONFIG_MFD_WM8997
 	case WM8997:
-		irq_thread_handler = arizona_irq_thread;
 		aod = &wm8997_aod;
 		irq = &wm8997_irq;
 
@@ -313,7 +282,6 @@ int arizona_irq_init(struct arizona *arizona)
 #ifdef CONFIG_MFD_VEGAS
 	case WM8998:
 	case WM1814:
-		irq_thread_handler = arizona_irq_thread;
 		aod = &vegas_aod;
 		irq = &vegas_irq;
 
@@ -322,7 +290,6 @@ int arizona_irq_init(struct arizona *arizona)
 #endif
 #ifdef CONFIG_MFD_MARLEY
 	case CS47L35:
-		irq_thread_handler = arizona_aodonly_irq_thread;
 		aod = &marley_irq;
 		irq = NULL;
 
@@ -333,7 +300,6 @@ int arizona_irq_init(struct arizona *arizona)
 #ifdef CONFIG_MFD_MOON
 	case CS47L90:
 	case CS47L91:
-		irq_thread_handler = arizona_aodonly_irq_thread;
 		aod = &moon_irq;
 		irq = NULL;
 
@@ -450,7 +416,7 @@ int arizona_irq_init(struct arizona *arizona)
 		}
 	}
 
-	ret = request_threaded_irq(arizona->irq, NULL, irq_thread_handler,
+	ret = request_threaded_irq(arizona->irq, NULL, arizona_irq_thread,
 				   flags, "arizona", arizona);
 
 	if (ret != 0) {
