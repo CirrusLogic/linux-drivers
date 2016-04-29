@@ -271,6 +271,10 @@ struct arizona_enum {
 	ARIZONA_MIXER_ROUTES(name " Preloader", name "L"), \
 	ARIZONA_MIXER_ROUTES(name " Preloader", name "R")
 
+#define CLEARWATER_DSP_ROUTES(name) \
+	{ name " Preloader", NULL, "DSPCLK"}, \
+	ARIZONA_DSP_ROUTES(name)
+
 #define ARIZONA_SAMPLE_RATE_CONTROL(name, domain) \
 	SOC_ENUM(name, arizona_sample_rate[(domain) - 2])
 

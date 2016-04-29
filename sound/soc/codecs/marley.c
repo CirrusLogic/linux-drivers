@@ -1588,10 +1588,6 @@ static const struct snd_soc_dapm_route marley_dapm_routes[] = {
 	{ "IN2L", NULL, "SYSCLK" },
 	{ "IN2R", NULL, "SYSCLK" },
 
-	{ "DSP1", NULL, "DSPCLK"},
-	{ "DSP2", NULL, "DSPCLK"},
-	{ "DSP3", NULL, "DSPCLK"},
-
 	{ "MICBIAS1", NULL, "MICVDD" },
 	{ "MICBIAS2", NULL, "MICVDD" },
 
@@ -1728,9 +1724,9 @@ static const struct snd_soc_dapm_route marley_dapm_routes[] = {
 	ARIZONA_MIXER_ROUTES("LHPF3", "LHPF3"),
 	ARIZONA_MIXER_ROUTES("LHPF4", "LHPF4"),
 
-	ARIZONA_DSP_ROUTES("DSP1"),
-	ARIZONA_DSP_ROUTES("DSP2"),
-	ARIZONA_DSP_ROUTES("DSP3"),
+	CLEARWATER_DSP_ROUTES("DSP1"),
+	CLEARWATER_DSP_ROUTES("DSP2"),
+	CLEARWATER_DSP_ROUTES("DSP3"),
 
 	{ "DSP2",  NULL, "DSP2 Virtual Input" },
 	{ "DSP2 Virtual Input", "Shared Memory", "DSP3" },

@@ -1387,8 +1387,6 @@ static const struct snd_soc_dapm_route cs47l15_dapm_routes[] = {
 	{ "IN2L", NULL, "SYSCLK" },
 	{ "IN2R", NULL, "SYSCLK" },
 
-	{ "DSP1", NULL, "DSPCLK"},
-
 	{ "MICBIAS1", NULL, "MICVDD" },
 
 	{ "MICBIAS1A", NULL, "MICBIAS1" },
@@ -1499,7 +1497,7 @@ static const struct snd_soc_dapm_route cs47l15_dapm_routes[] = {
 	ARIZONA_MIXER_ROUTES("LHPF3", "LHPF3"),
 	ARIZONA_MIXER_ROUTES("LHPF4", "LHPF4"),
 
-	ARIZONA_DSP_ROUTES("DSP1"),
+	CLEARWATER_DSP_ROUTES("DSP1"),
 
 	{ "DSP Virtual Output", NULL, "DSP Virtual Output Mux" },
 	{ "DSP Virtual Output Mux", "DSP1", "DSP1" },
