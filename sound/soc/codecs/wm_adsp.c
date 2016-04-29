@@ -3693,7 +3693,7 @@ static int wm_adsp_compr_read(struct wm_adsp_compr *compr,
 	lockdep_assert_held(&compr->buf->lock);
 	BUG_ON(!compr->buf->host_regions);
 
-	adsp_dbg(dsp, "Requested read of %d bytes\n", count);
+	adsp_dbg(dsp, "Requested read of %zu bytes\n", count);
 
 	ret = wm_adsp_buffer_has_error_locked(compr->buf);
 	if (ret)
