@@ -2609,11 +2609,6 @@ static int wm_adsp2_ena(struct wm_adsp *dsp)
 		adsp_dbg(dsp, "RAM ready after %d polls\n", count);
 		break;
 	default:
-		ret = regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
-				 ADSP2_MEM_ENA, ADSP2_MEM_ENA);
-
-		if (ret != 0)
-			return ret;
 		break;
 	}
 
@@ -2627,9 +2622,14 @@ static void wm_adsp2_boot_work(struct work_struct *work)
 					   boot_work);
 	int ret;
 
-	ret = wm_adsp2_ena(dsp);
+	ret = regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
+				 ADSP2_MEM_ENA, ADSP2_MEM_ENA);
 	if (ret != 0)
 		return;
+
+	ret = wm_adsp2_ena(dsp);
+	if (ret != 0)
+		goto err_mem;
 
 	ret = wm_adsp_load(dsp);
 	if (ret != 0)
@@ -2660,11 +2660,26 @@ static void wm_adsp2_boot_work(struct work_struct *work)
 
 	dsp->booted = true;
 
+	switch (dsp->rev) {
+	case 0:
+		/* Turn DSP back off until we are ready to run */
+		ret = regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
+					 ADSP2_SYS_ENA, 0);
+		if (ret != 0)
+			goto err;
+		break;
+	default:
+		break;
+	}
+
 	return;
 
 err:
 	regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
 			   ADSP2_SYS_ENA | ADSP2_CORE_ENA | ADSP2_START, 0);
+err_mem:
+	regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
+			   ADSP2_MEM_ENA, 0);
 }
 
 static void wm_adsp2_set_dspclk(struct wm_adsp *dsp, unsigned int freq)
@@ -2814,6 +2829,10 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		if (!dsp->booted)
 			return -EIO;
 
+		ret = wm_adsp2_ena(dsp);
+		if (ret != 0)
+			goto err;
+
 		wm_adsp2_lock(dsp, dsp->lock_regions);
 
 		/* Sync set controls */
@@ -2880,7 +2899,8 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		case 0:
 			regmap_update_bits(dsp->regmap,
 					   dsp->base + ADSP2_CONTROL,
-					   ADSP2_CORE_ENA | ADSP2_START, 0);
+					   ADSP2_MEM_ENA | ADSP2_CORE_ENA |
+					   ADSP2_START, 0);
 
 			/* Make sure DMAs are quiesced */
 			regmap_write(dsp->regmap,
@@ -2929,7 +2949,8 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 	return 0;
 err:
 	regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
-			   ADSP2_SYS_ENA | ADSP2_CORE_ENA | ADSP2_START, 0);
+			   ADSP2_MEM_ENA | ADSP2_SYS_ENA | ADSP2_CORE_ENA |
+			   ADSP2_START, 0);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_event);
