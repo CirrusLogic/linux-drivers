@@ -541,7 +541,7 @@ static ssize_t wm_adsp_debugfs_wmfw_read(struct file *file,
 
 	mutex_lock(&dsp->debugfs_lock);
 
-	if (!dsp->wmfw_file_name || !dsp->running)
+	if (!dsp->wmfw_file_name || !dsp->booted)
 		ret = 0;
 	else
 		ret = simple_read_from_buffer(user_buf, count, ppos,
@@ -561,7 +561,7 @@ static ssize_t wm_adsp_debugfs_bin_read(struct file *file,
 
 	mutex_lock(&dsp->debugfs_lock);
 
-	if (!dsp->bin_file_name || !dsp->running)
+	if (!dsp->bin_file_name || !dsp->booted)
 		ret = 0;
 	else
 		ret = simple_read_from_buffer(user_buf, count, ppos,
@@ -613,6 +613,9 @@ static void wm_adsp2_init_debugfs(struct wm_adsp *dsp,
 	kfree(root_name);
 
 	if (!root)
+		goto err;
+
+	if (!debugfs_create_bool("booted", S_IRUGO, root, &dsp->booted))
 		goto err;
 
 	if (!debugfs_create_bool("running", S_IRUGO, root, &dsp->running))
@@ -706,7 +709,7 @@ static int wm_adsp_fw_put(struct snd_kcontrol *kcontrol,
 	if (ucontrol->value.integer.value[0] >= dsp[e->shift_l].num_firmwares)
 		return -EINVAL;
 
-	if (dsp[e->shift_l].running)
+	if (dsp[e->shift_l].booted)
 		return -EBUSY;
 
 	dsp[e->shift_l].fw = ucontrol->value.integer.value[0];
@@ -987,12 +990,9 @@ static int wm_coeff_put(struct snd_kcontrol *kcontrol,
 	memcpy(ctl->cache, p, ctl->len);
 
 	ctl->set = 1;
-	if (!ctl->enabled)
-		goto out;
+	if (ctl->enabled && ctl->dsp->booted)
+		ret = wm_coeff_write_control(ctl, p, ctl->len);
 
-	ret = wm_coeff_write_control(ctl, p, ctl->len);
-
-out:
 	mutex_unlock(&ctl->lock);
 	return ret;
 }
@@ -1038,12 +1038,12 @@ static int wm_coeff_get(struct snd_kcontrol *kcontrol,
 	mutex_lock(&ctl->lock);
 
 	if (ctl->flags & WMFW_CTL_FLAG_VOLATILE) {
-		if (ctl->enabled)
+		if (ctl->enabled && ctl->dsp->booted)
 			ret = wm_coeff_read_control(ctl, p, ctl->len);
 		else
 			ret = -EPERM;
 		goto out;
-	} else if (!ctl->flags && ctl->enabled) {
+	} else if (!ctl->flags && ctl->enabled && ctl->dsp->booted) {
 		ret = wm_coeff_read_control(ctl, ctl->cache, ctl->len);
 	}
 
@@ -2531,13 +2531,20 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		if (ret != 0)
 			goto err;
 
+		dsp->booted = true;
+
 		/* Start the core running */
 		regmap_update_bits(dsp->regmap, dsp->base + ADSP1_CONTROL_30,
 				   ADSP1_CORE_ENA | ADSP1_START,
 				   ADSP1_CORE_ENA | ADSP1_START);
+
+		dsp->running = true;
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
+		dsp->running = false;
+		dsp->booted = false;
+
 		/* Halt the core */
 		regmap_update_bits(dsp->regmap, dsp->base + ADSP1_CONTROL_30,
 				   ADSP1_CORE_ENA | ADSP1_START, 0);
@@ -2656,7 +2663,7 @@ static void wm_adsp2_boot_work(struct work_struct *work)
 	if (ret != 0)
 		goto err;
 
-	dsp->running = true;
+	dsp->booted = true;
 
 	return;
 
@@ -2809,7 +2816,7 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		flush_work(&dsp->boot_work);
 
-		if (!dsp->running)
+		if (!dsp->booted)
 			return -EIO;
 
 		wm_adsp2_lock(dsp, dsp->lock_regions);
@@ -2821,6 +2828,8 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 
 		if (ret != 0)
 			goto err;
+
+		dsp->running = true;
 
 		if (dsp->fw_features.host_read_buf &&
 		    dsp->firmwares[dsp->fw].num_caps != 0) {
@@ -2863,7 +2872,9 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 
 		dsp->fw_id = 0;
 		dsp->fw_id_version = 0;
+
 		dsp->running = false;
+		dsp->booted = false;
 
 		switch (dsp->rev) {
 		case 0:
