@@ -1845,13 +1845,9 @@ static const struct snd_soc_dapm_route florida_dapm_routes[] = {
 
 	{ "Voice Control CPU", NULL, "Voice Control DSP" },
 	{ "Voice Control DSP", NULL, "DSP3" },
-	{ "Voice Control CPU", NULL, "SYSCLK" },
-	{ "Voice Control DSP", NULL, "SYSCLK" },
 
 	{ "Trace CPU", NULL, "Trace DSP" },
 	{ "Trace DSP", NULL, "DSP1" },
-	{ "Trace CPU", NULL, "SYSCLK" },
-	{ "Trace DSP", NULL, "SYSCLK" },
 
 	{ "IN1L PGA", NULL, "IN1L" },
 	{ "IN1R PGA", NULL, "IN1R" },
@@ -1938,14 +1934,13 @@ static const struct snd_soc_dapm_route florida_dapm_routes[] = {
 	ARIZONA_DSP_ROUTES("DSP3"),
 	ARIZONA_DSP_ROUTES("DSP4"),
 
-	{ "DSP2 Preloader",  NULL, "DSP2 Virtual Input" },
+	{ "DSP2",  NULL, "DSP2 Virtual Input" },
 	{ "DSP2 Virtual Input", "Shared Memory", "DSP3" },
-	{ "DSP3 Preloader", NULL, "DSP3 Virtual Input" },
+	{ "DSP3", NULL, "DSP3 Virtual Input" },
 	{ "DSP3 Virtual Input", "Shared Memory", "DSP2" },
 
 	{ "DSP Virtual Output", NULL, "DSP Virtual Output Mux" },
 	{ "DSP Virtual Output Mux", "DSP3", "DSP3" },
-	{ "DSP Virtual Output", NULL, "SYSCLK" },
 
 	ARIZONA_MUX_ROUTES("ISRC1INT1", "ISRC1INT1"),
 	ARIZONA_MUX_ROUTES("ISRC1INT2", "ISRC1INT2"),

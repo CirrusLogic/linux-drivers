@@ -1443,8 +1443,6 @@ static const struct snd_soc_dapm_route cs47l15_dapm_routes[] = {
 
 	{ "Trace CPU", NULL, "Trace DSP" },
 	{ "Trace DSP", NULL, "DSP1" },
-	{ "Trace CPU", NULL, "SYSCLK" },
-	{ "Trace DSP", NULL, "SYSCLK" },
 
 	{ "IN1L Mux", "A", "IN1AL" },
 	{ "IN1L Mux", "B", "IN1BL" },

@@ -1671,8 +1671,6 @@ static const struct snd_soc_dapm_route wm5102_dapm_routes[] = {
 
 	{ "Trace CPU", NULL, "Trace DSP" },
 	{ "Trace DSP", NULL, "DSP1" },
-	{ "Trace CPU", NULL, "SYSCLK" },
-	{ "Trace DSP", NULL, "SYSCLK" },
 
 	{ "IN1L PGA", NULL, "IN1L" },
 	{ "IN1R PGA", NULL, "IN1R" },
@@ -1758,7 +1756,6 @@ static const struct snd_soc_dapm_route wm5102_dapm_routes[] = {
 
 	{ "DSP Virtual Output", NULL, "DSP Virtual Output Mux" },
 	{ "DSP Virtual Output Mux", "DSP1", "DSP1" },
-	{ "DSP Virtual Output", NULL, "SYSCLK" },
 
 	{ "AEC Loopback", "HPOUT1L", "OUT1L" },
 	{ "AEC Loopback", "HPOUT1R", "OUT1R" },

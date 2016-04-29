@@ -2280,13 +2280,9 @@ static const struct snd_soc_dapm_route moon_dapm_routes[] = {
 
 	{ "Voice Control CPU", NULL, "Voice Control DSP" },
 	{ "Voice Control DSP", NULL, "DSP6" },
-	{ "Voice Control CPU", NULL, "SYSCLK" },
-	{ "Voice Control DSP", NULL, "SYSCLK" },
 
 	{ "Trace CPU", NULL, "Trace DSP" },
 	{ "Trace DSP", NULL, "DSP1" },
-	{ "Trace CPU", NULL, "SYSCLK" },
-	{ "Trace DSP", NULL, "SYSCLK" },
 
 	{ "IN1L Mux", "A", "IN1AL" },
 	{ "IN1L Mux", "B", "IN1BL" },
@@ -2399,7 +2395,6 @@ static const struct snd_soc_dapm_route moon_dapm_routes[] = {
 
 	{ "DSP Virtual Output", NULL, "DSP Virtual Output Mux" },
 	{ "DSP Virtual Output Mux", "DSP6", "DSP6" },
-	{ "DSP Virtual Output", NULL, "SYSCLK" },
 
 	ARIZONA_MUX_ROUTES("ISRC1INT1", "ISRC1INT1"),
 	ARIZONA_MUX_ROUTES("ISRC1INT2", "ISRC1INT2"),

@@ -255,6 +255,7 @@ struct arizona_enum {
 
 #define ARIZONA_DSP_ROUTES(name) \
 	{ name, NULL, name " Preloader"}, \
+	{ name " Preloader", NULL, "SYSCLK"}, \
 	{ name " Preloader", NULL, name " Aux 1" }, \
 	{ name " Preloader", NULL, name " Aux 2" }, \
 	{ name " Preloader", NULL, name " Aux 3" }, \

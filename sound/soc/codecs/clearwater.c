@@ -2318,13 +2318,9 @@ static const struct snd_soc_dapm_route clearwater_dapm_routes[] = {
 
 	{ "Voice Control CPU", NULL, "Voice Control DSP" },
 	{ "Voice Control DSP", NULL, "DSP6" },
-	{ "Voice Control CPU", NULL, "SYSCLK" },
-	{ "Voice Control DSP", NULL, "SYSCLK" },
 
 	{ "Trace CPU", NULL, "Trace DSP" },
 	{ "Trace DSP", NULL, "DSP1" },
-	{ "Trace CPU", NULL, "SYSCLK" },
-	{ "Trace DSP", NULL, "SYSCLK" },
 
 	{ "IN1L Mux", "A", "IN1AL" },
 	{ "IN1L Mux", "B", "IN1B" },
@@ -2437,14 +2433,13 @@ static const struct snd_soc_dapm_route clearwater_dapm_routes[] = {
 	ARIZONA_DSP_ROUTES("DSP6"),
 	ARIZONA_DSP_ROUTES("DSP7"),
 
-	{ "DSP2 Preloader",  NULL, "DSP2 Virtual Input" },
+	{ "DSP2",  NULL, "DSP2 Virtual Input" },
 	{ "DSP2 Virtual Input", "Shared Memory", "DSP3" },
-	{ "DSP3 Preloader", NULL, "DSP3 Virtual Input" },
+	{ "DSP3", NULL, "DSP3 Virtual Input" },
 	{ "DSP3 Virtual Input", "Shared Memory", "DSP2" },
 
 	{ "DSP Virtual Output", NULL, "DSP Virtual Output Mux" },
 	{ "DSP Virtual Output Mux", "DSP6", "DSP6" },
-	{ "DSP Virtual Output", NULL, "SYSCLK" },
 
 	ARIZONA_MUX_ROUTES("ISRC1INT1", "ISRC1INT1"),
 	ARIZONA_MUX_ROUTES("ISRC1INT2", "ISRC1INT2"),
