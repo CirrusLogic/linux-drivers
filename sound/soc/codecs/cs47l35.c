@@ -1229,7 +1229,7 @@ static const struct snd_soc_dapm_route cs47l35_dapm_routes[] = {
 	{ "Slim1 Capture", NULL, "SYSCLK" },
 	{ "Slim2 Capture", NULL, "SYSCLK" },
 
-	{ "Voice Control DSP", NULL, "DSP" },
+	{ "Voice Control DSP", NULL, "DSP3" },
 	{ "Voice Control CPU", NULL, "SYSCLK" },
 	{ "Voice Control DSP", NULL, "SYSCLK" },
 
