@@ -75,6 +75,12 @@ static int arizona_spi_probe(struct spi_device *spi)
 		regmap_32bit_config = &moon_32bit_spi_regmap;
 		break;
 #endif
+#ifdef CONFIG_MFD_CS47L15
+	case CS47L15:
+		regmap_config = &cs47l15_16bit_spi_regmap;
+		regmap_32bit_config = &cs47l15_32bit_spi_regmap;
+		break;
+#endif
 	default:
 		dev_err(&spi->dev, "Unknown device type %ld\n", type);
 		return -EINVAL;
@@ -126,6 +132,7 @@ static const struct spi_device_id arizona_spi_ids[] = {
 	{ "wm8285", WM8285 },
 	{ "wm1840", WM1840 },
 	{ "wm1831", WM1831 },
+	{ "cs47l15", CS47L15 },
 	{ "cs47l24", CS47L24 },
 	{ "cs47l35", CS47L35 },
 	{ "cs47l85", WM8285 },

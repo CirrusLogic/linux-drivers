@@ -681,6 +681,9 @@ static int arizona_runtime_resume(struct device *dev)
 	case CS47L91:
 		num_gpios = MOON_NUM_GPIOS;
 		break;
+	case CS47L15:
+		num_gpios = CS47L15_NUM_GPIOS;
+		break;
 	default:
 		break;
 	}
@@ -1248,6 +1251,9 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 	case CS47L24:
 		num_micbias_outputs = 1;
 		break;
+	case CS47L15:
+		num_micbias_outputs = CS47L15_NUM_CHILD_MICBIAS;
+		break;
 	case CS47L35:
 		num_micbias_outputs = MARLEY_NUM_CHILD_MICBIAS;
 		break;
@@ -1310,6 +1316,7 @@ const struct of_device_id arizona_of_match[] = {
 	{ .compatible = "wlf,wm8285", .data = (void *)WM8285 },
 	{ .compatible = "wlf,wm1840", .data = (void *)WM1840 },
 	{ .compatible = "wlf,wm1831", .data = (void *)WM1831 },
+	{ .compatible = "cirrus,cs47l15", .data = (void *)CS47L15 },
 	{ .compatible = "cirrus,cs47l24", .data = (void *)CS47L24 },
 	{ .compatible = "cirrus,cs47l35", .data = (void *)CS47L35 },
 	{ .compatible = "cirrus,cs47l85", .data = (void *)WM8285 },
@@ -1397,6 +1404,14 @@ static struct mfd_cell moon_devs[] = {
 	{ .name = "arizona-haptics" },
 	{ .name = "arizona-pwm" },
 	{ .name = "moon-codec" },
+};
+
+static struct mfd_cell cs47l15_devs[] = {
+	{ .name = "arizona-extcon" },
+	{ .name = "arizona-gpio" },
+	{ .name = "arizona-haptics" },
+	{ .name = "arizona-pwm" },
+	{ .name = "cs47l15-codec" },
 };
 
 static const struct {
@@ -1558,6 +1573,10 @@ int arizona_get_num_micbias(struct arizona *arizona,
 		num_micbiases = CLEARWATER_NUM_MICBIAS;
 		num_child_micbiases = 0;
 		break;
+	case CS47L15:
+		num_micbiases = CS47L15_NUM_MICBIAS;
+		num_child_micbiases = CS47L15_NUM_CHILD_MICBIAS;
+		break;
 	case CS47L35:
 		num_micbiases = MARLEY_NUM_MICBIAS;
 		num_child_micbiases = MARLEY_NUM_CHILD_MICBIAS;
@@ -1613,6 +1632,7 @@ int arizona_dev_init(struct arizona *arizona)
 	case WM8285:
 	case WM1840:
 	case WM1831:
+	case CS47L15:
 	case CS47L24:
 	case CS47L35:
 	case CS47L90:
@@ -1633,6 +1653,7 @@ int arizona_dev_init(struct arizona *arizona)
 
 	switch (arizona->type) {
 	case WM1831:
+	case CS47L15:
 	case CS47L24:
 	case CS47L35:
 	case CS47L90:
@@ -1727,6 +1748,7 @@ int arizona_dev_init(struct arizona *arizona)
 	case 0x6338:
 	case 0x6360:
 	case 0x6364:
+	case 0x6370:
 		break;
 	default:
 		dev_err(arizona->dev, "Unknown device ID: %x\n", reg);
@@ -1923,6 +1945,23 @@ int arizona_dev_init(struct arizona *arizona)
 		apply_patch = moon_patch;
 		break;
 #endif
+#ifdef CONFIG_MFD_CS47L15
+	case 0x6370:
+		switch (arizona->type) {
+		case CS47L15:
+			type_name = "CS47L15";
+			break;
+		default:
+			arizona->type = CS47L15;
+			dev_err(arizona->dev,
+				"CS47L15 codec registered as %d\n",
+				arizona->type);
+			break;
+		}
+
+		apply_patch = cs47l15_patch;
+		break;
+#endif
 	default:
 		dev_err(arizona->dev, "Unknown device ID %x\n", reg);
 		goto err_reset;
@@ -2087,6 +2126,9 @@ int arizona_dev_init(struct arizona *arizona)
 		settings for INxL and INxR are different*/
 		max_inputs = 3;
 		break;
+	case CS47L15:
+		max_inputs = 2;
+		break;
 	default:
 		/*DMIC Ref for IN3-5 is fixed for CS47L90 and
 		settings for INxL and INxR are different*/
@@ -2126,6 +2168,7 @@ int arizona_dev_init(struct arizona *arizona)
 			break;
 		case WM8998:
 		case WM1814:
+		case CS47L15:
 		case CS47L35:
 			val = arizona->pdata.dmic_ref[i]
 				<< ARIZONA_IN1_DMIC_SUP_SHIFT;
@@ -2247,6 +2290,10 @@ int arizona_dev_init(struct arizona *arizona)
 	case WM1840:
 		ret = mfd_add_devices(arizona->dev, -1, clearwater_devs,
 				      ARRAY_SIZE(clearwater_devs), NULL, 0, NULL);
+		break;
+	case CS47L15:
+		ret = mfd_add_devices(arizona->dev, -1, cs47l15_devs,
+				      ARRAY_SIZE(cs47l15_devs), NULL, 0, NULL);
 		break;
 	case CS47L35:
 		ret = mfd_add_devices(arizona->dev, -1, marley_devs,

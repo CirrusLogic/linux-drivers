@@ -31,6 +31,11 @@ extern const struct regmap_config clearwater_16bit_spi_regmap;
 extern const struct regmap_config clearwater_32bit_spi_regmap;
 extern const struct regmap_config clearwater_32bit_i2c_regmap;
 
+extern const struct regmap_config cs47l15_16bit_i2c_regmap;
+extern const struct regmap_config cs47l15_16bit_spi_regmap;
+extern const struct regmap_config cs47l15_32bit_spi_regmap;
+extern const struct regmap_config cs47l15_32bit_i2c_regmap;
+
 extern const struct regmap_config marley_16bit_i2c_regmap;
 extern const struct regmap_config marley_16bit_spi_regmap;
 extern const struct regmap_config marley_32bit_spi_regmap;
@@ -58,6 +63,7 @@ extern const struct regmap_irq_chip florida_aod;
 extern const struct regmap_irq_chip florida_irq;
 extern const struct regmap_irq_chip florida_revd_irq;
 
+extern const struct regmap_irq_chip cs47l15_irq;
 extern const struct regmap_irq_chip clearwater_irq;
 extern const struct regmap_irq_chip moon_irq;
 

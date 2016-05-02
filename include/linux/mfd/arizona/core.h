@@ -36,6 +36,7 @@ enum arizona_type {
 	CS47L35 = 11,
 	CS47L90 = 12,
 	CS47L91 = 13,
+	CS47L15 = 16,
 };
 
 #define ARIZONA_IRQ_GP1                    0
@@ -215,6 +216,7 @@ int clearwater_patch(struct arizona *arizona);
 int largo_patch(struct arizona *arizona);
 int marley_patch(struct arizona *arizona);
 int moon_patch(struct arizona *arizona);
+int cs47l15_patch(struct arizona *arizona);
 
 extern int arizona_of_get_named_gpio(struct arizona *arizona, const char *prop,
 				     bool mandatory);

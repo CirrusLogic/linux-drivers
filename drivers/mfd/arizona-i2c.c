@@ -79,6 +79,12 @@ static int arizona_i2c_probe(struct i2c_client *i2c,
 		regmap_32bit_config = &moon_32bit_i2c_regmap;
 		break;
 #endif
+#ifdef CONFIG_MFD_CS47L15
+	case CS47L15:
+		regmap_config = &cs47l15_16bit_i2c_regmap;
+		regmap_32bit_config = &cs47l15_32bit_i2c_regmap;
+		break;
+#endif
 	default:
 		dev_err(&i2c->dev, "Unknown device type %ld\n", type);
 		return -EINVAL;
@@ -132,6 +138,7 @@ static const struct i2c_device_id arizona_i2c_id[] = {
 	{ "wm1814", WM1814 },
 	{ "wm8285", WM8285 },
 	{ "wm1840", WM1840 },
+	{ "cs47l15", CS47L15 },
 	{ "cs47l35", CS47L35 },
 	{ "cs47l85", WM8285 },
 	{ "cs47l90", CS47L90 },

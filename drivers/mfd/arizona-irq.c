@@ -307,6 +307,15 @@ int arizona_irq_init(struct arizona *arizona)
 		irq_ctrl_reg = CLEARWATER_IRQ1_CTRL;
 		break;
 #endif
+#ifdef CONFIG_MFD_CS47L15
+	case CS47L15:
+		aod = &cs47l15_irq;
+		irq = NULL;
+
+		ctrlif_error = false;
+		irq_ctrl_reg = CLEARWATER_IRQ1_CTRL;
+		break;
+#endif
 	default:
 		BUG_ON("Unknown Arizona class device" == NULL);
 		return -EINVAL;

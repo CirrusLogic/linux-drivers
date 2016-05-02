@@ -16,6 +16,7 @@ Required properties:
         "wlf,wm8285"
         "wlf,wm1840"
         "wlf,wm1831"
+        "cirrus,cs47l15"
         "cirrus,cs47l24"
         "cirrus,cs47l85"
         "cirrus,cs47l35"
@@ -41,7 +42,8 @@ Required properties:
 
   - AVDD-supply, DBVDD1-supply, DBVDD2-supply, DBVDD3-supply (wm5102, wm5110),
     DBVDD4-supply (wm8285), CPVDD-supply, SPKVDDL-supply (wm5102, wm5110),
-    SPKVDDR-supply (wm5102, wm5110), SPKVDD-supply (wm8997, cs47l24, cs47l35) :
+    SPKVDDR-supply (wm5102, wm5110),
+    SPKVDD-supply (wm8997, cs47l15, cs47l24, cs47l35) :
     Power supplies for the device, as covered in
     Documentation/devicetree/bindings/regulator/regulator.txt
 
@@ -91,12 +93,11 @@ Optional properties:
     for headphone impedance measurement else the left headphone channel is
     used
   - wlf,micd-clamp-mode : Specifies the logic of the micdetect clamp block
-  - wlf,hpd-left-pins : This field is only for moon (cs47l90, cs47l91) class
-    of arizona codecs. It is a 2 cell long field where the first cell
-    represents the pin that needs to be unclamped when measuring headphone
-    left channel impedance as per the HPD_OUT_SEL field of HEADPHONE_DETECT_0
-    register and the second pin represents the impedance sense pin as per the
-    HPD_SENSE_SEL field of HEADPHONE_DETECT_0 register
+  - wlf,hpd-left-pins : (cs47l15, cs47l90, cs47l91) a 2 cell long field where
+    the first cell represents the pin that needs to be unclamped when measuring
+    headphone left channel impedance as per the HPD_OUT_SEL field of
+    HEADPHONE_DETECT_0 register and the second pin represents the impedance
+    sense pin as per the HPD_SENSE_SEL field of HEADPHONE_DETECT_0 register
   - wlf,hpd-right-pins : See wlf,hpd-left-pins which is for left headphone
     channel and this field is similar but for right headphone channel
   - wlf,micd-ranges : Microphone detection level and key configuration, this
@@ -105,30 +106,30 @@ Optional properties:
     The first cell is the maximum impedance for this button in ohms
     The second cell the key that should be reported to the input layer
   - wlf,micd-configs : Headset polarity configurations, the field can be of
-    variable length. But is should always be a multiple of 4 cells long for Moon
-    class (cs47l90, cs47l91) of Arizona chips and should always be a multiple
-    of 3 cells long for other Arizona chips, each two cell group represents one
-    polarity configration
-    For Moon class (cs47l90, cs47l91) of Arizona chips the first cell is the
+    variable length. But is should always be a multiple of
+      4 cells long for (cs47l15, cs47l90, cs47l91)
+      3 cells long for other Arizona chips
+    Each two cell group represents one polarity configration
+    For cs47l15, cs47l90, cs47l91 the first cell is the
     accessory detection source as per the MICD_SENSE_SEL field of
     MIC_DETECT_1_CONTROL_0 regiser and for other Arizona chips its the accessory
     detection source as per the ACCDET_SRC bits in the ACCESSORY_DETECT_MODE_1 register
-    For Moon class (cs47l90, cs47l91) of Arizona chips the second cell is the accessory
+    For cs47l15, cs47l90, cs47l91 the second cell is the accessory
     detection ground as per the MICD_GND_SEL field of MIC_DETECT_1_CONTROL_0 regiser
     and for other Arizona chips the second cell represents the MICBIAS to be used as
     per the MICD_BIAS_SRC bits in the MIC_DETECT_1 register
-    For Moon class (cs47l90, cs47l91) of Arizona chips the third cell represents
+    For cs47l15, cs47l90, cs47l91 the third cell represents
     the MICBIAS to be used as per the MICD_BIAS_SRC bits in the MIC_DETECT_1_CONTROL_1
     register and for other Arizona chips the third cell represents the value of the
     micd-pol-gpio pin, a non-zero value indicates this should be on
-    For Moon class (cs47l90, cs47l91) of Arizona chips the fourth cell represents
+    For cs47l15, cs47l90, cs47l91 the fourth cell represents
     the value of the micd-pol-gpio pin, a non-zero value indicates this should be on
     and for other Arizona chips there are only three cells and fourth cell should
     not be specified
   - wlf,micbias1 : Configuration for the micbias regulator, number of cells
     here will depend on the arizona chip and will be 4 + n (number of
-    children micbiases). For Marley (cs47l35) n is 2, for Moon
-    (cs47l90, cs47l91) n is 4 and for other arizona chips n is 1.
+    children micbiases). For Marley (cs47l35) n is 2, for cs47l15 n is 3,
+    for Moon (cs47l90, cs47l91) n is 4 and for other arizona chips n is 1.
     The first cell is the output voltage in millivolts
     The second cell a non-zero value indicates an external capacitor is fitted
     Starting from third cell the next n cells with a non-zero value indicates
@@ -155,12 +156,12 @@ Optional properties:
     wm8998: entries are for <IN1A, IN2A, IN1B, IN2B>
     cs47l85, wm8285, cs47l90, cs47l91: entries are for <IN1L, IN1R, IN2L,
     IN2R, IN3L, IN3R>
-    cs47l35: entries are for <IN1A, IN2, IN1B>
+    cs47l15, cs47l35: entries are for <IN1A, IN2, IN1B>
 
-  - wlf,dmic-clksrc : DMIC clock source for each input. This field is only for
-    moon class of arizona codecs (cs47l90, cs47l91) and a value of 0 will source
-    DMIC from internally generated clock within the ADC subsystem and a value of
-    1 will source DMIC and External digital speakers with same clock
+  - wlf,dmic-clksrc : (cs47l15, cs47l90, cs47l91) DMIC clock source for each
+    input. A value of 0 will source DMIC from internally generated clock within
+    the ADC subsystem and a value of 1 will source DMIC and External digital
+    speakers with same clock
 
   - wlf,gpio-defaults : A list of GPIO configuration register values. Defines
     for the appropriate values can found in <dt-bindings/mfd/arizona.txt>. If
