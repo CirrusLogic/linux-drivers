@@ -342,9 +342,6 @@ extern int moon_in_rate_put(struct snd_kcontrol *kcontrol,
 extern int moon_dfc_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 
-extern int moon_osr_put(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol);
-
 extern int moon_lp_mode_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 
