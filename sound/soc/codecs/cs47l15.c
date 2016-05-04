@@ -608,10 +608,8 @@ static DECLARE_TLV_DB_SCALE(ng_tlv, -12000, 600, 0);
 	SOC_SINGLE(name " NG SPKDAT1R Switch", base,  9, 1, 0)
 
 static const struct snd_kcontrol_new cs47l15_snd_controls[] = {
-SOC_ENUM_EXT("IN1 OSR", clearwater_in_dmic_osr[0],
-	snd_soc_get_enum_double, moon_osr_put),
-SOC_ENUM_EXT("IN2 OSR", clearwater_in_dmic_osr[1],
-	snd_soc_get_enum_double, moon_osr_put),
+SOC_ENUM("IN1 OSR", clearwater_in_dmic_osr[0]),
+SOC_ENUM("IN2 OSR", clearwater_in_dmic_osr[1]),
 
 SOC_SINGLE_RANGE_TLV("IN1L Volume", ARIZONA_IN1L_CONTROL,
 		     ARIZONA_IN1L_PGA_VOL_SHIFT, 0x40, 0x5f, 0, ana_tlv),
