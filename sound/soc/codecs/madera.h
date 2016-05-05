@@ -121,7 +121,6 @@ struct madera_priv {
 	unsigned int adsp_rate_cache[MADERA_MAX_ADSP];
 	struct mutex adsp_rate_lock;
 
-	struct mutex dspclk_ena_lock;
 	struct mutex rate_lock;
 	struct mutex adsp_fw_lock;
 
@@ -448,9 +447,6 @@ extern int madera_adsp_rate_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol);
 extern int madera_adsp_rate_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol);
-extern int madera_dspclk_ev(struct snd_soc_dapm_widget *w,
-			    struct snd_kcontrol *kcontrol, int event);
-
 extern int madera_set_adsp_clk(struct wm_adsp *dsp, unsigned int freq);
 
 extern int madera_rate_put(struct snd_kcontrol *kcontrol,
