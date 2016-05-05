@@ -587,7 +587,6 @@ int madera_core_init(struct madera_priv *priv)
 			madera_get_pdata_from_of(priv->madera);
 
 	mutex_init(&priv->adsp_rate_lock);
-	mutex_init(&priv->dspclk_ena_lock);
 	mutex_init(&priv->rate_lock);
 	mutex_init(&priv->adsp_fw_lock);
 
@@ -598,7 +597,6 @@ EXPORT_SYMBOL_GPL(madera_core_init);
 int madera_core_destroy(struct madera_priv *priv)
 {
 	mutex_destroy(&priv->adsp_rate_lock);
-	mutex_destroy(&priv->dspclk_ena_lock);
 	mutex_destroy(&priv->rate_lock);
 	mutex_destroy(&priv->adsp_fw_lock);
 
@@ -1151,27 +1149,6 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(madera_set_adsp_clk);
-
-int madera_dspclk_ev(struct snd_soc_dapm_widget *w,
-		     struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_REG:
-		mutex_lock(&priv->dspclk_ena_lock);
-		break;
-	case SND_SOC_DAPM_POST_REG:
-		mutex_unlock(&priv->dspclk_ena_lock);
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(madera_dspclk_ev);
 
 int madera_rate_put(struct snd_kcontrol *kcontrol,
 		    struct snd_ctl_elem_value *ucontrol)
