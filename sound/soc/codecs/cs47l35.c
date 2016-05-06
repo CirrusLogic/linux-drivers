@@ -1694,7 +1694,7 @@ static int cs47l35_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	ret = madera_init_spk(codec, 2);
+	ret = madera_init_spk(codec, 1);
 	if (ret)
 		return ret;
 
