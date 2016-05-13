@@ -2644,14 +2644,9 @@ const struct snd_kcontrol_new madera_dsp_trigger_output_mux[] = {
 };
 EXPORT_SYMBOL_GPL(madera_dsp_trigger_output_mux);
 
-static const struct soc_enum madera_drc_activity_output_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			ARRAY_SIZE(madera_disable_enable_texts),
-			madera_disable_enable_texts);
-
 const struct snd_kcontrol_new madera_drc_activity_output_mux[] = {
-	SOC_DAPM_ENUM("DRC1 Activity Output", madera_drc_activity_output_enum),
-	SOC_DAPM_ENUM("DRC2 Activity Output", madera_drc_activity_output_enum),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
 };
 EXPORT_SYMBOL_GPL(madera_drc_activity_output_mux);
 
