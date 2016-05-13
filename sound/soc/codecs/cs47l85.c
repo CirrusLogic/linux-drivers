@@ -2573,7 +2573,6 @@ static int cs47l85_codec_probe(struct snd_soc_codec *codec)
 		return ret;
 
 	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
-	snd_soc_dapm_disable_pin(&codec->dapm, "DSP Trigger Out");
 
 	ret = snd_soc_add_codec_controls(codec, madera_adsp_rate_controls,
 					 CS47L85_NUM_ADSP);
