@@ -2661,24 +2661,14 @@ exit:
 }
 EXPORT_SYMBOL_GPL(madera_lp_mode_put);
 
-static const char * const madera_disable_enable_texts[] = {
-	"Disable",
-	"Enable",
-};
-
-static const struct soc_enum madera_dsp_trigger_output_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			ARRAY_SIZE(madera_disable_enable_texts),
-			madera_disable_enable_texts);
-
 const struct snd_kcontrol_new madera_dsp_trigger_output_mux[] = {
-	SOC_DAPM_ENUM("DSP1 Trigger Output", madera_dsp_trigger_output_enum),
-	SOC_DAPM_ENUM("DSP2 Trigger Output", madera_dsp_trigger_output_enum),
-	SOC_DAPM_ENUM("DSP3 Trigger Output", madera_dsp_trigger_output_enum),
-	SOC_DAPM_ENUM("DSP4 Trigger Output", madera_dsp_trigger_output_enum),
-	SOC_DAPM_ENUM("DSP5 Trigger Output", madera_dsp_trigger_output_enum),
-	SOC_DAPM_ENUM("DSP6 Trigger Output", madera_dsp_trigger_output_enum),
-	SOC_DAPM_ENUM("DSP7 Trigger Output", madera_dsp_trigger_output_enum),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
 };
 EXPORT_SYMBOL_GPL(madera_dsp_trigger_output_mux);
 
