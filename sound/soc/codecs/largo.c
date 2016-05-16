@@ -1149,7 +1149,7 @@ static struct snd_soc_dai_driver largo_dai[] = {
 static void largo_compr_irq(struct largo_priv *largo, struct largo_compr *compr)
 {
 	struct arizona *arizona = largo->core.arizona;
-	bool trigger;
+	bool trigger = false;
 	int ret;
 
 	ret = wm_adsp_compr_irq(&compr->adsp_compr, &trigger);

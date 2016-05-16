@@ -2219,7 +2219,7 @@ static void florida_compr_irq(struct florida_priv *florida,
 				struct florida_compr *compr)
 {
 	struct arizona *arizona = florida->core.arizona;
-	bool trigger;
+	bool trigger = false;
 	int ret;
 
 	ret = wm_adsp_compr_irq(&compr->adsp_compr, &trigger);

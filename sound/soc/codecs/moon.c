@@ -2682,7 +2682,7 @@ static void moon_compr_irq(struct moon_priv *moon,
 			   struct moon_compr *compr)
 {
 	struct arizona *arizona = moon->core.arizona;
-	bool trigger;
+	bool trigger = false;
 	int ret;
 
 	ret = wm_adsp_compr_irq(&compr->adsp_compr, &trigger);

@@ -1960,7 +1960,7 @@ static void marley_compr_irq(struct marley_priv *marley,
 			     struct marley_compr *compr)
 {
 	struct arizona *arizona = marley->core.arizona;
-	bool trigger;
+	bool trigger = false;
 	int ret;
 
 	ret = wm_adsp_compr_irq(&compr->adsp_compr, &trigger);

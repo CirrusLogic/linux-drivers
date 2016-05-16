@@ -2743,7 +2743,7 @@ static void clearwater_compr_irq(struct clearwater_priv *clearwater,
 				 struct clearwater_compr *compr)
 {
 	struct arizona *arizona = clearwater->core.arizona;
-	bool trigger;
+	bool trigger = false;
 	int ret;
 
 	ret = wm_adsp_compr_irq(&compr->adsp_compr, &trigger);

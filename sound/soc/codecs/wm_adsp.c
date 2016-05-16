@@ -3668,11 +3668,11 @@ static int wm_adsp_buffer_has_error_locked(struct wm_adsp_compr_buf *buf)
 
 int wm_adsp_compr_irq(struct wm_adsp_compr *compr, bool *trigger)
 {
-	struct wm_adsp_compr_buf *buf = compr->buf;
+	struct wm_adsp_compr_buf *buf = &compr->dsp->compr_buf;
 	int ret;
 
 	if (!buf)
-		return 0;
+		return -ENODEV;
 
 	mutex_lock(&buf->lock);
 
