@@ -2509,7 +2509,7 @@ static void cs47l85_compr_irq(struct cs47l85 *cs47l85,
 {
 	struct madera *madera = cs47l85->core.madera;
 	struct madera_voice_trigger_info trig_info;
-	bool trigger;
+	bool trigger = false;
 	int ret;
 
 	ret = wm_adsp_compr_irq(&compr->adsp_compr, &trigger);
