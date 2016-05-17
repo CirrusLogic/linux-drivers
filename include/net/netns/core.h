@@ -10,6 +10,7 @@ struct netns_core {
 	struct ctl_table_header	*sysctl_hdr;
 
 	int	sysctl_somaxconn;
+	int	sysctl_android_paranoid;
 
 #ifdef CONFIG_PROC_FS
 	int __percpu *sock_inuse;
