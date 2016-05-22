@@ -700,7 +700,6 @@ SND_SOC_DAPM_SUPPLY("OPCLK", MADERA_OUTPUT_SYSTEM_CLOCK,
 SND_SOC_DAPM_SUPPLY("DSPCLK", MADERA_DSP_CLOCK_1, 6,
 		    0, NULL, 0),
 
-
 SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD2", 0, 0),
 SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD1", 20, 0),
 SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD2", 20, 0),
@@ -1805,7 +1804,6 @@ static int cs47l35_probe(struct platform_device *pdev)
 	ret = madera_core_init(&cs47l35->core);
 	if (ret)
 		return ret;
-
 
 	for (i = 0; i < CS47L35_NUM_ADSP; i++) {
 		cs47l35->core.adsp[i].part = "cs47l35";

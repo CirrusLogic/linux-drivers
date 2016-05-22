@@ -1055,7 +1055,6 @@ SND_SOC_DAPM_SUPPLY("ASYNCOPCLK", MADERA_OUTPUT_ASYNC_CLOCK,
 SND_SOC_DAPM_SUPPLY("DSPCLK", MADERA_DSP_CLOCK_1, 6,
 		    0, NULL, 0),
 
-
 SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD2", 0, 0),
 SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD3", 0, 0),
 SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD4", 0, 0),
@@ -1594,7 +1593,6 @@ MADERA_MUX_WIDGETS(ASRC2IN1L, "ASRC2IN1L"),
 MADERA_MUX_WIDGETS(ASRC2IN1R, "ASRC2IN1R"),
 MADERA_MUX_WIDGETS(ASRC2IN2L, "ASRC2IN2L"),
 MADERA_MUX_WIDGETS(ASRC2IN2R, "ASRC2IN2R"),
-
 
 MADERA_DSP_WIDGETS(DSP1, "DSP1"),
 MADERA_DSP_WIDGETS(DSP2, "DSP2"),
@@ -2715,7 +2713,6 @@ static int cs47l90_probe(struct platform_device *pdev)
 	/* Set of_node to parent from the SPI device to allow DAPM to
 	 * locate regulator supplies */
 	pdev->dev.of_node = madera->dev->of_node;
-
 
 	cs47l90->core.madera = madera;
 	cs47l90->core.num_inputs = 10;
