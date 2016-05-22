@@ -34,7 +34,7 @@
 
 #define CS47L90_NUM_ADSP 7
 
-struct cs47l90_priv {
+struct cs47l90 {
 	struct madera_priv core;
 	struct madera_fll fll[3];
 };
@@ -320,7 +320,7 @@ static int cs47l90_adsp_power_ev(struct snd_soc_dapm_widget *w,
 				    int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct cs47l90_priv *cs47l90 = snd_soc_codec_get_drvdata(codec);
+	struct cs47l90 *cs47l90 = snd_soc_codec_get_drvdata(codec);
 	struct madera_priv *priv = &cs47l90->core;
 	struct madera *madera = priv->madera;
 	unsigned int freq;
@@ -2174,7 +2174,7 @@ static const struct snd_soc_dapm_route cs47l90_dapm_routes[] = {
 static int cs47l90_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 			   unsigned int Fref, unsigned int Fout)
 {
-	struct cs47l90_priv *cs47l90 = snd_soc_codec_get_drvdata(codec);
+	struct cs47l90 *cs47l90 = snd_soc_codec_get_drvdata(codec);
 
 	switch (fll_id) {
 	case MADERA_FLL1_REFCLK:
@@ -2386,7 +2386,7 @@ static struct snd_soc_dai_driver cs47l90_dai[] = {
 static int cs47l90_open(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct cs47l90_priv *cs47l90 = snd_soc_codec_get_drvdata(rtd->codec);
+	struct cs47l90 *cs47l90 = snd_soc_codec_get_drvdata(rtd->codec);
 	struct madera_priv *priv = &cs47l90->core;
 	struct madera *madera = priv->madera;
 	int n_adsp;
@@ -2407,7 +2407,7 @@ static int cs47l90_open(struct snd_compr_stream *stream)
 
 static irqreturn_t cs47l90_adsp2_irq(int irq, void *data)
 {
-	struct cs47l90_priv *cs47l90 = data;
+	struct cs47l90 *cs47l90 = data;
 	struct madera_priv *priv = &cs47l90->core;
 	struct madera *madera = priv->madera;
 	int serviced = 0;
@@ -2460,7 +2460,7 @@ static const char * const cs47l90_dmic_inputs[] = {
 
 static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 {
-	struct cs47l90_priv *cs47l90 = snd_soc_codec_get_drvdata(codec);
+	struct cs47l90 *cs47l90 = snd_soc_codec_get_drvdata(codec);
 	struct madera *madera = cs47l90->core.madera;
 	int ret, i;
 
@@ -2516,7 +2516,7 @@ static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 static int cs47l90_codec_remove(struct snd_soc_codec *codec)
 {
 	int i;
-	struct cs47l90_priv *cs47l90 = snd_soc_codec_get_drvdata(codec);
+	struct cs47l90 *cs47l90 = snd_soc_codec_get_drvdata(codec);
 	struct madera *madera = cs47l90->core.madera;
 
 	for (i = 0; i < CS47L90_NUM_ADSP; i++) {
@@ -2546,7 +2546,7 @@ static unsigned int cs47l90_digital_vu[] = {
 
 static struct regmap *cs47l90_get_regmap(struct device *dev)
 {
-	struct cs47l90_priv *cs47l90 = dev_get_drvdata(dev);
+	struct cs47l90 *cs47l90 = dev_get_drvdata(dev);
 
 	return cs47l90->core.madera->regmap;
 }
@@ -2586,7 +2586,7 @@ static struct snd_soc_platform_driver cs47l90_compr_platform = {
 static int cs47l90_probe(struct platform_device *pdev)
 {
 	struct madera *madera = dev_get_drvdata(pdev->dev.parent);
-	struct cs47l90_priv *cs47l90;
+	struct cs47l90 *cs47l90;
 	int i, ret;
 
 	BUILD_BUG_ON(ARRAY_SIZE(cs47l90_dai) > MADERA_MAX_DAI);
@@ -2601,7 +2601,7 @@ static int cs47l90_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 
-	cs47l90 = devm_kzalloc(&pdev->dev, sizeof(struct cs47l90_priv),
+	cs47l90 = devm_kzalloc(&pdev->dev, sizeof(struct cs47l90),
 			      GFP_KERNEL);
 	if (!cs47l90)
 		return -ENOMEM;
@@ -2689,7 +2689,7 @@ error_core:
 
 static int cs47l90_remove(struct platform_device *pdev)
 {
-	struct cs47l90_priv *cs47l90 = platform_get_drvdata(pdev);
+	struct cs47l90 *cs47l90 = platform_get_drvdata(pdev);
 	int i;
 
 	snd_soc_unregister_platform(&pdev->dev);
