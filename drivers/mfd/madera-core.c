@@ -716,7 +716,7 @@ int madera_dev_init(struct madera *madera)
 				      madera->core_supplies);
 	if (ret) {
 		dev_err(dev, "Failed to request core supplies: %d\n", ret);
-		return ret;
+		goto err_devs;
 	}
 
 	/**
