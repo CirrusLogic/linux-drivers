@@ -689,6 +689,10 @@ int madera_dev_init(struct madera *madera)
 	regcache_cache_only(madera->regmap, true);
 	regcache_cache_only(madera->regmap_32bit, true);
 
+	for (i = 0; i < ARRAY_SIZE(madera_core_supplies); i++)
+		madera->core_supplies[i].supply = madera_core_supplies[i];
+	madera->num_core_supplies = ARRAY_SIZE(madera_core_supplies);
+
 	switch (madera->type) {
 	case CS47L35:
 	case CS47L90:
