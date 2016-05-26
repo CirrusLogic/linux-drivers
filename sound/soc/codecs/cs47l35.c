@@ -1449,7 +1449,7 @@ static struct snd_soc_dai_driver cs47l35_dai[] = {
 	},
 	{
 		.name = "cs47l35-slim1",
-		.id = 5,
+		.id = 4,
 		.playback = {
 			.stream_name = "Slim1 Playback",
 			.channels_min = 1,
@@ -1468,7 +1468,7 @@ static struct snd_soc_dai_driver cs47l35_dai[] = {
 	},
 	{
 		.name = "cs47l35-slim2",
-		.id = 6,
+		.id = 5,
 		.playback = {
 			.stream_name = "Slim2 Playback",
 			.channels_min = 1,
