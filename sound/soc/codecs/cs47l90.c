@@ -2504,8 +2504,14 @@ static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 						cs47l90_dsp_bus_error);
 		if (ret) {
 			madera_free_irq(madera, MADERA_IRQ_DSP_IRQ1, cs47l90);
-			for (--i; i >= 0; --i)
+			wm_adsp2_codec_remove(&cs47l90->core.adsp[i], codec);
+
+			for (--i; i >= 0; --i) {
+				wm_adsp2_codec_remove(&cs47l90->core.adsp[i],
+						      codec);
 				madera_destroy_bus_error_irq(codec, i);
+			}
+
 			return ret;
 		}
 	}
