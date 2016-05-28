@@ -271,7 +271,7 @@ int madera_irq_probe(struct platform_device *pdev)
 	int flags = IRQF_ONESHOT;
 	int ret;
 
-	dev_dbg(&pdev->dev, "probe\n"),
+	dev_dbg(&pdev->dev, "probe\n");
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
