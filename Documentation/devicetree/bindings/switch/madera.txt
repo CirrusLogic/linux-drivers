@@ -97,7 +97,7 @@ Child node optional properties:
     fourth cell is the value of the micd-pol-gpio pin, a non-zero value
       indicates this should be on
     fifth cell is
-      set to zero (cs47l35, cs47l85)
+      set to zero (cs47l35, cs47l85, wm1840)
       value of HPn_GND_SEL register field (all other codecs)
 
 Example:
