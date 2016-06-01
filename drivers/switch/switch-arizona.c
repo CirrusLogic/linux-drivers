@@ -400,6 +400,10 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 			edre_val = 0;
 		}
 		break;
+	case CS47L15:
+		regmap_read(arizona->regmap, ARIZONA_OUTPUT_ENABLES_1, &ep_sel);
+		ep_sel &= ARIZONA_EP_SEL_MASK;
+		/* fall through to CS47L90 case to set common variables */
 	case CS47L90:
 	case CS47L91:
 		mask = MOON_HPD_OVD_ENA_SEL_MASK;
@@ -483,6 +487,16 @@ static const char *arizona_extcon_get_micbias_src(
 	struct arizona *arizona = info->arizona;
 
 	switch (arizona->type) {
+	case CS47L15:
+		switch (bias) {
+		case 0:
+		case 1:
+		case 2:
+			return "MICBIAS1";
+		default:
+			return "MICVDD";
+		}
+		break;
 	case CS47L90:
 	case CS47L91:
 		switch (bias) {
@@ -518,6 +532,7 @@ static int arizona_extcon_set_micd_bias(struct arizona_extcon_info *info,
 	int ret = 0;
 
 	switch (arizona->type) {
+	case CS47L15:
 	case CS47L90:
 	case CS47L91:
 		break;
@@ -612,6 +627,18 @@ static const char *arizona_extcon_get_micbias(struct arizona_extcon_info *info)
 	struct arizona *arizona = info->arizona;
 
 	switch (arizona->type) {
+	case CS47L15:
+		switch (info->micd_modes[info->micd_mode].bias) {
+		case 0:
+			return "MICBIAS1A";
+		case 1:
+			return "MICBIAS1B";
+		case 2:
+			return "MICBIAS1C";
+		default:
+			return "MICVDD";
+		}
+		break;
 	case CS47L35:
 		switch (info->micd_modes[info->micd_mode].bias) {
 		case 1:
@@ -1773,6 +1800,30 @@ static void arizona_hpdet_stop_micd(struct arizona_extcon_info *info)
 		     CLEARWATER_IM_MICDET_EINT1, 0);
 }
 
+static void arizona_hpdet_reset(struct arizona_extcon_info *info)
+{
+	struct arizona *arizona = info->arizona;
+	int init_range;
+
+	switch (arizona->type) {
+	case CS47L15:
+		/* all measurements are offset by 33 ohms
+		 * so can never be in range 0
+		 */
+		init_range = 1 << ARIZONA_HP_IMPEDANCE_RANGE_SHIFT;
+		break;
+	default:
+		init_range = 0;
+		break;
+	}
+
+	/* Stop HPDET and reset to starting range */
+	regmap_update_bits(arizona->regmap,
+			   ARIZONA_HEADPHONE_DETECT_1,
+			   ARIZONA_HP_IMPEDANCE_RANGE_MASK |
+			   ARIZONA_HP_POLL, init_range);
+}
+
 int arizona_hpdet_start(struct arizona_extcon_info *info)
 {
 	struct arizona *arizona = info->arizona;
@@ -1867,10 +1918,7 @@ void arizona_hpdet_restart(struct arizona_extcon_info *info)
 	/* Reset back to starting range */
 	regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
 			   ARIZONA_MICD_ENA, 0);
-	regmap_update_bits(arizona->regmap,
-			   ARIZONA_HEADPHONE_DETECT_1,
-			   ARIZONA_HP_IMPEDANCE_RANGE_MASK |
-			   ARIZONA_HP_POLL, 0);
+	arizona_hpdet_reset(info);
 
 	switch (info->accdet_ip) {
 	case 0:
@@ -1893,11 +1941,7 @@ void arizona_hpdet_stop(struct arizona_extcon_info *info)
 
 	/* Reset back to starting range */
 	arizona_hpdet_stop_micd(info);
-
-	regmap_update_bits(arizona->regmap,
-			   ARIZONA_HEADPHONE_DETECT_1,
-			   ARIZONA_HP_IMPEDANCE_RANGE_MASK |
-			   ARIZONA_HP_POLL, 0);
+	arizona_hpdet_reset(info);
 
 	switch (info->accdet_ip) {
 	case 0:
@@ -3683,6 +3727,17 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		arizona_hpdet_clearwater_read_calibration(info);
 		if (!info->hpdet_d_trims) {
 			info->hpdet_ip_version = 2;
+
+			switch (arizona->type) {
+			case CS47L15:
+				/* if uncalibratied we must compensate for
+				 * the internal 33 ohm offset
+				 */
+				pdata->hpdet_ext_res += 33;
+				break;
+			default:
+				break;
+			}
 		} else {
 			switch (arizona->type) {
 			case CS47L35:
