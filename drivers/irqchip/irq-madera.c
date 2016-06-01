@@ -35,7 +35,7 @@ struct madera_irq_priv {
 	unsigned int irq_flags;
 	int irq_gpio;
 	struct regmap_irq_chip_data *irq_data;
-	struct irq_domain *edge_domain;
+	struct irq_domain *domain;
 	struct madera *madera;
 };
 
@@ -90,14 +90,17 @@ int madera_set_irq_wake(struct madera *madera, int irq, int on)
 }
 EXPORT_SYMBOL_GPL(madera_set_irq_wake);
 
-static irqreturn_t madera_edge_irq_thread(int irq, void *data)
+static irqreturn_t madera_irq_thread(int irq, void *data)
 {
 	struct madera_irq_priv *priv = data;
 	bool poll;
 	int ret;
 
-	dev_dbg(priv->dev, "edge_irq_thread handler\n");
+	dev_dbg(priv->dev, "irq_thread handler\n");
 
+	/* The codec can generate IRQs while it is in low-power mode so
+	 * we must do a runtime get before dispatching the IRQ
+	 */
 	ret = pm_runtime_get_sync(priv->madera->dev);
 	if (ret < 0) {
 		dev_err(priv->dev, "Failed to resume device: %d\n", ret);
@@ -107,7 +110,7 @@ static irqreturn_t madera_edge_irq_thread(int irq, void *data)
 	do {
 		poll = false;
 
-		handle_nested_irq(irq_find_mapping(priv->edge_domain, 0));
+		handle_nested_irq(irq_find_mapping(priv->domain, 0));
 
 		/*
 		 * Poll the IRQ pin status to see if we're really done
@@ -130,37 +133,37 @@ static irqreturn_t madera_edge_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void madera_edge_irq_dummy(struct irq_data *data)
+static void madera_irq_dummy(struct irq_data *data)
 {
 }
 
-static int madera_edge_irq_set_wake(struct irq_data *data, unsigned int on)
+static int madera_irq_set_wake(struct irq_data *data, unsigned int on)
 {
 	struct madera_irq_priv *priv = irq_data_get_irq_chip_data(data);
 
 	return irq_set_irq_wake(priv->irq, on);
 }
 
-static struct irq_chip madera_edge_irq_chip = {
+static struct irq_chip madera_irq_chip = {
 	.name		= "madera",
-	.irq_disable	= madera_edge_irq_dummy,
-	.irq_enable	= madera_edge_irq_dummy,
-	.irq_ack	= madera_edge_irq_dummy,
-	.irq_mask	= madera_edge_irq_dummy,
-	.irq_unmask	= madera_edge_irq_dummy,
-	.irq_set_wake	= madera_edge_irq_set_wake,
+	.irq_disable	= madera_irq_dummy,
+	.irq_enable	= madera_irq_dummy,
+	.irq_ack	= madera_irq_dummy,
+	.irq_mask	= madera_irq_dummy,
+	.irq_unmask	= madera_irq_dummy,
+	.irq_set_wake	= madera_irq_set_wake,
 };
 
 static struct lock_class_key madera_irq_lock_class;
 
-static int madera_edge_irq_map(struct irq_domain *h, unsigned int virq,
-				irq_hw_number_t hw)
+static int madera_irq_map(struct irq_domain *h, unsigned int virq,
+			  irq_hw_number_t hw)
 {
 	struct madera_irq_priv *priv = h->host_data;
 
 	irq_set_chip_data(virq, priv);
 	irq_set_lockdep_class(virq, &madera_irq_lock_class);
-	irq_set_chip_and_handler(virq, &madera_edge_irq_chip, handle_edge_irq);
+	irq_set_chip_and_handler(virq, &madera_irq_chip, handle_simple_irq);
 	irq_set_nested_thread(virq, true);
 
 	/* ARM needs us to explicitly flag the IRQ as valid
@@ -173,8 +176,8 @@ static int madera_edge_irq_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static const struct irq_domain_ops madera_edge_domain_ops = {
-	.map	= madera_edge_irq_map,
+static const struct irq_domain_ops madera_domain_ops = {
+	.map	= madera_irq_map,
 	.xlate	= irq_domain_xlate_twocell,
 };
 
@@ -384,43 +387,29 @@ int madera_irq_probe(struct platform_device *pdev)
 
 		dev_dbg(priv->dev, "edge-trigger mode irq_gpio=%d\n",
 			priv->irq_gpio);
-
-		priv->edge_domain = irq_domain_add_linear(NULL, 1,
-							&madera_edge_domain_ops,
-							priv);
-
-		ret = regmap_add_irq_chip(madera->regmap,
-					  irq_create_mapping(priv->edge_domain,
-							     0),
-					  IRQF_ONESHOT, 0, irq,
-					  &priv->irq_data);
-		if (ret) {
-			dev_err(priv->dev, "add_irq_chip failed: %d\n", ret);
-			return ret;
-		}
-
-		ret = request_threaded_irq(priv->irq, NULL,
-					   madera_edge_irq_thread,
-					   flags, "madera", priv);
-
-		if (ret) {
-			dev_err(priv->dev,
-				"Failed to request threaded irq %d: %d\n",
-				priv->irq, ret);
-			regmap_del_irq_chip(priv->irq, priv->irq_data);
-			return ret;
-		}
 	} else {
 		dev_dbg(priv->dev, "level-trigger mode\n");
+	}
 
-		ret = regmap_add_irq_chip(madera->regmap,
-					  priv->irq,
-					  IRQF_ONESHOT, 0, irq,
-					  &priv->irq_data);
-		if (ret) {
-			dev_err(priv->dev, "add_irq_chip failed: %d\n", ret);
-			return ret;
-		}
+	priv->domain = irq_domain_add_linear(NULL, 1, &madera_domain_ops, priv);
+
+	ret = regmap_add_irq_chip(madera->regmap,
+				  irq_create_mapping(priv->domain, 0),
+				  IRQF_ONESHOT, 0, irq,
+				  &priv->irq_data);
+	if (ret) {
+		dev_err(priv->dev, "add_irq_chip failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = request_threaded_irq(priv->irq, NULL, madera_irq_thread,
+				   flags, "madera", priv);
+	if (ret) {
+		dev_err(priv->dev,
+			"Failed to request threaded irq %d: %d\n",
+			priv->irq, ret);
+		regmap_del_irq_chip(priv->irq, priv->irq_data);
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, priv);
