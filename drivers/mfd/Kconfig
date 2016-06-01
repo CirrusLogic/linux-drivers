@@ -149,7 +149,7 @@ config MFD_CS47L35
 	bool "Cirrus Logic CS47L35"
 	depends on MFD_MADERA
 	help
-	  Support for Cirrus Logic CS47L85 Smart Codec
+	  Support for Cirrus Logic CS47L35 Smart Codec
 
 config MFD_CS47L85
 	bool "Cirrus Logic CS47L85"
