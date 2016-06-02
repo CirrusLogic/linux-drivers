@@ -32,13 +32,13 @@ obj-$(CONFIG_I8259)			+= irq-i8259.o
 obj-$(CONFIG_IMGPDC_IRQ)		+= irq-imgpdc.o
 obj-$(CONFIG_IRQ_MIPS_CPU)		+= irq-mips-cpu.o
 obj-$(CONFIG_MADERA_IRQ)		+= irq-madera.o
-ifneq ($(CONFIG_MMADERA_IRQ_CS47L35),n)
+ifeq ($(CONFIG_MADERA_IRQ_CS47L35),y)
 obj-$(CONFIG_MADERA_IRQ)		+= irq-madera-cs47l35.o
 endif
-ifneq ($(CONFIG_MMADERA_IRQ_CS47L85),n)
+ifeq ($(CONFIG_MADERA_IRQ_CS47L85),y)
 obj-$(CONFIG_MADERA_IRQ)		+= irq-madera-cs47l85.o
 endif
-ifneq ($(CONFIG_MMADERA_IRQ_CS47L90),n)
+ifeq ($(CONFIG_MADERA_IRQ_CS47L90),y)
 obj-$(CONFIG_MADERA_IRQ)		+= irq-madera-cs47l90.o
 endif
 obj-$(CONFIG_SIRF_IRQ)			+= irq-sirfsoc.o
