@@ -65,13 +65,13 @@ obj-$(CONFIG_MFD_WM8994)	+= wm8994-core.o wm8994-irq.o wm8994-regmap.o
 obj-$(CONFIG_MFD_MADERA)	+= madera-core.o
 obj-$(CONFIG_MFD_MADERA_I2C)	+= madera-i2c.o
 obj-$(CONFIG_MFD_MADERA_SPI)	+= madera-spi.o
-ifneq ($(CONFIG_MFD_CS47L35),n)
+ifeq ($(CONFIG_MFD_CS47L35),y)
 obj-$(CONFIG_MFD_MADERA)	+= cs47l35-tables.o
 endif
-ifneq ($(CONFIG_MFD_CS47L85),n)
+ifeq ($(CONFIG_MFD_CS47L85),y)
 obj-$(CONFIG_MFD_MADERA)	+= cs47l85-tables.o
 endif
-ifneq ($(CONFIG_MFD_CS47L90),n)
+ifeq ($(CONFIG_MFD_CS47L90),y)
 obj-$(CONFIG_MFD_MADERA)	+= cs47l90-tables.o
 endif
 
