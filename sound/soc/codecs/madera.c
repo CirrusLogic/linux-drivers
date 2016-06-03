@@ -1667,6 +1667,8 @@ const char * const madera_mixer_texts[] = {
 	"ISRC4INT2",
 	"ISRC4DEC1",
 	"ISRC4DEC2",
+	"Ultrasonic1",
+	"Ultrasonic2",
 	"DFC1",
 	"DFC2",
 	"DFC3",
@@ -1817,6 +1819,8 @@ unsigned int madera_mixer_values[] = {
 	0xb9,
 	0xbc,	/* ISRC4DEC1 */
 	0xbd,
+	0xf0,	/* Ultrasonic1 */
+	0xf1,
 	0xf8,	/* DFC1 */
 	0xf9,
 	0xfa,
@@ -2774,6 +2778,8 @@ int madera_out_ev(struct snd_soc_dapm_widget *w,
 	switch (madera->type) {
 	case CS47L90:
 	case CS47L91:
+	case CS47L92:
+	case CS47L93:
 		out_up_delay = 6;
 		break;
 	default:
