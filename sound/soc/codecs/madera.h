@@ -96,6 +96,11 @@ struct madera;
 struct wm_adsp;
 struct madera_jd_state;
 
+struct madera_voice_trigger_info {
+	/** Which core triggered, 1-based (1 = DSP1, ...) */
+	int core_num;
+};
+
 struct madera_dai_priv {
 	int clk;
 	struct snd_pcm_hw_constraint_list constraint;
