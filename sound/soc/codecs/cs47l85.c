@@ -2508,6 +2508,7 @@ static void cs47l85_compr_irq(struct cs47l85 *cs47l85,
 			      struct cs47l85_compr *compr)
 {
 	struct madera *madera = cs47l85->core.madera;
+	struct madera_voice_trigger_info trig_info;
 	bool trigger;
 	int ret;
 
@@ -2519,10 +2520,10 @@ static void cs47l85_compr_irq(struct cs47l85 *cs47l85,
 		mutex_lock(&compr->trig_lock);
 		if (!compr->trig) {
 			compr->trig = true;
-
+			trig_info.core_num = compr->adsp_compr.dsp->num;
 			madera_call_notifiers(madera,
 					      MADERA_NOTIFY_VOICE_TRIGGER,
-					      NULL);
+					      &trig_info);
 		}
 		mutex_unlock(&compr->trig_lock);
 	}
