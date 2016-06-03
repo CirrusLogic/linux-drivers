@@ -74,6 +74,9 @@ endif
 ifeq ($(CONFIG_MFD_CS47L90),y)
 obj-$(CONFIG_MFD_MADERA)	+= cs47l90-tables.o
 endif
+ifeq ($(CONFIG_MFD_CS47L92),y)
+obj-$(CONFIG_MFD_MADERA)	+= cs47l92-tables.o
+endif
 
 obj-$(CONFIG_TPS6105X)		+= tps6105x.o
 obj-$(CONFIG_TPS65010)		+= tps65010.o

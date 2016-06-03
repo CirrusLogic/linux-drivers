@@ -293,6 +293,11 @@ int madera_irq_probe(struct platform_device *pdev)
 		if (IS_ENABLED(CONFIG_MADERA_IRQ_CS47L90))
 			irq = &cs47l90_irq;
 		break;
+	case CS47L92:
+	case CS47L93:
+		if (IS_ENABLED(CONFIG_MADERA_IRQ_CS47L92))
+			irq = &cs47l92_irq;
+		break;
 	default:
 		dev_err(madera->dev, "Unsupported Madera device type %d\n",
 			madera->type);

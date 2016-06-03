@@ -787,7 +787,8 @@ static const char *madera_extcon_get_micbias_src(struct madera_extcon_info *info
 	case CS47L85:
 	case WM1840:
 		return NULL;
-	default:
+	case CS47L90:
+	case CS47L91:
 		switch (bias) {
 		case 0:
 		case 1:
@@ -798,6 +799,20 @@ static const char *madera_extcon_get_micbias_src(struct madera_extcon_info *info
 		case 5:
 		case 6:
 		case 7:
+			return "MICBIAS2";
+		default:
+			return "MICVDD";
+		}
+		break;
+	default:
+		switch (bias) {
+		case 0:
+		case 1:
+		case 2:
+		case 3:
+			return "MICBIAS1";
+		case 4:
+		case 5:
 			return "MICBIAS2";
 		default:
 			return "MICVDD";
@@ -848,7 +863,8 @@ static const char *madera_extcon_get_micbias(struct madera_extcon_info *info)
 		default:
 			return "MICVDD";
 		}
-	default:
+	case CS47L90:
+	case CS47L91:
 		switch (bias) {
 		case 0:
 			return "MICBIAS1A";
@@ -866,6 +882,23 @@ static const char *madera_extcon_get_micbias(struct madera_extcon_info *info)
 			return "MICBIAS2C";
 		case 7:
 			return "MICBIAS2D";
+		default:
+			return "MICVDD";
+		}
+	default:
+		switch (bias) {
+		case 0:
+			return "MICBIAS1A";
+		case 1:
+			return "MICBIAS1B";
+		case 2:
+			return "MICBIAS1C";
+		case 3:
+			return "MICBIAS1D";
+		case 4:
+			return "MICBIAS2A";
+		case 5:
+			return "MICBIAS2B";
 		default:
 			return "MICVDD";
 		}
@@ -2994,6 +3027,8 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	switch (madera->type) {
 	case CS47L90:
 	case CS47L91:
+	case CS47L92:
+	case CS47L93:
 		if (madera->pdata.gpsw[1] > 0)
 			regmap_update_bits(madera->regmap,
 					   MADERA_GP_SWITCH_1,

@@ -9,7 +9,8 @@ Optional properties:
     A value of 0 indicates MICVDD and is the default, other
     values depend on the codec - see the datasheet for the INn_DMIC_SUP field
 
-  - cirrus,dmic-clksrc : DMIC clock source for each input (CS47L90, CS47L91).
+  - cirrus,dmic-clksrc : DMIC clock source for each input (CS47L90, CS47L91,
+    CS47L92, CS47L93).
     One cell per input. A value of 0 will source DMIC from the internally
     generated clock within the ADC subsystem and a value of 1 will source DMIC
     and External digital speakers with same clock
