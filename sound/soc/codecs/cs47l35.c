@@ -1523,6 +1523,7 @@ static irqreturn_t cs47l35_adsp2_irq(int irq, void *data)
 	struct cs47l35 *cs47l35 = data;
 	struct madera_priv *priv = &cs47l35->core;
 	struct madera *madera = priv->madera;
+	struct madera_voice_trigger_info trig_info;
 	int serviced = 0;
 	int i, ret;
 
@@ -1530,10 +1531,12 @@ static irqreturn_t cs47l35_adsp2_irq(int irq, void *data)
 		ret = wm_adsp_compr_handle_irq(&priv->adsp[i]);
 		if (ret != -ENODEV)
 			serviced++;
-		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER)
+		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER) {
+			trig_info.core_num = i + 1;
 			madera_call_notifiers(madera,
 					      MADERA_NOTIFY_VOICE_TRIGGER,
-					      (void *)i);
+					      &trig_info);
+		}
 	}
 
 	if (!serviced) {
