@@ -1450,7 +1450,9 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		 wm_adsp_fw[dsp->fw].file);
 	file[PAGE_SIZE - 1] = '\0';
 
+	mutex_lock(dsp->fw_lock);
 	ret = request_firmware(&firmware, file, dsp->dev);
+	mutex_unlock(dsp->fw_lock);
 	if (ret != 0) {
 		adsp_err(dsp, "Failed to request '%s'\n", file);
 		goto out;
@@ -2012,7 +2014,9 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 		 wm_adsp_fw[dsp->fw].file);
 	file[PAGE_SIZE - 1] = '\0';
 
+	mutex_lock(dsp->fw_lock);
 	ret = request_firmware(&firmware, file, dsp->dev);
+	mutex_unlock(dsp->fw_lock);
 	if (ret != 0) {
 		adsp_warn(dsp, "Failed to request '%s'\n", file);
 		ret = 0;
@@ -2567,7 +2571,7 @@ int wm_adsp2_codec_remove(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_codec_remove);
 
-int wm_adsp2_init(struct wm_adsp *dsp)
+int wm_adsp2_init(struct wm_adsp *dsp, struct mutex *fw_lock)
 {
 	int ret;
 
@@ -2594,6 +2598,8 @@ int wm_adsp2_init(struct wm_adsp *dsp)
 	INIT_WORK(&dsp->boot_work, wm_adsp2_boot_work);
 
 	mutex_init(&dsp->pwr_lock);
+
+	dsp->fw_lock = fw_lock;
 
 	return 0;
 }
