@@ -65,7 +65,7 @@ struct wm_adsp_fw_caps {
 	u32 id;
 	struct snd_codec_desc desc;
 	int num_regions;
-	const struct wm_adsp_buffer_region_def *region_defs;
+	struct wm_adsp_buffer_region_def *region_defs;
 };
 
 struct wm_adsp_fw_defs {
@@ -74,7 +74,7 @@ struct wm_adsp_fw_defs {
 	bool fullname;
 	int compr_direction;
 	int num_caps;
-	const struct wm_adsp_fw_caps *caps;
+	struct wm_adsp_fw_caps *caps;
 	bool voice_trigger;
 };
 
@@ -113,6 +113,7 @@ struct wm_adsp {
 
 	int num_firmwares;
 	struct wm_adsp_fw_defs *firmwares;
+	struct soc_enum *firmware_texts;
 
 	struct list_head ctl_list;
 

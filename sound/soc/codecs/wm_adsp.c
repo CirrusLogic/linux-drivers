@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/list.h>
+#include <linux/of.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -645,7 +646,7 @@ struct wm_adsp_buffer_region {
 	unsigned int base_addr;
 };
 
-static const struct wm_adsp_buffer_region_def default_regions[] = {
+static struct wm_adsp_buffer_region_def default_regions[] = {
 	{
 		.mem_type = WMFW_ADSP2_XM,
 		.base_offset = HOST_BUFFER_FIELD(X_buf_base),
@@ -663,7 +664,7 @@ static const struct wm_adsp_buffer_region_def default_regions[] = {
 	},
 };
 
-static const struct wm_adsp_fw_caps ctrl_caps[] = {
+static struct wm_adsp_fw_caps ctrl_caps[] = {
 	{
 		.id = ((__u32) 0x0000000E),
 		.desc = {
@@ -677,7 +678,7 @@ static const struct wm_adsp_fw_caps ctrl_caps[] = {
 	},
 };
 
-static const struct wm_adsp_fw_caps trace_caps[] = {
+static struct wm_adsp_fw_caps trace_caps[] = {
 	{
 		.id = ((__u32) 0x0000000E),
 		.desc = {
@@ -980,7 +981,7 @@ static int wm_adsp_fw_put(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 
-static const struct soc_enum wm_adsp_fw_enum[] = {
+static struct soc_enum wm_adsp_fw_enum[] = {
 	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(wm_adsp_fw_text), wm_adsp_fw_text),
 	SOC_ENUM_SINGLE(0, 1, ARRAY_SIZE(wm_adsp_fw_text), wm_adsp_fw_text),
 	SOC_ENUM_SINGLE(0, 2, ARRAY_SIZE(wm_adsp_fw_text), wm_adsp_fw_text),
@@ -1008,8 +1009,12 @@ const struct snd_kcontrol_new wm_adsp_fw_controls[] = {
 };
 EXPORT_SYMBOL_GPL(wm_adsp_fw_controls);
 
+static struct soc_enum wm_adsp_ao_fw_enum[] = {
+	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(wm_adsp_fw_text), wm_adsp_fw_text),
+};
+
 static const struct snd_kcontrol_new wm_adsp_ao_fw_controls[] = {
-	SOC_ENUM_EXT("DSP1AO Firmware", wm_adsp_fw_enum[0],
+	SOC_ENUM_EXT("DSP1AO Firmware", wm_adsp_ao_fw_enum[0],
 		     wm_adsp_fw_get, wm_adsp_fw_put),
 };
 
@@ -1657,7 +1662,7 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	case WMFW_ADSP1:
 	case WMFW_ADSP2:
 	case WMFW_HALO:
-		fw_txt = wm_adsp_fw_text[dsp->fw];
+		fw_txt = dsp->firmware_texts->texts[dsp->fw];
 		break;
 	default:
 		adsp_err(dsp, "Unknown Architecture type: %d\n", dsp->type);
@@ -2307,7 +2312,7 @@ static void wm_adsp_ctl_fixup_base(struct wm_adsp *dsp,
 	case WMFW_ADSP1:
 	case WMFW_ADSP2:
 	case WMFW_HALO:
-		fw_txt = wm_adsp_fw_text[dsp->fw];
+		fw_txt = dsp->firmware_texts->texts[dsp->fw];
 		break;
 	default:
 		return;
@@ -3091,19 +3096,6 @@ out:
 	kfree(file);
 	return ret;
 }
-
-int wm_adsp1_init(struct wm_adsp *dsp)
-{
-	INIT_LIST_HEAD(&dsp->alg_regions);
-
-	mutex_init(&dsp->pwr_lock);
-
-	dsp->num_firmwares = ARRAY_SIZE(wm_adsp_fw);
-	dsp->firmwares = wm_adsp_fw;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(wm_adsp1_init);
 
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol,
@@ -4063,6 +4055,181 @@ int wm_adsp2_codec_remove(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_codec_remove);
 
+#ifdef CONFIG_OF
+static int wm_adsp_of_parse_caps(struct wm_adsp *dsp,
+				 struct device_node *np,
+				 struct wm_adsp_fw_defs *fw)
+{
+	const char *prop = "cirrus,compr-caps";
+	int i;
+	int len_prop;
+	u32 of_cap;
+
+	if (!of_get_property(np, prop, &len_prop))
+		return -EINVAL;
+
+	len_prop /= sizeof(u32);
+
+	if (len_prop < 5 || len_prop > 4 + MAX_NUM_SAMPLE_RATES)
+		return -EOVERFLOW;
+
+	fw->num_caps = 1;
+	fw->caps = devm_kzalloc(dsp->dev,
+				sizeof(struct wm_adsp_fw_caps),
+				GFP_KERNEL);
+	if (!fw->caps)
+		return -ENOMEM;
+
+	fw->caps->num_regions = ARRAY_SIZE(default_regions);
+	fw->caps->region_defs = devm_kzalloc(dsp->dev,
+					     sizeof(default_regions),
+					     GFP_KERNEL);
+	if (!fw->caps->region_defs)
+		return -ENOMEM;
+
+	memcpy(fw->caps->region_defs, default_regions, sizeof(default_regions));
+
+	of_property_read_u32_index(np, prop, 0, &of_cap);
+	fw->caps->id = of_cap;
+	of_property_read_u32_index(np, prop, 1, &of_cap);
+	fw->caps->desc.max_ch = of_cap;
+	of_property_read_u32_index(np, prop, 2, &of_cap);
+	fw->caps->desc.formats = of_cap;
+	of_property_read_u32_index(np, prop, 3, &of_cap);
+	fw->compr_direction = of_cap;
+
+	for (i = 4; i < len_prop; ++i) {
+		of_property_read_u32_index(np, prop, i, &of_cap);
+		fw->caps->desc.sample_rates[i - 4] = of_cap;
+	}
+	fw->caps->desc.num_sample_rates = i - 4;
+
+	return 0;
+}
+
+static int wm_adsp_of_parse_firmware(struct wm_adsp *dsp,
+				     struct device_node *np)
+{
+	struct device_node *fws = of_get_child_by_name(np, "firmware");
+	struct device_node *fw = NULL;
+	const char **ctl_names;
+	int ret;
+	int i;
+
+	if (!fws)
+		return 0;
+
+	i = 0;
+	while ((fw = of_get_next_child(fws, fw)) != NULL)
+		i++;
+
+	if (i == 0)
+		return 0;
+
+	dsp->num_firmwares = i;
+
+	dsp->firmwares = devm_kzalloc(dsp->dev,
+				      i * sizeof(struct wm_adsp_fw_defs),
+				      GFP_KERNEL);
+	if (!dsp->firmwares)
+		return -ENOMEM;
+
+	ctl_names = devm_kzalloc(dsp->dev,
+				 i * sizeof(const char *),
+				 GFP_KERNEL);
+	if (!ctl_names)
+		return -ENOMEM;
+
+	i = 0;
+	while ((fw = of_get_next_child(fws, fw)) != NULL) {
+		ctl_names[i] = fw->name;
+
+		ret = of_property_read_string(fw, "cirrus,wmfw-file",
+					      &dsp->firmwares[i].file);
+		if (ret < 0) {
+			dev_err(dsp->dev,
+				"Firmware filename missing/malformed: %d\n",
+				ret);
+			return ret;
+		}
+
+		ret = of_property_read_string(fw, "cirrus,bin-file",
+					      &dsp->firmwares[i].binfile);
+		if (ret < 0)
+			dsp->firmwares[i].binfile = NULL;
+
+		dsp->firmwares[i].fullname =
+			of_property_read_bool(fw, "cirrus,full-name");
+
+		wm_adsp_of_parse_caps(dsp, fw, &dsp->firmwares[i]);
+
+		i++;
+	}
+
+	if (dsp->ao_dsp) {
+		wm_adsp_ao_fw_enum[dsp->num - 1].items = dsp->num_firmwares;
+		wm_adsp_ao_fw_enum[dsp->num - 1].texts = ctl_names;
+	} else {
+		wm_adsp_fw_enum[dsp->num - 1].items = dsp->num_firmwares;
+		wm_adsp_fw_enum[dsp->num - 1].texts = ctl_names;
+	}
+
+	return dsp->num_firmwares;
+}
+
+static int wm_adsp_of_parse_adsp(struct wm_adsp *dsp)
+{
+	struct device_node *np = of_get_child_by_name(dsp->dev->of_node,
+						      "adsps");
+	struct device_node *core = NULL;
+	unsigned int addr;
+	int ret;
+
+	if (!np)
+		return 0;
+
+	while ((core = of_get_next_child(np, core)) != NULL) {
+		ret = of_property_read_u32(core, "reg", &addr);
+		if (ret < 0) {
+			dev_err(dsp->dev,
+				"Failed to get ADSP base address: %d\n",
+				ret);
+			return ret;
+		}
+
+		if (addr == dsp->base)
+			break;
+	}
+
+	if (!core)
+		return 0;
+
+	return wm_adsp_of_parse_firmware(dsp, core);
+}
+#else
+static inline int wm_adsp_of_parse_adsp(struct wm_adsp *dsp)
+{
+	return 0;
+}
+#endif
+
+int wm_adsp1_init(struct wm_adsp *dsp)
+{
+	INIT_LIST_HEAD(&dsp->alg_regions);
+
+	mutex_init(&dsp->pwr_lock);
+
+	if (!dsp->dev->of_node || wm_adsp_of_parse_adsp(dsp) <= 0) {
+		dsp->num_firmwares = ARRAY_SIZE(wm_adsp_fw);
+		dsp->firmwares = wm_adsp_fw;
+	}
+
+	dsp->firmware_texts = &wm_adsp_fw_enum[dsp->num - 1];
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm_adsp1_init);
+
 int wm_adsp2_init(struct wm_adsp *dsp)
 {
 	int ret;
@@ -4091,8 +4258,12 @@ int wm_adsp2_init(struct wm_adsp *dsp)
 
 	mutex_init(&dsp->pwr_lock);
 
-	dsp->num_firmwares = ARRAY_SIZE(wm_adsp_fw);
-	dsp->firmwares = wm_adsp_fw;
+	if (!dsp->dev->of_node || wm_adsp_of_parse_adsp(dsp) <= 0) {
+		dsp->num_firmwares = ARRAY_SIZE(wm_adsp_fw);
+		dsp->firmwares = wm_adsp_fw;
+	}
+
+	dsp->firmware_texts = &wm_adsp_fw_enum[dsp->num - 1];
 
 	return 0;
 }
@@ -4106,8 +4277,15 @@ int wm_halo_init(struct wm_adsp *dsp, struct mutex *rate_lock)
 
 	mutex_init(&dsp->pwr_lock);
 
-	dsp->num_firmwares = ARRAY_SIZE(wm_adsp_fw);
-	dsp->firmwares = wm_adsp_fw;
+	if (!dsp->dev->of_node || wm_adsp_of_parse_adsp(dsp) <= 0) {
+		dsp->num_firmwares = ARRAY_SIZE(wm_adsp_fw);
+		dsp->firmwares = wm_adsp_fw;
+	}
+
+	if (dsp->ao_dsp)
+		dsp->firmware_texts = &wm_adsp_ao_fw_enum[dsp->num - 1];
+	else
+		dsp->firmware_texts = &wm_adsp_fw_enum[dsp->num - 1];
 
 	dsp->rate_lock = rate_lock;
 	dsp->rx_rate_cache = kcalloc(dsp->n_rx_channels, sizeof(u8), GFP_KERNEL);
