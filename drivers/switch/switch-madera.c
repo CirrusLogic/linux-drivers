@@ -545,8 +545,7 @@ static void madera_extcon_hp_clamp(struct madera_extcon_info *info,
 	unsigned int ep_sel = 0;
 	int ret;
 
-	mutex_lock_nested(&madera->dapm->card->dapm_mutex,
-			  SND_SOC_DAPM_CLASS_RUNTIME);
+	snd_soc_dapm_mutex_lock(madera->dapm);
 
 	switch (madera->type) {
 	case CS47L35:
@@ -637,7 +636,7 @@ static void madera_extcon_hp_clamp(struct madera_extcon_info *info,
 				 ret);
 	}
 
-	mutex_unlock(&madera->dapm->card->dapm_mutex);
+	snd_soc_dapm_mutex_unlock(madera->dapm);
 }
 
 static const char *madera_extcon_get_micbias_src(struct madera_extcon_info *info)
