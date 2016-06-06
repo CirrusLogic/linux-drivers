@@ -41,6 +41,9 @@ endif
 ifeq ($(CONFIG_MADERA_IRQ_CS47L90),y)
 obj-$(CONFIG_MADERA_IRQ)		+= irq-madera-cs47l90.o
 endif
+ifeq ($(CONFIG_MADERA_IRQ_CS47L92),y)
+obj-$(CONFIG_MADERA_IRQ)		+= irq-madera-cs47l92.o
+endif
 obj-$(CONFIG_SIRF_IRQ)			+= irq-sirfsoc.o
 obj-$(CONFIG_RENESAS_INTC_IRQPIN)	+= irq-renesas-intc-irqpin.o
 obj-$(CONFIG_RENESAS_IRQC)		+= irq-renesas-irqc.o
