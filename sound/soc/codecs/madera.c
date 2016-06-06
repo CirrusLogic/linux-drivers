@@ -703,7 +703,6 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
 	struct snd_soc_dapm_context *dapm =
 		snd_soc_dapm_kcontrol_dapm(kcontrol);
-	struct snd_soc_card *card = codec->component.card;
 	struct madera *madera = dev_get_drvdata(codec->dev->parent);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int ep_sel, mux, change;
@@ -718,7 +717,7 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	ep_sel = mux << e->shift_l;
 	mask = e->mask << e->shift_l;
 
-	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+	snd_soc_dapm_mutex_lock(dapm);
 
 	change = snd_soc_test_bits(codec, e->reg, mask, ep_sel);
 
@@ -798,7 +797,7 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	}
 
 end:
-	mutex_unlock(&card->dapm_mutex);
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	return snd_soc_dapm_mux_update_power(dapm, kcontrol, mux, e, NULL);
 }
@@ -2470,11 +2469,11 @@ int madera_ip_mode_put(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int reg, ret = 0;
 
-	mutex_lock_nested(&codec->component.card->dapm_mutex,
-			  SND_SOC_DAPM_CLASS_RUNTIME);
+	snd_soc_dapm_mutex_lock(dapm);
 
 	/* Cannot change input mode on an active input*/
 	reg = snd_soc_read(codec, MADERA_INPUT_ENABLES);
@@ -2506,7 +2505,7 @@ int madera_ip_mode_put(struct snd_kcontrol *kcontrol,
 
 	ret = snd_soc_put_enum_double(kcontrol, ucontrol);
 exit:
-	mutex_unlock(&codec->component.card->dapm_mutex);
+	snd_soc_dapm_mutex_unlock(dapm);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(madera_ip_mode_put);
@@ -2515,12 +2514,12 @@ int madera_in_rate_put(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int reg, mask;
 	int ret = 0;
 
-	mutex_lock_nested(&codec->component.card->dapm_mutex,
-			  SND_SOC_DAPM_CLASS_RUNTIME);
+	snd_soc_dapm_mutex_lock(dapm);
 
 	/* Cannot change rate on an active input */
 	reg = snd_soc_read(codec, MADERA_INPUT_ENABLES);
@@ -2534,7 +2533,7 @@ int madera_in_rate_put(struct snd_kcontrol *kcontrol,
 
 	ret = snd_soc_put_enum_double(kcontrol, ucontrol);
 exit:
-	mutex_unlock(&codec->component.card->dapm_mutex);
+	snd_soc_dapm_mutex_unlock(dapm);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(madera_in_rate_put);
@@ -2543,6 +2542,7 @@ int madera_dfc_put(struct snd_kcontrol *kcontrol,
 		   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int reg = e->reg;
 	unsigned int val;
@@ -2550,8 +2550,7 @@ int madera_dfc_put(struct snd_kcontrol *kcontrol,
 
 	reg = ((reg / 6) * 6) - 2;
 
-	mutex_lock_nested(&codec->component.card->dapm_mutex,
-			  SND_SOC_DAPM_CLASS_RUNTIME);
+	snd_soc_dapm_mutex_lock(dapm);
 
 	/* Cannot change dfc settings when its on */
 	val = snd_soc_read(codec, reg);
@@ -2562,7 +2561,7 @@ int madera_dfc_put(struct snd_kcontrol *kcontrol,
 
 	ret = snd_soc_put_enum_double(kcontrol, ucontrol);
 exit:
-	mutex_unlock(&codec->component.card->dapm_mutex);
+	snd_soc_dapm_mutex_unlock(dapm);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(madera_dfc_put);
@@ -2573,12 +2572,11 @@ int madera_lp_mode_put(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	unsigned int reg, mask;
 	int ret;
 
-
-	mutex_lock_nested(&codec->component.card->dapm_mutex,
-			  SND_SOC_DAPM_CLASS_RUNTIME);
+	snd_soc_dapm_mutex_lock(dapm);
 
 	/* Cannot change lp mode on an active input */
 	reg = snd_soc_read(codec, MADERA_INPUT_ENABLES);
@@ -2595,7 +2593,7 @@ int madera_lp_mode_put(struct snd_kcontrol *kcontrol,
 	ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
 exit:
-	mutex_unlock(&codec->component.card->dapm_mutex);
+	snd_soc_dapm_mutex_unlock(dapm);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(madera_lp_mode_put);
@@ -2690,14 +2688,14 @@ int madera_put_dre(struct snd_kcontrol *kcontrol,
 		   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
-	mutex_lock_nested(&codec->component.card->dapm_mutex,
-			  SND_SOC_DAPM_CLASS_RUNTIME);
+	snd_soc_dapm_mutex_lock(dapm);
 
 	ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
-	mutex_unlock(&codec->component.card->dapm_mutex);
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	return ret;
 }
