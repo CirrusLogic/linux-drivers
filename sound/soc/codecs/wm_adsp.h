@@ -55,6 +55,27 @@ struct wm_adsp_alg_region {
 struct wm_adsp_compr;
 struct wm_adsp_compr_buf;
 
+struct wm_adsp_buffer_region_def {
+	unsigned int mem_type;
+	unsigned int base_offset;
+	unsigned int size_offset;
+};
+
+struct wm_adsp_fw_caps {
+	u32 id;
+	struct snd_codec_desc desc;
+	int num_regions;
+	const struct wm_adsp_buffer_region_def *region_defs;
+};
+
+struct wm_adsp_fw_defs {
+	const char *file;
+	int compr_direction;
+	int num_caps;
+	const struct wm_adsp_fw_caps *caps;
+	bool voice_trigger;
+};
+
 struct wm_adsp {
 	const char *part;
 	int rev;
@@ -87,6 +108,9 @@ struct wm_adsp {
 	bool preloaded;
 	bool booted;
 	bool running;
+
+	int num_firmwares;
+	struct wm_adsp_fw_defs *firmwares;
 
 	struct list_head ctl_list;
 
