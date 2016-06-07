@@ -71,7 +71,6 @@ extern const struct madera_jd_state madera_hpdet_right;
 extern const struct madera_jd_state madera_micd_button;
 extern const struct madera_jd_state madera_micd_microphone;
 extern const struct madera_jd_state madera_micd_adc_mic;
-extern const struct madera_jd_state madera_hpdet_acc_id;
 extern const struct madera_jd_state madera_antenna_moisture;
 extern const struct madera_jd_state madera_antenna_moisture_r;
 extern const struct madera_jd_state madera_antenna_mic_det;

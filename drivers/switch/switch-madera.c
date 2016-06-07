@@ -83,7 +83,6 @@ struct madera_extcon_info {
 	struct switch_dev edev;
 
 	u16 last_jackdet;
-	bool hpdet_retried;
 	int hp_tuning_level;
 
 	const struct madera_hpdet_calibration_data* hpdet_ranges;
@@ -103,11 +102,7 @@ struct madera_extcon_info {
 
 	struct completion manual_mic_completion;
 
-	struct delayed_work hpdet_work;
 	struct delayed_work micd_detect_work;
-
-	int num_hpdet_res;
-	unsigned int hpdet_res[3];
 
 	bool have_mic;
 	bool detecting;
@@ -1776,142 +1771,6 @@ void madera_micd_mic_timeout(struct madera_extcon_info *info)
 }
 EXPORT_SYMBOL_GPL(madera_micd_mic_timeout);
 
-static int madera_hpdet_acc_id_reading(struct madera_extcon_info *info,
-					int reading)
-{
-	struct madera *madera = info->madera;
-	int id_gpio = info->pdata->hpdet_id_gpio;
-
-	if (reading < 0)
-		return reading;
-
-	reading = HOHM_TO_OHM(reading);
-
-	/*
-	 * When we're using HPDET for accessory identification we need
-	 * to take multiple measurements, step through them in sequence.
-	 */
-	info->hpdet_res[info->num_hpdet_res++] = reading;
-
-	/* Only check the mic directly if we didn't already ID it */
-	if (id_gpio && info->num_hpdet_res == 1) {
-		dev_dbg(madera->dev, "Measuring mic\n");
-
-		regmap_update_bits(madera->regmap,
-				   MADERA_ACCESSORY_DETECT_MODE_1,
-				   MADERA_ACCDET_SRC | MADERA_ACCDET_MODE_MASK,
-				   (info->micd_modes[0].src <<
-				    MADERA_ACCDET_SRC_SHIFT) |
-				   MADERA_ACCDET_MODE_HPR);
-		gpio_set_value_cansleep(id_gpio, 1);
-
-		return -EAGAIN;
-	}
-
-	/* OK, got both.  Now, compare... */
-	dev_dbg(madera->dev, "HPDET measured %d %d\n",
-		info->hpdet_res[0], info->hpdet_res[1]);
-
-	/* Take the headphone impedance for the main report */
-	reading = info->hpdet_res[0];
-
-	/* Sometimes we get false readings due to slow insert */
-	if (reading >= MADERA_HPDET_MAX && !info->hpdet_retried) {
-		dev_dbg(madera->dev, "Retrying high impedance\n");
-
-		info->num_hpdet_res = 0;
-		info->hpdet_retried = true;
-
-		regmap_update_bits(madera->regmap,
-				   MADERA_ACCESSORY_DETECT_MODE_1,
-				   MADERA_ACCDET_SRC | MADERA_ACCDET_MODE_MASK,
-				   (info->micd_modes[0].src  <<
-				    MADERA_ACCDET_SRC_SHIFT) |
-				   MADERA_ACCDET_MODE_HPL);
-
-		return -EAGAIN;
-	}
-
-	if (!id_gpio || info->hpdet_res[1] > 50) {
-		dev_dbg(madera->dev, "Detected mic\n");
-
-		madera_jds_set_state(info, &madera_micd_microphone);
-	} else {
-		dev_dbg(madera->dev, "Detected headphone\n");
-
-		madera_extcon_report(info, BIT_HEADSET_NO_MIC);
-
-		madera_jds_set_state(info, NULL);
-	}
-
-	return 0;
-}
-
-static int madera_hpdet_acc_id_start(struct madera_extcon_info *info)
-{
-	struct madera *madera = info->madera;
-	int ret;
-
-	switch (madera->type) {
-	case CS47L35:
-	case CS47L85:
-	case WM1840:
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	dev_dbg(madera->dev, "Starting identification via HPDET\n");
-
-	/* Make sure we keep the device enabled during the measurement */
-	pm_runtime_get_sync(info->dev);
-
-	madera_extcon_hp_clamp(info, true);
-
-	ret = regmap_update_bits(madera->regmap,
-				 MADERA_ACCESSORY_DETECT_MODE_1,
-				 MADERA_ACCDET_SRC | MADERA_ACCDET_MODE_MASK,
-				 (info->micd_modes[0].src <<
-				  MADERA_ACCDET_SRC_SHIFT) |
-				 MADERA_ACCDET_MODE_HPL);
-	if (ret) {
-		dev_err(madera->dev, "Failed to set HPDETL mode: %d\n", ret);
-		goto err;
-	}
-
-	/* fake the first reading at 32 ohms */
-	madera_hpdet_acc_id_reading(info, OHM_TO_HOHM(32));
-
-	return 0;
-
-err:
-	madera_extcon_hp_clamp(info, false);
-
-	pm_runtime_put_autosuspend(info->dev);
-	/* Just report headphone */
-	madera_extcon_report(info, BIT_HEADSET_NO_MIC);
-
-	return ret;
-}
-
-static void madera_hpdet_acc_id_stop(struct madera_extcon_info *info)
-{
-	struct madera *madera = info->madera;
-	int id_gpio = info->pdata->hpdet_id_gpio;
-
-	/* Make sure everything is reset back to the real polarity */
-	regmap_update_bits(madera->regmap,
-			   MADERA_ACCESSORY_DETECT_MODE_1,
-			   MADERA_ACCDET_SRC,
-			   info->micd_modes[0].src << MADERA_ACCDET_SRC_SHIFT);
-
-	if (id_gpio)
-		gpio_set_value_cansleep(id_gpio, 0);
-
-	/* Rest of the clean is identical to standard hpdet */
-	madera_hpdet_stop(info);
-}
-
 static int madera_jack_present(struct madera_extcon_info *info,
 				unsigned int *jack_val)
 {
@@ -2129,36 +1988,16 @@ const struct madera_jd_state madera_micd_microphone = {
 };
 EXPORT_SYMBOL_GPL(madera_micd_microphone);
 
-const struct madera_jd_state madera_hpdet_acc_id = {
-	.mode = MADERA_ACCDET_MODE_HPL,
-	.start = madera_hpdet_acc_id_start,
-	.restart = madera_hpdet_restart,
-	.reading = madera_hpdet_acc_id_reading,
-	.stop = madera_hpdet_acc_id_stop,
-};
-EXPORT_SYMBOL_GPL(madera_hpdet_acc_id);
-
-static void madera_hpdet_work(struct work_struct *work)
-{
-	struct madera_extcon_info *info =
-		container_of(work, struct madera_extcon_info, hpdet_work.work);
-
-	mutex_lock(&info->lock);
-	madera_jds_set_state(info, &madera_hpdet_acc_id);
-	mutex_unlock(&info->lock);
-}
-
 static irqreturn_t madera_jackdet(int irq, void *data)
 {
 	struct madera_extcon_info *info = data;
 	struct madera *madera = info->madera;
 	unsigned int val, mask;
-	bool cancelled_hp, cancelled_state;
+	bool cancelled_state;
 	int i, present;
 
 	dev_dbg(madera->dev, "jackdet IRQ");
 
-	cancelled_hp = cancel_delayed_work_sync(&info->hpdet_work);
 	cancelled_state = madera_jds_cancel_timeout(info);
 
 	pm_runtime_get_sync(info->dev);
@@ -2175,10 +2014,6 @@ static irqreturn_t madera_jackdet(int irq, void *data)
 
 	if (val == info->last_jackdet) {
 		dev_dbg(madera->dev, "Suppressing duplicate JACKDET\n");
-		if (cancelled_hp)
-			schedule_delayed_work(&info->hpdet_work,
-				msecs_to_jiffies(MADERA_HPDET_DEBOUNCE_MS));
-
 		if (cancelled_state)
 			madera_jds_start_timeout(info);
 
@@ -2215,11 +2050,7 @@ static irqreturn_t madera_jackdet(int irq, void *data)
 	} else {
 		dev_dbg(madera->dev, "Detected jack removal\n");
 
-		info->num_hpdet_res = 0;
-		for (i = 0; i < ARRAY_SIZE(info->hpdet_res); i++)
-			info->hpdet_res[i] = 0;
 		info->have_mic = false;
-		info->hpdet_retried = false;
 		info->micd_res_old = 0;
 		info->micd_debounce = 0;
 		info->micd_count = 0;
@@ -2584,11 +2415,9 @@ static void madera_extcon_dump_pdata(struct madera *madera)
 		MADERA_EXTCON_DUMP(fixed_hpdet_imp_x100, "%d");
 		MADERA_EXTCON_DUMP(hpdet_ext_res_x100, "%d");
 		MADERA_EXTCON_DUMP(hpdet_short_circuit_imp, "%d");
-		MADERA_EXTCON_DUMP(hpdet_id_gpio, "%d");
 		MADERA_EXTCON_DUMP(hpdet_channel, "%d");
 		MADERA_EXTCON_DUMP(micd_detect_debounce_ms, "%d");
 		MADERA_EXTCON_DUMP(hpdet_short_circuit_imp, "%d");
-		MADERA_EXTCON_DUMP(hpdet_id_gpio, "%d");
 		MADERA_EXTCON_DUMP(hpdet_channel, "%d");
 		MADERA_EXTCON_DUMP(micd_detect_debounce_ms, "%d");
 		MADERA_EXTCON_DUMP(micd_manual_debounce, "%d");
@@ -2937,7 +2766,6 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	mutex_init(&info->lock);
 	init_completion(&info->manual_mic_completion);
 	wakeup_source_init(&info->detection_wake_lock, "madera-jack-detection");
-	INIT_DELAYED_WORK(&info->hpdet_work, madera_hpdet_work);
 	INIT_DELAYED_WORK(&info->micd_detect_work, madera_micd_handler);
 	INIT_DELAYED_WORK(&info->state_timeout_work, madera_jds_timeout_work);
 	platform_set_drvdata(pdev, info);
@@ -3022,18 +2850,6 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(madera->dev, "Failed to request GPIO%d: %d\n",
 				info->pdata->micd_pol_gpio, ret);
-			goto err_register;
-		}
-	}
-
-	if (info->pdata->hpdet_id_gpio > 0) {
-		ret = devm_gpio_request_one(&pdev->dev,
-					    info->pdata->hpdet_id_gpio,
-					    GPIOF_OUT_INIT_LOW,
-					    "HPDET");
-		if (ret) {
-			dev_err(madera->dev, "Failed to request GPIO%d: %d\n",
-				info->pdata->hpdet_id_gpio, ret);
 			goto err_register;
 		}
 	}
@@ -3229,7 +3045,6 @@ static int madera_extcon_remove(struct platform_device *pdev)
 	madera_free_irq(madera, MADERA_IRQ_MICDET1, info);
 	madera_free_irq(madera, jack_irq_rise, info);
 	madera_free_irq(madera, jack_irq_fall, info);
-	cancel_delayed_work_sync(&info->hpdet_work);
 	regmap_update_bits(madera->regmap, MADERA_JACK_DETECT_ANALOGUE,
 			   MADERA_JD1_ENA | MADERA_JD2_ENA, 0);
 
