@@ -84,9 +84,6 @@ struct madera_accdet_pdata {
 	 */
 	int hpdet_short_circuit_imp;
 
-	/** GPIO used for mic isolation with HPDET */
-	int hpdet_id_gpio;
-
 	/**
 	 * Channel to use for headphone detection, valid values are 0 for
 	 * left and 1 for right
