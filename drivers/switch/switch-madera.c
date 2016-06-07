@@ -1301,7 +1301,6 @@ static void madera_hpdet_stop_micd(struct madera_extcon_info *info)
 			   rate << MADERA_MICD_RATE_SHIFT |
 			   dbtime << MADERA_MICD_DBTIME_SHIFT);
 
-
 	udelay(100);
 
 	/* Clear any spurious IRQs that have happened */
@@ -2279,7 +2278,6 @@ static void madera_extcon_of_get_int(struct device_node *node, const char *prop,
 		*value = v;
 }
 
-
 static int madera_extcon_of_get_u32_num_groups(struct madera *madera,
 						struct device_node *node,
 						const char *prop,
@@ -2480,7 +2478,6 @@ static void madera_extcon_of_process(struct madera *madera,
 
 		pdata->micd_pol_gpio = 0;
 	}
-
 
 	madera_extcon_of_get_micd_ranges(madera, node, pdata);
 	madera_extcon_of_get_micd_configs(madera, node, pdata);
