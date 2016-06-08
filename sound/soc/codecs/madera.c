@@ -1247,22 +1247,31 @@ static const struct snd_soc_dapm_route madera_mono_routes[] = {
 
 static void madera_configure_input_mode(struct madera *madera)
 {
-	unsigned int val, dig_mode, ana_mode_l, ana_mode_r;
-	int max_analogue_inputs, num_dmic_clksrc, i;
+	unsigned int val, dig_mode, ana_mode_l, ana_mode_r, dig_mask;
+	int max_analogue_inputs, num_dmic_clksrc, max_dmic_sup, i;
 
 	switch (madera->type) {
 	case CS47L35:
+		max_dmic_sup = 2;
 		max_analogue_inputs = 2;
 		num_dmic_clksrc = 0;
 		break;
 	case CS47L85:
 	case WM1840:
+		max_dmic_sup = 3;
 		max_analogue_inputs = 3;
 		num_dmic_clksrc = 0;
 		break;
-	default:
+	case CS47L90:
+	case CS47L91:
+		max_dmic_sup = 2;
 		max_analogue_inputs = 2;
 		num_dmic_clksrc = 5;
+		break;
+	default:
+		max_dmic_sup = 4;
+		max_analogue_inputs = 2;
+		num_dmic_clksrc = 4;
 		break;
 	}
 
@@ -1278,7 +1287,7 @@ static void madera_configure_input_mode(struct madera *madera)
 	/* Initialize input modes from the A settings. For muxed inputs the
 	 * B settings will be applied if the mux is changed
 	 */
-	for (i = 0; i < max_analogue_inputs; i++) {
+	for (i = 0; i < max_dmic_sup; i++) {
 		dev_dbg(madera->dev, "IN%d mode %d:%d:%d:%d\n", i + 1,
 			madera->pdata.codec.inmode[i][0],
 			madera->pdata.codec.inmode[i][1],
@@ -1325,11 +1334,17 @@ static void madera_configure_input_mode(struct madera *madera)
 			"IN%dA DMIC mode=0x%x Analogue mode=0x%x,0x%x\n",
 			i + 1, dig_mode, ana_mode_l, ana_mode_r);
 
+		dig_mask = MADERA_IN1_DMIC_SUP_MASK;
+
+		if (i < max_analogue_inputs)
+			dig_mask |= MADERA_IN1_MODE_MASK;
+
 		regmap_update_bits(madera->regmap,
 				   MADERA_IN1L_CONTROL + (i * 8),
-				   MADERA_IN1_DMIC_SUP_MASK |
-				   MADERA_IN1_MODE_MASK,
-				   dig_mode);
+				   dig_mask, dig_mode);
+
+		if (i >= max_analogue_inputs)
+			continue;
 
 		regmap_update_bits(madera->regmap,
 				   MADERA_ADC_DIGITAL_VOLUME_1L + (i * 8),
