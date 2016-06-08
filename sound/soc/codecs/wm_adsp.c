@@ -2298,39 +2298,39 @@ static int wm_adsp2_ena(struct wm_adsp *dsp)
 	switch (dsp->rev) {
 	case 0:
 		ret = regmap_update_bits_async(dsp->regmap,
-						dsp->base + ADSP2_CONTROL,
-						ADSP2_SYS_ENA, ADSP2_SYS_ENA);
+					       dsp->base + ADSP2_CONTROL,
+					       ADSP2_SYS_ENA, ADSP2_SYS_ENA);
 		if (ret != 0)
 			return ret;
 
-		/* Wait for the RAM to start, should be near instantaneous */
-		for (count = 0; count < 10; ++count) {
-			ret = regmap_read(dsp->regmap,
-					  dsp->base + ADSP2_STATUS1, &val);
-			if (ret != 0)
-				return ret;
-
-			if (val & ADSP2_RAM_RDY)
-				break;
-
-			msleep(1);
-		}
-
-		if (!(val & ADSP2_RAM_RDY)) {
-			adsp_err(dsp, "Failed to start DSP RAM\n");
-			return -EBUSY;
-		}
-		adsp_dbg(dsp, "RAM ready after %d polls\n", count);
 		break;
 	default:
 		ret = regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
-				 ADSP2_MEM_ENA, ADSP2_MEM_ENA);
+					 ADSP2_MEM_ENA, ADSP2_MEM_ENA);
 
 		if (ret != 0)
 			return ret;
 
 		break;
 	}
+
+	/* Wait for the RAM to start, should be near instantaneous */
+	for (count = 0; count < 10; ++count) {
+		ret = regmap_read(dsp->regmap, dsp->base + ADSP2_STATUS1, &val);
+		if (ret != 0)
+			return ret;
+
+		if (val & ADSP2_RAM_RDY)
+			break;
+
+		msleep(1);
+	}
+
+	if (!(val & ADSP2_RAM_RDY)) {
+		adsp_err(dsp, "Failed to start DSP RAM\n");
+		return -EBUSY;
+	}
+	adsp_dbg(dsp, "RAM ready after %d polls\n", count);
 
 	return 0;
 }
