@@ -2283,9 +2283,20 @@ const struct soc_enum madera_asrc1_rate[] = {
 			      MADERA_ASYNC_RATE_ENUM_SIZE,
 			      madera_rate_text + MADERA_SYNC_RATE_ENUM_SIZE,
 			      madera_rate_val + MADERA_SYNC_RATE_ENUM_SIZE),
-
 };
 EXPORT_SYMBOL_GPL(madera_asrc1_rate);
+
+const struct soc_enum madera_asrc1_bidir_rate[] = {
+	SOC_VALUE_ENUM_SINGLE(MADERA_ASRC1_RATE1,
+			      MADERA_ASRC1_RATE1_SHIFT, 0xf,
+			      MADERA_RATE_ENUM_SIZE,
+			      madera_rate_text, madera_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MADERA_ASRC1_RATE2,
+			      MADERA_ASRC1_RATE2_SHIFT, 0xf,
+			      MADERA_RATE_ENUM_SIZE,
+			      madera_rate_text, madera_rate_val),
+};
+EXPORT_SYMBOL_GPL(madera_asrc1_bidir_rate);
 
 const struct soc_enum madera_asrc2_rate[] = {
 	SOC_VALUE_ENUM_SINGLE(MADERA_ASRC2_RATE1,

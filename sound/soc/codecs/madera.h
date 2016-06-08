@@ -371,6 +371,7 @@ extern const struct soc_enum madera_isrc_fsl[];
 extern const struct soc_enum madera_isrc_fsh[];
 extern const struct soc_enum madera_asrc1_rate[];
 extern const struct soc_enum madera_asrc2_rate[];
+extern const struct soc_enum madera_asrc1_bidir_rate[];
 extern const struct soc_enum madera_output_rate;
 extern const struct soc_enum madera_input_rate[];
 extern const struct soc_enum madera_dfc_width[];
