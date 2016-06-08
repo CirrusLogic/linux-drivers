@@ -5083,7 +5083,7 @@ static int madera_set_force_bypass(struct snd_soc_codec *codec, bool set_bypass)
 				   MADERA_CPMIC_BYPASS, cp_bypass);
 	}
 
-	madera_get_num_micbias(madera, &num_micbiases, NULL);
+	num_micbiases = madera_get_num_micbias(madera);
 
 	for (i = 0; i < num_micbiases; i++) {
 		if ((set_bypass) ||

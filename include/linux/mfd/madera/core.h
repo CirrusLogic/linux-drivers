@@ -81,9 +81,9 @@ extern int madera_of_read_uint_array(struct madera *madera, const char *prop,
 extern int madera_of_read_uint(struct madera *madera, const char *prop,
 				bool mandatory, unsigned int *data);
 
-extern int madera_get_num_micbias(struct madera *madera,
-				  unsigned int *n_micbiases,
-				  unsigned int *n_child_micbiases);
+extern unsigned int madera_get_num_micbias(struct madera *madera);
+extern unsigned int madera_get_num_childbias(struct madera *madera,
+					     int micbias);
 
 extern const char *madera_name_from_type(enum madera_type type);
 

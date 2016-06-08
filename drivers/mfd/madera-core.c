@@ -366,36 +366,68 @@ const struct dev_pm_ops madera_pm_ops = {
 };
 EXPORT_SYMBOL_GPL(madera_pm_ops);
 
-int madera_get_num_micbias(struct madera *madera, unsigned int *n_micbiases,
-			   unsigned int *n_child_micbiases)
+unsigned int madera_get_num_micbias(struct madera *madera)
 {
-	unsigned int biases, children;
+	unsigned int biases;
 
 	switch (madera->type) {
 	case CS47L35:
 		biases = 2;
-		children = 2;
 		break;
 	case CS47L85:
 	case WM1840:
 		biases = 4;
-		children = 0;
+		break;
+	case CS47L90:
+	case CS47L91:
+	case CS47L92:
+	case CS47L93:
+		biases = 2;
 		break;
 	default:
-		biases = 2;
-		children = 4;
-		break;
+		BUG();
 	}
 
-	if (n_micbiases)
-		*n_micbiases = biases;
-
-	if (n_child_micbiases)
-		*n_child_micbiases = children;
-
-	return 0;
+	return biases;
 }
 EXPORT_SYMBOL_GPL(madera_get_num_micbias);
+
+unsigned int madera_get_num_childbias(struct madera *madera, int micbias)
+{
+	unsigned int children = 0;
+
+	switch (madera->type) {
+	case CS47L35:
+		children = 2;
+		break;
+	case CS47L85:
+	case WM1840:
+		children = 0;
+		break;
+	case CS47L90:
+	case CS47L91:
+		children = 4;
+		break;
+	case CS47L92:
+	case CS47L93:
+		switch (micbias) {
+		case 1:
+			children = 4;
+			break;
+		case 2:
+			children = 2;
+			break;
+		default:
+			dev_err(madera->dev, "Unknown micbias: %u\n", micbias);
+		}
+		break;
+	default:
+		BUG();
+	}
+
+	return children;
+}
+EXPORT_SYMBOL_GPL(madera_get_num_childbias);
 
 #ifdef CONFIG_OF
 unsigned long madera_of_get_type(struct device *dev)
@@ -630,7 +662,7 @@ static void madera_configure_micbias(struct madera *madera)
 	unsigned int val, mask;
 	int i, j;
 
-	madera_get_num_micbias(madera, &max_micbias, &num_child_micbias);
+	max_micbias = madera_get_num_micbias(madera);
 
 	for (i = 0; i < max_micbias; i++) {
 		if (!madera->pdata.micbias[i].mV &&
@@ -650,6 +682,8 @@ static void madera_configure_micbias(struct madera *madera)
 
 		if (madera->pdata.micbias[i].ext_cap)
 			val |= MADERA_MICB1_EXT_CAP;
+
+		num_child_micbias = madera_get_num_childbias(madera, i + 1);
 
 		if (num_child_micbias == 0) {
 			mask |= MADERA_MICB1_DISCH;

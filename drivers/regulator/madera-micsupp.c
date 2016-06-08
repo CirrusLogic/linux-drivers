@@ -196,7 +196,7 @@ static unsigned int madera_get_max_micbias(struct madera *madera)
 	unsigned int max_micbias = 0;
 	int ret;
 
-	madera_get_num_micbias(madera, &num_micbias, NULL);
+	num_micbias = madera_get_num_micbias(madera);
 
 	for (i = 0; i < num_micbias; i++) {
 		ret = regmap_read(madera->regmap, MADERA_MIC_BIAS_CTRL_1 + i,
