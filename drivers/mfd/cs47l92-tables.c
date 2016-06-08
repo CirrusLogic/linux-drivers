@@ -24,6 +24,24 @@ static const struct reg_sequence cs47l92_reva_16_patch[] = {
 	{ 0x281,  0x0000 },
 	{ 0x282,  0x0000 },
 	{ 0x4EA,  0x0100 },
+	{ 0x1300, 0x050E },
+	{ 0x1302, 0x0101 },
+	{ 0x1380, 0x02E0 },
+	{ 0x1381, 0xF942 },
+	{ 0x1382, 0x04CE },
+	{ 0x1383, 0xFF06 },
+	{ 0x1390, 0x0304 },
+	{ 0x1391, 0xF8FF },
+	{ 0x1392, 0x04F3 },
+	{ 0x1393, 0xFF00 },
+	{ 0x13A0, 0x02E0 },
+	{ 0x13A1, 0xF942 },
+	{ 0x13A2, 0x04CE },
+	{ 0x13A3, 0xFF06 },
+	{ 0x13B0, 0x0304 },
+	{ 0x13B1, 0xF8FF },
+	{ 0x13B2, 0x04F3 },
+	{ 0x13B3, 0xFF00 },
 };
 
 int cs47l92_patch(struct madera *madera)
@@ -920,24 +938,24 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x000010a1, 0x0000 }, /* R4257 (0x10a1) - US1 Det Ctrl 1 */
 	{ 0x000010a2, 0x0000 }, /* R4258 (0x10a2) - US2 Det Ctrl 0 */
 	{ 0x000010a3, 0x0000 }, /* R4259 (0x10a3) - US2 Det Ctrl 1 */
-	{ 0x00001300, 0x0000 }, /* R4864 (0x1300) - DAC comp 1 */
-	{ 0x00001302, 0x0000 }, /* R4866 (0x1302) - DAC comp 2 */
-	{ 0x00001380, 0x0000 }, /* R4992 (0x1380) - FRF Coefficient 1L 1 */
-	{ 0x00001381, 0x0000 }, /* R4993 (0x1381) - FRF Coefficient 1L 2 */
-	{ 0x00001382, 0x0000 }, /* R4994 (0x1382) - FRF Coefficient 1L 3 */
-	{ 0x00001383, 0x0000 }, /* R4995 (0x1383) - FRF Coefficient 1L 4 */
-	{ 0x00001390, 0x0000 }, /* R5008 (0x1390) - FRF Coefficient 1R 1 */
-	{ 0x00001391, 0x0000 }, /* R5009 (0x1391) - FRF Coefficient 1R 2 */
-	{ 0x00001392, 0x0000 }, /* R5010 (0x1392) - FRF Coefficient 1R 3 */
-	{ 0x00001393, 0x0000 }, /* R5011 (0x1393) - FRF Coefficient 1R 4 */
-	{ 0x000013a0, 0x0000 }, /* R5024 (0x13a0) - FRF Coefficient 2L 1 */
-	{ 0x000013a1, 0x0000 }, /* R5025 (0x13a1) - FRF Coefficient 2L 2 */
-	{ 0x000013a2, 0x0000 }, /* R5026 (0x13a2) - FRF Coefficient 2L 3 */
-	{ 0x000013a3, 0x0000 }, /* R5027 (0x13a3) - FRF Coefficient 2L 4 */
-	{ 0x000013b0, 0x0000 }, /* R5040 (0x13b0) - FRF Coefficient 2R 1 */
-	{ 0x000013b1, 0x0000 }, /* R5041 (0x13b1) - FRF Coefficient 2R 2 */
-	{ 0x000013b2, 0x0000 }, /* R5042 (0x13b2) - FRF Coefficient 2R 3 */
-	{ 0x000013b3, 0x0000 }, /* R5043 (0x13b3) - FRF Coefficient 2R 4 */
+	{ 0x00001300, 0x050E }, /* R4864 (0x1300) - DAC comp 1 */
+	{ 0x00001302, 0x0101 }, /* R4866 (0x1302) - DAC comp 2 */
+	{ 0x00001380, 0x02E0 }, /* R4992 (0x1380) - FRF Coefficient 1L 1 */
+	{ 0x00001381, 0xF942 }, /* R4993 (0x1381) - FRF Coefficient 1L 2 */
+	{ 0x00001382, 0x04CE }, /* R4994 (0x1382) - FRF Coefficient 1L 3 */
+	{ 0x00001383, 0xFF06 }, /* R4995 (0x1383) - FRF Coefficient 1L 4 */
+	{ 0x00001390, 0x0304 }, /* R5008 (0x1390) - FRF Coefficient 1R 1 */
+	{ 0x00001391, 0xF8FF }, /* R5009 (0x1391) - FRF Coefficient 1R 2 */
+	{ 0x00001392, 0x04F3 }, /* R5010 (0x1392) - FRF Coefficient 1R 3 */
+	{ 0x00001393, 0xFF00 }, /* R5011 (0x1393) - FRF Coefficient 1R 4 */
+	{ 0x000013a0, 0x02E0 }, /* R5024 (0x13a0) - FRF Coefficient 2L 1 */
+	{ 0x000013a1, 0xF942 }, /* R5025 (0x13a1) - FRF Coefficient 2L 2 */
+	{ 0x000013a2, 0x04CE }, /* R5026 (0x13a2) - FRF Coefficient 2L 3 */
+	{ 0x000013a3, 0xFF06 }, /* R5027 (0x13a3) - FRF Coefficient 2L 4 */
+	{ 0x000013b0, 0x0304 }, /* R5040 (0x13b0) - FRF Coefficient 2R 1 */
+	{ 0x000013b1, 0xF8FF }, /* R5041 (0x13b1) - FRF Coefficient 2R 2 */
+	{ 0x000013b2, 0x04F3 }, /* R5042 (0x13b2) - FRF Coefficient 2R 3 */
+	{ 0x000013b3, 0xFF00 }, /* R5043 (0x13b3) - FRF Coefficient 2R 4 */
 	{ 0x000013c0, 0x0000 }, /* R5056 (0x13c0) - FRF Coefficient 3L 1 */
 	{ 0x000013c1, 0x0000 }, /* R5057 (0x13c1) - FRF Coefficient 3L 2 */
 	{ 0x000013c2, 0x0000 }, /* R5058 (0x13c2) - FRF Coefficient 3L 3 */
