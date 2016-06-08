@@ -542,7 +542,7 @@ SOC_SINGLE_TLV("Noise Gate Threshold Volume", MADERA_NOISE_GATE_CONTROL,
 	       MADERA_NGATE_THR_SHIFT, 7, 1, madera_ng_tlv),
 SOC_ENUM("Noise Gate Hold", madera_ng_hold),
 
-MADERA_RATE_ENUM("Output Rate 1", madera_output_rate),
+MADERA_RATE_ENUM("Output Rate 1", madera_output_ext_rate),
 
 SOC_ENUM_EXT("IN1L Rate", madera_input_rate[0],
 	snd_soc_get_enum_double, madera_in_rate_put),

@@ -1892,11 +1892,20 @@ EXPORT_SYMBOL_GPL(madera_rate_val);
 const struct soc_enum madera_output_rate =
 	SOC_VALUE_ENUM_SINGLE(MADERA_OUTPUT_RATE_1,
 			      MADERA_OUT_RATE_SHIFT,
-			      0x0f,
+			      MADERA_OUT_RATE_MASK >> MADERA_OUT_RATE_SHIFT,
 			      MADERA_SYNC_RATE_ENUM_SIZE,
 			      madera_rate_text,
 			      madera_rate_val);
 EXPORT_SYMBOL_GPL(madera_output_rate);
+
+const struct soc_enum madera_output_ext_rate =
+	SOC_VALUE_ENUM_SINGLE(MADERA_OUTPUT_RATE_1,
+			      MADERA_OUT_RATE_SHIFT,
+			      MADERA_OUT_RATE_MASK >> MADERA_OUT_RATE_SHIFT,
+			      MADERA_RATE_ENUM_SIZE,
+			      madera_rate_text,
+			      madera_rate_val);
+EXPORT_SYMBOL_GPL(madera_output_ext_rate);
 
 const struct soc_enum madera_input_rate[] = {
 	SOC_VALUE_ENUM_SINGLE(MADERA_IN1L_RATE_CONTROL,
@@ -3066,6 +3075,57 @@ static int madera_get_dspclk_setting(struct madera *madera,
 	}
 }
 
+static int madera_set_outclk(struct snd_soc_codec *codec, unsigned int source,
+			      unsigned int freq)
+{
+	int div, div_inc, rate;
+
+	switch (source) {
+	case MADERA_OUTCLK_SYSCLK:
+		dev_dbg(codec->dev, "Configured OUTCLK to SYSCLK\n");
+		snd_soc_update_bits(codec, MADERA_OUTPUT_RATE_1,
+				    MADERA_OUT_CLK_SRC_MASK, source);
+		return 0;
+	case MADERA_OUTCLK_ASYNCCLK:
+		dev_dbg(codec->dev, "Configured OUTCLK to ASYNCCLK\n");
+		snd_soc_update_bits(codec, MADERA_OUTPUT_RATE_1,
+				    MADERA_OUT_CLK_SRC_MASK, source);
+		return 0;
+	case MADERA_OUTCLK_MCLK1:
+	case MADERA_OUTCLK_MCLK2:
+	case MADERA_OUTCLK_MCLK3:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (freq % 4000)
+		rate = 5644800;
+	else
+		rate = 6144000;
+
+	div = 1;
+	div_inc = 0;
+	while (div <= 8) {
+		if (freq / div == rate && !(freq % div)) {
+			dev_dbg(codec->dev, "Configured %dHz OUTCLK\n", rate);
+			snd_soc_update_bits(codec, MADERA_OUTPUT_RATE_1,
+					    MADERA_OUT_EXT_CLK_DIV_MASK |
+					    MADERA_OUT_CLK_SRC_MASK,
+					    (div_inc <<
+					     MADERA_OUT_EXT_CLK_DIV_SHIFT) |
+					    source);
+			return 0;
+		}
+		div_inc++;
+		div *= 2;
+	}
+
+	dev_err(codec->dev, "Unable to generate %dHz OUTCLK from %dHz MCLK\n",
+		rate, freq);
+	return -EINVAL;
+}
+
 int madera_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		      int source, unsigned int freq, int dir)
 {
@@ -3102,6 +3162,8 @@ int madera_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		clk_freq_sel = madera_get_dspclk_setting(madera, freq,
 							 &clock_2_val);
 		break;
+	case MADERA_CLK_OUTCLK:
+		return madera_set_outclk(codec, source, freq);
 	default:
 		return -EINVAL;
 	}
