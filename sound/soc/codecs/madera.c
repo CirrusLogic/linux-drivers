@@ -226,7 +226,7 @@ static const unsigned int madera_aif2_inputs[32] = {
 	MADERA_AIF2TX8MIX_INPUT_4_SOURCE,
 };
 
-static const unsigned int madera_aif3_inputs[8] = {
+static const unsigned int madera_aif3_inputs[16] = {
 	MADERA_AIF3TX1MIX_INPUT_1_SOURCE,
 	MADERA_AIF3TX1MIX_INPUT_2_SOURCE,
 	MADERA_AIF3TX1MIX_INPUT_3_SOURCE,
@@ -235,6 +235,14 @@ static const unsigned int madera_aif3_inputs[8] = {
 	MADERA_AIF3TX2MIX_INPUT_2_SOURCE,
 	MADERA_AIF3TX2MIX_INPUT_3_SOURCE,
 	MADERA_AIF3TX2MIX_INPUT_4_SOURCE,
+	MADERA_AIF3TX3MIX_INPUT_1_SOURCE,
+	MADERA_AIF3TX3MIX_INPUT_2_SOURCE,
+	MADERA_AIF3TX3MIX_INPUT_3_SOURCE,
+	MADERA_AIF3TX3MIX_INPUT_4_SOURCE,
+	MADERA_AIF3TX4MIX_INPUT_1_SOURCE,
+	MADERA_AIF3TX4MIX_INPUT_2_SOURCE,
+	MADERA_AIF3TX4MIX_INPUT_3_SOURCE,
+	MADERA_AIF3TX4MIX_INPUT_4_SOURCE,
 };
 
 static const unsigned int madera_aif4_inputs[8] = {
@@ -1521,6 +1529,8 @@ const char * const madera_mixer_texts[] = {
 	"AIF2RX8",
 	"AIF3RX1",
 	"AIF3RX2",
+	"AIF3RX3",
+	"AIF3RX4",
 	"AIF4RX1",
 	"AIF4RX2",
 	"SLIMRX1",
@@ -1673,6 +1683,8 @@ unsigned int madera_mixer_values[] = {
 	0x2f,
 	0x30,	/* AIF3RX1 */
 	0x31,
+	0x32,
+	0x33,
 	0x34,	/* AIF4RX1 */
 	0x35,
 	0x38,	/* SLIMRX1 */
