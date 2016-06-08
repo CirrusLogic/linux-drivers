@@ -104,6 +104,88 @@ static const struct wm_adsp_region cs47l92_dsp1_regions[] = {
 	{ .type = WMFW_ADSP2_YM, .base = 0x0c0000 },
 };
 
+static const char * const cs47l92_outdemux_texts[] = {
+	"HPOUT3",
+	"HPOUT4",
+};
+
+static int cs47l92_put_demux(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_context *dapm =
+					snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
+	struct madera *madera = dev_get_drvdata(codec->dev->parent);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int ep_sel, mux, change, mask, cur;
+	int ret;
+	bool out_mono;
+
+	if (ucontrol->value.enumerated.item[0] > e->items - 1)
+		return -EINVAL;
+	mux = ucontrol->value.enumerated.item[0];
+	ep_sel = mux << e->shift_l;
+	mask = e->mask << e->shift_l;
+
+	snd_soc_dapm_mutex_lock(dapm);
+
+	change = snd_soc_test_bits(codec, e->reg, mask, ep_sel);
+	if (!change)
+		goto end;
+
+	ret = regmap_read(madera->regmap, MADERA_OUTPUT_ENABLES_1, &cur);
+	if (ret != 0)
+		dev_warn(madera->dev, "Failed to read current reg: %d\n", ret);
+
+	/* EP_SEL and OUT3_MONO should not be modified while HPOUT3 or 4
+	 * are enabled
+	 */
+	ret = regmap_update_bits(madera->regmap, MADERA_OUTPUT_ENABLES_1,
+				 MADERA_OUT3L_ENA | MADERA_OUT3R_ENA, 0);
+	if (ret)
+		dev_warn(madera->dev, "Failed to disable outputs: %d\n", ret);
+
+	usleep_range(2000, 3000); /* wait for wseq to complete */
+
+	ret = regmap_update_bits(madera->regmap, MADERA_OUTPUT_ENABLES_1,
+				 MADERA_EP_SEL, ep_sel);
+	if (ret) {
+		dev_err(madera->dev, "Failed to set EP_SEL: %d\n", ret);
+	} else {
+		out_mono = madera->pdata.codec.out_mono[2 + mux];
+		ret = madera_set_output_mode(codec, 3, out_mono);
+		if (ret < 0)
+			dev_warn(madera->dev,
+				 "Failed to set output mode: %d\n", ret);
+	}
+
+	ret = regmap_update_bits(madera->regmap, MADERA_OUTPUT_ENABLES_1,
+				 MADERA_OUT3L_ENA | MADERA_OUT3R_ENA, cur);
+	if (ret) {
+		dev_warn(madera->dev, "Failed to restore outputs: %d\n", ret);
+	} else {
+		/* wait for wseq */
+		if (cur & (MADERA_OUT3L_ENA | MADERA_OUT3R_ENA))
+			msleep(34); /* enable delay */
+		else
+			usleep_range(2000, 3000); /* disable delay */
+	}
+
+end:
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	return snd_soc_dapm_mux_update_power(dapm, kcontrol, mux, e, NULL);
+}
+
+static SOC_ENUM_SINGLE_DECL(cs47l92_outdemux_enum,
+			    MADERA_OUTPUT_ENABLES_1,
+			    MADERA_EP_SEL_SHIFT,
+			    cs47l92_outdemux_texts);
+
+static const struct snd_kcontrol_new cs47l92_outdemux =
+	SOC_DAPM_ENUM_EXT("OUT3 Demux", cs47l92_outdemux_enum,
+			snd_soc_dapm_get_enum_double, cs47l92_put_demux);
+
 static int cs47l92_get_sources(unsigned int reg,
 			       const unsigned int **cur_sources, int *lim)
 {
@@ -752,6 +834,8 @@ SND_SOC_DAPM_INPUT("IN3R"),
 SND_SOC_DAPM_INPUT("IN4L"),
 SND_SOC_DAPM_INPUT("IN4R"),
 
+SND_SOC_DAPM_DEMUX("OUT3 Demux", SND_SOC_NOPM, 0, 0, &cs47l92_outdemux),
+
 SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
 
@@ -1155,6 +1239,8 @@ SND_SOC_DAPM_OUTPUT("HPOUT2L"),
 SND_SOC_DAPM_OUTPUT("HPOUT2R"),
 SND_SOC_DAPM_OUTPUT("HPOUT3L"),
 SND_SOC_DAPM_OUTPUT("HPOUT3R"),
+SND_SOC_DAPM_OUTPUT("HPOUT4L"),
+SND_SOC_DAPM_OUTPUT("HPOUT4R"),
 SND_SOC_DAPM_OUTPUT("SPKDAT1L"),
 SND_SOC_DAPM_OUTPUT("SPKDAT1R"),
 SND_SOC_DAPM_OUTPUT("SPDIF1"),
@@ -1502,8 +1588,13 @@ static const struct snd_soc_dapm_route cs47l92_dapm_routes[] = {
 
 	{ "AEC1 Loopback", "HPOUT3L", "OUT3L" },
 	{ "AEC1 Loopback", "HPOUT3R", "OUT3R" },
-	{ "HPOUT3L", NULL, "OUT3L" },
-	{ "HPOUT3R", NULL, "OUT3R" },
+	{ "OUT3 Demux", NULL, "OUT3L" },
+	{ "OUT3 Demux", NULL, "OUT3R" },
+
+	{ "HPOUT3L", "HPOUT3", "OUT3 Demux" },
+	{ "HPOUT3R", "HPOUT3", "OUT3 Demux" },
+	{ "HPOUT4L", "HPOUT4", "OUT3 Demux" },
+	{ "HPOUT4R", "HPOUT4", "OUT3 Demux" },
 
 	{ "AEC1 Loopback", "SPKDAT1L", "OUT5L" },
 	{ "AEC1 Loopback", "SPKDAT1R", "OUT5R" },
