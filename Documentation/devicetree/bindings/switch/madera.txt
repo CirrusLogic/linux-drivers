@@ -2,7 +2,7 @@ Cirrus Logic Madera class audio codecs switch driver
 
 The switch configuration settings are a child node of type "cirrus,accdet"
 within the parent MFD driver devicetree binding.
-See Documentation/devicetree/bindinge/mfd/madera.txt
+See Documentation/devicetree/bindings/mfd/madera.txt
 
 This node contains one or more child nodes to describe the accessory detect
 configuration.
@@ -45,10 +45,7 @@ Child node optional properties:
   - cirrus,micd-software-compare : Use a software comparison to determine mic
     presence
 
-  - cirrus,use-jd2 : Use JD2 input with JD1 for dual jack detection.
-
-  - cirrus,usr-jd-gpio-nopull : Internal pull on GPIO is disabled when used for
-    jack detection.
+  - cirrus,jd-use-jd2 : Use JD2 input with JD1 for dual jack detection.
 
   - cirrus,gpsw : Settings for the general purpose switches, set as per the
     SWn_MODE bits in the GP Switch 1 register.
