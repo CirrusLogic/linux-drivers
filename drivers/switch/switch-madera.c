@@ -659,11 +659,19 @@ static void madera_extcon_hp_clamp(struct madera_extcon_info *info,
 
 	switch (madera->type) {
 	case CS47L35:
+	case CS47L92:
+	case CS47L93:
 		/* check whether audio is routed to EPOUT, do not disable OUT1
 		 * in that case */
 		regmap_read(madera->regmap, MADERA_OUTPUT_ENABLES_1, &ep_sel);
 		ep_sel &= MADERA_EP_SEL_MASK;
-		/* fall through to next step to set common variables */
+		break;
+	default:
+		break;
+	};
+
+	switch (madera->type) {
+	case CS47L35:
 	case CS47L85:
 	case WM1840:
 		edre_reg = MADERA_EDRE_MANUAL;
@@ -691,8 +699,10 @@ static void madera_extcon_hp_clamp(struct madera_extcon_info *info,
 	if (clamp && !ep_sel) {
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_OUTPUT_ENABLES_1,
-					 MADERA_OUT1L_ENA |
-					 MADERA_OUT1R_ENA, 0);
+					 (MADERA_OUT1L_ENA |
+					  MADERA_OUT1R_ENA) <<
+					 (2 * (info->pdata->output - 1)),
+					 0);
 		if (ret)
 			dev_warn(madera->dev,
 				"Failed to disable headphone outputs: %d\n",
@@ -738,7 +748,9 @@ static void madera_extcon_hp_clamp(struct madera_extcon_info *info,
 			info->pdata->hpdet_short_circuit_imp) && !ep_sel) {
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_OUTPUT_ENABLES_1,
-					 MADERA_OUT1L_ENA | MADERA_OUT1R_ENA,
+					 (MADERA_OUT1L_ENA |
+					  MADERA_OUT1R_ENA) <<
+					 (2 * (info->pdata->output - 1)),
 					 madera->hp_ena);
 		if (ret)
 			dev_warn(madera->dev,
@@ -1012,7 +1024,8 @@ static void madera_extcon_set_mode(struct madera_extcon_info *info, int mode)
 				   info->micd_modes[mode].gnd <<
 				   MADERA_MICD1_GND_SHIFT);
 		regmap_update_bits(madera->regmap,
-				   MADERA_OUTPUT_PATH_CONFIG_1,
+				   MADERA_OUTPUT_PATH_CONFIG_1 +
+				   (8 * (info->pdata->output - 1)),
 				   MADERA_HP1_GND_SEL_MASK,
 				   info->micd_modes[mode].hp_gnd <<
 				   MADERA_HP1_GND_SEL_SHIFT);
@@ -2429,7 +2442,7 @@ static void madera_extcon_of_process(struct madera *madera,
 {
 	struct madera_accdet_pdata *pdata;
 	u32 out_num;
-	int ret;
+	int ret, i;
 
 	ret = of_property_read_u32_index(node, "reg", 0, &out_num);
 	if (ret != 0) {
@@ -2439,15 +2452,25 @@ static void madera_extcon_of_process(struct madera *madera,
 		return;
 	}
 
-	if ((out_num == 0) || (out_num > ARRAY_SIZE(madera->pdata.accdet))) {
+	if (out_num == 0) {
 		dev_warn(madera->dev, "accdet node illegal reg %u\n", out_num);
+		return;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(madera->pdata.accdet); i++)
+		if (!madera->pdata.accdet[i].enabled)
+			break;
+
+	if (i == ARRAY_SIZE(madera->pdata.accdet)) {
+		dev_warn(madera->dev, "Too many accdet nodes: %d\n", i + 1);
 		return;
 	}
 
 	dev_dbg(madera->dev, "processing: %s reg=%u\n", node->name, out_num);
 
-	pdata = &madera->pdata.accdet[out_num - 1];
+	pdata = &madera->pdata.accdet[i];
 	pdata->enabled = true;	/* implied by presence of DT node */
+	pdata->output = out_num;
 
 	madera_extcon_of_get_int(node, "cirrus,micd-detect-debounce-ms",
 				 &pdata->micd_detect_debounce_ms);

@@ -118,8 +118,8 @@ static int cs47l92_put_demux(struct snd_kcontrol *kcontrol,
 	struct madera *madera = dev_get_drvdata(codec->dev->parent);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int ep_sel, mux, change, mask, cur;
-	int ret;
-	bool out_mono;
+	int ret, i;
+	bool out_mono, accdet_out = false;
 
 	if (ucontrol->value.enumerated.item[0] > e->items - 1)
 		return -EINVAL;
@@ -133,9 +133,25 @@ static int cs47l92_put_demux(struct snd_kcontrol *kcontrol,
 	if (!change)
 		goto end;
 
-	ret = regmap_read(madera->regmap, MADERA_OUTPUT_ENABLES_1, &cur);
-	if (ret != 0)
-		dev_warn(madera->dev, "Failed to read current reg: %d\n", ret);
+	for (i = 0; i < MADERA_MAX_ACCESSORY; i++) {
+		if (madera->pdata.accdet[i].output == 3) {
+			accdet_out = true;
+			break;
+		}
+	}
+
+	if (accdet_out) {
+		/* HPOUT3 is associated with accessory detect activities */
+		cur = madera->hp_ena;
+	} else {
+		ret = regmap_read(madera->regmap,
+				  MADERA_OUTPUT_ENABLES_1,
+				  &cur);
+		if (ret != 0)
+			dev_warn(madera->dev,
+				 "Failed to read current reg: %d\n",
+				 ret);
+	}
 
 	/* EP_SEL and OUT3_MONO should not be modified while HPOUT3 or 4
 	 * are enabled
@@ -926,19 +942,19 @@ SND_SOC_DAPM_PGA_E("OUT1R", SND_SOC_NOPM,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT2L", MADERA_OUTPUT_ENABLES_1,
-		   MADERA_OUT2L_ENA_SHIFT, 0, NULL, 0, madera_out_ev,
+		   MADERA_OUT2L_ENA_SHIFT, 0, NULL, 0, madera_hp_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT2R", MADERA_OUTPUT_ENABLES_1,
-		   MADERA_OUT2R_ENA_SHIFT, 0, NULL, 0, madera_out_ev,
+		   MADERA_OUT2R_ENA_SHIFT, 0, NULL, 0, madera_hp_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT3L", MADERA_OUTPUT_ENABLES_1,
-		   MADERA_OUT3L_ENA_SHIFT, 0, NULL, 0, madera_out_ev,
+		   MADERA_OUT3L_ENA_SHIFT, 0, NULL, 0, madera_hp_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT3R", MADERA_OUTPUT_ENABLES_1,
-		   MADERA_OUT3R_ENA_SHIFT, 0, NULL, 0, madera_out_ev,
+		   MADERA_OUT3R_ENA_SHIFT, 0, NULL, 0, madera_hp_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT5L", MADERA_OUTPUT_ENABLES_1,

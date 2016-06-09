@@ -60,6 +60,9 @@ struct madera_accdet_pdata {
 	/** set to true to enable this accessory detect */
 	bool enabled;
 
+	/** Output this accdet pdata refers */
+	unsigned int output;
+
 	/** Time in milliseconds to keep wake lock during jack detection */
 	int jd_wake_time;
 

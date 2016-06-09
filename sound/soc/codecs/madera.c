@@ -2875,7 +2875,7 @@ int madera_hp_ev(struct snd_soc_dapm_widget *w,
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct madera *madera = priv->madera;
 	unsigned int mask = 1 << w->shift;
-	unsigned int out_num = w->shift / 2;
+	unsigned int out_num;
 	unsigned int val;
 	unsigned int ep_sel = 0;
 
@@ -2893,13 +2893,38 @@ int madera_hp_ev(struct snd_soc_dapm_widget *w,
 		return 0;
 	}
 
+	for (out_num = 0; out_num < MADERA_MAX_ACCESSORY; out_num++)
+		if (madera->pdata.accdet[out_num].output == w->shift / 2 + 1)
+			break;
+
+	if (out_num == MADERA_MAX_ACCESSORY) {
+		/* No accdet node associated with this output */
+		regmap_update_bits_async(madera->regmap,
+					 MADERA_OUTPUT_ENABLES_1,
+					 mask, val);
+		return madera_out_ev(w, kcontrol, event);
+	}
+
 	/* Store the desired state for the HP outputs */
 	priv->madera->hp_ena &= ~mask;
 	priv->madera->hp_ena |= val;
 
-	/* if OUT1 is routed to EPOUT, ignore HP clamp and impedance */
-	regmap_read(priv->madera->regmap, MADERA_OUTPUT_ENABLES_1, &ep_sel);
-	ep_sel &= MADERA_EP_SEL_MASK;
+	/* in case of parts with muxed outputs, check if EPOUT is set and do
+	 * not disable the muxed output in this case
+	 */
+	switch (madera->type) {
+	case CS47L92:
+	case CS47L93:
+		if (w->shift != MADERA_OUT3L_ENA_SHIFT &&
+		    w->shift != MADERA_OUT3R_ENA_SHIFT)
+			break;
+		/* fall through if this is the muxed output */
+	default:
+		regmap_read(priv->madera->regmap, MADERA_OUTPUT_ENABLES_1,
+			    &ep_sel);
+		ep_sel &= MADERA_EP_SEL_MASK;
+		break;
+	}
 
 	/* Force off if HPDET clamp is active for this output */
 	if ((priv->madera->hpdet_clamp[out_num] ||
