@@ -203,7 +203,7 @@ extern unsigned int madera_mixer_values[MADERA_NUM_MIXER_INPUTS];
 			     madera_mixer_tlv)
 
 #define MADERA_ENUM_DECL(name, xreg, xshift, xmask, xtexts, xvalues)	\
-	const struct madera_enum name = { .mixer_enum.reg = xreg,	\
+	struct madera_enum name = { .mixer_enum.reg = xreg,	\
 	.mixer_enum.shift_l = xshift, .mixer_enum.shift_r = xshift,	\
 	.mixer_enum.mask = xmask, .mixer_enum.items = ARRAY_SIZE(xtexts), \
 	.mixer_enum.texts = xtexts, .mixer_enum.values = xvalues, .val = 0 }
