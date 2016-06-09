@@ -24,6 +24,16 @@ static const struct reg_sequence cs47l92_reva_16_patch[] = {
 	{ 0x281,  0x0000 },
 	{ 0x282,  0x0000 },
 	{ 0x4EA,  0x0100 },
+	{ 0x22B,  0x0000 },
+	{ 0x4A0,  0x0080 },
+	{ 0x4A1,  0x0000 },
+	{ 0x4A2,  0x0000 },
+	{ 0x180B, 0x033F },
+	{ 0x190B, 0x033F },
+	{ 0x34C,  0x0003 },
+	{ 0x124,  0x0C49 },
+	{ 0x120,  0x0345 },
+	{ 0x120,  0x0305 },
 	{ 0x1300, 0x050E },
 	{ 0x1302, 0x0101 },
 	{ 0x1380, 0x02E0 },
@@ -95,7 +105,7 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x00000114, 0x0011 }, /* R276 (0x114) - Async sample rate 2 */
 	{ 0x00000120, 0x0305 }, /* R288 (0x120) - DSP Clock 1 */
 	{ 0x00000122, 0x0000 }, /* R290 (0x122) - DSP Clock 2 */
-	{ 0x00000124, 0x0000 }, /* R292 (0x124) - DSP Clock 3 */
+	{ 0x00000124, 0x0c49 }, /* R292 (0x124) - DSP Clock 3 */
 	{ 0x00000126, 0x0000 }, /* R294 (0x126) - DSP Clock 4 */
 	{ 0x00000127, 0x0000 }, /* R295 (0x127) - DSP Clock 5 */
 	{ 0x00000149, 0x0000 }, /* R329 (0x149) - Output system clock */
@@ -247,9 +257,9 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x00000458, 0x0000 }, /* R1112 (0x458) - Noise Gate Control */
 	{ 0x00000490, 0x0069 }, /* R1168 (0x490) - PDM SPK1 CTRL 1 */
 	{ 0x00000491, 0x0000 }, /* R1169 (0x491) - PDM SPK1 CTRL 2 */
-	{ 0x000004a0, 0x1080 }, /* R1184 (0x4a0) - HP1 Short Circuit Ctrl */
-	{ 0x000004a1, 0x1000 }, /* R1185 (0x4a1) - HP2 Short Circuit Ctrl */
-	{ 0x000004a2, 0x1000 }, /* R1186 (0x4a2) - HP3 Short Circuit Ctrl */
+	{ 0x000004a0, 0x0080 }, /* R1184 (0x4a0) - HP1 Short Circuit Ctrl */
+	{ 0x000004a1, 0x0000 }, /* R1185 (0x4a1) - HP2 Short Circuit Ctrl */
+	{ 0x000004a2, 0x0000 }, /* R1186 (0x4a2) - HP3 Short Circuit Ctrl */
 	{ 0x00000500, 0x000c }, /* R1280 (0x500) - AIF1 BCLK Ctrl */
 	{ 0x00000501, 0x0000 }, /* R1281 (0x501) - AIF1 Tx Pin Ctrl */
 	{ 0x00000502, 0x0000 }, /* R1282 (0x502) - AIF1 Rx Pin Ctrl */
