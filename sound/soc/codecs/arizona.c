@@ -658,6 +658,7 @@ int arizona_init_spk(struct snd_soc_codec *codec)
 	case WM8997:
 	case WM1831:
 	case CS47L24:
+	case CS47L15:
 	case CS47L35:
 		break;
 	default:
@@ -782,6 +783,13 @@ static const char * const arizona_dmic_refs[] = {
 	"MICBIAS3",
 };
 
+static const char * const cs47l15_dmic_refs[] = {
+	"MICVDD",
+	"MICBIAS1A",
+	"MICBIAS1B",
+	"MICBIAS1C",
+};
+
 static const char * const marley_dmic_refs[] = {
 	"MICVDD",
 	"MICBIAS1B",
@@ -835,6 +843,12 @@ static const char * const moon_dmic_inputs[] = {
 	"IN5R",
 };
 
+static const char * const cs47l15_dmic_inputs[] = {
+	"IN1L Mux",
+	"IN1R Mux",
+	"IN2L",
+};
+
 int arizona_init_input(struct snd_soc_codec *codec)
 {
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
@@ -847,6 +861,10 @@ int arizona_init_input(struct snd_soc_codec *codec)
 
 	for (i = 0; i < priv->num_inputs / 2; ++i) {
 		switch (arizona->type) {
+		case CS47L15:
+			routes[0].source = cs47l15_dmic_refs[pdata->dmic_ref[i]];
+			routes[1].source = cs47l15_dmic_refs[pdata->dmic_ref[i]];
+			break;
 		case CS47L35:
 			routes[0].source = marley_dmic_refs[pdata->dmic_ref[i]];
 			routes[1].source = marley_dmic_refs[pdata->dmic_ref[i]];
@@ -873,6 +891,10 @@ int arizona_init_input(struct snd_soc_codec *codec)
 		case CS47L91:
 			routes[0].sink = moon_dmic_inputs[i * 2];
 			routes[1].sink = moon_dmic_inputs[(i * 2) + 1];
+			break;
+		case CS47L15:
+			routes[0].sink = cs47l15_dmic_inputs[i * 2];
+			routes[1].sink = cs47l15_dmic_inputs[(i * 2) + 1];
 			break;
 		default:
 			routes[0].sink = arizona_dmic_inputs[i * 2];
@@ -2699,9 +2721,10 @@ int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 	priv->arizona->hp_ena &= ~mask;
 	priv->arizona->hp_ena |= val;
 
-	/* in case of Marley check if OUT1 is routed to EPOUT, do not disable
-	 * OUT1 in this case */
+	/* in case of Marley and Gaines check if OUT1 is routed to EPOUT,
+	 * do not disable OUT1 in this case */
 	switch (priv->arizona->type) {
+	case CS47L15:
 	case CS47L35:
 		regmap_read(priv->arizona->regmap, ARIZONA_OUTPUT_ENABLES_1,
 				&ep_sel);
