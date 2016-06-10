@@ -989,7 +989,7 @@ static void madera_extcon_notify_micd(const struct madera_extcon_info *info,
 	struct madera_micdet_notify_data data;
 
 	data.present = present;
-	data.impedance_x100 = impedance;
+	data.impedance_x100 = OHM_TO_HOHM(impedance);
 	data.out_num = 1;
 
 	madera_call_notifiers(info->madera, MADERA_NOTIFY_MICDET, &data);
