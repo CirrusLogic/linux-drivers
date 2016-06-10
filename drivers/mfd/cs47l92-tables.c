@@ -54,6 +54,37 @@ static const struct reg_sequence cs47l92_reva_16_patch[] = {
 	{ 0x13B3, 0xFF00 },
 };
 
+static const struct reg_sequence cs47l92_reva_32_patch[] = {
+	{ 0x3030, 0x04A00C01 },
+	{ 0x3032, 0x0225F501 },
+	{ 0x3044, 0x04A00C00 },
+	{ 0x3046, 0x0225FF01 },
+	{ 0x3080, 0x04A00C01 },
+	{ 0x3082, 0x0226F501 },
+	{ 0x3094, 0x04A00C00 },
+	{ 0x3096, 0x0226FF01 },
+	{ 0x30D1, 0x04A10C01 },
+	{ 0x30D2, 0x0227F501 },
+	{ 0x30E4, 0x04A10C00 },
+	{ 0x30E6, 0x0227FF01 },
+	{ 0x3120, 0x04A10C01 },
+	{ 0x3122, 0x0228F501 },
+	{ 0x3134, 0x04A10C00 },
+	{ 0x3136, 0x0228FF01 },
+	{ 0x3170, 0x04A20C01 },
+	{ 0x3172, 0x022B0101 },
+	{ 0x3174, 0x0229F501 },
+	{ 0x3184, 0x04A20C00 },
+	{ 0x3186, 0x022B0100 },
+	{ 0x3188, 0x0229FF01 },
+	{ 0x31C0, 0x04A20C01 },
+	{ 0x31C2, 0x022B0001 },
+	{ 0x31C4, 0x022AF501 },
+	{ 0x31D4, 0x04A20C00 },
+	{ 0x31D6, 0x022B0000 },
+	{ 0x31D8, 0x022AFF01 },
+};
+
 int cs47l92_patch(struct madera *madera)
 {
 	int ret;
@@ -64,6 +95,15 @@ int cs47l92_patch(struct madera *madera)
 	if (ret < 0) {
 		dev_err(madera->dev,
 			"Error in applying 16-bit patch: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_register_patch(madera->regmap_32bit,
+				    cs47l92_reva_32_patch,
+				    ARRAY_SIZE(cs47l92_reva_32_patch));
+	if (ret < 0) {
+		dev_err(madera->dev,
+			"Error in applying 32-bit patch: %d\n", ret);
 		return ret;
 	}
 
