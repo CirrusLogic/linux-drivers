@@ -2,7 +2,7 @@ Cirrus Logic Madera class audio codecs switch driver
 
 The switch configuration settings are a child node of type "cirrus,accdet"
 within the parent MFD driver devicetree binding.
-See Documentation/devicetree/binding/mfd/madera.txt
+See Documentation/devicetree/bindings/mfd/madera.txt
 
 This node contains one or more child nodes to describe the accessory detect
 configuration.
