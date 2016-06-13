@@ -604,7 +604,7 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 			MOON_MICD1_GND_MASK,
 			info->micd_modes[mode].gnd <<
 			MOON_MICD1_GND_SHIFT);
-		regmap_update_bits(arizona->regmap, MOON_OUT1_CONFIG,
+		regmap_update_bits(arizona->regmap, MOON_OUTPUT_PATH_CONFIG_1,
 			MOON_HP1_GND_SEL_MASK,
 			info->micd_modes[mode].gnd <<
 			MOON_HP1_GND_SEL_SHIFT);

@@ -279,7 +279,7 @@
 #define ARIZONA_OUTPUT_PATH_CONFIG_1L            0x410
 #define ARIZONA_DAC_DIGITAL_VOLUME_1L            0x411
 #define ARIZONA_DAC_VOLUME_LIMIT_1L              0x412
-#define MOON_OUT1_CONFIG                         0x412
+#define MOON_OUTPUT_PATH_CONFIG_1                0x412
 #define ARIZONA_NOISE_GATE_SELECT_1L             0x413
 #define ARIZONA_OUTPUT_PATH_CONFIG_1R            0x414
 #define ARIZONA_DAC_DIGITAL_VOLUME_1R            0x415
@@ -288,7 +288,7 @@
 #define ARIZONA_OUTPUT_PATH_CONFIG_2L            0x418
 #define ARIZONA_DAC_DIGITAL_VOLUME_2L            0x419
 #define ARIZONA_DAC_VOLUME_LIMIT_2L              0x41A
-#define MOON_OUT2_CONFIG                         0x41A
+#define MOON_OUTPUT_PATH_CONFIG_2                0x41A
 #define ARIZONA_NOISE_GATE_SELECT_2L             0x41B
 #define ARIZONA_OUTPUT_PATH_CONFIG_2R            0x41C
 #define ARIZONA_DAC_DIGITAL_VOLUME_2R            0x41D
@@ -297,6 +297,7 @@
 #define ARIZONA_OUTPUT_PATH_CONFIG_3L            0x420
 #define ARIZONA_DAC_DIGITAL_VOLUME_3L            0x421
 #define ARIZONA_DAC_VOLUME_LIMIT_3L              0x422
+#define MOON_OUTPUT_PATH_CONFIG_3                0x422
 #define ARIZONA_NOISE_GATE_SELECT_3L             0x423
 #define ARIZONA_OUTPUT_PATH_CONFIG_3R            0x424
 #define ARIZONA_DAC_DIGITAL_VOLUME_3R            0x425
@@ -5231,7 +5232,7 @@
 #define ARIZONA_OUT1L_VOL_LIM_WIDTH                   8  /* OUT1L_VOL_LIM - [7:0] */
 
 /*
- * R1042 (0x412) - MOON_OUT1_CONFIG
+ * R1042 (0x412) - Output Path Config 1
  */
 #define MOON_HP1_GND_SEL_MASK                    0x0007  /* HP1_GND_SEL[2:0] */
 #define MOON_HP1_GND_SEL_SHIFT                        0  /* HP1_GND_SEL[2:0] */
@@ -5328,7 +5329,7 @@
 #define ARIZONA_OUT2L_VOL_LIM_WIDTH                   8  /* OUT2L_VOL_LIM - [7:0] */
 
 /*
- * R1050 (0x41A) - MOON_OUT2_CONFIG
+ * R1050 (0x41A) - Output Path Config 2
  */
 #define MOON_HP2_GND_SEL_MASK                    0x0007  /* HP2_GND_SEL[2:0] */
 #define MOON_HP2_GND_SEL_SHIFT                        0  /* HP2_GND_SEL[2:0] */

@@ -354,14 +354,14 @@ static const struct reg_default moon_reg_default[] = {
 	{ 0x00000409, 0x0022 }, /* R1033 (0x409) - Output Volume Ramp */
 	{ 0x00000410, 0x0080 }, /* R1040 (0x410) - Output Path Config 1L */
 	{ 0x00000411, 0x0180 }, /* R1041 (0x411) - DAC Digital Volume 1L */
-	{ 0x00000412, 0x0000 }, /* R1042 (0x412) - moon_out1_config */
+	{ 0x00000412, 0x0000 }, /* R1042 (0x412) - Output Path Config 1 */
 	{ 0x00000413, 0x0001 }, /* R1043 (0x413) - Noise Gate Select 1L */
 	{ 0x00000414, 0x0080 }, /* R1044 (0x414) - Output Path Config 1R */
 	{ 0x00000415, 0x0180 }, /* R1045 (0x415) - DAC Digital Volume 1R */
 	{ 0x00000417, 0x0002 }, /* R1047 (0x417) - Noise Gate Select 1R */
 	{ 0x00000418, 0x0080 }, /* R1048 (0x418) - Output Path Config 2L */
 	{ 0x00000419, 0x0180 }, /* R1049 (0x419) - DAC Digital Volume 2L */
-	{ 0x0000041A, 0x0002 }, /* R1050 (0x41A) - moon_out2_config */
+	{ 0x0000041A, 0x0002 }, /* R1050 (0x41A) - Output Path Config 2 */
 	{ 0x0000041b, 0x0004 }, /* R1051 (0x41B) - Noise Gate Select 2L */
 	{ 0x0000041c, 0x0080 }, /* R1052 (0x41C) - Output Path Config 2R */
 	{ 0x0000041d, 0x0180 }, /* R1053 (0x41D) - DAC Digital Volume 2R */
@@ -1768,14 +1768,14 @@ static bool moon_16bit_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_OUTPUT_VOLUME_RAMP:
 	case ARIZONA_OUTPUT_PATH_CONFIG_1L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_1L:
-	case MOON_OUT1_CONFIG:
+	case MOON_OUTPUT_PATH_CONFIG_1:
 	case ARIZONA_NOISE_GATE_SELECT_1L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_1R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_1R:
 	case ARIZONA_NOISE_GATE_SELECT_1R:
 	case ARIZONA_OUTPUT_PATH_CONFIG_2L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_2L:
-	case MOON_OUT2_CONFIG:
+	case MOON_OUTPUT_PATH_CONFIG_2:
 	case ARIZONA_NOISE_GATE_SELECT_2L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_2R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_2R:
