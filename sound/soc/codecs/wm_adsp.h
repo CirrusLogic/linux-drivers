@@ -65,7 +65,7 @@ struct wm_adsp {
 	struct snd_soc_codec *codec;
 
 	unsigned int base;
-	int base_sysinfo;
+	unsigned int base_sysinfo;
 	unsigned int sysclk_reg;
 	unsigned int sysclk_mask;
 	unsigned int sysclk_shift;
