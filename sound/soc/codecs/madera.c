@@ -3343,7 +3343,7 @@ static int madera_hw_params_rate(struct snd_pcm_substream *substream,
 	int i, sr_val, lim = 0;
 	const unsigned int *sources = NULL;
 	unsigned int cur, tar;
-	bool change_rate = true;
+	bool change_rate = false;
 
 	/* currently we use a single sample rate for SYSCLK */
 	for (i = 0; i < ARRAY_SIZE(madera_sr_vals); i++)
@@ -3357,57 +3357,60 @@ static int madera_hw_params_rate(struct snd_pcm_substream *substream,
 	}
 	sr_val = i;
 
-	switch (dai_priv->clk) {
-	case MADERA_CLK_SYSCLK:
-		tar = 0 << MADERA_AIF1_RATE_SHIFT;
-		break;
-	case MADERA_CLK_SYSCLK_2:
-		tar = 1 << MADERA_AIF1_RATE_SHIFT;
-		break;
-	case MADERA_CLK_SYSCLK_3:
-		tar = 2 << MADERA_AIF1_RATE_SHIFT;
-		break;
-	case MADERA_CLK_ASYNCCLK:
-		tar = 8 << MADERA_AIF1_RATE_SHIFT;
-		break;
-	case MADERA_CLK_ASYNCCLK_2:
-		tar = 9 << MADERA_AIF1_RATE_SHIFT;
-		break;
-	default:
-		return -EINVAL;
-	}
+	if (base) {
+		switch (dai_priv->clk) {
+		case MADERA_CLK_SYSCLK:
+			tar = 0 << MADERA_AIF1_RATE_SHIFT;
+			break;
+		case MADERA_CLK_SYSCLK_2:
+			tar = 1 << MADERA_AIF1_RATE_SHIFT;
+			break;
+		case MADERA_CLK_SYSCLK_3:
+			tar = 2 << MADERA_AIF1_RATE_SHIFT;
+			break;
+		case MADERA_CLK_ASYNCCLK:
+			tar = 8 << MADERA_AIF1_RATE_SHIFT;
+			break;
+		case MADERA_CLK_ASYNCCLK_2:
+			tar = 9 << MADERA_AIF1_RATE_SHIFT;
+			break;
+		default:
+			return -EINVAL;
+		}
 
-	ret = regmap_read(priv->madera->regmap,
-			  base + MADERA_AIF_RATE_CTRL, &cur);
-	if (ret != 0) {
-		madera_aif_err(dai, "Failed to check rate: %d\n", ret);
-		return ret;
-	}
-
-	if ((cur & MADERA_AIF1_RATE_MASK) == (tar & MADERA_AIF1_RATE_MASK))
-		change_rate = false;
-
-	if (change_rate) {
-		ret = madera_get_sources(dai, &sources, &lim);
+		ret = regmap_read(priv->madera->regmap,
+				  base + MADERA_AIF_RATE_CTRL, &cur);
 		if (ret != 0) {
-			madera_aif_err(dai,
-					"Failed to get aif sources %d\n", ret);
+			madera_aif_err(dai, "Failed to check rate: %d\n", ret);
 			return ret;
 		}
 
-		mutex_lock(&priv->rate_lock);
+		if ((cur & MADERA_AIF1_RATE_MASK) !=
+		    (tar & MADERA_AIF1_RATE_MASK))
+			change_rate = true;
 
-		ret = madera_cache_and_clear_sources(priv, sources,
-						     priv->aif_sources_cache,
-						     lim);
-		if (ret != 0) {
-			madera_aif_err(dai,
-				"Failed to cache and clear aif sources: %d\n",
-				ret);
-			goto out;
+		if (change_rate) {
+			unsigned int *cache = priv->aif_sources_cache;
+
+			ret = madera_get_sources(dai, &sources, &lim);
+			if (ret != 0) {
+				madera_aif_err(dai, "Failed to get aif sources %d\n",
+					       ret);
+				return ret;
+			}
+
+			mutex_lock(&priv->rate_lock);
+
+			ret = madera_cache_and_clear_sources(priv, sources,
+							     cache, lim);
+			if (ret != 0) {
+				madera_aif_err(dai, "Failed to cache and clear aif sources: %d\n",
+					       ret);
+				goto out;
+			}
+
+			madera_spin_sysclk(priv);
 		}
-
-		madera_spin_sysclk(priv);
 	}
 
 	switch (dai_priv->clk) {
