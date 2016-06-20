@@ -630,12 +630,20 @@ static void intel_csr_runtime_pm_put(struct drm_i915_private *dev_priv)
 
 static void csr_load_work_fn(struct work_struct *work)
 {
+	static const unsigned rootfs_timeout_ms = 60 * 1000;
 	struct drm_i915_private *dev_priv;
 	struct intel_csr *csr;
 	const struct firmware *fw = NULL;
 
 	dev_priv = container_of(work, typeof(*dev_priv), csr.work);
 	csr = &dev_priv->csr;
+
+	/* Wait until root filesystem is loaded in case the firmware
+	 * is not built-in but in /lib/firmware */
+	WARN(_wait_for(system_state == SYSTEM_RUNNING,
+		       rootfs_timeout_ms * 1000, 10 * 1000, 100 * 1000),
+	     "Timing out after waiting %dms for SYSTEM_RUNNING",
+	     rootfs_timeout_ms);
 
 	request_firmware(&fw, dev_priv->csr.fw_path, &dev_priv->drm.pdev->dev);
 	parse_csr_fw(dev_priv, fw);
