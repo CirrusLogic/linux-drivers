@@ -977,9 +977,10 @@ static void madera_extcon_set_mode(struct madera_extcon_info *info, int mode)
 	struct madera *madera = info->madera;
 
 	dev_dbg(madera->dev,
-		"mic_mode[%d] src=0x%x gnd=0x%x bias=0x%x gpio=%d\n", mode,
-		info->micd_modes[mode].src, info->micd_modes[mode].gnd,
-		info->micd_modes[mode].bias, info->micd_modes[mode].gpio);
+		"mic_mode[%d] src=0x%x gnd=0x%x bias=0x%x gpio=%d hp_gnd=%d\n",
+		mode, info->micd_modes[mode].src, info->micd_modes[mode].gnd,
+		info->micd_modes[mode].bias, info->micd_modes[mode].gpio,
+		info->micd_modes[mode].hp_gnd);
 
 	if (info->pdata->micd_pol_gpio > 0)
 		gpio_set_value_cansleep(info->pdata->micd_pol_gpio,
@@ -1019,7 +1020,7 @@ static void madera_extcon_set_mode(struct madera_extcon_info *info, int mode)
 		regmap_update_bits(madera->regmap,
 				   MADERA_OUTPUT_PATH_CONFIG_1,
 				   MADERA_HP1_GND_SEL_MASK,
-				   info->micd_modes[mode].gnd <<
+				   info->micd_modes[mode].hp_gnd <<
 				   MADERA_HP1_GND_SEL_SHIFT);
 		break;
 	}
