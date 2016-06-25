@@ -2206,7 +2206,7 @@ int arizona_dev_init(struct arizona *arizona)
 		max_inputs = 3;
 		break;
 	case CS47L15:
-		max_inputs = 1;
+		max_inputs = 2;
 		break;
 	default:
 		/*DMIC Ref for IN3-5 is fixed for CS47L90 and
