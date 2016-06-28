@@ -20,6 +20,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/completion.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
@@ -228,8 +229,7 @@ static int cs35l35_sdin_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
-	int i = 0;
-	unsigned int reg;
+	int ret = 0;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -252,25 +252,22 @@ static int cs35l35_sdin_event(struct snd_soc_dapm_widget *w,
 					CS35L35_DISCHG_FILT_MASK,
 					1 << CS35L35_DISCHG_FILT_SHIFT);
 
-		/* Placeholder for completion handler */
-		while (i < 1) {
-			regmap_read(cs35l35->regmap,
-					CS35L35_INT_STATUS_2, &reg);
-			if (reg & CS35L35_PDN_DONE) {
-				i = 1;
-				pr_info("%s: PDN_DONE set reg = %x\n",
-					__func__, reg);
-			}
-			usleep_range(5000, 5010);
+		ret = wait_for_completion_timeout(&cs35l35->pdn_done,
+							msecs_to_jiffies(100));
+		if (ret == 0) {
+			pr_err("TIMEOUT PDN_DONE did not complete in 100ms\n");
+			ret = -ETIMEDOUT;
 		}
+
 		regmap_update_bits(cs35l35->regmap, CS35L35_CLK_CTL1,
 					CS35L35_MCLK_DIS_MASK,
 					1 << CS35L35_MCLK_DIS_SHIFT);
 	break;
 	default:
 		pr_err("Invalid event = 0x%x\n", event);
+		ret = -EINVAL;
 	}
-	return 0;
+	return ret;
 }
 
 static int cs35l35_main_amp_event(struct snd_soc_dapm_widget *w,
@@ -1095,6 +1092,11 @@ static irqreturn_t cs35l35_irq_thread(int irq, void *data)
 			&& !(sticky4 & ~mask4))
 		return IRQ_NONE;
 
+	if (sticky2 & CS35L35_PDN_DONE) {
+		dev_dbg(codec->dev, "%s PDN DONE\n", __func__);
+		complete(&cs35l35->pdn_done);
+	}
+
 	/* read the current values */
 	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_1, &current1);
 
@@ -1285,6 +1287,8 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 
 	if (cs35l35->reset_gpio)
 		gpiod_set_value_cansleep(cs35l35->reset_gpio, 1);
+
+	init_completion(&cs35l35->pdn_done);
 
 	ret = devm_request_threaded_irq(&i2c_client->dev, i2c_client->irq,
 		NULL, cs35l35_irq_thread, IRQF_ONESHOT | IRQF_TRIGGER_LOW,

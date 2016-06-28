@@ -296,6 +296,7 @@ struct  cs35l35_private {
 	bool slave_mode;
 	/* GPIO for /RST */
 	struct gpio_desc *reset_gpio;
+	struct completion pdn_done;
 };
 
 static const char * const cs35l35_supplies[] = {
