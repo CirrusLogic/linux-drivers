@@ -1,5 +1,5 @@
 /*
- * cs35l35.c -- CS35l34 ALSA SoC audio driver
+ * cs35l35.c -- CS35l35 ALSA SoC audio driver
  *
  * Copyright 2016 Cirrus Logic, Inc.
  *
@@ -1072,6 +1072,140 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 	return 0;
 }
 
+static irqreturn_t cs35l35_irq_thread(int irq, void *data)
+{
+	struct cs35l35_private *cs35l35 = data;
+	struct snd_soc_codec *codec = cs35l35->codec;
+	unsigned int sticky1, sticky2, sticky3, sticky4;
+	unsigned int mask1, mask2, mask3, mask4, current1;
+
+	/* ack the irq by reading all status registers */
+	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_4, &sticky4);
+	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_3, &sticky3);
+	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_2, &sticky2);
+	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_1, &sticky1);
+
+	regmap_read(cs35l35->regmap, CS35L35_INT_MASK_4, &mask4);
+	regmap_read(cs35l35->regmap, CS35L35_INT_MASK_3, &mask3);
+	regmap_read(cs35l35->regmap, CS35L35_INT_MASK_2, &mask2);
+	regmap_read(cs35l35->regmap, CS35L35_INT_MASK_1, &mask1);
+
+	/* Check to see if unmasked bits are active */
+	if (!(sticky1 & ~mask1) && !(sticky2 & ~mask2) && !(sticky3 & ~mask3)
+			&& !(sticky4 & ~mask4))
+		return IRQ_NONE;
+
+	/* read the current values */
+	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_1, &current1);
+
+	/* handle the interrupts */
+	if (sticky1 & CS35L35_CAL_ERR) {
+		dev_err(codec->dev, "Calibration Error\n");
+
+		/* error is no longer asserted; safe to reset */
+		if (!(current1 & CS35L35_CAL_ERR)) {
+			dev_dbg(codec->dev, "Cal error release\n");
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_CAL_ERR_RLS, 0);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_CAL_ERR_RLS,
+					CS35L35_CAL_ERR_RLS);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_CAL_ERR_RLS, 0);
+		}
+	}
+
+	if (sticky1 & CS35L35_AMP_SHORT) {
+		dev_crit(codec->dev, "Amp short error\n");
+
+		/* error is no longer asserted; safe to reset */
+		if (!(current1 & CS35L35_AMP_SHORT)) {
+			dev_dbg(codec->dev,
+				"Amp short error release\n");
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_SHORT_RLS, 0);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_SHORT_RLS,
+					CS35L35_SHORT_RLS);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_SHORT_RLS, 0);
+		}
+	}
+
+	if (sticky1 & CS35L35_OTW) {
+		dev_err(codec->dev, "Over temperature warning\n");
+
+		/* error is no longer asserted; safe to reset */
+		if (!(current1 & CS35L35_OTW)) {
+			dev_dbg(codec->dev,
+				"Over temperature warning release\n");
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_OTW_RLS, 0);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_OTW_RLS,
+					CS35L35_OTW_RLS);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_OTW_RLS, 0);
+		}
+	}
+
+	if (sticky1 & CS35L35_OTE) {
+		dev_crit(codec->dev, "Over temperature error\n");
+
+		/* error is no longer asserted; safe to reset */
+		if (!(current1 & CS35L35_OTE)) {
+			dev_dbg(codec->dev,
+				"Over temperature error release\n");
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_OTE_RLS, 0);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_OTE_RLS,
+					CS35L35_OTE_RLS);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_OTE_RLS, 0);
+		}
+	}
+
+	if (sticky3 & CS35L35_BST_HIGH) {
+		dev_crit(codec->dev, "VBST error: powering off!\n");
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
+			CS35L35_PDN_AMP, CS35L35_PDN_AMP);
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
+			CS35L35_PDN_ALL, CS35L35_PDN_ALL);
+	}
+
+	if (sticky3 & CS35L35_LBST_SHORT) {
+		dev_crit(codec->dev, "LBST error: powering off!\n");
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
+			CS35L35_PDN_AMP, CS35L35_PDN_AMP);
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
+			CS35L35_PDN_ALL, CS35L35_PDN_ALL);
+	}
+
+	if (sticky2 & CS35L35_VPBR_ERR)
+		dev_err(codec->dev, "Error: Reactive Brownout\n");
+
+	if (sticky4 & CS35L35_VMON_OVFL)
+		dev_err(codec->dev, "Error: VMON overflow\n");
+
+	if (sticky4 & CS35L35_IMON_OVFL)
+		dev_err(codec->dev, "Error: IMON overflow\n");
+
+	return IRQ_HANDLED;
+}
+
 static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 			      const struct i2c_device_id *id)
 {
@@ -1151,6 +1285,13 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 
 	if (cs35l35->reset_gpio)
 		gpiod_set_value_cansleep(cs35l35->reset_gpio, 1);
+
+	ret = devm_request_threaded_irq(&i2c_client->dev, i2c_client->irq,
+		NULL, cs35l35_irq_thread, IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+		"cs35l35", cs35l35);
+	if (ret != 0)
+		dev_err(&i2c_client->dev, "Failed to request IRQ: %d\n", ret);
+
 
 	/* initialize codec */
 	ret = regmap_read(cs35l35->regmap, CS35L35_DEVID_AB, &reg);
