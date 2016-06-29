@@ -44,6 +44,6 @@ codec: cs47l35@0 {
 		2 2 1 1 /* IN1A digital, IN1B single-ended */
 		0 0 0 0	/* IN2 differential */
 	>;
-	cirrus,outmono = <0 0 0 0 0 0>;
+	cirrus,out-mono = <0 0 0 0 0 0>;
 	cirrus,max-channels-clocked = <2 0 0>;
 };
