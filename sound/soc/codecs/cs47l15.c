@@ -624,6 +624,8 @@ SOC_SINGLE("IN1R HPF Switch", ARIZONA_IN1R_CONTROL,
 	   ARIZONA_IN1R_HPF_SHIFT, 1, 0),
 SOC_SINGLE("IN2L HPF Switch", ARIZONA_IN2L_CONTROL,
 	   ARIZONA_IN2L_HPF_SHIFT, 1, 0),
+SOC_SINGLE("IN2R HPF Switch", ARIZONA_IN2R_CONTROL,
+	   ARIZONA_IN2R_HPF_SHIFT, 1, 0),
 
 SOC_SINGLE_TLV("IN1L Digital Volume", ARIZONA_ADC_DIGITAL_VOLUME_1L,
 	       ARIZONA_IN1L_DIG_VOL_SHIFT, 0xbf, 0, digital_tlv),
@@ -631,6 +633,8 @@ SOC_SINGLE_TLV("IN1R Digital Volume", ARIZONA_ADC_DIGITAL_VOLUME_1R,
 	       ARIZONA_IN1R_DIG_VOL_SHIFT, 0xbf, 0, digital_tlv),
 SOC_SINGLE_TLV("IN2L Digital Volume", ARIZONA_ADC_DIGITAL_VOLUME_2L,
 	       ARIZONA_IN2L_DIG_VOL_SHIFT, 0xbf, 0, digital_tlv),
+SOC_SINGLE_TLV("IN2R Digital Volume", ARIZONA_ADC_DIGITAL_VOLUME_2R,
+	       ARIZONA_IN2R_DIG_VOL_SHIFT, 0xbf, 0, digital_tlv),
 
 SOC_ENUM("Input Ramp Up", arizona_in_vi_ramp),
 SOC_ENUM("Input Ramp Down", arizona_in_vd_ramp),
@@ -807,6 +811,8 @@ SOC_ENUM_EXT("IN1R Rate", moon_input_rate[1],
 	snd_soc_get_enum_double, moon_in_rate_put),
 SOC_ENUM_EXT("IN2L Rate", moon_input_rate[2],
 	snd_soc_get_enum_double, moon_in_rate_put),
+SOC_ENUM_EXT("IN2R Rate", moon_input_rate[3],
+	snd_soc_get_enum_double, moon_in_rate_put),
 
 CS47L15_NG_SRC("HPOUT1L", ARIZONA_NOISE_GATE_SELECT_1L),
 CS47L15_NG_SRC("HPOUT1R", ARIZONA_NOISE_GATE_SELECT_1R),
@@ -953,6 +959,7 @@ SND_SOC_DAPM_INPUT("IN1BL"),
 SND_SOC_DAPM_INPUT("IN1AR"),
 SND_SOC_DAPM_INPUT("IN1BR"),
 SND_SOC_DAPM_INPUT("IN2L"),
+SND_SOC_DAPM_INPUT("IN2R"),
 
 SND_SOC_DAPM_MUX("IN1L Mux", SND_SOC_NOPM, 0, 0, &cs47l15_in1mux[0]),
 SND_SOC_DAPM_MUX("IN1R Mux", SND_SOC_NOPM, 0, 0, &cs47l15_in1mux[1]),
@@ -1059,6 +1066,10 @@ SND_SOC_DAPM_PGA_E("IN1R PGA", ARIZONA_INPUT_ENABLES, ARIZONA_IN1R_ENA_SHIFT,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("IN2L PGA", ARIZONA_INPUT_ENABLES, ARIZONA_IN2L_ENA_SHIFT,
+		   0, NULL, 0, arizona_in_ev,
+		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
+		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
+SND_SOC_DAPM_PGA_E("IN2R PGA", ARIZONA_INPUT_ENABLES, ARIZONA_IN2R_ENA_SHIFT,
 		   0, NULL, 0, arizona_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
@@ -1245,6 +1256,7 @@ SND_SOC_DAPM_OUTPUT("MICSUPP"),
 	{ name, "IN1L", "IN1L PGA" }, \
 	{ name, "IN1R", "IN1R PGA" }, \
 	{ name, "IN2L", "IN2L PGA" }, \
+	{ name, "IN2R", "IN2R PGA" }, \
 	{ name, "AIF1RX1", "AIF1RX1" }, \
 	{ name, "AIF1RX2", "AIF1RX2" }, \
 	{ name, "AIF1RX3", "AIF1RX3" }, \
@@ -1314,6 +1326,7 @@ static const struct snd_soc_dapm_route cs47l15_dapm_routes[] = {
 	{ "IN1BR", NULL, "SYSCLK" },
 
 	{ "IN2L", NULL, "SYSCLK" },
+	{ "IN2R", NULL, "SYSCLK" },
 
 	{ "DSP1", NULL, "DSPCLK"},
 
@@ -1383,6 +1396,7 @@ static const struct snd_soc_dapm_route cs47l15_dapm_routes[] = {
 	{ "IN1R PGA", NULL, "IN1R Mux" },
 
 	{ "IN2L PGA", NULL, "IN2L" },
+	{ "IN2R PGA", NULL, "IN2R" },
 
 	ARIZONA_MIXER_ROUTES("OUT1L", "HPOUT1L"),
 	ARIZONA_MIXER_ROUTES("OUT1R", "HPOUT1R"),
