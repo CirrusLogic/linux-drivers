@@ -459,7 +459,7 @@ int madera_of_read_uint(struct madera *madera, const char *prop,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(madera_of_read_int);
+EXPORT_SYMBOL_GPL(madera_of_read_uint);
 
 static int madera_of_get_gpio_defaults(struct madera *madera, const char *prop)
 {
