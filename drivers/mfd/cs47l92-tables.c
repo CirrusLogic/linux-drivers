@@ -98,6 +98,7 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x00000179, 0x0000 }, /* R377 (0x179) - FLL1 Control 9 */
 	{ 0x0000017a, 0x0000 }, /* R378 (0x17a) - FLL1 Control 10 */
 	{ 0x0000017b, 0x0011 }, /* R379 (0x17b) - FLL1 Control 11 */
+	{ 0x0000017d, 0x33e8 }, /* R381 (0x17d) - FLL1 Digital Test 1 */
 	{ 0x00000181, 0x7000 }, /* R385 (0x181) - FLL1 Synchroniser 1 */
 	{ 0x00000182, 0x0004 }, /* R386 (0x182) - FLL1 Synchroniser 2 */
 	{ 0x00000183, 0x0000 }, /* R387 (0x183) - FLL1 Synchroniser 3 */
@@ -118,6 +119,7 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x00000199, 0x0000 }, /* R409 (0x199) - FLL2 Control 9 */
 	{ 0x0000019a, 0x0000 }, /* R410 (0x19a) - FLL2 Control 10 */
 	{ 0x0000019b, 0x0011 }, /* R411 (0x19b) - FLL2 Control 11 */
+	{ 0x0000019d, 0x33e8 }, /* R413 (0x19d) - FLL2 Digital Test 1 */
 	{ 0x000001a1, 0x7000 }, /* R417 (0x1a1) - FLL2 Synchroniser 1 */
 	{ 0x000001a2, 0x0004 }, /* R418 (0x1a2) - FLL2 Synchroniser 2 */
 	{ 0x000001a3, 0x0000 }, /* R419 (0x1a3) - FLL2 Synchroniser 3 */
@@ -1110,6 +1112,7 @@ static bool cs47l92_16bit_readable_register(struct device *dev,
 	case CS47L92_FLL1_CONTROL_9:
 	case CS47L92_FLL1_CONTROL_10:
 	case MADERA_FLL1_CONTROL_11:
+	case MADERA_FLL1_DIGITAL_TEST_1:
 	case MADERA_FLL1_SYNCHRONISER_1:
 	case MADERA_FLL1_SYNCHRONISER_2:
 	case MADERA_FLL1_SYNCHRONISER_3:
@@ -1130,6 +1133,7 @@ static bool cs47l92_16bit_readable_register(struct device *dev,
 	case CS47L92_FLL2_CONTROL_9:
 	case CS47L92_FLL2_CONTROL_10:
 	case MADERA_FLL2_CONTROL_11:
+	case MADERA_FLL2_DIGITAL_TEST_1:
 	case MADERA_FLL2_SYNCHRONISER_1:
 	case MADERA_FLL2_SYNCHRONISER_2:
 	case MADERA_FLL2_SYNCHRONISER_3:
