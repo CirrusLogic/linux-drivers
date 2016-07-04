@@ -1513,11 +1513,11 @@ static int cs47l92_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 
 	switch (fll_id) {
 	case MADERA_FLL1_REFCLK:
-		return madera_set_fll_refclk(&cs47l92->fll[0], source, Fref,
-					     Fout);
+		return madera_fllhj_set_refclk(&cs47l92->fll[0], source, Fref,
+					       Fout);
 	case MADERA_FLL2_REFCLK:
-		return madera_set_fll_refclk(&cs47l92->fll[1], source, Fref,
-					     Fout);
+		return madera_fllhj_set_refclk(&cs47l92->fll[1], source, Fref,
+					       Fout);
 	default:
 		return -EINVAL;
 	}
