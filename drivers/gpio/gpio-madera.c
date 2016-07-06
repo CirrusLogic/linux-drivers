@@ -140,6 +140,9 @@ static int madera_gpio_probe(struct platform_device *pdev)
 		madera_gpio->gpio_chip.of_node = madera->dev->of_node;
 
 	switch (madera->type) {
+	case CS47L15:
+		madera_gpio->gpio_chip.ngpio = CS47L15_NUM_GPIOS;
+		break;
 	case CS47L35:
 		madera_gpio->gpio_chip.ngpio = CS47L35_NUM_GPIOS;
 		break;
