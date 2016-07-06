@@ -26,6 +26,9 @@ obj-$(CONFIG_ATMEL_AIC_IRQ)		+= irq-atmel-aic-common.o irq-atmel-aic.o
 obj-$(CONFIG_ATMEL_AIC5_IRQ)	+= irq-atmel-aic-common.o irq-atmel-aic5.o
 obj-$(CONFIG_IMGPDC_IRQ)		+= irq-imgpdc.o
 obj-$(CONFIG_MADERA_IRQ)		+= irq-madera.o
+ifeq ($(CONFIG_MADERA_IRQ_CS47L15),y)
+obj-$(CONFIG_MADERA_IRQ)		+= irq-madera-cs47l15.o
+endif
 ifeq ($(CONFIG_MADERA_IRQ_CS47L35),y)
 obj-$(CONFIG_MADERA_IRQ)		+= irq-madera-cs47l35.o
 endif
