@@ -31,6 +31,12 @@ static inline unsigned long madera_get_type_from_of(struct device *dev)
 }
 #endif
 
+extern const struct regmap_config cs47l15_16bit_spi_regmap;
+extern const struct regmap_config cs47l15_32bit_spi_regmap;
+extern const struct regmap_config cs47l15_16bit_i2c_regmap;
+extern const struct regmap_config cs47l15_32bit_i2c_regmap;
+int cs47l15_patch(struct madera *madera);
+
 extern const struct regmap_config cs47l35_16bit_spi_regmap;
 extern const struct regmap_config cs47l35_32bit_spi_regmap;
 extern const struct regmap_config cs47l35_16bit_i2c_regmap;
