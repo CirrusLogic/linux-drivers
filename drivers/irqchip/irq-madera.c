@@ -268,6 +268,10 @@ int madera_irq_probe(struct platform_device *pdev)
 	priv->madera = madera;
 
 	switch (madera->type) {
+	case CS47L15:
+		if (IS_ENABLED(CONFIG_MADERA_IRQ_CS47L15))
+			irq = &cs47l15_irq;
+		break;
 	case CS47L35:
 		if (IS_ENABLED(CONFIG_MADERA_IRQ_CS47L35))
 			irq = &cs47l35_irq;

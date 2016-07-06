@@ -100,6 +100,10 @@ config MADERA_IRQ
 	select REGMAP
 	select REGMAP_IRQ
 
+config MADERA_IRQ_CS47L15
+	bool
+	default y if MFD_CS47L15=y
+
 config MADERA_IRQ_CS47L35
 	bool
 	default y if MFD_CS47L35=y

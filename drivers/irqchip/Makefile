@@ -32,6 +32,9 @@ obj-$(CONFIG_I8259)			+= irq-i8259.o
 obj-$(CONFIG_IMGPDC_IRQ)		+= irq-imgpdc.o
 obj-$(CONFIG_IRQ_MIPS_CPU)		+= irq-mips-cpu.o
 obj-$(CONFIG_MADERA_IRQ)		+= irq-madera.o
+ifeq ($(CONFIG_MADERA_IRQ_CS47L15),y)
+obj-$(CONFIG_MADERA_IRQ)		+= irq-madera-cs47l15.o
+endif
 ifeq ($(CONFIG_MADERA_IRQ_CS47L35),y)
 obj-$(CONFIG_MADERA_IRQ)		+= irq-madera-cs47l35.o
 endif
