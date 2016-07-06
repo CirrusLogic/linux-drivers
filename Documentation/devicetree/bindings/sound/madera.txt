@@ -19,9 +19,9 @@ Optional properties:
     of 16 cells, with four cells per input in the order INnAL, INnAR INnBL INnBR.
     For non-muxed inputs the first two cells for that input set the mode for
     the left and right channel and the second two cells must be 0.
-    For muxed inputs (cs47l35 IN1, cs47l85 IN1 and IN2) the first two cells for
-    that input set the mode of the left and right A inputs and the second two
-    cells set the mode of the left and right B inputs.
+    For muxed inputs (cs47l15, cs47l35, cs47l85 IN1, cs47l85 IN2) the first two
+    cells for that input set the mode of the left and right A inputs and the
+    second two cells set the mode of the left and right B inputs.
     Valid mode values are one of the MADERA_INMODE_xxx (see
     include/dt-bindings/sound/madera.h). If the array is shorter than the number
     of inputs the unspecified inputs default to MADERA_INMODE_DIFF.

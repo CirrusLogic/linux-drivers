@@ -765,18 +765,30 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	usleep_range(2000, 3000); /* wait for wseq to complete */
 
 	/* if HP detection clamp is applied while switching to HPOUT
-	 * OUT1 should remain disabled and EDRE should be set to manual
+	 * OUT1 should remain disabled
 	 */
 	if (!ep_sel &&
 	    (madera->hpdet_clamp[0] || madera_is_hp_shorted(madera, 0)))
 		restore_out = false;
 
-	if (!ep_sel && madera->hpdet_clamp[0]) {
-		ret = regmap_write(madera->regmap, MADERA_EDRE_MANUAL, 0x3);
-		if (ret)
-			dev_warn(madera->dev,
-				 "Failed to set EDRE Manual: %d\n",
-				 ret);
+	switch (madera->type) {
+	case CS47L35:
+	case CS47L85:
+	case WM1840:
+		/* if HP detection clamp is applied while switching to HPOUT
+		 * EDRE should be set to manual
+		 */
+		if (!ep_sel && madera->hpdet_clamp[0]) {
+			ret = regmap_write(madera->regmap,
+					   MADERA_EDRE_MANUAL, 0x3);
+			if (ret)
+				dev_warn(madera->dev,
+					 "Failed to set EDRE Manual: %d\n",
+					 ret);
+		}
+		break;
+	default:
+		break;
 	}
 
 	/* change demux setting */
@@ -816,13 +828,22 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 			usleep_range(2000, 3000); /* wait for disable wseq */
 	}
 
-	/* if a switch to EPOUT occurred restore EDRE setting */
-	if (ep_sel && !demux_change_ret) {
-		ret = regmap_write(madera->regmap, MADERA_EDRE_MANUAL, 0);
-		if (ret)
-			dev_warn(madera->dev,
-				 "Failed to restore EDRE Manual: %d\n",
-				 ret);
+	switch (madera->type) {
+	case CS47L35:
+	case CS47L85:
+	case WM1840:
+		/* if a switch to EPOUT occurred restore EDRE setting */
+		if (ep_sel && !demux_change_ret) {
+			ret = regmap_write(madera->regmap,
+					   MADERA_EDRE_MANUAL, 0);
+			if (ret)
+				dev_warn(madera->dev,
+					 "Failed to restore EDRE Manual: %d\n",
+					 ret);
+		}
+		break;
+	default:
+		break;
 	}
 
 end:
@@ -1258,6 +1279,11 @@ static void madera_configure_input_mode(struct madera *madera)
 	int max_analogue_inputs, num_dmic_clksrc, max_dmic_sup, i;
 
 	switch (madera->type) {
+	case CS47L15:
+		max_dmic_sup = 1;
+		max_analogue_inputs = 2;
+		num_dmic_clksrc = 0;
+		break;
 	case CS47L35:
 		max_dmic_sup = 2;
 		max_analogue_inputs = 2;
