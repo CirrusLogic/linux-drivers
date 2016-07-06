@@ -24,6 +24,7 @@ enum madera_type {
 	CS47L90 = 3,
 	CS47L91 = 4,
 	WM1840 = 7,
+	CS47L15 = 8,
 };
 
 #define MADERA_MAX_CORE_SUPPLIES 2
