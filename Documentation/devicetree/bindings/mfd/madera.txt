@@ -15,6 +15,7 @@ bindings/switch/madera.txt
 Required properties:
 
   - compatible : One of the following chip-specific strings:
+        "cirrus,cs47l15"
         "cirrus,cs47l35"
         "cirrus,cs47l85"
         "cirrus,cs47l90"
@@ -28,7 +29,7 @@ Required properties:
 
   - DCVDD-supply : Power supply for the device as defined in
     bindings/regulator/regulator.txt
-    Mandatory on CS47L35, CS47L90, CS47L91
+    Mandatory on CS47L15, CS47L35, CS47L90, CS47L91
     Optional on CS47L85, WM1840
 
   - AVDD-supply, DBVDD1-supply, DBVDD2-supply, CPVDD1-supply, CPVDD2-supply :
@@ -40,8 +41,8 @@ Required properties:
   - SPKVDDL-supply, SPKVDDR-supply : Power supplies for the device
     (CS47L85, WM1840)
 
-  - SPKVDD-supply : Power supplies for the device
-    (CS47L35)
+  - SPKVDD-supply : Power supply for the device
+    (CS47L15, CS47L35)
 
 Optional properties:
 
