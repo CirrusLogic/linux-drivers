@@ -52,6 +52,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS4270 if I2C
 	select SND_SOC_CS4271 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_CS42XX8_I2C if I2C
+	select SND_SOC_CS47L15 if MFD_CS47L15
 	select SND_SOC_CS47L35 if MFD_CS47L35
 	select SND_SOC_CS47L85 if MFD_CS47L85
 	select SND_SOC_CS47L90 if MFD_CS47L90
@@ -387,6 +388,9 @@ config SND_SOC_CS42XX8_I2C
 	select SND_SOC_CS42XX8
 	select REGMAP_I2C
 
+config SND_SOC_CS47L15
+	tristate
+
 config SND_SOC_CS47L35
 	tristate
 
@@ -447,9 +451,11 @@ config SND_SOC_LM49453
 
 config SND_SOC_MADERA
 	tristate
+	default y if SND_SOC_CS47L15=y
 	default y if SND_SOC_CS47L35=y
 	default y if SND_SOC_CS47L85=y
 	default y if SND_SOC_CS47L90=y
+	default m if SND_SOC_CS47L15=m
 	default m if SND_SOC_CS47L35=m
 	default m if SND_SOC_CS47L85=m
 	default m if SND_SOC_CS47L90=m
