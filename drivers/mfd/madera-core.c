@@ -834,7 +834,7 @@ int madera_dev_init(struct madera *madera)
 		default:
 			ret = -EINVAL;
 			break;
-		}		break;
+		}
 		break;
 	case CS47L85_SILICON_ID:
 		/* should have failed SPI/I2C registration if not supported */
@@ -866,7 +866,7 @@ int madera_dev_init(struct madera *madera)
 		default:
 			ret = -EINVAL;
 			break;
-		}		break;
+		}
 		break;
 	default:
 		ret = -EINVAL;
