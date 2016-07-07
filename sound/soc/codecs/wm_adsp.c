@@ -2430,6 +2430,7 @@ static int wm_adsp_get_features(struct wm_adsp *dsp)
 	case 0x7001e:
 	case 0x8001e:
 	case 0x9001e:
+	case 0xd001e:
 		/* trace firmware */
 		dsp->fw_features.host_read_buf = true;
 		break;
