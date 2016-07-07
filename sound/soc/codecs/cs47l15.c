@@ -1873,7 +1873,7 @@ static int cs47l15_probe(struct platform_device *pdev)
 	mutex_init(&cs47l15->trig_lock);
 
 	cs47l15->core.arizona = arizona;
-	cs47l15->core.num_inputs = 3;
+	cs47l15->core.num_inputs = 4;
 
 	cs47l15->core.adsp[0].part = "cs47l15";
 	if (arizona->pdata.rev_specific_fw)
