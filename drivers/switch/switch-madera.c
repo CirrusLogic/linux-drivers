@@ -85,6 +85,7 @@ struct madera_extcon_info {
 	const struct madera_hpdet_calibration_data* hpdet_ranges;
 	int num_hpdet_ranges;
 	const struct madera_hpdet_trims *hpdet_trims;
+	int hpdet_init_range;
 
 	int micd_mode;
 	const struct madera_micd_config *micd_modes;
@@ -665,6 +666,7 @@ static void madera_extcon_hp_clamp(struct madera_extcon_info *info,
 	snd_soc_dapm_mutex_lock(madera->dapm);
 
 	switch (madera->type) {
+	case CS47L15:
 	case CS47L35:
 	case CS47L92:
 	case CS47L93:
@@ -774,6 +776,16 @@ static const char *madera_extcon_get_micbias_src(struct madera_extcon_info *info
 	unsigned int bias = info->micd_modes[info->micd_mode].bias;
 
 	switch (madera->type) {
+	case CS47L15:
+		switch (bias) {
+		case 0:
+		case 1:
+		case 2:
+			return "MICBIAS1";
+		default:
+			return "MICVDD";
+		}
+		break;
 	case CS47L35:
 	case CS47L85:
 	case WM1840:
@@ -818,6 +830,17 @@ static const char *madera_extcon_get_micbias(struct madera_extcon_info *info)
 	unsigned int bias = info->micd_modes[info->micd_mode].bias;
 
 	switch (madera->type) {
+	case CS47L15:
+		switch (bias) {
+		case 0:
+			return "MICBIAS1A";
+		case 1:
+			return "MICBIAS1B";
+		case 2:
+			return "MICBIAS1C";
+		default:
+			return "MICVDD";
+		}
 	case CS47L35:
 		switch (bias) {
 		case 1:
@@ -1577,7 +1600,8 @@ void madera_hpdet_restart(struct madera_extcon_info *info)
 			   MADERA_MICD_ENA_MASK, 0);
 
 	regmap_update_bits(madera->regmap, MADERA_HEADPHONE_DETECT_1,
-			   MADERA_HP_IMPEDANCE_RANGE_MASK | MADERA_HP_POLL, 0);
+		MADERA_HP_IMPEDANCE_RANGE_MASK | MADERA_HP_POLL,
+		info->hpdet_init_range << MADERA_HP_IMPEDANCE_RANGE_SHIFT);
 
 	switch (madera->type) {
 	case CS47L35:
@@ -1606,7 +1630,8 @@ void madera_hpdet_stop(struct madera_extcon_info *info)
 	madera_hpdet_stop_micd(info);
 
 	regmap_update_bits(madera->regmap, MADERA_HEADPHONE_DETECT_1,
-			   MADERA_HP_IMPEDANCE_RANGE_MASK | MADERA_HP_POLL, 0);
+		MADERA_HP_IMPEDANCE_RANGE_MASK | MADERA_HP_POLL,
+		info->hpdet_init_range << MADERA_HP_IMPEDANCE_RANGE_SHIFT);
 
 	switch (madera->type) {
 	case CS47L35:
@@ -2937,6 +2962,9 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		info->hpdet_ranges = cs47l92_hpdet_ranges;
 		info->num_hpdet_ranges = ARRAY_SIZE(cs47l92_hpdet_ranges);
 		break;
+	case CS47L15:
+		info->hpdet_init_range = 1; /* range 0 not used on CS47L15 */
+		/* fall through to default case */
 	default:
 		info->hpdet_ranges = madera_hpdet_ranges;
 		info->num_hpdet_ranges = ARRAY_SIZE(madera_hpdet_ranges);
@@ -3080,6 +3108,10 @@ static int madera_extcon_probe(struct platform_device *pdev)
 
 	madera_extcon_set_mode(info, 0);
 
+	regmap_update_bits(madera->regmap, MADERA_HEADPHONE_DETECT_1,
+		MADERA_HP_IMPEDANCE_RANGE_MASK,
+		info->hpdet_init_range << MADERA_HP_IMPEDANCE_RANGE_SHIFT);
+
 	/* Invalidate the tuning level so that the first detection
 	 * will always apply a tuning
 	 */
@@ -3091,20 +3123,27 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	madera_extcon_read_calibration(info);
-	if (info->hpdet_trims) {
-		switch (madera->type) {
-		case CS47L35:
-		case CS47L85:
-		case WM1840:
+	switch (madera->type) {
+	case CS47L15:
+		/* if uncalibrated we must compensate for
+		 * the internal 33 ohm offset
+		 */
+		 if (!info->hpdet_trims)
+			pdata->hpdet_ext_res_x100 += 3300;
+		break;
+	case CS47L35:
+	case CS47L85:
+	case WM1840:
+		if (info->hpdet_trims) {
 			/* set for accurate HP impedance detection */
 			regmap_update_bits(madera->regmap,
 				MADERA_ACCESSORY_DETECT_MODE_1,
 				MADERA_ACCDET_POLARITY_INV_ENA_MASK,
 				1 << MADERA_ACCDET_POLARITY_INV_ENA_SHIFT);
-			break;
-		default:
-			break;
 		}
+		break;
+	default:
+		break;
 	}
 
 	if (info->pdata->jd_use_jd2) {

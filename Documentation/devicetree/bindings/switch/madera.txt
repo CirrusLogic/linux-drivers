@@ -74,7 +74,7 @@ Child node optional properties:
     where clamp_x is the clamp pin for channel x and sense_x is the impedance
     sense pin for channel x, as per the HPD_OUT_SEL field of HEADPHONE_DETECT_0
     register. A value >0xFFFF means use the default.
-    (cs47l90, cs47l91, cs47l92, cs47l93)
+    (cs47l15, cs47l90, cs47l91, cs47l92, cs47l93)
 
   - cirrus,micd-ranges : Microphone detection level and key configuration, this
     field can be of variable length but should always be a multiple of 2 cells
