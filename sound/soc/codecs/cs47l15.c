@@ -44,6 +44,12 @@
 
 #define CS47L15_FLL_COUNT 2
 
+/* Mid-mode registers */
+#define CS47L15_ADC_INT_BIAS_MASK	0x3800
+#define CS47L15_ADC_INT_BIAS_SHIFT	11
+#define CS47L15_PGA_BIAS_SEL_MASK	0x03
+#define CS47L15_PGA_BIAS_SEL_SHIFT	0
+
 /* 2 mixer inputs with a stride of n in the register address */
 #define CS47L15_MIXER_INPUTS_2_N(_reg, n)	\
 	(_reg),					\
@@ -132,6 +138,7 @@ struct cs47l15_priv {
 	bool trig;
 	struct mutex trig_lock;
 	struct mutex fw_lock;
+	bool in1_lp_mode;
 };
 
 static const struct {
@@ -607,6 +614,55 @@ static DECLARE_TLV_DB_SCALE(ng_tlv, -12000, 600, 0);
 	SOC_SINGLE(name " NG SPKDAT1L Switch", base,  8, 1, 0), \
 	SOC_SINGLE(name " NG SPKDAT1R Switch", base,  9, 1, 0)
 
+static int cs47l15_in1_adc_get(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct cs47l15_priv *cs47l15 = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = cs47l15->in1_lp_mode ? 1 : 0;
+
+	return 0;
+}
+
+static int cs47l15_in1_adc_put(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct cs47l15_priv *cs47l15 = snd_soc_codec_get_drvdata(codec);
+
+	switch (ucontrol->value.integer.value[0]) {
+	case 0:
+		/* Set IN1 to normal mode */
+		snd_soc_update_bits(codec, ARIZONA_DMIC1L_CONTROL,
+				    CLEARWATER_IN1_OSR_MASK,
+				    5 << CLEARWATER_IN1_OSR_SHIFT);
+		snd_soc_update_bits(codec, CS47L15_ADC_INT_BIAS,
+				    CS47L15_ADC_INT_BIAS_MASK,
+				    4 << CS47L15_ADC_INT_BIAS_SHIFT);
+		snd_soc_update_bits(codec, CS47L15_PGA_BIAS_SEL,
+				    CS47L15_PGA_BIAS_SEL_MASK,
+				    0);
+		cs47l15->in1_lp_mode = false;
+		break;
+	default:
+		/* Set IN1 to LP mode */
+		snd_soc_update_bits(codec, ARIZONA_DMIC1L_CONTROL,
+				    CLEARWATER_IN1_OSR_MASK,
+				    4 << CLEARWATER_IN1_OSR_SHIFT);
+		snd_soc_update_bits(codec, CS47L15_ADC_INT_BIAS,
+				    CS47L15_ADC_INT_BIAS_MASK,
+				    1 << CS47L15_ADC_INT_BIAS_SHIFT);
+		snd_soc_update_bits(codec, CS47L15_PGA_BIAS_SEL,
+				    CS47L15_PGA_BIAS_SEL_MASK,
+				    3 << CS47L15_PGA_BIAS_SEL_SHIFT);
+		cs47l15->in1_lp_mode = true;
+		break;
+	}
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new cs47l15_snd_controls[] = {
 SOC_VALUE_ENUM("IN1 OSR", clearwater_in_dmic_osr[0]),
 SOC_VALUE_ENUM("IN2 OSR", clearwater_in_dmic_osr[1]),
@@ -809,6 +865,10 @@ SOC_ENUM_EXT("IN1L Rate", moon_input_rate[0],
 	snd_soc_get_enum_double, moon_in_rate_put),
 SOC_ENUM_EXT("IN1R Rate", moon_input_rate[1],
 	snd_soc_get_enum_double, moon_in_rate_put),
+
+SOC_SINGLE_BOOL_EXT("IN1 LP Mode Switch", 0,
+	     cs47l15_in1_adc_get, cs47l15_in1_adc_put),
+
 SOC_ENUM_EXT("IN2L Rate", moon_input_rate[2],
 	snd_soc_get_enum_double, moon_in_rate_put),
 SOC_ENUM_EXT("IN2R Rate", moon_input_rate[3],
