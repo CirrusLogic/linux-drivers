@@ -46,7 +46,7 @@ Optional properties:
   , MICVDD-supply : Power supply, only need to be specified if
     powered externally
 
-  - cirrus,reset-gpios : One entry specifying the GPIO controlling /RESET.
+  - reset-gpios : One entry specifying the GPIO controlling /RESET.
     As defined in bindings/gpio.txt.
 
   - cirrus,clk32k-src : set input source for codec 32kHz clock.
@@ -77,7 +77,7 @@ codec: cs47l85@0 {
 	compatible = "cirrus,cs47l85";
 	reg = <0>;
 
-        cirrus,reset-gpios = <&gpio 0>;
+	reset-gpios = <&gpio 0>;
 
 	cirrus,gpio-defaults = <
 		Madera_GP_FN_TXLRCLK
