@@ -549,9 +549,9 @@ static int madera_of_get_core_pdata(struct madera *madera)
 	struct madera_pdata *pdata = &madera->pdata;
 
 	pdata->reset = of_get_named_gpio(madera->dev->of_node,
-					 "cirrus,reset-gpios", 0);
+					 "reset-gpios", 0);
 	if (pdata->reset < 0)
-		madera_of_report_error(madera, "cirrus,reset-gpios", false,
+		madera_of_report_error(madera, "reset-gpios", false,
 					pdata->reset);
 
 	madera_of_read_uint(madera, "cirrus,clk32k-src", false,
