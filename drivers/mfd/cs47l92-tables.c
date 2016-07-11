@@ -53,6 +53,9 @@ static const struct reg_sequence cs47l92_reva_16_patch[] = {
 	{ 0x13B1, 0xF8FF },
 	{ 0x13B2, 0x04F3 },
 	{ 0x13B3, 0xFF00 },
+	{ 0x412,  0x0005 },
+	{ 0x41A,  0x0005 },
+	{ 0x422,  0x0005 },
 };
 
 static const struct reg_sequence cs47l92_reva_32_patch[] = {
@@ -266,21 +269,21 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x00000409, 0x0022 }, /* R1033 (0x409) - Output Volume Ramp */
 	{ 0x00000410, 0x0080 }, /* R1040 (0x410) - Output Path Config 1L */
 	{ 0x00000411, 0x0180 }, /* R1041 (0x411) - DAC Digital Volume 1L */
-	{ 0x00000412, 0x0000 }, /* R1042 (0x412) - Output Path Config 1 */
+	{ 0x00000412, 0x0005 }, /* R1042 (0x412) - Output Path Config 1 */
 	{ 0x00000413, 0x0001 }, /* R1043 (0x413) - Noise Gate Select 1L */
 	{ 0x00000414, 0x0080 }, /* R1044 (0x414) - Output Path Config 1R */
 	{ 0x00000415, 0x0180 }, /* R1045 (0x415) - DAC Digital Volume 1R */
 	{ 0x00000417, 0x0002 }, /* R1047 (0x417) - Noise Gate Select 1R */
 	{ 0x00000418, 0x0080 }, /* R1048 (0x418) - Output Path Config 2L */
 	{ 0x00000419, 0x0180 }, /* R1049 (0x419) - DAC Digital Volume 2L */
-	{ 0x0000041a, 0x0002 }, /* R1050 (0x41a) - Output Path Config 2 */
+	{ 0x0000041a, 0x0005 }, /* R1050 (0x41a) - Output Path Config 2 */
 	{ 0x0000041b, 0x0004 }, /* R1051 (0x41b) - Noise Gate Select 2L */
 	{ 0x0000041c, 0x0080 }, /* R1052 (0x41c) - Output Path Config 2R */
 	{ 0x0000041d, 0x0180 }, /* R1053 (0x41d) - DAC Digital Volume 2R */
 	{ 0x0000041f, 0x0008 }, /* R1055 (0x41f) - Noise Gate Select 2R */
 	{ 0x00000420, 0x0080 }, /* R1056 (0x420) - Output Path Config 3L */
 	{ 0x00000421, 0x0180 }, /* R1057 (0x421) - DAC Digital Volume 3L */
-	{ 0x00000422, 0x0002 }, /* R1058 (0x422) - Output Path Config 3 */
+	{ 0x00000422, 0x0005 }, /* R1058 (0x422) - Output Path Config 3 */
 	{ 0x00000423, 0x0010 }, /* R1059 (0x423) - Noise Gate Select 3L */
 	{ 0x00000424, 0x0080 }, /* R1060 (0x424) - Output Path Config 3R */
 	{ 0x00000425, 0x0180 }, /* R1061 (0x425) - DAC Digital Volume 3R */
