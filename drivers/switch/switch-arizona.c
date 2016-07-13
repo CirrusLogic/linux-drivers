@@ -966,7 +966,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 			is_jdx_micdetx_pin = false;
 			break;
 		default:
-			is_jdx_micdetx_pin = true;;
+			is_jdx_micdetx_pin = true;
 		}
 		break;
 	}
@@ -2095,7 +2095,6 @@ void arizona_micd_stop(struct arizona_extcon_info *info)
 			break;
 		}
 	}
-
 
 	pm_runtime_mark_last_busy(info->dev);
 	pm_runtime_put_autosuspend(info->dev);
