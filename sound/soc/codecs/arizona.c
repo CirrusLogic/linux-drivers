@@ -597,6 +597,8 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 			break;
 		}
 		break;
+	default:
+		break;
 	}
 
 	return 0;
@@ -2544,6 +2546,9 @@ int arizona_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		reg = snd_soc_read(w->codec, ARIZONA_INPUT_ENABLES);
 		if (reg == 0)
 			arizona_in_set_vu(w->codec, 0);
+		break;
+	default:
+		break;
 	}
 
 	return 0;
@@ -2706,6 +2711,9 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 		default:
 			break;
 		}
+		break;
+
+	default:
 		break;
 	}
 
@@ -4628,7 +4636,7 @@ static int arizona_wait_for_fll(struct arizona_fll *fll, bool requested)
 		case 11 ... 20:
 			usleep_range(750, 1250);
 			break;
-		case 21 ... 30:
+		default:
 			msleep(20);
 			break;
 		}

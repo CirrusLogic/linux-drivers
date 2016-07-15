@@ -616,6 +616,8 @@ static int clearwater_dspclk_ev(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_REG:
 		mutex_unlock(&arizona->dspclk_ena_lock);
 		break;
+	default:
+		break;
 	}
 
 	return 0;
