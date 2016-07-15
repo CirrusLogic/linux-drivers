@@ -52,6 +52,8 @@ int arizona_clk32k_enable(struct arizona *arizona)
 			if (ret != 0)
 				goto out;
 			break;
+		default:
+			break;
 		}
 
 		ret = regmap_update_bits(arizona->regmap, ARIZONA_CLOCK_32K_1,
@@ -86,6 +88,8 @@ int arizona_clk32k_disable(struct arizona *arizona)
 		switch (arizona->pdata.clk32k_src) {
 		case ARIZONA_32KZ_MCLK1:
 			pm_runtime_put_sync(arizona->dev);
+			break;
+		default:
 			break;
 		}
 	}
@@ -2383,6 +2387,9 @@ int arizona_dev_init(struct arizona *arizona)
 		ret = mfd_add_devices(arizona->dev, -1, moon_devs,
 				      ARRAY_SIZE(moon_devs), NULL, 0, NULL);
 		break;
+	default:
+		ret = -EINVAL;
+		goto err_irq;
 	}
 
 	if (ret != 0) {
