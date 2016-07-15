@@ -2282,7 +2282,7 @@ static void madera_extcon_of_get_hpd_pins(struct madera *madera,
 		sizeof(pdata->hpd_pins));
 
 	ret = of_property_read_u32_array(node, "cirrus,hpd-pins",
-					 values, sizeof(values));
+					 values, ARRAY_SIZE(values));
 	if (ret) {
 		if (ret != -EINVAL)
 			dev_err(madera->dev,
