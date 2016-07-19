@@ -115,7 +115,6 @@ MODULE_DEVICE_TABLE(i2c, madera_i2c_id);
 static struct i2c_driver madera_i2c_driver = {
 	.driver = {
 		.name	= "madera",
-		.owner	= THIS_MODULE,
 		.pm	= &madera_pm_ops,
 		.of_match_table	= of_match_ptr(madera_of_match),
 	},
