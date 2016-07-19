@@ -568,7 +568,7 @@ static void madera_extcon_hp_clamp(struct madera_extcon_info *info,
 		else
 			val = 0;
 		break;
-	};
+	}
 
 	madera->hpdet_clamp[0] = clamp;
 
