@@ -439,7 +439,6 @@ static struct platform_driver madera_irq_driver = {
 	.remove = madera_irq_remove,
 	.driver = {
 		.name	= "madera-irq",
-		.owner	= THIS_MODULE,
 		.pm = &madera_irq_pm_ops,
 	}
 };
