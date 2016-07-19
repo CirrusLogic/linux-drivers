@@ -415,7 +415,7 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 	default:
 		mask = 0;
 		break;
-	};
+	}
 
 	arizona->hpdet_clamp = clamp;
 
