@@ -2484,7 +2484,7 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		default:
 			wm_adsp2v2_show_fw_status(dsp);
 			break;
-		};
+		}
 
 		mutex_lock(&dsp->pwr_lock);
 
