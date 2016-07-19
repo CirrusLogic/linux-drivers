@@ -2835,7 +2835,7 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		default:
 			wm_adsp2v2_show_fw_status(dsp);
 			break;
-		};
+		}
 
 		if (dsp->fw_features.edac_shutdown)
 			wm_adsp_edac_shutdown(dsp);
