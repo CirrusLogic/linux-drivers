@@ -1905,7 +1905,6 @@ static int cs47l35_remove(struct platform_device *pdev)
 static struct platform_driver cs47l35_codec_driver = {
 	.driver = {
 		.name = "cs47l35-codec",
-		.owner = THIS_MODULE,
 	},
 	.probe = cs47l35_probe,
 	.remove = cs47l35_remove,
