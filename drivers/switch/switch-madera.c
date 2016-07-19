@@ -3060,7 +3060,6 @@ static int madera_extcon_remove(struct platform_device *pdev)
 static struct platform_driver madera_extcon_driver = {
 	.driver		= {
 		.name	= "madera-extcon",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= madera_extcon_probe,
 	.remove		= madera_extcon_remove,
