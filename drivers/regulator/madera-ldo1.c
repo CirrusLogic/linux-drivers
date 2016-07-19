@@ -196,7 +196,6 @@ static struct platform_driver madera_ldo1_driver = {
 	.probe = madera_ldo1_probe,
 	.driver		= {
 		.name	= "madera-ldo1",
-		.owner	= THIS_MODULE,
 	},
 };
 
