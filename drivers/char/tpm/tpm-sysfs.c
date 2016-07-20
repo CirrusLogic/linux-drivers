@@ -423,6 +423,12 @@ TPM2_PROP_FLAG_ATTR(ph_enable_nv,
 TPM2_PROP_FLAG_ATTR(orderly,
 		    TPM2_PT_STARTUP_CLEAR, TPM2_ATTR_ORDERLY);
 
+/* Aliases for userland scripts in TPM2 case */
+TPM2_PROP_FLAG_ATTR(enabled,
+		    TPM2_PT_STARTUP_CLEAR, TPM2_ATTR_SH_ENABLE);
+TPM2_PROP_FLAG_ATTR(owned,
+		    TPM2_PT_PERMANENT, TPM2_ATTR_OWNER_AUTH_SET);
+
 TPM2_PROP_U32_ATTR(lockout_counter, TPM2_PT_LOCKOUT_COUNTER);
 TPM2_PROP_U32_ATTR(max_auth_fail, TPM2_PT_MAX_AUTH_FAIL);
 TPM2_PROP_U32_ATTR(lockout_interval, TPM2_PT_LOCKOUT_INTERVAL);
@@ -441,6 +447,8 @@ static struct attribute *tpm2_dev_attrs[] = {
 	ATTR_FOR_TPM2_PROP(eh_enable),
 	ATTR_FOR_TPM2_PROP(ph_enable_nv),
 	ATTR_FOR_TPM2_PROP(orderly),
+	ATTR_FOR_TPM2_PROP(enabled),
+	ATTR_FOR_TPM2_PROP(owned),
 	ATTR_FOR_TPM2_PROP(lockout_counter),
 	ATTR_FOR_TPM2_PROP(max_auth_fail),
 	ATTR_FOR_TPM2_PROP(lockout_interval),
