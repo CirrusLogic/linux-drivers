@@ -31,6 +31,7 @@
 #include "wm_adsp.h"
 
 #define CS47L35_NUM_ADSP 3
+#define CS47L35_MONO_OUTPUTS 1
 
 struct cs47l35;
 
@@ -1693,7 +1694,7 @@ static int cs47l35_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	ret = madera_init_outputs(codec);
+	ret = madera_init_outputs(codec, CS47L35_MONO_OUTPUTS);
 	if (ret)
 		return ret;
 

@@ -31,6 +31,7 @@
 #include "wm_adsp.h"
 
 #define CS47L15_NUM_ADSP 1
+#define CS47L15_MONO_OUTPUTS 1
 
 /* Mid-mode registers */
 #define CS47L15_ADC_INT_BIAS_MASK	0x3800
@@ -1384,7 +1385,7 @@ static int cs47l15_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	ret = madera_init_outputs(codec);
+	ret = madera_init_outputs(codec, CS47L15_MONO_OUTPUTS);
 	if (ret)
 		return ret;
 
