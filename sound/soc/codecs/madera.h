@@ -515,7 +515,7 @@ extern int madera_init_inputs(struct snd_soc_codec *codec,
 			      int n_dmic_inputs,
 			      const char * const *dmic_refs,
 			      int n_dmic_refs);
-extern int madera_init_outputs(struct snd_soc_codec *codec);
+extern int madera_init_outputs(struct snd_soc_codec *codec, int n_mono_routes);
 extern int madera_init_bus_error_irq(struct snd_soc_codec *codec, int dsp_num,
 				     irq_handler_t handler);
 extern void madera_destroy_bus_error_irq(struct snd_soc_codec *codec,

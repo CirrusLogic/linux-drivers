@@ -1391,7 +1391,7 @@ int madera_init_inputs(struct snd_soc_codec *codec,
 }
 EXPORT_SYMBOL_GPL(madera_init_inputs);
 
-int madera_init_outputs(struct snd_soc_codec *codec)
+int madera_init_outputs(struct snd_soc_codec *codec, int n_mono_routes)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
@@ -1400,7 +1400,13 @@ int madera_init_outputs(struct snd_soc_codec *codec)
 	unsigned int val;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(pdata->out_mono); i++) {
+	if (n_mono_routes > MADERA_MAX_OUTPUT) {
+		dev_warn(madera->dev, "Codec requests more mono outputs (%d) than there are outputs (%d), defaulting to maximum.\n",
+			 n_mono_routes, MADERA_MAX_OUTPUT);
+		n_mono_routes = MADERA_MAX_OUTPUT;
+	}
+
+	for (i = 0; i < n_mono_routes; i++) {
 		/* Default is 0 so noop with defaults */
 		if (pdata->out_mono[i]) {
 			val = MADERA_OUT1_MONO;
