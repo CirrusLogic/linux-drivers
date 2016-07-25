@@ -847,6 +847,7 @@ static const char * const cs47l15_dmic_inputs[] = {
 	"IN1L Mux",
 	"IN1R Mux",
 	"IN2L",
+	"IN2R",
 };
 
 int arizona_init_input(struct snd_soc_codec *codec)
