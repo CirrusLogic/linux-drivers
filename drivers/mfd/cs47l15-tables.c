@@ -92,6 +92,11 @@ static const struct regmap_irq cs47l15_irqs[ARIZONA_NUM_IRQ] = {
 	[ARIZONA_IRQ_DSP_IRQ8] = { .reg_offset = 10,
 				  .mask = CLEARWATER_DSP_IRQ8_EINT1},
 
+	[ARIZONA_IRQ_SPK_OVERHEAT_WARN] = { .reg_offset = 14,
+				.mask = CLEARWATER_SPK_OVERHEAT_WARN_EINT1},
+	[ARIZONA_IRQ_SPK_OVERHEAT] = { .reg_offset = 14,
+				.mask = CLEARWATER_SPK_SHUTDOWN_EINT1},
+
 	[ARIZONA_IRQ_GP1] = { .reg_offset = 16,
 				  .mask = CLEARWATER_GP1_EINT1},
 	[ARIZONA_IRQ_GP2] = { .reg_offset = 16,
