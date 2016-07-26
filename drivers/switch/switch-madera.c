@@ -61,7 +61,7 @@
 /* Conversion between ohms and hundredths of an ohm. */
 #define HOHM_TO_OHM(X)	(((X) == INT_MAX || (X) == MADERA_HP_Z_OPEN) ? \
 			 (X) : ((X) + 50) / 100)
-#define OHM_TO_HOHM(X)	((X) * 100)
+#define OHM_TO_HOHM(X)	((X) >= (INT_MAX / 100) ? INT_MAX : (X) * 100)
 
 struct madera_micd_bias {
 	unsigned int bias;
