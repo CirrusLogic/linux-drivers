@@ -14,6 +14,7 @@
 #include <linux/rbtree.h>
 #include <linux/spinlock_types.h>
 #include <linux/workqueue.h>
+#include <net/net_namespace.h>
 
 /* Iface handling */
 #define IDEBUG_MASK (1<<0)
@@ -245,6 +246,7 @@ struct iface_stat {
 struct iface_stat_work {
 	struct work_struct iface_work;
 	struct iface_stat *iface_entry;
+	struct net_device *net_dev;
 };
 
 /*
@@ -336,6 +338,7 @@ struct tag_ref {
 };
 
 struct proc_qtu_data {
+	struct net *net;
 	struct rb_node node;
 	pid_t pid;
 
