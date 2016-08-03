@@ -3353,6 +3353,64 @@ static int arizona_hp_trim_signify(int raw, int value_mask)
 		return raw;
 }
 
+#ifdef DEBUG
+#define ARIZONA_EXTCON_DUMP(x, f) \
+	dev_dbg(arizona->dev, "\t" #x ": " f "\n", pdata->x)
+
+static void arizona_extcon_dump_pdata(struct arizona *arizona)
+{
+	const struct arizona_pdata *pdata = &arizona->pdata;
+	int j = 0;
+
+	dev_dbg(arizona->dev, "extcon pdata gpsw=0x%x\n",
+		arizona->pdata.gpsw);
+	ARIZONA_EXTCON_DUMP(micd_detect_debounce, "%d");
+	ARIZONA_EXTCON_DUMP(micd_manual_debounce, "%d");
+	ARIZONA_EXTCON_DUMP(micd_bias_start_time, "%d");
+	ARIZONA_EXTCON_DUMP(micd_rate, "%d");
+	ARIZONA_EXTCON_DUMP(micd_dbtime, "%d");
+	ARIZONA_EXTCON_DUMP(micd_timeout, "%d");
+	ARIZONA_EXTCON_DUMP(micd_force_micbias, "%u");
+	ARIZONA_EXTCON_DUMP(micd_force_micbias_initial, "%u");
+	ARIZONA_EXTCON_DUMP(micd_software_compare, "%u");
+	ARIZONA_EXTCON_DUMP(micd_open_circuit_declare, "%u");
+	ARIZONA_EXTCON_DUMP(jd_gpio5, "%u");
+	ARIZONA_EXTCON_DUMP(jd_gpio5_nopull, "%u");
+	ARIZONA_EXTCON_DUMP(jd_invert, "%u");
+	ARIZONA_EXTCON_DUMP(init_mic_delay, "%d");
+	ARIZONA_EXTCON_DUMP(fixed_hpdet_imp, "%d");
+	ARIZONA_EXTCON_DUMP(hpdet_short_circuit_imp, "%d");
+	ARIZONA_EXTCON_DUMP(hpdet_channel, "%d");
+	ARIZONA_EXTCON_DUMP(jd_wake_time, "%d");
+	ARIZONA_EXTCON_DUMP(micd_clamp_mode, "%u");
+	ARIZONA_EXTCON_DUMP(hs_mic, "%u");
+	dev_dbg(arizona->dev, "\tmicd_ranges {\n");
+	for (j = 0; j < pdata->num_micd_ranges; ++j)
+		dev_dbg(arizona->dev, "\t\tmax: %d key: %d\n",
+			pdata->micd_ranges[j].max,
+			pdata->micd_ranges[j].key);
+	dev_dbg(arizona->dev, "\t}\n");
+
+	dev_dbg(arizona->dev, "\tmicd_configs {\n");
+	for (j = 0; j < pdata->num_micd_configs; ++j)
+		dev_dbg(arizona->dev,
+			"\t\tsrc: 0x%x gnd: 0x%x bias: %u gpio: %u\n",
+			pdata->micd_configs[j].src,
+			pdata->micd_configs[j].gnd,
+			pdata->micd_configs[j].bias,
+			pdata->micd_configs[j].gpio);
+	dev_dbg(arizona->dev, "\t}\n");
+	dev_dbg(arizona->dev, "\thpd_left_pins: %u %u\n",
+		pdata->hpd_l_pins.clamp_pin, pdata->hpd_l_pins.impd_pin);
+	dev_dbg(arizona->dev, "\thpd_right_pins: %u %u\n",
+		pdata->hpd_r_pins.clamp_pin, pdata->hpd_r_pins.impd_pin);
+}
+#else
+static inline void arizona_extcon_dump_pdata(struct arizona *arizona)
+{
+}
+#endif
+
 static int arizona_hpdet_d_read_calibration(struct arizona_extcon_info *info)
 {
 	struct arizona *arizona = info->arizona;
@@ -3681,6 +3739,8 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	} else if (pdata->hpdet_short_circuit_imp >= HP_LOW_IMPEDANCE_LIMIT) {
 		pdata->hpdet_short_circuit_imp = HP_LOW_IMPEDANCE_LIMIT - 1;
 	}
+
+	arizona_extcon_dump_pdata(arizona);
 
 	/* Set of_node to parent from the SPI device to allow
 	 * location regulator supplies */
