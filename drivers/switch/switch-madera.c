@@ -2605,11 +2605,12 @@ static void madera_extcon_dump_pdata(struct madera *madera)
 		dev_dbg(madera->dev, "\tmicd_configs {\n");
 		for (j = 0; j < pdata->num_micd_configs; ++j)
 			dev_dbg(madera->dev,
-				"\t\tsrc: 0x%x gnd: 0x%x bias: %u gpio: %u\n",
+				"\t\tsrc: 0x%x gnd: 0x%x bias: %u gpio: %u hp_gnd: %u\n",
 				pdata->micd_configs[j].src,
 				pdata->micd_configs[j].gnd,
 				pdata->micd_configs[j].bias,
-				pdata->micd_configs[j].gpio);
+				pdata->micd_configs[j].gpio,
+				pdata->micd_configs[j].hp_gnd);
 		dev_dbg(madera->dev, "\t}\n");
 
 		dev_dbg(madera->dev, "\thpd_pins: %u %u %u %u\n",
