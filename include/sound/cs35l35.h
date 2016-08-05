@@ -39,6 +39,42 @@ struct classh_cfg {
 	int classh_vpch_man;
 };
 
+struct monitor_cfg {
+	/*
+	 * Signal Monitor Data
+	 * highly configurable signal monitoring
+	 * data positioning and different types of
+	 * monitoring data.
+	 *
+	 * Section 4.8.2 - 4.8.4 of the datasheet
+	 */
+	bool is_present;
+	bool imon_specs;
+	bool vmon_specs;
+	bool vpmon_specs;
+	bool vbstmon_specs;
+	bool vpbrstat_specs;
+	bool zerofill_specs;
+	u8 imon_dpth;
+	u8 imon_loc;
+	u8 imon_frm;
+	u8 vmon_dpth;
+	u8 vmon_loc;
+	u8 vmon_frm;
+	u8 vpmon_dpth;
+	u8 vpmon_loc;
+	u8 vpmon_frm;
+	u8 vbstmon_dpth;
+	u8 vbstmon_loc;
+	u8 vbstmon_frm;
+	u8 vpbrstat_dpth;
+	u8 vpbrstat_loc;
+	u8 vpbrstat_frm;
+	u8 zerofill_dpth;
+	u8 zerofill_loc;
+	u8 zerofill_frm;
+};
+
 struct cs35l35_platform_data {
 
 	/* Stereo (2 Device) */
@@ -59,6 +95,8 @@ struct cs35l35_platform_data {
 	bool shared_bst;
 	/* ClassH Algorithm */
 	struct classh_cfg classh_algo;
+	/* Monitor Config */
+	struct monitor_cfg mon_cfg;
 };
 
 #endif /* __CS35L35_H */

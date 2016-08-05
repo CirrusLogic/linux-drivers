@@ -44,8 +44,15 @@ Optional properties:
   1 = Data Packet received on Right I2S Channel
 
   - cirrus,classh-internal-algo : Settings for the Internal Class H Algorithm
-  Can also be controlled by Mixer Settings for runtime tuning if this is not
-  set
+  See Section 4.3 Internal Class H Algorithm in the Datasheet.
+  If not used, the device manages the ClassH Algorithm internally.
+
+  -cirrus,monitor-signal-format : Settings for adjusting the Depth, Location
+  and Frame of the Monitoring Signals for Algorithms
+  See Sections 4.8.2 through 4.8.4 Serial-Port Control in the Datasheet
+  Each of the 3 8 bit values in the array contain the settings for 
+  depth, location, and frame.
+  If not used, the defaults for the 6 monitor signals is used.
 
 Example:
 
@@ -55,20 +62,30 @@ cs35l35: cs35l35@20 {
 	VA-supply = <&dummy_vreg>;
 	VP-supply = <&dummy_vreg>;
 	reset-gpios = <&axi_gpio 54 0>;
-	boost-ctl = <0x41>;
+	cirrus,boost-ctl = <0x41>;
 
-	classh-internal-algo {
-		classh-bst-ctl-override;
-		classh-bst-max-limit = <0x01>;
-		classh-mem-depth = <0x01>;
-		classh-release-rate = <0x08>;
-		classh-headroom = <0x0B>;
-		classh-wk-fet-disable = <0x01>;
-		classh-wk-fet-delay = <0x04>;
-		classh-wk-fet-thld = <0x01>;
-		classh-vpch-auto = <0x01>;
-		classh-vpch-rate = <0x02>;
-		classh-vpch-man = <0x05>;
+	cirrus,classh-internal-algo {
+		cirrus,classh-bst-overide;
+		cirrus,classh-bst-max-limit = <0x01>;
+		cirrus,classh-mem-depth = <0x01>;
+		cirrus,classh-release-rate = <0x08>;
+		cirrus,classh-headroom = <0x0B>;
+		cirrus,classh-wk-fet-disable = <0x01>;
+		cirrus,classh-wk-fet-delay = <0x04>;
+		cirrus,classh-wk-fet-thld = <0x01>;
+		cirrus,classh-vpch-auto = <0x01>;
+		cirrus,classh-vpch-rate = <0x02>;
+		cirrus,classh-vpch-man = <0x05>;
+	};
+
+	/* Depth, Location, Frame */
+	cirrus,monitor-signal-format {
+		cirrus,imon = /bits/ 8 <0x03 0x00 0x01>;
+		cirrus,vmon = /bits/ 8 <0x03 0x00 0x00>;
+		cirrus,vpmon = /bits/ 8 <0x03 0x04 0x00>;
+		cirrus,vbstmon = /bits/ 8 <0x03 0x04 0x01>;
+		cirrus,vpbrstat = /bits/ 8 <0x00 0x04 0x00>;
+		cirrus,zerofill = /bits/ 8 <0x00 0x00 0x00>;
 	};
 
 };
