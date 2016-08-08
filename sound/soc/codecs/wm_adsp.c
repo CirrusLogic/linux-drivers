@@ -1218,7 +1218,8 @@ static int wm_adsp_create_ctl_blk(struct wm_adsp *dsp,
 	default:
 		ret = snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
 			       "DSP%d%c %.10s %x:%d",
-			       dsp->num, *region_name, wm_adsp_fw_text[dsp->fw],
+			       dsp->num, *region_name,
+			       dsp->firmwares[dsp->fw].name,
 			       alg_region->alg, block);
 
 		/* Truncate the subname from the start if it is too long */
