@@ -1220,7 +1220,8 @@ static int wm_adsp_create_ctl_blk(struct wm_adsp *dsp,
 		break;
 	default:
 		ret = snprintf(name, WM_ADSP_CONTROL_MAX, "DSP%d%c %.10s %x:%d",
-			       dsp->num, *region_name, wm_adsp_fw_text[dsp->fw],
+			       dsp->num, *region_name,
+			       dsp->firmwares[dsp->fw].name,
 			       alg_region->alg, block);
 
 		/* Truncate the subname from the start if it is too long */
