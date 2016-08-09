@@ -2436,6 +2436,12 @@ static int wm_adsp_get_features(struct wm_adsp *dsp)
 		dsp->fw_features.ez2control_trigger = true;
 		dsp->fw_features.host_read_buf = true;
 		break;
+	case 0xd000d:
+	case 0xd0053:
+	case 0xd0091:
+		/* ez2control no stream buffer */
+		dsp->fw_features.ez2control_trigger = true;
+		break;
 	case 0x4001e:
 	case 0x5001e:
 	case 0x6001e:

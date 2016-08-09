@@ -1688,12 +1688,14 @@ static irqreturn_t cs47l15_adsp2_irq(int irq, void *data)
 	struct cs47l15_compr *compr;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(cs47l15->compr_info); ++i) {
-		if (!cs47l15->compr_info[i].adsp_compr.dsp->running)
-			continue;
+	if (wm_adsp_fw_has_host_read_buf(&cs47l15->core.adsp[0])) {
+		for (i = 0; i < ARRAY_SIZE(cs47l15->compr_info); ++i) {
+			if (!cs47l15->compr_info[i].adsp_compr.dsp->running)
+				continue;
 
-		compr = &cs47l15->compr_info[i];
-		cs47l15_compr_irq(cs47l15, compr);
+			compr = &cs47l15->compr_info[i];
+			cs47l15_compr_irq(cs47l15, compr);
+		}
 	}
 
 	if (arizona->pdata.ez2ctrl_trigger) {
