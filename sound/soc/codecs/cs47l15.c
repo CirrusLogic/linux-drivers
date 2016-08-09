@@ -1258,13 +1258,17 @@ static irqreturn_t cs47l15_adsp2_irq(int irq, void *data)
 	struct cs47l15 *cs47l15 = data;
 	struct madera *madera = cs47l15->core.madera;
 	struct madera_voice_trigger_info trig_info;
+	struct cs47l15_compr *compr;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(cs47l15->compr_info); ++i) {
-		if (!cs47l15->compr_info[i].adsp_compr.dsp->running)
-			continue;
+	if (wm_adsp_fw_has_host_read_buf(&cs47l15->core.adsp[0])) {
+		for (i = 0; i < ARRAY_SIZE(cs47l15->compr_info); ++i) {
+			if (!cs47l15->compr_info[i].adsp_compr.dsp->running)
+				continue;
 
-		cs47l15_compr_irq(cs47l15, &cs47l15->compr_info[i]);
+			compr = &cs47l15->compr_info[i];
+			cs47l15_compr_irq(cs47l15, compr);
+		}
 	}
 
 	mutex_lock(&cs47l15->trig_lock);
