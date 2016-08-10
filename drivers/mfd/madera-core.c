@@ -822,51 +822,54 @@ int madera_dev_init(struct madera *madera)
 
 	switch (hwid) {
 	case CS47L35_SILICON_ID:
-		/* should have failed SPI/I2C registration if not supported */
-		BUG_ON(!IS_ENABLED(CONFIG_MFD_CS47L35));
-
-		switch (madera->type) {
-		case CS47L35:
-			patch_fn = cs47l35_patch;
-			mfd_devs = cs47l35_devs;
-			n_devs = ARRAY_SIZE(cs47l35_devs);
-			break;
-		default:
+		if (IS_ENABLED(CONFIG_MFD_CS47L35)) {
+			switch (madera->type) {
+			case CS47L35:
+				patch_fn = cs47l35_patch;
+				mfd_devs = cs47l35_devs;
+				n_devs = ARRAY_SIZE(cs47l35_devs);
+				break;
+			default:
+				ret = -EINVAL;
+				break;
+			}
+		} else {
 			ret = -EINVAL;
-			break;
-		}		break;
+		}
 		break;
 	case CS47L85_SILICON_ID:
-		/* should have failed SPI/I2C registration if not supported */
-		BUG_ON(!IS_ENABLED(CONFIG_MFD_CS47L85));
-
-		switch (madera->type) {
-		case CS47L85:
-		case WM1840:
-			patch_fn = cs47l85_patch;
-			mfd_devs = cs47l85_devs;
-			n_devs = ARRAY_SIZE(cs47l85_devs);
-			break;
-		default:
+		if (IS_ENABLED(CONFIG_MFD_CS47L85)) {
+			switch (madera->type) {
+			case CS47L85:
+			case WM1840:
+				patch_fn = cs47l85_patch;
+				mfd_devs = cs47l85_devs;
+				n_devs = ARRAY_SIZE(cs47l85_devs);
+				break;
+			default:
+				ret = -EINVAL;
+				break;
+			}
+		} else {
 			ret = -EINVAL;
-			break;
 		}
 		break;
 	case CS47L90_SILICON_ID:
-		/* should have failed SPI/I2C registration if not supported */
-		BUG_ON(!IS_ENABLED(CONFIG_MFD_CS47L90));
-
-		switch (madera->type) {
-		case CS47L90:
-		case CS47L91:
-			patch_fn = cs47l90_patch;
-			mfd_devs = cs47l90_devs;
-			n_devs = ARRAY_SIZE(cs47l90_devs);
-			break;
-		default:
+		if (IS_ENABLED(CONFIG_MFD_CS47L90)) {
+			switch (madera->type) {
+			case CS47L90:
+			case CS47L91:
+				patch_fn = cs47l90_patch;
+				mfd_devs = cs47l90_devs;
+				n_devs = ARRAY_SIZE(cs47l90_devs);
+				break;
+			default:
+				ret = -EINVAL;
+				break;
+			}
+		} else {
 			ret = -EINVAL;
-			break;
-		}		break;
+		}
 		break;
 	default:
 		ret = -EINVAL;
