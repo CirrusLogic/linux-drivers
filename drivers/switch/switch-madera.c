@@ -125,7 +125,7 @@ static const struct madera_micd_config cs47l85_micd_default_modes[] = {
 
 static const struct madera_micd_config madera_micd_default_modes[] = {
 	{ MADERA_MICD1_SENSE_MICDET1, MADERA_MICD1_GND_MICDET2,
-	  MADERA_MICD_BIAS_SRC_MICBIAS1A, 0, MADERA_HPD_GND_HPOUTFB1 },
+	  MADERA_MICD_BIAS_SRC_MICBIAS1A, 0, MADERA_HPD_GND_HPOUTFB2 },
 	{ MADERA_MICD1_SENSE_MICDET2, MADERA_MICD1_GND_MICDET1,
 	  MADERA_MICD_BIAS_SRC_MICBIAS1B, 1, MADERA_HPD_GND_HPOUTFB1 },
 };
