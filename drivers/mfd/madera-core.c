@@ -787,6 +787,7 @@ int madera_dev_init(struct madera *madera)
 		break;
 	default:
 		dev_err(madera->dev, "Unknown device ID: %x\n", reg);
+		ret = -EINVAL;
 		goto err_reset;
 	}
 
