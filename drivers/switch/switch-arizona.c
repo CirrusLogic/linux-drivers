@@ -78,6 +78,9 @@
 #define MOON_HP_LOW_IMPEDANCE_LIMIT    14
 #define MOON_HP_MEDIUM_IMPEDANCE_LIMIT 24
 
+#define CS47L15_HP_LOW_IMPEDANCE_LIMIT    16
+#define CS47L15_HP_MEDIUM_IMPEDANCE_LIMIT 32
+
 #define MOON_HPD_SENSE_MICDET1 0
 #define MOON_HPD_SENSE_MICDET2 1
 #define MOON_HPD_SENSE_MICDET3 2
@@ -1464,6 +1467,108 @@ static const struct reg_default moon_high_impedance_patch[] = {
 	{ 0x47E, 0x0430 },
 };
 
+static const struct reg_default cs47l15_low_impedance_patch[] = {
+	{ 0x460, 0x0C00 },
+	{ 0x461, 0xCB59 },
+	{ 0x462, 0x0C00 },
+	{ 0x463, 0x6037 },
+	{ 0x464, 0x0C01 },
+	{ 0x465, 0x2D86 },
+	{ 0x466, 0x0801 },
+	{ 0x467, 0x264E },
+	{ 0x468, 0x0801 },
+	{ 0x469, 0x1E6D },
+	{ 0x46A, 0x0802 },
+	{ 0x46B, 0x199A },
+	{ 0x46C, 0x0802 },
+	{ 0x46D, 0x1220 },
+	{ 0x46E, 0x0802 },
+	{ 0x46F, 0x0E65 },
+	{ 0x470, 0x0806 },
+	{ 0x471, 0x0A31 },
+	{ 0x472, 0x080E },
+	{ 0x473, 0x040F },
+	{ 0x474, 0x080E },
+	{ 0x475, 0x0339 },
+	{ 0x476, 0x080E },
+	{ 0x477, 0x028F },
+	{ 0x478, 0x080E },
+	{ 0x479, 0x0209 },
+	{ 0x47A, 0x080E },
+	{ 0x47B, 0x00CF },
+	{ 0x47C, 0x080E },
+	{ 0x47D, 0x0001 },
+	{ 0x47E, 0x081F },
+};
+
+static const struct reg_default cs47l15_normal_impedance_patch[] = {
+	{ 0x460, 0x0C00 },
+	{ 0x461, 0xCB59 },
+	{ 0x462, 0x0C00 },
+	{ 0x463, 0xB53C },
+	{ 0x464, 0x0C01 },
+	{ 0x465, 0x4827 },
+	{ 0x466, 0x0801 },
+	{ 0x467, 0x3950 },
+	{ 0x468, 0x0801 },
+	{ 0x469, 0x264E },
+	{ 0x46A, 0x0802 },
+	{ 0x46B, 0x1E6D },
+	{ 0x46C, 0x0802 },
+	{ 0x46D, 0x199A },
+	{ 0x46E, 0x0802 },
+	{ 0x46F, 0x1456 },
+	{ 0x470, 0x0806 },
+	{ 0x471, 0x1220 },
+	{ 0x472, 0x080E },
+	{ 0x473, 0x040F },
+	{ 0x474, 0x080E },
+	{ 0x475, 0x0339 },
+	{ 0x476, 0x080E },
+	{ 0x477, 0x028F },
+	{ 0x478, 0x080E },
+	{ 0x479, 0x0209 },
+	{ 0x47A, 0x080E },
+	{ 0x47B, 0x00CF },
+	{ 0x47C, 0x080E },
+	{ 0x47D, 0x0001 },
+	{ 0x47E, 0x081F },
+};
+
+static const struct reg_default cs47l15_high_impedance_patch[] = {
+	{ 0x460, 0x0C00 },
+	{ 0x461, 0xCB59 },
+	{ 0x462, 0x0C00 },
+	{ 0x463, 0xB53C },
+	{ 0x464, 0x0C01 },
+	{ 0x465, 0x6037 },
+	{ 0x466, 0x0801 },
+	{ 0x467, 0x4827 },
+	{ 0x468, 0x0801 },
+	{ 0x469, 0x3950 },
+	{ 0x46A, 0x0802 },
+	{ 0x46B, 0x264E },
+	{ 0x46C, 0x0802 },
+	{ 0x46D, 0x1E6D },
+	{ 0x46E, 0x0802 },
+	{ 0x46F, 0x199A },
+	{ 0x470, 0x0806 },
+	{ 0x471, 0x1220 },
+	{ 0x472, 0x080E },
+	{ 0x473, 0x040F },
+	{ 0x474, 0x080E },
+	{ 0x475, 0x0339 },
+	{ 0x476, 0x080E },
+	{ 0x477, 0x028F },
+	{ 0x478, 0x080E },
+	{ 0x479, 0x0209 },
+	{ 0x47A, 0x080E },
+	{ 0x47B, 0x00CF },
+	{ 0x47C, 0x080E },
+	{ 0x47D, 0x0001 },
+	{ 0x47E, 0x081F },
+};
+
 static void arizona_hs_mic_control(struct arizona *arizona, int state)
 {
 	unsigned int addr = ARIZONA_ADC_DIGITAL_VOLUME_1L;
@@ -1717,6 +1822,55 @@ static int arizona_moon_tune_headphone(struct arizona_extcon_info *info,
 	return 0;
 }
 
+static int arizona_cs47l15_tune_headphone(struct arizona_extcon_info *info,
+					  int reading)
+{
+	struct arizona *arizona = info->arizona;
+	const struct reg_default *patch;
+	int i, ret, size;
+
+	if (reading <= arizona->pdata.hpdet_short_circuit_imp) {
+		/* Headphones are always off here so just mark them */
+		dev_warn(arizona->dev, "Possible HP short, disabling\n");
+		return 0;
+	} else if (reading <= CS47L15_HP_LOW_IMPEDANCE_LIMIT) {
+		if (info->hp_imp_level == HP_LOW_IMPEDANCE)
+			return 0;
+
+		info->hp_imp_level = HP_LOW_IMPEDANCE;
+
+		patch = cs47l15_low_impedance_patch;
+		size = ARRAY_SIZE(cs47l15_low_impedance_patch);
+	} else if (reading <= CS47L15_HP_MEDIUM_IMPEDANCE_LIMIT) {
+		if (info->hp_imp_level == HP_NORMAL_IMPEDANCE)
+			return 0;
+
+		info->hp_imp_level = HP_NORMAL_IMPEDANCE;
+
+		patch = cs47l15_normal_impedance_patch;
+		size = ARRAY_SIZE(cs47l15_normal_impedance_patch);
+	} else {
+		if (info->hp_imp_level == HP_HIGH_IMPEDANCE)
+			return 0;
+
+		info->hp_imp_level = HP_HIGH_IMPEDANCE;
+
+		patch = cs47l15_high_impedance_patch;
+		size = ARRAY_SIZE(cs47l15_high_impedance_patch);
+	}
+
+	for (i = 0; i < size; ++i) {
+		ret = regmap_write(arizona->regmap,
+				   patch[i].reg, patch[i].def);
+		if (ret != 0)
+			dev_warn(arizona->dev,
+				 "Failed to write headphone patch: %x <= %x\n",
+				 patch[i].reg, patch[i].def);
+	}
+
+	return 0;
+}
+
 void arizona_set_headphone_imp(struct arizona_extcon_info *info, int imp)
 {
 	struct arizona *arizona = info->arizona;
@@ -1743,6 +1897,9 @@ void arizona_set_headphone_imp(struct arizona_extcon_info *info, int imp)
 	case CS47L90:
 	case CS47L91:
 		arizona_moon_tune_headphone(info, HOHM_TO_OHM(imp));
+		break;
+	case CS47L15:
+		arizona_cs47l15_tune_headphone(info, HOHM_TO_OHM(imp));
 		break;
 	default:
 		break;
