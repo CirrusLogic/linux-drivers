@@ -4540,7 +4540,7 @@ static int madera_enable_fll_ao(struct madera_fll *fll,
 				& MADERA_FLL_AO_REFCLK_SRC_MASK;
 		}
 
-		regmap_write(madera->regmap, patch[i].def, val);
+		regmap_write(madera->regmap, patch[i].reg, val);
 	}
 
 	if (!already_enabled)
@@ -4566,7 +4566,7 @@ static int madera_disable_fll_ao(struct madera_fll *fll)
 	struct madera *madera = fll->madera;
 	bool change;
 
-	madera_fll_dbg(fll, "Disabling FLL\n");
+	madera_fll_dbg(fll, "Disabling FLL_AO\n");
 
 	regmap_update_bits(madera->regmap,
 			   fll->base + MADERA_FLLAO_CONTROL_1_OFFS,
@@ -4605,6 +4605,9 @@ int madera_set_fll_ao_refclk(struct madera_fll *fll, int source,
 	if (fll->ref_src == source &&
 	    fll->ref_freq == fin && fll->fout == fout)
 		return 0;
+
+	madera_fll_dbg(fll, "Change FLL_AO refclk to fin=%u fout=%u source=%d\n",
+			fin, fout, source);
 
 	if (fout && (fll->ref_freq != fin || fll->fout != fout)) {
 		for (i = 0; i < ARRAY_SIZE(madera_fllao_settings); i++) {
