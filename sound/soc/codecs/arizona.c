@@ -4910,6 +4910,9 @@ static int arizona_enable_fll_ao(struct arizona_fll *fll,
 	arizona_fll_dbg(fll, "Enabling FLL, initially %s\n",
 			already_enabled ? "enabled" : "disabled");
 
+	if (!already_enabled)
+		pm_runtime_get_sync(arizona->dev);
+
 	/* FLL_AO_HOLD must be set before configuring any registers */
 	regmap_update_bits(fll->arizona->regmap, fll->base + 1,
 		MOON_FLL_AO_HOLD, MOON_FLL_AO_HOLD);
@@ -4927,9 +4930,6 @@ static int arizona_enable_fll_ao(struct arizona_fll *fll,
 
 	regmap_multi_reg_write(arizona->regmap, patch,
 		patch_size);
-
-	if (!already_enabled)
-		pm_runtime_get(arizona->dev);
 
 	regmap_update_bits(arizona->regmap, fll->base + 1,
 			   MOON_FLL_AO_ENA, MOON_FLL_AO_ENA);
