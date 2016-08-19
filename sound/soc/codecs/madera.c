@@ -4381,7 +4381,7 @@ static int madera_enable_fll(struct madera_fll *fll)
 				MADERA_FLL1_SYNC_DFSAT);
 
 	if (!already_enabled)
-		pm_runtime_get(madera->dev);
+		pm_runtime_get_sync(madera->dev);
 
 	/* Clear any pending completions */
 	try_wait_for_completion(&fll->ok);
