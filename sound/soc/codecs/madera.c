@@ -4580,6 +4580,9 @@ static int madera_enable_fll_ao(struct madera_fll *fll,
 	if (already_enabled < 0)
 		return already_enabled;
 
+	if (!already_enabled)
+		pm_runtime_get_sync(madera->dev);
+
 	madera_fll_dbg(fll, "Enabling FLL_AO, initially %s\n",
 			already_enabled ? "enabled" : "disabled");
 
@@ -4600,9 +4603,6 @@ static int madera_enable_fll_ao(struct madera_fll *fll,
 
 		regmap_write(madera->regmap, patch[i].reg, val);
 	}
-
-	if (!already_enabled)
-		pm_runtime_get(madera->dev);
 
 	regmap_update_bits(madera->regmap,
 			   fll->base + MADERA_FLLAO_CONTROL_1_OFFS,
