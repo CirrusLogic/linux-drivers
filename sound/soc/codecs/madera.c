@@ -3403,9 +3403,14 @@ static const unsigned int madera_sr_vals[] = {
 	512000,
 };
 
-#define MADERA_48K_RATE_MASK	0x0F003E
-#define MADERA_44K1_RATE_MASK	0x003E00
-#define MADERA_RATE_MASK	(MADERA_48K_RATE_MASK | MADERA_44K1_RATE_MASK)
+#define MADERA_192K_48K_RATE_MASK	0x0F003E
+#define MADERA_192K_44K1_RATE_MASK	0x003E00
+#define MADERA_192K_RATE_MASK		(MADERA_192K_48K_RATE_MASK | \
+					 MADERA_192K_44K1_RATE_MASK)
+#define MADERA_384K_48K_RATE_MASK	0x0F007E
+#define MADERA_384K_44K1_RATE_MASK	0x007E00
+#define MADERA_384K_RATE_MASK		(MADERA_384K_48K_RATE_MASK | \
+					 MADERA_384K_44K1_RATE_MASK)
 
 static const struct snd_pcm_hw_constraint_list madera_constraint = {
 	.count	= ARRAY_SIZE(madera_sr_vals),
@@ -3418,6 +3423,7 @@ static int madera_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct madera_dai_priv *dai_priv = &priv->dai[dai->id - 1];
+	struct madera *madera = priv->madera;
 	unsigned int base_rate;
 
 	if (!substream->runtime)
@@ -3437,12 +3443,26 @@ static int madera_startup(struct snd_pcm_substream *substream,
 		return 0;
 	}
 
-	if (base_rate == 0)
-		dai_priv->constraint.mask = MADERA_RATE_MASK;
-	else if (base_rate % 4000)
-		dai_priv->constraint.mask = MADERA_44K1_RATE_MASK;
-	else
-		dai_priv->constraint.mask = MADERA_48K_RATE_MASK;
+	switch (madera->type) {
+	case CS47L92:
+	case CS47L93:
+		if (base_rate == 0)
+			dai_priv->constraint.mask = MADERA_384K_RATE_MASK;
+		else if (base_rate % 4000)
+			dai_priv->constraint.mask = MADERA_384K_44K1_RATE_MASK;
+		else
+			dai_priv->constraint.mask = MADERA_384K_48K_RATE_MASK;
+		break;
+	default:
+		if (base_rate == 0)
+			dai_priv->constraint.mask = MADERA_192K_RATE_MASK;
+		else if (base_rate % 4000)
+			dai_priv->constraint.mask = MADERA_192K_44K1_RATE_MASK;
+		else
+			dai_priv->constraint.mask = MADERA_192K_48K_RATE_MASK;
+		break;
+	}
+
 
 	return snd_pcm_hw_constraint_list(substream->runtime, 0,
 					  SNDRV_PCM_HW_PARAM_RATE,
