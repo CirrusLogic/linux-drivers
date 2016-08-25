@@ -417,8 +417,8 @@ struct arizona_fll_cfg {
 	unsigned int fin;
 	unsigned int fvco;
 	int n;
-	int theta;
-	int lambda;
+	unsigned int theta;
+	unsigned int lambda;
 	int refdiv;
 	int outdiv;
 	int fratio;
