@@ -902,6 +902,17 @@ static const struct arizona_hpdet_calibration_data
 	  500000},
 };
 
+static const struct arizona_hpdet_calibration_data
+	arizona_hpdet_gaines_ranges[] = {
+	{},
+	{ 3300,   12300,   1000000,   -4300,   7975, 69600000, 382800, 33350000,
+	  500000},
+	{ 12300,  103300,  9633000,   -79500,  7300, 62900000, 283050, 33350000,
+	  500000},
+	{ 103300, 1003300, 100684000, -949400, 7300, 63200000, 284400, 33350000,
+	  500000},
+};
+
 static int arizona_hpdet_d_calibrate(const struct arizona_extcon_info *info,
 					int dacval, int range)
 {
@@ -3482,6 +3493,11 @@ static int arizona_hpdet_clearwater_read_calibration(struct arizona_extcon_info 
 		info->calib_data = arizona_hpdet_clearwater_ranges;
 		info->calib_data_size =
 			ARRAY_SIZE(arizona_hpdet_clearwater_ranges);
+		break;
+	case CS47L15:
+		info->calib_data = arizona_hpdet_gaines_ranges;
+		info->calib_data_size =
+			ARRAY_SIZE(arizona_hpdet_gaines_ranges);
 		break;
 	default:
 		info->calib_data = arizona_hpdet_moon_ranges;
