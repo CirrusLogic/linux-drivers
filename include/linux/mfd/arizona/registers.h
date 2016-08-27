@@ -270,6 +270,8 @@
 #define ARIZONA_ADC_VCO_CAL_7                    0x396
 #define ARIZONA_ADC_VCO_CAL_8                    0x397
 #define ARIZONA_ADC_VCO_CAL_9                    0x398
+#define CS47L15_ADC_INT_BIAS                     0x3A8
+#define CS47L15_PGA_BIAS_SEL                     0x3C4
 #define ARIZONA_OUTPUT_ENABLES_1                 0x400
 #define ARIZONA_OUTPUT_STATUS_1                  0x401
 #define ARIZONA_OUTPUT_STANDBY_1                 0x405
