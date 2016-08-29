@@ -249,7 +249,7 @@
 #define CS35L35_IMON_OVFL		0x04
 
 #define CS35L35_FORMATS (SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE | \
-			SNDRV_PCM_FMTBIT_S24_LE)
+			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 struct  cs35l35_private {
 	struct snd_soc_codec *codec;
