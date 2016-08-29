@@ -30,7 +30,6 @@
 
 struct madera_irq_priv {
 	struct device *dev;
-	unsigned int irq_sem;
 	int irq;
 	unsigned int irq_flags;
 	int irq_gpio;
@@ -186,12 +185,9 @@ static int madera_suspend_noirq(struct device *dev)
 {
 	struct madera_irq_priv *priv = dev_get_drvdata(dev);
 
-	dev_dbg(priv->dev, "Late suspend, reenabling IRQ\n");
+	dev_dbg(priv->dev, "No IRQ suspend, reenabling IRQ\n");
 
-	if (priv->irq_sem) {
-		enable_irq(priv->irq);
-		priv->irq_sem = 0;
-	}
+	enable_irq(priv->irq);
 
 	return 0;
 }
@@ -200,10 +196,9 @@ static int madera_suspend(struct device *dev)
 {
 	struct madera_irq_priv *priv = dev_get_drvdata(dev);
 
-	dev_dbg(priv->dev, "Early suspend, disabling IRQ\n");
+	dev_dbg(priv->dev, "Suspend, disabling IRQ\n");
 
 	disable_irq(priv->irq);
-	priv->irq_sem = 1;
 
 	return 0;
 }
@@ -212,10 +207,9 @@ static int madera_resume_noirq(struct device *dev)
 {
 	struct madera_irq_priv *priv = dev_get_drvdata(dev);
 
-	dev_dbg(priv->dev, "Early resume, disabling IRQ\n");
-	disable_irq(priv->irq);
+	dev_dbg(priv->dev, "No IRQ resume, disabling IRQ\n");
 
-	priv->irq_sem = 1;
+	disable_irq(priv->irq);
 
 	return 0;
 }
@@ -224,11 +218,9 @@ static int madera_resume(struct device *dev)
 {
 	struct madera_irq_priv *priv = dev_get_drvdata(dev);
 
-	dev_dbg(priv->dev, "Late resume, reenabling IRQ\n");
-	if (priv->irq_sem) {
-		enable_irq(priv->irq);
-		priv->irq_sem = 0;
-	}
+	dev_dbg(priv->dev, "Resume, reenabling IRQ\n");
+
+	enable_irq(priv->irq);
 
 	return 0;
 }
