@@ -449,9 +449,6 @@ static const struct reg_default clearwater_reg_default[] = {
 	{ 0x00000008, 0x0309 }, /* R8     - Ctrl IF CFG 1 */
 	{ 0x00000009, 0x0200 }, /* R9     - Ctrl IF CFG 2 */
 	{ 0x0000000A, 0x0309 }, /* R10    - Ctrl IF CFG 3 */
-	{ 0x00000016, 0x0000 }, /* R22 (0x16) - Write Sequencer Ctrl 0 */
-	{ 0x00000017, 0x0000 }, /* R23 (0x17) - Write Sequencer Ctrl 1 */
-	{ 0x00000018, 0x0000 }, /* R24 (0x18) - Write Sequencer Ctrl 2 */
 	{ 0x00000020, 0x0000 }, /* R32 (0x20) - Tone Generator 1 */
 	{ 0x00000021, 0x1000 }, /* R33 (0x21) - Tone Generator 2 */
 	{ 0x00000022, 0x0000 }, /* R34 (0x22) - Tone Generator 3 */
@@ -3159,6 +3156,9 @@ static bool clearwater_16bit_volatile_register(struct device *dev, unsigned int 
 	case 0x2C2:
 	case ARIZONA_SOFTWARE_RESET:
 	case ARIZONA_DEVICE_REVISION:
+	case ARIZONA_WRITE_SEQUENCER_CTRL_0:
+	case ARIZONA_WRITE_SEQUENCER_CTRL_1:
+	case ARIZONA_WRITE_SEQUENCER_CTRL_2:
 	case ARIZONA_HAPTICS_STATUS:
 	case ARIZONA_SAMPLE_RATE_1_STATUS:
 	case ARIZONA_SAMPLE_RATE_2_STATUS:
