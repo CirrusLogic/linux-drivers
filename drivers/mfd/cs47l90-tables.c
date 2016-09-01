@@ -285,7 +285,6 @@ static const struct reg_default cs47l90_reg_default[] = {
 	{ 0x00000502, 0x0000 }, /* R1282 (0x502) - AIF1 Rx Pin Ctrl */
 	{ 0x00000503, 0x0000 }, /* R1283 (0x503) - AIF1 Rate Ctrl */
 	{ 0x00000504, 0x0000 }, /* R1284 (0x504) - AIF1 Format */
-	{ 0x00000505, 0x0040 }, /* R1285 (0x505) - AIF1 Tx BCLK Rate */
 	{ 0x00000506, 0x0040 }, /* R1286 (0x506) - AIF1 Rx BCLK Rate */
 	{ 0x00000507, 0x1818 }, /* R1287 (0x507) - AIF1 Frame Ctrl 1 */
 	{ 0x00000508, 0x1818 }, /* R1288 (0x508) - AIF1 Frame Ctrl 2 */
@@ -312,7 +311,6 @@ static const struct reg_default cs47l90_reg_default[] = {
 	{ 0x00000542, 0x0000 }, /* R1346 (0x542) - AIF2 Rx Pin Ctrl */
 	{ 0x00000543, 0x0000 }, /* R1347 (0x543) - AIF2 Rate Ctrl */
 	{ 0x00000544, 0x0000 }, /* R1348 (0x544) - AIF2 Format */
-	{ 0x00000545, 0x0040 }, /* R1349 (0x545) - AIF2 Tx BCLK Rate */
 	{ 0x00000546, 0x0040 }, /* R1350 (0x546) - AIF2 Rx BCLK Rate */
 	{ 0x00000547, 0x1818 }, /* R1351 (0x547) - AIF2 Frame Ctrl 1 */
 	{ 0x00000548, 0x1818 }, /* R1352 (0x548) - AIF2 Frame Ctrl 2 */
@@ -339,7 +337,6 @@ static const struct reg_default cs47l90_reg_default[] = {
 	{ 0x00000582, 0x0000 }, /* R1410 (0x582) - AIF3 Rx Pin Ctrl */
 	{ 0x00000583, 0x0000 }, /* R1411 (0x583) - AIF3 Rate Ctrl */
 	{ 0x00000584, 0x0000 }, /* R1412 (0x584) - AIF3 Format */
-	{ 0x00000585, 0x0040 }, /* R1413 (0x585) - AIF3 Tx BCLK Rate */
 	{ 0x00000586, 0x0040 }, /* R1414 (0x586) - AIF3 Rx BCLK Rate */
 	{ 0x00000587, 0x1818 }, /* R1415 (0x587) - AIF3 Frame Ctrl 1 */
 	{ 0x00000588, 0x1818 }, /* R1416 (0x588) - AIF3 Frame Ctrl 2 */
@@ -354,7 +351,6 @@ static const struct reg_default cs47l90_reg_default[] = {
 	{ 0x000005a2, 0x0000 }, /* R1442  - AIF4 Rx Pin Ctrl */
 	{ 0x000005a3, 0x0000 }, /* R1443  - AIF4 Rate Ctrl */
 	{ 0x000005a4, 0x0000 }, /* R1444  - AIF4 Format */
-	{ 0x000005a5, 0x0040 }, /* R1445  - AIF4 Tx BCLK Rate */
 	{ 0x000005a6, 0x0040 }, /* R1446  - AIF4 Rx BCLK Rate */
 	{ 0x000005a7, 0x1818 }, /* R1447  - AIF4 Frame Ctrl 1 */
 	{ 0x000005a8, 0x1818 }, /* R1448  - AIF4 Frame Ctrl 2 */
@@ -1727,7 +1723,6 @@ static bool cs47l90_16bit_readable_register(struct device *dev,
 	case MADERA_AIF1_RX_PIN_CTRL:
 	case MADERA_AIF1_RATE_CTRL:
 	case MADERA_AIF1_FORMAT:
-	case MADERA_AIF1_TX_BCLK_RATE:
 	case MADERA_AIF1_RX_BCLK_RATE:
 	case MADERA_AIF1_FRAME_CTRL_1:
 	case MADERA_AIF1_FRAME_CTRL_2:
@@ -1754,7 +1749,6 @@ static bool cs47l90_16bit_readable_register(struct device *dev,
 	case MADERA_AIF2_RX_PIN_CTRL:
 	case MADERA_AIF2_RATE_CTRL:
 	case MADERA_AIF2_FORMAT:
-	case MADERA_AIF2_TX_BCLK_RATE:
 	case MADERA_AIF2_RX_BCLK_RATE:
 	case MADERA_AIF2_FRAME_CTRL_1:
 	case MADERA_AIF2_FRAME_CTRL_2:
@@ -1781,7 +1775,6 @@ static bool cs47l90_16bit_readable_register(struct device *dev,
 	case MADERA_AIF3_RX_PIN_CTRL:
 	case MADERA_AIF3_RATE_CTRL:
 	case MADERA_AIF3_FORMAT:
-	case MADERA_AIF3_TX_BCLK_RATE:
 	case MADERA_AIF3_RX_BCLK_RATE:
 	case MADERA_AIF3_FRAME_CTRL_1:
 	case MADERA_AIF3_FRAME_CTRL_2:
@@ -1796,7 +1789,6 @@ static bool cs47l90_16bit_readable_register(struct device *dev,
 	case MADERA_AIF4_RX_PIN_CTRL:
 	case MADERA_AIF4_RATE_CTRL:
 	case MADERA_AIF4_FORMAT:
-	case MADERA_AIF4_TX_BCLK_RATE:
 	case MADERA_AIF4_RX_BCLK_RATE:
 	case MADERA_AIF4_FRAME_CTRL_1:
 	case MADERA_AIF4_FRAME_CTRL_2:
