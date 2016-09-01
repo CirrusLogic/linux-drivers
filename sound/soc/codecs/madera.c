@@ -4273,6 +4273,10 @@ static int madera_enable_fll(struct madera_fll *fll)
 	/* Apply REFCLK setting */
 	madera_calc_fll(fll, &cfg, fll->ref_freq, false);
 
+	/* Ref path hardcodes lambda to 65536 when sync is on */
+	if (have_sync && cfg.lambda)
+		cfg.theta = (cfg.theta * (1 << 16)) / cfg.lambda;
+
 	switch (fll->madera->type) {
 	case CS47L35:
 		switch (fll->madera->rev) {
