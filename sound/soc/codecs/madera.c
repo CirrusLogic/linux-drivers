@@ -32,7 +32,6 @@
 #define MADERA_AIF_RX_PIN_CTRL		0x02
 #define MADERA_AIF_RATE_CTRL		0x03
 #define MADERA_AIF_FORMAT		0x04
-#define MADERA_AIF_TX_BCLK_RATE		0x05
 #define MADERA_AIF_RX_BCLK_RATE		0x06
 #define MADERA_AIF_FRAME_CTRL_1		0x07
 #define MADERA_AIF_FRAME_CTRL_2		0x08
@@ -3510,8 +3509,8 @@ static bool madera_aif_cfg_changed(struct snd_soc_codec *codec,
 	if (bclk != (val & MADERA_AIF1_BCLK_FREQ_MASK))
 		return true;
 
-	val = snd_soc_read(codec, base + MADERA_AIF_TX_BCLK_RATE);
-	if (lrclk != (val & MADERA_AIF1TX_BCPF_MASK))
+	val = snd_soc_read(codec, base + MADERA_AIF_RX_BCLK_RATE);
+	if (lrclk != (val & MADERA_AIF1RX_BCPF_MASK))
 		return true;
 
 	val = snd_soc_read(codec, base + MADERA_AIF_FRAME_CTRL_1);
@@ -3615,9 +3614,6 @@ static int madera_hw_params(struct snd_pcm_substream *substream,
 		regmap_update_bits_async(madera->regmap,
 					 base + MADERA_AIF_BCLK_CTRL,
 					 MADERA_AIF1_BCLK_FREQ_MASK, bclk);
-		regmap_update_bits_async(madera->regmap,
-					 base + MADERA_AIF_TX_BCLK_RATE,
-					 MADERA_AIF1TX_BCPF_MASK, lrclk);
 		regmap_update_bits_async(madera->regmap,
 					 base + MADERA_AIF_RX_BCLK_RATE,
 					 MADERA_AIF1RX_BCPF_MASK, lrclk);
