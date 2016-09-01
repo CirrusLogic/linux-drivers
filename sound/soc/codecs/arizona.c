@@ -4580,13 +4580,13 @@ static bool arizona_apply_fll(struct arizona *arizona, unsigned int base,
 	return fll_change;
 }
 
-static int arizona_is_enabled_fll(struct arizona_fll *fll)
+static int arizona_is_enabled_fll(struct arizona_fll *fll, int base)
 {
 	struct arizona *arizona = fll->arizona;
 	unsigned int reg;
 	int ret;
 
-	ret = regmap_read(arizona->regmap, fll->base + 1, &reg);
+	ret = regmap_read(arizona->regmap, base + 1, &reg);
 	if (ret != 0) {
 		arizona_fll_err(fll, "Failed to read current state: %d\n",
 				ret);
@@ -4652,7 +4652,7 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 {
 	struct arizona *arizona = fll->arizona;
 	bool use_sync = false;
-	int already_enabled = arizona_is_enabled_fll(fll);
+	int already_enabled = arizona_is_enabled_fll(fll, fll->base);
 	struct arizona_fll_cfg cfg;
 	bool fll_change, change;
 	unsigned int fsync_freq;
@@ -4905,7 +4905,7 @@ static int arizona_enable_fll_ao(struct arizona_fll *fll,
 	struct reg_sequence *patch, unsigned int patch_size)
 {
 	struct arizona *arizona = fll->arizona;
-	int already_enabled = arizona_is_enabled_fll(fll);
+	int already_enabled = arizona_is_enabled_fll(fll, fll->base);
 	unsigned int i;
 
 	if (already_enabled < 0)
