@@ -59,9 +59,9 @@
 #define MADERA_HP_TUNING_INVALID	-1
 
 /* Conversion between ohms and hundredths of an ohm. */
-#define HOHM_TO_OHM(X)	(((X) == INT_MAX || (X) == MADERA_HP_Z_OPEN) ? \
+#define MADERA_HOHM_TO_OHM(X)	(((X) == INT_MAX || (X) == MADERA_HP_Z_OPEN) ?\
 			 (X) : ((X) + 50) / 100)
-#define OHM_TO_HOHM(X)	((X) >= (INT_MAX / 100) ? INT_MAX : (X) * 100)
+#define MADERA_OHM_TO_HOHM(X)	((X) >= (INT_MAX / 100) ? INT_MAX : (X) * 100)
 
 struct madera_micd_bias {
 	unsigned int bias;
@@ -619,7 +619,7 @@ static void madera_extcon_hp_clamp(struct madera_extcon_info *info,
 	}
 
 	/* Restore the desired state while not doing the clamp */
-	if (!clamp && (HOHM_TO_OHM(madera->hp_impedance_x100[0]) >
+	if (!clamp && (MADERA_HOHM_TO_OHM(madera->hp_impedance_x100[0]) >
 			info->pdata->hpdet_short_circuit_imp) && !ep_sel) {
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_OUTPUT_ENABLES_1,
@@ -989,7 +989,7 @@ static void madera_extcon_notify_micd(const struct madera_extcon_info *info,
 	struct madera_micdet_notify_data data;
 
 	data.present = present;
-	data.impedance_x100 = OHM_TO_HOHM(impedance);
+	data.impedance_x100 = MADERA_OHM_TO_HOHM(impedance);
 	data.out_num = 1;
 
 	madera_call_notifiers(info->madera, MADERA_NOTIFY_MICDET, &data);
@@ -1082,6 +1082,7 @@ static int madera_hpdet_read(struct madera_extcon_info *info)
 	unsigned int val, range, sense_pin;
 	int ret;
 	bool is_jdx_micdetx_pin = false;
+	int hpdet_ext_res_x100;
 
 	dev_dbg(madera->dev, "HPDET read\n");
 
@@ -1161,21 +1162,22 @@ static int madera_hpdet_read(struct madera_extcon_info *info)
 		}
 	}
 
-	if (info->pdata->hpdet_ext_res_x100) {
-		if (info->pdata->hpdet_ext_res_x100 >= OHM_TO_HOHM(val)) {
+	hpdet_ext_res_x100 = info->pdata->hpdet_ext_res_x100;
+	if (hpdet_ext_res_x100) {
+		if (hpdet_ext_res_x100 >= MADERA_OHM_TO_HOHM(val)) {
 			dev_dbg(madera->dev,
 				"External resistor (%d.%02d) >= measurement (%d.00)\n",
-				info->pdata->hpdet_ext_res_x100 / 100,
-				info->pdata->hpdet_ext_res_x100 % 100,
+				hpdet_ext_res_x100 / 100,
+				hpdet_ext_res_x100 % 100,
 				val);
 			val = 0;	/* treat as a short */
 		} else {
 			dev_dbg(madera->dev,
 				"Compensating for external %d.%02d ohm resistor\n",
-				info->pdata->hpdet_ext_res_x100 / 100,
-				info->pdata->hpdet_ext_res_x100 % 100);
+				hpdet_ext_res_x100 / 100,
+				hpdet_ext_res_x100 % 100);
 
-			val -= HOHM_TO_OHM(info->pdata->hpdet_ext_res_x100);
+			val -= MADERA_HOHM_TO_OHM(hpdet_ext_res_x100);
 		}
 	}
 
@@ -1253,7 +1255,7 @@ void madera_set_headphone_imp(struct madera_extcon_info *info, int imp)
 	data.impedance_x100 = imp;
 	madera_call_notifiers(madera, MADERA_NOTIFY_HPDET, &data);
 
-	madera_tune_headphone(info, HOHM_TO_OHM(imp));
+	madera_tune_headphone(info, MADERA_HOHM_TO_OHM(imp));
 }
 EXPORT_SYMBOL_GPL(madera_set_headphone_imp);
 
@@ -1637,7 +1639,7 @@ int madera_micd_button_reading(struct madera_extcon_info *info, int val)
 	if (val < 0)
 		return val;
 
-	val = HOHM_TO_OHM(val);
+	val = MADERA_HOHM_TO_OHM(val);
 
 	ret = madera_micd_button_debounce(info, val);
 	if (ret < 0)
@@ -1685,7 +1687,7 @@ int madera_micd_mic_reading(struct madera_extcon_info *info, int val)
 	if (val < 0)
 		return val;
 
-	val = HOHM_TO_OHM(val);
+	val = MADERA_HOHM_TO_OHM(val);
 
 	/* Due to jack detect this should never happen */
 	if (val > MADERA_MICROPHONE_MAX_OHM) {
@@ -1839,7 +1841,7 @@ static irqreturn_t madera_hpdet_handler(int irq, void *data)
 	if (ret == -EAGAIN)
 		goto out;
 
-	ret = OHM_TO_HOHM(ret);
+	ret = MADERA_OHM_TO_HOHM(ret);
 	madera_jds_reading(info, ret);
 
 out:
@@ -1897,7 +1899,7 @@ static void madera_micd_handler(struct work_struct *work)
 
 	dev_dbg(madera->dev, "Mic impedance %d ohms\n", ret);
 
-	madera_jds_reading(info, OHM_TO_HOHM(ret));
+	madera_jds_reading(info, MADERA_OHM_TO_HOHM(ret));
 
 out:
 	madera_jds_start_timeout(info);
