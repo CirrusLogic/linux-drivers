@@ -139,8 +139,8 @@ struct madera_priv {
 
 struct madera_fll_cfg {
 	int n;
-	int theta;
-	int lambda;
+	unsigned int theta;
+	unsigned int lambda;
 	int refdiv;
 	int fratio;
 	int gain;
