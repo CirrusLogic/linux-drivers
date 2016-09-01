@@ -4223,6 +4223,7 @@ static int madera_enable_fll(struct madera_fll *fll)
 	struct madera *madera = fll->madera;
 	bool have_sync = false;
 	int already_enabled = madera_is_enabled_fll(fll, fll->base);
+	int sync_enabled;
 	struct madera_fll_cfg cfg;
 	unsigned int sync_reg_base;
 	int gain;
@@ -4248,6 +4249,10 @@ static int madera_enable_fll(struct madera_fll *fll)
 		break;
 	}
 
+	sync_enabled = madera_is_enabled_fll(fll, sync_reg_base);
+	if (sync_enabled < 0)
+		return sync_enabled;
+
 	if (already_enabled) {
 		/* Facilitate smooth refclk across the transition */
 		regmap_update_bits(fll->madera->regmap,
@@ -4269,6 +4274,9 @@ static int madera_enable_fll(struct madera_fll *fll)
 						true, cfg.gain);
 		have_sync = true;
 	}
+
+	if (already_enabled && !!sync_enabled != have_sync)
+		madera_fll_warn(fll, "Synchroniser changed on active FLL\n");
 
 	/* Apply REFCLK setting */
 	madera_calc_fll(fll, &cfg, fll->ref_freq, false);
@@ -4328,14 +4336,14 @@ static int madera_enable_fll(struct madera_fll *fll)
 	/* Clear any pending completions */
 	try_wait_for_completion(&fll->ok);
 
-	regmap_update_bits_async(madera->regmap,
-				 fll->base + MADERA_FLL_CONTROL_1_OFFS,
-				 MADERA_FLL1_ENA, MADERA_FLL1_ENA);
 	if (have_sync)
 		regmap_update_bits_async(madera->regmap,
 				sync_reg_base + MADERA_FLL_SYNCHRONISER_1_OFFS,
 				MADERA_FLL1_SYNC_ENA,
 				MADERA_FLL1_SYNC_ENA);
+	regmap_update_bits_async(madera->regmap,
+				 fll->base + MADERA_FLL_CONTROL_1_OFFS,
+				 MADERA_FLL1_ENA, MADERA_FLL1_ENA);
 
 	if (already_enabled)
 		regmap_update_bits_async(madera->regmap,
