@@ -4157,14 +4157,14 @@ static bool madera_apply_fll(struct madera *madera, unsigned int base,
 	return fll_change;
 }
 
-static int madera_is_enabled_fll(struct madera_fll *fll)
+static int madera_is_enabled_fll(struct madera_fll *fll, int base)
 {
 	struct madera *madera = fll->madera;
 	unsigned int reg;
 	int ret;
 
 	ret = regmap_read(madera->regmap,
-			  fll->base + MADERA_FLL_CONTROL_1_OFFS, &reg);
+			  base + MADERA_FLL_CONTROL_1_OFFS, &reg);
 	if (ret != 0) {
 		madera_fll_err(fll, "Failed to read current state: %d\n", ret);
 		return ret;
@@ -4222,7 +4222,7 @@ static int madera_enable_fll(struct madera_fll *fll)
 {
 	struct madera *madera = fll->madera;
 	bool have_sync = false;
-	int already_enabled = madera_is_enabled_fll(fll);
+	int already_enabled = madera_is_enabled_fll(fll, fll->base);
 	struct madera_fll_cfg cfg;
 	unsigned int sync_reg_base;
 	int gain;
@@ -4515,7 +4515,7 @@ static int madera_enable_fll_ao(struct madera_fll *fll,
 				unsigned int patch_size)
 {
 	struct madera *madera = fll->madera;
-	int already_enabled = madera_is_enabled_fll(fll);
+	int already_enabled = madera_is_enabled_fll(fll, fll->base);
 	unsigned int val;
 	int i;
 
