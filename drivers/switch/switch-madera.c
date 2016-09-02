@@ -192,7 +192,7 @@ static const struct madera_hpdet_calibration_data madera_hpdet_ranges[] = {
 };
 
 struct madera_hp_tuning {
-	int max_ohm;
+	int max_hohm;
 	const struct reg_sequence *patch;
 	int patch_len;
 };
@@ -267,12 +267,12 @@ static const struct reg_sequence cs47l35_normal_impedance_patch[] = {
 
 static const struct madera_hp_tuning cs47l35_hp_tuning[] = {
 	{
-		13,
+		1300,
 		cs47l35_low_impedance_patch,
 		ARRAY_SIZE(cs47l35_low_impedance_patch),
 	},
 	{
-		MADERA_HPDET_MAX,
+		MADERA_HPDET_MAX * 100,
 		cs47l35_normal_impedance_patch,
 		ARRAY_SIZE(cs47l35_normal_impedance_patch),
 	},
@@ -300,12 +300,12 @@ static const struct reg_sequence cs47l85_normal_impedance_patch[] = {
 
 static const struct madera_hp_tuning cs47l85_hp_tuning[] = {
 	{
-		13,
+		1300,
 		cs47l85_low_impedance_patch,
 		ARRAY_SIZE(cs47l85_low_impedance_patch),
 	},
 	{
-		MADERA_HPDET_MAX,
+		MADERA_HPDET_MAX * 100,
 		cs47l85_normal_impedance_patch,
 		ARRAY_SIZE(cs47l85_normal_impedance_patch),
 	},
@@ -415,15 +415,15 @@ static const struct reg_sequence cs47l90_high_impedance_patch[] = {
 
 static const struct madera_hp_tuning cs47l90_hp_tuning[] = {
 	{
-		14,
+		1400,
 		cs47l90_low_impedance_patch,
 		ARRAY_SIZE(cs47l90_low_impedance_patch),
 	},
-	{	24,
+	{	2400,
 		cs47l90_normal_impedance_patch,
 		ARRAY_SIZE(cs47l90_normal_impedance_patch),
 	},
-	{	MADERA_HPDET_MAX,
+	{	MADERA_HPDET_MAX * 100,
 		cs47l90_high_impedance_patch,
 		ARRAY_SIZE(cs47l90_high_impedance_patch),
 	},
@@ -1212,7 +1212,7 @@ static int madera_tune_headphone(struct madera_extcon_info *info, int reading)
 		return 0;
 	}
 
-	if (reading <= info->pdata->hpdet_short_circuit_imp) {
+	if (reading <= MADERA_OHM_TO_HOHM(info->pdata->hpdet_short_circuit_imp)) {
 		/* Headphones are always off here so just mark them */
 		dev_warn(madera->dev, "Possible HP short, disabling\n");
 		return 0;
@@ -1223,7 +1223,7 @@ static int madera_tune_headphone(struct madera_extcon_info *info, int reading)
 	 * in range of the lower tunings
 	 */
 	for (i = 0; i < n_tunings - 1; ++i) {
-		if (reading <= tuning[i].max_ohm)
+		if (reading <= tuning[i].max_hohm)
 			break;
 	}
 
@@ -1255,7 +1255,7 @@ void madera_set_headphone_imp(struct madera_extcon_info *info, int imp)
 	data.impedance_x100 = imp;
 	madera_call_notifiers(madera, MADERA_NOTIFY_HPDET, &data);
 
-	madera_tune_headphone(info, MADERA_HOHM_TO_OHM(imp));
+	madera_tune_headphone(info, imp);
 }
 EXPORT_SYMBOL_GPL(madera_set_headphone_imp);
 
