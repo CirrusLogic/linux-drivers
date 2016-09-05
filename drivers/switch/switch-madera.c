@@ -178,6 +178,16 @@ struct madera_hpdet_calibration_data {
 	s64	dacval_adjust;
 };
 
+static const struct madera_hpdet_calibration_data cs47l15_hpdet_ranges[] = {
+	{},
+	{ 33,   123,   1000000,   -4300,   7975, 69600000, 382800, 33350000,
+	  500000},
+	{ 123,  1033,  9633000,   -79500,  7300, 62900000, 283050, 33350000,
+	  500000},
+	{ 1033, 10033, 100684000, -949400, 7300, 63200000, 284400, 33350000,
+	  500000},
+};
+
 static const struct madera_hpdet_calibration_data cs47l85_hpdet_ranges[] = {
 	{ 4,    30,    1007000,   -7200,   4003, 69300000, 381150, 250000, 500000},
 	{ 8,    100,   1007000,   -7200,   7975, 69600000, 382800, 250000, 500000},
@@ -2888,6 +2898,11 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		pdata->hpdet_short_circuit_imp = MADERA_HP_SHORT_IMPEDANCE_MIN;
 
 	switch (madera->type) {
+	case CS47L15:
+		info->hpdet_init_range = 1; /* range 0 not used on CS47L15 */
+		info->hpdet_ranges = cs47l15_hpdet_ranges;
+		info->num_hpdet_ranges = ARRAY_SIZE(cs47l15_hpdet_ranges);
+		break;
 	case CS47L35:
 		pdata->micd_force_micbias = true;
 		info->hpdet_ranges = cs47l85_hpdet_ranges;
@@ -2898,9 +2913,6 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		info->hpdet_ranges = cs47l85_hpdet_ranges;
 		info->num_hpdet_ranges = ARRAY_SIZE(cs47l85_hpdet_ranges);
 		break;
-	case CS47L15:
-		info->hpdet_init_range = 1; /* range 0 not used on CS47L15 */
-		/* fall through to default case */
 	default:
 		info->hpdet_ranges = madera_hpdet_ranges;
 		info->num_hpdet_ranges = ARRAY_SIZE(madera_hpdet_ranges);
