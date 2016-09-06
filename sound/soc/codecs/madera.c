@@ -3453,7 +3453,7 @@ static bool madera_aif_cfg_changed(struct snd_soc_codec *codec,
 		return true;
 
 	val = snd_soc_read(codec, base + MADERA_AIF_RX_BCLK_RATE);
-	if (lrclk != (val & MADERA_AIF1TX_BCPF_MASK))
+	if (lrclk != (val & MADERA_AIF1RX_BCPF_MASK))
 		return true;
 
 	val = snd_soc_read(codec, base + MADERA_AIF_FRAME_CTRL_1);

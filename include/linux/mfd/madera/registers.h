@@ -4917,11 +4917,6 @@
 #define MADERA_AIF1_FMT_SHIFT				     0
 #define MADERA_AIF1_FMT_WIDTH				     3
 
-/* (0x0505) - AIF1 Tx BCLK Rate */
-#define MADERA_AIF1TX_BCPF_MASK				0x1FFF
-#define MADERA_AIF1TX_BCPF_SHIFT			     0
-#define MADERA_AIF1TX_BCPF_WIDTH			    13
-
 /* (0x0506)  AIF1_Rx_BCLK_Rate */
 #define MADERA_AIF1RX_BCPF_MASK				0x1FFF
 #define MADERA_AIF1RX_BCPF_SHIFT			     0
@@ -5163,11 +5158,6 @@
 #define MADERA_AIF2_FMT_MASK				0x0007
 #define MADERA_AIF2_FMT_SHIFT				     0
 #define MADERA_AIF2_FMT_WIDTH				     3
-
-/* (0x0545) - AIF2 Tx BCLK Rate */
-#define MADERA_AIF2TX_BCPF_MASK				0x1FFF
-#define MADERA_AIF2TX_BCPF_SHIFT			     0
-#define MADERA_AIF2TX_BCPF_WIDTH			    13
 
 /* (0x0546)  AIF2_Rx_BCLK_Rate */
 #define MADERA_AIF2RX_BCPF_MASK				0x1FFF
@@ -5411,11 +5401,6 @@
 #define MADERA_AIF3_FMT_SHIFT				     0
 #define MADERA_AIF3_FMT_WIDTH				     3
 
-/* (0x0585) - AIF3 Tx BCLK Rate */
-#define MADERA_AIF3TX_BCPF_MASK				0x1FFF
-#define MADERA_AIF3TX_BCPF_SHIFT			     0
-#define MADERA_AIF3TX_BCPF_WIDTH			    13
-
 /* (0x0586)  AIF3_Rx_BCLK_Rate */
 #define MADERA_AIF3RX_BCPF_MASK				0x1FFF
 #define MADERA_AIF3RX_BCPF_SHIFT			     0
@@ -5549,11 +5534,6 @@
 #define MADERA_AIF4_FMT_MASK				0x0007
 #define MADERA_AIF4_FMT_SHIFT				     0
 #define MADERA_AIF4_FMT_WIDTH				     3
-
-/* (0x05A5) - AIF4 Tx BCLK Rate */
-#define MADERA_AIF4TX_BCPF_MASK				0x1FFF
-#define MADERA_AIF4TX_BCPF_SHIFT			     0
-#define MADERA_AIF4TX_BCPF_WIDTH			    13
 
 /* (0x05A6)  AIF4_Rx_BCLK_Rate */
 #define MADERA_AIF4RX_BCPF_MASK				0x1FFF
