@@ -96,6 +96,7 @@ struct wm_adsp {
 	struct dentry *debugfs_root;
 	char *wmfw_file_name;
 	char *bin_file_name;
+	bool slave_dbg_ena;
 #endif
 
 	unsigned int lock_regions;
