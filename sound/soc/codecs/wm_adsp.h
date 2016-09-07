@@ -166,6 +166,7 @@ struct wm_adsp {
 	struct mutex debugfs_lock;
 	char *wmfw_file_name;
 	char *bin_file_name;
+	u32 slave_dbg_ena;
 #endif
 
 	unsigned int lock_regions;
