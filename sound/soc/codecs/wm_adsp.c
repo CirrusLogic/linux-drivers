@@ -198,6 +198,8 @@
 #define ADSP2_WDT_TIMEOUT_STS_MASK           0x2000
 #define ADSP2_CTRL_ERR_PAUSE_ENA             0x0002
 #define ADSP2_CTRL_ERR_EINT                  0x0001
+#define ADSP2_SLAVE_DBG_ENA_MASK             0x0010
+#define ADSP2_SLAVE_DBG_ENA_SHIFT            4
 
 #define ADSP2_BUS_ERR_ADDR_MASK              0x00FFFFFF
 #define ADSP2_XMEM_ERR_ADDR_MASK             0x0000FFFF
@@ -610,6 +612,17 @@ static void wm_adsp2_init_debugfs(struct wm_adsp *dsp,
 	if (!debugfs_create_x32("fw_version", S_IRUGO, root,
 				&dsp->fw_id_version))
 		goto err;
+
+	switch (dsp->rev) {
+	case 0:
+	case 1:
+		break;
+	default:
+		if (!debugfs_create_bool("slave_dbg_ena", S_IRUGO|S_IWUSR, root,
+					 &dsp->slave_dbg_ena))
+			goto err;
+		break;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(wm_adsp_debugfs_fops); ++i) {
 		if (!debugfs_create_file(wm_adsp_debugfs_fops[i].name,
@@ -3392,6 +3405,7 @@ int wm_adsp2_lock(struct wm_adsp *dsp, unsigned int lock_regions)
 {
 	struct regmap *regmap = dsp->regmap;
 	unsigned int code0, code1, lock_reg;
+	int ret;
 
 	if (!(lock_regions & WM_ADSP2_REGION_ALL))
 		return 0;
@@ -3413,6 +3427,21 @@ int wm_adsp2_lock(struct wm_adsp *dsp, unsigned int lock_regions)
 		regmap_write(regmap, lock_reg, code1);
 		lock_regions >>= 2;
 		lock_reg += 2;
+	}
+
+	switch (dsp->rev) {
+	case 0:
+	case 1:
+		break;
+	default:
+		ret = regmap_update_bits(dsp->regmap,
+				 dsp->base + ADSP2_LOCK_REGION_CTRL,
+				 ADSP2_SLAVE_DBG_ENA_MASK,
+				 dsp->slave_dbg_ena
+				 << ADSP2_SLAVE_DBG_ENA_SHIFT);
+		if (ret != 0)
+			return ret;
+		break;
 	}
 
 	return 0;
