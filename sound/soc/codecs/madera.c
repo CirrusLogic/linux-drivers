@@ -4016,7 +4016,7 @@ static int madera_calc_fll(struct madera_fll *fll,
 	unsigned int gcd_fll;
 	const struct madera_fll_gains *gains;
 	int n_gains;
-	int ratio, ret;
+	int ratio;
 
 	madera_fll_dbg(fll, "fref=%u Fout=%u fvco=%u\n",
 			fref, fll->fout, fll->fout * MADERA_FLL_VCO_MULT);
@@ -4088,18 +4088,7 @@ static int madera_calc_fll(struct madera_fll *fll,
 		break;
 	}
 
-	ret = madera_find_fll_gain(fll, cfg, fref, gains, n_gains);
-	if (ret)
-		return ret;
-
-	madera_fll_dbg(fll, "N=%d THETA=%d LAMBDA=%d\n",
-			cfg->n, cfg->theta, cfg->lambda);
-	madera_fll_dbg(fll, "FRATIO=0x%x(%d) REFCLK_DIV=0x%x(%d)\n",
-			cfg->fratio, ratio, cfg->refdiv, 1 << cfg->refdiv);
-	madera_fll_dbg(fll, "GAIN=0x%x(%d)\n", cfg->gain, 1 << cfg->gain);
-
-	return 0;
-
+	return madera_find_fll_gain(fll, cfg, fref, gains, n_gains);
 }
 
 static bool madera_apply_fll(struct madera *madera, unsigned int base,
@@ -4269,6 +4258,14 @@ static int madera_enable_fll(struct madera_fll *fll)
 	if (fll->sync_src >= 0) {
 		madera_calc_fll(fll, &cfg, fll->sync_freq, true);
 
+		madera_fll_dbg(fll, "SYNC: N=%d THETA=%d LAMBDA=%d\n",
+				cfg.n, cfg.theta, cfg.lambda);
+		madera_fll_dbg(fll, "SYNC: FRATIO=0x%x(%d) REFCLK_DIV=0x%x(%d)\n",
+				cfg.fratio, cfg.fratio + 1,
+				cfg.refdiv, 1 << cfg.refdiv);
+		madera_fll_dbg(fll, "SYNC: GAIN=0x%x(%d)\n",
+				cfg.gain, 1 << cfg.gain);
+
 		fll_change |= madera_apply_fll(madera, sync_reg_base,
 						&cfg, fll->sync_src,
 						true, cfg.gain);
@@ -4282,8 +4279,17 @@ static int madera_enable_fll(struct madera_fll *fll)
 	madera_calc_fll(fll, &cfg, fll->ref_freq, false);
 
 	/* Ref path hardcodes lambda to 65536 when sync is on */
-	if (have_sync && cfg.lambda)
+	if (have_sync && cfg.lambda) {
 		cfg.theta = (cfg.theta * (1 << 16)) / cfg.lambda;
+		cfg.lambda = 1 << 16;
+	}
+
+	madera_fll_dbg(fll, "REF: N=%d THETA=%d LAMBDA=%d\n",
+			cfg.n, cfg.theta, cfg.lambda);
+	madera_fll_dbg(fll, "REF: FRATIO=0x%x(%d) REFCLK_DIV=0x%x(%d)\n",
+			cfg.fratio, cfg.fratio + 1,
+			cfg.refdiv, 1 << cfg.refdiv);
+	madera_fll_dbg(fll, "REF: GAIN=0x%x(%d)\n", cfg.gain, 1 << cfg.gain);
 
 	switch (fll->madera->type) {
 	case CS47L35:
