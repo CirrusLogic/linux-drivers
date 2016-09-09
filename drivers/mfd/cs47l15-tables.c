@@ -21,7 +21,7 @@
 static const struct reg_sequence cs47l15_reva_16_patch[] = {
 	{ 0x8C, 0x5555 },
 	{ 0x8C, 0xAAAA },
-	{ 0x314, 0x0081 },
+	{ 0x314, 0x0080 },
 	{ 0x4D4, 0x0008 },
 	{ 0x4CF, 0x0F00 },
 	{ 0x4A8, 0x6020 },
@@ -143,7 +143,7 @@ static const struct reg_default cs47l15_reg_default[] = {
 	{ 0x00000311, 0x0180 }, /* R785 (0x000311) - ADC_DIGITAL_VOLUME_1L */
 	{ 0x00000312, 0x0500 }, /* R786 (0x000312) - DMIC1L_CONTROL */
 	{ 0x00000313, 0x0000 }, /* R787 (0x000313) - IN1L_RATE_CONTROL */
-	{ 0x00000314, 0x0081 }, /* R788 (0x000314) - IN1R_CONTROL */
+	{ 0x00000314, 0x0080 }, /* R788 (0x000314) - IN1R_CONTROL */
 	{ 0x00000315, 0x0180 }, /* R789 (0x000315) - ADC_DIGITAL_VOLUME_1R */
 	{ 0x00000316, 0x0000 }, /* R790 (0x000316) - DMIC1R_CONTROL */
 	{ 0x00000317, 0x0000 }, /* R791 (0x000317) - IN1R_RATE_CONTROL */
