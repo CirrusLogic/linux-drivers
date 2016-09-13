@@ -1240,7 +1240,8 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 {
 	struct arizona_pdata *pdata = &arizona->pdata;
 	u32 out_mono[ARIZONA_MAX_OUTPUT];
-	int i, num_micbias_outputs;
+	u32 pdm_val[ARIZONA_MAX_PDM_SPK];
+	int ret, i, num_micbias_outputs;
 
 	switch (arizona->type) {
 	case WM5102:
@@ -1306,6 +1307,24 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 						       "wlf,rev-specific-fw");
 
 	arizona_of_get_lrclk_adv(arizona, "wlf,aif-lrclk-advance");
+
+	ret = of_property_read_u32_array(arizona->dev->of_node,
+					 "wlf,spk-fmt",
+					 pdm_val,
+					 ARRAY_SIZE(pdm_val));
+
+	if (ret >= 0)
+		for (i = 0; i < ARRAY_SIZE(pdata->spk_fmt); ++i)
+			pdata->spk_fmt[i] = pdm_val[i];
+
+	ret = of_property_read_u32_array(arizona->dev->of_node,
+					 "wlf,spk-mute",
+					 pdm_val,
+					 ARRAY_SIZE(pdm_val));
+
+	if (ret >= 0)
+		for (i = 0; i < ARRAY_SIZE(pdata->spk_mute); ++i)
+			pdata->spk_mute[i] = pdm_val[i];
 
 	return 0;
 }
