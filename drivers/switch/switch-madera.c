@@ -53,9 +53,6 @@
 #define MADERA_MICROPHONE_MIN_OHM	1258
 #define MADERA_MICROPHONE_MAX_OHM	30000
 
-#define MADERA_MIC_MUTE			1
-#define MADERA_MIC_UNMUTE		0
-
 #define MADERA_HP_TUNING_INVALID	-1
 
 /* Conversion between ohms and hundredths of an ohm. */
