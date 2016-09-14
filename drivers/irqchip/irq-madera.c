@@ -244,7 +244,7 @@ static const struct dev_pm_ops madera_irq_pm_ops = {
 
 static int madera_irq_of_get(struct madera_irq_priv *priv)
 {
-	/* all our settings are under the parent DT node */
+	struct madera *madera = priv->madera;
 	struct device_node *np = priv->madera->dev->of_node;
 	u32 value;
 	int ret;
@@ -255,9 +255,11 @@ static int madera_irq_of_get(struct madera_irq_priv *priv)
 
 	ret = of_property_read_u32(np, "cirrus,irq_flags", &value);
 	if (ret == 0)
-		priv->irq_flags = value;
+		madera->pdata.irqchip.irq_flags = value;
 
-	priv->irq_gpio = of_get_named_gpio(np, "cirrus,irq-gpios", 0);
+	madera->pdata.irqchip.irq_gpio = of_get_named_gpio(np,
+							   "cirrus,irq-gpios",
+							   0);
 
 	return 0;
 }
@@ -311,24 +313,22 @@ int madera_irq_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	/* pdata uses 0 to mean undefined, convert to an invalid GPIO number */
+	if (madera->pdata.irqchip.irq_gpio == 0)
+		madera->pdata.irqchip.irq_gpio = -EINVAL;
+
+	priv->irq = madera->irq; /* default, may be replaced by DT entry */
+
 	if (IS_ENABLED(CONFIG_OF)) {
 		if (!dev_get_platdata(priv->dev)) {
 			ret = madera_irq_of_get(priv);
 			if (ret < 0)
 				return ret;
-		} else {
-			priv->irq = madera->irq;
-			priv->irq_flags = madera->pdata.irqchip.irq_flags;
-			priv->irq_gpio = madera->pdata.irqchip.irq_gpio;
-
-			/* pdata uses 0 to mean undefined, convert to an
-			 * invalid GPIO number
-			 */
-			if (priv->irq_gpio == 0)
-				priv->irq_gpio = -1;
 		}
 	}
 
+	priv->irq_flags = madera->pdata.irqchip.irq_flags;
+	priv->irq_gpio = madera->pdata.irqchip.irq_gpio;
 
 	/* Read the flags from the interrupt controller if not specified */
 	if (!priv->irq_flags) {
