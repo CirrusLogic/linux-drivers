@@ -66,6 +66,10 @@ struct madera_codec_pdata {
 	 */
 	unsigned int pdm_fmt[MADERA_MAX_PDM_SPK];
 
+	/** Auxiliary PDM output settings. */
+	bool auxpdm_slave_mode;
+	bool auxpdm_falling_edge;
+
 	/** Override default list of firmwares */
 	struct wm_adsp_fw_defs *fw_defs[MADERA_MAX_DSP];
 	int num_fw_defs[MADERA_MAX_DSP];

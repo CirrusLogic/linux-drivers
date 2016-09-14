@@ -558,6 +558,7 @@ static void madera_get_pdata_from_of(struct madera *madera)
 {
 	struct madera_codec_pdata *pdata = &madera->pdata.codec;
 	unsigned int out_mono[ARRAY_SIZE(pdata->out_mono)];
+	struct device_node *np = madera->dev->of_node;
 	int i;
 
 	memset(&out_mono, 0, sizeof(out_mono));
@@ -591,6 +592,12 @@ static void madera_get_pdata_from_of(struct madera *madera)
 	madera_of_read_uint_array(madera, "cirrus,dmic-clksrc", false,
 				pdata->dmic_clksrc,
 				0, ARRAY_SIZE(pdata->dmic_clksrc));
+
+	pdata->auxpdm_slave_mode =
+		of_property_read_bool(np, "cirrus,auxpdm-slave-mode");
+
+	pdata->auxpdm_falling_edge =
+		of_property_read_bool(np, "cirrus,auxpdm-falling-edge");
 }
 
 int madera_core_init(struct madera_priv *priv)

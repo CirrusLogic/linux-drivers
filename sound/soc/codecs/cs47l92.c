@@ -203,6 +203,34 @@ static const struct snd_kcontrol_new cs47l92_outdemux =
 	SOC_DAPM_ENUM_EXT("OUT3 Demux", cs47l92_outdemux_enum,
 			snd_soc_dapm_get_enum_double, cs47l92_put_demux);
 
+static const char * const cs47l92_auxpdm_freq_texts[] = {
+	"3.072Mhz",
+	"2.048Mhz",
+	"1.536Mhz",
+	"768khz",
+};
+static SOC_ENUM_SINGLE_DECL(cs47l92_auxpdm_freq_enum,
+			    MADERA_AUXPDM1_CTRL_1,
+			    MADERA_AUXPDM1_CLK_FREQ_SHIFT,
+			    cs47l92_auxpdm_freq_texts);
+
+static const char * const cs47l92_auxpdm_in_texts[] = {
+	"IN1L",
+	"IN1R",
+	"IN2L",
+	"IN2R",
+};
+static SOC_ENUM_SINGLE_DECL(cs47l92_auxpdm_in_enum,
+			    MADERA_AUXPDM1_CTRL_0,
+			    MADERA_AUXPDM1_SRC_SHIFT,
+			    cs47l92_auxpdm_in_texts);
+
+static const struct snd_kcontrol_new cs47l92_auxpdm1_inmux =
+		SOC_DAPM_ENUM("AUXPDM1 Input", cs47l92_auxpdm_in_enum);
+
+static const struct snd_kcontrol_new cs47l92_auxpdm1_switch =
+		SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
 static int cs47l92_get_sources(unsigned int reg,
 			       const unsigned int **cur_sources, int *lim)
 {
@@ -477,6 +505,8 @@ MADERA_RATE_ENUM("ISRC1 FSH", madera_isrc_fsh[0]),
 MADERA_RATE_ENUM("ISRC2 FSH", madera_isrc_fsh[1]),
 MADERA_RATE_ENUM("ASRC1 Rate 1", madera_asrc1_bidir_rate[0]),
 MADERA_RATE_ENUM("ASRC1 Rate 2", madera_asrc1_bidir_rate[1]),
+
+SOC_ENUM("AUXPDM1 Rate", cs47l92_auxpdm_freq_enum),
 
 MADERA_MIXER_CONTROLS("DSP1L", MADERA_DSP1LMIX_INPUT_1_SOURCE),
 MADERA_MIXER_CONTROLS("DSP1R", MADERA_DSP1RMIX_INPUT_1_SOURCE),
@@ -972,6 +1002,9 @@ SND_SOC_DAPM_PGA("SPD1TX2", MADERA_SPD1_TX_CONTROL,
 SND_SOC_DAPM_OUT_DRV("SPD1", MADERA_SPD1_TX_CONTROL,
 		     MADERA_SPD1_ENA_SHIFT, 0, NULL, 0),
 
+SND_SOC_DAPM_SWITCH("AUXPDM1 Output", MADERA_AUXPDM1_CTRL_0,
+		    MADERA_AUXPDM1_ENABLE_SHIFT, 0, &cs47l92_auxpdm1_switch),
+
 /* mux_in widgets : arranged in the order of sources
    specified in MADERA_MIXER_INPUT_ROUTES */
 
@@ -1021,6 +1054,8 @@ SND_SOC_DAPM_PGA_E("IN4R PGA", MADERA_INPUT_ENABLES, MADERA_IN4R_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
+
+SND_SOC_DAPM_MUX("AUXPDM1 Input", SND_SOC_NOPM, 0, 0, &cs47l92_auxpdm1_inmux),
 
 SND_SOC_DAPM_AIF_IN("AIF1RX1", NULL, 0,
 			MADERA_AIF1_RX_ENABLES, MADERA_AIF1RX1_ENA_SHIFT, 0),
@@ -1261,6 +1296,7 @@ SND_SOC_DAPM_OUTPUT("HPOUT4R"),
 SND_SOC_DAPM_OUTPUT("SPKDAT1L"),
 SND_SOC_DAPM_OUTPUT("SPKDAT1R"),
 SND_SOC_DAPM_OUTPUT("SPDIF1"),
+SND_SOC_DAPM_OUTPUT("AUXPDM1"),
 
 SND_SOC_DAPM_OUTPUT("MICSUPP"),
 };
@@ -1620,6 +1656,14 @@ static const struct snd_soc_dapm_route cs47l92_dapm_routes[] = {
 
 	{ "SPDIF1", NULL, "SPD1" },
 
+	{ "AUXPDM1 Input", "IN1L", "IN1L PGA" },
+	{ "AUXPDM1 Input", "IN1R", "IN1R PGA" },
+	{ "AUXPDM1 Input", "IN2L", "IN2L PGA" },
+	{ "AUXPDM1 Input", "IN2R", "IN2R PGA" },
+
+	{ "AUXPDM1 Output", "Switch", "AUXPDM1 Input" },
+	{ "AUXPDM1", NULL, "AUXPDM1 Output" },
+
 	{ "MICSUPP", NULL, "SYSCLK" },
 
 	{ "DRC1 Signal Activity", NULL, "DRC1 Activity Output" },
@@ -1811,7 +1855,9 @@ static int cs47l92_codec_probe(struct snd_soc_codec *codec)
 {
 	struct cs47l92 *cs47l92 = snd_soc_codec_get_drvdata(codec);
 	struct madera *madera = cs47l92->core.madera;
+	struct madera_codec_pdata *pdata = &madera->pdata.codec;
 	int ret;
+	unsigned int val;
 
 	cs47l92->core.madera->dapm = snd_soc_codec_get_dapm(codec);
 
@@ -1822,6 +1868,14 @@ static int cs47l92_codec_probe(struct snd_soc_codec *codec)
 				 ARRAY_SIZE(cs47l92_dmic_refs));
 	if (ret)
 		return ret;
+
+	if (!pdata->auxpdm_slave_mode)
+		val = MADERA_AUXPDM1_MSTR_MASK;
+	if (pdata->auxpdm_falling_edge)
+		val |= MADERA_AUXPDM1_TXEDGE_MASK;
+	regmap_update_bits(madera->regmap, MADERA_AUXPDM1_CTRL_0,
+			   MADERA_AUXPDM1_TXEDGE_MASK |
+			   MADERA_AUXPDM1_MSTR_MASK, val);
 
 	ret = madera_init_outputs(codec, CS47L92_MONO_OUTPUTS);
 	if (ret)

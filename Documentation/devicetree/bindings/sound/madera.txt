@@ -34,6 +34,13 @@ Optional properties:
     One cell for each AIF, use a value of zero for AIFs that should be handled
     normally.
 
+  - cirrus,auxpdm-slave-mode : If defined, Auxiliary PDM will be put into clock
+    slave mode.  The default is clock master.
+
+  - cirrus,auxpdm-falling-edge: If defined, data will be driven on the falling
+    edge of the Auxiliary PDM clock.  The default is for the data to be driven
+    on the rising edge.
+
 Example:
 
 codec: cs47l35@0 {
