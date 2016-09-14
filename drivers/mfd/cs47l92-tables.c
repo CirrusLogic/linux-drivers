@@ -992,6 +992,8 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x000010a1, 0x0000 }, /* R4257 (0x10a1) - US1 Det Ctrl 1 */
 	{ 0x000010a2, 0x0000 }, /* R4258 (0x10a2) - US2 Det Ctrl 0 */
 	{ 0x000010a3, 0x0000 }, /* R4259 (0x10a3) - US2 Det Ctrl 1 */
+	{ 0x000010c0, 0x0008 }, /* R4288 (0x10c0) - AUXPDM1 Ctrl 0 */
+	{ 0x000010c1, 0x4000 }, /* R4289 (0x10c1) - AUXPDM1 Ctrl 1 */
 	{ 0x00001300, 0x050E }, /* R4864 (0x1300) - DAC comp 1 */
 	{ 0x00001302, 0x0101 }, /* R4866 (0x1302) - DAC comp 2 */
 	{ 0x00001380, 0x02E0 }, /* R4992 (0x1380) - FRF Coefficient 1L 1 */
@@ -2029,6 +2031,8 @@ static bool cs47l92_16bit_readable_register(struct device *dev,
 	case MADERA_US1_DET_CTRL_1:
 	case MADERA_US2_DET_CTRL_0:
 	case MADERA_US2_DET_CTRL_1:
+	case MADERA_AUXPDM1_CTRL_0:
+	case MADERA_AUXPDM1_CTRL_1:
 	case MADERA_DAC_COMP_1:
 	case MADERA_DAC_COMP_2:
 	case MADERA_FRF_COEFFICIENT_1L_1:
