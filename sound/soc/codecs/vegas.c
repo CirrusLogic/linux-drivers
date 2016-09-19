@@ -1484,7 +1484,9 @@ static int vegas_codec_probe(struct snd_soc_codec *codec)
 		break;
 	}
 
+	mutex_lock(&codec->card->dapm_mutex);
 	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
+	mutex_unlock(&codec->card->dapm_mutex);
 
 	priv->core.arizona->dapm = &codec->dapm;
 
