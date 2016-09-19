@@ -353,8 +353,7 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 	unsigned int ep_sel = 0;
 	int ret;
 
-	mutex_lock_nested(&arizona->dapm->card->mutex,
-			  SND_SOC_DAPM_CLASS_RUNTIME);
+	mutex_lock(&arizona->dapm->card->mutex);
 
 	switch (arizona->type) {
 	case WM5102:
