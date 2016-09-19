@@ -2759,28 +2759,28 @@ static int wm_adsp_of_parse_caps(struct wm_adsp *dsp,
 
 	ret = arizona_of_read_u32_index(np, prop, 0, &of_cap);
 	if (ret < 0) {
-		dev_err(adsp->dev,"Firmware caps-id missing/malformed");
+		dev_err(dsp->dev, "Firmware caps-id missing/malformed");
 		return ret;
 	}
 	fw->caps->id = of_cap;
 
 	ret = arizona_of_read_u32_index(np, prop, 1, &of_cap);
 	if (ret < 0) {
-		dev_err(adsp->dev,"Firmware max_ch unsupported");
+		dev_err(dsp->dev, "Firmware max_ch unsupported");
 		return ret;
 	}
 	fw->caps->desc.max_ch = of_cap;
 
 	ret = arizona_of_read_u32_index(np, prop, 2, &of_cap);
 	if (ret < 0) {
-		dev_err(adsp->dev,"Firmware formats unsupported");
+		dev_err(dsp->dev, "Firmware formats unsupported");
 		return ret;
 	}
 	fw->caps->desc.formats = of_cap;
 
 	ret = arizona_of_read_u32_index(np, prop, 3, &of_cap);
 	if (ret < 0) {
-		dev_err(adsp->dev,"Firmware compr_dir unsupported");
+		dev_err(dsp->dev, "Firmware compr_dir unsupported");
 		return ret;
 	}
 	fw->compr_direction = of_cap;
@@ -2788,7 +2788,7 @@ static int wm_adsp_of_parse_caps(struct wm_adsp *dsp,
 	for (i = 4; i < len_prop; ++i) {
 		ret = arizona_of_read_u32_index(np, prop, i, &of_cap);
 		if (ret < 0) {
-			dev_err(adsp->dev,"Firmware sample_rates unsupported");
+			dev_err(dsp->dev, "Firmware sample_rates unsupported");
 			return ret;
 		}
 		fw->caps->desc.sample_rates[i - 4] = of_cap;
@@ -2807,7 +2807,7 @@ static int wm_adsp_of_parse_firmware(struct wm_adsp *dsp,
 	int ret;
 	int i;
 
-	for_each_child_of_node(adsp->dev->of_node,fws)
+	for_each_child_of_node(dsp->dev->of_node, fws)
 		if (fws->name && (of_node_cmp(fws->name,"firmware") == 0))
 			break;
 	if (!fws)
