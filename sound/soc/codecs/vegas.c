@@ -43,7 +43,7 @@ static int vegas_put_volsw_locked(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	int ret;
 
-	mutex_lock_nested(&codec->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+	mutex_lock(&codec->card->dapm_mutex);
 
 	ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
@@ -59,7 +59,7 @@ static int vegas_put_spk_edre(struct snd_kcontrol *kcontrol,
 	unsigned int val = 0;
 
 
-	mutex_lock_nested(&codec->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+	mutex_lock(&codec->card->dapm_mutex);
 
 	if (ucontrol->value.integer.value[0] != 0)
 		val |= CLEARWATER_EDRE_OUT4L_THR1_ENA_MASK |

@@ -513,7 +513,7 @@ static int florida_put_dre(struct snd_kcontrol *kcontrol,
 	unsigned int lshift = mc->shift;
 	unsigned int rshift = mc->rshift;
 
-	mutex_lock_nested(&codec->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+	mutex_lock(&codec->card->dapm_mutex);
 
 	florida_set_dre(arizona, lshift, !!ucontrol->value.integer.value[0]);
 	florida_set_dre(arizona, rshift, !!ucontrol->value.integer.value[1]);

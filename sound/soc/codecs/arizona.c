@@ -723,7 +723,7 @@ int arizona_mux_put(struct snd_kcontrol *kcontrol,
 	unsigned int val, mask;
 	int ret;
 
-	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+	mutex_lock(&card->dapm_mutex);
 
 	ret = widget->power_check(widget);
 	if (ret) {
@@ -2302,7 +2302,7 @@ int arizona_ip_mode_put(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int reg, ret = 0;
 
-	mutex_lock_nested(&codec->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+	mutex_lock(&codec->card->dapm_mutex);
 
 	/* Cannot change input mode on an active input*/
 	reg = snd_soc_read(codec, ARIZONA_INPUT_ENABLES);
@@ -2347,7 +2347,7 @@ int moon_in_rate_put(struct snd_kcontrol *kcontrol,
 	unsigned int reg, mask;
 	int ret = 0;
 
-	mutex_lock_nested(&codec->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+	mutex_lock(&codec->card->dapm_mutex);
 
 	/* Cannot change rate on an active input */
 	reg = snd_soc_read(codec, ARIZONA_INPUT_ENABLES);
@@ -2377,7 +2377,7 @@ int moon_dfc_put(struct snd_kcontrol *kcontrol,
 
 	reg = ((reg / 6) * 6) - 2;
 
-	mutex_lock_nested(&codec->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+	mutex_lock(&codec->card->dapm_mutex);
 
 	/* Cannot change dfc settings when its on */
 	val = snd_soc_read(codec, reg);
@@ -2422,7 +2422,7 @@ int moon_lp_mode_put(struct snd_kcontrol *kcontrol,
 	int ret;
 
 
-	mutex_lock_nested(&codec->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+	mutex_lock(&codec->card->dapm_mutex);
 
 	/* Cannot change lp mode on an active input */
 	reg = snd_soc_read(codec, ARIZONA_INPUT_ENABLES);
@@ -2665,7 +2665,7 @@ int clearwater_put_dre(struct snd_kcontrol *kcontrol,
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 	int ret;
 
-	mutex_lock_nested(&arizona->dapm->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+	mutex_lock(&arizona->dapm->card->dapm_mutex);
 
 	ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
