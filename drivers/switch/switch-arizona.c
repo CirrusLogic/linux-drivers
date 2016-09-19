@@ -723,11 +723,13 @@ static void arizona_extcon_change_mode(struct arizona_extcon_info *info)
 			widget = arizona_extcon_get_micbias(info);
 			dev_dbg(arizona->dev, "disabling %s\n", widget);
 
+			mutex_lock(&arizona->dapm->card->dapm_mutex);
 			ret = snd_soc_dapm_disable_pin(arizona->dapm, widget);
 			if (ret)
 				dev_warn(arizona->dev,
 					 "Failed to disable %s: %d\n",
 					 widget, ret);
+			mutex_unlock(&arizona->dapm->card->dapm_mutex);
 
 			snd_soc_dapm_sync(arizona->dapm);
 		}
