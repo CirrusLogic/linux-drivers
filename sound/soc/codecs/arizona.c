@@ -5117,7 +5117,9 @@ int arizona_enable_force_bypass(struct snd_soc_codec *codec)
 	regmap_read(arizona->regmap, ARIZONA_MIC_CHARGE_PUMP_1, &val);
 	arizona->bypass_cache = !(val & ARIZONA_CPMIC_BYPASS);
 	if (arizona->bypass_cache) {
+		mutex_lock(&arizona->dapm->card->dapm_mutex);
 		snd_soc_dapm_disable_pin(arizona->dapm, "MICSUPP");
+		mutex_unlock(&arizona->dapm->card->dapm_mutex);
 
 		snd_soc_dapm_sync(arizona->dapm);
 
@@ -5144,7 +5146,9 @@ int arizona_disable_force_bypass(struct snd_soc_codec *codec)
 	struct arizona_micbias *micbias = arizona->pdata.micbias;
 
 	if (arizona->bypass_cache) {
+		mutex_lock(&arizona->dapm->card->dapm_mutex);
 		snd_soc_dapm_force_enable_pin(arizona->dapm, "MICSUPP");
+		mutex_unlock(&arizona->dapm->card->dapm_mutex);
 
 		snd_soc_dapm_sync(arizona->dapm);
 
