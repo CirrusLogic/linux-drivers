@@ -32,6 +32,35 @@
 
 #include "arizona.h"
 
+static const __be32 *arizona_of_prop_next_u32(struct property *prop,
+					      const __be32 *cur,
+					      u32 *pu)
+{
+	const void *curv = cur;
+
+	if (!prop)
+		return NULL;
+
+	if (!cur) {
+		curv = prop->value;
+		goto out_val;
+	}
+
+	curv += sizeof(*cur);
+	if (curv >= prop->value + prop->length)
+		return NULL;
+
+out_val:
+	*pu = be32_to_cpup(curv);
+	return curv;
+}
+
+#define arizona_of_property_for_each_u32(np, propname, prop, p, u)	\
+	for (prop = of_find_property(np, propname, NULL),		\
+		p = arizona_of_prop_next_u32(prop, NULL, &u);		\
+		p;							\
+		p = arizona_of_prop_next_u32(prop, p, &u))
+
 static const char *wm5102_core_supplies[] = {
 	"AVDD",
 	"DBVDD1",
@@ -897,7 +926,7 @@ static int arizona_of_get_max_channels(struct arizona *arizona,
 	int i;
 
 	i = 0;
-	of_property_for_each_u32(np, prop, tempprop, cur, val) {
+	arizona_of_property_for_each_u32(np, prop, tempprop, cur, val) {
 		if (i == ARRAY_SIZE(pdata->max_channels_clocked))
 			break;
 
@@ -918,7 +947,7 @@ static int arizona_of_get_inmode(struct arizona *arizona,
 	int i;
 
 	i = 0;
-	of_property_for_each_u32(np, prop, tempprop, cur, val) {
+	arizona_of_property_for_each_u32(np, prop, tempprop, cur, val) {
 		if (i == ARRAY_SIZE(pdata->inmode))
 			break;
 
@@ -939,7 +968,7 @@ static int arizona_of_get_lrclk_adv(struct arizona *arizona,
 	int i;
 
 	i = 0;
-	of_property_for_each_u32(np, prop, tempprop, cur, val) {
+	arizona_of_property_for_each_u32(np, prop, tempprop, cur, val) {
 		if (i == ARRAY_SIZE(pdata->lrclk_adv))
 			break;
 
@@ -960,7 +989,7 @@ static int arizona_of_get_dmicref(struct arizona *arizona,
 	int i;
 
 	i = 0;
-	of_property_for_each_u32(np, prop, tempprop, cur, val) {
+	arizona_of_property_for_each_u32(np, prop, tempprop, cur, val) {
 		if (i == ARRAY_SIZE(pdata->dmic_ref))
 			break;
 
@@ -981,7 +1010,7 @@ static int arizona_of_get_dmic_clksrc(struct arizona *arizona,
 	int i;
 
 	i = 0;
-	of_property_for_each_u32(np, prop, tempprop, cur, val) {
+	arizona_of_property_for_each_u32(np, prop, tempprop, cur, val) {
 		if (i == ARRAY_SIZE(pdata->dmic_clksrc))
 			break;
 
@@ -1002,7 +1031,7 @@ static int arizona_of_get_gpio_defaults(struct arizona *arizona,
 	int i;
 
 	i = 0;
-	of_property_for_each_u32(np, prop, tempprop, cur, val) {
+	arizona_of_property_for_each_u32(np, prop, tempprop, cur, val) {
 		if (i == ARRAY_SIZE(pdata->gpio_defaults))
 			break;
 
@@ -1136,16 +1165,15 @@ static int arizona_of_get_micd_configs(struct arizona *arizona,
 
 
 		if (group_size == 4) {
-			ret = of_property_read_u32_index(arizona->dev->of_node,
-							 prop, j++, &value);
+			ret = arizona_of_read_u32_index(arizona->dev->of_node,
+							prop, j++, &value);
 			if (ret < 0)
 				goto error;
 			micd_configs[i].gnd = value;
 		}
 
-		ret = of_property_read_u32_index(arizona->dev->of_node,
-
-						 prop, j++, &value);
+		ret = arizona_of_read_u32_index(arizona->dev->of_node,
+						prop, j++, &value);
 		if (ret < 0)
 			goto error;
 		micd_configs[i].bias = value;
