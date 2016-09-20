@@ -294,20 +294,20 @@ extern unsigned int madera_mixer_values[MADERA_NUM_MIXER_INPUTS];
 	{ name, NULL, name " Preloader"},		\
 	{ name " Preloader", NULL, "SYSCLK"},		\
 	{ name " Preloader", NULL, "DSPCLK"},		\
-	{ name " Preloader", NULL, name " Aux 1" },	\
-	{ name " Preloader", NULL, name " Aux 2" },	\
-	{ name " Preloader", NULL, name " Aux 3" },	\
-	{ name " Preloader", NULL, name " Aux 4" },	\
-	{ name " Preloader", NULL, name " Aux 5" },	\
-	{ name " Preloader", NULL, name " Aux 6" },	\
+	{ name, NULL, name " Aux 1" },	\
+	{ name, NULL, name " Aux 2" },	\
+	{ name, NULL, name " Aux 3" },	\
+	{ name, NULL, name " Aux 4" },	\
+	{ name, NULL, name " Aux 5" },	\
+	{ name, NULL, name " Aux 6" },	\
 	MADERA_MIXER_INPUT_ROUTES(name " Aux 1"),	\
 	MADERA_MIXER_INPUT_ROUTES(name " Aux 2"),	\
 	MADERA_MIXER_INPUT_ROUTES(name " Aux 3"),	\
 	MADERA_MIXER_INPUT_ROUTES(name " Aux 4"),	\
 	MADERA_MIXER_INPUT_ROUTES(name " Aux 5"),	\
 	MADERA_MIXER_INPUT_ROUTES(name " Aux 6"),	\
-	MADERA_MIXER_ROUTES(name " Preloader", name "L"), \
-	MADERA_MIXER_ROUTES(name " Preloader", name "R")
+	MADERA_MIXER_ROUTES(name, name "L"), \
+	MADERA_MIXER_ROUTES(name, name "R")
 
 #define MADERA_SAMPLE_RATE_CONTROL(name, domain) \
 	SOC_ENUM(name, madera_sample_rate[(domain) - 2])
