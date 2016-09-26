@@ -2513,12 +2513,6 @@ static int wm_adsp2_ena(struct wm_adsp *dsp)
 
 		break;
 	default:
-		ret = regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
-					 ADSP2_MEM_ENA, ADSP2_MEM_ENA);
-
-		if (ret != 0)
-			return ret;
-
 		break;
 	}
 
@@ -2552,6 +2546,11 @@ static void wm_adsp2_boot_work(struct work_struct *work)
 
 	mutex_lock(&dsp->pwr_lock);
 
+	ret = regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
+				 ADSP2_MEM_ENA, ADSP2_MEM_ENA);
+	if (ret != 0)
+		goto err_mutex;
+
 	ret = wm_adsp2_ena(dsp);
 	if (ret != 0)
 		goto err_mutex;
@@ -2574,6 +2573,18 @@ static void wm_adsp2_boot_work(struct work_struct *work)
 		goto err_ena;
 
 	dsp->booted = true;
+
+	switch (dsp->rev) {
+	case 0:
+		/* Turn DSP back off until we are ready to run */
+		ret = regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
+					 ADSP2_SYS_ENA, 0);
+		if (ret != 0)
+			goto err_ena;
+		break;
+	default:
+		break;
+	}
 
 	mutex_unlock(&dsp->pwr_lock);
 
@@ -2657,6 +2668,10 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		if (!dsp->booted)
 			return -EIO;
 
+		ret = wm_adsp2_ena(dsp);
+		if (ret != 0)
+			goto err;
+
 		wm_adsp2_lock(dsp, dsp->lock_regions);
 
 		/* Sync set controls */
@@ -2716,7 +2731,8 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		case 0:
 			regmap_update_bits(dsp->regmap,
 					   dsp->base + ADSP2_CONTROL,
-					   ADSP2_CORE_ENA | ADSP2_START, 0);
+					   ADSP2_MEM_ENA | ADSP2_CORE_ENA |
+					   ADSP2_START, 0);
 
 			/* Make sure DMAs are quiesced */
 			regmap_write(dsp->regmap,
