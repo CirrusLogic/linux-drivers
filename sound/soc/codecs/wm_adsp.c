@@ -2628,12 +2628,31 @@ int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct wm_adsp *dsps = snd_soc_codec_get_drvdata(codec);
 	struct wm_adsp *dsp = &dsps[w->shift];
+	struct wm_coeff_ctl *ctl;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		wm_adsp2_set_dspclk(dsp, freq);
 
 		queue_work(system_unbound_wq, &dsp->boot_work);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		wm_adsp_debugfs_clear(dsp);
+
+		dsp->fw_id = 0;
+		dsp->fw_id_version = 0;
+
+		dsp->booted = false;
+
+		regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
+				   ADSP2_MEM_ENA, 0);
+
+		list_for_each_entry(ctl, &dsp->ctl_list, list)
+			ctl->enabled = 0;
+
+		wm_adsp_free_alg_regions(dsp);
+
+		adsp_dbg(dsp, "Shutdown complete\n");
 		break;
 	default:
 		break;
@@ -2661,7 +2680,6 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct wm_adsp *dsps = snd_soc_codec_get_drvdata(codec);
 	struct wm_adsp *dsp = &dsps[w->shift];
-	struct wm_coeff_ctl *ctl;
 	int ret;
 
 	switch (event) {
@@ -2722,20 +2740,14 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		mutex_lock(&dsp->pwr_lock);
 
 		wm_adsp_stop_watchdog(dsp);
-		wm_adsp_debugfs_clear(dsp);
-
-		dsp->fw_id = 0;
-		dsp->fw_id_version = 0;
 
 		dsp->running = false;
-		dsp->booted = false;
 
 		switch (dsp->rev) {
 		case 0:
 			regmap_update_bits(dsp->regmap,
 					   dsp->base + ADSP2_CONTROL,
-					   ADSP2_MEM_ENA | ADSP2_CORE_ENA |
-					   ADSP2_START, 0);
+					   ADSP2_CORE_ENA | ADSP2_START, 0);
 
 			/* Make sure DMAs are quiesced */
 			regmap_write(dsp->regmap,
@@ -2761,25 +2773,15 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 				     dsp->base + ADSP2_WDMA_CONFIG_1, 0);
 			regmap_write(dsp->regmap,
 				     dsp->base + ADSP2V2_WDMA_CONFIG_2, 0);
-
-			regmap_update_bits(dsp->regmap,
-					   dsp->base + ADSP2_CONTROL,
-					   ADSP2_MEM_ENA, 0);
-
 			break;
 		}
-
-		list_for_each_entry(ctl, &dsp->ctl_list, list)
-			ctl->enabled = 0;
-
-		wm_adsp_free_alg_regions(dsp);
 
 		if (wm_adsp_fw[dsp->fw].num_caps != 0)
 			wm_adsp_buffer_free(dsp);
 
 		mutex_unlock(&dsp->pwr_lock);
 
-		adsp_dbg(dsp, "Shutdown complete\n");
+		adsp_dbg(dsp, "Execution stopped\n");
 		break;
 
 	default:
@@ -2789,8 +2791,7 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 	return 0;
 err:
 	regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
-			   ADSP2_MEM_ENA | ADSP2_SYS_ENA | ADSP2_CORE_ENA |
-			   ADSP2_START, 0);
+			   ADSP2_SYS_ENA | ADSP2_CORE_ENA | ADSP2_START, 0);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_event);
