@@ -284,9 +284,9 @@ static int madera_micsupp_probe(struct platform_device *pdev)
 				max_micbias);
 	}
 
-	/* Default to bypassed mode */
+	/* Default to regulated mode, incase bypass is not in constraints */
 	regmap_update_bits(madera->regmap, MADERA_MIC_CHARGE_PUMP_1,
-			   MADERA_CPMIC_BYPASS, MADERA_CPMIC_BYPASS);
+			   MADERA_CPMIC_BYPASS, 0);
 
 	micsupp->regulator = devm_regulator_register(&pdev->dev, desc,
 						     &config);
