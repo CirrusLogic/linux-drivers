@@ -1443,6 +1443,7 @@ static const char * const clearwater_supplies[] = {
 	"DBVDD3",
 	"DBVDD4",
 	"CPVDD",
+	"CPVDD2",
 	"SPKVDDL",
 	"SPKVDDR",
 };
@@ -1464,6 +1465,7 @@ static const char * const marley_supplies[] = {
 	"MICVDD",
 	"DBVDD2",
 	"CPVDD",
+	"CPVDD2",
 	"SPKVDD",
 };
 
