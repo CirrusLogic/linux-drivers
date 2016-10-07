@@ -814,11 +814,11 @@ static const char *madera_extcon_get_micbias(struct madera_extcon_info *info)
 	switch (madera->type) {
 	case CS47L15:
 		switch (bias) {
-		case 1:
+		case 0:
 			return "MICBIAS1A";
-		case 2:
+		case 1:
 			return "MICBIAS1B";
-		case 3:
+		case 2:
 			return "MICBIAS1C";
 		default:
 			return "MICVDD";
