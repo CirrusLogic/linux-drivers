@@ -607,6 +607,10 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 			MOON_MICD1_GND_MASK,
 			info->micd_modes[mode].gnd <<
 			MOON_MICD1_GND_SHIFT);
+		regmap_update_bits(arizona->regmap, MOON_HEADPHONE_DETECT_0,
+				   MOON_HPD_GND_SEL_MASK,
+				   info->micd_modes[mode].gnd <<
+				   MOON_HPD_GND_SEL_SHIFT);
 		regmap_update_bits(arizona->regmap, MOON_OUTPUT_PATH_CONFIG_1,
 			MOON_HP1_GND_SEL_MASK,
 			info->micd_modes[mode].gnd <<
@@ -2024,6 +2028,16 @@ int arizona_hpdet_start(struct arizona_extcon_info *info)
 				(hpd_clamp << MOON_HPD_OUT_SEL_SHIFT) |
 				(hpd_sense << MOON_HPD_FRC_SEL_SHIFT) |
 				(hpd_gnd << MOON_HPD_GND_SEL_SHIFT);
+
+		ret = regmap_update_bits(arizona->regmap, MOON_MIC_DETECT_0,
+					 MOON_MICD1_GND_MASK,
+					 hpd_gnd << MOON_MICD1_GND_SHIFT);
+		if (ret) {
+			dev_err(arizona->dev, "Failed to set MICD_GND: %d\n",
+				ret);
+			goto err;
+		}
+
 		ret = regmap_update_bits(arizona->regmap,
 				MOON_HEADPHONE_DETECT_0,
 				MOON_HPD_GND_SEL_MASK |
