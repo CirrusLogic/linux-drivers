@@ -1192,6 +1192,11 @@ static void madera_extcon_set_mode(struct madera_extcon_info *info, int mode)
 				   info->micd_modes[mode].gnd <<
 				   MADERA_MICD1_GND_SHIFT);
 		regmap_update_bits(madera->regmap,
+				   MADERA_HEADPHONE_DETECT_0,
+				   MADERA_HPD_GND_SEL_MASK,
+				   info->micd_modes[mode].gnd <<
+				   MADERA_HPD_GND_SEL_SHIFT);
+		regmap_update_bits(madera->regmap,
 				   MADERA_OUTPUT_PATH_CONFIG_1 +
 				   (8 * (info->pdata->output - 1)),
 				   MADERA_HP1_GND_SEL_MASK,
@@ -1695,6 +1700,16 @@ int madera_hpdet_start(struct madera_extcon_info *info)
 				(hpd_clamp << MADERA_HPD_OUT_SEL_SHIFT) |
 				(hpd_sense << MADERA_HPD_FRC_SEL_SHIFT) |
 				(hpd_gnd << MADERA_HPD_GND_SEL_SHIFT);
+
+		ret = regmap_update_bits(madera->regmap,
+					 MADERA_MIC_DETECT_1_CONTROL_0,
+					 MADERA_MICD1_GND_MASK,
+					 hpd_gnd << MADERA_MICD1_GND_SHIFT);
+		if (ret) {
+			dev_err(madera->dev, "Failed to set MICD_GND: %d\n",
+				ret);
+			goto err;
+		}
 
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_HEADPHONE_DETECT_0,
