@@ -224,6 +224,7 @@ int arizona_irq_init(struct arizona *arizona)
 	const struct regmap_irq_chip *aod, *irq;
 	struct irq_data *irq_data;
 	unsigned int irq_ctrl_reg = ARIZONA_IRQ_CTRL_1;
+	unsigned int virq;
 
 	arizona->ctrlif_error = true;
 
@@ -384,24 +385,34 @@ int arizona_irq_init(struct arizona *arizona)
 	}
 
 	if (aod) {
-		ret = regmap_add_irq_chip(arizona->regmap,
-					  irq_create_mapping(arizona->virq, 0),
-					  IRQF_ONESHOT, 0, aod,
-					  &arizona->aod_irq_chip);
+		virq = irq_create_mapping(arizona->virq, 0);
+		if (!virq) {
+			dev_err(arizona->dev, "Failed to map AOD IRQs\n");
+			ret = -EINVAL;
+			goto err_domain;
+		}
+
+		ret = regmap_add_irq_chip(arizona->regmap, virq, IRQF_ONESHOT,
+					  0, aod, &arizona->aod_irq_chip);
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to add AOD IRQs: %d\n", ret);
-			goto err;
+			goto err_map_aod;
 		}
 	}
 
 	if (irq) {
-		ret = regmap_add_irq_chip(arizona->regmap,
-					  irq_create_mapping(arizona->virq, 1),
-					  IRQF_ONESHOT, 0, irq,
-					  &arizona->irq_chip);
+		virq = irq_create_mapping(arizona->virq, 1);
+		if (!virq) {
+			dev_err(arizona->dev, "Failed to map main IRQs\n");
+			ret = -EINVAL;
+			goto err_aod;
+		}
+
+		ret = regmap_add_irq_chip(arizona->regmap, virq, IRQF_ONESHOT,
+					  0, irq, &arizona->irq_chip);
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to add main IRQs: %d\n", ret);
-			goto err_aod;
+			goto err_map_main_irq;
 		}
 	}
 
@@ -467,23 +478,38 @@ err_boot_done:
 err_main_irq:
 	regmap_del_irq_chip(irq_find_mapping(arizona->virq, 1),
 			    arizona->irq_chip);
+err_map_main_irq:
+	irq_dispose_mapping(irq_find_mapping(arizona->virq, 1));
 err_aod:
 	regmap_del_irq_chip(irq_find_mapping(arizona->virq, 0),
 			    arizona->aod_irq_chip);
+err_map_aod:
+	irq_dispose_mapping(irq_find_mapping(arizona->virq, 0));
+err_domain:
+	irq_domain_remove(arizona->virq);
 err:
 	return ret;
 }
 
 int arizona_irq_exit(struct arizona *arizona)
 {
+	unsigned int virq;
+
 	if (arizona->ctrlif_error)
 		free_irq(arizona_map_irq(arizona, ARIZONA_IRQ_CTRLIF_ERR),
 			 arizona);
 	free_irq(arizona_map_irq(arizona, ARIZONA_IRQ_BOOT_DONE), arizona);
-	regmap_del_irq_chip(irq_find_mapping(arizona->virq, 1),
-			    arizona->irq_chip);
-	regmap_del_irq_chip(irq_find_mapping(arizona->virq, 0),
-			    arizona->aod_irq_chip);
+
+	virq = irq_find_mapping(arizona->virq, 1);
+	regmap_del_irq_chip(virq, arizona->irq_chip);
+	irq_dispose_mapping(virq);
+
+	virq = irq_find_mapping(arizona->virq, 0);
+	regmap_del_irq_chip(virq, arizona->aod_irq_chip);
+	irq_dispose_mapping(virq);
+
+	irq_domain_remove(arizona->virq);
+
 	free_irq(arizona->irq, arizona);
 
 	return 0;
