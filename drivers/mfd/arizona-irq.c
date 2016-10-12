@@ -465,10 +465,10 @@ err_ctrlif:
 err_boot_done:
 	free_irq(arizona->irq, arizona);
 err_main_irq:
-	regmap_del_irq_chip(irq_create_mapping(arizona->virq, 1),
+	regmap_del_irq_chip(irq_find_mapping(arizona->virq, 1),
 			    arizona->irq_chip);
 err_aod:
-	regmap_del_irq_chip(irq_create_mapping(arizona->virq, 0),
+	regmap_del_irq_chip(irq_find_mapping(arizona->virq, 0),
 			    arizona->aod_irq_chip);
 err:
 	return ret;
@@ -480,9 +480,9 @@ int arizona_irq_exit(struct arizona *arizona)
 		free_irq(arizona_map_irq(arizona, ARIZONA_IRQ_CTRLIF_ERR),
 			 arizona);
 	free_irq(arizona_map_irq(arizona, ARIZONA_IRQ_BOOT_DONE), arizona);
-	regmap_del_irq_chip(irq_create_mapping(arizona->virq, 1),
+	regmap_del_irq_chip(irq_find_mapping(arizona->virq, 1),
 			    arizona->irq_chip);
-	regmap_del_irq_chip(irq_create_mapping(arizona->virq, 0),
+	regmap_del_irq_chip(irq_find_mapping(arizona->virq, 0),
 			    arizona->aod_irq_chip);
 	free_irq(arizona->irq, arizona);
 
