@@ -1905,14 +1905,6 @@ static const struct snd_soc_dapm_route cs47l85_dapm_routes[] = {
 	{ "IN6L", NULL, "DBVDD4" },
 	{ "IN6R", NULL, "DBVDD4" },
 
-	{ "DSP1", NULL, "DSPCLK"},
-	{ "DSP2", NULL, "DSPCLK"},
-	{ "DSP3", NULL, "DSPCLK"},
-	{ "DSP4", NULL, "DSPCLK"},
-	{ "DSP5", NULL, "DSPCLK"},
-	{ "DSP6", NULL, "DSPCLK"},
-	{ "DSP7", NULL, "DSPCLK"},
-
 	{ "MICBIAS1", NULL, "MICVDD" },
 	{ "MICBIAS2", NULL, "MICVDD" },
 	{ "MICBIAS3", NULL, "MICVDD" },
@@ -2013,10 +2005,8 @@ static const struct snd_soc_dapm_route cs47l85_dapm_routes[] = {
 	{ "Slim3 Capture", NULL, "SYSCLK" },
 
 	{ "Voice Control DSP", NULL, "DSP6" },
-	{ "Voice Control DSP", NULL, "SYSCLK" },
 
 	{ "Audio Trace DSP", NULL, "DSP1" },
-	{ "Audio Trace DSP", NULL, "SYSCLK" },
 
 	{ "IN1L Mux", "A", "IN1AL" },
 	{ "IN1L Mux", "B", "IN1B" },
@@ -2134,7 +2124,6 @@ static const struct snd_soc_dapm_route cs47l85_dapm_routes[] = {
 	{ "DSP3 Preloader", NULL, "DSP3 Virtual Input" },
 	{ "DSP3 Virtual Input", "Shared Memory", "DSP2" },
 
-	{ "DSP Trigger Out", NULL, "SYSCLK" },
 	{ "DSP Trigger Out", NULL, "DSP1 Trigger Output" },
 	{ "DSP Trigger Out", NULL, "DSP2 Trigger Output" },
 	{ "DSP Trigger Out", NULL, "DSP3 Trigger Output" },
