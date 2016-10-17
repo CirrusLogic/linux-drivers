@@ -948,8 +948,6 @@ static const struct snd_soc_dapm_route cs47l15_dapm_routes[] = {
 	{ "IN2L", NULL, "SYSCLK" },
 	{ "IN2R", NULL, "SYSCLK" },
 
-	{ "DSP1", NULL, "DSPCLK"},
-
 	{ "MICBIAS1", NULL, "MICVDD" },
 
 	{ "MICBIAS1A", NULL, "MICBIAS1" },
@@ -1003,7 +1001,6 @@ static const struct snd_soc_dapm_route cs47l15_dapm_routes[] = {
 	{ "AIF3 Capture", NULL, "SYSCLK" },
 
 	{ "Audio Trace DSP", NULL, "DSP1" },
-	{ "Audio Trace DSP", NULL, "SYSCLK" },
 
 	{ "IN1L Mux", "A", "IN1AL" },
 	{ "IN1L Mux", "B", "IN1BL" },
@@ -1060,7 +1057,6 @@ static const struct snd_soc_dapm_route cs47l15_dapm_routes[] = {
 
 	MADERA_DSP_ROUTES("DSP1"),
 
-	{ "DSP Trigger Out", NULL, "SYSCLK" },
 	{ "DSP Trigger Out", NULL, "DSP1 Trigger Output" },
 
 	{ "DSP1 Trigger Output", "Switch", "DSP1" },
