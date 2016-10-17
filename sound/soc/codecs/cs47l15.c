@@ -1361,16 +1361,12 @@ static irqreturn_t cs47l15_dsp_bus_error(int irq, void *data)
 
 static const char * const cs47l15_dmic_refs[] = {
 	"MICVDD",
-	"MICBIAS1A",
-	"MICBIAS1B",
-	"MICBIAS1C",
+	"MICBIAS1",
 };
 
 static const char * const cs47l15_dmic_inputs[] = {
 	"IN1L Mux",
 	"IN1R Mux",
-	"IN2L",
-	"IN2R",
 };
 
 static int cs47l15_codec_probe(struct snd_soc_codec *codec)
