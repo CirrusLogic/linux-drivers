@@ -811,9 +811,7 @@ static const char * const arizona_dmic_refs[] = {
 
 static const char * const cs47l15_dmic_refs[] = {
 	"MICVDD",
-	"MICBIAS1A",
-	"MICBIAS1B",
-	"MICBIAS1C",
+	"MICBIAS1",
 };
 
 static const char * const marley_dmic_refs[] = {
@@ -872,8 +870,6 @@ static const char * const moon_dmic_inputs[] = {
 static const char * const cs47l15_dmic_inputs[] = {
 	"IN1L Mux",
 	"IN1R Mux",
-	"IN2L",
-	"IN2R",
 };
 
 int arizona_init_input(struct snd_soc_codec *codec)
