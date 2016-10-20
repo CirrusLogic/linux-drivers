@@ -42,6 +42,13 @@ config EXTCON_GPIO
 	  Say Y here to enable GPIO based extcon support. Note that GPIO
 	  extcon supports single state per extcon instance.
 
+config EXTCON_MADERA
+	tristate "Cirrus Logic Madera codec support"
+	depends on MFD_MADERA && INPUT && SND_SOC
+	help
+	  Say Y here to enable support for external accessory detection
+	  on Cirrus Logic Madera class codecs.
+
 config EXTCON_MAX14577
 	tristate "Maxim MAX14577/77836 EXTCON Support"
 	depends on MFD_MAX14577
