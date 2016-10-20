@@ -4001,13 +4001,16 @@ L:	patches@opensource.cirrus.com
 T:	git https://github.com/CirrusLogic/linux-drivers.git
 W:	https://github.com/CirrusLogic/linux-drivers/wiki
 S:	Supported
+F:	Documentation/devicetree/bindings/extcon/extcon-madera*
 F:	Documentation/devicetree/bindings/mfd/madera.txt
 F:	Documentation/devicetree/bindings/pinctrl/cirrus,madera-pinctrl.txt
 F:	Documentation/devicetree/bindings/sound/madera.txt
 F:	include/dt-bindings/sound/madera*
+F:	include/linux/extcon/extcon-madera*
 F:	include/linux/irqchip/irq-madera*
 F:	include/linux/mfd/madera/*
 F:	include/sound/madera*
+F:	drivers/extcon/extcon-madera*
 F:	drivers/gpio/gpio-madera*
 F:	drivers/irqchip/irq-madera*
 F:	drivers/mfd/madera*
