@@ -159,6 +159,7 @@ struct madera {
 	unsigned int out_clamp[MADERA_MAX_OUTPUT];
 	unsigned int out_shorted[MADERA_MAX_OUTPUT];
 	unsigned int hp_ena;
+	unsigned int hp_impedance_x100[MADERA_MAX_ACCESSORY];
 
 	struct snd_soc_dapm_context *dapm;
 
