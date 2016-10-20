@@ -17,6 +17,7 @@
 #include <linux/regulator/arizona-micsupp.h>
 #include <linux/regulator/machine.h>
 #include <sound/madera-pdata.h>
+#include <linux/extcon/extcon-madera-pdata.h>
 
 #define MADERA_MAX_MICBIAS		4
 #define MADERA_MAX_CHILD_MICBIAS	4
@@ -57,6 +58,9 @@ struct madera_pdata {
 	u32 gpsw[MADERA_MAX_GPSW];
 
 	struct madera_codec_pdata codec;
+
+	/** Accessory detection configurations */
+	struct madera_accdet_pdata accdet[MADERA_MAX_ACCESSORY];
 };
 
 #endif

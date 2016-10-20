@@ -185,11 +185,13 @@ struct madera {
 	unsigned int num_micbias;
 	unsigned int num_childbias[MADERA_MAX_MICBIAS];
 
+	unsigned int out_clamp[MADERA_MAX_OUTPUT];
+	unsigned int out_shorted[MADERA_MAX_OUTPUT];
+	unsigned int hp_ena;
+	unsigned int hp_impedance_x100[MADERA_MAX_ACCESSORY];
+
 	struct snd_soc_dapm_context *dapm;
 	struct mutex dapm_ptr_lock;
-	unsigned int hp_ena;
-	bool out_clamp[MADERA_MAX_HP_OUTPUT];
-	bool out_shorted[MADERA_MAX_HP_OUTPUT];
 
 	struct blocking_notifier_head notifier;
 };
