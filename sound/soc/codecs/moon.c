@@ -3012,8 +3012,6 @@ static int moon_probe(struct platform_device *pdev)
 
 	for (i = 0; i < MOON_NUM_ADSP; i++) {
 		moon->core.adsp[i].part = "moon";
-		if (arizona->pdata.rev_specific_fw)
-			moon->core.adsp[i].part_rev = 'a' + arizona->rev;
 		moon->core.adsp[i].num = i + 1;
 		moon->core.adsp[i].type = WMFW_ADSP2;
 		moon->core.adsp[i].rev = 2;

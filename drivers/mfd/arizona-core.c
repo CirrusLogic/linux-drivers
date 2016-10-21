@@ -1303,9 +1303,6 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 	arizona_of_read_s32(arizona, "wlf,hpdet-ext-res", false,
 				&pdata->hpdet_ext_res);
 
-	pdata->rev_specific_fw = of_property_read_bool(arizona->dev->of_node,
-						       "wlf,rev-specific-fw");
-
 	arizona_of_get_lrclk_adv(arizona, "wlf,aif-lrclk-advance");
 
 	ret = of_property_read_u32_array(arizona->dev->of_node,

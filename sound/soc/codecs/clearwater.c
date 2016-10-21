@@ -3053,8 +3053,6 @@ static int clearwater_probe(struct platform_device *pdev)
 
 	for (i = 0; i < CLEARWATER_NUM_ADSP; i++) {
 		clearwater->core.adsp[i].part = "clearwater";
-		if (arizona->pdata.rev_specific_fw)
-			clearwater->core.adsp[i].part_rev = 'a' + arizona->rev;
 		clearwater->core.adsp[i].num = i + 1;
 		clearwater->core.adsp[i].type = WMFW_ADSP2;
 		clearwater->core.adsp[i].rev = 1;

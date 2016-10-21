@@ -1941,8 +1941,6 @@ static int cs47l15_probe(struct platform_device *pdev)
 	cs47l15->core.num_inputs = 4;
 
 	cs47l15->core.adsp[0].part = "cs47l15";
-	if (arizona->pdata.rev_specific_fw)
-		cs47l15->core.adsp[0].part_rev = 'a' + arizona->rev;
 	cs47l15->core.adsp[0].num = 1;
 	cs47l15->core.adsp[0].type = WMFW_ADSP2;
 	cs47l15->core.adsp[0].rev = 2;

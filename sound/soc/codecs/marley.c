@@ -2242,8 +2242,6 @@ static int marley_probe(struct platform_device *pdev)
 
 	for (i = 0; i < MARLEY_NUM_ADSP; i++) {
 		marley->core.adsp[i].part = "marley";
-		if (arizona->pdata.rev_specific_fw)
-			marley->core.adsp[i].part_rev = 'a' + arizona->rev;
 		marley->core.adsp[i].num = i + 1;
 		marley->core.adsp[i].type = WMFW_ADSP2;
 		marley->core.adsp[i].rev = 1;

@@ -301,9 +301,6 @@ struct arizona_pdata {
 	/** Some platforms add a series resistor for hpdet to suppress pops */
 	int hpdet_ext_res;
 
-	/** Load firmwares for specific chip revisions */
-	bool rev_specific_fw;
-
 	/**
 	 * Specify an input to mute during headset button presses and jack
 	 * removal: 1 - IN1L, 2 - IN1R, ..., n - IN[n]R
