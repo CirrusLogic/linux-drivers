@@ -9,7 +9,6 @@ Required properties:
         "wlf,wm5102"
         "wlf,wm5110"
         "wlf,wm8280"
-        "wlf,wm8281"
         "wlf,wm8997"
         "wlf,wm8998"
         "wlf,wm1814"
