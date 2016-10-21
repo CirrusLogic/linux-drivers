@@ -74,11 +74,11 @@ Optional properties:
     microphone detection
   - wlf,micd-software-compare : Use a software comparison to determine mic
     presence
-  - wlf,use-jd-gpio : Use GPIO input alongwith JD1 for dual jack detection. For
+  - wlf,use-jd-gpio : Use GPIO input along with JD1 for dual jack detection. For
     later arizona chips which have JD1 and JD2, setting this property will use
     both JD1 and JD2 for dual jack detect and does not require an additional
     GPIO
-  - wlf,usr-jd-gpio-nopull : Internal pull on GPIO is disabled when used for
+  - wlf,jd-gpio-nopull : Internal pull on GPIO is disabled when used for
     jack detection.
   - wlf,gpsw : Settings for the general purpose switch, set as per the
     SW1_MODE bits in the GP Switch 1 register
@@ -162,10 +162,6 @@ Optional properties:
 
   - wlf,out-mono : Mono bit for each output, must contain six cells if
     specified. A non-zero value indicates the corresponding output is mono.
-
-  - wlf,use-jd-gpio : Use GPIO input for jack detection.
-  - wlf,use-jd-gpio-nopull : Internal pull on GPIO is disabled when used for
-    jack detection.
 
   - wlf,dmic-clksrc : (cs47l15, cs47l90, cs47l91) DMIC clock source for each
     input. A value of 0 will source DMIC from internally generated clock within
