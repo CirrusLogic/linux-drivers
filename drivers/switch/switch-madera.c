@@ -188,6 +188,13 @@ static const struct madera_hpdet_calibration_data madera_hpdet_ranges[] = {
 	{ 1000, 10000, 101158000, -949400, 7300, 63200000, 347600, 700000, 500000},
 };
 
+static const struct madera_hpdet_calibration_data cs47l92_hpdet_ranges[] = {
+	{ 4,    30,    1007000,   -7200,   4005, 69300000, 381150, 600000, 500000},
+	{ 8,    100,   1007000,   -7200,   7975, 69600000, 382800, 600000, 500000},
+	{ 100,  1000,  9744000,   -79500,  7300, 62900000, 345950, 600000, 500000},
+	{ 1000, 10000, 100684000, -949400, 7300, 63200000, 347600, 600000, 500000},
+};
+
 struct madera_hp_tuning {
 	int max_hohm;
 	const struct reg_sequence *patch;
@@ -2924,6 +2931,11 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	case WM1840:
 		info->hpdet_ranges = cs47l85_hpdet_ranges;
 		info->num_hpdet_ranges = ARRAY_SIZE(cs47l85_hpdet_ranges);
+		break;
+	case CS47L92:
+	case CS47L93:
+		info->hpdet_ranges = cs47l92_hpdet_ranges;
+		info->num_hpdet_ranges = ARRAY_SIZE(cs47l92_hpdet_ranges);
 		break;
 	default:
 		info->hpdet_ranges = madera_hpdet_ranges;
