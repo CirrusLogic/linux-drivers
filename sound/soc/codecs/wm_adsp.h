@@ -117,7 +117,6 @@ struct wm_adsp_compr {
 
 struct wm_adsp {
 	const char *part;
-	char part_rev;
 	int num;
 	int type;
 	int rev;
