@@ -3235,7 +3235,7 @@ int madera_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	if (clk_freq_sel < 0) {
 		dev_err(madera->dev,
 			"Failed to get clk setting for %dHZ\n", freq);
-		return ret;
+		return clk_freq_sel;
 	}
 
 	*clk = freq;
