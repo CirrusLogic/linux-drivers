@@ -3302,7 +3302,7 @@ int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		if (clk_freq < 0) {
 			dev_err(arizona->dev, "Failed to get clk setting for %dHZ\n",
 				freq);
-			return ret;
+			return clk_freq;
 		}
 
 		val |= clk_freq;
