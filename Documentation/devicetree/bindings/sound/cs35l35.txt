@@ -10,11 +10,25 @@ Required properties:
     as covered in
     Documentation/devicetree/bindings/regulator/regulator.txt.
 
+  - interrupt-parent : Specifies the phandle of the interrupt controller to
+    which the IRQs from CS35L35 are delivered to.
+  - interrupts : IRQ line info CS35L35.
+    (See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+    for further information relating to interrupt properties)
+
 Optional properties:
   - cirrus,reset-gpios : gpio used to reset the amplifier
 
   - cirrus,stereo-config : Boolean to determine if there are 2 AMPs for a
   Stereo configuration
+
+  - cirrus,audio-channel : Set Location of Audio Signal on Serial Port
+  0 = Data Packet received on Left I2S Channel
+  1 = Data Packet received on Right I2S Channel
+
+  - cirrus,advisory-channel : Set Location of Advisory Signal on Serial Port
+  0 = Data Packet received on Left I2S Channel
+  1 = Data Packet received on Right I2S Channel
 
   - cirrus,shared-boost : Boolean to enable ClassH tracking of Advisory Signal
   if 2 Devices share Boost BST_CTL
@@ -28,31 +42,84 @@ Optional properties:
   powers down with a rectification FET On or Off. If VSPK is supplied
   externally then FET is off.
 
-  - cirrus,boost-ctl : Boost Converter control word. Step Size of 0.1V
+  - cirrus,boost-ctl-millivolt : Boost Converter control word. Step Size of 100mV
   0x00 = (Default) VP
-  0x41 = 9.0V
+  0x01 = 2600mV
+  0x41 = 9000mV
 
   - cirrus,amp-gain-zc : Boolean to determine if to use Amplifier gain-change
   zero-cross
 
-  - cirrus,audio-channel : Set Location of Audio Signal on Serial Port
-  0 = Data Packet received on Left I2S Channel
-  1 = Data Packet received on Right I2S Channel
+Optional H/G Algorithm sub-node:
 
-  - cirrus,advisory-channel : Set Location of Advisory Signal on Serial Port
-  0 = Data Packet received on Left I2S Channel
-  1 = Data Packet received on Right I2S Channel
+  The cs35l35 node can have a single "cirrus,classh-internal-algo" sub-node
+  that will disable automatic control of the internal H/G Algorithm.
 
-  - cirrus,classh-internal-algo : Settings for the Internal Class H Algorithm
+  It is strongly recommended that the Datasheet be referenced when adjusting
+  or using these Class H Algorithm controls over the internal Algorithm.
+  Serious damage can occur to the Device and surrounding components.
+
+  - cirrus,classh-internal-algo : Sub-node for the Internal Class H Algorithm
   See Section 4.3 Internal Class H Algorithm in the Datasheet.
   If not used, the device manages the ClassH Algorithm internally.
 
-  -cirrus,monitor-signal-format : Settings for adjusting the Depth, Location
-  and Frame of the Monitoring Signals for Algorithms
+Optional properties for the "cirrus,classh-internal-algo" Sub-node
+
+  Section 7.29 Class H Control
+  - cirrus,classh-bst-overide : Boolean
+  - cirrus,classh-bst-max-limit
+  - cirrus,classh-mem-depth
+
+  Section 7.30 Class H Headroom Control
+  - cirrus,classh-headroom
+
+  Section 7.31 Class H Release Rate
+  - cirrus,classh-release-rate
+
+  Section 7.32 Class H Weak FET Drive Control
+  - cirrus,classh-wk-fet-disable
+  - cirrus,classh-wk-fet-delay
+  - cirrus,classh-wk-fet-thld
+
+  Section 7.34 Class H VP Control
+  - cirrus,classh-vpch-auto
+  - cirrus,classh-vpch-rate
+  - cirrus,classh-vpch-man
+
+Optional Monitor Signal Format sub-node:
+
+  The cs35l35 node can have a single "cirrus,monitor-signal-format" sub-node
+  for adjusting the Depth, Location and Frame of the Monitoring Signals
+  for Algorithms.
+
   See Sections 4.8.2 through 4.8.4 Serial-Port Control in the Datasheet
-  Each of the 3 8 bit values in the array contain the settings for 
-  depth, location, and frame.
+
+  -cirrus,monitor-signal-format : Sub-node for the Monitor Signaling Formating
+  on the I2S Port. Each of the 3 8 bit values in the array contain the settings
+  for depth, location, and frame.
+
   If not used, the defaults for the 6 monitor signals is used.
+
+  Sections 7.44 - 7.53 lists values for the depth, location, and frame
+  for each monitoring signal.
+
+  - cirrus,imon : 3 8 bit values to set the depth, location, and frame
+  of the IMON monitor signal.
+
+  - cirrus,vmon : 3 8 bit values to set the depth, location, and frame
+  of the VMON monitor signal.
+
+  - cirrus,vpmon : 3 8 bit values to set the depth, location, and frame
+  of the VPMON monitor signal.
+
+  - cirrus,vbstmon : 3 8 bit values to set the depth, location, and frame
+  of the VBSTMON monitor signal
+
+  - cirrus,vpbrstat : 3 8 bit values to set the depth, location, and frame
+  of the VPBRSTAT monitor signal
+
+  - cirrus,zerofill : 3 8 bit values to set the depth, location, and frame\
+  of the ZEROFILL packet in the monitor signal
 
 Example:
 
@@ -62,14 +129,22 @@ cs35l35: cs35l35@20 {
 	VA-supply = <&dummy_vreg>;
 	VP-supply = <&dummy_vreg>;
 	reset-gpios = <&axi_gpio 54 0>;
+	interrupt-parent = <&gpio8>;
+	interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 	cirrus,boost-ctl = <0x41>;
+
+	cirrus,stereo-config {
+		cirrus,audio-channel = <0x00>;
+		cirrus,advisory-channel = <0x01>;
+		cirrus,shared-boost;
+	};
 
 	cirrus,classh-internal-algo {
 		cirrus,classh-bst-overide;
 		cirrus,classh-bst-max-limit = <0x01>;
 		cirrus,classh-mem-depth = <0x01>;
 		cirrus,classh-release-rate = <0x08>;
-		cirrus,classh-headroom = <0x0B>;
+		cirrus,classh-headroom-millivolt = <0x0B>;
 		cirrus,classh-wk-fet-disable = <0x01>;
 		cirrus,classh-wk-fet-delay = <0x04>;
 		cirrus,classh-wk-fet-thld = <0x01>;
