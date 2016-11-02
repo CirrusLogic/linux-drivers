@@ -263,20 +263,13 @@ struct  cs35l35_private {
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[2];
 	int num_supplies;
-	void *control_data;
 	int sysclk;
 	int sclk;
-	int mclk_pll;
-	int mclk_div;
-	int mclk_sp_base;
-	bool tdm_mode;
 	bool pdm_mode;
 	bool i2s_mode;
 	bool slave_mode;
 	/* GPIO for /RST */
 	struct gpio_desc *reset_gpio;
-	/* GPIO for INT */
-	struct gpio_desc *irq_gpio;
 	struct completion pdn_done;
 };
 

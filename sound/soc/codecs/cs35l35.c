@@ -351,9 +351,6 @@ static int cs35l35_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
-	case SND_SOC_DAIFMT_DSP_A:
-		cs35l35->tdm_mode = true;
-		break;
 	case SND_SOC_DAIFMT_I2S:
 		cs35l35->i2s_mode = true;
 		break;
@@ -667,6 +664,7 @@ static int cs35l35_codec_set_sysclk(struct snd_soc_codec *codec,
 	case 24576000:
 	case 26000000:
 		cs35l35->sysclk = freq;
+		break;
 	default:
 		dev_err(codec->dev, "Invalid CLK Frequency\n");
 		return -EINVAL;
@@ -936,8 +934,7 @@ static struct regmap_config cs35l35_regmap = {
 
 static irqreturn_t cs35l35_irq(int irq, void *data)
 {
-		struct cs35l35_private *cs35l35 = data;
-	struct snd_soc_codec *codec = cs35l35->codec;
+	struct cs35l35_private *cs35l35 = data;
 	unsigned int sticky1, sticky2, sticky3, sticky4;
 	unsigned int mask1, mask2, mask3, mask4, current1;
 
@@ -965,11 +962,11 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 
 	/* handle the interrupts */
 	if (sticky1 & CS35L35_CAL_ERR) {
-		dev_err(codec->dev, "Calibration Error\n");
+		pr_err("%s : Calibration Error\n", __func__);
 
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_CAL_ERR)) {
-			dev_dbg(codec->dev, "Cal error release\n");
+			pr_debug("%s : Cal error release\n", __func__);
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_PROT_RELEASE_CTL,
 					CS35L35_CAL_ERR_RLS, 0);
@@ -986,8 +983,7 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	if (sticky1 & CS35L35_AMP_SHORT) {
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_AMP_SHORT)) {
-			dev_dbg(codec->dev,
-				"Amp short error release\n");
+			pr_debug("%s :Amp short error release\n", __func__);
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_PROT_RELEASE_CTL,
 					CS35L35_SHORT_RLS, 0);
@@ -1002,12 +998,12 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky1 & CS35L35_OTW) {
-		dev_err(codec->dev, "Over temperature warning\n");
+		pr_err("%s : Over temperature warning\n", __func__);
 
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_OTW)) {
-			dev_dbg(codec->dev,
-				"Over temperature warning release\n");
+			pr_debug("%s : Over temperature warning release\n",
+				__func__);
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_PROT_RELEASE_CTL,
 					CS35L35_OTW_RLS, 0);
@@ -1022,12 +1018,12 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky1 & CS35L35_OTE) {
-		dev_crit(codec->dev, "Over temperature error\n");
+		pr_crit("%s : Over temperature error\n", __func__);
 
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_OTE)) {
-			dev_dbg(codec->dev,
-				"Over temperature error release\n");
+			pr_debug("%s : Over temperature error release\n",
+				__func__);
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_PROT_RELEASE_CTL,
 					CS35L35_OTE_RLS, 0);
@@ -1042,7 +1038,7 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky3 & CS35L35_BST_HIGH) {
-		dev_crit(codec->dev, "VBST error: powering off!\n");
+		pr_crit("%s : VBST error: powering off!\n", __func__);
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
 			CS35L35_PDN_AMP, CS35L35_PDN_AMP);
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
@@ -1050,7 +1046,7 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky3 & CS35L35_LBST_SHORT) {
-		dev_crit(codec->dev, "LBST error: powering off!\n");
+		pr_crit("%s : LBST error: powering off!\n", __func__);
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
 			CS35L35_PDN_AMP, CS35L35_PDN_AMP);
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
@@ -1058,13 +1054,13 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky2 & CS35L35_VPBR_ERR)
-		dev_err(codec->dev, "Error: Reactive Brownout\n");
+		pr_err("%s : Error: Reactive Brownout\n", __func__);
 
 	if (sticky4 & CS35L35_VMON_OVFL)
-		dev_err(codec->dev, "Error: VMON overflow\n");
+		pr_err("%s : Error: VMON overflow\n", __func__);
 
 	if (sticky4 & CS35L35_IMON_OVFL)
-		dev_err(codec->dev, "Error: IMON overflow\n");
+		pr_err("%s : Error: IMON overflow\n", __func__);
 
 	return IRQ_HANDLED;
 }
@@ -1084,36 +1080,34 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 	if (!np)
 		return 0;
 
-	if (of_property_read_bool(np, "boost-pdn-fet-on"))
-		pdata->bst_pdn_fet_on = true;
+	pdata->bst_pdn_fet_on = of_property_read_bool(np, "boost-pdn-fet-on");
 
-	if (of_property_read_u32(np, "boost-ctl", &val32) >= 0)
+	if (of_property_read_u32(np, "boost-ctl-millivolt", &val32) >= 0)
 		pdata->bst_vctl = val32;
 
 	if (of_property_read_u32(np, "sp-drv-strength", &val32) >= 0)
 		pdata->sp_drv_str = val32;
 
-	if (of_property_read_u32(np, "audio-channel", &val32) >= 0)
-		pdata->aud_channel = val32;
+	pdata->stereo = of_property_read_bool(np, "stereo-config");
 
-	if (of_property_read_bool(np, "stereo-config")) {
-		pdata->stereo = true;
+	if (pdata->stereo) {
+		if (of_property_read_u32(np, "audio-channel", &val32) >= 0)
+			pdata->aud_channel = val32;
 		if (of_property_read_u32(np, "advisory-channel",
 					&val32) >= 0)
 			pdata->adv_channel = val32;
-		if (of_property_read_bool(np, "shared-boost"))
-			pdata->shared_bst = true;
+		pdata->shared_bst = of_property_read_bool(np, "shared-boost");
 	}
 
-	if (of_property_read_bool(np, "amp-gain-zc"))
-		pdata->gain_zc = true;
+	pdata->gain_zc = of_property_read_bool(np, "amp-gain-zc");
 
 	classh = of_get_child_by_name(np, "classh-internal-algo");
 	classh_config->classh_algo_enable = classh ? true : false;
 
 	if (classh_config->classh_algo_enable) {
-		if (of_property_read_bool(np, "classh-bst-overide"))
-			classh_config->classh_bst_override = true;
+		classh_config->classh_bst_override =
+			of_property_read_bool(np, "classh-bst-overide");
+
 		if (of_property_read_u32(classh, "classh-bst-max-limit",
 					&val32) >= 0)
 			classh_config->classh_bst_max_limit = val32;
@@ -1286,17 +1280,9 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 
 	init_completion(&cs35l35->pdn_done);
 
-	cs35l35->irq_gpio = devm_gpiod_get_optional(&i2c_client->dev,
-		"irq", GPIOD_IN);
-	if (IS_ERR(cs35l35->irq_gpio))
-		return PTR_ERR(cs35l35->irq_gpio);
-
-	ret = devm_request_threaded_irq(&i2c_client->dev,
-					gpiod_to_irq(cs35l35->irq_gpio),
-					NULL, cs35l35_irq,
-					IRQF_ONESHOT | IRQF_TRIGGER_LOW,
-					"cs35l35", cs35l35);
-	/* CS35L35 needs INT for PDN_DONE */
+	ret = devm_request_threaded_irq(&i2c_client->dev, i2c_client->irq, NULL,
+			cs35l35_irq, IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+			"cs35l35", cs35l35);
 	if (ret != 0) {
 		dev_err(&i2c_client->dev, "Failed to request IRQ: %d\n", ret);
 		goto err;
@@ -1396,7 +1382,6 @@ MODULE_DEVICE_TABLE(i2c, cs35l35_id);
 static struct i2c_driver cs35l35_i2c_driver = {
 	.driver = {
 		.name = "cs35l35",
-		.owner = THIS_MODULE,
 		.of_match_table = cs35l35_of_match,
 	},
 	.id_table = cs35l35_id,
@@ -1404,26 +1389,7 @@ static struct i2c_driver cs35l35_i2c_driver = {
 	.remove = cs35l35_i2c_remove,
 };
 
-static int __init cs35l35_modinit(void)
-{
-	int ret;
-
-	ret = i2c_add_driver(&cs35l35_i2c_driver);
-	if (ret != 0) {
-		pr_err("Failed to register CS35L35 I2C driver: %d\n", ret);
-		return ret;
-	}
-	return 0;
-}
-
-module_init(cs35l35_modinit);
-
-static void __exit cs35l35_exit(void)
-{
-	i2c_del_driver(&cs35l35_i2c_driver);
-}
-
-module_exit(cs35l35_exit);
+module_i2c_driver(cs35l35_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC CS35L35 driver");
 MODULE_AUTHOR("Brian Austin, Cirrus Logic Inc, <brian.austin@cirrus.com>");
