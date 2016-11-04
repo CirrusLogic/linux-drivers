@@ -239,6 +239,12 @@ config MFD_TACNA_SPI
 	  Support for the Cirrus Logic Tacna platform audio SoC
 	  core functionality controlled via SPI.
 
+config MFD_CS47L94
+	bool "Cirrus Logic CS47L94 and CS47L95"
+	depends on MFD_TACNA
+	help
+	  Support for Cirrus Logic CS47L94 and CS47L95 Smart Codec
+
 config MFD_ASIC3
 	bool "Compaq ASIC3"
 	depends on GPIOLIB && ARM
