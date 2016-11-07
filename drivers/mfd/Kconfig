@@ -222,6 +222,23 @@ config MFD_CROS_EC_SPI
 	  response time cannot be guaranteed, we support ignoring
 	  'pre-amble' bytes before the response actually starts.
 
+config MFD_TACNA
+	bool
+
+config MFD_TACNA_SPI
+	bool "Cirrus Logic Tacna codecs with SPI"
+	select MFD_CORE
+	select MFD_TACNA
+	select TACNA_IRQ
+	select PINCTRL_TACNA
+	select REGMAP
+	select REGMAP_SPI
+	select REGMAP_IRQ
+	depends on SPI_MASTER
+	help
+	  Support for the Cirrus Logic Tacna platform audio SoC
+	  core functionality controlled via SPI.
+
 config MFD_ASIC3
 	bool "Compaq ASIC3"
 	depends on GPIOLIB && ARM

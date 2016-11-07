@@ -3398,6 +3398,10 @@ L:	patches@opensource.wolfsonmicro.com
 T:	git https://github.com/CirrusLogic/linux-drivers.git
 W:	https://github.com/CirrusLogic/linux-drivers/wiki
 S:	Maintained
+F:	sound/soc/codecs/cs*
+F:	Documentation/devicetree/bindings/mfd/tacna.txt
+F:	drivers/mfd/cs*
+F:	drivers/mfd/tacna*
 F:	include/linux/mfd/tacna/*
 
 CIRRUS LOGIC EP93XX ETHERNET DRIVER
