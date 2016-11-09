@@ -493,6 +493,7 @@ struct wm_coeff_ctl {
 	struct snd_kcontrol *kcontrol;
 	struct soc_bytes_ext bytes_ext;
 	unsigned int flags;
+	unsigned int type;
 };
 
 static const char *wm_adsp_mem_region_name(unsigned int type)
@@ -1164,16 +1165,13 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 				  const struct wm_adsp_alg_region *alg_region,
 				  unsigned int offset, unsigned int len,
 				  const char *subname, unsigned int subname_len,
-				  unsigned int flags)
+				  unsigned int flags, unsigned int type)
 {
 	struct wm_coeff_ctl *ctl;
 	struct wmfw_ctl_work *ctl_work;
 	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	const char *region_name;
 	int ret;
-
-	if (flags & WMFW_CTL_FLAG_SYS)
-		return 0;
 
 	region_name = wm_adsp_mem_region_name(alg_region->type);
 	if (!region_name) {
@@ -1232,6 +1230,7 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	ctl->dsp = dsp;
 
 	ctl->flags = flags;
+	ctl->type = type;
 	ctl->offset = offset;
 	ctl->len = len;
 	ctl->cache = kzalloc(ctl->len, GFP_KERNEL);
@@ -1241,6 +1240,9 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	}
 
 	list_add(&ctl->list, &dsp->ctl_list);
+
+	if (flags & WMFW_CTL_FLAG_SYS)
+		return 0;
 
 	ctl_work = kzalloc(sizeof(*ctl_work), GFP_KERNEL);
 	if (!ctl_work) {
@@ -1431,7 +1433,8 @@ static int wm_adsp_parse_coeff(struct wm_adsp *dsp,
 					     coeff_blk.len,
 					     coeff_blk.name,
 					     coeff_blk.name_len,
-					     coeff_blk.flags);
+					     coeff_blk.flags,
+					     coeff_blk.ctl_type);
 		if (ret < 0)
 			adsp_err(dsp, "Failed to create control: %.*s, %d\n",
 				 coeff_blk.name_len, coeff_blk.name, ret);
@@ -1833,7 +1836,8 @@ static int wm_adsp1_setup_algs(struct wm_adsp *dsp)
 				len -= be32_to_cpu(adsp1_alg[i].dm);
 				len *= 4;
 				wm_adsp_create_control(dsp, alg_region, 0,
-						       len, NULL, 0, 0);
+						     len, NULL, 0, 0,
+						     SNDRV_CTL_ELEM_TYPE_BYTES);
 			} else {
 				adsp_warn(dsp, "Missing length info for region DM with ID %x\n",
 					  be32_to_cpu(adsp1_alg[i].alg.id));
@@ -1853,7 +1857,8 @@ static int wm_adsp1_setup_algs(struct wm_adsp *dsp)
 				len -= be32_to_cpu(adsp1_alg[i].zm);
 				len *= 4;
 				wm_adsp_create_control(dsp, alg_region, 0,
-						       len, NULL, 0, 0);
+						     len, NULL, 0, 0,
+						     SNDRV_CTL_ELEM_TYPE_BYTES);
 			} else {
 				adsp_warn(dsp, "Missing length info for region ZM with ID %x\n",
 					  be32_to_cpu(adsp1_alg[i].alg.id));
@@ -1944,7 +1949,8 @@ static int wm_adsp2_setup_algs(struct wm_adsp *dsp)
 				len -= be32_to_cpu(adsp2_alg[i].xm);
 				len *= 4;
 				wm_adsp_create_control(dsp, alg_region, 0,
-						       len, NULL, 0, 0);
+						     len, NULL, 0, 0,
+						     SNDRV_CTL_ELEM_TYPE_BYTES);
 			} else {
 				adsp_warn(dsp, "Missing length info for region XM with ID %x\n",
 					  be32_to_cpu(adsp2_alg[i].alg.id));
@@ -1964,7 +1970,8 @@ static int wm_adsp2_setup_algs(struct wm_adsp *dsp)
 				len -= be32_to_cpu(adsp2_alg[i].ym);
 				len *= 4;
 				wm_adsp_create_control(dsp, alg_region, 0,
-						       len, NULL, 0, 0);
+						     len, NULL, 0, 0,
+						     SNDRV_CTL_ELEM_TYPE_BYTES);
 			} else {
 				adsp_warn(dsp, "Missing length info for region YM with ID %x\n",
 					  be32_to_cpu(adsp2_alg[i].alg.id));
@@ -1984,7 +1991,8 @@ static int wm_adsp2_setup_algs(struct wm_adsp *dsp)
 				len -= be32_to_cpu(adsp2_alg[i].zm);
 				len *= 4;
 				wm_adsp_create_control(dsp, alg_region, 0,
-						       len, NULL, 0, 0);
+						     len, NULL, 0, 0,
+						     SNDRV_CTL_ELEM_TYPE_BYTES);
 			} else {
 				adsp_warn(dsp, "Missing length info for region ZM with ID %x\n",
 					  be32_to_cpu(adsp2_alg[i].alg.id));
