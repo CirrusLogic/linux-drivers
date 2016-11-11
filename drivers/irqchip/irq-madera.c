@@ -409,7 +409,8 @@ static int madera_irq_probe(struct platform_device *pdev)
 		dev_err(priv->dev,
 			"Failed to request threaded irq %d: %d\n",
 			priv->irq, ret);
-		regmap_del_irq_chip(priv->irq, priv->irq_data);
+		regmap_del_irq_chip(irq_find_mapping(priv->domain, 0),
+				    priv->irq_data);
 		return ret;
 	}
 
@@ -422,10 +423,12 @@ static int madera_irq_probe(struct platform_device *pdev)
 static int madera_irq_remove(struct platform_device *pdev)
 {
 	struct madera_irq_priv *priv = platform_get_drvdata(pdev);
+	unsigned int virq;
 
 	priv->madera->irq_dev = NULL;
 
-	regmap_del_irq_chip(priv->irq, priv->irq_data);
+	virq = irq_find_mapping(priv->domain, 0);
+	regmap_del_irq_chip(virq, priv->irq_data);
 	free_irq(priv->irq, priv);
 
 	return 0;
