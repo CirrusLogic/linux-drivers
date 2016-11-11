@@ -256,7 +256,7 @@ static int madera_irq_of_get(struct madera_irq_priv *priv)
 	return 0;
 }
 
-int madera_irq_probe(struct platform_device *pdev)
+static int madera_irq_probe(struct platform_device *pdev)
 {
 	struct madera *madera = dev_get_drvdata(pdev->dev.parent);
 	struct madera_irq_priv *priv;
@@ -419,7 +419,7 @@ int madera_irq_probe(struct platform_device *pdev)
 	return 0;
 }
 
-int madera_irq_remove(struct platform_device *pdev)
+static int madera_irq_remove(struct platform_device *pdev)
 {
 	struct madera_irq_priv *priv = platform_get_drvdata(pdev);
 
