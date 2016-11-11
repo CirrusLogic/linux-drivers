@@ -262,6 +262,7 @@ static int madera_irq_probe(struct platform_device *pdev)
 	struct madera_irq_priv *priv;
 	const struct regmap_irq_chip *irq = NULL;
 	struct irq_data *irq_data;
+	unsigned int virq;
 	int flags = IRQF_ONESHOT;
 	int ret;
 
@@ -394,13 +395,18 @@ static int madera_irq_probe(struct platform_device *pdev)
 
 	priv->domain = irq_domain_add_linear(NULL, 1, &madera_domain_ops, priv);
 
-	ret = regmap_add_irq_chip(madera->regmap,
-				  irq_create_mapping(priv->domain, 0),
-				  IRQF_ONESHOT, 0, irq,
+	virq = irq_create_mapping(priv->domain, 0);
+	if (!virq) {
+		dev_err(priv->dev, "Failed to map IRQs\n");
+		ret = -EINVAL;
+		goto err_domain;
+	}
+
+	ret = regmap_add_irq_chip(madera->regmap, virq, IRQF_ONESHOT, 0, irq,
 				  &priv->irq_data);
 	if (ret) {
 		dev_err(priv->dev, "add_irq_chip failed: %d\n", ret);
-		return ret;
+		goto err_mapping;
 	}
 
 	ret = request_threaded_irq(priv->irq, NULL, madera_irq_thread,
@@ -409,15 +415,22 @@ static int madera_irq_probe(struct platform_device *pdev)
 		dev_err(priv->dev,
 			"Failed to request threaded irq %d: %d\n",
 			priv->irq, ret);
-		regmap_del_irq_chip(irq_find_mapping(priv->domain, 0),
-				    priv->irq_data);
-		return ret;
+		goto err_chip;
 	}
 
 	platform_set_drvdata(pdev, priv);
 	madera->irq_dev = priv->dev;
 
 	return 0;
+
+err_chip:
+	regmap_del_irq_chip(virq, priv->irq_data);
+err_mapping:
+	irq_dispose_mapping(virq);
+err_domain:
+	irq_domain_remove(priv->domain);
+
+	return ret;
 }
 
 static int madera_irq_remove(struct platform_device *pdev)
@@ -429,6 +442,10 @@ static int madera_irq_remove(struct platform_device *pdev)
 
 	virq = irq_find_mapping(priv->domain, 0);
 	regmap_del_irq_chip(virq, priv->irq_data);
+	irq_dispose_mapping(virq);
+
+	irq_domain_remove(priv->domain);
+
 	free_irq(priv->irq, priv);
 
 	return 0;
