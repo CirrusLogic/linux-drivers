@@ -1061,6 +1061,7 @@ EXPORT_SYMBOL_GPL(madera_dev_init);
 
 int madera_dev_exit(struct madera *madera)
 {
+	disable_irq(madera->irq);
 	pm_runtime_disable(madera->dev);
 
 	regulator_disable(madera->dcvdd);
