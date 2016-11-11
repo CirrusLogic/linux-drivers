@@ -1366,7 +1366,6 @@ static const char * const wm5102_supplies[] = {
 };
 
 static const struct mfd_cell wm5102_devs[] = {
-	{ .name = "arizona-micsupp" },
 	{
 		.name = "arizona-extcon",
 		.parent_supplies = wm5102_supplies,
@@ -1380,10 +1379,10 @@ static const struct mfd_cell wm5102_devs[] = {
 		.parent_supplies = wm5102_supplies,
 		.num_parent_supplies = ARRAY_SIZE(wm5102_supplies),
 	},
+	{ .name = "arizona-micsupp" },
 };
 
 static const struct mfd_cell florida_devs[] = {
-	{ .name = "arizona-micsupp" },
 	{
 		.name = "arizona-extcon",
 		.parent_supplies = wm5102_supplies,
@@ -1397,6 +1396,7 @@ static const struct mfd_cell florida_devs[] = {
 		.parent_supplies = wm5102_supplies,
 		.num_parent_supplies = ARRAY_SIZE(wm5102_supplies),
 	},
+	{ .name = "arizona-micsupp" },
 };
 
 static const char * const cs47l24_supplies[] = {
@@ -1424,7 +1424,6 @@ static const char * const wm8997_supplies[] = {
 };
 
 static const struct mfd_cell wm8997_devs[] = {
-	{ .name = "arizona-micsupp" },
 	{
 		.name = "arizona-extcon",
 		.parent_supplies = wm8997_supplies,
@@ -1438,10 +1437,10 @@ static const struct mfd_cell wm8997_devs[] = {
 		.parent_supplies = wm8997_supplies,
 		.num_parent_supplies = ARRAY_SIZE(wm8997_supplies),
 	},
+	{ .name = "arizona-micsupp" },
 };
 
 static const struct mfd_cell vegas_devs[] = {
-	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-extcon" },
 	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
@@ -1451,6 +1450,7 @@ static const struct mfd_cell vegas_devs[] = {
 		.parent_supplies = wm5102_supplies,
 		.num_parent_supplies = ARRAY_SIZE(wm5102_supplies),
 	},
+	{ .name = "arizona-micsupp" },
 };
 
 static const char * const clearwater_supplies[] = {
@@ -1465,7 +1465,6 @@ static const char * const clearwater_supplies[] = {
 };
 
 static const struct mfd_cell clearwater_devs[] = {
-	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-extcon" },
 	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
@@ -1475,6 +1474,7 @@ static const struct mfd_cell clearwater_devs[] = {
 		.parent_supplies = clearwater_supplies,
 		.num_parent_supplies = ARRAY_SIZE(clearwater_supplies),
 	},
+	{ .name = "arizona-micsupp" },
 };
 
 static const char * const marley_supplies[] = {
@@ -1486,7 +1486,6 @@ static const char * const marley_supplies[] = {
 };
 
 static const struct mfd_cell marley_devs[] = {
-	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-extcon" },
 	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
@@ -1496,15 +1495,16 @@ static const struct mfd_cell marley_devs[] = {
 		.parent_supplies = marley_supplies,
 		.num_parent_supplies = ARRAY_SIZE(marley_supplies),
 	},
+	{ .name = "arizona-micsupp" },
 };
 
 static struct mfd_cell moon_devs[] = {
-	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-extcon" },
 	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
 	{ .name = "arizona-pwm" },
 	{ .name = "moon-codec" },
+	{ .name = "arizona-micsupp" },
 };
 
 static struct mfd_cell cs47l15_devs[] = {
