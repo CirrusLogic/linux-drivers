@@ -220,7 +220,7 @@ static struct irq_domain_ops arizona_domain_ops = {
 int arizona_irq_init(struct arizona *arizona)
 {
 	int flags = IRQF_ONESHOT;
-	int ret, i;
+	int ret;
 	const struct regmap_irq_chip *aod, *irq;
 	struct irq_data *irq_data;
 	unsigned int irq_ctrl_reg = ARIZONA_IRQ_CTRL_1;
@@ -446,9 +446,8 @@ int arizona_irq_init(struct arizona *arizona)
 	}
 
 	/* Make sure the boot done IRQ is unmasked for resumes */
-	i = arizona_map_irq(arizona, ARIZONA_IRQ_BOOT_DONE);
-	ret = request_threaded_irq(i, NULL, arizona_boot_done, IRQF_ONESHOT,
-				   "Boot done", arizona);
+	ret = arizona_request_irq(arizona, ARIZONA_IRQ_BOOT_DONE, "Boot done",
+				  arizona_boot_done, arizona);
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to request boot done %d: %d\n",
 			arizona->irq, ret);
@@ -457,10 +456,9 @@ int arizona_irq_init(struct arizona *arizona)
 
 	/* Handle control interface errors in the core */
 	if (arizona->ctrlif_error) {
-		i = arizona_map_irq(arizona, ARIZONA_IRQ_CTRLIF_ERR);
-		ret = request_threaded_irq(i, NULL, arizona_ctrlif_err,
-					   IRQF_ONESHOT,
-					   "Control interface error", arizona);
+		ret = arizona_request_irq(arizona, ARIZONA_IRQ_CTRLIF_ERR,
+					  "Control interface error",
+					  arizona_ctrlif_err, arizona);
 		if (ret != 0) {
 			dev_err(arizona->dev,
 				"Failed to request CTRLIF_ERR %d: %d\n",
@@ -472,7 +470,7 @@ int arizona_irq_init(struct arizona *arizona)
 	return 0;
 
 err_ctrlif:
-	free_irq(arizona_map_irq(arizona, ARIZONA_IRQ_BOOT_DONE), arizona);
+	arizona_free_irq(arizona, ARIZONA_IRQ_BOOT_DONE, arizona);
 err_boot_done:
 	free_irq(arizona->irq, arizona);
 err_main_irq:
@@ -496,9 +494,8 @@ int arizona_irq_exit(struct arizona *arizona)
 	unsigned int virq;
 
 	if (arizona->ctrlif_error)
-		free_irq(arizona_map_irq(arizona, ARIZONA_IRQ_CTRLIF_ERR),
-			 arizona);
-	free_irq(arizona_map_irq(arizona, ARIZONA_IRQ_BOOT_DONE), arizona);
+		arizona_free_irq(arizona, ARIZONA_IRQ_CTRLIF_ERR, arizona);
+	arizona_free_irq(arizona, ARIZONA_IRQ_BOOT_DONE, arizona);
 
 	virq = irq_find_mapping(arizona->virq, 1);
 	regmap_del_irq_chip(virq, arizona->irq_chip);
