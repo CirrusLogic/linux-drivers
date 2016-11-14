@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _MADERA_LDO1_H_
-#define _MADERA_LDO1_H_
+#ifndef MADERA_LDO1_H
+#define MADERA_LDO1_H
 
 struct regulator_init_data;
 

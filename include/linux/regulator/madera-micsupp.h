@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _MADERA_MICSUPP_H_
-#define _MADERA_MICSUPP_H_
+#ifndef MADERA_MICSUPP_H
+#define MADERA_MICSUPP_H
 
 struct regulator_init_data;
 
