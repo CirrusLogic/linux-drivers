@@ -5221,15 +5221,6 @@ int madera_set_custom_jd(struct snd_soc_codec *codec,
 }
 EXPORT_SYMBOL_GPL(madera_set_custom_jd);
 
-struct madera_extcon_info *
-madera_get_extcon_info(struct snd_soc_codec *codec)
-{
-	struct madera *madera = dev_get_drvdata(codec->dev->parent);
-
-	return madera->extcon_info;
-}
-EXPORT_SYMBOL_GPL(madera_get_extcon_info);
-
 static int madera_set_force_bypass(struct snd_soc_codec *codec, bool set_bypass)
 {
 	struct madera *madera = dev_get_drvdata(codec->dev->parent);
