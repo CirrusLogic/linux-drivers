@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _IRQCHIP_MADERA_H
-#define _IRQCHIP_MADERA_H
+#ifndef IRQCHIP_MADERA_H
+#define IRQCHIP_MADERA_H
 
 #define MADERA_IRQ_BOOT_DONE		0
 #define MADERA_IRQ_CTRLIF_ERR		1

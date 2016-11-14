@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _IRQCHIP_MADERA_PDATA_H
-#define _IRQCHIP_MADERA_PDATA_H
+#ifndef IRQCHIP_MADERA_PDATA_H
+#define IRQCHIP_MADERA_PDATA_H
 
 struct madera_irqchip_pdata {
 	/** Mode for primary IRQ (defaults to active low) */
