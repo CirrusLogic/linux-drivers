@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _MADERA_CODEC_PDATA_H
-#define _MADERA_CODEC_PDATA_H
+#ifndef MADERA_CODEC_PDATA_H
+#define MADERA_CODEC_PDATA_H
 
 #include <linux/kernel.h>
 #include <dt-bindings/mfd/madera.h>
