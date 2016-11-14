@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _DT_BINDINGS_EXTCON_MADERA_H
-#define _DT_BINDINGS_EXTCON_MADERA_H
+#ifndef DT_BINDINGS_EXTCON_MADERA_H
+#define DT_BINDINGS_EXTCON_MADERA_H
 
 /* output clamp pin for cirrus,hpd-pins */
 #define MADERA_HPD_OUT_OUT1L		0
