@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _DT_BINDINGS_MFD_MADERA_H
-#define _DT_BINDINGS_MFD_MADERA_H
+#ifndef DT_BINDINGS_MFD_MADERA_H
+#define DT_BINDINGS_MFD_MADERA_H
 
 /* GPIO Function Definitions */
 #define MADERA_GP_FN_ALTERNATE		0x00

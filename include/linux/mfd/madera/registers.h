@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _MADERA_REGISTERS_H
-#define _MADERA_REGISTERS_H
+#ifndef MADERA_REGISTERS_H
+#define MADERA_REGISTERS_H
 
 /*
  * Register Addresses.

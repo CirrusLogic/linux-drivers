@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _MADERA_MFD_H
-#define _MADERA_MFD_H
+#ifndef MADERA_MFD_H
+#define MADERA_MFD_H
 
 #include <linux/pm.h>
 #include <linux/of.h>

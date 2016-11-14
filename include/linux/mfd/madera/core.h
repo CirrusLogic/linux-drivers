@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _MADERA_CORE_H
-#define _MADERA_CORE_H
+#ifndef MADERA_CORE_H
+#define MADERA_CORE_H
 
 #include <linux/interrupt.h>
 #include <linux/regmap.h>
