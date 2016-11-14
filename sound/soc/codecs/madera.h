@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _ASOC_MADERA_H
-#define _ASOC_MADERA_H
+#ifndef ASOC_MADERA_H
+#define ASOC_MADERA_H
 
 #include <linux/completion.h>
 
