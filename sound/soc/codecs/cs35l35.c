@@ -437,7 +437,7 @@ static int cs35l35_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
 	struct classh_cfg *classh = &cs35l35->pdata.classh_algo;
 	int srate = params_rate(params);
-	int ret;
+	int ret = 0;
 	u8 sp_sclks;
 	int audin_format;
 	int errata_chk;
@@ -450,8 +450,12 @@ static int cs35l35_pcm_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	regmap_update_bits(cs35l35->regmap, CS35L35_CLK_CTL2,
+	ret = regmap_update_bits(cs35l35->regmap, CS35L35_CLK_CTL2,
 			  CS35L35_CLK_CTL2_MASK, clk_ctl);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to set port config %d\n", ret);
+		return ret;
+	}
 
 	/* Rev A0 Errata
 	 *
@@ -464,12 +468,12 @@ static int cs35l35_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	if (classh->classh_wk_fet_disable == 0x00 &&
 		(errata_chk == 0x01 || errata_chk == 0x03)) {
-		regmap_update_bits(cs35l35->regmap,
+		ret = regmap_update_bits(cs35l35->regmap,
 					CS35L35_CLASS_H_FET_DRIVE_CTL,
 					CS35L35_CH_WKFET_DEL_MASK,
 					0 << CS35L35_CH_WKFET_DEL_SHIFT);
 		if (ret != 0) {
-			dev_err(codec->dev, "Failed to set port config %d\n",
+			dev_err(codec->dev, "Failed to set fet config %d\n",
 				ret);
 			return ret;
 		}
@@ -495,16 +499,17 @@ static int cs35l35_pcm_hw_params(struct snd_pcm_substream *substream,
 				params_width(params));
 		}
 		regmap_update_bits(cs35l35->regmap,
-					CS35L35_AUDIN_DEPTH_CTL,
-					CS35L35_AUDIN_DEPTH_MASK,
-					audin_format <<
-					CS35L35_AUDIN_DEPTH_SHIFT);
-		if (cs35l35->pdata.stereo)
+				CS35L35_AUDIN_DEPTH_CTL,
+				CS35L35_AUDIN_DEPTH_MASK,
+				audin_format <<
+				CS35L35_AUDIN_DEPTH_SHIFT);
+		if (cs35l35->pdata.stereo) {
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_AUDIN_DEPTH_CTL,
 					CS35L35_ADVIN_DEPTH_MASK,
 					audin_format <<
 					CS35L35_ADVIN_DEPTH_SHIFT);
+		}
 	}
 /* We have to take the SCLK to derive num sclks
  * to configure the CLOCK_CTL3 register correctly
@@ -523,10 +528,6 @@ static int cs35l35_pcm_hw_params(struct snd_pcm_substream *substream,
 			case CS35L35_SP_SCLKS_32FS:
 			case CS35L35_SP_SCLKS_48FS:
 			case CS35L35_SP_SCLKS_64FS:
-				regmap_update_bits(cs35l35->regmap,
-					CS35L35_CLK_CTL3,
-					CS35L35_SP_SCLKS_MASK, sp_sclks <<
-					CS35L35_SP_SCLKS_SHIFT);
 			break;
 			default:
 				dev_err(codec->dev, "ratio not supported\n");
@@ -537,15 +538,19 @@ static int cs35l35_pcm_hw_params(struct snd_pcm_substream *substream,
 			switch (sp_sclks) {
 			case CS35L35_SP_SCLKS_32FS:
 			case CS35L35_SP_SCLKS_64FS:
-				regmap_update_bits(cs35l35->regmap,
-					CS35L35_CLK_CTL3,
-					CS35L35_SP_SCLKS_MASK, sp_sclks <<
-					CS35L35_SP_SCLKS_SHIFT);
 			break;
 			default:
 				dev_err(codec->dev, "ratio not supported\n");
 				return -EINVAL;
 			};
+		}
+		ret = regmap_update_bits(cs35l35->regmap,
+					CS35L35_CLK_CTL3,
+					CS35L35_SP_SCLKS_MASK, sp_sclks <<
+					CS35L35_SP_SCLKS_SHIFT);
+		if (ret != 0) {
+			dev_err(codec->dev, "Failed to set fsclk %d\n", ret);
+			return ret;
 		}
 	}
 	if (cs35l35->pdm_mode) {
@@ -662,6 +667,7 @@ static int cs35l35_codec_set_sysclk(struct snd_soc_codec *codec,
 {
 	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
 	int clksrc;
+	int ret = 0;
 
 	switch (clk_id) {
 	case 0:
@@ -696,11 +702,15 @@ static int cs35l35_codec_set_sysclk(struct snd_soc_codec *codec,
 		return -EINVAL;
 	}
 
-	regmap_update_bits(cs35l35->regmap, CS35L35_CLK_CTL1,
+	ret = regmap_update_bits(cs35l35->regmap, CS35L35_CLK_CTL1,
 				CS35L35_CLK_SOURCE_MASK,
 				clksrc << CS35L35_CLK_SOURCE_SHIFT);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to set sysclk %d\n", ret);
+		return ret;
+	}
 
-	return 0;
+	return ret;
 }
 
 static int cs35l35_codec_probe(struct snd_soc_codec *codec)
@@ -796,7 +806,7 @@ static int cs35l35_codec_probe(struct snd_soc_codec *codec)
 					CS35L35_CH_WKFET_DEL_SHIFT);
 		if (classh->classh_wk_fet_thld)
 			regmap_update_bits(cs35l35->regmap,
-					   CS35L35_CLASS_H_FET_DRIVE_CTL,
+					CS35L35_CLASS_H_FET_DRIVE_CTL,
 					CS35L35_CH_WKFET_THLD_MASK,
 					classh->classh_wk_fet_thld <<
 					CS35L35_CH_WKFET_THLD_SHIFT);
