@@ -726,6 +726,12 @@ static int cs35l35_codec_probe(struct snd_soc_codec *codec)
 				CS35L35_BST_CTL_MASK,
 				cs35l35->pdata.bst_vctl);
 
+	if (cs35l35->pdata.bst_ipk)
+		regmap_update_bits(cs35l35->regmap, CS35L35_BST_PEAK_I,
+				CS35L35_BST_IPK_MASK,
+				cs35l35->pdata.bst_ipk <<
+				CS35L35_BST_IPK_SHIFT);
+
 	if (cs35l35->pdata.gain_zc)
 		regmap_update_bits(cs35l35->regmap, CS35L35_PROTECT_CTL,
 				CS35L35_AMP_GAIN_ZC_MASK,
@@ -1120,6 +1126,9 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 
 	if (of_property_read_u32(np, "boost-ctl-millivolt", &val32) >= 0)
 		pdata->bst_vctl = val32;
+
+	if (of_property_read_u32(np, "boost-ipk", &val32) >= 0)
+		pdata->bst_ipk = val32;
 
 	if (of_property_read_u32(np, "sp-drv-strength", &val32) >= 0)
 		pdata->sp_drv_str = val32;

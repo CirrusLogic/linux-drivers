@@ -85,6 +85,8 @@ struct cs35l35_platform_data {
 	bool bst_pdn_fet_on;
 	/* Boost Voltage : used if ClassH Algo Enabled */
 	int bst_vctl;
+	/* Boost Converter Peak Current CTRL */
+	int bst_ipk;
 	/* Amp Gain Zero Cross */
 	bool gain_zc;
 	/* Audio Input Location */
