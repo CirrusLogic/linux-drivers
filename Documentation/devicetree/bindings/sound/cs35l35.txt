@@ -47,6 +47,12 @@ Optional properties:
   0x01 = 2600mV
   0x41 = 9000mV
 
+  - cirrus,boost-ipk-milliamp : Boost-converter peak current limit.
+  Configures the peak current by monitoring the current through the boost FET.
+  Step size: 112mA
+  0x00 = 1680mA
+  0x19 = 4480mA
+
   - cirrus,amp-gain-zc : Boolean to determine if to use Amplifier gain-change
   zero-cross
 
