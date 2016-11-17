@@ -1122,75 +1122,77 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 	if (!np)
 		return 0;
 
-	pdata->bst_pdn_fet_on = of_property_read_bool(np, "boost-pdn-fet-on");
+	pdata->bst_pdn_fet_on = of_property_read_bool(np,
+					"cirrus,boost-pdn-fet-on");
 
-	if (of_property_read_u32(np, "boost-ctl-millivolt", &val32) >= 0)
+	if (of_property_read_u32(np, "cirrus,boost-ctl-millivolt", &val32) >= 0)
 		pdata->bst_vctl = val32;
 
-	if (of_property_read_u32(np, "boost-ipk", &val32) >= 0)
+	if (of_property_read_u32(np, "cirrus,boost-ipk-milliamp", &val32) >= 0)
 		pdata->bst_ipk = val32;
 
-	if (of_property_read_u32(np, "sp-drv-strength", &val32) >= 0)
+	if (of_property_read_u32(np, "cirrus,sp-drv-strength", &val32) >= 0)
 		pdata->sp_drv_str = val32;
 
-	pdata->stereo = of_property_read_bool(np, "stereo-config");
+	pdata->stereo = of_property_read_bool(np, "cirrus,stereo-config");
 
 	if (pdata->stereo) {
-		if (of_property_read_u32(np, "audio-channel", &val32) >= 0)
+		if (of_property_read_u32(np, "cirrus,audio-channel", &val32) >= 0)
 			pdata->aud_channel = val32;
-		if (of_property_read_u32(np, "advisory-channel",
+		if (of_property_read_u32(np, "cirrus,advisory-channel",
 					&val32) >= 0)
 			pdata->adv_channel = val32;
-		pdata->shared_bst = of_property_read_bool(np, "shared-boost");
+		pdata->shared_bst = of_property_read_bool(np,
+						"cirrus,shared-boost");
 	}
 
-	pdata->gain_zc = of_property_read_bool(np, "amp-gain-zc");
+	pdata->gain_zc = of_property_read_bool(np, "cirrus,amp-gain-zc");
 
-	classh = of_get_child_by_name(np, "classh-internal-algo");
+	classh = of_get_child_by_name(np, "cirrus,classh-internal-algo");
 	classh_config->classh_algo_enable = classh ? true : false;
 
 	if (classh_config->classh_algo_enable) {
 		classh_config->classh_bst_override =
-			of_property_read_bool(np, "classh-bst-overide");
+			of_property_read_bool(np, "cirrus,classh-bst-overide");
 
-		if (of_property_read_u32(classh, "classh-bst-max-limit",
+		if (of_property_read_u32(classh, "cirrus,classh-bst-max-limit",
 					&val32) >= 0)
 			classh_config->classh_bst_max_limit = val32;
-		if (of_property_read_u32(classh, "classh-mem-depth",
+		if (of_property_read_u32(classh, "cirrus,classh-mem-depth",
 					&val32) >= 0)
 			classh_config->classh_mem_depth = val32;
-		if (of_property_read_u32(classh, "classh-release-rate",
+		if (of_property_read_u32(classh, "cirrus,classh-release-rate",
 					&val32) >= 0)
 			classh_config->classh_release_rate = val32;
-		if (of_property_read_u32(classh, "classh-headroom",
+		if (of_property_read_u32(classh, "cirrus,classh-headroom",
 					&val32) >= 0)
 			classh_config->classh_headroom = val32;
-		if (of_property_read_u32(classh, "classh-wk-fet-disable",
+		if (of_property_read_u32(classh, "cirrus,classh-wk-fet-disable",
 					&val32) >= 0)
 			classh_config->classh_wk_fet_disable = val32;
-		if (of_property_read_u32(classh, "classh-wk-fet-delay",
+		if (of_property_read_u32(classh, "cirrus,classh-wk-fet-delay",
 					&val32) >= 0)
 			classh_config->classh_wk_fet_delay = val32;
-		if (of_property_read_u32(classh, "classh-wk-fet-thld",
+		if (of_property_read_u32(classh, "cirrus,classh-wk-fet-thld",
 					&val32) >= 0)
 			classh_config->classh_wk_fet_thld = val32;
-		if (of_property_read_u32(classh, "classh-vpch-auto",
+		if (of_property_read_u32(classh, "cirrus,classh-vpch-auto",
 					&val32) >= 0)
 			classh_config->classh_vpch_auto = val32;
-		if (of_property_read_u32(classh, "classh-vpch-rate",
+		if (of_property_read_u32(classh, "cirrus,classh-vpch-rate",
 					&val32) >= 0)
 			classh_config->classh_vpch_rate = val32;
-		if (of_property_read_u32(classh, "classh-vpch-man",
+		if (of_property_read_u32(classh, "cirrus,classh-vpch-man",
 					&val32) >= 0)
 			classh_config->classh_vpch_man = val32;
 	}
 	of_node_put(classh);
 
 	/* frame depth location */
-	signal_format = of_get_child_by_name(np, "monitor-signal-format");
+	signal_format = of_get_child_by_name(np, "cirrus,monitor-signal-format");
 	monitor_config->is_present = signal_format ? true : false;
 	if (monitor_config->is_present) {
-		ret = of_property_read_u8_array(signal_format, "imon",
+		ret = of_property_read_u8_array(signal_format, "cirrus,imon",
 				   monitor_array, ARRAY_SIZE(monitor_array));
 		if (!ret) {
 			monitor_config->imon_specs = true;
@@ -1198,7 +1200,7 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 			monitor_config->imon_loc = monitor_array[1];
 			monitor_config->imon_frm = monitor_array[2];
 		}
-		ret = of_property_read_u8_array(signal_format, "vmon",
+		ret = of_property_read_u8_array(signal_format, "cirrus,vmon",
 				   monitor_array, ARRAY_SIZE(monitor_array));
 		if (!ret) {
 			monitor_config->vmon_specs = true;
@@ -1206,7 +1208,7 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 			monitor_config->vmon_loc = monitor_array[1];
 			monitor_config->vmon_frm = monitor_array[2];
 		}
-		ret = of_property_read_u8_array(signal_format, "vpmon",
+		ret = of_property_read_u8_array(signal_format, "cirrus,vpmon",
 				   monitor_array, ARRAY_SIZE(monitor_array));
 		if (!ret) {
 			monitor_config->vpmon_specs = true;
@@ -1214,7 +1216,7 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 			monitor_config->vpmon_loc = monitor_array[1];
 			monitor_config->vpmon_frm = monitor_array[2];
 		}
-		ret = of_property_read_u8_array(signal_format, "vbstmon",
+		ret = of_property_read_u8_array(signal_format, "cirrus,vbstmon",
 				   monitor_array, ARRAY_SIZE(monitor_array));
 		if (!ret) {
 			monitor_config->vbstmon_specs = true;
@@ -1222,7 +1224,7 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 			monitor_config->vbstmon_loc = monitor_array[1];
 			monitor_config->vbstmon_frm = monitor_array[2];
 		}
-		ret = of_property_read_u8_array(signal_format, "vpbrstat",
+		ret = of_property_read_u8_array(signal_format, "cirrus,vpbrstat",
 				   monitor_array, ARRAY_SIZE(monitor_array));
 		if (!ret) {
 			monitor_config->vpbrstat_specs = true;
@@ -1230,7 +1232,7 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 			monitor_config->vpbrstat_loc = monitor_array[1];
 			monitor_config->vpbrstat_frm = monitor_array[2];
 		}
-		ret = of_property_read_u8_array(signal_format, "zerofill",
+		ret = of_property_read_u8_array(signal_format, "cirrus,zerofill",
 				   monitor_array, ARRAY_SIZE(monitor_array));
 		if (!ret) {
 			monitor_config->zerofill_specs = true;
