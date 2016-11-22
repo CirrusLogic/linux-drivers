@@ -4294,12 +4294,12 @@ static int madera_calc_fll(struct madera_fll *fll,
 		switch (fll->madera->rev) {
 		case 0:
 			/* Rev A0 uses the sync gains for both loops */
-			gains = madera_fll_sync_gains,
+			gains = madera_fll_sync_gains;
 			n_gains = ARRAY_SIZE(madera_fll_sync_gains);
 			break;
 		default:
 			if (sync) {
-				gains = madera_fll_sync_gains,
+				gains = madera_fll_sync_gains;
 				n_gains = ARRAY_SIZE(madera_fll_sync_gains);
 			} else {
 				gains = madera_fll_main_gains;
@@ -4311,12 +4311,12 @@ static int madera_calc_fll(struct madera_fll *fll,
 	case CS47L85:
 	case WM1840:
 		/* These use the sync gains for both loops */
-		gains = madera_fll_sync_gains,
+		gains = madera_fll_sync_gains;
 		n_gains = ARRAY_SIZE(madera_fll_sync_gains);
 		break;
 	default:
 		if (sync) {
-			gains = madera_fll_sync_gains,
+			gains = madera_fll_sync_gains;
 			n_gains = ARRAY_SIZE(madera_fll_sync_gains);
 		} else {
 			gains = madera_fll_main_gains;
