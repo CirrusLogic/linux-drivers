@@ -970,6 +970,8 @@ static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 						    dmode_reg,
 						    MADERA_IN1_MODE_MASK,
 						    dmode_val);
+		if (ret < 0)
+			return ret;
 	}
 
 out:
