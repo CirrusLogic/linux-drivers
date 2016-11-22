@@ -1422,6 +1422,12 @@ int madera_init_inputs(struct snd_soc_codec *codec,
 		routes[1].sink = dmic_inputs[(i * 2) + 1];
 
 		ret = snd_soc_dapm_add_routes(&codec->dapm, routes, 2);
+		if (ret < 0) {
+			dev_err(madera->dev,
+				"Failed to add routes for DMIC refs: %d\n",
+				ret);
+			return ret;
+		}
 	}
 
 	return 0;
