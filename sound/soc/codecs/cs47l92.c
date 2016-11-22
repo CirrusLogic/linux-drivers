@@ -1881,6 +1881,8 @@ static int cs47l92_codec_probe(struct snd_soc_codec *codec)
 
 	if (!pdata->auxpdm_slave_mode)
 		val = MADERA_AUXPDM1_MSTR_MASK;
+	else
+		val = 0;
 	if (pdata->auxpdm_falling_edge)
 		val |= MADERA_AUXPDM1_TXEDGE_MASK;
 	regmap_update_bits(madera->regmap, MADERA_AUXPDM1_CTRL_0,
