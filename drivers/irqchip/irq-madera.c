@@ -234,10 +234,6 @@ static int madera_irq_of_get(struct madera_irq_priv *priv)
 	u32 value;
 	int ret;
 
-	priv->irq = irq_of_parse_and_map(np, 0);
-	if (priv->irq < 0)
-		return priv->irq;
-
 	ret = of_property_read_u32(np, "cirrus,irq-flags", &value);
 	if (ret == 0)
 		madera->pdata.irqchip.irq_flags = value;
@@ -308,7 +304,7 @@ static int madera_irq_probe(struct platform_device *pdev)
 	if (madera->pdata.irqchip.irq_gpio == 0)
 		madera->pdata.irqchip.irq_gpio = -EINVAL;
 
-	priv->irq = madera->irq; /* default, may be replaced by DT entry */
+	priv->irq = madera->irq;
 
 	if (IS_ENABLED(CONFIG_OF)) {
 		if (!dev_get_platdata(priv->dev)) {
