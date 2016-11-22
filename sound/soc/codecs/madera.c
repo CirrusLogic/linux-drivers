@@ -1131,6 +1131,9 @@ static int madera_write_adsp_clk_setting(struct wm_adsp *dsp, unsigned int freq)
 	ret = regmap_update_bits(dsp->regmap,
 				 dsp->base + MADERA_DSP_CONFIG_1_OFFS,
 				 mask, val);
+	if (ret)
+		goto err;
+
 	dev_dbg(priv->madera->dev, "Set DSP clocking to 0x%x\n", val);
 
 	return 0;
