@@ -23,7 +23,7 @@ Optional properties:
     host IRQ is edge-triggered to emulate a level-triggered IRQ. If specified
     must be exactly one GPIO entry
 
-  - cirrus,irq_flags :  host controller flags as defined in
+  - cirrus,irq-flags :  host controller flags as defined in
     bindings/interrupt-controller/interrupts.txt
 
 Example:

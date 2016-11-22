@@ -241,7 +241,7 @@ static int madera_irq_of_get(struct madera_irq_priv *priv)
 	u32 value;
 	int ret;
 
-	ret = of_property_read_u32(np, "cirrus,irq_flags", &value);
+	ret = of_property_read_u32(np, "cirrus,irq-flags", &value);
 	if (ret == 0)
 		madera->pdata.irqchip.irq_flags = value;
 
