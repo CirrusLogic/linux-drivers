@@ -2785,16 +2785,12 @@ int madera_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		 int event)
 {
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(w->codec);
-	unsigned int ctrl;
 	unsigned int reg;
 
-	if (w->shift % 2) {
+	if (w->shift % 2)
 		reg = MADERA_ADC_DIGITAL_VOLUME_1L + ((w->shift / 2) * 8);
-		ctrl = reg - 1;
-	} else {
+	else
 		reg = MADERA_ADC_DIGITAL_VOLUME_1R + ((w->shift / 2) * 8);
-		ctrl = reg - 5;
-	}
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
