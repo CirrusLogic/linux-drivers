@@ -477,7 +477,6 @@ struct wm_coeff_ctl {
 	unsigned int offset;
 	size_t len;
 	unsigned int set:1;
-	struct snd_kcontrol *kcontrol;
 	unsigned int flags;
 	struct mutex lock;
 	unsigned int type;
@@ -1119,8 +1118,6 @@ static int wmfw_add_ctl(struct wm_adsp *dsp, struct wm_coeff_ctl *ctl)
 		goto err_kcontrol;
 
 	kfree(kcontrol);
-
-	ctl->kcontrol = snd_soc_card_get_kcontrol(dsp->card, ctl->name);
 
 	return 0;
 
