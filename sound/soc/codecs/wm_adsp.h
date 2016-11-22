@@ -122,7 +122,7 @@ struct wm_adsp {
 	int rev;
 	struct device *dev;
 	struct regmap *regmap;
-	struct snd_soc_card *card;
+	struct snd_soc_codec *codec;
 
 	int base;
 	int sysclk_reg;
