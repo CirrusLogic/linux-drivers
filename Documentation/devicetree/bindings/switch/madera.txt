@@ -45,7 +45,12 @@ Child node optional properties:
   - cirrus,micd-software-compare : Use a software comparison to determine mic
     presence
 
+  - cirrus,jd-invert : Invert the polarity of the jack detection switch
+
   - cirrus,jd-use-jd2 : Use JD2 input with JD1 for dual jack detection.
+
+  - cirrus,jd-wake-time : Specifies a length of time that a wake lock will be
+    held for during jack detection operations.
 
   - cirrus,gpsw : Settings for the general purpose switches, set as per the
     SWn_MODE bits in the GP Switch 1 register.
