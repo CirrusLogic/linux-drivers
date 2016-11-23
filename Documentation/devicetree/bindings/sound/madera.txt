@@ -41,6 +41,14 @@ Optional properties:
     edge of the Auxiliary PDM clock.  The default is for the data to be driven
     on the rising edge.
 
+  - cirrus,pdm-fmt : PDM speaker data format, must contain 2 cells (OUT5 and OUT6).
+    See the datasheet for values.
+    The second cell is ignored for codecs that do not have OUT6.
+
+  - cirrus,pdm-mute : PDM speaker mute setting, must contain 2 cells (OUT5 and OUT6).
+    See the datasheet for values.
+    The second cell is ignored for codecs that do not have OUT6.
+
 Example:
 
 codec: cs47l35@0 {
