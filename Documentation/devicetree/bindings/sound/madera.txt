@@ -43,6 +43,14 @@ Optional properties:
     on the rising edge.
     (CS47L92, CS47L93)
 
+  - cirrus,pdm-fmt : PDM speaker data format, must contain 2 cells (OUT5 and OUT6).
+    See the datasheet for values.
+    The second cell is ignored for codecs that do not have OUT6.
+
+  - cirrus,pdm-mute : PDM speaker mute setting, must contain 2 cells (OUT5 and OUT6).
+    See the datasheet for values.
+    The second cell is ignored for codecs that do not have OUT6.
+
 Example:
 
 codec: cs47l35@0 {
