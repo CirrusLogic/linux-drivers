@@ -2731,7 +2731,7 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 
 			regmap_update_bits(dsp->regmap,
 					   dsp->base + ADSP2_CONTROL,
-					   ADSP2_SYS_ENA | ADSP2_MEM_ENA, 0);
+					   ADSP2_MEM_ENA, 0);
 
 			break;
 		}
