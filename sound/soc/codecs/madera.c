@@ -5017,10 +5017,10 @@ static int madera_fllhj_apply(struct madera_fll *fll, int fin)
 		return -EINVAL;
 	}
 
-	regmap_update_bits(madera->regmap,
-			   fll->base + MADERA_FLL_CONTROL_2_OFFS,
-			   MADERA_FLL1_N_MASK,
-			   fll_n << MADERA_FLL1_N_SHIFT);
+	/* clear the ctrl_upd bit to guarantee we write to it later. */
+	regmap_write(madera->regmap,
+		     fll->base + MADERA_FLL_CONTROL_2_OFFS,
+		     fll_n << MADERA_FLL1_N_SHIFT);
 	regmap_update_bits(madera->regmap,
 			   fll->base + MADERA_FLL_CONTROL_3_OFFS,
 			   MADERA_FLL1_THETA_MASK,
@@ -5098,12 +5098,6 @@ static int madera_fllhj_enable(struct madera_fll *fll)
 			   MADERA_FLL1_ENA_MASK);
 
 out:
-	/* Release the hold so that flln locks to external frequency */
-	regmap_update_bits(madera->regmap,
-			   fll->base + MADERA_FLL_CONTROL_1_OFFS,
-			   MADERA_FLL1_HOLD_MASK,
-			   0);
-
 	regmap_update_bits(madera->regmap,
 			   fll->base + MADERA_FLL_CONTROL_11_OFFS,
 			   MADERA_FLL1_LOCKDET_MASK,
@@ -5113,6 +5107,12 @@ out:
 			   fll->base + MADERA_FLL_CONTROL_2_OFFS,
 			   MADERA_FLL1_CTRL_UPD_MASK,
 			   MADERA_FLL1_CTRL_UPD_MASK);
+
+	/* Release the hold so that flln locks to external frequency */
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_1_OFFS,
+			   MADERA_FLL1_HOLD_MASK,
+			   0);
 
 	if (!already_enabled)
 		madera_wait_for_fll(fll, true);
