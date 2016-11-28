@@ -316,15 +316,15 @@ static const struct reg_default cs47l15_high_impedance_patch[] = {
 
 static const struct madera_hp_tuning cs47l15_hp_tuning[] = {
 	{
-		16,
+		1600,
 		cs47l15_low_impedance_patch,
 		ARRAY_SIZE(cs47l15_low_impedance_patch),
 	},
-	{	32,
+	{	3200,
 		cs47l15_normal_impedance_patch,
 		ARRAY_SIZE(cs47l15_normal_impedance_patch),
 	},
-	{	MADERA_HPDET_MAX,
+	{	MADERA_HPDET_MAX * 100,
 		cs47l15_high_impedance_patch,
 		ARRAY_SIZE(cs47l15_high_impedance_patch),
 	},
