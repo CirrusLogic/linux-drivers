@@ -3869,7 +3869,7 @@ static int madera_dai_set_sysclk(struct snd_soc_dai *dai,
 		return -EBUSY;
 	}
 
-	dev_dbg(codec->dev, "Setting AIF%d to %s\n", dai->id + 1,
+	dev_dbg(codec->dev, "Setting AIF%d to %s\n", dai->id,
 		madera_dai_clk_str(clk_id));
 
 	memset(&routes, 0, sizeof(routes));
