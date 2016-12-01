@@ -90,7 +90,7 @@
 #define CS35L35_PLL_STATUS		0x78	/* PLL Status */
 #define CS35L35_OTP_TRIM_STATUS		0x7E	/* OTP Trim Status */
 
-#define CS35L35_MAX_REGISTER		0x7E
+#define CS35L35_MAX_REGISTER		0x7F
 
 /* CS35L35_PWRCTL1 */
 #define CS35L35_SFT_RST			0x80
