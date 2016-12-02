@@ -22,10 +22,10 @@ static const struct reg_sequence cs47l15_reva_16_patch[] = {
 	{ 0x8C, 0x5555 },
 	{ 0x8C, 0xAAAA },
 	{ 0x314, 0x0080 },
+	{ 0x4A8, 0x6023 },
+	{ 0x4A9, 0x6023 },
 	{ 0x4D4, 0x0008 },
 	{ 0x4CF, 0x0F00 },
-	{ 0x4A8, 0x6020 },
-	{ 0x4A9, 0x6020 },
 	{ 0x4D7, 0x1B2B },
 	{ 0x8C, 0xCCCC },
 	{ 0x8C, 0x3333 },
@@ -184,8 +184,8 @@ static const struct reg_default cs47l15_reg_default[] = {
 	{ 0x00000490, 0x0069 }, /* R1168 (0x000490) - PDM_SPK1_CTRL_1 */
 	{ 0x00000491, 0x0000 }, /* R1169 (0x000491) - PDM_SPK1_CTRL_2 */
 	{ 0x000004A0, 0x3080 }, /* R1184 (0x0004A0) - HP1 Short Circuit Ctrl */
-	{ 0x000004A8, 0x6020 }, /* R1192 (0x0004A8) - HP Test Ctrl 5 */
-	{ 0x000004A9, 0x6020 }, /* R1193 (0x0004A9) - HP Test Ctrl 6 */
+	{ 0x000004A8, 0x6023 }, /* R1192 (0x0004A8) - HP Test Ctrl 5 */
+	{ 0x000004A9, 0x6023 }, /* R1193 (0x0004A9) - HP Test Ctrl 6 */
 	{ 0x00000500, 0x000C }, /* R1280 (0x000500) - AIF1_BCLK_CTRL */
 	{ 0x00000501, 0x0000 }, /* R1281 (0x000501) - AIF1_TX_PIN_CTRL */
 	{ 0x00000502, 0x0000 }, /* R1282 (0x000502) - AIF1_RX_PIN_CTRL */
