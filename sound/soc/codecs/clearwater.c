@@ -3049,7 +3049,7 @@ static int clearwater_probe(struct platform_device *pdev)
 	mutex_init(&clearwater->fw_lock);
 
 	clearwater->core.arizona = arizona;
-	clearwater->core.num_inputs = 8;
+	clearwater->core.num_inputs = 12;
 
 	for (i = 0; i < CLEARWATER_NUM_ADSP; i++) {
 		clearwater->core.adsp[i].part = "clearwater";
