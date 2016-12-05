@@ -2814,7 +2814,7 @@ static int cs47l85_probe(struct platform_device *pdev)
 	pdev->dev.of_node = madera->dev->of_node;
 
 	cs47l85->core.madera = madera;
-	cs47l85->core.num_inputs = 8;
+	cs47l85->core.num_inputs = 12;
 	cs47l85->core.get_sources = cs47l85_get_sources;
 
 	ret = madera_core_init(&cs47l85->core);
