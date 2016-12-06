@@ -277,6 +277,7 @@ static const struct reg_default marley_reg_default[] = {
 	{ 0x00000437, 0x0200 }, /* R1079 (0x437) - Noise Gate Select 5R */
 	{ 0x00000440, 0x0003 }, /* R1088 (0x440) - DRE Enable */
 	{ 0x00000448, 0x0a83 }, /* R1096 (0x448) - eDRE Enable */
+	{ 0x0000044a, 0x0000 }, /* R1098 (0x44a) - EDRE Manual */
 	{ 0x00000450, 0x0000 }, /* R1104 (0x450) - DAC AEC Control 1 */
 	{ 0x00000458, 0x0000 }, /* R1112 (0x458) - Noise Gate Control */
 	{ 0x00000490, 0x0069 }, /* R1168 (0x490) - PDM SPK1 CTRL 1 */
@@ -1067,6 +1068,7 @@ static bool marley_16bit_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_NOISE_GATE_SELECT_5R:
 	case ARIZONA_DRE_ENABLE:
 	case CLEARWATER_EDRE_ENABLE:
+	case CLEARWATER_EDRE_MANUAL:
 	case ARIZONA_DAC_AEC_CONTROL_1:
 	case ARIZONA_NOISE_GATE_CONTROL:
 	case ARIZONA_PDM_SPK1_CTRL_1:
