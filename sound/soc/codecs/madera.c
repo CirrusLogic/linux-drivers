@@ -773,8 +773,6 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 
 	switch (madera->type) {
 	case CS47L35:
-	case CS47L85:
-	case WM1840:
 		/* if HP detection clamp is applied while switching to HPOUT
 		 * EDRE should be set to manual
 		 */
@@ -831,8 +829,6 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 
 	switch (madera->type) {
 	case CS47L35:
-	case CS47L85:
-	case WM1840:
 		/* if a switch to EPOUT occurred set normal EDRE */
 		if (ep_sel && !demux_change_ret) {
 			ret = regmap_update_bits(madera->regmap,
