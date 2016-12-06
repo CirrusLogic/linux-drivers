@@ -442,7 +442,10 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 	}
 
 	if (edre_reg && !ep_sel) {
-			ret = regmap_write(arizona->regmap, edre_reg, edre_val);
+			ret = regmap_update_bits(arizona->regmap,
+						 edre_reg,
+						 0x3,
+						 edre_val);
 			if (ret != 0)
 				dev_warn(arizona->dev,
 					"Failed to set EDRE Manual: %d\n",
