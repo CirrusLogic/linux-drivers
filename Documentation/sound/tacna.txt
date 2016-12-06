@@ -1,0 +1,59 @@
+Cirrus Logic Tacna class audio codecs
+
+This is a subnode of the parent mfd node.
+
+See also the core bindings for the parent MFD driver:
+See Documentation/devicetree/bindings/mfd/tacna.txt
+
+Required properties:
+  - compatible :  One of the following chip-specific strings:
+        "cirrus,cs47l94-codec"
+
+Optional properties:
+  - cirrus,inmode : A list of input mode settings for each input. A maximum
+    of 16 cells, with four cells per input in the order INnL_1, INnR_1, INnL_2,
+    INnR_2. For non-muxed inputs the first two cells for that input
+    set the mode for the left and right channel and the second two cells
+    must be 0. For muxed inputs the first two cells for that input
+    set the mode of the left and right *_1 inputs and the second two cells
+    set the mode of the left and right *_2 inputs.
+    Valid mode values are one of the TACNA_INMODE_xxx (see
+    include/dt-bindings/sound/tacna.h). If the array is shorter than the number
+    of inputs the unspecified inputs default to TACNA_INMODE_DIFF.
+
+  - cirrus,out-mono : Mono bit for each output, must contain two cells if
+    specified. A non-zero value indicates the corresponding output is mono.
+
+  - cirrus,max-channels-clocked : The maximum number of channels to be clocked
+    on each ASP, useful for I2S systems with multiple data lines being mastered.
+    One cell for each ASP, use a value of zero for AIFs that should be handled
+    normally.
+
+  - cirrus,pdm-fmt : PDM speaker (OUT5) data format. See the datasheet
+    for values.
+
+  - cirrus,pdm-mute : PDM speaker (OUT5) mute setting. See the datasheet
+    for values.
+
+  - cirrus,auxpdm-slave-mode : AUXPDM slave mode setting. Three cells should
+    be specified, each indicating whether the corresponding AUXPDM should be
+    master or slave. See datasheet for details.
+
+  - cirrus,auxpdm-falling-edge : AUXPDM transmit edge setting. Three cells
+    should be specified, one for each AUXPDM. See datasheet for values.
+
+Example:
+
+codec: cs47l94@0 {
+	compatible = "cirrus,cs47l94";
+
+	codec {
+		compatible = "cirrus,cs47l94-codec";
+		cirrus,inmode = <
+			2 2 1 1 /* IN1_1 digital, IN1_2 single-ended */
+			0 0 0 0	/* IN2 differential */
+		>;
+		cirrus,out-mono = <0 0>;
+		cirrus,max-channels-clocked = <2 0 0>;
+	};
+};
