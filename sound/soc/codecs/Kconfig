@@ -55,6 +55,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS4271_SPI if SPI_MASTER
 	select SND_SOC_CS42XX8_I2C if I2C
 	select SND_SOC_CS4349 if I2C
+	select SND_SOC_CS47L94 if MFD_CS47L94
 	select SND_SOC_CX20442 if TTY
 	select SND_SOC_DA7210 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_DA7213 if I2C
@@ -422,6 +423,9 @@ config SND_SOC_CS42XX8_I2C
 config SND_SOC_CS4349
 	tristate "Cirrus Logic CS4349 CODEC"
 	depends on I2C
+
+config SND_SOC_CS47L94
+	tristate
 
 config SND_SOC_CX20442
 	tristate
@@ -914,6 +918,8 @@ config SND_SOC_NAU8825
 
 config SND_SOC_TACNA
 	tristate
+	default y if SND_SOC_CS47L94=y
+	default m if SND_SOC_CS47L94=m
 
 config SND_SOC_TPA6130A2
 	tristate "Texas Instruments TPA6130A2 headphone amplifier"
