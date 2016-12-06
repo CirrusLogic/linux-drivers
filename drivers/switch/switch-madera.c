@@ -854,7 +854,10 @@ static void madera_extcon_hp_clamp(struct madera_extcon_info *info,
 	}
 
 	if (edre_reg && !ep_sel) {
-		ret = regmap_write(madera->regmap, edre_reg, edre_val);
+		ret = regmap_update_bits(madera->regmap,
+					 edre_reg,
+					 0x3,
+					 edre_val);
 		if (ret)
 			dev_warn(madera->dev,
 				"Failed to set EDRE Manual: %d\n", ret);
