@@ -78,8 +78,6 @@ static const struct regmap_irq cs47l90_irqs[MADERA_NUM_IRQ] = {
 				  .mask = MADERA_DSP_IRQ7_EINT1},
 	[MADERA_IRQ_DSP_IRQ8] = { .reg_offset = 10,
 				  .mask = MADERA_DSP_IRQ8_EINT1},
-	[MADERA_IRQ_DSP_IRQ8] = { .reg_offset = 10,
-				  .mask = MADERA_DSP_IRQ8_EINT1},
 	[MADERA_IRQ_DSP_IRQ9] = { .reg_offset = 10,
 				  .mask = MADERA_DSP_IRQ9_EINT1},
 	[MADERA_IRQ_DSP_IRQ10] = { .reg_offset = 10,
