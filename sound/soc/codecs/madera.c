@@ -779,8 +779,9 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 		 * EDRE should be set to manual
 		 */
 		if (!ep_sel && madera->hpdet_clamp[0]) {
-			ret = regmap_write(madera->regmap,
-					   MADERA_EDRE_MANUAL, 0x3);
+			ret = regmap_update_bits(madera->regmap,
+						 MADERA_EDRE_MANUAL,
+						 0x3, 0x3);
 			if (ret)
 				dev_warn(madera->dev,
 					 "Failed to set EDRE Manual: %d\n",
@@ -832,13 +833,14 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	case CS47L35:
 	case CS47L85:
 	case WM1840:
-		/* if a switch to EPOUT occurred restore EDRE setting */
+		/* if a switch to EPOUT occurred set normal EDRE */
 		if (ep_sel && !demux_change_ret) {
-			ret = regmap_write(madera->regmap,
-					   MADERA_EDRE_MANUAL, 0);
+			ret = regmap_update_bits(madera->regmap,
+						 MADERA_EDRE_MANUAL,
+						 0x3, 0);
 			if (ret)
 				dev_warn(madera->dev,
-					 "Failed to restore EDRE Manual: %d\n",
+					 "Failed to clear EDRE Manual: %d\n",
 					 ret);
 		}
 		break;
