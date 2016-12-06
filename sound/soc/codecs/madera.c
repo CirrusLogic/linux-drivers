@@ -734,7 +734,7 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 		snd_soc_dapm_kcontrol_dapm(kcontrol);
 	struct madera *madera = dev_get_drvdata(codec->dev->parent);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int ep_sel, mux, change;
+	unsigned int ep_sel, mux;
 	unsigned int mask;
 	int ret, demux_change_ret;
 	bool out_mono, restore_out = true;
@@ -748,11 +748,11 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 
 	snd_soc_dapm_mutex_lock(dapm);
 
-	change = snd_soc_test_bits(codec, e->reg, mask, ep_sel);
-
-	/* if no change is required, skip */
-	if (!change)
-		goto end;
+	if (!snd_soc_test_bits(codec, e->reg, mask, ep_sel)) {
+		/* mux state not changed */
+		snd_soc_dapm_mutex_unlock(dapm);
+		return 0;
+	}
 
 	/* EP_SEL should not be modified while HP or EP driver is enabled */
 	ret = regmap_update_bits(madera->regmap,
@@ -844,7 +844,6 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 		break;
 	}
 
-end:
 	snd_soc_dapm_mutex_unlock(dapm);
 
 	return snd_soc_dapm_mux_update_power(dapm, kcontrol, mux, e, NULL);
