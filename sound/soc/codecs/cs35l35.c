@@ -219,9 +219,6 @@ static int cs35l35_main_amp_event(struct snd_soc_dapm_widget *w,
 			regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
 				CS35L35_PDN_BST_MASK,
 				0 << CS35L35_PDN_BST_FETOFF_SHIFT);
-			regmap_update_bits(cs35l35->regmap, CS35L35_PROTECT_CTL,
-				CS35L35_AMP_MUTE_MASK,
-				0 << CS35L35_AMP_MUTE_SHIFT);
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		usleep_range(5000, 5100);
@@ -233,9 +230,14 @@ static int cs35l35_main_amp_event(struct snd_soc_dapm_widget *w,
 					CS35L35_BST_CVTR_V_CTL,
 					CS35L35_BST_CTL_MASK,
 					0 << CS35L35_BST_CTL_SHIFT);
+
+		regmap_update_bits(cs35l35->regmap, CS35L35_PROTECT_CTL,
+			CS35L35_AMP_MUTE_MASK, 0);
+
 		for (i = 0; i < 2; i++)
 			regmap_bulk_read(cs35l35->regmap, CS35L35_INT_STATUS_1,
 					&reg, ARRAY_SIZE(reg));
+
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		regmap_update_bits(cs35l35->regmap, CS35L35_PROTECT_CTL,
