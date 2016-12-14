@@ -1424,6 +1424,16 @@ static const struct snd_soc_dapm_route cs47l92_dapm_routes[] = {
 	{ "IN4L", NULL, "SYSCLK" },
 	{ "IN4R", NULL, "SYSCLK" },
 
+	{ "ASRC1IN1L", NULL, "SYSCLK" },
+	{ "ASRC1IN1R", NULL, "SYSCLK" },
+	{ "ASRC1IN2L", NULL, "SYSCLK" },
+	{ "ASRC1IN2R", NULL, "SYSCLK" },
+
+	{ "ASRC1IN1L", NULL, "ASYNCCLK" },
+	{ "ASRC1IN1R", NULL, "ASYNCCLK" },
+	{ "ASRC1IN2L", NULL, "ASYNCCLK" },
+	{ "ASRC1IN2R", NULL, "ASYNCCLK" },
+
 	{ "MICBIAS1", NULL, "MICVDD" },
 	{ "MICBIAS2", NULL, "MICVDD" },
 
