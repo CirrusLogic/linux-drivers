@@ -1294,9 +1294,9 @@ static const struct snd_soc_dapm_route cs47l35_dapm_routes[] = {
 	MADERA_DSP_ROUTES("DSP2"),
 	MADERA_DSP_ROUTES("DSP3"),
 
-	{ "DSP2 Preloader",  NULL, "DSP2 Virtual Input" },
+	{ "DSP2",  NULL, "DSP2 Virtual Input" },
 	{ "DSP2 Virtual Input", "Shared Memory", "DSP3" },
-	{ "DSP3 Preloader", NULL, "DSP3 Virtual Input" },
+	{ "DSP3", NULL, "DSP3 Virtual Input" },
 	{ "DSP3 Virtual Input", "Shared Memory", "DSP2" },
 
 	{ "DSP Trigger Out", NULL, "DSP1 Trigger Output" },
