@@ -1027,6 +1027,12 @@ config GPIO_STMPE
 	  This enables support for the GPIOs found on the STMPE I/O
 	  Expanders.
 
+config GPIO_TACNA
+	tristate "Cirrus Logic Tacna class codecs"
+	depends on MFD_TACNA
+	help
+	  Support for GPIOs on Cirrus Logic Tacna class codecs.
+
 config GPIO_TC3589X
 	bool "TC3589X GPIOs"
 	depends on MFD_TC3589X
