@@ -198,6 +198,9 @@ config TANGO_IRQ
 	select IRQ_DOMAIN
 	select GENERIC_IRQ_CHIP
 
+config TACNA_IRQ
+	bool
+
 config TB10X_IRQC
 	bool
 	select IRQ_DOMAIN
