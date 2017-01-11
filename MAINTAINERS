@@ -2817,8 +2817,10 @@ F:	Documentation/devicetree/bindings/pinctrl/cirrus,tacna-pinctrl.txt
 F:	drivers/mfd/cs*
 F:	drivers/mfd/tacna*
 F:	drivers/gpio/gpio-tacna*
+F:	drivers/irqchip/irq-tacna*
 F:	drivers/pinctrl/pinctrl-tacna*
 F:	include/linux/mfd/tacna/*
+F:	include/linux/irqchip/irq-tacna*
 
 CLEANCACHE API
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
