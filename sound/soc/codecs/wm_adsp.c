@@ -2572,8 +2572,6 @@ static void wm_adsp2_boot_work(struct work_struct *work)
 	if (ret != 0)
 		goto err_ena;
 
-	dsp->booted = true;
-
 	switch (dsp->rev) {
 	case 0:
 		/* Turn DSP back off until we are ready to run */
@@ -2585,6 +2583,8 @@ static void wm_adsp2_boot_work(struct work_struct *work)
 	default:
 		break;
 	}
+
+	dsp->booted = true;
 
 	mutex_unlock(&dsp->pwr_lock);
 
@@ -2715,13 +2715,13 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		if (ret != 0)
 			goto err;
 
-		dsp->running = true;
-
 		if (wm_adsp_fw[dsp->fw].num_caps != 0) {
 			ret = wm_adsp_buffer_init(dsp);
 			if (ret < 0)
 				goto err;
 		}
+
+		dsp->running = true;
 
 		mutex_unlock(&dsp->pwr_lock);
 
