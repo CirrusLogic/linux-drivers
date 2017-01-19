@@ -1421,7 +1421,7 @@ static int madera_hpdet_read(struct madera_extcon_info *info)
 		return ret;
 	}
 
-	if (!(val & MADERA_HP_DONE_B)) {
+	if (!(val & MADERA_HP_DONE)) {
 		dev_warn(madera->dev, "HPDET did not complete: %x\n", val);
 		return -EAGAIN;
 	}
@@ -1449,7 +1449,7 @@ static int madera_hpdet_read(struct madera_extcon_info *info)
 		break;
 	}
 
-	val &= MADERA_HP_LVL_B_MASK;
+	val &= MADERA_HP_LVL_MASK;
 	/* Convert to ohms, the value is in 0.5 ohm increments */
 	val /= 2;
 
