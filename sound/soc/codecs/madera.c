@@ -3603,14 +3603,17 @@ static int madera_hw_params(struct snd_pcm_substream *substream,
 	int chan_limit = madera->pdata.codec.max_channels_clocked[dai->id - 1];
 	int tdm_width = priv->tdm_width[dai->id - 1];
 	int tdm_slots = priv->tdm_slots[dai->id - 1];
-	int bclk, lrclk, wl, frame, bclk_target;
+	int bclk, lrclk, wl, frame, bclk_target, num_rates;
 	bool reconfig;
 	unsigned int aif_tx_state = 0, aif_rx_state = 0;
 
-	if (params_rate(params) % 4000)
+	if (params_rate(params) % 4000) {
 		rates = &madera_44k1_bclk_rates[0];
-	else
+		num_rates = ARRAY_SIZE(madera_44k1_bclk_rates);
+	} else {
 		rates = &madera_48k_bclk_rates[0];
+		num_rates = ARRAY_SIZE(madera_48k_bclk_rates);
+	}
 
 	wl = snd_pcm_format_width(params_format(params));
 
@@ -3639,14 +3642,14 @@ static int madera_hw_params(struct snd_pcm_substream *substream,
 		bclk_target *= channels + 1;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(madera_44k1_bclk_rates); i++) {
+	for (i = 0; i < num_rates; i++) {
 		if (rates[i] >= bclk_target &&
 		    rates[i] % params_rate(params) == 0) {
 			bclk = i;
 			break;
 		}
 	}
-	if (i == ARRAY_SIZE(madera_44k1_bclk_rates)) {
+	if (i == num_rates) {
 		madera_aif_err(dai, "Unsupported sample rate %dHz\n",
 				params_rate(params));
 		return -EINVAL;
