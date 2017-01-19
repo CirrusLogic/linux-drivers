@@ -1762,11 +1762,39 @@ void madera_hpdet_restart(struct madera_extcon_info *info)
 }
 EXPORT_SYMBOL_GPL(madera_hpdet_restart);
 
+static int madera_hpdet_wait(struct madera_extcon_info *info)
+{
+	struct madera *madera = info->madera;
+	unsigned int val;
+	int i, ret;
+
+	for (i = 0; i < 15; i++) {
+		ret = regmap_read(madera->regmap, MADERA_HEADPHONE_DETECT_2,
+				  &val);
+		if (ret) {
+			dev_err(madera->dev, "Failed to read HPDET state: %d\n",
+				ret);
+			return ret;
+		}
+
+		if (val & MADERA_HP_DONE)
+			return 0;
+
+		msleep(20);
+	}
+
+	dev_err(madera->dev, "HPDET did not appear to complete\n");
+	return -ETIMEDOUT;
+}
+
 void madera_hpdet_stop(struct madera_extcon_info *info)
 {
 	struct madera *madera = info->madera;
 
 	dev_dbg(madera->dev, "Stopping HPDET\n");
+
+	/* Wait for any running detect to finish */
+	madera_hpdet_wait(info);
 
 	/* Reset back to starting range */
 	madera_hpdet_stop_micd(info);
