@@ -863,8 +863,8 @@ static void madera_extcon_hp_clamp(struct madera_extcon_info *info,
 				"Failed to set EDRE Manual: %d\n", ret);
 	}
 
-	dev_dbg(madera->dev, "%sing clamp mask=0x%x val=0x%x\n",
-		clamp ? "Set" : "Clear", mask, val);
+	dev_dbg(madera->dev, "%s clamp mask=0x%x val=0x%x\n",
+		clamp ? "Setting" : "Clearing", mask, val);
 
 	switch (madera->type) {
 	case CS47L35:
