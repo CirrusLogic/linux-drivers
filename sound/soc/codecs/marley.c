@@ -357,8 +357,9 @@ static int marley_put_demux(struct snd_kcontrol *kcontrol,
 		restore_out = false;
 
 	if (!ep_sel && arizona->hpdet_clamp) {
-		ret = regmap_write(arizona->regmap, CLEARWATER_EDRE_MANUAL,
-				   0x3);
+		ret = regmap_update_bits(arizona->regmap,
+					 CLEARWATER_EDRE_MANUAL,
+					 0x3, 0x3);
 		if (ret)
 			dev_warn(arizona->dev,
 				 "Failed to set EDRE Manual: %d\n", ret);
@@ -411,7 +412,9 @@ static int marley_put_demux(struct snd_kcontrol *kcontrol,
 	 * to the proper value
 	 */
 	if (ep_sel && !demux_change_ret) {
-		ret = regmap_write(arizona->regmap, CLEARWATER_EDRE_MANUAL, 0);
+		ret = regmap_update_bits(arizona->regmap,
+					 CLEARWATER_EDRE_MANUAL,
+					 0x3, 0);
 		if (ret)
 			dev_warn(arizona->dev,
 				 "Failed to restore EDRE Manual: %d\n", ret);
