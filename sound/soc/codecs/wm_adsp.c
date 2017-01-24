@@ -2555,6 +2555,7 @@ static int wm_adsp2_ena(struct wm_adsp *dsp)
 		adsp_err(dsp, "Failed to start DSP RAM\n");
 		return -EBUSY;
 	}
+
 	adsp_dbg(dsp, "RAM ready after %d polls\n", count);
 
 	return 0;
@@ -2693,7 +2694,6 @@ int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		wm_adsp2_set_dspclk(dsp, freq);
-
 		queue_work(system_unbound_wq, &dsp->boot_work);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
