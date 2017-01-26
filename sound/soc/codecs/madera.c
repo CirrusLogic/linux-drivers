@@ -4891,9 +4891,8 @@ static int madera_fllhj_apply(struct madera_fll *fll, int fin)
 
 	while (ratio / fbdiv < min_n) {
 		fbdiv /= 2;
-		if (fbdiv < min_n) {
-			madera_fll_err(fll, "FBDIV (%u) < minimum N (%u)\n",
-				       fbdiv, min_n);
+		if (fbdiv < 1) {
+			madera_fll_err(fll, "FBDIV (%d) must be >= 1\n", fbdiv);
 			return -EINVAL;
 		}
 	}
