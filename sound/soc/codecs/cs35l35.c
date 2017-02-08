@@ -499,6 +499,7 @@ static int cs35l35_pcm_hw_params(struct snd_pcm_substream *substream,
 		default:
 			dev_err(codec->dev, "Unsupported Width %d\n",
 				params_width(params));
+			return -EINVAL;
 		}
 		regmap_update_bits(cs35l35->regmap,
 				CS35L35_AUDIN_DEPTH_CTL,
