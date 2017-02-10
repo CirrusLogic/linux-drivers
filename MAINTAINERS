@@ -3400,8 +3400,10 @@ W:	https://github.com/CirrusLogic/linux-drivers/wiki
 S:	Maintained
 F:	sound/soc/codecs/cs*
 F:	Documentation/devicetree/bindings/mfd/tacna.txt
+F:	Documentation/devicetree/bindings/pinctrl/cirrus,tacna-pinctrl.txt
 F:	drivers/mfd/cs*
 F:	drivers/mfd/tacna*
+F:	drivers/pinctrl/pinctrl-tacna*
 F:	include/linux/mfd/tacna/*
 
 CIRRUS LOGIC EP93XX ETHERNET DRIVER
