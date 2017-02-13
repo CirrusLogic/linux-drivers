@@ -176,11 +176,10 @@ static int cs35l35_sdin_event(struct snd_soc_dapm_widget *w,
 	break;
 	case SND_SOC_DAPM_POST_PMD:
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
-					  CS35L35_PDN_ALL_MASK, 1);
-		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
 					CS35L35_DISCHG_FILT_MASK,
 					1 << CS35L35_DISCHG_FILT_SHIFT);
-
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
+					  CS35L35_PDN_ALL_MASK, 1);
 		ret = wait_for_completion_timeout(&cs35l35->pdn_done,
 							msecs_to_jiffies(100));
 		if (ret == 0) {
