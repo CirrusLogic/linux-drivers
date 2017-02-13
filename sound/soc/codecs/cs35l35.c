@@ -509,18 +509,19 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 					CS35L35_ADVIN_DEPTH_SHIFT);
 		}
 	}
-	/*
-	 * We have to take the SCLK to derive num sclks
-	 * to configure the CLOCK_CTL3 register correctly
-	 */
-	if ((cs35l35->sclk / srate) % 4) {
-		dev_err(codec->dev, "Unsupported sclk/fs ratio %d:%d\n",
-					cs35l35->sclk, srate);
-		return -EINVAL;
-	}
-	sp_sclks = ((cs35l35->sclk / srate) / 4) - 1;
 
 	if (cs35l35->i2s_mode) {
+
+		/* We have to take the SCLK to derive num sclks
+		 * to configure the CLOCK_CTL3 register correctly
+		 */
+		if ((cs35l35->sclk / srate) % 4) {
+			dev_err(codec->dev, "Unsupported sclk/fs ratio %d:%d\n",
+					cs35l35->sclk, srate);
+			return -EINVAL;
+		}
+		sp_sclks = ((cs35l35->sclk / srate) / 4) - 1;
+
 		/* Only certain ratios are supported in I2S Slave Mode */
 		if (cs35l35->slave_mode) {
 			switch (sp_sclks) {
