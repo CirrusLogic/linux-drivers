@@ -605,7 +605,7 @@ static int cs35l35_dai_set_sysclk(struct snd_soc_dai *dai,
 	struct snd_soc_codec *codec = dai->codec;
 	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
 
-	/* Need the SCLK Frequency regardless of sysclk source */
+	/* Need the SCLK Frequency regardless of sysclk source for I2S */
 	cs35l35->sclk = freq;
 
 	return 0;
@@ -622,7 +622,6 @@ static const struct snd_soc_dai_ops cs35l35_pdm_ops = {
 	.startup = cs35l35_pdm_startup,
 	.set_fmt = cs35l35_set_dai_fmt,
 	.hw_params = cs35l35_hw_params,
-	.set_sysclk = cs35l35_dai_set_sysclk,
 };
 
 static struct snd_soc_dai_driver cs35l35_dai[] = {
