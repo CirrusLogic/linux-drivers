@@ -552,15 +552,7 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 			return ret;
 		}
 	}
-	if (cs35l35->pdm_mode) {
-		regmap_update_bits(cs35l35->regmap, CS35L35_AMP_INP_DRV_CTL,
-					CS35L35_PDM_MODE_MASK,
-					1 << CS35L35_PDM_MODE_SHIFT);
-	} else {
-		regmap_update_bits(cs35l35->regmap, CS35L35_AMP_INP_DRV_CTL,
-					CS35L35_PDM_MODE_MASK,
-					0 << CS35L35_PDM_MODE_SHIFT);
-	}
+
 	return ret;
 }
 
@@ -576,8 +568,16 @@ static const struct snd_pcm_hw_constraint_list cs35l35_constraints = {
 static int cs35l35_pcm_startup(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
+	struct snd_soc_codec *codec = dai->codec;
+	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
+
 	snd_pcm_hw_constraint_list(substream->runtime, 0,
 				SNDRV_PCM_HW_PARAM_RATE, &cs35l35_constraints);
+
+	regmap_update_bits(cs35l35->regmap, CS35L35_AMP_INP_DRV_CTL,
+					CS35L35_PDM_MODE_MASK,
+					0 << CS35L35_PDM_MODE_SHIFT);
+
 	return 0;
 }
 
@@ -593,9 +593,17 @@ static const struct snd_pcm_hw_constraint_list cs35l35_pdm_constraints = {
 static int cs35l35_pdm_startup(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
+	struct snd_soc_codec *codec = dai->codec;
+	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
+
 	snd_pcm_hw_constraint_list(substream->runtime, 0,
 				SNDRV_PCM_HW_PARAM_RATE,
 				&cs35l35_pdm_constraints);
+
+	regmap_update_bits(cs35l35->regmap, CS35L35_AMP_INP_DRV_CTL,
+					CS35L35_PDM_MODE_MASK,
+					1 << CS35L35_PDM_MODE_SHIFT);
+
 	return 0;
 }
 
