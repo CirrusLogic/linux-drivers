@@ -220,9 +220,7 @@ static int cs35l35_main_amp_event(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		usleep_range(5000, 5100);
-		/* If PDM mode we must use VP
-		 * for Voltage control
-		 */
+		/* If in PDM mode we must use VP for Voltage control */
 		if (cs35l35->pdm_mode)
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_BST_CVTR_V_CTL,
@@ -252,7 +250,8 @@ static int cs35l35_main_amp_event(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		usleep_range(5000, 5100);
-		/* If PDM mode we should switch back to pdata value
+		/*
+		 * If PDM mode we should switch back to pdata value
 		 * for Voltage control when we go down
 		 */
 		if (cs35l35->pdm_mode)
@@ -457,12 +456,11 @@ static int cs35l35_pcm_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	/* Rev A0 Errata
-	 *
+	/*
+	 * Rev A0 Errata
 	 * When configured for the weak-drive detection path (CH_WKFET_DIS = 0)
 	 * the Class H algorithm does not enable weak-drive operation for
 	 * nonzero values of CH_WKFET_DELAY if SP_RATE = 01 or 10
-	 *
 	 */
 	errata_chk = clk_ctl & CS35L35_SP_RATE_MASK;
 
@@ -479,10 +477,10 @@ static int cs35l35_pcm_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
-/*
- * You can pull more Monitor data from the SDOUT pin than going to SDIN
- * Just make sure your SCLK is fast enough to fill the frame
- */
+	/*
+	 * You can pull more Monitor data from the SDOUT pin than going to SDIN
+	 * Just make sure your SCLK is fast enough to fill the frame
+	 */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		switch (params_width(params)) {
 		case 8:
@@ -512,9 +510,10 @@ static int cs35l35_pcm_hw_params(struct snd_pcm_substream *substream,
 					CS35L35_ADVIN_DEPTH_SHIFT);
 		}
 	}
-/* We have to take the SCLK to derive num sclks
- * to configure the CLOCK_CTL3 register correctly
- */
+	/*
+	 * We have to take the SCLK to derive num sclks
+	 * to configure the CLOCK_CTL3 register correctly
+	 */
 	if ((cs35l35->sclk / srate) % 4) {
 		dev_err(codec->dev, "Unsupported sclk/fs ratio %d:%d\n",
 					cs35l35->sclk, srate);
@@ -607,7 +606,7 @@ static int cs35l35_dai_set_sysclk(struct snd_soc_dai *dai,
 	struct snd_soc_codec *codec = dai->codec;
 	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
 
-	/* Need the SCLK Frequency */
+	/* Need the SCLK Frequency regardless of sysclk source */
 	cs35l35->sclk = freq;
 
 	return 0;

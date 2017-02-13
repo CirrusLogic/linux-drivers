@@ -24,7 +24,6 @@ struct classh_cfg {
 	 *
 	 * Section 4.3 of the datasheet
 	 */
-	/* Internal ClassH Algorithm  */
 	bool classh_bst_override;
 	bool classh_algo_enable;
 	int classh_bst_max_limit;
