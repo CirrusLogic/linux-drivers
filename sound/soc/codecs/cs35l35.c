@@ -1136,7 +1136,8 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 		pdata->bst_vctl = val32;
 
 	if (of_property_read_u32(np, "cirrus,boost-ipk-milliamp", &val32) >= 0)
-		pdata->bst_ipk = val32;
+		/* 0 is not default but valid so keep it */
+		pdata->bst_ipk = val32 | 0x80000000;
 
 	if (of_property_read_u32(np, "cirrus,sp-drv-strength", &val32) >= 0)
 		pdata->sp_drv_str = val32;
@@ -1164,31 +1165,31 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 
 		if (of_property_read_u32(classh, "cirrus,classh-bst-max-limit",
 					&val32) >= 0)
-			classh_config->classh_bst_max_limit = val32;
+			classh_config->classh_bst_max_limit = val32 | 0x80000000;
 		if (of_property_read_u32(classh, "cirrus,classh-mem-depth",
 					&val32) >= 0)
-			classh_config->classh_mem_depth = val32;
+			classh_config->classh_mem_depth = val32 | 0x80000000;
 		if (of_property_read_u32(classh, "cirrus,classh-release-rate",
 					&val32) >= 0)
 			classh_config->classh_release_rate = val32;
 		if (of_property_read_u32(classh, "cirrus,classh-headroom",
 					&val32) >= 0)
-			classh_config->classh_headroom = val32;
+			classh_config->classh_headroom = val32 | 0x80000000;
 		if (of_property_read_u32(classh, "cirrus,classh-wk-fet-disable",
 					&val32) >= 0)
 			classh_config->classh_wk_fet_disable = val32;
 		if (of_property_read_u32(classh, "cirrus,classh-wk-fet-delay",
 					&val32) >= 0)
-			classh_config->classh_wk_fet_delay = val32;
+			classh_config->classh_wk_fet_delay = val32 | 0x80000000;
 		if (of_property_read_u32(classh, "cirrus,classh-wk-fet-thld",
 					&val32) >= 0)
 			classh_config->classh_wk_fet_thld = val32;
 		if (of_property_read_u32(classh, "cirrus,classh-vpch-auto",
 					&val32) >= 0)
-			classh_config->classh_vpch_auto = val32;
+			classh_config->classh_vpch_auto = val32 | 0x80000000;
 		if (of_property_read_u32(classh, "cirrus,classh-vpch-rate",
 					&val32) >= 0)
-			classh_config->classh_vpch_rate = val32;
+			classh_config->classh_vpch_rate = val32 | 0x80000000;
 		if (of_property_read_u32(classh, "cirrus,classh-vpch-man",
 					&val32) >= 0)
 			classh_config->classh_vpch_man = val32;
