@@ -1343,8 +1343,10 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 	/* returning NULL can be an option if in stereo mode */
 	cs35l35->reset_gpio = devm_gpiod_get_optional(&i2c_client->dev,
 		"reset", GPIOD_OUT_LOW);
-	if (IS_ERR(cs35l35->reset_gpio))
-		return PTR_ERR(cs35l35->reset_gpio);
+	if (IS_ERR(cs35l35->reset_gpio)) {
+		ret = PTR_ERR(cs35l35->reset_gpio);
+		goto err;
+	}
 
 	if (cs35l35->reset_gpio)
 		gpiod_set_value_cansleep(cs35l35->reset_gpio, 1);
@@ -1355,7 +1357,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 				    ARRAY_SIZE(cs35l35_errata_patch));
 	if (ret < 0) {
 		dev_err(&i2c_client->dev, "Failed to apply errata patch\n");
-		return ret;
+		goto err;
 	}
 
 	ret = devm_request_threaded_irq(&i2c_client->dev, i2c_client->irq, NULL,
