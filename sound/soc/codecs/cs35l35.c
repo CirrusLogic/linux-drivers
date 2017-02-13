@@ -183,7 +183,7 @@ static int cs35l35_sdin_event(struct snd_soc_dapm_widget *w,
 		ret = wait_for_completion_timeout(&cs35l35->pdn_done,
 							msecs_to_jiffies(100));
 		if (ret == 0) {
-			pr_err("TIMEOUT PDN_DONE did not complete in 100ms\n");
+			dev_err(codec->dev, "TIMEOUT PDN_DONE did not complete in 100ms\n");
 			ret = -ETIMEDOUT;
 		}
 
@@ -192,7 +192,7 @@ static int cs35l35_sdin_event(struct snd_soc_dapm_widget *w,
 					1 << CS35L35_MCLK_DIS_SHIFT);
 	break;
 	default:
-		pr_err("Invalid event = 0x%x\n", event);
+		dev_err(codec->dev, "Invalid event = 0x%x\n", event);
 		ret = -EINVAL;
 	}
 	return ret;
@@ -262,7 +262,7 @@ static int cs35l35_main_amp_event(struct snd_soc_dapm_widget *w,
 
 		break;
 	default:
-		pr_err("Invalid event = 0x%x\n", event);
+		dev_err(codec->dev, "Invalid event = 0x%x\n", event);
 	}
 	return 0;
 }
@@ -427,7 +427,7 @@ static int cs35l35_get_clk_config(int sysclk, int srate)
 	return -EINVAL;
 }
 
-static int cs35l35_pcm_hw_params(struct snd_pcm_substream *substream,
+static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
@@ -614,14 +614,14 @@ static int cs35l35_dai_set_sysclk(struct snd_soc_dai *dai,
 static const struct snd_soc_dai_ops cs35l35_ops = {
 	.startup = cs35l35_pcm_startup,
 	.set_fmt = cs35l35_set_dai_fmt,
-	.hw_params = cs35l35_pcm_hw_params,
+	.hw_params = cs35l35_hw_params,
 	.set_sysclk = cs35l35_dai_set_sysclk,
 };
 
 static const struct snd_soc_dai_ops cs35l35_pdm_ops = {
 	.startup = cs35l35_pdm_startup,
 	.set_fmt = cs35l35_set_dai_fmt,
-	.hw_params = cs35l35_pcm_hw_params,
+	.hw_params = cs35l35_hw_params,
 	.set_sysclk = cs35l35_dai_set_sysclk,
 };
 
@@ -718,6 +718,8 @@ static int cs35l35_codec_probe(struct snd_soc_codec *codec)
 	struct classh_cfg *classh = &cs35l35->pdata.classh_algo;
 	struct monitor_cfg *monitor_config = &cs35l35->pdata.mon_cfg;
 	int ret;
+
+	cs35l35->codec = codec;
 
 	/* Set Platform Data */
 	if (cs35l35->pdata.bst_vctl)
@@ -976,6 +978,7 @@ static struct regmap_config cs35l35_regmap = {
 static irqreturn_t cs35l35_irq(int irq, void *data)
 {
 	struct cs35l35_private *cs35l35 = data;
+	struct snd_soc_codec *codec = cs35l35->codec;
 	unsigned int sticky1, sticky2, sticky3, sticky4;
 	unsigned int mask1, mask2, mask3, mask4, current1;
 
@@ -1003,7 +1006,7 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 
 	/* handle the interrupts */
 	if (sticky1 & CS35L35_CAL_ERR) {
-		pr_err("%s : Calibration Error\n", __func__);
+		dev_crit(codec->dev, "Calibration Error\n");
 
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_CAL_ERR)) {
@@ -1022,9 +1025,10 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky1 & CS35L35_AMP_SHORT) {
+		dev_crit(codec->dev, "AMP Short Error\n");
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_AMP_SHORT)) {
-			pr_debug("%s :Amp short error release\n", __func__);
+			dev_dbg(codec->dev, "Amp short error release\n");
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_PROT_RELEASE_CTL,
 					CS35L35_SHORT_RLS, 0);
@@ -1039,12 +1043,11 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky1 & CS35L35_OTW) {
-		pr_err("%s : Over temperature warning\n", __func__);
+		dev_warn(codec->dev, "Over temperature warning\n");
 
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_OTW)) {
-			pr_debug("%s : Over temperature warning release\n",
-				__func__);
+			dev_dbg(codec->dev, "Over temperature warn release\n");
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_PROT_RELEASE_CTL,
 					CS35L35_OTW_RLS, 0);
@@ -1059,12 +1062,10 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky1 & CS35L35_OTE) {
-		pr_crit("%s : Over temperature error\n", __func__);
-
+		dev_crit(codec->dev, "Over temperature error\n");
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_OTE)) {
-			pr_debug("%s : Over temperature error release\n",
-				__func__);
+			dev_dbg(codec->dev, "Over temperature error release\n");
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_PROT_RELEASE_CTL,
 					CS35L35_OTE_RLS, 0);
@@ -1079,7 +1080,7 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky3 & CS35L35_BST_HIGH) {
-		pr_crit("%s : VBST error: powering off!\n", __func__);
+		dev_crit(codec->dev, "VBST error: powering off!\n");
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
 			CS35L35_PDN_AMP, CS35L35_PDN_AMP);
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
@@ -1087,7 +1088,7 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky3 & CS35L35_LBST_SHORT) {
-		pr_crit("%s : LBST error: powering off!\n", __func__);
+		dev_crit(codec->dev, "LBST error: powering off!\n");
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
 			CS35L35_PDN_AMP, CS35L35_PDN_AMP);
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
@@ -1095,13 +1096,13 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky2 & CS35L35_VPBR_ERR)
-		pr_err("%s : Error: Reactive Brownout\n", __func__);
+		dev_dbg(codec->dev, "Error: Reactive Brownout\n");
 
 	if (sticky4 & CS35L35_VMON_OVFL)
-		pr_err("%s : Error: VMON overflow\n", __func__);
+		dev_dbg(codec->dev, "Error: VMON overflow\n");
 
 	if (sticky4 & CS35L35_IMON_OVFL)
-		pr_err("%s : Error: IMON overflow\n", __func__);
+		dev_dbg(codec->dev, "Error: IMON overflow\n");
 
 	return IRQ_HANDLED;
 }
