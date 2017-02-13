@@ -1340,7 +1340,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		return ret;
 	}
 
-	/* returning NULL can be an option if in stereo mode */
+	/* returning NULL can be valid if in stereo mode */
 	cs35l35->reset_gpio = devm_gpiod_get_optional(&i2c_client->dev,
 		"reset", GPIOD_OUT_LOW);
 	if (IS_ERR(cs35l35->reset_gpio)) {
@@ -1348,8 +1348,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		goto err;
 	}
 
-	if (cs35l35->reset_gpio)
-		gpiod_set_value_cansleep(cs35l35->reset_gpio, 1);
+	gpiod_set_value_cansleep(cs35l35->reset_gpio, 1);
 
 	init_completion(&cs35l35->pdn_done);
 
