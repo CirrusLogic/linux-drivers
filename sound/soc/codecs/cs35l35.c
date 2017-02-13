@@ -1,7 +1,7 @@
 /*
  * cs35l35.c -- CS35L35 ALSA SoC audio driver
  *
- * Copyright 2016 Cirrus Logic, Inc.
+ * Copyright 2017 Cirrus Logic, Inc.
  *
  * Author: Brian Austin <brian.austin@cirrus.com>
  *
@@ -19,7 +19,6 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
-#include <linux/workqueue.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
