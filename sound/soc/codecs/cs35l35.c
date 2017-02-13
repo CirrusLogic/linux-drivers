@@ -511,7 +511,6 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (cs35l35->i2s_mode) {
-
 		/* We have to take the SCLK to derive num sclks
 		 * to configure the CLOCK_CTL3 register correctly
 		 */
@@ -698,7 +697,7 @@ static int cs35l35_codec_set_sysclk(struct snd_soc_codec *codec,
 		cs35l35->sysclk = freq;
 		break;
 	default:
-		dev_err(codec->dev, "Invalid CLK Frequency\n");
+		dev_err(codec->dev, "Invalid CLK Frequency Input : %d\n", freq);
 		return -EINVAL;
 	}
 
