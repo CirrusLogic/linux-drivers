@@ -1,4 +1,4 @@
-CS35L35 Speaker Amplifier
+CS35L35 Boosted Speaker Amplifier
 
 Required properties:
 
@@ -17,7 +17,7 @@ Required properties:
     for further information relating to interrupt properties)
 
 Optional properties:
-  - cirrus,reset-gpios : gpio used to reset the amplifier
+  - reset-gpios : gpio used to reset the amplifier
 
   - cirrus,stereo-config : Boolean to determine if there are 2 AMPs for a
   Stereo configuration
@@ -42,16 +42,16 @@ Optional properties:
   powers down with a rectification FET On or Off. If VSPK is supplied
   externally then FET is off.
 
-  - cirrus,boost-ctl-millivolt : Boost Converter control word. Step Size of 100mV
-  0x00 = (Default) VP
-  0x01 = 2600mV
-  0x41 = 9000mV
+  - cirrus,boost-ctl-millivolt : Boost Voltage Value.  Configures the boost
+    converter's output voltage in mV. The range is from 2600mV to 9000mV with
+    increments of 100mV.
+    (Default) VP
 
-  - cirrus,boost-ipk-milliamp : Boost-converter peak current limit.
+  - cirrus,boost-peak-milliamp : Boost-converter peak current limit in mA.
   Configures the peak current by monitoring the current through the boost FET.
-  Step size: 112mA
-  0x00 = 1680mA
-  0x19 = 4480mA
+  Range starts at 1680mA and goes to a maximum of 4480mA with increments of
+  110mA.
+  (Default) 2.46 Amps
 
   - cirrus,amp-gain-zc : Boolean to determine if to use Amplifier gain-change
   zero-cross
@@ -137,13 +137,12 @@ cs35l35: cs35l35@20 {
 	reset-gpios = <&axi_gpio 54 0>;
 	interrupt-parent = <&gpio8>;
 	interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
-	cirrus,boost-ctl = <0x41>;
+	cirrus,boost-ctl-millivolt = <9000>;
 
-	cirrus,stereo-config {
-		cirrus,audio-channel = <0x00>;
-		cirrus,advisory-channel = <0x01>;
-		cirrus,shared-boost;
-	};
+	cirrus,stereo-config;
+	cirrus,audio-channel = <0x00>;
+	cirrus,advisory-channel = <0x01>;
+	cirrus,shared-boost;
 
 	cirrus,classh-internal-algo {
 		cirrus,classh-bst-overide;
