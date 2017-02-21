@@ -143,6 +143,13 @@ config EXTCON_SM5502
 	  Silicon Mitus SM5502. The SM5502 is a USB port accessory
 	  detector and switch.
 
+config EXTCON_TACNA
+	tristate "Cirrus Logic Tacna codec support"
+	depends on MFD_TACNA && INPUT && SND_SOC
+	help
+	  Say Y here to enable support for external accessory detection
+	  on Cirrus Logic Tacna-class codecs.
+
 config EXTCON_USB_GPIO
 	tristate "USB GPIO extcon support"
 	depends on GPIOLIB || COMPILE_TEST

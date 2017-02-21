@@ -13,12 +13,9 @@
 
 #include <linux/kernel.h>
 
+#include <linux/extcon/extcon-tacna-pdata.h>
 #include <linux/irqchip/irq-tacna-pdata.h>
 #include <linux/regulator/arizona-micsupp.h>
-/*
-#include <linux/extcon/extcon-madera-pdata.h>
-*/
-#include <linux/irqchip/irq-tacna-pdata.h>
 #include <sound/tacna-pdata.h>
 
 #define CS47L94_NUM_GPIOS		23
@@ -92,7 +89,7 @@ struct tacna_pdata {
 	u32 gpsw[TACNA_MAX_GPSW];
 
 	/** Accessory detection configurations */
-	/*struct tacna_accdet_pdata accdet[TACNA_MAX_ACCESSORY];*/
+	struct tacna_accdet_pdata accdet[TACNA_MAX_ACCESSORY];
 };
 
 #endif
