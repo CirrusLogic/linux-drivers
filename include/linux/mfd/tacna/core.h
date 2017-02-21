@@ -25,7 +25,6 @@ enum tacna_type {
 
 #define TACNA_MAX_CORE_SUPPLIES		2
 #define TACNA_MAX_GPIOS			23
-#define TACNA_MAX_ACCESSORY		2
 
 /* Notifier events */
 #define TACNA_NOTIFY_VOICE_TRIGGER	0x1
