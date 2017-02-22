@@ -571,6 +571,9 @@ static int cs35l35_pcm_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
 
+	if (!substream->runtime)
+		return 0;
+
 	snd_pcm_hw_constraint_list(substream->runtime, 0,
 				SNDRV_PCM_HW_PARAM_RATE, &cs35l35_constraints);
 
@@ -595,6 +598,9 @@ static int cs35l35_pdm_startup(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
+
+	if (!substream->runtime)
+		return 0;
 
 	snd_pcm_hw_constraint_list(substream->runtime, 0,
 				SNDRV_PCM_HW_PARAM_RATE,
