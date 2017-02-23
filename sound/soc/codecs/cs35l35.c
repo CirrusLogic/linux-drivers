@@ -180,6 +180,9 @@ static int cs35l35_sdin_event(struct snd_soc_dapm_widget *w,
 					1 << CS35L35_DISCHG_FILT_SHIFT);
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
 					  CS35L35_PDN_ALL_MASK, 1);
+
+		reinit_completion(&cs35l35->pdn_done);
+
 		ret = wait_for_completion_timeout(&cs35l35->pdn_done,
 							msecs_to_jiffies(100));
 		if (ret == 0) {
