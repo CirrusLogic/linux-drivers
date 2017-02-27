@@ -1138,12 +1138,27 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 	pdata->bst_pdn_fet_on = of_property_read_bool(np,
 					"cirrus,boost-pdn-fet-on");
 
-	if (of_property_read_u32(np, "cirrus,boost-ctl-millivolt", &val32) >= 0)
-		pdata->bst_vctl = val32;
+	ret = of_property_read_u32(np, "cirrus,boost-ctl-millivolt", &val32);
+	if (ret >= 0) {
+		if (val32 < 2600 || val32 > 9000) {
+			dev_err(&i2c_client->dev,
+				"Invalid Boost Voltage %d mV\n", val32);
+			return -EINVAL;
+		}
 
-	if (of_property_read_u32(np, "cirrus,boost-ipk-milliamp", &val32) >= 0)
-		/* 0 is not default but valid so keep it */
-		pdata->bst_ipk = val32 | 0x80000000;
+		pdata->bst_vctl = ((val32 - 2600) / 100) + 1;
+	}
+
+	ret = of_property_read_u32(np, "cirrus,boost-peak-milliamp", &val32);
+	if (ret >= 0) {
+		if (val32 < 1680 || val32 > 4480) {
+			dev_err(&i2c_client->dev,
+				"Invalid Boost Peak Current %u mA\n", val32);
+			return -EINVAL;
+		}
+
+		pdata->bst_ipk = (val32 - 1680) / 110;
+	}
 
 	if (of_property_read_u32(np, "cirrus,sp-drv-strength", &val32) >= 0)
 		pdata->sp_drv_str = val32;
