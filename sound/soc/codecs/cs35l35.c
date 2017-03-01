@@ -39,6 +39,12 @@
 
 #include "cs35l35.h"
 
+/*
+ * Some fields take zero as a valid value so use a high bit flag that won't
+ * get written to the device to mark those.
+ */
+#define CS35L35_VALID_PDATA 0x80000000
+
 static const struct reg_default cs35l35_reg[] = {
 	{CS35L35_PWRCTL1,		0x01},
 	{CS35L35_PWRCTL2,		0x11},
@@ -1169,11 +1175,15 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 	pdata->stereo = of_property_read_bool(np, "cirrus,stereo-config");
 
 	if (pdata->stereo) {
-		if (of_property_read_u32(np, "cirrus,audio-channel", &val32) >= 0)
+		ret = of_property_read_u32(np, "cirrus,audio-channel", &val32);
+		if (ret >= 0)
 			pdata->aud_channel = val32;
-		if (of_property_read_u32(np, "cirrus,advisory-channel",
-					&val32) >= 0)
+
+		ret = of_property_read_u32(np, "cirrus,advisory-channel",
+					   &val32);
+		if (ret >= 0)
 			pdata->adv_channel = val32;
+
 		pdata->shared_bst = of_property_read_bool(np,
 						"cirrus,shared-boost");
 	}
@@ -1187,35 +1197,76 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 		classh_config->classh_bst_override =
 			of_property_read_bool(np, "cirrus,classh-bst-overide");
 
-		if (of_property_read_u32(classh, "cirrus,classh-bst-max-limit",
-					&val32) >= 0)
-			classh_config->classh_bst_max_limit = val32 | 0x80000000;
-		if (of_property_read_u32(classh, "cirrus,classh-mem-depth",
-					&val32) >= 0)
-			classh_config->classh_mem_depth = val32 | 0x80000000;
-		if (of_property_read_u32(classh, "cirrus,classh-release-rate",
-					&val32) >= 0)
+		ret = of_property_read_u32(classh,
+					   "cirrus,classh-bst-max-limit",
+					   &val32);
+		if (ret >= 0) {
+			val32 |= CS35L35_VALID_PDATA;
+			classh_config->classh_bst_max_limit = val32;
+		}
+
+		ret = of_property_read_u32(classh,
+					   "cirrus,classh-bst-max-limit",
+					   &val32);
+		if (ret >= 0) {
+			val32 |= CS35L35_VALID_PDATA;
+			classh_config->classh_bst_max_limit = val32;
+		}
+
+		ret = of_property_read_u32(classh, "cirrus,classh-mem-depth",
+					   &val32);
+		if (ret >= 0) {
+			val32 |= CS35L35_VALID_PDATA;
+			classh_config->classh_mem_depth = val32;
+		}
+
+		ret = of_property_read_u32(classh, "cirrus,classh-release-rate",
+					   &val32);
+		if (ret >= 0)
 			classh_config->classh_release_rate = val32;
-		if (of_property_read_u32(classh, "cirrus,classh-headroom",
-					&val32) >= 0)
-			classh_config->classh_headroom = val32 | 0x80000000;
-		if (of_property_read_u32(classh, "cirrus,classh-wk-fet-disable",
-					&val32) >= 0)
+
+		ret = of_property_read_u32(classh, "cirrus,classh-headroom",
+					   &val32);
+		if (ret >= 0) {
+			val32 |= CS35L35_VALID_PDATA;
+			classh_config->classh_headroom = val32;
+		}
+
+		ret = of_property_read_u32(classh,
+					   "cirrus,classh-wk-fet-disable",
+					   &val32);
+		if (ret >= 0)
 			classh_config->classh_wk_fet_disable = val32;
-		if (of_property_read_u32(classh, "cirrus,classh-wk-fet-delay",
-					&val32) >= 0)
-			classh_config->classh_wk_fet_delay = val32 | 0x80000000;
-		if (of_property_read_u32(classh, "cirrus,classh-wk-fet-thld",
-					&val32) >= 0)
+
+		ret = of_property_read_u32(classh, "cirrus,classh-wk-fet-delay",
+					   &val32);
+		if (ret >= 0) {
+			val32 |= CS35L35_VALID_PDATA;
+			classh_config->classh_wk_fet_delay = val32;
+		}
+
+		ret = of_property_read_u32(classh, "cirrus,classh-wk-fet-thld",
+					   &val32);
+		if (ret >= 0)
 			classh_config->classh_wk_fet_thld = val32;
-		if (of_property_read_u32(classh, "cirrus,classh-vpch-auto",
-					&val32) >= 0)
-			classh_config->classh_vpch_auto = val32 | 0x80000000;
-		if (of_property_read_u32(classh, "cirrus,classh-vpch-rate",
-					&val32) >= 0)
-			classh_config->classh_vpch_rate = val32 | 0x80000000;
-		if (of_property_read_u32(classh, "cirrus,classh-vpch-man",
-					&val32) >= 0)
+
+		ret = of_property_read_u32(classh, "cirrus,classh-vpch-auto",
+					   &val32);
+		if (ret >= 0) {
+			val32 |= CS35L35_VALID_PDATA;
+			classh_config->classh_vpch_auto = val32;
+		}
+
+		ret = of_property_read_u32(classh, "cirrus,classh-vpch-rate",
+					   &val32);
+		if (ret >= 0) {
+			val32 |= CS35L35_VALID_PDATA;
+			classh_config->classh_vpch_rate = val32;
+		}
+
+		ret = of_property_read_u32(classh, "cirrus,classh-vpch-man",
+					   &val32);
+		if (ret >= 0)
 			classh_config->classh_vpch_man = val32;
 	}
 	of_node_put(classh);
