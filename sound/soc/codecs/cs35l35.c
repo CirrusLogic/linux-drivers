@@ -1415,9 +1415,15 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		"reset", GPIOD_OUT_LOW);
 	if (IS_ERR(cs35l35->reset_gpio)) {
 		ret = PTR_ERR(cs35l35->reset_gpio);
-		dev_err(&i2c_client->dev, "Failed to get reset GPIO: %d\n",
-			ret);
-		goto err;
+		if (ret == -EBUSY) {
+			dev_info(&i2c_client->dev,
+				 "Reset line busy, assuming shared reset\n");
+			cs35l35->reset_gpio = NULL;
+		} else {
+			dev_err(&i2c_client->dev,
+				"Failed to get reset GPIO: %d\n", ret);
+			goto err;
+		}
 	}
 
 	gpiod_set_value_cansleep(cs35l35->reset_gpio, 1);
