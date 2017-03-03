@@ -1359,10 +1359,8 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 	cs35l35 = devm_kzalloc(&i2c_client->dev,
 			       sizeof(struct cs35l35_private),
 			       GFP_KERNEL);
-	if (!cs35l35) {
-		dev_err(&i2c_client->dev, "could not allocate codec\n");
+	if (!cs35l35)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(i2c_client, cs35l35);
 	cs35l35->regmap = devm_regmap_init_i2c(i2c_client, &cs35l35_regmap);
@@ -1392,11 +1390,8 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		pdata = devm_kzalloc(&i2c_client->dev,
 				     sizeof(struct cs35l35_platform_data),
 				GFP_KERNEL);
-		if (!pdata) {
-			dev_err(&i2c_client->dev,
-				"could not allocate pdata\n");
+		if (!pdata)
 			return -ENOMEM;
-		}
 		if (i2c_client->dev.of_node) {
 			ret = cs35l35_handle_of_data(i2c_client, pdata);
 			if (ret != 0)
