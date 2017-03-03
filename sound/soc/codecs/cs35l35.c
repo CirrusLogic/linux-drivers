@@ -1424,14 +1424,6 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 
 	init_completion(&cs35l35->pdn_done);
 
-	ret = regmap_register_patch(cs35l35->regmap, cs35l35_errata_patch,
-				    ARRAY_SIZE(cs35l35_errata_patch));
-	if (ret < 0) {
-		dev_err(&i2c_client->dev, "Failed to apply errata patch: %d\n",
-			ret);
-		goto err;
-	}
-
 	ret = devm_request_threaded_irq(&i2c_client->dev, i2c_client->irq, NULL,
 			cs35l35_irq, IRQF_ONESHOT | IRQF_TRIGGER_LOW,
 			"cs35l35", cs35l35);
@@ -1459,6 +1451,14 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 	ret = regmap_read(cs35l35->regmap, CS35L35_REV_ID, &reg);
 	if (ret < 0) {
 		dev_err(&i2c_client->dev, "Get Revision ID failed: %d\n", ret);
+		goto err;
+	}
+
+	ret = regmap_register_patch(cs35l35->regmap, cs35l35_errata_patch,
+				    ARRAY_SIZE(cs35l35_errata_patch));
+	if (ret < 0) {
+		dev_err(&i2c_client->dev, "Failed to apply errata patch: %d\n",
+			ret);
 		goto err;
 	}
 
