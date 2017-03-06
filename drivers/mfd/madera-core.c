@@ -172,7 +172,7 @@ const char *madera_name_from_type(enum madera_type type)
 	case CS47L91:
 		return "CS47L91";
 	case CS47L92:
-		return "CS47L92";
+		return "CS42L92";
 	case CS47L93:
 		return "CS47L93";
 	case WM1840:
@@ -191,6 +191,7 @@ const struct of_device_id madera_of_match[] = {
 	{ .compatible = "cirrus,cs47l90", .data = (void *)CS47L90 },
 	{ .compatible = "cirrus,cs47l91", .data = (void *)CS47L91 },
 	{ .compatible = "cirrus,wm1840", .data = (void *)WM1840 },
+	{ .compatible = "cirrus,cs42l92", .data = (void *)CS47L92 },
 	{ .compatible = "cirrus,cs47l92", .data = (void *)CS47L92 },
 	{ .compatible = "cirrus,cs47l93", .data = (void *)CS47L93 },
 	{},
