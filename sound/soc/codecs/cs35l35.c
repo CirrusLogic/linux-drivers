@@ -179,7 +179,7 @@ static int cs35l35_sdin_event(struct snd_soc_dapm_widget *w,
 					0 << CS35L35_DISCHG_FILT_SHIFT);
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
 					CS35L35_PDN_ALL_MASK, 0);
-	break;
+		break;
 	case SND_SOC_DAPM_POST_PMD:
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
 					CS35L35_DISCHG_FILT_MASK,
@@ -199,7 +199,7 @@ static int cs35l35_sdin_event(struct snd_soc_dapm_widget *w,
 		regmap_update_bits(cs35l35->regmap, CS35L35_CLK_CTL1,
 					CS35L35_MCLK_DIS_MASK,
 					1 << CS35L35_MCLK_DIS_SHIFT);
-	break;
+		break;
 	default:
 		dev_err(codec->dev, "Invalid event = 0x%x\n", event);
 		ret = -EINVAL;
@@ -282,16 +282,16 @@ static DECLARE_TLV_DB_SCALE(dig_vol_tlv, -10200, 50, 0);
 static const struct snd_kcontrol_new cs35l35_aud_controls[] = {
 	SOC_SINGLE_SX_TLV("Digital Audio Volume", CS35L35_AMP_DIG_VOL,
 		      0, 0x34, 0xE4, dig_vol_tlv),
-	SOC_SINGLE_TLV("AMP Audio Gain", CS35L35_AMP_GAIN_AUD_CTL, 0, 19, 0,
+	SOC_SINGLE_TLV("Analog Audio Volume", CS35L35_AMP_GAIN_AUD_CTL, 0, 19, 0,
 			amp_gain_tlv),
-	SOC_SINGLE_TLV("AMP PDM Gain", CS35L35_AMP_GAIN_PDM_CTL, 0, 19, 0,
+	SOC_SINGLE_TLV("PDM Volume", CS35L35_AMP_GAIN_PDM_CTL, 0, 19, 0,
 			amp_gain_tlv),
 };
 
 static const struct snd_kcontrol_new cs35l35_adv_controls[] = {
 	SOC_SINGLE_SX_TLV("Digital Advisory Volume", CS35L35_ADV_DIG_VOL,
 		      0, 0x34, 0xE4, dig_vol_tlv),
-	SOC_SINGLE_TLV("AMP Advisory Gain", CS35L35_AMP_GAIN_ADV_CTL, 0, 19, 0,
+	SOC_SINGLE_TLV("Analog Advisory Volume", CS35L35_AMP_GAIN_ADV_CTL, 0, 19, 0,
 			amp_gain_tlv),
 };
 
@@ -536,7 +536,7 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 			case CS35L35_SP_SCLKS_32FS:
 			case CS35L35_SP_SCLKS_48FS:
 			case CS35L35_SP_SCLKS_64FS:
-			break;
+				break;
 			default:
 				dev_err(codec->dev, "ratio not supported\n");
 				return -EINVAL;
@@ -546,7 +546,7 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 			switch (sp_sclks) {
 			case CS35L35_SP_SCLKS_32FS:
 			case CS35L35_SP_SCLKS_64FS:
-			break;
+				break;
 			default:
 				dev_err(codec->dev, "ratio not supported\n");
 				return -EINVAL;
@@ -1159,7 +1159,6 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 				"Invalid Boost Voltage %d mV\n", val32);
 			return -EINVAL;
 		}
-
 		pdata->bst_vctl = ((val32 - 2600) / 100) + 1;
 	}
 
@@ -1507,6 +1506,8 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 err:
 	regulator_bulk_disable(cs35l35->num_supplies,
 			       cs35l35->supplies);
+	gpiod_set_value_cansleep(cs35l35->reset_gpio, 0);
+
 	return ret;
 }
 
