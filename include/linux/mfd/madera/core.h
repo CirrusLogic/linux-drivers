@@ -54,6 +54,9 @@ struct madera {
 	struct notifier_block dcvdd_notifier;
 	bool internal_dcvdd;
 	bool micvdd_regulated;
+	bool micvdd_enabled;
+	bool micvdd_forced;
+	struct mutex micsupp_lock;
 	bool bypass_cache;
 	bool dcvdd_powered_off;
 

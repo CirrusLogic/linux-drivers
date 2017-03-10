@@ -756,6 +756,7 @@ int madera_dev_init(struct madera *madera)
 
 	dev_set_drvdata(madera->dev, madera);
 	mutex_init(&madera->reg_setting_lock);
+	mutex_init(&madera->micsupp_lock);
 	BLOCKING_INIT_NOTIFIER_HEAD(&madera->notifier);
 
 	/* default headphone impedance in case the extcon driver is not used */

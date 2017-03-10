@@ -5148,26 +5148,53 @@ static int madera_set_force_bypass(struct snd_soc_codec *codec, bool set_bypass)
 {
 	struct madera *madera = dev_get_drvdata(codec->dev->parent);
 	struct madera_micbias *micbias = madera->pdata.micbias;
-	unsigned int i, cp_bypass = 0, micbias_bypass = 0;
+	struct snd_soc_dapm_context *dapm = madera->dapm;
+	unsigned int i, micbias_bypass = 0;
 	unsigned int num_micbiases;
+	bool sync = false;
+
+	if (set_bypass)
+		micbias_bypass = MADERA_MICB1_BYPASS;
+
+	snd_soc_dapm_mutex_lock(dapm);
+	mutex_lock(&madera->micsupp_lock);
+
+	madera->micvdd_forced = set_bypass;
 
 	if (set_bypass) {
-		cp_bypass = MADERA_CPMIC_BYPASS;
-		micbias_bypass = MADERA_MICB1_BYPASS;
-	}
-
-	if (madera->micvdd_regulated) {
-		if (set_bypass)
-			snd_soc_dapm_disable_pin(madera->dapm, "MICSUPP");
-		else
-			snd_soc_dapm_force_enable_pin(madera->dapm, "MICSUPP");
-
-		snd_soc_dapm_sync(madera->dapm);
+		dev_info(madera->dev, "Set bypass: %d,%d\n",
+			 madera->micvdd_enabled, madera->micvdd_regulated);
 
 		regmap_update_bits(madera->regmap,
 				   MADERA_MIC_CHARGE_PUMP_1,
-				   MADERA_CPMIC_BYPASS, cp_bypass);
+				   MADERA_CPMIC_BYPASS, MADERA_CPMIC_BYPASS);
+
+		if (madera->micvdd_enabled && madera->micvdd_regulated) {
+			snd_soc_dapm_disable_pin_unlocked(madera->dapm,
+							  "MICSUPP");
+			sync = true;
+		}
+	} else {
+		dev_info(madera->dev, "Clear bypass: %d,%d\n",
+			 madera->micvdd_enabled, madera->micvdd_regulated);
+
+		if (madera->micvdd_regulated)
+			regmap_update_bits(madera->regmap,
+					   MADERA_MIC_CHARGE_PUMP_1,
+					   MADERA_CPMIC_BYPASS, 0);
+
+		if (madera->micvdd_enabled && madera->micvdd_regulated) {
+			snd_soc_dapm_force_enable_pin_unlocked(madera->dapm,
+							       "MICSUPP");
+			sync = true;
+		}
 	}
+
+	mutex_unlock(&madera->micsupp_lock);
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	if (sync)
+		snd_soc_dapm_sync(madera->dapm);
 
 	num_micbiases = madera_get_num_micbias(madera);
 

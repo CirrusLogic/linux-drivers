@@ -46,37 +46,41 @@ static void madera_micsupp_check_cp(struct work_struct *work)
 		container_of(work, struct madera_micsupp, check_cp_work);
 	struct snd_soc_dapm_context *dapm = micsupp->madera->dapm;
 	struct madera *madera = micsupp->madera;
-	struct regmap *regmap = madera->regmap;
-	unsigned int reg;
-	int ret;
+	bool sync = false;
 
 	if (dapm) {
-		ret = regmap_read(regmap, MADERA_MIC_CHARGE_PUMP_1, &reg);
-		if (ret) {
-			dev_err(madera->dev,
-				"Failed to read CP state: %d\n", ret);
-			return;
+		snd_soc_dapm_mutex_lock(dapm);
+		mutex_lock(&madera->micsupp_lock);
+
+		if (!madera->micvdd_forced) {
+			if (madera->micvdd_enabled && madera->micvdd_regulated)
+				snd_soc_dapm_force_enable_pin_unlocked(dapm,
+								"MICSUPP");
+			else
+				snd_soc_dapm_disable_pin_unlocked(dapm,
+								"MICSUPP");
+
+			sync = true;
 		}
 
-		if ((reg & (MADERA_CPMIC_ENA | MADERA_CPMIC_BYPASS)) ==
-		    MADERA_CPMIC_ENA) {
-			snd_soc_dapm_force_enable_pin(dapm, "MICSUPP");
-			madera->micvdd_regulated = true;
-		} else {
-			snd_soc_dapm_disable_pin(dapm, "MICSUPP");
-			madera->micvdd_regulated = false;
-		}
+		mutex_unlock(&madera->micsupp_lock);
+		snd_soc_dapm_mutex_unlock(dapm);
 
-		snd_soc_dapm_sync(dapm);
+		if (sync)
+			snd_soc_dapm_sync(dapm);
 	}
 }
 
 static int madera_micsupp_enable(struct regulator_dev *rdev)
 {
 	struct madera_micsupp *micsupp = rdev_get_drvdata(rdev);
+	struct madera *madera = micsupp->madera;
 	int ret;
 
+	mutex_lock(&madera->micsupp_lock);
+	madera->micvdd_enabled = true;
 	ret = regulator_enable_regmap(rdev);
+	mutex_unlock(&madera->micsupp_lock);
 
 	if (ret == 0)
 		schedule_work(&micsupp->check_cp_work);
@@ -87,9 +91,14 @@ static int madera_micsupp_enable(struct regulator_dev *rdev)
 static int madera_micsupp_disable(struct regulator_dev *rdev)
 {
 	struct madera_micsupp *micsupp = rdev_get_drvdata(rdev);
+	struct madera *madera = micsupp->madera;
 	int ret;
 
+	mutex_lock(&madera->micsupp_lock);
+	madera->micvdd_enabled = false;
 	ret = regulator_disable_regmap(rdev);
+	mutex_unlock(&madera->micsupp_lock);
+
 	if (ret == 0)
 		schedule_work(&micsupp->check_cp_work);
 
@@ -99,10 +108,16 @@ static int madera_micsupp_disable(struct regulator_dev *rdev)
 static int madera_micsupp_set_bypass(struct regulator_dev *rdev, bool ena)
 {
 	struct madera_micsupp *micsupp = rdev_get_drvdata(rdev);
-	int ret;
+	struct madera *madera = micsupp->madera;
+	int ret = 0;
 
-	ret = regulator_set_bypass_regmap(rdev, ena);
+	mutex_lock(&madera->micsupp_lock);
+	madera->micvdd_regulated = !ena;
+	if (!madera->micvdd_forced)
+		ret = regulator_set_bypass_regmap(rdev, ena);
 	udelay(1000);
+	mutex_unlock(&madera->micsupp_lock);
+
 	if (ret == 0)
 		schedule_work(&micsupp->check_cp_work);
 
@@ -287,6 +302,7 @@ static int madera_micsupp_probe(struct platform_device *pdev)
 	/* Default to regulated mode, incase bypass is not in constraints */
 	regmap_update_bits(madera->regmap, MADERA_MIC_CHARGE_PUMP_1,
 			   MADERA_CPMIC_BYPASS, 0);
+	madera->micvdd_regulated = true;
 
 	micsupp->regulator = devm_regulator_register(&pdev->dev, desc,
 						     &config);
