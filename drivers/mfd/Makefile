@@ -79,6 +79,9 @@ obj-$(CONFIG_MFD_MADERA)	+= madera-core.o
 ifeq ($(CONFIG_MFD_CS47L35),y)
 obj-$(CONFIG_MFD_MADERA)	+= cs47l35-tables.o
 endif
+ifeq ($(CONFIG_MFD_CS47L85),y)
+obj-$(CONFIG_MFD_MADERA)	+= cs47l85-tables.o
+endif
 obj-$(CONFIG_MFD_MADERA_I2C)	+= madera-i2c.o
 obj-$(CONFIG_MFD_MADERA_SPI)	+= madera-spi.o
 
