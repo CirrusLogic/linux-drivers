@@ -54,3 +54,4 @@ obj-$(CONFIG_PINCTRL_SUNXI)	+= sunxi/
 obj-$(CONFIG_PINCTRL_UNIPHIER)	+= uniphier/
 obj-$(CONFIG_ARCH_VT8500)	+= vt8500/
 obj-$(CONFIG_PINCTRL_MTK)	+= mediatek/
+obj-y				+= cirrus/
