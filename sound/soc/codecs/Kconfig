@@ -252,10 +252,12 @@ config SND_SOC_WM_HUBS
 config SND_SOC_WM_ADSP
 	tristate
 	select SND_SOC_COMPRESS
+	default y if SND_SOC_MADERA=y
 	default y if SND_SOC_CS47L24=y
 	default y if SND_SOC_WM5102=y
 	default y if SND_SOC_WM5110=y
 	default y if SND_SOC_WM2200=y
+	default m if SND_SOC_MADERA=m
 	default m if SND_SOC_CS47L24=m
 	default m if SND_SOC_WM5102=m
 	default m if SND_SOC_WM5110=m
@@ -589,6 +591,9 @@ config SND_SOC_ISABELLE
         tristate
 
 config SND_SOC_LM49453
+	tristate
+
+config SND_SOC_MADERA
 	tristate
 
 config SND_SOC_MAX98088
