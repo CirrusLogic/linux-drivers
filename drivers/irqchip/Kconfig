@@ -135,6 +135,9 @@ config IMGPDC_IRQ
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
+config MADERA_IRQ
+	bool
+
 config IRQ_MIPS_CPU
 	bool
 	select GENERIC_IRQ_CHIP
