@@ -3399,7 +3399,10 @@ L:	patches@opensource.wolfsonmicro.com
 T:	git https://github.com/CirrusLogic/linux-drivers.git
 W:	https://github.com/CirrusLogic/linux-drivers/wiki
 S:	Supported
+F:	Documentation/devicetree/bindings/mfd/madera.txt
 F:	include/linux/mfd/madera/*
+F:	drivers/mfd/madera*
+F:	drivers/mfd/cs47l*
 
 CIRRUS LOGIC EP93XX ETHERNET DRIVER
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
