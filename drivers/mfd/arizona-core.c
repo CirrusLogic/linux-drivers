@@ -623,6 +623,14 @@ static int arizona_runtime_resume(struct device *dev)
 				goto err;
 			}
 		}
+
+		ret = wm5110_apply_sleep_patch(arizona);
+		if (ret) {
+			dev_err(arizona->dev,
+					"Failed to re-apply sleep patch: %d\n",
+					ret);
+			goto err;
+		}
 		break;
 	case WM8997:
 	case WM8998:
