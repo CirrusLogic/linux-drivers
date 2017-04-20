@@ -3111,6 +3111,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	struct madera_extcon_info *info;
 	unsigned int debounce_val, analog_val;
 	int jack_irq_fall, jack_irq_rise;
+	int hpdet_short;
 	int ret, mode;
 
 	/* quick exit if Madera irqchip driver hasn't completed probe */
@@ -3142,8 +3143,16 @@ static int madera_extcon_probe(struct platform_device *pdev)
 
 	madera_extcon_dump_pdata(madera);
 
-	if (pdata->hpdet_short_circuit_imp < MADERA_HP_SHORT_IMPEDANCE_MIN)
+	hpdet_short = pdata->hpdet_short_circuit_imp +
+		      MADERA_HOHM_TO_OHM(pdata->hpdet_ext_res_x100);
+
+	if (hpdet_short < MADERA_HP_SHORT_IMPEDANCE_MIN) {
+		dev_warn(madera->dev,
+			 "Increasing HP short circuit impedance from %d to %d\n",
+			 pdata->hpdet_short_circuit_imp,
+			 MADERA_HP_SHORT_IMPEDANCE_MIN);
 		pdata->hpdet_short_circuit_imp = MADERA_HP_SHORT_IMPEDANCE_MIN;
+	}
 
 	switch (madera->type) {
 	case CS47L15:
