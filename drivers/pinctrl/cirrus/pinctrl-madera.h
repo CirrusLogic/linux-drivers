@@ -36,6 +36,7 @@ struct madera_pin_private {
 extern const struct madera_pin_chip cs47l35_pin_chip;
 extern const struct madera_pin_chip cs47l85_pin_chip;
 extern const struct madera_pin_chip cs47l90_pin_chip;
+extern const struct madera_pin_chip cs47l92_pin_chip;
 
 #endif
 
