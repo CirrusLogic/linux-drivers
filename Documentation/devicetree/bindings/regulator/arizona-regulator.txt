@@ -1,11 +1,12 @@
-Cirrus Logic Arizona class audio SoCs
+Cirrus Logic Arizona and Tacna class audio SoCs
 
 These devices are audio SoCs with extensive digital capabilities and a range
 of analogue I/O.
 
 This document lists regulator specific bindings, see the primary binding
 document:
-  ../mfd/arizona.txt
+  For Cirrus Arizona codecs: ../mfd/arizona.txt
+  For Cirrus Tacna codecs: ../mfd/tacna.txt
 
 Optional properties:
   - wlf,ldoena : GPIO specifier for the GPIO controlling LDOENA
