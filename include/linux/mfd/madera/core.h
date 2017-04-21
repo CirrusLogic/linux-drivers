@@ -25,6 +25,8 @@ enum madera_type {
 	CS47L85 = 2,
 	CS47L90 = 3,
 	CS47L91 = 4,
+	CS47L92 = 5,
+	CS47L93 = 6,
 	WM1840 = 7,
 };
 
