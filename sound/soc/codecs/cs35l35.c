@@ -310,11 +310,49 @@ static const struct snd_kcontrol_new cs35l35_aud_controls[] = {
 			amp_gain_tlv),
 };
 
-static const struct snd_kcontrol_new cs35l35_adv_controls[] = {
+static int cs35l35_put_sync(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
+	unsigned int val;
+	int ret;
+
+	snd_soc_dapm_mutex_lock(dapm);
+
+	ret = regmap_read(cs35l35->regmap, CS35L35_PWRCTL1, &val);
+	if (ret) {
+		dev_err(cs35l35->dev, "Failed to check power state: %d\n", ret);
+		goto err;
+	}
+
+	if (!(val & CS35L35_PDN_ALL)) {
+		dev_err(cs35l35->dev, "Can't change sync when active\n");
+		ret = -EBUSY;
+		goto err;
+	}
+
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
+
+err:
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	return ret;
+}
+
+static const struct snd_kcontrol_new cs35l35_stereo_controls[] = {
 	SOC_SINGLE_SX_TLV("Digital Advisory Volume", CS35L35_ADV_DIG_VOL,
 		      0, 0x34, 0xE4, dig_vol_tlv),
 	SOC_SINGLE_TLV("Analog Advisory Volume", CS35L35_AMP_GAIN_ADV_CTL, 0, 19, 0,
 			amp_gain_tlv),
+
+	SOC_SINGLE_EXT("SYNC Audio", CS35L35_MULT_DEV_SYNCH2, 1, 1, 0,
+		       snd_soc_get_volsw, cs35l35_put_sync),
+	SOC_SINGLE_EXT("SYNC VPBR", CS35L35_MULT_DEV_SYNCH2, 2, 1, 0,
+		       snd_soc_get_volsw, cs35l35_put_sync),
+	SOC_SINGLE_EXT("SYNC OTW", CS35L35_MULT_DEV_SYNCH2, 3, 1, 0,
+		       snd_soc_get_volsw, cs35l35_put_sync),
 };
 
 static const struct snd_soc_dapm_widget cs35l35_dapm_widgets[] = {
@@ -876,8 +914,12 @@ static int cs35l35_codec_probe(struct snd_soc_codec *codec)
 			regmap_update_bits(cs35l35->regmap, CS35L35_CLASS_H_CTL,
 					CS35L35_CH_STEREO_MASK,
 					1 << CS35L35_CH_STEREO_SHIFT);
-		ret = snd_soc_add_codec_controls(codec, cs35l35_adv_controls,
-					ARRAY_SIZE(cs35l35_adv_controls));
+
+		regmap_update_bits(cs35l35->regmap, CS35L35_MULT_DEV_SYNCH2,
+				   CS35L35_SYNC_EN_MASK, 1);
+
+		ret = snd_soc_add_codec_controls(codec, cs35l35_stereo_controls,
+					ARRAY_SIZE(cs35l35_stereo_controls));
 		if (ret)
 			return ret;
 	}
