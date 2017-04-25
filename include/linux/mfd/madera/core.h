@@ -36,6 +36,7 @@ enum madera_type {
 #define CS47L35_NUM_GPIOS		16
 #define CS47L85_NUM_GPIOS		40
 #define CS47L90_NUM_GPIOS		38
+#define CS47L92_NUM_GPIOS		16
 
 
 /* Notifier events */
