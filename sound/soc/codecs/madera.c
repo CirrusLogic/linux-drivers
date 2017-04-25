@@ -428,6 +428,13 @@ static void madera_prop_get_pdata(struct madera_priv *priv)
 				      pdata->dmic_ref,
 				      ARRAY_SIZE(pdata->dmic_ref),
 				      1);
+
+	pdata->auxpdm_slave_mode =
+		device_property_present(priv->dev,
+					"cirrus,auxpdm-slave-mode");
+	pdata->auxpdm_falling_edge =
+		device_property_present(priv->dev,
+					"cirrus,auxpdm-falling-edge");
 }
 
 int madera_core_init(struct madera_priv *priv)
@@ -1370,6 +1377,8 @@ const char * const madera_mixer_texts[] = {
 	"AIF2RX8",
 	"AIF3RX1",
 	"AIF3RX2",
+	"AIF3RX3",
+	"AIF3RX4",
 	"AIF4RX1",
 	"AIF4RX2",
 	"SLIMRX1",
@@ -1520,6 +1529,8 @@ unsigned int madera_mixer_values[] = {
 	0x2f,
 	0x30,	/* AIF3RX1 */
 	0x31,
+	0x32,
+	0x33,
 	0x34,	/* AIF4RX1 */
 	0x35,
 	0x38,	/* SLIMRX1 */
@@ -2016,6 +2027,18 @@ const struct soc_enum madera_asrc1_rate[] = {
 };
 EXPORT_SYMBOL_GPL(madera_asrc1_rate);
 
+const struct soc_enum madera_asrc1_bidir_rate[] = {
+	SOC_VALUE_ENUM_SINGLE(MADERA_ASRC1_RATE1,
+			      MADERA_ASRC1_RATE1_SHIFT, 0xf,
+			      MADERA_RATE_ENUM_SIZE,
+			      madera_rate_text, madera_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MADERA_ASRC1_RATE2,
+			      MADERA_ASRC1_RATE2_SHIFT, 0xf,
+			      MADERA_RATE_ENUM_SIZE,
+			      madera_rate_text, madera_rate_val),
+};
+EXPORT_SYMBOL_GPL(madera_asrc1_bidir_rate);
+
 const struct soc_enum madera_asrc2_rate[] = {
 	SOC_VALUE_ENUM_SINGLE(MADERA_ASRC2_RATE1,
 			      MADERA_ASRC2_RATE1_SHIFT, 0xf,
@@ -2400,6 +2423,8 @@ int madera_out_ev(struct snd_soc_dapm_widget *w,
 	switch (madera->type) {
 	case CS47L90:
 	case CS47L91:
+	case CS47L92:
+	case CS47L93:
 		out_up_delay = 6;
 		break;
 	default:
@@ -2693,6 +2718,57 @@ static int madera_get_dspclk_setting(struct madera *madera,
 	}
 }
 
+static int madera_set_outclk(struct snd_soc_codec *codec, unsigned int source,
+			      unsigned int freq)
+{
+	int div, div_inc, rate;
+
+	switch (source) {
+	case MADERA_OUTCLK_SYSCLK:
+		dev_dbg(codec->dev, "Configured OUTCLK to SYSCLK\n");
+		snd_soc_update_bits(codec, MADERA_OUTPUT_RATE_1,
+				    MADERA_OUT_CLK_SRC_MASK, source);
+		return 0;
+	case MADERA_OUTCLK_ASYNCCLK:
+		dev_dbg(codec->dev, "Configured OUTCLK to ASYNCCLK\n");
+		snd_soc_update_bits(codec, MADERA_OUTPUT_RATE_1,
+				    MADERA_OUT_CLK_SRC_MASK, source);
+		return 0;
+	case MADERA_OUTCLK_MCLK1:
+	case MADERA_OUTCLK_MCLK2:
+	case MADERA_OUTCLK_MCLK3:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (freq % 4000)
+		rate = 5644800;
+	else
+		rate = 6144000;
+
+	div = 1;
+	div_inc = 0;
+	while (div <= 8) {
+		if (freq / div == rate && !(freq % div)) {
+			dev_dbg(codec->dev, "Configured %dHz OUTCLK\n", rate);
+			snd_soc_update_bits(codec, MADERA_OUTPUT_RATE_1,
+					    MADERA_OUT_EXT_CLK_DIV_MASK |
+					    MADERA_OUT_CLK_SRC_MASK,
+					    (div_inc <<
+					     MADERA_OUT_EXT_CLK_DIV_SHIFT) |
+					    source);
+			return 0;
+		}
+		div_inc++;
+		div *= 2;
+	}
+
+	dev_err(codec->dev, "Unable to generate %dHz OUTCLK from %dHz MCLK\n",
+		rate, freq);
+	return -EINVAL;
+}
+
 int madera_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		      int source, unsigned int freq, int dir)
 {
@@ -2729,6 +2805,8 @@ int madera_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		clk_freq_sel = madera_get_dspclk_setting(madera, freq,
 							 &clock_2_val);
 		break;
+	case MADERA_CLK_OUTCLK:
+		return madera_set_outclk(codec, source, freq);
 	default:
 		return -EINVAL;
 	}
@@ -2939,9 +3017,14 @@ static const unsigned int madera_sr_vals[] = {
 	512000,
 };
 
-#define MADERA_48K_RATE_MASK	0x0F003E
-#define MADERA_44K1_RATE_MASK	0x003E00
-#define MADERA_RATE_MASK	(MADERA_48K_RATE_MASK | MADERA_44K1_RATE_MASK)
+#define MADERA_192K_48K_RATE_MASK	0x0F003E
+#define MADERA_192K_44K1_RATE_MASK	0x003E00
+#define MADERA_192K_RATE_MASK		(MADERA_192K_48K_RATE_MASK | \
+					 MADERA_192K_44K1_RATE_MASK)
+#define MADERA_384K_48K_RATE_MASK	0x0F007E
+#define MADERA_384K_44K1_RATE_MASK	0x007E00
+#define MADERA_384K_RATE_MASK		(MADERA_384K_48K_RATE_MASK | \
+					 MADERA_384K_44K1_RATE_MASK)
 
 static const struct snd_pcm_hw_constraint_list madera_constraint = {
 	.count	= ARRAY_SIZE(madera_sr_vals),
@@ -2954,6 +3037,7 @@ static int madera_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct madera_dai_priv *dai_priv = &priv->dai[dai->id - 1];
+	struct madera *madera = priv->madera;
 	unsigned int base_rate;
 
 	if (!substream->runtime)
@@ -2973,12 +3057,25 @@ static int madera_startup(struct snd_pcm_substream *substream,
 		return 0;
 	}
 
-	if (base_rate == 0)
-		dai_priv->constraint.mask = MADERA_RATE_MASK;
-	else if (base_rate % 4000)
-		dai_priv->constraint.mask = MADERA_44K1_RATE_MASK;
-	else
-		dai_priv->constraint.mask = MADERA_48K_RATE_MASK;
+	switch (madera->type) {
+	case CS47L92:
+	case CS47L93:
+		if (base_rate == 0)
+			dai_priv->constraint.mask = MADERA_384K_RATE_MASK;
+		else if (base_rate % 4000)
+			dai_priv->constraint.mask = MADERA_384K_44K1_RATE_MASK;
+		else
+			dai_priv->constraint.mask = MADERA_384K_48K_RATE_MASK;
+		break;
+	default:
+		if (base_rate == 0)
+			dai_priv->constraint.mask = MADERA_192K_RATE_MASK;
+		else if (base_rate % 4000)
+			dai_priv->constraint.mask = MADERA_192K_44K1_RATE_MASK;
+		else
+			dai_priv->constraint.mask = MADERA_192K_48K_RATE_MASK;
+		break;
+	}
 
 	return snd_pcm_hw_constraint_list(substream->runtime, 0,
 					  SNDRV_PCM_HW_PARAM_RATE,
