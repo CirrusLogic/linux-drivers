@@ -88,6 +88,16 @@
 #define MADERA_FLLAO_MIN_N			4
 #define MADERA_FLLAO_MAX_N			1023
 #define MADERA_FLLAO_MAX_FBDIV			254
+#define MADERA_FLLHJ_INT_MAX_N			1023
+#define MADERA_FLLHJ_INT_MIN_N			1
+#define MADERA_FLLHJ_FRAC_MAX_N			255
+#define MADERA_FLLHJ_FRAC_MIN_N			4
+#define MADERA_FLLHJ_LOW_THRESH			192000
+#define MADERA_FLLHJ_MID_THRESH			1152000
+#define MADERA_FLLHJ_MAX_THRESH			13000000
+#define MADERA_FLLHJ_LOW_GAINS			0x23f0
+#define MADERA_FLLHJ_MID_GAINS			0x22f2
+#define MADERA_FLLHJ_HIGH_GAINS			0x21f0
 
 #define MADERA_FLL_SYNCHRONISER_OFFS		0x10
 #define CS47L35_FLL_SYNCHRONISER_OFFS		0xE
@@ -99,6 +109,7 @@
 #define MADERA_FLL_CONTROL_6_OFFS		0x6
 #define MADERA_FLL_LOOP_FILTER_TEST_1_OFFS	0x7
 #define MADERA_FLL_NCO_TEST_0_OFFS		0x8
+#define MADERA_FLL_GAIN_OFFS			0x8
 #define MADERA_FLL_CONTROL_7_OFFS		0x9
 #define MADERA_FLL_EFS_2_OFFS			0xA
 #define MADERA_FLL_SYNCHRONISER_1_OFFS		0x1
@@ -110,6 +121,9 @@
 #define MADERA_FLL_SYNCHRONISER_7_OFFS		0x7
 #define MADERA_FLL_SPREAD_SPECTRUM_OFFS		0x9
 #define MADERA_FLL_GPIO_CLOCK_OFFS		0xA
+#define MADERA_FLL_CONTROL_10_OFFS		0xA
+#define MADERA_FLL_CONTROL_11_OFFS		0xB
+#define MADERA_FLL1_DIGITAL_TEST_1_OFFS		0xD
 
 #define MADERA_FLLAO_CONTROL_1_OFFS		0x1
 #define MADERA_FLLAO_CONTROL_2_OFFS		0x2
@@ -4308,6 +4322,308 @@ int madera_set_fll_ao_refclk(struct madera_fll *fll, int source,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(madera_set_fll_ao_refclk);
+
+static int madera_fllhj_disable(struct madera_fll *fll)
+{
+	struct madera *madera = fll->madera;
+	bool change;
+
+	madera_fll_dbg(fll, "Disabling FLL\n");
+
+	/* Disable lockdet, but don't set ctrl_upd update but.  This allows the
+	 * lock status bit to clear as normal, but should the FLL be enabled
+	 * again due to a control clock being required, the lock won't re-assert
+	 * as the FLL config registers are automatically applied when the FLL
+	 * enables.
+	 */
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_11_OFFS,
+			   MADERA_FLL1_LOCKDET_MASK, 0);
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_1_OFFS,
+			   MADERA_FLL1_HOLD_MASK, MADERA_FLL1_HOLD_MASK);
+	regmap_update_bits_check(madera->regmap,
+				 fll->base + MADERA_FLL_CONTROL_1_OFFS,
+				 MADERA_FLL1_ENA_MASK, 0, &change);
+
+	madera_wait_for_fll(fll, false);
+
+	/* ctrl_up gates the writes to all the fll's registers, setting it to 0
+	 * here ensures that after a runtime suspend/resume cycle when one
+	 * enables the fll then ctrl_up is the last bit that is configured
+	 * by the fll enable code rather than the cache sync operation which
+	 * would have updated it much earlier before writing out all fll
+	 * registers
+	 */
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_2_OFFS,
+			   MADERA_FLL1_CTRL_UPD_MASK, 0);
+
+	if (change)
+		pm_runtime_put_autosuspend(madera->dev);
+
+	return 0;
+}
+
+static int madera_fllhj_apply(struct madera_fll *fll, int fin)
+{
+	struct madera *madera = fll->madera;
+	int refdiv, fref, fout, lockdet_thr, fbdiv, hp, fast_clk, fllgcd;
+	bool frac = false;
+	unsigned int fll_n, min_n, max_n, ratio, theta, lambda;
+	unsigned int gains, val, num;
+
+	madera_fll_dbg(fll, "fin=%d, fout=%d\n", fin, fll->fout);
+
+	for (refdiv = 0; refdiv < 4; refdiv++)
+		if ((fin / (1 << refdiv)) <= MADERA_FLLHJ_MAX_THRESH)
+			break;
+
+	fref = fin / (1 << refdiv);
+
+	/* Use simple heuristic approach to find a configuration that
+	 * should work for most input clocks.
+	 */
+	fast_clk = 0;
+	fout = fll->fout;
+	frac = fout % fref;
+
+	if (fref < MADERA_FLLHJ_LOW_THRESH) {
+		lockdet_thr = 2;
+		gains = MADERA_FLLHJ_LOW_GAINS;
+		if (frac)
+			fbdiv = 256;
+		else
+			fbdiv = 4;
+	} else if (fref < MADERA_FLLHJ_MID_THRESH) {
+		lockdet_thr = 8;
+		gains = MADERA_FLLHJ_MID_GAINS;
+		fbdiv = 1;
+	} else {
+		lockdet_thr = 8;
+		gains = MADERA_FLLHJ_HIGH_GAINS;
+		fbdiv = 1;
+		/* For high speed input clocks, enable 300MHz fast oscillator
+		 * when we're in fractional divider mode.
+		 */
+		if (frac) {
+			fast_clk = 0x3;
+			fout = fll->fout * 6;
+		}
+	}
+	/* Use high performance mode for fractional configurations. */
+	if (frac) {
+		hp = 0x3;
+		min_n = MADERA_FLLHJ_FRAC_MIN_N;
+		max_n = MADERA_FLLHJ_FRAC_MAX_N;
+	} else {
+		hp = 0x0;
+		min_n = MADERA_FLLHJ_INT_MIN_N;
+		max_n = MADERA_FLLHJ_INT_MAX_N;
+	}
+
+	ratio = fout / fref;
+
+	madera_fll_dbg(fll, "refdiv=%d, fref=%d, frac:%d\n",
+		       refdiv, fref, frac);
+
+	while (ratio / fbdiv < min_n) {
+		fbdiv /= 2;
+		if (fbdiv < 1) {
+			madera_fll_err(fll, "FBDIV (%d) must be >= 1\n", fbdiv);
+			return -EINVAL;
+		}
+	}
+	while (frac && (ratio / fbdiv > max_n)) {
+		fbdiv *= 2;
+		if (fbdiv >= 1024) {
+			madera_fll_err(fll, "FBDIV (%u) >= 1024\n", fbdiv);
+			return -EINVAL;
+		}
+	}
+
+	madera_fll_dbg(fll, "lockdet=%d, hp=0x%x, fbdiv:%d\n",
+		       lockdet_thr, hp, fbdiv);
+
+	/* Calculate N.K values */
+	fllgcd = gcd(fout, fbdiv * fref);
+	num = fout / fllgcd;
+	lambda = (fref * fbdiv) / fllgcd;
+	fll_n = num / lambda;
+	theta = num % lambda;
+
+	madera_fll_dbg(fll, "fll_n=%d, gcd=%d, theta=%d, lambda=%d\n",
+		       fll_n, fllgcd, theta, lambda);
+
+	/* Some sanity checks before any registers are written. */
+	if (fll_n < min_n || fll_n > max_n) {
+		madera_fll_err(fll, "N not in valid %s mode range %d-%d: %d\n",
+			       frac ? "fractional" : "integer", min_n, max_n,
+			       fll_n);
+		return -EINVAL;
+	}
+	if (fbdiv < 1 || (frac && fbdiv >= 1024) || (!frac && fbdiv >= 256)) {
+		madera_fll_err(fll, "Invalid fbdiv for %s mode (%u)\n",
+			       frac ? "fractional" : "integer", fbdiv);
+		return -EINVAL;
+	}
+
+	/* clear the ctrl_upd bit to guarantee we write to it later. */
+	regmap_write(madera->regmap,
+		     fll->base + MADERA_FLL_CONTROL_2_OFFS,
+		     fll_n << MADERA_FLL1_N_SHIFT);
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_3_OFFS,
+			   MADERA_FLL1_THETA_MASK,
+			   theta << MADERA_FLL1_THETA_SHIFT);
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_4_OFFS,
+			   MADERA_FLL1_LAMBDA_MASK,
+			   lambda << MADERA_FLL1_LAMBDA_SHIFT);
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_5_OFFS,
+			   MADERA_FLL1_FB_DIV_MASK,
+			   fbdiv << MADERA_FLL1_FB_DIV_SHIFT);
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_6_OFFS,
+			   MADERA_FLL1_REFCLK_DIV_MASK,
+			   refdiv << MADERA_FLL1_REFCLK_DIV_SHIFT);
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_GAIN_OFFS,
+			   0xffff,
+			   gains);
+	val = hp << MADERA_FLL1_HP_SHIFT;
+	val |= 1 << MADERA_FLL1_PHASEDET_ENA_SHIFT;
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_10_OFFS,
+			   MADERA_FLL1_HP_MASK | MADERA_FLL1_PHASEDET_ENA_MASK,
+			   val);
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_11_OFFS,
+			   MADERA_FLL1_LOCKDET_THR_MASK,
+			   lockdet_thr << MADERA_FLL1_LOCKDET_THR_SHIFT);
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL1_DIGITAL_TEST_1_OFFS,
+			   MADERA_FLL1_SYNC_EFS_ENA_MASK |
+			   MADERA_FLL1_CLK_VCO_FAST_SRC_MASK,
+			   fast_clk);
+
+	return 0;
+}
+
+static int madera_fllhj_enable(struct madera_fll *fll)
+{
+	struct madera *madera = fll->madera;
+	int already_enabled = madera_is_enabled_fll(fll, fll->base);
+	int ret;
+
+	if (already_enabled < 0)
+		return already_enabled;
+
+	if (!already_enabled)
+		pm_runtime_get_sync(madera->dev);
+
+	madera_fll_dbg(fll, "Enabling FLL, initially %s\n",
+		       already_enabled ? "enabled" : "disabled");
+
+	/* FLLn_HOLD must be set before configuring any registers */
+	regmap_update_bits(fll->madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_1_OFFS,
+			   MADERA_FLL1_HOLD_MASK,
+			   MADERA_FLL1_HOLD_MASK);
+
+	/* Apply refclk */
+	ret = madera_fllhj_apply(fll, fll->ref_freq);
+	if (ret) {
+		madera_fll_err(fll, "Failed to set FLL: %d\n", ret);
+		goto out;
+	}
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_1_OFFS,
+			   CS47L92_FLL1_REFCLK_SRC_MASK,
+			   fll->ref_src << CS47L92_FLL1_REFCLK_SRC_SHIFT);
+
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_1_OFFS,
+			   MADERA_FLL1_ENA_MASK,
+			   MADERA_FLL1_ENA_MASK);
+
+out:
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_11_OFFS,
+			   MADERA_FLL1_LOCKDET_MASK,
+			   MADERA_FLL1_LOCKDET_MASK);
+
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_2_OFFS,
+			   MADERA_FLL1_CTRL_UPD_MASK,
+			   MADERA_FLL1_CTRL_UPD_MASK);
+
+	/* Release the hold so that flln locks to external frequency */
+	regmap_update_bits(madera->regmap,
+			   fll->base + MADERA_FLL_CONTROL_1_OFFS,
+			   MADERA_FLL1_HOLD_MASK,
+			   0);
+
+	if (!already_enabled)
+		madera_wait_for_fll(fll, true);
+
+	return 0;
+}
+
+static int madera_fllhj_validate(struct madera_fll *fll,
+				 unsigned int ref_in,
+				 unsigned int fout)
+{
+	if (fout && !ref_in) {
+		madera_fll_err(fll, "fllout set without valid input clk\n");
+		return -EINVAL;
+	}
+
+	if (fll->fout && fout != fll->fout) {
+		madera_fll_err(fll, "Can't change output on active FLL\n");
+		return -EINVAL;
+	}
+
+	if (ref_in / MADERA_FLL_MAX_REFDIV > MADERA_FLLHJ_MAX_THRESH) {
+		madera_fll_err(fll, "Can't scale %dMHz to <=13MHz\n", ref_in);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int madera_fllhj_set_refclk(struct madera_fll *fll, int source,
+			    unsigned int fin, unsigned int fout)
+{
+	int ret = 0;
+
+	if (fll->ref_src == source && fll->ref_freq == fin &&
+	    fll->fout == fout)
+		return 0;
+
+	/* To remain consistent with previous FLLs, we expect fout to be
+	 * provided in the form of the required sysclk rate, which is
+	 * 2x the calculated fll out.
+	 */
+	if (fout)
+		fout /= 2;
+
+	if (fin && fout && madera_fllhj_validate(fll, fin, fout))
+		return -EINVAL;
+
+	fll->ref_src = source;
+	fll->ref_freq = fin;
+	fll->fout = fout;
+
+	if (fout)
+		ret = madera_fllhj_enable(fll);
+	else
+		madera_fllhj_disable(fll);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(madera_fllhj_set_refclk);
 
 /**
  * madera_set_output_mode - Set the mode of the specified output
