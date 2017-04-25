@@ -274,6 +274,7 @@ config MFD_CS47L90
 
 config MFD_CS47L92
 	bool "Cirrus Logic CS47L92/93"
+	select PINCTRL_CS47L92
 	depends on MFD_MADERA
 	help
 	  Support for Cirrus Logic CS47L92 and CS47L93 Smart Codecs
