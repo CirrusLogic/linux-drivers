@@ -81,7 +81,7 @@ ifeq ($(CONFIG_MFD_CS47L90),y)
 madera-objs			+= cs47l90-tables.o
 endif
 ifeq ($(CONFIG_MFD_CS47L92),y)
-madera-obj			+= cs47l92-tables.o
+madera-objs			+= cs47l92-tables.o
 endif
 obj-$(CONFIG_MFD_MADERA)	+= madera.o
 obj-$(CONFIG_MFD_MADERA_I2C)	+= madera-i2c.o
