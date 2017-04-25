@@ -4338,6 +4338,12 @@
 #define MADERA_CP_DAC_MODE_MASK				0x0040
 #define MADERA_CP_DAC_MODE_SHIFT			     6
 #define MADERA_CP_DAC_MODE_WIDTH			     1
+#define MADERA_OUT_EXT_CLK_DIV_MASK			0x0030
+#define MADERA_OUT_EXT_CLK_DIV_SHIFT			     4
+#define MADERA_OUT_EXT_CLK_DIV_WIDTH			     2
+#define MADERA_OUT_CLK_SRC_MASK				0x0007
+#define MADERA_OUT_CLK_SRC_SHIFT			     0
+#define MADERA_OUT_CLK_SRC_WIDTH			     3
 
 /* (0x0409)  Output_Volume_Ramp */
 #define MADERA_OUT_VD_RAMP_MASK				0x0070
