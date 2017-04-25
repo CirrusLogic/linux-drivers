@@ -137,6 +137,13 @@ static const struct madera_hpdet_calibration_data madera_hpdet_ranges[] = {
 	{ 1000, 10000, 101158000, -949400, 7300, 63200000, 347600, 700000, 500000},
 };
 
+static const struct madera_hpdet_calibration_data cs47l92_hpdet_ranges[] = {
+	{ 4,    30,    1007000,   -7200,   4005, 69300000, 381150, 600000, 500000},
+	{ 8,    100,   1007000,   -7200,   7975, 69600000, 382800, 600000, 500000},
+	{ 100,  1000,  9744000,   -79500,  7300, 62900000, 345950, 600000, 500000},
+	{ 1000, 10000, 100684000, -949400, 7300, 63200000, 347600, 600000, 500000},
+};
+
 struct madera_hp_tuning {
 	int max_hohm;
 	const struct reg_sequence *patch;
@@ -372,6 +379,124 @@ static const struct madera_hp_tuning cs47l90_hp_tuning[] = {
 	{	MADERA_HPDET_MAX_HOHM,
 		cs47l90_high_impedance_patch,
 		ARRAY_SIZE(cs47l90_high_impedance_patch),
+	},
+};
+
+static const struct reg_sequence cs47l92_low_impedance_patch[] = {
+	{ 0x460, 0x0C21 },
+	{ 0x461, 0xB53C },
+	{ 0x462, 0x0C21 },
+	{ 0x463, 0xA186 },
+	{ 0x464, 0x0C21 },
+	{ 0x465, 0x8FF6 },
+	{ 0x466, 0x0C21 },
+	{ 0x467, 0x804E },
+	{ 0x468, 0x0C21 },
+	{ 0x469, 0x725A },
+	{ 0x46A, 0x0C21 },
+	{ 0x46B, 0x5AD5 },
+	{ 0x46C, 0x0C21 },
+	{ 0x46D, 0x50F4 },
+	{ 0x46E, 0x0C21 },
+	{ 0x46F, 0x4827 },
+	{ 0x470, 0x0C21 },
+	{ 0x471, 0x404E },
+	{ 0x472, 0x0020 },
+	{ 0x473, 0x3950 },
+	{ 0x474, 0x0021 },
+	{ 0x475, 0x3314 },
+	{ 0x476, 0x0021 },
+	{ 0x477, 0x2893 },
+	{ 0x478, 0x0021 },
+	{ 0x479, 0x2429 },
+	{ 0x47A, 0x0821 },
+	{ 0x47B, 0x203A },
+	{ 0x47C, 0x0420 },
+	{ 0x47D, 0x1027 },
+	{ 0x47E, 0x0421 },
+};
+
+static const struct reg_sequence cs47l92_normal_impedance_patch[] = {
+	{ 0x460, 0x0C21 },
+	{ 0x461, 0xB53C },
+	{ 0x462, 0x0C21 },
+	{ 0x463, 0xA186 },
+	{ 0x464, 0x0C21 },
+	{ 0x465, 0x8FF6 },
+	{ 0x466, 0x0C21 },
+	{ 0x467, 0x804E },
+	{ 0x468, 0x0C21 },
+	{ 0x469, 0x725A },
+	{ 0x46A, 0x0C21 },
+	{ 0x46B, 0x65EA },
+	{ 0x46C, 0x0021 },
+	{ 0x46D, 0x5AD5 },
+	{ 0x46E, 0x0021 },
+	{ 0x46F, 0x50F4 },
+	{ 0x470, 0x0021 },
+	{ 0x471, 0x4827 },
+	{ 0x472, 0x0021 },
+	{ 0x473, 0x404E },
+	{ 0x474, 0x0021 },
+	{ 0x475, 0x3950 },
+	{ 0x476, 0x0821 },
+	{ 0x477, 0x3314 },
+	{ 0x478, 0x0420 },
+	{ 0x479, 0x2D86 },
+	{ 0x47A, 0x0421 },
+	{ 0x47B, 0x2893 },
+	{ 0x47C, 0x0421 },
+	{ 0x47D, 0x203A },
+	{ 0x47E, 0x0421 },
+};
+
+static const struct reg_sequence cs47l92_high_impedance_patch[] = {
+	{ 0x460, 0x0C21 },
+	{ 0x461, 0xB53C },
+	{ 0x462, 0x0C21 },
+	{ 0x463, 0xA186 },
+	{ 0x464, 0x0C21 },
+	{ 0x465, 0x8FF6 },
+	{ 0x466, 0x0021 },
+	{ 0x467, 0x804E },
+	{ 0x468, 0x0021 },
+	{ 0x469, 0x725A },
+	{ 0x46A, 0x0021 },
+	{ 0x46B, 0x65EA },
+	{ 0x46C, 0x0021 },
+	{ 0x46D, 0x5AD5 },
+	{ 0x46E, 0x0021 },
+	{ 0x46F, 0x50F4 },
+	{ 0x470, 0x0021 },
+	{ 0x471, 0x4827 },
+	{ 0x472, 0x0821 },
+	{ 0x473, 0x404E },
+	{ 0x474, 0x0821 },
+	{ 0x475, 0x3950 },
+	{ 0x476, 0x0420 },
+	{ 0x477, 0x3314 },
+	{ 0x478, 0x0421 },
+	{ 0x479, 0x2D86 },
+	{ 0x47A, 0x0421 },
+	{ 0x47B, 0x2893 },
+	{ 0x47C, 0x0421 },
+	{ 0x47D, 0x203A },
+	{ 0x47E, 0x0421 },
+};
+
+static const struct madera_hp_tuning cs47l92_hp_tuning[] = {
+	{
+		1400,
+		cs47l92_low_impedance_patch,
+		ARRAY_SIZE(cs47l92_low_impedance_patch),
+	},
+	{	2400,
+		cs47l92_normal_impedance_patch,
+		ARRAY_SIZE(cs47l92_normal_impedance_patch),
+	},
+	{	MADERA_HPDET_MAX_HOHM,
+		cs47l92_high_impedance_patch,
+		ARRAY_SIZE(cs47l92_high_impedance_patch),
 	},
 };
 
@@ -622,6 +747,21 @@ static const char *madera_extcon_get_micbias_src(struct madera_extcon *info)
 			return "MICVDD";
 		}
 		break;
+	case CS47L92:
+	case CS47L93:
+		switch (bias) {
+		case 0:
+		case 1:
+		case 2:
+		case 3:
+			return "MICBIAS1";
+		case 4:
+		case 5:
+			return "MICBIAS2";
+		default:
+			return "MICVDD";
+		}
+		break;
 	default:
 		return NULL;
 	}
@@ -677,6 +817,24 @@ static const char *madera_extcon_get_micbias(struct madera_extcon *info)
 			return "MICBIAS2C";
 		case 7:
 			return "MICBIAS2D";
+		default:
+			return "MICVDD";
+		}
+	case CS47L92:
+	case CS47L93:
+		switch (bias) {
+		case 0:
+			return "MICBIAS1A";
+		case 1:
+			return "MICBIAS1B";
+		case 2:
+			return "MICBIAS1C";
+		case 3:
+			return "MICBIAS1D";
+		case 4:
+			return "MICBIAS2A";
+		case 5:
+			return "MICBIAS2B";
 		default:
 			return "MICVDD";
 		}
@@ -1184,6 +1342,11 @@ static int madera_tune_headphone(struct madera_extcon *info, int reading)
 	case CS47L91:
 		tuning = cs47l90_hp_tuning;
 		n_tunings = ARRAY_SIZE(cs47l90_hp_tuning);
+		break;
+	case CS47L92:
+	case CS47L93:
+		tuning = cs47l92_hp_tuning;
+		n_tunings = ARRAY_SIZE(cs47l92_hp_tuning);
 		break;
 	default:
 		return 0;
@@ -2697,6 +2860,13 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		info->micd_modes = cs47l85_micd_default_modes;
 		info->num_micd_modes = ARRAY_SIZE(cs47l85_micd_default_modes);
 		break;
+	case CS47L92:
+	case CS47L93:
+		info->hpdet_ranges = cs47l92_hpdet_ranges;
+		info->num_hpdet_ranges = ARRAY_SIZE(cs47l92_hpdet_ranges);
+		info->micd_modes = madera_micd_default_modes;
+		info->num_micd_modes = ARRAY_SIZE(madera_micd_default_modes);
+		break;
 	default:
 		info->hpdet_ranges = madera_hpdet_ranges;
 		info->num_hpdet_ranges = ARRAY_SIZE(madera_hpdet_ranges);
@@ -2792,6 +2962,8 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	switch (madera->type) {
 	case CS47L90:
 	case CS47L91:
+	case CS47L92:
+	case CS47L93:
 		if (madera->pdata.gpsw[1] > 0)
 			regmap_update_bits(madera->regmap,
 					   MADERA_GP_SWITCH_1,
