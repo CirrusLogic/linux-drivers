@@ -1752,6 +1752,88 @@ const unsigned int madera_rate_val[MADERA_RATE_ENUM_SIZE] = {
 };
 EXPORT_SYMBOL_GPL(madera_rate_val);
 
+const struct soc_enum madera_output_rate =
+	SOC_VALUE_ENUM_SINGLE(MADERA_OUTPUT_RATE_1,
+			      MADERA_OUT_RATE_SHIFT,
+			      MADERA_OUT_RATE_MASK >> MADERA_OUT_RATE_SHIFT,
+			      MADERA_SYNC_RATE_ENUM_SIZE,
+			      madera_rate_text,
+			      madera_rate_val);
+EXPORT_SYMBOL_GPL(madera_output_rate);
+
+const struct soc_enum madera_output_ext_rate =
+	SOC_VALUE_ENUM_SINGLE(MADERA_OUTPUT_RATE_1,
+			      MADERA_OUT_RATE_SHIFT,
+			      MADERA_OUT_RATE_MASK >> MADERA_OUT_RATE_SHIFT,
+			      MADERA_RATE_ENUM_SIZE,
+			      madera_rate_text,
+			      madera_rate_val);
+EXPORT_SYMBOL_GPL(madera_output_ext_rate);
+
+const struct soc_enum madera_input_rate[] = {
+	SOC_VALUE_ENUM_SINGLE(MADERA_IN1L_RATE_CONTROL,
+			      MADERA_IN1L_RATE_SHIFT,
+			      MADERA_IN1L_RATE_MASK >> MADERA_IN1L_RATE_SHIFT,
+			      MADERA_SYNC_RATE_ENUM_SIZE,
+			      madera_rate_text,
+			      madera_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MADERA_IN1R_RATE_CONTROL,
+			      MADERA_IN1R_RATE_SHIFT,
+			      MADERA_IN1R_RATE_MASK >> MADERA_IN1R_RATE_SHIFT,
+			      MADERA_SYNC_RATE_ENUM_SIZE,
+			      madera_rate_text,
+			      madera_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MADERA_IN2L_RATE_CONTROL,
+			      MADERA_IN2L_RATE_SHIFT,
+			      MADERA_IN2L_RATE_MASK >> MADERA_IN2L_RATE_SHIFT,
+			      MADERA_SYNC_RATE_ENUM_SIZE,
+			      madera_rate_text,
+			      madera_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MADERA_IN2R_RATE_CONTROL,
+			      MADERA_IN2R_RATE_SHIFT,
+			      MADERA_IN2R_RATE_MASK >> MADERA_IN2R_RATE_SHIFT,
+			      MADERA_SYNC_RATE_ENUM_SIZE,
+			      madera_rate_text,
+			      madera_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MADERA_IN3L_RATE_CONTROL,
+			      MADERA_IN3L_RATE_SHIFT,
+			      MADERA_IN3L_RATE_MASK >> MADERA_IN3L_RATE_SHIFT,
+			      MADERA_SYNC_RATE_ENUM_SIZE,
+			      madera_rate_text,
+			      madera_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MADERA_IN3R_RATE_CONTROL,
+			      MADERA_IN3R_RATE_SHIFT,
+			      MADERA_IN3R_RATE_MASK >> MADERA_IN3R_RATE_SHIFT,
+			      MADERA_SYNC_RATE_ENUM_SIZE,
+			      madera_rate_text,
+			      madera_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MADERA_IN4L_RATE_CONTROL,
+			      MADERA_IN4L_RATE_SHIFT,
+			      MADERA_IN4L_RATE_MASK >> MADERA_IN4L_RATE_SHIFT,
+			      MADERA_SYNC_RATE_ENUM_SIZE,
+			      madera_rate_text,
+			      madera_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MADERA_IN4R_RATE_CONTROL,
+			      MADERA_IN4R_RATE_SHIFT,
+			      MADERA_IN4R_RATE_MASK >> MADERA_IN4R_RATE_SHIFT,
+			      MADERA_SYNC_RATE_ENUM_SIZE,
+			      madera_rate_text,
+			      madera_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MADERA_IN5L_RATE_CONTROL,
+			      MADERA_IN5L_RATE_SHIFT,
+			      MADERA_IN5L_RATE_MASK >> MADERA_IN5L_RATE_SHIFT,
+			      MADERA_SYNC_RATE_ENUM_SIZE,
+			      madera_rate_text,
+			      madera_rate_val),
+	SOC_VALUE_ENUM_SINGLE(MADERA_IN5R_RATE_CONTROL,
+			      MADERA_IN5R_RATE_SHIFT,
+			      MADERA_IN5R_RATE_MASK >> MADERA_IN5R_RATE_SHIFT,
+			      MADERA_SYNC_RATE_ENUM_SIZE,
+			      madera_rate_text,
+			      madera_rate_val),
+};
+EXPORT_SYMBOL_GPL(madera_input_rate);
+
 const char * const madera_dfc_width_text[MADERA_DFC_WIDTH_ENUM_SIZE] = {
 	"8bit", "16bit", "20bit", "24bit", "32bit",
 };
@@ -2004,6 +2086,22 @@ const struct soc_enum madera_dfc_type[] = {
 			      madera_dfc_type_val),
 };
 EXPORT_SYMBOL_GPL(madera_dfc_type);
+
+const struct soc_enum madera_fx_rate =
+	SOC_VALUE_ENUM_SINGLE(MADERA_FX_CTRL1,
+			      MADERA_FX_RATE_SHIFT, 0xf,
+			      MADERA_RATE_ENUM_SIZE,
+			      madera_rate_text, madera_rate_val);
+EXPORT_SYMBOL_GPL(madera_fx_rate);
+
+const struct soc_enum madera_spdif_rate =
+	SOC_VALUE_ENUM_SINGLE(MADERA_SPD1_TX_CONTROL,
+			      MADERA_SPD1_RATE_SHIFT,
+			      0x0f,
+			      MADERA_SYNC_RATE_ENUM_SIZE,
+			      madera_rate_text,
+			      madera_rate_val);
+EXPORT_SYMBOL_GPL(madera_spdif_rate);
 
 const struct soc_enum madera_isrc_fsh[] = {
 	SOC_VALUE_ENUM_SINGLE(MADERA_ISRC_1_CTRL_1,
@@ -2284,6 +2382,39 @@ const struct soc_enum madera_output_anc_src[] = {
 			madera_out_anc_src_text),
 };
 EXPORT_SYMBOL_GPL(madera_output_anc_src);
+
+int madera_in_rate_put(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int val, mask;
+	int ret = 0;
+
+	snd_soc_dapm_mutex_lock(dapm);
+
+	/* Cannot change rate on an active input */
+	ret = snd_soc_component_read(component, MADERA_INPUT_ENABLES, &val);
+	if (ret)
+		goto exit;
+
+	mask = (e->reg - MADERA_IN1L_CONTROL) / 4;
+	mask ^= 0x1; /* Flip bottom bit for channel order */
+
+	if ((val) & (1 << mask)) {
+		ret = -EBUSY;
+		goto exit;
+	}
+
+	ret = snd_soc_put_enum_double(kcontrol, ucontrol);
+exit:
+	snd_soc_dapm_mutex_unlock(dapm);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(madera_in_rate_put);
 
 int madera_dfc_put(struct snd_kcontrol *kcontrol,
 		   struct snd_ctl_elem_value *ucontrol)

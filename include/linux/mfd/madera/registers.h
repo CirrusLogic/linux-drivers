@@ -2189,6 +2189,16 @@
 #define MADERA_IN2_OSR_SHIFT				     8
 #define MADERA_IN2_OSR_WIDTH				     3
 
+/* (0x031B)  IN2L_Rate_Control */
+#define MADERA_IN2L_RATE_MASK                           0xF800
+#define MADERA_IN2L_RATE_SHIFT                              11
+#define MADERA_IN2L_RATE_WIDTH                               5
+
+/* (0x031B)  IN2L_Rate_Control */
+#define MADERA_IN2L_RATE_MASK1				0xF800
+#define MADERA_IN2L_RATE_SHIFT				    11
+#define MADERA_IN2L_RATE_WIDTH				     5
+
 /* (0x031C)  IN2R_Control */
 #define MADERA_IN2R_HPF_MASK				0x8000
 #define MADERA_IN2R_HPF_SHIFT				    15
@@ -2219,6 +2229,11 @@
 #define MADERA_IN2R_DIG_VOL_SHIFT			     0
 #define MADERA_IN2R_DIG_VOL_WIDTH			     8
 
+/* (0x031F)  IN2R_Rate_Control */
+#define MADERA_IN2R_RATE_MASK				0xF800
+#define MADERA_IN2R_RATE_SHIFT				    11
+#define MADERA_IN2R_RATE_WIDTH				     5
+
 /* (0x0320)  IN3L_Control */
 #define MADERA_IN3L_HPF_MASK				0x8000
 #define MADERA_IN3L_HPF_SHIFT				    15
@@ -2247,6 +2262,11 @@
 #define MADERA_IN3_OSR_SHIFT				     8
 #define MADERA_IN3_OSR_WIDTH				     3
 
+/* (0x0323)  IN3L_Rate_Control */
+#define MADERA_IN3L_RATE_MASK				0xF800
+#define MADERA_IN3L_RATE_SHIFT				    11
+#define MADERA_IN3L_RATE_WIDTH				     5
+
 /* (0x0324)  IN3R_Control */
 #define MADERA_IN3R_HPF_MASK				0x8000
 #define MADERA_IN3R_HPF_SHIFT				    15
@@ -2266,6 +2286,11 @@
 #define MADERA_IN3R_DIG_VOL_MASK			0x00FF
 #define MADERA_IN3R_DIG_VOL_SHIFT			     0
 #define MADERA_IN3R_DIG_VOL_WIDTH			     8
+
+/* (0x0327)  IN3R_Rate_Control */
+#define MADERA_IN3R_RATE_MASK				0xF800
+#define MADERA_IN3R_RATE_SHIFT				    11
+#define MADERA_IN3R_RATE_WIDTH				     5
 
 /* (0x0328)  IN4L_Control */
 #define MADERA_IN4L_HPF_MASK				0x8000
@@ -2289,6 +2314,11 @@
 #define MADERA_IN4_OSR_SHIFT				     8
 #define MADERA_IN4_OSR_WIDTH				     3
 
+/* (0x032B)  IN4L_Rate_Control */
+#define MADERA_IN4L_RATE_MASK				0xF800
+#define MADERA_IN4L_RATE_SHIFT				    11
+#define MADERA_IN4L_RATE_WIDTH				     5
+
 /* (0x032C)  IN4R_Control */
 #define MADERA_IN4R_HPF_MASK				0x8000
 #define MADERA_IN4R_HPF_SHIFT				    15
@@ -2305,6 +2335,11 @@
 #define MADERA_IN4R_DIG_VOL_MASK			0x00FF
 #define MADERA_IN4R_DIG_VOL_SHIFT			     0
 #define MADERA_IN4R_DIG_VOL_WIDTH			     8
+
+/* (0x032F)  IN4R_Rate_Control */
+#define MADERA_IN4R_RATE_MASK				0xF800
+#define MADERA_IN4R_RATE_SHIFT				    11
+#define MADERA_IN4R_RATE_WIDTH				     5
 
 /* (0x0330)  IN5L_Control */
 #define MADERA_IN5L_HPF_MASK				0x8000
@@ -2328,6 +2363,11 @@
 #define MADERA_IN5_OSR_SHIFT				     8
 #define MADERA_IN5_OSR_WIDTH				     3
 
+/* (0x0333)  IN5L_Rate_Control */
+#define MADERA_IN5L_RATE_MASK				0x7800
+#define MADERA_IN5L_RATE_SHIFT				    11
+#define MADERA_IN5L_RATE_WIDTH				     4
+
 /* (0x0334)  IN5R_Control */
 #define MADERA_IN5R_HPF_MASK				0x8000
 #define MADERA_IN5R_HPF_SHIFT				    15
@@ -2344,6 +2384,11 @@
 #define MADERA_IN5R_DIG_VOL_MASK			0x00FF
 #define MADERA_IN5R_DIG_VOL_SHIFT			     0
 #define MADERA_IN5R_DIG_VOL_WIDTH			     8
+
+/* (0x0337)  IN5R_Rate_Control */
+#define MADERA_IN5R_RATE_MASK				0x7800
+#define MADERA_IN5R_RATE_SHIFT				    11
+#define MADERA_IN5R_RATE_WIDTH				     4
 
 /* (0x0338)  IN6L_Control */
 #define MADERA_IN6L_HPF_MASK				0x8000
@@ -3222,6 +3267,11 @@
 #define MADERA_SLIMTX1_ENA_MASK				0x0001
 #define MADERA_SLIMTX1_ENA_SHIFT			     0
 #define MADERA_SLIMTX1_ENA_WIDTH			     1
+
+/* (0x0E00)  FX_Ctrl1 */
+#define MADERA_FX_RATE_MASK				0xF800
+#define MADERA_FX_RATE_SHIFT				    11
+#define MADERA_FX_RATE_WIDTH				     5
 
 /* (0x0E10)  EQ1_1 */
 #define MADERA_EQ1_B1_GAIN_MASK				0xF800
