@@ -254,6 +254,14 @@ static int cs47l85_hp_ev(struct snd_soc_dapm_widget *w,
 	}
 }
 
+static const struct soc_enum cs47l85_input_rate =
+	SOC_VALUE_ENUM_SINGLE(MADERA_INPUT_RATE,
+			      MADERA_IN_RATE_SHIFT,
+			      0x0f,
+			      MADERA_SYNC_RATE_ENUM_SIZE,
+			      madera_rate_text,
+			      madera_rate_val);
+
 static const struct snd_kcontrol_new cs47l85_snd_controls[] = {
 SOC_ENUM("IN1 OSR", madera_in_dmic_osr[0]),
 SOC_ENUM("IN2 OSR", madera_in_dmic_osr[1]),
@@ -421,6 +429,8 @@ SOC_ENUM("Sample Rate 2", madera_sample_rate[0]),
 SOC_ENUM("Sample Rate 3", madera_sample_rate[1]),
 SOC_ENUM("ASYNC Sample Rate 2", madera_sample_rate[2]),
 
+MADERA_RATE_ENUM("FX Rate", madera_fx_rate),
+
 MADERA_RATE_ENUM("ISRC1 FSL", madera_isrc_fsl[0]),
 MADERA_RATE_ENUM("ISRC2 FSL", madera_isrc_fsl[1]),
 MADERA_RATE_ENUM("ISRC3 FSL", madera_isrc_fsl[2]),
@@ -532,11 +542,16 @@ SOC_DOUBLE("HPOUT3 EDRE Switch", MADERA_EDRE_ENABLE,
 SOC_ENUM("Output Ramp Up", madera_out_vi_ramp),
 SOC_ENUM("Output Ramp Down", madera_out_vd_ramp),
 
+MADERA_RATE_ENUM("SPDIF1 Rate", madera_spdif_rate),
+
 SOC_SINGLE("Noise Gate Switch", MADERA_NOISE_GATE_CONTROL,
 	   MADERA_NGATE_ENA_SHIFT, 1, 0),
 SOC_SINGLE_TLV("Noise Gate Threshold Volume", MADERA_NOISE_GATE_CONTROL,
 	       MADERA_NGATE_THR_SHIFT, 7, 1, madera_ng_tlv),
 SOC_ENUM("Noise Gate Hold", madera_ng_hold),
+
+MADERA_RATE_ENUM("Output Rate 1", madera_output_rate),
+SOC_ENUM("In Rate", cs47l85_input_rate),
 
 CS47L85_NG_SRC("HPOUT1L", MADERA_NOISE_GATE_SELECT_1L),
 CS47L85_NG_SRC("HPOUT1R", MADERA_NOISE_GATE_SELECT_1R),

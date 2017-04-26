@@ -351,8 +351,12 @@ extern const struct soc_enum madera_isrc_fsh[];
 extern const struct soc_enum madera_asrc1_rate[];
 extern const struct soc_enum madera_asrc1_bidir_rate[];
 extern const struct soc_enum madera_asrc2_rate[];
+extern const struct soc_enum madera_output_rate;
+extern const struct soc_enum madera_output_ext_rate;
+extern const struct soc_enum madera_input_rate[];
 extern const struct soc_enum madera_dfc_width[];
 extern const struct soc_enum madera_dfc_type[];
+extern const struct soc_enum madera_fx_rate;
 extern const struct soc_enum madera_spdif_rate;
 
 extern const struct soc_enum madera_in_vi_ramp;
@@ -385,6 +389,8 @@ int madera_dfc_put(struct snd_kcontrol *kcontrol,
 		   struct snd_ctl_elem_value *ucontrol);
 
 int madera_lp_mode_put(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol);
+int madera_in_rate_put(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol);
 
 int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
