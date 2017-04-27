@@ -21,6 +21,7 @@
 enum tacna_type {
 	CS47L94 = 1,
 	CS47L95 = 2,
+	CS48LX50 = 3,
 };
 
 #define TACNA_MAX_CORE_SUPPLIES		2
