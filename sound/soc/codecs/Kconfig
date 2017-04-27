@@ -1181,6 +1181,8 @@ config SND_SOC_TACNA
 	tristate
 	default y if SND_SOC_CS47L94=y
 	default m if SND_SOC_CS47L94=m
+	default y if SND_SOC_CS48LX50_CODEC=y
+	default m if SND_SOC_CS48LX50_CODEC=m
 
 config SND_SOC_TPA6130A2
 	tristate "Texas Instruments TPA6130A2 headphone amplifier"
