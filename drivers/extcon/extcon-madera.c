@@ -643,13 +643,21 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 
 	switch (madera->type) {
 	case CS47L35:
+	case CS47L92:
+	case CS47L93:
 		/*
 		 * check whether audio is routed to EPOUT, do not disable OUT1
 		 * in that case
 		 */
 		regmap_read(madera->regmap, MADERA_OUTPUT_ENABLES_1, &ep_sel);
 		ep_sel &= MADERA_EP_SEL_MASK;
-		/* fall through to next step to set common variables */
+		break;
+	default:
+		break;
+	};
+
+	switch (madera->type) {
+	case CS47L35:
 	case CS47L85:
 	case WM1840:
 		edre_reg = MADERA_EDRE_MANUAL;
@@ -678,8 +686,10 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 	if (clamp && !ep_sel) {
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_OUTPUT_ENABLES_1,
-					 MADERA_OUT1L_ENA |
-					 MADERA_OUT1R_ENA, 0);
+					 (MADERA_OUT1L_ENA |
+					  MADERA_OUT1R_ENA) <<
+					 (2 * (info->pdata->output - 1)),
+					 0);
 		if (ret)
 			dev_warn(info->dev,
 				 "Failed to disable headphone outputs: %d\n",
@@ -728,7 +738,9 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 			info->pdata->hpdet_short_circuit_imp) && !ep_sel) {
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_OUTPUT_ENABLES_1,
-					 MADERA_OUT1L_ENA | MADERA_OUT1R_ENA,
+					 (MADERA_OUT1L_ENA |
+					  MADERA_OUT1R_ENA) <<
+					 (2 * (info->pdata->output - 1)),
 					 madera->hp_ena);
 		if (ret)
 			dev_warn(info->dev,
@@ -1014,7 +1026,8 @@ static void madera_extcon_set_mode(struct madera_extcon *info, int mode)
 				   info->micd_modes[mode].gnd <<
 				   MADERA_HPD_GND_SEL_SHIFT);
 		regmap_update_bits(madera->regmap,
-				   MADERA_OUTPUT_PATH_CONFIG_1,
+				   MADERA_OUTPUT_PATH_CONFIG_1 +
+				   (8 * (info->pdata->output - 1)),
 				   MADERA_HP1_GND_SEL_MASK,
 				   info->micd_modes[mode].hp_gnd <<
 				   MADERA_HP1_GND_SEL_SHIFT);
@@ -1139,7 +1152,7 @@ static void madera_extcon_notify_micd(const struct madera_extcon *info,
 
 	data.present = present;
 	data.impedance_x100 = madera_ohm_to_hohm(impedance);
-	data.out_num = 1;
+	data.out_num = info->pdata->output;
 
 	madera_call_notifiers(info->madera, MADERA_NOTIFY_MICDET, &data);
 }
@@ -2533,7 +2546,7 @@ static void madera_extcon_dump_config(struct madera_extcon *info)
 	for (i = 0; i < ARRAY_SIZE(info->madera->pdata.accdet); ++i) {
 		pdata = &info->madera->pdata.accdet[i];
 
-		dev_dbg(info->dev, "extcon pdata OUT%u\n", i + 1);
+		dev_dbg(info->dev, "extcon pdata OUT%u\n", pdata->output);
 		MADERA_EXTCON_PDATA_DUMP(enabled, "%u");
 		MADERA_EXTCON_PDATA_DUMP(jd_wake_time, "%d");
 		MADERA_EXTCON_PDATA_DUMP(jd_use_jd2, "%u");
@@ -2920,13 +2933,8 @@ static int madera_extcon_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	if (!pdata->enabled || pdata->output == 0) {
+	if (!pdata->enabled || pdata->output == 0)
 		return -ENODEV; /* no accdet output configured */
-	} else if (pdata->output != 1) {
-		dev_err(info->dev, "Only OUT1 is supported, OUT%d requested\n",
-			pdata->output);
-		return -ENODEV;
-	}
 
 	if (pdata->hpdet_short_circuit_imp < MADERA_HP_SHORT_IMPEDANCE_MIN)
 		pdata->hpdet_short_circuit_imp = MADERA_HP_SHORT_IMPEDANCE_MIN;
