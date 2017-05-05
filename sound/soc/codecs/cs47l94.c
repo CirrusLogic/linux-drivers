@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/completion.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -23,6 +24,7 @@
 #include <sound/tlv.h>
 
 #include <linux/irqchip/irq-tacna.h>
+
 #include <linux/mfd/tacna/core.h>
 #include <linux/mfd/tacna/registers.h>
 
@@ -39,6 +41,8 @@
 #define CS47L94_OUTH_CP_POLL_US		1000
 #define CS47L94_OUTH_CP_POLL_TIMEOUT_US	100000
 
+static const DECLARE_TLV_DB_SCALE(cs47l94_outh_digital_tlv, -12750, 50, 0);
+
 #define CS47L94_NG_SRC(name, base) \
 	SOC_SINGLE(name " NG OUT1L Switch", base,  0, 1, 0), \
 	SOC_SINGLE(name " NG OUT1R Switch", base,  1, 1, 0), \
@@ -50,6 +54,8 @@
 struct cs47l94 {
 	struct tacna_priv core;
 	struct tacna_fll fll[3];
+	struct completion outh_enabled;
+	struct completion outh_disabled;
 };
 
 static const DECLARE_TLV_DB_SCALE(cs47l94_aux_tlv, -9600, 50, 0);
@@ -149,13 +155,158 @@ err:
 	return ret;
 }
 
+int cs47l94_wait_for_cp_disable(struct tacna *tacna)
+{
+	struct regmap *regmap = tacna->regmap;
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read_poll_timeout(regmap, TACNA_HP1L_CTRL, val,
+				       !(val & TACNA_CP_EN_HP1L_MASK),
+				       CS47L94_OUTH_CP_POLL_US,
+				       CS47L94_OUTH_CP_POLL_TIMEOUT_US);
+	if (ret)
+		return ret;
+
+	ret = regmap_read_poll_timeout(regmap, TACNA_HP1R_CTRL, val,
+				       !(val & TACNA_CP_EN_HP1R_MASK),
+				       CS47L94_OUTH_CP_POLL_US,
+				       CS47L94_OUTH_CP_POLL_TIMEOUT_US);
+	if (ret)
+		return ret;
+
+	ret = regmap_read_poll_timeout(regmap, TACNA_HP2L_CTRL, val,
+				       !(val & TACNA_CP_EN_HP2L_MASK),
+				       CS47L94_OUTH_CP_POLL_US,
+				       CS47L94_OUTH_CP_POLL_TIMEOUT_US);
+	if (ret)
+		return ret;
+
+	ret = regmap_read_poll_timeout(regmap, TACNA_HP2R_CTRL, val,
+				       !(val & TACNA_CP_EN_HP2R_MASK),
+				       CS47L94_OUTH_CP_POLL_US,
+				       CS47L94_OUTH_CP_POLL_TIMEOUT_US);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int cs47l94_outh_ev(struct snd_soc_dapm_widget *w,
+		    struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
+	struct tacna *tacna = cs47l94->core.tacna;
+	struct regmap *regmap = tacna->regmap;
+	unsigned int val;
+	int ret, accdet;
+	long time_left;
+	bool outh_upd = false;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		ret = cs47l94_wait_for_cp_disable(tacna);
+		if (ret) {
+			dev_err(codec->dev,
+				"OUTH enable failed (OUT1/2 CP enabled): %d\n",
+				ret);
+			return ret;
+		}
+
+		/*
+		 * OUTH requires DAC clock to be set to it's highest
+		 * setting, so check if that's the case
+		 */
+		ret = regmap_read(regmap, TACNA_DAC_CLK_CONTROL1, &val);
+		val = (val & TACNA_DAC_CLK_SRC_FREQ_MASK) >>
+			TACNA_DAC_CLK_SRC_FREQ_SHIFT;
+
+		if (val != 2) {
+			dev_err(codec->dev,
+				"OUTH enable failed (incompatible DACCLK).\n");
+			return -EINVAL;
+		}
+
+		val = 1 << TACNA_OUTH_EN_SHIFT;
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		val = 0;
+		break;
+	default:
+		return 0;
+	}
+
+	/*
+	 * save desired OUTH state (to avoid adding a specific member for OUTH
+	 * a free bit (31) in hp_ena is used)
+	 */
+	if (val)
+		tacna->hp_ena |= (1 << 31);
+	else
+		tacna->hp_ena &= ~(1 << 31);
+
+	/* do not enable output if accessory detect is running on its pins */
+	accdet = tacna_get_accdet_for_output(codec, 1);
+	if (accdet >= 0 && tacna->hpdet_clamp[accdet])
+		val = 0;
+
+	if (accdet != 0) {
+		reinit_completion(&cs47l94->outh_enabled);
+		reinit_completion(&cs47l94->outh_disabled);
+	}
+
+	ret = regmap_update_bits_check(regmap, TACNA_OUTH_ENABLE_1,
+				       TACNA_OUTH_EN_MASK, val, &outh_upd);
+	if (ret)
+		dev_err(codec->dev, "Failed to toggle OUTH enable: %d\n", ret);
+
+	if (outh_upd) { /* wait for enable/disable to take effect */
+		if (val)
+			time_left = wait_for_completion_timeout(
+							&cs47l94->outh_enabled,
+							msecs_to_jiffies(100));
+		else
+			time_left = wait_for_completion_timeout(
+							&cs47l94->outh_disabled,
+							msecs_to_jiffies(100));
+
+		if (!time_left)
+			dev_warn(codec->dev, "OUTH %s timed out.\n",
+				 (val) ? "enable" : "disable");
+	}
+
+	return ret;
+}
+
+static irqreturn_t cs47l94_outh_enable(int irq, void *data)
+{
+	struct cs47l94 *cs47l94 = data;
+
+	dev_dbg(cs47l94->core.dev, "OUTH enable interrupt\n");
+
+	complete(&cs47l94->outh_enabled);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs47l94_outh_disable(int irq, void *data)
+{
+	struct cs47l94 *cs47l94 = data;
+
+	dev_dbg(cs47l94->core.dev, "OUTH disable interrupt\n");
+
+	complete(&cs47l94->outh_disabled);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t cs47l94_mpu_fault_irq(int irq, void *data)
 {
 	struct wm_adsp *dsp = data;
 
 	return wm_halo_bus_error(dsp);
 }
-
 
 static const char * const cs47l94_out1_demux_texts[] = {
 	"HP1", "HP2",
@@ -246,6 +397,14 @@ static SOC_ENUM_SINGLE_DECL(cs47l94_out1_demux_enum,
 static const struct snd_kcontrol_new cs47l94_out1_demux =
 	SOC_DAPM_ENUM_EXT("OUT1 Demux", cs47l94_out1_demux_enum,
 			snd_soc_dapm_get_enum_double, cs47l94_put_out1_demux);
+
+static const struct soc_enum cs47l94_outh_rate =
+	SOC_VALUE_ENUM_SINGLE(TACNA_OUTH_CONFIG_1,
+			      TACNA_OUTH_RATE_SHIFT,
+			      TACNA_OUTH_RATE_MASK >> TACNA_OUTH_RATE_SHIFT,
+			      TACNA_SYNC_RATE_ENUM_SIZE,
+			      tacna_rate_text,
+			      tacna_rate_val);
 
 static const struct snd_kcontrol_new cs47l94_snd_controls[] = {
 SOC_ENUM("IN1 OSR", tacna_in_dmic_osr[0]),
@@ -493,6 +652,24 @@ SOC_ENUM_EXT("IN4L Rate", tacna_input_rate[6],
 SOC_ENUM_EXT("IN4R Rate", tacna_input_rate[7],
 	     snd_soc_get_enum_double, tacna_in_rate_put),
 
+TACNA_RATE_ENUM("OUTH Rate", cs47l94_outh_rate),
+
+SOC_DOUBLE_R_EXT_TLV("OUTH Main Volume", TACNA_OUTHL_VOLUME_1,
+		     TACNA_OUTHR_VOLUME_1, TACNA_OUTHL_VOL_SHIFT, 0xc0, 0,
+		     snd_soc_get_volsw, tacna_put_out_vu, cs47l94_aux_tlv),
+
+SOC_DOUBLE_TLV("OUTH DSD Digital Volume", TACNA_DSD1_VOLUME1,
+	       TACNA_DSD1L_VOL_SHIFT, TACNA_DSD1R_VOL_SHIFT, 0xfe, 1,
+	       cs47l94_outh_digital_tlv),
+SOC_DOUBLE("OUTH DSD Digital Switch", TACNA_DSD1_VOLUME1,
+	   TACNA_DSD1L_MUTE_SHIFT, TACNA_DSD1R_MUTE_SHIFT, 1, 1),
+
+SOC_DOUBLE_TLV("OUTH PCM Digital Volume", TACNA_OUTH_PCM_CONTROL1,
+	       TACNA_OUTHL_LVL_SHIFT, TACNA_OUTHR_LVL_SHIFT, 0xfe, 1,
+	       cs47l94_outh_digital_tlv),
+SOC_DOUBLE("OUTH PCM Digital Switch", TACNA_OUTH_PCM_CONTROL1,
+	   TACNA_OUTHL_MUTE_SHIFT, TACNA_OUTHR_MUTE_SHIFT, 1, 1),
+
 SOC_SINGLE_EXT("DFC1 Dither", TACNA_DFC1_CH1_CTRL,
 	       TACNA_DFC1_CH1_DITH_EN_SHIFT, 1, 0,
 	       snd_soc_get_volsw, tacna_dfc_dith_put),
@@ -674,6 +851,8 @@ TACNA_MIXER_ENUMS(OUT5L, TACNA_OUT5LMIX_INPUT1);
 TACNA_MIXER_ENUMS(OUT5R, TACNA_OUT5RMIX_INPUT1);
 TACNA_MIXER_ENUMS(OUTAUX1L, TACNA_OUTAUX1LMIX_INPUT1);
 TACNA_MIXER_ENUMS(OUTAUX1R, TACNA_OUTAUX1RMIX_INPUT1);
+TACNA_MIXER_ENUMS(OUTHL, TACNA_OUTHLMIX_INPUT1);
+TACNA_MIXER_ENUMS(OUTHR, TACNA_OUTHRMIX_INPUT1);
 
 TACNA_MIXER_ENUMS(ASP1TX1, TACNA_ASP1TX1MIX_INPUT1);
 TACNA_MIXER_ENUMS(ASP1TX2, TACNA_ASP1TX2MIX_INPUT1);
@@ -794,7 +973,6 @@ SOC_ENUM_SINGLE_DECL(cs47l94_output_select_enum, SND_SOC_NOPM, 0,
 
 static const struct snd_kcontrol_new cs47l94_output_select =
 	SOC_DAPM_ENUM("Output Select", cs47l94_output_select_enum);
-
 
 static const struct snd_soc_dapm_widget cs47l94_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", TACNA_SYSTEM_CLOCK1, TACNA_SYSCLK_EN_SHIFT,
@@ -1094,10 +1272,12 @@ SND_SOC_DAPM_MUX("OUT2L Output Select", SND_SOC_NOPM, 0, 0,
 		 &cs47l94_output_select),
 SND_SOC_DAPM_MUX("OUT2R Output Select", SND_SOC_NOPM, 0, 0,
 		 &cs47l94_output_select),
-SND_SOC_DAPM_MUX("OUTHL Output Select", SND_SOC_NOPM, 0, 0,
-		 &cs47l94_output_select),
-SND_SOC_DAPM_MUX("OUTHR Output Select", SND_SOC_NOPM, 0, 0,
-		 &cs47l94_output_select),
+SND_SOC_DAPM_MUX_E("OUTH Output Select", SND_SOC_NOPM, 0, 0,
+		   &cs47l94_output_select, cs47l94_outh_ev,
+		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
+
+SND_SOC_DAPM_PGA("OUTH PCM", TACNA_OUTH_ENABLE_1, TACNA_OUTH_PCM_EN_SHIFT,
+		 0, NULL, 0),
 
 SND_SOC_DAPM_SWITCH("AUXPDM1 Output", TACNA_AUXPDM_CONTROL1,
 		    TACNA_AUXPDM1_EN_SHIFT, 0, &tacna_auxpdm_switch[0]),
@@ -1336,6 +1516,8 @@ TACNA_MIXER_WIDGETS(OUT5L, "OUT5L"),
 TACNA_MIXER_WIDGETS(OUT5R, "OUT5R"),
 TACNA_MIXER_WIDGETS(OUTAUX1L, "OUTAUX1L"),
 TACNA_MIXER_WIDGETS(OUTAUX1R, "OUTAUX1R"),
+TACNA_MIXER_WIDGETS(OUTHL, "OUTHL"),
+TACNA_MIXER_WIDGETS(OUTHR, "OUTHR"),
 
 TACNA_MIXER_WIDGETS(ASP1TX1, "ASP1TX1"),
 TACNA_MIXER_WIDGETS(ASP1TX2, "ASP1TX2"),
@@ -1551,6 +1733,7 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "OUT2R PGA", NULL, "DACOUTCLK" },
 	{ "OUT5L PGA", NULL, "DACOUTCLK" },
 	{ "OUT5R PGA", NULL, "DACOUTCLK" },
+	{ "OUTH Output Select", NULL, "DACOUTCLK"},
 	{ "ASP1TX1", NULL, "ASP1TXCLK" },
 	{ "ASP1TX2", NULL, "ASP1TXCLK" },
 	{ "ASP1TX3", NULL, "ASP1TXCLK" },
@@ -1817,6 +2000,8 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	TACNA_MIXER_ROUTES("OUT5R PGA", "OUT5R"),
 	TACNA_MIXER_ROUTES("OUTAUX1L PGA", "OUTAUX1L"),
 	TACNA_MIXER_ROUTES("OUTAUX1R PGA", "OUTAUX1R"),
+	TACNA_MIXER_ROUTES("OUTH PCM", "OUTHL"),
+	TACNA_MIXER_ROUTES("OUTH PCM", "OUTHR"),
 
 	TACNA_MIXER_ROUTES("PWM1 Driver", "PWM1"),
 	TACNA_MIXER_ROUTES("PWM2 Driver", "PWM2"),
@@ -1930,6 +2115,10 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "OUT5_PDMDATA", NULL, "OUT5L PGA" },
 	{ "OUT5_PDMCLK", NULL, "OUT5R PGA" },
 	{ "OUT5_PDMDATA", NULL, "OUT5R PGA" },
+
+	{ "OUTH Output Select", "OUTH", "OUTH PCM" },
+	{ "OUT1L_HP1", NULL, "OUTH Output Select" },
+	{ "OUT1R_HP1", NULL, "OUTH Output Select" },
 
 	{ "AUXPDM1 Input", "IN1L", "IN1L PGA" },
 	{ "AUXPDM1 Input", "IN1R", "IN1R PGA" },
@@ -2286,6 +2475,21 @@ static int cs47l94_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	init_completion(&cs47l94->outh_enabled);
+	init_completion(&cs47l94->outh_disabled);
+
+	ret = tacna_request_irq(tacna, TACNA_IRQ_OUTHL_ENABLE_DONE,
+				"OUTH enable", cs47l94_outh_enable, cs47l94);
+	if (ret)
+		dev_warn(&pdev->dev, "Failed to get OUTH enable IRQ: %d\n",
+			 ret);
+
+	ret = tacna_request_irq(tacna, TACNA_IRQ_OUTHL_DISABLE_DONE,
+				"OUTH enable", cs47l94_outh_disable, cs47l94);
+	if (ret)
+		dev_warn(&pdev->dev, "Failed to get OUTH disable IRQ: %d\n",
+			 ret);
+
 	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
 		dsp = &cs47l94->core.dsp[i];
 		dsp->part = "cs47l94";
@@ -2365,6 +2569,9 @@ error_dsp:
 error_core:
 	tacna_core_destroy(&cs47l94->core);
 
+	tacna_free_irq(tacna, TACNA_IRQ_OUTHL_ENABLE_DONE, cs47l94);
+	tacna_free_irq(tacna, TACNA_IRQ_OUTHL_DISABLE_DONE, cs47l94);
+
 	return ret;
 }
 
@@ -2380,6 +2587,9 @@ static int cs47l94_remove(struct platform_device *pdev)
 
 	tacna_free_irq(tacna, TACNA_IRQ_DSP2_MPU_ERR, &cs47l94->core.dsp[1]);
 	tacna_free_irq(tacna, TACNA_IRQ_DSP1_MPU_ERR, &cs47l94->core.dsp[0]);
+
+	tacna_free_irq(tacna, TACNA_IRQ_OUTHL_ENABLE_DONE, cs47l94);
+	tacna_free_irq(tacna, TACNA_IRQ_OUTHL_DISABLE_DONE, cs47l94);
 
 	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
 		wm_adsp2_remove(&cs47l94->core.dsp[i]);
