@@ -74,6 +74,7 @@ struct wm_adsp {
 
 	unsigned int fw_id;
 	unsigned int fw_id_version;
+	unsigned int fw_vendor_id;
 
 	const struct wm_adsp_region *mem;
 	int num_mems;
