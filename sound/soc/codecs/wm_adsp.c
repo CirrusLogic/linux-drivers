@@ -1903,18 +1903,42 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		goto out_fw;
 	}
 
-	switch (header->ver) {
-	case 0:
-		adsp_warn(dsp, "%s: Depreciated file format %d\n",
-			  file, header->ver);
+	switch (dsp->type) {
+	case WMFW_ADSP1:
+	case WMFW_ADSP2:
+		switch (header->ver) {
+		case 0:
+			adsp_warn(dsp, "%s: Deprecated file format %d\n",
+				  file, header->ver);
+			break;
+		case 1:
+		case 2:
+			break;
+		default:
+			adsp_err(dsp, "%s: unknown file format %d\n",
+				 file, header->ver);
+			goto out_fw;
+		}
 		break;
-	case 1:
-	case 2:
-		break;
-	default:
-		adsp_err(dsp, "%s: unknown file format %d\n",
-			 file, header->ver);
-		goto out_fw;
+	case WMFW_HALO:
+		switch (header->ver) {
+		case 1:
+		case 2:
+			/*
+			 * we are required to load these for testing purposes
+			 * but this format is not allowed for production fw
+			 */
+			adsp_warn(dsp,
+				  "%s: Not a production firmware (deprecated file format %d)\n",
+				  file, header->ver);
+			break;
+		case 3:
+			break;
+		default:
+			adsp_err(dsp, "%s: unknown file format %d\n",
+				 file, header->ver);
+			goto out_fw;
+		}
 	}
 
 	adsp_info(dsp, "Firmware version: %d\n", header->ver);
@@ -1939,8 +1963,8 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 			 le32_to_cpu(adsp1_sizes->zm));
 		break;
 
-	case WMFW_ADSP2:
 	case WMFW_HALO:
+	case WMFW_ADSP2:
 		pos = sizeof(*header) + sizeof(*adsp2_sizes) + sizeof(*footer);
 		adsp2_sizes = (void *)&(header[1]);
 		footer = (void *)&(adsp2_sizes[1]);
@@ -2322,6 +2346,7 @@ static int wm_adsp2_setup_algs(struct wm_adsp *dsp)
 	n_algs = be32_to_cpu(adsp2_id.n_algs);
 	dsp->fw_id = be32_to_cpu(adsp2_id.fw.id);
 	dsp->fw_id_version = be32_to_cpu(adsp2_id.fw.ver);
+	dsp->fw_vendor_id = 0;
 	adsp_info(dsp, "Firmware: %x v%d.%d.%d, %zu algorithms\n",
 		  dsp->fw_id,
 		  (dsp->fw_id_version & 0xff0000) >> 16,
@@ -2440,6 +2465,99 @@ static int wm_adsp2_setup_algs(struct wm_adsp *dsp)
 
 out:
 	kfree(adsp2_alg);
+	return ret;
+}
+
+static int wm_halo_setup_algs(struct wm_adsp *dsp)
+{
+	struct wmfw_halo_id_hdr halo_id;
+	struct wmfw_adsp2_alg_hdr *halo_alg;
+	struct wm_adsp_alg_region *alg_region;
+	const struct wm_adsp_region *mem;
+	unsigned int pos, len, block_rev;
+	size_t n_algs;
+	int i, ret;
+
+	mem = wm_adsp_find_region(dsp, WMFW_ADSP2_XM);
+	if (WARN_ON(!mem))
+		return -EINVAL;
+
+	ret = regmap_raw_read(dsp->regmap, mem->base, &halo_id,
+			      sizeof(halo_id));
+	if (ret != 0) {
+		adsp_err(dsp, "Failed to read algorithm info: %d\n",
+			 ret);
+		return ret;
+	}
+
+	block_rev = be32_to_cpu(halo_id.fw.block_rev) >> 16;
+	switch (block_rev) {
+	case 3:
+		break;
+	default:
+		adsp_err(dsp, "Unknown firmware ID block version 0x%x\n",
+			 block_rev);
+		return -EINVAL;
+	}
+
+	n_algs = be32_to_cpu(halo_id.n_algs);
+	dsp->fw_id = be32_to_cpu(halo_id.fw.id);
+	dsp->fw_id_version = be32_to_cpu(halo_id.fw.ver);
+	dsp->fw_vendor_id = be32_to_cpu(halo_id.fw.vendor_id);
+	adsp_info(dsp, "Firmware: %x vendor: 0x%x v%d.%d.%d, %zu algorithms\n",
+		  dsp->fw_id,
+		  dsp->fw_vendor_id,
+		  (dsp->fw_id_version & 0xff0000) >> 16,
+		  (dsp->fw_id_version & 0xff00) >> 8,
+		  dsp->fw_id_version & 0xff,
+		  n_algs);
+
+	alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_XM,
+					   halo_id.fw.id, halo_id.xm);
+	if (IS_ERR(alg_region))
+		return PTR_ERR(alg_region);
+
+	alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_YM,
+					   halo_id.fw.id, halo_id.ym);
+	if (IS_ERR(alg_region))
+		return PTR_ERR(alg_region);
+
+	pos = sizeof(halo_id);
+	len = (sizeof(*halo_alg) * n_algs);
+
+	halo_alg = wm_adsp_read_algs(dsp, n_algs, mem->base + pos, len);
+	if (IS_ERR(halo_alg))
+		return PTR_ERR(halo_alg);
+
+	for (i = 0; i < n_algs; i++) {
+		adsp_info(dsp,
+			  "%d: ID %x v%d.%d.%d XM@%x YM@%x\n",
+			  i, be32_to_cpu(halo_alg[i].alg.id),
+			  (be32_to_cpu(halo_alg[i].alg.ver) & 0xff0000) >> 16,
+			  (be32_to_cpu(halo_alg[i].alg.ver) & 0xff00) >> 8,
+			  be32_to_cpu(halo_alg[i].alg.ver) & 0xff,
+			  be32_to_cpu(halo_alg[i].xm),
+			  be32_to_cpu(halo_alg[i].ym));
+
+		alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_XM,
+						   halo_alg[i].alg.id,
+						   halo_alg[i].xm);
+		if (IS_ERR(alg_region)) {
+			ret = PTR_ERR(alg_region);
+			goto out;
+		}
+
+		alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_YM,
+						   halo_alg[i].alg.id,
+						   halo_alg[i].ym);
+		if (IS_ERR(alg_region)) {
+			ret = PTR_ERR(alg_region);
+			goto out;
+		}
+	}
+
+out:
+	kfree(halo_alg);
 	return ret;
 }
 
@@ -3088,9 +3206,19 @@ static void wm_halo_boot_work(struct work_struct *work)
 	if (ret != 0)
 		goto err;
 
-	ret = wm_adsp2_setup_algs(dsp);
-	if (ret != 0)
-		goto err;
+	switch (dsp->fw_ver) {
+	case 1:
+	case 2:
+		ret = wm_adsp2_setup_algs(dsp);
+		if (ret != 0)
+			goto err;
+		break;
+	default:
+		ret = wm_halo_setup_algs(dsp);
+		if (ret != 0)
+			goto err;
+		break;
+	}
 
 	ret = wm_adsp_load_coeff(dsp);
 	if (ret != 0)
