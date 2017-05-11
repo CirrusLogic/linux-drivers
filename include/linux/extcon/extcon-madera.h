@@ -77,6 +77,7 @@ struct madera_extcon {
 
 	const struct madera_hpdet_calibration_data *hpdet_ranges;
 	int num_hpdet_ranges;
+	unsigned int hpdet_init_range;
 	const struct madera_hpdet_trims *hpdet_trims;
 
 	int micd_mode;

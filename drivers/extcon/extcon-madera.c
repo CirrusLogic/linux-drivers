@@ -1570,7 +1570,9 @@ void madera_hpdet_restart(struct madera_extcon *info)
 			   MADERA_MICD_ENA_MASK, 0);
 
 	regmap_update_bits(madera->regmap, MADERA_HEADPHONE_DETECT_1,
-			   MADERA_HP_IMPEDANCE_RANGE_MASK | MADERA_HP_POLL, 0);
+			   MADERA_HP_IMPEDANCE_RANGE_MASK | MADERA_HP_POLL,
+			   info->hpdet_init_range <<
+			   MADERA_HP_IMPEDANCE_RANGE_SHIFT);
 
 	switch (madera->type) {
 	case CS47L35:
@@ -1631,7 +1633,9 @@ void madera_hpdet_stop(struct madera_extcon *info)
 	madera_hpdet_stop_micd(info);
 
 	regmap_update_bits(madera->regmap, MADERA_HEADPHONE_DETECT_1,
-			   MADERA_HP_IMPEDANCE_RANGE_MASK | MADERA_HP_POLL, 0);
+			   MADERA_HP_IMPEDANCE_RANGE_MASK | MADERA_HP_POLL,
+			   info->hpdet_init_range <<
+			   MADERA_HP_IMPEDANCE_RANGE_SHIFT);
 
 	switch (madera->type) {
 	case CS47L35:
@@ -2826,7 +2830,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	struct madera_extcon *info;
 	unsigned int debounce_val, analog_val;
 	int jack_irq_fall, jack_irq_rise;
-	int ret, mode;
+	int ret, mode, i;
 
 	/* quick exit if Madera irqchip driver hasn't completed probe */
 	if (!madera->irq_dev) {
@@ -3043,6 +3047,27 @@ static int madera_extcon_probe(struct platform_device *pdev)
 			break;
 		}
 	}
+
+	/* Skip any HPDET ranges less than the external resistance */
+	for (i = info->hpdet_init_range; i < info->num_hpdet_ranges; ++i) {
+		if (madera_ohm_to_hohm(info->hpdet_ranges[i].max) >=
+		    pdata->hpdet_ext_res_x100) {
+			info->hpdet_init_range = i;
+			break;
+		}
+	}
+	if (i == info->num_hpdet_ranges) {
+		dev_err(&pdev->dev,
+			"No possible range for external resistance %u.%02u\n",
+			pdata->hpdet_ext_res_x100 / 100,
+			pdata->hpdet_ext_res_x100 % 100);
+		goto err_input;
+	}
+
+	regmap_update_bits(madera->regmap, MADERA_HEADPHONE_DETECT_1,
+			   MADERA_HP_IMPEDANCE_RANGE_MASK,
+			   info->hpdet_init_range <<
+			   MADERA_HP_IMPEDANCE_RANGE_SHIFT);
 
 	if (info->pdata->jd_use_jd2) {
 		jack_irq_rise = MADERA_IRQ_MICD_CLAMP_RISE;
