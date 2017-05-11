@@ -797,6 +797,7 @@ static int cs35l35_codec_set_sysclk(struct snd_soc_codec *codec,
 static int cs35l35_boost_inductor(struct cs35l35_private *cs35l35,
 				  int inductor)
 {
+	unsigned int bst_ipk = 0;
 	/*
 	 * Digital Boost Converter Configuration for feedback,
 	 * ramping, switching frequency, and estimation block seeding.
@@ -805,6 +806,9 @@ static int cs35l35_boost_inductor(struct cs35l35_private *cs35l35,
 	regmap_update_bits(cs35l35->regmap, CS35L35_BST_CONV_SW_FREQ,
 				   CS35L35_BST_CONV_SWFREQ_MASK, 0x00);
 
+	regmap_read(cs35l35->regmap, CS35L35_BST_PEAK_I, &bst_ipk);
+	bst_ipk &= CS35L35_BST_IPK_MASK;
+
 	switch (inductor) {
 	case 1000: /* 1 uH */
 		regmap_write(cs35l35->regmap, CS35L35_BST_CONV_COEF_1, 0x24);
@@ -812,7 +816,7 @@ static int cs35l35_boost_inductor(struct cs35l35_private *cs35l35,
 		regmap_update_bits(cs35l35->regmap, CS35L35_BST_CONV_SW_FREQ,
 					CS35L35_BST_CONV_LBST_MASK, 0x00);
 
-		if (cs35l35->pdata.bst_ipk < 0x04)
+		if (bst_ipk < 0x04)
 			regmap_write(cs35l35->regmap, CS35L35_BST_CONV_SLOPE_COMP,
 				     0x1B);
 		else
@@ -825,7 +829,7 @@ static int cs35l35_boost_inductor(struct cs35l35_private *cs35l35,
 		regmap_update_bits(cs35l35->regmap, CS35L35_BST_CONV_SW_FREQ,
 					CS35L35_BST_CONV_LBST_MASK, 0x01);
 
-		if (cs35l35->pdata.bst_ipk < 0x04)
+		if (bst_ipk < 0x04)
 			regmap_write(cs35l35->regmap, CS35L35_BST_CONV_SLOPE_COMP,
 				     0x1B);
 		else
@@ -838,7 +842,7 @@ static int cs35l35_boost_inductor(struct cs35l35_private *cs35l35,
 		regmap_update_bits(cs35l35->regmap, CS35L35_BST_CONV_SW_FREQ,
 					CS35L35_BST_CONV_LBST_MASK, 0x02);
 
-		if (cs35l35->pdata.bst_ipk < 0x04)
+		if (bst_ipk < 0x04)
 			regmap_write(cs35l35->regmap, CS35L35_BST_CONV_SLOPE_COMP,
 				     0x1B);
 		else
@@ -851,7 +855,7 @@ static int cs35l35_boost_inductor(struct cs35l35_private *cs35l35,
 		regmap_update_bits(cs35l35->regmap, CS35L35_BST_CONV_SW_FREQ,
 					CS35L35_BST_CONV_LBST_MASK, 0x03);
 
-		if (cs35l35->pdata.bst_ipk < 0x04)
+		if (bst_ipk < 0x04)
 			regmap_write(cs35l35->regmap, CS35L35_BST_CONV_SLOPE_COMP,
 				     0x1B);
 		else
