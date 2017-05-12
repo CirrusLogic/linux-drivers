@@ -3648,6 +3648,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	struct arizona_extcon_info *info;
 	unsigned int reg;
 	int jack_irq_fall, jack_irq_rise;
+	int hpdet_short;
 	int ret, mode, i;
 	int debounce_reg, debounce_val, analog_val;
 
@@ -3666,10 +3667,17 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (pdata->hpdet_short_circuit_imp < 1)
+	hpdet_short = pdata->hpdet_short_circuit_imp + pdata->hpdet_ext_res;
+
+	if (hpdet_short < ARIZONA_HP_SHORT_IMPEDANCE) {
+		dev_warn(arizona->dev,
+			 "Increasing HP short circuit impedance from %d to %d\n",
+			 pdata->hpdet_short_circuit_imp,
+			 ARIZONA_HP_SHORT_IMPEDANCE);
 		pdata->hpdet_short_circuit_imp = ARIZONA_HP_SHORT_IMPEDANCE;
-	else if	(pdata->hpdet_short_circuit_imp >= HP_LOW_IMPEDANCE_LIMIT)
+	} else if (pdata->hpdet_short_circuit_imp >= HP_LOW_IMPEDANCE_LIMIT) {
 		pdata->hpdet_short_circuit_imp = HP_LOW_IMPEDANCE_LIMIT - 1;
+	}
 
 	/* Set of_node to parent from the SPI device to allow
 	 * location regulator supplies */
