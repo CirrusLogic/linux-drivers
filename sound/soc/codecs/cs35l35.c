@@ -889,11 +889,9 @@ static int cs35l35_codec_probe(struct snd_soc_codec *codec)
 				cs35l35->pdata.bst_ipk <<
 				CS35L35_BST_IPK_SHIFT);
 
-	if (cs35l35->pdata.boost_ind) {
-		ret = cs35l35_boost_inductor(cs35l35, cs35l35->pdata.boost_ind);
-		if (ret)
-			return ret;
-	}
+	ret = cs35l35_boost_inductor(cs35l35, cs35l35->pdata.boost_ind);
+	if (ret)
+		return ret;
 
 	if (cs35l35->pdata.gain_zc)
 		regmap_update_bits(cs35l35->regmap, CS35L35_PROTECT_CTL,
