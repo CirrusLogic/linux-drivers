@@ -3654,11 +3654,6 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	if (!arizona->dapm || !arizona->dapm->card)
 		return -EPROBE_DEFER;
 
-	if (pdata->hpdet_short_circuit_imp < 1)
-		pdata->hpdet_short_circuit_imp = ARIZONA_HP_SHORT_IMPEDANCE;
-	else if	(pdata->hpdet_short_circuit_imp >= HP_LOW_IMPEDANCE_LIMIT)
-		pdata->hpdet_short_circuit_imp = HP_LOW_IMPEDANCE_LIMIT - 1;
-
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
@@ -3670,6 +3665,11 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 				return ret;
 		}
 	}
+
+	if (pdata->hpdet_short_circuit_imp < 1)
+		pdata->hpdet_short_circuit_imp = ARIZONA_HP_SHORT_IMPEDANCE;
+	else if	(pdata->hpdet_short_circuit_imp >= HP_LOW_IMPEDANCE_LIMIT)
+		pdata->hpdet_short_circuit_imp = HP_LOW_IMPEDANCE_LIMIT - 1;
 
 	/* Set of_node to parent from the SPI device to allow
 	 * location regulator supplies */
