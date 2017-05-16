@@ -2174,7 +2174,7 @@ static irqreturn_t madera_jackdet(int irq, void *data)
 	struct madera *madera = info->madera;
 	unsigned int val, mask;
 	bool cancelled_state;
-	int i, present, ret;
+	int i, present;
 
 	dev_dbg(info->dev, "jackdet IRQ");
 
@@ -2228,8 +2228,6 @@ static irqreturn_t madera_jackdet(int irq, void *data)
 	} else {
 		dev_dbg(info->dev, "Detected jack removal\n");
 
-		madera_extcon_report(info, EXTCON_MECHANICAL, false);
-
 		info->have_mic = false;
 		info->micd_res_old = 0;
 		info->micd_debounce = 0;
@@ -2241,14 +2239,8 @@ static irqreturn_t madera_jackdet(int irq, void *data)
 					 info->micd_ranges[i].key, 0);
 		input_sync(info->input);
 
-		for (i = 0; i < ARRAY_SIZE(madera_cable) - 1; i++) {
-			ret = extcon_set_state_sync(info->edev,
-						    madera_cable[i],
-						    false);
-			if (ret != 0)
-				dev_err(info->dev,
-					"Removal report failed: %d\n", ret);
-		}
+		for (i = 0; i < ARRAY_SIZE(madera_cable) - 1; i++)
+			madera_extcon_report(info, madera_cable[i], false);
 
 		regmap_update_bits(madera->regmap, MADERA_INTERRUPT_DEBOUNCE_7,
 				   mask, mask);
