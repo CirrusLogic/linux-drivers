@@ -1389,6 +1389,20 @@ static int madera_tune_headphone(struct madera_extcon *info, int reading)
 		return 0;
 	}
 
+	if (reading == MADERA_HP_Z_OPEN) {
+		if (info->hp_tuning_level == 1)
+			return 0;
+
+		dev_dbg(info->dev, "No jack: Setting tuning level 1\n");
+
+		info->hp_tuning_level = 1;
+
+		ret = regmap_multi_reg_write(madera->regmap,
+					     tuning[1].patch,
+					     tuning[1].patch_len);
+		return ret;
+	}
+
 	/*
 	 * Check for tuning, we don't need to compare against the last
 	 * tuning entry because we always select that if reading is not
