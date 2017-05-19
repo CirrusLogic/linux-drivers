@@ -85,14 +85,13 @@ static const unsigned int madera_default_hpd_pins[4] = {
 };
 
 static struct madera_micd_range madera_micd_default_ranges[] = {
-	{ .max =  70, .key = BTN_0 },
-	{ .max = 186, .key = BTN_1 },
-	{ .max = 295, .key = BTN_2 },
-	{ .max = 681, .key = BTN_3 },
-	{ .max =  -1, .key = -1 },
-	{ .max =  -1, .key = -1 },
-	{ .max =  -1, .key = -1 },
-	{ .max =  -1, .key = -1 },
+	{ .max = 116,  .key = KEY_MEDIA },
+	{ .max = 173,  .key = KEY_VOICECOMMAND },
+	{ .max = 321,  .key = KEY_VOLUMEUP },
+	{ .max = 752,  .key = KEY_VOLUMEDOWN },
+	{ .max = 1257, .key = KEY_SEARCH },
+	{ .max =  -1,  .key = -1 },
+	{ .max =  -1,  .key = -1 },
 };
 
 /* The number of levels in madera_micd_levels valid for button thresholds */
