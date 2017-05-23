@@ -226,6 +226,8 @@
 #define HALO_SYS_INFO_YM_SRAM_SIZE           0x00018
 #define HALO_SYS_INFO_XM_BANK_SIZE           0x00038
 #define HALO_SYS_INFO_YM_BANK_SIZE           0x0003c
+#define HALO_AHBM_WINDOW_DEBUG_0             0x02040
+#define HALO_AHBM_WINDOW_DEBUG_1             0x02044
 
 /*
  * HALO core
@@ -266,6 +268,12 @@
 #define HALO_MPU_WINDOW_ACCESS_3             0x43050
 #define HALO_MPU_XREG_ACCESS_3               0x43054
 #define HALO_MPU_YREG_ACCESS_3               0x4305C
+#define HALO_MPU_XM_VIO_ADDR                 0x43100
+#define HALO_MPU_XM_VIO_STATUS               0x43104
+#define HALO_MPU_YM_VIO_ADDR                 0x43108
+#define HALO_MPU_YM_VIO_STATUS               0x4310C
+#define HALO_MPU_PM_VIO_ADDR                 0x43110
+#define HALO_MPU_PM_VIO_STATUS               0x43114
 #define HALO_MPU_LOCK_CONFIG                 0x43140
 
 /*
@@ -351,6 +359,17 @@
 #define HALO_INTP_CTL_NMI_CONTROL            0x46008
 
 /*
+ * HALO_AHBM_WINDOW_DEBUG_1
+ */
+#define HALO_AHBM_CORE_ERR_ADDR_MASK         0x0fffff00
+#define HALO_AHBM_CORE_ERR_ADDR_SHIFT                 8
+#define HALO_AHBM_ADDR_ERR_MASK              0x00000080
+#define HALO_AHBM_LOCKED_ERR_MASK            0x00000040
+#define HALO_AHBM_SIZE_ERR_MASK              0x00000020
+#define HALO_AHBM_MODE_ERR_MASK              0x00000010
+#define HALO_AHBM_AHB_ERR_MASK               0x00000001
+
+/*
  * HALO_SAMPLE_RATE_[RX|TX]n
  */
 #define HALO_DSP_RATE_SHIFT                  0
@@ -364,6 +383,25 @@
 #define HALO_CORE_EN_SHIFT                  0
 #define HALO_CORE_EN_WIDTH                  1
 #define HALO_CORE_RESET                      0x00000200
+
+/*
+ * HALO_MPU_?M_VIO_STATUS
+ */
+#define HALO_MPU_VIO_STS_MASK               0x007e0000
+#define HALO_MPU_VIO_STS_SHIFT                      17
+#define HALO_MPU_VIO_ERR_MASK               0x00010000
+#define HALO_MPU_VIO_ERR_SHIFT                      16
+#define HALO_MPU_VIO_ERR_WR_MASK            0x00008000
+#define HALO_MPU_VIO_ERR_WR_SHIFT                   15
+#define HALO_MPU_VIO_ERR_SRC_MASK           0x00007fff
+#define HALO_MPU_VIO_ERR_SRC_SHIFT                   0
+
+#define HALO_MPU_VIO_SRAM                   0x01
+#define HALO_MPU_VIO_REG                    0x02
+#define HALO_MPU_VIO_AHB                    0x04
+#define HALO_MPU_VIO_EREG                   0x08
+#define HALO_MPU_VIO_EXTERNAL_MEM           0x10
+#define HALO_MPU_VIO_NON_EXIST              0x20
 
 /*
  * HALO_STREAM_ARB_MSTRn_CONFIG_0
@@ -4547,5 +4585,101 @@ irqreturn_t wm_adsp2_bus_error(struct wm_adsp *dsp)
 	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_bus_error);
+
+static void wm_halo_dump_fault_info(struct wm_adsp *dsp, const char *region,
+				    unsigned int addr, unsigned int status)
+{
+	unsigned int write = status & HALO_MPU_VIO_ERR_WR_MASK;
+	unsigned int type = (status & HALO_MPU_VIO_STS_MASK) >>
+				 HALO_MPU_VIO_STS_SHIFT;
+	unsigned int src = (status & HALO_MPU_VIO_ERR_SRC_MASK) >>
+			   HALO_MPU_VIO_ERR_SRC_SHIFT;
+
+	adsp_warn(dsp, "%s: FAULT_ADDR:0x%x FAULT_STATUS:0x%x %s\n",
+		  region, addr, status,
+		  write ? "write" : "read");
+
+	switch (src) {
+	case 0:
+		adsp_warn(dsp, "%s: SRC=HALO\n", region);
+		break;
+	default:
+		adsp_warn(dsp, "%s: SRC=Requestor%u\n", region, src);
+		break;
+	}
+
+	adsp_warn(dsp, "%s: %s %s %s %s %s %s\n",
+		  region,
+		  type & HALO_MPU_VIO_SRAM ? "SRAM" : "",
+		  type & HALO_MPU_VIO_REG ? "REG" : "",
+		  type & HALO_MPU_VIO_AHB ? "AHB" : "",
+		  type & HALO_MPU_VIO_EREG ? "EREG" : "",
+		  type & HALO_MPU_VIO_EXTERNAL_MEM ? "ExtMem" : "",
+		  type & HALO_MPU_VIO_NON_EXIST ? "NotExist" : "");
+}
+
+irqreturn_t wm_halo_bus_error(struct wm_adsp *dsp)
+{
+	struct regmap *regmap = dsp->regmap;
+	unsigned int fault[6], ahb_sts, reg;
+	int ret;
+
+	mutex_lock(&dsp->pwr_lock);
+
+	/* Ensure we log the fault even if we fail to read the fault info */
+	adsp_warn(dsp, "MPU FAULT\n");
+
+	ret = regmap_read(regmap, dsp->base_sysinfo + HALO_AHBM_WINDOW_DEBUG_1,
+			  &ahb_sts);
+	if (ret) {
+		adsp_warn(dsp, "Failed to read AHB DEBUG_1 (%d)\n", ret);
+		goto exit_unlock;
+	}
+
+	adsp_warn(dsp, "AHB WINDOW: ADDR: 0x%x STATUS: 0x%x\n",
+		  (ahb_sts & HALO_AHBM_CORE_ERR_ADDR_MASK) >>
+		  HALO_AHBM_CORE_ERR_ADDR_SHIFT,
+		  ahb_sts);
+	adsp_warn(dsp, "AHB WINDOW: %s %s %s %s\n",
+		  (ahb_sts & HALO_AHBM_ADDR_ERR_MASK) ? "ADDR" : "",
+		  (ahb_sts & HALO_AHBM_LOCKED_ERR_MASK) ? "LOCKED" : "",
+		  (ahb_sts & HALO_AHBM_SIZE_ERR_MASK) ? "SIZE" : "",
+		  (ahb_sts & HALO_AHBM_MODE_ERR_MASK) ? "MODE" : "");
+
+	ret = regmap_read(regmap, dsp->base_sysinfo + HALO_AHBM_WINDOW_DEBUG_0,
+			  &ahb_sts);
+	if (ret) {
+		adsp_warn(dsp, "Failed to read AHB DEBUG_0 (%d)\n", ret);
+		goto exit_unlock;
+	}
+
+	adsp_warn(dsp, "AHB SYS_ADDR: 0x%x\n", ahb_sts);
+
+	ret = regmap_bulk_read(regmap, dsp->base + HALO_MPU_XM_VIO_ADDR,
+			       fault, ARRAY_SIZE(fault));
+	if (ret) {
+		adsp_warn(dsp, "Failed to read MPU fault info (%d)\n", ret);
+		goto exit_unlock;
+	}
+
+	wm_halo_dump_fault_info(dsp, "XM", fault[0], fault[1]);
+	wm_halo_dump_fault_info(dsp, "YM", fault[2], fault[3]);
+	wm_halo_dump_fault_info(dsp, "PM", fault[4], fault[5]);
+
+	/* Clear fault status */
+	for (reg = HALO_MPU_XM_VIO_STATUS; reg <= HALO_MPU_PM_VIO_STATUS;
+	     reg += 8) {
+		ret = regmap_write(regmap, dsp->base + reg, 0);
+		if (ret)
+			adsp_warn(dsp, "Failed to clear MPU status @0x%x (%d)\n",
+				  reg, ret);
+	}
+
+exit_unlock:
+	mutex_unlock(&dsp->pwr_lock);
+
+	return IRQ_HANDLED;
+}
+EXPORT_SYMBOL_GPL(wm_halo_bus_error);
 
 MODULE_LICENSE("GPL v2");
