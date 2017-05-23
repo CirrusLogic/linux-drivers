@@ -474,6 +474,7 @@ static bool tacna_can_change_grp_rate(const struct tacna_priv *priv,
 		break;
 	case TACNA_DFC1_CH8_CTRL:
 		count = priv->domain_group_ref[TACNA_DOM_GRP_DFC8];
+		break;
 	case TACNA_DSP1_CLOCK_FREQ:
 		count = priv->domain_group_ref[TACNA_DOM_GRP_DSP1];
 		break;
@@ -3741,9 +3742,8 @@ static int tacna_get_variable_u32_array(struct tacna_priv *priv,
 	if (n == -EINVAL) {
 		return 0;	/* missing, ignore */
 	} else if (n < 0) {
-		dev_warn(tacna->dev, "%s malformed (%d)\n",
-			 propname, n);
-		return ret;
+		dev_warn(tacna->dev, "%s malformed (%d)\n", propname, n);
+		return -EINVAL;
 	} else if ((n % multiple) != 0) {
 		dev_warn(tacna->dev, "%s not a multiple of %d entries\n",
 			 propname, multiple);
@@ -3811,10 +3811,10 @@ static void tacna_prop_get_pdata(struct tacna_priv *priv)
 	tacna_prop_get_inmode(priv);
 
 	memset(out_mono, 0, sizeof(out_mono));
-	ret = device_property_read_u32_array(tacna->dev,
-					     "cirrus,out-mono",
-					     out_mono,
-					     ARRAY_SIZE(out_mono));
+	device_property_read_u32_array(tacna->dev,
+				       "cirrus,out-mono",
+				       out_mono,
+				       ARRAY_SIZE(out_mono));
 
 	for (i = 0; i < ARRAY_SIZE(out_mono); ++i)
 		pdata->out_mono[i] = !!out_mono[i];
@@ -3825,19 +3825,19 @@ static void tacna_prop_get_pdata(struct tacna_priv *priv)
 				 &pdata->pdm_mute);
 
 	memset(auxpdm_slave_mode, 0, sizeof(auxpdm_slave_mode));
-	ret = device_property_read_u32_array(tacna->dev,
-					     "cirrus,auxpdm-slave-mode",
-					     auxpdm_slave_mode,
-					     ARRAY_SIZE(auxpdm_slave_mode));
+	device_property_read_u32_array(tacna->dev,
+				       "cirrus,auxpdm-slave-mode",
+				       auxpdm_slave_mode,
+				       ARRAY_SIZE(auxpdm_slave_mode));
 
 	for (i = 0; i < ARRAY_SIZE(auxpdm_slave_mode); ++i)
 		pdata->auxpdm_slave_mode[i] = !!auxpdm_slave_mode[i];
 
 	memset(auxpdm_falling_edge, 0, sizeof(auxpdm_falling_edge));
-	ret = device_property_read_u32_array(tacna->dev,
-					     "cirrus,auxpdm-falling-edge",
-					     auxpdm_falling_edge,
-					     ARRAY_SIZE(auxpdm_falling_edge));
+	device_property_read_u32_array(tacna->dev,
+				       "cirrus,auxpdm-falling-edge",
+				       auxpdm_falling_edge,
+				       ARRAY_SIZE(auxpdm_falling_edge));
 
 	for (i = 0; i < ARRAY_SIZE(auxpdm_falling_edge); ++i)
 		pdata->auxpdm_falling_edge[i] = !!auxpdm_falling_edge[i];
@@ -3878,9 +3878,11 @@ int tacna_init_inputs(struct snd_soc_codec *codec)
 		switch (tacna->pdata.codec.inmode[i][0]) {
 		case TACNA_INMODE_DIFF:
 			ana_mode_l = 0;
+			dig_mode = 0;
 			break;
 		case TACNA_INMODE_SE:
 			ana_mode_l = 1 << TACNA_IN1L_SRC_SHIFT;
+			dig_mode = 0;
 			break;
 		case TACNA_INMODE_DMIC:
 			ana_mode_l = 0;
