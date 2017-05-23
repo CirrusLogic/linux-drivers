@@ -85,13 +85,10 @@ static const unsigned int madera_default_hpd_pins[4] = {
 };
 
 static struct madera_micd_range madera_micd_default_ranges[] = {
-	{ .max = 116,  .key = KEY_MEDIA },
-	{ .max = 173,  .key = KEY_VOICECOMMAND },
-	{ .max = 321,  .key = KEY_VOLUMEUP },
-	{ .max = 752,  .key = KEY_VOLUMEDOWN },
-	{ .max = 1257, .key = KEY_SEARCH },
-	{ .max =  -1,  .key = -1 },
-	{ .max =  -1,  .key = -1 },
+	{ .max = 70,   .key = KEY_MEDIA },
+	{ .max = 186,  .key = KEY_VOICECOMMAND },
+	{ .max = 295,  .key = KEY_VOLUMEUP },
+	{ .max = 681,  .key = KEY_VOLUMEDOWN },
 };
 
 /* The number of levels in madera_micd_levels valid for button thresholds */
@@ -2800,7 +2797,7 @@ static int madera_extcon_init_micd_ranges(struct madera_extcon *info)
 	if (pdata->num_micd_ranges == 0) {
 		info->micd_ranges = madera_micd_default_ranges;
 		info->num_micd_ranges =
-			ARRAY_SIZE(madera_micd_default_ranges) - 2;
+			ARRAY_SIZE(madera_micd_default_ranges);
 		return 0;
 	}
 
