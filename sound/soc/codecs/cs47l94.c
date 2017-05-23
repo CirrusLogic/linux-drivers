@@ -108,7 +108,7 @@ static int cs47l94_out_ev(struct snd_soc_dapm_widget *w,
 	int ret;
 
 	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
+	case SND_SOC_DAPM_POST_PMU:
 		switch (w->shift) {
 		case TACNA_OUT1L_EN_SHIFT:
 		case TACNA_OUT1R_EN_SHIFT:
