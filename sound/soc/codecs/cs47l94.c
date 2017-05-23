@@ -108,13 +108,13 @@ static int cs47l94_out_ev(struct snd_soc_dapm_widget *w,
 	int ret;
 
 	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
+	case SND_SOC_DAPM_POST_PMU:
 		switch (w->shift) {
 		case TACNA_OUT1L_EN_SHIFT:
 		case TACNA_OUT1R_EN_SHIFT:
 		case TACNA_OUT2L_EN_SHIFT:
 		case TACNA_OUT2R_EN_SHIFT:
-			ret = regmap_read_poll_timeout(tacna->regmap,
+			ret = tacna_read_poll_timeout(tacna->regmap,
 					TACNA_OUTHL_CONTROL1,
 					val,
 					!(val & TACNA_CP_EN_OUTHL_EN_MASK),
@@ -123,7 +123,7 @@ static int cs47l94_out_ev(struct snd_soc_dapm_widget *w,
 			if (ret)
 				goto err;
 
-			ret = regmap_read_poll_timeout(tacna->regmap,
+			ret = tacna_read_poll_timeout(tacna->regmap,
 					TACNA_OUTHR_CONTROL1,
 					val,
 					!(val & TACNA_CP_EN_OUTHR_EN_MASK),
