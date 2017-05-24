@@ -22,6 +22,7 @@
 #include <sound/soc.h>
 #include <sound/tlv.h>
 
+#include <linux/irqchip/irq-tacna.h>
 #include <linux/mfd/tacna/core.h>
 #include <linux/mfd/tacna/registers.h>
 
@@ -147,6 +148,14 @@ err:
 	dev_warn(codec->dev, "Failed to get OUTH CP disabled (%d)\n", ret);
 	return ret;
 }
+
+static irqreturn_t cs47l94_mpu_fault_irq(int irq, void *data)
+{
+	struct wm_adsp *dsp = data;
+
+	return wm_halo_bus_error(dsp);
+}
+
 
 static const char * const cs47l94_out1_demux_texts[] = {
 	"HP1", "HP2",
@@ -2277,8 +2286,6 @@ static int cs47l94_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* TODO: request dsp error irq */
-
 	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
 		dsp = &cs47l94->core.dsp[i];
 		dsp->part = "cs47l94";
@@ -2298,20 +2305,27 @@ static int cs47l94_probe(struct platform_device *pdev)
 		dsp->n_tx_channels = CS47L94_DSP_N_TX_CHANNELS;
 
 		ret = wm_halo_init(dsp, &cs47l94->core.rate_lock);
-
-		if (ret == 0) {
-			/* TODO: init bus error irq */
-			if (ret != 0)
-				wm_adsp2_remove(dsp);
-		}
-
 		if (ret != 0) {
-			for (--i; i >= 0; --i) {
-				/* TODO: destroy bus error irq */
+			for (--i; i >= 0; --i)
 				wm_adsp2_remove(dsp);
-			}
 			goto error_core;
 		}
+	}
+
+	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP1_MPU_ERR,
+				"DSP1 MPU", cs47l94_mpu_fault_irq,
+				&cs47l94->core.dsp[0]);
+	if (ret) {
+		dev_warn(&pdev->dev, "Failed to get DSP1 MPU IRQ: %d\n", ret);
+		goto error_dsp;
+	}
+
+	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP2_MPU_ERR,
+				"DSP2 MPU", cs47l94_mpu_fault_irq,
+				&cs47l94->core.dsp[1]);
+	if (ret) {
+		dev_warn(&pdev->dev, "Failed to get DSP2 MPU IRQ: %d\n", ret);
+		goto error_mpu_irq1;
 	}
 
 	for (i = 0; i < CS47L94_N_FLL; ++i)
@@ -2334,19 +2348,21 @@ static int cs47l94_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
 		snd_soc_unregister_platform(&pdev->dev);
-		goto error;
+		goto error_mpu_irq2;
 	}
 
 	return ret;
 
-error:
+error_mpu_irq2:
+	tacna_free_irq(tacna, TACNA_IRQ_DSP2_MPU_ERR, &cs47l94->core.dsp[1]);
+error_mpu_irq1:
+	tacna_free_irq(tacna, TACNA_IRQ_DSP1_MPU_ERR, &cs47l94->core.dsp[0]);
+error_dsp:
 	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
-		/* TODO: destroy bus error irq */
 		wm_adsp2_remove(&cs47l94->core.dsp[i]);
 	}
 
 error_core:
-	/* TODO: free irq */
 	tacna_core_destroy(&cs47l94->core);
 
 	return ret;
@@ -2355,18 +2371,20 @@ error_core:
 static int cs47l94_remove(struct platform_device *pdev)
 {
 	struct cs47l94 *cs47l94 = platform_get_drvdata(pdev);
+	struct tacna *tacna = cs47l94->core.tacna;
 	int i;
 
 	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
+	tacna_free_irq(tacna, TACNA_IRQ_DSP2_MPU_ERR, &cs47l94->core.dsp[1]);
+	tacna_free_irq(tacna, TACNA_IRQ_DSP1_MPU_ERR, &cs47l94->core.dsp[0]);
+
 	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
-		/* TODO: destroy bus error irq */
 		wm_adsp2_remove(&cs47l94->core.dsp[i]);
 	}
 
-	/* TODO: free irq */
 	tacna_core_destroy(&cs47l94->core);
 
 	return 0;
