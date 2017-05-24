@@ -613,6 +613,16 @@ static int cs47l94_put_outh_main_volume(struct snd_kcontrol *kcontrol,
 
 	return tacna_put_out_vu(kcontrol, ucontrol);
 }
+/*
+ * TODO: auto depends on some other weird setting so will need to figure out
+ *       how that works
+ */
+static const char* const cs47l94_dop_width_texts[] = {
+	"auto", "32bit", "16bit",
+};
+
+static SOC_ENUM_SINGLE_DECL(cs47l94_dop_width_enum, TACNA_DOP1_CONTROL1,
+			    TACNA_DOP1_WIDTH_SHIFT, cs47l94_dop_width_texts);
 
 static const struct snd_kcontrol_new cs47l94_snd_controls[] = {
 SOC_ENUM("IN1 OSR", tacna_in_dmic_osr[0]),
@@ -872,6 +882,8 @@ SOC_DOUBLE_TLV("OUTH DSD Digital Volume", TACNA_DSD1_VOLUME1,
 	       cs47l94_outh_digital_tlv),
 SOC_DOUBLE("OUTH DSD Digital Switch", TACNA_DSD1_VOLUME1,
 	   TACNA_DSD1L_MUTE_SHIFT, TACNA_DSD1R_MUTE_SHIFT, 1, 1),
+
+SOC_ENUM("DoP Data Width", cs47l94_dop_width_enum),
 
 SOC_DOUBLE_TLV("OUTH PCM Digital Volume", TACNA_OUTH_PCM_CONTROL1,
 	       TACNA_OUTHL_LVL_SHIFT, TACNA_OUTHR_LVL_SHIFT, 0xfe, 1,
@@ -1187,6 +1199,35 @@ static const struct snd_kcontrol_new cs47l94_outh_aux_switch[] = {
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
 };
+
+static const char * const cs47l94_outh_pcm_mode_select_texts[] = {
+	"PCM", "DoP",
+};
+
+SOC_ENUM_SINGLE_DECL(cs47l94_outh_pcm_mode_select_enum, SND_SOC_NOPM, 0,
+		     cs47l94_outh_pcm_mode_select_texts);
+
+static const struct snd_kcontrol_new cs47l94_outh_pcm_mode_select =
+	SOC_DAPM_ENUM("OUTH PCM Mode", cs47l94_outh_pcm_mode_select_enum);
+
+static const char * const cs47l94_dsd_source_texts[] = {
+	"DSD", "DoP",
+};
+
+static const unsigned int cs47l94_dsd_source_values[] = {
+	0x0, 0x2,
+};
+
+static const struct soc_enum cs47l94_dsd_source_enum =
+	SOC_VALUE_ENUM_SINGLE(TACNA_DSD1_CONTROL1,
+			      TACNA_DSD1_SRC_SHIFT,
+			      TACNA_DSD1_SRC_MASK >> TACNA_DSD1_SRC_SHIFT,
+			      ARRAY_SIZE(cs47l94_dsd_source_texts),
+			      cs47l94_dsd_source_texts,
+			      cs47l94_dsd_source_values);
+
+static const struct snd_kcontrol_new cs47l94_dsd_source_select =
+	SOC_DAPM_ENUM("Source", cs47l94_dsd_source_enum);
 
 static const struct snd_soc_dapm_widget cs47l94_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", TACNA_SYSTEM_CLOCK1, TACNA_SYSCLK_EN_SHIFT,
@@ -1506,8 +1547,17 @@ SND_SOC_DAPM_SWITCH_E("OUTHR AUX Mix", TACNA_OUTH_AUX_MIX_CONTROL_1,
 		      &cs47l94_outh_aux_switch[1], cs47l94_out_aux_src_ev,
 		      SND_SOC_DAPM_POST_PMU),
 
+SND_SOC_DAPM_DEMUX("OUTH PCM Mode", SND_SOC_NOPM, 0, 0,
+		   &cs47l94_outh_pcm_mode_select),
+
+SND_SOC_DAPM_PGA("OUTH", SND_SOC_NOPM, 0, 0, NULL, 0),
+
 SND_SOC_DAPM_PGA("OUTH PCM", TACNA_OUTH_ENABLE_1, TACNA_OUTH_PCM_EN_SHIFT,
 		 0, NULL, 0),
+SND_SOC_DAPM_PGA("OUTH DoP", SND_SOC_NOPM, 0, 0, NULL, 0),
+
+SND_SOC_DAPM_MUX("DSD Processor", TACNA_DSD1_CONTROL1, TACNA_DSD1_EN_SHIFT,
+		 0, &cs47l94_dsd_source_select),
 
 SND_SOC_DAPM_SWITCH("AUXPDM1 Output", TACNA_AUXPDM_CONTROL1,
 		    TACNA_AUXPDM1_EN_SHIFT, 0, &tacna_auxpdm_switch[0]),
@@ -2230,8 +2280,8 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	TACNA_MIXER_ROUTES("OUT5R PGA", "OUT5R"),
 	TACNA_MIXER_ROUTES("OUTAUX1L PGA", "OUTAUX1L"),
 	TACNA_MIXER_ROUTES("OUTAUX1R PGA", "OUTAUX1R"),
-	TACNA_MIXER_ROUTES("OUTH PCM", "OUTHL"),
-	TACNA_MIXER_ROUTES("OUTH PCM", "OUTHR"),
+	TACNA_MIXER_ROUTES("OUTH", "OUTHL"),
+	TACNA_MIXER_ROUTES("OUTH", "OUTHR"),
 
 	TACNA_MIXER_ROUTES("PWM1 Driver", "PWM1"),
 	TACNA_MIXER_ROUTES("PWM2 Driver", "PWM2"),
@@ -2346,7 +2396,13 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "OUT5_PDMCLK", NULL, "OUT5R PGA" },
 	{ "OUT5_PDMDATA", NULL, "OUT5R PGA" },
 
+	{ "OUTH PCM Mode", NULL, "OUTH" },
+	{ "OUTH PCM", "PCM", "OUTH PCM Mode" },
+	{ "OUTH PCM", "DoP", "OUTH PCM Mode" },
+	{ "OUTH DoP", "DoP", "OUTH PCM Mode" },
+	{ "DSD Processor", "DoP", "OUTH DoP" },
 	{ "OUTH Output Select", "OUTH", "OUTH PCM" },
+	{ "OUTH Output Select", "OUTH", "DSD Processor" },
 	{ "OUT1L_HP1", NULL, "OUTH Output Select" },
 	{ "OUT1R_HP1", NULL, "OUTH Output Select" },
 
