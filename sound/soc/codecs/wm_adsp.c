@@ -2471,7 +2471,7 @@ out:
 static int wm_halo_setup_algs(struct wm_adsp *dsp)
 {
 	struct wmfw_halo_id_hdr halo_id;
-	struct wmfw_adsp2_alg_hdr *halo_alg;
+	struct wmfw_halo_alg_hdr *halo_alg;
 	struct wm_adsp_alg_region *alg_region;
 	const struct wm_adsp_region *mem;
 	unsigned int pos, len, block_rev;
@@ -2513,12 +2513,12 @@ static int wm_halo_setup_algs(struct wm_adsp *dsp)
 		  n_algs);
 
 	alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_XM,
-					   halo_id.fw.id, halo_id.xm);
+					   halo_id.fw.id, halo_id.xm_base);
 	if (IS_ERR(alg_region))
 		return PTR_ERR(alg_region);
 
 	alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_YM,
-					   halo_id.fw.id, halo_id.ym);
+					   halo_id.fw.id, halo_id.ym_base);
 	if (IS_ERR(alg_region))
 		return PTR_ERR(alg_region);
 
@@ -2536,12 +2536,12 @@ static int wm_halo_setup_algs(struct wm_adsp *dsp)
 			  (be32_to_cpu(halo_alg[i].alg.ver) & 0xff0000) >> 16,
 			  (be32_to_cpu(halo_alg[i].alg.ver) & 0xff00) >> 8,
 			  be32_to_cpu(halo_alg[i].alg.ver) & 0xff,
-			  be32_to_cpu(halo_alg[i].xm),
-			  be32_to_cpu(halo_alg[i].ym));
+			  be32_to_cpu(halo_alg[i].xm_base),
+			  be32_to_cpu(halo_alg[i].ym_base));
 
 		alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_XM,
 						   halo_alg[i].alg.id,
-						   halo_alg[i].xm);
+						   halo_alg[i].xm_base);
 		if (IS_ERR(alg_region)) {
 			ret = PTR_ERR(alg_region);
 			goto out;
@@ -2549,7 +2549,7 @@ static int wm_halo_setup_algs(struct wm_adsp *dsp)
 
 		alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_YM,
 						   halo_alg[i].alg.id,
-						   halo_alg[i].ym);
+						   halo_alg[i].ym_base);
 		if (IS_ERR(alg_region)) {
 			ret = PTR_ERR(alg_region);
 			goto out;
