@@ -97,9 +97,10 @@ struct wmfw_halo_fwid_hdr {
 
 struct wmfw_halo_id_hdr {
 	struct wmfw_halo_fwid_hdr fw;
-	__be32 zm;
-	__be32 xm;
-	__be32 ym;
+	__be32 xm_base;
+	__be32 xm_size;
+	__be32 ym_base;
+	__be32 ym_size;
 	__be32 n_algs;
 } __packed;
 
@@ -119,6 +120,14 @@ struct wmfw_adsp2_alg_hdr {
 	__be32 zm;
 	__be32 xm;
 	__be32 ym;
+} __packed;
+
+struct wmfw_halo_alg_hdr {
+	struct wmfw_alg_hdr alg;
+	__be32 xm_base;
+	__be32 xm_size;
+	__be32 ym_base;
+	__be32 ym_size;
 } __packed;
 
 struct wmfw_adsp_alg_data {
