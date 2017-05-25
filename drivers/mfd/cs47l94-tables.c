@@ -981,7 +981,7 @@ static bool cs47l94_is_halo_memory(unsigned int reg)
 	switch (reg) {
 	case 0x2000000 ... 0x2029ff0:	/* DSP1 XM packed */
 	case 0x2400000 ... 0x241bff8:	/* DSP1 XM unpacked32 */
-	case 0x25e0000 ... 0x25e0040:	/* DSP1 system info registers */
+	case 0x25e0000 ... 0x25e413c:	/* DSP1 system info registers */
 	case 0x2800000 ... 0x2837ff4:	/* DSP1 XM unpacked24 */
 	case 0x2b80000 ... 0x2b805d8:	/* DSP1 control registers */
 	case 0x2bc1000 ... 0x2bcd020:	/* DSP1 control registers */
@@ -992,7 +992,7 @@ static bool cs47l94_is_halo_memory(unsigned int reg)
 
 	case 0x4000000 ... 0x4035ff0:	/* DSP2 XM packed */
 	case 0x4400000 ... 0x4423ff8:	/* DSP2 XM unpacked32 */
-	case 0x45e0000 ... 0x45e0040:	/* DSP2 system info registers */
+	case 0x45e0000 ... 0x45e413c:	/* DSP2 system info registers */
 	case 0x4800000 ... 0x4847ff4:	/* DSP2 XM unpacked24 */
 	case 0x4b80000 ... 0x4b805d8:	/* DSP2 control registers */
 	case 0x4bc1000 ... 0x4bcd020:	/* DSP2 control registers */
