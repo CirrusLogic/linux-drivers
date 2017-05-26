@@ -155,6 +155,37 @@ err:
 	return ret;
 }
 
+static int cs47l94_out1_aux_src_ev(struct snd_soc_dapm_widget *w,
+				   struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
+	struct tacna *tacna = cs47l94->core.tacna;
+	unsigned int reg;
+	int ret;
+
+	switch (w->reg) {
+	case TACNA_OUT1L_CONTROL_1:
+		reg = TACNA_OUT1L_VOLUME_1;
+		break;
+	case TACNA_OUT1R_CONTROL_1:
+		reg = TACNA_OUT1R_VOLUME_1;
+		break;
+	default:
+		break;
+	}
+
+	ret = regmap_update_bits(tacna->regmap, reg, TACNA_OUT_VU_MASK, 0);
+	if (ret)
+		dev_err(codec->dev, "Failed to toggle OUT_VU bit: %d\n", ret);
+	ret = regmap_update_bits(tacna->regmap, reg, TACNA_OUT_VU_MASK,
+				 TACNA_OUT_VU);
+	if (ret)
+		dev_err(codec->dev, "Failed to toggle OUT_VU bit: %d\n", ret);
+
+	return ret;
+}
+
 static int cs47l94_outaux_ev(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
@@ -427,6 +458,60 @@ static const struct snd_kcontrol_new cs47l94_out1_demux =
 	SOC_DAPM_ENUM_EXT("OUT1 Demux", cs47l94_out1_demux_enum,
 			snd_soc_dapm_get_enum_double, cs47l94_put_out1_demux);
 
+static int cs47l94_put_outaux_vu(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	int ret;
+	unsigned int reg, rreg = 0;
+
+	switch (mc->reg) {
+	case TACNA_OUTAUX1L_VOLUME_1:
+		reg = TACNA_OUT1L_VOLUME_1;
+		break;
+	case TACNA_OUTAUX1R_VOLUME_1:
+		reg = TACNA_OUT1R_VOLUME_1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (mc->rreg) {
+	case 0: /* => rreg not set, so just proceed */
+		break;
+	case TACNA_OUTAUX1L_VOLUME_1:
+		rreg = TACNA_OUT1L_VOLUME_1;
+		break;
+	case TACNA_OUTAUX1R_VOLUME_1:
+		rreg = TACNA_OUT1R_VOLUME_1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	snd_soc_dapm_mutex_lock(dapm);
+
+	snd_soc_component_update_bits(component, reg, TACNA_OUT_VU, 0);
+	if (rreg)
+		snd_soc_component_update_bits(component, rreg, TACNA_OUT_VU, 0);
+
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
+
+	snd_soc_component_update_bits(component, reg, TACNA_OUT_VU,
+				      TACNA_OUT_VU);
+	if (rreg)
+		snd_soc_component_update_bits(component, rreg, TACNA_OUT_VU,
+					      TACNA_OUT_VU);
+
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	return ret;
+}
+
 static const struct soc_enum cs47l94_outh_rate =
 	SOC_VALUE_ENUM_SINGLE(TACNA_OUTH_CONFIG_1,
 			      TACNA_OUTH_RATE_SHIFT,
@@ -624,7 +709,7 @@ SOC_DOUBLE_R_EXT("OUT1 Digital Switch", TACNA_OUT1L_VOLUME_1,
 		 snd_soc_get_volsw, tacna_put_out_vu),
 SOC_DOUBLE_R_EXT("OUTAUX1 Digital Switch", TACNA_OUTAUX1L_VOLUME_1,
 		 TACNA_OUTAUX1R_VOLUME_1, TACNA_OUTAUX1L_MUTE_SHIFT, 1, 1,
-		 snd_soc_get_volsw, tacna_put_out_vu),
+		 snd_soc_get_volsw, cs47l94_put_outaux_vu),
 SOC_DOUBLE_R_EXT("OUT2 Digital Switch", TACNA_OUT2L_VOLUME_1,
 		 TACNA_OUT2R_VOLUME_1, TACNA_OUT2L_MUTE_SHIFT, 1, 1,
 		 snd_soc_get_volsw, tacna_put_out_vu),
@@ -638,7 +723,7 @@ SOC_DOUBLE_R_EXT_TLV("OUT1 Main Volume", TACNA_OUT1L_VOLUME_1,
 		     cs47l94_aux_tlv),
 SOC_DOUBLE_R_EXT_TLV("OUTAUX1 Volume", TACNA_OUTAUX1L_VOLUME_1,
 		     TACNA_OUTAUX1R_VOLUME_1, TACNA_OUTAUX1L_VOL_SHIFT,
-		     0xc0, 0, snd_soc_get_volsw, tacna_put_out_vu,
+		     0xc0, 0, snd_soc_get_volsw, cs47l94_put_outaux_vu,
 		     cs47l94_aux_tlv),
 SOC_DOUBLE_R_EXT_TLV("OUT1 Digital Volume", TACNA_OUT1L_VOLUME_3,
 		     TACNA_OUT1R_VOLUME_3, TACNA_OUT1L_LVL_SHIFT,
@@ -1288,10 +1373,14 @@ SND_SOC_DAPM_PGA_E("OUTAUX1R PGA", TACNA_OUTAUX1R_ENABLE_1,
 		   TACNA_OUTAUX1R_EN_SHIFT, 0, NULL, 0, cs47l94_outaux_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 
-SND_SOC_DAPM_SWITCH("OUT1L AUX Mix", TACNA_OUT1L_CONTROL_1,
-		    TACNA_OUT1L_AUX_SRC_SHIFT, 0, &cs47l94_out1_aux_switch[0]),
-SND_SOC_DAPM_SWITCH("OUT1R AUX Mix", TACNA_OUT1R_CONTROL_1,
-		    TACNA_OUT1R_AUX_SRC_SHIFT, 0, &cs47l94_out1_aux_switch[1]),
+SND_SOC_DAPM_SWITCH_E("OUT1L AUX Mix", TACNA_OUT1L_CONTROL_1,
+		      TACNA_OUT1L_AUX_SRC_SHIFT, 0,
+		      &cs47l94_out1_aux_switch[0], cs47l94_out1_aux_src_ev,
+		      SND_SOC_DAPM_POST_PMU),
+SND_SOC_DAPM_SWITCH_E("OUT1R AUX Mix", TACNA_OUT1R_CONTROL_1,
+		      TACNA_OUT1R_AUX_SRC_SHIFT, 0,
+		      &cs47l94_out1_aux_switch[1], cs47l94_out1_aux_src_ev,
+		      SND_SOC_DAPM_POST_PMU),
 
 SND_SOC_DAPM_DEMUX("OUT1 Demux", SND_SOC_NOPM, 0, 0, &cs47l94_out1_demux),
 
