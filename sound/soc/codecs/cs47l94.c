@@ -155,6 +155,35 @@ err:
 	return ret;
 }
 
+static int cs47l94_outaux_ev(struct snd_soc_dapm_widget *w,
+			     struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
+	struct tacna *tacna = cs47l94->core.tacna;
+	unsigned int val;
+	int ret;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		val = 0;
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		val = TACNA_OUTAUX1L_MUTE_OVD;
+		break;
+	default:
+		return 0;
+	}
+
+	ret = regmap_update_bits(tacna->regmap, w->reg,
+				 TACNA_OUTAUX1L_MUTE_OVD_MASK, val);
+	if (ret)
+		dev_err(codec->dev,
+			"Failed to toggle OUTAUX MUTE_OVD bit: %d\n", ret);
+
+	return 0;
+}
+
 int cs47l94_wait_for_cp_disable(struct tacna *tacna)
 {
 	struct regmap *regmap = tacna->regmap;
@@ -1252,10 +1281,12 @@ SND_SOC_DAPM_PGA("OUT5L PGA", TACNA_OUTPUT_ENABLE_1,
 		   TACNA_OUT5L_EN_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_PGA("OUT5R PGA", TACNA_OUTPUT_ENABLE_1,
 		   TACNA_OUT5R_EN_SHIFT, 0, NULL, 0),
-SND_SOC_DAPM_PGA("OUTAUX1L PGA", TACNA_OUTAUX1L_ENABLE_1,
-		   TACNA_OUTAUX1L_EN_SHIFT, 0, NULL, 0),
-SND_SOC_DAPM_PGA("OUTAUX1R PGA", TACNA_OUTAUX1R_ENABLE_1,
-		   TACNA_OUTAUX1R_EN_SHIFT, 0, NULL, 0),
+SND_SOC_DAPM_PGA_E("OUTAUX1L PGA", TACNA_OUTAUX1L_ENABLE_1,
+		   TACNA_OUTAUX1L_EN_SHIFT, 0, NULL, 0, cs47l94_outaux_ev,
+		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
+SND_SOC_DAPM_PGA_E("OUTAUX1R PGA", TACNA_OUTAUX1R_ENABLE_1,
+		   TACNA_OUTAUX1R_EN_SHIFT, 0, NULL, 0, cs47l94_outaux_ev,
+		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 
 SND_SOC_DAPM_SWITCH("OUT1L AUX Mix", TACNA_OUT1L_CONTROL_1,
 		    TACNA_OUT1L_AUX_SRC_SHIFT, 0, &cs47l94_out1_aux_switch[0]),
