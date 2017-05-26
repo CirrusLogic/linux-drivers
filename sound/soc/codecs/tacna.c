@@ -955,11 +955,14 @@ EXPORT_SYMBOL_GPL(tacna_auxpdm_switch);
 int tacna_put_out_vu(struct snd_kcontrol *kcontrol,
 		     struct snd_ctl_elem_value *ucontrol)
 {
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	int ret;
 
+	snd_soc_dapm_mutex_lock(dapm);
 	snd_soc_component_update_bits(component, mc->reg, TACNA_OUT_VU, 0);
 	if (mc->rreg)
 		snd_soc_component_update_bits(component, mc->rreg, TACNA_OUT_VU,
@@ -972,6 +975,8 @@ int tacna_put_out_vu(struct snd_kcontrol *kcontrol,
 	if (mc->rreg)
 		snd_soc_component_update_bits(component, mc->rreg, TACNA_OUT_VU,
 					      TACNA_OUT_VU);
+	snd_soc_dapm_mutex_unlock(dapm);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(tacna_put_out_vu);
