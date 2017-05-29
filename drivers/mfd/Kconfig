@@ -226,7 +226,7 @@ config MFD_TACNA
 	bool
 
 config MFD_TACNA_SPI
-	bool "Cirrus Logic Tacna codecs with SPI"
+	tristate "Cirrus Logic Tacna codecs with SPI"
 	select MFD_CORE
 	select MFD_TACNA
 	select TACNA_IRQ
