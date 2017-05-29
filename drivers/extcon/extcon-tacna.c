@@ -150,20 +150,47 @@ static inline bool tacna_is_lineout(struct tacna_extcon *info)
 		tacna_ohm_to_hohm(TACNA_EXTCON_LINEOUT_IMP_MIN);
 }
 
+static void tacna_extcon_input_event_report(struct tacna_extcon *info,
+					    int which, bool attached)
+{
+	if (IS_ENABLED(CONFIG_EXTCON_TACNA_INPUT_EVENT)) {
+		switch (which) {
+		case EXTCON_MECHANICAL:
+			input_report_switch(info->input,
+					    SW_JACK_PHYSICAL_INSERT,
+					    attached);
+			break;
+		case EXTCON_JACK_HEADPHONE:
+			input_report_switch(info->input,
+					    SW_HEADPHONE_INSERT,
+					    attached);
+			break;
+		case EXTCON_JACK_MICROPHONE:
+			input_report_switch(info->input,
+					    SW_MICROPHONE_INSERT,
+					    attached);
+			break;
+		default: /* ignore all other reports */
+			return;
+		}
+
+		input_sync(info->input);
+	}
+}
+
 inline void tacna_extcon_report(struct tacna_extcon *info,
 				int which, bool attached)
 {
 	int ret;
 
 	dev_dbg(info->dev, "Extcon report: %d is %s\n",
-		which,
-		attached ? "attached" : "removed");
+		which, attached ? "attached" : "removed");
 
 	ret = extcon_set_state_sync(info->edev, which, attached);
 	if (ret != 0)
-		dev_warn(info->dev,
-			 "Failed to report cable state: %d\n",
-			 ret);
+		dev_warn(info->dev, "Failed to report cable state: %d\n", ret);
+
+	tacna_extcon_input_event_report(info, which, attached);
 }
 EXPORT_SYMBOL_GPL(tacna_extcon_report);
 
@@ -175,8 +202,9 @@ inline void tacna_extcon_report_removal(struct tacna_extcon *info)
 		ret = extcon_set_state_sync(info->edev, tacna_cable[i],
 					    false);
 		if (ret != 0)
-			dev_err(info->dev,
-				"Removal report failed: %d\n", ret);
+			dev_err(info->dev, "Removal report failed: %d\n", ret);
+
+		tacna_extcon_input_event_report(info, tacna_cable[i], false);
 	}
 }
 
@@ -2556,6 +2584,13 @@ static int tacna_extcon_probe(struct platform_device *pdev)
 			 "Failed to set VOUT_MIC to bypass: %d\n", ret);
 
 	pm_runtime_put(&pdev->dev);
+
+	if (IS_ENABLED(CONFIG_EXTCON_TACNA_INPUT_EVENT)) {
+		input_set_capability(info->input, EV_SW, SW_MICROPHONE_INSERT);
+		input_set_capability(info->input, EV_SW, SW_HEADPHONE_INSERT);
+		input_set_capability(info->input, EV_SW,
+				     SW_JACK_PHYSICAL_INSERT);
+	}
 
 	ret = input_register_device(info->input);
 	if (ret) {
