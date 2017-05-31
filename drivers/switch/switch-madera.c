@@ -3147,11 +3147,16 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		      MADERA_HOHM_TO_OHM(pdata->hpdet_ext_res_x100);
 
 	if (hpdet_short < MADERA_HP_SHORT_IMPEDANCE_MIN) {
+		/* Result > 0 because hpdet_ext_res < HP_SHORT_IMPEDANCE_MIN */
+		hpdet_short = MADERA_HP_SHORT_IMPEDANCE_MIN -
+			      MADERA_HOHM_TO_OHM(pdata->hpdet_ext_res_x100);
+
 		dev_warn(madera->dev,
 			 "Increasing HP short circuit impedance from %d to %d\n",
 			 pdata->hpdet_short_circuit_imp,
-			 MADERA_HP_SHORT_IMPEDANCE_MIN);
-		pdata->hpdet_short_circuit_imp = MADERA_HP_SHORT_IMPEDANCE_MIN;
+			 hpdet_short);
+
+		pdata->hpdet_short_circuit_imp = hpdet_short;
 	}
 
 	switch (madera->type) {
