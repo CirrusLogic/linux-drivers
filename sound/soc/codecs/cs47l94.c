@@ -156,8 +156,8 @@ err:
 	return ret;
 }
 
-static int cs47l94_out1_aux_src_ev(struct snd_soc_dapm_widget *w,
-				   struct snd_kcontrol *kcontrol, int event)
+static int cs47l94_out_aux_src_ev(struct snd_soc_dapm_widget *w,
+				  struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
@@ -172,8 +172,20 @@ static int cs47l94_out1_aux_src_ev(struct snd_soc_dapm_widget *w,
 	case TACNA_OUT1R_CONTROL_1:
 		reg = TACNA_OUT1R_VOLUME_1;
 		break;
-	default:
+	case TACNA_OUTH_AUX_MIX_CONTROL_1:
+		switch (w->shift) {
+		case TACNA_OUTHL_AUX_SRC_SHIFT:
+			reg = TACNA_OUT1L_VOLUME_1;
+			break;
+		case TACNA_OUTHR_AUX_SRC_SHIFT:
+			reg = TACNA_OUT1R_VOLUME_1;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	ret = regmap_update_bits(tacna->regmap, reg, TACNA_OUT_VU_MASK, 0);
@@ -1159,6 +1171,11 @@ SOC_ENUM_SINGLE_DECL(cs47l94_output_select_enum, SND_SOC_NOPM, 0,
 static const struct snd_kcontrol_new cs47l94_output_select =
 	SOC_DAPM_ENUM("Output Select", cs47l94_output_select_enum);
 
+static const struct snd_kcontrol_new cs47l94_outh_aux_switch[] = {
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
+};
+
 static const struct snd_soc_dapm_widget cs47l94_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", TACNA_SYSTEM_CLOCK1, TACNA_SYSCLK_EN_SHIFT,
 		    0, tacna_sysclk_ev,
@@ -1446,11 +1463,11 @@ SND_SOC_DAPM_PGA_E("OUTAUX1R PGA", TACNA_OUTAUX1R_ENABLE_1,
 
 SND_SOC_DAPM_SWITCH_E("OUT1L AUX Mix", TACNA_OUT1L_CONTROL_1,
 		      TACNA_OUT1L_AUX_SRC_SHIFT, 0,
-		      &cs47l94_out1_aux_switch[0], cs47l94_out1_aux_src_ev,
+		      &cs47l94_out1_aux_switch[0], cs47l94_out_aux_src_ev,
 		      SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_SWITCH_E("OUT1R AUX Mix", TACNA_OUT1R_CONTROL_1,
 		      TACNA_OUT1R_AUX_SRC_SHIFT, 0,
-		      &cs47l94_out1_aux_switch[1], cs47l94_out1_aux_src_ev,
+		      &cs47l94_out1_aux_switch[1], cs47l94_out_aux_src_ev,
 		      SND_SOC_DAPM_POST_PMU),
 
 SND_SOC_DAPM_DEMUX("OUT1 Demux", SND_SOC_NOPM, 0, 0, &cs47l94_out1_demux),
@@ -1467,6 +1484,15 @@ SND_SOC_DAPM_MUX_E("OUTH Output Select", SND_SOC_NOPM, 0, 0,
 		   &cs47l94_output_select, cs47l94_outh_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_POST_PMU),
+
+SND_SOC_DAPM_SWITCH_E("OUTHL AUX Mix", TACNA_OUTH_AUX_MIX_CONTROL_1,
+		      TACNA_OUTHL_AUX_SRC_SHIFT, 0,
+		      &cs47l94_outh_aux_switch[0], cs47l94_out_aux_src_ev,
+		      SND_SOC_DAPM_POST_PMU),
+SND_SOC_DAPM_SWITCH_E("OUTHR AUX Mix", TACNA_OUTH_AUX_MIX_CONTROL_1,
+		      TACNA_OUTHR_AUX_SRC_SHIFT, 0,
+		      &cs47l94_outh_aux_switch[1], cs47l94_out_aux_src_ev,
+		      SND_SOC_DAPM_POST_PMU),
 
 SND_SOC_DAPM_PGA("OUTH PCM", TACNA_OUTH_ENABLE_1, TACNA_OUTH_PCM_EN_SHIFT,
 		 0, NULL, 0),
@@ -2311,6 +2337,11 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "OUTH Output Select", "OUTH", "OUTH PCM" },
 	{ "OUT1L_HP1", NULL, "OUTH Output Select" },
 	{ "OUT1R_HP1", NULL, "OUTH Output Select" },
+
+	{ "OUTHL AUX Mix", "Switch", "OUTAUX1L PGA"},
+	{ "OUTHR AUX Mix", "Switch", "OUTAUX1R PGA"},
+	{ "OUTH Output Select", "OUTH", "OUTHL AUX Mix" },
+	{ "OUTH Output Select", "OUTH", "OUTHR AUX Mix" },
 
 	{ "AUXPDM1 Input", "IN1L", "IN1L PGA" },
 	{ "AUXPDM1 Input", "IN1R", "IN1R PGA" },
