@@ -159,8 +159,7 @@ inline void tacna_extcon_report(struct tacna_extcon *info,
 		which,
 		attached ? "attached" : "removed");
 
-	/* TODO: make sure this can be used instead of *_sync */
-	ret = extcon_set_cable_state_(info->edev, which, attached);
+	ret = extcon_set_state_sync(info->edev, which, attached);
 	if (ret != 0)
 		dev_warn(info->dev,
 			 "Failed to report cable state: %d\n",
@@ -173,10 +172,8 @@ inline void tacna_extcon_report_removal(struct tacna_extcon *info)
 	int i, ret;
 
 	for (i = 0; i < ARRAY_SIZE(tacna_cable) - 1; i++) {
-		/* TODO: make sure this can be used instead of *_sync */
-		ret = extcon_set_cable_state_(info->edev,
-					      tacna_cable[i],
-					      false);
+		ret = extcon_set_state_sync(info->edev, tacna_cable[i],
+					    false);
 		if (ret != 0)
 			dev_err(info->dev,
 				"Removal report failed: %d\n", ret);
