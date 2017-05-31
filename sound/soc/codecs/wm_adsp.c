@@ -233,8 +233,6 @@
 /*
  * HALO core
  */
-#define HALO_CLOCK_FREQ                      0x00000
-#define HALO_CLOCK_STATUS                    0x00008
 #define HALO_SAMPLE_RATE_RX1                 0x00080
 #define HALO_SAMPLE_RATE_TX1                 0x00280
 #define HALO_SCRATCH1                        0x005c0
@@ -3439,8 +3437,7 @@ int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 EXPORT_SYMBOL_GPL(wm_adsp2_early_event);
 
 int wm_halo_early_event(struct snd_soc_dapm_widget *w,
-			struct snd_kcontrol *kcontrol, int event,
-			unsigned int freq)
+			struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct wm_adsp *dsps = snd_soc_component_get_drvdata(component);
@@ -3455,15 +3452,6 @@ int wm_halo_early_event(struct snd_soc_dapm_widget *w,
 					 HALO_CORE_RESET, HALO_CORE_RESET);
 		if (ret != 0) {
 			adsp_err(dsp, "Error while resetting core: %d\n", ret);
-			return ret;
-		}
-
-		adsp_dbg(dsp, "Set clock frequency to 0x%x\n", freq);
-
-		ret = regmap_write(dsp->regmap,
-				   dsp->base + HALO_CLOCK_FREQ, freq);
-		if (ret) {
-			adsp_err(dsp, "Failed to set clock: %d\n", ret);
 			return ret;
 		}
 
