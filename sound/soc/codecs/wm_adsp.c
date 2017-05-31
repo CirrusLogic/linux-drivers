@@ -4598,12 +4598,12 @@ static void wm_halo_dump_fault_info(struct wm_adsp *dsp, const char *region,
 
 	adsp_warn(dsp, "%s: %s %s %s %s %s %s\n",
 		  region,
-		  type & HALO_MPU_VIO_SRAM ? "SRAM" : "",
-		  type & HALO_MPU_VIO_REG ? "REG" : "",
-		  type & HALO_MPU_VIO_AHB ? "AHB" : "",
-		  type & HALO_MPU_VIO_EREG ? "EREG" : "",
-		  type & HALO_MPU_VIO_EXTERNAL_MEM ? "ExtMem" : "",
-		  type & HALO_MPU_VIO_NON_EXIST ? "NotExist" : "");
+		  (type & HALO_MPU_VIO_SRAM) ? "SRAM" : "",
+		  (type & HALO_MPU_VIO_REG) ? "REG" : "",
+		  (type & HALO_MPU_VIO_AHB) ? "AHB" : "",
+		  (type & HALO_MPU_VIO_EREG) ? "EREG" : "",
+		  (type & HALO_MPU_VIO_EXTERNAL_MEM) ? "ExtMem" : "",
+		  (type & HALO_MPU_VIO_NON_EXIST) ? "NotExist" : "");
 }
 
 irqreturn_t wm_halo_bus_error(struct wm_adsp *dsp)
