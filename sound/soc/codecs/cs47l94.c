@@ -56,6 +56,7 @@ struct cs47l94 {
 	struct tacna_fll fll[3];
 	struct completion outh_enabled;
 	struct completion outh_disabled;
+	unsigned int outh_main_vol[2];
 };
 
 static const DECLARE_TLV_DB_SCALE(cs47l94_aux_tlv, -9600, 50, 0);
@@ -288,10 +289,38 @@ int cs47l94_outh_ev(struct snd_soc_dapm_widget *w,
 			return -EINVAL;
 		}
 
+		ret = regmap_write(regmap, TACNA_OUTHL_VOLUME_1,
+				   TACNA_OUTH_VU | cs47l94->outh_main_vol[0]);
+		if (ret)
+			dev_warn(codec->dev,
+				 "Failed to apply cached OUTHL volume: %d\n",
+				 ret);
+
+		ret = regmap_write(regmap, TACNA_OUTHR_VOLUME_1,
+				   TACNA_OUTH_VU | cs47l94->outh_main_vol[1]);
+		if (ret)
+			dev_warn(codec->dev,
+				 "Failed to apply cached OUTHR volume: %d\n",
+				 ret);
+
 		val = 1 << TACNA_OUTH_EN_SHIFT;
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		val = 0;
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		/* ensure the cache matches what the hardware will revert to */
+		ret = regmap_write(regmap, TACNA_OUTHL_VOLUME_1, 0xc0);
+		if (ret)
+			dev_warn(codec->dev,
+				 "Failed to set OUTHL volume to default: %d\n",
+				 ret);
+
+		ret = regmap_write(regmap, TACNA_OUTHR_VOLUME_1, 0xc0);
+		if (ret)
+			dev_warn(codec->dev,
+				 "Failed to set OUTHR volume to default: %d\n",
+				 ret);
 		break;
 	default:
 		return 0;
@@ -519,6 +548,47 @@ static const struct soc_enum cs47l94_outh_rate =
 			      TACNA_SYNC_RATE_ENUM_SIZE,
 			      tacna_rate_text,
 			      tacna_rate_val);
+
+static int cs47l94_get_outh_main_volume(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct cs47l94 *cs47l94 = dev_get_drvdata(codec->dev);
+	int min = mc->min, shift = mc->shift, rshift = mc->rshift;
+
+	ucontrol->value.integer.value[0] =
+		(cs47l94->outh_main_vol[0] - min) >> shift;
+
+	ucontrol->value.integer.value[1] =
+		(cs47l94->outh_main_vol[1] - min) >> rshift;
+
+	return 0;
+}
+
+static int cs47l94_put_outh_main_volume(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct cs47l94 *cs47l94 = dev_get_drvdata(codec->dev);
+	int min = mc->min, shift = mc->shift, rshift = mc->rshift;
+
+	snd_soc_dapm_mutex_lock(dapm);
+
+	cs47l94->outh_main_vol[0] =
+		(ucontrol->value.integer.value[0] + min) << shift;
+
+	cs47l94->outh_main_vol[1] =
+		(ucontrol->value.integer.value[1] + min) << rshift;
+
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	return tacna_put_out_vu(kcontrol, ucontrol);
+}
 
 static const struct snd_kcontrol_new cs47l94_snd_controls[] = {
 SOC_ENUM("IN1 OSR", tacna_in_dmic_osr[0]),
@@ -770,7 +840,8 @@ TACNA_RATE_ENUM("OUTH Rate", cs47l94_outh_rate),
 
 SOC_DOUBLE_R_EXT_TLV("OUTH Main Volume", TACNA_OUTHL_VOLUME_1,
 		     TACNA_OUTHR_VOLUME_1, TACNA_OUTHL_VOL_SHIFT, 0xc0, 0,
-		     snd_soc_get_volsw, tacna_put_out_vu, cs47l94_aux_tlv),
+		     cs47l94_get_outh_main_volume, cs47l94_put_outh_main_volume,
+		     cs47l94_aux_tlv),
 
 SOC_DOUBLE_TLV("OUTH DSD Digital Volume", TACNA_DSD1_VOLUME1,
 	       TACNA_DSD1L_VOL_SHIFT, TACNA_DSD1R_VOL_SHIFT, 0xfe, 1,
@@ -1394,7 +1465,8 @@ SND_SOC_DAPM_MUX("OUT2R Output Select", SND_SOC_NOPM, 0, 0,
 		 &cs47l94_output_select),
 SND_SOC_DAPM_MUX_E("OUTH Output Select", SND_SOC_NOPM, 0, 0,
 		   &cs47l94_output_select, cs47l94_outh_ev,
-		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
+		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
+		   SND_SOC_DAPM_POST_PMU),
 
 SND_SOC_DAPM_PGA("OUTH PCM", TACNA_OUTH_ENABLE_1, TACNA_OUTH_PCM_EN_SHIFT,
 		 0, NULL, 0),
@@ -2446,6 +2518,30 @@ static struct snd_soc_dai_driver cs47l94_dai[] = {
 	},
 };
 
+static int cs47l94_init_outh(struct cs47l94 *cs47l94)
+{
+	struct tacna *tacna = cs47l94->core.tacna;
+	int ret;
+
+	ret = regmap_read(tacna->regmap, TACNA_OUTHL_VOLUME_1,
+			  &cs47l94->outh_main_vol[0]);
+	if (ret) {
+		dev_err(tacna->dev, "Error reading OUTHL volume %d\n", ret);
+		return ret;
+	}
+	cs47l94->outh_main_vol[0] &= TACNA_OUTHL_VOL_MASK;
+
+	ret = regmap_read(tacna->regmap, TACNA_OUTHR_VOLUME_1,
+			  &cs47l94->outh_main_vol[1]);
+	if (ret) {
+		dev_err(tacna->dev, "Error reading OUTHR volume %d\n", ret);
+		return ret;
+	}
+	cs47l94->outh_main_vol[1] &= TACNA_OUTHR_VOL_MASK;
+
+	return 0;
+}
+
 static int cs47l94_codec_probe(struct snd_soc_codec *codec)
 {
 	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
@@ -2467,6 +2563,10 @@ static int cs47l94_codec_probe(struct snd_soc_codec *codec)
 		return ret;
 
 	ret = tacna_init_eq(&cs47l94->core);
+	if (ret)
+		return ret;
+
+	ret = cs47l94_init_outh(cs47l94);
 	if (ret)
 		return ret;
 
