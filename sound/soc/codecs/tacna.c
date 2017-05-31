@@ -65,6 +65,8 @@
 #define TACNA_FLL_DIGITAL_TEST2_OFFS		0x34
 #define TACNA_FLL_GPIO_CLOCK_OFFS		0xa0
 
+#define TACNA_DSP_CLOCK_FREQ_OFFS		0x00000
+
 #define TACNA_ASP_FMT_DSP_MODE_A		0
 #define TACNA_ASP_FMT_DSP_MODE_B		1
 #define TACNA_ASP_FMT_I2S_MODE			2
@@ -2075,27 +2077,38 @@ int tacna_dsp_power_ev(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct tacna *tacna = priv->tacna;
+	struct wm_adsp *dsps = snd_soc_codec_get_drvdata(codec);
+	struct wm_adsp *dsp = &dsps[w->shift];
 	unsigned int freq;
 	int ret;
 
-	ret = regmap_read(tacna->regmap, TACNA_DSP_CLOCK1, &freq);
-	if (ret != 0) {
-		dev_err(codec->dev,
-			"Failed to read TACNA_DSP_CLOCK1: %d\n", ret);
-		return ret;
-	}
-
-	freq = (freq & TACNA_DSP_CLK_FREQ_MASK) >> TACNA_DSP_CLK_FREQ_SHIFT;
-
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+		ret = regmap_read(tacna->regmap, TACNA_DSP_CLOCK1, &freq);
+		if (ret) {
+			dev_err(codec->dev,
+				"Failed to read TACNA_DSP_CLOCK1: %d\n", ret);
+			return ret;
+		}
+
+		freq &= TACNA_DSP_CLK_FREQ_MASK;
+		freq >>= TACNA_DSP_CLK_FREQ_SHIFT;
+		ret = regmap_write(dsp->regmap,
+				   dsp->base + TACNA_DSP_CLOCK_FREQ_OFFS,
+				   freq);
+		if (ret) {
+			dev_err(codec->dev,
+				"Failed to set HALO clock freq: %d\n", ret);
+			return ret;
+		}
+
 		ret = tacna_dsp_memory_enable(priv, w->shift);
 		if (ret)
 			return ret;
 
-		return wm_halo_early_event(w, kcontrol, event, freq);
+		return wm_halo_early_event(w, kcontrol, event);
 	case SND_SOC_DAPM_PRE_PMD:
-		ret = wm_halo_early_event(w, kcontrol, event, freq);
+		ret = wm_halo_early_event(w, kcontrol, event);
 		tacna_dsp_memory_disable(priv, w->shift);
 		return ret;
 	default:
