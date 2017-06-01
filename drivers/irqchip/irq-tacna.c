@@ -410,6 +410,7 @@ static irqreturn_t tacna_irq_thread(int irq, void *data)
 	irqreturn_t result = IRQ_NONE;
 	int ret;
 
+	/* Must power up parent MFD driver to access registers */
 	ret = pm_runtime_get_sync(tacna->dev);
 	if (ret < 0) {
 		dev_err(priv->dev, "Failed to resume device: %d\n", ret);
@@ -443,8 +444,8 @@ static irqreturn_t tacna_irq_thread(int irq, void *data)
 						   TACNA_MAIN_VIRQ_INDEX));
 	}
 
-	pm_runtime_mark_last_busy(priv->dev);
-	pm_runtime_put_autosuspend(priv->dev);
+	pm_runtime_mark_last_busy(tacna->dev);
+	pm_runtime_put_autosuspend(tacna->dev);
 
 	return result;
 }
