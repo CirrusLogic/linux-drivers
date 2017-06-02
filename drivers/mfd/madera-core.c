@@ -499,7 +499,7 @@ static void madera_configure_micbias(struct madera *madera)
 		}
 
 		if (mask) {
-			reg = MADERA_MIC_BIAS_CTRL_5 + (i * 4);
+			reg = MADERA_MIC_BIAS_CTRL_5 + (i * 2);
 			ret = regmap_update_bits(madera->regmap, reg, mask, val);
 			if (ret)
 				dev_warn(madera->dev,
@@ -520,7 +520,7 @@ static void madera_configure_micbias(struct madera *madera)
 			MADERA_MICB1_BYPASS | MADERA_MICB1_RATE;
 
 		if (!init_data->constraints.max_uV)
-			init_data->constraints.max_uV = 2800;
+			init_data->constraints.max_uV = 2800000;
 
 		val = (init_data->constraints.max_uV - 1500000) / 100000;
 		val <<= MADERA_MICB1_LVL_SHIFT;
@@ -543,7 +543,7 @@ static void madera_configure_micbias(struct madera *madera)
 		    REGULATOR_CHANGE_BYPASS)
 			val |= MADERA_MICB1_BYPASS;
 
-		reg = MADERA_MIC_BIAS_CTRL_1 + (i * 4);
+		reg = MADERA_MIC_BIAS_CTRL_1 + i;
 		ret = regmap_update_bits(madera->regmap, reg, mask, val);
 		if (ret)
 			dev_warn(madera->dev, "Failed to write 0x%x (%d)\n",
