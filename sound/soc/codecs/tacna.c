@@ -2544,7 +2544,7 @@ static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 	} else if (fref < TACNA_FLLHJ_MID_THRESH) {
 		lockdet_thr = 8;
 		gains = TACNA_FLLHJ_MID_GAINS;
-		fbdiv = 1;
+		fbdiv = (frac) ? 16 : 2;
 	} else {
 		lockdet_thr = 8;
 		gains = TACNA_FLLHJ_HIGH_GAINS;
