@@ -635,8 +635,8 @@ int tacna_dev_init(struct tacna *tacna)
 		goto err_reset;
 	}
 
-	dev_info(dev, "%s revision %c%u.%u\n", name,
-		 'A' + (tacna->rev >> TACNA_AREVID_SHIFT),
+	dev_info(dev, "%s revision %X%u.%u\n", name,
+		 tacna->rev >> TACNA_AREVID_SHIFT,
 		 tacna->rev & TACNA_MTLREVID_MASK,
 		 tacna->otp_rev);
 
