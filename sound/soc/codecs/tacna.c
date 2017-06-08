@@ -3525,7 +3525,6 @@ int tacna_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(tacna_in_ev);
 
-
 int tacna_wait_for_output_seq(struct tacna_priv *priv, unsigned int mask,
 			      unsigned int target)
 {
