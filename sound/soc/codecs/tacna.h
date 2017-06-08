@@ -402,6 +402,8 @@ extern const struct soc_enum tacna_output_rate;
 extern const struct soc_enum tacna_out_vi_ramp;
 extern const struct soc_enum tacna_out_vd_ramp;
 extern const struct soc_enum tacna_ng_hold;
+extern const struct soc_enum tacna_mono_anc_input_src[];
+extern const struct soc_enum tacna_anc_ng_enum;
 extern const struct soc_enum tacna_output_anc_src[];
 
 int tacna_put_out_vu(struct snd_kcontrol *kcontrol,
@@ -489,6 +491,8 @@ int tacna_hp_ev(struct snd_soc_dapm_widget *w,
 int tacna_eq_ev(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol,
 		int event);
+int tacna_anc_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
+		 int event);
 
 int tacna_fllhj_set_refclk(struct tacna_fll *fll, int source,
 			   unsigned int fin, unsigned int fout);

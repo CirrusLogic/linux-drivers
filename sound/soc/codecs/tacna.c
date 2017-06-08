@@ -1014,6 +1014,33 @@ SOC_ENUM_SINGLE_DECL(tacna_ng_hold,
 		     tacna_ng_hold_text);
 EXPORT_SYMBOL_GPL(tacna_ng_hold);
 
+static const char * const tacna_anc_input_src_text[] = {
+	"None", "IN1", "IN2", "IN3", "IN4",
+};
+
+static const char * const tacna_mono_anc_channel_src_text[] = {
+	"Left", "Right",
+};
+
+const struct soc_enum tacna_mono_anc_input_src[] = {
+	SOC_ENUM_SINGLE(TACNA_ANC_SRC,
+			TACNA_IN_ANC_L_SRC_SHIFT,
+			ARRAY_SIZE(tacna_anc_input_src_text),
+			tacna_anc_input_src_text),
+	SOC_ENUM_SINGLE(TACNA_ANC_CTRL_3,
+			TACNA_ANC_SWAP_CHAN_SHIFT,
+			ARRAY_SIZE(tacna_mono_anc_channel_src_text),
+			tacna_mono_anc_channel_src_text),
+};
+EXPORT_SYMBOL_GPL(tacna_mono_anc_input_src);
+
+static const char * const tacna_anc_ng_texts[] = {
+	"None", "Internal", "External",
+};
+
+SOC_ENUM_SINGLE_DECL(tacna_anc_ng_enum, SND_SOC_NOPM, 0, tacna_anc_ng_texts);
+EXPORT_SYMBOL_GPL(tacna_anc_ng_enum);
+
 static const char * const tacna_out_anc_src_text[] = {
 	"None", "ANC Left Channel", "ANC Right Channel",
 };
@@ -3752,6 +3779,29 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(tacna_eq_ev);
+
+int tacna_anc_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
+		 int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	unsigned int val;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		val = 1 << w->shift;
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		val = 1 << (w->shift + 1);
+		break;
+	default:
+		return 0;
+	}
+
+	snd_soc_write(codec, TACNA_ANC_CTRL_1, val);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tacna_anc_ev);
 
 static int tacna_get_variable_u32_array(struct tacna_priv *priv,
 					const char *propname,

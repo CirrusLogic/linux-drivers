@@ -51,6 +51,30 @@ static const DECLARE_TLV_DB_SCALE(cs47l94_outh_digital_tlv, -12750, 50, 0);
 	SOC_SINGLE(name " NG OUT5L Switch", base,  8, 1, 0), \
 	SOC_SINGLE(name " NG OUT5R Switch", base,  9, 1, 0)
 
+#define CS47L94_ANC_INPUT_ROUTES(widget, name) \
+	{ widget, NULL, name " NG Mux" }, \
+	{ name " NG Internal", NULL, "ANC NG Clock" }, \
+	{ name " NG Internal", NULL, name " Channel" }, \
+	{ name " NG External", NULL, "ANC NG External Clock" }, \
+	{ name " NG External", NULL, name " Channel" }, \
+	{ name " NG Mux", "None", name " Channel" }, \
+	{ name " NG Mux", "Internal", name " NG Internal" }, \
+	{ name " NG Mux", "External", name " NG External" }, \
+	{ name " Channel", "Left", name " Left Input" }, \
+	{ name " Channel", "Right", name " Right Input" }, \
+	{ name " Left Input", "IN1", "IN1L PGA" }, \
+	{ name " Right Input", "IN1", "IN1R PGA" }, \
+	{ name " Left Input", "IN2", "IN2L PGA" }, \
+	{ name " Right Input", "IN2", "IN2R PGA" }, \
+	{ name " Left Input", "IN3", "IN3L PGA" }, \
+	{ name " Right Input", "IN3", "IN3R PGA" }, \
+	{ name " Left Input", "IN4", "IN4L PGA" }, \
+	{ name " Right Input", "IN4", "IN4R PGA" }
+
+#define CS47L94_ANC_OUTPUT_ROUTES(widget, name) \
+	{ widget, NULL, name " ANC Source" }, \
+	{ name " ANC Source", "ANC Left Channel", "ANCL" }
+
 struct cs47l94 {
 	struct tacna_priv core;
 	struct tacna_fll fll[3];
@@ -772,6 +796,12 @@ SOC_ENUM("LHPF2 Mode", tacna_lhpf2_mode),
 SOC_ENUM("LHPF3 Mode", tacna_lhpf3_mode),
 SOC_ENUM("LHPF4 Mode", tacna_lhpf4_mode),
 
+SND_SOC_BYTES("ANC Coefficients", TACNA_ANC_CTRL_4,
+	      (TACNA_ANC_CTRL_13 - TACNA_ANC_CTRL_4) / 4 + 1),
+SND_SOC_BYTES("ANCL Config", TACNA_ANC_L_CTRL_1, 1),
+SND_SOC_BYTES("ANCL Coefficients", TACNA_ANC_L_CTRL_3,
+	      (TACNA_ANC_L_CTRL_66 - TACNA_ANC_L_CTRL_3) / 4 + 1),
+
 SOC_ENUM("Sample Rate 2", tacna_sample_rate[0]),
 SOC_ENUM("Sample Rate 3", tacna_sample_rate[1]),
 SOC_ENUM("Async Sample Rate 1", tacna_sample_rate[2]),
@@ -1178,6 +1208,23 @@ static const struct soc_enum cs47l94_aec_loopback[] = {
 static const struct snd_kcontrol_new cs47l94_aec_loopback_mux[] = {
 	SOC_DAPM_ENUM("AEC1 Loopback", cs47l94_aec_loopback[0]),
 	SOC_DAPM_ENUM("AEC2 Loopback", cs47l94_aec_loopback[1]),
+};
+
+static const struct snd_kcontrol_new cs47l94_anc_input_mux[] = {
+	SOC_DAPM_ENUM("ANCL Input", tacna_mono_anc_input_src[0]),
+	SOC_DAPM_ENUM("ANCL Channel", tacna_mono_anc_input_src[1]),
+};
+
+static const struct snd_kcontrol_new cs47l94_anc_ng_mux =
+	SOC_DAPM_ENUM("ANC NG Source", tacna_anc_ng_enum);
+
+static const struct snd_kcontrol_new cs47l94_output_anc_src[] = {
+	SOC_DAPM_ENUM("OUT1L ANC Source", tacna_output_anc_src[0]),
+	SOC_DAPM_ENUM("OUT1R ANC Source", tacna_output_anc_src[1]),
+	SOC_DAPM_ENUM("OUT2L ANC Source", tacna_output_anc_src[2]),
+	SOC_DAPM_ENUM("OUT2R ANC Source", tacna_output_anc_src[3]),
+	SOC_DAPM_ENUM("OUT5L ANC Source", tacna_output_anc_src[4]),
+	SOC_DAPM_ENUM("OUT5R ANC Source", tacna_output_anc_src[5]),
 };
 
 static const struct snd_kcontrol_new cs47l94_out1_aux_switch[] = {
@@ -1881,6 +1928,41 @@ SND_SOC_DAPM_SWITCH("DSP1 Trigger Output", SND_SOC_NOPM, 0, 0,
 SND_SOC_DAPM_SWITCH("DSP2 Trigger Output", SND_SOC_NOPM, 0, 0,
 		    &tacna_dsp_trigger_output_mux[1]),
 
+SND_SOC_DAPM_SUPPLY("ANC NG External Clock", SND_SOC_NOPM,
+		    TACNA_ANC_EXT_NG_SET_SHIFT, 0, tacna_anc_ev,
+		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_PGA("ANCL NG External", SND_SOC_NOPM, 0, 0, NULL, 0),
+
+SND_SOC_DAPM_SUPPLY("ANC NG Clock", SND_SOC_NOPM,
+		    TACNA_ANC_NG_CLK_SET_SHIFT, 0, tacna_anc_ev,
+		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_PGA("ANCL NG Internal", SND_SOC_NOPM, 0, 0, NULL, 0),
+
+SND_SOC_DAPM_MUX("ANCL Left Input", SND_SOC_NOPM, 0, 0,
+		 &cs47l94_anc_input_mux[0]),
+SND_SOC_DAPM_MUX("ANCL Right Input", SND_SOC_NOPM, 0, 0,
+		 &cs47l94_anc_input_mux[0]),
+SND_SOC_DAPM_MUX("ANCL Channel", SND_SOC_NOPM, 0, 0,
+		 &cs47l94_anc_input_mux[1]),
+SND_SOC_DAPM_MUX("ANCL NG Mux", SND_SOC_NOPM, 0, 0, &cs47l94_anc_ng_mux),
+
+SND_SOC_DAPM_PGA_E("ANCL", SND_SOC_NOPM, TACNA_ANC_L_CLK_SET_SHIFT,
+		   0, NULL, 0, tacna_anc_ev,
+		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+
+SND_SOC_DAPM_MUX("OUT1L ANC Source", SND_SOC_NOPM, 0, 0,
+		 &cs47l94_output_anc_src[0]),
+SND_SOC_DAPM_MUX("OUT1R ANC Source", SND_SOC_NOPM, 0, 0,
+		 &cs47l94_output_anc_src[1]),
+SND_SOC_DAPM_MUX("OUT2L ANC Source", SND_SOC_NOPM, 0, 0,
+		 &cs47l94_output_anc_src[2]),
+SND_SOC_DAPM_MUX("OUT2R ANC Source", SND_SOC_NOPM, 0, 0,
+		 &cs47l94_output_anc_src[3]),
+SND_SOC_DAPM_MUX("OUT5L ANC Source", SND_SOC_NOPM, 0, 0,
+		 &cs47l94_output_anc_src[4]),
+SND_SOC_DAPM_MUX("OUT5R ANC Source", SND_SOC_NOPM, 0, 0,
+		 &cs47l94_output_anc_src[5]),
+
 SND_SOC_DAPM_OUTPUT("OUT1L_HP1"),
 SND_SOC_DAPM_OUTPUT("OUT1R_HP1"),
 SND_SOC_DAPM_OUTPUT("OUT1L_HP2"),
@@ -2467,6 +2549,15 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	TACNA_MUX_ROUTES("DFC6", "DFC6"),
 	TACNA_MUX_ROUTES("DFC7", "DFC7"),
 	TACNA_MUX_ROUTES("DFC8", "DFC8"),
+
+	CS47L94_ANC_INPUT_ROUTES("ANCL", "ANCL"),
+
+	CS47L94_ANC_OUTPUT_ROUTES("OUT1L PGA", "OUT1L"),
+	CS47L94_ANC_OUTPUT_ROUTES("OUT1R PGA", "OUT1R"),
+	CS47L94_ANC_OUTPUT_ROUTES("OUT2L PGA", "OUT2L"),
+	CS47L94_ANC_OUTPUT_ROUTES("OUT2R PGA", "OUT2R"),
+	CS47L94_ANC_OUTPUT_ROUTES("OUT5L PGA", "OUT5L"),
+	CS47L94_ANC_OUTPUT_ROUTES("OUT5R PGA", "OUT5R"),
 };
 
 static struct snd_soc_dai_driver cs47l94_dai[] = {
