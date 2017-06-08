@@ -702,8 +702,41 @@ static inline bool madera_is_lineout(struct madera_extcon_info *info)
 
 inline void madera_extcon_report(struct madera_extcon_info *info, int state)
 {
+	struct input_dev *input = info->input;
+
 	dev_dbg(info->madera->dev, "Switch Report: %d\n", state);
 	switch_set_state(&info->edev, state);
+
+	if (IS_ENABLED(CONFIG_SWITCH_MADERA_INPUT_EVENT)) {
+		switch (state) {
+		case BIT_HEADSET:
+			input_report_switch(input, SW_LINEOUT_INSERT, 0);
+			input_report_switch(input, SW_JACK_PHYSICAL_INSERT, 1);
+			input_report_switch(input, SW_HEADPHONE_INSERT, 1);
+			input_report_switch(input, SW_MICROPHONE_INSERT, 1);
+			break;
+		case BIT_HEADSET_NO_MIC:
+			input_report_switch(input, SW_LINEOUT_INSERT, 0);
+			input_report_switch(input, SW_MICROPHONE_INSERT, 0);
+			input_report_switch(input, SW_JACK_PHYSICAL_INSERT, 1);
+			input_report_switch(input, SW_HEADPHONE_INSERT, 1);
+			break;
+		case BIT_LINEOUT:
+			input_report_switch(input, SW_MICROPHONE_INSERT, 0);
+			input_report_switch(input, SW_HEADPHONE_INSERT, 0);
+			input_report_switch(input, SW_LINEOUT_INSERT, 1);
+			input_report_switch(input, SW_JACK_PHYSICAL_INSERT, 1);
+			break;
+		default:
+			input_report_switch(input, SW_HEADPHONE_INSERT, 0);
+			input_report_switch(input, SW_MICROPHONE_INSERT, 0);
+			input_report_switch(input, SW_LINEOUT_INSERT, 0);
+			input_report_switch(input, SW_JACK_PHYSICAL_INSERT, 0);
+			break;
+		}
+
+		input_sync(input);
+	}
 }
 EXPORT_SYMBOL_GPL(madera_extcon_report);
 
@@ -3428,6 +3461,14 @@ static int madera_extcon_probe(struct platform_device *pdev)
 			"Failed to set MICVDD to bypass: %d\n", ret);
 
 	pm_runtime_put(&pdev->dev);
+
+	if (IS_ENABLED(CONFIG_SWITCH_MADERA_INPUT_EVENT)) {
+		input_set_capability(info->input, EV_SW, SW_MICROPHONE_INSERT);
+		input_set_capability(info->input, EV_SW, SW_HEADPHONE_INSERT);
+		input_set_capability(info->input, EV_SW, SW_LINEOUT_INSERT);
+		input_set_capability(info->input, EV_SW,
+				     SW_JACK_PHYSICAL_INSERT);
+	}
 
 	ret = input_register_device(info->input);
 	if (ret) {

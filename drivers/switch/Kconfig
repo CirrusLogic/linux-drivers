@@ -19,4 +19,9 @@ config SWITCH_MADERA
 	  Say Y here to enable support for external accessory detection
 	  on Cirrus Logic Madera class codecs.
 
+config SWITCH_MADERA_INPUT_EVENT
+	bool "Report events through input key events"
+	depends on SWITCH_MADERA
+	default n
+
 endif # SWITCH
