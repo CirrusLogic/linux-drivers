@@ -340,9 +340,21 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 			if (!buffer)
 				return -ENOMEM;
 
+#if IS_ENABLED(CONFIG_IIO_CROS_EC_SENSORS_RING)
+			/*
+			 * To preserve backward compatibility, when sensor ring
+			 * is set, all events are going to the ring buffer.
+			 * To pull event to the individual buffers,
+			 * we need triggers.
+			 */
+			ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+					NULL, trigger_capture, NULL);
+			if (ret)
+				return ret;
+#else
 			iio_device_attach_buffer(indio_dev, buffer);
 			indio_dev->modes = INDIO_BUFFER_SOFTWARE;
-
+#endif
 			ret = cros_ec_sensorhub_register_push_data(
 					sensor_hub, sensor_platform->sensor_num,
 					indio_dev, push_data);
