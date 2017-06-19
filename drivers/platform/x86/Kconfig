@@ -1217,6 +1217,16 @@ config TOUCHSCREEN_DMI
 	  the OS-image for the device. This option supplies the missing info.
 	  Enable this for x86 tablets with Silead or Chipone touchscreens.
 
+config ACPI_CHROMEOS
+	bool "ChromeOS specific ACPI extensions"
+	depends on ACPI
+	depends on CHROME_PLATFORMS
+	select NVRAM
+	select CHROMEOS
+	help
+	  This driver provides the firmware interface for the services exported
+	  through the CHROMEOS interfaces when using ChromeOS ACPI firmware.
+
 config INTEL_IMR
 	bool "Intel Isolated Memory Region support"
 	depends on X86_INTEL_QUARK && IOSF_MBI
