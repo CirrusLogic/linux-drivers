@@ -212,6 +212,17 @@ config CROS_EC_SYSFS
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_sysfs.
 
+config CROS_EC_PD_UPDATE
+	tristate "ChromeOS Embedded Controller PD device update driver"
+	depends on MFD_CROS_EC_DEV
+
+	help
+	  If you say Y here, you get support for updating ChromeOS
+	  PD device firmware.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called cros_ec_pd_update.
+
 config CROS_EC_TYPEC
 	tristate "ChromeOS EC Type-C Connector Control"
 	depends on MFD_CROS_EC_DEV && TYPEC
