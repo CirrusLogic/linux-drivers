@@ -15,6 +15,14 @@ menuconfig CHROME_PLATFORMS
 
 if CHROME_PLATFORMS
 
+config CHROMEOS
+	bool
+	depends on NVRAM && ACPI_CHROMEOS
+	help
+	  Provides abstracted interfaces to the firmware features provided on
+	  ChromeOS devices. It depends on a lowlevel driver to implement the
+	  firmware interface on the platform.
+
 config CHROMEOS_LAPTOP
 	tristate "Chrome OS Laptop"
 	depends on I2C && DMI && X86
