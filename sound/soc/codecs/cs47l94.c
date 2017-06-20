@@ -112,6 +112,7 @@ static int cs47l94_out_ev(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
 	struct tacna *tacna = cs47l94->core.tacna;
+	unsigned int vu_reg;
 	unsigned int val;
 	int ret;
 
@@ -119,30 +120,41 @@ static int cs47l94_out_ev(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		switch (w->shift) {
 		case TACNA_OUT1L_EN_SHIFT:
-		case TACNA_OUT1R_EN_SHIFT:
-		case TACNA_OUT2L_EN_SHIFT:
-		case TACNA_OUT2R_EN_SHIFT:
-			ret = regmap_read_poll_timeout(tacna->regmap,
-					TACNA_OUTHL_CONTROL1,
-					val,
-					!(val & TACNA_CP_EN_OUTHL_EN_MASK),
-					CS47L94_OUTH_CP_POLL_US,
-					CS47L94_OUTH_CP_POLL_TIMEOUT_US);
-			if (ret)
-				goto err;
-
-			ret = regmap_read_poll_timeout(tacna->regmap,
-					TACNA_OUTHR_CONTROL1,
-					val,
-					!(val & TACNA_CP_EN_OUTHR_EN_MASK),
-					CS47L94_OUTH_CP_POLL_US,
-					CS47L94_OUTH_CP_POLL_TIMEOUT_US);
-			if (ret)
-				goto err;
+			vu_reg = TACNA_OUT1L_VOLUME_1;
 			break;
-		default:
+		case TACNA_OUT1R_EN_SHIFT:
+			vu_reg = TACNA_OUT1R_VOLUME_1;
+			break;
+		case TACNA_OUT2L_EN_SHIFT:
+			vu_reg = TACNA_OUT2L_VOLUME_1;
+			break;
+		case TACNA_OUT2R_EN_SHIFT:
+			vu_reg = TACNA_OUT2R_VOLUME_1;
 			break;
 		}
+
+		ret = regmap_read_poll_timeout(tacna->regmap,
+				TACNA_OUTHL_CONTROL1,
+				val,
+				!(val & TACNA_CP_EN_OUTHL_EN_MASK),
+				CS47L94_OUTH_CP_POLL_US,
+				CS47L94_OUTH_CP_POLL_TIMEOUT_US);
+		if (ret)
+			goto err;
+
+		ret = regmap_read_poll_timeout(tacna->regmap,
+				TACNA_OUTHR_CONTROL1,
+				val,
+				!(val & TACNA_CP_EN_OUTHR_EN_MASK),
+				CS47L94_OUTH_CP_POLL_US,
+				CS47L94_OUTH_CP_POLL_TIMEOUT_US);
+		if (ret)
+			goto err;
+
+		/* we must toggle VU to ensure mute and volume are updated */
+		regmap_update_bits(tacna->regmap, vu_reg, TACNA_OUT_VU, 0);
+		regmap_update_bits(tacna->regmap, vu_reg, TACNA_OUT_VU,
+				   TACNA_OUT_VU);
 		break;
 	default:
 		break;
