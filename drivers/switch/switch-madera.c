@@ -2826,9 +2826,6 @@ static void madera_extcon_dump_pdata(struct madera *madera)
 		MADERA_EXTCON_DUMP(hpdet_short_circuit_imp, "%d");
 		MADERA_EXTCON_DUMP(hpdet_channel, "%d");
 		MADERA_EXTCON_DUMP(micd_detect_debounce_ms, "%d");
-		MADERA_EXTCON_DUMP(hpdet_short_circuit_imp, "%d");
-		MADERA_EXTCON_DUMP(hpdet_channel, "%d");
-		MADERA_EXTCON_DUMP(micd_detect_debounce_ms, "%d");
 		MADERA_EXTCON_DUMP(micd_manual_debounce, "%d");
 		MADERA_EXTCON_DUMP(micd_pol_gpio, "%d");
 		MADERA_EXTCON_DUMP(micd_bias_start_time, "%d");
