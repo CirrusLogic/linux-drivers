@@ -196,7 +196,6 @@ static const struct reg_default cs47l94_reg_default[] = {
 	{ 0x000049c4, 0x00000080 }, /* OUTAUX1R_VOLUME_3 */
 	{ 0x00004a18, 0x00000000 }, /* OUTPUT_AEC_ENABLE_1 */
 	{ 0x00004a20, 0x00000000 }, /* OUTPUT_AEC_CONTROL_1 */
-	{ 0x00004a24, 0x00000000 }, /* OUTPUT_NG_CONTROL_1 */
 	{ 0x00004c14, 0x0000003f }, /* EDRE_ENABLE */
 	{ 0x00004c18, 0x00000000 }, /* EDRE_MANUAL */
 	{ 0x00004e78, 0x00000000 }, /* FRF_COEFF_1L_1 */
@@ -1150,7 +1149,6 @@ static bool cs47l94_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_OUTPUT_AEC_ENABLE_1:
 	case TACNA_OUTPUT_AEC_STATUS_1:
 	case TACNA_OUTPUT_AEC_CONTROL_1:
-	case TACNA_OUTPUT_NG_CONTROL_1:
 	case TACNA_EDRE_ENABLE:
 	case TACNA_EDRE_MANUAL:
 	case TACNA_FRF_COEFF_1L_1:
