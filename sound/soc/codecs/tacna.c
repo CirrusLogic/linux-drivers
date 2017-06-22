@@ -330,9 +330,6 @@ EXPORT_SYMBOL_GPL(tacna_digital_tlv);
 const DECLARE_TLV_DB_SCALE(tacna_noise_tlv, -10800, 600, 0);
 EXPORT_SYMBOL_GPL(tacna_noise_tlv);
 
-const DECLARE_TLV_DB_SCALE(tacna_ng_tlv, -12000, 600, 0);
-EXPORT_SYMBOL_GPL(tacna_ng_tlv);
-
 const DECLARE_TLV_DB_SCALE(tacna_mixer_tlv, -3200, 100, 0);
 EXPORT_SYMBOL_GPL(tacna_mixer_tlv);
 
@@ -1003,16 +1000,6 @@ SOC_ENUM_SINGLE_DECL(tacna_out_vi_ramp,
 		     TACNA_OUT_VI_RAMP_SHIFT,
 		     tacna_vol_ramp_text);
 EXPORT_SYMBOL_GPL(tacna_out_vi_ramp);
-
-static const char * const tacna_ng_hold_text[] = {
-	"30ms", "120ms", "250ms", "500ms",
-};
-
-SOC_ENUM_SINGLE_DECL(tacna_ng_hold,
-		     TACNA_OUTPUT_NG_CONTROL_1,
-		     TACNA_NGATE_HOLD_SHIFT,
-		     tacna_ng_hold_text);
-EXPORT_SYMBOL_GPL(tacna_ng_hold);
 
 static const char * const tacna_anc_input_src_text[] = {
 	"None", "IN1", "IN2", "IN3", "IN4",

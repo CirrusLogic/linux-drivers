@@ -43,14 +43,6 @@
 
 static const DECLARE_TLV_DB_SCALE(cs47l94_outh_digital_tlv, -12750, 50, 0);
 
-#define CS47L94_NG_SRC(name, base) \
-	SOC_SINGLE(name " NG OUT1L Switch", base,  0, 1, 0), \
-	SOC_SINGLE(name " NG OUT1R Switch", base,  1, 1, 0), \
-	SOC_SINGLE(name " NG OUT2L Switch", base,  2, 1, 0), \
-	SOC_SINGLE(name " NG OUT2R Switch", base,  3, 1, 0), \
-	SOC_SINGLE(name " NG OUT5L Switch", base,  8, 1, 0), \
-	SOC_SINGLE(name " NG OUT5R Switch", base,  9, 1, 0)
-
 #define CS47L94_ANC_INPUT_ROUTES(widget, name) \
 	{ widget, NULL, name " NG Mux" }, \
 	{ name " NG Internal", NULL, "ANC NG Clock" }, \
@@ -875,12 +867,6 @@ SOC_DOUBLE_R_EXT_TLV("OUT5 Digital Volume", TACNA_OUT5L_VOLUME_1,
 SOC_ENUM("Output Ramp Up", tacna_out_vi_ramp),
 SOC_ENUM("Output Ramp Down", tacna_out_vd_ramp),
 
-SOC_SINGLE("Noise Gate Switch", TACNA_OUTPUT_NG_CONTROL_1,
-	   TACNA_NGATE_EN_SHIFT, 1, 0),
-SOC_SINGLE_TLV("Noise Gate Threshold Volume", TACNA_OUTPUT_NG_CONTROL_1,
-	       TACNA_NGATE_THR_SHIFT, 7, 1, tacna_ng_tlv),
-SOC_ENUM("Noise Gate Hold", tacna_ng_hold),
-
 TACNA_RATE_ENUM("Output Rate 1", tacna_output_rate),
 
 SOC_ENUM_EXT("IN1L Rate", tacna_input_rate[0],
@@ -1013,13 +999,6 @@ SOC_ENUM_EXT("DFC8TX Type", tacna_dfc_type[15],
 
 SOC_SINGLE_TLV("Noise Generator Volume", TACNA_COMFORT_NOISE_GENERATOR,
 	       TACNA_NOISE_GEN_GAIN_SHIFT, 0x12, 0, tacna_noise_tlv),
-
-CS47L94_NG_SRC("OUT1L", TACNA_OUT1L_CONTROL_1),
-CS47L94_NG_SRC("OUT1R", TACNA_OUT1R_CONTROL_1),
-CS47L94_NG_SRC("OUT2L", TACNA_OUT2L_CONTROL_1),
-CS47L94_NG_SRC("OUT2R", TACNA_OUT2R_CONTROL_1),
-CS47L94_NG_SRC("OUT5L", TACNA_OUT5L_CONTROL_1),
-CS47L94_NG_SRC("OUT5R", TACNA_OUT5R_CONTROL_1),
 
 TACNA_MIXER_CONTROLS("ASP1TX1", TACNA_ASP1TX1MIX_INPUT1),
 TACNA_MIXER_CONTROLS("ASP1TX2", TACNA_ASP1TX2MIX_INPUT1),
