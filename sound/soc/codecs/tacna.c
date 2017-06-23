@@ -2261,18 +2261,26 @@ static int tacna_set_dacclk(struct snd_soc_codec *codec, int source,
 		return ret;
 	}
 
-	if (freq % 4000)
-		val = TACNA_OUTH_CLK_FRAC; /* 44.1 group rate */
-	else
-		val = 0;
+	switch (priv->tacna->type) {
+	case CS47L94:
+	case CS47L95:
+		if (freq % 4000)
+			val = TACNA_OUTH_CLK_FRAC; /* 44.1 group rate */
+		else
+			val = 0;
 
-	ret = regmap_update_bits(priv->tacna->regmap,
-				 TACNA_OUTH_CONFIG_1,
-				 TACNA_OUTH_CLK_FRAC_MASK,
-				 val);
-	if (ret) {
-		dev_err(priv->dev, "Error writing OUTH_CONFIG_1 %d\n", ret);
-		return ret;
+		ret = regmap_update_bits(priv->tacna->regmap,
+					 TACNA_OUTH_CONFIG_1,
+					 TACNA_OUTH_CLK_FRAC_MASK,
+					 val);
+		if (ret) {
+			dev_err(priv->dev,
+				"Error writing OUTH_CONFIG_1 %d\n", ret);
+			return ret;
+		}
+		break;
+	default:
+		break;
 	}
 
 	return 0;
