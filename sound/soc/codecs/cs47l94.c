@@ -200,18 +200,6 @@ static int cs47l94_out_aux_src_ev(struct snd_soc_dapm_widget *w,
 	case TACNA_OUT1R_CONTROL_1:
 		reg = TACNA_OUT1R_VOLUME_1;
 		break;
-	case TACNA_OUTH_AUX_MIX_CONTROL_1:
-		switch (w->shift) {
-		case TACNA_OUTHL_AUX_SRC_SHIFT:
-			reg = TACNA_OUT1L_VOLUME_1;
-			break;
-		case TACNA_OUTHR_AUX_SRC_SHIFT:
-			reg = TACNA_OUT1R_VOLUME_1;
-			break;
-		default:
-			return -EINVAL;
-		}
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -225,6 +213,86 @@ static int cs47l94_out_aux_src_ev(struct snd_soc_dapm_widget *w,
 		dev_err(codec->dev, "Failed to toggle OUT_VU bit: %d\n", ret);
 
 	return ret;
+}
+
+static int cs47l94_outh_aux_src_ev(struct snd_soc_dapm_widget *w,
+				   struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
+	struct tacna *tacna = cs47l94->core.tacna;
+	unsigned int reg;
+	int ret;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		switch (w->shift) {
+		case TACNA_OUTHL_AUX_SRC_SHIFT:
+			reg = TACNA_OUT1L_VOLUME_1;
+			break;
+		case TACNA_OUTHR_AUX_SRC_SHIFT:
+			reg = TACNA_OUT1R_VOLUME_1;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		/* following writes must be done to enable AUX+DSD */
+		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_CFG9,
+					 TACNA_CLK_INTP_PREFILT_BYPASS_CG_MASK |
+					 TACNA_CLK_INTP_BYPASS_CG_MASK,
+					 TACNA_CLK_INTP_PREFILT_BYPASS_CG |
+					 TACNA_CLK_INTP_BYPASS_CG);
+		if (ret)
+			dev_warn(codec->dev,
+				 "Failed to write to OUTH_CFG9: %d\n", ret);
+		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_DSD_PCM,
+					 TACNA_OUTH_DSD_PCM_MIX_SETUP_MASK,
+					 TACNA_OUTH_DSD_PCM_MIX_SETUP);
+		if (ret)
+			dev_warn(codec->dev,
+				 "Failed to write to OUTH_DSD_PCM: %d\n", ret);
+		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_DSD_PCM,
+					 TACNA_OUTH_DSD_PCM_MIX_MASK,
+					 TACNA_OUTH_DSD_PCM_MIX);
+		if (ret)
+			dev_warn(codec->dev,
+				"Failed to write to OUTH_DSD_PCM: %d\n", ret);
+
+		/* enable AUX */
+		ret = regmap_update_bits(tacna->regmap, reg,
+					 TACNA_OUT_VU_MASK, 0);
+		if (ret)
+			dev_err(codec->dev, "Failed to toggle OUT_VU bit: %d\n",
+				ret);
+		ret = regmap_update_bits(tacna->regmap, reg,
+					 TACNA_OUT_VU_MASK, TACNA_OUT_VU);
+		if (ret)
+			dev_err(codec->dev, "Failed to toggle OUT_VU bit: %d\n",
+				ret);
+		return 0;
+	case SND_SOC_DAPM_PRE_PMD:
+		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_DSD_PCM,
+					 TACNA_OUTH_DSD_PCM_MIX_MASK, 0);
+		if (ret)
+			dev_warn(codec->dev,
+				"Failed to write to OUTH_DSD_PCM: %d\n", ret);
+		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_DSD_PCM,
+					 TACNA_OUTH_DSD_PCM_MIX_SETUP_MASK, 0);
+		if (ret)
+			dev_warn(codec->dev,
+				 "Failed to write to OUTH_DSD_PCM: %d\n", ret);
+		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_CFG9,
+					 TACNA_CLK_INTP_PREFILT_BYPASS_CG_MASK |
+					 TACNA_CLK_INTP_BYPASS_CG_MASK,
+					 0);
+		if (ret)
+			dev_warn(codec->dev,
+				 "Failed to write to OUTH_CFG9: %d\n", ret);
+		return 0;
+	default:
+		return 0;
+	}
 }
 
 static int cs47l94_outaux_ev(struct snd_soc_dapm_widget *w,
@@ -406,6 +474,36 @@ int cs47l94_outh_ev(struct snd_soc_dapm_widget *w,
 	}
 
 	return ret;
+}
+
+static int cs47l94_dsd_processor_ev(struct snd_soc_dapm_widget *w,
+				    struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
+	struct tacna *tacna = cs47l94->core.tacna;
+	int ret;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		/* this must be enabled for DSD+AUX */
+		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_ENABLE_1,
+					 TACNA_DSD1_IF_EN_MASK,
+					 TACNA_DSD1_IF_EN);
+		if (ret)
+			dev_warn(codec->dev,
+				"Failed to write to OUTH_ENABLE_1: %d\n", ret);
+		return 0;
+	case SND_SOC_DAPM_PRE_PMD:
+		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_ENABLE_1,
+					 TACNA_DSD1_IF_EN_MASK, 0);
+		if (ret)
+			dev_warn(codec->dev,
+				"Failed to write to OUTH_ENABLE_1: %d\n", ret);
+		return 0;
+	default:
+		return 0;
+	}
 }
 
 static irqreturn_t cs47l94_outh_enable(int irq, void *data)
@@ -1566,12 +1664,12 @@ SND_SOC_DAPM_MUX_E("OUTH Output Select", SND_SOC_NOPM, 0, 0,
 
 SND_SOC_DAPM_SWITCH_E("OUTHL AUX Mix", TACNA_OUTH_AUX_MIX_CONTROL_1,
 		      TACNA_OUTHL_AUX_SRC_SHIFT, 0,
-		      &cs47l94_outh_aux_switch[0], cs47l94_out_aux_src_ev,
-		      SND_SOC_DAPM_POST_PMU),
+		      &cs47l94_outh_aux_switch[0], cs47l94_outh_aux_src_ev,
+		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 SND_SOC_DAPM_SWITCH_E("OUTHR AUX Mix", TACNA_OUTH_AUX_MIX_CONTROL_1,
 		      TACNA_OUTHR_AUX_SRC_SHIFT, 0,
-		      &cs47l94_outh_aux_switch[1], cs47l94_out_aux_src_ev,
-		      SND_SOC_DAPM_POST_PMU),
+		      &cs47l94_outh_aux_switch[1], cs47l94_outh_aux_src_ev,
+		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_DEMUX("OUTH PCM Mode", SND_SOC_NOPM, 0, 0,
 		   &cs47l94_outh_pcm_mode_select),
@@ -1582,8 +1680,9 @@ SND_SOC_DAPM_PGA("OUTH PCM", TACNA_OUTH_ENABLE_1, TACNA_OUTH_PCM_EN_SHIFT,
 		 0, NULL, 0),
 SND_SOC_DAPM_PGA("OUTH DoP", SND_SOC_NOPM, 0, 0, NULL, 0),
 
-SND_SOC_DAPM_MUX("DSD Processor", TACNA_DSD1_CONTROL1, TACNA_DSD1_EN_SHIFT,
-		 0, &cs47l94_dsd_source_select),
+SND_SOC_DAPM_MUX_E("DSD Processor", TACNA_DSD1_CONTROL1, TACNA_DSD1_EN_SHIFT,
+		   0, &cs47l94_dsd_source_select, cs47l94_dsd_processor_ev,
+		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_SWITCH("AUXPDM1 Output", TACNA_AUXPDM_CONTROL1,
 		    TACNA_AUXPDM1_EN_SHIFT, 0, &tacna_auxpdm_switch[0]),
