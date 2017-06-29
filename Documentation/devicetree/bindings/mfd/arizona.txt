@@ -210,6 +210,11 @@ Optional properties:
     The second cell is ignored for codecs that do not have OUT6 (wm5102, wm8997,
     wm8998, wm1814)
 
+  - wlf,out-volume-limit : The volume limit value that should be applied to each
+    output channel. See the datasheet for exact values. Channels are specified
+    in the order OUT1L, OUT1R, OUT2L, OUT2R, etc. Exactly 12 values should be
+    specified.
+
   - DCVDD-supply, MICVDD-supply : Power supplies, only need to be specified if
     they are being externally supplied. As covered in
     Documentation/devicetree/bindings/regulator/regulator.txt

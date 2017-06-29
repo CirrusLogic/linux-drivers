@@ -1249,6 +1249,7 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 	struct arizona_pdata *pdata = &arizona->pdata;
 	u32 out_mono[ARIZONA_MAX_OUTPUT];
 	u32 pdm_val[ARIZONA_MAX_PDM_SPK];
+	u32 out_vol_limit[2 * ARIZONA_MAX_OUTPUT];
 	int ret, i, num_micbias_outputs;
 
 	switch (arizona->type) {
@@ -1276,6 +1277,7 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 	}
 
 	memset(&out_mono, 0, sizeof(out_mono));
+	memset(&out_vol_limit, 0, sizeof(out_vol_limit));
 
 	pdata->reset = arizona_of_get_named_gpio(arizona, "wlf,reset", true);
 
@@ -1330,6 +1332,11 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 	if (ret >= 0)
 		for (i = 0; i < ARRAY_SIZE(pdata->spk_mute); ++i)
 			pdata->spk_mute[i] = pdm_val[i];
+
+	arizona_of_read_u32_array(arizona, "wlf,out-volume-limit", false,
+				  out_vol_limit, ARRAY_SIZE(out_vol_limit));
+	for (i = 0; i < ARRAY_SIZE(out_vol_limit); ++i)
+		pdata->out_vol_limit[i] = out_vol_limit[i];
 
 	return 0;
 }
@@ -2348,6 +2355,15 @@ int arizona_dev_init(struct arizona *arizona)
 					   ARIZONA_SPK1_FMT_MASK,
 					   arizona->pdata.spk_fmt[i]);
 	}
+
+	for (i = 0; i < ARRAY_SIZE(arizona->pdata.out_vol_limit); ++i) {
+		if (arizona->pdata.out_vol_limit[i])
+			regmap_update_bits(arizona->regmap,
+					ARIZONA_DAC_VOLUME_LIMIT_1L + i * 4,
+					ARIZONA_OUT1L_VOL_LIM_MASK,
+					arizona->pdata.out_vol_limit[i]);
+	}
+
 
 	pm_runtime_set_active(arizona->dev);
 	pm_runtime_enable(arizona->dev);

@@ -268,6 +268,9 @@ struct arizona_pdata {
 	/** Mode for outputs */
 	bool out_mono[ARIZONA_MAX_OUTPUT];
 
+	/** Limit output volumes */
+	unsigned int out_vol_limit[2 * ARIZONA_MAX_OUTPUT];
+
 	/** Provide improved ultrasonic frequency response */
 	bool ultrasonic_response;
 
