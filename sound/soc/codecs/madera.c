@@ -673,8 +673,22 @@ static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 	else if (ret)
 		changed = true;
 
-	/* if the A input is digital we must switch both channels together */
 	if (inmode_a == MADERA_INMODE_DMIC) {
+		if (mux)
+			dmode_val = 0; /* B always analogue */
+		else
+			dmode_val = 1 << MADERA_IN1_MODE_SHIFT; /* DMIC */
+
+		dev_dbg(madera->dev, "dmode_val=0x%x\n", dmode_val);
+
+		ret = snd_soc_component_update_bits(dapm->component,
+						    dmode_reg,
+						    MADERA_IN1_MODE_MASK,
+						    dmode_val);
+		if (ret < 0)
+			return ret;
+
+		/* if A is digital we must switch both channels together */
 		switch (madera->type) {
 		case CS47L85:
 		case WM1840:
@@ -696,14 +710,9 @@ static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 		else
 			src_val &= ~(1 << MADERA_IN1L_SRC_SE_SHIFT);
 
-		if (mux)
-			dmode_val = 0; /* B always analogue */
-		else
-			dmode_val = 1 << MADERA_IN1_MODE_SHIFT; /* DMIC */
-
 		dev_dbg(madera->dev,
-			"gang_reg=0x%x inmode_gang=0x%x gang_val=0x%x dmode_val=0x%x\n",
-			gang_reg, inmode_gang, src_val, dmode_val);
+			"gang_reg=0x%x inmode_gang=0x%x gang_val=0x%x\n",
+			gang_reg, inmode_gang, src_val);
 
 		ret = snd_soc_component_update_bits(dapm->component,
 						    gang_reg,
@@ -713,11 +722,6 @@ static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 			return ret;
 		else if (ret)
 			changed = true;
-
-		ret = snd_soc_component_update_bits(dapm->component,
-						    dmode_reg,
-						    MADERA_IN1_MODE_MASK,
-						    dmode_val);
 	}
 
 out:
