@@ -1343,6 +1343,9 @@ static const struct soc_enum cs47l94_dsd_source_enum =
 static const struct snd_kcontrol_new cs47l94_dsd_source_select =
 	SOC_DAPM_ENUM("Source", cs47l94_dsd_source_enum);
 
+static const struct snd_kcontrol_new cs47l94_dsd_switch =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
 static const struct snd_soc_dapm_widget cs47l94_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", TACNA_SYSTEM_CLOCK1, TACNA_SYSCLK_EN_SHIFT,
 		    0, tacna_sysclk_ev,
@@ -1664,9 +1667,13 @@ SND_SOC_DAPM_SWITCH_E("OUTHR AUX Mix", TACNA_OUTH_AUX_MIX_CONTROL_1,
 SND_SOC_DAPM_PGA("OUTH PCM", TACNA_OUTH_ENABLE_1, TACNA_OUTH_PCM_EN_SHIFT,
 		 0, NULL, 0),
 
-SND_SOC_DAPM_MUX_E("DSD Processor", TACNA_DSD1_CONTROL1, TACNA_DSD1_EN_SHIFT,
-		   0, &cs47l94_dsd_source_select, cs47l94_dsd_processor_ev,
-		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_MUX("DSD Processor Source", SND_SOC_NOPM, 0, 0,
+		 &cs47l94_dsd_source_select),
+
+SND_SOC_DAPM_SWITCH_E("DSD Processor", TACNA_DSD1_CONTROL1,
+		      TACNA_DSD1_EN_SHIFT, 0,
+		      &cs47l94_dsd_switch, cs47l94_dsd_processor_ev,
+		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_SWITCH("AUXPDM1 Output", TACNA_AUXPDM_CONTROL1,
 		    TACNA_AUXPDM1_EN_SHIFT, 0, &tacna_auxpdm_switch[0]),
@@ -2540,7 +2547,9 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "OUT5_PDMCLK", NULL, "OUT5R PGA" },
 	{ "OUT5_PDMDATA", NULL, "OUT5R PGA" },
 
-	{ "DSD Processor", "DoP", "OUTH PCM" },
+	{ "DSD Processor Source", "DoP", "OUTH PCM" },
+	{ "DSD Processor", "Switch", "DSD Processor Source" },
+
 	{ "OUTH Output Select", "OUTH", "OUTH PCM" },
 	{ "OUTH Output Select", "OUTH", "DSD Processor" },
 	{ "OUT1L_HP1", NULL, "OUTH Output Select" },
