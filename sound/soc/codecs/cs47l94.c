@@ -735,6 +735,11 @@ static int cs47l94_put_outh_main_volume(struct snd_kcontrol *kcontrol,
 	return tacna_put_out_vu(kcontrol, ucontrol);
 }
 
+static const struct snd_kcontrol_new cs47l94_us1_switch =
+		SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+static const struct snd_kcontrol_new cs47l94_us2_switch =
+		SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
 static const char * const tacna_us_in_texts[] = {
 	"IN1L",
 	"IN1R",
@@ -745,6 +750,28 @@ static const char * const tacna_us_in_texts[] = {
 	"IN4L",
 	"IN4R",
 };
+
+static irqreturn_t cs47l94_us1_activity(int irq, void *data)
+{
+	struct tacna *tacna = data;
+	struct tacna_us_notify_data us_data;
+
+	us_data.us_no = 1;
+	tacna_call_notifiers(tacna, TACNA_NOTIFY_ULTRASONIC, &us_data);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs47l94_us2_activity(int irq, void *data)
+{
+	struct tacna *tacna = data;
+	struct tacna_us_notify_data us_data;
+
+	us_data.us_no = 2;
+	tacna_call_notifiers(tacna, TACNA_NOTIFY_ULTRASONIC, &us_data);
+
+	return IRQ_HANDLED;
+}
 
 static SOC_ENUM_SINGLE_DECL(tacna_us1_in_enum,
 			    TACNA_US1_CONTROL,
@@ -774,6 +801,92 @@ static const char * const tacna_us_gain_texts[] = {
 	"+1dB",
 	"+7dB",
 };
+
+static const char * const tacna_us_det_thr_texts[] = {
+	"-6dB",
+	"-9dB",
+	"-12dB",
+	"-15dB",
+	"-18dB",
+	"-21dB",
+	"-24dB",
+	"-27dB",
+};
+
+static SOC_ENUM_SINGLE_DECL(tacna_us1_det_thr_enum, TACNA_US1_DET_CONTROL,
+			    TACNA_US1_DET_THR_SHIFT, tacna_us_det_thr_texts);
+static SOC_ENUM_SINGLE_DECL(tacna_us2_det_thr_enum, TACNA_US2_DET_CONTROL,
+			    TACNA_US2_DET_THR_SHIFT, tacna_us_det_thr_texts);
+
+static const char * const tacna_us_det_num_texts[] = {
+	"1 Sample",
+	"2 Samples",
+	"4 Samples",
+	"8 Samples",
+	"16 Samples",
+	"32 Samples",
+	"64 Samples",
+	"128 Samples",
+	"256 Samples",
+	"512 Samples",
+	"1024 Samples",
+	"2048 Samples",
+	"4096 Samples",
+	"8192 Samples",
+	"16384 Samples",
+	"32768 Samples",
+};
+
+static SOC_ENUM_SINGLE_DECL(tacna_us1_det_num_enum, TACNA_US1_DET_CONTROL,
+			    TACNA_US1_DET_NUM_SHIFT, tacna_us_det_num_texts);
+static SOC_ENUM_SINGLE_DECL(tacna_us2_det_num_enum, TACNA_US2_DET_CONTROL,
+			    TACNA_US2_DET_NUM_SHIFT, tacna_us_det_num_texts);
+
+static const char * const tacna_us_det_hold_texts[] = {
+	"0 Samples",
+	"31 Samples",
+	"63 Samples",
+	"127 Samples",
+	"255 Samples",
+	"511 Samples",
+	"1023 Samples",
+	"2047 Samples",
+	"4095 Samples",
+	"8191 Samples",
+	"16383 Samples",
+	"32767 Samples",
+	"65535 Samples",
+	"131071 Samples",
+	"262143 Samples",
+	"524287 Samples",
+};
+static SOC_ENUM_SINGLE_DECL(tacna_us1_det_hold_enum,
+			    TACNA_US1_DET_CONTROL,
+			    TACNA_US1_DET_HOLD_SHIFT,
+			    tacna_us_det_hold_texts);
+static SOC_ENUM_SINGLE_DECL(tacna_us2_det_hold_enum,
+			    TACNA_US2_DET_CONTROL,
+			    TACNA_US2_DET_HOLD_SHIFT,
+			    tacna_us_det_hold_texts);
+
+static const char * const tacna_us_det_dcy_texts[] = {
+	"0 Samples",
+	"36 Samples",
+	"73 Samples",
+	"146 Samples",
+	"293 Samples",
+	"588 Samples",
+	"1177 Samples",
+	"2355 Samples",
+};
+static SOC_ENUM_SINGLE_DECL(tacna_us1_det_dcy_enum,
+			    TACNA_US1_DET_CONTROL,
+			    TACNA_US1_DET_DCY_SHIFT,
+			    tacna_us_det_dcy_texts);
+static SOC_ENUM_SINGLE_DECL(tacna_us2_det_dcy_enum,
+			    TACNA_US2_DET_CONTROL,
+			    TACNA_US2_DET_DCY_SHIFT,
+			    tacna_us_det_dcy_texts);
 
 static int tacna_us_rate_put(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
@@ -1064,6 +1177,18 @@ SOC_ENUM("Ultrasonic 2 Freq", tacna_us2_freq_enum),
 
 SOC_ENUM("Ultrasonic 1 Gain", tacna_us1_gain_enum),
 SOC_ENUM("Ultrasonic 2 Gain", tacna_us2_gain_enum),
+
+SOC_ENUM("Ultrasonic 1 Activity Detect Threshold", tacna_us1_det_thr_enum),
+SOC_ENUM("Ultrasonic 2 Activity Detect Threshold", tacna_us2_det_thr_enum),
+
+SOC_ENUM("Ultrasonic 1 Activity Detect Pulse Length", tacna_us1_det_num_enum),
+SOC_ENUM("Ultrasonic 2 Activity Detect Pulse Length", tacna_us2_det_num_enum),
+
+SOC_ENUM("Ultrasonic 1 Activity Detect Hold", tacna_us1_det_hold_enum),
+SOC_ENUM("Ultrasonic 2 Activity Detect Hold", tacna_us2_det_hold_enum),
+
+SOC_ENUM("Ultrasonic 1 Activity Detect Decay", tacna_us1_det_dcy_enum),
+SOC_ENUM("Ultrasonic 2 Activity Detect Decay", tacna_us2_det_dcy_enum),
 
 SOC_ENUM("AUXPDM1 Rate", tacna_auxpdm1_freq),
 SOC_ENUM("AUXPDM2 Rate", tacna_auxpdm2_freq),
@@ -1684,6 +1809,9 @@ SND_SOC_DAPM_MUX("Ultrasonic 2 Input", SND_SOC_NOPM, 0, 0, &tacna_us_inmux[1]),
 SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
 
+SND_SOC_DAPM_OUTPUT("Ultrasonic 1 Activity Output"),
+SND_SOC_DAPM_OUTPUT("Ultrasonic 2 Activity Output"),
+
 SND_SOC_DAPM_OUTPUT("DSP Trigger Out"),
 
 SND_SOC_DAPM_MUX("IN1L Mux", SND_SOC_NOPM, 0, 0, &tacna_inmux[0]),
@@ -1853,6 +1981,11 @@ SND_SOC_DAPM_MUX("AUXPDM2 Input", SND_SOC_NOPM, 0, 0,
 		 &tacna_auxpdm_inmux[1]),
 SND_SOC_DAPM_MUX("AUXPDM3 Input", SND_SOC_NOPM, 0, 0,
 		 &tacna_auxpdm_inmux[2]),
+
+SND_SOC_DAPM_SWITCH("Ultrasonic 1 Activity Detect", TACNA_US1_DET_CONTROL,
+		    TACNA_US1_DET_EN_SHIFT, 0, &cs47l94_us1_switch),
+SND_SOC_DAPM_SWITCH("Ultrasonic 2 Activity Detect", TACNA_US2_DET_CONTROL,
+		    TACNA_US2_DET_EN_SHIFT, 0, &cs47l94_us2_switch),
 
 /* mux_in widgets : arranged in the order of sources
    specified in TACNA_MIXER_INPUT_ROUTES */
@@ -3026,6 +3159,25 @@ static int cs47l94_codec_probe(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_disable_pin(tacna->dapm, "HAPTICS");
 
+	ret = tacna_request_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE,
+				"Ultrasonic 1 activity",
+				 cs47l94_us1_activity, tacna);
+	if (ret) {
+		dev_err(tacna->dev, "Failed to get Ultrasonic 1 IRQ: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = tacna_request_irq(tacna, TACNA_IRQ_US2_ACT_DET_RISE,
+				"Ultrasonic 2 activity",
+				 cs47l94_us2_activity, tacna);
+	if (ret) {
+		tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, cs47l94);
+		dev_err(tacna->dev, "Failed to get Ultrasonic 2 IRQ: %d\n",
+			ret);
+		return ret;
+	}
+
 	ret = snd_soc_add_codec_controls(codec, tacna_dsp_rate_controls,
 					 CS47L94_NUM_DSP *
 					 (CS47L94_DSP_N_RX_CHANNELS +
@@ -3050,6 +3202,8 @@ static int cs47l94_codec_remove(struct snd_soc_codec *codec)
 		/* TODO: destroy error irq */
 	}
 
+	tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, cs47l94);
+	tacna_free_irq(tacna, TACNA_IRQ_US2_ACT_DET_RISE, cs47l94);
 	tacna->dapm = NULL;
 
 	return 0;

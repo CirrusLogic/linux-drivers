@@ -30,6 +30,7 @@ enum tacna_type {
 #define TACNA_NOTIFY_VOICE_TRIGGER	0x1
 #define TACNA_NOTIFY_HPDET		0x2
 #define TACNA_NOTIFY_MICDET		0x4
+#define TACNA_NOTIFY_ULTRASONIC		0x5
 
 /* GPIO Function Definitions */
 #define TACNA_GP_FN_ALTERNATE		0x00
