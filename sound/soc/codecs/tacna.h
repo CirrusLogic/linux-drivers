@@ -281,6 +281,11 @@ struct tacna;
 struct tacna_jd_state;
 struct wm_adsp;
 
+/* Notify data structure for TACNA_NOTIFY_ULTRASONIC */
+struct tacna_us_notify_data {
+	unsigned int us_no;
+};
+
 struct tacna_dai_priv {
 	int clk;
 	struct snd_pcm_hw_constraint_list constraint;
