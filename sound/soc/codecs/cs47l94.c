@@ -1309,6 +1309,11 @@ static const struct snd_kcontrol_new cs47l94_out1_aux_switch[] = {
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
 };
 
+static const struct snd_kcontrol_new cs47l94_out1_dsd_switch[] = {
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
+};
+
 static const char * const cs47l94_out_select_texts[] = {
 	"OUT1+OUT2", "OUTH",
 };
@@ -1639,6 +1644,13 @@ SND_SOC_DAPM_SWITCH_E("OUT1R AUX Mix", TACNA_OUT1R_CONTROL_1,
 		      TACNA_OUT1R_AUX_SRC_SHIFT, 0,
 		      &cs47l94_out1_aux_switch[1], cs47l94_out_aux_src_ev,
 		      SND_SOC_DAPM_POST_PMU),
+
+SND_SOC_DAPM_SWITCH("OUT1L DSD Mix", TACNA_OUT1L_CONTROL_1,
+		      TACNA_OUT1L_DSD_EN_SHIFT, 0,
+		      &cs47l94_out1_dsd_switch[0]),
+SND_SOC_DAPM_SWITCH("OUT1R DSD Mix", TACNA_OUT1R_CONTROL_1,
+		      TACNA_OUT1R_DSD_EN_SHIFT, 0,
+		      &cs47l94_out1_dsd_switch[1]),
 
 SND_SOC_DAPM_DEMUX("OUT1 Demux", SND_SOC_NOPM, 0, 0, &cs47l94_out1_demux),
 
@@ -2526,8 +2538,12 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 
 	{ "OUT1L AUX Mix", "Switch", "OUTAUX1L PGA"},
 	{ "OUT1R AUX Mix", "Switch", "OUTAUX1R PGA"},
+	{ "OUT1L DSD Mix", "Switch", "DSD Processor"},
+	{ "OUT1R DSD Mix", "Switch", "DSD Processor"},
 	{ "OUT1L PGA", NULL, "OUT1L AUX Mix" },
 	{ "OUT1R PGA", NULL, "OUT1R AUX Mix" },
+	{ "OUT1L PGA", NULL, "OUT1L DSD Mix" },
+	{ "OUT1R PGA", NULL, "OUT1R DSD Mix" },
 
 	{ "AEC1 Loopback", "OUT2L", "OUT2L PGA" },
 	{ "AEC1 Loopback", "OUT2R", "OUT2R PGA" },
