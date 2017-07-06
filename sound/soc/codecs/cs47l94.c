@@ -1324,16 +1324,6 @@ static const struct snd_kcontrol_new cs47l94_outh_aux_switch[] = {
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
 };
 
-static const char * const cs47l94_outh_pcm_mode_select_texts[] = {
-	"PCM", "DoP",
-};
-
-SOC_ENUM_SINGLE_DECL(cs47l94_outh_pcm_mode_select_enum, SND_SOC_NOPM, 0,
-		     cs47l94_outh_pcm_mode_select_texts);
-
-static const struct snd_kcontrol_new cs47l94_outh_pcm_mode_select =
-	SOC_DAPM_ENUM("OUTH PCM Mode", cs47l94_outh_pcm_mode_select_enum);
-
 static const char * const cs47l94_dsd_source_texts[] = {
 	"DSD", "DoP",
 };
@@ -1671,14 +1661,8 @@ SND_SOC_DAPM_SWITCH_E("OUTHR AUX Mix", TACNA_OUTH_AUX_MIX_CONTROL_1,
 		      &cs47l94_outh_aux_switch[1], cs47l94_outh_aux_src_ev,
 		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-SND_SOC_DAPM_DEMUX("OUTH PCM Mode", SND_SOC_NOPM, 0, 0,
-		   &cs47l94_outh_pcm_mode_select),
-
-SND_SOC_DAPM_PGA("OUTH", SND_SOC_NOPM, 0, 0, NULL, 0),
-
 SND_SOC_DAPM_PGA("OUTH PCM", TACNA_OUTH_ENABLE_1, TACNA_OUTH_PCM_EN_SHIFT,
 		 0, NULL, 0),
-SND_SOC_DAPM_PGA("OUTH DoP", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 SND_SOC_DAPM_MUX_E("DSD Processor", TACNA_DSD1_CONTROL1, TACNA_DSD1_EN_SHIFT,
 		   0, &cs47l94_dsd_source_select, cs47l94_dsd_processor_ev,
@@ -2440,8 +2424,8 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	TACNA_MIXER_ROUTES("OUT5R PGA", "OUT5R"),
 	TACNA_MIXER_ROUTES("OUTAUX1L PGA", "OUTAUX1L"),
 	TACNA_MIXER_ROUTES("OUTAUX1R PGA", "OUTAUX1R"),
-	TACNA_MIXER_ROUTES("OUTH", "OUTHL"),
-	TACNA_MIXER_ROUTES("OUTH", "OUTHR"),
+	TACNA_MIXER_ROUTES("OUTH PCM", "OUTHL"),
+	TACNA_MIXER_ROUTES("OUTH PCM", "OUTHR"),
 
 	TACNA_MIXER_ROUTES("PWM1 Driver", "PWM1"),
 	TACNA_MIXER_ROUTES("PWM2 Driver", "PWM2"),
@@ -2556,11 +2540,7 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "OUT5_PDMCLK", NULL, "OUT5R PGA" },
 	{ "OUT5_PDMDATA", NULL, "OUT5R PGA" },
 
-	{ "OUTH PCM Mode", NULL, "OUTH" },
-	{ "OUTH PCM", "PCM", "OUTH PCM Mode" },
-	{ "OUTH PCM", "DoP", "OUTH PCM Mode" },
-	{ "OUTH DoP", "DoP", "OUTH PCM Mode" },
-	{ "DSD Processor", "DoP", "OUTH DoP" },
+	{ "DSD Processor", "DoP", "OUTH PCM" },
 	{ "OUTH Output Select", "OUTH", "OUTH PCM" },
 	{ "OUTH Output Select", "OUTH", "DSD Processor" },
 	{ "OUT1L_HP1", NULL, "OUTH Output Select" },
