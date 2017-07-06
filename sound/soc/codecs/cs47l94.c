@@ -67,6 +67,13 @@ static const DECLARE_TLV_DB_SCALE(cs47l94_outh_digital_tlv, -12750, 50, 0);
 	{ widget, NULL, name " ANC Source" }, \
 	{ name " ANC Source", "ANC Left Channel", "ANCL" }
 
+
+#define TACNA_US_RATE_ENUM(xname, xenum) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,\
+	.info = snd_soc_info_enum_double, \
+	.get = snd_soc_get_enum_double, .put = tacna_us_rate_put, \
+	.private_value = (unsigned long)&xenum }
+
 struct cs47l94 {
 	struct tacna_priv core;
 	struct tacna_fll fll[3];
@@ -727,6 +734,111 @@ static int cs47l94_put_outh_main_volume(struct snd_kcontrol *kcontrol,
 
 	return tacna_put_out_vu(kcontrol, ucontrol);
 }
+
+static const char * const tacna_us_in_texts[] = {
+	"IN1L",
+	"IN1R",
+	"IN2L",
+	"IN2R",
+	"IN3L",
+	"IN3R",
+	"IN4L",
+	"IN4R",
+};
+
+static SOC_ENUM_SINGLE_DECL(tacna_us1_in_enum,
+			    TACNA_US1_CONTROL,
+			    TACNA_US1_SRC_SHIFT,
+			    tacna_us_in_texts);
+
+static SOC_ENUM_SINGLE_DECL(tacna_us2_in_enum,
+			    TACNA_US2_CONTROL,
+			    TACNA_US2_SRC_SHIFT,
+			    tacna_us_in_texts);
+
+static const struct snd_kcontrol_new tacna_us_inmux[2] = {
+	SOC_DAPM_ENUM("Ultrasonic 1 Input", tacna_us1_in_enum),
+	SOC_DAPM_ENUM("Ultrasonic 2 Input", tacna_us2_in_enum),
+};
+
+static const char * const tacna_us_freq_texts[] = {
+	"24.5-40.5kHz",
+	"18-22kHz",
+	"16-24kHz",
+	"20-28kHz",
+};
+
+static const char * const tacna_us_gain_texts[] = {
+	"No Signal",
+	"-5dB",
+	"+1dB",
+	"+7dB",
+};
+
+static int tacna_us_rate_put(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	int ret;
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_card *card = codec->component.card;
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+
+	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct tacna *tacna = priv->tacna;
+
+	unsigned int val, cur, mask, ena_mask;
+
+	if (ucontrol->value.enumerated.item[0] > e->items - 1)
+		return -EINVAL;
+
+	val = e->values[ucontrol->value.enumerated.item[0]] << e->shift_l;
+	mask = e->mask << e->shift_l;
+
+	snd_soc_dapm_mutex_lock(&card->dapm);
+
+	ret = regmap_read(tacna->regmap, e->reg, &cur);
+	if (ret != 0) {
+		dev_err(tacna->dev, "Failed to read current reg: %d\n", ret);
+		goto end;
+	}
+
+	if ((cur & mask) == (val & mask))
+		goto end;
+
+	ret = regmap_read(tacna->regmap, e->reg, &cur);
+	if (ret != 0) {
+		dev_err(tacna->dev, "Failed to read enable reg: %d\n", ret);
+		goto end;
+	}
+
+	switch (e->reg) {
+	case TACNA_US1_CONTROL:
+		ena_mask = TACNA_US1_EN_MASK;
+		break;
+	case TACNA_US2_CONTROL:
+		ena_mask = TACNA_US2_EN_MASK;
+		break;
+	default:
+		ret = -EINVAL;
+		goto end;
+	}
+
+	if (cur & ena_mask) {
+		dev_err(tacna->dev,
+			"Can't change rate on active input 0x%08x: %d\n",
+			e->reg, ret);
+		ret = -EBUSY;
+		goto end;
+	}
+
+	ret = snd_soc_update_bits(codec, e->reg, mask, val);
+
+end:
+	snd_soc_dapm_mutex_unlock(&card->dapm);
+
+	return ret;
+}
+
 /*
  * TODO: auto depends on some other weird setting so will need to figure out
  *       how that works
@@ -737,6 +849,35 @@ static const char* const cs47l94_dop_width_texts[] = {
 
 static SOC_ENUM_SINGLE_DECL(cs47l94_dop_width_enum, TACNA_DOP1_CONTROL1,
 			    TACNA_DOP1_WIDTH_SHIFT, cs47l94_dop_width_texts);
+
+static const struct soc_enum tacna_us_output_rate[] = {
+	SOC_VALUE_ENUM_SINGLE(TACNA_US1_CONTROL,
+			      TACNA_US1_RATE_SHIFT,
+			      TACNA_US1_RATE_MASK >> TACNA_US1_RATE_SHIFT,
+			      TACNA_SYNC_RATE_ENUM_SIZE,
+			      tacna_rate_text,
+			      tacna_rate_val),
+	SOC_VALUE_ENUM_SINGLE(TACNA_US2_CONTROL,
+			      TACNA_US2_RATE_SHIFT,
+			      TACNA_US2_RATE_MASK >> TACNA_US2_RATE_SHIFT,
+			      TACNA_SYNC_RATE_ENUM_SIZE,
+			      tacna_rate_text,
+			      tacna_rate_val),
+};
+
+static SOC_ENUM_SINGLE_DECL(tacna_us1_freq_enum,
+			    TACNA_US1_CONTROL,
+			    TACNA_US1_FREQ_SHIFT,
+			    tacna_us_freq_texts);
+static SOC_ENUM_SINGLE_DECL(tacna_us2_freq_enum,
+			    TACNA_US2_CONTROL,
+			    TACNA_US2_FREQ_SHIFT,
+			    tacna_us_freq_texts);
+
+static SOC_ENUM_SINGLE_DECL(tacna_us1_gain_enum, TACNA_US1_CONTROL,
+			    TACNA_US1_GAIN_SHIFT, tacna_us_gain_texts);
+static SOC_ENUM_SINGLE_DECL(tacna_us2_gain_enum, TACNA_US2_CONTROL,
+			    TACNA_US2_GAIN_SHIFT, tacna_us_gain_texts);
 
 static const struct snd_kcontrol_new cs47l94_snd_controls[] = {
 SOC_ENUM("IN1 OSR", tacna_in_dmic_osr[0]),
@@ -914,6 +1055,15 @@ TACNA_RATE_ENUM("ISRC1 FSH", tacna_isrc_fsh[0]),
 TACNA_RATE_ENUM("ISRC2 FSH", tacna_isrc_fsh[1]),
 TACNA_RATE_ENUM("ASRC1 Rate 1", tacna_asrc1_rate[0]),
 TACNA_RATE_ENUM("ASRC1 Rate 2", tacna_asrc1_rate[1]),
+
+TACNA_US_RATE_ENUM("Ultrasonic 1 Rate", tacna_us_output_rate[0]),
+TACNA_US_RATE_ENUM("Ultrasonic 2 Rate", tacna_us_output_rate[1]),
+
+SOC_ENUM("Ultrasonic 1 Freq", tacna_us1_freq_enum),
+SOC_ENUM("Ultrasonic 2 Freq", tacna_us2_freq_enum),
+
+SOC_ENUM("Ultrasonic 1 Gain", tacna_us1_gain_enum),
+SOC_ENUM("Ultrasonic 2 Gain", tacna_us2_gain_enum),
 
 SOC_ENUM("AUXPDM1 Rate", tacna_auxpdm1_freq),
 SOC_ENUM("AUXPDM2 Rate", tacna_auxpdm2_freq),
@@ -1528,6 +1678,9 @@ SND_SOC_DAPM_INPUT("IN3_PDMDATA"),
 SND_SOC_DAPM_INPUT("IN4_PDMCLK"),
 SND_SOC_DAPM_INPUT("IN4_PDMDATA"),
 
+SND_SOC_DAPM_MUX("Ultrasonic 1 Input", SND_SOC_NOPM, 0, 0, &tacna_us_inmux[0]),
+SND_SOC_DAPM_MUX("Ultrasonic 2 Input", SND_SOC_NOPM, 0, 0, &tacna_us_inmux[1]),
+
 SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
 
@@ -1891,6 +2044,11 @@ SND_SOC_DAPM_PGA("DFC8", TACNA_DFC1_CH8_CTRL, TACNA_DFC1_CH8_EN_SHIFT,
 WM_HALO("DSP1", 0, tacna_dsp_power_ev),
 WM_HALO("DSP2", 1, tacna_dsp_power_ev),
 
+SND_SOC_DAPM_PGA("Ultrasonic 1", TACNA_US1_CONTROL,
+		 TACNA_US1_EN_SHIFT, 0, NULL, 0),
+SND_SOC_DAPM_PGA("Ultrasonic 2", TACNA_US2_CONTROL,
+		 TACNA_US2_EN_SHIFT, 0, NULL, 0),
+
 /* end of ordered widget list */
 
 TACNA_MIXER_WIDGETS(EQ1, "EQ1"),
@@ -2129,6 +2287,8 @@ SND_SOC_DAPM_OUTPUT("MICSUPP"),
 	{ name, "LHPF2", "LHPF2" }, \
 	{ name, "LHPF3", "LHPF3" }, \
 	{ name, "LHPF4", "LHPF4" }, \
+	{ name, "Ultrasonic 1", "Ultrasonic 1" }, \
+	{ name, "Ultrasonic 2", "Ultrasonic 2" }, \
 	{ name, "DFC1", "DFC1" }, \
 	{ name, "DFC2", "DFC2" }, \
 	{ name, "DFC3", "DFC3" }, \
@@ -2434,6 +2594,27 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 
 	{ "IN4L PGA", NULL, "IN4_PDMCLK" },
 	{ "IN4R PGA", NULL, "IN4_PDMDATA" },
+
+	{ "Ultrasonic 1", NULL, "Ultrasonic 1 Input" },
+	{ "Ultrasonic 2", NULL, "Ultrasonic 2 Input" },
+
+	{ "Ultrasonic 1 Input", "IN1L", "IN1L PGA" },
+	{ "Ultrasonic 1 Input", "IN1R", "IN1R PGA" },
+	{ "Ultrasonic 1 Input", "IN2L", "IN2L PGA" },
+	{ "Ultrasonic 1 Input", "IN2R", "IN2R PGA" },
+	{ "Ultrasonic 1 Input", "IN3L", "IN3L PGA" },
+	{ "Ultrasonic 1 Input", "IN3R", "IN3R PGA" },
+	{ "Ultrasonic 1 Input", "IN4L", "IN4L PGA" },
+	{ "Ultrasonic 1 Input", "IN4R", "IN4R PGA" },
+
+	{ "Ultrasonic 2 Input", "IN1L", "IN1L PGA" },
+	{ "Ultrasonic 2 Input", "IN1R", "IN1R PGA" },
+	{ "Ultrasonic 2 Input", "IN2L", "IN2L PGA" },
+	{ "Ultrasonic 2 Input", "IN2R", "IN2R PGA" },
+	{ "Ultrasonic 2 Input", "IN3L", "IN3L PGA" },
+	{ "Ultrasonic 2 Input", "IN3R", "IN3R PGA" },
+	{ "Ultrasonic 2 Input", "IN4L", "IN4L PGA" },
+	{ "Ultrasonic 2 Input", "IN4R", "IN4R PGA" },
 
 	TACNA_MIXER_ROUTES("OUT1L PGA", "OUT1L"),
 	TACNA_MIXER_ROUTES("OUT1R PGA", "OUT1R"),
