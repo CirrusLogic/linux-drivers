@@ -4712,7 +4712,15 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 		case WM1840:
 		case WM1831:
 		case CS47L24:
+			break;
 		case CS47L35:
+			switch (fll->arizona->rev) {
+			case 0:
+				break;
+			default:
+				if (cfg.theta == 0)
+					gain = cfg.intg_gain;
+			}
 			break;
 		default:
 			if (cfg.theta == 0)
