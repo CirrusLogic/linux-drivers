@@ -4236,14 +4236,18 @@ static int madera_enable_fll(struct madera_fll *fll)
 	case CS47L35:
 		switch (fll->madera->rev) {
 		case 0:
+			gain = cfg.gain;
 			break;
 		default:
 			fll_change |=
 				madera_set_fll_phase_integrator(fll, &cfg,
 								have_sync);
+			if (!have_sync && (cfg.theta == 0))
+				gain = cfg.alt_gain;
+			else
+				gain = cfg.gain;
 			break;
 		}
-		gain = cfg.gain;
 		break;
 	case CS47L85:
 	case WM1840:
