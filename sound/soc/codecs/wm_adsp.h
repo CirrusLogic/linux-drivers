@@ -118,6 +118,8 @@ struct wm_adsp {
 #endif
 	unsigned int data_word_mask;
 	int data_word_size;
+
+	void (*fwevent_cb)(struct wm_adsp *dsp, int eventid);
 };
 
 struct wm_adsp_ops {
@@ -223,5 +225,7 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 			  struct snd_compr_tstamp *tstamp);
 int wm_adsp_compr_copy(struct snd_compr_stream *stream,
 		       char __user *buf, size_t count);
+
+extern int wm_adsp_handle_fw_event(struct wm_adsp *dsp);
 
 #endif
