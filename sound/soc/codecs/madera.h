@@ -108,6 +108,12 @@ struct madera_voice_trigger_info {
 	int core_num;
 };
 
+struct madera_fw_event_info {
+	/** Which core triggered, 1-based (1 = DSP1, ...) */
+	int core_num;
+	int event_id;
+};
+
 struct madera_dai_priv {
 	int clk;
 	struct snd_pcm_hw_constraint_list constraint;
@@ -519,4 +525,6 @@ extern int madera_register_notifier(struct snd_soc_codec *codec,
 				    struct notifier_block *nb);
 extern int madera_unregister_notifier(struct snd_soc_codec *codec,
 				      struct notifier_block *nb);
+
+extern void madera_fwevent_cb(struct wm_adsp *dsp, int eventid);
 #endif

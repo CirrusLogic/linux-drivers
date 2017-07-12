@@ -477,6 +477,17 @@ static irqreturn_t madera_thermal_shutdown(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+void madera_fwevent_cb(struct wm_adsp *dsp, int eventid)
+{
+	struct madera *madera = dev_get_drvdata(dsp->dev);
+	struct madera_fw_event_info ev_info;
+
+	ev_info.core_num = dsp->num;
+	ev_info.event_id = eventid;
+	madera_call_notifiers(madera, MADERA_NOTIFY_FW_EVENT, &ev_info);
+}
+EXPORT_SYMBOL_GPL(madera_fwevent_cb);
+
 static const struct snd_soc_dapm_widget madera_spk[2] = {
 	SND_SOC_DAPM_PGA_E("OUT4L", SND_SOC_NOPM,
 			   MADERA_OUT4L_ENA_SHIFT, 0, NULL, 0, madera_spk_ev,

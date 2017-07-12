@@ -1548,6 +1548,28 @@ static irqreturn_t cs47l35_adsp2_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t cs47l35_adsp2_irq2(int irq, void *data)
+{
+	struct cs47l35 *cs47l35 = data;
+	struct madera_priv *priv = &cs47l35->core;
+	struct madera *madera = priv->madera;
+	int serviced = 0;
+	int i, ret;
+
+	for (i = 0; i < CS47L35_NUM_ADSP; ++i) {
+		ret = wm_adsp_handle_fw_event(&priv->adsp[i]);
+		if (ret > 0)
+			serviced++;
+	}
+
+	if (!serviced) {
+		dev_err(madera->dev, "Spurious FW Event IRQ\n");
+		return IRQ_NONE;
+	}
+
+	return IRQ_HANDLED;
+}
+
 static const char * const cs47l35_dmic_refs[] = {
 	"MICVDD",
 	"MICBIAS1B",
@@ -1599,6 +1621,14 @@ static int cs47l35_codec_probe(struct snd_soc_codec *codec)
 
 	ret = madera_request_irq(madera, MADERA_IRQ_DSP_IRQ1,
 				 "ADSP2 Compressed IRQ", cs47l35_adsp2_irq,
+				 cs47l35);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to request DSP IRQ: %d\n", ret);
+		return ret;
+	}
+
+	ret = madera_request_irq(madera, MADERA_IRQ_DSP_IRQ2,
+				 "ADSP2 FW Event IRQ", cs47l35_adsp2_irq2,
 				 cs47l35);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to request DSP IRQ: %d\n", ret);
@@ -1725,6 +1755,8 @@ static int cs47l35_probe(struct platform_device *pdev)
 		cs47l35->core.adsp[i].mem = cs47l35_dsp_regions[i];
 		cs47l35->core.adsp[i].num_mems
 			= ARRAY_SIZE(cs47l35_dsp1_regions);
+
+		cs47l35->core.adsp[i].fwevent_cb = madera_fwevent_cb;
 
 		ret = wm_adsp2_init(&cs47l35->core.adsp[i],
 				    &cs47l35->core.adsp_fw_lock);
