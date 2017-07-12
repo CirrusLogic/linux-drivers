@@ -106,6 +106,7 @@ struct wm_adsp {
 	char *bin_file_name;
 #endif
 
+	void (*fwevent_cb)(struct wm_adsp *dsp, int eventid);
 };
 
 struct wm_adsp_ops {
@@ -211,5 +212,7 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name,  int type,
 		      unsigned int alg, void *buf, size_t len);
 int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name,  int type,
 		      unsigned int alg, void *buf, size_t len);
+
+extern int wm_adsp_handle_fw_event(struct wm_adsp *dsp);
 
 #endif
