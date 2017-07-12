@@ -102,6 +102,8 @@ struct wm_adsp {
 #endif
 
 	unsigned int lock_regions;
+
+	void (*fwevent_cb)(struct wm_adsp *dsp, int eventid);
 };
 
 #define WM_ADSP1(wname, num) \
@@ -159,5 +161,7 @@ extern int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 				 struct snd_compr_tstamp *tstamp);
 extern int wm_adsp_compr_copy(struct snd_compr_stream *stream,
 			      char __user *buf, size_t count);
+
+extern int wm_adsp_handle_fw_event(struct wm_adsp *dsp);
 
 #endif
