@@ -1585,6 +1585,44 @@ struct wm_coeff_parsed_alg {
 	int ncoeff;
 };
 
+int wm_adsp_handle_fw_event(struct wm_adsp *dsp)
+{
+	struct wm_coeff_ctl *ctl;
+	int ret = 0, serviced = 0;
+	u32 val = 0;
+
+	list_for_each_entry(ctl, &dsp->ctl_list, list) {
+		if (ctl->type != WMFW_CTL_TYPE_FWEVENT)
+			continue;
+		if (!dsp->fwevent_cb) {
+			adsp_err(dsp,
+				 "FW event callback not registered: %s\n",
+				 ctl->name);
+			return -EINVAL;
+		}
+
+		ret = wm_coeff_read_ctrl_raw(ctl, &val, ctl->len);
+		if (ret < 0)
+			return ret;
+
+		val = be32_to_cpu(val);
+		if (val == 0xFFFFFFu)
+			continue;
+
+		dsp->fwevent_cb(dsp, val);
+
+		val = cpu_to_be32(0xFFFFFFu);
+		ret = wm_coeff_write_ctrl_raw(ctl, &val, ctl->len);
+		if (ret < 0)
+			return ret;
+		serviced++;
+
+	}
+
+	return serviced;
+}
+EXPORT_SYMBOL_GPL(wm_adsp_handle_fw_event);
+
 struct wm_coeff_parsed_coeff {
 	int offset;
 	int mem_type;
@@ -1758,6 +1796,7 @@ static int wm_adsp_parse_coeff(struct wm_adsp *dsp,
 				return -EINVAL;
 			break;
 		case WMFW_CTL_TYPE_HOSTEVENT:
+		case WMFW_CTL_TYPE_FWEVENT:
 			ret = wm_adsp_check_coeff_flags(dsp, &coeff_blk,
 						WMFW_CTL_FLAG_SYS |
 						WMFW_CTL_FLAG_VOLATILE |
