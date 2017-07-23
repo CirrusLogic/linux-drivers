@@ -20,132 +20,114 @@
 
 struct tacna_jd_state;
 
-/** Bias and sense configuration for probing MICDET */
+/**
+ * struct tacna_micd_config - Bias and sense configuration for probing MICDET
+ *
+ * @src:	value of MICDn_SENSE_SEL field. See datasheet for the field values
+ *			applicable to the codec you are using
+ * @gnd:	Value of MICDn_GND_SEL. See datasheet for the field values
+ *			applicable to the codec you are using
+ * @bias:	Value of MICDn_BIAS_SRC. See datasheet for the field values
+ *			applicable to the codec you are using
+ * @gpio:	State of polarity gpio during probe (true == gpio asserted)
+ * @hp_gnd:	Value of HPn_GND_SEL. See datasheet for the field values
+ *			applicable to the codec you are using
+ */
 struct tacna_micd_config {
-	/**
-	 * value of MICDn_SENSE_SEL field
-	 *
-	 * See datasheet for field values
-	 */
 	u32 src;
-
-	/**
-	 * value of MICDn_GND_SEL
-	 *
-	 * See datasheet for field values
-	 */
 	u32 gnd;
-
-	/**
-	 * value of MICDn_BIAS_SRC
-	 *
-	 * See datasheet for field values
-	 */
 	u32 bias;
-
-	/** State of polarity gpio during probe (true == gpio asserted) */
 	bool gpio;
-
-	/**
-	 * value of HPn_GND_SEL
-	 *
-	 * See datasheet for field values
-	 */
 	u32 hp_gnd;
 };
 
+/**
+ * struct tacna_micd_range - Definition of button detect range
+ * @max: Range max value in ohms
+ * @key: Key to report to input layer for this button
+ */
 struct tacna_micd_range {
-	int max;  /** Ohms */
-	int key;  /** Key to report to input layer */
+	int max;
+	int key;
 };
 
-/** pdata sub-structure for accessory detect configuration */
+/**
+ * struct tacna_accdet_pdata - pdata for accessory detect configuration
+ *
+ * @enabled:		       set to true to enable this accessory detect
+ * @output:		       which output this accdet is for (1 = OUT1, ...)
+ * @fixed_hpdet_imp_x100:      If non-zero don't run headphone detection, just
+ *			       report this value. Hundredths-of-an-ohm.
+ * @hpdet_ext_res_x100:	       Impedance of external series resistor on hpdet.
+ *			       In hundredths-of-an-ohm.
+ * @hpdet_short_circuit_imp:   If non-zero, specifies the maximum impedance in
+ *			       ohms that will be considered as a short circuit
+ * @hpdet_channel:	       Channel to use for headphone detection, valid
+ *			       values are 0 for left and 1 for right.
+ * @micd_detect_debounce_ms:   Extra debounce timeout during initial mic detect
+ *			       (milliseconds)
+ * @micd_manual_debounce:      Extra software debounces during button detection
+ * @micd_pol_gpio:	       GPIO for mic detection polarity
+ * @micd_bias_start_time:      Mic detect startup ramp time
+ * @micd_rate:		       Setting for the codec MICDn_RATE field. See the
+ *			       datasheet for documentation of the field values
+ * @micd_dbtime:	       Mic detect debounce level
+ * @micd_timeout_ms:	       Mic detect timeout (milliseconds)
+ * @micd_clamp_mode:	       Mic detect clamp function
+ * @micd_force_micbias:	       Force MICBIAS on for mic detect
+ * @micd_open_circuit_declare: Declare an open circuit as a 4 pole jack
+ * @micd_software_compare:     Use software comparison to determine mic presence
+ * @micd_ranges:	       Mic detect level parameters
+ * @num_micd_ranges:	       Number of ranges in micd_ranges
+ * @micd_configs:	       Headset polarity configurations
+ * @num_micd_configs:	       Number of configurations in micd_configs
+ * @hpd_pins:		       4 entries:
+ *				[HPL_output_pin (value of HPD_OUT_SEL),
+ *				 HPDL_sense_pin (value of HPD_SENSE_SEL),
+ *				 HPR_output_pin (value of HPD_OUT_SEL),
+ *				 HPDR_sense_pin (value of HPD_SENSE_SEL)]
+ *				See datasheet for field values
+ * @custom_jd:		       Override the normal jack detection
+ */
 struct tacna_accdet_pdata {
-	/** set to true to enable this accessory detect */
 	bool enabled;
-
-	/** which output this accdet is for (1 = OUT1, ...) */
 	u32 output;
 
-	/**
-	 * If non-zero don't run headphone detection, just report this value
-	 * Specified as hundredths-of-an-ohm, that is (ohms * 100)
-	 */
 	u32 fixed_hpdet_imp_x100;
-
-	/**
-	 * Impedance of external series resistor on hpdet.
-	 * Specified as hundredths-of-an-ohm, that is (ohms * 100)
-	 */
 	u32 hpdet_ext_res_x100;
-
-	/** If non-zero, specifies the maximum impedance in ohms
-	 * that will be considered as a short circuit.
-	 */
 	u32 hpdet_short_circuit_imp;
 
-	/**
-	 * Channel to use for headphone detection, valid values are 0 for
-	 * left and 1 for right
-	 */
 	u32 hpdet_channel;
 
-	/** Extra debounce timeout during initial mic detect (milliseconds) */
 	u32 micd_detect_debounce_ms;
-
-	/** Extra software debounces during button detection */
 	u32 micd_manual_debounce;
 
-	/** GPIO for mic detection polarity */
 	int micd_pol_gpio;
 
-	/** Mic detect ramp rate */
 	u32 micd_bias_start_time;
 
-	/**
-	 * Setting for the codec MICDn_RATE field
-	 * See the  datasheet for documentation of the field values
-	 */
 	u32 micd_rate;
 
-	/** Mic detect debounce level */
 	u32 micd_dbtime;
 
-	/** Mic detect timeout (milliseconds) */
 	u32 micd_timeout_ms;
 
-	/** Mic detect clamp function */
 	u32 micd_clamp_mode;
 
-	/** Force MICBIAS on for mic detect */
 	bool micd_force_micbias;
 
-	/** Declare an open circuit as a 4 pole jack */
 	bool micd_open_circuit_declare;
 
-	/** Use software comparison to determine mic presence */
 	bool micd_software_compare;
 
-	/** Mic detect level parameters */
 	const struct tacna_micd_range *micd_ranges;
 	int num_micd_ranges;
 
-	/** Headset polarity configurations */
 	const struct tacna_micd_config *micd_configs;
 	int num_micd_configs;
 
-	/**
-	 * 4 entries:
-	 * [HPL_output_pin (value of HPD_OUT_SEL),
-	 *  HPDL_sense_pin (value of HPD_SENSE_SEL),
-	 *  HPR_output_pin (value of HPD_OUT_SEL),
-	 *  HPDR_sense_pin (value of HPD_SENSE_SEL)]
-	 *
-	 * See datasheet for field values
-	 */
 	u32 hpd_pins[4];
 
-	/** Override the normal jack detection */
 	const struct tacna_jd_state *custom_jd;
 };
 
