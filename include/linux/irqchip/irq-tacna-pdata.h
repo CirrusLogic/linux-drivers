@@ -11,8 +11,12 @@
 #ifndef IRQCHIP_TACNA_PDATA_H
 #define IRQCHIP_TACNA_PDATA_H
 
+/**
+ * struct tacna_irqchip_pdata - Configuration for Tacna irqchip driver
+ *
+ * @irq_flags: Mode for primary IRQ (defaults to active low)
+ */
 struct tacna_irqchip_pdata {
-	/** Mode for primary IRQ (defaults to active low) */
 	unsigned int irq_flags;
 };
 

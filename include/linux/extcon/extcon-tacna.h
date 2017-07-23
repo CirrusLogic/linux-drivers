@@ -50,16 +50,26 @@ static inline unsigned int tacna_ohm_to_hohm(unsigned int ohms)
 		return ohms * 100;
 }
 
-/* Notify data structure for TACNA_NOTIFY_HPDET */
+/**
+ * struct tacna_hpdet_notify_data - Notify data for TACNA_NOTIFY_HPDET
+ *
+ * @impedance_x100: ohms * 100
+ */
 struct tacna_hpdet_notify_data {
-	unsigned int impedance_x100;	/* ohms * 100 */
+	unsigned int impedance_x100;
 };
 
-/* Notify data structure for TACNA_NOTIFY_MICDET */
+/**
+ * struct tacna_micdet_notify_data - Notify data for TACNA_NOTIFY_MICDET
+ *
+ * @impedance_x100: ohms * 100
+ * @present:	    true if mic is present
+ * @out_num:	    output this applies to (1 = OUT1, 2 = OUT2...)
+ */
 struct tacna_micdet_notify_data {
-	unsigned int impedance_x100;	/* ohms * 100 */
+	unsigned int impedance_x100;
 	bool present;
-	int out_num;			/* 1 = OUT1, 2 = OUT2 */
+	int out_num;
 };
 
 struct tacna_micd_bias {
