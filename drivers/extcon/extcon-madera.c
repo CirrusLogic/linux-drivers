@@ -2859,7 +2859,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	struct madera_extcon *info;
 	unsigned int debounce_val, analog_val;
 	int jack_irq_fall, jack_irq_rise;
-	int ret, mode, i;
+	int ret, mode, i, hpdet_short;
 
 	/* quick exit if Madera irqchip driver hasn't completed probe */
 	if (!madera->irq_dev) {
@@ -2946,8 +2946,16 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	if (!pdata->enabled || pdata->output == 0)
 		return -ENODEV; /* no accdet output configured */
 
-	if (pdata->hpdet_short_circuit_imp < MADERA_HP_SHORT_IMPEDANCE_MIN)
+	hpdet_short = pdata->hpdet_short_circuit_imp +
+		      madera_hohm_to_ohm(pdata->hpdet_ext_res_x100);
+
+	if (hpdet_short < MADERA_HP_SHORT_IMPEDANCE_MIN) {
+		dev_warn(info->dev,
+			 "Increasing HP short circuit impedance from %d to %d\n",
+			 pdata->hpdet_short_circuit_imp,
+			 MADERA_HP_SHORT_IMPEDANCE_MIN);
 		pdata->hpdet_short_circuit_imp = MADERA_HP_SHORT_IMPEDANCE_MIN;
+	}
 
 	info->micvdd = devm_regulator_get(&pdev->dev, "MICVDD");
 	if (IS_ERR(info->micvdd)) {
