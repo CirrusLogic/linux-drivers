@@ -77,6 +77,12 @@ Child node optional properties:
     register. A value >0xFFFF means use the default.
     (cs47l90, cs47l91)
 
+  - cirrus,micd-ranges : Microphone detection level and key configuration, this
+    field can be of variable length but should always be a multiple of 2 cells
+    long, each two cell group represents one button configuration
+    The first cell is the maximum impedance for this button in ohms
+    The second cell the key that should be reported to the input layer
+
   - cirrus,micd-configs : Headset polarity configurations, variable length but
     must be a multiple of 5 cells, each 5-cell group represents one
     polarity configuration
