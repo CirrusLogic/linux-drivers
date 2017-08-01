@@ -2324,6 +2324,47 @@ static void madera_micd_set_level(struct madera *madera, int index,
 	regmap_update_bits(madera->regmap, reg, mask, level);
 }
 
+static void madera_extcon_of_get_micd_ranges(struct madera_extcon *info,
+					    struct fwnode_handle *node,
+					    struct madera_accdet_pdata *pdata)
+{
+	struct madera_micd_range *micd_ranges;
+	u32 *values;
+	int nvalues, nranges, i, j;
+	int ret;
+
+	nvalues = fwnode_property_read_u32_array(node, "cirrus,micd-ranges",
+						 NULL, 0);
+	if (nvalues < 0)
+		return;
+
+	values = kmalloc_array(nvalues, sizeof(u32), GFP_KERNEL);
+	if (!values)
+		return;
+
+	ret = fwnode_property_read_u32_array(node, "cirrus,micd-ranges",
+					     values, nvalues);
+	if (ret < 0)
+		goto err;
+
+	nranges = nvalues / 2;
+	micd_ranges = devm_kcalloc(info->dev,
+				   nranges,
+				   sizeof(struct madera_micd_range),
+				   GFP_KERNEL);
+
+	for (i = 0, j = 0; i < nranges; ++i) {
+		micd_ranges[i].max = values[j++];
+		micd_ranges[i].key = values[j++];
+	}
+
+	pdata->micd_ranges = micd_ranges;
+	pdata->num_micd_ranges = nranges;
+
+err:
+	kfree(values);
+}
+
 static void madera_extcon_get_micd_configs(struct madera_extcon *info,
 					   struct fwnode_handle *node,
 					   struct madera_accdet_pdata *pdata)
@@ -2498,6 +2539,7 @@ static void madera_extcon_process_accdet_node(struct madera_extcon *info,
 
 	madera_extcon_get_hpd_pins(info, node, pdata);
 	madera_extcon_get_micd_configs(info, node, pdata);
+	madera_extcon_of_get_micd_ranges(info, node, pdata);
 
 	if (info->micd_modes[0].gpio)
 		gpio_status = GPIOD_OUT_HIGH;
