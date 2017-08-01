@@ -418,7 +418,7 @@ struct wm_adsp_fw_caps {
 
 static const struct wm_adsp_fw_caps ctrl_caps[] = {
 	{
-		.id = SND_AUDIOCODEC_BESPOKE,
+		.id = SND_AUDIOCODEC_PCM,
 		.desc = {
 			.max_ch = 1,
 			.sample_rates = { 16000 },
@@ -432,7 +432,7 @@ static const struct wm_adsp_fw_caps ctrl_caps[] = {
 
 static const struct wm_adsp_fw_caps trace_caps[] = {
 	{
-		.id = SND_AUDIOCODEC_BESPOKE,
+		.id = SND_AUDIOCODEC_PCM,
 		.desc = {
 			.max_ch = 8,
 			.sample_rates = {
