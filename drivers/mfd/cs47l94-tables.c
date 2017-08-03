@@ -1919,6 +1919,7 @@ static bool cs47l94_volatile_register(struct device *dev, unsigned int reg)
 	case TACNA_FX_STATUS:
 	case TACNA_DFC1_STATUS:
 	case TACNA_HAPTICS_STATUS:
+	case TACNA_IRQ1_STATUS:
 	case TACNA_IRQ1_EINT1 ... TACNA_IRQ1_EINT18:
 	case TACNA_IRQ1_STS1 ... TACNA_IRQ1_STS13:
 	case TACNA_SW_TRIGGER_MSTR1:
