@@ -235,6 +235,7 @@ config MFD_TACNA_SPI
 	select REGMAP_SPI
 	select REGMAP_IRQ
 	depends on SPI_MASTER
+	depends on PINCTRL
 	help
 	  Support for the Cirrus Logic Tacna platform audio SoC
 	  core functionality controlled via SPI.
