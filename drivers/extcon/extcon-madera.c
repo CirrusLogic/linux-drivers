@@ -3088,20 +3088,43 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		goto err_input;
 	}
 
+	ret = madera_request_irq(madera, MADERA_IRQ_MICDET1,
+				 "MICDET", madera_micdet, info);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to get MICDET IRQ: %d\n", ret);
+		goto err_input;
+	}
+
+	ret = madera_request_irq(madera, MADERA_IRQ_HPDET,
+				 "HPDET", madera_hpdet_handler, info);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to get HPDET IRQ: %d\n", ret);
+		goto err_micdet;
+	}
+
 	if (info->pdata->jd_use_jd2) {
+		debounce_val = MADERA_JD1_DB | MADERA_JD2_DB;
+		analog_val = MADERA_JD1_ENA | MADERA_JD2_ENA;
 		jack_irq_rise = MADERA_IRQ_MICD_CLAMP_RISE;
 		jack_irq_fall = MADERA_IRQ_MICD_CLAMP_FALL;
 	} else {
+		debounce_val = MADERA_JD1_DB;
+		analog_val = MADERA_JD1_ENA;
 		jack_irq_rise = MADERA_IRQ_JD1_RISE;
 		jack_irq_fall = MADERA_IRQ_JD1_FALL;
 	}
+
+	regmap_update_bits(madera->regmap, MADERA_INTERRUPT_DEBOUNCE_7,
+			   debounce_val, debounce_val);
+	regmap_update_bits(madera->regmap, MADERA_JACK_DETECT_ANALOGUE,
+			   analog_val, analog_val);
 
 	ret = madera_request_irq(madera, jack_irq_rise,
 				 "JACKDET rise", madera_jackdet, info);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Failed to get JACKDET rise IRQ: %d\n", ret);
-		goto err_input;
+		goto err_hpdet;
 	}
 
 	ret = madera_set_irq_wake(madera, jack_irq_rise, 1);
@@ -3125,33 +3148,6 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		goto err_fall;
 	}
 
-	ret = madera_request_irq(madera, MADERA_IRQ_MICDET1,
-				 "MICDET", madera_micdet, info);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to get MICDET IRQ: %d\n", ret);
-		goto err_fall_wake;
-	}
-
-	ret = madera_request_irq(madera, MADERA_IRQ_HPDET,
-				 "HPDET", madera_hpdet_handler, info);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to get HPDET IRQ: %d\n", ret);
-		goto err_micdet;
-	}
-
-	if (info->pdata->jd_use_jd2) {
-		debounce_val = MADERA_JD1_DB | MADERA_JD2_DB;
-		analog_val = MADERA_JD1_ENA | MADERA_JD2_ENA;
-	} else {
-		debounce_val = MADERA_JD1_DB;
-		analog_val = MADERA_JD1_ENA;
-	}
-
-	regmap_update_bits(madera->regmap, MADERA_INTERRUPT_DEBOUNCE_7,
-			   debounce_val, debounce_val);
-	regmap_update_bits(madera->regmap, MADERA_JACK_DETECT_ANALOGUE,
-			   analog_val, analog_val);
-
 	ret = regulator_allow_bypass(info->micvdd, true);
 	if (ret)
 		dev_warn(info->dev,
@@ -3174,7 +3170,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	ret = input_register_device(info->input);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't register input device: %d\n", ret);
-		goto err_hpdet;
+		goto err_fall_wake;
 	}
 
 	ret = device_create_file(&pdev->dev, &dev_attr_hp1_impedance);
@@ -3187,10 +3183,6 @@ static int madera_extcon_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_hpdet:
-	madera_free_irq(madera, MADERA_IRQ_HPDET, info);
-err_micdet:
-	madera_free_irq(madera, MADERA_IRQ_MICDET1, info);
 err_fall_wake:
 	madera_set_irq_wake(madera, jack_irq_fall, 0);
 err_fall:
@@ -3199,6 +3191,10 @@ err_rise_wake:
 	madera_set_irq_wake(madera, jack_irq_rise, 0);
 err_rise:
 	madera_free_irq(madera, jack_irq_rise, info);
+err_hpdet:
+	madera_free_irq(madera, MADERA_IRQ_HPDET, info);
+err_micdet:
+	madera_free_irq(madera, MADERA_IRQ_MICDET1, info);
 err_input:
 err_register:
 	pm_runtime_disable(&pdev->dev);
