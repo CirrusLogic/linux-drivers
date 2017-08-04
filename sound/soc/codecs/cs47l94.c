@@ -463,7 +463,7 @@ static int cs47l94_outh_ev(struct snd_soc_dapm_widget *w,
 	    (tacna->hpdet_clamp[accdet] || tacna->hpdet_shorted[accdet]))
 		val = 0;
 
-	if (accdet != 0) {
+	if (accdet >= 0) {
 		reinit_completion(&cs47l94->outh_enabled);
 		reinit_completion(&cs47l94->outh_disabled);
 	}
