@@ -730,8 +730,9 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 	}
 
 	/* Restore the desired state while not doing the clamp */
-	if (!clamp && (madera_hohm_to_ohm(madera->hp_impedance_x100[0]) >
-			info->pdata->hpdet_short_circuit_imp) && !ep_sel) {
+	if (!clamp &&
+	    (madera->hp_impedance_x100[0]) > info->hpdet_short_x100) &&
+	    !ep_sel) {
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_OUTPUT_ENABLES_1,
 					 (MADERA_OUT1L_ENA |
@@ -1352,7 +1353,6 @@ static int madera_tune_headphone(struct madera_extcon *info, int reading)
 {
 	struct madera *madera = info->madera;
 	const struct madera_hp_tuning *tuning;
-	unsigned int short_imp = info->pdata->hpdet_short_circuit_imp;
 	int n_tunings;
 	int i, ret;
 
@@ -1380,7 +1380,7 @@ static int madera_tune_headphone(struct madera_extcon *info, int reading)
 		return 0;
 	}
 
-	if (reading <= madera_ohm_to_hohm(short_imp)) {
+	if (reading <= info->hpdet_short_x100) {
 		/* Headphones are always off here so just mark them */
 		dev_warn(info->dev, "Possible HP short, disabling\n");
 		return 0;
@@ -2904,7 +2904,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	struct madera_extcon *info;
 	unsigned int debounce_val, analog_val;
 	int jack_irq_fall, jack_irq_rise;
-	int ret, mode, i, hpdet_short;
+	int ret, mode, i, hpdet_short_measured;
 
 	/* quick exit if Madera irqchip driver hasn't completed probe */
 	if (!madera->irq_dev) {
@@ -2991,15 +2991,20 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	if (!pdata->enabled || pdata->output == 0)
 		return -ENODEV; /* no accdet output configured */
 
-	hpdet_short = pdata->hpdet_short_circuit_imp +
-		      madera_hohm_to_ohm(pdata->hpdet_ext_res_x100);
+	info->hpdet_short_x100 =
+		madera_ohm_to_hohm(pdata->hpdet_short_circuit_imp);
 
-	if (hpdet_short < MADERA_HP_SHORT_IMPEDANCE_MIN) {
+	/* Actual measured short is increased by external resistance */
+	hpdet_short_measured = pdata->hpdet_short_circuit_imp +
+			       madera_hohm_to_ohm(pdata->hpdet_ext_res_x100);
+
+	if (hpdet_short_measured < MADERA_HP_SHORT_IMPEDANCE_MIN) {
 		dev_warn(info->dev,
 			 "Increasing HP short circuit impedance from %d to %d\n",
 			 pdata->hpdet_short_circuit_imp,
 			 MADERA_HP_SHORT_IMPEDANCE_MIN);
-		pdata->hpdet_short_circuit_imp = MADERA_HP_SHORT_IMPEDANCE_MIN;
+		info->hpdet_short_x100 =
+			madera_ohm_to_hohm(MADERA_HP_SHORT_IMPEDANCE_MIN);
 	}
 
 	info->micvdd = devm_regulator_get(&pdev->dev, "MICVDD");
