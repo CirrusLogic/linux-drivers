@@ -730,19 +730,22 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 	}
 
 	/* Restore the desired state while not doing the clamp */
-	if (!clamp &&
-	    (madera->hp_impedance_x100[0]) > info->hpdet_short_x100) &&
-	    !ep_sel) {
-		ret = regmap_update_bits(madera->regmap,
-					 MADERA_OUTPUT_ENABLES_1,
-					 (MADERA_OUT1L_ENA |
-					  MADERA_OUT1R_ENA) <<
-					 (2 * (info->pdata->output - 1)),
-					 madera->hp_ena);
-		if (ret)
-			dev_warn(info->dev,
-				 "Failed to restore headphone outputs: %d\n",
-				 ret);
+	if (!clamp) {
+		madera->out_shorted[0] = (madera->hp_impedance_x100[0] <=
+					  info->hpdet_short_x100);
+
+		if (!madera->out_shorted[0] && !ep_sel) {
+			ret = regmap_update_bits(madera->regmap,
+						 MADERA_OUTPUT_ENABLES_1,
+						 (MADERA_OUT1L_ENA |
+						 MADERA_OUT1R_ENA) <<
+						 (2 * (info->pdata->output - 1)),
+						 madera->hp_ena);
+			if (ret)
+				dev_warn(info->dev,
+					 "Failed to restore headphone outputs: %d\n",
+					 ret);
+		}
 	}
 
 	snd_soc_dapm_mutex_unlock(madera->dapm);
