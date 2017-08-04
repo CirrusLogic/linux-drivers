@@ -454,9 +454,13 @@ static int cs47l94_outh_ev(struct snd_soc_dapm_widget *w,
 	else
 		tacna->hp_ena &= ~(1 << 31);
 
-	/* do not enable output if accessory detect is running on its pins */
+	/*
+	 * do not enable output if accessory detect is running on its pins
+	 * or a short circuit was detected
+	 */
 	accdet = tacna_get_accdet_for_output(codec, 1);
-	if (accdet >= 0 && tacna->hpdet_clamp[accdet])
+	if (accdet >= 0 &&
+	    (tacna->hpdet_clamp[accdet] || tacna->hpdet_shorted[accdet]))
 		val = 0;
 
 	if (accdet != 0) {
