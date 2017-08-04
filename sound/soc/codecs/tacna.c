@@ -3672,6 +3672,7 @@ int tacna_hp_ev(struct snd_soc_dapm_widget *w,
 	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct tacna *tacna = priv->tacna;
 	unsigned int mask = 1 << w->shift;
+	unsigned int out_num = (w->shift / 2) + 1;
 	unsigned int val;
 	int ret, accdet;
 
@@ -3693,11 +3694,12 @@ int tacna_hp_ev(struct snd_soc_dapm_widget *w,
 	tacna->hp_ena = (tacna->hp_ena & ~mask) | val;
 
 	/*
-	 * disable output, if clamp is active (output state will be applied when
-	 * the clamp is disabled)
+	 * disable output if clamp is active (output state will be applied when
+	 * the clamp is disabled) or a short was detected
 	 */
-	accdet = tacna_get_accdet_for_output(codec, (mask / 2) + 1);
-	if (accdet >= 0 && tacna->hpdet_clamp[accdet])
+	accdet = tacna_get_accdet_for_output(codec, out_num);
+	if (accdet >= 0 &&
+	    (tacna->hpdet_clamp[accdet] || tacna->hpdet_shorted[accdet]))
 		val = 0;
 
 	ret = regmap_update_bits(tacna->regmap, TACNA_OUTPUT_ENABLE_1,
