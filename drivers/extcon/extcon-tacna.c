@@ -2353,7 +2353,7 @@ static int tacna_extcon_probe(struct platform_device *pdev)
 	struct tacna *tacna = dev_get_drvdata(pdev->dev.parent);
 	struct tacna_accdet_pdata *pdata = &tacna->pdata.accdet[0];
 	struct tacna_extcon *info;
-	int ret, mode;
+	int ret, mode, hpdet_short_reading;
 
 	/* quick exit if Tacna irqchip driver hasn't completed probe */
 	if (!tacna->irq_dev) {
@@ -2436,8 +2436,22 @@ static int tacna_extcon_probe(struct platform_device *pdev)
 		break;
 	};
 
-	if (pdata->hpdet_short_circuit_imp < TACNA_HP_SHORT_IMPEDANCE_MIN)
-		pdata->hpdet_short_circuit_imp = TACNA_HP_SHORT_IMPEDANCE_MIN;
+	/* Actual measured short is increased by external resistance */
+	hpdet_short_reading = pdata->hpdet_short_circuit_imp +
+			tacna_hohm_to_ohm(pdata->hpdet_ext_res_x100);
+
+	if (hpdet_short_reading < TACNA_HP_SHORT_IMPEDANCE_MIN) {
+		/*
+		 * increase comparison threshold to minimum we can measure
+		 * taking into account that threshold does not include external
+		 * resistance
+		 */
+		pdata->hpdet_short_circuit_imp = TACNA_HP_SHORT_IMPEDANCE_MIN -
+			       tacna_hohm_to_ohm(pdata->hpdet_ext_res_x100);
+		dev_warn(info->dev,
+			 "Increasing HP short circuit impedance to %d\n",
+			 pdata->hpdet_short_circuit_imp);
+	}
 
 	info->micvdd = devm_regulator_get(&pdev->dev, "VOUT_MIC");
 	if (IS_ERR(info->micvdd)) {
