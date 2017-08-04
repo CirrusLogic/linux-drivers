@@ -2999,12 +2999,18 @@ static int madera_extcon_probe(struct platform_device *pdev)
 			       madera_hohm_to_ohm(pdata->hpdet_ext_res_x100);
 
 	if (hpdet_short_measured < MADERA_HP_SHORT_IMPEDANCE_MIN) {
+		/*
+		 * increase comparison threshold to minimum we can measure
+		 * taking into account that threshold does not include external
+		 * resistance
+		 */
+		info->hpdet_short_x100 =
+			madera_ohm_to_hohm(MADERA_HP_SHORT_IMPEDANCE_MIN) -
+			pdata->hpdet_ext_res_x100;
 		dev_warn(info->dev,
 			 "Increasing HP short circuit impedance from %d to %d\n",
 			 pdata->hpdet_short_circuit_imp,
-			 MADERA_HP_SHORT_IMPEDANCE_MIN);
-		info->hpdet_short_x100 =
-			madera_ohm_to_hohm(MADERA_HP_SHORT_IMPEDANCE_MIN);
+			 madera_hohm_to_ohm(info->hpdet_short_x100));
 	}
 
 	info->micvdd = devm_regulator_get(&pdev->dev, "MICVDD");
