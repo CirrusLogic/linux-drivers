@@ -80,6 +80,8 @@ struct madera_extcon {
 	unsigned int hpdet_init_range;
 	const struct madera_hpdet_trims *hpdet_trims;
 
+	unsigned int hpdet_short_x100;
+
 	int micd_mode;
 	const struct madera_micd_config *micd_modes;
 	int num_micd_modes;
