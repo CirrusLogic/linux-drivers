@@ -84,8 +84,9 @@
 #define MADERA_IRQ_DSP5_BUS_ERR		69
 #define MADERA_IRQ_DSP6_BUS_ERR		70
 #define MADERA_IRQ_DSP7_BUS_ERR		71
+#define MADERA_IRQ_BOOT_DONE		72
 
-#define MADERA_NUM_IRQ			72
+#define MADERA_NUM_IRQ			73
 
 /*
  * These wrapper functions are for use by other child drivers of the
