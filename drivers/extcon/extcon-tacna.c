@@ -2548,6 +2548,8 @@ static int tacna_extcon_probe(struct platform_device *pdev)
 
 	//tacna_extcon_read_calibration(info);
 
+	tacna_configure_jds(info);
+
 	ret = tacna_request_irq(tacna, TACNA_IRQ_AOD_MICD_CLAMP1_RISE,
 				"CLAMP rise", tacna_jackdet, info);
 	if (ret) {
@@ -2590,8 +2592,6 @@ static int tacna_extcon_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get HPDET IRQ: %d\n", ret);
 		goto err_micdet;
 	}
-
-	tacna_configure_jds(info);
 
 	ret = regulator_allow_bypass(info->micvdd, true);
 	if (ret)
