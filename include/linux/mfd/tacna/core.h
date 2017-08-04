@@ -67,6 +67,7 @@ struct tacna {
 	int irq;
 
 	bool hpdet_clamp[TACNA_MAX_ACCESSORY];
+	bool hpdet_shorted[TACNA_MAX_ACCESSORY];
 	unsigned int hp_ena;
 	unsigned int hp_impedance_x100[TACNA_MAX_ACCESSORY];
 
