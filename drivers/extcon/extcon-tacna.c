@@ -570,8 +570,7 @@ static void tacna_extcon_hp_unclamp(struct tacna_extcon *info)
 		dev_warn(info->dev, "Failed to write OVD_EN: %d\n", ret);
 
 	/* Restore the desired state while not doing the clamp */
-	if (tacna_hohm_to_ohm(tacna->hp_impedance_x100[0]) >
-			info->pdata->hpdet_short_circuit_imp) {
+	if (!tacna->hpdet_shorted[0]) {
 		ret = tacna_extcon_update_out_state(info, tacna->hp_ena);
 		if (ret)
 			dev_warn(info->dev,
@@ -1033,6 +1032,8 @@ void tacna_set_headphone_imp(struct tacna_extcon *info, int ohms_x100)
 	struct tacna_hpdet_notify_data data;
 
 	tacna->hp_impedance_x100[0] = ohms_x100;
+	tacna->hpdet_shorted[0] = tacna_hohm_to_ohm(ohms_x100) <=
+				  info->pdata->hpdet_short_circuit_imp;
 
 	data.impedance_x100 = ohms_x100;
 	tacna_call_notifiers(tacna, TACNA_NOTIFY_HPDET, &data);
