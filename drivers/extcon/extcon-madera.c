@@ -507,7 +507,7 @@ static ssize_t madera_extcon_show(struct device *dev,
 			 info->madera->hp_impedance_x100[0]);
 }
 
-static DEVICE_ATTR(hp1_impedance, S_IRUGO, madera_extcon_show, NULL);
+static DEVICE_ATTR(hp1_impedance, 0444, madera_extcon_show, NULL);
 
 inline void madera_extcon_report(struct madera_extcon *info,
 				 int which, bool attached)
