@@ -142,7 +142,7 @@ static ssize_t tacna_extcon_show(struct device *dev,
 			 info->tacna->hp_impedance_x100[0]);
 }
 
-static DEVICE_ATTR(hp1_impedance, S_IRUGO, tacna_extcon_show, NULL);
+static DEVICE_ATTR(hp1_impedance, 0444, tacna_extcon_show, NULL);
 
 static inline bool tacna_is_lineout(struct tacna_extcon *info)
 {
