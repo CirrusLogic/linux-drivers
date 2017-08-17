@@ -3709,7 +3709,7 @@ int wm_adsp2_init(struct wm_adsp *dsp, struct mutex *fw_lock)
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_init);
 
-int wm_halo_init(struct wm_adsp *dsp)
+int wm_halo_init(struct wm_adsp *dsp, struct mutex *fw_lock)
 {
 	INIT_LIST_HEAD(&dsp->alg_regions);
 	INIT_LIST_HEAD(&dsp->ctl_list);
@@ -3719,6 +3719,8 @@ int wm_halo_init(struct wm_adsp *dsp)
 
 	dsp->rx_rate_cache = kcalloc(dsp->n_rx_rates, sizeof(u8), GFP_KERNEL);
 	dsp->tx_rate_cache = kcalloc(dsp->n_tx_rates, sizeof(u8), GFP_KERNEL);
+
+	dsp->fw_lock = fw_lock;
 
 	return 0;
 }
