@@ -322,6 +322,8 @@ struct tacna_priv {
 	__be16 eq_coefficients[TACNA_N_EQ_BLOCKS][TACNA_EQ_BLOCK_SZ / 2];
 
 	const unsigned int *dsp_power_regs[TACNA_MAX_DSP];
+
+	struct mutex dsp_fw_lock;
 };
 
 struct tacna_fll_cfg {

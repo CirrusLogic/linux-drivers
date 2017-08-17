@@ -4140,6 +4140,7 @@ int tacna_core_init(struct tacna_priv *priv)
 		tacna_prop_get_pdata(priv);
 
 	mutex_init(&priv->rate_lock);
+	mutex_init(&priv->dsp_fw_lock);
 
 	return 0;
 }
