@@ -3930,7 +3930,7 @@ int tacna_init_inputs(struct snd_soc_codec *codec)
 {
 	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct tacna *tacna = priv->tacna;
-	unsigned int dig_mode, ana_mode_l, ana_mode_r;
+	unsigned int ana_mode_l, ana_mode_r;
 	int i;
 
 	/*
@@ -3947,15 +3947,9 @@ int tacna_init_inputs(struct snd_soc_codec *codec)
 		switch (tacna->pdata.codec.inmode[i][0]) {
 		case TACNA_INMODE_DIFF:
 			ana_mode_l = 0;
-			dig_mode = 0;
 			break;
 		case TACNA_INMODE_SE:
 			ana_mode_l = 1 << TACNA_IN1L_SRC_SHIFT;
-			dig_mode = 0;
-			break;
-		case TACNA_INMODE_DMIC:
-			ana_mode_l = 0;
-			dig_mode |= 1 << TACNA_IN1_MODE_SHIFT;
 			break;
 		default:
 			dev_warn(tacna->dev,
@@ -3966,7 +3960,6 @@ int tacna_init_inputs(struct snd_soc_codec *codec)
 
 		switch (tacna->pdata.codec.inmode[i][1]) {
 		case TACNA_INMODE_DIFF:
-		case TACNA_INMODE_DMIC:
 			ana_mode_r = 0;
 			break;
 		case TACNA_INMODE_SE:
@@ -3980,13 +3973,8 @@ int tacna_init_inputs(struct snd_soc_codec *codec)
 		}
 
 		dev_dbg(tacna->dev,
-			"IN%d_1 DMIC mode=0x%x Analogue mode=0x%x,0x%x\n",
-			i + 1, dig_mode, ana_mode_l, ana_mode_r);
-
-		regmap_update_bits(tacna->regmap,
-				   TACNA_INPUT1_CONTROL1 + (i * 0x40),
-				   TACNA_IN1_MODE_MASK,
-				   dig_mode);
+			"IN%d_1 Analogue mode=0x%x,0x%x\n",
+			i + 1, ana_mode_l, ana_mode_r);
 
 		regmap_update_bits(tacna->regmap,
 				   TACNA_IN1L_CONTROL1 + (i * 0x40),
