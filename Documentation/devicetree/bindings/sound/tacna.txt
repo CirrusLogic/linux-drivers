@@ -11,8 +11,9 @@ include/dt-bindings/sound/tacna.h
 These properties are all contained in the parent MFD node.
 
 Optional properties:
-  - cirrus,inmode : A list of input mode settings for each input. Maximum of 16
-    cells, with four cells per input in the order INnL_1, INnR_1 INnL_2 INnR_2.
+  - cirrus,inmode : A list of input mode settings for each analogue input.
+    Maximum of 16 cells, with four cells per input in the order
+    INnL_1, INnR_1 INnL_2 INnR_2.
     For non-muxed inputs the first two cells for that input set the mode for
     the left and right channel and the second two cells must be 0.
     For muxed inputs the first two cells for that input set the mode of the
@@ -49,7 +50,7 @@ cs47l94@0 {
 	compatible = "cirrus,cs47l94";
 
 	cirrus,inmode = <
-		TACNA_INMODE_DMIC TACNA_INMODE_DMIC /* IN1[LR]_1 digital */
+		TACNA_INMODE_DIFF TACNA_INMODE_DIFF /* IN1[LR]_1 differential */
 		TACNA_INMODE_SE   TACNA_INMODE_SE   /* IN1[LR]_2 single-ended */
 		TACNA_INMODE_DIFF TACNA_INMODE_DIFF /* IN2[LR]_1 differential */
 	>;
