@@ -1988,6 +1988,8 @@ static void tacna_extcon_process_accdet_node(struct tacna_extcon *info,
 							node);
 	if (IS_ERR(info->micd_pol_gpio))
 		info->micd_pol_gpio = NULL;
+
+	gpiod_direction_output(info->micd_pol_gpio, info->micd_modes[0].gpio);
 }
 
 static void tacna_extcon_get_device_pdata(struct tacna_extcon *info)
