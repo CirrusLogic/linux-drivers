@@ -126,14 +126,26 @@ const char * const tacna_mixer_texts[] = {
 	"ASP2RX2",
 	"ASP2RX3",
 	"ASP2RX4",
+	"ASP2RX5",
+	"ASP2RX6",
+	"ASP2RX7",
+	"ASP2RX8",
 	"ASP3RX1",
 	"ASP3RX2",
 	"ASP3RX3",
 	"ASP3RX4",
+	"ASP3RX5",
+	"ASP3RX6",
+	"ASP3RX7",
+	"ASP3RX8",
 	"ASP4RX1",
 	"ASP4RX2",
 	"ASP4RX3",
 	"ASP4RX4",
+	"ASP4RX5",
+	"ASP4RX6",
+	"ASP4RX7",
+	"ASP4RX8",
 	"SLIMRX1",
 	"SLIMRX2",
 	"SLIMRX3",
@@ -241,14 +253,26 @@ unsigned int tacna_mixer_values[] = {
 	0x031, /* ASP2 RX2 */
 	0x032, /* ASP2 RX3 */
 	0x033, /* ASP2 RX4 */
+	0x034, /* ASP2 RX5 */
+	0x035, /* ASP2 RX6 */
+	0x036, /* ASP2 RX7 */
+	0x037, /* ASP2 RX8 */
 	0x040, /* ASP3 RX1 */
 	0x041, /* ASP3 RX2 */
 	0x042, /* ASP3 RX3 */
 	0x043, /* ASP3 RX4 */
+	0x044, /* ASP3 RX5 */
+	0x045, /* ASP3 RX6 */
+	0x046, /* ASP3 RX7 */
+	0x047, /* ASP3 RX8 */
 	0x050, /* ASP4 RX1 */
 	0x051, /* ASP4 RX2 */
 	0x052, /* ASP4 RX3 */
 	0x053, /* ASP4 RX4 */
+	0x054, /* ASP4 RX5 */
+	0x055, /* ASP4 RX6 */
+	0x056, /* ASP4 RX7 */
+	0x057, /* ASP4 RX8 */
 	0x060, /* SLIMbus RX1 */
 	0x061, /* SLIMbus RX2 */
 	0x062, /* SLIMbus RX3 */
