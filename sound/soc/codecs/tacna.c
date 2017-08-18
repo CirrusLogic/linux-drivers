@@ -148,8 +148,12 @@ const char * const tacna_mixer_texts[] = {
 	"ASRC1IN2R",
 	"ISRC1INT1",
 	"ISRC1INT2",
+	"ISRC1INT3",
+	"ISRC1INT4",
 	"ISRC1DEC1",
 	"ISRC1DEC2",
+	"ISRC1DEC3",
+	"ISRC1DEC4",
 	"ISRC2INT1",
 	"ISRC2INT2",
 	"ISRC2DEC1",
@@ -259,8 +263,12 @@ unsigned int tacna_mixer_values[] = {
 	0x08B, /* ASRC1 IN2 Right */
 	0x098, /* ISRC1 INT1 */
 	0x099, /* ISRC1 INT2 */
+	0x09a, /* ISRC1 INT3 */
+	0x09b, /* ISRC1 INT4 */
 	0x09C, /* ISRC1 DEC1 */
 	0x09D, /* ISRC1 DEC2 */
+	0x09e, /* ISRC1 DEC3 */
+	0x09f, /* ISRC1 DEC4 */
 	0x0A0, /* ISRC2 INT1 */
 	0x0A1, /* ISRC2 INT2 */
 	0x0A4, /* ISRC2 DEC1 */
