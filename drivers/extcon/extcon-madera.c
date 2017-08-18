@@ -2504,6 +2504,8 @@ static void madera_extcon_process_accdet_node(struct madera_extcon *info,
 			 PTR_ERR(info->micd_pol_gpio));
 		info->micd_pol_gpio = 0;
 	}
+
+	gpiod_direction_output(info->micd_pol_gpio, info->micd_modes[0].gpio);
 }
 
 static int madera_extcon_get_device_pdata(struct madera_extcon *info)
