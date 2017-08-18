@@ -96,8 +96,8 @@ struct wm_adsp {
 	struct mutex pwr_lock;
 	struct mutex *fw_lock;
 
-	unsigned int n_rx_rates;
-	unsigned int n_tx_rates;
+	unsigned int n_rx_channels;
+	unsigned int n_tx_channels;
 
 	u8 *rx_rate_cache;
 	u8 *tx_rate_cache;

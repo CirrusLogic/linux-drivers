@@ -35,8 +35,8 @@
 #define CS47L94_N_AUXPDM 3
 #define CS47L94_N_FLL 3
 #define CS47L94_NUM_DSP 2
-#define CS47L94_DSP_N_RX_RATES 8
-#define CS47L94_DSP_N_TX_RATES 8
+#define CS47L94_DSP_N_RX_CHANNELS 8
+#define CS47L94_DSP_N_TX_CHANNELS 8
 
 #define CS47L94_OUTH_CP_POLL_US		1000
 #define CS47L94_OUTH_CP_POLL_TIMEOUT_US	100000
@@ -3180,8 +3180,8 @@ static int cs47l94_codec_probe(struct snd_soc_codec *codec)
 
 	ret = snd_soc_add_codec_controls(codec, tacna_dsp_rate_controls,
 					 CS47L94_NUM_DSP *
-					 (CS47L94_DSP_N_RX_RATES +
-					  CS47L94_DSP_N_TX_RATES));
+					 (CS47L94_DSP_N_RX_CHANNELS +
+					  CS47L94_DSP_N_TX_CHANNELS));
 	if (ret)
 		return ret;
 
@@ -3332,8 +3332,8 @@ static int cs47l94_probe(struct platform_device *pdev)
 		dsp->mem = cs47l94_dsp_regions[i];
 		dsp->num_mems = ARRAY_SIZE(cs47l94_dsp1_regions);
 
-		dsp->n_rx_rates = CS47L94_DSP_N_RX_RATES;
-		dsp->n_tx_rates = CS47L94_DSP_N_TX_RATES;
+		dsp->n_rx_channels = CS47L94_DSP_N_RX_CHANNELS;
+		dsp->n_tx_channels = CS47L94_DSP_N_TX_CHANNELS;
 
 		ret = wm_halo_init(dsp, &cs47l94->core.dsp_fw_lock);
 		if (ret != 0) {
