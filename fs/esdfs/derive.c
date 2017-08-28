@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013-2014 Motorola Mobility LLC
+ * Copyright (C) 2017      Google, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -19,7 +20,6 @@
 #include <linux/ctype.h>
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
-#include "../internal.h"
 #include "esdfs.h"
 
 #define PKG_NAME_MAX		128
@@ -461,8 +461,8 @@ static int lookup_link_source(struct dentry *dentry, struct dentry *parent)
 	esdfs_get_lower_path(parent, &lower_parent_path);
 
 	/* Check if the stub user profile obb is there. */
-	err = vfs_path_lookup(lower_parent_path.dentry, lower_parent_path.mnt,
-			      dentry->d_name.name, LOOKUP_NOCASE, &lower_path);
+	err = esdfs_lookup_nocase(&lower_parent_path, &dentry->d_name,
+					&lower_path);
 	/* Remember it to handle renames and removal. */
 	if (!err)
 		esdfs_set_lower_stub_path(dentry, &lower_path);

@@ -4,6 +4,7 @@
  * Copyright (c) 2003-2014 Stony Brook University
  * Copyright (c) 2003-2014 The Research Foundation of SUNY
  * Copyright (C) 2013-2014, 2016 Motorola Mobility, LLC
+ * Copyright (C) 2017      Google, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

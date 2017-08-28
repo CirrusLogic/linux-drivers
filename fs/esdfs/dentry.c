@@ -4,6 +4,7 @@
  * Copyright (c) 2003-2014 Stony Brook University
  * Copyright (c) 2003-2014 The Research Foundation of SUNY
  * Copyright (C) 2013-2014 Motorola Mobility, LLC
+ * Copyright (C) 2017      Google, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -139,8 +140,7 @@ static void esdfs_d_release(struct dentry *dentry)
 	/* release and reset the lower paths */
 	esdfs_put_reset_lower_paths(dentry);
 	esdfs_release_lower_parent(dentry);
-	free_dentry_private_data(dentry);
-	return;
+	esdfs_free_dentry_private_data(dentry);
 }
 
 const struct dentry_operations esdfs_dops = {

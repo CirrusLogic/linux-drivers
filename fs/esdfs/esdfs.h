@@ -4,6 +4,7 @@
  * Copyright (c) 2003-2014 Stony Brook University
  * Copyright (c) 2003-2014 The Research Foundation of SUNY
  * Copyright (C) 2013-2014 Motorola Mobility, LLC
+ * Copyright (C) 2017      Google, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -30,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/fs_struct.h>
+#include <linux/pkglist.h>
 
 #include "../internal.h"
 
@@ -114,8 +116,8 @@ extern int esdfs_init_inode_cache(void);
 extern void esdfs_destroy_inode_cache(void);
 extern int esdfs_init_dentry_cache(void);
 extern void esdfs_destroy_dentry_cache(void);
-extern int new_dentry_private_data(struct dentry *dentry);
-extern void free_dentry_private_data(struct dentry *dentry);
+extern int esdfs_new_dentry_private_data(struct dentry *dentry);
+extern void esdfs_free_dentry_private_data(struct dentry *dentry);
 extern struct dentry *esdfs_lookup(struct inode *dir, struct dentry *dentry,
 				   unsigned int flags);
 extern struct inode *esdfs_iget(struct super_block *sb,
@@ -131,6 +133,8 @@ extern int esdfs_derived_revalidate(struct dentry *dentry,
 				    struct dentry *parent);
 extern int esdfs_check_derived_permission(struct inode *inode, int mask);
 extern int esdfs_derive_mkdir_contents(struct dentry *dentry);
+extern int esdfs_lookup_nocase(struct path *lower_parent_path,
+		struct qstr *name, struct path *lower_path);
 
 /* file private data */
 struct esdfs_file_info {
@@ -151,7 +155,7 @@ struct esdfs_inode_info {
 	struct inode vfs_inode;
 	unsigned version;	/* package list version this was derived from */
 	int tree;		/* storage tree location */
-	uid_t userid;		/* Android User ID (not Linux UID) */
+	uint32_t userid;	/* Android User ID (not Linux UID) */
 	uid_t appid;		/* Linux UID for this app/user combo */
 };
 
@@ -168,7 +172,6 @@ struct esdfs_sb_info {
 	struct super_block *lower_sb;
 	struct super_block *s_sb;
 	struct list_head s_list;
-	u32 lower_secid;
 	struct esdfs_perms lower_perms;
 	struct esdfs_perms upper_perms;	/* root in derived mode */
 	struct dentry *obb_parent;	/* pinned dentry for obb link parent */
@@ -264,7 +267,6 @@ static inline void esdfs_get_lower_path(const struct dentry *dent,
 	pathcpy(lower_path, &ESDFS_D(dent)->lower_path);
 	path_get(lower_path);
 	spin_unlock(&ESDFS_D(dent)->lock);
-	return;
 }
 static inline void esdfs_get_lower_stub_path(const struct dentry *dent,
 					     struct path *lower_stub_path)
@@ -273,13 +275,11 @@ static inline void esdfs_get_lower_stub_path(const struct dentry *dent,
 	pathcpy(lower_stub_path, &ESDFS_D(dent)->lower_stub_path);
 	path_get(lower_stub_path);
 	spin_unlock(&ESDFS_D(dent)->lock);
-	return;
 }
 static inline void esdfs_put_lower_path(const struct dentry *dent,
 					 struct path *lower_path)
 {
 	path_put(lower_path);
-	return;
 }
 static inline void esdfs_set_lower_path(const struct dentry *dent,
 					 struct path *lower_path)
@@ -287,7 +287,6 @@ static inline void esdfs_set_lower_path(const struct dentry *dent,
 	spin_lock(&ESDFS_D(dent)->lock);
 	pathcpy(&ESDFS_D(dent)->lower_path, lower_path);
 	spin_unlock(&ESDFS_D(dent)->lock);
-	return;
 }
 static inline void esdfs_set_lower_stub_path(const struct dentry *dent,
 					     struct path *lower_stub_path)
@@ -295,7 +294,6 @@ static inline void esdfs_set_lower_stub_path(const struct dentry *dent,
 	spin_lock(&ESDFS_D(dent)->lock);
 	pathcpy(&ESDFS_D(dent)->lower_stub_path, lower_stub_path);
 	spin_unlock(&ESDFS_D(dent)->lock);
-	return;
 }
 static inline void esdfs_put_reset_lower_paths(const struct dentry *dent)
 {
@@ -316,7 +314,6 @@ static inline void esdfs_put_reset_lower_paths(const struct dentry *dent)
 	path_put(&lower_path);
 	if (lower_stub_path.dentry)
 		path_put(&lower_stub_path);
-	return;
 }
 static inline void esdfs_get_lower_parent(const struct dentry *dent,
 					  struct dentry *lower_dentry,
@@ -331,18 +328,17 @@ static inline void esdfs_get_lower_parent(const struct dentry *dent,
 	spin_unlock(&ESDFS_D(dent)->lock);
 	if (!*lower_parent)
 		*lower_parent = dget_parent(lower_dentry);
-	return;
 }
 static inline void esdfs_put_lower_parent(const struct dentry *dent,
 					  struct dentry **lower_parent)
 {
 	dput(*lower_parent);
-	return;
 }
 static inline void esdfs_set_lower_parent(const struct dentry *dent,
 					  struct dentry *parent)
 {
 	struct dentry *old_parent = NULL;
+
 	spin_lock(&ESDFS_D(dent)->lock);
 	if (ESDFS_DENTRY_IS_LINKED(dent))
 		old_parent = ESDFS_D(dent)->real_parent;
@@ -351,11 +347,11 @@ static inline void esdfs_set_lower_parent(const struct dentry *dent,
 	spin_unlock(&ESDFS_D(dent)->lock);
 	if (old_parent)
 		dput(old_parent);
-	return;
 }
 static inline void esdfs_release_lower_parent(const struct dentry *dent)
 {
 	struct dentry *real_parent = NULL;
+
 	spin_lock(&ESDFS_D(dent)->lock);
 	if (ESDFS_DENTRY_IS_LINKED(dent)) {
 		real_parent = ESDFS_D(dent)->real_parent;
@@ -364,13 +360,13 @@ static inline void esdfs_release_lower_parent(const struct dentry *dent)
 	spin_unlock(&ESDFS_D(dent)->lock);
 	if (real_parent)
 		dput(real_parent);
-	return;
 }
 
 /* locking helpers */
 static inline struct dentry *lock_parent(struct dentry *dentry)
 {
 	struct dentry *dir = dget_parent(dentry);
+
 	inode_lock_nested(dir->d_inode, I_MUTEX_PARENT);
 	return dir;
 }
@@ -406,7 +402,6 @@ static inline void esdfs_set_perms(struct inode *inode)
 	else
 		inode->i_mode = (inode->i_mode & S_IFMT) |
 				sbi->upper_perms.fmask;
-	return;
 }
 
 static inline void esdfs_revalidate_perms(struct dentry *dentry)
@@ -439,37 +434,6 @@ static inline void esdfs_copy_attr(struct inode *dest, const struct inode *src)
 	esdfs_set_perms(dest);
 }
 
-#ifdef CONFIG_SECURITY_SELINUX
-/*
- * Hard-code the lower source context to prevent anyone with mount permissions
- * from doing something nasty.
- */
-#define ESDFS_LOWER_SECCTX "u:r:sdcardd:s0"
-
-/*
- * Hack to be able to poke at the SID.  The Linux Security API does not provide
- * a way to change just the SID in the creds (probably on purpose).
- */
-struct task_security_struct {
-	u32 osid;		/* SID prior to last execve */
-	u32 sid;		/* current SID */
-	u32 exec_sid;		/* exec SID */
-	u32 create_sid;		/* fscreate SID */
-	u32 keycreate_sid;	/* keycreate SID */
-	u32 sockcreate_sid;	/* fscreate SID */
-};
-static inline void esdfs_override_secid(struct esdfs_sb_info *sbi,
-					struct cred *creds)
-{
-	struct task_security_struct *tsec = creds->security;
-
-	if (sbi->lower_secid)
-		tsec->sid = sbi->lower_secid;
-}
-#else
-static inline void esdfs_override_secid(struct esdfs_sb_info *sbi,
-					struct cred *creds) {}
-#endif
 /*
  * Based on nfs4_save_creds() and nfs4_reset_creds() in nfsd/nfs4recover.c.
  * Returns NULL if prepare_creds() could not allocate heap, otherwise
@@ -490,7 +454,6 @@ static inline const struct cred *esdfs_override_creds(
 
 	creds->fsuid = make_kuid(&init_user_ns, sbi->lower_perms.uid);
 	creds->fsgid = make_kgid(&init_user_ns, sbi->lower_perms.gid);
-	esdfs_override_secid(sbi, creds);
 
 	/* this installs the new creds into current, which we must destroy */
 	return override_creds(creds);

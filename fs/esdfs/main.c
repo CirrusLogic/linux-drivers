@@ -4,6 +4,7 @@
  * Copyright (c) 2003-2014 Stony Brook University
  * Copyright (c) 2003-2014 The Research Foundation of SUNY
  * Copyright (C) 2013-2014 Motorola Mobility, LLC
+ * Copyright (C) 2017      Google, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -111,6 +112,7 @@ static int parse_options(struct super_block *sb, char *options)
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
+
 		if (!*p)
 			continue;
 		/*
@@ -185,8 +187,9 @@ static int parse_options(struct super_block *sb, char *options)
 			clear_opt(sbi, DERIVE_CONFINE);
 			break;
 		default:
-			esdfs_msg(sb, KERN_ERR, "unrecognized mount option \"%s\" or missing value\n",
-				p);
+			esdfs_msg(sb, KERN_ERR,
+			  "unrecognized mount option \"%s\" or missing value\n",
+			  p);
 			return -EINVAL;
 		}
 	}
@@ -216,8 +219,8 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 	err = kern_path(dev_name, LOOKUP_FOLLOW | LOOKUP_DIRECTORY,
 			&lower_path);
 	if (err) {
-		esdfs_msg(sb, KERN_ERR, "error accessing lower directory '%s'\n",
-			dev_name);
+		esdfs_msg(sb, KERN_ERR,
+			"error accessing lower directory '%s'\n", dev_name);
 		goto out;
 	}
 
@@ -277,7 +280,7 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 
 	/* link the upper and lower dentries */
 	sb->s_root->d_fsdata = NULL;
-	err = new_dentry_private_data(sb->s_root);
+	err = esdfs_new_dentry_private_data(sb->s_root);
 	if (err)
 		goto out_freeroot;
 
@@ -285,11 +288,7 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 
 	/* set the lower dentries for s_root */
 	esdfs_set_lower_path(sb->s_root, &lower_path);
-#ifdef CONFIG_SECURITY_SELINUX
-	security_secctx_to_secid(ESDFS_LOWER_SECCTX,
-				 strlen(ESDFS_LOWER_SECCTX),
-				 &sbi->lower_secid);
-#endif
+
 	/*
 	 * No need to call interpose because we already have a positive
 	 * dentry, which was instantiated by d_make_root.  Just need to
@@ -308,7 +307,8 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 	    memcmp(&sbi->upper_perms,
 		   &esdfs_perms_table[ESDFS_PERMS_UPPER_DERIVED],
 		   sizeof(struct esdfs_perms)))
-		esdfs_msg(sb, KERN_WARNING, "'upper' mount option ignored in this derived mode\n");
+		esdfs_msg(sb, KERN_WARNING,
+			"'upper' mount option ignored in this derived mode\n");
 
 	/*
 	 * In Android 3.0 all user conent in the emulated storage tree was
@@ -337,7 +337,8 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 	 * this driver.
 	 */
 	else
-		esdfs_msg(sb, KERN_WARNING, "unsupported derived permissions mode\n");
+		esdfs_msg(sb, KERN_WARNING,
+				"unsupported derived permissions mode\n");
 
 	/* initialize root inode */
 	esdfs_derive_perms(sb->s_root);
