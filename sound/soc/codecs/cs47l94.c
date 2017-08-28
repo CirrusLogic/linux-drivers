@@ -2579,6 +2579,8 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "IN4_PDMCLK", NULL, "SYSCLK" },
 	{ "IN4_PDMDATA", NULL, "SYSCLK" },
 
+	{ "Audio Trace DSP", NULL, "DSP1" },
+
 	{ "IN4_PDMCLK", NULL, "VDD_IO2" },
 	{ "IN4_PDMDATA", NULL, "VDD_IO2" },
 
@@ -3113,6 +3115,27 @@ static struct snd_soc_dai_driver cs47l94_dai[] = {
 		 },
 		.ops = &tacna_simple_dai_ops,
 	},
+	{
+		.name = "cs47l94-cpu-trace",
+		.capture = {
+			.stream_name = "Audio Trace CPU",
+			.channels_min = 1,
+			.channels_max = 6,
+			.rates = TACNA_RATES,
+			.formats = TACNA_FORMATS,
+		},
+		.compress_new = snd_soc_new_compress,
+	},
+	{
+		.name = "cs47l94-dsp-trace",
+		.capture = {
+			.stream_name = "Audio Trace DSP",
+			.channels_min = 1,
+			.channels_max = 6,
+			.rates = TACNA_RATES,
+			.formats = TACNA_FORMATS,
+		},
+	},
 };
 
 static int cs47l94_init_outh(struct cs47l94 *cs47l94)
@@ -3137,6 +3160,47 @@ static int cs47l94_init_outh(struct cs47l94 *cs47l94)
 	cs47l94->outh_main_vol[1] &= TACNA_OUTHR_VOL_MASK;
 
 	return 0;
+}
+
+static int cs47l94_compr_open(struct snd_compr_stream *stream)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct cs47l94 *cs47l94 = snd_soc_platform_get_drvdata(rtd->platform);
+	struct tacna_priv *priv = &cs47l94->core;
+	int n_dsp;
+
+
+	if (strcmp(rtd->codec_dai->name, "cs47l94-dsp-trace") == 0) {
+		n_dsp = 0;
+	} else {
+		dev_err(priv->dev,
+			"No suitable compressed stream for DAI '%s'\n",
+			rtd->codec_dai->name);
+		return -EINVAL;
+	}
+
+	return wm_adsp_compr_open(&priv->dsp[n_dsp], stream);
+}
+
+static irqreturn_t cs47l94_dsp1_irq(int irq, void *data)
+{
+	struct cs47l94 *cs47l94 = data;
+	struct tacna_priv *priv = &cs47l94->core;
+	int serviced = 0;
+	int i, ret;
+
+	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
+		ret = wm_adsp_compr_handle_irq(&priv->dsp[i]);
+		if (ret != -ENODEV)
+			serviced++;
+	}
+
+	if (!serviced) {
+		dev_err(priv->dev, "Spurious compressed data IRQ\n");
+		return IRQ_NONE;
+	}
+
+	return IRQ_HANDLED;
 }
 
 static int cs47l94_codec_probe(struct snd_soc_codec *codec)
@@ -3280,6 +3344,20 @@ static struct snd_soc_codec_driver soc_codec_dev_cs47l94 = {
 	},
 };
 
+static const struct snd_compr_ops cs47l94_compr_ops = {
+	.open = cs47l94_compr_open,
+	.free = wm_adsp_compr_free,
+	.set_params = wm_adsp_compr_set_params,
+	.get_caps = wm_adsp_compr_get_caps,
+	.trigger = wm_adsp_compr_trigger,
+	.pointer = wm_adsp_compr_pointer,
+	.copy = wm_adsp_compr_copy,
+};
+
+static const struct snd_soc_platform_driver cs47l94_compr_platform = {
+	.compr_ops = &cs47l94_compr_ops,
+};
+
 static int cs47l94_probe(struct platform_device *pdev)
 {
 	struct tacna *tacna = dev_get_drvdata(pdev->dev.parent);
@@ -3328,6 +3406,14 @@ static int cs47l94_probe(struct platform_device *pdev)
 	if (ret)
 		dev_warn(&pdev->dev, "Failed to get OUTH disable IRQ: %d\n",
 			 ret);
+
+	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP1_IRQ1,
+				"DSP1 Buffer IRQ", cs47l94_dsp1_irq,
+				cs47l94);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "Failed to request DSP1_IRQ1: %d\n", ret);
+		goto error_dsp1_irq;
+	}
 
 	BUILD_BUG_ON(ARRAY_SIZE(tacna->dsp_regmap) < CS47L94_NUM_DSP);
 
@@ -3392,16 +3478,22 @@ static int cs47l94_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
+	ret = snd_soc_register_platform(&pdev->dev, &cs47l94_compr_platform);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to register platform: %d\n", ret);
+		goto error_mpu_irq2;
+	}
+
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_cs47l94,
 				     cs47l94_dai, ARRAY_SIZE(cs47l94_dai));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
-		snd_soc_unregister_platform(&pdev->dev);
-		goto error_mpu_irq2;
+		goto error_plat;
 	}
 
 	return ret;
-
+error_plat:
+	snd_soc_unregister_platform(&pdev->dev);
 error_mpu_irq2:
 	tacna_free_irq(tacna, TACNA_IRQ_DSP2_MPU_ERR, &cs47l94->core.dsp[1]);
 error_mpu_irq1:
@@ -3409,10 +3501,10 @@ error_mpu_irq1:
 error_dsp:
 	for (i = 0; i < CS47L94_NUM_DSP; ++i)
 		wm_adsp2_remove(&cs47l94->core.dsp[i]);
-
 error_core:
+	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ1, cs47l94);
+error_dsp1_irq:
 	tacna_core_destroy(&cs47l94->core);
-
 	tacna_free_irq(tacna, TACNA_IRQ_OUTHL_ENABLE_DONE, cs47l94);
 	tacna_free_irq(tacna, TACNA_IRQ_OUTHL_DISABLE_DONE, cs47l94);
 
@@ -3434,6 +3526,8 @@ static int cs47l94_remove(struct platform_device *pdev)
 
 	tacna_free_irq(tacna, TACNA_IRQ_OUTHL_ENABLE_DONE, cs47l94);
 	tacna_free_irq(tacna, TACNA_IRQ_OUTHL_DISABLE_DONE, cs47l94);
+
+	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ1, cs47l94);
 
 	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
 		wm_adsp2_remove(&cs47l94->core.dsp[i]);
