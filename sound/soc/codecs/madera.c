@@ -336,7 +336,7 @@ static int madera_get_variable_u32_array(struct madera_priv *priv,
 	} else if (n < 0) {
 		dev_warn(madera->dev, "%s malformed (%d)\n",
 			 propname, n);
-		return ret;
+		return n;
 	} else if ((n % multiple) != 0) {
 		dev_warn(madera->dev, "%s not a multiple of %d entries\n",
 			 propname, multiple);
