@@ -2863,7 +2863,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 
 	/* quick exit if Madera irqchip driver hasn't completed probe */
 	if (!madera->irq_dev) {
-		dev_dbg(info->dev, "irqchip driver not ready\n");
+		dev_dbg(&pdev->dev, "irqchip driver not ready\n");
 		return -EPROBE_DEFER;
 	}
 
