@@ -154,6 +154,10 @@ static int cs47l94_out_ev(struct snd_soc_dapm_widget *w,
 		case TACNA_OUT2R_EN_SHIFT:
 			vu_reg = TACNA_OUT2R_VOLUME_1;
 			break;
+		default:
+			dev_dbg(codec->dev, "Unrecognised output: %u\n",
+				w->shift);
+			return -EINVAL;
 		}
 
 		ret = regmap_read_poll_timeout(tacna->regmap,
