@@ -3554,7 +3554,7 @@ int tacna_wait_for_output_seq(struct tacna_priv *priv, unsigned int mask,
 	int ret;
 
 	dev_dbg(priv->dev, "Polling output status for mask 0x%x = 0x%x\n",
-		mask, val);
+		mask, target);
 
 	ret = regmap_read_poll_timeout(priv->tacna->regmap,
 				       TACNA_OUTPUT_STATUS_1,
@@ -3734,7 +3734,7 @@ int tacna_eq_ev(struct snd_soc_dapm_widget *w,
 	unsigned int mode = priv->eq_mode[w->shift];
 	unsigned int reg = TACNA_EQ1_BAND1_COEFF1 + (68 * w->shift);
 	__be16 *data = &priv->eq_coefficients[w->shift][0];
-	int ret;
+	int ret = 0;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
