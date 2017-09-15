@@ -1553,13 +1553,15 @@ static const unsigned int cs47l94_aec_loopback_values[] = {
 static const struct soc_enum cs47l94_aec_loopback[] = {
 	SOC_VALUE_ENUM_SINGLE(TACNA_OUTPUT_AEC_CONTROL_1,
 			      TACNA_AEC_LOOPBACK1_SRC_SHIFT,
-			      TACNA_AEC_LOOPBACK1_SRC_MASK,
+			      TACNA_AEC_LOOPBACK1_SRC_MASK >>
+			      TACNA_AEC_LOOPBACK1_SRC_SHIFT,
 			      ARRAY_SIZE(cs47l94_aec_loopback_texts),
 			      cs47l94_aec_loopback_texts,
 			      cs47l94_aec_loopback_values),
 	SOC_VALUE_ENUM_SINGLE(TACNA_OUTPUT_AEC_CONTROL_1,
 			      TACNA_AEC_LOOPBACK2_SRC_SHIFT,
-			      TACNA_AEC_LOOPBACK2_SRC_MASK,
+			      TACNA_AEC_LOOPBACK2_SRC_MASK >>
+			      TACNA_AEC_LOOPBACK2_SRC_SHIFT,
 			      ARRAY_SIZE(cs47l94_aec_loopback_texts),
 			      cs47l94_aec_loopback_texts,
 			      cs47l94_aec_loopback_values),
