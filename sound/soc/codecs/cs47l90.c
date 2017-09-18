@@ -726,15 +726,24 @@ static const unsigned int cs47l90_aec_loopback_values[] = {
 	0, 1, 2, 3, 4, 5, 8, 9,
 };
 
-static const struct soc_enum cs47l90_aec_loopback =
+static const struct soc_enum cs47l90_aec1_loopback =
 	SOC_VALUE_ENUM_SINGLE(MADERA_DAC_AEC_CONTROL_1,
 			      MADERA_AEC1_LOOPBACK_SRC_SHIFT, 0xf,
 			      ARRAY_SIZE(cs47l90_aec_loopback_texts),
 			      cs47l90_aec_loopback_texts,
 			      cs47l90_aec_loopback_values);
 
-static const struct snd_kcontrol_new cs47l90_aec_loopback_mux =
-	SOC_DAPM_ENUM("AEC1 Loopback", cs47l90_aec_loopback);
+static const struct soc_enum cs47l90_aec2_loopback =
+	SOC_VALUE_ENUM_SINGLE(MADERA_DAC_AEC_CONTROL_2,
+			      MADERA_AEC2_LOOPBACK_SRC_SHIFT, 0xf,
+			      ARRAY_SIZE(cs47l90_aec_loopback_texts),
+			      cs47l90_aec_loopback_texts,
+			      cs47l90_aec_loopback_values);
+
+static const struct snd_kcontrol_new cs47l90_aec_loopback_mux[] = {
+	SOC_DAPM_ENUM("AEC1 Loopback", cs47l90_aec1_loopback),
+	SOC_DAPM_ENUM("AEC2 Loopback", cs47l90_aec2_loopback),
+};
 
 static const struct snd_kcontrol_new cs47l90_anc_input_mux[] = {
 	SOC_DAPM_ENUM("RXANCL Input", madera_anc_input_src[0]),
@@ -1123,7 +1132,10 @@ SND_SOC_DAPM_SIGGEN("HAPTICS"),
 
 SND_SOC_DAPM_MUX("AEC1 Loopback", MADERA_DAC_AEC_CONTROL_1,
 		       MADERA_AEC1_LOOPBACK_ENA_SHIFT, 0,
-		       &cs47l90_aec_loopback_mux),
+		       &cs47l90_aec_loopback_mux[0]),
+SND_SOC_DAPM_MUX("AEC2 Loopback", MADERA_DAC_AEC_CONTROL_2,
+		       MADERA_AEC2_LOOPBACK_ENA_SHIFT, 0,
+		       &cs47l90_aec_loopback_mux[1]),
 
 SND_SOC_DAPM_PGA_E("IN1L PGA", MADERA_INPUT_ENABLES, MADERA_IN1L_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
@@ -1511,6 +1523,7 @@ SND_SOC_DAPM_OUTPUT("MICSUPP"),
 	{ name, "Tone Generator 2", "Tone Generator 2" }, \
 	{ name, "Haptics", "HAPTICS" }, \
 	{ name, "AEC1", "AEC1 Loopback" }, \
+	{ name, "AEC2", "AEC2 Loopback" }, \
 	{ name, "IN1L", "IN1L PGA" }, \
 	{ name, "IN1R", "IN1R PGA" }, \
 	{ name, "IN2L", "IN2L PGA" }, \
@@ -2085,21 +2098,29 @@ static const struct snd_soc_dapm_route cs47l90_dapm_routes[] = {
 
 	{ "AEC1 Loopback", "HPOUT1L", "OUT1L" },
 	{ "AEC1 Loopback", "HPOUT1R", "OUT1R" },
+	{ "AEC2 Loopback", "HPOUT1L", "OUT1L" },
+	{ "AEC2 Loopback", "HPOUT1R", "OUT1R" },
 	{ "HPOUT1L", NULL, "OUT1L" },
 	{ "HPOUT1R", NULL, "OUT1R" },
 
 	{ "AEC1 Loopback", "HPOUT2L", "OUT2L" },
 	{ "AEC1 Loopback", "HPOUT2R", "OUT2R" },
+	{ "AEC2 Loopback", "HPOUT2L", "OUT2L" },
+	{ "AEC2 Loopback", "HPOUT2R", "OUT2R" },
 	{ "HPOUT2L", NULL, "OUT2L" },
 	{ "HPOUT2R", NULL, "OUT2R" },
 
 	{ "AEC1 Loopback", "HPOUT3L", "OUT3L" },
 	{ "AEC1 Loopback", "HPOUT3R", "OUT3R" },
+	{ "AEC2 Loopback", "HPOUT3L", "OUT3L" },
+	{ "AEC2 Loopback", "HPOUT3R", "OUT3R" },
 	{ "HPOUT3L", NULL, "OUT3L" },
 	{ "HPOUT3R", NULL, "OUT3R" },
 
 	{ "AEC1 Loopback", "SPKDAT1L", "OUT5L" },
 	{ "AEC1 Loopback", "SPKDAT1R", "OUT5R" },
+	{ "AEC2 Loopback", "SPKDAT1L", "OUT5L" },
+	{ "AEC2 Loopback", "SPKDAT1R", "OUT5R" },
 	{ "SPKDAT1L", NULL, "OUT5L" },
 	{ "SPKDAT1R", NULL, "OUT5R" },
 
