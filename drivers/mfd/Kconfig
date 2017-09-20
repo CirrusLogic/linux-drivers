@@ -1644,4 +1644,7 @@ config MFD_VEXPRESS_SYSREG
 	  on the ARM Ltd. Versatile Express board.
 
 endmenu
+
+source "drivers/mfd/clsic/Kconfig"
+
 endif

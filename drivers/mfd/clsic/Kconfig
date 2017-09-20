@@ -1,0 +1,21 @@
+#
+# Kconfig for the CLSIC device family
+#
+
+config MFD_CLSIC
+	select REGMAP
+	select REGMAP_IRQ
+	select MFD_CORE
+	tristate
+
+config MFD_CLSIC_SPI
+	tristate "Cirrus Logic CLSIC SPI"
+	select MFD_CLSIC
+	select REGMAP_SPI
+	depends on SPI_MASTER
+	help
+	  Support for the Cirrus Logic CLSIC SoC core functionality
+	  controlled via SPI.
+
+	  This driver can be built as a module. If built as a module it will be
+	  called "clsic-spi"
