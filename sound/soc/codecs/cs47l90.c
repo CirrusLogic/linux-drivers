@@ -138,6 +138,22 @@ static int cs47l90_adsp_power_ev(struct snd_soc_dapm_widget *w,
 	return wm_adsp2_early_event(w, kcontrol, event, freq);
 }
 
+static int cs47l90_asyncclk_ev(struct snd_soc_dapm_widget *w,
+			       struct snd_kcontrol *kcontrol,
+			       int event)
+{
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		/* Wait at least 1.5ms for asyncclk to stabilise */
+		usleep_range(1500, 1600);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 #define CS47L90_NG_SRC(name, base) \
 	SOC_SINGLE(name " NG HPOUT1L Switch",  base,  0, 1, 0), \
 	SOC_SINGLE(name " NG HPOUT1R Switch",  base,  1, 1, 0), \
@@ -771,7 +787,8 @@ SND_SOC_DAPM_SUPPLY("SYSCLK", MADERA_SYSTEM_CLOCK_1, MADERA_SYSCLK_ENA_SHIFT,
 		    0, madera_sysclk_ev,
 		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 SND_SOC_DAPM_SUPPLY("ASYNCCLK", MADERA_ASYNC_CLOCK_1,
-		    MADERA_ASYNC_CLK_ENA_SHIFT, 0, NULL, 0),
+		    MADERA_ASYNC_CLK_ENA_SHIFT, 0, cs47l90_asyncclk_ev,
+		    SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_SUPPLY("OPCLK", MADERA_OUTPUT_SYSTEM_CLOCK,
 		    MADERA_OPCLK_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("ASYNCOPCLK", MADERA_OUTPUT_ASYNC_CLOCK,
