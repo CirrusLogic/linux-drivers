@@ -678,7 +678,7 @@ static void tacna_extcon_set_mode(struct tacna_extcon *info, int mode)
 		info->micd_modes[mode].bias, info->micd_modes[mode].gpio,
 		info->micd_modes[mode].hp_gnd);
 
-	if (info->micd_pol_gpio > 0)
+	if (info->micd_pol_gpio)
 		gpiod_set_value_cansleep(info->micd_pol_gpio,
 					 info->micd_modes[mode].gpio);
 
@@ -1975,7 +1975,7 @@ static void tacna_extcon_process_accdet_node(struct tacna_extcon *info,
 							"cirrus,micd-pol-gpio",
 							node);
 	if (IS_ERR(info->micd_pol_gpio))
-		info->micd_pol_gpio = 0;
+		info->micd_pol_gpio = NULL;
 }
 
 static int tacna_extcon_get_device_pdata(struct tacna_extcon *info)
