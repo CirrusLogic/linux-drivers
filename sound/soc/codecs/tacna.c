@@ -922,20 +922,20 @@ static const char * const tacna_auxpdm_in_texts[] = {
 	"IN4R",
 };
 
-SOC_ENUM_SINGLE_DECL(tacna_auxpdm1_in,
-		     TACNA_AUXPDM1_CONTROL1,
-		     TACNA_AUXPDM1_SRC_SHIFT,
-		     tacna_auxpdm_in_texts);
+static SOC_ENUM_SINGLE_DECL(tacna_auxpdm1_in,
+			    TACNA_AUXPDM1_CONTROL1,
+			    TACNA_AUXPDM1_SRC_SHIFT,
+			    tacna_auxpdm_in_texts);
 
-SOC_ENUM_SINGLE_DECL(tacna_auxpdm2_in,
-		     TACNA_AUXPDM2_CONTROL1,
-		     TACNA_AUXPDM2_SRC_SHIFT,
-		     tacna_auxpdm_in_texts);
+static SOC_ENUM_SINGLE_DECL(tacna_auxpdm2_in,
+			    TACNA_AUXPDM2_CONTROL1,
+			    TACNA_AUXPDM2_SRC_SHIFT,
+			    tacna_auxpdm_in_texts);
 
-SOC_ENUM_SINGLE_DECL(tacna_auxpdm3_in,
-		     TACNA_AUXPDM3_CONTROL1,
-		     TACNA_AUXPDM3_SRC_SHIFT,
-		     tacna_auxpdm_in_texts);
+static SOC_ENUM_SINGLE_DECL(tacna_auxpdm3_in,
+			    TACNA_AUXPDM3_CONTROL1,
+			    TACNA_AUXPDM3_SRC_SHIFT,
+			    tacna_auxpdm_in_texts);
 
 const struct snd_kcontrol_new tacna_auxpdm_inmux[] = {
 	SOC_DAPM_ENUM("AUXPDM1 Input", tacna_auxpdm1_in),
