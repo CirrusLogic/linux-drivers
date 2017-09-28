@@ -335,7 +335,7 @@ static int cs47l94_outaux_ev(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-int cs47l94_wait_for_cp_disable(struct tacna *tacna)
+static int cs47l94_wait_for_cp_disable(struct tacna *tacna)
 {
 	struct regmap *regmap = tacna->regmap;
 	unsigned int val;
@@ -372,8 +372,8 @@ int cs47l94_wait_for_cp_disable(struct tacna *tacna)
 	return 0;
 }
 
-int cs47l94_outh_ev(struct snd_soc_dapm_widget *w,
-		    struct snd_kcontrol *kcontrol, int event)
+static int cs47l94_outh_ev(struct snd_soc_dapm_widget *w,
+			   struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
@@ -1597,8 +1597,8 @@ static const char * const cs47l94_out_select_texts[] = {
 	"OUT1+OUT2", "OUTH",
 };
 
-SOC_ENUM_SINGLE_DECL(cs47l94_output_select_enum, SND_SOC_NOPM, 0,
-		     cs47l94_out_select_texts);
+static SOC_ENUM_SINGLE_DECL(cs47l94_output_select_enum, SND_SOC_NOPM, 0,
+			    cs47l94_out_select_texts);
 
 static const struct snd_kcontrol_new cs47l94_output_select =
 	SOC_DAPM_ENUM("Output Select", cs47l94_output_select_enum);
