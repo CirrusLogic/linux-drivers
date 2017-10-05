@@ -201,6 +201,13 @@ struct fsxattr {
 
 #define FSLABEL_MAX 256	/* Max chars for the interface; each fs may differ */
 
+/*
+ * This IOCTL has been added as a workaround for cryptohome to clear
+ * cached unencrypted user data on logout.
+ * Drop caches for a superblock
+ */
+#define	FS_IOC_DROP_CACHE		_IO('f', 129)
+
 #define	FS_IOC_GETFLAGS			_IOR('f', 1, long)
 #define	FS_IOC_SETFLAGS			_IOW('f', 2, long)
 #define	FS_IOC_GETVERSION		_IOR('v', 1, long)
