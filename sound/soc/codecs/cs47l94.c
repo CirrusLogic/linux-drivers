@@ -3400,9 +3400,8 @@ error_mpu_irq2:
 error_mpu_irq1:
 	tacna_free_irq(tacna, TACNA_IRQ_DSP1_MPU_ERR, &cs47l94->core.dsp[0]);
 error_dsp:
-	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
+	for (i = 0; i < CS47L94_NUM_DSP; ++i)
 		wm_adsp2_remove(&cs47l94->core.dsp[i]);
-	}
 
 error_core:
 	tacna_core_destroy(&cs47l94->core);
