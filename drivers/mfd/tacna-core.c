@@ -607,6 +607,8 @@ int tacna_dev_init(struct tacna *tacna)
 
 	name = tacna_name_from_type(tacna->type);
 
+	n_devs = 0;
+
 	switch (hwid) {
 	case CS47L94_SILICON_ID:
 		if (IS_ENABLED(CONFIG_MFD_CS47L94)) {
@@ -618,20 +620,17 @@ int tacna_dev_init(struct tacna *tacna)
 				n_devs = ARRAY_SIZE(cs47l94_devs);
 				break;
 			default:
-				ret = -ENODEV;
 				break;
 			}
-		} else {
-			ret = -ENODEV;
 		}
 		break;
 	default:
-		ret = -ENODEV;
 		break;
 	}
 
-	if (ret == -ENODEV) {
+	if (!n_devs) {
 		dev_err(tacna->dev, "Device ID 0x%x is not a %s\n", hwid, name);
+		ret = -ENODEV;
 		goto err_reset;
 	}
 
