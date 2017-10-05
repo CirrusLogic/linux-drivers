@@ -941,7 +941,7 @@ static bool cs47l94_is_halo_memory(unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static bool cs47l94_readable_register(struct device *dev, unsigned int reg)
@@ -1866,7 +1866,7 @@ static bool cs47l94_readable_register(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return cs47l94_is_halo_memory(reg);
-	};
+	}
 }
 
 static bool cs47l94_volatile_register(struct device *dev, unsigned int reg)
@@ -1927,7 +1927,7 @@ static bool cs47l94_volatile_register(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return cs47l94_is_halo_memory(reg);
-	};
+	}
 }
 
 const struct regmap_config cs47l94_spi_regmap = {
