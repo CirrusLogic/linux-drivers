@@ -14,6 +14,8 @@
 #include <linux/mfd/tacna/registers.h>
 #include <linux/mfd/tacna/core.h>
 
+#include "tacna.h"
+
 static const struct reg_sequence cs47l94_reva_patch[] = {
 	{ 0x00002660, 0x00220022 },
 	{ 0x00018118, 0xffffffff },
