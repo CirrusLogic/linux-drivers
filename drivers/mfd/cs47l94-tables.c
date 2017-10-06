@@ -8,11 +8,10 @@
  * published by the Free Software Foundation.
 */
 
-#include <linux/module.h>
 #include <linux/device.h>
-
-#include <linux/mfd/tacna/registers.h>
 #include <linux/mfd/tacna/core.h>
+#include <linux/mfd/tacna/registers.h>
+#include <linux/module.h>
 
 #include "tacna.h"
 

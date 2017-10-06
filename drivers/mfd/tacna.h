@@ -11,8 +11,8 @@
 #ifndef TACNA_MFD_H
 #define TACNA_MFD_H
 
-#include <linux/pm.h>
 #include <linux/of.h>
+#include <linux/pm.h>
 
 struct tacna;
 

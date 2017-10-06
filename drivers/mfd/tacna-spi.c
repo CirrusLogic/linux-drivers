@@ -10,12 +10,11 @@
 
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/spi/spi.h>
-#include <linux/module.h>
-#include <linux/regmap.h>
-#include <linux/of.h>
-
 #include <linux/mfd/tacna/core.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/regmap.h>
+#include <linux/spi/spi.h>
 
 #include "tacna.h"
 
