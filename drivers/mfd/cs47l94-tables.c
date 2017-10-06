@@ -942,6 +942,26 @@ static bool cs47l94_is_halo_memory(unsigned int reg)
 	}
 }
 
+/*
+ * DSP packed memory regions can only be accessed as bulk transfers
+ * of the correct transfer length. Mark them precious to prevent code
+ * that wouldn't understand this restriction from trying to access them
+ */
+static bool cs47l94_precious_register(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case 0x2000000 ... 0x2029ff0:	/* DSP1 XM packed */
+	case 0x2c00000 ... 0x2c17ff0:	/* DSP1 YM packed */
+	case 0x3800000 ... 0x381dfe8:	/* DSP1 PM */
+	case 0x4000000 ... 0x4035ff0:	/* DSP2 XM packed */
+	case 0x4c00000 ... 0x4c29ff0:	/* DSP2 YM packed */
+	case 0x5800000 ... 0x581dfe8:	/* DSP2 PM */
+		return true;
+	default:
+		return false;
+	}
+}
+
 static bool cs47l94_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -1940,6 +1960,7 @@ const struct regmap_config cs47l94_spi_regmap = {
 	.max_register = 0x581DFFC,
 	.readable_reg = cs47l94_readable_register,
 	.volatile_reg = cs47l94_volatile_register,
+	.precious_reg = cs47l94_precious_register,
 
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = cs47l94_reg_default,
@@ -1958,6 +1979,7 @@ const struct regmap_config cs47l94_i2c_regmap = {
 	.max_register = 0x581DFFC,
 	.readable_reg = cs47l94_readable_register,
 	.volatile_reg = cs47l94_volatile_register,
+	.precious_reg = cs47l94_precious_register,
 
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = cs47l94_reg_default,
