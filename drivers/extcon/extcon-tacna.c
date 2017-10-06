@@ -86,14 +86,10 @@ static const unsigned int tacna_default_hpd_pins[4] = {
 };
 
 static struct tacna_micd_range tacna_micd_default_ranges[] = {
-	{ .max =  11, .key = BTN_0 },
-	{ .max =  28, .key = BTN_1 },
-	{ .max =  54, .key = BTN_2 },
-	{ .max = 100, .key = BTN_3 },
-	{ .max = 186, .key = BTN_4 },
-	{ .max = 430, .key = BTN_5 },
-	{ .max = -1, .key = -1 },
-	{ .max = -1, .key = -1 },
+	{ .max =  70, .key = KEY_MEDIA },
+	{ .max = 186, .key = KEY_VOICECOMMAND },
+	{ .max = 295, .key = KEY_VOLUMEUP },
+	{ .max = 681, .key = KEY_VOLUMEDOWN },
 };
 
 /* The number of levels in tacna_micd_levels valid for button thresholds */
@@ -2248,7 +2244,7 @@ static int tacna_extcon_init_micd_ranges(struct tacna_extcon *info)
 	if (pdata->num_micd_ranges == 0) {
 		info->micd_ranges = tacna_micd_default_ranges;
 		info->num_micd_ranges =
-			ARRAY_SIZE(tacna_micd_default_ranges) - 2;
+			ARRAY_SIZE(tacna_micd_default_ranges);
 		return 0;
 	}
 
