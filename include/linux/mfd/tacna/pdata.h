@@ -11,10 +11,9 @@
 #ifndef TACNA_PDATA_H
 #define TACNA_PDATA_H
 
-#include <linux/kernel.h>
-
 #include <linux/extcon/extcon-tacna-pdata.h>
 #include <linux/irqchip/irq-tacna-pdata.h>
+#include <linux/kernel.h>
 #include <linux/regulator/arizona-micsupp.h>
 #include <sound/tacna-pdata.h>
 

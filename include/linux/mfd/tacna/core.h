@@ -11,12 +11,12 @@
 #ifndef TACNA_CORE_H
 #define TACNA_CORE_H
 
-#include <linux/interrupt.h>
-#include <linux/regmap.h>
-#include <linux/notifier.h>
 #include <linux/gpio/consumer.h>
-#include <linux/regulator/consumer.h>
+#include <linux/interrupt.h>
 #include <linux/mfd/tacna/pdata.h>
+#include <linux/notifier.h>
+#include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 
 enum tacna_type {
 	CS47L94 = 1,
