@@ -487,6 +487,14 @@ config VEXPRESS_SYSCFG
 	  ARM Ltd. Versatile Express uses specialised platform configuration
 	  bus. System Configuration interface is one of the possible means
 	  of generating transactions on this bus.
+
+config HAPTICS_CS40L20
+	tristate "Cirrus Logic CS40L20 haptics driver"
+	depends on I2C && SYSFS && NEW_LEDS
+	help
+	  Boosted Haptics Driver with Integrated DSP and Waveform Memory
+	  with Closed Loop Algorithms and LRA Protection
+
 config PANEL
 	tristate "Parallel port LCD/Keypad Panel support"
 	depends on PARPORT
