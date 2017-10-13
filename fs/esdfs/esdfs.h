@@ -100,6 +100,8 @@ enum {
 	ESDFS_PERMS_TABLE_SIZE
 };
 
+#define PKG_APPID_PER_USER	100000
+
 /* operations vectors defined in specific files */
 extern const struct file_operations esdfs_main_fops;
 extern const struct file_operations esdfs_dir_fops;

@@ -22,11 +22,6 @@
 #include <linux/uaccess.h>
 #include "esdfs.h"
 
-#define PKG_NAME_MAX		128
-#define PKG_APPID_PER_USER	100000
-#define PKG_APPID_MIN		1000
-#define PKG_APPID_MAX		(PKG_APPID_PER_USER - 1)
-
 static char *names_secure[] = {
 	"autorun.inf",
 	".android_secure",
@@ -55,232 +50,27 @@ static inline uid_t derive_uid(struct esdfs_inode_info *inode_i, uid_t uid)
 	       (uid % PKG_APPID_PER_USER);
 }
 
-struct esdfs_package_list {
-	struct hlist_node package_node;
-	struct hlist_node access_node;
-	char *name;
-	uid_t appid;
-	unsigned access;
-#define HAS_SDCARD_RW	(1 << 0)
-#define HAS_MEDIA_RW	(1 << 1)
-};
-
-/*
- * Used for taking the raw package list in from user space.
- */
-static struct proc_dir_entry *esdfs_proc_root;
-static struct proc_dir_entry *esdfs_proc_packages;
-static char *raw_package_list;
-static unsigned long raw_package_list_size;
-
-/*
- * The package list is global for all instances.  Since the entire list fits
- * into a few memory pages, keep it around as a means to store the package
- * names.  This is much more efficient than dynamically allocating heap for
- * each package.
- */
-static unsigned num_packages;
-static char *package_list_buffer;
-static struct esdfs_package_list *package_list;
-static DEFINE_HASHTABLE(package_list_hash, 8);
-static DEFINE_HASHTABLE(access_list_hash, 7);
-static DEFINE_MUTEX(package_list_lock);
-
 unsigned esdfs_package_list_version;
 
-/*
- * Parse the raw package list, which is one package per line with each element
- * separated by a single white space.  Skip lines that do not parse correctly.
- */
-static int parse_package_list(char *buffer, unsigned long size)
+static void fixup_perms_by_flag(int flags, const struct qstr *key,
+					uint32_t userid)
 {
-	char *next_line = buffer;
-	char *sep, *sepres, *name;
-	uid_t appid;
-	gid_t gid;
-	unsigned hash, access;
-	unsigned count = 0, line = 0, pi = 0;
-	struct esdfs_package_list *pl = NULL;
-	int ret, err = -EINVAL;
-
-	if (!buffer || size == 0)
-		return -EINVAL;
-
-	while ((next_line = strnchr(next_line, size, '\n'))) {
-		count++;
-		next_line++;
-	}
-
-	pr_debug("esdfs: %s: package list: %lu bytes, %d lines\n",
-		__func__, size, count);
-	if (count == 0)
-		return -EINVAL;
-	pl = kzalloc(count * sizeof(struct esdfs_package_list), GFP_KERNEL);
-	if (!pl)
-		return -ENOMEM;
-
-	next_line = buffer;
-	sep = strsep(&next_line, "\n");
-	while (next_line && sep && line < count) {
-		line++;
-		err = -EINVAL;
-		name = strsep(&sep, " ");
-		if (!sep)
-			goto next;
-
-		sepres = strsep(&sep, " ");
-		if (!sep)
-			goto next;
-		ret = kstrtou32(sepres, 0, &appid);
-		if (ret) {
-			err = ret;
-			goto next;
-		}
-
-		strsep(&sep, " ");
-		if (!sep)
-			goto next;
-		strsep(&sep, " ");
-		if (!sep)
-			goto next;
-		strsep(&sep, " ");
-		if (!sep)
-			goto next;
-
-		sepres = strsep(&sep, ",");
-		while (sepres) {
-			gid = 0;
-			if (kstrtou32(sepres, 0, &gid) == 0) {
-				if (gid == AID_SDCARD_RW)
-					access |= HAS_SDCARD_RW;
-				else if (gid == AID_MEDIA_RW)
-					access |= HAS_MEDIA_RW;
-			}
-			sepres = strsep(&sep, ",");
-		}
-		pr_debug("esdfs: %s: %s, %u, 0x%02X\n",
-			 __func__, name, appid, access);
-
-		/* Parsed the line OK, so do some sanity checks. */
-		if (strlen(name) > PKG_NAME_MAX - 1 ||
-		    appid < PKG_APPID_MIN || appid > PKG_APPID_MAX)
-			goto next;
-
-		err = 0;
-		pl[pi].name = name;
-		pl[pi].appid = appid;
-		pl[pi].access = access;
-		pi++;
-next:
-		if (err)
-			pr_err("esdfs: %s: package list parse error on line %d: %d\n",
-				__func__, line, err);
-		appid = 0;
-		access = 0;
-		sep = strsep(&next_line, "\n");
-	}
-	count = pi;
-
-	pr_debug("esdfs: %s: parsed %d packages\n", __func__, count);
-
-	/* Commit the new list */
-	mutex_lock(&package_list_lock);
-
-	hash_init(package_list_hash);
-	hash_init(access_list_hash);
-
-	for (pi = 0; pi < count; pi++) {
-		hash = full_name_hash(pl[pi].name, strlen(pl[pi].name));
-		hash_add(package_list_hash, &pl[pi].package_node, hash);
-		if (pl[pi].access)
-			hash_add(access_list_hash, &pl[pi].access_node,
-				 pl[pi].appid);
-		pr_debug("esdfs: %s: %s (0x%08x), %u, 0x%02X\n", __func__,
-			pl[pi].name, hash, pl[pi].appid, pl[pi].access);
-	}
-
-	num_packages = count;
-	kfree(package_list);
-	package_list = pl;
-	kvfree(package_list_buffer);
-	package_list_buffer = buffer;
 	esdfs_package_list_version++;
-
-	mutex_unlock(&package_list_lock);
-
-	return 0;
 }
 
-static ssize_t proc_packages_write(struct file *file, const char __user *chunk,
-			       size_t count, loff_t *offset)
-{
-	char *buffer;
-	int err;
-	size_t buf_size = count + raw_package_list_size;
-
-	if (buf_size > PAGE_SIZE)
-		buffer = vmalloc(buf_size);
-	else
-		buffer = kmalloc(buf_size, GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
-
-	if (raw_package_list) {
-		memcpy(buffer, raw_package_list, raw_package_list_size);
-		kvfree(raw_package_list);
-		raw_package_list_size = 0;
-		raw_package_list = NULL;
-	}
-
-	if (copy_from_user(buffer + raw_package_list_size, chunk, count)) {
-		kvfree(buffer);
-		pr_err("esdfs: %s: :(\n", __func__);
-		return -EFAULT;
-	}
-	raw_package_list_size += count;
-	raw_package_list = buffer;
-
-	/*  The list is terminated by an empty line. */
-	if (raw_package_list[raw_package_list_size - 2] == '\n' &&
-	    raw_package_list[raw_package_list_size - 1] == '\n') {
-		raw_package_list[raw_package_list_size - 1] = '\0';
-		err = parse_package_list(raw_package_list,
-					 raw_package_list_size);
-		raw_package_list_size = 0;
-		raw_package_list = NULL;
-		if (err)
-			pr_err("esdfs: %s: failed to parse package list: %d\n",
-			       __func__, err);
-		else
-			pr_debug("esdfs: %s: package list loaded successfully\n",
-				__func__);
-	}
-
-	return count;
-}
-
-static const struct file_operations esdfs_proc_fops = {
-	.write  = proc_packages_write,
+static struct pkg_list esdfs_pkg_list = {
+		.update = fixup_perms_by_flag,
 };
 
 int esdfs_init_package_list(void)
 {
-	if (!esdfs_proc_root)
-		esdfs_proc_root = proc_mkdir("fs/esdfs", NULL);
-	if (esdfs_proc_root && !esdfs_proc_packages)
-		esdfs_proc_packages = proc_create("packages", S_IWUSR,
-						  esdfs_proc_root,
-						  &esdfs_proc_fops);
-
+	pkglist_register_update_listener(&esdfs_pkg_list);
 	return 0;
 }
 
 void esdfs_destroy_package_list(void)
 {
-	if (esdfs_proc_packages)
-		remove_proc_entry("fs/esdfs/packages", NULL);
-	if (esdfs_proc_root)
-		remove_proc_entry("fs/esdfs", NULL);
+	pkglist_unregister_update_listener(&esdfs_pkg_list);
 }
 
 /*
@@ -290,9 +80,8 @@ void esdfs_derive_perms(struct dentry *dentry)
 {
 	struct esdfs_inode_info *inode_i = ESDFS_I(dentry->d_inode);
 	bool is_root;
-	struct esdfs_package_list *package;
-	unsigned hash;
 	int ret;
+	kuid_t appid;
 
 	spin_lock(&dentry->d_lock);
 	is_root = IS_ROOT(dentry);
@@ -349,17 +138,12 @@ void esdfs_derive_perms(struct dentry *dentry)
 	case ESDFS_TREE_ANDROID_DATA:
 	case ESDFS_TREE_ANDROID_OBB:
 	case ESDFS_TREE_ANDROID_MEDIA:
-		hash = full_name_hash(dentry->d_name.name, dentry->d_name.len);
-		mutex_lock(&package_list_lock);
-		hash_for_each_possible(package_list_hash, package,
-				       package_node, hash) {
-			if (!strncmp(package->name, dentry->d_name.name,
-				     dentry->d_name.len)) {
-				inode_i->appid = package->appid;
-				break;
-			}
-		}
-		mutex_unlock(&package_list_lock);
+		appid = pkglist_get_allowed_appid(dentry->d_name.name,
+						inode_i->userid);
+		if (uid_valid(appid))
+			inode_i->appid = appid.val;
+		else
+			inode_i->appid = 0;
 		inode_i->tree = ESDFS_TREE_ANDROID_APP;
 		break;
 
@@ -530,9 +314,7 @@ int esdfs_derived_revalidate(struct dentry *dentry, struct dentry *parent)
 int esdfs_check_derived_permission(struct inode *inode, int mask)
 {
 	const struct cred *cred;
-	struct esdfs_package_list *package;
 	uid_t uid, appid;
-	unsigned access = 0;
 
 	/*
 	 * If we don't need to restrict access based on app GIDs and confine
@@ -552,45 +334,11 @@ int esdfs_check_derived_permission(struct inode *inode, int mask)
 		return 0;
 
 	/*
-	 * Since Android now allows sdcard_r access to the tree and it does not
-	 * know how to use extended attributes, we have to double-check write
-	 * requests against the list of apps that have been granted sdcard_rw.
-	 */
-	mutex_lock(&package_list_lock);
-	hash_for_each_possible(access_list_hash, package,
-			       access_node, appid) {
-		if (package->appid == appid) {
-			pr_debug("esdfs: %s: found appid %u, access: %u\n",
-				__func__, package->appid,
-				package->access);
-			access = package->access;
-			break;
-		}
-	}
-	mutex_unlock(&package_list_lock);
-
-	/*
-	 * If we aren't restricting based on GID, always grant what was formerly
-	 * "sdcard_rw".  The storage view containment has already effectively
-	 * done the check for read-only SD card access, so we know that this app
-	 * has write access.
-	 */
-	if (!ESDFS_RESTRICT_PERMS(ESDFS_SB(inode->i_sb)))
-		access |= HAS_SDCARD_RW;
-
-	/*
-	 * Grant access to media_rw holders (they can access the source anyway).
-	 */
-	if (access & HAS_MEDIA_RW)
-		return 0;
-
-	/*
 	 * Grant access to sdcard_rw holders, unless we are in unified mode
 	 * and we are trying to write to the protected /Android tree or to
 	 * create files in the root (aka, "confined" access).
 	 */
-	if ((access & HAS_SDCARD_RW) &&
-	    (!test_opt(ESDFS_SB(inode->i_sb), DERIVE_UNIFIED) ||
+	if ((!test_opt(ESDFS_SB(inode->i_sb), DERIVE_UNIFIED) ||
 	     (ESDFS_I(inode)->tree != ESDFS_TREE_ANDROID &&
 	      ESDFS_I(inode)->tree != ESDFS_TREE_ANDROID_DATA &&
 	      ESDFS_I(inode)->tree != ESDFS_TREE_ANDROID_OBB &&
