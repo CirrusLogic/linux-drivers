@@ -22,7 +22,7 @@ static int tacna_spi_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct tacna *tacna;
-	const struct regmap_config *regmap_config = NULL;
+	int (*regmap_init_fn)(struct spi_device *spi, struct tacna *);
 	unsigned long type;
 	int ret;
 
@@ -31,18 +31,20 @@ static int tacna_spi_probe(struct spi_device *spi)
 	else
 		type = id->driver_data;
 
+	regmap_init_fn = NULL;
+
 	switch (type) {
 	case CS47L94:
 	case CS47L95:
 		if (IS_ENABLED(CONFIG_MFD_CS47L94))
-			regmap_config = &cs47l94_spi_regmap;
+			regmap_init_fn = cs47l94_init_spi_regmap;
 		break;
 	default:
 		dev_err(&spi->dev, "Unknown Tacna SPI device type %ld\n", type);
 		return -EINVAL;
 	}
 
-	if (!regmap_config) {
+	if (!regmap_init_fn) {
 		dev_err(&spi->dev,
 			"Kernel does not include support for %s\n",
 			tacna_name_from_type(type));
@@ -53,9 +55,8 @@ static int tacna_spi_probe(struct spi_device *spi)
 	if (!tacna)
 		return -ENOMEM;
 
-	tacna->regmap = devm_regmap_init_spi(spi, regmap_config);
-	if (IS_ERR(tacna->regmap)) {
-		ret = PTR_ERR(tacna->regmap);
+	ret = (*regmap_init_fn)(spi, tacna);
+	if (ret) {
 		dev_err(&spi->dev,
 			"Failed to allocate register map: %d\n", ret);
 		return ret;

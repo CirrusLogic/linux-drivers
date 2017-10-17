@@ -3328,6 +3328,8 @@ static int cs47l94_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "Failed to get OUTH disable IRQ: %d\n",
 			 ret);
 
+	BUILD_BUG_ON(ARRAY_SIZE(tacna->dsp_regmap) < CS47L94_NUM_DSP);
+
 	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
 		dsp = &cs47l94->core.dsp[i];
 		dsp->part = "cs47l94";
@@ -3336,7 +3338,7 @@ static int cs47l94_probe(struct platform_device *pdev)
 		dsp->type = WMFW_HALO;
 		dsp->rev = 0;
 		dsp->dev = tacna->dev;
-		dsp->regmap = tacna->regmap;
+		dsp->regmap = tacna->dsp_regmap[i];
 
 		dsp->base = cs47l94_dsp_control_bases[i];
 		dsp->base_sysinfo = cs47l94_dsp_sysinfo_bases[i];

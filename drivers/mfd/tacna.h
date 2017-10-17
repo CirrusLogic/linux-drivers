@@ -31,8 +31,7 @@ static inline unsigned long tacna_of_get_type(struct device *dev)
 }
 #endif
 
-extern const struct regmap_config cs47l94_spi_regmap;
-extern const struct regmap_config cs47l94_i2c_regmap;
+int cs47l94_init_spi_regmap(struct spi_device *spi, struct tacna *tacna);
 int cs47l94_patch(struct tacna *tacna);
 
 #endif
