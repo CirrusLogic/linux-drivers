@@ -26,6 +26,7 @@ enum tacna_type {
 
 #define TACNA_MAX_CORE_SUPPLIES		2
 #define TACNA_MAX_GPIOS			23
+#define TACNA_MAX_DSPS			2
 
 /* Notifier events */
 #define TACNA_NOTIFY_VOICE_TRIGGER	0x1
@@ -45,6 +46,7 @@ struct tacna_extcon_info;
 
 struct tacna {
 	struct regmap *regmap;
+	struct regmap *dsp_regmap[TACNA_MAX_DSPS];
 
 	struct device *dev;
 

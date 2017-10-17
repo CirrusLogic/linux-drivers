@@ -915,51 +915,76 @@ static const struct reg_default cs47l94_reg_default[] = {
 	{ 0x00018834, 0x000000ff }, /* IRQ3_MASK2 */
 };
 
-static bool cs47l94_is_halo_memory(unsigned int reg)
-{
-	switch (reg) {
-	case 0x2000000 ... 0x2029ff0:	/* DSP1 XM packed */
-	case 0x25e0000 ... 0x25e413c:	/* DSP1 system info registers */
-	case 0x2800000 ... 0x2837ff4:	/* DSP1 XM unpacked24 */
-	case 0x2b80000 ... 0x2b805d8:	/* DSP1 control registers */
-	case 0x2bc1000 ... 0x2bcd020:	/* DSP1 control registers */
-	case 0x2c00000 ... 0x2c17ff0:	/* DSP1 YM packed */
-	case 0x3400000 ... 0x341fff4:	/* DSP1 YM unpacked24 */
-	case 0x3800000 ... 0x381dfe8:	/* DSP1 PM */
+static const struct regmap_range cs47l94_dsp1_forbidden_ranges[] = {
+	regmap_reg_range(0x0000000, 0x1ffffff),
+};
 
-	case 0x4000000 ... 0x4035ff0:	/* DSP2 XM packed */
-	case 0x45e0000 ... 0x45e413c:	/* DSP2 system info registers */
-	case 0x4800000 ... 0x4847ff4:	/* DSP2 XM unpacked24 */
-	case 0x4b80000 ... 0x4b805d8:	/* DSP2 control registers */
-	case 0x4bc1000 ... 0x4bcd020:	/* DSP2 control registers */
-	case 0x4c00000 ... 0x4c29ff0:	/* DSP2 YM packed */
-	case 0x5400000 ... 0x5437ff4:	/* DSP2 YM unpacked24 */
-	case 0x5800000 ... 0x581dfe8:	/* DSP2 PM */
-		return true;
-	default:
-		return false;
-	}
-}
+static const struct regmap_range cs47l94_dsp1_ranges[] = {
+	regmap_reg_range(0x2000000, 0x2029ff0),	/* XM packed */
+	regmap_reg_range(0x25e0000, 0x25e413c),	/* system info */
+	regmap_reg_range(0x2800000, 0x2837ff4),	/* XM unpacked24 */
+	regmap_reg_range(0x2b80000, 0x2b805d8),	/* control registers */
+	regmap_reg_range(0x2bc1000, 0x2bc7008),	/* control registers */
+	regmap_reg_range(0x2c00000, 0x2c17ff0),	/* YM packed */
+	regmap_reg_range(0x3400000, 0x341fff4),	/* YM unpacked24 */
+	regmap_reg_range(0x3800000, 0x381dfe8),	/* PM */
+};
 
 /*
  * DSP packed memory regions can only be accessed as bulk transfers
  * of the correct transfer length. Mark them precious to prevent code
  * that wouldn't understand this restriction from trying to access them
  */
-static bool cs47l94_precious_register(struct device *dev, unsigned int reg)
-{
-	switch (reg) {
-	case 0x2000000 ... 0x2029ff0:	/* DSP1 XM packed */
-	case 0x2c00000 ... 0x2c17ff0:	/* DSP1 YM packed */
-	case 0x3800000 ... 0x381dfe8:	/* DSP1 PM */
-	case 0x4000000 ... 0x4035ff0:	/* DSP2 XM packed */
-	case 0x4c00000 ... 0x4c29ff0:	/* DSP2 YM packed */
-	case 0x5800000 ... 0x581dfe8:	/* DSP2 PM */
-		return true;
-	default:
-		return false;
-	}
-}
+static const struct regmap_range cs47l94_dsp1_precious_ranges[] = {
+	regmap_reg_range(0x2000000, 0x2029ff0),	/* XM packed */
+	regmap_reg_range(0x2c00000, 0x2c17ff0),	/* YM packed */
+	regmap_reg_range(0x3800000, 0x381dfe8),	/* PM */
+};
+
+static const struct regmap_access_table cs47l94_dsp1_readable = {
+	.yes_ranges = cs47l94_dsp1_ranges,
+	.n_yes_ranges = ARRAY_SIZE(cs47l94_dsp1_ranges),
+	.no_ranges = cs47l94_dsp1_forbidden_ranges,
+	.n_no_ranges = ARRAY_SIZE(cs47l94_dsp1_forbidden_ranges),
+};
+
+static const struct regmap_access_table cs47l94_dsp1_precious = {
+	.yes_ranges = cs47l94_dsp1_precious_ranges,
+	.n_yes_ranges = ARRAY_SIZE(cs47l94_dsp1_precious_ranges),
+};
+
+static const struct regmap_range cs47l94_dsp2_forbidden_ranges[] = {
+	regmap_reg_range(0x0000000, 0x3ffffff),
+};
+
+static const struct regmap_range cs47l94_dsp2_ranges[] = {
+	regmap_reg_range(0x4000000, 0x4035ff0),	/* XM packed */
+	regmap_reg_range(0x45e0000, 0x45e413c),	/* system info registers */
+	regmap_reg_range(0x4800000, 0x4847ff4),	/* XM unpacked24 */
+	regmap_reg_range(0x4b80000, 0x4b805d8),	/* control registers */
+	regmap_reg_range(0x4bc1000, 0x4bc7008),	/* control registers */
+	regmap_reg_range(0x4c00000, 0x4c29ff0),	/* YM packed */
+	regmap_reg_range(0x5400000, 0x5437ff4),	/* YM unpacked24 */
+	regmap_reg_range(0x5800000, 0x581dfe8),	/* PM */
+};
+
+static const struct regmap_range cs47l94_dsp2_precious_ranges[] = {
+	regmap_reg_range(0x4000000, 0x4035ff0),	/* XM packed */
+	regmap_reg_range(0x4c00000, 0x4c29ff0),	/* YM packed */
+	regmap_reg_range(0x5800000, 0x581dfe8),	/* PM */
+};
+
+static const struct regmap_access_table cs47l94_dsp2_readable = {
+	.yes_ranges = cs47l94_dsp2_ranges,
+	.n_yes_ranges = ARRAY_SIZE(cs47l94_dsp2_ranges),
+	.no_ranges = cs47l94_dsp2_forbidden_ranges,
+	.n_no_ranges = ARRAY_SIZE(cs47l94_dsp2_forbidden_ranges),
+};
+
+static const struct regmap_access_table cs47l94_dsp2_precious = {
+	.yes_ranges = cs47l94_dsp2_precious_ranges,
+	.n_yes_ranges = ARRAY_SIZE(cs47l94_dsp2_precious_ranges),
+};
 
 static bool cs47l94_readable_register(struct device *dev, unsigned int reg)
 {
@@ -1882,7 +1907,7 @@ static bool cs47l94_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_SW_TRIGGER_MSTR2:
 		return true;
 	default:
-		return cs47l94_is_halo_memory(reg);
+		return false;
 	}
 }
 
@@ -1943,11 +1968,11 @@ static bool cs47l94_volatile_register(struct device *dev, unsigned int reg)
 	case TACNA_SW_TRIGGER_MSTR2:
 		return true;
 	default:
-		return cs47l94_is_halo_memory(reg);
+		return false;
 	}
 }
 
-const struct regmap_config cs47l94_spi_regmap = {
+static const struct regmap_config cs47l94_spi_regmap = {
 	.name = "cs47l94",
 	.reg_bits = 32,
 	.reg_stride = 4,
@@ -1956,18 +1981,50 @@ const struct regmap_config cs47l94_spi_regmap = {
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 
-	.max_register = 0x581DFFC,
+	.max_register = 0x19004,
 	.readable_reg = cs47l94_readable_register,
 	.volatile_reg = cs47l94_volatile_register,
-	.precious_reg = cs47l94_precious_register,
 
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = cs47l94_reg_default,
 	.num_reg_defaults = ARRAY_SIZE(cs47l94_reg_default),
 };
-EXPORT_SYMBOL_GPL(cs47l94_spi_regmap);
 
-const struct regmap_config cs47l94_i2c_regmap = {
+static const struct regmap_config cs47l94_spi_dsp1_regmap = {
+	.name = "cs47l94-dsp1",
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.pad_bits = 16,
+	.val_bits = 32,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+
+	.max_register = 0x381dfe8,
+	.rd_table = &cs47l94_dsp1_readable,
+	.precious_table = &cs47l94_dsp1_precious,
+
+	/* we don't currently need to cache any DSP1 registers */
+	.cache_type = REGCACHE_NONE,
+};
+
+static const struct regmap_config cs47l94_spi_dsp2_regmap = {
+	.name = "cs47l94-dsp2",
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.pad_bits = 16,
+	.val_bits = 32,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+
+	.max_register = 0x581dfe8,
+	.rd_table = &cs47l94_dsp2_readable,
+	.precious_table = &cs47l94_dsp2_precious,
+
+	/* we don't currently need to cache any DSP2 registers */
+	.cache_type = REGCACHE_NONE,
+};
+
+static const struct regmap_config cs47l94_i2c_regmap = {
 	.name = "cs47l94",
 	.reg_bits = 32,
 	.reg_stride = 4,
@@ -1975,13 +2032,67 @@ const struct regmap_config cs47l94_i2c_regmap = {
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 
-	.max_register = 0x581DFFC,
+	.max_register = 0x19004,
 	.readable_reg = cs47l94_readable_register,
 	.volatile_reg = cs47l94_volatile_register,
-	.precious_reg = cs47l94_precious_register,
 
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = cs47l94_reg_default,
 	.num_reg_defaults = ARRAY_SIZE(cs47l94_reg_default),
 };
-EXPORT_SYMBOL_GPL(cs47l94_i2c_regmap);
+
+static const struct regmap_config cs47l94_i2c_dsp1_regmap = {
+	.name = "cs47l94-dsp1",
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+
+	.max_register = 0x381dfe8,
+	.rd_table = &cs47l94_dsp1_readable,
+	.precious_table = &cs47l94_dsp1_precious,
+
+	.cache_type = REGCACHE_NONE,
+};
+
+static const struct regmap_config cs47l94_i2c_dsp2_regmap = {
+	.name = "cs47l94-dsp2",
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+
+	.max_register = 0x581dfe8,
+	.rd_table = &cs47l94_dsp2_readable,
+	.precious_table = &cs47l94_dsp2_precious,
+
+	.cache_type = REGCACHE_NONE,
+};
+
+int cs47l94_init_spi_regmap(struct spi_device *spi, struct tacna *tacna)
+{
+	/* notice if using caching without marking the registers volatile */
+	BUILD_BUG_ON(cs47l94_spi_dsp1_regmap.cache_type != REGCACHE_NONE &&
+		     cs47l94_spi_dsp1_regmap.volatile_table == NULL);
+	BUILD_BUG_ON(cs47l94_spi_dsp2_regmap.cache_type != REGCACHE_NONE &&
+		     cs47l94_spi_dsp2_regmap.volatile_table == NULL);
+
+	tacna->regmap = devm_regmap_init_spi(spi, &cs47l94_spi_regmap);
+	if (IS_ERR(tacna->regmap))
+		return PTR_ERR(tacna->regmap);
+
+	tacna->dsp_regmap[0] =
+		devm_regmap_init_spi(spi, &cs47l94_spi_dsp1_regmap);
+	if (IS_ERR(tacna->dsp_regmap[0]))
+		return PTR_ERR(tacna->dsp_regmap[0]);
+
+	tacna->dsp_regmap[1] =
+		devm_regmap_init_spi(spi, &cs47l94_spi_dsp2_regmap);
+	if (IS_ERR(tacna->dsp_regmap[1]))
+		return PTR_ERR(tacna->dsp_regmap[1]);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs47l94_init_spi_regmap);
