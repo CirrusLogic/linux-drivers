@@ -382,6 +382,10 @@ static int esdfs_setattr(struct dentry *dentry, struct iattr *ia)
 	ia->ia_valid &= ~(ATTR_UID | ATTR_GID | ATTR_MODE);
 	if (!ia->ia_valid)
 		return 0;
+	/* Allow touch updating timestamps. A previous permission check ensures
+	 * we have write access. Changes to mode, owner, and group are ignored
+	 */
+	ia->ia_valid |= ATTR_FORCE;
 
 	inode = dentry->d_inode;
 
