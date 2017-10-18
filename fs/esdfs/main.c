@@ -393,7 +393,7 @@ struct dentry *esdfs_mount(struct file_system_type *fs_type, int flags,
 
 static void esdfs_kill_sb(struct super_block *sb)
 {
-	if (ESDFS_SB(sb)->obb_parent)
+	if (sb->s_fs_info && ESDFS_SB(sb)->obb_parent)
 		dput(ESDFS_SB(sb)->obb_parent);
 
 	generic_shutdown_super(sb);
