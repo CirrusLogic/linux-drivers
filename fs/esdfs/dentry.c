@@ -49,6 +49,12 @@ static int esdfs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	if (lower_parent_path.dentry != lower_parent_dentry)
 		goto drop;
 
+	if (lower_dentry->d_flags & DCACHE_OP_REVALIDATE) {
+		err = lower_dentry->d_op->d_revalidate(lower_dentry, flags);
+		if (err == 0)
+			goto drop;
+	}
+
 	/* can't do strcmp if lower is hashed */
 	spin_lock(&lower_dentry->d_lock);
 	if (d_unhashed(lower_dentry)) {
