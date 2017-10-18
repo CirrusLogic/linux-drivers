@@ -197,9 +197,16 @@ static struct inode *esdfs_alloc_inode(struct super_block *sb)
 	return &i->vfs_inode;
 }
 
+static void i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+
+	kmem_cache_free(esdfs_inode_cachep, ESDFS_I(inode));
+}
+
 static void esdfs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(esdfs_inode_cachep, ESDFS_I(inode));
+	call_rcu(&inode->i_rcu, i_callback);
 }
 
 /* esdfs inode cache constructor */
