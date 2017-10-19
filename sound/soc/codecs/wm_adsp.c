@@ -3219,38 +3219,6 @@ static void wm_halo_boot_work(struct work_struct *work)
 
 	mutex_lock(&dsp->pwr_lock);
 
-	adsp_dbg(dsp, "Setting RX rates.\n");
-	ret = wm_halo_set_rate_block(dsp, HALO_SAMPLE_RATE_RX1,
-				     dsp->n_rx_channels, dsp->rx_rate_cache);
-	if (ret) {
-		adsp_err(dsp, "Failed to set RX rates.\n");
-		goto err_mutex;
-	}
-
-	adsp_dbg(dsp, "Setting TX rates.\n");
-	ret = wm_halo_set_rate_block(dsp, HALO_SAMPLE_RATE_TX1,
-				     dsp->n_tx_channels, dsp->tx_rate_cache);
-	if (ret) {
-		adsp_err(dsp, "Failed to set TX rates.\n");
-		goto err_mutex;
-	}
-
-	ret = wm_halo_clear_stream_arb(dsp);
-	if (ret != 0)
-		goto err_mutex;
-
-	/* disable NMI */
-	ret = regmap_write(dsp->regmap, dsp->base + HALO_INTP_CTL_NMI_CONTROL,
-			   0);
-	if (ret != 0) {
-		adsp_err(dsp, "Error while disabling NMI: %d\n", ret);
-		goto err_mutex;
-	}
-
-	ret = wm_halo_configure_mpu(dsp);
-	if (ret != 0)
-		goto err_mutex;
-
 	ret = wm_adsp_load(dsp);
 	if (ret != 0)
 		goto err;
@@ -3292,8 +3260,6 @@ static void wm_halo_boot_work(struct work_struct *work)
 err:
 	regmap_update_bits(dsp->regmap, dsp->base + HALO_CCM_CORE_CONTROL,
 			   HALO_CORE_EN, 0);
-
-err_mutex:
 	mutex_unlock(&dsp->pwr_lock);
 }
 
@@ -3602,10 +3568,44 @@ int wm_halo_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 			goto err;
 		}
 
+		adsp_dbg(dsp, "Setting RX rates.\n");
+		ret = wm_halo_set_rate_block(dsp, HALO_SAMPLE_RATE_RX1,
+					     dsp->n_rx_channels,
+					     dsp->rx_rate_cache);
+		if (ret) {
+			adsp_err(dsp, "Failed to set RX rates.\n");
+			goto err;
+		}
+
+		adsp_dbg(dsp, "Setting TX rates.\n");
+		ret = wm_halo_set_rate_block(dsp, HALO_SAMPLE_RATE_TX1,
+					     dsp->n_tx_channels,
+					     dsp->tx_rate_cache);
+		if (ret) {
+			adsp_err(dsp, "Failed to set TX rates.\n");
+			goto err;
+		}
+
+		ret = wm_halo_clear_stream_arb(dsp);
+		if (ret != 0)
+			goto err;
+
+		/* disable NMI */
+		ret = regmap_write(dsp->regmap,
+				   dsp->base + HALO_INTP_CTL_NMI_CONTROL,
+				   0);
+		if (ret != 0) {
+			adsp_err(dsp, "Error while disabling NMI: %d\n", ret);
+			goto err;
+		}
+
+		ret = wm_halo_configure_mpu(dsp);
+		if (ret != 0)
+			goto err;
+
 		ret = regmap_update_bits(dsp->regmap,
 					 dsp->base + HALO_CCM_CORE_CONTROL,
 					 HALO_CORE_EN, HALO_CORE_EN);
-
 		if (ret != 0)
 			goto err;
 
@@ -3618,7 +3618,6 @@ int wm_halo_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		dsp->running = true;
 
 		mutex_unlock(&dsp->pwr_lock);
-
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		/* Tell the firmware to cleanup */
