@@ -225,27 +225,25 @@ struct inode *esdfs_iget(struct super_block *sb, struct inode *lower_inode,
 }
 
 /*
- * Connect a esdfs inode dentry/inode with several lower ones.  This is
- * the classic stackable file system "vnode interposition" action.
- *
- * @dentry: esdfs's dentry which interposes on lower one
- * @sb: esdfs's super_block
- * @lower_path: the lower path (caller does path_get/put)
+ * Helper interpose routine, called directly by ->lookup to handle
+ * spliced dentries
  */
-int esdfs_interpose(struct dentry *dentry, struct super_block *sb,
-		     struct path *lower_path, uid_t id)
+static struct dentry *__esdfs_interpose(struct dentry *dentry,
+					struct super_block *sb,
+					struct path *lower_path,
+					uint32_t id)
 {
-	int err = 0;
 	struct inode *inode;
 	struct inode *lower_inode;
 	struct super_block *lower_sb;
+	struct dentry *ret_dentry;
 
 	lower_inode = lower_path->dentry->d_inode;
 	lower_sb = esdfs_lower_super(sb);
 
 	/* check that the lower file system didn't cross a mount point */
 	if (lower_inode->i_sb != lower_sb) {
-		err = -EXDEV;
+		ret_dentry = ERR_PTR(-EXDEV);
 		goto out;
 	}
 
@@ -257,17 +255,37 @@ int esdfs_interpose(struct dentry *dentry, struct super_block *sb,
 	/* inherit lower inode number for esdfs's inode */
 	inode = esdfs_iget(sb, lower_inode, id);
 	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
+		ret_dentry = ERR_CAST(inode);
 		goto out;
 	}
 
-	d_add(dentry, inode);
+	ret_dentry = d_splice_alias(inode, dentry);
+	dentry = ret_dentry ?: dentry;
+	if (IS_ERR(dentry))
+		goto out;
 
 	if (ESDFS_DERIVE_PERMS(ESDFS_SB(sb)))
 		esdfs_derive_perms(dentry);
 	esdfs_set_perms(inode);
 out:
-	return err;
+	return ret_dentry;
+}
+
+/*
+ * Connect an esdfs inode dentry/inode with several lower ones.  This is
+ * the classic stackable file system "vnode interposition" action.
+ *
+ * @dentry: esdfs's dentry which interposes on lower one
+ * @sb: esdfs's super_block
+ * @lower_path: the lower path (caller does path_get/put)
+ */
+int esdfs_interpose(struct dentry *dentry, struct super_block *sb,
+		     struct path *lower_path, uint32_t id)
+{
+	struct dentry *ret_dentry;
+
+	ret_dentry = __esdfs_interpose(dentry, sb, lower_path, id);
+	return PTR_ERR(ret_dentry);
 }
 
 /*
@@ -288,6 +306,7 @@ static struct dentry *__esdfs_lookup(struct dentry *dentry,
 	const char *name;
 	struct path lower_path;
 	struct qstr dname;
+	struct dentry *ret_dentry = NULL;
 
 	/* must initialize dentry operations */
 	d_set_d_op(dentry, &esdfs_dops);
@@ -307,9 +326,14 @@ static struct dentry *__esdfs_lookup(struct dentry *dentry,
 	/* no error: handle positive dentries */
 	if (!err) {
 		esdfs_set_lower_path(dentry, &lower_path);
-		err = esdfs_interpose(dentry, dentry->d_sb, &lower_path, id);
-		if (err) /* path_put underlying path on error */
+		ret_dentry =
+			__esdfs_interpose(dentry, dentry->d_sb,
+						&lower_path, id);
+		if (IS_ERR(ret_dentry)) {
+			err = PTR_ERR(ret_dentry);
+			/* path_put underlying underlying path on error */
 			esdfs_put_reset_lower_paths(dentry);
+		}
 		goto out;
 	}
 
@@ -352,7 +376,9 @@ static struct dentry *__esdfs_lookup(struct dentry *dentry,
 		err = 0;
 
 out:
-	return ERR_PTR(err);
+	if (err)
+		return ERR_PTR(err);
+	return ret_dentry;
 }
 
 struct dentry *esdfs_lookup(struct inode *dir, struct dentry *dentry,
