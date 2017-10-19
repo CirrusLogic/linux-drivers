@@ -3302,14 +3302,7 @@ static void wm_halo_boot_work(struct work_struct *work)
 		goto err;
 
 	dsp->booted = true;
-
-	mutex_unlock(&dsp->pwr_lock);
-
-	return;
-
 err:
-	regmap_update_bits(dsp->regmap, dsp->base + HALO_CCM_CORE_CONTROL,
-			   HALO_CORE_EN, 0);
 	mutex_unlock(&dsp->pwr_lock);
 }
 
@@ -3435,18 +3428,9 @@ int wm_halo_early_event(struct snd_soc_dapm_widget *w,
 	struct wm_adsp *dsps = snd_soc_codec_get_drvdata(codec);
 	struct wm_adsp *dsp = &dsps[w->shift];
 	struct wm_coeff_ctl *ctl;
-	int ret;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		ret = regmap_update_bits(dsp->regmap,
-					 dsp->base + HALO_CCM_CORE_CONTROL,
-					 HALO_CORE_RESET, HALO_CORE_RESET);
-		if (ret != 0) {
-			adsp_err(dsp, "Error while resetting core: %d\n", ret);
-			return ret;
-		}
-
 		queue_work(system_unbound_wq, &dsp->boot_work);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
@@ -3615,7 +3599,7 @@ int wm_halo_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 
 		adsp_dbg(dsp, "Setting RX rates.\n");
 		ret = wm_halo_set_rate_block(dsp, HALO_SAMPLE_RATE_RX1,
-					     dsp->n_rx_rates, dsp->rx_rate_cache);
+					     dsp->n_rx_channels, dsp->rx_rate_cache);
 		if (ret) {
 			adsp_err(dsp, "Failed to set RX rates.\n");
 			goto err;
@@ -3623,7 +3607,7 @@ int wm_halo_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 
 		adsp_dbg(dsp, "Setting TX rates.\n");
 		ret = wm_halo_set_rate_block(dsp, HALO_SAMPLE_RATE_TX1,
-					     dsp->n_tx_rates, dsp->tx_rate_cache);
+					     dsp->n_tx_channels, dsp->tx_rate_cache);
 		if (ret) {
 			adsp_err(dsp, "Failed to set TX rates.\n");
 			goto err;
@@ -3647,8 +3631,50 @@ int wm_halo_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 
 		ret = regmap_update_bits(dsp->regmap,
 					 dsp->base + HALO_CCM_CORE_CONTROL,
-					 HALO_CORE_EN, HALO_CORE_EN);
+					 HALO_CORE_RESET, HALO_CORE_RESET);
+		if (ret != 0) {
+			adsp_err(dsp, "Error while resetting core: %d\n", ret);
+			return ret;
+		}
 
+		adsp_dbg(dsp, "Setting RX rates.\n");
+		ret = wm_halo_set_rate_block(dsp, HALO_SAMPLE_RATE_RX1,
+					     dsp->n_rx_channels,
+					     dsp->rx_rate_cache);
+		if (ret) {
+			adsp_err(dsp, "Failed to set RX rates.\n");
+			goto err;
+		}
+
+		adsp_dbg(dsp, "Setting TX rates.\n");
+		ret = wm_halo_set_rate_block(dsp, HALO_SAMPLE_RATE_TX1,
+					     dsp->n_tx_channels,
+					     dsp->tx_rate_cache);
+		if (ret) {
+			adsp_err(dsp, "Failed to set TX rates.\n");
+			goto err;
+		}
+
+		ret = wm_halo_clear_stream_arb(dsp);
+		if (ret != 0)
+			goto err;
+
+		/* disable NMI */
+		ret = regmap_write(dsp->regmap,
+				   dsp->base + HALO_INTP_CTL_NMI_CONTROL,
+				   0);
+		if (ret != 0) {
+			adsp_err(dsp, "Error while disabling NMI: %d\n", ret);
+			goto err;
+		}
+
+		ret = wm_halo_configure_mpu(dsp);
+		if (ret != 0)
+			goto err;
+
+		ret = regmap_update_bits(dsp->regmap,
+					 dsp->base + HALO_CCM_CORE_CONTROL,
+					 HALO_CORE_EN, HALO_CORE_EN);
 		if (ret != 0)
 			goto err;
 
@@ -3661,7 +3687,6 @@ int wm_halo_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		dsp->running = true;
 
 		mutex_unlock(&dsp->pwr_lock);
-
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		/* Tell the firmware to cleanup */
@@ -3777,8 +3802,8 @@ int wm_halo_init(struct wm_adsp *dsp, struct mutex *rate_lock)
 	mutex_init(&dsp->pwr_lock);
 
 	dsp->rate_lock = rate_lock;
-	dsp->rx_rate_cache = kcalloc(dsp->n_rx_rates, sizeof(u8), GFP_KERNEL);
-	dsp->tx_rate_cache = kcalloc(dsp->n_tx_rates, sizeof(u8), GFP_KERNEL);
+	dsp->rx_rate_cache = kcalloc(dsp->n_rx_channels, sizeof(u8), GFP_KERNEL);
+	dsp->tx_rate_cache = kcalloc(dsp->n_tx_channels, sizeof(u8), GFP_KERNEL);
 
 	return 0;
 }
