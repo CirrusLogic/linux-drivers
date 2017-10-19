@@ -256,6 +256,13 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 	atomic_inc(&lower_sb->s_active);
 	esdfs_set_lower_super(sb, lower_sb);
 
+	sb->s_stack_depth = lower_sb->s_stack_depth + 1;
+	if (sb->s_stack_depth > FILESYSTEM_MAX_STACK_DEPTH) {
+		pr_err("esdfs: maximum fs stacking depth exceeded\n");
+		err = -EINVAL;
+		goto out_sput;
+	}
+
 	/* inherit maxbytes from lower file system */
 	sb->s_maxbytes = lower_sb->s_maxbytes;
 
