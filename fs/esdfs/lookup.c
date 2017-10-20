@@ -120,10 +120,20 @@ int esdfs_new_dentry_private_data(struct dentry *dentry)
 	return 0;
 }
 
-static int esdfs_inode_test(struct inode *inode, void *candidate_lower_inode)
+struct inode_data {
+	struct inode *lower_inode;
+	uint32_t id;
+};
+
+/* Multiple obb files can point to the same lower file */
+static int esdfs_inode_test(struct inode *inode, void *candidate_data)
 {
 	struct inode *current_lower_inode = esdfs_lower_inode(inode);
-	if (current_lower_inode == (struct inode *)candidate_lower_inode)
+	uint32_t current_userid = ESDFS_I(inode)->userid;
+	struct inode_data *data = (struct inode_data *)candidate_data;
+
+	if (current_lower_inode == data->lower_inode
+			&& current_userid == data->id)
 		return 1; /* found a match */
 	else
 		return 0; /* no match */
@@ -135,13 +145,17 @@ static int esdfs_inode_set(struct inode *inode, void *lower_inode)
 	return 0;
 }
 
-struct inode *esdfs_iget(struct super_block *sb, struct inode *lower_inode)
+struct inode *esdfs_iget(struct super_block *sb, struct inode *lower_inode,
+						uint32_t id)
 {
 	struct esdfs_inode_info *info;
+	struct inode_data data;
 	struct inode *inode; /* the new inode to return */
 
 	if (!igrab(lower_inode))
 		return ERR_PTR(-ESTALE);
+	data.id = id;
+	data.lower_inode = lower_inode;
 	inode = iget5_locked(sb, /* our superblock */
 			     /*
 			      * hashval: we use inode number, but we can
@@ -151,7 +165,7 @@ struct inode *esdfs_iget(struct super_block *sb, struct inode *lower_inode)
 			     lower_inode->i_ino, /* hashval */
 			     esdfs_inode_test,	/* inode comparison function */
 			     esdfs_inode_set, /* inode init function */
-			     lower_inode); /* data passed to test+set fxns */
+			     &data); /* data passed to test+set fxns */
 	if (!inode) {
 		iput(lower_inode);
 		return ERR_PTR(-ENOMEM);
@@ -219,7 +233,7 @@ struct inode *esdfs_iget(struct super_block *sb, struct inode *lower_inode)
  * @lower_path: the lower path (caller does path_get/put)
  */
 int esdfs_interpose(struct dentry *dentry, struct super_block *sb,
-		     struct path *lower_path)
+		     struct path *lower_path, uid_t id)
 {
 	int err = 0;
 	struct inode *inode;
@@ -241,7 +255,7 @@ int esdfs_interpose(struct dentry *dentry, struct super_block *sb,
 	 */
 
 	/* inherit lower inode number for esdfs's inode */
-	inode = esdfs_iget(sb, lower_inode);
+	inode = esdfs_iget(sb, lower_inode, id);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto out;
@@ -264,7 +278,8 @@ out:
  */
 static struct dentry *__esdfs_lookup(struct dentry *dentry,
 				     unsigned int flags,
-				     struct path *lower_parent_path)
+				     struct path *lower_parent_path,
+				     uint32_t id)
 {
 	int err = 0;
 	struct vfsmount *lower_dir_mnt;
@@ -292,7 +307,7 @@ static struct dentry *__esdfs_lookup(struct dentry *dentry,
 	/* no error: handle positive dentries */
 	if (!err) {
 		esdfs_set_lower_path(dentry, &lower_path);
-		err = esdfs_interpose(dentry, dentry->d_sb, &lower_path);
+		err = esdfs_interpose(dentry, dentry->d_sb, &lower_path, id);
 		if (err) /* path_put underlying path on error */
 			esdfs_put_reset_lower_paths(dentry);
 		goto out;
@@ -370,7 +385,8 @@ struct dentry *esdfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	esdfs_get_lower_path(parent, &lower_parent_path);
 
-	ret = __esdfs_lookup(dentry, flags, &lower_parent_path);
+	ret = __esdfs_lookup(dentry, flags, &lower_parent_path,
+					ESDFS_I(dir)->userid);
 	if (IS_ERR(ret))
 		goto out_put;
 	if (ret)

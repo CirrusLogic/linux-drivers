@@ -51,7 +51,8 @@ static int esdfs_create(struct inode *dir, struct dentry *dentry,
 	if (err)
 		goto out;
 
-	err = esdfs_interpose(dentry, dir->i_sb, &lower_path);
+	err = esdfs_interpose(dentry, dir->i_sb, &lower_path,
+				ESDFS_I(dir)->userid);
 	if (err)
 		goto out;
 	fsstack_copy_attr_times(dir, esdfs_lower_inode(dir));
@@ -191,7 +192,8 @@ static int esdfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	if (err)
 		goto out;
 
-	err = esdfs_interpose(dentry, dir->i_sb, &lower_path);
+	err = esdfs_interpose(dentry, dir->i_sb, &lower_path,
+				ESDFS_I(dir)->userid);
 	if (err)
 		goto out;
 

@@ -275,7 +275,7 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 	sb->s_op = &esdfs_sops;
 
 	/* get a new inode and allocate our root dentry */
-	inode = esdfs_iget(sb, lower_path.dentry->d_inode);
+	inode = esdfs_iget(sb, lower_path.dentry->d_inode, 0);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto out_sput;

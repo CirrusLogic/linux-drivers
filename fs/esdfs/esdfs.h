@@ -125,9 +125,10 @@ extern void esdfs_free_dentry_private_data(struct dentry *dentry);
 extern struct dentry *esdfs_lookup(struct inode *dir, struct dentry *dentry,
 				   unsigned int flags);
 extern struct inode *esdfs_iget(struct super_block *sb,
-				struct inode *lower_inode);
+				struct inode *lower_inode,
+				uint32_t id);
 extern int esdfs_interpose(struct dentry *dentry, struct super_block *sb,
-			   struct path *lower_path);
+			   struct path *lower_path, uint32_t id);
 extern int esdfs_init_package_list(void);
 extern void esdfs_destroy_package_list(void);
 extern void esdfs_derive_perms(struct dentry *dentry);
