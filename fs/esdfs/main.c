@@ -374,28 +374,27 @@ out:
 	return err;
 }
 
-/*
- * Based on mount_nodev() in fs/super.c (need to pass mount options).
- */
-struct dentry *esdfs_mount(struct file_system_type *fs_type, int flags,
-			    const char *dev_name, void *raw_data)
+struct esdfs_mount_private {
+	const char *dev_name;
+	void *raw_data;
+};
+
+static int __esdfs_fill_super(struct super_block *sb, void *_priv, int silent)
 {
-	int error;
-	struct super_block *s = sget(fs_type, NULL, set_anon_super, flags, NULL);
+	struct esdfs_mount_private *priv = _priv;
 
-	if (IS_ERR(s))
-		return ERR_CAST(s);
+	return esdfs_read_super(sb, priv->dev_name, priv->raw_data, silent);
+}
 
-	s->s_flags = flags;
+static struct dentry *esdfs_mount(struct file_system_type *fs_type, int flags,
+				const char *dev_name, void *raw_data)
+{
+	struct esdfs_mount_private priv = {
+		.dev_name = dev_name,
+		.raw_data = raw_data,
+	};
 
-	error = esdfs_read_super(s, dev_name, raw_data,
-					flags & MS_SILENT ? 1 : 0);
-	if (error) {
-		deactivate_locked_super(s);
-		return ERR_PTR(error);
-	}
-	s->s_flags |= MS_ACTIVE;
-	return dget(s->s_root);
+	return mount_nodev(fs_type, flags, &priv, __esdfs_fill_super);
 }
 
 static void esdfs_kill_sb(struct super_block *sb)
@@ -403,7 +402,7 @@ static void esdfs_kill_sb(struct super_block *sb)
 	if (sb->s_fs_info && ESDFS_SB(sb)->obb_parent)
 		dput(ESDFS_SB(sb)->obb_parent);
 
-	generic_shutdown_super(sb);
+	kill_anon_super(sb);
 }
 
 static struct file_system_type esdfs_fs_type = {
