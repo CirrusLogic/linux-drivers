@@ -3127,31 +3127,46 @@ static int stop_discovery(struct hci_request *req, unsigned long opt)
 	return 0;
 }
 
-static void discov_update(struct work_struct *work)
+static void start_discov_update(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
-					    discov_update);
+					    start_discov_update);
 	u8 status = 0;
 
-	switch (hdev->discovery.state) {
-	case DISCOVERY_STARTING:
+	BT_DBG("%s old state %u", hdev->name, hdev->discovery.state);
+
+	if (hci_discovery_active(hdev))
+		BT_DBG("discovery was already started");
+	else
 		start_discovery(hdev, &status);
-		mgmt_start_discovery_complete(hdev, status);
-		if (status)
-			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
-		else
-			hci_discovery_set_state(hdev, DISCOVERY_FINDING);
-		break;
-	case DISCOVERY_STOPPING:
-		hci_req_sync(hdev, stop_discovery, 0, HCI_CMD_TIMEOUT, &status);
-		mgmt_stop_discovery_complete(hdev, status);
-		if (!status)
-			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
-		break;
-	case DISCOVERY_STOPPED:
-	default:
-		return;
+
+	mgmt_start_discovery_complete(hdev, status);
+	if (status) {
+		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+		BT_ERR("Failed to start discovery: status 0x%02x", status);
+	} else {
+		hci_discovery_set_state(hdev, DISCOVERY_FINDING);
 	}
+}
+
+static void stop_discov_update(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    stop_discov_update);
+	u8 status = 0;
+
+	BT_DBG("%s old state %u", hdev->name, hdev->discovery.state);
+
+	if (hdev->discovery.state == DISCOVERY_STOPPED)
+		BT_DBG("discovery was already stopped");
+	else
+		hci_req_sync(hdev, stop_discovery, 0, HCI_CMD_TIMEOUT, &status);
+
+	mgmt_stop_discovery_complete(hdev, status);
+	if (status)
+		BT_ERR("Failed to stop discovery: status 0x%02x", status);
+	else
+		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 }
 
 static void discov_off(struct work_struct *work)
@@ -3289,7 +3304,8 @@ int __hci_req_hci_power_on(struct hci_dev *hdev)
 
 void hci_request_setup(struct hci_dev *hdev)
 {
-	INIT_WORK(&hdev->discov_update, discov_update);
+	INIT_WORK(&hdev->start_discov_update, start_discov_update);
+	INIT_WORK(&hdev->stop_discov_update, stop_discov_update);
 	INIT_WORK(&hdev->bg_scan_update, bg_scan_update);
 	INIT_WORK(&hdev->scan_update, scan_update_work);
 	INIT_WORK(&hdev->connectable_update, connectable_update_work);
@@ -3304,7 +3320,8 @@ void hci_request_cancel_all(struct hci_dev *hdev)
 {
 	hci_req_sync_cancel(hdev, ENODEV);
 
-	cancel_work_sync(&hdev->discov_update);
+	cancel_work_sync(&hdev->start_discov_update);
+	cancel_work_sync(&hdev->stop_discov_update);
 	cancel_work_sync(&hdev->bg_scan_update);
 	cancel_work_sync(&hdev->scan_update);
 	cancel_work_sync(&hdev->connectable_update);
