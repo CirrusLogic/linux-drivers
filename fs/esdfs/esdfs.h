@@ -57,6 +57,7 @@
 #define ESDFS_MOUNT_DERIVE_PUBLIC	0x00000008
 #define ESDFS_MOUNT_DERIVE_CONFINE	0x00000010
 #define ESDFS_MOUNT_ACCESS_DISABLE	0x00000020
+#define ESDFS_MOUNT_GID_DERIVATION	0x00000040
 
 #define clear_opt(sbi, option)	(sbi->options &= ~ESDFS_MOUNT_##option)
 #define set_opt(sbi, option)	(sbi->options |= ESDFS_MOUNT_##option)
@@ -76,6 +77,7 @@
 #define AID_SDCARD_PICS   1033
 #define AID_SDCARD_AV     1034
 #define AID_SDCARD_ALL    1035
+#define AID_MEDIA_OBB     1059
 
 /* used in extra persmission check during file creation */
 #define ESDFS_MAY_CREATE	0x00001000
@@ -91,6 +93,7 @@ enum {
 	ESDFS_TREE_ANDROID_OBB,		/* .../Android/obb */
 	ESDFS_TREE_ANDROID_MEDIA,	/* .../Android/media */
 	ESDFS_TREE_ANDROID_APP,		/* .../Android/data|obb|media/... */
+	ESDFS_TREE_ANDROID_APP_CACHE,	/* .../Android/data|obb|media/.../cache */
 	ESDFS_TREE_ANDROID_USER,	/* .../Android/user */
 };
 
@@ -102,7 +105,17 @@ enum {
 	ESDFS_PERMS_TABLE_SIZE
 };
 
+#define PKG_NAME_MAX		128
 #define PKG_APPID_PER_USER	100000
+#define AID_APP_START		10000 /* first app user */
+#define AID_APP_END		19999 /* last app user */
+#define AID_CACHE_GID_START	20000 /* start of gids for apps to mark cached data */
+#define AID_EXT_GID_START	30000 /* start of gids for apps to mark external data */
+#define AID_EXT_CACHE_GID_START	40000 /* start of gids for apps to mark external cached data */
+#define AID_EXT_CACHE_GID_END	49999 /* end of gids for apps to mark external cached data */
+#define AID_SHARED_GID_START	50000 /* start of gids for apps in each user to share */
+#define PKG_APPID_MIN		1000
+#define PKG_APPID_MAX		(PKG_APPID_PER_USER - 1)
 
 /* operations vectors defined in specific files */
 extern const struct file_operations esdfs_main_fops;
@@ -191,6 +204,8 @@ void esdfs_drop_shared_icache(struct super_block *, struct inode *);
 void esdfs_drop_sb_icache(struct super_block *, unsigned long);
 void esdfs_add_super(struct esdfs_sb_info *, struct super_block *);
 void esdfs_truncate_share(struct super_block *, struct inode *, loff_t newsize);
+
+void esdfs_derive_lower_ownership(struct dentry *dentry, const char *name);
 
 static inline bool is_obb(struct qstr *name) {
 	struct qstr q_obb = QSTR_LITERAL("obb");
@@ -424,6 +439,29 @@ static inline void esdfs_revalidate_perms(struct dentry *dentry)
 	}
 }
 
+static inline uid_t derive_uid(struct esdfs_inode_info *inode_i, uid_t uid)
+{
+	return inode_i->userid * PKG_APPID_PER_USER +
+	       (uid % PKG_APPID_PER_USER);
+}
+
+static inline bool uid_is_app(uid_t uid)
+{
+	uid_t appid = uid % PKG_APPID_PER_USER;
+
+	return appid >= AID_APP_START && appid <= AID_APP_END;
+}
+
+static inline gid_t multiuser_get_ext_cache_gid(uid_t uid)
+{
+	return uid - AID_APP_START + AID_EXT_CACHE_GID_START;
+}
+
+static inline gid_t multiuser_get_ext_gid(uid_t uid)
+{
+	return uid - AID_APP_START + AID_EXT_GID_START;
+}
+
 /* file attribute helpers */
 static inline void esdfs_copy_lower_attr(struct inode *dest,
 					 const struct inode *src)
@@ -493,9 +531,11 @@ static inline void esdfs_i_gid_write(struct inode *inode, gid_t gid)
  * Returns NULL if prepare_creds() could not allocate heap, otherwise
  */
 static inline const struct cred *esdfs_override_creds(
-		struct esdfs_sb_info *sbi, int *mask)
+		struct esdfs_sb_info *sbi,
+		struct esdfs_inode_info *info, int *mask)
 {
 	struct cred *creds = prepare_creds();
+	uid_t uid;
 
 	if (!creds)
 		return NULL;
@@ -506,7 +546,15 @@ static inline const struct cred *esdfs_override_creds(
 		*mask = xchg(&current->fs->umask, *mask & S_IRWXUGO);
 	}
 
-	creds->fsuid = esdfs_make_kuid(sbi, sbi->lower_perms.uid);
+	if (test_opt(sbi, GID_DERIVATION)) {
+		if (info->tree == ESDFS_TREE_ANDROID_OBB)
+			uid = AID_MEDIA_OBB;
+		else
+			uid = derive_uid(info, sbi->lower_perms.uid);
+	} else {
+		uid = sbi->lower_perms.uid;
+	}
+	creds->fsuid = esdfs_make_kuid(sbi, uid);
 	creds->fsgid = esdfs_make_kgid(sbi, sbi->lower_perms.gid);
 
 	/* this installs the new creds into current, which we must destroy */

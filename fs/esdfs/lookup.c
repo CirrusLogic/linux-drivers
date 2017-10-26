@@ -388,7 +388,8 @@ struct dentry *esdfs_lookup(struct inode *dir, struct dentry *dentry,
 	struct dentry *ret, *real_parent, *parent;
 	struct path lower_parent_path, old_lower_parent_path;
 	const struct cred *creds =
-			esdfs_override_creds(ESDFS_SB(dir->i_sb), NULL);
+			esdfs_override_creds(ESDFS_SB(dir->i_sb),
+					ESDFS_I(dir), NULL);
 	if (!creds)
 		return NULL;
 
@@ -417,9 +418,11 @@ struct dentry *esdfs_lookup(struct inode *dir, struct dentry *dentry,
 		goto out_put;
 	if (ret)
 		dentry = ret;
-	if (dentry->d_inode)
+	if (dentry->d_inode) {
 		fsstack_copy_attr_times(dentry->d_inode,
 					esdfs_lower_inode(dentry->d_inode));
+		esdfs_derive_lower_ownership(dentry, dentry->d_name.name);
+	}
 	/* update parent directory's atime */
 	fsstack_copy_attr_atime(parent->d_inode,
 				esdfs_lower_inode(parent->d_inode));

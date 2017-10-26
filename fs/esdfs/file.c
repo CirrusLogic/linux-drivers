@@ -20,7 +20,8 @@ static ssize_t esdfs_read(struct file *file, char __user *buf,
 	struct file *lower_file;
 	struct dentry *dentry = file->f_path.dentry;
 	const struct cred *creds =
-			esdfs_override_creds(ESDFS_SB(dentry->d_sb), NULL);
+			esdfs_override_creds(ESDFS_SB(dentry->d_sb),
+					ESDFS_I(file->f_inode), NULL);
 	if (!creds)
 		return -ENOMEM;
 
@@ -43,7 +44,8 @@ static ssize_t esdfs_write(struct file *file, const char __user *buf,
 	struct file *lower_file;
 	struct dentry *dentry = file->f_path.dentry;
 	const struct cred *creds =
-			esdfs_override_creds(ESDFS_SB(dentry->d_sb), NULL);
+			esdfs_override_creds(ESDFS_SB(dentry->d_sb),
+					ESDFS_I(file->f_inode), NULL);
 	if (!creds)
 		return -ENOMEM;
 
@@ -67,7 +69,8 @@ static int esdfs_readdir(struct file *file, struct dir_context *ctx)
 	struct file *lower_file = NULL;
 	struct dentry *dentry = file->f_path.dentry;
 	const struct cred *creds =
-			esdfs_override_creds(ESDFS_SB(dentry->d_sb), NULL);
+			esdfs_override_creds(ESDFS_SB(dentry->d_sb),
+					ESDFS_I(file->f_inode), NULL);
 	if (!creds)
 		return -ENOMEM;
 
@@ -87,7 +90,8 @@ static long esdfs_unlocked_ioctl(struct file *file, unsigned int cmd,
 	long err = -ENOTTY;
 	struct file *lower_file;
 	struct esdfs_sb_info *sbi = ESDFS_SB(file->f_path.dentry->d_sb);
-	const struct cred *creds = esdfs_override_creds(sbi, NULL);
+	const struct cred *creds = esdfs_override_creds(sbi,
+					ESDFS_I(file->f_inode), NULL);
 	if (!creds)
 		return -ENOMEM;
 
@@ -125,7 +129,8 @@ static long esdfs_compat_ioctl(struct file *file, unsigned int cmd,
 	long err = -ENOTTY;
 	struct file *lower_file;
 	struct esdfs_sb_info *sbi = ESDFS_SB(file->f_path.dentry->d_sb);
-	const struct cred *creds = esdfs_override_creds(sbi, NULL);
+	const struct cred *creds = esdfs_override_creds(sbi,
+					ESDFS_I(file->f_inode), NULL);
 	if (!creds)
 		return -ENOMEM;
 
@@ -150,7 +155,8 @@ static int esdfs_mmap(struct file *file, struct vm_area_struct *vma)
 	struct file *lower_file;
 	const struct vm_operations_struct *saved_vm_ops = NULL;
 	struct esdfs_sb_info *sbi = ESDFS_SB(file->f_path.dentry->d_sb);
-	const struct cred *creds = esdfs_override_creds(sbi, NULL);
+	const struct cred *creds = esdfs_override_creds(sbi,
+					ESDFS_I(file->f_inode), NULL);
 	if (!creds)
 		return -ENOMEM;
 
@@ -216,7 +222,8 @@ static int esdfs_open(struct inode *inode, struct file *file)
 	struct path lower_path;
 	struct esdfs_sb_info *sbi = ESDFS_SB(inode->i_sb);
 	const struct cred *creds =
-			esdfs_override_creds(ESDFS_SB(inode->i_sb), NULL);
+			esdfs_override_creds(ESDFS_SB(inode->i_sb),
+					ESDFS_I(file->f_inode), NULL);
 	if (!creds)
 		return -ENOMEM;
 
@@ -267,7 +274,8 @@ static int esdfs_flush(struct file *file, fl_owner_t id)
 	int err = 0;
 	struct file *lower_file = NULL;
 	struct esdfs_sb_info *sbi = ESDFS_SB(file->f_path.dentry->d_sb);
-	const struct cred *creds = esdfs_override_creds(sbi, NULL);
+	const struct cred *creds = esdfs_override_creds(sbi,
+					ESDFS_I(file->f_inode), NULL);
 	if (!creds)
 		return -ENOMEM;
 
@@ -304,7 +312,8 @@ static int esdfs_fsync(struct file *file, loff_t start, loff_t end,
 	struct path lower_path;
 	struct dentry *dentry = file->f_path.dentry;
 	const struct cred *creds =
-			esdfs_override_creds(ESDFS_SB(dentry->d_sb), NULL);
+			esdfs_override_creds(ESDFS_SB(dentry->d_sb),
+					ESDFS_I(file->f_inode), NULL);
 	if (!creds)
 		return -ENOMEM;
 
@@ -325,7 +334,8 @@ static int esdfs_fasync(int fd, struct file *file, int flag)
 	int err = 0;
 	struct file *lower_file = NULL;
 	struct esdfs_sb_info *sbi = ESDFS_SB(file->f_path.dentry->d_sb);
-	const struct cred *creds = esdfs_override_creds(sbi, NULL);
+	const struct cred *creds = esdfs_override_creds(sbi,
+					ESDFS_I(file->f_inode), NULL);
 	if (!creds)
 		return -ENOMEM;
 
@@ -348,7 +358,8 @@ static loff_t esdfs_file_llseek(struct file *file, loff_t offset, int whence)
 	int err;
 	struct file *lower_file;
 	struct esdfs_sb_info *sbi = ESDFS_SB(file->f_path.dentry->d_sb);
-	const struct cred *creds = esdfs_override_creds(sbi, NULL);
+	const struct cred *creds = esdfs_override_creds(sbi,
+				ESDFS_I(file->f_inode), NULL);
 	if (!creds)
 		return -ENOMEM;
 

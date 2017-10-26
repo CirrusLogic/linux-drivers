@@ -29,6 +29,7 @@ enum {
 	Opt_derive_public,
 	Opt_confine,
 	Opt_noconfine,
+	Opt_gid_derivation,
 	Opt_err
 };
 
@@ -42,6 +43,7 @@ static match_table_t esdfs_tokens = {
 	{Opt_derive_public, "derive=public"},
 	{Opt_confine, "confine"},
 	{Opt_noconfine, "noconfine"},
+	{Opt_gid_derivation, "derive_gid"},
 	{Opt_err, NULL},
 };
 
@@ -185,6 +187,9 @@ static int parse_options(struct super_block *sb, char *options)
 			break;
 		case Opt_noconfine:
 			clear_opt(sbi, DERIVE_CONFINE);
+			break;
+		case Opt_gid_derivation:
+			set_opt(sbi, GID_DERIVATION);
 			break;
 		default:
 			esdfs_msg(sb, KERN_ERR,

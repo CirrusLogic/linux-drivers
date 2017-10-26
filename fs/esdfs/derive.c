@@ -19,6 +19,7 @@
 #include <linux/fcntl.h>
 #include <linux/ctype.h>
 #include <linux/vmalloc.h>
+#include <linux/security.h>
 #include <linux/uaccess.h>
 #include "esdfs.h"
 
@@ -40,12 +41,6 @@ static inline bool match_name(struct qstr *name, struct qstr names[])
 			return true;
 
 	return false;
-}
-
-static inline uid_t derive_uid(struct esdfs_inode_info *inode_i, uid_t uid)
-{
-	return inode_i->userid * PKG_APPID_PER_USER +
-	       (uid % PKG_APPID_PER_USER);
 }
 
 unsigned esdfs_package_list_version;
@@ -139,6 +134,10 @@ void esdfs_derive_perms(struct dentry *dentry)
 			inode_i->appid = 0;
 		inode_i->tree = ESDFS_TREE_ANDROID_APP;
 		break;
+	case ESDFS_TREE_ANDROID_APP:
+		if (qstr_case_eq(&dentry->d_name, &q_cache))
+			inode_i->tree = ESDFS_TREE_ANDROID_APP_CACHE;
+		break;
 	case ESDFS_TREE_ANDROID_USER:
 		/* Another user, so start over */
 		inode_i->tree = ESDFS_TREE_ROOT;
@@ -204,6 +203,7 @@ void esdfs_set_derived_perms(struct inode *inode)
 		break;
 
 	case ESDFS_TREE_ANDROID_APP:
+	case ESDFS_TREE_ANDROID_APP_CACHE:
 		if (inode_i->appid)
 			esdfs_i_uid_write(inode, derive_uid(inode_i,
 							inode_i->appid));
@@ -338,12 +338,141 @@ int esdfs_check_derived_permission(struct inode *inode, int mask)
 	      ESDFS_I(inode)->tree != ESDFS_TREE_ANDROID_OBB &&
 	      ESDFS_I(inode)->tree != ESDFS_TREE_ANDROID_MEDIA &&
 	      ESDFS_I(inode)->tree != ESDFS_TREE_ANDROID_APP &&
+	      ESDFS_I(inode)->tree != ESDFS_TREE_ANDROID_APP_CACHE &&
 	      (ESDFS_I(inode)->tree != ESDFS_TREE_ROOT ||
 	       !(mask & ESDFS_MAY_CREATE)))))
 		return 0;
 
 	pr_debug("esdfs: %s: denying access to appid: %u\n", __func__, appid);
 	return -EACCES;
+}
+
+static gid_t get_type(struct esdfs_sb_info *sbi, const char *name)
+{
+	const char *ext = strrchr(name, '.');
+	kgid_t id;
+
+	if (ext && ext[0]) {
+		ext = &ext[1];
+		id = pkglist_get_ext_gid(ext);
+		return gid_valid(id)?esdfs_from_kgid(sbi, id):AID_MEDIA_RW;
+	}
+	return AID_MEDIA_RW;
+}
+
+static kuid_t esdfs_get_derived_lower_uid(struct esdfs_sb_info *sbi,
+				struct esdfs_inode_info *info)
+{
+	uid_t uid = sbi->lower_perms.uid;
+	int perm;
+
+	perm = info->tree;
+	switch (perm) {
+	case ESDFS_TREE_ROOT:
+	case ESDFS_TREE_MEDIA:
+	case ESDFS_TREE_ANDROID:
+	case ESDFS_TREE_ANDROID_DATA:
+	case ESDFS_TREE_ANDROID_MEDIA:
+	case ESDFS_TREE_ANDROID_APP:
+	case ESDFS_TREE_ANDROID_APP_CACHE:
+		uid = derive_uid(info, uid);
+		break;
+	case ESDFS_TREE_ANDROID_OBB:
+		uid = AID_MEDIA_OBB;
+		break;
+	case ESDFS_TREE_ROOT_LEGACY:
+	default:
+		break;
+	}
+	return esdfs_make_kuid(sbi, uid);
+}
+
+static kgid_t esdfs_get_derived_lower_gid(struct esdfs_sb_info *sbi,
+				struct esdfs_inode_info *info, const char *name)
+{
+	gid_t gid = sbi->lower_perms.gid;
+	uid_t upper_uid;
+	int perm;
+
+	upper_uid = esdfs_i_uid_read(&info->vfs_inode);
+	perm = info->tree;
+	switch (perm) {
+	case ESDFS_TREE_ROOT:
+	case ESDFS_TREE_MEDIA:
+	case ESDFS_TREE_ANDROID:
+	case ESDFS_TREE_ANDROID_DATA:
+	case ESDFS_TREE_ANDROID_MEDIA:
+		if (S_ISDIR(info->vfs_inode.i_mode))
+			gid = derive_uid(info, AID_MEDIA_RW);
+		else
+			gid = derive_uid(info, get_type(sbi, name));
+		break;
+	case ESDFS_TREE_ANDROID_OBB:
+		gid = AID_MEDIA_OBB;
+		break;
+	case ESDFS_TREE_ANDROID_APP:
+		if (uid_is_app(upper_uid))
+			gid = multiuser_get_ext_gid(upper_uid);
+		else
+			gid = derive_uid(info, AID_MEDIA_RW);
+		break;
+	case ESDFS_TREE_ANDROID_APP_CACHE:
+		if (uid_is_app(upper_uid))
+			gid = multiuser_get_ext_cache_gid(upper_uid);
+		else
+			gid = derive_uid(info, AID_MEDIA_RW);
+		break;
+	case ESDFS_TREE_ROOT_LEGACY:
+	default:
+		break;
+	}
+	return esdfs_make_kgid(sbi, gid);
+}
+
+void esdfs_derive_lower_ownership(struct dentry *dentry, const char *name)
+{
+	struct path path;
+	struct inode *inode;
+	struct inode *delegated_inode = NULL;
+	int error;
+	struct esdfs_sb_info *sbi = ESDFS_SB(dentry->d_sb);
+	struct esdfs_inode_info *info = ESDFS_I(dentry->d_inode);
+	kuid_t kuid;
+	kgid_t kgid;
+	struct iattr newattrs;
+
+	if (!test_opt(sbi, GID_DERIVATION))
+		return;
+
+	esdfs_get_lower_path(dentry, &path);
+	inode = path.dentry->d_inode;
+	kuid = esdfs_get_derived_lower_uid(sbi, info);
+	kgid = esdfs_get_derived_lower_gid(sbi, info, name);
+	if (!gid_eq(path.dentry->d_inode->i_gid, kgid)
+		|| !uid_eq(path.dentry->d_inode->i_uid, kuid)) {
+retry_deleg:
+		newattrs.ia_valid = ATTR_GID | ATTR_UID | ATTR_FORCE;
+		newattrs.ia_uid = kuid;
+		newattrs.ia_gid = kgid;
+		if (!S_ISDIR(inode->i_mode))
+			newattrs.ia_valid |= ATTR_KILL_SUID | ATTR_KILL_SGID
+						| ATTR_KILL_PRIV;
+		inode_lock(inode);
+		error = security_path_chown(&path, newattrs.ia_uid,
+						newattrs.ia_gid);
+		if (!error)
+			error = notify_change(path.dentry, &newattrs,
+						&delegated_inode);
+		inode_unlock(inode);
+		if (delegated_inode) {
+			error = break_deleg_wait(&delegated_inode);
+			if (!error)
+				goto retry_deleg;
+		}
+		if (error)
+			pr_debug("esdfs: Failed to touch up lower fs gid/uid for %s\n", name);
+	}
+	esdfs_put_lower_path(dentry, &path);
 }
 
 /*
@@ -359,6 +488,8 @@ int esdfs_derive_mkdir_contents(struct dentry *dir_dentry)
 	struct dentry *lower_parent_dentry = NULL;
 	umode_t mode;
 	int err = 0;
+	const struct cred *creds;
+	int mask = 0;
 
 	if (!dir_dentry->d_inode)
 		return 0;
@@ -387,6 +518,8 @@ int esdfs_derive_mkdir_contents(struct dentry *dir_dentry)
 		lower_dir_path.dentry->d_op->d_hash(lower_dir_path.dentry,
 							&nomedia);
 
+	creds = esdfs_override_creds(ESDFS_SB(dir_dentry->d_sb),
+					inode_i, &mask);
 	/* See if the lower file is there already. */
 	err = vfs_path_lookup(lower_dir_path.dentry, lower_dir_path.mnt,
 			      nomedia.name, 0, &lower_path);
@@ -419,6 +552,6 @@ int esdfs_derive_mkdir_contents(struct dentry *dir_dentry)
 
 out:
 	esdfs_put_lower_path(dir_dentry, &lower_dir_path);
-
+	esdfs_revert_creds(creds, &mask);
 	return err;
 }
