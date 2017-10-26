@@ -246,6 +246,7 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 		memcpy(&sbi->upper_perms,
 		       &esdfs_perms_table[ESDFS_PERMS_UPPER_LEGACY],
 		       sizeof(struct esdfs_perms));
+	memcpy(&sbi->base_ns, current_user_ns(), sizeof(sbi->base_ns));
 	err = parse_options(sb, (char *)raw_data);
 	if (err)
 		goto out_free;

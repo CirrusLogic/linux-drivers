@@ -31,6 +31,8 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/fs_struct.h>
+#include <linux/uidgid.h>
+#include <linux/user_namespace.h>
 #include <linux/pkglist.h>
 
 #include "../internal.h"
@@ -173,6 +175,7 @@ struct esdfs_dentry_info {
 struct esdfs_sb_info {
 	struct super_block *lower_sb;
 	struct super_block *s_sb;
+	struct user_namespace base_ns;
 	struct list_head s_list;
 	struct esdfs_perms lower_perms;
 	struct esdfs_perms upper_perms;	/* root in derived mode */
@@ -436,6 +439,50 @@ static inline void esdfs_copy_attr(struct inode *dest, const struct inode *src)
 	esdfs_set_perms(dest);
 }
 
+static inline uid_t esdfs_from_kuid(struct esdfs_sb_info *sbi, kuid_t uid)
+{
+	return from_kuid(&sbi->base_ns, uid);
+}
+
+static inline gid_t esdfs_from_kgid(struct esdfs_sb_info *sbi, kgid_t gid)
+{
+	return from_kgid(&sbi->base_ns, gid);
+}
+
+static inline kuid_t esdfs_make_kuid(struct esdfs_sb_info *sbi, uid_t uid)
+{
+	return make_kuid(&sbi->base_ns, uid);
+}
+
+static inline kgid_t esdfs_make_kgid(struct esdfs_sb_info *sbi, gid_t gid)
+{
+	return make_kgid(&sbi->base_ns, gid);
+}
+
+/* Helper functions to read and write to inode uid/gids without
+ * having to worry about translating into/out of esdfs's preferred
+ * base user namespace.
+ */
+static inline uid_t esdfs_i_uid_read(const struct inode *inode)
+{
+	return esdfs_from_kuid(ESDFS_SB(inode->i_sb), inode->i_uid);
+}
+
+static inline gid_t esdfs_i_gid_read(const struct inode *inode)
+{
+	return esdfs_from_kgid(ESDFS_SB(inode->i_sb), inode->i_gid);
+}
+
+static inline void esdfs_i_uid_write(struct inode *inode, uid_t uid)
+{
+	inode->i_uid = esdfs_make_kuid(ESDFS_SB(inode->i_sb), uid);
+}
+
+static inline void esdfs_i_gid_write(struct inode *inode, gid_t gid)
+{
+	inode->i_gid = esdfs_make_kgid(ESDFS_SB(inode->i_sb), gid);
+}
+
 /*
  * Based on nfs4_save_creds() and nfs4_reset_creds() in nfsd/nfs4recover.c.
  * Returns NULL if prepare_creds() could not allocate heap, otherwise
@@ -454,8 +501,8 @@ static inline const struct cred *esdfs_override_creds(
 		*mask = xchg(&current->fs->umask, *mask & S_IRWXUGO);
 	}
 
-	creds->fsuid = make_kuid(&init_user_ns, sbi->lower_perms.uid);
-	creds->fsgid = make_kgid(&init_user_ns, sbi->lower_perms.gid);
+	creds->fsuid = esdfs_make_kuid(sbi, sbi->lower_perms.uid);
+	creds->fsgid = esdfs_make_kgid(sbi, sbi->lower_perms.gid);
 
 	/* this installs the new creds into current, which we must destroy */
 	return override_creds(creds);

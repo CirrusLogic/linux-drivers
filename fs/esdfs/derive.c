@@ -141,7 +141,8 @@ void esdfs_derive_perms(struct dentry *dentry)
 		appid = pkglist_get_allowed_appid(dentry->d_name.name,
 						inode_i->userid);
 		if (uid_valid(appid))
-			inode_i->appid = appid.val;
+			inode_i->appid = esdfs_from_kuid(
+					ESDFS_SB(dentry->d_sb), appid);
 		else
 			inode_i->appid = 0;
 		inode_i->tree = ESDFS_TREE_ANDROID_APP;
@@ -162,15 +163,15 @@ void esdfs_set_derived_perms(struct inode *inode)
 	struct esdfs_inode_info *inode_i = ESDFS_I(inode);
 	gid_t gid = sbi->upper_perms.gid;
 
-	i_uid_write(inode, sbi->upper_perms.uid);
+	esdfs_i_uid_write(inode, sbi->upper_perms.uid);
 	inode->i_mode &= S_IFMT;
 	if (ESDFS_RESTRICT_PERMS(sbi))
-		i_gid_write(inode, gid);
+		esdfs_i_gid_write(inode, gid);
 	else {
 		if (gid == AID_SDCARD_RW)
-			i_gid_write(inode, AID_SDCARD_RW);
+			esdfs_i_gid_write(inode, AID_SDCARD_RW);
 		else
-			i_gid_write(inode, derive_uid(inode_i, gid));
+			esdfs_i_gid_write(inode, derive_uid(inode_i, gid));
 		inode->i_mode |= sbi->upper_perms.dmask;
 	}
 
@@ -187,7 +188,7 @@ void esdfs_set_derived_perms(struct inode *inode)
 	case ESDFS_TREE_NONE:
 	case ESDFS_TREE_ROOT:
 		if (ESDFS_RESTRICT_PERMS(sbi)) {
-			i_gid_write(inode, AID_SDCARD_R);
+			esdfs_i_gid_write(inode, AID_SDCARD_R);
 			inode->i_mode |= sbi->upper_perms.dmask;
 		} else if (test_opt(sbi, DERIVE_PUBLIC) &&
 			   test_opt(ESDFS_SB(inode->i_sb), DERIVE_CONFINE)) {
@@ -198,7 +199,7 @@ void esdfs_set_derived_perms(struct inode *inode)
 
 	case ESDFS_TREE_MEDIA:
 		if (ESDFS_RESTRICT_PERMS(sbi)) {
-			i_gid_write(inode, AID_SDCARD_R);
+			esdfs_i_gid_write(inode, AID_SDCARD_R);
 			inode->i_mode |= 0770;
 		}
 		break;
@@ -213,14 +214,15 @@ void esdfs_set_derived_perms(struct inode *inode)
 
 	case ESDFS_TREE_ANDROID_APP:
 		if (inode_i->appid)
-			i_uid_write(inode, derive_uid(inode_i, inode_i->appid));
+			esdfs_i_uid_write(inode, derive_uid(inode_i,
+							inode_i->appid));
 		if (ESDFS_RESTRICT_PERMS(sbi))
 			inode->i_mode |= 0770;
 		break;
 
 	case ESDFS_TREE_ANDROID_USER:
 		if (ESDFS_RESTRICT_PERMS(sbi)) {
-			i_gid_write(inode, AID_SDCARD_ALL);
+			esdfs_i_gid_write(inode, AID_SDCARD_ALL);
 			inode->i_mode |= 0770;
 		}
 		inode->i_mode |= 0770;
