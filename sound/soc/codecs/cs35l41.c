@@ -437,76 +437,55 @@ static irqreturn_t cs35l41_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static const struct reg_sequence cs35l41_pup_patch[] = {
+	{0x00000040,			0x00005555},
+	{0x00000040,			0x0000AAAA},
+	{0x00002084,			0x002F1AA0},
+	{0x00000040,			0x0000CCCC},
+	{0x00000040,			0x00003333},
+};
+
+static const struct reg_sequence cs35l41_pdn_patch[] = {
+	{0x00000040,			0x00005555},
+	{0x00000040,			0x0000AAAA},
+	{0x00002084,			0x002F1AA3},
+	{0x00000040,			0x0000CCCC},
+	{0x00000040,			0x00003333},
+};
+
 static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct cs35l41_private *cs35l41 = snd_soc_component_get_drvdata(component);
-	int ret = 0, i = 0;
-	unsigned int reg[4];
-	u32 pwr_done;
+	int ret = 0;
+	unsigned int reg;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		regmap_register_patch(cs35l41->regmap,
+				cs35l41_pup_patch,
+				ARRAY_SIZE(cs35l41_pup_patch));
+
 		regmap_update_bits(cs35l41->regmap, CS35L41_PWR_CTRL1,
 				CS35L41_GLOBAL_EN_MASK,
 				1 << CS35L41_GLOBAL_EN_SHIFT);
-		regmap_write(cs35l41->regmap, CS35L41_IRQ1_MASK1,
-				CS35L41_INT1_UNMASK_PUP);
 
-		reinit_completion(&cs35l41->global_pup_done);
+		usleep_range(1000, 1100);
 
-		ret = wait_for_completion_timeout(&cs35l41->global_pup_done,
-						msecs_to_jiffies(500));
-		if (ret == 0) {
-			dev_dbg(codec->dev, "TIMEOUT PUP_DONE\n");
-			regmap_read(cs35l41->regmap, CS35L41_IRQ1_STATUS1,
-					&pwr_done);
-
-			if (pwr_done & CS35L41_PUP_DONE_MASK) {
-				dev_dbg(cs35l41->dev, "Interrupt failed to fire for PUP done\n");
-				cs35l41_irq(0, cs35l41);
-			} else {
-				ret = -ETIMEDOUT;
-			}
-
-			regmap_write(cs35l41->regmap, CS35L41_IRQ1_MASK1,
-					CS35L41_INT1_MASK_DEFAULT);
-		}
-
-		regmap_write(cs35l41->regmap, CS35L41_IRQ1_MASK1,
-				CS35L41_INT1_MASK_DEFAULT);
-
-		for (i = 0; i < 2; i++)
-			regmap_bulk_read(cs35l41->regmap, CS35L41_IRQ1_STATUS1,
-					&reg, ARRAY_SIZE(reg));
-
+		regmap_read(cs35l41->regmap, CS35L41_IRQ1_RAW_STATUS3, &reg);
+		if (reg & CS35L41_PLL_UNLOCK)
+			dev_warn(cs35l41->dev, "PLL Unlocked\n");
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		regmap_write(cs35l41->regmap, CS35L41_IRQ1_MASK1,
-				CS35L41_INT1_UNMASK_PDN);
 		regmap_update_bits(cs35l41->regmap, CS35L41_PWR_CTRL1,
 				CS35L41_GLOBAL_EN_MASK, 0);
-		reinit_completion(&cs35l41->global_pdn_done);
 
-		ret = wait_for_completion_timeout(&cs35l41->global_pdn_done,
-							msecs_to_jiffies(300));
-		if (ret == 0) {
-			dev_dbg(cs35l41->dev, "TIMEOUT PDN_DONE\n");
+		usleep_range(1000, 1100);
 
-			regmap_read(cs35l41->regmap, CS35L41_IRQ1_STATUS1,
-					&pwr_done);
-			if (pwr_done & CS35L41_PDN_DONE_MASK) {
-				dev_dbg(cs35l41->dev, "Interrupt failed to fire for PDN done\n");
-				cs35l41_irq(0, cs35l41);
-			} else {
-				ret = -ETIMEDOUT;
-			}
-		}
-
-		regmap_write(cs35l41->regmap, CS35L41_IRQ1_MASK1,
-				CS35L41_INT1_MASK_DEFAULT);
-
+		regmap_register_patch(cs35l41->regmap,
+				cs35l41_pdn_patch,
+				ARRAY_SIZE(cs35l41_pdn_patch));
 		break;
 	default:
 		dev_err(cs35l41->dev, "Invalid event = 0x%x\n", event);
