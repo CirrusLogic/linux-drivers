@@ -1180,8 +1180,8 @@ static int cs35l41_dsp_init(struct cs35l41_private *cs35l41)
 	dsp->num_mems = ARRAY_SIZE(cs35l41_dsp1_regions);
 	dsp->lock_regions = 0xFFFFFFFF;
 
-	dsp->n_rx_rates = CS35L41_DSP_N_RX_RATES;
-	dsp->n_tx_rates = CS35L41_DSP_N_TX_RATES;
+	dsp->n_rx_channels = CS35L41_DSP_N_RX_RATES;
+	dsp->n_tx_channels = CS35L41_DSP_N_TX_RATES;
 
 	mutex_init(&cs35l41->rate_lock);
 	ret = wm_halo_init(dsp, &cs35l41->rate_lock);
