@@ -98,6 +98,9 @@ struct wm_adsp {
 	struct mutex pwr_lock;
 	struct mutex *fw_lock;
 
+	unsigned int lock_regions;
+	bool unlock_all;
+
 	unsigned int n_rx_channels;
 	unsigned int n_tx_channels;
 
@@ -111,8 +114,6 @@ struct wm_adsp {
 	char *bin_file_name;
 	bool slave_dbg_ena;
 #endif
-
-	unsigned int lock_regions;
 };
 
 #define WM_ADSP1(wname, num) \
