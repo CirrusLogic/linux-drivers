@@ -3206,6 +3206,7 @@ static int wm_halo_configure_mpu(struct wm_adsp *dsp)
 	unsigned int sysinfo_base = dsp->base_sysinfo, dsp_base = dsp->base;
 	unsigned int xm_sz, xm_bank_sz, ym_sz, ym_bank_sz;
 	unsigned int xm_acc_cfg, ym_acc_cfg;
+	unsigned int lock_cfg;
 
 	ret = regmap_read(regmap, sysinfo_base + HALO_SYS_INFO_XM_BANK_SIZE,
 			  &xm_bank_sz);
@@ -3283,9 +3284,11 @@ static int wm_halo_configure_mpu(struct wm_adsp *dsp)
 		goto err;
 
 	len = sizeof(halo_mpu_access) / sizeof(halo_mpu_access[0]);
-	/* lock all other banks */
+	/* configure all other banks */
+	lock_cfg = (dsp->unlock_all) ? 0xFFFFFFFF : 0;
 	for (i = 0; i < len; i++) { /* TODO: think if can be done without LUT */
-		ret = regmap_write(regmap, dsp_base + halo_mpu_access[i], 0);
+		ret = regmap_write(regmap, dsp_base + halo_mpu_access[i],
+					lock_cfg);
 		if (ret)
 			goto err;
 	}
