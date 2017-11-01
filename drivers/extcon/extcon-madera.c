@@ -2117,9 +2117,12 @@ static void madera_micd_handler(struct work_struct *work)
 	if (ret == -EAGAIN)
 		goto out;
 
-	dev_dbg(info->dev, "Mic impedance %d ohms\n", ret);
+	if (ret >= 0) {
+		dev_dbg(info->dev, "Mic impedance %d ohms\n", ret);
+		ret = madera_ohm_to_hohm((unsigned int)ret);
+	}
 
-	madera_jds_reading(info, madera_ohm_to_hohm((unsigned int)ret));
+	madera_jds_reading(info, ret);
 
 out:
 	madera_jds_start_timeout(info);
