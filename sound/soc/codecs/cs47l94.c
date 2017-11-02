@@ -3300,6 +3300,7 @@ static int cs47l94_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, cs47l94);
+	pdev->dev.of_node = tacna->dev->of_node;
 
 	cs47l94->core.tacna = tacna;
 	cs47l94->core.dev = &pdev->dev;
