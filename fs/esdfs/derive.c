@@ -22,23 +22,21 @@
 #include <linux/uaccess.h>
 #include "esdfs.h"
 
-static char *names_secure[] = {
-	"autorun.inf",
-	".android_secure",
-	"android_secure",
-	"" };
+static struct qstr names_secure[] = {
+	QSTR_LITERAL("autorun.inf"),
+	QSTR_LITERAL(".android_secure"),
+	QSTR_LITERAL("android_secure"),
+	QSTR_LITERAL("")
+};
 
 /* special path name searches */
-static inline bool match_name(struct qstr *name, char *names[])
+static inline bool match_name(struct qstr *name, struct qstr names[])
 {
 	int i = 0;
 
 	BUG_ON(!name);
-	for (i = 0; *names[i]; i++)
-		if (name->len == strlen(names[i]) &&
-		    !strncasecmp(names[i],
-				 name->name,
-				 name->len))
+	for (i = 0; *names[i].name; i++)
+		if (qstr_case_eq(name, &names[i]))
 			return true;
 
 	return false;
@@ -82,6 +80,12 @@ void esdfs_derive_perms(struct dentry *dentry)
 	bool is_root;
 	int ret;
 	kuid_t appid;
+	struct qstr q_Android = QSTR_LITERAL("Android");
+	struct qstr q_data = QSTR_LITERAL("data");
+	struct qstr q_obb = QSTR_LITERAL("obb");
+	struct qstr q_media = QSTR_LITERAL("media");
+	struct qstr q_cache = QSTR_LITERAL("cache");
+	struct qstr q_user = QSTR_LITERAL("user");
 
 	spin_lock(&dentry->d_lock);
 	is_root = IS_ROOT(dentry);
@@ -101,37 +105,25 @@ void esdfs_derive_perms(struct dentry *dentry)
 	case ESDFS_TREE_ROOT_LEGACY:
 		inode_i->tree = ESDFS_TREE_ROOT;
 		ret = kstrtou32(dentry->d_name.name, 0, &inode_i->userid);
-		if (!strncasecmp(dentry->d_name.name,
-					"obb",
-					dentry->d_name.len))
+		if (qstr_case_eq(&dentry->d_name, &q_obb))
 			inode_i->tree = ESDFS_TREE_ANDROID_OBB;
 		break;
 
 	case ESDFS_TREE_ROOT:
 		inode_i->tree = ESDFS_TREE_MEDIA;
-		if (!strncasecmp(dentry->d_name.name,
-				 "Android",
-				 dentry->d_name.len))
+		if (qstr_case_eq(&dentry->d_name, &q_Android))
 			inode_i->tree = ESDFS_TREE_ANDROID;
 		break;
 
 	case ESDFS_TREE_ANDROID:
-		if (!strncasecmp(dentry->d_name.name,
-				 "data",
-				 dentry->d_name.len))
+		if (qstr_case_eq(&dentry->d_name, &q_data))
 			inode_i->tree = ESDFS_TREE_ANDROID_DATA;
-		else if (!strncasecmp(dentry->d_name.name,
-					"obb",
-					dentry->d_name.len))
+		else if (qstr_case_eq(&dentry->d_name, &q_obb))
 			inode_i->tree = ESDFS_TREE_ANDROID_OBB;
-		else if (!strncasecmp(dentry->d_name.name,
-					"media",
-					dentry->d_name.len))
+		else if (qstr_case_eq(&dentry->d_name, &q_media))
 			inode_i->tree = ESDFS_TREE_ANDROID_MEDIA;
 		else if (ESDFS_RESTRICT_PERMS(ESDFS_SB(dentry->d_sb)) &&
-			 !strncasecmp(dentry->d_name.name,
-					"user",
-					dentry->d_name.len))
+			 qstr_case_eq(&dentry->d_name, &q_user))
 			inode_i->tree = ESDFS_TREE_ANDROID_USER;
 		break;
 
@@ -147,7 +139,6 @@ void esdfs_derive_perms(struct dentry *dentry)
 			inode_i->appid = 0;
 		inode_i->tree = ESDFS_TREE_ANDROID_APP;
 		break;
-
 	case ESDFS_TREE_ANDROID_USER:
 		/* Another user, so start over */
 		inode_i->tree = ESDFS_TREE_ROOT;
@@ -262,6 +253,7 @@ int esdfs_derived_lookup(struct dentry *dentry, struct dentry **parent)
 {
 	struct esdfs_sb_info *sbi = ESDFS_SB((*parent)->d_sb);
 	struct esdfs_inode_info *parent_i = ESDFS_I((*parent)->d_inode);
+	struct qstr q_Android = QSTR_LITERAL("Android");
 
 	/* Deny access to security-sensitive entries. */
 	if (ESDFS_I((*parent)->d_inode)->tree == ESDFS_TREE_ROOT &&
@@ -275,7 +267,7 @@ int esdfs_derived_lookup(struct dentry *dentry, struct dentry **parent)
 	    test_opt(sbi, DERIVE_UNIFIED) &&
 	    parent_i->tree == ESDFS_TREE_ROOT &&
 	    parent_i->userid == 0 &&
-	    !strncasecmp(dentry->d_name.name, "Android", dentry->d_name.len))
+	    qstr_case_eq(&dentry->d_name, &q_Android))
 		sbi->obb_parent = dget(dentry);		/* keep it pinned */
 
 	/*

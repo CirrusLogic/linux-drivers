@@ -192,14 +192,18 @@ void esdfs_drop_sb_icache(struct super_block *, unsigned long);
 void esdfs_add_super(struct esdfs_sb_info *, struct super_block *);
 void esdfs_truncate_share(struct super_block *, struct inode *, loff_t newsize);
 
+static inline bool is_obb(struct qstr *name) {
+	struct qstr q_obb = QSTR_LITERAL("obb");
+	return qstr_case_eq(name, &q_obb);
+}
+
 #define ESDFS_INODE_IS_STALE(i) ((i)->version != esdfs_package_list_version)
 #define ESDFS_INODE_CAN_LINK(i) (test_opt(ESDFS_SB((i)->i_sb), \
 					  DERIVE_LEGACY) || \
 				 (test_opt(ESDFS_SB((i)->i_sb), \
 					   DERIVE_UNIFIED) && \
 				  ESDFS_I(i)->userid > 0))
-#define ESDFS_DENTRY_NEEDS_LINK(d) (!strncasecmp((d)->d_name.name, "obb", \
-						 (d)->d_name.len))
+#define ESDFS_DENTRY_NEEDS_LINK(d) (is_obb(&(d)->d_name))
 #define ESDFS_DENTRY_IS_LINKED(d) (ESDFS_D(d)->real_parent)
 #define ESDFS_DENTRY_HAS_STUB(d) (ESDFS_D(d)->lower_stub_path.dentry)
 
