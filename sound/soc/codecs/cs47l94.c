@@ -2580,6 +2580,7 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "IN4_PDMDATA", NULL, "SYSCLK" },
 
 	{ "Audio Trace DSP", NULL, "DSP1" },
+	{ "Voice Ctrl DSP", NULL, "DSP2" },
 
 	{ "IN4_PDMCLK", NULL, "VDD_IO2" },
 	{ "IN4_PDMDATA", NULL, "VDD_IO2" },
@@ -3136,6 +3137,28 @@ static struct snd_soc_dai_driver cs47l94_dai[] = {
 			.formats = TACNA_FORMATS,
 		},
 	},
+
+	{
+		.name = "cs47l94-cpu-voicectrl",
+		.capture = {
+			.stream_name = "Voice Ctrl CPU",
+			.channels_min = 1,
+			.channels_max = 1,
+			.rates = TACNA_RATES,
+			.formats = TACNA_FORMATS,
+		},
+		.compress_new = snd_soc_new_compress,
+	},
+	{
+		.name = "cs47l94-dsp-voicectrl",
+		.capture = {
+			.stream_name = "Voice Ctrl DSP",
+			.channels_min = 1,
+			.channels_max = 1,
+			.rates = TACNA_RATES,
+			.formats = TACNA_FORMATS,
+		},
+	},
 };
 
 static int cs47l94_init_outh(struct cs47l94 *cs47l94)
@@ -3174,6 +3197,8 @@ static int cs47l94_compr_open(struct snd_compr_stream *stream)
 
 	if (strcmp(rtd->codec_dai->name, "cs47l94-dsp-trace") == 0) {
 		n_dsp = 0;
+	} else if (strcmp(rtd->codec_dai->name, "cs47l94-dsp-voicectrl") == 0) {
+		n_dsp = 1;
 	} else {
 		dev_err(priv->dev,
 			"No suitable compressed stream for DAI '%s'\n",
