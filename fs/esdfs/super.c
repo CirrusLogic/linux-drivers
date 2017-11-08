@@ -36,7 +36,6 @@ void esdfs_msg(struct super_block *sb, const char *level, const char *fmt, ...)
 void esdfs_add_super(struct esdfs_sb_info *sbi, struct super_block *sb)
 {
 	sbi->s_sb = sb;
-	INIT_LIST_HEAD(&sbi->s_list);
 
 	spin_lock(&esdfs_list_lock);
 	list_add_tail(&sbi->s_list, &esdfs_list);

@@ -232,6 +232,7 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 		err = -ENOMEM;
 		goto out_pput;
 	}
+	INIT_LIST_HEAD(&sbi->s_list);
 
 	/* set defaults and then parse the mount options */
 	memcpy(&sbi->lower_perms,
