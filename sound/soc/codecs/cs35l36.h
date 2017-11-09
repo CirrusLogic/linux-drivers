@@ -15,6 +15,8 @@
 #define __CS35L36_H__
 
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
+#include <sound/cs35l36.h>
 
 #define CS35L36_FIRSTREG		0x00000000
 #define CS35L36_LASTREG			0x00E037FC
@@ -254,10 +256,12 @@
 #define CS35L36_PLL_OPENLOOP_SHIFT	11
 #define CS35L36_PLL_REFCLK_EN_MASK	0x10
 #define CS35L36_PLL_REFCLK_EN_SHIFT	4
+#define CS35L36_REFCLK_FREQ_12_288M     0x33
 
 
 #define CS35L36_GLOBAL_FS_MASK		0x1F
 #define CS35L36_GLOBAL_FS_SHIFT		0
+#define CS35L36_GLOBAL_FS_48K		0x3
 
 #define CS35L36_HPF_PCM_EN_MASK		0x800
 #define CS35L36_HPF_PCM_EN_SHIFT	15
@@ -271,6 +275,9 @@
 
 #define CS35L36_GLOBAL_EN_MASK		0x01
 #define CS35L36_GLOBAL_EN_SHIFT		0x00
+
+#define CS35L36_AMP_EN_MASK		0x01
+#define CS35L36_AMP_EN_SHIFT		0x00
 
 #define CS35L36_AMP_VOL_PCM_MASK	0x3FF8
 #define CS35L36_AMP_VOL_PCM_SHIFT	3
@@ -396,6 +403,18 @@
 
 #define CS35L36_PAC_PROG_MEM		512
 
+#define CS35L36_SLOT_ENABLE		0x80000000
+#define CS35L36_SLOT_ENABLE_MASK	0x80000000
+#define CS35L36_SLOT_ENABLE_SHIFT	31
+
+#define CS35L36_SLOT_DEPTH_MASK		0xC0000000
+#define CS35L36_SLOT_DEPTH_SHIFT	30
+
+#define CS35L36_SLOT_LOC_MASK		0x7E000000
+#define CS35L36_SLOT_LOC_SHIFT		25
+
+#define CS35L36_UNUSED_SLOT 0xFFFFFFFF
+
 #define CS35L36_RX_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 #define CS35L36_TX_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE \
 				| SNDRV_PCM_FMTBIT_S32_LE)
@@ -405,5 +424,28 @@ bool cs35l36_volatile_reg(struct device *dev, unsigned int reg);
 
 extern struct reg_default cs35l36_reg[CS35L36_MAX_CACHE_REG];
 extern const int cs35l36_a0_pac_patch[CS35L36_PAC_PROG_MEM];
+
+struct  cs35l36_private {
+	struct device *dev;
+	struct cs35l36_platform_data pdata;
+	struct regmap *regmap;
+	struct regulator_bulk_data supplies[2];
+	int num_supplies;
+	int clksrc;
+	int prev_clksrc;
+	int extclk_freq;
+	int extclk_cfg;
+	int fll_igain;
+	int sclk;
+	struct gpio_desc *reset_gpio;
+	int rev_id;
+	struct i2c_client *i2c_client;
+};
+
+struct snd_soc_codec;
+int cs35l36_swr_set_channel_map(struct snd_soc_codec *codec,
+				u8 *port, u8 num_port,
+				unsigned int *ch_mask,
+				unsigned int *ch_rate);
 
 #endif

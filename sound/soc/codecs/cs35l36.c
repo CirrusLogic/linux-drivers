@@ -52,24 +52,6 @@ static const char * const cs35l36_supplies[] = {
 	"VP",
 };
 
-struct  cs35l36_private {
-	struct device *dev;
-	struct cs35l36_platform_data pdata;
-	struct regmap *regmap;
-	struct regulator_bulk_data supplies[2];
-	int num_supplies;
-	int clksrc;
-	int prev_clksrc;
-	int extclk_freq;
-	int extclk_cfg;
-	int fll_igain;
-	int sclk;
-	struct gpio_desc *reset_gpio;
-	struct completion global_pup_done;
-	struct completion global_pdn_done;
-	int rev_id;
-};
-
 struct cs35l36_pll_sysclk_config {
 	int freq;
 	int clk_cfg;
@@ -153,12 +135,31 @@ static SOC_ENUM_SINGLE_DECL(pcm_sft_ramp,
 			    CS35L36_AMP_DIG_VOL_CTRL, 0,
 			    cs35l36_pcm_sftramp_text);
 
+static const char * const cs35l36_pdm_sftrampup_text[] =  {
+	"Off", ".5ms", "1ms", "2ms", "4ms", "8ms", "15ms", "30ms"};
+
+static SOC_ENUM_SINGLE_DECL(pdm_sft_ramp_up,
+				CS35L36_AMP_PDM_RATE_CTRL, 0,
+				cs35l36_pdm_sftrampup_text);
+
+static const char * const cs35l36_pdm_sftrampdn_text[] =  {
+	"Off", ".5ms", "1ms", "2ms", "4ms", "8ms", "15ms", "30ms"};
+
+static SOC_ENUM_SINGLE_DECL(pdm_sft_ramp_dn,
+				CS35L36_AMP_PDM_RATE_CTRL, 3,
+				cs35l36_pdm_sftrampdn_text);
+
+
 static const struct snd_kcontrol_new cs35l36_aud_controls[] = {
 	SOC_SINGLE_SX_TLV("Digital PCM Volume", CS35L36_AMP_DIG_VOL_CTRL,
 		      3, 0x4D0, 0x390, dig_vol_tlv),
 	SOC_SINGLE_TLV("AMP PCM Gain", CS35L36_AMP_GAIN_CTRL, 5, 0x13, 0,
 			amp_gain_tlv),
+	SOC_SINGLE_TLV("AMP PDM Gain", CS35L36_AMP_GAIN_CTRL, 0, 0x13, 0,
+			amp_gain_tlv),
 	SOC_ENUM("PCM Soft Ramp", pcm_sft_ramp),
+	SOC_ENUM("PDM Soft Ramp Up", pdm_sft_ramp_up),
+	SOC_ENUM("PDM Soft Ramp Down", pdm_sft_ramp_dn),
 };
 
 static int cs35l36_main_amp_event(struct snd_soc_dapm_widget *w,
@@ -321,6 +322,7 @@ static const struct snd_soc_dapm_widget cs35l36_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("ASPTX4SRC", SND_SOC_NOPM, 0, 0, &asp_tx4_src),
 	SND_SOC_DAPM_MUX("ASPTX5SRC", SND_SOC_NOPM, 0, 0, &asp_tx5_src),
 	SND_SOC_DAPM_MUX("ASPTX6SRC", SND_SOC_NOPM, 0, 0, &asp_tx6_src),
+
 
 	SND_SOC_DAPM_ADC("VMON ADC", NULL, CS35L36_PWR_CTRL2, 12, 0),
 	SND_SOC_DAPM_ADC("IMON ADC", NULL, CS35L36_PWR_CTRL2, 13, 0),

@@ -360,6 +360,14 @@ config SND_SOC_CS35L36
 	tristate "Cirrus Logic CS35L36 CODEC"
 	depends on I2C
 
+config SND_SOC_CS35L36_SWR
+        depends on SND_SOC_CS35L36
+        tristate "Cirrus Logic CS35L36 SWR CODEC"
+        help
+          The driver is an extension to CS35L36 I2C driver needed to support
+          SoundWire bus on Qcom platform.
+          If unsure select "N".
+
 config SND_SOC_CS42L51
 	tristate
 
