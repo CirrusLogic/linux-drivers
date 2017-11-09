@@ -2631,7 +2631,23 @@ static int wm_halo_setup_algs(struct wm_adsp *dsp)
 			goto out;
 		}
 
+		alg_region = wm_adsp_create_region(dsp, WMFW_HALO_XM_PACKED,
+						   halo_alg[i].alg.id,
+						   halo_alg[i].xm_base);
+		if (IS_ERR(alg_region)) {
+			ret = PTR_ERR(alg_region);
+			goto out;
+		}
+
 		alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_YM,
+						   halo_alg[i].alg.id,
+						   halo_alg[i].ym_base);
+		if (IS_ERR(alg_region)) {
+			ret = PTR_ERR(alg_region);
+			goto out;
+		}
+
+		alg_region = wm_adsp_create_region(dsp, WMFW_HALO_YM_PACKED,
 						   halo_alg[i].alg.id,
 						   halo_alg[i].ym_base);
 		if (IS_ERR(alg_region)) {
