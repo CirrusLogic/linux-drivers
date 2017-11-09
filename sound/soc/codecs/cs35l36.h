@@ -17,6 +17,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <sound/cs35l36.h>
+#include <linux/mutex.h>
 
 #define CS35L36_FIRSTREG		0x00000000
 #define CS35L36_LASTREG			0x00E037FC
@@ -440,6 +441,7 @@ struct  cs35l36_private {
 	struct gpio_desc *reset_gpio;
 	int rev_id;
 	struct i2c_client *i2c_client;
+	struct mutex lock;
 };
 
 struct snd_soc_codec;

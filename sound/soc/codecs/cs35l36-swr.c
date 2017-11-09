@@ -53,6 +53,7 @@ struct  cs35l36_swr_private {
 	struct i2c_client *i2c_client;
 	struct swr_device *swr_slave;
 	struct swr_port port[CS35L36_MAX_SWR_PORTS];
+	struct cs35l36_private *parent;
 };
 
 static const struct snd_kcontrol_new swr_dac_port[] = {
@@ -66,7 +67,7 @@ static int cs35l36_main_amp_event(struct snd_soc_dapm_widget *w,
 	struct cs35l36_swr_private *cs35l36 = snd_soc_codec_get_drvdata(codec);
 	u32 reg;
 	int ret = 0;
-
+	mutex_lock(&cs35l36->parent->lock);
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 
@@ -97,6 +98,8 @@ static int cs35l36_main_amp_event(struct snd_soc_dapm_widget *w,
 	default:
 		dev_dbg(codec->dev, "Invalid event = 0x%x\n", event);
 	}
+
+	mutex_unlock(&cs35l36->parent->lock);
 	return ret;
 }
 
@@ -359,6 +362,7 @@ static int cs35l36_swr_probe(struct swr_device *pdev)
 	cs35l36->swr_slave = pdev;
 	cs35l36->dev = &pdev->dev;
 	cs35l36->regmap = cs35l36_i2c->regmap;
+	cs35l36->parent = cs35l36_i2c;
 
 	/* Check device ID */
 	ret = regmap_read(cs35l36->regmap, CS35L36_SW_RESET, &reg_id);

@@ -170,6 +170,8 @@ static int cs35l36_main_amp_event(struct snd_soc_dapm_widget *w,
 	u32 reg;
 	int ret = 0;
 
+	mutex_lock(&cs35l36->lock);
+
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		if (!cs35l36->pdata.extern_boost)
@@ -216,6 +218,7 @@ static int cs35l36_main_amp_event(struct snd_soc_dapm_widget *w,
 	default:
 		dev_dbg(codec->dev, "Invalid event = 0x%x\n", event);
 	}
+	mutex_unlock(&cs35l36->lock);
 	return ret;
 }
 
@@ -1322,6 +1325,8 @@ static int cs35l36_i2c_probe(struct i2c_client *i2c_client,
 		dev_err(dev, "regmap_init() failed: %d\n", ret);
 		goto err;
 	}
+
+	mutex_init(&cs35l36->lock);
 
 	for (i = 0; i < ARRAY_SIZE(cs35l36_supplies); i++)
 		cs35l36->supplies[i].supply = cs35l36_supplies[i];
