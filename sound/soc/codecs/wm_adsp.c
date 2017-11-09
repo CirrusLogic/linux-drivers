@@ -1025,9 +1025,9 @@ static unsigned int wm_adsp_region_to_reg(struct wm_adsp *dsp,
 		case WMFW_ADSP2_YM:
 			return mem->base + (offset * 4);
 		case WMFW_HALO_XM_PACKED:
-			return mem->base + (offset * 3);
+			return (mem->base + (offset * 3)) & ~0x3;
 		case WMFW_HALO_YM_PACKED:
-			return mem->base + (offset * 3);
+			return (mem->base + (offset * 3)) & ~0x3;
 		case WMFW_HALO_PM_PACKED:
 			return mem->base + (offset * 5);
 		default:
@@ -2564,7 +2564,17 @@ static int wm_halo_setup_algs(struct wm_adsp *dsp)
 	if (IS_ERR(alg_region))
 		return PTR_ERR(alg_region);
 
+	alg_region = wm_adsp_create_region(dsp, WMFW_HALO_XM_PACKED,
+					   halo_id.fw.id, halo_id.xm_base);
+	if (IS_ERR(alg_region))
+		return PTR_ERR(alg_region);
+
 	alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_YM,
+					   halo_id.fw.id, halo_id.ym_base);
+	if (IS_ERR(alg_region))
+		return PTR_ERR(alg_region);
+
+	alg_region = wm_adsp_create_region(dsp, WMFW_HALO_YM_PACKED,
 					   halo_id.fw.id, halo_id.ym_base);
 	if (IS_ERR(alg_region))
 		return PTR_ERR(alg_region);
@@ -2594,7 +2604,23 @@ static int wm_halo_setup_algs(struct wm_adsp *dsp)
 			goto out;
 		}
 
+		alg_region = wm_adsp_create_region(dsp, WMFW_HALO_XM_PACKED,
+						   halo_alg[i].alg.id,
+						   halo_alg[i].xm_base);
+		if (IS_ERR(alg_region)) {
+			ret = PTR_ERR(alg_region);
+			goto out;
+		}
+
 		alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_YM,
+						   halo_alg[i].alg.id,
+						   halo_alg[i].ym_base);
+		if (IS_ERR(alg_region)) {
+			ret = PTR_ERR(alg_region);
+			goto out;
+		}
+
+		alg_region = wm_adsp_create_region(dsp, WMFW_HALO_YM_PACKED,
 						   halo_alg[i].alg.id,
 						   halo_alg[i].ym_base);
 		if (IS_ERR(alg_region)) {
