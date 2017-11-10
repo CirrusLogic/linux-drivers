@@ -3373,7 +3373,11 @@ static int cs47l94_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < CS47L94_N_FLL; ++i)
-		tacna_init_fll(tacna, i + 1, TACNA_FLL1_CONTROL1 + i * 0x100,
+		tacna_init_fll(tacna,
+			       i + 1,
+			       TACNA_FLL1_CONTROL1 + i * 0x100,
+			       TACNA_IRQ1_STS6,
+			       TACNA_FLL1_LOCK_STS1_MASK << (2 * i),
 			       &cs47l94->fll[i]);
 
 	for (i = 0; i < ARRAY_SIZE(cs47l94_dai); i++)

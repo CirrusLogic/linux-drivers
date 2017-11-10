@@ -2483,14 +2483,13 @@ static int tacna_wait_for_fll(struct tacna_fll *fll, bool requested)
 {
 	struct tacna *tacna = fll->tacna;
 	unsigned int val = 0;
-	unsigned int mask = (TACNA_FLL1_LOCK_STS1 << 2 * (fll->id - 1));
 	int i;
 
 	tacna_fll_dbg(fll, "Waiting for FLL...\n");
 
 	for (i = 0; i < 30; i++) {
-		regmap_read(tacna->regmap, TACNA_IRQ1_STS6, &val);
-		if (!!(val & mask) == requested)
+		regmap_read(tacna->regmap, fll->sts_addr, &val);
+		if (!!(val & fll->sts_mask) == requested)
 			return 0;
 
 		switch (i) {
@@ -3948,12 +3947,19 @@ static void tacna_prop_get_pdata(struct tacna_priv *priv)
 		pdata->auxpdm_falling_edge[i] = !!auxpdm_falling_edge[i];
 }
 
-int tacna_init_fll(struct tacna *tacna, int id, int base, struct tacna_fll *fll)
+int tacna_init_fll(struct tacna *tacna,
+		   int id,
+		   int base,
+		   unsigned int sts_addr,
+		   unsigned int sts_mask,
+		   struct tacna_fll *fll)
 {
 	init_completion(&fll->ok);
 
 	fll->id = id;
 	fll->base = base;
+	fll->sts_addr = sts_addr;
+	fll->sts_mask = sts_mask;
 	fll->tacna = tacna;
 	fll->ref_src = TACNA_FLL_SRC_NONE;
 	fll->sync_src = TACNA_FLL_SRC_NONE;
