@@ -690,4 +690,14 @@ struct otp_map_element_t {
 extern const struct reg_default cs35l41_reg[CS35L41_MAX_CACHE_REG];
 extern const struct otp_map_element_t otp_map_map[CS35L41_NUM_OTP_MAPS];
 
+#define CS35L41_CSPL_CMD_NONE			0
+#define CS35L41_CSPL_CMD_MUTE			1
+#define CS35L41_CSPL_CMD_UNMUTE			2
+#define CS35L41_CSPL_CMD_REINIT			3
+
+#define CS35L41_CSPL_XM_STRUCT_ADDR		0x0280020c
+#define CS35L41_CSPL_COMMAND			0x02800210
+#define CS35L41_CSPL_CAL_STRUCT_ADDR		0x02800224
+#define CS35L41_AMB_TEMP_DEFAULT		25
+
 #endif /*__CS35L41_H__*/
