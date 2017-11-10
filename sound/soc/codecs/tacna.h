@@ -340,6 +340,9 @@ struct tacna_fll {
 	unsigned int base;
 	struct completion ok;
 
+	unsigned int sts_addr;
+	unsigned int sts_mask;
+
 	unsigned int fout;
 
 	int sync_src;
@@ -499,8 +502,8 @@ int tacna_anc_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 
 int tacna_fllhj_set_refclk(struct tacna_fll *fll, int source,
 			   unsigned int fin, unsigned int fout);
-int tacna_init_fll(struct tacna *tacna, int id, int base,
-		   struct tacna_fll *fll);
+int tacna_init_fll(struct tacna *tacna, int id, int base, unsigned int sts_addr,
+		   unsigned int sts_mask, struct tacna_fll *fll);
 int tacna_init_inputs(struct snd_soc_codec *codec);
 int tacna_init_auxpdm(struct snd_soc_codec *codec, int n_auxpdm);
 int tacna_init_outputs(struct snd_soc_codec *codec, int n_mono_routes);
