@@ -64,6 +64,7 @@ struct cs35l41_private {
 	bool tdm_mode;
 	bool i2s_mode;
 	bool swire_mode;
+	bool halo_booted;
 	/* GPIO for /RST */
 	struct gpio_desc *reset_gpio;
 	struct completion global_pup_done;
@@ -146,10 +147,46 @@ static const struct cs35l41_pll_sysclk_config cs35l41_pll_sysclk[] = {
 static int cs35l41_dsp_power_ev(struct snd_soc_dapm_widget *w,
 		       struct snd_kcontrol *kcontrol, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct cs35l41_private *cs35l41 = snd_soc_codec_get_drvdata(codec);
+
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+		if (cs35l41->halo_booted == false)
+			wm_halo_early_event(w, kcontrol, event);
+		else
+			cs35l41->dsp.booted = true;
+
+		return 0;
 	case SND_SOC_DAPM_PRE_PMD:
-		return wm_halo_early_event(w, kcontrol, event);
+	default:
+		return 0;
+	}
+}
+
+static int cs35l41_dsp_load_ev(struct snd_soc_dapm_widget *w,
+		       struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct cs35l41_private *cs35l41 = snd_soc_codec_get_drvdata(codec);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+
+		regmap_write(cs35l41->regmap, CS35L41_CSPL_CAL_STRUCT_ADDR + 4,
+				(unsigned int)CS35L41_AMB_TEMP_DEFAULT);
+		if (cs35l41->halo_booted == false) {
+			wm_halo_event(w, kcontrol, event);
+			cs35l41->halo_booted = true;
+		}
+
+		regmap_write(cs35l41->regmap, CS35L41_CSPL_COMMAND,
+				(CS35L41_CSPL_CMD_UNMUTE));
+
+		return 0;
+	case SND_SOC_DAPM_PRE_PMD:
+		regmap_write(cs35l41->regmap, CS35L41_CSPL_COMMAND,
+				CS35L41_CSPL_CMD_MUTE);
 	default:
 		return 0;
 	}
@@ -480,7 +517,13 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 
 static const struct snd_soc_dapm_widget cs35l41_dapm_widgets[] = {
 
-	WM_HALO("DSP1", 0, cs35l41_dsp_power_ev),
+	SND_SOC_DAPM_SPK("DSP1 Preload", NULL),
+	SND_SOC_DAPM_SUPPLY_S("DSP1 Preloader", 100,
+				SND_SOC_NOPM, 0, 0, cs35l41_dsp_power_ev,
+				SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_OUT_DRV_E("DSP1", SND_SOC_NOPM, 0, 0, NULL, 0,
+				cs35l41_dsp_load_ev,
+				SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_OUTPUT("SPK"),
 
 	SND_SOC_DAPM_AIF_IN("ASPRX1", NULL, 0, CS35L41_SP_ENABLES, 16, 0),
@@ -1200,7 +1243,7 @@ static int cs35l41_dsp_init(struct cs35l41_private *cs35l41)
 	dsp->n_rx_channels = CS35L41_DSP_N_RX_RATES;
 	dsp->n_tx_channels = CS35L41_DSP_N_TX_RATES;
 	ret = wm_halo_init(dsp, &cs35l41->rate_lock);
-
+	cs35l41->halo_booted = false;
 	return ret;
 }
 
