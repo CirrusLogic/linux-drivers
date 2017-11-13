@@ -1985,7 +1985,7 @@ static int tacna_extcon_get_device_pdata(struct tacna_extcon *info)
 	 * a GPSW is not necessarily exclusive to a single accessory detect
 	 * channel so is not in the subnodes
 	 */
-	device_property_read_u32_array(info->dev, "cirrus,gpsw",
+	device_property_read_u32_array(tacna->dev, "cirrus,gpsw",
 				       info->tacna->pdata.gpsw,
 				       ARRAY_SIZE(info->tacna->pdata.gpsw));
 
