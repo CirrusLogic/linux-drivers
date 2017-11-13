@@ -151,7 +151,7 @@ static void cs35l36_swr_enable(struct cs35l36_swr_private *cs35l36)
 int cs35l36_swr_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct cs35l36_swr_private *cs35l36 = snd_soc_codec_get_drvdata(codec);
 	u8 port_id[CS35L36_MAX_SWR_PORTS];
 	u8 num_ch[CS35L36_MAX_SWR_PORTS];
