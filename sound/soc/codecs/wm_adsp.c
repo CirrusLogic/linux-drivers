@@ -512,6 +512,12 @@ struct wm_adsp_system_config_xm_hdr {
 	__be32 build_job_number;
 };
 
+struct wm_halo_system_config_xm_hdr {
+	__be32 halo_heartbeat;
+	__be32 build_job_name[3];
+	__be32 build_job_number;
+};
+
 struct wm_adsp_alg_xm_struct {
 	__be32 magic;
 	__be32 smoothing;
@@ -4011,7 +4017,19 @@ static int wm_adsp_buffer_locate(struct wm_adsp_compr_buf *buf)
 	int i, ret;
 
 	alg_region = wm_adsp_find_alg_region(dsp, WMFW_ADSP2_XM, dsp->fw_id);
-	xmalg = sizeof(struct wm_adsp_system_config_xm_hdr) / sizeof(__be32);
+	switch (dsp->type) {
+	case WMFW_ADSP2:
+		xmalg = sizeof(struct wm_adsp_system_config_xm_hdr);
+		xmalg /= sizeof(__be32);
+		break;
+	case WMFW_HALO:
+		xmalg = sizeof(struct wm_halo_system_config_xm_hdr);
+		xmalg /= sizeof(__be32);
+		break;
+	default:
+		WARN(1, "Unknown DSP type");
+		return -ENODEV;
+	}
 
 	addr = alg_region->base + xmalg + ALG_XM_FIELD(magic);
 	ret = wm_adsp_read_data_word(dsp, WMFW_ADSP2_XM, addr, &magic);
