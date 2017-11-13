@@ -158,6 +158,10 @@ const char * const tacna_mixer_texts[] = {
 	"ASRC1IN1R",
 	"ASRC1IN2L",
 	"ASRC1IN2R",
+	"ASRC2IN1L",
+	"ASRC2IN1R",
+	"ASRC2IN2L",
+	"ASRC2IN2R",
 	"ISRC1INT1",
 	"ISRC1INT2",
 	"ISRC1INT3",
@@ -285,6 +289,10 @@ unsigned int tacna_mixer_values[] = {
 	0x089, /* ASRC1 IN1 Right */
 	0x08A, /* ASRC1 IN2 Left */
 	0x08B, /* ASRC1 IN2 Right */
+	0x090, /* ASRC2 IN1 Left */
+	0x091, /* ASRC2 IN1 Right */
+	0x092, /* ASRC2 IN2 Left */
+	0x093, /* ASRC2 IN2 Right */
 	0x098, /* ISRC1 INT1 */
 	0x099, /* ISRC1 INT2 */
 	0x09a, /* ISRC1 INT3 */
@@ -420,6 +428,23 @@ static bool tacna_can_change_grp_rate(const struct tacna_priv *priv,
 		case TACNA_ASRC1_RATE2_SHIFT:
 			count =
 			    priv->domain_group_ref[TACNA_DOM_GRP_ASRC1_RATE_2];
+			break;
+		default:
+			dev_warn(priv->tacna->dev,
+				 "Unexpected shift 0x%x for rate reg 0x%x\n",
+				 shift, reg);
+			return false;
+		}
+		break;
+	case TACNA_ASRC2_CONTROL1:
+		switch (shift) {
+		case TACNA_ASRC2_RATE1_SHIFT:
+			count =
+			    priv->domain_group_ref[TACNA_DOM_GRP_ASRC2_RATE_1];
+			break;
+		case TACNA_ASRC2_RATE2_SHIFT:
+			count =
+			    priv->domain_group_ref[TACNA_DOM_GRP_ASRC2_RATE_2];
 			break;
 		default:
 			dev_warn(priv->tacna->dev,
@@ -1131,6 +1156,22 @@ const struct soc_enum tacna_asrc1_rate[] = {
 			      tacna_rate_val + TACNA_SYNC_RATE_ENUM_SIZE),
 };
 EXPORT_SYMBOL_GPL(tacna_asrc1_rate);
+
+const struct soc_enum tacna_asrc2_rate[] = {
+	SOC_VALUE_ENUM_SINGLE(TACNA_ASRC2_CONTROL1,
+			      TACNA_ASRC2_RATE1_SHIFT,
+			      TACNA_ASRC2_RATE1_MASK >> TACNA_ASRC2_RATE1_SHIFT,
+			      TACNA_SYNC_RATE_ENUM_SIZE,
+			      tacna_rate_text,
+			      tacna_rate_val),
+	SOC_VALUE_ENUM_SINGLE(TACNA_ASRC2_CONTROL1,
+			      TACNA_ASRC2_RATE2_SHIFT,
+			      TACNA_ASRC2_RATE2_MASK >> TACNA_ASRC2_RATE2_SHIFT,
+			      TACNA_ASYNC_RATE_ENUM_SIZE,
+			      tacna_rate_text + TACNA_SYNC_RATE_ENUM_SIZE,
+			      tacna_rate_val + TACNA_SYNC_RATE_ENUM_SIZE),
+};
+EXPORT_SYMBOL_GPL(tacna_asrc2_rate);
 
 const struct soc_enum tacna_isrc_fsh[] = {
 	SOC_VALUE_ENUM_SINGLE(TACNA_ISRC1_CONTROL1,
