@@ -113,7 +113,7 @@
 #define TACNA_MAX_DAI			11
 #define TACNA_MAX_DSP			2
 
-#define TACNA_NUM_MIXER_INPUTS		123
+#define TACNA_NUM_MIXER_INPUTS		127
 
 #define TACNA_FRF_COEFF_LEN		2
 
@@ -419,6 +419,7 @@ int tacna_frf_bytes_put(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol);
 
 extern const struct soc_enum tacna_asrc1_rate[];
+extern const struct soc_enum tacna_asrc2_rate[];
 
 extern const struct soc_enum tacna_isrc_fsl[];
 extern const struct soc_enum tacna_isrc_fsh[];
