@@ -267,55 +267,6 @@ int cs35l36_swr_set_channel_map(struct snd_soc_codec *codec,
 }
 EXPORT_SYMBOL(cs35l36_swr_set_channel_map);
 
-static int cs35l36_swr_startup(struct swr_device *swr_dev)
-{
-	int ret = 0;
-	u8 devnum = 0;
-	struct cs35l36_swr_private *cs35l36;
-
-	dev_dbg(&swr_dev->dev, "%s: started\n", __func__);
-
-	cs35l36 = swr_get_dev_data(swr_dev);
-	if (!cs35l36) {
-		dev_err(&swr_dev->dev, "%s: cs35l36 is NULL\n", __func__);
-		return -EINVAL;
-	}
-
-	/*
-	 * Add 5msec delay to provide sufficient time for
-	 * soundwire auto enumeration of slave devices as
-	 * as per HW requirement.
-	 */
-	usleep_range(5000, 5010);
-	ret = swr_get_logical_dev_num(swr_dev, swr_dev->addr, &devnum);
-	if (ret) {
-		dev_err(&swr_dev->dev, "%s failed to get devnum, err:%d\n",
-			__func__, ret);
-		goto err;
-	}
-	swr_dev->dev_num = devnum;
-
-	if (IS_ERR(cs35l36->regmap)) {
-		ret = PTR_ERR(cs35l36->regmap);
-		dev_err(&swr_dev->dev, "%s: regmap_init failed %d\n",
-			__func__, ret);
-		goto err;
-	}
-
-	ret = snd_soc_register_codec(&swr_dev->dev, &soc_codec_dev_cs35l36,
-					NULL, 0);
-
-	if (ret) {
-		dev_err(&swr_dev->dev, "%s: Codec registration failed\n",
-			__func__);
-		goto err;
-	}
-err:
-	dev_dbg(&swr_dev->dev, "%s: done with err %d  dev num %d\n",
-				__func__, ret, swr_dev->dev_num);
-	return ret;
-}
-
 static int cs35l36_swr_probe(struct swr_device *pdev)
 {
 	struct cs35l36_swr_private *cs35l36;
@@ -323,6 +274,7 @@ static int cs35l36_swr_probe(struct swr_device *pdev)
 	struct device_node *i2c_node;
 	struct i2c_client *i2c_client;
 	int ret = 0;
+	u8 devnum = 0;
 	u32 reg_id;
 
 	cs35l36 = devm_kzalloc(&pdev->dev, sizeof(struct cs35l36_swr_private),
@@ -379,6 +331,35 @@ static int cs35l36_swr_probe(struct swr_device *pdev)
 		goto err;
 	}
 
+	/*
+	 * Add 5msec delay to provide sufficient time for
+	 * soundwire auto enumeration of slave devices as
+	 * as per HW requirement.
+	 */
+	usleep_range(5000, 5010);
+	ret = swr_get_logical_dev_num(pdev, pdev->addr, &devnum);
+	if (ret) {
+		dev_err(&pdev->dev, "%s failed to get devnum, err:%d\n",
+			__func__, ret);
+		goto err;
+	}
+	pdev->dev_num = devnum;
+
+	if (IS_ERR(cs35l36->regmap)) {
+		ret = PTR_ERR(cs35l36->regmap);
+		dev_err(&pdev->dev, "%s: regmap_init failed %d\n",
+			__func__, ret);
+		goto err;
+	}
+
+	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_cs35l36,
+					NULL, 0);
+
+	if (ret) {
+		dev_err(&pdev->dev, "%s: Codec registration failed\n",
+			__func__);
+		goto err;
+	}
 	dev_info(&pdev->dev, "CS35L36 Device ID (%X)", reg_id);
 err:
 	return ret;
@@ -454,7 +435,6 @@ static struct swr_driver cs35l36_swr_codec_driver = {
 	.device_up = cs35l36_swr_up,
 	.device_down = cs35l36_swr_down,
 	.reset_device = cs35l36_swr_reset,
-	.startup = cs35l36_swr_startup,
 };
 
 static int __init cs35l36_swr_codec_init(void)
