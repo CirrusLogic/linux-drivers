@@ -26,7 +26,8 @@ Optional properties:
   - cirrus,out-mono : Mono bit for each output. A non-zero value indicates the
     corresponding output is mono.
     Cells are:
-    <OUT1_HP1 OUT2 OUT1_HP2 OUTH> (cs47l94, cs47l95)
+    <OUT1_HP1 OUT1_HP2 OUT2> (cs47l94, cs47l95)
+    <OUT1_HP1 OUT1_HP2> (cs47l96, cs47l97)
     <OUT1 OUT2 OUT3 ...> (all other codecs)
 
   - cirrus,max-channels-clocked : Maximum number of channels that I2S clocks

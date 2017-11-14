@@ -385,6 +385,12 @@ struct tacna_eq_control {
 	unsigned int max;
 };
 
+struct tacna_mono_route {
+	const struct snd_soc_dapm_route *routes;
+	int n_routes;
+	unsigned int cfg_reg;
+};
+
 extern const char * const tacna_mixer_texts[TACNA_NUM_MIXER_INPUTS];
 extern unsigned int tacna_mixer_values[TACNA_NUM_MIXER_INPUTS];
 
@@ -552,7 +558,9 @@ int tacna_fllhj_set_refclk(struct tacna_fll *fll, int source,
 int tacna_init_fll(struct tacna_fll *fll);
 int tacna_init_inputs(struct snd_soc_codec *codec);
 int tacna_init_auxpdm(struct snd_soc_codec *codec, int n_auxpdm);
-int tacna_init_outputs(struct snd_soc_codec *codec, int n_mono_routes);
+int tacna_init_outputs(struct snd_soc_codec *codec,
+		       const struct tacna_mono_route *mono_routes,
+		       int n_mono_routes);
 int tacna_init_dai(struct tacna_priv *priv, int dai);
 int tacna_init_eq(struct tacna_priv *priv);
 int tacna_core_init(struct tacna_priv *priv);

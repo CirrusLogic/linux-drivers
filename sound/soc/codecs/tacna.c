@@ -89,13 +89,6 @@
 #define tacna_asp_dbg(_dai, fmt, ...) \
 	dev_dbg(_dai->codec->dev, "ASP%d: " fmt, _dai->id, ##__VA_ARGS__)
 
-static const struct snd_soc_dapm_route tacna_mono_routes[] = {
-	{ "OUT1R", NULL, "OUT1L" },
-	{ "OUT2R", NULL, "OUT2L" },
-	{ "OUT3R", NULL, "OUT3L" },
-	{ "OUT4R", NULL, "OUT4L" },
-};
-
 const char * const tacna_mixer_texts[] = {
 	"None",
 	"Tone Generator 1",
@@ -4016,7 +4009,7 @@ int tacna_put_out1_demux(struct snd_kcontrol *kcontrol,
 		dev_warn(codec->dev, "Failed to set OUT1_MODE: %d\n", ret);
 	} else {
 		BUILD_BUG_ON(ARRAY_SIZE(tacna->pdata.codec.out_mono) < 3);
-		out_mono = tacna->pdata.codec.out_mono[mux * 2];
+		out_mono = tacna->pdata.codec.out_mono[mux];
 		ret = tacna_set_output_mode(codec, 1, out_mono);
 		if (ret < 0)
 			dev_warn(codec->dev,
@@ -4210,14 +4203,22 @@ static void tacna_prop_get_pdata(struct tacna_priv *priv)
 
 	tacna_prop_get_inmode(priv);
 
-	memset(out_mono, 0, sizeof(out_mono));
-	device_property_read_u32_array(tacna->dev,
-				       "cirrus,out-mono",
-				       out_mono,
-				       ARRAY_SIZE(out_mono));
+	ret = device_property_read_u32_array(tacna->dev,
+					     "cirrus,out-mono",
+					     NULL, 0);
+	if (ret > 0) {
+		if (ret > ARRAY_SIZE(out_mono))
+			ret = ARRAY_SIZE(out_mono);
 
-	for (i = 0; i < ARRAY_SIZE(out_mono); ++i)
-		pdata->out_mono[i] = !!out_mono[i];
+		memset(out_mono, 0, sizeof(out_mono));
+		device_property_read_u32_array(tacna->dev,
+					       "cirrus,out-mono",
+					       out_mono,
+					       ret);
+
+		for (i = 0; i < ARRAY_SIZE(out_mono); ++i)
+			pdata->out_mono[i] = !!out_mono[i];
+	}
 
 	device_property_read_u32(tacna->dev, "cirrus,pdm-fmt", &pdata->pdm_fmt);
 
@@ -4336,37 +4337,55 @@ int tacna_init_auxpdm(struct snd_soc_codec *codec, int n_auxpdm)
 }
 EXPORT_SYMBOL_GPL(tacna_init_auxpdm);
 
-int tacna_init_outputs(struct snd_soc_codec *codec, int n_mono_routes)
+int tacna_init_outputs(struct snd_soc_codec *codec,
+		       const struct tacna_mono_route *mono_routes,
+		       int n_mono_routes)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct tacna *tacna = priv->tacna;
 	const struct tacna_codec_pdata *pdata = &tacna->pdata.codec;
 	unsigned int val;
-	int i;
+	int i, ret;
 
-	if (n_mono_routes > TACNA_MAX_OUTPUT) {
+	if (n_mono_routes > ARRAY_SIZE(pdata->out_mono)) {
 		dev_warn(priv->dev,
-			 "Requested %d mono outputs, using maximum allowed %d\n",
-			 n_mono_routes, TACNA_MAX_OUTPUT);
-		n_mono_routes = TACNA_MAX_OUTPUT;
+			 "Requested %d mono outputs, using maximum allowed %zu\n",
+			 n_mono_routes, ARRAY_SIZE(pdata->out_mono));
+		n_mono_routes = ARRAY_SIZE(pdata->out_mono);
 	}
 
 	for (i = 0; i < n_mono_routes; i++) {
-		/* Default is 0 so noop with defaults */
+		if (!mono_routes[i].n_routes)
+			continue;	/* not available or can't do mono */
+
+		dev_dbg(priv->dev, "out_mono[%d]=0x%x\n",
+			i, pdata->out_mono[i]);
+
+		/* Default is 0 so no-op with defaults */
 		if (pdata->out_mono[i]) {
 			val = TACNA_OUT1_MONO;
-			snd_soc_dapm_add_routes(dapm, &tacna_mono_routes[i], 1);
+			ret = snd_soc_dapm_add_routes(dapm,
+						      mono_routes[i].routes,
+						      mono_routes[i].n_routes);
+			if (ret)
+				dev_warn(priv->dev,
+					 "Failed to add %s mono routes (%d)\n",
+					 mono_routes[i].routes[0].sink,
+					 ret);
 		} else {
 			val = 0;
 		}
 
-		regmap_update_bits(tacna->regmap,
-				   TACNA_OUT1L_CONTROL_1 + (i * 0x40),
-				   TACNA_OUT1_MONO,
-				   val);
-
-		dev_dbg(priv->dev, "OUT%d mono=0x%x\n", i + 1, val);
+		if (mono_routes[i].cfg_reg) {
+			ret = regmap_update_bits(tacna->regmap,
+						 mono_routes[i].cfg_reg,
+						 TACNA_OUT1_MONO, val);
+			if (ret)
+				dev_warn(priv->dev,
+					 "Failed to write mono to 0x%x (%d)\n",
+					 mono_routes[i].cfg_reg, ret);
+		}
 	}
 
 	dev_dbg(priv->dev, "OUT5 fmt=0x%x mute=0x%x\n",
