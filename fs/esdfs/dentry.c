@@ -90,6 +90,12 @@ out:
 	return err;
 }
 
+/* 1 = delete, 0 = cache */
+int esdfs_d_delete(const struct dentry *d)
+{
+	return 0;
+}
+
 /* directly from fs/fat/namei_vfat.c */
 static unsigned int __vfat_striptail_len(unsigned int len, const char *name)
 {
@@ -148,6 +154,7 @@ static void esdfs_d_release(struct dentry *dentry)
 
 const struct dentry_operations esdfs_dops = {
 	.d_revalidate	= esdfs_d_revalidate,
+	.d_delete	= esdfs_d_delete,
 	.d_hash		= esdfs_d_hash,
 	.d_compare	= esdfs_d_compare,
 	.d_release	= esdfs_d_release,

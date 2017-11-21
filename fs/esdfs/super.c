@@ -77,28 +77,6 @@ void esdfs_truncate_share(struct super_block *sb, struct inode *lower_inode,
 	spin_unlock(&esdfs_list_lock);
 }
 
-void esdfs_drop_shared_icache(struct super_block *sb, struct inode *lower_inode)
-{
-	struct list_head *p;
-	struct esdfs_sb_info *sbi;
-	struct super_block *lower_sb = lower_inode->i_sb;
-
-	spin_lock(&esdfs_list_lock);
-	p = esdfs_list.next;
-	while (p != &esdfs_list) {
-		sbi = list_entry(p, struct esdfs_sb_info, s_list);
-		if (sbi->s_sb == sb || sbi->lower_sb != lower_sb) {
-			p = p->next;
-			continue;
-		}
-		spin_unlock(&esdfs_list_lock);
-		esdfs_drop_sb_icache(sbi->s_sb, lower_inode->i_ino);
-		spin_lock(&esdfs_list_lock);
-		p = p->next;
-	}
-	spin_unlock(&esdfs_list_lock);
-}
-
 /* final actions when unmounting a file system */
 static void esdfs_put_super(struct super_block *sb)
 {

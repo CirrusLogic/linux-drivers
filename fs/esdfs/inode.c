@@ -88,8 +88,6 @@ static int esdfs_unlink(struct inode *dir, struct dentry *dentry)
 	lower_dentry = lower_path.dentry;
 	dget(lower_dentry);
 
-	esdfs_drop_shared_icache(dir->i_sb, lower_dentry->d_inode);
-
 	lower_dir_dentry = lock_parent(lower_dentry);
 
 	/* d_parent might be changed in vfs_rename */
@@ -128,41 +126,6 @@ out:
 	esdfs_put_lower_path(dentry, &lower_path);
 	esdfs_revert_creds(creds, NULL);
 	return err;
-}
-
-/* drop all shared dentries from other superblocks */
-void esdfs_drop_sb_icache(struct super_block *sb, unsigned long ino)
-{
-	struct inode *inode = ilookup(sb, ino);
-	struct dentry *dentry, *dir_dentry;
-
-	if (!inode)
-		return;
-
-	dentry = d_find_any_alias(inode);
-
-	if (!dentry) {
-		iput(inode);
-		return;
-	}
-
-	dir_dentry = lock_parent(dentry);
-
-	inode_lock(inode);
-	set_nlink(inode, esdfs_lower_inode(inode)->i_nlink);
-	d_drop(dentry);
-	dont_mount(dentry);
-	inode_unlock(inode);
-
-	/* We don't d_delete() NFS sillyrenamed files--they still exist. */
-	if (!(dentry->d_flags & DCACHE_NFSFS_RENAMED)) {
-		fsnotify_link_count(inode);
-		d_delete(dentry);
-	}
-
-	unlock_dir(dir_dentry);
-	dput(dentry);
-	iput(inode);
 }
 
 static int esdfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
@@ -233,8 +196,6 @@ static int esdfs_rmdir(struct inode *dir, struct dentry *dentry)
 	else
 		esdfs_get_lower_path(dentry, &lower_path);
 	lower_dentry = lower_path.dentry;
-
-	esdfs_drop_shared_icache(dir->i_sb, lower_dentry->d_inode);
 
 	lower_dir_dentry = lock_parent(lower_dentry);
 

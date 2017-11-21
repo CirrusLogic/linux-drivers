@@ -201,8 +201,6 @@ struct esdfs_sb_info {
 extern struct esdfs_perms esdfs_perms_table[ESDFS_PERMS_TABLE_SIZE];
 extern unsigned esdfs_package_list_version;
 
-void esdfs_drop_shared_icache(struct super_block *, struct inode *);
-void esdfs_drop_sb_icache(struct super_block *, unsigned long);
 void esdfs_add_super(struct esdfs_sb_info *, struct super_block *);
 void esdfs_truncate_share(struct super_block *, struct inode *, loff_t newsize);
 
