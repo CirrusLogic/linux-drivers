@@ -42,13 +42,29 @@ static const char * const tacna_core_supplies[] = {
 	"VDD_IO1",
 };
 
+static const char * const cs47l94_supplies[] = {
+	"VOUT_MIC",	/* must be first entry */
+	"VDD1_CP",
+	"VDD2_CP",
+	"VDD3_CP",
+	"VDD_IO2",
+};
+
 static const struct mfd_cell cs47l94_devs[] = {
 	{ .name = "tacna-pinctrl", },
 	{ .name = "tacna-irq", },
 	{ .name = "tacna-micsupp", },
 	{ .name = "tacna-gpio", },
-	{ .name = "tacna-extcon", },
-	{ .name = "cs47l94-codec", },
+	{
+		.name = "tacna-extcon",
+		.parent_supplies = cs47l94_supplies,
+		.num_parent_supplies = 1,	/* only need VOUT_MIC */
+	},
+	{
+		.name = "cs47l94-codec",
+		.parent_supplies = cs47l94_supplies,
+		.num_parent_supplies = ARRAY_SIZE(cs47l94_supplies),
+	},
 	{ .name = "tacna-haptics", },
 };
 
