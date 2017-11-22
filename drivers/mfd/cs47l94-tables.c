@@ -19,6 +19,7 @@ static const struct reg_sequence cs47l94_reva_patch[] = {
 	{ 0x0000252c, 0x00000031 },
 	{ 0x00002534, 0x00000031 },
 	{ 0x00004ccc, 0x00000764 },
+	{ 0x00005318, 0x28F4F480 },
 	{ 0x00002660, 0x00220022 },
 	{ 0x00018118, 0xffffffff },
 };
