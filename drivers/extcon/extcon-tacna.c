@@ -699,6 +699,19 @@ static void tacna_extcon_set_mode(struct tacna_extcon *info, int mode)
 			   info->micd_modes[mode].hp_gnd <<
 			   TACNA_OUT1_GND_SEL_SHIFT);
 
+	switch (tacna->type) {
+	case CS47L94:
+	case CS47L95:
+		regmap_update_bits(tacna->regmap,
+				   TACNA_OUTPUT_PATH_CFG3,
+				   TACNA_OUTH_GND_SEL_MASK,
+				   info->micd_modes[mode].hp_gnd <<
+				   TACNA_OUTH_GND_SEL_SHIFT);
+		break;
+	default:
+		break;
+	}
+
 	info->micd_mode = mode;
 }
 
