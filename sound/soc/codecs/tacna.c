@@ -76,18 +76,18 @@
 #define TACNA_CHANNEL_STATUS_POLL_TIMEOUT_US	20000
 
 #define tacna_fll_err(_fll, fmt, ...) \
-	dev_err(_fll->tacna->dev, "FLL%d: " fmt, _fll->id, ##__VA_ARGS__)
+	dev_err(_fll->tacna_priv->dev, "FLL%d: " fmt, _fll->id, ##__VA_ARGS__)
 #define tacna_fll_warn(_fll, fmt, ...) \
-	dev_warn(_fll->tacna->dev, "FLL%d: " fmt, _fll->id, ##__VA_ARGS__)
+	dev_warn(_fll->tacna_priv->dev, "FLL%d: " fmt, _fll->id, ##__VA_ARGS__)
 #define tacna_fll_dbg(_fll, fmt, ...) \
-	dev_dbg(_fll->tacna->dev, "FLL%d: " fmt, _fll->id, ##__VA_ARGS__)
+	dev_dbg(_fll->tacna_priv->dev, "FLL%d: " fmt, _fll->id, ##__VA_ARGS__)
 
 #define tacna_asp_err(_dai, fmt, ...) \
-	dev_err(_dai->dev, "ASP%d: " fmt, _dai->id, ##__VA_ARGS__)
+	dev_err(_dai->codec->dev, "ASP%d: " fmt, _dai->id, ##__VA_ARGS__)
 #define tacna_asp_warn(_dai, fmt, ...) \
-	dev_warn(_dai->dev, "ASP%d: " fmt, _dai->id, ##__VA_ARGS__)
+	dev_warn(_dai->codec->dev, "ASP%d: " fmt, _dai->id, ##__VA_ARGS__)
 #define tacna_asp_dbg(_dai, fmt, ...) \
-	dev_dbg(_dai->dev, "ASP%d: " fmt, _dai->id, ##__VA_ARGS__)
+	dev_dbg(_dai->codec->dev, "ASP%d: " fmt, _dai->id, ##__VA_ARGS__)
 
 static const struct snd_soc_dapm_route tacna_mono_routes[] = {
 	{ "OUT1R", NULL, "OUT1L" },
@@ -390,7 +390,7 @@ void tacna_spin_sysclk(struct tacna_priv *priv)
 	for (i = 0; i < 4; i++) {
 		ret = regmap_read(tacna->regmap, TACNA_DEVID, &val);
 		if (ret)
-			dev_err(tacna->dev,
+			dev_err(priv->dev,
 				"%s Failed to read register: %d (%d)\n",
 				__func__, ret, i);
 	}
@@ -401,11 +401,10 @@ EXPORT_SYMBOL_GPL(tacna_spin_sysclk);
 
 static void tacna_debug_dump_domain_groups(const struct tacna_priv *priv)
 {
-	struct tacna *tacna = priv->tacna;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(priv->domain_group_ref); ++i)
-		dev_dbg(tacna->dev, "domain_grp_ref[%d]=%d\n", i,
+		dev_dbg(priv->dev, "domain_grp_ref[%d]=%d\n", i,
 			priv->domain_group_ref[i]);
 }
 
@@ -430,7 +429,7 @@ static bool tacna_can_change_grp_rate(const struct tacna_priv *priv,
 			    priv->domain_group_ref[TACNA_DOM_GRP_ASRC1_RATE_2];
 			break;
 		default:
-			dev_warn(priv->tacna->dev,
+			dev_warn(priv->dev,
 				 "Unexpected shift 0x%x for rate reg 0x%x\n",
 				 shift, reg);
 			return false;
@@ -447,7 +446,7 @@ static bool tacna_can_change_grp_rate(const struct tacna_priv *priv,
 			    priv->domain_group_ref[TACNA_DOM_GRP_ASRC2_RATE_2];
 			break;
 		default:
-			dev_warn(priv->tacna->dev,
+			dev_warn(priv->dev,
 				 "Unexpected shift 0x%x for rate reg 0x%x\n",
 				 shift, reg);
 			return false;
@@ -462,7 +461,7 @@ static bool tacna_can_change_grp_rate(const struct tacna_priv *priv,
 			count = priv->domain_group_ref[TACNA_DOM_GRP_ISRC1_DEC];
 			break;
 		default:
-			dev_warn(priv->tacna->dev,
+			dev_warn(priv->dev,
 				 "Unexpected shift 0x%x for rate reg 0x%x\n",
 				 shift, reg);
 			return false;
@@ -477,7 +476,7 @@ static bool tacna_can_change_grp_rate(const struct tacna_priv *priv,
 			count = priv->domain_group_ref[TACNA_DOM_GRP_ISRC2_DEC];
 			break;
 		default:
-			dev_warn(priv->tacna->dev,
+			dev_warn(priv->dev,
 				 "Unexpected shift 0x%x for rate reg 0x%x\n",
 				 shift, reg);
 			return false;
@@ -541,7 +540,7 @@ static bool tacna_can_change_grp_rate(const struct tacna_priv *priv,
 		return false;
 	}
 
-	dev_dbg(priv->tacna->dev, "Rate reg 0x%x group ref %d\n", reg, count);
+	dev_dbg(priv->dev, "Rate reg 0x%x group ref %d\n", reg, count);
 
 	if (count)
 		return false;
@@ -575,7 +574,7 @@ int tacna_rate_put(struct snd_kcontrol *kcontrol,
 	mutex_lock(&priv->rate_lock);
 
 	if (!tacna_can_change_grp_rate(priv, e->reg, e->shift_l)) {
-		dev_warn(priv->tacna->dev,
+		dev_warn(priv->dev,
 			 "Cannot change '%s' while in use by active audio paths\n",
 			 kcontrol->id.name);
 		ret = -EBUSY;
@@ -686,6 +685,7 @@ static int tacna_inmux_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_context *dapm =
 		snd_soc_dapm_kcontrol_dapm(kcontrol);
 	struct tacna *tacna = dev_get_drvdata(codec->dev->parent);
+	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct soc_enum *e = (struct soc_enum *) kcontrol->private_value;
 	unsigned int mux, src_val, inmode;
 	int ret;
@@ -716,7 +716,7 @@ static int tacna_inmux_put(struct snd_kcontrol *kcontrol,
 	if (inmode == TACNA_INMODE_SE)
 		src_val |= 1 << TACNA_IN1L_SRC_SHIFT;
 
-	dev_dbg(tacna->dev,
+	dev_dbg(priv->dev,
 		"mux=%u reg=0x%x inmode=0x%x val=0x%x\n",
 		mux, e->reg, inmode, src_val);
 
@@ -1246,12 +1246,12 @@ int tacna_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct tacna *tacna = dev_get_drvdata(codec->dev->parent);
+	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
 	__be32 *data = (__be32 *)ucontrol->value.bytes.data;
 	s16 val = (s16)be32_to_cpu(*data);
 
 	if (abs(val) >= 4096) {
-		dev_err(tacna->dev, "Rejecting unstable LHPF coefficients\n");
+		dev_err(priv->dev, "Rejecting unstable LHPF coefficients\n");
 		return -EINVAL;
 	}
 
@@ -1862,7 +1862,7 @@ int tacna_dsp_rate_put(struct snd_kcontrol *kcontrol,
 	snd_soc_dapm_mutex_lock(dapm);
 
 	if (!tacna_can_change_grp_rate(priv, priv->dsp[dsp_num].base, 0)) {
-		dev_warn(priv->tacna->dev,
+		dev_warn(priv->dev,
 			 "Cannot change '%s' while DSP%u is active\n",
 			 kcontrol->id.name, priv->dsp[dsp_num].num);
 		ret = -EBUSY;
@@ -2482,7 +2482,7 @@ int tacna_set_sysclk(struct snd_soc_codec *codec, int clk_id, int source,
 	}
 
 	if (clk_freq_sel < 0) {
-		dev_err(tacna->dev,
+		dev_err(priv->dev,
 			"Failed to get %s setting for %dHZ\n", name, freq);
 		return clk_freq_sel;
 	}
@@ -2490,7 +2490,7 @@ int tacna_set_sysclk(struct snd_soc_codec *codec, int clk_id, int source,
 	*clk = freq;
 
 	if (freq == 0) {
-		dev_dbg(tacna->dev, "%s cleared\n", name);
+		dev_dbg(priv->dev, "%s cleared\n", name);
 		return 0;
 	}
 
@@ -2499,7 +2499,7 @@ int tacna_set_sysclk(struct snd_soc_codec *codec, int clk_id, int source,
 	if (freq % 6144000)
 		val |= TACNA_SYSCLK_FRAC;
 
-	dev_dbg(tacna->dev, "%s set to %uHz", name, freq);
+	dev_dbg(priv->dev, "%s set to %uHz", name, freq);
 
 	return regmap_update_bits(tacna->regmap, reg, mask, val);
 }
@@ -2507,7 +2507,7 @@ EXPORT_SYMBOL_GPL(tacna_set_sysclk);
 
 static int tacna_is_enabled_fll(struct tacna_fll *fll, int base)
 {
-	struct tacna *tacna = fll->tacna;
+	struct tacna *tacna = fll->tacna_priv->tacna;
 	unsigned int reg;
 	int ret;
 
@@ -2522,7 +2522,7 @@ static int tacna_is_enabled_fll(struct tacna_fll *fll, int base)
 
 static int tacna_wait_for_fll(struct tacna_fll *fll, bool requested)
 {
-	struct tacna *tacna = fll->tacna;
+	struct tacna *tacna = fll->tacna_priv->tacna;
 	unsigned int val = 0;
 	int i;
 
@@ -2553,7 +2553,7 @@ static int tacna_wait_for_fll(struct tacna_fll *fll, bool requested)
 
 static int tacna_fllhj_disable(struct tacna_fll *fll)
 {
-	struct tacna *tacna = fll->tacna;
+	struct tacna *tacna = fll->tacna_priv->tacna;
 	bool change;
 
 	tacna_fll_dbg(fll, "Disabling FLL\n");
@@ -2606,7 +2606,7 @@ static int tacna_fllhj_disable(struct tacna_fll *fll)
 
 static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 {
-	struct tacna *tacna = fll->tacna;
+	struct tacna *tacna = fll->tacna_priv->tacna;
 	int refdiv, fref, fout, lockdet_thr, fbdiv, fast_clk, fllgcd;
 	bool frac = false;
 	unsigned int fll_n, min_n, max_n, ratio, theta, lambda, hp, ord2;
@@ -2752,7 +2752,7 @@ static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 
 static int tacna_fllhj_enable(struct tacna_fll *fll)
 {
-	struct tacna *tacna = fll->tacna;
+	struct tacna *tacna = fll->tacna_priv->tacna;
 	int already_enabled = tacna_is_enabled_fll(fll, fll->base);
 	int ret;
 
@@ -2766,7 +2766,7 @@ static int tacna_fllhj_enable(struct tacna_fll *fll)
 		      already_enabled ? "enabled" : "disabled");
 
 	/* FLLn_HOLD must be set before configuring any registers */
-	regmap_update_bits(fll->tacna->regmap,
+	regmap_update_bits(tacna->regmap,
 			   fll->base + TACNA_FLL_CONTROL1_OFFS,
 			   TACNA_FLL1_HOLD_MASK,
 			   TACNA_FLL1_HOLD_MASK);
@@ -3568,12 +3568,12 @@ int tacna_domain_clk_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		dev_dbg(priv->tacna->dev, "Inc ref on domain group %d\n",
+		dev_dbg(priv->dev, "Inc ref on domain group %d\n",
 			dom_grp);
 		++priv->domain_group_ref[dom_grp];
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		dev_dbg(priv->tacna->dev, "Dec ref on domain group %d\n",
+		dev_dbg(priv->dev, "Dec ref on domain group %d\n",
 			dom_grp);
 		--priv->domain_group_ref[dom_grp];
 		break;
@@ -3819,7 +3819,7 @@ int tacna_eq_ev(struct snd_soc_dapm_widget *w,
 		    tacna_eq_filter_unstable(true, data[13], data[12]) ||
 		    tacna_eq_filter_unstable(true, data[19], data[18]) ||
 		    tacna_eq_filter_unstable(false, data[25], data[24])) {
-			dev_err(tacna->dev,
+			dev_err(priv->dev,
 				"Rejecting unstable EQ coefficients.\n"
 				"Last stable coefficients will be used.\n");
 
@@ -3828,7 +3828,7 @@ int tacna_eq_ev(struct snd_soc_dapm_widget *w,
 			ret = regmap_raw_write(tacna->regmap, reg, data,
 					       TACNA_EQ_BLOCK_SZ);
 			if (ret < 0) {
-				dev_err(tacna->dev,
+				dev_err(priv->dev,
 					"Error writing EQ coefficients: %d\n",
 					ret);
 				goto out;
@@ -3837,7 +3837,7 @@ int tacna_eq_ev(struct snd_soc_dapm_widget *w,
 			ret = snd_soc_update_bits(codec, TACNA_EQ_CONTROL2,
 						  w->mask, mode << w->shift);
 			if (ret < 0)
-				dev_err(tacna->dev,
+				dev_err(priv->dev,
 					"Error writing EQ mode: %d\n",
 					ret);
 		}
@@ -3887,10 +3887,10 @@ static int tacna_get_variable_u32_array(struct tacna_priv *priv,
 	if (n == -EINVAL) {
 		return 0;	/* missing, ignore */
 	} else if (n < 0) {
-		dev_warn(tacna->dev, "%s malformed (%d)\n", propname, n);
+		dev_warn(priv->dev, "%s malformed (%d)\n", propname, n);
 		return -EINVAL;
 	} else if ((n % multiple) != 0) {
-		dev_warn(tacna->dev, "%s not a multiple of %d entries\n",
+		dev_warn(priv->dev, "%s not a multiple of %d entries\n",
 			 propname, multiple);
 		return -EINVAL;
 	}
@@ -3988,7 +3988,7 @@ static void tacna_prop_get_pdata(struct tacna_priv *priv)
 		pdata->auxpdm_falling_edge[i] = !!auxpdm_falling_edge[i];
 }
 
-int tacna_init_fll(struct tacna *tacna,
+int tacna_init_fll(struct tacna_priv *priv,
 		   int id,
 		   int base,
 		   unsigned int sts_addr,
@@ -4001,7 +4001,7 @@ int tacna_init_fll(struct tacna *tacna,
 	fll->base = base;
 	fll->sts_addr = sts_addr;
 	fll->sts_mask = sts_mask;
-	fll->tacna = tacna;
+	fll->tacna_priv = priv;
 	fll->ref_src = TACNA_FLL_SRC_NONE;
 	fll->sync_src = TACNA_FLL_SRC_NONE;
 
@@ -4021,7 +4021,7 @@ int tacna_init_inputs(struct snd_soc_codec *codec)
 	 * B settings will be applied if the mux is changed
 	 */
 	for (i = 0; i < priv->max_analogue_inputs; i++) {
-		dev_dbg(tacna->dev, "IN%d mode %u:%u:%u:%u\n", i + 1,
+		dev_dbg(priv->dev, "IN%d mode %u:%u:%u:%u\n", i + 1,
 			tacna->pdata.codec.inmode[i][0],
 			tacna->pdata.codec.inmode[i][1],
 			tacna->pdata.codec.inmode[i][2],
@@ -4035,7 +4035,7 @@ int tacna_init_inputs(struct snd_soc_codec *codec)
 			ana_mode_l = 1 << TACNA_IN1L_SRC_SHIFT;
 			break;
 		default:
-			dev_warn(tacna->dev,
+			dev_warn(priv->dev,
 				 "IN%dL_1 Illegal inmode %u ignored\n",
 				 i + 1, tacna->pdata.codec.inmode[i][0]);
 			continue;
@@ -4049,13 +4049,13 @@ int tacna_init_inputs(struct snd_soc_codec *codec)
 			ana_mode_r = 1 << TACNA_IN1R_SRC_SHIFT;
 			break;
 		default:
-			dev_warn(tacna->dev,
+			dev_warn(priv->dev,
 				 "IN%dR_1 Illegal inmode %u ignored\n",
 				 i + 1, tacna->pdata.codec.inmode[i][1]);
 			continue;
 		}
 
-		dev_dbg(tacna->dev,
+		dev_dbg(priv->dev,
 			"IN%d_1 Analogue mode=0x%x,0x%x\n",
 			i + 1, ana_mode_l, ana_mode_r);
 
@@ -4112,7 +4112,7 @@ int tacna_init_outputs(struct snd_soc_codec *codec, int n_mono_routes)
 	int i;
 
 	if (n_mono_routes > TACNA_MAX_OUTPUT) {
-		dev_warn(tacna->dev,
+		dev_warn(priv->dev,
 			 "Requested %d mono outputs, using maximum allowed %d\n",
 			 n_mono_routes, TACNA_MAX_OUTPUT);
 		n_mono_routes = TACNA_MAX_OUTPUT;
@@ -4132,10 +4132,10 @@ int tacna_init_outputs(struct snd_soc_codec *codec, int n_mono_routes)
 				   TACNA_OUT1_MONO,
 				   val);
 
-		dev_dbg(tacna->dev, "OUT%d mono=0x%x\n", i + 1, val);
+		dev_dbg(priv->dev, "OUT%d mono=0x%x\n", i + 1, val);
 	}
 
-	dev_dbg(tacna->dev, "OUT5 fmt=0x%x mute=0x%x\n",
+	dev_dbg(priv->dev, "OUT5 fmt=0x%x mute=0x%x\n",
 		pdata->pdm_fmt, pdata->pdm_mute);
 
 	if (pdata->pdm_mute)
@@ -4175,7 +4175,7 @@ int tacna_init_eq(struct tacna_priv *priv)
 
 	ret = regmap_read(tacna->regmap, TACNA_EQ_CONTROL2, &mode);
 	if (ret < 0) {
-		dev_err(tacna->dev, "Error reading EQ mode: %d\n", ret);
+		dev_err(priv->dev, "Error reading EQ mode: %d\n", ret);
 		goto out;
 	}
 
@@ -4186,7 +4186,7 @@ int tacna_init_eq(struct tacna_priv *priv)
 		ret = regmap_raw_read(tacna->regmap, reg + (i * 68), data,
 				      TACNA_EQ_BLOCK_SZ);
 		if (ret < 0) {
-			dev_err(tacna->dev,
+			dev_err(priv->dev,
 				"Error reading EQ coefficients: %d\n",
 				ret);
 			goto out;

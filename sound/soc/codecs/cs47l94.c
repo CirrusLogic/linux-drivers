@@ -919,7 +919,7 @@ static int tacna_us_rate_put(struct snd_kcontrol *kcontrol,
 
 	ret = regmap_read(tacna->regmap, e->reg, &cur);
 	if (ret != 0) {
-		dev_err(tacna->dev, "Failed to read current reg: %d\n", ret);
+		dev_err(codec->dev, "Failed to read current reg: %d\n", ret);
 		goto end;
 	}
 
@@ -928,7 +928,7 @@ static int tacna_us_rate_put(struct snd_kcontrol *kcontrol,
 
 	ret = regmap_read(tacna->regmap, e->reg, &cur);
 	if (ret != 0) {
-		dev_err(tacna->dev, "Failed to read enable reg: %d\n", ret);
+		dev_err(codec->dev, "Failed to read enable reg: %d\n", ret);
 		goto end;
 	}
 
@@ -945,7 +945,7 @@ static int tacna_us_rate_put(struct snd_kcontrol *kcontrol,
 	}
 
 	if (cur & ena_mask) {
-		dev_err(tacna->dev,
+		dev_err(codec->dev,
 			"Can't change rate on active input 0x%08x: %d\n",
 			e->reg, ret);
 		ret = -EBUSY;
@@ -3146,7 +3146,8 @@ static int cs47l94_init_outh(struct cs47l94 *cs47l94)
 	ret = regmap_read(tacna->regmap, TACNA_OUTHL_VOLUME_1,
 			  &cs47l94->outh_main_vol[0]);
 	if (ret) {
-		dev_err(tacna->dev, "Error reading OUTHL volume %d\n", ret);
+		dev_err(cs47l94->core.dev, "Error reading OUTHL volume %d\n",
+			ret);
 		return ret;
 	}
 	cs47l94->outh_main_vol[0] &= TACNA_OUTHL_VOL_MASK;
@@ -3154,7 +3155,8 @@ static int cs47l94_init_outh(struct cs47l94 *cs47l94)
 	ret = regmap_read(tacna->regmap, TACNA_OUTHR_VOLUME_1,
 			  &cs47l94->outh_main_vol[1]);
 	if (ret) {
-		dev_err(tacna->dev, "Error reading OUTHR volume %d\n", ret);
+		dev_err(cs47l94->core.dev, "Error reading OUTHR volume %d\n",
+			ret);
 		return ret;
 	}
 	cs47l94->outh_main_vol[1] &= TACNA_OUTHR_VOL_MASK;
@@ -3237,7 +3239,7 @@ static int cs47l94_codec_probe(struct snd_soc_codec *codec)
 				"Ultrasonic 1 activity",
 				 cs47l94_us1_activity, tacna);
 	if (ret) {
-		dev_err(tacna->dev, "Failed to get Ultrasonic 1 IRQ: %d\n",
+		dev_err(codec->dev, "Failed to get Ultrasonic 1 IRQ: %d\n",
 			ret);
 		return ret;
 	}
@@ -3247,7 +3249,7 @@ static int cs47l94_codec_probe(struct snd_soc_codec *codec)
 				 cs47l94_us2_activity, tacna);
 	if (ret) {
 		tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, cs47l94);
-		dev_err(tacna->dev, "Failed to get Ultrasonic 2 IRQ: %d\n",
+		dev_err(codec->dev, "Failed to get Ultrasonic 2 IRQ: %d\n",
 			ret);
 		return ret;
 	}
@@ -3460,7 +3462,7 @@ static int cs47l94_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < CS47L94_N_FLL; ++i)
-		tacna_init_fll(tacna,
+		tacna_init_fll(&cs47l94->core,
 			       i + 1,
 			       TACNA_FLL1_CONTROL1 + i * 0x100,
 			       TACNA_IRQ1_STS6,
