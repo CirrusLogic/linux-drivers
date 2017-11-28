@@ -485,6 +485,9 @@ static bool tacna_can_change_grp_rate(const struct tacna_priv *priv,
 	case TACNA_OUTPUT_CONTROL_1:
 		count = priv->domain_group_ref[TACNA_DOM_GRP_DAC];
 		break;
+	case TACNA_OUTH_CONFIG_1:
+		count = priv->domain_group_ref[TACNA_DOM_GRP_DAC];
+		break;
 	case TACNA_ASP1_CONTROL1:
 		count = priv->domain_group_ref[TACNA_DOM_GRP_ASP1];
 		break;
