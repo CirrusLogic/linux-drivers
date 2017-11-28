@@ -698,7 +698,7 @@ static const struct soc_enum cs47l94_outh_rate =
 	SOC_VALUE_ENUM_SINGLE(TACNA_OUTH_CONFIG_1,
 			      TACNA_OUTH_RATE_SHIFT,
 			      TACNA_OUTH_RATE_MASK >> TACNA_OUTH_RATE_SHIFT,
-			      TACNA_SYNC_RATE_ENUM_SIZE,
+			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text,
 			      tacna_rate_val);
 
