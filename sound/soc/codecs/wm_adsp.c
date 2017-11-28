@@ -3036,7 +3036,7 @@ static int wm_halo_set_rate_block(struct wm_adsp *dsp,
 	return 0;
 }
 
-int wm_halo_clear_stream_arb(struct wm_adsp *dsp)
+static int wm_halo_clear_stream_arb(struct wm_adsp *dsp)
 {
 	struct regmap *regmap = dsp->regmap;
 	unsigned int dspbase = dsp->base, reg, begin, end;
