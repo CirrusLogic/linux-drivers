@@ -1044,7 +1044,7 @@ const struct soc_enum tacna_output_rate =
 	SOC_VALUE_ENUM_SINGLE(TACNA_OUTPUT_CONTROL_1,
 			      TACNA_OUT_RATE_SHIFT,
 			      TACNA_OUT_RATE_MASK >> TACNA_OUT_RATE_SHIFT,
-			      TACNA_SYNC_RATE_ENUM_SIZE,
+			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text,
 			      tacna_rate_val);
 EXPORT_SYMBOL_GPL(tacna_output_rate);
