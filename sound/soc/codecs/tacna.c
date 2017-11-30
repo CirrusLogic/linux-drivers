@@ -3290,7 +3290,7 @@ static int tacna_dai_set_sysclk(struct snd_soc_dai *dai,
 		return -EBUSY;
 	}
 
-	dev_dbg(codec->dev, "Setting ASP%d to %s\n", dai->id + 1,
+	dev_dbg(codec->dev, "Setting ASP%d to %s\n", dai->id,
 		tacna_dai_clk_str(clk_id));
 
 	/* No need to alter routes if we haven't switched clock domain. */
