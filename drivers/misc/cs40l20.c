@@ -518,55 +518,6 @@ err_rls_fw:
 	release_firmware(fw);
 }
 
-static int cs40l20_dsp_boot(struct cs40l20_private *cs40l20)
-{
-	int ret;
-	struct regmap *regmap = cs40l20->regmap;
-	struct device *dev = cs40l20->dev;
-	unsigned int i;
-
-	ret = regmap_update_bits(regmap, CS40L20_DSP1_CCM_CORE_CTRL,
-			CS40L20_DSP1_RESET_MASK, 1 << CS40L20_DSP1_RESET_SHIFT);
-	if (ret) {
-		dev_err(dev, "Failed to reset DSP\n");
-		return ret;
-	}
-
-	ret = regmap_write(regmap, CS40L20_MPU_UNLOCK_ADDR,
-			CS40L20_MPU_UNLOCK_CODE1);
-	if (ret) {
-		dev_err(dev, "Failed to unlock DSP MPU (step 1 of 2)\n");
-		return ret;
-	}
-
-	ret = regmap_write(regmap, CS40L20_MPU_UNLOCK_ADDR,
-			CS40L20_MPU_UNLOCK_CODE2);
-	if (ret) {
-		dev_err(dev, "Failed to unlock DSP MPU (step 2 of 2)\n");
-		return ret;
-	}
-
-	for (i = CS40L20_MPU_START; i <= CS40L20_MPU_STOP; i += 4) {
-		ret = regmap_write(regmap, i, 0xFFFFFFFF);
-
-		if (ret) {
-			dev_err(dev, "Failed to free DSP memory\n");
-			return ret;
-		}
-	}
-
-	ret = regmap_write(regmap, CS40L20_MPU_UNLOCK_ADDR, 0);
-	if (ret) {
-		dev_err(dev, "Failed to lock DSP MPU\n");
-		return ret;
-	}
-
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG, "cs40l20.wmfw",
-			dev, GFP_KERNEL, cs40l20, cs40l20_firmware_load);
-
-	return 0;
-}
-
 static int cs40l20_boost_config(struct cs40l20_private *cs40l20,
 		int boost_ind, int boost_cap, int boost_ipk)
 {
@@ -664,6 +615,26 @@ static int cs40l20_boost_config(struct cs40l20_private *cs40l20,
 	return 0;
 }
 
+static const struct reg_sequence cs40l20_mpu_config[] = {
+	{CS40L20_DSP1_MPU_LOCK_CONFIG,	CS40L20_MPU_UNLOCK_CODE1},
+	{CS40L20_DSP1_MPU_LOCK_CONFIG,	CS40L20_MPU_UNLOCK_CODE2},
+	{CS40L20_DSP1_MPU_XM_ACCESS0,	0xFFFFFFFF},
+	{CS40L20_DSP1_MPU_YM_ACCESS0,	0xFFFFFFFF},
+	{CS40L20_DSP1_MPU_WNDW_ACCESS0,	0xFFFFFFFF},
+	{CS40L20_DSP1_MPU_XREG_ACCESS0,	0xFFFFFFFF},
+	{CS40L20_DSP1_MPU_YREG_ACCESS0,	0xFFFFFFFF},
+	{CS40L20_DSP1_MPU_WNDW_ACCESS1,	0xFFFFFFFF},
+	{CS40L20_DSP1_MPU_XREG_ACCESS1,	0xFFFFFFFF},
+	{CS40L20_DSP1_MPU_YREG_ACCESS1,	0xFFFFFFFF},
+	{CS40L20_DSP1_MPU_WNDW_ACCESS2,	0xFFFFFFFF},
+	{CS40L20_DSP1_MPU_XREG_ACCESS2,	0xFFFFFFFF},
+	{CS40L20_DSP1_MPU_YREG_ACCESS2,	0xFFFFFFFF},
+	{CS40L20_DSP1_MPU_WNDW_ACCESS3,	0xFFFFFFFF},
+	{CS40L20_DSP1_MPU_XREG_ACCESS3,	0xFFFFFFFF},
+	{CS40L20_DSP1_MPU_YREG_ACCESS3,	0xFFFFFFFF},
+	{CS40L20_DSP1_MPU_LOCK_CONFIG,	0x00000000}
+};
+
 static int cs40l20_init(struct cs40l20_private *cs40l20)
 {
 	int ret;
@@ -694,11 +665,22 @@ static int cs40l20_init(struct cs40l20_private *cs40l20)
 		return ret;
 	}
 
-	ret = cs40l20_dsp_boot(cs40l20);
+	ret = regmap_update_bits(regmap, CS40L20_DSP1_CCM_CORE_CTRL,
+			CS40L20_DSP1_RESET_MASK, 1 << CS40L20_DSP1_RESET_SHIFT);
 	if (ret) {
-		dev_err(dev, "Failed to boot DSP\n");
+		dev_err(dev, "Failed to reset DSP\n");
 		return ret;
 	}
+
+	ret = regmap_multi_reg_write(regmap, cs40l20_mpu_config,
+			ARRAY_SIZE(cs40l20_mpu_config));
+	if (ret) {
+		dev_err(dev, "Failed to configure MPU\n");
+		return ret;
+	}
+
+	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG, "cs40l20.wmfw",
+			dev, GFP_KERNEL, cs40l20, cs40l20_firmware_load);
 
 	return 0;
 }
