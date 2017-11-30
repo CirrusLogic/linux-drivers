@@ -275,6 +275,7 @@ static void cs40l20_vibe_init(struct cs40l20_private *cs40l20)
 	led_dev->name = "vibrator";
 	led_dev->max_brightness = LED_FULL;
 	led_dev->brightness_set = cs40l20_vibe_state_change;
+	led_dev->default_trigger = "transient";
 
 	ret = led_classdev_register(dev, led_dev);
 	if (ret) {
