@@ -19,9 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
-#include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/leds.h>
 #include <linux/sysfs.h>
@@ -29,6 +27,9 @@
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
+#include <linux/of_device.h>
+#include <linux/platform_device.h>
+#include <linux/platform_data/cs40l20.h>
 
 #include "cs40l20.h"
 
@@ -46,6 +47,7 @@ struct cs40l20_private {
 	unsigned int num_waves;
 	bool vibe_init_success;
 	struct gpio_desc *reset_gpio;
+	struct cs40l20_platform_data pdata;
 };
 
 static const char * const cs40l20_supplies[] = {
@@ -565,6 +567,103 @@ static int cs40l20_dsp_boot(struct cs40l20_private *cs40l20)
 	return 0;
 }
 
+static int cs40l20_boost_config(struct cs40l20_private *cs40l20,
+		int boost_ind, int boost_cap, int boost_ipk)
+{
+	int ret;
+	unsigned char bst_lbst_val, bst_cbst_range, bst_ipk_scaled;
+	struct regmap *regmap = cs40l20->regmap;
+	struct device *dev = cs40l20->dev;
+
+	switch (boost_ind) {
+	case 1000:	/* 1.0 uH */
+		bst_lbst_val = 0;
+		break;
+	case 1200:	/* 1.2 uH */
+		bst_lbst_val = 1;
+		break;
+	case 1500:	/* 1.5 uH */
+		bst_lbst_val = 2;
+		break;
+	case 2200:	/* 2.2 uH */
+		bst_lbst_val = 3;
+		break;
+	default:
+		dev_err(dev, "Invalid boost inductor value: %d nH\n",
+				boost_ind);
+		return -EINVAL;
+	}
+
+	switch (boost_cap) {
+	case 0 ... 19:
+		bst_cbst_range = 0;
+		break;
+	case 20 ... 50:
+		bst_cbst_range = 1;
+		break;
+	case 51 ... 100:
+		bst_cbst_range = 2;
+		break;
+	case 101 ... 200:
+		bst_cbst_range = 3;
+		break;
+	default:	/* 201 uF and greater */
+		bst_cbst_range = 4;
+	}
+
+	ret = regmap_update_bits(regmap, CS40L20_BSTCVRT_COEFF,
+			CS40L20_BST_K1_MASK,
+			cs40l20_bst_k1_table[bst_lbst_val][bst_cbst_range]
+				<< CS40L20_BST_K1_SHIFT);
+	if (ret) {
+		dev_err(dev, "Failed to write boost K1 coefficient\n");
+		return ret;
+	}
+
+	ret = regmap_update_bits(regmap, CS40L20_BSTCVRT_COEFF,
+			CS40L20_BST_K2_MASK,
+			cs40l20_bst_k2_table[bst_lbst_val][bst_cbst_range]
+				<< CS40L20_BST_K2_SHIFT);
+	if (ret) {
+		dev_err(dev, "Failed to write boost K2 coefficient\n");
+		return ret;
+	}
+
+	ret = regmap_update_bits(regmap, CS40L20_BSTCVRT_SLOPE_LBST,
+			CS40L20_BST_SLOPE_MASK,
+			cs40l20_bst_slope_table[bst_lbst_val]
+				<< CS40L20_BST_SLOPE_SHIFT);
+	if (ret) {
+		dev_err(dev, "Failed to write boost slope coefficient\n");
+		return ret;
+	}
+
+	ret = regmap_update_bits(regmap, CS40L20_BSTCVRT_SLOPE_LBST,
+			CS40L20_BST_LBST_VAL_MASK,
+			bst_lbst_val << CS40L20_BST_LBST_VAL_SHIFT);
+	if (ret) {
+		dev_err(dev, "Failed to write boost inductor value\n");
+		return ret;
+	}
+
+	if ((boost_ipk < 1600) || (boost_ipk > 4500)) {
+		dev_err(dev, "Invalid boost inductor peak current: %d mA\n",
+				boost_ipk);
+		return -EINVAL;
+	}
+	bst_ipk_scaled = ((boost_ipk - 1600) / 50) + 0x10;
+
+	ret = regmap_update_bits(regmap, CS40L20_BSTCVRT_PEAK_CUR,
+			CS40L20_BST_IPK_MASK,
+			bst_ipk_scaled << CS40L20_BST_IPK_SHIFT);
+	if (ret) {
+		dev_err(dev, "Failed to write boost inductor peak current\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int cs40l20_init(struct cs40l20_private *cs40l20)
 {
 	int ret;
@@ -573,6 +672,11 @@ static int cs40l20_init(struct cs40l20_private *cs40l20)
 
 	cs40l20->cp_trigger_index = 0;
 	cs40l20->vibe_init_success = false;
+
+	ret = cs40l20_boost_config(cs40l20, cs40l20->pdata.boost_ind,
+			cs40l20->pdata.boost_cap, cs40l20->pdata.boost_ipk);
+	if (ret)
+		return ret;
 
 	ret = regmap_update_bits(regmap, CS40L20_DAC_PCM1_SRC,
 			CS40L20_DAC_PCM1_SRC_MASK,
@@ -599,6 +703,41 @@ static int cs40l20_init(struct cs40l20_private *cs40l20)
 	return 0;
 }
 
+static int cs40l20_handle_of_data(struct i2c_client *i2c_client,
+		struct cs40l20_platform_data *pdata)
+{
+	struct device_node *np = i2c_client->dev.of_node;
+	struct device *dev = &i2c_client->dev;
+	int ret;
+	unsigned int out_val;
+
+	if (!np)
+		return 0;
+
+	ret = of_property_read_u32(np, "cirrus,boost-ind-nanohenry", &out_val);
+	if (ret) {
+		dev_err(dev, "Boost inductor value not specified\n");
+		return -EINVAL;
+	}
+	pdata->boost_ind = out_val;
+
+	ret = of_property_read_u32(np, "cirrus,boost-cap-microfarad", &out_val);
+	if (ret) {
+		dev_err(dev, "Boost capacitance not specified\n");
+		return -EINVAL;
+	}
+	pdata->boost_cap = out_val;
+
+	ret = of_property_read_u32(np, "cirrus,boost-ipk-milliamp", &out_val);
+	if (ret) {
+		dev_err(dev, "Boost inductor peak current not specified\n");
+		return -EINVAL;
+	}
+	pdata->boost_ipk = out_val;
+
+	return 0;
+}
+
 static struct regmap_config cs40l20_regmap = {
 	.reg_bits = 32,
 	.val_bits = 32,
@@ -616,9 +755,10 @@ static struct regmap_config cs40l20_regmap = {
 static int cs40l20_i2c_probe(struct i2c_client *i2c_client,
 				const struct i2c_device_id *id)
 {
+	int ret;
 	struct cs40l20_private *cs40l20;
 	struct device *dev = &i2c_client->dev;
-	int ret;
+	struct cs40l20_platform_data *pdata = dev_get_platdata(dev);
 	unsigned int reg_devid, reg_revid, reg_otpid, i;
 
 	cs40l20 = devm_kzalloc(dev, sizeof(struct cs40l20_private), GFP_KERNEL);
@@ -646,6 +786,23 @@ static int cs40l20_i2c_probe(struct i2c_client *i2c_client,
 	if (ret) {
 		dev_err(dev, "Failed to request core supplies: %d\n", ret);
 		return ret;
+	}
+
+	if (pdata) {
+		cs40l20->pdata = *pdata;
+	} else {
+		pdata = devm_kzalloc(dev, sizeof(struct cs40l20_platform_data),
+				GFP_KERNEL);
+		if (!pdata)
+			return -ENOMEM;
+
+		if (i2c_client->dev.of_node) {
+			ret = cs40l20_handle_of_data(i2c_client, pdata);
+			if (ret)
+				return ret;
+
+		}
+		cs40l20->pdata = *pdata;
 	}
 
 	ret = regulator_bulk_enable(cs40l20->num_supplies, cs40l20->supplies);
