@@ -699,6 +699,8 @@
 #define CS40L20_VIBEGEN_TIME_MS_MAX	0x02AAAA  /* ~174 sec */
 #define CS40L20_VIBEGEN_FW_RUN		0x2
 
+#define CS40L20_MAX_WLEN		4096
+
 bool cs40l20_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l20_volatile_reg(struct device *dev, unsigned int reg);
 
