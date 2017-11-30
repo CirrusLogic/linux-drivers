@@ -340,15 +340,15 @@ static void cs40l20_dsp_start(struct cs40l20_private *cs40l20)
 
 	ret = regmap_read(regmap, CS40L20_VIBEGEN_NUM_WAVES, &val);
 	if (ret) {
-		dev_err(dev, "Failed to read number of waveforms\n");
+		dev_err(dev, "Failed to count wavetable entries\n");
 		return;
 	}
 
 	if (val) {
-		dev_info(dev, "Found %d waveforms\n", val);
+		dev_info(dev, "Counted %d entries in wavetable\n", val);
 		cs40l20->num_waves = val;
 	} else {
-		dev_err(dev, "Failed to find waveforms\n");
+		dev_err(dev, "Wavetable is empty\n");
 		return;
 	}
 
@@ -381,14 +381,16 @@ static void cs40l20_waveform_load(const struct firmware *fw, void *context)
 	unsigned int block_type, block_length;
 
 	if (!fw) {
-		dev_err(dev, "Failed to request waveform file\n");
-		return;
+		dev_warn(dev, "Using default wavetable\n");
+		goto skip_loading;
 	}
 
 	if (memcmp(fw->data, "WMDR", 4)) {
 		dev_err(dev, "Failed to recognize waveform file\n");
 		goto err_rls_fw;
 	}
+
+	dev_info(dev, "Found custom wavetable\n");
 
 	while (pos < fw->size) {
 
@@ -421,6 +423,7 @@ static void cs40l20_waveform_load(const struct firmware *fw, void *context)
 		pos += block_length;
 	}
 
+skip_loading:
 	cs40l20_dsp_start(cs40l20);
 err_rls_fw:
 	release_firmware(fw);
