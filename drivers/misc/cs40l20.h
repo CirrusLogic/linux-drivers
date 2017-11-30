@@ -553,7 +553,6 @@
 #define CS40L20_BST_CTL_SEL_MASK	0x03
 #define CS40L20_BST_CTL_SEL_REG		0x00
 #define CS40L20_BST_CTL_SEL_CLASSH	0x01
-#define CS40L20_BST_IPK_MASK		0x7F
 #define CS40L20_BST_LIM_MASK		0x4
 #define CS40L20_BST_LIM_SHIFT		2
 
@@ -621,6 +620,20 @@
 
 #define CS40L20_DSP1_EN_MASK		0x1
 #define CS40L20_DSP1_EN_SHIFT		0
+
+#define CS40L20_BST_IPK_MASK		0x0000007F
+#define CS40L20_BST_IPK_SHIFT		0
+
+#define CS40L20_BST_K1_MASK		0x000000FF
+#define CS40L20_BST_K1_SHIFT		0
+#define CS40L20_BST_K2_MASK		0x0000FF00
+#define CS40L20_BST_K2_SHIFT		8
+
+#define CS40L20_BST_SLOPE_MASK		0x0000FF00
+#define CS40L20_BST_SLOPE_SHIFT		8
+
+#define CS40L20_BST_LBST_VAL_MASK	0x00000003
+#define CS40L20_BST_LBST_VAL_SHIFT	0
 
 #define CS40L20_PDN_DONE_MASK		0x00800000
 #define CS40L20_PDN_DONE_SHIFT		23
@@ -715,6 +728,10 @@ struct cs40l20_otp_map_element_t {
 	u32 num_elements;
 	const struct cs40l20_otp_packed_element_t *map;
 };
+
+extern const unsigned char cs40l20_bst_k1_table[4][5];
+extern const unsigned char cs40l20_bst_k2_table[4][5];
+extern const unsigned char cs40l20_bst_slope_table[4];
 
 extern const struct reg_default cs40l20_reg[CS40L20_MAX_CACHE_REG];
 extern const struct cs40l20_otp_map_element_t cs40l20_otp_map_map[2];
