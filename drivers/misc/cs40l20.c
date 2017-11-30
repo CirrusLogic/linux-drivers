@@ -26,6 +26,9 @@
 #include <linux/leds.h>
 #include <linux/sysfs.h>
 #include <linux/firmware.h>
+#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/delay.h>
 
 #include "cs40l20.h"
 
@@ -42,6 +45,7 @@ struct cs40l20_private {
 	unsigned int cp_trigger_index;
 	unsigned int num_waves;
 	bool vibe_init_success;
+	struct gpio_desc *reset_gpio;
 };
 
 static const char * const cs40l20_supplies[] = {
@@ -650,6 +654,19 @@ static int cs40l20_i2c_probe(struct i2c_client *i2c_client,
 		return ret;
 	}
 
+	cs40l20->reset_gpio = devm_gpiod_get_optional(dev, "reset",
+			GPIOD_OUT_LOW);
+	if (IS_ERR(cs40l20->reset_gpio))
+		return PTR_ERR(cs40l20->reset_gpio);
+
+	/* satisfy reset pulse width specification (with margin) */
+	usleep_range(2000, 2100);
+
+	gpiod_set_value_cansleep(cs40l20->reset_gpio, 1);
+
+	/* satisfy control port delay specification (with margin) */
+	usleep_range(1000, 1100);
+
 	ret = regmap_read(cs40l20->regmap, CS40L20_DEVID, &reg_devid);
 	if (ret) {
 		dev_err(dev, "Failed to read device ID\n");
@@ -682,21 +699,16 @@ static int cs40l20_i2c_probe(struct i2c_client *i2c_client,
 
 	return 0;
 err:
+	gpiod_set_value_cansleep(cs40l20->reset_gpio, 0);
+
 	regulator_bulk_disable(cs40l20->num_supplies, cs40l20->supplies);
+
 	return ret;
 }
 
 static int cs40l20_i2c_remove(struct i2c_client *i2c_client)
 {
 	struct cs40l20_private *cs40l20 = i2c_get_clientdata(i2c_client);
-	int ret;
-
-	ret = regmap_update_bits(cs40l20->regmap, CS40L20_DSP1_CCM_CORE_CTRL,
-			CS40L20_DSP1_EN_MASK, 0);
-	if (ret)
-		dev_err(cs40l20->dev, "Failed to disable DSP: %d\n", ret);
-
-	regulator_bulk_disable(cs40l20->num_supplies, cs40l20->supplies);
 
 	if (cs40l20->vibe_init_success) {
 		led_classdev_unregister(&cs40l20->led_dev);
@@ -711,6 +723,10 @@ static int cs40l20_i2c_remove(struct i2c_client *i2c_client)
 		sysfs_remove_group(&cs40l20->dev->kobj,
 				&cs40l20_dev_attr_group);
 	}
+
+	gpiod_set_value_cansleep(cs40l20->reset_gpio, 0);
+
+	regulator_bulk_disable(cs40l20->num_supplies, cs40l20->supplies);
 
 	return 0;
 }
