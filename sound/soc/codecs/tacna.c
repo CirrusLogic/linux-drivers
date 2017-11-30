@@ -3423,7 +3423,7 @@ static void tacna_set_channels_to_mask(struct snd_soc_dai *dai,
 
 		if (i - (j * 4) >= 4) {
 			++j;
-			if (j >= 22)
+			if (j >= 2)
 				break;
 		}
 
