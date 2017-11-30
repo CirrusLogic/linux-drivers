@@ -355,12 +355,28 @@ static void cs40l20_dsp_start(struct cs40l20_private *cs40l20)
 	cs40l20_vibe_init(cs40l20);
 }
 
+static int cs40l20_raw_write(struct cs40l20_private *cs40l20, unsigned int reg,
+		const void *val, size_t val_len, size_t limit)
+{
+	int ret;
+	unsigned int i;
+
+	/* split "val" into smaller writes not to exceed "limit" in length */
+	for (i = 0; i < val_len; i += limit) {
+		ret = regmap_raw_write(cs40l20->regmap, (reg + i), (val + i),
+				(val_len - i) > limit ? limit : (val_len - i));
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
 static void cs40l20_waveform_load(const struct firmware *fw, void *context)
 {
-	struct cs40l20_private *cs40l20 = context;
-	struct regmap *regmap = cs40l20->regmap;
-	struct device *dev = cs40l20->dev;
 	int ret;
+	struct cs40l20_private *cs40l20 = (struct cs40l20_private *)context;
+	struct device *dev = cs40l20->dev;
 	unsigned int pos = CS40L20_WT_FILE_HEADER_SIZE;
 	unsigned int block_type, block_length;
 
@@ -391,9 +407,10 @@ static void cs40l20_waveform_load(const struct firmware *fw, void *context)
 		pos += CS40L20_WT_DBLK_LENGTH_SIZE;
 
 		if (block_type == CS40L20_XM_UNPACKED_TYPE) {
-			ret = regmap_raw_write_async(regmap,
+			ret = cs40l20_raw_write(cs40l20,
 					CS40L20_VIBEGEN_WAVE_TABLE,
-					&fw->data[pos], block_length);
+					&fw->data[pos], block_length,
+					CS40L20_MAX_WLEN);
 			if (ret) {
 				dev_err(dev,
 					"Failed to write XM_UNPACKED memory\n");
@@ -404,18 +421,6 @@ static void cs40l20_waveform_load(const struct firmware *fw, void *context)
 		pos += block_length;
 	}
 
-	ret = regmap_async_complete(regmap);
-	if (ret) {
-		dev_err(dev, "Failed to complete async write\n");
-		goto err_rls_fw;
-	}
-
-	ret = regmap_async_complete(regmap);
-	if (ret) {
-		dev_err(dev, "Failed to complete async write\n");
-		goto err_rls_fw;
-	}
-
 	cs40l20_dsp_start(cs40l20);
 err_rls_fw:
 	release_firmware(fw);
@@ -423,10 +428,9 @@ err_rls_fw:
 
 static void cs40l20_firmware_load(const struct firmware *fw, void *context)
 {
-	struct cs40l20_private *cs40l20 = context;
-	struct regmap *regmap = cs40l20->regmap;
-	struct device *dev = cs40l20->dev;
 	int ret;
+	struct cs40l20_private *cs40l20 = (struct cs40l20_private *)context;
+	struct device *dev = cs40l20->dev;
 	unsigned int pos = CS40L20_FW_FILE_HEADER_SIZE;
 	unsigned int block_offset, block_length;
 	char block_type;
@@ -459,10 +463,11 @@ static void cs40l20_firmware_load(const struct firmware *fw, void *context)
 
 		switch (block_type) {
 		case CS40L20_PM_PACKED_TYPE:
-			ret = regmap_raw_write_async(regmap,
+			ret = cs40l20_raw_write(cs40l20,
 					CS40L20_DSP1_PMEM_0
 						+ block_offset * 5,
-					&fw->data[pos], block_length);
+					&fw->data[pos], block_length,
+					CS40L20_MAX_WLEN);
 			if (ret) {
 				dev_err(dev,
 					"Failed to write PM_PACKED memory\n");
@@ -470,10 +475,11 @@ static void cs40l20_firmware_load(const struct firmware *fw, void *context)
 			}
 			break;
 		case CS40L20_XM_PACKED_TYPE:
-			ret = regmap_raw_write_async(regmap,
+			ret = cs40l20_raw_write(cs40l20,
 					CS40L20_DSP1_XMEM_PACK_0
 						+ block_offset * 3,
-					&fw->data[pos], block_length);
+					&fw->data[pos], block_length,
+					CS40L20_MAX_WLEN);
 			if (ret) {
 				dev_err(dev,
 					"Failed to write XM_PACKED memory\n");
@@ -481,10 +487,11 @@ static void cs40l20_firmware_load(const struct firmware *fw, void *context)
 			}
 			break;
 		case CS40L20_YM_PACKED_TYPE:
-			ret = regmap_raw_write_async(regmap,
+			ret = cs40l20_raw_write(cs40l20,
 					CS40L20_DSP1_YMEM_PACK_0
 						+ block_offset * 3,
-					&fw->data[pos], block_length);
+					&fw->data[pos], block_length,
+					CS40L20_MAX_WLEN);
 			if (ret) {
 				dev_err(dev,
 					"Failed to write YM_PACKED memory\n");
@@ -494,12 +501,6 @@ static void cs40l20_firmware_load(const struct firmware *fw, void *context)
 		}
 
 		pos += block_length;
-	}
-
-	ret = regmap_async_complete(regmap);
-	if (ret) {
-		dev_err(dev, "Failed to complete async write\n");
-		goto err_rls_fw;
 	}
 
 	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG, "cs40l20.bin",
