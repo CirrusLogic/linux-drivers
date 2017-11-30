@@ -118,18 +118,16 @@ static ssize_t cs40l20_cp_trigger_index_store(struct device *dev,
 	ret = kstrtoint(buf, 10, &index);
 	if (ret) {
 		pr_err("Invalid input: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	ret = cs40l20_index_set(cs40l20, 0, index);
 	if (ret) {
 		pr_err("Failed to set index to %d: %d\n", index, ret);
-		goto err;
+		return ret;
 	}
 
 	return count;
-err:
-	return ret;
 }
 
 static ssize_t cs40l20_gpio1_rise_index_show(struct device *dev,
@@ -152,18 +150,16 @@ static ssize_t cs40l20_gpio1_rise_index_store(struct device *dev,
 	ret = kstrtoint(buf, 10, &index);
 	if (ret) {
 		pr_err("Invalid input: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	ret = cs40l20_index_set(cs40l20, CS40L20_VIBEGEN_GPIO1_RINDEX, index);
 	if (ret) {
 		pr_err("Failed to set index to %d: %d\n", index, ret);
-		goto err;
+		return ret;
 	}
 
 	return count;
-err:
-	return ret;
 }
 
 static ssize_t cs40l20_gpio1_fall_index_show(struct device *dev,
@@ -186,18 +182,16 @@ static ssize_t cs40l20_gpio1_fall_index_store(struct device *dev,
 	ret = kstrtoint(buf, 10, &index);
 	if (ret) {
 		pr_err("Invalid input: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	ret = cs40l20_index_set(cs40l20, CS40L20_VIBEGEN_GPIO1_FINDEX, index);
 	if (ret) {
 		pr_err("Failed to set index to %d: %d\n", index, ret);
-		goto err;
+		return ret;
 	}
 
 	return count;
-err:
-	return ret;
 }
 
 static DEVICE_ATTR(cp_trigger_index, 0660, cs40l20_cp_trigger_index_show,
@@ -238,7 +232,6 @@ static void cs40l20_vibe_start_worker(struct work_struct *work)
 		cs40l20->led_dev.brightness = LED_FULL;
 
 	mutex_unlock(&cs40l20->lock);
-
 }
 
 static void cs40l20_vibe_stop_worker(struct work_struct *work)
@@ -256,7 +249,6 @@ static void cs40l20_vibe_stop_worker(struct work_struct *work)
 		cs40l20->led_dev.brightness = LED_OFF;
 
 	mutex_unlock(&cs40l20->lock);
-
 }
 
 static void cs40l20_vibe_state_change(struct led_classdev *led_cdev,
@@ -296,7 +288,6 @@ static void cs40l20_vibe_init(struct cs40l20_private *cs40l20)
 		alloc_ordered_workqueue("vibe_workqueue", WQ_HIGHPRI);
 	if (!cs40l20->vibe_workqueue) {
 		dev_err(dev, "Failed to allocate workqueue\n");
-		ret = -ENOMEM;
 		return;
 	}
 
@@ -527,21 +518,21 @@ static int cs40l20_dsp_boot(struct cs40l20_private *cs40l20)
 			CS40L20_DSP1_RESET_MASK, 1 << CS40L20_DSP1_RESET_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to reset DSP\n");
-		goto err;
+		return ret;
 	}
 
 	ret = regmap_write(regmap, CS40L20_MPU_UNLOCK_ADDR,
 			CS40L20_MPU_UNLOCK_CODE1);
 	if (ret) {
 		dev_err(dev, "Failed to unlock DSP MPU (step 1 of 2)\n");
-		goto err;
+		return ret;
 	}
 
 	ret = regmap_write(regmap, CS40L20_MPU_UNLOCK_ADDR,
 			CS40L20_MPU_UNLOCK_CODE2);
 	if (ret) {
 		dev_err(dev, "Failed to unlock DSP MPU (step 2 of 2)\n");
-		goto err;
+		return ret;
 	}
 
 	for (i = CS40L20_MPU_START; i <= CS40L20_MPU_STOP; i += 4) {
@@ -549,20 +540,20 @@ static int cs40l20_dsp_boot(struct cs40l20_private *cs40l20)
 
 		if (ret) {
 			dev_err(dev, "Failed to free DSP memory\n");
-			goto err;
+			return ret;
 		}
 	}
 
 	ret = regmap_write(regmap, CS40L20_MPU_UNLOCK_ADDR, 0);
 	if (ret) {
 		dev_err(dev, "Failed to lock DSP MPU\n");
-		goto err;
+		return ret;
 	}
 
 	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG, "cs40l20.wmfw",
 			dev, GFP_KERNEL, cs40l20, cs40l20_firmware_load);
-err:
-	return ret;
+
+	return 0;
 }
 
 static int cs40l20_init(struct cs40l20_private *cs40l20)
@@ -580,23 +571,23 @@ static int cs40l20_init(struct cs40l20_private *cs40l20)
 				<< CS40L20_DAC_PCM1_SRC_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to route DSP to amplifier\n");
-		goto err;
+		return ret;
 	}
 
 	ret = regmap_update_bits(regmap, CS40L20_PWR_CTRL1,
 			CS40L20_GLOBAL_EN_MASK, 1 << CS40L20_GLOBAL_EN_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to enable device\n");
-		goto err;
+		return ret;
 	}
 
 	ret = cs40l20_dsp_boot(cs40l20);
 	if (ret) {
 		dev_err(dev, "Failed to boot DSP\n");
-		goto err;
+		return ret;
 	}
-err:
-	return ret;
+
+	return 0;
 }
 
 static struct regmap_config cs40l20_regmap = {
@@ -681,12 +672,10 @@ static int cs40l20_i2c_probe(struct i2c_client *i2c_client,
 	dev_info(dev, "Cirrus Logic CS40L20 revision %02X\n", reg_revid >> 8);
 
 	ret = cs40l20_init(cs40l20);
-	if (ret) {
-		dev_err(dev, "Failed to initialize device: %d\n", ret);
+	if (ret)
 		goto err;
-	}
 
-	return ret;
+	return 0;
 err:
 	regulator_bulk_disable(cs40l20->num_supplies, cs40l20->supplies);
 	return ret;
