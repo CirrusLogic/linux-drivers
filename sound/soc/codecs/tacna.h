@@ -118,6 +118,10 @@
 #define TACNA_DFC_TYPE_ENUM_SIZE	5
 #define TACNA_DFC_WIDTH_ENUM_SIZE	25
 
+#define TACNA_ASYNCCLK_REQ		0x01
+#define TACNA_DACRATE1_ASYNCCLK_REQ	0x02
+#define TACNA_OUTH_ASYNCCLK_REQ		0x80
+
 #define TACNA_MIXER_CONTROLS(name, base) \
 	SOC_SINGLE_RANGE_TLV(name " Input 1 Volume", base,		\
 			     TACNA_MIXER_VOL_SHIFT, 0x20, 0x50, 0,	\
@@ -325,6 +329,7 @@ struct tacna_priv {
 	unsigned int out_down_mask;
 
 	struct mutex rate_lock;
+	unsigned int asyncclk_req;
 
 	int tdm_width[TACNA_MAX_ASP];
 	int tdm_slots[TACNA_MAX_ASP];
@@ -415,6 +420,8 @@ extern const struct soc_enum tacna_in_hpf_cut_enum;
 extern const struct soc_enum tacna_in_dmic_osr[];
 int tacna_in_rate_put(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol);
+int tacna_rate_is_sync(struct tacna_priv *priv, unsigned int reg,
+			unsigned int mask, unsigned int shift);
 extern const struct soc_enum tacna_input_rate[];
 int tacna_low_power_mode_put(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol);
@@ -501,6 +508,11 @@ int tacna_dsp_freq_ev(struct snd_soc_dapm_widget *w,
 		      struct snd_kcontrol *kcontrol, int event);
 int tacna_dsp_freq_update(struct snd_soc_dapm_widget *w, unsigned int freq_reg,
 			  unsigned int freqsel_reg);
+
+int tacna_asyncclk_ev(struct snd_soc_dapm_widget *w,
+		      struct snd_kcontrol *kcontrol, int event);
+int tacna_dac_rate_put(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol);
 
 extern int tacna_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 			    int source, unsigned int freq, int dir);
