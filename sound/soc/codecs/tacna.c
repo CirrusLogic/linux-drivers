@@ -437,6 +437,11 @@ const unsigned int tacna_rate_val[TACNA_RATE_ENUM_SIZE] = {
 };
 EXPORT_SYMBOL_GPL(tacna_rate_val);
 
+static bool tacna_rate_val_is_sync(unsigned int val)
+{
+	return (val < 0x8);
+}
+
 int tacna_rate_put(struct snd_kcontrol *kcontrol,
 		   struct snd_ctl_elem_value *ucontrol)
 {
@@ -457,6 +462,24 @@ int tacna_rate_put(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(tacna_rate_put);
+
+int tacna_rate_is_sync(struct tacna_priv *priv, unsigned int reg,
+			unsigned int mask, unsigned int shift)
+{
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(priv->tacna->regmap, reg, &val);
+	if (ret) {
+		dev_err(priv->dev, "Error reading 0x%x (%d)\n", reg, ret);
+		return ret;
+	}
+
+	val = (val & mask) >> shift;
+
+	return tacna_rate_val_is_sync(val);
+}
+EXPORT_SYMBOL_GPL(tacna_rate_is_sync);
 
 const char * const tacna_sample_rate_text[TACNA_SAMPLE_RATE_ENUM_SIZE] = {
 	"12kHz",
@@ -2196,6 +2219,126 @@ int tacna_dsp_freq_ev(struct snd_soc_dapm_widget *w,
 	}
 }
 EXPORT_SYMBOL_GPL(tacna_dsp_freq_ev);
+
+static void tacna_check_enable_async(struct tacna_priv *priv,
+				     unsigned int dac_async_rate_pending)
+{
+	struct tacna *tacna = priv->tacna;
+	unsigned int required = priv->asyncclk_req;
+	unsigned int val;
+	int ret;
+
+	dev_dbg(priv->dev,
+		"ASYNCCLK: in: widgets=0x%x pending=0x%x\n",
+		priv->asyncclk_req, dac_async_rate_pending);
+
+	/* ignore pending requirement if the widget is off */
+	dac_async_rate_pending &= required;
+
+	/* clear widget requests if the DAC isn't on async */
+	if (!dac_async_rate_pending) {
+		if (required & TACNA_DACRATE1_ASYNCCLK_REQ) {
+			ret = tacna_rate_is_sync(priv, TACNA_OUTPUT_CONTROL_1,
+						 TACNA_OUT_RATE_MASK,
+						 TACNA_OUT_RATE_SHIFT);
+			if (ret > 0)
+				required &= ~TACNA_DACRATE1_ASYNCCLK_REQ;
+		}
+
+		if (required & TACNA_OUTH_ASYNCCLK_REQ) {
+			ret = tacna_rate_is_sync(priv, TACNA_OUTH_CONFIG_1,
+						 TACNA_OUTH_RATE_MASK,
+						 TACNA_OUTH_RATE_SHIFT);
+			if (ret > 0)
+				required &= ~TACNA_OUTH_ASYNCCLK_REQ;
+		}
+	}
+
+	if (required || dac_async_rate_pending)
+		val = TACNA_ASYNC_CLK_EN;
+	else
+		val = 0;
+
+	dev_dbg(priv->dev,
+		"ASYNCCLK: out: widgets=0x%x required=0x%x pending=0x%x enable:%c\n",
+		priv->asyncclk_req, required, dac_async_rate_pending,
+		val ? 'Y' : 'N');
+
+	ret = regmap_update_bits(tacna->regmap, TACNA_ASYNC_CLOCK1,
+				 TACNA_ASYNC_CLK_EN_MASK, val);
+	if (ret)
+		dev_warn(priv->dev, "Error writing ASYNC_CLK_EN (%d)\n", ret);
+}
+
+/*
+ * The DAC needs ASYNCCLK only if it is on the async domain - if not we don't
+ * want to enable a clock that isn't needed and might not have an input clock.
+ * A DAPM clock route can't be conditional, so this handler controls ASYNCCLK
+ * based on the state of both ASYNCCLK and DAC_ASYNCCLK widgets
+ */
+int tacna_asyncclk_ev(struct snd_soc_dapm_widget *w,
+		      struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		priv->asyncclk_req |= w->shift;
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		priv->asyncclk_req &= ~w->shift;
+		break;
+	default:
+		return 0;
+	}
+
+	tacna_check_enable_async(priv, 0);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tacna_asyncclk_ev);
+
+/* A change to the DAC rate could add or remove an ASYNCCLK dependency */
+int tacna_dac_rate_put(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int *item = ucontrol->value.enumerated.item;
+	unsigned int val = snd_soc_enum_item_to_val(e, item[0]);
+	unsigned int req_flag;
+	int ret;
+
+	snd_soc_dapm_mutex_lock(dapm);
+
+	/* handle ASYNCCLK enable before changing rate */
+	if (!tacna_rate_val_is_sync(val)) {
+		switch (e->reg) {
+		case TACNA_OUTH_CONFIG_1:
+			req_flag = TACNA_OUTH_ASYNCCLK_REQ;
+			break;
+		default:
+			req_flag = TACNA_DACRATE1_ASYNCCLK_REQ;
+			break;
+		}
+
+		tacna_check_enable_async(priv, req_flag);
+	}
+
+	ret = tacna_rate_put(kcontrol, ucontrol);
+
+	/* handle ASYNCCLK disable after changing rate */
+	if (tacna_rate_val_is_sync(val))
+		tacna_check_enable_async(priv, 0);
+
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(tacna_dac_rate_put);
 
 static const unsigned int tacna_opclk_ref_48k_rates[] = {
 	6144000,
