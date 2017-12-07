@@ -453,6 +453,8 @@ int tacna_dsp_rate_put(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol);
 extern const struct snd_kcontrol_new tacna_dsp_rate_controls[];
 
+int tacna_dsp_memory_enable(struct tacna_priv *priv, unsigned int dsp_num);
+void tacna_dsp_memory_disable(struct tacna_priv *priv, unsigned int dsp_num);
 int tacna_dsp_power_ev(struct snd_soc_dapm_widget *w,
 		       struct snd_kcontrol *kcontrol, int event);
 

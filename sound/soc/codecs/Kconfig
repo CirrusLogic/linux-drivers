@@ -65,6 +65,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS47L24 if MFD_CS47L24
 	select SND_SOC_CS53L30 if I2C
 	select SND_SOC_CS47L94 if MFD_CS47L94
+	select SND_SOC_CS47L96 if MFD_CS47L96
 	select SND_SOC_CX20442 if TTY
 	select SND_SOC_DA7210 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_DA7213 if I2C
@@ -504,6 +505,9 @@ config SND_SOC_CS47L24
 	tristate
 
 config SND_SOC_CS47L94
+	tristate
+
+config SND_SOC_CS47L96
 	tristate
 
 # Cirrus Logic Quad-Channel ADC
@@ -1181,6 +1185,8 @@ config SND_SOC_TACNA
 	tristate
 	default y if SND_SOC_CS47L94=y
 	default m if SND_SOC_CS47L94=m
+	default y if SND_SOC_CS47L96=y
+	default m if SND_SOC_CS47L96=m
 	default y if SND_SOC_CS48LX50_CODEC=y
 	default m if SND_SOC_CS48LX50_CODEC=m
 

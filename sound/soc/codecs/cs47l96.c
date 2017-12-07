@@ -1,7 +1,7 @@
 /*
- * cs47l94.c  --  ALSA SoC Audio driver for CS47L94/CS47L95 codecs
+ * cs47l96.c  --  ALSA SoC Audio driver for CS47L96/CS47L97 codecs
  *
- * Copyright 2016-2017 Cirrus Logic
+ * Copyright 2017 Cirrus Logic
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -31,19 +31,19 @@
 #include "tacna.h"
 #include "wm_adsp.h"
 
-#define CS47L94_MONO_OUTPUTS 2
-#define CS47L94_N_AUXPDM 3
-#define CS47L94_N_FLL 3
-#define CS47L94_NUM_DSP 2
-#define CS47L94_DSP_N_RX_CHANNELS 8
-#define CS47L94_DSP_N_TX_CHANNELS 8
+#define CS47L96_MONO_OUTPUTS 1
+#define CS47L96_N_AUXPDM 3
+#define CS47L96_N_FLL 2
+#define CS47L96_NUM_DSP 1
+#define CS47L96_DSP_N_RX_CHANNELS 8
+#define CS47L96_DSP_N_TX_CHANNELS 8
 
-#define CS47L94_OUTH_CP_POLL_US		1000
-#define CS47L94_OUTH_CP_POLL_TIMEOUT_US	100000
+#define CS47L96_OUTH_CP_POLL_US		1000
+#define CS47L96_OUTH_CP_POLL_TIMEOUT_US	100000
 
-static const DECLARE_TLV_DB_SCALE(cs47l94_outh_digital_tlv, -12750, 50, 0);
+static const DECLARE_TLV_DB_SCALE(cs47l96_outh_digital_tlv, -12750, 50, 0);
 
-#define CS47L94_ANC_INPUT_ROUTES(widget, name) \
+#define CS47L96_ANC_INPUT_ROUTES(widget, name) \
 	{ widget, NULL, name " NG Mux" }, \
 	{ name " NG Internal", NULL, "ANC NG Clock" }, \
 	{ name " NG Internal", NULL, name " Channel" }, \
@@ -63,22 +63,21 @@ static const DECLARE_TLV_DB_SCALE(cs47l94_outh_digital_tlv, -12750, 50, 0);
 	{ name " Left Input", "IN4", "IN4L PGA" }, \
 	{ name " Right Input", "IN4", "IN4R PGA" }
 
-#define CS47L94_ANC_OUTPUT_ROUTES(widget, name) \
+#define CS47L96_ANC_OUTPUT_ROUTES(widget, name) \
 	{ widget, NULL, name " ANC Source" }, \
 	{ name " ANC Source", "ANC Left Channel", "ANCL" }
 
-
-struct cs47l94 {
+struct cs47l96 {
 	struct tacna_priv core;
-	struct tacna_fll fll[3];
+	struct tacna_fll fll[CS47L96_N_FLL];
 	struct completion outh_enabled;
 	struct completion outh_disabled;
 	unsigned int outh_main_vol[2];
 };
 
-static const DECLARE_TLV_DB_SCALE(cs47l94_aux_tlv, -9600, 50, 0);
+static const DECLARE_TLV_DB_SCALE(cs47l96_aux_tlv, -9600, 50, 0);
 
-static const struct wm_adsp_region cs47l94_dsp1_regions[] = {
+static const struct wm_adsp_region cs47l96_dsp1_regions[] = {
 	{ .type = WMFW_HALO_PM_PACKED, .base = 0x3800000 },
 	{ .type = WMFW_HALO_XM_PACKED, .base = 0x2000000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x2800000 },
@@ -86,80 +85,23 @@ static const struct wm_adsp_region cs47l94_dsp1_regions[] = {
 	{ .type = WMFW_ADSP2_YM, .base = 0x3400000 },
 };
 
-static const struct wm_adsp_region cs47l94_dsp2_regions[] = {
-	{ .type = WMFW_HALO_PM_PACKED, .base = 0x5800000 },
-	{ .type = WMFW_HALO_XM_PACKED, .base = 0x4000000 },
-	{ .type = WMFW_ADSP2_XM, .base = 0x4800000 },
-	{ .type = WMFW_HALO_YM_PACKED, .base = 0x4C00000 },
-	{ .type = WMFW_ADSP2_YM, .base = 0x5400000 },
-};
-
-static const struct wm_adsp_region *cs47l94_dsp_regions[] = {
-	cs47l94_dsp1_regions,
-	cs47l94_dsp2_regions,
-};
-
-static const unsigned int cs47l94_dsp_control_bases[] = {
-	TACNA_DSP1_CLOCK_FREQ,
-	TACNA_DSP2_CLOCK_FREQ,
-};
-
-static const unsigned int cs47l94_dsp_sysinfo_bases[] = {
-	TACNA_DSP1_SYS_INFO_ID,
-	TACNA_DSP2_SYS_INFO_ID,
-};
-
-static const unsigned int cs47l94_dsp1_sram_power_regs[] = {
-	TACNA_DSP1_XM_SRAM_IBUS_SETUP_0,
-	TACNA_DSP1_YM_SRAM_IBUS_SETUP_0,
-	TACNA_DSP1_PM_SRAM_IBUS_SETUP_0,
-	0, /* end of list */
-};
-
-static const unsigned int cs47l94_dsp2_sram_power_regs[] = {
-	TACNA_DSP2_XM_SRAM_IBUS_SETUP_0,
-	TACNA_DSP2_YM_SRAM_IBUS_SETUP_0,
-	TACNA_DSP2_PM_SRAM_IBUS_SETUP_0,
-	0, /* end of list */
-};
-
-static int cs47l94_out_ev(struct snd_soc_dapm_widget *w,
+static int cs47l96_out_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
-	struct tacna *tacna = cs47l94->core.tacna;
-	unsigned int vu_reg;
+	struct cs47l96 *cs47l96 = snd_soc_codec_get_drvdata(codec);
+	struct tacna *tacna = cs47l96->core.tacna;
 	unsigned int val;
 	int ret;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		switch (w->shift) {
-		case TACNA_OUT1L_EN_SHIFT:
-			vu_reg = TACNA_OUT1L_VOLUME_1;
-			break;
-		case TACNA_OUT1R_EN_SHIFT:
-			vu_reg = TACNA_OUT1R_VOLUME_1;
-			break;
-		case TACNA_OUT2L_EN_SHIFT:
-			vu_reg = TACNA_OUT2L_VOLUME_1;
-			break;
-		case TACNA_OUT2R_EN_SHIFT:
-			vu_reg = TACNA_OUT2R_VOLUME_1;
-			break;
-		default:
-			dev_dbg(codec->dev, "Unrecognised output: %u\n",
-				w->shift);
-			return -EINVAL;
-		}
-
 		ret = regmap_read_poll_timeout(tacna->regmap,
 				TACNA_OUTHL_CONTROL1,
 				val,
 				!(val & TACNA_CP_EN_OUTHL_EN_MASK),
-				CS47L94_OUTH_CP_POLL_US,
-				CS47L94_OUTH_CP_POLL_TIMEOUT_US);
+				CS47L96_OUTH_CP_POLL_US,
+				CS47L96_OUTH_CP_POLL_TIMEOUT_US);
 		if (ret)
 			goto err;
 
@@ -167,15 +109,11 @@ static int cs47l94_out_ev(struct snd_soc_dapm_widget *w,
 				TACNA_OUTHR_CONTROL1,
 				val,
 				!(val & TACNA_CP_EN_OUTHR_EN_MASK),
-				CS47L94_OUTH_CP_POLL_US,
-				CS47L94_OUTH_CP_POLL_TIMEOUT_US);
+				CS47L96_OUTH_CP_POLL_US,
+				CS47L96_OUTH_CP_POLL_TIMEOUT_US);
 		if (ret)
 			goto err;
 
-		/* we must toggle VU to ensure mute and volume are updated */
-		regmap_update_bits(tacna->regmap, vu_reg, TACNA_OUT_VU, 0);
-		regmap_update_bits(tacna->regmap, vu_reg, TACNA_OUT_VU,
-				   TACNA_OUT_VU);
 		break;
 	default:
 		break;
@@ -189,58 +127,16 @@ err:
 	return ret;
 }
 
-static int cs47l94_out_aux_src_ev(struct snd_soc_dapm_widget *w,
-				  struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
-	struct tacna *tacna = cs47l94->core.tacna;
-	unsigned int reg;
-	int ret;
-
-	switch (w->reg) {
-	case TACNA_OUT1L_CONTROL_1:
-		reg = TACNA_OUT1L_VOLUME_1;
-		break;
-	case TACNA_OUT1R_CONTROL_1:
-		reg = TACNA_OUT1R_VOLUME_1;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	ret = regmap_update_bits(tacna->regmap, reg, TACNA_OUT_VU_MASK, 0);
-	if (ret)
-		dev_err(codec->dev, "Failed to toggle OUT_VU bit: %d\n", ret);
-	ret = regmap_update_bits(tacna->regmap, reg, TACNA_OUT_VU_MASK,
-				 TACNA_OUT_VU);
-	if (ret)
-		dev_err(codec->dev, "Failed to toggle OUT_VU bit: %d\n", ret);
-
-	return ret;
-}
-
-static int cs47l94_outh_aux_src_ev(struct snd_soc_dapm_widget *w,
+static int cs47l96_outh_aux_src_ev(struct snd_soc_dapm_widget *w,
 				   struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
-	struct tacna *tacna = cs47l94->core.tacna;
-	unsigned int reg;
+	struct cs47l96 *cs47l96 = snd_soc_codec_get_drvdata(codec);
+	struct tacna *tacna = cs47l96->core.tacna;
 	int ret;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		switch (w->shift) {
-		case TACNA_OUTHL_AUX_SRC_SHIFT:
-			reg = TACNA_OUT1L_VOLUME_1;
-			break;
-		case TACNA_OUTHR_AUX_SRC_SHIFT:
-			reg = TACNA_OUT1R_VOLUME_1;
-			break;
-		default:
-			return -EINVAL;
-		}
 
 		/* following writes must be done to enable AUX+DSD */
 		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_CFG9,
@@ -264,17 +160,6 @@ static int cs47l94_outh_aux_src_ev(struct snd_soc_dapm_widget *w,
 			dev_warn(codec->dev,
 				"Failed to write to OUTH_DSD_PCM: %d\n", ret);
 
-		/* enable AUX */
-		ret = regmap_update_bits(tacna->regmap, reg,
-					 TACNA_OUT_VU_MASK, 0);
-		if (ret)
-			dev_err(codec->dev, "Failed to toggle OUT_VU bit: %d\n",
-				ret);
-		ret = regmap_update_bits(tacna->regmap, reg,
-					 TACNA_OUT_VU_MASK, TACNA_OUT_VU);
-		if (ret)
-			dev_err(codec->dev, "Failed to toggle OUT_VU bit: %d\n",
-				ret);
 		return 0;
 	case SND_SOC_DAPM_PRE_PMD:
 		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_DSD_PCM,
@@ -300,12 +185,12 @@ static int cs47l94_outh_aux_src_ev(struct snd_soc_dapm_widget *w,
 	}
 }
 
-static int cs47l94_outaux_ev(struct snd_soc_dapm_widget *w,
+static int cs47l96_outaux_ev(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
-	struct tacna *tacna = cs47l94->core.tacna;
+	struct cs47l96 *cs47l96 = snd_soc_codec_get_drvdata(codec);
+	struct tacna *tacna = cs47l96->core.tacna;
 	unsigned int val;
 	int ret;
 
@@ -329,7 +214,7 @@ static int cs47l94_outaux_ev(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int cs47l94_wait_for_cp_disable(struct tacna *tacna)
+static int cs47l96_wait_for_cp_disable(struct tacna *tacna)
 {
 	struct regmap *regmap = tacna->regmap;
 	unsigned int val;
@@ -337,41 +222,27 @@ static int cs47l94_wait_for_cp_disable(struct tacna *tacna)
 
 	ret = regmap_read_poll_timeout(regmap, TACNA_HP1L_CTRL, val,
 				       !(val & TACNA_CP_EN_HP1L_MASK),
-				       CS47L94_OUTH_CP_POLL_US,
-				       CS47L94_OUTH_CP_POLL_TIMEOUT_US);
+				       CS47L96_OUTH_CP_POLL_US,
+				       CS47L96_OUTH_CP_POLL_TIMEOUT_US);
 	if (ret)
 		return ret;
 
 	ret = regmap_read_poll_timeout(regmap, TACNA_HP1R_CTRL, val,
 				       !(val & TACNA_CP_EN_HP1R_MASK),
-				       CS47L94_OUTH_CP_POLL_US,
-				       CS47L94_OUTH_CP_POLL_TIMEOUT_US);
-	if (ret)
-		return ret;
-
-	ret = regmap_read_poll_timeout(regmap, TACNA_HP2L_CTRL, val,
-				       !(val & TACNA_CP_EN_HP2L_MASK),
-				       CS47L94_OUTH_CP_POLL_US,
-				       CS47L94_OUTH_CP_POLL_TIMEOUT_US);
-	if (ret)
-		return ret;
-
-	ret = regmap_read_poll_timeout(regmap, TACNA_HP2R_CTRL, val,
-				       !(val & TACNA_CP_EN_HP2R_MASK),
-				       CS47L94_OUTH_CP_POLL_US,
-				       CS47L94_OUTH_CP_POLL_TIMEOUT_US);
+				       CS47L96_OUTH_CP_POLL_US,
+				       CS47L96_OUTH_CP_POLL_TIMEOUT_US);
 	if (ret)
 		return ret;
 
 	return 0;
 }
 
-static int cs47l94_outh_ev(struct snd_soc_dapm_widget *w,
+static int cs47l96_outh_ev(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
-	struct tacna *tacna = cs47l94->core.tacna;
+	struct cs47l96 *cs47l96 = snd_soc_codec_get_drvdata(codec);
+	struct tacna *tacna = cs47l96->core.tacna;
 	struct regmap *regmap = tacna->regmap;
 	unsigned int val;
 	int ret, accdet;
@@ -380,7 +251,7 @@ static int cs47l94_outh_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		ret = cs47l94_wait_for_cp_disable(tacna);
+		ret = cs47l96_wait_for_cp_disable(tacna);
 		if (ret) {
 			dev_err(codec->dev,
 				"OUTH enable failed (OUT1/2 CP enabled): %d\n",
@@ -388,10 +259,7 @@ static int cs47l94_outh_ev(struct snd_soc_dapm_widget *w,
 			return ret;
 		}
 
-		/*
-		 * OUTH requires DAC clock to be set to it's highest
-		 * setting, so check if that's the case
-		 */
+		/* OUTH requires DAC clock to be set to its highest setting */
 		ret = regmap_read(regmap, TACNA_DAC_CLK_CONTROL1, &val);
 		val = (val & TACNA_DAC_CLK_SRC_FREQ_MASK) >>
 			TACNA_DAC_CLK_SRC_FREQ_SHIFT;
@@ -403,14 +271,14 @@ static int cs47l94_outh_ev(struct snd_soc_dapm_widget *w,
 		}
 
 		ret = regmap_write(regmap, TACNA_OUTHL_VOLUME_1,
-				   TACNA_OUTH_VU | cs47l94->outh_main_vol[0]);
+				   cs47l96->outh_main_vol[0]);
 		if (ret)
 			dev_warn(codec->dev,
 				 "Failed to apply cached OUTHL volume: %d\n",
 				 ret);
 
 		ret = regmap_write(regmap, TACNA_OUTHR_VOLUME_1,
-				   TACNA_OUTH_VU | cs47l94->outh_main_vol[1]);
+				   cs47l96->outh_main_vol[1]);
 		if (ret)
 			dev_warn(codec->dev,
 				 "Failed to apply cached OUTHR volume: %d\n",
@@ -458,8 +326,8 @@ static int cs47l94_outh_ev(struct snd_soc_dapm_widget *w,
 		val = 0;
 
 	if (accdet >= 0) {
-		reinit_completion(&cs47l94->outh_enabled);
-		reinit_completion(&cs47l94->outh_disabled);
+		reinit_completion(&cs47l96->outh_enabled);
+		reinit_completion(&cs47l96->outh_disabled);
 	}
 
 	ret = regmap_update_bits_check(regmap, TACNA_OUTH_ENABLE_1,
@@ -470,11 +338,11 @@ static int cs47l94_outh_ev(struct snd_soc_dapm_widget *w,
 	if (outh_upd) { /* wait for enable/disable to take effect */
 		if (val)
 			time_left = wait_for_completion_timeout(
-							&cs47l94->outh_enabled,
+							&cs47l96->outh_enabled,
 							msecs_to_jiffies(100));
 		else
 			time_left = wait_for_completion_timeout(
-							&cs47l94->outh_disabled,
+							&cs47l96->outh_disabled,
 							msecs_to_jiffies(100));
 
 		if (!time_left)
@@ -485,12 +353,12 @@ static int cs47l94_outh_ev(struct snd_soc_dapm_widget *w,
 	return ret;
 }
 
-static int cs47l94_dsd_processor_ev(struct snd_soc_dapm_widget *w,
+static int cs47l96_dsd_processor_ev(struct snd_soc_dapm_widget *w,
 				    struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
-	struct tacna *tacna = cs47l94->core.tacna;
+	struct cs47l96 *cs47l96 = snd_soc_codec_get_drvdata(codec);
+	struct tacna *tacna = cs47l96->core.tacna;
 	int ret;
 
 	switch (event) {
@@ -515,47 +383,47 @@ static int cs47l94_dsd_processor_ev(struct snd_soc_dapm_widget *w,
 	}
 }
 
-static irqreturn_t cs47l94_outh_enable(int irq, void *data)
+static irqreturn_t cs47l96_outh_enable(int irq, void *data)
 {
-	struct cs47l94 *cs47l94 = data;
+	struct cs47l96 *cs47l96 = data;
 
-	dev_dbg(cs47l94->core.dev, "OUTH enable interrupt\n");
+	dev_dbg(cs47l96->core.dev, "OUTH enable interrupt\n");
 
-	complete(&cs47l94->outh_enabled);
+	complete(&cs47l96->outh_enabled);
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t cs47l94_outh_disable(int irq, void *data)
+static irqreturn_t cs47l96_outh_disable(int irq, void *data)
 {
-	struct cs47l94 *cs47l94 = data;
+	struct cs47l96 *cs47l96 = data;
 
-	dev_dbg(cs47l94->core.dev, "OUTH disable interrupt\n");
+	dev_dbg(cs47l96->core.dev, "OUTH disable interrupt\n");
 
-	complete(&cs47l94->outh_disabled);
+	complete(&cs47l96->outh_disabled);
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t cs47l94_mpu_fault_irq(int irq, void *data)
+static irqreturn_t cs47l96_mpu_fault_irq(int irq, void *data)
 {
 	struct wm_adsp *dsp = data;
 
 	return wm_halo_bus_error(dsp);
 }
 
-static const char * const cs47l94_out1_demux_texts[] = {
+static const char * const cs47l96_out1_demux_texts[] = {
 	"HP1", "HP2",
 };
 
-static int cs47l94_put_out1_demux(struct snd_kcontrol *kcontrol,
+static int cs47l96_put_out1_demux(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_dapm_context *dapm =
 					snd_soc_dapm_kcontrol_dapm(kcontrol);
 	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
-	struct cs47l94 *cs47l94 = dev_get_drvdata(codec->dev);
-	struct tacna *tacna = cs47l94->core.tacna;
+	struct cs47l96 *cs47l96 = dev_get_drvdata(codec->dev);
+	struct tacna *tacna = cs47l96->core.tacna;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int hp2_sel, mux, mask, cur;
 	bool change, out_mono;
@@ -594,7 +462,7 @@ static int cs47l94_put_out1_demux(struct snd_kcontrol *kcontrol,
 	if (ret)
 		dev_warn(codec->dev, "Failed to disable outputs: %d\n", ret);
 	else if (change)
-		tacna_wait_for_output_seq(&cs47l94->core,
+		tacna_wait_for_output_seq(&cs47l96->core,
 					  TACNA_OUT1L_STS | TACNA_OUT1R_STS,
 					  0);
 
@@ -618,7 +486,7 @@ static int cs47l94_put_out1_demux(struct snd_kcontrol *kcontrol,
 	if (ret)
 		dev_warn(codec->dev, "Failed to restore outputs: %d\n", ret);
 	else if (change)
-		tacna_wait_for_output_seq(&cs47l94->core,
+		tacna_wait_for_output_seq(&cs47l96->core,
 					  TACNA_OUT1L_STS | TACNA_OUT1R_STS,
 					  cur);
 	snd_soc_dapm_mutex_unlock(dapm);
@@ -626,110 +494,56 @@ static int cs47l94_put_out1_demux(struct snd_kcontrol *kcontrol,
 	return snd_soc_dapm_mux_update_power(dapm, kcontrol, mux, e, NULL);
 }
 
-static SOC_ENUM_SINGLE_DECL(cs47l94_out1_demux_enum,
+static SOC_ENUM_SINGLE_DECL(cs47l96_out1_demux_enum,
 			    TACNA_HP_CTRL, TACNA_OUT1_MODE_SHIFT,
-			    cs47l94_out1_demux_texts);
+			    cs47l96_out1_demux_texts);
 
-static const struct snd_kcontrol_new cs47l94_out1_demux =
-	SOC_DAPM_ENUM_EXT("OUT1 Demux", cs47l94_out1_demux_enum,
-			snd_soc_dapm_get_enum_double, cs47l94_put_out1_demux);
+static const struct snd_kcontrol_new cs47l96_out1_demux =
+	SOC_DAPM_ENUM_EXT("OUT1 Demux", cs47l96_out1_demux_enum,
+			snd_soc_dapm_get_enum_double, cs47l96_put_out1_demux);
 
-static int cs47l94_put_outaux_vu(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct soc_mixer_control *mc =
-		(struct soc_mixer_control *)kcontrol->private_value;
-	int ret;
-	unsigned int reg, rreg = 0;
-
-	switch (mc->reg) {
-	case TACNA_OUTAUX1L_VOLUME_1:
-		reg = TACNA_OUT1L_VOLUME_1;
-		break;
-	case TACNA_OUTAUX1R_VOLUME_1:
-		reg = TACNA_OUT1R_VOLUME_1;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	switch (mc->rreg) {
-	case 0: /* => rreg not set, so just proceed */
-		break;
-	case TACNA_OUTAUX1L_VOLUME_1:
-		rreg = TACNA_OUT1L_VOLUME_1;
-		break;
-	case TACNA_OUTAUX1R_VOLUME_1:
-		rreg = TACNA_OUT1R_VOLUME_1;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	snd_soc_dapm_mutex_lock(dapm);
-
-	snd_soc_component_update_bits(component, reg, TACNA_OUT_VU, 0);
-	if (rreg)
-		snd_soc_component_update_bits(component, rreg, TACNA_OUT_VU, 0);
-
-	ret = snd_soc_put_volsw(kcontrol, ucontrol);
-
-	snd_soc_component_update_bits(component, reg, TACNA_OUT_VU,
-				      TACNA_OUT_VU);
-	if (rreg)
-		snd_soc_component_update_bits(component, rreg, TACNA_OUT_VU,
-					      TACNA_OUT_VU);
-
-	snd_soc_dapm_mutex_unlock(dapm);
-
-	return ret;
-}
-
-static const struct soc_enum cs47l94_outh_rate =
+static const struct soc_enum cs47l96_outh_rate =
 	SOC_VALUE_ENUM_SINGLE(TACNA_OUTH_CONFIG_1,
 			      TACNA_OUTH_RATE_SHIFT,
 			      TACNA_OUTH_RATE_MASK >> TACNA_OUTH_RATE_SHIFT,
-			      TACNA_RATE_ENUM_SIZE,
+			      TACNA_SYNC_RATE_ENUM_SIZE,
 			      tacna_rate_text,
 			      tacna_rate_val);
 
-static int cs47l94_get_outh_main_volume(struct snd_kcontrol *kcontrol,
+static int cs47l96_get_outh_main_volume(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct cs47l94 *cs47l94 = dev_get_drvdata(codec->dev);
+	struct cs47l96 *cs47l96 = dev_get_drvdata(codec->dev);
 	int min = mc->min, shift = mc->shift, rshift = mc->rshift;
 
 	ucontrol->value.integer.value[0] =
-		(cs47l94->outh_main_vol[0] - min) >> shift;
+		(cs47l96->outh_main_vol[0] - min) >> shift;
 
 	ucontrol->value.integer.value[1] =
-		(cs47l94->outh_main_vol[1] - min) >> rshift;
+		(cs47l96->outh_main_vol[1] - min) >> rshift;
 
 	return 0;
 }
 
-static int cs47l94_put_outh_main_volume(struct snd_kcontrol *kcontrol,
+static int cs47l96_put_outh_main_volume(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct cs47l94 *cs47l94 = dev_get_drvdata(codec->dev);
+	struct cs47l96 *cs47l96 = dev_get_drvdata(codec->dev);
 	int min = mc->min, shift = mc->shift, rshift = mc->rshift;
 
 	snd_soc_dapm_mutex_lock(dapm);
 
-	cs47l94->outh_main_vol[0] =
+	cs47l96->outh_main_vol[0] =
 		(ucontrol->value.integer.value[0] + min) << shift;
 
-	cs47l94->outh_main_vol[1] =
+	cs47l96->outh_main_vol[1] =
 		(ucontrol->value.integer.value[1] + min) << rshift;
 
 	snd_soc_dapm_mutex_unlock(dapm);
@@ -737,200 +551,14 @@ static int cs47l94_put_outh_main_volume(struct snd_kcontrol *kcontrol,
 	return tacna_put_out_vu(kcontrol, ucontrol);
 }
 
-static const struct snd_kcontrol_new cs47l94_us1_switch =
-		SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
-static const struct snd_kcontrol_new cs47l94_us2_switch =
-		SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
-
-static const char * const tacna_us_in_texts[] = {
-	"IN1L",
-	"IN1R",
-	"IN2L",
-	"IN2R",
-	"IN3L",
-	"IN3R",
-	"IN4L",
-	"IN4R",
-};
-
-static irqreturn_t cs47l94_us1_activity(int irq, void *data)
-{
-	struct tacna *tacna = data;
-	struct tacna_us_notify_data us_data;
-
-	us_data.us_no = 1;
-	tacna_call_notifiers(tacna, TACNA_NOTIFY_ULTRASONIC, &us_data);
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t cs47l94_us2_activity(int irq, void *data)
-{
-	struct tacna *tacna = data;
-	struct tacna_us_notify_data us_data;
-
-	us_data.us_no = 2;
-	tacna_call_notifiers(tacna, TACNA_NOTIFY_ULTRASONIC, &us_data);
-
-	return IRQ_HANDLED;
-}
-
-static SOC_ENUM_SINGLE_DECL(tacna_us1_in_enum,
-			    TACNA_US1_CONTROL,
-			    TACNA_US1_SRC_SHIFT,
-			    tacna_us_in_texts);
-
-static SOC_ENUM_SINGLE_DECL(tacna_us2_in_enum,
-			    TACNA_US2_CONTROL,
-			    TACNA_US2_SRC_SHIFT,
-			    tacna_us_in_texts);
-
-static const struct snd_kcontrol_new tacna_us_inmux[2] = {
-	SOC_DAPM_ENUM("Ultrasonic 1 Input", tacna_us1_in_enum),
-	SOC_DAPM_ENUM("Ultrasonic 2 Input", tacna_us2_in_enum),
-};
-
-static const char * const tacna_us_freq_texts[] = {
-	"24.5-40.5kHz",
-	"18-22kHz",
-	"16-24kHz",
-	"20-28kHz",
-};
-
-static const char * const tacna_us_gain_texts[] = {
-	"No Signal",
-	"-5dB",
-	"+1dB",
-	"+7dB",
-};
-
-static const char * const tacna_us_det_thr_texts[] = {
-	"-6dB",
-	"-9dB",
-	"-12dB",
-	"-15dB",
-	"-18dB",
-	"-21dB",
-	"-24dB",
-	"-27dB",
-};
-
-static SOC_ENUM_SINGLE_DECL(tacna_us1_det_thr_enum, TACNA_US1_DET_CONTROL,
-			    TACNA_US1_DET_THR_SHIFT, tacna_us_det_thr_texts);
-static SOC_ENUM_SINGLE_DECL(tacna_us2_det_thr_enum, TACNA_US2_DET_CONTROL,
-			    TACNA_US2_DET_THR_SHIFT, tacna_us_det_thr_texts);
-
-static const char * const tacna_us_det_num_texts[] = {
-	"1 Sample",
-	"2 Samples",
-	"4 Samples",
-	"8 Samples",
-	"16 Samples",
-	"32 Samples",
-	"64 Samples",
-	"128 Samples",
-	"256 Samples",
-	"512 Samples",
-	"1024 Samples",
-	"2048 Samples",
-	"4096 Samples",
-	"8192 Samples",
-	"16384 Samples",
-	"32768 Samples",
-};
-
-static SOC_ENUM_SINGLE_DECL(tacna_us1_det_num_enum, TACNA_US1_DET_CONTROL,
-			    TACNA_US1_DET_NUM_SHIFT, tacna_us_det_num_texts);
-static SOC_ENUM_SINGLE_DECL(tacna_us2_det_num_enum, TACNA_US2_DET_CONTROL,
-			    TACNA_US2_DET_NUM_SHIFT, tacna_us_det_num_texts);
-
-static const char * const tacna_us_det_hold_texts[] = {
-	"0 Samples",
-	"31 Samples",
-	"63 Samples",
-	"127 Samples",
-	"255 Samples",
-	"511 Samples",
-	"1023 Samples",
-	"2047 Samples",
-	"4095 Samples",
-	"8191 Samples",
-	"16383 Samples",
-	"32767 Samples",
-	"65535 Samples",
-	"131071 Samples",
-	"262143 Samples",
-	"524287 Samples",
-};
-static SOC_ENUM_SINGLE_DECL(tacna_us1_det_hold_enum,
-			    TACNA_US1_DET_CONTROL,
-			    TACNA_US1_DET_HOLD_SHIFT,
-			    tacna_us_det_hold_texts);
-static SOC_ENUM_SINGLE_DECL(tacna_us2_det_hold_enum,
-			    TACNA_US2_DET_CONTROL,
-			    TACNA_US2_DET_HOLD_SHIFT,
-			    tacna_us_det_hold_texts);
-
-static const char * const tacna_us_det_dcy_texts[] = {
-	"0 Samples",
-	"36 Samples",
-	"73 Samples",
-	"146 Samples",
-	"293 Samples",
-	"588 Samples",
-	"1177 Samples",
-	"2355 Samples",
-};
-static SOC_ENUM_SINGLE_DECL(tacna_us1_det_dcy_enum,
-			    TACNA_US1_DET_CONTROL,
-			    TACNA_US1_DET_DCY_SHIFT,
-			    tacna_us_det_dcy_texts);
-static SOC_ENUM_SINGLE_DECL(tacna_us2_det_dcy_enum,
-			    TACNA_US2_DET_CONTROL,
-			    TACNA_US2_DET_DCY_SHIFT,
-			    tacna_us_det_dcy_texts);
-
-/*
- * TODO: auto depends on some other weird setting so will need to figure out
- *       how that works
- */
-static const char* const cs47l94_dop_width_texts[] = {
+static const char * const cs47l96_dop_width_texts[] = {
 	"auto", "32bit", "16bit",
 };
 
-static SOC_ENUM_SINGLE_DECL(cs47l94_dop_width_enum, TACNA_DOP1_CONTROL1,
-			    TACNA_DOP1_WIDTH_SHIFT, cs47l94_dop_width_texts);
+static SOC_ENUM_SINGLE_DECL(cs47l96_dop_width_enum, TACNA_DOP1_CONTROL1,
+			    TACNA_DOP1_WIDTH_SHIFT, cs47l96_dop_width_texts);
 
-static const struct soc_enum tacna_us_output_rate[] = {
-	SOC_VALUE_ENUM_SINGLE(TACNA_US1_CONTROL,
-			      TACNA_US1_RATE_SHIFT,
-			      TACNA_US1_RATE_MASK >> TACNA_US1_RATE_SHIFT,
-			      TACNA_SYNC_RATE_ENUM_SIZE,
-			      tacna_rate_text,
-			      tacna_rate_val),
-	SOC_VALUE_ENUM_SINGLE(TACNA_US2_CONTROL,
-			      TACNA_US2_RATE_SHIFT,
-			      TACNA_US2_RATE_MASK >> TACNA_US2_RATE_SHIFT,
-			      TACNA_SYNC_RATE_ENUM_SIZE,
-			      tacna_rate_text,
-			      tacna_rate_val),
-};
-
-static SOC_ENUM_SINGLE_DECL(tacna_us1_freq_enum,
-			    TACNA_US1_CONTROL,
-			    TACNA_US1_FREQ_SHIFT,
-			    tacna_us_freq_texts);
-static SOC_ENUM_SINGLE_DECL(tacna_us2_freq_enum,
-			    TACNA_US2_CONTROL,
-			    TACNA_US2_FREQ_SHIFT,
-			    tacna_us_freq_texts);
-
-static SOC_ENUM_SINGLE_DECL(tacna_us1_gain_enum, TACNA_US1_CONTROL,
-			    TACNA_US1_GAIN_SHIFT, tacna_us_gain_texts);
-static SOC_ENUM_SINGLE_DECL(tacna_us2_gain_enum, TACNA_US2_CONTROL,
-			    TACNA_US2_GAIN_SHIFT, tacna_us_gain_texts);
-
-static const struct snd_kcontrol_new cs47l94_snd_controls[] = {
+static const struct snd_kcontrol_new cs47l96_snd_controls[] = {
 SOC_ENUM("IN1 OSR", tacna_in_dmic_osr[0]),
 SOC_ENUM("IN2 OSR", tacna_in_dmic_osr[1]),
 SOC_ENUM("IN3 OSR", tacna_in_dmic_osr[2]),
@@ -987,8 +615,6 @@ SOC_ENUM("Input Ramp Down", tacna_in_vd_ramp),
 
 TACNA_FRF_BYTES("FRF COEFF 1L", TACNA_FRF_COEFF_1L_1, TACNA_FRF_COEFF_LEN),
 TACNA_FRF_BYTES("FRF COEFF 1R", TACNA_FRF_COEFF_1R_1, TACNA_FRF_COEFF_LEN),
-TACNA_FRF_BYTES("FRF COEFF 2L", TACNA_FRF_COEFF_2L_1, TACNA_FRF_COEFF_LEN),
-TACNA_FRF_BYTES("FRF COEFF 2R", TACNA_FRF_COEFF_2R_1, TACNA_FRF_COEFF_LEN),
 TACNA_FRF_BYTES("FRF COEFF 5L", TACNA_FRF_COEFF_5L_1, TACNA_FRF_COEFF_LEN),
 TACNA_FRF_BYTES("FRF COEFF 5R", TACNA_FRF_COEFF_5R_1, TACNA_FRF_COEFF_LEN),
 
@@ -1078,11 +704,11 @@ SOC_ENUM("LHPF2 Mode", tacna_lhpf2_mode),
 SOC_ENUM("LHPF3 Mode", tacna_lhpf3_mode),
 SOC_ENUM("LHPF4 Mode", tacna_lhpf4_mode),
 
-SND_SOC_BYTES("ANC Coefficients", CS47L94_ANC_CTRL_4,
-	      (CS47L94_ANC_CTRL_13 - CS47L94_ANC_CTRL_4) / 4 + 1),
-SND_SOC_BYTES("ANCL Config", CS47L94_ANC_L_CTRL_1, 1),
-SND_SOC_BYTES("ANCL Coefficients", CS47L94_ANC_L_CTRL_3,
-	      (CS47L94_ANC_L_CTRL_66 - CS47L94_ANC_L_CTRL_3) / 4 + 1),
+SND_SOC_BYTES("ANC Coefficients", TACNA_ANC_CTRL_4,
+	      (TACNA_ANC_CTRL_13 - TACNA_ANC_CTRL_4) / 4 + 1),
+SND_SOC_BYTES("ANCL Config", TACNA_ANC_L_CTRL_1, 1),
+SND_SOC_BYTES("ANCL Coefficients", TACNA_ANC_L_CTRL_3,
+	      (TACNA_ANC_L_CTRL_66 - TACNA_ANC_L_CTRL_3) / 4 + 1),
 
 SOC_ENUM("Sample Rate 2", tacna_sample_rate[0]),
 SOC_ENUM("Sample Rate 3", tacna_sample_rate[1]),
@@ -1106,27 +732,8 @@ TACNA_RATE_ENUM("ISRC1 FSH", tacna_isrc_fsh[0]),
 TACNA_RATE_ENUM("ISRC2 FSH", tacna_isrc_fsh[1]),
 TACNA_RATE_ENUM("ASRC1 Rate 1", tacna_asrc1_rate[0]),
 TACNA_RATE_ENUM("ASRC1 Rate 2", tacna_asrc1_rate[1]),
-
-TACNA_RATE_ENUM("Ultrasonic 1 Rate", tacna_us_output_rate[0]),
-TACNA_RATE_ENUM("Ultrasonic 2 Rate", tacna_us_output_rate[1]),
-
-SOC_ENUM("Ultrasonic 1 Freq", tacna_us1_freq_enum),
-SOC_ENUM("Ultrasonic 2 Freq", tacna_us2_freq_enum),
-
-SOC_ENUM("Ultrasonic 1 Gain", tacna_us1_gain_enum),
-SOC_ENUM("Ultrasonic 2 Gain", tacna_us2_gain_enum),
-
-SOC_ENUM("Ultrasonic 1 Activity Detect Threshold", tacna_us1_det_thr_enum),
-SOC_ENUM("Ultrasonic 2 Activity Detect Threshold", tacna_us2_det_thr_enum),
-
-SOC_ENUM("Ultrasonic 1 Activity Detect Pulse Length", tacna_us1_det_num_enum),
-SOC_ENUM("Ultrasonic 2 Activity Detect Pulse Length", tacna_us2_det_num_enum),
-
-SOC_ENUM("Ultrasonic 1 Activity Detect Hold", tacna_us1_det_hold_enum),
-SOC_ENUM("Ultrasonic 2 Activity Detect Hold", tacna_us2_det_hold_enum),
-
-SOC_ENUM("Ultrasonic 1 Activity Detect Decay", tacna_us1_det_dcy_enum),
-SOC_ENUM("Ultrasonic 2 Activity Detect Decay", tacna_us2_det_dcy_enum),
+TACNA_RATE_ENUM("ASRC2 Rate 1", tacna_asrc2_rate[0]),
+TACNA_RATE_ENUM("ASRC2 Rate 2", tacna_asrc2_rate[1]),
 
 SOC_ENUM("AUXPDM1 Rate", tacna_auxpdm1_freq),
 SOC_ENUM("AUXPDM2 Rate", tacna_auxpdm2_freq),
@@ -1134,21 +741,16 @@ SOC_ENUM("AUXPDM3 Rate", tacna_auxpdm3_freq),
 
 TACNA_MIXER_CONTROLS("OUT1L", TACNA_OUT1L_INPUT1),
 TACNA_MIXER_CONTROLS("OUT1R", TACNA_OUT1R_INPUT1),
-TACNA_MIXER_CONTROLS("OUT2L", TACNA_OUT2L_INPUT1),
-TACNA_MIXER_CONTROLS("OUT2R", TACNA_OUT2R_INPUT1),
 TACNA_MIXER_CONTROLS("OUT5L", TACNA_OUT5L_INPUT1),
 TACNA_MIXER_CONTROLS("OUT5R", TACNA_OUT5R_INPUT1),
-TACNA_MIXER_CONTROLS("OUTAUX1L", CS47L94_OUTAUX1L_INPUT1),
-TACNA_MIXER_CONTROLS("OUTAUX1R", CS47L94_OUTAUX1R_INPUT1),
+TACNA_MIXER_CONTROLS("OUTAUX1L", TACNA_OUTAUX1L_INPUT1),
+TACNA_MIXER_CONTROLS("OUTAUX1R", TACNA_OUTAUX1R_INPUT1),
 
 SOC_DOUBLE_R_EXT("OUT1 Digital Switch", TACNA_OUT1L_VOLUME_1,
 		 TACNA_OUT1R_VOLUME_1, TACNA_OUT1L_MUTE_SHIFT, 1, 1,
 		 snd_soc_get_volsw, tacna_put_out_vu),
 SOC_DOUBLE_R_EXT("OUTAUX1 Digital Switch", TACNA_OUTAUX1L_VOLUME_1,
 		 TACNA_OUTAUX1R_VOLUME_1, TACNA_OUTAUX1L_MUTE_SHIFT, 1, 1,
-		 snd_soc_get_volsw, cs47l94_put_outaux_vu),
-SOC_DOUBLE_R_EXT("OUT2 Digital Switch", TACNA_OUT2L_VOLUME_1,
-		 TACNA_OUT2R_VOLUME_1, TACNA_OUT2L_MUTE_SHIFT, 1, 1,
 		 snd_soc_get_volsw, tacna_put_out_vu),
 SOC_DOUBLE_R_EXT("OUT5 Digital Switch", TACNA_OUT5L_VOLUME_1,
 		 TACNA_OUT5R_VOLUME_1, TACNA_OUT5L_MUTE_SHIFT, 1, 1,
@@ -1157,17 +759,13 @@ SOC_DOUBLE_R_EXT("OUT5 Digital Switch", TACNA_OUT5L_VOLUME_1,
 SOC_DOUBLE_R_EXT_TLV("OUT1 Main Volume", TACNA_OUT1L_VOLUME_1,
 		     TACNA_OUT1R_VOLUME_1, TACNA_OUT1L_VOL_SHIFT,
 		     0xc0, 0, snd_soc_get_volsw, tacna_put_out_vu,
-		     cs47l94_aux_tlv),
+		     cs47l96_aux_tlv),
 SOC_DOUBLE_R_EXT_TLV("OUTAUX1 Volume", TACNA_OUTAUX1L_VOLUME_1,
 		     TACNA_OUTAUX1R_VOLUME_1, TACNA_OUTAUX1L_VOL_SHIFT,
-		     0xc0, 0, snd_soc_get_volsw, cs47l94_put_outaux_vu,
-		     cs47l94_aux_tlv),
+		     0xc0, 0, snd_soc_get_volsw, tacna_put_out_vu,
+		     cs47l96_aux_tlv),
 SOC_DOUBLE_R_EXT_TLV("OUT1 Digital Volume", TACNA_OUT1L_VOLUME_3,
 		     TACNA_OUT1R_VOLUME_3, TACNA_OUT1L_LVL_SHIFT,
-		     0xbf, 0, snd_soc_get_volsw, tacna_put_out_vu,
-		     tacna_digital_tlv),
-SOC_DOUBLE_R_EXT_TLV("OUT2 Digital Volume", TACNA_OUT2L_VOLUME_1,
-		     TACNA_OUT2R_VOLUME_1, TACNA_OUT2L_VOL_SHIFT,
 		     0xbf, 0, snd_soc_get_volsw, tacna_put_out_vu,
 		     tacna_digital_tlv),
 SOC_DOUBLE_R_EXT_TLV("OUT5 Digital Volume", TACNA_OUT5L_VOLUME_1,
@@ -1197,24 +795,24 @@ SOC_ENUM_EXT("IN4L Rate", tacna_input_rate[6],
 SOC_ENUM_EXT("IN4R Rate", tacna_input_rate[7],
 	     snd_soc_get_enum_double, tacna_in_rate_put),
 
-TACNA_RATE_ENUM("OUTH Rate", cs47l94_outh_rate),
+TACNA_RATE_ENUM("OUTH Rate", cs47l96_outh_rate),
 
 SOC_DOUBLE_R_EXT_TLV("OUTH Main Volume", TACNA_OUTHL_VOLUME_1,
 		     TACNA_OUTHR_VOLUME_1, TACNA_OUTHL_VOL_SHIFT, 0xc0, 0,
-		     cs47l94_get_outh_main_volume, cs47l94_put_outh_main_volume,
-		     cs47l94_aux_tlv),
+		     cs47l96_get_outh_main_volume, cs47l96_put_outh_main_volume,
+		     cs47l96_aux_tlv),
 
 SOC_DOUBLE_TLV("OUTH DSD Digital Volume", TACNA_DSD1_VOLUME1,
 	       TACNA_DSD1L_VOL_SHIFT, TACNA_DSD1R_VOL_SHIFT, 0xfe, 1,
-	       cs47l94_outh_digital_tlv),
+	       cs47l96_outh_digital_tlv),
 SOC_DOUBLE("OUTH DSD Digital Switch", TACNA_DSD1_VOLUME1,
 	   TACNA_DSD1L_MUTE_SHIFT, TACNA_DSD1R_MUTE_SHIFT, 1, 1),
 
-SOC_ENUM("DoP Data Width", cs47l94_dop_width_enum),
+SOC_ENUM("DoP Data Width", cs47l96_dop_width_enum),
 
 SOC_DOUBLE_TLV("OUTH PCM Digital Volume", TACNA_OUTH_PCM_CONTROL1,
 	       TACNA_OUTHL_LVL_SHIFT, TACNA_OUTHR_LVL_SHIFT, 0xfe, 1,
-	       cs47l94_outh_digital_tlv),
+	       cs47l96_outh_digital_tlv),
 SOC_DOUBLE("OUTH PCM Digital Switch", TACNA_OUTH_PCM_CONTROL1,
 	   TACNA_OUTHL_MUTE_SHIFT, TACNA_OUTHR_MUTE_SHIFT, 1, 1),
 
@@ -1330,11 +928,6 @@ TACNA_MIXER_CONTROLS("ASP3TX2", TACNA_ASP3TX2_INPUT1),
 TACNA_MIXER_CONTROLS("ASP3TX3", TACNA_ASP3TX3_INPUT1),
 TACNA_MIXER_CONTROLS("ASP3TX4", TACNA_ASP3TX4_INPUT1),
 
-TACNA_MIXER_CONTROLS("ASP4TX1", TACNA_ASP4TX1_INPUT1),
-TACNA_MIXER_CONTROLS("ASP4TX2", TACNA_ASP4TX2_INPUT1),
-TACNA_MIXER_CONTROLS("ASP4TX3", TACNA_ASP4TX3_INPUT1),
-TACNA_MIXER_CONTROLS("ASP4TX4", TACNA_ASP4TX4_INPUT1),
-
 TACNA_MIXER_CONTROLS("SLIMTX1", TACNA_SLIMTX1_INPUT1),
 TACNA_MIXER_CONTROLS("SLIMTX2", TACNA_SLIMTX2_INPUT1),
 TACNA_MIXER_CONTROLS("SLIMTX3", TACNA_SLIMTX3_INPUT1),
@@ -1345,7 +938,6 @@ TACNA_MIXER_CONTROLS("SLIMTX7", TACNA_SLIMTX7_INPUT1),
 TACNA_MIXER_CONTROLS("SLIMTX8", TACNA_SLIMTX8_INPUT1),
 
 WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
-WM_ADSP2_PRELOAD_SWITCH("DSP2", 2),
 
 TACNA_MIXER_CONTROLS("DSP1RX1", TACNA_DSP1RX1_INPUT1),
 TACNA_MIXER_CONTROLS("DSP1RX2", TACNA_DSP1RX2_INPUT1),
@@ -1355,15 +947,6 @@ TACNA_MIXER_CONTROLS("DSP1RX5", TACNA_DSP1RX5_INPUT1),
 TACNA_MIXER_CONTROLS("DSP1RX6", TACNA_DSP1RX6_INPUT1),
 TACNA_MIXER_CONTROLS("DSP1RX7", TACNA_DSP1RX7_INPUT1),
 TACNA_MIXER_CONTROLS("DSP1RX8", TACNA_DSP1RX8_INPUT1),
-
-TACNA_MIXER_CONTROLS("DSP2RX1", TACNA_DSP2RX1_INPUT1),
-TACNA_MIXER_CONTROLS("DSP2RX2", TACNA_DSP2RX2_INPUT1),
-TACNA_MIXER_CONTROLS("DSP2RX3", TACNA_DSP2RX3_INPUT1),
-TACNA_MIXER_CONTROLS("DSP2RX4", TACNA_DSP2RX4_INPUT1),
-TACNA_MIXER_CONTROLS("DSP2RX5", TACNA_DSP2RX5_INPUT1),
-TACNA_MIXER_CONTROLS("DSP2RX6", TACNA_DSP2RX6_INPUT1),
-TACNA_MIXER_CONTROLS("DSP2RX7", TACNA_DSP2RX7_INPUT1),
-TACNA_MIXER_CONTROLS("DSP2RX8", TACNA_DSP2RX8_INPUT1),
 };
 
 TACNA_MIXER_ENUMS(EQ1, TACNA_EQ1_INPUT1);
@@ -1386,14 +969,12 @@ TACNA_MIXER_ENUMS(PWM2, TACNA_PWM2_INPUT1);
 
 TACNA_MIXER_ENUMS(OUT1L, TACNA_OUT1L_INPUT1);
 TACNA_MIXER_ENUMS(OUT1R, TACNA_OUT1R_INPUT1);
-TACNA_MIXER_ENUMS(OUT2L, TACNA_OUT2L_INPUT1);
-TACNA_MIXER_ENUMS(OUT2R, TACNA_OUT2R_INPUT1);
 TACNA_MIXER_ENUMS(OUT5L, TACNA_OUT5L_INPUT1);
 TACNA_MIXER_ENUMS(OUT5R, TACNA_OUT5R_INPUT1);
-TACNA_MIXER_ENUMS(OUTAUX1L, CS47L94_OUTAUX1L_INPUT1);
-TACNA_MIXER_ENUMS(OUTAUX1R, CS47L94_OUTAUX1R_INPUT1);
-TACNA_MIXER_ENUMS(OUTHL, CS47L94_OUTHL_INPUT1);
-TACNA_MIXER_ENUMS(OUTHR, CS47L94_OUTHR_INPUT1);
+TACNA_MIXER_ENUMS(OUTAUX1L, TACNA_OUTAUX1L_INPUT1);
+TACNA_MIXER_ENUMS(OUTAUX1R, TACNA_OUTAUX1R_INPUT1);
+TACNA_MIXER_ENUMS(OUTHL, TACNA_OUTHL_INPUT1);
+TACNA_MIXER_ENUMS(OUTHR, TACNA_OUTHR_INPUT1);
 
 TACNA_MIXER_ENUMS(ASP1TX1, TACNA_ASP1TX1_INPUT1);
 TACNA_MIXER_ENUMS(ASP1TX2, TACNA_ASP1TX2_INPUT1);
@@ -1414,11 +995,6 @@ TACNA_MIXER_ENUMS(ASP3TX2, TACNA_ASP3TX2_INPUT1);
 TACNA_MIXER_ENUMS(ASP3TX3, TACNA_ASP3TX3_INPUT1);
 TACNA_MIXER_ENUMS(ASP3TX4, TACNA_ASP3TX4_INPUT1);
 
-TACNA_MIXER_ENUMS(ASP4TX1, TACNA_ASP4TX1_INPUT1);
-TACNA_MIXER_ENUMS(ASP4TX2, TACNA_ASP4TX2_INPUT1);
-TACNA_MIXER_ENUMS(ASP4TX3, TACNA_ASP4TX3_INPUT1);
-TACNA_MIXER_ENUMS(ASP4TX4, TACNA_ASP4TX4_INPUT1);
-
 TACNA_MIXER_ENUMS(SLIMTX1, TACNA_SLIMTX1_INPUT1);
 TACNA_MIXER_ENUMS(SLIMTX2, TACNA_SLIMTX2_INPUT1);
 TACNA_MIXER_ENUMS(SLIMTX3, TACNA_SLIMTX3_INPUT1);
@@ -1432,6 +1008,11 @@ TACNA_MUX_ENUMS(ASRC1IN1L, TACNA_ASRC1_IN1L_INPUT1);
 TACNA_MUX_ENUMS(ASRC1IN1R, TACNA_ASRC1_IN1R_INPUT1);
 TACNA_MUX_ENUMS(ASRC1IN2L, TACNA_ASRC1_IN2L_INPUT1);
 TACNA_MUX_ENUMS(ASRC1IN2R, TACNA_ASRC1_IN2R_INPUT1);
+
+TACNA_MUX_ENUMS(ASRC2IN1L, TACNA_ASRC2_IN1L_INPUT1);
+TACNA_MUX_ENUMS(ASRC2IN1R, TACNA_ASRC2_IN1R_INPUT1);
+TACNA_MUX_ENUMS(ASRC2IN2L, TACNA_ASRC2_IN2L_INPUT1);
+TACNA_MUX_ENUMS(ASRC2IN2R, TACNA_ASRC2_IN2R_INPUT1);
 
 TACNA_MUX_ENUMS(ISRC1INT1, TACNA_ISRC1INT1_INPUT1);
 TACNA_MUX_ENUMS(ISRC1INT2, TACNA_ISRC1INT2_INPUT1);
@@ -1463,136 +1044,99 @@ TACNA_MIXER_ENUMS(DSP1RX6, TACNA_DSP1RX6_INPUT1);
 TACNA_MIXER_ENUMS(DSP1RX7, TACNA_DSP1RX7_INPUT1);
 TACNA_MIXER_ENUMS(DSP1RX8, TACNA_DSP1RX8_INPUT1);
 
-TACNA_MIXER_ENUMS(DSP2RX1, TACNA_DSP2RX1_INPUT1);
-TACNA_MIXER_ENUMS(DSP2RX2, TACNA_DSP2RX2_INPUT1);
-TACNA_MIXER_ENUMS(DSP2RX3, TACNA_DSP2RX3_INPUT1);
-TACNA_MIXER_ENUMS(DSP2RX4, TACNA_DSP2RX4_INPUT1);
-TACNA_MIXER_ENUMS(DSP2RX5, TACNA_DSP2RX5_INPUT1);
-TACNA_MIXER_ENUMS(DSP2RX6, TACNA_DSP2RX6_INPUT1);
-TACNA_MIXER_ENUMS(DSP2RX7, TACNA_DSP2RX7_INPUT1);
-TACNA_MIXER_ENUMS(DSP2RX8, TACNA_DSP2RX8_INPUT1);
-
-static const char * const cs47l94_aec_loopback_texts[] = {
-	"OUT1L", "OUT1R", "OUT2L", "OUT2R", "OUT5L", "OUT5R",
+static const char * const cs47l96_aec_loopback_texts[] = {
+	"OUT1L", "OUT1R", "OUT5L", "OUT5R",
 };
 
-static const unsigned int cs47l94_aec_loopback_values[] = {
-	0, 1, 2, 3, 8, 9,
+static const unsigned int cs47l96_aec_loopback_values[] = {
+	0, 1, 8, 9,
 };
 
-static const struct soc_enum cs47l94_aec_loopback[] = {
+static const struct soc_enum cs47l96_aec_loopback[] = {
 	SOC_VALUE_ENUM_SINGLE(TACNA_OUTPUT_AEC_CONTROL_1,
 			      TACNA_AEC_LOOPBACK1_SRC_SHIFT,
 			      TACNA_AEC_LOOPBACK1_SRC_MASK >>
 			      TACNA_AEC_LOOPBACK1_SRC_SHIFT,
-			      ARRAY_SIZE(cs47l94_aec_loopback_texts),
-			      cs47l94_aec_loopback_texts,
-			      cs47l94_aec_loopback_values),
+			      ARRAY_SIZE(cs47l96_aec_loopback_texts),
+			      cs47l96_aec_loopback_texts,
+			      cs47l96_aec_loopback_values),
 	SOC_VALUE_ENUM_SINGLE(TACNA_OUTPUT_AEC_CONTROL_1,
 			      TACNA_AEC_LOOPBACK2_SRC_SHIFT,
 			      TACNA_AEC_LOOPBACK2_SRC_MASK >>
 			      TACNA_AEC_LOOPBACK2_SRC_SHIFT,
-			      ARRAY_SIZE(cs47l94_aec_loopback_texts),
-			      cs47l94_aec_loopback_texts,
-			      cs47l94_aec_loopback_values),
+			      ARRAY_SIZE(cs47l96_aec_loopback_texts),
+			      cs47l96_aec_loopback_texts,
+			      cs47l96_aec_loopback_values),
 };
 
-static const struct snd_kcontrol_new cs47l94_aec_loopback_mux[] = {
-	SOC_DAPM_ENUM("AEC1 Loopback", cs47l94_aec_loopback[0]),
-	SOC_DAPM_ENUM("AEC2 Loopback", cs47l94_aec_loopback[1]),
+static const struct snd_kcontrol_new cs47l96_aec_loopback_mux[] = {
+	SOC_DAPM_ENUM("AEC1 Loopback", cs47l96_aec_loopback[0]),
+	SOC_DAPM_ENUM("AEC2 Loopback", cs47l96_aec_loopback[1]),
 };
 
-static const struct snd_kcontrol_new cs47l94_anc_input_mux[] = {
+static const struct snd_kcontrol_new cs47l96_anc_input_mux[] = {
 	SOC_DAPM_ENUM("ANCL Input", tacna_mono_anc_input_src[0]),
 	SOC_DAPM_ENUM("ANCL Channel", tacna_mono_anc_input_src[1]),
 };
 
-static const struct snd_kcontrol_new cs47l94_anc_ng_mux =
+static const struct snd_kcontrol_new cs47l96_anc_ng_mux =
 	SOC_DAPM_ENUM("ANC NG Source", tacna_anc_ng_enum);
 
-static const struct snd_kcontrol_new cs47l94_output_anc_src[] = {
+static const struct snd_kcontrol_new cs47l96_output_anc_src[] = {
 	SOC_DAPM_ENUM("OUT1L ANC Source", tacna_output_anc_src[0]),
 	SOC_DAPM_ENUM("OUT1R ANC Source", tacna_output_anc_src[1]),
-	SOC_DAPM_ENUM("OUT2L ANC Source", tacna_output_anc_src[2]),
-	SOC_DAPM_ENUM("OUT2R ANC Source", tacna_output_anc_src[3]),
 	SOC_DAPM_ENUM("OUT5L ANC Source", tacna_output_anc_src[4]),
 	SOC_DAPM_ENUM("OUT5R ANC Source", tacna_output_anc_src[5]),
 };
 
-static const struct snd_kcontrol_new cs47l94_out1_aux_switch[] = {
+static const struct snd_kcontrol_new cs47l96_out1_aux_switch[] = {
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
 };
 
-static const struct snd_kcontrol_new cs47l94_out1_dsd_switch[] = {
+static const struct snd_kcontrol_new cs47l96_out1_dsd_switch[] = {
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
 };
 
-static const char * const cs47l94_out_select_texts[] = {
-	"OUT1+OUT2", "OUTH",
+static const char * const cs47l96_out_select_texts[] = {
+	"OUT1", "OUTH",
 };
 
-static SOC_ENUM_SINGLE_DECL(cs47l94_output_select_enum, SND_SOC_NOPM, 0,
-			    cs47l94_out_select_texts);
+static SOC_ENUM_SINGLE_DECL(cs47l96_output_select_enum, SND_SOC_NOPM, 0,
+			    cs47l96_out_select_texts);
 
-static const struct snd_kcontrol_new cs47l94_output_select =
-	SOC_DAPM_ENUM("Output Select", cs47l94_output_select_enum);
+static const struct snd_kcontrol_new cs47l96_output_select =
+	SOC_DAPM_ENUM("Output Select", cs47l96_output_select_enum);
 
-static const struct snd_kcontrol_new cs47l94_outh_aux_switch[] = {
+static const struct snd_kcontrol_new cs47l96_outh_aux_switch[] = {
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
 };
 
-static const char * const cs47l94_dsd_source_texts[] = {
+static const char * const cs47l96_dsd_source_texts[] = {
 	"DSD", "DoP",
 };
 
-static const unsigned int cs47l94_dsd_source_values[] = {
+static const unsigned int cs47l96_dsd_source_values[] = {
 	0x0, 0x2,
 };
 
-static const struct soc_enum cs47l94_dsd_source_enum =
+static const struct soc_enum cs47l96_dsd_source_enum =
 	SOC_VALUE_ENUM_SINGLE(TACNA_DSD1_CONTROL1,
 			      TACNA_DSD1_SRC_SHIFT,
 			      TACNA_DSD1_SRC_MASK >> TACNA_DSD1_SRC_SHIFT,
-			      ARRAY_SIZE(cs47l94_dsd_source_texts),
-			      cs47l94_dsd_source_texts,
-			      cs47l94_dsd_source_values);
+			      ARRAY_SIZE(cs47l96_dsd_source_texts),
+			      cs47l96_dsd_source_texts,
+			      cs47l96_dsd_source_values);
 
-static const struct snd_kcontrol_new cs47l94_dsd_source_select =
-	SOC_DAPM_ENUM("Source", cs47l94_dsd_source_enum);
+static const struct snd_kcontrol_new cs47l96_dsd_source_select =
+	SOC_DAPM_ENUM("Source", cs47l96_dsd_source_enum);
 
-static const struct snd_kcontrol_new cs47l94_dsd_switch =
+static const struct snd_kcontrol_new cs47l96_dsd_switch =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
-static int cs47l94_dsp_power_ev(struct snd_soc_dapm_widget *w,
-				struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		ret = tacna_dsp_memory_enable(priv, w->shift);
-		if (ret)
-			return ret;
-
-		return tacna_dsp_power_ev(w, kcontrol, event);
-	case SND_SOC_DAPM_PRE_PMD:
-		ret = tacna_dsp_power_ev(w, kcontrol, event);
-
-		tacna_dsp_memory_disable(priv, w->shift);
-
-		return ret;
-	default:
-		return 0;
-	};
-}
-
-
-static const struct snd_soc_dapm_widget cs47l94_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget cs47l96_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", TACNA_SYSTEM_CLOCK1, TACNA_SYSCLK_EN_SHIFT,
 		    0, tacna_sysclk_ev,
 		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
@@ -1664,14 +1208,8 @@ SND_SOC_DAPM_INPUT("IN3_PDMDATA"),
 SND_SOC_DAPM_INPUT("IN4_PDMCLK"),
 SND_SOC_DAPM_INPUT("IN4_PDMDATA"),
 
-SND_SOC_DAPM_MUX("Ultrasonic 1 Input", SND_SOC_NOPM, 0, 0, &tacna_us_inmux[0]),
-SND_SOC_DAPM_MUX("Ultrasonic 2 Input", SND_SOC_NOPM, 0, 0, &tacna_us_inmux[1]),
-
 SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
-
-SND_SOC_DAPM_OUTPUT("Ultrasonic 1 Activity Output"),
-SND_SOC_DAPM_OUTPUT("Ultrasonic 2 Activity Output"),
 
 SND_SOC_DAPM_OUTPUT("DSP Trigger Out"),
 
@@ -1725,15 +1263,6 @@ SND_SOC_DAPM_AIF_OUT("ASP3TX3", NULL, 0, TACNA_ASP3_ENABLES1,
 SND_SOC_DAPM_AIF_OUT("ASP3TX4", NULL, 0, TACNA_ASP3_ENABLES1,
 		     TACNA_ASP3_TX4_EN_SHIFT, 0),
 
-SND_SOC_DAPM_AIF_OUT("ASP4TX1", NULL, 0, TACNA_ASP4_ENABLES1,
-		     TACNA_ASP4_TX1_EN_SHIFT, 0),
-SND_SOC_DAPM_AIF_OUT("ASP4TX2", NULL, 0, TACNA_ASP4_ENABLES1,
-		     TACNA_ASP4_TX2_EN_SHIFT, 0),
-SND_SOC_DAPM_AIF_OUT("ASP4TX3", NULL, 0, TACNA_ASP4_ENABLES1,
-		     TACNA_ASP4_TX3_EN_SHIFT, 0),
-SND_SOC_DAPM_AIF_OUT("ASP4TX4", NULL, 0, TACNA_ASP4_ENABLES1,
-		     TACNA_ASP4_TX4_EN_SHIFT, 0),
-
 SND_SOC_DAPM_AIF_OUT("SLIMTX1", NULL, 0, TACNA_SLIMBUS_CHANNEL_ENABLE,
 		     TACNA_SLIMTX1_EN_SHIFT, 0),
 SND_SOC_DAPM_AIF_OUT("SLIMTX2", NULL, 0, TACNA_SLIMBUS_CHANNEL_ENABLE,
@@ -1752,19 +1281,11 @@ SND_SOC_DAPM_AIF_OUT("SLIMTX8", NULL, 0, TACNA_SLIMBUS_CHANNEL_ENABLE,
 		     TACNA_SLIMTX8_EN_SHIFT, 0),
 
 SND_SOC_DAPM_PGA_E("OUT1L PGA", SND_SOC_NOPM,
-		   TACNA_OUT1L_EN_SHIFT, 0, NULL, 0, cs47l94_out_ev,
+		   TACNA_OUT1L_EN_SHIFT, 0, NULL, 0, cs47l96_out_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT1R PGA", SND_SOC_NOPM,
-		   TACNA_OUT1R_EN_SHIFT, 0, NULL, 0, cs47l94_out_ev,
-		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
-		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("OUT2L PGA", SND_SOC_NOPM,
-		   TACNA_OUT2L_EN_SHIFT, 0, NULL, 0, cs47l94_out_ev,
-		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
-		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("OUT2R PGA", SND_SOC_NOPM,
-		   TACNA_OUT2R_EN_SHIFT, 0, NULL, 0, cs47l94_out_ev,
+		   TACNA_OUT1R_EN_SHIFT, 0, NULL, 0, cs47l96_out_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA("OUT5L PGA", TACNA_OUTPUT_ENABLE_1,
@@ -1772,61 +1293,53 @@ SND_SOC_DAPM_PGA("OUT5L PGA", TACNA_OUTPUT_ENABLE_1,
 SND_SOC_DAPM_PGA("OUT5R PGA", TACNA_OUTPUT_ENABLE_1,
 		   TACNA_OUT5R_EN_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_PGA_E("OUTAUX1L PGA", TACNA_OUTAUX1L_ENABLE_1,
-		   TACNA_OUTAUX1L_EN_SHIFT, 0, NULL, 0, cs47l94_outaux_ev,
+		   TACNA_OUTAUX1L_EN_SHIFT, 0, NULL, 0, cs47l96_outaux_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUTAUX1R PGA", TACNA_OUTAUX1R_ENABLE_1,
-		   TACNA_OUTAUX1R_EN_SHIFT, 0, NULL, 0, cs47l94_outaux_ev,
+		   TACNA_OUTAUX1R_EN_SHIFT, 0, NULL, 0, cs47l96_outaux_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 
-SND_SOC_DAPM_SWITCH_E("OUT1L AUX Mix", TACNA_OUT1L_CONTROL_1,
-		      TACNA_OUT1L_AUX_SRC_SHIFT, 0,
-		      &cs47l94_out1_aux_switch[0], cs47l94_out_aux_src_ev,
-		      SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_SWITCH_E("OUT1R AUX Mix", TACNA_OUT1R_CONTROL_1,
-		      TACNA_OUT1R_AUX_SRC_SHIFT, 0,
-		      &cs47l94_out1_aux_switch[1], cs47l94_out_aux_src_ev,
-		      SND_SOC_DAPM_POST_PMU),
+SND_SOC_DAPM_SWITCH("OUT1L AUX Mix", TACNA_OUT1L_CONTROL_1,
+		    TACNA_OUT1L_AUX_SRC_SHIFT, 0, &cs47l96_out1_aux_switch[0]),
+SND_SOC_DAPM_SWITCH("OUT1R AUX Mix", TACNA_OUT1R_CONTROL_1,
+		    TACNA_OUT1R_AUX_SRC_SHIFT, 0, &cs47l96_out1_aux_switch[1]),
 
 SND_SOC_DAPM_SWITCH("OUT1L DSD Mix", TACNA_OUT1L_CONTROL_1,
 		      TACNA_OUT1L_DSD_EN_SHIFT, 0,
-		      &cs47l94_out1_dsd_switch[0]),
+		      &cs47l96_out1_dsd_switch[0]),
 SND_SOC_DAPM_SWITCH("OUT1R DSD Mix", TACNA_OUT1R_CONTROL_1,
 		      TACNA_OUT1R_DSD_EN_SHIFT, 0,
-		      &cs47l94_out1_dsd_switch[1]),
+		      &cs47l96_out1_dsd_switch[1]),
 
-SND_SOC_DAPM_DEMUX("OUT1 Demux", SND_SOC_NOPM, 0, 0, &cs47l94_out1_demux),
+SND_SOC_DAPM_DEMUX("OUT1 Demux", SND_SOC_NOPM, 0, 0, &cs47l96_out1_demux),
 
 SND_SOC_DAPM_MUX("OUT1L Output Select", SND_SOC_NOPM, 0, 0,
-		 &cs47l94_output_select),
+		 &cs47l96_output_select),
 SND_SOC_DAPM_MUX("OUT1R Output Select", SND_SOC_NOPM, 0, 0,
-		 &cs47l94_output_select),
-SND_SOC_DAPM_MUX("OUT2L Output Select", SND_SOC_NOPM, 0, 0,
-		 &cs47l94_output_select),
-SND_SOC_DAPM_MUX("OUT2R Output Select", SND_SOC_NOPM, 0, 0,
-		 &cs47l94_output_select),
+		 &cs47l96_output_select),
 SND_SOC_DAPM_MUX_E("OUTH Output Select", SND_SOC_NOPM, 0, 0,
-		   &cs47l94_output_select, cs47l94_outh_ev,
+		   &cs47l96_output_select, cs47l96_outh_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_POST_PMU),
 
 SND_SOC_DAPM_SWITCH_E("OUTHL AUX Mix", TACNA_OUTH_AUX_MIX_CONTROL_1,
 		      TACNA_OUTHL_AUX_SRC_SHIFT, 0,
-		      &cs47l94_outh_aux_switch[0], cs47l94_outh_aux_src_ev,
+		      &cs47l96_outh_aux_switch[0], cs47l96_outh_aux_src_ev,
 		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 SND_SOC_DAPM_SWITCH_E("OUTHR AUX Mix", TACNA_OUTH_AUX_MIX_CONTROL_1,
 		      TACNA_OUTHR_AUX_SRC_SHIFT, 0,
-		      &cs47l94_outh_aux_switch[1], cs47l94_outh_aux_src_ev,
+		      &cs47l96_outh_aux_switch[1], cs47l96_outh_aux_src_ev,
 		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_PGA("OUTH PCM", TACNA_OUTH_ENABLE_1, TACNA_OUTH_PCM_EN_SHIFT,
 		 0, NULL, 0),
 
 SND_SOC_DAPM_MUX("DSD Processor Source", SND_SOC_NOPM, 0, 0,
-		 &cs47l94_dsd_source_select),
+		 &cs47l96_dsd_source_select),
 
 SND_SOC_DAPM_SWITCH_E("DSD Processor", TACNA_DSD1_CONTROL1,
 		      TACNA_DSD1_EN_SHIFT, 0,
-		      &cs47l94_dsd_switch, cs47l94_dsd_processor_ev,
+		      &cs47l96_dsd_switch, cs47l96_dsd_processor_ev,
 		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_SWITCH("AUXPDM1 Output", TACNA_AUXPDM_CONTROL1,
@@ -1843,13 +1356,9 @@ SND_SOC_DAPM_MUX("AUXPDM2 Input", SND_SOC_NOPM, 0, 0,
 SND_SOC_DAPM_MUX("AUXPDM3 Input", SND_SOC_NOPM, 0, 0,
 		 &tacna_auxpdm_inmux[2]),
 
-SND_SOC_DAPM_SWITCH("Ultrasonic 1 Activity Detect", TACNA_US1_DET_CONTROL,
-		    TACNA_US1_DET_EN_SHIFT, 0, &cs47l94_us1_switch),
-SND_SOC_DAPM_SWITCH("Ultrasonic 2 Activity Detect", TACNA_US2_DET_CONTROL,
-		    TACNA_US2_DET_EN_SHIFT, 0, &cs47l94_us2_switch),
-
 /* mux_in widgets : arranged in the order of sources
-   specified in TACNA_MIXER_INPUT_ROUTES */
+ * specified in TACNA_MIXER_INPUT_ROUTES
+ */
 
 SND_SOC_DAPM_PGA("Tone Generator 1", TACNA_TONE_GENERATOR1,
 		 TACNA_TONE1_EN_SHIFT, 0, NULL, 0),
@@ -1860,10 +1369,10 @@ SND_SOC_DAPM_MIC("HAPTICS", NULL),
 
 SND_SOC_DAPM_MUX("AEC1 Loopback", TACNA_OUTPUT_AEC_ENABLE_1,
 		 TACNA_AEC_LOOPBACK1_EN_SHIFT, 0,
-		 &cs47l94_aec_loopback_mux[0]),
+		 &cs47l96_aec_loopback_mux[0]),
 SND_SOC_DAPM_MUX("AEC2 Loopback", TACNA_OUTPUT_AEC_ENABLE_1,
 		 TACNA_AEC_LOOPBACK2_EN_SHIFT, 0,
-		 &cs47l94_aec_loopback_mux[1]),
+		 &cs47l96_aec_loopback_mux[1]),
 
 SND_SOC_DAPM_PGA("Noise Generator", TACNA_COMFORT_NOISE_GENERATOR,
 		 TACNA_NOISE_GEN_EN_SHIFT, 0, NULL, 0),
@@ -1936,15 +1445,6 @@ SND_SOC_DAPM_AIF_IN("ASP3RX3", NULL, 0, TACNA_ASP3_ENABLES1,
 SND_SOC_DAPM_AIF_IN("ASP3RX4", NULL, 0, TACNA_ASP3_ENABLES1,
 		    TACNA_ASP3_RX4_EN_SHIFT, 0),
 
-SND_SOC_DAPM_AIF_IN("ASP4RX1", NULL, 0, TACNA_ASP4_ENABLES1,
-		    TACNA_ASP4_RX1_EN_SHIFT, 0),
-SND_SOC_DAPM_AIF_IN("ASP4RX2", NULL, 0, TACNA_ASP4_ENABLES1,
-		    TACNA_ASP4_RX2_EN_SHIFT, 0),
-SND_SOC_DAPM_AIF_IN("ASP4RX3", NULL, 0, TACNA_ASP4_ENABLES1,
-		    TACNA_ASP4_RX3_EN_SHIFT, 0),
-SND_SOC_DAPM_AIF_IN("ASP4RX4", NULL, 0, TACNA_ASP4_ENABLES1,
-		    TACNA_ASP4_RX4_EN_SHIFT, 0),
-
 SND_SOC_DAPM_AIF_IN("SLIMRX1", NULL, 0, TACNA_SLIMBUS_CHANNEL_ENABLE,
 		    TACNA_SLIMRX1_EN_SHIFT, 0),
 SND_SOC_DAPM_AIF_IN("SLIMRX2", NULL, 0, TACNA_SLIMBUS_CHANNEL_ENABLE,
@@ -1970,6 +1470,15 @@ SND_SOC_DAPM_PGA("ASRC1IN2L", TACNA_ASRC1_ENABLE,
 		 TACNA_ASRC1_IN2L_EN_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_PGA("ASRC1IN2R", TACNA_ASRC1_ENABLE,
 		 TACNA_ASRC1_IN2R_EN_SHIFT, 0, NULL, 0),
+
+SND_SOC_DAPM_PGA("ASRC2IN1L", TACNA_ASRC2_ENABLE,
+		 TACNA_ASRC2_IN1L_EN_SHIFT, 0, NULL, 0),
+SND_SOC_DAPM_PGA("ASRC2IN1R", TACNA_ASRC2_ENABLE,
+		 TACNA_ASRC2_IN1R_EN_SHIFT, 0, NULL, 0),
+SND_SOC_DAPM_PGA("ASRC2IN2L", TACNA_ASRC2_ENABLE,
+		 TACNA_ASRC2_IN2L_EN_SHIFT, 0, NULL, 0),
+SND_SOC_DAPM_PGA("ASRC2IN2R", TACNA_ASRC2_ENABLE,
+		 TACNA_ASRC2_IN2R_EN_SHIFT, 0, NULL, 0),
 
 SND_SOC_DAPM_PGA("ISRC1DEC1", TACNA_ISRC1_CONTROL2,
 		 TACNA_ISRC1_DEC1_EN_SHIFT, 0, NULL, 0),
@@ -2035,13 +1544,7 @@ SND_SOC_DAPM_PGA("DFC7", TACNA_DFC1_CH7_CTRL, TACNA_DFC1_CH7_EN_SHIFT,
 SND_SOC_DAPM_PGA("DFC8", TACNA_DFC1_CH8_CTRL, TACNA_DFC1_CH8_EN_SHIFT,
 		 0, NULL, 0),
 
-WM_HALO("DSP1", 0, cs47l94_dsp_power_ev),
-WM_HALO("DSP2", 1, cs47l94_dsp_power_ev),
-
-SND_SOC_DAPM_PGA("Ultrasonic 1", TACNA_US1_CONTROL,
-		 TACNA_US1_EN_SHIFT, 0, NULL, 0),
-SND_SOC_DAPM_PGA("Ultrasonic 2", TACNA_US2_CONTROL,
-		 TACNA_US2_EN_SHIFT, 0, NULL, 0),
+WM_HALO("DSP1", 0, tacna_dsp_power_ev),
 
 /* end of ordered widget list */
 
@@ -2070,8 +1573,6 @@ TACNA_MIXER_WIDGETS(PWM2, "PWM2"),
 
 TACNA_MIXER_WIDGETS(OUT1L, "OUT1L"),
 TACNA_MIXER_WIDGETS(OUT1R, "OUT1R"),
-TACNA_MIXER_WIDGETS(OUT2L, "OUT2L"),
-TACNA_MIXER_WIDGETS(OUT2R, "OUT2R"),
 TACNA_MIXER_WIDGETS(OUT5L, "OUT5L"),
 TACNA_MIXER_WIDGETS(OUT5R, "OUT5R"),
 TACNA_MIXER_WIDGETS(OUTAUX1L, "OUTAUX1L"),
@@ -2098,11 +1599,6 @@ TACNA_MIXER_WIDGETS(ASP3TX2, "ASP3TX2"),
 TACNA_MIXER_WIDGETS(ASP3TX3, "ASP3TX3"),
 TACNA_MIXER_WIDGETS(ASP3TX4, "ASP3TX4"),
 
-TACNA_MIXER_WIDGETS(ASP4TX1, "ASP4TX1"),
-TACNA_MIXER_WIDGETS(ASP4TX2, "ASP4TX2"),
-TACNA_MIXER_WIDGETS(ASP4TX3, "ASP4TX3"),
-TACNA_MIXER_WIDGETS(ASP4TX4, "ASP4TX4"),
-
 TACNA_MIXER_WIDGETS(SLIMTX1, "SLIMTX1"),
 TACNA_MIXER_WIDGETS(SLIMTX2, "SLIMTX2"),
 TACNA_MIXER_WIDGETS(SLIMTX3, "SLIMTX3"),
@@ -2116,6 +1612,11 @@ TACNA_MUX_WIDGETS(ASRC1IN1L, "ASRC1IN1L"),
 TACNA_MUX_WIDGETS(ASRC1IN1R, "ASRC1IN1R"),
 TACNA_MUX_WIDGETS(ASRC1IN2L, "ASRC1IN2L"),
 TACNA_MUX_WIDGETS(ASRC1IN2R, "ASRC1IN2R"),
+
+TACNA_MUX_WIDGETS(ASRC2IN1L, "ASRC2IN1L"),
+TACNA_MUX_WIDGETS(ASRC2IN1R, "ASRC2IN1R"),
+TACNA_MUX_WIDGETS(ASRC2IN2L, "ASRC2IN2L"),
+TACNA_MUX_WIDGETS(ASRC2IN2R, "ASRC2IN2R"),
 
 TACNA_MUX_WIDGETS(ISRC1DEC1, "ISRC1DEC1"),
 TACNA_MUX_WIDGETS(ISRC1DEC2, "ISRC1DEC2"),
@@ -2147,19 +1648,8 @@ TACNA_MIXER_WIDGETS(DSP1RX6, "DSP1RX6"),
 TACNA_MIXER_WIDGETS(DSP1RX7, "DSP1RX7"),
 TACNA_MIXER_WIDGETS(DSP1RX8, "DSP1RX8"),
 
-TACNA_MIXER_WIDGETS(DSP2RX1, "DSP2RX1"),
-TACNA_MIXER_WIDGETS(DSP2RX2, "DSP2RX2"),
-TACNA_MIXER_WIDGETS(DSP2RX3, "DSP2RX3"),
-TACNA_MIXER_WIDGETS(DSP2RX4, "DSP2RX4"),
-TACNA_MIXER_WIDGETS(DSP2RX5, "DSP2RX5"),
-TACNA_MIXER_WIDGETS(DSP2RX6, "DSP2RX6"),
-TACNA_MIXER_WIDGETS(DSP2RX7, "DSP2RX7"),
-TACNA_MIXER_WIDGETS(DSP2RX8, "DSP2RX8"),
-
 SND_SOC_DAPM_SWITCH("DSP1 Trigger Output", SND_SOC_NOPM, 0, 0,
 		    &tacna_dsp_trigger_output_mux[0]),
-SND_SOC_DAPM_SWITCH("DSP2 Trigger Output", SND_SOC_NOPM, 0, 0,
-		    &tacna_dsp_trigger_output_mux[1]),
 
 SND_SOC_DAPM_SUPPLY("ANC NG External Clock", SND_SOC_NOPM,
 		    TACNA_ANC_EXT_NG_SET_SHIFT, 0, tacna_anc_ev,
@@ -2172,36 +1662,30 @@ SND_SOC_DAPM_SUPPLY("ANC NG Clock", SND_SOC_NOPM,
 SND_SOC_DAPM_PGA("ANCL NG Internal", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 SND_SOC_DAPM_MUX("ANCL Left Input", SND_SOC_NOPM, 0, 0,
-		 &cs47l94_anc_input_mux[0]),
+		 &cs47l96_anc_input_mux[0]),
 SND_SOC_DAPM_MUX("ANCL Right Input", SND_SOC_NOPM, 0, 0,
-		 &cs47l94_anc_input_mux[0]),
+		 &cs47l96_anc_input_mux[0]),
 SND_SOC_DAPM_MUX("ANCL Channel", SND_SOC_NOPM, 0, 0,
-		 &cs47l94_anc_input_mux[1]),
-SND_SOC_DAPM_MUX("ANCL NG Mux", SND_SOC_NOPM, 0, 0, &cs47l94_anc_ng_mux),
+		 &cs47l96_anc_input_mux[1]),
+SND_SOC_DAPM_MUX("ANCL NG Mux", SND_SOC_NOPM, 0, 0, &cs47l96_anc_ng_mux),
 
 SND_SOC_DAPM_PGA_E("ANCL", SND_SOC_NOPM, TACNA_ANC_L_CLK_SET_SHIFT,
 		   0, NULL, 0, tacna_anc_ev,
 		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_MUX("OUT1L ANC Source", SND_SOC_NOPM, 0, 0,
-		 &cs47l94_output_anc_src[0]),
+		 &cs47l96_output_anc_src[0]),
 SND_SOC_DAPM_MUX("OUT1R ANC Source", SND_SOC_NOPM, 0, 0,
-		 &cs47l94_output_anc_src[1]),
-SND_SOC_DAPM_MUX("OUT2L ANC Source", SND_SOC_NOPM, 0, 0,
-		 &cs47l94_output_anc_src[2]),
-SND_SOC_DAPM_MUX("OUT2R ANC Source", SND_SOC_NOPM, 0, 0,
-		 &cs47l94_output_anc_src[3]),
+		 &cs47l96_output_anc_src[1]),
 SND_SOC_DAPM_MUX("OUT5L ANC Source", SND_SOC_NOPM, 0, 0,
-		 &cs47l94_output_anc_src[4]),
+		 &cs47l96_output_anc_src[2]),
 SND_SOC_DAPM_MUX("OUT5R ANC Source", SND_SOC_NOPM, 0, 0,
-		 &cs47l94_output_anc_src[5]),
+		 &cs47l96_output_anc_src[3]),
 
 SND_SOC_DAPM_OUTPUT("OUT1L_HP1"),
 SND_SOC_DAPM_OUTPUT("OUT1R_HP1"),
 SND_SOC_DAPM_OUTPUT("OUT1L_HP2"),
 SND_SOC_DAPM_OUTPUT("OUT1R_HP2"),
-SND_SOC_DAPM_OUTPUT("OUT2L_HP"),
-SND_SOC_DAPM_OUTPUT("OUT2R_HP"),
 SND_SOC_DAPM_OUTPUT("OUT5_PDMCLK"),
 SND_SOC_DAPM_OUTPUT("OUT5_PDMDATA"),
 SND_SOC_DAPM_OUTPUT("AUXPDM1_CLK"),
@@ -2245,10 +1729,6 @@ SND_SOC_DAPM_OUTPUT("MICSUPP"),
 	{ name, "ASP3RX2", "ASP3RX2" }, \
 	{ name, "ASP3RX3", "ASP3RX3" }, \
 	{ name, "ASP3RX4", "ASP3RX4" }, \
-	{ name, "ASP4RX1", "ASP4RX1" }, \
-	{ name, "ASP4RX2", "ASP4RX2" }, \
-	{ name, "ASP4RX3", "ASP4RX3" }, \
-	{ name, "ASP4RX4", "ASP4RX4" }, \
 	{ name, "SLIMRX1", "SLIMRX1" }, \
 	{ name, "SLIMRX2", "SLIMRX2" }, \
 	{ name, "SLIMRX3", "SLIMRX3" }, \
@@ -2261,6 +1741,10 @@ SND_SOC_DAPM_OUTPUT("MICSUPP"),
 	{ name, "ASRC1IN1R", "ASRC1IN1R" }, \
 	{ name, "ASRC1IN2L", "ASRC1IN2L" }, \
 	{ name, "ASRC1IN2R", "ASRC1IN2R" }, \
+	{ name, "ASRC2IN1L", "ASRC2IN1L" }, \
+	{ name, "ASRC2IN1R", "ASRC2IN1R" }, \
+	{ name, "ASRC2IN2L", "ASRC2IN2L" }, \
+	{ name, "ASRC2IN2R", "ASRC2IN2R" }, \
 	{ name, "ISRC1DEC1", "ISRC1DEC1" }, \
 	{ name, "ISRC1DEC2", "ISRC1DEC2" }, \
 	{ name, "ISRC1INT1", "ISRC1INT1" }, \
@@ -2281,8 +1765,6 @@ SND_SOC_DAPM_OUTPUT("MICSUPP"),
 	{ name, "LHPF2", "LHPF2" }, \
 	{ name, "LHPF3", "LHPF3" }, \
 	{ name, "LHPF4", "LHPF4" }, \
-	{ name, "Ultrasonic 1", "Ultrasonic 1" }, \
-	{ name, "Ultrasonic 2", "Ultrasonic 2" }, \
 	{ name, "DFC1", "DFC1" }, \
 	{ name, "DFC2", "DFC2" }, \
 	{ name, "DFC3", "DFC3" }, \
@@ -2298,54 +1780,26 @@ SND_SOC_DAPM_OUTPUT("MICSUPP"),
 	{ name, "DSP1.5", "DSP1" }, \
 	{ name, "DSP1.6", "DSP1" }, \
 	{ name, "DSP1.7", "DSP1" }, \
-	{ name, "DSP1.8", "DSP1" }, \
-	{ name, "DSP2.1", "DSP2" }, \
-	{ name, "DSP2.2", "DSP2" }, \
-	{ name, "DSP2.3", "DSP2" }, \
-	{ name, "DSP2.4", "DSP2" }, \
-	{ name, "DSP2.5", "DSP2" }, \
-	{ name, "DSP2.6", "DSP2" }, \
-	{ name, "DSP2.7", "DSP2" }, \
-	{ name, "DSP2.8", "DSP2" }
+	{ name, "DSP1.8", "DSP1" }
 
-static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
-	/* Internal clock domains */
-	{ "OUT1L PGA", NULL, "DACCLK" },
-	{ "OUT1R PGA", NULL, "DACCLK" },
-	{ "OUT2L PGA", NULL, "DACCLK" },
-	{ "OUT2R PGA", NULL, "DACCLK" },
-	{ "OUT5L PGA", NULL, "DACCLK" },
-	{ "OUT5R PGA", NULL, "DACCLK" },
-	{ "OUTH Output Select", NULL, "DACCLK"},
-
-	{ "ASRC1IN1L", NULL, "SYSCLK" },
-	{ "ASRC1IN1R", NULL, "SYSCLK" },
-	{ "ASRC1IN2L", NULL, "SYSCLK" },
-	{ "ASRC1IN2R", NULL, "SYSCLK" },
-	{ "ASRC1IN1L", NULL, "ASYNCCLK" },
-	{ "ASRC1IN1R", NULL, "ASYNCCLK" },
-	{ "ASRC1IN2L", NULL, "ASYNCCLK" },
-	{ "ASRC1IN2R", NULL, "ASYNCCLK" },
-
+static const struct snd_soc_dapm_route cs47l96_dapm_routes[] = {
 	{ "OUT1L PGA", NULL, "VDD1_CP" },
 	{ "OUT1L PGA", NULL, "VDD2_CP" },
 	{ "OUT1L PGA", NULL, "VDD3_CP" },
 	{ "OUT1R PGA", NULL, "VDD1_CP" },
 	{ "OUT1R PGA", NULL, "VDD2_CP" },
 	{ "OUT1R PGA", NULL, "VDD3_CP" },
-	{ "OUT2L PGA", NULL, "VDD1_CP" },
-	{ "OUT2L PGA", NULL, "VDD2_CP" },
-	{ "OUT2L PGA", NULL, "VDD3_CP" },
-	{ "OUT2R PGA", NULL, "VDD1_CP" },
-	{ "OUT2R PGA", NULL, "VDD2_CP" },
-	{ "OUT2R PGA", NULL, "VDD3_CP" },
 
 	{ "OUT1L PGA", NULL, "SYSCLK" },
 	{ "OUT1R PGA", NULL, "SYSCLK" },
-	{ "OUT2L PGA", NULL, "SYSCLK" },
-	{ "OUT2R PGA", NULL, "SYSCLK" },
 	{ "OUT5L PGA", NULL, "SYSCLK" },
 	{ "OUT5R PGA", NULL, "SYSCLK" },
+
+	{ "OUT1L PGA", NULL, "DACCLK" },
+	{ "OUT1R PGA", NULL, "DACCLK" },
+	{ "OUT5L PGA", NULL, "DACCLK" },
+	{ "OUT5R PGA", NULL, "DACCLK" },
+	{ "OUTH Output Select", NULL, "DACCLK"},
 
 	{ "IN1LN_1", NULL, "SYSCLK" },
 	{ "IN1LN_2", NULL, "SYSCLK" },
@@ -2374,7 +1828,6 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "IN4_PDMDATA", NULL, "SYSCLK" },
 
 	{ "Audio Trace DSP", NULL, "DSP1" },
-	{ "Voice Ctrl DSP", NULL, "DSP2" },
 
 	{ "IN4_PDMCLK", NULL, "VDD_IO2" },
 	{ "IN4_PDMDATA", NULL, "VDD_IO2" },
@@ -2436,16 +1889,6 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "ASP3RX3", NULL, "ASP3 Playback" },
 	{ "ASP3RX4", NULL, "ASP3 Playback" },
 
-	{ "ASP4 Capture", NULL, "ASP4TX1" },
-	{ "ASP4 Capture", NULL, "ASP4TX2" },
-	{ "ASP4 Capture", NULL, "ASP4TX3" },
-	{ "ASP4 Capture", NULL, "ASP4TX4" },
-
-	{ "ASP4RX1", NULL, "ASP4 Playback" },
-	{ "ASP4RX2", NULL, "ASP4 Playback" },
-	{ "ASP4RX3", NULL, "ASP4 Playback" },
-	{ "ASP4RX4", NULL, "ASP4 Playback" },
-
 	{ "Slim1 Capture", NULL, "SLIMTX1" },
 	{ "Slim1 Capture", NULL, "SLIMTX2" },
 	{ "Slim1 Capture", NULL, "SLIMTX3" },
@@ -2471,7 +1914,6 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "ASP1 Playback", NULL, "SYSCLK" },
 	{ "ASP2 Playback", NULL, "SYSCLK" },
 	{ "ASP3 Playback", NULL, "SYSCLK" },
-	{ "ASP4 Playback", NULL, "SYSCLK" },
 	{ "Slim1 Playback", NULL, "SYSCLK" },
 	{ "Slim2 Playback", NULL, "SYSCLK" },
 	{ "Slim3 Playback", NULL, "SYSCLK" },
@@ -2479,10 +1921,26 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "ASP1 Capture", NULL, "SYSCLK" },
 	{ "ASP2 Capture", NULL, "SYSCLK" },
 	{ "ASP3 Capture", NULL, "SYSCLK" },
-	{ "ASP4 Capture", NULL, "SYSCLK" },
 	{ "Slim1 Capture", NULL, "SYSCLK" },
 	{ "Slim2 Capture", NULL, "SYSCLK" },
 	{ "Slim3 Capture", NULL, "SYSCLK" },
+
+	{ "ASRC1IN1L", NULL, "SYSCLK" },
+	{ "ASRC1IN1R", NULL, "SYSCLK" },
+	{ "ASRC1IN1L", NULL, "ASYNCCLK" },
+	{ "ASRC1IN1R", NULL, "ASYNCCLK" },
+	{ "ASRC1IN2L", NULL, "SYSCLK" },
+	{ "ASRC1IN2R", NULL, "SYSCLK" },
+	{ "ASRC1IN2L", NULL, "ASYNCCLK" },
+	{ "ASRC1IN2R", NULL, "ASYNCCLK" },
+	{ "ASRC2IN1L", NULL, "SYSCLK" },
+	{ "ASRC2IN1R", NULL, "SYSCLK" },
+	{ "ASRC2IN1L", NULL, "ASYNCCLK" },
+	{ "ASRC2IN1R", NULL, "ASYNCCLK" },
+	{ "ASRC2IN2L", NULL, "SYSCLK" },
+	{ "ASRC2IN2R", NULL, "SYSCLK" },
+	{ "ASRC2IN2L", NULL, "ASYNCCLK" },
+	{ "ASRC2IN2R", NULL, "ASYNCCLK" },
 
 	{ "IN1L Mux", "Analog 1", "IN1LN_1" },
 	{ "IN1L Mux", "Analog 2", "IN1LN_2" },
@@ -2530,31 +1988,8 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "IN4L PGA", NULL, "IN4_PDMCLK" },
 	{ "IN4R PGA", NULL, "IN4_PDMDATA" },
 
-	{ "Ultrasonic 1", NULL, "Ultrasonic 1 Input" },
-	{ "Ultrasonic 2", NULL, "Ultrasonic 2 Input" },
-
-	{ "Ultrasonic 1 Input", "IN1L", "IN1L PGA" },
-	{ "Ultrasonic 1 Input", "IN1R", "IN1R PGA" },
-	{ "Ultrasonic 1 Input", "IN2L", "IN2L PGA" },
-	{ "Ultrasonic 1 Input", "IN2R", "IN2R PGA" },
-	{ "Ultrasonic 1 Input", "IN3L", "IN3L PGA" },
-	{ "Ultrasonic 1 Input", "IN3R", "IN3R PGA" },
-	{ "Ultrasonic 1 Input", "IN4L", "IN4L PGA" },
-	{ "Ultrasonic 1 Input", "IN4R", "IN4R PGA" },
-
-	{ "Ultrasonic 2 Input", "IN1L", "IN1L PGA" },
-	{ "Ultrasonic 2 Input", "IN1R", "IN1R PGA" },
-	{ "Ultrasonic 2 Input", "IN2L", "IN2L PGA" },
-	{ "Ultrasonic 2 Input", "IN2R", "IN2R PGA" },
-	{ "Ultrasonic 2 Input", "IN3L", "IN3L PGA" },
-	{ "Ultrasonic 2 Input", "IN3R", "IN3R PGA" },
-	{ "Ultrasonic 2 Input", "IN4L", "IN4L PGA" },
-	{ "Ultrasonic 2 Input", "IN4R", "IN4R PGA" },
-
 	TACNA_MIXER_ROUTES("OUT1L PGA", "OUT1L"),
 	TACNA_MIXER_ROUTES("OUT1R PGA", "OUT1R"),
-	TACNA_MIXER_ROUTES("OUT2L PGA", "OUT2L"),
-	TACNA_MIXER_ROUTES("OUT2R PGA", "OUT2R"),
 	TACNA_MIXER_ROUTES("OUT5L PGA", "OUT5L"),
 	TACNA_MIXER_ROUTES("OUT5R PGA", "OUT5R"),
 	TACNA_MIXER_ROUTES("OUTAUX1L PGA", "OUTAUX1L"),
@@ -2583,11 +2018,6 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	TACNA_MIXER_ROUTES("ASP3TX2", "ASP3TX2"),
 	TACNA_MIXER_ROUTES("ASP3TX3", "ASP3TX3"),
 	TACNA_MIXER_ROUTES("ASP3TX4", "ASP3TX4"),
-
-	TACNA_MIXER_ROUTES("ASP4TX1", "ASP4TX1"),
-	TACNA_MIXER_ROUTES("ASP4TX2", "ASP4TX2"),
-	TACNA_MIXER_ROUTES("ASP4TX3", "ASP4TX3"),
-	TACNA_MIXER_ROUTES("ASP4TX4", "ASP4TX4"),
 
 	TACNA_MIXER_ROUTES("SLIMTX1", "SLIMTX1"),
 	TACNA_MIXER_ROUTES("SLIMTX2", "SLIMTX2"),
@@ -2618,6 +2048,11 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	TACNA_MUX_ROUTES("ASRC1IN2L", "ASRC1IN2L"),
 	TACNA_MUX_ROUTES("ASRC1IN2R", "ASRC1IN2R"),
 
+	TACNA_MUX_ROUTES("ASRC2IN1L", "ASRC2IN1L"),
+	TACNA_MUX_ROUTES("ASRC2IN1R", "ASRC2IN1R"),
+	TACNA_MUX_ROUTES("ASRC2IN2L", "ASRC2IN2L"),
+	TACNA_MUX_ROUTES("ASRC2IN2R", "ASRC2IN2R"),
+
 	TACNA_MUX_ROUTES("ISRC1INT1", "ISRC1INT1"),
 	TACNA_MUX_ROUTES("ISRC1INT2", "ISRC1INT2"),
 
@@ -2631,20 +2066,17 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	TACNA_MUX_ROUTES("ISRC2DEC2", "ISRC2DEC2"),
 
 	TACNA_DSP_ROUTES("DSP1"),
-	TACNA_DSP_ROUTES("DSP2"),
 
 	{ "DSP Trigger Out", NULL, "DSP1 Trigger Output" },
-	{ "DSP Trigger Out", NULL, "DSP2 Trigger Output" },
 
 	{ "DSP1 Trigger Output", "Switch", "DSP1" },
-	{ "DSP2 Trigger Output", "Switch", "DSP2" },
 
 	{ "AEC1 Loopback", "OUT1L", "OUT1L PGA" },
 	{ "AEC1 Loopback", "OUT1R", "OUT1R PGA" },
 	{ "AEC2 Loopback", "OUT1L", "OUT1L PGA" },
 	{ "AEC2 Loopback", "OUT1R", "OUT1R PGA" },
-	{ "OUT1L Output Select", "OUT1+OUT2", "OUT1L PGA" },
-	{ "OUT1R Output Select", "OUT1+OUT2", "OUT1R PGA" },
+	{ "OUT1L Output Select", "OUT1", "OUT1L PGA" },
+	{ "OUT1R Output Select", "OUT1", "OUT1R PGA" },
 	{ "OUT1 Demux", NULL, "OUT1L Output Select" },
 	{ "OUT1 Demux", NULL, "OUT1R Output Select" },
 	{ "OUT1L_HP1", "HP1", "OUT1 Demux" },
@@ -2660,15 +2092,6 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "OUT1R PGA", NULL, "OUT1R AUX Mix" },
 	{ "OUT1L PGA", NULL, "OUT1L DSD Mix" },
 	{ "OUT1R PGA", NULL, "OUT1R DSD Mix" },
-
-	{ "AEC1 Loopback", "OUT2L", "OUT2L PGA" },
-	{ "AEC1 Loopback", "OUT2R", "OUT2R PGA" },
-	{ "AEC2 Loopback", "OUT2L", "OUT2L PGA" },
-	{ "AEC2 Loopback", "OUT2R", "OUT2R PGA" },
-	{ "OUT2L Output Select", "OUT1+OUT2", "OUT2L PGA" },
-	{ "OUT2R Output Select", "OUT1+OUT2", "OUT2R PGA" },
-	{ "OUT2L_HP", NULL, "OUT2L Output Select" },
-	{ "OUT2R_HP", NULL, "OUT2R Output Select" },
 
 	{ "AEC1 Loopback", "OUT5L", "OUT5L PGA" },
 	{ "AEC1 Loopback", "OUT5R", "OUT5R PGA" },
@@ -2749,19 +2172,17 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	TACNA_MUX_ROUTES("DFC7", "DFC7"),
 	TACNA_MUX_ROUTES("DFC8", "DFC8"),
 
-	CS47L94_ANC_INPUT_ROUTES("ANCL", "ANCL"),
+	CS47L96_ANC_INPUT_ROUTES("ANCL", "ANCL"),
 
-	CS47L94_ANC_OUTPUT_ROUTES("OUT1L PGA", "OUT1L"),
-	CS47L94_ANC_OUTPUT_ROUTES("OUT1R PGA", "OUT1R"),
-	CS47L94_ANC_OUTPUT_ROUTES("OUT2L PGA", "OUT2L"),
-	CS47L94_ANC_OUTPUT_ROUTES("OUT2R PGA", "OUT2R"),
-	CS47L94_ANC_OUTPUT_ROUTES("OUT5L PGA", "OUT5L"),
-	CS47L94_ANC_OUTPUT_ROUTES("OUT5R PGA", "OUT5R"),
+	CS47L96_ANC_OUTPUT_ROUTES("OUT1L PGA", "OUT1L"),
+	CS47L96_ANC_OUTPUT_ROUTES("OUT1R PGA", "OUT1R"),
+	CS47L96_ANC_OUTPUT_ROUTES("OUT5L PGA", "OUT5L"),
+	CS47L96_ANC_OUTPUT_ROUTES("OUT5R PGA", "OUT5R"),
 };
 
-static struct snd_soc_dai_driver cs47l94_dai[] = {
+static struct snd_soc_dai_driver cs47l96_dai[] = {
 	{
-		.name = "cs47l94-asp1",
+		.name = "cs47l96-asp1",
 		.id = 1,
 		.base = TACNA_ASP1_ENABLES1,
 		.playback = {
@@ -2783,7 +2204,7 @@ static struct snd_soc_dai_driver cs47l94_dai[] = {
 		.symmetric_samplebits = 1,
 	},
 	{
-		.name = "cs47l94-asp2",
+		.name = "cs47l96-asp2",
 		.id = 2,
 		.base = TACNA_ASP2_ENABLES1,
 		.playback = {
@@ -2805,7 +2226,7 @@ static struct snd_soc_dai_driver cs47l94_dai[] = {
 		.symmetric_samplebits = 1,
 	},
 	{
-		.name = "cs47l94-asp3",
+		.name = "cs47l96-asp3",
 		.id = 3,
 		.base = TACNA_ASP3_ENABLES1,
 		.playback = {
@@ -2827,30 +2248,8 @@ static struct snd_soc_dai_driver cs47l94_dai[] = {
 		.symmetric_samplebits = 1,
 	},
 	{
-		.name = "cs47l94-asp4",
+		.name = "cs47l96-slim1",
 		.id = 4,
-		.base = TACNA_ASP4_ENABLES1,
-		.playback = {
-			.stream_name = "ASP4 Playback",
-			.channels_min = 1,
-			.channels_max = 4,
-			.rates = TACNA_RATES,
-			.formats = TACNA_FORMATS,
-		},
-		.capture = {
-			.stream_name = "ASP4 Capture",
-			.channels_min = 1,
-			.channels_max = 4,
-			.rates = TACNA_RATES,
-			.formats = TACNA_FORMATS,
-		 },
-		.ops = &tacna_dai_ops,
-		.symmetric_rates = 1,
-		.symmetric_samplebits = 1,
-	},
-	{
-		.name = "cs47l94-slim1",
-		.id = 5,
 		.playback = {
 			.stream_name = "Slim1 Playback",
 			.channels_min = 1,
@@ -2868,8 +2267,8 @@ static struct snd_soc_dai_driver cs47l94_dai[] = {
 		.ops = &tacna_simple_dai_ops,
 	},
 	{
-		.name = "cs47l94-slim2",
-		.id = 6,
+		.name = "cs47l96-slim2",
+		.id = 5,
 		.playback = {
 			.stream_name = "Slim2 Playback",
 			.channels_min = 1,
@@ -2887,8 +2286,8 @@ static struct snd_soc_dai_driver cs47l94_dai[] = {
 		.ops = &tacna_simple_dai_ops,
 	},
 	{
-		.name = "cs47l94-slim3",
-		.id = 7,
+		.name = "cs47l96-slim3",
+		.id = 6,
 		.playback = {
 			.stream_name = "Slim3 Playback",
 			.channels_min = 1,
@@ -2906,7 +2305,7 @@ static struct snd_soc_dai_driver cs47l94_dai[] = {
 		.ops = &tacna_simple_dai_ops,
 	},
 	{
-		.name = "cs47l94-cpu-trace",
+		.name = "cs47l96-cpu-trace",
 		.capture = {
 			.stream_name = "Audio Trace CPU",
 			.channels_min = 1,
@@ -2917,7 +2316,7 @@ static struct snd_soc_dai_driver cs47l94_dai[] = {
 		.compress_new = snd_soc_new_compress,
 	},
 	{
-		.name = "cs47l94-dsp-trace",
+		.name = "cs47l96-dsp-trace",
 		.capture = {
 			.stream_name = "Audio Trace DSP",
 			.channels_min = 1,
@@ -2926,68 +2325,44 @@ static struct snd_soc_dai_driver cs47l94_dai[] = {
 			.formats = TACNA_FORMATS,
 		},
 	},
-
-	{
-		.name = "cs47l94-cpu-voicectrl",
-		.capture = {
-			.stream_name = "Voice Ctrl CPU",
-			.channels_min = 1,
-			.channels_max = 1,
-			.rates = TACNA_RATES,
-			.formats = TACNA_FORMATS,
-		},
-		.compress_new = snd_soc_new_compress,
-	},
-	{
-		.name = "cs47l94-dsp-voicectrl",
-		.capture = {
-			.stream_name = "Voice Ctrl DSP",
-			.channels_min = 1,
-			.channels_max = 1,
-			.rates = TACNA_RATES,
-			.formats = TACNA_FORMATS,
-		},
-	},
 };
 
-static int cs47l94_init_outh(struct cs47l94 *cs47l94)
+static int cs47l96_init_outh(struct cs47l96 *cs47l96)
 {
-	struct tacna *tacna = cs47l94->core.tacna;
+	struct tacna *tacna = cs47l96->core.tacna;
 	int ret;
 
 	ret = regmap_read(tacna->regmap, TACNA_OUTHL_VOLUME_1,
-			  &cs47l94->outh_main_vol[0]);
+			  &cs47l96->outh_main_vol[0]);
 	if (ret) {
-		dev_err(cs47l94->core.dev, "Error reading OUTHL volume %d\n",
+		dev_err(cs47l96->core.dev, "Error reading OUTHL volume %d\n",
 			ret);
 		return ret;
 	}
-	cs47l94->outh_main_vol[0] &= TACNA_OUTHL_VOL_MASK;
+	cs47l96->outh_main_vol[0] &= TACNA_OUTHL_VOL_MASK;
 
 	ret = regmap_read(tacna->regmap, TACNA_OUTHR_VOLUME_1,
-			  &cs47l94->outh_main_vol[1]);
+			  &cs47l96->outh_main_vol[1]);
 	if (ret) {
-		dev_err(cs47l94->core.dev, "Error reading OUTHR volume %d\n",
+		dev_err(cs47l96->core.dev, "Error reading OUTHR volume %d\n",
 			ret);
 		return ret;
 	}
-	cs47l94->outh_main_vol[1] &= TACNA_OUTHR_VOL_MASK;
+	cs47l96->outh_main_vol[1] &= TACNA_OUTHR_VOL_MASK;
 
 	return 0;
 }
 
-static int cs47l94_compr_open(struct snd_compr_stream *stream)
+static int cs47l96_compr_open(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct cs47l94 *cs47l94 = snd_soc_platform_get_drvdata(rtd->platform);
-	struct tacna_priv *priv = &cs47l94->core;
+	struct cs47l96 *cs47l96 = snd_soc_platform_get_drvdata(rtd->platform);
+	struct tacna_priv *priv = &cs47l96->core;
 	int n_dsp;
 
 
-	if (strcmp(rtd->codec_dai->name, "cs47l94-dsp-trace") == 0) {
+	if (strcmp(rtd->codec_dai->name, "cs47l96-dsp-trace") == 0) {
 		n_dsp = 0;
-	} else if (strcmp(rtd->codec_dai->name, "cs47l94-dsp-voicectrl") == 0) {
-		n_dsp = 1;
 	} else {
 		dev_err(priv->dev,
 			"No suitable compressed stream for DAI '%s'\n",
@@ -2998,127 +2373,83 @@ static int cs47l94_compr_open(struct snd_compr_stream *stream)
 	return wm_adsp_compr_open(&priv->dsp[n_dsp], stream);
 }
 
-static irqreturn_t cs47l94_dsp_irq(void *data, int dsp)
+static irqreturn_t cs47l96_dsp1_irq(int irq, void *data)
 {
-	struct cs47l94 *cs47l94 = data;
-	struct tacna_priv *priv = &cs47l94->core;
+	struct cs47l96 *cs47l96 = data;
+	struct tacna_priv *priv = &cs47l96->core;
 	int ret;
 
-	ret = wm_adsp_compr_handle_irq(&priv->dsp[dsp]);
+	ret = wm_adsp_compr_handle_irq(&priv->dsp[0]);
 	if (ret == -ENODEV) {
-		dev_err(priv->dev, "Spurious compressed data IRQ on DSP%d\n",
-			dsp + 1);
+		dev_err(priv->dev, "Spurious compressed data IRQ\n");
 		return IRQ_NONE;
 	}
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t cs47l94_dsp1_irq(int irq, void *data)
+static int cs47l96_codec_probe(struct snd_soc_codec *codec)
 {
-	return cs47l94_dsp_irq(data, 0);
-}
+	struct cs47l96 *cs47l96 = snd_soc_codec_get_drvdata(codec);
+	struct tacna *tacna = cs47l96->core.tacna;
+	int ret;
 
-static irqreturn_t cs47l94_dsp2_irq(int irq, void *data)
-{
-	return cs47l94_dsp_irq(data, 1);
-}
-
-static int cs47l94_codec_probe(struct snd_soc_codec *codec)
-{
-	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
-	struct tacna *tacna = cs47l94->core.tacna;
-	int ret, i;
-
-	cs47l94->core.tacna->dapm = snd_soc_codec_get_dapm(codec);
+	cs47l96->core.tacna->dapm = snd_soc_codec_get_dapm(codec);
 
 	ret = tacna_init_inputs(codec);
 	if (ret)
 		return ret;
 
-	ret = tacna_init_auxpdm(codec, CS47L94_N_AUXPDM);
+	ret = tacna_init_auxpdm(codec, CS47L96_N_AUXPDM);
 	if (ret)
 		return ret;
 
-	ret = tacna_init_outputs(codec, CS47L94_MONO_OUTPUTS);
+	ret = tacna_init_outputs(codec, CS47L96_MONO_OUTPUTS);
 	if (ret)
 		return ret;
 
-	ret = tacna_init_eq(&cs47l94->core);
+	ret = tacna_init_eq(&cs47l96->core);
 	if (ret)
 		return ret;
 
-	ret = cs47l94_init_outh(cs47l94);
+	ret = cs47l96_init_outh(cs47l96);
 	if (ret)
 		return ret;
 
 	snd_soc_dapm_disable_pin(tacna->dapm, "HAPTICS");
 
-	ret = tacna_request_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE,
-				"Ultrasonic 1 activity",
-				 cs47l94_us1_activity, tacna);
-	if (ret) {
-		dev_err(codec->dev, "Failed to get Ultrasonic 1 IRQ: %d\n",
-			ret);
-		return ret;
-	}
-
-	ret = tacna_request_irq(tacna, TACNA_IRQ_US2_ACT_DET_RISE,
-				"Ultrasonic 2 activity",
-				 cs47l94_us2_activity, tacna);
-	if (ret) {
-		tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, cs47l94);
-		dev_err(codec->dev, "Failed to get Ultrasonic 2 IRQ: %d\n",
-			ret);
-		return ret;
-	}
-
 	ret = snd_soc_add_codec_controls(codec, tacna_dsp_rate_controls,
-					 CS47L94_NUM_DSP *
-					 (CS47L94_DSP_N_RX_CHANNELS +
-					  CS47L94_DSP_N_TX_CHANNELS));
+					 CS47L96_DSP_N_RX_CHANNELS +
+					  CS47L96_DSP_N_TX_CHANNELS);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < CS47L94_NUM_DSP; ++i)
-		wm_adsp2_codec_probe(&cs47l94->core.dsp[i], codec, false);
+	wm_adsp2_codec_probe(&cs47l96->core.dsp[0], codec, false);
 
 	return 0;
 }
 
-static int cs47l94_codec_remove(struct snd_soc_codec *codec)
+static int cs47l96_codec_remove(struct snd_soc_codec *codec)
 {
-	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
-	struct tacna *tacna = cs47l94->core.tacna;
-	int i;
+	struct cs47l96 *cs47l96 = snd_soc_codec_get_drvdata(codec);
+	struct tacna *tacna = cs47l96->core.tacna;
 
-	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
-		wm_adsp2_codec_remove(&cs47l94->core.dsp[i], codec);
-		/* TODO: destroy error irq */
-	}
+	wm_adsp2_codec_remove(&cs47l96->core.dsp[0], codec);
+	/* TODO: destroy error irq */
 
-	tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, cs47l94);
-	tacna_free_irq(tacna, TACNA_IRQ_US2_ACT_DET_RISE, cs47l94);
 	tacna->dapm = NULL;
 
 	return 0;
 }
 
-static const unsigned int cs47l94_in_vu[] = {
-	TACNA_IN1L_CONTROL2,
-	TACNA_IN1R_CONTROL2,
-	TACNA_IN2L_CONTROL2,
-	TACNA_IN2R_CONTROL2,
-	TACNA_IN3L_CONTROL2,
-	TACNA_IN3R_CONTROL2,
-	TACNA_IN4L_CONTROL2,
-	TACNA_IN4R_CONTROL2,
+static const unsigned int cs47l96_in_vu[] = {
+	TACNA_INPUT_CONTROL3,
 };
 
-static int cs47l94_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
+static int cs47l96_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 			   unsigned int fref, unsigned int fout)
 {
-	struct cs47l94 *cs47l94 = snd_soc_codec_get_drvdata(codec);
+	struct cs47l96 *cs47l96 = snd_soc_codec_get_drvdata(codec);
 	int idx;
 
 	switch (fll_id) {
@@ -3128,45 +2459,42 @@ static int cs47l94_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	case TACNA_FLL2_REFCLK:
 		idx = 1;
 		break;
-	case TACNA_FLL3_REFCLK:
-		idx = 2;
-		break;
 	default:
 		return -EINVAL;
 	}
 
-	return tacna_fllhj_set_refclk(&cs47l94->fll[idx], source, fref, fout);
+	return tacna_fllhj_set_refclk(&cs47l96->fll[idx], source, fref, fout);
 }
 
-static struct regmap *cs47l94_get_regmap(struct device *dev)
+static struct regmap *cs47l96_get_regmap(struct device *dev)
 {
-	struct cs47l94 *cs47l94 = dev_get_drvdata(dev);
+	struct cs47l96 *cs47l96 = dev_get_drvdata(dev);
 
-	return cs47l94->core.tacna->regmap;
+	return cs47l96->core.tacna->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_cs47l94 = {
-	.probe = cs47l94_codec_probe,
-	.remove = cs47l94_codec_remove,
-	.get_regmap = cs47l94_get_regmap,
+static struct snd_soc_codec_driver soc_codec_dev_cs47l96 = {
+	.probe = cs47l96_codec_probe,
+	.remove = cs47l96_codec_remove,
+	.get_regmap = cs47l96_get_regmap,
 
 	.idle_bias_off = true,
 
 	.set_sysclk = tacna_set_sysclk,
-	.set_pll = cs47l94_set_fll,
+	.set_pll = cs47l96_set_fll,
 
 	.component_driver = {
-		.controls = cs47l94_snd_controls,
-		.num_controls = ARRAY_SIZE(cs47l94_snd_controls),
-		.dapm_widgets = cs47l94_dapm_widgets,
-		.num_dapm_widgets = ARRAY_SIZE(cs47l94_dapm_widgets),
-		.dapm_routes = cs47l94_dapm_routes,
-		.num_dapm_routes = ARRAY_SIZE(cs47l94_dapm_routes),
+		.controls = cs47l96_snd_controls,
+		.num_controls = ARRAY_SIZE(cs47l96_snd_controls),
+		.dapm_widgets = cs47l96_dapm_widgets,
+		.num_dapm_widgets = ARRAY_SIZE(cs47l96_dapm_widgets),
+		.dapm_routes = cs47l96_dapm_routes,
+		.num_dapm_routes = ARRAY_SIZE(cs47l96_dapm_routes),
 	},
 };
 
-static const struct snd_compr_ops cs47l94_compr_ops = {
-	.open = cs47l94_compr_open,
+static const struct snd_compr_ops cs47l96_compr_ops = {
+	.open = cs47l96_compr_open,
 	.free = wm_adsp_compr_free,
 	.set_params = wm_adsp_compr_set_params,
 	.get_caps = wm_adsp_compr_get_caps,
@@ -3175,18 +2503,18 @@ static const struct snd_compr_ops cs47l94_compr_ops = {
 	.copy = wm_adsp_compr_copy,
 };
 
-static const struct snd_soc_platform_driver cs47l94_compr_platform = {
-	.compr_ops = &cs47l94_compr_ops,
+static const struct snd_soc_platform_driver cs47l96_compr_platform = {
+	.compr_ops = &cs47l96_compr_ops,
 };
 
-static int cs47l94_probe(struct platform_device *pdev)
+static int cs47l96_probe(struct platform_device *pdev)
 {
 	struct tacna *tacna = dev_get_drvdata(pdev->dev.parent);
-	struct cs47l94 *cs47l94;
+	struct cs47l96 *cs47l96;
 	struct wm_adsp *dsp;
 	int i, ret;
 
-	BUILD_BUG_ON(ARRAY_SIZE(cs47l94_dai) > TACNA_MAX_DAI);
+	BUILD_BUG_ON(ARRAY_SIZE(cs47l96_dai) > TACNA_MAX_DAI);
 
 	/* quick exit if tacna irqchip driver hasn't completed probe */
 	if (!tacna->irq_dev) {
@@ -3194,127 +2522,101 @@ static int cs47l94_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 
-	cs47l94 = devm_kzalloc(&pdev->dev, sizeof(struct cs47l94), GFP_KERNEL);
-	if (!cs47l94)
+	cs47l96 = devm_kzalloc(&pdev->dev, sizeof(struct cs47l96), GFP_KERNEL);
+	if (!cs47l96)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, cs47l94);
+	platform_set_drvdata(pdev, cs47l96);
 	pdev->dev.of_node = tacna->dev->of_node;
 
-	cs47l94->core.tacna = tacna;
-	cs47l94->core.dev = &pdev->dev;
-	cs47l94->core.num_inputs = 8;
-	cs47l94->core.max_analogue_inputs = 2;
-	cs47l94->core.num_dmic_clksrc = 4;
-	cs47l94->core.dsp_power_regs[0] = cs47l94_dsp1_sram_power_regs;
-	cs47l94->core.dsp_power_regs[1] = cs47l94_dsp2_sram_power_regs;
+	cs47l96->core.tacna = tacna;
+	cs47l96->core.dev = &pdev->dev;
+	cs47l96->core.num_inputs = 8;
+	cs47l96->core.max_analogue_inputs = 2;
 
-	ret = tacna_core_init(&cs47l94->core);
+	ret = tacna_core_init(&cs47l96->core);
 	if (ret)
 		return ret;
 
-	init_completion(&cs47l94->outh_enabled);
-	init_completion(&cs47l94->outh_disabled);
+	init_completion(&cs47l96->outh_enabled);
+	init_completion(&cs47l96->outh_disabled);
 
 	ret = tacna_request_irq(tacna, TACNA_IRQ_OUTH_ENABLE_DONE,
-				"OUTH enable", cs47l94_outh_enable, cs47l94);
+				"OUTH enable", cs47l96_outh_enable, cs47l96);
 	if (ret)
 		dev_warn(&pdev->dev, "Failed to get OUTH enable IRQ: %d\n",
 			 ret);
 
 	ret = tacna_request_irq(tacna, TACNA_IRQ_OUTH_DISABLE_DONE,
-				"OUTH enable", cs47l94_outh_disable, cs47l94);
+				"OUTH enable", cs47l96_outh_disable, cs47l96);
 	if (ret)
 		dev_warn(&pdev->dev, "Failed to get OUTH disable IRQ: %d\n",
 			 ret);
 
-	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP1_IRQ0,
-				"DSP1 Buffer IRQ", cs47l94_dsp1_irq,
-				cs47l94);
+	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP1_IRQ1,
+				"DSP1 Buffer IRQ", cs47l96_dsp1_irq,
+				cs47l96);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "Failed to request DSP1_IRQ0: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to request DSP1_IRQ1: %d\n", ret);
 		goto error_dsp1_irq;
 	}
 
-	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP2_IRQ0,
-				"DSP2 Buffer IRQ", cs47l94_dsp2_irq,
-				cs47l94);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "Failed to request DSP2_IRQ0: %d\n", ret);
-		goto error_dsp2_irq;
-	}
+	dsp = &cs47l96->core.dsp[0];
+	dsp->part = "cs47l96";
+	dsp->num = 1;
+	dsp->suffix = "";
+	dsp->type = WMFW_HALO;
+	dsp->rev = 0;
+	dsp->dev = tacna->dev;
+	dsp->regmap = tacna->dsp_regmap[0];
 
-	BUILD_BUG_ON(ARRAY_SIZE(tacna->dsp_regmap) < CS47L94_NUM_DSP);
+	dsp->base = TACNA_DSP1_CLOCK_FREQ;
+	dsp->base_sysinfo = TACNA_DSP1_SYS_INFO_ID;
+	dsp->mem = cs47l96_dsp1_regions;
+	dsp->num_mems = ARRAY_SIZE(cs47l96_dsp1_regions);
 
-	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
-		dsp = &cs47l94->core.dsp[i];
-		dsp->part = "cs47l94";
-		dsp->num = i + 1;
-		dsp->suffix = "";
-		dsp->type = WMFW_HALO;
-		dsp->rev = 0;
-		dsp->dev = tacna->dev;
-		dsp->regmap = tacna->dsp_regmap[i];
+	dsp->n_rx_channels = CS47L96_DSP_N_RX_CHANNELS;
+	dsp->n_tx_channels = CS47L96_DSP_N_TX_CHANNELS;
 
-		dsp->base = cs47l94_dsp_control_bases[i];
-		dsp->base_sysinfo = cs47l94_dsp_sysinfo_bases[i];
-		dsp->mem = cs47l94_dsp_regions[i];
-		dsp->num_mems = ARRAY_SIZE(cs47l94_dsp1_regions);
-
-		dsp->n_rx_channels = CS47L94_DSP_N_RX_CHANNELS;
-		dsp->n_tx_channels = CS47L94_DSP_N_TX_CHANNELS;
-
-		ret = wm_halo_init(dsp, &cs47l94->core.rate_lock);
-		if (ret != 0) {
-			for (--i; i >= 0; --i)
-				wm_adsp2_remove(dsp);
-			goto error_core;
-		}
-	}
+	ret = wm_halo_init(dsp, &cs47l96->core.rate_lock);
+	if (ret != 0)
+		goto error_core;
 
 	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP1_MPU_ERR,
-				"DSP1 MPU", cs47l94_mpu_fault_irq,
-				&cs47l94->core.dsp[0]);
+				"DSP1 MPU", cs47l96_mpu_fault_irq,
+				&cs47l96->core.dsp[0]);
 	if (ret) {
 		dev_warn(&pdev->dev, "Failed to get DSP1 MPU IRQ: %d\n", ret);
 		goto error_dsp;
 	}
 
-	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP2_MPU_ERR,
-				"DSP2 MPU", cs47l94_mpu_fault_irq,
-				&cs47l94->core.dsp[1]);
-	if (ret) {
-		dev_warn(&pdev->dev, "Failed to get DSP2 MPU IRQ: %d\n", ret);
-		goto error_mpu_irq1;
-	}
-
-	for (i = 0; i < CS47L94_N_FLL; ++i)
-		tacna_init_fll(&cs47l94->core,
+	for (i = 0; i < CS47L96_N_FLL; ++i)
+		tacna_init_fll(&cs47l96->core,
 			       i + 1,
-			       TACNA_FLL1_CONTROL1 + i * 0x100,
+			       TACNA_FLL1_CONTROL1 + (i * 0x100),
 			       TACNA_IRQ1_STS_6,
 			       TACNA_FLL1_LOCK_STS1_MASK << (2 * i),
-			       &cs47l94->fll[i]);
+			       &cs47l96->fll[i]);
 
-	for (i = 0; i < ARRAY_SIZE(cs47l94_dai); i++)
-		tacna_init_dai(&cs47l94->core, i);
+	for (i = 0; i < ARRAY_SIZE(cs47l96_dai); i++)
+		tacna_init_dai(&cs47l96->core, i);
 
 	/* Latch volume update bits */
-	for (i = 0; i < ARRAY_SIZE(cs47l94_in_vu); i++)
-		regmap_update_bits(tacna->regmap, cs47l94_in_vu[i],
+	for (i = 0; i < ARRAY_SIZE(cs47l96_in_vu); i++)
+		regmap_update_bits(tacna->regmap, cs47l96_in_vu[i],
 				   TACNA_IN_VU_MASK, TACNA_IN_VU);
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
-	ret = snd_soc_register_platform(&pdev->dev, &cs47l94_compr_platform);
+	ret = snd_soc_register_platform(&pdev->dev, &cs47l96_compr_platform);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register platform: %d\n", ret);
-		goto error_mpu_irq2;
+		goto error_mpu_irq1;
 	}
 
-	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_cs47l94,
-				     cs47l94_dai, ARRAY_SIZE(cs47l94_dai));
+	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_cs47l96,
+				     cs47l96_dai, ARRAY_SIZE(cs47l96_dai));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
 		goto error_plat;
@@ -3323,65 +2625,55 @@ static int cs47l94_probe(struct platform_device *pdev)
 	return ret;
 error_plat:
 	snd_soc_unregister_platform(&pdev->dev);
-error_mpu_irq2:
-	tacna_free_irq(tacna, TACNA_IRQ_DSP2_MPU_ERR, &cs47l94->core.dsp[1]);
 error_mpu_irq1:
-	tacna_free_irq(tacna, TACNA_IRQ_DSP1_MPU_ERR, &cs47l94->core.dsp[0]);
+	tacna_free_irq(tacna, TACNA_IRQ_DSP1_MPU_ERR, &cs47l96->core.dsp[0]);
 error_dsp:
-	for (i = 0; i < CS47L94_NUM_DSP; ++i)
-		wm_adsp2_remove(&cs47l94->core.dsp[i]);
+	wm_adsp2_remove(&cs47l96->core.dsp[0]);
 error_core:
-	tacna_free_irq(tacna, TACNA_IRQ_DSP2_IRQ0, cs47l94);
-error_dsp2_irq:
-	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ0, cs47l94);
+	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ1, cs47l96);
 error_dsp1_irq:
-	tacna_core_destroy(&cs47l94->core);
-	tacna_free_irq(tacna, TACNA_IRQ_OUTH_ENABLE_DONE, cs47l94);
-	tacna_free_irq(tacna, TACNA_IRQ_OUTH_DISABLE_DONE, cs47l94);
+	tacna_core_destroy(&cs47l96->core);
+	tacna_free_irq(tacna, TACNA_IRQ_OUTH_ENABLE_DONE, cs47l96);
+	tacna_free_irq(tacna, TACNA_IRQ_OUTH_DISABLE_DONE, cs47l96);
 
 	return ret;
 }
 
-static int cs47l94_remove(struct platform_device *pdev)
+static int cs47l96_remove(struct platform_device *pdev)
 {
-	struct cs47l94 *cs47l94 = platform_get_drvdata(pdev);
-	struct tacna *tacna = cs47l94->core.tacna;
-	int i;
+	struct cs47l96 *cs47l96 = platform_get_drvdata(pdev);
+	struct tacna *tacna = cs47l96->core.tacna;
 
 	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	tacna_free_irq(tacna, TACNA_IRQ_DSP2_MPU_ERR, &cs47l94->core.dsp[1]);
-	tacna_free_irq(tacna, TACNA_IRQ_DSP1_MPU_ERR, &cs47l94->core.dsp[0]);
+	tacna_free_irq(tacna, TACNA_IRQ_DSP1_MPU_ERR, &cs47l96->core.dsp[0]);
 
-	tacna_free_irq(tacna, TACNA_IRQ_OUTH_ENABLE_DONE, cs47l94);
-	tacna_free_irq(tacna, TACNA_IRQ_OUTH_DISABLE_DONE, cs47l94);
+	tacna_free_irq(tacna, TACNA_IRQ_OUTH_ENABLE_DONE, cs47l96);
+	tacna_free_irq(tacna, TACNA_IRQ_OUTH_DISABLE_DONE, cs47l96);
 
-	tacna_free_irq(tacna, TACNA_IRQ_DSP2_IRQ0, cs47l94);
-	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ0, cs47l94);
+	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ1, cs47l96);
 
-	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
-		wm_adsp2_remove(&cs47l94->core.dsp[i]);
-	}
+	wm_adsp2_remove(&cs47l96->core.dsp[0]);
 
-	tacna_core_destroy(&cs47l94->core);
+	tacna_core_destroy(&cs47l96->core);
 
 	return 0;
 }
 
-static struct platform_driver cs47l94_codec_driver = {
+static struct platform_driver cs47l96_codec_driver = {
 	.driver = {
-		.name = "cs47l94-codec",
+		.name = "cs47l96-codec",
 		.owner = THIS_MODULE,
 	},
-	.probe = cs47l94_probe,
-	.remove = cs47l94_remove,
+	.probe = cs47l96_probe,
+	.remove = cs47l96_remove,
 };
 
-module_platform_driver(cs47l94_codec_driver);
+module_platform_driver(cs47l96_codec_driver);
 
-MODULE_DESCRIPTION("ASoC CS47L94 driver");
-MODULE_AUTHOR("Piotr Stankiewicz <piotrs@opensource.wolfsonmicro.com>");
+MODULE_DESCRIPTION("ASoC CS47L96 driver");
+MODULE_AUTHOR("Stuart Henderson <stuarth@opensource.cirrus.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:cs47l94-codec");
+MODULE_ALIAS("platform:cs47l96-codec");
