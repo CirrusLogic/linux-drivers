@@ -33,5 +33,6 @@ static inline unsigned long tacna_of_get_type(struct device *dev)
 
 int cs47l94_init_spi_regmap(struct spi_device *spi, struct tacna *tacna);
 int cs47l94_patch(struct tacna *tacna);
+int cs47l96_init_spi_regmap(struct spi_device *spi, struct tacna *tacna);
 
 #endif

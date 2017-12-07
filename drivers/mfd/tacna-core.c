@@ -31,6 +31,7 @@
 #include "tacna.h"
 
 #define CS47L94_SILICON_ID	0x6372
+#define CS47L96_SILICON_ID	0x47a97
 
 #define TACNA_32K_MCLK2		1
 
@@ -68,6 +69,31 @@ static const struct mfd_cell cs47l94_devs[] = {
 	{ .name = "tacna-haptics", },
 };
 
+static const char * const cs47l96_supplies[] = {
+	"VOUT_MIC",	/* must be first entry */
+	"VDD1_CP",
+	"VDD2_CP",
+	"VDD3_CP",
+	"VDD_IO2",
+};
+
+static const struct mfd_cell cs47l96_devs[] = {
+	{ .name = "tacna-pinctrl", },
+	{ .name = "tacna-irq", },
+	{ .name = "tacna-micsupp", },
+	{ .name = "tacna-gpio", },
+	{
+		.name = "tacna-extcon",
+		.parent_supplies = cs47l96_supplies,
+		.num_parent_supplies = 1,	/* only need VOUT_MIC */
+	},
+	{
+		.name = "cs47l96-codec",
+		.parent_supplies = cs47l96_supplies,
+		.num_parent_supplies = ARRAY_SIZE(cs47l96_supplies),
+	},
+};
+
 const char *tacna_name_from_type(enum tacna_type type)
 {
 	switch (type) {
@@ -75,6 +101,10 @@ const char *tacna_name_from_type(enum tacna_type type)
 		return "CS47L94";
 	case CS47L95:
 		return "CS47L95";
+	case CS47L96:
+		return "CS47L96";
+	case CS47L97:
+		return "CS47L97";
 	default:
 		return "Unknown";
 	}
@@ -230,6 +260,8 @@ unsigned int tacna_get_num_micbias(struct tacna *tacna)
 	switch (tacna->type) {
 	case CS47L94:
 	case CS47L95:
+	case CS47L96:
+	case CS47L97:
 		return 2;
 	default:
 		return 0;
@@ -242,6 +274,8 @@ unsigned int tacna_get_num_childbias(struct tacna *tacna, unsigned int micbias)
 	switch (tacna->type) {
 	case CS47L94:
 	case CS47L95:
+	case CS47L96:
+	case CS47L97:
 		switch (micbias) {
 		case 0:
 			return 4;
@@ -260,6 +294,8 @@ EXPORT_SYMBOL_GPL(tacna_get_num_childbias);
 const struct of_device_id tacna_of_match[] = {
 	{ .compatible = "cirrus,cs47l94", .data = (void *)CS47L94 },
 	{ .compatible = "cirrus,cs47l95", .data = (void *)CS47L95 },
+	{ .compatible = "cirrus,cs47l96", .data = (void *)CS47L96 },
+	{ .compatible = "cirrus,cs47l97", .data = (void *)CS47L97 },
 	{},
 };
 EXPORT_SYMBOL_GPL(tacna_of_match);
@@ -561,6 +597,7 @@ int tacna_dev_init(struct tacna *tacna)
 
 	switch (reg & TACNA_DEVID_MASK) {
 	case CS47L94_SILICON_ID:
+	case CS47L96_SILICON_ID:
 		break;
 	default:
 		dev_err(tacna->dev, "Unknown device ID: %x\n", reg);
@@ -616,6 +653,23 @@ int tacna_dev_init(struct tacna *tacna)
 				patch_fn = cs47l94_patch;
 				mfd_devs = cs47l94_devs;
 				n_devs = ARRAY_SIZE(cs47l94_devs);
+				break;
+			default:
+				break;
+			}
+		}
+// Remove this once we no longer want to test Castillo on Burns HW
+#ifdef CONFIG_REMOVE_TACNA_TEMPORARY_HACK
+		break;
+#endif
+	case CS47L96_SILICON_ID:
+		if (IS_ENABLED(CONFIG_MFD_CS47L96)) {
+			switch (tacna->type) {
+			case CS47L96:
+			case CS47L97:
+				patch_fn = NULL;
+				mfd_devs = cs47l96_devs;
+				n_devs = ARRAY_SIZE(cs47l96_devs);
 				break;
 			default:
 				break;
