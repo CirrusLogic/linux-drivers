@@ -246,6 +246,12 @@ config MFD_CS47L94
 	help
 	  Support for Cirrus Logic CS47L94 and CS47L95 Smart Codec
 
+config MFD_CS47L96
+	bool "Cirrus Logic CS47L96 and CS47L97"
+	depends on MFD_TACNA
+	help
+	  Support for Cirrus Logic CS47L96 and CS47L95 Smart Codec
+
 config MFD_ASIC3
 	bool "Compaq ASIC3"
 	depends on GPIOLIB && ARM
