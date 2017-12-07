@@ -1947,8 +1947,7 @@ const struct snd_kcontrol_new tacna_dsp_rate_controls[] = {
 };
 EXPORT_SYMBOL_GPL(tacna_dsp_rate_controls);
 
-static int tacna_dsp_memory_enable(struct tacna_priv *priv,
-				   unsigned int dsp_num)
+int tacna_dsp_memory_enable(struct tacna_priv *priv, unsigned int dsp_num)
 {
 	struct regmap *regmap = priv->tacna->regmap;
 	const unsigned int *reg_list = priv->dsp_power_regs[dsp_num];
@@ -1975,9 +1974,9 @@ err:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(tacna_dsp_memory_enable);
 
-static void tacna_dsp_memory_disable(struct tacna_priv *priv,
-				     unsigned int dsp_num)
+void tacna_dsp_memory_disable(struct tacna_priv *priv, unsigned int dsp_num)
 {
 	struct regmap *regmap = priv->tacna->regmap;
 	const unsigned int *reg_list = priv->dsp_power_regs[dsp_num];
@@ -1991,6 +1990,7 @@ static void tacna_dsp_memory_disable(struct tacna_priv *priv,
 				 *reg_list, ret);
 	}
 }
+EXPORT_SYMBOL_GPL(tacna_dsp_memory_disable);
 
 int tacna_dsp_power_ev(struct snd_soc_dapm_widget *w,
 		       struct snd_kcontrol *kcontrol, int event)
@@ -2023,15 +2023,9 @@ int tacna_dsp_power_ev(struct snd_soc_dapm_widget *w,
 			return ret;
 		}
 
-		ret = tacna_dsp_memory_enable(priv, w->shift);
-		if (ret)
-			return ret;
-
 		return wm_halo_early_event(w, kcontrol, event);
 	case SND_SOC_DAPM_PRE_PMD:
-		ret = wm_halo_early_event(w, kcontrol, event);
-		tacna_dsp_memory_disable(priv, w->shift);
-		return ret;
+		return wm_halo_early_event(w, kcontrol, event);
 	default:
 		return 0;
 	};
