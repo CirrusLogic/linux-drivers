@@ -3027,7 +3027,7 @@ int madera_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	if (freq % 6144000)
 		val |= MADERA_SYSCLK_FRAC;
 
-	dev_dbg(madera->dev, "%s set to %uHz", name, freq);
+	dev_dbg(madera->dev, "%s set to %uHz\n", name, freq);
 
 	return regmap_update_bits(madera->regmap, reg, mask, val);
 }
