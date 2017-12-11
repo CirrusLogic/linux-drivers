@@ -738,7 +738,7 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 			ret = regmap_update_bits(madera->regmap,
 						 MADERA_OUTPUT_ENABLES_1,
 						 (MADERA_OUT1L_ENA |
-						 MADERA_OUT1R_ENA) <<
+						  MADERA_OUT1R_ENA) <<
 						 (2 * (info->pdata->output - 1)),
 						 madera->hp_ena);
 			if (ret)
