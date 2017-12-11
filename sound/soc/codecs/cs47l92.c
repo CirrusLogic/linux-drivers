@@ -1967,7 +1967,6 @@ static int cs47l92_codec_remove(struct snd_soc_codec *codec)
 	struct cs47l92 *cs47l92 = snd_soc_codec_get_drvdata(codec);
 
 	wm_adsp2_codec_remove(&cs47l92->core.adsp[0], codec);
-	madera_destroy_bus_error_irq(&cs47l92->core, 0);
 
 	cs47l92->core.madera->dapm = NULL;
 
