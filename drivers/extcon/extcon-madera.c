@@ -2549,7 +2549,7 @@ static void madera_extcon_process_accdet_node(struct madera_extcon *info,
 	else
 		gpio_status = GPIOD_OUT_LOW;
 
-	info->micd_pol_gpio = devm_fwnode_get_gpiod_from_child(madera->dev,
+	info->micd_pol_gpio = devm_fwnode_get_gpiod_from_child(info->dev,
 							"cirrus,micd-pol",
 							node,
 							gpio_status,
