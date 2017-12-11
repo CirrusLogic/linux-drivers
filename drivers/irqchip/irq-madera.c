@@ -110,10 +110,12 @@ static const struct regmap_irq_chip madera_irq = {
 
 static int madera_map_irq(struct madera *madera, int irq)
 {
-	struct madera_irq_priv *priv = dev_get_drvdata(madera->irq_dev);
+	struct madera_irq_priv *priv;
 
 	if (!madera->irq_dev)
 		return -ENOENT;
+
+	priv = dev_get_drvdata(madera->irq_dev);
 
 	return regmap_irq_get_virq(priv->irq_data, irq);
 }
