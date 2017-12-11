@@ -299,7 +299,6 @@ static int madera_irq_remove(struct platform_device *pdev)
 	priv->madera->irq_dev = NULL;
 
 	regmap_del_irq_chip(priv->irq, priv->irq_data);
-	free_irq(priv->irq, priv);
 
 	return 0;
 }
