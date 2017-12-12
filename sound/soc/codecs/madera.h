@@ -277,6 +277,7 @@ extern unsigned int madera_mixer_values[MADERA_NUM_MIXER_INPUTS];
 
 #define MADERA_DSP_ROUTES(name)				\
 	{ name, NULL, name " Preloader"},		\
+	{ name " Preload", NULL, name " Preloader"},	\
 	{ name " Preloader", NULL, "SYSCLK"},		\
 	{ name " Preloader", NULL, "DSPCLK"},		\
 	{ name, NULL, name " Aux 1" },			\
