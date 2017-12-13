@@ -469,8 +469,10 @@ extern const struct soc_enum tacna_dsp1_rx_rate_enum[];
 extern int tacna_dsp_add_codec_controls(struct snd_soc_codec *codec,
 					unsigned int dsp_n);
 
-int tacna_dsp_memory_enable(struct tacna_priv *priv, unsigned int dsp_num);
-void tacna_dsp_memory_disable(struct tacna_priv *priv, unsigned int dsp_num);
+int tacna_dsp_memory_enable(struct tacna_priv *priv,
+			    const unsigned int *reg_list);
+void tacna_dsp_memory_disable(struct tacna_priv *priv,
+			      const unsigned int *reg_list);
 int tacna_dsp_power_ev(struct snd_soc_dapm_widget *w,
 		       struct snd_kcontrol *kcontrol, int event);
 

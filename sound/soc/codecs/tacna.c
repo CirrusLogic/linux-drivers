@@ -2013,10 +2013,10 @@ int tacna_dsp_add_codec_controls(struct snd_soc_codec *codec,
 };
 EXPORT_SYMBOL_GPL(tacna_dsp_add_codec_controls);
 
-int tacna_dsp_memory_enable(struct tacna_priv *priv, unsigned int dsp_num)
+int tacna_dsp_memory_enable(struct tacna_priv *priv,
+			    const unsigned int *reg_list)
 {
 	struct regmap *regmap = priv->tacna->regmap;
-	const unsigned int *reg_list = priv->dsp_power_regs[dsp_num];
 	int ret;
 
 	for (; *reg_list != 0; ++reg_list) {
@@ -2042,10 +2042,10 @@ err:
 }
 EXPORT_SYMBOL_GPL(tacna_dsp_memory_enable);
 
-void tacna_dsp_memory_disable(struct tacna_priv *priv, unsigned int dsp_num)
+void tacna_dsp_memory_disable(struct tacna_priv *priv,
+			      const unsigned int *reg_list)
 {
 	struct regmap *regmap = priv->tacna->regmap;
-	const unsigned int *reg_list = priv->dsp_power_regs[dsp_num];
 	int ret;
 
 	for (; *reg_list != 0; ++reg_list) {
