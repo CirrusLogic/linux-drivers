@@ -123,6 +123,11 @@ static const unsigned int cs47l94_dsp2_sram_power_regs[] = {
 	0, /* end of list */
 };
 
+static const unsigned int * const cs47l94_dsp_sram_power_regs[] = {
+	cs47l94_dsp1_sram_power_regs,
+	cs47l94_dsp2_sram_power_regs,
+};
+
 static int cs47l94_put_out_vu(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
@@ -1594,31 +1599,23 @@ static const struct snd_kcontrol_new cs47l94_dsd_source_select =
 static const struct snd_kcontrol_new cs47l94_dsd_switch =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
-static int cs47l94_dsp_power_ev(struct snd_soc_dapm_widget *w,
-				struct snd_kcontrol *kcontrol, int event)
+static int cs47l94_dsp_mem_ev(struct snd_soc_dapm_widget *w,
+			      struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
-	int ret;
+	const unsigned int *regs = cs47l94_dsp_sram_power_regs[w->shift];
 
 	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		ret = tacna_dsp_memory_enable(priv, w->shift);
-		if (ret)
-			return ret;
-
-		return tacna_dsp_power_ev(w, kcontrol, event);
+	case SND_SOC_DAPM_POST_PMU:
+		return tacna_dsp_memory_enable(priv, regs);
 	case SND_SOC_DAPM_PRE_PMD:
-		ret = tacna_dsp_power_ev(w, kcontrol, event);
-
-		tacna_dsp_memory_disable(priv, w->shift);
-
-		return ret;
+		tacna_dsp_memory_disable(priv, regs);
+		return 0;
 	default:
 		return 0;
 	};
 }
-
 
 static const struct snd_soc_dapm_widget cs47l94_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", TACNA_SYSTEM_CLOCK1, TACNA_SYSCLK_EN_SHIFT,
@@ -1660,6 +1657,11 @@ SND_SOC_DAPM_SUPPLY("MICBIAS2A", TACNA_MICBIAS_CTRL6, TACNA_MICB2A_EN_SHIFT,
 		    0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("MICBIAS2B", TACNA_MICBIAS_CTRL6, TACNA_MICB2B_EN_SHIFT,
 		    0, NULL, 0),
+
+SND_SOC_DAPM_SUPPLY("DSP1MEM", SND_SOC_NOPM, 0, 0, cs47l94_dsp_mem_ev,
+		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_SUPPLY("DSP2MEM", SND_SOC_NOPM, 1, 0, cs47l94_dsp_mem_ev,
+		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_SIGGEN("TONE"),
 SND_SOC_DAPM_SIGGEN("NOISE"),
@@ -2063,8 +2065,8 @@ SND_SOC_DAPM_PGA("DFC7", TACNA_DFC1_CH7_CTRL, TACNA_DFC1_CH7_EN_SHIFT,
 SND_SOC_DAPM_PGA("DFC8", TACNA_DFC1_CH8_CTRL, TACNA_DFC1_CH8_EN_SHIFT,
 		 0, NULL, 0),
 
-WM_HALO("DSP1", 0, cs47l94_dsp_power_ev),
-WM_HALO("DSP2", 1, cs47l94_dsp_power_ev),
+WM_HALO("DSP1", 0, tacna_dsp_power_ev),
+WM_HALO("DSP2", 1, tacna_dsp_power_ev),
 
 SND_SOC_DAPM_PGA("Ultrasonic 1", TACNA_US1_CONTROL,
 		 TACNA_US1_EN_SHIFT, 0, NULL, 0),
@@ -2402,6 +2404,8 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "IN4_PDMCLK", NULL, "SYSCLK" },
 	{ "IN4_PDMDATA", NULL, "SYSCLK" },
 
+	{ "DSP1 Preloader", NULL, "DSP1MEM" },
+	{ "DSP2 Preloader", NULL, "DSP2MEM" },
 	{ "Audio Trace DSP", NULL, "DSP1" },
 	{ "Voice Ctrl DSP", NULL, "DSP2" },
 
@@ -3232,8 +3236,6 @@ static int cs47l94_probe(struct platform_device *pdev)
 	cs47l94->core.num_inputs = 8;
 	cs47l94->core.max_analogue_inputs = 2;
 	cs47l94->core.num_dmic_clksrc = 4;
-	cs47l94->core.dsp_power_regs[0] = cs47l94_dsp1_sram_power_regs;
-	cs47l94->core.dsp_power_regs[1] = cs47l94_dsp2_sram_power_regs;
 
 	ret = tacna_core_init(&cs47l94->core);
 	if (ret)
