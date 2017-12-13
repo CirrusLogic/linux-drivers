@@ -21,7 +21,6 @@
 #include <linux/workqueue.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regmap.h>
-#include <linux/leds.h>
 #include <linux/sysfs.h>
 #include <linux/firmware.h>
 #include <linux/gpio.h>
@@ -33,8 +32,14 @@
 
 #include "cs40l20.h"
 
+#ifdef CONFIG_ANDROID_TIMED_OUTPUT
+#include "../staging/android/timed_output.h"
+#include <linux/hrtimer.h>
+#else
+#include <linux/leds.h>
+#endif /* CONFIG_ANDROID_TIMED_OUTPUT */
+
 struct cs40l20_private {
-	struct led_classdev led_dev;
 	struct device *dev;
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[2];
@@ -48,6 +53,12 @@ struct cs40l20_private {
 	bool vibe_init_success;
 	struct gpio_desc *reset_gpio;
 	struct cs40l20_platform_data pdata;
+#ifdef CONFIG_ANDROID_TIMED_OUTPUT
+	struct timed_output_dev timed_dev;
+	struct hrtimer vibe_timer;
+#else
+	struct led_classdev led_dev;
+#endif /* CONFIG_ANDROID_TIMED_OUTPUT */
 };
 
 static const char * const cs40l20_supplies[] = {
@@ -106,10 +117,21 @@ static int cs40l20_index_set(struct cs40l20_private *cs40l20,
 	return ret;
 }
 
+static struct cs40l20_private *cs40l20_get_private(struct device *dev)
+{
+#ifdef CONFIG_ANDROID_TIMED_OUTPUT
+	/* timed output device does not register under a parent device */
+	return container_of(dev_get_drvdata(dev),
+			struct cs40l20_private, timed_dev);
+#else
+	return dev_get_drvdata(dev);
+#endif /* CONFIG_ANDROID_TIMED_OUTPUT */
+}
+
 static ssize_t cs40l20_cp_trigger_index_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct cs40l20_private *cs40l20 = dev_get_drvdata(dev);
+	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", cs40l20_index_get(cs40l20, 0));
 }
@@ -118,7 +140,7 @@ static ssize_t cs40l20_cp_trigger_index_store(struct device *dev,
 			struct device_attribute *attr,
 			const char *buf, size_t count)
 {
-	struct cs40l20_private *cs40l20 = dev_get_drvdata(dev);
+	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
 	int ret, index;
 
 	ret = kstrtoint(buf, 10, &index);
@@ -139,7 +161,7 @@ static ssize_t cs40l20_cp_trigger_index_store(struct device *dev,
 static ssize_t cs40l20_gpio1_rise_index_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct cs40l20_private *cs40l20 = dev_get_drvdata(dev);
+	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			cs40l20_index_get(cs40l20,
@@ -150,7 +172,7 @@ static ssize_t cs40l20_gpio1_rise_index_store(struct device *dev,
 			struct device_attribute *attr,
 			const char *buf, size_t count)
 {
-	struct cs40l20_private *cs40l20 = dev_get_drvdata(dev);
+	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
 	int ret, index;
 
 	ret = kstrtoint(buf, 10, &index);
@@ -171,7 +193,7 @@ static ssize_t cs40l20_gpio1_rise_index_store(struct device *dev,
 static ssize_t cs40l20_gpio1_fall_index_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct cs40l20_private *cs40l20 = dev_get_drvdata(dev);
+	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			cs40l20_index_get(cs40l20,
@@ -182,7 +204,7 @@ static ssize_t cs40l20_gpio1_fall_index_store(struct device *dev,
 			struct device_attribute *attr,
 			const char *buf, size_t count)
 {
-	struct cs40l20_private *cs40l20 = dev_get_drvdata(dev);
+	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
 	int ret, index;
 
 	ret = kstrtoint(buf, 10, &index);
@@ -253,6 +275,76 @@ static void cs40l20_vibe_stop_worker(struct work_struct *work)
 	mutex_unlock(&cs40l20->lock);
 }
 
+#ifdef CONFIG_ANDROID_TIMED_OUTPUT
+/* vibration callback for timed output device */
+static void cs40l20_vibe_enable(struct timed_output_dev *sdev, int timeout)
+{
+	struct cs40l20_private *cs40l20 =
+		container_of(sdev, struct cs40l20_private, timed_dev);
+
+	if (timeout > 0) {
+		hrtimer_start(&cs40l20->vibe_timer,
+			ktime_set(timeout / 1000, (timeout % 1000) * 1000000),
+			HRTIMER_MODE_REL);
+		queue_work(cs40l20->vibe_workqueue, &cs40l20->vibe_start_work);
+	} else {
+		hrtimer_cancel(&cs40l20->vibe_timer);
+		queue_work(cs40l20->vibe_workqueue, &cs40l20->vibe_stop_work);
+	}
+}
+
+static int cs40l20_vibe_get_time(struct timed_output_dev *sdev)
+{
+	struct cs40l20_private *cs40l20 =
+		container_of(sdev, struct cs40l20_private, timed_dev);
+	int ret = 0;
+
+	if (hrtimer_active(&cs40l20->vibe_timer))
+		ret = ktime_to_ms(hrtimer_get_remaining(&cs40l20->vibe_timer));
+
+	return ret;
+}
+
+static enum hrtimer_restart cs40l20_vibe_timer(struct hrtimer *timer)
+{
+	struct cs40l20_private *cs40l20 =
+		container_of(timer, struct cs40l20_private, vibe_timer);
+
+	queue_work(cs40l20->vibe_workqueue, &cs40l20->vibe_stop_work);
+
+	return HRTIMER_NORESTART;
+}
+
+static void cs40l20_create_timed_output(struct cs40l20_private *cs40l20)
+{
+	int ret;
+	struct timed_output_dev *timed_dev = &cs40l20->timed_dev;
+	struct hrtimer *vibe_timer = &cs40l20->vibe_timer;
+	struct device *dev = cs40l20->dev;
+
+	timed_dev->name = CS40L20_DEVICE_NAME;
+	timed_dev->enable = cs40l20_vibe_enable;
+	timed_dev->get_time = cs40l20_vibe_get_time;
+
+	ret = timed_output_dev_register(timed_dev);
+	if (ret) {
+		dev_err(dev, "Failed to register timed output device: %d\n",
+			ret);
+		return;
+	}
+
+	hrtimer_init(vibe_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	vibe_timer->function = cs40l20_vibe_timer;
+
+	ret = sysfs_create_group(&cs40l20->timed_dev.dev->kobj,
+			&cs40l20_dev_attr_group);
+	if (ret) {
+		dev_err(dev, "Failed to create sysfs group: %d\n", ret);
+		return;
+	}
+}
+#else
+/* vibration callback for LED device */
 static void cs40l20_vibe_brightness_set(struct led_classdev *led_cdev,
 		enum led_brightness brightness)
 {
@@ -291,10 +383,15 @@ static void cs40l20_create_led(struct cs40l20_private *cs40l20)
 		return;
 	}
 }
+#endif /* CONFIG_ANDROID_TIMED_OUTPUT */
 
 static void cs40l20_vibe_init(struct cs40l20_private *cs40l20)
 {
+#ifdef CONFIG_ANDROID_TIMED_OUTPUT
+	cs40l20_create_timed_output(cs40l20);
+#else
 	cs40l20_create_led(cs40l20);
+#endif /* CONFIG_ANDROID_TIMED_OUTPUT */
 
 	mutex_init(&cs40l20->lock);
 
@@ -851,10 +948,17 @@ static int cs40l20_i2c_remove(struct i2c_client *i2c_client)
 	struct cs40l20_private *cs40l20 = i2c_get_clientdata(i2c_client);
 
 	if (cs40l20->vibe_init_success) {
+#ifdef CONFIG_ANDROID_TIMED_OUTPUT
+		timed_output_dev_unregister(&cs40l20->timed_dev);
+
+		sysfs_remove_group(&cs40l20->timed_dev.dev->kobj,
+				&cs40l20_dev_attr_group);
+#else
 		led_classdev_unregister(&cs40l20->led_dev);
 
 		sysfs_remove_group(&cs40l20->dev->kobj,
 				&cs40l20_dev_attr_group);
+#endif /* CONFIG_ANDROID_TIMED_OUTPUT */
 
 		cancel_work_sync(&cs40l20->vibe_start_work);
 		cancel_work_sync(&cs40l20->vibe_stop_work);
