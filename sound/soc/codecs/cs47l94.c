@@ -1712,6 +1712,9 @@ SND_SOC_DAPM_SUPPLY("DSP1MEM", SND_SOC_NOPM, 0, 0, cs47l94_dsp_mem_ev,
 SND_SOC_DAPM_SUPPLY("DSP2MEM", SND_SOC_NOPM, 1, 0, cs47l94_dsp_mem_ev,
 		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
+TACNA_DSP_FREQ_WIDGET("DSP1", 0),
+TACNA_DSP_FREQ_WIDGET("DSP2", 1),
+
 SND_SOC_DAPM_SIGGEN("TONE"),
 SND_SOC_DAPM_SIGGEN("NOISE"),
 
@@ -2114,8 +2117,8 @@ SND_SOC_DAPM_PGA("DFC7", TACNA_DFC1_CH7_CTRL, TACNA_DFC1_CH7_EN_SHIFT,
 SND_SOC_DAPM_PGA("DFC8", TACNA_DFC1_CH8_CTRL, TACNA_DFC1_CH8_EN_SHIFT,
 		 0, NULL, 0),
 
-WM_HALO("DSP1", 0, tacna_dsp_power_ev),
-WM_HALO("DSP2", 1, tacna_dsp_power_ev),
+WM_HALO("DSP1", 0, wm_halo_early_event),
+WM_HALO("DSP2", 1, wm_halo_early_event),
 
 SND_SOC_DAPM_PGA("Ultrasonic 1", TACNA_US1_CONTROL,
 		 TACNA_US1_EN_SHIFT, 0, NULL, 0),
@@ -2455,6 +2458,8 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 
 	{ "DSP1 Preloader", NULL, "DSP1MEM" },
 	{ "DSP2 Preloader", NULL, "DSP2MEM" },
+	{ "DSP1", NULL, "DSP1FREQ" },
+	{ "DSP2", NULL, "DSP2FREQ" },
 	{ "Audio Trace DSP", NULL, "DSP1" },
 	{ "Voice Ctrl DSP", NULL, "DSP2" },
 

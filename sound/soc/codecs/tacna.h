@@ -268,6 +268,11 @@
 	((unsigned long)&(struct soc_bytes) {.base = xbase,	\
 	 .num_regs = xregs }) }
 
+/* these have a subseq number so they run after SYSCLK and DSPCLK widgets */
+#define TACNA_DSP_FREQ_WIDGET(name, num)				\
+	SND_SOC_DAPM_SUPPLY_S(name "FREQ", 100, SND_SOC_NOPM, num, 0,	\
+		tacna_dsp_freq_ev, SND_SOC_DAPM_POST_PMU)
+
 #define TACNA_RATES SNDRV_PCM_RATE_KNOT
 
 #define TACNA_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
@@ -482,6 +487,8 @@ void tacna_dsp_memory_disable(struct tacna_priv *priv,
 			      const struct tacna_dsp_power_regs *regs);
 int tacna_dsp_power_ev(struct snd_soc_dapm_widget *w,
 		       struct snd_kcontrol *kcontrol, int event);
+int tacna_dsp_freq_ev(struct snd_soc_dapm_widget *w,
+		      struct snd_kcontrol *kcontrol, int event);
 
 extern int tacna_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 			    int source, unsigned int freq, int dir);

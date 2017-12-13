@@ -2073,19 +2073,18 @@ void tacna_dsp_memory_disable(struct tacna_priv *priv,
 }
 EXPORT_SYMBOL_GPL(tacna_dsp_memory_disable);
 
-int tacna_dsp_power_ev(struct snd_soc_dapm_widget *w,
-		       struct snd_kcontrol *kcontrol, int event)
+int tacna_dsp_freq_ev(struct snd_soc_dapm_widget *w,
+		      struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct tacna *tacna = priv->tacna;
-	struct wm_adsp *dsps = snd_soc_codec_get_drvdata(codec);
-	struct wm_adsp *dsp = &dsps[w->shift];
+	struct wm_adsp *dsp = &priv->dsp[w->shift];
 	unsigned int freq;
 	int ret;
 
 	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
+	case SND_SOC_DAPM_POST_PMU:
 		ret = regmap_read(tacna->regmap, TACNA_DSP_CLOCK1, &freq);
 		if (ret) {
 			dev_err(codec->dev,
@@ -2104,14 +2103,12 @@ int tacna_dsp_power_ev(struct snd_soc_dapm_widget *w,
 			return ret;
 		}
 
-		return wm_halo_early_event(w, kcontrol, event);
-	case SND_SOC_DAPM_PRE_PMD:
-		return wm_halo_early_event(w, kcontrol, event);
+		return 0;
 	default:
 		return 0;
 	};
 }
-EXPORT_SYMBOL_GPL(tacna_dsp_power_ev);
+EXPORT_SYMBOL_GPL(tacna_dsp_freq_ev);
 
 static const unsigned int tacna_opclk_ref_48k_rates[] = {
 	6144000,
