@@ -234,8 +234,6 @@ static void cs40l20_vibe_start_worker(struct work_struct *work)
 			control_reg, cs40l20->cp_trigger_index);
 	if (ret)
 		dev_err(cs40l20->dev, "Failed to start playback\n");
-	else
-		cs40l20->led_dev.brightness = LED_FULL;
 
 	mutex_unlock(&cs40l20->lock);
 }
@@ -251,13 +249,11 @@ static void cs40l20_vibe_stop_worker(struct work_struct *work)
 	ret = regmap_write(cs40l20->regmap, CS40L20_VIBEGEN_STOP, 1);
 	if (ret)
 		dev_err(cs40l20->dev, "Failed to stop playback\n");
-	else
-		cs40l20->led_dev.brightness = LED_OFF;
 
 	mutex_unlock(&cs40l20->lock);
 }
 
-static void cs40l20_vibe_state_change(struct led_classdev *led_cdev,
+static void cs40l20_vibe_brightness_set(struct led_classdev *led_cdev,
 		enum led_brightness brightness)
 {
 	struct cs40l20_private *cs40l20 =
@@ -272,15 +268,15 @@ static void cs40l20_vibe_state_change(struct led_classdev *led_cdev,
 	}
 }
 
-static void cs40l20_vibe_init(struct cs40l20_private *cs40l20)
+static void cs40l20_create_led(struct cs40l20_private *cs40l20)
 {
 	int ret;
 	struct led_classdev *led_dev = &cs40l20->led_dev;
 	struct device *dev = cs40l20->dev;
 
-	led_dev->name = "vibrator";
+	led_dev->name = CS40L20_DEVICE_NAME;
 	led_dev->max_brightness = LED_FULL;
-	led_dev->brightness_set = cs40l20_vibe_state_change;
+	led_dev->brightness_set = cs40l20_vibe_brightness_set;
 	led_dev->default_trigger = "transient";
 
 	ret = led_classdev_register(dev, led_dev);
@@ -289,23 +285,28 @@ static void cs40l20_vibe_init(struct cs40l20_private *cs40l20)
 		return;
 	}
 
-	mutex_init(&cs40l20->lock);
-
-	cs40l20->vibe_workqueue =
-		alloc_ordered_workqueue("vibe_workqueue", WQ_HIGHPRI);
-	if (!cs40l20->vibe_workqueue) {
-		dev_err(dev, "Failed to allocate workqueue\n");
-		return;
-	}
-
-	INIT_WORK(&cs40l20->vibe_start_work, cs40l20_vibe_start_worker);
-	INIT_WORK(&cs40l20->vibe_stop_work, cs40l20_vibe_stop_worker);
-
 	ret = sysfs_create_group(&cs40l20->dev->kobj, &cs40l20_dev_attr_group);
 	if (ret) {
 		dev_err(dev, "Failed to create sysfs group: %d\n", ret);
 		return;
 	}
+}
+
+static void cs40l20_vibe_init(struct cs40l20_private *cs40l20)
+{
+	cs40l20_create_led(cs40l20);
+
+	mutex_init(&cs40l20->lock);
+
+	cs40l20->vibe_workqueue =
+		alloc_ordered_workqueue("vibe_workqueue", WQ_HIGHPRI);
+	if (!cs40l20->vibe_workqueue) {
+		dev_err(cs40l20->dev, "Failed to allocate workqueue\n");
+		return;
+	}
+
+	INIT_WORK(&cs40l20->vibe_start_work, cs40l20_vibe_start_worker);
+	INIT_WORK(&cs40l20->vibe_stop_work, cs40l20_vibe_stop_worker);
 
 	cs40l20->vibe_init_success = true;
 }
@@ -852,15 +853,15 @@ static int cs40l20_i2c_remove(struct i2c_client *i2c_client)
 	if (cs40l20->vibe_init_success) {
 		led_classdev_unregister(&cs40l20->led_dev);
 
+		sysfs_remove_group(&cs40l20->dev->kobj,
+				&cs40l20_dev_attr_group);
+
 		cancel_work_sync(&cs40l20->vibe_start_work);
 		cancel_work_sync(&cs40l20->vibe_stop_work);
 
 		destroy_workqueue(cs40l20->vibe_workqueue);
 
 		mutex_destroy(&cs40l20->lock);
-
-		sysfs_remove_group(&cs40l20->dev->kobj,
-				&cs40l20_dev_attr_group);
 	}
 
 	gpiod_set_value_cansleep(cs40l20->reset_gpio, 0);
