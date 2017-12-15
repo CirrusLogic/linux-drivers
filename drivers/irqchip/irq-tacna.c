@@ -87,6 +87,18 @@ static const struct regmap_irq tacna_main_irqs[TACNA_NUM_MAIN_IRQ] = {
 	[TACNA_IRQ_US2_ACT_DET_FALL] = {
 		.reg_offset = 0x10, .mask = TACNA_US2_ACT_DET_FALL_EINT1_MASK,
 	},
+	[TACNA_IRQ_US3_ACT_DET_RISE] = {
+		.reg_offset = 0x10, .mask = TACNA_US3_ACT_DET_RISE_EINT1_MASK,
+	},
+	[TACNA_IRQ_US3_ACT_DET_FALL] = {
+		.reg_offset = 0x10, .mask = TACNA_US3_ACT_DET_FALL_EINT1_MASK,
+	},
+	[TACNA_IRQ_INPUTS_SIG_DET_AO_RISE] = {
+		.reg_offset = 0x10, .mask = TACNA_INPUTS_SIG_DET_AO_RISE_EINT1_MASK,
+	},
+	[TACNA_IRQ_INPUTS_SIG_DET_AO_FALL] = {
+		.reg_offset = 0x10, .mask = TACNA_INPUTS_SIG_DET_AO_FALL_EINT1_MASK,
+	},
 	[TACNA_IRQ_INPUTS_SIG_DET_RISE] = {
 		.reg_offset = 0x10, .mask = TACNA_INPUTS_SIG_DET_RISE_EINT1_MASK,
 	},
@@ -225,6 +237,9 @@ static const struct regmap_irq tacna_main_irqs[TACNA_NUM_MAIN_IRQ] = {
 	[TACNA_IRQ_FLL3_REF_LOST] = {
 		.reg_offset = 0x14, .mask = TACNA_FLL3_REF_LOST_EINT1_MASK,
 	},
+	[TACNA_IRQ_FLL1AO_RELOCK_FAIL] = {
+		.reg_offset = 0x0, .mask = TACNA_FLL1AO_RELOCK_FAIL_EINT1_MASK,
+	},
 	[TACNA_IRQ_SYSCLK_FAIL] = {
 		.reg_offset = 0x00, .mask = TACNA_SYSCLK_FAIL_EINT1_MASK,
 	},
@@ -239,6 +254,9 @@ static const struct regmap_irq tacna_main_irqs[TACNA_NUM_MAIN_IRQ] = {
 	},
 	[TACNA_IRQ_DSPCLK_ERR] = {
 		.reg_offset = 0x00, .mask = TACNA_DSPCLK_ERR_EINT1_MASK,
+	},
+	[TACNA_IRQ_AOCLK_ERR] = {
+		.reg_offset = 0x00, .mask = TACNA_AOCLK_ERR_EINT1,
 	},
 	[TACNA_IRQ_DSP1_NMI] = {
 		.reg_offset = 0x18, .mask = TACNA_DSP1_NMI_ERR_EINT1_MASK,
@@ -275,6 +293,24 @@ static const struct regmap_irq tacna_main_irqs[TACNA_NUM_MAIN_IRQ] = {
 	},
 	[TACNA_IRQ_ASRC1_IN2_LOCK_FALL] = {
 		.reg_offset = 0x24, .mask = TACNA_ASRC1_IN2_LOCK_FALL_EINT1_MASK,
+	},
+	[TACNA_IRQ_ASRC2_IN1_LOCK_RISE] = {
+		.reg_offset = 0x24, .mask = TACNA_ASRC2_IN1_LOCK_RISE_EINT1_MASK,
+	},
+	[TACNA_IRQ_ASRC2_IN1_LOCK_FALL] = {
+		.reg_offset = 0x24, .mask = TACNA_ASRC2_IN1_LOCK_FALL_EINT1_MASK,
+	},
+	[TACNA_IRQ_ASRC2_IN2_LOCK_RISE] = {
+		.reg_offset = 0x24, .mask = TACNA_ASRC2_IN2_LOCK_RISE_EINT1_MASK,
+	},
+	[TACNA_IRQ_ASRC2_IN2_LOCK_FALL] = {
+		.reg_offset = 0x24, .mask = TACNA_ASRC2_IN2_LOCK_FALL_EINT1_MASK,
+	},
+	[TACNA_IRQ_SECURE_MODE_RISE] = {
+		.reg_offset = 0x04, .mask = TACNA_SECURE_MODE_RISE_EINT1_MASK,
+	},
+	[TACNA_IRQ_SECURE_MODE_FALL] = {
+		.reg_offset = 0x04, .mask = TACNA_SECURE_MODE_FALL_EINT1_MASK,
 	},
 };
 
