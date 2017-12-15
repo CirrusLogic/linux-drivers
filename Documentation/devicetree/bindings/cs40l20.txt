@@ -24,6 +24,11 @@ Optional properties:
 
   - reset-gpios : GPIO used for resetting the device.
 
+  - cirrus,refclk-gpio2 : Boolean for configuring the device to expect its
+    32.768-kHz reference clock on the REFCLK/GPIO2 pin. If this property is
+    omitted, the device expects its 32.768-kHz reference clock on the
+    ASP_BCLK/REFCLK pin.
+
 Example:
 
   cs40l20: cs40l20@43 {
@@ -35,4 +40,5 @@ Example:
     cirrus,boost-ind-nanohenry = <1000>;
     cirrus,boost-cap-microfarad = <4>;
     cirrus,boost-ipk-milliamp = <4500>;
+    cirrus,refclk-gpio2;
   };
