@@ -742,6 +742,26 @@ static int cs40l20_init(struct cs40l20_private *cs40l20)
 	cs40l20->cp_trigger_index = 0;
 	cs40l20->vibe_init_success = false;
 
+	if (cs40l20->pdata.refclk_gpio2) {
+		ret = regmap_update_bits(regmap, CS40L20_GPIO_PAD_CONTROL,
+				CS40L20_GP2_CTRL_MASK,
+				CS40L20_GP2_CTRL_MCLK
+					<< CS40L20_GP2_CTRL_SHIFT);
+		if (ret) {
+			dev_err(dev, "Failed to select GPIO2 function\n");
+			return ret;
+		}
+
+		ret = regmap_update_bits(regmap, CS40L20_PLL_CLK_CTRL,
+				CS40L20_PLL_REFCLK_SEL_MASK,
+				CS40L20_PLL_REFCLK_SEL_MCLK
+					<< CS40L20_PLL_REFCLK_SEL_SHIFT);
+		if (ret) {
+			dev_err(dev, "Failed to select clock source\n");
+			return ret;
+		}
+	}
+
 	ret = cs40l20_boost_config(cs40l20, cs40l20->pdata.boost_ind,
 			cs40l20->pdata.boost_cap, cs40l20->pdata.boost_ipk);
 	if (ret)
@@ -814,6 +834,8 @@ static int cs40l20_handle_of_data(struct i2c_client *i2c_client,
 		return -EINVAL;
 	}
 	pdata->boost_ipk = out_val;
+
+	pdata->refclk_gpio2 = of_property_read_bool(np, "cirrus,refclk-gpio2");
 
 	return 0;
 }
