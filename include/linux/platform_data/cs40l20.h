@@ -15,6 +15,7 @@ struct cs40l20_platform_data {
 	unsigned int boost_ind;
 	unsigned int boost_cap;
 	unsigned int boost_ipk;
+	bool refclk_gpio2;
 };
 
 #endif /* __CS40L20_H */
