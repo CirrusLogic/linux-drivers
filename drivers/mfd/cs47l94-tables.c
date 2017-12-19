@@ -108,7 +108,7 @@ static const struct reg_default cs47l94_reg_default[] = {
 	{ 0x00001e18, 0x00000001 }, /* FLL3_CONTROL7 */
 	{ 0x00001e34, 0x000033e8 }, /* FLL3_DIGITAL_TEST2 */
 	{ 0x00001ea0, 0x00000c04 }, /* FLL3_GPIO_CLOCK */
-	{ 0x00002000, 0x00000006 }, /* MIC_CHARGE_PUMP1 */
+	{ 0x00002000, 0x00000006 }, /* CHARGE_PUMP1 */
 	{ 0x00002400, 0x00000020 }, /* OUTPUT_RATE1 */
 	{ 0x00002408, 0x000003e4 }, /* LDO2_CTRL1 */
 	{ 0x00002410, 0x000000e6 }, /* MICBIAS_CTRL1 */
@@ -1087,7 +1087,7 @@ static bool cs47l94_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_FLL3_CONTROL7:
 	case TACNA_FLL3_DIGITAL_TEST2:
 	case TACNA_FLL3_GPIO_CLOCK:
-	case TACNA_MIC_CHARGE_PUMP1:
+	case TACNA_CHARGE_PUMP1:
 	case TACNA_OUTPUT_RATE1:
 	case TACNA_LDO2_CTRL1:
 	case TACNA_MICBIAS_CTRL1:
