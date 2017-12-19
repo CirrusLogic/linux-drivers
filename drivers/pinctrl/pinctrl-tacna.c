@@ -51,6 +51,10 @@ static const struct pinctrl_pin_desc tacna_pins[] = {
 	PINCTRL_PIN(20, "gpio21"),
 	PINCTRL_PIN(21, "gpio22"),
 	PINCTRL_PIN(22, "gpio23"),
+	PINCTRL_PIN(23, "gpio24"),
+	PINCTRL_PIN(24, "gpio25"),
+	PINCTRL_PIN(25, "gpio26"),
+	PINCTRL_PIN(26, "gpio27"),
 };
 
 /*
@@ -66,18 +70,19 @@ static const char * const tacna_pin_single_group_names[] = {
 	"gpio1",  "gpio2",  "gpio3",  "gpio4",  "gpio5",  "gpio6",  "gpio7",
 	"gpio8",  "gpio9",  "gpio10", "gpio11", "gpio12", "gpio13", "gpio14",
 	"gpio15", "gpio16", "gpio17", "gpio18", "gpio19", "gpio20", "gpio21",
-	"gpio22", "gpio23",
+	"gpio22", "gpio23", "gpio24", "gpio25", "gpio26", "gpio27",
 };
 
 /* set of pin numbers for single-pin groups */
 static const unsigned int tacna_pin_single_group_pins[] = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-	20, 21, 22,
+	20, 21, 22, 23, 24, 25, 26,
 };
 
 static const char * const tacna_asp2_group_names[] = { "asp2" };
 static const char * const tacna_asp3_group_names[] = { "asp3" };
 static const char * const tacna_asp4_group_names[] = { "asp4" };
+static const char * const tacna_asp1ao_group_names[] = { "asp1ao" };
 static const char * const tacna_dsd1_group_names[] = { "dsd1" };
 static const char * const tacna_in3pdm_group_names[] = { "in3-pdm" };
 static const char * const tacna_in4pdm_group_names[] = { "in4-pdm" };
@@ -92,6 +97,11 @@ static const struct {
 	const char * const *group_names;
 	u32 func;
 } tacna_mux_funcs[] = {
+	{
+		.name = "asp1ao",
+		.group_names = tacna_asp1ao_group_names,
+		.func = 0x000
+	},
 	{
 		.name = "asp2",
 		.group_names = tacna_asp2_group_names,
@@ -504,6 +514,33 @@ const struct tacna_pin_chip cs47l94_pin_chip = {
 	.n_pins = CS47L94_NUM_GPIOS,
 	.pin_groups = cs47l94_pin_groups,
 	.n_pin_groups = ARRAY_SIZE(cs47l94_pin_groups),
+};
+#endif
+
+#ifdef CONFIG_PINCTRL_CS47L96
+/* Note - all 1 less than in datasheet because these are zero-indexed */
+static const unsigned int cs47l96_asp2_pins[] = { 8, 9, 10, 11 };
+static const unsigned int cs47l96_asp3_pins[] = { 12, 13, 14, 15 };
+static const unsigned int cs47l96_asp1ao_pins[] = { 19, 20, 21, 22 };
+static const unsigned int cs47l96_dsd1_pins[] = { 16, 17, 18 };
+static const unsigned int cs47l96_in3pdm_pins[] = { 4, 5 };
+static const unsigned int cs47l96_in4pdm_pins[] = { 6, 7 };
+static const unsigned int cs47l96_out5pdm_pins[] = { 2, 3 };
+
+static const struct tacna_pin_groups cs47l96_pin_groups[] = {
+	{ "asp2", cs47l96_asp2_pins, ARRAY_SIZE(cs47l96_asp2_pins) },
+	{ "asp3", cs47l96_asp3_pins, ARRAY_SIZE(cs47l96_asp3_pins) },
+	{ "asp1ao", cs47l96_asp1ao_pins, ARRAY_SIZE(cs47l96_asp1ao_pins) },
+	{ "dsd1", cs47l96_dsd1_pins, ARRAY_SIZE(cs47l96_dsd1_pins) },
+	{ "in3-pdm", cs47l96_in3pdm_pins, ARRAY_SIZE(cs47l96_in3pdm_pins) },
+	{ "in4-pdm", cs47l96_in4pdm_pins, ARRAY_SIZE(cs47l96_in4pdm_pins) },
+	{ "out5-pdm", cs47l96_out5pdm_pins, ARRAY_SIZE(cs47l96_out5pdm_pins) },
+};
+
+const struct tacna_pin_chip cs47l96_pin_chip = {
+	.n_pins = CS47L96_NUM_GPIOS,
+	.pin_groups = cs47l96_pin_groups,
+	.n_pin_groups = ARRAY_SIZE(cs47l96_pin_groups),
 };
 #endif
 
@@ -1000,6 +1037,12 @@ static int tacna_pin_probe(struct platform_device *pdev)
 	case CS47L95:
 #ifdef CONFIG_PINCTRL_CS47L94
 		priv->chip = &cs47l94_pin_chip;
+#endif
+		break;
+	case CS47L96:
+	case CS47L97:
+#ifdef CONFIG_PINCTRL_CS47L96
+		priv->chip = &cs47l96_pin_chip;
 #endif
 		break;
 	default:
