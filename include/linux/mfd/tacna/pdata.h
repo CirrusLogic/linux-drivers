@@ -18,6 +18,7 @@
 #include <sound/tacna-pdata.h>
 
 #define CS47L94_NUM_GPIOS		23
+#define CS47L96_NUM_GPIOS		27
 
 #define TACNA_MAX_MICBIAS		2
 #define TACNA_MAX_CHILD_MICBIAS		4
