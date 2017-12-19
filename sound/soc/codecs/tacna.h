@@ -78,8 +78,15 @@
 #define TACNA_CLK_SRC_FLL3_DSP_DIV2	0x16
 
 #define TACNA_MIXER_VOL_MASK		0x00FE0000
-#define TACNA_MIXER_VOL_SHIFT		17
-#define TACNA_MIXER_VOL_WIDTH		7
+#define TACNA_MIXER_VOL_SHIFT			17
+#define TACNA_MIXER_VOL_WIDTH			 7
+#define TACNA_MIXER_STS			0x00008000
+#define TACNA_MIXER_STS_MASK		0x00008000
+#define TACNA_MIXER_STS_SHIFT			15
+#define TACNA_MIXER_STS_WIDTH			 1
+#define TACNA_MIXER_SRC_MASK		0x000001ff
+#define TACNA_MIXER_SRC_SHIFT			 0
+#define TACNA_MIXER_SRC_WIDTH			 9
 
 #define TACNA_MAX_DAI			11
 #define TACNA_MAX_DSP			2
@@ -116,7 +123,8 @@
 
 #define TACNA_MUX_ENUM_DECL(name, reg) \
 	SOC_VALUE_ENUM_SINGLE_AUTODISABLE_DECL( \
-		name, reg, 0, 0x1ff, tacna_mixer_texts, tacna_mixer_values)
+		name, reg, 0, TACNA_MIXER_SRC_MASK, \
+		tacna_mixer_texts, tacna_mixer_values)
 
 #define TACNA_MUX_CTL_DECL(name) \
 	const struct snd_kcontrol_new name##_mux =	\
