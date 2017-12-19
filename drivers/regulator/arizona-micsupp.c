@@ -219,9 +219,9 @@ static const struct regulator_desc tacna_micsupp = {
 
 	.vsel_reg = TACNA_LDO2_CTRL1,
 	.vsel_mask = TACNA_LDO2_VSEL_MASK,
-	.enable_reg = TACNA_MIC_CHARGE_PUMP1,
+	.enable_reg = TACNA_CHARGE_PUMP1,
 	.enable_mask = TACNA_CP2_EN,
-	.bypass_reg = TACNA_MIC_CHARGE_PUMP1,
+	.bypass_reg = TACNA_CHARGE_PUMP1,
 	.bypass_mask = TACNA_CP2_BYPASS,
 
 	.linear_ranges = arizona_micsupp_ext_ranges,
