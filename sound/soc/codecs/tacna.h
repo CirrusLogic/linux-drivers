@@ -178,7 +178,7 @@
 	TACNA_MIXER_INPUT_ROUTES(name " Input 3"),	\
 	TACNA_MIXER_INPUT_ROUTES(name " Input 4")
 
-#define TACNA_DSP_ROUTES(name)				\
+#define TACNA_DSP_ROUTES_1_8(name)			\
 	{ name, NULL, name " Preloader" },		\
 	{ name " Preloader", NULL, "SYSCLK" },		\
 	{ name " Preloader", NULL, "DSPCLK" },		\
@@ -191,6 +191,13 @@
 	TACNA_MIXER_ROUTES(name, name "RX6"),		\
 	TACNA_MIXER_ROUTES(name, name "RX7"),		\
 	TACNA_MIXER_ROUTES(name, name "RX8")		\
+
+#define TACNA_DSP_ROUTES_1_12(name)			\
+	TACNA_DSP_ROUTES_1_8(name),			\
+	TACNA_MIXER_ROUTES(name, name "RX9"),		\
+	TACNA_MIXER_ROUTES(name, name "RX10"),		\
+	TACNA_MIXER_ROUTES(name, name "RX11"),		\
+	TACNA_MIXER_ROUTES(name, name "RX12")		\
 
 #define TACNA_SAMPLE_RATE_CONTROL(name, domain) \
 	SOC_ENUM(name, tacna_sample_rate[(domain) - 2])
@@ -451,7 +458,8 @@ int tacna_dsp_rate_get(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol);
 int tacna_dsp_rate_put(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol);
-extern const struct snd_kcontrol_new tacna_dsp_rate_controls[];
+extern int tacna_dsp_add_codec_controls(struct snd_soc_codec *codec,
+					unsigned int dsp_n);
 
 int tacna_dsp_memory_enable(struct tacna_priv *priv, unsigned int dsp_num);
 void tacna_dsp_memory_disable(struct tacna_priv *priv, unsigned int dsp_num);

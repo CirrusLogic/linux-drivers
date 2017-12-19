@@ -2630,8 +2630,8 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	TACNA_MUX_ROUTES("ISRC2DEC1", "ISRC2DEC1"),
 	TACNA_MUX_ROUTES("ISRC2DEC2", "ISRC2DEC2"),
 
-	TACNA_DSP_ROUTES("DSP1"),
-	TACNA_DSP_ROUTES("DSP2"),
+	TACNA_DSP_ROUTES_1_8("DSP1"),
+	TACNA_DSP_ROUTES_1_8("DSP2"),
 
 	{ "DSP Trigger Out", NULL, "DSP1 Trigger Output" },
 	{ "DSP Trigger Out", NULL, "DSP2 Trigger Output" },
@@ -3073,10 +3073,7 @@ static int cs47l94_codec_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	ret = snd_soc_add_codec_controls(codec, tacna_dsp_rate_controls,
-					 CS47L94_NUM_DSP *
-					 (CS47L94_DSP_N_RX_CHANNELS +
-					  CS47L94_DSP_N_TX_CHANNELS));
+	ret = tacna_dsp_add_codec_controls(codec, CS47L94_NUM_DSP);
 	if (ret)
 		return ret;
 
