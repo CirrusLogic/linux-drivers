@@ -3266,7 +3266,7 @@ static int cs47l94_probe(struct platform_device *pdev)
 		tacna_init_fll(&cs47l94->core,
 			       i + 1,
 			       TACNA_FLL1_CONTROL1 + i * 0x100,
-			       TACNA_IRQ1_STS6,
+			       TACNA_IRQ1_STS_6,
 			       TACNA_FLL1_LOCK_STS1_MASK << (2 * i),
 			       &cs47l94->fll[i]);
 

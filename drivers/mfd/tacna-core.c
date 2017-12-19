@@ -91,7 +91,7 @@ static int tacna_wait_for_boot(struct tacna *tacna)
 	 * we won't race with the interrupt handler as it'll be blocked on
 	 * runtime resume.
 	 */
-	ret = regmap_read_poll_timeout(tacna->regmap, TACNA_IRQ1_EINT2, val,
+	ret = regmap_read_poll_timeout(tacna->regmap, TACNA_IRQ1_EINT_2, val,
 				       (val & TACNA_BOOT_DONE_EINT1_MASK),
 				       TACNA_BOOT_POLL_MICROSECONDS,
 				       TACNA_BOOT_TIMEOUT_MICROSECONDS);

@@ -1488,15 +1488,15 @@ static int tacna_jack_present(struct tacna_extcon *info)
 	unsigned int val;
 	int ret;
 
-	ret = regmap_read(tacna->regmap, TACNA_AOD_IRQ_RAW_STS, &val);
+	ret = regmap_read(tacna->regmap, TACNA_IRQ1_STS_AOD, &val);
 	if (ret) {
 		dev_err(info->dev, "Failed to read jackdet status: %d\n", ret);
 		return ret;
 	}
 
-	dev_dbg(info->dev, "AOD_IRQ_RAW_STS=0x%x\n", val);
+	dev_dbg(info->dev, "IRQ1_STS_AOD=0x%x\n", val);
 
-	return (val & TACNA_MICD_CLAMP_STS) == 0;
+	return (val & TACNA_MICD_CLAMP_STS1) == 0;
 }
 
 static irqreturn_t tacna_hpdet_handler(int irq, void *data)
@@ -2470,7 +2470,7 @@ static int tacna_extcon_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	info->last_jackdet = ~TACNA_MICD_CLAMP_STS;
+	info->last_jackdet = ~TACNA_MICD_CLAMP_STS1;
 
 	info->edev = devm_extcon_dev_allocate(&pdev->dev, tacna_cable);
 	if (IS_ERR(info->edev)) {
