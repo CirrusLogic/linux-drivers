@@ -51,6 +51,12 @@ static const struct regmap_irq tacna_main_irqs[TACNA_NUM_MAIN_IRQ] = {
 	[TACNA_IRQ_OUT2L_SC] = {
 		.reg_offset = 0x00, .mask = TACNA_OUT2L_SC_EINT1_MASK,
 	},
+	[TACNA_IRQ_DSP1_IRQ0] = {
+		.reg_offset = 0x20, .mask = TACNA_DSP1_IRQ0_EINT1_MASK,
+	},
+	[TACNA_IRQ_DSP2_IRQ0] = {
+		.reg_offset = 0x20, .mask = TACNA_DSP2_IRQ0_EINT1_MASK,
+	},
 	[TACNA_IRQ_DSP1_IRQ1] = {
 		.reg_offset = 0x20, .mask = TACNA_DSP1_IRQ1_EINT1_MASK,
 	},
@@ -68,12 +74,6 @@ static const struct regmap_irq tacna_main_irqs[TACNA_NUM_MAIN_IRQ] = {
 	},
 	[TACNA_IRQ_DSP2_IRQ3] = {
 		.reg_offset = 0x20, .mask = TACNA_DSP2_IRQ3_EINT1_MASK,
-	},
-	[TACNA_IRQ_DSP1_IRQ4] = {
-		.reg_offset = 0x20, .mask = TACNA_DSP1_IRQ4_EINT1_MASK,
-	},
-	[TACNA_IRQ_DSP2_IRQ4] = {
-		.reg_offset = 0x20, .mask = TACNA_DSP2_IRQ4_EINT1_MASK,
 	},
 	[TACNA_IRQ_US1_ACT_DET_RISE] = {
 		.reg_offset = 0x10, .mask = TACNA_US1_ACT_DET_RISE_EINT1_MASK,
