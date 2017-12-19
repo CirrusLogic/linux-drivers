@@ -3202,19 +3202,19 @@ static int cs47l94_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "Failed to get OUTH disable IRQ: %d\n",
 			 ret);
 
-	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP1_IRQ1,
+	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP1_IRQ0,
 				"DSP1 Buffer IRQ", cs47l94_dsp1_irq,
 				cs47l94);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "Failed to request DSP1_IRQ1: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to request DSP1_IRQ0: %d\n", ret);
 		goto error_dsp1_irq;
 	}
 
-	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP2_IRQ1,
+	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP2_IRQ0,
 				"DSP2 Buffer IRQ", cs47l94_dsp2_irq,
 				cs47l94);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "Failed to request DSP2_IRQ1: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to request DSP2_IRQ0: %d\n", ret);
 		goto error_dsp2_irq;
 	}
 
@@ -3305,9 +3305,9 @@ error_dsp:
 	for (i = 0; i < CS47L94_NUM_DSP; ++i)
 		wm_adsp2_remove(&cs47l94->core.dsp[i]);
 error_core:
-	tacna_free_irq(tacna, TACNA_IRQ_DSP2_IRQ1, cs47l94);
+	tacna_free_irq(tacna, TACNA_IRQ_DSP2_IRQ0, cs47l94);
 error_dsp2_irq:
-	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ1, cs47l94);
+	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ0, cs47l94);
 error_dsp1_irq:
 	tacna_core_destroy(&cs47l94->core);
 	tacna_free_irq(tacna, TACNA_IRQ_OUTH_ENABLE_DONE, cs47l94);
@@ -3332,8 +3332,8 @@ static int cs47l94_remove(struct platform_device *pdev)
 	tacna_free_irq(tacna, TACNA_IRQ_OUTH_ENABLE_DONE, cs47l94);
 	tacna_free_irq(tacna, TACNA_IRQ_OUTH_DISABLE_DONE, cs47l94);
 
-	tacna_free_irq(tacna, TACNA_IRQ_DSP2_IRQ1, cs47l94);
-	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ1, cs47l94);
+	tacna_free_irq(tacna, TACNA_IRQ_DSP2_IRQ0, cs47l94);
+	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ0, cs47l94);
 
 	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
 		wm_adsp2_remove(&cs47l94->core.dsp[i]);
