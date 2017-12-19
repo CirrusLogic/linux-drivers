@@ -128,7 +128,7 @@ static const struct reg_default cs47l94_reg_default[] = {
 	{ 0x00002710, 0x00004400 }, /* IRQ1_CTRL_AOD */
 	{ 0x00002718, 0x00004002 }, /* AOD_PAD_CTRL */
 	{ 0x00002728, 0xffffffff }, /* IRQ1_MASK_AOD */
-	{ 0x00002734, 0x0000006c }, /* AOD_EOS_CONTROL */
+	{ 0x00002734, 0x0000006c }, /* IRQ_EOS_CTRL_AOD */
 	{ 0x00003000, 0x00000000 }, /* HPDET1_CONTROL1 */
 	{ 0x00003200, 0x00101102 }, /* MICDET1_CONTROL1 */
 	{ 0x00003204, 0x0000009f }, /* MICDET1_CONTROL2 */
@@ -896,25 +896,25 @@ static const struct reg_default cs47l94_reg_default[] = {
 	{ 0x00017160, 0x00000003 }, /* DSP2_PM_SRAM_IBUS_SETUP_3 */
 	{ 0x00017560, 0x00000000 }, /* FLL_DSP_CTRL */
 	{ 0x00018000, 0x00000000 }, /* IRQ1_CFG */
-	{ 0x00018110, 0xffffffff }, /* IRQ1_MASK1 */
-	{ 0x00018114, 0xffffffff }, /* IRQ1_MASK2 */
-	{ 0x00018118, 0xffffffff }, /* IRQ1_MASK3 */
-	{ 0x0001811c, 0xffffffff }, /* IRQ1_MASK4 */
-	{ 0x00018120, 0xffffffff }, /* IRQ1_MASK5 */
-	{ 0x00018124, 0xffffffff }, /* IRQ1_MASK6 */
-	{ 0x00018128, 0xffffffff }, /* IRQ1_MASK7 */
-	{ 0x0001812c, 0xffffffff }, /* IRQ1_MASK8 */
-	{ 0x00018130, 0xffffffff }, /* IRQ1_MASK9 */
-	{ 0x00018134, 0xffffffff }, /* IRQ1_MASK10 */
-	{ 0x00018138, 0xffffffff }, /* IRQ1_MASK11 */
-	{ 0x0001813c, 0xffffffff }, /* IRQ1_MASK12 */
-	{ 0x00018140, 0xffffffff }, /* IRQ1_MASK13 */
-	{ 0x00018144, 0xffffffff }, /* IRQ1_MASK14 */
-	{ 0x00018148, 0xffffffff }, /* IRQ1_MASK15 */
-	{ 0x0001814c, 0xffffffff }, /* IRQ1_MASK16 */
-	{ 0x00018150, 0xffffffff }, /* IRQ1_MASK17 */
-	{ 0x00018154, 0xffffffff }, /* IRQ1_MASK18 */
-	{ 0x00018238, 0xffff0000 }, /* IRQ1_EDGE11 */
+	{ 0x00018110, 0xffffffff }, /* IRQ1_MASK_1 */
+	{ 0x00018114, 0xffffffff }, /* IRQ1_MASK_2 */
+	{ 0x00018118, 0xffffffff }, /* IRQ1_MASK_3 */
+	{ 0x0001811c, 0xffffffff }, /* IRQ1_MASK_4 */
+	{ 0x00018120, 0xffffffff }, /* IRQ1_MASK_5 */
+	{ 0x00018124, 0xffffffff }, /* IRQ1_MASK_6 */
+	{ 0x00018128, 0xffffffff }, /* IRQ1_MASK_7 */
+	{ 0x0001812c, 0xffffffff }, /* IRQ1_MASK_8 */
+	{ 0x00018130, 0xffffffff }, /* IRQ1_MASK_9 */
+	{ 0x00018134, 0xffffffff }, /* IRQ1_MASK_10 */
+	{ 0x00018138, 0xffffffff }, /* IRQ1_MASK_11 */
+	{ 0x0001813c, 0xffffffff }, /* IRQ1_MASK_12 */
+	{ 0x00018140, 0xffffffff }, /* IRQ1_MASK_13 */
+	{ 0x00018144, 0xffffffff }, /* IRQ1_MASK_14 */
+	{ 0x00018148, 0xffffffff }, /* IRQ1_MASK_15 */
+	{ 0x0001814c, 0xffffffff }, /* IRQ1_MASK_16 */
+	{ 0x00018150, 0xffffffff }, /* IRQ1_MASK_17 */
+	{ 0x00018154, 0xffffffff }, /* IRQ1_MASK_18 */
+	{ 0x00018238, 0xffff0000 }, /* IRQ1_EDGE_11 */
 	{ 0x00018800, 0x00000000 }, /* IRQ3_CFG */
 	{ 0x00018834, 0x000000ff }, /* IRQ3_MASK2 */
 };
@@ -1113,11 +1113,11 @@ static bool cs47l94_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_JACK_DETECT:
 	case TACNA_IRQ1_CTRL_AOD:
 	case TACNA_AOD_PAD_CTRL:
-	case TACNA_IRQ1_STATUS_AOD:
+	case TACNA_IRQ1_EINT_AOD:
 	case TACNA_IRQ1_MASK_AOD:
-	case TACNA_AOD_IRQ_RAW_STS:
+	case TACNA_IRQ1_STS_AOD:
 	case TACNA_AOD_EOS_STS:
-	case TACNA_AOD_EOS_CONTROL:
+	case TACNA_IRQ_EOS_CTRL_AOD:
 	case TACNA_HPDET1_CONTROL1:
 	case TACNA_HPDET1_STATUS1:
 	case TACNA_MICDET1_CONTROL1:
@@ -1820,9 +1820,9 @@ static bool cs47l94_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_FLL_DSP_CTRL:
 	case TACNA_IRQ1_CFG:
 	case TACNA_IRQ1_STATUS:
-	case TACNA_IRQ1_EINT1 ... TACNA_IRQ1_EINT18:
-	case TACNA_IRQ1_STS1 ... TACNA_IRQ1_STS13:
-	case TACNA_IRQ1_MASK1 ... TACNA_IRQ1_MASK18:
+	case TACNA_IRQ1_EINT_1 ... TACNA_IRQ1_EINT_18:
+	case TACNA_IRQ1_STS_1 ... TACNA_IRQ1_STS_13:
+	case TACNA_IRQ1_MASK_1 ... TACNA_IRQ1_MASK_18:
 	case TACNA_IRQ3_CFG:
 	case TACNA_IRQ3_STATUS:
 	case TACNA_IRQ3_EINT2:
@@ -1870,8 +1870,8 @@ static bool cs47l94_volatile_register(struct device *dev, unsigned int reg)
 	case TACNA_DAC_CLK_CONTROL3:
 	case TACNA_OUTHL_CONTROL1:
 	case TACNA_OUTHR_CONTROL1:
-	case TACNA_IRQ1_STATUS_AOD:
-	case TACNA_AOD_IRQ_RAW_STS:
+	case TACNA_IRQ1_EINT_AOD:
+	case TACNA_IRQ1_STS_AOD:
 	case TACNA_AOD_EOS_STS:
 	case TACNA_HPDET1_STATUS1:
 	case TACNA_MICDET1_STATUS1:
@@ -1887,8 +1887,8 @@ static bool cs47l94_volatile_register(struct device *dev, unsigned int reg)
 	case TACNA_DFC1_STATUS:
 	case TACNA_HAPTICS_STATUS:
 	case TACNA_IRQ1_STATUS:
-	case TACNA_IRQ1_EINT1 ... TACNA_IRQ1_EINT18:
-	case TACNA_IRQ1_STS1 ... TACNA_IRQ1_STS13:
+	case TACNA_IRQ1_EINT_1 ... TACNA_IRQ1_EINT_18:
+	case TACNA_IRQ1_STS_1 ... TACNA_IRQ1_STS_13:
 	case TACNA_SW_TRIGGER_MSTR1:
 	case TACNA_SW_TRIGGER_MSTR2:
 		return true;

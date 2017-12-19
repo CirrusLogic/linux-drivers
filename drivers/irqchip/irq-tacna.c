@@ -305,10 +305,10 @@ static const struct regmap_irq tacna_aod_irqs[TACNA_NUM_AOD_IRQ] = {
 		.reg_offset =  0, .mask = TACNA_JD2_FALL_EINT1_MASK,
 	},
 	[TACNA_AOD_IRQ_OFFSET(TACNA_IRQ_AOD_MICD_CLAMP1_RISE)] = {
-		.reg_offset =  0, .mask = TACNA_MICD_CLAMP_RISE_EINT1_MASK,
+		.reg_offset =  0, .mask = TACNA_MICD_CLAMP1_RISE_EINT1_MASK,
 	},
 	[TACNA_AOD_IRQ_OFFSET(TACNA_IRQ_AOD_MICD_CLAMP1_FALL)] = {
-		.reg_offset =  0, .mask = TACNA_MICD_CLAMP_FALL_EINT1_MASK,
+		.reg_offset =  0, .mask = TACNA_MICD_CLAMP1_FALL_EINT1_MASK,
 	},
 	[TACNA_AOD_IRQ_OFFSET(TACNA_IRQ_AOD_JD3_RISE)] = {
 		.reg_offset =  0, .mask = TACNA_JD3_RISE_EINT1_MASK,
@@ -326,9 +326,9 @@ static const struct regmap_irq tacna_aod_irqs[TACNA_NUM_AOD_IRQ] = {
 
 static const struct regmap_irq_chip tacna_main_irqchip = {
 	.name = "tacna IRQ",
-	.status_base = TACNA_IRQ1_EINT1,
-	.mask_base = TACNA_IRQ1_MASK1,
-	.ack_base = TACNA_IRQ1_EINT1,
+	.status_base = TACNA_IRQ1_EINT_1,
+	.mask_base = TACNA_IRQ1_MASK_1,
+	.ack_base = TACNA_IRQ1_EINT_1,
 	.runtime_pm = true, /* codec must be resumed to read IRQ status */
 	.num_regs = 12,
 	.irqs = tacna_main_irqs,
@@ -337,9 +337,9 @@ static const struct regmap_irq_chip tacna_main_irqchip = {
 
 static const struct regmap_irq_chip tacna_aod_irqchip = {
 	.name = "tacna AOD IRQ",
-	.status_base = TACNA_IRQ1_STATUS_AOD,
+	.status_base = TACNA_IRQ1_EINT_AOD,
 	.mask_base = TACNA_IRQ1_MASK_AOD,
-	.ack_base = TACNA_IRQ1_STATUS_AOD,
+	.ack_base = TACNA_IRQ1_EINT_AOD,
 	.runtime_pm = true, /* codec must be resumed to read IRQ status */
 	.num_regs = 1,
 	.irqs = tacna_aod_irqs,
@@ -418,7 +418,7 @@ static irqreturn_t tacna_irq_thread(int irq, void *data)
 	}
 
 	/* Check whether AOD interrupts are pending */
-	ret = regmap_read(tacna->regmap, TACNA_IRQ1_STATUS_AOD, &val);
+	ret = regmap_read(tacna->regmap, TACNA_IRQ1_EINT_AOD, &val);
 	if (ret) {
 		dev_warn(priv->dev, "Failed to read AOD IRQ1 %d\n", ret);
 	} else {
@@ -438,7 +438,7 @@ static irqreturn_t tacna_irq_thread(int irq, void *data)
 	ret = regmap_read(tacna->regmap, TACNA_IRQ1_STATUS, &val);
 	if (ret) {
 		dev_warn(priv->dev, "Failed to read IRQ1_STATUS %d\n", ret);
-	} else if (val & TACNA_IRQ1_PENDING_MASK) {
+	} else if (val & TACNA_IRQ1_STS_MASK) {
 		result = IRQ_HANDLED;
 		handle_nested_irq(irq_find_mapping(priv->virq,
 						   TACNA_MAIN_VIRQ_INDEX));
