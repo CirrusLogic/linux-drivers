@@ -61,7 +61,7 @@ static const struct reg_default cs47l94_reg_default[] = {
 	{ 0x00000c58, 0xe1000001 }, /* GPIO21_CTRL1 */
 	{ 0x00000c5c, 0xe1000001 }, /* GPIO22_CTRL1 */
 	{ 0x00000c60, 0xe1000001 }, /* GPIO23_CTRL1 */
-	{ 0x00001004, 0x00000300 }, /* CIF1_CFG_1 */
+	{ 0x00001004, 0x00000300 }, /* SPI1_CFG_1 */
 	{ 0x00001010, 0x00000200 }, /* CTRL_IF_CFG2 */
 	{ 0x00001020, 0x00000000 }, /* OUTPUT_SYS_CLK */
 	{ 0x00001024, 0x00000000 }, /* OUTPUT_ASYNC_CLK */
@@ -1025,7 +1025,7 @@ static bool cs47l94_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_GPIO21_CTRL1:
 	case TACNA_GPIO22_CTRL1:
 	case TACNA_GPIO23_CTRL1:
-	case TACNA_CIF1_CFG_1:
+	case TACNA_SPI1_CFG_1:
 	case TACNA_CTRL_IF_CFG2:
 	case TACNA_OUTPUT_SYS_CLK:
 	case TACNA_OUTPUT_ASYNC_CLK:
