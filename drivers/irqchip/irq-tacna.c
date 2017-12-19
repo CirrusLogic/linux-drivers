@@ -174,17 +174,11 @@ static const struct regmap_irq tacna_main_irqs[TACNA_NUM_MAIN_IRQ] = {
 	[TACNA_IRQ_OUT2L_DISABLE_DONE] = {
 		.reg_offset = 0x08, .mask = TACNA_OUT2L_DISABLE_DONE_EINT1_MASK,
 	},
-	[TACNA_IRQ_OUTHR_ENABLE_DONE] = {
-		.reg_offset = 0x08, .mask = TACNA_OUTHR_ENABLE_DONE_EINT1_MASK,
+	[TACNA_IRQ_OUTH_ENABLE_DONE] = {
+		.reg_offset = 0x08, .mask = TACNA_OUTH_ENABLE_DONE_EINT1_MASK,
 	},
-	[TACNA_IRQ_OUTHL_ENABLE_DONE] = {
-		.reg_offset = 0x08, .mask = TACNA_OUTHL_ENABLE_DONE_EINT1_MASK,
-	},
-	[TACNA_IRQ_OUTHR_DISABLE_DONE] = {
-		.reg_offset = 0x08, .mask = TACNA_OUTHR_DISABLE_DONE_EINT1_MASK,
-	},
-	[TACNA_IRQ_OUTHL_DISABLE_DONE] = {
-		.reg_offset = 0x08, .mask = TACNA_OUTHL_DISABLE_DONE_EINT1_MASK,
+	[TACNA_IRQ_OUTH_DISABLE_DONE] = {
+		.reg_offset = 0x08, .mask = TACNA_OUTH_DISABLE_DONE_EINT1_MASK,
 	},
 	[TACNA_IRQ_DRC1_SIG_DET_RISE] = {
 		.reg_offset = 0x10, .mask = TACNA_DRC1_SIG_DET_RISE_EINT1_MASK,

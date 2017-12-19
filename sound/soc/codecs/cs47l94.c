@@ -3190,13 +3190,13 @@ static int cs47l94_probe(struct platform_device *pdev)
 	init_completion(&cs47l94->outh_enabled);
 	init_completion(&cs47l94->outh_disabled);
 
-	ret = tacna_request_irq(tacna, TACNA_IRQ_OUTHL_ENABLE_DONE,
+	ret = tacna_request_irq(tacna, TACNA_IRQ_OUTH_ENABLE_DONE,
 				"OUTH enable", cs47l94_outh_enable, cs47l94);
 	if (ret)
 		dev_warn(&pdev->dev, "Failed to get OUTH enable IRQ: %d\n",
 			 ret);
 
-	ret = tacna_request_irq(tacna, TACNA_IRQ_OUTHL_DISABLE_DONE,
+	ret = tacna_request_irq(tacna, TACNA_IRQ_OUTH_DISABLE_DONE,
 				"OUTH enable", cs47l94_outh_disable, cs47l94);
 	if (ret)
 		dev_warn(&pdev->dev, "Failed to get OUTH disable IRQ: %d\n",
@@ -3310,8 +3310,8 @@ error_dsp2_irq:
 	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ1, cs47l94);
 error_dsp1_irq:
 	tacna_core_destroy(&cs47l94->core);
-	tacna_free_irq(tacna, TACNA_IRQ_OUTHL_ENABLE_DONE, cs47l94);
-	tacna_free_irq(tacna, TACNA_IRQ_OUTHL_DISABLE_DONE, cs47l94);
+	tacna_free_irq(tacna, TACNA_IRQ_OUTH_ENABLE_DONE, cs47l94);
+	tacna_free_irq(tacna, TACNA_IRQ_OUTH_DISABLE_DONE, cs47l94);
 
 	return ret;
 }
@@ -3329,8 +3329,8 @@ static int cs47l94_remove(struct platform_device *pdev)
 	tacna_free_irq(tacna, TACNA_IRQ_DSP2_MPU_ERR, &cs47l94->core.dsp[1]);
 	tacna_free_irq(tacna, TACNA_IRQ_DSP1_MPU_ERR, &cs47l94->core.dsp[0]);
 
-	tacna_free_irq(tacna, TACNA_IRQ_OUTHL_ENABLE_DONE, cs47l94);
-	tacna_free_irq(tacna, TACNA_IRQ_OUTHL_DISABLE_DONE, cs47l94);
+	tacna_free_irq(tacna, TACNA_IRQ_OUTH_ENABLE_DONE, cs47l94);
+	tacna_free_irq(tacna, TACNA_IRQ_OUTH_DISABLE_DONE, cs47l94);
 
 	tacna_free_irq(tacna, TACNA_IRQ_DSP2_IRQ1, cs47l94);
 	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ1, cs47l94);
