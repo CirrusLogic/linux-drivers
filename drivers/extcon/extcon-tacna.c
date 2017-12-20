@@ -1228,7 +1228,7 @@ int tacna_micd_start(struct tacna_extcon *info)
 	dev_dbg(info->dev, "Disabling MICD_OVD\n");
 	regmap_update_bits(tacna->regmap,
 			   TACNA_MICD_CLAMP_CONTROL,
-			   TACNA_MICD_CLAMP_OVD_MASK, 0);
+			   TACNA_MICD_CLAMP1_OVD_MASK, 0);
 
 	ret = regulator_enable(info->micvdd);
 	if (ret)
@@ -1265,7 +1265,7 @@ void tacna_micd_stop(struct tacna_extcon *info)
 
 	dev_dbg(info->dev, "Enabling MICD_OVD\n");
 	regmap_update_bits(tacna->regmap, TACNA_MICD_CLAMP_CONTROL,
-			   TACNA_MICD_CLAMP_OVD_MASK, TACNA_MICD_CLAMP_OVD);
+			   TACNA_MICD_CLAMP1_OVD_MASK, TACNA_MICD_CLAMP1_OVD);
 
 	pm_runtime_mark_last_busy(info->dev);
 	pm_runtime_put_autosuspend(info->dev);
@@ -2185,9 +2185,9 @@ static void tacna_extcon_set_micd_clamp_mode(struct tacna_extcon *info)
 
 		regmap_update_bits(info->tacna->regmap,
 				   TACNA_MICD_CLAMP_CONTROL,
-				   TACNA_MICD_CLAMP_MODE_MASK,
+				   TACNA_MICD_CLAMP1_MODE_MASK,
 				   clamp_ctrl_val <<
-				   TACNA_MICD_CLAMP_MODE_SHIFT);
+				   TACNA_MICD_CLAMP1_MODE_SHIFT);
 	}
 
 	regmap_update_bits(info->tacna->regmap,
@@ -2347,7 +2347,7 @@ static void tacna_configure_jds(struct tacna_extcon *info)
 		debounce_val = 0;
 		analogue_val = 0;
 		dev_warn(info->dev,
-			 "%u is not a valid MICD_CLAMP_MODE.\n",
+			 "%u is not a valid MICD_CLAMP1_MODE.\n",
 			 info->pdata->micd_clamp_mode);
 		break;
 	}
@@ -2659,7 +2659,7 @@ static int tacna_extcon_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	regmap_update_bits(tacna->regmap, TACNA_MICD_CLAMP_CONTROL,
-			   TACNA_MICD_CLAMP_MODE_MASK, 0);
+			   TACNA_MICD_CLAMP1_MODE_MASK, 0);
 
 	tacna_set_irq_wake(tacna, TACNA_IRQ_AOD_MICD_CLAMP1_RISE, 0);
 	tacna_set_irq_wake(tacna, TACNA_IRQ_AOD_MICD_CLAMP1_FALL, 0);
