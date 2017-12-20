@@ -337,8 +337,8 @@ static void cs47l94_extcon_hp_clamp(struct tacna_extcon *info)
 	case CS47L94_OUT_SEL_OUT1R_HP2:
 		ret = regmap_update_bits(tacna->regmap,
 					 TACNA_HP_CTRL,
-					 TACNA_OUT1R_HP2_CLAMP_ON_MASK |
-					 TACNA_OUT1L_HP2_CLAMP_ON_MASK,
+					 TACNA_OUT1R_HP2_CLAMP_EN_MASK |
+					 TACNA_OUT1L_HP2_CLAMP_EN_MASK,
 					 0);
 		if (ret)
 			dev_warn(info->dev,
@@ -396,10 +396,10 @@ static void cs47l94_extcon_hp_unclamp(struct tacna_extcon *info)
 	case CS47L94_OUT_SEL_OUT1R_HP2:
 		ret = regmap_update_bits(tacna->regmap,
 					 TACNA_HP_CTRL,
-					 TACNA_OUT1R_HP2_CLAMP_ON_MASK |
-					 TACNA_OUT1L_HP2_CLAMP_ON_MASK,
-					 TACNA_OUT1R_HP2_CLAMP_ON |
-					 TACNA_OUT1L_HP2_CLAMP_ON);
+					 TACNA_OUT1R_HP2_CLAMP_EN_MASK |
+					 TACNA_OUT1L_HP2_CLAMP_EN_MASK,
+					 TACNA_OUT1R_HP2_CLAMP_EN |
+					 TACNA_OUT1L_HP2_CLAMP_EN);
 		if (ret)
 			dev_warn(info->dev,
 				 "Failed to set OUT1_HP2 clamp: %d\n",
