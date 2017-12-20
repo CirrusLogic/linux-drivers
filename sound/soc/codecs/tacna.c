@@ -795,19 +795,19 @@ static const char * const tacna_auxpdm_freq_texts[] = {
 
 SOC_ENUM_SINGLE_DECL(tacna_auxpdm1_freq,
 		     TACNA_AUXPDM1_CONTROL1,
-		     TACNA_AUXPDM1_CLK_FREQ_SHIFT,
+		     TACNA_AUXPDM1_FREQ_SHIFT,
 		     tacna_auxpdm_freq_texts);
 EXPORT_SYMBOL_GPL(tacna_auxpdm1_freq);
 
 SOC_ENUM_SINGLE_DECL(tacna_auxpdm2_freq,
 		     TACNA_AUXPDM2_CONTROL1,
-		     TACNA_AUXPDM2_CLK_FREQ_SHIFT,
+		     TACNA_AUXPDM2_FREQ_SHIFT,
 		     tacna_auxpdm_freq_texts);
 EXPORT_SYMBOL_GPL(tacna_auxpdm2_freq);
 
 SOC_ENUM_SINGLE_DECL(tacna_auxpdm3_freq,
 		     TACNA_AUXPDM3_CONTROL1,
-		     TACNA_AUXPDM3_CLK_FREQ_SHIFT,
+		     TACNA_AUXPDM3_FREQ_SHIFT,
 		     tacna_auxpdm_freq_texts);
 EXPORT_SYMBOL_GPL(tacna_auxpdm3_freq);
 
