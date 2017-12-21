@@ -47,6 +47,9 @@ Optional properties:
   - reset-gpios : One entry specifying the GPIO controlling RESET_B.
     As defined in bindings/gpio.txt.
 
+  - cirrus,secure : Boolean entry defining whether the part is being used in
+    secure mode.  Secure mode is enabled if the property is present.
+
 Optional child nodes:
   - MICBIASx : Initial data for the MICBIAS regulators, as covered in
     Documentation/devicetree/bindings/regulator/regulator.txt.
