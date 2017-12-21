@@ -414,6 +414,9 @@ static int tacna_prop_get_core_pdata(struct tacna *tacna)
 
 	tacna_prop_get_micbias(tacna);
 
+	tacna->pdata.secure_mode = of_property_read_bool(tacna->dev->of_node,
+							 "cirrus,secure");
+
 	return 0;
 }
 
@@ -701,6 +704,27 @@ int tacna_dev_init(struct tacna *tacna)
 		 tacna->rev >> TACNA_AREVID_SHIFT,
 		 tacna->rev & TACNA_MTLREVID_MASK,
 		 tacna->otp_rev);
+
+	switch (tacna->type) {
+	case CS47L96:
+	case CS47L97:
+		if (tacna->pdata.secure_mode) {
+			ret = regmap_update_bits(tacna->regmap,
+						 TACNA_AO_CTRL2,
+						 TACNA_SECURE_MODE_MASK,
+						 TACNA_SECURE_MODE);
+			if (ret) {
+				dev_err(tacna->dev,
+					"Failed to set secure mode: %d\n",
+					ret);
+				goto err_reset;
+			}
+			n_devs--;
+		}
+		break;
+	default:
+		break;
+	}
 
 	/* Apply hardware patch */
 	if (patch_fn) {
