@@ -18,6 +18,8 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/list.h>
+#include <linux/string.h>
 #include <linux/workqueue.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regmap.h>
@@ -53,6 +55,7 @@ struct cs40l20_private {
 	bool vibe_init_success;
 	struct gpio_desc *reset_gpio;
 	struct cs40l20_platform_data pdata;
+	struct list_head coeff_desc_head;
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 	struct timed_output_dev timed_dev;
 	struct hrtimer vibe_timer;
@@ -65,57 +68,6 @@ static const char * const cs40l20_supplies[] = {
 	"VA",
 	"VP",
 };
-
-static int cs40l20_index_get(struct cs40l20_private *cs40l20,
-		unsigned int index_reg)
-{
-	int ret;
-	unsigned int val;
-
-	mutex_lock(&cs40l20->lock);
-
-	switch (index_reg) {
-	case CS40L20_VIBEGEN_GPIO1_RINDEX:
-	case CS40L20_VIBEGEN_GPIO1_FINDEX:
-		ret = regmap_read(cs40l20->regmap, index_reg, &val);
-		if (!ret)
-			ret = val;
-		break;
-	default:
-		ret = cs40l20->cp_trigger_index;
-	}
-
-	mutex_unlock(&cs40l20->lock);
-
-	return ret;
-}
-
-static int cs40l20_index_set(struct cs40l20_private *cs40l20,
-		unsigned int index_reg, unsigned int index)
-{
-	int ret;
-
-	mutex_lock(&cs40l20->lock);
-
-	if (index > (cs40l20->num_waves - 1))
-		ret = -EACCES;
-	else {
-
-		switch (index_reg) {
-		case CS40L20_VIBEGEN_GPIO1_RINDEX:
-		case CS40L20_VIBEGEN_GPIO1_FINDEX:
-			ret = regmap_write(cs40l20->regmap, index_reg, index);
-			break;
-		default:
-			cs40l20->cp_trigger_index = index;
-			ret = 0;
-		}
-	}
-
-	mutex_unlock(&cs40l20->lock);
-
-	return ret;
-}
 
 static struct cs40l20_private *cs40l20_get_private(struct device *dev)
 {
@@ -133,7 +85,7 @@ static ssize_t cs40l20_cp_trigger_index_show(struct device *dev,
 {
 	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", cs40l20_index_get(cs40l20, 0));
+	return snprintf(buf, PAGE_SIZE, "%d\n", cs40l20->cp_trigger_index);
 }
 
 static ssize_t cs40l20_cp_trigger_index_store(struct device *dev,
@@ -144,28 +96,50 @@ static ssize_t cs40l20_cp_trigger_index_store(struct device *dev,
 	int ret, index;
 
 	ret = kstrtoint(buf, 10, &index);
-	if (ret) {
-		pr_err("Invalid input: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return -EINVAL;
 
-	ret = cs40l20_index_set(cs40l20, 0, index);
-	if (ret) {
-		pr_err("Failed to set index to %d: %d\n", index, ret);
-		return ret;
-	}
+	if (index > (cs40l20->num_waves - 1))
+		return -EINVAL;
+
+	cs40l20->cp_trigger_index = index;
 
 	return count;
+}
+
+static unsigned int cs40l20_dsp_reg(struct cs40l20_private *cs40l20,
+		const char *coeff_name)
+{
+	struct cs40l20_coeff_desc *coeff_desc;
+
+	list_for_each_entry(coeff_desc, &cs40l20->coeff_desc_head, list) {
+		if (strcmp(coeff_desc->name, coeff_name))
+			continue;
+		if (coeff_desc->block_type != CS40L20_XM_UNPACKED_TYPE)
+			continue;
+
+		return coeff_desc->reg;
+	}
+
+	/* return an identifiable register that is known to be read-only */
+	return CS40L20_DEVID;
 }
 
 static ssize_t cs40l20_gpio1_rise_index_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
+	int ret;
+	unsigned int val;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			cs40l20_index_get(cs40l20,
-				CS40L20_VIBEGEN_GPIO1_RINDEX));
+	ret = regmap_read(cs40l20->regmap,
+			cs40l20_dsp_reg(cs40l20, "INDEXBUTTONPRESS"), &val);
+	if (ret) {
+		pr_err("Failed to read index\n");
+		return ret;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 static ssize_t cs40l20_gpio1_rise_index_store(struct device *dev,
@@ -176,14 +150,16 @@ static ssize_t cs40l20_gpio1_rise_index_store(struct device *dev,
 	int ret, index;
 
 	ret = kstrtoint(buf, 10, &index);
-	if (ret) {
-		pr_err("Invalid input: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return -EINVAL;
 
-	ret = cs40l20_index_set(cs40l20, CS40L20_VIBEGEN_GPIO1_RINDEX, index);
+	if (index > (cs40l20->num_waves - 1))
+		return -EINVAL;
+
+	ret = regmap_write(cs40l20->regmap,
+			cs40l20_dsp_reg(cs40l20, "INDEXBUTTONPRESS"), index);
 	if (ret) {
-		pr_err("Failed to set index to %d: %d\n", index, ret);
+		pr_err("Failed to write index\n");
 		return ret;
 	}
 
@@ -194,10 +170,17 @@ static ssize_t cs40l20_gpio1_fall_index_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
+	int ret;
+	unsigned int val;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			cs40l20_index_get(cs40l20,
-				CS40L20_VIBEGEN_GPIO1_FINDEX));
+	ret = regmap_read(cs40l20->regmap,
+			cs40l20_dsp_reg(cs40l20, "INDEXBUTTONRELEASE"), &val);
+	if (ret) {
+		pr_err("Failed to read index\n");
+		return ret;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 static ssize_t cs40l20_gpio1_fall_index_store(struct device *dev,
@@ -208,14 +191,16 @@ static ssize_t cs40l20_gpio1_fall_index_store(struct device *dev,
 	int ret, index;
 
 	ret = kstrtoint(buf, 10, &index);
-	if (ret) {
-		pr_err("Invalid input: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return -EINVAL;
 
-	ret = cs40l20_index_set(cs40l20, CS40L20_VIBEGEN_GPIO1_FINDEX, index);
+	if (index > (cs40l20->num_waves - 1))
+		return -EINVAL;
+
+	ret = regmap_write(cs40l20->regmap,
+			cs40l20_dsp_reg(cs40l20, "INDEXBUTTONRELEASE"), index);
 	if (ret) {
-		pr_err("Failed to set index to %d: %d\n", index, ret);
+		pr_err("Failed to write index\n");
 		return ret;
 	}
 
@@ -249,8 +234,10 @@ static void cs40l20_vibe_start_worker(struct work_struct *work)
 
 	mutex_lock(&cs40l20->lock);
 
-	control_reg = (cs40l20->cp_trigger_index == 0) ?
-			CS40L20_VIBEGEN_TRIG_MS : CS40L20_VIBEGEN_TRIG_INDEX;
+	if (cs40l20->cp_trigger_index)
+		control_reg = cs40l20_dsp_reg(cs40l20, "TRIGGERINDEX");
+	else
+		control_reg = cs40l20_dsp_reg(cs40l20, "TRIGGER_MS");
 
 	ret = regmap_write(cs40l20->regmap,
 			control_reg, cs40l20->cp_trigger_index);
@@ -268,7 +255,8 @@ static void cs40l20_vibe_stop_worker(struct work_struct *work)
 
 	mutex_lock(&cs40l20->lock);
 
-	ret = regmap_write(cs40l20->regmap, CS40L20_VIBEGEN_STOP, 1);
+	ret = regmap_write(cs40l20->regmap,
+			cs40l20_dsp_reg(cs40l20, "ENDPLAYBACK"), 1);
 	if (ret)
 		dev_err(cs40l20->dev, "Failed to stop playback\n");
 
@@ -408,6 +396,101 @@ static void cs40l20_vibe_init(struct cs40l20_private *cs40l20)
 	cs40l20->vibe_init_success = true;
 }
 
+static int cs40l20_coeff_init(struct cs40l20_private *cs40l20)
+{
+	int ret, i;
+	struct regmap *regmap = cs40l20->regmap;
+	struct device *dev = cs40l20->dev;
+	struct cs40l20_coeff_desc *coeff_desc;
+	unsigned int val, num_algos, algo_id, xm_base, ym_base;
+	unsigned int reg = CS40L20_XM_FW_ID;
+
+	ret = regmap_read(regmap, CS40L20_XM_FW_REV, &val);
+	if (ret) {
+		dev_err(dev, "Failed to read firmware revision\n");
+		return ret;
+	}
+
+	if (val < CS40L20_FW_REV_MIN) {
+		dev_err(dev, "Unsupported firmware revision: 0x%06X\n", val);
+		return -EINVAL;
+	}
+
+	ret = regmap_read(regmap, CS40L20_XM_NUM_ALGOS, &num_algos);
+	if (ret) {
+		dev_err(dev, "Failed to read number of algorithms\n");
+		return ret;
+	}
+
+	if (num_algos > CS40L20_NUM_ALGOS_MAX) {
+		dev_err(dev, "Invalid number of algorithms\n");
+		return -EINVAL;
+	}
+
+	/* add one extra iteration to account for system algorithm */
+	for (i = 0; i < (num_algos + 1); i++) {
+		ret = regmap_read(regmap, reg, &algo_id);
+		if (ret) {
+			dev_err(dev, "Failed to read algo. %d ID\n", i);
+			return ret;
+		}
+
+		ret = regmap_read(regmap, reg + 8, &xm_base);
+		if (ret) {
+			dev_err(dev, "Failed to read algo. %d XM_BASE\n", i);
+			return ret;
+		}
+
+		ret = regmap_read(regmap, reg + 16, &ym_base);
+		if (ret) {
+			dev_err(dev, "Failed to read algo. %d YM_BASE\n", i);
+			return ret;
+		}
+
+		list_for_each_entry(coeff_desc,
+			&cs40l20->coeff_desc_head, list) {
+
+			if (coeff_desc->parent_id != algo_id)
+				continue;
+
+			switch (coeff_desc->block_type) {
+			case CS40L20_XM_UNPACKED_TYPE:
+				coeff_desc->reg = CS40L20_DSP1_XMEM_UNPACK24_0
+					+ xm_base * 4
+					+ coeff_desc->block_offset * 4;
+					break;
+			case CS40L20_YM_UNPACKED_TYPE:
+				coeff_desc->reg = CS40L20_DSP1_YMEM_UNPACK24_0
+					+ ym_base * 4
+					+ coeff_desc->block_offset * 4;
+					break;
+			}
+
+			dev_dbg(dev, "Found control %s at 0x%08X\n",
+				coeff_desc->name, coeff_desc->reg);
+		}
+
+		/* system algo. contains one extra register (num. algos.) */
+		if (i)
+			reg += CS40L20_XM_ALGO_ENTRY_SIZE;
+		else
+			reg += (CS40L20_XM_ALGO_ENTRY_SIZE + 4);
+	}
+
+	ret = regmap_read(regmap, reg, &val);
+	if (ret) {
+		dev_err(dev, "Failed to read list terminator\n");
+		return ret;
+	}
+
+	if (val != CS40L20_XM_LIST_TERM) {
+		dev_err(dev, "Invalid list terminator: 0x%X\n", val);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static void cs40l20_dsp_start(struct cs40l20_private *cs40l20)
 {
 	int ret;
@@ -422,27 +505,29 @@ static void cs40l20_dsp_start(struct cs40l20_private *cs40l20)
 		return;
 	}
 
-	ret = regmap_read(regmap, CS40L20_VIBEGEN_FW_STATE, &val);
+	ret = regmap_read(regmap, cs40l20_dsp_reg(cs40l20, "HALO_STATE"),
+			&val);
 	if (ret) {
 		dev_err(dev, "Failed to read haptics algorithm status\n");
 		return;
 	}
 
-	if (val == CS40L20_VIBEGEN_FW_RUN)
+	if (val == CS40L20_HALO_STATE_RUNNING) {
 		dev_info(dev, "Haptics algorithm started\n");
-	else {
+	} else {
 		dev_err(dev, "Failed to start haptics algorithm\n");
 		return;
 	}
 
-	ret = regmap_write(regmap, CS40L20_VIBEGEN_TIME_MS,
-			CS40L20_VIBEGEN_TIME_MS_MAX);
+	ret = regmap_write(regmap, cs40l20_dsp_reg(cs40l20, "TIMEOUT_MS"),
+			CS40L20_TIMEOUT_MS_MAX);
 	if (ret) {
 		dev_err(dev, "Failed to extend playback timeout\n");
 		return;
 	}
 
-	ret = regmap_read(regmap, CS40L20_VIBEGEN_NUM_WAVES, &val);
+	ret = regmap_read(regmap, cs40l20_dsp_reg(cs40l20, "NUMBEROFWAVES"),
+			&val);
 	if (ret) {
 		dev_err(dev, "Failed to count wavetable entries\n");
 		return;
@@ -514,7 +599,7 @@ static void cs40l20_waveform_load(const struct firmware *fw, void *context)
 
 		if (block_type == CS40L20_XM_UNPACKED_TYPE) {
 			ret = cs40l20_raw_write(cs40l20,
-					CS40L20_VIBEGEN_WAVE_TABLE,
+					cs40l20_dsp_reg(cs40l20, "WAVETABLE"),
 					&fw->data[pos], block_length,
 					CS40L20_MAX_WLEN);
 			if (ret) {
@@ -533,6 +618,74 @@ err_rls_fw:
 	release_firmware(fw);
 }
 
+static int cs40l20_algo_parse(struct cs40l20_private *cs40l20,
+		const unsigned char *data)
+{
+	struct cs40l20_coeff_desc *coeff_desc;
+	unsigned int pos = 0;
+	unsigned int algo_id, algo_desc_length, coeff_count;
+	unsigned int block_offset, block_type, block_length;
+	unsigned char algo_name_length;
+	int i;
+
+	/* record algorithm ID */
+	algo_id = *(data + pos)
+			+ (*(data + pos + 1) << 8)
+			+ (*(data + pos + 2) << 16)
+			+ (*(data + pos + 3) << 24);
+	pos += CS40L20_ALGO_ID_SIZE;
+
+	/* skip past algorithm name */
+	algo_name_length = *(data + pos);
+	pos += ((algo_name_length / 4) * 4) + 4;
+
+	/* skip past algorithm description */
+	algo_desc_length = *(data + pos)
+			+ (*(data + pos + 1) << 8);
+	pos += ((algo_desc_length / 4) * 4) + 4;
+
+	/* record coefficient count */
+	coeff_count = *(data + pos)
+			+ (*(data + pos + 1) << 8)
+			+ (*(data + pos + 2) << 16)
+			+ (*(data + pos + 3) << 24);
+	pos += CS40L20_COEFF_COUNT_SIZE;
+
+	for (i = 0; i < coeff_count; i++) {
+		block_offset = *(data + pos)
+				+ (*(data + pos + 1) << 8);
+		pos += CS40L20_COEFF_OFFSET_SIZE;
+
+		block_type = *(data + pos)
+				+ (*(data + pos + 1) << 8);
+		pos += CS40L20_COEFF_TYPE_SIZE;
+
+		block_length = *(data + pos)
+				+ (*(data + pos + 1) << 8)
+				+ (*(data + pos + 2) << 16)
+				+ (*(data + pos + 3) << 24);
+		pos += CS40L20_COEFF_LENGTH_SIZE;
+
+		coeff_desc = devm_kzalloc(cs40l20->dev, sizeof(*coeff_desc),
+				GFP_KERNEL);
+		if (!coeff_desc)
+			return -ENOMEM;
+
+		coeff_desc->parent_id = algo_id;
+		coeff_desc->block_offset = block_offset;
+		coeff_desc->block_type = block_type;
+
+		memcpy(coeff_desc->name, data + pos + 1, *(data + pos));
+		coeff_desc->name[*(data + pos)] = '\0';
+
+		list_add(&coeff_desc->list, &cs40l20->coeff_desc_head);
+
+		pos += block_length;
+	}
+
+	return 0;
+}
+
 static void cs40l20_firmware_load(const struct firmware *fw, void *context)
 {
 	int ret;
@@ -540,7 +693,7 @@ static void cs40l20_firmware_load(const struct firmware *fw, void *context)
 	struct device *dev = cs40l20->dev;
 	unsigned int pos = CS40L20_FW_FILE_HEADER_SIZE;
 	unsigned int block_offset, block_length;
-	char block_type;
+	unsigned char block_type;
 
 	if (!fw) {
 		dev_err(dev, "Failed to request firmware file\n");
@@ -605,10 +758,22 @@ static void cs40l20_firmware_load(const struct firmware *fw, void *context)
 				goto err_rls_fw;
 			}
 			break;
+		case CS40L20_ALGO_INFO_TYPE:
+			ret = cs40l20_algo_parse(cs40l20, &fw->data[pos]);
+			if (ret) {
+				dev_err(dev,
+					"Failed to parse algorithm: %d\n", ret);
+				goto err_rls_fw;
+			}
+			break;
 		}
 
 		pos += block_length;
 	}
+
+	ret = cs40l20_coeff_init(cs40l20);
+	if (ret)
+		goto err_rls_fw;
 
 	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG, "cs40l20.bin",
 			dev, GFP_KERNEL, cs40l20, cs40l20_waveform_load);
@@ -796,6 +961,8 @@ static int cs40l20_init(struct cs40l20_private *cs40l20)
 		dev_err(dev, "Failed to configure MPU\n");
 		return ret;
 	}
+
+	INIT_LIST_HEAD(&cs40l20->coeff_desc_head);
 
 	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG, "cs40l20.wmfw",
 			dev, GFP_KERNEL, cs40l20, cs40l20_firmware_load);
