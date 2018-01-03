@@ -622,10 +622,11 @@ const struct snd_kcontrol_new tacna_inmode_switch[] = {
 EXPORT_SYMBOL_GPL(tacna_inmode_switch);
 
 
-static const char * const tacna_vol_ramp_text[] = {
+const char * const tacna_vol_ramp_text[TACNA_VOL_RAMP_ENUM_SIZE] = {
 	"0ms/6dB", "0.5ms/6dB", "1ms/6dB", "2ms/6dB", "4ms/6dB", "8ms/6dB",
 	"16ms/6dB", "32ms/6dB",
 };
+EXPORT_SYMBOL_GPL(tacna_vol_ramp_text);
 
 SOC_ENUM_SINGLE_DECL(tacna_in_vd_ramp,
 		     TACNA_INPUT_VOL_CONTROL,
@@ -639,9 +640,10 @@ SOC_ENUM_SINGLE_DECL(tacna_in_vi_ramp,
 		     tacna_vol_ramp_text);
 EXPORT_SYMBOL_GPL(tacna_in_vi_ramp);
 
-static const char * const tacna_in_hpf_cut_text[] = {
+const char * const tacna_in_hpf_cut_text[TACNA_IN_HPF_CUT_ENUM_SIZE] = {
 	"2.5Hz", "5Hz", "10Hz", "20Hz", "40Hz"
 };
+EXPORT_SYMBOL_GPL(tacna_in_hpf_cut_text);
 
 SOC_ENUM_SINGLE_DECL(tacna_in_hpf_cut_enum,
 		     TACNA_INPUT_HPF_CONTROL,
@@ -649,10 +651,11 @@ SOC_ENUM_SINGLE_DECL(tacna_in_hpf_cut_enum,
 		     tacna_in_hpf_cut_text);
 EXPORT_SYMBOL_GPL(tacna_in_hpf_cut_enum);
 
-static const char * const tacna_in_dmic_osr_text[TACNA_OSR_ENUM_SIZE] = {
+const char * const tacna_in_dmic_osr_text[TACNA_OSR_ENUM_SIZE] = {
 	"384kHz", "768kHz", "1.536MHz", "2.048MHz", "2.4576MHz", "3.072MHz",
 	"6.144MHz",
 };
+EXPORT_SYMBOL_GPL(tacna_in_dmic_osr_text);
 
 const struct soc_enum tacna_in_dmic_osr[] = {
 	SOC_ENUM_SINGLE(TACNA_INPUT1_CONTROL1,
@@ -1656,11 +1659,6 @@ const struct snd_kcontrol_new tacna_dsp_trigger_output_mux[] = {
 };
 EXPORT_SYMBOL_GPL(tacna_dsp_trigger_output_mux);
 
-#define TACNA_DSP_RATE_CTL_DIR_MASK	0x1
-#define TACNA_DSP_RATE_CTL_DIR_RX	0x0
-#define TACNA_DSP_RATE_CTL_DIR_TX	0x1
-#define TACNA_DSP_RATE_CTL_NUM_SHIFT	1
-
 int tacna_dsp_rate_get(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol)
 {
@@ -1716,7 +1714,7 @@ int tacna_dsp_rate_put(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(tacna_dsp_rate_put);
 
-static const struct soc_enum tacna_dsp1_rx_rate_enum[] = {
+const struct soc_enum tacna_dsp1_rx_rate_enum[] = {
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
 			      (0 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
 			      TACNA_DSP_RATE_CTL_DIR_RX,
@@ -1778,8 +1776,9 @@ static const struct soc_enum tacna_dsp1_rx_rate_enum[] = {
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 };
+EXPORT_SYMBOL_GPL(tacna_dsp1_rx_rate_enum);
 
-static const struct soc_enum tacna_dsp1_tx_rate_enum[] = {
+const struct soc_enum tacna_dsp1_tx_rate_enum[] = {
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
 			      (0 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
 			      TACNA_DSP_RATE_CTL_DIR_TX,
@@ -1821,6 +1820,7 @@ static const struct soc_enum tacna_dsp1_tx_rate_enum[] = {
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 };
+EXPORT_SYMBOL_GPL(tacna_dsp1_tx_rate_enum);
 
 static const struct soc_enum tacna_dsp2_rx_rate_enum[] = {
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
@@ -2384,6 +2384,13 @@ int tacna_set_sysclk(struct snd_soc_codec *codec, int clk_id, int source,
 		return tacna_set_opclk(codec, clk_id, freq);
 	case TACNA_CLK_DACCLK:
 		return tacna_set_dacclk(codec, source, freq);
+	case TACNA_CLK_SYSCLKAO:
+		name = "SYSCLKAO";
+		reg = TACNA_SYSTEM_CLOCK1AO;
+		clk = &priv->sysclk;
+		clk_freq_sel = tacna_get_sysclk_setting(freq);
+		mask |= TACNA_SYSCLKAO_FREQ_MASK | TACNA_SYSCLKAO_FRAC;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -3004,6 +3011,7 @@ static int tacna_hw_params_rate(struct snd_pcm_substream *substream,
 	unsigned int i, sr_val, sr_reg, sr_mask;
 	unsigned int cur_asp_rate, tar_asp_rate, rate;
 	bool change_rate_domain = false;
+	bool ao_dai = false;
 
 	rate = params_rate(params);
 	for (i = 0; i < ARRAY_SIZE(tacna_sr_vals); i++)
@@ -3046,6 +3054,9 @@ static int tacna_hw_params_rate(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	if (base == TACNA_ASP1AO_ENABLES1)
+		ao_dai = true;
+
 	if (base) {
 		ret = regmap_read(priv->tacna->regmap,
 				  base + TACNA_ASP_CONTROL1,
@@ -3061,7 +3072,8 @@ static int tacna_hw_params_rate(struct snd_pcm_substream *substream,
 
 			mutex_lock(&priv->rate_lock);
 			/* Guard the rate change with SYSCLK cycles */
-			tacna_spin_sysclk(priv);
+			if (!ao_dai)
+				tacna_spin_sysclk(priv);
 		}
 	}
 
@@ -3071,7 +3083,8 @@ static int tacna_hw_params_rate(struct snd_pcm_substream *substream,
 				    TACNA_ASP1_RATE_MASK, tar_asp_rate);
 
 	if (change_rate_domain) {
-		tacna_spin_sysclk(priv);
+		if (!ao_dai)
+			tacna_spin_sysclk(priv);
 		mutex_unlock(&priv->rate_lock);
 	}
 

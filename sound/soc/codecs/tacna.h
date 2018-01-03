@@ -53,6 +53,7 @@
 #define TACNA_CLK_DACCLK		7
 #define TACNA_CLK_OPCLK			8
 #define TACNA_CLK_ASYNC_OPCLK		9
+#define TACNA_CLK_SYSCLKAO		10
 
 #define TACNA_RATE_SAMPLE_RATE_1	0
 #define TACNA_RATE_SAMPLE_RATE_2	1
@@ -109,6 +110,8 @@
 #define TACNA_N_EQ_BLOCKS		4
 
 #define TACNA_OSR_ENUM_SIZE		7
+#define TACNA_VOL_RAMP_ENUM_SIZE	8
+#define TACNA_IN_HPF_CUT_ENUM_SIZE	5
 #define TACNA_SYNC_RATE_ENUM_SIZE	3
 #define TACNA_ASYNC_RATE_ENUM_SIZE	2
 #define TACNA_RATE_ENUM_SIZE \
@@ -383,6 +386,9 @@ extern const struct soc_enum tacna_sample_rate[];
 extern const struct snd_kcontrol_new tacna_inmux[];
 extern const struct snd_kcontrol_new tacna_inmode_switch[];
 
+extern const char * const tacna_vol_ramp_text[TACNA_VOL_RAMP_ENUM_SIZE];
+extern const char * const tacna_in_hpf_cut_text[TACNA_IN_HPF_CUT_ENUM_SIZE];
+extern const char * const tacna_in_dmic_osr_text[TACNA_OSR_ENUM_SIZE];
 extern const struct soc_enum tacna_in_vi_ramp;
 extern const struct soc_enum tacna_in_vd_ramp;
 extern const struct soc_enum tacna_in_hpf_cut_enum;
@@ -453,11 +459,18 @@ int tacna_dfc_dith_put(struct snd_kcontrol *kcontrol,
 int tacna_dfc_put(struct snd_kcontrol *kcontrol,
 		  struct snd_ctl_elem_value *ucontrol);
 
+#define TACNA_DSP_RATE_CTL_DIR_MASK	0x1
+#define TACNA_DSP_RATE_CTL_DIR_RX	0x0
+#define TACNA_DSP_RATE_CTL_DIR_TX	0x1
+#define TACNA_DSP_RATE_CTL_NUM_SHIFT	1
+
 extern const struct snd_kcontrol_new tacna_dsp_trigger_output_mux[];
 int tacna_dsp_rate_get(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol);
 int tacna_dsp_rate_put(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol);
+extern const struct soc_enum tacna_dsp1_tx_rate_enum[];
+extern const struct soc_enum tacna_dsp1_rx_rate_enum[];
 extern int tacna_dsp_add_codec_controls(struct snd_soc_codec *codec,
 					unsigned int dsp_n);
 
