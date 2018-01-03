@@ -547,8 +547,7 @@ static void cs40l20_dsp_start(struct cs40l20_private *cs40l20)
 static int cs40l20_raw_write(struct cs40l20_private *cs40l20, unsigned int reg,
 		const void *val, size_t val_len, size_t limit)
 {
-	int ret;
-	unsigned int i;
+	int ret, i;
 
 	/* split "val" into smaller writes not to exceed "limit" in length */
 	for (i = 0; i < val_len; i += limit) {
@@ -1024,11 +1023,11 @@ static struct regmap_config cs40l20_regmap = {
 static int cs40l20_i2c_probe(struct i2c_client *i2c_client,
 				const struct i2c_device_id *id)
 {
-	int ret;
+	int ret, i;
 	struct cs40l20_private *cs40l20;
 	struct device *dev = &i2c_client->dev;
 	struct cs40l20_platform_data *pdata = dev_get_platdata(dev);
-	unsigned int reg_devid, reg_revid, reg_otpid, i;
+	unsigned int reg_devid, reg_revid, reg_otpid;
 
 	cs40l20 = devm_kzalloc(dev, sizeof(struct cs40l20_private), GFP_KERNEL);
 	if (!cs40l20)
