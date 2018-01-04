@@ -752,12 +752,12 @@ static int tacna_irq_remove(struct platform_device *pdev)
 
 	disable_irq(priv->irq);
 
-	priv->tacna->irq_dev = NULL;
-
 	tacna_free_irq(tacna, TACNA_IRQ_BOOT_DONE, tacna);
 	tacna_free_irq(tacna, TACNA_IRQ_CTRLIF_ERR, tacna);
 	tacna_free_irq(tacna, TACNA_IRQ_SYSCLK_ERR, tacna);
 	tacna_free_irq(tacna, TACNA_IRQ_SYSCLK_FAIL, tacna);
+
+	priv->tacna->irq_dev = NULL;
 
 	virq = irq_find_mapping(priv->virq, TACNA_MAIN_VIRQ_INDEX);
 	regmap_del_irq_chip(virq, priv->irq_chip);
