@@ -93,9 +93,10 @@ static ssize_t cs40l20_cp_trigger_index_store(struct device *dev,
 			const char *buf, size_t count)
 {
 	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
-	int ret, index;
+	int ret;
+	unsigned int index;
 
-	ret = kstrtoint(buf, 10, &index);
+	ret = kstrtou32(buf, 10, &index);
 	if (ret)
 		return -EINVAL;
 
@@ -132,8 +133,11 @@ static ssize_t cs40l20_gpio1_rise_index_show(struct device *dev,
 	int ret;
 	unsigned int val;
 
+	mutex_lock(&cs40l20->lock);
 	ret = regmap_read(cs40l20->regmap,
 			cs40l20_dsp_reg(cs40l20, "INDEXBUTTONPRESS"), &val);
+	mutex_unlock(&cs40l20->lock);
+
 	if (ret) {
 		pr_err("Failed to read index\n");
 		return ret;
@@ -147,17 +151,21 @@ static ssize_t cs40l20_gpio1_rise_index_store(struct device *dev,
 			const char *buf, size_t count)
 {
 	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
-	int ret, index;
+	int ret;
+	unsigned int index;
 
-	ret = kstrtoint(buf, 10, &index);
+	ret = kstrtou32(buf, 10, &index);
 	if (ret)
 		return -EINVAL;
 
 	if (index > (cs40l20->num_waves - 1))
 		return -EINVAL;
 
+	mutex_lock(&cs40l20->lock);
 	ret = regmap_write(cs40l20->regmap,
 			cs40l20_dsp_reg(cs40l20, "INDEXBUTTONPRESS"), index);
+	mutex_unlock(&cs40l20->lock);
+
 	if (ret) {
 		pr_err("Failed to write index\n");
 		return ret;
@@ -173,8 +181,11 @@ static ssize_t cs40l20_gpio1_fall_index_show(struct device *dev,
 	int ret;
 	unsigned int val;
 
+	mutex_lock(&cs40l20->lock);
 	ret = regmap_read(cs40l20->regmap,
 			cs40l20_dsp_reg(cs40l20, "INDEXBUTTONRELEASE"), &val);
+	mutex_unlock(&cs40l20->lock);
+
 	if (ret) {
 		pr_err("Failed to read index\n");
 		return ret;
@@ -188,19 +199,88 @@ static ssize_t cs40l20_gpio1_fall_index_store(struct device *dev,
 			const char *buf, size_t count)
 {
 	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
-	int ret, index;
+	int ret;
+	unsigned int index;
 
-	ret = kstrtoint(buf, 10, &index);
+	ret = kstrtou32(buf, 10, &index);
 	if (ret)
 		return -EINVAL;
 
 	if (index > (cs40l20->num_waves - 1))
 		return -EINVAL;
 
+	mutex_lock(&cs40l20->lock);
 	ret = regmap_write(cs40l20->regmap,
 			cs40l20_dsp_reg(cs40l20, "INDEXBUTTONRELEASE"), index);
+	mutex_unlock(&cs40l20->lock);
+
 	if (ret) {
 		pr_err("Failed to write index\n");
+		return ret;
+	}
+
+	return count;
+}
+
+static ssize_t cs40l20_f0_measured_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
+	int ret;
+	unsigned int val;
+
+	mutex_lock(&cs40l20->lock);
+	ret = regmap_read(cs40l20->regmap,
+			cs40l20_dsp_reg(cs40l20, "F0_MEASURED"), &val);
+	mutex_unlock(&cs40l20->lock);
+
+	if (ret) {
+		pr_err("Failed to read measured f0\n");
+		return ret;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+}
+
+static ssize_t cs40l20_f0_stored_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
+	int ret;
+	unsigned int val;
+
+	mutex_lock(&cs40l20->lock);
+	ret = regmap_read(cs40l20->regmap,
+			cs40l20_dsp_reg(cs40l20, "F0_STORED"), &val);
+	mutex_unlock(&cs40l20->lock);
+
+	if (ret) {
+		pr_err("Failed to read stored f0\n");
+		return ret;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+}
+
+static ssize_t cs40l20_f0_stored_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
+	int ret;
+	unsigned int val;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	mutex_lock(&cs40l20->lock);
+	ret = regmap_write(cs40l20->regmap,
+			cs40l20_dsp_reg(cs40l20, "F0_STORED"), val);
+	mutex_unlock(&cs40l20->lock);
+
+	if (ret) {
+		pr_err("Failed to store f0\n");
 		return ret;
 	}
 
@@ -213,11 +293,16 @@ static DEVICE_ATTR(gpio1_rise_index, 0660, cs40l20_gpio1_rise_index_show,
 		cs40l20_gpio1_rise_index_store);
 static DEVICE_ATTR(gpio1_fall_index, 0660, cs40l20_gpio1_fall_index_show,
 		cs40l20_gpio1_fall_index_store);
+static DEVICE_ATTR(f0_measured, 0660, cs40l20_f0_measured_show, NULL);
+static DEVICE_ATTR(f0_stored, 0660, cs40l20_f0_stored_show,
+		cs40l20_f0_stored_store);
 
 static struct attribute *cs40l20_dev_attrs[] = {
 	&dev_attr_cp_trigger_index.attr,
 	&dev_attr_gpio1_rise_index.attr,
 	&dev_attr_gpio1_fall_index.attr,
+	&dev_attr_f0_measured.attr,
+	&dev_attr_f0_stored.attr,
 	NULL,
 };
 
