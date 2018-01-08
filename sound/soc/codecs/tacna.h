@@ -93,6 +93,11 @@
 #define TACNA_OUT_VU_SHIFT			 9
 #define TACNA_OUT_VU_WIDTH			 1
 
+#define TACNA_IN_VU			0x20000000
+#define TACNA_IN_VU_MASK		0x20000000
+#define TACNA_IN_VU_SHIFT			29
+#define TACNA_IN_VU_WIDTH			 1
+
 #define TACNA_MAX_DAI			11
 #define TACNA_MAX_DSP			2
 
