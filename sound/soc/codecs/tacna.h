@@ -88,6 +88,11 @@
 #define TACNA_MIXER_SRC_SHIFT			 0
 #define TACNA_MIXER_SRC_WIDTH			 9
 
+#define TACNA_OUT_VU			0x00000200
+#define TACNA_OUT_VU_MASK		0x00000200
+#define TACNA_OUT_VU_SHIFT			 9
+#define TACNA_OUT_VU_WIDTH			 1
+
 #define TACNA_MAX_DAI			11
 #define TACNA_MAX_DSP			2
 
