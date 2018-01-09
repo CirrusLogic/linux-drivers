@@ -109,23 +109,70 @@ static const unsigned int cs47l94_dsp_sysinfo_bases[] = {
 	TACNA_DSP2_SYS_INFO_ID,
 };
 
-static const unsigned int cs47l94_dsp1_sram_power_regs[] = {
+static const unsigned int cs47l94_dsp1_sram_ext_regs[] = {
+	TACNA_DSP1_XM_SRAM_IBUS_SETUP_1,
+	TACNA_DSP1_XM_SRAM_IBUS_SETUP_2,
+	TACNA_DSP1_XM_SRAM_IBUS_SETUP_3,
+	TACNA_DSP1_XM_SRAM_IBUS_SETUP_4,
+	TACNA_DSP1_XM_SRAM_IBUS_SETUP_5,
+	TACNA_DSP1_XM_SRAM_IBUS_SETUP_6,
+	TACNA_DSP1_XM_SRAM_IBUS_SETUP_7,
+	TACNA_DSP1_YM_SRAM_IBUS_SETUP_1,
+	TACNA_DSP1_YM_SRAM_IBUS_SETUP_2,
+	TACNA_DSP1_YM_SRAM_IBUS_SETUP_3,
+	TACNA_DSP1_YM_SRAM_IBUS_SETUP_4,
+	TACNA_DSP1_PM_SRAM_IBUS_SETUP_1,
+	TACNA_DSP1_PM_SRAM_IBUS_SETUP_2,
+	TACNA_DSP1_PM_SRAM_IBUS_SETUP_3,
+};
+
+static const unsigned int cs47l94_dsp1_sram_pwd_regs[] = {
 	TACNA_DSP1_XM_SRAM_IBUS_SETUP_0,
 	TACNA_DSP1_YM_SRAM_IBUS_SETUP_0,
-	TACNA_DSP1_PM_SRAM_IBUS_SETUP_0,
-	0, /* end of list */
+	TACNA_DSP1_PM_SRAM_IBUS_SETUP_0
 };
 
-static const unsigned int cs47l94_dsp2_sram_power_regs[] = {
+static const unsigned int cs47l94_dsp2_sram_ext_regs[] = {
+	TACNA_DSP2_XM_SRAM_IBUS_SETUP_1,
+	TACNA_DSP2_XM_SRAM_IBUS_SETUP_2,
+	TACNA_DSP2_XM_SRAM_IBUS_SETUP_3,
+	TACNA_DSP2_XM_SRAM_IBUS_SETUP_4,
+	TACNA_DSP2_XM_SRAM_IBUS_SETUP_5,
+	TACNA_DSP2_XM_SRAM_IBUS_SETUP_6,
+	TACNA_DSP2_XM_SRAM_IBUS_SETUP_7,
+	TACNA_DSP2_XM_SRAM_IBUS_SETUP_8,
+	TACNA_DSP2_XM_SRAM_IBUS_SETUP_9,
+	TACNA_DSP2_YM_SRAM_IBUS_SETUP_1,
+	TACNA_DSP2_YM_SRAM_IBUS_SETUP_2,
+	TACNA_DSP2_YM_SRAM_IBUS_SETUP_3,
+	TACNA_DSP2_YM_SRAM_IBUS_SETUP_4,
+	TACNA_DSP2_YM_SRAM_IBUS_SETUP_5,
+	TACNA_DSP2_YM_SRAM_IBUS_SETUP_6,
+	TACNA_DSP2_YM_SRAM_IBUS_SETUP_7,
+	TACNA_DSP2_PM_SRAM_IBUS_SETUP_1,
+	TACNA_DSP2_PM_SRAM_IBUS_SETUP_2,
+	TACNA_DSP2_PM_SRAM_IBUS_SETUP_3,
+};
+
+static const unsigned int cs47l94_dsp2_sram_pwd_regs[] = {
 	TACNA_DSP2_XM_SRAM_IBUS_SETUP_0,
 	TACNA_DSP2_YM_SRAM_IBUS_SETUP_0,
-	TACNA_DSP2_PM_SRAM_IBUS_SETUP_0,
-	0, /* end of list */
+	TACNA_DSP2_PM_SRAM_IBUS_SETUP_0
 };
 
-static const unsigned int * const cs47l94_dsp_sram_power_regs[] = {
-	cs47l94_dsp1_sram_power_regs,
-	cs47l94_dsp2_sram_power_regs,
+static const struct tacna_dsp_power_regs cs47l94_dsp_sram_regs[] = {
+	{
+		.ext = cs47l94_dsp1_sram_ext_regs,
+		.n_ext = ARRAY_SIZE(cs47l94_dsp1_sram_ext_regs),
+		.pwd = cs47l94_dsp1_sram_pwd_regs,
+		.n_pwd = ARRAY_SIZE(cs47l94_dsp1_sram_pwd_regs),
+	},
+	{
+		.ext = cs47l94_dsp2_sram_ext_regs,
+		.n_ext = ARRAY_SIZE(cs47l94_dsp2_sram_ext_regs),
+		.pwd = cs47l94_dsp2_sram_pwd_regs,
+		.n_pwd = ARRAY_SIZE(cs47l94_dsp2_sram_pwd_regs),
+	},
 };
 
 static int cs47l94_put_out_vu(struct snd_kcontrol *kcontrol,
@@ -1604,7 +1651,9 @@ static int cs47l94_dsp_mem_ev(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
-	const unsigned int *regs = cs47l94_dsp_sram_power_regs[w->shift];
+	const struct tacna_dsp_power_regs *regs;
+
+	regs = &cs47l94_dsp_sram_regs[w->shift];
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:

@@ -287,6 +287,13 @@ struct tacna_dai_priv {
 	struct snd_pcm_hw_constraint_list constraint;
 };
 
+struct tacna_dsp_power_regs {
+	const unsigned int *pwd;
+	unsigned int n_pwd;
+	const unsigned int *ext;
+	unsigned int n_ext;
+};
+
 struct tacna_priv {
 	struct wm_adsp dsp[TACNA_MAX_DSP];
 	struct tacna *tacna;
@@ -316,7 +323,7 @@ struct tacna_priv {
 	unsigned int eq_mode[TACNA_N_EQ_BLOCKS];
 	__be16 eq_coefficients[TACNA_N_EQ_BLOCKS][TACNA_EQ_BLOCK_SZ / 2];
 
-	const unsigned int *dsp_power_regs[TACNA_MAX_DSP];
+	const struct tacna_dsp_power_regs *dsp_power_regs[TACNA_MAX_DSP];
 };
 
 struct tacna_fll_cfg {
@@ -470,9 +477,9 @@ extern int tacna_dsp_add_codec_controls(struct snd_soc_codec *codec,
 					unsigned int dsp_n);
 
 int tacna_dsp_memory_enable(struct tacna_priv *priv,
-			    const unsigned int *reg_list);
+			    const struct tacna_dsp_power_regs *regs);
 void tacna_dsp_memory_disable(struct tacna_priv *priv,
-			      const unsigned int *reg_list);
+			      const struct tacna_dsp_power_regs *regs);
 int tacna_dsp_power_ev(struct snd_soc_dapm_widget *w,
 		       struct snd_kcontrol *kcontrol, int event);
 
