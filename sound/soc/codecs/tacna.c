@@ -2014,19 +2014,27 @@ int tacna_dsp_add_codec_controls(struct snd_soc_codec *codec,
 EXPORT_SYMBOL_GPL(tacna_dsp_add_codec_controls);
 
 int tacna_dsp_memory_enable(struct tacna_priv *priv,
-			    const unsigned int *reg_list)
+			    const struct tacna_dsp_power_regs *regs)
 {
 	struct regmap *regmap = priv->tacna->regmap;
-	int ret;
+	int i, ret;
 
-	for (; *reg_list != 0; ++reg_list) {
-		ret = regmap_update_bits(regmap, *reg_list, 0x3, 0x1);
+	/* disable power-off */
+	for (i = 0; i < regs->n_ext; ++i) {
+		ret = regmap_write(regmap, regs->ext[i], 0x3);
+		if (ret)
+			goto err;
+	}
+
+	/* power-up the banks in sequence */
+	for (i = 0; i < regs->n_pwd; ++i) {
+		ret = regmap_write(regmap, regs->pwd[i], 0x1);
 		if (ret)
 			goto err;
 
 		udelay(1); /* allow bank to power-up */
 
-		ret = regmap_update_bits(regmap, *reg_list, 0x3, 0x3);
+		ret = regmap_write(regmap, regs->pwd[i], 0x3);
 		if (ret)
 			goto err;
 
@@ -2034,26 +2042,33 @@ int tacna_dsp_memory_enable(struct tacna_priv *priv,
 	}
 
 	return 0;
+
 err:
-	dev_err(priv->dev, "Failed to write SRAM enable 0x%x (%d)\n",
-		*reg_list, ret);
+	dev_err(priv->dev, "Failed to write SRAM enables (%d)\n", ret);
+	tacna_dsp_memory_disable(priv, regs);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(tacna_dsp_memory_enable);
 
 void tacna_dsp_memory_disable(struct tacna_priv *priv,
-			      const unsigned int *reg_list)
+			      const struct tacna_dsp_power_regs *regs)
 {
 	struct regmap *regmap = priv->tacna->regmap;
-	int ret;
+	int i, ret;
 
-	for (; *reg_list != 0; ++reg_list) {
-		ret = regmap_update_bits(regmap, *reg_list, 0x3, 0);
+	for (i = 0; i < regs->n_pwd; ++i) {
+		ret = regmap_write(regmap, regs->pwd[i], 0);
 		if (ret)
 			dev_warn(priv->dev,
-				 "Failed to write SRAM disable 0x%x (%d)\n",
-				 *reg_list, ret);
+				 "Failed to write SRAM enables (%d)\n", ret);
+	}
+
+	for (i = 0; i < regs->n_ext; ++i) {
+		ret = regmap_write(regmap, regs->ext[i], 0);
+		if (ret)
+			dev_warn(priv->dev,
+				 "Failed to write SRAM enables (%d)\n", ret);
 	}
 }
 EXPORT_SYMBOL_GPL(tacna_dsp_memory_disable);
