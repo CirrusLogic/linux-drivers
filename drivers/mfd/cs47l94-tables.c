@@ -912,6 +912,11 @@ static const struct reg_default cs47l94_reg_default[] = {
 	{ 0x00018144, 0xffffffff }, /* IRQ1_MASK_14 */
 	{ 0x00018148, 0xffffffff }, /* IRQ1_MASK_15 */
 	{ 0x00018238, 0xffff0000 }, /* IRQ1_EDGE_11 */
+	{ 0x00109000, 0x00000000 }, /* SLIMBUS_DSP_CLK */
+	{ 0x0010900c, 0x00000010 }, /* SLIMBUS_RX9_PORTS */
+	{ 0x00109018, 0x00000011 }, /* SLIMBUS_RX10_PORTS */
+	{ 0x00109024, 0x00000018 }, /* SLIMBUS_TX9_PORTS */
+	{ 0x00109030, 0x00000019 }, /* SLIMBUS_TX10_PORTS */
 };
 
 static const struct regmap_range cs47l94_dsp1_forbidden_ranges[] = {
@@ -1820,6 +1825,20 @@ static bool cs47l94_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_IRQ1_MASK_1 ... TACNA_IRQ1_MASK_13:
 	case TACNA_SW_TRIGGER_MSTR1:
 	case TACNA_SW_TRIGGER_MSTR2:
+	case TACNA_SLIMBUS_DSP_CLK:
+	case TACNA_SLIMBUS_BULK_STATUS:
+	case CS47L94_SLIMBUS_RX9_START_ADDR:
+	case CS47L94_SLIMBUS_RX9_PORTS:
+	case CS47L94_SLIMBUS_RX9_PORT_STATUS:
+	case CS47L94_SLIMBUS_RX10_START_ADDR:
+	case CS47L94_SLIMBUS_RX10_PORTS:
+	case CS47L94_SLIMBUS_RX10_PORT_STATUS:
+	case CS47L94_SLIMBUS_TX9_START_ADDR:
+	case CS47L94_SLIMBUS_TX9_PORTS:
+	case CS47L94_SLIMBUS_TX9_PORT_STATUS:
+	case CS47L94_SLIMBUS_TX10_START_ADDR:
+	case CS47L94_SLIMBUS_TX10_PORTS:
+	case CS47L94_SLIMBUS_TX10_PORT_STATUS:
 		return true;
 	default:
 		return false;
@@ -1881,6 +1900,15 @@ static bool cs47l94_volatile_register(struct device *dev, unsigned int reg)
 	case TACNA_IRQ1_STS_1 ... TACNA_IRQ1_STS_13:
 	case TACNA_SW_TRIGGER_MSTR1:
 	case TACNA_SW_TRIGGER_MSTR2:
+	case TACNA_SLIMBUS_BULK_STATUS:
+	case CS47L94_SLIMBUS_RX9_START_ADDR:
+	case CS47L94_SLIMBUS_RX9_PORT_STATUS:
+	case CS47L94_SLIMBUS_RX10_START_ADDR:
+	case CS47L94_SLIMBUS_RX10_PORT_STATUS:
+	case CS47L94_SLIMBUS_TX9_START_ADDR:
+	case CS47L94_SLIMBUS_TX9_PORT_STATUS:
+	case CS47L94_SLIMBUS_TX10_START_ADDR:
+	case CS47L94_SLIMBUS_TX10_PORT_STATUS:
 		return true;
 	default:
 		return false;
@@ -1896,7 +1924,7 @@ static const struct regmap_config cs47l94_spi_regmap = {
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 
-	.max_register = 0x19004,
+	.max_register = CS47L94_SLIMBUS_TX10_PORT_STATUS,
 	.readable_reg = cs47l94_readable_register,
 	.volatile_reg = cs47l94_volatile_register,
 
@@ -1947,7 +1975,7 @@ static const struct regmap_config cs47l94_i2c_regmap = {
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 
-	.max_register = 0x19004,
+	.max_register = CS47L94_SLIMBUS_TX10_PORT_STATUS,
 	.readable_reg = cs47l94_readable_register,
 	.volatile_reg = cs47l94_volatile_register,
 
