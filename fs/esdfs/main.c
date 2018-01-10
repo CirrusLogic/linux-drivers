@@ -30,6 +30,7 @@ enum {
 	Opt_confine,
 	Opt_noconfine,
 	Opt_gid_derivation,
+	Opt_default_normal,
 
 	/* From sdcardfs */
 	Opt_fsuid,
@@ -54,6 +55,7 @@ static match_table_t esdfs_tokens = {
 	{Opt_confine, "confine"},
 	{Opt_noconfine, "noconfine"},
 	{Opt_gid_derivation, "derive_gid"},
+	{Opt_default_normal, "default_normal"},
 	/* compatibility with sdcardfs options */
 	{Opt_fsuid, "fsuid=%u"},
 	{Opt_fsgid, "fsgid=%u"},
@@ -243,6 +245,9 @@ static int parse_options(struct super_block *sb, char *options)
 			break;
 		case Opt_gid_derivation:
 			set_opt(sbi, GID_DERIVATION);
+			break;
+		case Opt_default_normal:
+			set_opt(sbi, DEFAULT_NORMAL);
 			break;
 		default:
 			esdfs_msg(sb, KERN_ERR,

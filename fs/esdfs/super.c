@@ -289,6 +289,8 @@ static int esdfs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",noconfine");
 	if (test_opt(sbi, GID_DERIVATION))
 		seq_puts(seq, ",derive_gid");
+	if (test_opt(sbi, DEFAULT_NORMAL))
+		seq_puts(seq, ",default_normal");
 	return 0;
 }
 

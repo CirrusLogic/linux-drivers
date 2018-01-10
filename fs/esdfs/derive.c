@@ -158,7 +158,7 @@ void esdfs_set_derived_perms(struct inode *inode)
 	if (ESDFS_RESTRICT_PERMS(sbi))
 		esdfs_i_gid_write(inode, gid);
 	else {
-		if (gid == AID_SDCARD_RW)
+		if (gid == AID_SDCARD_RW && !test_opt(sbi, DEFAULT_NORMAL))
 			esdfs_i_gid_write(inode, AID_SDCARD_RW);
 		else
 			esdfs_i_gid_write(inode, derive_uid(inode_i, gid));

@@ -58,6 +58,7 @@
 #define ESDFS_MOUNT_DERIVE_CONFINE	0x00000010
 #define ESDFS_MOUNT_ACCESS_DISABLE	0x00000020
 #define ESDFS_MOUNT_GID_DERIVATION	0x00000040
+#define ESDFS_MOUNT_DEFAULT_NORMAL	0x00000080
 
 #define clear_opt(sbi, option)	(sbi->options &= ~ESDFS_MOUNT_##option)
 #define set_opt(sbi, option)	(sbi->options |= ESDFS_MOUNT_##option)
