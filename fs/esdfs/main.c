@@ -30,7 +30,17 @@ enum {
 	Opt_confine,
 	Opt_noconfine,
 	Opt_gid_derivation,
-	Opt_err
+
+	/* From sdcardfs */
+	Opt_fsuid,
+	Opt_fsgid,
+	Opt_gid,
+	Opt_debug,
+	Opt_mask,
+	Opt_multiuser,
+	Opt_userid,
+
+	Opt_err,
 };
 
 static match_table_t esdfs_tokens = {
@@ -43,6 +53,14 @@ static match_table_t esdfs_tokens = {
 	{Opt_derive_public, "derive=public"},
 	{Opt_confine, "confine"},
 	{Opt_noconfine, "noconfine"},
+	{Opt_gid_derivation, "derive_gid"},
+	/* compatibility with sdcardfs options */
+	{Opt_fsuid, "fsuid=%u"},
+	{Opt_fsgid, "fsgid=%u"},
+	{Opt_gid, "gid=%u"},
+	{Opt_mask, "mask=%u"},
+	{Opt_userid, "userid=%d"},
+	{Opt_multiuser, "multiuser"},
 	{Opt_gid_derivation, "derive_gid"},
 	{Opt_err, NULL},
 };
@@ -108,6 +126,7 @@ static int parse_options(struct super_block *sb, char *options)
 	struct esdfs_sb_info *sbi = ESDFS_SB(sb);
 	substring_t args[MAX_OPT_ARGS];
 	char *p;
+	int option;
 
 	if (!options)
 		return 0;
@@ -123,6 +142,12 @@ static int parse_options(struct super_block *sb, char *options)
 		 */
 		args[0].to = args[0].from = NULL;
 		token = match_token(p, esdfs_tokens, args);
+
+		/* make public default */
+		clear_opt(sbi, DERIVE_LEGACY);
+		set_opt(sbi, DERIVE_UNIFIED);
+		clear_opt(sbi, DERIVE_MULTI);
+		set_opt(sbi, DERIVE_PUBLIC);
 
 		switch (token) {
 		case Opt_lower_perms:
@@ -171,6 +196,7 @@ static int parse_options(struct super_block *sb, char *options)
 			set_opt(sbi, DERIVE_CONFINE);	/* confine by default */
 			break;
 		case Opt_derive_multi:
+		case Opt_multiuser:
 			set_opt(sbi, DERIVE_LEGACY);
 			clear_opt(sbi, DERIVE_UNIFIED);
 			set_opt(sbi, DERIVE_MULTI);
@@ -187,6 +213,33 @@ static int parse_options(struct super_block *sb, char *options)
 			break;
 		case Opt_noconfine:
 			clear_opt(sbi, DERIVE_CONFINE);
+			break;
+		/* for compatibility with sdcardfs options */
+		case Opt_gid:
+			if (match_int(&args[0], &option))
+				return -EINVAL;
+			sbi->upper_perms.gid = option;
+			break;
+		case Opt_userid:
+			if (match_int(&args[0], &option))
+				return 0;
+			sbi->upper_perms.uid = option;
+			break;
+		case Opt_mask:
+			if (match_int(&args[0], &option))
+				return -EINVAL;
+			sbi->upper_perms.dmask = 0775 & ~option;
+			sbi->upper_perms.fmask = 0775 & ~option;
+			break;
+		case Opt_fsuid:
+			if (match_int(&args[0], &option))
+				return 0;
+			sbi->lower_perms.uid = option;
+			break;
+		case Opt_fsgid:
+			if (match_int(&args[0], &option))
+				return 0;
+			sbi->lower_perms.gid = option;
 			break;
 		case Opt_gid_derivation:
 			set_opt(sbi, GID_DERIVATION);
