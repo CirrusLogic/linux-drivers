@@ -100,7 +100,7 @@ static ssize_t cs40l20_cp_trigger_index_store(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
-	if (index > (cs40l20->num_waves - 1))
+	if ((index & 0x7FFF) > (cs40l20->num_waves - 1))
 		return -EINVAL;
 
 	cs40l20->cp_trigger_index = index;
@@ -319,13 +319,16 @@ static void cs40l20_vibe_start_worker(struct work_struct *work)
 
 	mutex_lock(&cs40l20->lock);
 
-	if (cs40l20->cp_trigger_index)
+	switch (cs40l20->cp_trigger_index) {
+	case 0x0001 ... 0x7FFF:
 		control_reg = cs40l20_dsp_reg(cs40l20, "TRIGGERINDEX");
-	else
+		break;
+	default:
 		control_reg = cs40l20_dsp_reg(cs40l20, "TRIGGER_MS");
+	}
 
 	ret = regmap_write(cs40l20->regmap,
-			control_reg, cs40l20->cp_trigger_index);
+			control_reg, (cs40l20->cp_trigger_index & 0x7FFF));
 	if (ret)
 		dev_err(cs40l20->dev, "Failed to start playback\n");
 
