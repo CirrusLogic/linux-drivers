@@ -912,8 +912,6 @@ static const struct reg_default cs47l94_reg_default[] = {
 	{ 0x00018144, 0xffffffff }, /* IRQ1_MASK_14 */
 	{ 0x00018148, 0xffffffff }, /* IRQ1_MASK_15 */
 	{ 0x00018238, 0xffff0000 }, /* IRQ1_EDGE_11 */
-	{ 0x00018800, 0x00000000 }, /* IRQ3_CFG */
-	{ 0x00018834, 0x000000ff }, /* IRQ3_MASK2 */
 };
 
 static const struct regmap_range cs47l94_dsp1_forbidden_ranges[] = {
@@ -1820,11 +1818,6 @@ static bool cs47l94_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_IRQ1_EINT_1 ... TACNA_IRQ1_EINT_13:
 	case TACNA_IRQ1_STS_1 ... TACNA_IRQ1_STS_13:
 	case TACNA_IRQ1_MASK_1 ... TACNA_IRQ1_MASK_13:
-	case TACNA_IRQ3_CFG:
-	case TACNA_IRQ3_STATUS:
-	case TACNA_IRQ3_EINT2:
-	case TACNA_IRQ3_STS2:
-	case TACNA_IRQ3_MASK2:
 	case TACNA_SW_TRIGGER_MSTR1:
 	case TACNA_SW_TRIGGER_MSTR2:
 		return true;
