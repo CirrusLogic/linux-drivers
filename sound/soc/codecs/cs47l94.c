@@ -68,12 +68,6 @@ static const DECLARE_TLV_DB_SCALE(cs47l94_outh_digital_tlv, -12750, 50, 0);
 	{ name " ANC Source", "ANC Left Channel", "ANCL" }
 
 
-#define TACNA_US_RATE_ENUM(xname, xenum) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,\
-	.info = snd_soc_info_enum_double, \
-	.get = snd_soc_get_enum_double, .put = tacna_us_rate_put, \
-	.private_value = (unsigned long)&xenum }
-
 struct cs47l94 {
 	struct tacna_priv core;
 	struct tacna_fll fll[3];
@@ -896,70 +890,6 @@ static SOC_ENUM_SINGLE_DECL(tacna_us2_det_dcy_enum,
 			    TACNA_US2_DET_DCY_SHIFT,
 			    tacna_us_det_dcy_texts);
 
-static int tacna_us_rate_put(struct snd_kcontrol *kcontrol,
-			      struct snd_ctl_elem_value *ucontrol)
-{
-	int ret;
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct snd_soc_card *card = codec->component.card;
-	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-
-	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct tacna *tacna = priv->tacna;
-
-	unsigned int val, cur, mask, ena_mask;
-
-	if (ucontrol->value.enumerated.item[0] > e->items - 1)
-		return -EINVAL;
-
-	val = e->values[ucontrol->value.enumerated.item[0]] << e->shift_l;
-	mask = e->mask << e->shift_l;
-
-	snd_soc_dapm_mutex_lock(&card->dapm);
-
-	ret = regmap_read(tacna->regmap, e->reg, &cur);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to read current reg: %d\n", ret);
-		goto end;
-	}
-
-	if ((cur & mask) == (val & mask))
-		goto end;
-
-	ret = regmap_read(tacna->regmap, e->reg, &cur);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to read enable reg: %d\n", ret);
-		goto end;
-	}
-
-	switch (e->reg) {
-	case TACNA_US1_CONTROL:
-		ena_mask = TACNA_US1_EN_MASK;
-		break;
-	case TACNA_US2_CONTROL:
-		ena_mask = TACNA_US2_EN_MASK;
-		break;
-	default:
-		ret = -EINVAL;
-		goto end;
-	}
-
-	if (cur & ena_mask) {
-		dev_err(codec->dev,
-			"Can't change rate on active input 0x%08x: %d\n",
-			e->reg, ret);
-		ret = -EBUSY;
-		goto end;
-	}
-
-	ret = snd_soc_update_bits(codec, e->reg, mask, val);
-
-end:
-	snd_soc_dapm_mutex_unlock(&card->dapm);
-
-	return ret;
-}
-
 /*
  * TODO: auto depends on some other weird setting so will need to figure out
  *       how that works
@@ -1177,8 +1107,8 @@ TACNA_RATE_ENUM("ISRC2 FSH", tacna_isrc_fsh[1]),
 TACNA_RATE_ENUM("ASRC1 Rate 1", tacna_asrc1_rate[0]),
 TACNA_RATE_ENUM("ASRC1 Rate 2", tacna_asrc1_rate[1]),
 
-TACNA_US_RATE_ENUM("Ultrasonic 1 Rate", tacna_us_output_rate[0]),
-TACNA_US_RATE_ENUM("Ultrasonic 2 Rate", tacna_us_output_rate[1]),
+TACNA_RATE_ENUM("Ultrasonic 1 Rate", tacna_us_output_rate[0]),
+TACNA_RATE_ENUM("Ultrasonic 2 Rate", tacna_us_output_rate[1]),
 
 SOC_ENUM("Ultrasonic 1 Freq", tacna_us1_freq_enum),
 SOC_ENUM("Ultrasonic 2 Freq", tacna_us2_freq_enum),
@@ -1676,111 +1606,6 @@ SND_SOC_DAPM_SUPPLY("MICBIAS2A", TACNA_MICBIAS_CTRL6, TACNA_MICB2A_EN_SHIFT,
 		    0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("MICBIAS2B", TACNA_MICBIAS_CTRL6, TACNA_MICB2B_EN_SHIFT,
 		    0, NULL, 0),
-
-SND_SOC_DAPM_SUPPLY("FXCLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_FX, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("ASRC1R1CLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_ASRC1_RATE_1, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("ASRC1R2CLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_ASRC1_RATE_2, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("ASRC2R1CLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_ASRC2_RATE_1, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("ASRC2R2CLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_ASRC2_RATE_2, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("ISRC1DECCLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_ISRC1_DEC, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("ISRC1INTCLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_ISRC1_INT, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("ISRC2DECCLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_ISRC2_DEC, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("ISRC2INTCLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_ISRC2_INT, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("DACOUTCLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_DAC, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("ASP1TXCLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_ASP1, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("ASP2TXCLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_ASP2, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("ASP3TXCLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_ASP3, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("ASP4TXCLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_ASP4, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("SLIMBUSCLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_SLIMBUS, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("PWMCLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_PWM, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("DFC1CLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_DFC1, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("DFC2CLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_DFC2, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("DFC3CLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_DFC3, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("DFC4CLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_DFC4, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("DFC5CLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_DFC5, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("DFC6CLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_DFC6, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("DFC7CLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_DFC7, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("DFC8CLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_DFC8, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("DSP1CLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_DSP1, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("DSP2CLK", SND_SOC_NOPM,
-		    TACNA_DOM_GRP_DSP2, 0,
-		    tacna_domain_clk_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 SND_SOC_DAPM_SIGGEN("TONE"),
 SND_SOC_DAPM_SIGGEN("NOISE"),
@@ -2459,77 +2284,22 @@ SND_SOC_DAPM_OUTPUT("MICSUPP"),
 
 static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	/* Internal clock domains */
-	{ "EQ1", NULL, "FXCLK" },
-	{ "EQ2", NULL, "FXCLK" },
-	{ "EQ3", NULL, "FXCLK" },
-	{ "EQ4", NULL, "FXCLK" },
-	{ "DRC1L", NULL, "FXCLK" },
-	{ "DRC1R", NULL, "FXCLK" },
-	{ "DRC2L", NULL, "FXCLK" },
-	{ "DRC2R", NULL, "FXCLK" },
-	{ "LHPF1", NULL, "FXCLK" },
-	{ "LHPF2", NULL, "FXCLK" },
-	{ "LHPF3", NULL, "FXCLK" },
-	{ "LHPF4", NULL, "FXCLK" },
-	{ "PWM1 Mixer", NULL, "PWMCLK" },
-	{ "PWM2 Mixer", NULL, "PWMCLK" },
-	{ "OUT1L PGA", NULL, "DACOUTCLK" },
-	{ "OUT1R PGA", NULL, "DACOUTCLK" },
-	{ "OUT2L PGA", NULL, "DACOUTCLK" },
-	{ "OUT2R PGA", NULL, "DACOUTCLK" },
-	{ "OUT5L PGA", NULL, "DACOUTCLK" },
-	{ "OUT5R PGA", NULL, "DACOUTCLK" },
-	{ "OUTH Output Select", NULL, "DACOUTCLK"},
-	{ "ASP1TX1", NULL, "ASP1TXCLK" },
-	{ "ASP1TX2", NULL, "ASP1TXCLK" },
-	{ "ASP1TX3", NULL, "ASP1TXCLK" },
-	{ "ASP1TX4", NULL, "ASP1TXCLK" },
-	{ "ASP1TX5", NULL, "ASP1TXCLK" },
-	{ "ASP1TX6", NULL, "ASP1TXCLK" },
-	{ "ASP1TX7", NULL, "ASP1TXCLK" },
-	{ "ASP1TX8", NULL, "ASP1TXCLK" },
-	{ "ASP2TX1", NULL, "ASP2TXCLK" },
-	{ "ASP2TX2", NULL, "ASP2TXCLK" },
-	{ "ASP2TX3", NULL, "ASP2TXCLK" },
-	{ "ASP2TX4", NULL, "ASP2TXCLK" },
-	{ "ASP3TX1", NULL, "ASP3TXCLK" },
-	{ "ASP3TX2", NULL, "ASP3TXCLK" },
-	{ "ASP3TX3", NULL, "ASP3TXCLK" },
-	{ "ASP3TX4", NULL, "ASP3TXCLK" },
-	{ "ASP4TX1", NULL, "ASP4TXCLK" },
-	{ "ASP4TX2", NULL, "ASP4TXCLK" },
-	{ "ASP4TX3", NULL, "ASP4TXCLK" },
-	{ "ASP4TX4", NULL, "ASP4TXCLK" },
-	{ "SLIMTX1", NULL, "SLIMBUSCLK" },
-	{ "SLIMTX2", NULL, "SLIMBUSCLK" },
-	{ "SLIMTX3", NULL, "SLIMBUSCLK" },
-	{ "SLIMTX4", NULL, "SLIMBUSCLK" },
-	{ "SLIMTX5", NULL, "SLIMBUSCLK" },
-	{ "SLIMTX6", NULL, "SLIMBUSCLK" },
-	{ "SLIMTX7", NULL, "SLIMBUSCLK" },
-	{ "SLIMTX8", NULL, "SLIMBUSCLK" },
-	{ "ISRC1DEC1", NULL, "ISRC1DECCLK" },
-	{ "ISRC1DEC2", NULL, "ISRC1DECCLK" },
-	{ "ISRC1INT1", NULL, "ISRC1INTCLK" },
-	{ "ISRC1INT2", NULL, "ISRC1INTCLK" },
-	{ "ISRC2DEC1", NULL, "ISRC2DECCLK" },
-	{ "ISRC2DEC2", NULL, "ISRC2DECCLK" },
-	{ "ISRC2INT1", NULL, "ISRC2INTCLK" },
-	{ "ISRC2INT2", NULL, "ISRC2INTCLK" },
-	{ "ASRC1IN1L", NULL, "ASRC1R1CLK" },
-	{ "ASRC1IN1R", NULL, "ASRC1R1CLK" },
-	{ "ASRC1IN2L", NULL, "ASRC1R2CLK" },
-	{ "ASRC1IN2R", NULL, "ASRC1R2CLK" },
-	{ "DFC1", NULL, "DFC1CLK" },
-	{ "DFC2", NULL, "DFC2CLK" },
-	{ "DFC3", NULL, "DFC3CLK" },
-	{ "DFC4", NULL, "DFC4CLK" },
-	{ "DFC5", NULL, "DFC5CLK" },
-	{ "DFC6", NULL, "DFC6CLK" },
-	{ "DFC7", NULL, "DFC7CLK" },
-	{ "DFC8", NULL, "DFC8CLK" },
-	{ "DSP1", NULL, "DSP1CLK" },
-	{ "DSP2", NULL, "DSP2CLK" },
+	{ "OUT1L PGA", NULL, "DACCLK" },
+	{ "OUT1R PGA", NULL, "DACCLK" },
+	{ "OUT2L PGA", NULL, "DACCLK" },
+	{ "OUT2R PGA", NULL, "DACCLK" },
+	{ "OUT5L PGA", NULL, "DACCLK" },
+	{ "OUT5R PGA", NULL, "DACCLK" },
+	{ "OUTH Output Select", NULL, "DACCLK"},
+
+	{ "ASRC1IN1L", NULL, "SYSCLK" },
+	{ "ASRC1IN1R", NULL, "SYSCLK" },
+	{ "ASRC1IN2L", NULL, "SYSCLK" },
+	{ "ASRC1IN2R", NULL, "SYSCLK" },
+	{ "ASRC1IN1L", NULL, "ASYNCCLK" },
+	{ "ASRC1IN1R", NULL, "ASYNCCLK" },
+	{ "ASRC1IN2L", NULL, "ASYNCCLK" },
+	{ "ASRC1IN2R", NULL, "ASYNCCLK" },
 
 	{ "OUT1L PGA", NULL, "VDD1_CP" },
 	{ "OUT1L PGA", NULL, "VDD2_CP" },
@@ -2550,8 +2320,6 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "OUT2R PGA", NULL, "SYSCLK" },
 	{ "OUT5L PGA", NULL, "SYSCLK" },
 	{ "OUT5R PGA", NULL, "SYSCLK" },
-
-	{ "DACOUTCLK", NULL, "DACCLK" },
 
 	{ "IN1LN_1", NULL, "SYSCLK" },
 	{ "IN1LN_2", NULL, "SYSCLK" },
@@ -2689,11 +2457,6 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "Slim1 Capture", NULL, "SYSCLK" },
 	{ "Slim2 Capture", NULL, "SYSCLK" },
 	{ "Slim3 Capture", NULL, "SYSCLK" },
-
-	{ "ASRC1R1CLK", NULL, "SYSCLK" },
-	{ "ASRC1R2CLK", NULL, "SYSCLK" },
-	{ "ASRC1R1CLK", NULL, "ASYNCCLK" },
-	{ "ASRC1R2CLK", NULL, "ASYNCCLK" },
 
 	{ "IN1L Mux", "Analog 1", "IN1LN_1" },
 	{ "IN1L Mux", "Analog 2", "IN1LN_2" },
