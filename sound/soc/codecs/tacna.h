@@ -81,35 +81,6 @@
 #define TACNA_MIXER_VOL_SHIFT		17
 #define TACNA_MIXER_VOL_WIDTH		7
 
-#define TACNA_DOM_GRP_FX		0
-#define TACNA_DOM_GRP_ASRC1_RATE_1	1
-#define TACNA_DOM_GRP_ASRC1_RATE_2	2
-#define TACNA_DOM_GRP_ASRC2_RATE_1	3
-#define TACNA_DOM_GRP_ASRC2_RATE_2	4
-#define TACNA_DOM_GRP_ISRC1_DEC		5
-#define TACNA_DOM_GRP_ISRC1_INT		6
-#define TACNA_DOM_GRP_ISRC2_DEC		7
-#define TACNA_DOM_GRP_ISRC2_INT		8
-#define TACNA_DOM_GRP_DAC		9
-#define TACNA_DOM_GRP_ASP1		10
-#define TACNA_DOM_GRP_ASP2		11
-#define TACNA_DOM_GRP_ASP3		12
-#define TACNA_DOM_GRP_ASP4		13
-#define TACNA_DOM_GRP_SLIMBUS		14
-#define TACNA_DOM_GRP_SOUND_WIRE	15
-#define TACNA_DOM_GRP_PWM		16
-#define TACNA_DOM_GRP_DFC1		17
-#define TACNA_DOM_GRP_DFC2		18
-#define TACNA_DOM_GRP_DFC3		19
-#define TACNA_DOM_GRP_DFC4		20
-#define TACNA_DOM_GRP_DFC5		21
-#define TACNA_DOM_GRP_DFC6		22
-#define TACNA_DOM_GRP_DFC7		23
-#define TACNA_DOM_GRP_DFC8		24
-#define TACNA_DOM_GRP_DSP1		25
-#define TACNA_DOM_GRP_DSP2		26
-#define TACNA_N_DOM_GRPS		27
-
 #define TACNA_MAX_DAI			11
 #define TACNA_MAX_DSP			2
 
@@ -316,8 +287,6 @@ struct tacna_priv {
 	int tdm_width[TACNA_MAX_ASP];
 	int tdm_slots[TACNA_MAX_ASP];
 
-	int domain_group_ref[TACNA_N_DOM_GRPS];
-
 	unsigned int eq_mode[TACNA_N_EQ_BLOCKS];
 	__be16 eq_coefficients[TACNA_N_EQ_BLOCKS][TACNA_EQ_BLOCK_SZ / 2];
 
@@ -481,9 +450,6 @@ int tacna_get_accdet_for_output(struct snd_soc_codec *codec, int output);
 int tacna_sysclk_ev(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol,
 		    int event);
-int tacna_domain_clk_ev(struct snd_soc_dapm_widget *w,
-			       struct snd_kcontrol *kcontrol,
-			       int event);
 int tacna_in_ev(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol,
 		int event);

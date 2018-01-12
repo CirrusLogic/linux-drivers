@@ -399,158 +399,6 @@ void tacna_spin_sysclk(struct tacna_priv *priv)
 }
 EXPORT_SYMBOL_GPL(tacna_spin_sysclk);
 
-static void tacna_debug_dump_domain_groups(const struct tacna_priv *priv)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(priv->domain_group_ref); ++i)
-		dev_dbg(priv->dev, "domain_grp_ref[%d]=%d\n", i,
-			priv->domain_group_ref[i]);
-}
-
-static bool tacna_can_change_grp_rate(const struct tacna_priv *priv,
-				      unsigned int reg,
-				      unsigned char shift)
-{
-	int count;
-
-	switch (reg) {
-	case TACNA_FX_SAMPLE_RATE:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_FX];
-		break;
-	case TACNA_ASRC1_CONTROL1:
-		switch (shift) {
-		case TACNA_ASRC1_RATE1_SHIFT:
-			count =
-			    priv->domain_group_ref[TACNA_DOM_GRP_ASRC1_RATE_1];
-			break;
-		case TACNA_ASRC1_RATE2_SHIFT:
-			count =
-			    priv->domain_group_ref[TACNA_DOM_GRP_ASRC1_RATE_2];
-			break;
-		default:
-			dev_warn(priv->dev,
-				 "Unexpected shift 0x%x for rate reg 0x%x\n",
-				 shift, reg);
-			return false;
-		}
-		break;
-	case TACNA_ASRC2_CONTROL1:
-		switch (shift) {
-		case TACNA_ASRC2_RATE1_SHIFT:
-			count =
-			    priv->domain_group_ref[TACNA_DOM_GRP_ASRC2_RATE_1];
-			break;
-		case TACNA_ASRC2_RATE2_SHIFT:
-			count =
-			    priv->domain_group_ref[TACNA_DOM_GRP_ASRC2_RATE_2];
-			break;
-		default:
-			dev_warn(priv->dev,
-				 "Unexpected shift 0x%x for rate reg 0x%x\n",
-				 shift, reg);
-			return false;
-		}
-		break;
-	case TACNA_ISRC1_CONTROL1:
-		switch (shift) {
-		case TACNA_ISRC1_FSH_SHIFT:
-			count = priv->domain_group_ref[TACNA_DOM_GRP_ISRC1_INT];
-			break;
-		case TACNA_ISRC1_FSL_SHIFT:
-			count = priv->domain_group_ref[TACNA_DOM_GRP_ISRC1_DEC];
-			break;
-		default:
-			dev_warn(priv->dev,
-				 "Unexpected shift 0x%x for rate reg 0x%x\n",
-				 shift, reg);
-			return false;
-		}
-		break;
-	case TACNA_ISRC2_CONTROL1:
-		switch (shift) {
-		case TACNA_ISRC2_FSH_SHIFT:
-			count = priv->domain_group_ref[TACNA_DOM_GRP_ISRC2_INT];
-			break;
-		case TACNA_ISRC2_FSL_SHIFT:
-			count = priv->domain_group_ref[TACNA_DOM_GRP_ISRC2_DEC];
-			break;
-		default:
-			dev_warn(priv->dev,
-				 "Unexpected shift 0x%x for rate reg 0x%x\n",
-				 shift, reg);
-			return false;
-		}
-		break;
-	case TACNA_OUTPUT_CONTROL_1:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_DAC];
-		break;
-	case TACNA_OUTH_CONFIG_1:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_DAC];
-		break;
-	case TACNA_ASP1_CONTROL1:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_ASP1];
-		break;
-	case TACNA_ASP2_CONTROL1:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_ASP2];
-		break;
-	case TACNA_ASP3_CONTROL1:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_ASP3];
-		break;
-	case TACNA_ASP4_CONTROL1:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_ASP4];
-		break;
-	case TACNA_SLIMBUS_RX_RATES1:
-	case TACNA_SLIMBUS_RX_RATES2:
-	case TACNA_SLIMBUS_TX_RATES1:
-	case TACNA_SLIMBUS_TX_RATES2:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_SLIMBUS];
-		break;
-	case TACNA_PWM_DRIVE_1:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_PWM];
-		break;
-	case TACNA_DFC1_CH1_CTRL:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_DFC1];
-		break;
-	case TACNA_DFC1_CH2_CTRL:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_DFC2];
-		break;
-	case TACNA_DFC1_CH3_CTRL:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_DFC3];
-		break;
-	case TACNA_DFC1_CH4_CTRL:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_DFC4];
-		break;
-	case TACNA_DFC1_CH5_CTRL:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_DFC5];
-		break;
-	case TACNA_DFC1_CH6_CTRL:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_DFC6];
-		break;
-	case TACNA_DFC1_CH7_CTRL:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_DFC7];
-		break;
-	case TACNA_DFC1_CH8_CTRL:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_DFC8];
-		break;
-	case TACNA_DSP1_CLOCK_FREQ:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_DSP1];
-		break;
-	case TACNA_DSP2_CLOCK_FREQ:
-		count = priv->domain_group_ref[TACNA_DOM_GRP_DSP2];
-		break;
-	default:
-		return false;
-	}
-
-	dev_dbg(priv->dev, "Rate reg 0x%x group ref %d\n", reg, count);
-
-	if (count)
-		return false;
-	else
-		return true;
-}
-
 const char * const tacna_rate_text[TACNA_RATE_ENUM_SIZE] = {
 	"Sample Rate 1",
 	"Sample Rate 2",
@@ -570,23 +418,15 @@ int tacna_rate_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	int ret;
 
 	/* Prevent any mixer mux changes while we do this */
 	mutex_lock(&priv->rate_lock);
 
-	if (!tacna_can_change_grp_rate(priv, e->reg, e->shift_l)) {
-		dev_warn(priv->dev,
-			 "Cannot change '%s' while in use by active audio paths\n",
-			 kcontrol->id.name);
-		ret = -EBUSY;
-	} else {
-		/* The write must be guarded by a number of SYSCLK cycles */
-		tacna_spin_sysclk(priv);
-		ret = snd_soc_put_enum_double(kcontrol, ucontrol);
-		tacna_spin_sysclk(priv);
-	}
+	/* The write must be guarded by a number of SYSCLK cycles */
+	tacna_spin_sysclk(priv);
+	ret = snd_soc_put_enum_double(kcontrol, ucontrol);
+	tacna_spin_sysclk(priv);
 
 	mutex_unlock(&priv->rate_lock);
 
@@ -1857,31 +1697,22 @@ int tacna_dsp_rate_put(struct snd_kcontrol *kcontrol,
 	const int dsp_num = e->shift_l;
 	const int rate_num = e->mask >> TACNA_DSP_RATE_CTL_NUM_SHIFT;
 	const unsigned int item = ucontrol->value.enumerated.item[0];
-	int ret;
 
 	if (item >= e->items)
 		return -EINVAL;
 
 	snd_soc_dapm_mutex_lock(dapm);
 
-	if (!tacna_can_change_grp_rate(priv, priv->dsp[dsp_num].base, 0)) {
-		dev_warn(priv->dev,
-			 "Cannot change '%s' while DSP%u is active\n",
-			 kcontrol->id.name, priv->dsp[dsp_num].num);
-		ret = -EBUSY;
-	} else {
-		if (e->mask & TACNA_DSP_RATE_CTL_DIR_MASK)
-			priv->dsp[dsp_num].tx_rate_cache[rate_num] =
-				e->values[item];
-		else
-			priv->dsp[dsp_num].rx_rate_cache[rate_num] =
-				e->values[item];
-		ret = 0;
-	}
+	if (e->mask & TACNA_DSP_RATE_CTL_DIR_MASK)
+		priv->dsp[dsp_num].tx_rate_cache[rate_num] =
+			e->values[item];
+	else
+		priv->dsp[dsp_num].rx_rate_cache[rate_num] =
+			e->values[item];
 
 	snd_soc_dapm_mutex_unlock(dapm);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(tacna_dsp_rate_put);
 
@@ -3155,14 +2986,6 @@ static int tacna_hw_params_rate(struct snd_pcm_substream *substream,
 			change_rate_domain = true;
 
 			mutex_lock(&priv->rate_lock);
-
-			if (!tacna_can_change_grp_rate(priv, rate_addr, 0)) {
-				tacna_asp_warn(dai,
-					       "Cannot change rate while active\n");
-				ret = -EBUSY;
-				goto out;
-			}
-
 			/* Guard the rate change with SYSCLK cycles */
 			tacna_spin_sysclk(priv);
 		}
@@ -3174,7 +2997,6 @@ static int tacna_hw_params_rate(struct snd_pcm_substream *substream,
 				    TACNA_ASP1_RATE_MASK,
 				    tar_asp_rate);
 
-out:
 	if (change_rate_domain) {
 		tacna_spin_sysclk(priv);
 		mutex_unlock(&priv->rate_lock);
@@ -3549,48 +3371,6 @@ int tacna_sysclk_ev(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tacna_sysclk_ev);
-
-int tacna_domain_clk_ev(struct snd_soc_dapm_widget *w,
-			struct snd_kcontrol *kcontrol,
-			int event)
-{
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
-	int dom_grp = w->shift;
-
-	if (dom_grp >= ARRAY_SIZE(priv->domain_group_ref)) {
-		WARN(true, "%s dom_grp exceeds array size\n", __func__);
-		return -EINVAL;
-	}
-
-	/*
-	 * We can't rely on the DAPM mutex for locking because we need a lock
-	 * that can safely be called in hw_params
-	 */
-	mutex_lock(&priv->rate_lock);
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		dev_dbg(priv->dev, "Inc ref on domain group %d\n",
-			dom_grp);
-		++priv->domain_group_ref[dom_grp];
-		break;
-	case SND_SOC_DAPM_POST_PMD:
-		dev_dbg(priv->dev, "Dec ref on domain group %d\n",
-			dom_grp);
-		--priv->domain_group_ref[dom_grp];
-		break;
-	default:
-		break;
-	}
-
-	tacna_debug_dump_domain_groups(priv);
-
-	mutex_unlock(&priv->rate_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(tacna_domain_clk_ev);
 
 int tacna_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		int event)
