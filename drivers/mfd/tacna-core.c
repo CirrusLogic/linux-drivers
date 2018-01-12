@@ -176,6 +176,15 @@ static int tacna_runtime_resume(struct device *dev)
 
 	regcache_cache_only(tacna->regmap, false);
 
+	if (tacna->vdd_d_powered_off) {
+		ret = tacna_wait_for_boot(tacna);
+		if (ret)
+			goto err;
+	} else {
+		dev_dbg(tacna->dev,
+			"Not waiting for boot, VDD_D didn't power off\n");
+	}
+
 	ret = regcache_sync(tacna->regmap);
 	if (ret) {
 		dev_err(tacna->dev,
