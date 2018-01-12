@@ -164,22 +164,9 @@ static int tacna_vdd_d_notify(struct notifier_block *nb,
 static int tacna_runtime_resume(struct device *dev)
 {
 	struct tacna *tacna = dev_get_drvdata(dev);
-	bool force_reset = false;
 	int ret;
 
 	dev_dbg(tacna->dev, "Leaving sleep mode\n");
-
-	/*
-	 * If VDD_D didn't power off we must force a reset so that the
-	 * cache syncs correctly. If we have a hardware reset this must
-	 * be done before powering up VDD_D. If not, we'll use a software
-	 * reset after powering-up VDD_D
-	 */
-	if (!tacna->vdd_d_powered_off) {
-		dev_dbg(tacna->dev, "VDD_D did not power off, forcing reset\n");
-		force_reset = true;
-		tacna_enable_hard_reset(tacna);
-	}
 
 	ret = regulator_enable(tacna->vdd_d);
 	if (ret) {
@@ -188,20 +175,6 @@ static int tacna_runtime_resume(struct device *dev)
 	}
 
 	regcache_cache_only(tacna->regmap, false);
-
-	if (force_reset) {
-		if (tacna->reset_gpio) {
-			tacna_disable_hard_reset(tacna);
-		} else {
-			ret = tacna_soft_reset(tacna);
-			if (ret)
-				goto err;
-		}
-	}
-
-	ret = tacna_wait_for_boot(tacna);
-	if (ret)
-		goto err;
 
 	ret = regcache_sync(tacna->regmap);
 	if (ret) {
