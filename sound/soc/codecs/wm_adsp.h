@@ -149,9 +149,6 @@ int wm_halo_init(struct wm_adsp *dsp);
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 
-int wm_halo_set_clocking(struct wm_adsp *dsp, unsigned int freq,
-			 struct mutex *rate_lock);
-
 int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event,
 			 unsigned int freq);
