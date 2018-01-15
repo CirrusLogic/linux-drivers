@@ -100,6 +100,7 @@ struct wm_adsp {
 	unsigned int n_rx_channels;
 	unsigned int n_tx_channels;
 
+	struct mutex *rate_lock;
 	u8 *rx_rate_cache;
 	u8 *tx_rate_cache;
 
@@ -145,7 +146,7 @@ int wm_adsp2_init(struct wm_adsp *dsp);
 void wm_adsp2_remove(struct wm_adsp *dsp);
 int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec);
 int wm_adsp2_codec_remove(struct wm_adsp *dsp, struct snd_soc_codec *codec);
-int wm_halo_init(struct wm_adsp *dsp);
+int wm_halo_init(struct wm_adsp *dsp, struct mutex *rate_lock);
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 

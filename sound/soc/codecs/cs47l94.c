@@ -3474,7 +3474,7 @@ static int cs47l94_probe(struct platform_device *pdev)
 		dsp->n_rx_channels = CS47L94_DSP_N_RX_CHANNELS;
 		dsp->n_tx_channels = CS47L94_DSP_N_TX_CHANNELS;
 
-		ret = wm_halo_init(dsp);
+		ret = wm_halo_init(dsp, &cs47l94->core.rate_lock);
 		if (ret != 0) {
 			for (--i; i >= 0; --i)
 				wm_adsp2_remove(dsp);
