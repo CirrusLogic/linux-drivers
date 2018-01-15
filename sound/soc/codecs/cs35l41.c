@@ -1054,8 +1054,6 @@ static int cs35l41_codec_probe(struct snd_soc_codec *codec)
 {
 	struct cs35l41_private *cs35l41 = snd_soc_codec_get_drvdata(codec);
 	struct classh_cfg *classh = &cs35l41->pdata.classh_config;
-	struct irq_cfg *irq_gpio_cfg1 = &cs35l41->pdata.irq_config1;
-	struct irq_cfg *irq_gpio_cfg2 = &cs35l41->pdata.irq_config2;
 	int ret;
 
 	/* Set Platform Data */
@@ -1181,6 +1179,17 @@ static int cs35l41_codec_probe(struct snd_soc_codec *codec)
 					CS35L41_CH_WKFET_THLD_SHIFT);
 	}
 
+	wm_adsp2_codec_probe(&cs35l41->dsp, codec);
+
+	return 0;
+}
+
+static int cs35l41_irq_gpio_config(struct cs35l41_private *cs35l41)
+{
+	struct irq_cfg *irq_gpio_cfg1 = &cs35l41->pdata.irq_config1;
+	struct irq_cfg *irq_gpio_cfg2 = &cs35l41->pdata.irq_config2;
+	int irq_pol = IRQF_TRIGGER_NONE;
+
 	if (irq_gpio_cfg1->is_present) {
 		if (irq_gpio_cfg1->irq_pol_inv)
 			regmap_update_bits(cs35l41->regmap,
@@ -1217,12 +1226,14 @@ static int cs35l41_codec_probe(struct snd_soc_codec *codec)
 						CS35L41_GPIO2_CTRL_MASK,
 						irq_gpio_cfg2->irq_src_sel <<
 						CS35L41_GPIO2_CTRL_SHIFT);
-
 	}
 
-	wm_adsp2_codec_probe(&cs35l41->dsp, codec);
+	if (irq_gpio_cfg2->irq_src_sel == CS35L41_GPIO_CTRL_ACTV_LO)
+		irq_pol = IRQF_TRIGGER_LOW;
+	else if (irq_gpio_cfg2->irq_src_sel == CS35L41_GPIO_CTRL_ACTV_HI)
+		irq_pol = IRQF_TRIGGER_HIGH;
 
-	return 0;
+	return irq_pol;
 }
 
 static int cs35l41_codec_remove(struct snd_soc_codec *codec)
@@ -1529,6 +1540,7 @@ static int cs35l41_probe(struct cs35l41_private *cs35l41,
 	int ret;
 	u32 regid, reg_revid, i, mtl_revid, int_status, chipid_match;
 	int timeout = 100;
+	int irq_pol = 0;
 
 	for (i = 0; i < ARRAY_SIZE(cs35l41_supplies); i++)
 		cs35l41->supplies[i].supply = cs35l41_supplies[i];
@@ -1611,11 +1623,13 @@ static int cs35l41_probe(struct cs35l41_private *cs35l41,
 		goto err;
 	}
 
+	irq_pol = cs35l41_irq_gpio_config(cs35l41);
+
 	init_completion(&cs35l41->global_pdn_done);
 	init_completion(&cs35l41->global_pup_done);
 
 	ret = devm_request_threaded_irq(cs35l41->dev, cs35l41->irq, NULL,
-				cs35l41_irq, IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+				cs35l41_irq, IRQF_ONESHOT | irq_pol,
 				"cs35l41", cs35l41);
 
 	/* CS35L41 needs INT for PDN_DONE */
