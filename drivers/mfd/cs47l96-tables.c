@@ -1950,7 +1950,7 @@ static bool cs47l96_volatile_register(struct device *dev, unsigned int reg)
 	}
 }
 
-static const struct regmap_config cs47l96_spi_regmap = {
+static const struct regmap_config cs47l96_burns_spi_regmap = {
 	.name = "cs47l96",
 	.reg_bits = 32,
 	.reg_stride = 4,
@@ -1968,7 +1968,25 @@ static const struct regmap_config cs47l96_spi_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(cs47l96_reg_default),
 };
 
-static const struct regmap_config cs47l96_spi_dsp1_regmap = {
+static const struct regmap_config cs47l96_spi_regmap = {
+	.name = "cs47l96",
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.pad_bits = 32,
+	.val_bits = 32,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+
+	.max_register = 0x218000,
+	.readable_reg = cs47l96_readable_register,
+	.volatile_reg = cs47l96_volatile_register,
+
+	.cache_type = REGCACHE_RBTREE,
+	.reg_defaults = cs47l96_reg_default,
+	.num_reg_defaults = ARRAY_SIZE(cs47l96_reg_default),
+};
+
+static const struct regmap_config cs47l96_burns_spi_dsp1_regmap = {
 	.name = "cs47l96-dsp1",
 	.reg_bits = 32,
 	.reg_stride = 4,
@@ -1985,7 +2003,24 @@ static const struct regmap_config cs47l96_spi_dsp1_regmap = {
 	.cache_type = REGCACHE_NONE,
 };
 
-static const struct regmap_config cs47l96_spi_dsp1ao_regmap = {
+static const struct regmap_config cs47l96_spi_dsp1_regmap = {
+	.name = "cs47l96-dsp1",
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.pad_bits = 32,
+	.val_bits = 32,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+
+	.max_register = 0x3813fe8,
+	.rd_table = &cs47l96_dsp1_readable,
+	.precious_table = &cs47l96_dsp1_precious,
+
+	/* we don't currently need to cache any DSP1 registers */
+	.cache_type = REGCACHE_NONE,
+};
+
+static const struct regmap_config cs47l96_burns_spi_dsp1ao_regmap = {
 	.name = "cs47l96-dsp1ao",
 	.reg_bits = 32,
 	.reg_stride = 4,
@@ -2002,24 +2037,66 @@ static const struct regmap_config cs47l96_spi_dsp1ao_regmap = {
 	.cache_type = REGCACHE_NONE,
 };
 
+static const struct regmap_config cs47l96_spi_dsp1ao_regmap = {
+	.name = "cs47l96-dsp1ao",
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.pad_bits = 32,
+	.val_bits = 32,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+
+	.max_register = 0x5845fe8,
+	.rd_table = &cs47l96_dsp1ao_readable,
+	.precious_table = &cs47l96_dsp1ao_precious,
+
+	/* we don't currently need to cache any DSP1AO registers */
+	.cache_type = REGCACHE_NONE,
+};
+
 int cs47l96_init_spi_regmap(struct spi_device *spi, struct tacna *tacna)
 {
+	const struct regmap_config *spi_regmap, *spi_dsp1_regmap,
+				   *spi_dsp1ao_regmap;
+
 	/* notice if using caching without marking the registers volatile */
-	BUILD_BUG_ON(cs47l96_spi_dsp1_regmap.cache_type != REGCACHE_NONE &&
+	BUILD_BUG_ON(cs47l96_burns_spi_dsp1_regmap.cache_type
+			!= REGCACHE_NONE &&
+		     cs47l96_burns_spi_dsp1_regmap.volatile_table == NULL);
+	BUILD_BUG_ON(cs47l96_spi_dsp1_regmap.cache_type
+			!= REGCACHE_NONE &&
 		     cs47l96_spi_dsp1_regmap.volatile_table == NULL);
-	BUILD_BUG_ON(cs47l96_spi_dsp1ao_regmap.cache_type != REGCACHE_NONE &&
+	BUILD_BUG_ON(cs47l96_spi_dsp1ao_regmap.cache_type
+			!= REGCACHE_NONE &&
 		     cs47l96_spi_dsp1ao_regmap.volatile_table == NULL);
 
-	tacna->regmap = devm_regmap_init_spi(spi, &cs47l96_spi_regmap);
+	/* Temporary fix for using Burns or FPGA prior to real silicon */
+	switch (tacna->type) {
+	case CS47L96:
+		spi_regmap = &cs47l96_burns_spi_regmap;
+		spi_dsp1_regmap = &cs47l96_burns_spi_dsp1_regmap;
+		spi_dsp1ao_regmap = &cs47l96_burns_spi_dsp1ao_regmap;
+		break;
+	case CS47L97:
+		spi_regmap = &cs47l96_spi_regmap;
+		spi_dsp1_regmap = &cs47l96_spi_dsp1_regmap;
+		spi_dsp1ao_regmap = &cs47l96_spi_dsp1ao_regmap;
+		break;
+	default:
+		dev_err(tacna->dev, "Unknown device type: %d\n", tacna->type);
+		return -EINVAL;
+	}
+
+	tacna->regmap = devm_regmap_init_spi(spi, spi_regmap);
 	if (IS_ERR(tacna->regmap))
 		return PTR_ERR(tacna->regmap);
 
 	tacna->dsp_regmap[0] =
-		devm_regmap_init_spi(spi, &cs47l96_spi_dsp1_regmap);
+		devm_regmap_init_spi(spi, spi_dsp1_regmap);
 	if (IS_ERR(tacna->dsp_regmap[0]))
 		return PTR_ERR(tacna->dsp_regmap[0]);
 	tacna->dsp_regmap[1] =
-		devm_regmap_init_spi(spi, &cs47l96_spi_dsp1ao_regmap);
+		devm_regmap_init_spi(spi, spi_dsp1ao_regmap);
 	if (IS_ERR(tacna->dsp_regmap[1]))
 		return PTR_ERR(tacna->dsp_regmap[1]);
 

@@ -60,6 +60,8 @@ static int tacna_spi_probe(struct spi_device *spi)
 	if (!tacna)
 		return -ENOMEM;
 
+	tacna->type = type;
+
 	ret = (*regmap_init_fn)(spi, tacna);
 	if (ret) {
 		dev_err(&spi->dev,
@@ -67,7 +69,6 @@ static int tacna_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	tacna->type = type;
 	tacna->dev = &spi->dev;
 	tacna->irq = spi->irq;
 
