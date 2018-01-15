@@ -3031,6 +3031,8 @@ static int wm_halo_set_rate_block(struct wm_adsp *dsp,
 	unsigned int addr = dsp->base + rate_base, val;
 	int ret, i;
 
+	mutex_lock(dsp->rate_lock);
+
 	for (i = 0; i < n_rates; ++i) {
 		val = rate_cache[i] << HALO_DSP_RATE_SHIFT;
 
@@ -3040,11 +3042,16 @@ static int wm_halo_set_rate_block(struct wm_adsp *dsp,
 					 val);
 		if (ret) {
 			adsp_err(dsp, "Failed to set rate: %d\n", ret);
+			mutex_unlock(dsp->rate_lock);
 			return ret;
 		}
 
 		adsp_dbg(dsp, "Set rate %d to 0x%x\n", i, val);
 	}
+
+	udelay(300);
+
+	mutex_unlock(dsp->rate_lock);
 
 	return 0;
 }
@@ -3710,7 +3717,7 @@ int wm_adsp2_init(struct wm_adsp *dsp)
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_init);
 
-int wm_halo_init(struct wm_adsp *dsp)
+int wm_halo_init(struct wm_adsp *dsp, struct mutex *rate_lock)
 {
 	INIT_LIST_HEAD(&dsp->alg_regions);
 	INIT_LIST_HEAD(&dsp->ctl_list);
@@ -3718,6 +3725,7 @@ int wm_halo_init(struct wm_adsp *dsp)
 
 	mutex_init(&dsp->pwr_lock);
 
+	dsp->rate_lock = rate_lock;
 	dsp->rx_rate_cache = kcalloc(dsp->n_rx_channels, sizeof(u8),
 				     GFP_KERNEL);
 	dsp->tx_rate_cache = kcalloc(dsp->n_tx_channels, sizeof(u8),
