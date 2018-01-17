@@ -646,7 +646,7 @@ static const struct snd_soc_dapm_route cs35l41_audio_map[] = {
 
 	{"ASP TX1 Source", "VMON", "VMON ADC"},
 	{"ASP TX1 Source", "IMON", "IMON ADC"},
-	{"ASP TX1 Source", "IMON", "VPMON ADC"},
+	{"ASP TX1 Source", "VPMON", "VPMON ADC"},
 	{"ASP TX1 Source", "DSPTX1", "DSP1"},
 	{"ASP TX1 Source", "DSPTX2", "DSP1"},
 	{"ASP TX1 Source", "ASPRX1", "ASPRX1" },
@@ -654,7 +654,7 @@ static const struct snd_soc_dapm_route cs35l41_audio_map[] = {
 	{"ASP TX1 Source", "Zero", "ASPRX1" },
 	{"ASP TX2 Source", "VMON", "VMON ADC"},
 	{"ASP TX2 Source", "IMON", "IMON ADC"},
-	{"ASP TX2 Source", "IMON", "VPMON ADC"},
+	{"ASP TX2 Source", "VPMON", "VPMON ADC"},
 	{"ASP TX2 Source", "DSPTX1", "DSP1"},
 	{"ASP TX2 Source", "DSPTX2", "DSP1"},
 	{"ASP TX2 Source", "ASPRX1", "ASPRX1" },
