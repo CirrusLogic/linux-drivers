@@ -3209,25 +3209,30 @@ static int cs47l94_compr_open(struct snd_compr_stream *stream)
 	return wm_adsp_compr_open(&priv->dsp[n_dsp], stream);
 }
 
-static irqreturn_t cs47l94_dsp1_irq(int irq, void *data)
+static irqreturn_t cs47l94_dsp_irq(void *data, int dsp)
 {
 	struct cs47l94 *cs47l94 = data;
 	struct tacna_priv *priv = &cs47l94->core;
-	int serviced = 0;
-	int i, ret;
+	int ret;
 
-	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
-		ret = wm_adsp_compr_handle_irq(&priv->dsp[i]);
-		if (ret != -ENODEV)
-			serviced++;
-	}
-
-	if (!serviced) {
-		dev_err(priv->dev, "Spurious compressed data IRQ\n");
+	ret = wm_adsp_compr_handle_irq(&priv->dsp[dsp]);
+	if (ret == -ENODEV) {
+		dev_err(priv->dev, "Spurious compressed data IRQ on DSP%d\n",
+			dsp + 1);
 		return IRQ_NONE;
 	}
 
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs47l94_dsp1_irq(int irq, void *data)
+{
+	return cs47l94_dsp_irq(data, 0);
+}
+
+static irqreturn_t cs47l94_dsp2_irq(int irq, void *data)
+{
+	return cs47l94_dsp_irq(data, 1);
 }
 
 static int cs47l94_codec_probe(struct snd_soc_codec *codec)
@@ -3442,6 +3447,14 @@ static int cs47l94_probe(struct platform_device *pdev)
 		goto error_dsp1_irq;
 	}
 
+	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP2_IRQ1,
+				"DSP2 Buffer IRQ", cs47l94_dsp2_irq,
+				cs47l94);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "Failed to request DSP2_IRQ1: %d\n", ret);
+		goto error_dsp2_irq;
+	}
+
 	BUILD_BUG_ON(ARRAY_SIZE(tacna->dsp_regmap) < CS47L94_NUM_DSP);
 
 	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
@@ -3529,6 +3542,8 @@ error_dsp:
 	for (i = 0; i < CS47L94_NUM_DSP; ++i)
 		wm_adsp2_remove(&cs47l94->core.dsp[i]);
 error_core:
+	tacna_free_irq(tacna, TACNA_IRQ_DSP2_IRQ1, cs47l94);
+error_dsp2_irq:
 	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ1, cs47l94);
 error_dsp1_irq:
 	tacna_core_destroy(&cs47l94->core);
@@ -3554,6 +3569,7 @@ static int cs47l94_remove(struct platform_device *pdev)
 	tacna_free_irq(tacna, TACNA_IRQ_OUTHL_ENABLE_DONE, cs47l94);
 	tacna_free_irq(tacna, TACNA_IRQ_OUTHL_DISABLE_DONE, cs47l94);
 
+	tacna_free_irq(tacna, TACNA_IRQ_DSP2_IRQ1, cs47l94);
 	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ1, cs47l94);
 
 	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
