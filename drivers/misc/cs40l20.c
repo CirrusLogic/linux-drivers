@@ -109,14 +109,14 @@ static ssize_t cs40l20_cp_trigger_index_store(struct device *dev,
 }
 
 static unsigned int cs40l20_dsp_reg(struct cs40l20_private *cs40l20,
-		const char *coeff_name)
+			const char *coeff_name, const unsigned char block_type)
 {
 	struct cs40l20_coeff_desc *coeff_desc;
 
 	list_for_each_entry(coeff_desc, &cs40l20->coeff_desc_head, list) {
 		if (strcmp(coeff_desc->name, coeff_name))
 			continue;
-		if (coeff_desc->block_type != CS40L20_XM_UNPACKED_TYPE)
+		if (coeff_desc->block_type != block_type)
 			continue;
 
 		return coeff_desc->reg;
@@ -135,7 +135,8 @@ static ssize_t cs40l20_gpio1_rise_index_show(struct device *dev,
 
 	mutex_lock(&cs40l20->lock);
 	ret = regmap_read(cs40l20->regmap,
-			cs40l20_dsp_reg(cs40l20, "INDEXBUTTONPRESS"), &val);
+			cs40l20_dsp_reg(cs40l20, "INDEXBUTTONPRESS",
+				CS40L20_XM_UNPACKED_TYPE), &val);
 	mutex_unlock(&cs40l20->lock);
 
 	if (ret) {
@@ -163,7 +164,8 @@ static ssize_t cs40l20_gpio1_rise_index_store(struct device *dev,
 
 	mutex_lock(&cs40l20->lock);
 	ret = regmap_write(cs40l20->regmap,
-			cs40l20_dsp_reg(cs40l20, "INDEXBUTTONPRESS"), index);
+			cs40l20_dsp_reg(cs40l20, "INDEXBUTTONPRESS",
+				CS40L20_XM_UNPACKED_TYPE), index);
 	mutex_unlock(&cs40l20->lock);
 
 	if (ret) {
@@ -183,7 +185,8 @@ static ssize_t cs40l20_gpio1_fall_index_show(struct device *dev,
 
 	mutex_lock(&cs40l20->lock);
 	ret = regmap_read(cs40l20->regmap,
-			cs40l20_dsp_reg(cs40l20, "INDEXBUTTONRELEASE"), &val);
+			cs40l20_dsp_reg(cs40l20, "INDEXBUTTONRELEASE",
+				CS40L20_XM_UNPACKED_TYPE), &val);
 	mutex_unlock(&cs40l20->lock);
 
 	if (ret) {
@@ -211,7 +214,8 @@ static ssize_t cs40l20_gpio1_fall_index_store(struct device *dev,
 
 	mutex_lock(&cs40l20->lock);
 	ret = regmap_write(cs40l20->regmap,
-			cs40l20_dsp_reg(cs40l20, "INDEXBUTTONRELEASE"), index);
+			cs40l20_dsp_reg(cs40l20, "INDEXBUTTONRELEASE",
+				CS40L20_XM_UNPACKED_TYPE), index);
 	mutex_unlock(&cs40l20->lock);
 
 	if (ret) {
@@ -231,7 +235,8 @@ static ssize_t cs40l20_f0_measured_show(struct device *dev,
 
 	mutex_lock(&cs40l20->lock);
 	ret = regmap_read(cs40l20->regmap,
-			cs40l20_dsp_reg(cs40l20, "F0_MEASURED"), &val);
+			cs40l20_dsp_reg(cs40l20, "F0_MEASURED",
+				CS40L20_XM_UNPACKED_TYPE), &val);
 	mutex_unlock(&cs40l20->lock);
 
 	if (ret) {
@@ -251,7 +256,8 @@ static ssize_t cs40l20_f0_stored_show(struct device *dev,
 
 	mutex_lock(&cs40l20->lock);
 	ret = regmap_read(cs40l20->regmap,
-			cs40l20_dsp_reg(cs40l20, "F0_STORED"), &val);
+			cs40l20_dsp_reg(cs40l20, "F0_STORED",
+				CS40L20_XM_UNPACKED_TYPE), &val);
 	mutex_unlock(&cs40l20->lock);
 
 	if (ret) {
@@ -276,7 +282,8 @@ static ssize_t cs40l20_f0_stored_store(struct device *dev,
 
 	mutex_lock(&cs40l20->lock);
 	ret = regmap_write(cs40l20->regmap,
-			cs40l20_dsp_reg(cs40l20, "F0_STORED"), val);
+			cs40l20_dsp_reg(cs40l20, "F0_STORED",
+				CS40L20_XM_UNPACKED_TYPE), val);
 	mutex_unlock(&cs40l20->lock);
 
 	if (ret) {
@@ -321,10 +328,12 @@ static void cs40l20_vibe_start_worker(struct work_struct *work)
 
 	switch (cs40l20->cp_trigger_index) {
 	case 0x0001 ... 0x7FFF:
-		control_reg = cs40l20_dsp_reg(cs40l20, "TRIGGERINDEX");
+		control_reg = cs40l20_dsp_reg(cs40l20, "TRIGGERINDEX",
+					CS40L20_XM_UNPACKED_TYPE);
 		break;
 	default:
-		control_reg = cs40l20_dsp_reg(cs40l20, "TRIGGER_MS");
+		control_reg = cs40l20_dsp_reg(cs40l20, "TRIGGER_MS",
+					CS40L20_XM_UNPACKED_TYPE);
 	}
 
 	ret = regmap_write(cs40l20->regmap,
@@ -344,7 +353,8 @@ static void cs40l20_vibe_stop_worker(struct work_struct *work)
 	mutex_lock(&cs40l20->lock);
 
 	ret = regmap_write(cs40l20->regmap,
-			cs40l20_dsp_reg(cs40l20, "ENDPLAYBACK"), 1);
+			cs40l20_dsp_reg(cs40l20, "ENDPLAYBACK",
+				CS40L20_XM_UNPACKED_TYPE), 1);
 	if (ret)
 		dev_err(cs40l20->dev, "Failed to stop playback\n");
 
@@ -593,8 +603,8 @@ static void cs40l20_dsp_start(struct cs40l20_private *cs40l20)
 		return;
 	}
 
-	ret = regmap_read(regmap, cs40l20_dsp_reg(cs40l20, "HALO_STATE"),
-			&val);
+	ret = regmap_read(regmap, cs40l20_dsp_reg(cs40l20, "HALO_STATE",
+			CS40L20_XM_UNPACKED_TYPE), &val);
 	if (ret) {
 		dev_err(dev, "Failed to read haptics algorithm status\n");
 		return;
@@ -607,15 +617,15 @@ static void cs40l20_dsp_start(struct cs40l20_private *cs40l20)
 		return;
 	}
 
-	ret = regmap_write(regmap, cs40l20_dsp_reg(cs40l20, "TIMEOUT_MS"),
-			CS40L20_TIMEOUT_MS_MAX);
+	ret = regmap_write(regmap, cs40l20_dsp_reg(cs40l20, "TIMEOUT_MS",
+			CS40L20_XM_UNPACKED_TYPE), CS40L20_TIMEOUT_MS_MAX);
 	if (ret) {
 		dev_err(dev, "Failed to extend playback timeout\n");
 		return;
 	}
 
-	ret = regmap_read(regmap, cs40l20_dsp_reg(cs40l20, "NUMBEROFWAVES"),
-			&val);
+	ret = regmap_read(regmap, cs40l20_dsp_reg(cs40l20, "NUMBEROFWAVES",
+			CS40L20_XM_UNPACKED_TYPE), &val);
 	if (ret) {
 		dev_err(dev, "Failed to count wavetable entries\n");
 		return;
@@ -684,9 +694,11 @@ static void cs40l20_waveform_load(const struct firmware *fw, void *context)
 				+ (fw->data[pos + 3] << 24);
 		pos += CS40L20_WT_DBLK_LENGTH_SIZE;
 
-		if (block_type == CS40L20_XM_UNPACKED_TYPE) {
+		switch (block_type) {
+		case CS40L20_XM_UNPACKED_TYPE:
 			ret = cs40l20_raw_write(cs40l20,
-					cs40l20_dsp_reg(cs40l20, "WAVETABLE"),
+					cs40l20_dsp_reg(cs40l20, "WAVETABLE",
+						CS40L20_XM_UNPACKED_TYPE),
 					&fw->data[pos], block_length,
 					CS40L20_MAX_WLEN);
 			if (ret) {
@@ -694,6 +706,19 @@ static void cs40l20_waveform_load(const struct firmware *fw, void *context)
 					"Failed to write XM_UNPACKED memory\n");
 				goto err_rls_fw;
 			}
+			break;
+		case CS40L20_YM_UNPACKED_TYPE:
+			ret = cs40l20_raw_write(cs40l20,
+					cs40l20_dsp_reg(cs40l20, "WAVETABLEYM",
+						CS40L20_YM_UNPACKED_TYPE),
+					&fw->data[pos], block_length,
+					CS40L20_MAX_WLEN);
+			if (ret) {
+				dev_err(dev,
+					"Failed to write YM_UNPACKED memory\n");
+				goto err_rls_fw;
+			}
+			break;
 		}
 
 		pos += block_length;
