@@ -2328,7 +2328,7 @@ const struct soc_enum madera_anc_input_src[] = {
 			ARRAY_SIZE(madera_anc_input_src_text),
 			madera_anc_input_src_text),
 	SOC_ENUM_SINGLE(MADERA_FCL_ADC_REFORMATTER_CONTROL,
-			MADERA_FCL_MIC_MODE_SEL,
+			MADERA_FCL_MIC_MODE_SEL_SHIFT,
 			ARRAY_SIZE(madera_anc_channel_src_text),
 			madera_anc_channel_src_text),
 	SOC_ENUM_SINGLE(MADERA_ANC_SRC,
@@ -2336,7 +2336,7 @@ const struct soc_enum madera_anc_input_src[] = {
 			ARRAY_SIZE(madera_anc_input_src_text),
 			madera_anc_input_src_text),
 	SOC_ENUM_SINGLE(MADERA_FCR_ADC_REFORMATTER_CONTROL,
-			MADERA_FCR_MIC_MODE_SEL,
+			MADERA_FCR_MIC_MODE_SEL_SHIFT,
 			ARRAY_SIZE(madera_anc_channel_src_text),
 			madera_anc_channel_src_text),
 };
