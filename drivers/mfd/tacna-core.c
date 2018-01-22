@@ -92,6 +92,12 @@ static const struct mfd_cell cs47l96_devs[] = {
 		.parent_supplies = cs47l96_supplies,
 		.num_parent_supplies = ARRAY_SIZE(cs47l96_supplies),
 	},
+	{
+		.name = "cs47l96-ao-codec",
+		.parent_supplies = cs47l96_supplies,
+		.num_parent_supplies = ARRAY_SIZE(cs47l96_supplies),
+		.of_compatible = "cirrus,cs47l96-ao",
+	},
 };
 
 const char *tacna_name_from_type(enum tacna_type type)
@@ -708,6 +714,23 @@ int tacna_dev_init(struct tacna *tacna)
 	if (ret) {
 		dev_err(tacna->dev, "Failed to init 32k clock: %d\n", ret);
 		goto err_reset;
+	}
+
+	switch (tacna->type) {
+	case CS47L96:
+	case CS47L97:
+		ret = regmap_update_bits(tacna->regmap,
+					 TACNA_CLOCK32KAO,
+					 TACNA_CLK_32KAO_SRC_MASK,
+					 TACNA_32K_MCLK2);
+		if (ret) {
+			dev_err(tacna->dev, "Failed to init AO 32k clock: %d\n",
+				ret);
+			goto err_reset;
+		}
+		break;
+	default:
+		break;
 	}
 
 	tacna_configure_micbias(tacna);
