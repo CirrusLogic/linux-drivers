@@ -977,6 +977,11 @@ const struct snd_kcontrol_new wm_adsp_fw_controls[] = {
 };
 EXPORT_SYMBOL_GPL(wm_adsp_fw_controls);
 
+static const struct snd_kcontrol_new wm_adsp_ao_fw_controls[] = {
+	SOC_ENUM_EXT("DSP1AO Firmware", wm_adsp_fw_enum[0],
+		     wm_adsp_fw_get, wm_adsp_fw_put),
+};
+
 static struct wm_adsp_region const *wm_adsp_find_region(struct wm_adsp *dsp,
 							int type)
 {
@@ -3348,7 +3353,8 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	char preload[32];
 
-	snprintf(preload, ARRAY_SIZE(preload), "DSP%u Preload", mc->shift);
+	snprintf(preload, ARRAY_SIZE(preload), "DSP%u%s Preload", mc->shift,
+		 dsp->suffix);
 
 	dsp->preloaded = ucontrol->value.integer.value[0];
 
@@ -3659,21 +3665,31 @@ err:
 }
 EXPORT_SYMBOL_GPL(wm_halo_event);
 
-int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
+int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec,
+			 bool ao_dsp)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	char preload[32];
+	int ret;
 
-	snprintf(preload, ARRAY_SIZE(preload), "DSP%d Preload", dsp->num);
+	snprintf(preload, ARRAY_SIZE(preload), "DSP%d%s Preload", dsp->num,
+		 dsp->suffix);
 	snd_soc_dapm_disable_pin(dapm, preload);
 
 	wm_adsp2_init_debugfs(dsp, codec);
 
 	dsp->codec = codec;
 
-	return snd_soc_add_codec_controls(codec,
-					  &wm_adsp_fw_controls[dsp->num - 1],
-					  1);
+	if (ao_dsp)
+		ret = snd_soc_add_codec_controls(codec,
+					 &wm_adsp_ao_fw_controls[dsp->num - 1],
+					 1);
+	else
+		ret = snd_soc_add_codec_controls(codec,
+					 &wm_adsp_fw_controls[dsp->num - 1],
+					 1);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_codec_probe);
 
