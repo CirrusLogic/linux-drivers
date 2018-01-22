@@ -2434,7 +2434,7 @@ static int cs47l96_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	wm_adsp2_codec_probe(&cs47l96->core.dsp[0], codec);
+	wm_adsp2_codec_probe(&cs47l96->core.dsp[0], codec, false);
 
 	return 0;
 }
@@ -2574,6 +2574,7 @@ static int cs47l96_probe(struct platform_device *pdev)
 	dsp = &cs47l96->core.dsp[0];
 	dsp->part = "cs47l96";
 	dsp->num = 1;
+	dsp->suffix = "";
 	dsp->type = WMFW_HALO;
 	dsp->rev = 0;
 	dsp->dev = tacna->dev;
