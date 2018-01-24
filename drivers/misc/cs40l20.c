@@ -347,7 +347,11 @@ static int cs40l20_diag_capture(struct cs40l20_private *cs40l20)
 	struct regmap *regmap = cs40l20->regmap;
 	int ret;
 
-	if (cs40l20->diag_state != CS40L20_DIAG_STATE_CLOSED_LOOP)
+	/* this function expects to be called from a locked worker function */
+	if (!mutex_is_locked(&cs40l20->lock))
+		return -EACCES;
+
+	if (cs40l20->diag_state != CS40L20_DIAG_STATE_RUN)
 		return -ENODATA;
 
 	ret = regmap_read(regmap, cs40l20_dsp_reg(cs40l20, "F0",
@@ -401,13 +405,20 @@ static void cs40l20_vibe_start_worker(struct work_struct *work)
 		cs40l20->diag_state = CS40L20_DIAG_STATE_INIT;
 
 		ret = regmap_write(regmap,
+				cs40l20_dsp_reg(cs40l20, "CLOSED_LOOP",
+					CS40L20_XM_UNPACKED_TYPE), 0);
+		if (ret) {
+			dev_err(dev, "Failed to disable closed-loop mode\n");
+			goto err_mutex;
+		}
+
+		ret = regmap_write(regmap,
 				cs40l20_dsp_reg(cs40l20, "STIMULUS_MODE",
 					CS40L20_XM_UNPACKED_TYPE), 1);
 		if (ret) {
 			dev_err(dev, "Failed to enable stimulus mode\n");
 			goto err_mutex;
 		}
-		cs40l20->diag_state = CS40L20_DIAG_STATE_OPEN_LOOP;
 
 		msleep(CS40L20_DIAG_STATE_DELAY_MS);
 
@@ -418,7 +429,7 @@ static void cs40l20_vibe_start_worker(struct work_struct *work)
 			dev_err(dev, "Failed to enable closed-loop mode\n");
 			goto err_mutex;
 		}
-		cs40l20->diag_state = CS40L20_DIAG_STATE_CLOSED_LOOP;
+		cs40l20->diag_state = CS40L20_DIAG_STATE_RUN;
 
 		break;
 
@@ -451,12 +462,6 @@ static void cs40l20_vibe_stop_worker(struct work_struct *work)
 					CS40L20_XM_UNPACKED_TYPE), 0);
 		if (ret)
 			dev_err(dev, "Failed to disable stimulus mode\n");
-
-		ret = regmap_write(regmap,
-				cs40l20_dsp_reg(cs40l20, "CLOSED_LOOP",
-					CS40L20_XM_UNPACKED_TYPE), 0);
-		if (ret)
-			dev_err(dev, "Failed to disable closed-loop mode\n");
 		break;
 
 	default:
@@ -589,8 +594,6 @@ static void cs40l20_vibe_init(struct cs40l20_private *cs40l20)
 #else
 	cs40l20_create_led(cs40l20);
 #endif /* CONFIG_ANDROID_TIMED_OUTPUT */
-
-	mutex_init(&cs40l20->lock);
 
 	cs40l20->vibe_workqueue =
 		alloc_ordered_workqueue("vibe_workqueue", WQ_HIGHPRI);
@@ -1281,6 +1284,8 @@ static int cs40l20_i2c_probe(struct i2c_client *i2c_client,
 	dev_set_drvdata(dev, cs40l20);
 	i2c_set_clientdata(i2c_client, cs40l20);
 
+	mutex_init(&cs40l20->lock);
+
 	cs40l20->regmap = devm_regmap_init_i2c(i2c_client, &cs40l20_regmap);
 	if (IS_ERR(cs40l20->regmap)) {
 		ret = PTR_ERR(cs40l20->regmap);
@@ -1396,13 +1401,13 @@ static int cs40l20_i2c_remove(struct i2c_client *i2c_client)
 		cancel_work_sync(&cs40l20->vibe_stop_work);
 
 		destroy_workqueue(cs40l20->vibe_workqueue);
-
-		mutex_destroy(&cs40l20->lock);
 	}
 
 	gpiod_set_value_cansleep(cs40l20->reset_gpio, 0);
 
 	regulator_bulk_disable(cs40l20->num_supplies, cs40l20->supplies);
+
+	mutex_destroy(&cs40l20->lock);
 
 	return 0;
 }
