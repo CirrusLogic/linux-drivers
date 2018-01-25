@@ -3222,6 +3222,18 @@ restore_asp:
 	return ret;
 }
 
+static bool tacna_is_sysclk(int clk_id)
+{
+	switch (clk_id) {
+	case TACNA_CLK_SYSCLK_1:
+	case TACNA_CLK_SYSCLK_2:
+	case TACNA_CLK_SYSCLK_3:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static const char * const tacna_dai_clk_str(int clk_id)
 {
 	switch (clk_id) {
@@ -3268,6 +3280,12 @@ static int tacna_dai_set_sysclk(struct snd_soc_dai *dai,
 
 	dev_dbg(codec->dev, "Setting ASP%d to %s\n", dai->id + 1,
 		tacna_dai_clk_str(clk_id));
+
+	/* No need to alter routes if we haven't switched clock domain. */
+	if (!(tacna_is_sysclk(clk_id) ^ tacna_is_sysclk(dai_priv->clk))) {
+		dai_priv->clk = clk_id;
+		return 0;
+	}
 
 	memset(&routes, 0, sizeof(routes));
 	routes[0].sink = dai->driver->capture.stream_name;
