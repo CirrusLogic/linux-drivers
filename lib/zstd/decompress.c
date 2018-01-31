@@ -1192,6 +1192,8 @@ FORCE_INLINE seq_t ZSTD_decodeSequenceLong_generic(seqState_t *seqState, int con
 		else {
 			if (longOffsets) {
 				int const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN);
+				// Check array bounds for gcc 4.9.x.
+				BUG_ON(ofCode >= ARRAY_SIZE(OF_base));
 				offset = OF_base[ofCode] + (BIT_readBitsFast(&seqState->DStream, ofBits - extraBits) << extraBits);
 				if (ZSTD_32bits() || extraBits)
 					BIT_reloadDStream(&seqState->DStream);
