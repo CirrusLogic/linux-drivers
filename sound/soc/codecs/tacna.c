@@ -196,6 +196,14 @@ const char * const tacna_mixer_texts[] = {
 	"DFC8",
 	"Ultrasonic 1",
 	"Ultrasonic 2",
+	"AOBRIDGE1IN1",
+	"AOBRIDGE1IN2",
+	"AOBRIDGE1IN3",
+	"AOBRIDGE1IN4",
+	"AOBRIDGE1IN5",
+	"AOBRIDGE1IN6",
+	"AOBRIDGE1IN7",
+	"AOBRIDGE1IN8",
 	"DSP1.1",
 	"DSP1.2",
 	"DSP1.3",
@@ -327,6 +335,14 @@ unsigned int tacna_mixer_values[] = {
 	0x0D7, /* DFC1 channel 8 */
 	0x0D8, /* Ultrasonic 1 */
 	0x0D9, /* Ultrasonic 2 */
+	0x0e0, /* AO Bridge 1 channel 1 */
+	0x0e1, /* AO Bridge 1 channel 2 */
+	0x0e2, /* AO Bridge 1 channel 3 */
+	0x0e3, /* AO Bridge 1 channel 4 */
+	0x0e4, /* AO Bridge 1 channel 5 */
+	0x0e5, /* AO Bridge 1 channel 6 */
+	0x0e6, /* AO Bridge 1 channel 7 */
+	0x0e7, /* AO Bridge 1 channel 8 */
 	0x100, /* DSP1 channel 1 */
 	0x101, /* DSP1 channel 2 */
 	0x102, /* DSP1 channel 3 */
