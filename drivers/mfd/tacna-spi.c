@@ -44,6 +44,10 @@ static int tacna_spi_probe(struct spi_device *spi)
 		if (IS_ENABLED(CONFIG_MFD_CS47L96))
 			regmap_init_fn = cs47l96_init_spi_regmap;
 		break;
+	case CS48L32:
+		if (IS_ENABLED(CONFIG_MFD_CS48L32))
+			regmap_init_fn = cs48l32_init_spi_regmap;
+		break;
 	default:
 		dev_err(&spi->dev, "Unknown Tacna SPI device type %ld\n", type);
 		return -EINVAL;
@@ -89,6 +93,7 @@ static const struct spi_device_id tacna_spi_ids[] = {
 	{ "cs47l95", CS47L95 },
 	{ "cs47l96", CS47L96 },
 	{ "cs47l97", CS47L97 },
+	{ "cs48l32", CS48L32 },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, tacna_spi_ids);
