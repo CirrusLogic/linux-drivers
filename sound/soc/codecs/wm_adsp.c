@@ -1609,7 +1609,8 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 		break;
 	default:
 		ret = snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
-				"DSP%d%c %.12s %x", dsp->num, *region_name,
+				"DSP%d%s%c %.12s %x", dsp->num,
+				dsp->suffix, *region_name,
 				wm_adsp_fw_text[dsp->fw], alg_region->alg);
 
 		/* Truncate the subname from the start if it is too long */
