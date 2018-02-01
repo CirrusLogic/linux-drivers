@@ -389,11 +389,14 @@ static int tacna_map_irq(struct tacna *tacna, int irq)
 	if (irq < TACNA_NUM_MAIN_IRQ) {
 		dev_dbg(priv->dev, "Mapping IRQ%d to main virq\n", irq);
 		return regmap_irq_get_virq(priv->irq_chip, irq);
-	} else {
+	} else if (priv->aod_irq_chip) {
 		dev_dbg(priv->dev, "Mapping IRQ%d to AOD virq\n", irq);
 		irq -= TACNA_NUM_MAIN_IRQ;
 		return regmap_irq_get_virq(priv->aod_irq_chip, irq);
 	}
+
+	dev_err(priv->dev, "IRQ%d can't be mapped\n", irq);
+	return -ENOENT;
 }
 
 int tacna_request_irq(struct tacna *tacna, int irq, const char *name,
@@ -447,21 +450,26 @@ static irqreturn_t tacna_irq_thread(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	/* Check whether AOD interrupts are pending */
-	ret = regmap_read(tacna->regmap, TACNA_IRQ1_EINT_AOD, &val);
-	if (ret) {
-		dev_warn(priv->dev, "Failed to read AOD IRQ1 %d\n", ret);
-	} else {
-		ret = regmap_read(tacna->regmap, TACNA_IRQ1_MASK_AOD, &mask);
-		if (ret)
-			dev_warn(priv->dev, "Failed to read AOD IRQ1 MASK %d\n",
+	if (priv->aod_irq_chip) {
+		/* Check whether AOD interrupts are pending */
+		ret = regmap_read(tacna->regmap, TACNA_IRQ1_EINT_AOD, &val);
+		if (ret) {
+			dev_warn(priv->dev, "Failed to read AOD IRQ1 %d\n",
 				 ret);
-	}
+		} else {
+			ret = regmap_read(tacna->regmap, TACNA_IRQ1_MASK_AOD,
+					  &mask);
+			if (ret)
+				dev_warn(priv->dev,
+					 "Failed to read AOD IRQ1 MASK %d\n",
+					 ret);
+		}
 
-	if ((ret == 0) && (val & ~mask)) {
-		result = IRQ_HANDLED;
-		handle_nested_irq(irq_find_mapping(priv->virq,
-						   TACNA_AOD_VIRQ_INDEX));
+		if ((ret == 0) && (val & ~mask)) {
+			result = IRQ_HANDLED;
+			handle_nested_irq(irq_find_mapping(priv->virq,
+							TACNA_AOD_VIRQ_INDEX));
+		}
 	}
 
 	/* Check whether main interrupts are pending */
@@ -677,18 +685,24 @@ static int tacna_irq_probe(struct platform_device *pdev)
 	 * Create regmap interrupt handlers. Regmap registers its domains
 	 * against the OF node of the owner of the regmap, which is the mfd
 	 */
-	virq = irq_create_mapping(priv->virq, TACNA_AOD_VIRQ_INDEX);
-	if (!virq) {
-		dev_err(priv->dev, "Failed to map AOD IRQs\n");
-		ret = -EINVAL;
-		goto err_domain;
-	}
+	switch (priv->tacna->type) {
+	case CS48L32:
+		break;
+	default:
+		virq = irq_create_mapping(priv->virq, TACNA_AOD_VIRQ_INDEX);
+		if (!virq) {
+			dev_err(priv->dev, "Failed to map AOD IRQs\n");
+			ret = -EINVAL;
+			goto err_domain;
+		}
 
-	ret = regmap_add_irq_chip(tacna->regmap, virq, IRQF_ONESHOT, 0,
-				  &tacna_aod_irqchip, &priv->aod_irq_chip);
-	if (ret) {
-		dev_err(priv->dev, "Failed to add AOD IRQs: %d\n", ret);
-		goto err_map_aod;
+		ret = regmap_add_irq_chip(tacna->regmap, virq, IRQF_ONESHOT, 0,
+					  &tacna_aod_irqchip,
+					  &priv->aod_irq_chip);
+		if (ret) {
+			dev_err(priv->dev, "Failed to add AOD IRQs: %d\n", ret);
+			goto err_map_aod;
+		}
 	}
 
 	virq = irq_create_mapping(priv->virq, TACNA_MAIN_VIRQ_INDEX);
@@ -734,8 +748,10 @@ err_map_main_irq:
 	irq_dispose_mapping(irq_find_mapping(priv->virq,
 					     TACNA_MAIN_VIRQ_INDEX));
 err_aod:
-	regmap_del_irq_chip(irq_find_mapping(priv->virq, TACNA_AOD_VIRQ_INDEX),
-			    priv->aod_irq_chip);
+	if (priv->aod_irq_chip)
+		regmap_del_irq_chip(irq_find_mapping(priv->virq,
+						     TACNA_AOD_VIRQ_INDEX),
+						     priv->aod_irq_chip);
 err_map_aod:
 	irq_dispose_mapping(irq_find_mapping(priv->virq, TACNA_AOD_VIRQ_INDEX));
 err_domain:
@@ -764,7 +780,8 @@ static int tacna_irq_remove(struct platform_device *pdev)
 	irq_dispose_mapping(virq);
 
 	virq = irq_find_mapping(priv->virq, TACNA_AOD_VIRQ_INDEX);
-	regmap_del_irq_chip(virq, priv->aod_irq_chip);
+	if (priv->aod_irq_chip)
+		regmap_del_irq_chip(virq, priv->aod_irq_chip);
 	irq_dispose_mapping(virq);
 
 	irq_domain_remove(priv->virq);
