@@ -99,7 +99,7 @@
 #define TACNA_MAX_DAI			11
 #define TACNA_MAX_DSP			2
 
-#define TACNA_NUM_MIXER_INPUTS		135
+#define TACNA_NUM_MIXER_INPUTS		139
 
 #define TACNA_FRF_COEFF_LEN		2
 
@@ -178,10 +178,9 @@
 	TACNA_MIXER_INPUT_ROUTES(name " Input 3"),	\
 	TACNA_MIXER_INPUT_ROUTES(name " Input 4")
 
-#define TACNA_DSP_ROUTES_1_8(name)			\
+#define TACNA_DSP_ROUTES_1_8_SYSCLK(name)		\
 	{ name, NULL, name " Preloader" },		\
 	{ name " Preloader", NULL, "SYSCLK" },		\
-	{ name " Preloader", NULL, "DSPCLK" },		\
 	{ name " Preload", NULL, name " Preloader" },	\
 	TACNA_MIXER_ROUTES(name, name "RX1"),		\
 	TACNA_MIXER_ROUTES(name, name "RX2"),		\
@@ -191,6 +190,10 @@
 	TACNA_MIXER_ROUTES(name, name "RX6"),		\
 	TACNA_MIXER_ROUTES(name, name "RX7"),		\
 	TACNA_MIXER_ROUTES(name, name "RX8")		\
+
+#define TACNA_DSP_ROUTES_1_8(name)			\
+	{ name " Preloader", NULL, "DSPCLK" },		\
+	TACNA_DSP_ROUTES_1_8_SYSCLK(name)		\
 
 #define TACNA_DSP_ROUTES_1_12(name)			\
 	TACNA_DSP_ROUTES_1_8(name),			\
@@ -266,9 +269,12 @@
 	 .num_regs = xregs }) }
 
 /* these have a subseq number so they run after SYSCLK and DSPCLK widgets */
-#define TACNA_DSP_FREQ_WIDGET(name, num)				\
+#define TACNA_DSP_FREQ_WIDGET_EV(name, num, event)			\
 	SND_SOC_DAPM_SUPPLY_S(name "FREQ", 100, SND_SOC_NOPM, num, 0,	\
-		tacna_dsp_freq_ev, SND_SOC_DAPM_POST_PMU)
+		event, SND_SOC_DAPM_POST_PMU)
+
+#define TACNA_DSP_FREQ_WIDGET(name, num)				\
+	TACNA_DSP_FREQ_WIDGET_EV(name, num, tacna_dsp_freq_ev)
 
 #define TACNA_RATES SNDRV_PCM_RATE_KNOT
 
@@ -391,9 +397,11 @@ extern const char * const tacna_sample_rate_text[TACNA_SAMPLE_RATE_ENUM_SIZE];
 extern const unsigned int tacna_sample_rate_val[TACNA_SAMPLE_RATE_ENUM_SIZE];
 const char *tacna_sample_rate_val_to_name(unsigned int rate_val);
 extern const struct soc_enum tacna_sample_rate[];
+extern const struct soc_enum tacna_sample_rate_async[];
 
 extern const struct snd_kcontrol_new tacna_inmux[];
 extern const struct snd_kcontrol_new tacna_inmode_switch[];
+extern const struct snd_kcontrol_new tacna_dmode_mux[];
 
 extern const char * const tacna_vol_ramp_text[TACNA_VOL_RAMP_ENUM_SIZE];
 extern const char * const tacna_in_hpf_cut_text[TACNA_IN_HPF_CUT_ENUM_SIZE];
@@ -488,6 +496,8 @@ int tacna_dsp_power_ev(struct snd_soc_dapm_widget *w,
 		       struct snd_kcontrol *kcontrol, int event);
 int tacna_dsp_freq_ev(struct snd_soc_dapm_widget *w,
 		      struct snd_kcontrol *kcontrol, int event);
+int tacna_dsp_freq_update(struct snd_soc_dapm_widget *w, unsigned int freq_reg,
+			  unsigned int freqsel_reg);
 
 extern int tacna_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 			    int source, unsigned int freq, int dir);

@@ -174,6 +174,10 @@ const char * const tacna_mixer_texts[] = {
 	"ISRC2INT2",
 	"ISRC2DEC1",
 	"ISRC2DEC2",
+	"ISRC3INT1",
+	"ISRC3INT2",
+	"ISRC3DEC1",
+	"ISRC3DEC2",
 	"EQ1",
 	"EQ2",
 	"EQ3",
@@ -313,6 +317,10 @@ unsigned int tacna_mixer_values[] = {
 	0x0A1, /* ISRC2 INT2 */
 	0x0A4, /* ISRC2 DEC1 */
 	0x0A5, /* ISRC2 DEC2 */
+	0x0A8, /* ISRC3 INT1 */
+	0x0A9, /* ISRC3 INT2 */
+	0x0AC, /* ISRC3 DEC1 */
+	0x0AD, /* ISRC3 DEC2 */
 	0x0B8, /* EQ1 */
 	0x0B9, /* EQ2 */
 	0x0BA, /* EQ3 */
@@ -520,6 +528,17 @@ const struct soc_enum tacna_sample_rate[] = {
 			      TACNA_SAMPLE_RATE_ENUM_SIZE,
 			      tacna_sample_rate_text,
 			      tacna_sample_rate_val),
+	SOC_VALUE_ENUM_SINGLE(TACNA_SAMPLE_RATE4,
+			      TACNA_SAMPLE_RATE_4_SHIFT,
+			      TACNA_SAMPLE_RATE_4_MASK >>
+			      TACNA_SAMPLE_RATE_4_SHIFT,
+			      TACNA_SAMPLE_RATE_ENUM_SIZE,
+			      tacna_sample_rate_text,
+			      tacna_sample_rate_val),
+};
+EXPORT_SYMBOL_GPL(tacna_sample_rate);
+
+const struct soc_enum tacna_sample_rate_async[] = {
 	SOC_VALUE_ENUM_SINGLE(TACNA_ASYNC_SAMPLE_RATE1,
 			      TACNA_ASYNC_SAMPLE_RATE_1_SHIFT,
 			      TACNA_ASYNC_SAMPLE_RATE_1_MASK >>
@@ -535,7 +554,7 @@ const struct soc_enum tacna_sample_rate[] = {
 			      tacna_sample_rate_text,
 			      tacna_sample_rate_val),
 };
-EXPORT_SYMBOL_GPL(tacna_sample_rate);
+EXPORT_SYMBOL_GPL(tacna_sample_rate_async);
 
 static int tacna_inmux_put(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
@@ -637,6 +656,26 @@ const struct snd_kcontrol_new tacna_inmode_switch[] = {
 };
 EXPORT_SYMBOL_GPL(tacna_inmode_switch);
 
+static const char * const tacna_dmode_texts[] = {
+	"Analog",
+	"Digital",
+};
+
+static SOC_ENUM_SINGLE_DECL(tacna_in1dmode_enum,
+			    TACNA_INPUT1_CONTROL1,
+			    TACNA_IN1_MODE_SHIFT,
+			    tacna_dmode_texts);
+
+static SOC_ENUM_SINGLE_DECL(tacna_in2dmode_enum,
+			    TACNA_INPUT2_CONTROL1,
+			    TACNA_IN2_MODE_SHIFT,
+			    tacna_dmode_texts);
+
+const struct snd_kcontrol_new tacna_dmode_mux[] = {
+	SOC_DAPM_ENUM("IN1 Mode", tacna_in1dmode_enum),
+	SOC_DAPM_ENUM("IN2 Mode", tacna_in2dmode_enum),
+};
+EXPORT_SYMBOL_GPL(tacna_dmode_mux);
 
 const char * const tacna_vol_ramp_text[TACNA_VOL_RAMP_ENUM_SIZE] = {
 	"0ms/6dB", "0.5ms/6dB", "1ms/6dB", "2ms/6dB", "4ms/6dB", "8ms/6dB",
@@ -1019,6 +1058,12 @@ const struct soc_enum tacna_isrc_fsh[] = {
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text,
 			      tacna_rate_val),
+	SOC_VALUE_ENUM_SINGLE(TACNA_ISRC3_CONTROL1,
+			      TACNA_ISRC3_FSH_SHIFT,
+			      TACNA_ISRC3_FSH_MASK >> TACNA_ISRC3_FSH_SHIFT,
+			      TACNA_RATE_ENUM_SIZE,
+			      tacna_rate_text,
+			      tacna_rate_val),
 };
 EXPORT_SYMBOL_GPL(tacna_isrc_fsh);
 
@@ -1032,6 +1077,12 @@ const struct soc_enum tacna_isrc_fsl[] = {
 	SOC_VALUE_ENUM_SINGLE(TACNA_ISRC2_CONTROL1,
 			      TACNA_ISRC2_FSL_SHIFT,
 			      TACNA_ISRC2_FSL_MASK >> TACNA_ISRC2_FSL_SHIFT,
+			      TACNA_RATE_ENUM_SIZE,
+			      tacna_rate_text,
+			      tacna_rate_val),
+	SOC_VALUE_ENUM_SINGLE(TACNA_ISRC3_CONTROL1,
+			      TACNA_ISRC3_FSL_SHIFT,
+			      TACNA_ISRC3_FSL_MASK >> TACNA_ISRC3_FSL_SHIFT,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text,
 			      tacna_rate_val),
@@ -2080,37 +2131,66 @@ void tacna_dsp_memory_disable(struct tacna_priv *priv,
 }
 EXPORT_SYMBOL_GPL(tacna_dsp_memory_disable);
 
-int tacna_dsp_freq_ev(struct snd_soc_dapm_widget *w,
-		      struct snd_kcontrol *kcontrol, int event)
+int tacna_dsp_freq_update(struct snd_soc_dapm_widget *w, unsigned int freq_reg,
+			  unsigned int freqsel_reg)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct tacna *tacna = priv->tacna;
 	struct wm_adsp *dsp = &priv->dsp[w->shift];
-	unsigned int freq;
 	int ret;
+	unsigned int freq, freq_sel, freq_sts;
 
+	if (!freq_reg)
+		return -EINVAL;
+
+	ret = regmap_read(tacna->regmap, freq_reg, &freq);
+	if (ret) {
+		dev_err(codec->dev, "Failed to read 0x%x: %d\n", freq_reg, ret);
+		return ret;
+	}
+
+	if (freqsel_reg) {
+		freq_sts = (freq & TACNA_SYSCLK_FREQ_STS_MASK) >>
+			   TACNA_SYSCLK_FREQ_STS_SHIFT;
+
+		ret = regmap_read(tacna->regmap, freqsel_reg, &freq_sel);
+		if (ret) {
+			dev_err(codec->dev, "Failed to read 0x%x: %d\n",
+				freqsel_reg, ret);
+			return ret;
+		}
+		freq_sel = (freq_sel & TACNA_SYSCLK_FREQ_MASK) >>
+			   TACNA_SYSCLK_FREQ_SHIFT;
+
+		if (freq_sts != freq_sel) {
+			dev_err(codec->dev,
+				"SYSCLK FREQ (0x%x) != FREQ STS (0x%x)\n",
+				freq_sel, freq_sts);
+			return -ETIMEDOUT;
+		}
+	}
+
+	freq &= TACNA_DSP_CLK_FREQ_MASK;
+	freq >>= TACNA_DSP_CLK_FREQ_SHIFT;
+
+	ret = regmap_write(dsp->regmap, dsp->base + TACNA_DSP_CLOCK_FREQ_OFFS,
+			   freq);
+	if (ret) {
+		dev_err(codec->dev, "Failed to set HALO clock freq: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tacna_dsp_freq_update);
+
+int tacna_dsp_freq_ev(struct snd_soc_dapm_widget *w,
+		      struct snd_kcontrol *kcontrol, int event)
+{
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		ret = regmap_read(tacna->regmap, TACNA_DSP_CLOCK1, &freq);
-		if (ret) {
-			dev_err(codec->dev,
-				"Failed to read TACNA_DSP_CLOCK1: %d\n", ret);
-			return ret;
-		}
-
-		freq &= TACNA_DSP_CLK_FREQ_MASK;
-		freq >>= TACNA_DSP_CLK_FREQ_SHIFT;
-		ret = regmap_write(dsp->regmap,
-				   dsp->base + TACNA_DSP_CLOCK_FREQ_OFFS,
-				   freq);
-		if (ret) {
-			dev_err(codec->dev,
-				"Failed to set HALO clock freq: %d\n", ret);
-			return ret;
-		}
-
-		return 0;
+		return tacna_dsp_freq_update(w, TACNA_DSP_CLOCK1, 0);
 	default:
 		return 0;
 	}
