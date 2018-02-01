@@ -389,11 +389,24 @@ static const struct snd_kcontrol_new cs47l96_ao_dspao_trigger_output_mux[] = {
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
 };
 
+int cs47l96_ao_dsp_freq_ev(struct snd_soc_dapm_widget *w,
+			   struct snd_kcontrol *kcontrol, int event)
+{
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		return tacna_dsp_freq_update(w, TACNA_SYSTEM_CLOCK2AO,
+					     TACNA_SYSTEM_CLOCK1AO);
+	default:
+		return 0;
+	}
+}
+
+
 static const struct snd_soc_dapm_widget cs47l96_ao_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLKAO", TACNA_SYSTEM_CLOCK1AO, TACNA_SYSCLKAO_EN_SHIFT,
 		    0, NULL, 0),
 
-TACNA_DSP_FREQ_WIDGET("DSP1AO", 0),
+TACNA_DSP_FREQ_WIDGET_EV("DSP1AO", 0, cs47l96_ao_dsp_freq_ev),
 
 SND_SOC_DAPM_INPUT("IN5AO_PDMCLK"),
 SND_SOC_DAPM_INPUT("IN5AO_PDMDATA"),
