@@ -600,22 +600,38 @@ SOC_SINGLE("IN2 PDM CLK AO Switch", TACNA_IN_PDMCLK_SEL,
 SOC_SINGLE("IN3 PDM CLK AO Switch", TACNA_IN_PDMCLK_SEL,
 	   TACNA_IN3_PDMCLK_SEL_SHIFT, 1, 0),
 
-SOC_SINGLE_TLV("IN1L Digital Volume", TACNA_IN1L_CONTROL2,
-	       TACNA_IN1L_VOL_SHIFT, 0xbf, 0, tacna_digital_tlv),
-SOC_SINGLE_TLV("IN1R Digital Volume", TACNA_IN1R_CONTROL2,
-	       TACNA_IN1R_VOL_SHIFT, 0xbf, 0, tacna_digital_tlv),
-SOC_SINGLE_TLV("IN2L Digital Volume", TACNA_IN2L_CONTROL2,
-	       TACNA_IN2L_VOL_SHIFT, 0xbf, 0, tacna_digital_tlv),
-SOC_SINGLE_TLV("IN2R Digital Volume", TACNA_IN2R_CONTROL2,
-	       TACNA_IN2R_VOL_SHIFT, 0xbf, 0, tacna_digital_tlv),
-SOC_SINGLE_TLV("IN3L Digital Volume", TACNA_IN3L_CONTROL2,
-	       TACNA_IN3L_VOL_SHIFT, 0xbf, 0, tacna_digital_tlv),
-SOC_SINGLE_TLV("IN3R Digital Volume", TACNA_IN3R_CONTROL2,
-	       TACNA_IN3R_VOL_SHIFT, 0xbf, 0, tacna_digital_tlv),
-SOC_SINGLE_TLV("IN4L Digital Volume", TACNA_IN4L_CONTROL2,
-	       TACNA_IN4L_VOL_SHIFT, 0xbf, 0, tacna_digital_tlv),
-SOC_SINGLE_TLV("IN4R Digital Volume", TACNA_IN4R_CONTROL2,
-	       TACNA_IN4R_VOL_SHIFT, 0xbf, 0, tacna_digital_tlv),
+SOC_SINGLE_EXT_TLV("IN1L Digital Volume", TACNA_IN1L_CONTROL2,
+		   TACNA_IN1L_VOL_SHIFT, 0xbf, 0,
+		   snd_soc_get_volsw, tacna_in_put_volsw,
+		   tacna_digital_tlv),
+SOC_SINGLE_EXT_TLV("IN1R Digital Volume", TACNA_IN1R_CONTROL2,
+		   TACNA_IN1R_VOL_SHIFT, 0xbf, 0,
+		   snd_soc_get_volsw, tacna_in_put_volsw,
+		   tacna_digital_tlv),
+SOC_SINGLE_EXT_TLV("IN2L Digital Volume", TACNA_IN2L_CONTROL2,
+		   TACNA_IN2L_VOL_SHIFT, 0xbf, 0,
+		   snd_soc_get_volsw, tacna_in_put_volsw,
+		   tacna_digital_tlv),
+SOC_SINGLE_EXT_TLV("IN2R Digital Volume", TACNA_IN2R_CONTROL2,
+		   TACNA_IN2R_VOL_SHIFT, 0xbf, 0,
+		   snd_soc_get_volsw, tacna_in_put_volsw,
+		   tacna_digital_tlv),
+SOC_SINGLE_EXT_TLV("IN3L Digital Volume", TACNA_IN3L_CONTROL2,
+		   TACNA_IN3L_VOL_SHIFT, 0xbf, 0,
+		   snd_soc_get_volsw, tacna_in_put_volsw,
+		   tacna_digital_tlv),
+SOC_SINGLE_EXT_TLV("IN3R Digital Volume", TACNA_IN3R_CONTROL2,
+		   TACNA_IN3R_VOL_SHIFT, 0xbf, 0,
+		   snd_soc_get_volsw, tacna_in_put_volsw,
+		   tacna_digital_tlv),
+SOC_SINGLE_EXT_TLV("IN4L Digital Volume", TACNA_IN4L_CONTROL2,
+		   TACNA_IN4L_VOL_SHIFT, 0xbf, 0,
+		   snd_soc_get_volsw, tacna_in_put_volsw,
+		   tacna_digital_tlv),
+SOC_SINGLE_EXT_TLV("IN4R Digital Volume", TACNA_IN4R_CONTROL2,
+	TACNA_IN4R_VOL_SHIFT, 0xbf, 0,
+		   snd_soc_get_volsw, tacna_in_put_volsw,
+		   tacna_digital_tlv),
 
 SOC_ENUM("Input Ramp Up", tacna_in_vi_ramp),
 SOC_ENUM("Input Ramp Down", tacna_in_vd_ramp),
@@ -2459,10 +2475,6 @@ static int cs47l96_codec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static const unsigned int cs47l96_in_vu[] = {
-	TACNA_INPUT_CONTROL3,
-};
-
 static int cs47l96_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 			   unsigned int fref, unsigned int fout)
 {
@@ -2550,6 +2562,7 @@ static int cs47l96_probe(struct platform_device *pdev)
 	cs47l96->core.dev = &pdev->dev;
 	cs47l96->core.num_inputs = 8;
 	cs47l96->core.max_analogue_inputs = 2;
+	cs47l96->core.in_vu_reg = TACNA_INPUT_CONTROL3;
 
 	ret = tacna_core_init(&cs47l96->core);
 	if (ret)
@@ -2617,11 +2630,6 @@ static int cs47l96_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(cs47l96_dai); i++)
 		tacna_init_dai(&cs47l96->core, i);
-
-	/* Latch volume update bits */
-	for (i = 0; i < ARRAY_SIZE(cs47l96_in_vu); i++)
-		regmap_update_bits(tacna->regmap, cs47l96_in_vu[i],
-				   TACNA_IN_VU_MASK, TACNA_IN_VU);
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);

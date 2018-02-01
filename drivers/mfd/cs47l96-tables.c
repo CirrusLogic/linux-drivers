@@ -1917,6 +1917,7 @@ static bool cs47l96_volatile_register(struct device *dev, unsigned int reg)
 	case TACNA_MICDET1_STATUS1:
 	case TACNA_MICDET2_STATUS1:
 	case TACNA_INPUT_STATUS:
+	case TACNA_INPUT_CONTROL3:
 	case TACNA_OUTPUT_STATUS_1:
 	case TACNA_OUTPUT_AEC_STATUS_1:
 	case TACNA_SLIMBUS_PORT_STATUS:
@@ -1936,6 +1937,7 @@ static bool cs47l96_volatile_register(struct device *dev, unsigned int reg)
 	case TACNA_FLL1AO_CONTROL5:
 	case TACNA_FLL1AO_CONTROL6:
 	case TACNA_AO_INPUT_STATUS:
+	case TACNA_AO_INPUT_CONTROL3:
 	case TACNA_CHIP_CTRL1:
 	case TACNA_HOST_SCRATCH:
 	case TACNA_IRQ1_STATUS:

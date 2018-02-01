@@ -217,18 +217,30 @@ SOC_SINGLE("IN7LAO HPF Switch", TACNA_IN7LAO_CONTROL1, TACNA_IN7LAO_HPF_SHIFT,
 SOC_SINGLE("IN7RAO HPF Switch", TACNA_IN7RAO_CONTROL1, TACNA_IN7RAO_HPF_SHIFT,
 	   1, 0),
 
-SOC_SINGLE_TLV("IN5LAO Digital Volume", TACNA_IN5L_CONTROL2,
-	       TACNA_IN5LAO_VOL_SHIFT, 0xbf, 0, tacna_digital_tlv),
-SOC_SINGLE_TLV("IN5RAO Digital Volume", TACNA_IN5R_CONTROL2,
-	       TACNA_IN5RAO_VOL_SHIFT, 0xbf, 0, tacna_digital_tlv),
-SOC_SINGLE_TLV("IN6LAO Digital Volume", TACNA_IN6L_CONTROL2,
-	       TACNA_IN6LAO_VOL_SHIFT, 0xbf, 0, tacna_digital_tlv),
-SOC_SINGLE_TLV("IN6RAO Digital Volume", TACNA_IN6R_CONTROL2,
-	       TACNA_IN6RAO_VOL_SHIFT, 0xbf, 0, tacna_digital_tlv),
-SOC_SINGLE_TLV("IN7LAO Digital Volume", TACNA_IN7L_CONTROL2,
-	       TACNA_IN7LAO_VOL_SHIFT, 0xbf, 0, tacna_digital_tlv),
-SOC_SINGLE_TLV("IN7RAO Digital Volume", TACNA_IN7R_CONTROL2,
-	       TACNA_IN7RAO_VOL_SHIFT, 0xbf, 0, tacna_digital_tlv),
+SOC_SINGLE_EXT_TLV("IN5LAO Digital Volume", TACNA_IN5L_CONTROL2,
+		   TACNA_IN5LAO_VOL_SHIFT, 0xbf, 0,
+		   snd_soc_get_volsw, tacna_in_put_volsw,
+		   tacna_digital_tlv),
+SOC_SINGLE_EXT_TLV("IN5RAO Digital Volume", TACNA_IN5R_CONTROL2,
+		   TACNA_IN5RAO_VOL_SHIFT, 0xbf, 0,
+		   snd_soc_get_volsw, tacna_in_put_volsw,
+		   tacna_digital_tlv),
+SOC_SINGLE_EXT_TLV("IN6LAO Digital Volume", TACNA_IN6L_CONTROL2,
+		   TACNA_IN6LAO_VOL_SHIFT, 0xbf, 0,
+		   snd_soc_get_volsw, tacna_in_put_volsw,
+		   tacna_digital_tlv),
+SOC_SINGLE_EXT_TLV("IN6RAO Digital Volume", TACNA_IN6R_CONTROL2,
+		   TACNA_IN6RAO_VOL_SHIFT, 0xbf, 0,
+		   snd_soc_get_volsw, tacna_in_put_volsw,
+		   tacna_digital_tlv),
+SOC_SINGLE_EXT_TLV("IN7LAO Digital Volume", TACNA_IN7L_CONTROL2,
+		   TACNA_IN7LAO_VOL_SHIFT, 0xbf, 0,
+		   snd_soc_get_volsw, tacna_in_put_volsw,
+		   tacna_digital_tlv),
+SOC_SINGLE_EXT_TLV("IN7RAO Digital Volume", TACNA_IN7R_CONTROL2,
+		   TACNA_IN7RAO_VOL_SHIFT, 0xbf, 0,
+		   snd_soc_get_volsw, tacna_in_put_volsw,
+		   tacna_digital_tlv),
 
 SOC_ENUM("AO Input Ramp Up", cs47l96_ao_in_vi_ramp),
 SOC_ENUM("AO Input Ramp Down", cs47l96_ao_in_vd_ramp),
@@ -348,15 +360,20 @@ static int cs47l96_ao_in_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		priv->in_pending++;
+		priv->in_up_pending++;
 		break;
 	case SND_SOC_DAPM_POST_PMU:
-		priv->in_pending--;
+		priv->in_up_pending--;
 		snd_soc_update_bits(codec, reg, TACNA_IN1LAO_MUTE, 0);
+
+		/* Uncached write-only register, no need for update_bits */
+		if (!priv->in_up_pending)
+			snd_soc_write(codec, priv->in_vu_reg, TACNA_IN_VU);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		snd_soc_update_bits(codec, reg,
 				    TACNA_IN1LAO_MUTE, TACNA_IN1LAO_MUTE);
+		snd_soc_write(codec, priv->in_vu_reg, TACNA_IN_VU);
 		break;
 	default:
 		break;
@@ -777,6 +794,7 @@ static int cs47l96_ao_probe(struct platform_device *pdev)
 	cs47l96_ao->core.dev = &pdev->dev;
 	cs47l96_ao->core.num_inputs = 6;
 	cs47l96_ao->core.max_analogue_inputs = 0;
+	cs47l96_ao->core.in_vu_reg = TACNA_AO_INPUT_CONTROL3;
 
 	mutex_init(&cs47l96_ao->core.rate_lock);
 
@@ -819,10 +837,6 @@ static int cs47l96_ao_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(cs47l96_ao_dai); i++)
 		tacna_init_dai(&cs47l96_ao->core, i);
-
-	/* Latch volume update bits */
-	regmap_update_bits(tacna->regmap, TACNA_AO_INPUT_CONTROL3,
-			   TACNA_AO_IN_VU_MASK, TACNA_AO_IN_VU);
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
