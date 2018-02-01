@@ -129,6 +129,9 @@ static int tacna_gpio_probe(struct platform_device *pdev)
 	case CS47L97:
 		tacna_gpio->gpio_chip.ngpio = CS47L96_NUM_GPIOS;
 		break;
+	case CS48L32:
+		tacna_gpio->gpio_chip.ngpio = CS48L32_NUM_GPIOS;
+		break;
 	default:
 		dev_err(&pdev->dev, "Unknown chip variant %d\n", tacna->type);
 		return -EINVAL;
