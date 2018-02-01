@@ -303,7 +303,8 @@ struct tacna_priv {
 	int max_analogue_inputs;
 	int num_dmic_clksrc;
 
-	unsigned int in_pending;
+	unsigned int in_up_pending;
+	unsigned int in_vu_reg;
 
 	unsigned int out_up_pending;
 	unsigned int out_up_mask;
@@ -494,6 +495,8 @@ int tacna_sysclk_ev(struct snd_soc_dapm_widget *w,
 int tacna_in_ev(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol,
 		int event);
+int tacna_in_put_volsw(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol);
 int tacna_wait_for_output_seq(struct tacna_priv *priv, unsigned int mask,
 			      unsigned int val);
 int tacna_out_ev(struct snd_soc_dapm_widget *w,

@@ -3472,15 +3472,20 @@ int tacna_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		priv->in_pending++;
+		priv->in_up_pending++;
 		break;
 	case SND_SOC_DAPM_POST_PMU:
-		priv->in_pending--;
+		priv->in_up_pending--;
 		snd_soc_update_bits(codec, reg, TACNA_IN1L_MUTE, 0);
+
+		/* Uncached write-only register, no need for update_bits */
+		if (!priv->in_up_pending && priv->in_vu_reg)
+			snd_soc_write(codec, priv->in_vu_reg, TACNA_IN_VU);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		snd_soc_update_bits(codec, reg,
 				    TACNA_IN1L_MUTE, TACNA_IN1L_MUTE);
+		snd_soc_write(codec, priv->in_vu_reg, TACNA_IN_VU);
 		break;
 	default:
 		break;
@@ -3489,6 +3494,28 @@ int tacna_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tacna_in_ev);
+
+int tacna_in_put_volsw(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
+	int ret;
+
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Uncached write-only register, no need for update_bits.
+	 * Will fail if codec is off but that will be handled by tacna_in_ev
+	 */
+	if (priv->in_vu_reg)
+		snd_soc_write(codec, priv->in_vu_reg, TACNA_IN_VU);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tacna_in_put_volsw);
 
 int tacna_wait_for_output_seq(struct tacna_priv *priv, unsigned int mask,
 			      unsigned int target)
