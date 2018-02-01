@@ -169,7 +169,7 @@ static int tacna_wait_for_boot(struct tacna *tacna)
 
 	if (val & (1 << TACNA_MCU_STS_SHIFT)) {
 		/* Ignore MCU boot failed for FPGA */
-		if (tacna->type == CS47L97) {
+		if (tacna->type == CS47L97 || tacna->type == CS48L32) {
 			dev_warn(tacna->dev, "MCU boot may not be set so skip\n");
 		} else {
 			dev_err(tacna->dev, "MCU boot failed\n");
