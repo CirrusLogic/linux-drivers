@@ -854,35 +854,6 @@ const struct snd_kcontrol_new tacna_auxpdm_switch[] = {
 };
 EXPORT_SYMBOL_GPL(tacna_auxpdm_switch);
 
-int tacna_put_out_vu(struct snd_kcontrol *kcontrol,
-		     struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct soc_mixer_control *mc =
-		(struct soc_mixer_control *)kcontrol->private_value;
-	int ret;
-
-	snd_soc_dapm_mutex_lock(dapm);
-	snd_soc_component_update_bits(component, mc->reg, TACNA_OUT_VU, 0);
-	if (mc->rreg)
-		snd_soc_component_update_bits(component, mc->rreg, TACNA_OUT_VU,
-					      0);
-
-	ret = snd_soc_put_volsw(kcontrol, ucontrol);
-
-	snd_soc_component_update_bits(component, mc->reg, TACNA_OUT_VU,
-				      TACNA_OUT_VU);
-	if (mc->rreg)
-		snd_soc_component_update_bits(component, mc->rreg, TACNA_OUT_VU,
-					      TACNA_OUT_VU);
-	snd_soc_dapm_mutex_unlock(dapm);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(tacna_put_out_vu);
-
 const struct soc_enum tacna_output_rate =
 	SOC_VALUE_ENUM_SINGLE(TACNA_OUTPUT_CONTROL_1,
 			      TACNA_OUT_RATE_SHIFT,
