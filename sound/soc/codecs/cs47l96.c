@@ -127,64 +127,6 @@ err:
 	return ret;
 }
 
-static int cs47l96_outh_aux_src_ev(struct snd_soc_dapm_widget *w,
-				   struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct cs47l96 *cs47l96 = snd_soc_codec_get_drvdata(codec);
-	struct tacna *tacna = cs47l96->core.tacna;
-	int ret;
-
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-
-		/* following writes must be done to enable AUX+DSD */
-		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_CFG9,
-					 TACNA_CLK_INTP_PREFILT_BYPASS_CG_MASK |
-					 TACNA_CLK_INTP_BYPASS_CG_MASK,
-					 TACNA_CLK_INTP_PREFILT_BYPASS_CG |
-					 TACNA_CLK_INTP_BYPASS_CG);
-		if (ret)
-			dev_warn(codec->dev,
-				 "Failed to write to OUTH_CFG9: %d\n", ret);
-		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_DSD_PCM,
-					 TACNA_OUTH_DSD_PCM_MIX_SETUP_MASK,
-					 TACNA_OUTH_DSD_PCM_MIX_SETUP);
-		if (ret)
-			dev_warn(codec->dev,
-				 "Failed to write to OUTH_DSD_PCM: %d\n", ret);
-		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_DSD_PCM,
-					 TACNA_OUTH_DSD_PCM_MIX_MASK,
-					 TACNA_OUTH_DSD_PCM_MIX);
-		if (ret)
-			dev_warn(codec->dev,
-				"Failed to write to OUTH_DSD_PCM: %d\n", ret);
-
-		return 0;
-	case SND_SOC_DAPM_PRE_PMD:
-		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_DSD_PCM,
-					 TACNA_OUTH_DSD_PCM_MIX_MASK, 0);
-		if (ret)
-			dev_warn(codec->dev,
-				"Failed to write to OUTH_DSD_PCM: %d\n", ret);
-		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_DSD_PCM,
-					 TACNA_OUTH_DSD_PCM_MIX_SETUP_MASK, 0);
-		if (ret)
-			dev_warn(codec->dev,
-				 "Failed to write to OUTH_DSD_PCM: %d\n", ret);
-		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_CFG9,
-					 TACNA_CLK_INTP_PREFILT_BYPASS_CG_MASK |
-					 TACNA_CLK_INTP_BYPASS_CG_MASK,
-					 0);
-		if (ret)
-			dev_warn(codec->dev,
-				 "Failed to write to OUTH_CFG9: %d\n", ret);
-		return 0;
-	default:
-		return 0;
-	}
-}
-
 static int cs47l96_outaux_ev(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
@@ -1586,14 +1528,10 @@ SND_SOC_DAPM_MUX_E("OUTH Output Select", SND_SOC_NOPM, 0, 0,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_POST_PMU),
 
-SND_SOC_DAPM_SWITCH_E("OUTHL AUX Mix", TACNA_OUTH_AUX_MIX_CONTROL_1,
-		      TACNA_OUTHL_AUX_SRC_SHIFT, 0,
-		      &cs47l96_outh_aux_switch[0], cs47l96_outh_aux_src_ev,
-		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-SND_SOC_DAPM_SWITCH_E("OUTHR AUX Mix", TACNA_OUTH_AUX_MIX_CONTROL_1,
-		      TACNA_OUTHR_AUX_SRC_SHIFT, 0,
-		      &cs47l96_outh_aux_switch[1], cs47l96_outh_aux_src_ev,
-		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_SWITCH("OUTHL AUX Mix", TACNA_OUTH_AUX_MIX_CONTROL_1,
+		    TACNA_OUTHL_AUX_SRC_SHIFT, 0, &cs47l96_outh_aux_switch[0]),
+SND_SOC_DAPM_SWITCH("OUTHR AUX Mix", TACNA_OUTH_AUX_MIX_CONTROL_1,
+		    TACNA_OUTHR_AUX_SRC_SHIFT, 0, &cs47l96_outh_aux_switch[1]),
 
 SND_SOC_DAPM_PGA("OUTH PCM", TACNA_OUTH_ENABLE_1, TACNA_OUTH_PCM_EN_SHIFT,
 		 0, NULL, 0),
