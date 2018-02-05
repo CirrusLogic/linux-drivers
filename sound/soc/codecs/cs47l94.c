@@ -123,6 +123,34 @@ static const unsigned int cs47l94_dsp2_sram_power_regs[] = {
 	0, /* end of list */
 };
 
+static int cs47l94_put_out_vu(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	int ret;
+
+	snd_soc_dapm_mutex_lock(dapm);
+	snd_soc_component_update_bits(component, mc->reg, TACNA_OUT_VU, 0);
+	if (mc->rreg)
+		snd_soc_component_update_bits(component, mc->rreg, TACNA_OUT_VU,
+					      0);
+
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
+
+	snd_soc_component_update_bits(component, mc->reg, TACNA_OUT_VU,
+				      TACNA_OUT_VU);
+	if (mc->rreg)
+		snd_soc_component_update_bits(component, mc->rreg, TACNA_OUT_VU,
+					      TACNA_OUT_VU);
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	return ret;
+}
+
 static int cs47l94_out_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol, int event)
 {
@@ -734,7 +762,7 @@ static int cs47l94_put_outh_main_volume(struct snd_kcontrol *kcontrol,
 
 	snd_soc_dapm_mutex_unlock(dapm);
 
-	return tacna_put_out_vu(kcontrol, ucontrol);
+	return cs47l94_put_out_vu(kcontrol, ucontrol);
 }
 
 static const struct snd_kcontrol_new cs47l94_us1_switch =
@@ -1143,20 +1171,20 @@ TACNA_MIXER_CONTROLS("OUTAUX1R", CS47L94_OUTAUX1R_INPUT1),
 
 SOC_DOUBLE_R_EXT("OUT1 Digital Switch", TACNA_OUT1L_VOLUME_1,
 		 TACNA_OUT1R_VOLUME_1, TACNA_OUT1L_MUTE_SHIFT, 1, 1,
-		 snd_soc_get_volsw, tacna_put_out_vu),
+		 snd_soc_get_volsw, cs47l94_put_out_vu),
 SOC_DOUBLE_R_EXT("OUTAUX1 Digital Switch", TACNA_OUTAUX1L_VOLUME_1,
 		 TACNA_OUTAUX1R_VOLUME_1, TACNA_OUTAUX1L_MUTE_SHIFT, 1, 1,
 		 snd_soc_get_volsw, cs47l94_put_outaux_vu),
 SOC_DOUBLE_R_EXT("OUT2 Digital Switch", TACNA_OUT2L_VOLUME_1,
 		 TACNA_OUT2R_VOLUME_1, TACNA_OUT2L_MUTE_SHIFT, 1, 1,
-		 snd_soc_get_volsw, tacna_put_out_vu),
+		 snd_soc_get_volsw, cs47l94_put_out_vu),
 SOC_DOUBLE_R_EXT("OUT5 Digital Switch", TACNA_OUT5L_VOLUME_1,
 		 TACNA_OUT5R_VOLUME_1, TACNA_OUT5L_MUTE_SHIFT, 1, 1,
-		 snd_soc_get_volsw, tacna_put_out_vu),
+		 snd_soc_get_volsw, cs47l94_put_out_vu),
 
 SOC_DOUBLE_R_EXT_TLV("OUT1 Main Volume", TACNA_OUT1L_VOLUME_1,
 		     TACNA_OUT1R_VOLUME_1, TACNA_OUT1L_VOL_SHIFT,
-		     0xc0, 0, snd_soc_get_volsw, tacna_put_out_vu,
+		     0xc0, 0, snd_soc_get_volsw, cs47l94_put_out_vu,
 		     cs47l94_aux_tlv),
 SOC_DOUBLE_R_EXT_TLV("OUTAUX1 Volume", TACNA_OUTAUX1L_VOLUME_1,
 		     TACNA_OUTAUX1R_VOLUME_1, TACNA_OUTAUX1L_VOL_SHIFT,
@@ -1164,15 +1192,15 @@ SOC_DOUBLE_R_EXT_TLV("OUTAUX1 Volume", TACNA_OUTAUX1L_VOLUME_1,
 		     cs47l94_aux_tlv),
 SOC_DOUBLE_R_EXT_TLV("OUT1 Digital Volume", TACNA_OUT1L_VOLUME_3,
 		     TACNA_OUT1R_VOLUME_3, TACNA_OUT1L_LVL_SHIFT,
-		     0xbf, 0, snd_soc_get_volsw, tacna_put_out_vu,
+		     0xbf, 0, snd_soc_get_volsw, cs47l94_put_out_vu,
 		     tacna_digital_tlv),
 SOC_DOUBLE_R_EXT_TLV("OUT2 Digital Volume", TACNA_OUT2L_VOLUME_1,
 		     TACNA_OUT2R_VOLUME_1, TACNA_OUT2L_VOL_SHIFT,
-		     0xbf, 0, snd_soc_get_volsw, tacna_put_out_vu,
+		     0xbf, 0, snd_soc_get_volsw, cs47l94_put_out_vu,
 		     tacna_digital_tlv),
 SOC_DOUBLE_R_EXT_TLV("OUT5 Digital Volume", TACNA_OUT5L_VOLUME_1,
 		     TACNA_OUT5R_VOLUME_1, TACNA_OUT5L_VOL_SHIFT,
-		     0xbf, 0, snd_soc_get_volsw, tacna_put_out_vu,
+		     0xbf, 0, snd_soc_get_volsw, cs47l94_put_out_vu,
 		     tacna_digital_tlv),
 
 SOC_ENUM("Output Ramp Up", tacna_out_vi_ramp),

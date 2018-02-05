@@ -413,9 +413,6 @@ extern const struct soc_enum tacna_mono_anc_input_src[];
 extern const struct soc_enum tacna_anc_ng_enum;
 extern const struct soc_enum tacna_output_anc_src[];
 
-int tacna_put_out_vu(struct snd_kcontrol *kcontrol,
-		     struct snd_ctl_elem_value *ucontrol);
-
 int tacna_frf_bytes_put(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol);
 
