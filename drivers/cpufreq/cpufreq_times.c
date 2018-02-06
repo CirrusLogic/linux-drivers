@@ -15,14 +15,30 @@
 
 #include <linux/cpufreq.h>
 #include <linux/cpufreq_times.h>
+#include <linux/hashtable.h>
+#include <linux/init.h>
 #include <linux/jiffies.h>
+#include <linux/proc_fs.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
 
+#define UID_HASH_BITS 10
+
+static DECLARE_HASHTABLE(uid_hash_table, UID_HASH_BITS);
+
 static DEFINE_SPINLOCK(task_time_in_state_lock); /* task->time_in_state */
+static DEFINE_SPINLOCK(uid_lock); /* uid_hash_table */
+
+struct uid_entry {
+	uid_t uid;
+	unsigned int max_state;
+	struct hlist_node hash;
+	struct rcu_head rcu;
+	u64 time_in_state[0];
+};
 
 /**
  * struct cpu_freqs - per-cpu frequency information
@@ -90,6 +106,9 @@ void cpufreq_task_times_exit(struct task_struct *p)
 	unsigned long flags;
 	void *temp;
 
+	if (!p->time_in_state)
+		return;
+
 	spin_lock_irqsave(&task_time_in_state_lock, flags);
 	temp = p->time_in_state;
 	p->time_in_state = NULL;
@@ -133,7 +152,9 @@ void cpufreq_acct_update_power(struct task_struct *p, u64 cputime)
 {
 	unsigned long flags;
 	unsigned int state;
+	struct uid_entry *uid_entry;
 	struct cpu_freqs *freqs = all_freqs[task_cpu(p)];
+	uid_t uid = from_kuid_munged(current_user_ns(), task_uid(p));
 
 	if (!freqs || p->flags & PF_EXITING)
 		return;
@@ -145,6 +166,12 @@ void cpufreq_acct_update_power(struct task_struct *p, u64 cputime)
 	    p->time_in_state)
 		p->time_in_state[state] += cputime;
 	spin_unlock_irqrestore(&task_time_in_state_lock, flags);
+
+	spin_lock_irqsave(&uid_lock, flags);
+	uid_entry = find_or_register_uid_locked(uid);
+	if (uid_entry && state < uid_entry->max_state)
+		uid_entry->time_in_state[state] += cputime;
+	spin_unlock_irqrestore(&uid_lock, flags);
 }
 
 void cpufreq_times_create_policy(struct cpufreq_policy *policy)
@@ -184,6 +211,27 @@ void cpufreq_times_create_policy(struct cpufreq_policy *policy)
 	WRITE_ONCE(next_offset, freqs->offset + count);
 	for_each_cpu(cpu, policy->related_cpus)
 		all_freqs[cpu] = freqs;
+}
+
+void cpufreq_task_times_remove_uids(uid_t uid_start, uid_t uid_end)
+{
+	struct uid_entry *uid_entry;
+	struct hlist_node *tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&uid_lock, flags);
+
+	for (; uid_start <= uid_end; uid_start++) {
+		hash_for_each_possible_safe(uid_hash_table, uid_entry, tmp,
+			hash, uid_start) {
+			if (uid_start == uid_entry->uid) {
+				hash_del_rcu(&uid_entry->hash);
+				kfree_rcu(uid_entry, rcu);
+			}
+		}
+	}
+
+	spin_unlock_irqrestore(&uid_lock, flags);
 }
 
 void cpufreq_times_record_transition(struct cpufreq_freqs *freq)
