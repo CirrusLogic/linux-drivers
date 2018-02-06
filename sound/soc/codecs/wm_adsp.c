@@ -3523,7 +3523,12 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 	struct wm_adsp *dsp = &dsps[mc->shift-1];
 	char preload[32];
 
-	snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->name);
+	if (codec->component.name_prefix)
+		snprintf(preload, ARRAY_SIZE(preload), "%s %s Preload",
+			 codec->component.name_prefix, dsp->name);
+	else
+		snprintf(preload, ARRAY_SIZE(preload), "%s Preload",
+			 dsp->name);
 
 	dsp->preloaded = ucontrol->value.integer.value[0];
 
@@ -3875,7 +3880,13 @@ int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 	char preload[32];
 
 	if (!dsp->no_preloader) {
-		snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->name);
+		if (codec->component.name_prefix)
+			snprintf(preload, ARRAY_SIZE(preload), "%s %s Preload",
+				 codec->component.name_prefix, dsp->name);
+		else
+			snprintf(preload, ARRAY_SIZE(preload), "%s Preload",
+				 dsp->name);
+
 		snd_soc_dapm_disable_pin(dapm, preload);
 	}
 
