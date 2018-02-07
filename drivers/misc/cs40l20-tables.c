@@ -674,21 +674,20 @@ bool cs40l20_volatile_reg(struct device *dev, unsigned int reg)
 	case CS40L20_DSP1_YMEM_UNPACK24_0 ... CS40L20_DSP1_YMEM_UNPACK24_2045:
 	case CS40L20_DSP1_PMEM_0 ... CS40L20_DSP1_PMEM_5114:
 	case CS40L20_DSP1_CCM_CORE_CTRL ... CS40L20_DSP1_WDT_STATUS:
+	case CS40L20_OTP_MEM0 ... CS40L20_OTP_MEM31:
 		return true;
 	default:
 		return false;
 	}
 }
 
-static const struct cs40l20_otp_packed_element_t
-			cs40l20_otp_map_1[CS40L20_NUM_OTP_ELEM] = {
+static const struct cs40l20_trim cs40l20_trim_table_c[] = {
 	/* addr         shift   size */
 	{0x00002030,	0,	4}, /*TRIM_OSC_FREQ_TRIM*/
 	{0x00002030,	7,	1}, /*TRIM_OSC_TRIM_DONE*/
-	{0x0000208c,	24,	6}, /*TST_DIGREG_VREF_TRIM*/
+	{0x0000208C,	24,	6}, /*TST_DIGREG_VREF_TRIM*/
 	{0x00002090,	14,	4}, /*TST_REF_TRIM*/
 	{0x00002090,	10,	4}, /*TST_REF_TEMPCO_TRIM*/
-	{0x00003010,	2,	6}, /*PLL_DCO_CAL_TRIM*/
 	{0x0000300C,	11,	4}, /*PLL_LDOA_TST_VREF_TRIM*/
 	{0x0000394C,	23,	2}, /*BST_ATEST_CM_VOFF*/
 	{0x00003950,	0,	7}, /*BST_ATRIM_IADC_OFFSET*/
@@ -785,15 +784,13 @@ static const struct cs40l20_otp_packed_element_t
 	{0x00017044,	0,	24}, /*LOT_NUMBER*/
 };
 
-static const struct cs40l20_otp_packed_element_t
-			cs40l20_otp_map_2[CS40L20_NUM_OTP_ELEM] = {
+static const struct cs40l20_trim cs40l20_trim_table_d[] = {
 	/* addr         shift   size */
 	{0x00002030,	0,	4}, /*TRIM_OSC_FREQ_TRIM*/
 	{0x00002030,	7,	1}, /*TRIM_OSC_TRIM_DONE*/
-	{0x0000208c,	24,	6}, /*TST_DIGREG_VREF_TRIM*/
+	{0x0000208C,	24,	6}, /*TST_DIGREG_VREF_TRIM*/
 	{0x00002090,	14,	4}, /*TST_REF_TRIM*/
 	{0x00002090,	10,	4}, /*TST_REF_TEMPCO_TRIM*/
-	{0x00003010,	2,	6}, /*PLL_DCO_CAL_TRIM*/
 	{0x0000300C,	11,	4}, /*PLL_LDOA_TST_VREF_TRIM*/
 	{0x0000394C,	23,	2}, /*BST_ATEST_CM_VOFF*/
 	{0x00003950,	0,	7}, /*BST_ATRIM_IADC_OFFSET*/
@@ -890,15 +887,19 @@ static const struct cs40l20_otp_packed_element_t
 	{0x00017044,	0,	24}, /*LOT_NUMBER*/
 };
 
-const struct cs40l20_otp_map_element_t cs40l20_otp_map_map[2] = {
+const struct cs40l20_otp_desc cs40l20_otp_map[CS40L20_NUM_OTP_MAPS] = {
 	{
-		.id = 0x01,
-		.map = cs40l20_otp_map_1,
-		.num_elements = CS40L20_NUM_OTP_ELEM,
+		.id = 0xC,
+		.row_start = 2,
+		.col_start = 16,
+		.num_trims = ARRAY_SIZE(cs40l20_trim_table_c),
+		.trim_table = cs40l20_trim_table_c,
 	},
 	{
-		.id = 0x02,
-		.map = cs40l20_otp_map_2,
-		.num_elements = CS40L20_NUM_OTP_ELEM,
+		.id = 0xD,
+		.row_start = 2,
+		.col_start = 16,
+		.num_trims = ARRAY_SIZE(cs40l20_trim_table_d),
+		.trim_table = cs40l20_trim_table_d,
 	},
 };
