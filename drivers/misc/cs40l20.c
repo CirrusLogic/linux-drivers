@@ -1234,6 +1234,152 @@ static int cs40l20_init(struct cs40l20_private *cs40l20)
 	return 0;
 }
 
+static int cs40l20_otp_unpack(struct cs40l20_private *cs40l20)
+{
+	struct regmap *regmap = cs40l20->regmap;
+	struct device *dev = cs40l20->dev;
+	struct cs40l20_trim trim;
+	unsigned char row_offset, col_offset;
+	unsigned int val, otp_map;
+	unsigned int otp_mem[CS40L20_NUM_OTP_WORDS];
+	int otp_timeout = CS40L20_OTP_TIMEOUT_COUNT;
+	int ret, i;
+
+	while (otp_timeout > 0) {
+		usleep_range(10000, 10100);
+
+		ret = regmap_read(regmap, CS40L20_IRQ1_STATUS4, &val);
+		if (ret) {
+			dev_err(dev, "Failed to read OTP boot status\n");
+			return ret;
+		}
+
+		if (val & CS40L20_OTP_BOOT_DONE)
+			break;
+
+		otp_timeout--;
+	}
+
+	if (otp_timeout == 0) {
+		dev_err(dev, "Timed out waiting for OTP boot\n");
+		return -ETIME;
+	}
+
+	ret = regmap_read(cs40l20->regmap, CS40L20_IRQ1_STATUS3, &val);
+	if (ret) {
+		dev_err(dev, "Failed to read OTP error status\n");
+		return ret;
+	}
+
+	if (val & CS40L20_OTP_BOOT_ERR) {
+		dev_err(dev, "Encountered fatal OTP error\n");
+		return -EIO;
+	}
+
+	ret = regmap_read(cs40l20->regmap, CS40L20_OTPID, &val);
+	if (ret) {
+		dev_err(dev, "Failed to read OTP ID\n");
+		return ret;
+	}
+
+	/* hard matching against known OTP IDs */
+	for (i = 0; i < CS40L20_NUM_OTP_MAPS; i++) {
+		if (cs40l20_otp_map[i].id == val) {
+			otp_map = i;
+			break;
+		}
+	}
+
+	/* reject unrecognized IDs, including untrimmed devices (OTP ID = 0) */
+	if (i == CS40L20_NUM_OTP_MAPS) {
+		dev_err(dev, "Unrecognized OTP ID: 0x%01X\n", val);
+		return -ENODEV;
+	}
+
+	dev_dbg(dev, "Found OTP ID: 0x%01X\n", val);
+
+	ret = regmap_bulk_read(regmap, CS40L20_OTP_MEM0, otp_mem,
+			CS40L20_NUM_OTP_WORDS);
+	if (ret) {
+		dev_err(dev, "Failed to read OTP contents\n");
+		return ret;
+	}
+
+	ret = regmap_write(regmap, CS40L20_TEST_KEY_CTL,
+			CS40L20_TEST_KEY_UNLOCK_CODE1);
+	if (ret) {
+		dev_err(dev, "Failed to unlock test space (step 1 of 2)\n");
+		return ret;
+	}
+
+	ret = regmap_write(regmap, CS40L20_TEST_KEY_CTL,
+			CS40L20_TEST_KEY_UNLOCK_CODE2);
+	if (ret) {
+		dev_err(dev, "Failed to unlock test space (step 2 of 2)\n");
+		return ret;
+	}
+
+	row_offset = cs40l20_otp_map[otp_map].row_start;
+	col_offset = cs40l20_otp_map[otp_map].col_start;
+
+	for (i = 0; i < cs40l20_otp_map[otp_map].num_trims; i++) {
+		trim = cs40l20_otp_map[otp_map].trim_table[i];
+
+		if (col_offset + trim.size - 1 > 31) {
+			/* trim straddles word boundary */
+			val = (otp_mem[row_offset] &
+					GENMASK(31, col_offset)) >> col_offset;
+			val |= (otp_mem[row_offset + 1] &
+					GENMASK(col_offset + trim.size - 33, 0))
+					<< (32 - col_offset);
+		} else {
+			/* trim does not straddle word boundary */
+			val = (otp_mem[row_offset] &
+					GENMASK(col_offset + trim.size - 1,
+						col_offset)) >> col_offset;
+		}
+
+		/* advance column marker and wrap if necessary */
+		col_offset += trim.size;
+		if (col_offset > 31) {
+			col_offset -= 32;
+			row_offset++;
+		}
+
+		/* skip blank trims */
+		if (trim.reg == 0)
+			continue;
+
+		ret = regmap_update_bits(regmap, trim.reg,
+				GENMASK(trim.shift + trim.size - 1, trim.shift),
+				val << trim.shift);
+		if (ret) {
+			dev_err(dev, "Failed to write trim %d\n", i + 1);
+			return ret;
+		}
+
+		dev_dbg(dev, "Trim %d: wrote 0x%X to 0x%08X bits [%d:%d]\n",
+				i + 1, val, trim.reg,
+				trim.shift + trim.size - 1, trim.shift);
+	}
+
+	ret = regmap_write(regmap, CS40L20_TEST_KEY_CTL,
+			CS40L20_TEST_KEY_RELOCK_CODE1);
+	if (ret) {
+		dev_err(dev, "Failed to lock test space (step 1 of 2)\n");
+		return ret;
+	}
+
+	ret = regmap_write(regmap, CS40L20_TEST_KEY_CTL,
+			CS40L20_TEST_KEY_RELOCK_CODE2);
+	if (ret) {
+		dev_err(dev, "Failed to lock test space (step 2 of 2)\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int cs40l20_handle_of_data(struct i2c_client *i2c_client,
 		struct cs40l20_platform_data *pdata)
 {
@@ -1292,7 +1438,7 @@ static int cs40l20_i2c_probe(struct i2c_client *i2c_client,
 	struct cs40l20_private *cs40l20;
 	struct device *dev = &i2c_client->dev;
 	struct cs40l20_platform_data *pdata = dev_get_platdata(dev);
-	unsigned int reg_devid, reg_revid, reg_otpid;
+	unsigned int reg_devid, reg_revid;
 
 	cs40l20 = devm_kzalloc(dev, sizeof(struct cs40l20_private), GFP_KERNEL);
 	if (!cs40l20)
@@ -1377,13 +1523,11 @@ static int cs40l20_i2c_probe(struct i2c_client *i2c_client,
 		goto err;
 	}
 
-	ret = regmap_read(cs40l20->regmap, CS40L20_OTPID, &reg_otpid);
-	if (ret) {
-		dev_err(dev, "Failed to read OTP ID\n");
+	ret = cs40l20_otp_unpack(cs40l20);
+	if (ret)
 		goto err;
-	}
 
-	dev_info(dev, "Cirrus Logic CS40L20 revision %02X\n", reg_revid >> 8);
+	dev_info(dev, "Cirrus Logic CS40L20 revision %02X\n", reg_revid);
 
 	ret = cs40l20_init(cs40l20);
 	if (ret)
