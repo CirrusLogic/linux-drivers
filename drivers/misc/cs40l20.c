@@ -717,6 +717,7 @@ static void cs40l20_dsp_start(struct cs40l20_private *cs40l20)
 	struct regmap *regmap = cs40l20->regmap;
 	struct device *dev = cs40l20->dev;
 	unsigned int val;
+	int dsp_timeout = CS40L20_DSP_TIMEOUT_COUNT;
 
 	ret = regmap_update_bits(regmap, CS40L20_DSP1_CCM_CORE_CTRL,
 			CS40L20_DSP1_EN_MASK, 1 << CS40L20_DSP1_EN_SHIFT);
@@ -725,19 +726,28 @@ static void cs40l20_dsp_start(struct cs40l20_private *cs40l20)
 		return;
 	}
 
-	ret = regmap_read(regmap, cs40l20_dsp_reg(cs40l20, "HALO_STATE",
-			CS40L20_XM_UNPACKED_TYPE), &val);
-	if (ret) {
-		dev_err(dev, "Failed to read haptics algorithm status\n");
+	while (dsp_timeout > 0) {
+		usleep_range(10000, 10100);
+
+		ret = regmap_read(regmap, cs40l20_dsp_reg(cs40l20, "HALO_STATE",
+				CS40L20_XM_UNPACKED_TYPE), &val);
+		if (ret) {
+			dev_err(dev, "Failed to read DSP status\n");
+			return;
+		}
+
+		if (val == CS40L20_HALO_STATE_RUNNING)
+			break;
+
+		dsp_timeout--;
+	}
+
+	if (dsp_timeout == 0) {
+		dev_err(dev, "Timed out with DSP status = %d\n", val);
 		return;
 	}
 
-	if (val == CS40L20_HALO_STATE_RUNNING) {
-		dev_info(dev, "Haptics algorithm started\n");
-	} else {
-		dev_err(dev, "Failed to start haptics algorithm\n");
-		return;
-	}
+	dev_info(dev, "Haptics algorithm started\n");
 
 	ret = regmap_write(regmap, cs40l20_dsp_reg(cs40l20, "TIMEOUT_MS",
 			CS40L20_XM_UNPACKED_TYPE), CS40L20_TIMEOUT_MS_MAX);
