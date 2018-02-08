@@ -202,11 +202,8 @@
 #define TACNA_SAMPLE_RATE_CONTROL(name, domain) \
 	SOC_ENUM(name, tacna_sample_rate[(domain) - 2])
 
-#define TACNA_RATE_ENUM(xname, xenum) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,\
-	.info = snd_soc_info_enum_double, \
-	.get = snd_soc_get_enum_double, .put = tacna_rate_put, \
-	.private_value = (unsigned long)&xenum }
+#define TACNA_RATE_ENUM(name, enum) \
+	SOC_ENUM_EXT(name, enum, snd_soc_get_enum_double, tacna_rate_put)
 
 #define TACNA_EQ_COEFF_CONTROL(xname, xreg, xbase, xshift)	\
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	\
