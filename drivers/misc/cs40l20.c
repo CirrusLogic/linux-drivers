@@ -1426,6 +1426,7 @@ static struct regmap_config cs40l20_regmap = {
 	.max_register = CS40L20_LASTREG,
 	.reg_defaults = cs40l20_reg,
 	.num_reg_defaults = ARRAY_SIZE(cs40l20_reg),
+	.precious_reg = cs40l20_precious_reg,
 	.volatile_reg = cs40l20_volatile_reg,
 	.readable_reg = cs40l20_readable_reg,
 	.cache_type = REGCACHE_RBTREE,
