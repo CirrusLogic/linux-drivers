@@ -681,6 +681,16 @@ bool cs40l20_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
+bool cs40l20_precious_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case CS40L20_OTP_MEM0 ... CS40L20_OTP_MEM31:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static const struct cs40l20_trim cs40l20_trim_table_c[] = {
 	/* addr         shift   size */
 	{0x00002030,	0,	4}, /*TRIM_OSC_FREQ_TRIM*/
