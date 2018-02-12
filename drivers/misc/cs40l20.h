@@ -732,6 +732,7 @@
 
 bool cs40l20_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l20_volatile_reg(struct device *dev, unsigned int reg);
+bool cs40l20_precious_reg(struct device *dev, unsigned int reg);
 
 struct cs40l20_trim {
 	unsigned int reg;
