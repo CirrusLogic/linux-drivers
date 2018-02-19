@@ -60,6 +60,7 @@ struct cs40l20_private {
 	unsigned char diag_state;
 	unsigned int f0_measured;
 	unsigned int redc_measured;
+	unsigned int dig_scale;
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 	struct timed_output_dev timed_dev;
 	struct hrtimer vibe_timer;
@@ -318,6 +319,46 @@ static ssize_t cs40l20_redc_measured_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", redc_measured);
 }
 
+static ssize_t cs40l20_dig_scale_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", cs40l20->dig_scale);
+}
+
+static ssize_t cs40l20_dig_scale_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
+	int ret;
+	unsigned int dig_scale;
+
+	ret = kstrtou32(buf, 10, &dig_scale);
+	if (ret)
+		return -EINVAL;
+
+	if (dig_scale > CS40L20_DIG_SCALE_MAX)
+		return -EINVAL;
+
+	mutex_lock(&cs40l20->lock);
+	ret = regmap_update_bits(cs40l20->regmap, CS40L20_AMP_DIG_VOL_CTRL,
+			CS40L20_AMP_VOL_PCM_MASK,
+			((0x800 - dig_scale) & 0x7FF)
+				<< CS40L20_AMP_VOL_PCM_SHIFT);
+	mutex_unlock(&cs40l20->lock);
+
+	if (ret) {
+		pr_err("Failed to store digital scale\n");
+		return ret;
+	}
+
+	cs40l20->dig_scale = dig_scale;
+
+	return count;
+}
+
 static DEVICE_ATTR(cp_trigger_index, 0660, cs40l20_cp_trigger_index_show,
 		cs40l20_cp_trigger_index_store);
 static DEVICE_ATTR(gpio1_rise_index, 0660, cs40l20_gpio1_rise_index_show,
@@ -328,6 +369,8 @@ static DEVICE_ATTR(f0_measured, 0660, cs40l20_f0_measured_show, NULL);
 static DEVICE_ATTR(f0_stored, 0660, cs40l20_f0_stored_show,
 		cs40l20_f0_stored_store);
 static DEVICE_ATTR(redc_measured, 0660, cs40l20_redc_measured_show, NULL);
+static DEVICE_ATTR(dig_scale, 0660, cs40l20_dig_scale_show,
+		cs40l20_dig_scale_store);
 
 static struct attribute *cs40l20_dev_attrs[] = {
 	&dev_attr_cp_trigger_index.attr,
@@ -336,6 +379,7 @@ static struct attribute *cs40l20_dev_attrs[] = {
 	&dev_attr_f0_measured.attr,
 	&dev_attr_f0_stored.attr,
 	&dev_attr_redc_measured.attr,
+	&dev_attr_dig_scale.attr,
 	NULL,
 };
 
@@ -412,6 +456,14 @@ static void cs40l20_vibe_start_worker(struct work_struct *work)
 	case CS40L20_INDEX_DIAG:
 		cs40l20->diag_state = CS40L20_DIAG_STATE_INIT;
 
+		ret = regmap_update_bits(cs40l20->regmap,
+				CS40L20_AMP_DIG_VOL_CTRL,
+				CS40L20_AMP_VOL_PCM_MASK, 0);
+		if (ret) {
+			dev_err(dev, "Failed to reset digital scale\n");
+			goto err_mutex;
+		}
+
 		ret = regmap_write(regmap,
 				cs40l20_dsp_reg(cs40l20, "CLOSED_LOOP",
 					CS40L20_XM_UNPACKED_TYPE), 0);
@@ -470,6 +522,14 @@ static void cs40l20_vibe_stop_worker(struct work_struct *work)
 					CS40L20_XM_UNPACKED_TYPE), 0);
 		if (ret)
 			dev_err(dev, "Failed to disable stimulus mode\n");
+
+		ret = regmap_update_bits(cs40l20->regmap,
+				CS40L20_AMP_DIG_VOL_CTRL,
+				CS40L20_AMP_VOL_PCM_MASK,
+				((0x800 - cs40l20->dig_scale) & 0x7FF)
+					<< CS40L20_AMP_VOL_PCM_SHIFT);
+		if (ret)
+			dev_err(dev, "Failed to restore digital scale\n");
 		break;
 
 	default:
@@ -1152,6 +1212,7 @@ static int cs40l20_init(struct cs40l20_private *cs40l20)
 	cs40l20->cp_trailer_index = 0;
 	cs40l20->vibe_init_success = false;
 	cs40l20->diag_state = CS40L20_DIAG_STATE_INIT;
+	cs40l20->dig_scale = 0;
 
 	if (cs40l20->pdata.refclk_gpio2) {
 		ret = regmap_update_bits(regmap, CS40L20_GPIO_PAD_CONTROL,
