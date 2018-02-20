@@ -3751,8 +3751,7 @@ err:
 }
 EXPORT_SYMBOL_GPL(wm_halo_event);
 
-int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec,
-			 bool ao_dsp)
+int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	char preload[32];
@@ -3766,7 +3765,7 @@ int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec,
 
 	dsp->codec = codec;
 
-	if (ao_dsp)
+	if (dsp->ao_dsp)
 		ret = snd_soc_add_codec_controls(codec,
 					 &wm_adsp_ao_fw_controls[dsp->num - 1],
 					 1);
