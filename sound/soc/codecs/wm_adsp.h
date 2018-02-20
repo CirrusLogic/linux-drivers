@@ -60,6 +60,7 @@ struct wm_adsp {
 	int rev;
 	int num;
 	int type;
+	bool ao_dsp;
 	const char *suffix;
 	struct device *dev;
 	struct regmap *regmap;
@@ -147,8 +148,7 @@ extern const struct snd_kcontrol_new wm_adsp_fw_controls[];
 int wm_adsp1_init(struct wm_adsp *dsp);
 int wm_adsp2_init(struct wm_adsp *dsp, struct mutex *fw_lock);
 void wm_adsp2_remove(struct wm_adsp *dsp);
-int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec,
-			 bool ao_dsp);
+int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec);
 int wm_adsp2_codec_remove(struct wm_adsp *dsp, struct snd_soc_codec *codec);
 int wm_halo_init(struct wm_adsp *dsp,
 		 struct mutex *fw_lock, struct mutex *rate_lock);
