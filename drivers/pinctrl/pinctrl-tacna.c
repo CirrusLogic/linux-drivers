@@ -1028,6 +1028,7 @@ static int tacna_pin_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
+	platform_set_drvdata(pdev, priv);
 	priv->dev = &pdev->dev;
 	priv->tacna = tacna;
 	pdev->dev.of_node = tacna->dev->of_node;
