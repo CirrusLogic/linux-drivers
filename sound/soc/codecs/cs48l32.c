@@ -1102,7 +1102,7 @@ static int cs48l32_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	wm_adsp2_codec_probe(&cs48l32->core.dsp[0], codec, false);
+	wm_adsp2_codec_probe(&cs48l32->core.dsp[0], codec);
 
 	return 0;
 }
