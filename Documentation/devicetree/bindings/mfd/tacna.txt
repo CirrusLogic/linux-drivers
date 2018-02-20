@@ -6,6 +6,7 @@ of analogue I/O.
 See also the child driver bindings in:
 bindings/extcon/extcon-tacna.txt
 bindings/gpio/gpio-tacna.txt
+bindings/pinctrl/cirrus,tacna-pinctrl.txt
 bindings/regulator/arizona-regulator.txt
 bindings/sound/tacna.txt
 
@@ -50,6 +51,26 @@ Optional properties:
   - cirrus,secure : Boolean entry defining whether the part is being used in
     secure mode.  Secure mode is enabled if the property is present.
 
+  - pinctrl-names : Name of pinctrl configurations. Each of these is optional.
+    Legal names are:
+	"probe" - external pinctrl dependencies required to probe this codec,
+		typically these are for the reset GPIO and IRQ pin, though
+		could include clocks. Do NOT include configuration of this
+		codec's own GPIO pins because these can't be applied until
+		after the mfd probe has completed.
+
+	"active" - full set of external and local pinctrl configurations to
+		apply after probe including all the configuration of the GPIO
+		pins on this codec (bindings/pinctrl/cirrus,tacna-pinctrl.txt).
+		This must include the external dependencies in the "probe"
+		configuration, since they will still be required after probe.
+
+    Do not use "default" since it is applied too early before the mfd has
+    fully probed the codec.
+
+  - pinctrl-0, pinctrl-1 : handle to pinctrl configurations matching the
+    entries in pinctrl-names
+
 Optional child nodes:
   - MICBIASx : Initial data for the MICBIAS regulators, as covered in
     Documentation/devicetree/bindings/regulator/regulator.txt.
@@ -90,6 +111,25 @@ codec: cs47l94@0 {
 	VDD_D-supply = <&regulator_dummy_dcvdd>;
 
 	reset-gpios = <&gpio 0>;
+
+	pinctrl-names = "probe", "active";
+	pinctrl-0 = <&gpio_0_enable_state>;
+	pinctrl-1 = <&gpio_0_enable_state &cs47l94_gpio_config>;
+
+	cs47l94_gpio_config: cs47l94-gpio-config {
+		asp2 {
+			groups = "asp2";
+			function = "asp2";
+			bias-bus-hold;
+		};
+
+		opclk {
+			groups = "gpio1";
+			function = "opclk";
+			bias-pull-up;
+			drive-strength = <8>;
+		};
+	};
 
 	MICBIAS1 {
 		regulator-min-microvolt = <900000>;

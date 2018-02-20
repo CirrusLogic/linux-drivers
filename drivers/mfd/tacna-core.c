@@ -1,7 +1,7 @@
 /*
  * Core MFD support for Cirrus Logic Tacna codecs
  *
- * Copyright 2016-2017 Cirrus Logic
+ * Copyright 2016-2018 Cirrus Logic
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -17,6 +17,7 @@
 #include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/property.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -51,8 +52,11 @@ static const char * const cs47l94_supplies[] = {
 	"VDD_IO2",
 };
 
-static const struct mfd_cell cs47l94_devs[] = {
+static const struct mfd_cell tacna_pinctrl_dev[] = {
 	{ .name = "tacna-pinctrl", },
+};
+
+static const struct mfd_cell cs47l94_devs[] = {
 	{ .name = "tacna-irq", },
 	{ .name = "tacna-micsupp", },
 	{ .name = "tacna-gpio", },
@@ -78,7 +82,6 @@ static const char * const cs47l96_supplies[] = {
 };
 
 static const struct mfd_cell cs47l96_devs[] = {
-	{ .name = "tacna-pinctrl", },
 	{ .name = "tacna-irq", },
 	{ .name = "tacna-micsupp", },
 	{ .name = "tacna-gpio", },
@@ -501,6 +504,30 @@ static void tacna_configure_micbias(struct tacna *tacna)
 	}
 }
 
+static int tacna_dev_select_pinctrl(struct tacna *tacna,
+				    struct pinctrl *pinctrl,
+				    const char *name)
+{
+	struct pinctrl_state *pinctrl_state;
+	int ret;
+
+	pinctrl_state = pinctrl_lookup_state(pinctrl, name);
+
+	/* it's ok if it doesn't exist */
+	if (!IS_ERR(pinctrl_state)) {
+		dev_dbg(tacna->dev, "Applying pinctrl %s state\n", name);
+		ret = pinctrl_select_state(pinctrl, pinctrl_state);
+		if (ret) {
+			dev_err(tacna->dev,
+				"Failed to select pinctrl %s state: %d\n",
+				name, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 int tacna_dev_init(struct tacna *tacna)
 {
 	struct device *dev = tacna->dev;
@@ -508,10 +535,38 @@ int tacna_dev_init(struct tacna *tacna)
 	unsigned int hwid, reg;
 	int (*patch_fn)(struct tacna *) = NULL;
 	const struct mfd_cell *mfd_devs;
+	struct pinctrl *pinctrl;
 	int n_devs, i;
 	int ret;
 
 	dev_set_drvdata(tacna->dev, tacna);
+
+	/*
+	 * Pinctrl subsystem only configures pinctrls if all referenced pins
+	 * are registered. Create our pinctrl child now so that its pins exist
+	 * otherwise external pinctrl dependencies will fail
+	 * Note: Can't devm_ because it is cleaned up after children are already
+	 * destroyed
+	 */
+	ret = mfd_add_devices(tacna->dev, PLATFORM_DEVID_NONE,
+			      tacna_pinctrl_dev, 1, NULL, 0, NULL);
+	if (ret) {
+		dev_err(tacna->dev, "Failed to add pinctrl child: %d\n", ret);
+		return ret;
+	}
+
+	pinctrl = pinctrl_get(dev);
+	if (IS_ERR(pinctrl)) {
+		ret = PTR_ERR(pinctrl);
+		dev_err(tacna->dev, "Failed to get pinctrl: %d\n", ret);
+		goto err_devs;
+	}
+
+	/* Use (optional) minimal config with only external pin bindings */
+	ret = tacna_dev_select_pinctrl(tacna, pinctrl, "probe");
+	if (ret)
+		goto err_pinctrl;
+
 	BLOCKING_INIT_NOTIFIER_HEAD(&tacna->notifier);
 
 	/* default headphone impedance in case the extcon driver is not used */
@@ -532,7 +587,7 @@ int tacna_dev_init(struct tacna *tacna)
 			if (ret) {
 				dev_err(dev, "Failed to request RESET_B: %d\n",
 					ret);
-				return ret;
+				goto err_pinctrl;
 			}
 
 			tacna->reset_gpio = gpio_to_desc(tacna->pdata.reset);
@@ -540,7 +595,7 @@ int tacna_dev_init(struct tacna *tacna)
 	} else {
 		ret = tacna_prop_get_core_pdata(tacna);
 		if (ret)
-			return ret;
+			goto err_pinctrl;
 	}
 
 	if (!tacna->reset_gpio)
@@ -558,7 +613,7 @@ int tacna_dev_init(struct tacna *tacna)
 				      tacna->core_supplies);
 	if (ret) {
 		dev_err(dev, "Failed to request core supplies: %d\n", ret);
-		goto err_devs;
+		goto err_pinctrl;
 	}
 
 	/*
@@ -571,7 +626,7 @@ int tacna_dev_init(struct tacna *tacna)
 	if (IS_ERR(tacna->vdd_d)) {
 		ret = PTR_ERR(tacna->vdd_d);
 		dev_err(dev, "Failed to request VDD_D: %d\n", ret);
-		goto err_devs;
+		goto err_pinctrl;
 	}
 
 	tacna->vdd_d_notifier.notifier_call = tacna_vdd_d_notify;
@@ -735,6 +790,11 @@ int tacna_dev_init(struct tacna *tacna)
 		}
 	}
 
+	/* Apply (optional) main pinctrl config, this will configure our pins */
+	ret = tacna_dev_select_pinctrl(tacna, pinctrl, "active");
+	if (ret)
+		goto err_reset;
+
 	/* Init 32k clock sourced from MCLK2 */
 	ret = regmap_update_bits(tacna->regmap,
 			TACNA_CLOCK32K,
@@ -776,6 +836,8 @@ int tacna_dev_init(struct tacna *tacna)
 		goto err_reset;
 	}
 
+	pinctrl_put(pinctrl);
+
 	return 0;
 
 err_reset:
@@ -787,6 +849,8 @@ err_notifier:
 	regulator_unregister_notifier(tacna->vdd_d, &tacna->vdd_d_notifier);
 err_vdd_d:
 	regulator_put(tacna->vdd_d);
+err_pinctrl:
+	pinctrl_put(pinctrl);
 err_devs:
 	mfd_remove_devices(dev);
 	return ret;
