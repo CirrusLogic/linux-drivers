@@ -3104,7 +3104,7 @@ static int cs47l94_codec_probe(struct snd_soc_codec *codec)
 		return ret;
 
 	for (i = 0; i < CS47L94_NUM_DSP; ++i)
-		wm_adsp2_codec_probe(&cs47l94->core.dsp[i], codec, false);
+		wm_adsp2_codec_probe(&cs47l94->core.dsp[i], codec);
 
 	return 0;
 }
