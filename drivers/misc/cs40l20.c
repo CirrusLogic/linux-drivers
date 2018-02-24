@@ -410,6 +410,27 @@ static ssize_t cs40l20_dig_scale_store(struct device *dev,
 	return count;
 }
 
+static ssize_t cs40l20_heartbeat_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
+	int ret;
+	unsigned int val;
+
+	mutex_lock(&cs40l20->lock);
+	ret = regmap_read(cs40l20->regmap,
+			cs40l20_dsp_reg(cs40l20, "HALO_HEARTBEAT",
+				CS40L20_XM_UNPACKED_TYPE), &val);
+	mutex_unlock(&cs40l20->lock);
+
+	if (ret) {
+		pr_err("Failed to read heartbeat\n");
+		return ret;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+}
+
 static DEVICE_ATTR(cp_trigger_index, 0660, cs40l20_cp_trigger_index_show,
 		cs40l20_cp_trigger_index_store);
 static DEVICE_ATTR(gpio1_rise_index, 0660, cs40l20_gpio1_rise_index_show,
@@ -424,6 +445,7 @@ static DEVICE_ATTR(redc_stored, 0660, cs40l20_redc_stored_show,
 		cs40l20_redc_stored_store);
 static DEVICE_ATTR(dig_scale, 0660, cs40l20_dig_scale_show,
 		cs40l20_dig_scale_store);
+static DEVICE_ATTR(heartbeat, 0660, cs40l20_heartbeat_show, NULL);
 
 static struct attribute *cs40l20_dev_attrs[] = {
 	&dev_attr_cp_trigger_index.attr,
@@ -434,6 +456,7 @@ static struct attribute *cs40l20_dev_attrs[] = {
 	&dev_attr_redc_measured.attr,
 	&dev_attr_redc_stored.attr,
 	&dev_attr_dig_scale.attr,
+	&dev_attr_heartbeat.attr,
 	NULL,
 };
 
@@ -740,17 +763,6 @@ static int cs40l20_coeff_init(struct cs40l20_private *cs40l20)
 	unsigned int xm_base, xm_size, ym_base, ym_size;
 	unsigned int reg = CS40L20_XM_FW_ID;
 
-	ret = regmap_read(regmap, CS40L20_XM_FW_REV, &val);
-	if (ret) {
-		dev_err(dev, "Failed to read firmware revision\n");
-		return ret;
-	}
-
-	if (val < CS40L20_FW_REV_MIN) {
-		dev_err(dev, "Unsupported firmware revision: 0x%06X\n", val);
-		return -EINVAL;
-	}
-
 	ret = regmap_read(regmap, CS40L20_XM_NUM_ALGOS, &num_algos);
 	if (ret) {
 		dev_err(dev, "Failed to read number of algorithms\n");
@@ -776,6 +788,22 @@ static int cs40l20_coeff_init(struct cs40l20_private *cs40l20)
 		if (ret) {
 			dev_err(dev, "Failed to read algo. %d revision\n", i);
 			return ret;
+		}
+
+		/* discern firmware revision from system algorithm */
+		if (i == 0) {
+			if (algo_rev < CS40L20_FW_REV_MIN) {
+				dev_err(dev,
+					"Invalid firmware revision: %d.%d.%d\n",
+					(algo_rev & 0xFF0000) >> 16,
+					(algo_rev & 0xFF00) >> 8,
+					algo_rev & 0xFF);
+				return -EINVAL;
+			}
+			dev_info(dev, "Firmware revision %d.%d.%d\n",
+					(algo_rev & 0xFF0000) >> 16,
+					(algo_rev & 0xFF00) >> 8,
+					algo_rev & 0xFF);
 		}
 
 		ret = regmap_read(regmap,
