@@ -53,6 +53,10 @@ struct cs40l20_private {
 	unsigned int cp_trigger_index;
 	unsigned int cp_trailer_index;
 	unsigned int num_waves;
+	unsigned int vibegen_id;
+	unsigned int vibegen_rev;
+	unsigned int wt_limit_xm;
+	unsigned int wt_limit_ym;
 	bool vibe_init_success;
 	struct gpio_desc *reset_gpio;
 	struct cs40l20_platform_data pdata;
@@ -732,7 +736,8 @@ static int cs40l20_coeff_init(struct cs40l20_private *cs40l20)
 	struct regmap *regmap = cs40l20->regmap;
 	struct device *dev = cs40l20->dev;
 	struct cs40l20_coeff_desc *coeff_desc;
-	unsigned int val, num_algos, algo_id, xm_base, ym_base;
+	unsigned int val, num_algos, algo_id, algo_rev;
+	unsigned int xm_base, xm_size, ym_base, ym_size;
 	unsigned int reg = CS40L20_XM_FW_ID;
 
 	ret = regmap_read(regmap, CS40L20_XM_FW_REV, &val);
@@ -759,21 +764,45 @@ static int cs40l20_coeff_init(struct cs40l20_private *cs40l20)
 
 	/* add one extra iteration to account for system algorithm */
 	for (i = 0; i < (num_algos + 1); i++) {
-		ret = regmap_read(regmap, reg, &algo_id);
+		ret = regmap_read(regmap,
+				reg + CS40L20_ALGO_ID_OFFSET, &algo_id);
 		if (ret) {
 			dev_err(dev, "Failed to read algo. %d ID\n", i);
 			return ret;
 		}
 
-		ret = regmap_read(regmap, reg + 8, &xm_base);
+		ret = regmap_read(regmap,
+				reg + CS40L20_ALGO_REV_OFFSET, &algo_rev);
+		if (ret) {
+			dev_err(dev, "Failed to read algo. %d revision\n", i);
+			return ret;
+		}
+
+		ret = regmap_read(regmap,
+				reg + CS40L20_ALGO_XM_BASE_OFFSET, &xm_base);
 		if (ret) {
 			dev_err(dev, "Failed to read algo. %d XM_BASE\n", i);
 			return ret;
 		}
 
-		ret = regmap_read(regmap, reg + 16, &ym_base);
+		ret = regmap_read(regmap,
+				reg + CS40L20_ALGO_XM_SIZE_OFFSET, &xm_size);
+		if (ret) {
+			dev_err(dev, "Failed to read algo. %d XM_SIZE\n", i);
+			return ret;
+		}
+
+		ret = regmap_read(regmap,
+				reg + CS40L20_ALGO_YM_BASE_OFFSET, &ym_base);
 		if (ret) {
 			dev_err(dev, "Failed to read algo. %d YM_BASE\n", i);
+			return ret;
+		}
+
+		ret = regmap_read(regmap,
+				reg + CS40L20_ALGO_YM_SIZE_OFFSET, &ym_size);
+		if (ret) {
+			dev_err(dev, "Failed to read algo. %d YM_SIZE\n", i);
 			return ret;
 		}
 
@@ -788,12 +817,21 @@ static int cs40l20_coeff_init(struct cs40l20_private *cs40l20)
 				coeff_desc->reg = CS40L20_DSP1_XMEM_UNPACK24_0
 					+ xm_base * 4
 					+ coeff_desc->block_offset * 4;
-					break;
+				if (!strcmp(coeff_desc->name, "WAVETABLE")) {
+					cs40l20->wt_limit_xm = (xm_size
+						- coeff_desc->block_offset) * 4;
+					cs40l20->vibegen_id = algo_id;
+					cs40l20->vibegen_rev = algo_rev;
+				}
+				break;
 			case CS40L20_YM_UNPACKED_TYPE:
 				coeff_desc->reg = CS40L20_DSP1_YMEM_UNPACK24_0
 					+ ym_base * 4
 					+ coeff_desc->block_offset * 4;
-					break;
+				if (!strcmp(coeff_desc->name, "WAVETABLEYM"))
+					cs40l20->wt_limit_ym = (ym_size
+						- coeff_desc->block_offset) * 4;
+				break;
 			}
 
 			dev_dbg(dev, "Found control %s at 0x%08X\n",
@@ -802,9 +840,9 @@ static int cs40l20_coeff_init(struct cs40l20_private *cs40l20)
 
 		/* system algo. contains one extra register (num. algos.) */
 		if (i)
-			reg += CS40L20_XM_ALGO_ENTRY_SIZE;
+			reg += CS40L20_ALGO_ENTRY_SIZE;
 		else
-			reg += (CS40L20_XM_ALGO_ENTRY_SIZE + 4);
+			reg += (CS40L20_ALGO_ENTRY_SIZE + 4);
 	}
 
 	ret = regmap_read(regmap, reg, &val);
@@ -813,10 +851,14 @@ static int cs40l20_coeff_init(struct cs40l20_private *cs40l20)
 		return ret;
 	}
 
-	if (val != CS40L20_XM_LIST_TERM) {
+	if (val != CS40L20_ALGO_LIST_TERM) {
 		dev_err(dev, "Invalid list terminator: 0x%X\n", val);
 		return -EINVAL;
 	}
+
+	dev_info(dev, "Maximum wavetable size: %d bytes (XM), %d bytes (YM)\n",
+			cs40l20->wt_limit_xm / 4 * 3,
+			cs40l20->wt_limit_ym / 4 * 3);
 
 	return 0;
 }
@@ -907,6 +949,7 @@ static void cs40l20_waveform_load(const struct firmware *fw, void *context)
 	struct device *dev = cs40l20->dev;
 	unsigned int pos = CS40L20_WT_FILE_HEADER_SIZE;
 	unsigned int block_type, block_length;
+	unsigned int algo_id, algo_rev;
 
 	if (!fw) {
 		dev_warn(dev, "Using default wavetable\n");
@@ -927,8 +970,22 @@ static void cs40l20_waveform_load(const struct firmware *fw, void *context)
 
 		block_type = fw->data[pos]
 				+ (fw->data[pos + 1] << 8);
-		pos += (CS40L20_WT_DBLK_TYPE_SIZE
-				+ CS40L20_WT_DBLK_UNUSED_SIZE);
+		pos += CS40L20_WT_DBLK_TYPE_SIZE;
+
+		algo_id = fw->data[pos]
+				+ (fw->data[pos + 1] << 8)
+				+ (fw->data[pos + 2] << 16)
+				+ (fw->data[pos + 3] << 24);
+		pos += CS40L20_WT_ALGO_ID_SIZE;
+
+		algo_rev = fw->data[pos]
+				+ (fw->data[pos + 1] << 8)
+				+ (fw->data[pos + 2] << 16)
+				+ (fw->data[pos + 3] << 24);
+		pos += CS40L20_WT_ALGO_REV_SIZE;
+
+		/* sample rate is not used here */
+		pos += CS40L20_WT_SAMPLE_RATE_SIZE;
 
 		block_length = fw->data[pos]
 				+ (fw->data[pos + 1] << 8)
@@ -938,6 +995,27 @@ static void cs40l20_waveform_load(const struct firmware *fw, void *context)
 
 		switch (block_type) {
 		case CS40L20_XM_UNPACKED_TYPE:
+			if (algo_id != cs40l20->vibegen_id) {
+				dev_err(dev, "Invalid algo. ID: 0x%06X\n",
+					algo_id);
+				goto err_rls_fw;
+			}
+
+			if (algo_rev != cs40l20->vibegen_rev) {
+				dev_err(dev, "Invalid algo. rev.: %d.%d.%d\n",
+					(algo_rev & 0xFF0000) >> 16,
+					(algo_rev & 0xFF00) >> 8,
+					algo_rev & 0xFF);
+				goto err_rls_fw;
+			}
+
+			if (block_length > cs40l20->wt_limit_xm) {
+				dev_err(dev,
+					"Wavetable too large: %d bytes (XM)\n",
+					block_length / 4 * 3);
+				goto err_rls_fw;
+			}
+
 			ret = cs40l20_raw_write(cs40l20,
 					cs40l20_dsp_reg(cs40l20, "WAVETABLE",
 						CS40L20_XM_UNPACKED_TYPE),
@@ -950,6 +1028,27 @@ static void cs40l20_waveform_load(const struct firmware *fw, void *context)
 			}
 			break;
 		case CS40L20_YM_UNPACKED_TYPE:
+			if (algo_id != cs40l20->vibegen_id) {
+				dev_err(dev, "Invalid algo. ID: 0x%06X\n",
+					algo_id);
+				goto err_rls_fw;
+			}
+
+			if (algo_rev != cs40l20->vibegen_rev) {
+				dev_err(dev, "Invalid algo. rev.: %d.%d.%d\n",
+					(algo_rev & 0xFF0000) >> 16,
+					(algo_rev & 0xFF00) >> 8,
+					algo_rev & 0xFF);
+				goto err_rls_fw;
+			}
+
+			if (block_length > cs40l20->wt_limit_ym) {
+				dev_err(dev,
+					"Wavetable too large: %d bytes (YM)\n",
+					block_length / 4 * 3);
+				goto err_rls_fw;
+			}
+
 			ret = cs40l20_raw_write(cs40l20,
 					cs40l20_dsp_reg(cs40l20, "WAVETABLEYM",
 						CS40L20_YM_UNPACKED_TYPE),
