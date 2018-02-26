@@ -1056,8 +1056,25 @@ static int cs35l41_codec_probe(struct snd_soc_codec *codec)
 	struct classh_cfg *classh = &cs35l41->pdata.classh_config;
 	struct irq_cfg *irq_gpio_cfg1 = &cs35l41->pdata.irq_config1;
 	struct irq_cfg *irq_gpio_cfg2 = &cs35l41->pdata.irq_config2;
+	int ret;
 
 	/* Set Platform Data */
+	/* Required */
+	if (cs35l41->pdata.bst_ipk &&
+			cs35l41->pdata.bst_ind && cs35l41->pdata.bst_cap) {
+		ret = cs35l41_boost_config(cs35l41, cs35l41->pdata.bst_ind,
+					cs35l41->pdata.bst_cap,
+					cs35l41->pdata.bst_ipk);
+		if (ret) {
+			dev_err(cs35l41->dev, "Error in Boost DT config\n");
+			return ret;
+		}
+	} else {
+		dev_err(cs35l41->dev, "Incomplete Boost component DT config\n");
+		return -EINVAL;
+	}
+
+	/* Optional */
 	if (cs35l41->pdata.sclk_frc)
 		regmap_update_bits(cs35l41->regmap, CS35L41_SP_FORMAT,
 				CS35L41_SCLK_FRC_MASK,
@@ -1079,17 +1096,6 @@ static int cs35l41_codec_probe(struct snd_soc_codec *codec)
 	if (cs35l41->pdata.bst_vctrl)
 		regmap_update_bits(cs35l41->regmap, CS35L41_BSTCVRT_VCTRL1,
 				CS35L41_BST_CTL_MASK, cs35l41->pdata.bst_vctrl);
-
-	if (cs35l41->pdata.bst_ipk &&
-			cs35l41->pdata.bst_ind && cs35l41->pdata.bst_cap) {
-		cs35l41_boost_config(cs35l41, cs35l41->pdata.bst_ind,
-					cs35l41->pdata.bst_cap,
-					cs35l41->pdata.bst_ipk);
-	} else if (cs35l41->pdata.bst_ipk ||
-			cs35l41->pdata.bst_ind ||
-			cs35l41->pdata.bst_cap) {
-		dev_err(cs35l41->dev, "Incomplete Boost DT config\n");
-	}
 
 	if (cs35l41->pdata.temp_warn_thld)
 		regmap_update_bits(cs35l41->regmap, CS35L41_DTEMP_WARN_THLD,
