@@ -3764,13 +3764,11 @@ static int tacna_dai_set_sysclk(struct snd_soc_dai *dai,
 		return 0;
 
 	if (dai->active) {
-		dev_err(codec->dev, "Can't change clock on active DAI %d\n",
-			dai->id);
+		tacna_asp_err(dai, "Can't change clock on active DAI\n");
 		return -EBUSY;
 	}
 
-	dev_dbg(codec->dev, "Setting ASP%d to %s\n", dai->id,
-		tacna_dai_clk_str(clk_id));
+	tacna_asp_dbg(dai, "Setting to %s\n", tacna_dai_clk_str(clk_id));
 
 	/* No need to alter routes if we haven't switched clock domain. */
 	if (!!tacna_is_sysclk(clk_id) == !!tacna_is_sysclk(dai_priv->clk)) {
