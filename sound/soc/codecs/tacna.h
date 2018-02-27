@@ -269,8 +269,8 @@
 	 .num_regs = xregs }) }
 
 /* these have a subseq number so they run after SYSCLK and DSPCLK widgets */
-#define TACNA_DSP_FREQ_WIDGET(name)					\
-	SND_SOC_DAPM_SUPPLY_S(name "FREQ", 100, SND_SOC_NOPM, 0, 0,	\
+#define TACNA_DSP_FREQ_WIDGET(name, num)				\
+	SND_SOC_DAPM_SUPPLY_S(name "FREQ", 100, SND_SOC_NOPM, num, 0,	\
 		tacna_dsp_freq_ev, SND_SOC_DAPM_POST_PMU)
 
 #define TACNA_RATES SNDRV_PCM_RATE_KNOT
