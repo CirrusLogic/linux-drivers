@@ -431,6 +431,14 @@ static ssize_t cs40l20_heartbeat_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
+static ssize_t cs40l20_num_waves_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", cs40l20->num_waves);
+}
+
 static DEVICE_ATTR(cp_trigger_index, 0660, cs40l20_cp_trigger_index_show,
 		cs40l20_cp_trigger_index_store);
 static DEVICE_ATTR(gpio1_rise_index, 0660, cs40l20_gpio1_rise_index_show,
@@ -446,6 +454,7 @@ static DEVICE_ATTR(redc_stored, 0660, cs40l20_redc_stored_show,
 static DEVICE_ATTR(dig_scale, 0660, cs40l20_dig_scale_show,
 		cs40l20_dig_scale_store);
 static DEVICE_ATTR(heartbeat, 0660, cs40l20_heartbeat_show, NULL);
+static DEVICE_ATTR(num_waves, 0660, cs40l20_num_waves_show, NULL);
 
 static struct attribute *cs40l20_dev_attrs[] = {
 	&dev_attr_cp_trigger_index.attr,
@@ -457,6 +466,7 @@ static struct attribute *cs40l20_dev_attrs[] = {
 	&dev_attr_redc_stored.attr,
 	&dev_attr_dig_scale.attr,
 	&dev_attr_heartbeat.attr,
+	&dev_attr_num_waves.attr,
 	NULL,
 };
 
@@ -937,16 +947,13 @@ static void cs40l20_dsp_start(struct cs40l20_private *cs40l20)
 	}
 
 	ret = regmap_read(regmap, cs40l20_dsp_reg(cs40l20, "NUMBEROFWAVES",
-			CS40L20_XM_UNPACKED_TYPE), &val);
+			CS40L20_XM_UNPACKED_TYPE), &cs40l20->num_waves);
 	if (ret) {
 		dev_err(dev, "Failed to count wavetable entries\n");
 		return;
 	}
 
-	if (val) {
-		dev_info(dev, "Counted %d entries in wavetable\n", val);
-		cs40l20->num_waves = val;
-	} else {
+	if (cs40l20->num_waves == 0) {
 		dev_err(dev, "Wavetable is empty\n");
 		return;
 	}
@@ -979,17 +986,13 @@ static void cs40l20_waveform_load(const struct firmware *fw, void *context)
 	unsigned int block_type, block_length;
 	unsigned int algo_id, algo_rev;
 
-	if (!fw) {
-		dev_warn(dev, "Using default wavetable\n");
+	if (!fw)
 		goto skip_loading;
-	}
 
 	if (memcmp(fw->data, "WMDR", 4)) {
 		dev_err(dev, "Failed to recognize waveform file\n");
 		goto err_rls_fw;
 	}
-
-	dev_info(dev, "Found custom wavetable\n");
 
 	while (pos < fw->size) {
 
