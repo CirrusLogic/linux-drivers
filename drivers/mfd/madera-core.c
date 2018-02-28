@@ -50,7 +50,10 @@ static const struct mfd_cell madera_ldo1_devs[] = {
 };
 
 static const struct mfd_cell madera_pinctrl_dev[] = {
-	{ .name = "madera-pinctrl", },
+	{
+		.name = "madera-pinctrl",
+		.of_compatible = "cirrus,madera-pinctrl",
+	},
 };
 
 static const char * const cs47l15_supplies[] = {

@@ -1011,7 +1011,6 @@ static int madera_pin_probe(struct platform_device *pdev)
 
 	priv->dev = &pdev->dev;
 	priv->madera = madera;
-	pdev->dev.of_node = madera->dev->of_node;
 
 	switch (madera->type) {
 	case CS47L15:
