@@ -1939,6 +1939,8 @@ static const struct snd_kcontrol_new tacna_dsp1_tx_rate_controls[] = {
 		     tacna_dsp_rate_get, tacna_dsp_rate_put),
 	SOC_ENUM_EXT("DSP1TX8 Rate", tacna_dsp1_tx_rate_enum[7],
 		     tacna_dsp_rate_get, tacna_dsp_rate_put),
+	SOC_ENUM_EXT("DSP1TX9 Rate", tacna_dsp1_tx_rate_enum[8],
+		     tacna_dsp_rate_get, tacna_dsp_rate_put),
 };
 
 static const struct snd_kcontrol_new tacna_dsp2_rx_rate_controls[] = {
