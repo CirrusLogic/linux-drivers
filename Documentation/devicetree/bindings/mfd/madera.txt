@@ -57,6 +57,26 @@ Required properties:
   - interrupts : The interrupt line the /IRQ signal for the device is
     connected to.
 
+  - pinctrl-names : Name of pinctrl configurations. Each of these is optional.
+    Legal names are:
+	"probe" - external pinctrl dependencies required to probe this codec,
+		typically these are for the reset GPIO and IRQ pin, though
+		could include clocks. Do NOT include configuration of this
+		codec's own GPIO pins because these can't be applied until
+		after the mfd probe has completed.
+
+	"active" - full set of external and local pinctrl configurations to
+		apply after probe including all the configuration of the GPIO
+		pins on this codec (bindings/pinctrl/cirrus,madera-pinctrl.txt).
+		This must include the external dependencies in the "probe"
+		configuration, since they will still be required after probe.
+
+    Do not use "default" since it is applied too early before the mfd has
+    fully probed the codec.
+
+  - pinctrl-0, pinctrl-1 : handle to pinctrl configurations matching the
+    entries in pinctrl-names
+
 Optional properties:
 
   - MICVDD-supply : Power supply, only need to be specified if
@@ -102,6 +122,18 @@ cs47l85@0 {
 
 	gpio-controller;
 	#gpio-cells = <2>;
+
+	pinctrl-names = "probe", "active";
+	pinctrl-0 = <&gpio_0_enable_state>;
+	pinctrl-1 = <&gpio_0_enable_state &cs47l85_gpio_config>;
+
+	cs47l85_gpio_config: cs47l85-gpio-config {
+		aif1 {
+			groups = "aif1";
+			function = "aif1";
+			bias-bus-hold;
+		};
+	};
 
 	MICBIAS1 {
 		regulator-min-microvolt = <900000>;
