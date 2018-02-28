@@ -9,7 +9,8 @@ The set of available GPIOs, functions and alternate function groups differs
 between codecs so refer to the datasheet for the codec for further information
 on what is supported on that device.
 
-The properties for this driver exist within the parent MFD driver node.
+The properties for this driver must exist within the parent MFD driver node.
+See bindings/mfd/madera.txt.
 
 See also
   the core bindings for the parent MFD driver:
@@ -17,16 +18,6 @@ See also
 
   the generic pinmix bindings:
     Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
-
-Required properties of parent mfd node:
-  - pinctrl-names : must be "default"
-  - pinctrl-0 : a phandle to the node containing the subnodes containing default
-      configurations
-
-Required subnodes:
-  One subnode is required to contain the default settings. It contains an
-  arbitrary number of configuration subnodes, one for each group or pin
-  configuratio you want to apply as a default.
 
 Required properties of configuration subnodes:
   - groups : name of one pin group to configure. One of:
@@ -73,10 +64,10 @@ Example:
 cs47l85@0 {
 	compatible = "cirrus,cs47l85";
 
-	pinctrl-names = "default";
-	pinctrl-0 = <&cs47l85_defaults>;
+	pinctrl-names = "active";
+	pinctrl-0 = <&cs47l85_gpio_config>;
 
-	cs47l85_defaults: cs47l85-gpio-defaults {
+	cs47l85_gpio_config: cs47l85-gpio-config {
 		aif1 {
 			groups = "aif1";
 			function = "aif1";
