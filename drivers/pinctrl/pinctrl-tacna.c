@@ -1,7 +1,7 @@
 /*
  * Pinctrl for Cirrus Logic Tacna codecs
  *
- * Copyright 2017 Cirrus Logic
+ * Copyright 2017-2018 Cirrus Logic
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1061,7 +1061,6 @@ static int tacna_pin_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 	priv->dev = &pdev->dev;
 	priv->tacna = tacna;
-	pdev->dev.of_node = tacna->dev->of_node;
 
 	switch (tacna->type) {
 	case CS47L94:

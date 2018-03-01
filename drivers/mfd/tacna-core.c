@@ -57,7 +57,10 @@ static const char * const cs47l94_supplies[] = {
 };
 
 static const struct mfd_cell tacna_pinctrl_dev[] = {
-	{ .name = "tacna-pinctrl", },
+	{
+		.name = "tacna-pinctrl",
+		.of_compatible = "cirrus,tacna-pinctrl",
+	},
 };
 
 static const struct mfd_cell cs47l94_devs[] = {
