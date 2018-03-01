@@ -1032,11 +1032,13 @@ static void cs40l20_waveform_load(const struct firmware *fw, void *context)
 				goto err_rls_fw;
 			}
 
-			if (algo_rev != cs40l20->vibegen_rev) {
+			if (((algo_rev >> 8) & CS40L20_ALGO_REV_MASK)
+					!= (cs40l20->vibegen_rev
+						& CS40L20_ALGO_REV_MASK)) {
 				dev_err(dev, "Invalid algo. rev.: %d.%d.%d\n",
+					(algo_rev & 0xFF000000) >> 24,
 					(algo_rev & 0xFF0000) >> 16,
-					(algo_rev & 0xFF00) >> 8,
-					algo_rev & 0xFF);
+					(algo_rev & 0xFF00) >> 8);
 				goto err_rls_fw;
 			}
 
@@ -1065,11 +1067,13 @@ static void cs40l20_waveform_load(const struct firmware *fw, void *context)
 				goto err_rls_fw;
 			}
 
-			if (algo_rev != cs40l20->vibegen_rev) {
+			if (((algo_rev >> 8) & CS40L20_ALGO_REV_MASK)
+					!= (cs40l20->vibegen_rev
+						& CS40L20_ALGO_REV_MASK)) {
 				dev_err(dev, "Invalid algo. rev.: %d.%d.%d\n",
+					(algo_rev & 0xFF000000) >> 24,
 					(algo_rev & 0xFF0000) >> 16,
-					(algo_rev & 0xFF00) >> 8,
-					algo_rev & 0xFF);
+					(algo_rev & 0xFF00) >> 8);
 				goto err_rls_fw;
 			}
 
