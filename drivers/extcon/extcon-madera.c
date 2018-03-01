@@ -638,6 +638,7 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 	snd_soc_dapm_mutex_lock(madera->dapm);
 
 	switch (madera->type) {
+	case CS47L15:
 	case CS47L35:
 	case CS47L92:
 	case CS47L93:
@@ -757,6 +758,16 @@ static const char *madera_extcon_get_micbias_src(struct madera_extcon *info)
 	unsigned int bias = info->micd_modes[info->micd_mode].bias;
 
 	switch (madera->type) {
+	case CS47L15:
+		switch (bias) {
+		case 0:
+		case 1:
+		case 2:
+			return "MICBIAS1";
+		default:
+			return "MICVDD";
+		}
+		break;
 	case CS47L35:
 	case CS47L85:
 	case WM1840:
@@ -804,6 +815,17 @@ static const char *madera_extcon_get_micbias(struct madera_extcon *info)
 	unsigned int bias = info->micd_modes[info->micd_mode].bias;
 
 	switch (madera->type) {
+	case CS47L15:
+		switch (bias) {
+		case 0:
+			return "MICBIAS1A";
+		case 1:
+			return "MICBIAS1B";
+		case 2:
+			return "MICBIAS1C";
+		default:
+			return "MICVDD";
+		}
 	case CS47L35:
 		switch (bias) {
 		case 1:
@@ -2953,6 +2975,9 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		info->micd_modes = madera_micd_default_modes;
 		info->num_micd_modes = ARRAY_SIZE(madera_micd_default_modes);
 		break;
+	case CS47L15:
+		info->hpdet_init_range = 1; /* range 0 not used on CS47L15 */
+		/* fall through to default case */
 	default:
 		info->hpdet_ranges = madera_hpdet_ranges;
 		info->num_hpdet_ranges = ARRAY_SIZE(madera_hpdet_ranges);
@@ -3133,6 +3158,14 @@ static int madera_extcon_probe(struct platform_device *pdev)
 				MADERA_ACCESSORY_DETECT_MODE_1,
 				MADERA_ACCDET_POLARITY_INV_ENA_MASK,
 				1 << MADERA_ACCDET_POLARITY_INV_ENA_SHIFT);
+			break;
+		default:
+			break;
+		}
+	} else {
+		switch (madera->type) {
+		case CS47L15:
+			pdata->hpdet_ext_res_x100 += 3300;
 			break;
 		default:
 			break;
