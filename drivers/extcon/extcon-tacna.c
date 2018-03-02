@@ -1,7 +1,7 @@
 /*
  * extcon-tacna.c - Extcon driver for Cirrus Logic Tacna codecs
  *
- * Copyright 2017 Cirrus Logic
+ * Copyright 2017-2018 Cirrus Logic
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -835,7 +835,7 @@ static void tacna_extcon_notify_micd(const struct tacna_extcon *info,
 	tacna_call_notifiers(info->tacna, TACNA_NOTIFY_MICDET, &data);
 }
 
-static int tacna_hpdet_calc_calibration(const struct tacna_extcon *info,
+static int tacna_hpdet_calc_calibration(
 			int dacval,
 			const struct tacna_hpdet_trims *trims,
 			const struct tacna_hpdet_calibration_data *calib)
@@ -889,7 +889,7 @@ static int tacna_hpdet_calibrate(struct tacna_extcon *info,
 
 	dev_dbg(info->dev, "hpdet_d calib range %d dac %d\n", range, dacval);
 
-	*ohms_x100 = tacna_hpdet_calc_calibration(info, dacval,
+	*ohms_x100 = tacna_hpdet_calc_calibration(dacval,
 						  &info->hpdet_trims[range],
 						  &info->hpdet_ranges[range]);
 	return 0;
@@ -1818,8 +1818,7 @@ static void tacna_micd_set_level(struct tacna_extcon *info, int index,
 }
 
 static void tacna_extcon_get_micd_configs(struct tacna_extcon *info,
-					  struct fwnode_handle *node,
-					  struct tacna_accdet_pdata *pdata)
+					  struct fwnode_handle *node)
 {
 	struct tacna_micd_config *micd_configs;
 	u32 *values;
@@ -1980,7 +1979,7 @@ static void tacna_extcon_process_accdet_node(struct tacna_extcon *info,
 				 &pdata->hpdet_ext_res_x100);
 
 	tacna_extcon_get_hpd_pins(info, node, pdata);
-	tacna_extcon_get_micd_configs(info, node, pdata);
+	tacna_extcon_get_micd_configs(info, node);
 
 	info->micd_pol_gpio = devm_get_gpiod_from_child(tacna->dev,
 							"cirrus,micd-pol-gpio",
