@@ -975,7 +975,7 @@ static int tacna_hpdet_read(struct tacna_extcon *info)
 				hpdet_ext_res_x100 / 100,
 				hpdet_ext_res_x100 % 100,
 				val);
-			val = 0;	/* treat as a short */
+			ohms_x100 = 0;	/* treat as a short */
 		} else {
 			dev_dbg(info->dev,
 				"Compensating for external %d.%02d ohm resistor\n",
