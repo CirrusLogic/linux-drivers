@@ -15,6 +15,24 @@
 
 #include "tacna.h"
 
+static const struct reg_sequence cs47l96_reva_patch[] = {
+	{ 0x00004994, 0x00000002 },
+	{ 0x000049b4, 0x00000002 },
+};
+
+int cs47l96_patch(struct tacna *tacna)
+{
+	int ret;
+
+	ret = regmap_register_patch(tacna->regmap, cs47l96_reva_patch,
+				    ARRAY_SIZE(cs47l96_reva_patch));
+	if (ret < 0)
+		dev_err(tacna->dev, "Error applying patch: %d\n", ret);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs47l96_patch);
+
 static const struct reg_default cs47l96_reg_default[] = {
 	{ 0x00000c08, 0xe1000001 }, /* GPIO1_CTRL1 */
 	{ 0x00000c0c, 0xe1000001 }, /* GPIO2_CTRL1 */
@@ -170,11 +188,11 @@ static const struct reg_default cs47l96_reg_default[] = {
 	{ 0x00004934, 0x00000069 }, /* OUT5PDM_CONTROL_1 */
 	{ 0x00004938, 0x00000180 }, /* OUT5R_VOLUME_1 */
 	{ 0x00004940, 0x00000200 }, /* OUT5R_CONTROL_1 */
-	{ 0x00004994, 0x00000006 }, /* OUTAUX1L_ENABLE_1 */
+	{ 0x00004994, 0x00000002 }, /* OUTAUX1L_ENABLE_1 */
 	{ 0x00004998, 0x000001c0 }, /* OUTAUX1L_VOLUME_1 */
 	{ 0x000049a0, 0x00000010 }, /* OUTAUX1L_CONTROL_1 */
 	{ 0x000049a4, 0x00000080 }, /* OUTAUX1L_VOLUME_3 */
-	{ 0x000049b4, 0x00000006 }, /* OUTAUX1R_ENABLE_1 */
+	{ 0x000049b4, 0x00000002 }, /* OUTAUX1R_ENABLE_1 */
 	{ 0x000049b8, 0x000001c0 }, /* OUTAUX1R_VOLUME_1 */
 	{ 0x000049c0, 0x00000020 }, /* OUTAUX1R_CONTROL_1 */
 	{ 0x000049c4, 0x00000080 }, /* OUTAUX1R_VOLUME_3 */
