@@ -3155,6 +3155,11 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		goto err_input;
 	}
 
+	regmap_update_bits(madera->regmap, MADERA_HEADPHONE_DETECT_1,
+			   MADERA_HP_IMPEDANCE_RANGE_MASK,
+			   info->hpdet_init_range <<
+			   MADERA_HP_IMPEDANCE_RANGE_SHIFT);
+
 	ret = madera_request_irq(madera, MADERA_IRQ_MICDET1,
 				 "MICDET", madera_micdet, info);
 	if (ret) {
