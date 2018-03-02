@@ -2113,7 +2113,7 @@ int tacna_dsp_freq_ev(struct snd_soc_dapm_widget *w,
 		return 0;
 	default:
 		return 0;
-	};
+	}
 }
 EXPORT_SYMBOL_GPL(tacna_dsp_freq_ev);
 
