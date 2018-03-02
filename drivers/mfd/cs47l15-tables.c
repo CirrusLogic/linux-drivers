@@ -180,6 +180,7 @@ static const struct reg_default cs47l15_reg_default[] = {
 	{ 0x00000440, 0x0003 }, /* R1088 (0x000440) - DRE Enable */
 	{ 0x00000448, 0x0883 }, /* R1096 (0x000448) - eDRE Enable */
 	{ 0x00000450, 0x0000 }, /* R1104 (0x000450) - DAC_AEC_CONTROL_1 */
+	{ 0x00000451, 0x0000 }, /* R1105 (0x000451) - DAC_AEC_CONTROL_2 */
 	{ 0x00000458, 0x0000 }, /* R1112 (0x000458) - NOISE_GATE_CONTROL */
 	{ 0x00000490, 0x0069 }, /* R1168 (0x000490) - PDM_SPK1_CTRL_1 */
 	{ 0x00000491, 0x0000 }, /* R1169 (0x000491) - PDM_SPK1_CTRL_2 */
@@ -893,6 +894,7 @@ static bool cs47l15_16bit_readable_register(struct device *dev, unsigned int reg
 	case MADERA_DRE_ENABLE:
 	case MADERA_EDRE_ENABLE:
 	case MADERA_DAC_AEC_CONTROL_1:
+	case MADERA_DAC_AEC_CONTROL_2:
 	case MADERA_NOISE_GATE_CONTROL:
 	case MADERA_PDM_SPK1_CTRL_1:
 	case MADERA_PDM_SPK1_CTRL_2:
