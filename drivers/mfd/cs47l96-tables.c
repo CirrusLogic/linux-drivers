@@ -16,6 +16,7 @@
 #include "tacna.h"
 
 static const struct reg_sequence cs47l96_reva_patch[] = {
+	{ 0x00002660, 0x00000022 },
 	{ 0x00004994, 0x00000002 },
 	{ 0x000049b4, 0x00000002 },
 };
