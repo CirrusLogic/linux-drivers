@@ -3132,7 +3132,8 @@ static int tacna_hw_params(struct snd_pcm_substream *substream,
 	struct tacna *tacna = priv->tacna;
 	int base = dai->driver->base;
 	const int *rates;
-	int i, ret, val, rates_sz;
+	int i, ret, rates_sz;
+	unsigned int val;
 	unsigned int rate = params_rate(params);
 	unsigned int channels = params_channels(params);
 	unsigned int chan_limit =
