@@ -736,7 +736,7 @@ int tacna_dev_init(struct tacna *tacna)
 			switch (tacna->type) {
 			case CS47L96:
 			case CS47L97:
-				patch_fn = NULL;
+				patch_fn = cs47l96_patch;
 				mfd_devs = cs47l96_devs;
 				n_devs = ARRAY_SIZE(cs47l96_devs);
 				break;
