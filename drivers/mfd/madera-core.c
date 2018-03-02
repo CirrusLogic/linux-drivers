@@ -60,7 +60,11 @@ static const struct mfd_cell cs47l35_devs[] = {
 	{ .name = "madera-irq", },
 	{ .name = "madera-micsupp" },
 	{ .name = "madera-gpio", },
-	{ .name = "madera-extcon", },
+	{
+		.name = "madera-extcon",
+		.parent_supplies = cs47l35_supplies,
+		.num_parent_supplies = 1, /* We only need MICVDD */
+	},
 	{
 		.name = "cs47l35-codec",
 		.parent_supplies = cs47l35_supplies,
@@ -84,7 +88,11 @@ static const struct mfd_cell cs47l85_devs[] = {
 	{ .name = "madera-irq", },
 	{ .name = "madera-micsupp", },
 	{ .name = "madera-gpio", },
-	{ .name = "madera-extcon", },
+	{
+		.name = "madera-extcon",
+		.parent_supplies = cs47l85_supplies,
+		.num_parent_supplies = 1, /* We only need MICVDD */
+	},
 	{
 		.name = "cs47l85-codec",
 		.parent_supplies = cs47l85_supplies,
@@ -106,7 +114,11 @@ static const struct mfd_cell cs47l90_devs[] = {
 	{ .name = "madera-irq", },
 	{ .name = "madera-micsupp", },
 	{ .name = "madera-gpio", },
-	{ .name = "madera-extcon", },
+	{
+		.name = "madera-extcon",
+		.parent_supplies = cs47l90_supplies,
+		.num_parent_supplies = 1, /* We only need MICVDD */
+	},
 	{
 		.name = "cs47l90-codec",
 		.parent_supplies = cs47l90_supplies,
@@ -125,7 +137,11 @@ static const struct mfd_cell cs47l92_devs[] = {
 	{ .name = "madera-irq", },
 	{ .name = "madera-micsupp", },
 	{ .name = "madera-gpio" },
-	{ .name = "madera-extcon" },
+	{
+		.name = "madera-extcon",
+		.parent_supplies = cs47l92_supplies,
+		.num_parent_supplies = 1, /* We only need MICVDD */
+	},
 	{
 		.name = "cs47l92-codec",
 		.parent_supplies = cs47l92_supplies,
