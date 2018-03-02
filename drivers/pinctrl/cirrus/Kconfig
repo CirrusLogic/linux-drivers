@@ -4,6 +4,9 @@ config PINCTRL_MADERA
 	select GENERIC_PINCONF
 	default y if MFD_MADERA=y
 
+config PINCTRL_CS47L15
+	bool
+
 config PINCTRL_CS47L35
 	bool
 
