@@ -256,8 +256,6 @@ static const struct reg_default cs47l94_reg_default[] = {
 	{ 0x00005108, 0x000000c0 }, /* OUTHR_VOLUME_1 */
 	{ 0x0000510c, 0x00000000 }, /* OUTH_AUX_MIX_CONTROL_1 */
 	{ 0x00005110, 0x00000022 }, /* OUTH_VOLUME_RAMP1 */
-	{ 0x0000511c, 0x00090000 }, /* OUTH_CFG2 */
-	{ 0x00005128, 0x00000012 }, /* OUTH_CFG5 */
 	{ 0x00005138, 0x00000000 }, /* OUTH_CFG9 */
 	{ 0x00005200, 0x00400080 }, /* DSD1_CONTROL1 */
 	{ 0x00005204, 0x00a87878 }, /* DSD1_VOLUME1 */
@@ -1884,6 +1882,8 @@ static bool cs47l94_volatile_register(struct device *dev, unsigned int reg)
 	case TACNA_INPUT_STATUS:
 	case TACNA_OUTPUT_STATUS_1:
 	case TACNA_OUTPUT_AEC_STATUS_1:
+	case TACNA_OUTH_CFG2:
+	case TACNA_OUTH_CFG5:
 	case TACNA_SLIMBUS_PORT_STATUS:
 	case TACNA_SLIMBUS_AHB_STATUS:
 	case TACNA_SLIMBUS_APB_STATUS:
