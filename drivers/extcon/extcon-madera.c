@@ -3312,7 +3312,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	}
 
 	/* Skip any HPDET ranges less than the external resistance */
-	for (i = 0; i < info->num_hpdet_ranges; ++i) {
+	for (i = info->hpdet_init_range; i < info->num_hpdet_ranges; ++i) {
 		if (madera_ohm_to_hohm(info->hpdet_ranges[i].max) >=
 		    pdata->hpdet_ext_res_x100) {
 			info->hpdet_init_range = i;
