@@ -1281,6 +1281,9 @@ TACNA_DSP_FREQ_WIDGET("DSP1", 0),
 SND_SOC_DAPM_SIGGEN("TONE"),
 SND_SOC_DAPM_SIGGEN("NOISE"),
 
+SND_SOC_DAPM_SUPPLY("MICD_COMP_FRC", TACNA_MICDET_COMP_CTRL,
+		    TACNA_MICD_COMP_FRC_SHIFT, 0, NULL, 0),
+
 SND_SOC_DAPM_INPUT("IN1LN_1"),
 SND_SOC_DAPM_INPUT("IN1LN_2"),
 SND_SOC_DAPM_INPUT("IN1LP_1"),
@@ -2115,6 +2118,8 @@ static const struct snd_soc_dapm_route cs47l96_dapm_routes[] = {
 
 	{ "IN1L PGA", NULL, "IN1L Mux" },
 	{ "IN1R PGA", NULL, "IN1R Mux" },
+	{ "IN1L Mux", NULL, "MICD_COMP_FRC" },
+	{ "IN1R Mux", NULL, "MICD_COMP_FRC" },
 
 	{ "IN1L PGA", NULL, "IN1 Digital Mode" },
 	{ "IN1R PGA", NULL, "IN1 Digital Mode" },
@@ -2126,6 +2131,8 @@ static const struct snd_soc_dapm_route cs47l96_dapm_routes[] = {
 
 	{ "IN2L PGA", NULL, "IN2L Mux" },
 	{ "IN2R PGA", NULL, "IN2R Mux" },
+	{ "IN2L Mux", NULL, "MICD_COMP_FRC" },
+	{ "IN2R Mux", NULL, "MICD_COMP_FRC" },
 
 	{ "IN2L PGA", NULL, "IN2 Digital Mode" },
 	{ "IN2R PGA", NULL, "IN2 Digital Mode" },
