@@ -514,6 +514,8 @@ int tacna_out_ev(struct snd_soc_dapm_widget *w,
 int tacna_hp_ev(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol,
 		int event);
+int tacna_put_out1_demux(struct snd_kcontrol *kcontrol,
+			 struct snd_ctl_elem_value *ucontrol);
 int tacna_eq_ev(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol,
 		int event);

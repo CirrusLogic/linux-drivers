@@ -3706,6 +3706,85 @@ int tacna_hp_ev(struct snd_soc_dapm_widget *w,
 }
 EXPORT_SYMBOL_GPL(tacna_hp_ev);
 
+int tacna_put_out1_demux(struct snd_kcontrol *kcontrol,
+			 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_context *dapm =
+					snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
+	struct tacna_priv *priv = dev_get_drvdata(codec->dev);
+	struct tacna *tacna = priv->tacna;
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int hp2_sel, mux, mask, cur;
+	bool change, out_mono;
+	int ret;
+
+	if (ucontrol->value.enumerated.item[0] > e->items - 1)
+		return -EINVAL;
+
+	mux = ucontrol->value.enumerated.item[0];
+	hp2_sel = mux << e->shift_l;
+	mask = e->mask << e->shift_l;
+
+	snd_soc_dapm_mutex_lock(dapm);
+
+	if (!snd_soc_test_bits(codec, e->reg, mask, hp2_sel)) {
+		snd_soc_dapm_mutex_unlock(dapm);
+		return 0;
+	}
+
+	if (tacna_get_accdet_for_output(codec, 1) < 0) {
+		ret = regmap_read(tacna->regmap, TACNA_OUTPUT_ENABLE_1, &cur);
+		if (ret)
+			dev_warn(codec->dev,
+				 "Failed to read OUTPUT_ENABLE_1: %d\n",
+				 ret);
+	} else {
+		/* OUT1 is associated with accessory detect activities */
+		/*cur = tacna->hp_ena;*/
+		dev_warn(codec->dev, "OUT1 demux handling of accdet incomplete\n");
+	}
+
+	/* Don't change demux and mono settings while OUT1 is enabled */
+	ret = regmap_update_bits_check(tacna->regmap, TACNA_OUTPUT_ENABLE_1,
+				       TACNA_OUT1L_EN_MASK | TACNA_OUT1R_EN_MASK,
+				       0, &change);
+	if (ret)
+		dev_warn(codec->dev, "Failed to disable outputs: %d\n", ret);
+	else if (change)
+		tacna_wait_for_output_seq(priv,
+					  TACNA_OUT1L_STS | TACNA_OUT1R_STS,
+					  0);
+
+	ret = regmap_update_bits(tacna->regmap, TACNA_HP_CTRL,
+				 TACNA_OUT1_MODE_MASK,
+				 hp2_sel << TACNA_OUT1_MODE_SHIFT);
+	if (ret) {
+		dev_warn(codec->dev, "Failed to set OUT1_MODE: %d\n", ret);
+	} else {
+		BUILD_BUG_ON(ARRAY_SIZE(tacna->pdata.codec.out_mono) < 3);
+		out_mono = tacna->pdata.codec.out_mono[mux * 2];
+		ret = tacna_set_output_mode(codec, 1, out_mono);
+		if (ret < 0)
+			dev_warn(codec->dev,
+				 "Failed to set output mode: %d\n", ret);
+	}
+
+	ret = regmap_update_bits_check(tacna->regmap, TACNA_OUTPUT_ENABLE_1,
+				       TACNA_OUT1L_EN_MASK | TACNA_OUT1R_EN_MASK,
+				       cur, &change);
+	if (ret)
+		dev_warn(codec->dev, "Failed to restore outputs: %d\n", ret);
+	else if (change)
+		tacna_wait_for_output_seq(priv,
+					  TACNA_OUT1L_STS | TACNA_OUT1R_STS,
+					  cur);
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	return snd_soc_dapm_mux_update_power(dapm, kcontrol, mux, e, NULL);
+}
+EXPORT_SYMBOL_GPL(tacna_put_out1_demux);
+
 static bool tacna_eq_filter_unstable(bool mode, __be16 _a, __be16 _b)
 {
 	s16 a = be16_to_cpu(_a);
