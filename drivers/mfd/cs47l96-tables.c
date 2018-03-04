@@ -123,6 +123,7 @@ static const struct reg_default cs47l96_reg_default[] = {
 	{ 0x00002638, 0x00000000 }, /* DAC_CLK_CONTROL3 */
 	{ 0x00002650, 0x00000000 }, /* OUTHL_CONTROL1 */
 	{ 0x00002654, 0x00000000 }, /* OUTHR_CONTROL1 */
+	{ 0x00002660, 0x00000022 }, /* HP_XTALK_CONTROL1 */
 	{ 0x00002674, 0x00000021 }, /* LDO1_CONTROL1 */
 	{ 0x00002700, 0x00000210 }, /* MICD_CLAMP_CONTROL */
 	{ 0x00002708, 0x00000000 }, /* JACK_DETECT */
@@ -1129,6 +1130,7 @@ static bool cs47l96_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_OUTHL_CONTROL1:
 	case TACNA_OUTHR_CONTROL1:
 	case TACNA_LDO1_CONTROL1:
+	case TACNA_HP_XTALK_CONTROL1:
 	case TACNA_MICD_CLAMP_CONTROL:
 	case TACNA_JACK_DETECT:
 	case TACNA_IRQ1_CTRL_AOD:
