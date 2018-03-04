@@ -283,6 +283,27 @@ static void tacna_jds_timeout_work(struct work_struct *work)
 	mutex_unlock(&info->lock);
 }
 
+static void tacna_extcon_wait_output_wseq(struct tacna_extcon *info,
+					  unsigned int mask,
+					  unsigned int target)
+{
+	struct regmap *regmap = info->tacna->regmap;
+	unsigned int val;
+	int ret;
+
+	ret = tacna_read_poll_timeout(regmap, TACNA_OUTPUT_STATUS_1,
+				      val, ((val & mask) == target),
+				      1000, 20000);
+	if (ret)
+		dev_warn(info->dev, "Timed out waiting for output state.\n");
+
+	/* HP_CTRL is changed by the write sequence to re-sync the cache */
+	regcache_drop_region(regmap, TACNA_HP_CTRL, TACNA_HP_CTRL);
+	ret = regmap_read(regmap, TACNA_HP_CTRL, &val);
+	if (ret)
+		dev_warn(info->dev, "Failed to resync HP_CTRL (%d)\n", ret);
+}
+
 static void cs47l96_extcon_hp_clamp(struct tacna_extcon *info)
 {
 	struct tacna *tacna = info->tacna;
@@ -413,7 +434,7 @@ static int cs47l96_extcon_update_out1_state(struct tacna_extcon *info,
 					    unsigned int out_state)
 {
 	struct regmap *regmap = info->tacna->regmap;
-	unsigned int reg, mask, hpd_out_sel, val;
+	unsigned int reg, mask, hpd_out_sel;
 	int ret;
 	bool outh_upd = false;
 
@@ -444,7 +465,7 @@ static int cs47l96_extcon_update_out1_state(struct tacna_extcon *info,
 	case CS47L96_OUT_SEL_OUT1L_HP2:
 	case CS47L96_OUT_SEL_OUT1R_HP2:
 		reg = TACNA_OUTPUT_ENABLE_1;
-		mask = 0x3;
+		mask = TACNA_OUT1L_EN_MASK | TACNA_OUT1R_EN_MASK;
 
 		/* update OUT1 state */
 		ret = regmap_update_bits(regmap, reg, mask, out_state);
@@ -457,17 +478,10 @@ static int cs47l96_extcon_update_out1_state(struct tacna_extcon *info,
 		return 0;
 	}
 
-	/* wait for outputs to disable */
-	if ((out_state & 0x3) == 0) {
-		ret = tacna_read_poll_timeout(regmap, TACNA_OUTPUT_STATUS_1,
-					      val, ((val & 0x3) == 0),
-					      1000, 20000);
-		if (ret)
-			dev_warn(info->dev, "OUT1 disable timed out.\n");
-	}
-
 	if (outh_upd && (out_state >> 31 == 0))
 		msleep(100); /* wait for disable to take effect */
+
+	tacna_extcon_wait_output_wseq(info, mask, out_state & mask);
 
 	return ret;
 }
@@ -475,7 +489,8 @@ static int cs47l96_extcon_update_out1_state(struct tacna_extcon *info,
 static int tacna_extcon_update_out_state(struct tacna_extcon *info,
 					 unsigned int out_state)
 {
-	unsigned int reg, mask;
+	unsigned int mask;
+	int ret;
 
 	switch (info->tacna->type) {
 	case CS47L96:
@@ -486,12 +501,19 @@ static int tacna_extcon_update_out_state(struct tacna_extcon *info,
 
 		/* for outputs other than 1 (OUT1/OUTH), fall through */
 	default:
-		reg = TACNA_OUTPUT_ENABLE_1;
 		mask = 0x3 << (2 * info->pdata->output - 1);
 		break;
 	}
 
-	return regmap_update_bits(info->tacna->regmap, reg, mask, out_state);
+	ret = regmap_update_bits(info->tacna->regmap, TACNA_OUTPUT_ENABLE_1,
+				 mask, out_state);
+	if (ret)
+		dev_warn(info->dev, "Failed to write OUTPUT_ENABLE_1 (%d)\n",
+			 ret);
+
+	tacna_extcon_wait_output_wseq(info, mask, out_state & mask);
+
+	return ret;
 }
 
 static void tacna_extcon_hp_clamp(struct tacna_extcon *info)
