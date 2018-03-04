@@ -3733,17 +3733,10 @@ int tacna_put_out1_demux(struct snd_kcontrol *kcontrol,
 		return 0;
 	}
 
-	if (tacna_get_accdet_for_output(codec, 1) < 0) {
-		ret = regmap_read(tacna->regmap, TACNA_OUTPUT_ENABLE_1, &cur);
-		if (ret)
-			dev_warn(codec->dev,
-				 "Failed to read OUTPUT_ENABLE_1: %d\n",
-				 ret);
-	} else {
-		/* OUT1 is associated with accessory detect activities */
-		/*cur = tacna->hp_ena;*/
-		dev_warn(codec->dev, "OUT1 demux handling of accdet incomplete\n");
-	}
+	ret = regmap_read(tacna->regmap, TACNA_OUTPUT_ENABLE_1, &cur);
+	if (ret)
+		dev_warn(codec->dev, "Failed to read OUTPUT_ENABLE_1: %d\n",
+			 ret);
 
 	/* Don't change demux and mono settings while OUT1 is enabled */
 	ret = regmap_update_bits_check(tacna->regmap, TACNA_OUTPUT_ENABLE_1,
