@@ -3567,6 +3567,23 @@ int tacna_wait_for_output_seq(struct tacna_priv *priv, unsigned int mask,
 }
 EXPORT_SYMBOL_GPL(tacna_wait_for_output_seq);
 
+static void tacna_out_sync_regs(struct tacna_priv *priv)
+{
+	struct regmap *regmap = priv->tacna->regmap;
+	unsigned int val;
+	int ret;
+
+	/*
+	 * HP_CTRL is changed by write sequence but we want to keep it cached
+	 * to avoid complicating control of other bits. So sync the cache
+	 * after a write sequence
+	 */
+	regcache_drop_region(regmap, TACNA_HP_CTRL, TACNA_HP_CTRL);
+	ret = regmap_read(regmap, TACNA_HP_CTRL, &val);
+	if (ret)
+		dev_warn(priv->dev, "Failed to resync HP_CTRL (%d)\n", ret);
+}
+
 int tacna_out_ev(struct snd_soc_dapm_widget *w,
 		 struct snd_kcontrol *kcontrol, int event)
 {
@@ -3605,6 +3622,7 @@ int tacna_out_ev(struct snd_soc_dapm_widget *w,
 				tacna_wait_for_output_seq(priv,
 							  priv->out_up_mask,
 							  priv->out_up_mask);
+				tacna_out_sync_regs(priv);
 				priv->out_up_mask = 0;
 			}
 			break;
@@ -3645,6 +3663,7 @@ int tacna_out_ev(struct snd_soc_dapm_widget *w,
 				tacna_wait_for_output_seq(priv,
 							  priv->out_down_mask,
 							  0);
+				tacna_out_sync_regs(priv);
 				priv->out_down_mask = 0;
 			}
 			break;
@@ -3742,12 +3761,14 @@ int tacna_put_out1_demux(struct snd_kcontrol *kcontrol,
 	ret = regmap_update_bits_check(tacna->regmap, TACNA_OUTPUT_ENABLE_1,
 				       TACNA_OUT1L_EN_MASK | TACNA_OUT1R_EN_MASK,
 				       0, &change);
-	if (ret)
+	if (ret) {
 		dev_warn(codec->dev, "Failed to disable outputs: %d\n", ret);
-	else if (change)
+	} else if (change) {
 		tacna_wait_for_output_seq(priv,
 					  TACNA_OUT1L_STS | TACNA_OUT1R_STS,
 					  0);
+		tacna_out_sync_regs(priv);
+	}
 
 	ret = regmap_update_bits(tacna->regmap, TACNA_HP_CTRL,
 				 TACNA_OUT1_MODE_MASK,
@@ -3766,12 +3787,14 @@ int tacna_put_out1_demux(struct snd_kcontrol *kcontrol,
 	ret = regmap_update_bits_check(tacna->regmap, TACNA_OUTPUT_ENABLE_1,
 				       TACNA_OUT1L_EN_MASK | TACNA_OUT1R_EN_MASK,
 				       cur, &change);
-	if (ret)
+	if (ret) {
 		dev_warn(codec->dev, "Failed to restore outputs: %d\n", ret);
-	else if (change)
+	} else if (change) {
 		tacna_wait_for_output_seq(priv,
 					  TACNA_OUT1L_STS | TACNA_OUT1R_STS,
 					  cur);
+		tacna_out_sync_regs(priv);
+	}
 	snd_soc_dapm_mutex_unlock(dapm);
 
 	return snd_soc_dapm_mux_update_power(dapm, kcontrol, mux, e, NULL);
