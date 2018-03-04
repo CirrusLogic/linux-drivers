@@ -488,6 +488,8 @@ static int tacna_extcon_update_out_state(struct tacna_extcon *info,
 	switch (info->tacna->type) {
 	case CS47L94:
 	case CS47L95:
+	case CS47L96:
+	case CS47L97:
 		if (info->pdata->output == 1)
 			return cs47l94_extcon_update_out1_state(info,
 								out_state);
@@ -530,6 +532,8 @@ static void tacna_extcon_hp_clamp(struct tacna_extcon *info)
 	switch (tacna->type) {
 	case CS47L94:
 	case CS47L95:
+	case CS47L96:
+	case CS47L97:
 		cs47l94_extcon_hp_clamp(info);
 		break;
 	default:
@@ -553,6 +557,8 @@ static void tacna_extcon_hp_unclamp(struct tacna_extcon *info)
 	switch (tacna->type) {
 	case CS47L94:
 	case CS47L95:
+	case CS47L96:
+	case CS47L97:
 		cs47l94_extcon_hp_unclamp(info);
 		break;
 	default:
@@ -586,6 +592,8 @@ static const char *tacna_extcon_get_micbias(struct tacna_extcon *info)
 	switch (tacna->type) {
 	case CS47L94:
 	case CS47L95:
+	case CS47L96:
+	case CS47L97:
 		switch (bias) {
 		case 0:
 			return "MICBIAS1A";
@@ -703,6 +711,8 @@ static void tacna_extcon_set_mode(struct tacna_extcon *info, int mode)
 	switch (tacna->type) {
 	case CS47L94:
 	case CS47L95:
+	case CS47L96:
+	case CS47L97:
 		regmap_update_bits(tacna->regmap,
 				   TACNA_OUTPUT_PATH_CFG3,
 				   TACNA_OUTH_GND_SEL_MASK,
@@ -1024,6 +1034,8 @@ static int tacna_tune_headphone(struct tacna_extcon *info, int reading)
 	switch (info->tacna->type) {
 	case CS47L94:
 	case CS47L95:
+	case CS47L96:
+	case CS47L97:
 		ret = cs47l94_tune_headphone(info, reading);
 		break;
 	default:
@@ -2431,6 +2443,8 @@ static int tacna_extcon_probe(struct platform_device *pdev)
 	switch (tacna->type) {
 	case CS47L94:
 	case CS47L95:
+	case CS47L96:
+	case CS47L97:
 		/* force micbias as it won't get automatically enabled */
 		pdata->micd_force_micbias = true;
 		break;
