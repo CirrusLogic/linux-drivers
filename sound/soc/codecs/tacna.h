@@ -490,10 +490,10 @@ int tacna_dfc_dith_put(struct snd_kcontrol *kcontrol,
 int tacna_dfc_put(struct snd_kcontrol *kcontrol,
 		  struct snd_ctl_elem_value *ucontrol);
 
-#define TACNA_DSP_RATE_CTL_DIR_MASK	0x1
-#define TACNA_DSP_RATE_CTL_DIR_RX	0x0
-#define TACNA_DSP_RATE_CTL_DIR_TX	0x1
-#define TACNA_DSP_RATE_CTL_NUM_SHIFT	1
+#define TACNA_DSP_RATE_CTL_DIR_MASK	0x8000
+#define TACNA_DSP_RATE_CTL_DIR_RX	0x0000
+#define TACNA_DSP_RATE_CTL_DIR_TX	0x8000
+#define TACNA_DSP_RATE_CTL_CHAN_MASK	0x0fff
 
 extern const struct snd_kcontrol_new tacna_dsp_trigger_output_mux[];
 int tacna_dsp_rate_get(struct snd_kcontrol *kcontrol,
