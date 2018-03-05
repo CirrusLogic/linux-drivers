@@ -1743,20 +1743,37 @@ int tacna_dsp_rate_get(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *) kcontrol->private_value;
 	unsigned int cached_rate;
 	const int dsp_num = e->shift_l;
-	const unsigned int rate_num = e->mask >> TACNA_DSP_RATE_CTL_NUM_SHIFT;
+	const unsigned int rate_num = e->mask & TACNA_DSP_RATE_CTL_CHAN_MASK;
 	int item;
 
 	snd_soc_dapm_mutex_lock(dapm);
-	if (e->mask & TACNA_DSP_RATE_CTL_DIR_MASK)
+	switch (e->mask & TACNA_DSP_RATE_CTL_DIR_MASK) {
+	case TACNA_DSP_RATE_CTL_DIR_TX:
+		if (rate_num > priv->dsp[dsp_num].n_tx_channels)
+			goto ovf_err;
+
 		cached_rate = priv->dsp[dsp_num].tx_rate_cache[rate_num];
-	else
+		break;
+	default:
+		if (rate_num > priv->dsp[dsp_num].n_rx_channels)
+			goto ovf_err;
+
 		cached_rate = priv->dsp[dsp_num].rx_rate_cache[rate_num];
+		break;
+	}
 	snd_soc_dapm_mutex_unlock(dapm);
 
 	item = snd_soc_enum_val_to_item(e, cached_rate);
 	ucontrol->value.enumerated.item[0] = item;
 
 	return 0;
+
+ovf_err:
+	dev_err(codec->dev, "DSP%u%s %cX rate control exceeds rate array\n",
+		dsp_num + 1, priv->dsp[dsp_num].suffix,
+		e->mask & TACNA_DSP_RATE_CTL_DIR_MASK ? 'T' : 'R');
+
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(tacna_dsp_rate_get);
 
@@ -1768,86 +1785,90 @@ int tacna_dsp_rate_put(struct snd_kcontrol *kcontrol,
 	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct soc_enum *e = (struct soc_enum *) kcontrol->private_value;
 	const int dsp_num = e->shift_l;
-	const int rate_num = e->mask >> TACNA_DSP_RATE_CTL_NUM_SHIFT;
+	const unsigned int rate_num = e->mask & TACNA_DSP_RATE_CTL_CHAN_MASK;
 	const unsigned int item = ucontrol->value.enumerated.item[0];
 
 	if (item >= e->items)
 		return -EINVAL;
 
 	snd_soc_dapm_mutex_lock(dapm);
+	switch (e->mask & TACNA_DSP_RATE_CTL_DIR_MASK) {
+	case TACNA_DSP_RATE_CTL_DIR_TX:
+		if (rate_num > priv->dsp[dsp_num].n_tx_channels)
+			goto ovf_err;
 
-	if (e->mask & TACNA_DSP_RATE_CTL_DIR_MASK)
 		priv->dsp[dsp_num].tx_rate_cache[rate_num] =
 			e->values[item];
-	else
+		break;
+	default:
+		if (rate_num > priv->dsp[dsp_num].n_rx_channels)
+			goto ovf_err;
+
 		priv->dsp[dsp_num].rx_rate_cache[rate_num] =
 			e->values[item];
+		break;
+	}
 
 	snd_soc_dapm_mutex_unlock(dapm);
 
 	return 0;
+
+ovf_err:
+	dev_err(codec->dev, "DSP%u%s %cX rate control exceeds rate array\n",
+		dsp_num + 1, priv->dsp[dsp_num].suffix,
+		e->mask & TACNA_DSP_RATE_CTL_DIR_MASK ? 'T' : 'R');
+
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(tacna_dsp_rate_put);
 
 const struct soc_enum tacna_dsp1_rx_rate_enum[] = {
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (0 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      0 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (1 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      1 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (2 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      2 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (3 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      3 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (4 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      4 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text,  tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (5 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      5 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (6 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      6 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (7 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      7 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (8 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      8 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (9 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      9 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (10 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      10 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (11 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      11 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 };
@@ -1855,48 +1876,39 @@ EXPORT_SYMBOL_GPL(tacna_dsp1_rx_rate_enum);
 
 const struct soc_enum tacna_dsp1_tx_rate_enum[] = {
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (0 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      0 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (1 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      1 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (2 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      2 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (3 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      3 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (4 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      4 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (5 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      5 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (6 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      6 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (7 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      7 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
-			      (8 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      8 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 };
@@ -1904,86 +1916,70 @@ EXPORT_SYMBOL_GPL(tacna_dsp1_tx_rate_enum);
 
 static const struct soc_enum tacna_dsp2_rx_rate_enum[] = {
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
-			      (0 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      0 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
-			      (1 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      1 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
-			      (2 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      2 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
-			      (3 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      3 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
-			      (4 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      4 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text,  tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
-			      (5 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      5 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
-			      (6 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      6 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
-			      (7 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_RX,
+			      7 | TACNA_DSP_RATE_CTL_DIR_RX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 };
 
 static const struct soc_enum tacna_dsp2_tx_rate_enum[] = {
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
-			      (0 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      0 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
-			      (1 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      1 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
-			      (2 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      2 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
-			      (3 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      3 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
-			      (4 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      4 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
-			      (5 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      5 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
-			      (6 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      6 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 1,
-			      (7 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
-			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      7 | TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
 };
