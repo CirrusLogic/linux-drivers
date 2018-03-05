@@ -1806,6 +1806,11 @@ const struct soc_enum tacna_dsp1_tx_rate_enum[] = {
 			      TACNA_DSP_RATE_CTL_DIR_TX,
 			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text, tacna_rate_val),
+	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0,
+			      (8 << TACNA_DSP_RATE_CTL_NUM_SHIFT) |
+			      TACNA_DSP_RATE_CTL_DIR_TX,
+			      TACNA_RATE_ENUM_SIZE,
+			      tacna_rate_text, tacna_rate_val),
 };
 EXPORT_SYMBOL_GPL(tacna_dsp1_tx_rate_enum);
 
