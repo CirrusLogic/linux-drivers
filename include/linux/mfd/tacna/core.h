@@ -62,7 +62,6 @@ struct tacna {
 	int num_core_supplies;
 	struct regulator_bulk_data core_supplies[TACNA_MAX_CORE_SUPPLIES];
 	struct regulator *vdd_d;
-	struct notifier_block vdd_d_notifier;
 	bool vout_mic_regulated;
 	bool bypass_cache;
 	bool vdd_d_powered_off;

@@ -37,6 +37,8 @@
 
 #define TACNA_32K_MCLK2		1
 
+#define TACNA_SEEN_BOOT_DONE	0x1
+
 #define TACNA_BOOT_POLL_MICROSECONDS    1000
 #define TACNA_BOOT_TIMEOUT_MICROSECONDS 5000
 
@@ -144,8 +146,28 @@ EXPORT_SYMBOL_GPL(tacna_name_from_type);
 
 static int tacna_wait_for_boot(struct tacna *tacna)
 {
-	unsigned int val;
+	unsigned int val, reg;
 	int ret;
+
+	switch (tacna->type) {
+	case CS47L96:
+	case CS47L97:
+		reg = TACNA_HOST_SCRATCH;
+		break;
+	default:
+		reg = TACNA_CTRL_IF_DEBUG3;
+		break;
+	}
+
+	ret = regmap_read(tacna->regmap, reg, &val);
+	if (ret) {
+		dev_err(tacna->dev, "Failed to read 0x%x : %d\n", reg, ret);
+		return ret;
+	}
+
+	/* No need to wait for boot if VDD_D didn't power off */
+	if (val & TACNA_SEEN_BOOT_DONE)
+		return 0;
 
 	/*
 	 * We can't use an interrupt as we need to runtime resume to do so,
@@ -175,6 +197,14 @@ static int tacna_wait_for_boot(struct tacna *tacna)
 			dev_err(tacna->dev, "MCU boot failed\n");
 			return -EIO;
 		}
+	}
+
+	ret = regmap_update_bits(tacna->regmap, reg,
+				 TACNA_SEEN_BOOT_DONE,
+				 TACNA_SEEN_BOOT_DONE);
+	if (ret) {
+		dev_err(tacna->dev, "Failed to update 0x%x : %d\n", reg, ret);
+		return ret;
 	}
 
 	pm_runtime_mark_last_busy(tacna->dev);
@@ -212,20 +242,6 @@ static void tacna_disable_hard_reset(struct tacna *tacna)
 	}
 }
 
-static int tacna_vdd_d_notify(struct notifier_block *nb,
-			      unsigned long action, void *data)
-{
-	struct tacna *tacna = container_of(nb, struct tacna,
-					   vdd_d_notifier);
-
-	dev_dbg(tacna->dev, "VDD_D notify %lx\n", action);
-
-	if (action & REGULATOR_EVENT_DISABLE)
-		tacna->vdd_d_powered_off = true;
-
-	return NOTIFY_DONE;
-}
-
 #ifdef CONFIG_PM
 static int tacna_runtime_resume(struct device *dev)
 {
@@ -242,14 +258,9 @@ static int tacna_runtime_resume(struct device *dev)
 
 	regcache_cache_only(tacna->regmap, false);
 
-	if (tacna->vdd_d_powered_off) {
-		ret = tacna_wait_for_boot(tacna);
-		if (ret)
-			goto err;
-	} else {
-		dev_dbg(tacna->dev,
-			"Not waiting for boot, VDD_D didn't power off\n");
-	}
+	ret = tacna_wait_for_boot(tacna);
+	if (ret)
+		goto err;
 
 	ret = regcache_sync(tacna->regmap);
 	if (ret) {
@@ -262,7 +273,6 @@ static int tacna_runtime_resume(struct device *dev)
 
 err:
 	regcache_cache_only(tacna->regmap, true);
-	tacna->vdd_d_powered_off = false;
 	regulator_disable(tacna->vdd_d);
 	return ret;
 }
@@ -276,7 +286,6 @@ static int tacna_runtime_suspend(struct device *dev)
 	regcache_cache_only(tacna->regmap, true);
 	regcache_mark_dirty(tacna->regmap);
 
-	tacna->vdd_d_powered_off = false;
 	regulator_disable(tacna->vdd_d);
 
 	return 0;
@@ -661,19 +670,11 @@ int tacna_dev_init(struct tacna *tacna)
 		goto err_pinctrl;
 	}
 
-	tacna->vdd_d_notifier.notifier_call = tacna_vdd_d_notify;
-	ret = regulator_register_notifier(tacna->vdd_d,
-					  &tacna->vdd_d_notifier);
-	if (ret) {
-		dev_err(dev, "Failed to register VDD_D notifier %d\n", ret);
-		goto err_vdd_d;
-	}
-
 	ret = regulator_bulk_enable(tacna->num_core_supplies,
 				    tacna->core_supplies);
 	if (ret) {
 		dev_err(dev, "Failed to enable core supplies: %d\n", ret);
-		goto err_notifier;
+		goto err_vdd_d;
 	}
 
 	ret = regulator_enable(tacna->vdd_d);
@@ -888,8 +889,6 @@ err_reset:
 	regulator_disable(tacna->vdd_d);
 err_enable:
 	regulator_bulk_disable(tacna->num_core_supplies, tacna->core_supplies);
-err_notifier:
-	regulator_unregister_notifier(tacna->vdd_d, &tacna->vdd_d_notifier);
 err_vdd_d:
 	regulator_put(tacna->vdd_d);
 err_pinctrl:
@@ -905,7 +904,6 @@ int tacna_dev_exit(struct tacna *tacna)
 	pm_runtime_disable(tacna->dev);
 
 	regulator_disable(tacna->vdd_d);
-	regulator_unregister_notifier(tacna->vdd_d, &tacna->vdd_d_notifier);
 	regulator_put(tacna->vdd_d);
 
 	mfd_remove_devices(tacna->dev);
