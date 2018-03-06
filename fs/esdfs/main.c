@@ -145,12 +145,6 @@ static int parse_options(struct super_block *sb, char *options)
 		args[0].to = args[0].from = NULL;
 		token = match_token(p, esdfs_tokens, args);
 
-		/* make public default */
-		clear_opt(sbi, DERIVE_LEGACY);
-		set_opt(sbi, DERIVE_UNIFIED);
-		clear_opt(sbi, DERIVE_MULTI);
-		set_opt(sbi, DERIVE_PUBLIC);
-
 		switch (token) {
 		case Opt_lower_perms:
 			if (args->from) {
@@ -298,6 +292,13 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 	INIT_LIST_HEAD(&sbi->s_list);
 
 	/* set defaults and then parse the mount options */
+
+	/* make public default */
+	clear_opt(sbi, DERIVE_LEGACY);
+	set_opt(sbi, DERIVE_UNIFIED);
+	clear_opt(sbi, DERIVE_MULTI);
+	set_opt(sbi, DERIVE_PUBLIC);
+
 	memcpy(&sbi->lower_perms,
 	       &esdfs_perms_table[ESDFS_PERMS_LOWER_DEFAULT],
 	       sizeof(struct esdfs_perms));
