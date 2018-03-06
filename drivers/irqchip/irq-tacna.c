@@ -360,7 +360,7 @@ static const struct regmap_irq_chip tacna_main_irqchip = {
 	.mask_base = TACNA_IRQ1_MASK_1,
 	.ack_base = TACNA_IRQ1_EINT_1,
 	.runtime_pm = true, /* codec must be resumed to read IRQ status */
-	.num_regs = 12,
+	.num_regs = 11,
 	.irqs = tacna_main_irqs,
 	.num_irqs = ARRAY_SIZE(tacna_main_irqs),
 };
