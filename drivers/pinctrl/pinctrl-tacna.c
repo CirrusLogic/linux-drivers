@@ -510,7 +510,7 @@ static const struct tacna_pin_groups cs47l94_pin_groups[] = {
 	{ "out5-pdm", cs47l94_out5pdm_pins, ARRAY_SIZE(cs47l94_out5pdm_pins) },
 };
 
-const struct tacna_pin_chip cs47l94_pin_chip = {
+static const struct tacna_pin_chip cs47l94_pin_chip = {
 	.n_pins = CS47L94_NUM_GPIOS,
 	.pin_groups = cs47l94_pin_groups,
 	.n_pin_groups = ARRAY_SIZE(cs47l94_pin_groups),
@@ -537,7 +537,7 @@ static const struct tacna_pin_groups cs47l96_pin_groups[] = {
 	{ "out5-pdm", cs47l96_out5pdm_pins, ARRAY_SIZE(cs47l96_out5pdm_pins) },
 };
 
-const struct tacna_pin_chip cs47l96_pin_chip = {
+static const struct tacna_pin_chip cs47l96_pin_chip = {
 	.n_pins = CS47L96_NUM_GPIOS,
 	.pin_groups = cs47l96_pin_groups,
 	.n_pin_groups = ARRAY_SIZE(cs47l96_pin_groups),
