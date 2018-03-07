@@ -417,6 +417,7 @@ static bool cs48l32_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_REVID:
 	case TACNA_OTPID:
 	case TACNA_SFT_RESET:
+	case TACNA_CTRL_IF_DEBUG3:
 	case TACNA_MCU_CTRL1:
 	case TACNA_GPIO_STATUS1:
 	case TACNA_GPIO1_CTRL1:
@@ -831,6 +832,7 @@ static bool cs48l32_volatile_register(struct device *dev, unsigned int reg)
 	case TACNA_REVID:
 	case TACNA_OTPID:
 	case TACNA_SFT_RESET:
+	case TACNA_CTRL_IF_DEBUG3:
 	case TACNA_MCU_CTRL1:
 	case TACNA_GPIO_STATUS1:
 	case TACNA_SYSTEM_CLOCK2:
