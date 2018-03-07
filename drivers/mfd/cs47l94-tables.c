@@ -993,6 +993,7 @@ static bool cs47l94_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_RELID:
 	case TACNA_OTPID:
 	case TACNA_SFT_RESET:
+	case TACNA_CTRL_IF_DEBUG3:
 	case TACNA_OTP_CTRL6:
 	case TACNA_MCU_CTRL1:
 	case TACNA_GPIO_STATUS1:
@@ -1848,6 +1849,7 @@ static bool cs47l94_volatile_register(struct device *dev, unsigned int reg)
 	case TACNA_RELID:
 	case TACNA_OTPID:
 	case TACNA_SFT_RESET:
+	case TACNA_CTRL_IF_DEBUG3:
 	case TACNA_OTP_CTRL6:
 	case TACNA_MCU_CTRL1:
 	case TACNA_GPIO_STATUS1:
