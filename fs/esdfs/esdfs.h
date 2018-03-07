@@ -59,6 +59,7 @@
 #define ESDFS_MOUNT_ACCESS_DISABLE	0x00000020
 #define ESDFS_MOUNT_GID_DERIVATION	0x00000040
 #define ESDFS_MOUNT_DEFAULT_NORMAL	0x00000080
+#define ESDFS_MOUNT_SPECIAL_DOWNLOAD	0x00000100
 
 #define clear_opt(sbi, option)	(sbi->options &= ~ESDFS_MOUNT_##option)
 #define set_opt(sbi, option)	(sbi->options |= ESDFS_MOUNT_##option)
@@ -89,6 +90,7 @@ enum {
 	ESDFS_TREE_ROOT_LEGACY,		/* root for legacy emulated storage */
 	ESDFS_TREE_ROOT,		/* root for a user */
 	ESDFS_TREE_MEDIA,		/* per-user basic permissions */
+	ESDFS_TREE_DOWNLOAD,		/* .../Download */
 	ESDFS_TREE_ANDROID,		/* .../Android */
 	ESDFS_TREE_ANDROID_DATA,	/* .../Android/data */
 	ESDFS_TREE_ANDROID_OBB,		/* .../Android/obb */
@@ -153,7 +155,7 @@ extern int esdfs_derived_revalidate(struct dentry *dentry,
 extern int esdfs_check_derived_permission(struct inode *inode, int mask);
 extern int esdfs_derive_mkdir_contents(struct dentry *dentry);
 extern int esdfs_lookup_nocase(struct path *lower_parent_path,
-		struct qstr *name, struct path *lower_path);
+		const struct qstr *name, struct path *lower_path);
 
 /* file private data */
 struct esdfs_file_info {
@@ -197,6 +199,13 @@ struct esdfs_sb_info {
 	struct esdfs_perms lower_perms;
 	struct esdfs_perms upper_perms;	/* root in derived mode */
 	struct dentry *obb_parent;	/* pinned dentry for obb link parent */
+	struct dentry *dl_parent;	/* pinned parent of downloads folder */
+	struct qstr dl_name;		/* name of lower downloads folder */
+	const char *dl_loc;		/* location of dl folder */
+	uid_t dl_raw_uid;
+	gid_t dl_raw_gid;
+	kuid_t dl_kuid;
+	kgid_t dl_kgid;
 	int ns_fd;
 	unsigned int options;
 };
@@ -209,9 +218,17 @@ void esdfs_truncate_share(struct super_block *, struct inode *, loff_t newsize);
 
 void esdfs_derive_lower_ownership(struct dentry *dentry, const char *name);
 
-static inline bool is_obb(struct qstr *name) {
+static inline bool is_obb(struct qstr *name)
+{
 	struct qstr q_obb = QSTR_LITERAL("obb");
 	return qstr_case_eq(name, &q_obb);
+}
+
+static inline bool is_dl(struct qstr *name)
+{
+	struct qstr q_dl = QSTR_LITERAL("Download");
+
+	return qstr_case_eq(name, &q_dl);
 }
 
 #define ESDFS_INODE_IS_STALE(i) ((i)->version != esdfs_package_list_version)
@@ -221,6 +238,7 @@ static inline bool is_obb(struct qstr *name) {
 					   DERIVE_UNIFIED) && \
 				  ESDFS_I(i)->userid > 0))
 #define ESDFS_DENTRY_NEEDS_LINK(d) (is_obb(&(d)->d_name))
+#define ESDFS_DENTRY_NEEDS_DL_LINK(d) (is_dl(&(d)->d_name))
 #define ESDFS_DENTRY_IS_LINKED(d) (ESDFS_D(d)->real_parent)
 #define ESDFS_DENTRY_HAS_STUB(d) (ESDFS_D(d)->lower_stub_path.dentry)
 
@@ -551,6 +569,7 @@ static inline const struct cred *esdfs_override_creds(
 {
 	struct cred *creds = prepare_creds();
 	uid_t uid;
+	gid_t gid = sbi->lower_perms.gid;
 
 	if (!creds)
 		return NULL;
@@ -561,16 +580,22 @@ static inline const struct cred *esdfs_override_creds(
 		*mask = xchg(&current->fs->umask, *mask & S_IRWXUGO);
 	}
 
-	if (test_opt(sbi, GID_DERIVATION)) {
-		if (info->tree == ESDFS_TREE_ANDROID_OBB)
-			uid = AID_MEDIA_OBB;
-		else
-			uid = derive_uid(info, sbi->lower_perms.uid);
+	if (test_opt(sbi, SPECIAL_DOWNLOAD) &&
+			info->tree == ESDFS_TREE_DOWNLOAD) {
+		creds->fsuid = sbi->dl_kuid;
+		creds->fsgid = sbi->dl_kgid;
 	} else {
-		uid = sbi->lower_perms.uid;
+		if (test_opt(sbi, GID_DERIVATION)) {
+			if (info->tree == ESDFS_TREE_ANDROID_OBB)
+				uid = AID_MEDIA_OBB;
+			else
+				uid = derive_uid(info, sbi->lower_perms.uid);
+		} else {
+			uid = sbi->lower_perms.uid;
+		}
+		creds->fsuid = esdfs_make_kuid(sbi, uid);
+		creds->fsgid = esdfs_make_kgid(sbi, gid);
 	}
-	creds->fsuid = esdfs_make_kuid(sbi, uid);
-	creds->fsgid = esdfs_make_kgid(sbi, sbi->lower_perms.gid);
 
 	/* this installs the new creds into current, which we must destroy */
 	return override_creds(creds);

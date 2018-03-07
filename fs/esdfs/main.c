@@ -32,6 +32,9 @@ enum {
 	Opt_noconfine,
 	Opt_gid_derivation,
 	Opt_default_normal,
+	Opt_dl_loc,
+	Opt_dl_uid,
+	Opt_dl_gid,
 	Opt_ns_fd,
 
 	/* From sdcardfs */
@@ -58,6 +61,9 @@ static match_table_t esdfs_tokens = {
 	{Opt_noconfine, "noconfine"},
 	{Opt_gid_derivation, "derive_gid"},
 	{Opt_default_normal, "default_normal"},
+	{Opt_dl_loc, "dl_loc=%s"},
+	{Opt_dl_uid, "dl_uid=%u"},
+	{Opt_dl_gid, "dl_gid=%u"},
 	{Opt_ns_fd, "ns_fd=%d"},
 	/* compatibility with sdcardfs options */
 	{Opt_fsuid, "fsuid=%u"},
@@ -276,6 +282,22 @@ static int parse_options(struct super_block *sb, char *options)
 		case Opt_default_normal:
 			set_opt(sbi, DEFAULT_NORMAL);
 			break;
+		case Opt_dl_loc:
+			set_opt(sbi, SPECIAL_DOWNLOAD);
+			sbi->dl_loc = match_strdup(args);
+			break;
+		case Opt_dl_uid:
+			set_opt(sbi, SPECIAL_DOWNLOAD);
+			if (match_int(&args[0], &option))
+				return -EINVAL;
+			sbi->dl_raw_uid = option;
+			break;
+		case Opt_dl_gid:
+			set_opt(sbi, SPECIAL_DOWNLOAD);
+			if (match_int(&args[0], &option))
+				return -EINVAL;
+			sbi->dl_raw_gid = option;
+			break;
 		case Opt_ns_fd:
 			if (match_int(&args[0], &option))
 				return -EINVAL;
@@ -321,8 +343,15 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 	int err = 0;
 	struct super_block *lower_sb;
 	struct path lower_path;
+	struct path lower_dl;
+	struct path lower_dl_parent = {
+		.mnt = NULL,
+		.dentry = NULL
+	};
+
 	struct esdfs_sb_info *sbi;
 	struct inode *inode;
+	struct inode *inode_p_dl;
 	struct user_namespace *user_ns;
 
 	if (!dev_name) {
@@ -352,6 +381,10 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 
 	/* set defaults and then parse the mount options */
 
+	sbi->dl_kuid = INVALID_UID;
+	sbi->dl_kgid = INVALID_GID;
+	sbi->dl_raw_uid = -1;
+	sbi->dl_raw_gid = -1;
 	sbi->ns_fd = -1;
 
 	/* make public default */
@@ -397,6 +430,23 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 		pr_err("esdfs: Invalid permissions for upper layer\n");
 		goto out_free;
 	}
+	if (sbi->dl_raw_uid != -1) {
+		sbi->dl_kuid = make_kuid(current_user_ns(), sbi->dl_raw_uid);
+		if (!uid_valid(sbi->dl_kuid)) {
+			pr_err("esdfs: Invalid permissions for dl_uid");
+			err = -EINVAL;
+			goto out_free;
+		}
+	}
+	if (sbi->dl_raw_gid != -1) {
+		sbi->dl_kgid = make_kgid(current_user_ns(), sbi->dl_raw_gid);
+		if (!gid_valid(sbi->dl_kgid)) {
+			pr_err("esdfs: Invalid permissions for dl_gid");
+			err = -EINVAL;
+			goto out_free;
+		}
+	}
+
 	/* set the lower superblock field of upper superblock */
 	lower_sb = lower_path.dentry->d_sb;
 	atomic_inc(&lower_sb->s_active);
@@ -439,6 +489,69 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 	if (err)
 		goto out_freeroot;
 
+	if (test_opt(sbi, SPECIAL_DOWNLOAD)) {
+		/* parse lower path */
+		err = kern_path(sbi->dl_loc, LOOKUP_FOLLOW | LOOKUP_DIRECTORY,
+				&lower_dl);
+		if (err) {
+			esdfs_msg(sb, KERN_ERR,
+				"error accessing download directory '%s'\n",
+				sbi->dl_loc);
+			goto out_freeroot;
+		}
+
+		if (!S_ISDIR(lower_dl.dentry->d_inode->i_mode)) {
+			err = -EINVAL;
+			esdfs_msg(sb, KERN_ERR,
+				"dl_loc must be a directory '%s'\n",
+				sbi->dl_loc);
+			goto out_dlput;
+		}
+		lower_dl_parent.dentry = dget_parent(lower_dl.dentry);
+		lower_dl_parent.mnt = mntget(lower_dl.mnt);
+		if (lower_dl.dentry->d_sb != lower_sb) {
+			esdfs_msg(sb, KERN_ERR,
+				"dl_loc must be in the same filesystem '%s'\n",
+				sbi->dl_loc);
+			goto out_dlput;
+		}
+		/* get a new inode and allocate our dl base */
+		inode_p_dl = esdfs_iget(sb, lower_dl_parent.dentry->d_inode, 0);
+		if (IS_ERR(inode_p_dl)) {
+			err = PTR_ERR(inode_p_dl);
+			goto out_dlput;
+		}
+		ESDFS_I(inode_p_dl)->tree = ESDFS_TREE_DOWNLOAD;
+		/* dl_parent is not connected to the rest of the tree */
+		sbi->dl_parent = d_make_root(inode_p_dl);
+		if (!sbi->dl_parent) {
+			err = -ENOMEM;
+			goto out_dlput;
+		}
+		d_set_d_op(sbi->dl_parent, &esdfs_dops);
+
+		/* link the upper and lower dentries */
+		sbi->dl_parent->d_fsdata = NULL;
+		err = esdfs_new_dentry_private_data(sbi->dl_parent);
+		if (err)
+			goto out_dl_freeroot;
+		if (!uid_valid(sbi->dl_kuid))
+			sbi->dl_kuid =
+				esdfs_make_kuid(sbi, sbi->lower_perms.uid);
+		if (!gid_valid(sbi->dl_kgid))
+			sbi->dl_kgid =
+				esdfs_make_kgid(sbi, sbi->lower_perms.gid);
+
+		/* set lower dentries for dl parent, and name of dl folder */
+		esdfs_set_lower_path(sbi->dl_parent, &lower_dl_parent);
+
+		spin_lock(&lower_dl.dentry->d_lock);
+		sbi->dl_name.name = kstrndup(lower_dl.dentry->d_name.name,
+				lower_dl.dentry->d_name.len, GFP_ATOMIC);
+		sbi->dl_name.len = lower_dl.dentry->d_name.len;
+		spin_unlock(&lower_dl.dentry->d_lock);
+		path_put(&lower_dl);
+	}
 	/* if get here: cannot have error */
 
 	/* set the lower dentries for s_root */
@@ -503,6 +616,12 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 
 	goto out;
 
+out_dl_freeroot:
+	dput(sbi->dl_parent);
+	sbi->dl_parent = NULL;
+out_dlput:
+	path_put(&lower_dl);
+	path_put(&lower_dl_parent);
 out_freeroot:
 	dput(sb->s_root);
 	sb->s_root = NULL;
@@ -546,6 +665,8 @@ static void esdfs_kill_sb(struct super_block *sb)
 {
 	if (sb->s_fs_info && ESDFS_SB(sb)->obb_parent)
 		dput(ESDFS_SB(sb)->obb_parent);
+	if (sb->s_fs_info && ESDFS_SB(sb)->dl_parent)
+		dput(ESDFS_SB(sb)->dl_parent);
 
 	kill_anon_super(sb);
 }
