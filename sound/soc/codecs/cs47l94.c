@@ -3257,13 +3257,14 @@ static int cs47l94_probe(struct platform_device *pdev)
 		goto error_mpu_irq1;
 	}
 
-	for (i = 0; i < CS47L94_N_FLL; ++i)
-		tacna_init_fll(&cs47l94->core,
-			       i + 1,
-			       TACNA_FLL1_CONTROL1 + i * 0x100,
-			       TACNA_IRQ1_STS_6,
-			       TACNA_FLL1_LOCK_STS1_MASK << (2 * i),
-			       &cs47l94->fll[i]);
+	for (i = 0; i < CS47L94_N_FLL; ++i) {
+		cs47l94->fll[i].tacna_priv = &cs47l94->core;
+		cs47l94->fll[i].id = i + 1;
+		cs47l94->fll[i].base = TACNA_FLL1_CONTROL1 + i * 0x100;
+		cs47l94->fll[i].sts_addr = TACNA_IRQ1_STS_6;
+		cs47l94->fll[i].sts_mask = TACNA_FLL1_LOCK_STS1_MASK << (2 * i);
+		tacna_init_fll(&cs47l94->fll[i]);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(cs47l94_dai); i++)
 		tacna_init_dai(&cs47l94->core, i);

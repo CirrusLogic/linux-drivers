@@ -2868,6 +2868,17 @@ int tacna_fllhj_set_refclk(struct tacna_fll *fll, int source,
 }
 EXPORT_SYMBOL_GPL(tacna_fllhj_set_refclk);
 
+int tacna_init_fll(struct tacna_fll *fll)
+{
+	init_completion(&fll->ok);
+
+	fll->ref_src = TACNA_FLL_SRC_NONE;
+	fll->sync_src = TACNA_FLL_SRC_NONE;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tacna_init_fll);
+
 static int tacna_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
@@ -4088,27 +4099,6 @@ static void tacna_prop_get_pdata(struct tacna_priv *priv)
 	for (i = 0; i < ARRAY_SIZE(auxpdm_falling_edge); ++i)
 		pdata->auxpdm_falling_edge[i] = !!auxpdm_falling_edge[i];
 }
-
-int tacna_init_fll(struct tacna_priv *priv,
-		   int id,
-		   int base,
-		   unsigned int sts_addr,
-		   unsigned int sts_mask,
-		   struct tacna_fll *fll)
-{
-	init_completion(&fll->ok);
-
-	fll->id = id;
-	fll->base = base;
-	fll->sts_addr = sts_addr;
-	fll->sts_mask = sts_mask;
-	fll->tacna_priv = priv;
-	fll->ref_src = TACNA_FLL_SRC_NONE;
-	fll->sync_src = TACNA_FLL_SRC_NONE;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(tacna_init_fll);
 
 int tacna_init_inputs(struct snd_soc_codec *codec)
 {

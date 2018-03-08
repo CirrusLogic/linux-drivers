@@ -39,7 +39,7 @@
 
 struct cs48l32 {
 	struct tacna_priv core;
-	struct tacna_fll fll[CS48L32_N_FLL];
+	struct tacna_fll fll;
 };
 
 static const struct wm_adsp_region cs48l32_dsp1_regions[] = {
@@ -1123,17 +1123,15 @@ static int cs48l32_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 			   unsigned int fref, unsigned int fout)
 {
 	struct cs48l32 *cs48l32 = snd_soc_codec_get_drvdata(codec);
-	int idx;
 
 	switch (fll_id) {
 	case TACNA_FLL1_REFCLK:
-		idx = 0;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return tacna_fllhj_set_refclk(&cs48l32->fll[idx], source, fref, fout);
+	return tacna_fllhj_set_refclk(&cs48l32->fll, source, fref, fout);
 }
 
 static struct regmap *cs48l32_get_regmap(struct device *dev)
@@ -1247,12 +1245,12 @@ static int cs48l32_probe(struct platform_device *pdev)
 		goto error_dsp;
 	}
 
-	tacna_init_fll(&cs48l32->core,
-		       1,
-		       TACNA_FLL1_CONTROL1,
-		       TACNA_IRQ1_STS_6,
-		       TACNA_FLL1_LOCK_STS1_MASK,
-		       &cs48l32->fll[0]);
+	cs48l32->fll.tacna_priv = &cs48l32->core;
+	cs48l32->fll.id = 1;
+	cs48l32->fll.base = TACNA_FLL1_CONTROL1;
+	cs48l32->fll.sts_addr = TACNA_IRQ1_STS_6;
+	cs48l32->fll.sts_mask = TACNA_FLL1_LOCK_STS1_MASK;
+	tacna_init_fll(&cs48l32->fll);
 
 	for (i = 0; i < ARRAY_SIZE(cs48l32_dai); i++)
 		tacna_init_dai(&cs48l32->core, i);
