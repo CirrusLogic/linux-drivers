@@ -2753,13 +2753,14 @@ static int cs47l96_probe(struct platform_device *pdev)
 		goto error_dsp;
 	}
 
-	for (i = 0; i < CS47L96_N_FLL; ++i)
-		tacna_init_fll(&cs47l96->core,
-			       i + 1,
-			       TACNA_FLL1_CONTROL1 + (i * 0x100),
-			       TACNA_IRQ1_STS_6,
-			       TACNA_FLL1_LOCK_STS1_MASK << (2 * i),
-			       &cs47l96->fll[i]);
+	for (i = 0; i < CS47L96_N_FLL; ++i) {
+		cs47l96->fll[i].tacna_priv = &cs47l96->core;
+		cs47l96->fll[i].id = i + 1;
+		cs47l96->fll[i].base = TACNA_FLL1_CONTROL1 + (i * 0x100);
+		cs47l96->fll[i].sts_addr = TACNA_IRQ1_STS_6;
+		cs47l96->fll[i].sts_mask = TACNA_FLL1_LOCK_STS1_MASK << (2 * i);
+		tacna_init_fll(&cs47l96->fll[i]);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(cs47l96_dai); i++)
 		tacna_init_dai(&cs47l96->core, i);
