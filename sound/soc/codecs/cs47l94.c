@@ -3067,10 +3067,8 @@ static int cs47l94_codec_remove(struct snd_soc_codec *codec)
 	struct tacna *tacna = cs47l94->core.tacna;
 	int i;
 
-	for (i = 0; i < CS47L94_NUM_DSP; ++i) {
+	for (i = 0; i < CS47L94_NUM_DSP; ++i)
 		wm_adsp2_codec_remove(&cs47l94->core.dsp[i], codec);
-		/* TODO: destroy error irq */
-	}
 
 	tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, cs47l94);
 	tacna_free_irq(tacna, TACNA_IRQ_US2_ACT_DET_RISE, cs47l94);

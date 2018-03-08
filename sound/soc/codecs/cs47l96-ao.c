@@ -759,7 +759,6 @@ static int cs47l96_ao_codec_remove(struct snd_soc_codec *codec)
 	struct tacna *tacna = cs47l96_ao->core.tacna;
 
 	wm_adsp2_codec_remove(&cs47l96_ao->core.dsp[0], codec);
-	/* TODO: destroy error irq */
 
 	tacna->dapm = NULL;
 
