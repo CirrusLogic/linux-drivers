@@ -1581,28 +1581,35 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	case 1:
 		snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "%s %s %x",
 			 dsp->name, region_name, alg_region->alg);
+		subname = NULL; /* don't append subname */
 		break;
-	default:
+	case 2:
 		ret = snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
 				"%s%c %.12s %x", dsp->name, *region_name,
 				wm_adsp_fw_text[dsp->fw], alg_region->alg);
+		break;
+	default:
+		ret = snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
+				"%s %.12s %x", dsp->name,
+				wm_adsp_fw_text[dsp->fw],
+				alg_region->alg);
+		break;
+	}
+
+	if (subname) {
+		int avail = SNDRV_CTL_ELEM_ID_NAME_MAXLEN - ret - 2;
+		int skip = 0;
+
+		if (dsp->component->name_prefix)
+			avail -= strlen(dsp->component->name_prefix) + 1;
 
 		/* Truncate the subname from the start if it is too long */
-		if (subname) {
-			int avail = SNDRV_CTL_ELEM_ID_NAME_MAXLEN - ret - 2;
-			int skip = 0;
+		if (subname_len > avail)
+			skip = subname_len - avail;
 
-			if (dsp->component->name_prefix)
-				avail -= strlen(dsp->component->name_prefix) + 1;
-
-			if (subname_len > avail)
-				skip = subname_len - avail;
-
-			snprintf(name + ret,
-				 SNDRV_CTL_ELEM_ID_NAME_MAXLEN - ret, " %.*s",
-				 subname_len - skip, subname + skip);
-		}
-		break;
+		snprintf(name + ret,
+			 SNDRV_CTL_ELEM_ID_NAME_MAXLEN - ret, " %.*s",
+			 subname_len - skip, subname + skip);
 	}
 
 	list_for_each_entry(ctl, &dsp->ctl_list, list) {
