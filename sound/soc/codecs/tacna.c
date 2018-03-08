@@ -2619,14 +2619,19 @@ static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 			break;
 
 	fref = fin / (1 << refdiv);
+	fout = fll->fout;
+	frac = fout % fref;
+
+	if (frac && fll->integer_only) {
+		tacna_fll_err(fll, "%u:%u not an integer ratio\n", fin, fout);
+		return -EINVAL;
+	}
 
 	/*
 	 * Use simple heuristic approach to find a configuration that
 	 * should work for most input clocks.
 	 */
 	fast_clk = 0;
-	fout = fll->fout;
-	frac = fout % fref;
 
 	if (fref < TACNA_FLLHJ_LOW_THRESH) {
 		lockdet_thr = 2;
