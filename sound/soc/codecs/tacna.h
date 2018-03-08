@@ -364,6 +364,8 @@ struct tacna_fll {
 	int ref_src;
 	unsigned int ref_freq;
 	struct tacna_fll_cfg ref_cfg;
+
+	unsigned int integer_only:1;
 };
 
 struct tacna_enum {

@@ -883,6 +883,7 @@ static int cs47l96_ao_probe(struct platform_device *pdev)
 	if (ret != 0)
 		goto error_core;
 
+	cs47l96_ao->fll.integer_only = 1;
 	tacna_init_fll(&cs47l96_ao->core,
 		       1,
 		       TACNA_FLL1AO_CONTROL1,
