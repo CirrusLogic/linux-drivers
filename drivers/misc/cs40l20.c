@@ -370,6 +370,53 @@ static ssize_t cs40l20_redc_stored_store(struct device *dev,
 	return count;
 }
 
+static ssize_t cs40l20_comp_enable_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
+	int ret;
+	unsigned int val;
+
+	mutex_lock(&cs40l20->lock);
+	ret = regmap_read(cs40l20->regmap,
+			cs40l20_dsp_reg(cs40l20, "COMPENSATION_ENABLE",
+				CS40L20_XM_UNPACKED_TYPE), &val);
+	mutex_unlock(&cs40l20->lock);
+
+	if (ret) {
+		pr_err("Failed to read compensation state\n");
+		return ret;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+}
+
+static ssize_t cs40l20_comp_enable_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l20_private *cs40l20 = cs40l20_get_private(dev);
+	int ret;
+	unsigned int val;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	mutex_lock(&cs40l20->lock);
+	ret = regmap_write(cs40l20->regmap,
+			cs40l20_dsp_reg(cs40l20, "COMPENSATION_ENABLE",
+				CS40L20_XM_UNPACKED_TYPE), val);
+	mutex_unlock(&cs40l20->lock);
+
+	if (ret) {
+		pr_err("Failed to write compensation state\n");
+		return ret;
+	}
+
+	return count;
+}
+
 static ssize_t cs40l20_dig_scale_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -451,6 +498,8 @@ static DEVICE_ATTR(f0_stored, 0660, cs40l20_f0_stored_show,
 static DEVICE_ATTR(redc_measured, 0660, cs40l20_redc_measured_show, NULL);
 static DEVICE_ATTR(redc_stored, 0660, cs40l20_redc_stored_show,
 		cs40l20_redc_stored_store);
+static DEVICE_ATTR(comp_enable, 0660, cs40l20_comp_enable_show,
+		cs40l20_comp_enable_store);
 static DEVICE_ATTR(dig_scale, 0660, cs40l20_dig_scale_show,
 		cs40l20_dig_scale_store);
 static DEVICE_ATTR(heartbeat, 0660, cs40l20_heartbeat_show, NULL);
@@ -464,6 +513,7 @@ static struct attribute *cs40l20_dev_attrs[] = {
 	&dev_attr_f0_stored.attr,
 	&dev_attr_redc_measured.attr,
 	&dev_attr_redc_stored.attr,
+	&dev_attr_comp_enable.attr,
 	&dev_attr_dig_scale.attr,
 	&dev_attr_heartbeat.attr,
 	&dev_attr_num_waves.attr,
