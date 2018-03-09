@@ -726,7 +726,7 @@ int madera_dev_init(struct madera *madera)
 	 * one of its children. Meaning that the regulator will be
 	 * destroyed by the time devres calls regulator put.
 	 */
-	madera->dcvdd = regulator_get_exclusive(madera->dev, "DCVDD");
+	madera->dcvdd = regulator_get(madera->dev, "DCVDD");
 	if (IS_ERR(madera->dcvdd)) {
 		ret = PTR_ERR(madera->dcvdd);
 		dev_err(dev, "Failed to request DCVDD: %d\n", ret);
