@@ -581,7 +581,7 @@ static int tacna_inmux_put(struct snd_kcontrol *kcontrol,
 	struct tacna *tacna = dev_get_drvdata(codec->dev->parent);
 	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct soc_enum *e = (struct soc_enum *) kcontrol->private_value;
-	unsigned int mux, src_val, inmode;
+	unsigned int mux, src_val, in_type;
 	int ret;
 
 	mux = ucontrol->value.enumerated.item[0];
@@ -590,16 +590,16 @@ static int tacna_inmux_put(struct snd_kcontrol *kcontrol,
 
 	switch (e->reg) {
 	case TACNA_IN1L_CONTROL1:
-		inmode = tacna->pdata.codec.inmode[0][2 * mux];
+		in_type = tacna->pdata.codec.in_type[0][2 * mux];
 		break;
 	case TACNA_IN1R_CONTROL1:
-		inmode = tacna->pdata.codec.inmode[0][1 + (2 * mux)];
+		in_type = tacna->pdata.codec.in_type[0][1 + (2 * mux)];
 		break;
 	case TACNA_IN2L_CONTROL1:
-		inmode = tacna->pdata.codec.inmode[1][2 * mux];
+		in_type = tacna->pdata.codec.in_type[1][2 * mux];
 		break;
 	case TACNA_IN2R_CONTROL1:
-		inmode = tacna->pdata.codec.inmode[1][1 + (2 * mux)];
+		in_type = tacna->pdata.codec.in_type[1][1 + (2 * mux)];
 		break;
 	default:
 		return -EINVAL;
@@ -607,12 +607,12 @@ static int tacna_inmux_put(struct snd_kcontrol *kcontrol,
 
 	src_val = mux << e->shift_l;
 
-	if (inmode == TACNA_INMODE_SE)
+	if (in_type == TACNA_IN_TYPE_SE)
 		src_val |= 1 << TACNA_IN1L_SRC_SHIFT;
 
 	dev_dbg(priv->dev,
-		"mux=%u reg=0x%x inmode=0x%x val=0x%x\n",
-		mux, e->reg, inmode, src_val);
+		"mux=%u reg=0x%x in_type=0x%x val=0x%x\n",
+		mux, e->reg, in_type, src_val);
 
 	ret = snd_soc_component_update_bits(dapm->component,
 					    e->reg,
@@ -4154,18 +4154,18 @@ static int tacna_get_variable_u32_array(struct tacna_priv *priv,
 		return n;
 }
 
-static void tacna_prop_get_inmode(struct tacna_priv *priv)
+static void tacna_prop_get_in_type(struct tacna_priv *priv)
 {
 	struct tacna *tacna = priv->tacna;
 	u32 tmp[TACNA_MAX_INPUT * TACNA_MAX_MUXED_IN_CHANNELS];
 	int n, i, in_idx, ch_idx;
 
-	BUILD_BUG_ON(ARRAY_SIZE(tacna->pdata.codec.inmode) != TACNA_MAX_INPUT);
-	BUILD_BUG_ON(ARRAY_SIZE(tacna->pdata.codec.inmode[0]) !=
+	BUILD_BUG_ON(ARRAY_SIZE(tacna->pdata.codec.in_type) != TACNA_MAX_INPUT);
+	BUILD_BUG_ON(ARRAY_SIZE(tacna->pdata.codec.in_type[0]) !=
 		     TACNA_MAX_MUXED_IN_CHANNELS);
 
 	n = tacna_get_variable_u32_array(priv,
-					 "cirrus,inmode",
+					 "cirrus,in-type",
 					 tmp,
 					 ARRAY_SIZE(tmp),
 					 TACNA_MAX_MUXED_IN_CHANNELS);
@@ -4175,7 +4175,7 @@ static void tacna_prop_get_inmode(struct tacna_priv *priv)
 	in_idx = 0;
 	ch_idx = 0;
 	for (i = 0; i < n; ++i) {
-		tacna->pdata.codec.inmode[in_idx][ch_idx] = tmp[i];
+		tacna->pdata.codec.in_type[in_idx][ch_idx] = tmp[i];
 
 		if (++ch_idx == TACNA_MAX_MUXED_IN_CHANNELS) {
 			ch_idx = 0;
@@ -4201,7 +4201,7 @@ static void tacna_prop_get_pdata(struct tacna_priv *priv)
 	if (ret < 0)
 		return;
 
-	tacna_prop_get_inmode(priv);
+	tacna_prop_get_in_type(priv);
 
 	ret = device_property_read_u32_array(tacna->dev,
 					     "cirrus,out-mono",
@@ -4256,37 +4256,37 @@ int tacna_init_inputs(struct snd_soc_codec *codec)
 	 * B settings will be applied if the mux is changed
 	 */
 	for (i = 0; i < priv->max_analogue_inputs; i++) {
-		dev_dbg(priv->dev, "IN%d mode %u:%u:%u:%u\n", i + 1,
-			tacna->pdata.codec.inmode[i][0],
-			tacna->pdata.codec.inmode[i][1],
-			tacna->pdata.codec.inmode[i][2],
-			tacna->pdata.codec.inmode[i][3]);
+		dev_dbg(priv->dev, "IN%d type %u:%u:%u:%u\n", i + 1,
+			tacna->pdata.codec.in_type[i][0],
+			tacna->pdata.codec.in_type[i][1],
+			tacna->pdata.codec.in_type[i][2],
+			tacna->pdata.codec.in_type[i][3]);
 
-		switch (tacna->pdata.codec.inmode[i][0]) {
-		case TACNA_INMODE_DIFF:
+		switch (tacna->pdata.codec.in_type[i][0]) {
+		case TACNA_IN_TYPE_DIFF:
 			ana_mode_l = 0;
 			break;
-		case TACNA_INMODE_SE:
+		case TACNA_IN_TYPE_SE:
 			ana_mode_l = 1 << TACNA_IN1L_SRC_SHIFT;
 			break;
 		default:
 			dev_warn(priv->dev,
-				 "IN%dL_1 Illegal inmode %u ignored\n",
-				 i + 1, tacna->pdata.codec.inmode[i][0]);
+				 "IN%dL_1 Illegal in_type %u ignored\n",
+				 i + 1, tacna->pdata.codec.in_type[i][0]);
 			continue;
 		}
 
-		switch (tacna->pdata.codec.inmode[i][1]) {
-		case TACNA_INMODE_DIFF:
+		switch (tacna->pdata.codec.in_type[i][1]) {
+		case TACNA_IN_TYPE_DIFF:
 			ana_mode_r = 0;
 			break;
-		case TACNA_INMODE_SE:
+		case TACNA_IN_TYPE_SE:
 			ana_mode_r = 1 << TACNA_IN1R_SRC_SHIFT;
 			break;
 		default:
 			dev_warn(priv->dev,
-				 "IN%dR_1 Illegal inmode %u ignored\n",
-				 i + 1, tacna->pdata.codec.inmode[i][1]);
+				 "IN%dR_1 Illegal in_type %u ignored\n",
+				 i + 1, tacna->pdata.codec.in_type[i][1]);
 			continue;
 		}
 

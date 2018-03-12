@@ -11,7 +11,7 @@ include/dt-bindings/sound/tacna.h
 These properties are all contained in the parent MFD node.
 
 Optional properties:
-  - cirrus,inmode : A list of input mode settings for each analogue input.
+  - cirrus,in-type : A list of input type settings for each input.
     Maximum of 16 cells, with four cells per input in the order
     INnL_1, INnR_1 INnL_2 INnR_2.
     For non-muxed inputs the first two cells for that input set the mode for
@@ -19,9 +19,9 @@ Optional properties:
     For muxed inputs the first two cells for that input set the mode of the
     left and right _1 inputs and the second two cells set the mode of the left
     and right _2 inputs.
-    Valid mode values are one of the TACNA_INMODE_xxx. If the array is shorter
+    Valid mode values are one of the TACNA_IN_TYPE_xxx. If the array is shorter
     than the number of inputs the unspecified inputs default to
-    TACNA_INMODE_DIFF.
+    TACNA_IN_TYPE_DIFF.
 
   - cirrus,out-mono : Mono bit for each output. A non-zero value indicates the
     corresponding output is mono.
@@ -50,10 +50,10 @@ Example:
 cs47l94@0 {
 	compatible = "cirrus,cs47l94";
 
-	cirrus,inmode = <
-		TACNA_INMODE_DIFF TACNA_INMODE_DIFF /* IN1[LR]_1 differential */
-		TACNA_INMODE_SE   TACNA_INMODE_SE   /* IN1[LR]_2 single-ended */
-		TACNA_INMODE_DIFF TACNA_INMODE_DIFF /* IN2[LR]_1 differential */
+	cirrus,in-type = <
+		TACNA_IN_TYPE_DIFF TACNA_IN_TYPE_DIFF /* IN1[LR]_1 differential */
+		TACNA_IN_TYPE_SE   TACNA_IN_TYPE_SE   /* IN1[LR]_2 single-ended */
+		TACNA_IN_TYPE_DIFF TACNA_IN_TYPE_DIFF /* IN2[LR]_1 differential */
 	>;
 	cirrus,out-mono = <0 0 0 0>;
 	cirrus,max-channels-clocked = <2 0 0>;
