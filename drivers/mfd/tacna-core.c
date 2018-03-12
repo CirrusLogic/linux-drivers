@@ -760,10 +760,7 @@ int tacna_dev_init(struct tacna *tacna)
 				break;
 			}
 		}
-// Remove this once we no longer want to test Castillo on Burns HW
-#ifdef CONFIG_REMOVE_TACNA_TEMPORARY_HACK
 		break;
-#endif
 	case CS47L96_SILICON_ID:
 		if (IS_ENABLED(CONFIG_MFD_CS47L96)) {
 			switch (tacna->type) {
