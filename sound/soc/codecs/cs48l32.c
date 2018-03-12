@@ -392,8 +392,8 @@ static int cs48l32_dsp_mem_ev(struct snd_soc_dapm_widget *w,
 	};
 }
 
-int cs48l32_dsp_freq_ev(struct snd_soc_dapm_widget *w,
-			struct snd_kcontrol *kcontrol, int event)
+static int cs48l32_dsp_freq_ev(struct snd_soc_dapm_widget *w,
+			       struct snd_kcontrol *kcontrol, int event)
 {
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
