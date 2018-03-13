@@ -1009,12 +1009,8 @@ const struct snd_kcontrol_new wm_adsp_fw_controls[] = {
 };
 EXPORT_SYMBOL_GPL(wm_adsp_fw_controls);
 
-static struct soc_enum wm_adsp_ao_fw_enum[] = {
-	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(wm_adsp_fw_text), wm_adsp_fw_text),
-};
-
 static const struct snd_kcontrol_new wm_adsp_ao_fw_controls[] = {
-	SOC_ENUM_EXT("DSP1AO Firmware", wm_adsp_ao_fw_enum[0],
+	SOC_ENUM_EXT("DSP1AO Firmware", wm_adsp_fw_enum[0],
 		     wm_adsp_fw_get, wm_adsp_fw_put),
 };
 
@@ -1662,7 +1658,7 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	case WMFW_ADSP1:
 	case WMFW_ADSP2:
 	case WMFW_HALO:
-		fw_txt = dsp->firmware_texts->texts[dsp->fw];
+		fw_txt = dsp->fw_enum.texts[dsp->fw];
 		break;
 	default:
 		adsp_err(dsp, "Unknown Architecture type: %d\n", dsp->type);
@@ -2312,7 +2308,7 @@ static void wm_adsp_ctl_fixup_base(struct wm_adsp *dsp,
 	case WMFW_ADSP1:
 	case WMFW_ADSP2:
 	case WMFW_HALO:
-		fw_txt = dsp->firmware_texts->texts[dsp->fw];
+		fw_txt = dsp->fw_enum.texts[dsp->fw];
 		break;
 	default:
 		return;
@@ -4021,7 +4017,6 @@ int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	char preload[32];
-	int ret;
 
 	if (!dsp->suffix)
 		dsp->suffix = "";
@@ -4034,16 +4029,7 @@ int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 
 	dsp->codec = codec;
 
-	if (dsp->ao_dsp)
-		ret = snd_soc_add_codec_controls(codec,
-					 &wm_adsp_ao_fw_controls[dsp->num - 1],
-					 1);
-	else
-		ret = snd_soc_add_codec_controls(codec,
-					 &wm_adsp_fw_controls[dsp->num - 1],
-					 1);
-
-	return ret;
+	return snd_soc_add_codec_controls(codec, &dsp->fw_ctrl, 1);
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_codec_probe);
 
@@ -4166,13 +4152,17 @@ static int wm_adsp_of_parse_firmware(struct wm_adsp *dsp,
 		i++;
 	}
 
-	if (dsp->ao_dsp) {
-		wm_adsp_ao_fw_enum[dsp->num - 1].items = dsp->num_firmwares;
-		wm_adsp_ao_fw_enum[dsp->num - 1].texts = ctl_names;
-	} else {
-		wm_adsp_fw_enum[dsp->num - 1].items = dsp->num_firmwares;
-		wm_adsp_fw_enum[dsp->num - 1].texts = ctl_names;
-	}
+	dsp->fw_enum.items = dsp->num_firmwares;
+	dsp->fw_enum.texts = ctl_names;
+	dsp->fw_enum.shift_l = dsp->num - 1;
+	dsp->fw_enum.shift_r = dsp->num - 1;
+
+	if (dsp->ao_dsp)
+		dsp->fw_ctrl = wm_adsp_ao_fw_controls[dsp->num - 1];
+	else
+		dsp->fw_ctrl = wm_adsp_fw_controls[dsp->num - 1];
+
+	dsp->fw_ctrl.private_value = (unsigned long)(&dsp->fw_enum);
 
 	return dsp->num_firmwares;
 }
@@ -4220,11 +4210,11 @@ int wm_adsp1_init(struct wm_adsp *dsp)
 	mutex_init(&dsp->pwr_lock);
 
 	if (!dsp->dev->of_node || wm_adsp_of_parse_adsp(dsp) <= 0) {
+		dsp->fw_enum = wm_adsp_fw_enum[dsp->num - 1];
+		dsp->fw_ctrl = wm_adsp_fw_controls[dsp->num - 1];
 		dsp->num_firmwares = ARRAY_SIZE(wm_adsp_fw);
 		dsp->firmwares = wm_adsp_fw;
 	}
-
-	dsp->firmware_texts = &wm_adsp_fw_enum[dsp->num - 1];
 
 	return 0;
 }
@@ -4259,11 +4249,11 @@ int wm_adsp2_init(struct wm_adsp *dsp)
 	mutex_init(&dsp->pwr_lock);
 
 	if (!dsp->dev->of_node || wm_adsp_of_parse_adsp(dsp) <= 0) {
+		dsp->fw_enum = wm_adsp_fw_enum[dsp->num - 1];
+		dsp->fw_ctrl = wm_adsp_fw_controls[dsp->num - 1];
 		dsp->num_firmwares = ARRAY_SIZE(wm_adsp_fw);
 		dsp->firmwares = wm_adsp_fw;
 	}
-
-	dsp->firmware_texts = &wm_adsp_fw_enum[dsp->num - 1];
 
 	return 0;
 }
@@ -4278,14 +4268,14 @@ int wm_halo_init(struct wm_adsp *dsp, struct mutex *rate_lock)
 	mutex_init(&dsp->pwr_lock);
 
 	if (!dsp->dev->of_node || wm_adsp_of_parse_adsp(dsp) <= 0) {
+		dsp->fw_enum = wm_adsp_fw_enum[dsp->num - 1];
+		if (dsp->ao_dsp)
+			dsp->fw_ctrl = wm_adsp_ao_fw_controls[dsp->num - 1];
+		else
+			dsp->fw_ctrl = wm_adsp_fw_controls[dsp->num - 1];
 		dsp->num_firmwares = ARRAY_SIZE(wm_adsp_fw);
 		dsp->firmwares = wm_adsp_fw;
 	}
-
-	if (dsp->ao_dsp)
-		dsp->firmware_texts = &wm_adsp_ao_fw_enum[dsp->num - 1];
-	else
-		dsp->firmware_texts = &wm_adsp_fw_enum[dsp->num - 1];
 
 	dsp->rate_lock = rate_lock;
 	dsp->rx_rate_cache = kcalloc(dsp->n_rx_channels, sizeof(u8), GFP_KERNEL);
