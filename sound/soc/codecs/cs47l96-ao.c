@@ -595,7 +595,7 @@ static const struct snd_soc_dapm_route cs47l96_ao_dapm_routes[] = {
 
 static struct snd_soc_dai_driver cs47l96_ao_dai[] = {
 	{
-		.name = "cs47l96-ao-asp4",
+		.name = "cs47l96-ao-asp1",
 		.id = 1,
 		.base = TACNA_ASP1AO_ENABLES1,
 		.playback = {
