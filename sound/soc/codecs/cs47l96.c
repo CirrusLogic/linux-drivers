@@ -182,15 +182,17 @@ static int cs47l96_outh_ev(struct snd_soc_dapm_widget *w,
 			return -EINVAL;
 		}
 
-		ret = regmap_write(regmap, TACNA_OUTHL_VOLUME_1,
-				   cs47l96->outh_main_vol[0]);
+		ret = regmap_update_bits(regmap, TACNA_OUTHL_VOLUME_1,
+					 TACNA_OUTHL_VOL_MASK,
+					 cs47l96->outh_main_vol[0]);
 		if (ret)
 			dev_warn(codec->dev,
 				 "Failed to apply cached OUTHL volume: %d\n",
 				 ret);
 
-		ret = regmap_write(regmap, TACNA_OUTHR_VOLUME_1,
-				   cs47l96->outh_main_vol[1]);
+		ret = regmap_update_bits(regmap, TACNA_OUTHR_VOLUME_1,
+					 TACNA_OUTHR_VOL_MASK,
+					 cs47l96->outh_main_vol[1]);
 		if (ret)
 			dev_warn(codec->dev,
 				 "Failed to apply cached OUTHR volume: %d\n",
@@ -203,13 +205,15 @@ static int cs47l96_outh_ev(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		/* ensure the cache matches what the hardware will revert to */
-		ret = regmap_write(regmap, TACNA_OUTHL_VOLUME_1, 0xc0);
+		ret = regmap_update_bits(regmap, TACNA_OUTHL_VOLUME_1,
+					 TACNA_OUTHL_VOL_MASK, 0xc0);
 		if (ret)
 			dev_warn(codec->dev,
 				 "Failed to set OUTHL volume to default: %d\n",
 				 ret);
 
-		ret = regmap_write(regmap, TACNA_OUTHR_VOLUME_1, 0xc0);
+		ret = regmap_update_bits(regmap, TACNA_OUTHR_VOLUME_1,
+					 TACNA_OUTHR_VOL_MASK, 0xc0);
 		if (ret)
 			dev_warn(codec->dev,
 				 "Failed to set OUTHR volume to default: %d\n",
@@ -2701,6 +2705,19 @@ static const struct snd_soc_platform_driver cs47l96_compr_platform = {
 	.compr_ops = &cs47l96_compr_ops,
 };
 
+static const unsigned int cs47l96_out_vu_regs[] = {
+	TACNA_OUT1L_VOLUME_1,
+	TACNA_OUT1L_VOLUME_3,
+	TACNA_OUT1R_VOLUME_1,
+	TACNA_OUT1R_VOLUME_3,
+	TACNA_OUT5L_VOLUME_1,
+	TACNA_OUT5R_VOLUME_1,
+	TACNA_OUTHL_VOLUME_1,
+	TACNA_OUTHR_VOLUME_1,
+	TACNA_OUTAUX1L_VOLUME_1,
+	TACNA_OUTAUX1R_VOLUME_1,
+};
+
 static int cs47l96_probe(struct platform_device *pdev)
 {
 	struct tacna *tacna = dev_get_drvdata(pdev->dev.parent);
@@ -2796,6 +2813,11 @@ static int cs47l96_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(cs47l96_dai); i++)
 		tacna_init_dai(&cs47l96->core, i);
+
+	/* Latch volume update bits */
+	for (i = 0; i < ARRAY_SIZE(cs47l96_out_vu_regs); i++)
+		regmap_update_bits(tacna->regmap, cs47l96_out_vu_regs[i],
+				   TACNA_OUT_VU_MASK, TACNA_OUT_VU);
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
