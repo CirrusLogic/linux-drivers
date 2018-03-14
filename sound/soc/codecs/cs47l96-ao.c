@@ -779,6 +779,20 @@ static int cs47l96_ao_set_fll(struct snd_soc_codec *codec, int fll_id, int sourc
 	return tacna_fllhj_set_refclk(&cs47l96_ao->fll, source, fref, fout);
 }
 
+static int cs47l96_ao_set_sysclk(struct snd_soc_codec *codec, int clk_id,
+				 int source, unsigned int freq, int dir)
+{
+	struct cs47l96_ao *cs47l96_ao = snd_soc_codec_get_drvdata(codec);
+
+	switch (clk_id) {
+	case TACNA_CLK_SYSCLKAO:
+		return tacna_set_sysclk(codec, clk_id, source, freq, dir);
+	default:
+		dev_err(cs47l96_ao->core.dev, "Unknown clock id %u\n", clk_id);
+		return -EINVAL;
+	}
+}
+
 static struct regmap *cs47l96_ao_get_regmap(struct device *dev)
 {
 	struct cs47l96_ao *cs47l96_ao = dev_get_drvdata(dev);
@@ -793,7 +807,7 @@ static struct snd_soc_codec_driver soc_codec_dev_cs47l96_ao = {
 
 	.idle_bias_off = true,
 
-	.set_sysclk = tacna_set_sysclk,
+	.set_sysclk = cs47l96_ao_set_sysclk,
 	.set_pll = cs47l96_ao_set_fll,
 
 	.component_driver = {
