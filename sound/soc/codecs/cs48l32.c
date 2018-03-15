@@ -170,6 +170,8 @@ SOC_SINGLE_EXT_TLV("IN2R Digital Volume", TACNA_IN2R_CONTROL2,
 SOC_ENUM("Input Ramp Up", tacna_in_vi_ramp),
 SOC_ENUM("Input Ramp Down", tacna_in_vd_ramp),
 
+SOC_ENUM("IN2 Swap Chan", tacna_in2_swap_chan),
+
 TACNA_MIXER_CONTROLS("EQ1", TACNA_EQ1_INPUT1),
 TACNA_MIXER_CONTROLS("EQ2", TACNA_EQ2_INPUT1),
 TACNA_MIXER_CONTROLS("EQ3", TACNA_EQ3_INPUT1),
@@ -460,6 +462,11 @@ SND_SOC_DAPM_MUX("IN1R Mux", SND_SOC_NOPM, 0, 0, &tacna_inmux[1]),
 
 SND_SOC_DAPM_MUX("IN1L Mode", SND_SOC_NOPM, 0, 0, &tacna_dmode_mux[0]),
 SND_SOC_DAPM_MUX("IN1R Mode", SND_SOC_NOPM, 0, 0, &tacna_dmode_mux[0]),
+
+SND_SOC_DAPM_MUX("IN1L Swap Chan", SND_SOC_NOPM, 0, 0,
+		 &tacna_in_swap_chan[0]),
+SND_SOC_DAPM_MUX("IN1R Swap Chan", SND_SOC_NOPM, 0, 0,
+		 &tacna_in_swap_chan[0]),
 
 SND_SOC_DAPM_PGA("PWM1 Driver", TACNA_PWM_DRIVE_1, TACNA_PWM1_EN_SHIFT,
 		 0, NULL, 0),
@@ -845,9 +852,6 @@ static const struct snd_soc_dapm_route cs48l32_dapm_routes[] = {
 	{ "IN1R Mux", "Analog 1", "IN1RP_1" },
 	{ "IN1R Mux", "Analog 2", "IN1RP_2" },
 
-	{ "IN1L PGA", NULL, "IN1L Mode" },
-	{ "IN1R PGA", NULL, "IN1R Mode" },
-
 	{ "IN1L Mode", "Analog", "IN1L Mux" },
 	{ "IN1R Mode", "Analog", "IN1R Mux" },
 
@@ -859,11 +863,26 @@ static const struct snd_soc_dapm_route cs48l32_dapm_routes[] = {
 	{ "IN1L PGA", NULL, "VOUT_MIC" },
 	{ "IN1R PGA", NULL, "VOUT_MIC" },
 
-	{ "IN2L PGA", NULL, "IN2_PDMCLK" },
-	{ "IN2R PGA", NULL, "IN2_PDMDATA" },
-
 	{ "IN2L PGA", NULL, "VOUT_MIC" },
 	{ "IN2R PGA", NULL, "VOUT_MIC" },
+
+	{ "IN2L PGA", NULL, "IN2_PDMCLK" },
+	{ "IN2R PGA", NULL, "IN2_PDMCLK" },
+	{ "IN2L PGA", NULL, "IN2_PDMDATA" },
+	{ "IN2R PGA", NULL, "IN2_PDMDATA" },
+
+
+	{ "IN1L PGA", NULL, "IN1L Swap Chan" },
+	{ "IN1R PGA", NULL, "IN1R Swap Chan" },
+
+	{ "IN1L Swap Chan", "Normal", "IN1L Mode" },
+	{ "IN1R Swap Chan", "Normal", "IN1R Mode" },
+	{ "IN1L Swap Chan", "Swap",   "IN1R Mode" },
+	{ "IN1R Swap Chan", "Swap",   "IN1L Mode" },
+	{ "IN1L Swap Chan", "Left",   "IN1L Mode" },
+	{ "IN1R Swap Chan", "Left",   "IN1L Mode" },
+	{ "IN1L Swap Chan", "Right",  "IN1R Mode" },
+	{ "IN1R Swap Chan", "Right",  "IN1R Mode" },
 
 	TACNA_MIXER_ROUTES("PWM1 Driver", "PWM1"),
 	TACNA_MIXER_ROUTES("PWM2 Driver", "PWM2"),
