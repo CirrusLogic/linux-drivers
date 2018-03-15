@@ -117,6 +117,7 @@
 #define TACNA_SAMPLE_RATE_ENUM_SIZE	17
 #define TACNA_DFC_TYPE_ENUM_SIZE	5
 #define TACNA_DFC_WIDTH_ENUM_SIZE	25
+#define TACNA_IN_SWAP_CHAN_ENUM_SIZE	4
 
 #define TACNA_ASYNCCLK_REQ		0x01
 #define TACNA_DACRATE1_ASYNCCLK_REQ	0x02
@@ -414,6 +415,8 @@ extern const struct soc_enum tacna_sample_rate_async[];
 extern const struct snd_kcontrol_new tacna_inmux[];
 extern const struct snd_kcontrol_new tacna_inmode_switch[];
 extern const struct snd_kcontrol_new tacna_dmode_mux[];
+extern const struct snd_kcontrol_new tacna_in_swap_chan[];
+extern const struct soc_enum tacna_in2_swap_chan;
 
 extern const char * const tacna_vol_ramp_text[TACNA_VOL_RAMP_ENUM_SIZE];
 extern const char * const tacna_in_hpf_cut_text[TACNA_IN_HPF_CUT_ENUM_SIZE];
