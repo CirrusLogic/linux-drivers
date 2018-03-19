@@ -458,7 +458,8 @@ SND_SOC_DAPM_OUTPUT("DSP Trigger Out"),
 SND_SOC_DAPM_MUX("IN1L Mux", SND_SOC_NOPM, 0, 0, &tacna_inmux[0]),
 SND_SOC_DAPM_MUX("IN1R Mux", SND_SOC_NOPM, 0, 0, &tacna_inmux[1]),
 
-SND_SOC_DAPM_MUX("IN1 Mode", SND_SOC_NOPM, 0, 0, &tacna_dmode_mux[0]),
+SND_SOC_DAPM_MUX("IN1L Mode", SND_SOC_NOPM, 0, 0, &tacna_dmode_mux[0]),
+SND_SOC_DAPM_MUX("IN1R Mode", SND_SOC_NOPM, 0, 0, &tacna_dmode_mux[0]),
 
 SND_SOC_DAPM_PGA("PWM1 Driver", TACNA_PWM_DRIVE_1, TACNA_PWM1_EN_SHIFT,
 		 0, NULL, 0),
@@ -844,14 +845,16 @@ static const struct snd_soc_dapm_route cs48l32_dapm_routes[] = {
 	{ "IN1R Mux", "Analog 1", "IN1RP_1" },
 	{ "IN1R Mux", "Analog 2", "IN1RP_2" },
 
-	{ "IN1L PGA", NULL, "IN1 Mode" },
-	{ "IN1R PGA", NULL, "IN1 Mode" },
+	{ "IN1L PGA", NULL, "IN1L Mode" },
+	{ "IN1R PGA", NULL, "IN1R Mode" },
 
-	{ "IN1 Mode", "Analog", "IN1L Mux" },
-	{ "IN1 Mode", "Analog", "IN1R Mux" },
+	{ "IN1L Mode", "Analog", "IN1L Mux" },
+	{ "IN1R Mode", "Analog", "IN1R Mux" },
 
-	{ "IN1 Mode", "Digital", "IN1_PDMCLK" },
-	{ "IN1 Mode", "Digital", "IN1_PDMDATA" },
+	{ "IN1L Mode", "Digital", "IN1_PDMCLK" },
+	{ "IN1L Mode", "Digital", "IN1_PDMDATA" },
+	{ "IN1R Mode", "Digital", "IN1_PDMCLK" },
+	{ "IN1R Mode", "Digital", "IN1_PDMDATA" },
 
 	{ "IN1L PGA", NULL, "VOUT_MIC" },
 	{ "IN1R PGA", NULL, "VOUT_MIC" },
