@@ -708,14 +708,6 @@ const struct snd_kcontrol_new tacna_in_swap_chan[] = {
 };
 EXPORT_SYMBOL_GPL(tacna_in_swap_chan);
 
-const struct snd_kcontrol_new tacna_inmode_switch[] = {
-	SOC_DAPM_SINGLE("Switch", TACNA_INPUT1_CONTROL1, TACNA_IN1_MODE_SHIFT,
-			1, 0),
-	SOC_DAPM_SINGLE("Switch", TACNA_INPUT2_CONTROL1, TACNA_IN2_MODE_SHIFT,
-			1, 0),
-};
-EXPORT_SYMBOL_GPL(tacna_inmode_switch);
-
 static const char * const tacna_dmode_texts[] = {
 	"Analog",
 	"Digital",
