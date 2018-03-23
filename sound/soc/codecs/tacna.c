@@ -737,6 +737,225 @@ const struct snd_kcontrol_new tacna_dmode_mux[] = {
 };
 EXPORT_SYMBOL_GPL(tacna_dmode_mux);
 
+const char * const tacna_us_in_texts[] = {
+	"IN1L",
+	"IN1R",
+	"IN2L",
+	"IN2R",
+	"IN3L",
+	"IN3R",
+	"IN4L",
+	"IN4R",
+};
+EXPORT_SYMBOL_GPL(tacna_us_in_texts);
+
+static SOC_ENUM_SINGLE_DECL(tacna_us1_in_enum,
+			    TACNA_US1_CONTROL,
+			    TACNA_US1_SRC_SHIFT,
+			    tacna_us_in_texts);
+
+static SOC_ENUM_SINGLE_DECL(tacna_us2_in_enum,
+			    TACNA_US2_CONTROL,
+			    TACNA_US2_SRC_SHIFT,
+			    tacna_us_in_texts);
+
+const struct snd_kcontrol_new tacna_us_inmux[2] = {
+	SOC_DAPM_ENUM("Ultrasonic 1 Input", tacna_us1_in_enum),
+	SOC_DAPM_ENUM("Ultrasonic 2 Input", tacna_us2_in_enum),
+};
+EXPORT_SYMBOL_GPL(tacna_us_inmux);
+
+const char * const tacna_us_freq_texts[] = {
+	"24.5-40.5kHz",
+	"18-22kHz",
+	"16-24kHz",
+	"20-28kHz",
+};
+EXPORT_SYMBOL_GPL(tacna_us_freq_texts);
+
+const struct soc_enum tacna_us_freq[] = {
+	SOC_ENUM_SINGLE(TACNA_US1_CONTROL,
+			TACNA_US1_FREQ_SHIFT,
+			ARRAY_SIZE(tacna_us_freq_texts),
+			tacna_us_freq_texts),
+	SOC_ENUM_SINGLE(TACNA_US2_CONTROL,
+			TACNA_US2_FREQ_SHIFT,
+			ARRAY_SIZE(tacna_us_freq_texts),
+			tacna_us_freq_texts),
+};
+EXPORT_SYMBOL_GPL(tacna_us_freq);
+
+static const char * const tacna_us_gain_texts[] = {
+	"No Signal",
+	"-5dB",
+	"+1dB",
+	"+7dB",
+};
+
+const struct soc_enum tacna_us_gain[] = {
+	SOC_ENUM_SINGLE(TACNA_US1_CONTROL,
+			TACNA_US1_GAIN_SHIFT,
+			ARRAY_SIZE(tacna_us_gain_texts),
+			tacna_us_gain_texts),
+	SOC_ENUM_SINGLE(TACNA_US2_CONTROL,
+			TACNA_US2_GAIN_SHIFT,
+			ARRAY_SIZE(tacna_us_gain_texts),
+			tacna_us_gain_texts),
+};
+EXPORT_SYMBOL_GPL(tacna_us_gain);
+
+static const char * const tacna_us_det_thr_texts[] = {
+	"-6dB",
+	"-9dB",
+	"-12dB",
+	"-15dB",
+	"-18dB",
+	"-21dB",
+	"-24dB",
+	"-27dB",
+};
+
+const struct soc_enum tacna_us_det_thr[] = {
+	SOC_ENUM_SINGLE(TACNA_US1_DET_CONTROL,
+			TACNA_US1_DET_THR_SHIFT,
+			ARRAY_SIZE(tacna_us_det_thr_texts),
+			tacna_us_det_thr_texts),
+	SOC_ENUM_SINGLE(TACNA_US2_DET_CONTROL,
+			TACNA_US2_DET_THR_SHIFT,
+			ARRAY_SIZE(tacna_us_det_thr_texts),
+			tacna_us_det_thr_texts),
+};
+EXPORT_SYMBOL_GPL(tacna_us_det_thr);
+
+static const char * const tacna_us_det_num_texts[] = {
+	"1 Sample",
+	"2 Samples",
+	"4 Samples",
+	"8 Samples",
+	"16 Samples",
+	"32 Samples",
+	"64 Samples",
+	"128 Samples",
+	"256 Samples",
+	"512 Samples",
+	"1024 Samples",
+	"2048 Samples",
+	"4096 Samples",
+	"8192 Samples",
+	"16384 Samples",
+	"32768 Samples",
+};
+
+const struct soc_enum tacna_us_det_num[] = {
+	SOC_ENUM_SINGLE(TACNA_US1_DET_CONTROL,
+			TACNA_US1_DET_NUM_SHIFT,
+			ARRAY_SIZE(tacna_us_det_num_texts),
+			tacna_us_det_num_texts),
+	SOC_ENUM_SINGLE(TACNA_US2_DET_CONTROL,
+			TACNA_US2_DET_NUM_SHIFT,
+			ARRAY_SIZE(tacna_us_det_num_texts),
+			tacna_us_det_num_texts),
+};
+EXPORT_SYMBOL_GPL(tacna_us_det_num);
+
+static const char * const tacna_us_det_hold_texts[] = {
+	"0 Samples",
+	"31 Samples",
+	"63 Samples",
+	"127 Samples",
+	"255 Samples",
+	"511 Samples",
+	"1023 Samples",
+	"2047 Samples",
+	"4095 Samples",
+	"8191 Samples",
+	"16383 Samples",
+	"32767 Samples",
+	"65535 Samples",
+	"131071 Samples",
+	"262143 Samples",
+	"524287 Samples",
+};
+
+const struct soc_enum tacna_us_det_hold[] = {
+	SOC_ENUM_SINGLE(TACNA_US1_DET_CONTROL,
+			TACNA_US1_DET_HOLD_SHIFT,
+			ARRAY_SIZE(tacna_us_det_hold_texts),
+			tacna_us_det_hold_texts),
+	SOC_ENUM_SINGLE(TACNA_US2_DET_CONTROL,
+			TACNA_US2_DET_HOLD_SHIFT,
+			ARRAY_SIZE(tacna_us_det_hold_texts),
+			tacna_us_det_hold_texts),
+};
+EXPORT_SYMBOL_GPL(tacna_us_det_hold);
+
+static const char * const tacna_us_det_dcy_texts[] = {
+	"0 Samples",
+	"36 Samples",
+	"73 Samples",
+	"146 Samples",
+	"293 Samples",
+	"588 Samples",
+	"1177 Samples",
+	"2355 Samples",
+};
+
+const struct soc_enum tacna_us_det_dcy[] = {
+	SOC_ENUM_SINGLE(TACNA_US1_DET_CONTROL,
+			TACNA_US1_DET_DCY_SHIFT,
+			ARRAY_SIZE(tacna_us_det_dcy_texts),
+			tacna_us_det_dcy_texts),
+	SOC_ENUM_SINGLE(TACNA_US2_DET_CONTROL,
+			TACNA_US2_DET_DCY_SHIFT,
+			ARRAY_SIZE(tacna_us_det_dcy_texts),
+			tacna_us_det_dcy_texts),
+};
+EXPORT_SYMBOL_GPL(tacna_us_det_dcy);
+
+const struct soc_enum tacna_us_output_rate[] = {
+	SOC_VALUE_ENUM_SINGLE(TACNA_US1_CONTROL,
+			      TACNA_US1_RATE_SHIFT,
+			      TACNA_US1_RATE_MASK >> TACNA_US1_RATE_SHIFT,
+			      TACNA_SYNC_RATE_ENUM_SIZE,
+			      tacna_rate_text,
+			      tacna_rate_val),
+	SOC_VALUE_ENUM_SINGLE(TACNA_US2_CONTROL,
+			      TACNA_US2_RATE_SHIFT,
+			      TACNA_US2_RATE_MASK >> TACNA_US2_RATE_SHIFT,
+			      TACNA_SYNC_RATE_ENUM_SIZE,
+			      tacna_rate_text,
+			      tacna_rate_val),
+};
+EXPORT_SYMBOL_GPL(tacna_us_output_rate);
+
+const struct snd_kcontrol_new tacna_us_switch[] = {
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
+};
+EXPORT_SYMBOL_GPL(tacna_us_switch);
+
+irqreturn_t tacna_us1_activity(int irq, void *data)
+{
+	struct tacna *tacna = data;
+	struct tacna_us_notify_data us_data;
+
+	us_data.us_no = 1;
+	tacna_call_notifiers(tacna, TACNA_NOTIFY_ULTRASONIC, &us_data);
+
+	return IRQ_HANDLED;
+}
+
+irqreturn_t tacna_us2_activity(int irq, void *data)
+{
+	struct tacna *tacna = data;
+	struct tacna_us_notify_data us_data;
+
+	us_data.us_no = 2;
+	tacna_call_notifiers(tacna, TACNA_NOTIFY_ULTRASONIC, &us_data);
+
+	return IRQ_HANDLED;
+}
+
 const char * const tacna_vol_ramp_text[TACNA_VOL_RAMP_ENUM_SIZE] = {
 	"0ms/6dB", "0.5ms/6dB", "1ms/6dB", "2ms/6dB", "4ms/6dB", "8ms/6dB",
 	"16ms/6dB", "32ms/6dB",
