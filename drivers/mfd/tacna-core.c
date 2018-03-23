@@ -41,6 +41,7 @@
 #define TACNA_SEEN_BOOT_DONE	0x1
 
 #define TACNA_BOOT_TIMEOUT_MS	25
+#define CS47L96_SYSCLK_POLL_MS	2
 
 static const char * const tacna_core_supplies[] = {
 	"VDD_A",
@@ -205,6 +206,22 @@ static int tacna_wait_for_boot(struct tacna *tacna)
 	if (ret) {
 		dev_err(tacna->dev, "Failed to update 0x%x : %d\n", reg, ret);
 		return ret;
+	}
+
+	switch (tacna->type) {
+	case CS47L96:
+	case CS47L97:
+		/* wait for internal SYSCLK request and clear */
+		regmap_read_poll_timeout(tacna->regmap, TACNA_IRQ1_EINT_1, val,
+					 (val & TACNA_SYSCLK_ERR_EINT1),
+					 500,
+					 CS47L96_SYSCLK_POLL_MS * 1000);
+
+		regmap_write(tacna->regmap, TACNA_IRQ1_EINT_1,
+			     TACNA_SYSCLK_ERR_EINT1);
+		break;
+	default:
+		break;
 	}
 
 	pm_runtime_mark_last_busy(tacna->dev);
