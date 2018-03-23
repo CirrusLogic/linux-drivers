@@ -120,6 +120,8 @@
 #define TACNA_DFC_WIDTH_ENUM_SIZE	25
 #define TACNA_IN_SWAP_CHAN_ENUM_SIZE	4
 
+#define TACNA_US_FREQ_ENUM_SIZE		4
+
 #define TACNA_ASYNCCLK_REQ		0x01
 #define TACNA_DACRATE1_ASYNCCLK_REQ	0x02
 #define TACNA_OUTH_ASYNCCLK_REQ		0x80
@@ -424,9 +426,24 @@ extern const struct soc_enum tacna_in_swap_chan_ctrl[];
 extern const char * const
 	tacna_in_swap_chan_texts[TACNA_IN_SWAP_CHAN_ENUM_SIZE];
 
+extern const char * const tacna_us_freq_texts[TACNA_US_FREQ_ENUM_SIZE];
+extern const char * const tacna_us_in_texts[];
+extern const struct snd_kcontrol_new tacna_us_inmux[];
+extern const struct soc_enum tacna_us_output_rate[];
+extern const struct snd_kcontrol_new tacna_us_switch[];
+extern const struct soc_enum tacna_us_freq[];
+extern const struct soc_enum tacna_us_det_thr[];
+extern const struct soc_enum tacna_us_gain[];
+extern const struct soc_enum tacna_us_det_num[];
+extern const struct soc_enum tacna_us_det_hold[];
+extern const struct soc_enum tacna_us_det_dcy[];
+
 extern const char * const tacna_vol_ramp_text[TACNA_VOL_RAMP_ENUM_SIZE];
 extern const char * const tacna_in_hpf_cut_text[TACNA_IN_HPF_CUT_ENUM_SIZE];
 extern const char * const tacna_in_dmic_osr_text[TACNA_OSR_ENUM_SIZE];
+irqreturn_t tacna_us1_activity(int irq, void *data);
+irqreturn_t tacna_us2_activity(int irq, void *data);
+
 extern const struct soc_enum tacna_in_vi_ramp;
 extern const struct soc_enum tacna_in_vd_ramp;
 extern const struct soc_enum tacna_in_hpf_cut_enum;
