@@ -170,7 +170,7 @@ SOC_SINGLE_EXT_TLV("IN2R Digital Volume", TACNA_IN2R_CONTROL2,
 SOC_ENUM("Input Ramp Up", tacna_in_vi_ramp),
 SOC_ENUM("Input Ramp Down", tacna_in_vd_ramp),
 
-SOC_ENUM("IN2 Swap Chan", tacna_in2_swap_chan),
+SOC_ENUM("IN2 Swap Chan", tacna_in_swap_chan_ctrl[1]),
 
 TACNA_MIXER_CONTROLS("EQ1", TACNA_EQ1_INPUT1),
 TACNA_MIXER_CONTROLS("EQ2", TACNA_EQ2_INPUT1),
