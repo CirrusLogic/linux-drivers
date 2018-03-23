@@ -701,6 +701,13 @@ static irqreturn_t cs47l96_dsp1ao_irq0(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t cs47l96_ao_mpu_fault_irq(int irq, void *data)
+{
+	struct wm_adsp *dsp = data;
+
+	return wm_halo_bus_error(dsp);
+}
+
 static const struct snd_kcontrol_new cs47l96_ao_dsp1ao_rate_controls[] = {
 	SOC_ENUM_EXT("DSP1AORX1 Rate", tacna_dsp1_rx_rate_enum[0],
 		     tacna_dsp_rate_get, tacna_dsp_rate_put),
@@ -883,6 +890,14 @@ static int cs47l96_ao_probe(struct platform_device *pdev)
 		goto error_dsp1ao_irq;
 	}
 
+	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP2_MPU_ERR,
+				"DSP1AO MPU", cs47l96_ao_mpu_fault_irq,
+				&cs47l96_ao->core.dsp[0]);
+	if (ret) {
+		dev_warn(&pdev->dev, "Failed to get DSP1AO MPU IRQ: %d\n", ret);
+		goto error_mpu_irq;
+	}
+
 	dsp = &cs47l96_ao->core.dsp[0];
 	dsp->part = "cs47l96_ao";
 	dsp->num = 1;
@@ -938,6 +953,8 @@ error_plat:
 error_dsp:
 	wm_adsp2_remove(&cs47l96_ao->core.dsp[0]);
 error_core:
+	tacna_free_irq(tacna, TACNA_IRQ_DSP2_MPU_ERR, cs47l96_ao);
+error_mpu_irq:
 	tacna_free_irq(tacna, TACNA_IRQ_DSP2_IRQ0, cs47l96_ao);
 error_dsp1ao_irq:
 	tacna_core_destroy(&cs47l96_ao->core);
@@ -954,6 +971,7 @@ static int cs47l96_ao_remove(struct platform_device *pdev)
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
+	tacna_free_irq(tacna, TACNA_IRQ_DSP2_MPU_ERR, cs47l96_ao);
 	tacna_free_irq(tacna, TACNA_IRQ_DSP2_IRQ0, cs47l96_ao);
 
 	wm_adsp2_remove(&cs47l96_ao->core.dsp[0]);
