@@ -396,12 +396,6 @@ static const char * const cs47l96_dop_width_texts[] = {
 static SOC_ENUM_SINGLE_DECL(cs47l96_dop_width_enum, TACNA_DOP1_CONTROL1,
 			    TACNA_DOP1_WIDTH_SHIFT, cs47l96_dop_width_texts);
 
-static const char * const tacna_ao_rate_text[] = {
-	"Sample Rate 1 AO",
-	"Sample Rate 2 AO",
-	"Sample Rate 3 AO",
-};
-
 static const struct soc_enum tacna_aobridge1_rate[] = {
 	SOC_ENUM_SINGLE(TACNA_AOBRIDGE1_CH1_CTRL,
 			TACNA_AOBRIDGE1_IN1_RATE_SHIFT,
