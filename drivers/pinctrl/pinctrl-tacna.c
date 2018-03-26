@@ -592,8 +592,7 @@ static unsigned int tacna_pin_make_drv_str(struct tacna_pin_private *priv,
 	return 0;
 }
 
-static unsigned int tacna_pin_unmake_drv_str(struct tacna_pin_private *priv,
-					     unsigned int regval)
+static unsigned int tacna_pin_unmake_drv_str(unsigned int regval)
 {
 	regval = (regval & TACNA_GP1_DRV_STR_MASK) >> TACNA_GP1_DRV_STR_SHIFT;
 
@@ -717,7 +716,7 @@ static void tacna_pin_dbg_show(struct pinctrl_dev *pctldev,
 	else
 		seq_puts(s, " CMOS");
 
-	seq_printf(s, " DRV=%umA", tacna_pin_unmake_drv_str(priv, conf));
+	seq_printf(s, " DRV=%umA", tacna_pin_unmake_drv_str(conf));
 }
 
 
@@ -879,7 +878,7 @@ static int tacna_pin_conf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			result = 1;
 		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
-		result = tacna_pin_unmake_drv_str(priv, conf);
+		result = tacna_pin_unmake_drv_str(conf);
 		break;
 	case PIN_CONFIG_INPUT_DEBOUNCE:
 		dev_dbg(priv->dev,
