@@ -340,6 +340,16 @@ static const struct snd_kcontrol_new cs47l96_out1_demux =
 	SOC_DAPM_ENUM_EXT("OUT1 Demux", cs47l96_out1_demux_enum,
 			snd_soc_dapm_get_enum_double, tacna_put_out1_demux);
 
+static const char * const cs47l96_out5_mux_texts[] = {
+	"OUT5", "OUT1",
+};
+static SOC_ENUM_SINGLE_DECL(cs47l96_out5_mux_enum,
+			    TACNA_OUT5L_CONTROL_1, TACNA_OUT5_OUT1_SEL_SHIFT,
+			    cs47l96_out5_mux_texts);
+
+static const struct snd_kcontrol_new cs47l96_out5_mux =
+	SOC_DAPM_ENUM("OUT5 Source", cs47l96_out5_mux_enum);
+
 static const struct soc_enum cs47l96_outh_rate =
 	SOC_VALUE_ENUM_SINGLE(TACNA_OUTH_CONFIG_1,
 			      TACNA_OUTH_RATE_SHIFT,
@@ -1413,10 +1423,8 @@ SND_SOC_DAPM_PGA_E("OUT1R PGA", SND_SOC_NOPM,
 		   TACNA_OUT1R_EN_SHIFT, 0, NULL, 0, cs47l96_out_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA("OUT5L PGA", TACNA_OUTPUT_ENABLE_1,
-		   TACNA_OUT5L_EN_SHIFT, 0, NULL, 0),
-SND_SOC_DAPM_PGA("OUT5R PGA", TACNA_OUTPUT_ENABLE_1,
-		   TACNA_OUT5R_EN_SHIFT, 0, NULL, 0),
+SND_SOC_DAPM_PGA("OUT5L PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("OUT5R PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
 SND_SOC_DAPM_PGA("OUTAUX1L PGA", TACNA_OUTAUX1L_ENABLE_1,
 		 TACNA_OUTAUX1L_EN_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_PGA("OUTAUX1R PGA", TACNA_OUTAUX1R_ENABLE_1,
@@ -1440,6 +1448,12 @@ SND_SOC_DAPM_MUX("OUT1L Output Select", SND_SOC_NOPM, 0, 0,
 		 &cs47l96_output_select),
 SND_SOC_DAPM_MUX("OUT1R Output Select", SND_SOC_NOPM, 0, 0,
 		 &cs47l96_output_select),
+
+SND_SOC_DAPM_MUX("OUT5L Source", TACNA_OUTPUT_ENABLE_1, TACNA_OUT5L_EN_SHIFT,
+		 0, &cs47l96_out5_mux),
+SND_SOC_DAPM_MUX("OUT5R Source", TACNA_OUTPUT_ENABLE_1, TACNA_OUT5R_EN_SHIFT,
+		 0, &cs47l96_out5_mux),
+
 SND_SOC_DAPM_MUX_E("OUTH Output Select", SND_SOC_NOPM, 0, 0,
 		   &cs47l96_output_select, cs47l96_outh_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
@@ -2296,10 +2310,18 @@ static const struct snd_soc_dapm_route cs47l96_dapm_routes[] = {
 	{ "AEC1 Loopback", "OUT5R", "OUT5R PGA" },
 	{ "AEC2 Loopback", "OUT5L", "OUT5L PGA" },
 	{ "AEC2 Loopback", "OUT5R", "OUT5R PGA" },
-	{ "OUT5_PDMCLK", NULL, "OUT5L PGA" },
-	{ "OUT5_PDMDATA", NULL, "OUT5L PGA" },
-	{ "OUT5_PDMCLK", NULL, "OUT5R PGA" },
-	{ "OUT5_PDMDATA", NULL, "OUT5R PGA" },
+	{ "OUT5L Source", "OUT5", "OUT5L PGA" },
+	{ "OUT5R Source", "OUT5", "OUT5R PGA" },
+	/*
+	 * OUT1 source comes from the output select widget so we don't power-up
+	 * OUT1 path when OUTH is selected
+	 */
+	{ "OUT5L Source", "OUT1", "OUT1L Output Select" },
+	{ "OUT5R Source", "OUT1", "OUT1R Output Select" },
+	{ "OUT5_PDMCLK", NULL, "OUT5L Source" },
+	{ "OUT5_PDMDATA", NULL, "OUT5L Source" },
+	{ "OUT5_PDMCLK", NULL, "OUT5R Source" },
+	{ "OUT5_PDMDATA", NULL, "OUT5R Source" },
 
 	{ "DSD Processor Source", "DoP", "OUTH PCM" },
 	{ "DSD Processor", "Switch", "DSD Processor Source" },
