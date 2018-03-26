@@ -133,6 +133,89 @@ static const struct snd_kcontrol_new cs48l32_auxpdm_inmux[] = {
 	SOC_DAPM_ENUM("AUXPDM2 Input", cs48l32_auxpdm2_in),
 };
 
+static const unsigned int cs48l32_us_freq_val[] = {
+	0x2, 0x3,
+};
+
+static const struct soc_enum cs48l32_us_freq[] = {
+	SOC_VALUE_ENUM_SINGLE(TACNA_US1_CONTROL,
+			      TACNA_US1_FREQ_SHIFT,
+			      TACNA_US1_FREQ_MASK >> TACNA_US1_FREQ_SHIFT,
+			      ARRAY_SIZE(cs48l32_us_freq_val),
+			      &tacna_us_freq_texts[2],
+			      cs48l32_us_freq_val),
+	SOC_VALUE_ENUM_SINGLE(TACNA_US2_CONTROL,
+			      TACNA_US2_FREQ_SHIFT,
+			      TACNA_US2_FREQ_MASK >> TACNA_US2_FREQ_SHIFT,
+			      ARRAY_SIZE(cs48l32_us_freq_val),
+			      &tacna_us_freq_texts[2],
+			      cs48l32_us_freq_val),
+};
+
+static const unsigned int cs48l32_us_in_val[] = {
+	0x0, 0x1, 0x2, 0x3,
+};
+
+static const struct soc_enum cs48l32_us_inmux_enum[] = {
+	SOC_VALUE_ENUM_SINGLE(TACNA_US1_CONTROL,
+			      TACNA_US1_SRC_SHIFT,
+			      TACNA_US1_SRC_MASK >> TACNA_US1_SRC_SHIFT,
+			      ARRAY_SIZE(cs48l32_us_in_val),
+			      tacna_us_in_texts,
+			      cs48l32_us_in_val),
+	SOC_VALUE_ENUM_SINGLE(TACNA_US2_CONTROL,
+			      TACNA_US2_SRC_SHIFT,
+			      TACNA_US2_SRC_MASK >> TACNA_US2_SRC_SHIFT,
+			      ARRAY_SIZE(cs48l32_us_in_val),
+			      tacna_us_in_texts,
+			      cs48l32_us_in_val),
+};
+
+static const struct snd_kcontrol_new cs48l32_us_inmux[2] = {
+	SOC_DAPM_ENUM("Ultrasonic 1 Input", cs48l32_us_inmux_enum[0]),
+	SOC_DAPM_ENUM("Ultrasonic 2 Input", cs48l32_us_inmux_enum[1]),
+};
+
+static const char * const cs48l32_us_det_lpf_cut_texts[] = {
+	"1722Hz",
+	"833Hz",
+	"408Hz",
+	"203Hz",
+};
+
+static const struct soc_enum cs48l32_us_det_lpf_cut[] = {
+	SOC_ENUM_SINGLE(TACNA_US1_DET_CONTROL,
+			TACNA_US1_DET_LPF_CUT_SHIFT,
+			ARRAY_SIZE(cs48l32_us_det_lpf_cut_texts),
+			cs48l32_us_det_lpf_cut_texts),
+	SOC_ENUM_SINGLE(TACNA_US2_DET_CONTROL,
+			TACNA_US2_DET_LPF_CUT_SHIFT,
+			ARRAY_SIZE(cs48l32_us_det_lpf_cut_texts),
+			cs48l32_us_det_lpf_cut_texts),
+};
+
+static const char * const cs48l32_us_det_dcy_texts[] = {
+	"0 ms",
+	"0.79 ms",
+	"1.58 ms",
+	"3.16 ms",
+	"6.33 ms",
+	"12.67 ms",
+	"25.34 ms",
+	"50.69 ms",
+};
+
+static const struct soc_enum cs48l32_us_det_dcy[] = {
+	SOC_ENUM_SINGLE(TACNA_US1_DET_CONTROL,
+			TACNA_US1_DET_DCY_SHIFT,
+			ARRAY_SIZE(cs48l32_us_det_dcy_texts),
+			cs48l32_us_det_dcy_texts),
+	SOC_ENUM_SINGLE(TACNA_US2_DET_CONTROL,
+			TACNA_US2_DET_DCY_SHIFT,
+			ARRAY_SIZE(cs48l32_us_det_dcy_texts),
+			cs48l32_us_det_dcy_texts),
+};
+
 static const struct snd_kcontrol_new cs48l32_snd_controls[] = {
 SOC_ENUM("IN1 OSR", tacna_in_dmic_osr[0]),
 SOC_ENUM("IN2 OSR", tacna_in_dmic_osr[1]),
@@ -171,6 +254,35 @@ SOC_ENUM("Input Ramp Up", tacna_in_vi_ramp),
 SOC_ENUM("Input Ramp Down", tacna_in_vd_ramp),
 
 SOC_ENUM("IN2 Swap Chan", tacna_in_swap_chan_ctrl[1]),
+
+TACNA_RATE_ENUM("Ultrasonic 1 Rate", tacna_us_output_rate[0]),
+TACNA_RATE_ENUM("Ultrasonic 2 Rate", tacna_us_output_rate[1]),
+
+SOC_ENUM("Ultrasonic 1 Freq", cs48l32_us_freq[0]),
+SOC_ENUM("Ultrasonic 2 Freq", cs48l32_us_freq[1]),
+
+SOC_ENUM("Ultrasonic 1 Gain", tacna_us_gain[0]),
+SOC_ENUM("Ultrasonic 2 Gain", tacna_us_gain[1]),
+
+SOC_ENUM("Ultrasonic 1 Activity Detect Threshold", tacna_us_det_thr[0]),
+SOC_ENUM("Ultrasonic 2 Activity Detect Threshold", tacna_us_det_thr[1]),
+
+SOC_ENUM("Ultrasonic 1 Activity Detect Pulse Length", tacna_us_det_num[0]),
+SOC_ENUM("Ultrasonic 2 Activity Detect Pulse Length", tacna_us_det_num[1]),
+
+SOC_ENUM("Ultrasonic 1 Activity Detect Hold", tacna_us_det_hold[0]),
+SOC_ENUM("Ultrasonic 2 Activity Detect Hold", tacna_us_det_hold[1]),
+
+SOC_ENUM("Ultrasonic 1 Activity Detect Decay", cs48l32_us_det_dcy[0]),
+SOC_ENUM("Ultrasonic 2 Activity Detect Decay", cs48l32_us_det_dcy[1]),
+
+SOC_SINGLE("Ultrasonic 1 Activity Detect LPF Switch",
+	   TACNA_US1_DET_CONTROL, TACNA_US1_DET_LPF_SHIFT, 1, 0),
+SOC_SINGLE("Ultrasonic 2 Activity Detect LPF Switch",
+	   TACNA_US2_DET_CONTROL, TACNA_US2_DET_LPF_SHIFT, 1, 0),
+
+SOC_ENUM("Ultrasonic 1 Activity Detect LPF Cut-off", cs48l32_us_det_lpf_cut[0]),
+SOC_ENUM("Ultrasonic 2 Activity Detect LPF Cut-off", cs48l32_us_det_lpf_cut[1]),
 
 TACNA_MIXER_CONTROLS("EQ1", TACNA_EQ1_INPUT1),
 TACNA_MIXER_CONTROLS("EQ2", TACNA_EQ2_INPUT1),
@@ -448,6 +560,11 @@ SND_SOC_DAPM_INPUT("IN1_PDMDATA"),
 SND_SOC_DAPM_INPUT("IN2_PDMCLK"),
 SND_SOC_DAPM_INPUT("IN2_PDMDATA"),
 
+SND_SOC_DAPM_MUX("Ultrasonic 1 Input", SND_SOC_NOPM,
+		 0, 0, &cs48l32_us_inmux[0]),
+SND_SOC_DAPM_MUX("Ultrasonic 2 Input", SND_SOC_NOPM,
+		 0, 0, &cs48l32_us_inmux[1]),
+
 SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
 
@@ -509,6 +626,11 @@ SND_SOC_DAPM_MUX("AUXPDM1 Analog Input", SND_SOC_NOPM, 0, 0,
 		 &tacna_auxpdm_inmux[0]),
 SND_SOC_DAPM_MUX("AUXPDM2 Analog Input", SND_SOC_NOPM, 0, 0,
 		 &tacna_auxpdm_inmux[1]),
+
+SND_SOC_DAPM_SWITCH("Ultrasonic 1 Activity Detect", TACNA_US_CONTROL,
+		    TACNA_US1_DET_EN_SHIFT, 0, &tacna_us_switch[0]),
+SND_SOC_DAPM_SWITCH("Ultrasonic 2 Activity Detect", TACNA_US_CONTROL,
+		    TACNA_US2_DET_EN_SHIFT, 0, &tacna_us_switch[1]),
 
 /* mux_in widgets : arranged in the order of sources
  * specified in TACNA_MIXER_INPUT_ROUTES
@@ -630,6 +752,11 @@ SND_SOC_DAPM_PGA("LHPF3", TACNA_LHPF_CONTROL1, TACNA_LHPF3_EN_SHIFT, 0,
 SND_SOC_DAPM_PGA("LHPF4", TACNA_LHPF_CONTROL1, TACNA_LHPF4_EN_SHIFT, 0,
 		 NULL, 0),
 
+SND_SOC_DAPM_PGA("Ultrasonic 1", TACNA_US_CONTROL,
+		 TACNA_US1_EN_SHIFT, 0, NULL, 0),
+SND_SOC_DAPM_PGA("Ultrasonic 2", TACNA_US_CONTROL,
+		 TACNA_US2_EN_SHIFT, 0, NULL, 0),
+
 WM_HALO("DSP1", 0, wm_halo_early_event),
 
 /* end of ordered widget list */
@@ -711,6 +838,8 @@ SND_SOC_DAPM_OUTPUT("AUXPDM2_CLK"),
 SND_SOC_DAPM_OUTPUT("AUXPDM2_DOUT"),
 
 SND_SOC_DAPM_OUTPUT("MICSUPP"),
+
+SND_SOC_DAPM_OUTPUT("Ultrasonic Dummy Output"),
 };
 
 #define TACNA_MIXER_INPUT_ROUTES(name) \
@@ -761,6 +890,8 @@ SND_SOC_DAPM_OUTPUT("MICSUPP"),
 	{ name, "LHPF2", "LHPF2" }, \
 	{ name, "LHPF3", "LHPF3" }, \
 	{ name, "LHPF4", "LHPF4" }, \
+	{ name, "Ultrasonic 1", "Ultrasonic 1" }, \
+	{ name, "Ultrasonic 2", "Ultrasonic 2" }, \
 	{ name, "DSP1.1", "DSP1" }, \
 	{ name, "DSP1.2", "DSP1" }, \
 	{ name, "DSP1.3", "DSP1" }, \
@@ -867,6 +998,24 @@ static const struct snd_soc_dapm_route cs48l32_dapm_routes[] = {
 	{ "IN2L PGA", NULL, "IN2_PDMDATA" },
 	{ "IN2R PGA", NULL, "IN2_PDMDATA" },
 
+	{ "Ultrasonic 1", NULL, "Ultrasonic 1 Input" },
+	{ "Ultrasonic 2", NULL, "Ultrasonic 2 Input" },
+
+	{ "Ultrasonic 1 Input", "IN1L", "IN1L PGA" },
+	{ "Ultrasonic 1 Input", "IN1R", "IN1R PGA" },
+	{ "Ultrasonic 1 Input", "IN2L", "IN2L PGA" },
+	{ "Ultrasonic 1 Input", "IN2R", "IN2R PGA" },
+
+	{ "Ultrasonic 2 Input", "IN1L", "IN1L PGA" },
+	{ "Ultrasonic 2 Input", "IN1R", "IN1R PGA" },
+	{ "Ultrasonic 2 Input", "IN2L", "IN2L PGA" },
+	{ "Ultrasonic 2 Input", "IN2R", "IN2R PGA" },
+
+	{ "Ultrasonic 1 Activity Detect", "Switch", "Ultrasonic 1 Input" },
+	{ "Ultrasonic 2 Activity Detect", "Switch", "Ultrasonic 2 Input" },
+
+	{ "Ultrasonic Dummy Output", NULL, "Ultrasonic 1 Activity Detect" },
+	{ "Ultrasonic Dummy Output", NULL, "Ultrasonic 2 Activity Detect" },
 
 	{ "IN1L PGA", NULL, "IN1L Swap Chan" },
 	{ "IN1R PGA", NULL, "IN1R Swap Chan" },
@@ -1226,6 +1375,25 @@ static int cs48l32_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = tacna_request_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE,
+				"Ultrasonic 1 activity",
+				 tacna_us1_activity, tacna);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "Failed to get Ultrasonic 1 IRQ: %d\n",
+			ret);
+		goto error_us1_irq;
+	}
+
+	ret = tacna_request_irq(tacna, TACNA_IRQ_US2_ACT_DET_RISE,
+				"Ultrasonic 2 activity",
+				 tacna_us2_activity, tacna);
+	if (ret != 0) {
+		tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, cs48l32);
+		dev_err(&pdev->dev, "Failed to get Ultrasonic 2 IRQ: %d\n",
+			ret);
+		goto error_us2_irq;
+	}
+
 	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP1_IRQ0,
 				"DSP1 Buffer IRQ", cs48l32_dsp1_irq,
 				cs48l32);
@@ -1300,6 +1468,10 @@ error_dsp:
 error_core:
 	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ0, cs48l32);
 error_dsp1_irq:
+	tacna_free_irq(tacna, TACNA_IRQ_US2_ACT_DET_RISE, cs48l32);
+error_us2_irq:
+	tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, cs48l32);
+error_us1_irq:
 	tacna_core_destroy(&cs48l32->core);
 
 	return ret;
@@ -1313,6 +1485,9 @@ static int cs48l32_remove(struct platform_device *pdev)
 	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, cs48l32);
+	tacna_free_irq(tacna, TACNA_IRQ_US2_ACT_DET_RISE, cs48l32);
 
 	tacna_free_irq(tacna, TACNA_IRQ_DSP1_MPU_ERR, &cs48l32->core.dsp[0]);
 
