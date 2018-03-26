@@ -114,6 +114,7 @@
 #define TACNA_ASYNC_RATE_ENUM_SIZE	2
 #define TACNA_RATE_ENUM_SIZE \
 		(TACNA_SYNC_RATE_ENUM_SIZE + TACNA_ASYNC_RATE_ENUM_SIZE)
+#define TACNA_AO_RATE_ENUM_SIZE		3
 #define TACNA_SAMPLE_RATE_ENUM_SIZE	17
 #define TACNA_DFC_TYPE_ENUM_SIZE	5
 #define TACNA_DFC_WIDTH_ENUM_SIZE	25
@@ -403,6 +404,8 @@ void tacna_spin_sysclk(struct tacna_priv *priv);
 
 extern const char * const tacna_rate_text[TACNA_RATE_ENUM_SIZE];
 extern const unsigned int tacna_rate_val[TACNA_RATE_ENUM_SIZE];
+extern const char * const tacna_ao_rate_text[TACNA_AO_RATE_ENUM_SIZE];
+extern const unsigned int tacna_ao_rate_val[TACNA_AO_RATE_ENUM_SIZE];
 int tacna_rate_put(struct snd_kcontrol *kcontrol,
 		   struct snd_ctl_elem_value *ucontrol);
 

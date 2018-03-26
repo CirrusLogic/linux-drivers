@@ -430,6 +430,18 @@ const unsigned int tacna_rate_val[TACNA_RATE_ENUM_SIZE] = {
 };
 EXPORT_SYMBOL_GPL(tacna_rate_val);
 
+const char * const tacna_ao_rate_text[TACNA_AO_RATE_ENUM_SIZE] = {
+	"AO Sample Rate 1",
+	"AO Sample Rate 2",
+	"AO Sample Rate 3",
+};
+EXPORT_SYMBOL_GPL(tacna_ao_rate_text);
+
+const unsigned int tacna_ao_rate_val[TACNA_AO_RATE_ENUM_SIZE] = {
+	0x0, 0x1, 0x2,
+};
+EXPORT_SYMBOL_GPL(tacna_ao_rate_val);
+
 static bool tacna_rate_val_is_sync(unsigned int val)
 {
 	return (val < 0x8);
