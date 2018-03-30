@@ -15,6 +15,23 @@
 
 #include "tacna.h"
 
+static const struct reg_sequence cs48l32_reva_patch[] = {
+	{ 0x00001c34, 0x000037e8 },
+};
+
+int cs48l32_patch(struct tacna *tacna)
+{
+	int ret;
+
+	ret = regmap_register_patch(tacna->regmap, cs48l32_reva_patch,
+				    ARRAY_SIZE(cs48l32_reva_patch));
+	if (ret < 0)
+		dev_err(tacna->dev, "Error applying patch: %d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cs48l32_patch);
+
 static const struct reg_default cs48l32_reg_default[] = {
 	{ 0x00000c08, 0xe1000001 }, /* GPIO1_CTRL1 */
 	{ 0x00000c0c, 0xe1000001 }, /* GPIO2_CTRL1 */
