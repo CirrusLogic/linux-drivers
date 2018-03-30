@@ -231,9 +231,6 @@ static int madera_wait_for_boot(struct madera *madera)
 	regmap_write(madera->regmap, MADERA_IRQ1_STATUS_1,
 		     MADERA_BOOT_DONE_EINT1);
 
-	if (ret)
-		dev_err(madera->dev, "Polling BOOT_DONE_STS failed: %d\n", ret);
-
 	pm_runtime_mark_last_busy(madera->dev);
 
 	return ret;
