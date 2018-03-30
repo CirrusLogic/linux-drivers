@@ -47,6 +47,7 @@
 #define TACNA_FLLHJ_INT_MIN_N			1
 #define TACNA_FLLHJ_FRAC_MAX_N			255
 #define TACNA_FLLHJ_FRAC_MIN_N			4
+#define TACNA_FLLHJ_LP_INT_MODE_THRESH		100000
 #define TACNA_FLLHJ_LOW_THRESH			192000
 #define TACNA_FLLHJ_MID_THRESH			1152000
 #define TACNA_FLLHJ_MAX_THRESH			13000000
@@ -2841,7 +2842,18 @@ static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 		min_n = TACNA_FLLHJ_FRAC_MIN_N;
 		max_n = TACNA_FLLHJ_FRAC_MAX_N;
 	} else {
-		hp = 0x1;
+		switch (tacna->type) {
+		case CS48L32:
+			/* In integer mode, HP depends on fin */
+			if (fref < TACNA_FLLHJ_LP_INT_MODE_THRESH)
+				hp = 0x0;
+			else
+				hp = 0x1;
+			break;
+		default:
+			hp = 0x1;
+			break;
+		}
 		ord2 = 0;
 		min_n = TACNA_FLLHJ_INT_MIN_N;
 		max_n = TACNA_FLLHJ_INT_MAX_N;
