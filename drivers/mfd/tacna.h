@@ -36,5 +36,6 @@ int cs47l94_patch(struct tacna *tacna);
 int cs47l96_init_spi_regmap(struct spi_device *spi, struct tacna *tacna);
 int cs47l96_patch(struct tacna *tacna);
 int cs48l32_init_spi_regmap(struct spi_device *spi, struct tacna *tacna);
+int cs48l32_patch(struct tacna *tacna);
 
 #endif

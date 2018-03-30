@@ -777,7 +777,7 @@ int tacna_dev_init(struct tacna *tacna)
 		if (IS_ENABLED(CONFIG_MFD_CS48L32)) {
 			switch (tacna->type) {
 			case CS48L32:
-				patch_fn = NULL;
+				patch_fn = cs48l32_patch;
 				mfd_devs = cs48l32_devs;
 				n_devs = ARRAY_SIZE(cs48l32_devs);
 				break;
