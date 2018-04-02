@@ -35,6 +35,7 @@
 #define CS47L96_SILICON_ID	0x47a97
 #define CS48L32_SILICON_ID	0x48a32
 
+#define TACNA_32K_MCLK1		0
 #define TACNA_32K_MCLK2		1
 
 #define TACNA_SEEN_BOOT_DONE	0x1
@@ -571,6 +572,7 @@ int tacna_dev_init(struct tacna *tacna)
 	struct device *dev = tacna->dev;
 	const char *name;
 	unsigned int hwid, reg;
+	unsigned int mclk_src;
 	int (*patch_fn)(struct tacna *) = NULL;
 	const struct mfd_cell *mfd_devs;
 	struct pinctrl *pinctrl;
@@ -836,11 +838,18 @@ int tacna_dev_init(struct tacna *tacna)
 	if (ret)
 		goto err_reset;
 
-	/* Init 32k clock sourced from MCLK2 */
+	switch (tacna->type) {
+	case CS48L32:
+		mclk_src = TACNA_32K_MCLK1;
+		break;
+	default:
+		mclk_src = TACNA_32K_MCLK2;
+		break;
+	}
 	ret = regmap_update_bits(tacna->regmap,
 			TACNA_CLOCK32K,
 			TACNA_CLK_32K_EN_MASK | TACNA_CLK_32K_SRC_MASK,
-			TACNA_CLK_32K_EN | TACNA_32K_MCLK2);
+			TACNA_CLK_32K_EN | mclk_src);
 	if (ret) {
 		dev_err(tacna->dev, "Failed to init 32k clock: %d\n", ret);
 		goto err_reset;
