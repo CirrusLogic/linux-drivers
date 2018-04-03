@@ -436,8 +436,8 @@ config DW_XDATA_PCIE
 
 	  If unsure, say N.
 
-config HAPTICS_CS40L20
-	tristate "Cirrus Logic CS40L20 haptics driver"
+config HAPTICS_CS40L2X
+	tristate "Cirrus Logic CS40L20/CS40L25/CS40L25A/CS40L25B haptics driver"
 	depends on I2C && SYSFS && NEW_LEDS
 	help
 	  Boosted Haptics Driver with Integrated DSP and Waveform Memory
