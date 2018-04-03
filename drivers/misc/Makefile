@@ -3,7 +3,7 @@
 # Makefile for misc devices that really don't fit anywhere else.
 #
 
-haptics-cs40l20-objs := cs40l20.o cs40l20-tables.o
+haptics-cs40l2x-objs := cs40l2x.o cs40l2x-tables.o
 
 obj-$(CONFIG_IBM_ASM)		+= ibmasm/
 obj-$(CONFIG_AD525X_DPOT)	+= ad525x_dpot.o
@@ -55,7 +55,7 @@ obj-$(CONFIG_GENWQE)		+= genwqe/
 obj-$(CONFIG_ECHO)		+= echo/
 obj-$(CONFIG_VEXPRESS_SYSCFG)	+= vexpress-syscfg.o
 obj-$(CONFIG_CXL_BASE)		+= cxl/
-obj-$(CONFIG_HAPTICS_CS40L20)	+= haptics-cs40l20.o
+obj-$(CONFIG_HAPTICS_CS40L2X)	+= haptics-cs40l2x.o
 obj-$(CONFIG_ASPEED_LPC_CTRL)	+= aspeed-lpc-ctrl.o
 obj-$(CONFIG_ASPEED_LPC_SNOOP)	+= aspeed-lpc-snoop.o
 obj-$(CONFIG_PCI_ENDPOINT_TEST)	+= pci_endpoint_test.o
