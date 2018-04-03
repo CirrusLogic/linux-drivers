@@ -6,6 +6,7 @@ config MFD_CLSIC
 	select REGMAP
 	select REGMAP_IRQ
 	select MFD_CORE
+	select IRQ_SIM
 	tristate
 
 config MFD_CLSIC_SPI

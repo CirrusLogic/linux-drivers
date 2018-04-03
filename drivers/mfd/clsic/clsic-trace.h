@@ -1,7 +1,7 @@
 /*
  * clsic-trace.h -- CLSIC tracepoints header file
  *
- * Copyright (C) 2015-2018 Cirrus Logic, Inc. and
+ * Copyright (C) 2015-2019 Cirrus Logic, Inc. and
  *			   Cirrus Logic International Semiconductor Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -376,6 +376,49 @@ TRACE_EVENT(clsic_ras_fastwrite,
 			__entry->value,
 			__entry->ret,
 			__entry->counter
+			)
+);
+
+TRACE_EVENT(clsic_ras_irq_change,
+	TP_PROTO(uint32_t irq_id, uint32_t mode, uint32_t state, int ret,
+		 uint8_t err),
+	TP_ARGS(irq_id, mode, state, ret, err),
+	TP_STRUCT__entry(
+			__field(uint32_t, irq_id)
+			__field(uint32_t, mode)
+			__field(uint32_t, state)
+			__field(int, ret)
+			__field(uint8_t, err)
+			),
+	TP_fast_assign(
+			__entry->irq_id = irq_id;
+			__entry->mode = mode;
+			__entry->state = state;
+			__entry->ret = ret;
+			__entry->err = err;
+		),
+	TP_printk(
+			"  id: %d mode: %d state: %d ret: %d (err: %d)",
+			__entry->irq_id,
+			__entry->mode,
+			__entry->state,
+			__entry->ret,
+			__entry->err
+			)
+);
+
+TRACE_EVENT(clsic_ras_irq_event,
+	TP_PROTO(uint32_t irq_id),
+	TP_ARGS(irq_id),
+	TP_STRUCT__entry(
+			__field(uint32_t, irq_id)
+			),
+	TP_fast_assign(
+			__entry->irq_id = irq_id;
+		),
+	TP_printk(
+			"  id: %d",
+			__entry->irq_id
 			)
 );
 

@@ -1,7 +1,7 @@
 /*
  * clsic-tacna.c -- Core MFD support for codec aspect of CLSIC devices
  *
- * Copyright (C) 2015-2018 Cirrus Logic, Inc. and
+ * Copyright (C) 2015-2019 Cirrus Logic, Inc. and
  *			   Cirrus Logic International Semiconductor Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -71,6 +71,13 @@ static int clsic_tacna_probe(struct platform_device *pdev)
 	 */
 	if (clsic->devid == CLSIC_SUPPORTED_ID_EMULATED_CODEC)
 		return -EIO;
+
+	/*
+	 * The RAS structure cannot be destroyed whilst the codec MFD child is
+	 * loaded and it requires the platform data to not be the clone.
+	 */
+	ras = clsic->service_handlers[ras->service->service_instance]->data;
+	pdev->dev.platform_data = ras;
 
 	tacna = devm_kzalloc(&pdev->dev, sizeof(struct tacna), GFP_KERNEL);
 	if (!tacna)
