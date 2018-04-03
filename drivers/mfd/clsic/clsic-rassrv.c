@@ -1,7 +1,7 @@
 /*
  * clsic-rassrv.c -- CLSIC Register Access Service
  *
- * Copyright (C) 2015-2018 Cirrus Logic, Inc. and
+ * Copyright (C) 2015-2019 Cirrus Logic, Inc. and
  *			   Cirrus Logic International Semiconductor Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -123,8 +123,11 @@ static int clsic_ras_simple_readregister(struct clsic_ras_struct *ras,
 			   CLSIC_RAS_MSG_CR_RDREG);
 	msg_cmd.cmd_rdreg.addr = address;
 
-	/* Clear err to avoid confusion as it is always included in the trace */
-	msg_rsp.rsp_wrreg.hdr.err = 0;
+	/*
+	 * Fully clear the response message as it can be logged if the command
+	 * fails to send properly and it can be misleading.
+	 */
+	memset(&msg_rsp, 0, CLSIC_FIXED_MSG_SZ);
 
 	ret = clsic_send_msg_sync(clsic,
 				  (union t_clsic_generic_message *) &msg_cmd,
@@ -262,8 +265,11 @@ static int clsic_ras_simple_writeregister(struct clsic_ras_struct *ras,
 	msg_cmd.cmd_wrreg.addr = address;
 	msg_cmd.cmd_wrreg.value = value;
 
-	/* Clear err to avoid confusion as it is always included in the trace */
-	msg_rsp.rsp_wrreg.hdr.err = 0;
+	/*
+	 * Fully clear the response message as it can be logged if the command
+	 * fails to send properly and it can be misleading.
+	 */
+	memset(&msg_rsp, 0, CLSIC_FIXED_MSG_SZ);
 
 	ret = clsic_send_msg_sync(clsic,
 				  (union t_clsic_generic_message *) &msg_cmd,
@@ -354,6 +360,12 @@ static int clsic_ras_read(void *context, const void *reg_buf,
 		frag_sz = min(val_size - i, (size_t) CLSIC_RAS_MAX_BULK_SZ);
 		msg_cmd.cmd_rdreg_bulk.addr = reg + i;
 		msg_cmd.cmd_rdreg_bulk.byte_count = frag_sz;
+
+		/*
+		 * Fully clear the response message as it can be logged if the
+		 * command fails to send properly and it can be misleading.
+		 */
+		memset(&msg_rsp, 0, CLSIC_FIXED_MSG_SZ);
 
 		ret = clsic_send_msg_sync(
 				    clsic,
@@ -453,10 +465,10 @@ static int clsic_ras_write(void *context, const void *val_buf,
 		msg_cmd.blkcmd_wrreg_bulk.hdr.bulk_sz = frag_sz;
 
 		/*
-		 * Clear err to avoid confusion as it is always included in the
-		 * trace
+		 * Fully clear the response message as it can be logged if the
+		 * command fails to send properly and it can be misleading.
 		 */
-		msg_rsp.rsp_wrreg.hdr.err = 0;
+		memset(&msg_rsp, 0, CLSIC_FIXED_MSG_SZ);
 
 		ret = clsic_send_msg_sync(
 				    clsic,
@@ -582,6 +594,7 @@ static int clsic_ras_nty_handler(struct clsic *clsic,
 				 struct clsic_service *handler,
 				 struct clsic_message *msg)
 {
+	struct clsic_ras_struct *ras = handler->data;
 	union clsic_ras_msg *nty_msg = (union clsic_ras_msg *)msg;
 	int ret = CLSIC_UNHANDLED;
 
@@ -591,6 +604,10 @@ static int clsic_ras_nty_handler(struct clsic *clsic,
 			  nty_msg->nty_err_fast_write.err,
 			  nty_msg->nty_err_fast_write.reg_addr,
 			  nty_msg->nty_err_fast_write.reg_val);
+		ret = CLSIC_HANDLED;
+		break;
+	case CLSIC_RAS_MSG_N_IRQ:
+		clsic_ras_irq_handler(clsic, ras, nty_msg);
 		ret = CLSIC_HANDLED;
 		break;
 	default:
@@ -623,6 +640,8 @@ static int clsic_ras_pm_handler(struct clsic_service *handler, int pm_event)
 
 		regcache_cache_only(ras->regmap, true);
 		regcache_mark_dirty(ras->regmap);
+
+		clsic_ras_irq_suspend(ras);
 		break;
 
 	case PM_EVENT_RESUME:
@@ -633,6 +652,8 @@ static int clsic_ras_pm_handler(struct clsic_service *handler, int pm_event)
 
 		regcache_cache_only(ras->regmap, false);
 		ret = regcache_sync(ras->regmap);
+
+		clsic_ras_irq_resume(ras);
 		break;
 
 	default:
@@ -686,7 +707,6 @@ int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler)
 	if (ras == NULL)
 		return -ENOMEM;
 
-
 	handler->supports_debuginfo = true;
 	handler->stop = &clsic_ras_stop;
 
@@ -709,6 +729,10 @@ int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler)
 				       &regmap_config_ras);
 	if (IS_ERR(ras->regmap))
 		return PTR_ERR(ras->regmap);
+
+	ret = clsic_ras_irq_init(ras);
+	if (ret != 0)
+		return ret;
 
 	/* DSP1 is always not accessible so setup a regmap for just DSP2 */
 	ras->regmap_dsp[0] = NULL;

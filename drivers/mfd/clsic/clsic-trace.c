@@ -1,7 +1,7 @@
 /*
  * clsic-trace.c -- CLSIC tracepoints
  *
- * Copyright (C) 2015-2018 Cirrus Logic, Inc. and
+ * Copyright (C) 2015-2019 Cirrus Logic, Inc. and
  *			   Cirrus Logic International Semiconductor Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -28,6 +28,8 @@ EXPORT_TRACEPOINT_SYMBOL(clsic_ras_bulkwrite);
 EXPORT_TRACEPOINT_SYMBOL(clsic_ras_bulkread);
 EXPORT_TRACEPOINT_SYMBOL(clsic_ras_pm_handler);
 EXPORT_TRACEPOINT_SYMBOL(clsic_ras_fastwrite);
+EXPORT_TRACEPOINT_SYMBOL(clsic_ras_irq_change);
+EXPORT_TRACEPOINT_SYMBOL(clsic_ras_irq_event);
 EXPORT_TRACEPOINT_SYMBOL(clsic_pm);
 EXPORT_TRACEPOINT_SYMBOL(clsic_msgproc_shutdown_schedule);
 EXPORT_TRACEPOINT_SYMBOL(clsic_msgproc_shutdown_cancel);
