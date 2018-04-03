@@ -3757,6 +3757,9 @@ int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 	char preload[32];
 	int ret;
 
+	if (!dsp->suffix)
+		dsp->suffix = "";
+
 	snprintf(preload, ARRAY_SIZE(preload), "DSP%d%s Preload", dsp->num,
 		 dsp->suffix);
 	snd_soc_dapm_disable_pin(dapm, preload);
