@@ -1712,6 +1712,15 @@ static int cs40l20_handle_of_data(struct i2c_client *i2c_client,
 	return 0;
 }
 
+static const struct reg_sequence cs40l20_rev_a0_errata[] = {
+	{CS40L20_OTP_TRIM_30,		0x9091A1C8},
+	{CS40L20_PLL_MISC_CTRL,		0x0200EE0E},
+	{CS40L20_BSTCVRT_DCM_CTRL,	0x00000051},
+	{CS40L20_CTRL_ASYNC1,		0x00000004},
+	{CS40L20_IRQ1_DB3,		0x00000000},
+	{CS40L20_IRQ2_DB3,		0x00000000},
+};
+
 static struct regmap_config cs40l20_regmap = {
 	.reg_bits = 32,
 	.val_bits = 32,
@@ -1816,6 +1825,21 @@ static int cs40l20_i2c_probe(struct i2c_client *i2c_client,
 	ret = regmap_read(cs40l20->regmap, CS40L20_REVID, &reg_revid);
 	if (ret) {
 		dev_err(dev, "Failed to read revision ID\n");
+		goto err;
+	}
+
+	if (reg_revid != CS40L20_REVID_A0) {
+		dev_err(dev, "Failed to recognize revision ID: %02X\n",
+				reg_revid);
+		ret = -ENODEV;
+		goto err;
+	}
+
+	ret = regmap_register_patch(cs40l20->regmap, cs40l20_rev_a0_errata,
+			ARRAY_SIZE(cs40l20_rev_a0_errata));
+	if (ret) {
+		dev_err(dev, "Failed to apply revision %02X errata\n",
+				reg_revid);
 		goto err;
 	}
 
