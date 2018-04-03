@@ -3432,7 +3432,7 @@ static int madera_hw_params(struct snd_pcm_substream *substream,
 			madera->pdata.codec.max_channels_clocked[dai->id - 1];
 	int tdm_width = priv->tdm_width[dai->id - 1];
 	int tdm_slots = priv->tdm_slots[dai->id - 1];
-	int bclk, lrclk, wl, frame, bclk_target, num_rates;
+	int bclk, lrclk, dataw, slotw, frame, bclk_target, num_rates;
 	bool reconfig;
 	unsigned int aif_tx_state = 0, aif_rx_state = 0;
 
@@ -3444,17 +3444,17 @@ static int madera_hw_params(struct snd_pcm_substream *substream,
 		num_rates = ARRAY_SIZE(madera_48k_bclk_rates);
 	}
 
-	wl = snd_pcm_format_width(params_format(params));
+	dataw = snd_pcm_format_width(params_format(params));
+	slotw = snd_pcm_format_physical_width(params_format(params));
 
 	if (tdm_slots) {
 		madera_aif_dbg(dai, "Configuring for %d %d bit TDM slots\n",
 				tdm_slots, tdm_width);
-		bclk_target = tdm_slots * tdm_width * params_rate(params);
+		slotw = tdm_width;
 		channels = tdm_slots;
-	} else {
-		bclk_target = snd_soc_params_to_bclk(params);
-		tdm_width = wl;
 	}
+
+	bclk_target = slotw * channels * params_rate(params);
 
 	if (chan_limit && chan_limit < channels) {
 		madera_aif_dbg(dai, "Limiting to %d channels\n", chan_limit);
@@ -3490,7 +3490,7 @@ static int madera_hw_params(struct snd_pcm_substream *substream,
 	madera_aif_dbg(dai, "BCLK %dHz LRCLK %dHz\n",
 			rates[bclk], rates[bclk] / lrclk);
 
-	frame = wl << MADERA_AIF1TX_WL_SHIFT | tdm_width;
+	frame = dataw << MADERA_AIF1TX_WL_SHIFT | slotw;
 
 	reconfig = madera_aif_cfg_changed(codec, base, bclk, lrclk, frame);
 
