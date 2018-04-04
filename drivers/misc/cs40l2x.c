@@ -968,11 +968,34 @@ static void cs40l2x_dsp_start(struct cs40l2x_private *cs40l2x)
 	unsigned int val;
 	int dsp_timeout = CS40L2X_DSP_TIMEOUT_COUNT;
 
-	ret = regmap_update_bits(regmap, CS40L2X_DSP1_CCM_CORE_CTRL,
-			CS40L2X_DSP1_EN_MASK, 1 << CS40L2X_DSP1_EN_SHIFT);
-	if (ret) {
-		dev_err(dev, "Failed to enable DSP\n");
-		return;
+	switch (cs40l2x->revid) {
+	case CS40L2X_REVID_A0:
+		ret = regmap_update_bits(regmap, CS40L2X_DSP1_CCM_CORE_CTRL,
+				CS40L2X_DSP1_RESET_MASK |
+				CS40L2X_DSP1_EN_MASK,
+				(1 << CS40L2X_DSP1_RESET_SHIFT) |
+				(1 << CS40L2X_DSP1_EN_SHIFT));
+		if (ret) {
+			dev_err(dev, "Failed to start DSP\n");
+			return;
+		}
+		break;
+	default:
+		ret = regmap_update_bits(regmap, CS40L2X_PWRMGT_CTL,
+				CS40L2X_MEM_RDY_MASK,
+				1 << CS40L2X_MEM_RDY_SHIFT);
+		if (ret) {
+			dev_err(dev, "Failed to set memory ready flag\n");
+			return;
+		}
+
+		ret = regmap_update_bits(regmap, CS40L2X_DSP1_CCM_CORE_CTRL,
+				CS40L2X_DSP1_RESET_MASK,
+				1 << CS40L2X_DSP1_RESET_SHIFT);
+		if (ret) {
+			dev_err(dev, "Failed to restart DSP\n");
+			return;
+		}
 	}
 
 	while (dsp_timeout > 0) {
@@ -1445,6 +1468,38 @@ static const struct reg_sequence cs40l2x_mpu_config[] = {
 	{CS40L2X_DSP1_MPU_LOCK_CONFIG,	0x00000000}
 };
 
+static int cs40l2x_dsp_load(struct cs40l2x_private *cs40l2x)
+{
+	int ret;
+	unsigned int revid = cs40l2x->revid;
+	struct regmap *regmap = cs40l2x->regmap;
+	struct device *dev = cs40l2x->dev;
+
+	switch (revid) {
+	case CS40L2X_REVID_A0:
+	case CS40L2X_REVID_B0:
+		ret = regmap_multi_reg_write(regmap, cs40l2x_mpu_config,
+				ARRAY_SIZE(cs40l2x_mpu_config));
+		if (ret) {
+			dev_err(dev, "Failed to configure MPU\n");
+			return ret;
+		}
+
+		request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
+				CS40L2X_FW_NAME_A0, dev, GFP_KERNEL, cs40l2x,
+				cs40l2x_firmware_load);
+		return 0;
+	case CS40L2X_REVID_B1:
+		request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
+				CS40L2X_FW_NAME_B1, dev, GFP_KERNEL, cs40l2x,
+				cs40l2x_firmware_load);
+		return 0;
+	default:
+		dev_err(dev, "No firmware defined for revision %02X\n", revid);
+		return -EINVAL;
+	}
+}
+
 static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 {
 	int ret;
@@ -1516,24 +1571,7 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_DSP1_CCM_CORE_CTRL,
-			CS40L2X_DSP1_RESET_MASK, 1 << CS40L2X_DSP1_RESET_SHIFT);
-	if (ret) {
-		dev_err(dev, "Failed to reset DSP\n");
-		return ret;
-	}
-
-	ret = regmap_multi_reg_write(regmap, cs40l2x_mpu_config,
-			ARRAY_SIZE(cs40l2x_mpu_config));
-	if (ret) {
-		dev_err(dev, "Failed to configure MPU\n");
-		return ret;
-	}
-
 	INIT_LIST_HEAD(&cs40l2x->coeff_desc_head);
-
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_NOUEVENT, "cs40l20.wmfw",
-			dev, GFP_KERNEL, cs40l2x, cs40l2x_firmware_load);
 
 	return 0;
 }
@@ -1886,6 +1924,10 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 		goto err;
 
 	ret = cs40l2x_init(cs40l2x);
+	if (ret)
+		goto err;
+
+	ret = cs40l2x_dsp_load(cs40l2x);
 	if (ret)
 		goto err;
 
