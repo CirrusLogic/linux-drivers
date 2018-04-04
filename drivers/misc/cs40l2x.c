@@ -1506,13 +1506,9 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 	struct regmap *regmap = cs40l2x->regmap;
 	struct device *dev = cs40l2x->dev;
 
-	cs40l2x->cp_trigger_index = 0;
-	cs40l2x->cp_trailer_index = 0;
-	cs40l2x->vibe_init_success = false;
-	cs40l2x->diag_state = CS40L2X_DIAG_STATE_INIT;
-	cs40l2x->dig_scale = 0;
-
-	if (cs40l2x->pdata.refclk_gpio2) {
+	/* REFCLK configuration is handled by revision B1 ROM */
+	if (cs40l2x->pdata.refclk_gpio2 &&
+			(cs40l2x->revid < CS40L2X_REVID_B1)) {
 		ret = regmap_update_bits(regmap, CS40L2X_GPIO_PAD_CONTROL,
 				CS40L2X_GP2_CTRL_MASK,
 				CS40L2X_GP2_CTRL_MCLK
@@ -1570,8 +1566,6 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 		dev_err(dev, "Failed to enable device\n");
 		return ret;
 	}
-
-	INIT_LIST_HEAD(&cs40l2x->coeff_desc_head);
 
 	return 0;
 }
@@ -1863,6 +1857,8 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	i2c_set_clientdata(i2c_client, cs40l2x);
 
 	mutex_init(&cs40l2x->lock);
+
+	INIT_LIST_HEAD(&cs40l2x->coeff_desc_head);
 
 	cs40l2x->regmap = devm_regmap_init_i2c(i2c_client, &cs40l2x_regmap);
 	if (IS_ERR(cs40l2x->regmap)) {
