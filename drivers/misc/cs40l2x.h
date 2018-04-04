@@ -544,6 +544,9 @@
 #define CS40L2X_GP2_CTRL_SHIFT		24
 #define CS40L2X_GP2_CTRL_MCLK		0x3
 
+#define CS40L2X_MEM_RDY_MASK		0x00000002
+#define CS40L2X_MEM_RDY_SHIFT		1
+
 #define CS40L2X_PLL_REFCLK_SEL_MASK	0x00000007
 #define CS40L2X_PLL_REFCLK_SEL_SHIFT	0
 #define CS40L2X_PLL_REFCLK_SEL_MCLK	0x5
@@ -662,6 +665,9 @@
 #define CS40L2X_MAX_WLEN		4096
 
 #define CS40L2X_DEVICE_NAME		"vibrator"
+
+#define CS40L2X_FW_NAME_A0		"cs40l20.wmfw"
+#define CS40L2X_FW_NAME_B1		"cs40l25a.wmfw"
 
 bool cs40l2x_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l2x_precious_reg(struct device *dev, unsigned int reg);
