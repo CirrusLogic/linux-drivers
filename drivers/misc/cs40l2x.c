@@ -46,6 +46,8 @@ struct cs40l2x_private {
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[2];
 	unsigned int num_supplies;
+	unsigned int devid;
+	unsigned int revid;
 	struct work_struct vibe_start_work;
 	struct work_struct vibe_stop_work;
 	struct workqueue_struct *vibe_workqueue;
@@ -76,6 +78,13 @@ struct cs40l2x_private {
 static const char * const cs40l2x_supplies[] = {
 	"VA",
 	"VP",
+};
+
+static const char * const cs40l2x_part_nums[] = {
+	"CS40L20",
+	"CS40L25",
+	"CS40L25A",
+	"CS40L25B",
 };
 
 static struct cs40l2x_private *cs40l2x_get_private(struct device *dev)
@@ -1537,39 +1546,7 @@ static int cs40l2x_otp_unpack(struct cs40l2x_private *cs40l2x)
 	unsigned char row_offset, col_offset;
 	unsigned int val, otp_map;
 	unsigned int otp_mem[CS40L2X_NUM_OTP_WORDS];
-	int otp_timeout = CS40L2X_OTP_TIMEOUT_COUNT;
 	int ret, i;
-
-	while (otp_timeout > 0) {
-		usleep_range(10000, 10100);
-
-		ret = regmap_read(regmap, CS40L2X_IRQ1_STATUS4, &val);
-		if (ret) {
-			dev_err(dev, "Failed to read OTP boot status\n");
-			return ret;
-		}
-
-		if (val & CS40L2X_OTP_BOOT_DONE)
-			break;
-
-		otp_timeout--;
-	}
-
-	if (otp_timeout == 0) {
-		dev_err(dev, "Timed out waiting for OTP boot\n");
-		return -ETIME;
-	}
-
-	ret = regmap_read(cs40l2x->regmap, CS40L2X_IRQ1_STATUS3, &val);
-	if (ret) {
-		dev_err(dev, "Failed to read OTP error status\n");
-		return ret;
-	}
-
-	if (val & CS40L2X_OTP_BOOT_ERR) {
-		dev_err(dev, "Encountered fatal OTP error\n");
-		return -EIO;
-	}
 
 	ret = regmap_read(cs40l2x->regmap, CS40L2X_OTPID, &val);
 	if (ret) {
@@ -1721,6 +1698,104 @@ static const struct reg_sequence cs40l2x_rev_a0_errata[] = {
 	{CS40L2X_IRQ2_DB3,		0x00000000},
 };
 
+static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
+{
+	struct regmap *regmap = cs40l2x->regmap;
+	struct device *dev = cs40l2x->dev;
+	unsigned int val, devid, revid;
+	unsigned int part_num_index;
+	int otp_timeout = CS40L2X_OTP_TIMEOUT_COUNT;
+	int ret;
+
+	while (otp_timeout > 0) {
+		usleep_range(10000, 10100);
+
+		ret = regmap_read(regmap, CS40L2X_IRQ1_STATUS4, &val);
+		if (ret) {
+			dev_err(dev, "Failed to read OTP boot status\n");
+			return ret;
+		}
+
+		if (val & CS40L2X_OTP_BOOT_DONE)
+			break;
+
+		otp_timeout--;
+	}
+
+	if (otp_timeout == 0) {
+		dev_err(dev, "Timed out waiting for OTP boot\n");
+		return -ETIME;
+	}
+
+	ret = regmap_read(regmap, CS40L2X_IRQ1_STATUS3, &val);
+	if (ret) {
+		dev_err(dev, "Failed to read OTP error status\n");
+		return ret;
+	}
+
+	if (val & CS40L2X_OTP_BOOT_ERR) {
+		dev_err(dev, "Encountered fatal OTP error\n");
+		return -EIO;
+	}
+
+	ret = regmap_read(regmap, CS40L2X_DEVID, &devid);
+	if (ret) {
+		dev_err(dev, "Failed to read device ID\n");
+		return ret;
+	}
+
+	ret = regmap_read(regmap, CS40L2X_REVID, &revid);
+	if (ret) {
+		dev_err(dev, "Failed to read revision ID\n");
+		return ret;
+	}
+
+	switch (devid) {
+	case CS40L2X_DEVID_L20:
+		part_num_index = 0;
+		if (revid != CS40L2X_REVID_A0)
+			goto err_revid;
+
+		ret = regmap_register_patch(regmap, cs40l2x_rev_a0_errata,
+				ARRAY_SIZE(cs40l2x_rev_a0_errata));
+		if (ret) {
+			dev_err(dev, "Failed to apply revision %02X errata\n",
+					revid);
+			return ret;
+		}
+
+		ret = cs40l2x_otp_unpack(cs40l2x);
+		if (ret)
+			return ret;
+		break;
+	case CS40L2X_DEVID_L25:
+		part_num_index = 1;
+		if (revid != CS40L2X_REVID_B0)
+			goto err_revid;
+		break;
+	case CS40L2X_DEVID_L25A:
+	case CS40L2X_DEVID_L25B:
+		part_num_index = devid - CS40L2X_DEVID_L25A + 2;
+		if (revid < CS40L2X_REVID_B1)
+			goto err_revid;
+		break;
+	default:
+		dev_err(dev, "Unrecognized device ID: 0x%06X\n", devid);
+		return -ENODEV;
+	}
+
+	dev_info(dev, "Cirrus Logic %s revision %02X\n",
+			cs40l2x_part_nums[part_num_index], revid);
+	cs40l2x->devid = devid;
+	cs40l2x->revid = revid;
+
+	return 0;
+err_revid:
+	dev_err(dev, "Unexpected revision ID for %s: %02X\n",
+			cs40l2x_part_nums[part_num_index], revid);
+	return -ENODEV;
+}
+
 static struct regmap_config cs40l2x_regmap = {
 	.reg_bits = 32,
 	.val_bits = 32,
@@ -1743,7 +1818,6 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	struct cs40l2x_private *cs40l2x;
 	struct device *dev = &i2c_client->dev;
 	struct cs40l2x_platform_data *pdata = dev_get_platdata(dev);
-	unsigned int reg_devid, reg_revid;
 
 	cs40l2x = devm_kzalloc(dev, sizeof(struct cs40l2x_private), GFP_KERNEL);
 	if (!cs40l2x)
@@ -1810,44 +1884,9 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	/* satisfy control port delay specification (with margin) */
 	usleep_range(1000, 1100);
 
-	ret = regmap_read(cs40l2x->regmap, CS40L2X_DEVID, &reg_devid);
-	if (ret) {
-		dev_err(dev, "Failed to read device ID\n");
-		goto err;
-	}
-
-	if (reg_devid != CS40L2X_CHIP_ID) {
-		dev_err(dev, "Failed to recognize device ID: %X\n", reg_devid);
-		ret = -ENODEV;
-		goto err;
-	}
-
-	ret = regmap_read(cs40l2x->regmap, CS40L2X_REVID, &reg_revid);
-	if (ret) {
-		dev_err(dev, "Failed to read revision ID\n");
-		goto err;
-	}
-
-	if (reg_revid != CS40L2X_REVID_A0) {
-		dev_err(dev, "Failed to recognize revision ID: %02X\n",
-				reg_revid);
-		ret = -ENODEV;
-		goto err;
-	}
-
-	ret = regmap_register_patch(cs40l2x->regmap, cs40l2x_rev_a0_errata,
-			ARRAY_SIZE(cs40l2x_rev_a0_errata));
-	if (ret) {
-		dev_err(dev, "Failed to apply revision %02X errata\n",
-				reg_revid);
-		goto err;
-	}
-
-	ret = cs40l2x_otp_unpack(cs40l2x);
+	ret = cs40l2x_part_num_resolve(cs40l2x);
 	if (ret)
 		goto err;
-
-	dev_info(dev, "Cirrus Logic CS40L20 revision %02X\n", reg_revid);
 
 	ret = cs40l2x_init(cs40l2x);
 	if (ret)
