@@ -1803,12 +1803,9 @@ static struct regmap_config cs40l2x_regmap = {
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 	.max_register = CS40L2X_LASTREG,
-	.reg_defaults = cs40l2x_reg,
-	.num_reg_defaults = ARRAY_SIZE(cs40l2x_reg),
 	.precious_reg = cs40l2x_precious_reg,
-	.volatile_reg = cs40l2x_volatile_reg,
 	.readable_reg = cs40l2x_readable_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_NONE,
 };
 
 static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
