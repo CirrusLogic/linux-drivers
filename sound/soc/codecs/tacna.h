@@ -320,6 +320,7 @@ struct tacna_priv {
 
 	int num_inputs;
 	int max_analogue_inputs;
+	int max_pdm_sup;
 	int num_dmic_clksrc;
 
 	unsigned int in_up_pending;

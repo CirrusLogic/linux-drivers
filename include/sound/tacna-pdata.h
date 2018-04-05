@@ -27,6 +27,8 @@
  * @max_channels_clocked: Maximum number of channels that clocks will be
  *			  generated for, useful for systems where an I2S bus
  *			  with multiple data lines is mastered.
+ * @pdm_sup:		  Array of values for INx_DMIC_SUP field, where [0]=IN1,
+			  [1]=IN2.
  * @in_type:		  Type of input structures. One of the TACNA_IN_TYPE_xxx
  *			  values.
  *			  Two-dimensional array [input_number][channel number]
@@ -49,6 +51,7 @@
  */
 struct tacna_codec_pdata {
 	u32 max_channels_clocked[TACNA_MAX_ASP];
+	u32 pdm_sup[TACNA_MAX_INPUT];
 	u32 in_type[TACNA_MAX_INPUT][TACNA_MAX_MUXED_IN_CHANNELS];
 	bool out_mono[TACNA_MAX_OUTPUT];
 	u32 pdm_mute;
