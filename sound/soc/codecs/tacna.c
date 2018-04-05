@@ -4276,6 +4276,12 @@ static void tacna_prop_get_pdata(struct tacna_priv *priv)
 	device_property_read_u32(tacna->dev, "cirrus,pdm-mute",
 				 &pdata->pdm_mute);
 
+	tacna_get_variable_u32_array(priv,
+				     "cirrus,pdm-sup",
+				     pdata->pdm_sup,
+				     ARRAY_SIZE(pdata->pdm_sup),
+				     1);
+
 	memset(auxpdm_slave_mode, 0, sizeof(auxpdm_slave_mode));
 	device_property_read_u32_array(tacna->dev,
 				       "cirrus,auxpdm-slave-mode",
@@ -4299,7 +4305,7 @@ int tacna_init_inputs(struct snd_soc_codec *codec)
 {
 	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct tacna *tacna = priv->tacna;
-	unsigned int ana_mode_l, ana_mode_r;
+	unsigned int ana_mode_l, ana_mode_r, dig_mode;
 	int i;
 
 	/*
@@ -4354,6 +4360,18 @@ int tacna_init_inputs(struct snd_soc_codec *codec)
 				   TACNA_IN1R_CONTROL1 + (i * 0x40),
 				   TACNA_IN1R_SRC_MASK,
 				   ana_mode_r);
+	}
+
+	for (i = 0; i < priv->max_pdm_sup; i++) {
+		dig_mode = tacna->pdata.codec.pdm_sup[i] <<
+			   TACNA_IN1_PDM_SUP_SHIFT;
+
+		dev_dbg(priv->dev,
+			"IN%d PDM_SUP=0x%x\n", i + 1, dig_mode);
+
+		regmap_update_bits(tacna->regmap,
+				   TACNA_INPUT1_CONTROL1 + (i * 0x40),
+				   TACNA_IN1_PDM_SUP_MASK, dig_mode);
 	}
 
 	return 0;
