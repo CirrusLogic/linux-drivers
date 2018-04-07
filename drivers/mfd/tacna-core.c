@@ -662,7 +662,7 @@ int tacna_dev_init(struct tacna *tacna)
 	 * one of its children. Meaning that the regulator will be
 	 * destroyed by the time devres calls regulator put.
 	 */
-	tacna->vdd_d = regulator_get_exclusive(tacna->dev, "VDD_D");
+	tacna->vdd_d = regulator_get(tacna->dev, "VDD_D");
 	if (IS_ERR(tacna->vdd_d)) {
 		ret = PTR_ERR(tacna->vdd_d);
 		dev_err(dev, "Failed to request VDD_D: %d\n", ret);
