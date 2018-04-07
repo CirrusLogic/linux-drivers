@@ -641,9 +641,10 @@ static void tacna_extcon_enable_micbias_pin(struct tacna_extcon *info,
 {
 	struct tacna *tacna = info->tacna;
 	struct snd_soc_dapm_context *dapm = tacna->dapm;
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	int ret;
 
-	ret = snd_soc_dapm_force_enable_pin(dapm, widget);
+	ret = snd_soc_component_force_enable_pin(component, widget);
 	if (ret)
 		dev_warn(info->dev, "Failed to enable %s: %d\n", widget, ret);
 
@@ -657,9 +658,10 @@ static void tacna_extcon_disable_micbias_pin(struct tacna_extcon *info,
 {
 	struct tacna *tacna = info->tacna;
 	struct snd_soc_dapm_context *dapm = tacna->dapm;
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	int ret;
 
-	ret = snd_soc_dapm_disable_pin(dapm, widget);
+	ret = snd_soc_component_disable_pin(component, widget);
 	if (ret)
 		dev_warn(info->dev, "Failed to enable %s: %d\n", widget, ret);
 
