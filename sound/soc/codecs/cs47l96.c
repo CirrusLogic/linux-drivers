@@ -2635,6 +2635,8 @@ static irqreturn_t cs47l96_dsp1_irq(int irq, void *data)
 static int cs47l96_codec_probe(struct snd_soc_codec *codec)
 {
 	struct cs47l96 *cs47l96 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	struct tacna *tacna = cs47l96->core.tacna;
 	int ret;
 
@@ -2661,7 +2663,7 @@ static int cs47l96_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	snd_soc_dapm_disable_pin(tacna->dapm, "HAPTICS");
+	snd_soc_component_disable_pin(component, "HAPTICS");
 
 	ret = tacna_dsp_add_codec_controls(codec, CS47L96_NUM_DSP);
 	if (ret)
