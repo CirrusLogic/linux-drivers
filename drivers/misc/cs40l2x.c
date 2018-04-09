@@ -245,6 +245,100 @@ static ssize_t cs40l2x_gpio1_fall_index_store(struct device *dev,
 	return count;
 }
 
+static ssize_t cs40l2x_gpio1_fall_timeout_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+	unsigned int val;
+
+	mutex_lock(&cs40l2x->lock);
+	ret = regmap_read(cs40l2x->regmap,
+			cs40l2x_dsp_reg(cs40l2x, "PRESS_RELEASE_TIMEOUT",
+				CS40L2X_XM_UNPACKED_TYPE), &val);
+	mutex_unlock(&cs40l2x->lock);
+
+	if (ret) {
+		pr_err("Failed to read GPIO1 falling-edge timeout\n");
+		return ret;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+}
+
+static ssize_t cs40l2x_gpio1_fall_timeout_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+	unsigned int val;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	mutex_lock(&cs40l2x->lock);
+	ret = regmap_write(cs40l2x->regmap,
+			cs40l2x_dsp_reg(cs40l2x, "PRESS_RELEASE_TIMEOUT",
+				CS40L2X_XM_UNPACKED_TYPE), val);
+	mutex_unlock(&cs40l2x->lock);
+
+	if (ret) {
+		pr_err("Failed to write GPIO1 falling-edge timeout\n");
+		return ret;
+	}
+
+	return count;
+}
+
+static ssize_t cs40l2x_standby_timeout_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+	unsigned int val;
+
+	mutex_lock(&cs40l2x->lock);
+	ret = regmap_read(cs40l2x->regmap,
+			cs40l2x_dsp_reg(cs40l2x, "EVENT_TIMEOUT",
+				CS40L2X_XM_UNPACKED_TYPE), &val);
+	mutex_unlock(&cs40l2x->lock);
+
+	if (ret) {
+		pr_err("Failed to read standby timeout\n");
+		return ret;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+}
+
+static ssize_t cs40l2x_standby_timeout_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+	unsigned int val;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	mutex_lock(&cs40l2x->lock);
+	ret = regmap_write(cs40l2x->regmap,
+			cs40l2x_dsp_reg(cs40l2x, "EVENT_TIMEOUT",
+				CS40L2X_XM_UNPACKED_TYPE), val);
+	mutex_unlock(&cs40l2x->lock);
+
+	if (ret) {
+		pr_err("Failed to write standby timeout\n");
+		return ret;
+	}
+
+	return count;
+}
+
 static ssize_t cs40l2x_f0_measured_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -501,6 +595,10 @@ static DEVICE_ATTR(gpio1_rise_index, 0660, cs40l2x_gpio1_rise_index_show,
 		cs40l2x_gpio1_rise_index_store);
 static DEVICE_ATTR(gpio1_fall_index, 0660, cs40l2x_gpio1_fall_index_show,
 		cs40l2x_gpio1_fall_index_store);
+static DEVICE_ATTR(gpio1_fall_timeout, 0660, cs40l2x_gpio1_fall_timeout_show,
+		cs40l2x_gpio1_fall_timeout_store);
+static DEVICE_ATTR(standby_timeout, 0660, cs40l2x_standby_timeout_show,
+		cs40l2x_standby_timeout_store);
 static DEVICE_ATTR(f0_measured, 0660, cs40l2x_f0_measured_show, NULL);
 static DEVICE_ATTR(f0_stored, 0660, cs40l2x_f0_stored_show,
 		cs40l2x_f0_stored_store);
@@ -518,6 +616,8 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_cp_trigger_index.attr,
 	&dev_attr_gpio1_rise_index.attr,
 	&dev_attr_gpio1_fall_index.attr,
+	&dev_attr_gpio1_fall_timeout.attr,
+	&dev_attr_standby_timeout.attr,
 	&dev_attr_f0_measured.attr,
 	&dev_attr_f0_stored.attr,
 	&dev_attr_redc_measured.attr,
@@ -581,20 +681,15 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 	switch (cs40l2x->cp_trailer_index) {
 	case 0x0000:
 	case 0x8000 ... 0xFFFE:
-		ret = regmap_write(regmap,
-				cs40l2x_dsp_reg(cs40l2x, "TRIGGER_MS",
-					CS40L2X_XM_UNPACKED_TYPE),
-					cs40l2x->cp_trailer_index
-						& CS40L2X_INDEX_MASK);
+		ret = regmap_write(regmap, CS40L2X_MBOX_TRIGGER_MS,
+				cs40l2x->cp_trailer_index & CS40L2X_INDEX_MASK);
 		if (ret)
 			dev_err(dev, "Failed to start playback\n");
 		break;
 
 	case 0x0001 ... 0x7FFF:
-		ret = regmap_write(regmap,
-				cs40l2x_dsp_reg(cs40l2x, "TRIGGERINDEX",
-					CS40L2X_XM_UNPACKED_TYPE),
-					cs40l2x->cp_trailer_index);
+		ret = regmap_write(regmap, CS40L2X_MBOX_TRIGGERINDEX,
+				cs40l2x->cp_trailer_index);
 		if (ret)
 			dev_err(dev, "Failed to start playback\n");
 		break;
@@ -618,9 +713,7 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 			goto err_mutex;
 		}
 
-		ret = regmap_write(regmap,
-				cs40l2x_dsp_reg(cs40l2x, "STIMULUS_MODE",
-					CS40L2X_XM_UNPACKED_TYPE), 1);
+		ret = regmap_write(regmap, CS40L2X_MBOX_STIMULUS_MODE, 1);
 		if (ret) {
 			dev_err(dev, "Failed to enable stimulus mode\n");
 			goto err_mutex;
@@ -663,9 +756,7 @@ static void cs40l2x_vibe_stop_worker(struct work_struct *work)
 		if (ret)
 			dev_err(dev, "Failed to capture f0 and ReDC\n");
 
-		ret = regmap_write(regmap,
-				cs40l2x_dsp_reg(cs40l2x, "STIMULUS_MODE",
-					CS40L2X_XM_UNPACKED_TYPE), 0);
+		ret = regmap_write(regmap, CS40L2X_MBOX_STIMULUS_MODE, 0);
 		if (ret)
 			dev_err(dev, "Failed to disable stimulus mode\n");
 
@@ -1557,13 +1648,6 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 				<< CS40L2X_DSP1_RXn_SRC_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to route current monitor to DSP\n");
-		return ret;
-	}
-
-	ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL1,
-			CS40L2X_GLOBAL_EN_MASK, 1 << CS40L2X_GLOBAL_EN_SHIFT);
-	if (ret) {
-		dev_err(dev, "Failed to enable device\n");
 		return ret;
 	}
 
