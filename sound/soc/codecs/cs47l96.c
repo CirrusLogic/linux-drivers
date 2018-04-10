@@ -2187,9 +2187,13 @@ static const struct snd_soc_dapm_route cs47l96_dapm_routes[] = {
 	{ "IN2R PGA", NULL, "VOUT_MIC" },
 
 	{ "IN3L PGA", NULL, "IN3_PDMCLK" },
+	{ "IN3L PGA", NULL, "IN3_PDMDATA" },
+	{ "IN3R PGA", NULL, "IN3_PDMCLK" },
 	{ "IN3R PGA", NULL, "IN3_PDMDATA" },
 
 	{ "IN4L PGA", NULL, "IN4_PDMCLK" },
+	{ "IN4L PGA", NULL, "IN4_PDMDATA" },
+	{ "IN4R PGA", NULL, "IN4_PDMCLK" },
 	{ "IN4R PGA", NULL, "IN4_PDMDATA" },
 
 	TACNA_MIXER_ROUTES("OUT1L PGA", "OUT1L"),
