@@ -109,9 +109,6 @@ static const struct mfd_cell cs47l96_devs[] = {
 static const char * const cs48l32_supplies[] = {
 	"VOUT_MIC",	/* must be first entry */
 	"VDD1_CP",
-	"VDD2_CP",
-	"VDD3_CP",
-	"VDD_IO2",
 };
 
 static const struct mfd_cell cs48l32_devs[] = {
