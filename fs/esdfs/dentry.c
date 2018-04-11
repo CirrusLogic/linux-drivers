@@ -146,6 +146,9 @@ static int esdfs_d_compare(const struct dentry *dentry, unsigned int len,
 
 static void esdfs_d_release(struct dentry *dentry)
 {
+	if (!dentry || !dentry->d_fsdata)
+		return;
+
 	/* release and reset the lower paths */
 	esdfs_put_reset_lower_paths(dentry);
 	esdfs_release_lower_parent(dentry);

@@ -98,8 +98,6 @@ void esdfs_destroy_dentry_cache(void)
 
 void esdfs_free_dentry_private_data(struct dentry *dentry)
 {
-	if (!dentry || !dentry->d_fsdata)
-		return;
 	kmem_cache_free(esdfs_dentry_cachep, dentry->d_fsdata);
 	dentry->d_fsdata = NULL;
 }
