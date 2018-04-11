@@ -891,7 +891,7 @@ static const struct reg_default cs47l94_reg_default[] = {
 	{ 0x00017560, 0x00000000 }, /* FLL_DSP_CTRL */
 	{ 0x00018000, 0x00000000 }, /* IRQ1_CFG */
 	{ 0x00018110, 0xffffffff }, /* IRQ1_MASK_1 */
-	{ 0x00018114, 0xffffffff }, /* IRQ1_MASK_2 */
+	{ 0x00018114, 0xfffffff7 }, /* IRQ1_MASK_2 */
 	{ 0x00018118, 0xffffffff }, /* IRQ1_MASK_3 */
 	{ 0x0001811c, 0xffffffff }, /* IRQ1_MASK_4 */
 	{ 0x00018120, 0xffffffff }, /* IRQ1_MASK_5 */
