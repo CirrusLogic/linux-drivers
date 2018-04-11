@@ -657,7 +657,7 @@ static struct snd_soc_dai_driver cs47l96_ao_dai[] = {
 		.capture = {
 			.stream_name = "Voice Ctrl CPU",
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 4,
 			.rates = TACNA_RATES,
 			.formats = TACNA_FORMATS,
 		},
@@ -668,7 +668,7 @@ static struct snd_soc_dai_driver cs47l96_ao_dai[] = {
 		.capture = {
 			.stream_name = "Voice Ctrl DSP",
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 4,
 			.rates = TACNA_RATES,
 			.formats = TACNA_FORMATS,
 		},
