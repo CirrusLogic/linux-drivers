@@ -683,6 +683,12 @@ int tacna_dev_init(struct tacna *tacna)
 		goto err_pinctrl;
 	}
 
+	ret = regulator_set_voltage(tacna->vdd_d, 1200000, 1200000);
+	if (ret) {
+		dev_err(dev, "Failed to request VDD_D=1.2v: %d\n", ret);
+		goto err_vdd_d;
+	}
+
 	ret = regulator_bulk_enable(tacna->num_core_supplies,
 				    tacna->core_supplies);
 	if (ret) {
