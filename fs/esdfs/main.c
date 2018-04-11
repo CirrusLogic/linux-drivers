@@ -429,7 +429,7 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 	sb->s_root = d_make_root(inode);
 	if (!sb->s_root) {
 		err = -ENOMEM;
-		goto out_iput;
+		goto out_sput;
 	}
 	d_set_d_op(sb->s_root, &esdfs_dops);
 
@@ -505,8 +505,6 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 
 out_freeroot:
 	dput(sb->s_root);
-out_iput:
-	iput(inode);
 out_sput:
 	/* drop refs we took earlier */
 	atomic_dec(&lower_sb->s_active);
