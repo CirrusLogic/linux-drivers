@@ -1061,6 +1061,14 @@ static void cs40l2x_dsp_start(struct cs40l2x_private *cs40l2x)
 
 	switch (cs40l2x->revid) {
 	case CS40L2X_REVID_A0:
+		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL1,
+				CS40L2X_GLOBAL_EN_MASK,
+				1 << CS40L2X_GLOBAL_EN_SHIFT);
+		if (ret) {
+			dev_err(dev, "Failed to enable device\n");
+			return;
+		}
+
 		ret = regmap_update_bits(regmap, CS40L2X_DSP1_CCM_CORE_CTRL,
 				CS40L2X_DSP1_RESET_MASK |
 				CS40L2X_DSP1_EN_MASK,
@@ -1436,7 +1444,7 @@ static void cs40l2x_firmware_load(const struct firmware *fw, void *context)
 	if (ret)
 		goto err_rls_fw;
 
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_NOUEVENT, "cs40l2x.bin",
+	request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT, CS40L2X_WT_NAME,
 			dev, GFP_KERNEL, cs40l2x, cs40l2x_waveform_load);
 err_rls_fw:
 	release_firmware(fw);
