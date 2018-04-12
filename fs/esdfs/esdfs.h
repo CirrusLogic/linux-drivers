@@ -195,6 +195,7 @@ struct esdfs_sb_info {
 	struct esdfs_perms lower_perms;
 	struct esdfs_perms upper_perms;	/* root in derived mode */
 	struct dentry *obb_parent;	/* pinned dentry for obb link parent */
+	int ns_fd;
 	unsigned int options;
 };
 

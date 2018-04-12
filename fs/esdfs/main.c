@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/parser.h>
 #include <linux/security.h>
+#include <linux/proc_ns.h>
 
 /*
  * Derived from first generation "ANDROID_EMU" glue in modifed F2FS driver.
@@ -31,6 +32,7 @@ enum {
 	Opt_noconfine,
 	Opt_gid_derivation,
 	Opt_default_normal,
+	Opt_ns_fd,
 
 	/* From sdcardfs */
 	Opt_fsuid,
@@ -56,6 +58,7 @@ static match_table_t esdfs_tokens = {
 	{Opt_noconfine, "noconfine"},
 	{Opt_gid_derivation, "derive_gid"},
 	{Opt_default_normal, "default_normal"},
+	{Opt_ns_fd, "ns_fd=%d"},
 	/* compatibility with sdcardfs options */
 	{Opt_fsuid, "fsuid=%u"},
 	{Opt_fsgid, "fsgid=%u"},
@@ -121,6 +124,30 @@ static int parse_perms(struct esdfs_perms *perms, char *args)
 		return ret;
 
 	return 0;
+}
+
+static inline struct user_namespace *to_user_ns(struct ns_common *ns)
+{
+	return container_of(ns, struct user_namespace, ns);
+}
+
+static struct user_namespace *get_ns_from_fd(int fd)
+{
+	struct file *file;
+	struct ns_common *ns;
+	struct user_namespace *user_ns = ERR_PTR(-EINVAL);
+
+	file = proc_ns_fget(fd);
+	if (IS_ERR(file))
+		return ERR_CAST(file);
+
+	ns = get_proc_ns(file_inode(file));
+#ifdef CONFIG_USER_NS
+	if (ns->ops == &userns_operations)
+		user_ns = to_user_ns(ns);
+#endif
+	fput(file);
+	return user_ns;
 }
 
 static int parse_options(struct super_block *sb, char *options)
@@ -265,6 +292,7 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 	struct path lower_path;
 	struct esdfs_sb_info *sbi;
 	struct inode *inode;
+	struct user_namespace *user_ns;
 
 	if (!dev_name) {
 		esdfs_msg(sb, KERN_ERR, "missing dev_name argument\n");
@@ -293,6 +321,8 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 
 	/* set defaults and then parse the mount options */
 
+	sbi->ns_fd = -1;
+
 	/* make public default */
 	clear_opt(sbi, DERIVE_LEGACY);
 	set_opt(sbi, DERIVE_UNIFIED);
@@ -310,10 +340,21 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 		memcpy(&sbi->upper_perms,
 		       &esdfs_perms_table[ESDFS_PERMS_UPPER_LEGACY],
 		       sizeof(struct esdfs_perms));
-	memcpy(&sbi->base_ns, current_user_ns(), sizeof(sbi->base_ns));
+
 	err = parse_options(sb, (char *)raw_data);
 	if (err)
 		goto out_free;
+
+	if (sbi->ns_fd == -1) {
+		memcpy(&sbi->base_ns, current_user_ns(), sizeof(sbi->base_ns));
+	} else {
+		user_ns = get_ns_from_fd(sbi->ns_fd);
+		if (IS_ERR(user_ns)) {
+			err = PTR_ERR(user_ns);
+			goto out_free;
+		}
+		memcpy(&sbi->base_ns, user_ns, sizeof(sbi->base_ns));
+	}
 
 	/* set the lower superblock field of upper superblock */
 	lower_sb = lower_path.dentry->d_sb;
