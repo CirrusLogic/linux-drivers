@@ -505,6 +505,7 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 
 out_freeroot:
 	dput(sb->s_root);
+	sb->s_root = NULL;
 out_sput:
 	/* drop refs we took earlier */
 	atomic_dec(&lower_sb->s_active);
