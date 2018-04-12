@@ -2388,6 +2388,7 @@ static int tacna_extcon_probe(struct platform_device *pdev)
 	struct tacna *tacna = dev_get_drvdata(pdev->dev.parent);
 	struct tacna_accdet_pdata *pdata = &tacna->pdata.accdet[0];
 	struct tacna_extcon *info;
+	unsigned int val;
 	int ret, mode, hpdet_short_reading;
 
 	/* quick exit if Tacna irqchip driver hasn't completed probe */
@@ -2462,10 +2463,16 @@ static int tacna_extcon_probe(struct platform_device *pdev)
 	}
 
 	switch (tacna->type) {
-	case CS47L94:
-	case CS47L95:
 	case CS47L96:
 	case CS47L97:
+		val = (pdata->output - 1) << TACNA_JD1_OUT_HP_SHIFT;
+		regmap_update_bits(tacna->regmap,
+				   TACNA_JACKDET1_COMP_CTRL,
+				   TACNA_JD1_OUT_HP_MASK,
+				   val);
+		/* fall through */
+	case CS47L94:
+	case CS47L95:
 		/* force micbias as it won't get automatically enabled */
 		pdata->micd_force_micbias = true;
 		break;
