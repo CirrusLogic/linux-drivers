@@ -537,6 +537,9 @@
 #define CS40L2X_OTP_TRIM_35		0x0000400C
 #define CS40L2X_OTP_TRIM_36		0x00002030
 
+#define CS40L2X_GLOBAL_EN_MASK		0x00000001
+#define CS40L2X_GLOBAL_EN_SHIFT		0
+
 #define CS40L2X_GP2_CTRL_MASK		0x07000000
 #define CS40L2X_GP2_CTRL_SHIFT		24
 #define CS40L2X_GP2_CTRL_MCLK		0x3
@@ -628,7 +631,7 @@
 #define CS40L2X_ALGO_REV_MASK		0xFF0000
 
 #define CS40L2X_NUM_ALGOS_MAX		16
-#define CS40L2X_FW_REV_MIN		0x020100
+#define CS40L2X_FW_REV_MIN		0x030000
 
 #define CS40L2X_ALGO_ID_SIZE		4
 #define CS40L2X_COEFF_COUNT_SIZE	4
@@ -669,6 +672,8 @@
 
 #define CS40L2X_FW_NAME_A0		"cs40l20.wmfw"
 #define CS40L2X_FW_NAME_B1		"cs40l25a.wmfw"
+
+#define CS40L2X_WT_NAME			"cs40l20.bin"
 
 bool cs40l2x_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l2x_precious_reg(struct device *dev, unsigned int reg);
