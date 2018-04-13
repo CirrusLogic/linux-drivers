@@ -1592,8 +1592,6 @@ static void cs40l2x_dsp_start(struct cs40l2x_private *cs40l2x)
 		return;
 	}
 
-	dev_info(dev, "Haptics algorithm started\n");
-
 	ret = regmap_write(regmap, cs40l2x_dsp_reg(cs40l2x, "TIMEOUT_MS",
 			CS40L2X_XM_UNPACKED_TYPE), CS40L2X_TIMEOUT_MS_MAX);
 	if (ret) {
@@ -1612,6 +1610,8 @@ static void cs40l2x_dsp_start(struct cs40l2x_private *cs40l2x)
 		dev_err(dev, "Wavetable is empty\n");
 		return;
 	}
+
+	dev_info(dev, "Normal-mode haptics successfully started\n");
 
 	cs40l2x_vibe_init(cs40l2x);
 }
@@ -2287,6 +2287,67 @@ static int cs40l2x_handle_of_data(struct i2c_client *i2c_client,
 	return 0;
 }
 
+static int cs40l2x_basic_mode_exit(struct cs40l2x_private *cs40l2x)
+{
+	struct regmap *regmap = cs40l2x->regmap;
+	struct device *dev = cs40l2x->dev;
+	unsigned int val;
+	int shutdown_timeout = CS40L2X_BASIC_TIMEOUT_COUNT;
+	int ret;
+
+	ret = regmap_read(regmap, CS40L2X_BASIC_AMP_STATUS, &val);
+	if (ret) {
+		dev_err(dev, "Failed to read basic-mode status\n");
+		return ret;
+	}
+
+	if (val != CS40L2X_BASIC_BOOT_DONE) {
+		dev_err(dev, "Unexpected basic-mode status: %02X\n", val);
+		return -EIO;
+	}
+
+	ret = regmap_write(regmap, CS40L2X_BASIC_SHUTDOWNREQUEST, 1);
+	if (ret) {
+		dev_err(dev, "Failed to write shutdown request\n");
+		return ret;
+	}
+
+	while (shutdown_timeout > 0) {
+		usleep_range(10000, 10100);
+
+		ret = regmap_read(regmap, CS40L2X_BASIC_SHUTDOWNREQUEST, &val);
+		if (ret) {
+			dev_err(dev, "Failed to read shutdown request\n");
+			return ret;
+		}
+
+		if (!val)
+			break;
+
+		shutdown_timeout--;
+	}
+
+	if (shutdown_timeout == 0) {
+		dev_err(dev, "Timed out waiting for basic-mode shutdown\n");
+		return -ETIME;
+	}
+
+	ret = regmap_read(regmap, CS40L2X_BASIC_STATEMACHINE, &val);
+	if (ret) {
+		dev_err(dev, "Failed to read basic-mode state\n");
+		return ret;
+	}
+
+	if (val != CS40L2X_BASIC_SHUTDOWN) {
+		dev_err(dev, "Unexpected basic-mode state: %02X\n", val);
+		return -EBUSY;
+	}
+
+	dev_info(dev, "Basic-mode haptics successfully stopped\n");
+
+	return 0;
+}
+
 static const struct reg_sequence cs40l2x_rev_a0_errata[] = {
 	{CS40L2X_OTP_TRIM_30,		0x9091A1C8},
 	{CS40L2X_PLL_LOOP_PARAM,	0x00001837},
@@ -2300,6 +2361,13 @@ static const struct reg_sequence cs40l2x_rev_a0_errata[] = {
 static const struct reg_sequence cs40l2x_rev_b0_errata[] = {
 	{CS40L2X_PLL_LOOP_PARAM,	0x00001837},
 	{CS40L2X_PLL_MISC_CTRL,		0x03008E0E},
+};
+
+static const struct reg_sequence cs40l2x_basic_mode_revert[] = {
+	{CS40L2X_PWR_CTRL1,		0x00000000},
+	{CS40L2X_PWR_CTRL2,		0x00003321},
+	{CS40L2X_IRQ2_MASK1,		0xFFFFFFFF},
+	{CS40L2X_IRQ2_MASK2,		0xFFFFFFFF},
 };
 
 static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
@@ -2390,6 +2458,17 @@ static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
 		part_num_index = devid - CS40L2X_DEVID_L25A + 2;
 		if (revid < CS40L2X_REVID_B1)
 			goto err_revid;
+
+		ret = cs40l2x_basic_mode_exit(cs40l2x);
+		if (ret)
+			return ret;
+
+		ret = regmap_multi_reg_write(regmap, cs40l2x_basic_mode_revert,
+				ARRAY_SIZE(cs40l2x_basic_mode_revert));
+		if (ret) {
+			dev_err(dev, "Failed to revert basic-mode fields\n");
+			return ret;
+		}
 
 		ret = regmap_register_patch(regmap, cs40l2x_rev_b0_errata,
 				ARRAY_SIZE(cs40l2x_rev_b0_errata));
