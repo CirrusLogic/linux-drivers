@@ -162,6 +162,8 @@ struct esdfs_file_info {
 };
 
 struct esdfs_perms {
+	uid_t raw_uid;
+	uid_t raw_gid;
 	uid_t uid;
 	gid_t gid;
 	unsigned short fmask;
@@ -483,6 +485,16 @@ static inline void esdfs_copy_attr(struct inode *dest, const struct inode *src)
 {
 	esdfs_copy_lower_attr(dest, src);
 	esdfs_set_perms(dest);
+}
+
+static inline uid_t esdfs_from_local_uid(struct esdfs_sb_info *sbi, uid_t uid)
+{
+	return from_kuid(&sbi->base_ns, make_kuid(current_user_ns(), uid));
+}
+
+static inline gid_t esdfs_from_local_gid(struct esdfs_sb_info *sbi, gid_t gid)
+{
+	return from_kgid(&sbi->base_ns, make_kgid(current_user_ns(), gid));
 }
 
 static inline uid_t esdfs_from_kuid(struct esdfs_sb_info *sbi, kuid_t uid)

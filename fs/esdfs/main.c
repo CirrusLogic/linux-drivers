@@ -72,17 +72,23 @@ static match_table_t esdfs_tokens = {
 
 struct esdfs_perms esdfs_perms_table[ESDFS_PERMS_TABLE_SIZE] = {
 	/* ESDFS_PERMS_LOWER_DEFAULT */
-	{ .uid   = AID_MEDIA_RW,
+	{ .raw_uid = -1,
+	  .raw_gid = -1,
+	  .uid   = AID_MEDIA_RW,
 	  .gid   = AID_MEDIA_RW,
 	  .fmask = 0664,
 	  .dmask = 0775 },
 	/* ESDFS_PERMS_UPPER_LEGACY */
-	{ .uid   = AID_ROOT,
+	{ .raw_uid = -1,
+	  .raw_gid = -1,
+	  .uid   = AID_ROOT,
 	  .gid   = AID_SDCARD_RW,
 	  .fmask = 0664,
 	  .dmask = 0775 },
 	/* ESDFS_PERMS_UPPER_DERIVED */
-	{ .uid   = AID_ROOT,
+	{ .raw_uid = -1,
+	  .raw_gid = -1,
+	  .uid   = AID_ROOT,
 	  .gid   = AID_SDCARD_R,
 	  .fmask = 0660,
 	  .dmask = 0771 },
@@ -241,12 +247,12 @@ static int parse_options(struct super_block *sb, char *options)
 		case Opt_gid:
 			if (match_int(&args[0], &option))
 				return -EINVAL;
-			sbi->upper_perms.gid = option;
+			sbi->upper_perms.raw_gid = option;
 			break;
 		case Opt_userid:
 			if (match_int(&args[0], &option))
-				return 0;
-			sbi->upper_perms.uid = option;
+				return -EINVAL;
+			sbi->upper_perms.raw_uid = option;
 			break;
 		case Opt_mask:
 			if (match_int(&args[0], &option))
@@ -256,13 +262,13 @@ static int parse_options(struct super_block *sb, char *options)
 			break;
 		case Opt_fsuid:
 			if (match_int(&args[0], &option))
-				return 0;
-			sbi->lower_perms.uid = option;
+				return -EINVAL;
+			sbi->lower_perms.raw_uid = option;
 			break;
 		case Opt_fsgid:
 			if (match_int(&args[0], &option))
-				return 0;
-			sbi->lower_perms.gid = option;
+				return -EINVAL;
+			sbi->lower_perms.raw_gid = option;
 			break;
 		case Opt_gid_derivation:
 			set_opt(sbi, GID_DERIVATION);
@@ -270,12 +276,37 @@ static int parse_options(struct super_block *sb, char *options)
 		case Opt_default_normal:
 			set_opt(sbi, DEFAULT_NORMAL);
 			break;
+		case Opt_ns_fd:
+			if (match_int(&args[0], &option))
+				return -EINVAL;
+			sbi->ns_fd = option;
+			break;
 		default:
 			esdfs_msg(sb, KERN_ERR,
 			  "unrecognized mount option \"%s\" or missing value\n",
 			  p);
 			return -EINVAL;
 		}
+	}
+	return 0;
+}
+
+static int interpret_perms(struct esdfs_sb_info *sbi, struct esdfs_perms *perms)
+{
+	if (perms->raw_uid == -1) {
+		perms->raw_uid = perms->uid;
+	} else {
+		perms->uid = esdfs_from_local_uid(sbi, perms->raw_uid);
+		if (perms->uid == -1)
+			return -EINVAL;
+	}
+
+	if (perms->raw_gid == -1) {
+		perms->raw_gid = perms->gid;
+	} else {
+		perms->gid = esdfs_from_local_gid(sbi, perms->raw_gid);
+		if (perms->gid == -1)
+			return -EINVAL;
 	}
 	return 0;
 }
@@ -355,7 +386,17 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 		}
 		memcpy(&sbi->base_ns, user_ns, sizeof(sbi->base_ns));
 	}
-
+	/* interpret all parameters in given namespace */
+	err = interpret_perms(sbi, &sbi->lower_perms);
+	if (err) {
+		pr_err("esdfs: Invalid permissions for lower layer\n");
+		goto out_free;
+	}
+	err = interpret_perms(sbi, &sbi->upper_perms);
+	if (err) {
+		pr_err("esdfs: Invalid permissions for upper layer\n");
+		goto out_free;
+	}
 	/* set the lower superblock field of upper superblock */
 	lower_sb = lower_path.dentry->d_sb;
 	atomic_inc(&lower_sb->s_active);

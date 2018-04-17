@@ -236,8 +236,8 @@ static int esdfs_show_options(struct seq_file *seq, struct dentry *root)
 		   &esdfs_perms_table[ESDFS_PERMS_LOWER_DEFAULT],
 		   sizeof(struct esdfs_perms)))
 		seq_printf(seq, ",lower=%u:%u:%ho:%ho",
-				sbi->lower_perms.uid,
-				sbi->lower_perms.gid,
+				sbi->lower_perms.raw_uid,
+				sbi->lower_perms.raw_gid,
 				sbi->lower_perms.fmask,
 				sbi->lower_perms.dmask);
 
@@ -245,8 +245,8 @@ static int esdfs_show_options(struct seq_file *seq, struct dentry *root)
 		   &esdfs_perms_table[ESDFS_PERMS_UPPER_LEGACY],
 		   sizeof(struct esdfs_perms)))
 		seq_printf(seq, ",upper=%u:%u:%ho:%ho",
-				sbi->upper_perms.uid,
-				sbi->upper_perms.gid,
+				sbi->upper_perms.raw_uid,
+				sbi->upper_perms.raw_gid,
 				sbi->upper_perms.fmask,
 				sbi->upper_perms.dmask);
 
