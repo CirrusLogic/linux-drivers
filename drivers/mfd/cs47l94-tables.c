@@ -16,6 +16,9 @@
 #include "tacna.h"
 
 static const struct reg_sequence cs47l94_reva_patch[] = {
+	{ 0x00001c34, 0x000037e8 },
+	{ 0x00001d34, 0x000037e8 },
+	{ 0x00001e34, 0x000037e8 },
 	{ 0x0000252c, 0x00000031 },
 	{ 0x00002534, 0x00000031 },
 	{ 0x00004994, 0x00000002 },
@@ -127,21 +130,18 @@ static const struct reg_default cs47l94_reg_default[] = {
 	{ 0x00001c08, 0x00000000 }, /* FLL1_CONTROL3 */
 	{ 0x00001c0c, 0x21f00001 }, /* FLL1_CONTROL4 */
 	{ 0x00001c18, 0x00000001 }, /* FLL1_CONTROL7 */
-	{ 0x00001c34, 0x000033e8 }, /* FLL1_DIGITAL_TEST2 */
 	{ 0x00001ca0, 0x00000c04 }, /* FLL1_GPIO_CLOCK */
 	{ 0x00001d00, 0x00000000 }, /* FLL2_CONTROL1 */
 	{ 0x00001d04, 0x88203004 }, /* FLL2_CONTROL2 */
 	{ 0x00001d08, 0x00000000 }, /* FLL2_CONTROL3 */
 	{ 0x00001d0c, 0x21f00001 }, /* FLL2_CONTROL4 */
 	{ 0x00001d18, 0x00000001 }, /* FLL2_CONTROL7 */
-	{ 0x00001d34, 0x000033e8 }, /* FLL2_DIGITAL_TEST2 */
 	{ 0x00001da0, 0x00000c04 }, /* FLL2_GPIO_CLOCK */
 	{ 0x00001e00, 0x00000000 }, /* FLL3_CONTROL1 */
 	{ 0x00001e04, 0x88203004 }, /* FLL3_CONTROL2 */
 	{ 0x00001e08, 0x00000000 }, /* FLL3_CONTROL3 */
 	{ 0x00001e0c, 0x21f00001 }, /* FLL3_CONTROL4 */
 	{ 0x00001e18, 0x00000001 }, /* FLL3_CONTROL7 */
-	{ 0x00001e34, 0x000033e8 }, /* FLL3_DIGITAL_TEST2 */
 	{ 0x00001ea0, 0x00000c04 }, /* FLL3_GPIO_CLOCK */
 	{ 0x00002000, 0x00000006 }, /* CHARGE_PUMP1 */
 	{ 0x00002400, 0x00000020 }, /* OUTPUT_RATE1 */
@@ -1062,7 +1062,6 @@ static bool cs47l94_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_FLL1_CONTROL5:
 	case TACNA_FLL1_CONTROL6:
 	case TACNA_FLL1_CONTROL7:
-	case TACNA_FLL1_DIGITAL_TEST2:
 	case TACNA_FLL1_GPIO_CLOCK:
 	case TACNA_FLL2_CONTROL1:
 	case TACNA_FLL2_CONTROL2:
@@ -1071,7 +1070,6 @@ static bool cs47l94_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_FLL2_CONTROL5:
 	case TACNA_FLL2_CONTROL6:
 	case TACNA_FLL2_CONTROL7:
-	case TACNA_FLL2_DIGITAL_TEST2:
 	case TACNA_FLL2_GPIO_CLOCK:
 	case TACNA_FLL3_CONTROL1:
 	case TACNA_FLL3_CONTROL2:
@@ -1080,7 +1078,6 @@ static bool cs47l94_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_FLL3_CONTROL5:
 	case TACNA_FLL3_CONTROL6:
 	case TACNA_FLL3_CONTROL7:
-	case TACNA_FLL3_DIGITAL_TEST2:
 	case TACNA_FLL3_GPIO_CLOCK:
 	case TACNA_CHARGE_PUMP1:
 	case TACNA_OUTPUT_RATE1:
