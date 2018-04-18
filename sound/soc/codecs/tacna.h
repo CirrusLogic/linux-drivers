@@ -187,7 +187,7 @@
 
 #define TACNA_DSP_ROUTES_1_8_SYSCLK(name)		\
 	{ name, NULL, name " Preloader" },		\
-	{ name " Preloader", NULL, "SYSCLK" },		\
+	{ name, NULL, "SYSCLK" },		\
 	{ name " Preload", NULL, name " Preloader" },	\
 	TACNA_MIXER_ROUTES(name, name "RX1"),		\
 	TACNA_MIXER_ROUTES(name, name "RX2"),		\
@@ -199,7 +199,7 @@
 	TACNA_MIXER_ROUTES(name, name "RX8")		\
 
 #define TACNA_DSP_ROUTES_1_8(name)			\
-	{ name " Preloader", NULL, "DSPCLK" },		\
+	{ name, NULL, "DSPCLK" },		\
 	TACNA_DSP_ROUTES_1_8_SYSCLK(name)		\
 
 #define TACNA_DSP_ROUTES_1_12(name)			\
