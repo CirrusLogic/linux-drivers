@@ -2787,7 +2787,7 @@ static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 	struct tacna *tacna = fll->tacna_priv->tacna;
 	int refdiv, fref, fout, lockdet_thr, fbdiv, fast_clk, fllgcd;
 	bool frac = false;
-	unsigned int fll_n, min_n, max_n, ratio, theta, lambda, hp, ord2;
+	unsigned int fll_n, min_n, max_n, ratio, theta, lambda, hp;
 	unsigned int gains, num;
 
 	tacna_fll_dbg(fll, "fin=%d, fout=%d\n", fin, fll->fout);
@@ -2838,7 +2838,6 @@ static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 	/* Use high performance mode for fractional configurations. */
 	if (frac) {
 		hp = 0x3;
-		ord2 = 1;
 		min_n = TACNA_FLLHJ_FRAC_MIN_N;
 		max_n = TACNA_FLLHJ_FRAC_MAX_N;
 	} else {
@@ -2854,7 +2853,6 @@ static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 			hp = 0x1;
 			break;
 		}
-		ord2 = 0;
 		min_n = TACNA_FLLHJ_INT_MIN_N;
 		max_n = TACNA_FLLHJ_INT_MAX_N;
 	}
@@ -2880,8 +2878,8 @@ static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 		}
 	}
 
-	tacna_fll_dbg(fll, "lockdet=%d, hp=0x%x, ord2=0x%x fbdiv:%d\n",
-		       lockdet_thr, hp, ord2, fbdiv);
+	tacna_fll_dbg(fll, "lockdet=%d, hp=0x%x, fbdiv:%d\n",
+		      lockdet_thr, hp, fbdiv);
 
 	/* Calculate N.K values */
 	fllgcd = gcd(fout, fbdiv * fref);
@@ -2936,10 +2934,6 @@ static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 			   (gains << TACNA_FLL1_FD_GAIN_COARSE_SHIFT) |
 			   (hp << TACNA_FLL1_HP_SHIFT) |
 			   (fbdiv << TACNA_FLL1_FB_DIV_SHIFT));
-	regmap_update_bits(tacna->regmap,
-			   fll->base + TACNA_FLL_DIGITAL_TEST2_OFFS,
-			   TACNA_FLL1_FB_DIV_SDM_ORD2_EN_MASK,
-			   ord2 << TACNA_FLL1_FB_DIV_SDM_ORD2_EN_SHIFT);
 
 	return 0;
 }
