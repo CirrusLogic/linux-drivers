@@ -641,13 +641,30 @@
 
 #define CS40L2X_TIMEOUT_MS_MAX		0x02AAAA  /* ~174 sec */
 #define CS40L2X_HALO_STATE_RUNNING	0x2
+#define CS40L2X_STATUS_IDLE		0xFFFFFF
 
 #define CS40L2X_MBOX_TRIGGERINDEX	CS40L2X_DSP_VIRT1_MBOX_1
 #define CS40L2X_MBOX_TRIGGER_MS		CS40L2X_DSP_VIRT1_MBOX_2
 #define CS40L2X_MBOX_STIMULUS_MODE	CS40L2X_DSP_VIRT1_MBOX_3
 
 #define CS40L2X_INDEX_MASK		0x7FFF
+#define CS40L2X_INDEX_VIBE		0x0000
+#define CS40L2X_INDEX_CLICK_MIN		0x0001
+#define CS40L2X_INDEX_CLICK_MAX		0x7FFF
+#define CS40L2X_INDEX_CONT_MIN		0x8000
+#define CS40L2X_INDEX_CONT_MAX		0xFFFD
+#define CS40L2X_INDEX_PBQ		0xFFFE
 #define CS40L2X_INDEX_DIAG		0xFFFF
+
+#define CS40L2X_PBQ_SEG_LEN_MAX		10
+#define CS40L2X_PBQ_DEPTH_MAX		256
+#define CS40L2X_PBQ_SCALE_MAX		100
+#define CS40L2X_PBQ_DELAY_MAX		10000
+#define CS40L2X_PBQ_REPEAT_MAX		16
+#define CS40L2X_PBQ_POLL_NS		25000000
+#define CS40L2X_PBQ_STATE_IDLE		0x00
+#define CS40L2X_PBQ_STATE_PLAYING	0x01
+#define CS40L2X_PBQ_STATE_SILENT	0x02
 
 #define CS40L2X_DIAG_STATE_INIT		0x00
 #define CS40L2X_DIAG_STATE_RUN		0x01
@@ -665,6 +682,8 @@
 #define CS40L2X_TEST_KEY_RELOCK_CODE2	0x33
 
 #define CS40L2X_DIG_SCALE_MAX		816	/* -102 dB */
+#define CS40L2X_DIG_SCALE_ZERO		0x800
+#define CS40L2X_DIG_SCALE_MASK		0x7FF
 
 #define CS40L2X_MAX_WLEN		4096
 
@@ -701,10 +720,23 @@ struct cs40l2x_coeff_desc {
 	struct list_head list;
 };
 
+struct cs40l2x_pbq_pair {
+	unsigned int tag;
+	unsigned int mag;
+};
+
+struct cs40l2x_dig_scale_map {
+	unsigned int encoded;
+	unsigned int dig_scale;
+};
+
 extern const unsigned char cs40l2x_bst_k1_table[4][5];
 extern const unsigned char cs40l2x_bst_k2_table[4][5];
 extern const unsigned char cs40l2x_bst_slope_table[4];
 
 extern const struct cs40l2x_otp_desc cs40l2x_otp_map[CS40L2X_NUM_OTP_MAPS];
+
+extern const struct cs40l2x_dig_scale_map
+			cs40l2x_pbq_scale[CS40L2X_PBQ_SCALE_MAX + 1];
 
 #endif /*__CS40L2X_H__*/
