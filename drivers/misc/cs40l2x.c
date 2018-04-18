@@ -28,6 +28,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
+#include <linux/hrtimer.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/cs40l2x.h>
@@ -36,7 +37,6 @@
 
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 #include "../staging/android/timed_output.h"
-#include <linux/hrtimer.h>
 #else
 #include <linux/leds.h>
 #endif /* CONFIG_ANDROID_TIMED_OUTPUT */
@@ -49,6 +49,7 @@ struct cs40l2x_private {
 	unsigned int devid;
 	unsigned int revid;
 	struct work_struct vibe_start_work;
+	struct work_struct vibe_pbq_work;
 	struct work_struct vibe_stop_work;
 	struct workqueue_struct *vibe_workqueue;
 	struct mutex lock;
@@ -67,9 +68,17 @@ struct cs40l2x_private {
 	unsigned int f0_measured;
 	unsigned int redc_measured;
 	unsigned int dig_scale;
+	struct cs40l2x_pbq_pair pbq_pairs[CS40L2X_PBQ_DEPTH_MAX];
+	struct hrtimer pbq_timer;
+	unsigned int pbq_depth;
+	unsigned int pbq_index;
+	unsigned int pbq_state;
+	int pbq_repeat;
+	int pbq_remain;
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 	struct timed_output_dev timed_dev;
 	struct hrtimer vibe_timer;
+	int vibe_timeout;
 #else
 	struct led_classdev led_dev;
 #endif /* CONFIG_ANDROID_TIMED_OUTPUT */
@@ -119,12 +128,196 @@ static ssize_t cs40l2x_cp_trigger_index_store(struct device *dev,
 		return -EINVAL;
 
 	if ((index & CS40L2X_INDEX_MASK) >= cs40l2x->num_waves
+				&& index != CS40L2X_INDEX_PBQ
 				&& index != CS40L2X_INDEX_DIAG)
 		return -EINVAL;
 
 	cs40l2x->cp_trigger_index = index;
 
 	return count;
+}
+
+static ssize_t cs40l2x_cp_trigger_queue_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	ssize_t len = 0;
+	unsigned int tag, mag;
+	int i;
+
+	if (cs40l2x->pbq_depth == 0)
+		return -ENODATA;
+
+	mutex_lock(&cs40l2x->lock);
+
+	for (i = 0; i < cs40l2x->pbq_depth - 1; i++) {
+		tag = cs40l2x->pbq_pairs[i].tag;
+		mag = cs40l2x->pbq_pairs[i].mag;
+
+		if (tag)
+			len += snprintf(buf + len, PAGE_SIZE - len, "%d.%d, ",
+					tag, mag);
+		else
+			len += snprintf(buf + len, PAGE_SIZE - len, "%d, ",
+					mag);
+	}
+
+	tag = cs40l2x->pbq_pairs[i].tag;
+	mag = cs40l2x->pbq_pairs[i].mag;
+	if (tag)
+		len += snprintf(buf + len, PAGE_SIZE - len, "%d.%d", tag, mag);
+	else
+		len += snprintf(buf + len, PAGE_SIZE - len, "%d", mag);
+
+	switch (cs40l2x->pbq_repeat) {
+	case -1:
+		len += snprintf(buf + len, PAGE_SIZE - len, ", ~\n");
+		break;
+	case 0:
+		len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+		break;
+	default:
+		len += snprintf(buf + len, PAGE_SIZE - len, ", %d!\n",
+				cs40l2x->pbq_repeat);
+	}
+
+	mutex_unlock(&cs40l2x->lock);
+
+	return len;
+}
+
+static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	char *pbq_str_alloc, *pbq_str, *pbq_str_tok;
+	char *pbq_seg_alloc, *pbq_seg, *pbq_seg_tok;
+	size_t pbq_seg_len;
+	unsigned int pbq_depth = 0;
+	unsigned int val;
+	int ret;
+
+	pbq_str_alloc = kzalloc(count, GFP_KERNEL);
+	if (!pbq_str_alloc)
+		return -ENOMEM;
+
+	pbq_seg_alloc = kzalloc(CS40L2X_PBQ_SEG_LEN_MAX + 1, GFP_KERNEL);
+	if (!pbq_seg_alloc) {
+		kfree(pbq_str_alloc);
+		return -ENOMEM;
+	}
+
+	mutex_lock(&cs40l2x->lock);
+
+	cs40l2x->pbq_depth = 0;
+	cs40l2x->pbq_repeat = 0;
+
+	pbq_str = pbq_str_alloc;
+	strlcpy(pbq_str, buf, count);
+
+	pbq_str_tok = strsep(&pbq_str, ",");
+
+	while (pbq_str_tok) {
+		pbq_seg = pbq_seg_alloc;
+		pbq_seg_len = strlcpy(pbq_seg, strim(pbq_str_tok),
+				CS40L2X_PBQ_SEG_LEN_MAX + 1);
+		if (pbq_seg_len > CS40L2X_PBQ_SEG_LEN_MAX) {
+			ret = -E2BIG;
+			goto err_mutex;
+		}
+
+		/* waveform specifier */
+		if (strnchr(pbq_seg, CS40L2X_PBQ_SEG_LEN_MAX, '.')) {
+			/* index */
+			pbq_seg_tok = strsep(&pbq_seg, ".");
+
+			ret = kstrtou32(pbq_seg_tok, 10, &val);
+			if (ret) {
+				ret = -EINVAL;
+				goto err_mutex;
+			}
+			if (val == 0 || val >= cs40l2x->num_waves) {
+				ret = -EINVAL;
+				goto err_mutex;
+			}
+			cs40l2x->pbq_pairs[pbq_depth].tag = val;
+
+			/* scale */
+			pbq_seg_tok = strsep(&pbq_seg, ".");
+
+			ret = kstrtou32(pbq_seg_tok, 10, &val);
+			if (ret) {
+				ret = -EINVAL;
+				goto err_mutex;
+			}
+			if (val == 0 || val > CS40L2X_PBQ_SCALE_MAX) {
+				ret = -EINVAL;
+				goto err_mutex;
+			}
+			cs40l2x->pbq_pairs[pbq_depth++].mag = val;
+
+		/* repetition specifier */
+		} else if (strnchr(pbq_seg, CS40L2X_PBQ_SEG_LEN_MAX, '!')) {
+			if (cs40l2x->pbq_repeat) {
+				ret = -EINVAL;
+				goto err_mutex;
+			}
+			pbq_seg_tok = strsep(&pbq_seg, "!");
+
+			ret = kstrtou32(pbq_seg_tok, 10, &val);
+			if (ret) {
+				ret = -EINVAL;
+				goto err_mutex;
+			}
+			if (val > CS40L2X_PBQ_REPEAT_MAX) {
+				ret = -EINVAL;
+				goto err_mutex;
+			}
+			cs40l2x->pbq_repeat = val;
+
+		/* loop specifier */
+		} else if (strnchr(pbq_seg, CS40L2X_PBQ_SEG_LEN_MAX, '~')) {
+			if (cs40l2x->pbq_repeat) {
+				ret = -EINVAL;
+				goto err_mutex;
+			}
+			cs40l2x->pbq_repeat = -1;
+
+		/* duration specifier */
+		} else {
+			cs40l2x->pbq_pairs[pbq_depth].tag = 0;
+
+			ret = kstrtou32(pbq_seg, 10, &val);
+			if (ret) {
+				ret = -EINVAL;
+				goto err_mutex;
+			}
+			if (val > CS40L2X_PBQ_DELAY_MAX) {
+				ret = -EINVAL;
+				goto err_mutex;
+			}
+			cs40l2x->pbq_pairs[pbq_depth++].mag = val;
+		}
+
+		if (pbq_depth == CS40L2X_PBQ_DEPTH_MAX) {
+			ret = -E2BIG;
+			goto err_mutex;
+		}
+
+		pbq_str_tok = strsep(&pbq_str, ",");
+	}
+
+	cs40l2x->pbq_depth = pbq_depth;
+	ret = count;
+
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+
+	kfree(pbq_str_alloc);
+	kfree(pbq_seg_alloc);
+
+	return ret;
 }
 
 static unsigned int cs40l2x_dsp_reg(struct cs40l2x_private *cs40l2x,
@@ -520,6 +713,21 @@ static ssize_t cs40l2x_comp_enable_store(struct device *dev,
 	return count;
 }
 
+static int cs40l2x_dig_scale_set(struct cs40l2x_private *cs40l2x,
+			unsigned int dig_scale)
+{
+	/* this function expects to be called while mutex is locked */
+	if (!mutex_is_locked(&cs40l2x->lock))
+		return -EACCES;
+
+	return regmap_update_bits(cs40l2x->regmap,
+			CS40L2X_AMP_DIG_VOL_CTRL,
+			CS40L2X_AMP_VOL_PCM_MASK,
+			((CS40L2X_DIG_SCALE_ZERO - dig_scale)
+				& CS40L2X_DIG_SCALE_MASK)
+					<< CS40L2X_AMP_VOL_PCM_SHIFT);
+}
+
 static ssize_t cs40l2x_dig_scale_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -544,10 +752,7 @@ static ssize_t cs40l2x_dig_scale_store(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&cs40l2x->lock);
-	ret = regmap_update_bits(cs40l2x->regmap, CS40L2X_AMP_DIG_VOL_CTRL,
-			CS40L2X_AMP_VOL_PCM_MASK,
-			((0x800 - dig_scale) & 0x7FF)
-				<< CS40L2X_AMP_VOL_PCM_SHIFT);
+	cs40l2x_dig_scale_set(cs40l2x, dig_scale);
 	mutex_unlock(&cs40l2x->lock);
 
 	if (ret) {
@@ -591,6 +796,8 @@ static ssize_t cs40l2x_num_waves_show(struct device *dev,
 
 static DEVICE_ATTR(cp_trigger_index, 0660, cs40l2x_cp_trigger_index_show,
 		cs40l2x_cp_trigger_index_store);
+static DEVICE_ATTR(cp_trigger_queue, 0660, cs40l2x_cp_trigger_queue_show,
+		cs40l2x_cp_trigger_queue_store);
 static DEVICE_ATTR(gpio1_rise_index, 0660, cs40l2x_gpio1_rise_index_show,
 		cs40l2x_gpio1_rise_index_store);
 static DEVICE_ATTR(gpio1_fall_index, 0660, cs40l2x_gpio1_fall_index_show,
@@ -614,6 +821,7 @@ static DEVICE_ATTR(num_waves, 0660, cs40l2x_num_waves_show, NULL);
 
 static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_cp_trigger_index.attr,
+	&dev_attr_cp_trigger_queue.attr,
 	&dev_attr_gpio1_rise_index.attr,
 	&dev_attr_gpio1_fall_index.attr,
 	&dev_attr_gpio1_fall_timeout.attr,
@@ -632,6 +840,160 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 static struct attribute_group cs40l2x_dev_attr_group = {
 	.attrs = cs40l2x_dev_attrs,
 };
+
+static int cs40l2x_pbq_cancel(struct cs40l2x_private *cs40l2x)
+{
+	struct regmap *regmap = cs40l2x->regmap;
+	int ret;
+
+	/* this function expects to be called from a locked worker function */
+	if (!mutex_is_locked(&cs40l2x->lock))
+		return -EACCES;
+
+	hrtimer_cancel(&cs40l2x->pbq_timer);
+
+	ret = regmap_write(regmap, cs40l2x_dsp_reg(cs40l2x, "ENDPLAYBACK",
+			CS40L2X_XM_UNPACKED_TYPE), 1);
+	if (ret)
+		return ret;
+
+	ret = cs40l2x_dig_scale_set(cs40l2x, cs40l2x->dig_scale);
+	if (ret)
+		return ret;
+
+	cs40l2x->pbq_state = CS40L2X_PBQ_STATE_IDLE;
+
+	return 0;
+}
+
+static int cs40l2x_pbq_pair_launch(struct cs40l2x_private *cs40l2x)
+{
+	struct regmap *regmap = cs40l2x->regmap;
+	unsigned int dig_scale = cs40l2x->dig_scale;
+	unsigned int tag, mag;
+	int ret;
+
+	/* this function expects to be called from a locked worker function */
+	if (!mutex_is_locked(&cs40l2x->lock))
+		return -EACCES;
+
+	if (cs40l2x->pbq_index == cs40l2x->pbq_depth) {
+		cs40l2x->pbq_index = 0;
+
+		switch (cs40l2x->pbq_remain) {
+		case -1:
+			/* loop until stopped */
+			break;
+		case 0:
+			/* queue is finished */
+			cs40l2x->cp_trailer_index = 0;
+			cs40l2x->pbq_state = CS40L2X_PBQ_STATE_IDLE;
+
+			ret = cs40l2x_dig_scale_set(cs40l2x, dig_scale);
+			return ret;
+		default:
+			/* loop once more */
+			cs40l2x->pbq_remain--;
+		}
+	}
+
+	tag = cs40l2x->pbq_pairs[cs40l2x->pbq_index].tag;
+	mag = cs40l2x->pbq_pairs[cs40l2x->pbq_index].mag;
+
+	/* zero tag indicates a period of silence */
+	if (tag) {
+		dig_scale += cs40l2x_pbq_scale[mag].dig_scale;
+		if (dig_scale > CS40L2X_DIG_SCALE_MAX)
+			dig_scale = CS40L2X_DIG_SCALE_MAX;
+
+		ret = cs40l2x_dig_scale_set(cs40l2x, dig_scale);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(regmap, CS40L2X_MBOX_TRIGGERINDEX, tag);
+		if (ret)
+			return ret;
+
+		hrtimer_start(&cs40l2x->pbq_timer,
+				ktime_set(0, CS40L2X_PBQ_POLL_NS),
+				HRTIMER_MODE_REL);
+		cs40l2x->pbq_state = CS40L2X_PBQ_STATE_PLAYING;
+	} else {
+		hrtimer_start(&cs40l2x->pbq_timer,
+				ktime_set(mag / 1000, (mag % 1000) * 1000000),
+				HRTIMER_MODE_REL);
+		cs40l2x->pbq_state = CS40L2X_PBQ_STATE_SILENT;
+	}
+
+	cs40l2x->pbq_index++;
+
+	return 0;
+}
+
+static void cs40l2x_vibe_pbq_worker(struct work_struct *work)
+{
+	struct cs40l2x_private *cs40l2x =
+		container_of(work, struct cs40l2x_private, vibe_pbq_work);
+	struct regmap *regmap = cs40l2x->regmap;
+	struct device *dev = cs40l2x->dev;
+	unsigned int val;
+	int ret;
+
+	mutex_lock(&cs40l2x->lock);
+
+	switch (cs40l2x->pbq_state) {
+	case CS40L2X_PBQ_STATE_IDLE:
+		/* queue may have been canceled */
+		goto err_mutex;
+
+	case CS40L2X_PBQ_STATE_PLAYING:
+		ret = regmap_read(regmap, cs40l2x_dsp_reg(cs40l2x, "STATUS",
+				CS40L2X_XM_UNPACKED_TYPE), &val);
+		if (ret) {
+			dev_err(dev, "Failed to capture playback status\n");
+			goto err_mutex;
+		}
+
+		if (val == CS40L2X_STATUS_IDLE) {
+			ret = cs40l2x_pbq_pair_launch(cs40l2x);
+			if (ret) {
+				dev_err(dev,
+					"Failed to continue playback queue\n");
+				goto err_mutex;
+			}
+		} else {
+			hrtimer_start(&cs40l2x->pbq_timer,
+					ktime_set(0, CS40L2X_PBQ_POLL_NS),
+					HRTIMER_MODE_REL);
+		}
+		break;
+
+	case CS40L2X_PBQ_STATE_SILENT:
+		ret = cs40l2x_pbq_pair_launch(cs40l2x);
+		if (ret) {
+			dev_err(dev, "Failed to continue playback queue\n");
+			goto err_mutex;
+		}
+		break;
+
+	default:
+		dev_err(dev, "Unexpected playback queue state: %d\n",
+				cs40l2x->pbq_state);
+	}
+
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+}
+
+static enum hrtimer_restart cs40l2x_pbq_timer(struct hrtimer *timer)
+{
+	struct cs40l2x_private *cs40l2x =
+		container_of(timer, struct cs40l2x_private, pbq_timer);
+
+	queue_work(cs40l2x->vibe_workqueue, &cs40l2x->vibe_pbq_work);
+
+	return HRTIMER_NORESTART;
+}
 
 static int cs40l2x_diag_capture(struct cs40l2x_private *cs40l2x)
 {
@@ -670,36 +1032,63 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 
 	mutex_lock(&cs40l2x->lock);
 
-	/* gracefully exit if diagnostics stimulus is interrupted */
-	if (cs40l2x->cp_trailer_index == CS40L2X_INDEX_DIAG) {
+	/* handle interruption of special cases */
+	switch (cs40l2x->cp_trailer_index) {
+	case CS40L2X_INDEX_PBQ:
+		ret = cs40l2x_pbq_cancel(cs40l2x);
+		if (ret)
+			dev_err(dev, "Failed to cancel playback queue\n");
+		break;
+
+	case CS40L2X_INDEX_DIAG:
 		cs40l2x->diag_state = CS40L2X_DIAG_STATE_INIT;
 		goto err_mutex;
 	}
 
 	cs40l2x->cp_trailer_index = cs40l2x->cp_trigger_index;
 
+#ifdef CONFIG_ANDROID_TIMED_OUTPUT
+	/* launch timer in the event of continuous playback */
 	switch (cs40l2x->cp_trailer_index) {
-	case 0x0000:
-	case 0x8000 ... 0xFFFE:
+	case CS40L2X_INDEX_VIBE:
+	case CS40L2X_INDEX_CONT_MIN ... CS40L2X_INDEX_CONT_MAX:
+	case CS40L2X_INDEX_DIAG:
+		hrtimer_start(&cs40l2x->vibe_timer,
+				ktime_set(cs40l2x->vibe_timeout / 1000,
+						(cs40l2x->vibe_timeout % 1000)
+						* 1000000),
+				HRTIMER_MODE_REL);
+	}
+#endif /* CONFIG_ANDROID_TIMED_OUTPUT */
+
+	switch (cs40l2x->cp_trailer_index) {
+	case CS40L2X_INDEX_VIBE:
+	case CS40L2X_INDEX_CONT_MIN ... CS40L2X_INDEX_CONT_MAX:
 		ret = regmap_write(regmap, CS40L2X_MBOX_TRIGGER_MS,
 				cs40l2x->cp_trailer_index & CS40L2X_INDEX_MASK);
 		if (ret)
 			dev_err(dev, "Failed to start playback\n");
 		break;
 
-	case 0x0001 ... 0x7FFF:
+	case CS40L2X_INDEX_CLICK_MIN ... CS40L2X_INDEX_CLICK_MAX:
 		ret = regmap_write(regmap, CS40L2X_MBOX_TRIGGERINDEX,
 				cs40l2x->cp_trailer_index);
 		if (ret)
 			dev_err(dev, "Failed to start playback\n");
 		break;
 
+	case CS40L2X_INDEX_PBQ:
+		cs40l2x->pbq_index = 0;
+		cs40l2x->pbq_remain = cs40l2x->pbq_repeat;
+		ret = cs40l2x_pbq_pair_launch(cs40l2x);
+		if (ret)
+			dev_err(dev, "Failed to launch playback queue\n");
+		break;
+
 	case CS40L2X_INDEX_DIAG:
 		cs40l2x->diag_state = CS40L2X_DIAG_STATE_INIT;
 
-		ret = regmap_update_bits(cs40l2x->regmap,
-				CS40L2X_AMP_DIG_VOL_CTRL,
-				CS40L2X_AMP_VOL_PCM_MASK, 0);
+		ret = cs40l2x_dig_scale_set(cs40l2x, 0);
 		if (ret) {
 			dev_err(dev, "Failed to reset digital scale\n");
 			goto err_mutex;
@@ -760,13 +1149,15 @@ static void cs40l2x_vibe_stop_worker(struct work_struct *work)
 		if (ret)
 			dev_err(dev, "Failed to disable stimulus mode\n");
 
-		ret = regmap_update_bits(cs40l2x->regmap,
-				CS40L2X_AMP_DIG_VOL_CTRL,
-				CS40L2X_AMP_VOL_PCM_MASK,
-				((0x800 - cs40l2x->dig_scale) & 0x7FF)
-					<< CS40L2X_AMP_VOL_PCM_SHIFT);
+		ret = cs40l2x_dig_scale_set(cs40l2x, cs40l2x->dig_scale);
 		if (ret)
 			dev_err(dev, "Failed to restore digital scale\n");
+		break;
+
+	case CS40L2X_INDEX_PBQ:
+		ret = cs40l2x_pbq_cancel(cs40l2x);
+		if (ret)
+			dev_err(dev, "Failed to cancel playback queue\n");
 		break;
 
 	default:
@@ -790,9 +1181,7 @@ static void cs40l2x_vibe_enable(struct timed_output_dev *sdev, int timeout)
 		container_of(sdev, struct cs40l2x_private, timed_dev);
 
 	if (timeout > 0) {
-		hrtimer_start(&cs40l2x->vibe_timer,
-			ktime_set(timeout / 1000, (timeout % 1000) * 1000000),
-			HRTIMER_MODE_REL);
+		cs40l2x->vibe_timeout = timeout;
 		queue_work(cs40l2x->vibe_workqueue, &cs40l2x->vibe_start_work);
 	} else {
 		hrtimer_cancel(&cs40l2x->vibe_timer);
@@ -894,6 +1283,8 @@ static void cs40l2x_create_led(struct cs40l2x_private *cs40l2x)
 
 static void cs40l2x_vibe_init(struct cs40l2x_private *cs40l2x)
 {
+	struct hrtimer *pbq_timer = &cs40l2x->pbq_timer;
+
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 	cs40l2x_create_timed_output(cs40l2x);
 #else
@@ -908,7 +1299,11 @@ static void cs40l2x_vibe_init(struct cs40l2x_private *cs40l2x)
 	}
 
 	INIT_WORK(&cs40l2x->vibe_start_work, cs40l2x_vibe_start_worker);
+	INIT_WORK(&cs40l2x->vibe_pbq_work, cs40l2x_vibe_pbq_worker);
 	INIT_WORK(&cs40l2x->vibe_stop_work, cs40l2x_vibe_stop_worker);
+
+	hrtimer_init(pbq_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	pbq_timer->function = cs40l2x_pbq_timer;
 
 	cs40l2x->vibe_init_success = true;
 }
@@ -2034,6 +2429,8 @@ static void cs40l2x_i2c_remove(struct i2c_client *i2c_client)
 
 	if (cs40l2x->vibe_init_success) {
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
+		hrtimer_cancel(&cs40l2x->vibe_timer);
+
 		timed_output_dev_unregister(&cs40l2x->timed_dev);
 
 		sysfs_remove_group(&cs40l2x->timed_dev.dev->kobj,
@@ -2045,7 +2442,10 @@ static void cs40l2x_i2c_remove(struct i2c_client *i2c_client)
 				&cs40l2x_dev_attr_group);
 #endif /* CONFIG_ANDROID_TIMED_OUTPUT */
 
+		hrtimer_cancel(&cs40l2x->pbq_timer);
+
 		cancel_work_sync(&cs40l2x->vibe_start_work);
+		cancel_work_sync(&cs40l2x->vibe_pbq_work);
 		cancel_work_sync(&cs40l2x->vibe_stop_work);
 
 		destroy_workqueue(cs40l2x->vibe_workqueue);
