@@ -40,8 +40,7 @@
 
 #define TACNA_SEEN_BOOT_DONE	0x1
 
-#define TACNA_BOOT_POLL_MICROSECONDS    1000
-#define TACNA_BOOT_TIMEOUT_MICROSECONDS 5000
+#define TACNA_BOOT_TIMEOUT_MS	25
 
 static const char * const tacna_core_supplies[] = {
 	"VDD_A",
@@ -148,7 +147,7 @@ EXPORT_SYMBOL_GPL(tacna_name_from_type);
 static int tacna_wait_for_boot(struct tacna *tacna)
 {
 	unsigned int val, reg;
-	int ret;
+	int i, ret;
 
 	switch (tacna->type) {
 	case CS47L96:
@@ -160,28 +159,28 @@ static int tacna_wait_for_boot(struct tacna *tacna)
 		break;
 	}
 
+	/* Reads could fail while the chip is booting so don't fail on errors */
 	ret = regmap_read(tacna->regmap, reg, &val);
-	if (ret) {
-		dev_err(tacna->dev, "Failed to read 0x%x : %d\n", reg, ret);
-		return ret;
+	if (ret == 0) {
+		/* No need to wait for boot if VDD_D didn't power off */
+		if (val & TACNA_SEEN_BOOT_DONE) {
+			dev_dbg(tacna->dev, "Already booted\n");
+			return 0;
+		}
 	}
 
-	/* No need to wait for boot if VDD_D didn't power off */
-	if (val & TACNA_SEEN_BOOT_DONE)
-		return 0;
+	/* regmap_read_poll_timeout would fail on read errors so roll our own */
+	for (i = 0; i < TACNA_BOOT_TIMEOUT_MS; ++i) {
+		val = 0;
+		regmap_read(tacna->regmap, TACNA_IRQ1_EINT_2, &val);
+		if (val & TACNA_BOOT_DONE_EINT1_MASK)
+			break;
 
-	/*
-	 * We can't use an interrupt as we need to runtime resume to do so,
-	 * we won't race with the interrupt handler as it'll be blocked on
-	 * runtime resume.
-	 */
-	ret = regmap_read_poll_timeout(tacna->regmap, TACNA_IRQ1_EINT_2, val,
-				       (val & TACNA_BOOT_DONE_EINT1_MASK),
-				       TACNA_BOOT_POLL_MICROSECONDS,
-				       TACNA_BOOT_TIMEOUT_MICROSECONDS);
-	if (ret) {
-		dev_err(tacna->dev, "Failed to get BOOT_DONE: %d\n", ret);
-		return ret;
+		usleep_range(1000, 2000);
+	}
+	if (i == TACNA_BOOT_TIMEOUT_MS) {
+		dev_err(tacna->dev, "BOOT_DONE timed out\n");
+		return -ETIMEDOUT;
 	}
 
 	ret = regmap_read(tacna->regmap, TACNA_MCU_CTRL1, &val);
