@@ -3266,10 +3266,7 @@ EXPORT_SYMBOL_GPL(tacna_fllhj_set_refclk);
 
 int tacna_init_fll(struct tacna_fll *fll)
 {
-	init_completion(&fll->ok);
-
 	fll->ref_src = TACNA_FLL_SRC_NONE;
-	fll->sync_src = TACNA_FLL_SRC_NONE;
 
 	return 0;
 }

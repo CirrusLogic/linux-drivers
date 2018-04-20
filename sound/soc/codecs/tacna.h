@@ -359,15 +359,11 @@ struct tacna_fll {
 	struct tacna_priv *tacna_priv;
 	int id;
 	unsigned int base;
-	struct completion ok;
 
 	unsigned int sts_addr;
 	unsigned int sts_mask;
 
 	unsigned int fout;
-
-	int sync_src;
-	unsigned int sync_freq;
 
 	int ref_src;
 	unsigned int ref_freq;
