@@ -1138,7 +1138,7 @@ static void madera_extcon_set_mode(struct madera_extcon *info, int mode)
 		info->micd_modes[mode].bias, info->micd_modes[mode].gpio,
 		info->micd_modes[mode].hp_gnd);
 
-	if (info->micd_pol_gpio > 0)
+	if (info->micd_pol_gpio)
 		gpiod_set_value_cansleep(info->micd_pol_gpio,
 					 info->micd_modes[mode].gpio);
 
@@ -2715,7 +2715,7 @@ static void madera_extcon_process_accdet_node(struct madera_extcon *info,
 		dev_warn(info->dev,
 			 "Malformed cirrus,micd-pol-gpios ignored: %ld\n",
 			 PTR_ERR(info->micd_pol_gpio));
-		info->micd_pol_gpio = 0;
+		info->micd_pol_gpio = NULL;
 	}
 }
 
@@ -2784,11 +2784,11 @@ static void madera_extcon_dump_config(struct madera_extcon *info)
 		MADERA_EXTCON_PDATA_DUMP(micd_open_circuit_declare, "%u");
 		MADERA_EXTCON_PDATA_DUMP(micd_software_compare, "%u");
 
-		if (info->micd_pol_gpio > 0)
+		if (info->micd_pol_gpio)
 			dev_dbg(info->dev, "micd_pol_gpio: %d\n",
 				desc_to_gpio(info->micd_pol_gpio));
 		else
-			dev_dbg(info->dev, "micd_pol_gpio: 0\n");
+			dev_dbg(info->dev, "micd_pol_gpio: unused\n");
 
 		dev_dbg(info->dev, "\tmicd_ranges {\n");
 		for (j = 0; j < info->num_micd_ranges; ++j)
