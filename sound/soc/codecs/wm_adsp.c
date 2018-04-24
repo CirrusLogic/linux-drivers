@@ -3371,9 +3371,9 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 	dsp->preloaded = ucontrol->value.integer.value[0];
 
 	if (ucontrol->value.integer.value[0])
-		snd_soc_dapm_force_enable_pin(dapm, preload);
+		snd_soc_component_force_enable_pin(&codec->component, preload);
 	else
-		snd_soc_dapm_disable_pin(dapm, preload);
+		snd_soc_component_disable_pin(&codec->component, preload);
 
 	snd_soc_dapm_sync(dapm);
 
@@ -3713,7 +3713,6 @@ EXPORT_SYMBOL_GPL(wm_halo_event);
 
 int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	char preload[32];
 	int ret;
 
@@ -3722,7 +3721,8 @@ int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 
 	snprintf(preload, ARRAY_SIZE(preload), "DSP%d%s Preload", dsp->num,
 		 dsp->suffix);
-	snd_soc_dapm_disable_pin(dapm, preload);
+
+	snd_soc_component_disable_pin(&codec->component, preload);
 
 	wm_adsp2_init_debugfs(dsp, codec);
 
