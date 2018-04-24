@@ -63,6 +63,7 @@ bool cs40l2x_readable_reg(struct device *dev, unsigned int reg)
 	case CS40L2X_DSP_CLK_CTRL:
 	case CS40L2X_GLOBAL_CLK_CTRL:
 	case CS40L2X_DATA_FS_SEL:
+	case CS40L2X_PLL_LOOP_PARAM:
 	case CS40L2X_PLL_MISC_CTRL:
 	case CS40L2X_MDSYNC_EN:
 	case CS40L2X_MDSYNC_TX_ID:
