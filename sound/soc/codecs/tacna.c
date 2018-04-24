@@ -936,6 +936,7 @@ irqreturn_t tacna_us1_activity(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_GPL(tacna_us1_activity);
 
 irqreturn_t tacna_us2_activity(int irq, void *data)
 {
@@ -947,6 +948,7 @@ irqreturn_t tacna_us2_activity(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_GPL(tacna_us2_activity);
 
 const char * const tacna_vol_ramp_text[TACNA_VOL_RAMP_ENUM_SIZE] = {
 	"0ms/6dB", "0.5ms/6dB", "1ms/6dB", "2ms/6dB", "4ms/6dB", "8ms/6dB",
