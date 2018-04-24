@@ -2289,11 +2289,17 @@ static int cs40l2x_handle_of_data(struct i2c_client *i2c_client,
 
 static const struct reg_sequence cs40l2x_rev_a0_errata[] = {
 	{CS40L2X_OTP_TRIM_30,		0x9091A1C8},
-	{CS40L2X_PLL_MISC_CTRL,		0x0200EE0E},
+	{CS40L2X_PLL_LOOP_PARAM,	0x00001837},
+	{CS40L2X_PLL_MISC_CTRL,		0x03008E0E},
 	{CS40L2X_BSTCVRT_DCM_CTRL,	0x00000051},
 	{CS40L2X_CTRL_ASYNC1,		0x00000004},
 	{CS40L2X_IRQ1_DB3,		0x00000000},
 	{CS40L2X_IRQ2_DB3,		0x00000000},
+};
+
+static const struct reg_sequence cs40l2x_rev_b0_errata[] = {
+	{CS40L2X_PLL_LOOP_PARAM,	0x00001837},
+	{CS40L2X_PLL_MISC_CTRL,		0x03008E0E},
 };
 
 static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
@@ -2370,12 +2376,28 @@ static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
 		part_num_index = 1;
 		if (revid != CS40L2X_REVID_B0)
 			goto err_revid;
+
+		ret = regmap_register_patch(regmap, cs40l2x_rev_b0_errata,
+				ARRAY_SIZE(cs40l2x_rev_b0_errata));
+		if (ret) {
+			dev_err(dev, "Failed to apply revision %02X errata\n",
+					revid);
+			return ret;
+		}
 		break;
 	case CS40L2X_DEVID_L25A:
 	case CS40L2X_DEVID_L25B:
 		part_num_index = devid - CS40L2X_DEVID_L25A + 2;
 		if (revid < CS40L2X_REVID_B1)
 			goto err_revid;
+
+		ret = regmap_register_patch(regmap, cs40l2x_rev_b0_errata,
+				ARRAY_SIZE(cs40l2x_rev_b0_errata));
+		if (ret) {
+			dev_err(dev, "Failed to apply revision %02X errata\n",
+					revid);
+			return ret;
+		}
 		break;
 	default:
 		dev_err(dev, "Unrecognized device ID: 0x%06X\n", devid);
