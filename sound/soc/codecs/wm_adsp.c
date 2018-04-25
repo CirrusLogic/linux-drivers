@@ -355,6 +355,7 @@
 #define HALO_STREAM_ARB_IRQ7_CONFIG_2        0x45678
 
 #define HALO_INTP_CTL_NMI_CONTROL            0x46008
+#define HALO_INTP_CTL_IRQ_FLUSH              0x46020
 
 /*
  * HALO_AHBM_WINDOW_DEBUG_1
@@ -3186,6 +3187,9 @@ static int wm_halo_clear_stream_arb(struct wm_adsp *dsp)
 		if (ret)
 			goto error;
 	}
+
+	regmap_write(regmap, dspbase + HALO_INTP_CTL_IRQ_FLUSH, 0x00FFFFFF);
+
 	return 0;
 
 error:
