@@ -3484,6 +3484,7 @@ static int tacna_startup(struct snd_pcm_substream *substream,
 	case TACNA_CLK_SYSCLK_1:
 	case TACNA_CLK_SYSCLK_2:
 	case TACNA_CLK_SYSCLK_3:
+	case TACNA_CLK_SYSCLK_4:
 		base_rate = priv->sysclk;
 		break;
 	case TACNA_CLK_ASYNCCLK_1:
@@ -3546,6 +3547,11 @@ static int tacna_hw_params_rate(struct snd_pcm_substream *substream,
 		tar_asp_rate = 2u << TACNA_ASP1_RATE_SHIFT;
 		sr_reg = TACNA_SAMPLE_RATE3;
 		sr_mask = TACNA_SAMPLE_RATE_3_MASK;
+		break;
+	case TACNA_CLK_SYSCLK_4:
+		tar_asp_rate = 3u << TACNA_ASP1_RATE_SHIFT;
+		sr_reg = TACNA_SAMPLE_RATE4;
+		sr_mask = TACNA_SAMPLE_RATE_4_MASK;
 		break;
 	case TACNA_CLK_ASYNCCLK_1:
 		tar_asp_rate = 8u << TACNA_ASP1_RATE_SHIFT;
@@ -3749,6 +3755,7 @@ static bool tacna_is_sysclk(int clk_id)
 	case TACNA_CLK_SYSCLK_1:
 	case TACNA_CLK_SYSCLK_2:
 	case TACNA_CLK_SYSCLK_3:
+	case TACNA_CLK_SYSCLK_4:
 		return true;
 	default:
 		return false;
@@ -3761,6 +3768,7 @@ static const char * const tacna_dai_clk_str(int clk_id)
 	case TACNA_CLK_SYSCLK_1:
 	case TACNA_CLK_SYSCLK_2:
 	case TACNA_CLK_SYSCLK_3:
+	case TACNA_CLK_SYSCLK_4:
 		return "SYSCLK";
 	case TACNA_CLK_ASYNCCLK_1:
 	case TACNA_CLK_ASYNCCLK_2:
@@ -3783,6 +3791,7 @@ static int tacna_dai_set_sysclk(struct snd_soc_dai *dai,
 	case TACNA_CLK_SYSCLK_1:
 	case TACNA_CLK_SYSCLK_2:
 	case TACNA_CLK_SYSCLK_3:
+	case TACNA_CLK_SYSCLK_4:
 	case TACNA_CLK_ASYNCCLK_1:
 	case TACNA_CLK_ASYNCCLK_2:
 		break;
@@ -3814,6 +3823,7 @@ static int tacna_dai_set_sysclk(struct snd_soc_dai *dai,
 	case TACNA_CLK_SYSCLK_1:
 	case TACNA_CLK_SYSCLK_2:
 	case TACNA_CLK_SYSCLK_3:
+	case TACNA_CLK_SYSCLK_4:
 		routes[0].source = tacna_dai_clk_str(dai_priv->clk);
 		routes[1].source = tacna_dai_clk_str(dai_priv->clk);
 		snd_soc_dapm_del_routes(dapm, routes, ARRAY_SIZE(routes));
