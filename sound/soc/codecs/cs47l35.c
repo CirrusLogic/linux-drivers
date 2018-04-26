@@ -1604,6 +1604,8 @@ static int cs47l35_codec_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
+	madera_set_irq_wake(madera, MADERA_IRQ_DSP_IRQ1, 1);
+
 	for (i = 0; i < CS47L35_NUM_ADSP; i++)
 		wm_adsp2_codec_probe(&cs47l35->core.adsp[i], codec);
 
@@ -1618,6 +1620,8 @@ static int cs47l35_codec_remove(struct snd_soc_codec *codec)
 
 	for (i = 0; i < CS47L35_NUM_ADSP; i++)
 		wm_adsp2_codec_remove(&cs47l35->core.adsp[i], codec);
+
+	madera_set_irq_wake(madera, MADERA_IRQ_DSP_IRQ1, 0);
 
 	madera_free_irq(madera, MADERA_IRQ_DSP_IRQ1, cs47l35);
 
