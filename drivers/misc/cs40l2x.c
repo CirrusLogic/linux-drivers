@@ -2133,6 +2133,15 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
+	ret = regmap_update_bits(regmap, CS40L2X_DSP1_RX4_SRC,
+			CS40L2X_DSP1_RXn_SRC_MASK,
+			CS40L2X_DSP1_RXn_SRC_VPMON
+				<< CS40L2X_DSP1_RXn_SRC_SHIFT);
+	if (ret) {
+		dev_err(dev, "Failed to route battery monitor to DSP\n");
+		return ret;
+	}
+
 	return 0;
 }
 
