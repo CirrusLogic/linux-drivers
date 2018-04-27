@@ -2359,7 +2359,7 @@ static int cs40l2x_basic_mode_exit(struct cs40l2x_private *cs40l2x)
 
 static const struct reg_sequence cs40l2x_rev_a0_errata[] = {
 	{CS40L2X_OTP_TRIM_30,		0x9091A1C8},
-	{CS40L2X_PLL_LOOP_PARAM,	0x00001837},
+	{CS40L2X_PLL_LOOP_PARAM,	0x000C1837},
 	{CS40L2X_PLL_MISC_CTRL,		0x03008E0E},
 	{CS40L2X_BSTCVRT_DCM_CTRL,	0x00000051},
 	{CS40L2X_CTRL_ASYNC1,		0x00000004},
@@ -2368,7 +2368,7 @@ static const struct reg_sequence cs40l2x_rev_a0_errata[] = {
 };
 
 static const struct reg_sequence cs40l2x_rev_b0_errata[] = {
-	{CS40L2X_PLL_LOOP_PARAM,	0x00001837},
+	{CS40L2X_PLL_LOOP_PARAM,	0x000C1837},
 	{CS40L2X_PLL_MISC_CTRL,		0x03008E0E},
 };
 
