@@ -425,13 +425,14 @@ const char * const tacna_rate_text[TACNA_RATE_ENUM_SIZE] = {
 	"Sample Rate 1",
 	"Sample Rate 2",
 	"Sample Rate 3",
+	"Sample Rate 4",
 	"Async Sample Rate 1",
 	"Async Sample Rate 2",
 };
 EXPORT_SYMBOL_GPL(tacna_rate_text);
 
 const unsigned int tacna_rate_val[TACNA_RATE_ENUM_SIZE] = {
-	0x0, 0x1, 0x2, 0x8, 0x9,
+	0x0, 0x1, 0x2, 0x3, 0x8, 0x9,
 };
 EXPORT_SYMBOL_GPL(tacna_rate_val);
 
