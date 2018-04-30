@@ -370,6 +370,7 @@ struct tacna_fll {
 	struct tacna_fll_cfg ref_cfg;
 
 	unsigned int integer_only:1;
+	unsigned int has_lp:1;
 };
 
 struct tacna_enum {

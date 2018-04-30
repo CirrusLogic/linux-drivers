@@ -1012,6 +1012,7 @@ static int cs47l96_ao_probe(struct platform_device *pdev)
 	cs47l96_ao->fll.sts_addr = TACNA_IRQ1_STS_6;
 	cs47l96_ao->fll.sts_mask = TACNA_FLL1AO_LOCK_STS1_MASK;
 	cs47l96_ao->fll.integer_only = 1;
+	cs47l96_ao->fll.has_lp = 1;
 	tacna_init_fll(&cs47l96_ao->fll);
 
 	for (i = 0; i < ARRAY_SIZE(cs47l96_ao_dai); i++)
