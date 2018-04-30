@@ -2119,6 +2119,9 @@ static const struct snd_soc_dapm_route cs47l94_dapm_routes[] = {
 	{ "OUT5R PGA", NULL, "DACCLK" },
 	{ "OUTH Output Select", NULL, "DACCLK"},
 
+	{ "OPCLK", NULL, "SYSCLK" },
+	{ "ASYNCOPCLK", NULL, "ASYNCCLK" },
+
 	{ "OUT1L PGA", NULL, "DAC_ASYNCCLK" },
 	{ "OUT1R PGA", NULL, "DAC_ASYNCCLK" },
 	{ "OUT2L PGA", NULL, "DAC_ASYNCCLK" },
