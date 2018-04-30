@@ -902,6 +902,8 @@ SND_SOC_DAPM_OUTPUT("Ultrasonic Dummy Output"),
 	{ name, "DSP1.8", "DSP1" }
 
 static const struct snd_soc_dapm_route cs48l32_dapm_routes[] = {
+	{ "OPCLK", NULL, "SYSCLK" },
+
 	{ "IN1LN_1", NULL, "SYSCLK" },
 	{ "IN1LN_2", NULL, "SYSCLK" },
 	{ "IN1LP_1", NULL, "SYSCLK" },
