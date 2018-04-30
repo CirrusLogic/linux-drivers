@@ -54,6 +54,7 @@
 #define TACNA_FLLHJ_LOW_GAINS			0x23f0
 #define TACNA_FLLHJ_MID_GAINS			0x22f2
 #define TACNA_FLLHJ_HIGH_GAINS			0x21f0
+#define CS47L96_AO_FLLHJ_LOW_GAINS		0x23f1
 #define TACNA_FLL_MAX_FOUT			50000000
 #define TACNA_FLL_MAX_REFDIV			8
 
@@ -3018,6 +3019,12 @@ static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 		return -EINVAL;
 	}
 
+	if (fll->max_fref && (fref > fll->max_fref)) {
+		tacna_fll_err(fll, "fref=%u too high (max %u)\n",
+			      fref, fll->max_fref);
+		return -EINVAL;
+	}
+
 	/*
 	 * Use simple heuristic approach to find a configuration that
 	 * should work for most input clocks.
@@ -3027,6 +3034,17 @@ static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 	if (fref < TACNA_FLLHJ_LOW_THRESH) {
 		lockdet_thr = 2;
 		gains = TACNA_FLLHJ_LOW_GAINS;
+
+		switch (tacna->type) {
+		case CS47L96:
+		case CS47L97:
+			if (fll->integer_only)
+				gains = CS47L96_AO_FLLHJ_LOW_GAINS;
+			break;
+		default:
+			break;
+		}
+
 		if (frac)
 			fbdiv = 256;
 		else
