@@ -1437,6 +1437,7 @@ static int cs48l32_probe(struct platform_device *pdev)
 	cs48l32->fll.base = TACNA_FLL1_CONTROL1;
 	cs48l32->fll.sts_addr = TACNA_IRQ1_STS_6;
 	cs48l32->fll.sts_mask = TACNA_FLL1_LOCK_STS1_MASK;
+	cs48l32->fll.has_lp = 1;
 	tacna_init_fll(&cs48l32->fll);
 
 	for (i = 0; i < ARRAY_SIZE(cs48l32_dai); i++)

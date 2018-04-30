@@ -3054,18 +3054,11 @@ static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 		min_n = TACNA_FLLHJ_FRAC_MIN_N;
 		max_n = TACNA_FLLHJ_FRAC_MAX_N;
 	} else {
-		switch (tacna->type) {
-		case CS48L32:
-			/* In integer mode, HP depends on fin */
-			if (fref < TACNA_FLLHJ_LP_INT_MODE_THRESH)
-				hp = 0x0;
-			else
-				hp = 0x1;
-			break;
-		default:
+		if (fll->has_lp && (fref < TACNA_FLLHJ_LP_INT_MODE_THRESH))
+			hp = 0x0;
+		else
 			hp = 0x1;
-			break;
-		}
+
 		min_n = TACNA_FLLHJ_INT_MIN_N;
 		max_n = TACNA_FLLHJ_INT_MAX_N;
 	}
