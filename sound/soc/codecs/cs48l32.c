@@ -133,6 +133,32 @@ static const struct snd_kcontrol_new cs48l32_auxpdm_inmux[] = {
 	SOC_DAPM_ENUM("AUXPDM2 Input", cs48l32_auxpdm2_in),
 };
 
+static const unsigned int cs48l32_auxpdm_analog_in_val[] = {
+	0x0, 0x1,
+};
+
+static const struct soc_enum cs48l32_auxpdm_analog_inmux_enum[] = {
+	SOC_VALUE_ENUM_SINGLE(TACNA_AUXPDM1_CONTROL1,
+			      TACNA_AUXPDM1_SRC_SHIFT,
+			      TACNA_AUXPDM1_SRC_MASK >> TACNA_AUXPDM1_SRC_SHIFT,
+			      ARRAY_SIZE(cs48l32_auxpdm_analog_in_val),
+			      tacna_auxpdm_in_texts,
+			      cs48l32_auxpdm_analog_in_val),
+	SOC_VALUE_ENUM_SINGLE(TACNA_AUXPDM2_CONTROL1,
+			      TACNA_AUXPDM2_SRC_SHIFT,
+			      TACNA_AUXPDM2_SRC_MASK >> TACNA_AUXPDM2_SRC_SHIFT,
+			      ARRAY_SIZE(cs48l32_auxpdm_analog_in_val),
+			      tacna_auxpdm_in_texts,
+			      cs48l32_auxpdm_analog_in_val),
+};
+
+static const struct snd_kcontrol_new cs48l32_auxpdm_analog_inmux[] = {
+	SOC_DAPM_ENUM("AUXPDM1 Analog Input",
+		      cs48l32_auxpdm_analog_inmux_enum[0]),
+	SOC_DAPM_ENUM("AUXPDM2 Analog Input",
+		      cs48l32_auxpdm_analog_inmux_enum[1]),
+};
+
 static const unsigned int cs48l32_us_freq_val[] = {
 	0x2, 0x3,
 };
@@ -623,9 +649,9 @@ SND_SOC_DAPM_MUX("AUXPDM2 Input", SND_SOC_NOPM, 0, 0,
 		 &cs48l32_auxpdm_inmux[1]),
 
 SND_SOC_DAPM_MUX("AUXPDM1 Analog Input", SND_SOC_NOPM, 0, 0,
-		 &tacna_auxpdm_inmux[0]),
+		 &cs48l32_auxpdm_analog_inmux[0]),
 SND_SOC_DAPM_MUX("AUXPDM2 Analog Input", SND_SOC_NOPM, 0, 0,
-		 &tacna_auxpdm_inmux[1]),
+		 &cs48l32_auxpdm_analog_inmux[1]),
 
 SND_SOC_DAPM_SWITCH("Ultrasonic 1 Activity Detect", TACNA_US_CONTROL,
 		    TACNA_US1_DET_EN_SHIFT, 0, &tacna_us_switch[0]),

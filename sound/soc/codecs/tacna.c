@@ -1143,7 +1143,7 @@ SOC_ENUM_SINGLE_DECL(tacna_auxpdm3_freq,
 		     tacna_auxpdm_freq_texts);
 EXPORT_SYMBOL_GPL(tacna_auxpdm3_freq);
 
-static const char * const tacna_auxpdm_in_texts[] = {
+const char * const tacna_auxpdm_in_texts[] = {
 	"IN1L",
 	"IN1R",
 	"IN2L",
