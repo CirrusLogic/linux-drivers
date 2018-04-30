@@ -369,6 +369,8 @@ struct tacna_fll {
 	unsigned int ref_freq;
 	struct tacna_fll_cfg ref_cfg;
 
+	unsigned int max_fref;
+
 	unsigned int integer_only:1;
 	unsigned int has_lp:1;
 };
