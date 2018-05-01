@@ -2938,7 +2938,8 @@ static int tacna_wait_for_fll(struct tacna_fll *fll, bool requested)
 		}
 	}
 
-	tacna_fll_warn(fll, "Timed out waiting for lock\n");
+	tacna_fll_warn(fll, "Timed out waiting for %s\n",
+		       requested ? "lock" : "unlock");
 
 	return -ETIMEDOUT;
 }
