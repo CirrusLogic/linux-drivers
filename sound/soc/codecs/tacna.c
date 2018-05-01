@@ -392,6 +392,9 @@ EXPORT_SYMBOL_GPL(tacna_noise_tlv);
 const DECLARE_TLV_DB_SCALE(tacna_mixer_tlv, -3200, 100, 0);
 EXPORT_SYMBOL_GPL(tacna_mixer_tlv);
 
+const DECLARE_TLV_DB_SCALE(tacna_us_tlv, -500, 600, 0);
+EXPORT_SYMBOL_GPL(tacna_us_tlv);
+
 void tacna_spin_sysclk(struct tacna_priv *priv)
 {
 	struct tacna *tacna = priv->tacna;
@@ -777,25 +780,6 @@ const struct soc_enum tacna_us_freq[] = {
 			tacna_us_freq_texts),
 };
 EXPORT_SYMBOL_GPL(tacna_us_freq);
-
-static const char * const tacna_us_gain_texts[] = {
-	"No Signal",
-	"-5dB",
-	"+1dB",
-	"+7dB",
-};
-
-const struct soc_enum tacna_us_gain[] = {
-	SOC_ENUM_SINGLE(TACNA_US1_CONTROL,
-			TACNA_US1_GAIN_SHIFT,
-			ARRAY_SIZE(tacna_us_gain_texts),
-			tacna_us_gain_texts),
-	SOC_ENUM_SINGLE(TACNA_US2_CONTROL,
-			TACNA_US2_GAIN_SHIFT,
-			ARRAY_SIZE(tacna_us_gain_texts),
-			tacna_us_gain_texts),
-};
-EXPORT_SYMBOL_GPL(tacna_us_gain);
 
 static const char * const tacna_us_det_thr_texts[] = {
 	"-6dB",

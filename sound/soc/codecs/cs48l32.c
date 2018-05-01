@@ -287,8 +287,10 @@ TACNA_RATE_ENUM("Ultrasonic 2 Rate", tacna_us_output_rate[1]),
 SOC_ENUM("Ultrasonic 1 Freq", cs48l32_us_freq[0]),
 SOC_ENUM("Ultrasonic 2 Freq", cs48l32_us_freq[1]),
 
-SOC_ENUM("Ultrasonic 1 Gain", tacna_us_gain[0]),
-SOC_ENUM("Ultrasonic 2 Gain", tacna_us_gain[1]),
+SOC_SINGLE_TLV("Ultrasonic 1 Volume", TACNA_US1_CONTROL, TACNA_US1_GAIN_SHIFT,
+	       3, 0, tacna_us_tlv),
+SOC_SINGLE_TLV("Ultrasonic 2 Volume", TACNA_US2_CONTROL, TACNA_US2_GAIN_SHIFT,
+	       3, 0, tacna_us_tlv),
 
 SOC_ENUM("Ultrasonic 1 Activity Detect Threshold", tacna_us_det_thr[0]),
 SOC_ENUM("Ultrasonic 2 Activity Detect Threshold", tacna_us_det_thr[1]),
