@@ -402,6 +402,7 @@ extern const unsigned int tacna_eq_tlv[];
 extern const unsigned int tacna_digital_tlv[];
 extern const unsigned int tacna_noise_tlv[];
 extern const unsigned int tacna_mixer_tlv[];
+extern const unsigned int tacna_us_tlv[];
 
 void tacna_spin_sysclk(struct tacna_priv *priv);
 
@@ -432,7 +433,6 @@ extern const struct soc_enum tacna_us_output_rate[];
 extern const struct snd_kcontrol_new tacna_us_switch[];
 extern const struct soc_enum tacna_us_freq[];
 extern const struct soc_enum tacna_us_det_thr[];
-extern const struct soc_enum tacna_us_gain[];
 extern const struct soc_enum tacna_us_det_num[];
 extern const struct soc_enum tacna_us_det_hold[];
 extern const struct soc_enum tacna_us_det_dcy[];
