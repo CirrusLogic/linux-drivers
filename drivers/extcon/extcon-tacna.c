@@ -2011,6 +2011,9 @@ static void tacna_extcon_process_accdet_node(struct tacna_extcon *info,
 	fwnode_property_read_u32(node, "cirrus,hpdet-ext-res",
 				 &pdata->hpdet_ext_res_x100);
 
+	fwnode_property_read_u32(node, "cirrus,accdet-dbtime",
+				 &pdata->accdet_dbtime);
+
 	tacna_extcon_get_hpd_pins(info, node, pdata);
 	tacna_extcon_get_micd_configs(info, node);
 
@@ -2562,6 +2565,14 @@ static int tacna_extcon_probe(struct platform_device *pdev)
 				   TACNA_MICD1_DBTIME_MASK,
 				   info->pdata->micd_dbtime
 				   << TACNA_MICD1_DBTIME_SHIFT);
+
+
+	if (info->pdata->accdet_dbtime)
+		regmap_update_bits(tacna->regmap,
+				   TACNA_ACCDET_DEBOUNCE,
+				   TACNA_ACCDET_DBTIME_MASK,
+				   info->pdata->accdet_dbtime
+				   << TACNA_ACCDET_DBTIME_SHIFT);
 
 	ret = tacna_extcon_init_micd_ranges(info);
 	if (ret)
