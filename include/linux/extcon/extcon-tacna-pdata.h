@@ -129,6 +129,8 @@ struct tacna_accdet_pdata {
 	u32 hpd_pins[4];
 
 	const struct tacna_jd_state *custom_jd;
+
+	u32 accdet_dbtime;
 };
 
 #endif
