@@ -84,6 +84,9 @@ Child node optional properties:
       indicates this should be on
     fifth cell is the value of HPn_GND_SEL register field
 
+  - cirrus,accdet-dbtime : Set accessory detection hardware debounce level,
+    as per the ACCDET_DBTIME bits in the register TACNA_ACCDET_DEBOUNCE
+
 Example:
 
 codec: cs47l94@0 {
@@ -111,6 +114,7 @@ codec: cs47l94@0 {
 				0x1 0 1 0 2
 				0x0 0 2 1 2
 			>;
+			cirrus,accdet-dbtime =<0x1>;
 		};
 	};
 };
