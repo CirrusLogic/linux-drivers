@@ -1138,6 +1138,7 @@ const char * const tacna_auxpdm_in_texts[] = {
 	"IN4L",
 	"IN4R",
 };
+EXPORT_SYMBOL_GPL(tacna_auxpdm_in_texts);
 
 static SOC_ENUM_SINGLE_DECL(tacna_auxpdm1_in,
 			    TACNA_AUXPDM1_CONTROL1,
