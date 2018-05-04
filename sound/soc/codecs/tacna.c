@@ -1195,7 +1195,7 @@ static const char * const tacna_anc_input_src_text[] = {
 };
 
 static const char * const tacna_mono_anc_channel_src_text[] = {
-	"Left", "Right",
+	"None", "Left", "Right", "Left + Right",
 };
 
 const struct soc_enum tacna_mono_anc_input_src[] = {
@@ -1203,8 +1203,8 @@ const struct soc_enum tacna_mono_anc_input_src[] = {
 			TACNA_IN_ANC_L_SRC_SHIFT,
 			ARRAY_SIZE(tacna_anc_input_src_text),
 			tacna_anc_input_src_text),
-	SOC_ENUM_SINGLE(TACNA_ANC_CTRL_3,
-			TACNA_ANC_SWAP_CHAN_SHIFT,
+	SOC_ENUM_SINGLE(TACNA_ANC_L_CTRL_2,
+			TACNA_ANC_L_MIC_SRC_SHIFT,
 			ARRAY_SIZE(tacna_mono_anc_channel_src_text),
 			tacna_mono_anc_channel_src_text),
 };
