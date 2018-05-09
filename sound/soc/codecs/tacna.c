@@ -2542,6 +2542,7 @@ int tacna_dac_rate_put(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int *item = ucontrol->value.enumerated.item;
 	unsigned int val = snd_soc_enum_item_to_val(e, item[0]);
+	unsigned int out_clk_mode = TACNA_OUT_CLK_MODE;
 	unsigned int req_flag;
 	int ret;
 
@@ -2549,6 +2550,8 @@ int tacna_dac_rate_put(struct snd_kcontrol *kcontrol,
 
 	/* handle ASYNCCLK enable before changing rate */
 	if (!tacna_rate_val_is_sync(val)) {
+		out_clk_mode = 0;
+
 		switch (e->reg) {
 		case TACNA_OUTH_CONFIG_1:
 			req_flag = TACNA_OUTH_ASYNCCLK_REQ;
@@ -2560,6 +2563,12 @@ int tacna_dac_rate_put(struct snd_kcontrol *kcontrol,
 
 		tacna_check_enable_async(priv, req_flag);
 	}
+
+	ret = regmap_update_bits(priv->tacna->regmap, TACNA_OUTPUT_CONTROL_1,
+				 TACNA_OUT_CLK_MODE_MASK, out_clk_mode);
+	if (ret)
+		dev_warn(priv->dev, "Failed to write 0x%x: %d\n",
+			 TACNA_OUTPUT_CONTROL_1, ret);
 
 	ret = tacna_rate_put(kcontrol, ucontrol);
 
@@ -2695,8 +2704,7 @@ static int tacna_set_dacclk(struct snd_soc_codec *codec, int source,
 
 	ret = regmap_update_bits(priv->tacna->regmap,
 				 TACNA_OUTPUT_CONTROL_1,
-				 TACNA_OUT_CLK_DIV_MASK |
-				 TACNA_OUT_CLK_MODE_MASK,
+				 TACNA_OUT_CLK_DIV_MASK,
 				 div);
 	if (ret) {
 		dev_err(priv->dev, "Error writing OUTPUT_CONTROL_1 %d\n", ret);
@@ -4628,6 +4636,14 @@ int tacna_init_outputs(struct snd_soc_codec *codec,
 	const struct tacna_codec_pdata *pdata = &tacna->pdata.codec;
 	unsigned int val;
 	int i, ret;
+
+	/* Output clock defaults to sync rate */
+	ret = regmap_update_bits(tacna->regmap, TACNA_OUTPUT_CONTROL_1,
+				 TACNA_OUT_RATE_MASK | TACNA_OUT_CLK_MODE_MASK,
+				 TACNA_OUT_CLK_MODE);
+	if (ret)
+		dev_warn(priv->dev, "Failed to write 0x%x: %d\n",
+			 TACNA_OUTPUT_CONTROL_1, ret);
 
 	if (n_mono_routes > ARRAY_SIZE(pdata->out_mono)) {
 		dev_warn(priv->dev,
