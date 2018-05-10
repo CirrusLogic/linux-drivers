@@ -3806,7 +3806,7 @@ static int tacna_dai_set_sysclk(struct snd_soc_dai *dai,
 	tacna_asp_dbg(dai, "Setting to %s\n", tacna_dai_clk_str(clk_id));
 
 	/* No need to alter routes if we haven't switched clock domain. */
-	if (!(tacna_is_sysclk(clk_id) ^ tacna_is_sysclk(dai_priv->clk))) {
+	if (!!tacna_is_sysclk(clk_id) == !!tacna_is_sysclk(dai_priv->clk)) {
 		dai_priv->clk = clk_id;
 		return 0;
 	}
