@@ -2104,91 +2104,6 @@ static inline void tacna_extcon_dump_config(struct tacna_extcon *info)
 }
 #endif
 
-/* See datasheet for a description of this calibration data */
-// TODO: check where will the calibration live nowadays
-//static int tacna_extcon_read_calibration(struct tacna_extcon *info)
-//{
-//	struct tacna *tacna = info->tacna;
-//	struct tacna_hpdet_trims *trims;
-//	int ret = -EIO;
-//	unsigned int offset, gradient, interim_val;
-//	unsigned int otp_hpdet_calib_1, otp_hpdet_calib_2;
-//
-//	switch (tacna->type) {
-//	default:
-//		otp_hpdet_calib_1 = TACNA_OTP_HPDET_CAL_1;
-//		otp_hpdet_calib_2 = TACNA_OTP_HPDET_CAL_2;
-//		break;
-//	}
-//
-//	ret = regmap_read(tacna->regmap_32bit, otp_hpdet_calib_1, &offset);
-//	if (ret) {
-//		dev_err(info->dev,
-//			"Failed to read HP CALIB OFFSET value: %d\n", ret);
-//		return ret;
-//	}
-//
-//	ret = regmap_read(tacna->regmap_32bit, otp_hpdet_calib_2, &gradient);
-//	if (ret) {
-//		dev_err(info->dev,
-//			"Failed to read HP CALIB OFFSET value: %d\n", ret);
-//		return ret;
-//	}
-//
-//	if (((offset == 0) && (gradient == 0)) ||
-//	    ((offset == 0xFFFFFFFF) && (gradient == 0xFFFFFFFF))) {
-//		dev_warn(info->dev, "No HP trims\n");
-//		return 0;
-//	}
-//
-//	trims = devm_kcalloc(info->dev, 4,
-//			     sizeof(struct tacna_hpdet_trims),
-//			     GFP_KERNEL);
-//	if (!trims) {
-//		dev_err(info->dev, "Failed to alloc hpdet trims\n");
-//		return -ENOMEM;
-//	}
-//
-//	interim_val = (offset & TACNA_OTP_HPDET_CALIB_OFFSET_00_MASK) >>
-//		       TACNA_OTP_HPDET_CALIB_OFFSET_00_SHIFT;
-//	trims[0].off_x4 = 128 - interim_val;
-//
-//	interim_val = (gradient & TACNA_OTP_HPDET_GRADIENT_0X_MASK) >>
-//		       TACNA_OTP_HPDET_GRADIENT_0X_SHIFT;
-//	trims[0].grad_x4 = 128 - interim_val;
-//
-//	interim_val = (offset & TACNA_OTP_HPDET_CALIB_OFFSET_01_MASK) >>
-//			TACNA_OTP_HPDET_CALIB_OFFSET_01_SHIFT;
-//	trims[1].off_x4 = 128 - interim_val;
-//
-//	trims[1].grad_x4 = trims[0].grad_x4;
-//
-//	interim_val = (offset & TACNA_OTP_HPDET_CALIB_OFFSET_10_MASK) >>
-//		       TACNA_OTP_HPDET_CALIB_OFFSET_10_SHIFT;
-//	trims[2].off_x4 = 128 - interim_val;
-//
-//	interim_val = (gradient & TACNA_OTP_HPDET_GRADIENT_1X_MASK) >>
-//		       TACNA_OTP_HPDET_GRADIENT_1X_SHIFT;
-//	trims[2].grad_x4 = 128 - interim_val;
-//
-//	interim_val = (offset & TACNA_OTP_HPDET_CALIB_OFFSET_11_MASK) >>
-//		       TACNA_OTP_HPDET_CALIB_OFFSET_11_SHIFT;
-//	trims[3].off_x4 = 128 - interim_val;
-//
-//	trims[3].grad_x4 = trims[2].grad_x4;
-//
-//	info->hpdet_trims = trims;
-//
-//	dev_dbg(info->dev,
-//		"trims_x_4: %u,%u %u,%u %u,%u %u,%u\n",
-//		trims[0].off_x4, trims[0].grad_x4,
-//		trims[1].off_x4, trims[1].grad_x4,
-//		trims[2].off_x4, trims[2].grad_x4,
-//		trims[3].off_x4, trims[3].grad_x4);
-//
-//	return 0;
-//}
-
 static void tacna_extcon_set_micd_clamp_mode(struct tacna_extcon *info)
 {
 	unsigned int clamp_ctrl_val;
@@ -2579,8 +2494,6 @@ static int tacna_extcon_probe(struct platform_device *pdev)
 	pm_runtime_idle(&pdev->dev);
 
 	pm_runtime_get_sync(&pdev->dev);
-
-	//tacna_extcon_read_calibration(info);
 
 	tacna_configure_jds(info);
 
