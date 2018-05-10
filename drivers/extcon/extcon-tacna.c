@@ -462,7 +462,7 @@ static int cs47l94_extcon_update_out1_state(struct tacna_extcon *info,
 
 		break;
 	default:
-		break;
+		return 0;
 	}
 
 	/* wait for outputs to disable */
