@@ -48,9 +48,6 @@ Optional properties:
   - reset-gpios : One entry specifying the GPIO controlling RESET_B.
     As defined in bindings/gpio.txt.
 
-  - cirrus,secure : Boolean entry defining whether the part is being used in
-    secure mode.  Secure mode is enabled if the property is present.
-
   - pinctrl-names : Name of pinctrl configurations. Each of these is optional.
     Legal names are:
 	"probe" - external pinctrl dependencies required to probe this codec,
