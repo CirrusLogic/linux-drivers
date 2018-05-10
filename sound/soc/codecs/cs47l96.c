@@ -173,9 +173,14 @@ static int cs47l96_outh_ev(struct snd_soc_dapm_widget *w,
 
 		/* OUTH requires DAC clock to be set to its highest setting */
 		ret = regmap_read(regmap, TACNA_DAC_CLK_CONTROL1, &val);
+		if (ret) {
+			dev_err(codec->dev, "Failed to read 0x%x: %d\n",
+				TACNA_DAC_CLK_CONTROL1, ret);
+			return ret;
+		}
+
 		val = (val & TACNA_DAC_CLK_SRC_FREQ_MASK) >>
 			TACNA_DAC_CLK_SRC_FREQ_SHIFT;
-
 		if (val != 2) {
 			dev_err(codec->dev,
 				"OUTH enable failed (incompatible DACCLK).\n");
@@ -286,17 +291,19 @@ static int cs47l96_dsd_processor_ev(struct snd_soc_dapm_widget *w,
 		if (ret)
 			dev_warn(codec->dev,
 				"Failed to write to OUTH_ENABLE_1: %d\n", ret);
-		return 0;
+		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		ret = regmap_update_bits(tacna->regmap, TACNA_OUTH_ENABLE_1,
 					 TACNA_DSD1_IF_EN_MASK, 0);
 		if (ret)
 			dev_warn(codec->dev,
 				"Failed to write to OUTH_ENABLE_1: %d\n", ret);
-		return 0;
+		break;
 	default:
-		return 0;
+		break;
 	}
+
+	return 0;
 }
 
 static irqreturn_t cs47l96_outh_enable(int irq, void *data)
@@ -2703,6 +2710,8 @@ static int cs47l96_codec_probe(struct snd_soc_codec *codec)
 		     ARRAY_SIZE(tacna->pdata.codec.out_mono));
 	ret = tacna_init_outputs(codec, cs47l96_mono_routes,
 				 ARRAY_SIZE(cs47l96_mono_routes));
+	if (ret)
+		return ret;
 
 	ret = tacna_init_eq(&cs47l96->core);
 	if (ret)
