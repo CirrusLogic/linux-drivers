@@ -875,23 +875,6 @@ int tacna_dev_init(struct tacna *tacna)
 		goto err_reset;
 	}
 
-	switch (tacna->type) {
-	case CS47L96:
-	case CS47L97:
-		ret = regmap_update_bits(tacna->regmap,
-					 TACNA_CLOCK32KAO,
-					 TACNA_CLK_32KAO_SRC_MASK,
-					 TACNA_32K_MCLK2);
-		if (ret) {
-			dev_err(tacna->dev, "Failed to init AO 32k clock: %d\n",
-				ret);
-			goto err_reset;
-		}
-		break;
-	default:
-		break;
-	}
-
 	tacna_configure_micbias(tacna);
 
 	pm_runtime_set_active(tacna->dev);
