@@ -961,6 +961,15 @@ static int cs47l96_ao_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 
+	/* Source CLK32KAO from MCLK2 */
+	ret = regmap_update_bits(tacna->regmap, TACNA_CLOCK32KAO,
+				 TACNA_CLK_32KAO_SRC_MASK,
+				 TACNA_CLK_SRC_MCLK2);
+	if (ret) {
+		dev_err(tacna->dev, "Failed to init AO 32k clock: %d\n", ret);
+		return ret;
+	}
+
 	cs47l96_ao = devm_kzalloc(&pdev->dev, sizeof(struct cs47l96_ao),
 				  GFP_KERNEL);
 	if (!cs47l96_ao)
