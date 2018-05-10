@@ -45,9 +45,6 @@ Child node optional properties:
   - cirrus,micd-timeout-ms : Timeout for microphone detection, specified in
     milliseconds
 
-  - cirrus,micd-force-micbias : Force MICBIAS continuously on during microphone
-    detection and button detection
-
   - cirrus,micd-software-compare : Use a software comparison to determine mic
     presence
 
@@ -109,7 +106,6 @@ codec: cs47l94@0 {
 			cirrus,micd-rate = <0x1>;
 			cirrus,micd-dbtime = <0x1>;
 			cirrus,micd-timeout-ms = <10>;
-			cirrus,micd-force-micbias;
 			cirrus,micd-configs = <
 				0x1 0 1 0 2
 				0x0 0 2 1 2

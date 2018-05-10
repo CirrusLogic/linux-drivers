@@ -672,24 +672,14 @@ static void tacna_extcon_enable_micbias(struct tacna_extcon *info)
 {
 	const char *widget = tacna_extcon_get_micbias(info);
 
-	/*
-	 * If forced we must manually control the pin state, otherwise
-	 * the codec will manage this automatically
-	 */
-	if (info->pdata->micd_force_micbias)
-		tacna_extcon_enable_micbias_pin(info, widget);
+	tacna_extcon_enable_micbias_pin(info, widget);
 }
 
 static void tacna_extcon_disable_micbias(struct tacna_extcon *info)
 {
 	const char *widget = tacna_extcon_get_micbias(info);
 
-	/*
-	 * If forced we must manually control the pin state, otherwise
-	 * the codec will manage this automatically
-	 */
-	if (info->pdata->micd_force_micbias)
-		tacna_extcon_disable_micbias_pin(info, widget);
+	tacna_extcon_disable_micbias_pin(info, widget);
 }
 
 static void tacna_extcon_set_mode(struct tacna_extcon *info, int mode)
@@ -1984,10 +1974,6 @@ static void tacna_extcon_process_accdet_node(struct tacna_extcon *info,
 	fwnode_property_read_u32(node, "cirrus,micd-timeout-ms",
 				 &pdata->micd_timeout_ms);
 
-	/* don't override any preset force_micbias enable */
-	if (fwnode_property_present(node, "cirrus,micd-force-micbias"))
-		pdata->micd_force_micbias = true;
-
 	pdata->micd_software_compare =
 		fwnode_property_present(node,
 					"cirrus,micd-software-compare");
@@ -2080,7 +2066,6 @@ static void tacna_extcon_dump_config(struct tacna_extcon *info)
 		TACNA_EXTCON_PDATA_DUMP(micd_dbtime, "%d");
 		TACNA_EXTCON_PDATA_DUMP(micd_timeout_ms, "%d");
 		TACNA_EXTCON_PDATA_DUMP(micd_clamp_mode, "%u");
-		TACNA_EXTCON_PDATA_DUMP(micd_force_micbias, "%u");
 		TACNA_EXTCON_PDATA_DUMP(micd_open_circuit_declare, "%u");
 		TACNA_EXTCON_PDATA_DUMP(micd_software_compare, "%u");
 
@@ -2473,11 +2458,6 @@ static int tacna_extcon_probe(struct platform_device *pdev)
 				   TACNA_JACKDET1_COMP_CTRL,
 				   TACNA_JD1_OUT_HP_MASK,
 				   val);
-		/* fall through */
-	case CS47L94:
-	case CS47L95:
-		/* force micbias as it won't get automatically enabled */
-		pdata->micd_force_micbias = true;
 		break;
 	default:
 		break;
