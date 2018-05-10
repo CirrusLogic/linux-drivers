@@ -100,21 +100,13 @@ struct tacna_accdet_pdata {
 
 	u32 micd_detect_debounce_ms;
 	u32 micd_manual_debounce;
-
 	int micd_pol_gpio;
-
 	u32 micd_bias_start_time;
-
 	u32 micd_rate;
-
 	u32 micd_dbtime;
-
 	u32 micd_timeout_ms;
-
 	u32 micd_clamp_mode;
-
 	bool micd_open_circuit_declare;
-
 	bool micd_software_compare;
 
 	const struct tacna_micd_range *micd_ranges;
