@@ -74,7 +74,6 @@ struct tacna_micd_range {
  * @micd_dbtime:	       Mic detect debounce level
  * @micd_timeout_ms:	       Mic detect timeout (milliseconds)
  * @micd_clamp_mode:	       Mic detect clamp function
- * @micd_force_micbias:	       Force MICBIAS on for mic detect
  * @micd_open_circuit_declare: Declare an open circuit as a 4 pole jack
  * @micd_software_compare:     Use software comparison to determine mic presence
  * @micd_ranges:	       Mic detect level parameters
@@ -113,8 +112,6 @@ struct tacna_accdet_pdata {
 	u32 micd_timeout_ms;
 
 	u32 micd_clamp_mode;
-
-	bool micd_force_micbias;
 
 	bool micd_open_circuit_declare;
 
