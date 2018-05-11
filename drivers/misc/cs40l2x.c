@@ -73,6 +73,7 @@ struct cs40l2x_private {
 	unsigned int pbq_depth;
 	unsigned int pbq_index;
 	unsigned int pbq_state;
+	unsigned int pbq_cp_dig_scale;
 	int pbq_repeat;
 	int pbq_remain;
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
@@ -1151,7 +1152,7 @@ static int cs40l2x_pbq_cancel(struct cs40l2x_private *cs40l2x)
 	if (ret)
 		return ret;
 
-	ret = cs40l2x_dig_scale_set(cs40l2x, cs40l2x->dig_scale);
+	ret = cs40l2x_cp_dig_scale_set(cs40l2x, cs40l2x->pbq_cp_dig_scale);
 	if (ret)
 		return ret;
 
@@ -1188,9 +1189,7 @@ static int cs40l2x_pbq_poll(struct cs40l2x_private *cs40l2x)
 
 static int cs40l2x_pbq_pair_launch(struct cs40l2x_private *cs40l2x)
 {
-	struct regmap *regmap = cs40l2x->regmap;
-	unsigned int dig_scale = cs40l2x->dig_scale;
-	unsigned int tag, mag;
+	unsigned int tag, mag, cp_dig_scale;
 	int ret, i;
 
 	/* this function expects to be called from a locked worker function */
@@ -1214,7 +1213,8 @@ static int cs40l2x_pbq_pair_launch(struct cs40l2x_private *cs40l2x)
 				cs40l2x->cp_trailer_index = 0;
 				cs40l2x->pbq_state = CS40L2X_PBQ_STATE_IDLE;
 
-				ret = cs40l2x_dig_scale_set(cs40l2x, dig_scale);
+				ret = cs40l2x_cp_dig_scale_set(cs40l2x,
+						cs40l2x->pbq_cp_dig_scale);
 				return ret;
 			default:
 				/* loop once more */
@@ -1246,16 +1246,17 @@ static int cs40l2x_pbq_pair_launch(struct cs40l2x_private *cs40l2x)
 			}
 			break;
 		default:
-			dig_scale += cs40l2x_pbq_scale[mag].dig_scale;
-			if (dig_scale > CS40L2X_DIG_SCALE_MAX)
-				dig_scale = CS40L2X_DIG_SCALE_MAX;
+			cp_dig_scale = cs40l2x->pbq_cp_dig_scale
+					+ cs40l2x_pbq_dig_scale[mag];
+			if (cp_dig_scale > CS40L2X_DIG_SCALE_MAX)
+				cp_dig_scale = CS40L2X_DIG_SCALE_MAX;
 
-			ret = cs40l2x_dig_scale_set(cs40l2x, dig_scale);
+			ret = cs40l2x_cp_dig_scale_set(cs40l2x, cp_dig_scale);
 			if (ret)
 				return ret;
 
-			ret = regmap_write(regmap, CS40L2X_MBOX_TRIGGERINDEX,
-					tag);
+			ret = regmap_write(cs40l2x->regmap,
+					CS40L2X_MBOX_TRIGGERINDEX, tag);
 			if (ret)
 				return ret;
 
@@ -1413,6 +1414,15 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 		break;
 
 	case CS40L2X_INDEX_PBQ:
+		cs40l2x->pbq_cp_dig_scale = CS40L2X_DIG_SCALE_RESET;
+
+		ret = cs40l2x_cp_dig_scale_get(cs40l2x,
+				&cs40l2x->pbq_cp_dig_scale);
+		if (ret) {
+			dev_err(dev, "Failed to read digital scale\n");
+			goto err_mutex;
+		}
+
 		cs40l2x->pbq_index = 0;
 		cs40l2x->pbq_remain = cs40l2x->pbq_repeat;
 
