@@ -2880,11 +2880,11 @@ static int cs47l96_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "Failed to get OUTH disable IRQ: %d\n",
 			 ret);
 
-	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP1_IRQ1,
+	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP1_IRQ0,
 				"DSP1 Buffer IRQ", cs47l96_dsp1_irq,
 				cs47l96);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "Failed to request DSP1_IRQ1: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to request DSP1_IRQ0: %d\n", ret);
 		goto error_dsp1_irq;
 	}
 
@@ -2958,7 +2958,7 @@ error_mpu_irq1:
 error_dsp:
 	wm_adsp2_remove(&cs47l96->core.dsp[0]);
 error_core:
-	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ1, cs47l96);
+	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ0, cs47l96);
 error_dsp1_irq:
 	tacna_core_destroy(&cs47l96->core);
 	tacna_free_irq(tacna, TACNA_IRQ_OUTH_ENABLE_DONE, cs47l96);
@@ -2981,7 +2981,7 @@ static int cs47l96_remove(struct platform_device *pdev)
 	tacna_free_irq(tacna, TACNA_IRQ_OUTH_ENABLE_DONE, cs47l96);
 	tacna_free_irq(tacna, TACNA_IRQ_OUTH_DISABLE_DONE, cs47l96);
 
-	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ1, cs47l96);
+	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ0, cs47l96);
 
 	wm_adsp2_remove(&cs47l96->core.dsp[0]);
 
