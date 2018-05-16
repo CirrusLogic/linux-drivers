@@ -1413,19 +1413,19 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 
 	cs40l2x->cp_trailer_index = cs40l2x->cp_trigger_index;
 
-#ifdef CONFIG_ANDROID_TIMED_OUTPUT
-	/* launch timer in the event of continuous playback */
 	switch (cs40l2x->cp_trailer_index) {
 	case CS40L2X_INDEX_VIBE:
 	case CS40L2X_INDEX_CONT_MIN ... CS40L2X_INDEX_CONT_MAX:
 	case CS40L2X_INDEX_DIAG:
+		pm_stay_awake(dev);
+#ifdef CONFIG_ANDROID_TIMED_OUTPUT
 		hrtimer_start(&cs40l2x->vibe_timer,
 				ktime_set(cs40l2x->vibe_timeout / 1000,
 						(cs40l2x->vibe_timeout % 1000)
 						* 1000000),
 				HRTIMER_MODE_REL);
-	}
 #endif /* CONFIG_ANDROID_TIMED_OUTPUT */
+	}
 
 	switch (cs40l2x->cp_trailer_index) {
 	case CS40L2X_INDEX_VIBE:
@@ -1527,6 +1527,30 @@ static void cs40l2x_vibe_stop_worker(struct work_struct *work)
 	mutex_lock(&cs40l2x->lock);
 
 	switch (cs40l2x->cp_trailer_index) {
+	case CS40L2X_INDEX_VIBE:
+	case CS40L2X_INDEX_CONT_MIN ... CS40L2X_INDEX_CONT_MAX:
+		ret = regmap_write(regmap,
+				cs40l2x_dsp_reg(cs40l2x, "ENDPLAYBACK",
+					CS40L2X_XM_UNPACKED_TYPE), 1);
+		if (ret)
+			dev_err(dev, "Failed to stop playback\n");
+		pm_relax(dev);
+		break;
+
+	case CS40L2X_INDEX_CLICK_MIN ... CS40L2X_INDEX_CLICK_MAX:
+		ret = regmap_write(regmap,
+				cs40l2x_dsp_reg(cs40l2x, "ENDPLAYBACK",
+					CS40L2X_XM_UNPACKED_TYPE), 1);
+		if (ret)
+			dev_err(dev, "Failed to stop playback\n");
+		break;
+
+	case CS40L2X_INDEX_PBQ:
+		ret = cs40l2x_pbq_cancel(cs40l2x);
+		if (ret)
+			dev_err(dev, "Failed to cancel playback queue\n");
+		break;
+
 	case CS40L2X_INDEX_DIAG:
 		ret = cs40l2x_diag_capture(cs40l2x);
 		if (ret)
@@ -1539,20 +1563,11 @@ static void cs40l2x_vibe_stop_worker(struct work_struct *work)
 		ret = cs40l2x_dig_scale_set(cs40l2x, cs40l2x->diag_dig_scale);
 		if (ret)
 			dev_err(dev, "Failed to restore digital scale\n");
-		break;
-
-	case CS40L2X_INDEX_PBQ:
-		ret = cs40l2x_pbq_cancel(cs40l2x);
-		if (ret)
-			dev_err(dev, "Failed to cancel playback queue\n");
+		pm_relax(dev);
 		break;
 
 	default:
-		ret = regmap_write(regmap,
-				cs40l2x_dsp_reg(cs40l2x, "ENDPLAYBACK",
-					CS40L2X_XM_UNPACKED_TYPE), 1);
-		if (ret)
-			dev_err(dev, "Failed to stop playback\n");
+		dev_err(dev, "Invalid wavetable index\n");
 	}
 
 	cs40l2x->cp_trailer_index = 0;
@@ -1671,6 +1686,7 @@ static void cs40l2x_create_led(struct cs40l2x_private *cs40l2x)
 static void cs40l2x_vibe_init(struct cs40l2x_private *cs40l2x)
 {
 	struct hrtimer *pbq_timer = &cs40l2x->pbq_timer;
+	int ret;
 
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 	cs40l2x_create_timed_output(cs40l2x);
@@ -1691,6 +1707,12 @@ static void cs40l2x_vibe_init(struct cs40l2x_private *cs40l2x)
 
 	hrtimer_init(pbq_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pbq_timer->function = cs40l2x_pbq_timer;
+
+	ret = device_init_wakeup(cs40l2x->dev, true);
+	if (ret) {
+		dev_err(cs40l2x->dev, "Failed to initialize wakeup source\n");
+		return;
+	}
 
 	cs40l2x->vibe_init_success = true;
 }
@@ -2992,6 +3014,8 @@ static void cs40l2x_i2c_remove(struct i2c_client *i2c_client)
 		cancel_work_sync(&cs40l2x->vibe_stop_work);
 
 		destroy_workqueue(cs40l2x->vibe_workqueue);
+
+		device_init_wakeup(cs40l2x->dev, false);
 	}
 
 	gpiod_set_value_cansleep(cs40l2x->reset_gpio, 0);
