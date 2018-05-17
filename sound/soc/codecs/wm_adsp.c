@@ -2193,9 +2193,11 @@ static void wm_adsp_ctl_fixup_base(struct wm_adsp *dsp,
 }
 
 static void *wm_adsp_read_algs(struct wm_adsp *dsp, size_t n_algs,
+			       const struct wm_adsp_region *mem,
 			       unsigned int pos, unsigned int len)
 {
 	void *alg;
+	unsigned int reg;
 	int ret;
 	__be32 val;
 
@@ -2210,7 +2212,9 @@ static void *wm_adsp_read_algs(struct wm_adsp *dsp, size_t n_algs,
 	}
 
 	/* Read the terminator first to validate the length */
-	ret = regmap_raw_read(dsp->regmap, pos + len, &val, sizeof(val));
+	reg = wm_adsp_region_to_reg(dsp, mem, pos + len),
+
+	ret = regmap_raw_read(dsp->regmap, reg, &val, sizeof(val));
 	if (ret != 0) {
 		adsp_err(dsp, "Failed to read algorithm list end: %d\n",
 			ret);
@@ -2219,13 +2223,18 @@ static void *wm_adsp_read_algs(struct wm_adsp *dsp, size_t n_algs,
 
 	if (be32_to_cpu(val) != 0xbedead)
 		adsp_warn(dsp, "Algorithm list end %x 0x%x != 0xbedead\n",
-			  pos + len, be32_to_cpu(val));
+			  reg, be32_to_cpu(val));
 
-	alg = kzalloc(len * 2, GFP_KERNEL | GFP_DMA);
+	/* Convert length from DSP words to bytes */
+	len *= sizeof(u32);
+
+	alg = kzalloc(len, GFP_KERNEL | GFP_DMA);
 	if (!alg)
 		return ERR_PTR(-ENOMEM);
 
-	ret = regmap_raw_read(dsp->regmap, pos, alg, len * 2);
+	reg = wm_adsp_region_to_reg(dsp, mem, pos),
+
+	ret = regmap_raw_read(dsp->regmap, reg, alg, len);
 	if (ret != 0) {
 		adsp_err(dsp, "Failed to read algorithm list: %d\n", ret);
 		kfree(alg);
@@ -2324,10 +2333,11 @@ static int wm_adsp1_setup_algs(struct wm_adsp *dsp)
 	if (IS_ERR(alg_region))
 		return PTR_ERR(alg_region);
 
-	pos = sizeof(adsp1_id) / 2;
-	len = (sizeof(*adsp1_alg) * n_algs) / 2;
+	/* Calculate offset and length in DSP words */
+	pos = sizeof(adsp1_id) / sizeof(u32);
+	len = (sizeof(*adsp1_alg) * n_algs) / sizeof(u32);
 
-	adsp1_alg = wm_adsp_read_algs(dsp, n_algs, mem->base + pos, len);
+	adsp1_alg = wm_adsp_read_algs(dsp, n_algs, mem, pos, len);
 	if (IS_ERR(adsp1_alg))
 		return PTR_ERR(adsp1_alg);
 
@@ -2433,21 +2443,20 @@ static int wm_adsp2_setup_algs(struct wm_adsp *dsp)
 
 	switch (dsp->type) {
 	case WMFW_HALO:
-		pos = sizeof(adsp2_id);
-		len = sizeof(*adsp2_alg) * n_algs;
 		break;
 	default:
 		alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_ZM,
 						   adsp2_id.fw.id, adsp2_id.zm);
 		if (IS_ERR(alg_region))
 			return PTR_ERR(alg_region);
-
-		pos = sizeof(adsp2_id) / 2;
-		len = (sizeof(*adsp2_alg) * n_algs) / 2;
 		break;
 	}
 
-	adsp2_alg = wm_adsp_read_algs(dsp, n_algs, mem->base + pos, len);
+	/* Calculate offset and length in DSP words */
+	pos = sizeof(adsp2_id) / sizeof(u32);
+	len = (sizeof(*adsp2_alg) * n_algs) / sizeof(u32);
+
+	adsp2_alg = wm_adsp_read_algs(dsp, n_algs, mem, pos, len);
 	if (IS_ERR(adsp2_alg))
 		return PTR_ERR(adsp2_alg);
 
@@ -2599,10 +2608,11 @@ static int wm_halo_setup_algs(struct wm_adsp *dsp)
 	if (IS_ERR(alg_region))
 		return PTR_ERR(alg_region);
 
-	pos = sizeof(halo_id);
-	len = (sizeof(*halo_alg) * n_algs);
+	/* Calculate offset and length in DSP words */
+	pos = sizeof(halo_id) / sizeof(u32);
+	len = (sizeof(*halo_alg) * n_algs) / sizeof(u32);
 
-	halo_alg = wm_adsp_read_algs(dsp, n_algs, mem->base + pos, len);
+	halo_alg = wm_adsp_read_algs(dsp, n_algs, mem, pos, len);
 	if (IS_ERR(halo_alg))
 		return PTR_ERR(halo_alg);
 
@@ -3179,6 +3189,7 @@ static int wm_halo_configure_mpu(struct wm_adsp *dsp)
 	unsigned int sysinfo_base = dsp->base_sysinfo, dsp_base = dsp->base;
 	unsigned int xm_sz, xm_bank_sz, ym_sz, ym_bank_sz;
 	unsigned int xm_acc_cfg, ym_acc_cfg;
+	unsigned int lock_cfg;
 
 	ret = regmap_read(regmap, sysinfo_base + HALO_SYS_INFO_XM_BANK_SIZE,
 			  &xm_bank_sz);
@@ -3256,9 +3267,11 @@ static int wm_halo_configure_mpu(struct wm_adsp *dsp)
 		goto err;
 
 	len = sizeof(halo_mpu_access) / sizeof(halo_mpu_access[0]);
-	/* lock all other banks */
+	/* configure all other banks */
+	lock_cfg = (dsp->unlock_all) ? 0xFFFFFFFF : 0;
 	for (i = 0; i < len; i++) { /* TODO: think if can be done without LUT */
-		ret = regmap_write(regmap, dsp_base + halo_mpu_access[i], 0);
+		ret = regmap_write(regmap, dsp_base + halo_mpu_access[i],
+					lock_cfg);
 		if (ret)
 			goto err;
 	}
@@ -3305,11 +3318,6 @@ static void wm_halo_boot_work(struct work_struct *work)
 
 	/* Initialize caches for enabled and unset controls */
 	ret = wm_coeff_init_control_caches(dsp);
-	if (ret != 0)
-		goto err;
-
-	/* Sync set controls */
-	ret = wm_coeff_sync_controls(dsp);
 	if (ret != 0)
 		goto err;
 
@@ -3368,9 +3376,9 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 	dsp->preloaded = ucontrol->value.integer.value[0];
 
 	if (ucontrol->value.integer.value[0])
-		snd_soc_dapm_force_enable_pin(dapm, preload);
+		snd_soc_component_force_enable_pin(&codec->component, preload);
 	else
-		snd_soc_dapm_disable_pin(dapm, preload);
+		snd_soc_component_disable_pin(&codec->component, preload);
 
 	snd_soc_dapm_sync(dapm);
 
@@ -3620,6 +3628,11 @@ int wm_halo_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 			return ret;
 		}
 
+		/* Sync set controls */
+		ret = wm_coeff_sync_controls(dsp);
+		if (ret != 0)
+			goto err;
+
 		adsp_dbg(dsp, "Setting RX rates.\n");
 		ret = wm_halo_set_rate_block(dsp, HALO_SAMPLE_RATE_RX1,
 					     dsp->n_rx_channels,
@@ -3710,7 +3723,6 @@ EXPORT_SYMBOL_GPL(wm_halo_event);
 
 int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	char preload[32];
 	int ret;
 
@@ -3719,7 +3731,8 @@ int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 
 	snprintf(preload, ARRAY_SIZE(preload), "DSP%d%s Preload", dsp->num,
 		 dsp->suffix);
-	snd_soc_dapm_disable_pin(dapm, preload);
+
+	snd_soc_component_disable_pin(&codec->component, preload);
 
 	wm_adsp2_init_debugfs(dsp, codec);
 
