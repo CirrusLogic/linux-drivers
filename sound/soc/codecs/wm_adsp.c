@@ -3333,11 +3333,6 @@ static void wm_halo_boot_work(struct work_struct *work)
 	if (ret != 0)
 		goto err;
 
-	/* Sync set controls */
-	ret = wm_coeff_sync_controls(dsp);
-	if (ret != 0)
-		goto err;
-
 	dsp->booted = true;
 
 	mutex_unlock(&dsp->pwr_lock);
@@ -3657,6 +3652,19 @@ int wm_halo_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 			ret = -EIO;
 			goto err;
 		}
+
+		ret = regmap_update_bits(dsp->regmap,
+					 dsp->base + HALO_CCM_CORE_CONTROL,
+					 HALO_CORE_RESET, HALO_CORE_RESET);
+		if (ret != 0) {
+			adsp_err(dsp, "Error while resetting core: %d\n", ret);
+			return ret;
+		}
+
+		/* Sync set controls */
+		ret = wm_coeff_sync_controls(dsp);
+		if (ret != 0)
+			goto err;
 
 		adsp_dbg(dsp, "Setting RX rates.\n");
 		ret = wm_halo_set_rate_block(dsp, HALO_SAMPLE_RATE_RX1,
