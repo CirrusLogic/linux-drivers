@@ -1418,7 +1418,7 @@ static int cs48l32_probe(struct platform_device *pdev)
 				"Ultrasonic 2 activity",
 				 tacna_us2_activity, tacna);
 	if (ret != 0) {
-		tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, cs48l32);
+		tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, tacna);
 		dev_err(&pdev->dev, "Failed to get Ultrasonic 2 IRQ: %d\n",
 			ret);
 		goto error_us2_irq;
@@ -1499,9 +1499,9 @@ error_dsp:
 error_core:
 	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ0, cs48l32);
 error_dsp1_irq:
-	tacna_free_irq(tacna, TACNA_IRQ_US2_ACT_DET_RISE, cs48l32);
+	tacna_free_irq(tacna, TACNA_IRQ_US2_ACT_DET_RISE, tacna);
 error_us2_irq:
-	tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, cs48l32);
+	tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, tacna);
 error_us1_irq:
 	tacna_core_destroy(&cs48l32->core);
 
@@ -1517,8 +1517,8 @@ static int cs48l32_remove(struct platform_device *pdev)
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, cs48l32);
-	tacna_free_irq(tacna, TACNA_IRQ_US2_ACT_DET_RISE, cs48l32);
+	tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, tacna);
+	tacna_free_irq(tacna, TACNA_IRQ_US2_ACT_DET_RISE, tacna);
 
 	tacna_free_irq(tacna, TACNA_IRQ_DSP1_MPU_ERR, &cs48l32->core.dsp[0]);
 
