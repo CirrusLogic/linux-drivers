@@ -2918,7 +2918,7 @@ static int cs47l94_codec_probe(struct snd_soc_codec *codec)
 				"Ultrasonic 2 activity",
 				 tacna_us2_activity, tacna);
 	if (ret) {
-		tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, cs47l94);
+		tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, tacna);
 		dev_err(codec->dev, "Failed to get Ultrasonic 2 IRQ: %d\n",
 			ret);
 		return ret;
@@ -2943,8 +2943,8 @@ static int cs47l94_codec_remove(struct snd_soc_codec *codec)
 	for (i = 0; i < CS47L94_NUM_DSP; ++i)
 		wm_adsp2_codec_remove(&cs47l94->core.dsp[i], codec);
 
-	tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, cs47l94);
-	tacna_free_irq(tacna, TACNA_IRQ_US2_ACT_DET_RISE, cs47l94);
+	tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, tacna);
+	tacna_free_irq(tacna, TACNA_IRQ_US2_ACT_DET_RISE, tacna);
 	tacna->dapm = NULL;
 
 	return 0;
