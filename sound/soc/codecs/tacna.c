@@ -1279,15 +1279,15 @@ const struct soc_enum tacna_asrc1_rate[] = {
 	SOC_VALUE_ENUM_SINGLE(TACNA_ASRC1_CONTROL1,
 			      TACNA_ASRC1_RATE1_SHIFT,
 			      TACNA_ASRC1_RATE1_MASK >> TACNA_ASRC1_RATE1_SHIFT,
-			      TACNA_SYNC_RATE_ENUM_SIZE,
+			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text,
 			      tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(TACNA_ASRC1_CONTROL1,
 			      TACNA_ASRC1_RATE2_SHIFT,
 			      TACNA_ASRC1_RATE2_MASK >> TACNA_ASRC1_RATE2_SHIFT,
-			      TACNA_ASYNC_RATE_ENUM_SIZE,
-			      tacna_rate_text + TACNA_SYNC_RATE_ENUM_SIZE,
-			      tacna_rate_val + TACNA_SYNC_RATE_ENUM_SIZE),
+			      TACNA_RATE_ENUM_SIZE,
+			      tacna_rate_text,
+			      tacna_rate_val),
 };
 EXPORT_SYMBOL_GPL(tacna_asrc1_rate);
 
@@ -1295,15 +1295,15 @@ const struct soc_enum tacna_asrc2_rate[] = {
 	SOC_VALUE_ENUM_SINGLE(TACNA_ASRC2_CONTROL1,
 			      TACNA_ASRC2_RATE1_SHIFT,
 			      TACNA_ASRC2_RATE1_MASK >> TACNA_ASRC2_RATE1_SHIFT,
-			      TACNA_SYNC_RATE_ENUM_SIZE,
+			      TACNA_RATE_ENUM_SIZE,
 			      tacna_rate_text,
 			      tacna_rate_val),
 	SOC_VALUE_ENUM_SINGLE(TACNA_ASRC2_CONTROL1,
 			      TACNA_ASRC2_RATE2_SHIFT,
 			      TACNA_ASRC2_RATE2_MASK >> TACNA_ASRC2_RATE2_SHIFT,
-			      TACNA_ASYNC_RATE_ENUM_SIZE,
-			      tacna_rate_text + TACNA_SYNC_RATE_ENUM_SIZE,
-			      tacna_rate_val + TACNA_SYNC_RATE_ENUM_SIZE),
+			      TACNA_RATE_ENUM_SIZE,
+			      tacna_rate_text,
+			      tacna_rate_val),
 };
 EXPORT_SYMBOL_GPL(tacna_asrc2_rate);
 
