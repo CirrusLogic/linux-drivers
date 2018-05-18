@@ -78,6 +78,8 @@ struct cs40l2x_private {
 	unsigned int pbq_cp_dig_scale;
 	int pbq_repeat;
 	int pbq_remain;
+	struct cs40l2x_wseq_pair wseq_table[CS40L2X_WSEQ_LENGTH_MAX];
+	unsigned int wseq_length;
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 	struct timed_output_dev timed_dev;
 	struct hrtimer vibe_timer;
@@ -390,6 +392,99 @@ static unsigned int cs40l2x_dsp_reg(struct cs40l2x_private *cs40l2x,
 
 	/* return an identifiable register that is known to be read-only */
 	return CS40L2X_DEVID;
+}
+
+static int cs40l2x_wseq_add_reg(struct cs40l2x_private *cs40l2x,
+			unsigned int reg, unsigned int val)
+{
+	if (cs40l2x->wseq_length == CS40L2X_WSEQ_LENGTH_MAX)
+		return -E2BIG;
+
+	cs40l2x->wseq_table[cs40l2x->wseq_length].reg = reg;
+	cs40l2x->wseq_table[cs40l2x->wseq_length++].val = val;
+
+	return 0;
+}
+
+static int cs40l2x_wseq_add_seq(struct cs40l2x_private *cs40l2x,
+			const struct reg_sequence *seq, unsigned int len)
+{
+	int ret, i;
+
+	for (i = 0; i < len; i++) {
+		ret = cs40l2x_wseq_add_reg(cs40l2x, seq[i].reg, seq[i].def);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int cs40l2x_wseq_write(struct cs40l2x_private *cs40l2x, unsigned int pos,
+			unsigned int reg, unsigned int val)
+{
+	unsigned int wseq_base = cs40l2x_dsp_reg(cs40l2x, "POWERONSEQUENCE",
+			CS40L2X_XM_UNPACKED_TYPE);
+	int ret;
+
+	/* upper half */
+	ret = regmap_write(cs40l2x->regmap,
+			wseq_base + pos * CS40L2X_WSEQ_STRIDE,
+			((reg & CS40L2X_WSEQ_REG_MASK1)
+				<< CS40L2X_WSEQ_REG_SHIFTUP) |
+					((val & CS40L2X_WSEQ_VAL_MASK1)
+						>> CS40L2X_WSEQ_VAL_SHIFTDN));
+	if (ret)
+		return ret;
+
+	/* lower half */
+	return regmap_write(cs40l2x->regmap,
+			wseq_base + pos * CS40L2X_WSEQ_STRIDE + 4,
+			val & CS40L2X_WSEQ_VAL_MASK2);
+}
+
+static int cs40l2x_wseq_init(struct cs40l2x_private *cs40l2x)
+{
+	unsigned int wseq_base = cs40l2x_dsp_reg(cs40l2x, "POWERONSEQUENCE",
+			CS40L2X_XM_UNPACKED_TYPE);
+	int ret, i;
+
+	for (i = 0; i < cs40l2x->wseq_length; i++) {
+		ret = cs40l2x_wseq_write(cs40l2x, i,
+				cs40l2x->wseq_table[i].reg,
+				cs40l2x->wseq_table[i].val);
+		if (ret)
+			return ret;
+	}
+
+	return regmap_write(cs40l2x->regmap,
+			wseq_base + cs40l2x->wseq_length * CS40L2X_WSEQ_STRIDE,
+			CS40L2X_WSEQ_LIST_TERM);
+}
+
+static int cs40l2x_wseq_replace(struct cs40l2x_private *cs40l2x,
+			unsigned int reg, unsigned int val)
+{
+	int ret, i;
+
+	/* write sequencer does not exist in A0/B0 firmware */
+	if (cs40l2x->revid < CS40L2X_REVID_B1)
+		return 0;
+
+	for (i = 0; i < cs40l2x->wseq_length; i++)
+		if (cs40l2x->wseq_table[i].reg == reg)
+			break;
+
+	if (i == cs40l2x->wseq_length)
+		return -EINVAL;
+
+	ret = cs40l2x_wseq_write(cs40l2x, i, reg, val);
+	if (ret)
+		return ret;
+
+	cs40l2x->wseq_table[i].val = val;
+
+	return 0;
 }
 
 static ssize_t cs40l2x_gpio1_enable_show(struct device *dev,
@@ -856,18 +951,29 @@ static int cs40l2x_dig_scale_get(struct cs40l2x_private *cs40l2x,
 static int cs40l2x_dig_scale_set(struct cs40l2x_private *cs40l2x,
 			unsigned int dig_scale)
 {
+	int ret;
+	unsigned int val;
+
 	if (!mutex_is_locked(&cs40l2x->lock))
 		return -EACCES;
 
 	if (dig_scale == CS40L2X_DIG_SCALE_RESET)
 		return -EINVAL;
 
-	return regmap_update_bits(cs40l2x->regmap,
-			CS40L2X_AMP_DIG_VOL_CTRL,
-			CS40L2X_AMP_VOL_PCM_MASK,
-			((CS40L2X_DIG_SCALE_ZERO - dig_scale)
-				& CS40L2X_DIG_SCALE_MASK)
-					<< CS40L2X_AMP_VOL_PCM_SHIFT);
+	ret = regmap_read(cs40l2x->regmap, CS40L2X_AMP_DIG_VOL_CTRL, &val);
+	if (ret)
+		return ret;
+
+	val &= ~CS40L2X_AMP_VOL_PCM_MASK;
+	val |= CS40L2X_AMP_VOL_PCM_MASK &
+			(((CS40L2X_DIG_SCALE_ZERO - dig_scale)
+			& CS40L2X_DIG_SCALE_MASK) << CS40L2X_AMP_VOL_PCM_SHIFT);
+
+	ret = regmap_write(cs40l2x->regmap, CS40L2X_AMP_DIG_VOL_CTRL, val);
+	if (ret)
+		return ret;
+
+	return cs40l2x_wseq_replace(cs40l2x, CS40L2X_AMP_DIG_VOL_CTRL, val);
 }
 
 static ssize_t cs40l2x_dig_scale_show(struct device *dev,
@@ -1896,6 +2002,15 @@ static void cs40l2x_dsp_start(struct cs40l2x_private *cs40l2x)
 			return;
 		}
 		break;
+
+	case CS40L2X_REVID_B1:
+		ret = cs40l2x_wseq_init(cs40l2x);
+		if (ret) {
+			dev_err(dev, "Failed to initialize write sequencer\n");
+			return;
+		}
+		/* intentionally fall through */
+
 	default:
 		ret = regmap_update_bits(regmap, CS40L2X_PWRMGT_CTL,
 				CS40L2X_MEM_RDY_MASK,
@@ -2342,7 +2457,7 @@ err_rls_fw:
 }
 
 static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x,
-		int boost_ind, int boost_cap, int boost_ipk)
+			int boost_ind, int boost_cap, int boost_ipk)
 {
 	int ret;
 	unsigned char bst_lbst_val, bst_cbst_range, bst_ipk_scaled;
@@ -2403,6 +2518,16 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x,
 		return ret;
 	}
 
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BSTCVRT_COEFF,
+			(cs40l2x_bst_k2_table[bst_lbst_val][bst_cbst_range]
+				<< CS40L2X_BST_K2_SHIFT) |
+			(cs40l2x_bst_k1_table[bst_lbst_val][bst_cbst_range]
+				<< CS40L2X_BST_K1_SHIFT));
+	if (ret) {
+		dev_err(dev, "Failed to sequence boost K1/K2 coefficients\n");
+		return ret;
+	}
+
 	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_SLOPE_LBST,
 			CS40L2X_BST_SLOPE_MASK,
 			cs40l2x_bst_slope_table[bst_lbst_val]
@@ -2420,6 +2545,15 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x,
 		return ret;
 	}
 
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BSTCVRT_SLOPE_LBST,
+			(cs40l2x_bst_slope_table[bst_lbst_val]
+				<< CS40L2X_BST_SLOPE_SHIFT) |
+			(bst_lbst_val << CS40L2X_BST_LBST_VAL_SHIFT));
+	if (ret) {
+		dev_err(dev, "Failed to sequence boost inductor value\n");
+		return ret;
+	}
+
 	if ((boost_ipk < 1600) || (boost_ipk > 4500)) {
 		dev_err(dev, "Invalid boost inductor peak current: %d mA\n",
 				boost_ipk);
@@ -2432,6 +2566,14 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x,
 			bst_ipk_scaled << CS40L2X_BST_IPK_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to write boost inductor peak current\n");
+		return ret;
+	}
+
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BSTCVRT_PEAK_CUR,
+			bst_ipk_scaled << CS40L2X_BST_IPK_SHIFT);
+	if (ret) {
+		dev_err(dev,
+			"Failed to sequence boost inductor peak current\n");
 		return ret;
 	}
 
@@ -2514,10 +2656,23 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 			(cs40l2x->revid < CS40L2X_REVID_B1)) {
 		ret = regmap_update_bits(regmap, CS40L2X_GPIO_PAD_CONTROL,
 				CS40L2X_GP2_CTRL_MASK,
-				CS40L2X_GP2_CTRL_MCLK
+				CS40L2X_GPx_CTRL_MCLK
 					<< CS40L2X_GP2_CTRL_SHIFT);
 		if (ret) {
 			dev_err(dev, "Failed to select GPIO2 function\n");
+			return ret;
+		}
+
+		ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_GPIO_PAD_CONTROL,
+				((CS40L2X_GPx_CTRL_MCLK
+					<< CS40L2X_GP2_CTRL_SHIFT)
+					& CS40L2X_GP2_CTRL_MASK) |
+				((CS40L2X_GPx_CTRL_GPIO
+					<< CS40L2X_GP1_CTRL_SHIFT)
+					& CS40L2X_GP1_CTRL_MASK));
+		if (ret) {
+			dev_err(dev,
+				"Failed to sequence GPIO1/2 configuration\n");
 			return ret;
 		}
 
@@ -2527,6 +2682,18 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 					<< CS40L2X_PLL_REFCLK_SEL_SHIFT);
 		if (ret) {
 			dev_err(dev, "Failed to select clock source\n");
+			return ret;
+		}
+
+		ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_PLL_CLK_CTRL,
+				((1 << CS40L2X_PLL_REFCLK_EN_SHIFT)
+					& CS40L2X_PLL_REFCLK_EN_MASK) |
+				((CS40L2X_PLL_REFCLK_SEL_MCLK
+					<< CS40L2X_PLL_REFCLK_SEL_SHIFT)
+					& CS40L2X_PLL_REFCLK_SEL_MASK));
+		if (ret) {
+			dev_err(dev,
+				"Failed to sequence PLL configuration\n");
 			return ret;
 		}
 	}
@@ -2540,6 +2707,21 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 			ARRAY_SIZE(cs40l2x_pcm_routing));
 	if (ret) {
 		dev_err(dev, "Failed to configure PCM channel routing\n");
+		return ret;
+	}
+
+	ret = cs40l2x_wseq_add_seq(cs40l2x, cs40l2x_pcm_routing,
+			ARRAY_SIZE(cs40l2x_pcm_routing));
+	if (ret) {
+		dev_err(dev, "Failed to sequence PCM channel routing\n");
+		return ret;
+	}
+
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_AMP_DIG_VOL_CTRL,
+			(1 << CS40L2X_AMP_HPF_PCM_EN_SHIFT)
+				& CS40L2X_AMP_HPF_PCM_EN_MASK);
+	if (ret) {
+		dev_err(dev, "Failed to sequence amplifier volume control\n");
 		return ret;
 	}
 
@@ -2927,6 +3109,15 @@ static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
 					revid);
 			return ret;
 		}
+
+		ret = cs40l2x_wseq_add_seq(cs40l2x, cs40l2x_rev_b0_errata,
+				ARRAY_SIZE(cs40l2x_rev_b0_errata));
+		if (ret) {
+			dev_err(dev,
+				"Failed to sequence revision %02X errata\n",
+				revid);
+			return ret;
+		}
 		break;
 	case CS40L2X_DEVID_L25A:
 	case CS40L2X_DEVID_L25B:
@@ -2950,6 +3141,15 @@ static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
 		if (ret) {
 			dev_err(dev, "Failed to apply revision %02X errata\n",
 					revid);
+			return ret;
+		}
+
+		ret = cs40l2x_wseq_add_seq(cs40l2x, cs40l2x_rev_b0_errata,
+				ARRAY_SIZE(cs40l2x_rev_b0_errata));
+		if (ret) {
+			dev_err(dev,
+				"Failed to sequence revision %02X errata\n",
+				revid);
 			return ret;
 		}
 		break;
