@@ -147,7 +147,8 @@ static int tacna_gpio_probe(struct platform_device *pdev)
 	else
 		tacna_gpio->gpio_chip.base = -1;
 
-	ret = gpiochip_add(&tacna_gpio->gpio_chip);
+	ret = devm_gpiochip_add_data(&pdev->dev, &tacna_gpio->gpio_chip,
+				    tacna_gpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
 		return ret;
@@ -156,20 +157,10 @@ static int tacna_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tacna_gpio_remove(struct platform_device *pdev)
-{
-	struct tacna_gpio *tacna_gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&tacna_gpio->gpio_chip);
-
-	return 0;
-}
-
 static struct platform_driver tacna_gpio_driver = {
 	.driver.name	= "tacna-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= tacna_gpio_probe,
-	.remove		= tacna_gpio_remove,
 };
 
 module_platform_driver(tacna_gpio_driver);
