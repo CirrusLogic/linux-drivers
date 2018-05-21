@@ -134,7 +134,7 @@ config ST_IRQCHIP
 	  Enables SysCfg Controlled IRQs on STi based platforms.
 
 config TACNA_IRQ
-	bool
+	tristate
 
 config TB10X_IRQC
 	bool
