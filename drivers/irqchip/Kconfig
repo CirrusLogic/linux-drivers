@@ -186,7 +186,7 @@ config TANGO_IRQ
 	select GENERIC_IRQ_CHIP
 
 config TACNA_IRQ
-	bool
+	tristate
 
 config TB10X_IRQC
 	bool
