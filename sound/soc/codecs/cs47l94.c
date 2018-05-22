@@ -1296,9 +1296,19 @@ static const struct snd_kcontrol_new cs47l94_aec_loopback_mux[] = {
 	SOC_DAPM_ENUM("AEC2 Loopback", cs47l94_aec_loopback[1]),
 };
 
+static const char * const cs47l94_anc_channel_src_text[] = {
+	"None", "Left", "Right", "Left + Right",
+};
+
+static const struct soc_enum cs47l94_anc_channel =
+	SOC_ENUM_SINGLE(CS47L94_ANC_L_CTRL_2,
+			TACNA_ANC_L_MIC_SRC_SHIFT,
+			ARRAY_SIZE(cs47l94_anc_channel_src_text),
+			cs47l94_anc_channel_src_text);
+
 static const struct snd_kcontrol_new cs47l94_anc_input_mux[] = {
 	SOC_DAPM_ENUM("ANCL Input", tacna_mono_anc_input_src[0]),
-	SOC_DAPM_ENUM("ANCL Channel", tacna_mono_anc_input_src[1]),
+	SOC_DAPM_ENUM("ANCL Channel", cs47l94_anc_channel),
 };
 
 static const struct snd_kcontrol_new cs47l94_anc_ng_mux =
