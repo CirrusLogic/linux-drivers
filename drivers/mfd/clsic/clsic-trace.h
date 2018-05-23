@@ -489,6 +489,20 @@ DEFINE_EVENT(clsic_generic, clsic_simirq_write_deasserted,
 	TP_ARGS(dummy)
 );
 
+TRACE_EVENT(clsic_alg_handle_n_irq,
+	TP_PROTO(uint32_t event, int ret),
+	TP_ARGS(event, ret),
+	TP_STRUCT__entry(
+			__field(uint32_t, event)
+			__field(int, ret)
+			),
+	TP_fast_assign(
+			__entry->event = event;
+			__entry->ret = ret;
+		),
+	TP_printk("event: %u; ret: %d", __entry->event, __entry->ret)
+);
+
 #endif /* CLSIC_TRACE_H */
 
 /* This part must be outside protection */
