@@ -20,6 +20,7 @@
 #include "clsic-alg-msg.h"
 #include "../../../drivers/mfd/clsic/clsic-trace.h"
 #include <linux/mfd/clsic/message.h>
+#include <linux/mfd/clsic/irq.h>
 
 #define CLSIC_ALG_MAX_BULK_SZ  (CLSIC_FIFO_TRANSACTION_MAX / BITS_PER_BYTE)
 
@@ -789,6 +790,74 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 }
 
 /**
+ * clsic_alg_handle_n_irq() - handle irqs destined for the algorithm service
+ * @alg:	The main instance of struct clsic_alg used in this driver.
+ * @msg:	The message notification itself as received from CLSIC.
+ *
+ * This is a standard CLSIC function that will be called in the interrupt
+ * handler context in the core messaging driver to irq notifications for the
+ * algorithm service and react accordingly.
+ *
+ * Return: CLSIC_HANDLED or CLSIC_UNHANDLED.
+ */
+static int clsic_alg_handle_n_irq(struct clsic_alg *alg,
+				  struct clsic_message *msg)
+{
+	int ret = CLSIC_UNHANDLED;
+	union clsic_ras_msg *msg_nty = (union clsic_ras_msg *) &msg->fsm;
+	unsigned int event_id;
+
+	event_id = msg_nty->nty_irq.irq_id;
+
+	switch (event_id) {
+	default:
+		clsic_err(alg->clsic, "Unhandled event %d\n", event_id);
+		break;
+	}
+
+	trace_clsic_alg_handle_n_irq(event_id, ret);
+
+	return ret;
+}
+
+/**
+ * alg_notification_handler() - handle notifications destined for the algorithm
+ *				service
+ * @clsic:	The main shared instance of struct clsic used in the CLSIC
+ *		drivers.
+ * @handler:	The handler struct for algorithm service.
+ * @msg:	The message notification itself as received from CLSIC.
+ *
+ * This is a standard CLSIC function that will be called in the interrupt
+ * handler context in the core messaging driver to examine notifications for the
+ * algorithm service and react accordingly.
+ *
+ * Return: CLSIC_HANDLED or CLSIC_UNHANDLED.
+ */
+static int clsic_alg_notification_handler(struct clsic *clsic,
+				    struct clsic_service *handler,
+				    struct clsic_message *msg)
+{
+	struct clsic_alg *alg = (struct clsic_alg *) handler->data;
+	enum clsic_ras_msg_id msgid;
+	int ret;
+
+	msgid = clsic_get_messageid(msg);
+
+	switch (msgid) {
+	case CLSIC_RAS_MSG_N_IRQ:
+		ret = clsic_alg_handle_n_irq(alg, msg);
+		break;
+	default:
+		clsic_err(clsic, "unrecognised message with message ID %d\n",
+			  msgid);
+		ret = CLSIC_UNHANDLED;
+	}
+
+	return ret;
+}
+
+/**
  * clsic_alg_codec_probe() - probe function for the codec part of the driver
  * @codec:	The main shared instance of struct snd_soc_codec used in CLSIC.
  *
@@ -803,6 +872,7 @@ static int clsic_alg_codec_probe(struct snd_soc_codec *codec)
 
 	alg->codec = codec;
 	handler->data = (void *)alg;
+	handler->callback = &clsic_alg_notification_handler;
 
 	wm_adsp2_codec_probe(&alg->dsp[0], codec);
 	wm_adsp2_codec_probe(&alg->dsp[1], codec);
@@ -820,6 +890,8 @@ static int clsic_alg_codec_probe(struct snd_soc_codec *codec)
 static int clsic_alg_codec_remove(struct snd_soc_codec *codec)
 {
 	struct clsic_alg *alg = snd_soc_codec_get_drvdata(codec);
+
+	alg->service->callback = NULL;
 
 	wm_adsp2_codec_remove(&alg->dsp[0], codec);
 	wm_adsp2_codec_remove(&alg->dsp[1], codec);
@@ -882,7 +954,7 @@ static int clsic_alg_probe(struct platform_device *pdev)
 
 	/* Populate device specific data struct */
 	alg->clsic = clsic;
-	alg->service = clsic_service;
+	alg->service = clsic->service_handlers[clsic_service->service_instance];
 
 #ifdef CONFIG_DEBUG_FS
 	alg->rawMsgFile = debugfs_create_file("alg_raw_message", 0600,
