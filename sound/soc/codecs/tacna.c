@@ -394,7 +394,7 @@ EXPORT_SYMBOL_GPL(tacna_noise_tlv);
 const DECLARE_TLV_DB_SCALE(tacna_mixer_tlv, -3200, 100, 0);
 EXPORT_SYMBOL_GPL(tacna_mixer_tlv);
 
-const DECLARE_TLV_DB_SCALE(tacna_us_tlv, -500, 600, 0);
+const DECLARE_TLV_DB_SCALE(tacna_us_tlv, 0, 600, 0);
 EXPORT_SYMBOL_GPL(tacna_us_tlv);
 
 void tacna_spin_sysclk(struct tacna_priv *priv)
