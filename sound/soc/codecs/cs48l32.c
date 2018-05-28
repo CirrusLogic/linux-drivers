@@ -531,7 +531,7 @@ static int cs48l32_dsp_mem_ev(struct snd_soc_dapm_widget *w,
 		return 0;
 	default:
 		return 0;
-	};
+	}
 }
 
 static int cs48l32_dsp_freq_ev(struct snd_soc_dapm_widget *w,
