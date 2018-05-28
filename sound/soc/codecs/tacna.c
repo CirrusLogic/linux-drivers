@@ -3285,7 +3285,7 @@ static int tacna_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct snd_soc_codec *codec = dai->codec;
 	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct tacna *tacna = priv->tacna;
-	unsigned int val = 0u;
+	unsigned int val = 0U;
 	unsigned int base = dai->driver->base;
 	unsigned int mask = TACNA_ASP1_FMT_MASK | TACNA_ASP1_BCLK_INV_MASK |
 			    TACNA_ASP1_BCLK_MSTR_MASK |
@@ -3530,32 +3530,32 @@ static int tacna_hw_params_rate(struct snd_pcm_substream *substream,
 
 	switch (dai_priv->clk) {
 	case TACNA_CLK_SYSCLK_1:
-		tar_asp_rate = 0u << TACNA_ASP1_RATE_SHIFT;
+		tar_asp_rate = 0U << TACNA_ASP1_RATE_SHIFT;
 		sr_reg = TACNA_SAMPLE_RATE1;
 		sr_mask = TACNA_SAMPLE_RATE_1_MASK;
 		break;
 	case TACNA_CLK_SYSCLK_2:
-		tar_asp_rate = 1u << TACNA_ASP1_RATE_SHIFT;
+		tar_asp_rate = 1U << TACNA_ASP1_RATE_SHIFT;
 		sr_reg = TACNA_SAMPLE_RATE2;
 		sr_mask = TACNA_SAMPLE_RATE_2_MASK;
 		break;
 	case TACNA_CLK_SYSCLK_3:
-		tar_asp_rate = 2u << TACNA_ASP1_RATE_SHIFT;
+		tar_asp_rate = 2U << TACNA_ASP1_RATE_SHIFT;
 		sr_reg = TACNA_SAMPLE_RATE3;
 		sr_mask = TACNA_SAMPLE_RATE_3_MASK;
 		break;
 	case TACNA_CLK_SYSCLK_4:
-		tar_asp_rate = 3u << TACNA_ASP1_RATE_SHIFT;
+		tar_asp_rate = 3U << TACNA_ASP1_RATE_SHIFT;
 		sr_reg = TACNA_SAMPLE_RATE4;
 		sr_mask = TACNA_SAMPLE_RATE_4_MASK;
 		break;
 	case TACNA_CLK_ASYNCCLK_1:
-		tar_asp_rate = 8u << TACNA_ASP1_RATE_SHIFT;
+		tar_asp_rate = 8U << TACNA_ASP1_RATE_SHIFT;
 		sr_reg = TACNA_ASYNC_SAMPLE_RATE1;
 		sr_mask = TACNA_ASYNC_SAMPLE_RATE_1_MASK;
 		break;
 	case TACNA_CLK_ASYNCCLK_2:
-		tar_asp_rate = 9u << TACNA_ASP1_RATE_SHIFT;
+		tar_asp_rate = 9U << TACNA_ASP1_RATE_SHIFT;
 		sr_reg = TACNA_ASYNC_SAMPLE_RATE2;
 		sr_mask = TACNA_ASYNC_SAMPLE_RATE_2_MASK;
 		break;
@@ -3852,7 +3852,7 @@ static void tacna_set_channels_to_mask(struct snd_soc_dai *dai,
 	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct tacna *tacna = priv->tacna;
 	int slot, i, j = 0, shift;
-	unsigned int frame_ctls[2] = {0u, 0u};
+	unsigned int frame_ctls[2] = {0, 0};
 
 	for (i = 0; i < channels; ++i) {
 		slot = ffs(mask) - 1;
