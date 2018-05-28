@@ -2107,6 +2107,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 				 file, header->ver);
 			goto out_fw;
 		}
+		break;
 	case WMFW_VPU:
 		switch (header->ver) {
 		case 3:
@@ -2116,6 +2117,10 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 				 file, header->ver);
 			goto out_fw;
 		}
+		break;
+	default:
+		WARN(1, "Unknown DSP type");
+		goto out_fw;
 	}
 
 	adsp_info(dsp, "Firmware version: %d\n", header->ver);
