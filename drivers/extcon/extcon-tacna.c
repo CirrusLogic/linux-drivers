@@ -2376,7 +2376,7 @@ static int tacna_extcon_probe(struct platform_device *pdev)
 		break;
 	default:
 		break;
-	};
+	}
 
 	/* Actual measured short is increased by external resistance */
 	hpdet_short_reading = pdata->hpdet_short_circuit_imp +
