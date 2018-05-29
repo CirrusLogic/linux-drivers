@@ -4307,10 +4307,10 @@ int tacna_put_out1_demux(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(tacna_put_out1_demux);
 
-static bool tacna_eq_filter_unstable(bool mode, __be16 _a, __be16 _b)
+static bool tacna_eq_filter_unstable(bool mode, __be16 in_a, __be16 in_b)
 {
-	s16 a = be16_to_cpu(_a);
-	s16 b = be16_to_cpu(_b);
+	s16 a = be16_to_cpu(in_a);
+	s16 b = be16_to_cpu(in_b);
 
 	if (!mode) {
 		return abs(a) >= 4096;
