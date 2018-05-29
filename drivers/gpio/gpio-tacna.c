@@ -98,10 +98,10 @@ static void tacna_gpio_set(struct gpio_chip *chip, unsigned int offset,
 static struct gpio_chip template_chip = {
 	.label			= "tacna",
 	.owner			= THIS_MODULE,
-	.direction_input	= tacna_gpio_direction_in,
-	.get			= tacna_gpio_get,
-	.direction_output	= tacna_gpio_direction_out,
-	.set			= tacna_gpio_set,
+	.direction_input	= &tacna_gpio_direction_in,
+	.get			= &tacna_gpio_get,
+	.direction_output	= &tacna_gpio_direction_out,
+	.set			= &tacna_gpio_set,
 	.can_sleep		= true,
 };
 
@@ -160,7 +160,7 @@ static int tacna_gpio_probe(struct platform_device *pdev)
 static struct platform_driver tacna_gpio_driver = {
 	.driver.name	= "tacna-gpio",
 	.driver.owner	= THIS_MODULE,
-	.probe		= tacna_gpio_probe,
+	.probe		= &tacna_gpio_probe,
 };
 
 module_platform_driver(tacna_gpio_driver);
