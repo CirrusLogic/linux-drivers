@@ -503,9 +503,9 @@ static int tacna_root_irq_set_wake(struct irq_data *data, unsigned int on)
 
 static struct irq_chip tacna_root_irqchip = {
 	.name		= "tacna",
-	.irq_disable	= tacna_root_irq_disable,
-	.irq_enable	= tacna_root_irq_enable,
-	.irq_set_wake	= tacna_root_irq_set_wake,
+	.irq_disable	= &tacna_root_irq_disable,
+	.irq_enable	= &tacna_root_irq_enable,
+	.irq_set_wake	= &tacna_root_irq_set_wake,
 };
 
 static struct lock_class_key tacna_irq_lock_class;
@@ -526,8 +526,8 @@ static int tacna_irq_map(struct irq_domain *d, unsigned int virq,
 }
 
 static struct irq_domain_ops tacna_irq_domain_ops = {
-	.map	= tacna_irq_map,
-	.xlate	= irq_domain_xlate_twocell,
+	.map	= &tacna_irq_map,
+	.xlate	= &irq_domain_xlate_twocell,
 };
 
 #ifdef CONFIG_PM_SLEEP
@@ -790,8 +790,8 @@ static int tacna_irq_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver tacna_irq_driver = {
-	.probe = tacna_irq_probe,
-	.remove = tacna_irq_remove,
+	.probe = &tacna_irq_probe,
+	.remove = &tacna_irq_remove,
 	.driver = {
 		.name	= "tacna-irq",
 		.pm = &tacna_irq_pm_ops,
