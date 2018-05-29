@@ -649,7 +649,7 @@ static struct snd_soc_dai_driver cs47l96_ao_dai[] = {
 			.rates = TACNA_RATES,
 			.formats = TACNA_FORMATS,
 		},
-		.compress_new = snd_soc_new_compress,
+		.compress_new = &snd_soc_new_compress,
 	},
 	{
 		.name = "cs47l96-ao-dsp-trace",
@@ -670,7 +670,7 @@ static struct snd_soc_dai_driver cs47l96_ao_dai[] = {
 			.rates = TACNA_RATES,
 			.formats = TACNA_FORMATS,
 		},
-		.compress_new = snd_soc_new_compress,
+		.compress_new = &snd_soc_new_compress,
 	},
 	{
 		.name = "cs47l96-ao-dsp-voicectrl",
@@ -913,14 +913,14 @@ static struct regmap *cs47l96_ao_get_regmap(struct device *dev)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_cs47l96_ao = {
-	.probe = cs47l96_ao_codec_probe,
-	.remove = cs47l96_ao_codec_remove,
-	.get_regmap = cs47l96_ao_get_regmap,
+	.probe = &cs47l96_ao_codec_probe,
+	.remove = &cs47l96_ao_codec_remove,
+	.get_regmap = &cs47l96_ao_get_regmap,
 
 	.idle_bias_off = true,
 
-	.set_sysclk = cs47l96_ao_set_sysclk,
-	.set_pll = cs47l96_ao_set_fll,
+	.set_sysclk = &cs47l96_ao_set_sysclk,
+	.set_pll = &cs47l96_ao_set_fll,
 
 	.component_driver = {
 		.controls = cs47l96_ao_snd_controls,
@@ -933,13 +933,13 @@ static struct snd_soc_codec_driver soc_codec_dev_cs47l96_ao = {
 };
 
 static const struct snd_compr_ops cs47l96_ao_compr_ops = {
-	.open = cs47l96_ao_compr_open,
-	.free = wm_adsp_compr_free,
-	.set_params = wm_adsp_compr_set_params,
-	.get_caps = wm_adsp_compr_get_caps,
-	.trigger = wm_adsp_compr_trigger,
-	.pointer = wm_adsp_compr_pointer,
-	.copy = wm_adsp_compr_copy,
+	.open = &cs47l96_ao_compr_open,
+	.free = &wm_adsp_compr_free,
+	.set_params = &wm_adsp_compr_set_params,
+	.get_caps = &wm_adsp_compr_get_caps,
+	.trigger = &wm_adsp_compr_trigger,
+	.pointer = &wm_adsp_compr_pointer,
+	.copy = &wm_adsp_compr_copy,
 };
 
 static const struct snd_soc_platform_driver cs47l96_ao_compr_platform = {
@@ -1101,8 +1101,8 @@ static struct platform_driver cs47l96_ao_codec_driver = {
 		.name = "cs47l96-ao-codec",
 		.owner = THIS_MODULE,
 	},
-	.probe = cs47l96_ao_probe,
-	.remove = cs47l96_ao_remove,
+	.probe = &cs47l96_ao_probe,
+	.remove = &cs47l96_ao_remove,
 };
 
 module_platform_driver(cs47l96_ao_codec_driver);
