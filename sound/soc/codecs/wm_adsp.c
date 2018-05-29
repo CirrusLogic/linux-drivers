@@ -512,7 +512,7 @@ static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_MISC] =     "Misc",
 };
 
-static const char *wm_adsp_arch_text(unsigned int type)
+static const char *wm_adsp_arch_text_lower(unsigned int type)
 {
 	switch (type) {
 	case WMFW_ADSP1:
@@ -521,6 +521,20 @@ static const char *wm_adsp_arch_text(unsigned int type)
 		return "dsp";
 	case WMFW_VPU:
 		return "vpu";
+	default:
+		return NULL;
+	}
+}
+
+static const char *wm_adsp_arch_text(unsigned int type)
+{
+	switch (type) {
+	case WMFW_ADSP1:
+	case WMFW_ADSP2:
+	case WMFW_HALO:
+		return "DSP";
+	case WMFW_VPU:
+		return "VPU";
 	default:
 		return NULL;
 	}
@@ -2021,7 +2035,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 
 	snprintf(file, PAGE_SIZE, "%s-%s%d-%s.wmfw",
 				   dsp->part,
-				   wm_adsp_arch_text(dsp->type),
+				   wm_adsp_arch_text_lower(dsp->type),
 				   dsp->num,
 				   fw_txt);
 	file[PAGE_SIZE - 1] = '\0';
@@ -2083,6 +2097,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 				 file, header->ver);
 			goto out_fw;
 		}
+		break;
 	case WMFW_VPU:
 		switch (header->ver) {
 		case 3:
@@ -2092,6 +2107,10 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 				 file, header->ver);
 			goto out_fw;
 		}
+		break;
+	default:
+		WARN(1, "Unknown DSP type");
+		goto out_fw;
 	}
 
 	adsp_info(dsp, "Firmware version: %d\n", header->ver);
