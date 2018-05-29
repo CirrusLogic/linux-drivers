@@ -105,8 +105,8 @@ static struct spi_driver tacna_spi_driver = {
 		.pm	= &tacna_pm_ops,
 		.of_match_table	= of_match_ptr(tacna_of_match),
 	},
-	.probe		= tacna_spi_probe,
-	.remove		= tacna_spi_remove,
+	.probe		= &tacna_spi_probe,
+	.remove		= &tacna_spi_remove,
 	.id_table	= tacna_spi_ids,
 };
 
