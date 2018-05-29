@@ -1653,48 +1653,48 @@ static irqreturn_t tacna_micdet(int irq, void *data)
 
 const struct tacna_jd_state tacna_hpdet_left = {
 	.mode = TACNA_ACCDET_MODE_HPL,
-	.start = tacna_hpdet_start,
-	.reading = tacna_hpdet_reading,
-	.stop = tacna_hpdet_stop,
+	.start = &tacna_hpdet_start,
+	.reading = &tacna_hpdet_reading,
+	.stop = &tacna_hpdet_stop,
 };
 EXPORT_SYMBOL_GPL(tacna_hpdet_left);
 
 const struct tacna_jd_state tacna_hpdet_right = {
 	.mode = TACNA_ACCDET_MODE_HPR,
-	.start = tacna_hpdet_start,
-	.reading = tacna_hpdet_reading,
-	.stop = tacna_hpdet_stop,
+	.start = &tacna_hpdet_start,
+	.reading = &tacna_hpdet_reading,
+	.stop = &tacna_hpdet_stop,
 };
 EXPORT_SYMBOL_GPL(tacna_hpdet_right);
 
 const struct tacna_jd_state tacna_micd_button = {
 	.mode = TACNA_ACCDET_MODE_MIC,
-	.start = tacna_micd_start,
-	.reading = tacna_micd_button_reading,
-	.stop = tacna_micd_stop,
+	.start = &tacna_micd_start,
+	.reading = &tacna_micd_button_reading,
+	.stop = &tacna_micd_stop,
 };
 EXPORT_SYMBOL_GPL(tacna_micd_button);
 
 const struct tacna_jd_state tacna_micd_adc_mic = {
 	.mode = TACNA_ACCDET_MODE_ADC,
-	.start = tacna_micd_mic_start,
-	.restart = tacna_micd_restart,
-	.reading = tacna_micd_mic_reading,
-	.stop = tacna_micd_mic_stop,
+	.start = &tacna_micd_mic_start,
+	.restart = &tacna_micd_restart,
+	.reading = &tacna_micd_mic_reading,
+	.stop = &tacna_micd_mic_stop,
 
-	.timeout_ms = tacna_micd_mic_timeout_ms,
-	.timeout = tacna_micd_mic_timeout,
+	.timeout_ms = &tacna_micd_mic_timeout_ms,
+	.timeout = &tacna_micd_mic_timeout,
 };
 EXPORT_SYMBOL_GPL(tacna_micd_adc_mic);
 
 const struct tacna_jd_state tacna_micd_microphone = {
 	.mode = TACNA_ACCDET_MODE_MIC,
-	.start = tacna_micd_mic_start,
-	.reading = tacna_micd_mic_reading,
-	.stop = tacna_micd_mic_stop,
+	.start = &tacna_micd_mic_start,
+	.reading = &tacna_micd_mic_reading,
+	.stop = &tacna_micd_mic_stop,
 
-	.timeout_ms = tacna_micd_mic_timeout_ms,
-	.timeout = tacna_micd_mic_timeout,
+	.timeout_ms = &tacna_micd_mic_timeout_ms,
+	.timeout = &tacna_micd_mic_timeout,
 };
 EXPORT_SYMBOL_GPL(tacna_micd_microphone);
 
@@ -2617,8 +2617,8 @@ static struct platform_driver tacna_extcon_driver = {
 	.driver		= {
 		.name	= "tacna-extcon",
 	},
-	.probe		= tacna_extcon_probe,
-	.remove		= tacna_extcon_remove,
+	.probe		= &tacna_extcon_probe,
+	.remove		= &tacna_extcon_remove,
 };
 
 module_platform_driver(tacna_extcon_driver);
