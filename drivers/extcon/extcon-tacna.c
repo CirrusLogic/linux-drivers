@@ -2020,7 +2020,7 @@ static void tacna_extcon_process_accdet_node(struct tacna_extcon *info,
 		info->micd_pol_gpio = NULL;
 }
 
-static int tacna_extcon_get_device_pdata(struct tacna_extcon *info)
+static void tacna_extcon_get_device_pdata(struct tacna_extcon *info)
 {
 	struct device_node *parent, *child;
 	struct tacna *tacna = info->tacna;
@@ -2036,13 +2036,11 @@ static int tacna_extcon_get_device_pdata(struct tacna_extcon *info)
 	parent = of_get_child_by_name(tacna->dev->of_node, "cirrus,accdet");
 	if (!parent) {
 		dev_dbg(tacna->dev, "No DT nodes\n");
-		return 0;
+		return;
 	}
 
 	for_each_child_of_node(parent, child)
 		tacna_extcon_process_accdet_node(info, &child->fwnode);
-
-	return 0;
 }
 
 #ifdef DEBUG
@@ -2362,9 +2360,7 @@ static int tacna_extcon_probe(struct platform_device *pdev)
 				gpio_to_desc(pdata->micd_pol_gpio);
 		}
 	} else {
-		ret = tacna_extcon_get_device_pdata(info);
-		if (ret < 0)
-			return ret;
+		tacna_extcon_get_device_pdata(info);
 	}
 
 	if (!pdata->enabled || pdata->output == 0) {
