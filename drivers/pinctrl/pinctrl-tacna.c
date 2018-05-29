@@ -721,12 +721,12 @@ static void tacna_pin_dbg_show(struct pinctrl_dev *pctldev,
 
 
 static const struct pinctrl_ops tacna_pin_group_ops = {
-	.get_groups_count = tacna_get_groups_count,
-	.get_group_name = tacna_get_group_name,
-	.get_group_pins = tacna_get_group_pins,
-	.pin_dbg_show = tacna_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
-	.dt_free_map = pinctrl_utils_free_map,
+	.get_groups_count = &tacna_get_groups_count,
+	.get_group_name = &tacna_get_group_name,
+	.get_group_pins = &tacna_get_group_pins,
+	.pin_dbg_show = &tacna_pin_dbg_show,
+	.dt_node_to_map = &pinconf_generic_dt_node_to_map_all,
+	.dt_free_map = &pinctrl_utils_free_map,
 };
 
 static int tacna_mux_get_funcs_count(struct pinctrl_dev *pctldev)
@@ -825,10 +825,10 @@ static int tacna_mux_set_mux(struct pinctrl_dev *pctldev, unsigned int selector,
 }
 
 static const struct pinmux_ops tacna_pin_mux_ops = {
-	.get_functions_count = tacna_mux_get_funcs_count,
-	.get_function_name = tacna_mux_get_func_name,
-	.get_function_groups = tacna_mux_get_groups,
-	.set_mux = tacna_mux_set_mux,
+	.get_functions_count = &tacna_mux_get_funcs_count,
+	.get_function_name = &tacna_mux_get_func_name,
+	.get_function_groups = &tacna_mux_get_groups,
+	.set_mux = &tacna_mux_set_mux,
 };
 
 static int tacna_pin_conf_get(struct pinctrl_dev *pctldev, unsigned int pin,
@@ -1027,9 +1027,9 @@ static int tacna_pin_conf_group_set(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinconf_ops tacna_pin_conf_ops = {
-	.pin_config_get = tacna_pin_conf_get,
-	.pin_config_set = tacna_pin_conf_set,
-	.pin_config_group_set = tacna_pin_conf_group_set,
+	.pin_config_get = &tacna_pin_conf_get,
+	.pin_config_set = &tacna_pin_conf_set,
+	.pin_config_group_set = &tacna_pin_conf_group_set,
 
 };
 
@@ -1119,8 +1119,8 @@ static int tacna_pin_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver tacna_pin_driver = {
-	.probe = tacna_pin_probe,
-	.remove = tacna_pin_remove,
+	.probe = &tacna_pin_probe,
+	.remove = &tacna_pin_remove,
 	.driver = {
 		.name = "tacna-pinctrl",
 	},
