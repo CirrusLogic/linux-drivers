@@ -3471,7 +3471,7 @@ static int wm_halo_configure_mpu(struct wm_adsp *dsp)
 	len = sizeof(halo_mpu_access) / sizeof(halo_mpu_access[0]);
 	/* configure all other banks */
 	lock_cfg = (dsp->unlock_all) ? 0xFFFFFFFF : 0;
-	for (i = 0; i < len; i++) { /* TODO: think if can be done without LUT */
+	for (i = 0; i < len; i++) {
 		ret = regmap_write(regmap, dsp_base + halo_mpu_access[i],
 					lock_cfg);
 		if (ret)
