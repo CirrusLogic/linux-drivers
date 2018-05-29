@@ -970,6 +970,15 @@ static int cs47l96_ao_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	/* Slave SYSCLKAO to SYSCLK */
+	ret = regmap_update_bits(tacna->regmap, TACNA_SYSTEM_CLOCK6AO,
+				 TACNA_SYSAO_FRAME_SLV_MASK,
+				 1 << TACNA_SYSAO_FRAME_SLV_SHIFT);
+	if (ret) {
+		dev_err(tacna->dev, "Failed to init FRAME_SLV: %d\n", ret);
+		return ret;
+	}
+
 	cs47l96_ao = devm_kzalloc(&pdev->dev, sizeof(struct cs47l96_ao),
 				  GFP_KERNEL);
 	if (!cs47l96_ao)
