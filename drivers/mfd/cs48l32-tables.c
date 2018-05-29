@@ -923,8 +923,8 @@ static const struct regmap_config cs48l32_spi_regmap = {
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 
 	.max_register = TACNA_IRQ1_EDGE_11,
-	.readable_reg = cs48l32_readable_register,
-	.volatile_reg = cs48l32_volatile_register,
+	.readable_reg = &cs48l32_readable_register,
+	.volatile_reg = &cs48l32_volatile_register,
 
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = cs48l32_reg_default,
