@@ -3909,18 +3909,18 @@ static int tacna_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 }
 
 const struct snd_soc_dai_ops tacna_dai_ops = {
-	.startup = tacna_startup,
-	.set_fmt = tacna_set_fmt,
-	.set_tdm_slot = tacna_set_tdm_slot,
-	.hw_params = tacna_hw_params,
-	.set_sysclk = tacna_dai_set_sysclk,
+	.startup = &tacna_startup,
+	.set_fmt = &tacna_set_fmt,
+	.set_tdm_slot = &tacna_set_tdm_slot,
+	.hw_params = &tacna_hw_params,
+	.set_sysclk = &tacna_dai_set_sysclk,
 };
 EXPORT_SYMBOL_GPL(tacna_dai_ops);
 
 const struct snd_soc_dai_ops tacna_simple_dai_ops = {
-	.startup = tacna_startup,
-	.hw_params = tacna_hw_params_rate,
-	.set_sysclk = tacna_dai_set_sysclk,
+	.startup = &tacna_startup,
+	.hw_params = &tacna_hw_params_rate,
+	.set_sysclk = &tacna_dai_set_sysclk,
 };
 EXPORT_SYMBOL_GPL(tacna_simple_dai_ops);
 
