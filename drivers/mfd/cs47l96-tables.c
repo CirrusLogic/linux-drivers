@@ -1980,8 +1980,8 @@ static const struct regmap_config cs47l96_spi_regmap = {
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 
 	.max_register = 0x218000,
-	.readable_reg = cs47l96_readable_register,
-	.volatile_reg = cs47l96_volatile_register,
+	.readable_reg = &cs47l96_readable_register,
+	.volatile_reg = &cs47l96_volatile_register,
 
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = cs47l96_reg_default,
