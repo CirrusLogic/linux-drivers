@@ -102,7 +102,6 @@ struct madera_extcon {
 	int jack_flips;
 
 	const struct madera_jd_state *state;
-	const struct madera_jd_state *old_state;
 	struct delayed_work state_timeout_work;
 
 	struct madera_micd_bias micd_bias;
