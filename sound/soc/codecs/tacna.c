@@ -4015,7 +4015,8 @@ int tacna_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 	case SND_SOC_DAPM_PRE_PMD:
 		snd_soc_update_bits(codec, reg,
 				    TACNA_IN1L_MUTE, TACNA_IN1L_MUTE);
-		snd_soc_write(codec, priv->in_vu_reg, TACNA_IN_VU);
+		if (priv->in_vu_reg)
+			snd_soc_write(codec, priv->in_vu_reg, TACNA_IN_VU);
 		break;
 	default:
 		break;
