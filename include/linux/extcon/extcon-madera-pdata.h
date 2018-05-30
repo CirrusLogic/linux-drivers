@@ -62,9 +62,6 @@ struct madera_accdet_pdata {
 	/** which output this accdet is for (1 = OUT1, ...) */
 	u32 output;
 
-	/** Time in milliseconds to keep wake lock during jack detection */
-	u32 jd_wake_time;
-
 	/** Set whether JD2 is used for jack detection */
 	bool jd_use_jd2;
 

@@ -2687,9 +2687,6 @@ static void madera_extcon_process_accdet_node(struct madera_extcon *info,
 	fwnode_property_read_u32(node, "cirrus,hpdet-channel",
 				 &pdata->hpdet_channel);
 
-	fwnode_property_read_u32(node, "cirrus,jd-wake-time",
-				 &pdata->jd_wake_time);
-
 	fwnode_property_read_u32(node, "cirrus,micd-clamp-mode",
 				 &pdata->micd_clamp_mode);
 
@@ -2757,7 +2754,6 @@ static void madera_extcon_dump_config(struct madera_extcon *info)
 
 		dev_dbg(info->dev, "extcon pdata OUT%u\n", pdata->output);
 		MADERA_EXTCON_PDATA_DUMP(enabled, "%u");
-		MADERA_EXTCON_PDATA_DUMP(jd_wake_time, "%d");
 		MADERA_EXTCON_PDATA_DUMP(jd_use_jd2, "%u");
 		MADERA_EXTCON_PDATA_DUMP(jd_invert, "%u");
 		MADERA_EXTCON_PDATA_DUMP(fixed_hpdet_imp_x100, "%d");
