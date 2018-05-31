@@ -2581,23 +2581,6 @@ int madera_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(madera_in_ev);
 
-int madera_dre_put(struct snd_kcontrol *kcontrol,
-		   struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	int ret;
-
-	snd_soc_dapm_mutex_lock(dapm);
-
-	ret = snd_soc_put_volsw(kcontrol, ucontrol);
-
-	snd_soc_dapm_mutex_unlock(dapm);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(madera_dre_put);
-
 int madera_out_ev(struct snd_soc_dapm_widget *w,
 		  struct snd_kcontrol *kcontrol, int event)
 {

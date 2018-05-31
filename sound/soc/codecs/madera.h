@@ -397,9 +397,6 @@ int madera_in_rate_put(struct snd_kcontrol *kcontrol,
 int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol);
 
-int madera_dre_put(struct snd_kcontrol *kcontrol,
-		   struct snd_ctl_elem_value *ucontrol);
-
 int madera_rate_put(struct snd_kcontrol *kcontrol,
 		    struct snd_ctl_elem_value *ucontrol);
 
