@@ -253,6 +253,27 @@ static int lookup_link_source(struct dentry *dentry, struct dentry *parent)
 	return err;
 }
 
+int esdfs_is_dl_lookup(struct dentry *dentry, struct dentry *parent)
+{
+	struct esdfs_sb_info *sbi = ESDFS_SB(parent->d_sb);
+	struct esdfs_inode_info *parent_i = ESDFS_I(parent->d_inode);
+	/*
+	 * Return 1 if this is the Download directory:
+	 * The test for download checks:
+	 * 1. The parent is the mount root.
+	 * 2. The directory is named 'Download'.
+	 * 3. The stub for the directory exists.
+	 */
+	if (test_opt(sbi, SPECIAL_DOWNLOAD) &&
+			parent_i->tree == ESDFS_TREE_ROOT &&
+			ESDFS_DENTRY_NEEDS_DL_LINK(dentry) &&
+			lookup_link_source(dentry, parent) == 0) {
+		return 1;
+	}
+
+	return 0;
+}
+
 int esdfs_derived_lookup(struct dentry *dentry, struct dentry **parent)
 {
 	struct esdfs_sb_info *sbi = ESDFS_SB((*parent)->d_sb);
@@ -287,16 +308,7 @@ int esdfs_derived_lookup(struct dentry *dentry, struct dentry **parent)
 		if (ESDFS_INODE_CAN_LINK((*parent)->d_inode))
 			*parent = dget(sbi->obb_parent);
 	}
-	/*
-	 * Repeat for the Download directory, if it is handled specially.
-	 */
-	if (test_opt(sbi, SPECIAL_DOWNLOAD) &&
-	    parent_i->tree == ESDFS_TREE_ROOT &&
-	    ESDFS_DENTRY_NEEDS_DL_LINK(dentry) &&
-	    lookup_link_source(dentry, *parent) == 0) {
-		BUG_ON(!sbi->dl_parent);
-		*parent = dget(sbi->dl_parent);
-	}
+
 	return 0;
 }
 

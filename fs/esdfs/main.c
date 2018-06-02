@@ -343,15 +343,9 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 	int err = 0;
 	struct super_block *lower_sb;
 	struct path lower_path;
-	struct path lower_dl;
-	struct path lower_dl_parent = {
-		.mnt = NULL,
-		.dentry = NULL
-	};
-
 	struct esdfs_sb_info *sbi;
 	struct inode *inode;
-	struct inode *inode_p_dl;
+	struct dentry *lower_dl_dentry;
 	struct user_namespace *user_ns;
 
 	if (!dev_name) {
@@ -492,7 +486,7 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 	if (test_opt(sbi, SPECIAL_DOWNLOAD)) {
 		/* parse lower path */
 		err = kern_path(sbi->dl_loc, LOOKUP_FOLLOW | LOOKUP_DIRECTORY,
-				&lower_dl);
+				&sbi->dl_path);
 		if (err) {
 			esdfs_msg(sb, KERN_ERR,
 				"error accessing download directory '%s'\n",
@@ -500,41 +494,23 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 			goto out_freeroot;
 		}
 
-		if (!S_ISDIR(lower_dl.dentry->d_inode->i_mode)) {
+		lower_dl_dentry = sbi->dl_path.dentry;
+
+		if (!S_ISDIR(lower_dl_dentry->d_inode->i_mode)) {
 			err = -EINVAL;
 			esdfs_msg(sb, KERN_ERR,
 				"dl_loc must be a directory '%s'\n",
 				sbi->dl_loc);
 			goto out_dlput;
 		}
-		lower_dl_parent.dentry = dget_parent(lower_dl.dentry);
-		lower_dl_parent.mnt = mntget(lower_dl.mnt);
-		if (lower_dl.dentry->d_sb != lower_sb) {
+
+		if (lower_dl_dentry->d_sb != lower_sb) {
 			esdfs_msg(sb, KERN_ERR,
 				"dl_loc must be in the same filesystem '%s'\n",
 				sbi->dl_loc);
 			goto out_dlput;
 		}
-		/* get a new inode and allocate our dl base */
-		inode_p_dl = esdfs_iget(sb, lower_dl_parent.dentry->d_inode, 0);
-		if (IS_ERR(inode_p_dl)) {
-			err = PTR_ERR(inode_p_dl);
-			goto out_dlput;
-		}
-		ESDFS_I(inode_p_dl)->tree = ESDFS_TREE_DOWNLOAD;
-		/* dl_parent is not connected to the rest of the tree */
-		sbi->dl_parent = d_make_root(inode_p_dl);
-		if (!sbi->dl_parent) {
-			err = -ENOMEM;
-			goto out_dlput;
-		}
-		d_set_d_op(sbi->dl_parent, &esdfs_dops);
 
-		/* link the upper and lower dentries */
-		sbi->dl_parent->d_fsdata = NULL;
-		err = esdfs_new_dentry_private_data(sbi->dl_parent);
-		if (err)
-			goto out_dl_freeroot;
 		if (!uid_valid(sbi->dl_kuid))
 			sbi->dl_kuid =
 				esdfs_make_kuid(sbi, sbi->lower_perms.uid);
@@ -542,15 +518,11 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 			sbi->dl_kgid =
 				esdfs_make_kgid(sbi, sbi->lower_perms.gid);
 
-		/* set lower dentries for dl parent, and name of dl folder */
-		esdfs_set_lower_path(sbi->dl_parent, &lower_dl_parent);
-
-		spin_lock(&lower_dl.dentry->d_lock);
-		sbi->dl_name.name = kstrndup(lower_dl.dentry->d_name.name,
-				lower_dl.dentry->d_name.len, GFP_ATOMIC);
-		sbi->dl_name.len = lower_dl.dentry->d_name.len;
-		spin_unlock(&lower_dl.dentry->d_lock);
-		path_put(&lower_dl);
+		spin_lock(&lower_dl_dentry->d_lock);
+		sbi->dl_name.name = kstrndup(lower_dl_dentry->d_name.name,
+				lower_dl_dentry->d_name.len, GFP_ATOMIC);
+		sbi->dl_name.len = lower_dl_dentry->d_name.len;
+		spin_unlock(&lower_dl_dentry->d_lock);
 	}
 	/* if get here: cannot have error */
 
@@ -616,12 +588,10 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 
 	goto out;
 
-out_dl_freeroot:
-	dput(sbi->dl_parent);
-	sbi->dl_parent = NULL;
 out_dlput:
-	path_put(&lower_dl);
-	path_put(&lower_dl_parent);
+	path_put(&sbi->dl_path);
+	sbi->dl_path.dentry = NULL;
+	sbi->dl_path.mnt = NULL;
 out_freeroot:
 	dput(sb->s_root);
 	sb->s_root = NULL;
@@ -665,8 +635,8 @@ static void esdfs_kill_sb(struct super_block *sb)
 {
 	if (sb->s_fs_info && ESDFS_SB(sb)->obb_parent)
 		dput(ESDFS_SB(sb)->obb_parent);
-	if (sb->s_fs_info && ESDFS_SB(sb)->dl_parent)
-		dput(ESDFS_SB(sb)->dl_parent);
+	if (sb->s_fs_info)
+		path_put(&ESDFS_SB(sb)->dl_path);
 
 	kill_anon_super(sb);
 }

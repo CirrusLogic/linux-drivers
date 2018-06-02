@@ -149,6 +149,7 @@ extern int esdfs_init_package_list(void);
 extern void esdfs_destroy_package_list(void);
 extern void esdfs_derive_perms(struct dentry *dentry);
 extern void esdfs_set_derived_perms(struct inode *inode);
+extern int esdfs_is_dl_lookup(struct dentry *dentry, struct dentry *parent);
 extern int esdfs_derived_lookup(struct dentry *dentry, struct dentry **parent);
 extern int esdfs_derived_revalidate(struct dentry *dentry,
 				    struct dentry *parent);
@@ -199,7 +200,7 @@ struct esdfs_sb_info {
 	struct esdfs_perms lower_perms;
 	struct esdfs_perms upper_perms;	/* root in derived mode */
 	struct dentry *obb_parent;	/* pinned dentry for obb link parent */
-	struct dentry *dl_parent;	/* pinned parent of downloads folder */
+	struct path dl_path;		/* path of lower downloads folder */
 	struct qstr dl_name;		/* name of lower downloads folder */
 	const char *dl_loc;		/* location of dl folder */
 	uid_t dl_raw_uid;

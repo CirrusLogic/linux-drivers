@@ -324,7 +324,16 @@ static struct dentry *__esdfs_lookup(struct dentry *dentry,
 	lower_dir_dentry = lower_parent_path->dentry;
 	lower_dir_mnt = lower_parent_path->mnt;
 
-	err = esdfs_lookup_nocase(lower_parent_path, &dname, &lower_path);
+	/* if the access is to the Download directory, redirect
+	 * to lower path.
+	 */
+	if (use_dl) {
+		pathcpy(&lower_path, &ESDFS_SB(dentry->d_sb)->dl_path);
+		path_get(&ESDFS_SB(dentry->d_sb)->dl_path);
+	} else {
+		err = esdfs_lookup_nocase(lower_parent_path, &dname,
+					  &lower_path);
+	}
 
 	/* no error: handle positive dentries */
 	if (!err) {
@@ -389,6 +398,7 @@ struct dentry *esdfs_lookup(struct inode *dir, struct dentry *dentry,
 	struct path lower_parent_path, old_lower_parent_path;
 	const struct cred *creds;
 	struct esdfs_sb_info *sbi = ESDFS_SB(dir->i_sb);
+	int use_dl;
 
 	parent = real_parent = dget_parent(dentry);
 
@@ -416,10 +426,12 @@ struct dentry *esdfs_lookup(struct inode *dir, struct dentry *dentry,
 		goto out_put;
 	}
 
+	/* Check if the lookup corresponds to the Download directory */
+	use_dl = esdfs_is_dl_lookup(dentry, parent);
+
 	ret = __esdfs_lookup(dentry, flags, &lower_parent_path,
 					ESDFS_I(dir)->userid,
-					sbi->dl_parent == parent
-					&& real_parent != parent);
+					use_dl);
 	if (IS_ERR(ret))
 		goto out_cred;
 	if (ret)
