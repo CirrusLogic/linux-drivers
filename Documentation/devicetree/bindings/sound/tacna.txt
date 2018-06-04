@@ -26,7 +26,6 @@ Optional properties:
   - cirrus,out-mono : Mono bit for each output. A non-zero value indicates the
     corresponding output is mono.
     Cells are:
-    <OUT1_HP1 OUT1_HP2 OUT2> (cs47l94, cs47l95)
     <OUT1_HP1 OUT1_HP2> (cs47l96, cs47l97)
     <OUT1 OUT2 OUT3 ...> (all other codecs)
 
@@ -54,8 +53,8 @@ Optional properties:
 
 Example:
 
-cs47l94@0 {
-	compatible = "cirrus,cs47l94";
+cs47l96@0 {
+	compatible = "cirrus,cs47l96";
 
 	cirrus,in-type = <
 		TACNA_IN_TYPE_DIFF TACNA_IN_TYPE_DIFF /* IN1[LR]_1 differential */
