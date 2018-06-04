@@ -13,8 +13,8 @@ bindings/sound/tacna.txt
 Required properties:
 
   - compatible : One of the following chip-specific strings:
-        "cirrus,cs47l94"
-        "cirrus,cs47l95"
+        "cirrus,cs47l96"
+        "cirrus,cs47l97"
 
   - reg : I2C slave address when connected using I2C, chip select number when
     using SPI.
@@ -88,8 +88,8 @@ Optional child nodes:
 
 Example:
 
-codec: cs47l94@0 {
-	compatible = "cirrus,cs47l94";
+codec: cs47l96@0 {
+	compatible = "cirrus,cs47l96";
 	reg = <0>;
 
 	interrupt-controller;
@@ -111,9 +111,9 @@ codec: cs47l94@0 {
 
 	pinctrl-names = "probe", "active";
 	pinctrl-0 = <&gpio_0_enable_state>;
-	pinctrl-1 = <&gpio_0_enable_state &cs47l94_gpio_config>;
+	pinctrl-1 = <&gpio_0_enable_state &cs47l96_gpio_config>;
 
-	cs47l94_gpio_config: cs47l94-gpio-config {
+	cs47l96_gpio_config: cs47l96-gpio-config {
 		asp2 {
 			groups = "asp2";
 			function = "asp2";
