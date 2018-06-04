@@ -31,7 +31,6 @@
 
 #include "tacna.h"
 
-#define CS47L94_SILICON_ID	0x6372
 #define CS47L96_SILICON_ID	0x47a97
 #define CS48L32_SILICON_ID	0x48a32
 
@@ -48,36 +47,11 @@ static const char * const tacna_core_supplies[] = {
 	"VDD_IO1",
 };
 
-static const char * const cs47l94_supplies[] = {
-	"VOUT_MIC",	/* must be first entry */
-	"VDD1_CP",
-	"VDD2_CP",
-	"VDD3_CP",
-	"VDD_IO2",
-};
-
 static const struct mfd_cell tacna_pinctrl_dev[] = {
 	{
 		.name = "tacna-pinctrl",
 		.of_compatible = "cirrus,tacna-pinctrl",
 	},
-};
-
-static const struct mfd_cell cs47l94_devs[] = {
-	{ .name = "tacna-irq", },
-	{ .name = "tacna-micsupp", },
-	{ .name = "tacna-gpio", },
-	{
-		.name = "tacna-extcon",
-		.parent_supplies = cs47l94_supplies,
-		.num_parent_supplies = 1,	/* only need VOUT_MIC */
-	},
-	{
-		.name = "cs47l94-codec",
-		.parent_supplies = cs47l94_supplies,
-		.num_parent_supplies = ARRAY_SIZE(cs47l94_supplies),
-	},
-	{ .name = "tacna-haptics", },
 };
 
 static const char * const cs47l96_supplies[] = {
@@ -129,10 +103,6 @@ static const struct mfd_cell cs48l32_devs[] = {
 const char *tacna_name_from_type(enum tacna_type type)
 {
 	switch (type) {
-	case CS47L94:
-		return "CS47L94";
-	case CS47L95:
-		return "CS47L95";
 	case CS47L96:
 		return "CS47L96";
 	case CS47L97:
@@ -315,8 +285,6 @@ unsigned int tacna_get_num_micbias(struct tacna *tacna)
 {
 
 	switch (tacna->type) {
-	case CS47L94:
-	case CS47L95:
 	case CS47L96:
 	case CS47L97:
 		return 2;
@@ -331,8 +299,6 @@ EXPORT_SYMBOL_GPL(tacna_get_num_micbias);
 unsigned int tacna_get_num_childbias(struct tacna *tacna, unsigned int micbias)
 {
 	switch (tacna->type) {
-	case CS47L94:
-	case CS47L95:
 	case CS47L96:
 	case CS47L97:
 		switch (micbias) {
@@ -358,8 +324,6 @@ EXPORT_SYMBOL_GPL(tacna_get_num_childbias);
 
 #ifdef CONFIG_OF
 const struct of_device_id tacna_of_match[] = {
-	{ .compatible = "cirrus,cs47l94", .data = (void *)CS47L94 },
-	{ .compatible = "cirrus,cs47l95", .data = (void *)CS47L95 },
 	{ .compatible = "cirrus,cs47l96", .data = (void *)CS47L96 },
 	{ .compatible = "cirrus,cs47l97", .data = (void *)CS47L97 },
 	{ .compatible = "cirrus,cs48l32", .data = (void *)CS48L32 },
@@ -714,7 +678,6 @@ int tacna_dev_init(struct tacna *tacna)
 	}
 
 	switch (reg & TACNA_DEVID_MASK) {
-	case CS47L94_SILICON_ID:
 	case CS47L96_SILICON_ID:
 	case CS48L32_SILICON_ID:
 		break;
@@ -764,20 +727,6 @@ int tacna_dev_init(struct tacna *tacna)
 	n_devs = 0;
 
 	switch (hwid) {
-	case CS47L94_SILICON_ID:
-		if (IS_ENABLED(CONFIG_MFD_CS47L94)) {
-			switch (tacna->type) {
-			case CS47L94:
-			case CS47L95:
-				patch_fn = cs47l94_patch;
-				mfd_devs = cs47l94_devs;
-				n_devs = ARRAY_SIZE(cs47l94_devs);
-				break;
-			default:
-				break;
-			}
-		}
-		break;
 	case CS47L96_SILICON_ID:
 		if (IS_ENABLED(CONFIG_MFD_CS47L96)) {
 			switch (tacna->type) {

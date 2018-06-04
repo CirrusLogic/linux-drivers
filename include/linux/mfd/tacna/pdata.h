@@ -17,7 +17,6 @@
 #include <linux/regulator/arizona-micsupp.h>
 #include <sound/tacna-pdata.h>
 
-#define CS47L94_NUM_GPIOS		23
 #define CS47L96_NUM_GPIOS		27
 #define CS48L32_NUM_GPIOS		16
 
