@@ -74,13 +74,13 @@ Optional properties of configuration subnodes:
 
 Example:
 
-codec: cs47l94@0 {
-	compatible = "cirrus,cs47l94";
+codec: cs47l96@0 {
+	compatible = "cirrus,cs47l96";
 
 	pinctrl-names = "active";
-	pinctrl-0 = <&cs47l94_gpio_config>;
+	pinctrl-0 = <&cs47l96_gpio_config>;
 
-	cs47l94_gpio_config: cs47l94-gpio-config {
+	cs47l96_gpio_config: cs47l96-gpio-config {
 		asp2 {
 			groups = "asp2";
 			function = "asp2";

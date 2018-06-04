@@ -99,10 +99,6 @@ config PINCTRL_TACNA
 	select PINMUX
 	select GENERIC_PINCONF
 
-config PINCTRL_CS47L94
-	bool
-	default y if MFD_CS47L94=y
-
 config PINCTRL_CS47L96
 	bool
 	default y if MFD_CS47L96=y
