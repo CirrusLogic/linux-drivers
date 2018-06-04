@@ -86,8 +86,8 @@ Child node optional properties:
 
 Example:
 
-codec: cs47l94@0 {
-	compatible = "cirrus,cs47l94";
+codec: cs47l96@0 {
+	compatible = "cirrus,cs47l96";
 
 	accdet {
 		compatible = "cirrus,tacna-extcon";
