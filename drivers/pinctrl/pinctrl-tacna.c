@@ -502,33 +502,6 @@ struct tacna_pin_private {
  * To stay consistent with the datasheet the function names are the same as
  * the group names for that function's pins
  */
-#ifdef CONFIG_PINCTRL_CS47L94
-/* Note - all 1 less than in datasheet because these are zero-indexed */
-static const unsigned int cs47l94_asp2_pins[] = { 8, 9, 10, 11 };
-static const unsigned int cs47l94_asp3_pins[] = { 12, 13, 14, 15 };
-static const unsigned int cs47l94_asp4_pins[] = { 19, 20, 21, 22 };
-static const unsigned int cs47l94_dsd1_pins[] = { 16, 17, 18 };
-static const unsigned int cs47l94_in3pdm_pins[] = { 4, 5 };
-static const unsigned int cs47l94_in4pdm_pins[] = { 6, 7 };
-static const unsigned int cs47l94_out5pdm_pins[] = { 2, 3 };
-
-static const struct tacna_pin_groups cs47l94_pin_groups[] = {
-	{ "asp2", cs47l94_asp2_pins, ARRAY_SIZE(cs47l94_asp2_pins) },
-	{ "asp3", cs47l94_asp3_pins, ARRAY_SIZE(cs47l94_asp3_pins) },
-	{ "asp4", cs47l94_asp4_pins, ARRAY_SIZE(cs47l94_asp4_pins) },
-	{ "dsd1", cs47l94_dsd1_pins, ARRAY_SIZE(cs47l94_dsd1_pins) },
-	{ "in3-pdm", cs47l94_in3pdm_pins, ARRAY_SIZE(cs47l94_in3pdm_pins) },
-	{ "in4-pdm", cs47l94_in4pdm_pins, ARRAY_SIZE(cs47l94_in4pdm_pins) },
-	{ "out5-pdm", cs47l94_out5pdm_pins, ARRAY_SIZE(cs47l94_out5pdm_pins) },
-};
-
-static const struct tacna_pin_chip cs47l94_pin_chip = {
-	.n_pins = CS47L94_NUM_GPIOS,
-	.pin_groups = cs47l94_pin_groups,
-	.n_pin_groups = ARRAY_SIZE(cs47l94_pin_groups),
-};
-#endif
-
 #ifdef CONFIG_PINCTRL_CS47L96
 /* Note - all 1 less than in datasheet because these are zero-indexed */
 static const unsigned int cs47l96_asp2_pins[] = { 8, 9, 10, 11 };
@@ -1063,12 +1036,6 @@ static int tacna_pin_probe(struct platform_device *pdev)
 	priv->tacna = tacna;
 
 	switch (tacna->type) {
-	case CS47L94:
-	case CS47L95:
-#ifdef CONFIG_PINCTRL_CS47L94
-		priv->chip = &cs47l94_pin_chip;
-#endif
-		break;
 	case CS47L96:
 	case CS47L97:
 #ifdef CONFIG_PINCTRL_CS47L96
