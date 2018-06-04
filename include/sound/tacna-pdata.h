@@ -36,8 +36,8 @@
  *			  [n][0]=INnL_1 [n][1]=INnR_1 [n][2]=INnL_2 [n][3]=INnR_2
  * @out_mono:		  For each output set the value to TRUE to indicate that
  *			  the output is mono.
- *			  For CS47L94/CS47L95:
- *			   [0]=OUT1_HP1, [1]=OUT2, [2] = OUT1_HP2, [3] = OUTH ...
+ *			  For CS47L96/CS47L97:
+ *			   [0]=OUT1_HP1, [1]=OUT1_HP2
  *			  For all other codecs:
  *			   [0]=OUT1 [1]=OUT2 [2]=OUT3 ...
  * @pdm_mute:		  PDM output mute control. One of the TACNA_PDM_MUTE_xxx
