@@ -4007,14 +4007,13 @@ int tacna_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		snd_soc_update_bits(codec, reg, TACNA_IN1L_MUTE, 0);
 
 		/* Uncached write-only register, no need for update_bits */
-		if (!priv->in_up_pending && priv->in_vu_reg)
+		if (!priv->in_up_pending)
 			snd_soc_write(codec, priv->in_vu_reg, TACNA_IN_VU);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		snd_soc_update_bits(codec, reg,
 				    TACNA_IN1L_MUTE, TACNA_IN1L_MUTE);
-		if (priv->in_vu_reg)
-			snd_soc_write(codec, priv->in_vu_reg, TACNA_IN_VU);
+		snd_soc_write(codec, priv->in_vu_reg, TACNA_IN_VU);
 		break;
 	default:
 		break;
@@ -4039,8 +4038,7 @@ int tacna_in_put_volsw(struct snd_kcontrol *kcontrol,
 	 * Uncached write-only register, no need for update_bits.
 	 * Will fail if codec is off but that will be handled by tacna_in_ev
 	 */
-	if (priv->in_vu_reg)
-		snd_soc_write(codec, priv->in_vu_reg, TACNA_IN_VU);
+	snd_soc_write(codec, priv->in_vu_reg, TACNA_IN_VU);
 
 	return 0;
 }
