@@ -1400,6 +1400,11 @@ static int cs47l15_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, cs47l15);
 
+	/* Set of_node to parent from the SPI device to allow DAPM to
+	 * locate regulator supplies
+	 */
+	pdev->dev.of_node = madera->dev->of_node;
+
 	cs47l15->core.madera = madera;
 	cs47l15->core.dev = &pdev->dev;
 	cs47l15->core.num_inputs = 4;
