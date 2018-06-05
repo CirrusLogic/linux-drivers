@@ -3437,7 +3437,7 @@ static int madera_hw_params(struct snd_pcm_substream *substream,
 		channels = tdm_slots;
 	}
 
-	bclk_target = params_rate(params) * channels * slotw;
+	bclk_target = slotw * channels * params_rate(params);
 
 	if (chan_limit && chan_limit < channels) {
 		madera_aif_dbg(dai, "Limiting to %d channels\n", chan_limit);
