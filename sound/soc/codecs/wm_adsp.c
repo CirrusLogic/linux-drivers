@@ -2825,13 +2825,29 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	int ret, pos, blocks, type, offset, reg;
 	char *file;
 	struct wm_adsp_buf *buf;
+	const char *fw_txt;
 
 	file = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (file == NULL)
 		return -ENOMEM;
 
+	switch (dsp->type) {
+	case WMFW_VPU:
+		fw_txt = wm_vpu_fw_text[dsp->fw];
+		break;
+	case WMFW_ADSP1:
+	case WMFW_ADSP2:
+	case WMFW_HALO:
+		fw_txt = wm_adsp_fw_text[dsp->fw];
+		break;
+	default:
+		adsp_err(dsp, "Unknown Architecture type: %d\n", dsp->type);
+		ret = -EINVAL;
+		goto out;
+	}
+
 	snprintf(file, PAGE_SIZE, "%s-%s-%s.bin", dsp->part, dsp->fwf_name,
-		 wm_adsp_fw[dsp->fw].file);
+		 fw_txt);
 	file[PAGE_SIZE - 1] = '\0';
 
 	ret = request_firmware(&firmware, file, dsp->dev);
@@ -2921,6 +2937,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 		case WMFW_HALO_XM_PACKED:
 		case WMFW_HALO_YM_PACKED:
 		case WMFW_HALO_PM_PACKED:
+		case WMFW_VPU_DM:
 			adsp_dbg(dsp, "%s.%d: %d bytes in %x for %x\n",
 				 file, blocks, le32_to_cpu(blk->len),
 				 type, le32_to_cpu(blk->id));
@@ -3460,6 +3477,10 @@ static void wm_vpu_boot_work(struct work_struct *work)
 	default:
 		goto err;
 	}
+
+	ret = wm_adsp_load_coeff(vpu);
+	if (ret != 0)
+		goto err;
 
 	/* Initialize caches for enabled and unset controls */
 	ret = wm_coeff_init_control_caches(vpu);
