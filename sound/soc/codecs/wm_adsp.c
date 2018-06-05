@@ -2892,8 +2892,18 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	if (file == NULL)
 		return -ENOMEM;
 
-	snprintf(file, PAGE_SIZE, "%s-dsp%d-%s.bin", dsp->part, dsp->num,
-		 wm_adsp_fw[dsp->fw].file);
+	switch (dsp->type) {
+	case WMFW_VPU:
+		snprintf(file, PAGE_SIZE, "%s-vpu%d-%s.bin",
+			 dsp->part, dsp->num,
+			 wm_vpu_fw[dsp->fw].file);
+		break;
+	default:
+		snprintf(file, PAGE_SIZE, "%s-dsp%d-%s.bin",
+			 dsp->part, dsp->num,
+			 wm_adsp_fw[dsp->fw].file);
+	}
+
 	file[PAGE_SIZE - 1] = '\0';
 
 	ret = request_firmware(&firmware, file, dsp->dev);
@@ -2983,6 +2993,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 		case WMFW_HALO_XM_PACKED:
 		case WMFW_HALO_YM_PACKED:
 		case WMFW_HALO_PM_PACKED:
+		case WMFW_VPU_DM:
 			adsp_dbg(dsp, "%s.%d: %d bytes in %x for %x\n",
 				 file, blocks, le32_to_cpu(blk->len),
 				 type, le32_to_cpu(blk->id));
@@ -3492,6 +3503,10 @@ static void wm_vpu_boot_work(struct work_struct *work)
 	default:
 		goto err;
 	}
+
+	ret = wm_adsp_load_coeff(vpu);
+	if (ret != 0)
+		goto err;
 
 	/* Initialize caches for enabled and unset controls */
 	ret = wm_coeff_init_control_caches(vpu);
