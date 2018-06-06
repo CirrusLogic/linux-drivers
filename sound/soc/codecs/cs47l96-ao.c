@@ -1,7 +1,7 @@
 /*
  * cs47l96-ao.c  --  ALSA SoC AO Audio driver for CS47L96/CS47L97 codecs
  *
- * Copyright 2018 Cirrus Logic
+ * Copyright 2018 Cirrus Logic, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
