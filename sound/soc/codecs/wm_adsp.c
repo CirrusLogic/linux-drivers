@@ -241,6 +241,7 @@
 #define HALO_SAMPLE_RATE_TX1                 0x00280
 #define HALO_SCRATCH1                        0x005c0
 #define HALO_CCM_CORE_CONTROL                0x41000
+#define HALO_CORE_SOFT_RESET                 0x00010
 
 /*
  * HALO Lock support
@@ -386,7 +387,13 @@
 #define HALO_CORE_EN_MASK                   0x00000001
 #define HALO_CORE_EN_SHIFT                  0
 #define HALO_CORE_EN_WIDTH                  1
-#define HALO_CORE_RESET                      0x00000200
+#define HALO_CORE_RESET                     0x00000200
+
+/*
+ * HALO_CORE_SOFT_RESET
+ */
+#define HALO_CORE_SOFT_RESET_SHIFT          0
+#define HALO_CORE_SOFT_RESET_MASK           0x00000001
 
 /*
  * HALO_MPU_?M_VIO_STATUS
@@ -3319,71 +3326,6 @@ static int wm_halo_set_rate_block(struct wm_adsp *dsp,
 	return 0;
 }
 
-static int wm_halo_clear_stream_arb(struct wm_adsp *dsp)
-{
-	struct regmap *regmap = dsp->regmap;
-	unsigned int dspbase = dsp->base, reg, begin, end;
-	u32 values[3] = {0, 0, 0};
-	int ret;
-
-	/* disable stream arbiter masters */
-	for (reg = dspbase + HALO_STREAM_ARB_MSTR0_CONFIG_0;
-	     reg <= dspbase + HALO_STREAM_ARB_MSTR5_CONFIG_0;
-	     reg += 0x10) {
-		ret = regmap_update_bits(regmap, reg,
-					 HALO_STREAM_ARB_MSTR_EN_MASK, 0);
-		if (ret)
-			goto error;
-	}
-
-	/* clear stream arbiter masters */
-	for (reg = dspbase + HALO_STREAM_ARB_MSTR0_CONFIG_0;
-	     reg <= dspbase + HALO_STREAM_ARB_MSTR5_CONFIG_0;
-	     reg += 0x10) {
-		ret = regmap_bulk_write(regmap, reg, values, 3);
-		if (ret)
-			goto error;
-	}
-
-	/* clear stream arbiter channel configs */
-	begin = dspbase + HALO_STREAM_ARB_TX1_CONFIG_0;
-	end = begin + dsp->n_tx_channels * 0x8;
-	for (reg = begin; reg < end; reg += 0x8) {
-		ret = regmap_write(regmap, reg,
-				   HALO_STREAM_ARB_MSTR_SEL_DEFAULT);
-		if (ret)
-			goto error;
-	}
-	begin = dspbase + HALO_STREAM_ARB_RX1_CONFIG_0;
-	end = begin + dsp->n_rx_channels * 0x8;
-	for (reg = begin; reg < end; reg += 0x8) {
-		ret = regmap_write(regmap, reg,
-				   HALO_STREAM_ARB_MSTR_SEL_DEFAULT);
-		if (ret)
-			goto error;
-	}
-
-	/* clear stream arbiter interrupt registers */
-	values[0] = HALO_STREAM_ARB_MSTR_SEL_DEFAULT;
-	for (reg = dspbase + HALO_STREAM_ARB_IRQ0_CONFIG_0;
-	     reg <= dspbase + HALO_STREAM_ARB_IRQ7_CONFIG_1;
-	     reg += 0x10) {
-		ret = regmap_bulk_write(regmap, reg, values, 2);
-		if (ret)
-			goto error;
-	}
-
-	regmap_write(regmap, dspbase + HALO_INTP_CTL_IRQ_FLUSH, 0x00FFFFFF);
-
-	return 0;
-
-error:
-	adsp_err(dsp,
-		 "Error while clearing stream arbiter config (reg 0x%x): %d\n",
-		 reg, ret);
-	return ret;
-}
-
 static int wm_halo_configure_mpu(struct wm_adsp *dsp)
 {
 	struct regmap *regmap = dsp->regmap;
@@ -3865,14 +3807,6 @@ int wm_halo_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 			goto err;
 		}
 
-		ret = regmap_update_bits(dsp->regmap,
-					 dsp->base + HALO_CCM_CORE_CONTROL,
-					 HALO_CORE_RESET, HALO_CORE_RESET);
-		if (ret != 0) {
-			adsp_err(dsp, "Error while resetting core: %d\n", ret);
-			return ret;
-		}
-
 		/* Sync set controls */
 		ret = wm_coeff_sync_controls(dsp);
 		if (ret != 0)
@@ -3893,19 +3827,6 @@ int wm_halo_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 					     dsp->tx_rate_cache);
 		if (ret) {
 			adsp_err(dsp, "Failed to set TX rates.\n");
-			goto err;
-		}
-
-		ret = wm_halo_clear_stream_arb(dsp);
-		if (ret != 0)
-			goto err;
-
-		/* disable NMI */
-		ret = regmap_write(dsp->regmap,
-				   dsp->base + HALO_INTP_CTL_NMI_CONTROL,
-				   0);
-		if (ret != 0) {
-			adsp_err(dsp, "Error while disabling NMI: %d\n", ret);
 			goto err;
 		}
 
@@ -3944,12 +3865,15 @@ int wm_halo_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 				   dsp->base + HALO_CCM_CORE_CONTROL,
 				   HALO_CORE_EN, 0);
 
-		wm_halo_clear_stream_arb(dsp);
-
 		if (wm_adsp_fw[dsp->fw].num_caps != 0)
 			wm_adsp_buffer_free(dsp);
 
 		mutex_unlock(&dsp->pwr_lock);
+
+		/* reset halo core with CORE_SOFT_REEST */
+		regmap_update_bits(dsp->regmap,
+				   dsp->base + HALO_CORE_SOFT_RESET,
+				   HALO_CORE_SOFT_RESET_MASK, 1);
 
 		adsp_info(dsp, "Execution stopped\n");
 		break;
