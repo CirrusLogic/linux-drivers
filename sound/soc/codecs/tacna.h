@@ -1,7 +1,7 @@
 /*
  * tacna.h - Cirrus Logic Tacna class codecs common support
  *
- * Copyright 2016-2017 Cirrus Logic
+ * Copyright 2016-2018 Cirrus Logic, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
