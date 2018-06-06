@@ -1,7 +1,7 @@
 /*
  * cs48l32.c  --  ALSA SoC Audio driver for CS48L32 codecs
  *
- * Copyright 2018 Cirrus Logic
+ * Copyright 2018 Cirrus Logic, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
