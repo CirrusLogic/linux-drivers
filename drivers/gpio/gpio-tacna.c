@@ -74,6 +74,21 @@ static int tacna_gpio_direction_out(struct gpio_chip *chip,
 				  level);
 }
 
+static int tacna_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
+{
+	struct tacna_gpio *tacna_gpio = to_tacna_gpio(chip);
+	struct tacna *tacna = tacna_gpio->tacna;
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(tacna->regmap, TACNA_GPIO1_CTRL1 + (4 * offset),
+			  &val);
+	if (ret)
+		return ret;
+
+	return !!(val & TACNA_GP1_DIR_MASK);
+}
+
 static void tacna_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			   int value)
 {
@@ -98,9 +113,10 @@ static void tacna_gpio_set(struct gpio_chip *chip, unsigned int offset,
 static struct gpio_chip template_chip = {
 	.label			= "tacna",
 	.owner			= THIS_MODULE,
+	.get_direction		= &tacna_gpio_get_direction,
 	.direction_input	= &tacna_gpio_direction_in,
-	.get			= &tacna_gpio_get,
 	.direction_output	= &tacna_gpio_direction_out,
+	.get			= &tacna_gpio_get,
 	.set			= &tacna_gpio_set,
 	.can_sleep		= true,
 };
