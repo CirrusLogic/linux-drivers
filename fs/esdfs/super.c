@@ -271,8 +271,8 @@ static int esdfs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",default_normal");
 	if (test_opt(sbi, SPECIAL_DOWNLOAD)) {
 		seq_printf(seq, ",dl_loc=%s", sbi->dl_loc);
-		seq_printf(seq, ",dl_uid=%d", sbi->dl_raw_uid);
-		seq_printf(seq, ",dl_gid=%d", sbi->dl_raw_gid);
+		seq_printf(seq, ",dl_uid=%d", sbi->lower_dl_perms.raw_uid);
+		seq_printf(seq, ",dl_gid=%d", sbi->lower_dl_perms.raw_gid);
 	}
 	return 0;
 }

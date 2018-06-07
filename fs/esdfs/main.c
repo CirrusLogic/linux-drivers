@@ -98,6 +98,13 @@ struct esdfs_perms esdfs_perms_table[ESDFS_PERMS_TABLE_SIZE] = {
 	  .gid   = AID_SDCARD_R,
 	  .fmask = 0660,
 	  .dmask = 0771 },
+	/* ESDFS_PERMS_LOWER_DOWNLOAD */
+	{ .raw_uid = -1,
+	  .raw_gid = -1,
+	  .uid   = -1,
+	  .gid   = -1,
+	  .fmask = 0644,
+	  .dmask = 0711 },
 };
 
 static int parse_perms(struct esdfs_perms *perms, char *args)
@@ -290,13 +297,13 @@ static int parse_options(struct super_block *sb, char *options)
 			set_opt(sbi, SPECIAL_DOWNLOAD);
 			if (match_int(&args[0], &option))
 				return -EINVAL;
-			sbi->dl_raw_uid = option;
+			sbi->lower_dl_perms.raw_uid = option;
 			break;
 		case Opt_dl_gid:
 			set_opt(sbi, SPECIAL_DOWNLOAD);
 			if (match_int(&args[0], &option))
 				return -EINVAL;
-			sbi->dl_raw_gid = option;
+			sbi->lower_dl_perms.raw_gid = option;
 			break;
 		case Opt_ns_fd:
 			if (match_int(&args[0], &option))
@@ -347,6 +354,8 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 	struct inode *inode;
 	struct dentry *lower_dl_dentry;
 	struct user_namespace *user_ns;
+	kuid_t dl_kuid = INVALID_UID;
+	kgid_t dl_kgid = INVALID_GID;
 
 	if (!dev_name) {
 		esdfs_msg(sb, KERN_ERR, "missing dev_name argument\n");
@@ -375,10 +384,6 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 
 	/* set defaults and then parse the mount options */
 
-	sbi->dl_kuid = INVALID_UID;
-	sbi->dl_kgid = INVALID_GID;
-	sbi->dl_raw_uid = -1;
-	sbi->dl_raw_gid = -1;
 	sbi->ns_fd = -1;
 
 	/* make public default */
@@ -399,9 +404,16 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 		       &esdfs_perms_table[ESDFS_PERMS_UPPER_LEGACY],
 		       sizeof(struct esdfs_perms));
 
+	memcpy(&sbi->lower_dl_perms,
+	       &esdfs_perms_table[ESDFS_PERMS_LOWER_DOWNLOAD],
+	       sizeof(struct esdfs_perms));
+
 	err = parse_options(sb, (char *)raw_data);
 	if (err)
 		goto out_free;
+
+	/* Initialize special namespace for lower Downloads directory */
+	memcpy(&sbi->dl_ns, current_user_ns(), sizeof(sbi->dl_ns));
 
 	if (sbi->ns_fd == -1) {
 		memcpy(&sbi->base_ns, current_user_ns(), sizeof(sbi->base_ns));
@@ -424,17 +436,23 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 		pr_err("esdfs: Invalid permissions for upper layer\n");
 		goto out_free;
 	}
-	if (sbi->dl_raw_uid != -1) {
-		sbi->dl_kuid = make_kuid(current_user_ns(), sbi->dl_raw_uid);
-		if (!uid_valid(sbi->dl_kuid)) {
+
+	/* Check if the downloads uid maps into a valid kuid from
+	 * the namespace of the mounting process
+	 */
+	if (sbi->lower_dl_perms.raw_uid != -1) {
+		dl_kuid = make_kuid(&sbi->dl_ns,
+				    sbi->lower_dl_perms.raw_uid);
+		if (!uid_valid(dl_kuid)) {
 			pr_err("esdfs: Invalid permissions for dl_uid");
 			err = -EINVAL;
 			goto out_free;
 		}
 	}
-	if (sbi->dl_raw_gid != -1) {
-		sbi->dl_kgid = make_kgid(current_user_ns(), sbi->dl_raw_gid);
-		if (!gid_valid(sbi->dl_kgid)) {
+	if (sbi->lower_dl_perms.raw_gid != -1) {
+		dl_kgid = make_kgid(&sbi->dl_ns,
+				    sbi->lower_dl_perms.raw_gid);
+		if (!gid_valid(dl_kgid)) {
 			pr_err("esdfs: Invalid permissions for dl_gid");
 			err = -EINVAL;
 			goto out_free;
@@ -511,13 +529,16 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 			goto out_dlput;
 		}
 
-		if (!uid_valid(sbi->dl_kuid))
-			sbi->dl_kuid =
-				esdfs_make_kuid(sbi, sbi->lower_perms.uid);
-		if (!gid_valid(sbi->dl_kgid))
-			sbi->dl_kgid =
-				esdfs_make_kgid(sbi, sbi->lower_perms.gid);
-
+		if (!uid_valid(dl_kuid)) {
+			dl_kuid = esdfs_make_kuid(sbi, sbi->lower_perms.uid);
+			sbi->lower_dl_perms.raw_uid = from_kuid(&sbi->dl_ns,
+								dl_kuid);
+		}
+		if (!gid_valid(dl_kgid)) {
+			dl_kgid = esdfs_make_kgid(sbi, sbi->lower_perms.gid);
+			sbi->lower_dl_perms.raw_gid = from_kgid(&sbi->dl_ns,
+								dl_kgid);
+		}
 		spin_lock(&lower_dl_dentry->d_lock);
 		sbi->dl_name.name = kstrndup(lower_dl_dentry->d_name.name,
 				lower_dl_dentry->d_name.len, GFP_ATOMIC);

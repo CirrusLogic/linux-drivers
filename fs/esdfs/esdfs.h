@@ -105,7 +105,9 @@ enum {
 	ESDFS_PERMS_LOWER_DEFAULT = 0,
 	ESDFS_PERMS_UPPER_LEGACY,
 	ESDFS_PERMS_UPPER_DERIVED,
+	ESDFS_PERMS_LOWER_DOWNLOAD,
 	ESDFS_PERMS_TABLE_SIZE
+
 };
 
 #define PKG_NAME_MAX		128
@@ -198,15 +200,13 @@ struct esdfs_sb_info {
 	struct user_namespace base_ns;
 	struct list_head s_list;
 	struct esdfs_perms lower_perms;
-	struct esdfs_perms upper_perms;	/* root in derived mode */
-	struct dentry *obb_parent;	/* pinned dentry for obb link parent */
-	struct path dl_path;		/* path of lower downloads folder */
-	struct qstr dl_name;		/* name of lower downloads folder */
-	const char *dl_loc;		/* location of dl folder */
-	uid_t dl_raw_uid;
-	gid_t dl_raw_gid;
-	kuid_t dl_kuid;
-	kgid_t dl_kgid;
+	struct esdfs_perms upper_perms;	   /* root in derived mode */
+	struct dentry *obb_parent;	   /* pinned dentry for obb link parent */
+	struct path dl_path;		   /* path of lower downloads folder */
+	struct qstr dl_name;		   /* name of lower downloads folder */
+	const char *dl_loc;		   /* location of dl folder */
+	struct esdfs_perms lower_dl_perms; /* permissions for lower downloads folder */
+	struct user_namespace dl_ns;	   /* lower downloads namespace */
 	int ns_fd;
 	unsigned int options;
 };
@@ -427,12 +427,18 @@ static inline void unlock_dir(struct dentry *dir)
 }
 
 static inline void esdfs_set_lower_mode(struct esdfs_sb_info *sbi,
-		umode_t *mode)
+		struct esdfs_inode_info *inode_i, umode_t *mode)
 {
+	struct esdfs_perms *perms = &sbi->lower_perms;
+
+	if (test_opt(sbi, SPECIAL_DOWNLOAD) &&
+			inode_i->tree == ESDFS_TREE_DOWNLOAD)
+		perms = &sbi->lower_dl_perms;
+
 	if (S_ISDIR(*mode))
-		*mode = (*mode & S_IFMT) | sbi->lower_perms.dmask;
+		*mode = (*mode & S_IFMT) | perms->dmask;
 	else
-		*mode = (*mode & S_IFMT) | sbi->lower_perms.fmask;
+		*mode = (*mode & S_IFMT) | perms->fmask;
 }
 
 static inline void esdfs_set_perms(struct inode *inode)
@@ -583,8 +589,10 @@ static inline const struct cred *esdfs_override_creds(
 
 	if (test_opt(sbi, SPECIAL_DOWNLOAD) &&
 			info->tree == ESDFS_TREE_DOWNLOAD) {
-		creds->fsuid = sbi->dl_kuid;
-		creds->fsgid = sbi->dl_kgid;
+		creds->fsuid = make_kuid(&sbi->dl_ns,
+					 sbi->lower_dl_perms.raw_uid);
+		creds->fsgid = make_kgid(&sbi->dl_ns,
+					 sbi->lower_dl_perms.raw_gid);
 	} else {
 		if (test_opt(sbi, GID_DERIVATION)) {
 			if (info->tree == ESDFS_TREE_ANDROID_OBB)

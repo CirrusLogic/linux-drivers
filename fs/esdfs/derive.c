@@ -400,7 +400,8 @@ static kuid_t esdfs_get_derived_lower_uid(struct esdfs_sb_info *sbi,
 	switch (perm) {
 	case ESDFS_TREE_DOWNLOAD:
 		if (test_opt(sbi, SPECIAL_DOWNLOAD))
-			return sbi->dl_kuid;
+			return make_kuid(&sbi->dl_ns,
+					 sbi->lower_dl_perms.raw_uid);
 	case ESDFS_TREE_ROOT:
 	case ESDFS_TREE_MEDIA:
 	case ESDFS_TREE_ANDROID:
@@ -432,7 +433,8 @@ static kgid_t esdfs_get_derived_lower_gid(struct esdfs_sb_info *sbi,
 	switch (perm) {
 	case ESDFS_TREE_DOWNLOAD:
 		if (test_opt(sbi, SPECIAL_DOWNLOAD))
-			return sbi->dl_kgid;
+			return make_kgid(&sbi->dl_ns,
+					 sbi->lower_dl_perms.raw_gid);
 	case ESDFS_TREE_ROOT:
 	case ESDFS_TREE_MEDIA:
 	case ESDFS_TREE_ANDROID:
@@ -580,7 +582,7 @@ int esdfs_derive_mkdir_contents(struct dentry *dir_dentry)
 	/* Now create the lower file. */
 	mode = S_IFREG;
 	lower_parent_dentry = lock_parent(lower_dentry);
-	esdfs_set_lower_mode(ESDFS_SB(dir_dentry->d_sb), &mode);
+	esdfs_set_lower_mode(ESDFS_SB(dir_dentry->d_sb), inode_i, &mode);
 	err = vfs_create(lower_dir_path.dentry->d_inode, lower_dentry, mode,
 			 true);
 	unlock_dir(lower_parent_dentry);
