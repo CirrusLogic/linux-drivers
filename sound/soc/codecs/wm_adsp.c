@@ -2037,7 +2037,8 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		break;
 	default:
 		adsp_err(dsp, "Unknown Architecture type: %d\n", dsp->type);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	snprintf(file, PAGE_SIZE, "%s-%s%d-%s.wmfw",
