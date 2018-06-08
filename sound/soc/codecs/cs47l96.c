@@ -339,13 +339,12 @@ static const char * const cs47l96_out1_demux_texts[] = {
 	"HP1", "HP2",
 };
 
-static SOC_ENUM_SINGLE_DECL(cs47l96_out1_demux_enum,
-			    TACNA_HP_CTRL, TACNA_OUT1_MODE_SHIFT,
+static SOC_ENUM_SINGLE_DECL(cs47l96_out1_demux_enum, SND_SOC_NOPM, 0,
 			    cs47l96_out1_demux_texts);
 
 static const struct snd_kcontrol_new cs47l96_out1_demux =
 	SOC_DAPM_ENUM_EXT("OUT1 Demux", cs47l96_out1_demux_enum,
-			snd_soc_dapm_get_enum_double, tacna_put_out1_demux);
+			  tacna_get_out1_demux, tacna_put_out1_demux);
 
 static const char * const cs47l96_out5_mux_texts[] = {
 	"OUT5", "OUT1",
