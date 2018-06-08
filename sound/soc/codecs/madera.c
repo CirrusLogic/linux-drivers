@@ -601,6 +601,20 @@ end:
 }
 EXPORT_SYMBOL_GPL(madera_out1_demux_put);
 
+int madera_out1_demux_get(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
+	unsigned int val;
+
+	val = snd_soc_read(codec, MADERA_OUTPUT_ENABLES_1);
+	val &= MADERA_EP_SEL_MASK;
+	val >>= MADERA_EP_SEL_SHIFT;
+	ucontrol->value.enumerated.item[0] = val;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(madera_out1_demux_get);
 
 static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)

@@ -80,7 +80,7 @@ static SOC_ENUM_SINGLE_DECL(cs47l35_outdemux_enum, SND_SOC_NOPM, 0,
 
 static const struct snd_kcontrol_new cs47l35_outdemux =
 	SOC_DAPM_ENUM_EXT("HPOUT1 Demux", cs47l35_outdemux_enum,
-			  snd_soc_dapm_get_enum_double, madera_out1_demux_put);
+			  madera_out1_demux_get, madera_out1_demux_put);
 
 static int cs47l35_adsp_power_ev(struct snd_soc_dapm_widget *w,
 				 struct snd_kcontrol *kcontrol,

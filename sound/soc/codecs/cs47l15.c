@@ -56,14 +56,12 @@ static const char * const cs47l15_outdemux_texts[] = {
 	"EPOUT",
 };
 
-static SOC_ENUM_SINGLE_DECL(cs47l15_outdemux_enum,
-			    MADERA_OUTPUT_ENABLES_1,
-			    MADERA_EP_SEL_SHIFT,
+static SOC_ENUM_SINGLE_DECL(cs47l15_outdemux_enum, SND_SOC_NOPM, 0,
 			    cs47l15_outdemux_texts);
 
 static const struct snd_kcontrol_new cs47l15_outdemux =
 	SOC_DAPM_ENUM_EXT("HPOUT1 Demux", cs47l15_outdemux_enum,
-			  snd_soc_dapm_get_enum_double, madera_out1_demux_put);
+			  madera_out1_demux_get, madera_out1_demux_put);
 
 static int cs47l15_adsp_power_ev(struct snd_soc_dapm_widget *w,
 				    struct snd_kcontrol *kcontrol,
