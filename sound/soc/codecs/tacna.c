@@ -4316,6 +4316,27 @@ int tacna_put_out1_demux(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(tacna_put_out1_demux);
 
+int tacna_get_out1_demux(struct snd_kcontrol *kcontrol,
+			 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
+	struct tacna_priv *priv = dev_get_drvdata(codec->dev);
+	struct tacna *tacna = priv->tacna;
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(tacna->regmap, TACNA_HP_CTRL, &val);
+	if (ret)
+		return ret;
+
+	val &= TACNA_OUT1_MODE_MASK;
+	val >>= TACNA_OUT1_MODE_SHIFT;
+	ucontrol->value.enumerated.item[0] = val;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tacna_get_out1_demux);
+
 static bool tacna_eq_filter_unstable(bool mode, __be16 in_a, __be16 in_b)
 {
 	s16 a = be16_to_cpu(in_a);
