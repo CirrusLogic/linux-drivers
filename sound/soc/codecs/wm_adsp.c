@@ -2037,7 +2037,8 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		break;
 	default:
 		adsp_err(dsp, "Unknown Architecture type: %d\n", dsp->type);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	snprintf(file, PAGE_SIZE, "%s-%s%d-%s.wmfw",
@@ -2826,7 +2827,7 @@ int wm_vpu_setup_algs(struct wm_adsp *vpu)
 	}
 
 	n_algs = be32_to_cpu(vpu_id.n_algs);
-	vpu->fw_id = be32_to_cpu(vpu_id.fw.id);
+	vpu->fw_id = be32_to_cpu(vpu_id.fw.firmware_id);
 	vpu->fw_id_version = be32_to_cpu(vpu_id.fw.ver);
 	vpu->fw_vendor_id = be32_to_cpu(vpu_id.fw.vendor_id);
 	adsp_info(vpu, "Firmware: %x vendor: 0x%x v%d.%d.%d, %zu algorithms\n",
@@ -2838,7 +2839,8 @@ int wm_vpu_setup_algs(struct wm_adsp *vpu)
 		  n_algs);
 
 	alg_region = wm_adsp_create_region(vpu, WMFW_VPU_DM,
-					   vpu_id.fw.id, vpu_id.dm_base);
+					   vpu_id.fw.firmware_id,
+					   vpu_id.dm_base);
 	if (IS_ERR(alg_region))
 		return PTR_ERR(alg_region);
 
@@ -2891,8 +2893,18 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	if (file == NULL)
 		return -ENOMEM;
 
-	snprintf(file, PAGE_SIZE, "%s-dsp%d-%s.bin", dsp->part, dsp->num,
-		 wm_adsp_fw[dsp->fw].file);
+	switch (dsp->type) {
+	case WMFW_VPU:
+		snprintf(file, PAGE_SIZE, "%s-vpu%d-%s.bin",
+			 dsp->part, dsp->num,
+			 wm_vpu_fw[dsp->fw].file);
+		break;
+	default:
+		snprintf(file, PAGE_SIZE, "%s-dsp%d-%s.bin",
+			 dsp->part, dsp->num,
+			 wm_adsp_fw[dsp->fw].file);
+	}
+
 	file[PAGE_SIZE - 1] = '\0';
 
 	ret = request_firmware(&firmware, file, dsp->dev);
@@ -2982,6 +2994,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 		case WMFW_HALO_XM_PACKED:
 		case WMFW_HALO_YM_PACKED:
 		case WMFW_HALO_PM_PACKED:
+		case WMFW_VPU_DM:
 			adsp_dbg(dsp, "%s.%d: %d bytes in %x for %x\n",
 				 file, blocks, le32_to_cpu(blk->len),
 				 type, le32_to_cpu(blk->id));
@@ -3491,6 +3504,10 @@ static void wm_vpu_boot_work(struct work_struct *work)
 	default:
 		goto err;
 	}
+
+	ret = wm_adsp_load_coeff(vpu);
+	if (ret != 0)
+		goto err;
 
 	/* Initialize caches for enabled and unset controls */
 	ret = wm_coeff_init_control_caches(vpu);
