@@ -47,7 +47,8 @@ static void chromeos_invalidate_kernel_endio(struct bio *bio)
 
 static int chromeos_invalidate_kernel_submit(struct bio *bio,
 					     struct block_device *bdev,
-					     int flags, int op,
+					     unsigned int op,
+					     unsigned int op_flags,
 					     struct page *page)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
@@ -61,7 +62,7 @@ static int chromeos_invalidate_kernel_submit(struct bio *bio,
 	bio->bi_iter.bi_idx = 0;
 	bio->bi_iter.bi_size = 512;
 	bio->bi_iter.bi_bvec_done = 0;
-	bio_set_op_attrs(bio, op, flags);
+	bio_set_op_attrs(bio, op, op_flags);
 	bio->bi_io_vec[0].bv_page = page;
 	bio->bi_io_vec[0].bv_len = 512;
 	bio->bi_io_vec[0].bv_offset = 0;
@@ -157,8 +158,15 @@ static int chromeos_invalidate_kernel_bio(struct block_device *root_bdev)
 		goto failed_to_alloc_page;
 	}
 
-	if (chromeos_invalidate_kernel_submit(bio, bdev, RQF_SOFTBARRIER,
-					      REQ_OP_READ | REQ_SYNC, page)) {
+	/*
+	 * Request read operation with REQ_PREFLUSH flag to ensure that the
+	 * cache of non-volatile storage device has been flushed before read is
+	 * started.
+	 */
+	if (chromeos_invalidate_kernel_submit(bio, bdev,
+					      REQ_OP_READ,
+					      REQ_SYNC | REQ_PREFLUSH,
+					      page)) {
 		ret = -1;
 		goto failed_to_submit_read;
 	}
@@ -192,8 +200,13 @@ static int chromeos_invalidate_kernel_bio(struct block_device *root_bdev)
 	 */
 	bio_reset(bio);
 
-	if (chromeos_invalidate_kernel_submit(bio, bdev, RQF_SOFTBARRIER,
-					      REQ_OP_WRITE | REQ_SYNC, page)) {
+	/*
+	 * Request write operation with REQ_FUA flag to ensure that I/O
+	 * completion for the write is signaled only after the data has been
+	 * committed to non-volatile storage.
+	 */
+	if (chromeos_invalidate_kernel_submit(bio, bdev, REQ_OP_WRITE,
+					      REQ_SYNC | REQ_FUA, page)) {
 		ret = -1;
 		goto failed_to_submit_write;
 	}
