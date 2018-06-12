@@ -1,7 +1,7 @@
 /*
  * clsic-codec.c -- ALSA SoC Audio driver for CLSIC codec
  *
- * Copyright (C) 2015-2018 Cirrus Logic, Inc. and
+ * Copyright (C) 2015-2019 Cirrus Logic, Inc. and
  *			   Cirrus Logic International Semiconductor Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -29,7 +29,7 @@
 #include "tacna.h"
 
 #include <linux/mfd/clsic/core.h>
-#include <linux/mfd/clsic/rassrv.h>
+#include <linux/mfd/clsic/clsic-tacna.h>
 
 #define CLSIC_N_FLL			2
 #define CLSIC_NUM_DSP			2
@@ -37,6 +37,9 @@
 #define CLSIC_DSP1_N_TX_CHANNELS	9
 #define CLSIC_DSP2_N_RX_CHANNELS	8
 #define CLSIC_DSP2_N_TX_CHANNELS	8
+
+/* MCD Trace Firmware can only be run on general purpose DSP */
+#define CLSIC_TRACE_DSP			1
 
 /* CLSIC codecs have four micbias switches named MICBIAS1A to MICBIAS1D */
 #define CLSIC_MICBIAS_COUNT	4
@@ -1304,6 +1307,8 @@ static const struct snd_soc_dapm_route clsic_dapm_routes[] = {
 	{ "MICBIAS1C", NULL, "MICVDD" },
 	{ "MICBIAS1D", NULL, "MICVDD" },
 
+	{ "Audio Trace DSP", NULL, "DSP2" },
+
 	{ "Tone Generator 1", NULL, "SYSCLK" },
 	{ "Tone Generator 2", NULL, "SYSCLK" },
 
@@ -1689,6 +1694,27 @@ static struct snd_soc_dai_driver clsic_dai[] = {
 		 },
 		.ops = &tacna_simple_dai_ops,
 	},
+	{
+		.name = "clsic-cpu-trace",
+		.capture = {
+			.stream_name = "Audio Trace CPU",
+			.channels_min = 1,
+			.channels_max = 6,
+			.rates = TACNA_RATES,
+			.formats = TACNA_FORMATS,
+		},
+		.compress_new = snd_soc_new_compress,
+	},
+	{
+		.name = "clsic-dsp-trace",
+		.capture = {
+			.stream_name = "Audio Trace DSP",
+			.channels_min = 1,
+			.channels_max = 6,
+			.rates = TACNA_RATES,
+			.formats = TACNA_FORMATS,
+		},
+	},
 };
 
 static const struct soc_enum clsic_dsp1_rx_rate_enum[] = {
@@ -1976,6 +2002,38 @@ static void clsic_dsps_add_codec_controls(struct clsic_codec *clsic_codec)
 	}
 };
 
+static int clsic_compr_open(struct snd_compr_stream *stream)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct clsic_codec *clsic_codec =
+			snd_soc_platform_get_drvdata(rtd->platform);
+	struct tacna_priv *priv = &clsic_codec->core;
+
+	if (strcmp(rtd->codec_dai->name, "clsic-dsp-trace") != 0) {
+		dev_err(priv->dev,
+			"No suitable compressed stream for DAI '%s'\n",
+			rtd->codec_dai->name);
+		return -EINVAL;
+	}
+
+	return wm_adsp_compr_open(&priv->dsp[CLSIC_TRACE_DSP], stream);
+}
+
+static irqreturn_t clsic_dsp2_irq(int irq, void *data)
+{
+	struct clsic_codec *clsic_codec = data;
+	struct tacna_priv *priv = &clsic_codec->core;
+	int ret;
+
+	ret = wm_adsp_compr_handle_irq(&priv->dsp[CLSIC_TRACE_DSP]);
+	if (ret == -ENODEV) {
+		dev_err(priv->dev, "Spurious compressed data IRQ\n");
+		return IRQ_NONE;
+	}
+
+	return IRQ_HANDLED;
+}
+
 static int clsic_codec_probe(struct snd_soc_codec *codec)
 {
 	struct clsic_codec *clsic_codec =
@@ -2022,7 +2080,8 @@ static int clsic_codec_probe(struct snd_soc_codec *codec)
 				"%s():%u Failed to add DSP2 routes: %d\n",
 				__func__, __LINE__, ret);
 
-		wm_adsp2_codec_probe(&clsic_codec->core.dsp[1], codec);
+		wm_adsp2_codec_probe(&clsic_codec->core.dsp[CLSIC_TRACE_DSP],
+				     codec);
 	} else {
 		ret = snd_soc_dapm_new_controls(clsic_codec->core.tacna->dapm,
 			clsic_dapm_widgets_dsp2_hidden,
@@ -2057,7 +2116,8 @@ static int clsic_codec_remove(struct snd_soc_codec *codec)
 	tacna->dapm = NULL;
 
 	if (clsic_codec->host_controls_dsp2)
-		wm_adsp2_codec_remove(&clsic_codec->core.dsp[1], codec);
+		wm_adsp2_codec_remove(&clsic_codec->core.dsp[CLSIC_TRACE_DSP],
+				      codec);
 
 	return 0;
 }
@@ -2124,6 +2184,20 @@ static const struct snd_soc_codec_driver soc_codec_dev_clsic = {
 	},
 };
 
+static const struct snd_compr_ops clsic_compr_ops = {
+	.open = &clsic_compr_open,
+	.free = &wm_adsp_compr_free,
+	.set_params = &wm_adsp_compr_set_params,
+	.get_caps = &wm_adsp_compr_get_caps,
+	.trigger = &wm_adsp_compr_trigger,
+	.pointer = &wm_adsp_compr_pointer,
+	.copy = &wm_adsp_compr_copy,
+};
+
+static const struct snd_soc_platform_driver clsic_compr_platform = {
+	.compr_ops = &clsic_compr_ops,
+};
+
 static int clsic_probe(struct platform_device *pdev)
 {
 	struct tacna *tacna = dev_get_drvdata(pdev->dev.parent);
@@ -2164,9 +2238,16 @@ static int clsic_probe(struct platform_device *pdev)
 	clsic_micbias_init(clsic_codec);
 
 	/* TODO: initialise dsp2 MPU error interrupt */
-	dsp = &clsic_codec->core.dsp[1];
+	dsp = &clsic_codec->core.dsp[CLSIC_TRACE_DSP];
 	dsp->num = 2;
 	dsp->dev = clsic_codec->core.tacna->dev;
+
+	ret = clsic_tacna_request_irq(tacna, CLSIC_TACNA_IRQ_DSP2_0,
+				      "DSP2 IRQ0", clsic_dsp2_irq, clsic_codec);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to register DSP2 IRQ: %d\n", ret);
+		goto err_dsp2_irq;
+	}
 
 	if (clsic_codec->host_controls_dsp2) {
 		dsp->part = clsic_devid_to_string(clsic->devid);
@@ -2183,8 +2264,10 @@ static int clsic_probe(struct platform_device *pdev)
 	dsp->n_tx_channels = CLSIC_DSP2_N_TX_CHANNELS;
 
 	ret = wm_halo_init(dsp, &clsic_codec->core.rate_lock);
-	if (ret != 0)
+	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to initialise DSP2.\n");
+		goto err_dsp2;
+	}
 
 	for (i = 0 ; i < CLSIC_N_FLL ; ++i) {
 		clsic_codec->fll[i].tacna_priv = &clsic_codec->core;
@@ -2208,13 +2291,31 @@ static int clsic_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
+	ret = snd_soc_register_platform(&pdev->dev, &clsic_compr_platform);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to register platform: %d\n", ret);
+		goto err_plat;
+	}
+
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_clsic,
 				     clsic_dai, ARRAY_SIZE(clsic_dai));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
+		goto err_codec;
 	}
 
 	dev_info(&pdev->dev, "%s() dev %p ret %d\n", __func__, &pdev->dev, ret);
+
+	return ret;
+
+err_codec:
+	snd_soc_unregister_platform(&pdev->dev);
+err_plat:
+	wm_adsp2_remove(&clsic_codec->core.dsp[CLSIC_TRACE_DSP]);
+err_dsp2:
+	clsic_tacna_free_irq(tacna, CLSIC_TACNA_IRQ_DSP2_0, clsic_codec);
+err_dsp2_irq:
+	tacna_core_destroy(&clsic_codec->core);
 
 	return ret;
 }
@@ -2228,13 +2329,12 @@ static int clsic_remove(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "%s() dev %p clsic %p priv %p\n",
 		__func__, &pdev->dev, clsic, clsic_codec);
 
-	/* TODO XXX The stashed regmap is not valid from this point on */
-
+	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
+	clsic_tacna_free_irq(tacna, CLSIC_TACNA_IRQ_DSP2_0, clsic_codec);
 	pm_runtime_disable(&pdev->dev);
 
-	if (clsic_codec->host_controls_dsp2)
-		wm_adsp2_remove(&clsic_codec->core.dsp[1]);
+	wm_adsp2_remove(&clsic_codec->core.dsp[CLSIC_TRACE_DSP]);
 
 	tacna_core_destroy(&clsic_codec->core);
 
