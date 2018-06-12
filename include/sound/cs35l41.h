@@ -72,6 +72,7 @@ struct cs35l41_private {
 	struct completion global_pdn_done;
 	struct mutex rate_lock;
 	struct mutex dsp_fw_lock;
+	struct completion mbox_cmd;
 };
 
 int cs35l41_probe(struct cs35l41_private *cs35l41,
