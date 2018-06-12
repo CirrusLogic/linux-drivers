@@ -556,6 +556,58 @@ int tacna_dev_init(struct tacna *tacna)
 
 	dev_set_drvdata(tacna->dev, tacna);
 
+	BLOCKING_INIT_NOTIFIER_HEAD(&tacna->notifier);
+
+	regcache_cache_only(tacna->regmap, true);
+
+	if (dev_get_platdata(tacna->dev)) {
+		memcpy(&tacna->pdata, dev_get_platdata(tacna->dev),
+		       sizeof(tacna->pdata));
+
+		/* We use 0 in pdata to indicate a GPIO has not been set */
+		if (tacna->pdata.reset > 0) {
+			/* Start out with RESET_B asserted */
+			ret = devm_gpio_request_one(tacna->dev,
+						tacna->pdata.reset,
+						GPIOF_DIR_OUT | GPIOF_INIT_LOW,
+						"tacna reset");
+			if (ret) {
+				dev_err(dev, "Failed to request RESET_B: %d\n",
+					ret);
+				return ret;
+			}
+
+			tacna->reset_gpio = gpio_to_desc(tacna->pdata.reset);
+		}
+	} else {
+		ret = tacna_prop_get_core_pdata(tacna);
+		if (ret)
+			return ret;
+	}
+
+	if (!tacna->reset_gpio)
+		dev_warn(tacna->dev,
+			 "Running without reset GPIO is not recommended\n");
+
+	for (i = 0; i < ARRAY_SIZE(tacna_core_supplies); i++)
+		tacna->core_supplies[i].supply = tacna_core_supplies[i];
+
+	tacna->num_core_supplies = ARRAY_SIZE(tacna_core_supplies);
+
+	ret = devm_regulator_bulk_get(dev, tacna->num_core_supplies,
+				      tacna->core_supplies);
+	if (ret) {
+		dev_err(dev, "Failed to request core supplies: %d\n", ret);
+		return ret;
+	}
+
+	tacna->vdd_d = devm_regulator_get(tacna->dev, "VDD_D");
+	if (IS_ERR(tacna->vdd_d)) {
+		ret = PTR_ERR(tacna->vdd_d);
+		dev_err(dev, "Failed to request VDD_D: %d\n", ret);
+		return ret;
+	}
+
 	/*
 	 * Pinctrl subsystem only configures pinctrls if all referenced pins
 	 * are registered. Create our pinctrl child now so that its pins exist
@@ -574,69 +626,13 @@ int tacna_dev_init(struct tacna *tacna)
 	if (IS_ERR(pinctrl)) {
 		ret = PTR_ERR(pinctrl);
 		dev_err(tacna->dev, "Failed to get pinctrl: %d\n", ret);
-		goto err_devs;
+		goto err_pinctrl_dev;
 	}
 
 	/* Use (optional) minimal config with only external pin bindings */
 	ret = tacna_dev_select_pinctrl(tacna, pinctrl, "probe");
 	if (ret)
 		goto err_pinctrl;
-
-	BLOCKING_INIT_NOTIFIER_HEAD(&tacna->notifier);
-
-	/* default headphone impedance in case the extcon driver is not used */
-	for (i = 0; i < ARRAY_SIZE(tacna->hp_impedance_x100); ++i)
-		tacna->hp_impedance_x100[i] = 3200;
-
-	if (dev_get_platdata(tacna->dev)) {
-		memcpy(&tacna->pdata, dev_get_platdata(tacna->dev),
-		       sizeof(tacna->pdata));
-
-		/* We use 0 in pdata to indicate a GPIO has not been set */
-		if (tacna->pdata.reset > 0) {
-			/* Start out with RESET_B asserted */
-			ret = devm_gpio_request_one(tacna->dev,
-						tacna->pdata.reset,
-						GPIOF_DIR_OUT | GPIOF_INIT_LOW,
-						"tacna reset");
-			if (ret) {
-				dev_err(dev, "Failed to request RESET_B: %d\n",
-					ret);
-				goto err_pinctrl;
-			}
-
-			tacna->reset_gpio = gpio_to_desc(tacna->pdata.reset);
-		}
-	} else {
-		ret = tacna_prop_get_core_pdata(tacna);
-		if (ret)
-			goto err_pinctrl;
-	}
-
-	if (!tacna->reset_gpio)
-		dev_warn(tacna->dev,
-			 "Running without reset GPIO is not recommended\n");
-
-	regcache_cache_only(tacna->regmap, true);
-
-	for (i = 0; i < ARRAY_SIZE(tacna_core_supplies); i++)
-		tacna->core_supplies[i].supply = tacna_core_supplies[i];
-
-	tacna->num_core_supplies = ARRAY_SIZE(tacna_core_supplies);
-
-	ret = devm_regulator_bulk_get(dev, tacna->num_core_supplies,
-				      tacna->core_supplies);
-	if (ret) {
-		dev_err(dev, "Failed to request core supplies: %d\n", ret);
-		goto err_pinctrl;
-	}
-
-	tacna->vdd_d = devm_regulator_get(tacna->dev, "VDD_D");
-	if (IS_ERR(tacna->vdd_d)) {
-		ret = PTR_ERR(tacna->vdd_d);
-		dev_err(dev, "Failed to request VDD_D: %d\n", ret);
-		goto err_pinctrl;
-	}
 
 	ret = regulator_set_voltage(tacna->vdd_d, 1200000, 1200000);
 	if (ret) {
@@ -794,6 +790,10 @@ int tacna_dev_init(struct tacna *tacna)
 		goto err_reset;
 	}
 
+	/* default headphone impedance in case the extcon driver is not used */
+	for (i = 0; i < ARRAY_SIZE(tacna->hp_impedance_x100); ++i)
+		tacna->hp_impedance_x100[i] = 3200;
+
 	tacna_configure_micbias(tacna);
 
 	pm_runtime_set_active(tacna->dev);
@@ -819,8 +819,9 @@ err_enable:
 	regulator_bulk_disable(tacna->num_core_supplies, tacna->core_supplies);
 err_pinctrl:
 	pinctrl_put(pinctrl);
-err_devs:
+err_pinctrl_dev:
 	mfd_remove_devices(dev);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(tacna_dev_init);
