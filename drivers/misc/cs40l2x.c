@@ -3127,7 +3127,7 @@ static int cs40l2x_i2c_remove(struct i2c_client *i2c_client)
 
 static int __maybe_unused cs40l2x_suspend(struct device *dev)
 {
-	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	struct cs40l2x_private *cs40l2x = dev_get_drvdata(dev);
 	int ret = 0;
 
 	mutex_lock(&cs40l2x->lock);
@@ -3148,7 +3148,7 @@ static int __maybe_unused cs40l2x_suspend(struct device *dev)
 
 static int __maybe_unused cs40l2x_resume(struct device *dev)
 {
-	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	struct cs40l2x_private *cs40l2x = dev_get_drvdata(dev);
 	int ret = 0;
 
 	mutex_lock(&cs40l2x->lock);
