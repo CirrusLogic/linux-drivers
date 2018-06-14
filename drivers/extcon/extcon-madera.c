@@ -669,6 +669,8 @@ inline void madera_extcon_report(struct madera_extcon *info,
 					    SW_MICROPHONE_INSERT,
 					    attached);
 			break;
+		default:
+			return;
 		}
 
 		input_sync(info->input);
