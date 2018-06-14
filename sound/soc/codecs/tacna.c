@@ -46,7 +46,7 @@
 #define TACNA_FLLHJ_INT_MAX_N			1023
 #define TACNA_FLLHJ_INT_MIN_N			1
 #define TACNA_FLLHJ_FRAC_MAX_N			255
-#define TACNA_FLLHJ_FRAC_MIN_N			4
+#define TACNA_FLLHJ_FRAC_MIN_N			2
 #define TACNA_FLLHJ_LP_INT_MODE_THRESH		100000
 #define TACNA_FLLHJ_LOW_THRESH			192000
 #define TACNA_FLLHJ_MID_THRESH			1152000
@@ -2994,7 +2994,7 @@ static int tacna_fllhj_disable(struct tacna_fll *fll)
 static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 {
 	struct tacna *tacna = fll->tacna_priv->tacna;
-	int refdiv, fref, fout, lockdet_thr, fbdiv, fast_clk, fllgcd;
+	int refdiv, fref, fout, lockdet_thr, fbdiv, fllgcd;
 	bool frac = false;
 	unsigned int fll_n, min_n, max_n, ratio, theta, lambda, hp;
 	unsigned int gains, num;
@@ -3024,8 +3024,6 @@ static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 	 * Use simple heuristic approach to find a configuration that
 	 * should work for most input clocks.
 	 */
-	fast_clk = 0;
-
 	if (fref < TACNA_FLLHJ_LOW_THRESH) {
 		lockdet_thr = 2;
 		gains = TACNA_FLLHJ_LOW_GAINS;
@@ -3052,14 +3050,6 @@ static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 		lockdet_thr = 8;
 		gains = TACNA_FLLHJ_HIGH_GAINS;
 		fbdiv = 1;
-		/*
-		 * For high speed input clocks, enable 300MHz fast oscillator
-		 * when we're in fractional divider mode.
-		 */
-		if (frac) {
-			fast_clk = 0x3;
-			fout = fll->fout * 6;
-		}
 	}
 	/* Use high performance mode for fractional configurations. */
 	if (frac) {
@@ -3127,13 +3117,11 @@ static int tacna_fllhj_apply(struct tacna_fll *fll, int fin)
 	regmap_update_bits(tacna->regmap,
 			   fll->base + TACNA_FLL_CONTROL2_OFFS,
 			   TACNA_FLL1_LOCKDET_THR_MASK |
-			   TACNA_FLL1_CLK_VCO_FAST_SRC_MASK |
 			   TACNA_FLL1_PHASEDET_MASK |
 			   TACNA_FLL1_REFCLK_DIV_MASK |
 			   TACNA_FLL1_N_MASK |
 			   TACNA_FLL1_CTRL_UPD_MASK,
 			   (lockdet_thr << TACNA_FLL1_LOCKDET_THR_SHIFT) |
-			   (fast_clk << TACNA_FLL1_CLK_VCO_FAST_SRC_SHIFT) |
 			   (1 << TACNA_FLL1_PHASEDET_SHIFT) |
 			   (refdiv << TACNA_FLL1_REFCLK_DIV_SHIFT) |
 			   (fll_n << TACNA_FLL1_N_SHIFT));
