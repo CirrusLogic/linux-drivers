@@ -867,7 +867,7 @@ static int tacna_pin_conf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			result = 1;
 		break;
 	default:
-		break;
+		return -ENOTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, result);
@@ -945,7 +945,7 @@ static int tacna_pin_conf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			conf &= ~TACNA_GP1_DIR;
 			break;
 		default:
-			break;
+			return -ENOTSUPP;
 		}
 
 		++configs;
