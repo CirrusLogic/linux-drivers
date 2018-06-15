@@ -1448,6 +1448,14 @@ static int cs48l32_probe(struct platform_device *pdev)
 		goto error_dsp;
 	}
 
+	ret = tacna_request_irq(tacna, TACNA_IRQ_DSP1_WDT_EXPIRE,
+				"DSP1 WDT", wm_halo_wdt_expire,
+				&cs48l32->core.dsp[0]);
+	if (ret) {
+		dev_warn(&pdev->dev, "Failed to get DSP1 WDT IRQ: %d\n", ret);
+		goto error_mpu_irq1;
+	}
+
 	cs48l32->fll.tacna_priv = &cs48l32->core;
 	cs48l32->fll.id = 1;
 	cs48l32->fll.base = TACNA_FLL1_CONTROL1;
@@ -1465,7 +1473,7 @@ static int cs48l32_probe(struct platform_device *pdev)
 	ret = snd_soc_register_platform(&pdev->dev, &cs48l32_compr_platform);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register platform: %d\n", ret);
-		goto error_mpu_irq1;
+		goto error_wdt_irq1;
 	}
 
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_cs48l32,
@@ -1478,6 +1486,9 @@ static int cs48l32_probe(struct platform_device *pdev)
 	return ret;
 error_plat:
 	snd_soc_unregister_platform(&pdev->dev);
+error_wdt_irq1:
+	tacna_free_irq(tacna, TACNA_IRQ_DSP1_WDT_EXPIRE,
+		       &cs48l32->core.dsp[0]);
 error_mpu_irq1:
 	tacna_free_irq(tacna, TACNA_IRQ_DSP1_MPU_ERR, &cs48l32->core.dsp[0]);
 error_dsp:
@@ -1506,6 +1517,8 @@ static int cs48l32_remove(struct platform_device *pdev)
 	tacna_free_irq(tacna, TACNA_IRQ_US1_ACT_DET_RISE, tacna);
 	tacna_free_irq(tacna, TACNA_IRQ_US2_ACT_DET_RISE, tacna);
 
+	tacna_free_irq(tacna, TACNA_IRQ_DSP1_WDT_EXPIRE,
+		       &cs48l32->core.dsp[0]);
 	tacna_free_irq(tacna, TACNA_IRQ_DSP1_MPU_ERR, &cs48l32->core.dsp[0]);
 
 	tacna_free_irq(tacna, TACNA_IRQ_DSP1_IRQ0, cs48l32);
