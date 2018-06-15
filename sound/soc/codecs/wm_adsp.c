@@ -244,6 +244,7 @@
 #define HALO_SCRATCH1                        0x005c0
 #define HALO_CCM_CORE_CONTROL                0x41000
 #define HALO_CORE_SOFT_RESET                 0x00010
+#define HALO_WDT_CONTROL                     0x47000
 
 /*
  * HALO Lock support
@@ -396,6 +397,13 @@
  */
 #define HALO_CORE_SOFT_RESET_SHIFT          0
 #define HALO_CORE_SOFT_RESET_MASK           0x00000001
+
+/*
+ * HALO_WDT_CONTROL
+ */
+#define HALO_WDT_EN                         0x00000001
+#define HALO_WDT_EN_MASK                    0x00000001
+#define HALO_WDT_EN_SHIFT                   0
 
 /*
  * HALO_MPU_?M_VIO_STATUS
@@ -3595,6 +3603,24 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_preloader_put);
 
+static void wm_adsp_stop_watchdog(struct wm_adsp *dsp)
+{
+	switch (dsp->rev) {
+	case 0:
+	case 1:
+		return;
+	default:
+		regmap_update_bits(dsp->regmap, dsp->base + ADSP2_WATCHDOG,
+				   ADSP2_WDT_ENA_MASK, 0);
+	}
+}
+
+static void wm_halo_stop_watchdog(struct wm_adsp *dsp)
+{
+	regmap_update_bits(dsp->regmap, dsp->base + HALO_WDT_CONTROL,
+			   HALO_WDT_EN_MASK, 0);
+}
+
 int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event,
 			 unsigned int freq)
@@ -3639,18 +3665,6 @@ int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_early_event);
-
-static inline void wm_adsp_stop_watchdog(struct wm_adsp *dsp)
-{
-	switch (dsp->rev) {
-	case 0:
-	case 1:
-		return;
-	default:
-		regmap_update_bits(dsp->regmap, dsp->base + ADSP2_WATCHDOG,
-				   ADSP2_WDT_ENA_MASK, 0);
-	}
-}
 
 int wm_halo_early_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol, int event)
@@ -5081,5 +5095,20 @@ exit_unlock:
 	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL_GPL(wm_halo_bus_error);
+
+irqreturn_t wm_halo_wdt_expire(int irq, void *data)
+{
+	struct wm_adsp *dsp = data;
+
+	mutex_lock(&dsp->pwr_lock);
+
+	adsp_warn(dsp, "WDT Expiry Fault\n");
+	wm_halo_stop_watchdog(dsp);
+
+	mutex_unlock(&dsp->pwr_lock);
+
+	return IRQ_HANDLED;
+}
+EXPORT_SYMBOL_GPL(wm_halo_wdt_expire);
 
 MODULE_LICENSE("GPL v2");
