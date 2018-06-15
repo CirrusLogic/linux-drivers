@@ -82,6 +82,7 @@ void esdfs_derive_perms(struct dentry *dentry)
 	struct qstr q_media = QSTR_LITERAL("media");
 	struct qstr q_cache = QSTR_LITERAL("cache");
 	struct qstr q_user = QSTR_LITERAL("user");
+	struct esdfs_inode_info *parent_i = ESDFS_I(dentry->d_parent->d_inode);
 
 	spin_lock(&dentry->d_lock);
 	is_root = IS_ROOT(dentry);
@@ -90,9 +91,10 @@ void esdfs_derive_perms(struct dentry *dentry)
 		return;
 
 	/* Inherit from the parent to start */
-	inode_i->tree = ESDFS_I(dentry->d_parent->d_inode)->tree;
-	inode_i->userid = ESDFS_I(dentry->d_parent->d_inode)->userid;
-	inode_i->appid = ESDFS_I(dentry->d_parent->d_inode)->appid;
+	inode_i->tree = parent_i->tree;
+	inode_i->userid = parent_i->userid;
+	inode_i->appid = parent_i->appid;
+	inode_i->under_obb = parent_i->under_obb;
 
 	/*
 	 * ESDFS_TREE_MEDIA* are intentionally dead ends.
@@ -114,15 +116,17 @@ void esdfs_derive_perms(struct dentry *dentry)
 		break;
 
 	case ESDFS_TREE_ANDROID:
-		if (qstr_case_eq(&dentry->d_name, &q_data))
+		if (qstr_case_eq(&dentry->d_name, &q_data)) {
 			inode_i->tree = ESDFS_TREE_ANDROID_DATA;
-		else if (qstr_case_eq(&dentry->d_name, &q_obb))
+		} else if (qstr_case_eq(&dentry->d_name, &q_obb)) {
 			inode_i->tree = ESDFS_TREE_ANDROID_OBB;
-		else if (qstr_case_eq(&dentry->d_name, &q_media))
+			inode_i->under_obb = true;
+		} else if (qstr_case_eq(&dentry->d_name, &q_media)) {
 			inode_i->tree = ESDFS_TREE_ANDROID_MEDIA;
-		else if (ESDFS_RESTRICT_PERMS(ESDFS_SB(dentry->d_sb)) &&
-			 qstr_case_eq(&dentry->d_name, &q_user))
+		} else if (ESDFS_RESTRICT_PERMS(ESDFS_SB(dentry->d_sb)) &&
+			 qstr_case_eq(&dentry->d_name, &q_user)) {
 			inode_i->tree = ESDFS_TREE_ANDROID_USER;
+		}
 		break;
 
 	case ESDFS_TREE_ANDROID_DATA:
@@ -397,6 +401,9 @@ static kuid_t esdfs_get_derived_lower_uid(struct esdfs_sb_info *sbi,
 	int perm;
 
 	perm = info->tree;
+	if (info->under_obb)
+		perm = ESDFS_TREE_ANDROID_OBB;
+
 	switch (perm) {
 	case ESDFS_TREE_DOWNLOAD:
 		if (test_opt(sbi, SPECIAL_DOWNLOAD))
@@ -430,6 +437,9 @@ static kgid_t esdfs_get_derived_lower_gid(struct esdfs_sb_info *sbi,
 
 	upper_uid = esdfs_i_uid_read(&info->vfs_inode);
 	perm = info->tree;
+	if (info->under_obb)
+		perm = ESDFS_TREE_ANDROID_OBB;
+
 	switch (perm) {
 	case ESDFS_TREE_DOWNLOAD:
 		if (test_opt(sbi, SPECIAL_DOWNLOAD))

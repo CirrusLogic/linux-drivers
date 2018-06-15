@@ -179,6 +179,7 @@ struct inode *esdfs_iget(struct super_block *sb, struct inode *lower_inode,
 	info->tree = ESDFS_TREE_NONE;
 	info->userid = 0;
 	info->appid = 0;
+	info->under_obb = false;
 
 	inode->i_ino = lower_inode->i_ino;
 	esdfs_set_lower_inode(inode, lower_inode);

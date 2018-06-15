@@ -249,9 +249,10 @@ static int esdfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	if (test_opt(sbi, GID_DERIVATION)) {
 		if (ESDFS_I(old_dir)->userid != ESDFS_I(new_dir)->userid
-			|| ((ESDFS_I(old_dir)->tree == ESDFS_TREE_ANDROID_OBB
-			|| ESDFS_I(new_dir)->tree == ESDFS_TREE_ANDROID_OBB)
-			&& ESDFS_I(old_dir)->tree != ESDFS_I(new_dir)->tree))
+			|| ((ESDFS_I(old_dir)->under_obb
+			|| ESDFS_I(new_dir)->under_obb)
+			&& ESDFS_I(old_dir)->under_obb
+				!= ESDFS_I(new_dir)->under_obb))
 			return -EXDEV;
 	}
 	creds = esdfs_override_creds(sbi, ESDFS_I(new_dir), &mask);

@@ -183,6 +183,7 @@ struct esdfs_inode_info {
 	int tree;		/* storage tree location */
 	uint32_t userid;	/* Android User ID (not Linux UID) */
 	uid_t appid;		/* Linux UID for this app/user combo */
+	bool under_obb;
 };
 
 /* esdfs dentry data in memory */
@@ -595,7 +596,7 @@ static inline const struct cred *esdfs_override_creds(
 					 sbi->lower_dl_perms.raw_gid);
 	} else {
 		if (test_opt(sbi, GID_DERIVATION)) {
-			if (info->tree == ESDFS_TREE_ANDROID_OBB)
+			if (info->under_obb)
 				uid = AID_MEDIA_OBB;
 			else
 				uid = derive_uid(info, sbi->lower_perms.uid);
