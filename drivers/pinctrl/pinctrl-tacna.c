@@ -1000,6 +1000,7 @@ static int tacna_pin_conf_group_set(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinconf_ops tacna_pin_conf_ops = {
+	.is_generic = true,
 	.pin_config_get = &tacna_pin_conf_get,
 	.pin_config_set = &tacna_pin_conf_set,
 	.pin_config_group_set = &tacna_pin_conf_group_set,
