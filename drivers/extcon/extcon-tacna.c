@@ -2572,15 +2572,15 @@ static int tacna_extcon_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	regmap_update_bits(tacna->regmap, TACNA_MICD_CLAMP_CONTROL,
-			   TACNA_MICD_CLAMP1_MODE_MASK, 0);
-
 	tacna_set_irq_wake(tacna, TACNA_IRQ_AOD_MICD_CLAMP1_RISE, 0);
 	tacna_set_irq_wake(tacna, TACNA_IRQ_AOD_MICD_CLAMP1_FALL, 0);
 	tacna_free_irq(tacna, TACNA_IRQ_HPDET, info);
 	tacna_free_irq(tacna, TACNA_IRQ_MICDET1, info);
 	tacna_free_irq(tacna, TACNA_IRQ_AOD_MICD_CLAMP1_RISE, info);
 	tacna_free_irq(tacna, TACNA_IRQ_AOD_MICD_CLAMP1_FALL, info);
+
+	regmap_update_bits(tacna->regmap, TACNA_MICD_CLAMP_CONTROL,
+			   TACNA_MICD_CLAMP1_MODE_MASK, 0);
 	regmap_update_bits(tacna->regmap, TACNA_JACK_DETECT,
 			   TACNA_JD1_EN | TACNA_JD2_EN, 0);
 
