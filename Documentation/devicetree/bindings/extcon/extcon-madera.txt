@@ -16,7 +16,8 @@ Optional properties:
   - cirrus,gpsw : Settings for the general purpose switches, set as per the
     SWn_MODE bits in the GP Switch 1 register. If given must be 2 cells.
     First cell is the value for the SW1_MODE
-    Second cell is the value for the SW2_MODE (cs47l15, cs47l90, cs47l91)
+    Second cell is the value for the SW2_MODE (cs47l90, cs47l91, cs47l92,
+    cs47l93)
 
   - cirrus,micd-pol-gpios : GPIO specifier for the GPIO controlling the headset
     polarity if one exists. One cell for each child node.
