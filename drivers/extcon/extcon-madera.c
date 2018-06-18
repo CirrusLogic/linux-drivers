@@ -2527,8 +2527,7 @@ err:
 }
 
 static void madera_extcon_get_micd_configs(struct madera_extcon *info,
-					   struct fwnode_handle *node,
-					   struct madera_accdet_pdata *pdata)
+					   struct fwnode_handle *node)
 {
 	struct madera_micd_config *micd_configs;
 	u32 *values;
@@ -2696,7 +2695,7 @@ static void madera_extcon_process_accdet_node(struct madera_extcon *info,
 				 &pdata->hpdet_ext_res_x100);
 
 	madera_extcon_get_hpd_pins(info, node, pdata);
-	madera_extcon_get_micd_configs(info, node, pdata);
+	madera_extcon_get_micd_configs(info, node);
 	madera_extcon_of_get_micd_ranges(info, node, pdata);
 
 	if (info->micd_modes[0].gpio)
