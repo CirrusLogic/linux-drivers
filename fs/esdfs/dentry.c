@@ -91,7 +91,7 @@ out:
 }
 
 /* 1 = delete, 0 = cache */
-int esdfs_d_delete(const struct dentry *d)
+static int esdfs_d_delete(const struct dentry *d)
 {
 	return 0;
 }

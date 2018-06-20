@@ -322,7 +322,10 @@ static inline void esdfs_set_lower_stub_path(const struct dentry *dent,
 static inline void esdfs_put_reset_lower_paths(const struct dentry *dent)
 {
 	struct path lower_path;
-	struct path lower_stub_path = { NULL, NULL };
+	struct path lower_stub_path = {
+		.mnt = NULL,
+		.dentry = NULL,
+	};
 
 	spin_lock(&ESDFS_D(dent)->lock);
 	pathcpy(&lower_path, &ESDFS_D(dent)->lower_path);
