@@ -2709,9 +2709,10 @@ static void madera_extcon_process_accdet_node(struct madera_extcon *info,
 							gpio_status,
 							"cirrus,micd-pol");
 	if (IS_ERR(info->micd_pol_gpio)) {
-		dev_warn(info->dev,
-			 "Malformed cirrus,micd-pol-gpios ignored: %ld\n",
-			 PTR_ERR(info->micd_pol_gpio));
+		if (PTR_ERR(info->micd_pol_gpio) != -ENOENT)
+			dev_warn(info->dev,
+				 "Malformed cirrus,micd-pol-gpios ignored: %ld\n",
+				 PTR_ERR(info->micd_pol_gpio));
 		info->micd_pol_gpio = NULL;
 	}
 }
