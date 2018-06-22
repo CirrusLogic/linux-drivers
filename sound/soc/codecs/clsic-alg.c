@@ -29,10 +29,17 @@
 #define CLSIC_ALG_VAL_BITS	32
 #define CLSIC_ALG_VAL_BYTES	(CLSIC_ALG_VAL_BITS/BITS_PER_BYTE)
 
+#define CLSIC_DSP1			0
+#define CLSIC_DSP2			1
+#define CLSIC_VPU1			2
+
 #define CLSIC_DSP1_N_RX_CHANNELS	9
 #define CLSIC_DSP1_N_TX_CHANNELS	9
 #define CLSIC_DSP2_N_RX_CHANNELS	8
 #define CLSIC_DSP2_N_TX_CHANNELS	8
+
+#define CLSIC_DAI_CPU_VOICECTRL		"clsic-cpu-voicectrl"
+#define CLSIC_DAI_VPU_VOICECTRL		"clsic-vpu-voicectrl"
 
 static const struct wm_adsp_region clsic_alg_vpu_regions[] = {
 	{ .type = WMFW_VPU_DM, .base = 0x20000000 },
@@ -52,6 +59,11 @@ static const struct wm_adsp_region clsic_dsp2_regions[] = {
 	{ .type = WMFW_ADSP2_XM, .base = 0x4800000 },
 	{ .type = WMFW_HALO_YM_PACKED, .base = 0x4C00000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x5400000 },
+};
+
+struct clsic_alg_compr_stream {
+	struct work_struct triggered;
+	unsigned int event_id;
 };
 
 struct clsic_alg {
@@ -76,6 +88,7 @@ struct clsic_alg {
 	struct dentry *rawMsgFile;
 #endif
 	struct mutex dspRateLock;
+	struct clsic_alg_compr_stream compr_stream;
 };
 
 /**
@@ -775,7 +788,7 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	mutex_init(&alg->dspRateLock);
 
 	/* DSP1 */
-	dsp = &alg->dsp[0];
+	dsp = &alg->dsp[CLSIC_DSP1];
 	dsp->part = "cs48lv40";
 	dsp->type = WMFW_HALO;
 	dsp->num = 1;
@@ -799,7 +812,7 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	dsp->n_tx_channels = 0;
 
 	/* DSP2 */
-	dsp = &alg->dsp[1];
+	dsp = &alg->dsp[CLSIC_DSP2];
 	dsp->part = "cs48lv40";
 	dsp->type = WMFW_HALO;
 	dsp->num = 2;
@@ -824,7 +837,7 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	dsp->n_tx_channels = 0;
 
 	/* VPU1 */
-	dsp = &alg->dsp[2];
+	dsp = &alg->dsp[CLSIC_VPU1];
 	dsp->part = "cs48lv40";
 	dsp->type = WMFW_VPU;
 	dsp->name = "VPU1";
@@ -865,6 +878,11 @@ static int clsic_alg_handle_n_irq(struct clsic_alg *alg,
 	event_id = msg_nty->nty_irq.irq_id;
 
 	switch (event_id) {
+	case CLSIC_ALGOSRV_EVENT_VTE:
+		alg->compr_stream.event_id = event_id;
+		schedule_work(&alg->compr_stream.triggered);
+		ret = CLSIC_HANDLED;
+		break;
 	default:
 		clsic_err(alg->clsic, "Unhandled event %d\n", event_id);
 		break;
@@ -912,6 +930,290 @@ static int clsic_alg_notification_handler(struct clsic *clsic,
 	return ret;
 }
 
+static struct snd_soc_dai_driver clsic_alg_dai[] = {
+	{
+		.name = CLSIC_DAI_CPU_VOICECTRL,
+		.capture = {
+			.stream_name = "Voice Trigger CPU",
+			.channels_min = 1,
+			.channels_max = 8,
+			.rates = TACNA_RATES,
+			.formats = TACNA_FORMATS,
+		},
+		.compress_new = &snd_soc_new_compress,
+	},
+	{
+		.name = CLSIC_DAI_VPU_VOICECTRL,
+		.capture = {
+			.stream_name = "Voice Trigger VPU",
+			.channels_min = 1,
+			.channels_max = 8,
+			.rates = TACNA_RATES,
+			.formats = TACNA_FORMATS,
+		},
+	},
+};
+
+/**
+ * clsic_alg_compr_open() - open the stream
+ * @stream:	Standard parameter as used by compressed stream infrastructure.
+ *
+ * Standard .open function - see struct snd_compr_ops for more details.
+ *
+ * Return: errno.
+ */
+static int clsic_alg_compr_open(struct snd_compr_stream *stream)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct clsic_alg *alg = snd_soc_codec_get_drvdata(rtd->codec);
+	int ret;
+
+	clsic_dbg(alg->clsic, "%s\n", rtd->codec_dai->name);
+
+	ret = clsic_alg_set_irq_notify_mode(alg,
+					   CLSIC_ALGOSRV_EVENT_VTE,
+					   CLSIC_RAS_NTY_FLUSH_AND_REQ);
+
+	if (ret) {
+		clsic_err(alg->clsic,
+			  "Set notify mode for DAI '%s' failed %d\n",
+			  rtd->codec_dai->name, ret);
+		return ret;
+	}
+
+	ret = wm_adsp_compr_open(&alg->dsp[CLSIC_VPU1], stream);
+
+	if (ret)
+		clsic_err(alg->clsic,
+			  "Open compr stream for DAI '%s' failed %d\n",
+			  rtd->codec_dai->name, ret);
+
+	return ret;
+}
+
+/**
+ * clsic_alg_compr_free() - close the stream
+ * @stream:	Standard parameter as used by compressed stream infrastructure.
+ *
+ * Standard .free function - see struct snd_compr_ops for more details.
+ *
+ * Return: errno.
+ */
+static int clsic_alg_compr_free(struct snd_compr_stream *stream)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct clsic_alg *alg = snd_soc_codec_get_drvdata(rtd->codec);
+	int ret;
+
+	clsic_dbg(alg->clsic, "%s\n", rtd->codec_dai->name);
+
+	ret = clsic_alg_set_irq_notify_mode(alg,
+					   CLSIC_ALGOSRV_EVENT_VTE,
+					   CLSIC_RAS_NTY_CANCEL);
+
+	if (ret)
+		clsic_err(alg->clsic,
+			  "Cancel notify mode for DAI '%s' failed %d\n",
+			  rtd->codec_dai->name, ret);
+
+	wm_adsp_compr_free(stream);
+
+	return ret;
+}
+
+/**
+ * clsic_alg_compr_set_params() - set up internal stream parameters
+ * @stream:	Standard parameter as used by compressed stream infrastructure.
+ * @params:	Standard parameter as used by compressed stream infrastructure.
+ *
+ * Standard .set_params function - see struct snd_compr_ops for more details.
+ *
+ * Return: errno.
+ */
+static int clsic_alg_compr_set_params(struct snd_compr_stream *stream,
+				      struct snd_compr_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct clsic_alg *alg = snd_soc_codec_get_drvdata(rtd->codec);
+	int ret;
+
+	clsic_dbg(alg->clsic, "%s\n", rtd->codec_dai->name);
+
+	ret = wm_adsp_compr_set_params(stream, params);
+
+	if (ret)
+		clsic_err(alg->clsic,
+			  "Set compr stream param '%s' failed %d\n",
+			  rtd->codec_dai->name, ret);
+
+	return ret;
+}
+
+/**
+ * clsic_alg_compr_get_caps() - copy stream data to userspace buffer
+ * @stream:	Standard parameter as used by compressed stream infrastructure.
+ * @caps:	Standard parameter as used by compressed stream infrastructure.
+ *
+ * Standard .get_caps function - see struct snd_compr_ops for more details.
+ *
+ * Return: errno.
+ */
+static int clsic_alg_compr_get_caps(struct snd_compr_stream *stream,
+				    struct snd_compr_caps *caps)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct clsic_alg *alg = snd_soc_codec_get_drvdata(rtd->codec);
+	int ret;
+
+	clsic_dbg(alg->clsic, "%s\n", rtd->codec_dai->name);
+
+	ret = wm_adsp_compr_get_caps(stream, caps);
+
+	if (ret)
+		clsic_err(alg->clsic,
+			  "Get compr stream caps '%s' failed %d\n",
+			  rtd->codec_dai->name, ret);
+
+	return ret;
+}
+
+/**
+ * clsic_alg_compr_triggered() - worker thread handling compressed stream events
+ *
+ * The irq context can't be used as it would block the messaging thread.
+ */
+static void clsic_alg_compr_triggered(struct work_struct *data)
+{
+	struct clsic_alg_compr_stream *compr_stream =
+		container_of(data, struct clsic_alg_compr_stream, triggered);
+	struct clsic_alg *alg =
+		container_of(compr_stream, struct clsic_alg, compr_stream);
+
+	wm_adsp_compr_handle_irq(&alg->dsp[CLSIC_VPU1]);
+
+	clsic_alg_set_irq_notify_mode(alg, compr_stream->event_id,
+				      CLSIC_RAS_NTY_FLUSH_AND_REQ);
+}
+
+/**
+ * clsic_alg_compr_trigger() - respond to userspace
+ * @stream:	Standard parameter as used by compressed stream infrastructure.
+ * @cmd:	A start or stop flag for compressed audio streaming.
+ *
+ * Standard .trigger function - see struct snd_compr_ops for more details. When
+ * userspace (crec) starts reading an active compressed stream of audio, this
+ * function is called with a relevant command regarding whether the stream has
+ * just started or just stopped.
+ *
+ * Return: errno.
+ */
+static int clsic_alg_compr_trigger(struct snd_compr_stream *stream, int cmd)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct clsic_alg *alg = snd_soc_codec_get_drvdata(rtd->codec);
+	int ret;
+
+	clsic_dbg(alg->clsic, "%s %d\n", rtd->codec_dai->name, cmd);
+
+	if (strcmp(rtd->codec_dai->name, CLSIC_DAI_VPU_VOICECTRL) == 0) {
+		switch (cmd) {
+		case SNDRV_PCM_TRIGGER_START:
+			break;
+		case SNDRV_PCM_TRIGGER_STOP:
+			cancel_work_sync(&alg->compr_stream.triggered);
+			break;
+		default:
+			ret = -EINVAL;
+			clsic_err(alg->clsic,
+				  "Trigger compr stream '%s' failed %d\n",
+				  rtd->codec_dai->name, ret);
+			break;
+		}
+
+		ret = wm_adsp_compr_trigger(stream, cmd);
+
+		if (ret)
+			clsic_err(alg->clsic,
+				  "Trigger compr stream '%s' failed %d\n",
+				  rtd->codec_dai->name, ret);
+	} else {
+		clsic_err(alg->clsic,
+			  "No suitable compressed stream for DAI '%s'\n",
+			  rtd->codec_dai->name);
+
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+/**
+ * clsic_alg_compr_pointer() - get timestamp information about the ASR stream
+ * @stream:	Standard parameter as used by compressed stream infrastructure.
+ * @tstamp:	Standard parameter as used by compressed stream infrastructure.
+ *
+ * Standard .pointer function - see struct snd_compr_ops for more details.
+ *
+ * Return: 0 always.
+ */
+static int clsic_alg_compr_pointer(struct snd_compr_stream *stream,
+				   struct snd_compr_tstamp *tstamp)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct clsic_alg *alg = snd_soc_codec_get_drvdata(rtd->codec);
+	int ret;
+
+	clsic_dbg(alg->clsic, "%s\n", rtd->codec_dai->name);
+
+	if (strcmp(rtd->codec_dai->name, CLSIC_DAI_VPU_VOICECTRL) == 0) {
+		ret = wm_adsp_compr_pointer(stream, tstamp);
+
+		if (ret)
+			clsic_err(alg->clsic,
+				  "Set compr stream pointer '%s' failed %d\n",
+				   rtd->codec_dai->name, ret);
+	} else {
+		clsic_err(alg->clsic, "No suitable compr stream for DAI '%s'\n",
+				       rtd->codec_dai->name);
+
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+/**
+ * clsic_alg_compr_copy() - copy data to userspace buffer
+ * @stream:	Standard parameter as used by compressed stream infrastructure.
+ * @buf:	Userspace buffer to copy compressed data to.
+ * @count:	How many bytes to copy to userspace.
+ *
+ * Standard .copy function - see struct snd_compr_ops for more details.
+ *
+ * Return: errno.
+ */
+static int clsic_alg_compr_copy(struct snd_compr_stream *stream,
+				char __user *buf, size_t count)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct clsic_alg *alg = snd_soc_codec_get_drvdata(rtd->codec);
+	int ret;
+
+	clsic_dbg(alg->clsic, "%s\n", rtd->codec_dai->name);
+
+	if (strcmp(rtd->codec_dai->name, CLSIC_DAI_VPU_VOICECTRL) == 0) {
+		ret = wm_adsp_compr_copy(stream, buf, count);
+	} else {
+		clsic_err(alg->clsic,
+			  "No suitable compressed stream for DAI '%s'\n",
+			  rtd->codec_dai->name);
+
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 /**
  * clsic_alg_codec_probe() - probe function for the codec part of the driver
  * @codec:	The main shared instance of struct snd_soc_codec used in CLSIC.
@@ -928,6 +1230,8 @@ static int clsic_alg_codec_probe(struct snd_soc_codec *codec)
 	alg->codec = codec;
 	handler->data = (void *)alg;
 	handler->callback = &clsic_alg_notification_handler;
+
+	INIT_WORK(&alg->compr_stream.triggered, clsic_alg_compr_triggered);
 
 	wm_adsp2_codec_probe(&alg->dsp[0], codec);
 	wm_adsp2_codec_probe(&alg->dsp[1], codec);
@@ -986,6 +1290,20 @@ static const struct snd_soc_codec_driver soc_codec_clsic_alg = {
 	},
 };
 
+static const struct snd_compr_ops clsic_alg_compr_ops = {
+	.open = &clsic_alg_compr_open,
+	.free = &clsic_alg_compr_free,
+	.set_params = &clsic_alg_compr_set_params,
+	.get_caps = &clsic_alg_compr_get_caps,
+	.trigger = &clsic_alg_compr_trigger,
+	.pointer = &clsic_alg_compr_pointer,
+	.copy = &clsic_alg_compr_copy,
+};
+
+static const struct snd_soc_platform_driver clsic_alg_compr_platform = {
+	.compr_ops = &clsic_alg_compr_ops,
+};
+
 /**
  * clsic_alg_probe() - probe function for the module
  * @pdev:	Platform device struct.
@@ -1001,6 +1319,8 @@ static int clsic_alg_probe(struct platform_device *pdev)
 	struct clsic_service *clsic_service = dev_get_platdata(dev);
 	struct clsic_alg *alg;
 	int ret;
+
+	BUILD_BUG_ON(ARRAY_SIZE(clsic_alg_dai) > TACNA_MAX_DAI);
 
 	/* Allocate memory for device specific data */
 	alg = devm_kzalloc(dev, sizeof(struct clsic_alg), GFP_KERNEL);
@@ -1036,11 +1356,18 @@ static int clsic_alg_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = snd_soc_register_platform(dev, &clsic_alg_compr_platform);
+	if (ret < 0) {
+		clsic_err(clsic, "Failed to register platform: %d.\n", ret);
+		return ret;
+	}
+
 	/* Register codec with the ASoC core */
-	ret = snd_soc_register_codec(dev, &soc_codec_clsic_alg, NULL, 0);
+	ret = snd_soc_register_codec(dev, &soc_codec_clsic_alg, clsic_alg_dai,
+				     ARRAY_SIZE(clsic_alg_dai));
 	if (ret) {
 		clsic_err(clsic, "Failed to register codec: %d.\n", ret);
-		return ret;
+		snd_soc_unregister_platform(dev);
 	}
 
 	return ret;
@@ -1061,6 +1388,7 @@ static int clsic_alg_remove(struct platform_device *pdev)
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove(alg->rawMsgFile);
 #endif
+	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 
 	return 0;
