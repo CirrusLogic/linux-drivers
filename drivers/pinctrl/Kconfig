@@ -107,6 +107,11 @@ config PINCTRL_CS48L32
 	bool
 	default y if MFD_CS48L32=y
 
+config PINCTRL_CS48LX50
+	bool
+	default y if MFD_CLSIC=y
+	default y if MFD_CLSIC=m
+
 config PINCTRL_DIGICOLOR
 	bool
 	depends on OF && (ARCH_DIGICOLOR || COMPILE_TEST)
