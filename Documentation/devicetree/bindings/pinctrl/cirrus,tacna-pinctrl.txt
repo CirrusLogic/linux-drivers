@@ -68,7 +68,8 @@ Optional properties of configuration subnodes:
   - bias-pull-down : output is pulled-down
   - drive-push-pull : CMOS output
   - drive-open-drain : open-drain output
-  - drive-strength : drive strength in mA. Valid values are 4 or 8
+  - drive-strength : drive strength in mA. See the datasheet for a list of valid
+  values for your codec.
   - output-low : set the pin to output mode with low level
   - output-high : set the pin to output mode with high level
 
