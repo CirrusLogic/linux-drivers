@@ -55,6 +55,7 @@ static const struct pinctrl_pin_desc tacna_pins[] = {
 	PINCTRL_PIN(24, "gpio25"),
 	PINCTRL_PIN(25, "gpio26"),
 	PINCTRL_PIN(26, "gpio27"),
+	PINCTRL_PIN(27, "gpio28"),
 };
 
 /*
@@ -70,13 +71,13 @@ static const char * const tacna_pin_single_group_names[] = {
 	"gpio1",  "gpio2",  "gpio3",  "gpio4",  "gpio5",  "gpio6",  "gpio7",
 	"gpio8",  "gpio9",  "gpio10", "gpio11", "gpio12", "gpio13", "gpio14",
 	"gpio15", "gpio16", "gpio17", "gpio18", "gpio19", "gpio20", "gpio21",
-	"gpio22", "gpio23", "gpio24", "gpio25", "gpio26", "gpio27",
+	"gpio22", "gpio23", "gpio24", "gpio25", "gpio26", "gpio27", "gpio28",
 };
 
 /* set of pin numbers for single-pin groups */
 static const unsigned int tacna_pin_single_group_pins[] = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-	20, 21, 22, 23, 24, 25, 26,
+	20, 21, 22, 23, 24, 25, 26, 27,
 };
 
 static const char * const tacna_asp1_group_names[] = { "asp1" };
@@ -208,6 +209,11 @@ static const struct {
 		.name = "opclk-dsp",
 		.group_names = tacna_pin_single_group_names,
 		.func = 0x04a
+	},
+	{
+		.name = "uart",
+		.group_names = tacna_pin_single_group_names,
+		.func = 0x04c
 	},
 	{
 		.name = "pwm1-out",
@@ -548,14 +554,61 @@ static const struct tacna_pin_chip cs48l32_pin_chip = {
 };
 #endif
 
+#ifdef CONFIG_PINCTRL_CS48LX50
+/* Note - all 1 less than in datasheet because these are zero-indexed */
+static const unsigned int cs48lx50_asp1_pins[] = { 4, 5, 6, 7 };
+static const unsigned int cs48lx50_asp2_pins[] = { 8, 9, 10, 11 };
+static const unsigned int cs48lx50_asp3_pins[] = { 12, 13, 14, 15 };
+static const unsigned int cs48lx50_asp4_pins[] = { 16, 17, 18, 19 };
+static const unsigned int cs48lx50_in3pdm_pins[] = { 24, 25 };
+static const unsigned int cs48lx50_in4pdm_pins[] = { 26, 27 };
+
+static const struct tacna_pin_groups cs48lx50_pin_groups[] = {
+	{ "asp1", cs48lx50_asp1_pins, ARRAY_SIZE(cs48lx50_asp1_pins) },
+	{ "asp2", cs48lx50_asp2_pins, ARRAY_SIZE(cs48lx50_asp2_pins) },
+	{ "asp3", cs48lx50_asp3_pins, ARRAY_SIZE(cs48lx50_asp3_pins) },
+	{ "asp4", cs48lx50_asp4_pins, ARRAY_SIZE(cs48lx50_asp4_pins) },
+	{ "in3-pdm", cs48lx50_in3pdm_pins, ARRAY_SIZE(cs48lx50_in3pdm_pins) },
+	{ "in4-pdm", cs48lx50_in4pdm_pins, ARRAY_SIZE(cs48lx50_in4pdm_pins) },
+};
+
+static const struct tacna_pin_chip cs48lx50_pin_chip = {
+	.n_pins = CS48LX50_NUM_GPIOS,
+	.pin_groups = cs48lx50_pin_groups,
+	.n_pin_groups = ARRAY_SIZE(cs48lx50_pin_groups),
+};
+#endif
+
 static unsigned int tacna_pin_make_drv_str(struct tacna_pin_private *priv,
 					   unsigned int milliamps)
 {
-	switch (milliamps) {
-	case 4:
-		return 0;
-	case 8:
-		return 1 << TACNA_GP1_DRV_STR_SHIFT;
+	switch (priv->tacna->type) {
+	case CS47L96:
+	case CS47L97:
+	case CS48L32:
+		switch (milliamps) {
+		case 4:
+			return 0;
+		case 8:
+			return 1 << TACNA_GP1_DRV_STR_SHIFT;
+		default:
+			break;
+		}
+		break;
+	case CS48LX50:
+		switch (milliamps) {
+		case 2:
+			return 0;
+		case 4:
+			return 1 << TACNA_GP1_DRV_STR_SHIFT;
+		case 10:
+			return 2 << TACNA_GP1_DRV_STR_SHIFT;
+		case 12:
+			return 3 << TACNA_GP1_DRV_STR_SHIFT;
+		default:
+			break;
+		}
+		break;
 	default:
 		break;
 	}
@@ -565,18 +618,43 @@ static unsigned int tacna_pin_make_drv_str(struct tacna_pin_private *priv,
 	return 0;
 }
 
-static unsigned int tacna_pin_unmake_drv_str(unsigned int regval)
+static unsigned int tacna_pin_unmake_drv_str(struct tacna_pin_private *priv,
+					     unsigned int regval)
 {
 	regval = (regval & TACNA_GP1_DRV_STR_MASK) >> TACNA_GP1_DRV_STR_SHIFT;
 
-	switch (regval) {
-	case 0:
-		return 4;
-	case 1:
-		return 8;
+	switch (priv->tacna->type) {
+	case CS47L96:
+	case CS47L97:
+	case CS48L32:
+		switch (regval) {
+		case 0:
+			return 4;
+		case 1:
+			return 8;
+		default:
+			break;
+		}
+		break;
+	case CS48LX50:
+		switch (regval) {
+		case 0:
+			return 2;
+		case 1:
+			return 4;
+		case 2:
+			return 10;
+		case 3:
+			return 12;
+		default:
+			break;
+		}
+		break;
 	default:
-		return 0;
+		break;
 	}
+
+	return 0;
 }
 
 static int tacna_get_groups_count(struct pinctrl_dev *pctldev)
@@ -689,7 +767,7 @@ static void tacna_pin_dbg_show(struct pinctrl_dev *pctldev,
 	else
 		seq_puts(s, " CMOS");
 
-	seq_printf(s, " DRV=%umA", tacna_pin_unmake_drv_str(conf));
+	seq_printf(s, " DRV=%umA", tacna_pin_unmake_drv_str(priv, conf));
 }
 
 
@@ -851,7 +929,7 @@ static int tacna_pin_conf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			result = 1;
 		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
-		result = tacna_pin_unmake_drv_str(conf);
+		result = tacna_pin_unmake_drv_str(priv, conf);
 		break;
 	case PIN_CONFIG_INPUT_DEBOUNCE:
 		dev_dbg(priv->dev,
@@ -1046,6 +1124,11 @@ static int tacna_pin_probe(struct platform_device *pdev)
 	case CS48L32:
 #ifdef CONFIG_PINCTRL_CS48L32
 		priv->chip = &cs48l32_pin_chip;
+#endif
+		break;
+	case CS48LX50:
+#ifdef CONFIG_PINCTRL_CS48LX50
+		priv->chip = &cs48lx50_pin_chip;
 #endif
 		break;
 	default:
