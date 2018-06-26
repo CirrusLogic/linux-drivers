@@ -44,11 +44,18 @@
  */
 
 /*
- * These are the standard firmware filenames, usually stored in /lib/firmware/
+ * All the files follow the same pattern: "clsic-<devid>/<devid>-???.bin"
+ *	"clsic-"	= 6
+ *	<devid>		= 8
+ *	"/"		= 1
+ *	<devid>		= 8
+ *	"-???.bin"	= 8
+ *	"\0"		= 1
  */
-static const char CLSIC_FWFILE_MAB[] = "clsic-mab.bin";
-static const char CLSIC_FWFILE_CPK[] = "clsic-cpk.bin";
-static const char CLSIC_FWFILE_FWU[] = "clsic-fwu.bin";
+#define CLSIC_BOOTSRV_FILENAME_MAX_LEN	(6 + 8 + 1 + 8 + 8 + 1)
+static const char CLSIC_FWFILE_MAB[] = "clsic-%s/%s-mab.bin";
+static const char CLSIC_FWFILE_CPK[] = "clsic-%s/%s-cpk.bin";
+static const char CLSIC_FWFILE_FWU[] = "clsic-%s/%s-fwu.bin";
 
 /* Constants describing datafile structures and constants */
 #define SIZEOF_PADDING_IN_BYTES		76
@@ -160,11 +167,16 @@ static const int clsic_bootsrv_fwheader_check(struct clsic *clsic,
  * firmware file and the version of the file.
  */
 static const int clsic_bootsrv_fwfile_info(struct clsic *clsic,
-					   const char *filename,
+					   const char *filename_template,
 					   struct clsic_fwheader *hdr)
 {
 	const struct firmware *firmware;
 	int ret;
+	char filename[CLSIC_BOOTSRV_FILENAME_MAX_LEN];
+
+	snprintf(filename, CLSIC_BOOTSRV_FILENAME_MAX_LEN,
+		 filename_template, clsic_devid_to_string(clsic->devid),
+		 clsic_devid_to_string(clsic->devid));
 
 	ret = request_firmware(&firmware, filename, clsic->dev);
 	if (ret != 0) {
@@ -245,7 +257,7 @@ struct clsic_bootsrv_struct {
  * matches the expected type.
  */
 static int clsic_bootsrv_sendfile(struct clsic *clsic,
-				  const char *filename,
+				  const char *filename_template,
 				  uint32_t type, uint32_t msgid,
 				  union clsic_bl_msg *msg_rsp)
 {
@@ -257,11 +269,16 @@ static int clsic_bootsrv_sendfile(struct clsic *clsic,
 	u32 fw_crc;
 	struct clsic_bootsrv_struct *bootsrv =
 		clsic->service_handlers[CLSIC_SRV_INST_BLD]->data;
+	char filename[CLSIC_BOOTSRV_FILENAME_MAX_LEN];
 
 	if (bootsrv == NULL) {
 		clsic_err(clsic, "No bootldr service data\n");
 		return -EINVAL;
 	}
+
+	snprintf(filename, CLSIC_BOOTSRV_FILENAME_MAX_LEN,
+		 filename_template, clsic_devid_to_string(clsic->devid),
+		 clsic_devid_to_string(clsic->devid));
 
 	ret = request_firmware(&firmware, filename, clsic->dev);
 	if (ret != 0) {
