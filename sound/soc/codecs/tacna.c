@@ -2739,53 +2739,7 @@ static int tacna_set_dacclk(struct snd_soc_codec *codec, int source,
 static int tacna_get_dspclk_setting(struct tacna_priv *priv, unsigned int freq,
 				    int src, unsigned int *val)
 {
-	unsigned int div_mask, div_val;
-	int ret;
-
-	switch (src) {
-	case TACNA_CLK_SRC_FLL1:
-		div_mask = TACNA_FLL1_DSPCLK_SEL;
-		div_val = 0;
-		break;
-	case TACNA_CLK_SRC_FLL2:
-		div_mask = TACNA_FLL2_DSPCLK_SEL;
-		div_val = 0;
-		break;
-	case TACNA_CLK_SRC_FLL3:
-		div_mask = TACNA_FLL3_DSPCLK_SEL;
-		div_val = 0;
-		break;
-	case TACNA_CLK_SRC_FLL1_DSP_DIV2:
-		div_mask = TACNA_FLL1_DSPCLK_SEL;
-		div_val = 1;
-		break;
-	case TACNA_CLK_SRC_FLL2_DSP_DIV2:
-		div_mask = TACNA_FLL2_DSPCLK_SEL;
-		div_val = 1;
-		break;
-	case TACNA_CLK_SRC_FLL3_DSP_DIV2:
-		div_mask = TACNA_FLL3_DSPCLK_SEL;
-		div_val = 1;
-		break;
-	default:
-		div_mask = 0;
-		break;
-	}
-
-	if (div_mask) {
-		ret = regmap_update_bits(priv->tacna->regmap,
-					 TACNA_FLL_DSP_CTRL,
-					 div_mask, div_val);
-		if (ret) {
-			dev_err(priv->dev,
-				"Failed to write to FLL_DSP_CTRL: %d\n", ret);
-			return ret;
-		}
-	}
-
 	freq /= 15625; /* convert to 1/64ths of 1MHz */
-
-	/* This can go to bit 31 so must return as a unsigned int */
 	*val |= freq << TACNA_DSP_CLK_FREQ_SHIFT;
 
 	return 0;
