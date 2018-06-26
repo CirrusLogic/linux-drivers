@@ -57,6 +57,31 @@ extern const struct dev_pm_ops clsic_pm_ops;
 #define CLSIC_SUPPORTED_ID_48AC40		0x48AC40
 #define CLSIC_SUPPORTED_ID_48AC41		0x48AC41
 
+/*
+ * Translate a device id into a string that can be used in paths and filenames
+ * for loading assets. The default case will never be hit because an
+ * unrecognised device id will not pass the core driver.
+ *
+ * Note: the string returned must be less than or equal to 8 characters (not
+ * including the terminator)
+ */
+static inline const char *clsic_devid_to_string(uint32_t devid)
+{
+	switch (devid) {
+	case CLSIC_SUPPORTED_ID_48AB50:
+		return "cs48lx50";
+	case CLSIC_SUPPORTED_ID_48AB51:
+		return "cs48lx51";
+	case CLSIC_SUPPORTED_ID_48AC40:
+		return "cs48lv40";
+	case CLSIC_SUPPORTED_ID_48AC41:
+		return "cs48lv41";
+	case CLSIC_SUPPORTED_ID_EMULATED_CODEC:
+	default:
+		return "clsic";
+	}
+}
+
 #define CLSIC_SERVICE_TYPE_DEBUG_EMU		0x1E
 
 #define CLSIC_SERVICE_COUNT			32	/* 0 to 31 */
