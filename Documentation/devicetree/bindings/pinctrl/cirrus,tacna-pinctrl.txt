@@ -21,7 +21,7 @@ See also
 
 Required properties of configuration subnodes:
   - groups : name of one pin group to configure. One of:
-        asp2, asp3, asp4, dsd1, in3-pdm, in4-pdm, out5-pdm,
+        asp2, asp3, asp4, dsd1, in1-pdm, in2-pdm, in3-pdm, in4-pdm, out5-pdm,
         gpio1, gpio2, ..., gpio23
     The gpioN groups select the single pin of this name for configuration
 
@@ -32,8 +32,8 @@ Optional properties of configuration subnodes:
   - function : name of function to assign to this group. One of (actual
     available will differ from codec to codec, refer to the datasheet for
     more information):
-        asp1, asp2, asp3, asp4, asp1ao, dsd1, in3-pdm, in4-pdm, out5-pdm,
-        io, dsp-gpio, irq1,
+        asp1, asp2, asp3, asp4, asp1ao, dsd1, in1-pdm, in2-pdm, in3-pdm,
+        in4-pdm, out5-pdm, io, dsp-gpio, irq1,
         fll1-clk, fll1-lock, fll2-clk, fll2-lock, fll3-clk, fll3-lock,
         opclk, opclk-async, opclk-dsp,
         pwm1-out, pwm2-out,

@@ -86,6 +86,8 @@ static const char * const tacna_asp3_group_names[] = { "asp3" };
 static const char * const tacna_asp4_group_names[] = { "asp4" };
 static const char * const tacna_asp1ao_group_names[] = { "asp1ao" };
 static const char * const tacna_dsd1_group_names[] = { "dsd1" };
+static const char * const tacna_in1pdm_group_names[] = { "in1-pdm" };
+static const char * const tacna_in2pdm_group_names[] = { "in2-pdm" };
 static const char * const tacna_in3pdm_group_names[] = { "in3-pdm" };
 static const char * const tacna_in4pdm_group_names[] = { "in4-pdm" };
 static const char * const tacna_out5pdm_group_names[] = { "out5-pdm" };
@@ -129,6 +131,16 @@ static const struct {
 		.name = "dsd1",
 		.group_names = tacna_dsd1_group_names,
 		.func = 0x000
+	},
+	{
+		.name = "in1-pdm",
+		.group_names = tacna_in1pdm_group_names,
+		.func = 0x000
+	},
+	{
+		.name = "in2-pdm",
+		.group_names = tacna_in2pdm_group_names,
+		.func = 0x000,
 	},
 	{
 		.name = "in3-pdm",
@@ -560,6 +572,8 @@ static const unsigned int cs48lx50_asp1_pins[] = { 4, 5, 6, 7 };
 static const unsigned int cs48lx50_asp2_pins[] = { 8, 9, 10, 11 };
 static const unsigned int cs48lx50_asp3_pins[] = { 12, 13, 14, 15 };
 static const unsigned int cs48lx50_asp4_pins[] = { 16, 17, 18, 19 };
+static const unsigned int cs48lx50_in1pdm_pins[] = { 20, 21 };
+static const unsigned int cs48lx50_in2pdm_pins[] = { 22, 23 };
 static const unsigned int cs48lx50_in3pdm_pins[] = { 24, 25 };
 static const unsigned int cs48lx50_in4pdm_pins[] = { 26, 27 };
 
@@ -568,6 +582,8 @@ static const struct tacna_pin_groups cs48lx50_pin_groups[] = {
 	{ "asp2", cs48lx50_asp2_pins, ARRAY_SIZE(cs48lx50_asp2_pins) },
 	{ "asp3", cs48lx50_asp3_pins, ARRAY_SIZE(cs48lx50_asp3_pins) },
 	{ "asp4", cs48lx50_asp4_pins, ARRAY_SIZE(cs48lx50_asp4_pins) },
+	{ "in1-pdm", cs48lx50_in1pdm_pins, ARRAY_SIZE(cs48lx50_in1pdm_pins) },
+	{ "in2-pdm", cs48lx50_in2pdm_pins, ARRAY_SIZE(cs48lx50_in2pdm_pins) },
 	{ "in3-pdm", cs48lx50_in3pdm_pins, ARRAY_SIZE(cs48lx50_in3pdm_pins) },
 	{ "in4-pdm", cs48lx50_in4pdm_pins, ARRAY_SIZE(cs48lx50_in4pdm_pins) },
 };
