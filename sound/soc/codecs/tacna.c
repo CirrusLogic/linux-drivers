@@ -231,7 +231,6 @@ const char * const tacna_mixer_texts[] = {
 	"SWIRE1DP4RX4",
 	"SWIRE1DP4RX5",
 	"SWIRE1DP4RX6",
-	"DACMON1",
 };
 EXPORT_SYMBOL_GPL(tacna_mixer_texts);
 
@@ -375,7 +374,6 @@ unsigned int tacna_mixer_values[] = {
 	0x19B, /* SWIRE1 DP4RX4 */
 	0x19C, /* SWIRE1 DP4RX5 */
 	0x19D, /* SWIRE1 DP4RX6 */
-	0x1F8, /* DACMON1 loopback*/
 };
 EXPORT_SYMBOL_GPL(tacna_mixer_values);
 
