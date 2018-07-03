@@ -1191,27 +1191,6 @@ static const struct snd_kcontrol_new cs47l96_aec_loopback_mux[] = {
 	SOC_DAPM_ENUM("AEC2 Loopback", cs47l96_aec_loopback[1]),
 };
 
-static const char * const cs47l96_dacmon_loopback_texts[] = {
-	"OUT1L", "OUT1R", "OUT5L", "OUT5R", "OUTAUX1L", "OUTAUX1R",
-};
-
-static const unsigned int cs47l96_dacmon_loopback_values[] = {
-	0, 1, 8, 9, 12, 13,
-};
-
-
-static SOC_VALUE_ENUM_SINGLE_DECL(cs47l96_dacmon_loopback,
-			   	  TACNA_DACMON_CONTROL1,
-			   	  TACNA_DACMON1_SRC_SHIFT,
-			   	  TACNA_DACMON1_SRC_MASK >>
-			   	  TACNA_DACMON1_SRC_SHIFT,
-			   	  cs47l96_dacmon_loopback_texts,
-			   	  cs47l96_dacmon_loopback_values);
-
-static const struct snd_kcontrol_new cs47l96_dacmon_loopback_mux =
-	SOC_DAPM_ENUM("DACMON1 Input", cs47l96_dacmon_loopback);
-
-
 static const struct snd_kcontrol_new cs47l96_anc_input_mux[] = {
 	SOC_DAPM_ENUM("ANCL Input", tacna_mono_anc_input_src[0]),
 	SOC_DAPM_ENUM("ANCL Channel", tacna_mono_anc_input_src[1]),
@@ -1734,10 +1713,6 @@ SND_SOC_DAPM_PGA("AOBRIDGE2IN8", TACNA_AOBRIDGE2_ENABLE,
 
 WM_HALO("DSP1", 0, wm_halo_early_event),
 
-SND_SOC_DAPM_MUX("DACMON1 Input", TACNA_DACMON_CONTROL1,
-		 TACNA_DACMON1_EN_SHIFT, 0,
-		 &cs47l96_dacmon_loopback_mux),
-
 /* end of ordered widget list */
 
 TACNA_MIXER_WIDGETS(EQ1, "EQ1"),
@@ -1990,8 +1965,7 @@ SND_SOC_DAPM_OUTPUT("MICSUPP"),
 	{ name, "DSP1.5", "DSP1" }, \
 	{ name, "DSP1.6", "DSP1" }, \
 	{ name, "DSP1.7", "DSP1" }, \
-	{ name, "DSP1.8", "DSP1" }, \
-	{ name, "DACMON1", "DACMON1 Input" }
+	{ name, "DSP1.8", "DSP1" }
 
 static const struct snd_soc_dapm_route cs47l96_dapm_routes[] = {
 	{ "OUT1L PGA", NULL, "VDD1_CP" },
@@ -2330,8 +2304,6 @@ static const struct snd_soc_dapm_route cs47l96_dapm_routes[] = {
 	{ "AEC1 Loopback", "OUT1R", "OUT1R PGA" },
 	{ "AEC2 Loopback", "OUT1L", "OUT1L PGA" },
 	{ "AEC2 Loopback", "OUT1R", "OUT1R PGA" },
-	{ "DACMON1 Input", "OUT1L", "OUT1L PGA" },
-	{ "DACMON1 Input", "OUT1R", "OUT1R PGA" },
 	{ "OUT1L Output Select", "OUT1", "OUT1L PGA" },
 	{ "OUT1R Output Select", "OUT1", "OUT1R PGA" },
 	{ "OUT1 Demux", NULL, "OUT1L Output Select" },
@@ -2341,8 +2313,6 @@ static const struct snd_soc_dapm_route cs47l96_dapm_routes[] = {
 	{ "OUT1L_HP2", "HP2", "OUT1 Demux" },
 	{ "OUT1R_HP2", "HP2", "OUT1 Demux" },
 
-	{ "DACMON1 Input", "OUTAUX1L", "OUTAUX1L PGA" },
-	{ "DACMON1 Input", "OUTAUX1R", "OUTAUX1R PGA" },
 	{ "OUT1L AUX Mix", "Switch", "OUTAUX1L PGA"},
 	{ "OUT1R AUX Mix", "Switch", "OUTAUX1R PGA"},
 	{ "OUT1L DSD Mix", "Switch", "DSD Processor"},
@@ -2356,8 +2326,6 @@ static const struct snd_soc_dapm_route cs47l96_dapm_routes[] = {
 	{ "AEC1 Loopback", "OUT5R", "OUT5R PGA" },
 	{ "AEC2 Loopback", "OUT5L", "OUT5L PGA" },
 	{ "AEC2 Loopback", "OUT5R", "OUT5R PGA" },
-	{ "DACMON1 Input", "OUT5L", "OUT5L PGA" },
-	{ "DACMON1 Input", "OUT5R", "OUT5R PGA" },
 	{ "OUT5L Source", "OUT5", "OUT5L PGA" },
 	{ "OUT5R Source", "OUT5", "OUT5R PGA" },
 	/*
