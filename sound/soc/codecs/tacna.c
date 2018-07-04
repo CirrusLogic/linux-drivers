@@ -2817,6 +2817,31 @@ static int tacna_get_sysclk_setting(unsigned int freq)
 	}
 }
 
+static int tacna_set_pdm_fllclk(struct snd_soc_codec *codec, int source)
+{
+	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct tacna *tacna = priv->tacna;
+	unsigned int val;
+
+	switch (source) {
+	case TACNA_PDMCLK_SRC_IN1_PDMCLK:
+	case TACNA_PDMCLK_SRC_IN2_PDMCLK:
+	case TACNA_PDMCLK_SRC_IN3_PDMCLK:
+	case TACNA_PDMCLK_SRC_IN4_PDMCLK:
+	case TACNA_PDMCLK_SRC_AUXPDM1_CLK:
+	case TACNA_PDMCLK_SRC_AUXPDM2_CLK:
+	case TACNA_PDMCLK_SRC_AUXPDM3_CLK:
+		val = source << TACNA_PDM_FLLCLK_SRC_SHIFT;
+		break;
+	default:
+		dev_err(priv->dev, "Invalid PDM FLLCLK src %d\n", source);
+		return -EINVAL;
+	}
+
+	return regmap_update_bits(tacna->regmap, TACNA_INPUT_CONTROL2,
+				  TACNA_PDM_FLLCLK_SRC_MASK, val);
+}
+
 int tacna_set_sysclk(struct snd_soc_codec *codec, int clk_id, int source,
 		     unsigned int freq, int dir)
 {
@@ -2863,6 +2888,8 @@ int tacna_set_sysclk(struct snd_soc_codec *codec, int clk_id, int source,
 		clk_freq_sel = tacna_get_sysclk_setting(freq);
 		mask |= TACNA_SYSCLKAO_FREQ_MASK | TACNA_SYSCLKAO_FRAC;
 		break;
+	case TACNA_CLK_PDM_FLLCLK:
+		return tacna_set_pdm_fllclk(codec, source);
 	default:
 		return -EINVAL;
 	}
