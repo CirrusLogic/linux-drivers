@@ -640,6 +640,27 @@ int madera_dev_init(struct madera *madera)
 
 	dev_set_drvdata(madera->dev, madera);
 
+	BLOCKING_INIT_NOTIFIER_HEAD(&madera->notifier);
+
+	if (dev_get_platdata(madera->dev)) {
+		memcpy(&madera->pdata, dev_get_platdata(madera->dev),
+		       sizeof(madera->pdata));
+	}
+
+	ret = madera_get_reset_gpio(madera);
+	if (ret)
+		return ret;
+
+	madera_prop_get_micbias(madera);
+
+	regcache_cache_only(madera->regmap, true);
+	regcache_cache_only(madera->regmap_32bit, true);
+
+	for (i = 0; i < ARRAY_SIZE(madera_core_supplies); i++)
+		madera->core_supplies[i].supply = madera_core_supplies[i];
+
+	madera->num_core_supplies = ARRAY_SIZE(madera_core_supplies);
+
 	/*
 	 * Pinctrl subsystem only configures pinctrls if all referenced pins
 	 * are registered. Create our pinctrl child now so that its pins exist
@@ -658,7 +679,7 @@ int madera_dev_init(struct madera *madera)
 	if (IS_ERR(pinctrl)) {
 		ret = PTR_ERR(pinctrl);
 		dev_err(madera->dev, "Failed to get pinctrl: %d\n", ret);
-		goto err_devs;
+		goto err_pinctrl_dev;
 	}
 
 	/* Use (optional) minimal config with only external pin bindings */
@@ -666,26 +687,12 @@ int madera_dev_init(struct madera *madera)
 	if (ret)
 		goto err_pinctrl;
 
-	BLOCKING_INIT_NOTIFIER_HEAD(&madera->notifier);
-
-	if (dev_get_platdata(madera->dev)) {
-		memcpy(&madera->pdata, dev_get_platdata(madera->dev),
-		       sizeof(madera->pdata));
-	}
-
-	ret = madera_get_reset_gpio(madera);
-	if (ret)
+	ret = devm_regulator_bulk_get(dev, madera->num_core_supplies,
+				      madera->core_supplies);
+	if (ret) {
+		dev_err(dev, "Failed to request core supplies: %d\n", ret);
 		goto err_pinctrl;
-
-	madera_prop_get_micbias(madera);
-
-	regcache_cache_only(madera->regmap, true);
-	regcache_cache_only(madera->regmap_32bit, true);
-
-	for (i = 0; i < ARRAY_SIZE(madera_core_supplies); i++)
-		madera->core_supplies[i].supply = madera_core_supplies[i];
-
-	madera->num_core_supplies = ARRAY_SIZE(madera_core_supplies);
+	}
 
 	switch (madera->type) {
 	case CS47L15:
@@ -710,13 +717,6 @@ int madera_dev_init(struct madera *madera)
 	default:
 		dev_err(madera->dev, "Unknown device type %d\n", madera->type);
 		ret = -ENODEV;
-		goto err_pinctrl;
-	}
-
-	ret = devm_regulator_bulk_get(dev, madera->num_core_supplies,
-				      madera->core_supplies);
-	if (ret) {
-		dev_err(dev, "Failed to request core supplies: %d\n", ret);
 		goto err_pinctrl;
 	}
 
@@ -933,7 +933,7 @@ err_dcvdd:
 	regulator_put(madera->dcvdd);
 err_pinctrl:
 	pinctrl_put(pinctrl);
-err_devs:
+err_pinctrl_dev:
 	mfd_remove_devices(dev);
 
 	return ret;
