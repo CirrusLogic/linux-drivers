@@ -503,6 +503,30 @@ TRACE_EVENT(clsic_alg_handle_n_irq,
 	TP_printk("event: %u; ret: %d", __entry->event, __entry->ret)
 );
 
+TRACE_EVENT(clsic_alg_set_irq_notify_mode,
+	TP_PROTO(uint32_t irq_id, uint32_t irq_mode, int ret, uint8_t err),
+	TP_ARGS(irq_id, irq_mode, ret, err),
+	TP_STRUCT__entry(
+			__field(uint32_t, irq_id)
+			__field(uint32_t, irq_mode)
+			__field(uint32_t, ret)
+			__field(uint8_t, err)
+			),
+	TP_fast_assign(
+			__entry->irq_id = irq_id;
+			__entry->irq_mode = irq_mode;
+			__entry->ret = ret;
+			__entry->err = err;
+		),
+	TP_printk(
+			"   irq_id: %d irq_mode: %d  ret: %d (err: %d)",
+			__entry->irq_id,
+			__entry->irq_mode,
+			__entry->ret,
+			__entry->err
+			)
+);
+
 #endif /* CLSIC_TRACE_H */
 
 /* This part must be outside protection */

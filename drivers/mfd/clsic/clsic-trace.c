@@ -34,6 +34,7 @@ EXPORT_TRACEPOINT_SYMBOL(clsic_alg_simple_readregister);
 EXPORT_TRACEPOINT_SYMBOL(clsic_alg_write);
 EXPORT_TRACEPOINT_SYMBOL(clsic_alg_read);
 EXPORT_TRACEPOINT_SYMBOL(clsic_alg_handle_n_irq);
+EXPORT_TRACEPOINT_SYMBOL(clsic_alg_set_irq_notify_mode);
 EXPORT_TRACEPOINT_SYMBOL(clsic_simirq_write_asserted);
 EXPORT_TRACEPOINT_SYMBOL(clsic_simirq_write_deasserted);
 

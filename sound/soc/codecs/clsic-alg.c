@@ -79,6 +79,61 @@ struct clsic_alg {
 };
 
 /**
+ * clsic_alg_set_irq_notify_mode() - Set the notification modes for IRQs.
+ * @alg:	The main instance of struct clsic_alg used in this driver.
+ * @id:		Irq id.
+ * @mode:	Irq mode.
+ *
+ * Return: 0 success, -EIO on error.
+ */
+static int clsic_alg_set_irq_notify_mode(struct clsic_alg *alg,
+					 enum clsic_ras_irq_id id,
+					 enum clsic_ras_irq_nty_mode mode)
+{
+	union clsic_ras_msg msg_cmd;
+	union clsic_ras_msg msg_rsp;
+	int ret;
+
+	clsic_init_message((union t_clsic_generic_message *) &msg_cmd,
+			   alg->service->service_instance,
+			   CLSIC_RAS_MSG_CR_SET_IRQ_NTY_MODE);
+
+	msg_cmd.cmd_set_irq_nty_mode.irq_id = id;
+	msg_cmd.cmd_set_irq_nty_mode.mode = mode;
+
+	ret = clsic_send_msg_sync(alg->clsic,
+				  (union t_clsic_generic_message *) &msg_cmd,
+				  (union t_clsic_generic_message *) &msg_rsp,
+				  CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
+				  CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
+
+	/*
+	 *  Clients to this function can't interpret detailed error codes so
+	 *  map error to -EIO
+	 */
+	if (ret != 0) {
+		clsic_dbg(alg->clsic, "irq_id:0x%x mode:0x%x ret %d\n",
+			  id, mode, ret);
+		ret = -EIO;
+	} else if (msg_rsp.rsp_set_irq_nty_mode.hdr.err != 0) {
+		clsic_dbg(alg->clsic, "irq_id:0x%x mode:0x%x status %d\n",
+			  id, mode, msg_rsp.rsp_set_irq_nty_mode.hdr.err);
+		ret = -EIO;
+	} else {
+		/* The request succeeded */
+		ret = 0;
+
+		clsic_dbg(alg->clsic, "irq_id:0x%x mode:0x%x status %d\n",
+			  id, mode, msg_rsp.rsp_set_irq_nty_mode.hdr.err);
+	}
+
+	trace_clsic_alg_set_irq_notify_mode(id, mode, ret,
+					msg_rsp.rsp_set_irq_nty_mode.hdr.err);
+
+	return ret;
+}
+
+/**
  * clsic_alg_simple_readregister() - Single 32bit word read over SPI
  * @alg:	The main instance of struct clsic_alg used in this driver.
  * @address:	Address of 32bit word to be read.
