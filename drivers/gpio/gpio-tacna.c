@@ -106,7 +106,7 @@ static void tacna_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			   TACNA_GP1_LVL_MASK, level);
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "tacna",
 	.owner			= THIS_MODULE,
 	.get_direction		= &tacna_gpio_get_direction,
