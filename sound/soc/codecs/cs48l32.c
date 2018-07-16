@@ -1324,7 +1324,7 @@ static struct regmap *cs48l32_get_regmap(struct device *dev)
 	return cs48l32->core.tacna->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_cs48l32 = {
+static const struct snd_soc_codec_driver soc_codec_dev_cs48l32 = {
 	.probe = &cs48l32_codec_probe,
 	.remove = &cs48l32_codec_remove,
 	.get_regmap = &cs48l32_get_regmap,

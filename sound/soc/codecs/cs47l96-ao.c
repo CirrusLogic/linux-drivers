@@ -912,7 +912,7 @@ static struct regmap *cs47l96_ao_get_regmap(struct device *dev)
 	return cs47l96_ao->core.tacna->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_cs47l96_ao = {
+static const struct snd_soc_codec_driver soc_codec_dev_cs47l96_ao = {
 	.probe = &cs47l96_ao_codec_probe,
 	.remove = &cs47l96_ao_codec_remove,
 	.get_regmap = &cs47l96_ao_get_regmap,
