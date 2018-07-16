@@ -1337,7 +1337,7 @@ static struct regmap *cs47l15_get_regmap(struct device *dev)
 	return cs47l15->core.madera->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_cs47l15 = {
+static const struct snd_soc_codec_driver soc_codec_dev_cs47l15 = {
 	.probe = cs47l15_codec_probe,
 	.remove = cs47l15_codec_remove,
 	.get_regmap = cs47l15_get_regmap,
@@ -1357,7 +1357,7 @@ static struct snd_soc_codec_driver soc_codec_dev_cs47l15 = {
 	},
 };
 
-static struct snd_compr_ops cs47l15_compr_ops = {
+static const struct snd_compr_ops cs47l15_compr_ops = {
 	.open = cs47l15_open,
 	.free = wm_adsp_compr_free,
 	.set_params = wm_adsp_compr_set_params,
@@ -1367,7 +1367,7 @@ static struct snd_compr_ops cs47l15_compr_ops = {
 	.copy = wm_adsp_compr_copy,
 };
 
-static struct snd_soc_platform_driver cs47l15_compr_platform = {
+static const struct snd_soc_platform_driver cs47l15_compr_platform = {
 	.compr_ops = &cs47l15_compr_ops,
 };
 
