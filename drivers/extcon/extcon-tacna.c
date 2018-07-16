@@ -1992,10 +1992,10 @@ static void tacna_extcon_process_accdet_node(struct tacna_extcon *info,
 		gpio_status = GPIOD_OUT_LOW;
 
 	info->micd_pol_gpio = devm_fwnode_get_gpiod_from_child(tacna->dev,
-							"cirrus,micd-pol-gpio",
+							"cirrus,micd-pol",
 							node,
 							gpio_status,
-							"cirrus,micd-pol-gpio");
+							"cirrus,micd-pol");
 	if (IS_ERR(info->micd_pol_gpio))
 		info->micd_pol_gpio = NULL;
 }
