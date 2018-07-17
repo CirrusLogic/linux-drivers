@@ -1713,8 +1713,12 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	}
 
 	if (subname) {
+		struct snd_soc_component *component = &dsp->codec->component;
 		int avail = SNDRV_CTL_ELEM_ID_NAME_MAXLEN - ret - 2;
 		int skip = 0;
+
+		if (component->name_prefix)
+			avail -= strlen(component->name_prefix) + 1;
 
 		/* Truncate the subname from the start if it is too long */
 		if (subname_len > avail)
