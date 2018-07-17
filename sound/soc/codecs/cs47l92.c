@@ -2065,7 +2065,7 @@ static int cs47l92_probe(struct platform_device *pdev)
 				 cs47l92);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request DSP IRQ: %d\n", ret);
-		return ret;
+		goto error_core;
 	}
 
 	cs47l92->core.adsp[0].part = "cs47l92";
@@ -2082,16 +2082,15 @@ static int cs47l92_probe(struct platform_device *pdev)
 	cs47l92->core.adsp[0].lock_regions = WM_ADSP2_REGION_1_9;
 
 	ret = wm_adsp2_init(&cs47l92->core.adsp[0]);
-
 	if (ret != 0)
-		goto error_core;
+		goto error_dsp_irq;
 
 	ret = madera_init_bus_error_irq(&cs47l92->core,
 					0,
 					cs47l92_dsp_bus_error);
 	if (ret != 0) {
 		wm_adsp2_remove(&cs47l92->core.adsp[0]);
-		goto error_core;
+		goto error_adsp;
 	}
 
 	madera_init_fll(madera, 1, MADERA_FLL1_CONTROL_1 - 1,
@@ -2113,7 +2112,7 @@ static int cs47l92_probe(struct platform_device *pdev)
 	ret = snd_soc_register_platform(&pdev->dev, &cs47l92_compr_platform);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register platform: %d\n", ret);
-		goto error;
+		goto error_pm_runtime;
 	}
 
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_cs47l92,
@@ -2121,16 +2120,21 @@ static int cs47l92_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
 		snd_soc_unregister_platform(&pdev->dev);
-		goto error;
+		goto error_platform;
 	}
 
 	return ret;
 
-error:
+error_platform:
+	snd_soc_unregister_platform(&pdev->dev);
+error_pm_runtime:
+	pm_runtime_disable(&pdev->dev);
 	madera_destroy_bus_error_irq(&cs47l92->core, 0);
+error_adsp:
 	wm_adsp2_remove(&cs47l92->core.adsp[0]);
-error_core:
+error_dsp_irq:
 	madera_free_irq(madera, MADERA_IRQ_DSP_IRQ1, cs47l92);
+error_core:
 	madera_core_destroy(&cs47l92->core);
 
 	return ret;

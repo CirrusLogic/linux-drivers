@@ -2640,14 +2640,14 @@ static int cs47l85_probe(struct platform_device *pdev)
 
 	ret = madera_init_overheat(&cs47l85->core);
 	if (ret)
-		return ret;
+		goto error_core;
 
 	ret = madera_request_irq(madera, MADERA_IRQ_DSP_IRQ1,
 				 "ADSP2 Compressed IRQ", cs47l85_adsp2_irq,
 				 cs47l85);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request DSP IRQ: %d\n", ret);
-		return ret;
+		goto error_overheat;
 	}
 
 	for (i = 0; i < CS47L85_NUM_ADSP; i++) {
@@ -2667,7 +2667,7 @@ static int cs47l85_probe(struct platform_device *pdev)
 		if (ret) {
 			for (--i; i >= 0; --i)
 				wm_adsp2_remove(&cs47l85->core.adsp[i]);
-			goto error_core;
+			goto error_dsp_irq;
 		}
 	}
 
@@ -2692,7 +2692,7 @@ static int cs47l85_probe(struct platform_device *pdev)
 	ret = snd_soc_register_platform(&pdev->dev, &cs47l85_compr_platform);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register platform: %d\n", ret);
-		goto error;
+		goto error_pm_runtime;
 	}
 
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_cs47l85,
@@ -2700,14 +2700,22 @@ static int cs47l85_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
 		snd_soc_unregister_platform(&pdev->dev);
-		goto error;
+		goto error_platform;
 	}
 
 	return ret;
 
-error:
+error_platform:
+	snd_soc_unregister_platform(&pdev->dev);
+error_pm_runtime:
+	pm_runtime_disable(&pdev->dev);
+
 	for (i = 0; i < CS47L85_NUM_ADSP; i++)
 		wm_adsp2_remove(&cs47l85->core.adsp[i]);
+error_dsp_irq:
+	madera_free_irq(madera, MADERA_IRQ_DSP_IRQ1, cs47l85);
+error_overheat:
+	madera_free_overheat(&cs47l85->core);
 error_core:
 	madera_core_destroy(&cs47l85->core);
 
