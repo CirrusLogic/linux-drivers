@@ -1417,6 +1417,10 @@ static int cs47l15_probe(struct platform_device *pdev)
 		goto error_overheat;
 	}
 
+	ret = madera_set_irq_wake(madera, MADERA_IRQ_DSP_IRQ1, 1);
+	if (ret)
+		dev_warn(&pdev->dev, "Failed to set DSP IRQ wake: %d\n", ret);
+
 	cs47l15->core.adsp[0].part = "cs47l15";
 	cs47l15->core.adsp[0].num = 1;
 	cs47l15->core.adsp[0].type = WMFW_ADSP2;
@@ -1479,6 +1483,7 @@ error_pm_runtime:
 error_adsp:
 	wm_adsp2_remove(&cs47l15->core.adsp[0]);
 error_dsp_irq:
+	madera_set_irq_wake(madera, MADERA_IRQ_DSP_IRQ1, 0);
 	madera_free_irq(madera, MADERA_IRQ_DSP_IRQ1, cs47l15);
 error_overheat:
 	madera_free_overheat(&cs47l15->core);
@@ -1500,6 +1505,7 @@ static int cs47l15_remove(struct platform_device *pdev)
 
 	wm_adsp2_remove(&cs47l15->core.adsp[0]);
 
+	madera_set_irq_wake(cs47l15->core.madera, MADERA_IRQ_DSP_IRQ1, 0);
 	madera_free_irq(cs47l15->core.madera, MADERA_IRQ_DSP_IRQ1, cs47l15);
 	madera_free_overheat(&cs47l15->core);
 	madera_core_destroy(&cs47l15->core);

@@ -2618,6 +2618,10 @@ static int cs47l90_probe(struct platform_device *pdev)
 		goto error_core;
 	}
 
+	ret = madera_set_irq_wake(madera, MADERA_IRQ_DSP_IRQ1, 1);
+	if (ret)
+		dev_warn(&pdev->dev, "Failed to set DSP IRQ wake: %d\n", ret);
+
 	for (i = 0; i < CS47L90_NUM_ADSP; i++) {
 		cs47l90->core.adsp[i].part = "cs47l90";
 		cs47l90->core.adsp[i].num = i + 1;
@@ -2697,6 +2701,7 @@ error_pm_runtime:
 		wm_adsp2_remove(&cs47l90->core.adsp[i]);
 	}
 error_dsp_irq:
+	madera_set_irq_wake(madera, MADERA_IRQ_DSP_IRQ1, 0);
 	madera_free_irq(madera, MADERA_IRQ_DSP_IRQ1, cs47l90);
 error_core:
 	madera_core_destroy(&cs47l90->core);
@@ -2718,6 +2723,7 @@ static int cs47l90_remove(struct platform_device *pdev)
 		wm_adsp2_remove(&cs47l90->core.adsp[i]);
 	}
 
+	madera_set_irq_wake(cs47l90->core.madera, MADERA_IRQ_DSP_IRQ1, 0);
 	madera_free_irq(cs47l90->core.madera, MADERA_IRQ_DSP_IRQ1, cs47l90);
 	madera_core_destroy(&cs47l90->core);
 
