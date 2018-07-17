@@ -840,28 +840,20 @@ static bool madera_can_change_grp_rate(const struct madera_priv *priv,
 		count = priv->domain_group_ref[MADERA_DOM_GRP_ASRC2];
 		break;
 	case MADERA_ISRC_1_CTRL_1:
-		count = priv->domain_group_ref[MADERA_DOM_GRP_ISRC1_INT];
-		break;
 	case MADERA_ISRC_1_CTRL_2:
-		count = priv->domain_group_ref[MADERA_DOM_GRP_ISRC1_DEC];
+		count = priv->domain_group_ref[MADERA_DOM_GRP_ISRC1];
 		break;
 	case MADERA_ISRC_2_CTRL_1:
-		count = priv->domain_group_ref[MADERA_DOM_GRP_ISRC2_INT];
-		break;
 	case MADERA_ISRC_2_CTRL_2:
-		count = priv->domain_group_ref[MADERA_DOM_GRP_ISRC2_DEC];
+		count = priv->domain_group_ref[MADERA_DOM_GRP_ISRC2];
 		break;
 	case MADERA_ISRC_3_CTRL_1:
-		count = priv->domain_group_ref[MADERA_DOM_GRP_ISRC3_INT];
-		break;
 	case MADERA_ISRC_3_CTRL_2:
-		count = priv->domain_group_ref[MADERA_DOM_GRP_ISRC3_DEC];
+		count = priv->domain_group_ref[MADERA_DOM_GRP_ISRC3];
 		break;
 	case MADERA_ISRC_4_CTRL_1:
-		count = priv->domain_group_ref[MADERA_DOM_GRP_ISRC4_INT];
-		break;
 	case MADERA_ISRC_4_CTRL_2:
-		count = priv->domain_group_ref[MADERA_DOM_GRP_ISRC4_DEC];
+		count = priv->domain_group_ref[MADERA_DOM_GRP_ISRC4];
 		break;
 	case MADERA_OUTPUT_RATE_1:
 		count = priv->domain_group_ref[MADERA_DOM_GRP_OUT];
