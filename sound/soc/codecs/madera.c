@@ -832,16 +832,12 @@ static bool madera_can_change_grp_rate(const struct madera_priv *priv,
 		count = priv->domain_group_ref[MADERA_DOM_GRP_FX];
 		break;
 	case MADERA_ASRC1_RATE1:
-		count = priv->domain_group_ref[MADERA_DOM_GRP_ASRC1_RATE_1];
-		break;
 	case MADERA_ASRC1_RATE2:
-		count = priv->domain_group_ref[MADERA_DOM_GRP_ASRC1_RATE_2];
+		count = priv->domain_group_ref[MADERA_DOM_GRP_ASRC1];
 		break;
 	case MADERA_ASRC2_RATE1:
-		count = priv->domain_group_ref[MADERA_DOM_GRP_ASRC2_RATE_1];
-		break;
 	case MADERA_ASRC2_RATE2:
-		count = priv->domain_group_ref[MADERA_DOM_GRP_ASRC2_RATE_2];
+		count = priv->domain_group_ref[MADERA_DOM_GRP_ASRC2];
 		break;
 	case MADERA_ISRC_1_CTRL_1:
 		count = priv->domain_group_ref[MADERA_DOM_GRP_ISRC1_INT];
