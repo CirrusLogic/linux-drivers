@@ -803,14 +803,9 @@ static int clsic_alg_codec_probe(struct snd_soc_codec *codec)
 	alg->codec = codec;
 	handler->data = (void *)alg;
 
-	alg->dsp[0].codec = codec;
-	wm_adsp_queue_boot_work(&alg->dsp[0]);
-
-	alg->dsp[1].codec = codec;
-	wm_adsp_queue_boot_work(&alg->dsp[1]);
-
-	alg->dsp[2].codec = codec;
-	wm_adsp_queue_boot_work(&alg->dsp[2]);
+	wm_adsp2_codec_probe(&alg->dsp[0], codec);
+	wm_adsp2_codec_probe(&alg->dsp[1], codec);
+	wm_adsp2_codec_probe(&alg->dsp[2], codec);
 
 	return 0;
 }
@@ -825,14 +820,42 @@ static int clsic_alg_codec_remove(struct snd_soc_codec *codec)
 {
 	struct clsic_alg *alg = snd_soc_codec_get_drvdata(codec);
 
-	dev_dbg(codec->dev, "%s() %p %p.\n", __func__, codec, alg);
+	wm_adsp2_codec_remove(&alg->dsp[0], codec);
+	wm_adsp2_codec_remove(&alg->dsp[1], codec);
+	wm_adsp2_codec_remove(&alg->dsp[2], codec);
 
 	return 0;
 }
 
+/**
+ * clsic_alg_dapm_widgets[] - Here we define 3 widgets that will be created in
+ * the card creation, "DSP1 Preloader", "DSP2 Preloader", "VPU1 Preloader".
+ * Being a supply widget, and connect as a source to the main DSP widget, these
+ * widgets will be enabled when the main DSP are enabled, calling the event
+ * function set here.
+ */
+static const struct snd_soc_dapm_widget clsic_alg_dapm_widgets[] = {
+	WM_ADSP_PRELOADER("DSP1", 0, wm_halo_early_event),
+	WM_ADSP_PRELOADER("DSP2", 1, wm_halo_early_event),
+	WM_ADSP_PRELOADER("VPU1", 2, wm_halo_early_event),
+};
+
+static const struct snd_kcontrol_new clsic_alg_snd_controls[] = {
+	WM_ADSP_FW_CONTROL("DSP1", 0),
+	WM_ADSP_FW_CONTROL("DSP2", 1),
+	WM_ADSP_FW_CONTROL("VPU1", 2),
+};
+
 static const struct snd_soc_codec_driver soc_codec_clsic_alg = {
 	.probe = clsic_alg_codec_probe,
 	.remove = clsic_alg_codec_remove,
+
+	.component_driver = {
+		.controls = clsic_alg_snd_controls,
+		.num_controls = ARRAY_SIZE(clsic_alg_snd_controls),
+		.dapm_widgets = clsic_alg_dapm_widgets,
+		.num_dapm_widgets = ARRAY_SIZE(clsic_alg_dapm_widgets),
+	},
 };
 
 /**
