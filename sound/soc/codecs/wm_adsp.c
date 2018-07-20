@@ -3903,6 +3903,8 @@ int wm_halo_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		if (wm_adsp_fw[dsp->fw].num_caps != 0)
 			wm_adsp_buffer_free(dsp);
 
+		dsp->fatal_error = false;
+
 		mutex_unlock(&dsp->pwr_lock);
 
 		/* reset halo core with CORE_SOFT_REEST */
@@ -4049,7 +4051,7 @@ static int wm_adsp_compr_attach(struct wm_adsp_compr *compr)
 	 * Note this will be more complex once each DSP can support multiple
 	 * streams
 	 */
-	if (!compr->dsp->buffer)
+	if (!compr->dsp->buffer || compr->dsp->fatal_error)
 		return -EINVAL;
 
 	compr->buf = compr->dsp->buffer;
@@ -5064,6 +5066,12 @@ irqreturn_t wm_halo_wdt_expire(int irq, void *data)
 
 	adsp_warn(dsp, "WDT Expiry Fault\n");
 	wm_halo_stop_watchdog(dsp);
+
+	dsp->fatal_error = true;
+	if (dsp->compr && dsp->compr->stream) {
+		snd_compr_stop_error(dsp->compr->stream, SNDRV_PCM_STATE_XRUN);
+		snd_compr_fragment_elapsed(dsp->compr->stream);
+	}
 
 	mutex_unlock(&dsp->pwr_lock);
 
