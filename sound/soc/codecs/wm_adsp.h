@@ -87,6 +87,7 @@ struct wm_adsp {
 	bool preloaded;
 	bool booted;
 	bool running;
+	bool fatal_error;
 
 	struct list_head ctl_list;
 
