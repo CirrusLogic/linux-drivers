@@ -846,6 +846,8 @@
 #define CS40L2X_IMON_NEGFS		CS40L2X_VMON_NEGFS
 #define CS40L2X_IMON_MASK		CS40L2X_VMON_MASK
 
+#define CS40L2X_PEAK_DELAY_MS		100
+
 bool cs40l2x_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l2x_precious_reg(struct device *dev, unsigned int reg);
 
