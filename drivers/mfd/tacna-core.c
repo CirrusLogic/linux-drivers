@@ -205,7 +205,7 @@ static int tacna_soft_reset(struct tacna *tacna)
 		return ret;
 	}
 
-	usleep_range(1000, 2000);
+	usleep_range(2000, 3000);
 
 	return 0;
 }
@@ -220,7 +220,7 @@ static void tacna_disable_hard_reset(struct tacna *tacna)
 {
 	if (tacna->reset_gpio) {
 		gpiod_set_value_cansleep(tacna->reset_gpio, 1);
-		usleep_range(1000, 2000);
+		usleep_range(2000, 3000);
 	}
 }
 
@@ -237,6 +237,8 @@ static int tacna_runtime_resume(struct device *dev)
 		dev_err(tacna->dev, "Failed to enable VDD_D: %d\n", ret);
 		return ret;
 	}
+
+	usleep_range(2000, 3000);
 
 	regcache_cache_only(tacna->regmap, false);
 
