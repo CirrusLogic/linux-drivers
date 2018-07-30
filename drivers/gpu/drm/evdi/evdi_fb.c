@@ -12,7 +12,9 @@
  */
 
 #include <linux/slab.h>
+#ifdef CONFIG_FB
 #include <linux/fb.h>
+#endif /* CONFIG_FB */
 #include <linux/dma-buf.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_crtc.h>
@@ -20,7 +22,6 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include "evdi_drv.h"
-
 
 struct evdi_fbdev {
 	struct drm_fb_helper helper;
@@ -95,6 +96,7 @@ static int evdi_handle_damage(struct evdi_framebuffer *fb,
 	return 0;
 }
 
+#ifdef CONFIG_FB
 static int evdi_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	unsigned long start = vma->vm_start;
@@ -206,6 +208,7 @@ static struct fb_ops evdifb_ops = {
 	.fb_open = evdi_fb_open,
 	.fb_release = evdi_fb_release,
 };
+#endif /* CONFIG_FB */
 
 static int evdi_user_framebuffer_dirty(struct drm_framebuffer *fb,
 				       __always_unused struct drm_file *file,
@@ -291,6 +294,7 @@ evdi_framebuffer_init(struct drm_device *dev,
 	return drm_framebuffer_init(dev, &ufb->base, &evdifb_funcs);
 }
 
+#ifdef CONFIG_FB
 static int evdifb_create(struct drm_fb_helper *helper,
 			 struct drm_fb_helper_surface_size *sizes)
 {
@@ -384,7 +388,6 @@ static void evdi_fbdev_destroy(__always_unused struct drm_device *dev,
 	if (ufbdev->helper.fbdev) {
 		info = ufbdev->helper.fbdev;
 		unregister_framebuffer(info);
-
 		if (info->cmap.len)
 			fb_dealloc_cmap(&info->cmap);
 
@@ -452,6 +455,7 @@ void evdi_fbdev_unplug(struct drm_device *dev)
 		unlink_framebuffer(info);
 	}
 }
+#endif /* CONFIG_FB */
 
 int evdi_fb_get_bpp(uint32_t format)
 {

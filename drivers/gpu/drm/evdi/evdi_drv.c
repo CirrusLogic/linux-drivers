@@ -162,9 +162,11 @@ int evdi_driver_setup_early(struct drm_device *dev)
 	if (ret)
 		goto err;
 
+#ifdef CONFIG_FB
 	ret = evdi_fbdev_init(dev);
 	if (ret)
 		goto err;
+#endif /* CONFIG_FB */
 
 	ret = drm_vblank_init(dev, 1);
 	if (ret)
@@ -182,7 +184,9 @@ int evdi_driver_setup_early(struct drm_device *dev)
 	return 0;
 
 err_fb:
+#ifdef CONFIG_FB
 	evdi_fbdev_cleanup(dev);
+#endif /* CONFIG_FB */
 err:
 	kfree(evdi);
 	EVDI_ERROR("%d\n", ret);
