@@ -711,6 +711,8 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	struct wm_adsp *dsp;
 	int ret;
 
+	mutex_init(&alg->dspRateLock);
+
 	/* DSP1 */
 	dsp = &alg->dsp[0];
 	dsp->part = "cs48lv40";
