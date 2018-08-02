@@ -68,8 +68,7 @@ struct clsic_alg {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *rawMsgFile;
 #endif
-	struct wm_adsp *vpu;
-	struct wm_adsp dsp[2];
+	struct wm_adsp dsp[3];
 	struct mutex dspRateLock;
 };
 
@@ -525,7 +524,7 @@ static struct regmap_config regmap_config_alg = {
  */
 #ifdef CONFIG_DEBUG_FS
 #define CLSIC_ALG_CUSTOM_MESSAGE_MAX	PAGE_SIZE
-struct clsic_alg_custom_message_struct {
+struct clsic_alg_cstm_msg {
 	ssize_t len;
 	uint8_t buf[CLSIC_ALG_CUSTOM_MESSAGE_MAX];
 };
@@ -533,9 +532,8 @@ struct clsic_alg_custom_message_struct {
 static int clsic_alg_custom_message_open(struct inode *inode, struct file *file)
 {
 	if (file->private_data == NULL) {
-		file->private_data = kzalloc
-			(sizeof(struct clsic_alg_custom_message_struct),
-			 GFP_KERNEL);
+		file->private_data = kzalloc(sizeof(struct clsic_alg_cstm_msg),
+						    GFP_KERNEL);
 		if (file->private_data == NULL)
 			return -ENOMEM;
 	}
@@ -559,7 +557,7 @@ static ssize_t clsic_alg_custom_message_read(struct file *file,
 {
 	struct clsic_alg *alg = file_inode(file)->i_private;
 	struct clsic *clsic = alg->clsic;
-	struct clsic_alg_custom_message_struct *custom_msg = file->private_data;
+	struct clsic_alg_cstm_msg *custom_msg = file->private_data;
 	ssize_t ret;
 
 	if (custom_msg == NULL)
@@ -584,7 +582,7 @@ static ssize_t clsic_alg_custom_message_write(struct file *file,
 {
 	struct clsic_alg *alg = file_inode(file)->i_private;
 	struct clsic *clsic = alg->clsic;
-	struct clsic_alg_custom_message_struct *custom_msg = file->private_data;
+	struct clsic_alg_cstm_msg *custom_msg = file->private_data;
 	char *buf;
 	ssize_t ret;
 	union t_clsic_generic_message *msg_p;
@@ -668,7 +666,7 @@ static ssize_t clsic_alg_custom_message_write(struct file *file,
 			  ret, msg_p->bulk_rsp.hdr.err,
 			  msg_p->bulk_rsp.hdr.bulk_sz);
 		custom_msg->len = CLSIC_FIXED_MSG_SZ +
-			msg_p->bulk_rsp.hdr.bulk_sz;
+				  msg_p->bulk_rsp.hdr.bulk_sz;
 	} else {
 		clsic_dbg(clsic, "fsm ret %d err 0x%x\n",
 			  ret, msg_p->rsp.hdr.err);
@@ -713,8 +711,8 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	struct wm_adsp *dsp;
 	int ret;
 
+	/* DSP1 */
 	dsp = &alg->dsp[0];
-
 	dsp->part = "cs48lv40";
 	dsp->type = WMFW_HALO;
 	dsp->num = 1;
@@ -736,8 +734,8 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	dsp->n_rx_channels = 0;
 	dsp->n_tx_channels = 0;
 
+	/* DSP2 */
 	dsp = &alg->dsp[1];
-
 	dsp->part = "cs48lv40";
 	dsp->type = WMFW_HALO;
 	dsp->num = 2;
@@ -760,6 +758,19 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	dsp->n_rx_channels = 0;
 	dsp->n_tx_channels = 0;
 
+	/* VPU1 */
+	dsp = &alg->dsp[2];
+	dsp->part = "cs48lv40";
+	dsp->type = WMFW_VPU;
+	dsp->num = 1;
+	dsp->dev = dev;
+	dsp->mem = clsic_alg_vpu_regions;
+	dsp->regmap = alg->regmap;
+	dsp->suffix = "";
+	dsp->running = true;
+	dsp->num_mems = ARRAY_SIZE(clsic_alg_vpu_regions);
+	wm_vpu_init(dsp);
+
 	return ret;
 }
 
@@ -776,8 +787,6 @@ static int clsic_alg_codec_probe(struct snd_soc_codec *codec)
 	struct clsic_alg *alg = snd_soc_codec_get_drvdata(codec);
 	struct clsic_service *handler = alg->service;
 
-	dev_info(codec->dev, "%s() %p.\n", __func__, codec);
-
 	alg->codec = codec;
 	handler->data = (void *)alg;
 
@@ -787,8 +796,8 @@ static int clsic_alg_codec_probe(struct snd_soc_codec *codec)
 	alg->dsp[1].codec = codec;
 	wm_adsp_queue_boot_work(&alg->dsp[1]);
 
-	alg->vpu->codec = codec;
-	wm_adsp_queue_boot_work(alg->vpu);
+	alg->dsp[2].codec = codec;
+	wm_adsp_queue_boot_work(&alg->dsp[2]);
 
 	return 0;
 }
@@ -803,7 +812,7 @@ static int clsic_alg_codec_remove(struct snd_soc_codec *codec)
 {
 	struct clsic_alg *alg = snd_soc_codec_get_drvdata(codec);
 
-	dev_info(codec->dev, "%s() %p %p.\n", __func__, codec, alg);
+	dev_dbg(codec->dev, "%s() %p %p.\n", __func__, codec, alg);
 
 	return 0;
 }
@@ -840,8 +849,8 @@ static int clsic_alg_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_DEBUG_FS
 	alg->rawMsgFile = debugfs_create_file("alg_raw_message", 0600,
-						clsic->debugfs_root, alg,
-						&clsic_alg_custom_message_fops);
+					      clsic->debugfs_root, alg,
+					      &clsic_alg_custom_message_fops);
 #endif
 	mutex_init(&alg->regmapMutex);
 	regmap_config_alg.lock_arg = alg;
@@ -857,21 +866,6 @@ static int clsic_alg_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	alg->vpu = devm_kzalloc(dev, sizeof(struct wm_adsp), GFP_KERNEL);
-	if (alg->vpu == NULL)
-		return -ENOMEM;
-
-	alg->vpu->part = "cs48lv40";
-	alg->vpu->type = WMFW_VPU;
-	alg->vpu->num = 1;
-	alg->vpu->dev = dev;
-	alg->vpu->mem = clsic_alg_vpu_regions;
-	alg->vpu->regmap = alg->regmap;
-	alg->vpu->suffix = "";
-	alg->vpu->running = true;
-	alg->vpu->num_mems = ARRAY_SIZE(clsic_alg_vpu_regions);
-	wm_vpu_init(alg->vpu);
-
 	ret = clsic_alg_init_dsps(dev, alg);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to init dsps: %d.\n", ret);
@@ -884,8 +878,6 @@ static int clsic_alg_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to register codec: %d.\n", ret);
 		return ret;
 	}
-
-	dev_info(dev, "%s() Register: %p ret %d.\n", __func__, dev, ret);
 
 	return ret;
 }
@@ -901,9 +893,6 @@ static int clsic_alg_probe(struct platform_device *pdev)
 static int clsic_alg_remove(struct platform_device *pdev)
 {
 	struct clsic_alg *alg = platform_get_drvdata(pdev);
-
-	dev_info(&pdev->dev, "%s() dev %p priv %p.\n",
-		 __func__, &pdev->dev, alg);
 
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove(alg->rawMsgFile);
