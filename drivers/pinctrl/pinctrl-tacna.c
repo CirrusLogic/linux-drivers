@@ -1163,7 +1163,7 @@ static int tacna_pin_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (pdata) {
+	if (pdata && pdata->gpio_configs) {
 		ret = pinctrl_register_mappings(pdata->gpio_configs,
 						pdata->n_gpio_configs);
 		dev_err(priv->dev, "Failed to register pdata mappings (%d)\n",
