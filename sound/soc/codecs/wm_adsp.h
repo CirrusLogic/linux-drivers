@@ -117,6 +117,12 @@ struct wm_adsp {
 #endif
 };
 
+#define WM_ADSP_PRELOADER(wname, num, event_fn) \
+{	.id = snd_soc_dapm_supply, .name = wname " Preloader", \
+	.reg = SND_SOC_NOPM, .shift = num, .event = event_fn, \
+	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD, \
+	.subseq = 100, /* Ensure we run after SYSCLK supply widget */ }
+
 #define WM_ADSP1(wname, num) \
 	SND_SOC_DAPM_PGA_E(wname, SND_SOC_NOPM, num, 0, NULL, 0, \
 		wm_adsp1_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD)
@@ -127,20 +133,14 @@ struct wm_adsp {
 
 #define WM_ADSP2(wname, num, event_fn) \
 	SND_SOC_DAPM_SPK(wname " Preload", NULL), \
-{	.id = snd_soc_dapm_supply, .name = wname " Preloader", \
-	.reg = SND_SOC_NOPM, .shift = num, .event = event_fn, \
-	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD, \
-	.subseq = 100, /* Ensure we run after SYSCLK supply widget */ }, \
+	WM_ADSP_PRELOADER(wname, num, event_fn), \
 {	.id = snd_soc_dapm_out_drv, .name = wname, \
 	.reg = SND_SOC_NOPM, .shift = num, .event = wm_adsp2_event, \
 	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD }
 
 #define WM_HALO(wname, num, event_fn) \
 	SND_SOC_DAPM_SPK(wname " Preload", NULL), \
-{	.id = snd_soc_dapm_supply, .name = wname " Preloader", \
-	.reg = SND_SOC_NOPM, .shift = num, .event = event_fn, \
-	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD, \
-	.subseq = 100, /* Ensure we run after SYSCLK supply widget */ }, \
+	WM_ADSP_PRELOADER(wname, num, event_fn), \
 {	.id = snd_soc_dapm_out_drv, .name = wname, \
 	.reg = SND_SOC_NOPM, .shift = num, .event = wm_halo_event, \
 	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD }
