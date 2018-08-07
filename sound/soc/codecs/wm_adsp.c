@@ -3912,8 +3912,10 @@ int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	char preload[32];
 
-	snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->name);
-	snd_soc_dapm_disable_pin(dapm, preload);
+	if (!dsp->no_preloader) {
+		snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->name);
+		snd_soc_dapm_disable_pin(dapm, preload);
+	}
 
 	wm_adsp2_init_debugfs(dsp, codec);
 
