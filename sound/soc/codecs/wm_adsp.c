@@ -3532,8 +3532,10 @@ int wm_adsp2_component_probe(struct wm_adsp *dsp, struct snd_soc_component *comp
 {
 	char preload[32];
 
-	snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->name);
-	snd_soc_component_disable_pin(component, preload);
+	if (!dsp->no_preloader) {
+		snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->name);
+		snd_soc_component_disable_pin(component, preload);
+	}
 
 	wm_adsp2_init_debugfs(dsp, component);
 
