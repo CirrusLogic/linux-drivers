@@ -560,7 +560,7 @@ static void __maybe_unused madera_pin_dbg_show(struct pinctrl_dev *pctldev,
 	seq_printf(s, " DRV=%umA", madera_pin_unmake_drv_str(priv, conf[1]));
 
 	if (conf[0] & MADERA_GP1_IP_CFG_MASK)
-		seq_puts(s, "SCHMITT");
+		seq_puts(s, " SCHMITT");
 }
 
 static const struct pinctrl_ops madera_pin_group_ops = {
