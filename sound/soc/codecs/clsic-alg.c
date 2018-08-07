@@ -54,6 +54,12 @@ static const struct wm_adsp_region clsic_dsp2_regions[] = {
 };
 
 struct clsic_alg {
+	/*
+	 * wm_adsp struct must be the first element in codec private data
+	 * because adsp driver will cast this private data to wm_adsp to handle
+	 * dsp calls
+	 */
+	struct wm_adsp dsp[3];
 	struct clsic *clsic;
 
 	/* Instance specific information about a service handler */
@@ -68,7 +74,6 @@ struct clsic_alg {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *rawMsgFile;
 #endif
-	struct wm_adsp dsp[3];
 	struct mutex dspRateLock;
 };
 
