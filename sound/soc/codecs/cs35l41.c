@@ -68,6 +68,7 @@ struct cs35l41_private {
 	struct gpio_desc *reset_gpio;
 	struct completion global_pup_done;
 	struct completion global_pdn_done;
+	struct mutex rate_lock;
 };
 
 struct cs35l41_pll_sysclk_config {
@@ -1177,10 +1178,13 @@ static int cs35l41_dsp_init(struct cs35l41_private *cs35l41)
 	dsp->base_sysinfo = CS35L41_DSP1_SYS_ID;
 	dsp->mem = cs35l41_dsp1_regions;
 	dsp->num_mems = ARRAY_SIZE(cs35l41_dsp1_regions);
+	dsp->lock_regions = 0xFFFFFFFF;
 
 	dsp->n_rx_rates = CS35L41_DSP_N_RX_RATES;
 	dsp->n_tx_rates = CS35L41_DSP_N_TX_RATES;
-	ret = wm_halo_init(dsp);
+
+	mutex_init(&cs35l41->rate_lock);
+	ret = wm_halo_init(dsp, &cs35l41->rate_lock);
 
 	return ret;
 }
@@ -1321,6 +1325,8 @@ static int cs35l41_spi_probe(struct spi_device *spi)
 	if (cs35l41 == NULL)
 		return -ENOMEM;
 
+	mutex_init(&cs35l41->rate_lock);
+
 	spi_set_drvdata(spi, cs35l41);
 	cs35l41->regmap = devm_regmap_init_spi(spi, regmap_config);
 	if (IS_ERR(cs35l41->regmap)) {
@@ -1372,6 +1378,8 @@ static int cs35l41_i2c_probe(struct i2c_client *client,
 
 	if (cs35l41 == NULL)
 		return -ENOMEM;
+
+	mutex_init(&cs35l41->rate_lock);
 
 	cs35l41->dev = dev;
 	cs35l41->irq = client->irq;
