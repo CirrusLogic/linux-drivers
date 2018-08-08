@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/ctype.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -35,20 +36,15 @@
 #include "wm_adsp.h"
 
 #define adsp_crit(_dsp, fmt, ...) \
-	dev_crit(_dsp->dev, "%s%d: " fmt, wm_adsp_arch_text(_dsp->type), \
-		 _dsp->num, ##__VA_ARGS__)
+	dev_crit(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__)
 #define adsp_err(_dsp, fmt, ...) \
-	dev_err(_dsp->dev, "%s%d: " fmt, wm_adsp_arch_text(_dsp->type), \
-		_dsp->num, ##__VA_ARGS__)
+	dev_err(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__)
 #define adsp_warn(_dsp, fmt, ...) \
-	dev_warn(_dsp->dev, "%s%d: " fmt, wm_adsp_arch_text(_dsp->type), \
-		 _dsp->num, ##__VA_ARGS__)
+	dev_warn(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__)
 #define adsp_info(_dsp, fmt, ...) \
-	dev_info(_dsp->dev, "%s%d: " fmt, wm_adsp_arch_text(_dsp->type), \
-		 _dsp->num, ##__VA_ARGS__)
+	dev_info(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__)
 #define adsp_dbg(_dsp, fmt, ...) \
-	dev_dbg(_dsp->dev, "%s%d: " fmt, wm_adsp_arch_text(_dsp->type), \
-		_dsp->num, ##__VA_ARGS__)
+	dev_dbg(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__)
 
 #define ADSP1_CONTROL_1                   0x00
 #define ADSP1_CONTROL_2                   0x02
@@ -527,34 +523,6 @@ static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_MISC] =     "Misc",
 };
 
-static const char *wm_adsp_arch_text_lower(unsigned int type)
-{
-	switch (type) {
-	case WMFW_ADSP1:
-	case WMFW_ADSP2:
-	case WMFW_HALO:
-		return "dsp";
-	case WMFW_VPU:
-		return "vpu";
-	default:
-		return NULL;
-	}
-}
-
-static const char *wm_adsp_arch_text(unsigned int type)
-{
-	switch (type) {
-	case WMFW_ADSP1:
-	case WMFW_ADSP2:
-	case WMFW_HALO:
-		return "DSP";
-	case WMFW_VPU:
-		return "VPU";
-	default:
-		return NULL;
-	}
-}
-
 struct wm_adsp_system_config_xm_hdr {
 	__be32 sys_enable;
 	__be32 fw_id;
@@ -898,7 +866,6 @@ static void wm_adsp2_init_debugfs(struct wm_adsp *dsp,
 				  struct snd_soc_codec *codec)
 {
 	struct dentry *root = NULL;
-	char *root_name;
 	int i;
 
 	if (!codec->component.debugfs_root) {
@@ -906,13 +873,7 @@ static void wm_adsp2_init_debugfs(struct wm_adsp *dsp,
 		goto err;
 	}
 
-	root_name = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!root_name)
-		goto err;
-
-	snprintf(root_name, PAGE_SIZE, "dsp%d", dsp->num);
-	root = debugfs_create_dir(root_name, codec->component.debugfs_root);
-	kfree(root_name);
+	root = debugfs_create_dir(dsp->name, codec->component.debugfs_root);
 
 	if (!root)
 		goto err;
@@ -1673,21 +1634,13 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	switch (dsp->fw_ver) {
 	case 0:
 	case 1:
-		snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "DSP%d %s %x",
-			 dsp->num, region_name, alg_region->alg);
+		snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "%s %s %x",
+			 dsp->name, region_name, alg_region->alg);
 		subname = NULL; /* don't append subname */
-		break;
-	case 2:
-		ret = snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
-				"DSP%d%s%c %.12s %x", dsp->num,
-				dsp->suffix, *region_name,
-				fw_txt, alg_region->alg);
 		break;
 	default:
 		ret = snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
-				"%s%d%s %.12s %x",
-				wm_adsp_arch_text(dsp->type),
-				dsp->num, dsp->suffix,
+				"%s%c %.12s %x", dsp->name, *region_name,
 				fw_txt, alg_region->alg);
 		break;
 	}
@@ -2033,11 +1986,8 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		goto out;
 	}
 
-	snprintf(file, PAGE_SIZE, "%s-%s%d-%s.wmfw",
-				   dsp->part,
-				   wm_adsp_arch_text_lower(dsp->type),
-				   dsp->num,
-				   fw_txt);
+	snprintf(file, PAGE_SIZE, "%s-%s-%s.wmfw", dsp->part, dsp->fwf_name,
+		 fw_txt);
 	file[PAGE_SIZE - 1] = '\0';
 
 	ret = request_firmware(&firmware, file, dsp->dev);
@@ -2877,6 +2827,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	const struct wm_adsp_region *mem;
 	struct wm_adsp_alg_region *alg_region;
 	const char *region_name;
+	const char *fw_txt;
 	int ret, pos, blocks, type, offset, reg;
 	char *file;
 	struct wm_adsp_buf *buf;
@@ -2887,16 +2838,15 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 
 	switch (dsp->type) {
 	case WMFW_VPU:
-		snprintf(file, PAGE_SIZE, "%s-vpu%d-%s.bin",
-			 dsp->part, dsp->num,
-			 wm_vpu_fw[dsp->fw].file);
+		fw_txt = wm_vpu_fw[dsp->fw].file;
 		break;
 	default:
-		snprintf(file, PAGE_SIZE, "%s-dsp%d-%s.bin",
-			 dsp->part, dsp->num,
-			 wm_adsp_fw[dsp->fw].file);
+		fw_txt = wm_adsp_fw[dsp->fw].file;
+		break;
 	}
 
+	snprintf(file, PAGE_SIZE, "%s-%s-%s.bin", dsp->part, dsp->fwf_name,
+		 fw_txt);
 	file[PAGE_SIZE - 1] = '\0';
 
 	ret = request_firmware(&firmware, file, dsp->dev);
@@ -3071,8 +3021,38 @@ out:
 	return ret;
 }
 
+static int wm_adsp_create_name(struct wm_adsp *dsp)
+{
+	char *p;
+
+	if (!dsp->name) {
+		dsp->name = devm_kasprintf(dsp->dev, GFP_KERNEL, "DSP%d",
+					   dsp->num);
+		if (!dsp->name)
+			return -ENOMEM;
+	}
+
+	if (!dsp->fwf_name) {
+		p = devm_kstrdup(dsp->dev, dsp->name, GFP_KERNEL);
+		if (!p)
+			return -ENOMEM;
+
+		dsp->fwf_name = p;
+		for (; *p != 0; ++p)
+			*p = tolower(*p);
+	}
+
+	return 0;
+}
+
 int wm_adsp1_init(struct wm_adsp *dsp)
 {
+	int ret;
+
+	ret = wm_adsp_create_name(dsp);
+	if (ret)
+		return ret;
+
 	INIT_LIST_HEAD(&dsp->alg_regions);
 
 	mutex_init(&dsp->pwr_lock);
@@ -3564,8 +3544,7 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 	struct wm_adsp *dsp = &dsps[mc->shift-1];
 	char preload[32];
 
-	snprintf(preload, ARRAY_SIZE(preload), "DSP%u%s Preload", mc->shift,
-		 dsp->suffix);
+	snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->name);
 
 	dsp->preloaded = ucontrol->value.integer.value[0];
 
@@ -3916,11 +3895,7 @@ int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	char preload[32];
 
-	if (!dsp->suffix)
-		dsp->suffix = "";
-
-	snprintf(preload, ARRAY_SIZE(preload), "DSP%d%s Preload", dsp->num,
-		 dsp->suffix);
+	snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->name);
 	snd_soc_dapm_disable_pin(dapm, preload);
 
 	wm_adsp2_init_debugfs(dsp, codec);
@@ -3942,6 +3917,10 @@ EXPORT_SYMBOL_GPL(wm_adsp2_codec_remove);
 int wm_adsp2_init(struct wm_adsp *dsp)
 {
 	int ret;
+
+	ret = wm_adsp_create_name(dsp);
+	if (ret)
+		return ret;
 
 	switch (dsp->rev) {
 	case 0:
@@ -3973,6 +3952,12 @@ EXPORT_SYMBOL_GPL(wm_adsp2_init);
 
 int wm_halo_init(struct wm_adsp *dsp, struct mutex *rate_lock)
 {
+	int ret;
+
+	ret = wm_adsp_create_name(dsp);
+	if (ret)
+		return ret;
+
 	INIT_LIST_HEAD(&dsp->alg_regions);
 	INIT_LIST_HEAD(&dsp->ctl_list);
 	INIT_WORK(&dsp->boot_work, wm_halo_boot_work);
@@ -3989,12 +3974,20 @@ int wm_halo_init(struct wm_adsp *dsp, struct mutex *rate_lock)
 }
 EXPORT_SYMBOL_GPL(wm_halo_init);
 
-void wm_vpu_init(struct wm_adsp *vpu)
+int wm_vpu_init(struct wm_adsp *vpu)
 {
+	int ret;
+
+	ret = wm_adsp_create_name(vpu);
+	if (ret)
+		return ret;
+
 	INIT_LIST_HEAD(&vpu->alg_regions);
 	INIT_LIST_HEAD(&vpu->ctl_list);
 	INIT_WORK(&vpu->boot_work, wm_vpu_boot_work);
 	mutex_init(&vpu->pwr_lock);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(wm_vpu_init);
 
