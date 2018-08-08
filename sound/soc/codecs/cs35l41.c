@@ -968,13 +968,16 @@ static struct snd_soc_codec_driver soc_codec_dev_cs35l41 = {
 	.probe = cs35l41_codec_probe,
 	.remove = cs35l41_codec_remove,
 
-	.dapm_widgets = cs35l41_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(cs35l41_dapm_widgets),
-	.dapm_routes = cs35l41_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(cs35l41_audio_map),
+	.component_driver = {
+		.dapm_widgets = cs35l41_dapm_widgets,
+		.num_dapm_widgets = ARRAY_SIZE(cs35l41_dapm_widgets),
+		.dapm_routes = cs35l41_audio_map,
+		.num_dapm_routes = ARRAY_SIZE(cs35l41_audio_map),
 
-	.controls = cs35l41_aud_controls,
-	.num_controls = ARRAY_SIZE(cs35l41_aud_controls),
+		.controls = cs35l41_aud_controls,
+		.num_controls = ARRAY_SIZE(cs35l41_aud_controls),
+	},
+
 	.set_sysclk = cs35l41_codec_set_sysclk,
 	.ignore_pmdown_time = false,
 };
