@@ -488,7 +488,7 @@ static int esdfs_getattr(const struct path *path, struct kstat *stat,
 	esdfs_get_lower_path(dentry, &lower_path);
 
 	/* We need the lower getattr to calculate stat->blocks for us. */
-	err = vfs_getattr(&lower_path, &lower_stat, STATX_BLOCKS, AT_STATX_SYNC_AS_STAT);
+	err = vfs_getattr(&lower_path, &lower_stat, request_mask, flags);
 	if (err)
 		goto out;
 

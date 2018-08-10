@@ -114,7 +114,7 @@ static int esdfs_d_hash(const struct dentry *dentry, struct qstr *qstr)
 	name = qstr->name;
 	len = vfat_striptail_len(qstr);
 
-	hash = init_name_hash(0);
+	hash = init_name_hash(dentry);
 	while (len--)
 		hash = partial_name_hash(tolower(*name++), hash);
 	qstr->hash = end_name_hash(hash);

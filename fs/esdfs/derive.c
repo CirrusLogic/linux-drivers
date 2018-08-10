@@ -555,11 +555,12 @@ int esdfs_derive_mkdir_contents(struct dentry *dir_dentry)
 	     !ESDFS_DENTRY_IS_LINKED(dir_dentry)))
 		return 0;
 
+	esdfs_get_lower_path(dir_dentry, &lower_dir_path);
+
 	nomedia.name = ".nomedia";
 	nomedia.len = strlen(nomedia.name);
-	nomedia.hash = full_name_hash(NULL, nomedia.name, nomedia.len);
-
-	esdfs_get_lower_path(dir_dentry, &lower_dir_path);
+	nomedia.hash = full_name_hash(lower_dir_path.dentry, nomedia.name,
+				      nomedia.len);
 
 	/* check if lower has its own hash */
 	if (lower_dir_path.dentry->d_flags & DCACHE_OP_HASH)
