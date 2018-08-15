@@ -135,7 +135,7 @@ static int tacna_wait_for_boot(struct tacna *tacna)
 	if (ret == 0) {
 		/* No need to wait for boot if VDD_D didn't power off */
 		if (val & TACNA_SEEN_BOOT_DONE) {
-			dev_dbg(tacna->dev, "Already booted\n");
+			dev_warn(tacna->dev, "VDD_D didn't power off when expected\n");
 			return 0;
 		}
 	}
@@ -548,7 +548,7 @@ int tacna_dev_init(struct tacna *tacna)
 {
 	struct device *dev = tacna->dev;
 	const char *name;
-	unsigned int hwid, reg;
+	unsigned int hwid;
 	unsigned int mclk_src;
 	int (*patch_fn)(struct tacna *) = NULL;
 	const struct mfd_cell *mfd_devs;
@@ -659,26 +659,6 @@ int tacna_dev_init(struct tacna *tacna)
 
 	regcache_cache_only(tacna->regmap, false);
 
-	/*
-	 * Verify that this is a chip we know about before we
-	 * starting doing any writes to its registers
-	 */
-	ret = regmap_read(tacna->regmap, TACNA_DEVID, &reg);
-	if (ret) {
-		dev_err(dev, "Failed to read ID register: %d\n", ret);
-		goto err_reset;
-	}
-
-	switch (reg & TACNA_DEVID_MASK) {
-	case CS47L96_SILICON_ID:
-	case CS48L32_SILICON_ID:
-		break;
-	default:
-		dev_err(tacna->dev, "Unknown device ID: %x\n", reg);
-		ret = -EINVAL;
-		goto err_reset;
-	}
-
 	/* If we don't have a reset GPIO use a soft reset */
 	if (!tacna->reset_gpio) {
 		ret = tacna_soft_reset(tacna);
@@ -699,6 +679,16 @@ int tacna_dev_init(struct tacna *tacna)
 		goto err_reset;
 	}
 	hwid &= TACNA_DEVID_MASK;
+
+	switch (hwid) {
+	case CS47L96_SILICON_ID:
+	case CS48L32_SILICON_ID:
+		break;
+	default:
+		dev_err(tacna->dev, "Unknown device ID: %x\n", hwid);
+		ret = -EINVAL;
+		goto err_reset;
+	}
 
 	ret = regmap_read(tacna->regmap, TACNA_REVID, &tacna->rev);
 	if (ret) {
