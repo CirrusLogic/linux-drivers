@@ -56,12 +56,10 @@
 
 #define TACNA_HP_TUNING_INVALID		-1
 
-#define CS47L94_OUT_SEL_OUT1L_HP1	0
-#define CS47L94_OUT_SEL_OUT1R_HP1	1
-#define CS47L94_OUT_SEL_OUT1L_HP2	2
-#define CS47L94_OUT_SEL_OUT1R_HP2	3
-#define CS47L94_OUT_SEL_OUT2L_HP	4
-#define CS47L94_OUT_SEL_OUT2R_HP	5
+#define CS47L96_OUT_SEL_OUT1L_HP1	0
+#define CS47L96_OUT_SEL_OUT1R_HP1	1
+#define CS47L96_OUT_SEL_OUT1L_HP2	2
+#define CS47L96_OUT_SEL_OUT1R_HP2	3
 
 static const unsigned int tacna_cable[] = {
 	EXTCON_MECHANICAL,
@@ -285,7 +283,7 @@ static void tacna_jds_timeout_work(struct work_struct *work)
 	mutex_unlock(&info->lock);
 }
 
-static void cs47l94_extcon_hp_clamp(struct tacna_extcon *info)
+static void cs47l96_extcon_hp_clamp(struct tacna_extcon *info)
 {
 	struct tacna *tacna = info->tacna;
 	unsigned int hpd_out_sel;
@@ -299,8 +297,8 @@ static void cs47l94_extcon_hp_clamp(struct tacna_extcon *info)
 		      TACNA_HPD_OUT_SEL_SHIFT;
 
 	switch (hpd_out_sel) {
-	case CS47L94_OUT_SEL_OUT1L_HP1:
-	case CS47L94_OUT_SEL_OUT1R_HP1:
+	case CS47L96_OUT_SEL_OUT1L_HP1:
+	case CS47L96_OUT_SEL_OUT1R_HP1:
 		ret = regmap_update_bits(tacna->regmap,
 				    TACNA_OUTH_CFG2,
 				    TACNA_OUTH_HPAMP_B_FBRES_WELLBIAS_DIS_MASK |
@@ -334,8 +332,8 @@ static void cs47l94_extcon_hp_clamp(struct tacna_extcon *info)
 		usleep_range(500, 1000);
 
 		break;
-	case CS47L94_OUT_SEL_OUT1L_HP2:
-	case CS47L94_OUT_SEL_OUT1R_HP2:
+	case CS47L96_OUT_SEL_OUT1L_HP2:
+	case CS47L96_OUT_SEL_OUT1R_HP2:
 		ret = regmap_update_bits(tacna->regmap,
 					 TACNA_HP_CTRL,
 					 TACNA_OUT1R_HP2_CLAMP_EN_MASK |
@@ -346,9 +344,6 @@ static void cs47l94_extcon_hp_clamp(struct tacna_extcon *info)
 				 "Failed to clear OUT1_HP2 clamp: %d\n",
 				 ret);
 		break;
-	case CS47L94_OUT_SEL_OUT2L_HP:
-	case CS47L94_OUT_SEL_OUT2R_HP:
-		break;
 	default:
 		dev_err(info->dev,
 			"%u is not a valid HPD_OUT_SEL value.\n",
@@ -357,7 +352,7 @@ static void cs47l94_extcon_hp_clamp(struct tacna_extcon *info)
 	}
 }
 
-static void cs47l94_extcon_hp_unclamp(struct tacna_extcon *info)
+static void cs47l96_extcon_hp_unclamp(struct tacna_extcon *info)
 {
 	struct tacna *tacna = info->tacna;
 	unsigned int hpd_out_sel;
@@ -371,8 +366,8 @@ static void cs47l94_extcon_hp_unclamp(struct tacna_extcon *info)
 		      TACNA_HPD_OUT_SEL_SHIFT;
 
 	switch (hpd_out_sel) {
-	case CS47L94_OUT_SEL_OUT1L_HP1:
-	case CS47L94_OUT_SEL_OUT1R_HP1:
+	case CS47L96_OUT_SEL_OUT1L_HP1:
+	case CS47L96_OUT_SEL_OUT1R_HP1:
 		ret = regmap_update_bits(tacna->regmap,
 					 TACNA_OUTH_CFG5,
 					 TACNA_EDRE_B_MANUAL_MASK |
@@ -393,8 +388,8 @@ static void cs47l94_extcon_hp_unclamp(struct tacna_extcon *info)
 				 "Failed to update OUTH_CFG2: %d\n",
 				 ret);
 		break;
-	case CS47L94_OUT_SEL_OUT1L_HP2:
-	case CS47L94_OUT_SEL_OUT1R_HP2:
+	case CS47L96_OUT_SEL_OUT1L_HP2:
+	case CS47L96_OUT_SEL_OUT1R_HP2:
 		ret = regmap_update_bits(tacna->regmap,
 					 TACNA_HP_CTRL,
 					 TACNA_OUT1R_HP2_CLAMP_EN_MASK |
@@ -406,9 +401,6 @@ static void cs47l94_extcon_hp_unclamp(struct tacna_extcon *info)
 				 "Failed to set OUT1_HP2 clamp: %d\n",
 				 ret);
 		break;
-	case CS47L94_OUT_SEL_OUT2L_HP:
-	case CS47L94_OUT_SEL_OUT2R_HP:
-		break;
 	default:
 		dev_err(info->dev,
 			"%u is not a valid HPD_OUT_SEL value.\n",
@@ -417,7 +409,7 @@ static void cs47l94_extcon_hp_unclamp(struct tacna_extcon *info)
 	}
 }
 
-static int cs47l94_extcon_update_out1_state(struct tacna_extcon *info,
+static int cs47l96_extcon_update_out1_state(struct tacna_extcon *info,
 					    unsigned int out_state)
 {
 	struct regmap *regmap = info->tacna->regmap;
@@ -433,8 +425,8 @@ static int cs47l94_extcon_update_out1_state(struct tacna_extcon *info,
 		      TACNA_HPD_OUT_SEL_SHIFT;
 
 	switch (hpd_out_sel) {
-	case CS47L94_OUT_SEL_OUT1L_HP1:
-	case CS47L94_OUT_SEL_OUT1R_HP1:
+	case CS47L96_OUT_SEL_OUT1L_HP1:
+	case CS47L96_OUT_SEL_OUT1R_HP1:
 		reg = TACNA_OUTH_ENABLE_1;
 		mask = TACNA_OUTH_EN_MASK;
 
@@ -449,8 +441,8 @@ static int cs47l94_extcon_update_out1_state(struct tacna_extcon *info,
 		 * fall through to update OUT1, as HP1 pins are shared between
 		 * OUT1 and OUTH
 		 */
-	case CS47L94_OUT_SEL_OUT1L_HP2:
-	case CS47L94_OUT_SEL_OUT1R_HP2:
+	case CS47L96_OUT_SEL_OUT1L_HP2:
+	case CS47L96_OUT_SEL_OUT1R_HP2:
 		reg = TACNA_OUTPUT_ENABLE_1;
 		mask = 0x3;
 
@@ -486,12 +478,10 @@ static int tacna_extcon_update_out_state(struct tacna_extcon *info,
 	unsigned int reg, mask;
 
 	switch (info->tacna->type) {
-	case CS47L94:
-	case CS47L95:
 	case CS47L96:
 	case CS47L97:
 		if (info->pdata->output == 1)
-			return cs47l94_extcon_update_out1_state(info,
+			return cs47l96_extcon_update_out1_state(info,
 								out_state);
 
 		/* for outputs other than 1 (OUT1/OUTH), fall through */
@@ -530,11 +520,9 @@ static void tacna_extcon_hp_clamp(struct tacna_extcon *info)
 		dev_warn(info->dev, "Failed to write OVD_EN: %d\n", ret);
 
 	switch (tacna->type) {
-	case CS47L94:
-	case CS47L95:
 	case CS47L96:
 	case CS47L97:
-		cs47l94_extcon_hp_clamp(info);
+		cs47l96_extcon_hp_clamp(info);
 		break;
 	default:
 		break;
@@ -555,11 +543,9 @@ static void tacna_extcon_hp_unclamp(struct tacna_extcon *info)
 	tacna->hpdet_clamp[0] = false;
 
 	switch (tacna->type) {
-	case CS47L94:
-	case CS47L95:
 	case CS47L96:
 	case CS47L97:
-		cs47l94_extcon_hp_unclamp(info);
+		cs47l96_extcon_hp_unclamp(info);
 		break;
 	default:
 		break;
@@ -590,8 +576,6 @@ static const char *tacna_extcon_get_micbias(struct tacna_extcon *info)
 	unsigned int bias = info->micd_modes[info->micd_mode].bias;
 
 	switch (tacna->type) {
-	case CS47L94:
-	case CS47L95:
 	case CS47L96:
 	case CS47L97:
 		switch (bias) {
@@ -699,8 +683,6 @@ static void tacna_extcon_set_mode(struct tacna_extcon *info, int mode)
 			   TACNA_OUT1_GND_SEL_SHIFT);
 
 	switch (tacna->type) {
-	case CS47L94:
-	case CS47L95:
 	case CS47L96:
 	case CS47L97:
 		regmap_update_bits(tacna->regmap,
@@ -993,7 +975,7 @@ done:
 	return (int)ohms_x100;
 }
 
-static int cs47l94_tune_headphone(struct tacna_extcon *info, int reading)
+static int cs47l96_tune_headphone(struct tacna_extcon *info, int reading)
 {
 	unsigned int val;
 
@@ -1022,11 +1004,9 @@ static int tacna_tune_headphone(struct tacna_extcon *info, int reading)
 	}
 
 	switch (info->tacna->type) {
-	case CS47L94:
-	case CS47L95:
 	case CS47L96:
 	case CS47L97:
-		ret = cs47l94_tune_headphone(info, reading);
+		ret = cs47l96_tune_headphone(info, reading);
 		break;
 	default:
 		return 0;
