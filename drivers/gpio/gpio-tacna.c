@@ -94,10 +94,10 @@ static void tacna_gpio_set(struct gpio_chip *chip, unsigned int offset,
 static struct gpio_chip template_chip = {
 	.label			= "tacna",
 	.owner			= THIS_MODULE,
-	.direction_input	= tacna_gpio_direction_in,
-	.get			= tacna_gpio_get,
-	.direction_output	= tacna_gpio_direction_out,
-	.set			= tacna_gpio_set,
+	.direction_input	= &tacna_gpio_direction_in,
+	.get			= &tacna_gpio_get,
+	.direction_output	= &tacna_gpio_direction_out,
+	.set			= &tacna_gpio_set,
 	.can_sleep		= true,
 };
 
