@@ -13,8 +13,10 @@
 #define CIRRUS_CLSIC_RASSRV_H
 
 #include <linux/mfd/clsic/clsicmessagedefines_RAS.h>
+#include <linux/mfd/tacna/pdata.h>
 
 struct clsic_ras_struct {
+	struct tacna_pdata pdata;
 	struct clsic *clsic;
 	uint8_t service_instance;
 
