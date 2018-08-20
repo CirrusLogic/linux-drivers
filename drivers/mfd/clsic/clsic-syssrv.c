@@ -90,7 +90,101 @@ struct clsic_syssrv_struct {
 	struct clsic *clsic;
 
 	struct clsic_service *srv;
+	uint32_t trace_level;
+	uint32_t trace_mask;
 };
+
+/*
+ * There is a command that can set both the trace log level and mask in one go,
+ * however there isn't a mechanism to read what the values were before changing
+ * them so a read - modify - write message pattern can't be used.
+ *
+ * As the old values are returned in the response it would be possible to
+ * derive what the value was by issuing the command with a dummy value and then
+ * resetting it back to the original value, however the simplest design was
+ * chosen.
+ *
+ * Note; this value is not persisted by the system firmware, so if the
+ * messaging processor is shutdown then it will be lost. We can't use the
+ * suspend and resume PM hooks as we can send a message to a device that has
+ * had the messaging processor shutdown but has not been suspended.
+ */
+static int clsic_system_service_set_trace(struct clsic_syssrv_struct *syssrv)
+{
+	union clsic_sys_msg msg_cmd;
+	union clsic_sys_msg msg_rsp;
+	int ret;
+
+	clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
+			   CLSIC_SRV_INST_SYS,
+			   CLSIC_SYS_MSG_CR_SET_TRACE_FILTER);
+
+	msg_cmd.cmd_set_trace_filter.new_level = syssrv->trace_level;
+	msg_cmd.cmd_set_trace_filter.new_mask = syssrv->trace_mask;
+
+	ret = clsic_send_msg_sync(syssrv->clsic,
+				  (union t_clsic_generic_message *) &msg_cmd,
+				  (union t_clsic_generic_message *) &msg_rsp,
+				  CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
+				  CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
+
+	clsic_info(syssrv->clsic,
+		   "(err; %d) lvl: 0x%x -> 0x%x mask: 0x%x -> 0x%x\n",
+		   msg_rsp.rsp_set_trace_filter.hdr.err,
+		   msg_rsp.rsp_set_trace_filter.old_level,
+		   msg_cmd.cmd_set_trace_filter.new_level,
+		   msg_rsp.rsp_set_trace_filter.old_mask,
+		   msg_cmd.cmd_set_trace_filter.new_mask);
+
+	if (msg_rsp.rsp_set_trace_filter.hdr.err != 0)
+		ret = -EINVAL;
+
+	return ret;
+}
+
+static int clsic_system_service_set_trace_level(void *data, u64 val)
+{
+	struct clsic_syssrv_struct *syssrv = data;
+
+	syssrv->trace_level = val;
+
+	return clsic_system_service_set_trace(syssrv);
+}
+
+static int clsic_system_service_get_trace_level(void *data, u64 *val)
+{
+	struct clsic_syssrv_struct *syssrv = data;
+
+	*val = syssrv->trace_level;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(clsic_system_service_trace_level_fops,
+			 clsic_system_service_get_trace_level,
+			 clsic_system_service_set_trace_level, "%llx\n");
+
+static int clsic_system_service_set_trace_mask(void *data, u64 val)
+{
+	struct clsic_syssrv_struct *syssrv = data;
+
+	syssrv->trace_mask = val;
+
+	return clsic_system_service_set_trace(syssrv);
+}
+
+static int clsic_system_service_get_trace_mask(void *data, u64 *val)
+{
+	struct clsic_syssrv_struct *syssrv = data;
+
+	*val = syssrv->trace_mask;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(clsic_system_service_trace_mask_fops,
+			 clsic_system_service_get_trace_mask,
+			 clsic_system_service_set_trace_mask, "%llx\n");
 
 int clsic_system_service_start(struct clsic *clsic,
 			       struct clsic_service *handler)
@@ -119,6 +213,13 @@ int clsic_system_service_start(struct clsic *clsic,
 
 	syssrv->clsic = clsic;
 	syssrv->srv = handler;
+	syssrv->trace_level = CLSIC_SYSSRV_DEFAULT_TRACE_LEVEL;
+	syssrv->trace_mask = CLSIC_SYSSRV_DEFAULT_TRACE_MASK;
+
+	debugfs_create_file("sysfwtrace_level", 0220, clsic->debugfs_root,
+			    syssrv, &clsic_system_service_trace_level_fops);
+	debugfs_create_file("sysfwtrace_mask", 0220, clsic->debugfs_root,
+			    syssrv, &clsic_system_service_trace_mask_fops);
 
 	handler->callback = &clsic_system_service_handler;
 	handler->stop = &clsic_system_service_stop;

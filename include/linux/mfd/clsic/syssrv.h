@@ -23,6 +23,13 @@
 #define CLSIC_SVCVER_BLD_SHIFT	0
 #define CLSIC_SVCVER_BLD_MASK	0x0000FFFF
 
+/*
+ * The trace level and mask for the system cannot be just read so these are the
+ * current initial values.
+ */
+#define CLSIC_SYSSRV_DEFAULT_TRACE_LEVEL 0x2
+#define CLSIC_SYSSRV_DEFAULT_TRACE_MASK 0xFFFFFFFF
+
 int clsic_system_service_start(struct clsic *clsic,
 			       struct clsic_service *handler);
 
