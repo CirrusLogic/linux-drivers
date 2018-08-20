@@ -631,13 +631,7 @@ int tacna_dev_init(struct tacna *tacna)
 		goto err_pinctrl;
 	}
 
-	/*
-	 * Don't use devres here because the only device we have to get
-	 * against is the MFD device and VDD_D will likely be supplied by
-	 * one of its children. Meaning that the regulator will be
-	 * destroyed by the time devres calls regulator put.
-	 */
-	tacna->vdd_d = regulator_get(tacna->dev, "VDD_D");
+	tacna->vdd_d = devm_regulator_get(tacna->dev, "VDD_D");
 	if (IS_ERR(tacna->vdd_d)) {
 		ret = PTR_ERR(tacna->vdd_d);
 		dev_err(dev, "Failed to request VDD_D: %d\n", ret);
@@ -648,7 +642,7 @@ int tacna_dev_init(struct tacna *tacna)
 				    tacna->core_supplies);
 	if (ret) {
 		dev_err(dev, "Failed to enable core supplies: %d\n", ret);
-		goto err_vdd_d;
+		goto err_pinctrl;
 	}
 
 	ret = regulator_enable(tacna->vdd_d);
@@ -817,8 +811,6 @@ err_reset:
 	regulator_disable(tacna->vdd_d);
 err_enable:
 	regulator_bulk_disable(tacna->num_core_supplies, tacna->core_supplies);
-err_vdd_d:
-	regulator_put(tacna->vdd_d);
 err_pinctrl:
 	pinctrl_put(pinctrl);
 err_devs:
@@ -832,7 +824,6 @@ int tacna_dev_exit(struct tacna *tacna)
 	pm_runtime_disable(tacna->dev);
 
 	regulator_disable(tacna->vdd_d);
-	regulator_put(tacna->vdd_d);
 
 	mfd_remove_devices(tacna->dev);
 	tacna_enable_hard_reset(tacna);
