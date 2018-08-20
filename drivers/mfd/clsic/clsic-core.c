@@ -1026,7 +1026,32 @@ static ssize_t clsic_store_state(struct device *dev,
 		mutex_unlock(&clsic->message_lock);
 
 		clsic_pm_wake(clsic);
+	} else if (!strncmp(buf, "msgprochold", strlen("msgprochold"))) {
+		/*
+		 * Mark the messaging processor as used by the system service.
+		 *
+		 * This is useful when debugging as the normal power management
+		 * will switch off the device when it is deemed idle.
+		 *
+		 * This is not reference counted.
+		 */
+		clsic_info(clsic,
+			   "Marking messaging processor as used by system service.\n");
+		clsic_msgproc_use(clsic, CLSIC_SRV_INST_SYS);
+	} else if (!strncmp(buf, "msgprocrelease", strlen("msgprocrelease"))) {
+		/*
+		 * Clear the mark of the messaging processor being used by the
+		 * system service
+		 *
+		 * This will allow normal power management to resume.
+		 *
+		 * This is not reference counted.
+		 */
+		clsic_info(clsic,
+			   "Clearing messaging processor as used by system service mark.\n");
+		clsic_msgproc_release(clsic, CLSIC_SRV_INST_SYS);
 	}
+
 	return count;
 }
 
