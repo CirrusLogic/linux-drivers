@@ -1380,7 +1380,7 @@ static int cs48l32_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, cs48l32);
-	pdev->dev.of_node = tacna->dev->of_node;
+	pdev->dev.of_node = of_node_get(tacna->dev->of_node);
 
 	cs48l32->core.tacna = tacna;
 	cs48l32->core.dev = &pdev->dev;
