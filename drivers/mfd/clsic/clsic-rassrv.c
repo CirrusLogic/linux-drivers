@@ -63,6 +63,29 @@ static void clsic_ras_stop(struct clsic *clsic, struct clsic_service *handler)
 }
 
 /*
+ * Some of the device registers are available via an external regmap read and
+ * don't need to be sent to the RAS service, these reads are considerably more
+ * efficient than a regular RAS message exchange.
+ *
+ * In particular the codec accesses the DEVID register and FLL status bits in
+ * IRQ2_STS6 when adjusting clocks.
+ */
+static bool clsic_ras_fastread(uint32_t address)
+{
+	switch (address) {
+	case TACNA_DEVID:
+	case TACNA_REVID:
+	case TACNA_FABID:
+	case TACNA_RELID:
+	case TACNA_OTPID:
+	case CLSIC_IRQ2_STS6:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/*
  * The simple readregister and writeregister routines are the core of the
  * remote access service and they translates a simple register accesses into
  * messages sent to the remote access service present in the device.
@@ -73,12 +96,26 @@ static int clsic_ras_simple_readregister(struct clsic_ras_struct *ras,
 	struct clsic *clsic;
 	union clsic_ras_msg msg_cmd;
 	union clsic_ras_msg msg_rsp;
+	uint32_t tmp_value;
 	int ret = 0;
 
 	if (ras->suspended)
 		return -EBUSY;
 
 	clsic = ras->clsic;
+
+	if (clsic_ras_fastread(address)) {
+		ret = regmap_read(clsic->regmap, address, &tmp_value);
+		trace_clsic_ras_fastread(address, tmp_value, ret);
+
+		/*
+		 * The RAS regmap expects the value to be big endian and will
+		 * convert it to CPU native so switch it to the expected
+		 * format.
+		 */
+		*value = cpu_to_be32(tmp_value);
+		return ret;
+	}
 
 	/* Format and send a message to the remote access service */
 	clsic_init_message((union t_clsic_generic_message *)&msg_cmd,

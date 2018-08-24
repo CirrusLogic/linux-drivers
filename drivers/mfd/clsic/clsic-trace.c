@@ -23,6 +23,7 @@ EXPORT_TRACEPOINT_SYMBOL(clsic_statechange);
 EXPORT_TRACEPOINT_SYMBOL(clsic_dev_panic);
 EXPORT_TRACEPOINT_SYMBOL(clsic_ras_simplewrite);
 EXPORT_TRACEPOINT_SYMBOL(clsic_ras_simpleread);
+EXPORT_TRACEPOINT_SYMBOL(clsic_ras_fastread);
 EXPORT_TRACEPOINT_SYMBOL(clsic_ras_bulkwrite);
 EXPORT_TRACEPOINT_SYMBOL(clsic_ras_bulkread);
 EXPORT_TRACEPOINT_SYMBOL(clsic_ras_pm_handler);

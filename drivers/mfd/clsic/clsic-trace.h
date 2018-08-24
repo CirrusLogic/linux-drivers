@@ -271,6 +271,27 @@ TRACE_EVENT(clsic_ras_simpleread,
 			)
 );
 
+TRACE_EVENT(clsic_ras_fastread,
+	TP_PROTO(uint32_t address, uint32_t value, int ret),
+	TP_ARGS(address, value, ret),
+	TP_STRUCT__entry(
+			__field(uint32_t, address)
+			__field(uint32_t, value)
+			__field(int, ret)
+			),
+	TP_fast_assign(
+			__entry->address = address;
+			__entry->value = value;
+			__entry->ret = ret;
+		),
+	TP_printk(
+			"   addr: 0x%x val: 0x%x ret: %d",
+			__entry->address,
+			__entry->value,
+			__entry->ret
+			)
+);
+
 TRACE_EVENT(clsic_ras_bulkwrite,
 	TP_PROTO(uint32_t address, uint32_t count, int ret, uint8_t err),
 	TP_ARGS(address, count, ret, err),
