@@ -39,6 +39,7 @@ static bool clsic_spi_regmap_readable(struct device *dev, unsigned int reg)
 	case TACNA_SFT_RESET:
 	case TACNA_IRQ1_EINT_2:
 	case TACNA_IRQ1_MASK_2:
+	case CLSIC_IRQ2_STS6:
 	case CLSIC_FW_UPDATE_REG:
 	case TACNA_CPF1_RX_WRDATA:
 	case TACNA_CPF1_TX_GPR_STATUS1:
