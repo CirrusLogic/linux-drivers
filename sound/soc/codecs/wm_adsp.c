@@ -3509,13 +3509,7 @@ static void wm_halo_boot_work(struct work_struct *work)
 
 	dsp->booted = true;
 
-	mutex_unlock(&dsp->pwr_lock);
-
-	return;
-
 err:
-	regmap_update_bits(dsp->regmap, dsp->base + HALO_CCM_CORE_CONTROL,
-			   HALO_CORE_EN, 0);
 	mutex_unlock(&dsp->pwr_lock);
 }
 
@@ -3695,18 +3689,9 @@ int wm_halo_early_event(struct snd_soc_dapm_widget *w,
 	struct wm_adsp *dsps = snd_soc_codec_get_drvdata(codec);
 	struct wm_adsp *dsp = &dsps[w->shift];
 	struct wm_coeff_ctl *ctl;
-	int ret;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		ret = regmap_update_bits(dsp->regmap,
-					 dsp->base + HALO_CCM_CORE_CONTROL,
-					 HALO_CORE_RESET, HALO_CORE_RESET);
-		if (ret != 0) {
-			adsp_err(dsp, "Error while resetting core: %d\n", ret);
-			return ret;
-		}
-
 		queue_work(system_unbound_wq, &dsp->boot_work);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
