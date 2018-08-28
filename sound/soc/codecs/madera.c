@@ -1064,7 +1064,7 @@ static int madera_write_adsp_clk_setting(struct madera_priv *priv,
 	return 0;
 
 err:
-	dev_err(dsp->dev, "Failed to set DSP%d clock: %d\n", dsp->num, ret);
+	dev_err(dsp->dev, "Failed to set %s clock: %d\n", dsp->name, ret);
 
 	return ret;
 }
