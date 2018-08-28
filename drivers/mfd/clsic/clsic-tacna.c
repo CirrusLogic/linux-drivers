@@ -100,6 +100,9 @@ static int clsic_tacna_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_idle(&pdev->dev);
+
 	ret = mfd_add_devices(tacna->dev, PLATFORM_DEVID_NONE, clsic_tacna_devs,
 			      ARRAY_SIZE(clsic_tacna_devs), NULL, 0, NULL);
 	if (ret)
@@ -122,6 +125,7 @@ static int clsic_tacna_probe(struct platform_device *pdev)
 
 static int clsic_tacna_remove(struct platform_device *pdev)
 {
+	pm_runtime_disable(&pdev->dev);
 	mfd_remove_devices(&pdev->dev);
 
 	return 0;
