@@ -11,11 +11,9 @@
 
 #ifndef CIRRUS_CLSIC_BOOTSRV_H
 #define CIRRUS_CLSIC_BOOTSRV_H
-
 #include <linux/mfd/clsic/clsicmessagedefines_BLD.h>
 
-void clsic_bootsrv_state_handler(struct clsic *clsic);
-
+int clsic_bootsrv_state_handler(struct clsic *clsic);
 int clsic_bootsrv_service_start(struct clsic *clsic,
 				struct clsic_service *handler);
 #endif

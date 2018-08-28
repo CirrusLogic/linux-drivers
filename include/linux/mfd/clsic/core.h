@@ -252,6 +252,7 @@ struct clsic {
 	struct regulator *vdd_d;
 	struct notifier_block vdd_d_notifier;
 	bool vdd_d_powered_off;
+	struct completion pm_completion;
 
 	struct delayed_work clsic_msgproc_shutdown_work;
 	DECLARE_BITMAP(clsic_services_state, CLSIC_SERVICE_COUNT);
