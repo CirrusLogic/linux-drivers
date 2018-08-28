@@ -276,6 +276,7 @@ SOC_ENUM_EXT("IN7RAO Rate", cs47l96_ao_input_rate[5],
 	     snd_soc_get_enum_double, cs47l96_ao_in_rate_put),
 
 WM_ADSP2_PRELOAD_SWITCH("DSP1AO", 1),
+WM_ADSP_FW_CONTROL("DSP1AO", 0),
 };
 
 static const char * const cs47l96_ao_mixer_texts[] = {
@@ -1011,12 +1012,10 @@ static int cs47l96_ao_probe(struct platform_device *pdev)
 	dsp = &cs47l96_ao->core.dsp[0];
 	dsp->part = "cs47l96_ao";
 	dsp->num = 1;
-	dsp->suffix = "AO";
 	dsp->type = WMFW_HALO;
 	dsp->rev = 0;
 	dsp->dev = tacna->dev;
 	dsp->regmap = tacna->dsp_regmap[1];
-	dsp->ao_dsp = true;
 
 	dsp->base = TACNA_DSP2_CLOCK_FREQ;
 	dsp->base_sysinfo = TACNA_DSP2_SYS_INFO_ID;

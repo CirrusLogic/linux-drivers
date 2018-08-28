@@ -1992,8 +1992,8 @@ int tacna_dsp_rate_get(struct snd_kcontrol *kcontrol,
 	return 0;
 
 ovf_err:
-	dev_err(codec->dev, "DSP%u%s %cX rate control exceeds rate array\n",
-		dsp_num + 1, priv->dsp[dsp_num].suffix,
+	dev_err(codec->dev, "%s %cX rate control exceeds rate array\n",
+		priv->dsp[dsp_num].name,
 		(e->mask & TACNA_DSP_RATE_CTL_DIR_MASK) ? 'T' : 'R');
 
 	return -EINVAL;
@@ -2037,8 +2037,8 @@ int tacna_dsp_rate_put(struct snd_kcontrol *kcontrol,
 	return 0;
 
 ovf_err:
-	dev_err(codec->dev, "DSP%u%s %cX rate control exceeds rate array\n",
-		dsp_num + 1, priv->dsp[dsp_num].suffix,
+	dev_err(codec->dev, "%s %cX rate control exceeds rate array\n",
+		priv->dsp[dsp_num].name,
 		(e->mask & TACNA_DSP_RATE_CTL_DIR_MASK) ? 'T' : 'R');
 
 	return -EINVAL;
