@@ -232,9 +232,6 @@ static void clsic_complete_message_core(struct clsic *clsic,
 	    list_empty(&clsic->waiting_for_response) &&
 	    !isa_shutdown_message)
 		clsic_msgproc_shutdown_schedule(clsic);
-
-	pm_runtime_mark_last_busy(clsic->dev);
-	pm_runtime_put_autosuspend(clsic->dev);
 }
 
 /*
@@ -1358,8 +1355,6 @@ static int clsic_send_message_core(struct clsic *clsic,
 	else
 		msg->timeout = CLSIC_MSG_TIMEOUT_PERIOD;
 
-	pm_runtime_get_sync(clsic->dev);
-
 	/* Check whether messaging is limited to the bootloader service */
 	if ((clsic->blrequest != CLSIC_BL_IDLE) &&
 	    (clsic_get_servinst(msg) != CLSIC_SRV_INST_BLD)) {
@@ -1368,8 +1363,6 @@ static int clsic_send_message_core(struct clsic *clsic,
 				msleep(CLSIC_WAIT_FOR_STATE_DELAY_MS);
 
 		if (clsic->blrequest != CLSIC_BL_IDLE) {
-			pm_runtime_mark_last_busy(clsic->dev);
-			pm_runtime_put_autosuspend(clsic->dev);
 			clsic_dump_message(clsic, msg, "Can't send");
 			clsic_info(clsic, "Can't send: %s %d %d %d\n",
 				   clsic_state_to_string(clsic->state),
@@ -1389,11 +1382,8 @@ static int clsic_send_message_core(struct clsic *clsic,
 	 * on the behalf of this context and this thread will block until that
 	 * is completed.
 	 */
-	if (mutex_lock_interruptible(&clsic->message_lock)) {
-		pm_runtime_mark_last_busy(clsic->dev);
-		pm_runtime_put_autosuspend(clsic->dev);
+	if (mutex_lock_interruptible(&clsic->message_lock))
 		return -EINTR;
-	}
 
 	/* Check that it is possible to send the message */
 	switch (clsic->state) {
@@ -1404,8 +1394,6 @@ static int clsic_send_message_core(struct clsic *clsic,
 		 * being prevented from communicating with the device.
 		 */
 		mutex_unlock(&clsic->message_lock);
-		pm_runtime_mark_last_busy(clsic->dev);
-		pm_runtime_put_autosuspend(clsic->dev);
 		return -EIO;
 	default:
 		/*
@@ -1422,8 +1410,6 @@ static int clsic_send_message_core(struct clsic *clsic,
 	if (clsic_findmessage(clsic, clsic_get_srv_inst(msg->fsm.cmd.hdr.sbc),
 			      msg->fsm.cmd.hdr.msgid) != NULL) {
 		mutex_unlock(&clsic->message_lock);
-		pm_runtime_mark_last_busy(clsic->dev);
-		pm_runtime_put_autosuspend(clsic->dev);
 		return -EINVAL;
 	}
 
