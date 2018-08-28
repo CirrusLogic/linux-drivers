@@ -735,8 +735,10 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	dsp->n_tx_channels = CLSIC_DSP1_N_TX_CHANNELS;
 
 	ret = wm_halo_init(dsp, &alg->dspRateLock);
-	if (ret != 0)
+	if (ret) {
 		clsic_err(alg->clsic, "Failed to initialise DSP1\n");
+		return ret;
+	}
 
 	dsp->n_rx_channels = 0;
 	dsp->n_tx_channels = 0;
@@ -758,8 +760,10 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	dsp->n_tx_channels = CLSIC_DSP2_N_TX_CHANNELS;
 
 	ret = wm_halo_init(dsp, &alg->dspRateLock);
-	if (ret != 0)
+	if (ret) {
 		clsic_err(alg->clsic, "Failed to initialise DSP2\n");
+		return ret;
+	}
 
 	/* Number of dsp2 channels set to 0 as under management of VPU core */
 	dsp->n_rx_channels = 0;
@@ -776,9 +780,13 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	dsp->suffix = "";
 	dsp->running = true;
 	dsp->num_mems = ARRAY_SIZE(clsic_alg_vpu_regions);
-	wm_vpu_init(dsp);
+	ret = wm_vpu_init(dsp);
+	if (ret) {
+		clsic_err(alg->clsic, "Failed to initialise VPU1\n");
+		return ret;
+	}
 
-	return ret;
+	return 0;
 }
 
 /**
