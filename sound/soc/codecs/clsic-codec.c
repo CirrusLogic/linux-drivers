@@ -1995,35 +1995,9 @@ static int clsic_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int clsic_codec_runtime_resume(struct device *dev)
-{
-	struct clsic_codec *clsic_codec = dev_get_drvdata(dev);
-
-	pm_runtime_get_sync(clsic_codec->clsic->dev);
-
-	return 0;
-}
-
-static int clsic_codec_runtime_suspend(struct device *dev)
-{
-	struct clsic_codec *clsic_codec = dev_get_drvdata(dev);
-
-	pm_runtime_put_autosuspend(clsic_codec->clsic->dev);
-
-	return 0;
-}
-
-static const struct dev_pm_ops clsic_codec_pm_ops = {
-	SET_RUNTIME_PM_OPS(clsic_codec_runtime_suspend,
-			   clsic_codec_runtime_resume,
-			   NULL)
-};
-
-
 static struct platform_driver clsic_codec_driver = {
 	.driver = {
 		.name = "clsic-codec",
-		.pm = &clsic_codec_pm_ops,
 		.owner = THIS_MODULE,
 	},
 	.probe = clsic_probe,
