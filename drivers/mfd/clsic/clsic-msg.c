@@ -509,12 +509,8 @@ static ssize_t clsic_custom_message_write(struct file *file,
 	}
 
 	msg_p = (union t_clsic_generic_message *) buf;
-
-	ret = clsic_send_msg_sync(clsic,
-				  msg_p,
-				  msg_p,
-				  txbuf, txcount,
-				  rxbuf, rxcount);
+	ret = clsic_send_msg_sync_pm(clsic, msg_p, msg_p,
+				     txbuf, txcount, rxbuf, rxcount);
 
 	/*
 	 * Response gets stored in private_data automatically but we need to
