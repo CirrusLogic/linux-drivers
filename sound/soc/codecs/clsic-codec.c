@@ -1921,7 +1921,6 @@ static int clsic_probe(struct platform_device *pdev)
 
 	if (clsic_codec->host_controls_dsp2) {
 		dsp->part = "clsic";
-		dsp->suffix = "";
 		dsp->type = WMFW_HALO;
 		dsp->rev = 0;
 		dsp->regmap = clsic_codec->core.tacna->regmap;

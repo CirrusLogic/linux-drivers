@@ -726,7 +726,6 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	dsp->dev = dev;
 	dsp->mem = clsic_dsp1_regions;
 	dsp->regmap = alg->regmap;
-	dsp->suffix = "";
 	dsp->running = true;
 	dsp->num_mems = ARRAY_SIZE(clsic_dsp1_regions);
 	dsp->fw = 10; /* WM_ADSP_FW_MISC */
@@ -751,7 +750,6 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	dsp->dev = dev;
 	dsp->mem = clsic_dsp2_regions;
 	dsp->regmap = alg->regmap;
-	dsp->suffix = "";
 	dsp->running = true;
 	dsp->num_mems = ARRAY_SIZE(clsic_dsp2_regions);
 	dsp->fw = 10; /* WM_ADSP_FW_MISC */
@@ -773,11 +771,11 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	dsp = &alg->dsp[2];
 	dsp->part = "cs48lv40";
 	dsp->type = WMFW_VPU;
+	dsp->name = "VPU1";
 	dsp->num = 1;
 	dsp->dev = dev;
 	dsp->mem = clsic_alg_vpu_regions;
 	dsp->regmap = alg->regmap;
-	dsp->suffix = "";
 	dsp->running = true;
 	dsp->num_mems = ARRAY_SIZE(clsic_alg_vpu_regions);
 	ret = wm_vpu_init(dsp);
