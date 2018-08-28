@@ -371,6 +371,27 @@ int clsic_send_msg_sync(struct clsic *clsic,
 			uint8_t *rxbuf, const size_t rxsize);
 
 /*
+ * The clsic_send_msg_sync_pm() function has the same parameters and behaviour
+ * as the regular clsic_send_msg_sync() function except it is bookended with
+ * pm_runtime get and put calls
+ */
+static inline int clsic_send_msg_sync_pm(struct clsic *clsic,
+			const union t_clsic_generic_message *fsm_tx,
+			union t_clsic_generic_message *fsm_rx,
+			const uint8_t *txbuf, const size_t txsize,
+			uint8_t *rxbuf, const size_t rxsize)
+{
+	int ret;
+
+	pm_runtime_get_sync(clsic->dev);
+	ret = clsic_send_msg_sync(clsic, fsm_tx, fsm_rx,
+				  txbuf, txsize, rxbuf, rxsize);
+	pm_runtime_put_autosuspend(clsic->dev);
+
+	return ret;
+}
+
+/*
  * Asynchronous message sending - send the given message and waits until this
  * message receives an ACK or Response (unblocking the messaging protocol) at
  * which point this function returns to the caller. The caller will be notified
