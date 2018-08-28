@@ -409,7 +409,7 @@ static int clsic_bootsrv_msghandler(struct clsic *clsic,
  * The majority of the states in the handler are for sending files to the
  * bootloader after receiving a notification.
  */
-void clsic_bootsrv_state_handler(struct clsic *clsic)
+int clsic_bootsrv_state_handler(struct clsic *clsic)
 {
 	int ret = 0;
 	union clsic_bl_msg msg_rsp;
@@ -419,18 +419,18 @@ void clsic_bootsrv_state_handler(struct clsic *clsic)
 
 	switch (saved_request) {
 	case CLSIC_BL_FWU:
-		clsic_bootsrv_sendfile(clsic,
-				       CLSIC_FWFILE_FWU,
-				       CLSIC_FWTYPE_FWU,
-				       CLSIC_BL_MSG_CR_SET_FWU,
-				       &msg_rsp);
+		ret = clsic_bootsrv_sendfile(clsic,
+					     CLSIC_FWFILE_FWU,
+					     CLSIC_FWTYPE_FWU,
+					     CLSIC_BL_MSG_CR_SET_FWU,
+					     &msg_rsp);
 		break;
 	case CLSIC_BL_CPK:
-		clsic_bootsrv_sendfile(clsic,
-				       CLSIC_FWFILE_CPK,
-				       CLSIC_FWTYPE_CPK,
-				       CLSIC_BL_MSG_CR_SET_CPK,
-				       &msg_rsp);
+		ret = clsic_bootsrv_sendfile(clsic,
+					     CLSIC_FWFILE_CPK,
+					     CLSIC_FWTYPE_CPK,
+					     CLSIC_BL_MSG_CR_SET_CPK,
+					     &msg_rsp);
 		break;
 	case CLSIC_BL_MAB:
 		ret = clsic_bootsrv_sendfile(clsic,
@@ -467,6 +467,7 @@ void clsic_bootsrv_state_handler(struct clsic *clsic)
 	default:
 		clsic_err(clsic, "Unrecognised: %d\n", saved_request);
 	}
+	return ret;
 }
 
 static ssize_t clsic_show_file_fw_version(struct device *dev,
@@ -513,16 +514,6 @@ static ssize_t clsic_store_device_fw_version(struct device *dev,
 
 		pm_runtime_suspend(clsic->dev);
 		clsic_pm_wake(clsic);
-
-		/*
-		 * If the device is failing to boot, the device state may have
-		 * been set to HALTED by a boot failure notification as it
-		 * powered on; change the state to RESUMING so the bootloader
-		 * can send messages to update it.
-		 */
-		if (clsic->state == CLSIC_STATE_HALTED)
-			clsic_state_set(clsic, CLSIC_STATE_RESUMING,
-					CLSIC_STATE_CHANGE_LOCKNOTHELD);
 
 		/*
 		 * The bootloader state will be progressed in the maintenance

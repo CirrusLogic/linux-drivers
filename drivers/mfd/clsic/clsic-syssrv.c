@@ -291,6 +291,8 @@ static int clsic_system_service_reenumerate(struct clsic *clsic)
 				msg_rsp.rsp_srv_info.srv_ver;
 	}
 
+	clsic->service_states = CLSIC_ENUMERATED;
+
 	/* Services have not changed, notify all services of a restart */
 	for (tmp_instance = 0;
 	     tmp_instance < CLSIC_SRV_INST_BLD;

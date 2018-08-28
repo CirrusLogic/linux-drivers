@@ -378,6 +378,7 @@ int clsic_dev_init(struct clsic *clsic)
 
 	clsic->service_states = CLSIC_ENUMERATION_REQUIRED;
 
+	init_completion(&clsic->pm_completion);
 	pm_runtime_set_suspended(clsic->dev);
 	pm_runtime_mark_last_busy(clsic->dev);
 	pm_runtime_set_autosuspend_delay(clsic->dev, CLSIC_PM_AUTOSUSPEND_MS);
@@ -454,19 +455,22 @@ void clsic_dev_panic(struct clsic *clsic, struct clsic_message *msg)
  * context can't be used as it would block kernel boot and the messaging thread
  * can't be used as that thread is required to progress messages.
  *
- * The main tasks that this thread progresses are the main system reset and
- * service enumeration task and sending the bootloader any data it requires to
- * start or upgrade the device.
+ * The main tasks that this thread progresses are service enumeration and
+ * servicing the bootloader with any data it requires to start or upgrade the
+ * device.
+ *
+ * This thread is responsible for releasing the pm_runtime resume() context
+ * when the device is considered fully booted. It normally does that at the end
+ * after the device has had any firmware download or enumeration demands
+ * serviced, but it is also released when any error is encountered and when
+ * debugcontrol is activated when the device is switched off.
  *
  * If the device is in one of the bootloader states then call the bootloader
- * service handler to progress the system booting.  The bootloader end state
+ * service handler to progress the system booting. The bootloader end state
  * signals that the bootloader service has successfully downloaded software to
- * the device.  This is separated out into a different logical state as at this
+ * the device. This is separated out into a different logical state as at this
  * point some devices will be reset whilst on others the driver should attempt
  * service enumeration.
- *
- * If the device state is resuming then the driver is in a first touch
- * situation and should enumerate the device.
  */
 void clsic_maintenance(struct work_struct *data)
 {
@@ -478,29 +482,63 @@ void clsic_maintenance(struct work_struct *data)
 		   clsic->blrequest, clsic->service_states);
 
 	if (clsic->blrequest != CLSIC_BL_IDLE) {
-		clsic_bootsrv_state_handler(clsic);
+		if (clsic_bootsrv_state_handler(clsic) != 0) {
+			clsic_err(clsic,
+				  "Bootloader operation failed (%s s: %d b: %d)\n",
+				  clsic_state_to_string(clsic->state),
+				  clsic->service_states,
+				  clsic->blrequest);
+			goto pm_complete_exit;
+		}
 		return;
 	}
 
 	if ((clsic->state != CLSIC_STATE_RESUMING) &&
 	    (clsic->state != CLSIC_STATE_DEBUGCONTROL_REQUESTED))
-		return;
+		goto pm_complete_exit;
 
-	if (clsic->service_states == CLSIC_UNLOADING) {
-		clsic_state_set(clsic,
-				CLSIC_STATE_ON,
+	switch (clsic->service_states) {
+	case CLSIC_ENUMERATED:
+		/* Nothing to do (typical power on resume) */
+		break;
+	case CLSIC_ENUMERATION_REQUIRED:
+		/*
+		 * Perform the first device enumeration - the pm_runtime resume
+		 * context needs to be released first as enumeration is likely
+		 * to start MFD children and attempt to take the pm_runtime
+		 * lock.
+		 */
+		complete(&clsic->pm_completion);
+		/* FALLTHROUGH */
+	case CLSIC_REENUMERATION_REQUIRED:
+		clsic_system_service_enumerate(clsic);
+		break;
+	case CLSIC_UNLOADING:
+		/* Fast exit */
+		clsic_state_set(clsic, CLSIC_STATE_ON,
 				CLSIC_STATE_CHANGE_LOCKNOTHELD);
-		return;
+
+		goto pm_complete_exit;
+	default:
+		clsic_info(clsic, "Service state %d\n", clsic->service_states);
+		goto pm_complete_exit;
 	}
 
-	if (clsic_system_service_enumerate(clsic) == 0) {
-		clsic->service_states = CLSIC_ENUMERATED;
-		clsic_state_set(clsic,
-				CLSIC_STATE_ON,
-				CLSIC_STATE_CHANGE_LOCKNOTHELD);
-
+	if (clsic->service_states == CLSIC_ENUMERATED) {
 		clsic_pm_service_transition(clsic, PM_EVENT_RESUME);
+
+		clsic_state_set(clsic,
+				CLSIC_STATE_ON,
+				CLSIC_STATE_CHANGE_LOCKNOTHELD);
 	}
+
+pm_complete_exit:
+	/*
+	 * Always make sure pm_runtime is released after enumeration, in the
+	 * case of the first device enumeration this will already have been
+	 * signalled - the number of times complete is called is not important.
+	 */
+	complete(&clsic->pm_completion);
 }
 
 int clsic_dev_exit(struct clsic *clsic)
@@ -796,6 +834,9 @@ static int clsic_runtime_resume(struct device *dev)
 		else
 			clsic_soft_reset(clsic);
 	}
+
+	reinit_completion(&clsic->pm_completion);
+
 	clsic_irq_enable(clsic);
 
 	if (clsic->volatile_memory) {
@@ -803,6 +844,12 @@ static int clsic_runtime_resume(struct device *dev)
 		clsic_fwupdate_reset(clsic);
 	} else
 		schedule_work(&clsic->maintenance_handler);
+
+	/*
+	 * Wait for the system to have fully initialised, including any
+	 * firmware download and enumeration activity
+	 */
+	wait_for_completion(&clsic->pm_completion);
 
 	trace_clsic_pm(RPM_ACTIVE);
 
