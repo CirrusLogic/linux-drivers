@@ -101,11 +101,11 @@ static int clsic_alg_simple_readregister(struct clsic_alg *alg,
 	/* Clear err to avoid confusion as it is always included in the trace */
 	msg_rsp.rsp_wrreg.hdr.err = 0;
 
-	ret = clsic_send_msg_sync(alg->clsic,
-				  (union t_clsic_generic_message *) &msg_cmd,
-				  (union t_clsic_generic_message *) &msg_rsp,
-				  CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
-				  CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
+	ret = clsic_send_msg_sync_pm(alg->clsic,
+				     (union t_clsic_generic_message *) &msg_cmd,
+				     (union t_clsic_generic_message *) &msg_rsp,
+				     CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
+				     CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
 
 	/*
 	 *  Clients to this function can't interpret detailed error codes so
@@ -168,11 +168,11 @@ static int clsic_alg_simple_writeregister(struct clsic_alg *alg,
 	/* Clear err to avoid confusion as it is always included in the trace */
 	msg_rsp.rsp_wrreg.hdr.err = 0;
 
-	ret = clsic_send_msg_sync(clsic,
-				  (union t_clsic_generic_message *) &msg_cmd,
-				  (union t_clsic_generic_message *) &msg_rsp,
-				  CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
-				  CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
+	ret = clsic_send_msg_sync_pm(clsic,
+				     (union t_clsic_generic_message *) &msg_cmd,
+				     (union t_clsic_generic_message *) &msg_rsp,
+				     CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
+				     CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
 	/*
 	 *  Clients to this function can't interpret detailed error codes so
 	 *  map error to -EIO
@@ -244,7 +244,7 @@ static int clsic_alg_read(void *context, const void *reg_buf,
 		msg_cmd.cmd_rdreg_bulk.addr = reg + i;
 		msg_cmd.cmd_rdreg_bulk.byte_count = frag_sz;
 
-		ret = clsic_send_msg_sync(
+		ret = clsic_send_msg_sync_pm(
 				    clsic,
 				    (union t_clsic_generic_message *) &msg_cmd,
 				    (union t_clsic_generic_message *) &msg_rsp,
@@ -364,7 +364,7 @@ static int clsic_alg_write(void *context, const void *val_buf,
 		 */
 		msg_rsp.rsp_wrreg.hdr.err = 0;
 
-		ret = clsic_send_msg_sync(
+		ret = clsic_send_msg_sync_pm(
 				    clsic,
 				    (union t_clsic_generic_message *) &msg_cmd,
 				    (union t_clsic_generic_message *) &msg_rsp,
@@ -656,8 +656,8 @@ static ssize_t clsic_alg_custom_message_write(struct file *file,
 #ifdef CONFIG_DEBUG_FS
 	mutex_lock(&alg->regmapMutex);
 #endif
-	ret = clsic_send_msg_sync(clsic, msg_p, msg_p, txbuf, txcount,
-							    rxbuf, rxcount);
+	ret = clsic_send_msg_sync_pm(clsic, msg_p, msg_p, txbuf, txcount,
+				     rxbuf, rxcount);
 #ifdef CONFIG_DEBUG_FS
 	mutex_unlock(&alg->regmapMutex);
 #endif
