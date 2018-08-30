@@ -58,8 +58,6 @@ struct cs40l2x_private {
 	unsigned int cp_trigger_index;
 	unsigned int cp_trailer_index;
 	unsigned int num_waves;
-	unsigned int fw_id_match;
-	unsigned int fw_rev_min;
 	unsigned int wt_limit_xm;
 	unsigned int wt_limit_ym;
 	bool vibe_init_success;
@@ -90,6 +88,7 @@ struct cs40l2x_private {
 	int ipp_measured;
 	bool asp_enable;
 	struct hrtimer asp_timer;
+	const struct cs40l2x_fw_desc *fw_desc;
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 	struct timed_output_dev timed_dev;
 	struct hrtimer vibe_timer;
@@ -109,11 +108,6 @@ static const char * const cs40l2x_part_nums[] = {
 	"CS40L25",
 	"CS40L25A",
 	"CS40L25B",
-};
-
-static const char * const cs40l2x_coeff_files[] = {
-	"cs40l20.bin",
-	"cs40l25a_exc.bin",
 };
 
 static const char * const cs40l2x_event_regs[] = {
@@ -137,6 +131,20 @@ static const unsigned int cs40l2x_event_masks[] = {
 	CS40L2X_EVENT_READY_ENABLED,
 	CS40L2X_EVENT_HARDWARE_ENABLED,
 };
+
+static const struct cs40l2x_fw_desc *cs40l2x_firmware_match(
+			struct cs40l2x_private *cs40l2x, unsigned int fw_id)
+{
+	int i;
+
+	for (i = 0; i < CS40L2X_NUM_FW_FAMS; i++)
+		if (cs40l2x_fw_fam[i].id == fw_id)
+			return &cs40l2x_fw_fam[i];
+
+	dev_err(cs40l2x->dev, "No matching firmware for ID 0x%06X\n", fw_id);
+
+	return NULL;
+}
 
 static struct cs40l2x_private *cs40l2x_get_private(struct device *dev)
 {
@@ -3110,13 +3118,13 @@ static int cs40l2x_coeff_init(struct cs40l2x_private *cs40l2x)
 		return -EINVAL;
 	}
 
-	if (cs40l2x->algo_info[0].id != cs40l2x->fw_id_match) {
+	if (cs40l2x->algo_info[0].id != cs40l2x->fw_desc->id) {
 		dev_err(dev, "Invalid firmware ID: 0x%06X\n",
 				cs40l2x->algo_info[0].id);
 		return -EINVAL;
 	}
 
-	if (cs40l2x->algo_info[0].rev < cs40l2x->fw_rev_min) {
+	if (cs40l2x->algo_info[0].rev < cs40l2x->fw_desc->min_rev) {
 		dev_err(dev, "Invalid firmware revision: %d.%d.%d\n",
 				(cs40l2x->algo_info[0].rev & 0xFF0000) >> 16,
 				(cs40l2x->algo_info[0].rev & 0xFF00) >> 8,
@@ -3669,7 +3677,7 @@ static void cs40l2x_coeff_file_load(const struct firmware *fw, void *context)
 	num_coeff_files = ++(cs40l2x->num_coeff_files);
 	mutex_unlock(&cs40l2x->lock);
 
-	if (num_coeff_files == ARRAY_SIZE(cs40l2x_coeff_files)) {
+	if (num_coeff_files == cs40l2x->fw_desc->num_coeff_files) {
 		ret = cs40l2x_dsp_pre_config(cs40l2x);
 		if (ret)
 			return;
@@ -3855,10 +3863,10 @@ static void cs40l2x_firmware_load(const struct firmware *fw, void *context)
 	if (ret)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(cs40l2x_coeff_files); i++)
+	for (i = 0; i < cs40l2x->fw_desc->num_coeff_files; i++)
 		request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
-				cs40l2x_coeff_files[i], dev, GFP_KERNEL,
-				cs40l2x, cs40l2x_coeff_file_load);
+				cs40l2x->fw_desc->coeff_files[i], dev,
+				GFP_KERNEL, cs40l2x, cs40l2x_coeff_file_load);
 }
 
 static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
@@ -4140,44 +4148,6 @@ static const struct reg_sequence cs40l2x_mpu_config[] = {
 	{CS40L2X_DSP1_MPU_LOCK_CONFIG,	0x00000000}
 };
 
-static int cs40l2x_dsp_load(struct cs40l2x_private *cs40l2x)
-{
-	int ret;
-	unsigned int revid = cs40l2x->revid;
-	struct regmap *regmap = cs40l2x->regmap;
-	struct device *dev = cs40l2x->dev;
-
-	switch (revid) {
-	case CS40L2X_REVID_A0:
-	case CS40L2X_REVID_B0:
-		ret = regmap_multi_reg_write(regmap, cs40l2x_mpu_config,
-				ARRAY_SIZE(cs40l2x_mpu_config));
-		if (ret) {
-			dev_err(dev, "Failed to configure MPU\n");
-			return ret;
-		}
-
-		cs40l2x->fw_id_match = CS40L2X_FW_ID_MATCH_A0;
-		cs40l2x->fw_rev_min = CS40L2X_FW_REV_MIN_A0;
-
-		request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
-				CS40L2X_FW_NAME_A0, dev, GFP_KERNEL, cs40l2x,
-				cs40l2x_firmware_load);
-		return 0;
-	case CS40L2X_REVID_B1:
-		cs40l2x->fw_id_match = CS40L2X_FW_ID_MATCH_B1;
-		cs40l2x->fw_rev_min = CS40L2X_FW_REV_MIN_B1;
-
-		request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
-				CS40L2X_FW_NAME_B1, dev, GFP_KERNEL, cs40l2x,
-				cs40l2x_firmware_load);
-		return 0;
-	default:
-		dev_err(dev, "No firmware defined for revision %02X\n", revid);
-		return -EINVAL;
-	}
-}
-
 static const struct reg_sequence cs40l2x_pcm_routing[] = {
 	{CS40L2X_DAC_PCM1_SRC,		CS40L2X_DAC_PCM1_SRC_DSP1TX1},
 	{CS40L2X_DSP1_RX1_SRC,		CS40L2X_DSP1_RXn_SRC_ASPRX1},
@@ -4264,6 +4234,16 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 	if (ret) {
 		dev_err(dev, "Failed to sequence amplifier volume control\n");
 		return ret;
+	}
+
+	/* revisions A0 and B0 require MPU to be configured manually */
+	if (cs40l2x->revid < CS40L2X_REVID_B1) {
+		ret = regmap_multi_reg_write(regmap, cs40l2x_mpu_config,
+				ARRAY_SIZE(cs40l2x_mpu_config));
+		if (ret) {
+			dev_err(dev, "Failed to configure MPU\n");
+			return ret;
+		}
 	}
 
 	/* hibernation is supported by revision B1 firmware only */
@@ -4671,7 +4651,7 @@ static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
 	struct regmap *regmap = cs40l2x->regmap;
 	struct device *dev = cs40l2x->dev;
 	unsigned int val, devid, revid;
-	unsigned int part_num_index;
+	unsigned int part_num_index, fw_id;
 	int otp_timeout = CS40L2X_OTP_TIMEOUT_COUNT;
 	int ret;
 
@@ -4721,6 +4701,8 @@ static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
 	switch (devid) {
 	case CS40L2X_DEVID_L20:
 		part_num_index = 0;
+		fw_id = CS40L2X_FW_ID_ORIG;
+
 		if (revid != CS40L2X_REVID_A0)
 			goto err_revid;
 
@@ -4738,6 +4720,8 @@ static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
 		break;
 	case CS40L2X_DEVID_L25:
 		part_num_index = 1;
+		fw_id = CS40L2X_FW_ID_ORIG;
+
 		if (revid != CS40L2X_REVID_B0)
 			goto err_revid;
 
@@ -4761,6 +4745,8 @@ static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
 	case CS40L2X_DEVID_L25A:
 	case CS40L2X_DEVID_L25B:
 		part_num_index = devid - CS40L2X_DEVID_L25A + 2;
+		fw_id = CS40L2X_FW_ID_REMAP;
+
 		if (revid < CS40L2X_REVID_B1)
 			goto err_revid;
 
@@ -4796,6 +4782,10 @@ static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
 		dev_err(dev, "Unrecognized device ID: 0x%06X\n", devid);
 		return -ENODEV;
 	}
+
+	cs40l2x->fw_desc = cs40l2x_firmware_match(cs40l2x, fw_id);
+	if (!cs40l2x->fw_desc)
+		return -EINVAL;
 
 	dev_info(dev, "Cirrus Logic %s revision %02X\n",
 			cs40l2x_part_nums[part_num_index], revid);
@@ -5006,9 +4996,9 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	if (ret)
 		goto err;
 
-	ret = cs40l2x_dsp_load(cs40l2x);
-	if (ret)
-		goto err;
+	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+			cs40l2x->fw_desc->fw_file, dev, GFP_KERNEL, cs40l2x,
+			cs40l2x_firmware_load);
 
 	return 0;
 err:
