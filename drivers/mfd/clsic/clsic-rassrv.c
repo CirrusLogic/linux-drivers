@@ -439,29 +439,30 @@ static struct mfd_cell clsic_devs[] = {
 };
 
 /*
- * The RAS service does nothing when we receive a notification that the device
- * has suspended
+ * When the device is suspended the exposed regmap is set so that the cache is
+ * used for accesses and clients using the regmap can read and write values
+ * without causing the device to switch on.
  *
- * The driver used to switch the regmap into cache_only and marked the cache as
- * dirty, but this caused some downstream drivers to have failed regmap calls.
- *
- * On resume, marking the cache as dirty and calling sync recommits the
- * previous contents of the regmap cache
+ * When the device is resumed, the cache is recommited to the device and client
+ * accesses cause RAS messages to be sent.
  */
 static int clsic_ras_pm_handler(struct clsic_service *handler, int pm_event)
 {
 	struct clsic_ras_struct *ras;
+	int ret = 0;
 
 	/* Will always be populated when this handler could be called */
 	ras = handler->data;
 
 	switch (pm_event) {
 	case PM_EVENT_SUSPEND:
+		regcache_cache_only(ras->regmap, true);
+		regcache_mark_dirty(ras->regmap);
 		break;
 
 	case PM_EVENT_RESUME:
-		regcache_mark_dirty(ras->regmap);
-		regcache_sync(ras->regmap);
+		regcache_cache_only(ras->regmap, false);
+		ret = regcache_sync(ras->regmap);
 		break;
 
 	default:
@@ -472,7 +473,7 @@ static int clsic_ras_pm_handler(struct clsic_service *handler, int pm_event)
 
 	trace_clsic_ras_pm_handler(pm_event);
 
-	return 0;
+	return ret;
 }
 
 /*
