@@ -1003,6 +1003,10 @@ static int cs47l96_ao_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = tacna_set_irq_wake(tacna, TACNA_IRQ_DSP2_IRQ0, 1);
+	if(ret)
+		dev_warn(&pdev->dev, "Failed to set DSP IRQ wake: %d\n", ret);
+
 	dsp = &cs47l96_ao->core.dsp[0];
 	dsp->part = "cs47l96_ao";
 	dsp->num = 1;
@@ -1087,6 +1091,7 @@ error_mpu_irq:
 error_dsp_core:
 	wm_adsp2_remove(&cs47l96_ao->core.dsp[0]);
 error_dsp1ao_irq0:
+	tacna_set_irq_wake(tacna, TACNA_IRQ_DSP2_IRQ0, 0);
 	tacna_free_irq(tacna, TACNA_IRQ_DSP2_IRQ0, cs47l96_ao);
 
 	return ret;
@@ -1105,6 +1110,8 @@ static int cs47l96_ao_remove(struct platform_device *pdev)
 		       &cs47l96_ao->core.dsp[0]);
 	tacna_free_irq(tacna, TACNA_IRQ_DSP2_MPU_ERR,
 		       &cs47l96_ao->core.dsp[0]);
+
+	tacna_set_irq_wake(tacna, TACNA_IRQ_DSP2_IRQ0, 0);
 	tacna_free_irq(tacna, TACNA_IRQ_DSP2_IRQ0, cs47l96_ao);
 
 	wm_adsp2_remove(&cs47l96_ao->core.dsp[0]);
