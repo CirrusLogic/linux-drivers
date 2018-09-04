@@ -1014,6 +1014,12 @@ static ssize_t clsic_store_state(struct device *dev,
 
 		pm_runtime_suspend(clsic->dev);
 
+		if (clsic_wait_for_state(clsic, CLSIC_STATE_OFF,
+				 CLSIC_WAIT_FOR_STATE_MAX_CYCLES,
+				 CLSIC_WAIT_FOR_STATE_DELAY_MS))
+			clsic_info(clsic, "Warning: state is %s\n",
+				   clsic_state_to_string(clsic->state));
+
 		mutex_lock(&clsic->message_lock);
 		clsic->service_states = CLSIC_REENUMERATION_REQUIRED;
 		clsic_purge_message_queues(clsic);
