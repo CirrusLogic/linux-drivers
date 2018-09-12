@@ -129,6 +129,7 @@ static int tacna_gpio_probe(struct platform_device *pdev)
 	if (!tacna_gpio)
 		return -ENOMEM;
 
+	platform_set_drvdata(pdev, tacna_gpio);
 	tacna_gpio->tacna = tacna;
 	tacna_gpio->gpio_chip = template_chip;
 
