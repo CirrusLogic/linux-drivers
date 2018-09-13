@@ -869,20 +869,20 @@ static int clsic_alg_probe(struct platform_device *pdev)
 				       &regmap_config_alg);
 	if (IS_ERR(alg->regmap)) {
 		ret = PTR_ERR(alg->regmap);
-		dev_err(dev, "Failed to allocate register map: %d\n", ret);
+		clsic_err(clsic, "Failed to allocate register map: %d\n", ret);
 		return ret;
 	}
 
 	ret = clsic_alg_init_dsps(dev, alg);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to init dsps: %d.\n", ret);
+	if (ret) {
+		clsic_err(clsic, "Failed to init dsps: %d.\n", ret);
 		return ret;
 	}
 
 	/* Register codec with the ASoC core */
 	ret = snd_soc_register_codec(dev, &soc_codec_clsic_alg, NULL, 0);
-	if (ret < 0) {
-		dev_err(dev, "Failed to register codec: %d.\n", ret);
+	if (ret) {
+		clsic_err(clsic, "Failed to register codec: %d.\n", ret);
 		return ret;
 	}
 
