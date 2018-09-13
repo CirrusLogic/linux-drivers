@@ -1916,14 +1916,14 @@ static int clsic_probe(struct platform_device *pdev)
 
 	/* TODO: initialise dsp2 MPU error interrupt */
 	dsp = &clsic_codec->core.dsp[1];
+	dsp->num = 2;
+	dsp->dev = clsic_codec->core.tacna->dev;
 
 	if (clsic_codec->host_controls_dsp2) {
 		dsp->part = "clsic";
-		dsp->num = 2;
 		dsp->suffix = "";
 		dsp->type = WMFW_HALO;
 		dsp->rev = 0;
-		dsp->dev = clsic_codec->core.tacna->dev;
 		dsp->regmap = clsic_codec->core.tacna->regmap;
 
 		dsp->base = TACNA_DSP2_CLOCK_FREQ;
