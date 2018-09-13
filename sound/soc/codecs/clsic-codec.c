@@ -1914,18 +1914,6 @@ static int clsic_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* A mini setup for DSP1 as wm_halo_init() creates rate caches */
-	dsp = &clsic_codec->core.dsp[0];
-	dsp->n_rx_channels = CLSIC_DSP1_N_RX_CHANNELS;
-	dsp->n_tx_channels = CLSIC_DSP1_N_TX_CHANNELS;
-	ret = wm_halo_init(dsp, &clsic_codec->core.rate_lock);
-	if (ret != 0)
-		dev_err(&pdev->dev, "Failed to initialise DSP1.\n");
-
-	/* Number of dsp1 channels set to 0 as under management of VPU core */
-	dsp->n_rx_channels = 0;
-	dsp->n_tx_channels = 0;
-
 	/* TODO: initialise dsp2 MPU error interrupt */
 	dsp = &clsic_codec->core.dsp[1];
 
