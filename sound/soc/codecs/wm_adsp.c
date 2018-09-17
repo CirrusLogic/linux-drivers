@@ -502,13 +502,6 @@ static void wm_adsp_buf_free(struct list_head *list)
 
 #define WM_ADSP_NUM_FW      11
 
-#define WM_VPU_FW_MISC      0
-#define WM_VPU_NUM_FW       1
-
-static const char *wm_vpu_fw_text[WM_VPU_NUM_FW] = {
-	[WM_VPU_FW_MISC] =	"Misc",
-};
-
 static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_MBC_VSS] =  "MBC/VSS",
 	[WM_ADSP_FW_HIFI] =     "MasterHiFi",
@@ -719,12 +712,6 @@ static const struct {
 	},
 	[WM_ADSP_FW_SPK_PROT] = { .file = "spk-prot" },
 	[WM_ADSP_FW_MISC] =     { .file = "misc" },
-};
-
-static const struct {
-	const char *file;
-} wm_vpu_fw[WM_VPU_NUM_FW] = {
-	[WM_VPU_FW_MISC] =      { .file = "misc" },
 };
 
 struct wm_coeff_ctl_ops {
@@ -1617,19 +1604,7 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 		return -EINVAL;
 	}
 
-	switch (dsp->type) {
-	case WMFW_VPU:
-		fw_txt = wm_vpu_fw_text[dsp->fw];
-		break;
-	case WMFW_ADSP1:
-	case WMFW_ADSP2:
-	case WMFW_HALO:
-		fw_txt = wm_adsp_fw_text[dsp->fw];
-		break;
-	default:
-		adsp_err(dsp, "Unknown Architecture type: %d\n", dsp->type);
-		return -EINVAL;
-	}
+	fw_txt = wm_adsp_fw_text[dsp->fw];
 
 	switch (dsp->fw_ver) {
 	case 0:
@@ -1965,29 +1940,13 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 	unsigned int reg;
 	int regions = 0;
 	int ret, offset, type, sizes;
-	const char *fw_txt;
 
 	file = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (file == NULL)
 		return -ENOMEM;
 
-	switch (dsp->type) {
-	case WMFW_VPU:
-		fw_txt = wm_vpu_fw[dsp->fw].file;
-		break;
-	case WMFW_ADSP1:
-	case WMFW_ADSP2:
-	case WMFW_HALO:
-		fw_txt = wm_adsp_fw[dsp->fw].file;
-		break;
-	default:
-		adsp_err(dsp, "Unknown Architecture type: %d\n", dsp->type);
-		ret = -EINVAL;
-		goto out;
-	}
-
 	snprintf(file, PAGE_SIZE, "%s-%s-%s.wmfw", dsp->part, dsp->fwf_name,
-		 fw_txt);
+		 wm_adsp_fw[dsp->fw].file);
 	file[PAGE_SIZE - 1] = '\0';
 
 	ret = request_firmware(&firmware, file, dsp->dev);
@@ -2242,23 +2201,9 @@ static void wm_adsp_ctl_fixup_base(struct wm_adsp *dsp,
 				  const struct wm_adsp_alg_region *alg_region)
 {
 	struct wm_coeff_ctl *ctl;
-	const char *fw_txt;
-
-	switch (dsp->type) {
-	case WMFW_VPU:
-		fw_txt = wm_vpu_fw_text[dsp->fw];
-		break;
-	case WMFW_ADSP1:
-	case WMFW_ADSP2:
-	case WMFW_HALO:
-		fw_txt = wm_adsp_fw_text[dsp->fw];
-		break;
-	default:
-		return;
-	}
 
 	list_for_each_entry(ctl, &dsp->ctl_list, list) {
-		if (ctl->fw_name == fw_txt &&
+		if (ctl->fw_name == wm_adsp_fw_text[dsp->fw] &&
 		    alg_region->alg == ctl->alg_region.alg &&
 		    alg_region->type == ctl->alg_region.type) {
 			ctl->alg_region.base = alg_region->base;
@@ -2827,7 +2772,6 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	const struct wm_adsp_region *mem;
 	struct wm_adsp_alg_region *alg_region;
 	const char *region_name;
-	const char *fw_txt;
 	int ret, pos, blocks, type, offset, reg;
 	char *file;
 	struct wm_adsp_buf *buf;
@@ -2836,17 +2780,8 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	if (file == NULL)
 		return -ENOMEM;
 
-	switch (dsp->type) {
-	case WMFW_VPU:
-		fw_txt = wm_vpu_fw[dsp->fw].file;
-		break;
-	default:
-		fw_txt = wm_adsp_fw[dsp->fw].file;
-		break;
-	}
-
 	snprintf(file, PAGE_SIZE, "%s-%s-%s.bin", dsp->part, dsp->fwf_name,
-		 fw_txt);
+		 wm_adsp_fw[dsp->fw].file);
 	file[PAGE_SIZE - 1] = '\0';
 
 	ret = request_firmware(&firmware, file, dsp->dev);
