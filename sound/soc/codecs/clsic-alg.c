@@ -729,6 +729,7 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	dsp->running = true;
 	dsp->num_mems = ARRAY_SIZE(clsic_dsp1_regions);
 	dsp->fw = 10; /* WM_ADSP_FW_MISC */
+	dsp->no_preloader = true;
 
 	dsp->n_rx_channels = CLSIC_DSP1_N_RX_CHANNELS;
 	dsp->n_tx_channels = CLSIC_DSP1_N_TX_CHANNELS;
@@ -753,6 +754,7 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	dsp->running = true;
 	dsp->num_mems = ARRAY_SIZE(clsic_dsp2_regions);
 	dsp->fw = 10; /* WM_ADSP_FW_MISC */
+	dsp->no_preloader = true;
 
 	dsp->n_rx_channels = CLSIC_DSP2_N_RX_CHANNELS;
 	dsp->n_tx_channels = CLSIC_DSP2_N_TX_CHANNELS;
@@ -778,6 +780,7 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	dsp->regmap = alg->regmap;
 	dsp->running = true;
 	dsp->num_mems = ARRAY_SIZE(clsic_alg_vpu_regions);
+	dsp->no_preloader = true;
 	ret = wm_vpu_init(dsp);
 	if (ret) {
 		clsic_err(alg->clsic, "Failed to initialise VPU1\n");
