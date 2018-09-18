@@ -1,0 +1,98 @@
+Cirrus Logic Tacna class audio codecs pinctrl driver
+
+The Cirrus Logic Tacna codecs provide a number of GPIO functions for
+interfacing to external hardware and to provide logic outputs to other devices.
+Certain groups of GPIO pins also have an alternate function, normally as an
+audio interface.
+
+The set of available GPIOs, functions and alternate function groups differs
+between codecs so refer to the datasheet for the codec for further information
+on what is supported on that device.
+
+The properties for this driver must exist within the parent MFD driver node.
+See bindings/mfd/tacna.txt.
+
+See also
+  the core bindings for the parent MFD driver:
+    Documentation/devicetree/bindings/mfd/tacna.txt
+
+  the generic pinmix bindings:
+    Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
+
+Required properties of configuration subnodes:
+  - groups : name of one pin group to configure. One of:
+        asp2, asp3, asp4, dsd1, in1-pdm, in2-pdm, in3-pdm, in4-pdm, out5-pdm,
+        gpio1, gpio2, ..., gpio23
+    The gpioN groups select the single pin of this name for configuration
+
+Optional properties of configuration subnodes:
+  Any configuration option not explicitly listed in the dts will be left at
+  chip default setting.
+
+  - function : name of function to assign to this group. One of (actual
+    available will differ from codec to codec, refer to the datasheet for
+    more information):
+        asp1, asp2, asp3, asp4, asp1ao, dsd1, in1-pdm, in2-pdm, in3-pdm,
+        in4-pdm, out5-pdm, io, dsp-gpio, irq1,
+        fll1-clk, fll1-lock, fll2-clk, fll2-lock, fll3-clk, fll3-lock,
+        opclk, opclk-async, opclk-dsp,
+        pwm1-out, pwm2-out,
+        input-path-signal-detect,
+        ultrasonic-in1-activity-detect, ultrasonic-in2-activity-detect,
+        asrc1-in1-lock, asrc1-in2-lock,
+        dfc1-saturate,
+        dma-ch0-programmable-transfer-complete,
+        dma-ch1-programmable-transfer-complete,
+        dma-ch2-programmable-transfer-complete,
+        dma-ch3-programmable-transfer-complete,
+        dma-ch4-programmable-transfer-complete,
+        dma-ch5-programmable-transfer-complete,
+        dma-ch6-programmable-transfer-complete,
+        dma-ch7-programmable-transfer-complete,
+        out1r-hp1-enable-disable-sequence, out1l-hp1-enable-disable-sequence,
+        out1r-hp2-enable-disable-sequence, out1l-hp2-enable-disable-sequence,
+        out2r-enable-disable-sequence, out2l-enable-disable-sequence,
+        outh-enable-disable-sequence,
+        sample-rate-change-trigger-a, sample-rate-change-trigger-b,
+        sample-rate-change-trigger-c, sample-rate-change-trigger-d,
+        timer1-irq-ch1, timer1-irq-ch2, timer1-irq-ch3, timer1-irq-ch4,
+        timer2-irq-ch1, timer2-irq-ch2, timer2-irq-ch3, timer2-irq-ch4,
+        timer3-irq-ch1, timer3-irq-ch2, timer3-irq-ch3, timer3-irq-ch4,
+        timer4-irq-ch1, timer4-irq-ch2, timer4-irq-ch3, timer4-irq-ch4,
+        timer5-irq-ch1, timer5-irq-ch2, timer5-irq-ch3, timer5-irq-ch4,
+        timer-1, timer-2, timer-3, timer-4, timer-5
+
+  - bias-disable : disable pull-up and pull-down
+  - bias-bus-hold : enable buskeeper
+  - bias-pull-up : output is pulled-up
+  - bias-pull-down : output is pulled-down
+  - drive-push-pull : CMOS output
+  - drive-open-drain : open-drain output
+  - drive-strength : drive strength in mA. See the datasheet for a list of valid
+  values for your codec.
+  - output-low : set the pin to output mode with low level
+  - output-high : set the pin to output mode with high level
+
+Example:
+
+codec: cs47l96@0 {
+	compatible = "cirrus,cs47l96";
+
+	pinctrl-names = "active";
+	pinctrl-0 = <&cs47l96_gpio_config>;
+
+	cs47l96_gpio_config: cs47l96-gpio-config {
+		asp2 {
+			groups = "asp2";
+			function = "asp2";
+			bias-bus-hold;
+		};
+
+		opclk {
+			groups = "gpio1";
+			function = "opclk";
+			bias-pull-up;
+			drive-strength = <8>;
+		};
+	};
+};

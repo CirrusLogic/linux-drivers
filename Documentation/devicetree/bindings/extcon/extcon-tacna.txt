@@ -1,0 +1,116 @@
+Cirrus Logic Tacna class audio codecs extcon driver
+
+The extcon configuration settings are a child node of the parent MFD driver
+binding.
+See Documentation/devicetree/bindings/mfd/tacna.txt
+
+This node contains one or more child nodes to describe the configuration for
+each accessory detect.
+
+Mandatory properties:
+  - compatible : must be "cirrus,tacna-extcon"
+  - #address-cells : must be 1
+  - #size-cells : must be 0
+
+Optional properties:
+  - cirrus,gpsw : Settings for the general purpose switches, set as per the
+    SWn_MODE bits in the GP_SWITCH register. If given must be 2 cells.
+    First cell is the value for the GPSW1_MODE
+    Second cell is the value for the GPSW2_MODE
+
+Child node mandatory properties:
+  - reg : output number this configuration applies to, must be 1
+
+Child node optional properties:
+  - cirrus,micd-detect-debounce-ms : Additional software microphone detection
+    debounce specified in milliseconds
+
+  - cirrus,micd-manual-debounce : Additional software button detection
+    debounce specified as a number
+
+  - cirrus,micd-bias-start-time : Time allowed for MICBIAS to startup prior to
+    performing microphone detection, specified as per the MICDn_DELAY
+    bits in the register MICDET_CONTROL1
+
+  - cirrus,micd-pol-gpio : GPIO specifier for the GPIO controlling the headset
+    polarity if one exists
+
+  - cirrus,micd-rate : Delay between successive microphone detection
+    measurements, specified as per the MICDn_RATE bits in the register
+    MICDETn_CONTROL1
+
+  - cirrus,micd-dbtime : Microphone detection hardware debounce level, specified
+    as per the MICDn_DBTIME bits in the register MICDET_CONTROL1
+
+  - cirrus,micd-timeout-ms : Timeout for microphone detection, specified in
+    milliseconds
+
+  - cirrus,micd-software-compare : Use a software comparison to determine mic
+    presence
+
+  - cirrus,fixed-hpdet-imp : Do not perform any headphone detection, just use
+    the fixed value specified here as the headphone impedance. Value is in
+    hundredths-of-an-ohm (ohms * 100)
+
+  - cirrus,hpdet-ext-res : Impedance of external series resistor on hpdet.
+    Value is in hundredths-of-an-ohm (ohms * 100)
+
+  - cirrus,hpdet-short-circuit-imp : Specifies the maximum impedance in ohms
+    that will be considered as a short circuit
+
+  - cirrus,hpdet-channel : Set which channel is used for headphone impedance
+    measurement. 0 = left, 1 = right
+
+  - cirrus,micd-clamp-mode : Specifies the logic of the micdetect clamp block
+
+  - cirrus,hpd-pins : 4 cells specifying the clamp and sense pins to use.
+	<clamp_left sense_left clamp_right sense_right>
+    where clamp_x is the clamp pin for channel x and sense_x is the impedance
+    sense pin for channel x, as per the HPD_OUT_SEL field of HPDET1_CONTROL1
+    register. A value >0xFFFF means use the default.
+
+  - cirrus,micd-configs : Headset polarity configurations, variable length but
+    must be a multiple of 5 cells, each 5-cell group represents one
+    polarity configuration
+    first cell is the value of MICDn_SENSE_SEL register field
+    second cell is the accessory detection ground as per the MICDn_GND_SEL
+      register field
+    the third cell is the MICBIAS to be used as per the MICDn_BIAS_SRC register
+      field
+    fourth cell is the value of the micd-pol-gpio pin, a non-zero value
+      indicates this should be on
+    fifth cell is the value of HPn_GND_SEL register field
+
+  - cirrus,accdet-dbtime : Set accessory detection hardware debounce level,
+    as per the ACCDET_DBTIME bits in the register TACNA_ACCDET_DEBOUNCE
+
+Example:
+
+codec: cs47l96@0 {
+	compatible = "cirrus,cs47l96";
+
+	accdet {
+		compatible = "cirrus,tacna-extcon";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cirrus,gpsw = <3 0>;
+
+		cirrus,micd-pol-gpios = <&gpio 0>
+
+		acc@1 {
+			reg = <1>;
+
+			cirrus,micd-detect-debounce-ms = <10>;
+			cirrus,micd-bias-start-time = <0x1>;
+			cirrus,micd-rate = <0x1>;
+			cirrus,micd-dbtime = <0x1>;
+			cirrus,micd-timeout-ms = <10>;
+			cirrus,micd-configs = <
+				0x1 0 1 0 2
+				0x0 0 2 1 2
+			>;
+			cirrus,accdet-dbtime =<0x1>;
+		};
+	};
+};
