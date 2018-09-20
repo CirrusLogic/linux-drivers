@@ -993,6 +993,166 @@ static const struct file_operations clsic_panic_fops = {
 	.llseek = &default_llseek,
 };
 
+#define CLSIC_DEBUGINFO_FILENAME_MAX 50
+static const char * const CLSIC_DEBUGINFO_FILENAME_FORMAT =
+					       "debug_info-si%d_cat%d_pg%d.bin";
+
+/*
+ * The debuginfo read callback obtains the service instance, category and page
+ * information from the filename.
+ *
+ * This is then used to form the message to obtain the required page.
+ *
+ * The buffer shared back to userspace contains the received message and the
+ * associated payload.
+ */
+static ssize_t clsic_debuginfo_read(struct file *file,
+				    char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	struct clsic *clsic = file_inode(file)->i_private;
+	struct dentry *dentry = file_dentry(file);
+	ssize_t len = 0;
+	union clsic_sys_msg msg_cmd;
+	union clsic_sys_msg *msg_rsp;
+	char *buf;
+	int ret;
+	uint8_t service_instance;
+	uint16_t tmp_category, tmp_page;
+
+	if (sscanf(dentry->d_name.name, CLSIC_DEBUGINFO_FILENAME_FORMAT,
+		   &service_instance, &tmp_category, &tmp_page) != 3)
+		return -EINVAL;
+
+	buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	msg_rsp = (union clsic_sys_msg *) buf;
+
+	clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
+			   service_instance,
+			   CLSIC_GBL_MSG_CR_GET_DEBUG_INFO);
+
+	msg_cmd.cmd_get_debug_info.category = tmp_category;
+	msg_cmd.cmd_get_debug_info.page = tmp_page;
+
+	ret = clsic_send_msg_sync_pm(clsic,
+				     (union t_clsic_generic_message *) &msg_cmd,
+				     (union t_clsic_generic_message *) buf,
+				     CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
+				     buf + CLSIC_FIXED_MSG_SZ,
+				     PAGE_SIZE - CLSIC_FIXED_MSG_SZ);
+
+	/*
+	 * Check for failures - must have a successful message exchange and the
+	 * response must be bulk with no error
+	 */
+	if (!ret &&
+	    (clsic_get_bulk_bit(msg_rsp->blkrsp_get_debug_info.hdr.sbc) == 1) &&
+	    (msg_rsp->blkrsp_get_debug_info.hdr.err == 0)) {
+		len = simple_read_from_buffer(user_buf, count, ppos, buf,
+				    CLSIC_FIXED_MSG_SZ +
+				    msg_rsp->blkrsp_get_debug_info.hdr.bulk_sz);
+	}
+
+	kfree(buf);
+	return len;
+}
+
+static const struct file_operations clsic_debuginfo_fops = {
+	.read = &clsic_debuginfo_read,
+	.llseek = &default_llseek,
+};
+
+static void clsic_service_populate_debuginfo(struct clsic *clsic,
+					     uint8_t service_instance)
+{
+	char tmp_filename[CLSIC_DEBUGINFO_FILENAME_MAX];
+	uint16_t max_category, tmp_category, tmp_page;
+	union clsic_sys_msg msg_cmd;
+	union clsic_sys_msg msg_rsp;
+
+	clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
+			   service_instance,
+			   CLSIC_GBL_MSG_CR_GET_DI_CATEGORY_COUNT);
+
+	if (clsic_send_msg_sync_pm(clsic,
+				   (union t_clsic_generic_message *) &msg_cmd,
+				   (union t_clsic_generic_message *) &msg_rsp,
+				   CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
+				   CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN))
+		return;
+
+	max_category = msg_rsp.rsp_get_di_category_count.category_count;
+
+	for (tmp_category = 0; tmp_category < max_category; tmp_category++) {
+		clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
+				   service_instance,
+				   CLSIC_GBL_MSG_CR_GET_DI_PAGE_COUNT);
+		msg_cmd.cmd_get_di_page_count.category = tmp_category;
+		if (clsic_send_msg_sync_pm(clsic,
+				     (union t_clsic_generic_message *) &msg_cmd,
+				     (union t_clsic_generic_message *) &msg_rsp,
+				     CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
+				     CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN))
+			return;
+
+		clsic_dbg(clsic, "service %d category %d tmp_page count %d\n",
+			  service_instance,
+			  msg_rsp.rsp_get_di_page_count.category,
+			  msg_rsp.rsp_get_di_page_count.page_count);
+
+		for (tmp_page = 0;
+		     tmp_page < msg_rsp.rsp_get_di_page_count.page_count;
+		     tmp_page++) {
+			snprintf(tmp_filename, sizeof(tmp_filename),
+				 CLSIC_DEBUGINFO_FILENAME_FORMAT,
+				 service_instance, tmp_category, tmp_page);
+
+			debugfs_create_file(tmp_filename, 0440,
+					    clsic->debugfs_debuginfo,
+					    clsic, &clsic_debuginfo_fops);
+		}
+	}
+}
+
+static int clsic_refresh_debuginfo_write(void *data, u64 val)
+{
+	struct clsic *clsic = data;
+
+	schedule_work(&clsic->refresh_debuginfo);
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(clsic_refresh_debuginfo_fops, NULL,
+			 clsic_refresh_debuginfo_write, "%llu\n");
+
+static void clsic_refresh_debuginfo(struct work_struct *data)
+{
+	struct clsic *clsic = container_of(data, struct clsic,
+					   refresh_debuginfo);
+	int i;
+
+	debugfs_remove_recursive(clsic->debugfs_debuginfo);
+	clsic->debugfs_debuginfo = debugfs_create_dir("debuginfo",
+						      clsic->debugfs_root);
+
+	/*
+	 * For each of the discovered service instances, populate the debug
+	 * info, as there are no holes in the service map stop when a NULL
+	 * service_handler is encountered as there will be no more services to
+	 * update.
+	 */
+	for (i = 0; i < CLSIC_SERVICE_COUNT; i++) {
+		if (clsic->service_handlers[i] == NULL)
+			break;
+
+		if (clsic->service_handlers[i]->supports_debuginfo)
+			clsic_service_populate_debuginfo(clsic, i);
+	}
+}
+
 /* 13 as the name will be at most "clsic-nnn" + \0 */
 #define CLSIC_DEBUGFS_DIRNAME_MAX		13
 void clsic_init_debugfs(struct clsic *clsic)
@@ -1018,12 +1178,20 @@ void clsic_init_debugfs(struct clsic *clsic)
 
 	debugfs_create_file("last_panic", 0440, clsic->debugfs_root, clsic,
 			    &clsic_panic_fops);
+
+	clsic->debugfs_debuginfo = debugfs_create_dir("debuginfo",
+						      clsic->debugfs_root);
+
+	INIT_WORK(&clsic->refresh_debuginfo, clsic_refresh_debuginfo);
+	debugfs_create_file("refresh_debuginfo", 0200, clsic->debugfs_root,
+			    clsic, &clsic_refresh_debuginfo_fops);
 }
 
 void clsic_deinit_debugfs(struct clsic *clsic)
 {
 	debugfs_remove_recursive(clsic->debugfs_root);
 
+	cancel_work_sync(&clsic->refresh_debuginfo);
 	clsic->debugfs_root = NULL;
 }
 

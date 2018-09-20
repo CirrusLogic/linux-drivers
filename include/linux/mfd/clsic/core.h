@@ -230,6 +230,8 @@ struct clsic {
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_root;
+	struct dentry *debugfs_debuginfo;
+	struct work_struct refresh_debuginfo;
 
 	/* Debugcontrol members protected by message_lock */
 	struct completion *debugcontrol_completion;
@@ -282,6 +284,7 @@ struct clsic_service {
 	uint8_t service_instance;
 	uint16_t service_type;
 	uint32_t service_version;
+	bool supports_debuginfo;
 
 	/* A pointer the handler can use to stash instance specific stuff */
 	void *data;

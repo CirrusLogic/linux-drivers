@@ -224,6 +224,7 @@ int clsic_system_service_start(struct clsic *clsic,
 	handler->callback = &clsic_system_service_handler;
 	handler->stop = &clsic_system_service_stop;
 	handler->data = syssrv;
+	handler->supports_debuginfo = true;
 
 	return 0;
 }
