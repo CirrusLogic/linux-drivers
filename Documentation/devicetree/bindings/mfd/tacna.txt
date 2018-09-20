@@ -68,6 +68,11 @@ Optional properties:
   - pinctrl-0, pinctrl-1 : handle to pinctrl configurations matching the
     entries in pinctrl-names
 
+  - cirrus,clk32k-src : set the input source for the codec 32kHz clock.
+	See the TACNA_32KZ_* macros in include/dt-bindings/mfd/tacna.h for
+	valid options.
+	cs48l32 will default to MCLK1, all other codecs will default to MCLK2.
+
 Optional child nodes:
   - MICBIASx : Initial data for the MICBIAS regulators, as covered in
     Documentation/devicetree/bindings/regulator/regulator.txt.
