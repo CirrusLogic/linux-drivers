@@ -13,6 +13,9 @@
 #include <linux/numa.h>
 #include <linux/scs.h>
 
+#include <linux/alt-syscall.h>
+
+#include <asm/pgtable.h>
 #include <linux/uaccess.h>
 
 static struct signal_struct init_signals = {
