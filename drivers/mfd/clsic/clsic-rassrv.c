@@ -531,6 +531,7 @@ int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler)
 	 * device so it does not need to register a callback.
 	 */
 	handler->stop = &clsic_ras_stop;
+	handler->supports_debuginfo = true;
 
 	/* set pm handler for RAS to manage reg-cache */
 	handler->pm_handler = &clsic_ras_pm_handler;
