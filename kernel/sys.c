@@ -194,7 +194,7 @@ out:
 	return error;
 }
 
-SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
+int ksys_setpriority(int which, int who, int niceval)
 {
 	struct task_struct *g, *p;
 	struct user_struct *user;
@@ -258,13 +258,18 @@ out:
 	return error;
 }
 
+SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
+{
+	return ksys_setpriority(which, who, niceval);
+}
+
 /*
  * Ugh. To avoid negative return values, "getpriority()" will
  * not return the normal nice-value, but a negated value that
  * has been offset by 20 (ie it returns 40..1 instead of -20..19)
  * to stay compatible.
  */
-SYSCALL_DEFINE2(getpriority, int, which, int, who)
+int ksys_getpriority(int which, int who)
 {
 	struct task_struct *g, *p;
 	struct user_struct *user;
@@ -327,6 +332,11 @@ out_unlock:
 	rcu_read_unlock();
 
 	return retval;
+}
+
+SYSCALL_DEFINE2(getpriority, int, which, int, who)
+{
+	return ksys_getpriority(which, who);
 }
 
 /*
@@ -2280,8 +2290,8 @@ int __weak arch_prctl_spec_ctrl_set(struct task_struct *t, unsigned long which,
 
 #define PR_IO_FLUSHER (PF_MEMALLOC_NOIO | PF_LOCAL_THROTTLE)
 
-SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
-		unsigned long, arg4, unsigned long, arg5)
+int ksys_prctl(int option, unsigned long arg2, unsigned long arg3,
+	       unsigned long arg4, unsigned long arg5)
 {
 	struct task_struct *me = current;
 	unsigned char comm[sizeof(me->comm)];
@@ -2537,8 +2547,14 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 	return error;
 }
 
-SYSCALL_DEFINE3(getcpu, unsigned __user *, cpup, unsigned __user *, nodep,
-		struct getcpu_cache __user *, unused)
+SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+		unsigned long, arg4, unsigned long, arg5)
+{
+	return ksys_prctl(option, arg2, arg3, arg4, arg5);
+}
+
+int ksys_getcpu(unsigned __user *cpup, unsigned __user *nodep,
+		struct getcpu_cache __user *unused)
 {
 	int err = 0;
 	int cpu = raw_smp_processor_id();
@@ -2548,6 +2564,12 @@ SYSCALL_DEFINE3(getcpu, unsigned __user *, cpup, unsigned __user *, nodep,
 	if (nodep)
 		err |= put_user(cpu_to_node(cpu), nodep);
 	return err ? -EFAULT : 0;
+}
+
+SYSCALL_DEFINE3(getcpu, unsigned __user *, cpup, unsigned __user *, nodep,
+		struct getcpu_cache __user *, unused)
+{
+	return ksys_getcpu(cpup, nodep, unused);
 }
 
 /**
