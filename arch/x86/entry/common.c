@@ -38,9 +38,19 @@
 #ifdef CONFIG_X86_64
 __visible noinstr void do_syscall_64(unsigned long nr, struct pt_regs *regs)
 {
+#ifdef CONFIG_ALT_SYSCALL
+	struct thread_info *ti;
+#endif
 	nr = syscall_enter_from_user_mode(regs, nr);
 
 	instrumentation_begin();
+#ifdef CONFIG_ALT_SYSCALL
+	ti = current_thread_info();
+	if (likely(nr < ti->nr_syscalls)) {
+		nr = array_index_nospec(nr, ti->nr_syscalls);
+		regs->ax = ti->sys_call_table[nr](regs);
+	}
+#else
 	if (likely(nr < NR_syscalls)) {
 		nr = array_index_nospec(nr, NR_syscalls);
 		regs->ax = sys_call_table[nr](regs);
@@ -52,6 +62,7 @@ __visible noinstr void do_syscall_64(unsigned long nr, struct pt_regs *regs)
 		regs->ax = x32_sys_call_table[nr](regs);
 #endif
 	}
+#endif /* CONFIG_ALT_SYSCALL */
 	instrumentation_end();
 	syscall_exit_to_user_mode(regs);
 }
@@ -72,12 +83,20 @@ static __always_inline unsigned int syscall_32_enter(struct pt_regs *regs)
 static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs,
 						  unsigned int nr)
 {
+#ifdef CONFIG_ALT_SYSCALL
+	struct thread_info *ti = current_thread_info();
+	if (likely(nr < ti->ia32_nr_syscalls)) {
+		nr = array_index_nospec(nr, ti->ia32_nr_syscalls);
+		regs->ax = ti->ia32_sys_call_table[nr](regs);
+	}
+#else
 	if (likely(nr < IA32_NR_syscalls)) {
 		instrumentation_begin();
 		nr = array_index_nospec(nr, IA32_NR_syscalls);
 		regs->ax = ia32_sys_call_table[nr](regs);
 		instrumentation_end();
 	}
+#endif
 }
 
 /* Handles int $0x80 */

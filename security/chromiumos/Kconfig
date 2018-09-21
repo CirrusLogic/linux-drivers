@@ -31,7 +31,6 @@ config SECURITY_CHROMIUMOS_NO_UNPRIVILEGED_UNSAFE_MOUNTS
 config ALT_SYSCALL_CHROMIUMOS
 	bool "Chromium OS Alt-Syscall Tables"
 	depends on ALT_SYSCALL
-	depends on X86_64 || ARM64
 	help
 	  Register restricted, alternate syscall tables used by Chromium OS
 	  using the alt-syscall infrastructure.  Alternate syscall tables
