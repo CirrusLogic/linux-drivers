@@ -924,13 +924,14 @@ static ssize_t clsic_services_read_file(struct file *file,
 	char *buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	ssize_t len;
 	ssize_t ret = 0;
+	uint32_t tmp_version, version_maj, version_min, version_bld;
 	int i;
 
 	if (buf == NULL)
 		return -ENOMEM;
 
 	len = snprintf(buf + ret, PAGE_SIZE - ret,
-		       "Registered service handlers:\n");
+		       "{\n\t\"format_version\" : 1,\n\t\t\"sysfw\" : {\n\t\t\t\"services\" : [");
 	if (len >= 0)
 		ret += len;
 	if (ret > PAGE_SIZE)
@@ -943,16 +944,23 @@ static ssize_t clsic_services_read_file(struct file *file,
 
 	for (i = 0; i <= CLSIC_SERVICE_MAX; i++) {
 		if (clsic->service_handlers[i] == NULL)
-			len = snprintf(buf + ret, PAGE_SIZE - ret,
-				       "%2d: no handler registered\n", i);
-		else
-			len = snprintf(buf + ret, PAGE_SIZE - ret,
-				    "%2d: 0x%04X 0x%08X %pF\n",
-				    i,
-				    clsic->service_handlers[i]->service_type,
-				    clsic->service_handlers[i]->service_version,
-				    clsic->service_handlers[i]->callback);
+			break;
 
+		tmp_version =
+			clsic->service_handlers[i]->service_version;
+		version_maj = (tmp_version & CLSIC_SVCVER_MAJ_MASK) >>
+			CLSIC_SVCVER_MAJ_SHIFT;
+		version_min = (tmp_version & CLSIC_SVCVER_MIN_MASK) >>
+			CLSIC_SVCVER_MIN_SHIFT;
+		version_bld = (tmp_version & CLSIC_SVCVER_BLD_MASK) >>
+			CLSIC_SVCVER_BLD_SHIFT;
+
+		len = snprintf(buf + ret, PAGE_SIZE - ret,
+			       "%s\t\t\t\t{ \"instance\" : %d, \"type\" : %d, \"version\" : \"%d.%d.%d\", \"handler\" : \"%pF\" }",
+			       (i == 0) ? "\n" : ",\n", i,
+			       clsic->service_handlers[i]->service_type,
+			       version_maj, version_min, version_bld,
+			       clsic->service_handlers[i]->callback);
 		if (len >= 0)
 			ret += len;
 		if (ret > PAGE_SIZE) {
@@ -960,6 +968,12 @@ static ssize_t clsic_services_read_file(struct file *file,
 			break;
 		}
 	}
+	len = snprintf(buf + ret, PAGE_SIZE - ret, "\n\t\t\t]\n\t\t}\n}\n");
+	if (len >= 0)
+		ret += len;
+	if (ret > PAGE_SIZE)
+		ret = PAGE_SIZE;
+
 
 	mutex_unlock(&clsic->service_lock);
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
