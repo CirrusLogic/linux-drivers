@@ -527,6 +527,158 @@ TRACE_EVENT(clsic_alg_set_irq_notify_mode,
 			)
 );
 
+TRACE_EVENT(clsic_alg_compr_stream_open,
+	TP_PROTO(enum snd_compr_direction  dir, int ret),
+	TP_ARGS(dir, ret),
+	TP_STRUCT__entry(
+			__field(enum snd_compr_direction, dir)
+			__field(int, ret)
+			),
+	TP_fast_assign(
+			__entry->dir = dir;
+			__entry->ret = ret;
+		),
+	TP_printk("direction: %d; ret: %d",
+		  __entry->dir,
+		  __entry->ret)
+);
+
+TRACE_EVENT(clsic_alg_compr_stream_free,
+	TP_PROTO(enum snd_compr_direction dir, int ret),
+	TP_ARGS(dir, ret),
+	TP_STRUCT__entry(
+			__field(enum snd_compr_direction, dir)
+			__field(int, ret)
+			),
+	TP_fast_assign(
+			__entry->dir = dir;
+			__entry->ret = ret;
+		),
+	TP_printk("direction: %d; ret: %d",
+		  __entry->dir,
+		  __entry->ret)
+);
+
+TRACE_EVENT(clsic_alg_compr_stream_set_params,
+	TP_PROTO(struct snd_compr_params *params, int ret),
+	TP_ARGS(params, ret),
+	TP_STRUCT__entry(
+			__field(u32, codec_id)
+			__field(u32, ch_in)
+			__field(u32, ch_out)
+			__field(u32, format)
+			__field(u32, sample_rate)
+			__field(size_t, frag_sz)
+			__field(size_t, frag_n)
+			__field(int, ret)
+			),
+	TP_fast_assign(
+			__entry->codec_id = params->codec.id;
+			__entry->ch_in = params->codec.ch_in;
+			__entry->ch_out = params->codec.ch_out;
+			__entry->format = params->codec.format;
+			__entry->sample_rate = params->codec.sample_rate;
+			__entry->frag_sz = params->buffer.fragment_size;
+			__entry->frag_n = params->buffer.fragments;
+			__entry->ret = ret;
+		),
+	TP_printk(
+		  "codec id: %u; channels i/o %u/%u); format: %u; sample rate: %u; fragment size/count %zu/%zu; ret: %d",
+		  __entry->codec_id,
+		  __entry->ch_in,
+		  __entry->ch_out,
+		  __entry->format,
+		  __entry->sample_rate,
+		  __entry->frag_sz,
+		  __entry->frag_n,
+		  __entry->ret)
+);
+
+TRACE_EVENT(clsic_alg_compr_stream_get_caps,
+	TP_PROTO(struct snd_compr_caps *caps, int ret),
+	TP_ARGS(caps, ret),
+	TP_STRUCT__entry(
+			__field(u32, num_codecs)
+			__field(u32, direction)
+			__field(u32, min_fragment_size)
+			__field(u32, max_fragment_size)
+			__field(u32, min_fragments)
+			__field(u32, max_fragments)
+			__field(int, ret)
+			),
+	TP_fast_assign(
+			__entry->num_codecs = caps->num_codecs;
+			__entry->direction = caps->direction;
+			__entry->min_fragment_size = caps->min_fragment_size;
+			__entry->max_fragment_size = caps->max_fragment_size;
+			__entry->min_fragments = caps->min_fragments;
+			__entry->max_fragments = caps->max_fragments;
+			__entry->ret = ret;
+		),
+	TP_printk(
+		  "num_codecs: %u; direction %u; fragment_size: %u-%u; fragments: %u-%u; ret: %d",
+		  __entry->num_codecs,
+		  __entry->direction,
+		  __entry->min_fragment_size,
+		  __entry->max_fragment_size,
+		  __entry->min_fragments,
+		  __entry->max_fragments,
+		  __entry->ret)
+);
+
+TRACE_EVENT(clsic_alg_compr_stream_trigger,
+	TP_PROTO(int cmd, int ret),
+	TP_ARGS(cmd, ret),
+	TP_STRUCT__entry(
+			__field(int, cmd)
+			__field(int, ret)
+			),
+	TP_fast_assign(
+			__entry->cmd = cmd;
+			__entry->ret = ret;
+		),
+	TP_printk("cmd: %d; ret: %d",
+		  __entry->cmd,
+		  __entry->ret)
+);
+
+TRACE_EVENT(clsic_alg_compr_stream_timestamp,
+	TP_PROTO(struct snd_compr_tstamp *tstamp, int ret),
+	TP_ARGS(tstamp, ret),
+	TP_STRUCT__entry(
+			__field(u32, byte_offset)
+			__field(u32, copied_total)
+			__field(u32, sampling_rate)
+			__field(int, ret)
+			),
+	TP_fast_assign(
+			__entry->byte_offset = tstamp->byte_offset;
+			__entry->copied_total = tstamp->copied_total;
+			__entry->sampling_rate = tstamp->sampling_rate;
+			__entry->ret = ret;
+		),
+	TP_printk(
+		  "byte_offset: %u; copied_total %u; sampling_rate: %u; ret: %d",
+		  __entry->byte_offset,
+		  __entry->copied_total,
+		  __entry->sampling_rate,
+		  __entry->ret)
+);
+
+TRACE_EVENT(clsic_alg_compr_stream_copy_start,
+	TP_PROTO(size_t count, int ret),
+	TP_ARGS(count, ret),
+	TP_STRUCT__entry(
+			__field(size_t, count)
+			__field(int, ret)
+			),
+	TP_fast_assign(
+			__entry->count = count;
+			__entry->ret = ret;
+		),
+	TP_printk("copying: %zu bytes; ret: %d", __entry->count, __entry->ret)
+);
+
 #endif /* CLSIC_TRACE_H */
 
 /* This part must be outside protection */
