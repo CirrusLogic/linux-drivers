@@ -1105,16 +1105,13 @@ static ssize_t clsic_show_state(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct clsic *clsic = dev_get_drvdata(dev);
-	enum clsic_states saved_state;
 	enum clsic_blrequests saved_blrequest;
 
 	mutex_lock(&clsic->message_lock);
-	saved_state = clsic->state;
 	saved_blrequest = clsic->blrequest;
 	mutex_unlock(&clsic->message_lock);
 
-	if ((saved_state == CLSIC_STATE_RESUMING) &&
-	    (saved_blrequest != CLSIC_BL_IDLE)) {
+	if (saved_blrequest != CLSIC_BL_IDLE) {
 		switch (saved_blrequest) {
 		case CLSIC_BL_EXPECTED:
 			return snprintf(buf, PAGE_SIZE, "BOOTLOADER_EXPECTED");

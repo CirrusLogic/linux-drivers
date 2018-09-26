@@ -1372,11 +1372,6 @@ static int clsic_send_message_core(struct clsic *clsic,
 	/*
 	 * The message will be added to the messaging layer - take the
 	 * appropriate guards and action
-	 *
-	 * Messages begin their journey through the messaging layer from the
-	 * waiting_to_send list - the worker thread will progress the message
-	 * on the behalf of this context and this thread will block until that
-	 * is completed.
 	 */
 	if (mutex_lock_interruptible(&clsic->message_lock))
 		return -EINTR;
@@ -1384,6 +1379,10 @@ static int clsic_send_message_core(struct clsic *clsic,
 	/* Check that it is possible to send the message */
 	switch (clsic->state) {
 	case CLSIC_STATE_HALTED:
+		/* allow bootloader messages to pass in halted state */
+		if (clsic_get_servinst(msg) == CLSIC_SRV_INST_BLD)
+			break;
+		/* fallthrough for all other messages */
 	case CLSIC_STATE_DEBUGCONTROL_GRANTED:
 		/*
 		 * The driver has lost communication with the device or is
