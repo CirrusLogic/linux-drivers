@@ -451,6 +451,9 @@ int clsic_bootsrv_state_handler(struct clsic *clsic)
 				clsic_soft_reset(clsic);
 				clsic_irq_enable(clsic);
 			}
+			clsic_state_set(clsic, CLSIC_STATE_RESUMING,
+					CLSIC_STATE_CHANGE_LOCKNOTHELD);
+
 			schedule_work(&clsic->maintenance_handler);
 		}
 		break;
