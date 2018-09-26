@@ -988,6 +988,8 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 			  "Open compr stream for DAI '%s' failed %d\n",
 			  rtd->codec_dai->name, ret);
 
+	trace_clsic_alg_compr_stream_open(stream->direction, ret);
+
 	return ret;
 }
 
@@ -1018,6 +1020,8 @@ static int clsic_alg_compr_free(struct snd_compr_stream *stream)
 
 	wm_adsp_compr_free(stream);
 
+	trace_clsic_alg_compr_stream_free(stream->direction, ret);
+
 	return ret;
 }
 
@@ -1046,6 +1050,8 @@ static int clsic_alg_compr_set_params(struct snd_compr_stream *stream,
 			  "Set compr stream param '%s' failed %d\n",
 			  rtd->codec_dai->name, ret);
 
+	trace_clsic_alg_compr_stream_set_params(params, ret);
+
 	return ret;
 }
 
@@ -1073,6 +1079,8 @@ static int clsic_alg_compr_get_caps(struct snd_compr_stream *stream,
 		clsic_err(alg->clsic,
 			  "Get compr stream caps '%s' failed %d\n",
 			  rtd->codec_dai->name, ret);
+
+	trace_clsic_alg_compr_stream_get_caps(caps, ret);
 
 	return ret;
 }
@@ -1144,6 +1152,8 @@ static int clsic_alg_compr_trigger(struct snd_compr_stream *stream, int cmd)
 		ret = -EINVAL;
 	}
 
+	trace_clsic_alg_compr_stream_trigger(cmd, ret);
+
 	return ret;
 }
 
@@ -1179,6 +1189,8 @@ static int clsic_alg_compr_pointer(struct snd_compr_stream *stream,
 		ret = -EINVAL;
 	}
 
+	trace_clsic_alg_compr_stream_timestamp(tstamp, ret);
+
 	return ret;
 }
 
@@ -1210,6 +1222,8 @@ static int clsic_alg_compr_copy(struct snd_compr_stream *stream,
 
 		ret = -EINVAL;
 	}
+
+	trace_clsic_alg_compr_stream_copy_start(count, ret);
 
 	return ret;
 }
