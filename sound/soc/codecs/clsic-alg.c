@@ -966,7 +966,23 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct clsic_alg *alg = snd_soc_codec_get_drvdata(rtd->codec);
-	int ret;
+	int ret = 0;
+
+	/*
+	 * When the stream is open we must prevent the sound card and the
+	 * core CLSIC drivers from being unloaded as this would make the
+	 * callback function pointers invalid.
+	 *
+	 * Attempt to get a reference count on the required driver modules,
+	 * these calls may fail if the module is already being unloaded.
+	 */
+	if (!try_module_get(alg->codec->component.card->owner))
+		return -EBUSY;
+
+	if (!try_module_get(alg->clsic->dev->driver->owner)) {
+		module_put(alg->codec->component.card->owner);
+		return -EBUSY;
+	}
 
 	clsic_dbg(alg->clsic, "%s\n", rtd->codec_dai->name);
 
@@ -978,7 +994,7 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 		clsic_err(alg->clsic,
 			  "Set notify mode for DAI '%s' failed %d\n",
 			  rtd->codec_dai->name, ret);
-		return ret;
+		goto error;
 	}
 
 	ret = wm_adsp_compr_open(&alg->dsp[CLSIC_VPU1], stream);
@@ -988,7 +1004,13 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 			  "Open compr stream for DAI '%s' failed %d\n",
 			  rtd->codec_dai->name, ret);
 
+error:
 	trace_clsic_alg_compr_stream_open(stream->direction, ret);
+
+	if (ret) {
+		module_put(alg->clsic->dev->driver->owner);
+		module_put(alg->codec->component.card->owner);
+	}
 
 	return ret;
 }
@@ -1019,6 +1041,9 @@ static int clsic_alg_compr_free(struct snd_compr_stream *stream)
 			  rtd->codec_dai->name, ret);
 
 	wm_adsp_compr_free(stream);
+
+	module_put(alg->clsic->dev->driver->owner);
+	module_put(alg->codec->component.card->owner);
 
 	trace_clsic_alg_compr_stream_free(stream->direction, ret);
 
