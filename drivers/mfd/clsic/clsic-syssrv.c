@@ -148,10 +148,15 @@ static int clsic_system_service_set_trace(struct clsic_syssrv_struct *syssrv)
 static int clsic_system_service_set_trace_level(void *data, u64 val)
 {
 	struct clsic_syssrv_struct *syssrv = data;
+	int ret;
 
 	syssrv->trace_level = val;
 
-	return clsic_system_service_set_trace(syssrv);
+	pm_runtime_get_sync(syssrv->clsic->dev);
+	ret = clsic_system_service_set_trace(syssrv);
+	pm_runtime_put_autosuspend(syssrv->clsic->dev);
+	return ret;
+
 }
 
 static int clsic_system_service_get_trace_level(void *data, u64 *val)
@@ -170,10 +175,14 @@ DEFINE_DEBUGFS_ATTRIBUTE(clsic_system_service_trace_level_fops,
 static int clsic_system_service_set_trace_mask(void *data, u64 val)
 {
 	struct clsic_syssrv_struct *syssrv = data;
+	int ret;
 
 	syssrv->trace_mask = val;
 
-	return clsic_system_service_set_trace(syssrv);
+	pm_runtime_get_sync(syssrv->clsic->dev);
+	ret = clsic_system_service_set_trace(syssrv);
+	pm_runtime_put_autosuspend(syssrv->clsic->dev);
+	return ret;
 }
 
 static int clsic_system_service_get_trace_mask(void *data, u64 *val)
@@ -188,6 +197,31 @@ static int clsic_system_service_get_trace_mask(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(clsic_system_service_trace_mask_fops,
 			 clsic_system_service_get_trace_mask,
 			 clsic_system_service_set_trace_mask, "%llx\n");
+
+/*
+ * Simple pm_handler that sets the device trace options if they have been
+ * changed from the default.
+ */
+static int clsic_system_service_pm_handler(struct clsic_service *handler,
+					   int pm_event)
+{
+	struct clsic_syssrv_struct *syssrv = handler->data;
+	int ret = 0;
+
+	switch (pm_event) {
+	case PM_EVENT_RESUME:
+		if ((syssrv->trace_level != CLSIC_SYSSRV_DEFAULT_TRACE_LEVEL) ||
+		    (syssrv->trace_mask != CLSIC_SYSSRV_DEFAULT_TRACE_MASK))
+			clsic_system_service_set_trace(syssrv);
+		break;
+	case PM_EVENT_SUSPEND:
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 
 int clsic_system_service_start(struct clsic *clsic,
 			       struct clsic_service *handler)
@@ -228,6 +262,7 @@ int clsic_system_service_start(struct clsic *clsic,
 	handler->stop = &clsic_system_service_stop;
 	handler->data = syssrv;
 	handler->supports_debuginfo = true;
+	handler->pm_handler = &clsic_system_service_pm_handler;
 
 	return 0;
 }
