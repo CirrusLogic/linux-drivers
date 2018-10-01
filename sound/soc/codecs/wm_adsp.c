@@ -2070,25 +2070,6 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		}
 		break;
 	case WMFW_HALO:
-		switch (header->ver) {
-		case 1:
-		case 2:
-			/*
-			 * we are required to load these for testing purposes
-			 * but this format is not allowed for production fw
-			 */
-			adsp_warn(dsp,
-				  "%s: Not a production firmware (deprecated file format %d)\n",
-				  file, header->ver);
-			break;
-		case 3:
-			break;
-		default:
-			adsp_err(dsp, "%s: unknown file format %d\n",
-				 file, header->ver);
-			goto out_fw;
-		}
-		break;
 	case WMFW_VPU:
 		switch (header->ver) {
 		case 3:
@@ -2542,16 +2523,10 @@ static int wm_adsp2_setup_algs(struct wm_adsp *dsp)
 	if (IS_ERR(alg_region))
 		return PTR_ERR(alg_region);
 
-	switch (dsp->type) {
-	case WMFW_HALO:
-		break;
-	default:
-		alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_ZM,
-						   adsp2_id.fw.id, adsp2_id.zm);
-		if (IS_ERR(alg_region))
-			return PTR_ERR(alg_region);
-		break;
-	}
+	alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_ZM,
+					   adsp2_id.fw.id, adsp2_id.zm);
+	if (IS_ERR(alg_region))
+		return PTR_ERR(alg_region);
 
 	/* Calculate offset and length in DSP words */
 	pos = sizeof(adsp2_id) / sizeof(u32);
@@ -2613,10 +2588,6 @@ static int wm_adsp2_setup_algs(struct wm_adsp *dsp)
 					  be32_to_cpu(adsp2_alg[i].alg.id));
 			}
 		}
-
-		/* no ZM on HALO */
-		if (dsp->type == WMFW_HALO)
-			continue;
 
 		alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_ZM,
 						   adsp2_alg[i].alg.id,
@@ -3452,19 +3423,9 @@ static void wm_halo_boot_work(struct work_struct *work)
 	if (ret != 0)
 		goto err;
 
-	switch (dsp->fw_ver) {
-	case 1:
-	case 2:
-		ret = wm_adsp2_setup_algs(dsp);
-		if (ret != 0)
-			goto err;
-		break;
-	default:
-		ret = wm_halo_setup_algs(dsp);
-		if (ret != 0)
-			goto err;
-		break;
-	}
+	ret = wm_halo_setup_algs(dsp);
+	if (ret != 0)
+		goto err;
 
 	ret = wm_adsp_load_coeff(dsp);
 	if (ret != 0)
