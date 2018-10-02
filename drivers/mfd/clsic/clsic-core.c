@@ -524,12 +524,11 @@ void clsic_maintenance(struct work_struct *data)
 		goto pm_complete_exit;
 	}
 
-	if (clsic->service_states == CLSIC_ENUMERATED) {
-		if (clsic_pm_service_transition(clsic, PM_EVENT_RESUME) == 0)
-			clsic_state_set(clsic,
-					CLSIC_STATE_ON,
-					CLSIC_STATE_CHANGE_LOCKNOTHELD);
-	}
+	if ((clsic->service_states == CLSIC_ENUMERATED) &&
+	    (clsic_pm_service_transition(clsic, PM_EVENT_RESUME) == 0))
+		clsic_state_set(clsic,
+				CLSIC_STATE_ON,
+				CLSIC_STATE_CHANGE_LOCKNOTHELD);
 
 pm_complete_exit:
 	/*
