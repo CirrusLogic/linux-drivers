@@ -232,6 +232,7 @@ struct clsic {
 	struct dentry *debugfs_root;
 	struct dentry *debugfs_debuginfo;
 	struct work_struct refresh_debuginfo;
+	bool debuginfo_refreshing;
 
 	/* Debugcontrol members protected by message_lock */
 	struct completion *debugcontrol_completion;
