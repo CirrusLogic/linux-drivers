@@ -1131,15 +1131,39 @@ static void clsic_service_populate_debuginfo(struct clsic *clsic,
 	}
 }
 
+/*
+ * The read function is a simple indicator as to whether there is a refresh of
+ * the debug info pages ongoing.
+ */
+static int clsic_refresh_debuginfo_read(void *data, u64 *val)
+{
+	struct clsic *clsic = data;
+
+	if (clsic->debuginfo_refreshing)
+		*val = 1;
+	else
+		*val = 0;
+
+	return 0;
+}
+
+/*
+ * The write function is simply a trigger to refresh the debuginfo debugfs
+ * directory, the actual work can't be performed directly because the context
+ * is using debugfs to write to the file and the refresh operation deletes and
+ * creates entries that requires debugfs to be idle.
+ */
 static int clsic_refresh_debuginfo_write(void *data, u64 val)
 {
 	struct clsic *clsic = data;
 
+	clsic->debuginfo_refreshing = true;
 	schedule_work(&clsic->refresh_debuginfo);
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(clsic_refresh_debuginfo_fops, NULL,
+DEFINE_DEBUGFS_ATTRIBUTE(clsic_refresh_debuginfo_fops,
+			 clsic_refresh_debuginfo_read,
 			 clsic_refresh_debuginfo_write, "%llu\n");
 
 static void clsic_refresh_debuginfo(struct work_struct *data)
@@ -1165,6 +1189,8 @@ static void clsic_refresh_debuginfo(struct work_struct *data)
 		if (clsic->service_handlers[i]->supports_debuginfo)
 			clsic_service_populate_debuginfo(clsic, i);
 	}
+
+	clsic->debuginfo_refreshing = false;
 }
 
 /* 13 as the name will be at most "clsic-nnn" + \0 */
@@ -1197,6 +1223,7 @@ void clsic_init_debugfs(struct clsic *clsic)
 						      clsic->debugfs_root);
 
 	INIT_WORK(&clsic->refresh_debuginfo, clsic_refresh_debuginfo);
+	clsic->debuginfo_refreshing = false;
 	debugfs_create_file("refresh_debuginfo", 0200, clsic->debugfs_root,
 			    clsic, &clsic_refresh_debuginfo_fops);
 }
