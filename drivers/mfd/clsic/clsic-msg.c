@@ -1223,14 +1223,6 @@ static struct clsic_message *clsic_findmessage(struct clsic *clsic,
 		if (clsic_ismatch(clsic, tmp_msg, svcinst, msgid))
 			return tmp_msg;
 
-	/* Examine any completed messages */
-	list_for_each_entry_safe(tmp_msg,
-				 next_msg,
-				 &clsic->completed_messages,
-				 private_link)
-		if (clsic_ismatch(clsic, tmp_msg, svcinst, msgid))
-			return tmp_msg;
-
 	/* No match was found */
 	clsic_dbg(clsic, "No match for %d %d\n", svcinst, msgid);
 	return NULL;
