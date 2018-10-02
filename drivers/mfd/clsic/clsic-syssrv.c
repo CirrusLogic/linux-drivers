@@ -122,6 +122,8 @@ static int clsic_system_service_set_trace(struct clsic_syssrv_struct *syssrv)
 	msg_cmd.cmd_set_trace_filter.new_level = syssrv->trace_level;
 	msg_cmd.cmd_set_trace_filter.new_mask = syssrv->trace_mask;
 
+	memset(&msg_rsp, 0, CLSIC_FIXED_MSG_SZ);
+
 	ret = clsic_send_msg_sync(syssrv->clsic,
 				  (union t_clsic_generic_message *) &msg_cmd,
 				  (union t_clsic_generic_message *) &msg_rsp,
@@ -129,7 +131,8 @@ static int clsic_system_service_set_trace(struct clsic_syssrv_struct *syssrv)
 				  CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
 
 	clsic_info(syssrv->clsic,
-		   "(err; %d) lvl: 0x%x -> 0x%x mask: 0x%x -> 0x%x\n",
+		   "ret; %d, (err; %d) lvl: 0x%x -> 0x%x mask: 0x%x -> 0x%x\n",
+		   ret,
 		   msg_rsp.rsp_set_trace_filter.hdr.err,
 		   msg_rsp.rsp_set_trace_filter.old_level,
 		   msg_cmd.cmd_set_trace_filter.new_level,
