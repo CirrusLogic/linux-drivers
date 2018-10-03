@@ -1999,8 +1999,8 @@ static struct platform_driver clsic_codec_driver = {
 		.name = "clsic-codec",
 		.owner = THIS_MODULE,
 	},
-	.probe = clsic_probe,
-	.remove = clsic_remove,
+	.probe = &clsic_probe,
+	.remove = &clsic_remove,
 };
 
 module_platform_driver(clsic_codec_driver);
