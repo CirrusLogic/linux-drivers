@@ -385,6 +385,7 @@ TACNA_MIXER_CONTROLS("DSP2RX8", TACNA_DSP2RX8_INPUT1),
 };
 
 static const struct snd_kcontrol_new clsic_snd_controls_dsp2_visible[] = {
+WM_ADSP_FW_CONTROL("DSP2", 1),
 WM_ADSP2_PRELOAD_SWITCH("DSP2", 2),
 };
 
