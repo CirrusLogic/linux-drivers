@@ -32,11 +32,17 @@ static DECLARE_HASHTABLE(uid_hash_table, UID_HASH_BITS);
 static DEFINE_SPINLOCK(task_time_in_state_lock); /* task->time_in_state */
 static DEFINE_SPINLOCK(uid_lock); /* uid_hash_table */
 
+struct concurrent_times {
+	atomic64_t active[NR_CPUS];
+	atomic64_t policy[NR_CPUS];
+};
+
 struct uid_entry {
 	uid_t uid;
 	unsigned int max_state;
 	struct hlist_node hash;
 	struct rcu_head rcu;
+	struct concurrent_times *concurrent_times;
 	u64 time_in_state[0];
 };
 
@@ -152,11 +158,16 @@ void cpufreq_acct_update_power(struct task_struct *p, u64 cputime)
 {
 	unsigned long flags;
 	unsigned int state;
+	unsigned int active_cpu_cnt = 0;
+	unsigned int policy_cpu_cnt = 0;
+	unsigned int policy_first_cpu;
 	struct uid_entry *uid_entry;
 	struct cpu_freqs *freqs = all_freqs[task_cpu(p)];
+	struct cpufreq_policy *policy;
 	uid_t uid = from_kuid_munged(current_user_ns(), task_uid(p));
+	int cpu = 0;
 
-	if (!freqs || p->flags & PF_EXITING)
+	if (!freqs || is_idle_task(p) || p->flags & PF_EXITING)
 		return;
 
 	state = freqs->offset + READ_ONCE(freqs->last_index);
@@ -172,6 +183,42 @@ void cpufreq_acct_update_power(struct task_struct *p, u64 cputime)
 	if (uid_entry && state < uid_entry->max_state)
 		uid_entry->time_in_state[state] += cputime;
 	spin_unlock_irqrestore(&uid_lock, flags);
+
+	rcu_read_lock();
+	uid_entry = find_uid_entry_rcu(uid);
+	if (!uid_entry) {
+		rcu_read_unlock();
+		return;
+	}
+
+	for_each_possible_cpu(cpu)
+		if (!idle_cpu(cpu))
+			++active_cpu_cnt;
+
+	atomic64_add(cputime,
+		     &uid_entry->concurrent_times->active[active_cpu_cnt - 1]);
+
+	policy = cpufreq_cpu_get(task_cpu(p));
+	if (!policy) {
+		/*
+		 * This CPU may have just come up and not have a cpufreq policy
+		 * yet.
+		 */
+		rcu_read_unlock();
+		return;
+	}
+
+	for_each_cpu(cpu, policy->related_cpus)
+		if (!idle_cpu(cpu))
+			++policy_cpu_cnt;
+
+	policy_first_cpu = cpumask_first(policy->related_cpus);
+	cpufreq_cpu_put(policy);
+
+	atomic64_add(cputime,
+		     &uid_entry->concurrent_times->policy[policy_first_cpu +
+							  policy_cpu_cnt - 1]);
+	rcu_read_unlock();
 }
 
 void cpufreq_times_create_policy(struct cpufreq_policy *policy)
@@ -213,6 +260,14 @@ void cpufreq_times_create_policy(struct cpufreq_policy *policy)
 		all_freqs[cpu] = freqs;
 }
 
+static void uid_entry_reclaim(struct rcu_head *rcu)
+{
+	struct uid_entry *uid_entry = container_of(rcu, struct uid_entry, rcu);
+
+	kfree(uid_entry->concurrent_times);
+	kfree(uid_entry);
+}
+
 void cpufreq_task_times_remove_uids(uid_t uid_start, uid_t uid_end)
 {
 	struct uid_entry *uid_entry;
@@ -226,7 +281,7 @@ void cpufreq_task_times_remove_uids(uid_t uid_start, uid_t uid_end)
 			hash, uid_start) {
 			if (uid_start == uid_entry->uid) {
 				hash_del_rcu(&uid_entry->hash);
-				kfree_rcu(uid_entry, rcu);
+				call_rcu(&uid_entry->rcu, uid_entry_reclaim);
 			}
 		}
 	}
