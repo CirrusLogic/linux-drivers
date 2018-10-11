@@ -87,6 +87,8 @@ static int clsic_tacna_probe(struct platform_device *pdev)
 	tacna->dev->of_node = of_node_get(clsic->dev->of_node);
 	tacna->irq = 0;
 	tacna->regmap = ras->regmap;
+	tacna->dsp_regmap[0] = ras->regmap_dsp[0];
+	tacna->dsp_regmap[1] = ras->regmap_dsp[1];
 
 	dev_set_drvdata(tacna->dev, tacna);
 

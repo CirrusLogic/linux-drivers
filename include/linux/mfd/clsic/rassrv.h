@@ -14,6 +14,7 @@
 
 #include <linux/mfd/clsic/clsicmessagedefines_RAS.h>
 #include <linux/mfd/tacna/pdata.h>
+#define CLSIC_RAS_MAX_DSPS	2
 
 struct clsic_ras_struct {
 	struct tacna_pdata pdata;
@@ -21,6 +22,8 @@ struct clsic_ras_struct {
 	uint8_t service_instance;
 
 	struct regmap *regmap;
+	struct regmap *regmap_dsp[CLSIC_RAS_MAX_DSPS];
+
 	struct mutex regmap_mutex;
 };
 

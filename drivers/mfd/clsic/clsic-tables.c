@@ -681,34 +681,58 @@ const struct reg_default clsic_reg_defaults[] = {
 };
 EXPORT_SYMBOL_GPL(clsic_reg_defaults);
 
+static const struct regmap_range clsic_dsp2_forbidden_ranges[] = {
+	regmap_reg_range(0x0000000, 0x3ffffff),
+};
 
-static bool clsic_is_dsp_memory(unsigned int reg)
-{
+static const struct regmap_range clsic_dsp2_ranges[] = {
+	regmap_reg_range(0x4000000, 0x401dff0),	/* XM packed */
+	regmap_reg_range(0x4400000, 0x4413ff8),	/* XM packed32 */
+	regmap_reg_range(0x45e0000, 0x45e413c),	/* system info */
+	regmap_reg_range(0x4800000, 0x4827ff4),	/* XM unpacked24 */
+	regmap_reg_range(0x4b80000, 0x4b805d8),	/* control registers */
+	regmap_reg_range(0x4bc1000, 0x4bcd020),	/* control registers */
+	regmap_reg_range(0x4c00000, 0x4c17ff0),	/* YM packed */
+	regmap_reg_range(0x5000000, 0x500fff8),	/* YM unpacked32 */
+	regmap_reg_range(0x5400000, 0x541fff4),	/* YM unpacked24 */
+	regmap_reg_range(0x5800000, 0x5813fe8),	/* PM */
+};
 
-BUILD_BUG_ON(ARRAY_SIZE(clsic_reg_defaults) != CLSIC_REG_DEFAULTS_SZ);
+/*
+ * DSP packed memory regions can only be accessed as bulk transfers
+ * of the correct transfer length. Mark them precious to prevent code
+ * that wouldn't understand this restriction from trying to access them
+ */
+static const struct regmap_range clsic_dsp2_precious_ranges[] = {
+	regmap_reg_range(0x4000000, 0x401dff0),	/* XM packed */
+	regmap_reg_range(0x4c00000, 0x4c17ff0),	/* YM packed */
+	regmap_reg_range(0x5800000, 0x5813fe8),	/* PM */
+};
 
-	switch (reg) {
-	case 0x4000000 ... 0x401dff0:	/* DSP2 XM packed */
-	case 0x4400000 ... 0x4413ff8:	/* DSP2 XM unpacked32 */
-	case 0x45e0000 ... 0x45e413c:	/* DSP2 system info registers */
-	case 0x4800000 ... 0x4827ff4:	/* DSP2 XM unpacked24 */
-	case 0x4b80000 ... 0x4b805d8:	/* DSP2 control registers */
-	case 0x4bc1000 ... 0x4bcd020:	/* DSP2 control registers */
-	case 0x4c00000 ... 0x4c17ff0:	/* DSP2 YM packed */
-	case 0x5000000 ... 0x500fff8:	/* DSP2 YM unpacked32 */
-	case 0x5400000 ... 0x541fff4:	/* DSP2 YM unpacked24 */
-	case 0x5800000 ... 0x5813fe8:	/* DSP2 PM */
-		return true;
-	default:
-		return false;
-	}
-}
+static const struct regmap_access_table clsic_dsp2_readable = {
+	.yes_ranges = clsic_dsp2_ranges,
+	.n_yes_ranges = ARRAY_SIZE(clsic_dsp2_ranges),
+	.no_ranges = clsic_dsp2_forbidden_ranges,
+	.n_no_ranges = ARRAY_SIZE(clsic_dsp2_forbidden_ranges),
+};
+
+static const struct regmap_access_table clsic_dsp2_precious = {
+	.yes_ranges = clsic_dsp2_precious_ranges,
+	.n_yes_ranges = ARRAY_SIZE(clsic_dsp2_precious_ranges),
+};
+
+const struct regmap_config clsic_regmap_config_dsp2_template = {
+	.max_register = 0x5813fe8,
+	.rd_table = &clsic_dsp2_readable,
+	.precious_table = &clsic_dsp2_precious,
+};
 
 /*
  * This tables is used in exposing the internal regmap through the service
  */
 bool clsic_volatile_register(struct device *dev, unsigned int reg)
 {
+	BUILD_BUG_ON(ARRAY_SIZE(clsic_reg_defaults) != CLSIC_REG_DEFAULTS_SZ);
 	switch (reg) {
 	case TACNA_DEVID:
 	case TACNA_REVID:
@@ -750,7 +774,7 @@ bool clsic_volatile_register(struct device *dev, unsigned int reg)
 	case TACNA_CPF1_TX_RDDATA2:
 		return true;
 	default:
-		return clsic_is_dsp_memory(reg);
+		return false;
 	}
 }
 EXPORT_SYMBOL_GPL(clsic_volatile_register);
@@ -1443,11 +1467,28 @@ bool clsic_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_DSP1_SAMPLE_RATE_TX7:
 	case TACNA_DSP1_SAMPLE_RATE_TX8:
 	case TACNA_DSP1_SAMPLE_RATE_TX9:
+	case TACNA_DSP2_SAMPLE_RATE_RX1:
+	case TACNA_DSP2_SAMPLE_RATE_RX2:
+	case TACNA_DSP2_SAMPLE_RATE_RX3:
+	case TACNA_DSP2_SAMPLE_RATE_RX4:
+	case TACNA_DSP2_SAMPLE_RATE_RX5:
+	case TACNA_DSP2_SAMPLE_RATE_RX6:
+	case TACNA_DSP2_SAMPLE_RATE_RX7:
+	case TACNA_DSP2_SAMPLE_RATE_RX8:
+	case TACNA_DSP2_SAMPLE_RATE_TX1:
+	case TACNA_DSP2_SAMPLE_RATE_TX2:
+	case TACNA_DSP2_SAMPLE_RATE_TX3:
+	case TACNA_DSP2_SAMPLE_RATE_TX4:
+	case TACNA_DSP2_SAMPLE_RATE_TX5:
+	case TACNA_DSP2_SAMPLE_RATE_TX6:
+	case TACNA_DSP2_SAMPLE_RATE_TX7:
+	case TACNA_DSP2_SAMPLE_RATE_TX8:
 		return true;
 	default:
-		return clsic_is_dsp_memory(reg);
+		return false;
 	}
 
+	/* Can never get here */
 	return true;
 }
 EXPORT_SYMBOL_GPL(clsic_readable_register);

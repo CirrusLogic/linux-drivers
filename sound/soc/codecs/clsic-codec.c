@@ -1924,8 +1924,7 @@ static int clsic_probe(struct platform_device *pdev)
 		dsp->part = "clsic";
 		dsp->type = WMFW_HALO;
 		dsp->rev = 0;
-		dsp->regmap = clsic_codec->core.tacna->regmap;
-
+		dsp->regmap = clsic_codec->core.tacna->dsp_regmap[1];
 		dsp->base = TACNA_DSP2_CLOCK_FREQ;
 		dsp->base_sysinfo = TACNA_DSP2_SYS_INFO_ID;
 		dsp->mem = clsic_dsp2_regions;
