@@ -419,7 +419,7 @@ static struct regmap_config regmap_config_ras = {
 	.lock = &clsic_ras_regmap_lock,
 	.unlock = &clsic_ras_regmap_unlock,
 
-	.max_register = TACNA_DSP2_PMEM_0,
+	.max_register = TACNA_DSP2_SAMPLE_RATE_TX8,
 
 	.readable_reg = &clsic_readable_register,
 	.volatile_reg = &clsic_volatile_register,
@@ -428,6 +428,17 @@ static struct regmap_config regmap_config_ras = {
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = clsic_reg_defaults,
 	.num_reg_defaults = CLSIC_REG_DEFAULTS_SZ,
+};
+
+static struct regmap_config regmap_config_ras_dsp2 = {
+	.reg_bits = CLSIC_RAS_REG_BITS,
+	.val_bits = CLSIC_RAS_VAL_BITS,
+	.reg_stride = CLSIC_RAS_REG_BYTES,
+
+	.lock = &clsic_ras_regmap_lock,
+	.unlock = &clsic_ras_regmap_unlock,
+
+	.name = "clsic-ras-dsp2",
 };
 
 /*
@@ -546,6 +557,26 @@ int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler)
 				       &regmap_bus_ras,
 				       ras,
 				       &regmap_config_ras);
+	if (IS_ERR(ras->regmap))
+		return PTR_ERR(ras->regmap);
+
+
+	/* DSP1 is always not accessible so setup a regmap for just DSP2 */
+	ras->regmap_dsp[0] = NULL;
+	regmap_config_ras_dsp2.lock_arg = ras;
+	regmap_config_ras_dsp2.max_register =
+		clsic_regmap_config_dsp2_template.max_register;
+	regmap_config_ras_dsp2.rd_table =
+		clsic_regmap_config_dsp2_template.rd_table;
+	regmap_config_ras_dsp2.precious_table =
+		clsic_regmap_config_dsp2_template.precious_table;
+
+	ras->regmap_dsp[1] = devm_regmap_init(clsic->dev,
+					      &regmap_bus_ras,
+					      ras,
+					      &regmap_config_ras_dsp2);
+	if (IS_ERR(ras->regmap_dsp[1]))
+		return PTR_ERR(ras->regmap_dsp[1]);
 
 	clsic_dbg(clsic, "srv: %p regmap: %p\n",
 		  ras, ras->regmap);
