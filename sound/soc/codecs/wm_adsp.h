@@ -116,6 +116,8 @@ struct wm_adsp {
 	char *bin_file_name;
 	bool slave_dbg_ena;
 #endif
+	unsigned int data_word_mask;
+	int data_word_size;
 };
 
 #define WM_ADSP_PRELOADER(wname, num, event_fn) \
