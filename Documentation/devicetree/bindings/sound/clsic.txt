@@ -1,0 +1,22 @@
+Cirrus Logic CLSIC multi-function device
+
+This describes audio configuration bindings for these codecs.
+
+See also the core bindings for the parent MFD driver:
+See Documentation/devicetree/bindings/mfd/clsic.txt
+
+These properties are all contained in the parent MFD node.
+
+Optional properties:
+  - host_controls_dsp2 : CLSIC devices may permit the second Halo Core to
+  be used as a general purpose audio DSP and delegate all control to the host.
+  In this case the Halo Core is managed as a DSP using the Cirrus Logic Tacna
+  audio infrastructure.
+
+Example:
+
+cs48lx50@0 {
+	compatible = "cirrus,clsic";
+
+	host_controls_dsp2;
+};

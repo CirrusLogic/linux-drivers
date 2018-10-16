@@ -1,0 +1,113 @@
+Cirrus Logic CLSIC multi-function device
+
+These devices are audio SoCs with extensive digital capabilities and a range
+of analogue I/O.
+
+See also the child driver bindings in:
+bindings/pinctrl/cirrus,tacna-pinctrl.txt
+bindings/regulator/arizona-regulator.txt
+bindings/sound/clsic.txt
+
+Required properties:
+
+  - compatible : should be "cirrus,clsic"
+
+  - reg : chip select number for SPI.
+
+  - VDD_D-supply : Power supply for the device as defined in
+    bindings/regulator/regulator.txt
+
+  - VDD_A-supply, VDD_IO1-supply: Power supplies for the device
+
+  - interrupt-controller : Indicates that this device is an interrupt controller
+
+  - #interrupt-cells: the number of cells to describe an IRQ, must be 2.
+    The first cell is the IRQ number.
+    The second cell is the flags, encoded as the trigger masks from
+    bindings/interrupt-controller/interrupts.txt
+
+  - interrupt-parent : The parent interrupt controller.
+
+  - interrupts : The interrupt line the /IRQ signal for the device is
+    connected to.
+
+  - gpio-controller : Indicates this device is a GPIO controller.
+
+  - #gpio-cells : Must be 2. The first cell is the pin number. The second cell
+    is reserved for future use and must be zero
+
+Optional properties:
+
+  - reset-gpios : One entry specifying the GPIO controlling RESET_B.
+    As defined in bindings/gpio.txt.
+
+  - pinctrl-names : Name of pinctrl configurations. Each of these is optional.
+    Legal names are:
+	"probe" - external pinctrl dependencies required to probe this codec,
+		typically these are for the reset GPIO and IRQ pin, though
+		could include clocks. Do NOT include configuration of this
+		codec's own GPIO pins because these can't be applied until
+		after the mfd probe has completed.
+
+	"active" - full set of external and local pinctrl configurations to
+		apply after probe including all the configuration of the GPIO
+		pins on this codec (bindings/pinctrl/cirrus,tacna-pinctrl.txt).
+		This must include the external dependencies in the "probe"
+		configuration, since they will still be required after probe.
+
+    Do not use "default" since it is applied too early before the mfd has
+    fully probed the codec.
+
+  - pinctrl-0 : handle to pinctrl configurations matching the entries in
+    pinctrl-names
+
+Example:
+
+codec: cs48lx50@0 {
+	compatible = "cirrus,clsic";
+	reg = <0>;
+
+	interrupt-controller;
+	#interrupt-cells = <2>;
+	interrupts = <13 8>;
+	interrupt-parent = <&gpio>;
+
+	reset-gpio = <&gpio 0>;
+
+	gpio-controller;
+	#gpio-cells = <2>;
+
+	VDD_A-supply = <&regulator_dummy>;
+	VDD_IO1-supply = <&regulator_dummy>;
+	VDD_D-supply = <&regulator_dummy>;
+
+	pinctrl-names = "active";
+	pinctrl-0 = <&cs48lx50_defaults>;
+
+	cs48lx50_pinctrl: tacna-pinctrl {
+		compatible = "cirrus,tacna-pinctrl";
+
+		cs48lx50_defaults: defaults {
+			asp1 {
+				groups = "asp1";
+				function = "asp1";
+				bias-bus-hold;
+			};
+			asp2 {
+				groups = "asp2";
+				function = "asp2";
+				bias-bus-hold;
+			};
+			in3-pdm {
+				groups = "in3-pdm";
+				function ="in3-pdm";
+				bias-bus-hold;
+			};
+			in4-pdm {
+				groups = "in4-pdm";
+				function ="in4-pdm";
+				bias-bus-hold;
+			};
+		};
+	};
+};
