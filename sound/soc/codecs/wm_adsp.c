@@ -3834,7 +3834,7 @@ int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 {
 	char preload[32];
 
-	if(!dsp->no_preloader){
+	if (!dsp->no_preloader) {
 		snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->name);
 		snd_soc_component_disable_pin(&codec->component, preload);
 	}
