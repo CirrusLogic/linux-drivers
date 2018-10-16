@@ -116,6 +116,8 @@ struct wm_adsp {
 #endif
 
 	void (*fwevent_cb)(struct wm_adsp *dsp, int eventid);
+	unsigned int data_word_mask;
+	int data_word_size;
 };
 
 #define WM_ADSP_PRELOADER(wname, num, event_fn) \
