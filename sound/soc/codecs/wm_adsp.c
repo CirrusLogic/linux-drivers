@@ -474,12 +474,14 @@ struct wm_adsp_compr {
 	const char *name;
 };
 
-#define WM_ADSP_DATA_WORD_SIZE         3
+#define WM_ADSP_DATA_WORD_SIZE_DEFAULT	3
 
-#define WM_ADSP_MIN_FRAGMENTS          1
-#define WM_ADSP_MAX_FRAGMENTS          256
-#define WM_ADSP_MIN_FRAGMENT_SIZE      (64 * WM_ADSP_DATA_WORD_SIZE)
-#define WM_ADSP_MAX_FRAGMENT_SIZE      (4096 * WM_ADSP_DATA_WORD_SIZE)
+#define WM_ADSP_DATA_WORD_MASK_DEFAULT	0x00ffffffu
+
+#define WM_ADSP_MIN_FRAGMENTS		1
+#define WM_ADSP_MAX_FRAGMENTS		256
+#define WM_ADSP_MIN_FRAGMENT_SIZE_WORDS	64
+#define WM_ADSP_MAX_FRAGMENT_SIZE_WORDS	4096
 
 #define WM_ADSP_ALG_XM_STRUCT_MAGIC    0x49aec7
 
@@ -3587,6 +3589,9 @@ int wm_adsp2_init(struct wm_adsp *dsp)
 
 	INIT_WORK(&dsp->boot_work, wm_adsp_boot_work);
 
+	dsp->data_word_size = WM_ADSP_DATA_WORD_SIZE_DEFAULT;
+	dsp->data_word_mask = WM_ADSP_DATA_WORD_MASK_DEFAULT;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_init);
@@ -3608,6 +3613,9 @@ int wm_halo_init(struct wm_adsp *dsp, struct mutex *rate_lock)
 				     GFP_KERNEL);
 	dsp->tx_rate_cache = kcalloc(dsp->n_tx_channels, sizeof(u8),
 				     GFP_KERNEL);
+
+	dsp->data_word_size = WM_ADSP_DATA_WORD_SIZE_DEFAULT;
+	dsp->data_word_mask = WM_ADSP_DATA_WORD_MASK_DEFAULT;
 
 	return 0;
 }
@@ -3752,11 +3760,13 @@ static int wm_adsp_compr_check_params(struct snd_compr_stream *stream,
 	const struct snd_codec_desc *desc;
 	int i, j;
 
-	if (params->buffer.fragment_size < WM_ADSP_MIN_FRAGMENT_SIZE ||
-	    params->buffer.fragment_size > WM_ADSP_MAX_FRAGMENT_SIZE ||
+	if (params->buffer.fragment_size < (WM_ADSP_MIN_FRAGMENT_SIZE_WORDS
+					    * dsp->data_word_size) ||
+	    params->buffer.fragment_size > (WM_ADSP_MAX_FRAGMENT_SIZE_WORDS
+					    * dsp->data_word_size) ||
 	    params->buffer.fragments < WM_ADSP_MIN_FRAGMENTS ||
 	    params->buffer.fragments > WM_ADSP_MAX_FRAGMENTS ||
-	    params->buffer.fragment_size % WM_ADSP_DATA_WORD_SIZE) {
+	    params->buffer.fragment_size % dsp->data_word_size) {
 		compr_err(compr, "Invalid buffer fragsize=%d fragments=%d\n",
 			  params->buffer.fragment_size,
 			  params->buffer.fragments);
@@ -3795,7 +3805,7 @@ static int wm_adsp_compr_check_params(struct snd_compr_stream *stream,
 
 static inline unsigned int wm_adsp_compr_frag_words(struct wm_adsp_compr *compr)
 {
-	return compr->size.fragment_size / WM_ADSP_DATA_WORD_SIZE;
+	return compr->size.fragment_size / compr->dsp->data_word_size;
 }
 
 int wm_adsp_compr_set_params(struct snd_compr_stream *stream,
@@ -3829,6 +3839,7 @@ int wm_adsp_compr_get_caps(struct snd_compr_stream *stream,
 			   struct snd_compr_caps *caps)
 {
 	struct wm_adsp_compr *compr = stream->runtime->private_data;
+	struct wm_adsp *dsp = compr->dsp;
 	int fw = compr->dsp->fw;
 	int i;
 
@@ -3839,8 +3850,10 @@ int wm_adsp_compr_get_caps(struct snd_compr_stream *stream,
 		caps->num_codecs = i;
 		caps->direction = wm_adsp_fw[fw].compr_direction;
 
-		caps->min_fragment_size = WM_ADSP_MIN_FRAGMENT_SIZE;
-		caps->max_fragment_size = WM_ADSP_MAX_FRAGMENT_SIZE;
+		caps->min_fragment_size = WM_ADSP_MIN_FRAGMENT_SIZE_WORDS
+						* dsp->data_word_size;
+		caps->max_fragment_size = WM_ADSP_MAX_FRAGMENT_SIZE_WORDS
+						* dsp->data_word_size;
 		caps->min_fragments = WM_ADSP_MIN_FRAGMENTS;
 		caps->max_fragments = WM_ADSP_MAX_FRAGMENTS;
 	}
@@ -3855,6 +3868,7 @@ static int wm_adsp_read_data_block(struct wm_adsp *dsp, int mem_type,
 {
 	struct wm_adsp_region const *mem = wm_adsp_find_region(dsp, mem_type);
 	unsigned int i, reg;
+	unsigned int data_word_mask = dsp->data_word_mask;
 	int ret;
 
 	if (!mem)
@@ -3868,7 +3882,7 @@ static int wm_adsp_read_data_block(struct wm_adsp *dsp, int mem_type,
 		return ret;
 
 	for (i = 0; i < num_words; ++i)
-		data[i] = be32_to_cpu(data[i]) & 0x00ffffffu;
+		data[i] = be32_to_cpu(data[i]) & data_word_mask;
 
 	return 0;
 }
@@ -3890,7 +3904,7 @@ static int wm_adsp_write_data_word(struct wm_adsp *dsp, int mem_type,
 
 	reg = dsp->ops->region_to_reg(mem, mem_addr);
 
-	data = cpu_to_be32(data & 0x00ffffffu);
+	data = cpu_to_be32(data & dsp->data_word_mask);
 
 	return regmap_raw_write(dsp->regmap, reg, &data, sizeof(data));
 }
@@ -4111,7 +4125,7 @@ static int wm_adsp_buffer_parse_coeff(struct wm_coeff_ctl *ctl)
 
 	wm_adsp_remove_padding((u32 *)&coeff_v1.name,
 			       ARRAY_SIZE(coeff_v1.name),
-			       WM_ADSP_DATA_WORD_SIZE);
+			       ctl->dsp->data_word_size);
 
 	buf->name = kasprintf(GFP_KERNEL, "%s-dsp-%s", ctl->dsp->part,
 			      (char *)&coeff_v1.name);
@@ -4286,7 +4300,7 @@ static int wm_adsp_buffer_update_avail(struct wm_adsp_compr_buf *buf)
 		avail += wm_adsp_buffer_size(buf);
 
 	compr_dbg(buf, "readindex=0x%x, writeindex=0x%x, avail=%d\n",
-		  buf->read_index, write_index, avail * WM_ADSP_DATA_WORD_SIZE);
+		 buf->read_index, write_index, avail * buf->dsp->data_word_size);
 
 	buf->avail = avail;
 
@@ -4413,7 +4427,7 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 	}
 
 	tstamp->copied_total = compr->copied_total;
-	tstamp->copied_total += buf->avail * WM_ADSP_DATA_WORD_SIZE;
+	tstamp->copied_total += buf->avail * dsp->data_word_size;
 	tstamp->sampling_rate = compr->sample_rate;
 
 out:
@@ -4429,6 +4443,7 @@ static int wm_adsp_buffer_capture_block(struct wm_adsp_compr *compr, int target)
 	unsigned int adsp_addr;
 	int mem_type, nwords, max_read;
 	int i, ret;
+	int data_word_size = buf->dsp->data_word_size;
 
 	/* Calculate read parameters */
 	for (i = 0; i < buf->num_regions; ++i)
@@ -4460,7 +4475,7 @@ static int wm_adsp_buffer_capture_block(struct wm_adsp_compr *compr, int target)
 	if (ret < 0)
 		return ret;
 
-	wm_adsp_remove_padding(compr->raw_buf, nwords, WM_ADSP_DATA_WORD_SIZE);
+	wm_adsp_remove_padding(compr->raw_buf, nwords, data_word_size);
 
 	/* update read index to account for words read */
 	buf->read_index += nwords;
@@ -4492,7 +4507,7 @@ static int wm_adsp_compr_read(struct wm_adsp_compr *compr,
 		return -EIO;
 	}
 
-	count /= WM_ADSP_DATA_WORD_SIZE;
+	count /= dsp->data_word_size;
 
 	do {
 		nwords = wm_adsp_buffer_capture_block(compr, count);
@@ -4502,7 +4517,7 @@ static int wm_adsp_compr_read(struct wm_adsp_compr *compr,
 			return nwords;
 		}
 
-		nbytes = nwords * WM_ADSP_DATA_WORD_SIZE;
+		nbytes = nwords * dsp->data_word_size;
 
 		compr_dbg(compr, "Read %d bytes\n", nbytes);
 
