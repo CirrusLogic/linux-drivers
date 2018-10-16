@@ -437,6 +437,8 @@ struct wm_adsp_compr_buf {
 	struct wm_adsp *dsp;
 	struct wm_adsp_compr *compr;
 
+	int num_regions;
+	const struct wm_adsp_buffer_region_def *region_defs;
 	struct wm_adsp_buffer_region *regions;
 	u32 host_buf_ptr;
 
@@ -522,8 +524,6 @@ static const struct wm_adsp_buffer_region_def default_regions[] = {
 struct wm_adsp_fw_caps {
 	u32 id;
 	struct snd_codec_desc desc;
-	int num_regions;
-	const struct wm_adsp_buffer_region_def *region_defs;
 };
 
 static const struct wm_adsp_fw_caps ctrl_caps[] = {
@@ -535,8 +535,6 @@ static const struct wm_adsp_fw_caps ctrl_caps[] = {
 			.num_sample_rates = 1,
 			.formats = SNDRV_PCM_FMTBIT_S16_LE,
 		},
-		.num_regions = ARRAY_SIZE(default_regions),
-		.region_defs = default_regions,
 	},
 };
 
@@ -553,8 +551,6 @@ static const struct wm_adsp_fw_caps trace_caps[] = {
 			.num_sample_rates = 15,
 			.formats = SNDRV_PCM_FMTBIT_S16_LE,
 		},
-		.num_regions = ARRAY_SIZE(default_regions),
-		.region_defs = default_regions,
 	},
 };
 
@@ -3711,28 +3707,30 @@ static void wm_adsp_remove_padding(u32 *buf, int nwords, int data_word_size)
 
 static int wm_adsp_buffer_populate(struct wm_adsp_compr_buf *buf)
 {
-	const struct wm_adsp_fw_caps *caps = wm_adsp_fw[buf->dsp->fw].caps;
 	struct wm_adsp_buffer_region *region;
 	u32 offset = 0;
 	int i, ret;
 
-	buf->regions = kcalloc(caps->num_regions, sizeof(*buf->regions),
+	buf->num_regions = ARRAY_SIZE(default_regions);
+	buf->region_defs = default_regions;
+
+	buf->regions = kcalloc(buf->num_regions, sizeof(*buf->regions),
 			       GFP_KERNEL);
 	if (!buf->regions)
 		return -ENOMEM;
 
-	for (i = 0; i < caps->num_regions; ++i) {
+	for (i = 0; i < buf->num_regions; ++i) {
 		region = &buf->regions[i];
 
 		region->offset = offset;
-		region->mem_type = caps->region_defs[i].mem_type;
+		region->mem_type = buf->region_defs[i].mem_type;
 
-		ret = wm_adsp_buffer_read(buf, caps->region_defs[i].base_offset,
+		ret = wm_adsp_buffer_read(buf, buf->region_defs[i].base_offset,
 					  &region->base_addr);
 		if (ret < 0)
 			return ret;
 
-		ret = wm_adsp_buffer_read(buf, caps->region_defs[i].size_offset,
+		ret = wm_adsp_buffer_read(buf, buf->region_defs[i].size_offset,
 					  &offset);
 		if (ret < 0)
 			return ret;
@@ -4028,7 +4026,7 @@ EXPORT_SYMBOL_GPL(wm_adsp_compr_trigger);
 
 static inline int wm_adsp_buffer_size(struct wm_adsp_compr_buf *buf)
 {
-	int last_region = wm_adsp_fw[buf->dsp->fw].caps->num_regions - 1;
+	int last_region = buf->num_regions - 1;
 
 	return buf->regions[last_region].cumulative_size;
 }
@@ -4207,11 +4205,11 @@ static int wm_adsp_buffer_capture_block(struct wm_adsp_compr *compr, int target)
 	int i, ret;
 
 	/* Calculate read parameters */
-	for (i = 0; i < wm_adsp_fw[buf->dsp->fw].caps->num_regions; ++i)
+	for (i = 0; i < buf->num_regions; ++i)
 		if (buf->read_index < buf->regions[i].cumulative_size)
 			break;
 
-	if (i == wm_adsp_fw[buf->dsp->fw].caps->num_regions)
+	if (i == buf->num_regions)
 		return -EINVAL;
 
 	mem_type = buf->regions[i].mem_type;
