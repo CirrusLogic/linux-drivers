@@ -583,6 +583,8 @@ struct wm_adsp_compr_buf {
 	int read_index;
 	int avail;
 	int host_buf_mem_type;
+	int num_regions;
+	const struct wm_adsp_buffer_region_def *region_def;
 };
 
 struct wm_adsp_compr {
@@ -651,11 +653,27 @@ static const struct wm_adsp_buffer_region_def default_regions[] = {
 	},
 };
 
+static const struct wm_adsp_buffer_region_def vpu_regions[] = {
+	{
+		.mem_type = WMFW_VPU_DM,
+		.base_offset = HOST_BUFFER_FIELD(buf1_base),
+		.size_offset = HOST_BUFFER_FIELD(buf1_size),
+	},
+	{
+		.mem_type = WMFW_VPU_DM,
+		.base_offset = HOST_BUFFER_FIELD(buf2_base),
+		.size_offset = HOST_BUFFER_FIELD(buf1_buf2_size),
+	},
+	{
+		.mem_type = WMFW_VPU_DM,
+		.base_offset = HOST_BUFFER_FIELD(buf3_base),
+		.size_offset = HOST_BUFFER_FIELD(buf_total_size),
+	},
+};
+
 struct wm_adsp_fw_caps {
 	u32 id;
 	struct snd_codec_desc desc;
-	int num_regions;
-	const struct wm_adsp_buffer_region_def *region_defs;
 };
 
 static const struct wm_adsp_fw_caps ctrl_caps[] = {
@@ -667,8 +685,6 @@ static const struct wm_adsp_fw_caps ctrl_caps[] = {
 			.num_sample_rates = 1,
 			.formats = SNDRV_PCM_FMTBIT_S16_LE,
 		},
-		.num_regions = ARRAY_SIZE(default_regions),
-		.region_defs = default_regions,
 	},
 };
 
@@ -685,8 +701,6 @@ static const struct wm_adsp_fw_caps trace_caps[] = {
 			.num_sample_rates = 15,
 			.formats = SNDRV_PCM_FMTBIT_S16_LE,
 		},
-		.num_regions = ARRAY_SIZE(default_regions),
-		.region_defs = default_regions,
 	},
 };
 
@@ -4373,23 +4387,22 @@ static int wm_adsp_buffer_locate(struct wm_adsp_compr_buf *buf)
 
 static int wm_adsp_buffer_populate(struct wm_adsp_compr_buf *buf)
 {
-	const struct wm_adsp_fw_caps *caps = wm_adsp_fw[buf->dsp->fw].caps;
 	struct wm_adsp_buffer_region *region;
 	u32 offset = 0;
 	int i, ret;
 
-	for (i = 0; i < caps->num_regions; ++i) {
+	for (i = 0; i < buf->num_regions; ++i) {
 		region = &buf->regions[i];
 
 		region->offset = offset;
-		region->mem_type = caps->region_defs[i].mem_type;
+		region->mem_type = buf->region_def[i].mem_type;
 
-		ret = wm_adsp_buffer_read(buf, caps->region_defs[i].base_offset,
+		ret = wm_adsp_buffer_read(buf, buf->region_def[i].base_offset,
 					  &region->base_addr);
 		if (ret < 0)
 			return ret;
 
-		ret = wm_adsp_buffer_read(buf, caps->region_defs[i].size_offset,
+		ret = wm_adsp_buffer_read(buf, buf->region_def[i].size_offset,
 					  &offset);
 		if (ret < 0)
 			return ret;
@@ -4425,14 +4438,31 @@ static int wm_adsp_buffer_init(struct wm_adsp *dsp)
 
 	wm_adsp_buffer_clear(buf);
 
+	switch (dsp->type) {
+	case WMFW_ADSP1:
+	case WMFW_ADSP2:
+	case WMFW_HALO:
+		buf->num_regions = ARRAY_SIZE(default_regions);
+		buf->region_def = default_regions;
+		break;
+	case WMFW_VPU:
+		buf->num_regions = ARRAY_SIZE(vpu_regions);
+		buf->region_def = vpu_regions;
+		break;
+	default:
+		adsp_err(dsp, "Unknown DSP type:%d\n", dsp->type);
+		ret = -EINVAL;
+		goto err_buffer;
+	}
+
 	ret = wm_adsp_buffer_locate(buf);
 	if (ret < 0) {
 		adsp_err(dsp, "Failed to acquire host buffer: %d\n", ret);
 		goto err_buffer;
 	}
 
-	buf->regions = kcalloc(wm_adsp_fw[dsp->fw].caps->num_regions,
-			       sizeof(*buf->regions), GFP_KERNEL);
+	buf->regions = kcalloc(buf->num_regions, sizeof(*buf->regions),
+			       GFP_KERNEL);
 	if (!buf->regions) {
 		ret = -ENOMEM;
 		goto err_buffer;
@@ -4517,7 +4547,7 @@ EXPORT_SYMBOL_GPL(wm_adsp_compr_trigger);
 
 static inline int wm_adsp_buffer_size(struct wm_adsp_compr_buf *buf)
 {
-	int last_region = wm_adsp_fw[buf->dsp->fw].caps->num_regions - 1;
+	int last_region = buf->num_regions - 1;
 
 	return buf->regions[last_region].cumulative_size;
 }
@@ -4722,11 +4752,11 @@ static int wm_adsp_buffer_capture_block(struct wm_adsp_compr *compr, int target)
 	int data_word_size = buf->dsp->data_word_size;
 
 	/* Calculate read parameters */
-	for (i = 0; i < wm_adsp_fw[buf->dsp->fw].caps->num_regions; ++i)
+	for (i = 0; i < buf->num_regions; ++i)
 		if (buf->read_index < buf->regions[i].cumulative_size)
 			break;
 
-	if (i == wm_adsp_fw[buf->dsp->fw].caps->num_regions)
+	if (i == buf->num_regions)
 		return -EINVAL;
 
 	mem_type = buf->regions[i].mem_type;
