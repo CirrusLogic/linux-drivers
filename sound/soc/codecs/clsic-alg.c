@@ -966,6 +966,7 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct clsic_alg *alg = snd_soc_codec_get_drvdata(rtd->codec);
+	struct clsic *clsic = alg->clsic;
 	int ret = 0;
 
 	/*
@@ -984,7 +985,9 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 		return -EBUSY;
 	}
 
-	clsic_dbg(alg->clsic, "%s\n", rtd->codec_dai->name);
+	clsic_dbg(clsic, "%s\n", rtd->codec_dai->name);
+
+	pm_runtime_get_sync(clsic->dev);
 
 	ret = clsic_alg_set_irq_notify_mode(alg,
 					   CLSIC_ALGOSRV_EVENT_VTE,
@@ -1003,13 +1006,13 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 		clsic_err(alg->clsic,
 			  "Open compr stream for DAI '%s' failed %d\n",
 			  rtd->codec_dai->name, ret);
-
 error:
 	trace_clsic_alg_compr_stream_open(stream->direction, ret);
 
 	if (ret) {
-		module_put(alg->clsic->dev->driver->owner);
+		module_put(clsic->dev->driver->owner);
 		module_put(alg->codec->component.card->owner);
+		pm_runtime_put_autosuspend(clsic->dev);
 	}
 
 	return ret;
@@ -1027,9 +1030,10 @@ static int clsic_alg_compr_free(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct clsic_alg *alg = snd_soc_codec_get_drvdata(rtd->codec);
+	struct clsic *clsic = alg->clsic;
 	int ret;
 
-	clsic_dbg(alg->clsic, "%s\n", rtd->codec_dai->name);
+	clsic_dbg(clsic, "%s\n", rtd->codec_dai->name);
 
 	ret = clsic_alg_set_irq_notify_mode(alg,
 					   CLSIC_ALGOSRV_EVENT_VTE,
@@ -1042,8 +1046,9 @@ static int clsic_alg_compr_free(struct snd_compr_stream *stream)
 
 	wm_adsp_compr_free(stream);
 
-	module_put(alg->clsic->dev->driver->owner);
+	module_put(clsic->dev->driver->owner);
 	module_put(alg->codec->component.card->owner);
+	pm_runtime_put_autosuspend(clsic->dev);
 
 	trace_clsic_alg_compr_stream_free(stream->direction, ret);
 
