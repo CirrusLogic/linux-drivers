@@ -113,6 +113,8 @@ struct wm_adsp {
 	char *wmfw_file_name;
 	char *bin_file_name;
 #endif
+	unsigned int data_word_mask;
+	int data_word_size;
 
 	void (*fwevent_cb)(struct wm_adsp *dsp, int eventid);
 };
