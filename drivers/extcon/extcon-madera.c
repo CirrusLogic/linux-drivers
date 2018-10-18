@@ -2877,7 +2877,7 @@ static int madera_extcon_read_calibration(struct madera_extcon *info)
 	info->hpdet_trims = trims;
 
 	dev_dbg(info->dev,
-		"trims_x_4: %u,%u %u,%u %u,%u %u,%u\n",
+		"trims_x_4: %d,%d %d,%d %d,%d %d,%d\n",
 		trims[0].off_x4, trims[0].grad_x4,
 		trims[1].off_x4, trims[1].grad_x4,
 		trims[2].off_x4, trims[2].grad_x4,
