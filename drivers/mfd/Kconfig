@@ -252,6 +252,12 @@ config MFD_CS48L32
 	help
 	  Support for Cirrus Logic CS48L32 Smart Codec
 
+config MFD_CS48L33
+	bool "Cirrus Logic CS48L33"
+	depends on MFD_TACNA
+	help
+	  Support for Cirrus Logic CS48L33 Smart Codec
+
 config MFD_ASIC3
 	bool "Compaq ASIC3"
 	depends on GPIOLIB && ARM

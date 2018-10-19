@@ -50,6 +50,9 @@ endif
 ifeq ($(CONFIG_MFD_CS48L32),y)
 obj-$(CONFIG_MFD_TACNA)		+= cs48l32-tables.o
 endif
+ifeq ($(CONFIG_MFD_CS48L33),y)
+obj-$(CONFIG_MFD_TACNA)		+= cs48l32-tables.o
+endif
 obj-$(CONFIG_MFD_TACNA_SPI)	+= tacna-spi.o
 
 obj-$(CONFIG_MFD_ARIZONA)	+= arizona-core.o
