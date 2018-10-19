@@ -685,6 +685,7 @@ static int tacna_irq_probe(struct platform_device *pdev)
 	 */
 	switch (priv->tacna->type) {
 	case CS48L32:
+	case CS48L33:
 		break;
 	default:
 		virq = irq_create_mapping(priv->virq, TACNA_AOD_VIRQ_INDEX);
