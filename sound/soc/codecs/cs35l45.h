@@ -517,6 +517,8 @@
 #define CS35L45_REGSTRIDE			4
 #define CS35L45_VALID_PDATA			0x80000000
 #define CS35L45_DEFAULT_SLOT_WIDTH		32
+#define CS35L45_BUFSIZE				64
+#define CS35L45_ALGID				0xCD
 
 struct cs35l45_private;
 
@@ -549,6 +551,14 @@ enum cspl_cmd {
 	CSPL_CMD_MUTE = 1,
 	CSPL_CMD_UNMUTE = 2,
 	CSPL_CMD_UPDATE_PARAM = 8,
+};
+
+enum cspl_st {
+	CSPL_ST_RUNNING			= 0,
+	CSPL_ST_ERROR			= 1,
+	CSPL_ST_MUTED			= 2,
+	CSPL_ST_REINITING		= 3,
+	CSPL_ST_DIAGNOSING		= 6,
 };
 
 enum pcm_mixers {
