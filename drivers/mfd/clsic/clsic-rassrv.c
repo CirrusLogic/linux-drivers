@@ -67,6 +67,9 @@ static int clsic_ras_simple_readregister(struct clsic_ras_struct *ras,
 	if (ras == NULL)
 		return -EINVAL;
 
+	if (ras->suspended)
+		return -EBUSY;
+
 	clsic = ras->clsic;
 
 	/* Format and send a message to the remote access service */
@@ -123,6 +126,9 @@ static int clsic_ras_simple_writeregister(struct clsic_ras_struct *ras,
 
 	if (ras == NULL)
 		return -EINVAL;
+
+	if (ras->suspended)
+		return -EBUSY;
 
 	clsic = ras->clsic;
 
@@ -216,6 +222,9 @@ static int clsic_ras_read(void *context, const void *reg_buf,
 	if (ras == NULL)
 		return -EINVAL;
 
+	if (ras->suspended)
+		return -EBUSY;
+
 	clsic = ras->clsic;
 
 	if (val_size == CLSIC_RAS_VAL_BYTES)
@@ -293,6 +302,9 @@ static int clsic_ras_write(void *context, const void *val_buf,
 
 	if (ras == NULL)
 		return -EINVAL;
+
+	if (ras->suspended)
+		return -EBUSY;
 
 	clsic = ras->clsic;
 
@@ -467,11 +479,19 @@ static int clsic_ras_pm_handler(struct clsic_service *handler, int pm_event)
 
 	switch (pm_event) {
 	case PM_EVENT_SUSPEND:
+		mutex_lock(&ras->regmap_mutex);
+		ras->suspended = true;
+		mutex_unlock(&ras->regmap_mutex);
+
 		regcache_cache_only(ras->regmap, true);
 		regcache_mark_dirty(ras->regmap);
 		break;
 
 	case PM_EVENT_RESUME:
+		mutex_lock(&ras->regmap_mutex);
+		ras->suspended = false;
+		mutex_unlock(&ras->regmap_mutex);
+
 		regcache_cache_only(ras->regmap, false);
 		ret = regcache_sync(ras->regmap);
 		break;
@@ -516,6 +536,10 @@ int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler)
 		     handler->service_instance)) {
 			clsic_dbg(clsic, "%p handler structure is a full match",
 				  handler);
+
+			mutex_lock(&ras->regmap_mutex);
+			ras->suspended = false;
+			mutex_unlock(&ras->regmap_mutex);
 
 			/*
 			 * Mark dirty, switch off cache only then sync to the
@@ -577,6 +601,8 @@ int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler)
 					      &regmap_config_ras_dsp2);
 	if (IS_ERR(ras->regmap_dsp[1]))
 		return PTR_ERR(ras->regmap_dsp[1]);
+
+	ras->suspended = false;
 
 	clsic_dbg(clsic, "srv: %p regmap: %p\n",
 		  ras, ras->regmap);
