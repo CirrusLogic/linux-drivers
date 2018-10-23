@@ -130,12 +130,18 @@ struct cs35l45_private {
 	struct cs35l45_platform_data pdata;
 	struct mutex rate_lock;
 	bool initialized;
+	bool fast_switch_en;
 	unsigned int wksrc;
 	unsigned int i2c_addr;
 	int irq;
 	int slot_width;
 	int amplifier_mode;
 	int hibernate_mode;
+	/* Run-time mixer */
+	struct snd_kcontrol_new fast_ctl;
+	unsigned int fast_switch_file_idx;
+	struct soc_enum fast_switch_enum;
+	const char **fast_switch_names;
 };
 
 int cs35l45_initialize(struct cs35l45_private *cs35l45);
