@@ -20,6 +20,7 @@ struct clsic_ras_struct {
 	struct tacna_pdata pdata;
 	struct clsic *clsic;
 	uint8_t service_instance;
+	bool suspended;
 
 	struct regmap *regmap;
 	struct regmap *regmap_dsp[CLSIC_RAS_MAX_DSPS];
