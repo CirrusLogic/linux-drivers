@@ -24,7 +24,7 @@
 /**
  *  Service type identifier.
  */
-#define CLSIC_SRV_TYPE_ALG			(0x4C42)
+#define CLSIC_SRV_TYPE_ALG			(0x4C41)
 
 /**
  *  Service version number.
