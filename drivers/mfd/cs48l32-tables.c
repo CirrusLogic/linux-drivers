@@ -16,6 +16,7 @@
 #include "tacna.h"
 
 static const struct reg_sequence cs48l32_reva_patch[] = {
+	{ 0x00001044, 0x0005000f },
 	{ 0x00001c34, 0x000037e8 },
 };
 
@@ -53,7 +54,7 @@ static const struct reg_default cs48l32_reg_default[] = {
 	{ 0x00001020, 0x00000000 }, /* OUTPUT_SYS_CLK */
 	{ 0x00001030, 0x00000000 }, /* CLKGEN_PAD_CTRL */
 	{ 0x00001034, 0x00000000 }, /* DMIC_PAD_CTRL */
-	{ 0x00001044, 0x0000000f }, /* AUXPDM_CTRL */
+	{ 0x00001044, 0x0005000f }, /* AUXPDM_CTRL */
 	{ 0x0000105c, 0x00000000 }, /* AUXPDM_CTRL2 */
 	{ 0x00001400, 0x00000002 }, /* CLOCK32K */
 	{ 0x00001404, 0x00000404 }, /* SYSTEM_CLOCK1 */
