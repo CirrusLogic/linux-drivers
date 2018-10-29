@@ -517,7 +517,7 @@ static void madera_prop_get_micbias_gen(struct madera *madera,
 
 	desc.name = name;
 	pdata->init_data = of_get_regulator_init_data(madera->dev, np, &desc);
-	pdata->ext_cap = of_property_read_bool(np, "wlf,ext-cap");
+	pdata->ext_cap = of_property_read_bool(np, "cirrus,ext-cap");
 	of_property_read_u32(np, "regulator-active-discharge",
 			     &pdata->active_discharge);
 }
