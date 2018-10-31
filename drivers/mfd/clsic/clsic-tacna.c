@@ -62,19 +62,15 @@ static int clsic_tacna_probe(struct platform_device *pdev)
 	struct clsic *clsic = dev_get_drvdata(pdev->dev.parent);
 	struct clsic_ras_struct *ras = dev_get_platdata(&pdev->dev);
 	struct tacna *tacna;
-	u32 devid;
 	int ret = 0;
 
-	ret = regmap_read(ras->regmap, TACNA_DEVID, &devid);
-	dev_dbg(&pdev->dev, "%s() regmap access test: devid 0x%x (%d)\n",
-		__func__, devid, ret);
-
 	/*
-	 * Don't try to run this on the emulated platform, only on real
-	 * hardware
+	 * Don't try to run this on the emulated platform as it does not have
+	 * an interpreter for the resulting RAS messages it cannot simulate the
+	 * mixer core.
 	 */
-	if (devid != CLSIC_SUPPORTED_ID_48AB50 &&
-	    devid != CLSIC_SUPPORTED_ID_48AC40)
+	if (clsic->devid != CLSIC_SUPPORTED_ID_48AB50 &&
+	    clsic->devid != CLSIC_SUPPORTED_ID_48AC40)
 		return -EIO;
 
 	tacna = devm_kzalloc(&pdev->dev, sizeof(struct tacna), GFP_KERNEL);
