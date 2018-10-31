@@ -74,7 +74,7 @@ static int clsic_ras_simple_readregister(struct clsic_ras_struct *ras,
 
 	/* Format and send a message to the remote access service */
 	clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-			   ras->service_instance,
+			   ras->service->service_instance,
 			   CLSIC_RAS_MSG_CR_RDREG);
 	msg_cmd.cmd_rdreg.addr = address;
 
@@ -134,7 +134,7 @@ static int clsic_ras_simple_writeregister(struct clsic_ras_struct *ras,
 
 	/* Format and send a message to the remote access service */
 	clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-			   ras->service_instance,
+			   ras->service->service_instance,
 			   CLSIC_RAS_MSG_CR_WRREG);
 	msg_cmd.cmd_wrreg.addr = address;
 	msg_cmd.cmd_wrreg.value = value;
@@ -234,7 +234,7 @@ static int clsic_ras_read(void *context, const void *reg_buf,
 	for (i = 0; i < val_size; i += CLSIC_RAS_MAX_BULK_SZ) {
 		/* Format and send a message to the remote access service */
 		clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-				   ras->service_instance,
+				   ras->service->service_instance,
 				   CLSIC_RAS_MSG_CR_RDREG_BULK);
 		frag_sz = min(val_size - i, (size_t) CLSIC_RAS_MAX_BULK_SZ);
 		msg_cmd.cmd_rdreg_bulk.addr = reg + i;
@@ -333,7 +333,7 @@ static int clsic_ras_write(void *context, const void *val_buf,
 	for (i = 0; i < payload_sz; i += CLSIC_RAS_MAX_BULK_SZ) {
 		/* Format and send a message to the remote access service */
 		clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-				   ras->service_instance,
+				   ras->service->service_instance,
 				   CLSIC_RAS_MSG_CR_WRREG_BULK);
 		frag_sz = min(payload_sz - i, (size_t) CLSIC_RAS_MAX_BULK_SZ);
 		msg_cmd.blkcmd_wrreg_bulk.addr = addr + i;
@@ -528,32 +528,20 @@ int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler)
 	    (handler->data != NULL)) {
 		ras = handler->data;
 
+		mutex_lock(&ras->regmap_mutex);
+		ras->suspended = false;
+		mutex_unlock(&ras->regmap_mutex);
+
 		/*
-		 * Check the private data structure is correct
+		 * Mark dirty, switch off cache only then sync to the
+		 * hardware - this recommits the last known client
+		 * state.
 		 */
-		if ((ras->clsic == clsic) &&
-		    (ras->service_instance ==
-		     handler->service_instance)) {
-			clsic_dbg(clsic, "%p handler structure is a full match",
-				  handler);
+		regcache_mark_dirty(ras->regmap);
+		regcache_cache_only(ras->regmap, false);
+		regcache_sync(ras->regmap);
 
-			mutex_lock(&ras->regmap_mutex);
-			ras->suspended = false;
-			mutex_unlock(&ras->regmap_mutex);
-
-			/*
-			 * Mark dirty, switch off cache only then sync to the
-			 * hardware - this recommits the last known client
-			 * state.
-			 */
-			regcache_mark_dirty(ras->regmap);
-			regcache_cache_only(ras->regmap, false);
-			regcache_sync(ras->regmap);
-
-			return 0;
-		}
-		/* If they don't match then the structures are corrupt */
-		return -EINVAL;
+		return 0;
 	}
 
 	ras = kzalloc(sizeof(*ras), GFP_KERNEL);
@@ -576,7 +564,7 @@ int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler)
 
 	ras->clsic = clsic;
 	handler->data = ras;
-	ras->service_instance = handler->service_instance;
+	ras->service = handler;
 	ras->regmap = devm_regmap_init(clsic->dev,
 				       &regmap_bus_ras,
 				       ras,

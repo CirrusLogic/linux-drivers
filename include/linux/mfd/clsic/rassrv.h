@@ -19,7 +19,7 @@
 struct clsic_ras_struct {
 	struct tacna_pdata pdata;
 	struct clsic *clsic;
-	uint8_t service_instance;
+	struct clsic_service *service;
 	bool suspended;
 
 	struct regmap *regmap;
