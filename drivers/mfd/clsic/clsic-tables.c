@@ -624,8 +624,6 @@ const struct reg_default clsic_reg_defaults[] = {
 	{ 0x00017134, 0x00000003 }, /* DSP2_PM_SRAM_IBUS_NAP_1 */
 	{ 0x00017218, 0x00000000 }, /* DSP2_PWR_CTRL */
 	{ 0x00017518, 0x00000000 }, /* SCRATCH_1 */
-	{ 0x00018000, 0x00000000 }, /* IRQ1_CFG */
-	{ 0x00018114, 0x00000110 }, /* IRQ1_MASK2 */
 	{ 0x00109008, 0x00000000 }, /* SLIMBUS_RX9_START_ADDR */
 	{ 0x0010900c, 0x00000010 }, /* SLIMBUS_RX9_PORTS */
 	{ 0x00109010, 0x00000000 }, /* SLIMBUS_RX9_PORT_STATUS */
@@ -761,17 +759,8 @@ bool clsic_volatile_register(struct device *dev, unsigned int reg)
 	case TACNA_ASRC1_STATUS:
 	case TACNA_ASRC2_STATUS:
 	case TACNA_FX_STATUS:
-	case TACNA_IRQ1_STATUS:
-	case TACNA_IRQ1_EINT_2:
-	case TACNA_IRQ1_STS_2:
 	case CLSIC_IRQ2_STS6:
 	case TACNA_SLIMBUS_BULK_STATUS:
-		/* used by clsic core */
-	case CLSIC_FW_UPDATE_REG:
-	case TACNA_CPF1_RX_WRDATA:
-	case TACNA_CPF1_TX_GPR_STATUS1:
-	case TACNA_CPF1_TX_RDDATA1:
-	case TACNA_CPF1_TX_RDDATA2:
 		return true;
 	default:
 		return false;
@@ -1413,11 +1402,6 @@ bool clsic_readable_register(struct device *dev, unsigned int reg)
 	case CLSIC_DSP2_PM_SRAM_IBUS_NAP_1:
 	case CLSIC_DSP2_PWR_CTRL:
 	case CLSIC_SCRATCH_1:
-	case TACNA_IRQ1_CFG:
-	case TACNA_IRQ1_STATUS:
-	case TACNA_IRQ1_EINT_2:
-	case TACNA_IRQ1_STS_2:
-	case TACNA_IRQ1_MASK_2:
 	case CLSIC_IRQ2_STS6:
 	case TACNA_SLIMBUS_BULK_STATUS:
 	case CLSIC_SLIMBUS_RX9_START_ADDR:
@@ -1443,12 +1427,6 @@ bool clsic_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_EQ2_BAND5_COEFF1 + 4:
 	case TACNA_EQ3_BAND5_COEFF1 + 4:
 	case TACNA_EQ4_BAND5_COEFF1 + 4:
-		/* used by clsic core */
-	case CLSIC_FW_UPDATE_REG:
-	case TACNA_CPF1_RX_WRDATA:
-	case TACNA_CPF1_TX_GPR_STATUS1:
-	case TACNA_CPF1_TX_RDDATA1:
-	case TACNA_CPF1_TX_RDDATA2:
 	case TACNA_DSP1_SAMPLE_RATE_RX1:
 	case TACNA_DSP1_SAMPLE_RATE_RX2:
 	case TACNA_DSP1_SAMPLE_RATE_RX3:
