@@ -502,13 +502,12 @@ int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler)
 		mutex_unlock(&ras->regmap_mutex);
 
 		/*
-		 * Mark dirty, switch off cache only then sync to the
-		 * hardware - this recommits the last known client
-		 * state.
+		 * Mark dirty and switch off cache-only, the sync of the regmap
+		 * committing the last known client state will be performed
+		 * when PM_EVENT_RESUME is received.
 		 */
 		regcache_mark_dirty(ras->regmap);
 		regcache_cache_only(ras->regmap, false);
-		regcache_sync(ras->regmap);
 
 		return 0;
 	}
@@ -563,6 +562,9 @@ int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler)
 
 	clsic_dbg(clsic, "srv: %p regmap: %p\n",
 		  ras, ras->regmap);
+
+	/* RAS regmaps start in cache-only mode */
+	regcache_cache_only(ras->regmap, true);
 
 	clsic_devs[0].platform_data = ras;
 	clsic_devs[0].pdata_size = sizeof(struct clsic_ras_struct);
