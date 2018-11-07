@@ -1,0 +1,18 @@
+Cirrus Logic CLSIC Algorithm Service Codec
+
+The CLSIC MFD device driver starts a clsic-alg codec driver to manage the Algorithm Service
+present within CS48LV40 devices.
+
+Required properties:
+- compatible : "cirrus,clsic-alg"
+- #sound-dai-cells : "<1>"
+
+Example:
+
+cs48lv40: cs48lv40@0 {
+	compatible = "cirrus,clsic";
+	cs48lv40_alg: cs48lv40_alg@0 {
+		compatible = "cirrus,clsic-alg";
+		#sound-dai-cells = <1>;
+	};
+};
