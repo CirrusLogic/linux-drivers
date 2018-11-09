@@ -722,7 +722,6 @@ int clsic_register_service_handler(struct clsic *clsic,
 reterror:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(clsic_register_service_handler);
 
 /*
  * Deregister a service handler - this expects to be called with the same
@@ -758,7 +757,6 @@ int clsic_deregister_service_handler(struct clsic *clsic,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(clsic_deregister_service_handler);
 
 #ifdef CONFIG_PM
 static int clsic_pm_service_transition(struct clsic *clsic, int pm_event)
