@@ -314,7 +314,7 @@ static int clsic_services_init(struct clsic *clsic)
 
 	ret = clsic_register_service_handler(clsic,
 					     CLSIC_SRV_INST_BLD,
-					     CLSIC_SERVICE_TYPE_BOOTLOADER,
+					     CLSIC_SRV_INST_BLD,
 					     0, clsic_bootsrv_service_start);
 	if (ret != 0) {
 		clsic->service_handlers[CLSIC_SRV_INST_SYS]->stop(clsic,

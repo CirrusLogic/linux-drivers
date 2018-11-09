@@ -56,7 +56,6 @@ extern const struct dev_pm_ops clsic_pm_ops;
 #define CLSIC_SUPPORTED_ID_48AC40		0x48AC40
 
 #define CLSIC_SERVICE_TYPE_DEBUG_EMU		0x1E
-#define CLSIC_SERVICE_TYPE_BOOTLOADER	0x1F
 
 #define CLSIC_SERVICE_COUNT			32	/* 0 to 31 */
 #define CLSIC_SERVICE_MAX			(CLSIC_SERVICE_COUNT - 1)
