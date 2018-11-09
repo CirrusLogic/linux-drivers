@@ -290,6 +290,42 @@ void clsic_state_set(struct clsic *clsic,
 		mutex_unlock(&clsic->message_lock);
 }
 
+/*
+ * All devices in the CLSIC family have bootloader and system services in fixed
+ * positions.
+ *
+ * Preregister handlers for them so that if a notification arrives during boot
+ * it can be suitably handled.
+ */
+static int clsic_services_init(struct clsic *clsic)
+{
+	int ret = 0;
+
+	mutex_init(&clsic->service_lock);
+
+	clsic->service_states = CLSIC_ENUMERATION_REQUIRED;
+
+	ret = clsic_register_service_handler(clsic,
+					     CLSIC_SRV_INST_SYS,
+					     CLSIC_SRV_TYPE_SYS,
+					     0, clsic_system_service_start);
+	if (ret != 0)
+		return ret;
+
+	ret = clsic_register_service_handler(clsic,
+					     CLSIC_SRV_INST_BLD,
+					     CLSIC_SERVICE_TYPE_BOOTLOADER,
+					     0, clsic_bootsrv_service_start);
+	if (ret != 0) {
+		clsic->service_handlers[CLSIC_SRV_INST_SYS]->stop(clsic,
+				   clsic->service_handlers[CLSIC_SRV_INST_SYS]);
+		clsic_deregister_service_handler(clsic,
+				   clsic->service_handlers[CLSIC_SRV_INST_SYS]);
+		kfree(clsic->service_handlers[CLSIC_SRV_INST_SYS]);
+	}
+	return ret;
+}
+
 int clsic_dev_init(struct clsic *clsic)
 {
 	int ret = 0;
@@ -351,32 +387,9 @@ int clsic_dev_init(struct clsic *clsic)
 	if (ret != 0)
 		goto irq_failed;
 
-	mutex_init(&clsic->service_lock);
-
-	/*
-	 * We expect these services to be on all devices in this family; during
-	 * POR bootup the driver will receive a notification from either the
-	 * bootloader if there is an issue or from the system service announcing
-	 * message protocol availability.
-	 *
-	 * Preregister these two service handlers so that if a notification
-	 * arrives during boot it can be suitably handled.
-	 */
-	ret = clsic_register_service_handler(clsic,
-					     CLSIC_SRV_INST_SYS,
-					     CLSIC_SRV_TYPE_SYS,
-					     0, clsic_system_service_start);
+	ret = clsic_services_init(clsic);
 	if (ret != 0)
-		goto system_service_start_failed;
-
-	ret = clsic_register_service_handler(clsic,
-					     CLSIC_SRV_INST_BLD,
-					     CLSIC_SERVICE_TYPE_BOOTLOADER,
-					     0, clsic_bootsrv_service_start);
-	if (ret != 0)
-		goto bootloader_service_start_failed;
-
-	clsic->service_states = CLSIC_ENUMERATION_REQUIRED;
+		goto service_init_failed;
 
 	init_completion(&clsic->pm_completion);
 	pm_runtime_set_suspended(clsic->dev);
@@ -401,14 +414,7 @@ int clsic_dev_init(struct clsic *clsic)
 	return 0;
 
 	/* If errors are encountered, tidy up and deallocate as appropriate */
-bootloader_service_start_failed:
-	clsic->service_handlers[CLSIC_SRV_INST_SYS]->stop(
-			clsic,
-			clsic->service_handlers[CLSIC_SRV_INST_SYS]);
-	clsic_deregister_service_handler(clsic,
-			clsic->service_handlers[CLSIC_SRV_INST_SYS]);
-	kfree(clsic->service_handlers[CLSIC_SRV_INST_SYS]);
-system_service_start_failed:
+service_init_failed:
 	clsic_irq_exit(clsic);
 irq_failed:
 notifier_failed:
