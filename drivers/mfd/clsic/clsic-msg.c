@@ -1694,7 +1694,8 @@ static void clsic_handle_message_inservice(struct clsic *clsic,
 	} else {
 		mutex_lock(&clsic->service_lock);
 		service_handler = clsic->service_handlers[servinst];
-		if (service_handler != NULL)
+		if ((service_handler != NULL) &&
+		    (service_handler->callback != NULL))
 			ret = service_handler->callback(clsic,
 							service_handler, msg);
 		mutex_unlock(&clsic->service_lock);

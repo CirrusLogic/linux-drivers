@@ -647,15 +647,6 @@ int clsic_dev_exit(struct clsic *clsic)
 }
 EXPORT_SYMBOL_GPL(clsic_dev_exit);
 
-static int clsic_noservice_handler(struct clsic *clsic,
-				   struct clsic_service *handler,
-				   struct clsic_message *msg)
-{
-	clsic_dump_message(clsic, msg, "unhandled message");
-
-	return CLSIC_UNHANDLED;
-}
-
 /* Register as a handler for a service ID */
 int clsic_register_service_handler(struct clsic *clsic,
 				   uint8_t service_instance,
@@ -710,7 +701,6 @@ int clsic_register_service_handler(struct clsic *clsic,
 		tmp_handler->start = start;
 		tmp_handler->service_instance = service_instance;
 		tmp_handler->service_type = service_type;
-		tmp_handler->callback = &clsic_noservice_handler;
 		clsic->service_handlers[service_instance] = tmp_handler;
 	}
 	tmp_handler->service_version = service_version;
