@@ -589,7 +589,7 @@ int clsic_system_service_enumerate(struct clsic *clsic)
 					    CLSIC_SVCVER_BLD_MASK) >>
 					   CLSIC_SVCVER_BLD_SHIFT);
 			/* fallthrough */
-		case CLSIC_SERVICE_TYPE_BOOTLOADER:
+		case CLSIC_SRV_INST_BLD:
 			clsic_dbg(clsic,
 				  " Service %d is a standard service (type 0x%x)",
 				  service_instance, service_type);
