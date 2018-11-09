@@ -21,6 +21,8 @@
 #include <linux/mfd/clsic/syssrv.h>
 #include <linux/mfd/clsic/rassrv.h>
 
+static void clsic_free_service_handler(struct clsic *clsic,
+				       struct clsic_service *handler);
 static void clsic_init_sysfs(struct clsic *clsic);
 static void clsic_deinit_sysfs(struct clsic *clsic);
 static int clsic_pm_service_transition(struct clsic *clsic, int pm_event);
@@ -300,25 +302,24 @@ static int clsic_services_init(struct clsic *clsic)
 	mutex_init(&clsic->service_lock);
 
 	clsic->service_states = CLSIC_ENUMERATION_REQUIRED;
+	INIT_LIST_HEAD(&clsic->inactive_services);
 
-	ret = clsic_register_service_handler(clsic,
-					     CLSIC_SRV_INST_SYS,
-					     CLSIC_SRV_TYPE_SYS,
-					     0, clsic_system_service_start);
-	if (ret != 0)
-		return ret;
-
-	ret = clsic_register_service_handler(clsic,
-					     CLSIC_SRV_INST_BLD,
-					     CLSIC_SRV_INST_BLD,
-					     0, clsic_bootsrv_service_start);
+	mutex_lock(&clsic->service_lock);
+	ret = clsic_update_service(clsic, CLSIC_SRV_INST_SYS,
+				   CLSIC_SRV_TYPE_SYS, 0);
 	if (ret != 0) {
-		clsic->service_handlers[CLSIC_SRV_INST_SYS]->stop(clsic,
-				   clsic->service_handlers[CLSIC_SRV_INST_SYS]);
-		clsic_deregister_service_handler(clsic,
-				   clsic->service_handlers[CLSIC_SRV_INST_SYS]);
-		kfree(clsic->service_handlers[CLSIC_SRV_INST_SYS]);
+		mutex_unlock(&clsic->service_lock);
+		return ret;
 	}
+
+	ret = clsic_update_service(clsic, CLSIC_SRV_INST_BLD,
+				   CLSIC_SRV_TYPE_BLD, 0);
+	mutex_unlock(&clsic->service_lock);
+
+	if (ret != 0)
+		clsic_free_service_handler(clsic,
+				   clsic->service_handlers[CLSIC_SRV_INST_SYS]);
+
 	return ret;
 }
 
@@ -504,12 +505,6 @@ void clsic_maintenance(struct work_struct *data)
 		/* Nothing to do (typical power on resume) */
 		break;
 	case CLSIC_ENUMERATION_REQUIRED:
-		/*
-		 * Perform the first device enumeration - the pm_runtime resume
-		 * context needs to be released first as enumeration is likely
-		 * to start MFD children and attempt to take the pm_runtime
-		 * lock.
-		 */
 		complete(&clsic->pm_completion);
 		/* FALLTHROUGH */
 	case CLSIC_REENUMERATION_REQUIRED:
@@ -543,6 +538,8 @@ pm_complete_exit:
 
 int clsic_dev_exit(struct clsic *clsic)
 {
+	struct clsic_service *tmp_handler = NULL;
+	struct clsic_service *next_handler;
 	int i;
 
 	if (clsic->state == CLSIC_STATE_DEBUGCONTROL_GRANTED) {
@@ -591,33 +588,25 @@ int clsic_dev_exit(struct clsic *clsic)
 	 * the device's state machine to idle and then issue a shutdown
 	 * command, after which device power can be removed.
 	 *
-	 * Give all the service handlers a chance to tidy themselves up, they
-	 * can send more messages to the device to tidy the services up.  On
-	 * return they are expected to have deregistered and released all their
-	 * resources. When all services have been shutdown the device should be
-	 * in an idle state and be ready to be shutdown.
+	 * When all services have been shutdown the device should be in an idle
+	 * state and be ready to be shutdown.
 	 *
 	 * The ordering of shutdown is important, service instance 0 is the
-	 * system service that is used in some bulk transfers as well as error
+	 * system service that is used in bulk transfers as well as error
 	 * handling and will issue the shutdown command.
 	 *
-	 * As that service should be done last, shut them down in reverse order.
+	 * As that service should be done last, release any services on the
+	 * inactive list first then shut the active ones down in reverse order.
 	 */
-	for (i = CLSIC_SERVICE_MAX; i >= 0; i--) {
-		if (clsic->service_handlers[i] != NULL) {
-			clsic_dbg(clsic, "Stopping %d: %pF\n",
-				  i, clsic->service_handlers[i]->stop);
-			/* a stop() callback on handlers is optional */
-			if (clsic->service_handlers[i]->stop != NULL)
-				clsic->service_handlers[i]->stop(clsic,
-						    clsic->service_handlers[i]);
+	if (!list_empty(&clsic->inactive_services))
+		list_for_each_entry_safe(tmp_handler, next_handler,
+					 &clsic->inactive_services, link)
+			clsic_free_service_handler(clsic, tmp_handler);
 
-			clsic_deregister_service_handler(clsic,
-						    clsic->service_handlers[i]);
-
-			kfree(clsic->service_handlers[i]);
-		}
-	}
+	for (i = CLSIC_SERVICE_MAX; i >= 0; i--)
+		if (clsic->service_handlers[i] != NULL)
+			clsic_free_service_handler(clsic,
+						   clsic->service_handlers[i]);
 
 	/* Place the driver into suspend and give it a chance to get there */
 	pm_runtime_suspend(clsic->dev);
@@ -649,106 +638,285 @@ int clsic_dev_exit(struct clsic *clsic)
 }
 EXPORT_SYMBOL_GPL(clsic_dev_exit);
 
-/* Register as a handler for a service ID */
-int clsic_register_service_handler(struct clsic *clsic,
-				   uint8_t service_instance,
-				   uint16_t service_type,
-				   uint32_t service_version,
-				   int (*start)(struct clsic *clsic,
-						struct clsic_service *handler))
+/*
+ * Allocate a service handler structure and set it's type.
+ *
+ * Must be called with service_lock held.
+ */
+static struct clsic_service *clsic_alloc_service_handler(struct clsic *clsic,
+							 uint16_t service_type)
 {
 	struct clsic_service *tmp_handler;
-	int ret = 0;
 
-	clsic_dbg(clsic, "%p %d: %pF\n", clsic, service_instance, start);
+	tmp_handler = kzalloc(sizeof(*tmp_handler), GFP_KERNEL);
+	if (tmp_handler == NULL)
+		return NULL;
 
-	if (service_instance > CLSIC_SERVICE_MAX) {
-		clsic_err(clsic, "%p:%d out of range\n", start,
-			  service_instance);
-		return -EINVAL;
-	}
+	tmp_handler->service_type = service_type;
+	INIT_LIST_HEAD(&tmp_handler->link);
+
+	clsic_dbg(clsic, "allocated 0x%x %p\n", service_type, tmp_handler);
+
+	return tmp_handler;
+}
+
+/*
+ * Destroy a service handler
+ *
+ * This function removes a handler from the service_handlers array or the
+ * inactive list and then frees it.
+ *
+ * Must be called with service_lock NOT held.
+ */
+static void clsic_free_service_handler(struct clsic *clsic,
+				       struct clsic_service *handler)
+{
+	uint8_t service_instance = handler->service_instance;
+
+	clsic_dbg(clsic, "%p %d: handler %pF stop() %pF\n", clsic,
+		  service_instance, handler->callback, handler->stop);
+
+	/*
+	 * A stop() callback on handlers is optional; it gives the service
+	 * handler a chance to tidy up; it can send messages to the device. On
+	 * return it is expected to have released all resources.
+	 */
+	if (handler->stop != NULL)
+		handler->stop(clsic, handler);
 
 	mutex_lock(&clsic->service_lock);
-	if (clsic->service_handlers[service_instance] != NULL) {
-		clsic_dbg(clsic, "%d pre-registered %p\n", service_instance,
-			  start);
 
+	if (service_instance == CLSIC_SERVICE_RESERVED)
 		/*
-		 * Check the service type matches, if not call stop and
-		 * repopulate as a new handler.
+		 * A reserved service_instance indicates this handler is on the
+		 * inactive_list
 		 */
-		tmp_handler = clsic->service_handlers[service_instance];
-		if ((tmp_handler->service_instance != service_instance) ||
-		    (tmp_handler->service_type != service_type)) {
-			clsic_err(clsic,
-				  "handler different: instance %d:%d type 0x%x:0x%x\n",
-				  service_instance,
-				  tmp_handler->service_instance,
-				  service_type, tmp_handler->service_type);
+		list_del(&handler->link);
+	else if (clsic->service_handlers[service_instance] == handler)
+		/*
+		 * The normal destruction case, the supplied handler is an
+		 * active service
+		 */
+		clsic->service_handlers[service_instance] = NULL;
+	else
+		clsic_err(clsic, "%d not a match %p != %p\n", service_instance,
+			  handler, clsic->service_handlers[service_instance]);
 
-			if (tmp_handler->stop != NULL)
-				tmp_handler->stop(clsic, tmp_handler);
-
-			tmp_handler->service_instance = service_instance;
-			tmp_handler->service_type = service_type;
-		}
-	} else {
-		tmp_handler = kzalloc(sizeof(*tmp_handler), GFP_KERNEL);
-		if (tmp_handler == NULL) {
-			ret = -ENOMEM;
-			mutex_unlock(&clsic->service_lock);
-			goto reterror;
-		}
-
-		tmp_handler->start = start;
-		tmp_handler->service_instance = service_instance;
-		tmp_handler->service_type = service_type;
-		clsic->service_handlers[service_instance] = tmp_handler;
-	}
-	tmp_handler->service_version = service_version;
 	mutex_unlock(&clsic->service_lock);
 
-	if (start != NULL)
-		ret = (start) (clsic, tmp_handler);
+	kfree(handler);
+}
 
-reterror:
+/*
+ * Move this and all subsequent handlers (except the bootloader) to the
+ * inactive list.
+ *
+ * Must be called with service_lock held.
+ */
+void clsic_suspend_services_from(struct clsic *clsic, uint8_t service_instance)
+{
+	int i;
+	struct clsic_service *tmp_handler;
+
+	for (i = service_instance ; i < CLSIC_SRV_INST_BLD ; i++) {
+		tmp_handler = clsic->service_handlers[i];
+
+		/* The service map does not have holes */
+		if (tmp_handler == NULL)
+			break;
+
+		clsic->service_handlers[i] = NULL;
+		tmp_handler->service_instance = CLSIC_SERVICE_RESERVED;
+		list_add_tail(&tmp_handler->link, &clsic->inactive_services);
+
+		clsic_dbg(clsic, "suspended %d %p\n", i, tmp_handler);
+	}
+}
+
+/*
+ * search for an inactive service matching this type so it can be reassigned to
+ * a service instance.
+ *
+ * Must be called with service_lock held.
+ */
+static struct clsic_service *clsic_restore_service_handler(struct clsic *clsic,
+							  uint16_t service_type)
+{
+	struct clsic_service *tmp_handler = NULL;
+	struct clsic_service *next_handler;
+
+	if (list_empty(&clsic->inactive_services))
+		return NULL;
+
+	list_for_each_entry_safe(tmp_handler, next_handler,
+				 &clsic->inactive_services, link) {
+		if (tmp_handler->service_type == service_type)
+			break;
+	}
+
+	if ((tmp_handler == NULL) ||
+	    (tmp_handler->service_type != service_type))
+		return NULL;
+
+	list_del(&tmp_handler->link);
+
+	clsic_dbg(clsic, "restored 0x%x %p\n", service_type, tmp_handler);
+
+	return tmp_handler;
+}
+
+static int clsic_service_starter(struct clsic *clsic,
+				 struct clsic_service *handler)
+{
+	unsigned int type;
+	struct device_node *services_np, *child_np;
+	struct mfd_cell *dev;
+	int ret;
+
+	/*
+	 * If the start pointer is populated the service has been started
+	 * before, call it to notify the service of a re-enumeration.
+	 */
+	if (handler->start != NULL)
+		return (handler->start) (clsic, handler);
+
+	/*
+	 * If the service is being handled by a MFD child driver then it should
+	 * only be loaded once.
+	 */
+	if (handler->mfd_loaded)
+		return -EBUSY;
+
+	/*
+	 * This service has not been started before, find a matching start()
+	 * function.
+	 */
+	switch (handler->service_type) {
+	case CLSIC_SRV_TYPE_SYS:
+		handler->start = &clsic_system_service_start;
+		break;
+	case CLSIC_SRV_TYPE_BLD:
+		handler->start = &clsic_bootsrv_service_start;
+		break;
+	case CLSIC_SRV_TYPE_RAS:
+		handler->start = &clsic_ras_start;
+		break;
+	default:
+		handler->start = NULL;
+		break;
+	}
+
+	/* It's a core service, start it */
+	if (handler->start != NULL)
+		return (handler->start) (clsic, handler);
+
+	/* Not a core service, search for an MFD child to handle it */
+	services_np = of_get_child_by_name(clsic->dev->of_node,
+					   "cirrus,services");
+	for_each_child_of_node(services_np, child_np) {
+		of_property_read_u32(child_np, "cirrus,service-type", &type);
+		if (handler->service_type != type)
+			continue;
+		dev = devm_kzalloc(clsic->dev, sizeof(struct mfd_cell),
+				   GFP_KERNEL);
+		if (!dev) {
+			ret = -ENOMEM;
+			goto error;
+		}
+
+		ret = of_property_read_string(child_np, "name", &dev->name);
+		if (ret)
+			goto error_withfree;
+
+		ret = of_property_read_string(child_np, "compatible",
+					      &dev->of_compatible);
+		if (ret)
+			goto error_withfree;
+
+		dev->platform_data =
+			clsic->service_handlers[handler->service_instance];
+		dev->pdata_size = sizeof(struct clsic_service);
+		ret = mfd_add_devices(clsic->dev, PLATFORM_DEVID_NONE, dev, 1,
+				      NULL, 0, NULL);
+		handler->mfd_loaded = true;
+		if (ret)
+			goto error_withfree;
+		return 0;
+	}
+
+	clsic_info(clsic, " Unrecognised service (%d: type 0x%x ver 0x%x)",
+		   handler->service_instance, handler->service_type,
+		   handler->service_version);
+
+	return -ENODEV;
+
+error_withfree:
+	devm_kfree(clsic->dev, dev);
+error:
+	clsic_err(clsic,
+		  " Failed to add device (%d: type 0x%x ver 0x%x)",
+		  handler->service_instance, handler->service_type,
+		  handler->service_version);
 	return ret;
 }
 
 /*
- * Deregister a service handler - this expects to be called with the same
- * structure that was originally registered
+ * Create or update a service handler to represent a discovered service
+ * instance.
+ *
+ * Must be called with service_lock held.
  */
-int clsic_deregister_service_handler(struct clsic *clsic,
-				     struct clsic_service *handler)
+int clsic_update_service(struct clsic *clsic,
+			 uint8_t service_instance,
+			 uint16_t service_type,
+			 uint32_t service_version)
 {
-	int ret = 0;
-	uint8_t servinst = handler->service_instance;
+	struct clsic_service *tmp_handler = NULL;
 
-	clsic_dbg(clsic, "%p %d: %pF\n", clsic, servinst, handler->callback);
+	clsic_dbg(clsic, "%d 0x%x\n", service_instance, service_type);
 
-	if (servinst > CLSIC_SERVICE_MAX) {
-		clsic_err(clsic, "%p:%d out of range\n", handler, servinst);
+	/*
+	 * 1. try to update the current handler
+	 * 2. restore an old handler
+	 * 3. allocate a new handler
+	 */
+	if (service_instance <= CLSIC_SERVICE_MAX)
+		tmp_handler = clsic->service_handlers[service_instance];
+
+	if ((tmp_handler != NULL) &&
+	    (tmp_handler->service_type != service_type)) {
+		/*
+		 * Service handler does not match type - move this and all
+		 * subsequent handlers (except the bootloader) to the inactive
+		 * list
+		 */
+		clsic_suspend_services_from(clsic, service_instance);
+		tmp_handler = NULL;
+	}
+
+	if (tmp_handler == NULL)
+		tmp_handler = clsic_restore_service_handler(clsic,
+							    service_type);
+
+	if (tmp_handler == NULL)
+		tmp_handler = clsic_alloc_service_handler(clsic,
+							  service_type);
+
+	/* Fail if couldn't restore or allocate a handler */
+	if (tmp_handler == NULL)
 		return -EINVAL;
-	}
 
-	mutex_lock(&clsic->service_lock);
+	/* The service_type member is set by the restore and alloc functions */
+	tmp_handler->service_instance = service_instance;
+	tmp_handler->service_version = service_version;
+	if (service_instance == CLSIC_SERVICE_RESERVED)
+		list_add_tail(&tmp_handler->link, &clsic->inactive_services);
+	else
+		clsic->service_handlers[service_instance] = tmp_handler;
 
-	if (clsic->service_handlers[servinst] == NULL) {
-		clsic_err(clsic, "%d not registered %p\n", servinst, handler);
-		ret = -EINVAL;
-	} else if (clsic->service_handlers[servinst] != handler) {
-		clsic_err(clsic, "%d not matched %p != %p\n", servinst,
-			  handler, clsic->service_handlers[servinst]);
-		ret = -EINVAL;
-	} else {
-		clsic->service_handlers[servinst] = NULL;
-	}
-
-	mutex_unlock(&clsic->service_lock);
-
-	return ret;
+	return clsic_service_starter(clsic, tmp_handler);
 }
+
 
 #ifdef CONFIG_PM
 static int clsic_pm_service_transition(struct clsic *clsic, int pm_event)
@@ -975,7 +1143,6 @@ static ssize_t clsic_services_read_file(struct file *file,
 		ret += len;
 	if (ret > PAGE_SIZE)
 		ret = PAGE_SIZE;
-
 
 	mutex_unlock(&clsic->service_lock);
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
