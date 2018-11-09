@@ -458,22 +458,6 @@ int clsic_system_service_enumerate(struct clsic *clsic)
 
 	if (ret != 0) {
 		clsic_err(clsic, "Sysinfo ret %d\n", ret);
-		if (ret == -ETIMEDOUT) {
-			/*
-			 * TODO: there is an argument that the device should be
-			 * left in the HALTED state at this point rather than
-			 * resetting into firmware update.
-			 *
-			 * First touch message timed out - restart the device
-			 * in firmware update mode to attempt recovery
-			 */
-			clsic_fwupdate_reset(clsic);
-		} else if (ret == -EINVAL) {
-			/*
-			 *  An invalid command response would occur if the
-			 *  device was in the bootloader
-			 */
-		}
 		return ret;
 	}
 
