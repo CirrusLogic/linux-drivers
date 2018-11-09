@@ -59,6 +59,7 @@ extern const struct dev_pm_ops clsic_pm_ops;
 
 #define CLSIC_SERVICE_COUNT			32	/* 0 to 31 */
 #define CLSIC_SERVICE_MAX			(CLSIC_SERVICE_COUNT - 1)
+#define CLSIC_SERVICE_RESERVED			CLSIC_SERVICE_COUNT
 
 #define CLSIC_MAX_CORE_SUPPLIES			2
 
@@ -222,6 +223,7 @@ struct clsic {
 	enum clsic_service_states service_states;
 
 	/* Array of pointers to service handlers */
+	struct list_head inactive_services;
 	struct clsic_service *service_handlers[CLSIC_SERVICE_COUNT];
 
 	/* Pre-allocated area for a panic message and debug info payload */
@@ -278,13 +280,25 @@ struct clsic_service {
 			struct clsic_service *handler,
 			struct clsic_message *msg);
 
+	/*
+	 * start()
+	 * can send messages
+	 * cannot take the service_lock
+	 */
 	int (*start)(struct clsic *clsic, struct clsic_service *handler);
+	/*
+	 * stop()
+	 * can send messages
+	 * can take the service_lock
+	 */
 	void (*stop)(struct clsic *clsic, struct clsic_service *handler);
 
 	uint8_t service_instance;
 	uint16_t service_type;
 	uint32_t service_version;
 	bool supports_debuginfo;
+	struct list_head link;
+	bool mfd_loaded;
 
 	/* A pointer the handler can use to stash instance specific stuff */
 	void *data;
@@ -293,15 +307,13 @@ struct clsic_service {
 	int (*pm_handler)(struct clsic_service *handler, int pm_event);
 };
 
-int clsic_register_service_handler(struct clsic *clsic,
-				   uint8_t service_instance,
-				   uint16_t service_type,
-				   uint32_t service_version,
-				   int (*start)(struct clsic *clsic,
-						struct clsic_service *handler));
+int clsic_update_service(struct clsic *clsic,
+			 uint8_t service_instance,
+			 uint16_t service_type,
+			 uint32_t service_version);
 
-int clsic_deregister_service_handler(struct clsic *clsic,
-				     struct clsic_service *handler);
+void clsic_suspend_services_from(struct clsic *clsic,
+				 uint8_t service_instance);
 
 #define CLSIC_STATE_CHANGE_CHECK true
 #define CLSIC_STATE_CHANGE_NOCHECK false

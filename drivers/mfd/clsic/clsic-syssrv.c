@@ -267,156 +267,6 @@ int clsic_system_service_start(struct clsic *clsic,
 	return 0;
 }
 
-/**
- *
- * Compare the type of all the driver service handlers with that reported by
- * the device looking for differences (except the bootloader service handler
- * that isn't part of a running system). If the service type matches then the
- * service version is updated with that read from the device.
- *
- * If no services have changed type, notify the service handlers of a
- * reenumeration so they may update their state (and perhaps check their
- * discovered service version is supported).
- */
-static int clsic_system_service_reenumerate(struct clsic *clsic)
-{
-	union clsic_sys_msg msg_cmd;
-	union clsic_sys_msg msg_rsp;
-	uint16_t read_service_type;
-	uint16_t handler_service_type;
-	uint8_t tmp_instance;
-	struct clsic_service *tmp_handler;
-	int ret;
-
-	for (tmp_instance = 0;
-	     tmp_instance < CLSIC_SRV_INST_BLD;
-	     tmp_instance++) {
-		read_service_type = 0x0;
-		tmp_handler = clsic->service_handlers[tmp_instance];
-		if (tmp_handler != NULL)
-			handler_service_type = tmp_handler->service_type;
-		else
-			handler_service_type = 0x0;
-
-		clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-				   CLSIC_SRV_INST_SYS,
-				   CLSIC_SYS_MSG_CR_SRV_INFO);
-		msg_cmd.cmd_srv_info.srv_inst = tmp_instance;
-		ret = clsic_send_msg_sync(clsic,
-				     (union t_clsic_generic_message *) &msg_cmd,
-				     (union t_clsic_generic_message *) &msg_rsp,
-				     CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
-				     CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
-
-		if ((ret == 0) &&
-		    (msg_rsp.rsp_srv_info.hdr.err == CLSIC_ERR_NONE))
-			read_service_type = msg_rsp.rsp_srv_info.srv_type;
-
-		if (handler_service_type != read_service_type) {
-			clsic_err(clsic,
-				  "id %d %p type read 0x%x != handler 0x%x",
-				  tmp_instance, tmp_handler, read_service_type,
-				  handler_service_type);
-			clsic_err(clsic,
-				  "Service configuration changed - device HALTED\n");
-			clsic_device_error(clsic,
-					   CLSIC_DEVICE_ERROR_LOCKNOTHELD);
-			return -EINVAL;
-		}
-
-		/* Update the version of read services */
-		if (tmp_handler != NULL)
-			tmp_handler->service_version =
-				msg_rsp.rsp_srv_info.srv_ver;
-	}
-
-	clsic->service_states = CLSIC_ENUMERATED;
-
-	/* Services have not changed, notify all services of a restart */
-	for (tmp_instance = 0;
-	     tmp_instance < CLSIC_SRV_INST_BLD;
-	     tmp_instance++) {
-		tmp_handler = clsic->service_handlers[tmp_instance];
-		if (tmp_handler != NULL &&
-		    tmp_handler->start != NULL) {
-			clsic_dbg(clsic, "%d: %pF",
-				  tmp_instance, tmp_handler->start);
-			tmp_handler->start(clsic, tmp_handler);
-		}
-	}
-
-	return 0;
-}
-
-static int clsic_system_service_finder(struct clsic *clsic,
-				uint8_t service_instance,
-				uint16_t service_type,
-				uint32_t service_version)
-{
-	unsigned int type;
-	int ret;
-	struct mfd_cell *dev;
-	struct device_node *services_np, *child_np;
-
-	services_np = of_get_child_by_name(clsic->dev->of_node,
-					   "cirrus,services");
-	for_each_child_of_node(services_np, child_np) {
-		of_property_read_u32(child_np, "cirrus,service-type", &type);
-		if (service_type != type)
-			continue;
-		if (clsic->service_handlers[service_instance] != NULL)
-			return 0;
-		dev = devm_kzalloc(clsic->dev, sizeof(struct mfd_cell),
-				   GFP_KERNEL);
-		if (!dev) {
-			ret = -ENOMEM;
-			goto error;
-		}
-
-		ret = of_property_read_string(child_np, "name", &dev->name);
-		if (ret)
-			goto error_withfree;
-
-		ret = of_property_read_string(child_np, "compatible",
-					      &dev->of_compatible);
-		if (ret)
-			goto error_withfree;
-
-		clsic_register_service_handler(clsic, service_instance,
-					       service_type,
-					       service_version,
-					       NULL);
-
-		clsic->service_handlers[service_instance]->data = clsic;
-
-		dev->platform_data = clsic->service_handlers[service_instance];
-		dev->pdata_size = sizeof(struct clsic_service);
-
-		ret = mfd_add_devices(clsic->dev, PLATFORM_DEVID_NONE, dev, 1,
-				      NULL, 0, NULL);
-		if (ret)
-			goto error_withfree;
-		return 0;
-	}
-
-	/* unrecognised */
-	clsic_err(clsic,
-		  " Unrecognised service (%d: type 0x%x ver 0x%x)",
-		  service_instance, service_type,
-		  service_version);
-
-	return -ENODEV;
-
-error_withfree:
-	devm_kfree(clsic->dev, dev);
-error:
-	clsic_err(clsic,
-		  " Failed to add device (%d: type 0x%x ver 0x%x)",
-		  service_instance, service_type,
-		  service_version);
-	return ret;
-}
-
 /*
  * Called by the core driver after receiving a boot done interrupt, enumerate
  * the services on a CLSIC device.
@@ -431,13 +281,6 @@ int clsic_system_service_enumerate(struct clsic *clsic)
 	uint8_t services_found = 0;
 	uint16_t service_type;
 	uint32_t service_version;
-	struct clsic_syssrv_struct *syssrv =
-		clsic->service_handlers[CLSIC_SRV_INST_SYS]->data;
-
-	if (syssrv == NULL) {
-		clsic_err(clsic, "No system service data\n");
-		return -EINVAL;
-	}
 
 	/*
 	 * The "first touch" message that wakes the device may generate a
@@ -461,40 +304,26 @@ int clsic_system_service_enumerate(struct clsic *clsic)
 		return ret;
 	}
 
-	switch (clsic->service_states) {
-	case CLSIC_ENUMERATED:
+	if (clsic->service_states == CLSIC_ENUMERATED)
 		/* Nothing to do (typical power on resume) */
 		return 0;
-	case CLSIC_ENUMERATION_REQUIRED:
-		/* Continue and perform first device enumeration */
-		break;
-	case CLSIC_REENUMERATION_REQUIRED:
-		/* Check the services match (after a firmware update) */
-		return clsic_system_service_reenumerate(clsic);
-	default:
-		clsic_info(clsic, "Skipping enumeration; service state %d\n",
-			   clsic->service_states);
-		return -EBUSY;
-	}
-
-	clsic_dbg(clsic, "Sysinfo ret 0x%x 0x%x 0x%x\n",
-		  msg_rsp.rsp_sys_info.hdr.sbc,
-		  msg_rsp.rsp_sys_info.hdr.msgid,
-		  msg_rsp.rsp_sys_info.hdr.err);
 
 	service_count = msg_rsp.rsp_sys_info.srv_count;
-
 	clsic_dbg(clsic, "Sysinfo service count %d\n", service_count);
 
-	/*
-	 * The message size is stored in a byte, but there is only 5 bits of
-	 * addressable services
-	 */
 	if (service_count > CLSIC_SERVICE_COUNT) {
 		clsic_err(clsic, "Sysinfo response larger than max %d\n",
 			  service_count);
-		service_count = CLSIC_SERVICE_COUNT;
+		return -EINVAL;
 	}
+
+	mutex_lock(&clsic->service_lock);
+
+	/*
+	 * If the device reports two services (0 and 1) then suspend services
+	 * from instance 2 onwards as they cannot be present.
+	 */
+	clsic_suspend_services_from(clsic, service_count);
 
 	/* Enumerate services */
 	for (service_instance = 0;
@@ -515,29 +344,23 @@ int clsic_system_service_enumerate(struct clsic *clsic)
 				     CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
 				     CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
 
+		/* Any message sending error is fatal */
 		if (ret != 0) {
-			/* XXX need to determine if this send message error was
-			 * fatal
-			 *
-			 * If the command was cancelled due to a bootloader
-			 * event then it should be considered fatal
-			 */
 			clsic_err(clsic,
 				  "getserviceinfo %d: send_message %d\n",
 				  service_instance, ret);
-			continue;
+
+			mutex_unlock(&clsic->service_lock);
+			return ret;
 		}
 
-		/*
-		 * Move on to examine the next service instance when
-		 * getserviceinfo encounters an invalid service instance error
-		 * code (this just means that the services are sparse)
-		 */
+		/* Services are not sparse so should never encounter this */
 		if (msg_rsp.rsp_srv_info.hdr.err == CLSIC_ERR_INVAL_SI) {
-			clsic_dbg(clsic, "getserviceinfo %d: no service\n",
+			clsic_err(clsic, "getserviceinfo %d: no service\n",
 				  service_instance);
-			continue;
+			break;
 		}
+
 		services_found++;
 		service_type = msg_rsp.rsp_srv_info.srv_type;
 		service_version = msg_rsp.rsp_srv_info.srv_ver;
@@ -552,56 +375,11 @@ int clsic_system_service_enumerate(struct clsic *clsic)
 			  (service_version & CLSIC_SVCVER_BLD_MASK) >>
 			  CLSIC_SVCVER_BLD_SHIFT);
 
-		switch (service_type) {
-		case CLSIC_SRV_TYPE_SYS:
-			/*
-			 * Print the version if changes (The version is
-			 * initialised to zero so it should always be printed
-			 * on first boot)
-			 */
-			if (clsic->service_handlers[service_instance]
-					->service_version != service_version)
-				clsic_info(clsic,
-					   "System service fw version %d.%d.%d",
-					   (service_version &
-					    CLSIC_SVCVER_MAJ_MASK) >>
-					   CLSIC_SVCVER_MAJ_SHIFT,
-					   (service_version &
-					    CLSIC_SVCVER_MIN_MASK) >>
-					   CLSIC_SVCVER_MIN_SHIFT,
-					   (service_version &
-					    CLSIC_SVCVER_BLD_MASK) >>
-					   CLSIC_SVCVER_BLD_SHIFT);
-			/* fallthrough */
-		case CLSIC_SRV_INST_BLD:
-			clsic_dbg(clsic,
-				  " Service %d is a standard service (type 0x%x)",
-				  service_instance, service_type);
-
-			clsic->service_handlers[service_instance]
-				->service_version = service_version;
-			break;
-		case CLSIC_SRV_TYPE_RAS:
-			clsic_register_service_handler(clsic,
-						    service_instance,
-						    service_type,
-						    service_version,
-						    clsic_ras_start);
-			break;
-		default:
-			ret = clsic_system_service_finder(clsic,
-							  service_instance,
-							  service_type,
-							  service_version);
-			if (!ret)
-				break;
-
-			clsic_register_service_handler(clsic,
-						       service_instance,
-						       service_type,
-						       service_version, NULL);
-		}
+		clsic_update_service(clsic, service_instance, service_type,
+				     service_version);
 	}
+
+	mutex_unlock(&clsic->service_lock);
 
 	clsic_dbg(clsic, "Enumerate found %d services (error: %d)",
 		  services_found, ret);
