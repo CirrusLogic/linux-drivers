@@ -165,7 +165,8 @@ struct clsic_message {
 	/* Possible value supplied by client */
 	uint64_t cookie;
 
-	/* Links for putting this message into lists; the private_link is for
+	/*
+	 * Links for putting this message into lists; the private_link is for
 	 * the use of the messaging layer and the client_link is for the use of
 	 * service handlers receiving async commands
 	 */
