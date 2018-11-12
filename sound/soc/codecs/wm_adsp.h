@@ -164,9 +164,8 @@ int wm_halo_init(struct wm_adsp *dsp, struct mutex *rate_lock);
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 
-int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
-			 struct snd_kcontrol *kcontrol, int event,
-			 unsigned int freq);
+int wm_adsp_early_event(struct snd_soc_dapm_widget *w,
+			 struct snd_kcontrol *kcontrol, int event);
 
 irqreturn_t wm_adsp2_bus_error(struct wm_adsp *adsp);
 irqreturn_t wm_halo_bus_error(struct wm_adsp *dsp);
@@ -175,10 +174,10 @@ irqreturn_t wm_halo_wdt_expire(int irq, void *data);
 int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 
-int wm_halo_early_event(struct snd_soc_dapm_widget *w,
-			 struct snd_kcontrol *kcontrol, int event);
 int wm_halo_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
+
+int wm_adsp2_set_dspclk(struct snd_soc_dapm_widget *w, unsigned int freq);
 
 int wm_adsp2_preloader_get(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol);

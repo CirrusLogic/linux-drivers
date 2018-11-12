@@ -3246,26 +3246,22 @@ err:
 	mutex_unlock(&vpu->pwr_lock);
 }
 
-static void wm_adsp2_set_dspclk(struct wm_adsp *dsp, unsigned int freq)
+int wm_adsp2_set_dspclk(struct snd_soc_dapm_widget *w, unsigned int freq)
 {
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct wm_adsp *dsps = snd_soc_component_get_drvdata(component);
+	struct wm_adsp *dsp = &dsps[w->shift];
 	int ret;
 
-	switch (dsp->rev) {
-	case 0:
-		ret = regmap_update_bits_async(dsp->regmap,
-					       dsp->base + ADSP2_CLOCKING,
-					       ADSP2_CLK_SEL_MASK,
-					       freq << ADSP2_CLK_SEL_SHIFT);
-		if (ret) {
-			adsp_err(dsp, "Failed to set clock rate: %d\n", ret);
-			return;
-		}
-		break;
-	default:
-		/* clock is handled by parent codec driver */
-		break;
-	}
+	ret = regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CLOCKING,
+				 ADSP2_CLK_SEL_MASK,
+				 freq << ADSP2_CLK_SEL_SHIFT);
+	if (ret)
+		adsp_err(dsp, "Failed to set clock rate: %d\n", ret);
+
+	return ret;
 }
+EXPORT_SYMBOL_GPL(wm_adsp2_set_dspclk);
 
 int wm_adsp2_preloader_get(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
@@ -3328,51 +3324,7 @@ static void wm_halo_stop_watchdog(struct wm_adsp *dsp)
 			   HALO_WDT_EN_MASK, 0);
 }
 
-int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
-			 struct snd_kcontrol *kcontrol, int event,
-			 unsigned int freq)
-{
-	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	struct wm_adsp *dsps = snd_soc_component_get_drvdata(component);
-	struct wm_adsp *dsp = &dsps[w->shift];
-	struct wm_coeff_ctl *ctl;
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		wm_adsp2_set_dspclk(dsp, freq);
-		queue_work(system_unbound_wq, &dsp->boot_work);
-		break;
-	case SND_SOC_DAPM_PRE_PMD:
-		mutex_lock(&dsp->pwr_lock);
-
-		wm_adsp_debugfs_clear(dsp);
-
-		dsp->fw_id = 0;
-		dsp->fw_id_version = 0;
-
-		dsp->booted = false;
-
-		regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
-				   ADSP2_MEM_ENA, 0);
-
-		list_for_each_entry(ctl, &dsp->ctl_list, list)
-			ctl->enabled = 0;
-
-		wm_adsp_free_alg_regions(dsp);
-
-		mutex_unlock(&dsp->pwr_lock);
-
-		adsp_dbg(dsp, "Shutdown complete\n");
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(wm_adsp2_early_event);
-
-int wm_halo_early_event(struct snd_soc_dapm_widget *w,
+int wm_adsp_early_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
@@ -3394,6 +3346,16 @@ int wm_halo_early_event(struct snd_soc_dapm_widget *w,
 
 		dsp->booted = false;
 
+		switch (dsp->type) {
+		case WMFW_ADSP2:
+			regmap_update_bits(dsp->regmap,
+					   dsp->base + ADSP2_CONTROL,
+					   ADSP2_MEM_ENA, 0);
+			break;
+		default:
+			break;
+		}
+
 		list_for_each_entry(ctl, &dsp->ctl_list, list)
 			ctl->enabled = 0;
 
@@ -3409,7 +3371,7 @@ int wm_halo_early_event(struct snd_soc_dapm_widget *w,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(wm_halo_early_event);
+EXPORT_SYMBOL_GPL(wm_adsp_early_event);
 
 void wm_adsp_queue_boot_work(struct wm_adsp *dsp)
 {
