@@ -242,6 +242,150 @@ static const struct soc_enum cs48l32_us_det_dcy[] = {
 			cs48l32_us_det_dcy_texts),
 };
 
+static int cs48l32_dmode_put(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct soc_enum *e = (struct soc_enum *) kcontrol->private_value;
+	unsigned int mode;
+	int ret, result;
+
+	mode = ucontrol->value.enumerated.item[0];
+	switch (mode) {
+	case 0:
+		ret = snd_soc_component_update_bits(dapm->component,
+						TACNA_ADC1L_ANA_CONTROL1,
+						TACNA_ADC1L_INT_ENA_FRC_MASK,
+						TACNA_ADC1L_INT_ENA_FRC_MASK);
+		if (ret < 0) {
+			dev_err(codec->dev,
+				"Failed to set ADC1L_INT_ENA_FRC: %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_component_update_bits(dapm->component,
+						TACNA_ADC1R_ANA_CONTROL1,
+						TACNA_ADC1R_INT_ENA_FRC_MASK,
+						TACNA_ADC1R_INT_ENA_FRC_MASK);
+		if (ret < 0) {
+			dev_err(codec->dev,
+				"Failed to set ADC1R_INT_ENA_FRC: %d\n", ret);
+			return ret;
+		}
+
+		result = snd_soc_component_update_bits(dapm->component,
+						       e->reg,
+						       TACNA_IN1_MODE_MASK,
+						       0);
+		if (result < 0) {
+			dev_err(codec->dev,
+				"Failed to set input mode: %d\n", result);
+			return result;
+		}
+
+		usleep_range(200, 300);
+
+		ret = snd_soc_component_update_bits(dapm->component,
+						TACNA_ADC1L_ANA_CONTROL1,
+						TACNA_ADC1L_INT_ENA_FRC_MASK,
+						0);
+		if (ret < 0) {
+			dev_err(codec->dev,
+				"Failed to clear ADC1L_INT_ENA_FRC: %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_component_update_bits(dapm->component,
+						TACNA_ADC1R_ANA_CONTROL1,
+						TACNA_ADC1R_INT_ENA_FRC_MASK,
+						0);
+		if (ret < 0) {
+			dev_err(codec->dev,
+				"Failed to clear ADC1R_INT_ENA_FRC: %d\n", ret);
+			return ret;
+		}
+
+		if (result)
+			return snd_soc_dapm_mux_update_power(dapm, kcontrol,
+							     mode, e, NULL);
+		else
+			return 0;
+		break;
+	case 1:
+		return snd_soc_dapm_put_enum_double(kcontrol, ucontrol);
+	default:
+		return -EINVAL;
+	}
+}
+
+static SOC_ENUM_SINGLE_DECL(cs48l32_in1dmode_enum,
+			    TACNA_INPUT1_CONTROL1,
+			    TACNA_IN1_MODE_SHIFT,
+			    tacna_dmode_texts);
+
+static const struct snd_kcontrol_new cs48l32_dmode_mux[] = {
+	SOC_DAPM_ENUM_EXT("IN1 Mode", cs48l32_in1dmode_enum,
+			  snd_soc_dapm_get_enum_double, cs48l32_dmode_put),
+};
+
+static int cs48l32_in_ev(struct snd_soc_dapm_widget *w,
+			 struct snd_kcontrol *kcontrol,
+			 int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		switch (w->shift) {
+		case TACNA_IN1L_EN_SHIFT:
+			snd_soc_update_bits(codec,
+					    TACNA_ADC1L_ANA_CONTROL1,
+					    TACNA_ADC1L_INT_ENA_FRC_MASK,
+					    TACNA_ADC1L_INT_ENA_FRC_MASK);
+			break;
+		case TACNA_IN1R_EN_SHIFT:
+			snd_soc_update_bits(codec,
+					    TACNA_ADC1R_ANA_CONTROL1,
+					    TACNA_ADC1R_INT_ENA_FRC_MASK,
+					    TACNA_ADC1R_INT_ENA_FRC_MASK);
+			break;
+		default:
+			dev_err(codec->dev,
+				"Enabling unknown input channel\n");
+			break;
+		}
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+		usleep_range(200, 300);
+
+		switch (w->shift) {
+		case TACNA_IN1L_EN_SHIFT:
+			snd_soc_update_bits(codec,
+					    TACNA_ADC1L_ANA_CONTROL1,
+					    TACNA_ADC1L_INT_ENA_FRC_MASK,
+					    0);
+			break;
+		case TACNA_IN1R_EN_SHIFT:
+			snd_soc_update_bits(codec,
+					    TACNA_ADC1R_ANA_CONTROL1,
+					    TACNA_ADC1R_INT_ENA_FRC_MASK,
+					    0);
+			break;
+
+		default:
+			dev_err(codec->dev,
+				"Disabling unknown input channel\n");
+			break;
+		}
+	default:
+		break;
+	}
+
+	return tacna_in_ev(w, kcontrol, event);
+}
+
 static const struct snd_kcontrol_new cs48l32_snd_controls[] = {
 SOC_ENUM("IN1 OSR", tacna_in_dmic_osr[0]),
 SOC_ENUM("IN2 OSR", tacna_in_dmic_osr[1]),
@@ -600,8 +744,8 @@ SND_SOC_DAPM_OUTPUT("DSP Trigger Out"),
 SND_SOC_DAPM_MUX("IN1L Mux", SND_SOC_NOPM, 0, 0, &tacna_inmux[0]),
 SND_SOC_DAPM_MUX("IN1R Mux", SND_SOC_NOPM, 0, 0, &tacna_inmux[1]),
 
-SND_SOC_DAPM_MUX("IN1L Mode", SND_SOC_NOPM, 0, 0, &tacna_dmode_mux[0]),
-SND_SOC_DAPM_MUX("IN1R Mode", SND_SOC_NOPM, 0, 0, &tacna_dmode_mux[0]),
+SND_SOC_DAPM_MUX("IN1L Mode", SND_SOC_NOPM, 0, 0, &cs48l32_dmode_mux[0]),
+SND_SOC_DAPM_MUX("IN1R Mode", SND_SOC_NOPM, 0, 0, &cs48l32_dmode_mux[0]),
 
 SND_SOC_DAPM_MUX("IN1L Swap Chan", SND_SOC_NOPM, 0, 0,
 		 &tacna_in_swap_chan[0]),
@@ -667,11 +811,11 @@ SND_SOC_DAPM_PGA("Noise Generator", TACNA_COMFORT_NOISE_GENERATOR,
 		 TACNA_NOISE_GEN_EN_SHIFT, 0, NULL, 0),
 
 SND_SOC_DAPM_PGA_E("IN1L PGA", TACNA_INPUT_CONTROL, TACNA_IN1L_EN_SHIFT,
-		   0, NULL, 0, tacna_in_ev,
+		   0, NULL, 0, cs48l32_in_ev,
 		   SND_SOC_DAPM_PRE_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("IN1R PGA", TACNA_INPUT_CONTROL, TACNA_IN1R_EN_SHIFT,
-		   0, NULL, 0, tacna_in_ev,
+		   0, NULL, 0, cs48l32_in_ev,
 		   SND_SOC_DAPM_PRE_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("IN2L PGA", TACNA_INPUT_CONTROL, TACNA_IN2L_EN_SHIFT,
