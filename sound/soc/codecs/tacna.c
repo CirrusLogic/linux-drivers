@@ -713,10 +713,11 @@ const struct snd_kcontrol_new tacna_in_swap_chan[] = {
 };
 EXPORT_SYMBOL_GPL(tacna_in_swap_chan);
 
-static const char * const tacna_dmode_texts[] = {
+const char * const tacna_dmode_texts[] = {
 	"Analog",
 	"Digital",
 };
+EXPORT_SYMBOL_GPL(tacna_dmode_texts);
 
 static SOC_ENUM_SINGLE_DECL(tacna_in1dmode_enum,
 			    TACNA_INPUT1_CONTROL1,
