@@ -28,6 +28,7 @@
 
 #include <linux/mfd/tacna/core.h>
 #include <linux/mfd/tacna/registers.h>
+#include <dt-bindings/mfd/tacna.h>
 
 #include "tacna.h"
 
@@ -135,7 +136,7 @@ static int tacna_wait_for_boot(struct tacna *tacna)
 	if (ret == 0) {
 		/* No need to wait for boot if VDD_D didn't power off */
 		if (val & TACNA_SEEN_BOOT_DONE) {
-			dev_dbg(tacna->dev, "Already booted\n");
+			dev_warn(tacna->dev, "VDD_D didn't power off when expected\n");
 			return 0;
 		}
 	}
@@ -436,6 +437,9 @@ static int tacna_prop_get_core_pdata(struct tacna *tacna)
 
 	tacna_prop_get_micbias(tacna);
 
+	of_property_read_u32(tacna->dev->of_node, "cirrus,clk32k-src",
+			     &tacna->pdata.clk32k_src);
+
 	return 0;
 }
 
@@ -544,12 +548,49 @@ static int tacna_dev_select_pinctrl(struct tacna *tacna,
 	return 0;
 }
 
+static int tacna_configure_clk32k(struct tacna *tacna)
+{
+	unsigned int mclk_src;
+	int ret = 0;
+
+	switch (tacna->pdata.clk32k_src) {
+	case 0:
+		/* Default to something typical for the part */
+		switch (tacna->type) {
+		case CS48L32:
+			mclk_src = TACNA_32K_MCLK1;
+			break;
+		default:
+			mclk_src = TACNA_32K_MCLK2;
+			break;
+		}
+		break;
+	case TACNA_32KZ_MCLK1:
+	case TACNA_32KZ_MCLK2:
+	case TACNA_32KZ_SYSCLK:
+		mclk_src = tacna->pdata.clk32k_src - 1;
+		break;
+	default:
+		dev_err(tacna->dev, "Invalid 32kHz clock source: %d\n",
+			tacna->pdata.clk32k_src);
+		return -EINVAL;
+	}
+
+	ret = regmap_update_bits(tacna->regmap,
+			TACNA_CLOCK32K,
+			TACNA_CLK_32K_EN_MASK | TACNA_CLK_32K_SRC_MASK,
+			TACNA_CLK_32K_EN | mclk_src);
+	if (ret)
+		dev_err(tacna->dev, "Failed to init 32k clock: %d\n", ret);
+
+	return ret;
+}
+
 int tacna_dev_init(struct tacna *tacna)
 {
 	struct device *dev = tacna->dev;
 	const char *name;
-	unsigned int hwid, reg;
-	unsigned int mclk_src;
+	unsigned int hwid;
 	int (*patch_fn)(struct tacna *) = NULL;
 	const struct mfd_cell *mfd_devs;
 	struct pinctrl *pinctrl;
@@ -659,26 +700,6 @@ int tacna_dev_init(struct tacna *tacna)
 
 	regcache_cache_only(tacna->regmap, false);
 
-	/*
-	 * Verify that this is a chip we know about before we
-	 * starting doing any writes to its registers
-	 */
-	ret = regmap_read(tacna->regmap, TACNA_DEVID, &reg);
-	if (ret) {
-		dev_err(dev, "Failed to read ID register: %d\n", ret);
-		goto err_reset;
-	}
-
-	switch (reg & TACNA_DEVID_MASK) {
-	case CS47L96_SILICON_ID:
-	case CS48L32_SILICON_ID:
-		break;
-	default:
-		dev_err(tacna->dev, "Unknown device ID: %x\n", reg);
-		ret = -EINVAL;
-		goto err_reset;
-	}
-
 	/* If we don't have a reset GPIO use a soft reset */
 	if (!tacna->reset_gpio) {
 		ret = tacna_soft_reset(tacna);
@@ -699,6 +720,16 @@ int tacna_dev_init(struct tacna *tacna)
 		goto err_reset;
 	}
 	hwid &= TACNA_DEVID_MASK;
+
+	switch (hwid) {
+	case CS47L96_SILICON_ID:
+	case CS48L32_SILICON_ID:
+		break;
+	default:
+		dev_err(tacna->dev, "Unknown device ID: %x\n", hwid);
+		ret = -EINVAL;
+		goto err_reset;
+	}
 
 	ret = regmap_read(tacna->regmap, TACNA_REVID, &tacna->rev);
 	if (ret) {
@@ -775,22 +806,9 @@ int tacna_dev_init(struct tacna *tacna)
 	if (ret)
 		goto err_reset;
 
-	switch (tacna->type) {
-	case CS48L32:
-		mclk_src = TACNA_32K_MCLK1;
-		break;
-	default:
-		mclk_src = TACNA_32K_MCLK2;
-		break;
-	}
-	ret = regmap_update_bits(tacna->regmap,
-			TACNA_CLOCK32K,
-			TACNA_CLK_32K_EN_MASK | TACNA_CLK_32K_SRC_MASK,
-			TACNA_CLK_32K_EN | mclk_src);
-	if (ret) {
-		dev_err(tacna->dev, "Failed to init 32k clock: %d\n", ret);
+	ret = tacna_configure_clk32k(tacna);
+	if (ret)
 		goto err_reset;
-	}
 
 	/* default headphone impedance in case the extcon driver is not used */
 	for (i = 0; i < ARRAY_SIZE(tacna->hp_impedance_x100); ++i)

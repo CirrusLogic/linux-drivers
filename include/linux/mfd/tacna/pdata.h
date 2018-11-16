@@ -91,6 +91,8 @@ struct tacna_pdata {
 	u32 gpsw[TACNA_MAX_GPSW];
 
 	struct tacna_accdet_pdata accdet[TACNA_MAX_ACCESSORY];
+
+	u32 clk32k_src;
 };
 
 #endif

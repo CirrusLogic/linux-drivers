@@ -1053,6 +1053,8 @@ TACNA_MIXER_CONTROLS("DSP1RX9", TACNA_DSP1RX9_INPUT1),
 TACNA_MIXER_CONTROLS("DSP1RX10", TACNA_DSP1RX10_INPUT1),
 TACNA_MIXER_CONTROLS("DSP1RX11", TACNA_DSP1RX11_INPUT1),
 TACNA_MIXER_CONTROLS("DSP1RX12", TACNA_DSP1RX12_INPUT1),
+
+WM_ADSP_FW_CONTROL("DSP1", 0),
 };
 
 TACNA_MIXER_ENUMS(EQ1, TACNA_EQ1_INPUT1);
@@ -2808,7 +2810,7 @@ static int cs47l96_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, cs47l96);
-	pdev->dev.of_node = tacna->dev->of_node;
+	pdev->dev.of_node = of_node_get(tacna->dev->of_node);
 
 	cs47l96->core.tacna = tacna;
 	cs47l96->core.dev = &pdev->dev;
@@ -2850,7 +2852,6 @@ static int cs47l96_probe(struct platform_device *pdev)
 	dsp = &cs47l96->core.dsp[0];
 	dsp->part = "cs47l96";
 	dsp->num = 1;
-	dsp->suffix = "";
 	dsp->type = WMFW_HALO;
 	dsp->rev = 0;
 	dsp->dev = tacna->dev;
