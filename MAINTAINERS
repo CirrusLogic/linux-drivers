@@ -3134,6 +3134,32 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 F:	sound/soc/codecs/cs*
 
+CIRRUS LOGIC TACNA AUDIO CODEC DRIVERS
+M:	Charles Keepax <ckeepax@opensource.wolfsonmicro.com>
+M:	Richard Fitzgerald <rf@opensource.wolfsonmicro.com>
+L:	patches@opensource.wolfsonmicro.com
+T:	git https://github.com/CirrusLogic/linux-drivers.git
+W:	https://github.com/CirrusLogic/linux-drivers/wiki
+S:	Maintained
+F:	Documentation/devicetree/bindings/mfd/tacna.txt
+F:	Documentation/devicetree/bindings/extcon/extcon-tacna.txt
+F:	Documentation/devicetree/bindings/pinctrl/cirrus,tacna-pinctrl.txt
+F:	Documentation/devicetree/bindings/sound/tacna.txt
+F:	drivers/mfd/cs*
+F:	drivers/mfd/tacna*
+F:	drivers/extcon/extcon-tacna*
+F:	drivers/gpio/gpio-tacna*
+F:	drivers/irqchip/irq-tacna*
+F:	drivers/pinctrl/pinctrl-tacna*
+F:	include/dt-bindings/sound/tacna*
+F:	include/dt-bindings/extcon/extcon-tacna*
+F:	include/linux/mfd/tacna/*
+F:	include/linux/irqchip/irq-tacna*
+F:	include/linux/extcon/extcon-tacna*
+F:	include/sound/tacna*
+F:	sound/soc/codecs/cs*
+F:	sound/soc/codecs/tacna*
+
 CLEANCACHE API
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 L:	linux-kernel@vger.kernel.org
@@ -13124,6 +13150,7 @@ F:	include/linux/mfd/arizona/
 F:	include/linux/mfd/wm831x/
 F:	include/linux/mfd/wm8350/
 F:	include/linux/mfd/wm8400*
+F:	include/linux/regulator/arizona*
 F:	include/linux/wm97xx.h
 F:	include/sound/wm????.h
 F:	sound/soc/codecs/arizona.?

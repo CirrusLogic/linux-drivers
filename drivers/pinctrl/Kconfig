@@ -93,6 +93,25 @@ config PINCTRL_AMD
 	  Requires ACPI/FDT device enumeration code to set up a platform
 	  device.
 
+config PINCTRL_TACNA
+	bool
+	default y if MFD_TACNA=y
+	select PINMUX
+	select GENERIC_PINCONF
+
+config PINCTRL_CS47L96
+	bool
+	default y if MFD_CS47L96=y
+
+config PINCTRL_CS48L32
+	bool
+	default y if MFD_CS48L32=y
+
+config PINCTRL_CS48LX50
+	bool
+	default y if MFD_CLSIC=y
+	default y if MFD_CLSIC=m
+
 config PINCTRL_DIGICOLOR
 	bool
 	depends on OF && (ARCH_DIGICOLOR || COMPILE_TEST)

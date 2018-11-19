@@ -60,6 +60,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS4349 if I2C
 	select SND_SOC_CS47L24 if MFD_CS47L24
 	select SND_SOC_CS53L30 if I2C
+	select SND_SOC_CS47L96 if MFD_CS47L96
+	select SND_SOC_CS48L32 if MFD_CS48L32
 	select SND_SOC_CX20442 if TTY
 	select SND_SOC_DA7210 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_DA7213 if I2C
@@ -238,10 +240,12 @@ config SND_SOC_WM_HUBS
 config SND_SOC_WM_ADSP
 	tristate
 	select SND_SOC_COMPRESS
+	default y if SND_SOC_TACNA=y
 	default y if SND_SOC_CS47L24=y
 	default y if SND_SOC_WM5102=y
 	default y if SND_SOC_WM5110=y
 	default y if SND_SOC_WM2200=y
+	default m if SND_SOC_TACNA=m
 	default m if SND_SOC_CS47L24=m
 	default m if SND_SOC_WM5102=m
 	default m if SND_SOC_WM5110=m
@@ -475,6 +479,12 @@ config SND_SOC_CS4349
 	depends on I2C
 
 config SND_SOC_CS47L24
+	tristate
+
+config SND_SOC_CS47L96
+	tristate
+
+config SND_SOC_CS48L32
 	tristate
 
 # Cirrus Logic Quad-Channel ADC
@@ -1092,6 +1102,15 @@ config SND_SOC_NAU8810
 
 config SND_SOC_NAU8825
 	tristate
+
+config SND_SOC_TACNA
+	tristate
+	default y if SND_SOC_CS47L96=y
+	default m if SND_SOC_CS47L96=m
+	default y if SND_SOC_CS48L32=y
+	default m if SND_SOC_CS48L32=m
+	default y if SND_SOC_CLSIC_CODEC=y
+	default m if SND_SOC_CLSIC_CODEC=m
 
 config SND_SOC_TPA6130A2
 	tristate "Texas Instruments TPA6130A2 headphone amplifier"
