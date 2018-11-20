@@ -953,6 +953,12 @@ static int clsic_pm_service_transition(struct clsic *clsic, int pm_event)
 #define CLSIC_BOOT_PROGRESS_POLL_MICROSECONDS    5000
 #define CLSIC_BOOT_PROGRESS_TIMEOUT_MICROSECONDS 2000000
 
+/*
+ * Setting the timeout for the enumeration or firmware download to be 100
+ * seconds (the bootloader message timeout is 90 seconds)
+ */
+#define CLSIC_PM_COMPLETION_TIMEOUT (HZ * 100)
+
 static int clsic_runtime_resume(struct device *dev)
 {
 	struct clsic *clsic = dev_get_drvdata(dev);
@@ -1024,7 +1030,11 @@ static int clsic_runtime_resume(struct device *dev)
 	 * Wait for the system to have fully initialised, including any
 	 * firmware download and enumeration activity
 	 */
-	wait_for_completion(&clsic->pm_completion);
+	if (wait_for_completion_timeout(&clsic->pm_completion,
+					CLSIC_PM_COMPLETION_TIMEOUT) == 0) {
+		clsic_err(clsic, "Completion timeout\n");
+		return -ETIMEDOUT;
+	}
 
 	trace_clsic_pm(RPM_ACTIVE);
 
