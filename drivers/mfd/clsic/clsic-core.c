@@ -87,10 +87,6 @@ static bool clsic_wait_for_boot_done(struct clsic *clsic)
 
 void clsic_soft_reset(struct clsic *clsic)
 {
-	if (clsic->volatile_memory)
-		regmap_update_bits(clsic->regmap, CLSIC_FW_UPDATE_REG,
-				   CLSIC_FW_UPDATE_BIT, CLSIC_FW_UPDATE_BIT);
-
 	regmap_write(clsic->regmap, TACNA_SFT_RESET, CLSIC_SOFTWARE_RESET_CODE);
 	clsic_wait_for_boot_done(clsic);
 }
