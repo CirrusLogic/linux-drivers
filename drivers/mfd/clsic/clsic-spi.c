@@ -44,6 +44,8 @@ static bool clsic_spi_regmap_readable(struct device *dev, unsigned int reg)
 	case TACNA_CPF1_TX_GPR_STATUS1:
 	case TACNA_CPF1_TX_RDDATA1:
 	case TACNA_CPF1_TX_RDDATA2:
+	case CLSIC_FW_BOOT_PROGRESS:
+	case CLSIC_FW_BOOT_PANIC:
 		return true;
 	default:
 		return false;
@@ -57,7 +59,7 @@ static const struct regmap_config clsic_spi_regmap = {
 	.val_bits = 32,
 	.reg_stride = 4,
 
-	.max_register = TACNA_CPF1_TX_RDDATA2,
+	.max_register = CLSIC_FW_BOOT_PANIC,
 	.readable_reg = &clsic_spi_regmap_readable,
 	.cache_type = REGCACHE_NONE,
 };
