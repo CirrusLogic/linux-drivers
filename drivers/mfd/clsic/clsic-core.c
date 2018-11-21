@@ -773,11 +773,18 @@ static int clsic_pm_service_transition(struct clsic *clsic, int pm_event)
 	return ret;
 }
 
+/*
+ * NOTE: These are quite large timeouts whilst we are in development
+ */
+#define CLSIC_BOOT_PROGRESS_POLL_MICROSECONDS    5000
+#define CLSIC_BOOT_PROGRESS_TIMEOUT_MICROSECONDS 2000000
+
 static int clsic_runtime_resume(struct device *dev)
 {
 	struct clsic *clsic = dev_get_drvdata(dev);
 	bool force_reset = false;
 	int ret;
+	unsigned int val;
 
 	/* if the driver has halted, don't switch back on */
 	if (clsic->state == CLSIC_STATE_HALTED)
@@ -829,6 +836,12 @@ static int clsic_runtime_resume(struct device *dev)
 
 	if (clsic->volatile_memory) {
 		clsic_info(clsic, "Volatile resume\n");
+		regmap_read_poll_timeout(clsic->regmap,
+			CLSIC_FW_BOOT_PROGRESS, val,
+			(val >= CLSIC_FW_BOOT_PROGRESS_READ_FW_UPDATE_BIT),
+			CLSIC_BOOT_PROGRESS_POLL_MICROSECONDS,
+			CLSIC_BOOT_PROGRESS_TIMEOUT_MICROSECONDS);
+
 		clsic_fwupdate_reset(clsic);
 	} else
 		schedule_work(&clsic->maintenance_handler);
