@@ -21,8 +21,9 @@
 #define CLSIC_FW_UPDATE_BIT			0x00000100
 
 /* the firmware bootloader updates these registers to indicate state */
-#define CLSIC_FW_BOOT_PROGRESS			0x1043FFF4
-#define CLSIC_FW_BOOT_PANIC			0x1043FFF8
+#define CLSIC_FW_BOOT_PROGRESS				0x1043FFF4
+#define CLSIC_FW_BOOT_PROGRESS_READ_FW_UPDATE_BIT	0x13
+#define CLSIC_FW_BOOT_PANIC				0x1043FFF8
 
 /*
  * Due to the register size of the SCP there is an explicit maximum transfer
