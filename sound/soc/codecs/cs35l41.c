@@ -1139,19 +1139,19 @@ static int cs35l41_codec_set_sysclk(struct snd_soc_codec *codec,
 	cs35l41->extclk_freq = freq;
 
 	switch (clk_id) {
-	case 0:
+	case CS35L41_CLKID_SCLK:
 		cs35l41->clksrc = CS35L41_PLLSRC_SCLK;
 		break;
-	case 1:
+	case CS35L41_CLKID_LRCLK:
 		cs35l41->clksrc = CS35L41_PLLSRC_LRCLK;
 		break;
-	case 2:
+	case CS35L41_CLKID_PDMCLK:
 		cs35l41->clksrc = CS35L41_PLLSRC_PDMCLK;
 		break;
-	case 3:
+	case CS35L41_CLKID_SELF:
 		cs35l41->clksrc = CS35L41_PLLSRC_SELF;
 		break;
-	case 4:
+	case CS35L41_CLKID_MCLK:
 		cs35l41->clksrc = CS35L41_PLLSRC_MCLK;
 		break;
 	default:

@@ -765,4 +765,10 @@ enum cs35l41_cspl_mboxcmd {
 	CSPL_MBOX_CMD_INVALID_SEQUENCE = -2,
 };
 
+#define CS35L41_CLKID_SCLK    0
+#define CS35L41_CLKID_LRCLK   1
+#define CS35L41_CLKID_PDMCLK  2
+#define CS35L41_CLKID_SELF    3
+#define CS35L41_CLKID_MCLK    4
+
 #endif /*__CS35L41_H__*/
