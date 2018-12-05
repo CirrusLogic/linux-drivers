@@ -53,6 +53,7 @@
 	dev_dbg(_dsp->dev, "%s%d: " fmt, wm_adsp_arch_text(_dsp->type), \
 		_dsp->num, ##__VA_ARGS__)
 
+#define MAXBULK			4	/* Max byte I2C bulk limit */
 
 #define ADSP1_CONTROL_1                   0x00
 #define ADSP1_CONTROL_2                   0x02
@@ -1085,12 +1086,32 @@ static unsigned int wm_adsp_region_to_reg(struct wm_adsp *dsp,
 	}
 }
 
+static int wm_adsp2_raw_read(size_t maxbulk, struct regmap *map,
+			     unsigned int reg, void *val, size_t len)
+{
+	int ret;
+	size_t read_len = 0;
+	size_t toread_len;
+
+	while ((len - read_len) > 0) {
+		toread_len = (len - read_len) > maxbulk ?
+			maxbulk : (len - read_len);
+		ret = regmap_raw_read(map, reg + read_len,
+				      val + read_len, toread_len);
+		if (ret < 0)
+			return ret;
+		read_len += toread_len;
+	}
+
+	return 0;
+}
+
 static void wm_adsp2_show_fw_status(struct wm_adsp *dsp)
 {
 	u16 scratch[4];
 	int ret;
 
-	ret = regmap_raw_read(dsp->regmap, dsp->base + ADSP2_SCRATCH0,
+	ret = wm_adsp2_raw_read(MAXBULK, dsp->regmap, dsp->base + ADSP2_SCRATCH0,
 				scratch, sizeof(scratch));
 	if (ret) {
 		adsp_err(dsp, "Failed to read SCRATCH regs: %d\n", ret);
@@ -1109,7 +1130,7 @@ static void wm_adsp2v2_show_fw_status(struct wm_adsp *dsp)
 	u32 scratch[2];
 	int ret;
 
-	ret = regmap_raw_read(dsp->regmap, dsp->base + ADSP2V2_SCRATCH0_1,
+	ret = wm_adsp2_raw_read(MAXBULK, dsp->regmap, dsp->base + ADSP2V2_SCRATCH0_1,
 			      scratch, sizeof(scratch));
 
 	if (ret) {
@@ -1132,7 +1153,7 @@ static void wm_halo_show_fw_status(struct wm_adsp *dsp)
 	u32 scratch[4];
 	int ret;
 
-	ret = regmap_raw_read(dsp->regmap, dsp->base + HALO_SCRATCH1,
+	ret = wm_adsp2_raw_read(MAXBULK, dsp->regmap, dsp->base + HALO_SCRATCH1,
 			      scratch, sizeof(scratch));
 	if (ret) {
 		adsp_err(dsp, "Failed to read SCRATCH regs: %d\n", ret);
@@ -1234,7 +1255,7 @@ static int wm_coeff_write_acked_control(struct wm_coeff_ctl *ctl,
 			break;
 		}
 
-		ret = regmap_raw_read(dsp->regmap, reg, &val, sizeof(val));
+		ret = wm_adsp2_raw_read(MAXBULK, dsp->regmap, reg, &val, sizeof(val));
 		if (ret) {
 			adsp_err(dsp, "Failed to read %x: %d\n", reg, ret);
 			return ret;
@@ -1366,8 +1387,6 @@ static int wm_coeff_read_control(struct wm_coeff_ctl *ctl,
 	void *scratch;
 	int ret;
 	unsigned int reg;
-	int read_len = 0;
-	int toread_len;
 
 	ret = wm_coeff_base_reg(ctl, &reg);
 	if (ret)
@@ -1377,22 +1396,14 @@ static int wm_coeff_read_control(struct wm_coeff_ctl *ctl,
 	if (!scratch)
 		return -ENOMEM;
 
-	while ((len - read_len) > 0) {
-		toread_len = (len - read_len) > MAX_BULKSIZE ?
-			MAX_BULKSIZE : (len - read_len);
-		regmap_raw_read(dsp->regmap, reg + read_len / REG_BYTESIZE,
-				scratch + read_len, toread_len);
-		if (ret) {
-			adsp_err(dsp, "Failed to read %zu bytes from %x: %d\n",
-				 toread_len,
-				 reg + read_len / REG_BYTESIZE, ret);
-			kfree(scratch);
-			return ret;
-		}
-		adsp_dbg(dsp, "Read %zu bytes from %x\n", toread_len,
-			 reg + read_len / REG_BYTESIZE);
-		read_len += toread_len;
+	ret = wm_adsp2_raw_read(MAXBULK, dsp->regmap, reg, scratch, len);
+	if (ret) {
+		adsp_err(dsp, "Failed to read %zu bytes from %x: %d\n",
+			 len, reg, ret);
+		kfree(scratch);
+		return ret;
 	}
+	adsp_dbg(dsp, "Read %zu bytes from %x\n", len, reg);
 
 	memcpy(buf, scratch, len);
 	kfree(scratch);
@@ -2451,7 +2462,7 @@ static void *wm_adsp_read_algs(struct wm_adsp *dsp, size_t n_algs,
 	/* Read the terminator first to validate the length */
 	reg = wm_adsp_region_to_reg(dsp, mem, pos + len),
 
-	ret = regmap_raw_read(dsp->regmap, reg, &val, sizeof(val));
+	ret = wm_adsp2_raw_read(MAXBULK, dsp->regmap, reg, &val, sizeof(val));
 	if (ret != 0) {
 		adsp_err(dsp, "Failed to read algorithm list end: %d\n",
 			ret);
@@ -2471,7 +2482,7 @@ static void *wm_adsp_read_algs(struct wm_adsp *dsp, size_t n_algs,
 
 	reg = wm_adsp_region_to_reg(dsp, mem, pos),
 
-	ret = regmap_raw_read(dsp->regmap, reg, alg, len);
+	ret = wm_adsp2_raw_read(MAXBULK, dsp->regmap, reg, alg, len);
 	if (ret != 0) {
 		adsp_err(dsp, "Failed to read algorithm list: %d\n", ret);
 		kfree(alg);
@@ -2543,7 +2554,7 @@ static int wm_adsp1_setup_algs(struct wm_adsp *dsp)
 	if (WARN_ON(!mem))
 		return -EINVAL;
 
-	ret = regmap_raw_read(dsp->regmap, mem->base, &adsp1_id,
+	ret = wm_adsp2_raw_read(MAXBULK, dsp->regmap, mem->base, &adsp1_id,
 			      sizeof(adsp1_id));
 	if (ret != 0) {
 		adsp_err(dsp, "Failed to read algorithm info: %d\n",
@@ -2649,7 +2660,7 @@ static int wm_adsp2_setup_algs(struct wm_adsp *dsp)
 	if (WARN_ON(!mem))
 		return -EINVAL;
 
-	ret = regmap_raw_read(dsp->regmap, mem->base, &adsp2_id,
+	ret = wm_adsp2_raw_read(MAXBULK, dsp->regmap, mem->base, &adsp2_id,
 			      sizeof(adsp2_id));
 	if (ret != 0) {
 		adsp_err(dsp, "Failed to read algorithm info: %d\n",
@@ -2795,7 +2806,7 @@ static int wm_halo_setup_algs(struct wm_adsp *dsp)
 	if (WARN_ON(!mem))
 		return -EINVAL;
 
-	ret = regmap_raw_read(dsp->regmap, mem->base, &halo_id,
+	ret = wm_adsp2_raw_read(MAXBULK, dsp->regmap, mem->base, &halo_id,
 			      sizeof(halo_id));
 	if (ret != 0) {
 		adsp_err(dsp, "Failed to read algorithm info: %d\n",
@@ -4633,7 +4644,7 @@ static int wm_adsp_read_data_block(struct wm_adsp *dsp, int mem_type,
 
 	reg = wm_adsp_region_to_reg(dsp, mem, mem_addr);
 
-	ret = regmap_raw_read(dsp->regmap, reg, data,
+	ret = wm_adsp2_raw_read(MAXBULK, dsp->regmap, reg, data,
 			      sizeof(*data) * num_words);
 	if (ret < 0)
 		return ret;
