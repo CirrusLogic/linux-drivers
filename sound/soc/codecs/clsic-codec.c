@@ -1860,14 +1860,14 @@ static struct regmap *clsic_get_regmap(struct device *dev)
 }
 
 static const struct snd_soc_codec_driver soc_codec_dev_clsic = {
-	.probe = clsic_codec_probe,
-	.remove = clsic_codec_remove,
-	.get_regmap = clsic_get_regmap,
+	.probe = &clsic_codec_probe,
+	.remove = &clsic_codec_remove,
+	.get_regmap = &clsic_get_regmap,
 
 	.idle_bias_off = true,
 
-	.set_sysclk = tacna_set_sysclk,
-	.set_pll = clsic_set_fll,
+	.set_sysclk = &tacna_set_sysclk,
+	.set_pll = &clsic_set_fll,
 
 	.component_driver = {
 		.controls = clsic_snd_controls,
