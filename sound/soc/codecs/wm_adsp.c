@@ -548,6 +548,12 @@ struct wm_adsp_alg_xm_struct {
 	__be64 smoothed_power;
 };
 
+struct wm_adsp_host_buf_coeff_v1 {
+	__be32 host_buf_ptr;		/* Host buffer pointer */
+	__be32 versions;		/* Version numbers */
+	__be32 name[4];			/* The buffer name */
+};
+
 struct wm_adsp_buffer {
 	__be32 buf1_base;		/* Base addr of first buffer area */
 	__be32 buf1_size;		/* Size of buf1 area in DSP words */
@@ -572,6 +578,7 @@ struct wm_adsp_buffer {
 struct wm_adsp_compr;
 
 struct wm_adsp_compr_buf {
+	struct list_head list;
 	struct wm_adsp *dsp;
 	struct wm_adsp_compr *compr;
 
@@ -585,9 +592,12 @@ struct wm_adsp_compr_buf {
 	int host_buf_mem_type;
 	int num_regions;
 	const struct wm_adsp_buffer_region_def *region_def;
+
+	char *name;
 };
 
 struct wm_adsp_compr {
+	struct list_head list;
 	struct wm_adsp *dsp;
 	struct wm_adsp_compr_buf *buf;
 
@@ -598,6 +608,8 @@ struct wm_adsp_compr {
 	unsigned int copied_total;
 
 	unsigned int sample_rate;
+
+	const char *name;
 };
 
 #define WM_ADSP_DATA_WORD_SIZE_DEFAULT	3
@@ -618,6 +630,11 @@ struct wm_adsp_compr {
 
 #define ALG_XM_FIELD(field) \
 	(offsetof(struct wm_adsp_alg_xm_struct, field) / sizeof(__be32))
+
+#define HOST_BUF_COEFF_SUPPORTED_COMPAT_VER	1
+
+#define HOST_BUF_COEFF_COMPAT_VER_MASK		0xFF00
+#define HOST_BUF_COEFF_COMPAT_VER_SHIFT		8
 
 static int wm_adsp_buffer_init(struct wm_adsp *dsp);
 static int wm_adsp_buffer_free(struct wm_adsp *dsp);
@@ -984,7 +1001,7 @@ int wm_adsp_fw_put(struct snd_kcontrol *kcontrol,
 
 	mutex_lock(&dsp[e->shift_l].pwr_lock);
 
-	if (dsp[e->shift_l].booted || dsp[e->shift_l].compr)
+	if (dsp[e->shift_l].booted || !list_empty(&dsp[e->shift_l].compr_list))
 		ret = -EBUSY;
 	else
 		dsp[e->shift_l].fw = ucontrol->value.enumerated.item[0];
@@ -3030,6 +3047,8 @@ int wm_adsp1_init(struct wm_adsp *dsp)
 		return ret;
 
 	INIT_LIST_HEAD(&dsp->alg_regions);
+	INIT_LIST_HEAD(&dsp->compr_list);
+	INIT_LIST_HEAD(&dsp->buffer_list);
 
 	mutex_init(&dsp->pwr_lock);
 
@@ -3926,6 +3945,8 @@ int wm_adsp2_init(struct wm_adsp *dsp, struct mutex *fw_lock)
 
 	INIT_LIST_HEAD(&dsp->alg_regions);
 	INIT_LIST_HEAD(&dsp->ctl_list);
+	INIT_LIST_HEAD(&dsp->compr_list);
+	INIT_LIST_HEAD(&dsp->buffer_list);
 	INIT_WORK(&dsp->boot_work, wm_adsp2_boot_work);
 
 	mutex_init(&dsp->pwr_lock);
@@ -3949,6 +3970,8 @@ int wm_halo_init(struct wm_adsp *dsp, struct mutex *fw_lock, struct mutex *rate_
 
 	INIT_LIST_HEAD(&dsp->alg_regions);
 	INIT_LIST_HEAD(&dsp->ctl_list);
+	INIT_LIST_HEAD(&dsp->compr_list);
+	INIT_LIST_HEAD(&dsp->buffer_list);
 	INIT_WORK(&dsp->boot_work, wm_halo_boot_work);
 
 	mutex_init(&dsp->pwr_lock);
@@ -3978,6 +4001,8 @@ int wm_vpu_init(struct wm_adsp *vpu)
 
 	INIT_LIST_HEAD(&vpu->alg_regions);
 	INIT_LIST_HEAD(&vpu->ctl_list);
+	INIT_LIST_HEAD(&vpu->compr_list);
+	INIT_LIST_HEAD(&vpu->buffer_list);
 	INIT_WORK(&vpu->boot_work, wm_vpu_boot_work);
 	mutex_init(&vpu->pwr_lock);
 
@@ -4011,14 +4036,22 @@ static inline int wm_adsp_compr_attached(struct wm_adsp_compr *compr)
 
 static int wm_adsp_compr_attach(struct wm_adsp_compr *compr)
 {
-	/*
-	 * Note this will be more complex once each DSP can support multiple
-	 * streams
-	 */
-	if (!compr->dsp->buffer || compr->dsp->fatal_error)
+	struct wm_adsp_compr_buf *buf = NULL, *tmp;
+
+	if (compr->dsp->fatal_error)
 		return -EINVAL;
 
-	compr->buf = compr->dsp->buffer;
+	list_for_each_entry(tmp, &compr->dsp->buffer_list, list) {
+		if (tmp->name == NULL || !strcmp(compr->name, tmp->name)) {
+			buf = tmp;
+			break;
+		}
+	}
+
+	if (!buf)
+		return -EINVAL;
+
+	compr->buf = buf;
 	compr->buf->compr = compr;
 
 	return 0;
@@ -4041,7 +4074,8 @@ static void wm_adsp_compr_detach(struct wm_adsp_compr *compr)
 
 int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream)
 {
-	struct wm_adsp_compr *compr;
+	struct wm_adsp_compr *compr, *tmp;
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	int ret = 0;
 
 	mutex_lock(&dsp->pwr_lock);
@@ -4058,11 +4092,12 @@ int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream)
 		goto out;
 	}
 
-	if (dsp->compr) {
-		/* It is expect this limitation will be removed in future */
-		adsp_err(dsp, "Only a single stream supported per DSP\n");
-		ret = -EBUSY;
-		goto out;
+	list_for_each_entry(tmp, &dsp->compr_list, list) {
+		if (!strcmp(tmp->name, rtd->codec_dai->name)) {
+			adsp_err(dsp, "Only a single stream supported per dai\n");
+			ret = -EBUSY;
+			goto out;
+		}
 	}
 
 	compr = kzalloc(sizeof(*compr), GFP_KERNEL);
@@ -4073,8 +4108,9 @@ int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream)
 
 	compr->dsp = dsp;
 	compr->stream = stream;
+	compr->name = rtd->codec_dai->name;
 
-	dsp->compr = compr;
+	list_add_tail(&compr->list, &dsp->compr_list);
 
 	stream->runtime->private_data = compr;
 
@@ -4093,7 +4129,7 @@ int wm_adsp_compr_free(struct snd_compr_stream *stream)
 	mutex_lock(&dsp->pwr_lock);
 
 	wm_adsp_compr_detach(compr);
-	dsp->compr = NULL;
+	list_del(&compr->list);
 
 	kfree(compr->raw_buf);
 	kfree(compr);
@@ -4329,62 +4365,6 @@ static int wm_adsp_legacy_host_buf_addr(struct wm_adsp_compr_buf *buf)
 	return 0;
 }
 
-static struct wm_coeff_ctl *wm_adsp_find_host_buffer_ctrl(
-						struct wm_adsp_compr_buf *buf)
-{
-	struct wm_adsp *dsp = buf->dsp;
-	struct wm_coeff_ctl *ctl;
-
-	list_for_each_entry(ctl, &dsp->ctl_list, list) {
-		if (ctl->type != WMFW_CTL_TYPE_HOST_BUFFER)
-			continue;
-
-		if (!ctl->enabled)
-			continue;
-
-		buf->host_buf_mem_type = ctl->alg_region.type;
-		return ctl;
-	}
-
-	return NULL;
-}
-
-static int wm_adsp_buffer_locate(struct wm_adsp_compr_buf *buf)
-{
-	struct wm_adsp *dsp = buf->dsp;
-	struct wm_coeff_ctl *ctl;
-	unsigned int reg;
-	u32 val;
-	int i, ret;
-
-	ctl = wm_adsp_find_host_buffer_ctrl(buf);
-	if (!ctl)
-		return wm_adsp_legacy_host_buf_addr(buf);
-
-	ret = wm_coeff_base_reg(ctl, &reg);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < 5; ++i) {
-		ret = regmap_raw_read(dsp->regmap, reg, &val, sizeof(val));
-		if (ret < 0)
-			return ret;
-
-		if (val)
-			break;
-
-		usleep_range(1000, 2000);
-	}
-
-	if (!val)
-		return -EIO;
-
-	buf->host_buf_ptr = be32_to_cpu(val);
-	adsp_dbg(dsp, "host_buf_ptr=%x\n", buf->host_buf_ptr);
-
-	return 0;
-}
-
 static int wm_adsp_buffer_populate(struct wm_adsp_compr_buf *buf)
 {
 	struct wm_adsp_buffer_region *region;
@@ -4425,18 +4405,10 @@ static void wm_adsp_buffer_clear(struct wm_adsp_compr_buf *buf)
 	buf->avail = 0;
 }
 
-static int wm_adsp_buffer_init(struct wm_adsp *dsp)
+static int wm_adsp_buf_init(struct wm_adsp_compr_buf *buf)
 {
-	struct wm_adsp_compr_buf *buf;
+	struct wm_adsp *dsp = buf->dsp;
 	int ret;
-
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	buf->dsp = dsp;
-
-	wm_adsp_buffer_clear(buf);
 
 	switch (dsp->type) {
 	case WMFW_ADSP1:
@@ -4451,49 +4423,195 @@ static int wm_adsp_buffer_init(struct wm_adsp *dsp)
 		break;
 	default:
 		adsp_err(dsp, "Unknown DSP type:%d\n", dsp->type);
-		ret = -EINVAL;
-		goto err_buffer;
-	}
-
-	ret = wm_adsp_buffer_locate(buf);
-	if (ret < 0) {
-		adsp_err(dsp, "Failed to acquire host buffer: %d\n", ret);
-		goto err_buffer;
+		return -EINVAL;
 	}
 
 	buf->regions = kcalloc(buf->num_regions, sizeof(*buf->regions),
 			       GFP_KERNEL);
-	if (!buf->regions) {
-		ret = -ENOMEM;
-		goto err_buffer;
-	}
+	if (!buf->regions)
+		return -ENOMEM;
 
 	ret = wm_adsp_buffer_populate(buf);
 	if (ret < 0) {
 		adsp_err(dsp, "Failed to populate host buffer: %d\n", ret);
-		goto err_regions;
+		kfree(buf->regions);
+		return ret;
 	}
 
-	dsp->buffer = buf;
+	list_add_tail(&buf->list, &dsp->buffer_list);
 
 	return 0;
+}
 
-err_regions:
-	kfree(buf->regions);
-err_buffer:
-	kfree(buf);
-	return ret;
+static void wm_adsp_remove_padding(u32 *buf, int nwords, int data_word_size)
+{
+	u8 *pack_in = (u8 *)buf;
+	u8 *pack_out = (u8 *)buf;
+	int i, j;
+
+	/* Remove the padding bytes from the data read from the DSP */
+	for (i = 0; i < nwords; i++) {
+		for (j = 0; j < data_word_size; j++)
+			*pack_out++ = *pack_in++;
+
+		pack_in += sizeof(*buf) - data_word_size;
+	}
+}
+
+static int wm_adsp_parse_buffer_coeff(struct wm_coeff_ctl *ctl)
+{
+	int ret, i;
+	unsigned int val, reg;
+	struct wm_adsp_host_buf_coeff_v1 coeff_v1;
+	struct wm_adsp_compr_buf *buf;
+
+	ret = wm_coeff_base_reg(ctl, &reg);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < 5; ++i) {
+		ret = regmap_raw_read(ctl->dsp->regmap, reg, &val,
+				      sizeof(val));
+		if (ret < 0)
+			return ret;
+
+		if (val)
+			break;
+
+		usleep_range(1000, 2000);
+	}
+
+	if (!val)
+		return -EIO;
+
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	buf->dsp = ctl->dsp;
+	buf->host_buf_mem_type = ctl->alg_region.type;
+
+	wm_adsp_buffer_clear(buf);
+
+	buf->host_buf_ptr = be32_to_cpu(val);
+	adsp_dbg(ctl->dsp, "host_buf_ptr=%x\n", buf->host_buf_ptr);
+
+	ret = wm_adsp_buf_init(buf);
+	if (ret) {
+		kfree(buf);
+		return val;
+	}
+
+	/*
+	 * v0 host_buffer coefficients didn't have versioning, so if the
+	 * control is one word, assume version 0.
+	 */
+	if (ctl->len == 4) {
+		adsp_dbg(ctl->dsp, "Host buffer coeff version 0\n");
+		return 0;
+	}
+
+	ret = regmap_raw_read(ctl->dsp->regmap, reg, &coeff_v1,
+			      sizeof(coeff_v1));
+	if (ret < 0) {
+		adsp_err(ctl->dsp,
+			 "Failed to get host buffer coeff version: %d\n",
+			 ret);
+		return ret;
+	}
+
+	coeff_v1.versions = be32_to_cpu(coeff_v1.versions);
+	val = coeff_v1.versions & HOST_BUF_COEFF_COMPAT_VER_MASK;
+	val >>= HOST_BUF_COEFF_COMPAT_VER_SHIFT;
+
+	if (val > HOST_BUF_COEFF_SUPPORTED_COMPAT_VER) {
+		adsp_err(ctl->dsp,
+			 "Host buffer coeff ver %u > supported version %u\n",
+			 val, HOST_BUF_COEFF_SUPPORTED_COMPAT_VER);
+		return -EINVAL;
+	}
+
+	adsp_dbg(ctl->dsp, "Host buffer coeff version %u\n", val);
+
+	for (i = 0; i < ARRAY_SIZE(coeff_v1.name); i++)
+		coeff_v1.name[i] = be32_to_cpu(coeff_v1.name[i]);
+
+	wm_adsp_remove_padding((u32 *)&coeff_v1.name,
+			       ARRAY_SIZE(coeff_v1.name),
+			       ctl->dsp->data_word_size);
+
+	buf->name = kasprintf(GFP_KERNEL, "%s-dsp-%s", ctl->dsp->part,
+			      (char *)&coeff_v1.name);
+
+	return val;
+}
+
+static int wm_adsp_buffer_init(struct wm_adsp *dsp)
+{
+	struct wm_adsp_compr_buf *buf;
+	struct wm_coeff_ctl *ctl;
+	int ret;
+	int coeff_ver;
+	bool found = false;
+
+	list_for_each_entry(ctl, &dsp->ctl_list, list) {
+		if (ctl->type != WMFW_CTL_TYPE_HOST_BUFFER)
+			continue;
+
+		if (!ctl->enabled)
+			continue;
+
+		found = true;
+
+		coeff_ver = wm_adsp_parse_buffer_coeff(ctl);
+		if (coeff_ver < 0) {
+			wm_adsp_buffer_free(dsp);
+			return coeff_ver;
+		}
+
+		/* Only one buffer supported for version 0 coefficients */
+		if (coeff_ver == 0)
+			break;
+	}
+
+	if (!found) {
+		/* Fall back to legacy support */
+		buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+
+		buf->dsp = dsp;
+
+		wm_adsp_buffer_clear(buf);
+
+		ret = wm_adsp_legacy_host_buf_addr(buf);
+		if (ret) {
+			kfree(buf);
+			return ret;
+		}
+
+		ret = wm_adsp_buf_init(buf);
+		if (ret) {
+			kfree(buf);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 static int wm_adsp_buffer_free(struct wm_adsp *dsp)
 {
-	if (dsp->buffer) {
-		wm_adsp_compr_detach(dsp->buffer->compr);
+	struct wm_adsp_compr_buf *buf, *tmp;
 
-		kfree(dsp->buffer->regions);
-		kfree(dsp->buffer);
+	list_for_each_entry_safe(buf, tmp, &dsp->buffer_list, list) {
+		if (buf->compr)
+			wm_adsp_compr_detach(buf->compr);
 
-		dsp->buffer = NULL;
+		kfree(buf->name);
+		kfree(buf->regions);
+		list_del(&buf->list);
+		kfree(buf);
 	}
 
 	return 0;
@@ -4620,39 +4738,39 @@ int wm_adsp_compr_handle_irq(struct wm_adsp *dsp)
 
 	mutex_lock(&dsp->pwr_lock);
 
-	buf = dsp->buffer;
-	compr = dsp->compr;
-
-	if (!buf) {
+	if (list_empty(&dsp->buffer_list)) {
 		ret = -ENODEV;
 		goto out;
 	}
-
 	adsp_dbg(dsp, "Handling buffer IRQ\n");
 
-	ret = wm_adsp_buffer_get_error(buf);
-	if (ret < 0)
-		goto out_notify; /* Wake poll to report error */
+	list_for_each_entry(buf, &dsp->buffer_list, list) {
+		compr = buf->compr;
 
-	ret = wm_adsp_buffer_read(buf, HOST_BUFFER_FIELD(irq_count),
-				  &buf->irq_count);
-	if (ret < 0) {
-		adsp_err(dsp, "Failed to get irq_count: %d\n", ret);
-		goto out;
-	}
+		ret = wm_adsp_buffer_get_error(buf);
+		if (ret < 0)
+			goto out_notify; /* Wake poll to report error */
 
-	ret = wm_adsp_buffer_update_avail(buf);
-	if (ret < 0) {
-		adsp_err(dsp, "Error reading avail: %d\n", ret);
-		goto out;
-	}
+		ret = wm_adsp_buffer_read(buf, HOST_BUFFER_FIELD(irq_count),
+					  &buf->irq_count);
+		if (ret < 0) {
+			adsp_err(dsp, "Failed to get irq_count: %d\n", ret);
+			goto out;
+		}
 
-	if (wm_adsp_fw[dsp->fw].voice_trigger && buf->irq_count == 2)
-		ret = WM_ADSP_COMPR_VOICE_TRIGGER;
+		ret = wm_adsp_buffer_update_avail(buf);
+		if (ret < 0) {
+			adsp_err(dsp, "Error reading avail: %d\n", ret);
+			goto out;
+		}
+
+		if (wm_adsp_fw[dsp->fw].voice_trigger && buf->irq_count == 2)
+			ret = WM_ADSP_COMPR_VOICE_TRIGGER;
 
 out_notify:
-	if (compr && compr->stream)
-		snd_compr_fragment_elapsed(compr->stream);
+		if (compr && compr->stream)
+			snd_compr_fragment_elapsed(compr->stream);
+	}
 
 out:
 	mutex_unlock(&dsp->pwr_lock);
@@ -4744,11 +4862,9 @@ EXPORT_SYMBOL_GPL(wm_adsp_compr_pointer);
 static int wm_adsp_buffer_capture_block(struct wm_adsp_compr *compr, int target)
 {
 	struct wm_adsp_compr_buf *buf = compr->buf;
-	u8 *pack_in = (u8 *)compr->raw_buf;
-	u8 *pack_out = (u8 *)compr->raw_buf;
 	unsigned int adsp_addr;
 	int mem_type, nwords, max_read;
-	int i, j, ret;
+	int i, ret;
 	int data_word_size = buf->dsp->data_word_size;
 
 	/* Calculate read parameters */
@@ -4781,13 +4897,7 @@ static int wm_adsp_buffer_capture_block(struct wm_adsp_compr *compr, int target)
 	if (ret < 0)
 		return ret;
 
-	/* Remove the padding bytes from the data read from the DSP */
-	for (i = 0; i < nwords; i++) {
-		for (j = 0; j < data_word_size; j++)
-			*pack_out++ = *pack_in++;
-
-		pack_in += sizeof(*(compr->raw_buf)) - data_word_size;
-	}
+	wm_adsp_remove_padding(compr->raw_buf, nwords, data_word_size);
 
 	/* update read index to account for words read */
 	buf->read_index += nwords;
@@ -5073,6 +5183,7 @@ EXPORT_SYMBOL_GPL(wm_halo_bus_error);
 irqreturn_t wm_halo_wdt_expire(int irq, void *data)
 {
 	struct wm_adsp *dsp = data;
+	struct wm_adsp_compr *compr;
 
 	mutex_lock(&dsp->pwr_lock);
 
@@ -5080,9 +5191,12 @@ irqreturn_t wm_halo_wdt_expire(int irq, void *data)
 	wm_halo_stop_watchdog(dsp);
 
 	dsp->fatal_error = true;
-	if (dsp->compr && dsp->compr->stream) {
-		dsp->compr->stream->runtime->state = SNDRV_PCM_STATE_XRUN;
-		snd_compr_fragment_elapsed(dsp->compr->stream);
+
+	list_for_each_entry(compr, &dsp->compr_list, list) {
+		if (compr->stream) {
+			compr->stream->runtime->state = SNDRV_PCM_STATE_XRUN;
+			snd_compr_fragment_elapsed(compr->stream);
+		}
 	}
 
 	mutex_unlock(&dsp->pwr_lock);
