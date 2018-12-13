@@ -153,8 +153,10 @@ static bool clsic_supported_devid(struct clsic *clsic)
 
 	switch (clsic->devid) {
 	case CLSIC_SUPPORTED_ID_48AB50:
+	case CLSIC_SUPPORTED_ID_48AB51:
 	case CLSIC_SUPPORTED_ID_EMULATED_CODEC:
 	case CLSIC_SUPPORTED_ID_48AC40:
+	case CLSIC_SUPPORTED_ID_48AC41:
 		return true;
 	default:
 		return false;

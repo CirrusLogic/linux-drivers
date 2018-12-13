@@ -52,8 +52,10 @@ extern const struct of_device_id clsic_of_match[];
 extern const struct dev_pm_ops clsic_pm_ops;
 
 #define CLSIC_SUPPORTED_ID_48AB50		0x48AB50
+#define CLSIC_SUPPORTED_ID_48AB51		0x48AB51
 #define CLSIC_SUPPORTED_ID_EMULATED_CODEC	0xF48AB50
 #define CLSIC_SUPPORTED_ID_48AC40		0x48AC40
+#define CLSIC_SUPPORTED_ID_48AC41		0x48AC41
 
 #define CLSIC_SERVICE_TYPE_DEBUG_EMU		0x1E
 
