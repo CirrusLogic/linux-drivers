@@ -38,12 +38,17 @@
 #define CLSIC_DSP2_N_RX_CHANNELS	8
 #define CLSIC_DSP2_N_TX_CHANNELS	8
 
+/* CLSIC codecs have four micbias switches named MICBIAS1A to MICBIAS1D */
+#define CLSIC_MICBIAS_COUNT	4
+#define CLSIC_MICBIAS_NAME_MAX	10
+
 struct clsic_codec {
 	struct tacna_priv core;
 	struct tacna_fll fll[3];
 	struct clsic *clsic;
 	struct snd_soc_codec *codec;
 	bool host_controls_dsp2;
+	bool micbias_active_discharge[CLSIC_MICBIAS_COUNT];
 };
 
 static const struct wm_adsp_region clsic_dsp2_regions[] = {
@@ -162,6 +167,83 @@ error:
 		     CLSIC_DSP2_ISOLATE_ENABLE | CLSIC_DSP2_SHUTOFF);
 	return ret;
 }
+
+/*
+ * Populate the micbias_active_discharge array with the values from the
+ * devicetree and appropriately set the discharge bits in the regmap cache.
+ */
+static void clsic_micbias_init(struct clsic_codec *clsic_codec)
+{
+	int i, rad, val, shift;
+	char name[CLSIC_MICBIAS_NAME_MAX];
+	struct device_node *np;
+
+	for (i = 0; i < CLSIC_MICBIAS_COUNT; ++i) {
+		snprintf(name, sizeof(name), "MICBIAS1%c", 'A' + i);
+
+		np = of_get_child_by_name(clsic_codec->clsic->dev->of_node,
+					  name);
+		if (!np)
+			continue;
+
+		of_property_read_u32(np, "regulator-active-discharge", &rad);
+		clsic_codec->micbias_active_discharge[i] = (rad > 0);
+
+		/*
+		 * When this function is called the device is not powered up so
+		 * perform the same action as the PRE_PMD event.
+		 *
+		 * The shift will be 0, 4, 8 or 12 as the zero indexed loop
+		 * steps through the four micbiases.
+		 */
+		shift = TACNA_MICB1B_EN_SHIFT * i;
+		if (clsic_codec->micbias_active_discharge[i])
+			val = TACNA_MICB1A_DISCH;
+		else
+			val = 0;
+
+		regmap_update_bits(clsic_codec->core.tacna->regmap,
+				   TACNA_MICBIAS_CTRL5,
+				   (TACNA_MICB1A_EN_MASK |
+				    TACNA_MICB1A_DISCH_MASK) << shift,
+				   val << shift);
+	}
+}
+
+/*
+ * It is recommended to set _DISCH when clearing _EN and recommended to clear
+ * _DISCH when setting _EN - use regmap_update_bits to make sure that at most
+ * only one of the bits can be set at any point in time.
+ */
+int clsic_micbias_ev(struct snd_soc_dapm_widget *w,
+		     struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct clsic_codec *clsic_codec = snd_soc_codec_get_drvdata(codec);
+	int val = 0;
+	int ret;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		val = TACNA_MICB1A_EN;
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		if (clsic_codec->micbias_active_discharge[w->shift >> 2])
+			val = TACNA_MICB1A_DISCH;
+		break;
+	default:
+		return 0;
+	}
+
+	ret = regmap_update_bits(clsic_codec->core.tacna->regmap,
+				 TACNA_MICBIAS_CTRL5,
+				 (TACNA_MICB1A_EN_MASK |
+				  TACNA_MICB1A_DISCH_MASK) << w->shift,
+				 val << w->shift);
+
+	return ret;
+}
+
 
 static const struct snd_kcontrol_new clsic_snd_controls[] = {
 SOC_ENUM("IN1 OSR", tacna_in_dmic_osr[0]),
@@ -512,10 +594,23 @@ SND_SOC_DAPM_SUPPLY("ASYNCOPCLK", TACNA_OUTPUT_ASYNC_CLK,
 SND_SOC_DAPM_SUPPLY("DSPCLK", SND_SOC_NOPM, TACNA_DSP_CLK_EN_SHIFT,
 		    0, NULL, 0),
 
-SND_SOC_DAPM_REGULATOR_SUPPLY("VDD1_CP", 20, 0),
-SND_SOC_DAPM_REGULATOR_SUPPLY("VDD2_CP", 20, 0),
-SND_SOC_DAPM_REGULATOR_SUPPLY("VDD3_CP", 20, 0),
-SND_SOC_DAPM_REGULATOR_SUPPLY("VOUT_MIC", 0, SND_SOC_DAPM_REGULATOR_BYPASS),
+SND_SOC_DAPM_REGULATOR_SUPPLY("MICVDD", 0, SND_SOC_DAPM_REGULATOR_BYPASS),
+
+SND_SOC_DAPM_SUPPLY("MICBIAS1A", SND_SOC_NOPM, TACNA_MICB1A_EN_SHIFT,
+		    0, clsic_micbias_ev,
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
+
+SND_SOC_DAPM_SUPPLY("MICBIAS1B", SND_SOC_NOPM, TACNA_MICB1B_EN_SHIFT,
+		    0, clsic_micbias_ev,
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
+
+SND_SOC_DAPM_SUPPLY("MICBIAS1C", SND_SOC_NOPM, TACNA_MICB1C_EN_SHIFT,
+		    0, clsic_micbias_ev,
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
+
+SND_SOC_DAPM_SUPPLY("MICBIAS1D", SND_SOC_NOPM, TACNA_MICB1D_EN_SHIFT,
+		    0, clsic_micbias_ev,
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_SIGGEN("TONE"),
 
@@ -527,6 +622,14 @@ SND_SOC_DAPM_INPUT("IN3L"),
 SND_SOC_DAPM_INPUT("IN3R"),
 SND_SOC_DAPM_INPUT("IN4L"),
 SND_SOC_DAPM_INPUT("IN4R"),
+SND_SOC_DAPM_INPUT("IN1_PDMCLK"),
+SND_SOC_DAPM_INPUT("IN1_PDMDATA"),
+SND_SOC_DAPM_INPUT("IN2_PDMCLK"),
+SND_SOC_DAPM_INPUT("IN2_PDMDATA"),
+SND_SOC_DAPM_INPUT("IN3_PDMCLK"),
+SND_SOC_DAPM_INPUT("IN3_PDMDATA"),
+SND_SOC_DAPM_INPUT("IN4_PDMCLK"),
+SND_SOC_DAPM_INPUT("IN4_PDMDATA"),
 
 SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
@@ -1076,6 +1179,21 @@ static const struct snd_soc_dapm_route clsic_dapm_routes[] = {
 	{ "IN3R", NULL, "SYSCLK" },
 	{ "IN4L", NULL, "SYSCLK" },
 	{ "IN4R", NULL, "SYSCLK" },
+
+	{ "IN1_PDMCLK", NULL, "SYSCLK" },
+	{ "IN1_PDMDATA", NULL, "SYSCLK" },
+	{ "IN2_PDMCLK", NULL, "SYSCLK" },
+	{ "IN2_PDMDATA", NULL, "SYSCLK" },
+	{ "IN3_PDMCLK", NULL, "SYSCLK" },
+	{ "IN3_PDMDATA", NULL, "SYSCLK" },
+	{ "IN4_PDMCLK", NULL, "SYSCLK" },
+	{ "IN4_PDMDATA", NULL, "SYSCLK" },
+
+	{ "MICBIAS1A", NULL, "MICVDD" },
+	{ "MICBIAS1B", NULL, "MICVDD" },
+	{ "MICBIAS1C", NULL, "MICVDD" },
+	{ "MICBIAS1D", NULL, "MICVDD" },
+
 	{ "Tone Generator 1", NULL, "SYSCLK" },
 	{ "Tone Generator 2", NULL, "SYSCLK" },
 
@@ -1179,6 +1297,23 @@ static const struct snd_soc_dapm_route clsic_dapm_routes[] = {
 	{ "IN3R PGA", NULL, "IN3R" },
 	{ "IN4L PGA", NULL, "IN4L" },
 	{ "IN4R PGA", NULL, "IN4R" },
+
+	{ "IN1L", NULL, "IN1_PDMCLK" },
+	{ "IN1L", NULL, "IN1_PDMDATA" },
+	{ "IN1R", NULL, "IN1_PDMCLK" },
+	{ "IN1R", NULL, "IN1_PDMDATA" },
+	{ "IN2L", NULL, "IN2_PDMCLK" },
+	{ "IN2L", NULL, "IN2_PDMDATA" },
+	{ "IN2R", NULL, "IN2_PDMCLK" },
+	{ "IN2R", NULL, "IN2_PDMDATA" },
+	{ "IN3L", NULL, "IN3_PDMCLK" },
+	{ "IN3L", NULL, "IN3_PDMDATA" },
+	{ "IN3R", NULL, "IN3_PDMCLK" },
+	{ "IN3R", NULL, "IN3_PDMDATA" },
+	{ "IN4L", NULL, "IN4_PDMCLK" },
+	{ "IN4L", NULL, "IN4_PDMDATA" },
+	{ "IN4R", NULL, "IN4_PDMCLK" },
+	{ "IN4R", NULL, "IN4_PDMDATA" },
 
 	TACNA_MIXER_ROUTES("ASP1TX1", "ASP1TX1"),
 	TACNA_MIXER_ROUTES("ASP1TX2", "ASP1TX2"),
@@ -1915,6 +2050,8 @@ static int clsic_probe(struct platform_device *pdev)
 	ret = tacna_core_init(&clsic_codec->core);
 	if (ret)
 		return ret;
+
+	clsic_micbias_init(clsic_codec);
 
 	/* TODO: initialise dsp2 MPU error interrupt */
 	dsp = &clsic_codec->core.dsp[1];
