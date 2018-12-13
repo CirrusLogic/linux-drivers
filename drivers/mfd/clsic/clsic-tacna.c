@@ -69,8 +69,7 @@ static int clsic_tacna_probe(struct platform_device *pdev)
 	 * an interpreter for the resulting RAS messages it cannot simulate the
 	 * mixer core.
 	 */
-	if (clsic->devid != CLSIC_SUPPORTED_ID_48AB50 &&
-	    clsic->devid != CLSIC_SUPPORTED_ID_48AC40)
+	if (clsic->devid == CLSIC_SUPPORTED_ID_EMULATED_CODEC)
 		return -EIO;
 
 	tacna = devm_kzalloc(&pdev->dev, sizeof(struct tacna), GFP_KERNEL);
