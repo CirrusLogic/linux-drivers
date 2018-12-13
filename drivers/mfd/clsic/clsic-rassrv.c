@@ -64,9 +64,6 @@ static int clsic_ras_simple_readregister(struct clsic_ras_struct *ras,
 	union clsic_ras_msg msg_rsp;
 	int ret = 0;
 
-	if (ras == NULL)
-		return -EINVAL;
-
 	if (ras->suspended)
 		return -EBUSY;
 
@@ -89,26 +86,19 @@ static int clsic_ras_simple_readregister(struct clsic_ras_struct *ras,
 
 	/*
 	 *  Clients to this function can't interpret detailed error codes so
-	 *  map error to -EIO
+	 *  map errors to -EIO
 	 */
-	if (ret != 0) {
-		clsic_dbg(clsic, "0x%x ret %d", address, ret);
+	clsic_dbg(clsic, "ret: %d addr: 0x%x status %d\n", ret, address,
+		  msg_rsp.rsp_rdreg.hdr.err);
+	if ((ret != 0) || (msg_rsp.rsp_rdreg.hdr.err != 0))
 		ret = -EIO;
-	} else if (msg_rsp.rsp_rdreg.hdr.err != 0) {
-		clsic_dbg(clsic, "addr: 0x%x status %d\n", address,
-			  msg_rsp.rsp_rdreg.hdr.err);
-		ret = -EIO;
-	} else {
-		/* The request succeeded */
-		ret = 0;
-
+	else
 		/*
 		 * The regmap bus is declared as BIG endian but all the
 		 * accesses this service makes are CPU native so the value may
 		 * need to be converted.
 		 */
 		*value = cpu_to_be32(msg_rsp.rsp_rdreg.value);
-	}
 
 	trace_clsic_ras_simpleread(msg_cmd.cmd_rdreg.addr,
 				   msg_rsp.rsp_rdreg.value, ret,
@@ -123,9 +113,6 @@ static int clsic_ras_simple_writeregister(struct clsic_ras_struct *ras,
 	union clsic_ras_msg msg_cmd;
 	union clsic_ras_msg msg_rsp;
 	int ret = 0;
-
-	if (ras == NULL)
-		return -EINVAL;
 
 	if (ras->suspended)
 		return -EBUSY;
@@ -149,19 +136,13 @@ static int clsic_ras_simple_writeregister(struct clsic_ras_struct *ras,
 				  CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
 	/*
 	 *  Clients to this function can't interpret detailed error codes so
-	 *  map error to -EIO
+	 *  map errors to -EIO
 	 */
-	if (ret != 0) {
-		clsic_dbg(clsic, "0x%x ret %d", address, ret);
+	clsic_dbg(clsic, "ret: %d addr: 0x%x status %d\n", ret, address,
+		  msg_rsp.rsp_wrreg.hdr.err);
+	if ((ret != 0) || (msg_rsp.rsp_wrreg.hdr.err != 0))
 		ret = -EIO;
-	} else if (msg_rsp.rsp_wrreg.hdr.err != 0) {
-		clsic_dbg(clsic, "addr: 0x%x status %d\n", address,
-			  msg_rsp.rsp_wrreg.hdr.err);
-		ret = -EIO;
-	} else {
-		/* The request succeeded */
-		ret = 0;
-	}
+	/* else the request succeeded */
 
 	trace_clsic_ras_simplewrite(msg_cmd.cmd_wrreg.addr,
 				    msg_cmd.cmd_wrreg.value,
@@ -219,9 +200,6 @@ static int clsic_ras_read(void *context, const void *reg_buf,
 	union clsic_ras_msg msg_rsp;
 	uint8_t err = 0;
 
-	if (ras == NULL)
-		return -EINVAL;
-
 	if (ras->suspended)
 		return -EBUSY;
 
@@ -249,23 +227,22 @@ static int clsic_ras_read(void *context, const void *reg_buf,
 
 		/*
 		 *  Clients to this function can't interpret detailed error
-		 *  codes so map error to -EIO
+		 *  codes so map errors to -EIO
 		 */
-		if (ret != 0) {
-			clsic_dbg(clsic, "0x%x ret %d", reg, ret);
+		if (ret != 0)
 			ret = -EIO;
-		} else if ((clsic_get_bulk_bit(msg_rsp.rsp_rdreg_bulk.hdr.sbc)
-			    == 0) && (msg_rsp.rsp_rdreg_bulk.hdr.err != 0)) {
-			clsic_dbg(clsic, "addr: 0x%x status %d\n", reg,
-				  msg_rsp.rsp_rdreg_bulk.hdr.err);
+		else if ((clsic_get_bulk_bit(msg_rsp.rsp_rdreg_bulk.hdr.sbc)
+			  == 0) && (msg_rsp.rsp_rdreg_bulk.hdr.err != 0)) {
 			err = msg_rsp.rsp_rdreg_bulk.hdr.err;
 			ret = -EIO;
 		} else if (msg_rsp.blkrsp_rdreg_bulk.hdr.err != 0) {
-			clsic_dbg(clsic, "addr: 0x%x status %d\n", reg,
-				  msg_rsp.blkrsp_rdreg_bulk.hdr.err);
 			err = msg_rsp.blkrsp_rdreg_bulk.hdr.err;
 			ret = -EIO;
 		}
+
+		clsic_dbg(clsic, "ret: %d addr: 0x%x err: %d\n", ret,
+			  msg_cmd.cmd_rdreg_bulk.addr,
+			  err);
 
 		trace_clsic_ras_bulkread(msg_cmd.cmd_rdreg_bulk.addr,
 					 msg_cmd.cmd_rdreg_bulk.byte_count,
@@ -299,9 +276,6 @@ static int clsic_ras_write(void *context, const void *val_buf,
 	union clsic_ras_msg msg_cmd;
 	union clsic_ras_msg msg_rsp;
 	u32 *values;
-
-	if (ras == NULL)
-		return -EINVAL;
 
 	if (ras->suspended)
 		return -EBUSY;
@@ -358,20 +332,15 @@ static int clsic_ras_write(void *context, const void *val_buf,
 
 		/*
 		 *  Clients to this function can't interpret detailed error
-		 *  codes so map error to -EIO
+		 *  codes so map errors to -EIO
 		 */
-		if (ret != 0) {
-			clsic_dbg(clsic, "0x%x ret %d", addr, ret);
-			ret = -EIO;
-			goto error;
-		} else if (msg_rsp.rsp_wrreg_bulk.hdr.err != 0) {
+		if ((ret != 0) || (msg_rsp.rsp_wrreg_bulk.hdr.err != 0)) {
 			clsic_dbg(clsic, "addr: 0x%x status %d\n", addr,
 				  msg_rsp.rsp_wrreg_bulk.hdr.err);
 			ret = -EIO;
 			goto error;
 		}
-		/* The request succeeded */
-		ret = 0;
+		/* else the request succeeded */
 	}
 
 error:
