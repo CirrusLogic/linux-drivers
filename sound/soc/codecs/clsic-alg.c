@@ -1364,12 +1364,20 @@ static int clsic_alg_probe(struct platform_device *pdev)
 	struct clsic_alg *alg;
 	int ret;
 
+	/*
+	 * Prevent the core CLSIC drivers from being unloaded
+	 */
+	if (!try_module_get(clsic->dev->driver->owner))
+		return -EBUSY;
+
 	BUILD_BUG_ON(ARRAY_SIZE(clsic_alg_dai) > TACNA_MAX_DAI);
 
 	/* Allocate memory for device specific data */
 	alg = devm_kzalloc(dev, sizeof(struct clsic_alg), GFP_KERNEL);
-	if (alg == NULL)
-		return -ENOMEM;
+	if (alg == NULL) {
+		ret = -ENOMEM;
+		goto error;
+	}
 
 	/* Populate device specific data struct */
 	alg->clsic = clsic;
@@ -1391,19 +1399,19 @@ static int clsic_alg_probe(struct platform_device *pdev)
 	if (IS_ERR(alg->regmap)) {
 		ret = PTR_ERR(alg->regmap);
 		clsic_err(clsic, "Failed to allocate register map: %d\n", ret);
-		return ret;
+		goto error;
 	}
 
 	ret = clsic_alg_init_dsps(dev, alg);
 	if (ret) {
 		clsic_err(clsic, "Failed to init dsps: %d.\n", ret);
-		return ret;
+		goto error;
 	}
 
 	ret = snd_soc_register_platform(dev, &clsic_alg_compr_platform);
 	if (ret < 0) {
 		clsic_err(clsic, "Failed to register platform: %d.\n", ret);
-		return ret;
+		goto error;
 	}
 
 	/* Register codec with the ASoC core */
@@ -1413,6 +1421,10 @@ static int clsic_alg_probe(struct platform_device *pdev)
 		clsic_err(clsic, "Failed to register codec: %d.\n", ret);
 		snd_soc_unregister_platform(dev);
 	}
+
+error:
+	if (ret != 0)
+		module_put(clsic->dev->driver->owner);
 
 	return ret;
 }
@@ -1434,6 +1446,7 @@ static int clsic_alg_remove(struct platform_device *pdev)
 #endif
 	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
+	module_put(alg->clsic->dev->driver->owner);
 
 	return 0;
 }
