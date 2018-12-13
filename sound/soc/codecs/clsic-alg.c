@@ -120,25 +120,16 @@ static int clsic_alg_set_irq_notify_mode(struct clsic_alg *alg,
 				  CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
 				  CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
 
+
+	clsic_dbg(alg->clsic, "irq_id:0x%x mode:0x%x status %d ret %d\n",
+		  id, mode, msg_rsp.rsp_set_irq_nty_mode.hdr.err, ret);
+
 	/*
 	 *  Clients to this function can't interpret detailed error codes so
 	 *  map error to -EIO
 	 */
-	if (ret != 0) {
-		clsic_dbg(alg->clsic, "irq_id:0x%x mode:0x%x ret %d\n",
-			  id, mode, ret);
+	if ((ret != 0) || (msg_rsp.rsp_set_irq_nty_mode.hdr.err != 0))
 		ret = -EIO;
-	} else if (msg_rsp.rsp_set_irq_nty_mode.hdr.err != 0) {
-		clsic_dbg(alg->clsic, "irq_id:0x%x mode:0x%x status %d\n",
-			  id, mode, msg_rsp.rsp_set_irq_nty_mode.hdr.err);
-		ret = -EIO;
-	} else {
-		/* The request succeeded */
-		ret = 0;
-
-		clsic_dbg(alg->clsic, "irq_id:0x%x mode:0x%x status %d\n",
-			  id, mode, msg_rsp.rsp_set_irq_nty_mode.hdr.err);
-	}
 
 	trace_clsic_alg_set_irq_notify_mode(id, mode, ret,
 					msg_rsp.rsp_set_irq_nty_mode.hdr.err);
@@ -176,28 +167,20 @@ static int clsic_alg_simple_readregister(struct clsic_alg *alg,
 				     CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
 				     CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
 
+
+	clsic_dbg(alg->clsic, "addr: 0x%x val: 0x%x status %d ret %d\n",
+		  address,
+		  msg_rsp.rsp_rdreg.value,
+		  msg_rsp.rsp_rdreg.hdr.err,
+		  ret);
 	/*
 	 *  Clients to this function can't interpret detailed error codes so
 	 *  map error to -EIO
 	 */
-	if (ret != 0) {
-		clsic_dbg(alg->clsic, "0x%x ret %d\n", address, ret);
+	if ((ret != 0) || (msg_rsp.rsp_rdreg.hdr.err != 0))
 		ret = -EIO;
-	} else if (msg_rsp.rsp_rdreg.hdr.err != 0) {
-		clsic_dbg(alg->clsic, "addr: 0x%x status %d\n", address,
-			  msg_rsp.rsp_rdreg.hdr.err);
-		ret = -EIO;
-	} else {
-		/* The request succeeded */
-		ret = 0;
-
-		clsic_dbg(alg->clsic, "addr: 0x%x value: 0x%x status %d\n",
-			  address,
-			  msg_rsp.rsp_rdreg.value,
-			  msg_rsp.rsp_rdreg.hdr.err);
-
+	else
 		*value = cpu_to_be32(msg_rsp.rsp_rdreg.value);
-	}
 
 	trace_clsic_alg_simple_readregister(msg_cmd.cmd_rdreg.addr,
 					    msg_rsp.rsp_rdreg.value, ret,
@@ -242,21 +225,19 @@ static int clsic_alg_simple_writeregister(struct clsic_alg *alg,
 				     (union t_clsic_generic_message *) &msg_rsp,
 				     CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
 				     CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
+
+	clsic_dbg(alg->clsic, "addr: 0x%x val: 0x%x status %d ret %d\n",
+		  address,
+		  value,
+		  msg_rsp.rsp_wrreg.hdr.err,
+		  ret);
+
 	/*
 	 *  Clients to this function can't interpret detailed error codes so
 	 *  map error to -EIO
 	 */
-	if (ret != 0) {
-		clsic_dbg(clsic, "0x%x ret %d", address, ret);
+	if ((ret != 0) || (msg_rsp.rsp_wrreg.hdr.err != 0))
 		ret = -EIO;
-	} else if (msg_rsp.rsp_wrreg.hdr.err != 0) {
-		clsic_dbg(clsic, "addr: 0x%x status %d\n", address,
-			  msg_rsp.rsp_wrreg.hdr.err);
-		ret = -EIO;
-	} else {
-		/* The request succeeded */
-		ret = 0;
-	}
 
 	trace_clsic_alg_simple_writeregister(msg_cmd.cmd_wrreg.addr,
 					     msg_cmd.cmd_wrreg.value,
@@ -338,9 +319,6 @@ static int clsic_alg_read(void *context, const void *reg_buf,
 				  msg_rsp.blkrsp_rdreg_bulk.hdr.err);
 			err = msg_rsp.blkrsp_rdreg_bulk.hdr.err;
 			ret = -EIO;
-		} else {
-			/* The request succeeded */
-			ret = 0;
 		}
 
 		trace_clsic_alg_read(msg_cmd.cmd_rdreg_bulk.addr,
@@ -454,9 +432,6 @@ static int clsic_alg_write(void *context, const void *val_buf,
 			clsic_dbg(clsic, "addr: 0x%x status %d\n", addr,
 				  msg_rsp.rsp_wrreg_bulk.hdr.err);
 			ret = -EIO;
-		} else {
-			/* The request succeeded */
-			ret = 0;
 		}
 
 		if (ret != 0)
