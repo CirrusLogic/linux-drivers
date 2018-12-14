@@ -122,21 +122,6 @@ exit:
 	return ret;
 }
 
-static SOC_ENUM_SINGLE_DECL(cs47l96_ao_in5_swap_chan,
-			    TACNA_INPUT5AO_CONTROL1,
-			    TACNA_IN5AO_CHANNEL_MIX_SHIFT,
-			    tacna_in_swap_chan_texts);
-
-static SOC_ENUM_SINGLE_DECL(cs47l96_ao_in6_swap_chan,
-			    TACNA_INPUT6AO_CONTROL1,
-			    TACNA_IN6AO_CHANNEL_MIX_SHIFT,
-			    tacna_in_swap_chan_texts);
-
-static SOC_ENUM_SINGLE_DECL(cs47l96_ao_in7_swap_chan,
-			    TACNA_INPUT7AO_CONTROL1,
-			    TACNA_IN7AO_CHANNEL_MIX_SHIFT,
-			    tacna_in_swap_chan_texts);
-
 static SOC_ENUM_SINGLE_DECL(cs47l96_ao_in_vd_ramp,
 			    TACNA_AO_INPUT_VOL_CONTROL,
 			    TACNA_AO_IN_VD_RAMP_SHIFT,
@@ -250,10 +235,6 @@ SOC_SINGLE_EXT_TLV("IN7RAO Digital Volume", TACNA_IN7R_CONTROL2,
 		   TACNA_IN7RAO_VOL_SHIFT, 0xbf, 0,
 		   snd_soc_get_volsw, tacna_in_put_volsw,
 		   tacna_digital_tlv),
-
-SOC_ENUM("IN5AO Swap Chan", cs47l96_ao_in5_swap_chan),
-SOC_ENUM("IN6AO Swap Chan", cs47l96_ao_in6_swap_chan),
-SOC_ENUM("IN7AO Swap Chan", cs47l96_ao_in7_swap_chan),
 
 SOC_ENUM("AO Input Ramp Up", cs47l96_ao_in_vi_ramp),
 SOC_ENUM("AO Input Ramp Down", cs47l96_ao_in_vd_ramp),
