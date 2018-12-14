@@ -423,8 +423,6 @@ SOC_SINGLE_EXT_TLV("IN2R Digital Volume", TACNA_IN2R_CONTROL2,
 SOC_ENUM("Input Ramp Up", tacna_in_vi_ramp),
 SOC_ENUM("Input Ramp Down", tacna_in_vd_ramp),
 
-SOC_ENUM("IN2 Swap Chan", tacna_in2_swap_chan),
-
 TACNA_RATE_ENUM("Ultrasonic 1 Rate", tacna_us_output_rate[0]),
 TACNA_RATE_ENUM("Ultrasonic 2 Rate", tacna_us_output_rate[1]),
 
@@ -747,11 +745,6 @@ SND_SOC_DAPM_MUX("IN1R Mux", SND_SOC_NOPM, 0, 0, &tacna_inmux[1]),
 
 SND_SOC_DAPM_MUX("IN1L Mode", SND_SOC_NOPM, 0, 0, &cs48l32_dmode_mux[0]),
 SND_SOC_DAPM_MUX("IN1R Mode", SND_SOC_NOPM, 0, 0, &cs48l32_dmode_mux[0]),
-
-SND_SOC_DAPM_MUX("IN1L Swap Chan", SND_SOC_NOPM, 0, 0,
-		 &tacna_in_swap_chan[0]),
-SND_SOC_DAPM_MUX("IN1R Swap Chan", SND_SOC_NOPM, 0, 0,
-		 &tacna_in_swap_chan[0]),
 
 SND_SOC_DAPM_AIF_OUT("ASP1TX1", NULL, 0, TACNA_ASP1_ENABLES1,
 		     TACNA_ASP1_TX1_EN_SHIFT, 0),
@@ -1146,6 +1139,9 @@ static const struct snd_soc_dapm_route cs48l32_dapm_routes[] = {
 	{ "IN1R Mux", "Analog 1", "IN1RP_1" },
 	{ "IN1R Mux", "Analog 2", "IN1RP_2" },
 
+	{ "IN1L PGA", NULL, "IN1L Mode" },
+	{ "IN1R PGA", NULL, "IN1R Mode" },
+
 	{ "IN1L Mode", "Analog", "IN1L Mux" },
 	{ "IN1R Mode", "Analog", "IN1R Mux" },
 
@@ -1183,18 +1179,6 @@ static const struct snd_soc_dapm_route cs48l32_dapm_routes[] = {
 
 	{ "Ultrasonic Dummy Output", NULL, "Ultrasonic 1 Activity Detect" },
 	{ "Ultrasonic Dummy Output", NULL, "Ultrasonic 2 Activity Detect" },
-
-	{ "IN1L PGA", NULL, "IN1L Swap Chan" },
-	{ "IN1R PGA", NULL, "IN1R Swap Chan" },
-
-	{ "IN1L Swap Chan", "Normal", "IN1L Mode" },
-	{ "IN1R Swap Chan", "Normal", "IN1R Mode" },
-	{ "IN1L Swap Chan", "Swap",   "IN1R Mode" },
-	{ "IN1R Swap Chan", "Swap",   "IN1L Mode" },
-	{ "IN1L Swap Chan", "Left",   "IN1L Mode" },
-	{ "IN1R Swap Chan", "Left",   "IN1L Mode" },
-	{ "IN1L Swap Chan", "Right",  "IN1R Mode" },
-	{ "IN1R Swap Chan", "Right",  "IN1R Mode" },
 
 	TACNA_MIXER_ROUTES("ASP1TX1", "ASP1TX1"),
 	TACNA_MIXER_ROUTES("ASP1TX2", "ASP1TX2"),

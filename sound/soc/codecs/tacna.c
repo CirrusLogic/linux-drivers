@@ -689,27 +689,6 @@ const struct snd_kcontrol_new tacna_inmux[] = {
 };
 EXPORT_SYMBOL_GPL(tacna_inmux);
 
-const char * const tacna_in_swap_chan_texts[TACNA_IN_SWAP_CHAN_ENUM_SIZE] = {
-	"Normal", "Swap", "Left", "Right",
-};
-EXPORT_SYMBOL_GPL(tacna_in_swap_chan_texts);
-
-static SOC_ENUM_SINGLE_DECL(tacna_in1_swap_chan,
-			    TACNA_INPUT1_CONTROL1,
-			    TACNA_IN1_CHANNEL_MIX_SHIFT,
-			    tacna_in_swap_chan_texts);
-
-SOC_ENUM_SINGLE_DECL(tacna_in2_swap_chan,
-		     TACNA_INPUT2_CONTROL1,
-		     TACNA_IN2_CHANNEL_MIX_SHIFT,
-		     tacna_in_swap_chan_texts);
-EXPORT_SYMBOL_GPL(tacna_in2_swap_chan);
-
-const struct snd_kcontrol_new tacna_in_swap_chan[] = {
-	SOC_DAPM_ENUM("IN1 Swap Chan", tacna_in1_swap_chan),
-};
-EXPORT_SYMBOL_GPL(tacna_in_swap_chan);
-
 const char * const tacna_dmode_texts[] = {
 	"Analog",
 	"Digital",
