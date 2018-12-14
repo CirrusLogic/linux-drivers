@@ -548,6 +548,13 @@ const char *tacna_sample_rate_val_to_name(unsigned int rate_val)
 EXPORT_SYMBOL_GPL(tacna_sample_rate_val_to_name);
 
 const struct soc_enum tacna_sample_rate[] = {
+	SOC_VALUE_ENUM_SINGLE(TACNA_SAMPLE_RATE1,
+			      TACNA_SAMPLE_RATE_1_SHIFT,
+			      TACNA_SAMPLE_RATE_1_MASK >>
+			      TACNA_SAMPLE_RATE_1_SHIFT,
+			      TACNA_SAMPLE_RATE_ENUM_SIZE,
+			      tacna_sample_rate_text,
+			      tacna_sample_rate_val),
 	SOC_VALUE_ENUM_SINGLE(TACNA_SAMPLE_RATE2,
 			      TACNA_SAMPLE_RATE_2_SHIFT,
 			      TACNA_SAMPLE_RATE_2_MASK >>
