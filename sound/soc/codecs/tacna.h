@@ -436,7 +436,7 @@ extern const struct snd_kcontrol_new tacna_inmux[];
 extern const char * const tacna_dmode_texts[TACNA_DMODE_TEXTS_SIZE];
 extern const struct snd_kcontrol_new tacna_dmode_mux[];
 extern const struct snd_kcontrol_new tacna_in_swap_chan[];
-extern const struct soc_enum tacna_in_swap_chan_ctrl[];
+extern const struct soc_enum tacna_in2_swap_chan;
 extern const char * const
 	tacna_in_swap_chan_texts[TACNA_IN_SWAP_CHAN_ENUM_SIZE];
 

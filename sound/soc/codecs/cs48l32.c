@@ -423,7 +423,7 @@ SOC_SINGLE_EXT_TLV("IN2R Digital Volume", TACNA_IN2R_CONTROL2,
 SOC_ENUM("Input Ramp Up", tacna_in_vi_ramp),
 SOC_ENUM("Input Ramp Down", tacna_in_vd_ramp),
 
-SOC_ENUM("IN2 Swap Chan", tacna_in_swap_chan_ctrl[1]),
+SOC_ENUM("IN2 Swap Chan", tacna_in2_swap_chan),
 
 TACNA_RATE_ENUM("Ultrasonic 1 Rate", tacna_us_output_rate[0]),
 TACNA_RATE_ENUM("Ultrasonic 2 Rate", tacna_us_output_rate[1]),
