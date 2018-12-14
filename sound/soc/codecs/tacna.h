@@ -220,8 +220,11 @@
 	TACNA_MIXER_ROUTES(name, name "RX11"),		\
 	TACNA_MIXER_ROUTES(name, name "RX12")		\
 
-#define TACNA_SAMPLE_RATE_CONTROL(name, domain) \
-	SOC_ENUM(name, tacna_sample_rate[(domain) - 2])
+#define TACNA_RATE_CONTROL(name, domain) \
+	SOC_ENUM(name, tacna_sample_rate[(domain) - 1])
+
+#define TACNA_ASYNC_RATE_CONTROL(name, domain) \
+	SOC_ENUM(name, tacna_sample_rate_async[(domain) - 1])
 
 #define TACNA_RATE_ENUM(name, enum) \
 	SOC_ENUM_EXT(name, enum, snd_soc_get_enum_double, tacna_rate_put)
