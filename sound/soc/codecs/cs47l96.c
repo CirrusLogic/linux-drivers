@@ -781,10 +781,11 @@ SND_SOC_BYTES("ANCL Config", TACNA_ANC_L_CTRL_1, 1),
 SND_SOC_BYTES("ANCL Coefficients", TACNA_ANC_L_CTRL_3,
 	      (TACNA_ANC_L_CTRL_66 - TACNA_ANC_L_CTRL_3) / 4 + 1),
 
-SOC_ENUM("Sample Rate 2", tacna_sample_rate[0]),
-SOC_ENUM("Sample Rate 3", tacna_sample_rate[1]),
-SOC_ENUM("Async Sample Rate 1", tacna_sample_rate_async[0]),
-SOC_ENUM("Async Sample Rate 2", tacna_sample_rate_async[1]),
+TACNA_RATE_CONTROL("Sample Rate 1", 1),
+TACNA_RATE_CONTROL("Sample Rate 2", 2),
+TACNA_RATE_CONTROL("Sample Rate 3", 3),
+TACNA_ASYNC_RATE_CONTROL("Async Sample Rate 1", 1),
+TACNA_ASYNC_RATE_CONTROL("Async Sample Rate 2", 2),
 
 TACNA_RATE_ENUM("FX Rate", tacna_fx_rate),
 

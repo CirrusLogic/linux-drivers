@@ -544,9 +544,10 @@ SOC_ENUM("LHPF2 Mode", tacna_lhpf2_mode),
 SOC_ENUM("LHPF3 Mode", tacna_lhpf3_mode),
 SOC_ENUM("LHPF4 Mode", tacna_lhpf4_mode),
 
-SOC_ENUM("Sample Rate 2", tacna_sample_rate[0]),
-SOC_ENUM("Sample Rate 3", tacna_sample_rate[1]),
-SOC_ENUM("Sample Rate 4", tacna_sample_rate[2]),
+TACNA_RATE_CONTROL("Sample Rate 1", 1),
+TACNA_RATE_CONTROL("Sample Rate 2", 2),
+TACNA_RATE_CONTROL("Sample Rate 3", 3),
+TACNA_RATE_CONTROL("Sample Rate 4", 4),
 
 TACNA_RATE_ENUM("FX Rate", tacna_fx_rate),
 
