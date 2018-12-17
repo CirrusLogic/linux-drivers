@@ -341,19 +341,8 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int arizona_ldo1_remove(struct platform_device *pdev)
-{
-	struct arizona_ldo1 *ldo1 = platform_get_drvdata(pdev);
-
-	if (ldo1->ena_gpiod)
-		gpiod_put(ldo1->ena_gpiod);
-
-	return 0;
-}
-
 static struct platform_driver arizona_ldo1_driver = {
 	.probe = arizona_ldo1_probe,
-	.remove = arizona_ldo1_remove,
 	.driver		= {
 		.name	= "arizona-ldo1",
 	},
