@@ -440,7 +440,13 @@ struct dentry *esdfs_lookup(struct inode *dir, struct dentry *dentry,
 	if (dentry->d_inode) {
 		fsstack_copy_attr_times(dentry->d_inode,
 					esdfs_lower_inode(dentry->d_inode));
-		esdfs_derive_lower_ownership(dentry, dentry->d_name.name);
+		/*
+		 * Do not modify the ownership of the lower directory if it
+		 * is the Download directory
+		 */
+		if (!use_dl)
+			esdfs_derive_lower_ownership(dentry,
+						     dentry->d_name.name);
 	}
 	/* update parent directory's atime */
 	fsstack_copy_attr_atime(parent->d_inode,
