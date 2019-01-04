@@ -97,6 +97,7 @@ struct cs40l2x_private {
 	bool asp_enable;
 	struct hrtimer asp_timer;
 	const struct cs40l2x_fw_desc *fw_desc;
+	unsigned int fw_id_remap;
 	bool comp_enable_pend;
 	bool comp_enable;
 	bool comp_enable_redc;
@@ -214,7 +215,7 @@ static ssize_t cs40l2x_cp_trigger_index_store(struct device *dev,
 		}
 		/* intentionally fall through */
 	case CS40L2X_INDEX_DIAG:
-		if (cs40l2x->fw_desc->id == CS40L2X_FW_ID_REMAP)
+		if (cs40l2x->fw_desc->id == cs40l2x->fw_id_remap)
 			ret = cs40l2x_firmware_swap(cs40l2x,
 					CS40L2X_FW_ID_CAL);
 		break;
@@ -222,7 +223,7 @@ static ssize_t cs40l2x_cp_trigger_index_store(struct device *dev,
 	case CS40L2X_INDEX_PBQ:
 		if (cs40l2x->fw_desc->id == CS40L2X_FW_ID_CAL)
 			ret = cs40l2x_firmware_swap(cs40l2x,
-					CS40L2X_FW_ID_REMAP);
+					cs40l2x->fw_id_remap);
 		break;
 	case CS40L2X_INDEX_IDLE:
 		ret = -EINVAL;
@@ -235,7 +236,7 @@ static ssize_t cs40l2x_cp_trigger_index_store(struct device *dev,
 
 		if (cs40l2x->fw_desc->id == CS40L2X_FW_ID_CAL)
 			ret = cs40l2x_firmware_swap(cs40l2x,
-					CS40L2X_FW_ID_REMAP);
+					cs40l2x->fw_id_remap);
 	}
 	if (ret)
 		goto err_mutex;
@@ -683,18 +684,9 @@ static ssize_t cs40l2x_cp_trigger_duration_show(struct device *dev,
 	index = cs40l2x->cp_trigger_index;
 
 	switch (cs40l2x->fw_desc->id) {
-	case CS40L2X_FW_ID_REMAP:
-		if (index < CS40L2X_INDEX_CLICK_MIN
-				|| index > CS40L2X_INDEX_CLICK_MAX) {
-			ret = -EINVAL;
-			goto err_mutex;
-		}
-
-		ret = cs40l2x_user_ctrl_exec(cs40l2x,
-				CS40L2X_USER_CTRL_DURATION, index, &val);
-		if (ret)
-			goto err_mutex;
-		break;
+	case CS40L2X_FW_ID_ORIG:
+		ret = -EPERM;
+		goto err_mutex;
 	case CS40L2X_FW_ID_CAL:
 		if (index != CS40L2X_INDEX_QEST) {
 			ret = -EINVAL;
@@ -722,8 +714,16 @@ static ssize_t cs40l2x_cp_trigger_duration_show(struct device *dev,
 		val *= CS40L2X_QEST_SRATE;
 		break;
 	default:
-		ret = -EPERM;
-		goto err_mutex;
+		if (index < CS40L2X_INDEX_CLICK_MIN
+				|| index > CS40L2X_INDEX_CLICK_MAX) {
+			ret = -EINVAL;
+			goto err_mutex;
+		}
+
+		ret = cs40l2x_user_ctrl_exec(cs40l2x,
+				CS40L2X_USER_CTRL_DURATION, index, &val);
+		if (ret)
+			goto err_mutex;
 	}
 
 	ret = snprintf(buf, PAGE_SIZE, "%d\n", val);
@@ -842,7 +842,8 @@ static ssize_t cs40l2x_hiber_cmd_store(struct device *dev,
 
 	mutex_lock(&cs40l2x->lock);
 
-	if (cs40l2x->fw_desc->id != CS40L2X_FW_ID_REMAP) {
+	if (cs40l2x->fw_desc->id == CS40L2X_FW_ID_CAL
+			|| cs40l2x->fw_desc->id == CS40L2X_FW_ID_ORIG) {
 		ret = -EPERM;
 		goto err_mutex;
 	}
@@ -2084,6 +2085,9 @@ static ssize_t cs40l2x_comp_enable_store(struct device *dev,
 	cs40l2x->comp_enable = val > 0;
 
 	switch (cs40l2x->fw_desc->id) {
+	case CS40L2X_FW_ID_CAL:
+		ret = -EPERM;
+		break;
 	case CS40L2X_FW_ID_ORIG:
 		ret = regmap_write(cs40l2x->regmap,
 				cs40l2x_dsp_reg(cs40l2x, "COMPENSATION_ENABLE",
@@ -2091,7 +2095,7 @@ static ssize_t cs40l2x_comp_enable_store(struct device *dev,
 						CS40L2X_ALGO_ID_VIBE),
 				cs40l2x->comp_enable);
 		break;
-	case CS40L2X_FW_ID_REMAP:
+	default:
 		ret = regmap_write(cs40l2x->regmap,
 				cs40l2x_dsp_reg(cs40l2x, "COMPENSATION_ENABLE",
 						CS40L2X_XM_UNPACKED_TYPE,
@@ -2102,9 +2106,6 @@ static ssize_t cs40l2x_comp_enable_store(struct device *dev,
 				(cs40l2x->comp_enable
 					& cs40l2x->comp_enable_f0)
 					<< CS40L2X_COMP_EN_F0_SHIFT);
-		break;
-	default:
-		ret = -EPERM;
 	}
 
 	if (ret)
@@ -2127,7 +2128,8 @@ static ssize_t cs40l2x_redc_comp_enable_show(struct device *dev,
 
 	mutex_lock(&cs40l2x->lock);
 
-	if (cs40l2x->fw_desc->id != CS40L2X_FW_ID_REMAP) {
+	if (cs40l2x->fw_desc->id == CS40L2X_FW_ID_CAL
+			|| cs40l2x->fw_desc->id == CS40L2X_FW_ID_ORIG) {
 		ret = -EPERM;
 		goto err_mutex;
 	}
@@ -2163,7 +2165,11 @@ static ssize_t cs40l2x_redc_comp_enable_store(struct device *dev,
 	cs40l2x->comp_enable_redc = val > 0;
 
 	switch (cs40l2x->fw_desc->id) {
-	case CS40L2X_FW_ID_REMAP:
+	case CS40L2X_FW_ID_CAL:
+	case CS40L2X_FW_ID_ORIG:
+		ret = -EPERM;
+		break;
+	default:
 		ret = regmap_write(cs40l2x->regmap,
 				cs40l2x_dsp_reg(cs40l2x, "COMPENSATION_ENABLE",
 						CS40L2X_XM_UNPACKED_TYPE,
@@ -2174,9 +2180,6 @@ static ssize_t cs40l2x_redc_comp_enable_store(struct device *dev,
 				(cs40l2x->comp_enable
 					& cs40l2x->comp_enable_f0)
 					<< CS40L2X_COMP_EN_F0_SHIFT);
-		break;
-	default:
-		ret = -EPERM;
 	}
 
 	if (ret)
@@ -2747,17 +2750,6 @@ static ssize_t cs40l2x_asp_enable_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-	unsigned int fw_id;
-
-	if (!cs40l2x->asp_available)
-		return -EPERM;
-
-	mutex_lock(&cs40l2x->lock);
-	fw_id = cs40l2x->fw_desc->id;
-	mutex_unlock(&cs40l2x->lock);
-
-	if (fw_id != CS40L2X_FW_ID_REMAP)
-		return -EPERM;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", cs40l2x->asp_enable);
 }
@@ -2777,7 +2769,7 @@ static ssize_t cs40l2x_asp_enable_store(struct device *dev,
 	fw_id = cs40l2x->fw_desc->id;
 	mutex_unlock(&cs40l2x->lock);
 
-	if (fw_id != CS40L2X_FW_ID_REMAP)
+	if (fw_id == CS40L2X_FW_ID_CAL || fw_id == CS40L2X_FW_ID_ORIG)
 		return -EPERM;
 
 	ret = kstrtou32(buf, 10, &val);
@@ -2798,17 +2790,6 @@ static ssize_t cs40l2x_asp_timeout_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-	unsigned int fw_id;
-
-	if (!cs40l2x->asp_available)
-		return -EPERM;
-
-	mutex_lock(&cs40l2x->lock);
-	fw_id = cs40l2x->fw_desc->id;
-	mutex_unlock(&cs40l2x->lock);
-
-	if (fw_id != CS40L2X_FW_ID_REMAP)
-		return -EPERM;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", cs40l2x->pdata.asp_timeout);
 }
@@ -2828,7 +2809,7 @@ static ssize_t cs40l2x_asp_timeout_store(struct device *dev,
 	fw_id = cs40l2x->fw_desc->id;
 	mutex_unlock(&cs40l2x->lock);
 
-	if (fw_id != CS40L2X_FW_ID_REMAP)
+	if (fw_id == CS40L2X_FW_ID_CAL || fw_id == CS40L2X_FW_ID_ORIG)
 		return -EPERM;
 
 	ret = kstrtou32(buf, 10, &val);
@@ -2912,11 +2893,6 @@ static ssize_t cs40l2x_a2h_level_show(struct device *dev,
 	int ret;
 
 	mutex_lock(&cs40l2x->lock);
-
-	if (cs40l2x->fw_desc->id != CS40L2X_FW_ID_REMAP) {
-		ret = -EPERM;
-		goto err_mutex;
-	}
 
 	if (cs40l2x->a2h_level < 0) {
 		ret = -EIO;
@@ -3006,21 +2982,13 @@ static ssize_t cs40l2x_num_a2h_levels_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-	int ret;
+	unsigned int num_a2h_levels;
 
 	mutex_lock(&cs40l2x->lock);
-
-	if (cs40l2x->fw_desc->id != CS40L2X_FW_ID_REMAP) {
-		ret = -EPERM;
-		goto err_mutex;
-	}
-
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l2x->num_a2h_levels);
-
-err_mutex:
+	num_a2h_levels = cs40l2x->num_a2h_levels;
 	mutex_unlock(&cs40l2x->lock);
 
-	return ret;
+	return snprintf(buf, PAGE_SIZE, "%d\n", num_a2h_levels);
 }
 
 static ssize_t cs40l2x_hw_reset_show(struct device *dev,
@@ -3038,10 +3006,7 @@ static ssize_t cs40l2x_hw_reset_store(struct device *dev,
 {
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	int ret;
-	unsigned int val, fw_id;
-
-	if (cs40l2x->revid < CS40L2X_REVID_B1)
-		return -EPERM;
+	unsigned int val;
 
 	ret = kstrtou32(buf, 10, &val);
 	if (ret)
@@ -3049,19 +3014,19 @@ static ssize_t cs40l2x_hw_reset_store(struct device *dev,
 
 	mutex_lock(&cs40l2x->lock);
 
+	if (cs40l2x->fw_desc->id == CS40L2X_FW_ID_CAL
+			|| cs40l2x->fw_desc->id == CS40L2X_FW_ID_ORIG) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
 	if (val) {
 		gpiod_set_value_cansleep(cs40l2x->reset_gpio, 1);
 		usleep_range(1000, 1100);
 
-		fw_id = cs40l2x->fw_desc->id;
 		cs40l2x->fw_desc = cs40l2x_firmware_match(cs40l2x,
 				CS40L2X_FW_ID_B1ROM);
-		if (!cs40l2x->fw_desc) {
-			ret = -EINVAL;
-			goto err_mutex;
-		}
-
-		ret = cs40l2x_firmware_swap(cs40l2x, fw_id);
+		ret = cs40l2x_firmware_swap(cs40l2x, cs40l2x->fw_id_remap);
 		if (ret)
 			goto err_mutex;
 	} else {
@@ -3872,7 +3837,10 @@ static void cs40l2x_vibe_stop_worker(struct work_struct *work)
 	mutex_lock(&cs40l2x->lock);
 
 	/* handle effects that straddle a firmware swap */
-	if (cs40l2x->fw_desc->id == CS40L2X_FW_ID_CAL) {
+	switch (cs40l2x->fw_desc->id) {
+	case CS40L2X_FW_ID_ORIG:
+		break;
+	case CS40L2X_FW_ID_CAL:
 		switch (cs40l2x->cp_trailer_index) {
 		case CS40L2X_INDEX_VIBE:
 		case CS40L2X_INDEX_CONT_MIN ... CS40L2X_INDEX_CONT_MAX:
@@ -3884,7 +3852,8 @@ static void cs40l2x_vibe_stop_worker(struct work_struct *work)
 		case CS40L2X_INDEX_CLICK_MIN ... CS40L2X_INDEX_CLICK_MAX:
 			goto err_skip;
 		}
-	} else if (cs40l2x->fw_desc->id == CS40L2X_FW_ID_REMAP) {
+		break;
+	default:
 		switch (cs40l2x->cp_trailer_index) {
 		case CS40L2X_INDEX_QEST:
 		case CS40L2X_INDEX_DIAG:
@@ -4396,7 +4365,7 @@ static int cs40l2x_dsp_pre_config(struct cs40l2x_private *cs40l2x)
 		}
 	}
 
-	if (cs40l2x->fw_desc->id == CS40L2X_FW_ID_REMAP) {
+	if (cs40l2x->fw_desc->id != CS40L2X_FW_ID_ORIG) {
 		ret = cs40l2x_wseq_init(cs40l2x);
 		if (ret) {
 			dev_err(dev, "Failed to initialize write sequencer\n");
@@ -4607,7 +4576,7 @@ static int cs40l2x_dsp_post_config(struct cs40l2x_private *cs40l2x)
 						CS40L2X_ALGO_ID_VIBE),
 				cs40l2x->comp_enable);
 		break;
-	case CS40L2X_FW_ID_REMAP:
+	default:
 		ret = regmap_write(regmap,
 				cs40l2x_dsp_reg(cs40l2x, "COMPENSATION_ENABLE",
 						CS40L2X_XM_UNPACKED_TYPE,
@@ -4618,9 +4587,6 @@ static int cs40l2x_dsp_post_config(struct cs40l2x_private *cs40l2x)
 				(cs40l2x->comp_enable
 					& cs40l2x->comp_enable_f0)
 					<< CS40L2X_COMP_EN_F0_SHIFT);
-		break;
-	default:
-		ret = -EPERM;
 	}
 
 	if (ret) {
@@ -4659,7 +4625,7 @@ static int cs40l2x_dsp_post_config(struct cs40l2x_private *cs40l2x)
 	}
 
 	if (cs40l2x->pdata.q_default
-			&& cs40l2x->fw_desc->id == CS40L2X_FW_ID_REMAP) {
+			&& cs40l2x->fw_desc->id != CS40L2X_FW_ID_ORIG) {
 		ret = regmap_write(regmap,
 				cs40l2x_dsp_reg(cs40l2x, "Q_STORED",
 						CS40L2X_XM_UNPACKED_TYPE,
@@ -5343,7 +5309,25 @@ static int cs40l2x_firmware_swap(struct cs40l2x_private *cs40l2x,
 			return ret;
 		break;
 
-	case CS40L2X_FW_ID_REMAP:
+	case CS40L2X_FW_ID_CAL:
+		ret = cs40l2x_diag_enable(cs40l2x, 0);
+		if (ret) {
+			dev_err(dev, "Failed to disable diagnostics tone\n");
+			return ret;
+		}
+
+		ret = cs40l2x_ack_write(cs40l2x,
+				cs40l2x_dsp_reg(cs40l2x, "SHUTDOWNREQUEST",
+						CS40L2X_XM_UNPACKED_TYPE,
+						cs40l2x->fw_desc->id),
+				1);
+		if (ret) {
+			dev_err(dev, "Failed to administer shutdown request\n");
+			return ret;
+		}
+		break;
+
+	default:
 		ret = regmap_write(regmap,
 				cs40l2x_dsp_reg(cs40l2x, "EVENTCONTROL",
 						CS40L2X_XM_UNPACKED_TYPE,
@@ -5368,28 +5352,6 @@ static int cs40l2x_firmware_swap(struct cs40l2x_private *cs40l2x,
 			dev_err(dev, "Failed to force standby\n");
 			return ret;
 		}
-		break;
-
-	case CS40L2X_FW_ID_CAL:
-		ret = cs40l2x_diag_enable(cs40l2x, 0);
-		if (ret) {
-			dev_err(dev, "Failed to disable diagnostics tone\n");
-			return ret;
-		}
-
-		ret = cs40l2x_ack_write(cs40l2x,
-				cs40l2x_dsp_reg(cs40l2x, "SHUTDOWNREQUEST",
-						CS40L2X_XM_UNPACKED_TYPE,
-						cs40l2x->fw_desc->id),
-				1);
-		if (ret) {
-			dev_err(dev, "Failed to administer shutdown request\n");
-			return ret;
-		}
-		break;
-
-	default:
-		return -EINVAL;
 	}
 
 	ret = regmap_update_bits(regmap, CS40L2X_DSP1_CCM_CORE_CTRL,
@@ -6361,6 +6323,10 @@ static int cs40l2x_handle_of_data(struct i2c_client *i2c_client,
 	if (!ret)
 		pdata->vbbr_thld1 = out_val;
 
+	ret = of_property_read_u32(np, "cirrus,fw-id-remap", &out_val);
+	if (!ret)
+		pdata->fw_id_remap = out_val;
+
 	return 0;
 }
 
@@ -6586,7 +6552,7 @@ static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
 	case CS40L2X_DEVID_L25A:
 	case CS40L2X_DEVID_L25B:
 		part_num_index = devid - CS40L2X_DEVID_L25A + 2;
-		fw_id = CS40L2X_FW_ID_REMAP;
+		fw_id = cs40l2x->fw_id_remap;
 
 		if (revid < CS40L2X_REVID_B1)
 			goto err_revid;
@@ -6807,6 +6773,20 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	cs40l2x->comp_enable_redc = !pdata->redc_comp_disable;
 	cs40l2x->comp_enable_f0 = true;
 
+	switch (pdata->fw_id_remap) {
+	case CS40L2X_FW_ID_ORIG:
+	case CS40L2X_FW_ID_B1ROM:
+	case CS40L2X_FW_ID_CAL:
+		dev_err(dev, "Unexpected firmware ID: 0x%06X\n",
+				pdata->fw_id_remap);
+		return -EINVAL;
+	case 0:
+		cs40l2x->fw_id_remap = CS40L2X_FW_ID_REMAP;
+		break;
+	default:
+		cs40l2x->fw_id_remap = pdata->fw_id_remap;
+	}
+
 	for (i = 0; i < CS40L2X_NUM_HW_ERRS; i++)
 		cs40l2x->hw_err_mask |= cs40l2x_hw_errs[i].irq_mask;
 
@@ -6838,7 +6818,7 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 			&& pdata->asp_slot_width
 			&& pdata->asp_samp_width;
 
-	if (cs40l2x->fw_desc->id == CS40L2X_FW_ID_REMAP && i2c_client->irq) {
+	if (cs40l2x->fw_desc->id != CS40L2X_FW_ID_ORIG && i2c_client->irq) {
 		ret = devm_request_threaded_irq(dev, i2c_client->irq,
 				NULL, cs40l2x_irq,
 				IRQF_ONESHOT | IRQF_TRIGGER_LOW,
@@ -6935,7 +6915,8 @@ static int __maybe_unused cs40l2x_suspend(struct device *dev)
 	}
 
 	if (cs40l2x->pdata.hiber_enable
-			&& cs40l2x->fw_desc->id == CS40L2X_FW_ID_REMAP) {
+			&& cs40l2x->fw_desc->id != CS40L2X_FW_ID_CAL
+			&& cs40l2x->fw_desc->id != CS40L2X_FW_ID_ORIG) {
 		ret = cs40l2x_hiber_cmd_send(cs40l2x,
 				CS40L2X_POWERCONTROL_HIBERNATE);
 		if (ret)
@@ -6956,7 +6937,8 @@ static int __maybe_unused cs40l2x_resume(struct device *dev)
 	mutex_lock(&cs40l2x->lock);
 
 	if (cs40l2x->pdata.hiber_enable
-			&& cs40l2x->fw_desc->id == CS40L2X_FW_ID_REMAP) {
+			&& cs40l2x->fw_desc->id != CS40L2X_FW_ID_CAL
+			&& cs40l2x->fw_desc->id != CS40L2X_FW_ID_ORIG) {
 		ret = cs40l2x_hiber_cmd_send(cs40l2x,
 				CS40L2X_POWERCONTROL_WAKEUP);
 		if (ret) {
