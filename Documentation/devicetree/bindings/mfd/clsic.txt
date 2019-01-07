@@ -61,6 +61,8 @@ Optional properties:
   - pinctrl-0 : handle to pinctrl configurations matching the entries in
     pinctrl-names
 
+  - volatile_memory : Bool defining system without flash memory
+
 Example:
 
 codec: cs48lx50@0 {
