@@ -801,7 +801,6 @@ static int clsic_service_starter(struct clsic *clsic,
 	case CLSIC_SRV_TYPE_RAS:
 		handler->start = &clsic_ras_start;
 		break;
-	case CLSIC_SRV_TYPE_DBG:
 	default:
 		handler->start = NULL;
 		break;
@@ -910,7 +909,7 @@ int clsic_update_service(struct clsic *clsic,
 	/* The service_type member is set by the restore and alloc functions */
 	tmp_handler->service_instance = service_instance;
 	tmp_handler->service_version = service_version;
-	if (service_instance == CLSIC_SERVICE_RESERVED)
+	if (service_instance >= CLSIC_SERVICE_RESERVED)
 		list_add_tail(&tmp_handler->link, &clsic->inactive_services);
 	else
 		clsic->service_handlers[service_instance] = tmp_handler;
