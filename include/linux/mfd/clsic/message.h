@@ -182,7 +182,6 @@ struct clsic_message {
 	uint32_t bulk_txbuf_maxsize;	/* size of buffer in bytes */
 	uint8_t *bulk_rxbuf;
 	uint32_t bulk_rxbuf_maxsize;	/* size of buffer in bytes */
-	bool bulk_rxbuf_dynamic;
 };
 
 /* Header layout and access functions */

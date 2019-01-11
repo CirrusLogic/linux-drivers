@@ -156,10 +156,6 @@ void clsic_release_msg(struct clsic *clsic, struct clsic_message *msg)
 		clsic_dump_message(clsic, msg, "client_link set");
 	}
 
-	/* if the bulk rx buffer was dynamically allocated free it too */
-	if (msg->bulk_rxbuf_dynamic)
-		kfree(msg->bulk_rxbuf);
-
 	kmem_cache_free(clsic->message_cache, msg);
 }
 
@@ -1454,33 +1450,6 @@ static int clsic_handle_message_response(struct clsic *clsic,
 		/* The response contains a bulk transfer */
 		payload_size =
 			CLSIC_BULKSZ_ROUNDUP(msg_p->bulk_rsp.hdr.bulk_sz);
-
-		/*
-		 * If this is a bulk response to an asynchronous command that
-		 * did not provide a buffer for the payload then attempt to
-		 * allocate one.
-		 *
-		 * This is only for asynchronous messages because the message
-		 * structure is passed to the client via the callback,
-		 * synchronous messages have no mechanism to offer a
-		 * dynamically allocated memory buffer.
-		 */
-		if ((found_msg->bulk_rxbuf_maxsize == 0) &&
-		    (found_msg->cb != NULL)) {
-			found_msg->bulk_rxbuf = kzalloc(payload_size,
-							GFP_KERNEL);
-			if (found_msg->bulk_rxbuf == NULL) {
-				clsic_fifo_drain(clsic, msg);
-				clsic_dump_message(clsic, msg,
-						   "rxbuf alloc fail");
-				clsic_dump_message(clsic, found_msg,
-						   "rxbuf alloc fail");
-				clsic_set_msgstate(found_msg, CLSIC_MSG_FAILED);
-				goto message_handled;
-			}
-			found_msg->bulk_rxbuf_maxsize = payload_size;
-			found_msg->bulk_rxbuf_dynamic = true;
-		}
 
 		if (payload_size > found_msg->bulk_rxbuf_maxsize) {
 			/*
