@@ -69,8 +69,6 @@ struct cs35l41_private {
 	bool bus_spi;
 	/* GPIO for /RST */
 	struct gpio_desc *reset_gpio;
-	struct completion global_pup_done;
-	struct completion global_pdn_done;
 	struct mutex rate_lock;
 };
 
