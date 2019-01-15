@@ -772,8 +772,6 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 	switch (madera->type) {
 	case CS47L15:
 	case CS47L35:
-	case CS47L92:
-	case CS47L93:
 		/*
 		 * check whether audio is routed to EPOUT, do not disable OUT1
 		 * in that case
