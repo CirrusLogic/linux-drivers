@@ -334,6 +334,30 @@ TRACE_EVENT(clsic_ras_pm_handler,
 			)
 );
 
+TRACE_EVENT(clsic_ras_fastwrite,
+	TP_PROTO(uint32_t address, uint32_t value, int ret, uint8_t counter),
+	TP_ARGS(address, value, ret, counter),
+	TP_STRUCT__entry(
+			__field(uint32_t, address)
+			__field(uint32_t, value)
+			__field(int, ret)
+			__field(uint8_t, counter)
+			),
+	TP_fast_assign(
+			__entry->address = address;
+			__entry->value = value;
+			__entry->ret = ret;
+			__entry->counter = counter;
+		),
+	TP_printk(
+			"  addr: 0x%x val: 0x%x ret: %d (counter: %d)",
+			__entry->address,
+			__entry->value,
+			__entry->ret,
+			__entry->counter
+			)
+);
+
 TRACE_EVENT(clsic_pm,
 	TP_PROTO(int event),
 	TP_ARGS(event),

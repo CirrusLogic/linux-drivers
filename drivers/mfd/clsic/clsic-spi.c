@@ -44,6 +44,7 @@ static bool clsic_spi_regmap_readable(struct device *dev, unsigned int reg)
 	case TACNA_CPF1_TX_GPR_STATUS1:
 	case TACNA_CPF1_TX_RDDATA1:
 	case TACNA_CPF1_TX_RDDATA2:
+	case CLSIC_CPF2_RX_WRDATA:
 	case CLSIC_FW_BOOT_PROGRESS:
 	case CLSIC_FW_BOOT_PANIC:
 		return true;

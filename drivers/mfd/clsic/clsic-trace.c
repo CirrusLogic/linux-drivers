@@ -26,6 +26,7 @@ EXPORT_TRACEPOINT_SYMBOL(clsic_ras_simpleread);
 EXPORT_TRACEPOINT_SYMBOL(clsic_ras_bulkwrite);
 EXPORT_TRACEPOINT_SYMBOL(clsic_ras_bulkread);
 EXPORT_TRACEPOINT_SYMBOL(clsic_ras_pm_handler);
+EXPORT_TRACEPOINT_SYMBOL(clsic_ras_fastwrite);
 EXPORT_TRACEPOINT_SYMBOL(clsic_pm);
 EXPORT_TRACEPOINT_SYMBOL(clsic_msgproc_shutdown_schedule);
 EXPORT_TRACEPOINT_SYMBOL(clsic_msgproc_shutdown_cancel);

@@ -49,6 +49,17 @@ static void clsic_ras_stop(struct clsic *clsic, struct clsic_service *handler)
 		regcache_cache_only(ras->regmap, true);
 		handler->data = NULL;
 	}
+
+	/*
+	 * Clear all the handler callbacks under the protection of the service
+	 * lock
+	 */
+	mutex_lock(&clsic->service_lock);
+	handler->start = NULL;
+	handler->stop = NULL;
+	handler->pm_handler = NULL;
+	handler->callback = NULL;
+	mutex_unlock(&clsic->service_lock);
 }
 
 /*
@@ -90,19 +101,103 @@ static int clsic_ras_simple_readregister(struct clsic_ras_struct *ras,
 	 */
 	clsic_dbg(clsic, "ret: %d addr: 0x%x status %d\n", ret, address,
 		  msg_rsp.rsp_rdreg.hdr.err);
-	if ((ret != 0) || (msg_rsp.rsp_rdreg.hdr.err != 0))
+	if ((ret != 0) || (msg_rsp.rsp_rdreg.hdr.err != 0)) {
 		ret = -EIO;
-	else
+	} else {
+		/* The request succeeded */
+		ras->fastwrite_counter = 0;
+
 		/*
 		 * The regmap bus is declared as BIG endian but all the
 		 * accesses this service makes are CPU native so the value may
 		 * need to be converted.
 		 */
 		*value = cpu_to_be32(msg_rsp.rsp_rdreg.value);
+	}
 
 	trace_clsic_ras_simpleread(msg_cmd.cmd_rdreg.addr,
 				   msg_rsp.rsp_rdreg.value, ret,
 				   msg_rsp.rsp_rdreg.hdr.err);
+	return ret;
+}
+
+/*
+ * The RAS fast write path does not use the regular RAS message exchange but
+ * instead uses a small FIFO to send address+value pairs, these writes are not
+ * acknowledged and the request is completed immediately.
+ *
+ * The RAS fast write path is limited in size so a count is maintained of the
+ * potential number of outstanding RAS fast writes, the count is cleared when
+ * the device is reset and when a regular RAS message exchange is completed
+ * successfully.
+ *
+ * When the fast path is full then write requests will be performed using
+ * regular RAS message exchange, which will guarantee the fast write path is
+ * drained. RAS fast writes are serviced before regular RAS messages so the
+ * ordering of RAS requests is maintained.
+ *
+ * The exposed RAS regmap uses a mutex so the counter is protected and there
+ * cannot be simultaneous RAS accesses of different types.
+ */
+
+/*
+ * Setup the RAS structure members relating to fast writes and query whether
+ * this particular device firmware supports the RAS fast write path.
+ *
+ * Not checking the return code of the message sending as the test fails safe
+ * (response structure is cleared and the test depends on the bit being set)
+ */
+void clsic_ras_write_fastpath_init(struct clsic_ras_struct *ras)
+{
+	struct clsic *clsic;
+	union clsic_ras_msg msg_cmd;
+	union clsic_ras_msg msg_rsp;
+
+	clsic = ras->clsic;
+
+	ras->supports_fastwrites = false;
+	ras->fastwrite_counter = 0;
+
+	clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
+			   ras->service->service_instance,
+			   CLSIC_RAS_MSG_CR_GET_CAP);
+
+	memset(&msg_rsp, 0, CLSIC_FIXED_MSG_SZ);
+
+	clsic_send_msg_sync(clsic, (union t_clsic_generic_message *) &msg_cmd,
+			    (union t_clsic_generic_message *) &msg_rsp,
+			    CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
+			    CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
+
+	ras->supports_fastwrites =
+		(msg_rsp.rsp_getcap.mask & CLSIC_RAS_CAP_FAST_WRITE) != 0;
+}
+
+/*
+ * Perform this single register write thorough the fast path if there is space.
+ */
+static int clsic_ras_fastwrite(struct clsic_ras_struct *ras,
+			       uint32_t address, uint32_t value)
+{
+	struct clsic *clsic;
+	struct clsic_ras_fast_reg_write tmp_fastwrite;
+	int ret;
+
+	if (ras->fastwrite_counter > CLSIC_RAS_MAX_FASTWRITES)
+		return -EBUSY;
+
+	clsic = ras->clsic;
+
+	tmp_fastwrite.reg_addr = address;
+	tmp_fastwrite.reg_val = value;
+
+	ret = regmap_raw_write(clsic->regmap, CLSIC_CPF2_RX_WRDATA,
+			       &tmp_fastwrite, sizeof(tmp_fastwrite));
+
+	++ras->fastwrite_counter;
+
+	trace_clsic_ras_fastwrite(address, value, ret, ras->fastwrite_counter);
+
 	return ret;
 }
 
@@ -116,6 +211,10 @@ static int clsic_ras_simple_writeregister(struct clsic_ras_struct *ras,
 
 	if (ras->suspended)
 		return -EBUSY;
+
+	if (ras->supports_fastwrites &&
+	    (clsic_ras_fastwrite(ras, address, value) == 0))
+		return 0;
 
 	clsic = ras->clsic;
 
@@ -142,7 +241,8 @@ static int clsic_ras_simple_writeregister(struct clsic_ras_struct *ras,
 		  msg_rsp.rsp_wrreg.hdr.err);
 	if ((ret != 0) || (msg_rsp.rsp_wrreg.hdr.err != 0))
 		ret = -EIO;
-	/* else the request succeeded */
+	else /* The request succeeded */
+		ras->fastwrite_counter = 0;
 
 	trace_clsic_ras_simplewrite(msg_cmd.cmd_wrreg.addr,
 				    msg_cmd.cmd_wrreg.value,
@@ -238,7 +338,9 @@ static int clsic_ras_read(void *context, const void *reg_buf,
 		} else if (msg_rsp.blkrsp_rdreg_bulk.hdr.err != 0) {
 			err = msg_rsp.blkrsp_rdreg_bulk.hdr.err;
 			ret = -EIO;
-		}
+		} else
+			/* The request succeeded */
+			ras->fastwrite_counter = 0;
 
 		clsic_dbg(clsic, "ret: %d addr: 0x%x err: %d\n", ret,
 			  msg_cmd.cmd_rdreg_bulk.addr,
@@ -340,7 +442,8 @@ static int clsic_ras_write(void *context, const void *val_buf,
 			ret = -EIO;
 			goto error;
 		}
-		/* else the request succeeded */
+		/* The request succeeded */
+		ras->fastwrite_counter = 0;
 	}
 
 error:
@@ -431,6 +534,35 @@ static struct mfd_cell clsic_devs[] = {
 };
 
 /*
+ * CLSIC_RAS_MSG_N_ERR_FAST_WRITE: The RAS service in the device will send a
+ * notification if any of the writes are rejected - there is no recovery
+ * action, simply log the information for analysis. (The address must have
+ * passed the regmap whitelist exposed by the clsic driver so a fast write
+ * error notification indicates that the firmware in the device has restricted
+ * those register addresses)
+ */
+static int clsic_ras_nty_handler(struct clsic *clsic,
+				 struct clsic_service *handler,
+				 struct clsic_message *msg)
+{
+	union clsic_ras_msg *nty_msg = (union clsic_ras_msg *)msg;
+	int ret = 0;
+
+	switch (clsic_get_messageid(msg)) {
+	case CLSIC_RAS_MSG_N_ERR_FAST_WRITE:
+		clsic_err(clsic, "Fast write err: %d addr: 0x%x val 0x%x\n",
+			  nty_msg->nty_err_fast_write.err,
+			  nty_msg->nty_err_fast_write.reg_addr,
+			  nty_msg->nty_err_fast_write.reg_val);
+		ret = CLSIC_HANDLED;
+	default:
+		clsic_err(clsic, "unrecognised notification\n");
+		clsic_dump_message(clsic, msg, "Unrecognised message");
+	}
+	return ret;
+}
+
+/*
  * When the device is suspended the exposed regmap is set so that the cache is
  * used for accesses and clients using the regmap can read and write values
  * without causing the device to switch on.
@@ -459,6 +591,7 @@ static int clsic_ras_pm_handler(struct clsic_service *handler, int pm_event)
 	case PM_EVENT_RESUME:
 		mutex_lock(&ras->regmap_mutex);
 		ras->suspended = false;
+		ras->fastwrite_counter = 0;
 		mutex_unlock(&ras->regmap_mutex);
 
 		regcache_cache_only(ras->regmap, false);
@@ -516,16 +649,16 @@ int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler)
 	if (ras == NULL)
 		return -ENOMEM;
 
-	/*
-	 * The regmap service does not expect to receive any notifications nor
-	 * catch any messages from other clients accessing the service on the
-	 * device so it does not need to register a callback.
-	 */
-	handler->stop = &clsic_ras_stop;
-	handler->supports_debuginfo = true;
 
-	/* set pm handler for RAS to manage reg-cache */
+	handler->supports_debuginfo = true;
+	handler->stop = &clsic_ras_stop;
+
+	/*
+	 * Set pm handler for RAS to manage reg-cache and a message callback
+	 * for notifications
+	 */
 	handler->pm_handler = &clsic_ras_pm_handler;
+	handler->callback = &clsic_ras_nty_handler;
 
 	mutex_init(&ras->regmap_mutex);
 	regmap_config_ras.lock_arg = ras;
@@ -539,7 +672,6 @@ int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler)
 				       &regmap_config_ras);
 	if (IS_ERR(ras->regmap))
 		return PTR_ERR(ras->regmap);
-
 
 	/* DSP1 is always not accessible so setup a regmap for just DSP2 */
 	ras->regmap_dsp[0] = NULL;
@@ -557,6 +689,8 @@ int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler)
 					      &regmap_config_ras_dsp2);
 	if (IS_ERR(ras->regmap_dsp[1]))
 		return PTR_ERR(ras->regmap_dsp[1]);
+
+	clsic_ras_write_fastpath_init(ras);
 
 	ras->suspended = false;
 
