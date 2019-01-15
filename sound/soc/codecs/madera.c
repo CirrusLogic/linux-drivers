@@ -550,11 +550,11 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	usleep_range(2000, 3000); /* wait for wseq to complete */
 
 	/*
-	 * if HP detection clamp is applied while switching to HPOUT
+	 * if HPDET has disabled the clamp while switching to HPOUT
 	 * OUT1 should remain disabled
 	 */
 	if (!ep_sel &&
-	    (madera->out_clamp[0] || madera->out_shorted[0]))
+	    (!madera->out_clamp[0] || madera->out_shorted[0]))
 		restore_out = false;
 
 	/* change demux setting */
@@ -2715,9 +2715,9 @@ int madera_hp_ev(struct snd_soc_dapm_widget *w,
 	regmap_read(madera->regmap, MADERA_OUTPUT_ENABLES_1, &ep_sel);
 	ep_sel &= MADERA_EP_SEL_MASK;
 
-	/* Force off if HPDET clamp is active for this output */
+	/* Force off if HPDET has disabled the clamp for this output */
 	if (!ep_sel &&
-	    (madera->out_clamp[out_num] || madera->out_shorted[out_num]))
+	    (!madera->out_clamp[out_num] || madera->out_shorted[out_num]))
 		val = 0;
 
 	regmap_update_bits(madera->regmap, MADERA_OUTPUT_ENABLES_1, mask, val);
