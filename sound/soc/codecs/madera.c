@@ -551,7 +551,7 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 
 	/*
 	 * if HP detection clamp is applied while switching to HPOUT
-	 * OUT1 should remain disabled and EDRE should be set to manual
+	 * OUT1 should remain disabled
 	 */
 	if (!ep_sel &&
 	    (madera->out_clamp[0] || madera->out_shorted[0]))
