@@ -14,7 +14,8 @@
 
 #include <linux/mfd/clsic/clsicmessagedefines_RAS.h>
 #include <linux/mfd/tacna/pdata.h>
-#define CLSIC_RAS_MAX_DSPS	2
+#define CLSIC_RAS_MAX_DSPS		2
+#define CLSIC_RAS_MAX_FASTWRITES	50
 
 struct clsic_ras_struct {
 	struct tacna_pdata pdata;
@@ -26,6 +27,9 @@ struct clsic_ras_struct {
 	struct regmap *regmap_dsp[CLSIC_RAS_MAX_DSPS];
 
 	struct mutex regmap_mutex;
+
+	bool supports_fastwrites;
+	uint8_t fastwrite_counter;
 };
 
 int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler);

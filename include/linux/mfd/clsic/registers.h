@@ -41,6 +41,8 @@
  */
 #define CLSIC_BULKSZ_ROUNDUP(val)		(((val) + 3) & 0xfffffffc)
 
+#define CLSIC_CPF2_RX_WRDATA				0x228000
+
 #define CLSIC_IRQN_PAD_CTRL				0x1044
 #define CLSIC_DSP2_XM_SRAM_IBUS_SETUP_0			0x17108
 #define CLSIC_DSP2_XM_SRAM_IBUS_PSD_1			0x1710c
