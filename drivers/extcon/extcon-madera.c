@@ -764,7 +764,6 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 {
 	struct madera *madera = info->madera;
 	unsigned int mask = 0, val = 0;
-	unsigned int edre_reg = 0, edre_val = 0;
 	unsigned int ep_sel = 0;
 	int ret;
 
@@ -788,19 +787,8 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 
 	switch (madera->type) {
 	case CS47L35:
-		break;
 	case CS47L85:
 	case WM1840:
-		edre_reg = MADERA_EDRE_MANUAL;
-		mask = MADERA_HP1L_SHRTO | MADERA_HP1L_FLWR | MADERA_HP1L_SHRTI;
-		if (clamp) {
-			val = MADERA_HP1L_SHRTO;
-			edre_val = MADERA_EDRE_OUT1L_MANUAL |
-				   MADERA_EDRE_OUT1R_MANUAL;
-		} else {
-			val = MADERA_HP1L_FLWR | MADERA_HP1L_SHRTI;
-			edre_val = 0;
-		}
 		break;
 	default:
 		mask = MADERA_HPD_OVD_ENA_SEL_MASK;
@@ -827,33 +815,13 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 				 ret);
 	}
 
-	if (edre_reg && !ep_sel) {
-		ret = regmap_update_bits(madera->regmap, edre_reg,
-					 MADERA_EDRE_OUT1L_MANUAL_MASK |
-					 MADERA_EDRE_OUT1R_MANUAL_MASK,
-					 edre_val);
-		if (ret)
-			dev_warn(info->dev,
-				 "Failed to set EDRE Manual: %d\n", ret);
-	}
-
 	dev_dbg(info->dev, "%s clamp mask=0x%x val=0x%x\n",
 		clamp ? "Setting" : "Clearing", mask, val);
 
 	switch (madera->type) {
 	case CS47L35:
-		break;
 	case CS47L85:
 	case WM1840:
-		ret = regmap_update_bits(madera->regmap,
-					 MADERA_HP_CTRL_1L, mask, val);
-		if (ret)
-			dev_warn(info->dev, "Failed to do clamp: %d\n", ret);
-
-		ret = regmap_update_bits(madera->regmap,
-					 MADERA_HP_CTRL_1R, mask, val);
-		if (ret)
-			dev_warn(info->dev, "Failed to do clamp: %d\n", ret);
 		break;
 	default:
 		ret = regmap_update_bits(madera->regmap,
