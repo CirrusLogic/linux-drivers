@@ -52,10 +52,10 @@ static bool clsic_spi_regmap_readable(struct device *dev, unsigned int reg)
 	}
 }
 
-static const struct regmap_config clsic_spi_regmap = {
+static struct regmap_config clsic_spi_regmap = {
 	.name = "clsic",
 	.reg_bits = 32,
-	.pad_bits = 16,
+	.pad_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
 
@@ -76,10 +76,15 @@ static int clsic_spi_probe(struct spi_device *spi)
 {
 	struct clsic *clsic;
 	int ret;
+	int pad_bits = 0;
 
 	clsic = devm_kzalloc(&spi->dev, sizeof(*clsic), GFP_KERNEL);
 	if (clsic == NULL)
 		return -ENOMEM;
+
+	ret = of_property_read_u32(spi->dev.of_node, "spi-pad-bits", &pad_bits);
+	if (ret == 0)
+		clsic_spi_regmap.pad_bits = pad_bits;
 
 	clsic->regmap = devm_regmap_init_spi(spi, &clsic_spi_regmap);
 	if (IS_ERR(clsic->regmap)) {
