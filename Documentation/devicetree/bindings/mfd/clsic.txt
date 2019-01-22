@@ -63,6 +63,10 @@ Optional properties:
 
   - volatile_memory : Bool defining system without flash memory
 
+  - spi-pad-bits : The pad_bits of the regmap created by the SPI bus driver is
+    set to a default of 32, this property allows that value to be adjusted to
+    support different CLSIC devices that may require a pad_bits of 16.
+
 Example:
 
 codec: cs48lx50@0 {
