@@ -3635,6 +3635,7 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 						* 1000000),
 				HRTIMER_MODE_REL);
 #endif /* CONFIG_ANDROID_TIMED_OUTPUT */
+		break;
 	}
 
 	switch (cs40l2x->cp_trailer_index) {
