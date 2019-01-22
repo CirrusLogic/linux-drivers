@@ -4491,8 +4491,10 @@ static int wm_adsp_parse_buffer_coeff(struct wm_coeff_ctl *ctl)
 		usleep_range(1000, 2000);
 	}
 
-	if (!val)
+	if (!val) {
+		adsp_err(ctl->dsp, "Failed to acquire host buffer\n");
 		return -EIO;
+	}
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
