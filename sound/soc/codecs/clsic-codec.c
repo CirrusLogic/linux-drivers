@@ -245,6 +245,71 @@ int clsic_micbias_ev(struct snd_soc_dapm_widget *w,
 }
 
 
+/* The input controls are in sequential blocks */
+#define CLSIC_IN_SEPARATION	(TACNA_INPUT2_CONTROL1 - TACNA_INPUT1_CONTROL1)
+
+/*
+ * The TACNA_IN_VU bit exposed in the multiple TACNA_IN??_CONTROL2 registers is
+ * mapped to the same bit in the hardware - writing the TACNA_IN_VU bit in any
+ * of the CONTROL2 registers will cause commits made to all of them to be
+ * applied.
+ *
+ * The function counts the total number of events using the PRE_PMU step and
+ * then sets the TACNA_IN_VU in the final POST_PMU event.
+ */
+int clsic_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
+		int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
+	unsigned int reg;
+
+	/*
+	 * Use the shift to determine the correct CONTROL2 register
+	 *
+	 * The shift represents a bit in the TACNA_INPUT_CONTROL register, it
+	 * begins at 0 and the order is IN1R, IN1L, IN2R, IN2L, IN3R, IN3L,
+	 * IN4R, IN4L - this can be used to identify whether to use the left or
+	 * right channel as a base and which IN blocks to use.
+	 */
+	if (w->shift & 1)
+		reg = TACNA_IN1L_CONTROL2 +
+			((w->shift / 2) * CLSIC_IN_SEPARATION);
+	else
+		reg = TACNA_IN1R_CONTROL2 +
+			((w->shift / 2) * CLSIC_IN_SEPARATION);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		priv->in_up_pending++;
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+		priv->in_up_pending--;
+
+		/*
+		 * Always clear the mute bit, set the IN_VU bit if there are no
+		 * other other pending in_ev PMU events.
+		 */
+		if (!priv->in_up_pending)
+			snd_soc_update_bits(codec, reg,
+					    TACNA_IN1L_MUTE | TACNA_IN_VU,
+					    TACNA_IN_VU);
+		else
+			snd_soc_update_bits(codec, reg, TACNA_IN1L_MUTE, 0);
+
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		snd_soc_update_bits(codec, reg,
+				    TACNA_IN1L_MUTE | TACNA_IN_VU,
+				    TACNA_IN1L_MUTE | TACNA_IN_VU);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new clsic_snd_controls[] = {
 SOC_ENUM("IN1 OSR", tacna_in_dmic_osr[0]),
 SOC_ENUM("IN2 OSR", tacna_in_dmic_osr[1]),
@@ -732,35 +797,35 @@ SND_SOC_DAPM_PGA("Tone Generator 2", TACNA_TONE_GENERATOR1,
 		 TACNA_TONE2_EN_SHIFT, 0, NULL, 0),
 
 SND_SOC_DAPM_PGA_E("IN1L PGA", TACNA_INPUT_CONTROL, TACNA_IN1L_EN_SHIFT,
-		   0, NULL, 0, tacna_in_ev,
+		   0, NULL, 0, clsic_in_ev,
 		   SND_SOC_DAPM_PRE_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("IN1R PGA", TACNA_INPUT_CONTROL, TACNA_IN1R_EN_SHIFT,
-		   0, NULL, 0, tacna_in_ev,
+		   0, NULL, 0, clsic_in_ev,
 		   SND_SOC_DAPM_PRE_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("IN2L PGA", TACNA_INPUT_CONTROL, TACNA_IN2L_EN_SHIFT,
-		   0, NULL, 0, tacna_in_ev,
+		   0, NULL, 0, clsic_in_ev,
 		   SND_SOC_DAPM_PRE_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("IN2R PGA", TACNA_INPUT_CONTROL, TACNA_IN2R_EN_SHIFT,
-		   0, NULL, 0, tacna_in_ev,
+		   0, NULL, 0, clsic_in_ev,
 		   SND_SOC_DAPM_PRE_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("IN3L PGA", TACNA_INPUT_CONTROL, TACNA_IN3L_EN_SHIFT,
-		   0, NULL, 0, tacna_in_ev,
+		   0, NULL, 0, clsic_in_ev,
 		   SND_SOC_DAPM_PRE_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("IN3R PGA", TACNA_INPUT_CONTROL, TACNA_IN3R_EN_SHIFT,
-		   0, NULL, 0, tacna_in_ev,
+		   0, NULL, 0, clsic_in_ev,
 		   SND_SOC_DAPM_PRE_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("IN4L PGA", TACNA_INPUT_CONTROL, TACNA_IN4L_EN_SHIFT,
-		   0, NULL, 0, tacna_in_ev,
+		   0, NULL, 0, clsic_in_ev,
 		   SND_SOC_DAPM_PRE_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("IN4R PGA", TACNA_INPUT_CONTROL, TACNA_IN4R_EN_SHIFT,
-		   0, NULL, 0, tacna_in_ev,
+		   0, NULL, 0, clsic_in_ev,
 		   SND_SOC_DAPM_PRE_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 
