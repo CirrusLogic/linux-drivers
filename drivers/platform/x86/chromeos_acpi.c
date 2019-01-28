@@ -763,7 +763,6 @@ static struct chromeos_vbc chromeos_vbc_nvram = {
 static int __init chromeos_acpi_init(void)
 {
 	int ret = 0;
-	acpi_status status;
 
 	if (acpi_disabled)
 		return -ENODEV;
