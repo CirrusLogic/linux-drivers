@@ -2583,6 +2583,16 @@ int madera_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(madera_in_ev);
 
+static void madera_sleep(unsigned int delay)
+{
+	if (delay < 20) {
+		delay *= 1000;
+		usleep_range(delay, delay + 500);
+	} else {
+		msleep(delay);
+	}
+}
+
 int madera_out_ev(struct snd_soc_dapm_widget *w,
 		  struct snd_kcontrol *kcontrol, int event)
 {
@@ -2630,7 +2640,7 @@ int madera_out_ev(struct snd_soc_dapm_widget *w,
 		case MADERA_OUT3R_ENA_SHIFT:
 			priv->out_up_pending--;
 			if (!priv->out_up_pending) {
-				msleep(priv->out_up_delay);
+				madera_sleep(priv->out_up_delay);
 				priv->out_up_delay = 0;
 			}
 			break;
@@ -2666,7 +2676,7 @@ int madera_out_ev(struct snd_soc_dapm_widget *w,
 		case MADERA_OUT3R_ENA_SHIFT:
 			priv->out_down_pending--;
 			if (!priv->out_down_pending) {
-				msleep(priv->out_down_delay);
+				madera_sleep(priv->out_down_delay);
 				priv->out_down_delay = 0;
 			}
 			break;
