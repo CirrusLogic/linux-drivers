@@ -4952,16 +4952,16 @@ int madera_fllhj_set_refclk(struct madera_fll *fll, int source,
 {
 	int ret = 0;
 
-	if (fll->ref_src == source && fll->ref_freq == fin &&
-	    fll->fout == fout)
-		return 0;
-
 	/* To remain consistent with previous FLLs, we expect fout to be
 	 * provided in the form of the required sysclk rate, which is
 	 * 2x the calculated fll out.
 	 */
 	if (fout)
 		fout /= 2;
+
+	if (fll->ref_src == source && fll->ref_freq == fin &&
+	    fll->fout == fout)
+		return 0;
 
 	if (fin && fout && madera_fllhj_validate(fll, fin, fout))
 		return -EINVAL;
