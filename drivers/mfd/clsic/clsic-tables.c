@@ -864,6 +864,10 @@ bool clsic_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_IN_SIG_DET_CONTROL:
 	case TACNA_INPUT_HPF_CONTROL:
 	case TACNA_INPUT_VOL_CONTROL:
+	case CLSIC_PDM1_CONFIG:
+	case CLSIC_PDM2_CONFIG:
+	case CLSIC_PDM3_CONFIG:
+	case CLSIC_PDM4_CONFIG:
 	case TACNA_ASP1_ENABLES1:
 	case TACNA_ASP1_CONTROL1:
 	case TACNA_ASP1_CONTROL2:
