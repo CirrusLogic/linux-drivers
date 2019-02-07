@@ -1178,6 +1178,9 @@ SOC_DOUBLE_R_TLV("OUT2 Digital Volume", WM2200_DAC_DIGITAL_VOLUME_2L,
 SOC_DOUBLE("OUT2 Switch", WM2200_PDM_1, WM2200_SPK1L_MUTE_SHIFT,
 	   WM2200_SPK1R_MUTE_SHIFT, 1, 1),
 SOC_ENUM("RxANC Src", wm2200_rxanc_input_sel),
+
+WM_ADSP_FW_CONTROL("DSP1", 0),
+WM_ADSP_FW_CONTROL("DSP2", 1),
 };
 
 WM2200_MIXER_ENUMS(OUT1L, WM2200_OUT1LMIX_INPUT_1_SOURCE);
@@ -1551,15 +1554,10 @@ static const struct snd_soc_dapm_route wm2200_dapm_routes[] = {
 static int wm2200_probe(struct snd_soc_codec *codec)
 {
 	struct wm2200_priv *wm2200 = dev_get_drvdata(codec->dev);
-	int ret;
 
 	wm2200->codec = codec;
 
-	ret = snd_soc_add_codec_controls(codec, wm_adsp_fw_controls, 2);
-	if (ret != 0)
-		return ret;
-
-	return ret;
+	return 0;
 }
 
 static int wm2200_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
