@@ -734,6 +734,7 @@ bool clsic_volatile_register(struct device *dev, unsigned int reg)
 	case TACNA_ASYNC_SAMPLE_RATE_STATUS2:
 	case TACNA_DSP_CLOCK3:
 	case TACNA_DSP_CLOCK4:
+	case CLSIC_DSP2_PWR_CTRL:
 	case TACNA_FLL1_CONTROL5:
 	case TACNA_FLL1_CONTROL6:
 	case TACNA_FLL2_CONTROL5:

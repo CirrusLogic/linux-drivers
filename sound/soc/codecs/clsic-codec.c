@@ -121,16 +121,43 @@ static int clsic_dsp_power_ev(struct snd_soc_dapm_widget *w,
 	struct wm_adsp *dsps = snd_soc_codec_get_drvdata(codec);
 	struct wm_adsp *dsp = &dsps[w->shift];
 	unsigned int freq;
+	unsigned int val;
 	int ret;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		/* write to DSP2_PWR_CTRL to enable core */
-		ret = regmap_write(dsp->regmap, CLSIC_DSP2_PWR_CTRL,
-				   CLSIC_DSP2_RST_N);
-		if (ret) {
-			dev_err(codec->dev, "Failed to enable DSP2: %d\n", ret);
+		/*
+		 * This PRE_PMU steps through the process of closing the power
+		 * switches, removing isolation logic and de-asserting reset
+		 * through a series of writes. If the DSP is not in the default
+		 * state then it will be reset.
+		 *
+		 *				SHUTOFF ISOLATE RST_N
+		 * Starting state		1	1	0
+		 * Close power switches		0	1	0
+		 * Remove isolation		0	0	0
+		 * (check powered)
+		 * De-assert reset		0	0	1
+		 */
+		regmap_write(tacna->regmap, CLSIC_DSP2_PWR_CTRL,
+			     CLSIC_DSP2_ISOLATE_ENABLE);
+		/* Performed in different writes to maintain separation */
+		regmap_write(tacna->regmap, CLSIC_DSP2_PWR_CTRL, 0);
+
+		ret = regmap_read(tacna->regmap, CLSIC_DSP2_PWR_CTRL, &val);
+		if (ret || !(val & CLSIC_DSP2_POWER_OK)) {
+			dev_err(codec->dev,
+				"Failed to enable DSP2 power: %d (0x%x)\n",
+				ret, val);
 			return ret;
+		}
+
+		ret = regmap_write(tacna->regmap, CLSIC_DSP2_PWR_CTRL,
+			     CLSIC_DSP2_RST_N);
+		if (ret) {
+			dev_err(codec->dev,
+				"Failed to de-assert reset: %d\n", ret);
+			goto error;
 		}
 
 		ret = regmap_read(tacna->regmap, TACNA_DSP_CLOCK3, &freq);
@@ -157,13 +184,31 @@ static int clsic_dsp_power_ev(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMD:
 		ret = wm_halo_early_event(w, kcontrol, event);
 		clsic_dsp_memory_disable(priv);
+
+		/*
+		 * This PRE_PMD steps through the process of shutting down the
+		 * DSP.
+		 *
+		 *				SHUTOFF ISOLATE RST_N
+		 * Assert reset			0	0	0
+		 * Apply isolation logic	0	1	0
+		 * Open power switches		1	1	0
+		 */
+		regmap_write(tacna->regmap, CLSIC_DSP2_PWR_CTRL, 0);
+
+		regmap_write(tacna->regmap, CLSIC_DSP2_PWR_CTRL,
+			     CLSIC_DSP2_ISOLATE_ENABLE);
+
+		regmap_write(tacna->regmap, CLSIC_DSP2_PWR_CTRL,
+			     CLSIC_DSP2_ISOLATE_ENABLE | CLSIC_DSP2_SHUTOFF);
+
 		return ret;
 	default:
 		return 0;
 	}
 
 error:
-	regmap_write(dsp->regmap, CLSIC_DSP2_PWR_CTRL,
+	regmap_write(tacna->regmap, CLSIC_DSP2_PWR_CTRL,
 		     CLSIC_DSP2_ISOLATE_ENABLE | CLSIC_DSP2_SHUTOFF);
 	return ret;
 }
