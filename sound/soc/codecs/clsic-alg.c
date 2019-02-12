@@ -764,7 +764,7 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 
 	/* DSP1 */
 	dsp = &alg->dsp[CLSIC_DSP1];
-	dsp->part = "cs48lv40";
+	dsp->part = clsic_devid_to_string(alg->clsic->devid);
 	dsp->type = WMFW_HALO;
 	dsp->num = 1;
 	dsp->dev = dev;
@@ -788,7 +788,7 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 
 	/* DSP2 */
 	dsp = &alg->dsp[CLSIC_DSP2];
-	dsp->part = "cs48lv40";
+	dsp->part = clsic_devid_to_string(alg->clsic->devid);
 	dsp->type = WMFW_HALO;
 	dsp->num = 2;
 	dsp->dev = dev;
@@ -813,7 +813,7 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 
 	/* VPU1 */
 	dsp = &alg->dsp[CLSIC_VPU1];
-	dsp->part = "cs48lv40";
+	dsp->part = clsic_devid_to_string(alg->clsic->devid);
 	dsp->type = WMFW_VPU;
 	dsp->name = "VPU1";
 	dsp->num = 1;
