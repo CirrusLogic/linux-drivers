@@ -27,6 +27,32 @@
 struct gpio_desc;
 struct pinctrl_map;
 struct madera_codec_pdata;
+struct regulator_init_data;
+
+/**
+ * struct madera_micbias_pin_pdata - MICBIAS pin configuration
+ *
+ * @init_data: initialization data for the regulator
+ */
+struct madera_micbias_pin_pdata {
+	struct regulator_init_data *init_data;
+	u32 active_discharge;
+};
+
+/**
+ * struct madera_micbias_pdata - Regulator configuration for an on-chip MICBIAS
+ *
+ * @init_data: initialization data for the regulator
+ * @ext_cap:   set to true if an external capacitor is fitted
+ * @pin:       Configuration for each output pin from this MICBIAS
+ */
+struct madera_micbias_pdata {
+	struct regulator_init_data *init_data;
+	u32 active_discharge;
+	bool ext_cap;
+
+	struct madera_micbias_pin_pdata pin[MADERA_MAX_CHILD_MICBIAS];
+};
 
 /**
  * struct madera_pdata - Configuration data for Madera devices
@@ -39,6 +65,7 @@ struct madera_codec_pdata;
  * @gpio_configs:   Array of GPIO configurations (See
  *		    Documentation/driver-api/pinctl.rst)
  * @n_gpio_configs: Number of entries in gpio_configs
+ * @micbias:	    Substruct of pdata for the MICBIAS regulators
  * @gpsw:	    General purpose switch mode setting. Depends on the external
  *		    hardware connected to the switch. (See the SW1_MODE field
  *		    in the datasheet for the available values for your codec)
@@ -55,6 +82,9 @@ struct madera_pdata {
 
 	const struct pinctrl_map *gpio_configs;
 	int n_gpio_configs;
+
+	/** MICBIAS configurations */
+	struct madera_micbias_pdata micbias[MADERA_MAX_MICBIAS];
 
 	u32 gpsw[MADERA_MAX_GPSW];
 
