@@ -960,6 +960,12 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 		return -EBUSY;
 	}
 
+	/*
+	 * Mark the msgproc as in use whilst the compressed stream is open
+	 * to prevent the shutdown cmd being issued.
+	 */
+	clsic_msgproc_use(alg->clsic, alg->service->service_instance);
+
 	clsic_dbg(clsic, "%s\n", rtd->codec_dai->name);
 
 	pm_runtime_get_sync(clsic->dev);
@@ -985,6 +991,9 @@ error:
 	trace_clsic_alg_compr_stream_open(stream->direction, ret);
 
 	if (ret) {
+		clsic_msgproc_release(alg->clsic,
+				      alg->service->service_instance);
+
 		module_put(clsic->dev->driver->owner);
 		module_put(alg->codec->component.card->owner);
 		pm_runtime_put_autosuspend(clsic->dev);
@@ -1020,6 +1029,9 @@ static int clsic_alg_compr_free(struct snd_compr_stream *stream)
 			  rtd->codec_dai->name, ret);
 
 	wm_adsp_compr_free(stream);
+
+	/* Release the msgproc when the compressed stream is freed. */
+	clsic_msgproc_release(alg->clsic, alg->service->service_instance);
 
 	module_put(clsic->dev->driver->owner);
 	module_put(alg->codec->component.card->owner);
