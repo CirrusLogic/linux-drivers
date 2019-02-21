@@ -595,7 +595,6 @@ static int clsic_ras_nty_handler(struct clsic *clsic,
 		break;
 	default:
 		clsic_err(clsic, "unrecognised notification\n");
-		clsic_dump_message(clsic, msg, "Unrecognised message");
 	}
 	return ret;
 }
