@@ -583,7 +583,7 @@ static int clsic_ras_nty_handler(struct clsic *clsic,
 				 struct clsic_message *msg)
 {
 	union clsic_ras_msg *nty_msg = (union clsic_ras_msg *)msg;
-	int ret = 0;
+	int ret = CLSIC_UNHANDLED;
 
 	switch (clsic_get_messageid(msg)) {
 	case CLSIC_RAS_MSG_N_ERR_FAST_WRITE:
@@ -592,6 +592,7 @@ static int clsic_ras_nty_handler(struct clsic *clsic,
 			  nty_msg->nty_err_fast_write.reg_addr,
 			  nty_msg->nty_err_fast_write.reg_val);
 		ret = CLSIC_HANDLED;
+		break;
 	default:
 		clsic_err(clsic, "unrecognised notification\n");
 		clsic_dump_message(clsic, msg, "Unrecognised message");
