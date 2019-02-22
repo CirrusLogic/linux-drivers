@@ -306,7 +306,7 @@ static int clsic_alg_read(void *context, const void *reg_buf,
 		 *  codes so map error to -EIO
 		 */
 		if (ret != 0) {
-			clsic_dbg(clsic, "0x%x ret %d", reg, ret);
+			clsic_dbg(clsic, "0x%x ret %d\n", reg, ret);
 			ret = -EIO;
 		} else if ((clsic_get_bulk_bit(msg_rsp.rsp_rdreg_bulk.hdr.sbc)
 			    == 0) && (msg_rsp.rsp_rdreg_bulk.hdr.err != 0)) {
@@ -426,7 +426,7 @@ static int clsic_alg_write(void *context, const void *val_buf,
 		 *  codes so map error to -EIO
 		 */
 		if (ret != 0) {
-			clsic_dbg(clsic, "0x%x ret %d", addr, ret);
+			clsic_dbg(clsic, "0x%x ret %d\n", addr, ret);
 			ret = -EIO;
 		} else if (msg_rsp.rsp_wrreg_bulk.hdr.err != 0) {
 			clsic_dbg(clsic, "addr: 0x%x status %d\n", addr,
