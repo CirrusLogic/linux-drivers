@@ -507,9 +507,13 @@ void clsic_maintenance(struct work_struct *data)
 		/* Nothing to do (typical power on resume) */
 		break;
 	case CLSIC_ENUMERATION_REQUIRED:
-		complete(&clsic->pm_completion);
-		/* FALLTHROUGH */
 	case CLSIC_REENUMERATION_REQUIRED:
+		/*
+		 * The enumeration process may cause MFD children to be started
+		 * if a new service is discovered - release the pm_runtime
+		 * context as it is holding locks.
+		 */
+		complete(&clsic->pm_completion);
 		clsic_system_service_enumerate(clsic);
 		break;
 	case CLSIC_UNLOADING:
