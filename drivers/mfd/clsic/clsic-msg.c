@@ -143,7 +143,12 @@ static struct clsic_message *clsic_allocate_msg(struct clsic *clsic)
  */
 void clsic_release_msg(struct clsic *clsic, struct clsic_message *msg)
 {
-	list_del(&msg->private_link);
+	/*
+	 * A freshly allocated message will not be on any messaging layer
+	 * lists, guard against this possibility.
+	 */
+	if (!list_empty(&msg->private_link))
+		list_del(&msg->private_link);
 
 	/*
 	 * If the message is on a client list then this structure (and related
@@ -1269,6 +1274,7 @@ static int clsic_send_message_interrupted(struct clsic *clsic,
 		 */
 		clsic_set_msgstate(msg, CLSIC_MSG_INTERRUPTED);
 		clsic_unlink_message(clsic, msg);
+		list_add_tail(&msg->private_link, &clsic->completed_messages);
 		mutex_unlock(&clsic->message_lock);
 		ret = -EINTR;
 		break;
@@ -2030,6 +2036,11 @@ int clsic_send_msg_sync(struct clsic *clsic,
 
 	ret = clsic_send_message_core(clsic, msg);
 	if (ret != 0) {
+		/*
+		 * No need to take the lock as when a message is rejected by
+		 * clsic_send_message_core() it is not on any of the messaging
+		 * layer lists and other contexts cannot be using it
+		 */
 		clsic_release_msg(clsic, msg);
 		return ret;
 	}
@@ -2050,8 +2061,18 @@ int clsic_send_msg_sync(struct clsic *clsic,
 		clsic_err(clsic, "%p interrupted %d\n", msg,
 			  msg->state);
 		ret = clsic_send_message_interrupted(clsic, msg);
-		if (ret == -EINTR)
+		if (ret == -EINTR) {
+			/*
+			 * Having passed though the messaging layer the message
+			 * will be on the completed list - take the
+			 * message_lock for destruction as it could be visible
+			 * to other contexts.
+			 */
+			mutex_lock(&clsic->message_lock);
+			clsic_release_msg(clsic, msg);
+			mutex_unlock(&clsic->message_lock);
 			return ret;
+		}
 	}
 
 	/*
@@ -2105,7 +2126,14 @@ int clsic_send_msg_sync(struct clsic *clsic,
 
 	memcpy(fsm_rx, msg->response.raw, sizeof(msg->response));
 
+	/*
+	 * Having passed though the messaging layer the message will be on the
+	 * completed list - take the message_lock for destruction as it could
+	 * be visible to other contexts.
+	 */
+	mutex_lock(&clsic->message_lock);
 	clsic_release_msg(clsic, msg);
+	mutex_unlock(&clsic->message_lock);
 
 	return ret;
 }
