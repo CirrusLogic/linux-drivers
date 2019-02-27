@@ -243,6 +243,9 @@
 #define HALO_SAMPLE_RATE_RX1                 0x00080
 #define HALO_SAMPLE_RATE_TX1                 0x00280
 #define HALO_SCRATCH1                        0x005c0
+#define HALO_SCRATCH2                        0x005c8
+#define HALO_SCRATCH3                        0x005d0
+#define HALO_SCRATCH4                        0x005d8
 #define HALO_CCM_CORE_CONTROL                0x41000
 #define HALO_CORE_SOFT_RESET                 0x00010
 #define HALO_WDT_CONTROL                     0x47000
@@ -977,68 +980,54 @@ static unsigned int wm_adsp_region_to_reg(struct wm_adsp *dsp,
 	}
 }
 
-static void wm_adsp2_show_fw_status(struct wm_adsp *dsp)
+static void wm_adsp_read_fw_status(struct wm_adsp *dsp,
+				   int noffs, unsigned int *offs)
 {
-	unsigned int scratch[4];
-	unsigned int addr = dsp->base + ADSP2_SCRATCH0;
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < ARRAY_SIZE(scratch); ++i) {
-		ret = regmap_read(dsp->regmap, addr + i, &scratch[i]);
+	for (i = 0; i < noffs; ++i) {
+		ret = regmap_read(dsp->regmap, dsp->base + offs[i], &offs[i]);
 		if (ret) {
 			adsp_err(dsp, "Failed to read SCRATCH%u: %d\n", i, ret);
 			return;
 		}
 	}
+}
+
+static void wm_adsp2_show_fw_status(struct wm_adsp *dsp)
+{
+	unsigned int offs[] = {
+		ADSP2_SCRATCH0, ADSP2_SCRATCH1, ADSP2_SCRATCH2, ADSP2_SCRATCH3,
+	};
+
+	wm_adsp_read_fw_status(dsp, ARRAY_SIZE(offs), offs);
 
 	adsp_dbg(dsp, "FW SCRATCH 0:0x%x 1:0x%x 2:0x%x 3:0x%x\n",
-		 scratch[0], scratch[1], scratch[2], scratch[3]);
+		 offs[0], offs[1], offs[2], offs[3]);
 }
 
 static void wm_adsp2v2_show_fw_status(struct wm_adsp *dsp)
 {
-	unsigned int scratch[2];
-	int ret;
+	unsigned int offs[] = { ADSP2V2_SCRATCH0_1, ADSP2V2_SCRATCH2_3 };
 
-	ret = regmap_read(dsp->regmap, dsp->base + ADSP2V2_SCRATCH0_1,
-			  &scratch[0]);
-	if (ret) {
-		adsp_err(dsp, "Failed to read SCRATCH0_1: %d\n", ret);
-		return;
-	}
-
-	ret = regmap_read(dsp->regmap, dsp->base + ADSP2V2_SCRATCH2_3,
-			  &scratch[1]);
-	if (ret) {
-		adsp_err(dsp, "Failed to read SCRATCH2_3: %d\n", ret);
-		return;
-	}
+	wm_adsp_read_fw_status(dsp, ARRAY_SIZE(offs), offs);
 
 	adsp_dbg(dsp, "FW SCRATCH 0:0x%x 1:0x%x 2:0x%x 3:0x%x\n",
-		 scratch[0] & 0xFFFF,
-		 scratch[0] >> 16,
-		 scratch[1] & 0xFFFF,
-		 scratch[1] >> 16);
+		 offs[0] & 0xFFFF, offs[0] >> 16,
+		 offs[1] & 0xFFFF, offs[1] >> 16);
 }
 
 static void wm_halo_show_fw_status(struct wm_adsp *dsp)
 {
-	unsigned int scratch[4];
-	unsigned int addr = dsp->base + HALO_SCRATCH1;
-	int ret, i;
+	unsigned int offs[] = {
+		HALO_SCRATCH1, HALO_SCRATCH2, HALO_SCRATCH3, HALO_SCRATCH4,
+	};
 
-	for (i = 0; i < ARRAY_SIZE(scratch); i++) {
-		ret = regmap_read(dsp->regmap, addr, &scratch[i]);
-		addr += 8;
-		if (ret) {
-			adsp_err(dsp, "Failed to read SCRATCH regs: %d\n", ret);
-			return;
-		}
-	}
+	wm_adsp_read_fw_status(dsp, ARRAY_SIZE(offs), offs);
 
-	adsp_dbg(dsp, "FW SCRATCH 1:0x%x 2:0x%x 3:0x%x 4:0x%x\n",
-		 scratch[0], scratch[1], scratch[2], scratch[3]);
+	adsp_dbg(dsp, "FW SCRATCH 0:0x%x 1:0x%x 2:0x%x 3:0x%x\n",
+		 offs[0], offs[1], offs[2], offs[3]);
 }
 
 static inline struct wm_coeff_ctl *bytes_ext_to_ctl(struct soc_bytes_ext *ext)
