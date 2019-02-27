@@ -933,6 +933,7 @@ static unsigned int wm_adsp_region_to_reg(struct wm_adsp *dsp,
 {
 	if (WARN_ON(!mem))
 		return offset;
+
 	switch (dsp->type) {
 	case WMFW_ADSP1:
 	case WMFW_ADSP2:
@@ -940,11 +941,8 @@ static unsigned int wm_adsp_region_to_reg(struct wm_adsp *dsp,
 		case WMFW_ADSP1_PM:
 			return mem->base + (offset * 3);
 		case WMFW_ADSP1_DM:
-			return mem->base + (offset * 2);
 		case WMFW_ADSP2_XM:
-			return mem->base + (offset * 2);
 		case WMFW_ADSP2_YM:
-			return mem->base + (offset * 2);
 		case WMFW_ADSP1_ZM:
 			return mem->base + (offset * 2);
 		default:
@@ -954,11 +952,9 @@ static unsigned int wm_adsp_region_to_reg(struct wm_adsp *dsp,
 	case WMFW_HALO:
 		switch (mem->type) {
 		case WMFW_ADSP2_XM:
-			return mem->base + (offset * 4);
 		case WMFW_ADSP2_YM:
 			return mem->base + (offset * 4);
 		case WMFW_HALO_XM_PACKED:
-			return (mem->base + (offset * 3)) & ~0x3;
 		case WMFW_HALO_YM_PACKED:
 			return (mem->base + (offset * 3)) & ~0x3;
 		case WMFW_HALO_PM_PACKED:
