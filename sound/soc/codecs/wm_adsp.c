@@ -2265,6 +2265,32 @@ static void wm_adsp_free_alg_regions(struct wm_adsp *dsp)
 	}
 }
 
+static void wmfw_parse_id_header(struct wm_adsp *dsp,
+				 struct wmfw_id_hdr *fw, int nalgs)
+{
+	dsp->fw_id = be32_to_cpu(fw->id);
+	dsp->fw_id_version = be32_to_cpu(fw->ver);
+
+	adsp_info(dsp, "Firmware: %x v%d.%d.%d, %d algorithms\n",
+		  dsp->fw_id, (dsp->fw_id_version & 0xff0000) >> 16,
+		  (dsp->fw_id_version & 0xff00) >> 8, dsp->fw_id_version & 0xff,
+		  nalgs);
+}
+
+static void wmfw_v3_parse_id_header(struct wm_adsp *dsp,
+				    struct wmfw_v3_id_hdr *fw, int nalgs)
+{
+	dsp->fw_id = be32_to_cpu(fw->id);
+	dsp->fw_id_version = be32_to_cpu(fw->ver);
+	dsp->fw_vendor_id = be32_to_cpu(fw->vendor_id);
+
+	adsp_info(dsp, "Firmware: %x vendor: 0x%x v%d.%d.%d, %d algorithms\n",
+		  dsp->fw_id, dsp->fw_vendor_id,
+		  (dsp->fw_id_version & 0xff0000) >> 16,
+		  (dsp->fw_id_version & 0xff00) >> 8, dsp->fw_id_version & 0xff,
+		  nalgs);
+}
+
 static int wm_adsp1_setup_algs(struct wm_adsp *dsp)
 {
 	struct wmfw_adsp1_id_hdr adsp1_id;
@@ -2288,13 +2314,8 @@ static int wm_adsp1_setup_algs(struct wm_adsp *dsp)
 	}
 
 	n_algs = be32_to_cpu(adsp1_id.n_algs);
-	dsp->fw_id = be32_to_cpu(adsp1_id.fw.id);
-	adsp_info(dsp, "Firmware: %x v%d.%d.%d, %zu algorithms\n",
-		  dsp->fw_id,
-		  (be32_to_cpu(adsp1_id.fw.ver) & 0xff0000) >> 16,
-		  (be32_to_cpu(adsp1_id.fw.ver) & 0xff00) >> 8,
-		  be32_to_cpu(adsp1_id.fw.ver) & 0xff,
-		  n_algs);
+
+	wmfw_parse_id_header(dsp, &adsp1_id.fw, n_algs);
 
 	alg_region = wm_adsp_create_region(dsp, WMFW_ADSP1_ZM,
 					   adsp1_id.fw.id, adsp1_id.zm);
@@ -2394,15 +2415,8 @@ static int wm_adsp2_setup_algs(struct wm_adsp *dsp)
 	}
 
 	n_algs = be32_to_cpu(adsp2_id.n_algs);
-	dsp->fw_id = be32_to_cpu(adsp2_id.fw.id);
-	dsp->fw_id_version = be32_to_cpu(adsp2_id.fw.ver);
-	dsp->fw_vendor_id = 0;
-	adsp_info(dsp, "Firmware: %x v%d.%d.%d, %zu algorithms\n",
-		  dsp->fw_id,
-		  (dsp->fw_id_version & 0xff0000) >> 16,
-		  (dsp->fw_id_version & 0xff00) >> 8,
-		  dsp->fw_id_version & 0xff,
-		  n_algs);
+
+	wmfw_parse_id_header(dsp, &adsp2_id.fw, n_algs);
 
 	alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_XM,
 					   adsp2_id.fw.id, adsp2_id.xm);
@@ -2540,16 +2554,8 @@ static int wm_halo_setup_algs(struct wm_adsp *dsp)
 	}
 
 	n_algs = be32_to_cpu(halo_id.n_algs);
-	dsp->fw_id = be32_to_cpu(halo_id.fw.id);
-	dsp->fw_id_version = be32_to_cpu(halo_id.fw.ver);
-	dsp->fw_vendor_id = be32_to_cpu(halo_id.fw.vendor_id);
-	adsp_info(dsp, "Firmware: %x vendor: 0x%x v%d.%d.%d, %zu algorithms\n",
-		  dsp->fw_id,
-		  dsp->fw_vendor_id,
-		  (dsp->fw_id_version & 0xff0000) >> 16,
-		  (dsp->fw_id_version & 0xff00) >> 8,
-		  dsp->fw_id_version & 0xff,
-		  n_algs);
+
+	wmfw_v3_parse_id_header(dsp, &halo_id.fw, n_algs);
 
 	alg_region = wm_adsp_create_region(dsp, WMFW_ADSP2_XM,
 					   halo_id.fw.id, halo_id.xm_base);
@@ -2658,16 +2664,8 @@ int wm_vpu_setup_algs(struct wm_adsp *vpu)
 	}
 
 	n_algs = be32_to_cpu(vpu_id.n_algs);
-	vpu->fw_id = be32_to_cpu(vpu_id.fw.id);
-	vpu->fw_id_version = be32_to_cpu(vpu_id.fw.ver);
-	vpu->fw_vendor_id = be32_to_cpu(vpu_id.fw.vendor_id);
-	adsp_info(vpu, "Firmware: %x vendor: 0x%x v%d.%d.%d, %zu algorithms\n",
-		  vpu->fw_id,
-		  vpu->fw_vendor_id,
-		  (vpu->fw_id_version & 0xff0000) >> 16,
-		  (vpu->fw_id_version & 0xff00) >> 8,
-		  vpu->fw_id_version & 0xff,
-		  n_algs);
+
+	wmfw_v3_parse_id_header(vpu, &vpu_id.fw, n_algs);
 
 	alg_region = wm_adsp_create_region(vpu, WMFW_VPU_DM,
 					   vpu_id.fw.id,
