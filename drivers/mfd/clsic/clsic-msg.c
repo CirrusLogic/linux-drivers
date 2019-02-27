@@ -1542,12 +1542,12 @@ static void clsic_handle_message_acknowledgment(struct clsic *clsic,
 }
 
 /*
- * Called by the system service when it receives a RXDMA setup status
- * notification message, this stores the necessary information and releases the
- * waiting message to continue sending data.
+ * Called when a RXDMA setup status notification message is received, this
+ * stores the necessary information and releases the waiting message to
+ * continue sending data.
  */
-void clsic_handle_message_rxdma_status(struct clsic *clsic,
-				       struct clsic_message *msg)
+static void clsic_handle_message_rxdma_status(struct clsic *clsic,
+					      struct clsic_message *msg)
 {
 	union clsic_sys_msg *msg_p = (union clsic_sys_msg *) &msg->fsm;
 	uint8_t svcinst = msg_p->nty_rxdma_sts.srv_inst;
@@ -1596,12 +1596,12 @@ rxdmastatus_error:
 }
 
 /*
- * Called by the system service when it receives an invalid command
- * notification message, this stores the necessary information and fails the
- * waiting command so it can propagate the error.
+ * Called when invalid command notification message is received, this stores
+ * the necessary information and fails the waiting command so it can propagate
+ * the error.
  */
-void clsic_handle_message_invalid_cmd(struct clsic *clsic,
-				      struct clsic_message *msg)
+static void clsic_handle_message_invalid_cmd(struct clsic *clsic,
+					     struct clsic_message *msg)
 {
 	struct clsic_message *tmp_msg = NULL;
 	union clsic_sys_msg *msg_p = (union clsic_sys_msg *) &msg->fsm.raw;
@@ -1662,10 +1662,32 @@ static void clsic_handle_message_inservice(struct clsic *clsic,
 {
 	int ret = CLSIC_UNHANDLED;
 	uint8_t servinst = clsic_get_servinst(msg);
+	uint8_t msgid = clsic_get_messageid(msg);
 	struct clsic_service *service_handler = NULL;
 
 	if (servinst > CLSIC_SERVICE_MAX) {
 		clsic_dump_message(clsic, msg, "service out of range");
+	} else if (servinst == CLSIC_SRV_INST_SYS) {
+		/*
+		 * The system service is attributed as the sender for many of
+		 * the core protocol features such as notifications for invalid
+		 * messages, firmware panics and bulk message exchange
+		 * handshaking.
+		 *
+		 * There aren't any service handler specific responsibilities
+		 * so handle those notification messages directly.
+		 */
+		if (msgid == CLSIC_SYS_MSG_N_RXDMA_STS) {
+			clsic_handle_message_rxdma_status(clsic, msg);
+			ret = CLSIC_HANDLED;
+		} else if (msgid == CLSIC_SYS_MSG_N_INVAL_CMD) {
+			clsic_handle_message_invalid_cmd(clsic, msg);
+			ret = CLSIC_HANDLED;
+		} else if (msgid == CLSIC_SYS_MSG_N_PANIC) {
+			clsic_dev_panic(clsic, msg);
+			ret = CLSIC_HANDLED;
+		}
+		/* else ret remains set to CLSIC_UNHANDLED */
 	} else {
 		mutex_lock(&clsic->service_lock);
 		service_handler = clsic->service_handlers[servinst];

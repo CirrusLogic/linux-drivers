@@ -24,46 +24,6 @@
 #include <linux/mfd/clsic/bootsrv.h>
 #include "clsic-trace.h"
 
-/*
- * This handler function will be called frequently by the incoming messages
- * context when a system service notification is received, many of the system
- * service notifications are concerned with the operation of the messaging
- * protocol and this handler calls back to the messaging layer to do the actual
- * named work.
- */
-static int clsic_system_service_handler(struct clsic *clsic,
-					struct clsic_service *handler,
-					struct clsic_message *msg)
-{
-	enum clsic_sys_msg_id system_msgid;
-	int ret = CLSIC_UNHANDLED;
-
-	/* Make sure it is a notification message */
-	if (clsic_get_cran_frommsg(msg) != CLSIC_CRAN_NTY) {
-		clsic_dump_message(clsic, msg, "unhandled message");
-		return ret;
-	}
-	system_msgid = clsic_get_messageid(msg);
-	switch (system_msgid) {
-	case CLSIC_SYS_MSG_N_RXDMA_STS:
-		clsic_handle_message_rxdma_status(clsic, msg);
-		ret = CLSIC_HANDLED;
-		break;
-	case CLSIC_SYS_MSG_N_INVAL_CMD:
-		clsic_handle_message_invalid_cmd(clsic, msg);
-		ret = CLSIC_HANDLED;
-		break;
-	case CLSIC_SYS_MSG_N_PANIC:
-		clsic_dev_panic(clsic, msg);
-		ret = CLSIC_HANDLED;
-		break;
-	default:
-		clsic_err(clsic, "unrecognised message\n");
-		clsic_dump_message(clsic, msg, "Unrecognised message");
-	}
-	return ret;
-}
-
 static void clsic_system_service_stop(struct clsic *clsic,
 				      struct clsic_service *handler)
 {
@@ -258,7 +218,6 @@ int clsic_system_service_start(struct clsic *clsic,
 	debugfs_create_file("sysfwtrace_mask", 0220, clsic->debugfs_root,
 			    syssrv, &clsic_system_service_trace_mask_fops);
 
-	handler->callback = &clsic_system_service_handler;
 	handler->stop = &clsic_system_service_stop;
 	handler->data = syssrv;
 	handler->supports_debuginfo = true;
