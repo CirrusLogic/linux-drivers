@@ -101,7 +101,6 @@ struct wm_adsp {
 	struct mutex *fw_lock;
 
 	unsigned int lock_regions;
-	bool unlock_all;
 
 	unsigned int n_rx_channels;
 	unsigned int n_tx_channels;
