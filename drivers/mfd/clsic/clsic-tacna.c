@@ -26,6 +26,28 @@ static struct mfd_cell clsic_tacna_devs[] = {
 };
 
 /*
+ * Each clsic-tacna device is associated with a register access service
+ * handler, delegate the IRQ handling to that RAS instance.
+ */
+int clsic_tacna_request_irq(struct tacna *tacna,
+			    unsigned int irq_id, const char *name,
+			    irq_handler_t handler, void *data)
+{
+	struct clsic_ras_struct *ras = dev_get_platdata(tacna->dev);
+
+	return clsic_ras_request_irq(ras, irq_id, name, handler, data);
+}
+EXPORT_SYMBOL_GPL(clsic_tacna_request_irq);
+
+void clsic_tacna_free_irq(struct tacna *tacna, unsigned int irq_id, void *data)
+{
+	struct clsic_ras_struct *ras = dev_get_platdata(tacna->dev);
+
+	clsic_ras_free_irq(ras, irq_id, data);
+}
+EXPORT_SYMBOL_GPL(clsic_tacna_free_irq);
+
+/*
  * Apply the default state of the pins specified as "active" in the device tree
  * on startup.
  *
