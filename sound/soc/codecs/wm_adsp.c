@@ -230,10 +230,6 @@
 /*
  * HALO system info
  */
-#define HALO_SYS_INFO_XM_SRAM_SIZE           0x00010
-#define HALO_SYS_INFO_YM_SRAM_SIZE           0x00018
-#define HALO_SYS_INFO_XM_BANK_SIZE           0x00038
-#define HALO_SYS_INFO_YM_BANK_SIZE           0x0003c
 #define HALO_AHBM_WINDOW_DEBUG_0             0x02040
 #define HALO_AHBM_WINDOW_DEBUG_1             0x02044
 
@@ -249,12 +245,6 @@
 #define HALO_CCM_CORE_CONTROL                0x41000
 #define HALO_CORE_SOFT_RESET                 0x00010
 #define HALO_WDT_CONTROL                     0x47000
-
-/*
- * HALO Lock support
- */
-#define HALO_MPU_UNLOCK_CODE_0               0x5555
-#define HALO_MPU_UNLOCK_CODE_1               0xaaaa
 
 /*
  * HALO MPU banks
@@ -333,27 +323,6 @@
 #define HALO_MPU_VIO_EREG                   0x08
 #define HALO_MPU_VIO_EXTERNAL_MEM           0x10
 #define HALO_MPU_VIO_NON_EXIST              0x20
-
-static const unsigned int halo_mpu_access[18] = {
-	HALO_MPU_WINDOW_ACCESS_0,
-	HALO_MPU_XREG_ACCESS_0,
-	HALO_MPU_YREG_ACCESS_0,
-	HALO_MPU_XMEM_ACCESS_1,
-	HALO_MPU_YMEM_ACCESS_1,
-	HALO_MPU_WINDOW_ACCESS_1,
-	HALO_MPU_XREG_ACCESS_1,
-	HALO_MPU_YREG_ACCESS_1,
-	HALO_MPU_XMEM_ACCESS_2,
-	HALO_MPU_YMEM_ACCESS_2,
-	HALO_MPU_WINDOW_ACCESS_2,
-	HALO_MPU_XREG_ACCESS_2,
-	HALO_MPU_YREG_ACCESS_2,
-	HALO_MPU_XMEM_ACCESS_3,
-	HALO_MPU_YMEM_ACCESS_3,
-	HALO_MPU_WINDOW_ACCESS_3,
-	HALO_MPU_XREG_ACCESS_3,
-	HALO_MPU_YREG_ACCESS_3,
-};
 
 struct wm_adsp_buf {
 	struct list_head list;
@@ -3167,107 +3136,35 @@ static int wm_halo_set_rate_block(struct wm_adsp *dsp,
 	return 0;
 }
 
-static int wm_halo_configure_mpu(struct wm_adsp *dsp)
+static int wm_halo_configure_mpu(struct wm_adsp *dsp, unsigned int lock_regions)
 {
-	struct regmap *regmap = dsp->regmap;
-	int i = 0, len = 0, ret;
-	unsigned int sysinfo_base = dsp->base_sysinfo, dsp_base = dsp->base;
-	unsigned int xm_sz, xm_bank_sz, ym_sz, ym_bank_sz;
-	unsigned int xm_acc_cfg, ym_acc_cfg;
-	unsigned int lock_cfg;
+	struct reg_sequence config[] = {
+		{ dsp->base + HALO_MPU_LOCK_CONFIG,     0x5555 },
+		{ dsp->base + HALO_MPU_LOCK_CONFIG,     0xAAAA },
+		{ dsp->base + HALO_MPU_XMEM_ACCESS_0,   0xFFFFFFFF },
+		{ dsp->base + HALO_MPU_YMEM_ACCESS_0,   0xFFFFFFFF },
+		{ dsp->base + HALO_MPU_WINDOW_ACCESS_0, lock_regions },
+		{ dsp->base + HALO_MPU_XREG_ACCESS_0,   lock_regions },
+		{ dsp->base + HALO_MPU_YREG_ACCESS_0,   lock_regions },
+		{ dsp->base + HALO_MPU_XMEM_ACCESS_1,   0xFFFFFFFF },
+		{ dsp->base + HALO_MPU_YMEM_ACCESS_1,   0xFFFFFFFF },
+		{ dsp->base + HALO_MPU_WINDOW_ACCESS_1, lock_regions },
+		{ dsp->base + HALO_MPU_XREG_ACCESS_1,   lock_regions },
+		{ dsp->base + HALO_MPU_YREG_ACCESS_1,   lock_regions },
+		{ dsp->base + HALO_MPU_XMEM_ACCESS_2,   0xFFFFFFFF },
+		{ dsp->base + HALO_MPU_YMEM_ACCESS_2,   0xFFFFFFFF },
+		{ dsp->base + HALO_MPU_WINDOW_ACCESS_2, lock_regions },
+		{ dsp->base + HALO_MPU_XREG_ACCESS_2,   lock_regions },
+		{ dsp->base + HALO_MPU_YREG_ACCESS_2,   lock_regions },
+		{ dsp->base + HALO_MPU_XMEM_ACCESS_3,   0xFFFFFFFF },
+		{ dsp->base + HALO_MPU_YMEM_ACCESS_3,   0xFFFFFFFF },
+		{ dsp->base + HALO_MPU_WINDOW_ACCESS_3, lock_regions },
+		{ dsp->base + HALO_MPU_XREG_ACCESS_3,   lock_regions },
+		{ dsp->base + HALO_MPU_YREG_ACCESS_3,   lock_regions },
+		{ dsp->base + HALO_MPU_LOCK_CONFIG,     0 },
+	};
 
-	ret = regmap_read(regmap, sysinfo_base + HALO_SYS_INFO_XM_BANK_SIZE,
-			  &xm_bank_sz);
-	if (ret) {
-		adsp_err(dsp, "Failed to read XM bank size.\n");
-		goto err;
-	}
-
-	if (!xm_bank_sz) {
-		adsp_err(dsp, "Failed to configure MPU (XM_BANK_SIZE = 0)\n");
-		goto err;
-	}
-
-	ret = regmap_read(regmap, sysinfo_base + HALO_SYS_INFO_YM_BANK_SIZE,
-			  &ym_bank_sz);
-	if (ret) {
-		adsp_err(dsp, "Failed to read YM bank size.\n");
-		goto err;
-	}
-
-	if (!ym_bank_sz) {
-		adsp_err(dsp, "Failed to configure MPU (YM_BANK_SIZE = 0)\n");
-		goto err;
-	}
-
-	ret = regmap_read(regmap, sysinfo_base + HALO_SYS_INFO_XM_SRAM_SIZE,
-			  &xm_sz);
-	if (ret) {
-		adsp_err(dsp, "Failed to read XM size.\n");
-		goto err;
-	}
-
-	ret = regmap_read(regmap, sysinfo_base + HALO_SYS_INFO_YM_SRAM_SIZE,
-			  &ym_sz);
-	if (ret) {
-		adsp_err(dsp, "Failed to read YM size.\n");
-		goto err;
-	}
-
-	adsp_dbg(dsp,
-		 "XM size 0x%x XM bank size 0x%x YM size 0x%x YM bank size 0x%x\n",
-		 xm_sz, xm_bank_sz, ym_sz, ym_bank_sz);
-
-	/* calculate amount of banks to unlock */
-	xm_acc_cfg = (1 << (xm_sz / xm_bank_sz)) - 1;
-	ym_acc_cfg = (1 << (ym_sz / ym_bank_sz)) - 1;
-
-	/* unlock MPU */
-	ret = regmap_write(regmap, dsp_base + HALO_MPU_LOCK_CONFIG,
-			   HALO_MPU_UNLOCK_CODE_0);
-	if (ret) {
-		adsp_err(dsp, "Error while unlocking MPU: %d\n", ret);
-		goto err;
-	}
-
-	ret = regmap_write(regmap, dsp_base + HALO_MPU_LOCK_CONFIG,
-			   HALO_MPU_UNLOCK_CODE_1);
-	if (ret) {
-		adsp_err(dsp, "Error while unlocking MPU: %d\n", ret);
-		goto err;
-	}
-
-	adsp_dbg(dsp, "Unlocking XM (cfg: %x) and YM (cfg: %x)",
-		 xm_acc_cfg, ym_acc_cfg);
-
-	/* unlock XMEM and YMEM */
-	ret = regmap_write(regmap, dsp_base + HALO_MPU_XMEM_ACCESS_0,
-			   xm_acc_cfg);
-	if (ret)
-		goto err;
-
-	ret = regmap_write(regmap, dsp_base + HALO_MPU_YMEM_ACCESS_0,
-			   ym_acc_cfg);
-	if (ret)
-		goto err;
-
-	len = sizeof(halo_mpu_access) / sizeof(halo_mpu_access[0]);
-	/* configure all other banks */
-	lock_cfg = (dsp->unlock_all) ? 0xFFFFFFFF : 0;
-	for (i = 0; i < len; i++) {
-		ret = regmap_write(regmap, dsp_base + halo_mpu_access[i],
-					lock_cfg);
-		if (ret)
-			goto err;
-	}
-
-	/* lock MPU */
-	ret = regmap_write(regmap, dsp_base + HALO_MPU_LOCK_CONFIG, 0);
-	if (ret)
-		adsp_err(dsp, "Error while locking MPU: %d\n", ret);
-
-err:
-	return ret;
+	return regmap_multi_reg_write(dsp->regmap, config, ARRAY_SIZE(config));
 }
 
 static void wm_halo_boot_work(struct work_struct *work)
@@ -3680,9 +3577,11 @@ int wm_halo_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 			goto err;
 		}
 
-		ret = wm_halo_configure_mpu(dsp);
-		if (ret != 0)
+		ret = wm_halo_configure_mpu(dsp, dsp->lock_regions);
+		if (ret != 0) {
+			adsp_err(dsp, "Error configuring MPU: %d\n", ret);
 			goto err;
+		}
 
 		ret = regmap_update_bits(dsp->regmap,
 					 dsp->base + HALO_CCM_CORE_CONTROL,
