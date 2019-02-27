@@ -441,12 +441,6 @@ void clsic_purge_message_queues(struct clsic *clsic);
 
 void clsic_handle_incoming_messages(struct clsic *clsic);
 
-void clsic_handle_message_rxdma_status(struct clsic *clsic,
-				       struct clsic_message *msg);
-
-void clsic_handle_message_invalid_cmd(struct clsic *clsic,
-				      struct clsic_message *msg);
-
 int clsic_fifo_readbulk_payload(struct clsic *clsic,
 				struct clsic_message *msg,
 				uint8_t *dest,
