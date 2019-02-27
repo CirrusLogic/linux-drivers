@@ -2659,7 +2659,7 @@ int wm_vpu_setup_algs(struct wm_adsp *vpu)
 	}
 
 	n_algs = be32_to_cpu(vpu_id.n_algs);
-	vpu->fw_id = be32_to_cpu(vpu_id.fw.firmware_id);
+	vpu->fw_id = be32_to_cpu(vpu_id.fw.id);
 	vpu->fw_id_version = be32_to_cpu(vpu_id.fw.ver);
 	vpu->fw_vendor_id = be32_to_cpu(vpu_id.fw.vendor_id);
 	adsp_info(vpu, "Firmware: %x vendor: 0x%x v%d.%d.%d, %zu algorithms\n",
@@ -2671,7 +2671,7 @@ int wm_vpu_setup_algs(struct wm_adsp *vpu)
 		  n_algs);
 
 	alg_region = wm_adsp_create_region(vpu, WMFW_VPU_DM,
-					   vpu_id.fw.firmware_id,
+					   vpu_id.fw.id,
 					   vpu_id.dm_base);
 	if (IS_ERR(alg_region))
 		return PTR_ERR(alg_region);
