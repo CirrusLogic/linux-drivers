@@ -134,6 +134,7 @@ config PINCTRL_CS47L96
 config PINCTRL_CS48L32
 	bool
 	default y if MFD_CS48L32=y
+	default y if MFD_CS48L33=y
 
 config PINCTRL_CS48LX50
 	bool
