@@ -3615,17 +3615,17 @@ int wm_halo_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 				   dsp->base + HALO_CCM_CORE_CONTROL,
 				   HALO_CORE_EN, 0);
 
+		/* reset halo core with CORE_SOFT_REEST */
+		regmap_update_bits(dsp->regmap,
+				   dsp->base + HALO_CORE_SOFT_RESET,
+				   HALO_CORE_SOFT_RESET_MASK, 1);
+
 		if (wm_adsp_fw[dsp->fw].num_caps != 0)
 			wm_adsp_buffer_free(dsp);
 
 		dsp->fatal_error = false;
 
 		mutex_unlock(&dsp->pwr_lock);
-
-		/* reset halo core with CORE_SOFT_REEST */
-		regmap_update_bits(dsp->regmap,
-				   dsp->base + HALO_CORE_SOFT_RESET,
-				   HALO_CORE_SOFT_RESET_MASK, 1);
 
 		adsp_info(dsp, "Execution stopped\n");
 		break;
@@ -3635,9 +3635,9 @@ int wm_halo_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 
 	return 0;
 err:
-	mutex_unlock(&dsp->pwr_lock);
 	regmap_update_bits(dsp->regmap, dsp->base + HALO_CCM_CORE_CONTROL,
 			   HALO_CORE_EN, 0);
+	mutex_unlock(&dsp->pwr_lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm_halo_event);
