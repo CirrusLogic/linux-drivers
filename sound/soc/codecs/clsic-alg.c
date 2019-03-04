@@ -1406,7 +1406,6 @@ static int clsic_alg_probe(struct platform_device *pdev)
 				     ARRAY_SIZE(clsic_alg_dai));
 	if (ret) {
 		clsic_err(clsic, "Failed to register codec: %d.\n", ret);
-		snd_soc_unregister_platform(dev);
 	}
 
 error:
