@@ -2102,7 +2102,6 @@ static int clsic_probe(struct platform_device *pdev)
 				     clsic_dai, ARRAY_SIZE(clsic_dai));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
-		snd_soc_unregister_platform(&pdev->dev);
 	}
 
 	dev_info(&pdev->dev, "%s() dev %p ret %d\n", __func__, &pdev->dev, ret);
