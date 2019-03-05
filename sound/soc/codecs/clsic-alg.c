@@ -378,7 +378,7 @@ static int clsic_alg_write(void *context, const void *val_buf,
 	payload_sz = val_size - CLSIC_ALG_REG_BYTES;
 	if ((val_size & (CLSIC_ALG_REG_BYTES - 1)) != 0) {
 		clsic_err(clsic,
-			  "error: context %p val_buf %p, val_size %d",
+			  "error: context %p val_buf %p, val_size %zu",
 			  context, val_buf, val_size);
 		clsic_err(clsic, "0x%x 0x%x 0x%x ",
 			  buf[CLSIC_FSM0], buf[CLSIC_FSM1], buf[CLSIC_FSM2]);
@@ -711,13 +711,13 @@ static ssize_t clsic_alg_custom_message_write(struct file *file,
 	 * size will vary depending on whether it is a fsm or bulk response.
 	 */
 	if (clsic_get_bulk_bit(msg_p->rsp.hdr.sbc) == 1) {
-		clsic_dbg(clsic, "bulk ret %d err 0x%xp size 0x%x\n",
+		clsic_dbg(clsic, "bulk ret %zd err 0x%xp size 0x%x\n",
 			  ret, msg_p->bulk_rsp.hdr.err,
 			  msg_p->bulk_rsp.hdr.bulk_sz);
 		custom_msg->len = CLSIC_FIXED_MSG_SZ +
 				  msg_p->bulk_rsp.hdr.bulk_sz;
 	} else {
-		clsic_dbg(clsic, "fsm ret %d err 0x%x\n",
+		clsic_dbg(clsic, "fsm ret %zd err 0x%x\n",
 			  ret, msg_p->rsp.hdr.err);
 		custom_msg->len = CLSIC_FIXED_MSG_SZ;
 	}
