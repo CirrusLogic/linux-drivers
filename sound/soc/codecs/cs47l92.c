@@ -206,7 +206,7 @@ static int cs47l92_adsp_power_ev(struct snd_soc_dapm_widget *w,
 		break;
 	}
 
-	return wm_adsp2_early_event(w, kcontrol, event, freq);
+	return wm_adsp_early_event(w, kcontrol, event);
 }
 
 #define CS47L92_NG_SRC(name, base) \
