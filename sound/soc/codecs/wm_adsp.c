@@ -2544,7 +2544,7 @@ out:
 	return ret;
 }
 
-int wm_vpu_setup_algs(struct wm_adsp *vpu)
+static int wm_vpu_setup_algs(struct wm_adsp *vpu)
 {
 	const struct wm_adsp_region *mem;
 	struct wmfw_vpu_id_hdr vpu_id;
@@ -2613,7 +2613,6 @@ out:
 	kfree(vpu_alg);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(wm_vpu_setup_algs);
 
 static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 {
@@ -3373,12 +3372,6 @@ int wm_adsp_early_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm_adsp_early_event);
-
-void wm_adsp_queue_boot_work(struct wm_adsp *dsp)
-{
-	queue_work(system_unbound_wq, &dsp->boot_work);
-}
-EXPORT_SYMBOL_GPL(wm_adsp_queue_boot_work);
 
 int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event)
