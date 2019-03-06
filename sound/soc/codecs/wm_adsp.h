@@ -175,6 +175,8 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 
 int wm_halo_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
+int wm_vpu_event(struct snd_soc_dapm_widget *w,
+		 struct snd_kcontrol *kcontrol, int event);
 
 int wm_adsp2_set_dspclk(struct snd_soc_dapm_widget *w, unsigned int freq);
 
