@@ -3231,19 +3231,6 @@ static void wm_vpu_boot_work(struct work_struct *work)
 
 	vpu->booted = true;
 
-	/* Sync set controls */
-	ret = wm_coeff_sync_controls(vpu);
-	if (ret != 0)
-		goto err;
-
-	if (wm_adsp_fw[vpu->fw].num_caps != 0) {
-		ret = wm_adsp_buffer_init(vpu);
-		if (ret < 0)
-			goto err;
-	}
-
-	vpu->running = true;
-
 err:
 	mutex_unlock(&vpu->pwr_lock);
 }
@@ -3598,6 +3585,68 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm_halo_event);
+
+int wm_vpu_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
+		 int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct wm_adsp *dsps = snd_soc_codec_get_drvdata(codec);
+	struct wm_adsp *dsp = &dsps[w->shift];
+	int ret;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		flush_work(&dsp->boot_work);
+
+		mutex_lock(&dsp->pwr_lock);
+
+		if (!dsp->booted) {
+			ret = -EIO;
+			goto err;
+		}
+
+		/* Sync set controls */
+		ret = wm_coeff_sync_controls(dsp);
+		if (ret != 0)
+			goto err;
+
+		if (wm_adsp_fw[dsp->fw].num_caps != 0) {
+			ret = wm_adsp_buffer_init(dsp);
+			if (ret < 0)
+				goto err;
+		}
+
+		dsp->running = true;
+
+		mutex_unlock(&dsp->pwr_lock);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		/* Tell the firmware to cleanup */
+		wm_adsp_signal_event_controls(dsp, WM_ADSP_FW_EVENT_SHUTDOWN);
+
+		mutex_lock(&dsp->pwr_lock);
+
+		dsp->running = false;
+
+		if (wm_adsp_fw[dsp->fw].num_caps != 0)
+			wm_adsp_buffer_free(dsp);
+
+		dsp->fatal_error = false;
+
+		mutex_unlock(&dsp->pwr_lock);
+
+		adsp_info(dsp, "Execution stopped\n");
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+err:
+	mutex_unlock(&dsp->pwr_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(wm_vpu_event);
 
 int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 {
