@@ -157,7 +157,6 @@ void wm_adsp2_remove(struct wm_adsp *dsp);
 int wm_adsp2_component_probe(struct wm_adsp *dsp, struct snd_soc_component *component);
 int wm_adsp2_component_remove(struct wm_adsp *dsp, struct snd_soc_component *component);
 void wm_adsp_queue_boot_work(struct wm_adsp *dsp);
-int wm_vpu_setup_algs(struct wm_adsp *vpu);
 int wm_vpu_init(struct wm_adsp *vpu);
 int wm_halo_init(struct wm_adsp *dsp, struct mutex *rate_lock);
 
