@@ -3268,6 +3268,8 @@ static void wm_vpu_boot_work(struct work_struct *work)
 	if (ret != 0)
 		goto err;
 
+	vpu->booted = true;
+
 	/* Sync set controls */
 	ret = wm_coeff_sync_controls(vpu);
 	if (ret != 0)
@@ -3279,7 +3281,7 @@ static void wm_vpu_boot_work(struct work_struct *work)
 			goto err;
 	}
 
-	vpu->booted = true;
+	vpu->running = true;
 
 err:
 	mutex_unlock(&vpu->pwr_lock);
