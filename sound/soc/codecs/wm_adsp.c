@@ -4780,6 +4780,7 @@ static struct wm_adsp_ops wm_halo_ops = {
 	.region_to_reg = wm_halo_region_to_reg,
 
 	.show_fw_status = wm_halo_show_fw_status,
+	.stop_watchdog = wm_halo_stop_watchdog,
 
 	.lock_memory = wm_halo_configure_mpu,
 
