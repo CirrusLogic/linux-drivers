@@ -282,10 +282,7 @@
  */
 #define HALO_AHBM_CORE_ERR_ADDR_MASK         0x0fffff00
 #define HALO_AHBM_CORE_ERR_ADDR_SHIFT                 8
-#define HALO_AHBM_ADDR_ERR_MASK              0x00000080
-#define HALO_AHBM_LOCKED_ERR_MASK            0x00000040
-#define HALO_AHBM_SIZE_ERR_MASK              0x00000020
-#define HALO_AHBM_MODE_ERR_MASK              0x00000010
+#define HALO_AHBM_FLAGS_ERR_MASK             0x000000ff
 
 /*
  * HALO_SAMPLE_RATE_[RX|TX]n
@@ -4593,94 +4590,54 @@ error:
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_bus_error);
 
-static void wm_halo_dump_fault_info(struct wm_adsp *dsp, const char *region,
-				    unsigned int addr, unsigned int status)
-{
-	unsigned int write = status & HALO_MPU_VIO_ERR_WR_MASK;
-	unsigned int type = (status & HALO_MPU_VIO_STS_MASK) >>
-				 HALO_MPU_VIO_STS_SHIFT;
-	unsigned int src = (status & HALO_MPU_VIO_ERR_SRC_MASK) >>
-			   HALO_MPU_VIO_ERR_SRC_SHIFT;
-
-	adsp_warn(dsp, "%s: FAULT_ADDR:0x%x FAULT_STATUS:0x%x %s\n",
-		  region, addr, status,
-		  write ? "write" : "read");
-
-	switch (src) {
-	case 0:
-		adsp_warn(dsp, "%s: SRC=HALO\n", region);
-		break;
-	default:
-		adsp_warn(dsp, "%s: SRC=Requestor%u\n", region, src);
-		break;
-	}
-
-	adsp_warn(dsp, "%s: %s %s %s %s %s %s\n",
-		  region,
-		  (type & HALO_MPU_VIO_SRAM) ? "SRAM" : "",
-		  (type & HALO_MPU_VIO_REG) ? "REG" : "",
-		  (type & HALO_MPU_VIO_AHB) ? "AHB" : "",
-		  (type & HALO_MPU_VIO_EREG) ? "EREG" : "",
-		  (type & HALO_MPU_VIO_EXTERNAL_MEM) ? "ExtMem" : "",
-		  (type & HALO_MPU_VIO_NON_EXIST) ? "NotExist" : "");
-}
-
 irqreturn_t wm_halo_bus_error(struct wm_adsp *dsp)
 {
 	struct regmap *regmap = dsp->regmap;
-	unsigned int fault[6], ahb_sts, reg;
+	unsigned int fault[6];
+	struct reg_sequence clear[] = {
+		{ dsp->base + HALO_MPU_XM_VIO_STATUS,     0x0 },
+		{ dsp->base + HALO_MPU_YM_VIO_STATUS,     0x0 },
+		{ dsp->base + HALO_MPU_PM_VIO_STATUS,     0x0 },
+	};
 	int ret;
 
 	mutex_lock(&dsp->pwr_lock);
 
-	/* Ensure we log the fault even if we fail to read the fault info */
-	adsp_warn(dsp, "MPU FAULT\n");
-
 	ret = regmap_read(regmap, dsp->base_sysinfo + HALO_AHBM_WINDOW_DEBUG_1,
-			  &ahb_sts);
+			  fault);
 	if (ret) {
-		adsp_warn(dsp, "Failed to read AHB DEBUG_1 (%d)\n", ret);
+		adsp_warn(dsp, "Failed to read AHB DEBUG_1: %d\n", ret);
 		goto exit_unlock;
 	}
 
-	adsp_warn(dsp, "AHB WINDOW: ADDR: 0x%x STATUS: 0x%x\n",
-		  (ahb_sts & HALO_AHBM_CORE_ERR_ADDR_MASK) >>
-		  HALO_AHBM_CORE_ERR_ADDR_SHIFT,
-		  ahb_sts);
-	adsp_warn(dsp, "AHB WINDOW: %s %s %s %s\n",
-		  (ahb_sts & HALO_AHBM_ADDR_ERR_MASK) ? "ADDR" : "",
-		  (ahb_sts & HALO_AHBM_LOCKED_ERR_MASK) ? "LOCKED" : "",
-		  (ahb_sts & HALO_AHBM_SIZE_ERR_MASK) ? "SIZE" : "",
-		  (ahb_sts & HALO_AHBM_MODE_ERR_MASK) ? "MODE" : "");
+	adsp_warn(dsp, "AHB: STATUS: 0x%x ADDR: 0x%x\n",
+		  *fault & HALO_AHBM_FLAGS_ERR_MASK,
+		  (*fault & HALO_AHBM_CORE_ERR_ADDR_MASK) >>
+		  HALO_AHBM_CORE_ERR_ADDR_SHIFT);
 
 	ret = regmap_read(regmap, dsp->base_sysinfo + HALO_AHBM_WINDOW_DEBUG_0,
-			  &ahb_sts);
+			  fault);
 	if (ret) {
-		adsp_warn(dsp, "Failed to read AHB DEBUG_0 (%d)\n", ret);
+		adsp_warn(dsp, "Failed to read AHB DEBUG_0: %d\n", ret);
 		goto exit_unlock;
 	}
 
-	adsp_warn(dsp, "AHB SYS_ADDR: 0x%x\n", ahb_sts);
+	adsp_warn(dsp, "AHB: SYS_ADDR: 0x%x\n", *fault);
 
 	ret = regmap_bulk_read(regmap, dsp->base + HALO_MPU_XM_VIO_ADDR,
 			       fault, ARRAY_SIZE(fault));
 	if (ret) {
-		adsp_warn(dsp, "Failed to read MPU fault info (%d)\n", ret);
+		adsp_warn(dsp, "Failed to read MPU fault info: %d\n", ret);
 		goto exit_unlock;
 	}
 
-	wm_halo_dump_fault_info(dsp, "XM", fault[0], fault[1]);
-	wm_halo_dump_fault_info(dsp, "YM", fault[2], fault[3]);
-	wm_halo_dump_fault_info(dsp, "PM", fault[4], fault[5]);
+	adsp_warn(dsp, "XM: STATUS:0x%x ADDR:0x%x\n", fault[1], fault[0]);
+	adsp_warn(dsp, "YM: STATUS:0x%x ADDR:0x%x\n", fault[3], fault[2]);
+	adsp_warn(dsp, "PM: STATUS:0x%x ADDR:0x%x\n", fault[5], fault[4]);
 
-	/* Clear fault status */
-	for (reg = HALO_MPU_XM_VIO_STATUS; reg <= HALO_MPU_PM_VIO_STATUS;
-	     reg += 8) {
-		ret = regmap_write(regmap, dsp->base + reg, 0);
-		if (ret)
-			adsp_warn(dsp, "Failed to clear MPU status @0x%x (%d)\n",
-				  reg, ret);
-	}
+	ret = regmap_multi_reg_write(dsp->regmap, clear, ARRAY_SIZE(clear));
+	if (ret)
+		adsp_warn(dsp, "Failed to clear MPU status: %d\n", ret);
 
 exit_unlock:
 	mutex_unlock(&dsp->pwr_lock);
