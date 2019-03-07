@@ -4516,6 +4516,18 @@ int wm_adsp_compr_copy(struct snd_compr_stream *stream, char __user *buf,
 }
 EXPORT_SYMBOL_GPL(wm_adsp_compr_copy);
 
+static void wm_adsp_fatal_error(struct wm_adsp *dsp)
+{
+	struct wm_adsp_compr *compr;
+
+	dsp->fatal_error = true;
+
+	list_for_each_entry(compr, &dsp->compr_list, list) {
+		if (compr->stream)
+			snd_compr_fragment_elapsed(compr->stream);
+	}
+}
+
 irqreturn_t wm_adsp2_bus_error(struct wm_adsp *dsp)
 {
 	unsigned int val;
@@ -4534,6 +4546,7 @@ irqreturn_t wm_adsp2_bus_error(struct wm_adsp *dsp)
 	if (val & ADSP2_WDT_TIMEOUT_STS_MASK) {
 		adsp_err(dsp, "watchdog timeout error\n");
 		dsp->ops->stop_watchdog(dsp);
+		wm_adsp_fatal_error(dsp);
 	}
 
 	if (val & (ADSP2_SLAVE_ERR_MASK | ADSP2_REGION_LOCK_ERR_MASK)) {
@@ -4679,19 +4692,12 @@ EXPORT_SYMBOL_GPL(wm_halo_bus_error);
 irqreturn_t wm_halo_wdt_expire(int irq, void *data)
 {
 	struct wm_adsp *dsp = data;
-	struct wm_adsp_compr *compr;
 
 	mutex_lock(&dsp->pwr_lock);
 
 	adsp_warn(dsp, "WDT Expiry Fault\n");
 	dsp->ops->stop_watchdog(dsp);
-
-	dsp->fatal_error = true;
-
-	list_for_each_entry(compr, &dsp->compr_list, list) {
-		if (compr->stream)
-			snd_compr_fragment_elapsed(compr->stream);
-	}
+	wm_adsp_fatal_error(dsp);
 
 	mutex_unlock(&dsp->pwr_lock);
 
