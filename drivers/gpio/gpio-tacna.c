@@ -95,15 +95,19 @@ static void tacna_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	struct tacna_gpio *tacna_gpio = to_tacna_gpio(chip);
 	struct tacna *tacna = tacna_gpio->tacna;
 	unsigned int level;
+	int ret;
 
 	if (value)
 		level = TACNA_GP1_LVL;
 	else
 		level = 0;
 
-	regmap_update_bits(tacna->regmap,
-			   TACNA_GPIO1_CTRL1 + (4 * offset),
-			   TACNA_GP1_LVL_MASK, level);
+	ret = regmap_update_bits(tacna->regmap,
+				 TACNA_GPIO1_CTRL1 + (4 * offset),
+				 TACNA_GP1_LVL_MASK, level);
+	if (ret)
+		dev_warn(chip->dev, "Failed to write register 0x%x: %d\n",
+			 TACNA_GPIO1_CTRL1 + (4 * offset), ret);
 }
 
 static const struct gpio_chip template_chip = {
@@ -132,6 +136,7 @@ static int tacna_gpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, tacna_gpio);
 	tacna_gpio->tacna = tacna;
 	tacna_gpio->gpio_chip = template_chip;
+	tacna_gpio->gpio_chip.dev = &pdev->dev;
 
 #if defined(CONFIG_OF_GPIO)
 	tacna_gpio->gpio_chip.of_node = tacna->dev->of_node;
