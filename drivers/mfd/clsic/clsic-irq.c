@@ -46,6 +46,7 @@ static irqreturn_t clsic_irq_thread(int irq, void *data)
 	if ((reg & TACNA_BOOT_DONE_EINT1_MASK) != 0) {
 		regmap_write(clsic->regmap, TACNA_IRQ1_EINT_2,
 			     TACNA_BOOT_DONE_EINT1);
+		complete(&clsic->bootdone_completion);
 	}
 
 	return IRQ_HANDLED;
@@ -147,8 +148,6 @@ int clsic_irq_init(struct clsic *clsic)
 		clsic_err(clsic, "Failed to request primary IRQ %d: %d\n",
 			  clsic->irq, ret);
 	}
-
-	clsic_irq_disable(clsic);
 
 #ifdef CONFIG_DEBUG_FS
 	clsic->simirq_state = CLSIC_SIMIRQ_STATE_DEASSERTED;

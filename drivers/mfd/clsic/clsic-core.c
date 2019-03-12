@@ -64,26 +64,25 @@ static void clsic_disable_hard_reset(struct clsic *clsic)
 	}
 }
 
-/*
- * NOTE: These are quite large timeouts whilst we are in development
- */
-#define CLSIC_BOOT_POLL_MICROSECONDS    5000
-#define CLSIC_BOOT_TIMEOUT_MICROSECONDS 2000000
-
-static bool clsic_wait_for_boot_done(struct clsic *clsic)
+#define CLSIC_BOOT_COMPLETION_TIMEOUT   300
+bool clsic_wait_for_boot_done(struct clsic *clsic)
 {
 	unsigned int val;
-	int ret;
 
-	ret = regmap_read_poll_timeout(clsic->regmap, TACNA_IRQ1_EINT_2, val,
-				       (val & TACNA_BOOT_DONE_EINT1_MASK),
-				       CLSIC_BOOT_POLL_MICROSECONDS,
-				       CLSIC_BOOT_TIMEOUT_MICROSECONDS);
-	if (ret) {
-		clsic_err(clsic, "Failed to get BOOT_DONE: %d\n", ret);
-		return false;
+	if (wait_for_completion_timeout(&clsic->bootdone_completion,
+			msecs_to_jiffies(CLSIC_BOOT_COMPLETION_TIMEOUT)) == 0) {
+		/*
+		 * The boot done IRQ hasn't been signalled read and log the
+		 * register containing the boot done bit for diagnostics, then
+		 * return failure if the boot done bit is still not set.
+		 */
+		regmap_read(clsic->regmap, TACNA_IRQ1_EINT_2, &val);
+		clsic_err(clsic, "Completion timeout (IRQ1_EINT_2 0x%x)\n",
+			  val);
+
+		if (!(val & TACNA_BOOT_DONE_EINT1_MASK))
+			return false;
 	}
-
 	return true;
 }
 
@@ -91,7 +90,6 @@ void clsic_soft_reset(struct clsic *clsic)
 {
 	regmap_write(clsic->regmap, TACNA_SFT_RESET, CLSIC_SOFTWARE_RESET_CODE);
 	usleep_range(2000, 3000);
-	clsic_wait_for_boot_done(clsic);
 }
 
 static void clsic_hard_reset(struct clsic *clsic)
@@ -99,8 +97,6 @@ static void clsic_hard_reset(struct clsic *clsic)
 	clsic_enable_hard_reset(clsic);
 	usleep_range(1000, 2000);
 	clsic_disable_hard_reset(clsic);
-
-	clsic_wait_for_boot_done(clsic);
 }
 
 int clsic_fwupdate_reset(struct clsic *clsic)
@@ -112,9 +108,9 @@ int clsic_fwupdate_reset(struct clsic *clsic)
 	ret = regmap_update_bits(clsic->regmap, CLSIC_FW_UPDATE_REG,
 				 CLSIC_FW_UPDATE_BIT, CLSIC_FW_UPDATE_BIT);
 	if (ret == 0) {
-		clsic_irq_disable(clsic);
 		clsic_soft_reset(clsic);
-		clsic_irq_enable(clsic);
+		if (!clsic_wait_for_boot_done(clsic))
+			ret = -EIO;
 	}
 
 	return ret;
@@ -349,20 +345,6 @@ int clsic_dev_init(struct clsic *clsic)
 		clsic->reset_gpio = NULL;
 	}
 
-	if (clsic->reset_gpio == NULL) {
-		clsic_warn(clsic,
-			   "Running without reset GPIO is not recommended\n");
-		clsic_soft_reset(clsic);
-	} else {
-		clsic_hard_reset(clsic);
-	}
-
-	if (!clsic_supported_devid(clsic)) {
-		clsic_err(clsic, "Unknown device ID: %x\n", clsic->devid);
-		ret = -EINVAL;
-		goto err_reset;
-	}
-
 	clsic->volatile_memory = of_property_read_bool(clsic->dev->of_node,
 						       "volatile_memory");
 
@@ -382,16 +364,43 @@ int clsic_dev_init(struct clsic *clsic)
 		goto notifier_failed;
 	}
 
-	/* The irq starts disabled */
-	ret = clsic_irq_init(clsic);
-	if (ret != 0)
-		goto irq_failed;
-
 	ret = clsic_services_init(clsic);
 	if (ret != 0)
 		goto service_init_failed;
 
 	init_completion(&clsic->pm_completion);
+	init_completion(&clsic->bootdone_completion);
+
+	if (clsic->reset_gpio == NULL) {
+		clsic_warn(clsic,
+			   "Running without reset GPIO is not recommended\n");
+		clsic_soft_reset(clsic);
+	} else
+		clsic_hard_reset(clsic);
+
+	/* The irq starts enabled */
+	ret = clsic_irq_init(clsic);
+	if (ret != 0)
+		goto irq_failed;
+
+	/*
+	 * The driver depends on a functional interrupt mechanism so if the
+	 * simple boot done irq fails exit cleanly with an error message.
+	 */
+	if (!clsic_wait_for_boot_done(clsic)) {
+		clsic_err(clsic, "boot_done timeout (check IRQ setup)\n");
+		ret = -EINVAL;
+		goto err_devid_bootdone;
+	}
+
+	clsic_irq_disable(clsic);
+
+	if (!clsic_supported_devid(clsic)) {
+		clsic_err(clsic, "Unknown device ID: %x\n", clsic->devid);
+		ret = -EINVAL;
+		goto err_devid_bootdone;
+	}
+
 	pm_runtime_set_suspended(clsic->dev);
 	pm_runtime_mark_last_busy(clsic->dev);
 	pm_runtime_set_autosuspend_delay(clsic->dev, CLSIC_PM_AUTOSUSPEND_MS);
@@ -414,9 +423,14 @@ int clsic_dev_init(struct clsic *clsic)
 	return 0;
 
 	/* If errors are encountered, tidy up and deallocate as appropriate */
-service_init_failed:
+err_devid_bootdone:
 	clsic_irq_exit(clsic);
 irq_failed:
+	clsic_free_service_handler(clsic,
+				   clsic->service_handlers[CLSIC_SRV_INST_SYS]);
+	clsic_free_service_handler(clsic,
+				   clsic->service_handlers[CLSIC_SRV_INST_BLD]);
+service_init_failed:
 notifier_failed:
 	clsic_unregister_reboot_notifier(clsic);
 	clsic_shutdown_message_interface(clsic);
@@ -424,7 +438,6 @@ messaging_failed:
 	clsic_deinit_debugfs(clsic);
 	clsic_deinit_sysfs(clsic);
 
-err_reset:
 	clsic_enable_hard_reset(clsic);
 
 	return ret;
@@ -1006,16 +1019,16 @@ static int clsic_runtime_resume(struct device *dev)
 
 	usleep_range(2000, 3000);
 
-	if (force_reset) {
-		if (clsic->reset_gpio)
-			clsic_hard_reset(clsic);
-		else
-			clsic_soft_reset(clsic);
-	}
+	reinit_completion(&clsic->bootdone_completion);
 
-	reinit_completion(&clsic->pm_completion);
+	if (force_reset)
+		clsic_soft_reset(clsic);
 
 	clsic_irq_enable(clsic);
+
+	clsic_wait_for_boot_done(clsic);
+
+	reinit_completion(&clsic->pm_completion);
 
 	if (clsic->volatile_memory) {
 		clsic_info(clsic, "Volatile resume\n");
@@ -1028,6 +1041,9 @@ static int clsic_runtime_resume(struct device *dev)
 		clsic_fwupdate_reset(clsic);
 	} else
 		schedule_work(&clsic->maintenance_handler);
+
+	/* Unmask the IRQ used for messaging */
+	clsic_irq_messaging_enable(clsic);
 
 	/*
 	 * Wait for the system to have fully initialised, including any

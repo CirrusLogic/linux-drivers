@@ -21,12 +21,16 @@
 #define CLSIC_HANDLED			0
 #define CLSIC_UNHANDLED			1
 
+static inline void clsic_irq_messaging_enable(struct clsic *clsic)
+{
+	/* Unmask the control port fifo interrupt that is used for messaging */
+	regmap_update_bits(clsic->regmap, TACNA_IRQ1_MASK_2,
+			   TACNA_CPF1_IRQ_EXT_EINT1_MASK, 0);
+}
+
 static inline void clsic_irq_enable(struct clsic *clsic)
 {
 	enable_irq(clsic->irq);
-
-	regmap_update_bits(clsic->regmap, TACNA_IRQ1_MASK_2,
-			   TACNA_CPF1_IRQ_EXT_EINT1_MASK, 0);
 
 #ifdef CONFIG_DEBUG_FS
 	clsic->simirq_enabled = true;
