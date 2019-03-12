@@ -283,6 +283,7 @@ struct clsic {
 	struct regulator *vdd_d;
 	struct notifier_block vdd_d_notifier;
 	bool vdd_d_powered_off;
+	struct completion bootdone_completion;
 	struct completion pm_completion;
 
 	struct delayed_work clsic_msgproc_shutdown_work;
@@ -291,6 +292,7 @@ struct clsic {
 
 int clsic_dev_init(struct clsic *clsic);
 int clsic_dev_exit(struct clsic *clsic);
+bool clsic_wait_for_boot_done(struct clsic *clsic);
 int clsic_fwupdate_reset(struct clsic *clsic);
 void clsic_soft_reset(struct clsic *clsic);
 void clsic_dev_panic(struct clsic *clsic, struct clsic_message *msg);

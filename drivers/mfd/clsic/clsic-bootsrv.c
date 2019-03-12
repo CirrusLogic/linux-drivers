@@ -467,10 +467,18 @@ int clsic_bootsrv_state_handler(struct clsic *clsic)
 			clsic->blrequest = CLSIC_BL_IDLE;
 			if (!(msg_rsp.rsp_set_mab.flags &
 			      CLSIC_BL_RESET_NOT_REQUIRED)) {
+				reinit_completion(&clsic->bootdone_completion);
+
 				/* This device needs to be software reset */
-				clsic_irq_disable(clsic);
 				clsic_soft_reset(clsic);
-				clsic_irq_enable(clsic);
+
+				clsic_wait_for_boot_done(clsic);
+
+				/*
+				 * A soft reset of the device will mask the
+				 * interrupt used for messaging.
+				 */
+				clsic_irq_messaging_enable(clsic);
 			}
 			clsic_state_set(clsic, CLSIC_STATE_RESUMING,
 					CLSIC_STATE_CHANGE_LOCKNOTHELD);
@@ -484,6 +492,12 @@ int clsic_bootsrv_state_handler(struct clsic *clsic)
 		if (clsic->service_states == CLSIC_ENUMERATED)
 			clsic->service_states = CLSIC_REENUMERATION_REQUIRED;
 		clsic_fwupdate_reset(clsic);
+
+		/*
+		 * A fw update reset involves a software reset that will mask
+		 * the interrupt used for messaging.
+		 */
+		clsic_irq_messaging_enable(clsic);
 		mutex_unlock(&clsic->message_lock);
 		break;
 	case CLSIC_BL_EXPECTED:
