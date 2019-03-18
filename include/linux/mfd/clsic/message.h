@@ -1,7 +1,7 @@
 /*
  * message.h -- CLSIC message interface
  *
- * Copyright (C) 2015-2018 Cirrus Logic, Inc. and
+ * Copyright (C) 2015-2019 Cirrus Logic, Inc. and
  *			   Cirrus Logic International Semiconductor Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -451,23 +451,37 @@ bool clsic_msgproc_shutdown_cancel(struct clsic *clsic, bool sync);
 void clsic_msgproc_use(struct clsic *clsic, uint8_t service_instance);
 void clsic_msgproc_release(struct clsic *clsic, uint8_t service_instance);
 
-static inline void clsic_init_message(union t_clsic_generic_message *msg,
-				      const uint8_t service_instance,
-				      const uint8_t msgid)
+static inline int clsic_init_message(union t_clsic_generic_message *msg,
+				     const uint8_t service_instance,
+				     const uint8_t msgid)
 {
-		memset(msg, 0, CLSIC_FIXED_MSG_SZ);
+	/*
+	 * Bounds check the service_instance, it's an unsigned integer between
+	 * 0 and the maximum valid service instance number.
+	 *
+	 * Services that have been suspended have their service instance set to
+	 * a value that is outside of this range.
+	 */
+	if (service_instance > CLSIC_SERVICE_MAX) {
+		pr_err("rejecting service_instance %d\n", service_instance);
+		return -EINVAL;
+	}
 
-		/*
-		 * Clearing the structure will set the CRAN message type to CMD
-		 * (as that is represented as all bits clear) and clear the
-		 * bulk bit.
-		 *
-		 * clsic_set_cran(&msg->cmd.hdr.sbc, CLSIC_CRAN_CMD);
-		 * clsic_set_bulk(&msg->cmd.hdr.sbc, 0);
-		 */
+	memset(msg, 0, CLSIC_FIXED_MSG_SZ);
 
-		clsic_set_srv_inst(&msg->cmd.hdr.sbc, service_instance);
-		msg->cmd.hdr.msgid = msgid;
+	/*
+	 * Clearing the structure will set the CRAN message type to CMD
+	 * (as that is represented as all bits clear) and clear the
+	 * bulk bit.
+	 *
+	 * clsic_set_cran(&msg->cmd.hdr.sbc, CLSIC_CRAN_CMD);
+	 * clsic_set_bulk(&msg->cmd.hdr.sbc, 0);
+	 */
+
+	clsic_set_srv_inst(&msg->cmd.hdr.sbc, service_instance);
+	msg->cmd.hdr.msgid = msgid;
+
+	return 0;
 }
 
 #endif
