@@ -1,7 +1,7 @@
 /*
  * clsic-alg.c -- ALSA SoC CLSIC ALGORITHM SERVICE
  *
- * Copyright (C) 2015-2018 Cirrus Logic, Inc. and
+ * Copyright (C) 2015-2019 Cirrus Logic, Inc. and
  *			   Cirrus Logic International Semiconductor Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -109,9 +109,10 @@ static int clsic_alg_set_irq_notify_mode(struct clsic_alg *alg,
 	union clsic_ras_msg msg_rsp;
 	int ret;
 
-	clsic_init_message((union t_clsic_generic_message *) &msg_cmd,
-			   alg->service->service_instance,
-			   CLSIC_RAS_MSG_CR_SET_IRQ_NTY_MODE);
+	if (clsic_init_message((union t_clsic_generic_message *) &msg_cmd,
+			       alg->service->service_instance,
+			       CLSIC_RAS_MSG_CR_SET_IRQ_NTY_MODE))
+		return -EINVAL;
 
 	msg_cmd.cmd_set_irq_nty_mode.irq_id = id;
 	msg_cmd.cmd_set_irq_nty_mode.mode = mode;
@@ -154,9 +155,10 @@ static int clsic_alg_simple_readregister(struct clsic_alg *alg,
 	union clsic_ras_msg msg_rsp;
 	int ret;
 
-	clsic_init_message((union t_clsic_generic_message *) &msg_cmd,
-			   alg->service->service_instance,
-			   CLSIC_RAS_MSG_CR_RDREG);
+	if (clsic_init_message((union t_clsic_generic_message *) &msg_cmd,
+			       alg->service->service_instance,
+			       CLSIC_RAS_MSG_CR_RDREG))
+		return -EINVAL;
 
 	msg_cmd.cmd_rdreg.addr = address;
 
@@ -213,9 +215,11 @@ static int clsic_alg_simple_writeregister(struct clsic_alg *alg,
 	clsic = alg->clsic;
 
 	/* Format and send a message to the remote access service */
-	clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-			   alg->service->service_instance,
-			   CLSIC_RAS_MSG_CR_WRREG);
+	if (clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
+			       alg->service->service_instance,
+			       CLSIC_RAS_MSG_CR_WRREG))
+		return -EINVAL;
+
 	msg_cmd.cmd_wrreg.addr = address;
 	msg_cmd.cmd_wrreg.value = value;
 
@@ -289,9 +293,12 @@ static int clsic_alg_read(void *context, const void *reg_buf,
 
 	for (i = 0; i < val_size; i += CLSIC_ALG_MAX_BULK_SZ) {
 		/* Format and send a message to the remote access service */
-		clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-				   alg->service->service_instance,
-				   CLSIC_RAS_MSG_CR_RDREG_BULK);
+		if (clsic_init_message((union t_clsic_generic_message *)
+				       &msg_cmd,
+				       alg->service->service_instance,
+				       CLSIC_RAS_MSG_CR_RDREG_BULK))
+			return -EINVAL;
+
 		frag_sz = min(val_size - i, (size_t) CLSIC_ALG_MAX_BULK_SZ);
 		msg_cmd.cmd_rdreg_bulk.addr = reg + i;
 		msg_cmd.cmd_rdreg_bulk.byte_count = frag_sz;
@@ -400,9 +407,14 @@ static int clsic_alg_write(void *context, const void *val_buf,
 
 	for (i = 0; i < payload_sz; i += CLSIC_ALG_MAX_BULK_SZ) {
 		/* Format and send a message to the remote access service */
-		clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-				   alg->service->service_instance,
-				   CLSIC_RAS_MSG_CR_WRREG_BULK);
+		if (clsic_init_message((union t_clsic_generic_message *)
+				       &msg_cmd,
+				       alg->service->service_instance,
+				       CLSIC_RAS_MSG_CR_WRREG_BULK)) {
+			ret = -EINVAL;
+			goto error;
+		}
+
 		frag_sz = min(payload_sz - i, (size_t) CLSIC_ALG_MAX_BULK_SZ);
 		msg_cmd.blkcmd_wrreg_bulk.addr = addr + i;
 		msg_cmd.blkcmd_wrreg_bulk.hdr.bulk_sz = frag_sz;
