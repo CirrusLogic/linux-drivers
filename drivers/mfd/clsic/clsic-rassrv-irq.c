@@ -128,11 +128,12 @@ static void clsic_ras_irq_worker(struct work_struct *data)
 
 	memset(&msg_rsp, 0, CLSIC_FIXED_MSG_SZ);
 
-	mutex_lock(&ras->irq_mutex);
+	if (clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
+			       ras->service->service_instance,
+			       CLSIC_RAS_MSG_CR_SET_IRQ_NTY_MODE))
+		return;
 
-	clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-			   ras->service->service_instance,
-			   CLSIC_RAS_MSG_CR_SET_IRQ_NTY_MODE);
+	mutex_lock(&ras->irq_mutex);
 
 	msg_cmd.cmd_set_irq_nty_mode.irq_id = irq->id;
 

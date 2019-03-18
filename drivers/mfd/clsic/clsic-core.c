@@ -1,7 +1,7 @@
 /*
  * clsic-core.c -- CLSIC core driver initialisation
  *
- * Copyright (C) 2015-2018 Cirrus Logic, Inc. and
+ * Copyright (C) 2015-2019 Cirrus Logic, Inc. and
  *			   Cirrus Logic International Semiconductor Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1232,9 +1232,12 @@ static ssize_t clsic_debuginfo_read(struct file *file,
 
 	msg_rsp = (union clsic_sys_msg *) buf;
 
-	clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-			   service_instance,
-			   CLSIC_GBL_MSG_CR_GET_DEBUG_INFO);
+	if (clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
+			       service_instance,
+			       CLSIC_GBL_MSG_CR_GET_DEBUG_INFO)) {
+		kfree(buf);
+		return -EIO;
+	}
 
 	msg_cmd.cmd_get_debug_info.category = tmp_category;
 	msg_cmd.cmd_get_debug_info.page = tmp_page;
@@ -1256,6 +1259,8 @@ static ssize_t clsic_debuginfo_read(struct file *file,
 		len = simple_read_from_buffer(user_buf, count, ppos, buf,
 				    CLSIC_FIXED_MSG_SZ +
 				    msg_rsp->blkrsp_get_debug_info.hdr.bulk_sz);
+	} else {
+		len = -EIO;
 	}
 
 	kfree(buf);
@@ -1275,9 +1280,10 @@ static void clsic_service_populate_debuginfo(struct clsic *clsic,
 	union clsic_sys_msg msg_cmd;
 	union clsic_sys_msg msg_rsp;
 
-	clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-			   service_instance,
-			   CLSIC_GBL_MSG_CR_GET_DI_CATEGORY_COUNT);
+	if (clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
+			       service_instance,
+			       CLSIC_GBL_MSG_CR_GET_DI_CATEGORY_COUNT))
+		return;
 
 	if (clsic_send_msg_sync_pm(clsic,
 				   (union t_clsic_generic_message *) &msg_cmd,
@@ -1289,9 +1295,12 @@ static void clsic_service_populate_debuginfo(struct clsic *clsic,
 	max_category = msg_rsp.rsp_get_di_category_count.category_count;
 
 	for (tmp_category = 0; tmp_category < max_category; tmp_category++) {
-		clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-				   service_instance,
-				   CLSIC_GBL_MSG_CR_GET_DI_PAGE_COUNT);
+		if (clsic_init_message((union t_clsic_generic_message *)
+				       &msg_cmd,
+				       service_instance,
+				       CLSIC_GBL_MSG_CR_GET_DI_PAGE_COUNT))
+			return;
+
 		msg_cmd.cmd_get_di_page_count.category = tmp_category;
 		if (clsic_send_msg_sync_pm(clsic,
 				     (union t_clsic_generic_message *) &msg_cmd,
