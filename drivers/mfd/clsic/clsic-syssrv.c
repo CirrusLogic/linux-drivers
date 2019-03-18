@@ -1,7 +1,7 @@
 /*
  * clsic-syssrv.c -- CLSIC System Service
  *
- * Copyright (C) 2015-2018 Cirrus Logic, Inc. and
+ * Copyright (C) 2015-2019 Cirrus Logic, Inc. and
  *			   Cirrus Logic International Semiconductor Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -75,9 +75,10 @@ static int clsic_system_service_set_trace(struct clsic_syssrv_struct *syssrv)
 	union clsic_sys_msg msg_rsp;
 	int ret;
 
-	clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-			   CLSIC_SRV_INST_SYS,
-			   CLSIC_SYS_MSG_CR_SET_TRACE_FILTER);
+	if (clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
+			       CLSIC_SRV_INST_SYS,
+			       CLSIC_SYS_MSG_CR_SET_TRACE_FILTER))
+		return -EINVAL;
 
 	msg_cmd.cmd_set_trace_filter.new_level = syssrv->trace_level;
 	msg_cmd.cmd_set_trace_filter.new_mask = syssrv->trace_mask;
@@ -249,8 +250,9 @@ int clsic_system_service_enumerate(struct clsic *clsic)
 	 * If the device is dead then this command may also timeout - in that
 	 * case initiate recovery measures.
 	 */
-	clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-			   CLSIC_SRV_INST_SYS, CLSIC_SYS_MSG_CR_SYS_INFO);
+	if (clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
+			       CLSIC_SRV_INST_SYS, CLSIC_SYS_MSG_CR_SYS_INFO))
+		return -EINVAL;
 
 	ret = clsic_send_msg_sync(clsic,
 				  (union t_clsic_generic_message *) &msg_cmd,
@@ -292,9 +294,13 @@ int clsic_system_service_enumerate(struct clsic *clsic)
 		clsic_dbg(clsic, "Examine instance %d (found count %d)",
 			  service_instance, services_found);
 		/* Read the service type */
-		clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-				   CLSIC_SRV_INST_SYS,
-				   CLSIC_SYS_MSG_CR_SRV_INFO);
+		ret = clsic_init_message((union t_clsic_generic_message *)
+				       &msg_cmd,
+				       CLSIC_SRV_INST_SYS,
+				       CLSIC_SYS_MSG_CR_SRV_INFO);
+		if (ret != 0)
+			break;
+
 		msg_cmd.cmd_srv_info.srv_inst = service_instance;
 
 		ret = clsic_send_msg_sync(clsic,
@@ -360,9 +366,10 @@ int clsic_send_shutdown_cmd(struct clsic *clsic)
 	if (clsic->msgproc_state == CLSIC_MSGPROC_OFF)
 		return 0;
 
-	clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-			   CLSIC_SRV_INST_SYS,
-			   CLSIC_SYS_MSG_CR_SP_SHDN);
+	if (clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
+			       CLSIC_SRV_INST_SYS,
+			       CLSIC_SYS_MSG_CR_SP_SHDN))
+		return -EINVAL;
 
 	ret = clsic_send_msg_sync(clsic,
 				  (union t_clsic_generic_message *) &msg_cmd,
@@ -390,9 +397,10 @@ int clsic_system_service_ioctl(struct clsic *clsic, enum clsic_sys_ioctl ioctl)
 	union clsic_sys_msg msg_rsp;
 	int ret;
 
-	clsic_init_message((union t_clsic_generic_message *) &msg_cmd,
-			   CLSIC_SRV_INST_SYS,
-			   CLSIC_SYS_MSG_CR_IOCTL);
+	if (clsic_init_message((union t_clsic_generic_message *) &msg_cmd,
+			       CLSIC_SRV_INST_SYS,
+			       CLSIC_SYS_MSG_CR_IOCTL))
+		return -EINVAL;
 
 	msg_cmd.cmd_ioctl.args.raw_payload[0] = ioctl;
 

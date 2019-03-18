@@ -1,7 +1,7 @@
 /*
  * clsic-bootsrv.c -- CLSIC Bootloader Service
  *
- * Copyright (C) 2015-2018 Cirrus Logic, Inc. and
+ * Copyright (C) 2015-2019 Cirrus Logic, Inc. and
  *			   Cirrus Logic International Semiconductor Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -328,8 +328,12 @@ static int clsic_bootsrv_sendfile(struct clsic *clsic,
 	}
 
 	/* Finally send the file as the bulk data payload of the given msgid */
-	clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-			   CLSIC_SRV_INST_BLD, msgid);
+	if (clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
+			       CLSIC_SRV_INST_BLD, msgid)) {
+		ret = -EINVAL;
+		goto release_exit;
+	}
+
 	msg_cmd.bulk_cmd.hdr.bulk_sz = firmware->size;
 
 	ret = clsic_send_msg_sync(clsic, &msg_cmd,
