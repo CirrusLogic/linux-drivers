@@ -443,6 +443,8 @@ static void madera_prop_get_pdata(struct madera_priv *priv)
 
 int madera_core_init(struct madera_priv *priv)
 {
+	int i;
+
 	BUILD_BUG_ON(ARRAY_SIZE(madera_mixer_texts) != MADERA_NUM_MIXER_INPUTS);
 	BUILD_BUG_ON(ARRAY_SIZE(madera_mixer_values) != MADERA_NUM_MIXER_INPUTS);
 	/* trap undersized array initializers */
@@ -453,6 +455,9 @@ int madera_core_init(struct madera_priv *priv)
 		madera_prop_get_pdata(priv);
 
 	mutex_init(&priv->rate_lock);
+
+	for (i = 0; i < MADERA_MAX_OUTPUT; i++)
+		priv->madera->out_clamp[i] = true;
 
 	return 0;
 }
@@ -528,20 +533,22 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	struct madera_priv *priv = snd_soc_component_get_drvdata(component);
 	struct madera *madera = priv->madera;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int ep_sel, mux, change;
-	int ret, demux_change_ret;
+	unsigned int mux, change;
+	int ret, demux_change_ret = 0;
 	bool out_mono, restore_out = true;
 
 	if (ucontrol->value.enumerated.item[0] > e->items - 1)
 		return -EINVAL;
 
 	mux = ucontrol->value.enumerated.item[0];
-	ep_sel = mux << MADERA_EP_SEL_SHIFT;
 
 	snd_soc_dapm_mutex_lock(dapm);
 
+	madera->ep_sel = mux << MADERA_EP_SEL_SHIFT;
+
 	change = snd_soc_component_test_bits(component, MADERA_OUTPUT_ENABLES_1,
-					     MADERA_EP_SEL_MASK, ep_sel);
+					     MADERA_EP_SEL_MASK,
+					     madera->ep_sel);
 	if (!change)
 		goto end;
 
@@ -559,20 +566,22 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	 * if HPDET has disabled the clamp while switching to HPOUT
 	 * OUT1 should remain disabled
 	 */
-	if (!ep_sel &&
+	if (!madera->ep_sel &&
 	    (!madera->out_clamp[0] || madera->out_shorted[0]))
 		restore_out = false;
 
 	/* change demux setting */
-	demux_change_ret = regmap_update_bits(madera->regmap,
-					      MADERA_OUTPUT_ENABLES_1,
-					      MADERA_EP_SEL_MASK, ep_sel);
+	if (madera->out_clamp[0])
+		demux_change_ret = regmap_update_bits(madera->regmap,
+						      MADERA_OUTPUT_ENABLES_1,
+						      MADERA_EP_SEL_MASK,
+						      madera->ep_sel);
 	if (demux_change_ret) {
 		dev_err(madera->dev, "Failed to set OUT1 demux: %d\n",
 			demux_change_ret);
 	} else {
 		/* apply correct setting for mono mode */
-		if (!ep_sel && !madera->pdata.codec.out_mono[0])
+		if (!madera->ep_sel && !madera->pdata.codec.out_mono[0])
 			out_mono = false; /* stereo HP */
 		else
 			out_mono = true; /* EP or mono HP */
@@ -612,16 +621,13 @@ int madera_out1_demux_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component =
 		snd_soc_dapm_kcontrol_component(kcontrol);
-	unsigned int val;
-	int ret;
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct madera *madera = dev_get_drvdata(component->dev->parent);
 
-	ret = snd_soc_component_read(component, MADERA_OUTPUT_ENABLES_1, &val);
-	if (ret)
-		return ret;
-
-	val &= MADERA_EP_SEL_MASK;
-	val >>= MADERA_EP_SEL_SHIFT;
-	ucontrol->value.enumerated.item[0] = val;
+	snd_soc_dapm_mutex_lock(dapm);
+	ucontrol->value.enumerated.item[0] = madera->ep_sel >> MADERA_EP_SEL_SHIFT;
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	return 0;
 }
