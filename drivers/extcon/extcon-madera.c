@@ -763,31 +763,21 @@ static void madera_jds_timeout_work(struct work_struct *work)
 static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 {
 	struct madera *madera = info->madera;
-	unsigned int mask = 0, val = 0;
-	unsigned int ep_sel = 0;
+	unsigned int mask = 0, ep_mask = 0, val = 0;
 	int ret;
 
 	snd_soc_dapm_mutex_lock(madera->dapm);
 
 	switch (madera->type) {
-	case CS47L15:
-	case CS47L35:
-		/*
-		 * check whether audio is routed to EPOUT, do not disable OUT1
-		 * in that case
-		 */
-		regmap_read(madera->regmap, MADERA_OUTPUT_ENABLES_1, &ep_sel);
-		ep_sel &= MADERA_EP_SEL_MASK;
-		break;
-	default:
-		break;
-	};
-
-	switch (madera->type) {
-	case CS47L35:
 	case CS47L85:
 	case WM1840:
 		break;
+	case CS47L35:
+		ep_mask = MADERA_EP_SEL_MASK;
+		break;
+	case CS47L15:
+		ep_mask = MADERA_EP_SEL_MASK;
+		/* Intentional fall-through */
 	default:
 		mask = MADERA_HPD_OVD_ENA_SEL_MASK;
 		if (!clamp)
@@ -800,12 +790,13 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 	madera->out_clamp[0] = clamp;
 
 	/* Keep the HP output stages disabled while disabling the clamp */
-	if (!clamp && !ep_sel) {
+	if (!clamp) {
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_OUTPUT_ENABLES_1,
-					 (MADERA_OUT1L_ENA |
+					 ep_mask |
+					 ((MADERA_OUT1L_ENA |
 					  MADERA_OUT1R_ENA) <<
-					 (2 * (info->pdata->output - 1)),
+					 (2 * (info->pdata->output - 1))),
 					 0);
 		if (ret)
 			dev_warn(info->dev,
@@ -833,10 +824,20 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 
 	/* Restore the desired state when restoring the clamp */
 	if (clamp) {
+		if (ep_mask) {
+			ret = regmap_update_bits(madera->regmap,
+						 MADERA_OUTPUT_ENABLES_1,
+						 ep_mask, madera->ep_sel);
+			if (ret)
+				dev_warn(info->dev,
+					 "Failed to restore output demux: %d\n",
+					 ret);
+		}
+
 		madera->out_shorted[0] = (madera->hp_impedance_x100[0] <=
 					  info->hpdet_short_x100);
 
-		if (!madera->out_shorted[0] && !ep_sel) {
+		if (!madera->out_shorted[0]) {
 			ret = regmap_update_bits(madera->regmap,
 						 MADERA_OUTPUT_ENABLES_1,
 						 (MADERA_OUT1L_ENA |
