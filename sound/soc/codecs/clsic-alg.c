@@ -64,6 +64,8 @@ static const struct wm_adsp_region clsic_dsp2_regions[] = {
 struct clsic_alg_compr_stream {
 	struct work_struct triggered;
 	unsigned int event_id;
+	bool open;
+	struct mutex mutex;
 };
 
 struct clsic_alg {
@@ -987,6 +989,11 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 		clsic_err(alg->clsic,
 			  "Open compr stream for DAI '%s' failed %d\n",
 			  rtd->codec_dai->name, ret);
+	else {
+		mutex_lock(&alg->compr_stream.mutex);
+		alg->compr_stream.open = true;
+		mutex_unlock(&alg->compr_stream.mutex);
+	}
 error:
 	trace_clsic_alg_compr_stream_open(stream->direction, ret);
 
@@ -1019,6 +1026,14 @@ static int clsic_alg_compr_free(struct snd_compr_stream *stream)
 
 	clsic_dbg(clsic, "%s\n", rtd->codec_dai->name);
 
+	mutex_lock(&alg->compr_stream.mutex);
+	alg->compr_stream.open = false;
+	mutex_unlock(&alg->compr_stream.mutex);
+
+	cancel_work_sync(&alg->compr_stream.triggered);
+
+	wm_adsp_compr_free(stream);
+
 	ret = clsic_alg_set_irq_notify_mode(alg,
 					   CLSIC_ALGOSRV_EVENT_VTE,
 					   CLSIC_RAS_NTY_CANCEL);
@@ -1027,8 +1042,6 @@ static int clsic_alg_compr_free(struct snd_compr_stream *stream)
 		clsic_err(alg->clsic,
 			  "Cancel notify mode for DAI '%s' failed %d\n",
 			  rtd->codec_dai->name, ret);
-
-	wm_adsp_compr_free(stream);
 
 	/* Release the msgproc when the compressed stream is freed. */
 	clsic_msgproc_release(alg->clsic, alg->service->service_instance);
@@ -1106,6 +1119,8 @@ static int clsic_alg_compr_get_caps(struct snd_compr_stream *stream,
  * clsic_alg_compr_triggered() - worker thread handling compressed stream events
  *
  * The irq context can't be used as it would block the messaging thread.
+ * The mutex needs to be held to avoid CLSIC_RAS_NTY_FLUSH_AND_REQ being sent
+ * after the compressed stream has been closed
  */
 static void clsic_alg_compr_triggered(struct work_struct *data)
 {
@@ -1114,10 +1129,16 @@ static void clsic_alg_compr_triggered(struct work_struct *data)
 	struct clsic_alg *alg =
 		container_of(compr_stream, struct clsic_alg, compr_stream);
 
-	wm_adsp_compr_handle_irq(&alg->dsp[CLSIC_VPU1]);
+	mutex_lock(&alg->compr_stream.mutex);
 
-	clsic_alg_set_irq_notify_mode(alg, compr_stream->event_id,
-				      CLSIC_RAS_NTY_FLUSH_AND_REQ);
+	if (alg->compr_stream.open) {
+		wm_adsp_compr_handle_irq(&alg->dsp[CLSIC_VPU1]);
+
+		clsic_alg_set_irq_notify_mode(alg, compr_stream->event_id,
+					      CLSIC_RAS_NTY_FLUSH_AND_REQ);
+	}
+
+	mutex_unlock(&alg->compr_stream.mutex);
 }
 
 /**
@@ -1261,6 +1282,8 @@ static int clsic_alg_codec_probe(struct snd_soc_codec *codec)
 	alg->codec = codec;
 	handler->data = (void *)alg;
 	handler->callback = &clsic_alg_notification_handler;
+
+	mutex_init(&alg->compr_stream.mutex);
 
 	INIT_WORK(&alg->compr_stream.triggered, clsic_alg_compr_triggered);
 
