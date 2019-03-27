@@ -699,6 +699,7 @@ static ssize_t clsic_alg_custom_message_write(struct file *file,
 			  clsic_get_srv_inst(msg_p->cmd.hdr.sbc));
 		return -EINVAL;
 	}
+
 #ifdef CONFIG_DEBUG_FS
 	mutex_lock(&alg->regmapMutex);
 #endif
@@ -723,6 +724,9 @@ static ssize_t clsic_alg_custom_message_write(struct file *file,
 			  ret, msg_p->rsp.hdr.err);
 		custom_msg->len = CLSIC_FIXED_MSG_SZ;
 	}
+
+	trace_clsic_alg_custom_msg(msg_p->bulk_rsp.hdr.msgid,
+				custom_msg->len, ret, msg_p->bulk_rsp.hdr.err);
 
 	/*
 	 * Propagate errors if there was a transfer error, otherwise the
