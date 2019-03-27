@@ -1265,7 +1265,7 @@ static int clsic_alg_compr_copy(struct snd_compr_stream *stream,
 		ret = -EINVAL;
 	}
 
-	trace_clsic_alg_compr_stream_copy_start(count, ret);
+	trace_clsic_alg_compr_stream_copy(count, ret);
 
 	return ret;
 }
