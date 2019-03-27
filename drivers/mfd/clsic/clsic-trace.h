@@ -567,6 +567,30 @@ TRACE_EVENT(clsic_alg_read,
 			)
 );
 
+TRACE_EVENT(clsic_alg_custom_msg,
+	TP_PROTO(uint8_t msgid, ssize_t len, int ret, uint8_t err),
+	TP_ARGS(msgid, len, ret, err),
+	TP_STRUCT__entry(
+			__field(uint32_t, msgid)
+			__field(ssize_t, len)
+			__field(int, ret)
+			__field(uint8_t, err)
+			),
+	TP_fast_assign(
+			__entry->msgid = msgid;
+			__entry->len = len;
+			__entry->ret = ret;
+			__entry->err = err;
+		),
+	TP_printk(
+			"    msgid: 0x%x msg len: %zu ret: %d (err: %d)",
+			__entry->msgid,
+			__entry->len,
+			__entry->ret,
+			__entry->err
+			)
+);
+
 DEFINE_EVENT(clsic_generic, clsic_simirq_write_asserted,
 	TP_PROTO(uint8_t dummy),
 	TP_ARGS(dummy)
