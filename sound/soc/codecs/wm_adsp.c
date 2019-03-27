@@ -3663,7 +3663,7 @@ static int wm_adsp_compr_attach(struct wm_adsp_compr *compr)
 		return -EINVAL;
 
 	compr->buf = buf;
-	compr->buf->compr = compr;
+	buf->compr = compr;
 
 	return 0;
 }
@@ -4395,7 +4395,7 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 
 	buf = compr->buf;
 
-	if (!compr->buf || compr->buf->error) {
+	if (!buf || buf->error) {
 		ret = -EIO;
 		goto out;
 	}
