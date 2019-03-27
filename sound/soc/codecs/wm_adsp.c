@@ -3614,7 +3614,7 @@ static int wm_adsp_compr_attach(struct wm_adsp_compr *compr)
 		return -EINVAL;
 
 	compr->buf = buf;
-	compr->buf->compr = compr;
+	buf->compr = compr;
 
 	return 0;
 }
@@ -4346,7 +4346,7 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 
 	buf = compr->buf;
 
-	if (dsp->fatal_error || !compr->buf || compr->buf->error) {
+	if (dsp->fatal_error || !buf || buf->error) {
 		snd_compr_stop_error(stream, SNDRV_PCM_STATE_XRUN);
 		ret = -EIO;
 		goto out;
@@ -4366,7 +4366,7 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 		if (buf->avail < wm_adsp_compr_frag_words(compr)) {
 			ret = wm_adsp_buffer_get_error(buf);
 			if (ret < 0) {
-				if (compr->buf->error)
+				if (buf->error)
 					snd_compr_stop_error(stream,
 							SNDRV_PCM_STATE_XRUN);
 				goto out;
