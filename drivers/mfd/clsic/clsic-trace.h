@@ -728,7 +728,7 @@ TRACE_EVENT(clsic_alg_compr_stream_get_caps,
 			__entry->ret = ret;
 		),
 	TP_printk(
-		  "num_codecs: %u; direction %u; fragment_size: %u-%u; fragments: %u-%u; ret: %d",
+		  "num_codecs: %u; direction %u; fragment_size: %u-%u words; fragments: %u-%u; ret: %d",
 		  __entry->num_codecs,
 		  __entry->direction,
 		  __entry->min_fragment_size,
@@ -777,7 +777,7 @@ TRACE_EVENT(clsic_alg_compr_stream_timestamp,
 		  __entry->ret)
 );
 
-TRACE_EVENT(clsic_alg_compr_stream_copy_start,
+TRACE_EVENT(clsic_alg_compr_stream_copy,
 	TP_PROTO(size_t count, int ret),
 	TP_ARGS(count, ret),
 	TP_STRUCT__entry(
@@ -788,7 +788,7 @@ TRACE_EVENT(clsic_alg_compr_stream_copy_start,
 			__entry->count = count;
 			__entry->ret = ret;
 		),
-	TP_printk("copying: %zu bytes; ret: %d", __entry->count, __entry->ret)
+	TP_printk("copied: %zu bytes; ret: %d", __entry->count, __entry->ret)
 );
 
 #endif /* CLSIC_TRACE_H */
