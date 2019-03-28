@@ -3536,9 +3536,9 @@ int power_control_init(struct kbase_device *kbdev)
 	 * operating with a partial initialization of regulators.
 	 */
 	for (i = 0; i < BASE_MAX_NR_CLOCKS_REGULATORS; i++) {
-		kbdev->regulators[i] = regulator_get_optional(kbdev->dev,
+		kbdev->regulators[i] = regulator_get(kbdev->dev,
 			regulator_names[i]);
-		if (IS_ERR_OR_NULL(kbdev->regulators[i])) {
+		if (IS_ERR(kbdev->regulators[i])) {
 			err = PTR_ERR(kbdev->regulators[i]);
 			kbdev->regulators[i] = NULL;
 			break;
