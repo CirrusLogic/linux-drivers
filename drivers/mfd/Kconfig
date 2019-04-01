@@ -159,6 +159,12 @@ config MFD_CS47L96
 	help
 	  Support for Cirrus Logic CS47L96 and CS47L97 Smart Codec
 
+config MFD_CS48L31
+	bool "Cirrus Logic CS48L31"
+	depends on MFD_TACNA
+	help
+	  Support for Cirrus Logic CS48L31 Smart Codec
+
 config MFD_CS48L32
 	bool "Cirrus Logic CS48L32"
 	depends on MFD_TACNA
