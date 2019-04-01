@@ -33,6 +33,7 @@
 #include "tacna.h"
 
 #define CS47L96_SILICON_ID	0x47a97
+#define CS48L31_SILICON_ID	0x48a31
 #define CS48L32_SILICON_ID	0x48a32
 #define CS48L33_SILICON_ID	0x48a33
 
@@ -109,6 +110,8 @@ const char *tacna_name_from_type(enum tacna_type type)
 		return "CS47L96";
 	case CS47L97:
 		return "CS47L97";
+	case CS48L31:
+		return "CS48L31";
 	case CS48L32:
 		return "CS48L32";
 	case CS48L33:
@@ -294,6 +297,7 @@ unsigned int tacna_get_num_micbias(struct tacna *tacna)
 	case CS47L96:
 	case CS47L97:
 		return 2;
+	case CS48L31:
 	case CS48L32:
 	case CS48L33:
 		return 1;
@@ -316,6 +320,7 @@ unsigned int tacna_get_num_childbias(struct tacna *tacna, unsigned int micbias)
 		default:
 			return 0;
 		}
+	case CS48L31:
 	case CS48L32:
 	case CS48L33:
 		switch (micbias) {
@@ -334,6 +339,7 @@ EXPORT_SYMBOL_GPL(tacna_get_num_childbias);
 const struct of_device_id tacna_of_match[] = {
 	{ .compatible = "cirrus,cs47l96", .data = (void *)CS47L96 },
 	{ .compatible = "cirrus,cs47l97", .data = (void *)CS47L97 },
+	{ .compatible = "cirrus,cs48l31", .data = (void *)CS48L31 },
 	{ .compatible = "cirrus,cs48l32", .data = (void *)CS48L32 },
 	{ .compatible = "cirrus,cs48l33", .data = (void *)CS48L33 },
 	{},
@@ -563,6 +569,7 @@ static int tacna_configure_clk32k(struct tacna *tacna)
 	case 0:
 		/* Default to something typical for the part */
 		switch (tacna->type) {
+		case CS48L31:
 		case CS48L32:
 		case CS48L33:
 			mclk_src = TACNA_32K_MCLK1;
@@ -730,6 +737,7 @@ int tacna_dev_init(struct tacna *tacna)
 
 	switch (hwid) {
 	case CS47L96_SILICON_ID:
+	case CS48L31_SILICON_ID:
 	case CS48L32_SILICON_ID:
 	case CS48L33_SILICON_ID:
 		break;
@@ -766,6 +774,19 @@ int tacna_dev_init(struct tacna *tacna)
 				patch_fn = cs47l96_patch;
 				mfd_devs = cs47l96_devs;
 				n_devs = ARRAY_SIZE(cs47l96_devs);
+				break;
+			default:
+				break;
+			}
+		}
+		break;
+	case CS48L31_SILICON_ID:
+		if (IS_ENABLED(CONFIG_MFD_CS48L31)) {
+			switch (tacna->type) {
+			case CS48L31:
+				patch_fn = cs48l32_patch;
+				mfd_devs = cs48l32_devs;
+				n_devs = ARRAY_SIZE(cs48l32_devs);
 				break;
 			default:
 				break;

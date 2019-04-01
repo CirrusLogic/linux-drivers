@@ -684,6 +684,7 @@ static int tacna_irq_probe(struct platform_device *pdev)
 	 * against the OF node of the owner of the regmap, which is the mfd
 	 */
 	switch (priv->tacna->type) {
+	case CS48L31:
 	case CS48L32:
 	case CS48L33:
 		break;
