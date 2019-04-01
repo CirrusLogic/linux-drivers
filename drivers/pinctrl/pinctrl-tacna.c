@@ -601,6 +601,7 @@ static unsigned int tacna_pin_make_drv_str(struct tacna_pin_private *priv,
 	switch (priv->tacna->type) {
 	case CS47L96:
 	case CS47L97:
+	case CS48L31:
 	case CS48L32:
 	case CS48L33:
 		switch (milliamps) {
@@ -643,6 +644,7 @@ static unsigned int tacna_pin_unmake_drv_str(struct tacna_pin_private *priv,
 	switch (priv->tacna->type) {
 	case CS47L96:
 	case CS47L97:
+	case CS48L31:
 	case CS48L32:
 	case CS48L33:
 		switch (regval) {
@@ -1139,6 +1141,7 @@ static int tacna_pin_probe(struct platform_device *pdev)
 		priv->chip = &cs47l96_pin_chip;
 #endif
 		break;
+	case CS48L31:
 	case CS48L32:
 	case CS48L33:
 #ifdef CONFIG_PINCTRL_CS48L32
