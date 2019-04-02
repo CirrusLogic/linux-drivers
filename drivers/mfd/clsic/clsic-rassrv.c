@@ -220,7 +220,7 @@ static int clsic_ras_fastwrite(struct clsic_ras_struct *ras,
 	struct clsic_ras_fast_reg_write tmp_fastwrite;
 	int ret;
 
-	if (ras->fastwrite_counter > CLSIC_RAS_MAX_FASTWRITES)
+	if (ras->fastwrite_counter >= CLSIC_RAS_MAX_FASTWRITES)
 		return -EBUSY;
 
 	clsic = ras->clsic;
