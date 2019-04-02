@@ -658,6 +658,7 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 		port->psy = psy;
 
 		charger->ports[charger->num_registered_psy++] = port;
+		ec_device->charger = psy;
 	}
 
 	if (!charger->num_registered_psy) {
@@ -682,6 +683,7 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 	return 0;
 
 fail:
+	ec_device->charger = NULL;
 	WARN(1, "%s: Failing probe (err:0x%x)\n", dev_name(dev), ret);
 
 fail_nowarn:
