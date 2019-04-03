@@ -3991,7 +3991,7 @@ int wm_halo_init(struct wm_adsp *dsp, struct mutex *fw_lock, struct mutex *rate_
 }
 EXPORT_SYMBOL_GPL(wm_halo_init);
 
-int wm_vpu_init(struct wm_adsp *vpu)
+int wm_vpu_init(struct wm_adsp *vpu, struct mutex *fw_lock)
 {
 	int ret;
 
@@ -4008,6 +4008,7 @@ int wm_vpu_init(struct wm_adsp *vpu)
 
 	vpu->data_word_size = WM_ADSP_DATA_WORD_SIZE_VPU;
 	vpu->data_word_mask = WM_ADSP_DATA_WORD_MASK_VPU;
+	vpu->fw_lock = fw_lock;
 
 	return 0;
 }
