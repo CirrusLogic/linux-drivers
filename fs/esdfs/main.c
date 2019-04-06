@@ -413,17 +413,17 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 		goto out_free;
 
 	/* Initialize special namespace for lower Downloads directory */
-	memcpy(&sbi->dl_ns, current_user_ns(), sizeof(sbi->dl_ns));
+	sbi->dl_ns = get_user_ns(current_user_ns());
 
 	if (sbi->ns_fd == -1) {
-		memcpy(&sbi->base_ns, current_user_ns(), sizeof(sbi->base_ns));
+		sbi->base_ns = get_user_ns(current_user_ns());
 	} else {
 		user_ns = get_ns_from_fd(sbi->ns_fd);
 		if (IS_ERR(user_ns)) {
 			err = PTR_ERR(user_ns);
 			goto out_free;
 		}
-		memcpy(&sbi->base_ns, user_ns, sizeof(sbi->base_ns));
+		sbi->base_ns = get_user_ns(user_ns);
 	}
 	/* interpret all parameters in given namespace */
 	err = interpret_perms(sbi, &sbi->lower_perms);
@@ -441,7 +441,7 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 	 * the namespace of the mounting process
 	 */
 	if (sbi->lower_dl_perms.raw_uid != -1) {
-		dl_kuid = make_kuid(&sbi->dl_ns,
+		dl_kuid = make_kuid(sbi->dl_ns,
 				    sbi->lower_dl_perms.raw_uid);
 		if (!uid_valid(dl_kuid)) {
 			pr_err("esdfs: Invalid permissions for dl_uid");
@@ -450,7 +450,7 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 		}
 	}
 	if (sbi->lower_dl_perms.raw_gid != -1) {
-		dl_kgid = make_kgid(&sbi->dl_ns,
+		dl_kgid = make_kgid(sbi->dl_ns,
 				    sbi->lower_dl_perms.raw_gid);
 		if (!gid_valid(dl_kgid)) {
 			pr_err("esdfs: Invalid permissions for dl_gid");
@@ -531,12 +531,12 @@ static int esdfs_read_super(struct super_block *sb, const char *dev_name,
 
 		if (!uid_valid(dl_kuid)) {
 			dl_kuid = esdfs_make_kuid(sbi, sbi->lower_perms.uid);
-			sbi->lower_dl_perms.raw_uid = from_kuid(&sbi->dl_ns,
+			sbi->lower_dl_perms.raw_uid = from_kuid(sbi->dl_ns,
 								dl_kuid);
 		}
 		if (!gid_valid(dl_kgid)) {
 			dl_kgid = esdfs_make_kgid(sbi, sbi->lower_perms.gid);
-			sbi->lower_dl_perms.raw_gid = from_kgid(&sbi->dl_ns,
+			sbi->lower_dl_perms.raw_gid = from_kgid(sbi->dl_ns,
 								dl_kgid);
 		}
 		spin_lock(&lower_dl_dentry->d_lock);
@@ -620,6 +620,10 @@ out_sput:
 	/* drop refs we took earlier */
 	atomic_dec(&lower_sb->s_active);
 out_free:
+	if (sbi->dl_ns)
+		put_user_ns(sbi->dl_ns);
+	if (sbi->base_ns)
+		put_user_ns(sbi->base_ns);
 	kfree(ESDFS_SB(sb));
 	sb->s_fs_info = NULL;
 out_pput:
@@ -656,6 +660,10 @@ static void esdfs_kill_sb(struct super_block *sb)
 {
 	if (sb->s_fs_info && ESDFS_SB(sb)->obb_parent)
 		dput(ESDFS_SB(sb)->obb_parent);
+	if (sb->s_fs_info && ESDFS_SB(sb)->dl_ns)
+		put_user_ns(ESDFS_SB(sb)->dl_ns);
+	if (sb->s_fs_info && ESDFS_SB(sb)->base_ns)
+		put_user_ns(ESDFS_SB(sb)->base_ns);
 	if (sb->s_fs_info)
 		path_put(&ESDFS_SB(sb)->dl_path);
 

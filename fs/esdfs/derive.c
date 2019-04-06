@@ -407,7 +407,7 @@ static kuid_t esdfs_get_derived_lower_uid(struct esdfs_sb_info *sbi,
 	switch (perm) {
 	case ESDFS_TREE_DOWNLOAD:
 		if (test_opt(sbi, SPECIAL_DOWNLOAD))
-			return make_kuid(&sbi->dl_ns,
+			return make_kuid(sbi->dl_ns,
 					 sbi->lower_dl_perms.raw_uid);
 	case ESDFS_TREE_ROOT:
 	case ESDFS_TREE_MEDIA:
@@ -443,7 +443,7 @@ static kgid_t esdfs_get_derived_lower_gid(struct esdfs_sb_info *sbi,
 	switch (perm) {
 	case ESDFS_TREE_DOWNLOAD:
 		if (test_opt(sbi, SPECIAL_DOWNLOAD))
-			return make_kgid(&sbi->dl_ns,
+			return make_kgid(sbi->dl_ns,
 					 sbi->lower_dl_perms.raw_gid);
 	case ESDFS_TREE_ROOT:
 	case ESDFS_TREE_MEDIA:

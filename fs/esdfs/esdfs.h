@@ -198,7 +198,7 @@ struct esdfs_dentry_info {
 struct esdfs_sb_info {
 	struct super_block *lower_sb;
 	struct super_block *s_sb;
-	struct user_namespace base_ns;
+	struct user_namespace *base_ns;
 	struct list_head s_list;
 	struct esdfs_perms lower_perms;
 	struct esdfs_perms upper_perms;	   /* root in derived mode */
@@ -207,7 +207,7 @@ struct esdfs_sb_info {
 	struct qstr dl_name;		   /* name of lower downloads folder */
 	const char *dl_loc;		   /* location of dl folder */
 	struct esdfs_perms lower_dl_perms; /* permissions for lower downloads folder */
-	struct user_namespace dl_ns;	   /* lower downloads namespace */
+	struct user_namespace *dl_ns;	   /* lower downloads namespace */
 	int ns_fd;
 	unsigned int options;
 };
@@ -515,32 +515,32 @@ static inline void esdfs_copy_attr(struct inode *dest, const struct inode *src)
 
 static inline uid_t esdfs_from_local_uid(struct esdfs_sb_info *sbi, uid_t uid)
 {
-	return from_kuid(&sbi->base_ns, make_kuid(current_user_ns(), uid));
+	return from_kuid(sbi->base_ns, make_kuid(current_user_ns(), uid));
 }
 
 static inline gid_t esdfs_from_local_gid(struct esdfs_sb_info *sbi, gid_t gid)
 {
-	return from_kgid(&sbi->base_ns, make_kgid(current_user_ns(), gid));
+	return from_kgid(sbi->base_ns, make_kgid(current_user_ns(), gid));
 }
 
 static inline uid_t esdfs_from_kuid(struct esdfs_sb_info *sbi, kuid_t uid)
 {
-	return from_kuid(&sbi->base_ns, uid);
+	return from_kuid(sbi->base_ns, uid);
 }
 
 static inline gid_t esdfs_from_kgid(struct esdfs_sb_info *sbi, kgid_t gid)
 {
-	return from_kgid(&sbi->base_ns, gid);
+	return from_kgid(sbi->base_ns, gid);
 }
 
 static inline kuid_t esdfs_make_kuid(struct esdfs_sb_info *sbi, uid_t uid)
 {
-	return make_kuid(&sbi->base_ns, uid);
+	return make_kuid(sbi->base_ns, uid);
 }
 
 static inline kgid_t esdfs_make_kgid(struct esdfs_sb_info *sbi, gid_t gid)
 {
-	return make_kgid(&sbi->base_ns, gid);
+	return make_kgid(sbi->base_ns, gid);
 }
 
 /* Helper functions to read and write to inode uid/gids without
@@ -590,9 +590,9 @@ static inline const struct cred *esdfs_override_creds(
 
 	if (test_opt(sbi, SPECIAL_DOWNLOAD) &&
 			info->tree == ESDFS_TREE_DOWNLOAD) {
-		creds->fsuid = make_kuid(&sbi->dl_ns,
+		creds->fsuid = make_kuid(sbi->dl_ns,
 					 sbi->lower_dl_perms.raw_uid);
-		creds->fsgid = make_kgid(&sbi->dl_ns,
+		creds->fsgid = make_kgid(sbi->dl_ns,
 					 sbi->lower_dl_perms.raw_gid);
 	} else {
 		if (test_opt(sbi, GID_DERIVATION)) {
