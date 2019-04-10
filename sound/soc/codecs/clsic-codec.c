@@ -31,6 +31,9 @@
 #include <linux/mfd/clsic/core.h>
 #include <linux/mfd/clsic/clsic-tacna.h>
 
+/* Revision A hardware does not have DSP power status registers */
+#define CLSIC_REVID_A 0xA0
+
 #define CLSIC_N_FLL			2
 #define CLSIC_NUM_DSP			2
 #define CLSIC_DSP1_N_RX_CHANNELS	9
@@ -51,6 +54,7 @@ struct clsic_codec {
 	struct clsic *clsic;
 	struct snd_soc_codec *codec;
 	bool host_controls_dsp2;
+	bool check_dsp2_power_ok;
 	bool micbias_active_discharge[CLSIC_MICBIAS_COUNT];
 };
 
@@ -119,6 +123,12 @@ static int clsic_dsp_power_ev(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	/*
+	 * the snd_soc_codec_get_drvdata() gets the address of both the
+	 * clsic_codec and the tacna_priv structures because tacna_priv is the
+	 * first member of clsic_codec
+	 */
+	struct clsic_codec *clsic_codec = snd_soc_codec_get_drvdata(codec);
 	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct tacna *tacna = priv->tacna;
 	struct wm_adsp *dsps = snd_soc_codec_get_drvdata(codec);
@@ -147,14 +157,17 @@ static int clsic_dsp_power_ev(struct snd_soc_dapm_widget *w,
 		/* Performed in different writes to maintain separation */
 		regmap_write(tacna->regmap, CLSIC_DSP2_PWR_CTRL, 0);
 
-		ret = regmap_read(tacna->regmap, CLSIC_DSP2_PWR_CTRL, &val);
-		if (ret || !(val & CLSIC_DSP2_POWER_OK)) {
-			dev_err(codec->dev,
-				"Failed to enable DSP2 power: %d (0x%x)\n",
-				ret, val);
-			return ret;
+		/* if the dsp includes a status bit for power then check it */
+		if (clsic_codec->check_dsp2_power_ok) {
+			ret = regmap_read(tacna->regmap, CLSIC_DSP2_PWR_CTRL,
+					  &val);
+			if (ret || !(val & CLSIC_DSP2_POWER_OK)) {
+				dev_err(codec->dev,
+					"Failed to enable DSP2 power: %d (0x%x)\n",
+					ret, val);
+				return ret;
+			}
 		}
-
 		ret = regmap_write(tacna->regmap, CLSIC_DSP2_PWR_CTRL,
 			     CLSIC_DSP2_RST_N);
 		if (ret) {
@@ -2038,6 +2051,7 @@ static int clsic_codec_probe(struct snd_soc_codec *codec)
 {
 	struct clsic_codec *clsic_codec =
 		snd_soc_codec_get_drvdata(codec);
+	unsigned int revid;
 	int ret;
 
 	dev_info(codec->dev, "%s() %p\n", __func__, codec);
@@ -2053,6 +2067,17 @@ static int clsic_codec_probe(struct snd_soc_codec *codec)
 	clsic_dsps_add_codec_controls(clsic_codec);
 
 	if (clsic_codec->host_controls_dsp2) {
+		/*
+		 * Revision A silicon did not have a DSP2 power OK signal, so
+		 * if a revid can be read and it is not revision A then the
+		 * driver will check power_ok when it activates DSP2
+		 */
+		ret = regmap_read(clsic_codec->core.tacna->regmap, TACNA_REVID,
+				  &revid);
+		revid &= TACNA_AREVID_MASK;
+		if (!ret && ((revid & TACNA_AREVID_MASK) != CLSIC_REVID_A))
+			clsic_codec->check_dsp2_power_ok = true;
+
 		ret = snd_soc_add_codec_controls(codec,
 			clsic_snd_controls_dsp2_visible,
 			ARRAY_SIZE(clsic_snd_controls_dsp2_visible));
