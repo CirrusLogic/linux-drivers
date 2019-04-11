@@ -240,6 +240,7 @@ void clsic_ras_irq_handler(struct clsic *clsic,
 	case CLSIC_RAS_IRQ_STATE_IDLE:
 	case CLSIC_RAS_IRQ_STATE_DISABLING:
 	case CLSIC_RAS_IRQ_STATE_DISABLED:
+	default:
 		/* Do nothing / not interested */
 		break;
 	}
