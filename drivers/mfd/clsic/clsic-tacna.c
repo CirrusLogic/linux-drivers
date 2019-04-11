@@ -14,6 +14,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/tacna/core.h>
 #include <linux/module.h>
+#include <linux/mfd/clsic/clsic-tacna.h>
 
 #define CLSIC_32K_MCLK2		1
 

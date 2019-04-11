@@ -187,7 +187,7 @@ static int clsic_ras_simple_readregister(struct clsic_ras_struct *ras,
  * Not checking the return code of the message sending as the test fails safe
  * (response structure is cleared and the test depends on the bit being set)
  */
-void clsic_ras_write_fastpath_init(struct clsic_ras_struct *ras)
+static void clsic_ras_write_fastpath_init(struct clsic_ras_struct *ras)
 {
 	struct clsic *clsic;
 	union clsic_ras_msg msg_cmd;
