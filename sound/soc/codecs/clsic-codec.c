@@ -276,8 +276,8 @@ static void clsic_micbias_init(struct clsic_codec *clsic_codec)
  * _DISCH when setting _EN - use regmap_update_bits to make sure that at most
  * only one of the bits can be set at any point in time.
  */
-int clsic_micbias_ev(struct snd_soc_dapm_widget *w,
-		     struct snd_kcontrol *kcontrol, int event)
+static int clsic_micbias_ev(struct snd_soc_dapm_widget *w,
+			    struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct clsic_codec *clsic_codec = snd_soc_codec_get_drvdata(codec);
@@ -318,8 +318,8 @@ int clsic_micbias_ev(struct snd_soc_dapm_widget *w,
  * The function counts the total number of events using the PRE_PMU step and
  * then sets the TACNA_IN_VU in the final POST_PMU event.
  */
-int clsic_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
-		int event)
+static int clsic_in_ev(struct snd_soc_dapm_widget *w,
+		       struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
@@ -1716,7 +1716,7 @@ static struct snd_soc_dai_driver clsic_dai[] = {
 			.rates = TACNA_RATES,
 			.formats = TACNA_FORMATS,
 		},
-		.compress_new = snd_soc_new_compress,
+		.compress_new = &snd_soc_new_compress,
 	},
 	{
 		.name = "clsic-dsp-trace",
