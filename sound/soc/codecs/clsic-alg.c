@@ -1333,8 +1333,8 @@ static const struct snd_kcontrol_new clsic_alg_snd_controls[] = {
 };
 
 static const struct snd_soc_codec_driver soc_codec_clsic_alg = {
-	.probe = clsic_alg_codec_probe,
-	.remove = clsic_alg_codec_remove,
+	.probe = &clsic_alg_codec_probe,
+	.remove = &clsic_alg_codec_remove,
 
 	.component_driver = {
 		.controls = clsic_alg_snd_controls,
@@ -1427,9 +1427,8 @@ static int clsic_alg_probe(struct platform_device *pdev)
 	/* Register codec with the ASoC core */
 	ret = snd_soc_register_codec(dev, &soc_codec_clsic_alg, clsic_alg_dai,
 				     ARRAY_SIZE(clsic_alg_dai));
-	if (ret) {
+	if (ret)
 		clsic_err(clsic, "Failed to register codec: %d.\n", ret);
-	}
 
 error:
 	if (ret != 0)
@@ -1471,8 +1470,8 @@ static struct platform_driver clsic_alg_driver = {
 		.name = "clsic-alg",
 		.of_match_table = clsic_alg_of_match,
 	},
-	.probe = clsic_alg_probe,
-	.remove = clsic_alg_remove,
+	.probe = &clsic_alg_probe,
+	.remove = &clsic_alg_remove,
 };
 
 module_platform_driver(clsic_alg_driver);
