@@ -250,6 +250,59 @@ struct clsic_bootsrv_struct {
 };
 
 /*
+ * Called to begin the firmware update operation, this will cause the device
+ * and maintenance thread to cycle through the different firmware download
+ * steps.
+ */
+static int clsic_bootsrv_service_update_begin(struct clsic *clsic)
+{
+	/* Debug control prevents device state changes */
+	if (clsic->state == CLSIC_STATE_DEBUGCONTROL_GRANTED)
+		return -EPERM;
+
+	if (clsic->volatile_memory)
+		return -EPERM;
+
+	/*
+	 * Guard against multiple firmware update attempts using the service
+	 * lock
+	 */
+	mutex_lock(&clsic->service_lock);
+	if (clsic->blrequest != CLSIC_BL_IDLE) {
+		mutex_unlock(&clsic->service_lock);
+		return -EBUSY;
+	}
+	clsic->blrequest = CLSIC_BL_UPDATE;
+	mutex_unlock(&clsic->service_lock);
+
+	/*
+	 * If the device previously failed clear that state so it can
+	 * be powered on (pm resume is prevented in the HALTED state).
+	 */
+	if (clsic->state == CLSIC_STATE_HALTED)
+		clsic_state_set(clsic, CLSIC_STATE_OFF,
+				CLSIC_STATE_CHANGE_LOCKNOTHELD);
+
+	clsic_msgproc_use(clsic, CLSIC_SRV_INST_BLD);
+
+	/*
+	 * The bootloader request will be progressed in the maintenance thread
+	 */
+	schedule_work(&clsic->maintenance_handler);
+
+	return 0;
+}
+
+static void clsic_bootsrv_service_update_finalise(struct clsic *clsic)
+{
+	mutex_lock(&clsic->service_lock);
+	clsic->blrequest = CLSIC_BL_IDLE;
+	mutex_unlock(&clsic->service_lock);
+	if (!clsic->volatile_memory)
+		clsic_msgproc_release(clsic, CLSIC_SRV_INST_BLD);
+}
+
+/*
  * Transmits the contents of the given filename as bulk data payload to the
  * bootloader with the given message id.
  *
@@ -285,9 +338,7 @@ static int clsic_bootsrv_sendfile(struct clsic *clsic,
 		clsic_err(clsic,
 			  "request_firmware failed '%s' = %d (check files)\n",
 			  filename, ret);
-		clsic->blrequest = CLSIC_BL_IDLE;
-		clsic_device_error(clsic, CLSIC_DEVICE_ERROR_LOCKNOTHELD);
-		return ret;
+		goto exit;
 	}
 
 	clsic_dbg(clsic, "%s len: %d\n", filename, firmware->size);
@@ -352,15 +403,17 @@ static int clsic_bootsrv_sendfile(struct clsic *clsic,
 	}
 
 release_exit:
+	release_firmware(firmware);
+
+exit:
 	/*
 	 * Any failures to send files to the bootloader are considered fatal.
 	 */
 	if (ret != 0) {
-		clsic->blrequest = CLSIC_BL_IDLE;
+		clsic_bootsrv_service_update_finalise(clsic);
 		clsic_device_error(clsic, CLSIC_DEVICE_ERROR_LOCKNOTHELD);
 	}
 
-	release_firmware(firmware);
 	return ret;
 }
 
@@ -464,7 +517,7 @@ int clsic_bootsrv_state_handler(struct clsic *clsic)
 			 * Successfully downloading the MAB is normally the end
 			 * of the bootloader exchange.
 			 */
-			clsic->blrequest = CLSIC_BL_IDLE;
+			clsic_bootsrv_service_update_finalise(clsic);
 			if (!(msg_rsp.rsp_set_mab.flags &
 			      CLSIC_BL_RESET_NOT_REQUIRED)) {
 				reinit_completion(&clsic->bootdone_completion);
@@ -483,7 +536,12 @@ int clsic_bootsrv_state_handler(struct clsic *clsic)
 			clsic_state_set(clsic, CLSIC_STATE_RESUMING,
 					CLSIC_STATE_CHANGE_LOCKNOTHELD);
 
+			/*
+			 * As this is called from the maintenance_handler
+			 * context this will cause it to re-run
+			 */
 			schedule_work(&clsic->maintenance_handler);
+
 		}
 		break;
 	case CLSIC_BL_UPDATE:
@@ -531,33 +589,12 @@ static ssize_t clsic_store_device_fw_version(struct device *dev,
 				 const char *buf, size_t count)
 {
 	struct clsic *clsic = dev_get_drvdata(dev);
+	int ret;
 
 	if (!strncmp(buf, "update", strlen("update"))) {
-		/* Debug control prevents device state changes */
-		if (clsic->state == CLSIC_STATE_DEBUGCONTROL_GRANTED)
-			return -EPERM;
-
-		if (clsic->volatile_memory)
-			return -EPERM;
-
-		/*
-		 * If the device previously failed clear that state so it can
-		 * be powered on (pm resume is prevented in the HALTED state).
-		 */
-		if (clsic->state == CLSIC_STATE_HALTED)
-			clsic_state_set(clsic, CLSIC_STATE_OFF,
-					CLSIC_STATE_CHANGE_LOCKNOTHELD);
-
-		clsic->blrequest = CLSIC_BL_UPDATE;
-
-		pm_runtime_suspend(clsic->dev);
-		clsic_pm_wake(clsic);
-
-		/*
-		 * The bootloader state will be progressed in the maintenance
-		 * thread
-		 */
-		schedule_work(&clsic->maintenance_handler);
+		ret = clsic_bootsrv_service_update_begin(clsic);
+		if (ret)
+			return ret;
 	}
 
 	return count;
