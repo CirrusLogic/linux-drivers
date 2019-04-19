@@ -789,7 +789,7 @@ static int clsic_service_starter(struct clsic *clsic,
 				 struct clsic_service *handler)
 {
 	unsigned int type;
-	struct device_node *services_np, *child_np;
+	struct device_node *child_np;
 	struct mfd_cell *dev;
 	int ret;
 
@@ -831,11 +831,9 @@ static int clsic_service_starter(struct clsic *clsic,
 		return (handler->start) (clsic, handler);
 
 	/* Not a core service, search for an MFD child to handle it */
-	services_np = of_get_child_by_name(clsic->dev->of_node,
-					   "cirrus,services");
-	for_each_child_of_node(services_np, child_np) {
-		of_property_read_u32(child_np, "cirrus,service-type", &type);
-		if (handler->service_type != type)
+	for_each_child_of_node(clsic->dev->of_node, child_np) {
+		ret = of_property_read_u32(child_np, "cirrus,service-type", &type);
+		if (ret != 0 || handler->service_type != type)
 			continue;
 		dev = devm_kzalloc(clsic->dev, sizeof(struct mfd_cell),
 				   GFP_KERNEL);
