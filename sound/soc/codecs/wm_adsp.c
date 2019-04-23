@@ -4459,8 +4459,10 @@ static int wm_adsp_parse_buffer_coeff(struct wm_coeff_ctl *ctl)
 		usleep_range(1000, 2000);
 	}
 
-	if (!val)
+	if (!val) {
+		adsp_err(ctl->dsp, "Failed to acquire host buffer\n");
 		return -EIO;
+	}
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
@@ -4637,8 +4639,6 @@ int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd)
 		if (ret < 0)
 			break;
 
-		wm_adsp_buffer_clear(compr->buf);
-
 		/* Trigger the IRQ at one fragment of data */
 		ret = wm_adsp_buffer_write(compr->buf,
 					   HOST_BUFFER_FIELD(high_water_mark),
@@ -4650,6 +4650,8 @@ int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd)
 		}
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+		if (wm_adsp_compr_attached(compr))
+			wm_adsp_buffer_clear(compr->buf);
 		break;
 	default:
 		ret = -EINVAL;
@@ -4789,7 +4791,7 @@ int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
 
 	buf = compr->buf;
 
-	if (!compr->buf || compr->buf->error) {
+	if (dsp->fatal_error || !compr->buf || compr->buf->error) {
 		snd_compr_stop_error(stream, SNDRV_PCM_STATE_XRUN);
 		ret = -EIO;
 		goto out;
@@ -4901,7 +4903,7 @@ static int wm_adsp_compr_read(struct wm_adsp_compr *compr,
 
 	adsp_dbg(dsp, "Requested read of %zu bytes\n", count);
 
-	if (!compr->buf || compr->buf->error) {
+	if (dsp->fatal_error || !compr->buf || compr->buf->error) {
 		snd_compr_stop_error(compr->stream, SNDRV_PCM_STATE_XRUN);
 		return -EIO;
 	}
@@ -5153,11 +5155,8 @@ irqreturn_t wm_halo_wdt_expire(int irq, void *data)
 	dsp->fatal_error = true;
 
 	list_for_each_entry(compr, &dsp->compr_list, list) {
-		if (compr->stream) {
-			snd_compr_stop_error(compr->stream,
-					     SNDRV_PCM_STATE_XRUN);
+		if (compr->stream)
 			snd_compr_fragment_elapsed(compr->stream);
-		}
 	}
 
 	mutex_unlock(&dsp->pwr_lock);
