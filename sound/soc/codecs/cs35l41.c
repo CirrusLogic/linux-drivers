@@ -148,15 +148,15 @@ static int cs35l41_dsp_power_ev(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		if (cs35l41->halo_booted == false)
-			wm_halo_early_event(w, kcontrol, event);
+			wm_adsp_early_event(w, kcontrol, event);
 		else
 			cs35l41->dsp.booted = true;
 
 		return 0;
 	case SND_SOC_DAPM_PRE_PMD:
 		if (cs35l41->halo_booted == false) {
-			wm_halo_early_event(w, kcontrol, event);
-			wm_halo_event(w, kcontrol, event);
+			wm_adsp_early_event(w, kcontrol, event);
+			wm_adsp_event(w, kcontrol, event);
 		}
 	default:
 		return 0;
@@ -172,7 +172,7 @@ static int cs35l41_dsp_load_ev(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		if (cs35l41->halo_booted == false) {
-			wm_halo_event(w, kcontrol, event);
+			wm_adsp_event(w, kcontrol, event);
 			cs35l41->halo_booted = true;
 		}
 	default:
@@ -2055,6 +2055,7 @@ static int cs35l41_dsp_init(struct cs35l41_private *cs35l41)
 	dsp->base_sysinfo = CS35L41_DSP1_SYS_ID;
 	dsp->mem = cs35l41_dsp1_regions;
 	dsp->num_mems = ARRAY_SIZE(cs35l41_dsp1_regions);
+	dsp->lock_regions = 0xFFFFFFFF;
 
 	dsp->n_rx_channels = CS35L41_DSP_N_RX_RATES;
 	dsp->n_tx_channels = CS35L41_DSP_N_TX_RATES;
