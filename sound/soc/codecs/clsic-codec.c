@@ -196,9 +196,9 @@ static int clsic_dsp_power_ev(struct snd_soc_dapm_widget *w,
 		if (ret)
 			goto error;
 
-		return wm_halo_early_event(w, kcontrol, event);
+		return wm_adsp_early_event(w, kcontrol, event);
 	case SND_SOC_DAPM_PRE_PMD:
-		ret = wm_halo_early_event(w, kcontrol, event);
+		ret = wm_adsp_early_event(w, kcontrol, event);
 		clsic_dsp_memory_disable(priv);
 
 		/*

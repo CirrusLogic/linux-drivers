@@ -1337,9 +1337,9 @@ static int clsic_alg_codec_remove(struct snd_soc_codec *codec)
  * function set here.
  */
 static const struct snd_soc_dapm_widget clsic_alg_dapm_widgets[] = {
-	WM_ADSP_PRELOADER("DSP1", 0, wm_halo_early_event),
-	WM_ADSP_PRELOADER("DSP2", 1, wm_halo_early_event),
-	WM_ADSP_PRELOADER("VPU1", 2, wm_halo_early_event),
+	WM_ADSP_PRELOADER("DSP1", 0, wm_adsp_early_event),
+	WM_ADSP_PRELOADER("DSP2", 1, wm_adsp_early_event),
+	WM_ADSP_PRELOADER("VPU1", 2, wm_adsp_early_event),
 };
 
 static const struct snd_kcontrol_new clsic_alg_snd_controls[] = {
