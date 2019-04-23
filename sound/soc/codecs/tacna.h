@@ -105,7 +105,7 @@
 #define TACNA_IN_VU_SHIFT			29
 #define TACNA_IN_VU_WIDTH			 1
 
-#define TACNA_MAX_DAI			11
+#define TACNA_MAX_DAI			12
 #define TACNA_MAX_DSP			2
 
 #define TACNA_NUM_MIXER_INPUTS		139
