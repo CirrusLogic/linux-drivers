@@ -224,158 +224,196 @@ TRACE_EVENT(clsic_dev_panic,
 );
 
 TRACE_EVENT(clsic_ras_simplewrite,
-	TP_PROTO(uint32_t address, uint32_t value, int ret, uint8_t err),
-	TP_ARGS(address, value, ret, err),
+	TP_PROTO(uint32_t address, uint32_t value, int ret, uint8_t err,
+		 u64 elapsed_us),
+	TP_ARGS(address, value, ret, err, elapsed_us),
 	TP_STRUCT__entry(
 			__field(uint32_t, address)
 			__field(uint32_t, value)
 			__field(int, ret)
 			__field(uint8_t, err)
+			__field(u64, elapsed_us)
 			),
 	TP_fast_assign(
 			__entry->address = address;
 			__entry->value = value;
 			__entry->ret = ret;
 			__entry->err = err;
+			__entry->elapsed_us = elapsed_us;
 		),
 	TP_printk(
-			"  addr: 0x%x val: 0x%x ret: %d (err: %d)",
+			"  addr: 0x%x val: 0x%x ret: %d (err: %d) elapsed: %llu us",
 			__entry->address,
 			__entry->value,
 			__entry->ret,
-			__entry->err
+			__entry->err,
+			__entry->elapsed_us
 			)
 );
 
 TRACE_EVENT(clsic_ras_simpleread,
-	TP_PROTO(uint32_t address, uint32_t value, int ret, uint8_t err),
-	TP_ARGS(address, value, ret, err),
+	TP_PROTO(uint32_t address, uint32_t value, int ret, uint8_t err,
+		 u64 elapsed_us),
+	TP_ARGS(address, value, ret, err, elapsed_us),
 	TP_STRUCT__entry(
 			__field(uint32_t, address)
 			__field(uint32_t, value)
 			__field(int, ret)
 			__field(uint8_t, err)
+			__field(u64, elapsed_us)
 			),
 	TP_fast_assign(
 			__entry->address = address;
 			__entry->value = value;
 			__entry->ret = ret;
 			__entry->err = err;
+			__entry->elapsed_us = elapsed_us;
 		),
 	TP_printk(
-			"   addr: 0x%x val: 0x%x ret: %d (err: %d)",
+			" addr: 0x%x val: 0x%x ret: %d (err: %d) elapsed: %llu us",
 			__entry->address,
 			__entry->value,
 			__entry->ret,
-			__entry->err
+			__entry->err,
+			__entry->elapsed_us
 			)
 );
 
 TRACE_EVENT(clsic_ras_fastread,
-	TP_PROTO(uint32_t address, uint32_t value, int ret),
-	TP_ARGS(address, value, ret),
+	TP_PROTO(uint32_t address, uint32_t value, int ret, u64 elapsed_us),
+	TP_ARGS(address, value, ret, elapsed_us),
 	TP_STRUCT__entry(
 			__field(uint32_t, address)
 			__field(uint32_t, value)
 			__field(int, ret)
+			__field(u64, elapsed_us)
 			),
 	TP_fast_assign(
 			__entry->address = address;
 			__entry->value = value;
 			__entry->ret = ret;
+			__entry->elapsed_us = elapsed_us;
 		),
 	TP_printk(
-			"   addr: 0x%x val: 0x%x ret: %d",
+			"   addr: 0x%x val: 0x%x ret: %d elapsed: %llu us",
 			__entry->address,
 			__entry->value,
-			__entry->ret
+			__entry->ret,
+			__entry->elapsed_us
 			)
 );
 
 TRACE_EVENT(clsic_ras_bulkwrite,
-	TP_PROTO(uint32_t address, uint32_t count, int ret, uint8_t err),
-	TP_ARGS(address, count, ret, err),
+	TP_PROTO(uint32_t address, uint32_t count, int ret, uint8_t err,
+		 ssize_t progress, ssize_t total, u64 elapsed_us),
+	TP_ARGS(address, count, ret, err, progress, total, elapsed_us),
 	TP_STRUCT__entry(
 			__field(uint32_t, address)
 			__field(uint32_t, count)
 			__field(int, ret)
 			__field(uint8_t, err)
+			__field(ssize_t, progress)
+			__field(ssize_t, total)
+			__field(u64, elapsed_us)
 			),
 	TP_fast_assign(
 			__entry->address = address;
 			__entry->count = count;
 			__entry->ret = ret;
 			__entry->err = err;
+			__entry->progress = progress;
+			__entry->total = total;
+			__entry->elapsed_us = elapsed_us;
 		),
 	TP_printk(
-			"    addr: 0x%x count: %d ret: %d (err: %d)",
+			"   addr: 0x%x count: %d ret: %d (err: %d) transfer: %zu of %zu total elapsed time: %llu us",
 			__entry->address,
 			__entry->count,
 			__entry->ret,
-			__entry->err
+			__entry->err,
+			__entry->progress,
+			__entry->total,
+			__entry->elapsed_us
 			)
 );
 
 TRACE_EVENT(clsic_ras_bulkread,
-	TP_PROTO(uint32_t address, uint32_t count, int ret, uint8_t err),
-	TP_ARGS(address, count, ret, err),
+	TP_PROTO(uint32_t address, uint32_t count, int ret, uint8_t err,
+		 ssize_t progress, ssize_t total, u64 elapsed_us),
+	TP_ARGS(address, count, ret, err, progress, total, elapsed_us),
 	TP_STRUCT__entry(
 			__field(uint32_t, address)
 			__field(uint32_t, count)
 			__field(int, ret)
 			__field(uint8_t, err)
+			__field(ssize_t, progress)
+			__field(ssize_t, total)
+			__field(u64, elapsed_us)
 			),
 	TP_fast_assign(
 			__entry->address = address;
 			__entry->count = count;
 			__entry->ret = ret;
 			__entry->err = err;
+			__entry->progress = progress;
+			__entry->total = total;
+			__entry->elapsed_us = elapsed_us;
 		),
 	TP_printk(
-			"    addr: 0x%x count: %d ret: %d (err: %d)",
+			"   addr: 0x%x count: %d ret: %d (err: %d) transfer: %zu of %zu total elapsed time: %llu us",
 			__entry->address,
 			__entry->count,
 			__entry->ret,
-			__entry->err
+			__entry->err,
+			__entry->progress,
+			__entry->total,
+			__entry->elapsed_us
 			)
 );
 
 TRACE_EVENT(clsic_ras_pm_handler,
-	TP_PROTO(int pm_event),
-	TP_ARGS(pm_event),
+	TP_PROTO(int pm_event, u64 elapsed_us),
+	TP_ARGS(pm_event, elapsed_us),
 	TP_STRUCT__entry(
 			__field(int, pm_event)
+			__field(u64, elapsed_us)
 			),
 	TP_fast_assign(
 			__entry->pm_event = pm_event;
+			__entry->elapsed_us = elapsed_us;
 		),
 	TP_printk(
-			"    pm event: %d",
-			__entry->pm_event
+			"    pm event: %d elapsed: %llu us",
+			__entry->pm_event,
+			__entry->elapsed_us
 			)
 );
 
 TRACE_EVENT(clsic_ras_fastwrite,
-	TP_PROTO(uint32_t address, uint32_t value, int ret, uint8_t counter),
-	TP_ARGS(address, value, ret, counter),
+	TP_PROTO(uint32_t address, uint32_t value, int ret, uint8_t counter,
+		 u64 elapsed_us),
+	TP_ARGS(address, value, ret, counter, elapsed_us),
 	TP_STRUCT__entry(
 			__field(uint32_t, address)
 			__field(uint32_t, value)
 			__field(int, ret)
 			__field(uint8_t, counter)
+			__field(u64, elapsed_us)
 			),
 	TP_fast_assign(
 			__entry->address = address;
 			__entry->value = value;
 			__entry->ret = ret;
 			__entry->counter = counter;
+			__entry->elapsed_us = elapsed_us;
 		),
 	TP_printk(
-			"  addr: 0x%x val: 0x%x ret: %d (counter: %d)",
+			"  addr: 0x%x val: 0x%x ret: %d (counter: %d) elapsed: %llu us",
 			__entry->address,
 			__entry->value,
 			__entry->ret,
-			__entry->counter
+			__entry->counter,
+			__entry->elapsed_us
 			)
 );
 
