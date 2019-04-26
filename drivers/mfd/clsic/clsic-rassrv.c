@@ -97,16 +97,20 @@ static int clsic_ras_simple_readregister(struct clsic_ras_struct *ras,
 	union clsic_ras_msg msg_cmd;
 	union clsic_ras_msg msg_rsp;
 	uint32_t tmp_value;
+	struct timespec ts_start, ts_end;
 	int ret = 0;
 
 	if (ras->suspended)
 		return -EBUSY;
 
 	clsic = ras->clsic;
+	getnstimeofday(&ts_start);
 
 	if (clsic_ras_fastread(address)) {
 		ret = regmap_read(clsic->regmap, address, &tmp_value);
-		trace_clsic_ras_fastread(address, tmp_value, ret);
+
+		trace_clsic_ras_fastread(address, tmp_value, ret,
+					 clsic_time_end(&ts_start, &ts_end));
 
 		/*
 		 * The RAS regmap expects the value to be big endian and will
@@ -159,7 +163,8 @@ static int clsic_ras_simple_readregister(struct clsic_ras_struct *ras,
 
 	trace_clsic_ras_simpleread(msg_cmd.cmd_rdreg.addr,
 				   msg_rsp.rsp_rdreg.value, ret,
-				   msg_rsp.rsp_rdreg.hdr.err);
+				   msg_rsp.rsp_rdreg.hdr.err,
+				   clsic_time_end(&ts_start, &ts_end));
 	return ret;
 }
 
@@ -224,12 +229,14 @@ static int clsic_ras_fastwrite(struct clsic_ras_struct *ras,
 {
 	struct clsic *clsic;
 	struct clsic_ras_fast_reg_write tmp_fastwrite;
+	struct timespec ts_start, ts_end;
 	int ret;
 
 	if (ras->fastwrite_counter >= CLSIC_RAS_MAX_FASTWRITES)
 		return -EBUSY;
 
 	clsic = ras->clsic;
+	getnstimeofday(&ts_start);
 
 	tmp_fastwrite.reg_addr = address;
 	tmp_fastwrite.reg_val = value;
@@ -239,7 +246,9 @@ static int clsic_ras_fastwrite(struct clsic_ras_struct *ras,
 
 	++ras->fastwrite_counter;
 
-	trace_clsic_ras_fastwrite(address, value, ret, ras->fastwrite_counter);
+
+	trace_clsic_ras_fastwrite(address, value, ret, ras->fastwrite_counter,
+				  clsic_time_end(&ts_start, &ts_end));
 
 	return ret;
 }
@@ -250,6 +259,7 @@ static int clsic_ras_simple_writeregister(struct clsic_ras_struct *ras,
 	struct clsic *clsic;
 	union clsic_ras_msg msg_cmd;
 	union clsic_ras_msg msg_rsp;
+	struct timespec ts_start, ts_end;
 	int ret = 0;
 
 	if (ras->suspended)
@@ -260,6 +270,7 @@ static int clsic_ras_simple_writeregister(struct clsic_ras_struct *ras,
 		return 0;
 
 	clsic = ras->clsic;
+	getnstimeofday(&ts_start);
 
 	/* Format and send a message to the remote access service */
 	if (clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
@@ -294,7 +305,8 @@ static int clsic_ras_simple_writeregister(struct clsic_ras_struct *ras,
 
 	trace_clsic_ras_simplewrite(msg_cmd.cmd_wrreg.addr,
 				    msg_cmd.cmd_wrreg.value,
-				    ret, msg_rsp.rsp_wrreg.hdr.err);
+				    ret, msg_rsp.rsp_wrreg.hdr.err,
+				    clsic_time_end(&ts_start, &ts_end));
 	return ret;
 }
 
@@ -346,16 +358,18 @@ static int clsic_ras_read(void *context, const void *reg_buf,
 	size_t i, frag_sz;
 	union clsic_ras_msg msg_cmd;
 	union clsic_ras_msg msg_rsp;
+	struct timespec ts_start, ts_end;
 	uint8_t err = 0;
 
 	if (ras->suspended)
 		return -EBUSY;
 
-	clsic = ras->clsic;
-
 	if (val_size == CLSIC_RAS_VAL_BYTES)
 		return clsic_ras_simple_readregister(ras, reg,
 						     (__be32 *) val_buf);
+
+	clsic = ras->clsic;
+	getnstimeofday(&ts_start);
 
 	for (i = 0; i < val_size; i += CLSIC_RAS_MAX_BULK_SZ) {
 		/* Format and send a message to the remote access service */
@@ -405,7 +419,8 @@ static int clsic_ras_read(void *context, const void *reg_buf,
 
 		trace_clsic_ras_bulkread(msg_cmd.cmd_rdreg_bulk.addr,
 					 msg_cmd.cmd_rdreg_bulk.byte_count,
-					 ret, err);
+					 ret, err, i + frag_sz, val_size,
+					 clsic_time_end(&ts_start, &ts_end));
 
 		if (ret != 0)
 			return ret;
@@ -434,6 +449,7 @@ static int clsic_ras_write(void *context, const void *val_buf,
 	size_t frag_sz;
 	union clsic_ras_msg msg_cmd;
 	union clsic_ras_msg msg_rsp;
+	struct timespec ts_start, ts_end;
 	u32 *values;
 
 	if (ras->suspended)
@@ -455,6 +471,8 @@ static int clsic_ras_write(void *context, const void *val_buf,
 		return clsic_ras_simple_writeregister(ras,
 						      addr,
 						      be32_to_cpu(buf[1]));
+
+	getnstimeofday(&ts_start);
 
 	values = kzalloc(payload_sz, GFP_KERNEL);
 	if (values == NULL)
@@ -492,7 +510,9 @@ static int clsic_ras_write(void *context, const void *val_buf,
 
 		trace_clsic_ras_bulkwrite(msg_cmd.blkcmd_wrreg_bulk.addr,
 					  msg_cmd.blkcmd_wrreg_bulk.hdr.bulk_sz,
-					  ret, msg_rsp.rsp_wrreg_bulk.hdr.err);
+					  ret, msg_rsp.rsp_wrreg_bulk.hdr.err,
+					  i + frag_sz, val_size,
+					  clsic_time_end(&ts_start, &ts_end));
 
 		/*
 		 *  Clients to this function can't interpret detailed error
@@ -640,10 +660,12 @@ static int clsic_ras_nty_handler(struct clsic *clsic,
 static int clsic_ras_pm_handler(struct clsic_service *handler, int pm_event)
 {
 	struct clsic_ras_struct *ras;
+	struct timespec ts_start, ts_end;
 	int ret = 0;
 
 	/* Will always be populated when this handler could be called */
 	ras = handler->data;
+	getnstimeofday(&ts_start);
 
 	switch (pm_event) {
 	case PM_EVENT_SUSPEND:
@@ -675,7 +697,8 @@ static int clsic_ras_pm_handler(struct clsic_service *handler, int pm_event)
 		break;
 	}
 
-	trace_clsic_ras_pm_handler(pm_event);
+	trace_clsic_ras_pm_handler(pm_event,
+				   clsic_time_end(&ts_start, &ts_end));
 
 	return ret;
 }

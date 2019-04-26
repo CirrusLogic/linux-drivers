@@ -18,6 +18,7 @@
 #include <linux/atomic.h>
 #include <linux/bitmap.h>
 #include <linux/pm_runtime.h>
+#include <linux/time.h>
 
 #ifndef PACKED
 #define PACKED __packed
@@ -447,6 +448,45 @@ static inline struct clsic_service *clsic_get_service_from_pdev(
 	uint8_t *instance = (uint8_t *) dev_get_platdata(&pdev->dev);
 
 	return clsic->service_handlers[*instance];
+}
+
+/*
+ * The clsic_time_*() functions implement a very simple method of obtaining the
+ * elapsed time between two points.
+ *
+ * - ts_start and ts_end are provided by the caller, e.g. on the stack
+ * - ts_start is usually populated as getnstimeofday(&ts_start);
+ */
+
+/*
+ * Helper function to return the time in microseconds between ts_start and
+ * ts_end.
+ *
+ * Provided as a separate inline function rather than being integrated into
+ * clsic_time_end() in case the caller needs to construct more complicated
+ * patterns.
+ */
+static inline u64 clsic_time_diff(struct timespec *ts_start,
+				  struct timespec *ts_end)
+{
+	struct timespec ts_elapsed;
+	u64 elapsed_us;
+
+	ts_elapsed = timespec_sub(*ts_end, *ts_start);
+	elapsed_us = timespec_to_ns(&ts_elapsed);
+	do_div(elapsed_us, NSEC_PER_USEC);
+	return elapsed_us;
+}
+
+/*
+ * Helper function to populate ts_end and return the time in microseconds
+ * between ts_start and "now"
+ */
+static inline u64 clsic_time_end(struct timespec *ts_start,
+				 struct timespec *ts_end)
+{
+	getnstimeofday(ts_end);
+	return clsic_time_diff(ts_start, ts_end);
 }
 
 #endif
