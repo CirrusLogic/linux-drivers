@@ -891,6 +891,7 @@ static const char *madera_extcon_get_micbias_src(struct madera_extcon *info)
 			return "MICVDD";
 		}
 		break;
+	case CS42L92:
 	case CS47L92:
 	case CS47L93:
 		switch (bias) {
@@ -975,6 +976,7 @@ static const char *madera_extcon_get_micbias(struct madera_extcon *info)
 		default:
 			return "MICVDD";
 		}
+	case CS42L92:
 	case CS47L92:
 	case CS47L93:
 		switch (bias) {
@@ -1505,6 +1507,7 @@ static int madera_tune_headphone(struct madera_extcon *info, int reading)
 		tuning = cs47l90_hp_tuning;
 		n_tunings = ARRAY_SIZE(cs47l90_hp_tuning);
 		break;
+	case CS42L92:
 	case CS47L92:
 	case CS47L93:
 		tuning = cs47l92_hp_tuning;
@@ -3081,6 +3084,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		info->micd_modes = cs47l85_micd_default_modes;
 		info->num_micd_modes = ARRAY_SIZE(cs47l85_micd_default_modes);
 		break;
+	case CS42L92:
 	case CS47L92:
 	case CS47L93:
 		info->hpdet_ranges = cs47l92_hpdet_ranges;
@@ -3197,6 +3201,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	switch (madera->type) {
 	case CS47L90:
 	case CS47L91:
+	case CS42L92:
 	case CS47L92:
 	case CS47L93:
 		if (madera->pdata.gpsw[1] > 0)

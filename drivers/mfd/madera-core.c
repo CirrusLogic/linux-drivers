@@ -187,6 +187,8 @@ const char *madera_name_from_type(enum madera_type type)
 		return "CS47L90";
 	case CS47L91:
 		return "CS47L91";
+	case CS42L92:
+		return "CS42L92";
 	case CS47L92:
 		return "CS47L92";
 	case CS47L93:
@@ -368,6 +370,7 @@ const struct of_device_id madera_of_match[] = {
 	{ .compatible = "cirrus,cs47l85", .data = (void *)CS47L85 },
 	{ .compatible = "cirrus,cs47l90", .data = (void *)CS47L90 },
 	{ .compatible = "cirrus,cs47l91", .data = (void *)CS47L91 },
+	{ .compatible = "cirrus,cs42l92", .data = (void *)CS42L92 },
 	{ .compatible = "cirrus,cs47l92", .data = (void *)CS47L92 },
 	{ .compatible = "cirrus,cs47l93", .data = (void *)CS47L93 },
 	{ .compatible = "cirrus,wm1840", .data = (void *)WM1840 },
@@ -433,6 +436,7 @@ static void madera_set_micbias_info(struct madera *madera)
 		madera->num_childbias[0] = 4;
 		madera->num_childbias[1] = 4;
 		return;
+	case CS42L92:
 	case CS47L92:
 	case CS47L93:
 		madera->num_micbias = 2;
@@ -627,6 +631,7 @@ int madera_dev_init(struct madera *madera)
 	case CS47L35:
 	case CS47L90:
 	case CS47L91:
+	case CS42L92:
 	case CS47L92:
 	case CS47L93:
 		break;
@@ -761,6 +766,7 @@ int madera_dev_init(struct madera *madera)
 	case CS47L92_SILICON_ID:
 		if (IS_ENABLED(CONFIG_MFD_CS47L92)) {
 			switch (madera->type) {
+			case CS42L92:
 			case CS47L92:
 			case CS47L93:
 				patch_fn = cs47l92_patch;
