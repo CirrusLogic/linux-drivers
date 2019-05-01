@@ -400,7 +400,7 @@ static int clsic_bootsrv_msghandler(struct clsic *clsic,
 	case CLSIC_BL_MSG_N_NO_BOOTABLE_COMP:
 	case CLSIC_BL_MSG_N_FAILED_FLASH_AUTH:
 	case CLSIC_BL_MSG_N_FLASH_CORRUPTED:
-		clsic_err(clsic, "CSLIC boot fail: %d : %s %d %d\n",
+		clsic_err(clsic, "CLSIC boot fail: %d : %s %d %d\n",
 			  msgid, clsic_state_to_string(clsic->state),
 			  clsic->blrequest, clsic->service_states);
 		clsic_state_set(clsic, CLSIC_STATE_HALTED,
