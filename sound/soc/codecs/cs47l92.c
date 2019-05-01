@@ -1,5 +1,5 @@
 /*
- * cs47l92.c  --  ALSA SoC Audio driver for CS47L92/CS47L93 codecs
+ * cs47l92.c  --  ALSA SoC Audio driver for CS42L92/CS47L92/CS47L93 codecs
  *
  * Copyright 2016-2017 Cirrus Logic
  *

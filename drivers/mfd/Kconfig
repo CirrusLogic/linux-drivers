@@ -284,7 +284,7 @@ config MFD_CS47L92
 	select PINCTRL_CS47L92
 	depends on MFD_MADERA
 	help
-	  Support for Cirrus Logic CS47L92 and CS47L93 Smart Codecs
+	  Support for Cirrus Logic CS42L92, CS47L92 and CS47L93 Smart Codecs
 
 config MFD_ASIC3
 	bool "Compaq ASIC3"

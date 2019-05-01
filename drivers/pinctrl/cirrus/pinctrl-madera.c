@@ -1031,6 +1031,7 @@ static int madera_pin_probe(struct platform_device *pdev)
 		if (IS_ENABLED(CONFIG_PINCTRL_CS47L90))
 			priv->chip = &cs47l90_pin_chip;
 		break;
+	case CS42L92:
 	case CS47L92:
 	case CS47L93:
 		if (IS_ENABLED(CONFIG_PINCTRL_CS47L92))

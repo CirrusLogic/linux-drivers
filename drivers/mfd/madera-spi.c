@@ -60,6 +60,7 @@ static int madera_spi_probe(struct spi_device *spi)
 			regmap_32bit_config = &cs47l90_32bit_spi_regmap;
 		}
 		break;
+	case CS42L92:
 	case CS47L92:
 	case CS47L93:
 		if (IS_ENABLED(CONFIG_MFD_CS47L92)) {
@@ -122,6 +123,7 @@ static const struct spi_device_id madera_spi_ids[] = {
 	{ "cs47l85", CS47L85 },
 	{ "cs47l90", CS47L90 },
 	{ "cs47l91", CS47L91 },
+	{ "cs42l92", CS42L92 },
 	{ "cs47l92", CS47L92 },
 	{ "cs47l93", CS47L93 },
 	{ "wm1840", WM1840 },

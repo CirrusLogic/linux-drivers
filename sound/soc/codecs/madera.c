@@ -644,6 +644,7 @@ static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 		switch (madera->type) {
 		case CS47L85:
 		case WM1840:
+		case CS42L92:
 		case CS47L92:
 		case CS47L93:
 			dmode = madera->pdata.codec.inmode[0][0];
@@ -670,6 +671,7 @@ static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 			dmode = madera->pdata.codec.inmode[0][1];
 			gang_reg = 0;
 			break;
+		case CS42L92:
 		case CS47L92:
 		case CS47L93:
 			dmode = 0;
@@ -688,6 +690,7 @@ static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 		switch (madera->type) {
 		case CS47L90:
 		case CS47L91:
+		case CS42L92:
 		case CS47L92:
 		case CS47L93:
 			dmode = madera->pdata.codec.inmode[1][0];
@@ -704,6 +707,7 @@ static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 		inmode_gang = madera->pdata.codec.inmode[1][2 * mux];
 		dmode_reg = MADERA_IN2L_CONTROL;
 		switch (madera->type) {
+		case CS42L92:
 		case CS47L92:
 		case CS47L93:
 			dmode = 0;
@@ -2604,6 +2608,7 @@ int madera_out_ev(struct snd_soc_dapm_widget *w,
 	switch (madera->type) {
 	case CS47L90:
 	case CS47L91:
+	case CS42L92:
 	case CS47L92:
 	case CS47L93:
 		out_up_delay = 6;
@@ -3239,6 +3244,7 @@ static int madera_startup(struct snd_pcm_substream *substream,
 	}
 
 	switch (madera->type) {
+	case CS42L92:
 	case CS47L92:
 	case CS47L93:
 		if (base_rate == 0)
