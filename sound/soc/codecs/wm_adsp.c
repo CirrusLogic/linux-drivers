@@ -3383,6 +3383,7 @@ int wm_adsp_event(struct snd_soc_dapm_widget *w,
 
 		mutex_unlock(&dsp->pwr_lock);
 		break;
+
 	case SND_SOC_DAPM_PRE_PMD:
 		/* Tell the firmware to cleanup */
 		wm_adsp_signal_event_controls(dsp, WM_ADSP_FW_EVENT_SHUTDOWN);
@@ -3604,7 +3605,7 @@ static int wm_adsp_compr_attach(struct wm_adsp_compr *compr)
 		return -EINVAL;
 
 	list_for_each_entry(tmp, &compr->dsp->buffer_list, list) {
-		if (tmp->name == NULL || !strcmp(compr->name, tmp->name)) {
+		if (!tmp->name || !strcmp(compr->name, tmp->name)) {
 			buf = tmp;
 			break;
 		}
@@ -4030,8 +4031,7 @@ static int wm_adsp_buffer_parse_coeff(struct wm_coeff_ctl *ctl)
 		return ret;
 
 	for (i = 0; i < 5; ++i) {
-		ret = regmap_raw_read(ctl->dsp->regmap, reg, &val,
-				      sizeof(val));
+		ret = regmap_raw_read(ctl->dsp->regmap, reg, &val, sizeof(val));
 		if (ret < 0)
 			return ret;
 
