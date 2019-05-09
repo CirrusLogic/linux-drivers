@@ -79,6 +79,14 @@ static const char CLSIC_FWU[] = "FWU";
 static const char CLSIC_CPK[] = "CPK";
 static const char CLSIC_MAB[] = "MAB";
 
+static const char FWUPDATE_IDLE[]	= "Idle";
+static const char FWUPDATE_REQUESTED[]	= "Requested";
+static const char FWUPDATE_SENDING[]	= "Sending";
+static const char FWUPDATE_SENT[]	= "Sent";
+static const char FWUPDATE_NOENT[]	= "File not found";
+static const char FWUPDATE_INVALID[]	= "Firmware invalid";
+static const char FWUPDATE_SENDERR[]	= "Firmware send failed";
+
 /*
  * Utility function to convert between an integer file type and a three letter
  * string representation for use in messages.
@@ -247,6 +255,9 @@ struct clsic_bootsrv_struct {
 
 	struct clsic_service *srv;
 	u32 fw_crc;
+	uint32_t fwupdate_type;
+	const char *fwupdate_status;
+	struct completion fwupdate_completion;
 };
 
 /*
@@ -256,6 +267,9 @@ struct clsic_bootsrv_struct {
  */
 static int clsic_bootsrv_service_update_begin(struct clsic *clsic)
 {
+	struct clsic_bootsrv_struct *bootsrv =
+		clsic->service_handlers[CLSIC_SRV_INST_BLD]->data;
+
 	/* Debug control prevents device state changes */
 	if (clsic->state == CLSIC_STATE_DEBUGCONTROL_GRANTED)
 		return -EPERM;
@@ -273,6 +287,7 @@ static int clsic_bootsrv_service_update_begin(struct clsic *clsic)
 		return -EBUSY;
 	}
 	clsic->blrequest = CLSIC_BL_UPDATE;
+	bootsrv->fwupdate_status = FWUPDATE_REQUESTED;
 	mutex_unlock(&clsic->service_lock);
 
 	/*
@@ -295,8 +310,12 @@ static int clsic_bootsrv_service_update_begin(struct clsic *clsic)
 
 static void clsic_bootsrv_service_update_finalise(struct clsic *clsic)
 {
+	struct clsic_bootsrv_struct *bootsrv =
+		clsic->service_handlers[CLSIC_SRV_INST_BLD]->data;
+
 	mutex_lock(&clsic->service_lock);
 	clsic->blrequest = CLSIC_BL_IDLE;
+	complete(&bootsrv->fwupdate_completion);
 	mutex_unlock(&clsic->service_lock);
 	if (!clsic->volatile_memory)
 		clsic_msgproc_release(clsic, CLSIC_SRV_INST_BLD);
@@ -333,11 +352,15 @@ static int clsic_bootsrv_sendfile(struct clsic *clsic,
 		 filename_template, clsic_devid_to_string(clsic->devid),
 		 clsic_devid_to_string(clsic->devid));
 
+	bootsrv->fwupdate_type = type;
+	bootsrv->fwupdate_status = FWUPDATE_SENDING;
+
 	ret = request_firmware(&firmware, filename, clsic->dev);
 	if (ret != 0) {
 		clsic_err(clsic,
 			  "request_firmware failed '%s' = %d (check files)\n",
 			  filename, ret);
+		bootsrv->fwupdate_status = FWUPDATE_NOENT;
 		goto exit;
 	}
 
@@ -347,6 +370,7 @@ static int clsic_bootsrv_sendfile(struct clsic *clsic,
 		clsic_err(clsic, "Firmware file '%s' too small %d\n",
 			  filename, firmware->size);
 		ret = -EINVAL;
+		bootsrv->fwupdate_status = FWUPDATE_INVALID;
 		goto release_exit;
 	}
 
@@ -355,6 +379,7 @@ static int clsic_bootsrv_sendfile(struct clsic *clsic,
 	/* Sanity check the file's magic numbers */
 	if (clsic_bootsrv_fwheader_check(clsic, filename, hdr) != 0) {
 		ret = -EINVAL;
+		bootsrv->fwupdate_status = FWUPDATE_INVALID;
 		goto release_exit;
 	}
 
@@ -363,6 +388,7 @@ static int clsic_bootsrv_sendfile(struct clsic *clsic,
 			  "Wrong file type in '%s': expected 0x%x, file 0x%x\n",
 			  filename, type, hdr->type);
 		ret = -EINVAL;
+		bootsrv->fwupdate_status = FWUPDATE_INVALID;
 		goto release_exit;
 	}
 
@@ -382,6 +408,7 @@ static int clsic_bootsrv_sendfile(struct clsic *clsic,
 	if (clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
 			       CLSIC_SRV_INST_BLD, msgid)) {
 		ret = -EINVAL;
+		bootsrv->fwupdate_status = FWUPDATE_SENDERR;
 		goto release_exit;
 	}
 
@@ -395,16 +422,19 @@ static int clsic_bootsrv_sendfile(struct clsic *clsic,
 	if (ret != 0) {
 		clsic_info(clsic, "Failed to send: %d\n", ret);
 		ret = -EIO;
+		bootsrv->fwupdate_status = FWUPDATE_SENDERR;
 	} else if (msg_rsp->rsp_set_mab.hdr.err != 0) {
 		err = msg_rsp->rsp_set_mab.hdr.err;
 		clsic_info(clsic, "Response error_code 0x%x : '%s'\n",
 			   err, clsic_bootsrv_err_to_string(err));
+		bootsrv->fwupdate_status = clsic_bootsrv_err_to_string(err);
 		ret = -EIO;
+	} else {
+		bootsrv->fwupdate_status = FWUPDATE_SENT;
 	}
 
 release_exit:
 	release_firmware(firmware);
-
 exit:
 	/*
 	 * Any failures to send files to the bootloader are considered fatal.
@@ -619,10 +649,97 @@ static ssize_t clsic_show_device_fw_version(struct device *dev,
 static DEVICE_ATTR(device_fw_version, 0644, clsic_show_device_fw_version,
 		   clsic_store_device_fw_version);
 
+#define CLSIC_FWUPDATE_COMPLETION_TIMEOUT   60000
+static inline int clsic_wait_fwupdate_completion(
+				struct clsic_bootsrv_struct *bootsrv)
+{
+	int retval;
+
+	/*
+	 * Ensure that completion is reset as will be signalled by
+	 * both sync and async requests
+	 */
+	reinit_completion(&bootsrv->fwupdate_completion);
+	retval = wait_for_completion_interruptible_timeout(
+			&bootsrv->fwupdate_completion,
+			msecs_to_jiffies(CLSIC_FWUPDATE_COMPLETION_TIMEOUT));
+
+	if (retval < 0)
+		return retval;
+
+	if (retval == 0)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+/*
+ * Writing any string starting with the word update triggers the firmware
+ * update process. Appending "-sync" blocks the calling thread until the
+ * update process has completed.
+ */
+static ssize_t clsic_store_firmware_update(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int ret;
+	struct clsic *clsic = dev_get_drvdata(dev);
+	struct clsic_bootsrv_struct *bootsrv =
+		clsic->service_handlers[CLSIC_SRV_INST_BLD]->data;
+
+	if (bootsrv == NULL)
+		return -ENOMEM;
+
+	if (!strncmp(buf, "update", strlen("update"))) {
+		ret = clsic_bootsrv_service_update_begin(clsic);
+		if (ret)
+			return ret;
+	}
+
+	if (!strncmp(buf, "update-sync", strlen("update-sync"))) {
+		if (clsic->blrequest != CLSIC_BL_IDLE) {
+			ret = clsic_wait_fwupdate_completion(bootsrv);
+			if (ret < 0) {
+				clsic_err(clsic, "completion err %d\n", ret);
+				return ret;
+			}
+		}
+	}
+
+	return count;
+}
+
+static ssize_t clsic_show_firmware_update(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct clsic *clsic = dev_get_drvdata(dev);
+	struct clsic_bootsrv_struct *bootsrv =
+		clsic->service_handlers[CLSIC_SRV_INST_BLD]->data;
+
+	if (bootsrv == NULL)
+		return -ENOMEM;
+
+	if (!strncmp(bootsrv->fwupdate_status, FWUPDATE_IDLE,
+		     strlen(FWUPDATE_IDLE)) ||
+	    !strncmp(bootsrv->fwupdate_status, FWUPDATE_REQUESTED,
+		     strlen(FWUPDATE_REQUESTED)))
+		return snprintf(buf, PAGE_SIZE, "%s",
+				bootsrv->fwupdate_status);
+
+	return snprintf(buf, PAGE_SIZE, "%s:%s",
+			bootsrv->fwupdate_status,
+			clsic_fwtype2string(bootsrv->fwupdate_type));
+}
+
+static DEVICE_ATTR(firmware_update, 0644, clsic_show_firmware_update,
+		   clsic_store_firmware_update);
+
 static void clsic_bootsrv_service_stop(struct clsic *clsic,
 				      struct clsic_service *handler)
 {
 	device_remove_file(clsic->dev, &dev_attr_device_fw_version);
+	device_remove_file(clsic->dev, &dev_attr_firmware_update);
 	device_remove_file(clsic->dev, &dev_attr_file_fw_version);
 	kfree(handler->data);
 }
@@ -641,12 +758,15 @@ int clsic_bootsrv_service_start(struct clsic *clsic,
 
 	bootsrv->clsic = clsic;
 	bootsrv->srv = handler;
+	bootsrv->fwupdate_status = FWUPDATE_IDLE;
+	init_completion(&bootsrv->fwupdate_completion);
 
 	handler->callback = &clsic_bootsrv_msghandler;
 	handler->stop = &clsic_bootsrv_service_stop;
 	handler->data = bootsrv;
 
 	device_create_file(clsic->dev, &dev_attr_device_fw_version);
+	device_create_file(clsic->dev, &dev_attr_firmware_update);
 	device_create_file(clsic->dev, &dev_attr_file_fw_version);
 
 	return 0;
