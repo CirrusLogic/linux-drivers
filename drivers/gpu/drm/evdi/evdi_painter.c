@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2013 - 2017 DisplayLink (UK) Ltd.
+ * Copyright (c) 2013 - 2019 DisplayLink (UK) Ltd.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License v2. See the file COPYING in the main directory of this archive for
@@ -396,6 +396,32 @@ static void evdi_painter_send_mode_changed(
 	} else {
 		EVDI_WARN("Painter is not connected!");
 	}
+}
+
+struct drm_clip_rect evdi_painter_framebuffer_size(
+	struct evdi_painter *painter)
+{
+	struct drm_clip_rect rect = {0, 0, 0, 0};
+	struct evdi_framebuffer *efb = NULL;
+
+	if (painter == NULL) {
+		EVDI_WARN("Painter is not connected!");
+		return rect;
+	}
+
+	painter_lock(painter);
+	efb = painter->scanout_fb;
+	if (!efb) {
+		EVDI_DEBUG("Scanout buffer not set.");
+		goto unlock;
+	}
+	rect.x1 = 0;
+	rect.y1 = 0;
+	rect.x2 = efb->base.width;
+	rect.y2 = efb->base.height;
+unlock:
+	painter_unlock(painter);
+	return rect;
 }
 
 void evdi_painter_mark_dirty(struct evdi_device *evdi,
