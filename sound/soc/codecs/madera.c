@@ -1760,19 +1760,6 @@ EXPORT_SYMBOL_GPL(madera_ng_tlv);
 const DECLARE_TLV_DB_SCALE(madera_mixer_tlv, -3200, 100, 0);
 EXPORT_SYMBOL_GPL(madera_mixer_tlv);
 
-const char *madera_sample_rate_val_to_name(unsigned int rate_val)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(madera_sample_rate_val); ++i) {
-		if (madera_sample_rate_val[i] == rate_val)
-			return madera_sample_rate_text[i];
-	}
-
-	return "Illegal";
-}
-EXPORT_SYMBOL_GPL(madera_sample_rate_val_to_name);
-
 const struct soc_enum madera_sample_rate[] = {
 	SOC_VALUE_ENUM_SINGLE(MADERA_SAMPLE_RATE_2,
 			      MADERA_SAMPLE_RATE_2_SHIFT, 0x1f,
