@@ -420,17 +420,11 @@ int madera_domain_clk_ev(struct snd_soc_dapm_widget *w,
 
 int madera_adsp_rate_info(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_info *uinfo);
-int madera_adsp_rate_get(struct snd_kcontrol *kcontrol,
-			 struct snd_ctl_elem_value *ucontrol);
-int madera_adsp_rate_put(struct snd_kcontrol *kcontrol,
-			 struct snd_ctl_elem_value *ucontrol);
 int madera_set_adsp_clk(struct madera_priv *priv, int dsp_num,
 			unsigned int freq);
 
 int madera_set_sysclk(struct snd_soc_component *component, int clk_id,
 		      int source, unsigned int freq, int dir);
-int madera_get_legacy_dspclk_setting(struct madera *madera, unsigned int freq);
-void madera_spin_sysclk(struct madera_priv *priv);
 
 int madera_init_fll(struct madera *madera, int id, int base,
 		    struct madera_fll *fll);
