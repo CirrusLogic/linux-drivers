@@ -471,11 +471,11 @@ SND_SOC_DAPM_SUPPLY("MICBIAS1", MADERA_MIC_BIAS_CTRL_1,
 		    MADERA_MICB1_ENA_SHIFT, 0, NULL, 0),
 
 SND_SOC_DAPM_SUPPLY("MICBIAS1A", MADERA_MIC_BIAS_CTRL_5,
-			MADERA_MICB1A_ENA_SHIFT, 0, NULL, 0),
+		    MADERA_MICB1A_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("MICBIAS1B", MADERA_MIC_BIAS_CTRL_5,
-			MADERA_MICB1B_ENA_SHIFT, 0, NULL, 0),
+		    MADERA_MICB1B_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("MICBIAS1C", MADERA_MIC_BIAS_CTRL_5,
-			MADERA_MICB1C_ENA_SHIFT, 0, NULL, 0),
+		    MADERA_MICB1C_ENA_SHIFT, 0, NULL, 0),
 
 SND_SOC_DAPM_SUPPLY("FXCLK", SND_SOC_NOPM,
 		    MADERA_DOM_GRP_FX, 0,
@@ -595,8 +595,10 @@ SND_SOC_DAPM_PGA("SPD1TX2", MADERA_SPD1_TX_CONTROL,
 SND_SOC_DAPM_OUT_DRV("SPD1", MADERA_SPD1_TX_CONTROL,
 		     MADERA_SPD1_ENA_SHIFT, 0, NULL, 0),
 
-/* mux_in widgets : arranged in the order of sources
-   specified in MADERA_MIXER_INPUT_ROUTES */
+/*
+ * mux_in widgets : arranged in the order of sources
+ * specified in MADERA_MIXER_INPUT_ROUTES
+ */
 
 SND_SOC_DAPM_PGA("Noise Generator", MADERA_COMFORT_NOISE_GENERATOR,
 		 MADERA_NOISE_GEN_ENA_SHIFT, 0, NULL, 0),
@@ -1104,20 +1106,20 @@ static const struct snd_soc_dapm_route cs47l15_dapm_routes[] = {
 };
 
 static int cs47l15_set_fll(struct snd_soc_codec *codec, int fll_id,
-			   int source, unsigned int Fref, unsigned int Fout)
+			   int source, unsigned int fref, unsigned int fout)
 {
 	struct cs47l15 *cs47l15 = snd_soc_codec_get_drvdata(codec);
 
 	switch (fll_id) {
 	case MADERA_FLL1_REFCLK:
-		return madera_set_fll_refclk(&cs47l15->fll[0], source, Fref,
-					     Fout);
+		return madera_set_fll_refclk(&cs47l15->fll[0], source, fref,
+					     fout);
 	case MADERA_FLLAO_REFCLK:
-		return madera_set_fll_ao_refclk(&cs47l15->fll[1], source, Fref,
-						Fout);
+		return madera_set_fll_ao_refclk(&cs47l15->fll[1], source, fref,
+						fout);
 	case MADERA_FLL1_SYNCCLK:
-		return madera_set_fll_syncclk(&cs47l15->fll[0], source, Fref,
-					      Fout);
+		return madera_set_fll_syncclk(&cs47l15->fll[0], source, fref,
+					      fout);
 	default:
 		return -EINVAL;
 	}

@@ -435,9 +435,9 @@ void madera_spin_sysclk(struct madera_priv *priv);
 int madera_init_fll(struct madera *madera, int id, int base,
 		    struct madera_fll *fll);
 int madera_set_fll_refclk(struct madera_fll *fll, int source,
-			  unsigned int Fref, unsigned int Fout);
+			  unsigned int fref, unsigned int fout);
 int madera_set_fll_syncclk(struct madera_fll *fll, int source,
-			   unsigned int Fref, unsigned int Fout);
+			   unsigned int fref, unsigned int fout);
 int madera_set_fll_ao_refclk(struct madera_fll *fll, int source,
 			     unsigned int fin, unsigned int fout);
 int madera_fllhj_set_refclk(struct madera_fll *fll, int source,

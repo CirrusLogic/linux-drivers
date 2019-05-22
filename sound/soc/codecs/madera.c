@@ -300,14 +300,14 @@ int madera_init_overheat(struct madera_priv *priv)
 				 madera);
 	if (ret)
 		dev_warn(madera->dev,
-			"Failed to get thermal warning IRQ: %d\n", ret);
+			 "Failed to get thermal warning IRQ: %d\n", ret);
 
 	ret = madera_request_irq(madera, MADERA_IRQ_SPK_OVERHEAT,
 				 "Thermal shutdown", madera_thermal_warn,
 				 madera);
 	if (ret)
 		dev_warn(madera->dev,
-			"Failed to get thermal shutdown IRQ: %d\n", ret);
+			 "Failed to get thermal shutdown IRQ: %d\n", ret);
 
 	return 0;
 }
@@ -2503,7 +2503,7 @@ int madera_lp_mode_put(struct snd_kcontrol *kcontrol,
 	mask = (mc->reg - MADERA_ADC_DIGITAL_VOLUME_1L) / 4;
 	mask ^= 0x1; /* Flip bottom bit for channel order */
 
-	if ((val) & (1 << mask)) {
+	if (val & (1 << mask)) {
 		ret = -EBUSY;
 		dev_err(codec->dev,
 			"Can't change lp mode on an active input\n");
@@ -2548,8 +2548,8 @@ static void madera_in_set_vu(struct madera_priv *priv, bool enable)
 
 	for (i = 0; i < priv->num_inputs; i++) {
 		ret = regmap_update_bits(priv->madera->regmap,
-				    MADERA_ADC_DIGITAL_VOLUME_1L + (i * 4),
-				    MADERA_IN_VU, val);
+					 MADERA_ADC_DIGITAL_VOLUME_1L + (i * 4),
+					 MADERA_IN_VU, val);
 		if (ret)
 			dev_warn(priv->madera->dev,
 				 "Failed to modify VU bits: %d\n", ret);
@@ -3303,7 +3303,7 @@ static int madera_hw_params_rate(struct snd_pcm_substream *substream,
 
 	if (i == ARRAY_SIZE(madera_sr_vals)) {
 		madera_aif_err(dai, "Unsupported sample rate %dHz\n",
-				params_rate(params));
+			       params_rate(params));
 		return -EINVAL;
 	}
 	sr_val = i;
@@ -3475,7 +3475,7 @@ static int madera_hw_params(struct snd_pcm_substream *substream,
 
 	if (tdm_slots) {
 		madera_aif_dbg(dai, "Configuring for %d %d bit TDM slots\n",
-				tdm_slots, tdm_width);
+			       tdm_slots, tdm_width);
 		bclk_target = tdm_slots * tdm_width * params_rate(params);
 		channels = tdm_slots;
 	} else {
@@ -3492,7 +3492,7 @@ static int madera_hw_params(struct snd_pcm_substream *substream,
 	/* Force multiple of 2 channels for I2S mode */
 	val = snd_soc_read(codec, base + MADERA_AIF_FORMAT);
 	val &= MADERA_AIF1_FMT_MASK;
-	if ((channels & 1) && (val == MADERA_FMT_I2S_MODE)) {
+	if ((channels & 1) && val == MADERA_FMT_I2S_MODE) {
 		madera_aif_dbg(dai, "Forcing stereo mode\n");
 		bclk_target /= channels;
 		bclk_target *= channels + 1;
@@ -3508,14 +3508,14 @@ static int madera_hw_params(struct snd_pcm_substream *substream,
 
 	if (i == num_rates) {
 		madera_aif_err(dai, "Unsupported sample rate %dHz\n",
-				params_rate(params));
+			       params_rate(params));
 		return -EINVAL;
 	}
 
 	lrclk = rates[bclk] / params_rate(params);
 
 	madera_aif_dbg(dai, "BCLK %dHz LRCLK %dHz\n",
-			rates[bclk], rates[bclk] / lrclk);
+		       rates[bclk], rates[bclk] / lrclk);
 
 	frame = wl << MADERA_AIF1TX_WL_SHIFT | tdm_width;
 
@@ -3872,7 +3872,7 @@ static int madera_calc_fratio(struct madera_fll *fll,
 	init_ratio = madera_find_fratio(fll, fref, sync, &cfg->fratio);
 	if (init_ratio < 0) {
 		madera_fll_err(fll, "Unable to find FRATIO for fref=%uHz\n",
-				fref);
+			       fref);
 		return init_ratio;
 	}
 
@@ -3976,7 +3976,7 @@ static int madera_calc_fll(struct madera_fll *fll,
 	int ratio, ret;
 
 	madera_fll_dbg(fll, "fref=%u Fout=%u fvco=%u\n",
-			fref, fll->fout, fll->fout * MADERA_FLL_VCO_MULT);
+		       fref, fll->fout, fll->fout * MADERA_FLL_VCO_MULT);
 
 	/* Find an appropriate FLL_FRATIO and refdiv */
 	ratio = madera_calc_fratio(fll, cfg, fref, sync);
@@ -4051,13 +4051,12 @@ static int madera_calc_fll(struct madera_fll *fll,
 		return ret;
 
 	madera_fll_dbg(fll, "N=%d THETA=%d LAMBDA=%d\n",
-			cfg->n, cfg->theta, cfg->lambda);
+		       cfg->n, cfg->theta, cfg->lambda);
 	madera_fll_dbg(fll, "FRATIO=0x%x(%d) REFCLK_DIV=0x%x(%d)\n",
-			cfg->fratio, ratio, cfg->refdiv, 1 << cfg->refdiv);
+		       cfg->fratio, ratio, cfg->refdiv, 1 << cfg->refdiv);
 	madera_fll_dbg(fll, "GAIN=0x%x(%d)\n", cfg->gain, 1 << cfg->gain);
 
 	return 0;
-
 }
 
 static bool madera_write_fll(struct madera *madera, unsigned int base,
@@ -4173,7 +4172,7 @@ static bool madera_set_fll_phase_integrator(struct madera_fll *fll,
 	unsigned int val;
 	bool reg_change;
 
-	if (!sync && (ref_cfg->theta == 0))
+	if (!sync && ref_cfg->theta == 0)
 		val = (1 << MADERA_FLL1_PHASE_ENA_SHIFT) |
 			(2 << MADERA_FLL1_PHASE_GAIN_SHIFT);
 	else
@@ -4239,17 +4238,17 @@ static int madera_enable_fll(struct madera_fll *fll)
 	if (already_enabled < 0)
 		return already_enabled;	/* error getting current state */
 
-	if ((fll->ref_src < 0) || (fll->ref_freq == 0)) {
+	if (fll->ref_src < 0 || fll->ref_freq == 0) {
 		madera_fll_err(fll, "No REFCLK\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
 	madera_fll_dbg(fll, "Enabling FLL, initially %s\n",
-			already_enabled ? "enabled" : "disabled");
+		       already_enabled ? "enabled" : "disabled");
 
-	if ((fll->fout < MADERA_FLL_MIN_FOUT) ||
-	    (fll->fout > MADERA_FLL_MAX_FOUT)) {
+	if (fll->fout < MADERA_FLL_MIN_FOUT ||
+	    fll->fout > MADERA_FLL_MAX_FOUT) {
 		madera_fll_err(fll, "invalid fout %uHz\n", fll->fout);
 		ret = -EINVAL;
 		goto err;
@@ -4314,7 +4313,7 @@ static int madera_enable_fll(struct madera_fll *fll)
 			fll_change |=
 				madera_set_fll_phase_integrator(fll, &cfg,
 								have_sync);
-			if (!have_sync && (cfg.theta == 0))
+			if (!have_sync && cfg.theta == 0)
 				gain = cfg.alt_gain;
 			else
 				gain = cfg.gain;
@@ -4328,7 +4327,7 @@ static int madera_enable_fll(struct madera_fll *fll)
 	default:
 		fll_change |= madera_set_fll_phase_integrator(fll, &cfg,
 							      have_sync);
-		if (!have_sync && (cfg.theta == 0))
+		if (!have_sync && cfg.theta == 0)
 			gain = cfg.alt_gain;
 		else
 			gain = cfg.gain;
@@ -4424,7 +4423,7 @@ int madera_set_fll_refclk(struct madera_fll *fll, int source,
 	 * Changes of fout on an enabled FLL aren't allowed except when
 	 * setting fout==0 to disable the FLL
 	 */
-	if (fout && (fout != fll->fout)) {
+	if (fout && fout != fll->fout) {
 		ret = madera_is_enabled_fll(fll, fll->base);
 		if (ret < 0)
 			return ret;
@@ -4525,7 +4524,7 @@ static int madera_enable_fll_ao(struct madera_fll *fll,
 		pm_runtime_get_sync(madera->dev);
 
 	madera_fll_dbg(fll, "Enabling FLL_AO, initially %s\n",
-			already_enabled ? "enabled" : "disabled");
+		       already_enabled ? "enabled" : "disabled");
 
 	/* FLL_AO_HOLD must be set before configuring any registers */
 	regmap_update_bits(fll->madera->regmap,
@@ -4607,7 +4606,7 @@ int madera_set_fll_ao_refclk(struct madera_fll *fll, int source,
 		return 0;
 
 	madera_fll_dbg(fll, "Change FLL_AO refclk to fin=%u fout=%u source=%d\n",
-			fin, fout, source);
+		       fin, fout, source);
 
 	if (fout && (fll->ref_freq != fin || fll->fout != fout)) {
 		for (i = 0; i < ARRAY_SIZE(madera_fllao_settings); i++) {
@@ -4618,7 +4617,7 @@ int madera_set_fll_ao_refclk(struct madera_fll *fll, int source,
 
 		if (i == ARRAY_SIZE(madera_fllao_settings)) {
 			madera_fll_err(fll,
-					"No matching configuration for FLL_AO\n");
+				       "No matching configuration for FLL_AO\n");
 			return -EINVAL;
 		}
 

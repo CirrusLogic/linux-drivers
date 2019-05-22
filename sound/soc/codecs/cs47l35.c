@@ -137,9 +137,10 @@ static void cs47l35_hp_post_enable(struct snd_soc_dapm_widget *w)
 		val = snd_soc_read(codec, MADERA_OUTPUT_ENABLES_1);
 		val &= (MADERA_OUT1L_ENA | MADERA_OUT1R_ENA);
 
-		if (val == (MADERA_OUT1L_ENA | MADERA_OUT1R_ENA))
-			snd_soc_update_bits(codec,
-				    MADERA_EDRE_HP_STEREO_CONTROL,
+		if (val != (MADERA_OUT1L_ENA | MADERA_OUT1R_ENA))
+			break;
+
+		snd_soc_update_bits(codec, MADERA_EDRE_HP_STEREO_CONTROL,
 				    MADERA_HP1_EDRE_STEREO_MASK,
 				    MADERA_HP1_EDRE_STEREO);
 		break;
@@ -553,13 +554,13 @@ SND_SOC_DAPM_SUPPLY("MICBIAS2", MADERA_MIC_BIAS_CTRL_2,
 		    MADERA_MICB1_ENA_SHIFT, 0, NULL, 0),
 
 SND_SOC_DAPM_SUPPLY("MICBIAS1A", MADERA_MIC_BIAS_CTRL_5,
-		MADERA_MICB1A_ENA_SHIFT, 0, NULL, 0),
+		    MADERA_MICB1A_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("MICBIAS1B", MADERA_MIC_BIAS_CTRL_5,
-		MADERA_MICB1B_ENA_SHIFT, 0, NULL, 0),
+		    MADERA_MICB1B_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("MICBIAS2A", MADERA_MIC_BIAS_CTRL_6,
-		MADERA_MICB2A_ENA_SHIFT, 0, NULL, 0),
+		    MADERA_MICB2A_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("MICBIAS2B", MADERA_MIC_BIAS_CTRL_6,
-		MADERA_MICB2B_ENA_SHIFT, 0, NULL, 0),
+		    MADERA_MICB2B_ENA_SHIFT, 0, NULL, 0),
 
 SND_SOC_DAPM_SUPPLY("FXCLK", SND_SOC_NOPM,
 		    MADERA_DOM_GRP_FX, 0,
@@ -700,9 +701,9 @@ SND_SOC_DAPM_PGA_E("OUT5R", MADERA_OUTPUT_ENABLES_1,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 
 SND_SOC_DAPM_PGA("SPD1TX1", MADERA_SPD1_TX_CONTROL,
-		   MADERA_SPD1_VAL1_SHIFT, 0, NULL, 0),
+		 MADERA_SPD1_VAL1_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_PGA("SPD1TX2", MADERA_SPD1_TX_CONTROL,
-		   MADERA_SPD1_VAL2_SHIFT, 0, NULL, 0),
+		 MADERA_SPD1_VAL2_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_OUT_DRV("SPD1", MADERA_SPD1_TX_CONTROL,
 		     MADERA_SPD1_ENA_SHIFT, 0, NULL, 0),
 
@@ -721,12 +722,12 @@ SND_SOC_DAPM_PGA("Tone Generator 2", MADERA_TONE_GENERATOR_1,
 SND_SOC_DAPM_SIGGEN("HAPTICS"),
 
 SND_SOC_DAPM_MUX("AEC1 Loopback", MADERA_DAC_AEC_CONTROL_1,
-		       MADERA_AEC1_LOOPBACK_ENA_SHIFT, 0,
-		       &cs47l35_aec_loopback_mux[0]),
+		 MADERA_AEC1_LOOPBACK_ENA_SHIFT, 0,
+		 &cs47l35_aec_loopback_mux[0]),
 
 SND_SOC_DAPM_MUX("AEC2 Loopback", MADERA_DAC_AEC_CONTROL_2,
-		       MADERA_AEC2_LOOPBACK_ENA_SHIFT, 0,
-		       &cs47l35_aec_loopback_mux[1]),
+		 MADERA_AEC2_LOOPBACK_ENA_SHIFT, 0,
+		 &cs47l35_aec_loopback_mux[1]),
 
 SND_SOC_DAPM_PGA_E("IN1L PGA", MADERA_INPUT_ENABLES, MADERA_IN1L_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
@@ -1517,7 +1518,8 @@ static irqreturn_t cs47l35_adsp2_irq(int irq, void *data)
 		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER) {
 			trig_info.core_num = i + 1;
 			blocking_notifier_call_chain(&madera->notifier,
-				MADERA_NOTIFY_VOICE_TRIGGER, &trig_info);
+						MADERA_NOTIFY_VOICE_TRIGGER,
+						&trig_info);
 		}
 	}
 
@@ -1679,13 +1681,13 @@ static int cs47l35_probe(struct platform_device *pdev)
 	ret = madera_request_irq(madera, MADERA_IRQ_DSP_IRQ1,
 				 "ADSP2 Compressed IRQ", cs47l35_adsp2_irq,
 				 cs47l35);
-	if (ret != 0) {
+	if (ret) {
 		dev_err(&pdev->dev, "Failed to request DSP IRQ: %d\n", ret);
 		goto error_overheat;
 	}
 
 	ret = madera_set_irq_wake(madera, MADERA_IRQ_DSP_IRQ1, 1);
-	if (ret != 0)
+	if (ret)
 		dev_warn(&pdev->dev, "Failed to set DSP IRQ wake: %d\n", ret);
 
 	for (i = 0; i < CS47L35_NUM_ADSP; i++) {
@@ -1698,11 +1700,11 @@ static int cs47l35_probe(struct platform_device *pdev)
 
 		cs47l35->core.adsp[i].base = wm_adsp2_control_bases[i];
 		cs47l35->core.adsp[i].mem = cs47l35_dsp_regions[i];
-		cs47l35->core.adsp[i].num_mems
-			= ARRAY_SIZE(cs47l35_dsp1_regions);
+		cs47l35->core.adsp[i].num_mems =
+			ARRAY_SIZE(cs47l35_dsp1_regions);
 
 		ret = wm_adsp2_init(&cs47l35->core.adsp[i]);
-		if (ret != 0) {
+		if (ret) {
 			for (--i; i >= 0; --i)
 				wm_adsp2_remove(&cs47l35->core.adsp[i]);
 			goto error_dsp_irq;
@@ -1748,7 +1750,7 @@ error_pm_runtime:
 	for (i = 0; i < CS47L35_NUM_ADSP; i++)
 		wm_adsp2_remove(&cs47l35->core.adsp[i]);
 error_dsp_irq:
-	madera_set_irq_wake(cs47l35->core.madera, MADERA_IRQ_DSP_IRQ1, 0);
+	madera_set_irq_wake(madera, MADERA_IRQ_DSP_IRQ1, 0);
 	madera_free_irq(madera, MADERA_IRQ_DSP_IRQ1, cs47l35);
 error_overheat:
 	madera_free_overheat(&cs47l35->core);
