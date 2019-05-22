@@ -373,8 +373,6 @@ extern const struct snd_kcontrol_new madera_drc_activity_output_mux[];
 
 extern const struct snd_kcontrol_new madera_adsp_rate_controls[];
 
-const char *madera_sample_rate_val_to_name(unsigned int rate_val);
-
 int madera_dfc_put(struct snd_kcontrol *kcontrol,
 		   struct snd_ctl_elem_value *ucontrol);
 
@@ -412,8 +410,6 @@ int madera_domain_clk_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event);
 
-int madera_adsp_rate_info(struct snd_kcontrol *kcontrol,
-			  struct snd_ctl_elem_info *uinfo);
 int madera_set_adsp_clk(struct madera_priv *priv, int dsp_num,
 			unsigned int freq);
 
