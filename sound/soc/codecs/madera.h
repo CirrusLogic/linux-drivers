@@ -427,7 +427,7 @@ int madera_adsp_rate_put(struct snd_kcontrol *kcontrol,
 int madera_set_adsp_clk(struct madera_priv *priv, int dsp_num,
 			unsigned int freq);
 
-int madera_set_sysclk(struct snd_soc_component *codec, int clk_id,
+int madera_set_sysclk(struct snd_soc_component *component, int clk_id,
 		      int source, unsigned int freq, int dir);
 int madera_get_legacy_dspclk_setting(struct madera *madera, unsigned int freq);
 void madera_spin_sysclk(struct madera_priv *priv);
@@ -435,9 +435,9 @@ void madera_spin_sysclk(struct madera_priv *priv);
 int madera_init_fll(struct madera *madera, int id, int base,
 		    struct madera_fll *fll);
 int madera_set_fll_refclk(struct madera_fll *fll, int source,
-			  unsigned int Fref, unsigned int Fout);
+			  unsigned int fref, unsigned int fout);
 int madera_set_fll_syncclk(struct madera_fll *fll, int source,
-			   unsigned int Fref, unsigned int Fout);
+			   unsigned int fref, unsigned int fout);
 int madera_set_fll_ao_refclk(struct madera_fll *fll, int source,
 			     unsigned int fin, unsigned int fout);
 int madera_fllhj_set_refclk(struct madera_fll *fll, int source,
@@ -447,19 +447,19 @@ int madera_core_init(struct madera_priv *priv);
 int madera_core_destroy(struct madera_priv *priv);
 int madera_init_overheat(struct madera_priv *priv);
 int madera_free_overheat(struct madera_priv *priv);
-int madera_init_inputs(struct snd_soc_component *codec,
+int madera_init_inputs(struct snd_soc_component *component,
 		       const char * const *dmic_inputs,
 		       int n_dmic_inputs,
 		       const char * const *dmic_refs,
 		       int n_dmic_refs);
-int madera_init_outputs(struct snd_soc_component *codec, int n_mono_routes);
+int madera_init_outputs(struct snd_soc_component *component, int n_mono_routes);
 int madera_init_bus_error_irq(struct madera_priv *priv, int dsp_num,
 			      irq_handler_t handler);
 void madera_destroy_bus_error_irq(struct madera_priv *priv, int dsp_num);
 
 int madera_init_dai(struct madera_priv *priv, int dai);
 
-int madera_set_output_mode(struct snd_soc_component *codec, int output,
+int madera_set_output_mode(struct snd_soc_component *component, int output,
 			   bool differential);
 
 /* Following functions are for use by machine drivers */

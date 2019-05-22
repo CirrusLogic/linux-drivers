@@ -210,11 +210,13 @@ static void cs47l85_hp_post_enable(struct snd_soc_dapm_widget *w)
 
 		val &= (MADERA_OUT1L_ENA | MADERA_OUT1R_ENA);
 
-		if (val == (MADERA_OUT1L_ENA | MADERA_OUT1R_ENA))
-			snd_soc_component_update_bits(component,
-				MADERA_EDRE_HP_STEREO_CONTROL,
-				MADERA_HP1_EDRE_STEREO_MASK,
-				MADERA_HP1_EDRE_STEREO);
+		if (val != (MADERA_OUT1L_ENA | MADERA_OUT1R_ENA))
+			break;
+
+		snd_soc_component_update_bits(component,
+					      MADERA_EDRE_HP_STEREO_CONTROL,
+					      MADERA_HP1_EDRE_STEREO_MASK,
+					      MADERA_HP1_EDRE_STEREO);
 		break;
 
 	default:
@@ -1142,9 +1144,9 @@ SND_SOC_DAPM_PGA_E("OUT6R", MADERA_OUTPUT_ENABLES_1,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 
 SND_SOC_DAPM_PGA("SPD1TX1", MADERA_SPD1_TX_CONTROL,
-		   MADERA_SPD1_VAL1_SHIFT, 0, NULL, 0),
+		 MADERA_SPD1_VAL1_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_PGA("SPD1TX2", MADERA_SPD1_TX_CONTROL,
-		   MADERA_SPD1_VAL2_SHIFT, 0, NULL, 0),
+		 MADERA_SPD1_VAL2_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_OUT_DRV("SPD1", MADERA_SPD1_TX_CONTROL,
 		     MADERA_SPD1_ENA_SHIFT, 0, NULL, 0),
 
@@ -1163,11 +1165,11 @@ SND_SOC_DAPM_PGA("Tone Generator 2", MADERA_TONE_GENERATOR_1,
 SND_SOC_DAPM_SIGGEN("HAPTICS"),
 
 SND_SOC_DAPM_MUX("AEC1 Loopback", MADERA_DAC_AEC_CONTROL_1,
-			MADERA_AEC1_LOOPBACK_ENA_SHIFT, 0,
-			&cs47l85_aec_loopback_mux[0]),
+		 MADERA_AEC1_LOOPBACK_ENA_SHIFT, 0,
+		 &cs47l85_aec_loopback_mux[0]),
 SND_SOC_DAPM_MUX("AEC2 Loopback", MADERA_DAC_AEC_CONTROL_2,
-			MADERA_AEC2_LOOPBACK_ENA_SHIFT, 0,
-			&cs47l85_aec_loopback_mux[1]),
+		 MADERA_AEC2_LOOPBACK_ENA_SHIFT, 0,
+		 &cs47l85_aec_loopback_mux[1]),
 
 SND_SOC_DAPM_PGA_E("IN1L PGA", MADERA_INPUT_ENABLES, MADERA_IN1L_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
@@ -2200,29 +2202,29 @@ static const struct snd_soc_dapm_route cs47l85_dapm_routes[] = {
 };
 
 static int cs47l85_set_fll(struct snd_soc_component *component, int fll_id,
-			   int source, unsigned int Fref, unsigned int Fout)
+			   int source, unsigned int fref, unsigned int fout)
 {
 	struct cs47l85 *cs47l85 = snd_soc_component_get_drvdata(component);
 
 	switch (fll_id) {
 	case MADERA_FLL1_REFCLK:
-		return madera_set_fll_refclk(&cs47l85->fll[0], source, Fref,
-					     Fout);
+		return madera_set_fll_refclk(&cs47l85->fll[0], source, fref,
+					     fout);
 	case MADERA_FLL2_REFCLK:
-		return madera_set_fll_refclk(&cs47l85->fll[1], source, Fref,
-					     Fout);
+		return madera_set_fll_refclk(&cs47l85->fll[1], source, fref,
+					     fout);
 	case MADERA_FLL3_REFCLK:
-		return madera_set_fll_refclk(&cs47l85->fll[2], source, Fref,
-					     Fout);
+		return madera_set_fll_refclk(&cs47l85->fll[2], source, fref,
+					     fout);
 	case MADERA_FLL1_SYNCCLK:
-		return madera_set_fll_syncclk(&cs47l85->fll[0], source, Fref,
-					      Fout);
+		return madera_set_fll_syncclk(&cs47l85->fll[0], source, fref,
+					      fout);
 	case MADERA_FLL2_SYNCCLK:
-		return madera_set_fll_syncclk(&cs47l85->fll[1], source, Fref,
-					      Fout);
+		return madera_set_fll_syncclk(&cs47l85->fll[1], source, fref,
+					      fout);
 	case MADERA_FLL3_SYNCCLK:
-		return madera_set_fll_syncclk(&cs47l85->fll[2], source, Fref,
-					      Fout);
+		return madera_set_fll_syncclk(&cs47l85->fll[2], source, fref,
+					      fout);
 	default:
 		return -EINVAL;
 	}
@@ -2458,7 +2460,8 @@ static irqreturn_t cs47l85_adsp2_irq(int irq, void *data)
 		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER) {
 			trig_info.core_num = i + 1;
 			blocking_notifier_call_chain(&madera->notifier,
-				MADERA_NOTIFY_VOICE_TRIGGER, &trig_info);
+						MADERA_NOTIFY_VOICE_TRIGGER,
+						&trig_info);
 		}
 	}
 
@@ -2630,7 +2633,7 @@ static int cs47l85_probe(struct platform_device *pdev)
 	ret = madera_request_irq(madera, MADERA_IRQ_DSP_IRQ1,
 				 "ADSP2 Compressed IRQ", cs47l85_adsp2_irq,
 				 cs47l85);
-	if (ret != 0) {
+	if (ret) {
 		dev_err(&pdev->dev, "Failed to request DSP IRQ: %d\n", ret);
 		goto error_overheat;
 	}
@@ -2649,8 +2652,8 @@ static int cs47l85_probe(struct platform_device *pdev)
 
 		cs47l85->core.adsp[i].base = wm_adsp2_control_bases[i];
 		cs47l85->core.adsp[i].mem = cs47l85_dsp_regions[i];
-		cs47l85->core.adsp[i].num_mems
-			= ARRAY_SIZE(cs47l85_dsp1_regions);
+		cs47l85->core.adsp[i].num_mems =
+			ARRAY_SIZE(cs47l85_dsp1_regions);
 
 		ret = wm_adsp2_init(&cs47l85->core.adsp[i]);
 		if (ret) {
@@ -2695,7 +2698,7 @@ error_pm_runtime:
 	for (i = 0; i < CS47L85_NUM_ADSP; i++)
 		wm_adsp2_remove(&cs47l85->core.adsp[i]);
 error_dsp_irq:
-	madera_set_irq_wake(cs47l85->core.madera, MADERA_IRQ_DSP_IRQ1, 0);
+	madera_set_irq_wake(madera, MADERA_IRQ_DSP_IRQ1, 0);
 	madera_free_irq(madera, MADERA_IRQ_DSP_IRQ1, cs47l85);
 error_overheat:
 	madera_free_overheat(&cs47l85->core);
