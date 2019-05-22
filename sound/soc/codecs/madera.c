@@ -169,7 +169,7 @@ static const int madera_dsp_bus_error_irqs[MADERA_MAX_ADSP] = {
 	MADERA_IRQ_DSP7_BUS_ERR,
 };
 
-void madera_spin_sysclk(struct madera_priv *priv)
+static void madera_spin_sysclk(struct madera_priv *priv)
 {
 	struct madera *madera = priv->madera;
 	unsigned int val;
@@ -193,7 +193,6 @@ void madera_spin_sysclk(struct madera_priv *priv)
 
 	udelay(300);
 }
-EXPORT_SYMBOL_GPL(madera_spin_sysclk);
 
 int madera_sysclk_ev(struct snd_soc_dapm_widget *w,
 		     struct snd_kcontrol *kcontrol, int event)
@@ -942,8 +941,8 @@ static bool madera_can_change_grp_rate(const struct madera_priv *priv,
 		return true;
 }
 
-int madera_adsp_rate_get(struct snd_kcontrol *kcontrol,
-			 struct snd_ctl_elem_value *ucontrol)
+static int madera_adsp_rate_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
@@ -961,10 +960,9 @@ int madera_adsp_rate_get(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(madera_adsp_rate_get);
 
-int madera_adsp_rate_put(struct snd_kcontrol *kcontrol,
-			 struct snd_ctl_elem_value *ucontrol)
+static int madera_adsp_rate_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
@@ -998,7 +996,6 @@ int madera_adsp_rate_put(struct snd_kcontrol *kcontrol,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(madera_adsp_rate_put);
 
 static const struct soc_enum madera_adsp_rate_enum[] = {
 	SOC_VALUE_ENUM_SINGLE(SND_SOC_NOPM, 0, 0xf, MADERA_RATE_ENUM_SIZE,
@@ -2871,7 +2868,8 @@ static int madera_get_sysclk_setting(unsigned int freq)
 	}
 }
 
-int madera_get_legacy_dspclk_setting(struct madera *madera, unsigned int freq)
+static int madera_get_legacy_dspclk_setting(struct madera *madera,
+					    unsigned int freq)
 {
 	switch (freq) {
 	case 0:
@@ -2896,7 +2894,6 @@ int madera_get_legacy_dspclk_setting(struct madera *madera, unsigned int freq)
 		return -EINVAL;
 	}
 }
-EXPORT_SYMBOL_GPL(madera_get_legacy_dspclk_setting);
 
 static int madera_get_dspclk_setting(struct madera *madera,
 				     unsigned int freq,
