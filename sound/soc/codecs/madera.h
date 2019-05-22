@@ -334,12 +334,6 @@ extern const struct snd_kcontrol_new madera_inmux[];
 
 extern const char * const madera_rate_text[MADERA_RATE_ENUM_SIZE];
 extern const unsigned int madera_rate_val[MADERA_RATE_ENUM_SIZE];
-extern const char * const madera_sample_rate_text[MADERA_SAMPLE_RATE_ENUM_SIZE];
-extern const unsigned int madera_sample_rate_val[MADERA_SAMPLE_RATE_ENUM_SIZE];
-extern const char * const madera_dfc_width_text[MADERA_DFC_WIDTH_ENUM_SIZE];
-extern const unsigned int madera_dfc_width_val[MADERA_DFC_WIDTH_ENUM_SIZE];
-extern const char * const madera_dfc_type_text[MADERA_DFC_TYPE_ENUM_SIZE];
-extern const unsigned int madera_dfc_type_val[MADERA_DFC_TYPE_ENUM_SIZE];
 
 extern const struct soc_enum madera_sample_rate[];
 extern const struct soc_enum madera_isrc_fsl[];

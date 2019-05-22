@@ -440,6 +440,18 @@ static void madera_prop_get_pdata(struct madera_priv *priv)
 					"cirrus,auxpdm-falling-edge");
 }
 
+static const char * const madera_sample_rate_text[MADERA_SAMPLE_RATE_ENUM_SIZE] = {
+	"12kHz", "24kHz", "48kHz", "96kHz", "192kHz", "384kHz",
+	"11.025kHz", "22.05kHz", "44.1kHz", "88.2kHz", "176.4kHz", "352.8kHz",
+	"4kHz", "8kHz", "16kHz", "32kHz",
+};
+
+static const unsigned int madera_sample_rate_val[MADERA_SAMPLE_RATE_ENUM_SIZE] = {
+	0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
+	0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+	0x10, 0x11, 0x12, 0x13,
+};
+
 int madera_core_init(struct madera_priv *priv)
 {
 	int i;
@@ -1748,20 +1760,6 @@ EXPORT_SYMBOL_GPL(madera_ng_tlv);
 const DECLARE_TLV_DB_SCALE(madera_mixer_tlv, -3200, 100, 0);
 EXPORT_SYMBOL_GPL(madera_mixer_tlv);
 
-const char * const madera_sample_rate_text[MADERA_SAMPLE_RATE_ENUM_SIZE] = {
-	"12kHz", "24kHz", "48kHz", "96kHz", "192kHz", "384kHz",
-	"11.025kHz", "22.05kHz", "44.1kHz", "88.2kHz", "176.4kHz", "352.8kHz",
-	"4kHz", "8kHz", "16kHz", "32kHz",
-};
-EXPORT_SYMBOL_GPL(madera_sample_rate_text);
-
-const unsigned int madera_sample_rate_val[MADERA_SAMPLE_RATE_ENUM_SIZE] = {
-	0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
-	0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
-	0x10, 0x11, 0x12, 0x13,
-};
-EXPORT_SYMBOL_GPL(madera_sample_rate_val);
-
 const char *madera_sample_rate_val_to_name(unsigned int rate_val)
 {
 	int i;
@@ -1888,26 +1886,22 @@ const struct soc_enum madera_input_rate[] = {
 };
 EXPORT_SYMBOL_GPL(madera_input_rate);
 
-const char * const madera_dfc_width_text[MADERA_DFC_WIDTH_ENUM_SIZE] = {
+static const char * const madera_dfc_width_text[MADERA_DFC_WIDTH_ENUM_SIZE] = {
 	"8bit", "16bit", "20bit", "24bit", "32bit",
 };
-EXPORT_SYMBOL_GPL(madera_dfc_width_text);
 
-const unsigned int madera_dfc_width_val[MADERA_DFC_WIDTH_ENUM_SIZE] = {
+static const unsigned int madera_dfc_width_val[MADERA_DFC_WIDTH_ENUM_SIZE] = {
 	7, 15, 19, 23, 31,
 };
-EXPORT_SYMBOL_GPL(madera_dfc_width_val);
 
-const char * const madera_dfc_type_text[MADERA_DFC_TYPE_ENUM_SIZE] = {
+static const char * const madera_dfc_type_text[MADERA_DFC_TYPE_ENUM_SIZE] = {
 	"Fixed", "Unsigned Fixed", "Single Precision Floating",
 	"Half Precision Floating", "Arm Alternative Floating",
 };
-EXPORT_SYMBOL_GPL(madera_dfc_type_text);
 
-const unsigned int madera_dfc_type_val[MADERA_DFC_TYPE_ENUM_SIZE] = {
+static const unsigned int madera_dfc_type_val[MADERA_DFC_TYPE_ENUM_SIZE] = {
 	0, 1, 2, 4, 5,
 };
-EXPORT_SYMBOL_GPL(madera_dfc_type_val);
 
 const struct soc_enum madera_dfc_width[] = {
 	SOC_VALUE_ENUM_SINGLE(MADERA_DFC1_RX,
