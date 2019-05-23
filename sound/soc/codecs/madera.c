@@ -456,9 +456,9 @@ int madera_core_init(struct madera_priv *priv)
 {
 	int i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(madera_mixer_texts) != MADERA_NUM_MIXER_INPUTS);
-	BUILD_BUG_ON(ARRAY_SIZE(madera_mixer_values) != MADERA_NUM_MIXER_INPUTS);
 	/* trap undersized array initializers */
+	BUILD_BUG_ON(!madera_mixer_texts[MADERA_NUM_MIXER_INPUTS - 1]);
+	BUILD_BUG_ON(!madera_mixer_values[MADERA_NUM_MIXER_INPUTS - 1]);
 	BUILD_BUG_ON(!madera_sample_rate_text[MADERA_SAMPLE_RATE_ENUM_SIZE - 1]);
 	BUILD_BUG_ON(!madera_sample_rate_val[MADERA_SAMPLE_RATE_ENUM_SIZE - 1]);
 
@@ -1590,7 +1590,7 @@ const char * const madera_mixer_texts[] = {
 };
 EXPORT_SYMBOL_GPL(madera_mixer_texts);
 
-unsigned int madera_mixer_values[] = {
+const unsigned int madera_mixer_values[] = {
 	0x00,	/* None */
 	0x04,	/* Tone Generator 1 */
 	0x05,	/* Tone Generator 2 */

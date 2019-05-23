@@ -185,7 +185,7 @@ extern const unsigned int madera_ng_tlv[];
 
 extern const unsigned int madera_mixer_tlv[];
 extern const char * const madera_mixer_texts[MADERA_NUM_MIXER_INPUTS];
-extern unsigned int madera_mixer_values[MADERA_NUM_MIXER_INPUTS];
+extern const unsigned int madera_mixer_values[MADERA_NUM_MIXER_INPUTS];
 
 #define MADERA_GAINMUX_CONTROLS(name, base) \
 	SOC_SINGLE_RANGE_TLV(name " Input Volume", base + 1,		\
