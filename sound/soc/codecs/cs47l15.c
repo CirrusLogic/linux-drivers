@@ -1463,7 +1463,7 @@ error_platform:
 	snd_soc_unregister_platform(&pdev->dev);
 error_pm_runtime:
 	pm_runtime_disable(&pdev->dev);
-	madera_destroy_bus_error_irq(&cs47l15->core, 0);
+	madera_free_bus_error_irq(&cs47l15->core, 0);
 error_adsp:
 	wm_adsp2_remove(&cs47l15->core.adsp[0]);
 error_dsp_irq:
@@ -1472,7 +1472,7 @@ error_dsp_irq:
 error_overheat:
 	madera_free_overheat(&cs47l15->core);
 error_core:
-	madera_core_destroy(&cs47l15->core);
+	madera_core_free(&cs47l15->core);
 
 	return ret;
 }
@@ -1485,14 +1485,14 @@ static int cs47l15_remove(struct platform_device *pdev)
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	madera_destroy_bus_error_irq(&cs47l15->core, 0);
+	madera_free_bus_error_irq(&cs47l15->core, 0);
 
 	wm_adsp2_remove(&cs47l15->core.adsp[0]);
 
 	madera_set_irq_wake(cs47l15->core.madera, MADERA_IRQ_DSP_IRQ1, 0);
 	madera_free_irq(cs47l15->core.madera, MADERA_IRQ_DSP_IRQ1, cs47l15);
 	madera_free_overheat(&cs47l15->core);
-	madera_core_destroy(&cs47l15->core);
+	madera_core_free(&cs47l15->core);
 
 	return 0;
 }

@@ -1755,7 +1755,7 @@ error_dsp_irq:
 error_overheat:
 	madera_free_overheat(&cs47l35->core);
 error_core:
-	madera_core_destroy(&cs47l35->core);
+	madera_core_free(&cs47l35->core);
 
 	return ret;
 }
@@ -1775,7 +1775,7 @@ static int cs47l35_remove(struct platform_device *pdev)
 	madera_set_irq_wake(cs47l35->core.madera, MADERA_IRQ_DSP_IRQ1, 0);
 	madera_free_irq(cs47l35->core.madera, MADERA_IRQ_DSP_IRQ1, cs47l35);
 	madera_free_overheat(&cs47l35->core);
-	madera_core_destroy(&cs47l35->core);
+	madera_core_free(&cs47l35->core);
 
 	return 0;
 }
