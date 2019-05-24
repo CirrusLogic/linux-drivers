@@ -1,16 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Pinctrl for Cirrus Logic CS47L92
  *
- * Copyright 2016-2017 Cirrus Logic
+ * Copyright (C) 2018-2019 Cirrus Logic, Inc. and
+ *                         Cirrus Logic International Semiconductor Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * it under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; version 2.
  */
 
 #include <linux/err.h>
-#include <linux/module.h>
-
 #include <linux/mfd/madera/core.h>
 
 #include "pinctrl-madera.h"
@@ -31,10 +31,10 @@ static const unsigned int cs47l92_aif2_pins[] = { 8, 9, 10, 11 };
 static const unsigned int cs47l92_aif3_pins[] = { 12, 13, 14, 15 };
 
 static const struct madera_pin_groups cs47l92_pin_groups[] = {
-	{ "pdmspk1", cs47l92_spk1_pins, ARRAY_SIZE(cs47l92_spk1_pins) },
 	{ "aif1", cs47l92_aif1_pins, ARRAY_SIZE(cs47l92_aif1_pins) },
 	{ "aif2", cs47l92_aif2_pins, ARRAY_SIZE(cs47l92_aif2_pins) },
 	{ "aif3", cs47l92_aif3_pins, ARRAY_SIZE(cs47l92_aif3_pins) },
+	{ "pdmspk1", cs47l92_spk1_pins, ARRAY_SIZE(cs47l92_spk1_pins) },
 };
 
 const struct madera_pin_chip cs47l92_pin_chip = {
