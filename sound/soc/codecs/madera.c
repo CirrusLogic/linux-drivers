@@ -187,8 +187,7 @@ static void madera_spin_sysclk(struct madera_priv *priv)
 		ret = regmap_read(madera->regmap, MADERA_SOFTWARE_RESET, &val);
 		if (ret)
 			dev_err(madera->dev,
-				"%s Failed to read register: %d (%d)\n",
-				__func__, ret, i);
+				"Failed to read sysclk spin %d: %d\n", i, ret);
 	}
 
 	udelay(300);
@@ -285,6 +284,9 @@ static irqreturn_t madera_thermal_warn(int irq, void *data)
 				 ret);
 	} else if (warn) {
 		dev_crit(madera->dev, "Thermal warning\n");
+	} else {
+		dev_info(madera->dev, "Spurious thermal warning\n");
+		return IRQ_NONE;
 	}
 
 	return IRQ_HANDLED;
@@ -474,13 +476,13 @@ int madera_core_init(struct madera_priv *priv)
 }
 EXPORT_SYMBOL_GPL(madera_core_init);
 
-int madera_core_destroy(struct madera_priv *priv)
+int madera_core_free(struct madera_priv *priv)
 {
 	mutex_destroy(&priv->rate_lock);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(madera_core_destroy);
+EXPORT_SYMBOL_GPL(madera_core_free);
 
 static void madera_debug_dump_domain_groups(const struct madera_priv *priv)
 {
@@ -1428,7 +1430,7 @@ int madera_init_bus_error_irq(struct madera_priv *priv, int dsp_num,
 }
 EXPORT_SYMBOL_GPL(madera_init_bus_error_irq);
 
-void madera_destroy_bus_error_irq(struct madera_priv *priv, int dsp_num)
+void madera_free_bus_error_irq(struct madera_priv *priv, int dsp_num)
 {
 	struct madera *madera = priv->madera;
 
@@ -1436,7 +1438,7 @@ void madera_destroy_bus_error_irq(struct madera_priv *priv, int dsp_num)
 			madera_dsp_bus_error_irqs[dsp_num],
 			&priv->adsp[dsp_num]);
 }
-EXPORT_SYMBOL_GPL(madera_destroy_bus_error_irq);
+EXPORT_SYMBOL_GPL(madera_free_bus_error_irq);
 
 const char * const madera_mixer_texts[] = {
 	"None",
@@ -1874,7 +1876,7 @@ const struct soc_enum madera_input_rate[] = {
 EXPORT_SYMBOL_GPL(madera_input_rate);
 
 static const char * const madera_dfc_width_text[MADERA_DFC_WIDTH_ENUM_SIZE] = {
-	"8bit", "16bit", "20bit", "24bit", "32bit",
+	"8 bit", "16 bit", "20 bit", "24 bit", "32 bit",
 };
 
 static const unsigned int madera_dfc_width_val[MADERA_DFC_WIDTH_ENUM_SIZE] = {

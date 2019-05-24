@@ -2606,7 +2606,7 @@ static int cs47l90_probe(struct platform_device *pdev)
 
 		if (ret) {
 			for (--i; i >= 0; --i) {
-				madera_destroy_bus_error_irq(&cs47l90->core, i);
+				madera_free_bus_error_irq(&cs47l90->core, i);
 				wm_adsp2_remove(&cs47l90->core.adsp[i]);
 			}
 			goto error_dsp_irq;
@@ -2646,14 +2646,14 @@ error_pm_runtime:
 	pm_runtime_disable(&pdev->dev);
 
 	for (i = 0; i < CS47L90_NUM_ADSP; i++) {
-		madera_destroy_bus_error_irq(&cs47l90->core, i);
+		madera_free_bus_error_irq(&cs47l90->core, i);
 		wm_adsp2_remove(&cs47l90->core.adsp[i]);
 	}
 error_dsp_irq:
 	madera_set_irq_wake(madera, MADERA_IRQ_DSP_IRQ1, 0);
 	madera_free_irq(madera, MADERA_IRQ_DSP_IRQ1, cs47l90);
 error_core:
-	madera_core_destroy(&cs47l90->core);
+	madera_core_free(&cs47l90->core);
 
 	return ret;
 }
@@ -2666,13 +2666,13 @@ static int cs47l90_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	for (i = 0; i < CS47L90_NUM_ADSP; i++) {
-		madera_destroy_bus_error_irq(&cs47l90->core, i);
+		madera_free_bus_error_irq(&cs47l90->core, i);
 		wm_adsp2_remove(&cs47l90->core.adsp[i]);
 	}
 
 	madera_set_irq_wake(cs47l90->core.madera, MADERA_IRQ_DSP_IRQ1, 0);
 	madera_free_irq(cs47l90->core.madera, MADERA_IRQ_DSP_IRQ1, cs47l90);
-	madera_core_destroy(&cs47l90->core);
+	madera_core_free(&cs47l90->core);
 
 	return 0;
 }
