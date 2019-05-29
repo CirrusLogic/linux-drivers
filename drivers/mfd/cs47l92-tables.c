@@ -118,7 +118,6 @@ int cs47l92_patch(struct madera *madera)
 EXPORT_SYMBOL_GPL(cs47l92_patch);
 
 static const struct reg_default cs47l92_reg_default[] = {
-	{ 0x00000008, 0x0308 }, /* R8 (0x8) - Ctrl IF CFG 1 */
 	{ 0x00000020, 0x0000 }, /* R32 (0x20) - Tone Generator 1 */
 	{ 0x00000021, 0x1000 }, /* R33 (0x21) - Tone Generator 2 */
 	{ 0x00000022, 0x0000 }, /* R34 (0x22) - Tone Generator 3 */
@@ -127,7 +126,6 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x00000030, 0x0000 }, /* R48 (0x30) - PWM Drive 1 */
 	{ 0x00000031, 0x0100 }, /* R49 (0x31) - PWM Drive 2 */
 	{ 0x00000032, 0x0100 }, /* R50 (0x32) - PWM Drive 3 */
-	{ 0x00000041, 0x0000 }, /* R65 (0x41) - Sequence control */
 	{ 0x00000061, 0x01ff }, /* R97 (0x61) - Sample Rate Sequence Select 1 */
 	{ 0x00000062, 0x01ff }, /* R98 (0x62) - Sample Rate Sequence Select 2 */
 	{ 0x00000063, 0x01ff }, /* R99 (0x63) - Sample Rate Sequence Select 3 */
@@ -202,7 +200,6 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x00000219, 0x00e6 }, /* R537 (0x219) - Mic Bias Ctrl 2 */
 	{ 0x0000021c, 0x2222 }, /* R540 (0x21c) - Mic Bias Ctrl 5 */
 	{ 0x0000021e, 0x0022 }, /* R542 (0x21e) - Mic Bias Ctrl 6 */
-	{ 0x0000027e, 0x0000 }, /* R638 (0x27e) - EDRE HP Stereo Control */
 	{ 0x00000293, 0x0080 }, /* R659 (0x293) - Accessory Detect Mode 1 */
 	{ 0x00000299, 0x0000 }, /* R665 (0x299) - Headphone Detect 0 */
 	{ 0x0000029b, 0x0000 }, /* R667 (0x29b) - Headphone Detect 1 */
@@ -289,8 +286,6 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x00000434, 0x0000 }, /* R1076 (0x434) - Output Path Config 5R */
 	{ 0x00000435, 0x0180 }, /* R1077 (0x435) - DAC Digital Volume 5R */
 	{ 0x00000437, 0x0200 }, /* R1079 (0x437) - Noise Gate Select 5R */
-	{ 0x00000440, 0x003f }, /* R1088 (0x440) - DRE Enable */
-	{ 0x00000448, 0x003f }, /* R1096 (0x448) - EDRE Enable */
 	{ 0x00000450, 0x0000 }, /* R1104 (0x450) - DAC AEC Control 1 */
 	{ 0x00000451, 0x0000 }, /* R1105 (0x451) - DAC AEC Control 2 */
 	{ 0x00000458, 0x0000 }, /* R1112 (0x458) - Noise Gate Control */
@@ -979,50 +974,8 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x00000ef3, 0x0000 }, /* R3827 (0xef3) - ISRC2 CTRL 1 */
 	{ 0x00000ef4, 0x0001 }, /* R3828 (0xef4) - ISRC2 CTRL 2 */
 	{ 0x00000ef5, 0x0000 }, /* R3829 (0xef5) - ISRC2 CTRL 3 */
-	{ 0x00001080, 0x2030 }, /* R4224 (0x1080) - US1 Ctrl 0 */
-	{ 0x00001081, 0x0000 }, /* R4225 (0x1081) - US1 Ctrl 1 */
-	{ 0x00001082, 0x2030 }, /* R4226 (0x1082) - US2 Ctrl 0 */
-	{ 0x00001083, 0x0000 }, /* R4227 (0x1083) - US2 Ctrl 1 */
-	{ 0x000010a0, 0x0000 }, /* R4256 (0x10a0) - US1 Det Ctrl 0 */
-	{ 0x000010a1, 0x0000 }, /* R4257 (0x10a1) - US1 Det Ctrl 1 */
-	{ 0x000010a2, 0x0000 }, /* R4258 (0x10a2) - US2 Det Ctrl 0 */
-	{ 0x000010a3, 0x0000 }, /* R4259 (0x10a3) - US2 Det Ctrl 1 */
 	{ 0x000010c0, 0x0008 }, /* R4288 (0x10c0) - AUXPDM1 Ctrl 0 */
 	{ 0x000010c1, 0x4000 }, /* R4289 (0x10c1) - AUXPDM1 Ctrl 1 */
-	{ 0x00001300, 0x050E }, /* R4864 (0x1300) - DAC comp 1 */
-	{ 0x00001302, 0x0101 }, /* R4866 (0x1302) - DAC comp 2 */
-	{ 0x00001380, 0x02E0 }, /* R4992 (0x1380) - FRF Coefficient 1L 1 */
-	{ 0x00001381, 0xF942 }, /* R4993 (0x1381) - FRF Coefficient 1L 2 */
-	{ 0x00001382, 0x04CE }, /* R4994 (0x1382) - FRF Coefficient 1L 3 */
-	{ 0x00001383, 0xFF06 }, /* R4995 (0x1383) - FRF Coefficient 1L 4 */
-	{ 0x00001390, 0x0304 }, /* R5008 (0x1390) - FRF Coefficient 1R 1 */
-	{ 0x00001391, 0xF8FF }, /* R5009 (0x1391) - FRF Coefficient 1R 2 */
-	{ 0x00001392, 0x04F3 }, /* R5010 (0x1392) - FRF Coefficient 1R 3 */
-	{ 0x00001393, 0xFF00 }, /* R5011 (0x1393) - FRF Coefficient 1R 4 */
-	{ 0x000013a0, 0x02E0 }, /* R5024 (0x13a0) - FRF Coefficient 2L 1 */
-	{ 0x000013a1, 0xF942 }, /* R5025 (0x13a1) - FRF Coefficient 2L 2 */
-	{ 0x000013a2, 0x04CE }, /* R5026 (0x13a2) - FRF Coefficient 2L 3 */
-	{ 0x000013a3, 0xFF06 }, /* R5027 (0x13a3) - FRF Coefficient 2L 4 */
-	{ 0x000013b0, 0x0304 }, /* R5040 (0x13b0) - FRF Coefficient 2R 1 */
-	{ 0x000013b1, 0xF8FF }, /* R5041 (0x13b1) - FRF Coefficient 2R 2 */
-	{ 0x000013b2, 0x04F3 }, /* R5042 (0x13b2) - FRF Coefficient 2R 3 */
-	{ 0x000013b3, 0xFF00 }, /* R5043 (0x13b3) - FRF Coefficient 2R 4 */
-	{ 0x000013c0, 0x0000 }, /* R5056 (0x13c0) - FRF Coefficient 3L 1 */
-	{ 0x000013c1, 0x0000 }, /* R5057 (0x13c1) - FRF Coefficient 3L 2 */
-	{ 0x000013c2, 0x0000 }, /* R5058 (0x13c2) - FRF Coefficient 3L 3 */
-	{ 0x000013c3, 0x0000 }, /* R5059 (0x13c3) - FRF Coefficient 3L 4 */
-	{ 0x000013d0, 0x0000 }, /* R5072 (0x13d0) - FRF Coefficient 3R 1 */
-	{ 0x000013d1, 0x0000 }, /* R5073 (0x13d1) - FRF Coefficient 3R 2 */
-	{ 0x000013d2, 0x0000 }, /* R5074 (0x13d2) - FRF Coefficient 3R 3 */
-	{ 0x000013d3, 0x0000 }, /* R5075 (0x13d3) - FRF Coefficient 3R 4 */
-	{ 0x00001400, 0x0000 }, /* R5120 (0x1400) - FRF Coefficient 5L 1 */
-	{ 0x00001401, 0x0000 }, /* R5121 (0x1401) - FRF Coefficient 5L 2 */
-	{ 0x00001402, 0x0000 }, /* R5122 (0x1402) - FRF Coefficient 5L 3 */
-	{ 0x00001403, 0x0000 }, /* R5123 (0x1403) - FRF Coefficient 5L 4 */
-	{ 0x00001410, 0x0000 }, /* R5136 (0x1410) - FRF Coefficient 5R 1 */
-	{ 0x00001411, 0x0000 }, /* R5137 (0x1411) - FRF Coefficient 5R 2 */
-	{ 0x00001412, 0x0000 }, /* R5138 (0x1412) - FRF Coefficient 5R 3 */
-	{ 0x00001413, 0x0000 }, /* R5139 (0x1413) - FRF Coefficient 5R 4 */
 	{ 0x00001480, 0x0000 }, /* R5248 (0x1480) - DFC1 CTRL W0 */
 	{ 0x00001482, 0x1f00 }, /* R5250 (0x1482) - DFC1 RX W0 */
 	{ 0x00001484, 0x1f00 }, /* R5252 (0x1484) - DFC1 TX W0 */
@@ -1112,7 +1065,6 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x0000185e, 0xffff }, /* R6238 (0x185e) - IRQ1 Mask 31 */
 	{ 0x0000185f, 0xffff }, /* R6239 (0x185f) - IRQ1 Mask 32 */
 	{ 0x00001860, 0x0001 }, /* R6240 (0x1860) - IRQ1 Mask 33 */
-	{ 0x00001948, 0x031f }, /* R6472 (0x1948) - IRQ2 Mask 9 */
 	{ 0x00001a06, 0x0000 }, /* R6662 (0x1a06) - Interrupt Debounce 7 */
 	{ 0x00001a80, 0x4400 }, /* R6784 (0x1a80) - IRQ1 CTRL */
 };
@@ -1136,7 +1088,6 @@ static bool cs47l92_16bit_readable_register(struct device *dev,
 	switch (reg) {
 	case MADERA_SOFTWARE_RESET:
 	case MADERA_HARDWARE_REVISION:
-	case MADERA_CTRL_IF_CFG_1:
 	case MADERA_WRITE_SEQUENCER_CTRL_0:
 	case MADERA_WRITE_SEQUENCER_CTRL_1:
 	case MADERA_WRITE_SEQUENCER_CTRL_2:
@@ -1148,7 +1099,6 @@ static bool cs47l92_16bit_readable_register(struct device *dev,
 	case MADERA_PWM_DRIVE_1:
 	case MADERA_PWM_DRIVE_2:
 	case MADERA_PWM_DRIVE_3:
-	case MADERA_SEQUENCE_CONTROL:
 	case MADERA_SAMPLE_RATE_SEQUENCE_SELECT_1:
 	case MADERA_SAMPLE_RATE_SEQUENCE_SELECT_2:
 	case MADERA_SAMPLE_RATE_SEQUENCE_SELECT_3:
@@ -1235,7 +1185,6 @@ static bool cs47l92_16bit_readable_register(struct device *dev,
 	case MADERA_HP_CTRL_2R:
 	case MADERA_HP_CTRL_3L:
 	case MADERA_HP_CTRL_3R:
-	case MADERA_EDRE_HP_STEREO_CONTROL:
 	case MADERA_ACCESSORY_DETECT_MODE_1:
 	case MADERA_HEADPHONE_DETECT_0:
 	case MADERA_HEADPHONE_DETECT_1:
@@ -1332,8 +1281,6 @@ static bool cs47l92_16bit_readable_register(struct device *dev,
 	case MADERA_OUTPUT_PATH_CONFIG_5R:
 	case MADERA_DAC_DIGITAL_VOLUME_5R:
 	case MADERA_NOISE_GATE_SELECT_5R:
-	case MADERA_DRE_ENABLE:
-	case MADERA_EDRE_ENABLE:
 	case MADERA_DAC_AEC_CONTROL_1:
 	case MADERA_DAC_AEC_CONTROL_2:
 	case MADERA_NOISE_GATE_CONTROL:
@@ -1949,50 +1896,8 @@ static bool cs47l92_16bit_readable_register(struct device *dev,
 	case MADERA_ISRC_2_CTRL_1:
 	case MADERA_ISRC_2_CTRL_2:
 	case MADERA_ISRC_2_CTRL_3:
-	case MADERA_US1_CTRL_0:
-	case MADERA_US1_CTRL_1:
-	case MADERA_US2_CTRL_0:
-	case MADERA_US2_CTRL_1:
-	case MADERA_US1_DET_CTRL_0:
-	case MADERA_US1_DET_CTRL_1:
-	case MADERA_US2_DET_CTRL_0:
-	case MADERA_US2_DET_CTRL_1:
 	case MADERA_AUXPDM1_CTRL_0:
 	case MADERA_AUXPDM1_CTRL_1:
-	case MADERA_DAC_COMP_1:
-	case MADERA_DAC_COMP_2:
-	case MADERA_FRF_COEFFICIENT_1L_1:
-	case MADERA_FRF_COEFFICIENT_1L_2:
-	case MADERA_FRF_COEFFICIENT_1L_3:
-	case MADERA_FRF_COEFFICIENT_1L_4:
-	case MADERA_FRF_COEFFICIENT_1R_1:
-	case MADERA_FRF_COEFFICIENT_1R_2:
-	case MADERA_FRF_COEFFICIENT_1R_3:
-	case MADERA_FRF_COEFFICIENT_1R_4:
-	case MADERA_FRF_COEFFICIENT_2L_1:
-	case MADERA_FRF_COEFFICIENT_2L_2:
-	case MADERA_FRF_COEFFICIENT_2L_3:
-	case MADERA_FRF_COEFFICIENT_2L_4:
-	case MADERA_FRF_COEFFICIENT_2R_1:
-	case MADERA_FRF_COEFFICIENT_2R_2:
-	case MADERA_FRF_COEFFICIENT_2R_3:
-	case MADERA_FRF_COEFFICIENT_2R_4:
-	case MADERA_FRF_COEFFICIENT_3L_1:
-	case MADERA_FRF_COEFFICIENT_3L_2:
-	case MADERA_FRF_COEFFICIENT_3L_3:
-	case MADERA_FRF_COEFFICIENT_3L_4:
-	case MADERA_FRF_COEFFICIENT_3R_1:
-	case MADERA_FRF_COEFFICIENT_3R_2:
-	case MADERA_FRF_COEFFICIENT_3R_3:
-	case MADERA_FRF_COEFFICIENT_3R_4:
-	case MADERA_FRF_COEFFICIENT_5L_1:
-	case MADERA_FRF_COEFFICIENT_5L_2:
-	case MADERA_FRF_COEFFICIENT_5L_3:
-	case MADERA_FRF_COEFFICIENT_5L_4:
-	case MADERA_FRF_COEFFICIENT_5R_1:
-	case MADERA_FRF_COEFFICIENT_5R_2:
-	case MADERA_FRF_COEFFICIENT_5R_3:
-	case MADERA_FRF_COEFFICIENT_5R_4:
 	case MADERA_DFC1_CTRL:
 	case MADERA_DFC1_RX:
 	case MADERA_DFC1_TX:
