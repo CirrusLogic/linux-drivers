@@ -132,25 +132,25 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x00000064, 0x01ff }, /* R100 (0x64) - Sample Rate Sequence Select 4 */
 	{ 0x00000090, 0x0000 }, /* R144 (0x90) - Haptics Control 1 */
 	{ 0x00000091, 0x7fff }, /* R145 (0x91) - Haptics Control 2 */
-	{ 0x00000092, 0x0000 }, /* R146 (0x92) - Haptics phase 1 intensity */
-	{ 0x00000093, 0x0000 }, /* R147 (0x93) - Haptics phase 1 duration */
-	{ 0x00000094, 0x0000 }, /* R148 (0x94) - Haptics phase 2 intensity */
-	{ 0x00000095, 0x0000 }, /* R149 (0x95) - Haptics phase 2 duration */
-	{ 0x00000096, 0x0000 }, /* R150 (0x96) - Haptics phase 3 intensity */
-	{ 0x00000097, 0x0000 }, /* R151 (0x97) - Haptics phase 3 duration */
+	{ 0x00000092, 0x0000 }, /* R146 (0x92) - Haptics Phase 1 Intensity */
+	{ 0x00000093, 0x0000 }, /* R147 (0x93) - Haptics Phase 1 Duration */
+	{ 0x00000094, 0x0000 }, /* R148 (0x94) - Haptics Phase 2 Intensity */
+	{ 0x00000095, 0x0000 }, /* R149 (0x95) - Haptics Phase 2 Duration */
+	{ 0x00000096, 0x0000 }, /* R150 (0x96) - Haptics Phase 3 Intensity */
+	{ 0x00000097, 0x0000 }, /* R151 (0x97) - Haptics Phase 3 Duration */
 	{ 0x000000a0, 0x0000 }, /* R160 (0xa0) - Comfort Noise Generator */
 	{ 0x00000100, 0x0002 }, /* R256 (0x100) - Clock 32k 1 */
 	{ 0x00000101, 0x0404 }, /* R257 (0x101) - System Clock 1 */
-	{ 0x00000102, 0x0011 }, /* R258 (0x102) - Sample rate 1 */
-	{ 0x00000103, 0x0011 }, /* R259 (0x103) - Sample rate 2 */
-	{ 0x00000104, 0x0011 }, /* R260 (0x104) - Sample rate 3 */
-	{ 0x00000112, 0x0305 }, /* R274 (0x112) - Async clock 1 */
-	{ 0x00000113, 0x0011 }, /* R275 (0x113) - Async sample rate 1 */
-	{ 0x00000114, 0x0011 }, /* R276 (0x114) - Async sample rate 2 */
+	{ 0x00000102, 0x0011 }, /* R258 (0x102) - Sample Rate 1 */
+	{ 0x00000103, 0x0011 }, /* R259 (0x103) - Sample Rate 2 */
+	{ 0x00000104, 0x0011 }, /* R260 (0x104) - Sample Rate 3 */
+	{ 0x00000112, 0x0305 }, /* R274 (0x112) - Async Clock 1 */
+	{ 0x00000113, 0x0011 }, /* R275 (0x113) - Async Sample Rate 1 */
+	{ 0x00000114, 0x0011 }, /* R276 (0x114) - Async Sample Rate 2 */
 	{ 0x00000120, 0x0305 }, /* R288 (0x120) - DSP Clock 1 */
 	{ 0x00000122, 0x0000 }, /* R290 (0x122) - DSP Clock 2 */
-	{ 0x00000149, 0x0000 }, /* R329 (0x149) - Output system clock */
-	{ 0x0000014a, 0x0000 }, /* R330 (0x14a) - Output async clock */
+	{ 0x00000149, 0x0000 }, /* R329 (0x149) - Output System Clock */
+	{ 0x0000014a, 0x0000 }, /* R330 (0x14a) - Output Async Clock */
 	{ 0x00000152, 0x0000 }, /* R338 (0x152) - Rate Estimator 1 */
 	{ 0x00000153, 0x0000 }, /* R339 (0x153) - Rate Estimator 2 */
 	{ 0x00000154, 0x0000 }, /* R340 (0x154) - Rate Estimator 3 */
@@ -219,7 +219,7 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x000002b9, 0x202d }, /* R697 (0x2b9) - Mic Detect 2 Level 4 */
 	{ 0x000002c6, 0x0210 }, /* R710 (0x2c6) - Micd Clamp control */
 	{ 0x000002c8, 0x0000 }, /* R712 (0x2c8) - GP Switch 1 */
-	{ 0x000002d3, 0x0000 }, /* R723 (0x2d3) - Jack detect analogue */
+	{ 0x000002d3, 0x0000 }, /* R723 (0x2d3) - Jack Detect Analogue */
 	{ 0x00000300, 0x0000 }, /* R768 (0x300) - Input Enables */
 	{ 0x00000308, 0x0400 }, /* R776 (0x308) - Input Rate */
 	{ 0x00000309, 0x0022 }, /* R777 (0x309) - Input Volume Ramp */
@@ -289,8 +289,8 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x00000450, 0x0000 }, /* R1104 (0x450) - DAC AEC Control 1 */
 	{ 0x00000451, 0x0000 }, /* R1105 (0x451) - DAC AEC Control 2 */
 	{ 0x00000458, 0x0000 }, /* R1112 (0x458) - Noise Gate Control */
-	{ 0x00000490, 0x0069 }, /* R1168 (0x490) - PDM SPK1 CTRL 1 */
-	{ 0x00000491, 0x0000 }, /* R1169 (0x491) - PDM SPK1 CTRL 2 */
+	{ 0x00000490, 0x0069 }, /* R1168 (0x490) - PDM SPK1 Ctrl 1 */
+	{ 0x00000491, 0x0000 }, /* R1169 (0x491) - PDM SPK1 Ctrl 2 */
 	{ 0x000004a0, 0x0080 }, /* R1184 (0x4a0) - HP1 Short Circuit Ctrl */
 	{ 0x000004a1, 0x0000 }, /* R1185 (0x4a1) - HP2 Short Circuit Ctrl */
 	{ 0x000004a2, 0x0000 }, /* R1186 (0x4a2) - HP3 Short Circuit Ctrl */
@@ -372,18 +372,18 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x00000598, 0x0007 }, /* R1432 (0x598) - AIF3 Frame Ctrl 18 */
 	{ 0x00000599, 0x0000 }, /* R1433 (0x599) - AIF3 Tx Enables */
 	{ 0x0000059a, 0x0000 }, /* R1434 (0x59a) - AIF3 Rx Enables */
-	{ 0x000005c2, 0x0000 }, /* R1474 (0x5c2) - SPD1 TX Control */
-	{ 0x000005e3, 0x0000 }, /* R1507 (0x5e3) - SLIMbus Framer Ref Gear */
-	{ 0x000005e5, 0x0000 }, /* R1509 (0x5e5) - SLIMbus Rates 1 */
-	{ 0x000005e6, 0x0000 }, /* R1510 (0x5e6) - SLIMbus Rates 2 */
-	{ 0x000005e7, 0x0000 }, /* R1511 (0x5e7) - SLIMbus Rates 3 */
-	{ 0x000005e8, 0x0000 }, /* R1512 (0x5e8) - SLIMbus Rates 4 */
-	{ 0x000005e9, 0x0000 }, /* R1513 (0x5e9) - SLIMbus Rates 5 */
-	{ 0x000005ea, 0x0000 }, /* R1514 (0x5ea) - SLIMbus Rates 6 */
-	{ 0x000005eb, 0x0000 }, /* R1515 (0x5eb) - SLIMbus Rates 7 */
-	{ 0x000005ec, 0x0000 }, /* R1516 (0x5ec) - SLIMbus Rates 8 */
-	{ 0x000005f5, 0x0000 }, /* R1525 (0x5f5) - SLIMbus RX Channel Enable */
-	{ 0x000005f6, 0x0000 }, /* R1526 (0x5f6) - SLIMbus TX Channel Enable */
+	{ 0x000005c2, 0x0000 }, /* R1474 (0x5c2) - SPD1 Tx Control */
+	{ 0x000005e3, 0x0000 }, /* R1507 (0x5e3) - SLIMBus Framer Ref Gear */
+	{ 0x000005e5, 0x0000 }, /* R1509 (0x5e5) - SLIMBus Rates 1 */
+	{ 0x000005e6, 0x0000 }, /* R1510 (0x5e6) - SLIMBus Rates 2 */
+	{ 0x000005e7, 0x0000 }, /* R1511 (0x5e7) - SLIMBus Rates 3 */
+	{ 0x000005e8, 0x0000 }, /* R1512 (0x5e8) - SLIMBus Rates 4 */
+	{ 0x000005e9, 0x0000 }, /* R1513 (0x5e9) - SLIMBus Rates 5 */
+	{ 0x000005ea, 0x0000 }, /* R1514 (0x5ea) - SLIMBus Rates 6 */
+	{ 0x000005eb, 0x0000 }, /* R1515 (0x5eb) - SLIMBus Rates 7 */
+	{ 0x000005ec, 0x0000 }, /* R1516 (0x5ec) - SLIMBus Rates 8 */
+	{ 0x000005f5, 0x0000 }, /* R1525 (0x5f5) - SLIMBus RX Channel Enable */
+	{ 0x000005f6, 0x0000 }, /* R1526 (0x5f6) - SLIMBus TX Channel Enable */
 	{ 0x00000640, 0x0000 }, /* R1600 (0x640) - PWM1MIX Input 1 Source */
 	{ 0x00000641, 0x0080 }, /* R1601 (0x641) - PWM1MIX Input 1 Volume */
 	{ 0x00000642, 0x0000 }, /* R1602 (0x642) - PWM1MIX Input 2 Source */
@@ -862,7 +862,7 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x00000de8, 0x0000 }, /* R3560 (0xde8) - DFC6MIX Input 1 Source */
 	{ 0x00000df0, 0x0000 }, /* R3568 (0xdf0) - DFC7MIX Input 1 Source */
 	{ 0x00000df8, 0x0000 }, /* R3576 (0xdf8) - DFC8MIX Input 1 Source */
-	{ 0x00000e00, 0x0000 }, /* R3584 (0xe00) - FX Ctrl1 */
+	{ 0x00000e00, 0x0000 }, /* R3584 (0xe00) - FX Ctrl 1 */
 	{ 0x00000e10, 0x6318 }, /* R3600 (0xe10) - EQ1 1 */
 	{ 0x00000e11, 0x6300 }, /* R3601 (0xe11) - EQ1 2 */
 	{ 0x00000e12, 0x0fc8 }, /* R3602 (0xe12) - EQ1 3 */
@@ -947,16 +947,16 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x00000e64, 0x0563 }, /* R3684 (0xe64) - EQ4 19 */
 	{ 0x00000e65, 0x4000 }, /* R3685 (0xe65) - EQ4 20 */
 	{ 0x00000e66, 0x0b75 }, /* R3686 (0xe66) - EQ4 21 */
-	{ 0x00000e80, 0x0018 }, /* R3712 (0xe80) - DRC1 ctrl1 */
-	{ 0x00000e81, 0x0933 }, /* R3713 (0xe81) - DRC1 ctrl2 */
-	{ 0x00000e82, 0x0018 }, /* R3714 (0xe82) - DRC1 ctrl3 */
-	{ 0x00000e83, 0x0000 }, /* R3715 (0xe83) - DRC1 ctrl4 */
-	{ 0x00000e84, 0x0000 }, /* R3716 (0xe84) - DRC1 ctrl5 */
-	{ 0x00000e88, 0x0018 }, /* R3720 (0xe88) - DRC2 ctrl1 */
-	{ 0x00000e89, 0x0933 }, /* R3721 (0xe89) - DRC2 ctrl2 */
-	{ 0x00000e8a, 0x0018 }, /* R3722 (0xe8a) - DRC2 ctrl3 */
-	{ 0x00000e8b, 0x0000 }, /* R3723 (0xe8b) - DRC2 ctrl4 */
-	{ 0x00000e8c, 0x0000 }, /* R3724 (0xe8c) - DRC2 ctrl5 */
+	{ 0x00000e80, 0x0018 }, /* R3712 (0xe80) - DRC1 Ctrl 1 */
+	{ 0x00000e81, 0x0933 }, /* R3713 (0xe81) - DRC1 Ctrl 2 */
+	{ 0x00000e82, 0x0018 }, /* R3714 (0xe82) - DRC1 Ctrl 3 */
+	{ 0x00000e83, 0x0000 }, /* R3715 (0xe83) - DRC1 Ctrl 4 */
+	{ 0x00000e84, 0x0000 }, /* R3716 (0xe84) - DRC1 Ctrl 5 */
+	{ 0x00000e88, 0x0018 }, /* R3720 (0xe88) - DRC2 Ctrl 1 */
+	{ 0x00000e89, 0x0933 }, /* R3721 (0xe89) - DRC2 Ctrl 2 */
+	{ 0x00000e8a, 0x0018 }, /* R3722 (0xe8a) - DRC2 Ctrl 3 */
+	{ 0x00000e8b, 0x0000 }, /* R3723 (0xe8b) - DRC2 Ctrl 4 */
+	{ 0x00000e8c, 0x0000 }, /* R3724 (0xe8c) - DRC2 Ctrl 5 */
 	{ 0x00000ec0, 0x0000 }, /* R3776 (0xec0) - HPLPF1 1 */
 	{ 0x00000ec1, 0x0000 }, /* R3777 (0xec1) - HPLPF1 2 */
 	{ 0x00000ec4, 0x0000 }, /* R3780 (0xec4) - HPLPF2 1 */
@@ -965,73 +965,73 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x00000ec9, 0x0000 }, /* R3785 (0xec9) - HPLPF3 2 */
 	{ 0x00000ecc, 0x0000 }, /* R3788 (0xecc) - HPLPF4 1 */
 	{ 0x00000ecd, 0x0000 }, /* R3789 (0xecd) - HPLPF4 2 */
-	{ 0x00000ee0, 0x0000 }, /* R3808 (0xee0) - ASRC1 ENABLE */
-	{ 0x00000ee2, 0x0000 }, /* R3810 (0xee2) - ASRC1 RATE1 */
-	{ 0x00000ee3, 0x4000 }, /* R3811 (0xee3) - ASRC1 RATE2 */
-	{ 0x00000ef0, 0x0000 }, /* R3824 (0xef0) - ISRC1 CTRL 1 */
-	{ 0x00000ef1, 0x0001 }, /* R3825 (0xef1) - ISRC1 CTRL 2 */
-	{ 0x00000ef2, 0x0000 }, /* R3826 (0xef2) - ISRC1 CTRL 3 */
-	{ 0x00000ef3, 0x0000 }, /* R3827 (0xef3) - ISRC2 CTRL 1 */
-	{ 0x00000ef4, 0x0001 }, /* R3828 (0xef4) - ISRC2 CTRL 2 */
-	{ 0x00000ef5, 0x0000 }, /* R3829 (0xef5) - ISRC2 CTRL 3 */
+	{ 0x00000ee0, 0x0000 }, /* R3808 (0xee0) - ASRC1 Enable */
+	{ 0x00000ee2, 0x0000 }, /* R3810 (0xee2) - ASRC1 Rate 1 */
+	{ 0x00000ee3, 0x4000 }, /* R3811 (0xee3) - ASRC1 Rate 2 */
+	{ 0x00000ef0, 0x0000 }, /* R3824 (0xef0) - ISRC1 Ctrl 1 */
+	{ 0x00000ef1, 0x0001 }, /* R3825 (0xef1) - ISRC1 Ctrl 2 */
+	{ 0x00000ef2, 0x0000 }, /* R3826 (0xef2) - ISRC1 Ctrl 3 */
+	{ 0x00000ef3, 0x0000 }, /* R3827 (0xef3) - ISRC2 Ctrl 1 */
+	{ 0x00000ef4, 0x0001 }, /* R3828 (0xef4) - ISRC2 Ctrl 2 */
+	{ 0x00000ef5, 0x0000 }, /* R3829 (0xef5) - ISRC2 Ctrl 3 */
 	{ 0x000010c0, 0x0008 }, /* R4288 (0x10c0) - AUXPDM1 Ctrl 0 */
 	{ 0x000010c1, 0x4000 }, /* R4289 (0x10c1) - AUXPDM1 Ctrl 1 */
-	{ 0x00001480, 0x0000 }, /* R5248 (0x1480) - DFC1 CTRL W0 */
-	{ 0x00001482, 0x1f00 }, /* R5250 (0x1482) - DFC1 RX W0 */
-	{ 0x00001484, 0x1f00 }, /* R5252 (0x1484) - DFC1 TX W0 */
-	{ 0x00001486, 0x0000 }, /* R5254 (0x1486) - DFC2 CTRL W0 */
-	{ 0x00001488, 0x1f00 }, /* R5256 (0x1488) - DFC2 RX W0 */
-	{ 0x0000148a, 0x1f00 }, /* R5258 (0x148a) - DFC2 TX W0 */
-	{ 0x0000148c, 0x0000 }, /* R5260 (0x148c) - DFC3 CTRL W0 */
-	{ 0x0000148e, 0x1f00 }, /* R5262 (0x148e) - DFC3 RX W0 */
-	{ 0x00001490, 0x1f00 }, /* R5264 (0x1490) - DFC3 TX W0 */
-	{ 0x00001492, 0x0000 }, /* R5266 (0x1492) - DFC4 CTRL W0 */
-	{ 0x00001494, 0x1f00 }, /* R5268 (0x1494) - DFC4 RX W0 */
-	{ 0x00001496, 0x1f00 }, /* R5270 (0x1496) - DFC4 TX W0 */
-	{ 0x00001498, 0x0000 }, /* R5272 (0x1498) - DFC5 CTRL W0 */
-	{ 0x0000149a, 0x1f00 }, /* R5274 (0x149a) - DFC5 RX W0 */
-	{ 0x0000149c, 0x1f00 }, /* R5276 (0x149c) - DFC5 TX W0 */
-	{ 0x0000149e, 0x0000 }, /* R5278 (0x149e) - DFC6 CTRL W0 */
-	{ 0x000014a0, 0x1f00 }, /* R5280 (0x14a0) - DFC6 RX W0 */
-	{ 0x000014a2, 0x1f00 }, /* R5282 (0x14a2) - DFC6 TX W0 */
-	{ 0x000014a4, 0x0000 }, /* R5284 (0x14a4) - DFC7 CTRL W0 */
-	{ 0x000014a6, 0x1f00 }, /* R5286 (0x14a6) - DFC7 RX W0 */
-	{ 0x000014a8, 0x1f00 }, /* R5288 (0x14a8) - DFC7 TX W0 */
-	{ 0x000014aa, 0x0000 }, /* R5290 (0x14aa) - DFC8 CTRL W0 */
-	{ 0x000014ac, 0x1f00 }, /* R5292 (0x14ac) - DFC8 RX W0 */
-	{ 0x000014ae, 0x1f00 }, /* R5294 (0x14ae) - DFC8 TX W0 */
-	{ 0x00001700, 0x2001 }, /* R5888 (0x1700) - GPIO1 CTRL 1 */
-	{ 0x00001701, 0xf000 }, /* R5889 (0x1701) - GPIO1 CTRL 2 */
-	{ 0x00001702, 0x2001 }, /* R5890 (0x1702) - GPIO2 CTRL 1 */
-	{ 0x00001703, 0xf000 }, /* R5891 (0x1703) - GPIO2 CTRL 2 */
-	{ 0x00001704, 0x2001 }, /* R5892 (0x1704) - GPIO3 CTRL 1 */
-	{ 0x00001705, 0xf000 }, /* R5893 (0x1705) - GPIO3 CTRL 2 */
-	{ 0x00001706, 0x2001 }, /* R5894 (0x1706) - GPIO4 CTRL 1 */
-	{ 0x00001707, 0xf000 }, /* R5895 (0x1707) - GPIO4 CTRL 2 */
-	{ 0x00001708, 0x2001 }, /* R5896 (0x1708) - GPIO5 CTRL 1 */
-	{ 0x00001709, 0xf000 }, /* R5897 (0x1709) - GPIO5 CTRL 2 */
-	{ 0x0000170a, 0x2001 }, /* R5898 (0x170a) - GPIO6 CTRL 1 */
-	{ 0x0000170b, 0xf000 }, /* R5899 (0x170b) - GPIO6 CTRL 2 */
-	{ 0x0000170c, 0x2001 }, /* R5900 (0x170c) - GPIO7 CTRL 1 */
-	{ 0x0000170d, 0xf000 }, /* R5901 (0x170d) - GPIO7 CTRL 2 */
-	{ 0x0000170e, 0x2001 }, /* R5902 (0x170e) - GPIO8 CTRL 1 */
-	{ 0x0000170f, 0xf000 }, /* R5903 (0x170f) - GPIO8 CTRL 2 */
-	{ 0x00001710, 0x2001 }, /* R5904 (0x1710) - GPIO9 CTRL 1 */
-	{ 0x00001711, 0xf000 }, /* R5905 (0x1711) - GPIO9 CTRL 2 */
-	{ 0x00001712, 0x2001 }, /* R5906 (0x1712) - GPIO10 CTRL 1 */
-	{ 0x00001713, 0xf000 }, /* R5907 (0x1713) - GPIO10 CTRL 2 */
-	{ 0x00001714, 0x2001 }, /* R5908 (0x1714) - GPIO11 CTRL 1 */
-	{ 0x00001715, 0xf000 }, /* R5909 (0x1715) - GPIO11 CTRL 2 */
-	{ 0x00001716, 0x2001 }, /* R5910 (0x1716) - GPIO12 CTRL 1 */
-	{ 0x00001717, 0xf000 }, /* R5911 (0x1717) - GPIO12 CTRL 2 */
-	{ 0x00001718, 0x2001 }, /* R5912 (0x1718) - GPIO13 CTRL 1 */
-	{ 0x00001719, 0xf000 }, /* R5913 (0x1719) - GPIO13 CTRL 2 */
-	{ 0x0000171a, 0x2001 }, /* R5914 (0x171a) - GPIO14 CTRL 1 */
-	{ 0x0000171b, 0xf000 }, /* R5915 (0x171b) - GPIO14 CTRL 2 */
-	{ 0x0000171c, 0x2001 }, /* R5916 (0x171c) - GPIO15 CTRL 1 */
-	{ 0x0000171d, 0xf000 }, /* R5917 (0x171d) - GPIO15 CTRL 2 */
-	{ 0x0000171e, 0x2001 }, /* R5918 (0x171e) - GPIO16 CTRL 1 */
-	{ 0x0000171f, 0xf000 }, /* R5919 (0x171f) - GPIO16 CTRL 2 */
+	{ 0x00001480, 0x0000 }, /* R5248 (0x1480) - DFC1 Ctrl W0 */
+	{ 0x00001482, 0x1f00 }, /* R5250 (0x1482) - DFC1 Rx W0 */
+	{ 0x00001484, 0x1f00 }, /* R5252 (0x1484) - DFC1 Tx W0 */
+	{ 0x00001486, 0x0000 }, /* R5254 (0x1486) - DFC2 Ctrl W0 */
+	{ 0x00001488, 0x1f00 }, /* R5256 (0x1488) - DFC2 Rx W0 */
+	{ 0x0000148a, 0x1f00 }, /* R5258 (0x148a) - DFC2 Tx W0 */
+	{ 0x0000148c, 0x0000 }, /* R5260 (0x148c) - DFC3 Ctrl W0 */
+	{ 0x0000148e, 0x1f00 }, /* R5262 (0x148e) - DFC3 Rx W0 */
+	{ 0x00001490, 0x1f00 }, /* R5264 (0x1490) - DFC3 Tx W0 */
+	{ 0x00001492, 0x0000 }, /* R5266 (0x1492) - DFC4 Ctrl W0 */
+	{ 0x00001494, 0x1f00 }, /* R5268 (0x1494) - DFC4 Rx W0 */
+	{ 0x00001496, 0x1f00 }, /* R5270 (0x1496) - DFC4 Tx W0 */
+	{ 0x00001498, 0x0000 }, /* R5272 (0x1498) - DFC5 Ctrl W0 */
+	{ 0x0000149a, 0x1f00 }, /* R5274 (0x149a) - DFC5 Rx W0 */
+	{ 0x0000149c, 0x1f00 }, /* R5276 (0x149c) - DFC5 Tx W0 */
+	{ 0x0000149e, 0x0000 }, /* R5278 (0x149e) - DFC6 Ctrl W0 */
+	{ 0x000014a0, 0x1f00 }, /* R5280 (0x14a0) - DFC6 Rx W0 */
+	{ 0x000014a2, 0x1f00 }, /* R5282 (0x14a2) - DFC6 Tx W0 */
+	{ 0x000014a4, 0x0000 }, /* R5284 (0x14a4) - DFC7 Ctrl W0 */
+	{ 0x000014a6, 0x1f00 }, /* R5286 (0x14a6) - DFC7 Rx W0 */
+	{ 0x000014a8, 0x1f00 }, /* R5288 (0x14a8) - DFC7 Tx W0 */
+	{ 0x000014aa, 0x0000 }, /* R5290 (0x14aa) - DFC8 Ctrl W0 */
+	{ 0x000014ac, 0x1f00 }, /* R5292 (0x14ac) - DFC8 Rx W0 */
+	{ 0x000014ae, 0x1f00 }, /* R5294 (0x14ae) - DFC8 Tx W0 */
+	{ 0x00001700, 0x2001 }, /* R5888 (0x1700) - GPIO1 Ctrl 1 */
+	{ 0x00001701, 0xf000 }, /* R5889 (0x1701) - GPIO1 Ctrl 2 */
+	{ 0x00001702, 0x2001 }, /* R5890 (0x1702) - GPIO2 Ctrl 1 */
+	{ 0x00001703, 0xf000 }, /* R5891 (0x1703) - GPIO2 Ctrl 2 */
+	{ 0x00001704, 0x2001 }, /* R5892 (0x1704) - GPIO3 Ctrl 1 */
+	{ 0x00001705, 0xf000 }, /* R5893 (0x1705) - GPIO3 Ctrl 2 */
+	{ 0x00001706, 0x2001 }, /* R5894 (0x1706) - GPIO4 Ctrl 1 */
+	{ 0x00001707, 0xf000 }, /* R5895 (0x1707) - GPIO4 Ctrl 2 */
+	{ 0x00001708, 0x2001 }, /* R5896 (0x1708) - GPIO5 Ctrl 1 */
+	{ 0x00001709, 0xf000 }, /* R5897 (0x1709) - GPIO5 Ctrl 2 */
+	{ 0x0000170a, 0x2001 }, /* R5898 (0x170a) - GPIO6 Ctrl 1 */
+	{ 0x0000170b, 0xf000 }, /* R5899 (0x170b) - GPIO6 Ctrl 2 */
+	{ 0x0000170c, 0x2001 }, /* R5900 (0x170c) - GPIO7 Ctrl 1 */
+	{ 0x0000170d, 0xf000 }, /* R5901 (0x170d) - GPIO7 Ctrl 2 */
+	{ 0x0000170e, 0x2001 }, /* R5902 (0x170e) - GPIO8 Ctrl 1 */
+	{ 0x0000170f, 0xf000 }, /* R5903 (0x170f) - GPIO8 Ctrl 2 */
+	{ 0x00001710, 0x2001 }, /* R5904 (0x1710) - GPIO9 Ctrl 1 */
+	{ 0x00001711, 0xf000 }, /* R5905 (0x1711) - GPIO9 Ctrl 2 */
+	{ 0x00001712, 0x2001 }, /* R5906 (0x1712) - GPIO10 Ctrl 1 */
+	{ 0x00001713, 0xf000 }, /* R5907 (0x1713) - GPIO10 Ctrl 2 */
+	{ 0x00001714, 0x2001 }, /* R5908 (0x1714) - GPIO11 Ctrl 1 */
+	{ 0x00001715, 0xf000 }, /* R5909 (0x1715) - GPIO11 Ctrl 2 */
+	{ 0x00001716, 0x2001 }, /* R5910 (0x1716) - GPIO12 Ctrl 1 */
+	{ 0x00001717, 0xf000 }, /* R5911 (0x1717) - GPIO12 Ctrl 2 */
+	{ 0x00001718, 0x2001 }, /* R5912 (0x1718) - GPIO13 Ctrl 1 */
+	{ 0x00001719, 0xf000 }, /* R5913 (0x1719) - GPIO13 Ctrl 2 */
+	{ 0x0000171a, 0x2001 }, /* R5914 (0x171a) - GPIO14 Ctrl 1 */
+	{ 0x0000171b, 0xf000 }, /* R5915 (0x171b) - GPIO14 Ctrl 2 */
+	{ 0x0000171c, 0x2001 }, /* R5916 (0x171c) - GPIO15 Ctrl 1 */
+	{ 0x0000171d, 0xf000 }, /* R5917 (0x171d) - GPIO15 Ctrl 2 */
+	{ 0x0000171e, 0x2001 }, /* R5918 (0x171e) - GPIO16 Ctrl 1 */
+	{ 0x0000171f, 0xf000 }, /* R5919 (0x171f) - GPIO16 Ctrl 2 */
 	{ 0x00001840, 0x1200 }, /* R6208 (0x1840) - IRQ1 Mask 1 */
 	{ 0x00001841, 0x77e0 }, /* R6209 (0x1841) - IRQ1 Mask 2 */
 	{ 0x00001842, 0xffff }, /* R6210 (0x1842) - IRQ1 Mask 3 */
@@ -1066,7 +1066,7 @@ static const struct reg_default cs47l92_reg_default[] = {
 	{ 0x0000185f, 0xffff }, /* R6239 (0x185f) - IRQ1 Mask 32 */
 	{ 0x00001860, 0x0001 }, /* R6240 (0x1860) - IRQ1 Mask 33 */
 	{ 0x00001a06, 0x0000 }, /* R6662 (0x1a06) - Interrupt Debounce 7 */
-	{ 0x00001a80, 0x4400 }, /* R6784 (0x1a80) - IRQ1 CTRL */
+	{ 0x00001a80, 0x4400 }, /* R6784 (0x1a80) - IRQ1 Ctrl */
 };
 
 static bool cs47l92_is_adsp_memory(unsigned int reg)
