@@ -713,7 +713,8 @@ static bool cs47l15_is_adsp_memory(struct device *dev, unsigned int reg)
 	}
 }
 
-static bool cs47l15_16bit_readable_register(struct device *dev, unsigned int reg)
+static bool cs47l15_16bit_readable_register(struct device *dev,
+					    unsigned int reg)
 {
 	switch (reg) {
 	case MADERA_SOFTWARE_RESET:
@@ -1183,7 +1184,8 @@ static bool cs47l15_16bit_readable_register(struct device *dev, unsigned int reg
 	}
 }
 
-static bool cs47l15_16bit_volatile_register(struct device *dev, unsigned int reg)
+static bool cs47l15_16bit_volatile_register(struct device *dev,
+					    unsigned int reg)
 {
 	switch (reg) {
 	case MADERA_SOFTWARE_RESET:
@@ -1215,7 +1217,8 @@ static bool cs47l15_16bit_volatile_register(struct device *dev, unsigned int reg
 	}
 }
 
-static bool cs47l15_32bit_readable_register(struct device *dev, unsigned int reg)
+static bool cs47l15_32bit_readable_register(struct device *dev,
+					    unsigned int reg)
 {
 	switch (reg) {
 	case MADERA_WSEQ_SEQUENCE_1 ... MADERA_WSEQ_SEQUENCE_225:
@@ -1227,7 +1230,8 @@ static bool cs47l15_32bit_readable_register(struct device *dev, unsigned int reg
 	}
 }
 
-static bool cs47l15_32bit_volatile_register(struct device *dev, unsigned int reg)
+static bool cs47l15_32bit_volatile_register(struct device *dev,
+					    unsigned int reg)
 {
 	switch (reg) {
 	case MADERA_WSEQ_SEQUENCE_1 ... MADERA_WSEQ_SEQUENCE_225:
