@@ -155,6 +155,7 @@ static const char * const cs47l92_auxpdm_freq_texts[] = {
 	"1.536Mhz",
 	"768khz",
 };
+
 static SOC_ENUM_SINGLE_DECL(cs47l92_auxpdm_freq_enum,
 			    MADERA_AUXPDM1_CTRL_1,
 			    MADERA_AUXPDM1_CLK_FREQ_SHIFT,
@@ -166,6 +167,7 @@ static const char * const cs47l92_auxpdm_in_texts[] = {
 	"IN2L",
 	"IN2R",
 };
+
 static SOC_ENUM_SINGLE_DECL(cs47l92_auxpdm_in_enum,
 			    MADERA_AUXPDM1_CTRL_0,
 			    MADERA_AUXPDM1_SRC_SHIFT,
@@ -1054,13 +1056,13 @@ SND_SOC_DAPM_PGA("LHPF4", MADERA_HPLPF4_1, MADERA_LHPF4_ENA_SHIFT, 0,
 		 NULL, 0),
 
 SND_SOC_DAPM_PGA("ASRC1IN1L", MADERA_ASRC1_ENABLE,
-		MADERA_ASRC1_IN1L_ENA_SHIFT, 0, NULL, 0),
+		 MADERA_ASRC1_IN1L_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_PGA("ASRC1IN1R", MADERA_ASRC1_ENABLE,
-		MADERA_ASRC1_IN1R_ENA_SHIFT, 0, NULL, 0),
+		 MADERA_ASRC1_IN1R_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_PGA("ASRC1IN2L", MADERA_ASRC1_ENABLE,
-		MADERA_ASRC1_IN2L_ENA_SHIFT, 0, NULL, 0),
+		 MADERA_ASRC1_IN2L_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_PGA("ASRC1IN2R", MADERA_ASRC1_ENABLE,
-		MADERA_ASRC1_IN2R_ENA_SHIFT, 0, NULL, 0),
+		 MADERA_ASRC1_IN2R_ENA_SHIFT, 0, NULL, 0),
 
 SND_SOC_DAPM_PGA("ISRC1DEC1", MADERA_ISRC_1_CTRL_3,
 		 MADERA_ISRC1_DEC1_ENA_SHIFT, 0, NULL, 0),
@@ -1851,8 +1853,8 @@ static int cs47l92_open(struct snd_compr_stream *stream)
 		n_adsp = 0;
 	} else {
 		dev_err(madera->dev,
-				"No suitable compressed stream for DAI '%s'\n",
-				rtd->codec_dai->name);
+			"No suitable compressed stream for DAI '%s'\n",
+			rtd->codec_dai->name);
 		return -EINVAL;
 	}
 
@@ -1977,21 +1979,21 @@ static const struct snd_compr_ops cs47l92_compr_ops = {
 };
 
 static const struct snd_soc_component_driver soc_component_dev_cs47l92 = {
-	.probe = &cs47l92_component_probe,
-	.remove = &cs47l92_component_remove,
-	.set_sysclk = &madera_set_sysclk,
-	.set_pll = &cs47l92_set_fll,
-	.name = DRV_NAME,
-	.compr_ops = &cs47l92_compr_ops,
-	.controls = cs47l92_snd_controls,
-	.num_controls = ARRAY_SIZE(cs47l92_snd_controls),
-	.dapm_widgets = cs47l92_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(cs47l92_dapm_widgets),
-	.dapm_routes = cs47l92_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(cs47l92_dapm_routes),
-	.use_pmdown_time = 1,
-	.endianness = 1,
-	.non_legacy_dai_naming = 1,
+	.probe			= &cs47l92_component_probe,
+	.remove			= &cs47l92_component_remove,
+	.set_sysclk		= &madera_set_sysclk,
+	.set_pll		= &cs47l92_set_fll,
+	.name			= DRV_NAME,
+	.compr_ops		= &cs47l92_compr_ops,
+	.controls		= cs47l92_snd_controls,
+	.num_controls		= ARRAY_SIZE(cs47l92_snd_controls),
+	.dapm_widgets		= cs47l92_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(cs47l92_dapm_widgets),
+	.dapm_routes		= cs47l92_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(cs47l92_dapm_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int cs47l92_probe(struct platform_device *pdev)

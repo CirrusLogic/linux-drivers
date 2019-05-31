@@ -69,8 +69,8 @@ static const struct snd_kcontrol_new cs47l15_outdemux =
 			  madera_out1_demux_get, madera_out1_demux_put);
 
 static int cs47l15_adsp_power_ev(struct snd_soc_dapm_widget *w,
-				    struct snd_kcontrol *kcontrol,
-				    int event)
+				 struct snd_kcontrol *kcontrol,
+				 int event)
 {
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
@@ -114,7 +114,7 @@ static int cs47l15_in1_adc_get(struct snd_kcontrol *kcontrol,
 		snd_soc_kcontrol_component(kcontrol);
 	struct cs47l15 *cs47l15 = snd_soc_component_get_drvdata(component);
 
-	ucontrol->value.integer.value[0] = cs47l15->in1_lp_mode ? 1 : 0;
+	ucontrol->value.integer.value[0] = !!cs47l15->in1_lp_mode;
 
 	return 0;
 }
@@ -304,7 +304,7 @@ SOC_DOUBLE_R_TLV("HPOUT1 Digital Volume", MADERA_DAC_DIGITAL_VOLUME_1L,
 		 MADERA_DAC_DIGITAL_VOLUME_1R, MADERA_OUT1L_VOL_SHIFT,
 		 0xbf, 0, madera_digital_tlv),
 SOC_SINGLE_TLV("Speaker Digital Volume", MADERA_DAC_DIGITAL_VOLUME_4L,
-		MADERA_OUT4L_VOL_SHIFT, 0xbf, 0, madera_digital_tlv),
+	       MADERA_OUT4L_VOL_SHIFT, 0xbf, 0, madera_digital_tlv),
 SOC_DOUBLE_R_TLV("SPKDAT1 Digital Volume", MADERA_DAC_DIGITAL_VOLUME_5L,
 		 MADERA_DAC_DIGITAL_VOLUME_5R, MADERA_OUT5L_VOL_SHIFT,
 		 0xbf, 0, madera_digital_tlv),
@@ -1142,11 +1142,11 @@ static struct snd_soc_dai_driver cs47l15_dai[] = {
 			.formats = MADERA_FORMATS,
 		},
 		.capture = {
-			 .stream_name = "AIF1 Capture",
-			 .channels_min = 1,
-			 .channels_max = 6,
-			 .rates = MADERA_RATES,
-			 .formats = MADERA_FORMATS,
+			.stream_name = "AIF1 Capture",
+			.channels_min = 1,
+			.channels_max = 6,
+			.rates = MADERA_RATES,
+			.formats = MADERA_FORMATS,
 		 },
 		.ops = &madera_dai_ops,
 		.symmetric_rates = 1,
@@ -1164,11 +1164,11 @@ static struct snd_soc_dai_driver cs47l15_dai[] = {
 			.formats = MADERA_FORMATS,
 		},
 		.capture = {
-			 .stream_name = "AIF2 Capture",
-			 .channels_min = 1,
-			 .channels_max = 4,
-			 .rates = MADERA_RATES,
-			 .formats = MADERA_FORMATS,
+			.stream_name = "AIF2 Capture",
+			.channels_min = 1,
+			.channels_max = 4,
+			.rates = MADERA_RATES,
+			.formats = MADERA_FORMATS,
 		 },
 		.ops = &madera_dai_ops,
 		.symmetric_rates = 1,
@@ -1186,11 +1186,11 @@ static struct snd_soc_dai_driver cs47l15_dai[] = {
 			.formats = MADERA_FORMATS,
 		},
 		.capture = {
-			 .stream_name = "AIF3 Capture",
-			 .channels_min = 1,
-			 .channels_max = 2,
-			 .rates = MADERA_RATES,
-			 .formats = MADERA_FORMATS,
+			.stream_name = "AIF3 Capture",
+			.channels_min = 1,
+			.channels_max = 2,
+			.rates = MADERA_RATES,
+			.formats = MADERA_FORMATS,
 		 },
 		.ops = &madera_dai_ops,
 		.symmetric_rates = 1,
@@ -1337,21 +1337,21 @@ static const struct snd_compr_ops cs47l15_compr_ops = {
 };
 
 static const struct snd_soc_component_driver soc_component_dev_cs47l15 = {
-	.probe = &cs47l15_component_probe,
-	.remove = &cs47l15_component_remove,
-	.set_sysclk = &madera_set_sysclk,
-	.set_pll = &cs47l15_set_fll,
-	.name = DRV_NAME,
-	.compr_ops = &cs47l15_compr_ops,
-	.controls = cs47l15_snd_controls,
-	.num_controls = ARRAY_SIZE(cs47l15_snd_controls),
-	.dapm_widgets = cs47l15_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(cs47l15_dapm_widgets),
-	.dapm_routes = cs47l15_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(cs47l15_dapm_routes),
-	.use_pmdown_time = 1,
-	.endianness = 1,
-	.non_legacy_dai_naming = 1,
+	.probe			= &cs47l15_component_probe,
+	.remove			= &cs47l15_component_remove,
+	.set_sysclk		= &madera_set_sysclk,
+	.set_pll		= &cs47l15_set_fll,
+	.name			= DRV_NAME,
+	.compr_ops		= &cs47l15_compr_ops,
+	.controls		= cs47l15_snd_controls,
+	.num_controls		= ARRAY_SIZE(cs47l15_snd_controls),
+	.dapm_widgets		= cs47l15_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(cs47l15_dapm_widgets),
+	.dapm_routes		= cs47l15_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(cs47l15_dapm_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int cs47l15_probe(struct platform_device *pdev)

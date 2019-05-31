@@ -31,8 +31,8 @@ Optional properties:
     than the number of inputs the unspecified inputs default to
     MADERA_INMODE_DIFF.
 
-  - cirrus,out-mono : Mono bit for each output, must contain six cells if
-    specified. A non-zero value indicates the corresponding output is mono.
+  - cirrus,out-mono : Mono bit for each output, maximum of six cells if the
+    array is shorter outputs will be set to stereo.
 
   - cirrus,max-channels-clocked : Maximum number of channels that I2S clocks
     will be generated for. Useful when clock master for systems where the I2S
