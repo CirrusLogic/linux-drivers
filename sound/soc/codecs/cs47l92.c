@@ -150,6 +150,7 @@ static const char * const cs47l92_auxpdm_freq_texts[] = {
 	"1.536Mhz",
 	"768khz",
 };
+
 static SOC_ENUM_SINGLE_DECL(cs47l92_auxpdm_freq_enum,
 			    MADERA_AUXPDM1_CTRL_1,
 			    MADERA_AUXPDM1_CLK_FREQ_SHIFT,
@@ -161,6 +162,7 @@ static const char * const cs47l92_auxpdm_in_texts[] = {
 	"IN2L",
 	"IN2R",
 };
+
 static SOC_ENUM_SINGLE_DECL(cs47l92_auxpdm_in_enum,
 			    MADERA_AUXPDM1_CTRL_0,
 			    MADERA_AUXPDM1_SRC_SHIFT,
@@ -1048,13 +1050,13 @@ SND_SOC_DAPM_PGA("LHPF4", MADERA_HPLPF4_1, MADERA_LHPF4_ENA_SHIFT, 0,
 		 NULL, 0),
 
 SND_SOC_DAPM_PGA("ASRC1IN1L", MADERA_ASRC1_ENABLE,
-		MADERA_ASRC1_IN1L_ENA_SHIFT, 0, NULL, 0),
+		 MADERA_ASRC1_IN1L_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_PGA("ASRC1IN1R", MADERA_ASRC1_ENABLE,
-		MADERA_ASRC1_IN1R_ENA_SHIFT, 0, NULL, 0),
+		 MADERA_ASRC1_IN1R_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_PGA("ASRC1IN2L", MADERA_ASRC1_ENABLE,
-		MADERA_ASRC1_IN2L_ENA_SHIFT, 0, NULL, 0),
+		 MADERA_ASRC1_IN2L_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_PGA("ASRC1IN2R", MADERA_ASRC1_ENABLE,
-		MADERA_ASRC1_IN2R_ENA_SHIFT, 0, NULL, 0),
+		 MADERA_ASRC1_IN2R_ENA_SHIFT, 0, NULL, 0),
 
 SND_SOC_DAPM_PGA("ISRC1DEC1", MADERA_ISRC_1_CTRL_3,
 		 MADERA_ISRC1_DEC1_ENA_SHIFT, 0, NULL, 0),
@@ -1844,8 +1846,8 @@ static int cs47l92_open(struct snd_compr_stream *stream)
 		n_adsp = 0;
 	} else {
 		dev_err(madera->dev,
-				"No suitable compressed stream for DAI '%s'\n",
-				rtd->codec_dai->name);
+			"No suitable compressed stream for DAI '%s'\n",
+			rtd->codec_dai->name);
 		return -EINVAL;
 	}
 
