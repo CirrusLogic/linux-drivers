@@ -455,8 +455,8 @@ static int cs35l41_otp_unpack(void *data)
 	const struct cs35l41_otp_map_element_t *otp_map_match;
 	const struct cs35l41_otp_packed_element_t *otp_map;
 	int ret;
-	struct spi_device *spi;
-	u32 orig_spi_freq;
+	struct spi_device *spi = NULL;
+	u32 orig_spi_freq = 0;
 
 	ret = regmap_read(cs35l41->regmap, CS35L41_OTPID, &otp_id_reg);
 	if (ret < 0) {
@@ -706,7 +706,7 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct cs35l41_private *cs35l41 = snd_soc_codec_get_drvdata(codec);
-	enum cs35l41_cspl_mboxcmd mboxcmd;
+	enum cs35l41_cspl_mboxcmd mboxcmd = CSPL_MBOX_CMD_NONE;
 	int ret = 0;
 	enum cs35l41_cspl_mboxstate fw_status = CSPL_MBOX_STS_RUNNING;
 	int i;
