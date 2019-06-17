@@ -525,20 +525,31 @@ SND_SOC_DAPM_SUPPLY("PWMCLK", SND_SOC_NOPM,
 SND_SOC_DAPM_SIGGEN("TONE"),
 SND_SOC_DAPM_SIGGEN("NOISE"),
 
-SND_SOC_DAPM_INPUT("IN1AL"),
-SND_SOC_DAPM_INPUT("IN1BL"),
-SND_SOC_DAPM_INPUT("IN1AR"),
-SND_SOC_DAPM_INPUT("IN1BR"),
-SND_SOC_DAPM_INPUT("IN2L"),
-SND_SOC_DAPM_INPUT("IN2R"),
+SND_SOC_DAPM_INPUT("IN1ALN"),
+SND_SOC_DAPM_INPUT("IN1ALP"),
+SND_SOC_DAPM_INPUT("IN1BLN"),
+SND_SOC_DAPM_INPUT("IN1BLP"),
+SND_SOC_DAPM_INPUT("IN1ARN"),
+SND_SOC_DAPM_INPUT("IN1ARP"),
+SND_SOC_DAPM_INPUT("IN1BRN"),
+SND_SOC_DAPM_INPUT("IN1BRP"),
+SND_SOC_DAPM_INPUT("IN2N"),
+SND_SOC_DAPM_INPUT("IN2P"),
+SND_SOC_DAPM_INPUT("SPKRXDAT"),
+
+SND_SOC_DAPM_MUX("IN1L Analog Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[0]),
+SND_SOC_DAPM_MUX("IN1R Analog Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[1]),
+
+SND_SOC_DAPM_MUX("IN1L Mode", SND_SOC_NOPM, 0, 0, &madera_inmode[0]),
+SND_SOC_DAPM_MUX("IN1R Mode", SND_SOC_NOPM, 0, 0, &madera_inmode[0]),
+
+SND_SOC_DAPM_MUX("IN2L Mode", SND_SOC_NOPM, 0, 0, &madera_inmode[1]),
+SND_SOC_DAPM_MUX("IN2R Mode", SND_SOC_NOPM, 0, 0, &madera_inmode[1]),
 
 SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
 
 SND_SOC_DAPM_OUTPUT("DSP Trigger Out"),
-
-SND_SOC_DAPM_MUX("IN1L Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[0]),
-SND_SOC_DAPM_MUX("IN1R Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[1]),
 
 SND_SOC_DAPM_DEMUX("HPOUT1 Demux", SND_SOC_NOPM, 0, 0, &cs47l15_outdemux),
 
@@ -621,19 +632,19 @@ SND_SOC_DAPM_MUX("AEC2 Loopback", MADERA_DAC_AEC_CONTROL_2,
 		 MADERA_AEC2_LOOPBACK_ENA_SHIFT, 0,
 		 &cs47l15_aec_loopback_mux[1]),
 
-SND_SOC_DAPM_PGA_E("IN1L PGA", MADERA_INPUT_ENABLES, MADERA_IN1L_ENA_SHIFT,
+SND_SOC_DAPM_PGA_E("IN1L", MADERA_INPUT_ENABLES, MADERA_IN1L_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("IN1R PGA", MADERA_INPUT_ENABLES, MADERA_IN1R_ENA_SHIFT,
+SND_SOC_DAPM_PGA_E("IN1R", MADERA_INPUT_ENABLES, MADERA_IN1R_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("IN2L PGA", MADERA_INPUT_ENABLES, MADERA_IN2L_ENA_SHIFT,
+SND_SOC_DAPM_PGA_E("IN2L", MADERA_INPUT_ENABLES, MADERA_IN2L_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("IN2R PGA", MADERA_INPUT_ENABLES, MADERA_IN2R_ENA_SHIFT,
+SND_SOC_DAPM_PGA_E("IN2R", MADERA_INPUT_ENABLES, MADERA_IN2R_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
@@ -816,10 +827,10 @@ SND_SOC_DAPM_OUTPUT("MICSUPP"),
 	{ name, "Haptics", "HAPTICS" }, \
 	{ name, "AEC1", "AEC1 Loopback" }, \
 	{ name, "AEC2", "AEC2 Loopback" }, \
-	{ name, "IN1L", "IN1L PGA" }, \
-	{ name, "IN1R", "IN1R PGA" }, \
-	{ name, "IN2L", "IN2L PGA" }, \
-	{ name, "IN2R", "IN2R PGA" }, \
+	{ name, "IN1L", "IN1L" }, \
+	{ name, "IN1R", "IN1R" }, \
+	{ name, "IN2L", "IN2L" }, \
+	{ name, "IN2R", "IN2R" }, \
 	{ name, "AIF1RX1", "AIF1RX1" }, \
 	{ name, "AIF1RX2", "AIF1RX2" }, \
 	{ name, "AIF1RX3", "AIF1RX3" }, \
@@ -934,10 +945,8 @@ static const struct snd_soc_dapm_route cs47l15_dapm_routes[] = {
 	{ "SPD1", NULL, "SPD1TX1" },
 	{ "SPD1", NULL, "SPD1TX2" },
 
-	{ "IN1AL", NULL, "SYSCLK" },
-	{ "IN1BL", NULL, "SYSCLK" },
-	{ "IN1AR", NULL, "SYSCLK" },
-	{ "IN1BR", NULL, "SYSCLK" },
+	{ "IN1L", NULL, "SYSCLK" },
+	{ "IN1R", NULL, "SYSCLK" },
 	{ "IN2L", NULL, "SYSCLK" },
 	{ "IN2R", NULL, "SYSCLK" },
 
@@ -995,16 +1004,34 @@ static const struct snd_soc_dapm_route cs47l15_dapm_routes[] = {
 
 	{ "Audio Trace DSP", NULL, "DSP1" },
 
-	{ "IN1L Mux", "A", "IN1AL" },
-	{ "IN1L Mux", "B", "IN1BL" },
-	{ "IN1R Mux", "A", "IN1AR" },
-	{ "IN1R Mux", "B", "IN1BR" },
+	{ "IN1L Analog Mux", "A", "IN1ALN" },
+	{ "IN1L Analog Mux", "A", "IN1ALP" },
+	{ "IN1L Analog Mux", "B", "IN1BLN" },
+	{ "IN1L Analog Mux", "B", "IN1BLP" },
+	{ "IN1R Analog Mux", "A", "IN1ARN" },
+	{ "IN1R Analog Mux", "A", "IN1ARP" },
+	{ "IN1R Analog Mux", "B", "IN1BRN" },
+	{ "IN1R Analog Mux", "B", "IN1BRP" },
 
-	{ "IN1L PGA", NULL, "IN1L Mux" },
-	{ "IN1R PGA", NULL, "IN1R Mux" },
+	{ "IN1L Mode", "Analog", "IN1L Analog Mux" },
+	{ "IN1R Mode", "Analog", "IN1R Analog Mux" },
 
-	{ "IN2L PGA", NULL, "IN2L" },
-	{ "IN2R PGA", NULL, "IN2R" },
+	{ "IN1L Mode", "Digital", "IN1ALN" },
+	{ "IN1L Mode", "Digital", "IN1ALP" },
+	{ "IN1R Mode", "Digital", "IN1ALN" },
+	{ "IN1R Mode", "Digital", "IN1ALP" },
+
+	{ "IN1L", NULL, "IN1L Mode" },
+	{ "IN1R", NULL, "IN1R Mode" },
+
+	{ "IN2L Mode", "Analog", "IN2N" },
+	{ "IN2L Mode", "Analog", "IN2P" },
+
+	{ "IN2L Mode", "Digital", "SPKRXDAT" },
+	{ "IN2R Mode", "Digital", "SPKRXDAT" },
+
+	{ "IN2L", NULL, "IN2L Mode" },
+	{ "IN2R", NULL, "IN2R Mode" },
 
 	MADERA_MIXER_ROUTES("OUT1L", "HPOUT1L"),
 	MADERA_MIXER_ROUTES("OUT1R", "HPOUT1R"),
@@ -1263,8 +1290,8 @@ static const char * const cs47l15_dmic_refs[] = {
 };
 
 static const char * const cs47l15_dmic_inputs[] = {
-	"IN1L Mux",
-	"IN1R Mux",
+	"IN1L",
+	"IN1R",
 };
 
 static int cs47l15_component_probe(struct snd_soc_component *component)

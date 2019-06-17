@@ -620,164 +620,46 @@ static int madera_inmux_put(struct snd_kcontrol *kcontrol,
 		snd_soc_dapm_kcontrol_dapm(kcontrol);
 	struct madera_priv *priv = snd_soc_component_get_drvdata(component);
 	struct madera *madera = priv->madera;
+	struct regmap *regmap = madera->regmap;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int mux, src_val, src_mask, gang_reg, dmode_reg, dmode_val;
-	unsigned int dmode, inmode_gang, inmode;
-	bool changed = false;
+	unsigned int mux, val, mask;
+	unsigned int inmode;
+	bool changed;
 	int ret;
 
 	mux = ucontrol->value.enumerated.item[0];
 	if (mux > 1)
 		return -EINVAL;
 
-	src_val = mux << e->shift_l;
-	src_mask = e->mask << e->shift_l;
+	val = mux << e->shift_l;
+	mask = (e->mask << e->shift_l) | MADERA_IN1L_SRC_SE_MASK;
 
 	switch (e->reg) {
 	case MADERA_ADC_DIGITAL_VOLUME_1L:
 		inmode = madera->pdata.codec.inmode[0][2 * mux];
-		inmode_gang = madera->pdata.codec.inmode[0][1 + (2 * mux)];
-		dmode_reg = MADERA_IN1L_CONTROL;
-		switch (madera->type) {
-		case CS47L85:
-		case WM1840:
-		case CS42L92:
-		case CS47L92:
-		case CS47L93:
-			dmode = madera->pdata.codec.inmode[0][0];
-			gang_reg = 0;
-			break;
-		case CS47L90:
-		case CS47L91:
-			dmode = 0;
-			gang_reg = 0;
-			break;
-		default:
-			dmode = madera->pdata.codec.inmode[0][0];
-			gang_reg = MADERA_ADC_DIGITAL_VOLUME_1R;
-			break;
-		}
 		break;
 	case MADERA_ADC_DIGITAL_VOLUME_1R:
 		inmode = madera->pdata.codec.inmode[0][1 + (2 * mux)];
-		inmode_gang = madera->pdata.codec.inmode[0][2 * mux];
-		dmode_reg = MADERA_IN1L_CONTROL;
-		switch (madera->type) {
-		case CS47L90:
-		case CS47L91:
-			dmode = madera->pdata.codec.inmode[0][1];
-			gang_reg = 0;
-			break;
-		case CS42L92:
-		case CS47L92:
-		case CS47L93:
-			dmode = 0;
-			gang_reg = 0;
-			break;
-		default:
-			dmode = madera->pdata.codec.inmode[0][0];
-			gang_reg = MADERA_ADC_DIGITAL_VOLUME_1L;
-			break;
-		}
 		break;
 	case MADERA_ADC_DIGITAL_VOLUME_2L:
 		inmode = madera->pdata.codec.inmode[1][2 * mux];
-		inmode_gang = madera->pdata.codec.inmode[1][1 + (2 * mux)];
-		dmode_reg = MADERA_IN2L_CONTROL;
-		switch (madera->type) {
-		case CS47L90:
-		case CS47L91:
-		case CS42L92:
-		case CS47L92:
-		case CS47L93:
-			dmode = madera->pdata.codec.inmode[1][0];
-			gang_reg = 0;
-			break;
-		default:
-			dmode = madera->pdata.codec.inmode[1][0];
-			gang_reg = MADERA_ADC_DIGITAL_VOLUME_2R;
-			break;
-		}
 		break;
 	case MADERA_ADC_DIGITAL_VOLUME_2R:
 		inmode = madera->pdata.codec.inmode[1][1 + (2 * mux)];
-		inmode_gang = madera->pdata.codec.inmode[1][2 * mux];
-		dmode_reg = MADERA_IN2L_CONTROL;
-		switch (madera->type) {
-		case CS42L92:
-		case CS47L92:
-		case CS47L93:
-			dmode = 0;
-			gang_reg = 0;
-			break;
-		default:
-			dmode = madera->pdata.codec.inmode[1][0];
-			gang_reg = MADERA_ADC_DIGITAL_VOLUME_2L;
-			break;
-		}
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	/* SE mask and shift is same for all channels */
-	src_mask |= MADERA_IN1L_SRC_SE_MASK;
 	if (inmode & MADERA_INMODE_SE)
-		src_val |= 1 << MADERA_IN1L_SRC_SE_SHIFT;
+		val |= 1 << MADERA_IN1L_SRC_SE_SHIFT;
 
-	dev_dbg(madera->dev,
-		"mux=%u reg=0x%x dmode=0x%x inmode=0x%x mask=0x%x val=0x%x\n",
-		mux, e->reg, dmode, inmode, src_mask, src_val);
+	dev_dbg(madera->dev, "mux=%u reg=0x%x inmode=0x%x mask=0x%x val=0x%x\n",
+		mux, e->reg, inmode, mask, val);
 
-	ret = snd_soc_component_update_bits(component,
-					    e->reg,
-					    src_mask,
-					    src_val);
+	ret = regmap_update_bits_check(regmap, e->reg, mask, val, &changed);
 	if (ret < 0)
 		return ret;
-	else if (ret)
-		changed = true;
-
-	if (dmode == MADERA_INMODE_DMIC) {
-		if (mux)
-			dmode_val = 0; /* B always analogue */
-		else
-			dmode_val = 1 << MADERA_IN1_MODE_SHIFT; /* DMIC */
-
-		dev_dbg(madera->dev, "dmode_val=0x%x\n", dmode_val);
-
-		ret = snd_soc_component_update_bits(component,
-						    dmode_reg,
-						    MADERA_IN1_MODE_MASK,
-						    dmode_val);
-		if (ret < 0)
-			return ret;
-
-		if (gang_reg) {
-			/*
-			 * if there's a dmode change and there's a gang
-			 * register, then switch both channels together.
-			 * ganged channels can have different analogue modes
-			 */
-			if (inmode_gang & MADERA_INMODE_SE)
-				src_val |= 1 << MADERA_IN1L_SRC_SE_SHIFT;
-			else
-				src_val &= ~(1 << MADERA_IN1L_SRC_SE_SHIFT);
-
-			dev_dbg(madera->dev,
-				"gang_reg=0x%x inmode_gang=0x%x gang_val=0x%x\n",
-				gang_reg, inmode_gang, src_val);
-
-			ret = snd_soc_component_update_bits(component,
-							    gang_reg,
-							    src_mask,
-							    src_val);
-			if (ret < 0)
-				return ret;
-			else if (ret)
-				changed = true;
-		}
-	}
 
 	if (changed)
 		return snd_soc_dapm_mux_update_power(dapm, kcontrol,
@@ -822,6 +704,33 @@ const struct snd_kcontrol_new madera_inmux[] = {
 			  snd_soc_dapm_get_enum_double, madera_inmux_put),
 };
 EXPORT_SYMBOL_GPL(madera_inmux);
+
+static const char * const madera_dmode_texts[] = {
+	"Analog",
+	"Digital",
+};
+
+static SOC_ENUM_SINGLE_DECL(madera_in1dmode_enum,
+			    MADERA_IN1L_CONTROL,
+			    MADERA_IN1_MODE_SHIFT,
+			    madera_dmode_texts);
+
+static SOC_ENUM_SINGLE_DECL(madera_in2dmode_enum,
+			    MADERA_IN2L_CONTROL,
+			    MADERA_IN2_MODE_SHIFT,
+			    madera_dmode_texts);
+
+static SOC_ENUM_SINGLE_DECL(madera_in3dmode_enum,
+			    MADERA_IN3L_CONTROL,
+			    MADERA_IN3_MODE_SHIFT,
+			    madera_dmode_texts);
+
+const struct snd_kcontrol_new madera_inmode[] = {
+	SOC_DAPM_ENUM("IN1 Mode", madera_in1dmode_enum),
+	SOC_DAPM_ENUM("IN2 Mode", madera_in2dmode_enum),
+	SOC_DAPM_ENUM("IN3 Mode", madera_in3dmode_enum),
+};
+EXPORT_SYMBOL_GPL(madera_inmode);
 
 static bool madera_can_change_grp_rate(const struct madera_priv *priv,
 				       unsigned int reg)
@@ -1161,7 +1070,7 @@ EXPORT_SYMBOL_GPL(madera_rate_put);
 
 static void madera_configure_input_mode(struct madera *madera)
 {
-	unsigned int dig_mode, dig_mask, ana_mode_l, ana_mode_r;
+	unsigned int dig_mode, ana_mode_l, ana_mode_r;
 	int max_analogue_inputs, max_dmic_sup, i;
 
 	switch (madera->type) {
@@ -1210,10 +1119,6 @@ static void madera_configure_input_mode(struct madera *madera)
 		case MADERA_INMODE_SE:
 			ana_mode_l = 1 << MADERA_IN1L_SRC_SE_SHIFT;
 			break;
-		case MADERA_INMODE_DMIC:
-			ana_mode_l = 0;
-			dig_mode |= 1 << MADERA_IN1_MODE_SHIFT;
-			break;
 		default:
 			dev_warn(madera->dev,
 				 "IN%dAL Illegal inmode %u ignored\n",
@@ -1223,7 +1128,6 @@ static void madera_configure_input_mode(struct madera *madera)
 
 		switch (madera->pdata.codec.inmode[i][1]) {
 		case MADERA_INMODE_DIFF:
-		case MADERA_INMODE_DMIC:
 			ana_mode_r = 0;
 			break;
 		case MADERA_INMODE_SE:
@@ -1240,14 +1144,9 @@ static void madera_configure_input_mode(struct madera *madera)
 			"IN%dA DMIC mode=0x%x Analogue mode=0x%x,0x%x\n",
 			i + 1, dig_mode, ana_mode_l, ana_mode_r);
 
-		dig_mask = MADERA_IN1_DMIC_SUP_MASK;
-
-		if (i < max_analogue_inputs)
-			dig_mask |= MADERA_IN1_MODE_MASK;
-
 		regmap_update_bits(madera->regmap,
 				   MADERA_IN1L_CONTROL + (i * 8),
-				   dig_mask, dig_mode);
+				   MADERA_IN1_DMIC_SUP_MASK, dig_mode);
 
 		if (i >= max_analogue_inputs)
 			continue;

@@ -172,18 +172,18 @@ static int cs47l85_adsp_power_ev(struct snd_soc_dapm_widget *w,
 	{ name " Channel", "Combine", name " Left Input" }, \
 	{ name " Channel", "Right", name " Right Input" }, \
 	{ name " Channel", "Combine", name " Right Input" }, \
-	{ name " Left Input", "IN1", "IN1L PGA" }, \
-	{ name " Right Input", "IN1", "IN1R PGA" }, \
-	{ name " Left Input", "IN2", "IN2L PGA" }, \
-	{ name " Right Input", "IN2", "IN2R PGA" }, \
-	{ name " Left Input", "IN3", "IN3L PGA" }, \
-	{ name " Right Input", "IN3", "IN3R PGA" }, \
-	{ name " Left Input", "IN4", "IN4L PGA" }, \
-	{ name " Right Input", "IN4", "IN4R PGA" }, \
-	{ name " Left Input", "IN5", "IN5L PGA" }, \
-	{ name " Right Input", "IN5", "IN5R PGA" }, \
-	{ name " Left Input", "IN6", "IN6L PGA" }, \
-	{ name " Right Input", "IN6", "IN6R PGA" }
+	{ name " Left Input", "IN1", "IN1L" }, \
+	{ name " Right Input", "IN1", "IN1R" }, \
+	{ name " Left Input", "IN2", "IN2L" }, \
+	{ name " Right Input", "IN2", "IN2R" }, \
+	{ name " Left Input", "IN3", "IN3L" }, \
+	{ name " Right Input", "IN3", "IN3R" }, \
+	{ name " Left Input", "IN4", "IN4L" }, \
+	{ name " Right Input", "IN4", "IN4R" }, \
+	{ name " Left Input", "IN5", "IN5L" }, \
+	{ name " Right Input", "IN5", "IN5R" }, \
+	{ name " Left Input", "IN6", "IN6L" }, \
+	{ name " Right Input", "IN6", "IN6R" }
 
 #define CS47L85_RXANC_OUTPUT_ROUTES(widget, name) \
 	{ widget, NULL, name " ANC Source" }, \
@@ -948,30 +948,48 @@ SND_SOC_DAPM_SUPPLY("RXANC NG Clock", SND_SOC_NOPM,
 SND_SOC_DAPM_SIGGEN("TONE"),
 SND_SOC_DAPM_SIGGEN("NOISE"),
 
-SND_SOC_DAPM_INPUT("IN1AL"),
-SND_SOC_DAPM_INPUT("IN1B"),
-SND_SOC_DAPM_INPUT("IN1R"),
-SND_SOC_DAPM_INPUT("IN2AL"),
-SND_SOC_DAPM_INPUT("IN2AR"),
-SND_SOC_DAPM_INPUT("IN2BL"),
-SND_SOC_DAPM_INPUT("IN2BR"),
-SND_SOC_DAPM_INPUT("IN3L"),
-SND_SOC_DAPM_INPUT("IN3R"),
-SND_SOC_DAPM_INPUT("IN4L"),
-SND_SOC_DAPM_INPUT("IN4R"),
-SND_SOC_DAPM_INPUT("IN5L"),
-SND_SOC_DAPM_INPUT("IN5R"),
-SND_SOC_DAPM_INPUT("IN6L"),
-SND_SOC_DAPM_INPUT("IN6R"),
+SND_SOC_DAPM_INPUT("IN1ALN"),
+SND_SOC_DAPM_INPUT("IN1ALP"),
+SND_SOC_DAPM_INPUT("IN1BN"),
+SND_SOC_DAPM_INPUT("IN1BP"),
+SND_SOC_DAPM_INPUT("IN1RN"),
+SND_SOC_DAPM_INPUT("IN1RP"),
+SND_SOC_DAPM_INPUT("IN2ALN"),
+SND_SOC_DAPM_INPUT("IN2ALP"),
+SND_SOC_DAPM_INPUT("IN2ARN"),
+SND_SOC_DAPM_INPUT("IN2ARP"),
+SND_SOC_DAPM_INPUT("IN2BLN"),
+SND_SOC_DAPM_INPUT("IN2BLP"),
+SND_SOC_DAPM_INPUT("IN2BRN"),
+SND_SOC_DAPM_INPUT("IN2BRP"),
+SND_SOC_DAPM_INPUT("IN3LN"),
+SND_SOC_DAPM_INPUT("IN3LP"),
+SND_SOC_DAPM_INPUT("IN3RN"),
+SND_SOC_DAPM_INPUT("IN3RP"),
+SND_SOC_DAPM_INPUT("DMICCLK4"),
+SND_SOC_DAPM_INPUT("DMICDAT4"),
+SND_SOC_DAPM_INPUT("DMICCLK5"),
+SND_SOC_DAPM_INPUT("DMICDAT5"),
+SND_SOC_DAPM_INPUT("DMICCLK6"),
+SND_SOC_DAPM_INPUT("DMICDAT6"),
+
+SND_SOC_DAPM_MUX("IN1L Analog Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[0]),
+SND_SOC_DAPM_MUX("IN2L Analog Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[2]),
+SND_SOC_DAPM_MUX("IN2R Analog Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[3]),
+
+SND_SOC_DAPM_MUX("IN1L Mode", SND_SOC_NOPM, 0, 0, &madera_inmode[0]),
+SND_SOC_DAPM_MUX("IN1R Mode", SND_SOC_NOPM, 0, 0, &madera_inmode[0]),
+
+SND_SOC_DAPM_MUX("IN2L Mode", SND_SOC_NOPM, 0, 0, &madera_inmode[1]),
+SND_SOC_DAPM_MUX("IN2R Mode", SND_SOC_NOPM, 0, 0, &madera_inmode[1]),
+
+SND_SOC_DAPM_MUX("IN3L Mode", SND_SOC_NOPM, 0, 0, &madera_inmode[2]),
+SND_SOC_DAPM_MUX("IN3R Mode", SND_SOC_NOPM, 0, 0, &madera_inmode[2]),
 
 SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
 
 SND_SOC_DAPM_OUTPUT("DSP Trigger Out"),
-
-SND_SOC_DAPM_MUX("IN1L Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[0]),
-SND_SOC_DAPM_MUX("IN2L Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[2]),
-SND_SOC_DAPM_MUX("IN2R Mux", SND_SOC_NOPM, 0, 0, &madera_inmux[3]),
 
 SND_SOC_DAPM_PGA("PWM1 Driver", MADERA_PWM_DRIVE_1, MADERA_PWM1_ENA_SHIFT,
 		 0, NULL, 0),
@@ -1171,51 +1189,51 @@ SND_SOC_DAPM_MUX("AEC2 Loopback", MADERA_DAC_AEC_CONTROL_2,
 		 MADERA_AEC2_LOOPBACK_ENA_SHIFT, 0,
 		 &cs47l85_aec_loopback_mux[1]),
 
-SND_SOC_DAPM_PGA_E("IN1L PGA", MADERA_INPUT_ENABLES, MADERA_IN1L_ENA_SHIFT,
+SND_SOC_DAPM_PGA_E("IN1L", MADERA_INPUT_ENABLES, MADERA_IN1L_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("IN1R PGA", MADERA_INPUT_ENABLES, MADERA_IN1R_ENA_SHIFT,
+SND_SOC_DAPM_PGA_E("IN1R", MADERA_INPUT_ENABLES, MADERA_IN1R_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("IN2L PGA", MADERA_INPUT_ENABLES, MADERA_IN2L_ENA_SHIFT,
+SND_SOC_DAPM_PGA_E("IN2L", MADERA_INPUT_ENABLES, MADERA_IN2L_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("IN2R PGA", MADERA_INPUT_ENABLES, MADERA_IN2R_ENA_SHIFT,
+SND_SOC_DAPM_PGA_E("IN2R", MADERA_INPUT_ENABLES, MADERA_IN2R_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("IN3L PGA", MADERA_INPUT_ENABLES, MADERA_IN3L_ENA_SHIFT,
+SND_SOC_DAPM_PGA_E("IN3L", MADERA_INPUT_ENABLES, MADERA_IN3L_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("IN3R PGA", MADERA_INPUT_ENABLES, MADERA_IN3R_ENA_SHIFT,
+SND_SOC_DAPM_PGA_E("IN3R", MADERA_INPUT_ENABLES, MADERA_IN3R_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("IN4L PGA", MADERA_INPUT_ENABLES, MADERA_IN4L_ENA_SHIFT,
+SND_SOC_DAPM_PGA_E("IN4L", MADERA_INPUT_ENABLES, MADERA_IN4L_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("IN4R PGA", MADERA_INPUT_ENABLES, MADERA_IN4R_ENA_SHIFT,
+SND_SOC_DAPM_PGA_E("IN4R", MADERA_INPUT_ENABLES, MADERA_IN4R_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("IN5L PGA", MADERA_INPUT_ENABLES, MADERA_IN5L_ENA_SHIFT,
+SND_SOC_DAPM_PGA_E("IN5L", MADERA_INPUT_ENABLES, MADERA_IN5L_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("IN5R PGA", MADERA_INPUT_ENABLES, MADERA_IN5R_ENA_SHIFT,
+SND_SOC_DAPM_PGA_E("IN5R", MADERA_INPUT_ENABLES, MADERA_IN5R_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("IN6L PGA", MADERA_INPUT_ENABLES, MADERA_IN6L_ENA_SHIFT,
+SND_SOC_DAPM_PGA_E("IN6L", MADERA_INPUT_ENABLES, MADERA_IN6L_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("IN6R PGA", MADERA_INPUT_ENABLES, MADERA_IN6R_ENA_SHIFT,
+SND_SOC_DAPM_PGA_E("IN6R", MADERA_INPUT_ENABLES, MADERA_IN6R_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
@@ -1558,18 +1576,18 @@ SND_SOC_DAPM_OUTPUT("MICSUPP"),
 	{ name, "Haptics", "HAPTICS" }, \
 	{ name, "AEC1", "AEC1 Loopback" }, \
 	{ name, "AEC2", "AEC2 Loopback" }, \
-	{ name, "IN1L", "IN1L PGA" }, \
-	{ name, "IN1R", "IN1R PGA" }, \
-	{ name, "IN2L", "IN2L PGA" }, \
-	{ name, "IN2R", "IN2R PGA" }, \
-	{ name, "IN3L", "IN3L PGA" }, \
-	{ name, "IN3R", "IN3R PGA" }, \
-	{ name, "IN4L", "IN4L PGA" }, \
-	{ name, "IN4R", "IN4R PGA" }, \
-	{ name, "IN5L", "IN5L PGA" }, \
-	{ name, "IN5R", "IN5R PGA" }, \
-	{ name, "IN6L", "IN6L PGA" }, \
-	{ name, "IN6R", "IN6R PGA" }, \
+	{ name, "IN1L", "IN1L" }, \
+	{ name, "IN1R", "IN1R" }, \
+	{ name, "IN2L", "IN2L" }, \
+	{ name, "IN2R", "IN2R" }, \
+	{ name, "IN3L", "IN3L" }, \
+	{ name, "IN3R", "IN3R" }, \
+	{ name, "IN4L", "IN4L" }, \
+	{ name, "IN4R", "IN4R" }, \
+	{ name, "IN5L", "IN5L" }, \
+	{ name, "IN5R", "IN5R" }, \
+	{ name, "IN6L", "IN6L" }, \
+	{ name, "IN6R", "IN6R" }, \
 	{ name, "AIF1RX1", "AIF1RX1" }, \
 	{ name, "AIF1RX2", "AIF1RX2" }, \
 	{ name, "AIF1RX3", "AIF1RX3" }, \
@@ -1825,13 +1843,10 @@ static const struct snd_soc_dapm_route cs47l85_dapm_routes[] = {
 	{ "SPD1", NULL, "SPD1TX1" },
 	{ "SPD1", NULL, "SPD1TX2" },
 
-	{ "IN1AL", NULL, "SYSCLK" },
-	{ "IN1B", NULL, "SYSCLK" },
+	{ "IN1L", NULL, "SYSCLK" },
 	{ "IN1R", NULL, "SYSCLK" },
-	{ "IN2AL", NULL, "SYSCLK" },
-	{ "IN2AR", NULL, "SYSCLK" },
-	{ "IN2BL", NULL, "SYSCLK" },
-	{ "IN2BR", NULL, "SYSCLK" },
+	{ "IN2L", NULL, "SYSCLK" },
+	{ "IN2R", NULL, "SYSCLK" },
 	{ "IN3L", NULL, "SYSCLK" },
 	{ "IN3R", NULL, "SYSCLK" },
 	{ "IN4L", NULL, "SYSCLK" },
@@ -1969,31 +1984,64 @@ static const struct snd_soc_dapm_route cs47l85_dapm_routes[] = {
 
 	{ "Audio Trace DSP", NULL, "DSP1" },
 
-	{ "IN1L Mux", "A", "IN1AL" },
-	{ "IN1L Mux", "B", "IN1B" },
+	{ "IN1L Analog Mux", "A", "IN1ALN" },
+	{ "IN1L Analog Mux", "A", "IN1ALP" },
+	{ "IN1L Analog Mux", "B", "IN1BN" },
+	{ "IN1L Analog Mux", "B", "IN1BP" },
 
-	{ "IN2L Mux", "A", "IN2AL" },
-	{ "IN2L Mux", "B", "IN2BL" },
-	{ "IN2R Mux", "A", "IN2AR" },
-	{ "IN2R Mux", "B", "IN2BR" },
+	{ "IN1L Mode", "Analog", "IN1L Analog Mux" },
+	{ "IN1R Mode", "Analog", "IN1RN" },
+	{ "IN1R Mode", "Analog", "IN1RP" },
 
-	{ "IN1L PGA", NULL, "IN1L Mux" },
-	{ "IN1R PGA", NULL, "IN1R" },
+	{ "IN1L Mode", "Digital", "IN1ALN" },
+	{ "IN1L Mode", "Digital", "IN1RN" },
+	{ "IN1R Mode", "Digital", "IN1ALN" },
+	{ "IN1R Mode", "Digital", "IN1RN" },
 
-	{ "IN2L PGA", NULL, "IN2L Mux" },
-	{ "IN2R PGA", NULL, "IN2R Mux" },
+	{ "IN1L", NULL, "IN1L Mode" },
+	{ "IN1R", NULL, "IN1R Mode" },
 
-	{ "IN3L PGA", NULL, "IN3L" },
-	{ "IN3R PGA", NULL, "IN3R" },
+	{ "IN2L Analog Mux", "A", "IN2ALN" },
+	{ "IN2L Analog Mux", "A", "IN2ALP" },
+	{ "IN2L Analog Mux", "B", "IN2BLN" },
+	{ "IN2L Analog Mux", "B", "IN2BLP" },
+	{ "IN2R Analog Mux", "A", "IN2ARN" },
+	{ "IN2R Analog Mux", "A", "IN2ARP" },
+	{ "IN2R Analog Mux", "B", "IN2BRN" },
+	{ "IN2R Analog Mux", "B", "IN2BRP" },
 
-	{ "IN4L PGA", NULL, "IN4L" },
-	{ "IN4R PGA", NULL, "IN4R" },
+	{ "IN2L Mode", "Analog", "IN2L Analog Mux" },
+	{ "IN2R Mode", "Analog", "IN2R Analog Mux" },
 
-	{ "IN5L PGA", NULL, "IN5L" },
-	{ "IN5R PGA", NULL, "IN5R" },
+	{ "IN2L Mode", "Digital", "IN2ALN" },
+	{ "IN2L Mode", "Digital", "IN2ARN" },
+	{ "IN2R Mode", "Digital", "IN2ALN" },
+	{ "IN2R Mode", "Digital", "IN2ARN" },
 
-	{ "IN6L PGA", NULL, "IN6L" },
-	{ "IN6R PGA", NULL, "IN6R" },
+	{ "IN2L", NULL, "IN2L Mode" },
+	{ "IN2R", NULL, "IN2R Mode" },
+
+	{ "IN3L Mode", "Analog", "IN3LN" },
+	{ "IN3L Mode", "Analog", "IN3LP" },
+	{ "IN3R Mode", "Analog", "IN3RN" },
+	{ "IN3R Mode", "Analog", "IN3RP" },
+
+	{ "IN3L Mode", "Digital", "IN3LN" },
+	{ "IN3L Mode", "Digital", "IN3RN" },
+	{ "IN3R Mode", "Digital", "IN3LN" },
+	{ "IN3R Mode", "Digital", "IN3RN" },
+
+	{ "IN3L", NULL, "IN3L Mode" },
+	{ "IN3R", NULL, "IN3R Mode" },
+
+	{ "IN4L", NULL, "DMICCLK4" },
+	{ "IN4R", NULL, "DMICDAT4" },
+
+	{ "IN5L", NULL, "DMICCLK5" },
+	{ "IN5R", NULL, "DMICDAT5" },
+
+	{ "IN6L", NULL, "DMICCLK6" },
+	{ "IN6R", NULL, "DMICDAT6" },
 
 	MADERA_MIXER_ROUTES("OUT1L", "HPOUT1L"),
 	MADERA_MIXER_ROUTES("OUT1R", "HPOUT1R"),
@@ -2481,10 +2529,10 @@ static const char * const cs47l85_dmic_refs[] = {
 };
 
 static const char * const cs47l85_dmic_inputs[] = {
-	"IN1L Mux",
+	"IN1L",
 	"IN1R",
-	"IN2L Mux",
-	"IN2R Mux",
+	"IN2L",
+	"IN2R",
 	"IN3L",
 	"IN3R",
 	"IN4L",
