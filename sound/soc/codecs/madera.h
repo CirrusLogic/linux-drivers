@@ -331,6 +331,7 @@ extern const struct snd_soc_dai_ops madera_dai_ops;
 extern const struct snd_soc_dai_ops madera_simple_dai_ops;
 
 extern const struct snd_kcontrol_new madera_inmux[];
+extern const struct snd_kcontrol_new madera_inmode[];
 
 extern const char * const madera_rate_text[MADERA_RATE_ENUM_SIZE];
 extern const unsigned int madera_rate_val[MADERA_RATE_ENUM_SIZE];
