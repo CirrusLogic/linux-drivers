@@ -614,22 +614,6 @@ static ssize_t clsic_show_file_fw_version(struct device *dev,
 }
 static DEVICE_ATTR(file_fw_version, 0444, clsic_show_file_fw_version, NULL);
 
-static ssize_t clsic_store_device_fw_version(struct device *dev,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
-{
-	struct clsic *clsic = dev_get_drvdata(dev);
-	int ret;
-
-	if (!strncmp(buf, "update", strlen("update"))) {
-		ret = clsic_bootsrv_service_update_begin(clsic);
-		if (ret)
-			return ret;
-	}
-
-	return count;
-}
-
 static ssize_t clsic_show_device_fw_version(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
@@ -646,8 +630,7 @@ static ssize_t clsic_show_device_fw_version(struct device *dev,
 		       (device_version & CLSIC_SVCVER_BLD_MASK) >>
 		       CLSIC_SVCVER_BLD_SHIFT);
 }
-static DEVICE_ATTR(device_fw_version, 0644, clsic_show_device_fw_version,
-		   clsic_store_device_fw_version);
+static DEVICE_ATTR(device_fw_version, 0444, clsic_show_device_fw_version, NULL);
 
 #define CLSIC_FWUPDATE_COMPLETION_TIMEOUT   60000
 static inline int clsic_wait_fwupdate_completion(
