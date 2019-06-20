@@ -616,24 +616,6 @@ static ssize_t clsic_show_file_fw_version(struct device *dev,
 }
 static DEVICE_ATTR(file_fw_version, 0444, clsic_show_file_fw_version, NULL);
 
-static ssize_t clsic_show_device_fw_version(struct device *dev,
-					    struct device_attribute *attr,
-					    char *buf)
-{
-	struct clsic *clsic = dev_get_drvdata(dev);
-	uint32_t device_version =
-		clsic->service_handlers[CLSIC_SRV_INST_SYS]->service_version;
-
-	return snprintf(buf, PAGE_SIZE, "%d.%d.%d\n",
-		       (device_version & CLSIC_SVCVER_MAJ_MASK) >>
-		       CLSIC_SVCVER_MAJ_SHIFT,
-		       (device_version & CLSIC_SVCVER_MIN_MASK) >>
-		       CLSIC_SVCVER_MIN_SHIFT,
-		       (device_version & CLSIC_SVCVER_BLD_MASK) >>
-		       CLSIC_SVCVER_BLD_SHIFT);
-}
-static DEVICE_ATTR(device_fw_version, 0444, clsic_show_device_fw_version, NULL);
-
 #define CLSIC_FWUPDATE_COMPLETION_TIMEOUT   60000
 static inline int clsic_wait_fwupdate_completion(
 				struct clsic_bootsrv_struct *bootsrv)
@@ -722,7 +704,6 @@ static DEVICE_ATTR(firmware_update, 0644, clsic_show_firmware_update,
 static void clsic_bootsrv_service_stop(struct clsic *clsic,
 				      struct clsic_service *handler)
 {
-	device_remove_file(clsic->dev, &dev_attr_device_fw_version);
 	device_remove_file(clsic->dev, &dev_attr_firmware_update);
 	device_remove_file(clsic->dev, &dev_attr_file_fw_version);
 	kfree(handler->data);
@@ -749,7 +730,6 @@ int clsic_bootsrv_service_start(struct clsic *clsic,
 	handler->stop = &clsic_bootsrv_service_stop;
 	handler->data = bootsrv;
 
-	device_create_file(clsic->dev, &dev_attr_device_fw_version);
 	device_create_file(clsic->dev, &dev_attr_firmware_update);
 	device_create_file(clsic->dev, &dev_attr_file_fw_version);
 
