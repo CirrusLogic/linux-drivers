@@ -24,6 +24,48 @@
 #include <linux/mfd/clsic/bootsrv.h>
 #include "clsic-trace.h"
 
+#define CLSIC_FWVER_MAJ_SHIFT  24
+#define CLSIC_FWVER_MAJ_MASK   0xFF000000
+
+#define CLSIC_FWVER_MIN_SHIFT  16
+#define CLSIC_FWVER_MIN_MASK   0x00FF0000
+
+#define CLSIC_FWVER_BLD_SHIFT  0
+#define CLSIC_FWVER_BLD_MASK   0x0000FFFF
+
+/* Structure containing the System Service instance data */
+struct clsic_syssrv_struct {
+	struct clsic *clsic;
+
+	struct clsic_service *srv;
+	uint32_t trace_level;
+	uint32_t trace_mask;
+	uint32_t device_fw_version;
+};
+
+/*
+ * The device_fw_version file in sysfs contains the current version of firmware
+ */
+static ssize_t clsic_device_fw_version_read_file(struct device *dev,
+						 struct device_attribute *attr,
+						 char *buf)
+{
+	struct clsic *clsic = dev_get_drvdata(dev);
+	struct clsic_syssrv_struct *syssrv =
+		clsic->service_handlers[CLSIC_SRV_INST_SYS]->data;
+
+	return snprintf(buf, PAGE_SIZE, "%d.%d.%d\n",
+		       (syssrv->device_fw_version & CLSIC_FWVER_MAJ_MASK) >>
+		       CLSIC_FWVER_MAJ_SHIFT,
+		       (syssrv->device_fw_version & CLSIC_FWVER_MIN_MASK) >>
+		       CLSIC_FWVER_MIN_SHIFT,
+		       (syssrv->device_fw_version & CLSIC_FWVER_BLD_MASK) >>
+		       CLSIC_FWVER_BLD_SHIFT);
+}
+
+static DEVICE_ATTR(device_fw_version, 0444, clsic_device_fw_version_read_file,
+		   NULL);
+
 static void clsic_system_service_stop(struct clsic *clsic,
 				      struct clsic_service *handler)
 {
@@ -39,20 +81,13 @@ static void clsic_system_service_stop(struct clsic *clsic,
 	 */
 	clsic_send_shutdown_cmd(clsic);
 
+	device_remove_file(clsic->dev, &dev_attr_device_fw_version);
+
 	if (handler->data != NULL) {
 		kfree(handler->data);
 		handler->data = NULL;
 	}
 }
-
-/* Structure containing the System Service instance data */
-struct clsic_syssrv_struct {
-	struct clsic *clsic;
-
-	struct clsic_service *srv;
-	uint32_t trace_level;
-	uint32_t trace_mask;
-};
 
 /*
  * There is a command that can set both the trace log level and mask in one go,
@@ -183,6 +218,42 @@ static int clsic_system_service_pm_handler(struct clsic_service *handler,
 	return ret;
 }
 
+int clsic_request_fw_version(struct clsic *clsic)
+{
+	struct clsic_syssrv_struct *syssrv =
+			clsic->service_handlers[CLSIC_SRV_INST_SYS]->data;
+	union clsic_sys_msg msg_cmd;
+	union clsic_sys_msg msg_rsp;
+	int ret;
+
+	if (clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
+		       CLSIC_SRV_INST_SYS, CLSIC_SYS_MSG_CR_MAB_VERSION))
+		return -EINVAL;
+
+	ret = clsic_send_msg_sync(syssrv->clsic,
+				  (union t_clsic_generic_message *) &msg_cmd,
+				  (union t_clsic_generic_message *) &msg_rsp,
+				  CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
+				  CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
+
+	if ((ret != 0) || (msg_rsp.rsp_mab_version.hdr.err != 0)) {
+		syssrv->device_fw_version = 0;
+		clsic_err(syssrv->clsic, "Fw version ret %d status %d\n", ret,
+			  msg_rsp.rsp_mab_version.hdr.err);
+
+	} else {
+		syssrv->device_fw_version = msg_rsp.rsp_mab_version.mab_version;
+		clsic_info(syssrv->clsic, "Device fw version %d.%d.%d\n",
+			   (syssrv->device_fw_version & CLSIC_FWVER_MAJ_MASK) >>
+			   CLSIC_FWVER_MAJ_SHIFT,
+			   (syssrv->device_fw_version & CLSIC_FWVER_MIN_MASK) >>
+			   CLSIC_FWVER_MIN_SHIFT,
+			   (syssrv->device_fw_version & CLSIC_FWVER_BLD_MASK) >>
+			   CLSIC_FWVER_BLD_SHIFT);
+	}
+
+	return ret;
+}
 
 int clsic_system_service_start(struct clsic *clsic,
 			       struct clsic_service *handler)
@@ -213,6 +284,9 @@ int clsic_system_service_start(struct clsic *clsic,
 	syssrv->srv = handler;
 	syssrv->trace_level = CLSIC_SYSSRV_DEFAULT_TRACE_LEVEL;
 	syssrv->trace_mask = CLSIC_SYSSRV_DEFAULT_TRACE_MASK;
+	syssrv->device_fw_version = 0;
+
+	device_create_file(clsic->dev, &dev_attr_device_fw_version);
 
 	debugfs_create_file("sysfwtrace_level", 0220, clsic->debugfs_root,
 			    syssrv, &clsic_system_service_trace_level_fops);
@@ -277,6 +351,8 @@ int clsic_system_service_enumerate(struct clsic *clsic)
 			  service_count);
 		return -EINVAL;
 	}
+
+	clsic_request_fw_version(clsic);
 
 	mutex_lock(&clsic->service_lock);
 
