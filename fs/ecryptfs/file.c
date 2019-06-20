@@ -68,28 +68,17 @@ ecryptfs_filldir(struct dir_context *ctx, const char *lower_name,
 						  buf->sb, lower_name,
 						  lower_namelen);
 	if (rc) {
-		if (rc != -EINVAL) {
-			ecryptfs_printk(KERN_DEBUG,
-					"%s: Error attempting to decode and decrypt filename [%s]; rc = [%d]\n",
-					__func__, lower_name, rc);
-			return rc;
-		}
-
-		/* Mask -EINVAL errors as these are most likely due a plaintext
-		 * filename present in the lower filesystem despite filename
-		 * encryption being enabled. One unavoidable example would be
-		 * the "lost+found" dentry in the root directory of an Ext4
-		 * filesystem.
-		 */
-		return 0;
+		printk(KERN_ERR "%s: Error attempting to decode and decrypt "
+		       "filename [%s]; rc = [%d]\n", __func__, lower_name,
+		       rc);
+		goto out;
 	}
-
 	buf->caller->pos = buf->ctx.pos;
 	rc = !dir_emit(buf->caller, name, name_size, ino, d_type);
 	kfree(name);
 	if (!rc)
 		buf->entries_written++;
-
+out:
 	return rc;
 }
 
