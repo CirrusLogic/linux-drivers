@@ -84,4 +84,35 @@ enum cros_ec_pd_find_update_firmware_result {
  */
 #define PD_UPDATE_CHECK_DELAY msecs_to_jiffies(2000)
 
+/**
+ * cros_ec_pd_get_status - Get info about a possible PD device attached to a
+ * given port. Returns 0 on success, <0 on failure.
+ *
+ * @dev: PD device
+ * @pd_dev: EC PD device
+ * @port: Port # on device
+ * @hash_entry: Stores received PD device RW FW info, on success
+ * @discovery_entry: Stores received PD device USB info, if device present
+ */
+int cros_ec_pd_get_status(
+		struct device *dev,
+		struct cros_ec_dev *pd_dev,
+		int port,
+		struct ec_params_usb_pd_rw_hash_entry *hash_entry,
+		struct ec_params_usb_pd_discovery_entry *discovery_entry);
+
+/* Store our PD device pointer so we can send update-related commands. */
+extern struct cros_ec_dev *cros_ec_pd_ec;
+
+/*
+ * firmware_images - Keep this updated with the latest RW FW + hash for each
+ * PD device. Entries should be primary sorted by id_major and secondary
+ * sorted by id_minor.
+ * The array is terminated with an empty image to  save passing size.
+ */
+extern const struct cros_ec_pd_firmware_image cros_ec_pd_firmware_images[];
+
+
+
+
 #endif  /* __CROS_EC_PD_UPDATE_H */

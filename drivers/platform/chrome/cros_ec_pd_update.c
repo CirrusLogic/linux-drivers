@@ -29,17 +29,22 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 
-/* Store our PD device pointer so we can send update-related commands. */
-static struct cros_ec_dev *pd_ec;
+/*
+ * Driver loaded when a Chrome OS PD device is found.
+ */
+#define DRV_NAME "cros-ec-pd-update"
+
+struct cros_ec_dev *cros_ec_pd_ec;
+EXPORT_SYMBOL_GPL(cros_ec_pd_ec);
 
 /* Allow disabling of the update for testing purposes */
 static int disable;
 
 /*
  * $DEVICE_known_update_hashes - A list of old known RW hashes from which we
- * wish to upgrade. When firmware_images is updated, the old hash should
- * probably be added here. The latest hash currently in firmware_images should
- * NOT appear here.
+ * wish to upgrade. When cros_ec_pd_firmware_images is updated, the old hash
+ * should probably be added here. The latest hash currently in
+ * cros_ec_pd_firmware_images should NOT appear here.
  */
 static uint8_t zinger_known_update_hashes[][PD_RW_HASH_SIZE] = {
 	/* zinger_v1.7.509-e5bffd3.bin */
@@ -90,12 +95,7 @@ static uint8_t hoho_known_update_hashes[][PD_RW_HASH_SIZE] = {
 	  0xa2, 0x98, 0xe4, 0xf1, 0x62 },
 };
 
-/*
- * firmware_images - Keep this updated with the latest RW FW + hash for each
- * PD device. Entries should be primary sorted by id_major and secondary
- * sorted by id_minor.
- */
-static const struct cros_ec_pd_firmware_image firmware_images[] = {
+const struct cros_ec_pd_firmware_image cros_ec_pd_firmware_images[] = {
 	/* PD_DEVICE_TYPE_ZINGER */
 	{
 		.id_major = PD_DEVICE_TYPE_ZINGER,
@@ -167,9 +167,11 @@ static const struct cros_ec_pd_firmware_image firmware_images[] = {
 		.update_hashes = &hoho_known_update_hashes,
 		.update_hash_count = ARRAY_SIZE(hoho_known_update_hashes),
 	},
+	{
+		/* Empty image for termination. */
+	},
 };
-
-static const int firmware_image_count = ARRAY_SIZE(firmware_images);
+EXPORT_SYMBOL_GPL(cros_ec_pd_firmware_images);
 
 /**
  * cros_ec_pd_command - Send a command to the EC. Returns 0 on success,
@@ -249,23 +251,12 @@ static int cros_ec_pd_enter_gfu(struct device *dev, struct cros_ec_dev *pd_dev,
 	return rv;
 }
 
-/**
- * cros_ec_pd_get_status - Get info about a possible PD device attached to a
- * given port. Returns 0 on success, <0 on failure.
- *
- * @dev: PD device
- * @pd_dev: EC PD device
- * @port: Port # on device
- * @hash_entry: Stores received PD device RW FW info, on success
- * @discovery_entry: Stores received PD device USB info, if device present
- */
-static int cros_ec_pd_get_status(struct device *dev,
-				 struct cros_ec_dev *pd_dev,
-				 int port,
-				 struct ec_params_usb_pd_rw_hash_entry
-					*hash_entry,
-				 struct ec_params_usb_pd_discovery_entry
-					*discovery_entry)
+int cros_ec_pd_get_status(
+		struct device *dev,
+		struct cros_ec_dev *pd_dev,
+		int port,
+		struct ec_params_usb_pd_rw_hash_entry *hash_entry,
+		struct ec_params_usb_pd_discovery_entry *discovery_entry)
 {
 	struct ec_params_usb_pd_info_request info_request;
 	int ret;
@@ -284,6 +275,7 @@ static int cros_ec_pd_get_status(struct device *dev,
 				  (uint8_t *)discovery_entry,
 				  sizeof(*discovery_entry));
 }
+EXPORT_SYMBOL_GPL(cros_ec_pd_get_status);
 
 /**
  * cros_ec_pd_send_hash_entry - Inform the EC of a PD devices for which we
@@ -471,7 +463,7 @@ static int cros_ec_pd_fw_update(struct cros_ec_pd_update_data *drv_data,
  * matching the passed attributes, then decide whether an update should
  * be performed.
  * Returns PD_DO_UPDATE if an update should be performed, and writes the
- * firmware_image pointer to update_image.
+ * cros_ec_pd_firmware_image pointer to update_image.
  * Returns reason for not updating otherwise.
  *
  * @dev: PD device
@@ -496,8 +488,8 @@ static enum cros_ec_pd_find_update_firmware_result cros_ec_find_update_firmware(
 	 * TODO(shawnn): Replace sequential table search with modified binary
 	 * search on major / minor.
 	 */
-	for (i = 0; i < firmware_image_count; ++i) {
-		img = &firmware_images[i];
+	for (i = 0; cros_ec_pd_firmware_images[i].rw_image_size > 0; i++) {
+		img = &cros_ec_pd_firmware_images[i];
 		if (MAJOR_MINOR_TO_DEV_ID(img->id_major, img->id_minor)
 					  == hash_entry->dev_id &&
 		    img->usb_vid == discovery_entry->vid &&
@@ -506,7 +498,7 @@ static enum cros_ec_pd_find_update_firmware_result cros_ec_find_update_firmware(
 	}
 	*update_image = img;
 
-	if (i == firmware_image_count)
+	if (cros_ec_pd_firmware_images[i].rw_image_size == 0)
 		return PD_UNKNOWN_DEVICE;
 
 	if (!memcmp(hash_entry->dev_rw_hash, img->hash, PD_RW_HASH_SIZE)) {
@@ -606,15 +598,16 @@ static void cros_ec_pd_update_check(struct work_struct *work)
 	/* Force GFU entry for devices not in GFU by default. */
 	for (port = 0; port < drv_data->num_ports; ++port) {
 		dev_dbg(dev, "Considering GFU entry on C%d\n", port);
-		ret = cros_ec_pd_get_status(dev, pd_ec, port, &hash_entry,
+		ret = cros_ec_pd_get_status(dev, cros_ec_pd_ec,
+					    port, &hash_entry,
 					    &discovery_entry);
 		if (ret || (hash_entry.dev_id == PD_DEVICE_TYPE_NONE)) {
 			dev_dbg(dev, "Forcing GFU entry on C%d\n", port);
-			cros_ec_pd_enter_gfu(dev, pd_ec, port);
+			cros_ec_pd_enter_gfu(dev, cros_ec_pd_ec, port);
 		}
 	}
 
-	pd_status = cros_ec_pd_get_host_event_status(dev, pd_ec);
+	pd_status = cros_ec_pd_get_host_event_status(dev, cros_ec_pd_ec);
 
 	/*
 	 * Override status received from EC if update is forced, such as
@@ -629,7 +622,7 @@ static void cros_ec_pd_update_check(struct work_struct *work)
 	 * If there is an EC based charger, send a notification to it to
 	 * trigger a refresh of the power supply state.
 	 */
-	charger = pd_ec->ec_dev->charger;
+	charger = cros_ec_pd_ec->ec_dev->charger;
 	if ((pd_status & PD_EVENT_POWER_CHANGE) && charger)
 		charger->desc->external_power_changed(charger);
 
@@ -642,7 +635,8 @@ static void cros_ec_pd_update_check(struct work_struct *work)
 		if (drv_data->is_suspending)
 			return;
 
-		ret = cros_ec_pd_get_status(dev, pd_ec, port, &hash_entry,
+		ret = cros_ec_pd_get_status(dev, cros_ec_pd_ec,
+					    port, &hash_entry,
 					    &discovery_entry);
 		if (ret < 0) {
 			dev_err(dev,
@@ -677,7 +671,8 @@ static void cros_ec_pd_update_check(struct work_struct *work)
 			/* Update firmware */
 			dev_info(dev, "Updating Port%d RW to %s\n", port,
 				 img->filename);
-			ret = cros_ec_pd_fw_update(drv_data, pd_ec, fw, port);
+			ret = cros_ec_pd_fw_update(drv_data, cros_ec_pd_ec, fw,
+						   port);
 			dev_info(dev,
 				 "Port%d FW update completed with status %d\n",
 				  port, ret);
@@ -691,7 +686,7 @@ done:
 			 */
 			dev_info(dev, "Port%d FW is already up-to-date %s\n",
 				 port, img->filename);
-			cros_ec_pd_send_hash_entry(dev, pd_ec, img);
+			cros_ec_pd_send_hash_entry(dev, cros_ec_pd_ec, img);
 			break;
 		case PD_UNKNOWN_DEVICE:
 		case PD_UNKNOWN_RW:
@@ -760,8 +755,8 @@ static int cros_ec_pd_add(struct device *dev)
 	struct cros_ec_pd_update_data *drv_data;
 	int ret, i;
 
-	/* If pd_ec is not initialized, try again later */
-	if (!pd_ec)
+	/* If cros_ec_pd_ec is not initialized, try again later */
+	if (!cros_ec_pd_ec)
 		return -EPROBE_DEFER;
 
 	drv_data =
@@ -774,7 +769,7 @@ static int cros_ec_pd_add(struct device *dev)
 	drv_data->workqueue =
 		create_singlethread_workqueue("cros_ec_pd_update");
 	if (cros_ec_pd_get_num_ports(drv_data->dev,
-				     pd_ec,
+				     cros_ec_pd_ec,
 				     &drv_data->num_ports) < 0) {
 		dev_err(drv_data->dev, "Can't get num_ports\n");
 		return -EINVAL;
@@ -793,10 +788,10 @@ static int cros_ec_pd_add(struct device *dev)
 	 * TODO(crosbug.com/p/35510): This won't scale past four update
 	 * devices. Find a better solution once we get there.
 	 */
-	for (i = 0; i < firmware_image_count; ++i)
+	for (i = 0; cros_ec_pd_firmware_images[i].rw_image_size > 0; i++)
 		cros_ec_pd_send_hash_entry(drv_data->dev,
-					   pd_ec,
-					   &firmware_images[i]);
+					   cros_ec_pd_ec,
+					   &cros_ec_pd_firmware_images[i]);
 
 	queue_delayed_work(drv_data->workqueue, &drv_data->work,
 		PD_UPDATE_CHECK_DELAY);
@@ -948,7 +943,7 @@ MODULE_DEVICE_TABLE(of, cros_ec_pd_of_match);
 
 static struct platform_driver cros_ec_pd_driver = {
 	.driver = {
-		.name  = "cros-ec-pd-update",
+		.name  = DRV_NAME,
 		.of_match_table = of_match_ptr(cros_ec_pd_of_match),
 		.pm = &cros_ec_pd_pm,
 	},
@@ -959,111 +954,6 @@ static struct platform_driver cros_ec_pd_driver = {
 module_platform_driver(cros_ec_pd_driver);
 
 #endif /* CONFIG_ACPI */
-
-/*
- * Driver loaded on top of the EC object.
- *
- * It exposes a sysfs interface, but most importantly, set global pd_ec to
- * let the real driver knows which pd_ec device to talk to.
- */
-#define DRV_NAME "cros-ec-pd-sysfs"
-
-static umode_t cros_ec_pd_attrs_are_visible(struct kobject *kobj,
-					    struct attribute *a, int n)
-{
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct cros_ec_dev *ec = container_of(dev, struct cros_ec_dev,
-					      class_dev);
-	struct ec_params_usb_pd_rw_hash_entry hash_entry;
-	struct ec_params_usb_pd_discovery_entry discovery_entry;
-
-	/* Check if a PD MCU is present */
-	if (cros_ec_pd_get_status(dev,
-				  ec,
-				  0,
-				  &hash_entry,
-				  &discovery_entry) == EC_RES_SUCCESS) {
-		/*
-		 * Save our ec pointer so we can conduct transactions.
-		 * TODO(shawnn): Find a better way to access the ec pointer.
-		 */
-		if (!pd_ec)
-			pd_ec = ec;
-		return a->mode;
-	}
-
-	return 0;
-}
-
-static ssize_t firmware_images_show(struct device *dev,
-				    struct device_attribute *attr, char *buf)
-{
-	int size = 0;
-	int i;
-
-	for (i = 0; i < firmware_image_count; ++i) {
-		if (firmware_images[i].filename == NULL)
-			size += scnprintf(buf + size, PAGE_SIZE,
-					  "%d: %d.%d NONE\n", i,
-					  firmware_images[i].id_major,
-					  firmware_images[i].id_minor);
-		else
-			size += scnprintf(buf + size, PAGE_SIZE,
-					  "%d: %d.%d %s\n", i,
-					  firmware_images[i].id_major,
-					  firmware_images[i].id_minor,
-					  firmware_images[i].filename);
-	}
-
-	return size;
-}
-
-static DEVICE_ATTR_RO(firmware_images);
-
-static struct attribute *__pd_attrs[] = {
-	&dev_attr_firmware_images.attr,
-	NULL,
-};
-
-static struct attribute_group cros_ec_pd_attr_group = {
-	.name = "pd_update",
-	.attrs = __pd_attrs,
-	.is_visible = cros_ec_pd_attrs_are_visible,
-};
-
-
-static int cros_ec_pd_sysfs_probe(struct platform_device *pd)
-{
-	struct cros_ec_dev *ec_dev = dev_get_drvdata(pd->dev.parent);
-	struct device *dev = &pd->dev;
-	int ret;
-
-	ret = sysfs_create_group(&ec_dev->class_dev.kobj,
-			&cros_ec_pd_attr_group);
-	if (ret < 0)
-		dev_err(dev, "failed to create attributes. err=%d\n", ret);
-
-	return ret;
-}
-
-static int cros_ec_pd_sysfs_remove(struct platform_device *pd)
-{
-	struct cros_ec_dev *ec_dev = dev_get_drvdata(pd->dev.parent);
-
-	sysfs_remove_group(&ec_dev->class_dev.kobj, &cros_ec_pd_attr_group);
-
-	return 0;
-}
-
-static struct platform_driver cros_ec_pd_sysfs_driver = {
-	.driver = {
-		.name = DRV_NAME,
-	},
-	.probe = cros_ec_pd_sysfs_probe,
-	.remove = cros_ec_pd_sysfs_remove,
-};
-
-module_platform_driver(cros_ec_pd_sysfs_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ChromeOS power device FW update driver");
