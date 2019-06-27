@@ -410,9 +410,9 @@ static void madera_prop_get_pdata(struct madera_priv *priv)
 				      pdata->dmic_ref,
 				      ARRAY_SIZE(pdata->dmic_ref), 1);
 
-	pdata->auxpdm_slave_mode = device_property_present(priv->dev,
+	pdata->auxpdm_slave_mode = device_property_present(madera->dev,
 							   "cirrus,auxpdm-slave-mode");
-	pdata->auxpdm_falling_edge = device_property_present(priv->dev,
+	pdata->auxpdm_falling_edge = device_property_present(madera->dev,
 							     "cirrus,auxpdm-falling-edge");
 }
 
