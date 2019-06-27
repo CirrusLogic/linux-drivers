@@ -318,37 +318,36 @@ int madera_free_overheat(struct madera_priv *priv)
 }
 EXPORT_SYMBOL_GPL(madera_free_overheat);
 
-static int madera_get_variable_u32_array(struct madera_priv *priv,
+static int madera_get_variable_u32_array(struct device *dev,
 					 const char *propname,
-					 u32 *dest,
-					 int n_max,
+					 u32 *dest, int n_max,
 					 int multiple)
 {
-	struct madera *madera = priv->madera;
 	int n, ret;
 
-	n = device_property_read_u32_array(madera->dev, propname, NULL, 0);
-	if (n == -EINVAL) {
-		return 0;	/* missing, ignore */
-	} else if (n < 0) {
-		dev_warn(madera->dev, "%s malformed (%d)\n",
-			 propname, n);
+	n = device_property_read_u32_array(dev, propname, NULL, 0);
+	if (n < 0) {
+		if (n == -EINVAL)
+			return 0;	/* missing, ignore */
+
+		dev_warn(dev, "%s malformed (%d)\n", propname, n);
+
 		return n;
 	} else if ((n % multiple) != 0) {
-		dev_warn(madera->dev, "%s not a multiple of %d entries\n",
+		dev_warn(dev, "%s not a multiple of %d entries\n",
 			 propname, multiple);
+
 		return -EINVAL;
 	}
 
 	if (n > n_max)
 		n = n_max;
 
-	ret = device_property_read_u32_array(madera->dev, propname, dest, n);
-
+	ret = device_property_read_u32_array(dev, propname, dest, n);
 	if (ret < 0)
 		return ret;
-	else
-		return n;
+
+	return n;
 }
 
 static void madera_prop_get_inmode(struct madera_priv *priv)
@@ -361,7 +360,7 @@ static void madera_prop_get_inmode(struct madera_priv *priv)
 	BUILD_BUG_ON(ARRAY_SIZE(pdata->inmode) != MADERA_MAX_INPUT);
 	BUILD_BUG_ON(ARRAY_SIZE(pdata->inmode[0]) != MADERA_MAX_MUXED_CHANNELS);
 
-	n = madera_get_variable_u32_array(priv, "cirrus,inmode",
+	n = madera_get_variable_u32_array(madera->dev, "cirrus,inmode",
 					  tmp, ARRAY_SIZE(tmp),
 					  MADERA_MAX_MUXED_CHANNELS);
 	if (n < 0)
@@ -388,25 +387,27 @@ static void madera_prop_get_pdata(struct madera_priv *priv)
 
 	madera_prop_get_inmode(priv);
 
-	n = madera_get_variable_u32_array(priv, "cirrus,out-mono",
+	n = madera_get_variable_u32_array(madera->dev, "cirrus,out-mono",
 					  out_mono, ARRAY_SIZE(out_mono), 1);
 	if (n > 0)
 		for (i = 0; i < n; ++i)
 			pdata->out_mono[i] = !!out_mono[i];
 
-	madera_get_variable_u32_array(priv, "cirrus,max-channels-clocked",
+	madera_get_variable_u32_array(madera->dev,
+				      "cirrus,max-channels-clocked",
 				      pdata->max_channels_clocked,
 				      ARRAY_SIZE(pdata->max_channels_clocked),
 				      1);
-	madera_get_variable_u32_array(priv, "cirrus,pdm-fmt",
+
+	madera_get_variable_u32_array(madera->dev, "cirrus,pdm-fmt",
 				      pdata->pdm_fmt,
 				      ARRAY_SIZE(pdata->pdm_fmt), 1);
 
-	madera_get_variable_u32_array(priv, "cirrus,pdm-mute",
+	madera_get_variable_u32_array(madera->dev, "cirrus,pdm-mute",
 				      pdata->pdm_mute,
 				      ARRAY_SIZE(pdata->pdm_mute), 1);
 
-	madera_get_variable_u32_array(priv, "cirrus,dmic-ref",
+	madera_get_variable_u32_array(madera->dev, "cirrus,dmic-ref",
 				      pdata->dmic_ref,
 				      ARRAY_SIZE(pdata->dmic_ref), 1);
 
