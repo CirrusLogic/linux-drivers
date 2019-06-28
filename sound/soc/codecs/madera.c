@@ -2607,9 +2607,17 @@ int madera_hp_ev(struct snd_soc_dapm_widget *w,
 	madera->hp_ena &= ~mask;
 	madera->hp_ena |= val;
 
-	/* if OUT1 is routed to EPOUT, ignore HP clamp and impedance */
-	regmap_read(madera->regmap, MADERA_OUTPUT_ENABLES_1, &ep_sel);
-	ep_sel &= MADERA_EP_SEL_MASK;
+	switch (madera->type) {
+	case CS42L92:
+	case CS47L92:
+	case CS47L93:
+		break;
+	default:
+		/* if OUT1 is routed to EPOUT, ignore HP clamp and impedance */
+		regmap_read(madera->regmap, MADERA_OUTPUT_ENABLES_1, &ep_sel);
+		ep_sel &= MADERA_EP_SEL_MASK;
+		break;
+	}
 
 	/* Force off if HPDET has disabled the clamp for this output */
 	if (!ep_sel &&

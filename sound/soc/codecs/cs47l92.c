@@ -64,45 +64,30 @@ static int cs47l92_put_demux(struct snd_kcontrol *kcontrol,
 	struct madera_priv *priv = &cs47l92->core;
 	struct madera *madera = priv->madera;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int ep_sel, mux, change, mask, cur;
-	int ret, i;
-	bool out_mono, accdet_out = false;
+	unsigned int ep_sel, mux, change, cur;
+	bool out_mono;
+	int ret;
 
 	if (ucontrol->value.enumerated.item[0] > e->items - 1)
 		return -EINVAL;
+
 	mux = ucontrol->value.enumerated.item[0];
-	ep_sel = mux << e->shift_l;
-	mask = e->mask << e->shift_l;
 
 	snd_soc_dapm_mutex_lock(dapm);
 
-	change = snd_soc_component_test_bits(component, e->reg, mask, ep_sel);
+	ep_sel = mux << e->shift_l;
+
+	change = snd_soc_component_test_bits(component, MADERA_OUTPUT_ENABLES_1,
+					     MADERA_EP_SEL_MASK,
+					     ep_sel);
 	if (!change)
 		goto end;
 
-	for (i = 0; i < MADERA_MAX_ACCESSORY; i++) {
-		if (madera->pdata.accdet[i].output == 3) {
-			accdet_out = true;
-			break;
-		}
-	}
+	ret = regmap_read(madera->regmap, MADERA_OUTPUT_ENABLES_1, &cur);
+	if (ret != 0)
+		dev_warn(madera->dev, "Failed to read outputs: %d\n", ret);
 
-	if (accdet_out) {
-		/* HPOUT3 is associated with accessory detect activities */
-		cur = madera->hp_ena;
-	} else {
-		ret = regmap_read(madera->regmap,
-				  MADERA_OUTPUT_ENABLES_1,
-				  &cur);
-		if (ret != 0)
-			dev_warn(madera->dev,
-				 "Failed to read current reg: %d\n",
-				 ret);
-	}
-
-	/* EP_SEL and OUT3_MONO should not be modified while HPOUT3 or 4
-	 * are enabled
-	 */
+	/* EP_SEL should not be modified while HPOUT3 or 4 is enabled */
 	ret = regmap_update_bits(madera->regmap, MADERA_OUTPUT_ENABLES_1,
 				 MADERA_OUT3L_ENA | MADERA_OUT3R_ENA, 0);
 	if (ret)
@@ -113,9 +98,10 @@ static int cs47l92_put_demux(struct snd_kcontrol *kcontrol,
 	ret = regmap_update_bits(madera->regmap, MADERA_OUTPUT_ENABLES_1,
 				 MADERA_EP_SEL, ep_sel);
 	if (ret) {
-		dev_err(madera->dev, "Failed to set EP_SEL: %d\n", ret);
+		dev_err(madera->dev, "Failed to set OUT3 demux: %d\n", ret);
 	} else {
 		out_mono = madera->pdata.codec.out_mono[2 + mux];
+
 		ret = madera_set_output_mode(component, 3, out_mono);
 		if (ret < 0)
 			dev_warn(madera->dev,
@@ -900,12 +886,12 @@ SND_SOC_DAPM_PGA_E("OUT2R", SND_SOC_NOPM,
 		   MADERA_OUT2R_ENA_SHIFT, 0, NULL, 0, madera_hp_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("OUT3L", SND_SOC_NOPM,
-		   MADERA_OUT3L_ENA_SHIFT, 0, NULL, 0, madera_hp_ev,
+SND_SOC_DAPM_PGA_E("OUT3L", MADERA_OUTPUT_ENABLES_1,
+		   MADERA_OUT3L_ENA_SHIFT, 0, NULL, 0, madera_out_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("OUT3R", SND_SOC_NOPM,
-		   MADERA_OUT3R_ENA_SHIFT, 0, NULL, 0, madera_hp_ev,
+SND_SOC_DAPM_PGA_E("OUT3R", MADERA_OUTPUT_ENABLES_1,
+		   MADERA_OUT3R_ENA_SHIFT, 0, NULL, 0, madera_out_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT5L", MADERA_OUTPUT_ENABLES_1,
