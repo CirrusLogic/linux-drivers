@@ -613,6 +613,7 @@ static int madera_dev_select_pinctrl(struct madera *madera,
 
 int madera_dev_init(struct madera *madera)
 {
+	static const char * const mclk_name[] = { "mclk1", "mclk2", "mclk3" };
 	struct device *dev = madera->dev;
 	unsigned int hwid;
 	int (*patch_fn)(struct madera *) = NULL;
@@ -635,6 +636,24 @@ int madera_dev_init(struct madera *madera)
 		memcpy(&madera->pdata, dev_get_platdata(madera->dev),
 		       sizeof(madera->pdata));
 	}
+
+	BUILD_BUG_ON(ARRAY_SIZE(madera->mclk) != ARRAY_SIZE(mclk_name));
+	for (i = 0; i < ARRAY_SIZE(madera->mclk); i++) {
+		madera->mclk[i] = devm_clk_get(madera->dev, mclk_name[i]);
+		if (IS_ERR(madera->mclk[i])) {
+			ret = PTR_ERR(madera->mclk[i]);
+			if (ret != -ENOENT) {
+				dev_warn(madera->dev,
+					 "Failed to get clocks: %d\n", ret);
+				return ret;
+			}
+			madera->mclk[i] = NULL;
+		}
+	}
+
+	/* Not using devm_clk_get to prevent breakage of existing DTs */
+	if (!madera->mclk[MADERA_MCLK2])
+		dev_warn(madera->dev, "Missing MCLK2, requires 32kHz clock\n");
 
 	ret = madera_get_reset_gpio(madera);
 	if (ret)
@@ -871,13 +890,19 @@ int madera_dev_init(struct madera *madera)
 		goto err_reset;
 
 	/* Init 32k clock sourced from MCLK2 */
+	ret = clk_prepare_enable(madera->mclk[MADERA_MCLK2]);
+	if (ret) {
+		dev_err(madera->dev, "Failed to enable 32k clock: %d\n", ret);
+		goto err_reset;
+	}
+
 	ret = regmap_update_bits(madera->regmap,
 			MADERA_CLOCK_32K_1,
 			MADERA_CLK_32K_ENA_MASK | MADERA_CLK_32K_SRC_MASK,
 			MADERA_CLK_32K_ENA | MADERA_32KZ_MCLK2);
 	if (ret) {
 		dev_err(madera->dev, "Failed to init 32k clock: %d\n", ret);
-		goto err_reset;
+		goto err_clock;
 	}
 
 	madera_configure_micbias(madera);
@@ -902,6 +927,8 @@ int madera_dev_init(struct madera *madera)
 
 err_pm_runtime:
 	pm_runtime_disable(madera->dev);
+err_clock:
+	clk_disable_unprepare(madera->mclk[MADERA_MCLK2]);
 err_reset:
 	madera_enable_hard_reset(madera);
 	regulator_disable(madera->dcvdd);
@@ -929,6 +956,8 @@ int madera_dev_exit(struct madera *madera)
 	 * removing the children, and prevent PM runtime from turning it back on
 	 */
 	pm_runtime_disable(madera->dev);
+
+	clk_disable_unprepare(madera->mclk[MADERA_MCLK2]);
 
 	regulator_disable(madera->dcvdd);
 	regulator_put(madera->dcvdd);
