@@ -1,0 +1,24 @@
+CS35L45 Speaker Amplifier
+
+Required properties:
+
+  - compatible : "cirrus,cs35l45"
+
+  - reg : the SPI chip select line or I2C device address for the device
+
+  - VA-supply, VP-supply : power supplies for the device,
+    as covered in
+    Documentation/devicetree/bindings/regulator/regulator.txt.
+
+Optional properties:
+  - reset-gpios : gpio used to reset the amplifier
+
+Example:
+
+cs35l45: cs35l45@2 {
+	compatible = "cirrus,cs35l45";
+	reg = <2>;
+	VA-supply = <&dummy_vreg>;
+	VP-supply = <&dummy_vreg>;
+	reset-gpios = <&gpio0 54 0>;
+};
