@@ -1213,7 +1213,7 @@ static const struct file_operations clsic_panic_fops = {
 
 #define CLSIC_DEBUGINFO_FILENAME_MAX 50
 static const char * const CLSIC_DEBUGINFO_FILENAME_FORMAT =
-					       "debug_info-si%d_cat%d_pg%d.bin";
+					       "debug_info-si%u_cat%u_pg%u.bin";
 
 /*
  * The debuginfo read callback obtains the service instance, category and page
@@ -1235,8 +1235,7 @@ static ssize_t clsic_debuginfo_read(struct file *file,
 	union clsic_sys_msg *msg_rsp;
 	char *buf;
 	int ret;
-	uint8_t service_instance;
-	uint16_t tmp_category, tmp_page;
+	unsigned int service_instance, tmp_category, tmp_page;
 
 	if (sscanf(dentry->d_name.name, CLSIC_DEBUGINFO_FILENAME_FORMAT,
 		   &service_instance, &tmp_category, &tmp_page) != 3)
@@ -1249,14 +1248,14 @@ static ssize_t clsic_debuginfo_read(struct file *file,
 	msg_rsp = (union clsic_sys_msg *) buf;
 
 	if (clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
-			       service_instance,
+			       (uint8_t) service_instance,
 			       CLSIC_GBL_MSG_CR_GET_DEBUG_INFO)) {
 		kfree(buf);
 		return -EIO;
 	}
 
-	msg_cmd.cmd_get_debug_info.category = tmp_category;
-	msg_cmd.cmd_get_debug_info.page = tmp_page;
+	msg_cmd.cmd_get_debug_info.category = (uint16_t) tmp_category;
+	msg_cmd.cmd_get_debug_info.page = (uint16_t) tmp_page;
 
 	ret = clsic_send_msg_sync_pm(clsic,
 				     (union t_clsic_generic_message *) &msg_cmd,

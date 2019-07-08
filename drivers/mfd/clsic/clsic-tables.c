@@ -1457,8 +1457,5 @@ bool clsic_readable_register(struct device *dev, unsigned int reg)
 	default:
 		return false;
 	}
-
-	/* Can never get here */
-	return true;
 }
 EXPORT_SYMBOL_GPL(clsic_readable_register);
