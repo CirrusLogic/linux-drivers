@@ -4126,6 +4126,13 @@ EXPORT_SYMBOL_GPL(wm_adsp_compr_handle_irq);
 
 static int wm_adsp_buffer_reenable_irq(struct wm_adsp_compr_buf *buf)
 {
+	int ret;
+
+	ret = wm_adsp_buffer_read(buf, HOST_BUFFER_FIELD(irq_count),
+				  &buf->irq_count);
+	if (ret < 0)
+		adsp_err(buf->dsp, "Failed to get irq_count: %d\n", ret);
+
 	if (buf->irq_count & 0x01)
 		return 0;
 
