@@ -650,12 +650,18 @@ static int clsic_debugcontrol_write(void *data, u64 val)
 			clsic_irq_disable(clsic);
 			clsic_state_set(clsic, CLSIC_STATE_DEBUGCONTROL_GRANTED,
 					CLSIC_STATE_CHANGE_LOCKHELD);
+
 			/*
 			 * Purge the message queues to clear any messages that
 			 * have been added to the waiting to send queue but the
 			 * worker thread has not started processing.
+			 *
+			 * Also mark the messaging processor as OFF and cancel
+			 * any outstanding msgproc shutdown timer.
 			 */
 			clsic_purge_message_queues(clsic);
+			clsic->msgproc_state = CLSIC_MSGPROC_OFF;
+			clsic_msgproc_shutdown_cancel(clsic, false);
 
 			ret = 0;
 		} else if (clsic->state == CLSIC_STATE_DEBUGCONTROL_REQUESTED) {
@@ -1926,8 +1932,13 @@ static void clsic_message_worker(struct work_struct *data)
 		 * The messaging worker could have been triggered by both a
 		 * message being enqueued and debugcontrol being requested,
 		 * purge the message queues now that debugcontrol is granted.
+		 *
+		 * Also mark the messaging processor as OFF and cancel
+		 * any outstanding msgproc shutdown timer.
 		 */
 		clsic_purge_message_queues(clsic);
+		clsic->msgproc_state = CLSIC_MSGPROC_OFF;
+		clsic_msgproc_shutdown_cancel(clsic, false);
 
 		/*
 		 * Need to disable interrupts to prevent messages sent to the
