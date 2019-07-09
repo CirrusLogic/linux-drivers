@@ -363,19 +363,23 @@ int clsic_send_shutdown_cmd(struct clsic *clsic)
 	union clsic_sys_msg msg_rsp;
 	int ret = 0;
 
-	if (clsic->msgproc_state == CLSIC_MSGPROC_OFF)
+	mutex_lock(&clsic->message_lock);
+	if (clsic->msgproc_state == CLSIC_MSGPROC_OFF) {
+		mutex_unlock(&clsic->message_lock);
 		return 0;
+	}
+	mutex_unlock(&clsic->message_lock);
 
 	if (clsic_init_message((union t_clsic_generic_message *)&msg_cmd,
 			       CLSIC_SRV_INST_SYS,
 			       CLSIC_SYS_MSG_CR_SP_SHDN))
 		return -EINVAL;
 
-	ret = clsic_send_msg_sync(clsic,
-				  (union t_clsic_generic_message *) &msg_cmd,
-				  (union t_clsic_generic_message *) &msg_rsp,
-				  CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
-				  CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
+	ret = clsic_send_msg_sync_pm(clsic,
+				     (union t_clsic_generic_message *) &msg_cmd,
+				     (union t_clsic_generic_message *) &msg_rsp,
+				     CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
+				     CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
 
 	clsic_dbg(clsic,
 		  "Shutdown message returned 0x%x 0x%x: bitmap 0x%x\n",
