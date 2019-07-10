@@ -989,8 +989,8 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 	pm_runtime_get_sync(clsic->dev);
 
 	ret = clsic_alg_set_irq_notify_mode(alg,
-					   CLSIC_ALGOSRV_EVENT_VTE,
-					   CLSIC_RAS_NTY_FLUSH_AND_REQ);
+				(enum clsic_ras_irq_id) CLSIC_ALGOSRV_EVENT_VTE,
+				CLSIC_RAS_NTY_FLUSH_AND_REQ);
 
 	if (ret) {
 		clsic_err(alg->clsic,
@@ -1051,8 +1051,8 @@ static int clsic_alg_compr_free(struct snd_compr_stream *stream)
 	wm_adsp_compr_free(stream);
 
 	ret = clsic_alg_set_irq_notify_mode(alg,
-					   CLSIC_ALGOSRV_EVENT_VTE,
-					   CLSIC_RAS_NTY_CANCEL);
+				(enum clsic_ras_irq_id) CLSIC_ALGOSRV_EVENT_VTE,
+				CLSIC_RAS_NTY_CANCEL);
 
 	if (ret)
 		clsic_err(alg->clsic,
