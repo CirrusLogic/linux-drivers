@@ -466,7 +466,7 @@ SND_SOC_DAPM_AIF_IN("ASP1AORX3", NULL, 0, TACNA_ASP1AO_ENABLES1,
 SND_SOC_DAPM_AIF_IN("ASP1AORX4", NULL, 0, TACNA_ASP1AO_ENABLES1,
 		    TACNA_ASP1AO_RX4_EN_SHIFT, 0),
 
-WM_HALO("DSP1AO", 0, wm_halo_early_event),
+WM_HALO("DSP1AO", 0, wm_adsp_early_event),
 
 /* end of ordered widget list */
 

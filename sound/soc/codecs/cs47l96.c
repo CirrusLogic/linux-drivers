@@ -1700,7 +1700,7 @@ SND_SOC_DAPM_PGA("AOBRIDGE2IN7", TACNA_AOBRIDGE2_ENABLE,
 SND_SOC_DAPM_PGA("AOBRIDGE2IN8", TACNA_AOBRIDGE2_ENABLE,
 		 TACNA_AOBRIDGE2_CH8_EN_SHIFT, 0, NULL, 0),
 
-WM_HALO("DSP1", 0, wm_halo_early_event),
+WM_HALO("DSP1", 0, wm_adsp_early_event),
 
 /* end of ordered widget list */
 
