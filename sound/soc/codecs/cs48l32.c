@@ -917,7 +917,7 @@ SND_SOC_DAPM_PGA("Ultrasonic 1", TACNA_US_CONTROL,
 SND_SOC_DAPM_PGA("Ultrasonic 2", TACNA_US_CONTROL,
 		 TACNA_US2_EN_SHIFT, 0, NULL, 0),
 
-WM_HALO("DSP1", 0, wm_halo_early_event),
+WM_HALO("DSP1", 0, wm_adsp_early_event),
 
 /* end of ordered widget list */
 
