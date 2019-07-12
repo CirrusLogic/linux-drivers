@@ -13,8 +13,66 @@
 #include <linux/gpio/consumer.h>
 #include <linux/of_device.h>
 #include <sound/cs35l45.h>
+#include <sound/core.h>
+#include <sound/pcm.h>
+#include <sound/soc.h>
 
 #include "cs35l45.h"
+
+static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
+	SND_SOC_DAPM_OUTPUT("SPK"),
+};
+
+static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
+	{ "SPK", NULL, "Playback" },
+};
+
+static int cs35l45_component_set_sysclk(struct snd_soc_component *component,
+					int clk_id, int source,
+					unsigned int freq, int dir)
+{
+	return 0;
+}
+
+static const struct snd_soc_component_driver cs35l45_component = {
+	.set_sysclk = cs35l45_component_set_sysclk,
+	.dapm_widgets = cs35l45_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(cs35l45_dapm_widgets),
+	.dapm_routes = cs35l45_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(cs35l45_dapm_routes),
+};
+
+static int cs35l45_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
+				  unsigned int freq, int dir)
+{
+	return 0;
+}
+
+static const struct snd_soc_dai_ops cs35l45_dai_ops = {
+	.set_sysclk = cs35l45_dai_set_sysclk,
+};
+
+#define CS35L45_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
+			 SNDRV_PCM_FMTBIT_S24_LE)
+
+#define CS35L45_RATES	(SNDRV_PCM_RATE_8000  | \
+			 SNDRV_PCM_RATE_16000 | \
+			 SNDRV_PCM_RATE_44100 | \
+			 SNDRV_PCM_RATE_48000 | \
+			 SNDRV_PCM_RATE_88200 | \
+			 SNDRV_PCM_RATE_96000)
+
+static struct snd_soc_dai_driver cs35l45_dai = {
+	.name = "cs35l45",
+	.playback = { /* Support maximum range */
+		      .stream_name = "Playback",
+		      .channels_min = 1,
+		      .channels_max = 8,
+		      .rates = CS35L45_RATES,
+		      .formats = CS35L45_FORMATS,
+		    },
+	.ops = &cs35l45_dai_ops,
+};
 
 int cs35l45_initialize(struct cs35l45_private *cs35l45)
 {
@@ -89,7 +147,8 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 		gpiod_set_value_cansleep(cs35l45->reset_gpio, 1);
 	}
 
-	return 0;
+	return snd_soc_register_component(dev, &cs35l45_component,
+					  &cs35l45_dai, 1);
 
 err:
 	regulator_bulk_disable(cs35l45->num_supplies, cs35l45->supplies);
