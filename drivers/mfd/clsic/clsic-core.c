@@ -853,9 +853,8 @@ static int clsic_service_starter(struct clsic *clsic,
 		if (ret)
 			goto error_withfree;
 
-		dev->platform_data =
-			clsic->service_handlers[handler->service_instance];
-		dev->pdata_size = sizeof(struct clsic_service);
+		dev->platform_data = &(handler->service_instance);
+		dev->pdata_size = sizeof(uint8_t);
 		ret = mfd_add_devices(clsic->dev, PLATFORM_DEVID_NONE, dev, 1,
 				      NULL, 0, NULL);
 		handler->mfd_loaded = true;

@@ -438,4 +438,16 @@ static inline void clsic_device_error(struct clsic *clsic,
 		mutex_unlock(&clsic->message_lock);
 }
 
+/*
+ * An MFD child can use this function to retrieve it's associated service
+ * handler structure
+ */
+static inline struct clsic_service *clsic_get_service_from_pdev(
+						   struct platform_device *pdev)
+{
+	struct clsic *clsic = dev_get_drvdata(pdev->dev.parent);
+	uint8_t *instance = (uint8_t *) dev_get_platdata(&pdev->dev);
+	return clsic->service_handlers[*instance];
+}
+
 #endif
