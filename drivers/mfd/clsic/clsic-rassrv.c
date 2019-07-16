@@ -774,8 +774,8 @@ int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler)
 	/* RAS regmaps start in cache-only mode */
 	regcache_cache_only(ras->regmap, true);
 
-	clsic_devs[0].platform_data = ras;
-	clsic_devs[0].pdata_size = sizeof(struct clsic_ras_struct);
+	clsic_devs[0].platform_data = &(handler->service_instance);
+	clsic_devs[0].pdata_size = sizeof(uint8_t);
 
 	clsic_dbg(clsic, "mfd cell 0: %p %s %p %d\n",
 		  &clsic_devs[0],

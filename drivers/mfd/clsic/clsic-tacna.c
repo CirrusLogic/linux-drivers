@@ -83,7 +83,8 @@ static int clsic_tacna_pinctrl_setactive(struct tacna *tacna)
 static int clsic_tacna_probe(struct platform_device *pdev)
 {
 	struct clsic *clsic = dev_get_drvdata(pdev->dev.parent);
-	struct clsic_ras_struct *ras = dev_get_platdata(&pdev->dev);
+	struct clsic_service *handler = clsic_get_service_from_pdev(pdev);
+	struct clsic_ras_struct *ras = (struct clsic_ras_struct *)handler->data;
 	struct tacna *tacna;
 	int ret = 0;
 
@@ -99,7 +100,6 @@ static int clsic_tacna_probe(struct platform_device *pdev)
 	 * The RAS structure cannot be destroyed whilst the codec MFD child is
 	 * loaded and it requires the platform data to not be the clone.
 	 */
-	ras = clsic->service_handlers[ras->service->service_instance]->data;
 	pdev->dev.platform_data = ras;
 
 	tacna = devm_kzalloc(&pdev->dev, sizeof(struct tacna), GFP_KERNEL);
