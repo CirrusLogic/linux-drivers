@@ -838,7 +838,6 @@ static int clsic_alg_init_dsps(struct device *dev, struct clsic_alg *alg)
 	dsp->dev = dev;
 	dsp->mem = clsic_alg_vpu_regions;
 	dsp->regmap = alg->regmap;
-	dsp->running = true;
 	dsp->num_mems = ARRAY_SIZE(clsic_alg_vpu_regions);
 	dsp->no_preloader = true;
 	ret = wm_vpu_init(dsp);
@@ -1329,6 +1328,32 @@ static int clsic_alg_codec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
+#define VPU_ADSP_PRELOADER(wname, num, event_fn) \
+{	.id = snd_soc_dapm_supply, .name = wname " Preloader", \
+	.reg = SND_SOC_NOPM, .shift = num, .event = event_fn, \
+	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU, \
+	.subseq = 100, /* Ensure we run after SYSCLK supply widget */ }
+
+static int clsic_alg_adsp_ev(struct snd_soc_dapm_widget *w,
+			struct snd_kcontrol *kcontrol, int event)
+{
+	int ret;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:  /* before widget power up */
+		ret = wm_adsp_early_event(w, kcontrol, event);
+		break;
+	case SND_SOC_DAPM_POST_PMU: /* after widget power up */
+		ret = wm_adsp_event(w, kcontrol, event);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
 /**
  * clsic_alg_dapm_widgets[] - Here we define 3 widgets that will be created in
  * the card creation, "DSP1 Preloader", "DSP2 Preloader", "VPU1 Preloader".
@@ -1339,7 +1364,7 @@ static int clsic_alg_codec_remove(struct snd_soc_codec *codec)
 static const struct snd_soc_dapm_widget clsic_alg_dapm_widgets[] = {
 	WM_ADSP_PRELOADER("DSP1", 0, wm_adsp_early_event),
 	WM_ADSP_PRELOADER("DSP2", 1, wm_adsp_early_event),
-	WM_ADSP_PRELOADER("VPU1", 2, wm_adsp_early_event),
+	VPU_ADSP_PRELOADER("VPU1", 2, clsic_alg_adsp_ev),
 };
 
 static const struct snd_kcontrol_new clsic_alg_snd_controls[] = {
