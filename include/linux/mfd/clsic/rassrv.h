@@ -44,7 +44,6 @@ struct clsic_ras_irq {
 };
 
 struct clsic_ras_struct {
-	struct tacna_pdata pdata;
 	struct clsic *clsic;
 	struct clsic_service *service;
 	bool suspended;

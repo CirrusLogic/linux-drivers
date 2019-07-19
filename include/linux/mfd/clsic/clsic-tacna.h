@@ -14,6 +14,11 @@
 
 #include <linux/mfd/clsic/rassrv.h>
 
+struct clsic_tacna {
+	struct tacna tacna;
+	struct clsic_ras_struct *ras;
+};
+
 /* Provide a mapping for clients to reference DSP2 IRQs */
 #define CLSIC_TACNA_IRQ_DSP2_0		CLSIC_RAS_IRQ_DSP2_0
 #define CLSIC_TACNA_IRQ_DSP2_1		CLSIC_RAS_IRQ_DSP2_1
