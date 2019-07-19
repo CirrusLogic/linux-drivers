@@ -885,18 +885,22 @@ int madera_dev_exit(struct madera *madera)
 	/* Prevent any IRQs being serviced while we clean up */
 	disable_irq(madera->irq);
 
-	/*
-	 * DCVDD could be supplied by a child node, we must disable it before
-	 * removing the children, and prevent PM runtime from turning it back on
-	 */
+	pm_runtime_get_sync(madera->dev);
+
+	mfd_remove_devices(madera->dev);
+
 	pm_runtime_disable(madera->dev);
+
+	if (!madera->internal_dcvdd) {
+		regulator_disable(madera->dcvdd);
+		regulator_put(madera->dcvdd);
+	}
+
+	pm_runtime_set_suspended(madera->dev);
+	pm_runtime_put_noidle(madera->dev);
 
 	clk_disable_unprepare(madera->mclk[MADERA_MCLK2]);
 
-	regulator_disable(madera->dcvdd);
-	regulator_put(madera->dcvdd);
-
-	mfd_remove_devices(madera->dev);
 	madera_enable_hard_reset(madera);
 
 	regulator_bulk_disable(madera->num_core_supplies,
