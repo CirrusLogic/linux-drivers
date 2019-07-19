@@ -367,6 +367,18 @@ static int madera_ldo1_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int madera_ldo1_remove(struct platform_device *pdev)
+{
+	struct madera *madera = dev_get_drvdata(pdev->dev.parent);
+
+	if (madera->internal_dcvdd) {
+		regulator_disable(madera->dcvdd);
+		regulator_put(madera->dcvdd);
+	}
+
+	return 0;
+}
+
 static struct platform_driver arizona_ldo1_driver = {
 	.probe = arizona_ldo1_probe,
 	.driver		= {
@@ -376,6 +388,7 @@ static struct platform_driver arizona_ldo1_driver = {
 
 static struct platform_driver madera_ldo1_driver = {
 	.probe = madera_ldo1_probe,
+	.remove = madera_ldo1_remove,
 	.driver		= {
 		.name	= "madera-ldo1",
 	},
