@@ -34,17 +34,18 @@ int clsic_tacna_request_irq(struct tacna *tacna,
 			    unsigned int irq_id, const char *name,
 			    irq_handler_t handler, void *data)
 {
-	struct clsic_ras_struct *ras = dev_get_platdata(tacna->dev);
+	struct clsic_tacna *clsic_tacna = dev_get_drvdata(tacna->dev);
 
-	return clsic_ras_request_irq(ras, irq_id, name, handler, data);
+	return clsic_ras_request_irq(clsic_tacna->ras, irq_id, name, handler,
+				     data);
 }
 EXPORT_SYMBOL_GPL(clsic_tacna_request_irq);
 
 void clsic_tacna_free_irq(struct tacna *tacna, unsigned int irq_id, void *data)
 {
-	struct clsic_ras_struct *ras = dev_get_platdata(tacna->dev);
+	struct clsic_tacna *clsic_tacna = dev_get_drvdata(tacna->dev);
 
-	clsic_ras_free_irq(ras, irq_id, data);
+	clsic_ras_free_irq(clsic_tacna->ras, irq_id, data);
 }
 EXPORT_SYMBOL_GPL(clsic_tacna_free_irq);
 
@@ -85,6 +86,7 @@ static int clsic_tacna_probe(struct platform_device *pdev)
 	struct clsic *clsic = dev_get_drvdata(pdev->dev.parent);
 	struct clsic_service *handler = clsic_get_service_from_pdev(pdev);
 	struct clsic_ras_struct *ras = (struct clsic_ras_struct *)handler->data;
+	struct clsic_tacna *clsic_tacna;
 	struct tacna *tacna;
 	int ret = 0;
 
@@ -96,16 +98,12 @@ static int clsic_tacna_probe(struct platform_device *pdev)
 	if (clsic->devid == CLSIC_SUPPORTED_ID_EMULATED_CODEC)
 		return -EIO;
 
-	/*
-	 * The RAS structure cannot be destroyed whilst the codec MFD child is
-	 * loaded and it requires the platform data to not be the clone.
-	 */
-	pdev->dev.platform_data = ras;
-
-	tacna = devm_kzalloc(&pdev->dev, sizeof(struct tacna), GFP_KERNEL);
-	if (!tacna)
+	clsic_tacna = devm_kzalloc(&pdev->dev, sizeof(struct clsic_tacna),
+				   GFP_KERNEL);
+	if (!clsic_tacna)
 		return -ENOMEM;
 
+	tacna = &(clsic_tacna->tacna);
 	tacna->type = CS48LX50;
 	tacna->dev = &pdev->dev;
 	/* share of_node with the tacna device */
@@ -115,7 +113,12 @@ static int clsic_tacna_probe(struct platform_device *pdev)
 	tacna->dsp_regmap[0] = ras->regmap_dsp[0];
 	tacna->dsp_regmap[1] = ras->regmap_dsp[1];
 
-	dev_set_drvdata(tacna->dev, tacna);
+	dev_set_drvdata(tacna->dev, clsic_tacna);
+	/*
+	 * The RAS structure cannot be destroyed whilst the codec MFD child is
+	 * loaded and it requires the platform data to not be the clone.
+	 */
+	clsic_tacna->ras = ras;
 
 	ret = regmap_update_bits(tacna->regmap,
 				 TACNA_CLOCK32K,
