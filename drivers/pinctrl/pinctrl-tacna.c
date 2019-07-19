@@ -1117,7 +1117,7 @@ static struct pinctrl_desc tacna_pin_desc = {
 static int tacna_pin_probe(struct platform_device *pdev)
 {
 	struct tacna *tacna = dev_get_drvdata(pdev->dev.parent);
-	const struct tacna_pdata *pdata = dev_get_platdata(tacna->dev);
+	const struct tacna_pdata *pdata = &tacna->pdata;
 	struct tacna_pin_private *priv;
 	int ret;
 
@@ -1169,7 +1169,7 @@ static int tacna_pin_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (pdata && pdata->gpio_configs) {
+	if (pdata->gpio_configs) {
 		ret = pinctrl_register_mappings(pdata->gpio_configs,
 						pdata->n_gpio_configs);
 		dev_err(priv->dev, "Failed to register pdata mappings (%d)\n",
