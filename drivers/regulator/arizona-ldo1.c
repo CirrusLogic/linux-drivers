@@ -385,7 +385,7 @@ static int madera_ldo1_probe(struct platform_device *pdev)
 
 	ldo1->init_data = madera_ldo1_default;
 
-	ret = arizona_ldo1_common_init(pdev, ldo1, &arizona_ldo1,
+	ret = arizona_ldo1_common_init(pdev, ldo1, &madera_ldo1,
 				       &madera->pdata.ldo1,
 				       &external_dcvdd);
 	if (ret)
