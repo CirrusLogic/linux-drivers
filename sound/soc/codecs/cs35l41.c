@@ -984,7 +984,7 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 		if (cs35l41->dsp.running) {
 			regmap_read(cs35l41->regmap, CS35L41_DSP_MBOX_2,
 				    (unsigned int *)&fw_status);
-			switch(fw_status) {
+			switch (fw_status) {
 			case CSPL_MBOX_STS_RDY_FOR_REINIT:
 				mboxcmd = CSPL_MBOX_CMD_REINIT;
 				break;
@@ -1210,7 +1210,8 @@ static int cs35l41_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		slave_mode = 0;
 		break;
 	default:
-		dev_warn(cs35l41->dev, "cs35l41_set_dai_fmt: Mixed master mode unsupported\n");
+		dev_warn(cs35l41->dev,
+			"%s: Mixed master mode unsupported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1233,7 +1234,8 @@ static int cs35l41_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		cs35l41->dspa_mode = false;
 		break;
 	default:
-		dev_warn(cs35l41->dev, "cs35l41_set_dai_fmt: Invalid or unsupported DAI format\n");
+		dev_warn(cs35l41->dev,
+			"%s: Invalid or unsupported DAI format\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1259,7 +1261,8 @@ static int cs35l41_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		sclk_fmt = 0;
 		break;
 	default:
-		dev_warn(cs35l41->dev, "cs35l41_set_dai_fmt: Invalid DAI clock INV\n");
+		dev_warn(cs35l41->dev,
+			"%s: Invalid DAI clock INV\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1458,8 +1461,10 @@ static int cs35l41_dai_set_sysclk(struct snd_soc_dai *dai,
 	}
 
 	if (cs35l41->sclk <= 6000000) {
-		fs1_val = 3 * ((24000000 + cs35l41->sclk - 1) / cs35l41->sclk) + 4;
-		fs2_val = 5 * ((24000000 + cs35l41->sclk - 1) / cs35l41->sclk) + 4;
+		fs1_val = 3 *
+			((24000000 + cs35l41->sclk - 1) / cs35l41->sclk) + 4;
+		fs2_val = 5 *
+			((24000000 + cs35l41->sclk - 1) / cs35l41->sclk) + 4;
 	}
 
 	val = fs1_val;
