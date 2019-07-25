@@ -78,6 +78,16 @@
 /* Frame sequence number */
 #define REG_FRAME_SEQ_NUM		0x13b8
 
+/* Spare register for meta0 sequence number */
+#define REG_META0_SEQ_NUM		0x14dc
+/* Spare register for meta1 sequence number */
+#define REG_META1_SEQ_NUM		0x151c
+
+/* AAO FBC's status */
+#define REG_AAO_FBC_STATUS		0x013c
+/* AFO FBC's status */
+#define REG_AFO_FBC_STATUS		0x0134
+
 /* IRQ Error Mask */
 #define INT_ST_MASK_CAM_ERR		( \
 					TG_ERR_ST |\

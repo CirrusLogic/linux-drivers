@@ -41,6 +41,10 @@
 #define MTK_ISP_IPI_SEND_TIMEOUT		1000
 #define MTK_ISP_STOP_HW_TIMEOUT			(33 * USEC_PER_MSEC)
 
+/* Meta index with non-request */
+#define META0	0
+#define META1	1
+
 static void isp_tx_frame_worker(struct work_struct *work)
 {
 	struct mtk_cam_dev_request *req =
@@ -118,6 +122,19 @@ static void isp_composer_uninit(struct mtk_isp_p1_device *p1_dev)
 	scp_ipi_unregister(p1_dev->scp, SCP_IPI_ISP_FRAME);
 }
 
+static void isp_composer_meta_config(struct mtk_isp_p1_device *p1_dev,
+				     unsigned int dma)
+{
+	struct mtk_isp_scp_p1_cmd composer_tx_cmd;
+
+	memset(&composer_tx_cmd, 0, sizeof(composer_tx_cmd));
+	composer_tx_cmd.cmd_id = ISP_CMD_CONFIG_META;
+	composer_tx_cmd.enabled_dmas = dma;
+
+	scp_ipi_send(p1_dev->scp, SCP_IPI_ISP_CMD, &composer_tx_cmd,
+		     sizeof(composer_tx_cmd), MTK_ISP_IPI_SEND_TIMEOUT);
+}
+
 static void isp_composer_hw_init(struct mtk_isp_p1_device *p1_dev)
 {
 	struct mtk_isp_scp_p1_cmd composer_tx_cmd;
@@ -183,7 +200,7 @@ int mtk_isp_hw_init(struct mtk_cam_dev *cam)
 {
 	struct device *dev = cam->dev;
 	struct mtk_isp_p1_device *p1_dev = dev_get_drvdata(dev);
-	int ret;
+	int ret, i;
 
 	ret = rproc_boot(p1_dev->rproc_handle);
 	if (ret) {
@@ -196,12 +213,19 @@ int mtk_isp_hw_init(struct mtk_cam_dev *cam)
 		return ret;
 
 	pm_runtime_get_sync(dev);
+
 	isp_composer_hw_init(p1_dev);
+	isp_composer_meta_config(p1_dev, cam->enabled_dmas);
 
 	p1_dev->enqueued_frame_seq_no = 0;
 	p1_dev->dequeued_frame_seq_no = 0;
 	p1_dev->composed_frame_seq_no = 0;
 	p1_dev->sof_count = 0;
+
+	for (i = 0; i < ARRAY_SIZE(p1_dev->enqueued_meta_seq_no); i++) {
+		p1_dev->enqueued_meta_seq_no[i] = 0;
+		p1_dev->dequeued_meta_seq_no[i] = 0;
+	}
 
 	dev_dbg(dev, "%s done\n", __func__);
 
@@ -223,6 +247,31 @@ int mtk_isp_hw_release(struct mtk_cam_dev *cam)
 	return 0;
 }
 
+void mtk_isp_enqueue(struct mtk_cam_dev *cam, unsigned int dma_port,
+		     struct mtk_cam_dev_buffer *buffer)
+{
+	struct mtk_isp_p1_device *p1_dev = dev_get_drvdata(cam->dev);
+	struct mtk_isp_scp_p1_cmd cmd_params;
+	int idx = buffer->node_id - MTK_CAM_P1_META_OUT_0;
+
+	if (!cam->enabled_dmas) {
+		dev_dbg(cam->dev, "Discard meta buf. when dma is disabled\n");
+		return;
+	}
+
+	buffer->seq_no = ++p1_dev->enqueued_meta_seq_no[idx];
+
+	memset(&cmd_params, 0, sizeof(cmd_params));
+	cmd_params.cmd_id = ISP_CMD_ENQUEUE_META;
+	cmd_params.meta_frame.enabled_dma = dma_port;
+	cmd_params.meta_frame.seq_no = buffer->seq_no;
+	cmd_params.meta_frame.meta_addr.iova = buffer->daddr;
+	cmd_params.meta_frame.meta_addr.scp_addr = buffer->scp_addr;
+
+	scp_ipi_send(p1_dev->scp, SCP_IPI_ISP_CMD,
+		     &cmd_params, sizeof(cmd_params), MTK_ISP_IPI_SEND_TIMEOUT);
+}
+
 void mtk_isp_req_enqueue(struct mtk_cam_dev *cam,
 			 struct mtk_cam_dev_request *req)
 {
@@ -238,8 +287,44 @@ void mtk_isp_req_enqueue(struct mtk_cam_dev *cam,
 		cam->running_job_count);
 }
 
+static void isp_irq_handle_event(struct mtk_isp_p1_device *p1_dev,
+				 unsigned int irq_status,
+				 unsigned int dma_status)
+{
+	if (irq_status & HW_PASS1_DON_ST && dma_status & AAO_DONE_ST)
+		mtk_cam_dev_dequeue_frame(&p1_dev->cam_dev,
+					  MTK_CAM_P1_META_OUT_0,
+					  p1_dev->dequeued_frame_seq_no,
+					  p1_dev->dequeued_meta_seq_no[META0]);
+
+	if (dma_status & AFO_DONE_ST)
+		mtk_cam_dev_dequeue_frame(&p1_dev->cam_dev,
+					  MTK_CAM_P1_META_OUT_1,
+					  p1_dev->dequeued_frame_seq_no,
+					  p1_dev->dequeued_meta_seq_no[META1]);
+
+	if (irq_status & SW_PASS1_DON_ST) {
+		mtk_cam_dev_dequeue_frame(&p1_dev->cam_dev,
+					  MTK_CAM_P1_META_OUT_0,
+					  p1_dev->dequeued_frame_seq_no,
+					  p1_dev->dequeued_meta_seq_no[META0]);
+		mtk_cam_dev_dequeue_req_frame(&p1_dev->cam_dev,
+					      p1_dev->dequeued_frame_seq_no);
+		mtk_cam_dev_req_try_queue(&p1_dev->cam_dev);
+	}
+
+	dev_dbg(p1_dev->dev,
+		"%s IRQ:0x%x DMA:0x%x seq:%d idx0:%d idx1:%d\n",
+		__func__, irq_status, dma_status,
+		p1_dev->dequeued_frame_seq_no,
+		p1_dev->dequeued_meta_seq_no[META0],
+		p1_dev->dequeued_meta_seq_no[META1]);
+}
+
 static void isp_irq_handle_sof(struct mtk_isp_p1_device *p1_dev,
-			       unsigned int dequeued_frame_seq_no)
+			       unsigned int dequeued_frame_seq_no,
+			       unsigned int meta0_seq_no,
+			       unsigned int meta1_seq_no)
 {
 	dma_addr_t base_addr = p1_dev->composer_iova;
 	struct device *dev = p1_dev->dev;
@@ -253,6 +338,8 @@ static void isp_irq_handle_sof(struct mtk_isp_p1_device *p1_dev,
 	p1_dev->sof_count += 1;
 	/* Save frame information */
 	p1_dev->dequeued_frame_seq_no = dequeued_frame_seq_no;
+	p1_dev->dequeued_meta_seq_no[META0] = meta0_seq_no;
+	p1_dev->dequeued_meta_seq_no[META1] = meta1_seq_no;
 
 	req = mtk_cam_dev_get_req(&p1_dev->cam_dev, dequeued_frame_seq_no);
 	if (req)
@@ -265,6 +352,7 @@ static void isp_irq_handle_sof(struct mtk_isp_p1_device *p1_dev,
 			composed_frame_seq_no, dequeued_frame_seq_no);
 		return;
 	}
+
 	addr_offset = MTK_ISP_CQ_ADDRESS_OFFSET *
 		(dequeued_frame_seq_no % MTK_ISP_CQ_BUFFER_COUNT);
 	writel(base_addr + addr_offset, p1_dev->regs + REG_CQ_THR0_BASEADDR);
@@ -303,7 +391,9 @@ static irqreturn_t isp_irq_cam(int irq, void *data)
 	struct mtk_isp_p1_device *p1_dev = (struct mtk_isp_p1_device *)data;
 	struct device *dev = p1_dev->dev;
 	unsigned int dequeued_frame_seq_no;
+	unsigned int meta0_seq_no, meta1_seq_no;
 	unsigned int irq_status, err_status, dma_status;
+	unsigned int aao_fbc, afo_fbc;
 	unsigned long flags;
 
 	spin_lock_irqsave(&p1_dev->spinlock_irq, flags);
@@ -311,6 +401,10 @@ static irqreturn_t isp_irq_cam(int irq, void *data)
 	err_status = irq_status & INT_ST_MASK_CAM_ERR;
 	dma_status = readl(p1_dev->regs + REG_CTL_RAW_INT2_STAT);
 	dequeued_frame_seq_no = readl(p1_dev->regs + REG_FRAME_SEQ_NUM);
+	meta0_seq_no = readl(p1_dev->regs + REG_META0_SEQ_NUM);
+	meta1_seq_no = readl(p1_dev->regs + REG_META1_SEQ_NUM);
+	aao_fbc = readl(p1_dev->regs + REG_AAO_FBC_STATUS);
+	afo_fbc = readl(p1_dev->regs + REG_AFO_FBC_STATUS);
 	spin_unlock_irqrestore(&p1_dev->spinlock_irq, flags);
 
 	/*
@@ -321,15 +415,12 @@ static irqreturn_t isp_irq_cam(int irq, void *data)
 		dev_warn(dev, "sof_done block cnt:%d\n", p1_dev->sof_count);
 
 	/* De-queue frame */
-	if (irq_status & SW_PASS1_DON_ST) {
-		mtk_cam_dev_dequeue_req_frame(&p1_dev->cam_dev,
-					      p1_dev->dequeued_frame_seq_no);
-		mtk_cam_dev_req_try_queue(&p1_dev->cam_dev);
-	}
+	isp_irq_handle_event(p1_dev, irq_status, dma_status);
 
 	/* Save frame info. & update CQ address for frame HW en-queue */
 	if (irq_status & SOF_INT_ST)
-		isp_irq_handle_sof(p1_dev, dequeued_frame_seq_no);
+		isp_irq_handle_sof(p1_dev, dequeued_frame_seq_no,
+				   meta0_seq_no, meta1_seq_no);
 
 	/* Check ISP error status */
 	if (err_status) {
@@ -339,9 +430,9 @@ static irqreturn_t isp_irq_cam(int irq, void *data)
 			isp_irq_handle_dma_err(p1_dev);
 	}
 
-	dev_dbg(dev, "SOF:%d irq:0x%x, dma:0x%x, frame_num:%d\n",
+	dev_dbg(dev, "SOF:%d irq:0x%x, dma:0x%x, frame_num:%d, fbc1:0x%x , fbc2:0x%x",
 		p1_dev->sof_count, irq_status, dma_status,
-		dequeued_frame_seq_no);
+		dequeued_frame_seq_no, aao_fbc, afo_fbc);
 
 	return IRQ_HANDLED;
 }

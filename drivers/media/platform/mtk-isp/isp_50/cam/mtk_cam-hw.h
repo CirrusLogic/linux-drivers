@@ -25,7 +25,8 @@
  * @enqueued_frame_seq_no: Frame sequence number of enqueued frame
  * @dequeued_frame_seq_no: Frame sequence number of dequeued frame
  * @composed_frame_seq_no: Frame sequence number of composed frame
- * @timestamp: Frame timestamp in ns
+ * @enqueued_meta_seq_no: Frame sequence number array of enqueued meta frames
+ * @dequeued_meta_seq_no: Frame sequence number array of dequeued meta frames
  * @sof_count: SOF counter
  * @composer_wq: The work queue for frame request composing
  * @composer_scp_addr: SCP address of ISP composer memory
@@ -46,6 +47,8 @@ struct mtk_isp_p1_device {
 	unsigned int enqueued_frame_seq_no;
 	unsigned int dequeued_frame_seq_no;
 	unsigned int composed_frame_seq_no;
+	unsigned int enqueued_meta_seq_no[2];
+	unsigned int dequeued_meta_seq_no[2];
 	u8 sof_count;
 	struct workqueue_struct *composer_wq;
 	dma_addr_t composer_scp_addr;
@@ -58,6 +61,8 @@ int mtk_isp_hw_release(struct mtk_cam_dev *cam_dev);
 void mtk_isp_hw_config(struct mtk_cam_dev *cam_dev,
 		       struct p1_config_param *config_param);
 void mtk_isp_stream(struct mtk_cam_dev *cam_dev, int on);
+void mtk_isp_enqueue(struct mtk_cam_dev *cam_dev, unsigned int dma_port,
+		     struct mtk_cam_dev_buffer *buffer);
 void mtk_isp_req_enqueue(struct mtk_cam_dev *cam_dev,
 			 struct mtk_cam_dev_request *req);
 
