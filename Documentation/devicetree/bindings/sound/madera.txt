@@ -50,6 +50,11 @@ Optional properties:
     description of this value.
     The second cell is ignored for codecs that do not have OUT6.
 
+  - cirrus,auxpdm-slave-mode = Boolean property putting the auxiliary PDM
+    interface into slave mode, it defaults to master.
+  - cirrus,auxpdm-falling-edge = Boolean property driving the PDM output on
+    the falling edge of the clock rather than the default rising edge.
+
 Example:
 
 cs47l35@0 {

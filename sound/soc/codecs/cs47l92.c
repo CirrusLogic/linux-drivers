@@ -131,6 +131,36 @@ static const struct snd_kcontrol_new cs47l92_outdemux =
 	SOC_DAPM_ENUM_EXT("OUT3 Demux", cs47l92_outdemux_enum,
 			  snd_soc_dapm_get_enum_double, cs47l92_put_demux);
 
+static const char * const cs47l92_auxpdm_freq_texts[] = {
+	"3.072Mhz",
+	"2.048Mhz",
+	"1.536Mhz",
+	"768khz",
+};
+
+static SOC_ENUM_SINGLE_DECL(cs47l92_auxpdm_freq_enum,
+			    MADERA_AUXPDM1_CTRL_1,
+			    MADERA_AUXPDM1_CLK_FREQ_SHIFT,
+			    cs47l92_auxpdm_freq_texts);
+
+static const char * const cs47l92_auxpdm_in_texts[] = {
+	"IN1L",
+	"IN1R",
+	"IN2L",
+	"IN2R",
+};
+
+static SOC_ENUM_SINGLE_DECL(cs47l92_auxpdm_in_enum,
+			    MADERA_AUXPDM1_CTRL_0,
+			    MADERA_AUXPDM1_SRC_SHIFT,
+			    cs47l92_auxpdm_in_texts);
+
+static const struct snd_kcontrol_new cs47l92_auxpdm1_inmux =
+		SOC_DAPM_ENUM("AUXPDM1 Input", cs47l92_auxpdm_in_enum);
+
+static const struct snd_kcontrol_new cs47l92_auxpdm1_switch =
+		SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
 static int cs47l92_adsp_power_ev(struct snd_soc_dapm_widget *w,
 				 struct snd_kcontrol *kcontrol,
 				 int event)
@@ -894,6 +924,9 @@ SND_SOC_DAPM_PGA("SPD1TX2", MADERA_SPD1_TX_CONTROL,
 SND_SOC_DAPM_OUT_DRV("SPD1", MADERA_SPD1_TX_CONTROL,
 		     MADERA_SPD1_ENA_SHIFT, 0, NULL, 0),
 
+SND_SOC_DAPM_SWITCH("AUXPDM1 Output", MADERA_AUXPDM1_CTRL_0,
+		    MADERA_AUXPDM1_ENABLE_SHIFT, 0, &cs47l92_auxpdm1_switch),
+
 /*
  * mux_in widgets : arranged in the order of sources
  * specified in MADERA_MIXER_INPUT_ROUTES
@@ -945,6 +978,8 @@ SND_SOC_DAPM_PGA_E("IN4R", MADERA_INPUT_ENABLES, MADERA_IN4R_ENA_SHIFT,
 		   0, NULL, 0, madera_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
+
+SND_SOC_DAPM_MUX("AUXPDM1 Input", SND_SOC_NOPM, 0, 0, &cs47l92_auxpdm1_inmux),
 
 SND_SOC_DAPM_AIF_IN("AIF1RX1", NULL, 0,
 		    MADERA_AIF1_RX_ENABLES, MADERA_AIF1RX1_ENA_SHIFT, 0),
@@ -1177,6 +1212,7 @@ SND_SOC_DAPM_OUTPUT("HPOUT4R"),
 SND_SOC_DAPM_OUTPUT("SPKDAT1L"),
 SND_SOC_DAPM_OUTPUT("SPKDAT1R"),
 SND_SOC_DAPM_OUTPUT("SPDIF1"),
+SND_SOC_DAPM_OUTPUT("AUXPDM1"),
 
 SND_SOC_DAPM_OUTPUT("MICSUPP"),
 };
@@ -1647,6 +1683,14 @@ static const struct snd_soc_dapm_route cs47l92_dapm_routes[] = {
 
 	{ "SPDIF1", NULL, "SPD1" },
 
+	{ "AUXPDM1 Input", "IN1L", "IN1L" },
+	{ "AUXPDM1 Input", "IN1R", "IN1R" },
+	{ "AUXPDM1 Input", "IN2L", "IN2L" },
+	{ "AUXPDM1 Input", "IN2R", "IN2R" },
+
+	{ "AUXPDM1 Output", "Switch", "AUXPDM1 Input" },
+	{ "AUXPDM1", NULL, "AUXPDM1 Output" },
+
 	{ "MICSUPP", NULL, "SYSCLK" },
 
 	{ "DRC1 Signal Activity", NULL, "DRC1 Activity Output" },
@@ -1879,6 +1923,8 @@ static int cs47l92_component_probe(struct snd_soc_component *component)
 {
 	struct cs47l92 *cs47l92 = snd_soc_component_get_drvdata(component);
 	struct madera *madera = cs47l92->core.madera;
+	struct madera_codec_pdata *pdata = &madera->pdata.codec;
+	unsigned int val = 0;
 	int ret;
 
 	snd_soc_component_init_regmap(component, madera->regmap);
@@ -1890,6 +1936,17 @@ static int cs47l92_component_probe(struct snd_soc_component *component)
 	ret = madera_init_inputs(component);
 	if (ret)
 		return ret;
+
+	if (!pdata->auxpdm_slave_mode)
+		val = MADERA_AUXPDM1_MSTR_MASK;
+	else
+		val = 0;
+	if (pdata->auxpdm_falling_edge)
+		val |= MADERA_AUXPDM1_TXEDGE_MASK;
+
+	regmap_update_bits(madera->regmap, MADERA_AUXPDM1_CTRL_0,
+			   MADERA_AUXPDM1_TXEDGE_MASK |
+			   MADERA_AUXPDM1_MSTR_MASK, val);
 
 	ret = madera_init_outputs(component, cs47l92_mono_routes,
 				  ARRAY_SIZE(cs47l92_mono_routes),
