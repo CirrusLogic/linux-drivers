@@ -14,7 +14,7 @@
 
 #include <linux/mfd/clsic/clsicmessagedefines_RAS.h>
 #include <linux/mfd/tacna/pdata.h>
-#include <linux/irq_sim.h>
+#include <linux/mfd/clsic/irq_sim.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 
