@@ -52,6 +52,7 @@ enum clsic_sys_msg_id {
 	CLSIC_SYS_MSG_CR_DEPRECATED_2		= 9,
 	CLSIC_SYS_MSG_CR_DEPRECATED_3		= 10,
 	CLSIC_SYS_MSG_CR_IOCTL			= 11,
+	CLSIC_SYS_MSG_CR_MAB_VERSION		= 12,
 	CLSIC_SYS_MSG_CR_GET_DI_CATEGORY_COUNT	=
 		CLSIC_GBL_MSG_CR_GET_DI_CATEGORY_COUNT,
 	CLSIC_SYS_MSG_CR_GET_DI_PAGE_COUNT	=
@@ -315,6 +316,22 @@ union clsic_sys_msg {
 			uint8_t raw_payload[8];
 		} PACKED args;
 	} PACKED rsp_ioctl;
+
+	/**
+	 *  CLSIC_SYS_MSG_CR_MAB_VERSION command structure.
+	 */
+	struct {
+		struct clsic_cmd_hdr hdr;
+	} PACKED cmd_mab_version;
+
+	/**
+	 *  CLSIC_SYS_MSG_CR_MAB_VERSION response structure.
+	 */
+	struct {
+		struct clsic_rsp_hdr hdr;
+		uint32_t mab_version;
+	} PACKED rsp_mab_version;
+
 } PACKED;
 
 #endif /* CLSICMESSAGEDEFINES_SYS_H_ */
