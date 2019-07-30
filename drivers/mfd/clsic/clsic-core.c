@@ -1206,8 +1206,21 @@ static ssize_t clsic_state_panic_file(struct file *file,
 	return ret;
 }
 
+static ssize_t clsic_write_panic_file(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct clsic *clsic = file_inode(file)->i_private;
+
+	memset(&clsic->last_panic, 0, sizeof(struct clsic_panic));
+	clsic_info(clsic, "The last_panic file has been cleared\n");
+
+	return count;
+}
+
 static const struct file_operations clsic_panic_fops = {
 	.read = &clsic_state_panic_file,
+	.write = &clsic_write_panic_file,
 	.llseek = &default_llseek,
 };
 
