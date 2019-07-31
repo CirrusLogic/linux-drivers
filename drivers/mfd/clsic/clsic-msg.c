@@ -811,7 +811,8 @@ static void clsic_msgproc_shutdown_fn(struct work_struct *data)
 	struct clsic *clsic = container_of(data, struct clsic,
 					   clsic_msgproc_shutdown_work.work);
 
-	if (clsic_msgproc_services_active(clsic))
+	if (clsic_msgproc_services_active(clsic) ||
+	    (clsic->state != CLSIC_STATE_ON))
 		return;
 
 	clsic_send_shutdown_cmd(clsic);
