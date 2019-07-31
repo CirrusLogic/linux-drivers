@@ -1411,7 +1411,7 @@ static int clsic_alg_probe(struct platform_device *pdev)
 {
 	struct clsic *clsic = dev_get_drvdata(pdev->dev.parent);
 	struct device *dev = &pdev->dev;
-	struct clsic_service *clsic_service = dev_get_platdata(dev);
+	struct clsic_service *clsic_service = clsic_get_service_from_pdev(pdev);
 	struct clsic_alg *alg;
 	int ret;
 
