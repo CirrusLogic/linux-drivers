@@ -486,8 +486,7 @@ static int clsic_bootsrv_msghandler(struct clsic *clsic,
 		clsic_err(clsic, "CLSIC boot fail: %d : %s %d %d\n",
 			  msgid, clsic_state_to_string(clsic->state),
 			  clsic->blrequest, clsic->service_states);
-		clsic_state_set(clsic, CLSIC_STATE_HALTED,
-				CLSIC_STATE_CHANGE_LOCKNOTHELD);
+		clsic_device_error(clsic, CLSIC_DEVICE_ERROR_LOCKNOTHELD);
 		break;
 	default:
 		clsic_dump_message(clsic, msg, "clsic_bootsrv_msghandler");
