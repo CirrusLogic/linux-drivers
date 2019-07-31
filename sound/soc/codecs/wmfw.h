@@ -205,7 +205,7 @@ struct wmfw_coeff_item {
 #define WMFW_ADSP1 1
 #define WMFW_ADSP2 2
 #define WMFW_HALO 4
-#define WMFW_VPU 0x44
+#define WMFW_VPU 0x45
 
 #define WMFW_ABSOLUTE         0xf0
 #define WMFW_ALGORITHM_DATA   0xf2
@@ -225,6 +225,6 @@ struct wmfw_coeff_item {
 #define WMFW_HALO_XM_PACKED 0x11
 #define WMFW_HALO_YM_PACKED 0x12
 
-#define WMFW_VPU_DM 0x20
+#define WMFW_VPU_DM 0x30
 
 #endif
