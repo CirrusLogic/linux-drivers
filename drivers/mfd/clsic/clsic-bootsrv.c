@@ -678,13 +678,12 @@ static ssize_t clsic_store_firmware_update(struct device *dev,
 			return ret;
 	}
 
-	if (!strncmp(buf, "update-sync", strlen("update-sync"))) {
-		if (clsic->blrequest != CLSIC_BL_IDLE) {
-			ret = clsic_wait_fwupdate_completion(bootsrv);
-			if (ret < 0) {
-				clsic_err(clsic, "completion err %d\n", ret);
-				return ret;
-			}
+	if (!strncmp(buf, "update-sync", strlen("update-sync")) &&
+	    (clsic->blrequest != CLSIC_BL_IDLE)) {
+		ret = clsic_wait_fwupdate_completion(bootsrv);
+		if (ret < 0) {
+			clsic_err(clsic, "completion err %d\n", ret);
+			return ret;
 		}
 	}
 
