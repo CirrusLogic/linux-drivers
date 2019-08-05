@@ -320,12 +320,11 @@ static struct wm_adsp_buf *wm_adsp_buf_alloc(const void *src, size_t len,
 	if (buf == NULL)
 		return NULL;
 
-	buf->buf = vmalloc(len);
+	buf->buf = kmemdup(src, len, GFP_KERNEL | GFP_DMA);
 	if (!buf->buf) {
 		kfree(buf);
 		return NULL;
 	}
-	memcpy(buf->buf, src, len);
 
 	if (list)
 		list_add_tail(&buf->list, list);
@@ -340,7 +339,7 @@ static void wm_adsp_buf_free(struct list_head *list)
 							   struct wm_adsp_buf,
 							   list);
 		list_del(&buf->list);
-		vfree(buf->buf);
+		kfree(buf->buf);
 		kfree(buf);
 	}
 }
@@ -1030,9 +1029,11 @@ static int wm_coeff_write_ctrl_raw(struct wm_coeff_ctl *ctl,
 				   const void *buf, size_t len)
 {
 	struct wm_adsp *dsp = ctl->dsp;
-	void *scratch;
+	void *scratch, *temp;
+	size_t to_write = PAGE_SIZE;
 	int ret;
 	unsigned int reg;
+	unsigned int addr_div;
 
 	ret = wm_coeff_base_reg(ctl, &reg);
 	if (ret)
@@ -1042,15 +1043,35 @@ static int wm_coeff_write_ctrl_raw(struct wm_coeff_ctl *ctl,
 	if (!scratch)
 		return -ENOMEM;
 
-	ret = regmap_raw_write(dsp->regmap, reg, scratch,
-			       len);
-	if (ret) {
-		adsp_err(dsp, "Failed to write %zu bytes to %x: %d\n",
-			 len, reg, ret);
-		kfree(scratch);
-		return ret;
+	switch (dsp->type) {
+	case WMFW_ADSP1:
+	case WMFW_ADSP2:
+		addr_div = 2;
+		break;
+	default:
+		addr_div = 1;
+		break;
 	}
-	adsp_dbg(dsp, "Wrote %zu bytes to %x\n", len, reg);
+
+	temp = scratch;
+	while (len > 0) {
+		if (len < to_write)
+			to_write = len;
+
+		ret = regmap_raw_write(dsp->regmap, reg, temp, to_write);
+		if (ret) {
+			adsp_err(dsp, "Failed to write %zu bytes to %x: %d\n",
+				 to_write, reg, ret);
+			kfree(scratch);
+			return ret;
+		}
+
+		adsp_dbg(dsp, "Wrote %zu bytes to %x\n", to_write, reg);
+
+		temp += to_write;
+		reg += to_write / addr_div;
+		len -= to_write;
+	}
 
 	kfree(scratch);
 
@@ -1138,9 +1159,11 @@ static int wm_coeff_read_ctrl_raw(struct wm_coeff_ctl *ctl,
 				  void *buf, size_t len)
 {
 	struct wm_adsp *dsp = ctl->dsp;
-	void *scratch;
+	void *scratch, *temp;
+	size_t to_read = PAGE_SIZE, remain = len;
 	int ret;
 	unsigned int reg;
+	unsigned int addr_div;
 
 	ret = wm_coeff_base_reg(ctl, &reg);
 	if (ret)
@@ -1150,14 +1173,36 @@ static int wm_coeff_read_ctrl_raw(struct wm_coeff_ctl *ctl,
 	if (!scratch)
 		return -ENOMEM;
 
-	ret = regmap_raw_read(dsp->regmap, reg, scratch, len);
-	if (ret) {
-		adsp_err(dsp, "Failed to read %zu bytes from %x: %d\n",
-			 len, reg, ret);
-		kfree(scratch);
-		return ret;
+	switch (dsp->type) {
+	case WMFW_ADSP1:
+	case WMFW_ADSP2:
+		addr_div = 2;
+		break;
+	default:
+		addr_div = 1;
+		break;
 	}
-	adsp_dbg(dsp, "Read %zu bytes from %x\n", len, reg);
+
+	temp = scratch;
+	remain = len;
+	while (remain > 0) {
+		if (remain < to_read)
+			to_read = remain;
+
+		ret = regmap_raw_read(dsp->regmap, reg, temp, to_read);
+		if (ret) {
+			adsp_err(dsp, "Failed to read %zu bytes from %x: %d\n",
+				 to_read, reg, ret);
+			kfree(scratch);
+			return ret;
+		}
+
+		adsp_dbg(dsp, "Read %zu bytes from %x\n", to_read, reg);
+
+		temp += to_read;
+		reg += to_read / addr_div;
+		remain -= to_read;
+	}
 
 	memcpy(buf, scratch, len);
 	kfree(scratch);
@@ -1753,6 +1798,55 @@ static int wm_adsp_parse_coeff(struct wm_adsp *dsp,
 	return 0;
 }
 
+static int wm_adsp_write_blocks(struct wm_adsp *dsp, const u8 *data, size_t len,
+				unsigned int reg, struct list_head *list,
+				size_t burst_multiple)
+
+{
+	size_t to_write = PAGE_SIZE - (PAGE_SIZE % burst_multiple);
+	size_t remain = len;
+	struct wm_adsp_buf *buf;
+	unsigned int addr_div;
+	int ret;
+
+	switch (dsp->type) {
+	case WMFW_ADSP1:
+	case WMFW_ADSP2:
+		addr_div = 2;
+		break;
+	default:
+		addr_div = 1;
+		break;
+	}
+
+	while (remain > 0) {
+		if (remain < to_write)
+			to_write = remain;
+
+		buf = wm_adsp_buf_alloc(data, to_write, list);
+		if (!buf) {
+			adsp_err(dsp, "Out of memory\n");
+			return -ENOMEM;
+		}
+
+		ret = regmap_raw_write_async(dsp->regmap, reg,
+					     buf->buf, to_write);
+		if (ret != 0) {
+			adsp_err(dsp,
+				 "Failed to write %zd bytes at %d\n",
+				 to_write, reg);
+
+			return ret;
+		}
+
+		data += to_write;
+		reg += to_write / addr_div;
+		remain -= to_write;
+	}
+
+	return 0;
+}
+
 static unsigned int wm_adsp1_parse_sizes(struct wm_adsp *dsp,
 					 const char * const file,
 					 unsigned int pos,
@@ -1822,10 +1916,10 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 	const struct wm_adsp_region *mem;
 	const char *region_name;
 	char *file, *text = NULL;
-	struct wm_adsp_buf *buf;
 	unsigned int reg;
 	int regions = 0;
 	int ret, offset, type;
+	unsigned int burst_multiple;
 
 	file = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (file == NULL)
@@ -1891,6 +1985,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		region = (void *)&(firmware->data[pos]);
 		region_name = "Unknown";
 		reg = 0;
+		burst_multiple = 4;
 		text = NULL;
 		offset = le32_to_cpu(region->offset) & 0xffffff;
 		type = be32_to_cpu(region->type) & 0xff;
@@ -1921,7 +2016,26 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		case WMFW_ADSP2_XM:
 		case WMFW_ADSP2_YM:
 		case WMFW_ADSP1_ZM:
+			mem = wm_adsp_find_region(dsp, type);
+			if (!mem) {
+				adsp_err(dsp, "No region of type: %x\n", type);
+				goto out_fw;
+			}
+
+			region_name = wm_adsp_mem_region_name(type);
+			reg = dsp->ops->region_to_reg(mem, offset);
+			break;
 		case WMFW_HALO_PM_PACKED:
+			mem = wm_adsp_find_region(dsp, type);
+			if (!mem) {
+				adsp_err(dsp, "No region of type: %x\n", type);
+				goto out_fw;
+			}
+
+			region_name = wm_adsp_mem_region_name(type);
+			reg = dsp->ops->region_to_reg(mem, offset);
+			burst_multiple = 20;
+			break;
 		case WMFW_HALO_XM_PACKED:
 		case WMFW_HALO_YM_PACKED:
 			mem = wm_adsp_find_region(dsp, type);
@@ -1932,6 +2046,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 
 			region_name = wm_adsp_mem_region_name(type);
 			reg = dsp->ops->region_to_reg(mem, offset);
+			burst_multiple = 12;
 			break;
 		default:
 			adsp_warn(dsp,
@@ -1962,23 +2077,15 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		}
 
 		if (reg) {
-			buf = wm_adsp_buf_alloc(region->data,
-						le32_to_cpu(region->len),
-						&buf_list);
-			if (!buf) {
-				adsp_err(dsp, "Out of memory\n");
-				ret = -ENOMEM;
-				goto out_fw;
-			}
-
-			ret = regmap_raw_write_async(regmap, reg, buf->buf,
-						     le32_to_cpu(region->len));
+			ret = wm_adsp_write_blocks(dsp, region->data,
+						   le32_to_cpu(region->len),
+						   reg, &buf_list,
+						   burst_multiple);
 			if (ret != 0) {
 				adsp_err(dsp,
-					"%s.%d: Failed to write %d bytes at %d in %s: %d\n",
+					"%s.%d: Failed writing data at %d in %s: %d\n",
 					file, regions,
-					le32_to_cpu(region->len), offset,
-					region_name, ret);
+					offset, region_name, ret);
 				goto out_fw;
 			}
 		}
@@ -2543,7 +2650,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	const char *region_name;
 	int ret, pos, blocks, type, offset, reg;
 	char *file;
-	struct wm_adsp_buf *buf;
+	unsigned int burst_multiple;
 
 	file = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (file == NULL)
@@ -2607,6 +2714,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 			 file, blocks, le32_to_cpu(blk->len), offset, type);
 
 		reg = 0;
+		burst_multiple = 4;
 		region_name = "Unknown";
 		switch (type) {
 		case (WMFW_NAME_TEXT << 8):
@@ -2633,13 +2741,17 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 			}
 			break;
 
+		case WMFW_HALO_PM_PACKED:
+			burst_multiple += 8; /* plus the 8 below yields 20 */
+			/* fall through */
+		case WMFW_HALO_XM_PACKED:
+		case WMFW_HALO_YM_PACKED:
+			burst_multiple += 8; /* yields 12 */
+			/* fall through */
 		case WMFW_ADSP1_DM:
 		case WMFW_ADSP1_ZM:
 		case WMFW_ADSP2_XM:
 		case WMFW_ADSP2_YM:
-		case WMFW_HALO_XM_PACKED:
-		case WMFW_HALO_YM_PACKED:
-		case WMFW_HALO_PM_PACKED:
 			adsp_dbg(dsp, "%s.%d: %d bytes in %x for %x\n",
 				 file, blocks, le32_to_cpu(blk->len),
 				 type, le32_to_cpu(blk->id));
@@ -2680,20 +2792,14 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 				goto out_fw;
 			}
 
-			buf = wm_adsp_buf_alloc(blk->data,
-						le32_to_cpu(blk->len),
-						&buf_list);
-			if (!buf) {
-				adsp_err(dsp, "Out of memory\n");
-				ret = -ENOMEM;
-				goto out_fw;
-			}
-
 			adsp_dbg(dsp, "%s.%d: Writing %d bytes at %x\n",
 				 file, blocks, le32_to_cpu(blk->len),
 				 reg);
-			ret = regmap_raw_write_async(regmap, reg, buf->buf,
-						     le32_to_cpu(blk->len));
+
+			ret = wm_adsp_write_blocks(dsp, blk->data,
+						   le32_to_cpu(blk->len),
+						   reg, &buf_list,
+						   burst_multiple);
 			if (ret != 0) {
 				adsp_err(dsp,
 					"%s.%d: Failed to write to %x in %s: %d\n",
