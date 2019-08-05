@@ -1045,7 +1045,7 @@ static int wm_coeff_write_ctrl_raw(struct wm_coeff_ctl *ctl,
 	if (ret)
 		return ret;
 
-	scratch = kmemdup(buf, len, GFP_KERNEL | GFP_DMA);
+	scratch = kmalloc(PAGE_SIZE, GFP_KERNEL | GFP_DMA);
 	if (!scratch)
 		return -ENOMEM;
 
@@ -1059,12 +1059,14 @@ static int wm_coeff_write_ctrl_raw(struct wm_coeff_ctl *ctl,
 		break;
 	}
 
-	temp = scratch;
+	temp = (void *)buf;
 	while (len > 0) {
 		if (len < to_write)
 			to_write = len;
 
-		ret = regmap_raw_write(dsp->regmap, reg, temp, to_write);
+		memcpy(scratch, temp, to_write);
+
+		ret = regmap_raw_write(dsp->regmap, reg, scratch, to_write);
 		if (ret) {
 			adsp_err(dsp, "Failed to write %zu bytes to %x: %d\n",
 				 to_write, reg, ret);
