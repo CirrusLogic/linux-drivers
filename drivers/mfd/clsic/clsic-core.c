@@ -832,7 +832,8 @@ static int clsic_service_starter(struct clsic *clsic,
 
 	/* Not a core service, search for an MFD child to handle it */
 	for_each_child_of_node(clsic->dev->of_node, child_np) {
-		ret = of_property_read_u32(child_np, "cirrus,service-type", &type);
+		ret = of_property_read_u32(child_np, "cirrus,service-type",
+					   &type);
 		if (ret != 0 || handler->service_type != type)
 			continue;
 		dev = devm_kzalloc(clsic->dev, sizeof(struct mfd_cell),
