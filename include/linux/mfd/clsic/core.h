@@ -447,6 +447,7 @@ static inline struct clsic_service *clsic_get_service_from_pdev(
 {
 	struct clsic *clsic = dev_get_drvdata(pdev->dev.parent);
 	uint8_t *instance = (uint8_t *) dev_get_platdata(&pdev->dev);
+
 	return clsic->service_handlers[*instance];
 }
 
