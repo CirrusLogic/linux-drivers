@@ -119,9 +119,11 @@ int clsic_fwupdate_reset(struct clsic *clsic)
 static bool clsic_supported_devid(struct clsic *clsic)
 {
 	int ret = 0;
+	unsigned int scratch;
 	unsigned int revid;
 	unsigned int fabid;
 	unsigned int relid;
+	unsigned int otprev;
 	unsigned int otpid;
 
 	/*
@@ -138,14 +140,19 @@ static bool clsic_supported_devid(struct clsic *clsic)
 		revid &= (TACNA_AREVID_MASK | TACNA_MTLREVID_MASK);
 		regmap_read(clsic->regmap, TACNA_FABID, &fabid);
 		fabid &= TACNA_FABID_MASK;
-		regmap_read(clsic->regmap, TACNA_RELID, &relid);
-		relid &= TACNA_RELID_MASK;
+
+		regmap_read(clsic->regmap, CLSIC_RELID_OTPREV, &scratch);
+		relid = (scratch & CLSIC_RELID_OTPREV_RELID_MASK) >>
+			CLSIC_RELID_OTPREV_RELID_SHIFT;
+		otprev = (scratch & CLSIC_RELID_OTPREV_OTPREV_MASK) >>
+			CLSIC_RELID_OTPREV_OTPREV_SHIFT;
+
 		regmap_read(clsic->regmap, TACNA_OTPID, &otpid);
 		otpid &= TACNA_OTPID_MASK;
 
 		clsic_info(clsic,
-			   "DEVID 0x%x, REVID 0x%x, FABID 0x%x, RELID 0x%x, OTPID 0x%x\n",
-			   clsic->devid, revid, fabid, relid, otpid);
+			   "DEVID 0x%x, REVID 0x%x, FABID 0x%x, RELID 0x%x, OTPID 0x%x, OTPREV 0x%x\n",
+			   clsic->devid, revid, fabid, relid, otpid, otprev);
 	}
 
 	switch (clsic->devid) {
