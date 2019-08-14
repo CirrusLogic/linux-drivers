@@ -395,8 +395,11 @@ static int clsic_bootsrv_sendfile(struct clsic *clsic,
 	if ((hdr->type == CLSIC_FWTYPE_MAB) && clsic->volatile_memory) {
 		fw_crc = crc32(0, firmware->data, firmware->size);
 		if (fw_crc != bootsrv->fw_crc) {
-			clsic_info(clsic, "mab changed : expected %x got %x\n",
-				bootsrv->fw_crc, fw_crc);
+			/* Log when the MAB changes after the first download */
+			if (bootsrv->fw_crc != 0)
+				clsic_info(clsic,
+					   "mab changed (crc was 0x%x now 0x%x)\n",
+					   bootsrv->fw_crc, fw_crc);
 			if (clsic->service_states == CLSIC_ENUMERATED)
 				clsic->service_states =
 				   CLSIC_REENUMERATION_REQUIRED;
