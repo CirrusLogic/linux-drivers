@@ -2054,7 +2054,7 @@ static int clsic_codec_probe(struct snd_soc_codec *codec)
 	unsigned int revid;
 	int ret;
 
-	dev_info(codec->dev, "%s() %p\n", __func__, codec);
+	dev_dbg(codec->dev, "%s() %p\n", __func__, codec);
 
 	clsic_codec->core.tacna->dapm = snd_soc_codec_get_dapm(codec);
 
@@ -2136,7 +2136,7 @@ static int clsic_codec_remove(struct snd_soc_codec *codec)
 		snd_soc_codec_get_drvdata(codec);
 	struct tacna *tacna = clsic_codec->core.tacna;
 
-	dev_info(codec->dev, "%s() %p\n", __func__, codec);
+	dev_dbg(codec->dev, "%s() %p\n", __func__, codec);
 
 	tacna->dapm = NULL;
 
@@ -2329,7 +2329,7 @@ static int clsic_probe(struct platform_device *pdev)
 		goto err_codec;
 	}
 
-	dev_info(&pdev->dev, "%s() dev %p ret %d\n", __func__, &pdev->dev, ret);
+	dev_dbg(&pdev->dev, "%s() dev %p ret %d\n", __func__, &pdev->dev, ret);
 
 	return ret;
 
