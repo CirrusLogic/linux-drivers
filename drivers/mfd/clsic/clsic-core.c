@@ -150,7 +150,7 @@ static bool clsic_supported_devid(struct clsic *clsic)
 		regmap_read(clsic->regmap, TACNA_OTPID, &otpid);
 		otpid &= TACNA_OTPID_MASK;
 
-		clsic_info(clsic,
+		dev_info(clsic->dev,
 			   "DEVID 0x%x, REVID 0x%x, FABID 0x%x, RELID 0x%x, OTPID 0x%x, OTPREV 0x%x\n",
 			   clsic->devid, revid, fabid, relid, otpid, otprev);
 	}
@@ -333,7 +333,7 @@ int clsic_dev_init(struct clsic *clsic)
 {
 	int ret = 0;
 
-	clsic_info(clsic, "%p (bootonload: %d)\n", clsic, clsic_bootonload);
+	clsic_dbg(clsic, "%p (bootonload: %d)\n", clsic, clsic_bootonload);
 
 	dev_set_drvdata(clsic->dev, clsic);
 
@@ -503,9 +503,9 @@ void clsic_maintenance(struct work_struct *data)
 	struct clsic *clsic = container_of(data, struct clsic,
 					   maintenance_handler);
 
-	clsic_info(clsic, "States: %s %d %d\n",
-		   clsic_state_to_string(clsic->state),
-		   clsic->blrequest, clsic->service_states);
+	clsic_dbg(clsic, "States: %s %d %d\n",
+		  clsic_state_to_string(clsic->state),
+		  clsic->blrequest, clsic->service_states);
 
 	if (clsic->blrequest != CLSIC_BL_IDLE) {
 		if (clsic_bootsrv_state_handler(clsic) != 0) {
@@ -869,9 +869,9 @@ static int clsic_service_starter(struct clsic *clsic,
 		return 0;
 	}
 
-	clsic_info(clsic, " Unrecognised service (%d: type 0x%x ver 0x%x)",
-		   handler->service_instance, handler->service_type,
-		   handler->service_version);
+	clsic_dbg(clsic, " Unrecognised service (%d: type 0x%x ver 0x%x)",
+		  handler->service_instance, handler->service_type,
+		  handler->service_version);
 
 	return -ENODEV;
 
@@ -1036,7 +1036,7 @@ static int clsic_runtime_resume(struct device *dev)
 	reinit_completion(&clsic->pm_completion);
 
 	if (clsic->volatile_memory) {
-		clsic_info(clsic, "Volatile resume\n");
+		clsic_dbg(clsic, "Volatile resume\n");
 		regmap_read_poll_timeout(clsic->regmap,
 			CLSIC_FW_BOOT_PROGRESS, val,
 			(val >= CLSIC_FW_BOOT_PROGRESS_READ_FW_UPDATE_BIT),

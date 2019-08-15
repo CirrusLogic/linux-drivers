@@ -195,7 +195,7 @@ int clsic_system_service_start(struct clsic *clsic,
 	 */
 	if ((handler->stop == &clsic_system_service_stop) &&
 	    (handler->data != NULL)) {
-		clsic_info(clsic, "System service fw version %d.%d.%d",
+		dev_info(clsic->dev, "System service fw version %d.%d.%d",
 			   (handler->service_version & CLSIC_SVCVER_MAJ_MASK) >>
 			   CLSIC_SVCVER_MAJ_SHIFT,
 			   (handler->service_version & CLSIC_SVCVER_MIN_MASK) >>

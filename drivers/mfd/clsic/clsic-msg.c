@@ -925,19 +925,13 @@ void clsic_shutdown_message_interface(struct clsic *clsic)
 	 * release that request.
 	 */
 	if (clsic_msgproc_services_active(clsic)) {
-		clsic_info(clsic, "info; a service was active\n");
+		clsic_dbg(clsic, "info; a service was active\n");
 		pm_runtime_mark_last_busy(clsic->dev);
 		pm_runtime_put_autosuspend(clsic->dev);
 	}
 
-	/*
-	 * XXX check whether the put is required, which get does it match up
-	 * with?
-	 */
-	if (clsic_msgproc_shutdown_cancel(clsic, true)) {
-		clsic_info(clsic, "info; msgproc timer cancelled\n");
+	if (clsic_msgproc_shutdown_cancel(clsic, true))
 		pm_runtime_put_autosuspend(clsic->dev);
-	}
 
 	del_timer_sync(&clsic->workerthread_timer);
 
