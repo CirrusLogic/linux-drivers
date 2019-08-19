@@ -16,6 +16,7 @@
 #include "tacna.h"
 
 static const struct reg_sequence cs48l32_reva_patch[] = {
+	{ 0x00001044, 0x0005000f },
 	{ 0x00001c34, 0x000037e8 },
 };
 
@@ -53,7 +54,7 @@ static const struct reg_default cs48l32_reg_default[] = {
 	{ 0x00001020, 0x00000000 }, /* OUTPUT_SYS_CLK */
 	{ 0x00001030, 0x00000000 }, /* CLKGEN_PAD_CTRL */
 	{ 0x00001034, 0x00000000 }, /* DMIC_PAD_CTRL */
-	{ 0x00001044, 0x0000000f }, /* AUXPDM_CTRL */
+	{ 0x00001044, 0x0005000f }, /* AUXPDM_CTRL */
 	{ 0x0000105c, 0x00000000 }, /* AUXPDM_CTRL2 */
 	{ 0x00001400, 0x00000002 }, /* CLOCK32K */
 	{ 0x00001404, 0x00000404 }, /* SYSTEM_CLOCK1 */
@@ -97,6 +98,8 @@ static const struct reg_default cs48l32_reg_default[] = {
 	{ 0x00004304, 0x00000000 }, /* AUXPDM_CONTROL2 */
 	{ 0x00004308, 0x00010008 }, /* AUXPDM1_CONTROL1 */
 	{ 0x00004310, 0x00010008 }, /* AUXPDM2_CONTROL1 */
+	{ 0x00004688, 0x00000000 }, /* ADC1L_ANA_CONTROL1 */
+	{ 0x0000468c, 0x00000000 }, /* ADC1R_ANA_CONTROL1 */
 	{ 0x000046a0, 0x00000300 }, /* ADC1L_LP_CONTROL1 */
 	{ 0x000046a4, 0x00000300 }, /* ADC1R_LP_CONTROL1 */
 	{ 0x00006000, 0x00000000 }, /* ASP1_ENABLES1 */
@@ -510,6 +513,8 @@ static bool cs48l32_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_AUXPDM_CONTROL2:
 	case TACNA_AUXPDM1_CONTROL1:
 	case TACNA_AUXPDM2_CONTROL1:
+	case TACNA_ADC1L_ANA_CONTROL1:
+	case TACNA_ADC1R_ANA_CONTROL1:
 	case TACNA_ADC1L_LP_CONTROL1:
 	case TACNA_ADC1R_LP_CONTROL1:
 	case TACNA_ASP1_ENABLES1:

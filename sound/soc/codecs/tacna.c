@@ -548,6 +548,13 @@ const char *tacna_sample_rate_val_to_name(unsigned int rate_val)
 EXPORT_SYMBOL_GPL(tacna_sample_rate_val_to_name);
 
 const struct soc_enum tacna_sample_rate[] = {
+	SOC_VALUE_ENUM_SINGLE(TACNA_SAMPLE_RATE1,
+			      TACNA_SAMPLE_RATE_1_SHIFT,
+			      TACNA_SAMPLE_RATE_1_MASK >>
+			      TACNA_SAMPLE_RATE_1_SHIFT,
+			      TACNA_SAMPLE_RATE_ENUM_SIZE,
+			      tacna_sample_rate_text,
+			      tacna_sample_rate_val),
 	SOC_VALUE_ENUM_SINGLE(TACNA_SAMPLE_RATE2,
 			      TACNA_SAMPLE_RATE_2_SHIFT,
 			      TACNA_SAMPLE_RATE_2_MASK >>
@@ -682,41 +689,11 @@ const struct snd_kcontrol_new tacna_inmux[] = {
 };
 EXPORT_SYMBOL_GPL(tacna_inmux);
 
-const char * const tacna_in_swap_chan_texts[TACNA_IN_SWAP_CHAN_ENUM_SIZE] = {
-	"Normal", "Swap", "Left", "Right",
-};
-EXPORT_SYMBOL_GPL(tacna_in_swap_chan_texts);
-
-const struct soc_enum tacna_in_swap_chan_ctrl[] = {
-	SOC_ENUM_SINGLE(TACNA_INPUT1_CONTROL1,
-			TACNA_IN1_CHANNEL_MIX_SHIFT,
-			ARRAY_SIZE(tacna_in_swap_chan_texts),
-			tacna_in_swap_chan_texts),
-	SOC_ENUM_SINGLE(TACNA_INPUT2_CONTROL1,
-			TACNA_IN2_CHANNEL_MIX_SHIFT,
-			ARRAY_SIZE(tacna_in_swap_chan_texts),
-			tacna_in_swap_chan_texts),
-	SOC_ENUM_SINGLE(TACNA_INPUT3_CONTROL1,
-			TACNA_IN3_CHANNEL_MIX_SHIFT,
-			ARRAY_SIZE(tacna_in_swap_chan_texts),
-			tacna_in_swap_chan_texts),
-	SOC_ENUM_SINGLE(TACNA_INPUT4_CONTROL1,
-			TACNA_IN4_CHANNEL_MIX_SHIFT,
-			ARRAY_SIZE(tacna_in_swap_chan_texts),
-			tacna_in_swap_chan_texts),
-};
-EXPORT_SYMBOL_GPL(tacna_in_swap_chan_ctrl);
-
-const struct snd_kcontrol_new tacna_in_swap_chan[] = {
-	SOC_DAPM_ENUM("IN1 Swap Chan", tacna_in_swap_chan_ctrl[0]),
-	SOC_DAPM_ENUM("IN2 Swap Chan", tacna_in_swap_chan_ctrl[1]),
-};
-EXPORT_SYMBOL_GPL(tacna_in_swap_chan);
-
-static const char * const tacna_dmode_texts[] = {
+const char * const tacna_dmode_texts[] = {
 	"Analog",
 	"Digital",
 };
+EXPORT_SYMBOL_GPL(tacna_dmode_texts);
 
 static SOC_ENUM_SINGLE_DECL(tacna_in1dmode_enum,
 			    TACNA_INPUT1_CONTROL1,
