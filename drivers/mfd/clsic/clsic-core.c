@@ -346,6 +346,11 @@ int clsic_dev_init(struct clsic *clsic)
 	clsic->reset_gpio = devm_gpiod_get(clsic->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(clsic->reset_gpio)) {
 		ret = PTR_ERR(clsic->reset_gpio);
+		if (ret == -EPROBE_DEFER) {
+			clsic_dbg(clsic, "reset-gpio probe defer\n");
+			goto reset_failed;
+		}
+
 		clsic_err(clsic,
 			  "DT property reset-gpio is missing or malformed %d\n",
 			  ret);
@@ -446,6 +451,9 @@ messaging_failed:
 	clsic_deinit_sysfs(clsic);
 
 	clsic_enable_hard_reset(clsic);
+
+reset_failed:
+	clsic_regulators_deregister_disable(clsic);
 
 	return ret;
 }
