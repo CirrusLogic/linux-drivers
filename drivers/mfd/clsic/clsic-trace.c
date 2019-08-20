@@ -47,6 +47,7 @@ EXPORT_TRACEPOINT_SYMBOL(clsic_alg_compr_stream_trigger);
 EXPORT_TRACEPOINT_SYMBOL(clsic_alg_compr_stream_timestamp);
 EXPORT_TRACEPOINT_SYMBOL(clsic_alg_compr_stream_copy);
 EXPORT_TRACEPOINT_SYMBOL(clsic_alg_custom_msg);
+EXPORT_TRACEPOINT_SYMBOL(clsic_simirq);
 EXPORT_TRACEPOINT_SYMBOL(clsic_simirq_write_asserted);
 EXPORT_TRACEPOINT_SYMBOL(clsic_simirq_write_deasserted);
-
+EXPORT_TRACEPOINT_SYMBOL(clsic_irq);

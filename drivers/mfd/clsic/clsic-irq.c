@@ -29,6 +29,8 @@ static irqreturn_t clsic_irq_thread(int irq, void *data)
 	uint32_t reg = 0;
 	int ret = regmap_read(clsic->regmap, TACNA_IRQ1_EINT_2, &reg);
 
+	trace_clsic_irq(reg);
+
 	if (ret != 0)
 		return IRQ_NONE;
 
@@ -87,6 +89,8 @@ static void clsic_simirq(struct work_struct *data)
 {
 	struct clsic *clsic = container_of(data, struct clsic,
 					   simirq_work);
+
+	trace_clsic_simirq(clsic->simirq_enabled);
 
 	/* Simulate the irq being masked */
 	if (clsic->simirq_enabled)

@@ -591,6 +591,18 @@ TRACE_EVENT(clsic_alg_custom_msg,
 			)
 );
 
+TRACE_EVENT(clsic_simirq,
+	TP_PROTO(int simirq_enabled),
+	TP_ARGS(simirq_enabled),
+	TP_STRUCT__entry(
+		__field(int, simirq_enabled)
+	),
+	TP_fast_assign(
+		__entry->simirq_enabled = simirq_enabled;
+	),
+	TP_printk("%d", __entry->simirq_enabled)
+);
+
 DEFINE_EVENT(clsic_generic, clsic_simirq_write_asserted,
 	TP_PROTO(uint8_t dummy),
 	TP_ARGS(dummy)
@@ -599,6 +611,18 @@ DEFINE_EVENT(clsic_generic, clsic_simirq_write_asserted,
 DEFINE_EVENT(clsic_generic, clsic_simirq_write_deasserted,
 	TP_PROTO(uint8_t dummy),
 	TP_ARGS(dummy)
+);
+
+TRACE_EVENT(clsic_irq,
+	TP_PROTO(uint32_t reg),
+	TP_ARGS(reg),
+	TP_STRUCT__entry(
+		__field(uint32_t, reg)
+	),
+	TP_fast_assign(
+		__entry->reg = reg;
+	),
+	TP_printk("0x%x", __entry->reg)
 );
 
 TRACE_EVENT(clsic_alg_handle_n_irq,
