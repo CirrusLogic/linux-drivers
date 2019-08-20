@@ -329,6 +329,47 @@ static int clsic_services_init(struct clsic *clsic)
 	return ret;
 }
 
+/*
+ * NOTE: These are quite large timeouts whilst we are in development
+ */
+#define CLSIC_BOOT_PROGRESS_POLL_MICROSECONDS    5000
+#define CLSIC_BOOT_PROGRESS_TIMEOUT_MICROSECONDS 2000000
+
+/*
+ * Setting the timeout for the enumeration or firmware download to be 100
+ * seconds (the bootloader message timeout is 90 seconds)
+ */
+#define CLSIC_PM_COMPLETION_TIMEOUT (HZ * 100)
+
+static void clsic_boot(struct clsic *clsic)
+{
+	unsigned int val;
+
+	reinit_completion(&clsic->pm_completion);
+
+	if (clsic->volatile_memory) {
+		clsic_dbg(clsic, "Volatile resume\n");
+		regmap_read_poll_timeout(clsic->regmap,
+			     CLSIC_FW_BOOT_PROGRESS, val,
+			     (val >= CLSIC_FW_BOOT_PROGRESS_READ_FW_UPDATE_BIT),
+			     CLSIC_BOOT_PROGRESS_POLL_MICROSECONDS,
+			     CLSIC_BOOT_PROGRESS_TIMEOUT_MICROSECONDS);
+		clsic_fwupdate_reset(clsic);
+	} else
+		schedule_work(&clsic->maintenance_handler);
+
+	/* Unmask the IRQ used for messaging */
+	clsic_irq_messaging_enable(clsic);
+
+	/*
+	 * Wait for the system to have fully initialised, including any
+	 * firmware download and enumeration activity
+	 */
+	if (wait_for_completion_timeout(&clsic->pm_completion,
+					CLSIC_PM_COMPLETION_TIMEOUT) == 0)
+		clsic_err(clsic, "Completion timeout\n");
+}
+
 int clsic_dev_init(struct clsic *clsic)
 {
 	int ret = 0;
@@ -341,7 +382,7 @@ int clsic_dev_init(struct clsic *clsic)
 
 	ret = clsic_regulators_register_enable(clsic);
 	if (ret != 0) {
-		clsic_err(clsic, "Regulator register failed=%d", ret);
+		clsic_err(clsic, "Regulator register failed=%d\n", ret);
 		return ret;
 	}
 
@@ -407,32 +448,26 @@ int clsic_dev_init(struct clsic *clsic)
 		goto err_devid_bootdone;
 	}
 
-	clsic_irq_disable(clsic);
-
 	if (!clsic_supported_devid(clsic)) {
 		clsic_err(clsic, "Unknown device ID: %x\n", clsic->devid);
 		ret = -EINVAL;
 		goto err_devid_bootdone;
 	}
 
-	pm_runtime_set_suspended(clsic->dev);
 	pm_runtime_mark_last_busy(clsic->dev);
 	pm_runtime_set_autosuspend_delay(clsic->dev, CLSIC_PM_AUTOSUSPEND_MS);
 	pm_runtime_use_autosuspend(clsic->dev);
+
+	if (!clsic_bootonload) {
+		clsic_irq_disable(clsic);
+		regulator_disable(clsic->vdd_d);
+		pm_runtime_set_suspended(clsic->dev);
+	} else {
+		pm_runtime_set_active(clsic->dev);
+		clsic_boot(clsic);
+
+	}
 	pm_runtime_enable(clsic->dev);
-
-	if (clsic_bootonload)
-		clsic_pm_wake(clsic);
-
-	/*
-	 * At this point the device is NOT fully setup - the device will block
-	 * until runtime resume has completed (device state is resuming), the
-	 * device reaches the "ON" state after enumeration has been completed
-	 * by the maintenance thread.
-	 *
-	 * If a conclusive decision on failed/succeeded is required then the
-	 * device state should be tested here until it reaches HALTED or ON.
-	 */
 
 	return 0;
 
@@ -519,6 +554,10 @@ void clsic_maintenance(struct work_struct *data)
 	clsic_dbg(clsic, "States: %s %d %d\n",
 		  clsic_state_to_string(clsic->state),
 		  clsic->blrequest, clsic->service_states);
+
+	/* Don't do any background work when the driver has halted */
+	if (clsic->state == CLSIC_STATE_HALTED)
+		goto pm_complete_exit;
 
 	if (clsic->blrequest != CLSIC_BL_IDLE) {
 		if (clsic_bootsrv_state_handler(clsic) != 0) {
@@ -981,33 +1020,17 @@ static int clsic_pm_service_transition(struct clsic *clsic, int pm_event)
 	return ret;
 }
 
-/*
- * NOTE: These are quite large timeouts whilst we are in development
- */
-#define CLSIC_BOOT_PROGRESS_POLL_MICROSECONDS    5000
-#define CLSIC_BOOT_PROGRESS_TIMEOUT_MICROSECONDS 2000000
-
-/*
- * Setting the timeout for the enumeration or firmware download to be 100
- * seconds (the bootloader message timeout is 90 seconds)
- */
-#define CLSIC_PM_COMPLETION_TIMEOUT (HZ * 100)
-
 static int clsic_runtime_resume(struct device *dev)
 {
 	struct clsic *clsic = dev_get_drvdata(dev);
 	bool force_reset = false;
 	int ret;
-	unsigned int val;
-
-	/* if the driver has halted, don't switch back on */
-	if (clsic->state == CLSIC_STATE_HALTED)
-		return -EINVAL;
 
 	trace_clsic_pm(RPM_RESUMING);
 
-	clsic_state_set(clsic, CLSIC_STATE_RESUMING,
-			CLSIC_STATE_CHANGE_LOCKNOTHELD);
+	if (clsic->state != CLSIC_STATE_HALTED)
+		clsic_state_set(clsic, CLSIC_STATE_RESUMING,
+				CLSIC_STATE_CHANGE_LOCKNOTHELD);
 
 	/*
 	 * If VDD_D didn't power off we must force a reset so that the
@@ -1034,7 +1057,7 @@ static int clsic_runtime_resume(struct device *dev)
 		clsic_purge_message_queues(clsic);
 		mutex_unlock(&clsic->message_lock);
 
-		return ret;
+		return 0;
 	}
 
 	usleep_range(2000, 3000);
@@ -1048,41 +1071,15 @@ static int clsic_runtime_resume(struct device *dev)
 
 	clsic_wait_for_boot_done(clsic);
 
-	reinit_completion(&clsic->pm_completion);
-
-	if (clsic->volatile_memory) {
-		clsic_dbg(clsic, "Volatile resume\n");
-		regmap_read_poll_timeout(clsic->regmap,
-			CLSIC_FW_BOOT_PROGRESS, val,
-			(val >= CLSIC_FW_BOOT_PROGRESS_READ_FW_UPDATE_BIT),
-			CLSIC_BOOT_PROGRESS_POLL_MICROSECONDS,
-			CLSIC_BOOT_PROGRESS_TIMEOUT_MICROSECONDS);
-
-		clsic_fwupdate_reset(clsic);
-	} else
-		schedule_work(&clsic->maintenance_handler);
-
-	/* Unmask the IRQ used for messaging */
-	clsic_irq_messaging_enable(clsic);
-
-	/*
-	 * Wait for the system to have fully initialised, including any
-	 * firmware download and enumeration activity
-	 */
-	if (wait_for_completion_timeout(&clsic->pm_completion,
-					CLSIC_PM_COMPLETION_TIMEOUT) == 0) {
-		clsic_err(clsic, "Completion timeout\n");
-		return -ETIMEDOUT;
-	}
+	clsic_boot(clsic);
 
 	trace_clsic_pm(RPM_ACTIVE);
 
-	return ret;
+	return 0;
 }
 
 static int clsic_runtime_suspend(struct device *dev)
 {
-	int ret = 0;
 	struct clsic *clsic = dev_get_drvdata(dev);
 
 	trace_clsic_pm(RPM_SUSPENDING);
@@ -1092,9 +1089,7 @@ static int clsic_runtime_suspend(struct device *dev)
 				CLSIC_STATE_CHANGE_LOCKNOTHELD);
 
 		/* suspend services */
-		ret = clsic_pm_service_transition(clsic, PM_EVENT_SUSPEND);
-		if (ret)
-			return ret;
+		clsic_pm_service_transition(clsic, PM_EVENT_SUSPEND);
 	}
 
 	/*

@@ -428,8 +428,6 @@ static inline void clsic_device_error(struct clsic *clsic,
 	clsic_state_set(clsic, CLSIC_STATE_HALTED,
 			lock_held);
 
-	pm_runtime_set_suspended(clsic->dev);
-
 	if (!lock_held)
 		mutex_lock(&clsic->message_lock);
 
