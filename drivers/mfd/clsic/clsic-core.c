@@ -623,18 +623,20 @@ int clsic_dev_exit(struct clsic *clsic)
 
 	trace_clsic_dev_exit(clsic->state, clsic->service_states);
 
+	/*
+	 * Setting service_states to unloading under the service_lock will
+	 * ensure that the driver does not unload whilst enumerating.
+	 */
+	mutex_lock(&clsic->service_lock);
+	clsic->service_states = CLSIC_UNLOADING;
+	mutex_unlock(&clsic->service_lock);
+
 	if (clsic->state == CLSIC_STATE_DEBUGCONTROL_GRANTED) {
 		/* this put matches the one on grant so the module can exit */
 		pm_runtime_mark_last_busy(clsic->dev);
 		pm_runtime_put_autosuspend(clsic->dev);
 		clsic_irq_enable(clsic);
 	}
-
-	/*
-	 * Setting services state to unloading will allow the device to power
-	 * on but prevent enumeration and reenumeration
-	 */
-	clsic->service_states = CLSIC_UNLOADING;
 
 	/*
 	 * Volatile devices may need to be resumed at this point in time, place
