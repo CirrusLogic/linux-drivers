@@ -333,6 +333,8 @@ int clsic_dev_init(struct clsic *clsic)
 {
 	int ret = 0;
 
+	trace_clsic_dev_init(clsic_bootonload);
+
 	clsic_dbg(clsic, "%p (bootonload: %d)\n", clsic, clsic_bootonload);
 
 	dev_set_drvdata(clsic->dev, clsic);
@@ -511,6 +513,9 @@ void clsic_maintenance(struct work_struct *data)
 	struct clsic *clsic = container_of(data, struct clsic,
 					   maintenance_handler);
 
+	trace_clsic_maintenance(clsic->state, clsic->blrequest,
+				clsic->service_states);
+
 	clsic_dbg(clsic, "States: %s %d %d\n",
 		  clsic_state_to_string(clsic->state),
 		  clsic->blrequest, clsic->service_states);
@@ -576,6 +581,8 @@ int clsic_dev_exit(struct clsic *clsic)
 	struct clsic_service *tmp_handler = NULL;
 	struct clsic_service *next_handler;
 	int i;
+
+	trace_clsic_dev_exit(clsic->state, clsic->service_states);
 
 	if (clsic->state == CLSIC_STATE_DEBUGCONTROL_GRANTED) {
 		/* this put matches the one on grant so the module can exit */
