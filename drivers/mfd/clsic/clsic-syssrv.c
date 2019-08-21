@@ -280,6 +280,14 @@ int clsic_system_service_enumerate(struct clsic *clsic)
 
 	mutex_lock(&clsic->service_lock);
 
+	/* Abandon the enumeration process if signalled by clsic_dev_exit() */
+	if (clsic->service_states == CLSIC_UNLOADING) {
+		mutex_unlock(&clsic->service_lock);
+		clsic_state_set(clsic, CLSIC_STATE_ON,
+				CLSIC_STATE_CHANGE_LOCKNOTHELD);
+		return -EINTR;
+	}
+
 	/*
 	 * If the device reports two services (0 and 1) then suspend services
 	 * from instance 2 onwards as they cannot be present.
