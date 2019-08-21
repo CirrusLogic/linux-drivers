@@ -625,6 +625,55 @@ TRACE_EVENT(clsic_irq,
 	TP_printk("0x%x", __entry->reg)
 );
 
+TRACE_EVENT(clsic_dev_init,
+	TP_PROTO(uint8_t bootonload),
+	TP_ARGS(bootonload),
+	TP_STRUCT__entry(
+		__field(uint8_t, bootonload)
+	),
+	TP_fast_assign(
+		__entry->bootonload = bootonload;
+	),
+	TP_printk("bootonload: %d", __entry->bootonload)
+);
+
+TRACE_EVENT(clsic_dev_exit,
+	TP_PROTO(enum clsic_states state, uint32_t service_states),
+	TP_ARGS(state, service_states),
+	TP_STRUCT__entry(
+		__field(uint8_t, state)
+		__field(uint32_t, service_states)
+	),
+	TP_fast_assign(
+		__entry->state = state;
+		__entry->service_states = service_states;
+	),
+	TP_printk("state: %s (%d) service_states: %d",
+		  clsic_state_to_string(__entry->state),
+		  __entry->state, __entry->service_states)
+);
+
+TRACE_EVENT(clsic_maintenance,
+	TP_PROTO(enum clsic_states state,
+		 enum clsic_blrequests blrequest,
+		 uint32_t service_states
+	),
+	TP_ARGS(state, blrequest, service_states),
+	TP_STRUCT__entry(
+		__field(uint8_t, state)
+		__field(uint8_t, blrequest)
+		__field(uint32_t, service_states)
+	),
+	TP_fast_assign(
+		__entry->state = state;
+		__entry->blrequest = blrequest;
+		__entry->service_states = service_states;
+	),
+	TP_printk("state: %s (%d) blrequest: %d service_states: %d",
+		  clsic_state_to_string(__entry->state),
+		  __entry->state, __entry->blrequest, __entry->service_states)
+);
+
 TRACE_EVENT(clsic_alg_handle_n_irq,
 	TP_PROTO(uint32_t event, int ret),
 	TP_ARGS(event, ret),

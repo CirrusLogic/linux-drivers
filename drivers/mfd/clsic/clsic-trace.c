@@ -51,3 +51,6 @@ EXPORT_TRACEPOINT_SYMBOL(clsic_simirq);
 EXPORT_TRACEPOINT_SYMBOL(clsic_simirq_write_asserted);
 EXPORT_TRACEPOINT_SYMBOL(clsic_simirq_write_deasserted);
 EXPORT_TRACEPOINT_SYMBOL(clsic_irq);
+EXPORT_TRACEPOINT_SYMBOL(clsic_dev_init);
+EXPORT_TRACEPOINT_SYMBOL(clsic_dev_exit);
+EXPORT_TRACEPOINT_SYMBOL(clsic_maintenance);
