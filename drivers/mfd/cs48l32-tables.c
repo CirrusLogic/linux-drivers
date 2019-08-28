@@ -18,6 +18,7 @@
 static const struct reg_sequence cs48l32_reva_patch[] = {
 	{ 0x00001044, 0x0005000f },
 	{ 0x00001c34, 0x000037e8 },
+	{ 0x000046d8, 0x00000fe0 },
 };
 
 int cs48l32_patch(struct tacna *tacna)
