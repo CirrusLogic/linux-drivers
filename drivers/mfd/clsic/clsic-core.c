@@ -462,8 +462,12 @@ int clsic_dev_init(struct clsic *clsic)
 		clsic_irq_disable(clsic);
 		regulator_disable(clsic->vdd_d);
 		pm_runtime_set_suspended(clsic->dev);
+		clsic_state_set(clsic, CLSIC_STATE_OFF,
+				CLSIC_STATE_CHANGE_LOCKNOTHELD);
 	} else {
 		pm_runtime_set_active(clsic->dev);
+		clsic_state_set(clsic, CLSIC_STATE_RESUMING,
+				CLSIC_STATE_CHANGE_LOCKNOTHELD);
 		clsic_boot(clsic);
 
 	}
