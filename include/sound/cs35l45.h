@@ -11,13 +11,17 @@
 #ifndef __CS35L45_H
 #define __CS35L45_H
 
+#define CS35L45_NUM_SUPPLIES 2
+
 struct cs35l45_private {
+	struct wm_adsp dsp; /* needs to be first member */
 	struct device *dev;
 	struct regmap *regmap;
 	struct gpio_desc *reset_gpio;
-	struct regulator_bulk_data supplies[2];
-	int num_supplies;
+	struct regulator_bulk_data supplies[CS35L45_NUM_SUPPLIES];
 	bool initialized;
+	bool halo_booted;
+	struct mutex rate_lock;
 };
 
 int cs35l45_initialize(struct cs35l45_private *cs35l45);
