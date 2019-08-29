@@ -12,12 +12,18 @@
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of_device.h>
-#include <sound/cs35l45.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 
+#include "wm_adsp.h"
 #include "cs35l45.h"
+#include <sound/cs35l45.h>
+
+static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
+	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
+	WM_ADSP_FW_CONTROL("DSP1", 0),
+};
 
 static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("SPK"),
@@ -25,21 +31,6 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{ "SPK", NULL, "Playback" },
-};
-
-static int cs35l45_component_set_sysclk(struct snd_soc_component *component,
-					int clk_id, int source,
-					unsigned int freq, int dir)
-{
-	return 0;
-}
-
-static const struct snd_soc_component_driver cs35l45_component = {
-	.set_sysclk = cs35l45_component_set_sysclk,
-	.dapm_widgets = cs35l45_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(cs35l45_dapm_widgets),
-	.dapm_routes = cs35l45_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(cs35l45_dapm_routes),
 };
 
 static int cs35l45_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
@@ -53,6 +44,7 @@ static const struct snd_soc_dai_ops cs35l45_dai_ops = {
 };
 
 #define CS35L45_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
+			 SNDRV_PCM_FMTBIT_S24_3LE| \
 			 SNDRV_PCM_FMTBIT_S24_LE)
 
 #define CS35L45_RATES	(SNDRV_PCM_RATE_8000  | \
@@ -74,11 +66,110 @@ static struct snd_soc_dai_driver cs35l45_dai = {
 	.ops = &cs35l45_dai_ops,
 };
 
+static int cs35l45_component_set_sysclk(struct snd_soc_component *component,
+					int clk_id, int source,
+					unsigned int freq, int dir)
+{
+	return 0;
+}
+
+static int cs35l45_component_probe(struct snd_soc_component *component)
+{
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(component);
+
+	component->regmap = cs35l45->regmap;
+
+	return wm_adsp2_component_probe(&cs35l45->dsp, component);
+}
+
+static void cs35l45_component_remove(struct snd_soc_component *component)
+{
+	struct cs35l45_private *cs35l45 =
+		snd_soc_component_get_drvdata(component);
+
+	wm_adsp2_component_remove(&cs35l45->dsp, component);
+}
+
+static const struct snd_soc_component_driver cs35l45_component = {
+	.probe = cs35l45_component_probe,
+	.remove = cs35l45_component_remove,
+	.set_sysclk = cs35l45_component_set_sysclk,
+
+	.dapm_widgets = cs35l45_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(cs35l45_dapm_widgets),
+
+	.dapm_routes = cs35l45_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(cs35l45_dapm_routes),
+
+	.controls = cs35l45_aud_controls,
+	.num_controls = ARRAY_SIZE(cs35l45_aud_controls),
+};
+
+static const struct wm_adsp_region cs35l45_dsp1_regions[] = {
+	{ .type = WMFW_HALO_PM_PACKED,	.base = CS35L45_DSP1_PMEM_0 },
+	{ .type = WMFW_HALO_XM_PACKED,	.base = CS35L45_DSP1_XMEM_PACK_0 },
+	{ .type = WMFW_HALO_YM_PACKED,	.base = CS35L45_DSP1_YMEM_PACK_0 },
+	{. type = WMFW_ADSP2_XM,	.base = CS35L45_DSP1_XMEM_UNPACK24_0},
+	{. type = WMFW_ADSP2_YM,	.base = CS35L45_DSP1_YMEM_UNPACK24_0},
+};
+
+static int cs35l45_dsp_init(struct cs35l45_private *cs35l45)
+{
+	struct wm_adsp *dsp;
+	int ret, i;
+
+	dsp = &cs35l45->dsp;
+	dsp->part = "cs35l45";
+	dsp->num = 1;
+	dsp->type = WMFW_HALO;
+	dsp->rev = 0;
+	dsp->dev = cs35l45->dev;
+	dsp->regmap = cs35l45->regmap;
+
+	dsp->base = CS35L45_DSP1_CTRL_BASE;
+	dsp->base_sysinfo = CS35L45_DSP1_SYS_ID;
+	dsp->mem = cs35l45_dsp1_regions;
+	dsp->num_mems = ARRAY_SIZE(cs35l45_dsp1_regions);
+	dsp->lock_regions = 0xFFFFFFFF;
+
+	dsp->n_rx_channels = CS35L45_DSP_N_RX_RATES;
+	dsp->n_tx_channels = CS35L45_DSP_N_TX_RATES;
+
+	mutex_init(&cs35l45->rate_lock);
+	ret = wm_halo_init(dsp, &cs35l45->rate_lock);
+	cs35l45->halo_booted = false;
+
+	for (i = 0; i < CS35L45_DSP_N_RX_RATES; i++)
+		dsp->rx_rate_cache[i] = 0x1;
+	for (i = 0; i < CS35L45_DSP_N_TX_RATES; i++)
+		dsp->tx_rate_cache[i] = 0x1;
+
+	regmap_write(cs35l45->regmap, CS35L45_DSP1RX5_INPUT,
+		     CS35L45_INPUT_SRC_VPMON);
+	regmap_write(cs35l45->regmap, CS35L45_DSP1RX6_INPUT,
+		     CS35L45_INPUT_SRC_CLASSH);
+	regmap_write(cs35l45->regmap, CS35L45_DSP1RX7_INPUT,
+		     CS35L45_INPUT_SRC_TEMPMON);
+	regmap_write(cs35l45->regmap, CS35L45_DSP1RX8_INPUT,
+		     CS35L45_INPUT_SRC_RSVD);
+
+	return ret;
+}
+
 int cs35l45_initialize(struct cs35l45_private *cs35l45)
 {
 	struct device *dev = cs35l45->dev;
 	int ret;
 	u32 dev_id, rev_id;
+
+	regmap_write(cs35l45->regmap, CS35L45_DSP1_CCM_CORE_CONTROL, 0);
+
+	ret = cs35l45_dsp_init(cs35l45);
+	if (ret < 0) {
+		dev_err(dev, "dsp_init failed (%d)\n", ret);
+		return ret;
+	}
 
 	ret = regmap_read(cs35l45->regmap, CS35L45_DEVID, &dev_id);
 	if (ret < 0) {
@@ -112,16 +203,14 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 	for (i = 0; i < ARRAY_SIZE(cs35l45_supplies); i++)
 		cs35l45->supplies[i].supply = cs35l45_supplies[i];
 
-	cs35l45->num_supplies = ARRAY_SIZE(cs35l45_supplies);
-
-	ret = devm_regulator_bulk_get(dev, cs35l45->num_supplies,
+	ret = devm_regulator_bulk_get(dev, CS35L45_NUM_SUPPLIES,
 				      cs35l45->supplies);
-	if (ret != 0) {
+	if (ret) {
 		dev_err(dev, "Failed to request core supplies: %d\n", ret);
 		return ret;
 	}
 
-	ret = regulator_bulk_enable(cs35l45->num_supplies, cs35l45->supplies);
+	ret = regulator_bulk_enable(CS35L45_NUM_SUPPLIES, cs35l45->supplies);
 	if (ret != 0) {
 		dev_err(dev, "Failed to enable core supplies: %d\n", ret);
 		return ret;
@@ -141,17 +230,18 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 			goto err;
 		}
 	}
+
 	if (cs35l45->reset_gpio) {
 		/* satisfy minimum reset pulse width spec */
 		usleep_range(2000, 2100);
 		gpiod_set_value_cansleep(cs35l45->reset_gpio, 1);
 	}
 
-	return snd_soc_register_component(dev, &cs35l45_component,
-					  &cs35l45_dai, 1);
+	return devm_snd_soc_register_component(dev, &cs35l45_component,
+					       &cs35l45_dai, 1);
 
 err:
-	regulator_bulk_disable(cs35l45->num_supplies, cs35l45->supplies);
+	regulator_bulk_disable(CS35L45_NUM_SUPPLIES, cs35l45->supplies);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cs35l45_probe);
@@ -161,7 +251,8 @@ int cs35l45_remove(struct cs35l45_private *cs35l45)
 	if (cs35l45->reset_gpio)
 		gpiod_set_value_cansleep(cs35l45->reset_gpio, 0);
 
-	regulator_bulk_disable(cs35l45->num_supplies, cs35l45->supplies);
+	wm_adsp2_remove(&cs35l45->dsp);
+	regulator_bulk_disable(CS35L45_NUM_SUPPLIES, cs35l45->supplies);
 
 	return 0;
 }
