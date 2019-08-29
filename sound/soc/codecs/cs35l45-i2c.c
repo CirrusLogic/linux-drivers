@@ -11,14 +11,15 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/regulator/consumer.h>
-#include <sound/cs35l45.h>
 
+#include "wm_adsp.h"
 #include "cs35l45.h"
+#include <sound/cs35l45.h>
 
 static struct regmap_config cs35l45_regmap = {
 	.reg_bits = 32,
 	.val_bits = 32,
-	.reg_stride = 4,
+	.reg_stride = CS35L45_REGSTRIDE,
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 	.max_register = CS35L45_LASTREG,
