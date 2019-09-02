@@ -25,11 +25,23 @@
 #define CLSIC_RAS_VAL_BITS	32
 #define CLSIC_RAS_VAL_BYTES	(CLSIC_RAS_VAL_BITS/BITS_PER_BYTE)
 
+
 /*
- * actually is 1024, but using a multiple of 3 and 5 solves issues with
- * accessing packed DSP memories
+ * RAS accesses are in multiples of 32bits and whilst the maximum RAS bulk
+ * transfer size is documented to be 4KB the RAS service in the device has a
+ * 2KB buffer. In practice that means requests larger than 2KB will be split
+ * into multiple read and write operations.
+ *
+ * However, accessing packed DSP memories requires that transactions be
+ * multiples of 3 and 5 which limits the maximum RAS transfer size to these
+ * memory ranges to 1920 bytes.
+ *
+ * It would be possible to detail the memory ranges and restrictions, but for
+ * simplicity the universally acceptable value has been chosen with the
+ * knowledge that it may have performance implications (potentially doubling
+ * the messaging overhead for RAS bulk reads)
  */
-#define CLSIC_RAS_MAX_BULK_SZ	960
+#define CLSIC_RAS_MAX_BULK_SZ_BYTES	1920
 
 /*
  * This service uses the handler data pointer to stash a instance specific data
@@ -371,7 +383,7 @@ static int clsic_ras_read(void *context, const void *reg_buf,
 	clsic = ras->clsic;
 	getnstimeofday(&ts_start);
 
-	for (i = 0; i < val_size; i += CLSIC_RAS_MAX_BULK_SZ) {
+	for (i = 0; i < val_size; i += CLSIC_RAS_MAX_BULK_SZ_BYTES) {
 		/* Format and send a message to the remote access service */
 		if (clsic_init_message((union t_clsic_generic_message *)
 				       &msg_cmd,
@@ -379,7 +391,8 @@ static int clsic_ras_read(void *context, const void *reg_buf,
 				       CLSIC_RAS_MSG_CR_RDREG_BULK))
 			return -EINVAL;
 
-		frag_sz = min(val_size - i, (size_t) CLSIC_RAS_MAX_BULK_SZ);
+		frag_sz = min(val_size - i,
+			      (size_t) CLSIC_RAS_MAX_BULK_SZ_BYTES);
 		msg_cmd.cmd_rdreg_bulk.addr = reg + i;
 		msg_cmd.cmd_rdreg_bulk.byte_count = frag_sz;
 
@@ -481,7 +494,7 @@ static int clsic_ras_write(void *context, const void *val_buf,
 	for (i = 1; i < (val_size / CLSIC_RAS_VAL_BYTES); ++i)
 		values[i - 1] = be32_to_cpu(buf[i]);
 
-	for (i = 0; i < payload_sz; i += CLSIC_RAS_MAX_BULK_SZ) {
+	for (i = 0; i < payload_sz; i += CLSIC_RAS_MAX_BULK_SZ_BYTES) {
 		/* Format and send a message to the remote access service */
 		if (clsic_init_message((union t_clsic_generic_message *)
 				       &msg_cmd,
@@ -491,7 +504,8 @@ static int clsic_ras_write(void *context, const void *val_buf,
 			goto error;
 		}
 
-		frag_sz = min(payload_sz - i, (size_t) CLSIC_RAS_MAX_BULK_SZ);
+		frag_sz = min(payload_sz - i,
+			      (size_t) CLSIC_RAS_MAX_BULK_SZ_BYTES);
 		msg_cmd.blkcmd_wrreg_bulk.addr = addr + i;
 		msg_cmd.blkcmd_wrreg_bulk.hdr.bulk_sz = frag_sz;
 
