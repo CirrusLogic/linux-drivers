@@ -1226,30 +1226,6 @@ const struct soc_enum tacna_output_anc_src[] = {
 };
 EXPORT_SYMBOL_GPL(tacna_output_anc_src);
 
-int tacna_frf_bytes_put(struct snd_kcontrol *kcontrol,
-			struct snd_ctl_elem_value *ucontrol)
-{
-	struct soc_bytes *params = (void *)kcontrol->private_value;
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct tacna *tacna = priv->tacna;
-	int ret, len;
-	void *data;
-
-	len = params->num_regs * component->val_bytes;
-
-	data = kmemdup(ucontrol->value.bytes.data, len, GFP_KERNEL | GFP_DMA);
-	if (!data)
-		return -ENOMEM;
-
-	ret = regmap_raw_write(tacna->regmap, params->base, data, len);
-
-	kfree(data);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(tacna_frf_bytes_put);
-
 const struct soc_enum tacna_asrc1_rate[] = {
 	SOC_VALUE_ENUM_SINGLE(TACNA_ASRC1_CONTROL1,
 			      TACNA_ASRC1_RATE1_SHIFT,
