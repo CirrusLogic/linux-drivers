@@ -311,6 +311,12 @@ static int clsic_alg_read(void *context, const void *reg_buf,
 		msg_cmd.cmd_rdreg_bulk.addr = reg + i;
 		msg_cmd.cmd_rdreg_bulk.byte_count = frag_sz;
 
+		/*
+		 * Fully clear the response message as it can be logged if the
+		 * command fails to send properly and it can be misleading.
+		 */
+		memset(&msg_rsp, 0, CLSIC_FIXED_MSG_SZ);
+
 		ret = clsic_send_msg_sync_pm(
 				    clsic,
 				    (union t_clsic_generic_message *) &msg_cmd,
@@ -431,6 +437,12 @@ static int clsic_alg_write(void *context, const void *val_buf,
 		frag_sz = min(payload_sz - i, (size_t) CLSIC_ALG_MAX_BULK_SZ);
 		msg_cmd.blkcmd_wrreg_bulk.addr = addr + i;
 		msg_cmd.blkcmd_wrreg_bulk.hdr.bulk_sz = frag_sz;
+
+		/*
+		 * Fully clear the response message as it can be logged if the
+		 * command fails to send properly and it can be misleading.
+		 */
+		memset(&msg_rsp, 0, CLSIC_FIXED_MSG_SZ);
 
 		/*
 		 * Clear err to avoid confusion as it is always included in the
