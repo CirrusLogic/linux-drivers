@@ -202,6 +202,8 @@ config DRM_TTM_HELPER
 	help
 	  Helpers for ttm-based gem objects
 
+source "drivers/gpu/drm/ttm/Kconfig"
+
 config DRM_GEM_CMA_HELPER
 	bool
 	depends on DRM
