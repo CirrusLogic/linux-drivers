@@ -376,8 +376,6 @@ static const struct reg_default cs48l32_reg_default[] = {
 	{ 0x0000c000, 0x00000000 }, /* PWM_DRIVE_1 */
 	{ 0x0000c004, 0x00000100 }, /* PWM_DRIVE_2 */
 	{ 0x0000c008, 0x00000100 }, /* PWM_DRIVE_3 */
-	{ 0x00017008, 0x00000000 }, /* DSP1_CTRL_SETUP */
-	{ 0x00017560, 0x00000000 }, /* FLL_DSP_CTRL */
 	{ 0x00018000, 0x00000000 }, /* IRQ1_CFG */
 	{ 0x00018110, 0xffffffff }, /* IRQ1_MASK_1 */
 	{ 0x00018114, 0xfffffff7 }, /* IRQ1_MASK_2 */
@@ -792,7 +790,6 @@ static bool cs48l32_readable_register(struct device *dev, unsigned int reg)
 	case TACNA_PWM_DRIVE_1:
 	case TACNA_PWM_DRIVE_2:
 	case TACNA_PWM_DRIVE_3:
-	case TACNA_DSP1_CTRL_SETUP:
 	case TACNA_DSP1_XM_SRAM_IBUS_SETUP_0:
 	case TACNA_DSP1_XM_SRAM_IBUS_SETUP_1:
 	case TACNA_DSP1_XM_SRAM_IBUS_SETUP_2:
@@ -835,7 +832,6 @@ static bool cs48l32_readable_register(struct device *dev, unsigned int reg)
 	case CS48L32_DSP1_PM_SRAM_IBUS_SETUP_5:
 	case CS48L32_DSP1_PM_SRAM_IBUS_SETUP_6:
 	case CS48L32_DSP1_PM_SRAM_IBUS_SETUP_7:
-	case TACNA_FLL_DSP_CTRL:
 	case TACNA_IRQ1_CFG:
 	case TACNA_IRQ1_STATUS:
 	case TACNA_IRQ1_EINT_1 ... TACNA_IRQ1_EINT_11:
