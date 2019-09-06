@@ -322,7 +322,6 @@ struct tacna_priv {
 	int dspclk;
 	struct tacna_dai_priv dai[TACNA_MAX_DAI];
 
-	int num_inputs;
 	int max_analogue_inputs;
 	int max_pdm_sup;
 	int num_dmic_clksrc;
