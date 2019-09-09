@@ -16,3 +16,25 @@ config VIDEO_MEDIATEK_ISP_PASS1
 		Choose y if you want to use Mediatek SoCs to create image
 		captured application such as video recording and still image
 		capturing.
+
+config VIDEO_MEDIATEK_ISP_DIP
+	tristate "Mediatek Digital Image Processing function"
+	select MTK_SCP
+	depends on VIDEO_MEDIATEK_MDP3
+	select VIDEO_V4L2_SUBDEV_API
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEOBUF2_CORE
+	select VIDEOBUF2_V4L2
+	select VIDEOBUF2_MEMOPS
+	select MEDIA_CONTROLLER
+
+	default n
+	help
+	    Support the basic Digital Image Processing (DIP) driver.
+
+	    DIP driver provides image format conversion, resizing,
+	    and rotation function through the low power hardware.
+	    DIP also supports multiple output feature. It can
+	    generate two or more output image with different effect
+	    based on a single input image at the same time.
+
