@@ -26,10 +26,8 @@ struct clsic_tacna {
 #define CLSIC_TACNA_IRQ_DSP2_3		CLSIC_RAS_IRQ_DSP2_3
 #define CLSIC_TACNA_IRQ_DSP2_COUNT	CLSIC_RAS_IRQ_DSP2_COUNT
 
-extern int clsic_tacna_request_irq(struct tacna *tacna,
-				   unsigned int irq_id, const char *name,
+extern int clsic_tacna_request_irq(struct tacna *tacna, unsigned int irq_id,
 				   irq_handler_t handler, void *data);
 
-extern void clsic_tacna_free_irq(struct tacna *tacna,
-				 unsigned int irq_id, void *data);
+extern void clsic_tacna_free_irq(struct tacna *tacna, unsigned int irq_id);
 #endif

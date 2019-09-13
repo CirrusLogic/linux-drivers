@@ -2039,8 +2039,10 @@ static irqreturn_t clsic_dsp2_irq(int irq, void *data)
 	int ret;
 
 	ret = wm_adsp_compr_handle_irq(&priv->dsp[CLSIC_TRACE_DSP]);
-	if (ret == -ENODEV) {
-		dev_err(priv->dev, "Spurious compressed data IRQ\n");
+	if (ret) {
+		dev_err(priv->dev,
+			"%s(): wm_adsp_compr_handle_irq() returned %d\n",
+			__func__, ret);
 		return IRQ_NONE;
 	}
 
@@ -2268,7 +2270,7 @@ static int clsic_probe(struct platform_device *pdev)
 	dsp->dev = clsic_codec->core.tacna->dev;
 
 	ret = clsic_tacna_request_irq(tacna, CLSIC_TACNA_IRQ_DSP2_0,
-				      "DSP2 IRQ0", clsic_dsp2_irq, clsic_codec);
+				      clsic_dsp2_irq, clsic_codec);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register DSP2 IRQ: %d\n", ret);
 		goto err_dsp2_irq;
@@ -2338,7 +2340,7 @@ err_codec:
 err_plat:
 	wm_adsp2_remove(&clsic_codec->core.dsp[CLSIC_TRACE_DSP]);
 err_dsp2:
-	clsic_tacna_free_irq(tacna, CLSIC_TACNA_IRQ_DSP2_0, clsic_codec);
+	clsic_tacna_free_irq(tacna, CLSIC_TACNA_IRQ_DSP2_0);
 err_dsp2_irq:
 	tacna_core_destroy(&clsic_codec->core);
 
@@ -2356,7 +2358,7 @@ static int clsic_remove(struct platform_device *pdev)
 
 	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
-	clsic_tacna_free_irq(tacna, CLSIC_TACNA_IRQ_DSP2_0, clsic_codec);
+	clsic_tacna_free_irq(tacna, CLSIC_TACNA_IRQ_DSP2_0);
 	pm_runtime_disable(&pdev->dev);
 
 	wm_adsp2_remove(&clsic_codec->core.dsp[CLSIC_TRACE_DSP]);

@@ -30,22 +30,20 @@ static struct mfd_cell clsic_tacna_devs[] = {
  * Each clsic-tacna device is associated with a register access service
  * handler, delegate the IRQ handling to that RAS instance.
  */
-int clsic_tacna_request_irq(struct tacna *tacna,
-			    unsigned int irq_id, const char *name,
+int clsic_tacna_request_irq(struct tacna *tacna, unsigned int irq_id,
 			    irq_handler_t handler, void *data)
 {
 	struct clsic_tacna *clsic_tacna = dev_get_drvdata(tacna->dev);
 
-	return clsic_ras_request_irq(clsic_tacna->ras, irq_id, name, handler,
-				     data);
+	return clsic_ras_request_irq(clsic_tacna->ras, irq_id, handler, data);
 }
 EXPORT_SYMBOL_GPL(clsic_tacna_request_irq);
 
-void clsic_tacna_free_irq(struct tacna *tacna, unsigned int irq_id, void *data)
+void clsic_tacna_free_irq(struct tacna *tacna, unsigned int irq_id)
 {
 	struct clsic_tacna *clsic_tacna = dev_get_drvdata(tacna->dev);
 
-	clsic_ras_free_irq(clsic_tacna->ras, irq_id, data);
+	clsic_ras_free_irq(clsic_tacna->ras, irq_id);
 }
 EXPORT_SYMBOL_GPL(clsic_tacna_free_irq);
 
