@@ -72,11 +72,10 @@ int clsic_ras_reg_write(void *context, unsigned int reg, unsigned int val);
 int clsic_ras_reg_read(void *context, unsigned int reg, unsigned int *val);
 
 extern int clsic_ras_request_irq(struct clsic_ras_struct *ras,
-				 unsigned int irq_id,  const char *name,
-				 irq_handler_t irq_handler,
+				 unsigned int irq_id, irq_handler_t irq_handler,
 				 void *irq_handler_data);
 extern void clsic_ras_free_irq(struct clsic_ras_struct *ras,
-			       unsigned int irq_id, void *irq_handler_data);
+			       unsigned int irq_id);
 
 int clsic_ras_irq_init(struct clsic_ras_struct *ras);
 void clsic_ras_irq_suspend(struct clsic_ras_struct *ras);

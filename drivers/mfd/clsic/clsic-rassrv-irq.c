@@ -43,7 +43,6 @@
  * notification.
  */
 int clsic_ras_request_irq(struct clsic_ras_struct *ras, unsigned int irq_id,
-			  const char *devname,
 			  irq_handler_t irq_handler, void *irq_handler_data)
 {
 	struct clsic_ras_irq *irq;
@@ -77,8 +76,7 @@ int clsic_ras_request_irq(struct clsic_ras_struct *ras, unsigned int irq_id,
 }
 
 /* Free RAS notification IRQ and its handler data */
-void clsic_ras_free_irq(struct clsic_ras_struct *ras,
-			unsigned int irq_id, void *data)
+void clsic_ras_free_irq(struct clsic_ras_struct *ras, unsigned int irq_id)
 {
 	struct clsic_ras_irq *irq = &ras->irqs[irq_id];
 
