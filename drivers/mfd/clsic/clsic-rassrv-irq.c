@@ -28,18 +28,12 @@
  * - REQ: request an interrupt be enabled (may cause immediate notification)
  * - FLUSH_AND_REQ: clear any pending interrupt and then enable it
  * - CANCEL: disable sending interrupt notifications
- *
  * - When an interrupt is signalled to the RAS service in the device a
  *   notification message is sent to the host and the interrupt is disabled.
  *   The host must enable the interrupt to receive another notification.
- *
- * - The RAS service handler exposes the interrupts using the simulated IRQ
- *   infrastructure, this is to maintain compatibility with the conventional
- *   Cirrus DSP driver interfaces.
  * - CLSIC client drivers need to obtain the IRQ using
  *   clsic_tacna_request_irq() and release it with clsic_tacna_free_irq()
  * - The IRQ is either unbound and disabled, or bound and enabled
- * - The IRQ simulator tracks whether an IRQ is unmasked
  * - When an notification is received, once the IRQ is delivered to the client
  *   the worker thread automatically rearms the device
  */
@@ -49,10 +43,9 @@
  * notification.
  */
 int clsic_ras_request_irq(struct clsic_ras_struct *ras, unsigned int irq_id,
-			  const char *devname, irq_handler_t thread_fn,
-			  void *dev_id)
+			  const char *devname,
+			  irq_handler_t irq_handler, void *irq_handler_data)
 {
-	int ret;
 	struct clsic_ras_irq *irq;
 
 	if (irq_id >= CLSIC_RAS_IRQ_COUNT) {
@@ -66,29 +59,28 @@ int clsic_ras_request_irq(struct clsic_ras_struct *ras, unsigned int irq_id,
 	irq = &ras->irqs[irq_id];
 	if (irq->state != CLSIC_RAS_IRQ_STATE_IDLE) {
 		clsic_err(ras->clsic, "IRQ already bound (%d %p %d %pF)",
-			  irq_id, ras, irq->state, thread_fn);
+			  irq_id, ras, irq->state, irq_handler);
 		mutex_unlock(&ras->irq_mutex);
 		return -EBUSY;
 	}
 
-	irq->simirq_id = irq_sim_irqnum(&ras->irqsim, irq_id);
-	ret = request_threaded_irq(irq->simirq_id, NULL, thread_fn,
-				   IRQF_ONESHOT, devname, dev_id);
-	if (ret == 0) {
-		irq->state = CLSIC_RAS_IRQ_STATE_ENABLING;
-		queue_work(system_unbound_wq, &irq->work);
-	}
+	irq->state = CLSIC_RAS_IRQ_STATE_ENABLING;
+
+	irq->irq_handler = irq_handler;
+	irq->irq_handler_data = irq_handler_data;
+
+	queue_work(system_unbound_wq, &irq->work_statechange);
 
 	mutex_unlock(&ras->irq_mutex);
 
-	return ret;
+	return 0;
 }
 
 /* Free RAS notification IRQ and its handler data */
 void clsic_ras_free_irq(struct clsic_ras_struct *ras,
 			unsigned int irq_id, void *data)
 {
-	struct clsic_ras_irq *irq;
+	struct clsic_ras_irq *irq = &ras->irqs[irq_id];
 
 	if (irq_id >= CLSIC_RAS_IRQ_COUNT) {
 		clsic_err(ras->clsic,
@@ -97,29 +89,50 @@ void clsic_ras_free_irq(struct clsic_ras_struct *ras,
 		return;
 	}
 
+	flush_work(&irq->work_callback);
+	flush_work(&irq->work_statechange);
+
 	mutex_lock(&ras->irq_mutex);
-	irq = &ras->irqs[irq_id];
 	irq->state = CLSIC_RAS_IRQ_STATE_DISABLING;
-	queue_work(system_unbound_wq, &irq->work);
+	queue_work(system_unbound_wq, &irq->work_statechange);
 	mutex_unlock(&ras->irq_mutex);
 
-	flush_work(&irq->work);
+	flush_work(&irq->work_statechange);
 
 	mutex_lock(&ras->irq_mutex);
-	free_irq(irq->simirq_id, data);
+
 	if (irq->state == CLSIC_RAS_IRQ_STATE_DISABLED)
 		irq->state = CLSIC_RAS_IRQ_STATE_IDLE;
 
 	mutex_unlock(&ras->irq_mutex);
 }
 
+static void clsic_ras_irq_callback(struct work_struct *data)
+{
+	struct clsic_ras_irq *irq = container_of(data, struct clsic_ras_irq,
+						 work_callback);
+	struct clsic_ras_struct *ras = irq->ras;
+	irqreturn_t ret;
+
+	ret = irq->irq_handler(irq->id, irq->irq_handler_data);
+
+	if (ret != IRQ_HANDLED)
+		clsic_err(ras->clsic, "fn: %pF ret: %d", irq->irq_handler, ret);
+
+	/*
+	 * The RAS service automatically masks the IRQ as the notification is
+	 * sent, trigger the worker to to re-enable the interrupt.
+	 */
+	queue_work(system_unbound_wq, &irq->work_statechange);
+}
+
 /*
  * Send a message to update the state of the RAS IRQ
  */
-static void clsic_ras_irq_worker(struct work_struct *data)
+static void clsic_ras_irq_statechanger(struct work_struct *data)
 {
 	struct clsic_ras_irq *irq = container_of(data, struct clsic_ras_irq,
-						 work);
+						 work_statechange);
 	struct clsic_ras_struct *ras = irq->ras;
 	struct clsic *clsic = ras->clsic;
 	union clsic_ras_msg msg_cmd;
@@ -179,7 +192,7 @@ static void clsic_ras_irq_worker(struct work_struct *data)
 				   msg_rsp.rsp_set_irq_nty_mode.hdr.err);
 
 	mutex_unlock(&ras->irq_mutex);
-};
+}
 
 /*
  * This method initialises the RAS IRQs and creates a mapping with the virtual
@@ -189,13 +202,6 @@ int clsic_ras_irq_init(struct clsic_ras_struct *ras)
 {
 	struct clsic_ras_irq *irq;
 	unsigned int i;
-	int ret;
-
-	ret = irq_sim_init(&ras->irqsim, CLSIC_RAS_IRQ_COUNT);
-	if (ret != 0) {
-		clsic_err(ras->clsic, "irq_sim_init() failed %d\n", ret);
-		return ret;
-	}
 
 	mutex_init(&ras->irq_mutex);
 	for (i = 0; i < CLSIC_RAS_IRQ_COUNT; i++) {
@@ -203,7 +209,9 @@ int clsic_ras_irq_init(struct clsic_ras_struct *ras)
 		irq->id = CLSIC_RAS_IRQ_DSP2_0 + 0;
 		irq->ras = ras;
 		irq->state = CLSIC_RAS_IRQ_STATE_IDLE;
-		INIT_WORK(&irq->work, clsic_ras_irq_worker);
+
+		INIT_WORK(&irq->work_callback, clsic_ras_irq_callback);
+		INIT_WORK(&irq->work_statechange, clsic_ras_irq_statechanger);
 	}
 
 	return 0;
@@ -220,6 +228,7 @@ void clsic_ras_irq_handler(struct clsic *clsic,
 	unsigned int irq_id;
 	struct clsic_ras_irq *irq;
 	bool trigger_worker = false;
+	bool queued = false;
 
 	irq_id = nty_msg->nty_irq.irq_id;
 	if (irq_id >= CLSIC_RAS_IRQ_COUNT) {
@@ -250,17 +259,17 @@ void clsic_ras_irq_handler(struct clsic *clsic,
 	if (!trigger_worker)
 		return;
 
-	/* Make sure worker thread has no pending work */
-	flush_work(&irq->work);
-
-	/* trigger the simulated IRQ (invokes callback function) */
-	irq_sim_fire(&ras->irqsim, irq_id);
-
 	/*
-	 * The RAS service automatically masks the IRQ as the notification is
-	 * sent, trigger the worker to to re-enable the interrupt.
+	 * Invoke the callback function - make sure that this particular
+	 * handler call causes a callback by making sure that queue_work adds
+	 * to the work queue
 	 */
-	queue_work(system_unbound_wq, &irq->work);
+	do {
+		queued = queue_work(system_unbound_wq, &irq->work_callback);
+		if (!queued)
+			flush_work(&irq->work_callback);
+	} while (!queued);
+
 }
 
 /*
@@ -273,8 +282,10 @@ void clsic_ras_irq_suspend(struct clsic_ras_struct *ras)
 {
 	int i;
 
-	for (i = 0; i < CLSIC_RAS_IRQ_COUNT; i++)
-		flush_work(&ras->irqs[i].work);
+	for (i = 0; i < CLSIC_RAS_IRQ_COUNT; i++) {
+		flush_work(&ras->irqs[i].work_callback);
+		flush_work(&ras->irqs[i].work_statechange);
+	}
 }
 
 /*
@@ -287,5 +298,5 @@ void clsic_ras_irq_resume(struct clsic_ras_struct *ras)
 	for (i = 0; i < CLSIC_RAS_IRQ_COUNT; i++)
 		if (ras->irqs[i].state != CLSIC_RAS_IRQ_STATE_IDLE)
 			queue_work(system_unbound_wq,
-				   &ras->irqs[i].work);
+				   &ras->irqs[i].work_statechange);
 }

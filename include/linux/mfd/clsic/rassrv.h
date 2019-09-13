@@ -14,7 +14,6 @@
 
 #include <linux/mfd/clsic/clsicmessagedefines_RAS.h>
 #include <linux/mfd/tacna/pdata.h>
-#include <linux/irq_sim.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 
@@ -36,10 +35,13 @@ enum clsic_ras_irq_state {
 
 struct clsic_ras_irq {
 	unsigned int id;
-	int simirq_id;
 	enum clsic_ras_irq_state state;
 
-	struct work_struct work;
+	struct work_struct work_callback;
+	struct work_struct work_statechange;
+	irq_handler_t irq_handler;
+	void *irq_handler_data;
+
 	struct clsic_ras_struct *ras;
 };
 
@@ -62,7 +64,6 @@ struct clsic_ras_struct {
 	 */
 	struct mutex irq_mutex;
 	struct clsic_ras_irq irqs[CLSIC_RAS_IRQ_COUNT];
-	struct irq_sim irqsim;
 };
 
 int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler);
@@ -71,10 +72,11 @@ int clsic_ras_reg_write(void *context, unsigned int reg, unsigned int val);
 int clsic_ras_reg_read(void *context, unsigned int reg, unsigned int *val);
 
 extern int clsic_ras_request_irq(struct clsic_ras_struct *ras,
-				 unsigned int irq_id, const char *name,
-				 irq_handler_t handler, void *data);
+				 unsigned int irq_id,  const char *name,
+				 irq_handler_t irq_handler,
+				 void *irq_handler_data);
 extern void clsic_ras_free_irq(struct clsic_ras_struct *ras,
-			       unsigned int irq_id, void *data);
+			       unsigned int irq_id, void *irq_handler_data);
 
 int clsic_ras_irq_init(struct clsic_ras_struct *ras);
 void clsic_ras_irq_suspend(struct clsic_ras_struct *ras);
