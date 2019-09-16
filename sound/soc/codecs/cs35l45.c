@@ -25,12 +25,82 @@ static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 	WM_ADSP_FW_CONTROL("DSP1", 0),
 };
 
+static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
+				struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component =
+		snd_soc_dapm_to_component(w->dapm);
+	struct cs35l45_private *cs35l45 =
+		snd_soc_component_get_drvdata(component);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		if (cs35l45->halo_booted == false)
+			wm_adsp_early_event(w, kcontrol, event);
+		else
+			cs35l45->dsp.booted = true;
+
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		if (cs35l45->halo_booted == false) {
+			wm_adsp_early_event(w, kcontrol, event);
+			wm_adsp_event(w, kcontrol, event);
+		}
+		break;
+	}
+
+	return 0;
+}
+
+static int cs35l45_dsp_load_ev(struct snd_soc_dapm_widget *w,
+			       struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component =
+		snd_soc_dapm_to_component(w->dapm);
+	struct cs35l45_private *cs35l45 =
+		snd_soc_component_get_drvdata(component);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		if (cs35l45->halo_booted == false) {
+			wm_adsp_event(w, kcontrol, event);
+			cs35l45->halo_booted = true;
+		}
+		break;
+	}
+
+	return 0;
+}
+
+static const char * const cs35l45_pcm_source_texts[] = {"ASP", "DSP"};
+static const unsigned int cs35l45_pcm_source_values[] = {0x08, 0x32};
+
+static SOC_VALUE_ENUM_SINGLE_DECL(cs35l45_pcm_source_enum,
+				  CS35L45_DACPCM1_INPUT,
+				  0, CS35L45_ASP_SOURCE_MASK,
+				  cs35l45_pcm_source_texts,
+				  cs35l45_pcm_source_values);
+
+static const struct snd_kcontrol_new pcm_source_mux =
+	SOC_DAPM_ENUM("PCM Source", cs35l45_pcm_source_enum);
+
 static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
+	SND_SOC_DAPM_SPK("DSP1 Preload", NULL),
+	SND_SOC_DAPM_SUPPLY_S("DSP1 Preloader", 100, SND_SOC_NOPM, 0, 0,
+			      cs35l45_dsp_power_ev,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_OUT_DRV_E("DSP1", SND_SOC_NOPM, 0, 0, NULL, 0,
+			       cs35l45_dsp_load_ev, SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_MUX("PCM Source", SND_SOC_NOPM, 0, 0, &pcm_source_mux),
 	SND_SOC_DAPM_OUTPUT("SPK"),
 };
 
 static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
-	{ "SPK", NULL, "Playback" },
+	{"DSP1 Preload", NULL, "DSP1 Preloader"},
+	{"DSP1", NULL, "DSP1 Preloader"},
+	{"PCM Source", "DSP", "DSP1"},
+	{"PCM Source", "ASP", "Playback"},
+	{"SPK", NULL, "PCM Source"},
 };
 
 static int cs35l45_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
