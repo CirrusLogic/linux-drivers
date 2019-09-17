@@ -1913,6 +1913,7 @@ static void clsic_message_worker(struct work_struct *data)
 
 	mutex_lock(&clsic->message_lock);
 
+#ifdef CONFIG_DEBUG_FS
 	/*
 	 * If debugcontrol is requested (but not asserted, as that would have
 	 * been handled earlier), check whether there are any outstanding
@@ -1950,6 +1951,7 @@ static void clsic_message_worker(struct work_struct *data)
 	} else if (clsic->state == CLSIC_STATE_DEBUGCONTROL_GRANTED) {
 		goto unlock_return;
 	}
+#endif
 
 	/*
 	 * If there is no message currently being handled then try to start one
