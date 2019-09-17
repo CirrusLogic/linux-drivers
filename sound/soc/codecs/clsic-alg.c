@@ -307,7 +307,7 @@ static int clsic_alg_read(void *context, const void *reg_buf,
 				       CLSIC_RAS_MSG_CR_RDREG_BULK))
 			return -EINVAL;
 
-		frag_sz = min(val_size - i, (size_t) CLSIC_ALG_MAX_BULK_SZ);
+		frag_sz = min_t(size_t, val_size - i, CLSIC_ALG_MAX_BULK_SZ);
 		msg_cmd.cmd_rdreg_bulk.addr = reg + i;
 		msg_cmd.cmd_rdreg_bulk.byte_count = frag_sz;
 
@@ -434,7 +434,7 @@ static int clsic_alg_write(void *context, const void *val_buf,
 			goto error;
 		}
 
-		frag_sz = min(payload_sz - i, (size_t) CLSIC_ALG_MAX_BULK_SZ);
+		frag_sz = min_t(size_t, payload_sz - i, CLSIC_ALG_MAX_BULK_SZ);
 		msg_cmd.blkcmd_wrreg_bulk.addr = addr + i;
 		msg_cmd.blkcmd_wrreg_bulk.hdr.bulk_sz = frag_sz;
 
