@@ -519,13 +519,13 @@ static ssize_t clsic_custom_message_write(struct file *file,
 	 * size will vary depending on whether it is a fsm or bulk response.
 	 */
 	if (clsic_get_bulk_bit(msg_p->rsp.hdr.sbc) == 1) {
-		clsic_dbg(clsic, "bulk ret %d err 0x%xp size 0x%x\n",
+		clsic_dbg(clsic, "bulk ret %zu err 0x%xp size 0x%x\n",
 			  ret, msg_p->bulk_rsp.hdr.err,
 			  msg_p->bulk_rsp.hdr.bulk_sz);
 		custom_msg->len = CLSIC_FIXED_MSG_SZ +
 			msg_p->bulk_rsp.hdr.bulk_sz;
 	} else {
-		clsic_dbg(clsic, "fsm ret %d err 0x%x\n",
+		clsic_dbg(clsic, "fsm ret %zu err 0x%x\n",
 			  ret, msg_p->rsp.hdr.err);
 		custom_msg->len = CLSIC_FIXED_MSG_SZ;
 	}
@@ -1860,7 +1860,7 @@ static void clsic_message_worker_bulktx(struct clsic *clsic,
 	union clsic_sys_msg *syssrv_msg =
 		(union clsic_sys_msg *) &msg->response;
 	size_t remaining;
-	size_t sending;
+	uint32_t sending;
 	int ret;
 
 	/*
@@ -1877,7 +1877,8 @@ static void clsic_message_worker_bulktx(struct clsic *clsic,
 
 	remaining = msg->bulk_txbuf_maxsize -
 		(msg->bulk_txbuf_marker - msg->bulk_txbuf);
-	sending = min(syssrv_msg->nty_rxdma_sts.slice_sz, remaining);
+	sending = min_t(uint32_t, syssrv_msg->nty_rxdma_sts.slice_sz,
+			remaining);
 
 	if (sending != 0) {
 		trace_clsic_fifo_writebulk(sending, remaining);

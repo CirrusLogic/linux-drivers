@@ -391,8 +391,8 @@ static int clsic_ras_read(void *context, const void *reg_buf,
 				       CLSIC_RAS_MSG_CR_RDREG_BULK))
 			return -EINVAL;
 
-		frag_sz = min(val_size - i,
-			      (size_t) CLSIC_RAS_MAX_BULK_SZ_BYTES);
+		frag_sz = min_t(size_t, val_size - i,
+				CLSIC_RAS_MAX_BULK_SZ_BYTES);
 		msg_cmd.cmd_rdreg_bulk.addr = reg + i;
 		msg_cmd.cmd_rdreg_bulk.byte_count = frag_sz;
 
@@ -473,7 +473,7 @@ static int clsic_ras_write(void *context, const void *val_buf,
 	payload_sz = val_size - CLSIC_RAS_REG_BYTES;
 	if ((val_size & (CLSIC_RAS_REG_BYTES - 1)) != 0) {
 		clsic_err(clsic,
-			  "error: context %p val_buf %p, val_size %d",
+			  "error: context %p val_buf %p, val_size %zd",
 			  context, val_buf, val_size);
 		clsic_err(clsic, "0x%x 0x%x 0x%x ",
 			  buf[CLSIC_FSM0], buf[CLSIC_FSM1], buf[CLSIC_FSM2]);
@@ -504,8 +504,8 @@ static int clsic_ras_write(void *context, const void *val_buf,
 			goto error;
 		}
 
-		frag_sz = min(payload_sz - i,
-			      (size_t) CLSIC_RAS_MAX_BULK_SZ_BYTES);
+		frag_sz = min_t(size_t, payload_sz - i,
+				CLSIC_RAS_MAX_BULK_SZ_BYTES);
 		msg_cmd.blkcmd_wrreg_bulk.addr = addr + i;
 		msg_cmd.blkcmd_wrreg_bulk.hdr.bulk_sz = frag_sz;
 
@@ -814,7 +814,7 @@ int clsic_ras_start(struct clsic *clsic, struct clsic_service *handler)
 	clsic_devs[0].platform_data = &(handler->service_instance);
 	clsic_devs[0].pdata_size = sizeof(uint8_t);
 
-	clsic_dbg(clsic, "mfd cell 0: %p %s %p %d\n",
+	clsic_dbg(clsic, "mfd cell 0: %p %s %p %zd\n",
 		  &clsic_devs[0],
 		  clsic_devs[0].name,
 		  clsic_devs[0].platform_data,

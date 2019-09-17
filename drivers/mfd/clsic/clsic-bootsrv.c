@@ -199,7 +199,7 @@ static const int clsic_bootsrv_fwfile_info(struct clsic *clsic,
 	 * firmware file.
 	 */
 	if (firmware->size < sizeof(struct clsic_fwheader)) {
-		clsic_info(clsic, "Firmware file %s too small %d\n",
+		clsic_info(clsic, "Firmware file %s too small %zd\n",
 			   filename, firmware->size);
 		ret = -EINVAL;
 		goto release_exit;
@@ -364,10 +364,10 @@ static int clsic_bootsrv_sendfile(struct clsic *clsic,
 		goto exit;
 	}
 
-	clsic_dbg(clsic, "%s len: %d\n", filename, firmware->size);
+	clsic_dbg(clsic, "%s len: %zd\n", filename, firmware->size);
 
 	if (firmware->size < sizeof(struct clsic_fwheader)) {
-		clsic_err(clsic, "Firmware file '%s' too small %d\n",
+		clsic_err(clsic, "Firmware file '%s' too small %zd\n",
 			  filename, firmware->size);
 		ret = -EINVAL;
 		bootsrv->fwupdate_status = FWUPDATE_INVALID;
