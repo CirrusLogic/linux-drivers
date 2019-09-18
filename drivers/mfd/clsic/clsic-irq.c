@@ -141,8 +141,8 @@ int clsic_irq_init(struct clsic *clsic)
 
 	irq_data = irq_get_irq_data(clsic->irq);
 	if (irq_data == NULL) {
-		clsic_err(clsic, "Invalid IRQ: %d\n", clsic->irq);
-		return -EINVAL;
+		clsic_err(clsic, "Can't get IRQ: %d\n", clsic->irq);
+		return -EPROBE_DEFER;
 	}
 	flags |= irqd_get_trigger_type(irq_data);
 
@@ -151,6 +151,7 @@ int clsic_irq_init(struct clsic *clsic)
 	if (ret != 0) {
 		clsic_err(clsic, "Failed to request primary IRQ %d: %d\n",
 			  clsic->irq, ret);
+		return -EPROBE_DEFER;
 	}
 
 #ifdef CONFIG_DEBUG_FS
