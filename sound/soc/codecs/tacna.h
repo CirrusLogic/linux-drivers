@@ -105,7 +105,7 @@
 #define TACNA_IN_VU_SHIFT			29
 #define TACNA_IN_VU_WIDTH			 1
 
-#define TACNA_MAX_DAI			11
+#define TACNA_MAX_DAI			12
 #define TACNA_MAX_DSP			2
 
 #define TACNA_NUM_MIXER_INPUTS		139
@@ -149,7 +149,7 @@
 			     tacna_mixer_tlv)
 
 #define TACNA_MUX_ENUM_DECL(name, reg) \
-	SOC_VALUE_ENUM_SINGLE_AUTODISABLE_DECL( \
+	SOC_VALUE_ENUM_SINGLE_DECL( \
 		name, reg, 0, TACNA_MIXER_SRC_MASK, \
 		tacna_mixer_texts, tacna_mixer_values)
 

@@ -124,7 +124,7 @@ static const struct gpio_chip template_chip = {
 static int tacna_gpio_probe(struct platform_device *pdev)
 {
 	struct tacna *tacna = dev_get_drvdata(pdev->dev.parent);
-	struct tacna_pdata *pdata = dev_get_platdata(tacna->dev);
+	struct tacna_pdata *pdata = &tacna->pdata;
 	struct tacna_gpio *tacna_gpio;
 	int ret;
 
@@ -146,6 +146,7 @@ static int tacna_gpio_probe(struct platform_device *pdev)
 	case CS47L97:
 		tacna_gpio->gpio_chip.ngpio = CS47L96_NUM_GPIOS;
 		break;
+	case CS48L31:
 	case CS48L32:
 	case CS48L33:
 		tacna_gpio->gpio_chip.ngpio = CS48L32_NUM_GPIOS;
@@ -155,7 +156,7 @@ static int tacna_gpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (pdata && pdata->gpio_base)
+	if (pdata->gpio_base)
 		tacna_gpio->gpio_chip.base = pdata->gpio_base;
 	else
 		tacna_gpio->gpio_chip.base = -1;

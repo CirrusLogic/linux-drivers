@@ -601,6 +601,7 @@ static unsigned int tacna_pin_make_drv_str(struct tacna_pin_private *priv,
 	switch (priv->tacna->type) {
 	case CS47L96:
 	case CS47L97:
+	case CS48L31:
 	case CS48L32:
 	case CS48L33:
 		switch (milliamps) {
@@ -643,6 +644,7 @@ static unsigned int tacna_pin_unmake_drv_str(struct tacna_pin_private *priv,
 	switch (priv->tacna->type) {
 	case CS47L96:
 	case CS47L97:
+	case CS48L31:
 	case CS48L32:
 	case CS48L33:
 		switch (regval) {
@@ -1115,7 +1117,7 @@ static struct pinctrl_desc tacna_pin_desc = {
 static int tacna_pin_probe(struct platform_device *pdev)
 {
 	struct tacna *tacna = dev_get_drvdata(pdev->dev.parent);
-	const struct tacna_pdata *pdata = dev_get_platdata(tacna->dev);
+	const struct tacna_pdata *pdata = &tacna->pdata;
 	struct tacna_pin_private *priv;
 	int ret;
 
@@ -1139,6 +1141,7 @@ static int tacna_pin_probe(struct platform_device *pdev)
 		priv->chip = &cs47l96_pin_chip;
 #endif
 		break;
+	case CS48L31:
 	case CS48L32:
 	case CS48L33:
 #ifdef CONFIG_PINCTRL_CS48L32
@@ -1166,7 +1169,7 @@ static int tacna_pin_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (pdata && pdata->gpio_configs) {
+	if (pdata->gpio_configs) {
 		ret = pinctrl_register_mappings(pdata->gpio_configs,
 						pdata->n_gpio_configs);
 		dev_err(priv->dev, "Failed to register pdata mappings (%d)\n",

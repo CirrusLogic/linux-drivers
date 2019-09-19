@@ -18,6 +18,7 @@
 static const struct reg_sequence cs48l32_reva_patch[] = {
 	{ 0x00001044, 0x0005000f },
 	{ 0x00001c34, 0x000037e8 },
+	{ 0x000046d8, 0x00000fe0 },
 };
 
 int cs48l32_patch(struct tacna *tacna)
@@ -100,8 +101,8 @@ static const struct reg_default cs48l32_reg_default[] = {
 	{ 0x00004310, 0x00010008 }, /* AUXPDM2_CONTROL1 */
 	{ 0x00004688, 0x00000000 }, /* ADC1L_ANA_CONTROL1 */
 	{ 0x0000468c, 0x00000000 }, /* ADC1R_ANA_CONTROL1 */
-	{ 0x000046a0, 0x00000300 }, /* ADC1L_LP_CONTROL1 */
-	{ 0x000046a4, 0x00000300 }, /* ADC1R_LP_CONTROL1 */
+	{ 0x000046a0, 0x00000000 }, /* ADC1L_LP_CONTROL1 */
+	{ 0x000046a4, 0x00000000 }, /* ADC1R_LP_CONTROL1 */
 	{ 0x00006000, 0x00000000 }, /* ASP1_ENABLES1 */
 	{ 0x00006004, 0x00000028 }, /* ASP1_CONTROL1 */
 	{ 0x00006008, 0x18180200 }, /* ASP1_CONTROL2 */
