@@ -422,7 +422,7 @@ static int esdfs_setattr(struct dentry *dentry, struct iattr *ia)
 #endif
 		i_size_write(inode, newsize);
 #if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
-		spin_lock(&inode->i_lock);
+		spin_unlock(&inode->i_lock);
 #endif
 		if (newsize > oldsize)
 			pagecache_isize_extended(inode, oldsize, newsize);
