@@ -640,57 +640,6 @@ static const struct snd_soc_component_driver cs35l45_component = {
 	.num_controls = ARRAY_SIZE(cs35l45_aud_controls),
 };
 
-static const struct wm_adsp_region cs35l45_dsp1_regions[] = {
-	{ .type = WMFW_HALO_PM_PACKED,	.base = CS35L45_DSP1_PMEM_0 },
-	{ .type = WMFW_HALO_XM_PACKED,	.base = CS35L45_DSP1_XMEM_PACK_0 },
-	{ .type = WMFW_HALO_YM_PACKED,	.base = CS35L45_DSP1_YMEM_PACK_0 },
-	{. type = WMFW_ADSP2_XM,	.base = CS35L45_DSP1_XMEM_UNPACK24_0},
-	{. type = WMFW_ADSP2_YM,	.base = CS35L45_DSP1_YMEM_UNPACK24_0},
-};
-
-static int cs35l45_dsp_init(struct cs35l45_private *cs35l45)
-{
-	struct wm_adsp *dsp;
-	int ret, i;
-
-	dsp = &cs35l45->dsp;
-	dsp->part = "cs35l45";
-	dsp->num = 1;
-	dsp->type = WMFW_HALO;
-	dsp->rev = 0;
-	dsp->dev = cs35l45->dev;
-	dsp->regmap = cs35l45->regmap;
-
-	dsp->base = CS35L45_DSP1_CTRL_BASE;
-	dsp->base_sysinfo = CS35L45_DSP1_SYS_ID;
-	dsp->mem = cs35l45_dsp1_regions;
-	dsp->num_mems = ARRAY_SIZE(cs35l45_dsp1_regions);
-	dsp->lock_regions = 0xFFFFFFFF;
-
-	dsp->n_rx_channels = CS35L45_DSP_N_RX_RATES;
-	dsp->n_tx_channels = CS35L45_DSP_N_TX_RATES;
-
-	mutex_init(&cs35l45->rate_lock);
-	ret = wm_halo_init(dsp, &cs35l45->rate_lock);
-	cs35l45->halo_booted = false;
-
-	for (i = 0; i < CS35L45_DSP_N_RX_RATES; i++)
-		dsp->rx_rate_cache[i] = 0x1;
-	for (i = 0; i < CS35L45_DSP_N_TX_RATES; i++)
-		dsp->tx_rate_cache[i] = 0x1;
-
-	regmap_write(cs35l45->regmap, CS35L45_DSP1RX5_INPUT,
-		     CS35L45_INPUT_SRC_VPMON);
-	regmap_write(cs35l45->regmap, CS35L45_DSP1RX6_INPUT,
-		     CS35L45_INPUT_SRC_CLASSH);
-	regmap_write(cs35l45->regmap, CS35L45_DSP1RX7_INPUT,
-		     CS35L45_INPUT_SRC_TEMPMON);
-	regmap_write(cs35l45->regmap, CS35L45_DSP1RX8_INPUT,
-		     CS35L45_INPUT_SRC_RSVD);
-
-	return ret;
-}
-
 int cs35l45_initialize(struct cs35l45_private *cs35l45)
 {
 	struct device *dev = cs35l45->dev;
@@ -717,12 +666,6 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 		CS35L45_DSP1_CCM_CORE_CONTROL,
 		CS35L45_CCM_CORE_EN_MASK, 0);
 
-	ret = cs35l45_dsp_init(cs35l45);
-	if (ret < 0) {
-		dev_err(dev, "dsp_init failed (%d)\n", ret);
-		return ret;
-	}
-
 	ret = regmap_read(cs35l45->regmap, CS35L45_DEVID, &dev_id);
 	if (ret < 0) {
 		dev_err(dev, "Get Device ID failed\n");
@@ -744,6 +687,45 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 }
 EXPORT_SYMBOL_GPL(cs35l45_initialize);
 
+static const struct wm_adsp_region cs35l45_dsp1_regions[] = {
+	{ .type = WMFW_HALO_PM_PACKED,	.base = CS35L45_DSP1_PMEM_0 },
+	{ .type = WMFW_HALO_XM_PACKED,	.base = CS35L45_DSP1_XMEM_PACK_0 },
+	{ .type = WMFW_HALO_YM_PACKED,	.base = CS35L45_DSP1_YMEM_PACK_0 },
+	{. type = WMFW_ADSP2_XM,	.base = CS35L45_DSP1_XMEM_UNPACK24_0},
+	{. type = WMFW_ADSP2_YM,	.base = CS35L45_DSP1_YMEM_UNPACK24_0},
+};
+
+static int cs35l45_dsp_init(struct cs35l45_private *cs35l45)
+{
+	struct wm_adsp *dsp = &cs35l45->dsp;
+	int ret, i;
+
+	dsp->part = "cs35l45";
+	dsp->num = 1;
+	dsp->type = WMFW_HALO;
+	dsp->rev = 0;
+	dsp->dev = cs35l45->dev;
+	dsp->regmap = cs35l45->regmap;
+	dsp->base = CS35L45_DSP1_CTRL_BASE;
+	dsp->base_sysinfo = CS35L45_DSP1_SYS_ID;
+	dsp->mem = cs35l45_dsp1_regions;
+	dsp->num_mems = ARRAY_SIZE(cs35l45_dsp1_regions);
+	dsp->lock_regions = 0xFFFFFFFF;
+	dsp->n_rx_channels = CS35L45_DSP_N_RX_RATES;
+	dsp->n_tx_channels = CS35L45_DSP_N_TX_RATES;
+
+	mutex_init(&cs35l45->rate_lock);
+	ret = wm_halo_init(dsp, &cs35l45->rate_lock);
+
+	for (i = 0; i < CS35L45_DSP_N_RX_RATES; i++)
+		dsp->rx_rate_cache[i] = 0x1;
+
+	for (i = 0; i < CS35L45_DSP_N_TX_RATES; i++)
+		dsp->tx_rate_cache[i] = 0x1;
+
+	return ret;
+}
+
 static const char * const cs35l45_supplies[] = {"VA", "VP"};
 
 int cs35l45_probe(struct cs35l45_private *cs35l45)
@@ -757,13 +739,13 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 
 	ret = devm_regulator_bulk_get(dev, CS35L45_NUM_SUPPLIES,
 				      cs35l45->supplies);
-	if (ret) {
+	if (ret < 0) {
 		dev_err(dev, "Failed to request core supplies: %d\n", ret);
 		return ret;
 	}
 
 	ret = regulator_bulk_enable(CS35L45_NUM_SUPPLIES, cs35l45->supplies);
-	if (ret != 0) {
+	if (ret < 0) {
 		dev_err(dev, "Failed to enable core supplies: %d\n", ret);
 		return ret;
 	}
@@ -787,10 +769,12 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 		gpiod_set_value_cansleep(cs35l45->reset_gpio, 0);
 		usleep_range(2000, 2100);
 		gpiod_set_value_cansleep(cs35l45->reset_gpio, 1);
-	} else {
-		regmap_write(cs35l45->regmap, CS35L45_SFT_RESET,
-			     CS35L45_SOFT_RESET_TRIGGER);
-		usleep_range(2000, 2100);
+	}
+
+	ret = cs35l45_dsp_init(cs35l45);
+	if (ret < 0) {
+		dev_err(dev, "dsp_init failed: %d\n", ret);
+		goto err;
 	}
 
 	return devm_snd_soc_register_component(dev, &cs35l45_component,
