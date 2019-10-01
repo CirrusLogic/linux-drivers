@@ -14,6 +14,7 @@
 #include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
+#include <sound/pcm_params.h>
 #include <sound/soc.h>
 
 #include "wm_adsp.h"
@@ -514,10 +515,187 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"SPK", NULL, "DACPCM Source"},
 };
 
+static int cs35l45_halo_booted_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = cs35l45->halo_booted;
+
+	return 0;
+}
+
+static int cs35l45_halo_booted_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(component);
+
+	cs35l45->halo_booted = ucontrol->value.integer.value[0];
+
+	return 0;
+}
+
+static const char * const gain_texts[] = {"10dB", "13dB", "16dB", "19dB"};
+static const unsigned int gain_values[] = {0x00, 0x01, 0x02, 0x03};
+
+static SOC_VALUE_ENUM_SINGLE_DECL(gain_enum, CS35L45_AMP_GAIN,
+			CS35L45_AMP_GAIN_PCM_SHIFT,
+			CS35L45_AMP_GAIN_PCM_MASK >> CS35L45_AMP_GAIN_PCM_SHIFT,
+			gain_texts, gain_values);
+
 static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
 	WM_ADSP_FW_CONTROL("DSP1", 0),
+	SOC_ENUM("AMP PCM Gain", gain_enum),
+	SOC_SINGLE_EXT("DSP Booted", SND_SOC_NOPM, 0, 1, 0,
+			cs35l45_halo_booted_get, cs35l45_halo_booted_put),
 };
+
+static int cs35l45_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
+{
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(codec_dai->component);
+	unsigned int asp_fmt, fsync_inv, bclk_inv, master_mode;
+
+	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	case SND_SOC_DAIFMT_CBM_CFM:
+		master_mode = 1;
+		break;
+	case SND_SOC_DAIFMT_CBS_CFS:
+		master_mode = 0;
+		break;
+	default:
+		dev_warn(cs35l45->dev, "Mixed master mode unsupported (%d)\n",
+			 fmt & SND_SOC_DAIFMT_MASTER_MASK);
+		return -EINVAL;
+	}
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_ASP_CONTROL2,
+			   CS35L45_ASP_BCLK_MSTR_MASK,
+			   master_mode << CS35L45_ASP_BCLK_MSTR_SHIFT);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_ASP_CONTROL2,
+			   CS35L45_ASP_FSYNC_MSTR_MASK,
+			   master_mode << CS35L45_ASP_FSYNC_MSTR_SHIFT);
+
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_DSP_A:
+		asp_fmt = 0;
+		break;
+	case SND_SOC_DAIFMT_I2S:
+		asp_fmt = 2;
+		break;
+	default:
+		dev_warn(cs35l45->dev, "Unsupported DAI format (%d)\n",
+			 fmt & SND_SOC_DAIFMT_FORMAT_MASK);
+		return -EINVAL;
+	}
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_ASP_CONTROL2,
+			   CS35L45_ASP_FMT_MASK,
+			   asp_fmt << CS35L45_ASP_FMT_SHIFT);
+
+	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+	case SND_SOC_DAIFMT_NB_IF:
+		fsync_inv = 1;
+		bclk_inv = 0;
+		break;
+	case SND_SOC_DAIFMT_IB_NF:
+		fsync_inv = 0;
+		bclk_inv = 1;
+		break;
+	case SND_SOC_DAIFMT_IB_IF:
+		fsync_inv = 1;
+		bclk_inv = 1;
+		break;
+	case SND_SOC_DAIFMT_NB_NF:
+		fsync_inv = 0;
+		bclk_inv = 0;
+		break;
+	default:
+		dev_warn(cs35l45->dev, "Invalid clock polarity (%d)\n",
+			 fmt & SND_SOC_DAIFMT_INV_MASK);
+		return -EINVAL;
+	}
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_ASP_CONTROL2,
+			   CS35L45_ASP_FSYNC_INV_MASK,
+			   fsync_inv << CS35L45_ASP_FSYNC_INV_SHIFT);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_ASP_CONTROL2,
+			   CS35L45_ASP_BCLK_INV_MASK,
+			   bclk_inv << CS35L45_ASP_BCLK_INV_SHIFT);
+
+	return 0;
+}
+
+static int cs35l45_dai_hw_params(struct snd_pcm_substream *substream,
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *dai)
+{
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(dai->component);
+	unsigned int asp_width, asp_wl, global_fs;
+
+	switch (params_rate(params)) {
+	case 8000:
+		global_fs = CS35L45_8_KHZ;
+		break;
+	case 16000:
+		global_fs = CS35L45_16_KHZ;
+		break;
+	case 44100:
+		global_fs = CS35L45_44P100_KHZ;
+		break;
+	case 48000:
+		global_fs = CS35L45_48P0_KHZ;
+		break;
+	case 88200:
+		global_fs = CS35L45_88P200_KHZ;
+		break;
+	case 96000:
+		global_fs = CS35L45_96P0_KHZ;
+		break;
+	default:
+		dev_warn(cs35l45->dev, "Unsupported params rate (%d)\n",
+			 params_rate(params));
+		return -EINVAL;
+	}
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_SAMPLE_RATE,
+			   CS35L45_GLOBAL_FS_MASK,
+			   global_fs << CS35L45_GLOBAL_FS_SHIFT);
+
+	asp_wl = params_width(params);
+	asp_width = params_physical_width(params);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		regmap_update_bits(cs35l45->regmap, CS35L45_ASP_CONTROL2,
+				   CS35L45_ASP_WIDTH_RX_MASK,
+				   asp_width << CS35L45_ASP_WIDTH_RX_SHIFT);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_ASP_DATA_CONTROL5,
+				   CS35L45_ASP_WL_MASK,
+				   asp_wl << CS35L45_ASP_WL_SHIFT);
+	} else {
+		regmap_update_bits(cs35l45->regmap, CS35L45_ASP_CONTROL2,
+				   CS35L45_ASP_WIDTH_TX_MASK,
+				   asp_width << CS35L45_ASP_WIDTH_TX_SHIFT);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_ASP_DATA_CONTROL1,
+				   CS35L45_ASP_WL_MASK,
+				   asp_wl << CS35L45_ASP_WL_SHIFT);
+
+	}
+
+	return 0;
+}
 
 static int cs35l45_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 				  unsigned int freq, int dir)
@@ -560,6 +738,8 @@ static void cs35l45_dai_shutdown(struct snd_pcm_substream *substream,
 static const struct snd_soc_dai_ops cs35l45_dai_ops = {
 	.startup = cs35l45_dai_startup,
 	.shutdown = cs35l45_dai_shutdown,
+	.set_fmt = cs35l45_dai_set_fmt,
+	.hw_params = cs35l45_dai_hw_params,
 	.set_sysclk = cs35l45_dai_set_sysclk,
 };
 
