@@ -476,6 +476,20 @@ TRACE_EVENT(clsic_pm,
 			)
 );
 
+TRACE_EVENT(clsic_custom_message_write,
+	TP_PROTO(int ret),
+	TP_ARGS(ret),
+	TP_STRUCT__entry(
+		__field(int, ret)
+	),
+	TP_fast_assign(
+		__entry->ret = ret;
+	),
+	TP_printk("ret = %d",
+		__entry->ret
+	)
+);
+
 TRACE_EVENT(clsic_msgproc_shutdown_schedule,
 	TP_PROTO(int ret),
 	TP_ARGS(ret),

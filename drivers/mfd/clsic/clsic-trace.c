@@ -31,6 +31,7 @@ EXPORT_TRACEPOINT_SYMBOL(clsic_ras_fastwrite);
 EXPORT_TRACEPOINT_SYMBOL(clsic_ras_irq_change);
 EXPORT_TRACEPOINT_SYMBOL(clsic_ras_irq_event);
 EXPORT_TRACEPOINT_SYMBOL(clsic_pm);
+EXPORT_TRACEPOINT_SYMBOL(clsic_custom_message_write);
 EXPORT_TRACEPOINT_SYMBOL(clsic_msgproc_shutdown_schedule);
 EXPORT_TRACEPOINT_SYMBOL(clsic_msgproc_shutdown_cancel);
 EXPORT_TRACEPOINT_SYMBOL(clsic_alg_simple_writeregister);
