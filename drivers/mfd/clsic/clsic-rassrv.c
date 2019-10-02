@@ -25,7 +25,6 @@
 #define CLSIC_RAS_VAL_BITS	32
 #define CLSIC_RAS_VAL_BYTES	(CLSIC_RAS_VAL_BITS/BITS_PER_BYTE)
 
-
 /*
  * RAS accesses are in multiples of 32bits and whilst the maximum RAS bulk
  * transfer size is documented to be 4KB the RAS service in the device has a
@@ -153,12 +152,19 @@ static int clsic_ras_simple_readregister(struct clsic_ras_struct *ras,
 				  CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
 				  CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
 
-	/*
-	 *  Clients to this function can't interpret detailed error codes so
-	 *  map errors to -EIO
-	 */
 	clsic_dbg(clsic, "ret: %d addr: 0x%x status %d\n", ret, address,
 		  msg_rsp.rsp_rdreg.hdr.err);
+
+	trace_clsic_ras_simpleread(msg_cmd.cmd_rdreg.addr,
+				   msg_rsp.rsp_rdreg.value,
+				   ret,
+				   msg_rsp.rsp_rdreg.hdr.err,
+				   clsic_time_end(&ts_start, &ts_end));
+
+	/*
+	 * Clients to this function can't interpret detailed error codes so
+	 * map errors to -EIO
+	 */
 	if ((ret != 0) || (msg_rsp.rsp_rdreg.hdr.err != 0)) {
 		ret = -EIO;
 	} else {
@@ -173,10 +179,6 @@ static int clsic_ras_simple_readregister(struct clsic_ras_struct *ras,
 		*value = cpu_to_be32(msg_rsp.rsp_rdreg.value);
 	}
 
-	trace_clsic_ras_simpleread(msg_cmd.cmd_rdreg.addr,
-				   msg_rsp.rsp_rdreg.value, ret,
-				   msg_rsp.rsp_rdreg.hdr.err,
-				   clsic_time_end(&ts_start, &ts_end));
 	return ret;
 }
 
@@ -258,7 +260,6 @@ static int clsic_ras_fastwrite(struct clsic_ras_struct *ras,
 
 	++ras->fastwrite_counter;
 
-
 	trace_clsic_ras_fastwrite(address, value, ret, ras->fastwrite_counter,
 				  clsic_time_end(&ts_start, &ts_end));
 
@@ -304,21 +305,25 @@ static int clsic_ras_simple_writeregister(struct clsic_ras_struct *ras,
 				  (union t_clsic_generic_message *) &msg_rsp,
 				  CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
 				  CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
-	/*
-	 *  Clients to this function can't interpret detailed error codes so
-	 *  map errors to -EIO
-	 */
+
 	clsic_dbg(clsic, "ret: %d addr: 0x%x status %d\n", ret, address,
 		  msg_rsp.rsp_wrreg.hdr.err);
+
+	trace_clsic_ras_simplewrite(msg_cmd.cmd_wrreg.addr,
+				    msg_cmd.cmd_wrreg.value,
+				    ret,
+				    msg_rsp.rsp_wrreg.hdr.err,
+				    clsic_time_end(&ts_start, &ts_end));
+
+	/*
+	 * Clients to this function can't interpret detailed error codes so
+	 * map errors to -EIO
+	 */
 	if ((ret != 0) || (msg_rsp.rsp_wrreg.hdr.err != 0))
 		ret = -EIO;
 	else /* The request succeeded */
 		ras->fastwrite_counter = 0;
 
-	trace_clsic_ras_simplewrite(msg_cmd.cmd_wrreg.addr,
-				    msg_cmd.cmd_wrreg.value,
-				    ret, msg_rsp.rsp_wrreg.hdr.err,
-				    clsic_time_end(&ts_start, &ts_end));
 	return ret;
 }
 
@@ -409,34 +414,35 @@ static int clsic_ras_read(void *context, const void *reg_buf,
 				    CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
 				    val_buf + i, frag_sz);
 
-		/*
-		 *  Clients to this function can't interpret detailed error
-		 *  codes so map errors to -EIO
-		 */
-		if (ret != 0)
-			ret = -EIO;
-		else if ((clsic_get_bulk_bit(msg_rsp.rsp_rdreg_bulk.hdr.sbc)
-			  == 0) && (msg_rsp.rsp_rdreg_bulk.hdr.err != 0)) {
-			err = msg_rsp.rsp_rdreg_bulk.hdr.err;
-			ret = -EIO;
-		} else if (msg_rsp.blkrsp_rdreg_bulk.hdr.err != 0) {
-			err = msg_rsp.blkrsp_rdreg_bulk.hdr.err;
-			ret = -EIO;
-		} else
-			/* The request succeeded */
-			ras->fastwrite_counter = 0;
+		if (ret == 0) {
+			/*
+			 * The message exchange succeeded, look for errors in
+			 * the headers
+			 */
+			if ((clsic_get_bulk_bit(msg_rsp.rsp_rdreg_bulk.hdr.sbc)
+			     == 0) && (msg_rsp.rsp_rdreg_bulk.hdr.err != 0))
+				err = msg_rsp.rsp_rdreg_bulk.hdr.err;
+			else if (msg_rsp.blkrsp_rdreg_bulk.hdr.err != 0)
+				err = msg_rsp.blkrsp_rdreg_bulk.hdr.err;
+			else
+				/* The request succeeded */
+				ras->fastwrite_counter = 0;
+		}
 
 		clsic_dbg(clsic, "ret: %d addr: 0x%x err: %d\n", ret,
-			  msg_cmd.cmd_rdreg_bulk.addr,
-			  err);
+			  msg_cmd.cmd_rdreg_bulk.addr, err);
 
 		trace_clsic_ras_bulkread(msg_cmd.cmd_rdreg_bulk.addr,
 					 msg_cmd.cmd_rdreg_bulk.byte_count,
 					 ret, err, i + frag_sz, val_size,
 					 clsic_time_end(&ts_start, &ts_end));
 
-		if (ret != 0)
-			return ret;
+		/*
+		 * Clients to this function can't interpret detailed error
+		 * codes so map errors to -EIO
+		 */
+		if ((ret != 0) || (err != 0))
+			return -EIO;
 	}
 
 	/*
@@ -522,6 +528,9 @@ static int clsic_ras_write(void *context, const void *val_buf,
 				    ((const u8 *) values) + i, frag_sz,
 				    CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
 
+		clsic_dbg(clsic, "addr: 0x%x status %d ret: %d\n",
+			  addr, msg_rsp.rsp_wrreg_bulk.hdr.err, ret);
+
 		trace_clsic_ras_bulkwrite(msg_cmd.blkcmd_wrreg_bulk.addr,
 					  msg_cmd.blkcmd_wrreg_bulk.hdr.bulk_sz,
 					  ret, msg_rsp.rsp_wrreg_bulk.hdr.err,
@@ -529,12 +538,10 @@ static int clsic_ras_write(void *context, const void *val_buf,
 					  clsic_time_end(&ts_start, &ts_end));
 
 		/*
-		 *  Clients to this function can't interpret detailed error
-		 *  codes so map errors to -EIO
+		 * Clients to this function can't interpret detailed error
+		 * codes so map errors to -EIO
 		 */
 		if ((ret != 0) || (msg_rsp.rsp_wrreg_bulk.hdr.err != 0)) {
-			clsic_dbg(clsic, "addr: 0x%x status %d\n", addr,
-				  msg_rsp.rsp_wrreg_bulk.hdr.err);
 			ret = -EIO;
 			goto error;
 		}
