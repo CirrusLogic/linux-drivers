@@ -452,6 +452,8 @@ struct wm_adsp_compr_buf {
 	struct wm_adsp *dsp;
 	struct wm_adsp_compr *compr;
 
+	int num_regions;
+	const struct wm_adsp_buffer_region_def *region_defs;
 	struct wm_adsp_buffer_region *regions;
 	u32 host_buf_ptr;
 
@@ -460,8 +462,6 @@ struct wm_adsp_compr_buf {
 	int read_index;
 	int avail;
 	int host_buf_mem_type;
-	int num_regions;
-	const struct wm_adsp_buffer_region_def *region_def;
 
 	char *name;
 };
@@ -4047,11 +4047,11 @@ static int wm_adsp_buffer_populate(struct wm_adsp_compr_buf *buf)
 	case WMFW_ADSP2:
 	case WMFW_HALO:
 		buf->num_regions = ARRAY_SIZE(default_regions);
-		buf->region_def = default_regions;
+		buf->region_defs = default_regions;
 		break;
 	case WMFW_VPU:
 		buf->num_regions = ARRAY_SIZE(vpu_regions);
-		buf->region_def = vpu_regions;
+		buf->region_defs = vpu_regions;
 		break;
 	default:
 		return -EINVAL;
@@ -4066,14 +4066,14 @@ static int wm_adsp_buffer_populate(struct wm_adsp_compr_buf *buf)
 		region = &buf->regions[i];
 
 		region->offset = offset;
-		region->mem_type = buf->region_def[i].mem_type;
+		region->mem_type = buf->region_defs[i].mem_type;
 
-		ret = wm_adsp_buffer_read(buf, buf->region_def[i].base_offset,
+		ret = wm_adsp_buffer_read(buf, buf->region_defs[i].base_offset,
 					  &region->base_addr);
 		if (ret < 0)
 			return ret;
 
-		ret = wm_adsp_buffer_read(buf, buf->region_def[i].size_offset,
+		ret = wm_adsp_buffer_read(buf, buf->region_defs[i].size_offset,
 					  &offset);
 		if (ret < 0)
 			return ret;
