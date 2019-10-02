@@ -538,6 +538,7 @@ static ssize_t clsic_custom_message_write(struct file *file,
 	 * the response to determine whether there was a failure at the
 	 * protocol level.
 	 */
+	trace_clsic_custom_message_write(ret);
 	if (ret != 0)
 		return ret;
 
