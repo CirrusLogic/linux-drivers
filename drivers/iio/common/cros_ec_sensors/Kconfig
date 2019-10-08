@@ -49,3 +49,13 @@ config IIO_CROS_EC_SENSORS_RING
 	  the sensor hub.
 	  A single device with a buffer will collect all samples produced
 	  by the sensors managed by the CroEC sensor hub.
+
+config IIO_CROS_EC_SENSORS_SYNC
+	tristate "ChromeOS EC Counter Sensors"
+	depends on IIO_CROS_EC_SENSORS_CORE
+	help
+	  Module to handle synchronisation sensors presented by the ChromeOS EC
+	  Sensor hub.
+	  Synchronisation sensors are counter sensors that are triggered when
+	  events occurs from other subsystems. They are use to synchronised
+	  those subsystem with existing MEMS sensors, like gyroscope.

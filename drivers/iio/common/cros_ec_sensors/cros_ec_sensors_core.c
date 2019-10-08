@@ -31,6 +31,7 @@
 static char *cros_ec_loc[] = {
 	[MOTIONSENSE_LOC_BASE] = "base",
 	[MOTIONSENSE_LOC_LID] = "lid",
+	[MOTIONSENSE_LOC_CAMERA] = "camera",
 	[MOTIONSENSE_LOC_MAX] = "unknown",
 };
 
@@ -91,6 +92,14 @@ static void get_default_min_max_freq(enum motionsensor_type type,
 	case MOTIONSENSE_TYPE_BARO:
 		*min_freq = 250;
 		*max_freq = 20000;
+		break;
+	case MOTIONSENSE_TYPE_SYNC:
+		/*
+		 * Frequency for sync/counter sensors is overloaded for
+		 * enable/disable.
+		 */
+		*min_freq = 0;
+		*max_freq = 1;
 		break;
 	case MOTIONSENSE_TYPE_ACTIVITY:
 	default:
