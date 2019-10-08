@@ -36,6 +36,7 @@ struct cs35l45_private {
 	struct gpio_desc *reset_gpio;
 	struct regulator_bulk_data supplies[CS35L45_NUM_SUPPLIES];
 	struct cs35l45_platform_data pdata;
+	int irq;
 	bool initialized;
 	bool halo_booted;
 	struct mutex rate_lock;
