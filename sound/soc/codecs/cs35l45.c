@@ -820,6 +820,119 @@ static const struct snd_soc_component_driver cs35l45_component = {
 	.num_controls = ARRAY_SIZE(cs35l45_aud_controls),
 };
 
+static int cs35l45_apply_of_data(struct cs35l45_private *cs35l45)
+{
+	struct cs35l45_platform_data *pdata = &cs35l45->pdata;
+	struct gpio_ctrl *gpios[] = {&pdata->gpio_ctrl1, &pdata->gpio_ctrl2,
+				     &pdata->gpio_ctrl3};
+	unsigned int gpio_regs[] = {CS35L45_GPIO1_CTRL1, CS35L45_GPIO2_CTRL1,
+				    CS35L45_GPIO3_CTRL1};
+	unsigned int pad_regs[] = {CS35L45_SYNC_GPIO1,
+				   CS35L45_INTB_GPIO2_MCLK_REF, CS35L45_GPIO3};
+	unsigned int val;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(gpios); i++) {
+		if (!gpios[i]->is_present)
+			continue;
+
+		if (gpios[i]->dir & CS35L45_VALID_PDATA) {
+			val = gpios[i]->dir & (~CS35L45_VALID_PDATA);
+			regmap_update_bits(cs35l45->regmap, gpio_regs[i],
+					   CS35L45_GPIO_DIR_MASK,
+					   val << CS35L45_GPIO_DIR_SHIFT);
+		}
+
+		if (gpios[i]->lvl & CS35L45_VALID_PDATA) {
+			val = gpios[i]->lvl & (~CS35L45_VALID_PDATA);
+			regmap_update_bits(cs35l45->regmap, gpio_regs[i],
+					   CS35L45_GPIO_LVL_MASK,
+					   val << CS35L45_GPIO_LVL_SHIFT);
+		}
+
+		if (gpios[i]->op_cfg & CS35L45_VALID_PDATA) {
+			val = gpios[i]->op_cfg & (~CS35L45_VALID_PDATA);
+			regmap_update_bits(cs35l45->regmap, gpio_regs[i],
+					   CS35L45_GPIO_OP_CFG_MASK,
+					   val << CS35L45_GPIO_OP_CFG_SHIFT);
+		}
+
+		if (gpios[i]->pol & CS35L45_VALID_PDATA) {
+			val = gpios[i]->pol & (~CS35L45_VALID_PDATA);
+			regmap_update_bits(cs35l45->regmap, gpio_regs[i],
+					   CS35L45_GPIO_POL_MASK,
+					   val << CS35L45_GPIO_POL_SHIFT);
+		}
+
+		if (gpios[i]->ctrl & CS35L45_VALID_PDATA) {
+			val = gpios[i]->ctrl & (~CS35L45_VALID_PDATA);
+			regmap_update_bits(cs35l45->regmap, pad_regs[i],
+					   CS35L45_GPIO_CTRL_MASK,
+					   val << CS35L45_GPIO_CTRL_SHIFT);
+		}
+
+		if (gpios[i]->invert & CS35L45_VALID_PDATA) {
+			val = gpios[i]->invert & (~CS35L45_VALID_PDATA);
+			regmap_update_bits(cs35l45->regmap, pad_regs[i],
+					   CS35L45_GPIO_INVERT_MASK,
+					   val << CS35L45_GPIO_INVERT_SHIFT);
+		}
+	}
+
+	return 0;
+}
+
+static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
+{
+	struct cs35l45_platform_data *pdata = &cs35l45->pdata;
+	struct device_node *node = cs35l45->dev->of_node;
+	struct device_node *child;
+	struct gpio_ctrl *gpios[] = {&pdata->gpio_ctrl1, &pdata->gpio_ctrl2,
+				     &pdata->gpio_ctrl3};
+	unsigned int val;
+	char of_name[32];
+	int ret, i;
+
+	if (!node)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(gpios); i++) {
+		sprintf(of_name, "cirrus,gpio-ctrl%d", i + 1);
+		child = of_get_child_by_name(node, of_name);
+		gpios[i]->is_present = child ? true : false;
+		if (!gpios[i]->is_present)
+			continue;
+
+		ret = of_property_read_u32(child, "gpio-dir", &val);
+		if (!ret)
+			gpios[i]->dir = val | CS35L45_VALID_PDATA;
+
+		ret = of_property_read_u32(child, "gpio-lvl", &val);
+		if (!ret)
+			gpios[i]->lvl = val | CS35L45_VALID_PDATA;
+
+		ret = of_property_read_u32(child, "gpio-op-cfg", &val);
+		if (!ret)
+			gpios[i]->op_cfg = val | CS35L45_VALID_PDATA;
+
+		ret = of_property_read_u32(child, "gpio-pol", &val);
+		if (!ret)
+			gpios[i]->pol = val | CS35L45_VALID_PDATA;
+
+		ret = of_property_read_u32(child, "gpio-ctrl", &val);
+		if (!ret)
+			gpios[i]->ctrl = val | CS35L45_VALID_PDATA;
+
+		ret = of_property_read_u32(child, "gpio-invert", &val);
+		if (!ret)
+			gpios[i]->invert = val | CS35L45_VALID_PDATA;
+
+		of_node_put(child);
+	}
+
+	return 0;
+}
+
 int cs35l45_initialize(struct cs35l45_private *cs35l45)
 {
 	struct device *dev = cs35l45->dev;
@@ -845,6 +958,12 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 	regmap_update_bits(cs35l45->regmap,
 		CS35L45_DSP1_CCM_CORE_CONTROL,
 		CS35L45_CCM_CORE_EN_MASK, 0);
+
+	ret = cs35l45_apply_of_data(cs35l45);
+	if (ret < 0) {
+		dev_err(dev, "applying OF data failed (%d)\n", ret);
+		return ret;
+	}
 
 	ret = regmap_read(cs35l45->regmap, CS35L45_DEVID, &dev_id);
 	if (ret < 0) {
@@ -954,6 +1073,12 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 	ret = cs35l45_dsp_init(cs35l45);
 	if (ret < 0) {
 		dev_err(dev, "dsp_init failed: %d\n", ret);
+		goto err;
+	}
+
+	ret = cs35l45_parse_of_data(cs35l45);
+	if (ret < 0) {
+		dev_err(dev, "parsing OF data failed: %d\n", ret);
 		goto err;
 	}
 
