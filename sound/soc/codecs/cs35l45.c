@@ -820,6 +820,33 @@ static const struct snd_soc_component_driver cs35l45_component = {
 	.num_controls = ARRAY_SIZE(cs35l45_aud_controls),
 };
 
+static irqreturn_t cs35l45_irq(int irq, void *data)
+{
+	struct cs35l45_private *cs35l45 = data;
+	unsigned int irq_regs[] = {CS35L45_IRQ1_EINT_1, CS35L45_IRQ1_EINT_2,
+				   CS35L45_IRQ1_EINT_3, CS35L45_IRQ1_EINT_4,
+				   CS35L45_IRQ1_EINT_5, CS35L45_IRQ1_EINT_7,
+				   CS35L45_IRQ1_EINT_8, CS35L45_IRQ1_EINT_18};
+	unsigned int status[8];
+	unsigned int masks[8];
+	unsigned int i;
+	bool irq_detect = false;
+
+	if (!cs35l45->initialized)
+		return IRQ_NONE;
+
+	for (i = 0; i < ARRAY_SIZE(irq_regs); i++) {
+		regmap_read(cs35l45->regmap, irq_regs[i], &status[i]);
+		regmap_read(cs35l45->regmap, irq_regs[i], &masks[i]);
+		irq_detect |= (status[i] & (~masks[i]));
+	}
+
+	if (!irq_detect)
+		return IRQ_NONE;
+
+	return IRQ_HANDLED;
+}
+
 static int cs35l45_apply_of_data(struct cs35l45_private *cs35l45)
 {
 	struct cs35l45_platform_data *pdata = &cs35l45->pdata;
@@ -1030,6 +1057,7 @@ static const char * const cs35l45_supplies[] = {"VA", "VP"};
 int cs35l45_probe(struct cs35l45_private *cs35l45)
 {
 	struct device *dev = cs35l45->dev;
+	unsigned long irq_pol = IRQF_ONESHOT;
 	int ret;
 	u32 i;
 
@@ -1081,6 +1109,14 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 		dev_err(dev, "parsing OF data failed: %d\n", ret);
 		goto err;
 	}
+
+	irq_pol |= cs35l45->pdata.gpio_ctrl2.pol ? IRQF_TRIGGER_HIGH :
+						   IRQF_TRIGGER_LOW;
+
+	ret = devm_request_threaded_irq(dev, cs35l45->irq, NULL, cs35l45_irq,
+					irq_pol, "cs35l45", cs35l45);
+	if (ret < 0)
+		dev_warn(cs35l45->dev, "Failed to request IRQ: %d\n", ret);
 
 	return devm_snd_soc_register_component(dev, &cs35l45_component,
 					       &cs35l45_dai, 1);
