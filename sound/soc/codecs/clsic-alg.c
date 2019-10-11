@@ -128,8 +128,8 @@ static int clsic_alg_set_irq_notify_mode(struct clsic_alg *alg,
 		  id, mode, msg_rsp.rsp_set_irq_nty_mode.hdr.err, ret);
 
 	/*
-	 *  Clients to this function can't interpret detailed error codes so
-	 *  map error to -EIO
+	 * Clients to this function can't interpret detailed error codes so
+	 * map error to -EIO
 	 */
 	if ((ret != 0) || (msg_rsp.rsp_set_irq_nty_mode.hdr.err != 0))
 		ret = -EIO;
@@ -173,25 +173,25 @@ static int clsic_alg_simple_readregister(struct clsic_alg *alg,
 				     CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
 				     CLSIC_NO_RXBUF, CLSIC_NO_RXBUF_LEN);
 
-
 	clsic_dbg(alg->clsic, "addr: 0x%x val: 0x%x status %d ret %d\n",
 		  address,
 		  msg_rsp.rsp_rdreg.value,
 		  msg_rsp.rsp_rdreg.hdr.err,
 		  ret);
-	/*
-	 *  Clients to this function can't interpret detailed error codes so
-	 *  map error to -EIO
-	 */
-	if ((ret != 0) || (msg_rsp.rsp_rdreg.hdr.err != 0))
-		ret = -EIO;
-	else
-		*value = cpu_to_be32(msg_rsp.rsp_rdreg.value);
 
 	trace_clsic_alg_simple_readregister(msg_cmd.cmd_rdreg.addr,
 					    msg_rsp.rsp_rdreg.value, ret,
 					    msg_rsp.rsp_rdreg.hdr.err,
 					    clsic_time_end(&ts_start, &ts_end));
+
+	/*
+	 * Clients to this function can't interpret detailed error codes so
+	 * map error to -EIO
+	 */
+	if ((ret != 0) || (msg_rsp.rsp_rdreg.hdr.err != 0))
+		ret = -EIO;
+	else
+		*value = cpu_to_be32(msg_rsp.rsp_rdreg.value);
 
 	return ret;
 }
@@ -243,17 +243,19 @@ static int clsic_alg_simple_writeregister(struct clsic_alg *alg,
 		  msg_rsp.rsp_wrreg.hdr.err,
 		  ret);
 
-	/*
-	 *  Clients to this function can't interpret detailed error codes so
-	 *  map error to -EIO
-	 */
-	if ((ret != 0) || (msg_rsp.rsp_wrreg.hdr.err != 0))
-		ret = -EIO;
 
 	trace_clsic_alg_simple_writeregister(msg_cmd.cmd_wrreg.addr,
 					     msg_cmd.cmd_wrreg.value,
 					     ret, msg_rsp.rsp_wrreg.hdr.err,
 					    clsic_time_end(&ts_start, &ts_end));
+
+	/*
+	 * Clients to this function can't interpret detailed error codes so
+	 * map error to -EIO
+	 */
+	if ((ret != 0) || (msg_rsp.rsp_wrreg.hdr.err != 0))
+		ret = -EIO;
+
 	return ret;
 }
 
@@ -324,33 +326,32 @@ static int clsic_alg_read(void *context, const void *reg_buf,
 				    CLSIC_NO_TXBUF, CLSIC_NO_TXBUF_LEN,
 				    (uint8_t *)val_buf + i, frag_sz);
 
-		/*
-		 *  Clients to this function can't interpret detailed error
-		 *  codes so map error to -EIO
-		 */
-		if (ret != 0) {
-			clsic_dbg(clsic, "0x%x ret %d\n", reg, ret);
-			ret = -EIO;
-		} else if ((clsic_get_bulk_bit(msg_rsp.rsp_rdreg_bulk.hdr.sbc)
-			    == 0) && (msg_rsp.rsp_rdreg_bulk.hdr.err != 0)) {
-			clsic_dbg(clsic, "rsp addr: 0x%x status %d\n", reg,
-				  msg_rsp.rsp_rdreg_bulk.hdr.err);
-			err = msg_rsp.rsp_rdreg_bulk.hdr.err;
-			ret = -EIO;
-		} else if (msg_rsp.blkrsp_rdreg_bulk.hdr.err != 0) {
-			clsic_dbg(clsic, "blkrsp addr: 0x%x status %d\n", reg,
-				  msg_rsp.blkrsp_rdreg_bulk.hdr.err);
-			err = msg_rsp.blkrsp_rdreg_bulk.hdr.err;
-			ret = -EIO;
+		if (ret == 0) {
+			/*
+			 * The message exchange succeeded, look for errors in
+			 * the headers
+			 */
+			if ((clsic_get_bulk_bit(msg_rsp.rsp_rdreg_bulk.hdr.sbc)
+			     == 0) && (msg_rsp.rsp_rdreg_bulk.hdr.err != 0))
+				err = msg_rsp.rsp_rdreg_bulk.hdr.err;
+			else if (msg_rsp.blkrsp_rdreg_bulk.hdr.err != 0)
+				err = msg_rsp.blkrsp_rdreg_bulk.hdr.err;
 		}
 
-		trace_clsic_alg_read(msg_cmd.cmd_rdreg_bulk.addr,
-					 msg_cmd.cmd_rdreg_bulk.byte_count,
-					 ret, err, i + frag_sz, val_size,
-					 clsic_time_end(&ts_start, &ts_end));
+		clsic_dbg(clsic, "ret: %d addr: 0x%x err: %d\n", ret,
+			  msg_cmd.cmd_rdreg_bulk.addr, err);
 
-		if (ret != 0)
-			return ret;
+		trace_clsic_alg_read(msg_cmd.cmd_rdreg_bulk.addr,
+				     msg_cmd.cmd_rdreg_bulk.byte_count,
+				     ret, err, i + frag_sz, val_size,
+				     clsic_time_end(&ts_start, &ts_end));
+
+		/*
+		 * Clients to this function can't interpret detailed error
+		 * codes so map errors to -EIO
+		 */
+		if ((ret != 0) || (err != 0))
+			return -EIO;
 	}
 	/*
 	 * The regmap bus is declared as BIG endian but all the
@@ -463,8 +464,8 @@ static int clsic_alg_write(void *context, const void *val_buf,
 				      i + frag_sz, payload_sz,
 				      clsic_time_end(&ts_start, &ts_end));
 		/*
-		 *  Clients to this function can't interpret detailed error
-		 *  codes so map error to -EIO
+		 * Clients to this function can't interpret detailed error
+		 * codes so map error to -EIO
 		 */
 		if (ret != 0) {
 			clsic_dbg(clsic, "0x%x ret %d\n", addr, ret);
