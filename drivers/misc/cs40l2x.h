@@ -1090,6 +1090,8 @@
 #define CS40L2X_IMON_OFFS_CALC_ENABLED	1
 #define CS40L2X_IMON_OFFS_CALC_DISABLED	0
 
+#define CS40L2X_AUTOSUSPEND_DELAY_MS	3000
+
 bool cs40l2x_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l2x_precious_reg(struct device *dev, unsigned int reg);
 
