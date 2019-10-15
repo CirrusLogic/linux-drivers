@@ -1104,6 +1104,7 @@
 #define CS40L2X_IMON_OFFS_CALC_ENABLED	1
 #define CS40L2X_IMON_OFFS_CALC_DISABLED	0
 
+#define CS40L2X_AUTOSUSPEND_DELAY_MS	3000
 #define CS40L2X_PLLSRC_SCLK		0
 #define CS40L2X_PLLSRC_MCLK		5
 
@@ -1299,6 +1300,7 @@ struct cs40l2x_private {
 #else
 	struct led_classdev led_dev;
 #endif /* CONFIG_ANDROID_TIMED_OUTPUT */
+	unsigned int autosuspend_delay;
 };
 
 extern const unsigned char cs40l2x_bst_k1_table[4][5];
