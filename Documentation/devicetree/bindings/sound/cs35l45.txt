@@ -10,6 +10,10 @@ Required properties:
     as covered in
     Documentation/devicetree/bindings/regulator/regulator.txt.
 
+  - interrupts : IRQ line info CS35L45.
+    (See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+    for further information relating to interrupt properties)
+
 Optional properties:
   - reset-gpios : gpio used to reset the amplifier
 
