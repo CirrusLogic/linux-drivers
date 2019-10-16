@@ -847,9 +847,140 @@ static irqreturn_t cs35l45_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static const struct of_entry bst_bpe_v_map[BST_BPE_VOLTAGE_PARAMS] = {
+	[L1] = {"bst-bpe-response-l1", CS35L45_BST_BPE_INST_THLD,
+		CS35L45_BST_BPE_INST_L0_THLD_MASK,
+		CS35L45_BST_BPE_INST_L0_THLD_SHIFT},
+	[L2] = {"bst-bpe-response-l2", CS35L45_BST_BPE_INST_THLD,
+		CS35L45_BST_BPE_INST_L1_THLD_MASK,
+		CS35L45_BST_BPE_INST_L1_THLD_SHIFT},
+	[L3] = {"bst-bpe-response-l3", CS35L45_BST_BPE_INST_THLD,
+		CS35L45_BST_BPE_INST_L2_THLD_MASK,
+		CS35L45_BST_BPE_INST_L2_THLD_SHIFT},
+	[L4] = {"bst-bpe-response-l4", CS35L45_BST_BPE_INST_THLD,
+		CS35L45_BST_BPE_INST_L3_THLD_MASK,
+		CS35L45_BST_BPE_INST_L3_THLD_SHIFT},
+};
+
+static const struct of_entry bst_bpe_i_map[BST_BPE_VOLTAGE_PARAMS] = {
+	[L1] = {"bst-bpe-response-l1", CS35L45_BST_BPE_INST_ILIM,
+		CS35L45_BST_BPE_INST_L1_ILIM_MASK,
+		CS35L45_BST_BPE_INST_L1_ILIM_SHIFT},
+	[L2] = {"bst-bpe-response-l2", CS35L45_BST_BPE_INST_ILIM,
+		CS35L45_BST_BPE_INST_L2_ILIM_MASK,
+		CS35L45_BST_BPE_INST_L2_ILIM_SHIFT},
+	[L3] = {"bst-bpe-response-l3", CS35L45_BST_BPE_INST_ILIM,
+		CS35L45_BST_BPE_INST_L3_ILIM_MASK,
+		CS35L45_BST_BPE_INST_L3_ILIM_SHIFT},
+	[L4] = {"bst-bpe-response-l4", CS35L45_BST_BPE_INST_ILIM,
+		CS35L45_BST_BPE_INST_L4_ILIM_MASK,
+		CS35L45_BST_BPE_INST_L4_ILIM_SHIFT},
+};
+
+static const struct of_entry bst_bpe_ind_curr_map[BST_BPE_IND_CURR_PARAMS] = {
+	[BST_BPE_IL_LIM_THLD_DEL1] = {"bst-bpe-il-lim-thld-del1",
+				      CS35L45_BST_BPE_IL_LIM_THLD,
+				      CS35L45_BST_BPE_IL_LIM_THLD_DEL1_MASK,
+				      CS35L45_BST_BPE_IL_LIM_THLD_DEL1_SHIFT},
+	[BST_BPE_IL_LIM_THLD_DEL2] = {"bst-bpe-il-lim-thld-del2",
+				      CS35L45_BST_BPE_IL_LIM_THLD,
+				      CS35L45_BST_BPE_IL_LIM_THLD_DEL2_MASK,
+				      CS35L45_BST_BPE_IL_LIM_THLD_DEL2_SHIFT},
+	[BST_BPE_IL_LIM1_THLD] = {"bst-bpe-il-lim1-thld",
+				  CS35L45_BST_BPE_IL_LIM_THLD,
+				  CS35L45_BST_BPE_IL_LIM1_THLD_MASK,
+				  CS35L45_BST_BPE_IL_LIM1_THLD_SHIFT},
+	[BST_BPE_IL_LIM1_DLY] = {"bst-bpe-il-lim1-dly",
+				 CS35L45_BST_BPE_IL_LIM_DLY,
+				 CS35L45_BST_BPE_IL_LIM1_DLY_MASK,
+				 CS35L45_BST_BPE_IL_LIM1_DLY_SHIFT},
+	[BST_BPE_IL_LIM2_DLY] = {"bst-bpe-il-lim2-dly",
+				 CS35L45_BST_BPE_IL_LIM_DLY,
+				 CS35L45_BST_BPE_IL_LIM2_DLY_MASK,
+				 CS35L45_BST_BPE_IL_LIM2_DLY_SHIFT},
+	[BST_BPE_IL_LIM_DLY_HYST] = {"bst-bpe-il-lim-dly-hyst",
+				     CS35L45_BST_BPE_IL_LIM_DLY,
+				     CS35L45_BST_BPE_IL_LIM_DLY_HYST_MASK,
+				     CS35L45_BST_BPE_IL_LIM_DLY_HYST_SHIFT},
+	[BST_BPE_IL_LIM_THLD_HYST] = {"bst-bpe-il-lim-thld-hyst",
+				      CS35L45_BST_BPE_IL_LIM_THLD,
+				      CS35L45_BST_BPE_IL_LIM_THLD_HYST_MASK,
+				      CS35L45_BST_BPE_IL_LIM_THLD_HYST_SHIFT},
+	[BST_BPE_IL_LIM1_ATK_RATE] = {"bst-bpe-il-lim1-atk-rate",
+				      CS35L45_BST_BPE_IL_LIM_ATK_RATE,
+				      CS35L45_BST_BPE_IL_LIM1_ATK_RATE_MASK,
+				      CS35L45_BST_BPE_IL_LIM1_ATK_RATE_SHIFT},
+	[BST_BPE_IL_LIM2_ATK_RATE] = {"bst-bpe-il-lim2-atk-rate",
+				      CS35L45_BST_BPE_IL_LIM_ATK_RATE,
+				      CS35L45_BST_BPE_IL_LIM2_ATK_RATE_MASK,
+				      CS35L45_BST_BPE_IL_LIM2_ATK_RATE_SHIFT},
+	[BST_BPE_IL_LIM1_RLS_RATE] = {"bst-bpe-il-lim1-rls-rate",
+				      CS35L45_BST_BPE_IL_LIM_RLS_RATE,
+				      CS35L45_BST_BPE_IL_LIM1_RLS_RATE_MASK,
+				      CS35L45_BST_BPE_IL_LIM1_RLS_RATE_SHIFT},
+	[BST_BPE_IL_LIM2_RLS_RATE] = {"bst-bpe-il-lim2-rls-rate",
+				      CS35L45_BST_BPE_IL_LIM_RLS_RATE,
+				      CS35L45_BST_BPE_IL_LIM2_RLS_RATE_MASK,
+				      CS35L45_BST_BPE_IL_LIM2_RLS_RATE_SHIFT},
+};
+
+static const struct of_entry ldpm_map[LDPM_PARAMS] = {
+	[LDPM_GP1_BOOST_SEL] = {"ldpm-gp1-boost-sel", CS35L45_LDPM_CONFIG,
+				CS35L45_LDPM_GP1_BOOST_SEL_MASK,
+				CS35L45_LDPM_GP1_BOOST_SEL_SHIFT},
+	[LDPM_GP1_AMP_SEL] = {"ldpm-gp1-amp-sel", CS35L45_LDPM_CONFIG,
+			      CS35L45_LDPM_GP1_AMP_SEL_MASK,
+			      CS35L45_LDPM_GP1_AMP_SEL_SHIFT},
+	[LDPM_GP1_DELAY] = {"ldpm-gp1-delay", CS35L45_LDPM_CONFIG,
+			    CS35L45_LDPM_GP1_DELAY_MASK,
+			    CS35L45_LDPM_GP1_DELAY_SHIFT},
+	[LDPM_GP1_PCM_THLD] = {"ldpm-gp1-pcm-thld", CS35L45_LDPM_CONFIG,
+			       CS35L45_LDPM_GP1_PCM_THLD_MASK,
+			       CS35L45_LDPM_GP1_PCM_THLD_SHIFT},
+	[LDPM_GP2_IMON_SEL] = {"ldpm-gp2-imon-sel", CS35L45_LDPM_CONFIG,
+			       CS35L45_LDPM_GP2_IMON_SEL_MASK,
+			       CS35L45_LDPM_GP2_IMON_SEL_SHIFT},
+	[LDPM_GP2_VMON_SEL] = {"ldpm-gp2-vmon-sel", CS35L45_LDPM_CONFIG,
+			       CS35L45_LDPM_GP2_VMON_SEL_MASK,
+			       CS35L45_LDPM_GP2_VMON_SEL_SHIFT},
+	[LDPM_GP2_DELAY] = {"ldpm-gp2-delay", CS35L45_LDPM_CONFIG,
+			    CS35L45_LDPM_GP2_DELAY_MASK,
+			    CS35L45_LDPM_GP2_DELAY_SHIFT},
+	[LDPM_GP2_PCM_THLD] = {"ldpm-gp2-pcm-thld", CS35L45_LDPM_CONFIG,
+			       CS35L45_LDPM_GP2_PCM_THLD_MASK,
+			       CS35L45_LDPM_GP2_PCM_THLD_SHIFT},
+};
+
+static const struct of_entry classh_map[CLASSH_PARAMS] = {
+	[CH_HDRM] = {"ch-hdrm", CS35L45_CLASSH_CONFIG1,
+		CS35L45_CH_HDRM_MASK, CS35L45_CH_HDRM_SHIFT},
+	[CH_RATIO] = {"ch-ratio", CS35L45_CLASSH_CONFIG1,
+		CS35L45_CH_RATIO_MASK, CS35L45_CH_RATIO_SHIFT},
+	[CH_REL_RATE] = {"ch-rel-rate", CS35L45_CLASSH_CONFIG1,
+		CS35L45_CH_REL_RATE_MASK, CS35L45_CH_REL_RATE_SHIFT},
+	[CH_OVB_THLD1] = {"ch-ovb-thld1", CS35L45_CLASSH_CONFIG2,
+		CS35L45_CH_OVB_THLD1_MASK, CS35L45_CH_OVB_THLD1_SHIFT},
+	[CH_OVB_THLDDELTA] = {"ch-ovb-thlddelta", CS35L45_CLASSH_CONFIG2,
+		CS35L45_CH_OVB_THLDDELTA_MASK, CS35L45_CH_OVB_THLDDELTA_SHIFT},
+	[CH_VDD_BST_MAX] = {"ch-vdd-bst-max", CS35L45_CLASSH_CONFIG2,
+		CS35L45_CH_VDD_BST_MAX_MASK, CS35L45_CH_VDD_BST_MAX_SHIFT},
+	[CH_OVB_LATCH] = {"ch-ovb-latch", CS35L45_CLASSH_CONFIG3,
+		CS35L45_CH_OVB_LATCH_MASK, CS35L45_CH_OVB_LATCH_SHIFT},
+	[CH_OVB_RATIO] = {"ch-ovb-ratio", CS35L45_CLASSH_CONFIG3,
+		CS35L45_CH_OVB_RATIO_MASK, CS35L45_CH_OVB_RATIO_SHIFT},
+	[CH_THLD1_OFFSET] = {"ch-thld1-offset", CS35L45_CLASSH_CONFIG3,
+		CS35L45_CH_THLD1_OFFSET_MASK, CS35L45_CH_THLD1_OFFSET_SHIFT},
+	[AUD_MEM_DEPTH] = {"aud-mem-depth", CS35L45_AUD_MEM,
+		CS35L45_AUD_MEM_DEPTH_MASK, CS35L45_AUD_MEM_DEPTH_SHIFT},
+};
+
 static int cs35l45_apply_of_data(struct cs35l45_private *cs35l45)
 {
 	struct cs35l45_platform_data *pdata = &cs35l45->pdata;
+	struct bst_bpe_iv_pair *iv_pairs[] = {&pdata->bst_bpe_voltage_cfg.l1,
+					      &pdata->bst_bpe_voltage_cfg.l2,
+					      &pdata->bst_bpe_voltage_cfg.l3,
+					      &pdata->bst_bpe_voltage_cfg.l4};
 	struct gpio_ctrl *gpios[] = {&pdata->gpio_ctrl1, &pdata->gpio_ctrl2,
 				     &pdata->gpio_ctrl3};
 	unsigned int gpio_regs[] = {CS35L45_GPIO1_CTRL1, CS35L45_GPIO2_CTRL1,
@@ -857,8 +988,97 @@ static int cs35l45_apply_of_data(struct cs35l45_private *cs35l45)
 	unsigned int pad_regs[] = {CS35L45_SYNC_GPIO1,
 				   CS35L45_INTB_GPIO2_MCLK_REF, CS35L45_GPIO3};
 	unsigned int val;
+	u32 *ptr;
 	int i;
 
+	if (!pdata)
+		return 0;
+
+	if (!pdata->bst_bpe_voltage_cfg.is_present)
+		goto bst_bpe_ind_curr_cfg;
+
+	for (i = L1; i < BST_BPE_VOLTAGE_PARAMS; i++) {
+		ptr = &iv_pairs[i]->volt;
+		val = ((*ptr) & (~CS35L45_VALID_PDATA))
+			<< bst_bpe_v_map[i].shift;
+		if ((*ptr) & CS35L45_VALID_PDATA)
+			regmap_update_bits(cs35l45->regmap,
+					   bst_bpe_v_map[i].reg,
+					   bst_bpe_v_map[i].mask, val);
+
+		ptr = &iv_pairs[i]->amp;
+		val = ((*ptr) & (~CS35L45_VALID_PDATA))
+			<< bst_bpe_i_map[i].shift;
+		if ((*ptr) & CS35L45_VALID_PDATA)
+			regmap_update_bits(cs35l45->regmap,
+					   bst_bpe_i_map[i].reg,
+					   bst_bpe_i_map[i].mask, val);
+	}
+
+bst_bpe_ind_curr_cfg:
+	if (!pdata->bst_bpe_ind_curr_cfg.is_present)
+		goto hvlv_cfg;
+
+	for (i = BST_BPE_IL_LIM_THLD_DEL1; i < BST_BPE_IND_CURR_PARAMS; i++) {
+		ptr = cs35l45_get_bst_bpe_ind_curr_param(cs35l45, i);
+		val = ((*ptr) & (~CS35L45_VALID_PDATA))
+			<< bst_bpe_ind_curr_map[i].shift;
+		if ((*ptr) & CS35L45_VALID_PDATA)
+			regmap_update_bits(cs35l45->regmap,
+					   bst_bpe_ind_curr_map[i].reg,
+					   bst_bpe_ind_curr_map[i].mask, val);
+	}
+
+hvlv_cfg:
+	if (!pdata->hvlv_cfg.is_present)
+		goto ldpm_cfg;
+
+	if (pdata->hvlv_cfg.hvlv_thld_hys & CS35L45_VALID_PDATA) {
+		val = pdata->hvlv_cfg.hvlv_thld_hys & (~CS35L45_VALID_PDATA);
+		regmap_update_bits(cs35l45->regmap, CS35L45_HVLV_CONFIG,
+				   CS35L45_HVLV_THLD_HYS_MASK,
+				   val << CS35L45_HVLV_THLD_HYS_SHIFT);
+	}
+
+	if (pdata->hvlv_cfg.hvlv_thld & CS35L45_VALID_PDATA) {
+		val = pdata->hvlv_cfg.hvlv_thld & (~CS35L45_VALID_PDATA);
+		regmap_update_bits(cs35l45->regmap, CS35L45_HVLV_CONFIG,
+				   CS35L45_HVLV_THLD_MASK,
+				   val << CS35L45_HVLV_THLD_SHIFT);
+	}
+
+	if (pdata->hvlv_cfg.hvlv_dly & CS35L45_VALID_PDATA) {
+		val = pdata->hvlv_cfg.hvlv_dly & (~CS35L45_VALID_PDATA);
+		regmap_update_bits(cs35l45->regmap, CS35L45_HVLV_CONFIG,
+				   CS35L45_HVLV_DLY_MASK,
+				   val << CS35L45_HVLV_DLY_SHIFT);
+	}
+
+ldpm_cfg:
+	if (!pdata->ldpm_cfg.is_present)
+		goto classh_cfg;
+
+	for (i = LDPM_GP1_BOOST_SEL; i < LDPM_PARAMS; i++) {
+		ptr = cs35l45_get_ldpm_param(cs35l45, i);
+		val = ((*ptr) & (~CS35L45_VALID_PDATA)) << classh_map[i].shift;
+		if ((*ptr) & CS35L45_VALID_PDATA)
+			regmap_update_bits(cs35l45->regmap, classh_map[i].reg,
+					   classh_map[i].mask, val);
+	}
+
+classh_cfg:
+	if (!pdata->classh_cfg.is_present)
+		goto gpio_cfg;
+
+	for (i = CH_HDRM; i < CLASSH_PARAMS; i++) {
+		ptr = cs35l45_get_classh_param(cs35l45, i);
+		val = ((*ptr) & (~CS35L45_VALID_PDATA)) << classh_map[i].shift;
+		if ((*ptr) & CS35L45_VALID_PDATA)
+			regmap_update_bits(cs35l45->regmap, classh_map[i].reg,
+					   classh_map[i].mask, val);
+	}
+
+gpio_cfg:
 	for (i = 0; i < ARRAY_SIZE(gpios); i++) {
 		if (!gpios[i]->is_present)
 			continue;
@@ -914,15 +1134,101 @@ static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
 	struct cs35l45_platform_data *pdata = &cs35l45->pdata;
 	struct device_node *node = cs35l45->dev->of_node;
 	struct device_node *child;
+	struct bst_bpe_iv_pair *iv_pairs[] = {&pdata->bst_bpe_voltage_cfg.l1,
+					      &pdata->bst_bpe_voltage_cfg.l2,
+					      &pdata->bst_bpe_voltage_cfg.l3,
+					      &pdata->bst_bpe_voltage_cfg.l4};
 	struct gpio_ctrl *gpios[] = {&pdata->gpio_ctrl1, &pdata->gpio_ctrl2,
 				     &pdata->gpio_ctrl3};
-	unsigned int val;
+	unsigned int val, pair[2];
 	char of_name[32];
+	u32 *ptr;
 	int ret, i;
 
-	if (!node)
+	if ((!node) || (!pdata))
 		return 0;
 
+	child = of_get_child_by_name(node, "cirrus,bst-bpe-voltage-config");
+	pdata->bst_bpe_voltage_cfg.is_present = child ? true : false;
+	if (!pdata->bst_bpe_voltage_cfg.is_present)
+		goto bst_bpe_ind_curr_cfg;
+
+	for (i = 0; i < ARRAY_SIZE(iv_pairs); i++) {
+		sprintf(of_name, "bst-bpe-response-l%d", i + 1);
+		ret = of_property_read_u32_array(child, of_name, pair, 2);
+		if (!ret) {
+			iv_pairs[i]->volt = pair[0] | CS35L45_VALID_PDATA;
+			iv_pairs[i]->amp = pair[1] | CS35L45_VALID_PDATA;
+		}
+	}
+
+bst_bpe_ind_curr_cfg:
+	child = of_get_child_by_name(node, "cirrus,bst-bpe-ind-curr-config");
+	pdata->bst_bpe_ind_curr_cfg.is_present = child ? true : false;
+	if (!pdata->bst_bpe_ind_curr_cfg.is_present)
+		goto hvlv_config;
+
+	for (i = BST_BPE_IL_LIM_THLD_DEL1; i < BST_BPE_IND_CURR_PARAMS; i++) {
+		ptr = cs35l45_get_bst_bpe_ind_curr_param(cs35l45, i);
+		ret = of_property_read_u32(child, bst_bpe_ind_curr_map[i].name,
+					   &val);
+		if (!ret)
+			(*ptr) = val | CS35L45_VALID_PDATA;
+	}
+
+	of_node_put(child);
+
+hvlv_config:
+	child = of_get_child_by_name(node, "cirrus,hvlv-config");
+	pdata->hvlv_cfg.is_present = child ? true : false;
+	if (!pdata->hvlv_cfg.is_present)
+		goto ldpm_cfg;
+
+	ret = of_property_read_u32(child, "hvlv-thld-hys", &val);
+	if (!ret)
+		pdata->hvlv_cfg.hvlv_thld_hys = val | CS35L45_VALID_PDATA;
+
+	ret = of_property_read_u32(child, "hvlv-thld", &val);
+	if (!ret)
+		pdata->hvlv_cfg.hvlv_thld = val | CS35L45_VALID_PDATA;
+
+	ret = of_property_read_u32(child, "hvlv-dly", &val);
+	if (!ret)
+		pdata->hvlv_cfg.hvlv_dly = val | CS35L45_VALID_PDATA;
+
+	of_node_put(child);
+
+ldpm_cfg:
+	child = of_get_child_by_name(node, "cirrus,ldpm-config");
+	pdata->ldpm_cfg.is_present = child ? true : false;
+	if (!pdata->ldpm_cfg.is_present)
+		goto classh_cfg;
+
+	for (i = LDPM_GP1_BOOST_SEL; i < LDPM_PARAMS; i++) {
+		ptr = cs35l45_get_ldpm_param(cs35l45, i);
+		ret = of_property_read_u32(child, ldpm_map[i].name, &val);
+		if (!ret)
+			(*ptr) = val | CS35L45_VALID_PDATA;
+	}
+
+	of_node_put(child);
+
+classh_cfg:
+	child = of_get_child_by_name(node, "cirrus,classh-config");
+	pdata->classh_cfg.is_present = child ? true : false;
+	if (!pdata->classh_cfg.is_present)
+		goto gpio_cfg;
+
+	for (i = CH_HDRM; i < CLASSH_PARAMS; i++) {
+		ptr = cs35l45_get_classh_param(cs35l45, i);
+		ret = of_property_read_u32(child, classh_map[i].name, &val);
+		if (!ret)
+			(*ptr) = val | CS35L45_VALID_PDATA;
+	}
+
+	of_node_put(child);
+
+gpio_cfg:
 	for (i = 0; i < ARRAY_SIZE(gpios); i++) {
 		sprintf(of_name, "cirrus,gpio-ctrl%d", i + 1);
 		child = of_get_child_by_name(node, of_name);
