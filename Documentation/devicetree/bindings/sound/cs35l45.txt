@@ -17,6 +17,128 @@ Required properties:
 Optional properties:
   - reset-gpios : gpio used to reset the amplifier
 
+Optional Voltage Based Boost BPE Sub-node:
+
+  Details found in section 4.9.4
+
+  The cs35l45 node can have a single "cirrus,bst-bpe-voltage-config" sub-node
+  to set configuration properties for the voltage based boost brownout
+  prevention engine.
+
+  Sub-node properties:
+
+  - bst-bpe-response-l1 : 2 32-bit values representing a voltage-current pair.
+    Represents voltage threshold and current limit for level 1 boost BPE
+    instant response.
+
+  - bst-bpe-response-l2 : 2 32-bit values representing a voltage-current pair.
+    Represents voltage threshold and current limit for level 2 boost BPE
+    instant response.
+
+  - bst-bpe-response-l3 : 2 32-bit values representing a voltage-current pair.
+    Represents voltage threshold and current limit for level 3 boost BPE
+    instant response.
+
+  - bst-bpe-response-l4 : 2 32-bit values representing a voltage-current pair.
+    Represents voltage threshold and current limit for level 4 boost BPE
+    instant response.
+
+Optional Inductor Current Based Boost BPE Sub-node:
+
+  Details found in section 4.9.5
+
+  The cs35l45 node can have a single "cirrus,bst-bpe-ind-curr-config" sub-node
+  to set configuration properties for the inductor current based boost brownout
+  prevention engine. Configuration properties are all interpreted as 32-bit
+  unsigned integers mapped to register bitfields.
+
+  Sub-node properties:
+
+  Section 7.15.8
+  - bst-bpe-il-lim-thld-del1
+  - bst-bpe-il-lim-thld-del2
+  - bst-bpe-il-lim1-thld
+  - bst-bpe-il-lim-thld-hyst
+
+  Section 7.15.9
+  - bst-bpe-il-lim1-dly
+  - bst-bpe-il-lim2-dly
+  - bst-bpe-il-lim-dly-hyst
+
+  Section 7.15.10
+  - bst-bpe-il-lim1-atk-rate
+  - bst-bpe-il-lim2-atk-rate
+
+  Section 7.15.11
+  - bst-bpe-il-lim1-rls-rate
+  - bst-bpe-il-lim2-rls-rate
+
+Optional Adaptive HVLV Sub-node:
+
+  Details found in section 4.7.2
+
+  The cs35l45 node can have a single "cirrus,hvlv-config" sub-node to set
+  configuration properties for the adaptive amplifier drive control engine.
+  Configuration properties are all interpreted as 32-bit unsigned integers
+  mapped to register bitfields.
+
+  Sub-node properties:
+
+  Section 7.22.1
+  - hvlv-thld-hys
+  - hvlv-thld
+  - hvlv-dly
+
+Optional Amplifier Level Dependent Power Management Sub-node:
+
+  Details found in section 4.7.3
+
+  The cs35l45 node can have a single "cirrus,ldpm-config" sub-node to set
+  configuration properties for the amplifier level dependent power management
+  function. Configuration properties are all interpreted as 32-bit unsigned
+  integers mapped to register bitfields.
+
+  Sub-node properties:
+
+  Section 7.22.2
+  - ldpm-gp1-boost-sel
+  - ldpm-gp1-amp-sel
+  - ldpm-gp1-delay
+  - ldpm-gp1-pcm-thld
+  - ldpm-gp2-imon-sel
+  - ldpm-gp2-vmon-sel
+  - ldpm-gp2-delay
+  - ldpm-gp2-pcm-thld
+
+Optional Class H Tracking Configuration Sub-node:
+
+  Details found in section 4.7.1
+
+  The cs35l45 node can have a single "cirrus,classh-config" sub-node to set
+  configuration properties for the Class H with overboost support function.
+  Configuration properties are all interpreted as 32-bit unsigned integers
+  mapped to register bitfields.
+
+  Sub-node properties:
+
+  Section 7.22.3
+  - ch-hdrm
+  - ch-ratio
+  - ch-rel-rate
+
+  Section 7.22.4
+  - ch-ovb-thld1
+  - ch-ovb-thlddelta
+  - ch-vdd-bst-max
+
+  Section 7.22.5
+  - ch-ovb-latch
+  - ch-ovb-ratio
+  - ch-thld1-offset
+
+  Section 7.22.6
+  - aud-mem-depth
+
 Optional GPIOX Sub-nodes:
 
   Details found in section 4.23
