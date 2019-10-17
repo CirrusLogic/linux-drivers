@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
@@ -25,6 +26,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
+#include <linux/uaccess.h>
 
 #include <linux/mfd/tacna/core.h>
 #include <linux/mfd/tacna/registers.h>
@@ -600,6 +602,99 @@ static int tacna_configure_clk32k(struct tacna *tacna)
 	return ret;
 }
 
+static struct regmap *tacna_debug_get_regmap(struct tacna *tacna)
+{
+	struct regmap *regmap = tacna->regmap;
+	int i;
+
+	for (i = 0; i < TACNA_MAX_DSPS; i++) {
+		if (tacna->dsp_regmap[i])
+			regmap = tacna->dsp_regmap[i];
+	}
+
+	return regmap;
+}
+
+static ssize_t tacna_debug_read(struct file *file, char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct tacna *tacna = file->private_data;
+	struct regmap *regmap = tacna_debug_get_regmap(tacna);
+	char *buf = kzalloc(count, GFP_KERNEL);
+	int ret;
+
+	if (!buf)
+		return -ENOMEM;
+
+	ret = regmap_raw_read(regmap, *ppos + tacna->debug_offset, buf, count);
+	if (ret < 0) {
+		kfree(buf);
+		return ret;
+	}
+
+	if (copy_to_user(user_buf, buf, count)) {
+		kfree(buf);
+		return -EFAULT;
+	}
+
+	*ppos += count;
+
+	kfree(buf);
+	return count;
+}
+
+static ssize_t tacna_debug_write(struct file *file, const char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct tacna *tacna = file->private_data;
+	struct regmap *regmap = tacna_debug_get_regmap(tacna);
+	char *buf = kzalloc(count, GFP_KERNEL);
+	int ret;
+
+	if (!buf)
+		return -ENOMEM;
+
+	if (copy_from_user(buf, user_buf, count)) {
+		kfree(buf);
+		return -EFAULT;
+	}
+
+	ret = regmap_raw_write(regmap, *ppos + tacna->debug_offset, buf, count);
+	if (ret < 0) {
+		kfree(buf);
+		return ret;
+	}
+
+	*ppos += count;
+
+	kfree(buf);
+	return count;
+}
+
+static const struct file_operations tacna_debug_fops = {
+	.open = simple_open,
+	.read = tacna_debug_read,
+	.write = tacna_debug_write,
+	.llseek = default_llseek,
+};
+
+static int tacna_debug_init(struct tacna *tacna)
+{
+	struct dentry *de = debugfs_lookup("regmap", NULL);
+	const char *name = devm_kasprintf(tacna->dev, GFP_KERNEL, "%s-debug",
+					  dev_name(tacna->dev));
+
+	if (!name)
+		return -ENOMEM;
+
+	de = debugfs_create_dir(name, de);
+
+	debugfs_create_x32("offset", 0600, de, &tacna->debug_offset);
+	debugfs_create_file("memory", 0600, de, tacna, &tacna_debug_fops);
+
+	return 0;
+}
+
 int tacna_dev_init(struct tacna *tacna)
 {
 	struct device *dev = tacna->dev;
@@ -871,6 +966,8 @@ int tacna_dev_init(struct tacna *tacna)
 	}
 
 	pinctrl_put(pinctrl);
+
+	tacna_debug_init(tacna);
 
 	return 0;
 

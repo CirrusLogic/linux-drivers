@@ -81,6 +81,8 @@ struct tacna {
 	struct snd_soc_dapm_context *dapm;
 
 	struct blocking_notifier_head notifier;
+
+	unsigned int debug_offset;
 };
 
 unsigned int tacna_get_num_micbias(struct tacna *tacna);
