@@ -167,6 +167,11 @@ struct clsic {
 
 	struct device *dev;
 	uint32_t devid;
+	uint8_t revid;
+	uint8_t fabid;
+	uint8_t relid;
+	uint8_t otprev;
+	uint8_t otpid;
 
 	/*
 	 * Devices that have volatile memory need to have their firmware
