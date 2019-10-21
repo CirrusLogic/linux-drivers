@@ -120,11 +120,6 @@ static bool clsic_supported_devid(struct clsic *clsic)
 {
 	int ret = 0;
 	unsigned int scratch;
-	unsigned int revid;
-	unsigned int fabid;
-	unsigned int relid;
-	unsigned int otprev;
-	unsigned int otpid;
 
 	/*
 	 * When devid is 0 read from the device and print the other IDs to aid
@@ -136,23 +131,25 @@ static bool clsic_supported_devid(struct clsic *clsic)
 			clsic_warn(clsic, "Failed to read ID register: %d\n",
 				   ret);
 
-		regmap_read(clsic->regmap, TACNA_REVID, &revid);
-		revid &= (TACNA_AREVID_MASK | TACNA_MTLREVID_MASK);
-		regmap_read(clsic->regmap, TACNA_FABID, &fabid);
-		fabid &= TACNA_FABID_MASK;
+		regmap_read(clsic->regmap, TACNA_REVID, &scratch);
+		clsic->revid = (scratch & (TACNA_AREVID_MASK |
+					   TACNA_MTLREVID_MASK));
+		regmap_read(clsic->regmap, TACNA_FABID, &scratch);
+		clsic->fabid = (scratch & TACNA_FABID_MASK);
 
 		regmap_read(clsic->regmap, CLSIC_RELID_OTPREV, &scratch);
-		relid = (scratch & CLSIC_RELID_OTPREV_RELID_MASK) >>
+		clsic->relid = (scratch & CLSIC_RELID_OTPREV_RELID_MASK) >>
 			CLSIC_RELID_OTPREV_RELID_SHIFT;
-		otprev = (scratch & CLSIC_RELID_OTPREV_OTPREV_MASK) >>
+		clsic->otprev = (scratch & CLSIC_RELID_OTPREV_OTPREV_MASK) >>
 			CLSIC_RELID_OTPREV_OTPREV_SHIFT;
 
-		regmap_read(clsic->regmap, TACNA_OTPID, &otpid);
-		otpid &= TACNA_OTPID_MASK;
+		regmap_read(clsic->regmap, TACNA_OTPID, &scratch);
+		clsic->otpid = (scratch & TACNA_OTPID_MASK);
 
 		dev_info(clsic->dev,
 			   "DEVID 0x%x, REVID 0x%x, FABID 0x%x, RELID 0x%x, OTPID 0x%x, OTPREV 0x%x\n",
-			   clsic->devid, revid, fabid, relid, otpid, otprev);
+			   clsic->devid, clsic->revid, clsic->fabid,
+			   clsic->relid, clsic->otpid, clsic->otprev);
 	}
 
 	switch (clsic->devid) {
@@ -1589,6 +1586,7 @@ static ssize_t clsic_show_state(struct device *dev,
 static DEVICE_ATTR(state, 0644,
 		   clsic_show_state, clsic_store_state);
 
+
 static ssize_t clsic_show_devid(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -1598,16 +1596,71 @@ static ssize_t clsic_show_devid(struct device *dev,
 }
 static DEVICE_ATTR(devid, 0444, clsic_show_devid, NULL);
 
+static ssize_t clsic_show_revid(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct clsic *clsic = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", clsic->revid);
+}
+static DEVICE_ATTR(revid, 0444, clsic_show_revid, NULL);
+
+static ssize_t clsic_show_fabid(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct clsic *clsic = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", clsic->fabid);
+}
+static DEVICE_ATTR(fabid, 0444, clsic_show_fabid, NULL);
+
+static ssize_t clsic_show_relid(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct clsic *clsic = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", clsic->relid);
+}
+static DEVICE_ATTR(relid, 0444, clsic_show_relid, NULL);
+
+static ssize_t clsic_show_otprev(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct clsic *clsic = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", clsic->otprev);
+}
+static DEVICE_ATTR(otprev, 0444, clsic_show_otprev, NULL);
+
+static ssize_t clsic_show_otpid(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct clsic *clsic = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", clsic->otpid);
+}
+static DEVICE_ATTR(otpid, 0444, clsic_show_otpid, NULL);
+
 static void clsic_init_sysfs(struct clsic *clsic)
 {
-	device_create_file(clsic->dev, &dev_attr_devid);
 	device_create_file(clsic->dev, &dev_attr_state);
+	device_create_file(clsic->dev, &dev_attr_devid);
+	device_create_file(clsic->dev, &dev_attr_revid);
+	device_create_file(clsic->dev, &dev_attr_fabid);
+	device_create_file(clsic->dev, &dev_attr_relid);
+	device_create_file(clsic->dev, &dev_attr_otprev);
+	device_create_file(clsic->dev, &dev_attr_otpid);
 }
 
 static void clsic_deinit_sysfs(struct clsic *clsic)
 {
-	device_remove_file(clsic->dev, &dev_attr_devid);
 	device_remove_file(clsic->dev, &dev_attr_state);
+	device_remove_file(clsic->dev, &dev_attr_devid);
+	device_remove_file(clsic->dev, &dev_attr_revid);
+	device_remove_file(clsic->dev, &dev_attr_fabid);
+	device_remove_file(clsic->dev, &dev_attr_relid);
+	device_remove_file(clsic->dev, &dev_attr_otprev);
+	device_remove_file(clsic->dev, &dev_attr_otpid);
 }
 
 MODULE_DESCRIPTION("CLSIC MFD");
