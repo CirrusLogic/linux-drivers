@@ -578,12 +578,42 @@ static int hdmi_codec_mute(struct snd_soc_dai *dai, int mute, int direction)
 	return -ENOTSUPP;
 }
 
+static int hdmi_codec_trigger(struct snd_pcm_substream *substream, int cmd,
+			      struct snd_soc_dai *dai)
+{
+	struct hdmi_codec_priv *hcp = snd_soc_dai_get_drvdata(dai);
+	int event;
+
+	if (!hcp->hcd.ops->trigger)
+		return 0;
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_STOP:
+		event = HDMI_CODEC_TRIGGER_EVENT_STOP;
+		break;
+	case SNDRV_PCM_TRIGGER_START:
+		event = HDMI_CODEC_TRIGGER_EVENT_START;
+		break;
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+		event = HDMI_CODEC_TRIGGER_EVENT_SUSPEND;
+		break;
+	case SNDRV_PCM_TRIGGER_RESUME:
+		event = HDMI_CODEC_TRIGGER_EVENT_RESUME;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return hcp->hcd.ops->trigger(dai->dev->parent, event);
+}
+
 static const struct snd_soc_dai_ops hdmi_codec_i2s_dai_ops = {
 	.startup	= hdmi_codec_startup,
 	.shutdown	= hdmi_codec_shutdown,
 	.hw_params	= hdmi_codec_hw_params,
 	.set_fmt	= hdmi_codec_i2s_set_fmt,
 	.mute_stream	= hdmi_codec_mute,
+	.trigger	= hdmi_codec_trigger,
 };
 
 static const struct snd_soc_dai_ops hdmi_codec_spdif_dai_ops = {
@@ -591,6 +621,7 @@ static const struct snd_soc_dai_ops hdmi_codec_spdif_dai_ops = {
 	.shutdown	= hdmi_codec_shutdown,
 	.hw_params	= hdmi_codec_hw_params,
 	.mute_stream	= hdmi_codec_mute,
+	.trigger	= hdmi_codec_trigger,
 };
 
 #define HDMI_RATES	(SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |\
