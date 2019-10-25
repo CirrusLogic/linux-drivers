@@ -53,12 +53,12 @@ static void ssusb_wakeup_ip_sleep_set(struct ssusb_mtk *ssusb, bool enable)
 	case SSUSB_UWK_V1:
 		reg = ssusb->uwk_reg_base + PERI_WK_CTRL1;
 		msk = WC1_IS_EN | WC1_IS_C(0xf) | WC1_IS_P;
-		val = enable ? (WC1_IS_EN | WC1_IS_C(0x8)) : 0;
+		val = enable ? (WC1_IS_EN | WC1_IS_C(0x3)) : 0;
 		break;
 	case SSUSB_UWK_V1_1:
 		reg = ssusb->uwk_reg_base + PERI_WK_CTRL0;
 		msk = WC0_IS_EN | WC0_IS_C(0xf) | WC0_IS_P;
-		val = enable ? (WC0_IS_EN | WC0_IS_C(0x8)) : 0;
+		val = enable ? (WC0_IS_EN | WC0_IS_C(0x3)) : 0;
 		break;
 	case SSUSB_UWK_V2:
 		reg = ssusb->uwk_reg_base + PERI_SSUSB_SPM_CTRL;
@@ -197,6 +197,8 @@ int ssusb_host_disable(struct ssusb_mtk *ssusb, bool suspend)
 			  (value & SSUSB_IP_SLEEP_STS), 100, 100000);
 	if (ret)
 		dev_err(ssusb->dev, "ip sleep failed!!!\n");
+	else /* wait for wakeup signal toggle done after enter ip-sleep */
+		usleep_range(245, 250);
 
 	return ret;
 }
