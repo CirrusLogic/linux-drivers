@@ -982,6 +982,11 @@ static const char * const cs40l2x_coeff_files_clab[] = {
 	"cs40l25a_clab.bin",
 };
 
+static const char * const cs40l2x_coeff_files_par[] = {
+	CS40L2X_WT_FILE_NAME_DEFAULT,
+	"cs40l25a_par.bin",
+};  /* PWLE Amplitude Regulation */
+
 const struct cs40l2x_fw_desc cs40l2x_fw_fam[CS40L2X_NUM_FW_FAMS] = {
 	{
 		.id = CS40L2X_FW_ID_ORIG,
@@ -1023,6 +1028,14 @@ const struct cs40l2x_fw_desc cs40l2x_fw_fam[CS40L2X_NUM_FW_FAMS] = {
 		.coeff_files = cs40l2x_coeff_files_clab,
 		.fw_file = "cs40l25a_clab.wmfw",
 	},
+	{
+		.id = CS40L2X_FW_ID_PAR,
+		.min_rev = 0x080A00,
+		.halo_state_run = 203,
+		.num_coeff_files = ARRAY_SIZE(cs40l2x_coeff_files_par),
+		.coeff_files = cs40l2x_coeff_files_par,
+		.fw_file = "cs40l25a_par.wmfw",
+	},  /* PWLE Amplitude Regulation */
 };
 
 const struct cs40l2x_hw_err_desc cs40l2x_hw_errs[CS40L2X_NUM_HW_ERRS] = {

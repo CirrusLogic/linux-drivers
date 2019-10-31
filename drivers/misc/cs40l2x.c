@@ -5988,6 +5988,7 @@ static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 	struct cs40l2x_dblk_desc a2h_dblks[CS40L2X_MAX_A2H_LEVELS];
 	char wt_date[CS40L2X_WT_FILE_DATE_LEN_MAX];
 	bool wt_found = false;
+	bool par_available = false;
 	unsigned int *dblk_index;
 	unsigned int pre_index = 0;
 	unsigned int a2h_index = 0;
@@ -6041,9 +6042,10 @@ static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 
 		if (block_type != CS40L2X_WMDR_NAME_TYPE
 				&& block_type != CS40L2X_WMDR_INFO_TYPE) {
-			for (i = 0; i < cs40l2x->num_algos; i++)
+			for (i = 0; i < cs40l2x->num_algos; i++) {
 				if (algo_id == cs40l2x->algo_info[i].id)
 					break;
+			}
 			if (i == cs40l2x->num_algos) {
 				dev_err(dev, "Invalid algo. ID: 0x%06X\n",
 						algo_id);
@@ -6075,6 +6077,10 @@ static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 				cs40l2x->exc_available = true;
 				dblk_index = NULL;
 				break;
+			case CS40L2X_ALGO_ID_PAR:
+				par_available = true;
+				dblk_index = NULL;
+				break;
 			case CS40L2X_ALGO_ID_VIBE:
 				wt_found = true;
 				/* intentionally fall through */
@@ -6100,8 +6106,16 @@ static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 			wt_date[CS40L2X_WT_FILE_DATE_LEN_MAX - 6] = '\0';
 			break;
 		case CS40L2X_XM_UNPACKED_TYPE:
-			reg = CS40L2X_DSP1_XMEM_UNPACK24_0 + block_offset
+			if (par_available) {
+				block_offset = CS40L2X_ALG0_PARAM_OFFSET;
+				reg = CS40L2X_DSP1_PAR_ALGO_PARAMS
+					+ block_offset
 					+ cs40l2x->algo_info[i].xm_base * 4;
+			} else {
+				reg = CS40L2X_DSP1_XMEM_UNPACK24_0
+					+ block_offset
+					+ cs40l2x->algo_info[i].xm_base * 4;
+			}
 
 			if (block_length > cs40l2x->wt_limit_xm
 					&& reg == cs40l2x_dsp_reg(cs40l2x,
