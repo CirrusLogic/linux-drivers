@@ -57,7 +57,7 @@ Description:
                The format of the string is x.y.z. Where x is major, y is minor
                and z is the build number. For example: 95.00.06
 
-What:          /sys/bus/platform/devices/GOOG000C\:00/wilco-charge-schedule/advanced_charging_enable
+What:          /sys/bus/platform/devices/GOOG000C\:00/wilco-charge-schedule/advanced_charging/enable
 Date:          May 2019
 KernelVersion: 5.3
 Description:
@@ -75,7 +75,7 @@ Description:
 		The input must be parseable by strtobool() from linux/string.h.
 		The output is either "0\n" or "1\n".
 
-What:          /sys/bus/platform/devices/GOOG000C\:00/wilco-charge-schedule/advanced_charging_{sunday,monday,...}
+What:          /sys/bus/platform/devices/GOOG000C\:00/wilco-charge-schedule/advanced_charging/{sunday,monday,...}
 Date:          May 2019
 KernelVersion: 5.3
 Description:
@@ -91,7 +91,7 @@ Description:
 		"0006:15 23:45". When reading, the schedule is formatted with
 		"%02d:%02d %02d:%02d\n". An example output is "06:15 23:45\n".
 
-What:          /sys/bus/platform/devices/GOOG000C\:00/wilco-charge-schedule/peak_shift_enable
+What:          /sys/bus/platform/devices/GOOG000C\:00/wilco-charge-schedule/peak_shift/enable
 Date:          May 2019
 KernelVersion: 5.3
 Description:
@@ -110,7 +110,7 @@ Description:
 		The input must be parseable by strtobool() from linux/string.h.
 		The output is either "0\n" or "1\n".
 
-What:          /sys/bus/platform/devices/GOOG000C\:00/wilco-charge-schedule/peak_shift_{sunday,monday,...}
+What:          /sys/bus/platform/devices/GOOG000C\:00/wilco-charge-schedule/peak_shift/{sunday,monday,...}
 Date:          May 2019
 KernelVersion: 5.3
 Description:
@@ -127,7 +127,7 @@ Description:
 		formatted with "%02d:%02d %02d:%02d %02d:%02d\n". An example
 		output is "06:15 09:45 23:00\n".
 
-What:          /sys/bus/platform/devices/GOOG000C\:00/wilco-charge-schedule/peak_shift_battery_threshold
+What:          /sys/bus/platform/devices/GOOG000C\:00/wilco-charge-schedule/peak_shift/battery_threshold
 Date:          May 2019
 KernelVersion: 5.3
 Description:
