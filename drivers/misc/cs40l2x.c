@@ -3849,6 +3849,140 @@ err_mutex:
 	return ret;
 }
 
+static ssize_t cs40l2x_par_enable_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+	unsigned int reg, val;
+
+	mutex_lock(&cs40l2x->lock);
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "PWLE_REGULATION_ENABLED",
+			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_PAR);
+	if (!reg) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
+	ret = regmap_read(cs40l2x->regmap, reg, &val);
+	if (ret)
+		goto err_mutex;
+
+	ret = snprintf(buf, PAGE_SIZE, "%u\n", val);
+
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+
+	return ret;
+}
+
+static ssize_t cs40l2x_par_enable_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+	unsigned int reg, val;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	mutex_lock(&cs40l2x->lock);
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "PWLE_REGULATION_ENABLED",
+			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_PAR);
+	if (!reg) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
+	ret = regmap_write(cs40l2x->regmap, reg,
+			val ? CS40L2X_PAR_ENABLED : CS40L2X_PAR_DISABLED);
+	if (ret)
+		goto err_mutex;
+
+	ret = cs40l2x_dsp_cache(cs40l2x, reg,
+			val ? CS40L2X_PAR_ENABLED : CS40L2X_PAR_DISABLED);
+	if (ret)
+		goto err_mutex;
+
+	ret = count;
+
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+
+	return ret;
+}
+
+static ssize_t cs40l2x_par_gain_comp_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+	unsigned int reg, val;
+
+	mutex_lock(&cs40l2x->lock);
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "PCM_GAIN_COMPENSATION_ENABLED",
+			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_PAR);
+	if (!reg) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
+	ret = regmap_read(cs40l2x->regmap, reg, &val);
+	if (ret)
+		goto err_mutex;
+
+	ret = snprintf(buf, PAGE_SIZE, "%u\n", val);
+
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+
+	return ret;
+}
+
+static ssize_t cs40l2x_par_gain_comp_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+	unsigned int reg, val;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	mutex_lock(&cs40l2x->lock);
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "PCM_GAIN_COMPENSATION_ENABLED",
+			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_PAR);
+	if (!reg) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
+	ret = regmap_write(cs40l2x->regmap, reg,
+			val ? CS40L2X_GC_ENABLED : CS40L2X_GC_DISABLED);
+	if (ret)
+		goto err_mutex;
+
+	ret = cs40l2x_dsp_cache(cs40l2x, reg,
+			val ? CS40L2X_GC_ENABLED : CS40L2X_GC_DISABLED);
+	if (ret)
+		goto err_mutex;
+
+	ret = count;
+
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+
+	return ret;
+}
+
 static ssize_t cs40l2x_vibe_state_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -3965,6 +4099,10 @@ static DEVICE_ATTR(clab_enable, 0660, cs40l2x_clab_enable_show,
 		cs40l2x_clab_enable_store);
 static DEVICE_ATTR(clab_peak, 0660, cs40l2x_clab_peak_show,
 		cs40l2x_clab_peak_store);
+static DEVICE_ATTR(pwle_regulation_enable, 0660, cs40l2x_par_enable_show,
+		cs40l2x_par_enable_store);
+static DEVICE_ATTR(gain_compensation_enable, 0660, cs40l2x_par_gain_comp_show,
+		cs40l2x_par_gain_comp_store);
 static DEVICE_ATTR(vibe_state, 0660, cs40l2x_vibe_state_show, NULL);
 
 static struct attribute *cs40l2x_dev_attrs[] = {
@@ -4023,6 +4161,8 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_wt_date.attr,
 	&dev_attr_clab_enable.attr,
 	&dev_attr_clab_peak.attr,
+	&dev_attr_pwle_regulation_enable.attr,
+	&dev_attr_gain_compensation_enable.attr,
 	&dev_attr_vibe_state.attr,
 	NULL,
 };
@@ -5988,7 +6128,6 @@ static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 	struct cs40l2x_dblk_desc a2h_dblks[CS40L2X_MAX_A2H_LEVELS];
 	char wt_date[CS40L2X_WT_FILE_DATE_LEN_MAX];
 	bool wt_found = false;
-	bool par_available = false;
 	unsigned int *dblk_index;
 	unsigned int pre_index = 0;
 	unsigned int a2h_index = 0;
@@ -6077,10 +6216,6 @@ static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 				cs40l2x->exc_available = true;
 				dblk_index = NULL;
 				break;
-			case CS40L2X_ALGO_ID_PAR:
-				par_available = true;
-				dblk_index = NULL;
-				break;
 			case CS40L2X_ALGO_ID_VIBE:
 				wt_found = true;
 				/* intentionally fall through */
@@ -6106,16 +6241,9 @@ static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 			wt_date[CS40L2X_WT_FILE_DATE_LEN_MAX - 6] = '\0';
 			break;
 		case CS40L2X_XM_UNPACKED_TYPE:
-			if (par_available) {
-				block_offset = CS40L2X_ALG0_PARAM_OFFSET;
-				reg = CS40L2X_DSP1_PAR_ALGO_PARAMS
-					+ block_offset
-					+ cs40l2x->algo_info[i].xm_base * 4;
-			} else {
-				reg = CS40L2X_DSP1_XMEM_UNPACK24_0
-					+ block_offset
-					+ cs40l2x->algo_info[i].xm_base * 4;
-			}
+			reg = CS40L2X_DSP1_XMEM_UNPACK24_0
+				+ block_offset
+				+ cs40l2x->algo_info[i].xm_base * 4;
 
 			if (block_length > cs40l2x->wt_limit_xm
 					&& reg == cs40l2x_dsp_reg(cs40l2x,
