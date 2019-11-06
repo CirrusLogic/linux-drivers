@@ -38,7 +38,7 @@
 #define CL_DSP_ALGO_INFO_TYPE	0x00F2
 #define CL_DSP_WMFW_INFO_TYPE	0x00FF
 
-
+#define CL_DSP_BITS_PER_BYTE	8
 
 struct cl_dsp_fw_desc {
 	unsigned int id;
