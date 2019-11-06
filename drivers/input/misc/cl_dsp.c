@@ -63,42 +63,84 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 }
 EXPORT_SYMBOL(cl_dsp_get_reg);
 
+static int cl_dsp_process_data_be(const unsigned char *data,
+		const unsigned int num_bytes, const unsigned int pos,
+		unsigned int *val)
+{
+	int i;
+
+	if (num_bytes > sizeof(unsigned int))
+		return -EINVAL;
+
+	*val = 0;
+	for (i = 0; i < num_bytes; i++)
+		*val += *(data + pos + i) << i * CL_DSP_BITS_PER_BYTE;
+
+	return 0;
+}
+
 static int cl_dsp_algo_parse(struct cl_dsp *dsp, const unsigned char *data)
 {
 	struct cl_dsp_coeff_desc *coeff_desc;
 	unsigned int pos = 0;
 	unsigned int algo_id, algo_desc_length, coeff_count;
 	unsigned int block_offset, block_type, block_length;
+	unsigned int val;
 	unsigned char algo_name_length;
-	int i;
+	int i, ret;
 
-	algo_id = *(data + pos) + (*(data + pos + 1) << 8) +
-			(*(data + pos + 2) << 16) + (*(data + pos + 3) << 24);
+	ret = cl_dsp_process_data_be(data, 4, pos, &algo_id);
+	if (ret) {
+		dev_err(dsp->dev, "Failed to read data\n");
+		return ret;
+	}
 	pos += CL_DSP_ALGO_ID_SIZE;
 
 	/* Skip algorithm name */
-	algo_name_length = *(data + pos);
+	ret = cl_dsp_process_data_be(data, 1, pos, &val);
+	if (ret) {
+		dev_err(dsp->dev, "Failed to read data\n");
+		return ret;
+	}
+	algo_name_length = val; /* Cast to unsigned char */
 	pos += ((algo_name_length / 4) * 4) + 4;
 
 	/* Skip algorithm description */
-	algo_desc_length = *(data + pos) + (*(data + pos) << 8);
+	ret = cl_dsp_process_data_be(data, 2, pos, &algo_desc_length);
+	if (ret) {
+		dev_err(dsp->dev, "Failed to read data\n");
+		return ret;
+	}
 	pos += ((algo_desc_length / 4) * 4) + 4;
 
 	/* Record coefficient count */
-	coeff_count = *(data + pos) + (*(data + pos + 1) << 8) +
-			(*(data + pos + 2) << 16) + (*(data + pos + 3) << 24);
+	ret = cl_dsp_process_data_be(data, 4, pos, &coeff_count);
+	if (ret) {
+		dev_err(dsp->dev, "Failed to read data\n");
+		return ret;
+	}
 	pos += CL_DSP_COEFF_COUNT_SIZE;
 
 	for (i = 0; i < coeff_count; i++) {
-		block_offset = *(data + pos) + (*(data + pos + 1) << 8);
+		ret = cl_dsp_process_data_be(data, 2, pos, &block_offset);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data\n");
+			return ret;
+		}
 		pos += CL_DSP_COEFF_OFFSET_SIZE;
 
-		block_type = *(data + pos) + (*(data + pos + 1) << 8);
+		ret = cl_dsp_process_data_be(data, 2, pos, &block_type);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data\n");
+			return ret;
+		}
 		pos += CL_DSP_COEFF_TYPE_SIZE;
 
-		block_length = *(data + pos) + (*(data + pos + 1) << 8) +
-				(*(data + pos + 2) << 16) +
-				(*(data + pos + 3) << 24);
+		ret = cl_dsp_process_data_be(data, 4, pos, &block_length);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data\n");
+			return ret;
+		}
 		pos += CL_DSP_COEFF_LENGTH_SIZE;
 
 		coeff_desc = devm_kzalloc(dsp->dev, sizeof(*coeff_desc),
@@ -282,16 +324,25 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 	}
 
 	while (pos < fw->size) {
-		block_offset = fw->data[pos] + (fw->data[pos + 1] << 8)
-				+ (fw->data[pos + 2] << 16);
+		ret = cl_dsp_process_data_be(fw->data, 3, pos, &block_offset);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data\n");
+			return ret;
+		}
 		pos += CL_DSP_FW_DBLK_OFFSET_SIZE;
 
-		block_type = fw->data[pos];
+		ret = cl_dsp_process_data_be(fw->data, 1, pos, &block_type);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data\n");
+			return ret;
+		}
 		pos += CL_DSP_FW_DBLK_TYPE_SIZE;
 
-		block_length = fw->data[pos] + (fw->data[pos + 1] << 8)
-				+ (fw->data[pos + 2] << 16)
-				+ (fw->data[pos + 3] << 24);
+		ret = cl_dsp_process_data_be(fw->data, 4, pos, &block_length);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data\n");
+			return ret;
+		}
 		pos += CL_DSP_FW_DBLK_LENGTH_SIZE;
 
 		switch (block_type) {
