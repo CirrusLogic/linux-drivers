@@ -936,6 +936,13 @@ const struct cs35l41_otp_map_element_t
 		.word_offset = 2,
 	},
 	{
+		.id = 0x03,
+		.map = otp_map_2,
+		.num_elements = CS35L41_NUM_OTP_ELEM,
+		.bit_offset = 16,
+		.word_offset = 2,
+	},
+	{
 		.id = 0x06,
 		.map = otp_map_2,
 		.num_elements = CS35L41_NUM_OTP_ELEM,
