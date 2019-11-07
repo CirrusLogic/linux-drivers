@@ -3993,6 +3993,69 @@ static ssize_t cs40l2x_vibe_state_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%u\n", cs40l2x->vibe_state);
 }
 
+static ssize_t cs40l2x_max_back_emf_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+	unsigned int reg, val;
+
+	mutex_lock(&cs40l2x->lock);
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "MAXBACKEMF",
+			      CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_F0);
+	if (!reg) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
+	ret = regmap_read(cs40l2x->regmap, reg, &val);
+	if (ret)
+		goto err_mutex;
+
+	ret = snprintf(buf, PAGE_SIZE, "%u\n", val);
+
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+
+	return ret;
+}
+
+static ssize_t cs40l2x_max_back_emf_store(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf,
+					  size_t count)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+	unsigned int reg, val;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	mutex_lock(&cs40l2x->lock);
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "MAXBACKEMF",
+			      CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_F0);
+	if (!reg) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
+	ret = regmap_write(cs40l2x->regmap, reg, val);
+	if (ret)
+		goto err_mutex;
+
+	ret = count;
+
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+
+	return ret;
+}
+
 static DEVICE_ATTR(cp_trigger_index, 0660, cs40l2x_cp_trigger_index_show,
 		cs40l2x_cp_trigger_index_store);
 static DEVICE_ATTR(cp_trigger_queue, 0660, cs40l2x_cp_trigger_queue_show,
@@ -4104,6 +4167,8 @@ static DEVICE_ATTR(pwle_regulation_enable, 0660, cs40l2x_par_enable_show,
 static DEVICE_ATTR(gain_compensation_enable, 0660, cs40l2x_par_gain_comp_show,
 		cs40l2x_par_gain_comp_store);
 static DEVICE_ATTR(vibe_state, 0660, cs40l2x_vibe_state_show, NULL);
+static DEVICE_ATTR(max_back_emf, 0660, cs40l2x_max_back_emf_show,
+		cs40l2x_max_back_emf_store);
 
 static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_cp_trigger_index.attr,
@@ -4164,6 +4229,7 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_pwle_regulation_enable.attr,
 	&dev_attr_gain_compensation_enable.attr,
 	&dev_attr_vibe_state.attr,
+	&dev_attr_max_back_emf.attr,
 	NULL,
 };
 
