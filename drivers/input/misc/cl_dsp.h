@@ -20,6 +20,7 @@
 
 #define CL_DSP_ALGO_LIST_TERM	0xBEDEAD
 #define CL_DSP_ALGO_REV_MASK	GENMASK(23, 16)
+#define CL_DSP_ALGO_REV_SHIFT_RIGHT	8
 
 #define CL_DSP_NUM_ALGOS_MAX	16
 
@@ -40,11 +41,34 @@
 
 #define CL_DSP_BITS_PER_BYTE	8
 
+#define CL_DSP_WMDR_MAGIC_ID_SIZE	4
+#define CL_DSP_WMDR_DBLK_OFFSET_SIZE	2
+#define CL_DSP_WMDR_DBLK_TYPE_SIZE	2
+#define CL_DSP_WMDR_ALGO_ID_SIZE	4
+#define CL_DSP_WMDR_ALGO_REV_SIZE	4
+#define CL_DSP_WMDR_SAMPLE_RATE_SIZE	4
+#define CL_DSP_WMDR_DBLK_LENGTH_SIZE	4
+#define CL_DSP_WMDR_NAME_LEN_MAX	32
+
+#define CL_DSP_WMDR_NAME_TYPE	0xFE00
+#define CL_DSP_WMDR_INFO_TYPE	0xFF00
+
 struct cl_dsp_fw_desc {
 	unsigned int id;
 	unsigned int min_rev;
 	unsigned int halo_state_run;
+	bool wt_attached;
 	const char *fw_file;
+};
+
+struct cl_dsp_wt_desc {
+	unsigned int id;
+	char wt_name_xm[CL_DSP_WMDR_NAME_LEN_MAX];
+	char wt_name_ym[CL_DSP_WMDR_NAME_LEN_MAX];
+	bool wt_found;
+	unsigned int wt_limit_xm;
+	unsigned int wt_limit_ym;
+	char wt_file[CL_DSP_WMDR_NAME_LEN_MAX];
 };
 
 struct cl_dsp_coeff_desc {
@@ -68,9 +92,11 @@ struct cl_dsp_algo_info {
 struct cl_dsp_mem_reg_desc {
 	unsigned int pm_base_reg;
 	unsigned int xm_base_reg_packed;
-	unsigned int xm_base_reg_unpacked;
+	unsigned int xm_base_reg_unpacked_24;
+	unsigned int xm_base_reg_unpacked_32;
 	unsigned int ym_base_reg_packed;
-	unsigned int ym_base_reg_unpacked;
+	unsigned int ym_base_reg_unpacked_24;
+	unsigned int ym_base_reg_unpacked_32;
 };
 
 struct cl_dsp_algo_params {
@@ -91,14 +117,14 @@ struct cl_dsp {
 	struct list_head coeff_desc_head;
 	unsigned int num_algos;
 	struct cl_dsp_algo_info algo_info[CL_DSP_NUM_ALGOS_MAX + 1];
+	struct cl_dsp_wt_desc *wt_desc;
 	const struct cl_dsp_fw_desc *fw_desc;
 	const struct cl_dsp_mem_reg_desc *mem_reg_desc;
 	const struct cl_dsp_algo_params *algo_params;
-	unsigned int wt_limit_xm;
-	unsigned int wt_limit_ym;
 };
 
 int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw);
+int cl_dsp_wt_file_parse(struct cl_dsp *dsp, const struct firmware *fw);
 int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 		const unsigned int block_type, const unsigned int algo_id,
 		unsigned int *reg);
