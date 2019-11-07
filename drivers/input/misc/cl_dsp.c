@@ -79,6 +79,181 @@ static int cl_dsp_process_data_be(const unsigned char *data,
 	return 0;
 }
 
+int cl_dsp_wt_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
+{
+	struct device *dev = dsp->dev;
+	bool wt_found = false;
+	unsigned int pos;
+	unsigned int block_offset, block_type, block_length;
+	unsigned int algo_id, algo_rev;
+	unsigned int reg, wt_reg;
+	int ret = -EINVAL;
+	int i;
+
+	if (memcmp(fw->data, "WMDR", 4)) {
+		dev_err(dev, "Failed to recognize coefficient file\n");
+		return ret;
+	}
+
+	if (fw->size % 4) {
+		dev_err(dev, "Coefficient file is not word-aligned\n");
+		return ret;
+	}
+
+	ret = cl_dsp_process_data_be(fw->data, 4, CL_DSP_WMDR_MAGIC_ID_SIZE,
+			&pos);
+	if (ret) {
+		dev_err(dev, "Could not read WMDR file header size\n");
+		return ret;
+	}
+
+	while (pos < fw->size) {
+		ret = cl_dsp_process_data_be(fw->data, 2, pos, &block_offset);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data\n");
+			return ret;
+		}
+		pos += CL_DSP_WMDR_DBLK_OFFSET_SIZE;
+
+		ret = cl_dsp_process_data_be(fw->data, 2, pos, &block_type);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data\n");
+			return ret;
+		}
+		pos += CL_DSP_WMDR_DBLK_TYPE_SIZE;
+
+		ret = cl_dsp_process_data_be(fw->data, 4, pos, &algo_id);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data\n");
+			return ret;
+		}
+		pos += CL_DSP_WMDR_ALGO_ID_SIZE;
+
+		ret = cl_dsp_process_data_be(fw->data, 4, pos, &algo_rev);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data\n");
+			return ret;
+		}
+		pos += CL_DSP_WMDR_ALGO_REV_SIZE;
+
+		/* sample rate not used */
+		pos += CL_DSP_WMDR_SAMPLE_RATE_SIZE;
+
+		ret = cl_dsp_process_data_be(fw->data, 4, pos, &block_length);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data\n");
+			return ret;
+		}
+		pos += CL_DSP_WMDR_DBLK_LENGTH_SIZE;
+
+		if (block_type != CL_DSP_WMDR_NAME_TYPE &&
+				block_type != CL_DSP_WMDR_INFO_TYPE) {
+			for (i = 0; i < dsp->num_algos; i++) {
+				if (algo_id == dsp->algo_info[i].id)
+					break;
+			}
+
+			if (i == dsp->num_algos) {
+				dev_err(dev, "Invalid algo. ID: 0x%06X\n",
+						algo_id);
+				ret = -EINVAL;
+				return ret;
+			}
+
+			if (((algo_rev >> CL_DSP_ALGO_REV_SHIFT_RIGHT)
+					& CL_DSP_ALGO_REV_MASK) !=
+				(dsp->algo_info[i].rev
+					& CL_DSP_ALGO_REV_MASK)) {
+				dev_err(dev, "Invalid algo. rev.: %d.%d.%d\n",
+					(algo_rev & 0xFF000000) >> 24,
+					(algo_rev & 0xFF0000) >> 16,
+					(algo_rev & 0XFF00) >> 8);
+
+				return -EINVAL;
+			}
+
+			if (algo_id == dsp->wt_desc->id)
+				wt_found = true;
+		}
+
+		switch (block_type) {
+		case CL_DSP_WMDR_NAME_TYPE:
+		case CL_DSP_WMDR_INFO_TYPE:
+			reg = 0;
+			break;
+		case CL_DSP_XM_UNPACKED_TYPE:
+			reg = dsp->mem_reg_desc->xm_base_reg_unpacked_24 +
+					block_offset +
+					dsp->algo_info[i].xm_base * 4;
+
+			ret = cl_dsp_get_reg(dsp,
+					dsp->wt_desc->wt_name_xm,
+					CL_DSP_XM_UNPACKED_TYPE,
+					dsp->wt_desc->id, &wt_reg);
+			if (ret)
+				return ret;
+
+			if (reg == wt_reg) {
+				if (block_length > dsp->wt_desc->wt_limit_xm) {
+					dev_err(dev,
+					"Wavetable too large: %d bytes (XM)\n",
+					block_length / 4 * 3);
+
+					return -EINVAL;
+				}
+
+				dev_dbg(dev, "Wavetable found: %d bytes (XM)\n",
+						block_length / 4 * 3);
+			}
+			break;
+		case CL_DSP_YM_UNPACKED_TYPE:
+			reg = dsp->mem_reg_desc->ym_base_reg_unpacked_24 +
+					block_offset +
+					dsp->algo_info[i].ym_base * 4;
+
+			ret = cl_dsp_get_reg(dsp, dsp->wt_desc->wt_name_ym,
+					CL_DSP_YM_UNPACKED_TYPE,
+					dsp->wt_desc->id, &wt_reg);
+			if (ret)
+				return ret;
+
+			if (reg == wt_reg) {
+				if (block_length > dsp->wt_desc->wt_limit_ym) {
+					dev_err(dev,
+					"Wavetable too large: %d bytes (YM)\n",
+						block_length / 4 * 3);
+
+					return -EINVAL;
+				}
+
+				dev_dbg(dev, "Wavetable found: %d bytes (YM)\n",
+						block_length / 4 * 3);
+			}
+			break;
+		default:
+			dev_err(dev, "Unexpected block type: 0x%04X\n",
+					block_type);
+			return -EINVAL;
+		}
+		if (reg) {
+			ret = cl_dsp_raw_write(dsp, reg, &fw->data[pos],
+					block_length, CL_DSP_MAX_WLEN);
+			if (ret) {
+				dev_err(dev, "Failed to write coefficients\n");
+				return ret;
+			}
+		}
+
+		/* Blocks are word-aligned */
+		pos += (block_length + 3) & ~0x00000003;
+	}
+
+	dsp->wt_desc->wt_found = wt_found;
+
+	return 0;
+}
+EXPORT_SYMBOL(cl_dsp_wt_file_parse);
+
 static int cl_dsp_algo_parse(struct cl_dsp *dsp, const unsigned char *data)
 {
 	struct cl_dsp_coeff_desc *coeff_desc;
@@ -241,23 +416,25 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 			switch (coeff_desc->block_type) {
 			case CL_DSP_XM_UNPACKED_TYPE:
 				coeff_desc->reg =
-					dsp->mem_reg_desc->xm_base_reg_unpacked
+				dsp->mem_reg_desc->xm_base_reg_unpacked_24
 					+ dsp->algo_info[i].xm_base * 4
 					+ coeff_desc->block_offset * 4;
-				if (!strncmp(coeff_desc->name, "WAVETABLE",
+				if (!strncmp(coeff_desc->name,
+						dsp->wt_desc->wt_name_xm,
 						CL_DSP_COEFF_NAME_LEN_MAX))
-					dsp->wt_limit_xm =
+					dsp->wt_desc->wt_limit_xm =
 						(dsp->algo_info[i].xm_size -
 						coeff_desc->block_offset) * 4;
 				break;
 			case CL_DSP_YM_UNPACKED_TYPE:
 				coeff_desc->reg =
-					dsp->mem_reg_desc->ym_base_reg_unpacked
+				dsp->mem_reg_desc->ym_base_reg_unpacked_24
 					+ dsp->algo_info[i].ym_base * 4
 					+ coeff_desc->block_offset * 4;
-				if (!strncmp(coeff_desc->name, "WAVETABLEYM",
+				if (!strncmp(coeff_desc->name,
+						dsp->wt_desc->wt_name_ym,
 						CL_DSP_COEFF_NAME_LEN_MAX))
-					dsp->wt_limit_ym =
+					dsp->wt_desc->wt_limit_ym =
 						(dsp->algo_info[i].ym_size -
 						coeff_desc->block_offset) * 4;
 				break;
@@ -315,12 +492,12 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 
 	if (memcmp(fw->data, "WMFW", 4)) {
 		dev_err(dev, "Failed to recognize firmware file\n");
-		goto err_rls_fw;
+		goto err;
 	}
 
 	if (fw->size % 4) {
 		dev_err(dev, "Firmware file is not word-aligned\n");
-		goto err_rls_fw;
+		goto err;
 	}
 
 	while (pos < fw->size) {
@@ -356,7 +533,7 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 			if (ret) {
 				dev_err(dev,
 					"Failed to write PM_PACKED memory\n");
-				goto err_rls_fw;
+				goto err;
 			}
 			break;
 		case CL_DSP_XM_PACKED_TYPE:
@@ -367,7 +544,7 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 			if (ret) {
 				dev_err(dev,
 					"Failed to write XM_PACKED memory\n");
-				goto err_rls_fw;
+				goto err;
 			}
 			break;
 		case CL_DSP_YM_PACKED_TYPE:
@@ -378,7 +555,7 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 			if (ret) {
 				dev_err(dev,
 					"Failed to write YM_PACKED memory\n");
-				goto err_rls_fw;
+				goto err;
 			}
 			break;
 		case CL_DSP_ALGO_INFO_TYPE:
@@ -386,14 +563,14 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 			if (ret) {
 				dev_err(dev, "Failed to parse algorithm %d\n",
 						ret);
-				goto err_rls_fw;
+				goto err;
 			}
 			break;
 		default:
 			dev_err(dev, "Unexpected block type : 0x%02X\n",
 					block_type);
 			ret = -EINVAL;
-			goto err_rls_fw;
+			goto err;
 		}
 
 		/* Blocks are word-aligned */
@@ -402,9 +579,7 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 
 	ret = cl_dsp_coeff_init(dsp);
 
-err_rls_fw:
-	release_firmware(fw);
-
+err:
 	return ret;
 }
 EXPORT_SYMBOL(cl_dsp_firmware_parse);
