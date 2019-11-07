@@ -42,7 +42,7 @@
 static void clsic_message_worker(struct work_struct *data);
 
 /* Time in milliseconds */
-#define CLSIC_MSGPROC_SHUTDOWN_TIMEOUT 10000
+#define CLSIC_MSGPROC_SHUTDOWN_TIMEOUT 3000
 
 /*
  * Buffer size required to hold biggest msg2message string
