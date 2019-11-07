@@ -183,6 +183,7 @@ struct clsic {
 
 	uint8_t instance; /* instance number */
 	enum clsic_states state;
+	uint32_t msgproc_autosuspend_delay_ms;
 	enum clsic_msgproc_states msgproc_state;
 
 	enum clsic_blrequests blrequest;

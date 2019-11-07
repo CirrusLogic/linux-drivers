@@ -41,7 +41,8 @@
 #define CLSIC_WORKERTHREAD_NAME "clsic_worker"
 static void clsic_message_worker(struct work_struct *data);
 
-#define CLSIC_MSGPROC_SHUTDOWN_TIMEOUT 10
+/* Time in milliseconds */
+#define CLSIC_MSGPROC_SHUTDOWN_TIMEOUT 10000
 
 /*
  * Buffer size required to hold biggest msg2message string
@@ -830,8 +831,11 @@ void clsic_msgproc_shutdown_schedule(struct clsic *clsic)
 	if (clsic_msgproc_services_active(clsic))
 		return;
 
+	if (clsic->msgproc_autosuspend_delay_ms == 0)
+		return;
+
 	ret = schedule_delayed_work(&clsic->clsic_msgproc_shutdown_work,
-				    (HZ * CLSIC_MSGPROC_SHUTDOWN_TIMEOUT));
+			 msecs_to_jiffies(clsic->msgproc_autosuspend_delay_ms));
 
 	trace_clsic_msgproc_shutdown_schedule(ret);
 }
@@ -899,6 +903,8 @@ int clsic_setup_message_interface(struct clsic *clsic)
 	clsic->messages_received = 0;
 	clsic->msgproc_state = CLSIC_MSGPROC_OFF;
 
+	clsic->msgproc_autosuspend_delay_ms = CLSIC_MSGPROC_SHUTDOWN_TIMEOUT;
+
 #ifdef CONFIG_DEBUG_FS
 	debugfs_create_file("messages", 0444, clsic->debugfs_root, clsic,
 			    &clsic_messages_fops);
@@ -911,6 +917,10 @@ int clsic_setup_message_interface(struct clsic *clsic)
 
 	debugfs_create_file("triggerworker", 0220, clsic->debugfs_root, clsic,
 			    &clsic_triggerworker_fops);
+
+	debugfs_create_u32("msgproc_autosuspend_delay_ms", 0660,
+			    clsic->debugfs_root,
+			    &clsic->msgproc_autosuspend_delay_ms);
 #endif
 
 	return ret;
