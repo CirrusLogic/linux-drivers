@@ -179,7 +179,7 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 	}
 
 	if (val > CL_DSP_NUM_ALGOS_MAX) {
-		dev_err(dev, "Invalid numer of algorithms\n");
+		dev_err(dev, "Invalid number of algorithms\n");
 		return -EINVAL;
 	}
 	dsp->num_algos = val + 1;
