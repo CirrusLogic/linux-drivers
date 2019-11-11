@@ -568,6 +568,8 @@ SOC_ENUM_EXT("IN2L Rate", tacna_input_rate[2],
 SOC_ENUM_EXT("IN2R Rate", tacna_input_rate[3],
 	     snd_soc_get_enum_double, tacna_in_rate_put),
 
+TACNA_RATE_ENUM("Noise Generator Rate", noise_gen_rate),
+
 SOC_SINGLE_TLV("Noise Generator Volume", TACNA_COMFORT_NOISE_GENERATOR,
 	       TACNA_NOISE_GEN_GAIN_SHIFT, 0x12, 0, tacna_noise_tlv),
 
