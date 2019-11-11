@@ -894,6 +894,8 @@ SOC_ENUM_EXT("IN4L Rate", tacna_input_rate[6],
 SOC_ENUM_EXT("IN4R Rate", tacna_input_rate[7],
 	     snd_soc_get_enum_double, tacna_in_rate_put),
 
+TACNA_RATE_ENUM("Noise Generator Rate", noise_gen_rate),
+
 SOC_ENUM_EXT("OUTH Rate", cs47l96_outh_rate,
 	     snd_soc_get_enum_double, tacna_dac_rate_put),
 
