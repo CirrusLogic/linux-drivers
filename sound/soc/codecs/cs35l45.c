@@ -697,10 +697,72 @@ static int cs35l45_dai_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int cs35l45_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
-				  unsigned int freq, int dir)
+static int cs35l45_get_clk_config(int freq)
 {
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(cs35l45_pll_sysclk); i++) {
+		if (cs35l45_pll_sysclk[i].freq == freq)
+			return cs35l45_pll_sysclk[i].clk_cfg;
+	}
+
+	return -EINVAL;
+}
+
+static int cs35l45_set_sysclk(struct cs35l45_private *cs35l45, int clk_id,
+			      unsigned int freq)
+{
+	int extclk_cfg, clksrc;
+
+
+	switch (clk_id) {
+	case 0:
+		clksrc = CS35L45_PLL_REFCLK_SEL_BCLK;
+		break;
+	default:
+		dev_err(cs35l45->dev, "Invalid CLK Config\n");
+		return -EINVAL;
+	}
+
+	extclk_cfg = cs35l45_get_clk_config(freq);
+	if (extclk_cfg < 0) {
+		dev_err(cs35l45->dev, "Invalid CLK Config: %d, freq: %u\n",
+			extclk_cfg, freq);
+		return -EINVAL;
+	}
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+			   CS35L45_PLL_OPEN_LOOP_MASK,
+			   CS35L45_PLL_OPEN_LOOP_MASK);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+			   CS35L45_PLL_REFCLK_FREQ_MASK,
+			   extclk_cfg << CS35L45_PLL_REFCLK_FREQ_SHIFT);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+			   CS35L45_PLL_REFCLK_EN_MASK, 0);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+			   CS35L45_PLL_REFCLK_SEL_MASK,
+			   clksrc << CS35L45_PLL_REFCLK_SEL_SHIFT);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+			   CS35L45_PLL_OPEN_LOOP_MASK, 0);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+			   CS35L45_PLL_REFCLK_EN_MASK,
+			   CS35L45_PLL_REFCLK_EN_MASK);
+
 	return 0;
+}
+
+static int cs35l45_dai_set_sysclk(struct snd_soc_dai *dai,
+				  int clk_id, unsigned int freq, int dir)
+{
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(dai->component);
+
+	return cs35l45_set_sysclk(cs35l45, clk_id, freq);
 }
 
 static int cs35l45_dai_startup(struct snd_pcm_substream *substream,
@@ -777,7 +839,10 @@ static int cs35l45_component_set_sysclk(struct snd_soc_component *component,
 					int clk_id, int source,
 					unsigned int freq, int dir)
 {
-	return 0;
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(component);
+
+	return cs35l45_set_sysclk(cs35l45, clk_id, freq);
 }
 
 static int cs35l45_component_probe(struct snd_soc_component *component)

@@ -232,6 +232,7 @@
 #define CS35L45_LASTREG				0x03C6EFE8
 
 #define CS35L45_MAX_CACHE_REG			0x0000006B
+#define CS35L45_MAX_PLL_CONFIGS			64
 #define CS35L45_REGSTRIDE			4
 #define CS35L45_VALID_PDATA			0x80000000
 
@@ -268,6 +269,20 @@
 
 #define CS35L45_GLOBAL_FS_SHIFT			0
 #define CS35L45_GLOBAL_FS_MASK			GENMASK(4, 0)
+
+#define CS35L45_PLL_REFCLK_SEL_BCLK		0x0
+#define CS35L45_PLL_REFCLK_SEL_SWIRE_CLK	0x7
+
+#define CS35L45_PLL_FORCE_EN_MASK		BIT(16)
+#define CS35L45_PLL_FORCE_EN_SHIFT		16
+#define CS35L45_PLL_OPEN_LOOP_MASK		BIT(11)
+#define CS35L45_PLL_OPEN_LOOP_SHIFT		11
+#define CS35L45_PLL_REFCLK_FREQ_MASK		GENMASK(10, 5)
+#define CS35L45_PLL_REFCLK_FREQ_SHIFT		5
+#define CS35L45_PLL_REFCLK_EN_MASK		BIT(4)
+#define CS35L45_PLL_REFCLK_EN_SHIFT		4
+#define CS35L45_PLL_REFCLK_SEL_MASK		GENMASK(2, 0)
+#define CS35L45_PLL_REFCLK_SEL_SHIFT		0
 
 #define CS35L45_BST_BPE_INST_L3_THLD_SHIFT	24
 #define CS35L45_BST_BPE_INST_L3_THLD_MASK	GENMASK(31, 24)
@@ -419,10 +434,12 @@
 #define CS35L45_GPIO_INVERT_SHIFT		19
 #define CS35L45_GPIO_INVERT_MASK		BIT(19)
 
-bool cs35l45_readable_reg(struct device *dev, unsigned int reg);
-bool cs35l45_volatile_reg(struct device *dev, unsigned int reg);
+struct cs35l45_private;
 
-extern const struct reg_default cs35l45_reg[CS35L45_MAX_CACHE_REG];
+struct cs35l45_pll_sysclk_config {
+	int freq;
+	int clk_cfg;
+};
 
 enum cspl_mboxstate {
 	CSPL_MBOX_STS_RUNNING = 0,
@@ -457,9 +474,13 @@ enum pcm_mixers {
 	DACPCM = 6,
 };
 
-struct cs35l45_private;
-
+bool cs35l45_readable_reg(struct device *dev, unsigned int reg);
+bool cs35l45_volatile_reg(struct device *dev, unsigned int reg);
 int cs35l45_set_csplmboxcmd(struct cs35l45_private *cs35l45,
 			    enum cspl_mboxcmd cmd);
+
+extern const struct reg_default cs35l45_reg[CS35L45_MAX_CACHE_REG];
+extern const struct cs35l45_pll_sysclk_config
+		cs35l45_pll_sysclk[CS35L45_MAX_PLL_CONFIGS];
 
 #endif /*__CS35L45_H__*/
