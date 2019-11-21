@@ -974,6 +974,8 @@ static struct snd_soc_dai_driver clsic_alg_dai[] = {
 	},
 };
 
+static int clsic_alg_compr_free(struct snd_compr_stream *stream);
+
 /**
  * clsic_alg_compr_open() - open the stream
  * @stream:	Standard parameter as used by compressed stream infrastructure.
@@ -1015,38 +1017,37 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 
 	pm_runtime_get_sync(clsic->dev);
 
-	ret = clsic_alg_set_irq_notify_mode(alg,
-				(enum clsic_ras_irq_id) CLSIC_ALGOSRV_EVENT_VTE,
-				CLSIC_RAS_NTY_FLUSH_AND_REQ);
-
-	if (ret) {
-		clsic_err(alg->clsic,
-			  "Set notify mode for DAI '%s' failed %d\n",
-			  rtd->codec_dai->name, ret);
-		goto error;
-	}
-
 	ret = wm_adsp_compr_open(&alg->dsp[CLSIC_VPU1], stream);
 
-	if (ret)
-		clsic_err(alg->clsic,
-			  "Open compr stream for DAI '%s' failed %d\n",
-			  rtd->codec_dai->name, ret);
-	else {
-		mutex_lock(&alg->compr_stream.mutex);
-		alg->compr_stream.open = true;
-		mutex_unlock(&alg->compr_stream.mutex);
-	}
-error:
 	trace_clsic_alg_compr_stream_open(stream->direction, ret);
 
 	if (ret) {
+		clsic_err(alg->clsic,
+			  "Open compr stream for DAI '%s' failed %d\n",
+			  rtd->codec_dai->name, ret);
+
 		clsic_msgproc_release(alg->clsic,
 				      alg->service->service_instance);
 
 		module_put(clsic->dev->driver->owner);
 		module_put(alg->codec->component.card->owner);
 		pm_runtime_put_autosuspend(clsic->dev);
+		return ret;
+	} else {
+		mutex_lock(&alg->compr_stream.mutex);
+		alg->compr_stream.open = true;
+		mutex_unlock(&alg->compr_stream.mutex);
+	}
+
+	ret = clsic_alg_set_irq_notify_mode(alg,
+				(enum clsic_ras_irq_id) CLSIC_ALGOSRV_EVENT_VTE,
+				CLSIC_RAS_NTY_FLUSH_AND_REQ);
+
+	if (ret) {
+		clsic_err(alg->clsic,
+			  "Set notifier failed %d (DAI '%s'), freeing stream\n",
+			  ret, rtd->codec_dai->name);
+		clsic_alg_compr_free(stream);
 	}
 
 	return ret;
