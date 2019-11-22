@@ -112,9 +112,9 @@ static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMU:
 		if (cs35l45->halo_booted == false) {
 			regmap_update_bits(cs35l45->regmap,
-				CS35L45_DSP1_CCM_CORE_CONTROL,
-				CS35L45_CCM_PM_REMAP_MASK,
-				CS35L45_CCM_PM_REMAP_MASK);
+					   CS35L45_DSP1_CCM_CORE_CONTROL,
+					   CS35L45_CCM_PM_REMAP_MASK,
+					   CS35L45_CCM_PM_REMAP_MASK);
 
 			regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
 					   CS35L45_MEM_RDY_MASK, 0);
@@ -164,9 +164,11 @@ static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 
 			mboxcmd = CSPL_MBOX_CMD_PAUSE;
 			ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
-			if (ret < 0)
+			if (ret < 0) {
 				dev_err(cs35l45->dev, "MBOX failure (%d)\n",
 					ret);
+				return ret;
+			}
 
 			cs35l45->halo_booted = true;
 		}
@@ -1340,10 +1342,19 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 	if (cs35l45->initialized)
 		return -EPERM;
 
-	regmap_write(cs35l45->regmap, CS35L45_SFT_RESET,
-		     CS35L45_SOFT_RESET_TRIGGER);
+	ret = regmap_read(cs35l45->regmap, CS35L45_DEVID, &dev_id);
+	if (ret < 0) {
+		dev_err(dev, "Get Device ID failed\n");
+		return ret;
+	}
 
-	msleep(20);
+	ret = regmap_read(cs35l45->regmap, CS35L45_REVID, &rev_id);
+	if (ret < 0) {
+		dev_err(dev, "Get Revision ID failed\n");
+		return ret;
+	}
+
+	usleep_range(200, 300);
 
 	regmap_update_bits(cs35l45->regmap,
 		CS35L45_DSP1_STREAM_ARB_TX1_CONFIG_0,
@@ -1360,18 +1371,6 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 	ret = cs35l45_apply_of_data(cs35l45);
 	if (ret < 0) {
 		dev_err(dev, "applying OF data failed (%d)\n", ret);
-		return ret;
-	}
-
-	ret = regmap_read(cs35l45->regmap, CS35L45_DEVID, &dev_id);
-	if (ret < 0) {
-		dev_err(dev, "Get Device ID failed\n");
-		return ret;
-	}
-
-	ret = regmap_read(cs35l45->regmap, CS35L45_REVID, &rev_id);
-	if (ret < 0) {
-		dev_err(dev, "Get Revision ID failed\n");
 		return ret;
 	}
 
