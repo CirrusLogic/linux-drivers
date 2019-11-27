@@ -1,20 +1,12 @@
-/*
- * cs40l2x.h -- CS40L20/CS40L25/CS40L25A/CS40L25B Haptics Driver
- *
- * Copyright 2018 Cirrus Logic, Inc.
- *
- * Author: Jeff LaBundy <jeff.labundy@cirrus.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef __CS40L2X_H__
 #define __CS40L2X_H__
 
 #include <linux/regmap.h>
+#include <linux/leds.h>
+#include <linux/regulator/consumer.h>
+#include <linux/platform_data/cs40l2x.h>
 
 #define CS40L2X_FIRSTREG		0x00000000
 #define CS40L2X_LASTREG			0x03804FE8
@@ -1090,6 +1082,9 @@
 #define CS40L2X_IMON_OFFS_CALC_ENABLED	1
 #define CS40L2X_IMON_OFFS_CALC_DISABLED	0
 
+#define CS40L2X_PLLSRC_SCLK		0
+#define CS40L2X_PLLSRC_MCLK		5
+
 #define CS40L2X_AUTOSUSPEND_DELAY_MS	3000
 
 bool cs40l2x_readable_reg(struct device *dev, unsigned int reg);
@@ -1164,6 +1159,84 @@ struct cs40l2x_dblk_desc {
 struct cs40l2x_refclk_pair {
 	unsigned int freq;
 	unsigned int coeff;
+};
+
+struct cs40l2x_private {
+	struct device *dev;
+	struct regmap *regmap;
+	struct regulator_bulk_data supplies[2];
+	unsigned int num_supplies;
+	unsigned int devid;
+	unsigned int revid;
+	struct work_struct vibe_start_work;
+	struct work_struct vibe_pbq_work;
+	struct work_struct vibe_stop_work;
+	struct work_struct vibe_mode_work;
+	struct workqueue_struct *vibe_workqueue;
+	struct mutex lock;
+	unsigned int cp_trigger_index;
+	unsigned int cp_trailer_index;
+	unsigned int num_waves;
+	unsigned int wt_limit_xm;
+	unsigned int wt_limit_ym;
+	char wt_file[CS40L2X_WT_FILE_NAME_LEN_MAX];
+	char wt_date[CS40L2X_WT_FILE_DATE_LEN_MAX];
+	bool exc_available;
+	struct cs40l2x_dblk_desc pre_dblks[CS40L2X_MAX_A2H_LEVELS];
+	struct cs40l2x_dblk_desc a2h_dblks[CS40L2X_MAX_A2H_LEVELS];
+	unsigned int num_a2h_levels;
+	int a2h_level;
+	bool vibe_init_success;
+	bool vibe_mode;
+	bool vibe_state;
+	struct gpio_desc *reset_gpio;
+	struct cs40l2x_platform_data pdata;
+	unsigned int num_algos;
+	struct cs40l2x_algo_info algo_info[CS40L2X_NUM_ALGOS_MAX + 1];
+	struct list_head coeff_desc_head;
+	unsigned int num_coeff_files;
+	unsigned int diag_state;
+	unsigned int diag_dig_scale;
+	unsigned int f0_measured;
+	unsigned int redc_measured;
+	unsigned int q_measured;
+	struct cs40l2x_pbq_pair pbq_pairs[CS40L2X_PBQ_DEPTH_MAX];
+	struct hrtimer pbq_timer;
+	unsigned int pbq_depth;
+	unsigned int pbq_index;
+	unsigned int pbq_state;
+	unsigned int pbq_cp_dig_scale;
+	int pbq_repeat;
+	int pbq_remain;
+	struct cs40l2x_wseq_pair wseq_table[CS40L2X_WSEQ_LENGTH_MAX];
+	unsigned int wseq_length;
+	unsigned int event_control;
+	unsigned int hw_err_mask;
+	unsigned int hw_err_count[CS40L2X_NUM_HW_ERRS];
+	unsigned int peak_gpio1_enable;
+	unsigned int gpio_mask;
+	int vpp_measured;
+	int ipp_measured;
+	bool asp_available;
+	bool asp_enable;
+	struct hrtimer asp_timer;
+	const struct cs40l2x_fw_desc *fw_desc;
+	unsigned int fw_id_remap;
+	bool comp_enable_pend;
+	bool comp_enable;
+	bool comp_enable_redc;
+	bool comp_enable_f0;
+	bool amp_gnd_stby;
+	struct cs40l2x_wseq_pair dsp_cache[CS40L2X_DSP_CACHE_MAX];
+	unsigned int dsp_cache_depth;
+#ifdef CONFIG_ANDROID_TIMED_OUTPUT
+	struct timed_output_dev timed_dev;
+	struct hrtimer vibe_timer;
+	int vibe_timeout;
+#else
+	struct led_classdev led_dev;
+#endif /* CONFIG_ANDROID_TIMED_OUTPUT */
+	unsigned int autosuspend_delay;
 };
 
 extern const unsigned char cs40l2x_bst_k1_table[4][5];
