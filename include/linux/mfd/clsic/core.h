@@ -205,7 +205,7 @@ struct clsic {
 	 *
 	 * It has a brief lifespan and uses the shared workqueue
 	 */
-	struct work_struct maintenance_handler;
+	struct delayed_work maintenance_handler;
 
 	/* The message layer has it's own workqueue as it is long lived */
 	struct workqueue_struct *message_worker_queue;

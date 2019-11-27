@@ -303,7 +303,7 @@ static int clsic_bootsrv_service_update_begin(struct clsic *clsic)
 	/*
 	 * The bootloader request will be progressed in the maintenance thread
 	 */
-	schedule_work(&clsic->maintenance_handler);
+	schedule_delayed_work(&clsic->maintenance_handler, 0);
 
 	return 0;
 }
@@ -504,7 +504,7 @@ static int clsic_bootsrv_msghandler(struct clsic *clsic,
 		 * runs.
 		 */
 		clsic_purge_message_queues(clsic);
-		schedule_work(&clsic->maintenance_handler);
+		schedule_delayed_work(&clsic->maintenance_handler, 0);
 	}
 	return ret;
 }
@@ -572,7 +572,7 @@ int clsic_bootsrv_state_handler(struct clsic *clsic)
 			 * As this is called from the maintenance_handler
 			 * context this will cause it to re-run
 			 */
-			schedule_work(&clsic->maintenance_handler);
+			schedule_delayed_work(&clsic->maintenance_handler, 0);
 
 		}
 		break;

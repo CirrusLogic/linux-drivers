@@ -342,7 +342,7 @@ static void clsic_boot_nowait(struct clsic *clsic)
 {
 	unsigned int val;
 
-	cancel_work_sync(&clsic->maintenance_handler);
+	cancel_delayed_work_sync(&clsic->maintenance_handler);
 	reinit_completion(&clsic->pm_completion);
 
 	if (clsic->volatile_memory) {
@@ -354,7 +354,7 @@ static void clsic_boot_nowait(struct clsic *clsic)
 			     CLSIC_BOOT_PROGRESS_TIMEOUT_MICROSECONDS);
 		clsic_fwupdate_reset(clsic);
 	} else
-		schedule_work(&clsic->maintenance_handler);
+		schedule_delayed_work(&clsic->maintenance_handler, 0);
 
 	/* Unmask the IRQ used for messaging */
 	clsic_irq_messaging_enable(clsic);
@@ -406,7 +406,7 @@ int clsic_dev_init(struct clsic *clsic)
 	clsic->volatile_memory = of_property_read_bool(clsic->dev->of_node,
 						       "volatile_memory");
 
-	INIT_WORK(&clsic->maintenance_handler, clsic_maintenance);
+	INIT_DELAYED_WORK(&clsic->maintenance_handler, clsic_maintenance);
 
 	clsic_init_sysfs(clsic);
 
@@ -557,7 +557,8 @@ void clsic_dev_panic(struct clsic *clsic, struct clsic_message *msg)
  */
 void clsic_maintenance(struct work_struct *data)
 {
-	struct clsic *clsic = container_of(data, struct clsic,
+	struct delayed_work *dw = to_delayed_work(data);
+	struct clsic *clsic = container_of(dw, struct clsic,
 					   maintenance_handler);
 
 	trace_clsic_maintenance(clsic->state, clsic->blrequest,
@@ -666,7 +667,7 @@ int clsic_dev_exit(struct clsic *clsic)
 	pm_runtime_mark_last_busy(clsic->dev);
 	pm_runtime_put_autosuspend(clsic->dev);
 
-	cancel_work_sync(&clsic->maintenance_handler);
+	cancel_delayed_work_sync(&clsic->maintenance_handler);
 
 	/*
 	 * If any of the services registered child devices this will call their
