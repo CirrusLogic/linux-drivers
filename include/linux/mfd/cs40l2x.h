@@ -1087,6 +1087,14 @@
 
 #define CS40L2X_AUTOSUSPEND_DELAY_MS	3000
 
+#define CS40L2X_A2H_I2S_START		2
+
+#define CS40L2X_ASP_WIDTH_RX_MASK	GENMASK(31, 24)
+#define CS40L2X_ASP_WIDTH_RX_SHIFT	24
+#define CS40L2X_ASP_SP_RX_WL_MASK	GENMASK(5, 0)
+
+#define CS40L2X_ASP_RX_ENABLE_MASK	GENMASK(17, 16)
+
 bool cs40l2x_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l2x_precious_reg(struct device *dev, unsigned int reg);
 
