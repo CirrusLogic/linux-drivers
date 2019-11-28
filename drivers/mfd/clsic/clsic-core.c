@@ -338,10 +338,11 @@ static int clsic_services_init(struct clsic *clsic)
  */
 #define CLSIC_PM_COMPLETION_TIMEOUT (HZ * 100)
 
-static void clsic_boot(struct clsic *clsic)
+static void clsic_boot_nowait(struct clsic *clsic)
 {
 	unsigned int val;
 
+	cancel_work_sync(&clsic->maintenance_handler);
 	reinit_completion(&clsic->pm_completion);
 
 	if (clsic->volatile_memory) {
@@ -357,6 +358,11 @@ static void clsic_boot(struct clsic *clsic)
 
 	/* Unmask the IRQ used for messaging */
 	clsic_irq_messaging_enable(clsic);
+}
+
+static void clsic_boot(struct clsic *clsic)
+{
+	clsic_boot_nowait(clsic);
 
 	/*
 	 * Wait for the system to have fully initialised, including any
@@ -465,7 +471,12 @@ int clsic_dev_init(struct clsic *clsic)
 		pm_runtime_set_active(clsic->dev);
 		clsic_state_set(clsic, CLSIC_STATE_RESUMING,
 				CLSIC_STATE_CHANGE_LOCKNOTHELD);
-		clsic_boot(clsic);
+		/*
+		 * The boot procedure can take a long time and depend on things
+		 * that aren't ready yet (mainly filesystem and firmware loader)
+		 * so don't block initial probe waiting for it to complete.
+		 */
+		clsic_boot_nowait(clsic);
 
 	}
 	pm_runtime_enable(clsic->dev);
