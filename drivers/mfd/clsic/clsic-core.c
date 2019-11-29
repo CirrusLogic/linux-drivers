@@ -1459,7 +1459,7 @@ void clsic_init_debugfs(struct clsic *clsic)
 	debugfs_create_file("services", 0444, clsic->debugfs_root, clsic,
 			    &clsic_services_fops);
 
-	debugfs_create_file("last_panic", 0440, clsic->debugfs_root, clsic,
+	debugfs_create_file("last_panic", 0660, clsic->debugfs_root, clsic,
 			    &clsic_panic_fops);
 
 	clsic->debugfs_debuginfo = debugfs_create_dir("debuginfo",
