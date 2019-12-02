@@ -30,6 +30,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/hrtimer.h>
+#include <linux/mfd/core.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -8694,6 +8695,11 @@ static struct regmap_config cs40l2x_regmap = {
 	.cache_type = REGCACHE_NONE,
 };
 
+
+static const struct mfd_cell cs40l2x_devs[] = {
+	{ .name = "cs40l2x-codec" },
+};
+
 static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 				const struct i2c_device_id *id)
 {
@@ -8875,6 +8881,13 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
 			cs40l2x->fw_desc->fw_file, dev, GFP_KERNEL, cs40l2x,
 			cs40l2x_firmware_load);
+
+	ret = mfd_add_devices(dev, PLATFORM_DEVID_NONE, cs40l2x_devs,
+				ARRAY_SIZE(cs40l2x_devs), NULL, 0, NULL);
+	if (ret) {
+		dev_err(dev, "Cannot register codec component\n");
+		goto err;
+	}
 
 	return 0;
 err:
