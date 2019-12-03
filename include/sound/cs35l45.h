@@ -93,6 +93,7 @@ struct cs35l45_platform_data {
 	struct gpio_ctrl gpio_ctrl1;
 	struct gpio_ctrl gpio_ctrl2;
 	struct gpio_ctrl gpio_ctrl3;
+	bool use_tdm_slots;
 };
 
 struct cs35l45_private {
@@ -102,10 +103,11 @@ struct cs35l45_private {
 	struct gpio_desc *reset_gpio;
 	struct regulator_bulk_data supplies[CS35L45_NUM_SUPPLIES];
 	struct cs35l45_platform_data pdata;
-	int irq;
+	struct mutex rate_lock;
 	bool initialized;
 	bool halo_booted;
-	struct mutex rate_lock;
+	int irq;
+	int slot_width;
 };
 
 int cs35l45_initialize(struct cs35l45_private *cs35l45);

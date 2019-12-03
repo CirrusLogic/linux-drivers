@@ -675,7 +675,8 @@ static int cs35l45_dai_hw_params(struct snd_pcm_substream *substream,
 			   global_fs << CS35L45_GLOBAL_FS_SHIFT);
 
 	asp_wl = params_width(params);
-	asp_width = params_physical_width(params);
+	asp_width = cs35l45->pdata.use_tdm_slots ?
+			    cs35l45->slot_width : params_physical_width(params);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		regmap_update_bits(cs35l45->regmap, CS35L45_ASP_CONTROL2,
@@ -693,8 +694,19 @@ static int cs35l45_dai_hw_params(struct snd_pcm_substream *substream,
 		regmap_update_bits(cs35l45->regmap, CS35L45_ASP_DATA_CONTROL1,
 				   CS35L45_ASP_WL_MASK,
 				   asp_wl << CS35L45_ASP_WL_SHIFT);
-
 	}
+
+	return 0;
+}
+
+static int cs35l45_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
+				unsigned int rx_mask, int slots,
+				int slot_width)
+{
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(dai->component);
+
+	cs35l45->slot_width = slot_width;
 
 	return 0;
 }
@@ -804,6 +816,7 @@ static const struct snd_soc_dai_ops cs35l45_dai_ops = {
 	.shutdown = cs35l45_dai_shutdown,
 	.set_fmt = cs35l45_dai_set_fmt,
 	.hw_params = cs35l45_dai_hw_params,
+	.set_tdm_slot = cs35l45_set_tdm_slot,
 	.set_sysclk = cs35l45_dai_set_sysclk,
 };
 
@@ -1215,6 +1228,9 @@ static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
 	if ((!node) || (!pdata))
 		return 0;
 
+	pdata->use_tdm_slots = of_property_read_bool(node,
+						     "cirrus,use-tdm-slots");
+
 	child = of_get_child_by_name(node, "cirrus,bst-bpe-voltage-config");
 	pdata->bst_bpe_voltage_cfg.is_present = child ? true : false;
 	if (!pdata->bst_bpe_voltage_cfg.is_present)
@@ -1467,6 +1483,8 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 		usleep_range(2000, 2100);
 		gpiod_set_value_cansleep(cs35l45->reset_gpio, 1);
 	}
+
+	cs35l45->slot_width = CS35L45_DEFAULT_SLOT_WIDTH;
 
 	ret = cs35l45_dsp_init(cs35l45);
 	if (ret < 0) {
