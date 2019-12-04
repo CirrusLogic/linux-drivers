@@ -306,32 +306,44 @@ static int cs35l45_amp_power_ev(struct snd_soc_dapm_widget *w,
 	return ret;
 }
 
-static const char * const pcm_texts[] = {"Zero", "ASP_RX1", "ASP_RX2", "VMON",
-			"IMON", "VDD_BATTMON", "VDD_BSTMON", "DSP_TX1",
-			"DSP_TX2", "SWIRE_RX1", "SWIRE_RX2"};
+static const char * const pcm_tx_txt[] = {"Zero", "ASP_RX1", "ASP_RX2", "VMON",
+			"IMON", "ERR_VOL", "VDD_BATTMON", "VDD_BSTMON",
+			"DSP_TX1", "DSP_TX2"};
 
-static const unsigned int pcm_values[] = {CS35L45_PCM_SRC_ZERO,
+static const unsigned int pcm_tx_val[] = {CS35L45_PCM_SRC_ZERO,
 			CS35L45_PCM_SRC_ASP_RX1, CS35L45_PCM_SRC_ASP_RX2,
 			CS35L45_PCM_SRC_VMON, CS35L45_PCM_SRC_IMON,
-			CS35L45_PCM_SRC_VDD_BATTMON, CS35L45_PCM_SRC_VDD_BSTMON,
-			CS35L45_PCM_SRC_DSP_TX1, CS35L45_PCM_SRC_DSP_TX2,
-			CS35L45_PCM_SRC_SWIRE_RX1, CS35L45_PCM_SRC_SWIRE_RX2};
+			CS35L45_PCM_SRC_ERR_VOL, CS35L45_PCM_SRC_VDD_BATTMON,
+			CS35L45_PCM_SRC_VDD_BSTMON, CS35L45_PCM_SRC_DSP_TX1,
+			CS35L45_PCM_SRC_DSP_TX2};
+
+static const char * const pcm_rx_txt[] = {"Zero", "ASP_RX1", "ASP_RX2"};
+
+static const unsigned int pcm_rx_val[] = {CS35L45_PCM_SRC_ZERO,
+			CS35L45_PCM_SRC_ASP_RX1, CS35L45_PCM_SRC_ASP_RX2};
+
+static const char * const pcm_dac_txt[] = {"Zero", "ASP_RX1", "ASP_RX2",
+			"DSP_TX1", "DSP_TX2"};
+
+static const unsigned int pcm_dac_val[] = {CS35L45_PCM_SRC_ZERO,
+			CS35L45_PCM_SRC_ASP_RX1, CS35L45_PCM_SRC_ASP_RX2,
+			CS35L45_PCM_SRC_DSP_TX1, CS35L45_PCM_SRC_DSP_TX2};
 
 static const struct soc_enum mux_enums[] = {
 	SOC_VALUE_ENUM_DOUBLE(CS35L45_ASPTX1_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
-			      ARRAY_SIZE(pcm_texts), pcm_texts, pcm_values),
+			ARRAY_SIZE(pcm_tx_txt), pcm_tx_txt, pcm_tx_val),
 	SOC_VALUE_ENUM_DOUBLE(CS35L45_ASPTX2_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
-			      ARRAY_SIZE(pcm_texts), pcm_texts, pcm_values),
+			ARRAY_SIZE(pcm_tx_txt), pcm_tx_txt, pcm_tx_val),
 	SOC_VALUE_ENUM_DOUBLE(CS35L45_ASPTX3_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
-			      ARRAY_SIZE(pcm_texts), pcm_texts, pcm_values),
+			 ARRAY_SIZE(pcm_tx_txt), pcm_tx_txt, pcm_tx_val),
 	SOC_VALUE_ENUM_DOUBLE(CS35L45_ASPTX4_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
-			      ARRAY_SIZE(pcm_texts), pcm_texts, pcm_values),
+			ARRAY_SIZE(pcm_tx_txt), pcm_tx_txt, pcm_tx_val),
 	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX1_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
-			      ARRAY_SIZE(pcm_texts), pcm_texts, pcm_values),
+			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
 	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX2_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
-			      ARRAY_SIZE(pcm_texts), pcm_texts, pcm_values),
+			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
 	SOC_VALUE_ENUM_DOUBLE(CS35L45_DACPCM1_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
-			      ARRAY_SIZE(pcm_texts), pcm_texts, pcm_values),
+			ARRAY_SIZE(pcm_dac_txt), pcm_dac_txt, pcm_dac_val),
 };
 
 static const struct snd_kcontrol_new muxes[] = {
@@ -372,7 +384,6 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT("ASP_TX2", NULL, 0, CS35L45_ASP_ENABLES1, 1, 0),
 	SND_SOC_DAPM_AIF_OUT("ASP_TX3", NULL, 0, CS35L45_ASP_ENABLES1, 2, 0),
 	SND_SOC_DAPM_AIF_OUT("ASP_TX4", NULL, 0, CS35L45_ASP_ENABLES1, 3, 0),
-	SND_SOC_DAPM_AIF_OUT("ASP_TX5", NULL, 0, CS35L45_ASP_ENABLES1, 4, 0),
 
 	SND_SOC_DAPM_MUX("ASP_TX1 Source", SND_SOC_NOPM, 0, 0, &muxes[ASP_TX1]),
 	SND_SOC_DAPM_MUX("ASP_TX2 Source", SND_SOC_NOPM, 0, 0, &muxes[ASP_TX2]),
@@ -478,12 +489,6 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"DSP_RX1 Source", "Zero", "AMP"},
 	{"DSP_RX1 Source", "ASP_RX1", "ASP_RX1"},
 	{"DSP_RX1 Source", "ASP_RX2", "ASP_RX2"},
-	{"DSP_RX1 Source", "VMON", "AMP"},
-	{"DSP_RX1 Source", "IMON", "AMP"},
-	{"DSP_RX1 Source", "VDD_BATTMON", "AMP"},
-	{"DSP_RX1 Source", "VDD_BSTMON", "AMP"},
-	{"DSP_RX1 Source", "DSP_TX1", "AMP"},
-	{"DSP_RX1 Source", "DSP_TX2", "AMP"},
 	{"DSP_RX1 Source", "SWIRE_RX1", "AMP"},
 	{"DSP_RX1 Source", "SWIRE_RX2", "AMP"},
 
@@ -491,22 +496,12 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"DSP_RX2 Source", "Zero", "AMP"},
 	{"DSP_RX2 Source", "ASP_RX1", "ASP_RX1"},
 	{"DSP_RX2 Source", "ASP_RX2", "ASP_RX2"},
-	{"DSP_RX2 Source", "VMON", "AMP"},
-	{"DSP_RX2 Source", "IMON", "AMP"},
-	{"DSP_RX2 Source", "VDD_BATTMON", "AMP"},
-	{"DSP_RX2 Source", "VDD_BSTMON", "AMP"},
-	{"DSP_RX2 Source", "DSP_TX1", "AMP"},
-	{"DSP_RX2 Source", "DSP_TX2", "AMP"},
 	{"DSP_RX2 Source", "SWIRE_RX1", "AMP"},
 	{"DSP_RX2 Source", "SWIRE_RX2", "AMP"},
 
 	{"DACPCM Source", "Zero", "AMP"},
 	{"DACPCM Source", "ASP_RX1", "ASP_RX1"},
 	{"DACPCM Source", "ASP_RX2", "ASP_RX2"},
-	{"DACPCM Source", "VMON", "VMON ADC"},
-	{"DACPCM Source", "IMON", "IMON ADC"},
-	{"DACPCM Source", "VDD_BATTMON", "VDD_BATTMON ADC"},
-	{"DACPCM Source", "VDD_BSTMON", "VDD_BSTMON ADC"},
 	{"DACPCM Source", "DSP_TX1", "DSP_RX1 Source"},
 	{"DACPCM Source", "DSP_TX1", "DSP_RX2 Source"},
 	{"DACPCM Source", "DSP_TX2", "DSP_RX1 Source"},
@@ -1383,6 +1378,9 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 	regmap_update_bits(cs35l45->regmap,
 		CS35L45_DSP1_CCM_CORE_CONTROL,
 		CS35L45_CCM_CORE_EN_MASK, 0);
+
+	regmap_write(cs35l45->regmap, CS35L45_MIXER_PILOT0_INPUT,
+		     CS35L45_PCM_SRC_DSP_TX2);
 
 	ret = cs35l45_apply_of_data(cs35l45);
 	if (ret < 0) {
