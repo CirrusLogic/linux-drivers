@@ -110,7 +110,7 @@ static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		if (cs35l45->halo_booted == false) {
+		if (!cs35l45->dsp.booted) {
 			regmap_update_bits(cs35l45->regmap,
 					   CS35L45_DSP1_CCM_CORE_CONTROL,
 					   CS35L45_CCM_PM_REMAP_MASK,
@@ -123,7 +123,7 @@ static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case SND_SOC_DAPM_POST_PMU:
-		if (cs35l45->halo_booted == false) {
+		if (!cs35l45->dsp.booted) {
 			wm_adsp_event(w, kcontrol, event);
 
 			regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
@@ -169,12 +169,10 @@ static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 					ret);
 				return ret;
 			}
-
-			cs35l45->halo_booted = true;
 		}
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		if (cs35l45->halo_booted == false) {
+		if (!cs35l45->dsp.preloaded) {
 			regmap_update_bits(cs35l45->regmap,
 				CS35L45_DSP1_STREAM_ARB_TX1_CONFIG_0,
 				CS35L45_DSP1_STREAM_ARB_TX1_EN_MASK, 0);
@@ -512,32 +510,6 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"SPK", NULL, "DACPCM Source"},
 };
 
-static int cs35l45_halo_booted_get(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component =
-			snd_soc_kcontrol_component(kcontrol);
-	struct cs35l45_private *cs35l45 =
-			snd_soc_component_get_drvdata(component);
-
-	ucontrol->value.integer.value[0] = cs35l45->halo_booted;
-
-	return 0;
-}
-
-static int cs35l45_halo_booted_put(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component =
-			snd_soc_kcontrol_component(kcontrol);
-	struct cs35l45_private *cs35l45 =
-			snd_soc_component_get_drvdata(component);
-
-	cs35l45->halo_booted = ucontrol->value.integer.value[0];
-
-	return 0;
-}
-
 static const char * const gain_texts[] = {"10dB", "13dB", "16dB", "19dB"};
 static const unsigned int gain_values[] = {0x00, 0x01, 0x02, 0x03};
 
@@ -550,8 +522,6 @@ static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
 	WM_ADSP_FW_CONTROL("DSP1", 0),
 	SOC_ENUM("AMP PCM Gain", gain_enum),
-	SOC_SINGLE_EXT("DSP Booted", SND_SOC_NOPM, 0, 1, 0,
-			cs35l45_halo_booted_get, cs35l45_halo_booted_put),
 };
 
 static int cs35l45_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
