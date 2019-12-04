@@ -105,7 +105,6 @@ struct cs35l45_private {
 	struct cs35l45_platform_data pdata;
 	struct mutex rate_lock;
 	bool initialized;
-	bool halo_booted;
 	int irq;
 	int slot_width;
 };
