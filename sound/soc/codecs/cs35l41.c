@@ -380,20 +380,20 @@ static int cs35l41_fast_switch_en_get(struct snd_kcontrol *kcontrol,
 
 static int cs35l41_do_fast_switch(struct cs35l41_private *cs35l41)
 {
-	char			val_str[CS35L41_BUFSIZE];
-	const char		*fw_name;
-	const struct firmware	*fw;
-	int			ret;
-	unsigned int		i, j, k;
-	s32			data_ctl_len, val;
-	__be32			*data_ctl_buf, cmd_ctl, st_ctl;
-	bool			fw_running	= false;
+	char val_str[CS35L41_BUFSIZE];
+	const char *fw_name = NULL;
+	const struct firmware *fw = NULL;
+	int ret;
+	unsigned int i, j, k;
+	s32 data_ctl_len, val;
+	__be32 *data_ctl_buf, cmd_ctl, st_ctl;
+	bool fw_running	= false;
 
-	data_ctl_buf	= NULL;
+	data_ctl_buf = NULL;
 
 	fw_name	= cs35l41->fast_switch_names[cs35l41->fast_switch_file_idx];
 	dev_dbg(cs35l41->dev, "fw_name:%s\n", fw_name);
-	ret	= request_firmware(&fw, fw_name, cs35l41->dev);
+	ret = request_firmware(&fw, fw_name, cs35l41->dev);
 	if (ret < 0) {
 		dev_err(cs35l41->dev, "Failed to request firmware:%s\n",
 			fw_name);
@@ -407,18 +407,19 @@ static int cs35l41_do_fast_switch(struct cs35l41_private *cs35l41)
 		} else {
 			/* fw->data[i] must be numerical digit */
 			if (j < CS35L41_BUFSIZE - 1) {
-				val_str[j]	= fw->data[i];
+				val_str[j] = fw->data[i];
 				j++;
 			} else {
 				dev_err(cs35l41->dev, "Invalid input\n");
-				ret		= -EINVAL;
+				ret = -EINVAL;
 				goto exit;
 			}
 		}
 	}
-	i++;	/* points to beginning of next number */
-	val_str[j]	= '\0';
-	ret		= kstrtos32(val_str, 10, &data_ctl_len);
+	/* points to beginning of next number */
+	i++;
+	val_str[j] = '\0';
+	ret = kstrtos32(val_str, 10, &data_ctl_len);
 	if (ret < 0) {
 		dev_err(cs35l41->dev, "kstrtos32 failed (%d) val_str:%s\n",
 			ret, val_str);
@@ -427,9 +428,9 @@ static int cs35l41_do_fast_switch(struct cs35l41_private *cs35l41)
 
 	dev_dbg(cs35l41->dev, "data_ctl_len:%u\n", data_ctl_len);
 
-	data_ctl_buf	= kcalloc(1, data_ctl_len * sizeof(s32), GFP_KERNEL);
+	data_ctl_buf = kcalloc(1, data_ctl_len * sizeof(s32), GFP_KERNEL);
 	if (!data_ctl_buf) {
-		ret	= -ENOMEM;
+		ret = -ENOMEM;
 		goto exit;
 	}
 
@@ -443,8 +444,8 @@ static int cs35l41_do_fast_switch(struct cs35l41_private *cs35l41)
 			 * delimited either by ',' or end of file
 			 * Parse number and write parameter
 			 */
-			val_str[j]	= '\0';
-			ret		= kstrtos32(val_str, 10, &val);
+			val_str[j] = '\0';
+			ret = kstrtos32(val_str, 10, &val);
 			if (ret < 0) {
 				dev_err(cs35l41->dev,
 					"kstrtos32 failed (%d) val_str:%s\n",
@@ -452,7 +453,7 @@ static int cs35l41_do_fast_switch(struct cs35l41_private *cs35l41)
 				goto exit;
 			}
 			data_ctl_buf[k] = cpu_to_be32(val);
-			j		= 0;
+			j = 0;
 			k++;
 		} else if ((char)fw->data[i] == ' ') {
 			/* Skip white space */
@@ -463,7 +464,7 @@ static int cs35l41_do_fast_switch(struct cs35l41_private *cs35l41)
 				j++;
 			} else {
 				dev_err(cs35l41->dev, "Invalid input\n");
-				ret	= -EINVAL;
+				ret = -EINVAL;
 				goto exit;
 			}
 		}
@@ -482,7 +483,7 @@ static int cs35l41_do_fast_switch(struct cs35l41_private *cs35l41)
 	for (i = 0; i < data_ctl_len; i++)
 		dev_dbg(cs35l41->dev, "%u\n", be32_to_cpu(data_ctl_buf[i]));
 #endif
-	cmd_ctl		= cpu_to_be32(CSPL_CMD_UPDATE_PARAM);
+	cmd_ctl = cpu_to_be32(CSPL_CMD_UPDATE_PARAM);
 	wm_adsp_write_ctl(&cs35l41->dsp, "CSPL_COMMAND", &cmd_ctl, sizeof(s32));
 
 	/* Verify CSPL COMMAND */
@@ -492,7 +493,7 @@ static int cs35l41_do_fast_switch(struct cs35l41_private *cs35l41)
 		if (be32_to_cpu(st_ctl) == CSPL_ST_RUNNING) {
 			dev_dbg(cs35l41->dev,
 				"CSPL STATE == RUNNING (%u attempt)\n", i);
-			fw_running	= true;
+			fw_running = true;
 			break;
 		}
 
@@ -502,7 +503,7 @@ static int cs35l41_do_fast_switch(struct cs35l41_private *cs35l41)
 	if (!fw_running) {
 		dev_err(cs35l41->dev, "CSPL_STATE (%d) is not running\n",
 			st_ctl);
-		ret	= -1;
+		ret = -1;
 		goto exit;
 	}
 exit:
@@ -514,7 +515,7 @@ exit:
 static int cs35l41_fast_switch_en_put(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
-	int			ret = 0;
+	int ret = 0;
 
 	struct snd_soc_component *component =
 		snd_soc_kcontrol_component(kcontrol);
@@ -540,8 +541,8 @@ static int cs35l41_fast_switch_file_put(struct snd_kcontrol *kcontrol,
 		snd_soc_kcontrol_component(kcontrol);
 	struct cs35l41_private *cs35l41 =
 		snd_soc_component_get_drvdata(component);
-	struct soc_enum		*soc_enum;
-	unsigned int		i = ucontrol->value.enumerated.item[0];
+	struct soc_enum *soc_enum;
+	unsigned int i = ucontrol->value.enumerated.item[0];
 
 	soc_enum = (struct soc_enum *)kcontrol->private_value;
 
@@ -635,9 +636,9 @@ static bool cs35l41_is_csplmboxsts_correct(enum cs35l41_cspl_mboxcmd cmd,
 static int cs35l41_set_csplmboxcmd(struct cs35l41_private *cs35l41,
 				   enum cs35l41_cspl_mboxcmd cmd)
 {
-	int		ret = 0;
-	unsigned int	sts, i;
-	bool		ack = false;
+	int ret = 0;
+	unsigned int sts, i;
+	bool ack = false;
 
 	/* Reset DSP sticky bit */
 	regmap_write(cs35l41->regmap, CS35L41_IRQ2_STATUS2,
@@ -676,7 +677,7 @@ static int cs35l41_set_csplmboxcmd(struct cs35l41_private *cs35l41,
 
 	if (!ack) {
 		dev_err(cs35l41->dev,
-			"Timout waiting for DSP to set mbox cmd\n");
+			"Timeout waiting for DSP to set mbox cmd\n");
 		ret = -ETIMEDOUT;
 	}
 
@@ -716,9 +717,9 @@ static int cs35l41_put_output_dev(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
-	struct soc_enum		*soc_enum;
-	unsigned int		i = ucontrol->value.enumerated.item[0];
+	struct cs35l41_private *cs35l41;
+	struct soc_enum *soc_enum;
+	unsigned int i = ucontrol->value.enumerated.item[0];
 
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l41 = snd_soc_component_get_drvdata(component);
@@ -755,8 +756,8 @@ static int cs35l41_get_output_dev(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
-	int			ret = 0;
+	struct cs35l41_private *cs35l41;
+	int ret = 0;
 
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l41 = snd_soc_component_get_drvdata(component);
@@ -986,7 +987,7 @@ static int cs35l41_get_vol(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
+	struct cs35l41_private *cs35l41;
 
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l41 = snd_soc_component_get_drvdata(component);
@@ -1000,7 +1001,7 @@ static int cs35l41_put_vol(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
+	struct cs35l41_private *cs35l41;
 	int ret = 0;
 
 	component = snd_soc_kcontrol_component(kcontrol);
@@ -1023,7 +1024,7 @@ static int cs35l41_get_ramp_status(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
+	struct cs35l41_private *cs35l41;
 
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l41 = snd_soc_component_get_drvdata(component);
@@ -1038,7 +1039,7 @@ static int cs35l41_put_ramp_status(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
+	struct cs35l41_private *cs35l41;
 
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l41 = snd_soc_component_get_drvdata(component);
@@ -1052,7 +1053,7 @@ static int cs35l41_get_manual_ramp(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
+	struct cs35l41_private *cs35l41;
 
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l41 = snd_soc_component_get_drvdata(component);
@@ -1067,7 +1068,7 @@ static int cs35l41_put_manual_ramp(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
+	struct cs35l41_private *cs35l41;
 
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l41 = snd_soc_component_get_drvdata(component);
@@ -1106,7 +1107,7 @@ static int cs35l41_get_init_attenuation(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
+	struct cs35l41_private *cs35l41;
 
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l41 = snd_soc_component_get_drvdata(component);
@@ -1119,7 +1120,7 @@ static int cs35l41_put_init_attenuation(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
+	struct cs35l41_private *cs35l41;
 
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l41 = snd_soc_component_get_drvdata(component);
@@ -1138,7 +1139,7 @@ static int cs35l41_get_knee_attenuation(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
+	struct cs35l41_private *cs35l41;
 
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l41 = snd_soc_component_get_drvdata(component);
@@ -1151,7 +1152,7 @@ static int cs35l41_put_knee_attenuation(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
+	struct cs35l41_private *cs35l41;
 
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l41 = snd_soc_component_get_drvdata(component);
@@ -1170,7 +1171,7 @@ static int cs35l41_get_ramp_end_time(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
+	struct cs35l41_private *cs35l41;
 
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l41 = snd_soc_component_get_drvdata(component);
@@ -1183,7 +1184,7 @@ static int cs35l41_put_ramp_end_time(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
+	struct cs35l41_private *cs35l41;
 
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l41 = snd_soc_component_get_drvdata(component);
@@ -1202,7 +1203,7 @@ static int cs35l41_get_auto_ramp_timeout(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
+	struct cs35l41_private *cs35l41;
 
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l41 = snd_soc_component_get_drvdata(component);
@@ -1216,7 +1217,7 @@ static int cs35l41_put_auto_ramp_timeout(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
+	struct cs35l41_private *cs35l41;
 
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l41 = snd_soc_component_get_drvdata(component);
@@ -1249,7 +1250,7 @@ static int cs35l41_put_ramp_knee_time(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component;
-	struct cs35l41_private	*cs35l41;
+	struct cs35l41_private *cs35l41;
 
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l41 = snd_soc_component_get_drvdata(component);
@@ -1360,13 +1361,13 @@ static const struct cs35l41_otp_map_element_t *cs35l41_find_otp_map(u32 otp_id)
 static int cs35l41_otp_unpack(void *data)
 {
 	struct cs35l41_private *cs35l41 = data;
-	u32 *otp_mem;
+	u32 *otp_mem = NULL;
 	int i;
 	int bit_offset, word_offset;
 	unsigned int bit_sum = 8;
 	u32 otp_val, otp_id_reg;
-	const struct cs35l41_otp_map_element_t *otp_map_match;
-	const struct cs35l41_otp_packed_element_t *otp_map;
+	const struct cs35l41_otp_map_element_t *otp_map_match = NULL;
+	const struct cs35l41_otp_packed_element_t *otp_map = NULL;
 	int ret;
 	struct spi_device *spi = NULL;
 	u32 orig_spi_freq = 0;
@@ -1492,8 +1493,8 @@ err_otp_unpack:
 static irqreturn_t cs35l41_irq(int irq, void *data)
 {
 	struct cs35l41_private *cs35l41 = data;
-	unsigned int status[4];
-	unsigned int masks[4];
+	unsigned int status[4] = {0, 0, 0, 0};
+	unsigned int masks[4] = {0, 0, 0, 0};
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(status); i++) {
@@ -2165,8 +2166,8 @@ static const unsigned int cs35l41_src_rates[] = {
 };
 
 static const struct snd_pcm_hw_constraint_list cs35l41_constraints = {
-	.count  = ARRAY_SIZE(cs35l41_src_rates),
-	.list   = cs35l41_src_rates,
+	.count = ARRAY_SIZE(cs35l41_src_rates),
+	.list = cs35l41_src_rates,
 };
 
 static int cs35l41_pcm_startup(struct snd_pcm_substream *substream,
@@ -2527,8 +2528,8 @@ static int cs35l41_component_probe(struct snd_soc_component *component)
 {
 	struct cs35l41_private *cs35l41 =
 		snd_soc_component_get_drvdata(component);
-	struct snd_kcontrol_new	*kcontrol;
-	int ret;
+	struct snd_kcontrol_new *kcontrol;
+	int ret = 0;
 
 	component->regmap = cs35l41->regmap;
 
@@ -2546,12 +2547,12 @@ static int cs35l41_component_probe(struct snd_soc_component *component)
 			goto exit;
 		}
 
-		kcontrol->name	= "Fast Use Case Delta File";
+		kcontrol->name = "Fast Use Case Delta File";
 		kcontrol->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-		kcontrol->info	= snd_soc_info_enum_double;
-		kcontrol->get	= cs35l41_fast_switch_file_get;
-		kcontrol->put	= cs35l41_fast_switch_file_put;
-		kcontrol->private_value	=
+		kcontrol->info = snd_soc_info_enum_double;
+		kcontrol->get = cs35l41_fast_switch_file_get;
+		kcontrol->put = cs35l41_fast_switch_file_put;
+		kcontrol->private_value =
 				  (unsigned long)&cs35l41->fast_switch_enum;
 		ret = snd_soc_add_component_controls(component, kcontrol, 1);
 		if (ret < 0)
@@ -2694,14 +2695,14 @@ static int cs35l41_handle_of_data(struct device *dev,
 		 * device tree do not provide file name.
 		 * Use default value
 		 */
-		num_fast_switch		= ARRAY_SIZE(cs35l41_fast_switch_text);
+		num_fast_switch = ARRAY_SIZE(cs35l41_fast_switch_text);
 		cs35l41->fast_switch_enum.items	=
 			ARRAY_SIZE(cs35l41_fast_switch_text);
 		cs35l41->fast_switch_enum.texts	= cs35l41_fast_switch_text;
 		cs35l41->fast_switch_names = cs35l41_fast_switch_text;
 	} else {
 		/* Device tree provides file name */
-		num_fast_switch			= (size_t)ret;
+		num_fast_switch = (size_t)ret;
 		dev_info(dev, "num_fast_switch:%zu\n", num_fast_switch);
 		cs35l41->fast_switch_names =
 			devm_kmalloc(dev, num_fast_switch * sizeof(char *),
@@ -2719,10 +2720,10 @@ static int cs35l41_handle_of_data(struct device *dev,
 		cs35l41->fast_switch_enum.texts	= cs35l41->fast_switch_names;
 	}
 
-	cs35l41->fast_switch_enum.reg		= SND_SOC_NOPM;
-	cs35l41->fast_switch_enum.shift_l	= 0;
-	cs35l41->fast_switch_enum.shift_r	= 0;
-	cs35l41->fast_switch_enum.mask		=
+	cs35l41->fast_switch_enum.reg = SND_SOC_NOPM;
+	cs35l41->fast_switch_enum.shift_l = 0;
+	cs35l41->fast_switch_enum.shift_r = 0;
+	cs35l41->fast_switch_enum.mask =
 		roundup_pow_of_two(num_fast_switch) - 1;
 
 	pdata->right_channel = of_property_read_bool(np,
@@ -2923,6 +2924,7 @@ static int cs35l41_dsp_init(struct cs35l41_private *cs35l41)
 	dsp->num = 1;
 	dsp->type = WMFW_HALO;
 	dsp->rev = 0;
+	dsp->fw = 9; /* 9 is WM_ADSP_FW_SPK_PROT in wm_adsp.c */
 	dsp->dev = cs35l41->dev;
 	dsp->regmap = cs35l41->regmap;
 
@@ -3096,7 +3098,7 @@ static int cs35l41_exit_hibernate(struct cs35l41_private *cs35l41)
 		usleep_range(4000, 5000);
 	} while (ret < 0 && --retries > 0);
 
-	if (retries < 0)
+	if (retries <= 0)
 		dev_err(cs35l41->dev, "Failed to exit from hibernate\n");
 	else
 		dev_dbg(cs35l41->dev, "cs35l41 restored in %d attempts\n",
@@ -3495,7 +3497,7 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 			CS35L41_DSP1_CCM_CORE_CTRL, 0);
 	cs35l41_dsp_init(cs35l41);
 
-	ret =  snd_soc_register_component(cs35l41->dev,
+	ret = snd_soc_register_component(cs35l41->dev,
 					&soc_component_dev_cs35l41,
 					cs35l41_dai, ARRAY_SIZE(cs35l41_dai));
 	if (ret < 0) {
