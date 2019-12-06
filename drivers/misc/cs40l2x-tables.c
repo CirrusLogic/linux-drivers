@@ -987,6 +987,11 @@ static const char * const cs40l2x_coeff_files_par[] = {
 	"cs40l25a_par.bin",
 };  /* PWLE Amplitude Regulation */
 
+static const char * const cs40l2x_coeff_files_a2h[] = {
+	CS40L2X_WT_FILE_NAME_DEFAULT,
+	"cs40l25a_a2h.bin",
+};  /* PWLE Amplitude Regulation */
+
 const struct cs40l2x_fw_desc cs40l2x_fw_fam[CS40L2X_NUM_FW_FAMS] = {
 	{
 		.id = CS40L2X_FW_ID_ORIG,
@@ -1035,6 +1040,14 @@ const struct cs40l2x_fw_desc cs40l2x_fw_fam[CS40L2X_NUM_FW_FAMS] = {
 		.num_coeff_files = ARRAY_SIZE(cs40l2x_coeff_files_par),
 		.coeff_files = cs40l2x_coeff_files_par,
 		.fw_file = "cs40l25a_par.wmfw",
+	},  /* PWLE Amplitude Regulation */
+	{
+		.id = CS40L2X_FW_ID_A2H,
+		.min_rev = 0x080A05,
+		.halo_state_run = 203,
+		.num_coeff_files = ARRAY_SIZE(cs40l2x_coeff_files_a2h),
+		.coeff_files = cs40l2x_coeff_files_a2h,
+		.fw_file = "cs40l25a_a2h.wmfw",
 	},  /* PWLE Amplitude Regulation */
 };
 
