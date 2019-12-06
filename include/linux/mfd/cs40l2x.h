@@ -988,13 +988,14 @@
 
 #define CS40L2X_DEVICE_NAME		"vibrator"
 
-#define CS40L2X_NUM_FW_FAMS		6
+#define CS40L2X_NUM_FW_FAMS		7
 #define CS40L2X_FW_ID_ORIG		0x1400A7
 #define CS40L2X_FW_ID_B1ROM		0x1400BA
 #define CS40L2X_FW_ID_REMAP		0x1400C3
 #define CS40L2X_FW_ID_CAL		0x1400C6
 #define CS40L2X_FW_ID_CLAB		0x1400CB
 #define CS40L2X_FW_ID_PAR		0x1400CF
+#define CS40L2X_FW_ID_A2H		0x1400D0
 
 #define CS40L2X_PDATA_PRESENT		0x80000000
 #define CS40L2X_PDATA_MASK		~CS40L2X_PDATA_PRESENT
@@ -1237,6 +1238,7 @@ struct cs40l2x_private {
 	bool amp_gnd_stby;
 	struct cs40l2x_wseq_pair dsp_cache[CS40L2X_DSP_CACHE_MAX];
 	unsigned int dsp_cache_depth;
+
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 	struct timed_output_dev timed_dev;
 	struct hrtimer vibe_timer;
