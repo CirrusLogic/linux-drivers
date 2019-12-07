@@ -127,9 +127,25 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_component *comp = snd_soc_dapm_to_component(w->dapm);
 	struct cs40l2x_codec *codec = snd_soc_component_get_drvdata(comp);
+	struct cs40l2x_private *core = cs40l2x_codec->core;
 	struct regmap *regmap = codec->regmap;
 	struct device *dev = codec->dev;
+	unsigned int reg;
 	int ret = 0;
+
+	if (core->dsp_reg) {
+		reg = core->dsp_reg(core, "A2HENABLED",
+				CS40L2X_XM_UNPACKED_TYPE,
+				CS40L2X_ALGO_ID_A2H);
+	} else {
+		dev_warn(dev, "DSP is not ready\n");
+		return 0;
+	}
+
+	if (!reg) {
+		dev_err(dev, "Cannot find the A2HENABLED register\n");
+		return -EINVAL;
+	}
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -145,8 +161,10 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 		if (ret)
 			return ret;
 
+		ret = regmap_write(regmap, reg, CS40L2X_A2H_ENABLE);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
+		ret = regmap_write(regmap, reg, CS40L2X_A2H_DISABLE);
 		break;
 	default:
 		dev_err(dev, "Invalid event %d\n", event);
