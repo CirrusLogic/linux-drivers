@@ -1239,6 +1239,11 @@ struct cs40l2x_private {
 	struct cs40l2x_wseq_pair dsp_cache[CS40L2X_DSP_CACHE_MAX];
 	unsigned int dsp_cache_depth;
 
+	/* Access to DSP registers */
+	unsigned int (*dsp_reg)(struct cs40l2x_private *cs40l2x,
+			const char *coeff_name, const unsigned int block_type,
+			const unsigned int algo_id);
+
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 	struct timed_output_dev timed_dev;
 	struct hrtimer vibe_timer;

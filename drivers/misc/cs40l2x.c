@@ -6072,6 +6072,8 @@ static int cs40l2x_dsp_start(struct cs40l2x_private *cs40l2x)
 		return -ETIME;
 	}
 
+	cs40l2x->dsp_reg = cs40l2x_dsp_reg;
+
 	return 0;
 }
 
