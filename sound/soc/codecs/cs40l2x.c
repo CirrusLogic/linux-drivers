@@ -114,17 +114,29 @@ static int cs40l2x_clk_en(struct snd_soc_dapm_widget *w,
 	struct device *dev = cs40l2x_codec->dev;
 	int ret = 0;
 
+	mutex_lock(&cs40l2x_codec->core->lock);
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		ret = cs40l2x_swap_ext_clk(cs40l2x_codec, CS40L2X_SCLK);
+		if (ret)
+			goto err;
+
+		cs40l2x_codec->core->a2h_enable = true;
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		ret = cs40l2x_swap_ext_clk(cs40l2x_codec, CS40L2X_32KHZ_CLK);
+		if (ret)
+			goto err;
+
+		cs40l2x_codec->core->a2h_enable = false;
 		break;
 	default:
 		dev_err(dev, "Invalid event %d\n", event);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
+err:
+	mutex_unlock(&cs40l2x_codec->core->lock);
 	return ret;
 }
 
@@ -170,6 +182,11 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 		ret = regmap_write(regmap, reg, CS40L2X_A2H_ENABLE);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
+		ret = regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_5,
+					CS40L2X_A2H_I2S_END);
+		if (ret)
+			return ret;
+
 		ret = regmap_write(regmap, reg, CS40L2X_A2H_DISABLE);
 		break;
 	default:
