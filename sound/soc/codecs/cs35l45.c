@@ -872,8 +872,12 @@ static irqreturn_t cs35l45_irq(int irq, void *data)
 				   CS35L45_IRQ1_EINT_3, CS35L45_IRQ1_EINT_4,
 				   CS35L45_IRQ1_EINT_5, CS35L45_IRQ1_EINT_7,
 				   CS35L45_IRQ1_EINT_8, CS35L45_IRQ1_EINT_18};
-	unsigned int status[8];
-	unsigned int masks[8];
+	unsigned int irq_masks[] = {CS35L45_IRQ1_MASK_1, CS35L45_IRQ1_MASK_2,
+				    CS35L45_IRQ1_MASK_3, CS35L45_IRQ1_MASK_4,
+				    CS35L45_IRQ1_MASK_5, CS35L45_IRQ1_MASK_7,
+				    CS35L45_IRQ1_MASK_8, CS35L45_IRQ1_MASK_18};
+	unsigned int status[ARRAY_SIZE(irq_regs)];
+	unsigned int masks[ARRAY_SIZE(irq_masks)];
 	unsigned int i;
 	bool irq_detect = false;
 
@@ -882,7 +886,7 @@ static irqreturn_t cs35l45_irq(int irq, void *data)
 
 	for (i = 0; i < ARRAY_SIZE(irq_regs); i++) {
 		regmap_read(cs35l45->regmap, irq_regs[i], &status[i]);
-		regmap_read(cs35l45->regmap, irq_regs[i], &masks[i]);
+		regmap_read(cs35l45->regmap, irq_masks[i], &masks[i]);
 		irq_detect |= (status[i] & (~masks[i]));
 	}
 
@@ -1338,16 +1342,15 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 	usleep_range(200, 300);
 
 	regmap_update_bits(cs35l45->regmap,
-		CS35L45_DSP1_STREAM_ARB_TX1_CONFIG_0,
-		CS35L45_DSP1_STREAM_ARB_TX1_EN_MASK, 0);
+			   CS35L45_DSP1_STREAM_ARB_TX1_CONFIG_0,
+			   CS35L45_DSP1_STREAM_ARB_TX1_EN_MASK, 0);
 
 	regmap_update_bits(cs35l45->regmap,
-		CS35L45_DSP1_STREAM_ARB_MSTR1_CONFIG_0,
-		CS35L45_DSP1_STREAM_ARB_MSTR0_EN_MASK, 0);
+			   CS35L45_DSP1_STREAM_ARB_MSTR1_CONFIG_0,
+			   CS35L45_DSP1_STREAM_ARB_MSTR0_EN_MASK, 0);
 
-	regmap_update_bits(cs35l45->regmap,
-		CS35L45_DSP1_CCM_CORE_CONTROL,
-		CS35L45_CCM_CORE_EN_MASK, 0);
+	regmap_update_bits(cs35l45->regmap, CS35L45_DSP1_CCM_CORE_CONTROL,
+			   CS35L45_CCM_CORE_EN_MASK, 0);
 
 	regmap_write(cs35l45->regmap, CS35L45_MIXER_PILOT0_INPUT,
 		     CS35L45_PCM_SRC_DSP_TX2);
@@ -1466,8 +1469,10 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 		goto err;
 	}
 
-	irq_pol |= cs35l45->pdata.gpio_ctrl2.pol ? IRQF_TRIGGER_HIGH :
-						   IRQF_TRIGGER_LOW;
+	if (cs35l45->pdata.gpio_ctrl2.invert & (~CS35L45_VALID_PDATA))
+		irq_pol |= IRQF_TRIGGER_HIGH;
+	else
+		irq_pol |= IRQF_TRIGGER_LOW;
 
 	ret = devm_request_threaded_irq(dev, cs35l45->irq, NULL, cs35l45_irq,
 					irq_pol, "cs35l45", cs35l45);
