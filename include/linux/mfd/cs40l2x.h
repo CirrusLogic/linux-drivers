@@ -1091,6 +1091,7 @@
 #define CS40L2X_A2H_ENABLE		1
 #define CS40L2X_A2H_DISABLE		0
 #define CS40L2X_A2H_I2S_START		2
+#define CS40L2X_A2H_I2S_END		3
 
 #define CS40L2X_ASP_WIDTH_RX_MASK	GENMASK(31, 24)
 #define CS40L2X_ASP_WIDTH_RX_SHIFT	24
@@ -1230,6 +1231,7 @@ struct cs40l2x_private {
 	int ipp_measured;
 	bool asp_available;
 	bool asp_enable;
+	bool a2h_enable;
 	struct hrtimer asp_timer;
 	const struct cs40l2x_fw_desc *fw_desc;
 	unsigned int fw_id_remap;
