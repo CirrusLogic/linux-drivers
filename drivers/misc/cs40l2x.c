@@ -3361,44 +3361,6 @@ static ssize_t cs40l2x_asp_enable_store(struct device *dev,
 	return count;
 }
 
-static ssize_t cs40l2x_asp_timeout_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", cs40l2x->pdata.asp_timeout);
-}
-
-static ssize_t cs40l2x_asp_timeout_store(struct device *dev,
-			struct device_attribute *attr,
-			const char *buf, size_t count)
-{
-	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-	int ret;
-	unsigned int val, fw_id;
-
-	if (!cs40l2x->asp_available)
-		return -EPERM;
-
-	mutex_lock(&cs40l2x->lock);
-	fw_id = cs40l2x->fw_desc->id;
-	mutex_unlock(&cs40l2x->lock);
-
-	if (fw_id == CS40L2X_FW_ID_CAL || fw_id == CS40L2X_FW_ID_ORIG)
-		return -EPERM;
-
-	ret = kstrtou32(buf, 10, &val);
-	if (ret)
-		return -EINVAL;
-
-	if (val > CS40L2X_ASP_TIMEOUT_MAX)
-		return -EINVAL;
-
-	cs40l2x->pdata.asp_timeout = val;
-
-	return count;
-}
-
 static ssize_t cs40l2x_exc_enable_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -4336,8 +4298,6 @@ static DEVICE_ATTR(vbatt_min, 0660, cs40l2x_vbatt_min_show,
 		cs40l2x_vbatt_min_store);
 static DEVICE_ATTR(asp_enable, 0660, cs40l2x_asp_enable_show,
 		cs40l2x_asp_enable_store);
-static DEVICE_ATTR(asp_timeout, 0660, cs40l2x_asp_timeout_show,
-		cs40l2x_asp_timeout_store);
 static DEVICE_ATTR(exc_enable, 0660, cs40l2x_exc_enable_show,
 		cs40l2x_exc_enable_store);
 static DEVICE_ATTR(a2h_level, 0660, cs40l2x_a2h_level_show,
@@ -4409,7 +4369,6 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_vbatt_max.attr,
 	&dev_attr_vbatt_min.attr,
 	&dev_attr_asp_enable.attr,
-	&dev_attr_asp_timeout.attr,
 	&dev_attr_exc_enable.attr,
 	&dev_attr_a2h_level.attr,
 	&dev_attr_num_a2h_levels.attr,
@@ -4540,6 +4499,12 @@ static void cs40l2x_vibe_mode_worker(struct work_struct *work)
 
 		cs40l2x_set_state(cs40l2x, CS40L2X_VIBE_STATE_STOPPED);
 		cs40l2x_wl_relax(cs40l2x);
+	} else if (cs40l2x->vibe_mode == CS40L2X_VIBE_MODE_HAPTIC &&
+						cs40l2x->a2h_enable) {
+
+		regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_5,
+					CS40L2X_A2H_I2S_START);
+
 	} else {
 		/* haptic-mode teardown */
 		if (cs40l2x->vibe_state == CS40L2X_VIBE_STATE_STOPPED
