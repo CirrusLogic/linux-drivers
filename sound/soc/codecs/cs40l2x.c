@@ -191,7 +191,7 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_kcontrol_new cs40l2x_a2h =
-	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 0, 0);
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
 static const struct snd_soc_dapm_widget cs40l2x_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY_S("AIFCLK", 100, SND_SOC_NOPM, 0, 0,
@@ -201,6 +201,7 @@ static const struct snd_soc_dapm_widget cs40l2x_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_IN_E("ASPRX1", NULL, 0, CS40L2X_SP_ENABLES, 16, 0,
 		cs40l2x_a2h_en, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_AIF_IN("ASPRX2", NULL, 0, CS40L2X_SP_ENABLES, 17, 0),
+	SND_SOC_DAPM_MIXER("A2H Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_SWITCH("A2H", SND_SOC_NOPM, 0, 0, &cs40l2x_a2h),
 	SND_SOC_DAPM_OUTPUT("LRA"),
 };
@@ -208,8 +209,9 @@ static const struct snd_soc_dapm_widget cs40l2x_dapm_widgets[] = {
 static const struct snd_soc_dapm_route cs40l2x_dapm_routes[] = {
 	{ "ASPRX1", NULL, "AIF Playback" },
 	{ "ASPRX2", NULL, "AIF Playback" },
-	{ "A2H", NULL, "ASPRX1" },
-	{ "A2H", NULL, "ASPRX2" },
+	{ "A2H Mixer", NULL, "ASPRX1" },
+	{ "A2H Mixer", NULL, "ASPRX2" },
+	{ "A2H", "Switch", "A2H Mixer" },
 	{ "LRA", NULL, "A2H" },
 
 	{ "AIF Playback", NULL, "AIFCLK" },
