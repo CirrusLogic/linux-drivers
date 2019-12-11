@@ -1099,6 +1099,10 @@
 
 #define CS40L2X_ASP_RX_ENABLE_MASK	GENMASK(17, 16)
 
+#define CS40L2X_PWRCTL_FORCE_STBY	3
+#define CS40L2X_PWRCTL_WAKE		2
+#define CS40L2X_PWRCTL_NONE		0
+
 bool cs40l2x_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l2x_precious_reg(struct device *dev, unsigned int reg);
 
