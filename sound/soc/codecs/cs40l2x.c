@@ -63,11 +63,8 @@ static int cs40l2x_swap_ext_clk(struct cs40l2x_codec *cs40l2x_codec,
 {
 	struct device *dev = cs40l2x_codec->dev;
 	struct regmap *regmap = cs40l2x_codec->regmap;
-	int clk_cfg;
-
-	regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
-		CS40L2X_PLL_OPENLOOP_MASK,
-		1 << CS40L2X_PLL_OPENLOOP_SHIFT);
+	int clk_cfg, ret;
+	unsigned int ack;
 
 	if (src == CS40L2X_32KHZ_CLK)
 		clk_cfg = cs40l2x_get_clk_config(CS40L2X_MCLK_FREQ);
@@ -78,6 +75,25 @@ static int cs40l2x_swap_ext_clk(struct cs40l2x_codec *cs40l2x_codec,
 		dev_err(dev, "Invalid SYS Clock Frequency\n");
 		return -EINVAL;
 	}
+
+	ret = regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_4,
+					CS40L2X_PWRCTL_FORCE_STBY);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(regmap, CS40L2X_DSP_VIRT1_MBOX_4,
+					&ack);
+	if (ret)
+		return ret;
+
+	if (ack != CS40L2X_PWRCTL_NONE) {
+		dev_err(dev, "Incorrect ACK from VIRT_MBOX 4 %d\n", ack);
+		return -ENXIO;
+	}
+
+	regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
+		CS40L2X_PLL_OPENLOOP_MASK,
+		1 << CS40L2X_PLL_OPENLOOP_SHIFT);
 
 	regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
 			CS40L2X_REFCLK_FREQ_MASK,
@@ -97,7 +113,10 @@ static int cs40l2x_swap_ext_clk(struct cs40l2x_codec *cs40l2x_codec,
 			CS40L2X_PLL_CLK_EN_MASK,
 			1 << CS40L2X_PLL_CLK_EN_SHIFT);
 
-	return 0;
+	usleep_range(1000, 1500);
+
+	return regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_4,
+					CS40L2X_PWRCTL_WAKE);
 }
 
 static int cs40l2x_clk_en(struct snd_soc_dapm_widget *w,
@@ -118,10 +137,6 @@ static int cs40l2x_clk_en(struct snd_soc_dapm_widget *w,
 		codec->core->a2h_enable = true;
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		ret = cs40l2x_swap_ext_clk(codec, CS40L2X_32KHZ_CLK);
-		if (ret)
-			goto err;
-
 		codec->core->a2h_enable = false;
 		break;
 	default:
@@ -175,6 +190,10 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 		ret = regmap_write(regmap, reg, CS40L2X_A2H_ENABLE);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
+		ret = cs40l2x_swap_ext_clk(codec, CS40L2X_32KHZ_CLK);
+		if (ret)
+			return ret;
+
 		ret = regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_5,
 					CS40L2X_A2H_I2S_END);
 		if (ret)
