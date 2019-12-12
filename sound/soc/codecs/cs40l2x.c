@@ -182,14 +182,19 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 		if (ret)
 			return ret;
 
-		ret = regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_5,
-					CS40L2X_A2H_I2S_START);
+		ret = regmap_write(regmap, reg, CS40L2X_A2H_ENABLE);
 		if (ret)
 			return ret;
 
-		ret = regmap_write(regmap, reg, CS40L2X_A2H_ENABLE);
+		ret = regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_5,
+					CS40L2X_A2H_I2S_START);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
+		ret = regmap_update_bits(regmap, CS40L2X_SP_ENABLES,
+					CS40L2X_ASP_RX_ENABLE_MASK, 0);
+		if (ret)
+			return ret;
+
 		ret = cs40l2x_swap_ext_clk(codec, CS40L2X_32KHZ_CLK);
 		if (ret)
 			return ret;
@@ -217,9 +222,9 @@ static const struct snd_soc_dapm_widget cs40l2x_dapm_widgets[] = {
 		cs40l2x_clk_en, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 	/* ASPRX1 is always used in A2H */
-	SND_SOC_DAPM_AIF_IN_E("ASPRX1", NULL, 0, CS40L2X_SP_ENABLES, 16, 0,
+	SND_SOC_DAPM_AIF_IN_E("ASPRX1", NULL, 0, SND_SOC_NOPM, 0, 0,
 		cs40l2x_a2h_en, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_AIF_IN("ASPRX2", NULL, 0, CS40L2X_SP_ENABLES, 17, 0),
+	SND_SOC_DAPM_AIF_IN("ASPRX2", NULL, 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_MIXER("A2H Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_SWITCH("A2H", SND_SOC_NOPM, 0, 0, &cs40l2x_a2h),
 	SND_SOC_DAPM_OUTPUT("LRA"),
