@@ -273,10 +273,25 @@ static int cs40l2x_codec_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	return regmap_write(regmap, CS40L2X_SP_RATE_CTRL, clk_cfg);
 }
 
+static const unsigned int cs40l2x_src_rates[] = { 48000 };
+
+static const struct snd_pcm_hw_constraint_list cs40l2x_constraints = {
+	.count = ARRAY_SIZE(cs40l2x_src_rates),
+	.list = cs40l2x_src_rates,
+};
+
 static int cs40l2x_pcm_startup(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
-	return 0;
+	int ret = 0;
+
+	if (substream->runtime)
+		ret = snd_pcm_hw_constraint_list(substream->runtime,
+							0,
+							SNDRV_PCM_HW_PARAM_RATE,
+							&cs40l2x_constraints);
+
+	return ret;
 }
 
 static int cs40l2x_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
