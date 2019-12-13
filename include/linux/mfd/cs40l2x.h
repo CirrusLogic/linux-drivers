@@ -1103,6 +1103,9 @@
 #define CS40L2X_PWRCTL_WAKE		2
 #define CS40L2X_PWRCTL_NONE		0
 
+#define CS40L2X_VOL_LVL_MAX_STEPS	100
+#define CS40L2X_VOL_LVL_MAX		0x7fffff
+
 bool cs40l2x_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l2x_precious_reg(struct device *dev, unsigned int reg);
 
