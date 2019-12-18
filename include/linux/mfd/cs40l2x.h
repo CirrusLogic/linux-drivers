@@ -1203,8 +1203,6 @@ struct cs40l2x_private {
 	bool exc_available;
 	struct cs40l2x_dblk_desc pre_dblks[CS40L2X_MAX_A2H_LEVELS];
 	struct cs40l2x_dblk_desc a2h_dblks[CS40L2X_MAX_A2H_LEVELS];
-	unsigned int num_a2h_levels;
-	int a2h_level;
 	bool vibe_init_success;
 	bool vibe_mode;
 	bool vibe_state;
