@@ -5925,6 +5925,7 @@ static int cs40l2x_dsp_start(struct cs40l2x_private *cs40l2x)
 	}
 
 	cs40l2x->dsp_reg = cs40l2x_dsp_reg;
+	cs40l2x->hiber_cmd = cs40l2x_hiber_cmd_send;
 
 	return 0;
 }
