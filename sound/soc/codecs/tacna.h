@@ -306,10 +306,15 @@ struct tacna_dai_priv {
 	struct snd_pcm_hw_constraint_list constraint;
 };
 
+struct tacna_dsp_power_reg_block {
+	unsigned int start;
+	unsigned int end;
+};
+
 struct tacna_dsp_power_regs {
 	const unsigned int *pwd;
 	unsigned int n_pwd;
-	const unsigned int *ext;
+	const struct tacna_dsp_power_reg_block *ext;
 	unsigned int n_ext;
 };
 

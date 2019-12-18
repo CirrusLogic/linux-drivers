@@ -2293,13 +2293,15 @@ int tacna_dsp_memory_enable(struct tacna_priv *priv,
 			    const struct tacna_dsp_power_regs *regs)
 {
 	struct regmap *regmap = priv->tacna->regmap;
-	int i, ret;
+	int i, j, ret;
 
 	/* disable power-off */
 	for (i = 0; i < regs->n_ext; ++i) {
-		ret = regmap_write(regmap, regs->ext[i], 0x3);
-		if (ret)
-			goto err;
+		for (j = regs->ext[i].start; j <= regs->ext[i].end; j += 4) {
+			ret = regmap_write(regmap, j, 0x3);
+			if (ret)
+				goto err;
+		}
 	}
 
 	/* power-up the banks in sequence */
@@ -2331,7 +2333,7 @@ void tacna_dsp_memory_disable(struct tacna_priv *priv,
 			      const struct tacna_dsp_power_regs *regs)
 {
 	struct regmap *regmap = priv->tacna->regmap;
-	int i, ret;
+	int i, j, ret;
 
 	for (i = 0; i < regs->n_pwd; ++i) {
 		ret = regmap_write(regmap, regs->pwd[i], 0);
@@ -2341,10 +2343,13 @@ void tacna_dsp_memory_disable(struct tacna_priv *priv,
 	}
 
 	for (i = 0; i < regs->n_ext; ++i) {
-		ret = regmap_write(regmap, regs->ext[i], 0);
-		if (ret)
-			dev_warn(priv->dev,
-				 "Failed to write SRAM enables (%d)\n", ret);
+		for (j = regs->ext[i].start; j <= regs->ext[i].end; j += 4) {
+			ret = regmap_write(regmap, j, 0);
+			if (ret)
+				dev_warn(priv->dev,
+					 "Failed to write SRAM enables (%d)\n",
+					 ret);
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(tacna_dsp_memory_disable);
