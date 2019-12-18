@@ -538,6 +538,8 @@ static const struct snd_soc_component_driver soc_codec_dev_cs40l2x = {
 	.num_dapm_widgets	= ARRAY_SIZE(cs40l2x_dapm_widgets),
 	.dapm_routes		= cs40l2x_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(cs40l2x_dapm_routes),
+	.controls		= cs40l2x_controls,
+	.num_controls		= ARRAY_SIZE(cs40l2x_controls),
 };
 
 static int cs40l2x_probe(struct platform_device *pdev)
