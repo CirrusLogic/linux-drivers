@@ -1253,6 +1253,9 @@ struct cs40l2x_private {
 			const char *coeff_name, const unsigned int block_type,
 			const unsigned int algo_id);
 
+	int (*hiber_cmd)(struct cs40l2x_private *cs40l2x,
+			unsigned int hiber_cmd);
+
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 	struct timed_output_dev timed_dev;
 	struct hrtimer vibe_timer;
