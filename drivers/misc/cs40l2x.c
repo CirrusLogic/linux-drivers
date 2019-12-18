@@ -3409,7 +3409,7 @@ static ssize_t cs40l2x_exc_enable_store(struct device *dev,
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "EX_PROTECT_ENABLED",
 			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_EXC);
-	if (!reg || !cs40l2x->exc_available || cs40l2x->a2h_level) {
+	if (!reg || !cs40l2x->exc_available) {
 		ret = -EPERM;
 		goto err_mutex;
 	}
@@ -3432,114 +3432,6 @@ err_mutex:
 	pm_runtime_put_autosuspend(cs40l2x->dev);
 
 	return ret;
-}
-
-static ssize_t cs40l2x_a2h_level_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-	int ret;
-
-	mutex_lock(&cs40l2x->lock);
-
-	if (cs40l2x->a2h_level < 0) {
-		ret = -EIO;
-		goto err_mutex;
-	}
-
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l2x->a2h_level);
-
-err_mutex:
-	mutex_unlock(&cs40l2x->lock);
-
-	return ret;
-}
-
-static ssize_t cs40l2x_a2h_level_store(struct device *dev,
-			struct device_attribute *attr,
-			const char *buf, size_t count)
-{
-	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-	int ret;
-	unsigned int reg, val, algo_state;
-
-	ret = kstrtou32(buf, 10, &val);
-	if (ret)
-		return -EINVAL;
-
-	pm_runtime_get_sync(cs40l2x->dev);
-	mutex_lock(&cs40l2x->lock);
-
-	if (val >= cs40l2x->num_a2h_levels) {
-		ret = -EINVAL;
-		goto err_mutex;
-	}
-
-	reg = cs40l2x_dsp_reg(cs40l2x, "EX_PROTECT_ENABLED",
-			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_EXC);
-	if (!reg || !cs40l2x->exc_available) {
-		ret = -EPERM;
-		goto err_mutex;
-	}
-
-	ret = regmap_read(cs40l2x->regmap, reg, &algo_state);
-	if (ret)
-		goto err_mutex;
-
-	if (algo_state != CS40L2X_EXC_ENABLED) {
-		ret = -EPERM;
-		goto err_mutex;
-	}
-
-	ret = regmap_read(cs40l2x->regmap,
-			cs40l2x_dsp_reg(cs40l2x, "PRE_FILTER_ENABLED",
-					CS40L2X_YM_UNPACKED_TYPE,
-					CS40L2X_ALGO_ID_PRE),
-			&algo_state);
-	if (ret)
-		goto err_mutex;
-
-	if (algo_state != CS40L2X_PRE_ENABLED) {
-		ret = -EPERM;
-		goto err_mutex;
-	}
-
-	cs40l2x->a2h_level = -1;
-
-	ret = cs40l2x_raw_write(cs40l2x, cs40l2x->pre_dblks[val].reg,
-			cs40l2x->pre_dblks[val].data,
-			cs40l2x->pre_dblks[val].length, CS40L2X_MAX_WLEN);
-	if (ret)
-		goto err_mutex;
-
-	ret = cs40l2x_raw_write(cs40l2x, cs40l2x->a2h_dblks[val].reg,
-			cs40l2x->a2h_dblks[val].data,
-			cs40l2x->a2h_dblks[val].length, CS40L2X_MAX_WLEN);
-	if (ret)
-		goto err_mutex;
-
-	cs40l2x->a2h_level = val;
-	ret = count;
-
-err_mutex:
-	mutex_unlock(&cs40l2x->lock);
-	pm_runtime_mark_last_busy(cs40l2x->dev);
-	pm_runtime_put_autosuspend(cs40l2x->dev);
-
-	return ret;
-}
-
-static ssize_t cs40l2x_num_a2h_levels_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-	unsigned int num_a2h_levels;
-
-	mutex_lock(&cs40l2x->lock);
-	num_a2h_levels = cs40l2x->num_a2h_levels;
-	mutex_unlock(&cs40l2x->lock);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", num_a2h_levels);
 }
 
 static ssize_t cs40l2x_hw_err_count_show(struct device *dev,
@@ -4300,9 +4192,6 @@ static DEVICE_ATTR(asp_enable, 0660, cs40l2x_asp_enable_show,
 		cs40l2x_asp_enable_store);
 static DEVICE_ATTR(exc_enable, 0660, cs40l2x_exc_enable_show,
 		cs40l2x_exc_enable_store);
-static DEVICE_ATTR(a2h_level, 0660, cs40l2x_a2h_level_show,
-		cs40l2x_a2h_level_store);
-static DEVICE_ATTR(num_a2h_levels, 0660, cs40l2x_num_a2h_levels_show, NULL);
 static DEVICE_ATTR(hw_err_count, 0660, cs40l2x_hw_err_count_show,
 		cs40l2x_hw_err_count_store);
 static DEVICE_ATTR(hw_reset, 0660, cs40l2x_hw_reset_show,
@@ -4370,8 +4259,6 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_vbatt_min.attr,
 	&dev_attr_asp_enable.attr,
 	&dev_attr_exc_enable.attr,
-	&dev_attr_a2h_level.attr,
-	&dev_attr_num_a2h_levels.attr,
 	&dev_attr_hw_err_count.attr,
 	&dev_attr_hw_reset.attr,
 	&dev_attr_wt_file.attr,
@@ -6368,14 +6255,8 @@ static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 			const struct firmware *fw)
 {
 	struct device *dev = cs40l2x->dev;
-	struct cs40l2x_dblk_desc dblk, *dblk_base;
-	struct cs40l2x_dblk_desc pre_dblks[CS40L2X_MAX_A2H_LEVELS];
-	struct cs40l2x_dblk_desc a2h_dblks[CS40L2X_MAX_A2H_LEVELS];
 	char wt_date[CS40L2X_WT_FILE_DATE_LEN_MAX];
 	bool wt_found = false;
-	unsigned int *dblk_index;
-	unsigned int pre_index = 0;
-	unsigned int a2h_index = 0;
 	unsigned int pos = CS40L2X_WT_FILE_HEADER_SIZE;
 	unsigned int block_offset, block_type, block_length;
 	unsigned int algo_id, algo_rev, reg;
@@ -6449,23 +6330,12 @@ static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 			}
 
 			switch (algo_id) {
-			case CS40L2X_ALGO_ID_PRE:
-				dblk_index = &pre_index;
-				dblk_base = pre_dblks;
-				break;
-			case CS40L2X_ALGO_ID_A2H:
-				dblk_index = &a2h_index;
-				dblk_base = a2h_dblks;
-				break;
 			case CS40L2X_ALGO_ID_EXC:
 				cs40l2x->exc_available = true;
-				dblk_index = NULL;
 				break;
 			case CS40L2X_ALGO_ID_VIBE:
 				wt_found = true;
 				/* intentionally fall through */
-			default:
-				dblk_index = NULL;
 			}
 		}
 
@@ -6473,7 +6343,6 @@ static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 		case CS40L2X_WMDR_NAME_TYPE:
 		case CS40L2X_WMDR_INFO_TYPE:
 			reg = 0;
-			dblk_index = NULL;
 
 			if (block_length < CS40L2X_WT_FILE_DATE_LEN_MAX)
 				break;
@@ -6525,33 +6394,6 @@ static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 			goto err_rls_fw;
 		}
 
-		/* not all data blocks go directly to DSP */
-		if (dblk_index) {
-			if (*dblk_index >= CS40L2X_MAX_A2H_LEVELS) {
-				dev_err(dev, "Too many A2H blocks\n");
-				ret = -E2BIG;
-				goto err_rls_fw;
-			}
-
-			dblk = *(dblk_base + *dblk_index);
-
-			dblk.data = devm_kzalloc(dev, block_length, GFP_KERNEL);
-			if (!dblk.data) {
-				ret = -ENOMEM;
-				goto err_rls_fw;
-			}
-
-			memcpy(dblk.data, &fw->data[pos], block_length);
-			dblk.length = block_length;
-			dblk.reg = reg;
-
-			/* cancel register write for all but "off" level */
-			if (*dblk_index)
-				reg = 0;
-
-			*(dblk_base + (*dblk_index)++) = dblk;
-		}
-
 		if (reg) {
 			ret = cs40l2x_raw_write(cs40l2x, reg, &fw->data[pos],
 					block_length, CS40L2X_MAX_WLEN);
@@ -6565,23 +6407,6 @@ static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 
 		/* blocks are word-aligned */
 		pos += (block_length + 3) & ~0x00000003;
-	}
-
-	if (a2h_index) {
-		if (a2h_index != pre_index) {
-			dev_err(dev, "Invalid number of A2H blocks\n");
-			ret = -EINVAL;
-			goto err_rls_fw;
-		}
-
-		for (i = 0; i < a2h_index; i++) {
-			cs40l2x->pre_dblks[i] = pre_dblks[i];
-			cs40l2x->a2h_dblks[i] = a2h_dblks[i];
-		}
-		cs40l2x->num_a2h_levels = a2h_index;
-	} else {
-		for (i = 0; i < pre_index; i++)
-			devm_kfree(dev, pre_dblks[i].data);
 	}
 
 	if (wt_found) {
@@ -6927,13 +6752,6 @@ static int cs40l2x_firmware_swap(struct cs40l2x_private *cs40l2x,
 	}
 
 	cs40l2x->exc_available = false;
-
-	for (i = 0; i < cs40l2x->num_a2h_levels; i++) {
-		devm_kfree(dev, cs40l2x->pre_dblks[i].data);
-		devm_kfree(dev, cs40l2x->a2h_dblks[i].data);
-	}
-	cs40l2x->num_a2h_levels = 0;
-	cs40l2x->a2h_level = 0;
 
 	cs40l2x->fw_desc = cs40l2x_firmware_match(cs40l2x, fw_id);
 	if (!cs40l2x->fw_desc)
