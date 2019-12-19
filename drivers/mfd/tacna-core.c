@@ -580,8 +580,22 @@ static int tacna_configure_clk32k(struct tacna *tacna)
 		}
 		break;
 	case TACNA_32KZ_MCLK1:
-	case TACNA_32KZ_MCLK2:
 	case TACNA_32KZ_SYSCLK:
+		switch (tacna->type) {
+		case CS48L31:
+		case CS48L32:
+		case CS48L33:
+			break;
+		default:
+			ret = pm_runtime_get_sync(tacna->dev);
+			if (ret)
+				dev_err(tacna->dev,
+					"Failed to enable chip for 32kHz clock: %d\n",
+					ret);
+			break;
+		}
+		/* Intentional fall-through */
+	case TACNA_32KZ_MCLK2:
 		mclk_src = tacna->pdata.clk32k_src - 1;
 		break;
 	default:
