@@ -925,11 +925,6 @@ static const struct reg_default cs47l96_reg_default[] = {
 	{ 0x00018138, 0xffffffff }, /* IRQ1_MASK_11 */
 	{ 0x0001813c, 0xffffffff }, /* IRQ1_MASK_12 */
 	{ 0x00018140, 0xffffffff }, /* IRQ1_MASK_13 */
-	{ 0x00018144, 0xffffffff }, /* IRQ1_MASK_14 */
-	{ 0x00018148, 0xffffffff }, /* IRQ1_MASK_15 */
-	{ 0x00018150, 0xffffffff }, /* IRQ1_MASK_17 */
-	{ 0x00018154, 0xffffffff }, /* IRQ1_MASK_18 */
-	{ 0x00018158, 0xffffffff }, /* IRQ1_MASK_19 */
 	{ 0x00018238, 0xffff0000 }, /* IRQ1_EDGE_11 */
 	{ 0x00200400, 0x00000000 }, /* CPF1_RX_GPR_CONTROL1 */
 	{ 0x00210000, 0x00000000 }, /* CPF1_TX_RDDATA1 */
