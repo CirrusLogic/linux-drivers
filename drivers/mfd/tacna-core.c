@@ -590,10 +590,9 @@ static int tacna_configure_clk32k(struct tacna *tacna)
 		return -EINVAL;
 	}
 
-	ret = regmap_update_bits(tacna->regmap,
-			TACNA_CLOCK32K,
-			TACNA_CLK_32K_EN_MASK | TACNA_CLK_32K_SRC_MASK,
-			TACNA_CLK_32K_EN | mclk_src);
+	ret = regmap_update_bits(tacna->regmap, TACNA_CLOCK32K,
+				 TACNA_CLK_32K_EN_MASK | TACNA_CLK_32K_SRC_MASK,
+				 TACNA_CLK_32K_EN | mclk_src);
 	if (ret)
 		dev_err(tacna->dev, "Failed to init 32k clock: %d\n", ret);
 
