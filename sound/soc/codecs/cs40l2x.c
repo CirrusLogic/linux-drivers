@@ -369,7 +369,7 @@ static int cs40l2x_component_set_sysclk(struct snd_soc_component *component,
 	struct cs40l2x_codec *codec = snd_soc_component_get_drvdata(component);
 	struct regmap *regmap = codec->regmap;
 	struct device *dev = codec->dev;
-	int clk_cfg;
+	int clk_cfg, ret;
 
 	clk_cfg = cs40l2x_get_clk_config(freq);
 	if (clk_cfg < 0) {
@@ -384,7 +384,11 @@ static int cs40l2x_component_set_sysclk(struct snd_soc_component *component,
 		dev_err(dev, "Invalid Input Clock\n");
 		return -EINVAL;
 	}
+
 	codec->codec_sysclk = freq;
+	ret = cs40l2x_wake(codec);
+	if (ret)
+		return ret;
 
 	return regmap_write(regmap, CS40L2X_SP_RATE_CTRL, clk_cfg);
 }
@@ -417,6 +421,7 @@ static int cs40l2x_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct device *dev = cs40l2x->dev;
 	struct regmap *regmap = cs40l2x->regmap;
 	unsigned int lrclk_fmt, sclk_fmt;
+	int ret;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
@@ -456,6 +461,10 @@ static int cs40l2x_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
+	ret = cs40l2x_wake(cs40l2x);
+	if (ret)
+		return ret;
+
 	regmap_update_bits(regmap, CS40L2X_SP_FORMAT, CS40L2X_LRCLK_INV_MASK,
 				lrclk_fmt << CS40L2X_LRCLK_INV_SHIFT);
 	regmap_update_bits(regmap, CS40L2X_SP_FORMAT, CS40L2X_SCLK_INV_MASK,
@@ -471,12 +480,17 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *comp = dai->component;
 	struct cs40l2x_codec *cs40l2x = snd_soc_component_get_drvdata(comp);
 	unsigned int asp_width, asp_wl;
+	int ret;
 
 	asp_wl = params_width(params);
 	asp_width = params_physical_width(params);
 
 	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
 		return -EINVAL;
+
+	ret = cs40l2x_wake(cs40l2x);
+	if (ret)
+		return ret;
 
 	regmap_update_bits(cs40l2x->regmap, CS40L2X_SP_FORMAT,
 			CS40L2X_ASP_WIDTH_RX_MASK,
