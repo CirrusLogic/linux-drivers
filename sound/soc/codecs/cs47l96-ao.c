@@ -601,7 +601,7 @@ static const struct snd_soc_dapm_route cs47l96_ao_dapm_routes[] = {
 
 static struct snd_soc_dai_driver cs47l96_ao_dai[] = {
 	{
-		.name = "cs47l96-ao-asp1",
+		.name = "cs47l96_ao-asp1",
 		.id = 1,
 		.base = TACNA_ASP1AO_ENABLES1,
 		.playback = {
@@ -623,7 +623,7 @@ static struct snd_soc_dai_driver cs47l96_ao_dai[] = {
 		.symmetric_samplebits = 1,
 	},
 	{
-		.name = "cs47l96-ao-cpu-trace",
+		.name = "cs47l96_ao-cpu-trace",
 		.capture = {
 			.stream_name = "Audio Trace CPU",
 			.channels_min = 1,
@@ -634,7 +634,7 @@ static struct snd_soc_dai_driver cs47l96_ao_dai[] = {
 		.compress_new = &snd_soc_new_compress,
 	},
 	{
-		.name = "cs47l96-ao-dsp-trace",
+		.name = "cs47l96_ao-dsp-trace",
 		.capture = {
 			.stream_name = "Audio Trace DSP",
 			.channels_min = 1,
@@ -644,7 +644,7 @@ static struct snd_soc_dai_driver cs47l96_ao_dai[] = {
 		},
 	},
 	{
-		.name = "cs47l96-ao-cpu-voicectrl",
+		.name = "cs47l96_ao-cpu-voicectrl",
 		.capture = {
 			.stream_name = "Voice Ctrl CPU",
 			.channels_min = 1,
@@ -655,7 +655,7 @@ static struct snd_soc_dai_driver cs47l96_ao_dai[] = {
 		.compress_new = &snd_soc_new_compress,
 	},
 	{
-		.name = "cs47l96-ao-dsp-voicectrl",
+		.name = "cs47l96_ao-dsp-voicectrl",
 		.capture = {
 			.stream_name = "Voice Ctrl DSP",
 			.channels_min = 1,
@@ -672,8 +672,8 @@ static int cs47l96_ao_compr_open(struct snd_compr_stream *stream)
 	struct cs47l96_ao *cs47l96_ao = snd_soc_platform_get_drvdata(rtd->platform);
 	struct tacna_priv *priv = &cs47l96_ao->core;
 
-	if (strcmp(rtd->codec_dai->name, "cs47l96-ao-dsp-trace") &&
-	    strcmp(rtd->codec_dai->name, "cs47l96-ao-dsp-voicectrl")) {
+	if (strcmp(rtd->codec_dai->name, "cs47l96_ao-dsp-trace") &&
+	    strcmp(rtd->codec_dai->name, "cs47l96_ao-dsp-voicectrl")) {
 		dev_err(priv->dev,
 			"No suitable compressed stream for DAI '%s'\n",
 			rtd->codec_dai->name);

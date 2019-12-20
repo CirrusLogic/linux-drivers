@@ -462,6 +462,8 @@ extern const struct soc_enum tacna_input_rate[];
 int tacna_low_power_mode_put(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol);
 
+extern const struct soc_enum noise_gen_rate;
+
 extern const struct soc_enum tacna_auxpdm1_freq;
 extern const struct soc_enum tacna_auxpdm2_freq;
 extern const struct soc_enum tacna_auxpdm3_freq;
