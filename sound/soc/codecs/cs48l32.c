@@ -1583,7 +1583,7 @@ static int cs48l32_probe(struct platform_device *pdev)
 	cs48l32->core.tacna = tacna;
 	cs48l32->core.dev = &pdev->dev;
 	cs48l32->core.num_inputs = 2;
-	cs48l32->core.max_analogue_inputs = 2;
+	cs48l32->core.max_analogue_inputs = 1;
 	cs48l32->core.max_pdm_sup = 2;
 	cs48l32->core.in_vu_reg = TACNA_INPUT_CONTROL3;
 

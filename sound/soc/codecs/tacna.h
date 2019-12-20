@@ -149,7 +149,7 @@
 			     tacna_mixer_tlv)
 
 #define TACNA_MUX_ENUM_DECL(name, reg) \
-	SOC_VALUE_ENUM_SINGLE_AUTODISABLE_DECL( \
+	SOC_VALUE_ENUM_SINGLE_DECL( \
 		name, reg, 0, TACNA_MIXER_SRC_MASK, \
 		tacna_mixer_texts, tacna_mixer_values)
 
