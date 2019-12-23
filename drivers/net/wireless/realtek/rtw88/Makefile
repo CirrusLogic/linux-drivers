@@ -16,6 +16,7 @@ rtw88_core-y += main.o \
 	   sec.o \
 	   bf.o \
 	   wow.o \
+	   vndcmd.o \
 	   regd.o
 
 
