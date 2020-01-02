@@ -21,6 +21,13 @@
 #include "cs35l45.h"
 #include <sound/cs35l45.h>
 
+#ifdef CONFIG_SND_SOC_CIRRUS_AMP
+#include <sound/cirrus/core.h>
+#include <sound/cirrus/big_data.h>
+#include <sound/cirrus/calibration.h>
+#include <sound/cirrus/power.h>
+#endif
+
 static bool cs35l45_is_csplmboxsts_correct(enum cspl_mboxcmd cmd,
 					   enum cspl_mboxstate sts)
 {
@@ -152,6 +159,10 @@ static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 				return -ETIMEDOUT;
 			}
 
+#ifdef CONFIG_SND_SOC_CIRRUS_AMP
+			cirrus_cal_apply(cs35l45->pdata.mfd_suffix);
+#endif
+
 			mboxcmd = CSPL_MBOX_CMD_PAUSE;
 			ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
 			if (ret < 0) {
@@ -215,6 +226,10 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 			}
 
 			ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
+
+#ifdef CONFIG_SND_SOC_CIRRUS_AMP
+			cirrus_pwr_start(cs35l45->pdata.mfd_suffix);
+#endif
 		}
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
@@ -224,6 +239,10 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 			if (ret < 0)
 				dev_err(cs35l45->dev, "MBOX failure (%d)\n",
 					ret);
+
+#ifdef CONFIG_SND_SOC_CIRRUS_AMP
+			cirrus_pwr_stop(cs35l45->pdata.mfd_suffix);
+#endif
 		}
 		break;
 	default:
@@ -890,12 +909,54 @@ static int cs35l45_component_set_sysclk(struct snd_soc_component *component,
 	return cs35l45_set_sysclk(cs35l45, clk_id, freq);
 }
 
+#ifdef CONFIG_SND_SOC_CIRRUS_AMP
+#define CS35L45_ALG_ID_VIMON	0xf205
+#endif
+
 static int cs35l45_component_probe(struct snd_soc_component *component)
 {
 	struct cs35l45_private *cs35l45 =
 			snd_soc_component_get_drvdata(component);
 	struct snd_soc_dapm_context *dapm =
 			snd_soc_component_get_dapm(component);
+#ifdef CONFIG_SND_SOC_CIRRUS_AMP
+	static struct reg_sequence cs35l45_cal_pre_config[] = {
+		{CS35L45_DSP1RX6_INPUT,	CS35L45_PCM_SRC_VDD_BSTMON},
+	};
+
+	static struct reg_sequence cs35l45_cal_post_config[] = {
+		{CS35L45_DSP1RX6_INPUT,	CS35L45_PCM_SRC_VDD_BATTMON},
+	};
+
+	struct cirrus_amp_config amp_cfg;
+	int ret;
+
+	amp_cfg.component = component;
+	amp_cfg.regmap = cs35l45->regmap;
+	amp_cfg.pre_config = cs35l45_cal_pre_config;
+	amp_cfg.post_config = cs35l45_cal_post_config;
+	amp_cfg.dsp_part_name = cs35l45->pdata.dsp_part_name;
+	amp_cfg.num_pre_configs = ARRAY_SIZE(cs35l45_cal_pre_config);
+	amp_cfg.num_post_configs = ARRAY_SIZE(cs35l45_cal_post_config);
+	amp_cfg.mbox_cmd = CS35L45_DSP_VIRT1_MBOX_1;
+	amp_cfg.mbox_sts = CS35L45_DSP_MBOX_2;
+	amp_cfg.global_en = CS35L45_GLOBAL_ENABLES;
+	amp_cfg.vimon_alg_id = CS35L45_ALG_ID_VIMON;
+	amp_cfg.bd_max_temp = cs35l45->pdata.bd_max_temp &
+			      (~CS35L45_VALID_PDATA);
+	amp_cfg.target_temp = cs35l45->pdata.pwr_params_cfg.target_temp &
+			      (~CS35L45_VALID_PDATA);
+	amp_cfg.exit_temp = cs35l45->pdata.pwr_params_cfg.exit_temp &
+			    (~CS35L45_VALID_PDATA);
+	amp_cfg.perform_vimon_cal = false;
+
+	ret = cirrus_amp_add(cs35l45->pdata.mfd_suffix, amp_cfg);
+	if (ret < 0) {
+		dev_err(cs35l45->dev, "Failed to register cirrus amp (%d)\n",
+			ret);
+		return -EPROBE_DEFER;
+	}
+#endif
 
 	snd_soc_component_disable_pin(component, "SPK");
 	snd_soc_component_disable_pin(component, "RCV");
@@ -1346,6 +1407,36 @@ static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
 	if (ret < 0)
 		pdata->dsp_part_name = "cs35l45";
 
+#ifdef CONFIG_SND_SOC_CIRRUS_AMP
+	ret = of_property_read_string(node, "cirrus,mfd-suffix",
+				      &pdata->mfd_suffix);
+	if (ret < 0)
+		pdata->mfd_suffix = "";
+
+	ret = of_property_read_u32(node, "cirrus,bd-max-temp", &val);
+	if (!ret)
+		pdata->bd_max_temp = val | CS35L45_VALID_PDATA;
+
+	child = of_get_child_by_name(node, "cirrus,pwr-params-config");
+	pdata->pwr_params_cfg.is_present = child ? true : false;
+	if (!pdata->pwr_params_cfg.is_present)
+		goto bst_bpe_voltage_cfg;
+
+	pdata->pwr_params_cfg.global_en = of_property_read_bool(child,
+						"pwr-global-enable");
+
+	ret = of_property_read_u32(child, "pwr-target-temp", &val);
+	if (!ret)
+		pdata->pwr_params_cfg.target_temp = val | CS35L45_VALID_PDATA;
+
+	ret = of_property_read_u32(child, "pwr-exit-temp", &val);
+	if (!ret)
+		pdata->pwr_params_cfg.exit_temp = val | CS35L45_VALID_PDATA;
+
+	of_node_put(child);
+
+bst_bpe_voltage_cfg:
+#endif
 	child = of_get_child_by_name(node, "cirrus,bst-bpe-voltage-config");
 	pdata->bst_bpe_voltage_cfg.is_present = child ? true : false;
 	if (!pdata->bst_bpe_voltage_cfg.is_present)

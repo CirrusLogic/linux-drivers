@@ -92,6 +92,15 @@ struct cs35l45_irq_monitor {
 	int (*callback)(struct cs35l45_private *cs35l45);
 };
 
+#ifdef CONFIG_SND_SOC_CIRRUS_AMP
+struct pwr_params_config {
+	bool is_present;
+	bool global_en;
+	unsigned int target_temp;
+	unsigned int exit_temp;
+};
+#endif
+
 struct cs35l45_platform_data {
 	struct bst_bpe_voltage_config bst_bpe_voltage_cfg;
 	struct bst_bpe_ind_curr_config bst_bpe_ind_curr_cfg;
@@ -104,6 +113,11 @@ struct cs35l45_platform_data {
 	const char *dsp_part_name;
 	unsigned int asp_sdout_hiz_ctrl;
 	bool use_tdm_slots;
+#ifdef CONFIG_SND_SOC_CIRRUS_AMP
+	struct pwr_params_config pwr_params_cfg;
+	const char *mfd_suffix;
+	unsigned int bd_max_temp;
+#endif
 };
 
 struct cs35l45_private {
