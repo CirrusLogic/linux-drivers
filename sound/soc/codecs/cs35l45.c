@@ -111,11 +111,6 @@ static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		if (!cs35l45->dsp.booted) {
-			regmap_update_bits(cs35l45->regmap,
-					   CS35L45_DSP1_CCM_CORE_CONTROL,
-					   CS35L45_CCM_PM_REMAP_MASK,
-					   CS35L45_CCM_PM_REMAP_MASK);
-
 			regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
 					   CS35L45_MEM_RDY_MASK, 0);
 
@@ -124,8 +119,6 @@ static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		if (!cs35l45->dsp.booted) {
-			wm_adsp_event(w, kcontrol, event);
-
 			regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
 					   CS35L45_MEM_RDY_MASK,
 					   CS35L45_MEM_RDY_MASK);
@@ -135,10 +128,7 @@ static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 				     CS35L45_CCM_PM_REMAP_MASK |
 				     CS35L45_CCM_CORE_RESET_MASK);
 
-			regmap_write(cs35l45->regmap,
-				     CS35L45_DSP1_CCM_CORE_CONTROL,
-				     CS35L45_CCM_PM_REMAP_MASK |
-				     CS35L45_CCM_CORE_EN_MASK);
+			wm_adsp_event(w, kcontrol, event);
 
 			/* Poll for DSP ACK */
 			for (i = 0; i < 5; i++) {
@@ -1325,6 +1315,21 @@ gpio_cfg:
 	return 0;
 }
 
+static const struct reg_sequence cs35l45_errata_patch[] = {
+	{0x00000040,		0x00000055},
+	{0x00000040,		0x000000AA},
+	{0x00000044,		0x00000055},
+	{0x00000044,		0x000000AA},
+	{0x00006480,		0x0830500A},
+	{CS35L45_LDPM_CONFIG,	0x0001B636},
+	{0x00007C60,		0x1000850B},
+	{CS35L45_BOOST_OV_CFG,	0x007000D0},
+	{0x00003820,		0x00040100},
+	{0x00003824,		0x00000000},
+	{0x00000040,		0x00000000},
+	{0x00000044,		0x00000000},
+};
+
 int cs35l45_initialize(struct cs35l45_private *cs35l45)
 {
 	struct device *dev = cs35l45->dev;
@@ -1347,6 +1352,13 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 	}
 
 	usleep_range(200, 300);
+
+	ret = regmap_register_patch(cs35l45->regmap, cs35l45_errata_patch,
+				    ARRAY_SIZE(cs35l45_errata_patch));
+	if (ret < 0) {
+		dev_err(dev, "Failed to apply errata patch %d\n", ret);
+		return ret;
+	}
 
 	regmap_update_bits(cs35l45->regmap,
 			   CS35L45_DSP1_STREAM_ARB_TX1_CONFIG_0,
