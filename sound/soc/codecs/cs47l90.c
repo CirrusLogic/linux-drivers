@@ -2490,7 +2490,8 @@ static int cs47l90_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	ret = madera_init_outputs(codec, CS47L90_MONO_OUTPUTS);
+	ret = madera_init_outputs(codec, NULL, CS47L90_MONO_OUTPUTS,
+				  CS47L90_MONO_OUTPUTS);
 	if (ret)
 		return ret;
 

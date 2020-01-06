@@ -546,6 +546,7 @@ SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DSP Trigger Out"),
 
 SND_SOC_DAPM_DEMUX("HPOUT1 Demux", SND_SOC_NOPM, 0, 0, &cs47l15_outdemux),
+SND_SOC_DAPM_MUX("HPOUT1 Mono Mux", SND_SOC_NOPM, 0, 0, &cs47l15_outdemux),
 
 SND_SOC_DAPM_PGA("PWM1 Driver", MADERA_PWM_DRIVE_1, MADERA_PWM1_ENA_SHIFT,
 		 0, NULL, 0),
@@ -1101,6 +1102,9 @@ static const struct snd_soc_dapm_route cs47l15_dapm_routes[] = {
 	{ "AEC2 Loopback", "HPOUT1R", "OUT1R" },
 	{ "HPOUT1 Demux", NULL, "OUT1L" },
 	{ "HPOUT1 Demux", NULL, "OUT1R" },
+
+	{ "OUT1R", NULL, "HPOUT1 Mono Mux" },
+
 	{ "HPOUTL", "HPOUT", "HPOUT1 Demux" },
 	{ "HPOUTR", "HPOUT", "HPOUT1 Demux" },
 	{ "EPOUTP", "EPOUT", "HPOUT1 Demux" },
@@ -1286,6 +1290,11 @@ static const char * const cs47l15_dmic_inputs[] = {
 	"IN1R",
 };
 
+static const struct snd_soc_dapm_route cs47l15_mono_routes[] = {
+	{ "HPOUT1 Mono Mux", "HPOUT", "OUT1L" },
+	{ "HPOUT1 Mono Mux", "EPOUT", "OUT1L" },
+};
+
 static int cs47l15_codec_probe(struct snd_soc_codec *codec)
 {
 	struct cs47l15 *cs47l15 = snd_soc_codec_get_drvdata(codec);
@@ -1302,7 +1311,9 @@ static int cs47l15_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	ret = madera_init_outputs(codec, CS47L15_MONO_OUTPUTS);
+	ret = madera_init_outputs(codec, cs47l15_mono_routes,
+				  ARRAY_SIZE(cs47l15_mono_routes),
+				  CS47L15_MONO_OUTPUTS);
 	if (ret)
 		return ret;
 
