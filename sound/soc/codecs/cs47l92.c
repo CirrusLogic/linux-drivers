@@ -837,6 +837,7 @@ SND_SOC_DAPM_MUX("IN2L Mode", SND_SOC_NOPM, 0, 0, &madera_inmode[1]),
 SND_SOC_DAPM_MUX("IN2R Mode", SND_SOC_NOPM, 0, 0, &madera_inmode[1]),
 
 SND_SOC_DAPM_DEMUX("OUT3 Demux", SND_SOC_NOPM, 0, 0, &cs47l92_outdemux),
+SND_SOC_DAPM_MUX("OUT3 Mono Mux", SND_SOC_NOPM, 0, 0, &cs47l92_outdemux),
 
 SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
@@ -1697,6 +1698,8 @@ static const struct snd_soc_dapm_route cs47l92_dapm_routes[] = {
 	{ "OUT3 Demux", NULL, "OUT3L" },
 	{ "OUT3 Demux", NULL, "OUT3R" },
 
+	{ "OUT3R", NULL, "OUT3 Mono Mux" },
+
 	{ "HPOUT3L", "HPOUT3", "OUT3 Demux" },
 	{ "HPOUT3R", "HPOUT3", "OUT3 Demux" },
 	{ "HPOUT4L", "HPOUT4", "OUT3 Demux" },
@@ -1956,6 +1959,13 @@ static const char * const cs47l92_dmic_inputs[] = {
 	"IN4R",
 };
 
+static const struct snd_soc_dapm_route cs47l92_mono_routes[] = {
+	{ "OUT1R", NULL, "OUT1L" },
+	{ "OUT2R", NULL, "OUT2L" },
+	{ "OUT3 Mono Mux", "HPOUT3", "OUT3L" },
+	{ "OUT3 Mono Mux", "HPOUT4", "OUT3L" },
+};
+
 static int cs47l92_component_probe(struct snd_soc_component *component)
 {
 	struct cs47l92 *cs47l92 = snd_soc_component_get_drvdata(component);
@@ -1989,7 +1999,9 @@ static int cs47l92_component_probe(struct snd_soc_component *component)
 			   MADERA_AUXPDM1_TXEDGE_MASK |
 			   MADERA_AUXPDM1_MSTR_MASK, val);
 
-	ret = madera_init_outputs(component, CS47L92_MONO_OUTPUTS);
+	ret = madera_init_outputs(component, cs47l92_mono_routes,
+				  ARRAY_SIZE(cs47l92_mono_routes),
+				  CS47L92_MONO_OUTPUTS);
 	if (ret)
 		return ret;
 
