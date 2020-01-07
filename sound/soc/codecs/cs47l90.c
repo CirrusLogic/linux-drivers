@@ -2438,13 +2438,6 @@ static irqreturn_t cs47l90_adsp2_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t cs47l90_dsp_bus_error(int irq, void *data)
-{
-	struct wm_adsp *dsp = (struct wm_adsp *)data;
-
-	return wm_adsp2_bus_error(dsp);
-}
-
 static const char * const cs47l90_dmic_refs[] = {
 	"MICVDD",
 	"MICBIAS1",
@@ -2622,9 +2615,8 @@ static int cs47l90_probe(struct platform_device *pdev)
 		ret = wm_adsp2_init(&cs47l90->core.adsp[i]);
 
 		if (ret == 0) {
-			ret = madera_init_bus_error_irq(&cs47l90->core,
-							i,
-							cs47l90_dsp_bus_error);
+			ret = madera_init_bus_error_irq(&cs47l90->core, i,
+							wm_adsp2_bus_error);
 			if (ret != 0)
 				wm_adsp2_remove(&cs47l90->core.adsp[i]);
 		}

@@ -1262,13 +1262,6 @@ static irqreturn_t cs47l15_adsp2_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t cs47l15_dsp_bus_error(int irq, void *data)
-{
-	struct wm_adsp *dsp = (struct wm_adsp *)data;
-
-	return wm_adsp2_bus_error(dsp);
-}
-
 static const char * const cs47l15_dmic_refs[] = {
 	"MICVDD",
 	"MICBIAS1",
@@ -1434,8 +1427,7 @@ static int cs47l15_probe(struct platform_device *pdev)
 	if (ret != 0)
 		goto error_dsp_irq;
 
-	ret = madera_init_bus_error_irq(&cs47l15->core, 0,
-					cs47l15_dsp_bus_error);
+	ret = madera_init_bus_error_irq(&cs47l15->core, 0, wm_adsp2_bus_error);
 	if (ret)
 		goto error_adsp;
 
