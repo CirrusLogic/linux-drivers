@@ -855,6 +855,23 @@ static const struct snd_soc_component_driver cs35l45_component = {
 	.num_controls = ARRAY_SIZE(cs35l45_aud_controls),
 };
 
+static const struct cs35l45_irq_monitor cs35l45_irq_mons[] = {
+	{
+		.reg = CS35L45_IRQ1_EINT_3,
+		.mask = CS35L45_IRQ1_MASK_3,
+		.bitmask = CS35L45_PLL_UNLOCK_FLAG_RISE_MASK,
+		.description = "PLL unlock (rising edge)",
+		.callback = NULL,
+	},
+	{
+		.reg = CS35L45_IRQ1_EINT_3,
+		.mask = CS35L45_IRQ1_MASK_3,
+		.bitmask = CS35L45_PLL_LOCK_FLAG_MASK,
+		.description = "PLL lock",
+		.callback = NULL,
+	},
+};
+
 static irqreturn_t cs35l45_irq(int irq, void *data)
 {
 	struct cs35l45_private *cs35l45 = data;
@@ -868,7 +885,9 @@ static irqreturn_t cs35l45_irq(int irq, void *data)
 				    CS35L45_IRQ1_MASK_8, CS35L45_IRQ1_MASK_18};
 	unsigned int status[ARRAY_SIZE(irq_regs)];
 	unsigned int masks[ARRAY_SIZE(irq_masks)];
+	unsigned int val;
 	unsigned int i;
+	int ret;
 	bool irq_detect = false;
 
 	if (!cs35l45->initialized)
@@ -883,7 +902,50 @@ static irqreturn_t cs35l45_irq(int irq, void *data)
 	if (!irq_detect)
 		return IRQ_NONE;
 
+	for (i = 0; i < ARRAY_SIZE(cs35l45_irq_mons); i++) {
+		regmap_read(cs35l45->regmap, cs35l45_irq_mons[i].reg, &val);
+		if (!(val & cs35l45_irq_mons[i].bitmask))
+			continue;
+
+		regmap_write(cs35l45->regmap, cs35l45_irq_mons[i].reg,
+			     cs35l45_irq_mons[i].bitmask);
+
+		if (cs35l45_irq_mons[i].callback) {
+			ret = cs35l45_irq_mons[i].callback(cs35l45);
+			if (ret < 0)
+				dev_err(cs35l45->dev,
+					"IRQ (%s) callback failure (%d)\n",
+					cs35l45_irq_mons[i].description, ret);
+		}
+	}
+
 	return IRQ_HANDLED;
+}
+
+static int cs35l45_register_irq_monitors(struct cs35l45_private *cs35l45)
+{
+	unsigned int val;
+	int i;
+
+	if (!cs35l45->irq)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(cs35l45_irq_mons); i++) {
+		regmap_read(cs35l45->regmap, cs35l45_irq_mons[i].mask, &val);
+		if (!(val & cs35l45_irq_mons[i].bitmask)) {
+			dev_err(cs35l45->dev, "IRQ (%s) is already unmasked\n",
+				cs35l45_irq_mons[i].description);
+			continue;
+		}
+
+		regmap_write(cs35l45->regmap, cs35l45_irq_mons[i].reg,
+			     cs35l45_irq_mons[i].bitmask);
+
+		regmap_update_bits(cs35l45->regmap, cs35l45_irq_mons[i].mask,
+				   cs35l45_irq_mons[i].bitmask, 0);
+	}
+
+	return 0;
 }
 
 static const struct of_entry bst_bpe_v_map[BST_BPE_VOLTAGE_PARAMS] = {
@@ -1380,6 +1442,15 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 		return ret;
 	}
 
+	if (cs35l45->irq) {
+		ret = cs35l45_register_irq_monitors(cs35l45);
+		if (ret < 0) {
+			dev_err(dev, "Failed to register IRQ monitors: %d\n",
+				ret);
+			return ret;
+		}
+	}
+
 	dev_info(dev, "Cirrus Logic CS35L45 (%x), Revision: %02X\n", dev_id,
 		 rev_id);
 
@@ -1488,15 +1559,19 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 		goto err;
 	}
 
-	if (cs35l45->pdata.gpio_ctrl2.invert & (~CS35L45_VALID_PDATA))
-		irq_pol |= IRQF_TRIGGER_HIGH;
-	else
-		irq_pol |= IRQF_TRIGGER_LOW;
+	if (cs35l45->irq) {
+		if (cs35l45->pdata.gpio_ctrl2.invert & (~CS35L45_VALID_PDATA))
+			irq_pol |= IRQF_TRIGGER_HIGH;
+		else
+			irq_pol |= IRQF_TRIGGER_LOW;
 
-	ret = devm_request_threaded_irq(dev, cs35l45->irq, NULL, cs35l45_irq,
-					irq_pol, "cs35l45", cs35l45);
-	if (ret < 0)
-		dev_warn(cs35l45->dev, "Failed to request IRQ: %d\n", ret);
+		ret = devm_request_threaded_irq(dev, cs35l45->irq, NULL,
+						cs35l45_irq, irq_pol,
+						"cs35l45", cs35l45);
+		if (ret < 0)
+			dev_warn(cs35l45->dev, "Failed to request IRQ: %d\n",
+				 ret);
+	}
 
 	return devm_snd_soc_register_component(dev, &cs35l45_component,
 					       &cs35l45_dai, 1);

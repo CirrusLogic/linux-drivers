@@ -84,6 +84,14 @@ struct gpio_ctrl {
 	unsigned int invert;
 };
 
+struct cs35l45_irq_monitor {
+	unsigned int reg;
+	unsigned int mask;
+	unsigned int bitmask;
+	const char *description;
+	int (*callback)(struct cs35l45_private *cs35l45);
+};
+
 struct cs35l45_platform_data {
 	struct bst_bpe_voltage_config bst_bpe_voltage_cfg;
 	struct bst_bpe_ind_curr_config bst_bpe_ind_curr_cfg;
