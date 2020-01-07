@@ -4,8 +4,17 @@
 #define __CS40L2X_H__
 
 #include <linux/regmap.h>
+
+#ifdef CONFIG_ANDROID_TIMED_OUTPUT
+#include "../../../drivers/staging/android/timed_output.h"
+#else
 #include <linux/leds.h>
+#endif
+
 #include <linux/regulator/consumer.h>
+#include <linux/hrtimer.h>
+#include <linux/workqueue.h>
+#include <linux/mutex.h>
 #include <linux/platform_data/cs40l2x.h>
 
 #define CS40L2X_FIRSTREG		0x00000000
