@@ -5,7 +5,7 @@ of analogue I/O.
 
 This document lists regulator specific bindings, see the primary binding
 document:
-  For Wolfson Arizona codecs: ../mfd/arizona.txt
+  For Wolfson Microelectronic Arizona codecs: ../mfd/arizona.txt
   For Cirrus Logic Madera codecs: ../mfd/madera.txt
 
 Optional properties:
