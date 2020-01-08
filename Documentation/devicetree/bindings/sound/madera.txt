@@ -65,4 +65,3 @@ cs47l35@0 {
 	cirrus,out-mono = <0 0 0 0 0 0>;
 	cirrus,max-channels-clocked = <2 0 0>;
 };
-
