@@ -247,9 +247,9 @@ static int madera_irq_remove(struct platform_device *pdev)
 	 * it starts cleaning up all child drivers
 	 */
 
-	madera->irq_dev = NULL;
-
 	madera_free_irq(madera, MADERA_IRQ_BOOT_DONE, madera);
+
+	madera->irq_dev = NULL;
 
 	regmap_del_irq_chip(madera->irq, madera->irq_data);
 
