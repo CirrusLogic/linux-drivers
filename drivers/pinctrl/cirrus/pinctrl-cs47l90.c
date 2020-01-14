@@ -1,16 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Pinctrl for Cirrus Logic CS47L90
  *
- * Copyright 2016-2017 Cirrus Logic
+ * Copyright (C) 2016-2017 Cirrus Logic
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * it under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; version 2.
  */
 
 #include <linux/err.h>
-#include <linux/module.h>
-
 #include <linux/mfd/madera/core.h>
 
 #include "pinctrl-madera.h"
@@ -56,4 +55,3 @@ const struct madera_pin_chip cs47l90_pin_chip = {
 	.pin_groups = cs47l90_pin_groups,
 	.n_pin_groups = ARRAY_SIZE(cs47l90_pin_groups),
 };
-

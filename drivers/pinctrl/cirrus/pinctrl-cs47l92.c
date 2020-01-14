@@ -42,4 +42,3 @@ const struct madera_pin_chip cs47l92_pin_chip = {
 	.pin_groups = cs47l92_pin_groups,
 	.n_pin_groups = ARRAY_SIZE(cs47l92_pin_groups),
 };
-

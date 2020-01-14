@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Pinctrl for Cirrus Logic Madera codecs
  *
- * Copyright 2016-2017 Cirrus Logic
+ * Copyright (C) 2016-2018 Cirrus Logic
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * it under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; version 2.
  */
 
 #include <linux/err.h>
@@ -455,12 +456,11 @@ static const char *madera_get_group_name(struct pinctrl_dev *pctldev,
 {
 	struct madera_pin_private *priv = pinctrl_dev_get_drvdata(pctldev);
 
-	if (selector < priv->chip->n_pin_groups) {
+	if (selector < priv->chip->n_pin_groups)
 		return priv->chip->pin_groups[selector].name;
-	} else {
-		selector -= priv->chip->n_pin_groups;
-		return madera_pin_single_group_names[selector];
-	}
+
+	selector -= priv->chip->n_pin_groups;
+	return madera_pin_single_group_names[selector];
 }
 
 static int madera_get_group_pins(struct pinctrl_dev *pctldev,
@@ -512,9 +512,9 @@ static void madera_pin_dbg_show_fn(struct madera_pin_private *priv,
 	}
 }
 
-static void madera_pin_dbg_show(struct pinctrl_dev *pctldev,
-				struct seq_file *s,
-				unsigned int pin)
+static void __maybe_unused madera_pin_dbg_show(struct pinctrl_dev *pctldev,
+					       struct seq_file *s,
+					       unsigned int pin)
 {
 	struct madera_pin_private *priv = pinctrl_dev_get_drvdata(pctldev);
 	unsigned int conf[2];
@@ -567,8 +567,10 @@ static const struct pinctrl_ops madera_pin_group_ops = {
 	.get_groups_count = madera_get_groups_count,
 	.get_group_name = madera_get_group_name,
 	.get_group_pins = madera_get_group_pins,
+#if IS_ENABLED(CONFIG_OF)
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
+#endif
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 	.pin_dbg_show = madera_pin_dbg_show,
 #endif
@@ -1065,7 +1067,7 @@ static int madera_pin_probe(struct platform_device *pdev)
 		}
 	}
 
-	dev_dbg(priv->dev, "pinctrl registered\n");
+	dev_dbg(priv->dev, "pinctrl probed ok\n");
 
 	return 0;
 }
@@ -1080,5 +1082,5 @@ static struct platform_driver madera_pin_driver = {
 module_platform_driver(madera_pin_driver);
 
 MODULE_DESCRIPTION("Madera pinctrl driver");
-MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.wolfsonmicro.com>");
+MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_LICENSE("GPL v2");
