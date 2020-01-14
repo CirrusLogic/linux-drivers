@@ -93,6 +93,7 @@ struct cs35l45_platform_data {
 	struct gpio_ctrl gpio_ctrl1;
 	struct gpio_ctrl gpio_ctrl2;
 	struct gpio_ctrl gpio_ctrl3;
+	const char *dsp_part_name;
 	bool use_tdm_slots;
 };
 

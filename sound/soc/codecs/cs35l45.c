@@ -1200,6 +1200,11 @@ static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
 	pdata->use_tdm_slots = of_property_read_bool(node,
 						     "cirrus,use-tdm-slots");
 
+	ret = of_property_read_string(node, "cirrus,dsp-part-name",
+				      &pdata->dsp_part_name);
+	if (ret < 0)
+		pdata->dsp_part_name = "cs35l45";
+
 	child = of_get_child_by_name(node, "cirrus,bst-bpe-voltage-config");
 	pdata->bst_bpe_voltage_cfg.is_present = child ? true : false;
 	if (!pdata->bst_bpe_voltage_cfg.is_present)
@@ -1214,11 +1219,13 @@ static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
 		}
 	}
 
+	of_node_put(child);
+
 bst_bpe_ind_curr_cfg:
 	child = of_get_child_by_name(node, "cirrus,bst-bpe-ind-curr-config");
 	pdata->bst_bpe_ind_curr_cfg.is_present = child ? true : false;
 	if (!pdata->bst_bpe_ind_curr_cfg.is_present)
-		goto hvlv_config;
+		goto hvlv_cfg;
 
 	for (i = BST_BPE_IL_LIM_THLD_DEL1; i < BST_BPE_IND_CURR_PARAMS; i++) {
 		ptr = cs35l45_get_bst_bpe_ind_curr_param(cs35l45, i);
@@ -1230,7 +1237,7 @@ bst_bpe_ind_curr_cfg:
 
 	of_node_put(child);
 
-hvlv_config:
+hvlv_cfg:
 	child = of_get_child_by_name(node, "cirrus,hvlv-config");
 	pdata->hvlv_cfg.is_present = child ? true : false;
 	if (!pdata->hvlv_cfg.is_present)
@@ -1383,7 +1390,7 @@ static int cs35l45_dsp_init(struct cs35l45_private *cs35l45)
 	struct wm_adsp *dsp = &cs35l45->dsp;
 	int ret, i;
 
-	dsp->part = "cs35l45";
+	dsp->part = cs35l45->pdata.dsp_part_name;
 	dsp->num = 1;
 	dsp->type = WMFW_HALO;
 	dsp->rev = 0;
@@ -1457,15 +1464,15 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 
 	cs35l45->slot_width = CS35L45_DEFAULT_SLOT_WIDTH;
 
-	ret = cs35l45_dsp_init(cs35l45);
-	if (ret < 0) {
-		dev_err(dev, "dsp_init failed: %d\n", ret);
-		goto err;
-	}
-
 	ret = cs35l45_parse_of_data(cs35l45);
 	if (ret < 0) {
 		dev_err(dev, "parsing OF data failed: %d\n", ret);
+		goto err;
+	}
+
+	ret = cs35l45_dsp_init(cs35l45);
+	if (ret < 0) {
+		dev_err(dev, "dsp_init failed: %d\n", ret);
 		goto err;
 	}
 
