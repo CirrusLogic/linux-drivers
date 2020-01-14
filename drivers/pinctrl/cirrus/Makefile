@@ -1,5 +1,5 @@
 # Cirrus Logic pinctrl drivers
-obj-$(CONFIG_PINCTRL_MADERA)	+= pinctrl-madera.o
+obj-$(CONFIG_PINCTRL_MADERA)	+= pinctrl-madera-core.o
 ifeq ($(CONFIG_PINCTRL_CS47L15),y)
 obj-$(CONFIG_PINCTRL_MADERA)	+= pinctrl-cs47l15.o
 endif
