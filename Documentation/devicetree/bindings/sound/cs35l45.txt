@@ -17,6 +17,9 @@ Required properties:
 Optional properties:
   - reset-gpios : gpio used to reset the amplifier
 
+  - cirrus,dsp-part-name : String to create custom part name for HALO DSP
+    driver. Default is 'cs35l45'.
+
 Optional Voltage Based Boost BPE Sub-node:
 
   Details found in section 4.9.4
