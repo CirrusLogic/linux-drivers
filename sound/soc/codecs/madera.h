@@ -1,18 +1,19 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * madera.h - Cirrus Logic Madera class codecs common support
+ * Cirrus Logic Madera class codecs common support
  *
- * Copyright 2015-2017 Cirrus Logic
+ * Copyright (C) 2015-2019 Cirrus Logic, Inc. and
+ *                         Cirrus Logic International Semiconductor Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * it under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; version 2.
  */
 
 #ifndef ASOC_MADERA_H
 #define ASOC_MADERA_H
 
 #include <linux/completion.h>
-
 #include <sound/soc.h>
 #include <sound/madera-pdata.h>
 
@@ -426,8 +427,8 @@ int madera_adsp_rate_put(struct snd_kcontrol *kcontrol,
 int madera_set_adsp_clk(struct madera_priv *priv, int dsp_num,
 			unsigned int freq);
 
-int madera_set_sysclk(struct snd_soc_codec *codec, int clk_id, int source,
-		      unsigned int freq, int dir);
+int madera_set_sysclk(struct snd_soc_codec *codec, int clk_id,
+		      int source, unsigned int freq, int dir);
 int madera_get_legacy_dspclk_setting(struct madera *madera, unsigned int freq);
 void madera_spin_sysclk(struct madera_priv *priv);
 
@@ -458,7 +459,8 @@ void madera_destroy_bus_error_irq(struct madera_priv *priv, int dsp_num);
 
 int madera_init_dai(struct madera_priv *priv, int dai);
 
-int madera_set_output_mode(struct snd_soc_codec *codec, int output, bool diff);
+int madera_set_output_mode(struct snd_soc_codec *codec, int output,
+			   bool differential);
 
 /* Following functions are for use by machine drivers */
 static inline int madera_register_notifier(struct snd_soc_codec *codec,
@@ -469,8 +471,9 @@ static inline int madera_register_notifier(struct snd_soc_codec *codec,
 	return blocking_notifier_chain_register(&madera->notifier, nb);
 }
 
-static inline int madera_unregister_notifier(struct snd_soc_codec *codec,
-					     struct notifier_block *nb)
+static inline int
+madera_unregister_notifier(struct snd_soc_codec *codec,
+			   struct notifier_block *nb)
 {
 	struct madera *madera = dev_get_drvdata(codec->dev->parent);
 

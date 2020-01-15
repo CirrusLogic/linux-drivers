@@ -1,12 +1,14 @@
-/*
- * cs47l15.c  --  ALSA SoC Audio driver for CS47L15 codecs
- *
- * Copyright 2016-2017 Cirrus Logic
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// ALSA SoC Audio driver for CS47L15 codec
+//
+// Copyright (C) 2016-2019 Cirrus Logic, Inc. and
+//                         Cirrus Logic International Semiconductor Ltd.
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by the
+// Free Software Foundation; version 2.
+//
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -1108,8 +1110,8 @@ static const struct snd_soc_dapm_route cs47l15_dapm_routes[] = {
 	{ "DRC2 Activity Output", "Switch", "DRC2R" },
 };
 
-static int cs47l15_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
-			   unsigned int Fref, unsigned int Fout)
+static int cs47l15_set_fll(struct snd_soc_codec *codec, int fll_id,
+			   int source, unsigned int Fref, unsigned int Fout)
 {
 	struct cs47l15 *cs47l15 = snd_soc_codec_get_drvdata(codec);
 
@@ -1301,9 +1303,9 @@ static int cs47l15_codec_remove(struct snd_soc_codec *codec)
 	struct cs47l15 *cs47l15 = snd_soc_codec_get_drvdata(codec);
 	struct madera *madera = cs47l15->core.madera;
 
-	wm_adsp2_codec_remove(&cs47l15->core.adsp[0], codec);
-
 	madera->dapm = NULL;
+
+	wm_adsp2_codec_remove(&cs47l15->core.adsp[0], codec);
 
 	return 0;
 }
@@ -1326,14 +1328,14 @@ static struct regmap *cs47l15_get_regmap(struct device *dev)
 }
 
 static const struct snd_soc_codec_driver soc_codec_dev_cs47l15 = {
-	.probe = cs47l15_codec_probe,
-	.remove = cs47l15_codec_remove,
-	.get_regmap = cs47l15_get_regmap,
+	.probe = &cs47l15_codec_probe,
+	.remove = &cs47l15_codec_remove,
+	.get_regmap = &cs47l15_get_regmap,
 
 	.idle_bias_off = true,
 
-	.set_sysclk = madera_set_sysclk,
-	.set_pll = cs47l15_set_fll,
+	.set_sysclk = &madera_set_sysclk,
+	.set_pll = &cs47l15_set_fll,
 
 	.component_driver = {
 		.controls = cs47l15_snd_controls,
@@ -1346,13 +1348,13 @@ static const struct snd_soc_codec_driver soc_codec_dev_cs47l15 = {
 };
 
 static const struct snd_compr_ops cs47l15_compr_ops = {
-	.open = cs47l15_open,
-	.free = wm_adsp_compr_free,
-	.set_params = wm_adsp_compr_set_params,
-	.get_caps = wm_adsp_compr_get_caps,
-	.trigger = wm_adsp_compr_trigger,
-	.pointer = wm_adsp_compr_pointer,
-	.copy = wm_adsp_compr_copy,
+	.open = &cs47l15_open,
+	.free = &wm_adsp_compr_free,
+	.set_params = &wm_adsp_compr_set_params,
+	.get_caps = &wm_adsp_compr_get_caps,
+	.trigger = &wm_adsp_compr_trigger,
+	.pointer = &wm_adsp_compr_pointer,
+	.copy = &wm_adsp_compr_copy,
 };
 
 static const struct snd_soc_platform_driver cs47l15_compr_platform = {
@@ -1504,14 +1506,15 @@ static struct platform_driver cs47l15_codec_driver = {
 	.driver = {
 		.name = "cs47l15-codec",
 	},
-	.probe = cs47l15_probe,
-	.remove = cs47l15_remove,
+	.probe = &cs47l15_probe,
+	.remove = &cs47l15_remove,
 };
 
 module_platform_driver(cs47l15_codec_driver);
 
+MODULE_SOFTDEP("pre: madera irq-madera arizona-micsupp");
 MODULE_DESCRIPTION("ASoC CS47L15 driver");
-MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.wolfsonmicro.com>");
-MODULE_AUTHOR("Jaswinder Jassal <jjassal@opensource.wolfsonmicro.com>");
+MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
+MODULE_AUTHOR("Jaswinder Jassal <jjassal@opensource.cirrus.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:cs47l15-codec");

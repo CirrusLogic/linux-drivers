@@ -1,12 +1,14 @@
-/*
- * madera.c - Cirrus Logic Madera class codecs common support
- *
- * Copyright 2015-2017 Cirrus Logic
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Cirrus Logic Madera class codecs common support
+//
+// Copyright (C) 2015-2019 Cirrus Logic, Inc. and
+//                         Cirrus Logic International Semiconductor Ltd.
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by the
+// Free Software Foundation; version 2.
+//
 
 #include <linux/delay.h>
 #include <linux/gcd.h>
@@ -1063,13 +1065,15 @@ static int madera_write_adsp_clk_setting(struct madera_priv *priv,
 	ret = regmap_update_bits(dsp->regmap,
 				 dsp->base + MADERA_DSP_CONFIG_1_OFFS,
 				 mask, val);
+	if (ret)
+		goto err;
 
 	dev_dbg(priv->madera->dev, "Set DSP clocking to 0x%x\n", val);
 
 	return 0;
 
 err:
-	dev_err(dsp->dev, "Failed to set %s clock: %d\n", dsp->name, ret);
+	dev_err(dsp->dev, "Failed to set DSP%d clock: %d\n", dsp->num, ret);
 
 	return ret;
 }
@@ -2422,17 +2426,17 @@ int madera_in_rate_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int reg, mask;
+	unsigned int val, mask;
 	int ret = 0;
 
 	snd_soc_dapm_mutex_lock(dapm);
 
 	/* Cannot change rate on an active input */
-	reg = snd_soc_read(codec, MADERA_INPUT_ENABLES);
+	val = snd_soc_read(codec, MADERA_INPUT_ENABLES);
 	mask = (e->reg - MADERA_IN1L_CONTROL) / 4;
 	mask ^= 0x1; /* Flip bottom bit for channel order */
 
-	if ((reg) & (1 << mask)) {
+	if ((val) & (1 << mask)) {
 		ret = -EBUSY;
 		goto exit;
 	}
@@ -2480,17 +2484,17 @@ int madera_lp_mode_put(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	unsigned int reg, mask;
+	unsigned int val, mask;
 	int ret;
 
 	snd_soc_dapm_mutex_lock(dapm);
 
 	/* Cannot change lp mode on an active input */
-	reg = snd_soc_read(codec, MADERA_INPUT_ENABLES);
+	val = snd_soc_read(codec, MADERA_INPUT_ENABLES);
 	mask = (mc->reg - MADERA_ADC_DIGITAL_VOLUME_1L) / 4;
 	mask ^= 0x1; /* Flip bottom bit for channel order */
 
-	if ((reg) & (1 << mask)) {
+	if ((val) & (1 << mask)) {
 		ret = -EBUSY;
 		dev_err(codec->dev,
 			"Can't change lp mode on an active input\n");
@@ -2548,7 +2552,7 @@ int madera_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
-	unsigned int reg;
+	unsigned int reg, val;
 
 	if (w->shift % 2)
 		reg = MADERA_ADC_DIGITAL_VOLUME_1L + ((w->shift / 2) * 8);
@@ -2576,8 +2580,8 @@ int madera_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		/* Disable volume updates if no inputs are enabled */
-		reg = snd_soc_read(codec, MADERA_INPUT_ENABLES);
-		if (reg == 0)
+		val = snd_soc_read(codec, MADERA_INPUT_ENABLES);
+		if (!val)
 			madera_in_set_vu(priv, false);
 		break;
 	default:
@@ -2779,8 +2783,8 @@ static const unsigned int madera_opclk_ref_44k1_rates[] = {
 	45158400,
 };
 
-static int madera_set_opclk(struct snd_soc_codec *codec, unsigned int clk,
-			    unsigned int freq)
+static int madera_set_opclk(struct snd_soc_codec *codec,
+			    unsigned int clk, unsigned int freq)
 {
 	struct madera_priv *priv = snd_soc_codec_get_drvdata(codec);
 	unsigned int reg;
@@ -2905,8 +2909,8 @@ static int madera_get_dspclk_setting(struct madera *madera,
 	}
 }
 
-static int madera_set_outclk(struct snd_soc_codec *codec, unsigned int source,
-			      unsigned int freq)
+static int madera_set_outclk(struct snd_soc_codec *codec,
+			     unsigned int source, unsigned int freq)
 {
 	int div, div_inc, rate;
 
@@ -2951,7 +2955,8 @@ static int madera_set_outclk(struct snd_soc_codec *codec, unsigned int source,
 		div *= 2;
 	}
 
-	dev_err(codec->dev, "Unable to generate %dHz OUTCLK from %dHz MCLK\n",
+	dev_err(codec->dev,
+		"Unable to generate %dHz OUTCLK from %dHz MCLK\n",
 		rate, freq);
 	return -EINVAL;
 }
@@ -3347,42 +3352,52 @@ static int madera_hw_params_rate(struct snd_pcm_substream *substream,
 	case MADERA_CLK_SYSCLK_1:
 		snd_soc_update_bits(codec, MADERA_SAMPLE_RATE_1,
 				    MADERA_SAMPLE_RATE_1_MASK, sr_val);
-		if (base)
-			snd_soc_update_bits(codec, base + MADERA_AIF_RATE_CTRL,
-					    MADERA_AIF1_RATE_MASK,
-					    0 << MADERA_AIF1_RATE_SHIFT);
+		if (!base)
+			break;
+
+		snd_soc_update_bits(codec, base + MADERA_AIF_RATE_CTRL,
+				    MADERA_AIF1_RATE_MASK,
+				    0 << MADERA_AIF1_RATE_SHIFT);
 		break;
 	case MADERA_CLK_SYSCLK_2:
 		snd_soc_update_bits(codec, MADERA_SAMPLE_RATE_2,
 				    MADERA_SAMPLE_RATE_2_MASK, sr_val);
-		if (base)
-			snd_soc_update_bits(codec, base + MADERA_AIF_RATE_CTRL,
-					    MADERA_AIF1_RATE_MASK,
-					    1 << MADERA_AIF1_RATE_SHIFT);
+		if (!base)
+			break;
+
+		snd_soc_update_bits(codec, base + MADERA_AIF_RATE_CTRL,
+				    MADERA_AIF1_RATE_MASK,
+				    1 << MADERA_AIF1_RATE_SHIFT);
 		break;
 	case MADERA_CLK_SYSCLK_3:
 		snd_soc_update_bits(codec, MADERA_SAMPLE_RATE_3,
 				    MADERA_SAMPLE_RATE_3_MASK, sr_val);
-		if (base)
-			snd_soc_update_bits(codec, base + MADERA_AIF_RATE_CTRL,
-					    MADERA_AIF1_RATE_MASK,
-					    2 << MADERA_AIF1_RATE_SHIFT);
+		if (!base)
+			break;
+
+		snd_soc_update_bits(codec, base + MADERA_AIF_RATE_CTRL,
+				    MADERA_AIF1_RATE_MASK,
+				    2 << MADERA_AIF1_RATE_SHIFT);
 		break;
 	case MADERA_CLK_ASYNCCLK_1:
 		snd_soc_update_bits(codec, MADERA_ASYNC_SAMPLE_RATE_1,
 				    MADERA_ASYNC_SAMPLE_RATE_1_MASK, sr_val);
-		if (base)
-			snd_soc_update_bits(codec, base + MADERA_AIF_RATE_CTRL,
-					    MADERA_AIF1_RATE_MASK,
-					    8 << MADERA_AIF1_RATE_SHIFT);
+		if (!base)
+			break;
+
+		snd_soc_update_bits(codec, base + MADERA_AIF_RATE_CTRL,
+				    MADERA_AIF1_RATE_MASK,
+				    8 << MADERA_AIF1_RATE_SHIFT);
 		break;
 	case MADERA_CLK_ASYNCCLK_2:
 		snd_soc_update_bits(codec, MADERA_ASYNC_SAMPLE_RATE_2,
 				    MADERA_ASYNC_SAMPLE_RATE_2_MASK, sr_val);
-		if (base)
-			snd_soc_update_bits(codec, base + MADERA_AIF_RATE_CTRL,
-					    MADERA_AIF1_RATE_MASK,
-					    9 << MADERA_AIF1_RATE_SHIFT);
+		if (!base)
+			break;
+
+		snd_soc_update_bits(codec, base + MADERA_AIF_RATE_CTRL,
+				    MADERA_AIF1_RATE_MASK,
+				    9 << MADERA_AIF1_RATE_SHIFT);
 		break;
 	default:
 		madera_aif_err(dai, "Invalid clock %d\n", dai_priv->clk);
@@ -3398,25 +3413,25 @@ out:
 	return ret;
 }
 
-static bool madera_aif_cfg_changed(struct snd_soc_codec *codec,
-				   int base, int bclk, int lrclk, int frame)
+static int madera_aif_cfg_changed(struct snd_soc_codec *codec,
+				  int base, int bclk, int lrclk, int frame)
 {
 	int val;
 
 	val = snd_soc_read(codec, base + MADERA_AIF_BCLK_CTRL);
 	if (bclk != (val & MADERA_AIF1_BCLK_FREQ_MASK))
-		return true;
+		return 1;
 
 	val = snd_soc_read(codec, base + MADERA_AIF_RX_BCLK_RATE);
 	if (lrclk != (val & MADERA_AIF1RX_BCPF_MASK))
-		return true;
+		return 1;
 
 	val = snd_soc_read(codec, base + MADERA_AIF_FRAME_CTRL_1);
 	if (frame != (val & (MADERA_AIF1TX_WL_MASK |
 			     MADERA_AIF1TX_SLOT_LEN_MASK)))
-		return true;
+		return 1;
 
-	return false;
+	return 0;
 }
 
 static int madera_hw_params(struct snd_pcm_substream *substream,
@@ -3428,14 +3443,15 @@ static int madera_hw_params(struct snd_pcm_substream *substream,
 	struct madera *madera = priv->madera;
 	int base = dai->driver->base;
 	const int *rates;
-	int i, ret, val;
+	int i, ret;
+	int val;
 	unsigned int channels = params_channels(params);
 	unsigned int chan_limit =
 			madera->pdata.codec.max_channels_clocked[dai->id - 1];
 	int tdm_width = priv->tdm_width[dai->id - 1];
 	int tdm_slots = priv->tdm_slots[dai->id - 1];
 	int bclk, lrclk, dataw, slotw, frame, bclk_target, num_rates;
-	bool reconfig;
+	int reconfig;
 	unsigned int aif_tx_state = 0, aif_rx_state = 0;
 
 	if (params_rate(params) % 4000) {
@@ -3495,6 +3511,8 @@ static int madera_hw_params(struct snd_pcm_substream *substream,
 	frame = dataw << MADERA_AIF1TX_WL_SHIFT | slotw;
 
 	reconfig = madera_aif_cfg_changed(codec, base, bclk, lrclk, frame);
+	if (reconfig < 0)
+		return reconfig;
 
 	if (reconfig) {
 		/* Save AIF TX/RX state */
@@ -3680,19 +3698,19 @@ static int madera_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 }
 
 const struct snd_soc_dai_ops madera_dai_ops = {
-	.startup = madera_startup,
-	.set_fmt = madera_set_fmt,
-	.set_tdm_slot = madera_set_tdm_slot,
-	.hw_params = madera_hw_params,
-	.set_sysclk = madera_dai_set_sysclk,
-	.set_tristate = madera_set_tristate,
+	.startup = &madera_startup,
+	.set_fmt = &madera_set_fmt,
+	.set_tdm_slot = &madera_set_tdm_slot,
+	.hw_params = &madera_hw_params,
+	.set_sysclk = &madera_dai_set_sysclk,
+	.set_tristate = &madera_set_tristate,
 };
 EXPORT_SYMBOL_GPL(madera_dai_ops);
 
 const struct snd_soc_dai_ops madera_simple_dai_ops = {
-	.startup = madera_startup,
-	.hw_params = madera_hw_params_rate,
-	.set_sysclk = madera_dai_set_sysclk,
+	.startup = &madera_startup,
+	.hw_params = &madera_hw_params_rate,
+	.set_sysclk = &madera_dai_set_sysclk,
 };
 EXPORT_SYMBOL_GPL(madera_simple_dai_ops);
 
@@ -4930,7 +4948,8 @@ EXPORT_SYMBOL_GPL(madera_fllhj_set_refclk);
  * Most systems have a single static configuration and should use
  * platform data instead.
  */
-int madera_set_output_mode(struct snd_soc_codec *codec, int output, bool diff)
+int madera_set_output_mode(struct snd_soc_codec *codec, int output,
+			   bool differential)
 {
 	unsigned int reg, val;
 	int ret;
@@ -4940,7 +4959,7 @@ int madera_set_output_mode(struct snd_soc_codec *codec, int output, bool diff)
 
 	reg = MADERA_OUTPUT_PATH_CONFIG_1L + (output - 1) * 8;
 
-	if (diff)
+	if (differential)
 		val = MADERA_OUT1_MONO;
 	else
 		val = 0;
@@ -5030,7 +5049,8 @@ int madera_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(madera_lhpf_coeff_put);
 
+MODULE_SOFTDEP("pre: madera");
 MODULE_DESCRIPTION("ASoC Cirrus Logic Madera codec support");
-MODULE_AUTHOR("Charles Keepax <ckeepax@opensource.wolfsonmicro.com>");
-MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.wolfsonmicro.com>");
+MODULE_AUTHOR("Charles Keepax <ckeepax@opensource.cirrus.com>");
+MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_LICENSE("GPL v2");

@@ -1,14 +1,14 @@
-/*
- * cs47l90.c  --  ALSA SoC Audio driver for CS47L90 codecs
- *
- * Copyright 2015-2017 Cirrus Logic
- *
- * Author: Nikesh Oswal <nikesh@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// ALSA SoC Audio driver for CS47L90 codec
+//
+// Copyright (C) 2015-2018 Cirrus Logic, Inc. and
+//                         Cirrus Logic International Semiconductor Ltd.
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by the
+// Free Software Foundation; version 2.
+//
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -2167,8 +2167,8 @@ static const struct snd_soc_dapm_route cs47l90_dapm_routes[] = {
 	MADERA_MUX_ROUTES("DFC8", "DFC8"),
 };
 
-static int cs47l90_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
-			   unsigned int Fref, unsigned int Fout)
+static int cs47l90_set_fll(struct snd_soc_codec *codec, int fll_id,
+			   int source, unsigned int Fref, unsigned int Fout)
 {
 	struct cs47l90 *cs47l90 = snd_soc_codec_get_drvdata(codec);
 
@@ -2348,7 +2348,7 @@ static struct snd_soc_dai_driver cs47l90_dai[] = {
 			.rates = MADERA_RATES,
 			.formats = MADERA_FORMATS,
 		},
-		.compress_new = snd_soc_new_compress,
+		.compress_new = &snd_soc_new_compress,
 	},
 	{
 		.name = "cs47l90-dsp-voicectrl",
@@ -2369,7 +2369,7 @@ static struct snd_soc_dai_driver cs47l90_dai[] = {
 			.rates = MADERA_RATES,
 			.formats = MADERA_FORMATS,
 		},
-		.compress_new = snd_soc_new_compress,
+		.compress_new = &snd_soc_new_compress,
 	},
 	{
 		.name = "cs47l90-dsp-trace",
@@ -2491,10 +2491,10 @@ static int cs47l90_codec_remove(struct snd_soc_codec *codec)
 	int i;
 	struct cs47l90 *cs47l90 = snd_soc_codec_get_drvdata(codec);
 
+	cs47l90->core.madera->dapm = NULL;
+
 	for (i = 0; i < CS47L90_NUM_ADSP; i++)
 		wm_adsp2_codec_remove(&cs47l90->core.adsp[i], codec);
-
-	cs47l90->core.madera->dapm = NULL;
 
 	return 0;
 }
@@ -2520,14 +2520,14 @@ static struct regmap *cs47l90_get_regmap(struct device *dev)
 }
 
 static const struct snd_soc_codec_driver soc_codec_dev_cs47l90 = {
-	.probe = cs47l90_codec_probe,
-	.remove = cs47l90_codec_remove,
-	.get_regmap = cs47l90_get_regmap,
+	.probe = &cs47l90_codec_probe,
+	.remove = &cs47l90_codec_remove,
+	.get_regmap = &cs47l90_get_regmap,
 
 	.idle_bias_off = true,
 
-	.set_sysclk = madera_set_sysclk,
-	.set_pll = cs47l90_set_fll,
+	.set_sysclk = &madera_set_sysclk,
+	.set_pll = &cs47l90_set_fll,
 
 	.component_driver = {
 		.controls = cs47l90_snd_controls,
@@ -2540,13 +2540,13 @@ static const struct snd_soc_codec_driver soc_codec_dev_cs47l90 = {
 };
 
 static const struct snd_compr_ops cs47l90_compr_ops = {
-	.open = cs47l90_open,
-	.free = wm_adsp_compr_free,
-	.set_params = wm_adsp_compr_set_params,
-	.get_caps = wm_adsp_compr_get_caps,
-	.trigger = wm_adsp_compr_trigger,
-	.pointer = wm_adsp_compr_pointer,
-	.copy = wm_adsp_compr_copy,
+	.open = &cs47l90_open,
+	.free = &wm_adsp_compr_free,
+	.set_params = &wm_adsp_compr_set_params,
+	.get_caps = &wm_adsp_compr_get_caps,
+	.trigger = &wm_adsp_compr_trigger,
+	.pointer = &wm_adsp_compr_pointer,
+	.copy = &wm_adsp_compr_copy,
 };
 
 static const struct snd_soc_platform_driver cs47l90_compr_platform = {
@@ -2710,13 +2710,14 @@ static struct platform_driver cs47l90_codec_driver = {
 	.driver = {
 		.name = "cs47l90-codec",
 	},
-	.probe = cs47l90_probe,
-	.remove = cs47l90_remove,
+	.probe = &cs47l90_probe,
+	.remove = &cs47l90_remove,
 };
 
 module_platform_driver(cs47l90_codec_driver);
 
+MODULE_SOFTDEP("pre: madera irq-madera arizona-micsupp");
 MODULE_DESCRIPTION("ASoC CS47L90 driver");
-MODULE_AUTHOR("Nikesh Oswal <nikesh@opensource.wolfsonmicro.com>");
+MODULE_AUTHOR("Nikesh Oswal <nikesh@opensource.cirrus.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:cs47l90-codec");
