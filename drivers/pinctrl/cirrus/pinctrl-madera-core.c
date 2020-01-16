@@ -1048,9 +1048,11 @@ static int madera_pin_probe(struct platform_device *pdev)
 
 	madera_pin_desc.npins = priv->chip->n_pins;
 
-	priv->pctl = devm_pinctrl_register(&pdev->dev, &madera_pin_desc, priv);
-	if (IS_ERR(priv->pctl)) {
-		ret = PTR_ERR(priv->pctl);
+	ret = devm_pinctrl_register_and_init(&pdev->dev,
+					     &madera_pin_desc,
+					     priv,
+					     &priv->pctl);
+	if (ret) {
 		dev_err(priv->dev, "Failed pinctrl register (%d)\n", ret);
 		return ret;
 	}
@@ -1065,6 +1067,12 @@ static int madera_pin_probe(struct platform_device *pdev)
 				ret);
 			return ret;
 		}
+	}
+
+	ret = pinctrl_enable(priv->pctl);
+	if (ret) {
+		dev_err(priv->dev, "Failed to enable pinctrl (%d)\n", ret);
+		return ret;
 	}
 
 	dev_dbg(priv->dev, "pinctrl probed ok\n");
