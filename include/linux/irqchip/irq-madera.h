@@ -9,6 +9,9 @@
 #ifndef IRQCHIP_MADERA_H
 #define IRQCHIP_MADERA_H
 
+#include <linux/interrupt.h>
+#include <linux/mfd/madera/core.h>
+
 #define MADERA_IRQ_FLL1_LOCK		0
 #define MADERA_IRQ_FLL2_LOCK		1
 #define MADERA_IRQ_FLL3_LOCK		2
@@ -85,11 +88,46 @@
 
 #define MADERA_NUM_IRQ			73
 
-struct madera;
+/*
+ * These wrapper functions are for use by other child drivers of the
+ * same parent MFD.
+ */
+static inline int madera_get_irq_mapping(struct madera *madera, int irq)
+{
+	if (!madera->irq_dev)
+		return -ENODEV;
 
-int madera_request_irq(struct madera *madera, int irq, const char *name,
-		       irq_handler_t handler, void *data);
-void madera_free_irq(struct madera *madera, int irq, void *data);
-int madera_set_irq_wake(struct madera *madera, int irq, int on);
+	return regmap_irq_get_virq(madera->irq_data, irq);
+}
+
+static inline int madera_request_irq(struct madera *madera, int irq,
+				     const char *name,
+				     irq_handler_t handler, void *data)
+{
+	irq = madera_get_irq_mapping(madera, irq);
+	if (irq < 0)
+		return irq;
+
+	return request_threaded_irq(irq, NULL, handler, IRQF_ONESHOT, name,
+				    data);
+}
+
+static inline void madera_free_irq(struct madera *madera, int irq, void *data)
+{
+	irq = madera_get_irq_mapping(madera, irq);
+	if (irq < 0)
+		return;
+
+	free_irq(irq, data);
+}
+
+static inline int madera_set_irq_wake(struct madera *madera, int irq, int on)
+{
+	irq = madera_get_irq_mapping(madera, irq);
+	if (irq < 0)
+		return irq;
+
+	return irq_set_irq_wake(irq, on);
+}
 
 #endif

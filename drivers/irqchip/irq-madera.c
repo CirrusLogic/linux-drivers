@@ -102,50 +102,6 @@ static const struct regmap_irq_chip madera_irq_chip = {
 	.num_irqs	= ARRAY_SIZE(madera_irqs),
 };
 
-static int madera_map_irq(struct madera *madera, int irq)
-{
-	if (!madera->irq_dev)
-		return -ENOENT;
-
-	return regmap_irq_get_virq(madera->irq_data, irq);
-}
-
-int madera_request_irq(struct madera *madera, int irq, const char *name,
-			irq_handler_t handler, void *data)
-{
-	irq = madera_map_irq(madera, irq);
-
-	if (irq < 0)
-		return irq;
-
-	return request_threaded_irq(irq, NULL, handler, IRQF_ONESHOT, name,
-				    data);
-
-}
-EXPORT_SYMBOL_GPL(madera_request_irq);
-
-void madera_free_irq(struct madera *madera, int irq, void *data)
-{
-	irq = madera_map_irq(madera, irq);
-
-	if (irq < 0)
-		return;
-
-	free_irq(irq, data);
-}
-EXPORT_SYMBOL_GPL(madera_free_irq);
-
-int madera_set_irq_wake(struct madera *madera, int irq, int on)
-{
-	irq = madera_map_irq(madera, irq);
-
-	if (irq < 0)
-		return irq;
-
-	return irq_set_irq_wake(irq, on);
-}
-EXPORT_SYMBOL_GPL(madera_set_irq_wake);
-
 #ifdef CONFIG_PM_SLEEP
 static int madera_suspend(struct device *dev)
 {

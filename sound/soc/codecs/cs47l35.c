@@ -23,6 +23,7 @@
 #include <sound/tlv.h>
 #include <sound/tlv.h>
 
+#include <linux/irqchip/irq-madera.h>
 #include <linux/mfd/madera/core.h>
 #include <linux/mfd/madera/registers.h>
 
