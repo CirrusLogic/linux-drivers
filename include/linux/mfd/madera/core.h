@@ -160,6 +160,7 @@ struct madera {
 	struct madera_pdata pdata;
 
 	struct device *irq_dev;
+	struct regmap_irq_chip_data *irq_data;
 	int irq;
 
 	unsigned int out_clamp[MADERA_MAX_OUTPUT];
