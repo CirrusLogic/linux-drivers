@@ -12,7 +12,6 @@
 #define MADERA_PDATA_H
 
 #include <linux/kernel.h>
-#include <linux/irqchip/irq-madera-pdata.h>
 #include <linux/regulator/arizona-ldo1.h>
 #include <linux/regulator/arizona-micsupp.h>
 #include <linux/regulator/machine.h>
@@ -58,7 +57,7 @@ struct madera_micbias_pdata {
  * @reset:	    GPIO controlling /RESET (0 = none)
  * @ldo1:	    Substruct of pdata for the LDO1 regulator
  * @micvdd:	    Substruct of pdata for the MICVDD regulator
- * @irqchip:	    Substruct of pdata for the irqchip driver
+ * @irq_flags:	    Mode for primary IRQ (defaults to active low)
  * @gpio_base:	    Base GPIO number
  * @gpio_configs:   Array of GPIO configurations (See Documentation/pinctrl.txt)
  * @n_gpio_configs: Number of entries in gpio_configs
@@ -73,8 +72,7 @@ struct madera_pdata {
 	struct arizona_ldo1_pdata ldo1;
 	struct arizona_micsupp_pdata micvdd;
 
-	struct madera_irqchip_pdata irqchip;
-
+	unsigned int irq_flags;
 	int gpio_base;
 
 	const struct pinctrl_map *gpio_configs;

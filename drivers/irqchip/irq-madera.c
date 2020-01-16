@@ -19,7 +19,6 @@
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/irqchip/irq-madera.h>
-#include <linux/irqchip/irq-madera-pdata.h>
 #include <linux/mfd/madera/core.h>
 #include <linux/mfd/madera/pdata.h>
 #include <linux/mfd/madera/registers.h>
@@ -187,7 +186,7 @@ static int madera_irq_probe(struct platform_device *pdev)
 	 * Read the flags from the interrupt controller if not specified
 	 * by pdata
 	 */
-	irq_flags = madera->pdata.irqchip.irq_flags;
+	irq_flags = madera->pdata.irq_flags;
 	if (!irq_flags) {
 		irq_data = irq_get_irq_data(madera->irq);
 		if (!irq_data) {
