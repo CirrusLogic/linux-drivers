@@ -110,11 +110,14 @@ static void madera_gpio_set(struct gpio_chip *chip, unsigned int offset,
 static const struct gpio_chip madera_gpio_chip = {
 	.label			= "madera",
 	.owner			= THIS_MODULE,
+	.request		= gpiochip_generic_request,
+	.free			= gpiochip_generic_free,
 	.get_direction		= madera_gpio_get_direction,
 	.direction_input	= madera_gpio_direction_in,
 	.get			= madera_gpio_get,
 	.direction_output	= madera_gpio_direction_out,
 	.set			= madera_gpio_set,
+	.set_config		= gpiochip_generic_config,
 	.can_sleep		= true,
 };
 
@@ -134,10 +137,7 @@ static int madera_gpio_probe(struct platform_device *pdev)
 
 	/* Construct suitable gpio_chip from the template in madera_gpio_chip */
 	madera_gpio->gpio_chip = madera_gpio_chip;
-	madera_gpio->gpio_chip.parent = &pdev->dev;
-
-	if (IS_ENABLED(CONFIG_OF_GPIO))
-		madera_gpio->gpio_chip.of_node = madera->dev->of_node;
+	madera_gpio->gpio_chip.parent = pdev->dev.parent;
 
 	switch (madera->type) {
 	case CS47L15:
@@ -175,6 +175,22 @@ static int madera_gpio_probe(struct platform_device *pdev)
 				     madera_gpio);
 	if (ret < 0) {
 		dev_dbg(&pdev->dev, "Could not register gpiochip, %d\n", ret);
+		return ret;
+	}
+
+	/*
+	 * This is part of a composite MFD device which can only be used with
+	 * the corresponding pinctrl driver. On all supported silicon the GPIO
+	 * to pinctrl mapping is fixed in the silicon, so we register it
+	 * explicitly instead of requiring a redundant gpio-ranges in the
+	 * devicetree.
+	 * In any case we also want to work on systems that don't use devicetree
+	 * or acpi.
+	 */
+	ret = gpiochip_add_pin_range(&madera_gpio->gpio_chip, "madera-pinctrl",
+				     0, 0, madera_gpio->gpio_chip.ngpio);
+	if (ret) {
+		dev_dbg(&pdev->dev, "Failed to add pin range (%d)\n", ret);
 		return ret;
 	}
 
