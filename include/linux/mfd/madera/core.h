@@ -198,11 +198,4 @@ struct madera {
 unsigned int madera_get_num_micbias(struct madera *madera);
 unsigned int madera_get_num_childbias(struct madera *madera,
 				      unsigned int micbias);
-
-static inline int madera_call_notifiers(struct madera *madera,
-					unsigned long event,
-					void *data)
-{
-	return blocking_notifier_call_chain(&madera->notifier, event, data);
-}
 #endif

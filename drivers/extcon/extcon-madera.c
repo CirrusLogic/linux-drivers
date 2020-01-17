@@ -1279,7 +1279,8 @@ static void madera_extcon_notify_micd(const struct madera_extcon *info,
 	data.impedance_x100 = madera_ohm_to_hohm(impedance);
 	data.out_num = info->pdata->output;
 
-	madera_call_notifiers(info->madera, MADERA_NOTIFY_MICDET, &data);
+	blocking_notifier_call_chain(&info->madera->notifier,
+				     MADERA_NOTIFY_MICDET, &data);
 }
 
 static int madera_hpdet_calc_calibration(const struct madera_extcon *info,
@@ -1569,7 +1570,8 @@ void madera_set_headphone_imp(struct madera_extcon *info, int ohms_x100)
 	madera->hp_impedance_x100[0] = ohms_x100;
 
 	data.impedance_x100 = ohms_x100;
-	madera_call_notifiers(madera, MADERA_NOTIFY_HPDET, &data);
+	blocking_notifier_call_chain(&info->madera->notifier,
+				     MADERA_NOTIFY_HPDET, &data);
 
 	madera_tune_headphone(info, ohms_x100);
 }

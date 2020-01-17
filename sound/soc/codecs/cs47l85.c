@@ -2449,9 +2449,8 @@ static irqreturn_t cs47l85_adsp2_irq(int irq, void *data)
 			serviced++;
 		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER) {
 			trig_info.core_num = i + 1;
-			madera_call_notifiers(madera,
-					      MADERA_NOTIFY_VOICE_TRIGGER,
-					      &trig_info);
+			blocking_notifier_call_chain(&madera->notifier,
+				MADERA_NOTIFY_VOICE_TRIGGER, &trig_info);
 		}
 	}
 
