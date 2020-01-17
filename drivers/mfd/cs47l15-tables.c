@@ -727,7 +727,6 @@ static const struct reg_default cs47l15_reg_default[] = {
 	{ 0x0000185E, 0xFFFF }, /* R6238 (0x00185E) - IRQ1_MASK_31 */
 	{ 0x0000185F, 0xFFFF }, /* R6239 (0x00185F) - IRQ1_MASK_32 */
 	{ 0x00001860, 0xFFFF }, /* R6240 (0x001860) - IRQ1_MASK_33 */
-	{ 0x00001948, 0xFFFF }, /* R6472 (0x001948) - IRQ2_MASK_9 */
 	{ 0x00001A06, 0x0000 }, /* R6662 (0x001A06) - INTERRUPT_DEBOUNCE_7 */
 	{ 0x00001A80, 0x4400 }, /* R6784 (0x001A80) - IRQ1_CTRL */
 };
@@ -1306,9 +1305,6 @@ static bool cs47l15_16bit_readable_register(struct device *dev, unsigned int reg
 	case MADERA_IRQ1_STATUS_1 ... MADERA_IRQ1_STATUS_33:
 	case MADERA_IRQ1_MASK_1 ... MADERA_IRQ1_MASK_33:
 	case MADERA_IRQ1_RAW_STATUS_1 ... MADERA_IRQ1_RAW_STATUS_33:
-	case MADERA_IRQ2_STATUS_9:
-	case MADERA_IRQ2_MASK_9:
-	case MADERA_IRQ2_RAW_STATUS_9:
 	case MADERA_INTERRUPT_DEBOUNCE_7:
 	case MADERA_IRQ1_CTRL:
 		return true;
@@ -1345,8 +1341,6 @@ static bool cs47l15_16bit_volatile_register(struct device *dev, unsigned int reg
 	case MADERA_FX_CTRL2:
 	case MADERA_IRQ1_STATUS_1 ... MADERA_IRQ1_STATUS_33:
 	case MADERA_IRQ1_RAW_STATUS_1 ... MADERA_IRQ1_RAW_STATUS_33:
-	case MADERA_IRQ2_STATUS_9:
-	case MADERA_IRQ2_RAW_STATUS_9:
 		return true;
 	default:
 		return false;
