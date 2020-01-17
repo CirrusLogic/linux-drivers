@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Madera register definitions
  *
- * Copyright 2015-2017 Cirrus Logic
+ * Copyright (C) 2015-2018 Cirrus Logic
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * it under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; version 2.
  */
 
 #ifndef MADERA_REGISTERS_H

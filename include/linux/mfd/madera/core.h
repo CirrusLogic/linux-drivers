@@ -1,25 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * MFD internals for Cirrus Logic Madera codecs
  *
- * Copyright 2015-2017 Cirrus Logic
+ * Copyright (C) 2015-2018 Cirrus Logic
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * it under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; version 2.
  */
 
 #ifndef MADERA_CORE_H
 #define MADERA_CORE_H
 
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
+#include <linux/mfd/madera/pdata.h>
 #include <linux/notifier.h>
 #include <linux/regmap.h>
-#include <linux/gpio/consumer.h>
-#include <linux/mfd/madera/pdata.h>
 #include <linux/regulator/consumer.h>
-#include <sound/madera-pdata.h>
 
 enum madera_type {
+	/* 0 is reserved for indicating failure to identify */
 	CS47L35 = 1,
 	CS47L85 = 2,
 	CS47L90 = 3,
@@ -136,9 +137,31 @@ enum madera_type {
 struct snd_soc_dapm_context;
 
 /*
- * struct madera
+ * struct madera - internal data shared by the set of Madera drivers
  *
  * This should not be used by anything except child drivers of the Madera MFD
+ *
+ * @regmap:		pointer to the regmap instance for 16-bit registers
+ * @regmap_32bit:	pointer to the regmap instance for 32-bit registers
+ * @dev:		pointer to the MFD device
+ * @type:		type of codec
+ * @rev:		silicon revision
+ * @type_name:		display name of this codec
+ * @num_core_supplies:	number of core supply regulators
+ * @core_supplies:	list of core supplies that are always required
+ * @dcvdd:		pointer to DCVDD regulator
+ * @internal_dcvdd:	true if DCVDD is supplied from the internal LDO1
+ * @pdata:		our pdata
+ * @irq_dev:		the irqchip child driver device
+ * @irq_data:		pointer to irqchip data for the child irqchip driver
+ * @irq:		host irq number from SPI or I2C configuration
+ * @out_clamp:		indicates output clamp state for each analogue output
+ * @out_shorted:	indicates short circuit state for each analogue output
+ * @hp_ena:		bitflags of enable state for the headphone outputs
+ * @num_micbias:	number of MICBIAS outputs
+ * @num_childbias:	number of child biases for each MICBIAS
+ * @dapm:		pointer to codec driver DAPM context
+ * @notifier:		notifier for signalling events to ASoC machine driver
  */
 struct madera {
 	struct regmap *regmap;
@@ -175,8 +198,6 @@ struct madera {
 unsigned int madera_get_num_micbias(struct madera *madera);
 unsigned int madera_get_num_childbias(struct madera *madera,
 				      unsigned int micbias);
-
-const char *madera_name_from_type(enum madera_type type);
 
 static inline int madera_call_notifiers(struct madera *madera,
 					unsigned long event,

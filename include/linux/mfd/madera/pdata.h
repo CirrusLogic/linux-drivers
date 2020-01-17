@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Platform data for Cirrus Logic Madera codecs
  *
- * Copyright 2015-2017 Cirrus Logic
+ * Copyright (C) 2015-2018 Cirrus Logic
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * it under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; version 2.
  */
 
 #ifndef MADERA_PDATA_H
@@ -59,12 +60,14 @@ struct madera_micbias_pdata {
  * @micvdd:	    Substruct of pdata for the MICVDD regulator
  * @irq_flags:	    Mode for primary IRQ (defaults to active low)
  * @gpio_base:	    Base GPIO number
- * @gpio_configs:   Array of GPIO configurations (See Documentation/pinctrl.txt)
+ * @gpio_configs:   Array of GPIO configurations (See
+ *		    Documentation/driver-api/pinctl.rst)
  * @n_gpio_configs: Number of entries in gpio_configs
- * @codec:	    Substructure of pdata for the ASoC codec driver
- *		    See include/sound/madera-pdata.h
- * @gpsw:	    General purpose switch mode setting (See the SW1_MODE field
+ * @micbias:	    Substruct of pdata for the MICBIAS regulators
+ * @gpsw:	    General purpose switch mode setting. Depends on the external
+ *		    hardware connected to the switch. (See the SW1_MODE field
  *		    in the datasheet for the available values for your codec)
+ * @codec:	    Substruct of pdata for the ASoC codec driver
  */
 struct madera_pdata {
 	int reset;
@@ -81,13 +84,12 @@ struct madera_pdata {
 	/** MICBIAS configurations */
 	struct madera_micbias_pdata micbias[MADERA_MAX_MICBIAS];
 
-	struct madera_codec_pdata codec;
-
 	u32 gpsw[MADERA_MAX_GPSW];
+
+	struct madera_codec_pdata codec;
 
 	/** Accessory detection configurations */
 	struct madera_accdet_pdata accdet[MADERA_MAX_ACCESSORY];
 };
 
 #endif
-

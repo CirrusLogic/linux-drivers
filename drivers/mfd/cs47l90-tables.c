@@ -1,13 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Regmap tables for CS47L90 codec
  *
- * Copyright 2015-2016 Cirrus Logic
- *
- * Author: Nikesh Oswal <nikesh@opensource.wolfsonmicro.com>
+ * Copyright (C) 2015-2017 Cirrus Logic
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * it under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; version 2.
  */
 
 #include <linux/device.h>
@@ -2398,90 +2397,10 @@ static bool cs47l90_16bit_readable_register(struct device *dev,
 	case MADERA_DFC8MIX_INPUT_1_SOURCE:
 	case MADERA_FX_CTRL1:
 	case MADERA_FX_CTRL2:
-	case MADERA_EQ1_1:
-	case MADERA_EQ1_2:
-	case MADERA_EQ1_3:
-	case MADERA_EQ1_4:
-	case MADERA_EQ1_5:
-	case MADERA_EQ1_6:
-	case MADERA_EQ1_7:
-	case MADERA_EQ1_8:
-	case MADERA_EQ1_9:
-	case MADERA_EQ1_10:
-	case MADERA_EQ1_11:
-	case MADERA_EQ1_12:
-	case MADERA_EQ1_13:
-	case MADERA_EQ1_14:
-	case MADERA_EQ1_15:
-	case MADERA_EQ1_16:
-	case MADERA_EQ1_17:
-	case MADERA_EQ1_18:
-	case MADERA_EQ1_19:
-	case MADERA_EQ1_20:
-	case MADERA_EQ1_21:
-	case MADERA_EQ2_1:
-	case MADERA_EQ2_2:
-	case MADERA_EQ2_3:
-	case MADERA_EQ2_4:
-	case MADERA_EQ2_5:
-	case MADERA_EQ2_6:
-	case MADERA_EQ2_7:
-	case MADERA_EQ2_8:
-	case MADERA_EQ2_9:
-	case MADERA_EQ2_10:
-	case MADERA_EQ2_11:
-	case MADERA_EQ2_12:
-	case MADERA_EQ2_13:
-	case MADERA_EQ2_14:
-	case MADERA_EQ2_15:
-	case MADERA_EQ2_16:
-	case MADERA_EQ2_17:
-	case MADERA_EQ2_18:
-	case MADERA_EQ2_19:
-	case MADERA_EQ2_20:
-	case MADERA_EQ2_21:
-	case MADERA_EQ3_1:
-	case MADERA_EQ3_2:
-	case MADERA_EQ3_3:
-	case MADERA_EQ3_4:
-	case MADERA_EQ3_5:
-	case MADERA_EQ3_6:
-	case MADERA_EQ3_7:
-	case MADERA_EQ3_8:
-	case MADERA_EQ3_9:
-	case MADERA_EQ3_10:
-	case MADERA_EQ3_11:
-	case MADERA_EQ3_12:
-	case MADERA_EQ3_13:
-	case MADERA_EQ3_14:
-	case MADERA_EQ3_15:
-	case MADERA_EQ3_16:
-	case MADERA_EQ3_17:
-	case MADERA_EQ3_18:
-	case MADERA_EQ3_19:
-	case MADERA_EQ3_20:
-	case MADERA_EQ3_21:
-	case MADERA_EQ4_1:
-	case MADERA_EQ4_2:
-	case MADERA_EQ4_3:
-	case MADERA_EQ4_4:
-	case MADERA_EQ4_5:
-	case MADERA_EQ4_6:
-	case MADERA_EQ4_7:
-	case MADERA_EQ4_8:
-	case MADERA_EQ4_9:
-	case MADERA_EQ4_10:
-	case MADERA_EQ4_11:
-	case MADERA_EQ4_12:
-	case MADERA_EQ4_13:
-	case MADERA_EQ4_14:
-	case MADERA_EQ4_15:
-	case MADERA_EQ4_16:
-	case MADERA_EQ4_17:
-	case MADERA_EQ4_18:
-	case MADERA_EQ4_19:
-	case MADERA_EQ4_20:
-	case MADERA_EQ4_21:
+	case MADERA_EQ1_1 ... MADERA_EQ1_21:
+	case MADERA_EQ2_1 ... MADERA_EQ2_21:
+	case MADERA_EQ3_1 ... MADERA_EQ3_21:
+	case MADERA_EQ4_1 ... MADERA_EQ4_21:
 	case MADERA_DRC1_CTRL1:
 	case MADERA_DRC1_CTRL2:
 	case MADERA_DRC1_CTRL3:
@@ -2589,82 +2508,7 @@ static bool cs47l90_16bit_readable_register(struct device *dev,
 	case MADERA_DFC8_RX:
 	case MADERA_DFC8_TX:
 	case MADERA_DFC_STATUS:
-	case MADERA_GPIO1_CTRL_1:
-	case MADERA_GPIO1_CTRL_2:
-	case MADERA_GPIO2_CTRL_1:
-	case MADERA_GPIO2_CTRL_2:
-	case MADERA_GPIO3_CTRL_1:
-	case MADERA_GPIO3_CTRL_2:
-	case MADERA_GPIO4_CTRL_1:
-	case MADERA_GPIO4_CTRL_2:
-	case MADERA_GPIO5_CTRL_1:
-	case MADERA_GPIO5_CTRL_2:
-	case MADERA_GPIO6_CTRL_1:
-	case MADERA_GPIO6_CTRL_2:
-	case MADERA_GPIO7_CTRL_1:
-	case MADERA_GPIO7_CTRL_2:
-	case MADERA_GPIO8_CTRL_1:
-	case MADERA_GPIO8_CTRL_2:
-	case MADERA_GPIO9_CTRL_1:
-	case MADERA_GPIO9_CTRL_2:
-	case MADERA_GPIO10_CTRL_1:
-	case MADERA_GPIO10_CTRL_2:
-	case MADERA_GPIO11_CTRL_1:
-	case MADERA_GPIO11_CTRL_2:
-	case MADERA_GPIO12_CTRL_1:
-	case MADERA_GPIO12_CTRL_2:
-	case MADERA_GPIO13_CTRL_1:
-	case MADERA_GPIO13_CTRL_2:
-	case MADERA_GPIO14_CTRL_1:
-	case MADERA_GPIO14_CTRL_2:
-	case MADERA_GPIO15_CTRL_1:
-	case MADERA_GPIO15_CTRL_2:
-	case MADERA_GPIO16_CTRL_1:
-	case MADERA_GPIO16_CTRL_2:
-	case MADERA_GPIO17_CTRL_1:
-	case MADERA_GPIO17_CTRL_2:
-	case MADERA_GPIO18_CTRL_1:
-	case MADERA_GPIO18_CTRL_2:
-	case MADERA_GPIO19_CTRL_1:
-	case MADERA_GPIO19_CTRL_2:
-	case MADERA_GPIO20_CTRL_1:
-	case MADERA_GPIO20_CTRL_2:
-	case MADERA_GPIO21_CTRL_1:
-	case MADERA_GPIO21_CTRL_2:
-	case MADERA_GPIO22_CTRL_1:
-	case MADERA_GPIO22_CTRL_2:
-	case MADERA_GPIO23_CTRL_1:
-	case MADERA_GPIO23_CTRL_2:
-	case MADERA_GPIO24_CTRL_1:
-	case MADERA_GPIO24_CTRL_2:
-	case MADERA_GPIO25_CTRL_1:
-	case MADERA_GPIO25_CTRL_2:
-	case MADERA_GPIO26_CTRL_1:
-	case MADERA_GPIO26_CTRL_2:
-	case MADERA_GPIO27_CTRL_1:
-	case MADERA_GPIO27_CTRL_2:
-	case MADERA_GPIO28_CTRL_1:
-	case MADERA_GPIO28_CTRL_2:
-	case MADERA_GPIO29_CTRL_1:
-	case MADERA_GPIO29_CTRL_2:
-	case MADERA_GPIO30_CTRL_1:
-	case MADERA_GPIO30_CTRL_2:
-	case MADERA_GPIO31_CTRL_1:
-	case MADERA_GPIO31_CTRL_2:
-	case MADERA_GPIO32_CTRL_1:
-	case MADERA_GPIO32_CTRL_2:
-	case MADERA_GPIO33_CTRL_1:
-	case MADERA_GPIO33_CTRL_2:
-	case MADERA_GPIO34_CTRL_1:
-	case MADERA_GPIO34_CTRL_2:
-	case MADERA_GPIO35_CTRL_1:
-	case MADERA_GPIO35_CTRL_2:
-	case MADERA_GPIO36_CTRL_1:
-	case MADERA_GPIO36_CTRL_2:
-	case MADERA_GPIO37_CTRL_1:
-	case MADERA_GPIO37_CTRL_2:
-	case MADERA_GPIO38_CTRL_1:
-	case MADERA_GPIO38_CTRL_2:
+	case MADERA_GPIO1_CTRL_1 ... MADERA_GPIO38_CTRL_2:
 	case MADERA_IRQ1_STATUS_1 ... MADERA_IRQ1_STATUS_33:
 	case MADERA_IRQ1_MASK_1 ... MADERA_IRQ1_MASK_33:
 	case MADERA_IRQ1_RAW_STATUS_1 ... MADERA_IRQ1_RAW_STATUS_33:

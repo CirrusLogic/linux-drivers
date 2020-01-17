@@ -1,19 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * I2C bus interface to Cirrus Logic Madera codecs
  *
- * Copyright 2015-2017 Cirrus Logic
+ * Copyright (C) 2015-2018 Cirrus Logic
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * it under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; version 2.
  */
 
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/regmap.h>
 #include <linux/of.h>
+#include <linux/regmap.h>
 
 #include <linux/mfd/madera/core.h>
 
@@ -26,6 +27,7 @@ static int madera_i2c_probe(struct i2c_client *i2c,
 	const struct regmap_config *regmap_16bit_config = NULL;
 	const struct regmap_config *regmap_32bit_config = NULL;
 	unsigned long type;
+	const char *name;
 	int ret;
 
 	if (i2c->dev.of_node)
@@ -74,10 +76,12 @@ static int madera_i2c_probe(struct i2c_client *i2c,
 		return -EINVAL;
 	}
 
+	name = madera_name_from_type(type);
+
 	if (!regmap_16bit_config) {
+		/* it's polite to say which codec isn't built into the kernel */
 		dev_err(&i2c->dev,
-			"Kernel does not include support for %s\n",
-			madera_name_from_type(type));
+			"Kernel does not include support for %s\n", name);
 		return -EINVAL;
 	}
 
@@ -145,5 +149,5 @@ static struct i2c_driver madera_i2c_driver = {
 module_i2c_driver(madera_i2c_driver);
 
 MODULE_DESCRIPTION("Madera I2C bus interface");
-MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.wolfsonmicro.com>");
+MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_LICENSE("GPL v2");

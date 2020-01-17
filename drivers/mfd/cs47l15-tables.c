@@ -1,20 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * cs47l15-tables.c  --  data tables for CS47L15
+ * Regmap tables for CS47L15 codec
  *
- * Copyright 2016 Cirrus Logic
- *
- * Author: Richard Fitzgerald <rf@opensource.wolfsonmicro.com>
+ * Copyright (C) 2016-2018 Cirrus Logic, Inc. and
+ *                         Cirrus Logic International Semiconductor Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * it under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; version 2.
  */
 
+#include <linux/device.h>
 #include <linux/module.h>
+#include <linux/regmap.h>
 
 #include <linux/mfd/madera/core.h>
 #include <linux/mfd/madera/registers.h>
-#include <linux/device.h>
 
 #include "madera.h"
 
@@ -1251,90 +1252,10 @@ static bool cs47l15_16bit_readable_register(struct device *dev, unsigned int reg
 	case MADERA_ISRC2INT4MIX_INPUT_1_SOURCE:
 	case MADERA_FX_CTRL1:
 	case MADERA_FX_CTRL2:
-	case MADERA_EQ1_1:
-	case MADERA_EQ1_2:
-	case MADERA_EQ1_3:
-	case MADERA_EQ1_4:
-	case MADERA_EQ1_5:
-	case MADERA_EQ1_6:
-	case MADERA_EQ1_7:
-	case MADERA_EQ1_8:
-	case MADERA_EQ1_9:
-	case MADERA_EQ1_10:
-	case MADERA_EQ1_11:
-	case MADERA_EQ1_12:
-	case MADERA_EQ1_13:
-	case MADERA_EQ1_14:
-	case MADERA_EQ1_15:
-	case MADERA_EQ1_16:
-	case MADERA_EQ1_17:
-	case MADERA_EQ1_18:
-	case MADERA_EQ1_19:
-	case MADERA_EQ1_20:
-	case MADERA_EQ1_21:
-	case MADERA_EQ2_1:
-	case MADERA_EQ2_2:
-	case MADERA_EQ2_3:
-	case MADERA_EQ2_4:
-	case MADERA_EQ2_5:
-	case MADERA_EQ2_6:
-	case MADERA_EQ2_7:
-	case MADERA_EQ2_8:
-	case MADERA_EQ2_9:
-	case MADERA_EQ2_10:
-	case MADERA_EQ2_11:
-	case MADERA_EQ2_12:
-	case MADERA_EQ2_13:
-	case MADERA_EQ2_14:
-	case MADERA_EQ2_15:
-	case MADERA_EQ2_16:
-	case MADERA_EQ2_17:
-	case MADERA_EQ2_18:
-	case MADERA_EQ2_19:
-	case MADERA_EQ2_20:
-	case MADERA_EQ2_21:
-	case MADERA_EQ3_1:
-	case MADERA_EQ3_2:
-	case MADERA_EQ3_3:
-	case MADERA_EQ3_4:
-	case MADERA_EQ3_5:
-	case MADERA_EQ3_6:
-	case MADERA_EQ3_7:
-	case MADERA_EQ3_8:
-	case MADERA_EQ3_9:
-	case MADERA_EQ3_10:
-	case MADERA_EQ3_11:
-	case MADERA_EQ3_12:
-	case MADERA_EQ3_13:
-	case MADERA_EQ3_14:
-	case MADERA_EQ3_15:
-	case MADERA_EQ3_16:
-	case MADERA_EQ3_17:
-	case MADERA_EQ3_18:
-	case MADERA_EQ3_19:
-	case MADERA_EQ3_20:
-	case MADERA_EQ3_21:
-	case MADERA_EQ4_1:
-	case MADERA_EQ4_2:
-	case MADERA_EQ4_3:
-	case MADERA_EQ4_4:
-	case MADERA_EQ4_5:
-	case MADERA_EQ4_6:
-	case MADERA_EQ4_7:
-	case MADERA_EQ4_8:
-	case MADERA_EQ4_9:
-	case MADERA_EQ4_10:
-	case MADERA_EQ4_11:
-	case MADERA_EQ4_12:
-	case MADERA_EQ4_13:
-	case MADERA_EQ4_14:
-	case MADERA_EQ4_15:
-	case MADERA_EQ4_16:
-	case MADERA_EQ4_17:
-	case MADERA_EQ4_18:
-	case MADERA_EQ4_19:
-	case MADERA_EQ4_20:
-	case MADERA_EQ4_21:
+	case MADERA_EQ1_1 ... MADERA_EQ1_21:
+	case MADERA_EQ2_1 ... MADERA_EQ2_21:
+	case MADERA_EQ3_1 ... MADERA_EQ3_21:
+	case MADERA_EQ4_1 ... MADERA_EQ4_21:
 	case MADERA_DRC1_CTRL1:
 	case MADERA_DRC1_CTRL2:
 	case MADERA_DRC1_CTRL3:
@@ -1381,36 +1302,7 @@ static bool cs47l15_16bit_readable_register(struct device *dev, unsigned int reg
 	case MADERA_FRF_COEFFICIENT_5R_2:
 	case MADERA_FRF_COEFFICIENT_5R_3:
 	case MADERA_FRF_COEFFICIENT_5R_4:
-	case MADERA_GPIO1_CTRL_1:
-	case MADERA_GPIO1_CTRL_2:
-	case MADERA_GPIO2_CTRL_1:
-	case MADERA_GPIO2_CTRL_2:
-	case MADERA_GPIO3_CTRL_1:
-	case MADERA_GPIO3_CTRL_2:
-	case MADERA_GPIO4_CTRL_1:
-	case MADERA_GPIO4_CTRL_2:
-	case MADERA_GPIO5_CTRL_1:
-	case MADERA_GPIO5_CTRL_2:
-	case MADERA_GPIO6_CTRL_1:
-	case MADERA_GPIO6_CTRL_2:
-	case MADERA_GPIO7_CTRL_1:
-	case MADERA_GPIO7_CTRL_2:
-	case MADERA_GPIO8_CTRL_1:
-	case MADERA_GPIO8_CTRL_2:
-	case MADERA_GPIO9_CTRL_1:
-	case MADERA_GPIO9_CTRL_2:
-	case MADERA_GPIO10_CTRL_1:
-	case MADERA_GPIO10_CTRL_2:
-	case MADERA_GPIO11_CTRL_1:
-	case MADERA_GPIO11_CTRL_2:
-	case MADERA_GPIO12_CTRL_1:
-	case MADERA_GPIO12_CTRL_2:
-	case MADERA_GPIO13_CTRL_1:
-	case MADERA_GPIO13_CTRL_2:
-	case MADERA_GPIO14_CTRL_1:
-	case MADERA_GPIO14_CTRL_2:
-	case MADERA_GPIO15_CTRL_1:
-	case MADERA_GPIO15_CTRL_2:
+	case MADERA_GPIO1_CTRL_1 ... MADERA_GPIO15_CTRL_2:
 	case MADERA_IRQ1_STATUS_1 ... MADERA_IRQ1_STATUS_33:
 	case MADERA_IRQ1_MASK_1 ... MADERA_IRQ1_MASK_33:
 	case MADERA_IRQ1_RAW_STATUS_1 ... MADERA_IRQ1_RAW_STATUS_33:
@@ -1492,8 +1384,8 @@ const struct regmap_config cs47l15_16bit_spi_regmap = {
 	.val_bits = 16,
 
 	.max_register = MADERA_INTERRUPT_RAW_STATUS_1,
-	.readable_reg = cs47l15_16bit_readable_register,
-	.volatile_reg = cs47l15_16bit_volatile_register,
+	.readable_reg = &cs47l15_16bit_readable_register,
+	.volatile_reg = &cs47l15_16bit_volatile_register,
 
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = cs47l15_reg_default,
@@ -1507,8 +1399,8 @@ const struct regmap_config cs47l15_16bit_i2c_regmap = {
 	.val_bits = 16,
 
 	.max_register = MADERA_INTERRUPT_RAW_STATUS_1,
-	.readable_reg = cs47l15_16bit_readable_register,
-	.volatile_reg = cs47l15_16bit_volatile_register,
+	.readable_reg = &cs47l15_16bit_readable_register,
+	.volatile_reg = &cs47l15_16bit_volatile_register,
 
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = cs47l15_reg_default,
@@ -1524,8 +1416,8 @@ const struct regmap_config cs47l15_32bit_spi_regmap = {
 	.val_bits = 32,
 
 	.max_register = MADERA_DSP1_PMEM_ERR_ADDR___XMEM_ERR_ADDR,
-	.readable_reg = cs47l15_32bit_readable_register,
-	.volatile_reg = cs47l15_32bit_volatile_register,
+	.readable_reg = &cs47l15_32bit_readable_register,
+	.volatile_reg = &cs47l15_32bit_volatile_register,
 
 	.cache_type = REGCACHE_RBTREE,
 };
@@ -1538,8 +1430,8 @@ const struct regmap_config cs47l15_32bit_i2c_regmap = {
 	.val_bits = 32,
 
 	.max_register = MADERA_DSP1_PMEM_ERR_ADDR___XMEM_ERR_ADDR,
-	.readable_reg = cs47l15_32bit_readable_register,
-	.volatile_reg = cs47l15_32bit_volatile_register,
+	.readable_reg = &cs47l15_32bit_readable_register,
+	.volatile_reg = &cs47l15_32bit_volatile_register,
 
 	.cache_type = REGCACHE_RBTREE,
 };

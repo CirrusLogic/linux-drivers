@@ -1,7 +1,7 @@
 /*
  * MFD internals for Cirrus Logic Madera codecs
  *
- * Copyright 2015-2017 Cirrus Logic
+ * Copyright 2015-2018 Cirrus Logic
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -30,6 +30,7 @@ static inline unsigned long madera_get_type_from_of(struct device *dev)
 	return 0;
 }
 #endif
+const char *madera_name_from_type(enum madera_type type);
 
 extern const struct regmap_config cs47l15_16bit_spi_regmap;
 extern const struct regmap_config cs47l15_32bit_spi_regmap;

@@ -75,22 +75,23 @@ obj-$(CONFIG_MFD_WM8350_I2C)	+= wm8350-i2c.o
 wm8994-objs			:= wm8994-core.o wm8994-irq.o wm8994-regmap.o
 obj-$(CONFIG_MFD_WM8994)	+= wm8994.o
 
-obj-$(CONFIG_MFD_MADERA)	+= madera-core.o
+madera-objs			:= madera-core.o
 ifeq ($(CONFIG_MFD_CS47L15),y)
-obj-$(CONFIG_MFD_MADERA)	+= cs47l15-tables.o
+madera-objs			+= cs47l15-tables.o
 endif
 ifeq ($(CONFIG_MFD_CS47L35),y)
-obj-$(CONFIG_MFD_MADERA)	+= cs47l35-tables.o
+madera-objs			+= cs47l35-tables.o
 endif
 ifeq ($(CONFIG_MFD_CS47L85),y)
-obj-$(CONFIG_MFD_MADERA)	+= cs47l85-tables.o
+madera-objs			+= cs47l85-tables.o
 endif
 ifeq ($(CONFIG_MFD_CS47L90),y)
-obj-$(CONFIG_MFD_MADERA)	+= cs47l90-tables.o
+madera-objs			+= cs47l90-tables.o
 endif
 ifeq ($(CONFIG_MFD_CS47L92),y)
-obj-$(CONFIG_MFD_MADERA)	+= cs47l92-tables.o
+madera-objs			+= cs47l92-tables.o
 endif
+obj-$(CONFIG_MFD_MADERA)	+= madera.o
 obj-$(CONFIG_MFD_MADERA_I2C)	+= madera-i2c.o
 obj-$(CONFIG_MFD_MADERA_SPI)	+= madera-spi.o
 

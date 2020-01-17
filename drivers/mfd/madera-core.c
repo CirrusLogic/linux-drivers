@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Core MFD support for Cirrus Logic Madera codecs
  *
- * Copyright 2015-2017 Cirrus Logic
+ * Copyright (C) 2015-2018 Cirrus Logic
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * it under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; version 2.
  */
 
 #include <linux/device.h>
@@ -87,7 +88,7 @@ static const char * const cs47l35_supplies[] = {
 
 static const struct mfd_cell cs47l35_devs[] = {
 	{ .name = "madera-irq", },
-	{ .name = "madera-micsupp" },
+	{ .name = "madera-micsupp", },
 	{ .name = "madera-gpio", },
 	{
 		.name = "madera-extcon",
@@ -114,7 +115,7 @@ static const char * const cs47l85_supplies[] = {
 
 static const struct mfd_cell cs47l85_devs[] = {
 	{ .name = "madera-irq", },
-	{ .name = "madera-micsupp", },
+	{ .name = "madera-micsupp" },
 	{ .name = "madera-gpio", },
 	{
 		.name = "madera-extcon",
@@ -175,7 +176,7 @@ static const struct mfd_cell cs47l92_devs[] = {
 	},
 };
 
-
+/* Used by madera-i2c and madera-spi drivers */
 const char *madera_name_from_type(enum madera_type type)
 {
 	switch (type) {
@@ -226,7 +227,7 @@ static int madera_wait_for_boot(struct madera *madera)
 		usleep_range(MADERA_BOOT_POLL_INTERVAL_USEC / 2,
 			     MADERA_BOOT_POLL_INTERVAL_USEC);
 		regmap_read(madera->regmap, MADERA_IRQ1_RAW_STATUS_1, &val);
-	};
+	}
 
 	if (!(val & MADERA_BOOT_DONE_STS1)) {
 		dev_err(madera->dev, "Polling BOOT_DONE_STS timed out\n");
@@ -275,8 +276,7 @@ static void madera_disable_hard_reset(struct madera *madera)
 	}
 }
 
-#ifdef CONFIG_PM
-static int madera_runtime_resume(struct device *dev)
+static int __maybe_unused madera_runtime_resume(struct device *dev)
 {
 	struct madera *madera = dev_get_drvdata(dev);
 	int ret;
@@ -336,7 +336,7 @@ err:
 	return ret;
 }
 
-static int madera_runtime_suspend(struct device *dev)
+static int __maybe_unused madera_runtime_suspend(struct device *dev)
 {
 	struct madera *madera = dev_get_drvdata(dev);
 
@@ -351,7 +351,6 @@ static int madera_runtime_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
 const struct dev_pm_ops madera_pm_ops = {
 	SET_RUNTIME_PM_OPS(madera_runtime_suspend,
@@ -427,7 +426,6 @@ unsigned int madera_get_num_childbias(struct madera *madera,
 }
 EXPORT_SYMBOL_GPL(madera_get_num_childbias);
 
-#ifdef CONFIG_OF
 const struct of_device_id madera_of_match[] = {
 	{ .compatible = "cirrus,cs47l15", .data = (void *)CS47L15 },
 	{ .compatible = "cirrus,cs47l35", .data = (void *)CS47L35 },
@@ -438,7 +436,7 @@ const struct of_device_id madera_of_match[] = {
 	{ .compatible = "cirrus,cs47l92", .data = (void *)CS47L92 },
 	{ .compatible = "cirrus,cs47l93", .data = (void *)CS47L93 },
 	{ .compatible = "cirrus,wm1840", .data = (void *)WM1840 },
-	{},
+	{}
 };
 EXPORT_SYMBOL_GPL(madera_of_match);
 
@@ -452,7 +450,6 @@ unsigned long madera_get_type_from_of(struct device *dev)
 		return 0;
 }
 EXPORT_SYMBOL_GPL(madera_get_type_from_of);
-#endif
 
 static int madera_get_reset_gpio(struct madera *madera)
 {
@@ -666,9 +663,12 @@ int madera_dev_init(struct madera *madera)
 	int i, ret;
 
 	dev_set_drvdata(madera->dev, madera);
-
 	BLOCKING_INIT_NOTIFIER_HEAD(&madera->notifier);
 
+	/*
+	 * We need writable hw config info that all children can share.
+	 * Simplest to take one shared copy of pdata struct.
+	 */
 	if (dev_get_platdata(madera->dev)) {
 		memcpy(&madera->pdata, dev_get_platdata(madera->dev),
 		       sizeof(madera->pdata));
@@ -721,6 +721,11 @@ int madera_dev_init(struct madera *madera)
 		goto err_pinctrl;
 	}
 
+	/*
+	 * On some codecs DCVDD could be supplied by the internal LDO1.
+	 * For those we must add the LDO1 driver before requesting DCVDD
+	 * No devm_ because we need to control shutdown order of children.
+	 */
 	switch (madera->type) {
 	case CS47L15:
 	case CS47L35:
@@ -732,7 +737,6 @@ int madera_dev_init(struct madera *madera)
 		break;
 	case CS47L85:
 	case WM1840:
-		/* On these DCVDD could be supplied from the onboard LDO1 */
 		ret = mfd_add_devices(madera->dev, PLATFORM_DEVID_NONE,
 				      madera_ldo1_devs,
 				      ARRAY_SIZE(madera_ldo1_devs),
@@ -743,16 +747,16 @@ int madera_dev_init(struct madera *madera)
 		}
 		break;
 	default:
+		/* No point continuing if the type is unknown */
 		dev_err(madera->dev, "Unknown device type %d\n", madera->type);
 		ret = -ENODEV;
 		goto err_pinctrl;
 	}
 
 	/*
-	 * Don't use devres here because the only device we have to get
-	 * against is the MFD device and DCVDD will likely be supplied by
-	 * one of its children. Meaning that the regulator will be
-	 * destroyed by the time devres calls regulator put.
+	 * Don't use devres here. If the regulator is one of our children it
+	 * will already have been removed before devres cleanup on this mfd
+	 * driver tries to call put() on it. We need control of shutdown order.
 	 */
 	madera->dcvdd = regulator_get(madera->dev, "DCVDD");
 	if (IS_ERR(madera->dcvdd)) {
@@ -934,6 +938,7 @@ int madera_dev_init(struct madera *madera)
 	pm_runtime_set_autosuspend_delay(madera->dev, 100);
 	pm_runtime_use_autosuspend(madera->dev);
 
+	/* No devm_ because we need to control shutdown order of children */
 	ret = mfd_add_devices(madera->dev, PLATFORM_DEVID_NONE,
 			      mfd_devs, n_devs,
 			      NULL, 0, NULL);
@@ -987,3 +992,7 @@ int madera_dev_exit(struct madera *madera)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(madera_dev_exit);
+
+MODULE_DESCRIPTION("Madera core MFD driver");
+MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
+MODULE_LICENSE("GPL v2");

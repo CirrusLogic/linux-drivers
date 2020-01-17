@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Regmap tables for CS47L92 codec
  *
@@ -1917,90 +1918,10 @@ static bool cs47l92_16bit_readable_register(struct device *dev,
 	case MADERA_DFC8MIX_INPUT_1_SOURCE:
 	case MADERA_FX_CTRL1:
 	case MADERA_FX_CTRL2:
-	case MADERA_EQ1_1:
-	case MADERA_EQ1_2:
-	case MADERA_EQ1_3:
-	case MADERA_EQ1_4:
-	case MADERA_EQ1_5:
-	case MADERA_EQ1_6:
-	case MADERA_EQ1_7:
-	case MADERA_EQ1_8:
-	case MADERA_EQ1_9:
-	case MADERA_EQ1_10:
-	case MADERA_EQ1_11:
-	case MADERA_EQ1_12:
-	case MADERA_EQ1_13:
-	case MADERA_EQ1_14:
-	case MADERA_EQ1_15:
-	case MADERA_EQ1_16:
-	case MADERA_EQ1_17:
-	case MADERA_EQ1_18:
-	case MADERA_EQ1_19:
-	case MADERA_EQ1_20:
-	case MADERA_EQ1_21:
-	case MADERA_EQ2_1:
-	case MADERA_EQ2_2:
-	case MADERA_EQ2_3:
-	case MADERA_EQ2_4:
-	case MADERA_EQ2_5:
-	case MADERA_EQ2_6:
-	case MADERA_EQ2_7:
-	case MADERA_EQ2_8:
-	case MADERA_EQ2_9:
-	case MADERA_EQ2_10:
-	case MADERA_EQ2_11:
-	case MADERA_EQ2_12:
-	case MADERA_EQ2_13:
-	case MADERA_EQ2_14:
-	case MADERA_EQ2_15:
-	case MADERA_EQ2_16:
-	case MADERA_EQ2_17:
-	case MADERA_EQ2_18:
-	case MADERA_EQ2_19:
-	case MADERA_EQ2_20:
-	case MADERA_EQ2_21:
-	case MADERA_EQ3_1:
-	case MADERA_EQ3_2:
-	case MADERA_EQ3_3:
-	case MADERA_EQ3_4:
-	case MADERA_EQ3_5:
-	case MADERA_EQ3_6:
-	case MADERA_EQ3_7:
-	case MADERA_EQ3_8:
-	case MADERA_EQ3_9:
-	case MADERA_EQ3_10:
-	case MADERA_EQ3_11:
-	case MADERA_EQ3_12:
-	case MADERA_EQ3_13:
-	case MADERA_EQ3_14:
-	case MADERA_EQ3_15:
-	case MADERA_EQ3_16:
-	case MADERA_EQ3_17:
-	case MADERA_EQ3_18:
-	case MADERA_EQ3_19:
-	case MADERA_EQ3_20:
-	case MADERA_EQ3_21:
-	case MADERA_EQ4_1:
-	case MADERA_EQ4_2:
-	case MADERA_EQ4_3:
-	case MADERA_EQ4_4:
-	case MADERA_EQ4_5:
-	case MADERA_EQ4_6:
-	case MADERA_EQ4_7:
-	case MADERA_EQ4_8:
-	case MADERA_EQ4_9:
-	case MADERA_EQ4_10:
-	case MADERA_EQ4_11:
-	case MADERA_EQ4_12:
-	case MADERA_EQ4_13:
-	case MADERA_EQ4_14:
-	case MADERA_EQ4_15:
-	case MADERA_EQ4_16:
-	case MADERA_EQ4_17:
-	case MADERA_EQ4_18:
-	case MADERA_EQ4_19:
-	case MADERA_EQ4_20:
-	case MADERA_EQ4_21:
+	case MADERA_EQ1_1 ... MADERA_EQ1_21:
+	case MADERA_EQ2_1 ... MADERA_EQ2_21:
+	case MADERA_EQ3_1 ... MADERA_EQ3_21:
+	case MADERA_EQ4_1 ... MADERA_EQ4_21:
 	case MADERA_DRC1_CTRL1:
 	case MADERA_DRC1_CTRL2:
 	case MADERA_DRC1_CTRL3:
@@ -2098,129 +2019,15 @@ static bool cs47l92_16bit_readable_register(struct device *dev,
 	case MADERA_DFC8_RX:
 	case MADERA_DFC8_TX:
 	case MADERA_DFC_STATUS:
-	case MADERA_GPIO1_CTRL_1:
-	case MADERA_GPIO1_CTRL_2:
-	case MADERA_GPIO2_CTRL_1:
-	case MADERA_GPIO2_CTRL_2:
-	case MADERA_GPIO3_CTRL_1:
-	case MADERA_GPIO3_CTRL_2:
-	case MADERA_GPIO4_CTRL_1:
-	case MADERA_GPIO4_CTRL_2:
-	case MADERA_GPIO5_CTRL_1:
-	case MADERA_GPIO5_CTRL_2:
-	case MADERA_GPIO6_CTRL_1:
-	case MADERA_GPIO6_CTRL_2:
-	case MADERA_GPIO7_CTRL_1:
-	case MADERA_GPIO7_CTRL_2:
-	case MADERA_GPIO8_CTRL_1:
-	case MADERA_GPIO8_CTRL_2:
-	case MADERA_GPIO9_CTRL_1:
-	case MADERA_GPIO9_CTRL_2:
-	case MADERA_GPIO10_CTRL_1:
-	case MADERA_GPIO10_CTRL_2:
-	case MADERA_GPIO11_CTRL_1:
-	case MADERA_GPIO11_CTRL_2:
-	case MADERA_GPIO12_CTRL_1:
-	case MADERA_GPIO12_CTRL_2:
-	case MADERA_GPIO13_CTRL_1:
-	case MADERA_GPIO13_CTRL_2:
-	case MADERA_GPIO14_CTRL_1:
-	case MADERA_GPIO14_CTRL_2:
-	case MADERA_GPIO15_CTRL_1:
-	case MADERA_GPIO15_CTRL_2:
-	case MADERA_GPIO16_CTRL_1:
-	case MADERA_GPIO16_CTRL_2:
-	case MADERA_IRQ1_STATUS_1:
-	case MADERA_IRQ1_STATUS_2:
-	case MADERA_IRQ1_STATUS_3:
-	case MADERA_IRQ1_STATUS_4:
-	case MADERA_IRQ1_STATUS_5:
-	case MADERA_IRQ1_STATUS_6:
-	case MADERA_IRQ1_STATUS_7:
-	case MADERA_IRQ1_STATUS_8:
-	case MADERA_IRQ1_STATUS_9:
-	case MADERA_IRQ1_STATUS_10:
-	case MADERA_IRQ1_STATUS_11:
-	case MADERA_IRQ1_STATUS_12:
-	case MADERA_IRQ1_STATUS_13:
-	case MADERA_IRQ1_STATUS_14:
-	case MADERA_IRQ1_STATUS_15:
-	case MADERA_IRQ1_STATUS_16:
-	case MADERA_IRQ1_STATUS_17:
-	case MADERA_IRQ1_STATUS_18:
-	case MADERA_IRQ1_STATUS_19:
-	case MADERA_IRQ1_STATUS_20:
-	case MADERA_IRQ1_STATUS_21:
-	case MADERA_IRQ1_STATUS_22:
-	case MADERA_IRQ1_STATUS_23:
-	case MADERA_IRQ1_STATUS_24:
-	case MADERA_IRQ1_STATUS_25:
-	case MADERA_IRQ1_STATUS_26:
-	case MADERA_IRQ1_STATUS_27:
-	case MADERA_IRQ1_STATUS_28:
-	case MADERA_IRQ1_STATUS_29:
-	case MADERA_IRQ1_STATUS_30:
-	case MADERA_IRQ1_STATUS_31:
-	case MADERA_IRQ1_STATUS_32:
-	case MADERA_IRQ1_MASK_1:
-	case MADERA_IRQ1_MASK_2:
-	case MADERA_IRQ1_MASK_3:
-	case MADERA_IRQ1_MASK_4:
-	case MADERA_IRQ1_MASK_5:
-	case MADERA_IRQ1_MASK_6:
-	case MADERA_IRQ1_MASK_7:
-	case MADERA_IRQ1_MASK_8:
-	case MADERA_IRQ1_MASK_9:
-	case MADERA_IRQ1_MASK_10:
-	case MADERA_IRQ1_MASK_11:
-	case MADERA_IRQ1_MASK_12:
-	case MADERA_IRQ1_MASK_13:
-	case MADERA_IRQ1_MASK_14:
-	case MADERA_IRQ1_MASK_15:
-	case MADERA_IRQ1_MASK_16:
-	case MADERA_IRQ1_MASK_17:
-	case MADERA_IRQ1_MASK_18:
-	case MADERA_IRQ1_MASK_19:
-	case MADERA_IRQ1_MASK_20:
-	case MADERA_IRQ1_MASK_21:
-	case MADERA_IRQ1_MASK_22:
-	case MADERA_IRQ1_MASK_23:
-	case MADERA_IRQ1_MASK_24:
-	case MADERA_IRQ1_MASK_25:
-	case MADERA_IRQ1_MASK_26:
-	case MADERA_IRQ1_MASK_27:
-	case MADERA_IRQ1_MASK_28:
-	case MADERA_IRQ1_MASK_29:
-	case MADERA_IRQ1_MASK_30:
-	case MADERA_IRQ1_MASK_31:
-	case MADERA_IRQ1_MASK_32:
-	case MADERA_IRQ1_MASK_33:
-	case MADERA_IRQ1_RAW_STATUS_1:
-	case MADERA_IRQ1_RAW_STATUS_2:
-	case MADERA_IRQ1_RAW_STATUS_7:
-	case MADERA_IRQ1_RAW_STATUS_9:
-	case MADERA_IRQ1_RAW_STATUS_11:
-	case MADERA_IRQ1_RAW_STATUS_12:
-	case MADERA_IRQ1_RAW_STATUS_13:
-	case MADERA_IRQ1_RAW_STATUS_14:
-	case MADERA_IRQ1_RAW_STATUS_15:
-	case MADERA_IRQ1_RAW_STATUS_17:
-	case MADERA_IRQ1_RAW_STATUS_18:
-	case MADERA_IRQ1_RAW_STATUS_19:
-	case MADERA_IRQ1_RAW_STATUS_21:
-	case MADERA_IRQ1_RAW_STATUS_22:
-	case MADERA_IRQ1_RAW_STATUS_23:
-	case MADERA_IRQ1_RAW_STATUS_24:
-	case MADERA_IRQ1_RAW_STATUS_25:
-	case MADERA_IRQ1_RAW_STATUS_30:
-	case MADERA_IRQ1_RAW_STATUS_31:
-	case MADERA_IRQ1_RAW_STATUS_32:
+	case MADERA_GPIO1_CTRL_1 ... MADERA_GPIO16_CTRL_2:
+	case MADERA_IRQ1_STATUS_1 ... MADERA_IRQ1_STATUS_33:
+	case MADERA_IRQ1_MASK_1 ... MADERA_IRQ1_MASK_33:
+	case MADERA_IRQ1_RAW_STATUS_1 ... MADERA_IRQ1_RAW_STATUS_33:
 	case MADERA_IRQ2_STATUS_9:
 	case MADERA_IRQ2_MASK_9:
 	case MADERA_IRQ2_RAW_STATUS_9:
 	case MADERA_INTERRUPT_DEBOUNCE_7:
 	case MADERA_IRQ1_CTRL:
-	case MADERA_IRQ1_STATUS_33:
 		return true;
 	default:
 		return false;
@@ -2266,59 +2073,8 @@ static bool cs47l92_16bit_volatile_register(struct device *dev,
 	case MADERA_FX_CTRL2:
 	case MADERA_ASRC1_STATUS:
 	case MADERA_DFC_STATUS:
-	case MADERA_IRQ1_STATUS_1:
-	case MADERA_IRQ1_STATUS_2:
-	case MADERA_IRQ1_STATUS_3:
-	case MADERA_IRQ1_STATUS_4:
-	case MADERA_IRQ1_STATUS_5:
-	case MADERA_IRQ1_STATUS_6:
-	case MADERA_IRQ1_STATUS_7:
-	case MADERA_IRQ1_STATUS_8:
-	case MADERA_IRQ1_STATUS_9:
-	case MADERA_IRQ1_STATUS_10:
-	case MADERA_IRQ1_STATUS_11:
-	case MADERA_IRQ1_STATUS_12:
-	case MADERA_IRQ1_STATUS_13:
-	case MADERA_IRQ1_STATUS_14:
-	case MADERA_IRQ1_STATUS_15:
-	case MADERA_IRQ1_STATUS_16:
-	case MADERA_IRQ1_STATUS_17:
-	case MADERA_IRQ1_STATUS_18:
-	case MADERA_IRQ1_STATUS_19:
-	case MADERA_IRQ1_STATUS_20:
-	case MADERA_IRQ1_STATUS_21:
-	case MADERA_IRQ1_STATUS_22:
-	case MADERA_IRQ1_STATUS_23:
-	case MADERA_IRQ1_STATUS_24:
-	case MADERA_IRQ1_STATUS_25:
-	case MADERA_IRQ1_STATUS_26:
-	case MADERA_IRQ1_STATUS_27:
-	case MADERA_IRQ1_STATUS_28:
-	case MADERA_IRQ1_STATUS_29:
-	case MADERA_IRQ1_STATUS_30:
-	case MADERA_IRQ1_STATUS_31:
-	case MADERA_IRQ1_STATUS_32:
-	case MADERA_IRQ1_STATUS_33:
-	case MADERA_IRQ1_RAW_STATUS_1:
-	case MADERA_IRQ1_RAW_STATUS_2:
-	case MADERA_IRQ1_RAW_STATUS_7:
-	case MADERA_IRQ1_RAW_STATUS_9:
-	case MADERA_IRQ1_RAW_STATUS_11:
-	case MADERA_IRQ1_RAW_STATUS_12:
-	case MADERA_IRQ1_RAW_STATUS_13:
-	case MADERA_IRQ1_RAW_STATUS_14:
-	case MADERA_IRQ1_RAW_STATUS_15:
-	case MADERA_IRQ1_RAW_STATUS_17:
-	case MADERA_IRQ1_RAW_STATUS_18:
-	case MADERA_IRQ1_RAW_STATUS_19:
-	case MADERA_IRQ1_RAW_STATUS_21:
-	case MADERA_IRQ1_RAW_STATUS_22:
-	case MADERA_IRQ1_RAW_STATUS_23:
-	case MADERA_IRQ1_RAW_STATUS_24:
-	case MADERA_IRQ1_RAW_STATUS_25:
-	case MADERA_IRQ1_RAW_STATUS_30:
-	case MADERA_IRQ1_RAW_STATUS_31:
-	case MADERA_IRQ1_RAW_STATUS_32:
+	case MADERA_IRQ1_STATUS_1 ... MADERA_IRQ1_STATUS_33:
+	case MADERA_IRQ1_RAW_STATUS_1 ... MADERA_IRQ1_RAW_STATUS_33:
 	case MADERA_IRQ2_STATUS_9:
 	case MADERA_IRQ2_RAW_STATUS_9:
 		return true;
@@ -2362,8 +2118,8 @@ const struct regmap_config cs47l92_16bit_spi_regmap = {
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 
 	.max_register = MADERA_INTERRUPT_RAW_STATUS_1,
-	.readable_reg = cs47l92_16bit_readable_register,
-	.volatile_reg = cs47l92_16bit_volatile_register,
+	.readable_reg = &cs47l92_16bit_readable_register,
+	.volatile_reg = &cs47l92_16bit_volatile_register,
 
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = cs47l92_reg_default,
@@ -2379,8 +2135,8 @@ const struct regmap_config cs47l92_16bit_i2c_regmap = {
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 
 	.max_register = MADERA_INTERRUPT_RAW_STATUS_1,
-	.readable_reg = cs47l92_16bit_readable_register,
-	.volatile_reg = cs47l92_16bit_volatile_register,
+	.readable_reg = &cs47l92_16bit_readable_register,
+	.volatile_reg = &cs47l92_16bit_volatile_register,
 
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = cs47l92_reg_default,
@@ -2398,8 +2154,8 @@ const struct regmap_config cs47l92_32bit_spi_regmap = {
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 
 	.max_register = MADERA_DSP1_PMEM_ERR_ADDR___XMEM_ERR_ADDR,
-	.readable_reg = cs47l92_32bit_readable_register,
-	.volatile_reg = cs47l92_32bit_volatile_register,
+	.readable_reg = &cs47l92_32bit_readable_register,
+	.volatile_reg = &cs47l92_32bit_volatile_register,
 
 	.cache_type = REGCACHE_RBTREE,
 };
@@ -2414,8 +2170,8 @@ const struct regmap_config cs47l92_32bit_i2c_regmap = {
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 
 	.max_register = MADERA_DSP1_PMEM_ERR_ADDR___XMEM_ERR_ADDR,
-	.readable_reg = cs47l92_32bit_readable_register,
-	.volatile_reg = cs47l92_32bit_volatile_register,
+	.readable_reg = &cs47l92_32bit_readable_register,
+	.volatile_reg = &cs47l92_32bit_volatile_register,
 
 	.cache_type = REGCACHE_RBTREE,
 };
