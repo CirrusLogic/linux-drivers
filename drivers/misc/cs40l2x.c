@@ -43,7 +43,6 @@
 #include <linux/leds.h>
 #endif /* CONFIG_ANDROID_TIMED_OUTPUT */
 
-
 static const char * const cs40l2x_supplies[] = {
 	"VA",
 	"VP",
@@ -1728,6 +1727,161 @@ err_mutex:
 	mutex_unlock(&cs40l2x->lock);
 	pm_runtime_mark_last_busy(cs40l2x->dev);
 	pm_runtime_put_autosuspend(cs40l2x->dev);
+
+	return ret;
+}
+
+static ssize_t cs40l2x_dyn_f0_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret = 0, i;
+
+	mutex_lock(&cs40l2x->lock);
+
+	for (i = 0; i < CS40l2X_F0_MAX_ENTRIES; i++) {
+		if (!cs40l2x->dynamic_f0[i].changed)
+			continue;
+
+		ret += snprintf(buf, PAGE_SIZE, "%d %d\n",
+					cs40l2x->dynamic_f0[i].index,
+					cs40l2x->dynamic_f0[i].f0);
+		buf += strlen(buf);
+	}
+	mutex_unlock(&cs40l2x->lock);
+
+	return ret;
+}
+
+static ssize_t cs40l2x_dyn_f0_index_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+
+	mutex_lock(&cs40l2x->lock);
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l2x->dynamic_f0_index);
+
+	mutex_unlock(&cs40l2x->lock);
+
+	return ret;
+}
+
+static ssize_t cs40l2x_dyn_f0_index_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+	unsigned int val;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	if (val < 0 || val > CS40l2X_F0_MAX_ENTRIES - 1) {
+		dev_err(dev, "Invalid index value %d\n", val);
+		return -EINVAL;
+	}
+
+	mutex_lock(&cs40l2x->lock);
+
+	cs40l2x->dynamic_f0_index = val;
+
+	mutex_unlock(&cs40l2x->lock);
+
+	return count;
+}
+
+static ssize_t cs40l2x_dyn_f0_val_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	struct regmap *regmap = cs40l2x->regmap;
+	unsigned int val, reg;
+	int ret, i, loc = -1, index = cs40l2x->dynamic_f0_index;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	if (val > CS40L2X_DYN_F0_MASK) {
+		dev_err(dev, "Invalid f0 value %d\n", val);
+		return -EINVAL;
+	}
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "DYN_F0_TABLE", CS40L2X_XM_UNPACKED_TYPE,
+				CS40L2X_ALGO_ID_DYN_F0);
+	if (!reg) {
+		dev_err(dev, "Cannot get the register for the f0 table\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&cs40l2x->lock);
+
+	for (i = 0; i < CS40l2X_F0_MAX_ENTRIES; i++) {
+		if (!cs40l2x->dynamic_f0[i].changed) {
+			if (loc < 0)
+				loc = i;
+
+			continue;
+		}
+
+		if (index == cs40l2x->dynamic_f0[i].index)
+			break;
+	}
+
+	/* Nothing exists in the table, start from the first available element*/
+	if (i == CS40l2X_F0_MAX_ENTRIES) {
+		if (loc >= 0) {
+			i = loc;
+		} else {
+			dev_err(dev, "Can't find F0 index.\n");
+			ret = -EINVAL;
+			goto err_mutex;
+		}
+	}
+
+	ret = regmap_write(regmap, reg + (i*4),
+		val | (index << CS40L2X_DYN_F0_INDEX_SHIFT));
+	if (ret)
+		goto err_mutex;
+
+	cs40l2x->dynamic_f0[i].f0 = val;
+	cs40l2x->dynamic_f0[i].index = index;
+	cs40l2x->dynamic_f0[i].changed = true;
+
+	ret = count;
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+
+	return ret;
+}
+
+static ssize_t cs40l2x_dyn_f0_val_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret = 0, i, index = cs40l2x->dynamic_f0_index;
+
+	mutex_lock(&cs40l2x->lock);
+
+	for (i = 0; i < CS40l2X_F0_MAX_ENTRIES; i++)
+		if (index == cs40l2x->dynamic_f0[i].index)
+			break;
+
+	if (i == CS40l2X_F0_MAX_ENTRIES) {
+		dev_err(dev, "Cannot find f0 index %d\n", index);
+		ret = -EINVAL;
+		goto err_mutex;
+	}
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l2x->dynamic_f0[i].f0);
+
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
 
 	return ret;
 }
@@ -4137,6 +4291,11 @@ static DEVICE_ATTR(standby_timeout, 0660, cs40l2x_standby_timeout_show,
 static DEVICE_ATTR(f0_measured, 0660, cs40l2x_f0_measured_show, NULL);
 static DEVICE_ATTR(f0_stored, 0660, cs40l2x_f0_stored_show,
 		cs40l2x_f0_stored_store);
+static DEVICE_ATTR(dynamic_f0, 0660, cs40l2x_dyn_f0_show, NULL);
+static DEVICE_ATTR(dynamic_f0_index, 0660, cs40l2x_dyn_f0_index_show,
+		cs40l2x_dyn_f0_index_store);
+static DEVICE_ATTR(dynamic_f0_val, 0660, cs40l2x_dyn_f0_val_show,
+		cs40l2x_dyn_f0_val_store);
 static DEVICE_ATTR(f0_offset, 0660, cs40l2x_f0_offset_show,
 		cs40l2x_f0_offset_store);
 static DEVICE_ATTR(redc_measured, 0660, cs40l2x_redc_measured_show, NULL);
@@ -4232,6 +4391,9 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_standby_timeout.attr,
 	&dev_attr_f0_measured.attr,
 	&dev_attr_f0_stored.attr,
+	&dev_attr_dynamic_f0.attr,
+	&dev_attr_dynamic_f0_index.attr,
+	&dev_attr_dynamic_f0_val.attr,
 	&dev_attr_f0_offset.attr,
 	&dev_attr_redc_measured.attr,
 	&dev_attr_redc_stored.attr,
@@ -4297,6 +4459,47 @@ static void cs40l2x_wl_relax(struct cs40l2x_private *cs40l2x)
 	pm_runtime_put_autosuspend(cs40l2x->dev);
 
 	dev_dbg(dev, "Relaxed suspend blocker\n");
+}
+
+static int cs40l2x_read_dyn_f0_table(struct cs40l2x_private *cs40l2x)
+{
+	struct regmap *regmap = cs40l2x->regmap;
+	struct device *dev = cs40l2x->dev;
+	unsigned int enable, data[CS40l2X_F0_MAX_ENTRIES];
+	int ret, i, j = 0;
+
+	ret = regmap_read(regmap, cs40l2x_dsp_reg(cs40l2x,
+					"DYNAMIC_F0_ENABLED",
+					CS40L2X_XM_UNPACKED_TYPE,
+					CS40L2X_ALGO_ID_DYN_F0), &enable);
+	if (ret)
+		return ret;
+
+	if (!enable)
+		return 0;
+
+	memset(&data[0], 0, sizeof(data));
+	ret = regmap_bulk_read(regmap, cs40l2x_dsp_reg(cs40l2x, "DYN_F0_TABLE",
+				CS40L2X_XM_UNPACKED_TYPE,
+				CS40L2X_ALGO_ID_DYN_F0), &data[0],
+				CS40l2X_F0_MAX_ENTRIES);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < CS40l2X_F0_MAX_ENTRIES; i++) {
+		dev_dbg(dev, "%d dyn f0 entry 0x%x\n", i,
+				data[i]);
+
+		if (data[i] == CS40L2X_DYN_F0_DEFAULT)
+			continue;
+
+		cs40l2x->dynamic_f0[j].index =
+				data[i] >> CS40L2X_DYN_F0_INDEX_SHIFT;
+		cs40l2x->dynamic_f0[j].f0 = data[i] & CS40L2X_DYN_F0_MASK;
+		cs40l2x->dynamic_f0[j++].changed = true;
+	}
+
+	return 0;
 }
 
 static void cs40l2x_vibe_mode_worker(struct work_struct *work)
@@ -4408,9 +4611,13 @@ static void cs40l2x_vibe_mode_worker(struct work_struct *work)
 				goto err_mutex;
 			}
 		}
-
 		cs40l2x_set_state(cs40l2x, CS40L2X_VIBE_STATE_STOPPED);
 		cs40l2x_wl_relax(cs40l2x);
+	}
+	ret = cs40l2x_read_dyn_f0_table(cs40l2x);
+	if (ret) {
+		dev_err(dev, "Failed to read f0 table %d\n", ret);
+		goto err_mutex;
 	}
 
 err_mutex:
