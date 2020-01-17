@@ -966,11 +966,13 @@ const unsigned int cs40l2x_pbq_dig_scale[CS40L2X_PBQ_SCALE_MAX + 1] = {
 
 static const char * const cs40l2x_coeff_files_orig[] = {
 	CS40L2X_WT_FILE_NAME_DEFAULT,
+	CS40L2X_DYN_F0_FILE_NAME,
 };
 
 static const char * const cs40l2x_coeff_files_remap[] = {
 	CS40L2X_WT_FILE_NAME_DEFAULT,
 	"cs40l25a_exc.bin",
+	CS40L2X_DYN_F0_FILE_NAME,
 };
 
 static const char * const cs40l2x_coeff_files_cal[] = {
@@ -980,16 +982,19 @@ static const char * const cs40l2x_coeff_files_cal[] = {
 static const char * const cs40l2x_coeff_files_clab[] = {
 	CS40L2X_WT_FILE_NAME_DEFAULT,
 	"cs40l25a_clab.bin",
+	CS40L2X_DYN_F0_FILE_NAME,
 };
 
 static const char * const cs40l2x_coeff_files_par[] = {
 	CS40L2X_WT_FILE_NAME_DEFAULT,
 	"cs40l25a_par.bin",
+	CS40L2X_DYN_F0_FILE_NAME,
 };  /* PWLE Amplitude Regulation */
 
 static const char * const cs40l2x_coeff_files_a2h[] = {
 	CS40L2X_WT_FILE_NAME_DEFAULT,
 	"cs40l25a_a2h.bin",
+	CS40L2X_DYN_F0_FILE_NAME,
 };  /* PWLE Amplitude Regulation */
 
 const struct cs40l2x_fw_desc cs40l2x_fw_fam[CS40L2X_NUM_FW_FAMS] = {
