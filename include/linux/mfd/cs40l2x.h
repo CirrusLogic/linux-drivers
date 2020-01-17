@@ -1072,6 +1072,7 @@
 #define CS40L2X_ALGO_ID_EXC		0x000100
 #define CS40L2X_ALGO_ID_PRE		0x000109
 #define CS40L2X_ALGO_ID_A2H		0x000110
+#define CS40L2X_ALGO_ID_DYN_F0		0x000111
 #define CS40L2X_ALGO_ID_QEST		0x000112
 #define CS40L2X_ALGO_ID_CLAB		0x000117
 #define CS40L2X_ALGO_ID_PAR		0x000121
@@ -1096,6 +1097,14 @@
 #define CS40L2X_PLLSRC_MCLK		5
 
 #define CS40L2X_AUTOSUSPEND_DELAY_MS	3000
+
+#define CS40l2X_F0_MAX_ENTRIES		20
+#define CS40L2X_DYN_F0_INDEX_SHIFT	13
+#define CS40L2X_DYN_F0_MASK		GENMASK(12, 0)
+#define CS40L2X_DYN_F0_DEFAULT		0x7FE000
+#define CS40L2X_DYN_F0_FILE_NAME	"cs40l25a_f0.bin"
+
+/* A2H */
 
 #define CS40L2X_A2H_ENABLE		1
 #define CS40L2X_A2H_DISABLE		0
@@ -1189,6 +1198,12 @@ struct cs40l2x_refclk_pair {
 	unsigned int coeff;
 };
 
+struct cs40l2x_f0_dynamic {
+	unsigned int index;
+	unsigned int f0;
+	bool changed;
+};
+
 struct cs40l2x_private {
 	struct device *dev;
 	struct regmap *regmap;
@@ -1264,6 +1279,9 @@ struct cs40l2x_private {
 
 	int (*hiber_cmd)(struct cs40l2x_private *cs40l2x,
 			unsigned int hiber_cmd);
+
+	struct cs40l2x_f0_dynamic dynamic_f0[CS40l2X_F0_MAX_ENTRIES];
+	int dynamic_f0_index;
 
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 	struct timed_output_dev timed_dev;
