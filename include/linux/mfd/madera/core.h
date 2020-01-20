@@ -172,6 +172,7 @@ struct madera {
 
 	enum madera_type type;
 	unsigned int rev;
+	const char *type_name;
 
 	int num_core_supplies;
 	struct regulator_bulk_data core_supplies[MADERA_MAX_CORE_SUPPLIES];

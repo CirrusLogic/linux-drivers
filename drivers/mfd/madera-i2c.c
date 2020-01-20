@@ -109,6 +109,7 @@ static int madera_i2c_probe(struct i2c_client *i2c,
 	}
 
 	madera->type = type;
+	madera->type_name = name;
 	madera->dev = &i2c->dev;
 	madera->irq = i2c->irq;
 

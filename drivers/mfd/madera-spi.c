@@ -109,6 +109,7 @@ static int madera_spi_probe(struct spi_device *spi)
 	}
 
 	madera->type = type;
+	madera->type_name = name;
 	madera->dev = &spi->dev;
 	madera->irq = spi->irq;
 

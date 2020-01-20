@@ -613,7 +613,6 @@ static int madera_dev_select_pinctrl(struct madera *madera,
 int madera_dev_init(struct madera *madera)
 {
 	struct device *dev = madera->dev;
-	const char *name;
 	unsigned int hwid;
 	int (*patch_fn)(struct madera *) = NULL;
 	const struct mfd_cell *mfd_devs;
@@ -783,8 +782,6 @@ int madera_dev_init(struct madera *madera)
 	}
 	madera->rev &= MADERA_HW_REVISION_MASK;
 
-	name = madera_name_from_type(madera->type);
-
 	switch (hwid) {
 	case CS47L15_SILICON_ID:
 		if (IS_ENABLED(CONFIG_MFD_CS47L15)) {
@@ -860,12 +857,14 @@ int madera_dev_init(struct madera *madera)
 	}
 
 	if (!n_devs) {
-		dev_err(madera->dev, "Device ID 0x%x not a %s\n", hwid, name);
+		dev_err(madera->dev, "Device ID 0x%x not a %s\n", hwid,
+			madera->type_name);
 		ret = -ENODEV;
 		goto err_reset;
 	}
 
-	dev_info(dev, "%s silicon revision %d\n", name, madera->rev);
+	dev_info(dev, "%s silicon revision %d\n", madera->type_name,
+		 madera->rev);
 
 	/* Apply hardware patch */
 	if (patch_fn) {
