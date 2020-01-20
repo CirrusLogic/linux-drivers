@@ -84,6 +84,8 @@
 
 #define ATH10K_MAX_RETRY_COUNT 30
 
+#define ATH10K_START_RETRY 10
+
 struct ath10k;
 
 static inline const char *ath10k_bus_str(enum ath10k_bus bus)
