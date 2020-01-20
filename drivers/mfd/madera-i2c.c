@@ -14,6 +14,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/regmap.h>
 
 #include <linux/mfd/madera/core.h>
@@ -26,12 +27,14 @@ static int madera_i2c_probe(struct i2c_client *i2c,
 	struct madera *madera;
 	const struct regmap_config *regmap_16bit_config = NULL;
 	const struct regmap_config *regmap_32bit_config = NULL;
+	const void *of_data;
 	unsigned long type;
 	const char *name;
 	int ret;
 
-	if (i2c->dev.of_node)
-		type = madera_get_type_from_of(&i2c->dev);
+	of_data = of_device_get_match_data(&i2c->dev);
+	if (of_data)
+		type = (unsigned long)of_data;
 	else
 		type = id->driver_data;
 

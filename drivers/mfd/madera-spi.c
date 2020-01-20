@@ -13,6 +13,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 
@@ -26,12 +27,14 @@ static int madera_spi_probe(struct spi_device *spi)
 	struct madera *madera;
 	const struct regmap_config *regmap_16bit_config = NULL;
 	const struct regmap_config *regmap_32bit_config = NULL;
+	const void *of_data;
 	unsigned long type;
 	const char *name;
 	int ret;
 
-	if (spi->dev.of_node)
-		type = madera_get_type_from_of(&spi->dev);
+	of_data = of_device_get_match_data(&spi->dev);
+	if (of_data)
+		type = (unsigned long)of_data;
 	else
 		type = id->driver_data;
 

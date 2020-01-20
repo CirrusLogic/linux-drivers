@@ -17,7 +17,6 @@
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
@@ -372,17 +371,6 @@ const struct of_device_id madera_of_match[] = {
 	{}
 };
 EXPORT_SYMBOL_GPL(madera_of_match);
-
-unsigned long madera_get_type_from_of(struct device *dev)
-{
-	const struct of_device_id *id = of_match_device(madera_of_match, dev);
-
-	if (id)
-		return (unsigned long)id->data;
-	else
-		return 0;
-}
-EXPORT_SYMBOL_GPL(madera_get_type_from_of);
 
 static int madera_get_reset_gpio(struct madera *madera)
 {

@@ -22,14 +22,6 @@ extern const struct of_device_id madera_of_match[];
 int madera_dev_init(struct madera *madera);
 int madera_dev_exit(struct madera *madera);
 
-#ifdef CONFIG_OF
-unsigned long madera_get_type_from_of(struct device *dev);
-#else
-static inline unsigned long madera_get_type_from_of(struct device *dev)
-{
-	return 0;
-}
-#endif
 const char *madera_name_from_type(enum madera_type type);
 
 extern const struct regmap_config cs47l15_16bit_spi_regmap;
