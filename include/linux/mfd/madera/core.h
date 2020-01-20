@@ -41,6 +41,7 @@ enum madera_type {
 #define CS47L90_NUM_GPIOS		38
 #define CS47L92_NUM_GPIOS		16
 
+#define MADERA_MAX_MICBIAS		4
 
 /* Notifier events */
 #define MADERA_NOTIFY_VOICE_TRIGGER	0x1
@@ -185,6 +186,9 @@ struct madera {
 	struct regmap_irq_chip_data *irq_data;
 	int irq;
 
+	unsigned int num_micbias;
+	unsigned int num_childbias[MADERA_MAX_MICBIAS];
+
 	unsigned int out_clamp[MADERA_MAX_OUTPUT];
 	unsigned int out_shorted[MADERA_MAX_OUTPUT];
 	unsigned int hp_ena;
@@ -194,8 +198,4 @@ struct madera {
 
 	struct blocking_notifier_head notifier;
 };
-
-unsigned int madera_get_num_micbias(struct madera *madera);
-unsigned int madera_get_num_childbias(struct madera *madera,
-				      unsigned int micbias);
 #endif

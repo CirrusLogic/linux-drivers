@@ -359,73 +359,6 @@ const struct dev_pm_ops madera_pm_ops = {
 };
 EXPORT_SYMBOL_GPL(madera_pm_ops);
 
-unsigned int madera_get_num_micbias(struct madera *madera)
-{
-
-	switch (madera->type) {
-	case CS47L15:
-		return 1;
-	case CS47L35:
-		return 2;
-	case CS47L85:
-	case WM1840:
-		return 4;
-	case CS47L90:
-	case CS47L91:
-	case CS42L92:
-	case CS47L92:
-	case CS47L93:
-		return 2;
-	default:
-		dev_warn(madera->dev, "No micbias known for codec %s\n",
-			 madera_name_from_type(madera->type));
-		return 0;
-	}
-}
-EXPORT_SYMBOL_GPL(madera_get_num_micbias);
-
-unsigned int madera_get_num_childbias(struct madera *madera,
-				      unsigned int micbias)
-{
-	/*
-	 * micbias argument reserved for future codecs that don't
-	 * have the same number of children on each micbias
-	 */
-
-	switch (madera->type) {
-	case CS47L15:
-		return 3;
-	case CS47L35:
-		return 2;
-	case CS47L85:
-	case WM1840:
-		return 0;
-	case CS47L90:
-	case CS47L91:
-		return 4;
-	case CS42L92:
-	case CS47L92:
-	case CS47L93:
-		switch (micbias) {
-		case 1:
-			return 4;
-		case 2:
-			return 2;
-		default:
-			dev_warn(madera->dev,
-				 "No child micbias for codec %s, micbias %u\n",
-				 madera_name_from_type(madera->type),
-				 micbias);
-			return 0;
-		}
-	default:
-		dev_warn(madera->dev, "No child micbias known for codec %s\n",
-			 madera_name_from_type(madera->type));
-		return 0;
-	}
-}
-EXPORT_SYMBOL_GPL(madera_get_num_childbias);
-
 const struct of_device_id madera_of_match[] = {
 	{ .compatible = "cirrus,cs47l15", .data = (void *)CS47L15 },
 	{ .compatible = "cirrus,cs47l35", .data = (void *)CS47L35 },
@@ -489,6 +422,45 @@ static int madera_get_reset_gpio(struct madera *madera)
 	return 0;
 }
 
+static void madera_set_micbias_info(struct madera *madera)
+{
+	/*
+	 * num_childbias is an array because future codecs can have different
+	 * childbiases for each micbias. Unspecified values default to 0.
+	 */
+	switch (madera->type) {
+	case CS47L15:
+		madera->num_micbias = 1;
+		madera->num_childbias[0] = 3;
+		return;
+	case CS47L35:
+		madera->num_micbias = 2;
+		madera->num_childbias[0] = 2;
+		madera->num_childbias[1] = 2;
+		return;
+	case CS47L85:
+	case WM1840:
+		madera->num_micbias = 4;
+		/* no child biases */
+		return;
+	case CS47L90:
+	case CS47L91:
+		madera->num_micbias = 2;
+		madera->num_childbias[0] = 4;
+		madera->num_childbias[1] = 4;
+		return;
+	case CS42L92:
+	case CS47L92:
+	case CS47L93:
+		madera->num_micbias = 2;
+		madera->num_childbias[0] = 4;
+		madera->num_childbias[1] = 2;
+		return;
+	default:
+		return;
+	}
+}
+
 static void madera_prop_get_micbias_child(struct madera *madera,
 					 const char *name,
 					 struct madera_micbias_pin_pdata *pdata)
@@ -530,13 +502,13 @@ static void madera_prop_get_micbias(struct madera *madera)
 	char name[10];
 	int i, child;
 
-	for (i = madera_get_num_micbias(madera) - 1; i >= 0; --i) {
+	for (i = madera->num_micbias - 1; i >= 0; --i) {
 		pdata = &madera->pdata.micbias[i];
 
 		snprintf(name, sizeof(name), "MICBIAS%d", i + 1);
 		madera_prop_get_micbias_gen(madera, name, pdata);
 
-		child = madera_get_num_childbias(madera, i + 1) - 1;
+		child = madera->num_childbias[i] - 1;
 		for (; child >= 0; --child) {
 			snprintf(name, sizeof(name), "MICBIAS%d%c",
 				 i + 1, 'A' + child);
@@ -548,21 +520,19 @@ static void madera_prop_get_micbias(struct madera *madera)
 
 static void madera_configure_micbias(struct madera *madera)
 {
-	unsigned int num_micbias = madera_get_num_micbias(madera);
 	struct madera_micbias_pdata *pdata;
 	struct regulator_init_data *init_data;
-	unsigned int num_child_micbias;
 	unsigned int val, mask, reg;
 	int i, child, ret;
 
-	for (i = 0; i < num_micbias; ++i) {
+	for (i = 0; i < madera->num_micbias; ++i) {
 		pdata = &madera->pdata.micbias[i];
 
 		/* Configure the child micbias pins */
 		val = 0;
 		mask = 0;
-		num_child_micbias = madera_get_num_childbias(madera, i + 1);
-		for (child = 0; child < num_child_micbias; ++child) {
+
+		for (child = 0; child < madera->num_childbias[i]; ++child) {
 			if (!pdata->pin[child].init_data)
 				continue;
 
@@ -602,7 +572,7 @@ static void madera_configure_micbias(struct madera *madera)
 			val |= MADERA_MICB1_EXT_CAP;
 
 		/* if no child biases the discharge is set in the parent */
-		if (num_child_micbias == 0) {
+		if (madera->num_childbias[i] == 0) {
 			mask |= MADERA_MICB1_DISCH;
 
 			if (pdata->active_discharge)
@@ -665,6 +635,9 @@ int madera_dev_init(struct madera *madera)
 	dev_set_drvdata(madera->dev, madera);
 	BLOCKING_INIT_NOTIFIER_HEAD(&madera->notifier);
 
+	madera_set_micbias_info(madera);
+	madera_prop_get_micbias(madera);
+
 	/*
 	 * We need writable hw config info that all children can share.
 	 * Simplest to take one shared copy of pdata struct.
@@ -677,8 +650,6 @@ int madera_dev_init(struct madera *madera)
 	ret = madera_get_reset_gpio(madera);
 	if (ret)
 		return ret;
-
-	madera_prop_get_micbias(madera);
 
 	regcache_cache_only(madera->regmap, true);
 	regcache_cache_only(madera->regmap_32bit, true);
