@@ -22,7 +22,6 @@
 
 struct gpio_desc;
 struct pinctrl_map;
-struct madera_codec_pdata;
 struct regulator_init_data;
 
 /**
