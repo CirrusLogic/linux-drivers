@@ -173,8 +173,6 @@ struct madera {
 	enum madera_type type;
 	unsigned int rev;
 
-	struct gpio_desc *reset_gpio;
-
 	int num_core_supplies;
 	struct regulator_bulk_data core_supplies[MADERA_MAX_CORE_SUPPLIES];
 	struct regulator *dcvdd;

@@ -24,6 +24,7 @@
 
 #define MADERA_MAX_GPSW			2
 
+struct gpio_desc;
 struct pinctrl_map;
 struct regulator_init_data;
 
@@ -55,7 +56,7 @@ struct madera_micbias_pdata {
 /**
  * struct madera_pdata - Configuration data for Madera devices
  *
- * @reset:	    GPIO controlling /RESET (0 = none)
+ * @reset:	    GPIO controlling /RESET (NULL = none)
  * @ldo1:	    Substruct of pdata for the LDO1 regulator
  * @micvdd:	    Substruct of pdata for the MICVDD regulator
  * @irq_flags:	    Mode for primary IRQ (defaults to active low)
@@ -70,7 +71,7 @@ struct madera_micbias_pdata {
  * @codec:	    Substruct of pdata for the ASoC codec driver
  */
 struct madera_pdata {
-	int reset;
+	struct gpio_desc *reset;
 
 	struct arizona_ldo1_pdata ldo1;
 	struct arizona_micsupp_pdata micvdd;

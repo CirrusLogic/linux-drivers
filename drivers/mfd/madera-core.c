@@ -263,16 +263,24 @@ static int madera_soft_reset(struct madera *madera)
 
 static void madera_enable_hard_reset(struct madera *madera)
 {
-	if (madera->reset_gpio)
-		gpiod_set_value_cansleep(madera->reset_gpio, 0);
+	if (!madera->pdata.reset)
+		return;
+
+	/*
+	 * There are many existing out-of-tree users of these codecs that we
+	 * can't break so preserve the expected behaviour of setting the line
+	 * low to assert reset.
+	 */
+	gpiod_set_raw_value_cansleep(madera->pdata.reset, 0);
 }
 
 static void madera_disable_hard_reset(struct madera *madera)
 {
-	if (madera->reset_gpio) {
-		gpiod_set_value_cansleep(madera->reset_gpio, 1);
-		usleep_range(2000, 3000);
-	}
+	if (!madera->pdata.reset)
+		return;
+
+	gpiod_set_raw_value_cansleep(madera->pdata.reset, 1);
+	usleep_range(2000, 3000);
 }
 
 static int __maybe_unused madera_runtime_resume(struct device *dev)
@@ -295,7 +303,7 @@ static int __maybe_unused madera_runtime_resume(struct device *dev)
 
 	madera_disable_hard_reset(madera);
 
-	if (!madera->reset_gpio) {
+	if (!madera->pdata.reset) {
 		usleep_range(2000, 3000);
 
 		ret = madera_wait_for_boot(madera);
@@ -374,38 +382,31 @@ EXPORT_SYMBOL_GPL(madera_of_match);
 
 static int madera_get_reset_gpio(struct madera *madera)
 {
+	struct gpio_desc *reset;
 	int ret;
 
-	/* We use 0 in pdata to indicate a GPIO has not been set */
-	if (dev_get_platdata(madera->dev) && (madera->pdata.reset > 0)) {
-		/* Start out with /RESET asserted */
-		ret = devm_gpio_request_one(madera->dev,
-					    madera->pdata.reset,
-					    GPIOF_DIR_OUT | GPIOF_INIT_LOW,
-					    "madera reset");
-		if (!ret)
-			madera->reset_gpio = gpio_to_desc(madera->pdata.reset);
-	} else {
-		madera->reset_gpio = devm_gpiod_get_optional(madera->dev,
-							     "reset",
-							     GPIOD_OUT_LOW);
-		if (IS_ERR(madera->reset_gpio))
-			ret = PTR_ERR(madera->reset_gpio);
-		else
-			ret = 0;
-	}
+	if (madera->pdata.reset)
+		return 0;
 
-	if (ret == -EPROBE_DEFER)
-		return ret;
-
-	if (ret) {
-		dev_err(madera->dev, "Failed to request /RESET: %d\n", ret);
+	reset = devm_gpiod_get_optional(madera->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(reset)) {
+		ret = PTR_ERR(reset);
+		if (ret != -EPROBE_DEFER)
+			dev_err(madera->dev, "Failed to request /RESET: %d\n",
+				ret);
 		return ret;
 	}
 
-	if (!madera->reset_gpio)
+	/*
+	 * A hard reset is needed for full reset of the chip. We allow running
+	 * without hard reset only because it can be useful for early
+	 * prototyping and some debugging, but we need to warn it's not ideal.
+	 */
+	if (!reset)
 		dev_warn(madera->dev,
 			 "Running without reset GPIO is not recommended\n");
+
+	madera->pdata.reset = reset;
 
 	return 0;
 }
@@ -743,7 +744,7 @@ int madera_dev_init(struct madera *madera)
 	regcache_cache_only(madera->regmap_32bit, false);
 
 	/* If we don't have a reset GPIO use a soft reset */
-	if (!madera->reset_gpio) {
+	if (!madera->pdata.reset) {
 		ret = madera_soft_reset(madera);
 		if (ret)
 			goto err_reset;
