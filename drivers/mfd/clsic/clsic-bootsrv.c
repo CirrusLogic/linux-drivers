@@ -356,6 +356,8 @@ static int clsic_bootsrv_sendfile(struct clsic *clsic,
 	bootsrv->fwupdate_status = FWUPDATE_SENDING;
 
 	ret = request_firmware(&firmware, filename, clsic->dev);
+	if (ret == -EAGAIN)
+		return ret;
 	if (ret != 0) {
 		clsic_err(clsic,
 			  "request_firmware failed '%s' = %d (check files)\n",
@@ -595,6 +597,9 @@ int clsic_bootsrv_state_handler(struct clsic *clsic)
 	default:
 		clsic_err(clsic, "Unrecognised: %d\n", saved_request);
 	}
+	if (ret == -EAGAIN)
+		clsic->blrequest = saved_request;
+
 	return ret;
 }
 
