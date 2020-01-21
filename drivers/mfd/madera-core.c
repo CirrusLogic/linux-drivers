@@ -763,27 +763,6 @@ int madera_dev_init(struct madera *madera)
 
 	switch (hwid) {
 	case CS47L15_SILICON_ID:
-	case CS47L35_SILICON_ID:
-	case CS47L85_SILICON_ID:
-	case CS47L90_SILICON_ID:
-	case CS47L92_SILICON_ID:
-		break;
-	default:
-		dev_err(madera->dev, "Unknown device ID: %x\n", hwid);
-		ret = -EINVAL;
-		goto err_reset;
-	}
-
-	ret = regmap_read(madera->regmap, MADERA_HARDWARE_REVISION,
-			  &madera->rev);
-	if (ret) {
-		dev_err(dev, "Failed to read revision register: %d\n", ret);
-		goto err_reset;
-	}
-	madera->rev &= MADERA_HW_REVISION_MASK;
-
-	switch (hwid) {
-	case CS47L15_SILICON_ID:
 		if (IS_ENABLED(CONFIG_MFD_CS47L15)) {
 			switch (madera->type) {
 			case CS47L15:
@@ -853,7 +832,9 @@ int madera_dev_init(struct madera *madera)
 		}
 		break;
 	default:
-		break;
+		dev_err(madera->dev, "Unknown device ID: %x\n", hwid);
+		ret = -EINVAL;
+		goto err_reset;
 	}
 
 	if (!n_devs) {
@@ -862,6 +843,14 @@ int madera_dev_init(struct madera *madera)
 		ret = -ENODEV;
 		goto err_reset;
 	}
+
+	ret = regmap_read(madera->regmap, MADERA_HARDWARE_REVISION,
+			  &madera->rev);
+	if (ret) {
+		dev_err(dev, "Failed to read revision register: %d\n", ret);
+		goto err_reset;
+	}
+	madera->rev &= MADERA_HW_REVISION_MASK;
 
 	dev_info(dev, "%s silicon revision %d\n", madera->type_name,
 		 madera->rev);
