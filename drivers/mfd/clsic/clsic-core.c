@@ -21,6 +21,9 @@
 #include <linux/mfd/clsic/syssrv.h>
 #include <linux/mfd/clsic/rassrv.h>
 
+#define CLSIC_BOOT_COMPLETION_TIMEOUT   300
+#define CLSIC_RETRY_REQUEST_FW_MS       300
+
 static void clsic_free_service_handler(struct clsic *clsic,
 				       struct clsic_service *handler);
 static void clsic_init_sysfs(struct clsic *clsic);
@@ -64,7 +67,7 @@ static void clsic_disable_hard_reset(struct clsic *clsic)
 	}
 }
 
-#define CLSIC_BOOT_COMPLETION_TIMEOUT   300
+
 bool clsic_wait_for_boot_done(struct clsic *clsic)
 {
 	unsigned int val;
@@ -560,6 +563,7 @@ void clsic_maintenance(struct work_struct *data)
 	struct delayed_work *dw = to_delayed_work(data);
 	struct clsic *clsic = container_of(dw, struct clsic,
 					   maintenance_handler);
+	int ret;
 
 	trace_clsic_maintenance(clsic->state, clsic->blrequest,
 				clsic->service_states);
@@ -573,7 +577,14 @@ void clsic_maintenance(struct work_struct *data)
 		goto pm_complete_exit;
 
 	if (clsic->blrequest != CLSIC_BL_IDLE) {
-		if (clsic_bootsrv_state_handler(clsic) != 0) {
+		ret = clsic_bootsrv_state_handler(clsic);
+		if (ret == -EAGAIN) {
+			schedule_delayed_work(&clsic->maintenance_handler,
+				msecs_to_jiffies(CLSIC_RETRY_REQUEST_FW_MS));
+			return;
+		}
+
+		if (ret != 0) {
 			clsic_err(clsic,
 				  "Bootloader operation failed (%s s: %d b: %d)\n",
 				  clsic_state_to_string(clsic->state),
