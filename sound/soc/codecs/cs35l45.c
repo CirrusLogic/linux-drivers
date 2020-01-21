@@ -411,8 +411,6 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"ASP_TX1 Source", "VDD_BSTMON", "VDD_BSTMON ADC"},
 	{"ASP_TX1 Source", "DSP_TX1", "DSP"},
 	{"ASP_TX1 Source", "DSP_TX2", "DSP"},
-	{"ASP_TX1 Source", "SWIRE_RX1", "Capture"},
-	{"ASP_TX1 Source", "SWIRE_RX2", "Capture"},
 
 	{"ASP_TX2 Source", "Zero", "Capture"},
 	{"ASP_TX2 Source", "ASP_RX1", "Capture"},
@@ -423,8 +421,6 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"ASP_TX2 Source", "VDD_BSTMON", "VDD_BSTMON ADC"},
 	{"ASP_TX2 Source", "DSP_TX1", "DSP"},
 	{"ASP_TX2 Source", "DSP_TX2", "DSP"},
-	{"ASP_TX2 Source", "SWIRE_RX1", "Capture"},
-	{"ASP_TX2 Source", "SWIRE_RX2", "Capture"},
 
 	{"ASP_TX3 Source", "Zero", "Capture"},
 	{"ASP_TX3 Source", "ASP_RX1", "Capture"},
@@ -435,8 +431,6 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"ASP_TX3 Source", "VDD_BSTMON", "VDD_BSTMON ADC"},
 	{"ASP_TX3 Source", "DSP_TX1", "DSP"},
 	{"ASP_TX3 Source", "DSP_TX2", "DSP"},
-	{"ASP_TX3 Source", "SWIRE_RX1", "Capture"},
-	{"ASP_TX3 Source", "SWIRE_RX2", "Capture"},
 
 	{"ASP_TX4 Source", "Zero", "Capture"},
 	{"ASP_TX4 Source", "ASP_RX1", "Capture"},
@@ -447,8 +441,6 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"ASP_TX4 Source", "VDD_BSTMON", "VDD_BSTMON ADC"},
 	{"ASP_TX4 Source", "DSP_TX1", "DSP"},
 	{"ASP_TX4 Source", "DSP_TX2", "DSP"},
-	{"ASP_TX4 Source", "SWIRE_RX1", "Capture"},
-	{"ASP_TX4 Source", "SWIRE_RX2", "Capture"},
 
 	{"ASP_TX1", NULL, "ASP_TX1 Source"},
 	{"ASP_TX2", NULL, "ASP_TX2 Source"},
@@ -477,15 +469,11 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"DSP_RX1 Source", "Zero", "AMP"},
 	{"DSP_RX1 Source", "ASP_RX1", "ASP_RX1"},
 	{"DSP_RX1 Source", "ASP_RX2", "ASP_RX2"},
-	{"DSP_RX1 Source", "SWIRE_RX1", "AMP"},
-	{"DSP_RX1 Source", "SWIRE_RX2", "AMP"},
 
 	{"DSP_RX2 Source", NULL, "DSP"},
 	{"DSP_RX2 Source", "Zero", "AMP"},
 	{"DSP_RX2 Source", "ASP_RX1", "ASP_RX1"},
 	{"DSP_RX2 Source", "ASP_RX2", "ASP_RX2"},
-	{"DSP_RX2 Source", "SWIRE_RX1", "AMP"},
-	{"DSP_RX2 Source", "SWIRE_RX2", "AMP"},
 
 	{"DACPCM Source", "Zero", "AMP"},
 	{"DACPCM Source", "ASP_RX1", "ASP_RX1"},
@@ -494,8 +482,6 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"DACPCM Source", "DSP_TX1", "DSP_RX2 Source"},
 	{"DACPCM Source", "DSP_TX2", "DSP_RX1 Source"},
 	{"DACPCM Source", "DSP_TX2", "DSP_RX2 Source"},
-	{"DACPCM Source", "SWIRE_RX1", "AMP"},
-	{"DACPCM Source", "SWIRE_RX2", "AMP"},
 
 	{"SPK", NULL, "DACPCM Source"},
 };
@@ -1479,7 +1465,7 @@ static int cs35l45_dsp_init(struct cs35l45_private *cs35l45)
 	dsp->rev = 0;
 	dsp->dev = cs35l45->dev;
 	dsp->regmap = cs35l45->regmap;
-	dsp->base = CS35L45_DSP1_CTRL_BASE;
+	dsp->base = CS35L45_DSP1_CLOCK_FREQ;
 	dsp->base_sysinfo = CS35L45_DSP1_SYS_ID;
 	dsp->mem = cs35l45_dsp1_regions;
 	dsp->num_mems = ARRAY_SIZE(cs35l45_dsp1_regions);
