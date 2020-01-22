@@ -382,7 +382,7 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("DACPCM Source", SND_SOC_NOPM, 0, 0, &muxes[DACPCM]),
 
 	SND_SOC_DAPM_OUTPUT("SPK"),
-	SND_SOC_DAPM_OUTPUT("AP"),
+	SND_SOC_DAPM_INPUT("AP"),
 };
 
 static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
@@ -396,61 +396,80 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"DSP", NULL, "VDD_BSTMON ADC"},
 
 	/* Feedback */
-	{"DSP", NULL, "Capture"},
-	{"VMON ADC", NULL, "Capture"},
-	{"IMON ADC", NULL, "Capture"},
-	{"VDD_BATTMON ADC", NULL, "Capture"},
-	{"VDD_BSTMON ADC", NULL, "Capture"},
+	{"DSP", NULL, "AP"},
+	{"VMON ADC", NULL, "AP"},
+	{"IMON ADC", NULL, "AP"},
+	{"VDD_BATTMON ADC", NULL, "AP"},
+	{"VDD_BSTMON ADC", NULL, "AP"},
+	{"ASP_TX1", NULL, "AP"},
+	{"ASP_TX2", NULL, "AP"},
+	{"ASP_TX3", NULL, "AP"},
+	{"ASP_TX4", NULL, "AP"},
 
-	{"ASP_TX1 Source", "Zero", "Capture"},
-	{"ASP_TX1 Source", "ASP_RX1", "Capture"},
-	{"ASP_TX1 Source", "ASP_RX2", "Capture"},
+	{"ASP_TX1 Source", "ASP_RX1", "ASP_TX1"},
+	{"ASP_TX1 Source", "ASP_RX2", "ASP_TX1"},
 	{"ASP_TX1 Source", "VMON", "VMON ADC"},
+	{"ASP_TX1 Source", "VMON", "ASP_TX1"},
 	{"ASP_TX1 Source", "IMON", "IMON ADC"},
+	{"ASP_TX1 Source", "IMON", "ASP_TX1"},
 	{"ASP_TX1 Source", "VDD_BATTMON", "VDD_BATTMON ADC"},
+	{"ASP_TX1 Source", "VDD_BATTMON", "ASP_TX1"},
 	{"ASP_TX1 Source", "VDD_BSTMON", "VDD_BSTMON ADC"},
+	{"ASP_TX1 Source", "VDD_BSTMON", "ASP_TX1"},
 	{"ASP_TX1 Source", "DSP_TX1", "DSP"},
+	{"ASP_TX1 Source", "DSP_TX1", "ASP_TX1"},
 	{"ASP_TX1 Source", "DSP_TX2", "DSP"},
+	{"ASP_TX1 Source", "DSP_TX2", "ASP_TX1"},
 
-	{"ASP_TX2 Source", "Zero", "Capture"},
-	{"ASP_TX2 Source", "ASP_RX1", "Capture"},
-	{"ASP_TX2 Source", "ASP_RX2", "Capture"},
+	{"ASP_TX2 Source", "ASP_RX1", "ASP_TX2"},
+	{"ASP_TX2 Source", "ASP_RX2", "ASP_TX2"},
 	{"ASP_TX2 Source", "VMON", "VMON ADC"},
+	{"ASP_TX2 Source", "VMON", "ASP_TX2"},
 	{"ASP_TX2 Source", "IMON", "IMON ADC"},
+	{"ASP_TX2 Source", "IMON", "ASP_TX2"},
 	{"ASP_TX2 Source", "VDD_BATTMON", "VDD_BATTMON ADC"},
+	{"ASP_TX2 Source", "VDD_BATTMON", "ASP_TX2"},
 	{"ASP_TX2 Source", "VDD_BSTMON", "VDD_BSTMON ADC"},
+	{"ASP_TX2 Source", "VDD_BSTMON", "ASP_TX2"},
 	{"ASP_TX2 Source", "DSP_TX1", "DSP"},
+	{"ASP_TX2 Source", "DSP_TX1", "ASP_TX2"},
 	{"ASP_TX2 Source", "DSP_TX2", "DSP"},
+	{"ASP_TX2 Source", "DSP_TX2", "ASP_TX2"},
 
-	{"ASP_TX3 Source", "Zero", "Capture"},
-	{"ASP_TX3 Source", "ASP_RX1", "Capture"},
-	{"ASP_TX3 Source", "ASP_RX2", "Capture"},
+	{"ASP_TX3 Source", "ASP_RX1", "ASP_TX3"},
+	{"ASP_TX3 Source", "ASP_RX2", "ASP_TX3"},
 	{"ASP_TX3 Source", "VMON", "VMON ADC"},
+	{"ASP_TX3 Source", "VMON", "ASP_TX3"},
 	{"ASP_TX3 Source", "IMON", "IMON ADC"},
+	{"ASP_TX3 Source", "IMON", "ASP_TX3"},
 	{"ASP_TX3 Source", "VDD_BATTMON", "VDD_BATTMON ADC"},
+	{"ASP_TX3 Source", "VDD_BATTMON", "ASP_TX3"},
 	{"ASP_TX3 Source", "VDD_BSTMON", "VDD_BSTMON ADC"},
+	{"ASP_TX3 Source", "VDD_BSTMON", "ASP_TX3"},
 	{"ASP_TX3 Source", "DSP_TX1", "DSP"},
+	{"ASP_TX3 Source", "DSP_TX1", "ASP_TX3"},
 	{"ASP_TX3 Source", "DSP_TX2", "DSP"},
+	{"ASP_TX3 Source", "DSP_TX2", "ASP_TX3"},
 
-	{"ASP_TX4 Source", "Zero", "Capture"},
-	{"ASP_TX4 Source", "ASP_RX1", "Capture"},
-	{"ASP_TX4 Source", "ASP_RX2", "Capture"},
+	{"ASP_TX4 Source", "ASP_RX1", "ASP_TX4"},
+	{"ASP_TX4 Source", "ASP_RX2", "ASP_TX4"},
 	{"ASP_TX4 Source", "VMON", "VMON ADC"},
+	{"ASP_TX4 Source", "VMON", "ASP_TX4"},
 	{"ASP_TX4 Source", "IMON", "IMON ADC"},
+	{"ASP_TX4 Source", "IMON", "ASP_TX4"},
 	{"ASP_TX4 Source", "VDD_BATTMON", "VDD_BATTMON ADC"},
+	{"ASP_TX4 Source", "VDD_BATTMON", "ASP_TX4"},
 	{"ASP_TX4 Source", "VDD_BSTMON", "VDD_BSTMON ADC"},
+	{"ASP_TX4 Source", "VDD_BSTMON", "ASP_TX4"},
 	{"ASP_TX4 Source", "DSP_TX1", "DSP"},
+	{"ASP_TX4 Source", "DSP_TX1", "ASP_TX4"},
 	{"ASP_TX4 Source", "DSP_TX2", "DSP"},
+	{"ASP_TX4 Source", "DSP_TX2", "ASP_TX4"},
 
-	{"ASP_TX1", NULL, "ASP_TX1 Source"},
-	{"ASP_TX2", NULL, "ASP_TX2 Source"},
-	{"ASP_TX3", NULL, "ASP_TX3 Source"},
-	{"ASP_TX4", NULL, "ASP_TX4 Source"},
-
-	{"AP", NULL, "ASP_TX1"},
-	{"AP", NULL, "ASP_TX2"},
-	{"AP", NULL, "ASP_TX3"},
-	{"AP", NULL, "ASP_TX4"},
+	{"Capture", NULL, "ASP_TX1 Source"},
+	{"Capture", NULL, "ASP_TX2 Source"},
+	{"Capture", NULL, "ASP_TX3 Source"},
+	{"Capture", NULL, "ASP_TX4 Source"},
 
 	/* Playback */
 	{"AMP", NULL, "Playback"},
@@ -1081,6 +1100,13 @@ static int cs35l45_apply_of_data(struct cs35l45_private *cs35l45)
 	if (!pdata)
 		return 0;
 
+	if (pdata->asp_sdout_hiz_ctrl & CS35L45_VALID_PDATA) {
+		val = pdata->asp_sdout_hiz_ctrl & (~CS35L45_VALID_PDATA);
+		regmap_update_bits(cs35l45->regmap, CS35L45_ASP_CONTROL3,
+				   CS35L45_ASP_DOUT_HIZ_CTRL_MASK,
+				   val << CS35L45_ASP_DOUT_HIZ_CTRL_SHIFT);
+	}
+
 	if (!pdata->bst_bpe_voltage_cfg.is_present)
 		goto bst_bpe_ind_curr_cfg;
 
@@ -1234,6 +1260,10 @@ static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
 
 	if ((!node) || (!pdata))
 		return 0;
+
+	ret = of_property_read_u32(node, "cirrus,asp-sdout-hiz-ctrl", &val);
+	if (!ret)
+		pdata->asp_sdout_hiz_ctrl = val | CS35L45_VALID_PDATA;
 
 	pdata->use_tdm_slots = of_property_read_bool(node,
 						     "cirrus,use-tdm-slots");
