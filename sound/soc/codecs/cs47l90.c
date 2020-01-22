@@ -2556,21 +2556,21 @@ static const struct snd_compr_ops cs47l90_compr_ops = {
 };
 
 static const struct snd_soc_component_driver soc_component_dev_cs47l90 = {
-	.probe = &cs47l90_component_probe,
-	.remove = &cs47l90_component_remove,
-	.set_sysclk = &madera_set_sysclk,
-	.set_pll = &cs47l90_set_fll,
-	.name = DRV_NAME,
-	.compr_ops = &cs47l90_compr_ops,
-	.controls = cs47l90_snd_controls,
-	.num_controls = ARRAY_SIZE(cs47l90_snd_controls),
-	.dapm_widgets = cs47l90_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(cs47l90_dapm_widgets),
-	.dapm_routes = cs47l90_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(cs47l90_dapm_routes),
-	.use_pmdown_time = 1,
-	.endianness = 1,
-	.non_legacy_dai_naming = 1,
+	.probe			= &cs47l90_component_probe,
+	.remove			= &cs47l90_component_remove,
+	.set_sysclk		= &madera_set_sysclk,
+	.set_pll		= &cs47l90_set_fll,
+	.name			= DRV_NAME,
+	.compr_ops		= &cs47l90_compr_ops,
+	.controls		= cs47l90_snd_controls,
+	.num_controls		= ARRAY_SIZE(cs47l90_snd_controls),
+	.dapm_widgets		= cs47l90_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(cs47l90_dapm_widgets),
+	.dapm_routes		= cs47l90_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(cs47l90_dapm_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int cs47l90_probe(struct platform_device *pdev)
