@@ -396,7 +396,6 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"DSP", NULL, "VDD_BSTMON ADC"},
 
 	/* Feedback */
-	{"DSP", NULL, "AP"},
 	{"VMON ADC", NULL, "AP"},
 	{"IMON ADC", NULL, "AP"},
 	{"VDD_BATTMON ADC", NULL, "AP"},
@@ -416,9 +415,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"ASP_TX1 Source", "VDD_BATTMON", "ASP_TX1"},
 	{"ASP_TX1 Source", "VDD_BSTMON", "VDD_BSTMON ADC"},
 	{"ASP_TX1 Source", "VDD_BSTMON", "ASP_TX1"},
-	{"ASP_TX1 Source", "DSP_TX1", "DSP"},
 	{"ASP_TX1 Source", "DSP_TX1", "ASP_TX1"},
-	{"ASP_TX1 Source", "DSP_TX2", "DSP"},
 	{"ASP_TX1 Source", "DSP_TX2", "ASP_TX1"},
 
 	{"ASP_TX2 Source", "ASP_RX1", "ASP_TX2"},
@@ -431,9 +428,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"ASP_TX2 Source", "VDD_BATTMON", "ASP_TX2"},
 	{"ASP_TX2 Source", "VDD_BSTMON", "VDD_BSTMON ADC"},
 	{"ASP_TX2 Source", "VDD_BSTMON", "ASP_TX2"},
-	{"ASP_TX2 Source", "DSP_TX1", "DSP"},
 	{"ASP_TX2 Source", "DSP_TX1", "ASP_TX2"},
-	{"ASP_TX2 Source", "DSP_TX2", "DSP"},
 	{"ASP_TX2 Source", "DSP_TX2", "ASP_TX2"},
 
 	{"ASP_TX3 Source", "ASP_RX1", "ASP_TX3"},
@@ -446,9 +441,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"ASP_TX3 Source", "VDD_BATTMON", "ASP_TX3"},
 	{"ASP_TX3 Source", "VDD_BSTMON", "VDD_BSTMON ADC"},
 	{"ASP_TX3 Source", "VDD_BSTMON", "ASP_TX3"},
-	{"ASP_TX3 Source", "DSP_TX1", "DSP"},
 	{"ASP_TX3 Source", "DSP_TX1", "ASP_TX3"},
-	{"ASP_TX3 Source", "DSP_TX2", "DSP"},
 	{"ASP_TX3 Source", "DSP_TX2", "ASP_TX3"},
 
 	{"ASP_TX4 Source", "ASP_RX1", "ASP_TX4"},
@@ -461,9 +454,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"ASP_TX4 Source", "VDD_BATTMON", "ASP_TX4"},
 	{"ASP_TX4 Source", "VDD_BSTMON", "VDD_BSTMON ADC"},
 	{"ASP_TX4 Source", "VDD_BSTMON", "ASP_TX4"},
-	{"ASP_TX4 Source", "DSP_TX1", "DSP"},
 	{"ASP_TX4 Source", "DSP_TX1", "ASP_TX4"},
-	{"ASP_TX4 Source", "DSP_TX2", "DSP"},
 	{"ASP_TX4 Source", "DSP_TX2", "ASP_TX4"},
 
 	{"Capture", NULL, "ASP_TX1 Source"},
