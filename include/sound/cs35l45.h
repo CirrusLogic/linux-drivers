@@ -117,6 +117,7 @@ struct cs35l45_private {
 	bool initialized;
 	int irq;
 	int slot_width;
+	int amplifier_mode;
 };
 
 int cs35l45_initialize(struct cs35l45_private *cs35l45);
