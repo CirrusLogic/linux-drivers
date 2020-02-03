@@ -554,7 +554,7 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 
 		regmap_update_bits(cs35l45->regmap, CS35L45_AMP_GAIN,
 				   CS35L45_AMP_GAIN_PCM_MASK,
-				   CS35L45_AMP_GAIN_PCM_10DBV <<
+				   CS35L45_AMP_GAIN_PCM_13DBV <<
 				   CS35L45_AMP_GAIN_PCM_SHIFT);
 	}
 
