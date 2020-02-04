@@ -34,9 +34,6 @@
 
 #include "wm_adsp.h"
 
-#define MAX_BULKSIZE			1028
-#define REG_BYTESIZE			4
-
  #define adsp_crit(_dsp, fmt, ...) \
 	dev_crit(_dsp->dev, "%s%d: " fmt, wm_adsp_arch_text(_dsp->type), \
 		 _dsp->num, ##__VA_ARGS__)
@@ -1369,8 +1366,6 @@ static int wm_coeff_read_control(struct wm_coeff_ctl *ctl,
 	void *scratch;
 	int ret;
 	unsigned int reg;
-	int read_len = 0;
-	int toread_len;
 
 	ret = wm_coeff_base_reg(ctl, &reg);
 	if (ret)
@@ -1380,22 +1375,21 @@ static int wm_coeff_read_control(struct wm_coeff_ctl *ctl,
 	if (!scratch)
 		return -ENOMEM;
 
-	while ((len - read_len) > 0) {
-		toread_len = (len - read_len) > MAX_BULKSIZE ?
-			MAX_BULKSIZE : (len - read_len);
-		regmap_raw_read(dsp->regmap, reg + read_len / REG_BYTESIZE,
-				scratch + read_len, toread_len);
-		if (ret) {
-			adsp_err(dsp, "Failed to read %zu bytes from %x: %d\n",
-				 toread_len,
-				 reg + read_len / REG_BYTESIZE, ret);
-			kfree(scratch);
-			return ret;
-		}
-		adsp_dbg(dsp, "Read %zu bytes from %x\n", toread_len,
-			 reg + read_len / REG_BYTESIZE);
-		read_len += toread_len;
+	if (len < 4096) {
+		ret = regmap_raw_read(dsp->regmap, reg, scratch, len);
+	} else if (len < 8192) {
+		ret = regmap_raw_read(dsp->regmap, reg, scratch, 4096);
+		ret = regmap_raw_read(dsp->regmap, reg+4096, scratch+4096,
+			len-4096);
 	}
+
+	if (ret) {
+		adsp_err(dsp, "Failed to read %zu bytes from %x: %d\n",
+			 len, reg, ret);
+		kfree(scratch);
+		return ret;
+	}
+	adsp_dbg(dsp, "Read %zu bytes from %x\n", len, reg);
 
 	memcpy(buf, scratch, len);
 	kfree(scratch);
