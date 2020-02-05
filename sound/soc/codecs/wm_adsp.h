@@ -71,7 +71,6 @@ struct wm_adsp_fw_caps {
 struct wm_adsp_fw_defs {
 	const char *file;
 	const char *binfile;
-	bool fullname;
 	int compr_direction;
 	int num_caps;
 	const struct wm_adsp_fw_caps *caps;

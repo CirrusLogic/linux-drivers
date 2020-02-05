@@ -2002,6 +2002,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 	unsigned int reg;
 	int regions = 0;
 	int ret, offset, type, sizes;
+	const char *fw_txt;
 	int i;
 
 	file = kzalloc(PAGE_SIZE, GFP_KERNEL);
@@ -2009,29 +2010,23 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		return -ENOMEM;
 	switch (dsp->type) {
 	case WMFW_VPU:
-		if (dsp->firmwares[dsp->fw].fullname)
-			snprintf(file, PAGE_SIZE,
-				 "%s", dsp->firmwares[dsp->fw].file);
-		else
-			snprintf(file, PAGE_SIZE, "%s-%s%d-%s.wmfw",
-				 dsp->part, wm_adsp_arch_text_lower(dsp->type),
-				 dsp->num, dsp->firmwares[dsp->fw].file);
+		fw_txt = wm_vpu_fw[dsp->fw].file;
 		break;
 	case WMFW_ADSP1:
 	case WMFW_ADSP2:
 	case WMFW_HALO:
-		if (dsp->firmwares[dsp->fw].fullname)
-			snprintf(file, PAGE_SIZE,
-				 "%s", dsp->firmwares[dsp->fw].file);
-		else
-			snprintf(file, PAGE_SIZE, "%s-%s%d-%s.wmfw",
-				 dsp->part, wm_adsp_arch_text_lower(dsp->type),
-				 dsp->num, dsp->firmwares[dsp->fw].file);
+		fw_txt = dsp->firmwares[dsp->fw].file;
 		break;
 	default:
 		adsp_err(dsp, "Unknown Architecture type: %d\n", dsp->type);
 		return -EINVAL;
 	}
+
+	snprintf(file, PAGE_SIZE, "%s-%s%d-%s.wmfw",
+				   dsp->part,
+				   wm_adsp_arch_text_lower(dsp->type),
+				   dsp->num,
+				   fw_txt);
 
 	file[PAGE_SIZE - 1] = '\0';
 
@@ -2910,10 +2905,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 	if (file == NULL)
 		return -ENOMEM;
 
-	if (dsp->firmwares[dsp->fw].fullname && dsp->firmwares[dsp->fw].binfile)
-		snprintf(file, PAGE_SIZE, "%s",
-			 dsp->firmwares[dsp->fw].binfile);
-	else if (dsp->firmwares[dsp->fw].binfile)
+	if (dsp->firmwares[dsp->fw].binfile)
 		snprintf(file, PAGE_SIZE, "%s-dsp%d-%s.bin", dsp->part,
 			 dsp->num, dsp->firmwares[dsp->fw].binfile);
 	else
