@@ -113,8 +113,7 @@ struct wm_adsp {
 
 	int num_firmwares;
 	struct wm_adsp_fw_defs *firmwares;
-	struct snd_kcontrol_new fw_ctrl;
-	struct soc_enum fw_enum;
+	struct soc_enum *firmware_texts;
 
 	struct list_head ctl_list;
 
