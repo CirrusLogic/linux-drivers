@@ -62,7 +62,7 @@ static int esdfs_d_revalidate(struct dentry *dentry, unsigned int flags)
 		goto drop;
 	}
 
-	spin_lock(&dentry->d_lock);
+	spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
 
 	if (!qstr_case_eq(&lower_dentry->d_name, &dentry->d_name)) {
 		err = 0;
