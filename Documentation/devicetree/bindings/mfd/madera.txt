@@ -1,4 +1,4 @@
-Cirrus Logic Madera class audio codecs multi-function device
+Cirrus Logic Madera class audio codecs Multi-Functional Device
 
 These devices are audio SoCs with extensive digital capabilities and a range
 of analogue I/O.
@@ -150,4 +150,3 @@ cs47l85@0 {
 		cirrus,ext-cap = <1>;
 	};
 };
-
