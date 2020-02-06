@@ -153,6 +153,9 @@ struct wm_adsp_ops {
 	.reg = SND_SOC_NOPM, .shift = num, .event = wm_adsp_event, \
 	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD }
 
+#define WM_HALO(wname, num, event_fn) \
+	WM_ADSP2(wname, num, event_fn)
+
 #define WM_ADSP_FW_CONTROL(dspname, num) \
 	SOC_ENUM_EXT(dspname " Firmware", wm_adsp_fw_enum[num], \
 		     wm_adsp_fw_get, wm_adsp_fw_put)
