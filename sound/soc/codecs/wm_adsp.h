@@ -180,7 +180,6 @@ int wm_adsp2_init(struct wm_adsp *dsp);
 void wm_adsp2_remove(struct wm_adsp *dsp);
 int wm_adsp2_component_probe(struct wm_adsp *dsp, struct snd_soc_component *component);
 int wm_adsp2_component_remove(struct wm_adsp *dsp, struct snd_soc_component *component);
-void wm_adsp_queue_boot_work(struct wm_adsp *dsp);
 int wm_vpu_init(struct wm_adsp *vpu);
 int wm_halo_init(struct wm_adsp *dsp, struct mutex *rate_lock);
 
@@ -196,8 +195,6 @@ irqreturn_t wm_halo_wdt_expire(int irq, void *data);
 
 int wm_adsp_event(struct snd_soc_dapm_widget *w,
 		  struct snd_kcontrol *kcontrol, int event);
-int wm_vpu_event(struct snd_soc_dapm_widget *w,
-		 struct snd_kcontrol *kcontrol, int event);
 
 int wm_adsp2_set_dspclk(struct snd_soc_dapm_widget *w, unsigned int freq);
 
