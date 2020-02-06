@@ -9,8 +9,7 @@ The set of available GPIOs, functions and alternate function groups differs
 between codecs so refer to the datasheet for the codec for further information
 on what is supported on that device.
 
-The properties for this driver must exist within the parent MFD driver node.
-See bindings/mfd/madera.txt.
+The properties for this driver exist within the parent MFD driver node.
 
 See also
   the core bindings for the parent MFD driver:
@@ -88,4 +87,3 @@ cs47l85@0 {
 		};
 	};
 };
-
