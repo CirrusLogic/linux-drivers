@@ -233,6 +233,8 @@
 /*
  * HALO core
  */
+#define HALO_SAMPLE_RATE_RX1                 0x00080
+#define HALO_SAMPLE_RATE_TX1                 0x00280
 #define HALO_SCRATCH1                        0x005c0
 #define HALO_SCRATCH2                        0x005c8
 #define HALO_SCRATCH3                        0x005d0
@@ -278,6 +280,12 @@
 #define HALO_AHBM_CORE_ERR_ADDR_MASK         0x0fffff00
 #define HALO_AHBM_CORE_ERR_ADDR_SHIFT                 8
 #define HALO_AHBM_FLAGS_ERR_MASK             0x000000ff
+
+/*
+ * HALO_SAMPLE_RATE_[RX|TX]n
+ */
+#define HALO_DSP_RATE_SHIFT                  0
+#define HALO_DSP_RATE_MASK                   0x1f
 
 /*
  * HALO_CCM_CORE_CONTROL
@@ -3191,6 +3199,39 @@ err_mutex:
 	mutex_unlock(&dsp->pwr_lock);
 }
 
+static int wm_halo_set_rate_block(struct wm_adsp *dsp,
+				  unsigned int rate_base,
+				  unsigned int n_rates,
+				  const u8 *rate_cache)
+{
+	unsigned int addr = dsp->base + rate_base, val;
+	int ret, i;
+
+	mutex_lock(dsp->rate_lock);
+
+	for (i = 0; i < n_rates; ++i) {
+		val = rate_cache[i] << HALO_DSP_RATE_SHIFT;
+
+		ret = regmap_update_bits(dsp->regmap,
+					 addr + (i * 8),
+					 HALO_DSP_RATE_MASK,
+					 val);
+		if (ret) {
+			adsp_err(dsp, "Failed to set rate: %d\n", ret);
+			mutex_unlock(dsp->rate_lock);
+			return ret;
+		}
+
+		adsp_dbg(dsp, "Set rate %d to 0x%x\n", i, val);
+	}
+
+	udelay(300);
+
+	mutex_unlock(dsp->rate_lock);
+
+	return 0;
+}
+
 static int wm_halo_configure_mpu(struct wm_adsp *dsp, unsigned int lock_regions)
 {
 	struct reg_sequence config[] = {
@@ -3452,6 +3493,26 @@ EXPORT_SYMBOL_GPL(wm_adsp_event);
 
 static int wm_halo_start_core(struct wm_adsp *dsp)
 {
+	int ret;
+
+	adsp_dbg(dsp, "Setting RX rates.\n");
+	ret = wm_halo_set_rate_block(dsp, HALO_SAMPLE_RATE_RX1,
+				     dsp->n_rx_channels,
+				     dsp->rx_rate_cache);
+	if (ret) {
+		adsp_err(dsp, "Failed to set RX rates.\n");
+		return ret;
+	}
+
+	adsp_dbg(dsp, "Setting TX rates.\n");
+	ret = wm_halo_set_rate_block(dsp, HALO_SAMPLE_RATE_TX1,
+				     dsp->n_tx_channels,
+				     dsp->tx_rate_cache);
+	if (ret) {
+		adsp_err(dsp, "Failed to set TX rates.\n");
+		return ret;
+	}
+
 	return regmap_update_bits(dsp->regmap,
 				  dsp->base + HALO_CCM_CORE_CONTROL,
 				  HALO_CORE_EN, HALO_CORE_EN);
@@ -3528,7 +3589,7 @@ int wm_adsp2_init(struct wm_adsp *dsp)
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_init);
 
-int wm_halo_init(struct wm_adsp *dsp)
+int wm_halo_init(struct wm_adsp *dsp, struct mutex *rate_lock)
 {
 	int ret;
 
@@ -3539,6 +3600,12 @@ int wm_halo_init(struct wm_adsp *dsp)
 	dsp->ops = &wm_halo_ops;
 
 	INIT_WORK(&dsp->boot_work, wm_adsp_boot_work);
+
+	dsp->rate_lock = rate_lock;
+	dsp->rx_rate_cache = kcalloc(dsp->n_rx_channels, sizeof(u8),
+				     GFP_KERNEL);
+	dsp->tx_rate_cache = kcalloc(dsp->n_tx_channels, sizeof(u8),
+				     GFP_KERNEL);
 
 	return 0;
 }
@@ -3554,6 +3621,9 @@ void wm_adsp2_remove(struct wm_adsp *dsp)
 		list_del(&ctl->list);
 		wm_adsp_free_ctl_blk(ctl);
 	}
+
+	kfree(dsp->rx_rate_cache);
+	kfree(dsp->tx_rate_cache);
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_remove);
 
