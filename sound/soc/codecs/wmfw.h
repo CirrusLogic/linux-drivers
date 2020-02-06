@@ -228,4 +228,3 @@ struct wmfw_coeff_item {
 #define WMFW_VPU_DM 0x20
 
 #endif
-
