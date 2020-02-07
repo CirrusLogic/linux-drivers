@@ -2254,7 +2254,6 @@ static int clsic_probe(struct platform_device *pdev)
 
 	clsic_codec->core.tacna = tacna;
 	clsic_codec->core.dev = &pdev->dev;
-	clsic_codec->core.num_inputs = 8;
 	clsic_codec->core.max_analogue_inputs = 0;
 	clsic_codec->core.num_dmic_clksrc = 4;
 
