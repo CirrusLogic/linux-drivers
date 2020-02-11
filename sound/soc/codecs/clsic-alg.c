@@ -38,8 +38,16 @@
 #define CLSIC_DSP2_N_RX_CHANNELS	8
 #define CLSIC_DSP2_N_TX_CHANNELS	8
 
-#define CLSIC_DAI_CPU_VOICECTRL		"clsic-cpu-voicectrl"
-#define CLSIC_DAI_VPU_VOICECTRL		"clsic-vpu-voicectrl"
+#define CLSIC_DAI_CPU_VOICECTRL		"cs48lv41-cpu-voicectrl"
+
+/*
+ * The compr stream name is set to the codec_dai name when the stream is opened.
+ * When attaching the compressed stream to a host buffer the adsp driver
+ * expects a match between the stream name and the buffer name.
+ * The adsp driver creates the buffer name with dsp hard coded therefore
+ * the codec_dai name has to be dsp rather than vpu.
+ */
+#define CLSIC_DAI_VPU_VOICECTRL		"cs48lv41-dsp-voicectrl"
 
 static const struct wm_adsp_region clsic_alg_vpu_regions[] = {
 	{ .type = WMFW_VPU_DM, .base = 0x20000000 },
