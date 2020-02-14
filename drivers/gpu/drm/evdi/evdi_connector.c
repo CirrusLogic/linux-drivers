@@ -39,7 +39,7 @@ static int evdi_get_modes(struct drm_connector *connector)
 
 	ret = drm_connector_update_edid_property(connector, edid);
 	if (!ret)
-		drm_add_edid_modes(connector, edid);
+		ret = drm_add_edid_modes(connector, edid);
 	else
 		EVDI_ERROR("Failed to set edid modes! error: %d", ret);
 
