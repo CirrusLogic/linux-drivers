@@ -108,28 +108,33 @@ int cl_dsp_wt_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 	}
 
 	while (pos < fw->size) {
-		ret = cl_dsp_process_data_be(fw->data, 2, pos, &block_offset);
+		ret = cl_dsp_process_data_be(fw->data,
+				CL_DSP_WMDR_DBLK_OFFSET_SIZE, pos,
+				&block_offset);
 		if (ret) {
 			dev_err(dsp->dev, "Failed to read data\n");
 			return ret;
 		}
 		pos += CL_DSP_WMDR_DBLK_OFFSET_SIZE;
 
-		ret = cl_dsp_process_data_be(fw->data, 2, pos, &block_type);
+		ret = cl_dsp_process_data_be(fw->data,
+				CL_DSP_WMDR_DBLK_TYPE_SIZE, pos, &block_type);
 		if (ret) {
 			dev_err(dsp->dev, "Failed to read data\n");
 			return ret;
 		}
 		pos += CL_DSP_WMDR_DBLK_TYPE_SIZE;
 
-		ret = cl_dsp_process_data_be(fw->data, 4, pos, &algo_id);
+		ret = cl_dsp_process_data_be(fw->data,
+				CL_DSP_WMDR_ALGO_ID_SIZE, pos, &algo_id);
 		if (ret) {
 			dev_err(dsp->dev, "Failed to read data\n");
 			return ret;
 		}
 		pos += CL_DSP_WMDR_ALGO_ID_SIZE;
 
-		ret = cl_dsp_process_data_be(fw->data, 4, pos, &algo_rev);
+		ret = cl_dsp_process_data_be(fw->data,
+				CL_DSP_WMDR_ALGO_REV_SIZE, pos, &algo_rev);
 		if (ret) {
 			dev_err(dsp->dev, "Failed to read data\n");
 			return ret;
@@ -139,7 +144,8 @@ int cl_dsp_wt_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 		/* sample rate not used */
 		pos += CL_DSP_WMDR_SAMPLE_RATE_SIZE;
 
-		ret = cl_dsp_process_data_be(fw->data, 4, pos, &block_length);
+		ret = cl_dsp_process_data_be(fw->data,
+			CL_DSP_WMDR_DBLK_LENGTH_SIZE, pos, &block_length);
 		if (ret) {
 			dev_err(dsp->dev, "Failed to read data\n");
 			return ret;
@@ -264,7 +270,7 @@ static int cl_dsp_algo_parse(struct cl_dsp *dsp, const unsigned char *data)
 	unsigned char algo_name_length;
 	int i, ret;
 
-	ret = cl_dsp_process_data_be(data, 4, pos, &algo_id);
+	ret = cl_dsp_process_data_be(data, CL_DSP_ALGO_ID_SIZE, pos, &algo_id);
 	if (ret) {
 		dev_err(dsp->dev, "Failed to read data\n");
 		return ret;
@@ -289,7 +295,8 @@ static int cl_dsp_algo_parse(struct cl_dsp *dsp, const unsigned char *data)
 	pos += ((algo_desc_length / 4) * 4) + 4;
 
 	/* Record coefficient count */
-	ret = cl_dsp_process_data_be(data, 4, pos, &coeff_count);
+	ret = cl_dsp_process_data_be(data,
+			CL_DSP_COEFF_COUNT_SIZE, pos, &coeff_count);
 	if (ret) {
 		dev_err(dsp->dev, "Failed to read data\n");
 		return ret;
@@ -297,21 +304,24 @@ static int cl_dsp_algo_parse(struct cl_dsp *dsp, const unsigned char *data)
 	pos += CL_DSP_COEFF_COUNT_SIZE;
 
 	for (i = 0; i < coeff_count; i++) {
-		ret = cl_dsp_process_data_be(data, 2, pos, &block_offset);
+		ret = cl_dsp_process_data_be(data,
+				CL_DSP_COEFF_OFFSET_SIZE, pos, &block_offset);
 		if (ret) {
 			dev_err(dsp->dev, "Failed to read data\n");
 			return ret;
 		}
 		pos += CL_DSP_COEFF_OFFSET_SIZE;
 
-		ret = cl_dsp_process_data_be(data, 2, pos, &block_type);
+		ret = cl_dsp_process_data_be(data,
+				CL_DSP_COEFF_TYPE_SIZE, pos, &block_type);
 		if (ret) {
 			dev_err(dsp->dev, "Failed to read data\n");
 			return ret;
 		}
 		pos += CL_DSP_COEFF_TYPE_SIZE;
 
-		ret = cl_dsp_process_data_be(data, 4, pos, &block_length);
+		ret = cl_dsp_process_data_be(data,
+				CL_DSP_COEFF_LENGTH_SIZE, pos, &block_length);
 		if (ret) {
 			dev_err(dsp->dev, "Failed to read data\n");
 			return ret;
@@ -501,21 +511,24 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 	}
 
 	while (pos < fw->size) {
-		ret = cl_dsp_process_data_be(fw->data, 3, pos, &block_offset);
+		ret = cl_dsp_process_data_be(fw->data,
+				CL_DSP_FW_DBLK_OFFSET_SIZE, pos, &block_offset);
 		if (ret) {
 			dev_err(dsp->dev, "Failed to read data\n");
 			return ret;
 		}
 		pos += CL_DSP_FW_DBLK_OFFSET_SIZE;
 
-		ret = cl_dsp_process_data_be(fw->data, 1, pos, &block_type);
+		ret = cl_dsp_process_data_be(fw->data,
+				CL_DSP_FW_DBLK_TYPE_SIZE, pos, &block_type);
 		if (ret) {
 			dev_err(dsp->dev, "Failed to read data\n");
 			return ret;
 		}
 		pos += CL_DSP_FW_DBLK_TYPE_SIZE;
 
-		ret = cl_dsp_process_data_be(fw->data, 4, pos, &block_length);
+		ret = cl_dsp_process_data_be(fw->data,
+				CL_DSP_FW_DBLK_LENGTH_SIZE, pos, &block_length);
 		if (ret) {
 			dev_err(dsp->dev, "Failed to read data\n");
 			return ret;
@@ -528,8 +541,10 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 		case CL_DSP_PM_PACKED_TYPE:
 			ret = cl_dsp_raw_write(dsp,
 					dsp->mem_reg_desc->pm_base_reg +
-					block_offset * 5, &fw->data[pos],
-					block_length, CL_DSP_MAX_WLEN);
+					block_offset *
+					CL_DSP_PM_PACKED_NUM_BYTES,
+					&fw->data[pos], block_length,
+					CL_DSP_MAX_WLEN);
 			if (ret) {
 				dev_err(dev,
 					"Failed to write PM_PACKED memory\n");
@@ -539,22 +554,48 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 		case CL_DSP_XM_PACKED_TYPE:
 			ret = cl_dsp_raw_write(dsp,
 					dsp->mem_reg_desc->xm_base_reg_packed +
-					block_offset * 3, &fw->data[pos],
-					block_length, CL_DSP_MAX_WLEN);
+					block_offset *
+					CL_DSP_XM_PACKED_NUM_BYTES,
+					&fw->data[pos], block_length,
+					CL_DSP_MAX_WLEN);
 			if (ret) {
 				dev_err(dev,
 					"Failed to write XM_PACKED memory\n");
 				goto err;
 			}
 			break;
+		case CL_DSP_XM_UNPACKED_TYPE:
+			ret = cl_dsp_raw_write(dsp,
+				dsp->mem_reg_desc->xm_base_reg_unpacked_24 +
+				block_offset * CL_DSP_XM_UNPACKED_NUM_BYTES,
+				&fw->data[pos], block_length, CL_DSP_MAX_WLEN);
+			if (ret) {
+				dev_err(dev,
+					"Failed to write XM_UNPACKED memory\n");
+				goto err;
+			}
+			break;
 		case CL_DSP_YM_PACKED_TYPE:
 			ret = cl_dsp_raw_write(dsp,
 					dsp->mem_reg_desc->ym_base_reg_packed +
-					block_offset * 3, &fw->data[pos],
-					block_length, CL_DSP_MAX_WLEN);
+					block_offset *
+					CL_DSP_YM_PACKED_NUM_BYTES,
+					&fw->data[pos], block_length,
+					CL_DSP_MAX_WLEN);
 			if (ret) {
 				dev_err(dev,
 					"Failed to write YM_PACKED memory\n");
+				goto err;
+			}
+			break;
+		case CL_DSP_YM_UNPACKED_TYPE:
+			ret = cl_dsp_raw_write(dsp,
+				dsp->mem_reg_desc->ym_base_reg_unpacked_24 +
+				block_offset * CL_DSP_YM_UNPACKED_NUM_BYTES,
+				&fw->data[pos], block_length, CL_DSP_MAX_WLEN);
+			if (ret) {
+				dev_err(dev,
+					"Failed to write YM_UNPACKED memory\n");
 				goto err;
 			}
 			break;
