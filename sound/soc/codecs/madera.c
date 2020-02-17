@@ -1197,12 +1197,44 @@ static void madera_configure_input_mode(struct madera *madera)
 	}
 }
 
-int madera_init_inputs(struct snd_soc_component *component)
+int madera_init_inputs(struct snd_soc_component *component,
+		       const char * const *dmic_inputs, int n_dmic_inputs,
+		       const char * const *dmic_refs, int n_dmic_refs)
 {
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
 	struct madera_priv *priv = snd_soc_component_get_drvdata(component);
 	struct madera *madera = priv->madera;
+	unsigned int ref;
+	int i, ret;
+	struct snd_soc_dapm_route routes[2];
+
+	memset(&routes, 0, sizeof(routes));
 
 	madera_configure_input_mode(madera);
+
+	for (i = 0; i < n_dmic_inputs / 2; ++i) {
+		ref = madera->pdata.codec.dmic_ref[i];
+		if (ref >= n_dmic_refs) {
+			dev_err(madera->dev,
+				"Illegal DMIC ref %u for IN%d\n", ref, i);
+			return -EINVAL;
+		}
+
+		routes[0].source = dmic_refs[ref];
+		routes[1].source = dmic_refs[ref];
+		routes[0].sink = dmic_inputs[i * 2];
+		routes[1].sink = dmic_inputs[(i * 2) + 1];
+
+		ret = snd_soc_dapm_add_routes(dapm, routes, 2);
+		if (ret)
+			dev_warn(madera->dev,
+				 "Failed to add routes for %s->(%s,%s) (%d)\n",
+				 routes[0].source,
+				 routes[0].sink,
+				 routes[1].sink,
+				 ret);
+	}
 
 	return 0;
 }

@@ -1267,6 +1267,16 @@ static irqreturn_t cs47l15_adsp2_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static const char * const cs47l15_dmic_refs[] = {
+	"MICVDD",
+	"MICBIAS1",
+};
+
+static const char * const cs47l15_dmic_inputs[] = {
+	"IN1L",
+	"IN1R",
+};
+
 static const struct snd_soc_dapm_route cs47l15_mono_routes[] = {
 	{ "HPOUT1 Mono Mux", "HPOUT", "OUT1L" },
 	{ "HPOUT1 Mono Mux", "EPOUT", "OUT1L" },
@@ -1284,7 +1294,11 @@ static int cs47l15_component_probe(struct snd_soc_component *component)
 	madera->dapm = snd_soc_component_get_dapm(component);
 	mutex_unlock(&madera->dapm_ptr_lock);
 
-	ret = madera_init_inputs(component);
+	ret = madera_init_inputs(component,
+				 cs47l15_dmic_inputs,
+				 ARRAY_SIZE(cs47l15_dmic_inputs),
+				 cs47l15_dmic_refs,
+				 ARRAY_SIZE(cs47l15_dmic_refs));
 	if (ret)
 		return ret;
 

@@ -2500,6 +2500,28 @@ static irqreturn_t cs47l85_adsp2_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static const char * const cs47l85_dmic_refs[] = {
+	"MICVDD",
+	"MICBIAS1",
+	"MICBIAS2",
+	"MICBIAS3",
+};
+
+static const char * const cs47l85_dmic_inputs[] = {
+	"IN1L",
+	"IN1R",
+	"IN2L",
+	"IN2R",
+	"IN3L",
+	"IN3R",
+	"IN4L",
+	"IN4R",
+	"IN5L",
+	"IN5R",
+	"IN6L",
+	"IN6R",
+};
+
 static int cs47l85_component_probe(struct snd_soc_component *component)
 {
 	struct cs47l85 *cs47l85 = snd_soc_component_get_drvdata(component);
@@ -2512,7 +2534,11 @@ static int cs47l85_component_probe(struct snd_soc_component *component)
 	madera->dapm = snd_soc_component_get_dapm(component);
 	mutex_unlock(&madera->dapm_ptr_lock);
 
-	ret = madera_init_inputs(component);
+	ret = madera_init_inputs(component,
+				 cs47l85_dmic_inputs,
+				 ARRAY_SIZE(cs47l85_dmic_inputs),
+				 cs47l85_dmic_refs,
+				 ARRAY_SIZE(cs47l85_dmic_refs));
 	if (ret)
 		return ret;
 
