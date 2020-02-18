@@ -60,7 +60,6 @@ struct madera_codec_pdata {
 	bool out_mono[MADERA_MAX_OUTPUT];
 
 	u32 pdm_fmt[MADERA_MAX_PDM_SPK];
-
 	u32 pdm_mute[MADERA_MAX_PDM_SPK];
 
 	bool auxpdm_slave_mode;
