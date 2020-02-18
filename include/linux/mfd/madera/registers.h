@@ -2142,12 +2142,7 @@
 #define MADERA_IN2_OSR_WIDTH				     3
 
 /* (0x031B)  IN2L_Rate_Control */
-#define MADERA_IN2L_RATE_MASK                           0xF800
-#define MADERA_IN2L_RATE_SHIFT                              11
-#define MADERA_IN2L_RATE_WIDTH                               5
-
-/* (0x031B)  IN2L_Rate_Control */
-#define MADERA_IN2L_RATE_MASK1				0xF800
+#define MADERA_IN2L_RATE_MASK				0xF800
 #define MADERA_IN2L_RATE_SHIFT				    11
 #define MADERA_IN2L_RATE_WIDTH				     5
 
