@@ -4502,6 +4502,31 @@ static int cs40l2x_read_dyn_f0_table(struct cs40l2x_private *cs40l2x)
 	return 0;
 }
 
+static int cs40l2x_enable_classh(struct cs40l2x_private *cs40l2x)
+{
+	struct regmap *regmap = cs40l2x->regmap;
+	int ret;
+
+	if (!cs40l2x->clab_wt_en && !cs40l2x->f0_wt_en)
+		return 0;
+
+	/* Add 50 ms delay to settle the waveform */
+	msleep(CS40L2X_SETTLE_DELAY_MS);
+	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+					CS40L2X_BST_CTL_SEL_MASK,
+					CS40L2X_BST_CTL_SEL_CLASSH);
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
+			CS40L2X_CLASSH_EN_MASK,
+			1 << CS40L2X_CLASSH_EN_SHIFT);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static void cs40l2x_vibe_mode_worker(struct work_struct *work)
 {
 	struct cs40l2x_private *cs40l2x =
@@ -4592,8 +4617,22 @@ static void cs40l2x_vibe_mode_worker(struct work_struct *work)
 	} else if (cs40l2x->vibe_mode == CS40L2X_VIBE_MODE_HAPTIC &&
 						cs40l2x->a2h_enable) {
 
-		regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_5,
+		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+					CS40L2X_BST_CTL_SEL_MASK,
+					CS40L2X_BST_CTL_SEL_CLASSH);
+		if (ret)
+			goto err_mutex;
+
+		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
+				CS40L2X_CLASSH_EN_MASK,
+				1 << CS40L2X_CLASSH_EN_SHIFT);
+		if (ret)
+			goto err_mutex;
+
+		ret = regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_5,
 					CS40L2X_A2H_I2S_START);
+		if (ret)
+			goto err_mutex;
 
 	} else {
 		/* haptic-mode teardown */
@@ -4614,11 +4653,17 @@ static void cs40l2x_vibe_mode_worker(struct work_struct *work)
 		cs40l2x_set_state(cs40l2x, CS40L2X_VIBE_STATE_STOPPED);
 		cs40l2x_wl_relax(cs40l2x);
 	}
+
 	ret = cs40l2x_read_dyn_f0_table(cs40l2x);
 	if (ret) {
 		dev_err(dev, "Failed to read f0 table %d\n", ret);
 		goto err_mutex;
 	}
+
+	ret = cs40l2x_enable_classh(cs40l2x);
+	if (ret)
+		goto err_mutex;
+
 
 err_mutex:
 	mutex_unlock(&cs40l2x->lock);
@@ -5119,6 +5164,153 @@ static int cs40l2x_check_recovery(struct cs40l2x_private *cs40l2x)
 	return ret;
 }
 
+static int cs40l2x_classh_wt_check(struct cs40l2x_private *cs40l2x,
+					const unsigned char *data,
+					const int len)
+{
+	int i, index = 0;
+	unsigned int header_end = CS40L2X_WT_HEAD_END;
+
+	/* Check the wave table header for CLAB and F0 waveforms */
+	for (i = 1; i < len; i += CS40L2X_WT_DESC_BYTE_OFFSET) {
+		if (!memcmp(&header_end, (data + i), 3))
+			break;
+
+		if (*(data + i) & CS40L2X_CLAB_WT_EN)
+			cs40l2x->clab_wt_en |= 1 << index;
+
+		if (*(data + i) & CS40L2X_F0_WT_EN)
+			cs40l2x->f0_wt_en |= 1 << index;
+
+		index++;
+	}
+
+	return 0;
+}
+
+static int cs40l2x_set_boost_voltage(struct cs40l2x_private *cs40l2x,
+					unsigned int boost_ctl)
+{
+	struct regmap *regmap = cs40l2x->regmap;
+	struct device *dev = cs40l2x->dev;
+	unsigned int bst_ctl_scaled;
+	int ret;
+
+	if (boost_ctl)
+		boost_ctl &= CS40L2X_PDATA_MASK;
+	else
+		boost_ctl = CS40L2X_BST_VOLT_MAX;
+
+	switch (boost_ctl) {
+	case 0:
+		bst_ctl_scaled = boost_ctl;
+		break;
+	case CS40L2X_BST_VOLT_MIN ... CS40L2X_BST_VOLT_MAX:
+		bst_ctl_scaled = ((boost_ctl - CS40L2X_BST_VOLT_MIN) / 50) + 1;
+		break;
+	default:
+		dev_err(dev, "Invalid VBST limit: %d mV\n", boost_ctl);
+		return -EINVAL;
+	}
+
+	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL1,
+			CS40L2X_BST_CTL_MASK,
+			bst_ctl_scaled << CS40L2X_BST_CTL_SHIFT);
+	if (ret) {
+		dev_err(dev, "Failed to write VBST limit\n");
+		return ret;
+	}
+
+	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+			CS40L2X_BST_CTL_LIM_EN_MASK,
+			1 << CS40L2X_BST_CTL_LIM_EN_SHIFT);
+	if (ret) {
+		dev_err(dev, "Failed to configure VBST control\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+
+static int cs40l2x_cond_classh(struct cs40l2x_private *cs40l2x, int index)
+{
+	struct regmap *regmap = cs40l2x->regmap;
+	unsigned int enable = 0, reg, boost = cs40l2x->pdata.boost_ctl;
+	int ret;
+	bool disable_classh = false;
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "DYNAMIC_F0_ENABLED",
+					CS40L2X_XM_UNPACKED_TYPE,
+						CS40L2X_ALGO_ID_DYN_F0);
+
+	if (reg) {
+		ret = regmap_read(regmap, reg, &enable);
+		if (ret)
+			return ret;
+
+		if (enable) {
+			if ((cs40l2x->f0_wt_en) & (1 << index)) {
+				boost = cs40l2x->pdata.boost_ctl;
+				disable_classh = true;
+			}
+		}
+	}
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "CLAB_ENABLED",
+			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_CLAB);
+
+	if (reg) {
+		ret = regmap_read(regmap, reg, &enable);
+		if (ret)
+			return ret;
+
+		if (enable) {
+			if ((cs40l2x->clab_wt_en) & (1 << index)) {
+				boost = cs40l2x->pdata.boost_clab;
+				disable_classh = true;
+			}
+		}
+	}
+
+	if (disable_classh) {
+		ret = cs40l2x_set_boost_voltage(cs40l2x, boost);
+		if (ret)
+			return ret;
+
+		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+						CS40L2X_BST_CTL_SEL_MASK,
+						CS40L2X_BST_CTL_SEL_CP_VAL);
+		if (ret)
+			return ret;
+
+		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
+				CS40L2X_CLASSH_EN_MASK,
+				0 << CS40L2X_CLASSH_EN_SHIFT);
+		if (ret)
+			return ret;
+	} else {
+		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+						CS40L2X_BST_CTL_SEL_MASK,
+						CS40L2X_BST_CTL_SEL_CLASSH);
+		if (ret)
+			return ret;
+
+		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
+				CS40L2X_CLASSH_EN_MASK,
+				1 << CS40L2X_CLASSH_EN_SHIFT);
+		if (ret)
+			return ret;
+
+		ret = cs40l2x_set_boost_voltage(cs40l2x, boost);
+		if (ret)
+			return ret;
+
+	}
+
+	return 0;
+}
+
 static void cs40l2x_vibe_start_worker(struct work_struct *work)
 {
 	struct cs40l2x_private *cs40l2x =
@@ -5284,12 +5476,24 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 
 	case CS40L2X_INDEX_VIBE:
 	case CS40L2X_INDEX_CONT_MIN ... CS40L2X_INDEX_CONT_MAX:
+		ret = cs40l2x_cond_classh(cs40l2x, cs40l2x->cp_trailer_index);
+		if (ret) {
+			dev_err(dev, "Conditional ClassH failed\n");
+			break;
+		}
+
 		ret = cs40l2x_ack_write(cs40l2x, CS40L2X_MBOX_TRIGGER_MS,
 				cs40l2x->cp_trailer_index & CS40L2X_INDEX_MASK,
 				CS40L2X_MBOX_TRIGGERRESET);
 		break;
 
 	case CS40L2X_INDEX_CLICK_MIN ... CS40L2X_INDEX_CLICK_MAX:
+		ret = cs40l2x_cond_classh(cs40l2x, cs40l2x->cp_trailer_index);
+		if (ret) {
+			dev_err(dev, "Conditional ClassH failed\n");
+			break;
+		}
+
 		ret = cs40l2x_ack_write(cs40l2x, CS40L2X_MBOX_TRIGGERINDEX,
 				cs40l2x->cp_trailer_index,
 				CS40L2X_MBOX_TRIGGERRESET);
@@ -6524,6 +6728,8 @@ static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 						algo_id);
 				ret = -EINVAL;
 				goto err_rls_fw;
+			} else {
+				dev_info(dev, "Valid algo ID 0x%x\n", algo_id);
 			}
 
 			if (((algo_rev >> 8) & CS40L2X_ALGO_REV_MASK)
@@ -6578,6 +6784,14 @@ static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 				ret = -EINVAL;
 				goto err_rls_fw;
 			}
+			if (wt_found) {
+				ret = cs40l2x_classh_wt_check(cs40l2x,
+						&fw->data[pos],
+						block_length);
+				if (ret)
+					goto err_rls_fw;
+			}
+
 			break;
 		case CS40L2X_YM_UNPACKED_TYPE:
 			reg = CS40L2X_DSP1_YMEM_UNPACK24_0 + block_offset
@@ -8085,6 +8299,10 @@ static int cs40l2x_handle_of_data(struct i2c_client *i2c_client,
 	ret = of_property_read_u32(np, "cirrus,boost-ctl-millivolt", &out_val);
 	if (!ret)
 		pdata->boost_ctl = out_val | CS40L2X_PDATA_PRESENT;
+
+	ret = of_property_read_u32(np, "cirrus,boost-clab-millivolt", &out_val);
+	if (!ret)
+		pdata->boost_clab = out_val | CS40L2X_PDATA_PRESENT;
 
 	ret = of_property_read_u32(np, "cirrus,boost-ovp-millivolt", &out_val);
 	if (!ret)
