@@ -1,15 +1,9 @@
-/*
- * cs40l2x.c -- CS40L20/CS40L25/CS40L25A/CS40L25B Haptics Driver
- *
- * Copyright 2018 Cirrus Logic, Inc.
- *
- * Author: Jeff LaBundy <jeff.labundy@cirrus.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// cs40l2x.c  --  ALSA SoC Audio driver for Cirrus Logic CS40L2x
+//
+// Copyright 2018 Cirrus Logic Inc.
+// Author: Jeff LaBundy <jeff.labundy@cirrus.com>
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
