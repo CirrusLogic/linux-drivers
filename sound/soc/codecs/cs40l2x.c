@@ -220,6 +220,18 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+					CS40L2X_BST_CTL_SEL_MASK,
+					CS40L2X_BST_CTL_SEL_CLASSH);
+		if (ret)
+			return ret;
+
+		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
+			CS40L2X_CLASSH_EN_MASK,
+			1 << CS40L2X_CLASSH_EN_SHIFT);
+		if (ret)
+			return ret;
+
 		/* Enable I2S in the DSP */
 		ret = regmap_update_bits(regmap, CS40L2X_SP_ENABLES,
 					CS40L2X_ASP_RX_ENABLE_MASK,
