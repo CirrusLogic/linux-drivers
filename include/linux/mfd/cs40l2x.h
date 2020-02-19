@@ -593,6 +593,9 @@
 #define CS40L2X_BST_BYPASS		1
 #define CS40L2X_BST_ENABLED		2
 
+#define CS40L2X_CLASSH_EN_MASK		BIT(4)
+#define CS40L2X_CLASSH_EN_SHIFT		4
+
 #define CS40L2X_VBBR_EN_MASK		0x00002000
 #define CS40L2X_VBBR_EN_SHIFT		13
 
@@ -697,6 +700,8 @@
 #define CS40L2X_BST_CTL_SEL_SHIFT	0
 #define CS40L2X_BST_CTL_SEL_CP_VAL	0
 #define CS40L2X_BST_CTL_SEL_CLASSH	1
+#define CS40L2X_BST_VOLT_MIN		2550  /* millivolts */
+#define CS40L2X_BST_VOLT_MAX		11000 /* millivolts */
 
 #define CS40L2X_BST_IPK_MASK		0x0000007F
 #define CS40L2X_BST_IPK_SHIFT		0
@@ -829,6 +834,7 @@
 #define CS40L2X_WT_ALGO_REV_SIZE	4
 #define CS40L2X_WT_SAMPLE_RATE_SIZE	4
 #define CS40L2X_WT_DBLK_LENGTH_SIZE	4
+#define CS40L2X_WT_HEADER_END		0xffffff
 
 #define CS40L2X_XM_FW_ID		(CS40L2X_DSP1_XMEM_UNPACK24_0 + 12)
 #define CS40L2X_XM_NUM_ALGOS		(CS40L2X_DSP1_XMEM_UNPACK24_0 + 36)
@@ -1096,6 +1102,11 @@
 #define CS40L2X_CLAB_DISABLED		0
 #define CS40L2X_CLAB_PEAK_MAX		0x400000
 
+/* MSB in the WT Header */
+#define CS40L2X_CLAB_WT_EN		BIT(6)
+#define CS40L2X_F0_WT_EN		BIT(4)
+#define CS40L2X_WT_HEAD_END		0xFFFFFF
+
 #define CS40L2X_PAR_ENABLED		1
 #define CS40L2X_PAR_DISABLED		0
 #define CS40L2X_GC_ENABLED		1
@@ -1279,6 +1290,8 @@ struct cs40l2x_private {
 	bool comp_enable_redc;
 	bool comp_enable_f0;
 	bool amp_gnd_stby;
+	unsigned int clab_wt_en;
+	unsigned int f0_wt_en;
 	struct cs40l2x_wseq_pair dsp_cache[CS40L2X_DSP_CACHE_MAX];
 	unsigned int dsp_cache_depth;
 
