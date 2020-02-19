@@ -305,6 +305,10 @@ Optional properties:
     zero or VP rises above this value, VBST is bypassed to VP. If this value is
     omitted, the maximum target voltage remains at 11 V.
 
+  - cirrus,boost-clab-millivolt : Voltage closed-loop active-breaking, expressed
+    in mV. Valid values range from 2550 to 11000 (inclusive) in steps of 50. If
+    this value is omitted, then the target voltage will be 11V.
+
   - cirrus,boost-ovp-millivolt : Nominal VBST overvoltage protection threshold,
     expressed in mV. Valid values range from 9000 to 12875 (inclusive) in steps
     of 125. If this value is omitted, the threshold remains at 12 V.
