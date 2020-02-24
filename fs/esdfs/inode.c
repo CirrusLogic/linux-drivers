@@ -154,12 +154,12 @@ static int esdfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	esdfs_set_lower_mode(ESDFS_SB(dir->i_sb), ESDFS_I(dir), &mode);
 	err = vfs_mkdir(lower_parent_dentry->d_inode, lower_dentry, mode);
 	if (err)
-		goto out;
+		goto unlock_lower_parent;
 
 	err = esdfs_interpose(dentry, dir->i_sb, &lower_path,
 				ESDFS_I(dir)->userid);
 	if (err)
-		goto out;
+		goto unlock_lower_parent;
 
 	fsstack_copy_attr_times(dir, esdfs_lower_inode(dir));
 	fsstack_copy_inode_size(dir, lower_parent_dentry->d_inode);
@@ -167,11 +167,15 @@ static int esdfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	set_nlink(dir, esdfs_lower_inode(dir)->i_nlink);
 	esdfs_derive_lower_ownership(dentry, dentry->d_name.name);
 
-	if (ESDFS_DERIVE_PERMS(ESDFS_SB(dir->i_sb)))
+	if (ESDFS_DERIVE_PERMS(ESDFS_SB(dir->i_sb))) {
+		unlock_dir(lower_parent_dentry);
 		err = esdfs_derive_mkdir_contents(dentry);
+		goto out;
+	}
 
-out:
+unlock_lower_parent:
 	unlock_dir(lower_parent_dentry);
+out:
 	esdfs_put_lower_path(dentry, &lower_path);
 	esdfs_revert_creds(creds, &mask);
 	return err;
