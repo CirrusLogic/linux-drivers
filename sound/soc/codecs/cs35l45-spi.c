@@ -51,6 +51,7 @@ static int cs35l45_spi_probe(struct spi_device *spi)
 
 	cs35l45->dev = dev;
 	cs35l45->irq = spi->irq;
+	cs35l45->wksrc = CS35L45_WKSRC_SPI;
 
 	ret = cs35l45_probe(cs35l45);
 	if (ret < 0) {
@@ -60,7 +61,13 @@ static int cs35l45_spi_probe(struct spi_device *spi)
 
 	usleep_range(2000, 2100);
 
-	return cs35l45_initialize(cs35l45);
+	ret = cs35l45_initialize(cs35l45);
+	if (ret < 0) {
+		dev_err(dev, "Failed device initialization: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int cs35l45_spi_remove(struct spi_device *spi)

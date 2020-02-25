@@ -51,6 +51,8 @@ static int cs35l45_i2c_probe(struct i2c_client *client,
 
 	cs35l45->dev = dev;
 	cs35l45->irq = client->irq;
+	cs35l45->wksrc = CS35L45_WKSRC_I2C;
+	cs35l45->i2c_addr = client->addr;
 
 	ret = cs35l45_probe(cs35l45);
 	if (ret < 0) {
@@ -60,7 +62,13 @@ static int cs35l45_i2c_probe(struct i2c_client *client,
 
 	usleep_range(2000, 2100);
 
-	return cs35l45_initialize(cs35l45);
+	ret = cs35l45_initialize(cs35l45);
+	if (ret < 0) {
+		dev_err(dev, "Failed device initialization: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int cs35l45_i2c_remove(struct i2c_client *client)
