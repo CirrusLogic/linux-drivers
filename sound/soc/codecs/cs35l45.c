@@ -28,6 +28,17 @@
 #include <sound/cirrus/power.h>
 #endif
 
+struct cs35l45_mixer_cache {
+	unsigned int reg;
+	unsigned int mask;
+	unsigned int val;
+};
+
+static int __cs35l45_initialize(struct cs35l45_private *cs35l45);
+static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en);
+static int cs35l45_set_sysclk(struct cs35l45_private *cs35l45, int clk_id,
+			      unsigned int freq);
+
 static bool cs35l45_is_csplmboxsts_correct(enum cspl_mboxcmd cmd,
 					   enum cspl_mboxstate sts)
 {
@@ -43,6 +54,10 @@ static bool cs35l45_is_csplmboxsts_correct(enum cspl_mboxcmd cmd,
 		return (sts == CSPL_MBOX_STS_RUNNING);
 	case CSPL_MBOX_CMD_STOP_PRE_REINIT:
 		return (sts == CSPL_MBOX_STS_RDY_FOR_REINIT);
+	case CSPL_MBOX_CMD_HIBERNATE:
+		return (sts == CSPL_MBOX_STS_HIBERNATE);
+	case CSPL_MBOX_CMD_OUT_OF_HIBERNATE:
+		return (sts == CSPL_MBOX_STS_PAUSED);
 	default:
 		return false;
 	}
@@ -264,17 +279,39 @@ static int cs35l45_global_en_power_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		if (cs35l45->amplifier_mode == AMP_MODE_SPK) /* SPK */
+		if (cs35l45->amplifier_mode == AMP_MODE_SPK) {
 			regmap_update_bits(cs35l45->regmap,
-				CS35L45_BLOCK_ENABLES, CS35L45_BST_EN_MASK,
-				CS35L45_BST_ENABLE << CS35L45_BST_EN_SHIFT);
+					   CS35L45_BLOCK_ENABLES,
+					   CS35L45_BST_EN_MASK,
+					   CS35L45_BST_ENABLE <<
+					   CS35L45_BST_EN_SHIFT);
+
+			regmap_update_bits(cs35l45->regmap, CS35L45_HVLV_CONFIG,
+					   CS35L45_HVLV_MODE_MASK,
+					   CS35L45_HVLV_OPERATION <<
+					   CS35L45_HVLV_MODE_SHIFT);
+		} else  /* AMP_MODE_RCV */ {
+			regmap_update_bits(cs35l45->regmap, CS35L45_HVLV_CONFIG,
+					   CS35L45_HVLV_MODE_MASK,
+					   CS35L45_FORCE_LV_OPERATION <<
+					   CS35L45_HVLV_MODE_SHIFT);
+
+			regmap_update_bits(cs35l45->regmap,
+					   CS35L45_BLOCK_ENABLES2,
+					   CS35L45_AMP_DRE_EN_MASK, 0);
+
+			regmap_update_bits(cs35l45->regmap, CS35L45_AMP_GAIN,
+					   CS35L45_AMP_GAIN_PCM_MASK,
+					   CS35L45_AMP_GAIN_PCM_13DBV <<
+					   CS35L45_AMP_GAIN_PCM_SHIFT);
+		}
 
 		regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_ENABLES,
 				CS35L45_GLOBAL_EN_MASK, CS35L45_GLOBAL_EN_MASK);
 
 		usleep_range(3000, 3100);
 
-		if (cs35l45->amplifier_mode == AMP_MODE_RCV) /* RCV */
+		if (cs35l45->amplifier_mode == AMP_MODE_RCV)
 			regmap_update_bits(cs35l45->regmap,
 				CS35L45_BLOCK_ENABLES, CS35L45_BST_EN_MASK,
 				CS35L45_BST_DISABLE_FET_ON <<
@@ -496,6 +533,41 @@ static const struct snd_soc_dapm_route cs35l45_dsp_dapm_routes[] = {
 	{"DSP_RX2 Source", NULL, "DSP"},
 };
 
+static int cs35l45_activate_ctl(struct cs35l45_private *cs35l45,
+				const char *ctl_name, bool active)
+{
+	struct snd_soc_component *component =
+			snd_soc_lookup_component(cs35l45->dev, NULL);
+	struct snd_card *card = component->card->snd_card;
+	struct snd_kcontrol *kcontrol;
+	struct snd_kcontrol_volatile *vd;
+	unsigned int index_offset;
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+
+	if (component->name_prefix)
+		snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "%s %s",
+			 component->name_prefix, ctl_name);
+	else
+		snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "%s", ctl_name);
+
+	kcontrol = snd_soc_card_get_kcontrol(component->card, name);
+	if (!kcontrol) {
+		dev_err(cs35l45->dev, "Can't find kcontrol %s\n", name);
+		return -EINVAL;
+	}
+
+	index_offset = snd_ctl_get_ioff(kcontrol, &kcontrol->id);
+	vd = &kcontrol->vd[index_offset];
+	if (active)
+		vd->access |= SNDRV_CTL_ELEM_ACCESS_WRITE;
+	else
+		vd->access &= ~SNDRV_CTL_ELEM_ACCESS_WRITE;
+
+	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO, &kcontrol->id);
+
+	return 0;
+}
+
 static const char * const gain_texts[] = {"10dB", "13dB", "16dB", "19dB"};
 static const unsigned int gain_values[] = {0x00, 0x01, 0x02, 0x03};
 static SOC_VALUE_ENUM_SINGLE_DECL(gain_enum, CS35L45_AMP_GAIN,
@@ -506,6 +578,10 @@ static SOC_VALUE_ENUM_SINGLE_DECL(gain_enum, CS35L45_AMP_GAIN,
 static const char * const amplifier_mode_texts[] = {"SPK", "RCV"};
 static SOC_ENUM_SINGLE_DECL(amplifier_mode_enum, SND_SOC_NOPM, 0,
 			    amplifier_mode_texts);
+
+static const char * const hibernate_mode_texts[] = {"Off", "On"};
+static SOC_ENUM_SINGLE_DECL(hibernate_mode_enum, SND_SOC_NOPM, 0,
+			    hibernate_mode_texts);
 
 static int cs35l45_amplifier_mode_get(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
@@ -536,13 +612,6 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 
 	cs35l45->amplifier_mode = ucontrol->value.integer.value[0];
 
-	if (cs35l45->amplifier_mode == AMP_MODE_SPK) /* SPK */
-		snd_soc_dapm_add_routes(dapm, cs35l45_dsp_dapm_routes,
-					ARRAY_SIZE(cs35l45_dsp_dapm_routes));
-	else /* RCV */
-		snd_soc_dapm_del_routes(dapm, cs35l45_dsp_dapm_routes,
-					ARRAY_SIZE(cs35l45_dsp_dapm_routes));
-
 	status = snd_soc_component_get_pin_status(component, "SPK") |
 		 snd_soc_component_get_pin_status(component, "RCV");
 
@@ -552,48 +621,51 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 
 	snd_soc_dapm_sync(dapm);
 
-	if (cs35l45->amplifier_mode == AMP_MODE_SPK) { /* SPK */
-		regmap_update_bits(cs35l45->regmap, CS35L45_HVLV_CONFIG,
-				   CS35L45_HVLV_MODE_MASK,
-				   CS35L45_HVLV_OPERATION <<
-				   CS35L45_HVLV_MODE_SHIFT);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_AMP_GAIN,
-				   CS35L45_AMP_GAIN_PCM_MASK,
-				   CS35L45_AMP_GAIN_PCM_19DBV <<
-				   CS35L45_AMP_GAIN_PCM_SHIFT);
-	} else { /* RCV */
-		regmap_update_bits(cs35l45->regmap, CS35L45_HVLV_CONFIG,
-				   CS35L45_HVLV_MODE_MASK,
-				   CS35L45_FORCE_LV_OPERATION <<
-				   CS35L45_HVLV_MODE_SHIFT);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES2,
-				   CS35L45_AMP_DRE_EN_MASK, 0);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_AMP_GAIN,
-				   CS35L45_AMP_GAIN_PCM_MASK,
-				   CS35L45_AMP_GAIN_PCM_13DBV <<
-				   CS35L45_AMP_GAIN_PCM_SHIFT);
-	}
+	if (cs35l45->amplifier_mode == AMP_MODE_SPK)
+		snd_soc_dapm_add_routes(dapm, cs35l45_dsp_dapm_routes,
+					ARRAY_SIZE(cs35l45_dsp_dapm_routes));
+	else /* AMP_MODE_RCV */
+		snd_soc_dapm_del_routes(dapm, cs35l45_dsp_dapm_routes,
+					ARRAY_SIZE(cs35l45_dsp_dapm_routes));
 
 	/* If playback is not in progress, exit */
 	if (!status)
-		return 0;
+		goto skip_pin_enable;
 
 	if (cs35l45->amplifier_mode == AMP_MODE_SPK)
 		snd_soc_component_enable_pin(component, "SPK");
-	else
+	else /* AMP_MODE_RCV */
 		snd_soc_component_enable_pin(component, "RCV");
 
+skip_pin_enable:
 	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }
 
-static const char * const amp_mode_txt[] = {"SPK", "RCV"};
-static const struct soc_enum amp_mode_enum =
-	SOC_ENUM_SINGLE_VIRT(ARRAY_SIZE(amp_mode_txt), amp_mode_txt);
+static int cs35l45_hibernate_mode_get(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = cs35l45->hibernate_mode;
+
+	return 0;
+}
+
+static int cs35l45_hibernate_mode_put(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(component);
+
+	return cs35l45_hibernate(cs35l45, ucontrol->value.integer.value[0]);
+}
 
 static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
@@ -602,6 +674,8 @@ static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 		     cs35l45_amplifier_mode_get, cs35l45_amplifier_mode_put),
 	SOC_ENUM("AMP PCM Gain", gain_enum),
 	SOC_SINGLE("AMP Mute", CS35L45_AMP_OUTPUT_MUTE, 0, 1, 0),
+	SOC_ENUM_EXT("Hibernate Mode", hibernate_mode_enum,
+		     cs35l45_hibernate_mode_get, cs35l45_hibernate_mode_put),
 };
 
 static int cs35l45_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
@@ -744,73 +818,14 @@ static int cs35l45_dai_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int cs35l45_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
-				unsigned int rx_mask, int slots,
-				int slot_width)
+static int cs35l45_dai_set_tdm_slot(struct snd_soc_dai *dai,
+				    unsigned int tx_mask, unsigned int rx_mask,
+				    int slots, int slot_width)
 {
 	struct cs35l45_private *cs35l45 =
 			snd_soc_component_get_drvdata(dai->component);
 
 	cs35l45->slot_width = slot_width;
-
-	return 0;
-}
-
-static int cs35l45_get_clk_config(int freq)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(cs35l45_pll_sysclk); i++) {
-		if (cs35l45_pll_sysclk[i].freq == freq)
-			return cs35l45_pll_sysclk[i].clk_cfg;
-	}
-
-	return -EINVAL;
-}
-
-static int cs35l45_set_sysclk(struct cs35l45_private *cs35l45, int clk_id,
-			      unsigned int freq)
-{
-	int extclk_cfg, clksrc;
-
-
-	switch (clk_id) {
-	case 0:
-		clksrc = CS35L45_PLL_REFCLK_SEL_BCLK;
-		break;
-	default:
-		dev_err(cs35l45->dev, "Invalid CLK Config\n");
-		return -EINVAL;
-	}
-
-	extclk_cfg = cs35l45_get_clk_config(freq);
-	if (extclk_cfg < 0) {
-		dev_err(cs35l45->dev, "Invalid CLK Config: %d, freq: %u\n",
-			extclk_cfg, freq);
-		return -EINVAL;
-	}
-
-	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-			   CS35L45_PLL_OPEN_LOOP_MASK,
-			   CS35L45_PLL_OPEN_LOOP_MASK);
-
-	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-			   CS35L45_PLL_REFCLK_FREQ_MASK,
-			   extclk_cfg << CS35L45_PLL_REFCLK_FREQ_SHIFT);
-
-	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-			   CS35L45_PLL_REFCLK_EN_MASK, 0);
-
-	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-			   CS35L45_PLL_REFCLK_SEL_MASK,
-			   clksrc << CS35L45_PLL_REFCLK_SEL_SHIFT);
-
-	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-			   CS35L45_PLL_OPEN_LOOP_MASK, 0);
-
-	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-			   CS35L45_PLL_REFCLK_EN_MASK,
-			   CS35L45_PLL_REFCLK_EN_MASK);
 
 	return 0;
 }
@@ -833,11 +848,19 @@ static int cs35l45_dai_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_dapm_context *dapm =
 			snd_soc_component_get_dapm(component);
 
+	if (cs35l45->hibernate_mode == HIBER_MODE_EN) {
+		dev_err(cs35l45->dev,
+			"Amp is hibernating; please wake up first\n");
+		return -EPERM;
+	}
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		if (!cs35l45->amplifier_mode)
 			snd_soc_component_enable_pin(component, "SPK");
 		else
 			snd_soc_component_enable_pin(component, "RCV");
+	} else {
+		snd_soc_component_enable_pin(component, "AP");
 	}
 
 	snd_soc_dapm_sync(dapm);
@@ -855,6 +878,8 @@ static void cs35l45_dai_shutdown(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		snd_soc_component_disable_pin(component, "SPK");
 		snd_soc_component_disable_pin(component, "RCV");
+	} else {
+		snd_soc_component_disable_pin(component, "AP");
 	}
 
 	snd_soc_dapm_sync(dapm);
@@ -865,7 +890,7 @@ static const struct snd_soc_dai_ops cs35l45_dai_ops = {
 	.shutdown = cs35l45_dai_shutdown,
 	.set_fmt = cs35l45_dai_set_fmt,
 	.hw_params = cs35l45_dai_hw_params,
-	.set_tdm_slot = cs35l45_set_tdm_slot,
+	.set_tdm_slot = cs35l45_dai_set_tdm_slot,
 	.set_sysclk = cs35l45_dai_set_sysclk,
 };
 
@@ -960,6 +985,7 @@ static int cs35l45_component_probe(struct snd_soc_component *component)
 
 	snd_soc_component_disable_pin(component, "SPK");
 	snd_soc_component_disable_pin(component, "RCV");
+	snd_soc_component_disable_pin(component, "AP");
 
 	snd_soc_dapm_add_routes(dapm, cs35l45_dsp_dapm_routes,
 				ARRAY_SIZE(cs35l45_dsp_dapm_routes));
@@ -993,6 +1019,65 @@ static const struct snd_soc_component_driver cs35l45_component = {
 	.controls = cs35l45_aud_controls,
 	.num_controls = ARRAY_SIZE(cs35l45_aud_controls),
 };
+
+static int cs35l45_get_clk_config(int freq)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(cs35l45_pll_sysclk); i++) {
+		if (cs35l45_pll_sysclk[i].freq == freq)
+			return cs35l45_pll_sysclk[i].clk_cfg;
+	}
+
+	return -EINVAL;
+}
+
+static int cs35l45_set_sysclk(struct cs35l45_private *cs35l45, int clk_id,
+			      unsigned int freq)
+{
+	int extclk_cfg, clksrc;
+
+
+	switch (clk_id) {
+	case 0:
+		clksrc = CS35L45_PLL_REFCLK_SEL_BCLK;
+		break;
+	default:
+		dev_err(cs35l45->dev, "Invalid CLK Config\n");
+		return -EINVAL;
+	}
+
+	extclk_cfg = cs35l45_get_clk_config(freq);
+	if (extclk_cfg < 0) {
+		dev_err(cs35l45->dev, "Invalid CLK Config: %d, freq: %u\n",
+			extclk_cfg, freq);
+		return -EINVAL;
+	}
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+			   CS35L45_PLL_OPEN_LOOP_MASK,
+			   CS35L45_PLL_OPEN_LOOP_MASK);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+			   CS35L45_PLL_REFCLK_FREQ_MASK,
+			   extclk_cfg << CS35L45_PLL_REFCLK_FREQ_SHIFT);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+			   CS35L45_PLL_REFCLK_EN_MASK, 0);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+			   CS35L45_PLL_REFCLK_SEL_MASK,
+			   clksrc << CS35L45_PLL_REFCLK_SEL_SHIFT);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+			   CS35L45_PLL_OPEN_LOOP_MASK, 0);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+			   CS35L45_PLL_REFCLK_EN_MASK,
+			   CS35L45_PLL_REFCLK_EN_MASK);
+
+	return 0;
+}
 
 static const struct cs35l45_irq_monitor cs35l45_irq_mons[] = {
 	{
@@ -1557,6 +1642,123 @@ gpio_cfg:
 	return 0;
 }
 
+static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
+{
+	struct snd_soc_component *component =
+			snd_soc_lookup_component(cs35l45->dev, NULL);
+	unsigned int sts, cmd, val;
+	int status, ret, i;
+	struct cs35l45_mixer_cache mixer_cache[] = {
+		{CS35L45_AMP_GAIN, CS35L45_AMP_GAIN_PCM_MASK, 0x00000000},
+		{CS35L45_AMP_OUTPUT_MUTE, CS35L45_AMP_MUTE_MASK, 0x00000000},
+		{CS35L45_ASPTX1_INPUT,	CS35L45_PCM_SRC_MASK, 0x00000000},
+		{CS35L45_ASPTX2_INPUT,	CS35L45_PCM_SRC_MASK, 0x00000000},
+		{CS35L45_ASPTX3_INPUT,	CS35L45_PCM_SRC_MASK, 0x00000000},
+		{CS35L45_ASPTX4_INPUT,	CS35L45_PCM_SRC_MASK, 0x00000000},
+		{CS35L45_DSP1RX1_INPUT,	CS35L45_PCM_SRC_MASK, 0x00000000},
+		{CS35L45_DSP1RX2_INPUT, CS35L45_PCM_SRC_MASK, 0x00000000},
+		{CS35L45_DACPCM1_INPUT, CS35L45_PCM_SRC_MASK, 0x00000000},
+	};
+
+	if (hiber_en == cs35l45->hibernate_mode)
+		return 0;
+
+	status = snd_soc_component_get_pin_status(component, "SPK") |
+		 snd_soc_component_get_pin_status(component, "RCV") |
+		 snd_soc_component_get_pin_status(component, "AP");
+	if (status) {
+		dev_info(cs35l45->dev, "Amp is active; cannot hibernate\n");
+		return -EPERM;
+	}
+
+	if (hiber_en == HIBER_MODE_EN) {
+		if (!cs35l45->dsp.booted) {
+			dev_err(cs35l45->dev, "Firmware not loaded\n");
+			return -EPERM;
+		}
+
+		regmap_read(cs35l45->regmap, CS35L45_DSP_MBOX_2, &sts);
+		if (((enum cspl_mboxstate)sts) != CSPL_MBOX_STS_PAUSED) {
+			dev_err(cs35l45->dev, "FW not paused (%d)\n", sts);
+			return -EINVAL;
+		}
+
+		cmd = CSPL_MBOX_CMD_HIBERNATE;
+		regmap_write(cs35l45->regmap, CS35L45_DSP_VIRT1_MBOX_1, cmd);
+
+		ret = cs35l45_activate_ctl(cs35l45, "DSP1 Preload Switch",
+					   false);
+		if (ret < 0)
+			dev_err(cs35l45->dev, "Unable to deactivate ctl (%d)\n",
+				ret);
+
+		cs35l45->initialized = false;
+
+		regcache_cache_only(cs35l45->regmap, true);
+	} else  /* HIBER_MODE_DIS */ {
+		if (!cs35l45->dsp.booted) {
+			dev_err(cs35l45->dev, "Firmware not loaded\n");
+			return -EPERM;
+		}
+
+		usleep_range(200, 300);
+
+		for (i = 0; i < ARRAY_SIZE(mixer_cache); i++)
+			regmap_read(cs35l45->regmap, mixer_cache[i].reg,
+				    &mixer_cache[i].val);
+
+		regcache_cache_only(cs35l45->regmap, false);
+
+		regcache_drop_region(cs35l45->regmap, CS35L45_DEVID,
+				     CS35L45_MIXER_NGATE_CH2_CFG);
+
+		for (i = 0; i < 5; i++) {
+			usleep_range(200, 300);
+
+			ret = regmap_read(cs35l45->regmap, CS35L45_DEVID, &val);
+			if (!ret)
+				break;
+		}
+
+		if (i == 5) {
+			dev_info(cs35l45->dev, "Timeout trying to wake amp");
+			return -ETIMEDOUT;
+		}
+
+		ret = __cs35l45_initialize(cs35l45);
+		if (ret < 0) {
+			dev_err(cs35l45->dev, "Failed to reinitialize (%d)\n",
+				ret);
+			return ret;
+		}
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
+				   CS35L45_MEM_RDY_MASK, CS35L45_MEM_RDY_MASK);
+
+		usleep_range(100, 200);
+
+		cmd = CSPL_MBOX_CMD_OUT_OF_HIBERNATE;
+		ret = cs35l45_set_csplmboxcmd(cs35l45, cmd);
+		if (ret < 0)
+			dev_err(cs35l45->dev, "MBOX failure (%d)\n", ret);
+
+		for (i = 0; i < ARRAY_SIZE(mixer_cache); i++)
+			regmap_update_bits(cs35l45->regmap, mixer_cache[i].reg,
+					   mixer_cache[i].mask,
+					   mixer_cache[i].val);
+
+		ret = cs35l45_activate_ctl(cs35l45, "DSP1 Preload Switch",
+					   true);
+		if (ret < 0)
+			dev_err(cs35l45->dev, "Unable to activate ctl (%d)\n",
+				ret);
+	}
+
+	cs35l45->hibernate_mode = hiber_en;
+
+	return 0;
+}
+
 static const struct reg_sequence cs35l45_errata_patch[] = {
 	{0x00000040,		0x00000055},
 	{0x00000040,		0x000000AA},
@@ -1572,28 +1774,33 @@ static const struct reg_sequence cs35l45_errata_patch[] = {
 	{0x00000044,		0x00000000},
 };
 
-int cs35l45_initialize(struct cs35l45_private *cs35l45)
+static int __cs35l45_initialize(struct cs35l45_private *cs35l45)
 {
 	struct device *dev = cs35l45->dev;
-	int ret;
-	u32 dev_id, rev_id;
+	unsigned int sts;
+	int ret, i;
 
 	if (cs35l45->initialized)
 		return -EPERM;
 
-	ret = regmap_read(cs35l45->regmap, CS35L45_DEVID, &dev_id);
-	if (ret < 0) {
-		dev_err(dev, "Get Device ID failed\n");
-		return ret;
+	for (i = 0; i < 5; i++) {
+		usleep_range(1000, 1100);
+
+		regmap_read(cs35l45->regmap, CS35L45_IRQ1_EINT_4, &sts);
+		if (!(sts & CS35L45_OTP_BOOT_DONE_STS_MASK))
+			continue;
+
+		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_4,
+			     CS35L45_OTP_BOOT_DONE_STS_MASK |
+			     CS35L45_OTP_BUSY_MASK);
+
+		break;
 	}
 
-	ret = regmap_read(cs35l45->regmap, CS35L45_REVID, &rev_id);
-	if (ret < 0) {
-		dev_err(dev, "Get Revision ID failed\n");
-		return ret;
+	if (i == 5) {
+		dev_err(cs35l45->dev, "Timeout waiting for OTP boot\n");
+		return -ETIMEDOUT;
 	}
-
-	usleep_range(200, 300);
 
 	ret = regmap_register_patch(cs35l45->regmap, cs35l45_errata_patch,
 				    ARRAY_SIZE(cs35l45_errata_patch));
@@ -1601,17 +1808,6 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 		dev_err(dev, "Failed to apply errata patch %d\n", ret);
 		return ret;
 	}
-
-	regmap_update_bits(cs35l45->regmap,
-			   CS35L45_DSP1_STREAM_ARB_TX1_CONFIG_0,
-			   CS35L45_DSP1_STREAM_ARB_TX1_EN_MASK, 0);
-
-	regmap_update_bits(cs35l45->regmap,
-			   CS35L45_DSP1_STREAM_ARB_MSTR1_CONFIG_0,
-			   CS35L45_DSP1_STREAM_ARB_MSTR0_EN_MASK, 0);
-
-	regmap_update_bits(cs35l45->regmap, CS35L45_DSP1_CCM_CORE_CONTROL,
-			   CS35L45_CCM_CORE_EN_MASK, 0);
 
 	regmap_write(cs35l45->regmap, CS35L45_MIXER_PILOT0_INPUT,
 		     CS35L45_PCM_SRC_DSP_TX2);
@@ -1631,10 +1827,61 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 		}
 	}
 
-	dev_info(dev, "Cirrus Logic CS35L45 (%x), Revision: %02X\n", dev_id,
-		 rev_id);
+	regmap_update_bits(cs35l45->regmap, CS35L45_WAKESRC_CTL,
+			   CS35L45_WKSRC_EN_MASK,
+			   cs35l45->wksrc << CS35L45_WKSRC_EN_SHIFT);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_WAKESRC_CTL,
+			   CS35L45_UPDT_WKCTL_MASK, CS35L45_UPDT_WKCTL_MASK);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_WKI2C_CTL,
+			   CS35L45_WKI2C_ADDR_MASK, cs35l45->i2c_addr);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_WKI2C_CTL,
+			   CS35L45_UPDT_WKI2C_MASK, CS35L45_UPDT_WKI2C_MASK);
 
 	cs35l45->initialized = true;
+
+	return 0;
+}
+
+int cs35l45_initialize(struct cs35l45_private *cs35l45)
+{
+	struct device *dev = cs35l45->dev;
+	unsigned int dev_id, rev_id;
+	int ret;
+
+	ret = regmap_read(cs35l45->regmap, CS35L45_DEVID, &dev_id);
+	if (ret < 0) {
+		dev_err(dev, "Get Device ID failed\n");
+		return ret;
+	}
+
+	ret = regmap_read(cs35l45->regmap, CS35L45_REVID, &rev_id);
+	if (ret < 0) {
+		dev_err(dev, "Get Revision ID failed\n");
+		return ret;
+	}
+
+	ret = __cs35l45_initialize(cs35l45);
+	if (ret < 0) {
+		dev_err(dev, "CS35L45 failed to initialize (%d)\n", ret);
+		return ret;
+	}
+
+	regmap_update_bits(cs35l45->regmap,
+			   CS35L45_DSP1_STREAM_ARB_TX1_CONFIG_0,
+			   CS35L45_DSP1_STREAM_ARB_TX1_EN_MASK, 0);
+
+	regmap_update_bits(cs35l45->regmap,
+			   CS35L45_DSP1_STREAM_ARB_MSTR1_CONFIG_0,
+			   CS35L45_DSP1_STREAM_ARB_MSTR0_EN_MASK, 0);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_DSP1_CCM_CORE_CONTROL,
+			   CS35L45_CCM_CORE_EN_MASK, 0);
+
+	dev_info(dev, "Cirrus Logic CS35L45 (%x), Revision: %02X\n", dev_id,
+		 rev_id);
 
 	return 0;
 }
