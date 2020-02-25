@@ -3451,7 +3451,6 @@ static int madera_extcon_remove(struct platform_device *pdev)
 			   MADERA_JD1_ENA | MADERA_JD2_ENA, 0);
 
 	device_remove_file(&pdev->dev, &dev_attr_hp1_impedance);
-	kfree(info->hpdet_trims);
 
 	return 0;
 }
