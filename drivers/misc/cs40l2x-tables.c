@@ -982,7 +982,6 @@ static const char * const cs40l2x_coeff_files_cal[] = {
 static const char * const cs40l2x_coeff_files_clab[] = {
 	CS40L2X_WT_FILE_NAME_DEFAULT,
 	"cs40l25a_clab.bin",
-	CS40L2X_DYN_F0_FILE_NAME,
 };
 
 static const char * const cs40l2x_coeff_files_par[] = {
