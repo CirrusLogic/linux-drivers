@@ -16,16 +16,16 @@
  * related to auto-updating its firmware.
  */
 
-#include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/kernel.h>
 #include <linux/kobject.h>
+#include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_pd_update.h>
 #include <linux/platform_data/cros_ec_proto.h>
+#include <linux/platform_data/cros_usbpd_notify.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 
@@ -841,68 +841,22 @@ static int cros_ec_pd_suspend(struct device *dev)
 static SIMPLE_DEV_PM_OPS(cros_ec_pd_pm,
 	cros_ec_pd_suspend, cros_ec_pd_resume);
 
-#ifdef CONFIG_ACPI
-static void acpi_cros_ec_pd_notify(struct acpi_device *acpi_device, u32 event)
-{
-	cros_ec_pd_notify(&acpi_device->dev, event);
-}
-
-static int acpi_cros_ec_pd_add(struct acpi_device *acpi_device)
-{
-	return cros_ec_pd_add(&acpi_device->dev);
-}
-
-static int acpi_cros_ec_pd_remove(struct acpi_device *acpi_device)
-{
-	return cros_ec_pd_remove(&acpi_device->dev);
-}
-
-static const struct acpi_device_id pd_device_ids[] = {
-	{ "GOOG0003", 0 },
-	{ }
-};
-
-MODULE_DEVICE_TABLE(acpi, pd_device_ids);
-
-static struct acpi_driver acpi_cros_ec_pd_driver = {
-	.name = "cros_ec_pd_update",
-	.class = "cros_ec_pd_update",
-	.ids = pd_device_ids,
-	.ops = {
-		.add = acpi_cros_ec_pd_add,
-		.remove = acpi_cros_ec_pd_remove,
-		.notify = acpi_cros_ec_pd_notify,
-	},
-	.drv.pm = &cros_ec_pd_pm,
-};
-
-module_acpi_driver(acpi_cros_ec_pd_driver);
-#else /* CONFIG_ACPI */
 static int _ec_pd_notify(struct notifier_block *nb,
-	unsigned long queued_during_suspend, void *_notify)
+	unsigned long host_event, void *_notify)
 {
 	struct cros_ec_pd_update_data *drv_data;
 	struct device *dev;
-	struct cros_ec_device *ec;
-	u32 host_event;
 
 	drv_data = container_of(nb, struct cros_ec_pd_update_data, notifier);
 	dev = drv_data->dev;
-	ec = dev_get_drvdata(dev->parent);
 
-	host_event = cros_ec_get_host_event(ec);
-	if (host_event & EC_HOST_EVENT_MASK(EC_HOST_EVENT_PD_MCU)) {
-		cros_ec_pd_notify(dev, host_event);
-		return NOTIFY_OK;
-	} else {
-		return NOTIFY_DONE;
-	}
+	cros_ec_pd_notify(dev, host_event);
+	return NOTIFY_OK;
 }
 
 static int plat_cros_ec_pd_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct cros_ec_device *ec = dev_get_drvdata(dev->parent);
 	struct cros_ec_pd_update_data *drv_data =
 		(struct cros_ec_pd_update_data *)dev_get_drvdata(dev);
 	int ret;
@@ -914,8 +868,7 @@ static int plat_cros_ec_pd_probe(struct platform_device *pdev)
 	drv_data = (struct cros_ec_pd_update_data *)dev_get_drvdata(dev);
 	/* Get PD events from the EC */
 	drv_data->notifier.notifier_call = _ec_pd_notify;
-	ret = blocking_notifier_chain_register(&ec->event_notifier,
-					       &drv_data->notifier);
+	ret = cros_usbpd_register_notify(&drv_data->notifier);
 	if (ret < 0)
 		dev_warn(dev, "failed to register notifier\n");
 
@@ -925,26 +878,17 @@ static int plat_cros_ec_pd_probe(struct platform_device *pdev)
 static int plat_cros_ec_pd_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct cros_ec_device *ec = dev_get_drvdata(dev->parent);
 	struct cros_ec_pd_update_data *drv_data =
 		(struct cros_ec_pd_update_data *)dev_get_drvdata(dev);
 
-	blocking_notifier_chain_unregister(&ec->event_notifier,
-					   &drv_data->notifier);
+	cros_usbpd_unregister_notify(&drv_data->notifier);
 
 	return cros_ec_pd_remove(dev);
 }
 
-static const struct of_device_id cros_ec_pd_of_match[] = {
-	{ .compatible = "google,cros-ec-pd-update" },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, cros_ec_pd_of_match);
-
 static struct platform_driver cros_ec_pd_driver = {
 	.driver = {
 		.name  = DRV_NAME,
-		.of_match_table = of_match_ptr(cros_ec_pd_of_match),
 		.pm = &cros_ec_pd_pm,
 	},
 	.remove  = plat_cros_ec_pd_remove,
@@ -952,8 +896,6 @@ static struct platform_driver cros_ec_pd_driver = {
 };
 
 module_platform_driver(cros_ec_pd_driver);
-
-#endif /* CONFIG_ACPI */
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ChromeOS power device FW update driver");
