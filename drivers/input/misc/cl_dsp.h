@@ -7,8 +7,10 @@
  * Author: Fred Treven <fred.treven@cirrus.com>
  */
 
-#ifndef __CL_DSP_H
-#define __CL_DSP_H
+#include <linux/firmware.h>
+
+#ifndef __CL_DSP_H__
+#define __CL_DSP_H__
 
 
 #define CL_DSP_ALGO_ID_SIZE	4
@@ -25,6 +27,8 @@
 #define CL_DSP_NUM_ALGOS_MAX	16
 
 #define CL_DSP_MAX_WLEN	4096
+
+#define CL_DSP_WT_FILE_NAME_LEN_MAX	32
 
 #define CL_DSP_FW_FILE_HEADER_SIZE	40
 #define CL_DSP_FW_DBLK_OFFSET_SIZE	3
@@ -63,8 +67,18 @@ struct cl_dsp_fw_desc {
 	unsigned int id;
 	unsigned int min_rev;
 	unsigned int halo_state_run;
-	bool wt_attached;
+	unsigned int num_coeff_files;
+	const char * const *coeff_files;
 	const char *fw_file;
+};
+
+struct cl_dsp_coeff_desc {
+	unsigned int parent_id;
+	unsigned int block_offset;
+	unsigned int block_type;
+	unsigned char name[CL_DSP_COEFF_NAME_LEN_MAX];
+	unsigned int reg;
+	struct list_head list;
 };
 
 struct cl_dsp_wt_desc {
@@ -75,15 +89,6 @@ struct cl_dsp_wt_desc {
 	unsigned int wt_limit_xm;
 	unsigned int wt_limit_ym;
 	char wt_file[CL_DSP_WMDR_NAME_LEN_MAX];
-};
-
-struct cl_dsp_coeff_desc {
-	unsigned int parent_id;
-	unsigned int block_offset;
-	unsigned int block_type;
-	unsigned char name[CL_DSP_COEFF_NAME_LEN_MAX];
-	unsigned int reg;
-	struct list_head list;
 };
 
 struct cl_dsp_algo_info {
@@ -123,14 +128,18 @@ struct cl_dsp {
 	struct list_head coeff_desc_head;
 	unsigned int num_algos;
 	struct cl_dsp_algo_info algo_info[CL_DSP_NUM_ALGOS_MAX + 1];
-	struct cl_dsp_wt_desc *wt_desc;
 	const struct cl_dsp_fw_desc *fw_desc;
 	const struct cl_dsp_mem_reg_desc *mem_reg_desc;
 	const struct cl_dsp_algo_params *algo_params;
+	struct cl_dsp_wt_desc *wt_desc;
 };
 
+struct cl_dsp *cl_dsp_create(struct device *dev);
+int cl_dsp_wavetable_create(struct cl_dsp *dsp, unsigned int id,
+		const char *wt_name_xm, const char *wt_name_ym,
+		const char *wt_file);
 int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw);
-int cl_dsp_wt_file_parse(struct cl_dsp *dsp, const struct firmware *fw);
+int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw);
 int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 		const unsigned int block_type, const unsigned int algo_id,
 		unsigned int *reg);
