@@ -76,7 +76,7 @@ static int cl_dsp_process_data_be(const unsigned char *data,
 	return 0;
 }
 
-int cl_dsp_wt_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
+int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 {
 	struct device *dev = dsp->dev;
 	bool wt_found = false;
@@ -175,7 +175,7 @@ int cl_dsp_wt_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 				return -EINVAL;
 			}
 
-			if (algo_id == dsp->wt_desc->id)
+			if (dsp->wt_desc && algo_id == dsp->wt_desc->id)
 				wt_found = true;
 		}
 
@@ -188,49 +188,56 @@ int cl_dsp_wt_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 			reg = dsp->mem_reg_desc->xm_base_reg_unpacked_24 +
 					block_offset +
 					dsp->algo_info[i].xm_base * 4;
+			if (dsp->wt_desc) {
+				ret = cl_dsp_get_reg(dsp,
+						dsp->wt_desc->wt_name_xm,
+						CL_DSP_XM_UNPACKED_TYPE,
+						dsp->wt_desc->id, &wt_reg);
+				if (ret)
+					return ret;
 
-			ret = cl_dsp_get_reg(dsp,
-					dsp->wt_desc->wt_name_xm,
-					CL_DSP_XM_UNPACKED_TYPE,
-					dsp->wt_desc->id, &wt_reg);
-			if (ret)
-				return ret;
-
-			if (reg == wt_reg) {
-				if (block_length > dsp->wt_desc->wt_limit_xm) {
-					dev_err(dev,
-					"Wavetable too large: %d bytes (XM)\n",
-					block_length / 4 * 3);
-
-					return -EINVAL;
-				}
-
-				dev_dbg(dev, "Wavetable found: %d bytes (XM)\n",
+				if (reg == wt_reg) {
+					if (block_length >
+						dsp->wt_desc->wt_limit_xm) {
+						dev_err(dev,
+						"XM too large: %d bytes\n",
 						block_length / 4 * 3);
+
+						return -EINVAL;
+					}
+
+					dev_dbg(dev,
+					"Wavetable found: %d bytes (XM)\n",
+							block_length / 4 * 3);
+				}
 			}
 			break;
 		case CL_DSP_YM_UNPACKED_TYPE:
 			reg = dsp->mem_reg_desc->ym_base_reg_unpacked_24 +
 					block_offset +
 					dsp->algo_info[i].ym_base * 4;
+			if (dsp->wt_desc) {
+				ret = cl_dsp_get_reg(dsp,
+						dsp->wt_desc->wt_name_ym,
+						CL_DSP_YM_UNPACKED_TYPE,
+						dsp->wt_desc->id, &wt_reg);
+				if (ret)
+					return ret;
 
-			ret = cl_dsp_get_reg(dsp, dsp->wt_desc->wt_name_ym,
-					CL_DSP_YM_UNPACKED_TYPE,
-					dsp->wt_desc->id, &wt_reg);
-			if (ret)
-				return ret;
-
-			if (reg == wt_reg) {
-				if (block_length > dsp->wt_desc->wt_limit_ym) {
-					dev_err(dev,
-					"Wavetable too large: %d bytes (YM)\n",
+				if (reg == wt_reg) {
+					if (block_length >
+						dsp->wt_desc->wt_limit_ym) {
+						dev_err(dev,
+						"YM too large: %d bytes\n",
 						block_length / 4 * 3);
 
-					return -EINVAL;
+						return -EINVAL;
+					}
+
+					dev_dbg(dev,
+					"Wavetable found: %d bytes (YM)\n",
+							block_length / 4 * 3);
 				}
-
-				dev_dbg(dev, "Wavetable found: %d bytes (YM)\n",
-						block_length / 4 * 3);
 			}
 			break;
 		default:
@@ -251,11 +258,12 @@ int cl_dsp_wt_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 		pos += (block_length + 3) & ~0x00000003;
 	}
 
-	dsp->wt_desc->wt_found = wt_found;
+	if (dsp->wt_desc)
+		dsp->wt_desc->wt_found = wt_found;
 
 	return 0;
 }
-EXPORT_SYMBOL(cl_dsp_wt_file_parse);
+EXPORT_SYMBOL(cl_dsp_coeff_file_parse);
 
 static int cl_dsp_algo_parse(struct cl_dsp *dsp, const unsigned char *data)
 {
@@ -426,7 +434,7 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 				dsp->mem_reg_desc->xm_base_reg_unpacked_24
 					+ dsp->algo_info[i].xm_base * 4
 					+ coeff_desc->block_offset * 4;
-				if (!strncmp(coeff_desc->name,
+				if (dsp->wt_desc && !strncmp(coeff_desc->name,
 						dsp->wt_desc->wt_name_xm,
 						CL_DSP_COEFF_NAME_LEN_MAX))
 					dsp->wt_desc->wt_limit_xm =
@@ -438,7 +446,7 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 				dsp->mem_reg_desc->ym_base_reg_unpacked_24
 					+ dsp->algo_info[i].ym_base * 4
 					+ coeff_desc->block_offset * 4;
-				if (!strncmp(coeff_desc->name,
+				if (dsp->wt_desc && !strncmp(coeff_desc->name,
 						dsp->wt_desc->wt_name_ym,
 						CL_DSP_COEFF_NAME_LEN_MAX))
 					dsp->wt_desc->wt_limit_ym =
@@ -622,4 +630,44 @@ err:
 }
 EXPORT_SYMBOL(cl_dsp_firmware_parse);
 
+int cl_dsp_wavetable_create(struct cl_dsp *dsp, unsigned int id,
+		const char *wt_name_xm, const char *wt_name_ym,
+		const char *wt_file)
+{
+	struct cl_dsp_wt_desc *wt_desc;
+
+	wt_desc = devm_kzalloc(dsp->dev, sizeof(struct cl_dsp_wt_desc),
+			GFP_KERNEL);
+	if (!wt_desc)
+		return -ENOMEM;
+
+	wt_desc->id = id;
+	memcpy(wt_desc->wt_name_xm, wt_name_xm, CL_DSP_WT_FILE_NAME_LEN_MAX);
+	memcpy(wt_desc->wt_name_ym, wt_name_ym, CL_DSP_WT_FILE_NAME_LEN_MAX);
+	memcpy(wt_desc->wt_file, wt_file, CL_DSP_WT_FILE_NAME_LEN_MAX);
+
+	dsp->wt_desc = wt_desc;
+
+	return 0;
+}
+EXPORT_SYMBOL(cl_dsp_wavetable_create);
+
+struct cl_dsp *cl_dsp_create(struct device *dev)
+{
+	struct cl_dsp *dsp;
+
+	dsp = devm_kzalloc(dev, sizeof(struct cl_dsp), GFP_KERNEL);
+	if (!dsp)
+		return NULL;
+
+	dsp->dev = dev;
+
+	INIT_LIST_HEAD(&dsp->coeff_desc_head);
+
+	return dsp;
+}
+EXPORT_SYMBOL(cl_dsp_create);
+
+MODULE_DESCRIPTION("Cirrus Logic DSP Firmware Driver");
+MODULE_AUTHOR("Fred Treven, Cirrus Logic Inc, <fred.treven@cirrus.com>");
 MODULE_LICENSE("GPL");
