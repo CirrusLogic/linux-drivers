@@ -6848,6 +6848,14 @@ static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 			}
 
 			break;
+		case CS40L2X_XM_PACKED_TYPE:
+			reg = CS40L2X_DSP1_XMEM_PACK_0 + block_offset
+					+ cs40l2x->algo_info[i].xm_base * 4;
+			break;
+		case CS40L2X_YM_PACKED_TYPE:
+			reg = CS40L2X_DSP1_YMEM_PACK_0 + block_offset
+					+ cs40l2x->algo_info[i].ym_base * 4;
+			break;
 		default:
 			dev_err(dev, "Unexpected block type: 0x%04X\n",
 					block_type);
