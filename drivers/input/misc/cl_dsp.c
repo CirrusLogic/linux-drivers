@@ -498,6 +498,19 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 	return 0;
 }
 
+void cl_dsp_coeff_free(struct cl_dsp *dsp)
+{
+	struct cl_dsp_coeff_desc *coeff_desc;
+
+	while (!list_empty(&dsp->coeff_desc_head)) {
+		coeff_desc = list_first_entry(&dsp->coeff_desc_head,
+				struct cl_dsp_coeff_desc, list);
+		list_del(&coeff_desc->list);
+		devm_kfree(dsp->dev, coeff_desc);
+	}
+}
+EXPORT_SYMBOL(cl_dsp_coeff_free);
+
 int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 {
 	struct device *dev = dsp->dev;
