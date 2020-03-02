@@ -47,6 +47,7 @@
 #define CS35L41_PROTECT_REL_ERR_IGN	0x00002034
 #define CS35L41_GPIO_PAD_CONTROL	0x0000242C
 #define CS35L41_JTAG_CONTROL		0x00002438
+#define CS35L41_DEVID_OTP		0x00002850
 #define CS35L41_PWRMGT_CTL		0x00002900
 #define CS35L41_WAKESRC_CTL		0x00002904
 #define CS35L41_PWRMGT_STS		0x00002908
@@ -543,8 +544,6 @@
 
 #define CS35L41_MAX_CACHE_REG		0x0000006B
 #define CS35L41_OTP_SIZE_WORDS		32
-#define CS35L41_NUM_OTP_ELEM		100
-#define CS35L41_NUM_OTP_MAPS		4
 
 #define CS35L41_VALID_PDATA		0x80000000
 
@@ -718,6 +717,7 @@
 
 #define CS35L41_CHIP_ID			0x35a40
 #define CS35L41R_CHIP_ID		0x35b40
+#define CS35L41LV_CHIP_ID		0x35a41
 #define CS35L41_MTLREVID_MASK		0x0F
 #define CS35L41_REVID_A0		0xA0
 #define CS35L41_REVID_B0		0xB0
@@ -755,6 +755,7 @@ struct cs35l41_otp_packed_element_t {
 };
 
 struct cs35l41_otp_map_element_t {
+	u32 devid_otp;
 	u32 id;
 	u32 num_elements;
 	const struct cs35l41_otp_packed_element_t *map;
@@ -767,9 +768,13 @@ struct cs35l41_otp_trim_region_t {
 	u8 size;
 };
 
+struct cs35l41_otp_maps {
+	const struct cs35l41_otp_map_element_t *map;
+	int len;
+};
+
 extern const struct reg_default cs35l41_reg[CS35L41_MAX_CACHE_REG];
-extern const struct cs35l41_otp_map_element_t
-				cs35l41_otp_map_map[CS35L41_NUM_OTP_MAPS];
+extern const struct cs35l41_otp_maps cs35l41_otp_maps;
 
 #define CS35L41_REGSTRIDE			4
 #define CS35L41_BUFSIZE				64

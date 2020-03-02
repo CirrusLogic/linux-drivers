@@ -1310,18 +1310,12 @@ static const struct snd_kcontrol_new cs35l41_aud_controls[] = {
 			cs35l41_ccm_reset_get, cs35l41_ccm_reset_put),
 	SOC_SINGLE_EXT("Force Interrupt", SND_SOC_NOPM, 0, 1, 0,
 			cs35l41_force_int_get, cs35l41_force_int_put),
-	SOC_SINGLE_EXT("Hibernate Force Wake", SND_SOC_NOPM, 0, 1, 0,
-			cs35l41_hibernate_force_wake_get,
-			cs35l41_hibernate_force_wake_put),
 	SOC_SINGLE_EXT("Fast Use Case Switch Enable", SND_SOC_NOPM, 0, 1, 0,
 		    cs35l41_fast_switch_en_get, cs35l41_fast_switch_en_put),
 	SOC_SINGLE_EXT("Firmware Reload Tuning", SND_SOC_NOPM, 0, 1, 0,
 			cs35l41_reload_tuning_get, cs35l41_reload_tuning_put),
 	SOC_SINGLE("GLOBAL_EN from GPIO Control", CS35L41_PWR_CTRL1, 8, 1, 0),
 	SOC_SINGLE("Boost Converter Enable", CS35L41_PWR_CTRL2, 4, 3, 0),
-	SOC_SINGLE("Boost Class-H Tracking Enable",
-					CS35L41_BSTCVRT_VCTRL2, 0, 1, 0),
-	SOC_SINGLE("Boost Target Voltage", CS35L41_BSTCVRT_VCTRL1, 0, 0xAA, 0),
 	SOC_SINGLE("AMP Enable", CS35L41_PWR_CTRL2, 0, 1, 0),
 	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
 	WM_ADSP_FW_CONTROL("DSP1", 0),
@@ -1351,13 +1345,28 @@ static const struct snd_kcontrol_new cs35l41_aud_controls[] = {
 			   cs35l41_get_output_dev, cs35l41_put_output_dev),
 };
 
-static const struct cs35l41_otp_map_element_t *cs35l41_find_otp_map(u32 otp_id)
+static const struct snd_kcontrol_new cs35l41_bst_ctl[] = {
+	SOC_SINGLE("Boost Class-H Tracking Enable",
+		   CS35L41_BSTCVRT_VCTRL2, 0, 1, 0),
+	SOC_SINGLE("Boost Target Voltage", CS35L41_BSTCVRT_VCTRL1, 0, 0xAA, 0),
+	SOC_SINGLE_EXT("Hibernate Force Wake", SND_SOC_NOPM, 0, 1, 0,
+		       cs35l41_hibernate_force_wake_get,
+		       cs35l41_hibernate_force_wake_put),
+};
+
+static const struct snd_kcontrol_new cs35l41_lv_ctl[] = {
+	SOC_SINGLE("Boost Target Voltage", CS35L41_BSTCVRT_VCTRL1, 0, 0x8C, 0),
+};
+
+static const struct cs35l41_otp_map_element_t *
+	cs35l41_find_otp_map(u32 otp_id, u32 devid_otp)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(cs35l41_otp_map_map); i++) {
-		if (cs35l41_otp_map_map[i].id == otp_id)
-			return &cs35l41_otp_map_map[i];
+	for (i = 0; i < cs35l41_otp_maps.len; i++) {
+		if (cs35l41_otp_maps.map[i].id == otp_id &&
+		    cs35l41_otp_maps.map[i].devid_otp == devid_otp)
+			return &cs35l41_otp_maps.map[i];
 	}
 
 	return NULL;
@@ -1376,6 +1385,7 @@ static int cs35l41_otp_unpack(void *data)
 	int ret;
 	struct spi_device *spi = NULL;
 	u32 orig_spi_freq = 0;
+	u32 devid_otp;
 
 	otp_mem = kmalloc_array(32, sizeof(*otp_mem), GFP_KERNEL);
 	if (!otp_mem)
@@ -1388,7 +1398,14 @@ static int cs35l41_otp_unpack(void *data)
 		goto err_otp_unpack;
 	}
 
-	otp_map_match = cs35l41_find_otp_map(otp_id_reg);
+	ret = regmap_read(cs35l41->regmap, CS35L41_DEVID_OTP, &devid_otp);
+	if (ret < 0) {
+		dev_err(cs35l41->dev, "Read DEVID OTP failed\n");
+		ret = -EINVAL;
+		goto err_otp_unpack;
+	}
+
+	otp_map_match = cs35l41_find_otp_map(otp_id_reg, devid_otp);
 
 	if (otp_map_match == NULL) {
 		dev_err(cs35l41->dev, "OTP Map matching ID %d not found\n",
@@ -1853,9 +1870,6 @@ static const struct snd_soc_dapm_widget cs35l41_dapm_widgets[] = {
 	SND_SOC_DAPM_OUT_DRV_E("Main AMP", CS35L41_PWR_CTRL2, 0, 0, NULL, 0,
 				cs35l41_main_amp_event,
 				SND_SOC_DAPM_POST_PMD |	SND_SOC_DAPM_POST_PMU),
-	SND_SOC_DAPM_SUPPLY("Hibernate",  SND_SOC_NOPM, 0, 0,
-			    cs35l41_hibernate,
-			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_INPUT("VP"),
 	SND_SOC_DAPM_INPUT("VBST"),
 	SND_SOC_DAPM_INPUT("ISENSE"),
@@ -1872,6 +1886,12 @@ static const struct snd_soc_dapm_widget cs35l41_dapm_widgets[] = {
 	SND_SOC_DAPM_SWITCH("DRE", SND_SOC_NOPM, 0, 0, &dre_ctrl),
 	SND_SOC_DAPM_SWITCH("VBSTMON Output", SND_SOC_NOPM, 0, 0,
 						&vbstmon_out_ctrl),
+};
+
+static const struct snd_soc_dapm_widget cs35l41_hib_widgets[] = {
+	SND_SOC_DAPM_SUPPLY("Hibernate",  SND_SOC_NOPM, 0, 0,
+			    cs35l41_hibernate,
+			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
 static const struct snd_soc_dapm_route cs35l41_audio_map[] = {
@@ -1962,12 +1982,15 @@ static const struct snd_soc_dapm_route cs35l41_audio_map[] = {
 	{"Main AMP", NULL, "CLASS H"},
 	{"Main AMP", NULL, "DRE"},
 	{"SPK", NULL, "Main AMP"},
-	{"SPK", NULL, "Hibernate"},
 
 	{"PCM Source", "ASP", "ASPRX1"},
 	{"PCM Source", "DSP", "DSP1"},
 	{"CLASS H", NULL, "PCM Source"},
 
+};
+
+static const struct snd_soc_dapm_route cs35l41_hib_map[] = {
+	{"SPK", NULL, "Hibernate"},
 };
 
 static const struct wm_adsp_region cs35l41_dsp1_regions[] = {
@@ -2390,6 +2413,7 @@ static int cs35l41_set_pdata(struct cs35l41_private *cs35l41)
 {
 	struct classh_cfg *classh = &cs35l41->pdata.classh_config;
 	int ret;
+	u32 devid_otp;
 
 	/* Set Platform Data */
 	/* Required */
@@ -2503,13 +2527,19 @@ static int cs35l41_set_pdata(struct cs35l41_private *cs35l41)
 				cs35l41->pdata.hw_ng_delay <<
 				CS35L41_HW_NG_DLY_SHIFT);
 
+	if (regmap_read(cs35l41->regmap, CS35L41_DEVID_OTP, &devid_otp) < 0) {
+		dev_err(cs35l41->dev, "Read DEVID OTP failed\n");
+		return -EINVAL;
+	}
 	if (classh->classh_algo_enable) {
-		if (classh->classh_bst_override)
+		if (classh->classh_bst_override &&
+		    devid_otp != CS35L41LV_CHIP_ID)
 			regmap_update_bits(cs35l41->regmap,
 					CS35L41_BSTCVRT_VCTRL2,
 					CS35L41_BST_CTL_SEL_MASK,
 					CS35L41_BST_CTL_SEL_REG);
-		if (classh->classh_bst_max_limit)
+		if (classh->classh_bst_max_limit &&
+		    devid_otp != CS35L41LV_CHIP_ID)
 			regmap_update_bits(cs35l41->regmap,
 					CS35L41_BSTCVRT_VCTRL2,
 					CS35L41_BST_LIM_MASK,
@@ -2556,10 +2586,20 @@ static int cs35l41_component_probe(struct snd_soc_component *component)
 		snd_soc_component_get_drvdata(component);
 	struct snd_kcontrol_new *kcontrol;
 	int ret = 0;
+	u32 devid_otp;
 
 	component->regmap = cs35l41->regmap;
 
 	cs35l41_set_pdata(cs35l41);
+	ret = regmap_read(cs35l41->regmap, CS35L41_DEVID_OTP, &devid_otp);
+	if (ret < 0) {
+		dev_err(cs35l41->dev, "Read DEVID OTP failed\n");
+		ret = -EINVAL;
+		goto exit;
+	}
+	if (devid_otp == CS35L41LV_CHIP_ID)
+		/* BST_CTL_LIM_EN = 1 BST_CTL_SEL = b'01 (Class H tracking) */
+		regmap_write(cs35l41->regmap, CS35L41_BSTCVRT_VCTRL2, 0x5);
 
 	/* These should only run once, not every hibernate cycle */
 	if (!(cs35l41->skip_codec_probe)) {
@@ -2682,17 +2722,13 @@ static struct snd_soc_dai_driver cs35l41_dai[] = {
 	},
 };
 
-static const struct snd_soc_component_driver soc_component_dev_cs35l41 = {
+static struct snd_soc_component_driver soc_component_dev_cs35l41 = {
 	.probe = cs35l41_component_probe,
 	.remove = cs35l41_component_remove,
 
 	.dapm_widgets = cs35l41_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(cs35l41_dapm_widgets),
-	.dapm_routes = cs35l41_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(cs35l41_audio_map),
 
-	.controls = cs35l41_aud_controls,
-	.num_controls = ARRAY_SIZE(cs35l41_aud_controls),
 	.set_sysclk = cs35l41_component_set_sysclk,
 };
 
@@ -3163,6 +3199,7 @@ static int cs35l41_restore(struct cs35l41_private *cs35l41)
 {
 	int ret;
 	u32 regid, reg_revid, mtl_revid, chipid_match;
+	u32 devid_otp;
 
 	ret = regmap_read(cs35l41->regmap, CS35L41_DEVID, &regid);
 	if (ret < 0) {
@@ -3178,7 +3215,7 @@ static int cs35l41_restore(struct cs35l41_private *cs35l41)
 
 	mtl_revid = reg_revid & CS35L41_MTLREVID_MASK;
 	chipid_match = (mtl_revid % 2) ? CS35L41R_CHIP_ID : CS35L41_CHIP_ID;
-	if (regid != chipid_match) {
+	if (regid != chipid_match && regid != CS35L41LV_CHIP_ID) {
 		dev_err(cs35l41->dev, "CS35L41 Device ID (%X). Expected ID %X\n",
 			regid, chipid_match);
 		return -ENODEV;
@@ -3232,6 +3269,14 @@ static int cs35l41_restore(struct cs35l41_private *cs35l41)
 		regid, reg_revid);
 
 	cs35l41_set_pdata(cs35l41);
+	ret = regmap_read(cs35l41->regmap, CS35L41_DEVID_OTP, &devid_otp);
+	if (ret < 0) {
+		dev_err(cs35l41->dev, "Read DEVID OTP failed\n");
+		return -EINVAL;
+	}
+	if (devid_otp == CS35L41LV_CHIP_ID)
+		/* BST_CTL_LIM_EN = 1 BST_CTL_SEL = b'01 (Class H tracking) */
+		regmap_write(cs35l41->regmap, CS35L41_BSTCVRT_VCTRL2, 0x5);
 
 	/* Restore cached values set by ALSA during or before amp reset */
 
@@ -3340,6 +3385,16 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 	int timeout = 100;
 	int irq_pol = 0;
 	u32 *p_trim_data;
+	struct snd_kcontrol_new *cs35l41_ctl;
+	struct snd_soc_dapm_route *cs35l41_map;
+	struct snd_soc_dapm_widget *cs35l41_widgets;
+	const struct snd_kcontrol_new *cs35l41_tmp_ctl;
+	const struct snd_soc_dapm_route *cs35l41_tmp_map;
+	const struct snd_soc_dapm_widget *cs35l41_tmp_widgets;
+	int num_cs35l41_tmp_ctl;
+	int num_cs35l41_tmp_map;
+	int num_cs35l41_tmp_widgets;
+	u32 devid_otp;
 
 	cs35l41->fast_switch_en = false;
 	cs35l41->fast_switch_file_idx = 0;
@@ -3438,7 +3493,7 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 	 * CS35L41R will have odd MTLREVID
 	 */
 	chipid_match = (mtl_revid % 2) ? CS35L41R_CHIP_ID : CS35L41_CHIP_ID;
-	if (regid != chipid_match) {
+	if (regid != chipid_match && regid != CS35L41LV_CHIP_ID) {
 		dev_err(cs35l41->dev, "CS35L41 Device ID (%X). Expected ID %X\n",
 			regid, chipid_match);
 		ret = -ENODEV;
@@ -3519,7 +3574,8 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 			goto err;
 		}
 
-		if (cs35l41->pdata.hibernate_enable)
+		if (cs35l41->pdata.hibernate_enable &&
+		    devid_otp != CS35L41LV_CHIP_ID)
 			cs35l41->amp_hibernate = CS35L41_HIBERNATE_NOT_LOADED;
 		else
 			cs35l41->amp_hibernate = CS35L41_HIBERNATE_INCOMPATIBLE;
@@ -3555,6 +3611,78 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 			CS35L41_DSP1_CCM_CORE_CTRL, 0);
 	cs35l41_dsp_init(cs35l41);
 
+	ret = regmap_read(cs35l41->regmap, CS35L41_DEVID_OTP, &devid_otp);
+	if (ret < 0) {
+		dev_err(cs35l41->dev, "Read DEVID OTP failed\n");
+		ret = -EINVAL;
+		goto err;
+	}
+	if (devid_otp == CS35L41LV_CHIP_ID) {
+		cs35l41_tmp_ctl = cs35l41_lv_ctl;
+		num_cs35l41_tmp_ctl = ARRAY_SIZE(cs35l41_lv_ctl);
+		cs35l41_tmp_map = NULL;
+		num_cs35l41_tmp_map = 0;
+		cs35l41_tmp_widgets = NULL;
+		num_cs35l41_tmp_widgets = 0;
+	} else {
+		cs35l41_tmp_ctl = cs35l41_bst_ctl;
+		num_cs35l41_tmp_ctl = ARRAY_SIZE(cs35l41_bst_ctl);
+		cs35l41_tmp_map = cs35l41_hib_map;
+		num_cs35l41_tmp_map = ARRAY_SIZE(cs35l41_hib_map);
+		cs35l41_tmp_widgets = cs35l41_hib_widgets;
+		num_cs35l41_tmp_widgets = ARRAY_SIZE(cs35l41_hib_widgets);
+	}
+	cs35l41_ctl = devm_kmalloc(cs35l41->dev,
+				   sizeof(struct snd_kcontrol_new) *
+				   (num_cs35l41_tmp_ctl +
+				    ARRAY_SIZE(cs35l41_aud_controls)),
+				   GFP_KERNEL);
+	if (!cs35l41_ctl) {
+		ret = -ENOMEM;
+		goto err;
+	}
+	memcpy(cs35l41_ctl, cs35l41_tmp_ctl,
+	       num_cs35l41_tmp_ctl * sizeof(struct snd_kcontrol_new));
+	memcpy(cs35l41_ctl + num_cs35l41_tmp_ctl, cs35l41_aud_controls,
+	       ARRAY_SIZE(cs35l41_aud_controls) *
+	       sizeof(struct snd_kcontrol_new));
+	soc_component_dev_cs35l41.controls = cs35l41_ctl;
+	soc_component_dev_cs35l41.num_controls = num_cs35l41_tmp_ctl +
+		ARRAY_SIZE(cs35l41_aud_controls);
+	cs35l41_map = devm_kmalloc(cs35l41->dev,
+				   sizeof(struct snd_soc_dapm_route) *
+				   (num_cs35l41_tmp_map +
+				    ARRAY_SIZE(cs35l41_audio_map)),
+				   GFP_KERNEL);
+	if (!cs35l41_map) {
+		ret = -ENOMEM;
+		goto err;
+	}
+	memcpy(cs35l41_map, cs35l41_tmp_map,
+	       num_cs35l41_tmp_map * sizeof(struct snd_soc_dapm_route));
+	memcpy(cs35l41_map + num_cs35l41_tmp_map, cs35l41_audio_map,
+	       ARRAY_SIZE(cs35l41_audio_map) *
+	       sizeof(struct snd_soc_dapm_route));
+	soc_component_dev_cs35l41.dapm_routes = cs35l41_map;
+	soc_component_dev_cs35l41.num_dapm_routes = num_cs35l41_tmp_map +
+		ARRAY_SIZE(cs35l41_audio_map);
+	cs35l41_widgets = devm_kmalloc(cs35l41->dev,
+				       sizeof(struct snd_soc_dapm_widget) *
+				       (num_cs35l41_tmp_widgets +
+					ARRAY_SIZE(cs35l41_dapm_widgets)),
+				       GFP_KERNEL);
+	if (!cs35l41_widgets) {
+		ret = -ENOMEM;
+		goto err;
+	}
+	memcpy(cs35l41_widgets, cs35l41_tmp_widgets,
+	       num_cs35l41_tmp_widgets * sizeof(struct snd_soc_dapm_widget));
+	memcpy(cs35l41_widgets + num_cs35l41_tmp_widgets, cs35l41_dapm_widgets,
+	       ARRAY_SIZE(cs35l41_dapm_widgets) *
+	       sizeof(struct snd_soc_dapm_widget));
+	soc_component_dev_cs35l41.dapm_widgets = cs35l41_widgets;
+	soc_component_dev_cs35l41.num_dapm_widgets = num_cs35l41_tmp_widgets +
+		ARRAY_SIZE(cs35l41_dapm_widgets);
 	ret = snd_soc_register_component(cs35l41->dev,
 					&soc_component_dev_cs35l41,
 					cs35l41_dai, ARRAY_SIZE(cs35l41_dai));
