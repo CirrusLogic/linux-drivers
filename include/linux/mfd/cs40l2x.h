@@ -1293,9 +1293,6 @@ struct cs40l2x_private {
 			const char *coeff_name, const unsigned int block_type,
 			const unsigned int algo_id);
 
-	int (*hiber_cmd)(struct cs40l2x_private *cs40l2x,
-			unsigned int hiber_cmd);
-
 	struct cs40l2x_f0_dynamic dynamic_f0[CS40l2X_F0_MAX_ENTRIES];
 	int dynamic_f0_index;
 
