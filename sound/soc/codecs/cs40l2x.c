@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -125,61 +126,18 @@ static int cs40l2x_swap_ext_clk(struct cs40l2x_codec *cs40l2x_codec,
 					CS40L2X_PWRCTL_WAKE);
 }
 
-static int cs40l2x_wake(struct cs40l2x_codec *cs40l2x)
-{
-	struct cs40l2x_private *core = cs40l2x->core;
-	struct regmap *regmap = cs40l2x->regmap;
-	struct device *dev = cs40l2x->dev;
-	int i, ret = 0;
-	unsigned int val, reg;
-
-	if (!core->dsp_reg)
-		return -EINVAL;
-
-	reg = core->dsp_reg(core, "POWERSTATE",
-					CS40L2X_XM_UNPACKED_TYPE,
-					core->fw_desc->id);
-	if (!reg)
-		return -EINVAL;
-
-	for (i = 0; i < CS40L2X_STATUS_RETRIES; i++) {
-		ret = regmap_read(regmap, reg, &val);
-		if (!ret)
-			break;
-
-		usleep_range(5000, 5100);
-	}
-
-	if (ret) {
-		dev_err(dev, "Could not read power state\n");
-		return ret;
-	}
-
-	if (val == CS40L2X_POWERSTATE_HIBERNATE) {
-		if (!core->hiber_cmd)
-			return -EINVAL;
-
-		ret = core->hiber_cmd(core, CS40L2X_POWERCONTROL_WAKEUP);
-	}
-
-	return ret;
-}
-
 static int cs40l2x_clk_en(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct cs40l2x_codec *cs40l2x = snd_soc_codec_get_drvdata(codec);
-	struct device *dev = cs40l2x->dev;
 	struct cs40l2x_private *core = cs40l2x->core;
+	struct device *dev = core->dev;
 	int ret = 0;
 
 	mutex_lock(&cs40l2x->core->lock);
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		ret = cs40l2x_wake(cs40l2x);
-		if (ret)
-			goto err;
 
 		ret = cs40l2x_swap_ext_clk(cs40l2x, CS40L2X_SCLK);
 		if (ret)
@@ -193,13 +151,18 @@ static int cs40l2x_clk_en(struct snd_soc_dapm_widget *w,
 			goto err;
 
 		core->a2h_enable = false;
+		pm_runtime_mark_last_busy(core->dev);
+		pm_runtime_put_autosuspend(core->dev);
 		break;
 	default:
 		dev_err(dev, "Invalid event %d\n", event);
 		ret = -EINVAL;
+		goto err;
 	}
+
 err:
 	mutex_unlock(&cs40l2x->core->lock);
+
 	return ret;
 }
 
@@ -390,12 +353,13 @@ static int cs40l2x_codec_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	struct cs40l2x_codec *cs40l2x = snd_soc_codec_get_drvdata(codec);
 	struct regmap *regmap = cs40l2x->regmap;
 	struct device *dev = cs40l2x->dev;
-	int clk_cfg, ret;
+	int clk_cfg, ret = 0;
 
 	clk_cfg = cs40l2x_get_clk_config(freq);
 	if (clk_cfg < 0) {
 		dev_err(dev, "Invalid Clock Frequency %d\n", freq);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto sysclk_err;
 	}
 
 	switch (clk_id) {
@@ -403,15 +367,16 @@ static int cs40l2x_codec_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		break;
 	default:
 		dev_err(dev, "Invalid Input Clock\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto sysclk_err;
 	}
 
 	cs40l2x->codec_sysclk = freq;
-	ret = cs40l2x_wake(cs40l2x);
-	if (ret)
-		return ret;
+	ret = regmap_write(regmap, CS40L2X_SP_RATE_CTRL, clk_cfg);
 
-	return regmap_write(regmap, CS40L2X_SP_RATE_CTRL, clk_cfg);
+sysclk_err:
+
+	return ret;
 }
 
 static const unsigned int cs40l2x_src_rates[] = { 48000 };
@@ -442,14 +407,15 @@ static int cs40l2x_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct device *dev = cs40l2x->dev;
 	struct regmap *regmap = cs40l2x->regmap;
 	unsigned int lrclk_fmt, sclk_fmt;
-	int ret;
+	int ret = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
 		break;
 	default:
 		dev_err(dev, "This device can be slave only\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fmt_err;
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -457,7 +423,8 @@ static int cs40l2x_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		break;
 	default:
 		dev_err(dev, "Invalid format. I2S only.\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fmt_err;
 	}
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_IF:
@@ -477,21 +444,20 @@ static int cs40l2x_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		sclk_fmt = 0;
 		break;
 	default:
-		dev_warn(dev,
+		dev_err(dev,
 			"%s: Invalid DAI clock INV\n", __func__);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fmt_err;
 	}
-
-	ret = cs40l2x_wake(cs40l2x);
-	if (ret)
-		return ret;
 
 	regmap_update_bits(regmap, CS40L2X_SP_FORMAT, CS40L2X_LRCLK_INV_MASK,
 				lrclk_fmt << CS40L2X_LRCLK_INV_SHIFT);
 	regmap_update_bits(regmap, CS40L2X_SP_FORMAT, CS40L2X_SCLK_INV_MASK,
 				sclk_fmt << CS40L2X_SCLK_INV_SHIFT);
 
-	return 0;
+fmt_err:
+
+	return ret;
 }
 
 static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -500,17 +466,15 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct cs40l2x_codec *cs40l2x = snd_soc_codec_get_drvdata(dai->codec);
 	unsigned int asp_width, asp_wl;
-	int ret;
+	int ret = 0;
 
 	asp_wl = params_width(params);
 	asp_width = params_physical_width(params);
 
-	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
-		return -EINVAL;
-
-	ret = cs40l2x_wake(cs40l2x);
-	if (ret)
-		return ret;
+	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK) {
+		ret = -EINVAL;
+		goto hw_params_err;
+	}
 
 	regmap_update_bits(cs40l2x->regmap, CS40L2X_SP_FORMAT,
 			CS40L2X_ASP_WIDTH_RX_MASK,
@@ -519,7 +483,9 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 			CS40L2X_ASP_RX_WL_MASK,
 			asp_wl);
 
-	return 0;
+hw_params_err:
+
+	return ret;
 }
 
 
@@ -595,8 +561,11 @@ static int cs40l2x_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, cs40l2x_codec);
 
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_idle(&pdev->dev);
+
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_cs40l2x,
-				      cs40l2x_dai, ARRAY_SIZE(cs40l2x_dai));
+					cs40l2x_dai, ARRAY_SIZE(cs40l2x_dai));
 	if (ret < 0)
 		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
 
