@@ -140,6 +140,7 @@ int cl_dsp_wavetable_create(struct cl_dsp *dsp, unsigned int id,
 		const char *wt_file);
 int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw);
 int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw);
+void cl_dsp_coeff_free(struct cl_dsp *dsp);
 int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 		const unsigned int block_type, const unsigned int algo_id,
 		unsigned int *reg);
