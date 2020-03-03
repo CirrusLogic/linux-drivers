@@ -672,11 +672,6 @@ SOC_SINGLE_EXT_TLV("IN4R Digital Volume", TACNA_IN4R_CONTROL2,
 SOC_ENUM("Input Ramp Up", tacna_in_vi_ramp),
 SOC_ENUM("Input Ramp Down", tacna_in_vd_ramp),
 
-TACNA_FRF_BYTES("FRF COEFF 1L", TACNA_FRF_COEFF_1L_1, TACNA_FRF_COEFF_LEN),
-TACNA_FRF_BYTES("FRF COEFF 1R", TACNA_FRF_COEFF_1R_1, TACNA_FRF_COEFF_LEN),
-TACNA_FRF_BYTES("FRF COEFF 5L", TACNA_FRF_COEFF_5L_1, TACNA_FRF_COEFF_LEN),
-TACNA_FRF_BYTES("FRF COEFF 5R", TACNA_FRF_COEFF_5R_1, TACNA_FRF_COEFF_LEN),
-
 TACNA_MIXER_CONTROLS("EQ1", TACNA_EQ1_INPUT1),
 TACNA_MIXER_CONTROLS("EQ2", TACNA_EQ2_INPUT1),
 TACNA_MIXER_CONTROLS("EQ3", TACNA_EQ3_INPUT1),
@@ -2014,6 +2009,7 @@ static const struct snd_soc_dapm_route cs47l96_dapm_routes[] = {
 
 	{ "DSP1", NULL, "DSP1FREQ" },
 	{ "Audio Trace DSP", NULL, "DSP1" },
+	{ "Voice Ctrl DSP", NULL, "DSP1" },
 
 	{ "IN4_PDMCLK", NULL, "VDD_IO2" },
 	{ "IN4_PDMDATA", NULL, "VDD_IO2" },
@@ -2556,6 +2552,27 @@ static struct snd_soc_dai_driver cs47l96_dai[] = {
 			.formats = TACNA_FORMATS,
 		},
 	},
+	{
+		.name = "cs47l96-cpu-voicectrl",
+		.capture = {
+			.stream_name = "Voice Ctrl CPU",
+			.channels_min = 1,
+			.channels_max = 8,
+			.rates = TACNA_RATES,
+			.formats = TACNA_FORMATS,
+		},
+		.compress_new = &snd_soc_new_compress,
+	},
+	{
+		.name = "cs47l96-dsp-voicectrl",
+		.capture = {
+			.stream_name = "Voice Ctrl DSP",
+			.channels_min = 1,
+			.channels_max = 8,
+			.rates = TACNA_RATES,
+			.formats = TACNA_FORMATS,
+		},
+	},
 };
 
 static int cs47l96_init_outh(struct cs47l96 *cs47l96)
@@ -2593,6 +2610,8 @@ static int cs47l96_compr_open(struct snd_compr_stream *stream)
 
 
 	if (strcmp(rtd->codec_dai->name, "cs47l96-dsp-trace") == 0) {
+		n_dsp = 0;
+	} else if (strcmp(rtd->codec_dai->name, "cs47l96-dsp-voicectrl") == 0) {
 		n_dsp = 0;
 	} else {
 		dev_err(priv->dev,
@@ -2788,7 +2807,6 @@ static int cs47l96_probe(struct platform_device *pdev)
 
 	cs47l96->core.tacna = tacna;
 	cs47l96->core.dev = &pdev->dev;
-	cs47l96->core.num_inputs = 8;
 	cs47l96->core.max_analogue_inputs = 2;
 	cs47l96->core.in_vu_reg = TACNA_INPUT_CONTROL3;
 

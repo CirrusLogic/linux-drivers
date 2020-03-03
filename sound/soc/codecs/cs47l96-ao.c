@@ -970,7 +970,6 @@ static int cs47l96_ao_probe(struct platform_device *pdev)
 
 	cs47l96_ao->core.tacna = tacna;
 	cs47l96_ao->core.dev = &pdev->dev;
-	cs47l96_ao->core.num_inputs = 6;
 	cs47l96_ao->core.max_analogue_inputs = 0;
 	cs47l96_ao->core.in_vu_reg = TACNA_AO_INPUT_CONTROL3;
 

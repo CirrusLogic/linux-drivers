@@ -1235,30 +1235,6 @@ const struct soc_enum tacna_output_anc_src[] = {
 };
 EXPORT_SYMBOL_GPL(tacna_output_anc_src);
 
-int tacna_frf_bytes_put(struct snd_kcontrol *kcontrol,
-			struct snd_ctl_elem_value *ucontrol)
-{
-	struct soc_bytes *params = (void *)kcontrol->private_value;
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct tacna_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct tacna *tacna = priv->tacna;
-	int ret, len;
-	void *data;
-
-	len = params->num_regs * component->val_bytes;
-
-	data = kmemdup(ucontrol->value.bytes.data, len, GFP_KERNEL | GFP_DMA);
-	if (!data)
-		return -ENOMEM;
-
-	ret = regmap_raw_write(tacna->regmap, params->base, data, len);
-
-	kfree(data);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(tacna_frf_bytes_put);
-
 const struct soc_enum tacna_asrc1_rate[] = {
 	SOC_VALUE_ENUM_SINGLE(TACNA_ASRC1_CONTROL1,
 			      TACNA_ASRC1_RATE1_SHIFT,
@@ -2317,13 +2293,15 @@ int tacna_dsp_memory_enable(struct tacna_priv *priv,
 			    const struct tacna_dsp_power_regs *regs)
 {
 	struct regmap *regmap = priv->tacna->regmap;
-	int i, ret;
+	int i, j, ret;
 
 	/* disable power-off */
 	for (i = 0; i < regs->n_ext; ++i) {
-		ret = regmap_write(regmap, regs->ext[i], 0x3);
-		if (ret)
-			goto err;
+		for (j = regs->ext[i].start; j <= regs->ext[i].end; j += 4) {
+			ret = regmap_write(regmap, j, 0x3);
+			if (ret)
+				goto err;
+		}
 	}
 
 	/* power-up the banks in sequence */
@@ -2355,7 +2333,7 @@ void tacna_dsp_memory_disable(struct tacna_priv *priv,
 			      const struct tacna_dsp_power_regs *regs)
 {
 	struct regmap *regmap = priv->tacna->regmap;
-	int i, ret;
+	int i, j, ret;
 
 	for (i = 0; i < regs->n_pwd; ++i) {
 		ret = regmap_write(regmap, regs->pwd[i], 0);
@@ -2365,10 +2343,13 @@ void tacna_dsp_memory_disable(struct tacna_priv *priv,
 	}
 
 	for (i = 0; i < regs->n_ext; ++i) {
-		ret = regmap_write(regmap, regs->ext[i], 0);
-		if (ret)
-			dev_warn(priv->dev,
-				 "Failed to write SRAM enables (%d)\n", ret);
+		for (j = regs->ext[i].start; j <= regs->ext[i].end; j += 4) {
+			ret = regmap_write(regmap, j, 0);
+			if (ret)
+				dev_warn(priv->dev,
+					 "Failed to write SRAM enables (%d)\n",
+					 ret);
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(tacna_dsp_memory_disable);

@@ -1162,9 +1162,9 @@ static int tacna_pin_probe(struct platform_device *pdev)
 
 	tacna_pin_desc.npins = priv->chip->n_pins;
 
-	priv->pctl = pinctrl_register(&tacna_pin_desc, &pdev->dev, priv);
-	if (IS_ERR(priv->pctl)) {
-		ret = PTR_ERR(priv->pctl);
+	ret = devm_pinctrl_register_and_init(&pdev->dev, &tacna_pin_desc, priv,
+					     &priv->pctl);
+	if (ret) {
 		dev_err(priv->dev, "Failed pinctrl register (%d)\n", ret);
 		return ret;
 	}
@@ -1177,23 +1177,19 @@ static int tacna_pin_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = pinctrl_enable(priv->pctl);
+	if (ret) {
+		dev_err(priv->dev, "Failed to enable pinctrl (%d)\n", ret);
+		return ret;
+	}
+
 	dev_dbg(priv->dev, "pinctrl registered\n");
-
-	return 0;
-}
-
-static int tacna_pin_remove(struct platform_device *pdev)
-{
-	struct tacna_pin_private *priv = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(priv->pctl);
 
 	return 0;
 }
 
 static struct platform_driver tacna_pin_driver = {
 	.probe = &tacna_pin_probe,
-	.remove = &tacna_pin_remove,
 	.driver = {
 		.name = "tacna-pinctrl",
 	},

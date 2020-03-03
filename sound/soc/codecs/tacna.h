@@ -110,8 +110,6 @@
 
 #define TACNA_NUM_MIXER_INPUTS		139
 
-#define TACNA_FRF_COEFF_LEN		2
-
 #define TACNA_EQ_BLOCK_SZ		60
 #define TACNA_N_EQ_BLOCKS		4
 
@@ -281,13 +279,6 @@
 	((unsigned long)&(struct soc_bytes) { .base = xbase,	\
 	 .num_regs = 1 }) }
 
-#define TACNA_FRF_BYTES(xname, xbase, xregs)			\
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	\
-	.info = snd_soc_bytes_info, .get = snd_soc_bytes_get,	\
-	.put = tacna_frf_bytes_put, .private_value =		\
-	((unsigned long)&(struct soc_bytes) {.base = xbase,	\
-	 .num_regs = xregs }) }
-
 /* these have a subseq number so they run after SYSCLK and DSPCLK widgets */
 #define TACNA_DSP_FREQ_WIDGET_EV(name, num, event)			\
 	SND_SOC_DAPM_SUPPLY_S(name "FREQ", 100, SND_SOC_NOPM, num, 0,	\
@@ -315,10 +306,15 @@ struct tacna_dai_priv {
 	struct snd_pcm_hw_constraint_list constraint;
 };
 
+struct tacna_dsp_power_reg_block {
+	unsigned int start;
+	unsigned int end;
+};
+
 struct tacna_dsp_power_regs {
 	const unsigned int *pwd;
 	unsigned int n_pwd;
-	const unsigned int *ext;
+	const struct tacna_dsp_power_reg_block *ext;
 	unsigned int n_ext;
 };
 
@@ -331,7 +327,6 @@ struct tacna_priv {
 	int dspclk;
 	struct tacna_dai_priv dai[TACNA_MAX_DAI];
 
-	int num_inputs;
 	int max_analogue_inputs;
 	int max_pdm_sup;
 	int num_dmic_clksrc;
@@ -477,9 +472,6 @@ extern const struct soc_enum tacna_out_vd_ramp;
 extern const struct soc_enum tacna_mono_anc_input_src[];
 extern const struct soc_enum tacna_anc_ng_enum;
 extern const struct soc_enum tacna_output_anc_src[];
-
-int tacna_frf_bytes_put(struct snd_kcontrol *kcontrol,
-			struct snd_ctl_elem_value *ucontrol);
 
 extern const struct soc_enum tacna_asrc1_rate[];
 extern const struct soc_enum tacna_asrc2_rate[];
