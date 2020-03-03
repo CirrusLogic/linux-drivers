@@ -79,6 +79,7 @@ static int cl_dsp_process_data_be(const unsigned char *data,
 int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 {
 	struct device *dev = dsp->dev;
+	char wt_date[CL_DSP_WMDR_DATE_LEN];
 	bool wt_found = false;
 	unsigned int pos;
 	unsigned int block_offset, block_type, block_length;
@@ -86,6 +87,8 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 	unsigned int reg, wt_reg;
 	int ret = -EINVAL;
 	int i;
+
+	*wt_date = '\0';
 
 	if (memcmp(fw->data, "WMDR", 4)) {
 		dev_err(dev, "Failed to recognize coefficient file\n");
@@ -183,6 +186,21 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 		case CL_DSP_WMDR_NAME_TYPE:
 		case CL_DSP_WMDR_INFO_TYPE:
 			reg = 0;
+
+			if (block_length < CL_DSP_WMDR_DATE_LEN)
+				break;
+
+			if (memcmp(&fw->data[pos], CL_DSP_WMDR_DATE_PREFIX,
+					CL_DSP_WMDR_DATE_PREFIX_LEN))
+				break; /* date already recorded */
+
+			memcpy(wt_date,
+				&fw->data[pos + CL_DSP_WMDR_DATE_PREFIX_LEN],
+				CL_DSP_WMDR_DATE_LEN -
+				CL_DSP_WMDR_DATE_PREFIX_LEN);
+
+			wt_date[CL_DSP_WMDR_DATE_LEN -
+					CL_DSP_WMDR_DATE_PREFIX_LEN] = '\0';
 			break;
 		case CL_DSP_XM_UNPACKED_TYPE:
 			reg = dsp->mem_reg_desc->xm_base_reg_unpacked_24 +
@@ -258,8 +276,15 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 		pos += (block_length + 3) & ~0x00000003;
 	}
 
-	if (dsp->wt_desc)
-		dsp->wt_desc->wt_found = wt_found;
+	if (dsp->wt_desc && wt_found) {
+		if (*wt_date != '\0')
+			strlcpy(dsp->wt_desc->wt_date, wt_date,
+					CL_DSP_WMDR_DATE_LEN);
+		else
+			strlcpy(dsp->wt_desc->wt_date,
+					CL_DSP_WMDR_FILE_DATE_MISSING,
+					CL_DSP_WMDR_DATE_LEN);
+	}
 
 	return 0;
 }
@@ -495,6 +520,12 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 			(dsp->algo_info[0].rev & 0xFF00) >> 8,
 			dsp->algo_info[0].rev & 0xFF);
 
+	if (dsp->wt_desc)
+		dev_info(dev,
+			"Max. wavetable size: %d bytes (XM), %d bytes (YM)\n",
+			dsp->wt_desc->wt_limit_xm / 4 * 3,
+			dsp->wt_desc->wt_limit_ym / 4 * 3);
+
 	return 0;
 }
 
@@ -655,9 +686,9 @@ int cl_dsp_wavetable_create(struct cl_dsp *dsp, unsigned int id,
 		return -ENOMEM;
 
 	wt_desc->id = id;
-	memcpy(wt_desc->wt_name_xm, wt_name_xm, CL_DSP_WT_FILE_NAME_LEN_MAX);
-	memcpy(wt_desc->wt_name_ym, wt_name_ym, CL_DSP_WT_FILE_NAME_LEN_MAX);
-	memcpy(wt_desc->wt_file, wt_file, CL_DSP_WT_FILE_NAME_LEN_MAX);
+	memcpy(wt_desc->wt_name_xm, wt_name_xm, CL_DSP_WMDR_NAME_LEN);
+	memcpy(wt_desc->wt_name_ym, wt_name_ym, CL_DSP_WMDR_NAME_LEN);
+	memcpy(wt_desc->wt_file, wt_file, CL_DSP_WMDR_NAME_LEN);
 
 	dsp->wt_desc = wt_desc;
 

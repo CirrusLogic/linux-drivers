@@ -28,8 +28,6 @@
 
 #define CL_DSP_MAX_WLEN	4096
 
-#define CL_DSP_WT_FILE_NAME_LEN_MAX	32
-
 #define CL_DSP_FW_FILE_HEADER_SIZE	40
 #define CL_DSP_FW_DBLK_OFFSET_SIZE	3
 #define CL_DSP_FW_DBLK_TYPE_SIZE	1
@@ -58,7 +56,14 @@
 #define CL_DSP_WMDR_ALGO_REV_SIZE	4
 #define CL_DSP_WMDR_SAMPLE_RATE_SIZE	4
 #define CL_DSP_WMDR_DBLK_LENGTH_SIZE	4
-#define CL_DSP_WMDR_NAME_LEN_MAX	32
+#define CL_DSP_WMDR_NAME_LEN	32
+#define CL_DSP_WMDR_DATE_LEN	16
+
+#define CL_DSP_WMDR_DATE_PREFIX	"Date: "
+#define CL_DSP_WMDR_DATE_PREFIX_LEN 6
+
+#define CL_DSP_WMDR_FILE_NAME_MISSING	"N/A"
+#define CL_DSP_WMDR_FILE_DATE_MISSING	"N/A"
 
 #define CL_DSP_WMDR_NAME_TYPE	0xFE00
 #define CL_DSP_WMDR_INFO_TYPE	0xFF00
@@ -83,12 +88,12 @@ struct cl_dsp_coeff_desc {
 
 struct cl_dsp_wt_desc {
 	unsigned int id;
-	char wt_name_xm[CL_DSP_WMDR_NAME_LEN_MAX];
-	char wt_name_ym[CL_DSP_WMDR_NAME_LEN_MAX];
-	bool wt_found;
+	char wt_name_xm[CL_DSP_WMDR_NAME_LEN];
+	char wt_name_ym[CL_DSP_WMDR_NAME_LEN];
 	unsigned int wt_limit_xm;
 	unsigned int wt_limit_ym;
-	char wt_file[CL_DSP_WMDR_NAME_LEN_MAX];
+	char wt_file[CL_DSP_WMDR_NAME_LEN];
+	char wt_date[CL_DSP_WMDR_DATE_LEN];
 };
 
 struct cl_dsp_algo_info {
