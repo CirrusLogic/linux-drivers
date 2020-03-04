@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * cs40l2x-tables.c -- CS40L20/CS40L25/CS40L25A/CS40L25B Haptics Driver
  *
