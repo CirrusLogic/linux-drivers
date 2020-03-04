@@ -545,6 +545,8 @@ static u32 to_hfi_raw_fmt(u32 v4l2_fmt)
 		return HFI_COLOR_FORMAT_NV12;
 	case V4L2_PIX_FMT_NV21:
 		return HFI_COLOR_FORMAT_NV21;
+	case V4L2_PIX_FMT_NV12_UBWC:
+		return HFI_COLOR_FORMAT_NV12_UBWC;
 	default:
 		break;
 	}
