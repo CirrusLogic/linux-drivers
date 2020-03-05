@@ -180,6 +180,8 @@ Optional properties for the "cirrus,classh-internal-algo" Sub-node
   - cirrus,classh-bst-overide : Boolean
   - cirrus,classh-bst-max-limit
 
+  Above two controls are unavailable for cs35l41l (Low voltage variant)
+
   Section 7.17 Class H, Weak-FET Control
   - cirrus,classh-headroom
   - cirrus,classh-release-rate
