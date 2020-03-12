@@ -133,37 +133,35 @@ static int cs40l2x_clk_en(struct snd_soc_dapm_widget *w,
 	struct cs40l2x_codec *cs40l2x = snd_soc_codec_get_drvdata(codec);
 	struct cs40l2x_private *core = cs40l2x->core;
 	struct device *dev = core->dev;
-	int ret = 0;
+	int ret;
 
-	mutex_lock(&cs40l2x->core->lock);
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		mutex_lock(&core->lock);
+		core->a2h_enable = true;
+		mutex_unlock(&core->lock);
+
+		if (!completion_done(&core->hap_done))
+			wait_for_completion(&core->hap_done);
 
 		ret = cs40l2x_swap_ext_clk(cs40l2x, CS40L2X_SCLK);
 		if (ret)
-			goto err;
-
-		core->a2h_enable = true;
+			return ret;
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		ret = cs40l2x_swap_ext_clk(cs40l2x, CS40L2X_32KHZ_CLK);
-		if (ret)
-			goto err;
-
+		mutex_lock(&core->lock);
 		core->a2h_enable = false;
+		mutex_unlock(&core->lock);
+
 		pm_runtime_mark_last_busy(core->dev);
 		pm_runtime_put_autosuspend(core->dev);
 		break;
 	default:
 		dev_err(dev, "Invalid event %d\n", event);
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
-err:
-	mutex_unlock(&cs40l2x->core->lock);
-
-	return ret;
+	return 0;
 }
 
 static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
@@ -520,6 +518,7 @@ static int cs40l2x_codec_probe(struct snd_soc_codec *codec)
 	struct cs40l2x_codec *cs40l2x = snd_soc_codec_get_drvdata(codec);
 	struct regmap *regmap = cs40l2x->regmap;
 
+	complete(&cs40l2x->core->hap_done);
 	/* ASPRX1 --> DSP1RX1_SRC */
 	regmap_write(regmap, CS40L2X_DSP1RX1_INPUT, CS40L2X_ROUTE_ASPRX1);
 	/* ASPRX2 --> DSP1RX5_SRC */
