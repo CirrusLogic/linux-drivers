@@ -2475,7 +2475,7 @@ static ssize_t cs40l2x_gpio1_dig_scale_show(struct device *dev,
 {
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	int ret;
-	unsigned int dig_scale;
+	unsigned int dig_scale = 0;
 
 	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
@@ -5005,7 +5005,7 @@ static int cs40l2x_diag_capture(struct cs40l2x_private *cs40l2x)
 static int cs40l2x_peak_capture(struct cs40l2x_private *cs40l2x)
 {
 	struct regmap *regmap = cs40l2x->regmap;
-	int vmon_max, vmon_min, imon_max, imon_min;
+	unsigned int vmon_max, vmon_min, imon_max, imon_min;
 	int ret;
 
 	/* VMON min and max are returned as 24-bit two's-complement values */
@@ -6666,7 +6666,7 @@ static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 	unsigned int block_offset, block_type, block_length;
 	unsigned int algo_id, algo_rev, reg;
 	int ret = -EINVAL;
-	int i;
+	int i = 0;
 
 	*wt_date = '\0';
 
