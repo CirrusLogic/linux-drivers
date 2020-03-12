@@ -15,6 +15,7 @@
 #include <linux/hrtimer.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/completion.h>
 #include <linux/platform_data/cs40l2x.h>
 
 #define CS40L2X_FIRSTREG		0x00000000
@@ -1304,6 +1305,7 @@ struct cs40l2x_private {
 	struct led_classdev led_dev;
 #endif /* CONFIG_ANDROID_TIMED_OUTPUT */
 	unsigned int autosuspend_delay;
+	struct completion hap_done;
 };
 
 extern const unsigned char cs40l2x_bst_k1_table[4][5];
