@@ -56,6 +56,9 @@ struct cros_ec_pd_update_data {
 	int num_ports;
 	int force_update;
 	int is_suspending;
+
+	u32 pd_status;
+	struct mutex lock;
 };
 
 #define PD_ID_MAJOR_SHIFT 0

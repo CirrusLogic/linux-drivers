@@ -586,7 +586,6 @@ static void cros_ec_pd_update_check(struct work_struct *work)
 	struct power_supply *charger;
 	enum cros_ec_pd_find_update_firmware_result result;
 	int ret, port;
-	uint32_t pd_status;
 
 	if (disable) {
 		dev_info(dev, "Update is disabled\n");
@@ -607,14 +606,14 @@ static void cros_ec_pd_update_check(struct work_struct *work)
 		}
 	}
 
-	pd_status = cros_ec_pd_get_host_event_status(dev, cros_ec_pd_ec);
-
 	/*
 	 * Override status received from EC if update is forced, such as
 	 * after power-on or after resume.
 	 */
+	mutex_lock(&drv_data->lock);
 	if (drv_data->force_update) {
-		pd_status = PD_EVENT_POWER_CHANGE | PD_EVENT_UPDATE_DEVICE;
+		drv_data->pd_status =
+			PD_EVENT_POWER_CHANGE | PD_EVENT_UPDATE_DEVICE;
 		drv_data->force_update = 0;
 	}
 
@@ -623,11 +622,17 @@ static void cros_ec_pd_update_check(struct work_struct *work)
 	 * trigger a refresh of the power supply state.
 	 */
 	charger = cros_ec_pd_ec->ec_dev->charger;
-	if ((pd_status & PD_EVENT_POWER_CHANGE) && charger)
+	if ((drv_data->pd_status & PD_EVENT_POWER_CHANGE) && charger)
 		charger->desc->external_power_changed(charger);
 
-	if (!(pd_status & PD_EVENT_UPDATE_DEVICE))
+	if (!(drv_data->pd_status & PD_EVENT_UPDATE_DEVICE)) {
+		drv_data->pd_status = 0;
+		mutex_unlock(&drv_data->lock);
 		return;
+	}
+
+	drv_data->pd_status = 0;
+	mutex_unlock(&drv_data->lock);
 
 	/* Received notification, send command to check on PD status. */
 	for (port = 0; port < drv_data->num_ports; ++port) {
@@ -707,11 +712,20 @@ static void cros_ec_pd_notify(struct device *dev, u32 event)
 		(struct cros_ec_pd_update_data *)
 		dev_get_drvdata(dev);
 
-	if (drv_data)
+	if (drv_data) {
+		mutex_lock(&drv_data->lock);
+		if (event == 0)
+			drv_data->pd_status =
+				cros_ec_pd_get_host_event_status(dev,
+								 cros_ec_pd_ec);
+		else
+			drv_data->pd_status = event;
+		mutex_unlock(&drv_data->lock);
 		queue_delayed_work(drv_data->workqueue, &drv_data->work,
 				   PD_UPDATE_CHECK_DELAY);
-	else
+	} else {
 		dev_warn(dev, "PD notification skipped due to missing drv_data\n");
+	}
 }
 
 static ssize_t disable_firmware_update(struct device *dev,
@@ -763,6 +777,8 @@ static int cros_ec_pd_add(struct device *dev)
 		devm_kzalloc(dev, sizeof(*drv_data), GFP_KERNEL);
 	if (!drv_data)
 		return -ENOMEM;
+
+	mutex_init(&drv_data->lock);
 
 	drv_data->dev = dev;
 	INIT_DELAYED_WORK(&drv_data->work, cros_ec_pd_update_check);
@@ -821,7 +837,10 @@ static int cros_ec_pd_remove(struct device *dev)
 	if (drv_data) {
 		drv_data->is_suspending = 1;
 		cancel_delayed_work_sync(&drv_data->work);
+		mutex_destroy(&drv_data->lock);
 	}
+
+
 	return 0;
 }
 
