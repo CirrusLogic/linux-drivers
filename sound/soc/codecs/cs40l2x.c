@@ -139,27 +139,28 @@ static int cs40l2x_clk_en(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		ret = cs40l2x_swap_ext_clk(codec, CS40L2X_SCLK);
-		if (ret)
-			goto err;
-
+		mutex_lock(&codec->core->lock);
 		core->a2h_enable = true;
+		mutex_unlock(&codec->core->lock);
+
+		if (!completion_done(&core->hap_done))
+			wait_for_completion(&core->hap_done);
+
+		ret = cs40l2x_swap_ext_clk(codec, CS40L2X_SCLK);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
+		mutex_lock(&codec->core->lock);
 		core->a2h_enable = false;
+		mutex_unlock(&codec->core->lock);
+
 		pm_runtime_mark_last_busy(core->dev);
 		pm_runtime_put_autosuspend(core->dev);
 		break;
 	default:
 		dev_err(dev, "Invalid event %d\n", event);
 		ret = -EINVAL;
-		goto err;
 	}
 
-	mutex_unlock(&codec->core->lock);
-	return 0;
-
-err:
 	mutex_unlock(&codec->core->lock);
 
 	return ret;
