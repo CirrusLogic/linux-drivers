@@ -5470,6 +5470,9 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 
 	case CS40L2X_INDEX_VIBE:
 	case CS40L2X_INDEX_CONT_MIN ... CS40L2X_INDEX_CONT_MAX:
+		if (completion_done(&cs40l2x->hap_done))
+			reinit_completion(&cs40l2x->hap_done);
+
 		ret = cs40l2x_cond_classh(cs40l2x, cs40l2x->cp_trailer_index);
 		if (ret) {
 			dev_err(dev, "Conditional ClassH failed\n");
@@ -5482,6 +5485,9 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 		break;
 
 	case CS40L2X_INDEX_CLICK_MIN ... CS40L2X_INDEX_CLICK_MAX:
+		if (completion_done(&cs40l2x->hap_done))
+			reinit_completion(&cs40l2x->hap_done);
+
 		ret = cs40l2x_cond_classh(cs40l2x, cs40l2x->cp_trailer_index);
 		if (ret) {
 			dev_err(dev, "Conditional ClassH failed\n");
@@ -8788,7 +8794,6 @@ static irqreturn_t cs40l2x_irq(int irq, void *data)
 	irqreturn_t ret_irq = IRQ_NONE;
 
 	pm_runtime_get_sync(cs40l2x->dev);
-	mutex_lock(&cs40l2x->lock);
 
 	ret = regmap_read(regmap, CS40L2X_DSP1_SCRATCH1, &val);
 	if (ret) {
@@ -8848,8 +8853,16 @@ static irqreturn_t cs40l2x_irq(int irq, void *data)
 				queue_work(cs40l2x->vibe_workqueue,
 						&cs40l2x->vibe_mode_work);
 			/* intentionally fall through */
+			complete(&cs40l2x->hap_done);
+			break;
+		case CS40L2X_EVENT_CTRL_TRIG_START:
+		case CS40L2X_EVENT_CTRL_GPIO_START:
+			if (completion_done(&cs40l2x->hap_done))
+				reinit_completion(&cs40l2x->hap_done);
+
+			break;
 		case CS40L2X_EVENT_CTRL_GPIO1_FALL
-			... CS40L2X_EVENT_CTRL_GPIO_START:
+			... CS40L2X_EVENT_CTRL_GPIO4_RISE:
 		case CS40L2X_EVENT_CTRL_READY:
 		case CS40L2X_EVENT_CTRL_TRIG_SUSP
 			... CS40L2X_EVENT_CTRL_TRIG_RESM:
@@ -8888,7 +8901,6 @@ static irqreturn_t cs40l2x_irq(int irq, void *data)
 		ret_irq = IRQ_HANDLED;
 
 err_mutex:
-	mutex_unlock(&cs40l2x->lock);
 	pm_runtime_mark_last_busy(cs40l2x->dev);
 	pm_runtime_put_autosuspend(cs40l2x->dev);
 
@@ -9054,6 +9066,8 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 			&& pdata->asp_bclk_freq
 			&& pdata->asp_slot_width
 			&& pdata->asp_samp_width;
+
+	init_completion(&cs40l2x->hap_done);
 
 	if (cs40l2x->fw_desc->id != CS40L2X_FW_ID_ORIG && i2c_client->irq) {
 		ret = devm_request_threaded_irq(dev, i2c_client->irq,
