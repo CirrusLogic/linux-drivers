@@ -1642,6 +1642,7 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 
 	rtwdev->sec.total_cam_num = 32;
 	rtwdev->hal.current_channel = 1;
+	rtwdev->dm_info.fix_rate = U8_MAX;
 	set_bit(RTW_BC_MC_MACID, rtwdev->mac_id_map);
 	if (!(BIT(rtw_fw_lps_deep_mode) & chip->lps_deep_mode_supported))
 		rtwdev->lps_conf.deep_mode = LPS_DEEP_MODE_NONE;
