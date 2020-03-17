@@ -38,7 +38,7 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 		const unsigned int block_type,
 		const unsigned int algo_id, unsigned int *reg)
 {
-	int ret;
+	int ret = 0;
 	struct cl_dsp_coeff_desc *coeff_desc;
 
 	list_for_each_entry(coeff_desc, &dsp->coeff_desc_head, list) {
@@ -53,9 +53,6 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 		*reg = coeff_desc->reg;
 		if (*reg == 0x0) /* No corresponding DSP register found */
 			ret = -ENXIO;
-		else
-			ret = 0;
-
 		break;
 	}
 
