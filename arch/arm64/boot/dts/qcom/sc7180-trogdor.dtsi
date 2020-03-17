@@ -8,6 +8,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
+#include <dt-bindings/sound/sc7180-lpass.h>
 
 /* PMICs depend on spmi_bus label and so must come after SoC */
 #include "pm6150.dtsi"
@@ -244,6 +245,38 @@
 			label = "cros_ec::kbd_backlight";
 			pwms = <&cros_ec_pwm 0>;
 			max-brightness = <1023>;
+		};
+	};
+
+	sound {
+		compatible = "qcom,sc7180-sndcard";
+		model = "sc7180-snd-card";
+
+		audio-routing =
+			"Headphone Jack", "HPOL",
+			"Headphone Jack", "HPOR";
+
+		dai-link-0 {
+			link-name = "MultiMedia0";
+			cpu {
+				sound-dai = <&lpass_cpu  0>;
+			};
+
+			codec {
+				sound-dai = <&alc5682  0>;
+			};
+		};
+
+		dai-link-1 {
+			link-name = "MultiMedia1";
+			unidirectional = <0>;
+			cpu {
+				sound-dai = <&lpass_cpu  1>;
+			};
+
+			codec {
+				sound-dai = <&max98357a>;
+			};
 		};
 	};
 };
@@ -748,6 +781,30 @@ hp_i2c: &i2c9 {
 	 * the AP needs to wait for it.
 	 */
 	modem-init;
+};
+
+&lpass_cpu {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&sec_mi2s_active &sec_mi2s_dout_active
+		     &sec_mi2s_ws_active &pri_mi2s_active
+		     &pri_mi2s_dout_active &pri_mi2s_ws_active
+		     &pri_mi2s_din_active &pri_mi2s_mclk_active>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	mi2s-primary@0 {
+		reg = <MI2S_PRIMARY>;
+		qcom,playback-sd-lines = <1>;
+		qcom,capture-sd-lines = <0>;
+	};
+
+	mi2s-secondary@1 {
+		reg = <MI2S_SECONDARY>;
+		qcom,playback-sd-lines = <0>;
+	};
 };
 
 &mdp {
