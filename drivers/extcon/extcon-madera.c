@@ -2186,9 +2186,9 @@ static irqreturn_t madera_hpdet_handler(int irq, void *data)
 	case MADERA_ACCDET_MODE_HPL:
 	case MADERA_ACCDET_MODE_HPR:
 	case MADERA_ACCDET_MODE_HPM:
-		/* Fall through to spurious if no jack present */
 		if (madera_jack_present(info, NULL) > 0)
 			break;
+		/* Fall through - to spurious if no jack present */
 	default:
 		dev_warn(info->dev, "Spurious HPDET IRQ\n");
 		madera_jds_start_timeout(info);
