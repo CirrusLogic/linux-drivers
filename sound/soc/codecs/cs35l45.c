@@ -763,6 +763,17 @@ static int cs35l45_dai_hw_params(struct snd_pcm_substream *substream,
 	struct cs35l45_private *cs35l45 =
 			snd_soc_component_get_drvdata(dai->component);
 	unsigned int asp_width, asp_wl, global_fs;
+	unsigned int hpf_override = CS35l45_HPF_DEFAULT;
+	static const struct reg_sequence cs35l45_unlock[] = {
+		{0x00000040, 0x00000055},
+		{0x00000040, 0x000000AA},
+		{0x00000044, 0x00000055},
+		{0x00000044, 0x000000AA},
+	};
+	static const struct reg_sequence cs35l45_lock[] = {
+		{0x00000040, 0x00000000},
+		{0x00000044, 0x00000000},
+	};
 
 	switch (params_rate(params)) {
 	case 8000:
@@ -772,12 +783,14 @@ static int cs35l45_dai_hw_params(struct snd_pcm_substream *substream,
 		global_fs = CS35L45_16_KHZ;
 		break;
 	case 44100:
+		hpf_override = CS35L45_HPF_44P1;
 		global_fs = CS35L45_44P100_KHZ;
 		break;
 	case 48000:
 		global_fs = CS35L45_48P0_KHZ;
 		break;
 	case 88200:
+		hpf_override = CS35L45_HPF_88P2;
 		global_fs = CS35L45_88P200_KHZ;
 		break;
 	case 96000:
@@ -792,6 +805,14 @@ static int cs35l45_dai_hw_params(struct snd_pcm_substream *substream,
 	regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_SAMPLE_RATE,
 			   CS35L45_GLOBAL_FS_MASK,
 			   global_fs << CS35L45_GLOBAL_FS_SHIFT);
+
+	regmap_register_patch(cs35l45->regmap, cs35l45_unlock,
+			      ARRAY_SIZE(cs35l45_unlock));
+
+	regmap_write(cs35l45->regmap, CS35L45_AMP_PCM_HPF_TST, hpf_override);
+
+	regmap_register_patch(cs35l45->regmap, cs35l45_lock,
+			      ARRAY_SIZE(cs35l45_lock));
 
 	asp_wl = params_width(params);
 	asp_width = cs35l45->pdata.use_tdm_slots ?
@@ -1766,10 +1787,16 @@ static const struct reg_sequence cs35l45_errata_patch[] = {
 	{0x00000044,		0x000000AA},
 	{0x00006480,		0x0830500A},
 	{CS35L45_LDPM_CONFIG,	0x0001B636},
+	{0x00006850,		0x0A30FFC4},
 	{0x00007C60,		0x1000850B},
 	{CS35L45_BOOST_OV_CFG,	0x007000D0},
 	{0x00003820,		0x00040100},
 	{0x00003824,		0x00000000},
+	{CS35L45_BOOST_CCM_CFG,		0xF0000003},
+	{CS35L45_BOOST_DCM_CFG,		0x08710220},
+	{0x00004160,		0x8080B800},
+	{0x00004164,		0x1C000000},
+	{0x00004168,		0x3BC00000},
 	{0x00000040,		0x00000000},
 	{0x00000044,		0x00000000},
 };
