@@ -3876,9 +3876,9 @@ static int cs40l2x_imon_offs_sync(struct cs40l2x_private *cs40l2x)
 {
 	struct regmap *regmap = cs40l2x->regmap;
 	unsigned int reg_calc_enable = cs40l2x_dsp_reg(cs40l2x,
-			"IMON_OFFSET_CALC_ENABLE",
+			"VMON_IMON_OFFSET_ENABLE",
 			CS40L2X_XM_UNPACKED_TYPE, cs40l2x->fw_desc->id);
-	unsigned int val_calc_enable = CS40L2X_IMON_OFFS_CALC_DISABLED;
+	unsigned int val_calc_enable = CS40L2X_IMON_OFFS_CALC_DIS;
 	unsigned int reg, val;
 	int ret;
 
@@ -3893,7 +3893,7 @@ static int cs40l2x_imon_offs_sync(struct cs40l2x_private *cs40l2x)
 			return ret;
 
 		if (val == CS40L2X_CLAB_ENABLED)
-			val_calc_enable = CS40L2X_IMON_OFFS_CALC_ENABLED;
+			val_calc_enable = CS40L2X_IMON_OFFS_CALC_EN;
 	}
 
 	return regmap_write(regmap, reg_calc_enable, val_calc_enable);
@@ -5326,6 +5326,8 @@ static int cs40l2x_cond_classh(struct cs40l2x_private *cs40l2x, int index)
 				0 << CS40L2X_CLASSH_EN_SHIFT);
 		if (ret)
 			return ret;
+
+		usleep_range(10000, 10500);
 	} else {
 		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
 						CS40L2X_BST_CTL_SEL_MASK,
