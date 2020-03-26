@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (c) 2018
+ * Copyright (c) 2018, 2020
  * Cirrus Logic, Inc. and Cirrus Logic International Semiconductor Ltd.
  * All rights reserved.
  * This software as well as any related documentation is furnished under
@@ -20,6 +20,10 @@
 #define CLSICMESSAGEDEFINES_SYS_H_
 
 #include "clsicmessagedefines.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  *  Service type identifier.
@@ -54,11 +58,11 @@ enum clsic_sys_msg_id {
 	CLSIC_SYS_MSG_CR_IOCTL			= 11,
 	CLSIC_SYS_MSG_CR_MAB_VERSION		= 12,
 	CLSIC_SYS_MSG_CR_GET_DI_CATEGORY_COUNT	=
-		CLSIC_GBL_MSG_CR_GET_DI_CATEGORY_COUNT,
+	CLSIC_GBL_MSG_CR_GET_DI_CATEGORY_COUNT,
 	CLSIC_SYS_MSG_CR_GET_DI_PAGE_COUNT	=
-		CLSIC_GBL_MSG_CR_GET_DI_PAGE_COUNT,
+	CLSIC_GBL_MSG_CR_GET_DI_PAGE_COUNT,
 	CLSIC_SYS_MSG_CR_GET_DEBUG_INFO		=
-		CLSIC_GBL_MSG_CR_GET_DEBUG_INFO,
+	CLSIC_GBL_MSG_CR_GET_DEBUG_INFO,
 };
 
 /**
@@ -333,5 +337,9 @@ union clsic_sys_msg {
 	} PACKED rsp_mab_version;
 
 } PACKED;
+
+#if (defined __cplusplus)
+}
+#endif
 
 #endif /* CLSICMESSAGEDEFINES_SYS_H_ */

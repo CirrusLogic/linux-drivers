@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (c) 2018
+ * Copyright (c) 2018, 2020
  * Cirrus Logic, Inc. and Cirrus Logic International Semiconductor Ltd.
  * All rights reserved.
  * This software as well as any related documentation is furnished under
@@ -29,7 +29,11 @@
 /**
  *  Service version number.
  */
-#define CLSIC_SRV_VERSION_ALG			(0x01000000)
+#define CLSIC_SRV_VERSION_ALG			(0x00030000)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  *  Algorithm service event identifiers
@@ -37,7 +41,12 @@
 enum clsic_algo_service_event_id {
 	CLSIC_ALGOSRV_EVENT_GP0		= 0,
 	CLSIC_ALGOSRV_EVENT_VTE		= 1,
-	CLSIC_ALGOSRV_EVENT_COUNT	= 2,
+	CLSIC_ALGOSRV_EVENT_DLG		= 2,
+	CLSIC_ALGOSRV_EVENT_COUNT	= 3,
 };
+
+#if (defined __cplusplus)
+}
+#endif
 
 #endif /* CLSICMESSAGEDEFINES_ALG_H_ */
