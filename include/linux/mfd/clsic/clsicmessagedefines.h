@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (c) 2017-2018
+ * Copyright (c) 2017-2020
  * Cirrus Logic, Inc. and Cirrus Logic International Semiconductor Ltd.
  * All rights reserved.
  * This software as well as any related documentation is furnished under
@@ -42,6 +42,10 @@
 #define CLSIC_BULK_MASK				(0x1 << CLSIC_BULK_POS)
 #define CLSIC_CRAN_POS				(0)
 #define CLSIC_CRAN_MASK				(0x3 << CLSIC_CRAN_POS)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  *  Given a pointer to a ServiceIntance-Bulk-Cran (sbc) field, sets to the
@@ -346,5 +350,9 @@ enum clsic_err {
 	CLSIC_ERR_BL_NBS2_NOT_1ST_IN_CAB	= 211,
 	CLSIC_ERR_BL_OSAPP_NOT_2ND_IN_CAB	= 212,
 };
+
+#if (defined __cplusplus)
+}
+#endif
 
 #endif

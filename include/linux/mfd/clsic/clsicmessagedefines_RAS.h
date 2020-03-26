@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (c) 2018
+ * Copyright (c) 2018, 2020
  * Cirrus Logic, Inc. and Cirrus Logic International Semiconductor Ltd.
  * All rights reserved.
  * This software as well as any related documentation is furnished under
@@ -30,6 +30,10 @@
  *  Service version number.
  */
 #define CLSIC_SRV_VERSION_RAS			(0x00030000)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  *  Register Access Service message identifiers.
@@ -268,5 +272,9 @@ struct clsic_ras_fast_reg_write {
 	uint32_t reg_addr;
 	uint32_t reg_val;
 } PACKED;
+
+#if (defined __cplusplus)
+}
+#endif
 
 #endif /* CLSICMESSAGEDEFINES_RAS_H_ */

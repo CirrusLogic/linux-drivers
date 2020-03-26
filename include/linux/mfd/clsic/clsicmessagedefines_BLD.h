@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (c) 2018
+ * Copyright (c) 2018, 2020
  * Cirrus Logic, Inc. and Cirrus Logic International Semiconductor Ltd.
  * All rights reserved.
  * This software as well as any related documentation is furnished under
@@ -35,6 +35,10 @@
  *  Well-known service instance index.
  */
 #define CLSIC_SRV_INST_BLD			(0x1F)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  *  Boot Loader Service message identifiers.
@@ -165,5 +169,9 @@ union clsic_bl_msg {
 		uint8_t component;
 	} PACKED nty_flash_corrupted;
 } PACKED;
+
+#if (defined __cplusplus)
+}
+#endif
 
 #endif /* CLSICMESSAGEDEFINES_BLD_H_ */
