@@ -896,6 +896,7 @@ static int clsic_alg_handle_n_irq(struct clsic_alg *alg,
 
 	switch (event_id) {
 	case CLSIC_ALGOSRV_EVENT_VTE:
+	case CLSIC_ALGOSRV_EVENT_DLG:
 		alg->compr_stream.event_id = event_id;
 		schedule_work(&alg->compr_stream.triggered);
 		ret = CLSIC_HANDLED;
@@ -953,6 +954,8 @@ static int clsic_alg_notification_handler(struct clsic *clsic,
 enum clsic_alg_dais {
 	CLSIC_ALG_CPU_VOICECTRL = 0,
 	CLSIC_ALG_VPU_VOICECTRL,
+	CLSIC_ALG_CPU_TRACE,
+	CLSIC_ALG_VPU_TRACE,
 	CLSIC_ALG_MAX_DAI
 };
 
@@ -970,6 +973,25 @@ static struct snd_soc_dai_driver clsic_alg_dai[CLSIC_ALG_MAX_DAI] = {
 	[CLSIC_ALG_VPU_VOICECTRL] = {
 		.capture = {
 			.stream_name = "Voice Trigger VPU",
+			.channels_min = 1,
+			.channels_max = 8,
+			.rates = TACNA_RATES,
+			.formats = TACNA_FORMATS,
+		},
+	},
+	[CLSIC_ALG_CPU_TRACE] = {
+		.capture = {
+			.stream_name = "Diagnostics Trace CPU",
+			.channels_min = 1,
+			.channels_max = 8,
+			.rates = TACNA_RATES,
+			.formats = TACNA_FORMATS,
+		},
+		.compress_new = &snd_soc_new_compress,
+	},
+	[CLSIC_ALG_VPU_TRACE] = {
+		.capture = {
+			.stream_name = "Diagnostics Trace VPU",
 			.channels_min = 1,
 			.channels_max = 8,
 			.rates = TACNA_RATES,
@@ -1049,7 +1071,19 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 
 	if (ret) {
 		clsic_err(alg->clsic,
-			  "Set notifier failed %d (DAI '%s'), freeing stream\n",
+			  "Set VTE notifier failed %d (DAI '%s') free stream\n",
+			  ret, rtd->codec_dai->name);
+		clsic_alg_compr_free(stream);
+		return ret;
+	}
+
+	ret = clsic_alg_set_irq_notify_mode(alg,
+				(enum clsic_ras_irq_id) CLSIC_ALGOSRV_EVENT_DLG,
+				CLSIC_RAS_NTY_FLUSH_AND_REQ);
+
+	if (ret) {
+		clsic_err(alg->clsic,
+			  "Set DLG notifier failed %d (DAI '%s') free stream\n",
 			  ret, rtd->codec_dai->name);
 		clsic_alg_compr_free(stream);
 	}
@@ -1088,7 +1122,16 @@ static int clsic_alg_compr_free(struct snd_compr_stream *stream)
 
 	if (ret)
 		clsic_err(alg->clsic,
-			  "Cancel notify mode for DAI '%s' failed %d\n",
+			  "Cancel VTE notify mode for DAI '%s' failed %d\n",
+			  rtd->codec_dai->name, ret);
+
+	ret = clsic_alg_set_irq_notify_mode(alg,
+				(enum clsic_ras_irq_id) CLSIC_ALGOSRV_EVENT_DLG,
+				CLSIC_RAS_NTY_CANCEL);
+
+	if (ret)
+		clsic_err(alg->clsic,
+			  "Cancel DLG notify mode for DAI '%s' failed %d\n",
 			  rtd->codec_dai->name, ret);
 
 	/* Release the msgproc when the compressed stream is freed. */
@@ -1190,6 +1233,25 @@ static void clsic_alg_compr_triggered(struct work_struct *data)
 }
 
 /**
+ * clsic_alg_stream_available() - Check compressed stream DAI is available
+ * @name:	Codec DAI name to match.
+ *
+ * The stream name is set to the codec_dai name when the stream is opened.
+ *
+ * Return: true if supplied DAI name matches a compressed stream DAI name.
+ */
+static bool clsic_alg_stream_available(const char *name)
+{
+	if (strcmp(name, clsic_alg_dai[CLSIC_ALG_VPU_VOICECTRL].name) == 0)
+		return true;
+
+	if (strcmp(name, clsic_alg_dai[CLSIC_ALG_VPU_TRACE].name) == 0)
+		return true;
+
+	return false;
+}
+
+/**
  * clsic_alg_compr_trigger() - respond to userspace
  * @stream:	Standard parameter as used by compressed stream infrastructure.
  * @cmd:	A start or stop flag for compressed audio streaming.
@@ -1209,8 +1271,7 @@ static int clsic_alg_compr_trigger(struct snd_compr_stream *stream, int cmd)
 
 	clsic_dbg(alg->clsic, "%s %d\n", rtd->codec_dai->name, cmd);
 
-	if (strcmp(rtd->codec_dai->name,
-		   clsic_alg_dai[CLSIC_ALG_VPU_VOICECTRL].name) == 0) {
+	if (clsic_alg_stream_available(rtd->codec_dai->name)) {
 		switch (cmd) {
 		case SNDRV_PCM_TRIGGER_START:
 			break;
@@ -1262,8 +1323,7 @@ static int clsic_alg_compr_pointer(struct snd_compr_stream *stream,
 
 	clsic_dbg(alg->clsic, "%s\n", rtd->codec_dai->name);
 
-	if (strcmp(rtd->codec_dai->name,
-		   clsic_alg_dai[CLSIC_ALG_VPU_VOICECTRL].name) == 0) {
+	if (clsic_alg_stream_available(rtd->codec_dai->name)) {
 		ret = wm_adsp_compr_pointer(stream, tstamp);
 
 		if (ret)
@@ -1301,8 +1361,7 @@ static int clsic_alg_compr_copy(struct snd_compr_stream *stream,
 
 	clsic_dbg(alg->clsic, "%s\n", rtd->codec_dai->name);
 
-	if (strcmp(rtd->codec_dai->name,
-		   clsic_alg_dai[CLSIC_ALG_VPU_VOICECTRL].name) == 0) {
+	if (clsic_alg_stream_available(rtd->codec_dai->name)) {
 		ret = wm_adsp_compr_copy(stream, buf, count);
 	} else {
 		clsic_err(alg->clsic,
@@ -1518,6 +1577,11 @@ static int clsic_alg_probe(struct platform_device *pdev)
 	clsic_alg_dai[CLSIC_ALG_VPU_VOICECTRL].name =
 		kasprintf(GFP_KERNEL, "%s-dsp-voicectrl", devid_string);
 
+	clsic_alg_dai[CLSIC_ALG_CPU_TRACE].name =
+		kasprintf(GFP_KERNEL, "%s-cpu-trace", devid_string);
+	clsic_alg_dai[CLSIC_ALG_VPU_TRACE].name =
+		kasprintf(GFP_KERNEL, "%s-dsp-trace", devid_string);
+
 	/* Register codec with the ASoC core */
 	ret = snd_soc_register_codec(dev, &soc_codec_clsic_alg, clsic_alg_dai,
 				     ARRAY_SIZE(clsic_alg_dai));
@@ -1545,6 +1609,8 @@ static int clsic_alg_remove(struct platform_device *pdev)
 
 	kfree(clsic_alg_dai[CLSIC_ALG_CPU_VOICECTRL].name);
 	kfree(clsic_alg_dai[CLSIC_ALG_VPU_VOICECTRL].name);
+	kfree(clsic_alg_dai[CLSIC_ALG_CPU_TRACE].name);
+	kfree(clsic_alg_dai[CLSIC_ALG_VPU_TRACE].name);
 
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove(alg->rawMsgFile);
