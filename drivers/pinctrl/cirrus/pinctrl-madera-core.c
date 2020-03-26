@@ -20,7 +20,6 @@
 #include <linux/mfd/madera/registers.h>
 
 #include "../pinctrl-utils.h"
-#include "../core.h"
 
 #include "pinctrl-madera.h"
 
@@ -1074,27 +1073,13 @@ static int madera_pin_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, priv);
-
 	dev_dbg(priv->dev, "pinctrl probed ok\n");
-
-	return 0;
-}
-
-int madera_pin_remove(struct platform_device *pdev)
-{
-	struct madera_pin_private *priv = platform_get_drvdata(pdev);
-
-	/* Work around core bug where reference isn't put for hogs */
-	if (!IS_ERR_OR_NULL(priv->pctl->p))
-		pinctrl_put(priv->pctl->p);
 
 	return 0;
 }
 
 static struct platform_driver madera_pin_driver = {
 	.probe = madera_pin_probe,
-	.remove = madera_pin_remove,
 	.driver = {
 		.name = "madera-pinctrl",
 	},
