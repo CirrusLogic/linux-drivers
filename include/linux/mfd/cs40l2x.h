@@ -835,6 +835,7 @@
 #define CS40L2X_WT_SAMPLE_RATE_SIZE	4
 #define CS40L2X_WT_DBLK_LENGTH_SIZE	4
 #define CS40L2X_WT_HEADER_END		0xffffff
+#define CS40L2X_MAX_WAVEFORMS		128
 
 #define CS40L2X_XM_FW_ID		(CS40L2X_DSP1_XMEM_UNPACK24_0 + 12)
 #define CS40L2X_XM_NUM_ALGOS		(CS40L2X_DSP1_XMEM_UNPACK24_0 + 36)
@@ -1290,8 +1291,8 @@ struct cs40l2x_private {
 	bool comp_enable_redc;
 	bool comp_enable_f0;
 	bool amp_gnd_stby;
-	unsigned int clab_wt_en;
-	unsigned int f0_wt_en;
+	bool clab_wt_en[CS40L2X_MAX_WAVEFORMS];
+	bool f0_wt_en[CS40L2X_MAX_WAVEFORMS];
 	struct cs40l2x_wseq_pair dsp_cache[CS40L2X_DSP_CACHE_MAX];
 	unsigned int dsp_cache_depth;
 
