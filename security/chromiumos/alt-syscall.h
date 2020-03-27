@@ -199,6 +199,7 @@ static asmlinkage long alt_sys_prctl(struct pt_regs *regs);
 #define __NR_compat_io_setup  __NR_ia32_io_setup
 #define __NR_compat_io_submit __NR_ia32_io_submit
 #define __NR_compat_ioprio_set  __NR_ia32_ioprio_set
+#define __NR_compat_kcmp        __NR_ia32_kcmp
 #define __NR_compat_keyctl      __NR_ia32_keyctl
 #define __NR_compat_kill        __NR_ia32_kill
 #define __NR_compat_lgetxattr   __NR_ia32_lgetxattr
