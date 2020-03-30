@@ -392,6 +392,9 @@ static const struct snd_kcontrol_new muxes[] = {
 	SOC_DAPM_ENUM("DACPCM Source", mux_enums[DACPCM]),
 };
 
+static const struct snd_kcontrol_new amp_en_ctl =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
 static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("DSP1 Preload", NULL),
 
@@ -428,6 +431,8 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("DSP_RX1 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX1]),
 	SND_SOC_DAPM_MUX("DSP_RX2 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX2]),
 	SND_SOC_DAPM_MUX("DACPCM Source", SND_SOC_NOPM, 0, 0, &muxes[DACPCM]),
+
+	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_NOPM, 0, 1, &amp_en_ctl),
 
 	SND_SOC_DAPM_AIF_OUT("RCV_EN", NULL, 0, CS35L45_BLOCK_ENABLES, 2, 0),
 
@@ -499,7 +504,9 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"Capture", NULL, "BSTMON"},
 
 	/* Playback */
-	{"GLOBAL_EN", NULL, "Playback"},
+	{"AMP Enable", "Switch", "Playback"},
+
+	{"GLOBAL_EN", NULL, "AMP Enable"},
 
 	{"ASP", NULL, "GLOBAL_EN"},
 	{"DSP", NULL, "GLOBAL_EN"},
