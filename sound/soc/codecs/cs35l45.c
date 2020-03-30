@@ -16,6 +16,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/tlv.h>
 
 #include "wm_adsp.h"
 #include "cs35l45.h"
@@ -583,6 +584,10 @@ static const char * const hibernate_mode_texts[] = {"Off", "On"};
 static SOC_ENUM_SINGLE_DECL(hibernate_mode_enum, SND_SOC_NOPM, 0,
 			    hibernate_mode_texts);
 
+static const DECLARE_TLV_DB_RANGE(dig_pcm_vol_tlv, 0, 0,
+				  TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
+				  1, 913, TLV_DB_SCALE_ITEM(-10200, 25, 0));
+
 static int cs35l45_amplifier_mode_get(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
@@ -688,6 +693,23 @@ static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 			 0, 63, 0),
 	SOC_SINGLE_RANGE("ASPRX2 Slot Position", CS35L45_ASP_FRAME_CONTROL5, 8,
 			 0, 63, 0),
+	{
+		.name = "Digital PCM Volume",
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |
+			  SNDRV_CTL_ELEM_ACCESS_READWRITE,
+		.tlv.p  = dig_pcm_vol_tlv,
+		.info = snd_soc_info_volsw_sx,
+		.get = snd_soc_get_volsw_sx,
+		.put = snd_soc_put_volsw_sx,
+		.private_value = (unsigned long)&(struct soc_mixer_control)
+			{
+				 .reg = CS35L45_AMP_PCM_CONTROL,
+				 .rreg = CS35L45_AMP_PCM_CONTROL,
+				 .shift = 0, .rshift = 0,
+				 .max = 0x391, .min = CS35L45_AMP_VOL_PCM_MUTE
+			}
+	},
 };
 
 static int cs35l45_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
