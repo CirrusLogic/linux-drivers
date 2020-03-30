@@ -1792,7 +1792,7 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 	return 0;
 }
 
-static const struct reg_sequence cs35l45_errata_patch[] = {
+static const struct reg_sequence cs35l45_init_patch[] = {
 	{0x00000040,		0x00000055},
 	{0x00000040,		0x000000AA},
 	{0x00000044,		0x00000055},
@@ -1841,10 +1841,10 @@ static int __cs35l45_initialize(struct cs35l45_private *cs35l45)
 		return -ETIMEDOUT;
 	}
 
-	ret = regmap_register_patch(cs35l45->regmap, cs35l45_errata_patch,
-				    ARRAY_SIZE(cs35l45_errata_patch));
+	ret = regmap_register_patch(cs35l45->regmap, cs35l45_init_patch,
+				    ARRAY_SIZE(cs35l45_init_patch));
 	if (ret < 0) {
-		dev_err(dev, "Failed to apply errata patch %d\n", ret);
+		dev_err(dev, "Failed to apply init patch %d\n", ret);
 		return ret;
 	}
 
