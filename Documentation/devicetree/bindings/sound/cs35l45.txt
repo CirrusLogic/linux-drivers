@@ -10,12 +10,21 @@ Required properties:
     as covered in
     Documentation/devicetree/bindings/regulator/regulator.txt.
 
+Optional properties:
   - interrupts : IRQ line info CS35L45.
     (See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
     for further information relating to interrupt properties)
 
-Optional properties:
   - reset-gpios : gpio used to reset the amplifier
+
+  - cirrus,asp-sdout-hiz-ctrl : ASP TX data pin (DOUT) Hi-Z control.
+
+  0 = Logic 0 during unused timeslots, and while all transmit channels disabled
+  1 = Hi-Z during unused timeslots but logic 0 while all transmit channels
+       disabled
+  2 = (Default) Logic 0 during unused timeslots, but Hi-Z while all transmit
+       channels disabled
+  3 = Hi-Z during unused timeslots, and while all transmit channels disabled
 
   - cirrus,dsp-part-name : String to create custom part name for HALO DSP
     driver. Default is 'cs35l45'.
