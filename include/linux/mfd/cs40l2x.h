@@ -16,6 +16,7 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <linux/completion.h>
+#include <linux/firmware.h>
 #include <linux/platform_data/cs40l2x.h>
 
 #define CS40L2X_FIRSTREG		0x00000000
@@ -1308,6 +1309,9 @@ struct cs40l2x_private {
 	unsigned int autosuspend_delay;
 	struct completion hap_done;
 };
+
+int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
+			const struct firmware *fw);
 
 extern const unsigned char cs40l2x_bst_k1_table[4][5];
 extern const unsigned char cs40l2x_bst_k2_table[4][5];
