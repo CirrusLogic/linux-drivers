@@ -6683,7 +6683,7 @@ static int cs40l2x_ack_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
 	return -ETIME;
 }
 
-static int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
+int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 			const struct firmware *fw)
 {
 	struct device *dev = cs40l2x->dev;
@@ -6890,6 +6890,7 @@ err_rls_fw:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cs40l2x_coeff_file_parse);
 
 static void cs40l2x_coeff_file_load(const struct firmware *fw, void *context)
 {
