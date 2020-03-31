@@ -40,6 +40,9 @@ struct cs40l2x_codec {
 	struct device *dev;
 	struct regmap *regmap;
 	int codec_sysclk;
+	int tuning;
+	int tuning_prev;
+	char *bin_file;
 };
 
 struct cs40l2x_pll_sysclk_config {
@@ -174,11 +177,12 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 	struct cs40l2x_private *core = codec->core;
 	struct regmap *regmap = codec->regmap;
 	struct device *dev = codec->dev;
-	unsigned int reg;
+	const struct firmware *fw;
+	unsigned int reg, ack;
 	int ret = 0;
 
 	if (core->dsp_reg) {
-		reg = core->dsp_reg(core, "A2HENABLED",
+		reg = core->dsp_reg(core, "A2HEN",
 				CS40L2X_XM_UNPACKED_TYPE,
 				CS40L2X_ALGO_ID_A2H);
 	} else {
@@ -193,6 +197,45 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		if (codec->tuning != codec->tuning_prev) {
+			ret = request_firmware(&fw, codec->bin_file,
+						codec->dev);
+			if (ret) {
+				dev_err(dev, "Failed to request %s file\n",
+						codec->bin_file);
+				return ret;
+			}
+			ret = regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_4,
+					CS40L2X_PWRCTL_FORCE_STBY);
+			if (ret)
+				return ret;
+
+			ret = regmap_read(regmap, CS40L2X_DSP_VIRT1_MBOX_4,
+						&ack);
+			if (ret)
+				return ret;
+
+			if (ack != CS40L2X_PWRCTL_NONE) {
+				dev_err(dev,
+					"Incorrect ACK from VIRT_MBOX 4 %d\n",
+					ack);
+				return -ENXIO;
+			}
+
+			ret = cs40l2x_coeff_file_parse(core, fw);
+			if (ret)
+				return ret;
+
+			codec->tuning_prev = codec->tuning;
+
+			ret =  regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_4,
+					CS40L2X_PWRCTL_WAKE);
+			if (ret)
+				return ret;
+
+			usleep_range(1000, 1010);
+		}
+
 		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
 					CS40L2X_BST_CTL_SEL_MASK,
 					CS40L2X_BST_CTL_SEL_CLASSH);
@@ -315,12 +358,52 @@ static int cs40l2x_vol_put(struct snd_kcontrol *kcontrol,
 	return regmap_write(regmap, reg, val);
 }
 
+static int cs40l2x_tuning_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct cs40l2x_codec *cs40l2x = snd_soc_component_get_drvdata(comp);
+
+	ucontrol->value.enumerated.item[0] = cs40l2x->tuning;
+
+	return 0;
+}
+
+static int cs40l2x_tuning_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct cs40l2x_codec *cs40l2x = snd_soc_component_get_drvdata(comp);
+	struct cs40l2x_private *core = cs40l2x->core;
+
+	if (ucontrol->value.enumerated.item[0] == cs40l2x->tuning)
+		return 0;
+
+	if (core->a2h_enable)
+		return -EBUSY;
+
+	cs40l2x->tuning = ucontrol->value.enumerated.item[0];
+
+	memset(cs40l2x->bin_file, 0, PAGE_SIZE);
+	cs40l2x->bin_file[PAGE_SIZE - 1] = '\0';
+
+	if (cs40l2x->tuning > 0)
+		snprintf(cs40l2x->bin_file, PAGE_SIZE, "cs40l25a_a2h%d.bin",
+				cs40l2x->tuning);
+	else
+		snprintf(cs40l2x->bin_file, PAGE_SIZE, "cs40l25a_a2h.bin");
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new cs40l2x_a2h =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
 static const struct snd_kcontrol_new cs40l2x_controls[] = {
 	SOC_SINGLE_EXT("A2H Volume Level", 0, 0, CS40L2X_VOL_LVL_MAX_STEPS, 0,
 		cs40l2x_vol_get, cs40l2x_vol_put),
+	SOC_SINGLE_EXT("A2H Tuning", 0, 0, CS40L2X_A2H_MAX_TUNING, 0,
+		cs40l2x_tuning_get, cs40l2x_tuning_put),
 };
 
 static const struct snd_soc_dapm_widget cs40l2x_dapm_widgets[] = {
@@ -560,6 +643,9 @@ static int cs40l2x_probe(struct platform_device *pdev)
 	cs40l2x_codec->dev = &pdev->dev;
 
 	platform_set_drvdata(pdev, cs40l2x_codec);
+
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_idle(&pdev->dev);
 
 	ret = snd_soc_register_component(&pdev->dev, &soc_codec_dev_cs40l2x,
 				      cs40l2x_dai, ARRAY_SIZE(cs40l2x_dai));
