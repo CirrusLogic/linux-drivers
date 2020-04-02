@@ -38,17 +38,6 @@
 #define CLSIC_DSP2_N_RX_CHANNELS	8
 #define CLSIC_DSP2_N_TX_CHANNELS	8
 
-#define CLSIC_DAI_CPU_VOICECTRL		"cs48lv41-cpu-voicectrl"
-
-/*
- * The compr stream name is set to the codec_dai name when the stream is opened.
- * When attaching the compressed stream to a host buffer the adsp driver
- * expects a match between the stream name and the buffer name.
- * The adsp driver creates the buffer name with dsp hard coded therefore
- * the codec_dai name has to be dsp rather than vpu.
- */
-#define CLSIC_DAI_VPU_VOICECTRL		"cs48lv41-dsp-voicectrl"
-
 static const struct wm_adsp_region clsic_alg_vpu_regions[] = {
 	{ .type = WMFW_VPU_DM, .base = 0x20000000 },
 };
@@ -958,9 +947,17 @@ static int clsic_alg_notification_handler(struct clsic *clsic,
 	return ret;
 }
 
-static struct snd_soc_dai_driver clsic_alg_dai[] = {
-	{
-		.name = CLSIC_DAI_CPU_VOICECTRL,
+/*
+ * This enum represents the index into the snd_soc_dai_driver struct.
+ */
+enum clsic_alg_dais {
+	CLSIC_ALG_CPU_VOICECTRL = 0,
+	CLSIC_ALG_VPU_VOICECTRL,
+	CLSIC_ALG_MAX_DAI
+};
+
+static struct snd_soc_dai_driver clsic_alg_dai[CLSIC_ALG_MAX_DAI] = {
+	[CLSIC_ALG_CPU_VOICECTRL] = {
 		.capture = {
 			.stream_name = "Voice Trigger CPU",
 			.channels_min = 1,
@@ -970,8 +967,7 @@ static struct snd_soc_dai_driver clsic_alg_dai[] = {
 		},
 		.compress_new = &snd_soc_new_compress,
 	},
-	{
-		.name = CLSIC_DAI_VPU_VOICECTRL,
+	[CLSIC_ALG_VPU_VOICECTRL] = {
 		.capture = {
 			.stream_name = "Voice Trigger VPU",
 			.channels_min = 1,
@@ -1213,7 +1209,8 @@ static int clsic_alg_compr_trigger(struct snd_compr_stream *stream, int cmd)
 
 	clsic_dbg(alg->clsic, "%s %d\n", rtd->codec_dai->name, cmd);
 
-	if (strcmp(rtd->codec_dai->name, CLSIC_DAI_VPU_VOICECTRL) == 0) {
+	if (strcmp(rtd->codec_dai->name,
+		   clsic_alg_dai[CLSIC_ALG_VPU_VOICECTRL].name) == 0) {
 		switch (cmd) {
 		case SNDRV_PCM_TRIGGER_START:
 			break;
@@ -1265,7 +1262,8 @@ static int clsic_alg_compr_pointer(struct snd_compr_stream *stream,
 
 	clsic_dbg(alg->clsic, "%s\n", rtd->codec_dai->name);
 
-	if (strcmp(rtd->codec_dai->name, CLSIC_DAI_VPU_VOICECTRL) == 0) {
+	if (strcmp(rtd->codec_dai->name,
+		   clsic_alg_dai[CLSIC_ALG_VPU_VOICECTRL].name) == 0) {
 		ret = wm_adsp_compr_pointer(stream, tstamp);
 
 		if (ret)
@@ -1303,7 +1301,8 @@ static int clsic_alg_compr_copy(struct snd_compr_stream *stream,
 
 	clsic_dbg(alg->clsic, "%s\n", rtd->codec_dai->name);
 
-	if (strcmp(rtd->codec_dai->name, CLSIC_DAI_VPU_VOICECTRL) == 0) {
+	if (strcmp(rtd->codec_dai->name,
+		   clsic_alg_dai[CLSIC_ALG_VPU_VOICECTRL].name) == 0) {
 		ret = wm_adsp_compr_copy(stream, buf, count);
 	} else {
 		clsic_err(alg->clsic,
@@ -1450,6 +1449,7 @@ static int clsic_alg_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct clsic_service *clsic_service = clsic_get_service_from_pdev(pdev);
 	struct clsic_alg *alg;
+	const char *devid_string;
 	int ret;
 
 	/*
@@ -1459,6 +1459,7 @@ static int clsic_alg_probe(struct platform_device *pdev)
 		return -EBUSY;
 
 	BUILD_BUG_ON(ARRAY_SIZE(clsic_alg_dai) > TACNA_MAX_DAI);
+	BUILD_BUG_ON(ARRAY_SIZE(clsic_alg_dai) > CLSIC_ALG_MAX_DAI);
 
 	/* Allocate memory for device specific data */
 	alg = devm_kzalloc(dev, sizeof(struct clsic_alg), GFP_KERNEL);
@@ -1502,6 +1503,21 @@ static int clsic_alg_probe(struct platform_device *pdev)
 		goto error;
 	}
 
+	devid_string = clsic_devid_to_string(alg->clsic->devid);
+
+	/*
+	 * The compr stream name is set to the codec_dai name when the stream is
+	 * opened.
+	 * When attaching the compressed stream to a host buffer the adsp driver
+	 * expects a match between the stream name and the buffer name.
+	 * The adsp driver creates the buffer name with dsp hard coded therefore
+	 * the codec_dai name has to be dsp rather than vpu.
+	 */
+	clsic_alg_dai[CLSIC_ALG_CPU_VOICECTRL].name =
+		kasprintf(GFP_KERNEL, "%s-cpu-voicectrl", devid_string);
+	clsic_alg_dai[CLSIC_ALG_VPU_VOICECTRL].name =
+		kasprintf(GFP_KERNEL, "%s-dsp-voicectrl", devid_string);
+
 	/* Register codec with the ASoC core */
 	ret = snd_soc_register_codec(dev, &soc_codec_clsic_alg, clsic_alg_dai,
 				     ARRAY_SIZE(clsic_alg_dai));
@@ -1526,6 +1542,9 @@ error:
 static int clsic_alg_remove(struct platform_device *pdev)
 {
 	struct clsic_alg *alg = platform_get_drvdata(pdev);
+
+	kfree(clsic_alg_dai[CLSIC_ALG_CPU_VOICECTRL].name);
+	kfree(clsic_alg_dai[CLSIC_ALG_VPU_VOICECTRL].name);
 
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove(alg->rawMsgFile);
