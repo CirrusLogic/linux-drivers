@@ -323,7 +323,7 @@ static ssize_t low_mem_ram_vs_swap_weight_store(struct kobject *kobj,
 		return -EINVAL;
 
 	/* The special value 0 represents infinity. */
-	low_mem_ram_vs_swap_weight = weight ? -1 : weight;
+	low_mem_ram_vs_swap_weight = !weight ? -1 : weight;
 	pr_info("low_mem: setting ram weight to %u\n",
 		low_mem_ram_vs_swap_weight);
 	return count;
