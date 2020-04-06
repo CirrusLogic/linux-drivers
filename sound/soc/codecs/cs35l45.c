@@ -1999,7 +1999,7 @@ static const char * const cs35l45_supplies[] = {"VA", "VP"};
 int cs35l45_probe(struct cs35l45_private *cs35l45)
 {
 	struct device *dev = cs35l45->dev;
-	unsigned long irq_pol = IRQF_ONESHOT;
+	unsigned long irq_pol = IRQF_ONESHOT | IRQF_SHARED;
 	int ret;
 	u32 i;
 
