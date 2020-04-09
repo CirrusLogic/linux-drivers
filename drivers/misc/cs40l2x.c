@@ -6749,7 +6749,7 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 				ret = -EINVAL;
 				goto err_rls_fw;
 			} else {
-				dev_info(dev, "Valid algo ID 0x%x\n", algo_id);
+				dev_dbg(dev, "Valid algo ID 0x%x\n", algo_id);
 			}
 
 			if (((algo_rev >> 8) & CS40L2X_ALGO_REV_MASK)
