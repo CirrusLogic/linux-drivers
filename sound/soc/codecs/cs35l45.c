@@ -1143,17 +1143,19 @@ static int cs35l45_set_sysclk(struct cs35l45_private *cs35l45, int clk_id,
 
 static const struct cs35l45_irq_monitor cs35l45_irq_mons[] = {
 	{
-		.reg = CS35L45_IRQ1_EINT_3,
-		.mask = CS35L45_IRQ1_MASK_3,
-		.bitmask = CS35L45_PLL_UNLOCK_FLAG_RISE_MASK,
-		.description = "PLL unlock (rising edge)",
+		.reg = CS35L45_IRQ1_EINT_1,
+		.mask = CS35L45_IRQ1_MASK_1,
+		.bitmask = CS35L45_AMP_SHORT_ERR_MASK,
+		.description = "Amplifier short error",
+		.err_msg = "AMP short error detected!\n",
 		.callback = NULL,
 	},
 	{
-		.reg = CS35L45_IRQ1_EINT_3,
-		.mask = CS35L45_IRQ1_MASK_3,
-		.bitmask = CS35L45_PLL_LOCK_FLAG_MASK,
-		.description = "PLL lock",
+		.reg = CS35L45_IRQ1_EINT_1,
+		.mask = CS35L45_IRQ1_MASK_1,
+		.bitmask = CS35L45_BST_SHORT_ERR_MASK,
+		.description = "Boost inductor short error",
+		.err_msg = "BST short error detected!\n",
 		.callback = NULL,
 	},
 };
@@ -1195,6 +1197,9 @@ static irqreturn_t cs35l45_irq(int irq, void *data)
 
 		regmap_write(cs35l45->regmap, cs35l45_irq_mons[i].reg,
 			     cs35l45_irq_mons[i].bitmask);
+
+		if (cs35l45_irq_mons[i].err_msg)
+			dev_err(cs35l45->dev, cs35l45_irq_mons[i].err_msg);
 
 		if (cs35l45_irq_mons[i].callback) {
 			ret = cs35l45_irq_mons[i].callback(cs35l45);
