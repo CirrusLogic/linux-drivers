@@ -573,6 +573,7 @@ enum hiber_mode {
 
 bool cs35l45_readable_reg(struct device *dev, unsigned int reg);
 bool cs35l45_volatile_reg(struct device *dev, unsigned int reg);
+bool cs35l45_precious_reg(struct device *dev, unsigned int reg);
 int cs35l45_set_csplmboxcmd(struct cs35l45_private *cs35l45,
 			    enum cspl_mboxcmd cmd);
 

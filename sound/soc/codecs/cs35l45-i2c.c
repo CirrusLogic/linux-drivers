@@ -26,6 +26,7 @@ static struct regmap_config cs35l45_regmap = {
 	.reg_defaults = cs35l45_reg,
 	.num_reg_defaults = ARRAY_SIZE(cs35l45_reg),
 	.volatile_reg = cs35l45_volatile_reg,
+	.precious_reg = cs35l45_precious_reg,
 	.readable_reg = cs35l45_readable_reg,
 	.cache_type = REGCACHE_RBTREE,
 };
