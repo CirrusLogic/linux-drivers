@@ -40,6 +40,7 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 {
 	int ret = 0;
 	struct cl_dsp_coeff_desc *coeff_desc;
+	unsigned int mem_region_prefix;
 
 	list_for_each_entry(coeff_desc, &dsp->coeff_desc_head, list) {
 		if (strncmp(coeff_desc->name, coeff_name,
@@ -51,9 +52,54 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 			continue;
 
 		*reg = coeff_desc->reg;
-		if (*reg == 0x0) /* No corresponding DSP register found */
-			ret = -ENXIO;
+		if (*reg == 0x0) {
+			dev_err(dsp->dev,
+				"No DSP control called %s for block_type 0x%X\n",
+				coeff_name, block_type);
+			return -ENXIO;
+		}
+
 		break;
+	}
+
+	/* verify register found in expected region */
+	switch (block_type) {
+	case CL_DSP_XM_PACKED_TYPE:
+		mem_region_prefix = (dsp->mem_reg_desc->xm_base_reg_packed
+				& CL_DSP_MEM_REG_TYPE_MASK)
+				>> CL_DSP_MEM_REG_TYPE_SHIFT;
+		break;
+	case CL_DSP_XM_UNPACKED_TYPE:
+		mem_region_prefix = (dsp->mem_reg_desc->xm_base_reg_unpacked_24
+				& CL_DSP_MEM_REG_TYPE_MASK)
+				>> CL_DSP_MEM_REG_TYPE_SHIFT;
+		break;
+	case CL_DSP_YM_PACKED_TYPE:
+		mem_region_prefix = (dsp->mem_reg_desc->ym_base_reg_packed
+				& CL_DSP_MEM_REG_TYPE_MASK)
+				>> CL_DSP_MEM_REG_TYPE_SHIFT;
+		break;
+	case CL_DSP_YM_UNPACKED_TYPE:
+		mem_region_prefix = (dsp->mem_reg_desc->ym_base_reg_unpacked_24
+				& CL_DSP_MEM_REG_TYPE_MASK)
+				>> CL_DSP_MEM_REG_TYPE_SHIFT;
+		break;
+	case CL_DSP_PM_PACKED_TYPE:
+		mem_region_prefix = (dsp->mem_reg_desc->pm_base_reg
+				& CL_DSP_MEM_REG_TYPE_MASK)
+				>> CL_DSP_MEM_REG_TYPE_SHIFT;
+		break;
+	default:
+		dev_err(dsp->dev, "Unrecognized block type: 0x%X\n",
+				block_type);
+		return -EINVAL;
+	}
+
+	if (((*reg & CL_DSP_MEM_REG_TYPE_MASK) >> CL_DSP_MEM_REG_TYPE_SHIFT)
+			!= mem_region_prefix) {
+		dev_err(dsp->dev, "DSP control %s found in unexpected region\n",
+				coeff_name);
+		ret = -ENXIO;
 	}
 
 	return ret;
