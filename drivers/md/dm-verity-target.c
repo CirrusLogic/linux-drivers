@@ -99,6 +99,8 @@ static void verity_error(struct dm_verity *v, struct dm_verity_io *io,
 
 	devt = v->data_dev->bdev->bd_dev;
 	error_behavior = v->error_behavior;
+	if (io)
+		block = io->block;
 
 	DMERR_LIMIT("verification failure occurred: %s failure", message);
 
