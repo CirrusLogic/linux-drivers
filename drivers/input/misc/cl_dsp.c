@@ -277,9 +277,9 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 			}
 			break;
 		case CL_DSP_XM_PACKED_TYPE:
-			reg = dsp->mem_reg_desc->xm_base_reg_packed +
+			reg = (dsp->mem_reg_desc->xm_base_reg_packed +
 					block_offset +
-					dsp->algo_info[i].xm_base * 4;
+					dsp->algo_info[i].xm_base * 3) & ~0x3;
 			break;
 		case CL_DSP_YM_UNPACKED_TYPE:
 			reg = dsp->mem_reg_desc->ym_base_reg_unpacked_24 +
@@ -310,9 +310,9 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 			}
 			break;
 		case CL_DSP_YM_PACKED_TYPE:
-			reg = dsp->mem_reg_desc->ym_base_reg_packed +
+			reg = (dsp->mem_reg_desc->ym_base_reg_packed +
 					block_offset +
-					dsp->algo_info[i].ym_base * 4;
+					dsp->algo_info[i].ym_base * 3) & ~0x3;
 		break;
 		default:
 			dev_err(dev, "Unexpected block type: 0x%04X\n",
@@ -329,7 +329,7 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 		}
 
 		/* Blocks are word-aligned */
-		pos += (block_length + 3) & ~0x00000003;
+		pos += (block_length + 3) & ~0x3;
 	}
 
 	if (dsp->wt_desc && wt_found) {
