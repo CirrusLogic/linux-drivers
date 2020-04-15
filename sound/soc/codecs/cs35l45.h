@@ -558,7 +558,10 @@ enum pcm_mixers {
 	ASP_TX4 = 3,
 	DSP_RX1 = 4,
 	DSP_RX2 = 5,
-	DACPCM = 6,
+	DSP_RX3 = 6,
+	DSP_RX4 = 7,
+	DSP_RX5 = 8,
+	DACPCM = 9,
 };
 
 enum amp_mode {
