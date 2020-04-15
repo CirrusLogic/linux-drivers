@@ -471,25 +471,30 @@ static int cs35l41_do_fast_switch(struct cs35l41_private *cs35l41)
 	}
 
 	wm_adsp_write_ctl(&cs35l41->dsp, "CSPL_UPDATE_PARAMS_CONFIG",
-			  data_ctl_buf, data_ctl_len * sizeof(s32));
+		WMFW_ADSP2_YM, 0xCD,
+		data_ctl_buf, data_ctl_len * sizeof(s32));
 
 	dev_dbg(cs35l41->dev,
 		"Wrote %u reg for CSPL_UPDATE_PARAMS_CONFIG\n", data_ctl_len);
 
 #ifdef DEBUG
 	wm_adsp_read_ctl(&cs35l41->dsp, "CSPL_UPDATE_PARAMS_CONFIG",
-			 data_ctl_buf, data_ctl_len * sizeof(s32));
+		WMFW_ADSP2_YM, 0xCD,
+		data_ctl_buf, data_ctl_len * sizeof(s32));
 	dev_dbg(cs35l41->dev, "read CSPL_UPDATE_PARAMS_CONFIG:\n");
 	for (i = 0; i < data_ctl_len; i++)
 		dev_dbg(cs35l41->dev, "%u\n", be32_to_cpu(data_ctl_buf[i]));
 #endif
 	cmd_ctl = cpu_to_be32(CSPL_CMD_UPDATE_PARAM);
-	wm_adsp_write_ctl(&cs35l41->dsp, "CSPL_COMMAND", &cmd_ctl, sizeof(s32));
+	wm_adsp_write_ctl(&cs35l41->dsp, "CSPL_COMMAND",
+		WMFW_ADSP2_XM, 0xCD,
+		&cmd_ctl, sizeof(s32));
 
 	/* Verify CSPL COMMAND */
 	for (i = 0; i < 5; i++) {
-		wm_adsp_read_ctl(&cs35l41->dsp, "CSPL_STATE", &st_ctl,
-				 sizeof(s32));
+		wm_adsp_read_ctl(&cs35l41->dsp, "CSPL_STATE",
+			WMFW_ADSP2_XM, 0xCD,
+			&st_ctl, sizeof(s32));
 		if (be32_to_cpu(st_ctl) == CSPL_ST_RUNNING) {
 			dev_dbg(cs35l41->dev,
 				"CSPL STATE == RUNNING (%u attempt)\n", i);
