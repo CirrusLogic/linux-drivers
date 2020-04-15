@@ -353,10 +353,14 @@ static const unsigned int pcm_tx_val[] = {CS35L45_PCM_SRC_ZERO,
 			CS35L45_PCM_SRC_VDD_BSTMON, CS35L45_PCM_SRC_DSP_TX1,
 			CS35L45_PCM_SRC_DSP_TX2};
 
-static const char * const pcm_rx_txt[] = {"Zero", "ASP_RX1", "ASP_RX2"};
+static const char * const pcm_rx_txt[] = {"Zero", "ASP_RX1", "ASP_RX2", "VMON",
+			"IMON", "ERR_VOL", "VDD_BATTMON", "VDD_BSTMON"};
 
 static const unsigned int pcm_rx_val[] = {CS35L45_PCM_SRC_ZERO,
-			CS35L45_PCM_SRC_ASP_RX1, CS35L45_PCM_SRC_ASP_RX2};
+			CS35L45_PCM_SRC_ASP_RX1, CS35L45_PCM_SRC_ASP_RX2,
+			CS35L45_PCM_SRC_VMON, CS35L45_PCM_SRC_IMON,
+			CS35L45_PCM_SRC_ERR_VOL, CS35L45_PCM_SRC_VDD_BATTMON,
+			CS35L45_PCM_SRC_VDD_BSTMON};
 
 static const char * const pcm_dac_txt[] = {"Zero", "ASP_RX1", "ASP_RX2",
 			"DSP_TX1", "DSP_TX2"};
@@ -378,6 +382,12 @@ static const struct soc_enum mux_enums[] = {
 			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
 	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX2_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
+	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX3_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
+	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX4_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
+	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX5_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
 	SOC_VALUE_ENUM_DOUBLE(CS35L45_DACPCM1_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_dac_txt), pcm_dac_txt, pcm_dac_val),
 };
@@ -389,6 +399,9 @@ static const struct snd_kcontrol_new muxes[] = {
 	SOC_DAPM_ENUM("ASP_TX4 Source", mux_enums[ASP_TX4]),
 	SOC_DAPM_ENUM("DSP_RX1 Source", mux_enums[DSP_RX1]),
 	SOC_DAPM_ENUM("DSP_RX2 Source", mux_enums[DSP_RX2]),
+	SOC_DAPM_ENUM("DSP_RX3 Source", mux_enums[DSP_RX3]),
+	SOC_DAPM_ENUM("DSP_RX4 Source", mux_enums[DSP_RX4]),
+	SOC_DAPM_ENUM("DSP_RX5 Source", mux_enums[DSP_RX5]),
 	SOC_DAPM_ENUM("DACPCM Source", mux_enums[DACPCM]),
 };
 
@@ -430,6 +443,9 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("ASP_TX4 Source", SND_SOC_NOPM, 0, 0, &muxes[ASP_TX4]),
 	SND_SOC_DAPM_MUX("DSP_RX1 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX1]),
 	SND_SOC_DAPM_MUX("DSP_RX2 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX2]),
+	SND_SOC_DAPM_MUX("DSP_RX3 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX3]),
+	SND_SOC_DAPM_MUX("DSP_RX4 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX4]),
+	SND_SOC_DAPM_MUX("DSP_RX5 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX5]),
 	SND_SOC_DAPM_MUX("DACPCM Source", SND_SOC_NOPM, 0, 0, &muxes[DACPCM]),
 
 	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_NOPM, 0, 1, &amp_en_ctl),
@@ -522,13 +538,31 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"DSP_RX2 Source", "ASP_RX1", "ASP_RX1"},
 	{"DSP_RX2 Source", "ASP_RX2", "ASP_RX2"},
 
+	{"DSP_RX3 Source", "Zero", "GLOBAL_EN"},
+	{"DSP_RX3 Source", "ASP_RX1", "ASP_RX1"},
+	{"DSP_RX3 Source", "ASP_RX2", "ASP_RX2"},
+
+	{"DSP_RX4 Source", "Zero", "GLOBAL_EN"},
+	{"DSP_RX4 Source", "ASP_RX1", "ASP_RX1"},
+	{"DSP_RX4 Source", "ASP_RX2", "ASP_RX2"},
+
+	{"DSP_RX5 Source", "Zero", "GLOBAL_EN"},
+	{"DSP_RX5 Source", "ASP_RX1", "ASP_RX1"},
+	{"DSP_RX5 Source", "ASP_RX2", "ASP_RX2"},
+
 	{"DACPCM Source", "Zero", "GLOBAL_EN"},
 	{"DACPCM Source", "ASP_RX1", "ASP_RX1"},
 	{"DACPCM Source", "ASP_RX2", "ASP_RX2"},
 	{"DACPCM Source", "DSP_TX1", "DSP_RX1 Source"},
 	{"DACPCM Source", "DSP_TX1", "DSP_RX2 Source"},
+	{"DACPCM Source", "DSP_TX1", "DSP_RX3 Source"},
+	{"DACPCM Source", "DSP_TX1", "DSP_RX4 Source"},
+	{"DACPCM Source", "DSP_TX1", "DSP_RX5 Source"},
 	{"DACPCM Source", "DSP_TX2", "DSP_RX1 Source"},
 	{"DACPCM Source", "DSP_TX2", "DSP_RX2 Source"},
+	{"DACPCM Source", "DSP_TX2", "DSP_RX3 Source"},
+	{"DACPCM Source", "DSP_TX2", "DSP_RX4 Source"},
+	{"DACPCM Source", "DSP_TX2", "DSP_RX5 Source"},
 
 	{"SPK", NULL, "DACPCM Source"},
 
@@ -539,6 +573,9 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 static const struct snd_soc_dapm_route cs35l45_dsp_dapm_routes[] = {
 	{"DSP_RX1 Source", NULL, "DSP"},
 	{"DSP_RX2 Source", NULL, "DSP"},
+	{"DSP_RX3 Source", NULL, "DSP"},
+	{"DSP_RX4 Source", NULL, "DSP"},
+	{"DSP_RX5 Source", NULL, "DSP"},
 };
 
 static int cs35l45_activate_ctl(struct cs35l45_private *cs35l45,
