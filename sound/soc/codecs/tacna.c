@@ -1080,6 +1080,15 @@ exit:
 }
 EXPORT_SYMBOL_GPL(tacna_low_power_mode_put);
 
+const struct soc_enum noise_gen_rate =
+	SOC_VALUE_ENUM_SINGLE(TACNA_COMFORT_NOISE_GENERATOR,
+			TACNA_NOISE_GEN_RATE_SHIFT,
+			TACNA_NOISE_GEN_RATE_MASK >> TACNA_NOISE_GEN_RATE_SHIFT,
+			TACNA_RATE_ENUM_SIZE,
+			tacna_rate_text,
+			tacna_rate_val);
+EXPORT_SYMBOL_GPL(noise_gen_rate);
+
 static const char * const tacna_auxpdm_freq_texts[] = {
 	"3.072MHz",
 	"2.048MHz",
