@@ -5346,7 +5346,6 @@ static int cs40l2x_cond_classh(struct cs40l2x_private *cs40l2x, int index)
 		if (ret)
 			return ret;
 
-		usleep_range(10000, 10500);
 	} else {
 		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
 						CS40L2X_BST_CTL_SEL_MASK,
