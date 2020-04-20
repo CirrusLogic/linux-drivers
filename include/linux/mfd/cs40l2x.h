@@ -1313,6 +1313,8 @@ struct cs40l2x_private {
 
 int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 			const struct firmware *fw);
+int cs40l2x_ack_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
+			unsigned int write_val, unsigned int reset_val);
 
 extern const unsigned char cs40l2x_bst_k1_table[4][5];
 extern const unsigned char cs40l2x_bst_k2_table[4][5];
