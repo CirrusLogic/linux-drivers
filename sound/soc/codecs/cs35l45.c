@@ -717,6 +717,9 @@ static int cs35l45_hibernate_mode_put(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
+#ifndef CONFIG_SND_SOC_CIRRUS_AMP
+	WM_ADSP_FW_CONTROL("DSP1", 0),
+#endif
 	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
 	SOC_ENUM_EXT("Amplifier Mode", amplifier_mode_enum,
 		     cs35l45_amplifier_mode_get, cs35l45_amplifier_mode_put),
@@ -1094,7 +1097,9 @@ static int cs35l45_component_probe(struct snd_soc_component *component)
 
 	wm_adsp2_component_probe(&cs35l45->dsp, component);
 
+#ifdef CONFIG_SND_SOC_CIRRUS_AMP
 	snd_soc_add_component_controls(component, &cs35l45->dsp.fw_ctrl, 1);
+#endif
 
 	return 0;
 }
