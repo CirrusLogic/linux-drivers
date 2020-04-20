@@ -73,8 +73,6 @@ static const unsigned int cs40l2x_event_masks[] = {
 
 static int cs40l2x_raw_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
 			const void *val, size_t val_len, size_t limit);
-static int cs40l2x_ack_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
-			unsigned int write_val, unsigned int reset_val);
 
 static int cs40l2x_hw_err_rls(struct cs40l2x_private *cs40l2x,
 			unsigned int irq_mask);
@@ -6650,7 +6648,7 @@ static int cs40l2x_raw_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
 	return ret;
 }
 
-static int cs40l2x_ack_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
+int cs40l2x_ack_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
 			unsigned int write_val, unsigned int reset_val)
 {
 	struct regmap *regmap = cs40l2x->regmap;
@@ -6682,6 +6680,7 @@ static int cs40l2x_ack_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
 
 	return -ETIME;
 }
+EXPORT_SYMBOL_GPL(cs40l2x_ack_write);
 
 int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 			const struct firmware *fw)
