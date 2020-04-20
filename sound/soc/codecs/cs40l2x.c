@@ -227,12 +227,11 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 
 			cs40l2x->tuning_prev = cs40l2x->tuning;
 
-			ret =  regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_4,
-					CS40L2X_PWRCTL_WAKE);
+			ret =  cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_4,
+					CS40L2X_PWRCTL_WAKE,
+					CS40L2X_POWERCONTROL_NONE);
 			if (ret)
 				return ret;
-
-			usleep_range(1000, 1010);
 		}
 
 		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
