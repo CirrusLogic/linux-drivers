@@ -1015,6 +1015,7 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct clsic_alg *alg = snd_soc_codec_get_drvdata(rtd->codec);
 	struct clsic *clsic = alg->clsic;
+	enum clsic_ras_irq_id irq_id;
 	int ret = 0;
 
 	/*
@@ -1065,27 +1066,27 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 		mutex_unlock(&alg->compr_stream.mutex);
 	}
 
-	ret = clsic_alg_set_irq_notify_mode(alg,
-				(enum clsic_ras_irq_id) CLSIC_ALGOSRV_EVENT_VTE,
-				CLSIC_RAS_NTY_FLUSH_AND_REQ);
-
-	if (ret) {
-		clsic_err(alg->clsic,
-			  "Set VTE notifier failed %d (DAI '%s') free stream\n",
-			  ret, rtd->codec_dai->name);
-		clsic_alg_compr_free(stream);
-		return ret;
+	if (strcmp(rtd->codec_dai->name,
+		   clsic_alg_dai[CLSIC_ALG_VPU_VOICECTRL].name) == 0) {
+		irq_id = (enum clsic_ras_irq_id) CLSIC_ALGOSRV_EVENT_VTE;
+	} else if (strcmp(rtd->codec_dai->name,
+			  clsic_alg_dai[CLSIC_ALG_VPU_TRACE].name) == 0) {
+		irq_id = (enum clsic_ras_irq_id) CLSIC_ALGOSRV_EVENT_DLG;
+	} else {
+		clsic_err(alg->clsic, "%s... unknown DAI '%s'\n",
+			  __func__, rtd->codec_dai->name);
+		ret = -EINVAL;
 	}
 
-	ret = clsic_alg_set_irq_notify_mode(alg,
-				(enum clsic_ras_irq_id) CLSIC_ALGOSRV_EVENT_DLG,
+	if (ret == 0) {
+		ret = clsic_alg_set_irq_notify_mode(alg,
+				irq_id,
 				CLSIC_RAS_NTY_FLUSH_AND_REQ);
 
-	if (ret) {
-		clsic_err(alg->clsic,
-			  "Set DLG notifier failed %d (DAI '%s') free stream\n",
-			  ret, rtd->codec_dai->name);
-		clsic_alg_compr_free(stream);
+		if (ret)
+			clsic_err(alg->clsic,
+				  "Notifier request failed (%d) for DAI '%s'\n",
+				  ret, rtd->codec_dai->name);
 	}
 
 	return ret;
@@ -1104,6 +1105,7 @@ static int clsic_alg_compr_free(struct snd_compr_stream *stream)
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
 	struct clsic_alg *alg = snd_soc_codec_get_drvdata(rtd->codec);
 	struct clsic *clsic = alg->clsic;
+	enum clsic_ras_irq_id irq_id;
 	int ret;
 
 	clsic_dbg(clsic, "%s\n", rtd->codec_dai->name);
@@ -1114,25 +1116,30 @@ static int clsic_alg_compr_free(struct snd_compr_stream *stream)
 
 	cancel_work_sync(&alg->compr_stream.triggered);
 
-	wm_adsp_compr_free(stream);
+	ret = wm_adsp_compr_free(stream);
 
-	ret = clsic_alg_set_irq_notify_mode(alg,
-				(enum clsic_ras_irq_id) CLSIC_ALGOSRV_EVENT_VTE,
+	if (strcmp(rtd->codec_dai->name,
+		   clsic_alg_dai[CLSIC_ALG_VPU_VOICECTRL].name) == 0) {
+		irq_id = (enum clsic_ras_irq_id) CLSIC_ALGOSRV_EVENT_VTE;
+	} else if (strcmp(rtd->codec_dai->name,
+			  clsic_alg_dai[CLSIC_ALG_VPU_TRACE].name) == 0) {
+		irq_id = (enum clsic_ras_irq_id) CLSIC_ALGOSRV_EVENT_DLG;
+	} else {
+		clsic_err(alg->clsic, "%s... unknown DAI '%s'\n",
+			  __func__, rtd->codec_dai->name);
+		ret = -EINVAL;
+	}
+
+	if (ret == 0) {
+		ret = clsic_alg_set_irq_notify_mode(alg,
+				irq_id,
 				CLSIC_RAS_NTY_CANCEL);
 
-	if (ret)
-		clsic_err(alg->clsic,
-			  "Cancel VTE notify mode for DAI '%s' failed %d\n",
-			  rtd->codec_dai->name, ret);
-
-	ret = clsic_alg_set_irq_notify_mode(alg,
-				(enum clsic_ras_irq_id) CLSIC_ALGOSRV_EVENT_DLG,
-				CLSIC_RAS_NTY_CANCEL);
-
-	if (ret)
-		clsic_err(alg->clsic,
-			  "Cancel DLG notify mode for DAI '%s' failed %d\n",
-			  rtd->codec_dai->name, ret);
+		if (ret)
+			clsic_err(alg->clsic,
+				  "Notifier cancel failed (%d) for DAI '%s'\n",
+				  ret, rtd->codec_dai->name);
+	}
 
 	/* Release the msgproc when the compressed stream is freed. */
 	clsic_msgproc_release(alg->clsic, alg->service->service_instance);
