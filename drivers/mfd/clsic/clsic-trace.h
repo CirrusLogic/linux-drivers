@@ -766,37 +766,48 @@ TRACE_EVENT(clsic_alg_set_irq_notify_mode,
 );
 
 TRACE_EVENT(clsic_alg_compr_stream_open,
-	TP_PROTO(enum snd_compr_direction  dir, int ret),
-	TP_ARGS(dir, ret),
+	TP_PROTO(const char *name, enum snd_compr_direction dir, int ret),
+	TP_ARGS(name, dir, ret),
 	TP_STRUCT__entry(
+		__field(const char *, name)
 		__field(enum snd_compr_direction, dir)
 		__field(int, ret)
 	),
 	TP_fast_assign(
+		__entry->name = name;
 		__entry->dir = dir;
 		__entry->ret = ret;
 	),
-	TP_printk("direction: %d; ret: %d", __entry->dir, __entry->ret)
+	TP_printk("%s direction: %d; ret: %d",
+		  __entry->name,
+		  __entry->dir,
+		  __entry->ret)
 );
 
 TRACE_EVENT(clsic_alg_compr_stream_free,
-	TP_PROTO(enum snd_compr_direction dir, int ret),
-	TP_ARGS(dir, ret),
-	TP_STRUCT__entry(
-		__field(enum snd_compr_direction, dir)
-		__field(int, ret)
-	),
-	TP_fast_assign(
-		__entry->dir = dir;
-		__entry->ret = ret;
-	),
-	TP_printk("direction: %d; ret: %d", __entry->dir, __entry->ret)
+	TP_PROTO(const char *name, enum snd_compr_direction dir, int ret),
+		TP_ARGS(name, dir, ret),
+		TP_STRUCT__entry(
+			__field(const char *, name)
+			__field(enum snd_compr_direction, dir)
+			__field(int, ret)
+		),
+		TP_fast_assign(
+			__entry->name = name;
+			__entry->dir = dir;
+			__entry->ret = ret;
+		),
+		TP_printk("%s direction: %d; ret: %d",
+			  __entry->name,
+			  __entry->dir,
+			  __entry->ret)
 );
 
 TRACE_EVENT(clsic_alg_compr_stream_set_params,
-	TP_PROTO(struct snd_compr_params *params, int ret),
-	TP_ARGS(params, ret),
+	TP_PROTO(const char *name, struct snd_compr_params *params, int ret),
+	TP_ARGS(name, params, ret),
 	TP_STRUCT__entry(
+		__field(const char *, name)
 		__field(u32, codec_id)
 		__field(u32, ch_in)
 		__field(u32, ch_out)
@@ -807,6 +818,7 @@ TRACE_EVENT(clsic_alg_compr_stream_set_params,
 		__field(int, ret)
 	),
 	TP_fast_assign(
+		__entry->name = name;
 		__entry->codec_id = params->codec.id;
 		__entry->ch_in = params->codec.ch_in;
 		__entry->ch_out = params->codec.ch_out;
@@ -817,7 +829,8 @@ TRACE_EVENT(clsic_alg_compr_stream_set_params,
 		__entry->ret = ret;
 	),
 	TP_printk(
-		  "codec id: %u; channels i/o %u/%u); format: %u; sample rate: %u; fragment size/count %zu/%zu; ret: %d",
+		  "%s codec id: %u; channels i/o %u/%u); format: %u; sample rate: %u; fragment size/count %zu/%zu; ret: %d",
+		  __entry->name,
 		  __entry->codec_id,
 		  __entry->ch_in,
 		  __entry->ch_out,
@@ -830,9 +843,10 @@ TRACE_EVENT(clsic_alg_compr_stream_set_params,
 );
 
 TRACE_EVENT(clsic_alg_compr_stream_get_caps,
-	TP_PROTO(struct snd_compr_caps *caps, int ret),
-	TP_ARGS(caps, ret),
+	TP_PROTO(const char *name, struct snd_compr_caps *caps, int ret),
+	TP_ARGS(name, caps, ret),
 	TP_STRUCT__entry(
+		__field(const char *, name)
 		__field(u32, num_codecs)
 		__field(u32, direction)
 		__field(u32, min_fragment_size)
@@ -842,6 +856,7 @@ TRACE_EVENT(clsic_alg_compr_stream_get_caps,
 		__field(int, ret)
 	),
 	TP_fast_assign(
+		__entry->name = name;
 		__entry->num_codecs = caps->num_codecs;
 		__entry->direction = caps->direction;
 		__entry->min_fragment_size = caps->min_fragment_size;
@@ -851,7 +866,8 @@ TRACE_EVENT(clsic_alg_compr_stream_get_caps,
 		__entry->ret = ret;
 	),
 	TP_printk(
-		  "num_codecs: %u; direction %u; fragment_size: %u-%u words; fragments: %u-%u; ret: %d",
+		  "%s num_codecs: %u; direction %u; fragment_size: %u-%u words; fragments: %u-%u; ret: %d",
+		  __entry->name,
 		  __entry->num_codecs,
 		  __entry->direction,
 		  __entry->min_fragment_size,
@@ -863,36 +879,44 @@ TRACE_EVENT(clsic_alg_compr_stream_get_caps,
 );
 
 TRACE_EVENT(clsic_alg_compr_stream_trigger,
-	TP_PROTO(int cmd, int ret),
-	TP_ARGS(cmd, ret),
+	TP_PROTO(const char *name, int cmd, int ret),
+	TP_ARGS(name, cmd, ret),
 	TP_STRUCT__entry(
+		__field(const char *, name)
 		__field(int, cmd)
 		__field(int, ret)
 	),
 	TP_fast_assign(
+		__entry->name = name;
 		__entry->cmd = cmd;
 		__entry->ret = ret;
 	),
-	TP_printk("cmd: %d; ret: %d", __entry->cmd, __entry->ret)
+	TP_printk("%s cmd: %d; ret: %d",
+		  __entry->name,
+		  __entry->cmd,
+		  __entry->ret)
 );
 
 TRACE_EVENT(clsic_alg_compr_stream_timestamp,
-	TP_PROTO(struct snd_compr_tstamp *tstamp, int ret),
-	TP_ARGS(tstamp, ret),
+	TP_PROTO(const char *name, struct snd_compr_tstamp *tstamp, int ret),
+	TP_ARGS(name, tstamp, ret),
 	TP_STRUCT__entry(
+		__field(const char *, name)
 		__field(u32, byte_offset)
 		__field(u32, copied_total)
 		__field(u32, sampling_rate)
 		__field(int, ret)
 	),
 	TP_fast_assign(
+		__entry->name = name;
 		__entry->byte_offset = tstamp->byte_offset;
 		__entry->copied_total = tstamp->copied_total;
 		__entry->sampling_rate = tstamp->sampling_rate;
 		__entry->ret = ret;
 	),
 	TP_printk(
-		  "byte_offset: %u; copied_total %u; sampling_rate: %u; ret: %d",
+		  "%s byte_offset: %u; copied_total %u; sampling_rate: %u; ret: %d",
+		  __entry->name,
 		  __entry->byte_offset,
 		  __entry->copied_total,
 		  __entry->sampling_rate,
@@ -901,17 +925,22 @@ TRACE_EVENT(clsic_alg_compr_stream_timestamp,
 );
 
 TRACE_EVENT(clsic_alg_compr_stream_copy,
-	TP_PROTO(size_t count, int ret),
-	TP_ARGS(count, ret),
+	TP_PROTO(const char *name, size_t count, int ret),
+	TP_ARGS(name, count, ret),
 	TP_STRUCT__entry(
+		__field(const char *, name)
 		__field(size_t, count)
 		__field(int, ret)
 	),
 	TP_fast_assign(
+		__entry->name = name;
 		__entry->count = count;
 		__entry->ret = ret;
 	),
-	TP_printk("copied: %zu bytes; ret: %d", __entry->count, __entry->ret)
+	TP_printk("%s copied: %zu bytes; ret: %d",
+		  __entry->name,
+		  __entry->count,
+		  __entry->ret)
 );
 
 #endif /* CLSIC_TRACE_H */

@@ -1046,7 +1046,9 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 
 	ret = wm_adsp_compr_open(&alg->dsp[CLSIC_VPU1], stream);
 
-	trace_clsic_alg_compr_stream_open(stream->direction, ret);
+	trace_clsic_alg_compr_stream_open(rtd->codec_dai->name,
+					  stream->direction,
+					  ret);
 
 	if (ret) {
 		clsic_err(alg->clsic,
@@ -1148,7 +1150,9 @@ static int clsic_alg_compr_free(struct snd_compr_stream *stream)
 	module_put(alg->codec->component.card->owner);
 	pm_runtime_put_autosuspend(clsic->dev);
 
-	trace_clsic_alg_compr_stream_free(stream->direction, ret);
+	trace_clsic_alg_compr_stream_free(rtd->codec_dai->name,
+					  stream->direction,
+					  ret);
 
 	return ret;
 }
@@ -1178,7 +1182,9 @@ static int clsic_alg_compr_set_params(struct snd_compr_stream *stream,
 			  "Set compr stream param '%s' failed %d\n",
 			  rtd->codec_dai->name, ret);
 
-	trace_clsic_alg_compr_stream_set_params(params, ret);
+	trace_clsic_alg_compr_stream_set_params(rtd->codec_dai->name,
+						params,
+						ret);
 
 	return ret;
 }
@@ -1208,7 +1214,7 @@ static int clsic_alg_compr_get_caps(struct snd_compr_stream *stream,
 			  "Get compr stream caps '%s' failed %d\n",
 			  rtd->codec_dai->name, ret);
 
-	trace_clsic_alg_compr_stream_get_caps(caps, ret);
+	trace_clsic_alg_compr_stream_get_caps(rtd->codec_dai->name, caps, ret);
 
 	return ret;
 }
@@ -1307,7 +1313,7 @@ static int clsic_alg_compr_trigger(struct snd_compr_stream *stream, int cmd)
 		ret = -EINVAL;
 	}
 
-	trace_clsic_alg_compr_stream_trigger(cmd, ret);
+	trace_clsic_alg_compr_stream_trigger(rtd->codec_dai->name, cmd, ret);
 
 	return ret;
 }
@@ -1344,7 +1350,9 @@ static int clsic_alg_compr_pointer(struct snd_compr_stream *stream,
 		ret = -EINVAL;
 	}
 
-	trace_clsic_alg_compr_stream_timestamp(tstamp, ret);
+	trace_clsic_alg_compr_stream_timestamp(rtd->codec_dai->name,
+					       tstamp,
+					       ret);
 
 	return ret;
 }
@@ -1378,7 +1386,7 @@ static int clsic_alg_compr_copy(struct snd_compr_stream *stream,
 		ret = -EINVAL;
 	}
 
-	trace_clsic_alg_compr_stream_copy(count, ret);
+	trace_clsic_alg_compr_stream_copy(rtd->codec_dai->name, count, ret);
 
 	return ret;
 }
