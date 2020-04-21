@@ -399,6 +399,74 @@ static int cs40l2x_tuning_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int cs40l2x_delay_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct cs40l2x_codec *cs40l2x = snd_soc_component_get_drvdata(comp);
+	struct regmap *regmap = cs40l2x->regmap;
+	struct device *dev = cs40l2x->dev;
+	struct cs40l2x_private *core = cs40l2x->core;
+	unsigned int val = 0, reg;
+	int ret;
+
+	if (!core->dsp_reg) {
+		dev_warn(dev, "DSP not available\n");
+		return 0;
+	}
+
+	reg = core->dsp_reg(core, "LRADELAYSAMPS",
+			CS40L2X_XM_UNPACKED_TYPE,
+				CS40L2X_ALGO_ID_A2H);
+	if (!reg) {
+		dev_err(dev, "Cannot find the LRADELAYSAMPS register\n");
+		return -EINVAL;
+	}
+
+	pm_runtime_get_sync(core->dev);
+	ret = regmap_read(regmap, reg, &val);
+	if (ret)
+		goto vol_get_err;
+
+	ucontrol->value.integer.value[0] = val;
+vol_get_err:
+	pm_runtime_mark_last_busy(core->dev);
+	pm_runtime_put_autosuspend(core->dev);
+
+	return ret;
+}
+
+static int cs40l2x_delay_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct cs40l2x_codec *cs40l2x = snd_soc_component_get_drvdata(comp);
+	struct regmap *regmap = cs40l2x->regmap;
+	struct device *dev = cs40l2x->dev;
+	struct cs40l2x_private *core = cs40l2x->core;
+	unsigned int val, reg;
+	int ret;
+
+	if (!core->dsp_reg) {
+		dev_warn(dev, "DSP not available\n");
+		return 0;
+	}
+
+	reg = core->dsp_reg(core, "LRADELAYSAMPS",
+			CS40L2X_XM_UNPACKED_TYPE,
+				CS40L2X_ALGO_ID_A2H);
+
+	if (!reg) {
+		dev_err(dev, "Cannot find the LRADELAYSAMPS register\n");
+		return -EINVAL;
+	}
+
+	val = ucontrol->value.integer.value[0];
+
+	ret = regmap_write(regmap, reg, val);
+	return ret;
+}
+
 static const struct snd_kcontrol_new cs40l2x_a2h =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
@@ -407,6 +475,8 @@ static const struct snd_kcontrol_new cs40l2x_controls[] = {
 		cs40l2x_vol_get, cs40l2x_vol_put),
 	SOC_SINGLE_EXT("A2H Tuning", 0, 0, CS40L2X_A2H_MAX_TUNING, 0,
 		cs40l2x_tuning_get, cs40l2x_tuning_put),
+	SOC_SINGLE_EXT("A2H Delay", 0, 0, CS40L2X_A2H_DELAY_MAX, 0,
+		cs40l2x_delay_get, cs40l2x_delay_put),
 };
 
 static const struct snd_soc_dapm_widget cs40l2x_dapm_widgets[] = {
