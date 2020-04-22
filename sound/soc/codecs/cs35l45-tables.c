@@ -453,22 +453,6 @@ bool cs35l45_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-bool cs35l45_precious_reg(struct device *dev, unsigned int reg)
-{
-	switch (reg) {
-	case CS35L45_DSP1_XMEM_PACK_0 ... CS35L45_DSP1_XMEM_PACK_4607:
-	case CS35L45_DSP1_XMEM_UNPACK32_0 ... CS35L45_DSP1_XMEM_UNPACK32_3071:
-	case CS35L45_DSP1_XMEM_UNPACK24_0 ... CS35L45_DSP1_XMEM_UNPACK24_6143:
-	case CS35L45_DSP1_YMEM_PACK_0 ... CS35L45_DSP1_YMEM_PACK_1532:
-	case CS35L45_DSP1_YMEM_UNPACK32_0 ... CS35L45_DSP1_YMEM_UNPACK32_1022:
-	case CS35L45_DSP1_YMEM_UNPACK24_0 ... CS35L45_DSP1_YMEM_UNPACK24_2043:
-	case CS35L45_DSP1_PMEM_0 ... CS35L45_DSP1_PMEM_3834:
-		return true;
-	default:
-		return false;
-	}
-}
-
 const struct cs35l45_pll_sysclk_config
 		cs35l45_pll_sysclk[CS35L45_MAX_PLL_CONFIGS] = {
 	{ 32768,	0x00 },
