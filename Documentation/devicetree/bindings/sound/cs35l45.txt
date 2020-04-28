@@ -29,6 +29,9 @@ Optional properties:
   - cirrus,dsp-part-name : String to create custom part name for HALO DSP
     driver. Default is 'cs35l45'.
 
+  - cirrus,fast-switch : Specify file names for Fast Use Case Switching DSP
+    feature.  Files names are comma-separated strings.
+
 Optional Voltage Based Boost BPE Sub-node:
 
   Details found in section 4.9.4
@@ -221,4 +224,5 @@ cs35l45: cs35l45@2 {
 	cirrus,gpio-ctrl2 {
 		gpio-ctrl = <0x02>;
 	};
+	cirrus,fast-switch = "sample_fast_switch1.txt", "sample_fast_switch2.txt";
 };
