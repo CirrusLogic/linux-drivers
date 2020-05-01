@@ -621,6 +621,12 @@ static const struct soc_enum mux_enums[] = {
 			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
 	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX5_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
+	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX6_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
+	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX7_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
+	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX8_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
 	SOC_VALUE_ENUM_DOUBLE(CS35L45_DACPCM1_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_dac_txt), pcm_dac_txt, pcm_dac_val),
 };
@@ -635,10 +641,16 @@ static const struct snd_kcontrol_new muxes[] = {
 	SOC_DAPM_ENUM("DSP_RX3 Source", mux_enums[DSP_RX3]),
 	SOC_DAPM_ENUM("DSP_RX4 Source", mux_enums[DSP_RX4]),
 	SOC_DAPM_ENUM("DSP_RX5 Source", mux_enums[DSP_RX5]),
+	SOC_DAPM_ENUM("DSP_RX6 Source", mux_enums[DSP_RX6]),
+	SOC_DAPM_ENUM("DSP_RX7 Source", mux_enums[DSP_RX7]),
+	SOC_DAPM_ENUM("DSP_RX8 Source", mux_enums[DSP_RX8]),
 	SOC_DAPM_ENUM("DACPCM Source", mux_enums[DACPCM]),
 };
 
 static const struct snd_kcontrol_new amp_en_ctl =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
+static const struct snd_kcontrol_new bbpe_en_ctl =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
 static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
@@ -679,9 +691,14 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("DSP_RX3 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX3]),
 	SND_SOC_DAPM_MUX("DSP_RX4 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX4]),
 	SND_SOC_DAPM_MUX("DSP_RX5 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX5]),
+	SND_SOC_DAPM_MUX("DSP_RX6 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX6]),
+	SND_SOC_DAPM_MUX("DSP_RX7 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX7]),
+	SND_SOC_DAPM_MUX("DSP_RX8 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX8]),
 	SND_SOC_DAPM_MUX("DACPCM Source", SND_SOC_NOPM, 0, 0, &muxes[DACPCM]),
 
-	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_NOPM, 0, 1, &amp_en_ctl),
+	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_NOPM, 0, 0, &amp_en_ctl),
+	SND_SOC_DAPM_SWITCH("BBPE Enable", CS35L45_BLOCK_ENABLES2, 13, 0,
+			    &bbpe_en_ctl),
 
 	SND_SOC_DAPM_AIF_OUT("RCV_EN", NULL, 0, CS35L45_BLOCK_ENABLES, 2, 0),
 
@@ -753,12 +770,13 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"Capture", NULL, "BSTMON"},
 
 	/* Playback */
+	{"BBPE Enable", "Switch", "Playback"},
 	{"AMP Enable", "Switch", "Playback"},
+	{"AMP Enable", "Switch", "BBPE Enable"},
 
 	{"GLOBAL_EN", NULL, "AMP Enable"},
 
 	{"ASP", NULL, "GLOBAL_EN"},
-	{"DSP", NULL, "GLOBAL_EN"},
 
 	{"ASP_RX1", NULL, "ASP"},
 	{"ASP_RX2", NULL, "ASP"},
@@ -783,32 +801,37 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"DSP_RX5 Source", "ASP_RX1", "ASP_RX1"},
 	{"DSP_RX5 Source", "ASP_RX2", "ASP_RX2"},
 
+	{"DSP_RX6 Source", "Zero", "GLOBAL_EN"},
+	{"DSP_RX6 Source", "ASP_RX1", "ASP_RX1"},
+	{"DSP_RX6 Source", "ASP_RX2", "ASP_RX2"},
+
+	{"DSP_RX7 Source", "Zero", "GLOBAL_EN"},
+	{"DSP_RX7 Source", "ASP_RX1", "ASP_RX1"},
+	{"DSP_RX7 Source", "ASP_RX2", "ASP_RX2"},
+
+	{"DSP_RX8 Source", "Zero", "GLOBAL_EN"},
+	{"DSP_RX8 Source", "ASP_RX1", "ASP_RX1"},
+	{"DSP_RX8 Source", "ASP_RX2", "ASP_RX2"},
+
+	{"DSP", NULL, "DSP_RX1 Source"},
+	{"DSP", NULL, "DSP_RX2 Source"},
+	{"DSP", NULL, "DSP_RX3 Source"},
+	{"DSP", NULL, "DSP_RX4 Source"},
+	{"DSP", NULL, "DSP_RX5 Source"},
+	{"DSP", NULL, "DSP_RX6 Source"},
+	{"DSP", NULL, "DSP_RX7 Source"},
+	{"DSP", NULL, "DSP_RX8 Source"},
+
 	{"DACPCM Source", "Zero", "GLOBAL_EN"},
 	{"DACPCM Source", "ASP_RX1", "ASP_RX1"},
 	{"DACPCM Source", "ASP_RX2", "ASP_RX2"},
-	{"DACPCM Source", "DSP_TX1", "DSP_RX1 Source"},
-	{"DACPCM Source", "DSP_TX1", "DSP_RX2 Source"},
-	{"DACPCM Source", "DSP_TX1", "DSP_RX3 Source"},
-	{"DACPCM Source", "DSP_TX1", "DSP_RX4 Source"},
-	{"DACPCM Source", "DSP_TX1", "DSP_RX5 Source"},
-	{"DACPCM Source", "DSP_TX2", "DSP_RX1 Source"},
-	{"DACPCM Source", "DSP_TX2", "DSP_RX2 Source"},
-	{"DACPCM Source", "DSP_TX2", "DSP_RX3 Source"},
-	{"DACPCM Source", "DSP_TX2", "DSP_RX4 Source"},
-	{"DACPCM Source", "DSP_TX2", "DSP_RX5 Source"},
+	{"DACPCM Source", "DSP_TX1", "DSP"},
+	{"DACPCM Source", "DSP_TX2", "DSP"},
 
 	{"SPK", NULL, "DACPCM Source"},
 
 	{"RCV_EN", NULL, "DACPCM Source"},
 	{"RCV", NULL, "RCV_EN"},
-};
-
-static const struct snd_soc_dapm_route cs35l45_dsp_dapm_routes[] = {
-	{"DSP_RX1 Source", NULL, "DSP"},
-	{"DSP_RX2 Source", NULL, "DSP"},
-	{"DSP_RX3 Source", NULL, "DSP"},
-	{"DSP_RX4 Source", NULL, "DSP"},
-	{"DSP_RX5 Source", NULL, "DSP"},
 };
 
 static int cs35l45_activate_ctl(struct cs35l45_private *cs35l45,
@@ -902,13 +925,6 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 	snd_soc_component_disable_pin(component, "RCV");
 
 	snd_soc_dapm_sync(dapm);
-
-	if (cs35l45->amplifier_mode == AMP_MODE_SPK)
-		snd_soc_dapm_add_routes(dapm, cs35l45_dsp_dapm_routes,
-					ARRAY_SIZE(cs35l45_dsp_dapm_routes));
-	else /* AMP_MODE_RCV */
-		snd_soc_dapm_del_routes(dapm, cs35l45_dsp_dapm_routes,
-					ARRAY_SIZE(cs35l45_dsp_dapm_routes));
 
 	/* If playback is not in progress, exit */
 	if (!status)
@@ -1324,9 +1340,6 @@ static int cs35l45_component_probe(struct snd_soc_component *component)
 	snd_soc_component_disable_pin(component, "SPK");
 	snd_soc_component_disable_pin(component, "RCV");
 	snd_soc_component_disable_pin(component, "AP");
-
-	snd_soc_dapm_add_routes(dapm, cs35l45_dsp_dapm_routes,
-				ARRAY_SIZE(cs35l45_dsp_dapm_routes));
 
 	snd_soc_dapm_sync(dapm);
 

@@ -612,15 +612,18 @@ enum cspl_st {
 
 enum pcm_mixers {
 	ASP_TX1 = 0,
-	ASP_TX2 = 1,
-	ASP_TX3 = 2,
-	ASP_TX4 = 3,
-	DSP_RX1 = 4,
-	DSP_RX2 = 5,
-	DSP_RX3 = 6,
-	DSP_RX4 = 7,
-	DSP_RX5 = 8,
-	DACPCM = 9,
+	ASP_TX2,
+	ASP_TX3,
+	ASP_TX4,
+	DSP_RX1,
+	DSP_RX2,
+	DSP_RX3,
+	DSP_RX4,
+	DSP_RX5,
+	DSP_RX6,
+	DSP_RX7,
+	DSP_RX8,
+	DACPCM,
 };
 
 enum amp_mode {
