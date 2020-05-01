@@ -17,6 +17,9 @@ Optional properties:
 
   - reset-gpios : gpio used to reset the amplifier
 
+  - cirrus,use-tdm-slots : Give preference to set_tdm_slot callback from
+    DAI interface for configuring ASP slot width.
+
   - cirrus,asp-sdout-hiz-ctrl : ASP TX data pin (DOUT) Hi-Z control.
 
   0 = Logic 0 during unused timeslots, and while all transmit channels disabled
@@ -36,27 +39,65 @@ Optional Voltage Based Boost BPE Sub-node:
 
   Details found in section 4.9.4
 
-  The cs35l45 node can have a single "cirrus,bst-bpe-voltage-config" sub-node
+  The cs35l45 node can have a single "cirrus,bst-bpe-inst-config" sub-node
   to set configuration properties for the voltage based boost brownout
   prevention engine.
 
+  There are 5 'levels' associated with voltage based BBPE. Each sub-node
+  property will parse values for each level, but the driver might only
+  utilize a subset of those level. Please refer to section 4.9.4 for complete
+  information.
+
   Sub-node properties:
 
-  - bst-bpe-response-l1 : 2 32-bit values representing a voltage-current pair.
-    Represents voltage threshold and current limit for level 1 boost BPE
-    instant response.
+  - bst-bpe-inst-thld : Array of five 32-bit values representing boost BPE
+    instant voltage thresholds.
 
-  - bst-bpe-response-l2 : 2 32-bit values representing a voltage-current pair.
-    Represents voltage threshold and current limit for level 2 boost BPE
-    instant response.
+  - bst-bpe-inst-ilim : Array of five 32-bit values representing boost BPE
+    instant current limits.
 
-  - bst-bpe-response-l3 : 2 32-bit values representing a voltage-current pair.
-    Represents voltage threshold and current limit for level 3 boost BPE
-    instant response.
+  - bst-bpe-inst-ss-ilim : Array of five 32-bit values representing boost BPE
+    instant soft start current limits.
 
-  - bst-bpe-response-l4 : 2 32-bit values representing a voltage-current pair.
-    Represents voltage threshold and current limit for level 4 boost BPE
-    instant response.
+  - bst-bpe-inst-atk-rate : Array of five 32-bit values representing boost BPE
+    instant attack rates.
+
+  - bst-bpe-inst-hold-time : Array of five 32-bit values representing boost BPE
+    instant hold times.
+
+  - bst-bpe-inst-rls-rate : Array of five 32-bit values representing boost BPE
+    instant release rates.
+
+Optional Miscellaneous Based Boost BPE Configuration Sub-node:
+
+  Details found in section 4.9
+
+  The cs35l45 node can have a single "cirrus,bst-bpe-misc-config" sub-node
+  to set various settings related to both voltage based boost BPE
+
+  Sub-node properties:
+
+  Section 7.15.8
+  - bst-bpe-inst-inf-hold-rls
+  - bst-bpe-il-lim-mode
+  - bst-bpe-out-opmode-sel
+  - bst-bpe-inst-l3-byp
+  - bst-bpe-inst-l2-byp
+  - bst-bpe-inst-l1-byp
+  - bst-bpe-filt-sel
+
+  Section 7.15.9
+  - bst-bpe-il-lim1-dly
+  - bst-bpe-il-lim2-dly
+  - bst-bpe-il-lim-dly-hyst
+
+  Section 7.15.10
+  - bst-bpe-il-lim1-atk-rate
+  - bst-bpe-il-lim2-atk-rate
+
+  Section 7.15.11
+  - bst-bpe-il-lim1-rls-rate
+  - bst-bpe-il-lim2-rls-rate
 
 Optional Inductor Current Based Boost BPE Sub-node:
 
@@ -214,15 +255,61 @@ Optional GPIOX Sub-nodes:
 
 Example:
 
-cs35l45: cs35l45@2 {
+cs35l45: cs35l45@30 {
 	compatible = "cirrus,cs35l45";
-	reg = <2>;
+	reg = <0x30>;
+
 	VA-supply = <&dummy_vreg>;
 	VP-supply = <&dummy_vreg>;
+
+	interrupt-parent = <&gpio0>;
+	interrupts = <68 8>;
+
 	reset-gpios = <&gpio0 54 0>;
+
+	cirrus,use-tdm-slots;
+	cirrus,asp-sdout-hiz-ctrl = <0x2>;
+	cirrus,dsp-part-name = "cs35l45";
+	cirrus,fast-switch = "sample_fast_switch1.txt",
+		"sample_fast_switch2.txt";
+
+	cirrus,bst-bpe-inst-config {
+		bst-bpe-inst-thld = <0x1E 0x32 0x46 0x5A 0>;
+		bst-bpe-inst-ilim = <0 0x04 0x0C 0x14 0x3C>;
+		bst-bpe-inst-ss-ilim = <0 0x00 0x04 0x08 0x1C>;
+		bst-bpe-inst-atk-rate = <0 0x6 0x6 0x6 0>;
+		bst-bpe-inst-hold-time = <0x2 0x2 0x2 0x2 0>;
+		bst-bpe-inst-rls-rate = <0x06 0x06 0x06 0x06 0>;
+	};
+
+	cirrus,bst-bpe-misc-config {
+		bst-bpe-inst-inf-hold-rls = <0x0>;
+		bst-bpe-il-lim-mode = <0x1>;
+		bst-bpe-out-opmode-sel = <0x0>;
+		bst-bpe-inst-l3-byp = <0x0>;
+		bst-bpe-inst-l2-byp = <0x0>;
+		bst-bpe-inst-l1-byp = <0x0>;
+		bst-bpe-filt-sel = <0x0>;
+	};
+
+	cirrus,bst-bpe-il-lim-config {
+		bst-bpe-il-lim-thld-del1 = <0x2>;
+		bst-bpe-il-lim-thld-del2 = <0x6>;
+		bst-bpe-il-lim1-thld = <0x2C>;
+		bst-bpe-il-lim-thld-hyst = <0x0>;
+
+		bst-bpe-il-lim1-dly = <0xC>;
+		bst-bpe-il-lim2-dly = <0x4>;
+		bst-bpe-il-lim-dly-hyst = <0x0>;
+
+		bst-bpe-il-lim1-atk-rate = <0x0>;
+		bst-bpe-il-lim2-atk-rate = <0x0>;
+
+		bst-bpe-il-lim1-rls-rate = <0x0>;
+		bst-bpe-il-lim2-rls-rate = <0x0>;
+	};
 
 	cirrus,gpio-ctrl2 {
 		gpio-ctrl = <0x02>;
 	};
-	cirrus,fast-switch = "sample_fast_switch1.txt", "sample_fast_switch2.txt";
 };
