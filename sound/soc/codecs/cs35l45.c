@@ -58,9 +58,9 @@ static int cs35l45_do_fast_switch(struct cs35l45_private *cs35l45)
 	const struct firmware	*fw;
 	int			ret;
 	unsigned int		i, j, k;
-	s32			*data_ctl_buf, data_ctl_len, cmd_ctl, st_ctl,
-				val;
+	s32			data_ctl_len, val;
 	bool			fw_running	= false;
+	__be32			*data_ctl_buf, cmd_ctl, st_ctl;
 
 	data_ctl_buf	= NULL;
 
@@ -100,7 +100,7 @@ static int cs35l45_do_fast_switch(struct cs35l45_private *cs35l45)
 
 	dev_dbg(cs35l45->dev, "data_ctl_len:%u\n", data_ctl_len);
 
-	data_ctl_buf	= kcalloc(1, data_ctl_len * sizeof(s32), GFP_KERNEL);
+	data_ctl_buf	= kcalloc(1, data_ctl_len * sizeof(__be32), GFP_KERNEL);
 	if (!data_ctl_buf) {
 		ret	= -ENOMEM;
 		goto exit;
@@ -144,7 +144,7 @@ static int cs35l45_do_fast_switch(struct cs35l45_private *cs35l45)
 
 	ret = wm_adsp_write_ctl(&cs35l45->dsp, "CSPL_UPDATE_PARAMS_CONFIG",
 				WMFW_ADSP2_YM, CS35L45_ALGID, data_ctl_buf,
-				data_ctl_len * sizeof(s32));
+				data_ctl_len * sizeof(__be32));
 	if (ret < 0) {
 		dev_err(cs35l45->dev,
 			"Failed to write CSPL_UPDATE_PARAMS_CONFIG\n");
@@ -156,7 +156,7 @@ static int cs35l45_do_fast_switch(struct cs35l45_private *cs35l45)
 #ifdef DEBUG
 	ret = wm_adsp_read_ctl(&cs35l45->dsp, "CSPL_UPDATE_PARAMS_CONFIG",
 			       WMFW_ADSP2_YM, CS35L45_ALGID, data_ctl_buf,
-			       data_ctl_len * sizeof(s32));
+			       data_ctl_len * sizeof(__be32));
 	if (ret < 0) {
 		dev_err(cs35l45->dev,
 			"Failed to read CSPL_UPDATE_PARAMS_CONFIG\n");
@@ -168,7 +168,7 @@ static int cs35l45_do_fast_switch(struct cs35l45_private *cs35l45)
 #endif
 	cmd_ctl		= cpu_to_be32(CSPL_CMD_UPDATE_PARAM);
 	ret = wm_adsp_write_ctl(&cs35l45->dsp, "CSPL_COMMAND", WMFW_ADSP2_XM,
-				CS35L45_ALGID, &cmd_ctl, sizeof(s32));
+				CS35L45_ALGID, &cmd_ctl, sizeof(__be32));
 	if (ret < 0) {
 		dev_err(cs35l45->dev, "Failed to write CSPL_COMMAND\n");
 		goto exit;
@@ -178,7 +178,7 @@ static int cs35l45_do_fast_switch(struct cs35l45_private *cs35l45)
 	for (i = 0; i < 5; i++) {
 		ret = wm_adsp_read_ctl(&cs35l45->dsp, "CSPL_STATE",
 				       WMFW_ADSP2_XM, CS35L45_ALGID,
-				       &st_ctl, sizeof(s32));
+				       &st_ctl, sizeof(__be32));
 		if (ret < 0) {
 			dev_err(cs35l45->dev, "Failed to read CSPL_STATE\n");
 			goto exit;
