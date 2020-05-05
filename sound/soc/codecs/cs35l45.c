@@ -1831,8 +1831,8 @@ bst_bpe_inst_cfg:
 
 bst_bpe_misc_cfg:
 	child = of_get_child_by_name(node, "cirrus,bst-bpe-misc-config");
-	pdata->bst_bpe_il_lim_cfg.is_present = child ? true : false;
-	if (!pdata->bst_bpe_il_lim_cfg.is_present)
+	pdata->bst_bpe_misc_cfg.is_present = child ? true : false;
+	if (!pdata->bst_bpe_misc_cfg.is_present)
 		goto bst_bpe_il_lim_cfg;
 
 	for (i = BST_BPE_INST_INF_HOLD_RLS; i < BST_BPE_MISC_PARAMS; i++) {
