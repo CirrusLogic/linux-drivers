@@ -587,13 +587,15 @@ static const unsigned int pcm_tx_val[] = {CS35L45_PCM_SRC_ZERO,
 			CS35L45_PCM_SRC_DSP_TX2};
 
 static const char * const pcm_rx_txt[] = {"Zero", "ASP_RX1", "ASP_RX2", "VMON",
-			"IMON", "ERR_VOL", "VDD_BATTMON", "VDD_BSTMON"};
+			"IMON", "ERR_VOL", "CLASSH_TGT", "VDD_BATTMON",
+			"VDD_BSTMON", "TEMPMON"};
 
 static const unsigned int pcm_rx_val[] = {CS35L45_PCM_SRC_ZERO,
 			CS35L45_PCM_SRC_ASP_RX1, CS35L45_PCM_SRC_ASP_RX2,
 			CS35L45_PCM_SRC_VMON, CS35L45_PCM_SRC_IMON,
-			CS35L45_PCM_SRC_ERR_VOL, CS35L45_PCM_SRC_VDD_BATTMON,
-			CS35L45_PCM_SRC_VDD_BSTMON};
+			CS35L45_PCM_SRC_ERR_VOL, CS35L45_PCM_SRC_CLASSH_TGT,
+			CS35L45_PCM_SRC_VDD_BATTMON, CS35L45_PCM_SRC_VDD_BSTMON,
+			CS35L45_PCM_SRC_TEMPMON};
 
 static const char * const pcm_dac_txt[] = {"Zero", "ASP_RX1", "ASP_RX2",
 			"DSP_TX1", "DSP_TX2"};
