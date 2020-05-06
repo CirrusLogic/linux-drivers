@@ -16,7 +16,7 @@
 #include <linux/firmware.h>
 #include <linux/of_device.h>
 
-#include "cl_dsp.h"
+#include <linux/mfd/cl_dsp.h>
 
 static int cl_dsp_raw_write(struct cl_dsp *dsp, unsigned int reg,
 		const void *val, size_t val_len, size_t limit)
