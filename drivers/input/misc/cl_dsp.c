@@ -23,6 +23,9 @@ static int cl_dsp_raw_write(struct cl_dsp *dsp, unsigned int reg,
 {
 	int i, ret = 0;
 
+	if (!dsp)
+		return -EPERM;
+
 	/* Restrict write length to limit value */
 	for (i = 0; i < val_len; i += limit) {
 		ret = regmap_raw_write(dsp->regmap, (reg + i), (val + i),
@@ -41,6 +44,9 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 	int ret = 0;
 	struct cl_dsp_coeff_desc *coeff_desc;
 	unsigned int mem_region_prefix;
+
+	if  (!dsp)
+		return -EPERM;
 
 	list_for_each_entry(coeff_desc, &dsp->coeff_desc_head, list) {
 		if (strncmp(coeff_desc->name, coeff_name,
@@ -133,6 +139,9 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 	unsigned int reg, wt_reg;
 	int ret = -EINVAL;
 	int i;
+
+	if  (!dsp)
+		return -EPERM;
 
 	*wt_date = '\0';
 
@@ -356,6 +365,9 @@ static int cl_dsp_algo_parse(struct cl_dsp *dsp, const unsigned char *data)
 	unsigned char algo_name_length;
 	int i, ret;
 
+	if  (!dsp)
+		return -EPERM;
+
 	ret = cl_dsp_process_data_be(data, CL_DSP_ALGO_ID_SIZE, pos, &algo_id);
 	if (ret) {
 		dev_err(dsp->dev, "Failed to read data\n");
@@ -442,6 +454,9 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 	unsigned int reg = dsp->algo_params->xm_fw_id_reg;
 	unsigned int val;
 	int ret, i;
+
+	if  (!dsp)
+		return -EPERM;
 
 	ret = regmap_read(regmap, dsp->algo_params->xm_num_algos_reg, &val);
 	if (ret) {
@@ -585,9 +600,12 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 	return 0;
 }
 
-void cl_dsp_coeff_free(struct cl_dsp *dsp)
+static void cl_dsp_coeff_free(struct cl_dsp *dsp)
 {
 	struct cl_dsp_coeff_desc *coeff_desc;
+
+	if  (!dsp)
+		return;
 
 	while (!list_empty(&dsp->coeff_desc_head)) {
 		coeff_desc = list_first_entry(&dsp->coeff_desc_head,
@@ -596,7 +614,6 @@ void cl_dsp_coeff_free(struct cl_dsp *dsp)
 		devm_kfree(dsp->dev, coeff_desc);
 	}
 }
-EXPORT_SYMBOL(cl_dsp_coeff_free);
 
 int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 {
@@ -604,6 +621,9 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 	unsigned int pos = CL_DSP_FW_FILE_HEADER_SIZE;
 	unsigned int block_offset, block_type, block_length;
 	int ret = -EINVAL;
+
+	if (!dsp)
+		return -EPERM;
 
 	if (memcmp(fw->data, "WMFW", 4)) {
 		dev_err(dev, "Failed to recognize firmware file\n");
@@ -736,6 +756,9 @@ int cl_dsp_wavetable_create(struct cl_dsp *dsp, unsigned int id,
 {
 	struct cl_dsp_wt_desc *wt_desc;
 
+	if (!dsp)
+		return -EPERM;
+
 	wt_desc = devm_kzalloc(dsp->dev, sizeof(struct cl_dsp_wt_desc),
 			GFP_KERNEL);
 	if (!wt_desc)
@@ -767,6 +790,23 @@ struct cl_dsp *cl_dsp_create(struct device *dev)
 	return dsp;
 }
 EXPORT_SYMBOL(cl_dsp_create);
+
+int cl_dsp_destroy(struct cl_dsp *dsp)
+{
+	if (!dsp)
+		return -EPERM;
+
+	if (!list_empty(&dsp->coeff_desc_head))
+		cl_dsp_coeff_free(dsp);
+	if (dsp->wt_desc) {
+		devm_kfree(dsp->dev, dsp->wt_desc);
+	}
+
+	devm_kfree(dsp->dev, dsp);
+
+	return 0;
+}
+EXPORT_SYMBOL(cl_dsp_destroy);
 
 MODULE_DESCRIPTION("Cirrus Logic DSP Firmware Driver");
 MODULE_AUTHOR("Fred Treven, Cirrus Logic Inc, <fred.treven@cirrus.com>");
