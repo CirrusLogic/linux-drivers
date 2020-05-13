@@ -84,7 +84,6 @@ struct classh_config {
 	unsigned int ch_ovb_thld1;
 	unsigned int ch_ovb_thlddelta;
 	unsigned int ch_vdd_bst_max;
-	unsigned int ch_ovb_setting_latch;
 	unsigned int ch_ovb_ratio;
 	unsigned int ch_thld1_offset;
 	unsigned int aud_mem_depth;
@@ -236,7 +235,6 @@ enum classh_of_param {
 	CH_OVB_THLD1,
 	CH_OVB_THLDDELTA,
 	CH_VDD_BST_MAX,
-	CH_OVB_LATCH,
 	CH_OVB_RATIO,
 	CH_THLD1_OFFSET,
 	AUD_MEM_DEPTH,
@@ -429,8 +427,6 @@ static inline u32 *cs35l45_get_classh_param(struct cs35l45_private *cs35l45,
 		return &cfg->ch_ovb_thlddelta;
 	case CH_VDD_BST_MAX:
 		return &cfg->ch_vdd_bst_max;
-	case CH_OVB_LATCH:
-		return &cfg->ch_ovb_setting_latch;
 	case CH_OVB_RATIO:
 		return &cfg->ch_ovb_ratio;
 	case CH_THLD1_OFFSET:

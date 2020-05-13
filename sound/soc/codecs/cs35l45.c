@@ -1663,6 +1663,13 @@ classh_cfg:
 					   classh_map[i].mask, val);
 	}
 
+	regmap_update_bits(cs35l45->regmap, CS35L45_CLASSH_CONFIG3,
+			   CS35L45_CH_OVB_LATCH_MASK,
+			   CS35L45_CH_OVB_LATCH_MASK);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_CLASSH_CONFIG3,
+			   CS35L45_CH_OVB_LATCH_MASK, 0);
+
 gpio_cfg:
 	for (i = 0; i < ARRAY_SIZE(gpios); i++) {
 		if (!gpios[i]->is_present)
