@@ -129,6 +129,10 @@ struct cs35l45_platform_data {
 	struct gpio_ctrl gpio_ctrl3;
 	const char *dsp_part_name;
 	unsigned int asp_sdout_hiz_ctrl;
+	unsigned int ngate_ch1_hold;
+	unsigned int ngate_ch1_thr;
+	unsigned int ngate_ch2_hold;
+	unsigned int ngate_ch2_thr;
 	bool use_tdm_slots;
 #ifdef CONFIG_SND_SOC_CIRRUS_AMP
 	struct pwr_params_config pwr_params_cfg;

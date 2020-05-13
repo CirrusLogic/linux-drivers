@@ -604,6 +604,11 @@ static const unsigned int pcm_dac_val[] = {CS35L45_PCM_SRC_ZERO,
 			CS35L45_PCM_SRC_ASP_RX1, CS35L45_PCM_SRC_ASP_RX2,
 			CS35L45_PCM_SRC_DSP_TX1, CS35L45_PCM_SRC_DSP_TX2};
 
+static const char * const pcm_ng_txt[] = {"ASP_RX1", "ASP_RX2"};
+
+static const unsigned int pcm_ng_val[] = {CS35L45_PCM_SRC_ASP_RX1,
+			CS35L45_PCM_SRC_ASP_RX2};
+
 static const struct soc_enum mux_enums[] = {
 	SOC_VALUE_ENUM_DOUBLE(CS35L45_ASPTX1_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_tx_txt), pcm_tx_txt, pcm_tx_val),
@@ -631,6 +636,10 @@ static const struct soc_enum mux_enums[] = {
 			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
 	SOC_VALUE_ENUM_DOUBLE(CS35L45_DACPCM1_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_dac_txt), pcm_dac_txt, pcm_dac_val),
+	SOC_VALUE_ENUM_DOUBLE(CS35L45_NGATE1_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+			ARRAY_SIZE(pcm_ng_txt), pcm_ng_txt, pcm_ng_val),
+	SOC_VALUE_ENUM_DOUBLE(CS35L45_NGATE2_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+			ARRAY_SIZE(pcm_ng_txt), pcm_ng_txt, pcm_ng_val),
 };
 
 static const struct snd_kcontrol_new muxes[] = {
@@ -647,12 +656,17 @@ static const struct snd_kcontrol_new muxes[] = {
 	SOC_DAPM_ENUM("DSP_RX7 Source", mux_enums[DSP_RX7]),
 	SOC_DAPM_ENUM("DSP_RX8 Source", mux_enums[DSP_RX8]),
 	SOC_DAPM_ENUM("DACPCM Source", mux_enums[DACPCM]),
+	SOC_DAPM_ENUM("NGATE1 Source", mux_enums[NGATE1]),
+	SOC_DAPM_ENUM("NGATE2 Source", mux_enums[NGATE2]),
 };
 
 static const struct snd_kcontrol_new amp_en_ctl =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
 static const struct snd_kcontrol_new bbpe_en_ctl =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
+static const struct snd_kcontrol_new ngate_en_ctl =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
 static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
@@ -678,6 +692,10 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("ASP", NULL, 0, CS35L45_BLOCK_ENABLES2, 27, 0),
 	SND_SOC_DAPM_AIF_IN("ASP_RX1", NULL, 0, CS35L45_ASP_ENABLES1, 16, 0),
 	SND_SOC_DAPM_AIF_IN("ASP_RX2", NULL, 0, CS35L45_ASP_ENABLES1, 17, 0),
+	SND_SOC_DAPM_AIF_IN("NGATE_CH1", NULL, 0, CS35L45_MIXER_NGATE_CH1_CFG,
+			    16, 0),
+	SND_SOC_DAPM_AIF_IN("NGATE_CH2", NULL, 0, CS35L45_MIXER_NGATE_CH2_CFG,
+			    16, 0),
 
 	SND_SOC_DAPM_AIF_OUT("ASP_TX1", NULL, 0, CS35L45_ASP_ENABLES1, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("ASP_TX2", NULL, 0, CS35L45_ASP_ENABLES1, 1, 0),
@@ -697,10 +715,13 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("DSP_RX7 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX7]),
 	SND_SOC_DAPM_MUX("DSP_RX8 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX8]),
 	SND_SOC_DAPM_MUX("DACPCM Source", SND_SOC_NOPM, 0, 0, &muxes[DACPCM]),
+	SND_SOC_DAPM_MUX("NGATE1 Source", SND_SOC_NOPM, 0, 0, &muxes[NGATE1]),
+	SND_SOC_DAPM_MUX("NGATE2 Source", SND_SOC_NOPM, 0, 0, &muxes[NGATE2]),
 
 	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_NOPM, 0, 0, &amp_en_ctl),
 	SND_SOC_DAPM_SWITCH("BBPE Enable", CS35L45_BLOCK_ENABLES2, 13, 0,
 			    &bbpe_en_ctl),
+	SND_SOC_DAPM_SWITCH("NGATE Enable", SND_SOC_NOPM, 0, 0, &ngate_en_ctl),
 
 	SND_SOC_DAPM_AIF_OUT("RCV_EN", NULL, 0, CS35L45_BLOCK_ENABLES, 2, 0),
 
@@ -783,6 +804,18 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"ASP_RX1", NULL, "ASP"},
 	{"ASP_RX2", NULL, "ASP"},
 
+	{"NGATE1 Source", "ASP_RX1", "ASP_RX1"},
+	{"NGATE1 Source", "ASP_RX2", "ASP_RX2"},
+
+	{"NGATE2 Source", "ASP_RX1", "ASP_RX1"},
+	{"NGATE2 Source", "ASP_RX2", "ASP_RX2"},
+
+	{"NGATE_CH1", NULL, "NGATE1 Source"},
+	{"NGATE_CH2", NULL, "NGATE2 Source"},
+
+	{"NGATE Enable", "Switch", "NGATE_CH1"},
+	{"NGATE Enable", "Switch", "NGATE_CH2"},
+
 	{"DSP_RX1 Source", "Zero", "GLOBAL_EN"},
 	{"DSP_RX1 Source", "ASP_RX1", "ASP_RX1"},
 	{"DSP_RX1 Source", "ASP_RX2", "ASP_RX2"},
@@ -831,6 +864,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"DACPCM Source", "DSP_TX2", "DSP"},
 
 	{"SPK", NULL, "DACPCM Source"},
+	{"SPK", NULL, "NGATE Enable"},
 
 	{"RCV_EN", NULL, "DACPCM Source"},
 	{"RCV", NULL, "RCV_EN"},
@@ -1572,6 +1606,34 @@ static int cs35l45_apply_of_data(struct cs35l45_private *cs35l45)
 				   val << CS35L45_ASP_DOUT_HIZ_CTRL_SHIFT);
 	}
 
+	if (pdata->ngate_ch1_hold & CS35L45_VALID_PDATA) {
+		val = pdata->ngate_ch1_hold & (~CS35L45_VALID_PDATA);
+		regmap_update_bits(cs35l45->regmap, CS35L45_MIXER_NGATE_CH1_CFG,
+				   CS35L45_AUX_NGATE_CH_HOLD_MASK,
+				   val << CS35L45_AUX_NGATE_CH_HOLD_SHIFT);
+	}
+
+	if (pdata->ngate_ch1_thr & CS35L45_VALID_PDATA) {
+		val = pdata->ngate_ch1_thr & (~CS35L45_VALID_PDATA);
+		regmap_update_bits(cs35l45->regmap, CS35L45_MIXER_NGATE_CH1_CFG,
+				   CS35L45_AUX_NGATE_CH_THR_MASK,
+				   val << CS35L45_AUX_NGATE_CH_THR_SHIFT);
+	}
+
+	if (pdata->ngate_ch2_hold & CS35L45_VALID_PDATA) {
+		val = pdata->ngate_ch2_hold & (~CS35L45_VALID_PDATA);
+		regmap_update_bits(cs35l45->regmap, CS35L45_MIXER_NGATE_CH2_CFG,
+				   CS35L45_AUX_NGATE_CH_HOLD_MASK,
+				   val << CS35L45_AUX_NGATE_CH_HOLD_SHIFT);
+	}
+
+	if (pdata->ngate_ch2_thr & CS35L45_VALID_PDATA) {
+		val = pdata->ngate_ch2_thr & (~CS35L45_VALID_PDATA);
+		regmap_update_bits(cs35l45->regmap, CS35L45_MIXER_NGATE_CH2_CFG,
+				   CS35L45_AUX_NGATE_CH_THR_MASK,
+				   val << CS35L45_AUX_NGATE_CH_THR_SHIFT);
+	}
+
 	if (!pdata->bst_bpe_inst_cfg.is_present)
 		goto bst_bpe_misc_cfg;
 
@@ -1786,6 +1848,22 @@ static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
 				      &pdata->dsp_part_name);
 	if (ret < 0)
 		pdata->dsp_part_name = "cs35l45";
+
+	ret = of_property_read_u32(node, "cirrus,ngate-ch1-hold", &val);
+	if (!ret)
+		pdata->ngate_ch1_hold = val | CS35L45_VALID_PDATA;
+
+	ret = of_property_read_u32(node, "cirrus,ngate-ch1-thr", &val);
+	if (!ret)
+		pdata->ngate_ch1_thr = val | CS35L45_VALID_PDATA;
+
+	ret = of_property_read_u32(node, "cirrus,ngate-ch2-hold", &val);
+	if (!ret)
+		pdata->ngate_ch2_hold = val | CS35L45_VALID_PDATA;
+
+	ret = of_property_read_u32(node, "cirrus,ngate-ch2-thr", &val);
+	if (!ret)
+		pdata->ngate_ch2_thr = val | CS35L45_VALID_PDATA;
 
 #ifdef CONFIG_SND_SOC_CIRRUS_AMP
 	ret = of_property_read_string(node, "cirrus,mfd-suffix",
