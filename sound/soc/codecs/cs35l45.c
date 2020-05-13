@@ -1645,10 +1645,10 @@ ldpm_cfg:
 
 	for (i = LDPM_GP1_BOOST_SEL; i < LDPM_PARAMS; i++) {
 		ptr = cs35l45_get_ldpm_param(cs35l45, i);
-		val = ((*ptr) & (~CS35L45_VALID_PDATA)) << classh_map[i].shift;
+		val = ((*ptr) & (~CS35L45_VALID_PDATA)) << ldpm_map[i].shift;
 		if ((*ptr) & CS35L45_VALID_PDATA)
-			regmap_update_bits(cs35l45->regmap, classh_map[i].reg,
-					   classh_map[i].mask, val);
+			regmap_update_bits(cs35l45->regmap, ldpm_map[i].reg,
+					   ldpm_map[i].mask, val);
 	}
 
 classh_cfg:
