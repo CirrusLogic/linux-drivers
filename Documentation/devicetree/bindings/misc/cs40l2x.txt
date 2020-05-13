@@ -124,6 +124,12 @@ Optional properties:
     click compensation can be enabled or disabled at a later time by writing 1
     or 0 to the comp_enable sysfs control, respectively.
 
+  - cirrus,dyn-f0-disable : Boolean for disabling dynamic F0 support
+    (silicon revision B1 only). If this property is omitted, dynamic F0
+    remains enabled in the absence of the dyn-f0-disable property.  If
+    cs40l25a_f0.bin does not exist, then disabling dynamic F0 support is
+    recommended.
+
   - cirrus,gpio1-rise-index : Specifies the wavetable index mapped to GPIO1
     rising edges. If this value is omitted, specified as zero or exceeds the
     maximum available index in the wavetable, GPIO1 rising edges are mapped to
