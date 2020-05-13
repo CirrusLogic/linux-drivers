@@ -1122,6 +1122,7 @@
 #define CS40L2X_DYN_F0_MASK		GENMASK(12, 0)
 #define CS40L2X_DYN_F0_DEFAULT		0x7FE000
 #define CS40L2X_DYN_F0_FILE_NAME	"cs40l25a_f0.bin"
+#define CS40L2X_COND_CLSH_MIN_REV	0x090007
 
 /* A2H */
 
@@ -1291,6 +1292,7 @@ struct cs40l2x_private {
 	bool clab_wt_en[CS40L2X_MAX_WAVEFORMS];
 	bool f0_wt_en[CS40L2X_MAX_WAVEFORMS];
 	bool dyn_f0_enable;
+	bool cond_class_h_en;
 	struct cs40l2x_wseq_pair dsp_cache[CS40L2X_DSP_CACHE_MAX];
 	unsigned int dsp_cache_depth;
 
