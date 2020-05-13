@@ -35,6 +35,20 @@ Optional properties:
   - cirrus,fast-switch : Specify file names for Fast Use Case Switching DSP
     feature.  Files names are comma-separated strings.
 
+  - cirrus,ngate-ch1-hold : Time that the incoming audio signal must be below
+    the defined threshold before entering the noise gated state.
+
+  - cirrus,ngate-ch1-thr : Threshold of the audio signal input which the
+    noise gate considers the input audio to be at a low enough level to be
+    valid to enter a noise gating state of operation.
+
+  - cirrus,ngate-ch2-hold : Time that the incoming audio signal must be below
+    the defined threshold before entering the noise gated state.
+
+  - cirrus,ngate-ch2-thr : Threshold of the audio signal input which the
+    noise gate considers the input audio to be at a low enough level to be
+    valid to enter a noise gating state of operation.
+
 Optional Voltage Based Boost BPE Sub-node:
 
   Details found in section 4.9.4
