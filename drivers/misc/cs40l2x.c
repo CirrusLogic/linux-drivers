@@ -4650,10 +4650,12 @@ static void cs40l2x_vibe_mode_worker(struct work_struct *work)
 		cs40l2x_wl_relax(cs40l2x);
 	}
 
-	ret = cs40l2x_read_dyn_f0_table(cs40l2x);
-	if (ret) {
-		dev_err(dev, "Failed to read f0 table %d\n", ret);
-		goto err_mutex;
+	if (cs40l2x->dyn_f0_enable) {
+		ret = cs40l2x_read_dyn_f0_table(cs40l2x);
+		if (ret) {
+			dev_err(dev, "Failed to read f0 table %d\n", ret);
+			goto err_mutex;
+		}
 	}
 
 	ret = cs40l2x_enable_classh(cs40l2x);
@@ -5253,20 +5255,23 @@ static int cs40l2x_cond_classh(struct cs40l2x_private *cs40l2x, int index)
 	if (index < 0 || index >= CS40L2X_MAX_WAVEFORMS)
 		return -EINVAL;
 
-	reg = cs40l2x_dsp_reg(cs40l2x, "DYNAMIC_F0_ENABLED",
-					CS40L2X_XM_UNPACKED_TYPE,
-						CS40L2X_ALGO_ID_DYN_F0);
+	if (cs40l2x->dyn_f0_enable) {
+		reg = cs40l2x_dsp_reg(cs40l2x, "DYNAMIC_F0_ENABLED",
+						CS40L2X_XM_UNPACKED_TYPE,
+							CS40L2X_ALGO_ID_DYN_F0);
 
-	if (reg) {
+		if (!reg)
+			return -EPERM;
+
 		ret = regmap_read(regmap, reg, &enable);
 		if (ret)
 			return ret;
+	}
 
-		if (enable) {
-			if (cs40l2x->f0_wt_en[index]) {
-				boost = cs40l2x->pdata.boost_ctl;
-				disable_classh = true;
-			}
+	if (enable) {
+		if (cs40l2x->f0_wt_en[index]) {
+			boost = cs40l2x->pdata.boost_ctl;
+			disable_classh = true;
 		}
 	}
 
@@ -6897,6 +6902,7 @@ static void cs40l2x_coeff_file_load(const struct firmware *fw, void *context)
 	struct cs40l2x_private *cs40l2x = (struct cs40l2x_private *)context;
 	struct device *dev = cs40l2x->dev;
 	unsigned int num_coeff_files = 0;
+	unsigned int total_coeff_files = cs40l2x->fw_desc->num_coeff_files;
 	int ret = 0;
 
 	mutex_lock(&cs40l2x->lock);
@@ -6907,7 +6913,10 @@ static void cs40l2x_coeff_file_load(const struct firmware *fw, void *context)
 	if (!ret)
 		num_coeff_files = ++(cs40l2x->num_coeff_files);
 
-	if (num_coeff_files != cs40l2x->fw_desc->num_coeff_files)
+	if (!cs40l2x->dyn_f0_enable)
+		total_coeff_files = (cs40l2x->fw_desc->num_coeff_files - 1);
+
+	if (num_coeff_files != total_coeff_files)
 		goto err_mutex;
 
 	ret = cs40l2x_dsp_pre_config(cs40l2x);
@@ -7137,10 +7146,16 @@ static void cs40l2x_firmware_load(const struct firmware *fw, void *context)
 	if (ret)
 		return;
 
-	for (i = 0; i < cs40l2x->fw_desc->num_coeff_files; i++)
+	for (i = 0; i < cs40l2x->fw_desc->num_coeff_files; i++) {
+		if ((!cs40l2x->dyn_f0_enable) &&
+			(!strncmp(cs40l2x->fw_desc->coeff_files[i],
+				CS40L2X_DYN_F0_FILE_NAME,
+				CS40L2X_WT_FILE_NAME_LEN_MAX)))
+			continue;
 		request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				cs40l2x->fw_desc->coeff_files[i], dev,
 				GFP_KERNEL, cs40l2x, cs40l2x_coeff_file_load);
+	}
 }
 
 static int cs40l2x_firmware_swap(struct cs40l2x_private *cs40l2x,
@@ -7239,6 +7254,11 @@ static int cs40l2x_firmware_swap(struct cs40l2x_private *cs40l2x,
 			if (ret)
 				return ret;
 		} else {
+			if ((!cs40l2x->dyn_f0_enable) &&
+				(!strncmp(cs40l2x->fw_desc->coeff_files[i],
+					CS40L2X_DYN_F0_FILE_NAME,
+					CS40L2X_WT_FILE_NAME_LEN_MAX)))
+				continue;
 			ret = request_firmware(&fw,
 					cs40l2x->fw_desc->coeff_files[i], dev);
 			if (ret)
@@ -8389,6 +8409,9 @@ static int cs40l2x_handle_of_data(struct i2c_client *i2c_client,
 
 	pdata->comp_disable = of_property_read_bool(np, "cirrus,comp-disable");
 
+	pdata->dyn_f0_disable = of_property_read_bool(np,
+		"cirrus,dyn-f0-disable");
+
 	ret = of_property_read_u32(np, "cirrus,gpio1-rise-index", &out_val);
 	if (!ret)
 		pdata->gpio1_rise_index = out_val;
@@ -9043,6 +9066,8 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	cs40l2x->comp_enable = !pdata->comp_disable;
 	cs40l2x->comp_enable_redc = !pdata->redc_comp_disable;
 	cs40l2x->comp_enable_f0 = true;
+
+	cs40l2x->dyn_f0_enable = !pdata->dyn_f0_disable;
 
 	cs40l2x->autosuspend_delay = CS40L2X_AUTOSUSPEND_DELAY_MS;
 
