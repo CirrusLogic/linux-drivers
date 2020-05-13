@@ -1290,6 +1290,7 @@ struct cs40l2x_private {
 	bool amp_gnd_stby;
 	bool clab_wt_en[CS40L2X_MAX_WAVEFORMS];
 	bool f0_wt_en[CS40L2X_MAX_WAVEFORMS];
+	bool dyn_f0_enable;
 	struct cs40l2x_wseq_pair dsp_cache[CS40L2X_DSP_CACHE_MAX];
 	unsigned int dsp_cache_depth;
 
