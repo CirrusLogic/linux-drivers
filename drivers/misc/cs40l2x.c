@@ -5278,16 +5278,17 @@ static int cs40l2x_cond_classh(struct cs40l2x_private *cs40l2x, int index)
 	reg = cs40l2x_dsp_reg(cs40l2x, "CLAB_ENABLED",
 			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_CLAB);
 
-	if (reg) {
-		ret = regmap_read(regmap, reg, &enable);
-		if (ret)
-			return ret;
+	if (!reg)
+		return -EPERM;
 
-		if (enable) {
-			if (cs40l2x->clab_wt_en[index]) {
-				boost = cs40l2x->pdata.boost_clab;
-				disable_classh = true;
-			}
+	ret = regmap_read(regmap, reg, &enable);
+	if (ret)
+		return ret;
+
+	if (enable) {
+		if (cs40l2x->clab_wt_en[index]) {
+			boost = cs40l2x->pdata.boost_clab;
+			disable_classh = true;
 		}
 	}
 
@@ -5497,10 +5498,13 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 		if (completion_done(&cs40l2x->hap_done))
 			reinit_completion(&cs40l2x->hap_done);
 
-		ret = cs40l2x_cond_classh(cs40l2x, cs40l2x->cp_trailer_index);
-		if (ret) {
-			dev_err(dev, "Conditional ClassH failed\n");
-			break;
+		if (cs40l2x->cond_class_h_en) {
+			ret = cs40l2x_cond_classh(cs40l2x,
+				cs40l2x->cp_trailer_index);
+			if (ret) {
+				dev_err(dev, "Conditional ClassH failed\n");
+				break;
+			}
 		}
 
 		ret = cs40l2x_ack_write(cs40l2x, CS40L2X_MBOX_TRIGGER_MS,
@@ -5512,10 +5516,13 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 		if (completion_done(&cs40l2x->hap_done))
 			reinit_completion(&cs40l2x->hap_done);
 
-		ret = cs40l2x_cond_classh(cs40l2x, cs40l2x->cp_trailer_index);
-		if (ret) {
-			dev_err(dev, "Conditional ClassH failed\n");
-			break;
+		if (cs40l2x->cond_class_h_en) {
+			ret = cs40l2x_cond_classh(cs40l2x,
+				cs40l2x->cp_trailer_index);
+			if (ret) {
+				dev_err(dev, "Conditional ClassH failed\n");
+				break;
+			}
 		}
 
 		ret = cs40l2x_ack_write(cs40l2x, CS40L2X_MBOX_TRIGGERINDEX,
@@ -5974,6 +5981,9 @@ static int cs40l2x_coeff_init(struct cs40l2x_private *cs40l2x)
 				cs40l2x->algo_info[0].rev & 0xFF);
 		return -EINVAL;
 	}
+
+	if (cs40l2x->algo_info[0].rev >= CS40L2X_COND_CLSH_MIN_REV)
+		cs40l2x->cond_class_h_en = true;
 
 	return 0;
 }
@@ -6808,8 +6818,7 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 				ret = -EINVAL;
 				goto err_rls_fw;
 			}
-
-			if (wt_found) {
+			if (wt_found && cs40l2x->cond_class_h_en) {
 				ret = cs40l2x_classh_wt_check(cs40l2x,
 						&fw->data[pos],
 						block_length, &wt_index);
@@ -6834,7 +6843,7 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 				goto err_rls_fw;
 			}
 
-			if (wt_found) {
+			if (wt_found && cs40l2x->cond_class_h_en) {
 				ret = cs40l2x_classh_wt_check(cs40l2x,
 						&fw->data[pos],
 						block_length, &wt_index);
@@ -9077,6 +9086,8 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	strlcpy(cs40l2x->wt_date,
 			CS40L2X_WT_FILE_DATE_MISSING,
 			CS40L2X_WT_FILE_DATE_LEN_MAX);
+
+	cs40l2x->cond_class_h_en = false;
 
 	switch (pdata->fw_id_remap) {
 	case CS40L2X_FW_ID_ORIG:
