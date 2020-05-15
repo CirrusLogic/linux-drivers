@@ -817,6 +817,7 @@
 #define CS40L2X_WT_FILE_DATE_LEN_MAX	16
 #define CS40L2X_WT_FILE_NAME_MISSING	"N/A"
 #define CS40L2X_WT_FILE_NAME_DEFAULT	"cs40l20.bin"
+#define CS40L2X_WT_VIRTUAL_FILE_NAME	"virtual wavetable"
 #define CS40L2X_WT_FILE_NAME_LEN_MAX	32
 #define CS40L2X_WT_FILE_HEADER_SIZE	16
 #define CS40L2X_WT_DBLK_OFFSET_SIZE	2
@@ -825,6 +826,53 @@
 #define CS40L2X_WT_ALGO_REV_SIZE	4
 #define CS40L2X_WT_SAMPLE_RATE_SIZE	4
 #define CS40L2X_WT_DBLK_LENGTH_SIZE	4
+#define CS40L2X_WT_COMP_REPEAT_SIZE	1
+#define CS40L2X_WT_COMP_REPEAT_INDX	1
+#define CS40L2X_WT_COMP_NUMWVS_SIZE	1
+#define CS40L2X_WT_COMP_NUMWVS_INDX	2
+#define CS40L2X_WT_WORD_SIZE		3
+#define CS40L2X_WT_ZERO_PAD_SIZE	1
+#define CS40L2X_WT_TOTAL_WORD_SIZE	4
+#define CS40L2X_WT_COMP_WV_DTLS_SIZE	8
+#define CS40L2X_WT_COMP_FIRST_REPEAT	255
+#define CS40L2X_WT_COMP_INDEF_OUTER	255
+#define CS40L2X_WT_HEADER_ENTRY_SIZE	12
+#define CS40L2X_WT_TYPE_8_PCM_FILE	8
+#define CS40L2X_WT_TYPE_9_VAR_FILE	9
+#define CS40L2X_WT_TYPE_10_COMP_FILE	10
+#define CS40L2X_WT_TYPE_11_Q_FILE	11
+#define CS40L2X_WT_TYPE_12_PWLE_FILE	12
+#define CS40L2X_WT_YM_SECTION_HEADER	6
+#define CS40L2X_WT_YM_PRE_HDR_BYTES     16
+#define CS40L2X_WT_DATE_HDR_BYTES	16
+#define CS40L2X_WT_YM_EMPTY_SIZE	4
+#define CS40L2X_WT_TERMINATOR_BYTES	4
+#define CS40L2X_WT_PRE_HDR_COMMON	12
+#define CS40L2X_WT_ZERO			0
+#define CS40L2X_WT_YM_PRE_HDR_VAL	6
+#define CS40L2X_WT_TERMINATOR_BYTE	255
+#define CS40L2X_WT_TERMINATOR		0x00FFFFFF
+#define CS40L2X_WT_COMP_INDEFINITE	0x00400000
+#define CS40L2X_WT_COMP_LEN_CALCD	0x00800000
+#define CS40L2X_WT_MAX_SAMPLES		0x003FFFFE
+#define CS40L2X_WT_CLR_EX_TYPE		0x0000FFFF
+#define CS40L2X_WT_YM_PRE_HEADER	0x00000600
+#define CS40L2X_WT_NUM_GPIO_VSLOTS	2
+#define CS40L2X_WT_NUM_COMP_VSLOTS	1
+#define CS40L2X_WT_MAX_VIRT_WAVS	500
+#define CS40L2X_WT_MAX_BIN_SIZE		9584
+
+#define CS40L2X_WT_NUM_VIRT_SLOTS	(\
+	CS40L2X_WT_NUM_COMP_VSLOTS +\
+	CS40L2X_WT_NUM_GPIO_VSLOTS)
+
+#define CS40L2X_WT_COMP_NONRPTNG_SIZE	(\
+	CS40L2X_WT_DBLK_LENGTH_SIZE +\
+	CS40L2X_WT_COMP_REPEAT_SIZE +\
+	CS40L2X_WT_COMP_NUMWVS_SIZE +\
+	CS40L2X_WT_ZERO_PAD_SIZE +\
+	CS40L2X_WT_ZERO_PAD_SIZE)
+
 #define CS40L2X_WT_HEADER_END		0xffffff
 #define CS40L2X_WT_DESC_BYTE_OFFSET	12
 
@@ -874,7 +922,8 @@
 #define CS40L2X_INDEX_CLICK_MIN		0x00000001
 #define CS40L2X_INDEX_CLICK_MAX		0x00007FFF
 #define CS40L2X_INDEX_CONT_MIN		0x00008000
-#define CS40L2X_INDEX_CONT_MAX		0x0000FFFB
+#define CS40L2X_INDEX_CONT_MAX		0x0000FFFA
+#define CS40L2X_INDEX_PBQ_SAVE		0x0000FFFB
 #define CS40L2X_INDEX_QEST		0x0000FFFC
 #define CS40L2X_INDEX_PEAK		0x0000FFFD
 #define CS40L2X_INDEX_PBQ		0x0000FFFE
@@ -893,6 +942,9 @@
 #define CS40L2X_PBQ_TAG_SILENCE		0x0000
 #define CS40L2X_PBQ_TAG_START		0x8000
 #define CS40L2X_PBQ_TAG_STOP		0x8001
+#define CS40L2X_PBQ_INNER_REPEAT	255
+#define CS40L2X_PBQ_FW_BYTES_MAX	2016 /* Recommended min value = 504 */
+#define CS40L2X_PBQ_FW_BYTES_MIN	192
 
 #define CS40L2X_DIAG_STATE_INIT		0x00
 #define CS40L2X_DIAG_STATE_RUN1		0x01
@@ -1047,6 +1099,15 @@
 #define CS40L2X_VIBE_STATE_STOPPED	0
 #define CS40L2X_VIBE_STATE_RUNNING	1
 
+#define CS40L2X_PBQ_SAVE_STATE_DONE	0
+#define CS40L2X_PBQ_SAVE_STATE_BUSY	1
+
+#define CS40L2X_SAVE_UNSAFE		0
+#define CS40L2X_SAVE_SAFE		1
+
+#define CS40L2X_FW_BUSY			0
+#define CS40L2X_FW_WAIT_COMPLETE	1
+
 #define CS40L2X_EXC_ENABLED		1
 #define CS40L2X_EXC_DISABLED		0
 
@@ -1144,6 +1205,8 @@
 #define CS40L2X_VOL_LVL_MAX_STEPS	100
 #define CS40L2X_VOL_LVL_MAX		0x7fffff
 
+#define CS40L2X_SIZE_TWO_ARRAY	2
+
 bool cs40l2x_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l2x_precious_reg(struct device *dev, unsigned int reg);
 
@@ -1240,8 +1303,45 @@ struct cs40l2x_private {
 	unsigned int cp_trigger_index;
 	unsigned int cp_trailer_index;
 	unsigned int num_waves;
+	unsigned int num_xm_wavs;
+	unsigned int num_ym_wavs;
+	unsigned int num_virtual_waves;
+	unsigned int loaded_virtual_index;
 	unsigned int wt_limit_xm;
 	unsigned int wt_limit_ym;
+	unsigned int wt_xm_size;
+	unsigned int wt_ym_size;
+	unsigned int wt_total_size;
+	unsigned int wt_open_xm;
+	unsigned int wt_open_ym;
+	unsigned int xm_hdr_strt_pos;
+	unsigned int ym_hdr_strt_pos;
+	unsigned int xm_hdr_strt_reg;
+	unsigned int ym_hdr_strt_reg;
+	unsigned int wt_xm_header_end_pos;
+	unsigned int wt_ym_header_end_pos;
+	unsigned int virt_wt_end_header_pos;
+	unsigned int wt_xm_header_last_offset;
+	unsigned int wt_ym_header_last_offset;
+	unsigned int wt_xm_header_last_size;
+	unsigned int wt_ym_header_last_size;
+	unsigned int pbq_updated_fw_raw_wt_size;
+	unsigned int comp_bytes;
+	unsigned int *wvfrm_lengths;
+	unsigned int wvfrm_lengths_size;
+	unsigned int *updated_offsets;
+	unsigned int updated_offsets_size;
+	unsigned int updated_block_size;
+	char *pbq_fw_raw_wt;
+	char *pbq_updated_fw_raw_wt;
+	char two_bytes[CS40L2X_SIZE_TWO_ARRAY];
+	char three_bytes[CS40L2X_WT_WORD_SIZE];
+	bool open_wt_enable;
+	bool virtual_stored;
+	bool queue_stored;
+	bool virtual_bin;
+	bool create_ym;
+	bool xm_append;
 	char wt_file[CS40L2X_WT_FILE_NAME_LEN_MAX];
 	char wt_date[CS40L2X_WT_FILE_DATE_LEN_MAX];
 	bool exc_available;
@@ -1250,6 +1350,7 @@ struct cs40l2x_private {
 	bool vibe_init_success;
 	bool vibe_mode;
 	bool vibe_state;
+	bool safe_save_state;
 	struct gpio_desc *reset_gpio;
 	struct cs40l2x_platform_data pdata;
 	unsigned int num_algos;
@@ -1267,6 +1368,16 @@ struct cs40l2x_private {
 	unsigned int pbq_index;
 	unsigned int pbq_state;
 	unsigned int pbq_cp_dig_scale;
+	unsigned int comp_outer[CS40L2X_PBQ_DEPTH_MAX];
+	unsigned int comp_inner[CS40L2X_PBQ_DEPTH_MAX];
+	unsigned int pbq_fw_composite[CS40L2X_PBQ_DEPTH_MAX + 3];
+	unsigned int pbq_fw_composite_len;
+	unsigned int virtual_gpio_index[CS40L2X_SIZE_TWO_ARRAY];
+	unsigned int loaded_gpio_index[CS40L2X_SIZE_TWO_ARRAY];
+	unsigned int virtual_slot_index;
+	unsigned int virtual_gpio1_fall_index;
+	unsigned int virtual_gpio1_rise_index;
+	struct list_head virtual_composite_head;
 	int pbq_repeat;
 	int pbq_remain;
 	struct cs40l2x_wseq_pair wseq_table[CS40L2X_WSEQ_LENGTH_MAX];
@@ -1319,6 +1430,14 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 			const struct firmware *fw);
 int cs40l2x_ack_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
 			unsigned int write_val, unsigned int reset_val);
+
+struct cs40l2x_virtual_composite {
+	bool is_xm;
+	unsigned int index;
+	unsigned int data_len;
+	unsigned int data[CS40L2X_PBQ_FW_BYTES_MAX];
+	struct list_head list;
+};
 
 extern const unsigned char cs40l2x_bst_k1_table[4][5];
 extern const unsigned char cs40l2x_bst_k2_table[4][5];

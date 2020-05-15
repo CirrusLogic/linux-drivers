@@ -45,6 +45,7 @@ struct cs40l2x_platform_data {
 	bool redc_comp_disable;
 	bool comp_disable;
 	bool dyn_f0_disable;
+	bool open_wt_disable;
 	unsigned int gpio1_rise_index;
 	unsigned int gpio1_fall_index;
 	unsigned int gpio1_fall_timeout;
