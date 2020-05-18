@@ -19,6 +19,7 @@
  */
 #include <media/mpeg2-ctrls.h>
 #include <media/hevc-ctrls.h>
+#include <media/vp9-ctrls.h>
 
 /* forward references */
 struct file;

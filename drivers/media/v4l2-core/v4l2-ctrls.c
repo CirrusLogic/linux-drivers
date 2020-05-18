@@ -961,6 +961,11 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MPEG_VIDEO_VP8_PROFILE:			return "VP8 Profile";
 	case V4L2_CID_MPEG_VIDEO_VP9_PROFILE:			return "VP9 Profile";
 	case V4L2_CID_MPEG_VIDEO_VP9_LEVEL:			return "VP9 Level";
+	case V4L2_CID_MPEG_VIDEO_VP9_FRAME_DECODE_PARAMS:	return "VP9 Frame Decode Parameters";
+	case V4L2_CID_MPEG_VIDEO_VP9_FRAME_CONTEXT(0):		return "VP9 Frame Context 0";
+	case V4L2_CID_MPEG_VIDEO_VP9_FRAME_CONTEXT(1):		return "VP9 Frame Context 1";
+	case V4L2_CID_MPEG_VIDEO_VP9_FRAME_CONTEXT(2):		return "VP9 Frame Context 2";
+	case V4L2_CID_MPEG_VIDEO_VP9_FRAME_CONTEXT(3):		return "VP9 Frame Context 3";
 
 	/* HEVC controls */
 	case V4L2_CID_MPEG_VIDEO_HEVC_I_FRAME_QP:		return "HEVC I-Frame QP Value";
@@ -1470,6 +1475,15 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 		*type = V4L2_CTRL_TYPE_AREA;
 		*flags |= V4L2_CTRL_FLAG_READ_ONLY;
 		break;
+	case V4L2_CID_MPEG_VIDEO_VP9_FRAME_DECODE_PARAMS:
+		*type = V4L2_CTRL_TYPE_VP9_FRAME_DECODE_PARAMS;
+		break;
+	case V4L2_CID_MPEG_VIDEO_VP9_FRAME_CONTEXT(0):
+	case V4L2_CID_MPEG_VIDEO_VP9_FRAME_CONTEXT(1):
+	case V4L2_CID_MPEG_VIDEO_VP9_FRAME_CONTEXT(2):
+	case V4L2_CID_MPEG_VIDEO_VP9_FRAME_CONTEXT(3):
+		*type = V4L2_CTRL_TYPE_VP9_FRAME_CONTEXT;
+		break;
 	default:
 		*type = V4L2_CTRL_TYPE_INTEGER;
 		break;
@@ -1795,6 +1809,219 @@ static void std_log(const struct v4l2_ctrl *ctrl)
 	0;							\
 })
 
+static int
+validate_vp9_lf_params(struct v4l2_vp9_loop_filter *lf)
+{
+	unsigned int i, j, k;
+
+	if (lf->flags &
+	    ~(V4L2_VP9_LOOP_FILTER_FLAG_DELTA_ENABLED |
+	      V4L2_VP9_LOOP_FILTER_FLAG_DELTA_UPDATE))
+		return -EINVAL;
+
+	/*
+	 * V4L2_VP9_LOOP_FILTER_FLAG_DELTA_ENABLED implies
+	 * V4L2_VP9_LOOP_FILTER_FLAG_DELTA_UPDATE.
+	 */
+	if (lf->flags & V4L2_VP9_LOOP_FILTER_FLAG_DELTA_UPDATE &&
+	    !(lf->flags & V4L2_VP9_LOOP_FILTER_FLAG_DELTA_ENABLED))
+		return -EINVAL;
+
+	/* That all values are in the accepted range. */
+	if (lf->level > GENMASK(5, 0))
+		return -EINVAL;
+
+	if (lf->sharpness > GENMASK(2, 0))
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(lf->ref_deltas); i++) {
+		if (lf->ref_deltas[i] < -63 || lf->ref_deltas[i] > 63)
+			return -EINVAL;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(lf->mode_deltas); i++) {
+		if (lf->mode_deltas[i] < -63 || lf->mode_deltas[i] > 63)
+			return -EINVAL;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(lf->level_lookup); i++) {
+		for (j = 0; j < ARRAY_SIZE(lf->level_lookup[0]); j++) {
+			for (k = 0; k < ARRAY_SIZE(lf->level_lookup[0][0]); k++) {
+				if (lf->level_lookup[i][j][k] > 63)
+					return -EINVAL;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int
+validate_vp9_quant_params(struct v4l2_vp9_quantization *quant)
+{
+	if (quant->delta_q_y_dc < -15 || quant->delta_q_y_dc > 15 ||
+	    quant->delta_q_uv_dc < -15 || quant->delta_q_uv_dc > 15 ||
+	    quant->delta_q_uv_ac < -15 || quant->delta_q_uv_ac > 15)
+		return -EINVAL;
+
+	memset(quant->padding, 0, sizeof(quant->padding));
+	return 0;
+}
+
+static int
+validate_vp9_seg_params(struct v4l2_vp9_segmentation *seg)
+{
+	unsigned int i, j;
+
+	if (seg->flags &
+	    ~(V4L2_VP9_SEGMENTATION_FLAG_ENABLED |
+	      V4L2_VP9_SEGMENTATION_FLAG_UPDATE_MAP |
+	      V4L2_VP9_SEGMENTATION_FLAG_TEMPORAL_UPDATE |
+	      V4L2_VP9_SEGMENTATION_FLAG_UPDATE_DATA |
+	      V4L2_VP9_SEGMENTATION_FLAG_ABS_OR_DELTA_UPDATE))
+		return -EINVAL;
+
+	/*
+	 * V4L2_VP9_SEGMENTATION_FLAG_UPDATE_MAP and
+	 * V4L2_VP9_SEGMENTATION_FLAG_UPDATE_DATA imply
+	 * V4L2_VP9_SEGMENTATION_FLAG_ENABLED.
+	 */
+	if ((seg->flags &
+	     (V4L2_VP9_SEGMENTATION_FLAG_UPDATE_MAP |
+	      V4L2_VP9_SEGMENTATION_FLAG_UPDATE_DATA)) &&
+	    !(seg->flags & V4L2_VP9_SEGMENTATION_FLAG_ENABLED))
+		return -EINVAL;
+
+	/*
+	 * V4L2_VP9_SEGMENTATION_FLAG_TEMPORAL_UPDATE implies
+	 * V4L2_VP9_SEGMENTATION_FLAG_UPDATE_MAP.
+	 */
+	if (seg->flags & V4L2_VP9_SEGMENTATION_FLAG_TEMPORAL_UPDATE &&
+	    !(seg->flags & V4L2_VP9_SEGMENTATION_FLAG_UPDATE_MAP))
+		return -EINVAL;
+
+	/*
+	 * V4L2_VP9_SEGMENTATION_FLAG_ABS_OR_DELTA_UPDATE implies
+	 * V4L2_VP9_SEGMENTATION_FLAG_UPDATE_DATA.
+	 */
+	if (seg->flags & V4L2_VP9_SEGMENTATION_FLAG_ABS_OR_DELTA_UPDATE &&
+	    !(seg->flags & V4L2_VP9_SEGMENTATION_FLAG_UPDATE_DATA))
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(seg->feature_enabled); i++) {
+		if (seg->feature_enabled[i] &
+		    ~(V4L2_VP9_SEGMENT_FEATURE_QP_DELTA |
+		      V4L2_VP9_SEGMENT_FEATURE_LF |
+		      V4L2_VP9_SEGMENT_FEATURE_REF_FRAME |
+		      V4L2_VP9_SEGMENT_FEATURE_SKIP))
+			return -EINVAL;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(seg->feature_data); i++) {
+		const int range[] = {255, 63, 3, 0};
+
+		for (j = 0; j < ARRAY_SIZE(seg->feature_data[j]); j++) {
+			if (seg->feature_data[i][j] < -range[j] ||
+			    seg->feature_data[i][j] > range[j])
+				return -EINVAL;
+		}
+	}
+
+	memset(seg->padding, 0, sizeof(seg->padding));
+	return 0;
+}
+
+static int
+validate_vp9_frame_decode_params(struct v4l2_ctrl_vp9_frame_decode_params *dec_params)
+{
+	int ret;
+
+	/* Make sure we're not passed invalid flags. */
+	if (dec_params->flags &
+	    ~(V4L2_VP9_FRAME_FLAG_KEY_FRAME |
+	      V4L2_VP9_FRAME_FLAG_SHOW_FRAME |
+	      V4L2_VP9_FRAME_FLAG_ERROR_RESILIENT |
+	      V4L2_VP9_FRAME_FLAG_INTRA_ONLY |
+	      V4L2_VP9_FRAME_FLAG_ALLOW_HIGH_PREC_MV |
+	      V4L2_VP9_FRAME_FLAG_REFRESH_FRAME_CTX |
+	      V4L2_VP9_FRAME_FLAG_PARALLEL_DEC_MODE |
+	      V4L2_VP9_FRAME_FLAG_X_SUBSAMPLING |
+	      V4L2_VP9_FRAME_FLAG_Y_SUBSAMPLING |
+	      V4L2_VP9_FRAME_FLAG_COLOR_RANGE_FULL_SWING))
+		return -EINVAL;
+
+	/*
+	 * The refresh context and error resilient flags are mutually exclusive.
+	 * Same goes for parallel decoding and error resilient modes.
+	 */
+	if (dec_params->flags & V4L2_VP9_FRAME_FLAG_ERROR_RESILIENT &&
+	    dec_params->flags &
+	    (V4L2_VP9_FRAME_FLAG_REFRESH_FRAME_CTX |
+	     V4L2_VP9_FRAME_FLAG_PARALLEL_DEC_MODE))
+		return -EINVAL;
+
+	if (dec_params->profile > V4L2_VP9_PROFILE_MAX)
+		return -EINVAL;
+
+	if (dec_params->reset_frame_context > V4L2_VP9_RESET_FRAME_CTX_ALL)
+		return -EINVAL;
+
+	if (dec_params->frame_context_idx >= V4L2_VP9_NUM_FRAME_CTX)
+		return -EINVAL;
+
+	/*
+	 * Profiles 0 and 1 only support 8-bit depth, profiles 2 and 3 only 10
+	 * and 12 bit depths.
+	 */
+	if ((dec_params->profile < 2 && dec_params->bit_depth != 8) ||
+	    (dec_params->profile >= 2 &&
+	     (dec_params->bit_depth != 10 && dec_params->bit_depth != 12)))
+		return -EINVAL;
+
+	/* Profile 0 and 2 only accept YUV 4:2:0. */
+	if ((dec_params->profile == 0 || dec_params->profile == 2) &&
+	    (!(dec_params->flags & V4L2_VP9_FRAME_FLAG_X_SUBSAMPLING) ||
+	     !(dec_params->flags & V4L2_VP9_FRAME_FLAG_Y_SUBSAMPLING)))
+		return -EINVAL;
+
+	/* Profile 1 and 3 only accept YUV 4:2:2, 4:4:0 and 4:4:4. */
+	if ((dec_params->profile == 1 || dec_params->profile == 3) &&
+	    ((dec_params->flags & V4L2_VP9_FRAME_FLAG_X_SUBSAMPLING) &&
+	     (dec_params->flags & V4L2_VP9_FRAME_FLAG_Y_SUBSAMPLING)))
+		return -EINVAL;
+
+	if (dec_params->interpolation_filter > V4L2_VP9_INTERP_FILTER_SWITCHABLE)
+		return -EINVAL;
+
+	/*
+	 * According to the spec, tile_cols_log2 shall be less than or equal
+	 * to 6.
+	 */
+	if (dec_params->tile_cols_log2 > 6)
+		return -EINVAL;
+
+	if (dec_params->tx_mode > V4L2_VP9_TX_MODE_SELECT)
+		return -EINVAL;
+
+	if (dec_params->reference_mode > V4L2_VP9_REF_MODE_SELECT)
+		return -EINVAL;
+
+	ret = validate_vp9_lf_params(&dec_params->lf);
+	if (ret)
+		return ret;
+
+	ret = validate_vp9_quant_params(&dec_params->quant);
+	if (ret)
+		return ret;
+
+	ret = validate_vp9_seg_params(&dec_params->seg);
+	if (ret)
+		return ret;
+
+	memset(dec_params->padding, 0, sizeof(dec_params->padding));
+	return 0;
+}
+
 /* Validate a new control */
 
 #define zero_padding(s) \
@@ -2119,6 +2346,11 @@ static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 		area = p;
 		if (!area->width || !area->height)
 			return -EINVAL;
+		break;
+	case V4L2_CTRL_TYPE_VP9_FRAME_DECODE_PARAMS:
+		return validate_vp9_frame_decode_params(p);
+
+	case V4L2_CTRL_TYPE_VP9_FRAME_CONTEXT:
 		break;
 
 	default:
@@ -2827,6 +3059,12 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 		break;
 	case V4L2_CTRL_TYPE_AREA:
 		elem_size = sizeof(struct v4l2_area);
+		break;
+	case V4L2_CTRL_TYPE_VP9_FRAME_CONTEXT:
+		elem_size = sizeof(struct v4l2_ctrl_vp9_frame_ctx);
+		break;
+	case V4L2_CTRL_TYPE_VP9_FRAME_DECODE_PARAMS:
+		elem_size = sizeof(struct v4l2_ctrl_vp9_frame_decode_params);
 		break;
 	default:
 		if (type < V4L2_CTRL_COMPOUND_TYPES)
