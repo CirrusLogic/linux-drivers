@@ -14,6 +14,7 @@
 struct mfg_base {
 	struct clk_bulk_data *clks;
 	int num_clks;
+	void __iomem *g_mfg_base;
 	bool is_powered;
 };
 
@@ -28,6 +29,12 @@ struct mfg_base {
 #define VOLT_TOL (125)	/* uV */
 
 #define GPU_CORE_NUM 5
+
+/* Definition for MFG registers */
+#define MFG_QCHANNEL_CON 0xb4
+#define MFG_DEBUG_SEL 0x170
+#define MFG_DEBUG_TOP 0x178
+#define BUS_IDLE_BIT 0x4
 
 /**
  * Maximum frequency GPU will be clocked at. Given in kHz.

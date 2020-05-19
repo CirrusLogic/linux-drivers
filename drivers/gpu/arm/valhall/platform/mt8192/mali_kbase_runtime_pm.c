@@ -111,6 +111,36 @@ err:
 	return err;
 }
 
+static void check_bus_idle(struct kbase_device *kbdev)
+{
+	struct mfg_base *mfg = kbdev->platform_context;
+	u32 val;
+
+	/* MFG_QCHANNEL_CON (0x13fb_f0b4) bit [1:0] = 0x1 */
+	writel(0x00000001, mfg->g_mfg_base + MFG_QCHANNEL_CON);
+
+	/* set register MFG_DEBUG_SEL (0x13fb_f170) bit [7:0] = 0x03 */
+	writel(0x00000003, mfg->g_mfg_base + MFG_DEBUG_SEL);
+
+	/* polling register MFG_DEBUG_TOP (0x13fb_f178) bit 2 = 0x1 */
+	/* => 1 for bus idle, 0 for bus non-idle */
+	do {
+		val = readl(mfg->g_mfg_base + MFG_DEBUG_TOP);
+	} while ((val & BUS_IDLE_BIT) != BUS_IDLE_BIT);
+}
+
+static void *get_mfg_base(const char *node_name)
+{
+	struct device_node *node;
+
+	node = of_find_compatible_node(NULL, NULL, node_name);
+
+	if (node)
+		return of_iomap(node, 0);
+
+	return NULL;
+}
+
 static int pm_callback_power_on(struct kbase_device *kbdev)
 {
 	int error, i;
@@ -165,6 +195,8 @@ static void pm_callback_power_off(struct kbase_device *kbdev)
 	}
 
 	mfg->is_powered = false;
+
+	check_bus_idle(kbdev);
 
 	clk_bulk_disable_unprepare(mfg->num_clks, mfg->clks);
 
@@ -280,6 +312,12 @@ int mali_mfgsys_init(struct kbase_device *kbdev, struct mfg_base *mfg)
 			return err;
 		}
 		kbdev->current_voltages[i] = volt;
+	}
+
+	mfg->g_mfg_base = get_mfg_base("mediatek,mt8192-mfgcfg");
+	if (!mfg->g_mfg_base) {
+		dev_err(kbdev->dev, "Cannot find mfgcfg node\n");
+		return -ENODEV;
 	}
 
 	mfg->is_powered = false;
