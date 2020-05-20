@@ -8,6 +8,13 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/module.h>
+#include <linux/version.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/list.h>
+#include <linux/regmap.h>
+#include <linux/of_device.h>
 
 #ifndef __CL_DSP_H__
 #define __CL_DSP_H__
