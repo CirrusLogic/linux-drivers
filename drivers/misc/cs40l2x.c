@@ -4459,15 +4459,19 @@ static int cs40l2x_read_dyn_f0_table(struct cs40l2x_private *cs40l2x)
 {
 	struct regmap *regmap = cs40l2x->regmap;
 	struct device *dev = cs40l2x->dev;
-	unsigned int enable, data[CS40l2X_F0_MAX_ENTRIES];
+	unsigned int enable = 0, reg, data[CS40l2X_F0_MAX_ENTRIES];
 	int ret, i, j = 0;
 
-	ret = regmap_read(regmap, cs40l2x_dsp_reg(cs40l2x,
-					"DYNAMIC_F0_ENABLED",
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "DYNAMIC_F0_ENABLED",
 					CS40L2X_XM_UNPACKED_TYPE,
-					CS40L2X_ALGO_ID_DYN_F0), &enable);
-	if (ret)
-		return ret;
+					CS40L2X_ALGO_ID_DYN_F0);
+
+	if (reg) {
+		ret = regmap_read(regmap, reg, &enable);
+		if (ret)
+			return ret;
+	}
 
 	if (!enable)
 		return 0;
@@ -5250,7 +5254,7 @@ static int cs40l2x_cond_classh(struct cs40l2x_private *cs40l2x, int index)
 {
 	struct regmap *regmap = cs40l2x->regmap;
 	unsigned int enable = 0, reg, boost = cs40l2x->pdata.boost_ctl;
-	int ret;
+	int ret = 0;
 	bool disable_classh = false;
 
 
@@ -5261,13 +5265,11 @@ static int cs40l2x_cond_classh(struct cs40l2x_private *cs40l2x, int index)
 		reg = cs40l2x_dsp_reg(cs40l2x, "DYNAMIC_F0_ENABLED",
 						CS40L2X_XM_UNPACKED_TYPE,
 							CS40L2X_ALGO_ID_DYN_F0);
-
-		if (!reg)
-			return -EPERM;
-
-		ret = regmap_read(regmap, reg, &enable);
-		if (ret)
-			return ret;
+		if (reg) {
+			ret = regmap_read(regmap, reg, &enable);
+			if (ret)
+				return ret;
+		}
 	}
 
 	if (enable) {
@@ -5280,17 +5282,17 @@ static int cs40l2x_cond_classh(struct cs40l2x_private *cs40l2x, int index)
 	reg = cs40l2x_dsp_reg(cs40l2x, "CLAB_ENABLED",
 			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_CLAB);
 
-	if (!reg)
-		return -EPERM;
+	if (reg) {
 
-	ret = regmap_read(regmap, reg, &enable);
-	if (ret)
-		return ret;
+		ret = regmap_read(regmap, reg, &enable);
+		if (ret)
+			return ret;
 
-	if (enable) {
-		if (cs40l2x->clab_wt_en[index]) {
-			boost = cs40l2x->pdata.boost_clab;
-			disable_classh = true;
+		if (enable) {
+			if (cs40l2x->clab_wt_en[index]) {
+				boost = cs40l2x->pdata.boost_clab;
+				disable_classh = true;
+			}
 		}
 	}
 
