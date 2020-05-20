@@ -6,16 +6,6 @@
 //
 // Author: Fred Treven <fred.treven@cirrus.com>
 
-
-#include <linux/module.h>
-#include <linux/version.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/list.h>
-#include <linux/regmap.h>
-#include <linux/firmware.h>
-#include <linux/of_device.h>
-
 #include <linux/mfd/cl_dsp.h>
 
 static int cl_dsp_raw_write(struct cl_dsp *dsp, unsigned int reg,
