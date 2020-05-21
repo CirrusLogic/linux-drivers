@@ -1330,21 +1330,53 @@ static char fast_ctl[] = "Fast Use Case Delta File";
 
 static int cs35l45_component_probe(struct snd_soc_component *component)
 {
-	int ret;
 	struct cs35l45_private *cs35l45 =
 			snd_soc_component_get_drvdata(component);
 	struct snd_soc_dapm_context *dapm =
 			snd_soc_component_get_dapm(component);
+	int ret;
 #ifdef CONFIG_SND_SOC_CIRRUS_AMP
 	static struct reg_sequence cs35l45_cal_pre_config[] = {
 		{CS35L45_DSP1RX6_INPUT,	CS35L45_PCM_SRC_VDD_BSTMON},
+		{CS35L45_MIXER_NGATE_CH1_CFG,	0},
+		{CS35L45_MIXER_NGATE_CH2_CFG,	0},
 	};
 
 	static struct reg_sequence cs35l45_cal_post_config[] = {
 		{CS35L45_DSP1RX6_INPUT,	CS35L45_PCM_SRC_VDD_BATTMON},
 	};
 
+	struct cs35l45_platform_data *pdata = &cs35l45->pdata;
 	struct cirrus_amp_config amp_cfg;
+	unsigned int val;
+
+	if (pdata->ngate_ch1_hold & CS35L45_VALID_PDATA)
+		val = pdata->ngate_ch1_hold & (~CS35L45_VALID_PDATA);
+	else
+		val = CS35L45_AUX_NGATE_CH_HOLD_DEFAULT;
+
+	cs35l45_cal_pre_config[1].def |= val << CS35L45_AUX_NGATE_CH_HOLD_SHIFT;
+
+	if (pdata->ngate_ch1_thr & CS35L45_VALID_PDATA)
+		val = pdata->ngate_ch1_thr & (~CS35L45_VALID_PDATA);
+	else
+		val = CS35L45_AUX_NGATE_CH_THR_DEFAULT;
+
+	cs35l45_cal_pre_config[1].def |= val << CS35L45_AUX_NGATE_CH_THR_SHIFT;
+
+	if (pdata->ngate_ch2_hold & CS35L45_VALID_PDATA)
+		val = pdata->ngate_ch2_hold & (~CS35L45_VALID_PDATA);
+	else
+		val = CS35L45_AUX_NGATE_CH_HOLD_DEFAULT;
+
+	cs35l45_cal_pre_config[2].def |= val << CS35L45_AUX_NGATE_CH_HOLD_SHIFT;
+
+	if (pdata->ngate_ch2_thr & CS35L45_VALID_PDATA)
+		val = pdata->ngate_ch2_thr & (~CS35L45_VALID_PDATA);
+	else
+		val = CS35L45_AUX_NGATE_CH_THR_DEFAULT;
+
+	cs35l45_cal_pre_config[2].def |= val << CS35L45_AUX_NGATE_CH_THR_SHIFT;
 
 	amp_cfg.component = component;
 	amp_cfg.regmap = cs35l45->regmap;
