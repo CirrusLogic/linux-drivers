@@ -1,0 +1,5 @@
+CS35L43 Speaker Amplifier
+
+Required properties:
+
+  - compatible : "cirrus,cs35l43"
