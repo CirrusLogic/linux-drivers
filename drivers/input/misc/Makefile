@@ -5,6 +5,10 @@
 
 # Each configuration option enables a list of files.
 
+input-cs40l26-objs := cs40l26.o cs40l26-tables.o cs40l26-sysfs.o
+input-cs40l26-i2c-objs := cs40l26-i2c.o
+input-cs40l26-spi-objs := cs40l26-spi.o
+
 obj-$(CONFIG_INPUT_88PM860X_ONKEY)	+= 88pm860x_onkey.o
 obj-$(CONFIG_INPUT_88PM80X_ONKEY)	+= 88pm80x_onkey.o
 obj-$(CONFIG_INPUT_AB8500_PONKEY)	+= ab8500-ponkey.o
@@ -25,6 +29,9 @@ obj-$(CONFIG_INPUT_CMA3000)		+= cma3000_d0x.o
 obj-$(CONFIG_INPUT_CMA3000_I2C)		+= cma3000_d0x_i2c.o
 obj-$(CONFIG_INPUT_COBALT_BTNS)		+= cobalt_btns.o
 obj-$(CONFIG_INPUT_CPCAP_PWRBUTTON)	+= cpcap-pwrbutton.o
+obj-$(CONFIG_INPUT_CS40L26)		+= input-cs40l26.o
+obj-$(CONFIG_INPUT_CS40L26_I2C)		+= input-cs40l26-i2c.o
+obj-$(CONFIG_INPUT_CS40L26_SPI)		+= input-cs40l26-spi.o
 obj-$(CONFIG_INPUT_DA9052_ONKEY)	+= da9052_onkey.o
 obj-$(CONFIG_INPUT_DA9055_ONKEY)	+= da9055_onkey.o
 obj-$(CONFIG_INPUT_DA9063_ONKEY)	+= da9063_onkey.o
