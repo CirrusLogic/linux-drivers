@@ -1,0 +1,243 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/bindings/input/cs40l26.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Cirrus Logic CS40L26 Boosted Haptic Amplifier
+
+maintainers:
+  - fred.treven@cirrus.com
+
+description: |
+  CS40L26 is a Boosted Haptic Driver with Integrated DSP and Waveform Memory
+  with Advanced Closed Loop Algorithms and LRA protection
+
+properties:
+  compatible:
+    enum:
+      - cirrus,cs40l26
+
+  reg:
+    maxItems: 1
+
+  cirrus,vbbr-enable:
+    description:
+      Boolean to determine whether or not VBST brownout prevention is enabled.
+      (Default) Disabled
+    type: boolean
+
+  cirrus,vbbr-thld-mv:
+    description:
+      Boost converter brownout prevention delta voltage threshold represented
+      in milivolts. Brownout prevention mode is entered if the condition
+      "VBST(target) - VBST(actual) <= VBBR_THLD" is met.
+      The possible VBST threshold values range from 109 mV to 3445 mV
+      in increments of 55 mV.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 109
+    maximum: 3445
+    default: 273
+
+  cirrus,vbbr-max-att-db:
+    description:
+      Maximum attenuation that the reactive VBST brownout can apply to the
+      signal. Accepted values range from 0 dB to 15 dB with a 1 dB step size.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0x0
+    maximum: 0xF
+    default: 0x9
+
+  cirrus,vbbr-atk-step:
+    description:
+      VBST brownout prevention attack step size. Configures the VBST brownout
+      prevention attacking attenuation step size when operating in either
+      digital volume or analog gain modes. There are 8 possible attack step
+      values; they are relative to triggering VBBR_1/VBBR_2/VBBR_3.
+      The potential values are as follows
+      0x0 = 0.0625 dB / 0.125 dB / 0.250 dB
+      0x1 = 0.125 dB / 0.250 dB / 0.500 dB (default)
+      0x2 = 0.250 dB / 0.500 dB / 1.000 dB
+      0x3 = 0.500 dB / 1.000 dB / 2.000 dB
+      0x4 = 0.750 dB / 1.500 dB / 3.000 dB
+      0x5 = 1.000 dB / 2.000 dB / 4.000 dB
+      0x6 = 1.250 dB / 2.500 dB / 5.000 dB
+      0x7 = 1.500 dB / 3.000 dB / 6.000 dB
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0x0
+    maximum: 0x7
+    default: 0x1
+
+  cirrus,vbbr-atk-rate:
+    description:
+      Attenuation attack step rate. Configures the amount of delay between
+      consecutive volume attenuation steps when a brownout condition is
+      present and the VBST brownout condition is in an attacking state. The
+      attack rate can be configured to 8 discrete values.
+      0x0 = 2.5 us
+      0x1 = 5 us
+      0x2 = 10 us (default)
+      0x3 = 25 us
+      0x4 = 50 us
+      0x5 = 100 us
+      0x6 = 250 us
+      0x7 = 500 us
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0x0
+    maximum: 0x7
+    default: 0x2
+
+  cirrus,vbbr-wait:
+    description:
+      Configures the delay between a brownout condition no longer being
+      present and the VBST brownout prevention entering an attenuation release
+      state. The parameter can be set to 4 discrete values.
+      0x0 = 10 ms
+      0x1 = 100 ms (default)
+      0x2 = 250 ms
+      0x3 = 500 ms
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0x0
+    maximum: 0x3
+    default: 0x1
+
+  cirrus,vbbr-rel-rate:
+    description:
+      Attenuation release step rate. Configures the delay between consecutive
+      volume attenuation release steps when a brownout condition is no longer
+      present and the VBST brownout prevention is in an attenuation release
+      state. The parameter can be set to 8 discrete values.
+      0x0 = 5 ms
+      0x1 = 10 ms
+      0x2 = 25 ms
+      0x3 = 50 ms
+      0x4 = 100 ms
+      0x5 = 250 ms (default)
+      0x6 = 500 ms
+      0x7 = 1000 ms
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0x0
+    maximum: 0x7
+    default: 0x5
+
+  cirrus,vpbr-enable:
+    description:
+      Boolean to determine whether or not VP brownout prevention is enabled.
+      (Default) Disabled
+    type: boolean
+
+  cirrus,vpbr-thld-mv:
+    description:
+      Battery voltage (VP) brownout prevention threshold represented in
+      milivolts. Brownout prevention mode is entered if VP falls below
+      VPBR_THLD. The possible VP threshold values range from 2497 mV
+      to 3874 mV in increments of 47 mV.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 2497
+    maximum: 3874
+    default: 2639
+
+  cirrus,vpbr-max-att-db:
+    description:
+      Maximum attenuation that the VP brownout prevention can apply to the
+      signal. Accepted values range from 0 dB to 15 dB with a 1 dB step size.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0x0
+    maximum: 0xF
+    default: 0x9
+
+  cirrus,vpbr-atk-step:
+    description:
+      VP brownout prevention attack step size. Configures the VP brownout
+      prevention attacking attenuation step size when operating in either
+      digital volume or analog gain modes. There are 8 possible attack step
+      values; they are relative to triggering VPBR_1/VPBR_2/VPBR_3.
+      The potential values are as follows
+      0x0 = 0.0625 dB / 0.125 dB / 0.250 dB
+      0x1 = 0.125 dB / 0.250 dB / 0.500 dB (default)
+      0x2 = 0.250 dB / 0.500 dB / 1.000 dB
+      0x3 = 0.500 dB / 1.000 dB / 2.000 dB
+      0x4 = 0.750 dB / 1.500 dB / 3.000 dB
+      0x5 = 1.000 dB / 2.000 dB / 4.000 dB
+      0x6 = 1.250 dB / 2.500 dB / 5.000 dB
+      0x7 = 1.500 dB / 3.000 dB / 6.000 dB
+    minimum: 0x0
+    maximum: 0x7
+    default: 0x1
+
+  cirrus,vpbr-atk-rate:
+    description:
+      Attenuation attack step rate. Configures the amount of delay between
+      consecutive volume attenuation steps when a brownout condition is
+      present and the VP brownout condition is in an attacking state. The
+      attack rate can be configured to 8 discrete values.
+      0x0 = 2.5 us
+      0x1 = 5 us
+      0x2 = 10 us (default)
+      0x3 = 25 us
+      0x4 = 50 us
+      0x5 = 100 us
+      0x6 = 250 us
+      0x7 = 500 us
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0x0
+    maximum: 0x7
+    default: 0x2
+
+  cirrus,vpbr-wait:
+    description:
+      Configures the delay between a brownout condition no longer being
+      present and the VP brownout prevention entering an attenuation release
+      state. The parameter can be set to 4 discrete values.
+      0x0 = 10 ms
+      0x1 = 100 ms (default)
+      0x2 = 250 ms
+      0x3 = 500 ms
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0x0
+    maximum: 0x3
+    default: 0x1
+
+  cirrus,vpbr-rel-rate:
+    description:
+      Attenuation release step rate. Configures the delay between consecutive
+      volume attenuation release steps when a brownout condition is no longer
+      present and the VP brownout prevention is in an attenuation release
+      state. The parameter can be set to 8 discrete values.
+      0x0 = 5 ms
+      0x1 = 10 ms
+      0x2 = 25 ms
+      0x3 = 50 ms
+      0x4 = 100 ms
+      0x5 = 250 ms (default)
+      0x6 = 500 ms
+      0x7 = 1000 ms
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0x0
+    maximum: 0x7
+    default: 0x5
+
+required:
+  - compatible
+
+unevaluatedProperties: false
+
+examples:
+  - |
+
+  &i2c0 {
+    cs40l26: cs40l26@58 {
+      compatible = "cirrus,cs40l26";
+      reg = <0x58>;
+      interrupt-parent = <&gpio0>;
+      interrupts = <57 8>;
+      reset-gpios = <&gpio0 54 0>;
+      VA-supply = <&dummy_vreg>;
+      VP-supply = <&dummy_vreg>;
+
+      cirrus,vbbr-enable;
+      cirrus,vbbr-thld-mv = <300>;
+      cirrus,vpbr-enable;
+      cirrus,vpbr-thld-mv = <2592>;
+    };
+};
