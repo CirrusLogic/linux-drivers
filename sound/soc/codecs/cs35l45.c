@@ -1722,11 +1722,10 @@ static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
 	const struct of_entry *entry;
 	struct gpio_ctrl *gpios[] = {&pdata->gpio_ctrl1, &pdata->gpio_ctrl2,
 				     &pdata->gpio_ctrl3};
-	unsigned int val, params[BST_BPE_INST_LEVELS];
+	unsigned int val, num_fast_switch, params[BST_BPE_INST_LEVELS];
 	char of_name[32];
 	u32 *ptr;
 	int ret, i, j;
-	size_t	num_fast_switch;
 
 	if ((!node) || (!pdata))
 		return 0;
