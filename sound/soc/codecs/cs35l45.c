@@ -353,6 +353,47 @@ int cs35l45_set_csplmboxcmd(struct cs35l45_private *cs35l45,
 }
 EXPORT_SYMBOL_GPL(cs35l45_set_csplmboxcmd);
 
+static int cs35l45_set_rate_block(struct cs35l45_private *cs35l45)
+{
+	struct wm_adsp *dsp = &cs35l45->dsp;
+	int ret, i;
+	unsigned int val;
+
+	mutex_lock(dsp->rate_lock);
+
+	for (i = 0; i < CS35L45_DSP_N_RX_RATES; ++i) {
+		val = 1 << CS35L45_DSP_RATE_SHIFT;
+
+		ret = regmap_update_bits(cs35l45->regmap,
+					 CS35L45_DSP1_CLOCK_FREQ +
+					 CS35L45_DSP_SAMPLE_RATE_RX1 + (i * 8),
+					 CS35L45_DSP_RATE_MASK,
+					 val);
+		if (ret) {
+			dev_err(cs35l45->dev, "Failed to set rate: %d\n", ret);
+			mutex_unlock(dsp->rate_lock);
+			return ret;
+		}
+
+		ret = regmap_update_bits(cs35l45->regmap,
+					 CS35L45_DSP1_CLOCK_FREQ +
+					 CS35L45_DSP_SAMPLE_RATE_TX1 + (i * 8),
+					 CS35L45_DSP_RATE_MASK,
+					 val);
+		if (ret) {
+			dev_err(cs35l45->dev, "Failed to set rate: %d\n", ret);
+			mutex_unlock(dsp->rate_lock);
+			return ret;
+		}
+	}
+
+	udelay(300);
+
+	mutex_unlock(dsp->rate_lock);
+
+	return 0;
+}
+
 static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 				 struct snd_kcontrol *kcontrol, int event)
 {
@@ -401,6 +442,16 @@ static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 
 			wm_adsp_event(w, kcontrol, event);
 
+#ifdef CONFIG_SND_SOC_CIRRUS_AMP
+			cirrus_cal_apply(cs35l45->pdata.mfd_suffix);
+#endif
+			cs35l45_set_rate_block(cs35l45);
+
+			regmap_update_bits(cs35l45->regmap,
+				     CS35L45_DSP1_CCM_CORE_CONTROL,
+				     CS35L45_CCM_CORE_EN_MASK,
+				     CS35L45_CCM_CORE_EN_MASK);
+
 			/* Poll for DSP ACK */
 			for (i = 0; i < 5; i++) {
 				usleep_range(1000, 1100);
@@ -422,10 +473,6 @@ static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 					"Timeout waiting for MBOX ACK\n");
 				return -ETIMEDOUT;
 			}
-
-#ifdef CONFIG_SND_SOC_CIRRUS_AMP
-			cirrus_cal_apply(cs35l45->pdata.mfd_suffix);
-#endif
 
 			mboxcmd = CSPL_MBOX_CMD_PAUSE;
 			ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
@@ -2447,6 +2494,8 @@ static int cs35l45_dsp_init(struct cs35l45_private *cs35l45)
 
 	for (i = 0; i < CS35L45_DSP_N_TX_RATES; i++)
 		dsp->tx_rate_cache[i] = 0x1;
+
+	dsp->ops->start_core = NULL;
 
 	return ret;
 }
