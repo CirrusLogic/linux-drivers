@@ -367,6 +367,21 @@ static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		if (!cs35l45->dsp.booted) {
+			regmap_update_bits(cs35l45->regmap,
+					   CS35L45_GLOBAL_OVERRIDES,
+					   CS35L45_TEMPMON_GLOBAL_OVR_MASK,
+					   CS35L45_TEMPMON_GLOBAL_OVR_MASK);
+
+			regmap_update_bits(cs35l45->regmap,
+					   CS35L45_SYNC_TX_RX_ENABLES,
+					   CS35L45_SYNC_PWR_RX_EN_MASK,
+					   CS35L45_SYNC_PWR_RX_EN_MASK);
+
+			regmap_update_bits(cs35l45->regmap,
+					   CS35L45_BLOCK_ENABLES2,
+					   CS35L45_SYNC_EN_MASK,
+					   CS35L45_SYNC_EN_MASK);
+
 			regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
 					   CS35L45_MEM_RDY_MASK, 0);
 
@@ -475,10 +490,20 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 			}
 
 			ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
+			if (ret < 0)
+				dev_err(cs35l45->dev, "MBOX failure (%d)\n",
+					ret);
 
 #ifdef CONFIG_SND_SOC_CIRRUS_AMP
 			cirrus_pwr_start(cs35l45->pdata.mfd_suffix);
 #endif
+
+			usleep_range(1000, 1100);
+
+			regmap_update_bits(cs35l45->regmap,
+					   CS35L45_REFCLK_INPUT,
+					   CS35L45_PLL_FORCE_EN_MASK,
+					   CS35L45_PLL_FORCE_EN_MASK);
 		}
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
@@ -492,6 +517,12 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 #ifdef CONFIG_SND_SOC_CIRRUS_AMP
 			cirrus_pwr_stop(cs35l45->pdata.mfd_suffix);
 #endif
+
+			usleep_range(1000, 1100);
+
+			regmap_update_bits(cs35l45->regmap,
+					   CS35L45_REFCLK_INPUT,
+					   CS35L45_PLL_FORCE_EN_MASK, 0);
 		}
 		break;
 	default:
@@ -561,16 +592,30 @@ static int cs35l45_global_en_power_ev(struct snd_soc_dapm_widget *w,
 				CS35L45_BST_DISABLE_FET_OFF <<
 				CS35L45_BST_EN_SHIFT);
 
+		usleep_range(1000, 1100);
+
 		regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_ENABLES,
 				CS35L45_GLOBAL_EN_MASK, 0);
 
 		usleep_range(1000, 1100);
+
+		if (cs35l45->amplifier_mode == AMP_MODE_RCV) {
+			regmap_update_bits(cs35l45->regmap,
+					   CS35L45_BLOCK_ENABLES,
+					   CS35L45_BST_EN_MASK,
+					   CS35L45_BST_ENABLE <<
+					   CS35L45_BST_EN_SHIFT);
+
+			regmap_update_bits(cs35l45->regmap, CS35L45_HVLV_CONFIG,
+					   CS35L45_HVLV_MODE_MASK,
+					   CS35L45_HVLV_OPERATION <<
+					   CS35L45_HVLV_MODE_SHIFT);
+		}
 		break;
 	default:
 		dev_err(cs35l45->dev, "Invalid event = 0x%x\n", event);
 		return -EINVAL;
 	}
-
 
 	return 0;
 }
@@ -676,9 +721,15 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 			      cs35l45_dsp_loader_ev, SND_SOC_DAPM_PRE_PMU |
 			      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_OUT_DRV_E("DSP", SND_SOC_NOPM, 0, 0, NULL, 0,
-			       cs35l45_dsp_power_ev, SND_SOC_DAPM_POST_PMU |
-			       SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_OUT_DRV("DSP", SND_SOC_NOPM, 0, 0, NULL, 0),
+
+	SND_SOC_DAPM_PGA_E("SYNC Slave Enable", SND_SOC_NOPM, 0, 0, NULL, 0,
+			   cs35l45_dsp_power_ev, SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_PRE_PMD),
+
+	SND_SOC_DAPM_MIXER_E("SYNC Master Enable", SND_SOC_NOPM, 0, 0, NULL, 0,
+			     cs35l45_dsp_power_ev, SND_SOC_DAPM_POST_PMU |
+			     SND_SOC_DAPM_PRE_PMD),
 
 	SND_SOC_DAPM_PGA_E("GLOBAL_EN", SND_SOC_NOPM, 0, 0, NULL, 0,
 			   cs35l45_global_en_power_ev, SND_SOC_DAPM_POST_PMU |
@@ -798,8 +849,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"AMP Enable", "Switch", "BBPE Enable"},
 
 	{"GLOBAL_EN", NULL, "AMP Enable"},
-
-	{"ASP", NULL, "GLOBAL_EN"},
+	{"ASP", NULL, "AMP Enable"},
 
 	{"ASP_RX1", NULL, "ASP"},
 	{"ASP_RX2", NULL, "ASP"},
@@ -816,35 +866,35 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"NGATE Enable", "Switch", "NGATE_CH1"},
 	{"NGATE Enable", "Switch", "NGATE_CH2"},
 
-	{"DSP_RX1 Source", "Zero", "GLOBAL_EN"},
+	{"DSP_RX1 Source", "Zero", "AMP Enable"},
 	{"DSP_RX1 Source", "ASP_RX1", "ASP_RX1"},
 	{"DSP_RX1 Source", "ASP_RX2", "ASP_RX2"},
 
-	{"DSP_RX2 Source", "Zero", "GLOBAL_EN"},
+	{"DSP_RX2 Source", "Zero", "AMP Enable"},
 	{"DSP_RX2 Source", "ASP_RX1", "ASP_RX1"},
 	{"DSP_RX2 Source", "ASP_RX2", "ASP_RX2"},
 
-	{"DSP_RX3 Source", "Zero", "GLOBAL_EN"},
+	{"DSP_RX3 Source", "Zero", "AMP Enable"},
 	{"DSP_RX3 Source", "ASP_RX1", "ASP_RX1"},
 	{"DSP_RX3 Source", "ASP_RX2", "ASP_RX2"},
 
-	{"DSP_RX4 Source", "Zero", "GLOBAL_EN"},
+	{"DSP_RX4 Source", "Zero", "AMP Enable"},
 	{"DSP_RX4 Source", "ASP_RX1", "ASP_RX1"},
 	{"DSP_RX4 Source", "ASP_RX2", "ASP_RX2"},
 
-	{"DSP_RX5 Source", "Zero", "GLOBAL_EN"},
+	{"DSP_RX5 Source", "Zero", "AMP Enable"},
 	{"DSP_RX5 Source", "ASP_RX1", "ASP_RX1"},
 	{"DSP_RX5 Source", "ASP_RX2", "ASP_RX2"},
 
-	{"DSP_RX6 Source", "Zero", "GLOBAL_EN"},
+	{"DSP_RX6 Source", "Zero", "AMP Enable"},
 	{"DSP_RX6 Source", "ASP_RX1", "ASP_RX1"},
 	{"DSP_RX6 Source", "ASP_RX2", "ASP_RX2"},
 
-	{"DSP_RX7 Source", "Zero", "GLOBAL_EN"},
+	{"DSP_RX7 Source", "Zero", "AMP Enable"},
 	{"DSP_RX7 Source", "ASP_RX1", "ASP_RX1"},
 	{"DSP_RX7 Source", "ASP_RX2", "ASP_RX2"},
 
-	{"DSP_RX8 Source", "Zero", "GLOBAL_EN"},
+	{"DSP_RX8 Source", "Zero", "AMP Enable"},
 	{"DSP_RX8 Source", "ASP_RX1", "ASP_RX1"},
 	{"DSP_RX8 Source", "ASP_RX2", "ASP_RX2"},
 
@@ -859,7 +909,9 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 
 	{"DACPCM Source", "Zero", "GLOBAL_EN"},
 	{"DACPCM Source", "ASP_RX1", "ASP_RX1"},
+	{"DACPCM Source", "ASP_RX1", "GLOBAL_EN"},
 	{"DACPCM Source", "ASP_RX2", "ASP_RX2"},
+	{"DACPCM Source", "ASP_RX2", "GLOBAL_EN"},
 	{"DACPCM Source", "DSP_TX1", "DSP"},
 	{"DACPCM Source", "DSP_TX2", "DSP"},
 
@@ -868,6 +920,18 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 
 	{"RCV_EN", NULL, "DACPCM Source"},
 	{"RCV", NULL, "RCV_EN"},
+};
+
+static const struct snd_soc_dapm_route cs35l45_sync_master_routes[] = {
+	{"SYNC Master Enable", NULL, "AMP Enable"},
+
+	{"DSP", NULL, "SYNC Master Enable"},
+};
+
+static const struct snd_soc_dapm_route cs35l45_sync_slave_routes[] = {
+	{"SYNC Slave Enable", NULL, "AMP Enable"},
+
+	{"DSP", NULL, "SYNC Slave Enable"},
 };
 
 static int cs35l45_activate_ctl(struct cs35l45_private *cs35l45,
@@ -1387,7 +1451,8 @@ static int cs35l45_component_probe(struct snd_soc_component *component)
 	amp_cfg.num_post_configs = ARRAY_SIZE(cs35l45_cal_post_config);
 	amp_cfg.mbox_cmd = CS35L45_DSP_VIRT1_MBOX_1;
 	amp_cfg.mbox_sts = CS35L45_DSP_MBOX_2;
-	amp_cfg.global_en = CS35L45_GLOBAL_ENABLES;
+	amp_cfg.global_en = CS35L45_IRQ1_STS_1;
+	amp_cfg.global_en_mask = CS35L45_MSM_GLOBAL_EN_ASSERT_MASK;
 	amp_cfg.vimon_alg_id = CS35L45_ALG_ID_VIMON;
 	amp_cfg.bd_max_temp = cs35l45->pdata.bd_max_temp &
 			      (~CS35L45_VALID_PDATA);
@@ -1404,6 +1469,13 @@ static int cs35l45_component_probe(struct snd_soc_component *component)
 		return -EPROBE_DEFER;
 	}
 #endif
+
+	if (cs35l45->pdata.sync_id & (~CS35L45_VALID_PDATA))
+		snd_soc_dapm_add_routes(dapm, cs35l45_sync_slave_routes,
+					ARRAY_SIZE(cs35l45_sync_slave_routes));
+	else
+		snd_soc_dapm_add_routes(dapm, cs35l45_sync_master_routes,
+					ARRAY_SIZE(cs35l45_sync_master_routes));
 
 	snd_soc_component_disable_pin(component, "SPK");
 	snd_soc_component_disable_pin(component, "RCV");
@@ -1630,6 +1702,20 @@ static int cs35l45_apply_of_data(struct cs35l45_private *cs35l45)
 
 	if (!pdata)
 		return 0;
+
+	if (pdata->sync_num_slaves & CS35L45_VALID_PDATA) {
+		val = pdata->sync_num_slaves & (~CS35L45_VALID_PDATA);
+		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_SW_TX_ID,
+				   CS35L45_SYNC_LSW_TXID_MASK,
+				   val << CS35L45_SYNC_LSW_TXID_SHIFT);
+	}
+
+	if (pdata->sync_id & CS35L45_VALID_PDATA) {
+		val = pdata->sync_id & (~CS35L45_VALID_PDATA);
+		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_SW_TX_ID,
+				   CS35L45_SYNC_SW_TXID_MASK,
+				   val << CS35L45_SYNC_SW_TXID_SHIFT);
+	}
 
 	if (pdata->asp_sdout_hiz_ctrl & CS35L45_VALID_PDATA) {
 		val = pdata->asp_sdout_hiz_ctrl & (~CS35L45_VALID_PDATA);
@@ -1872,6 +1958,14 @@ static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
 	ret = of_property_read_u32(node, "cirrus,asp-sdout-hiz-ctrl", &val);
 	if (!ret)
 		pdata->asp_sdout_hiz_ctrl = val | CS35L45_VALID_PDATA;
+
+	ret = of_property_read_u32(node, "cirrus,sync-num-slaves", &val);
+	if (!ret)
+		pdata->sync_num_slaves = val | CS35L45_VALID_PDATA;
+
+	ret = of_property_read_u32(node, "cirrus,sync-id", &val);
+	if (!ret)
+		pdata->sync_id = val | CS35L45_VALID_PDATA;
 
 	pdata->use_tdm_slots = of_property_read_bool(node,
 						     "cirrus,use-tdm-slots");
