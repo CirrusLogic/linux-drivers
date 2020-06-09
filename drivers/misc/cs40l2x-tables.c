@@ -988,7 +988,6 @@ static const char * const cs40l2x_coeff_files_clab[] = {
 static const char * const cs40l2x_coeff_files_par[] = {
 	CS40L2X_WT_FILE_NAME_DEFAULT,
 	"cs40l25a_par.bin",
-	CS40L2X_DYN_F0_FILE_NAME,
 };  /* PWLE Amplitude Regulation */
 
 static const char * const cs40l2x_coeff_files_a2h[] = {
