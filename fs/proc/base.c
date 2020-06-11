@@ -3623,6 +3623,9 @@ static const struct pid_entry tid_base_stuff[] = {
 #ifdef CONFIG_CPU_FREQ_TIMES
 	ONE("time_in_state", 0444, proc_time_in_state_show),
 #endif
+#ifdef CONFIG_PROC_LATSENSE
+	REG("latency_sensitive",  S_IRUGO|S_IWUSR, proc_tid_latsense_operations),
+#endif
 };
 
 static int proc_tid_base_readdir(struct file *file, struct dir_context *ctx)
