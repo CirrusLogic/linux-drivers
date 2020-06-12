@@ -3104,6 +3104,27 @@ err_mutex:
 	return ret;
 }
 
+static ssize_t cs40l2x_bemf_measured_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+
+	mutex_lock(&cs40l2x->lock);
+
+	if (cs40l2x->diag_state < CS40L2X_DIAG_STATE_DONE1) {
+		ret = -ENODATA;
+		goto err_bemf;
+	}
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l2x->f0_measured);
+
+err_bemf:
+	mutex_unlock(&cs40l2x->lock);
+
+	return ret;
+}
+
 static ssize_t cs40l2x_dyn_f0_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -5689,6 +5710,7 @@ static DEVICE_ATTR(standby_timeout, 0660, cs40l2x_standby_timeout_show,
 static DEVICE_ATTR(f0_measured, 0660, cs40l2x_f0_measured_show, NULL);
 static DEVICE_ATTR(f0_stored, 0660, cs40l2x_f0_stored_show,
 		cs40l2x_f0_stored_store);
+static DEVICE_ATTR(bemf_measured, 0660, cs40l2x_bemf_measured_show, NULL);
 static DEVICE_ATTR(dynamic_f0, 0660, cs40l2x_dyn_f0_show, NULL);
 static DEVICE_ATTR(dynamic_f0_index, 0660, cs40l2x_dyn_f0_index_show,
 		cs40l2x_dyn_f0_index_store);
@@ -5792,6 +5814,7 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_standby_timeout.attr,
 	&dev_attr_f0_measured.attr,
 	&dev_attr_f0_stored.attr,
+	&dev_attr_bemf_measured.attr,
 	&dev_attr_dynamic_f0.attr,
 	&dev_attr_dynamic_f0_index.attr,
 	&dev_attr_dynamic_f0_val.attr,
@@ -6360,7 +6383,7 @@ static int cs40l2x_diag_enable(struct cs40l2x_private *cs40l2x,
 static int cs40l2x_diag_capture(struct cs40l2x_private *cs40l2x)
 {
 	struct regmap *regmap = cs40l2x->regmap;
-	unsigned int val;
+	unsigned int val, reg;
 	int ret;
 
 	switch (cs40l2x->diag_state) {
@@ -6380,6 +6403,16 @@ static int cs40l2x_diag_capture(struct cs40l2x_private *cs40l2x)
 				&cs40l2x->redc_measured);
 		if (ret)
 			return ret;
+
+		reg = cs40l2x_dsp_reg(cs40l2x, "MAXBACKEMF",
+						CS40L2X_XM_UNPACKED_TYPE,
+						CS40L2X_ALGO_ID_F0);
+
+		if (reg) {
+			ret = regmap_read(regmap, reg, &cs40l2x->bemf_measured);
+			if (ret)
+				return ret;
+		}
 
 		cs40l2x->diag_state = CS40L2X_DIAG_STATE_DONE1;
 		return 0;
@@ -6745,6 +6778,7 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 	struct regmap *regmap = cs40l2x->regmap;
 	struct device *dev = cs40l2x->dev;
 	int ret, i;
+	unsigned int reg;
 
 	if (!cs40l2x->virtual_stored) {
 		dev_warn(dev, "Unsafe condition encountered.\n");
@@ -6792,11 +6826,20 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 	}
 
 	switch (cs40l2x->cp_trailer_index) {
+	case CS40L2X_INDEX_DIAG:
+
+		reg = cs40l2x_dsp_reg(cs40l2x, "MAXBACKEMF",
+			      CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_F0);
+		if (reg) {
+			ret = regmap_write(regmap, reg, 0);
+			if (ret)
+				goto err_mutex;
+		}
+
 	case CS40L2X_INDEX_VIBE:
 	case CS40L2X_INDEX_CONT_MIN ... CS40L2X_INDEX_CONT_MAX:
 	case CS40L2X_INDEX_QEST:
 	case CS40L2X_INDEX_PEAK:
-	case CS40L2X_INDEX_DIAG:
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 		hrtimer_start(&cs40l2x->vibe_timer,
 				ktime_set(cs40l2x->vibe_timeout / 1000,
