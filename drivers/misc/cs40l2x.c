@@ -10727,7 +10727,7 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	if (cs40l2x->fw_desc->id != CS40L2X_FW_ID_ORIG && i2c_client->irq) {
 		ret = devm_request_threaded_irq(dev, i2c_client->irq,
 				NULL, cs40l2x_irq,
-				IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+				IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_LOW,
 				i2c_client->name, cs40l2x);
 		if (ret) {
 			dev_err(dev, "Failed to request IRQ: %d\n", ret);
