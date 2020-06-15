@@ -8719,6 +8719,7 @@ static int cs40l2x_firmware_swap(struct cs40l2x_private *cs40l2x,
 	if (fw_id == CS40L2X_FW_ID_CAL) {
 		cs40l2x->diag_state = CS40L2X_DIAG_STATE_INIT;
 		cs40l2x->dsp_cache_depth = 0;
+		cs40l2x->open_wt_enable = false;
 	}
 
 	cs40l2x->exc_available = false;
