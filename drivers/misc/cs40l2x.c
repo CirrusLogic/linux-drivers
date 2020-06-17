@@ -339,9 +339,6 @@ static int cs40l2x_create_index_factor_pairs(struct cs40l2x_private *cs40l2x,
 	int count = 0;
 	int i;
 
-	if (!cs40l2x->comp_outer)
-		return -EINVAL;
-
 	/* comp_outer_len is 3 less than full composite array
 	 * to account for wvfrm samples, repeat and num wvfrms
 	 */
@@ -374,9 +371,6 @@ static int cs40l2x_create_delay_factor_pairs(struct cs40l2x_private *cs40l2x,
 	unsigned int factor = 0;
 	int count = 0;
 	int i;
-
-	if (!cs40l2x->comp_outer)
-		return -EINVAL;
 
 	/* comp_outer_len is 3 less than full composite array
 	 * to account for wvfrm samples, repeat and num wvfrms
@@ -936,7 +930,7 @@ static int cs40l2x_create_block(struct cs40l2x_private *cs40l2x,
 }
 
 static int cs40l2x_write_virtual_waveform(struct cs40l2x_private *cs40l2x,
-	unsigned int index, bool is_gpio, bool is_rise)
+	unsigned int index, bool is_gpio, bool is_rise, bool over_write)
 {
 	bool is_xm;
 	int ret = 0;
@@ -950,23 +944,37 @@ static int cs40l2x_write_virtual_waveform(struct cs40l2x_private *cs40l2x,
 	struct cs40l2x_virtual_composite *virtual_wav;
 	unsigned int reg_addr_size = CS40L2X_WT_TOTAL_WORD_SIZE;
 
-	list_for_each_entry(virtual_wav, &cs40l2x->virtual_composite_head,
-		list) {
-		if (virtual_wav->index != index)
-			continue;
-
-		is_xm = virtual_wav->is_xm;
-		size_in_bytes = virtual_wav->data_len;
+	if (over_write) {
+		is_xm = cs40l2x->ovwr_wav->is_xm;
+		size_in_bytes = cs40l2x->ovwr_wav->data_len;
 		raw_composite_data = devm_kzalloc(cs40l2x->dev,
 			size_in_bytes, GFP_KERNEL);
 		if (!raw_composite_data)
 			return -ENOMEM;
-		memcpy(raw_composite_data, &virtual_wav->data[0],
-			virtual_wav->data_len);
-		break;
+		memcpy(raw_composite_data, &cs40l2x->ovwr_wav->data[0],
+			cs40l2x->ovwr_wav->data_len);
+	} else {
+		list_for_each_entry(virtual_wav,
+			&cs40l2x->virtual_composite_head, list) {
+			if (virtual_wav->index != index)
+				continue;
+
+			is_xm = virtual_wav->is_xm;
+			size_in_bytes = virtual_wav->data_len;
+			raw_composite_data = devm_kzalloc(cs40l2x->dev,
+				size_in_bytes, GFP_KERNEL);
+			if (!raw_composite_data)
+				return -ENOMEM;
+			memcpy(raw_composite_data, &virtual_wav->data[0],
+				virtual_wav->data_len);
+			break;
+		}
+		if (size_in_bytes == 0) {
+			dev_err(cs40l2x->dev,
+				"Unable to find index in virtual list\n");
+			return -EINVAL;
+		}
 	}
-	if (size_in_bytes == 0)
-		return -EINVAL;
 
 	/* wt_xm_header_end_pos is last byte before header terminator */
 	if (is_xm) {
@@ -991,7 +999,7 @@ static int cs40l2x_write_virtual_waveform(struct cs40l2x_private *cs40l2x,
 			dev_err(cs40l2x->dev,
 				"Failed to read last offset 0x%08X: %d\n",
 				off_reg, ret);
-			return ret;
+			goto err_free;
 		}
 		data_reg = (cs40l2x->xm_hdr_strt_reg +
 			(last_offset * reg_addr_size));
@@ -1017,7 +1025,7 @@ static int cs40l2x_write_virtual_waveform(struct cs40l2x_private *cs40l2x,
 			dev_err(cs40l2x->dev,
 				"Failed to read last offset 0x%08X: %d\n",
 				off_reg, ret);
-			return ret;
+			goto err_free;
 		}
 		data_reg = (cs40l2x->ym_hdr_strt_reg +
 			(last_offset * reg_addr_size));
@@ -1030,13 +1038,13 @@ static int cs40l2x_write_virtual_waveform(struct cs40l2x_private *cs40l2x,
 		dev_err(cs40l2x->dev,
 			"Failed to write waveform size 0x%08X: %d\n",
 			len_reg, ret);
-		return ret;
+		goto err_free;
 	}
 	ret = cs40l2x_raw_write(cs40l2x, data_reg, &raw_composite_data[0],
 		size_in_bytes, CS40L2X_MAX_WLEN);
 	if (ret) {
 		dev_err(cs40l2x->dev, "Failed to write wt virtual data\n");
-		return -EINVAL;
+		goto err_free;
 	}
 
 	if (!is_gpio)
@@ -1050,7 +1058,9 @@ static int cs40l2x_write_virtual_waveform(struct cs40l2x_private *cs40l2x,
 				index;
 	}
 
+err_free:
 	devm_kfree(cs40l2x->dev, raw_composite_data);
+
 	return ret;
 }
 
@@ -1081,14 +1091,23 @@ static int cs40l2x_add_composite_to_virtual_list(
 	/* The minus 1 is to account for zero being a valid index */
 
 	virtual_wav->is_xm = cs40l2x->xm_append;
-
 	virtual_wav->data_len = raw_composite_size;
-
 	memcpy(virtual_wav->data, &raw_composite_data[0], raw_composite_size);
 
 	list_add(&virtual_wav->list, &cs40l2x->virtual_composite_head);
 
 	return 0;
+}
+
+static void cs40l2x_add_composite_to_ovwr_struct(
+	struct cs40l2x_private *cs40l2x,
+	unsigned int raw_composite_size,
+	char *raw_composite_data)
+{
+	cs40l2x->ovwr_wav->is_xm = cs40l2x->xm_append;
+	cs40l2x->ovwr_wav->data_len = raw_composite_size;
+	memcpy(cs40l2x->ovwr_wav->data, &raw_composite_data[0],
+		raw_composite_size);
 }
 
 static void cs40l2x_calc_num_waves(struct cs40l2x_private *cs40l2x)
@@ -1203,7 +1222,7 @@ static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 }
 
 static int cs40l2x_convert_and_save_comp_data(struct cs40l2x_private *cs40l2x,
-	unsigned int index)
+	unsigned int index, bool over_write)
 {
 	int ret = 0;
 	unsigned int comp_size;
@@ -1261,7 +1280,11 @@ static int cs40l2x_convert_and_save_comp_data(struct cs40l2x_private *cs40l2x,
 	if (ret)
 		goto err_free;
 
-	ret = cs40l2x_add_composite_to_virtual_list(cs40l2x, index,
+	if (over_write)
+		cs40l2x_add_composite_to_ovwr_struct(cs40l2x, comp_size,
+			raw_composite_data);
+	else
+		ret = cs40l2x_add_composite_to_virtual_list(cs40l2x, index,
 			comp_size, raw_composite_data);
 
 err_free:
@@ -1302,7 +1325,8 @@ static ssize_t cs40l2x_cp_trigger_index_store(struct device *dev,
 
 	pm_runtime_get_sync(cs40l2x->dev);
 
-	if (index == CS40L2X_INDEX_PBQ_SAVE) {
+	if ((index == CS40L2X_INDEX_PBQ_SAVE) ||
+		(index == CS40L2X_INDEX_OVWR_SAVE)) {
 		if (!cs40l2x->virtual_bin) {
 			dev_err(cs40l2x->dev, "Virtual slot not enabled.\n");
 			return -EINVAL;
@@ -1321,9 +1345,21 @@ static ssize_t cs40l2x_cp_trigger_index_store(struct device *dev,
 
 	switch (index) {
 	case CS40L2X_INDEX_PBQ_SAVE:
-		ret = cs40l2x_convert_and_save_comp_data(cs40l2x, index);
+		ret = cs40l2x_convert_and_save_comp_data(cs40l2x, index, false);
 		if (ret)
 			dev_warn(cs40l2x->dev, "Unable to save virtual waveform.\n");
+		/* After save or save attempt, reset flag */
+		cs40l2x->queue_stored = false;
+		break;
+	case CS40L2X_INDEX_OVWR_SAVE:
+		ret = cs40l2x_convert_and_save_comp_data(cs40l2x, index, true);
+		if (ret)
+			dev_warn(cs40l2x->dev, "Unable to convert waveform.\n");
+		ret = cs40l2x_write_virtual_waveform(cs40l2x, index,
+			false, false, true);
+		if (ret)
+			dev_warn(cs40l2x->dev, "Unable to write waveform.\n");
+		index = cs40l2x->virtual_slot_index;
 		/* After save or save attempt, reset flag */
 		cs40l2x->queue_stored = false;
 		break;
@@ -1367,7 +1403,7 @@ static ssize_t cs40l2x_cp_trigger_index_store(struct device *dev,
 				}
 				if (index != cs40l2x->loaded_virtual_index)
 					cs40l2x_write_virtual_waveform(cs40l2x,
-						index, false, false);
+						index, false, false, false);
 				/* else virtual waveform already loaded */
 				index = cs40l2x->virtual_slot_index;
 			}
@@ -2385,7 +2421,7 @@ static int cs40l2x_gpio_edge_index_set(struct cs40l2x_private *cs40l2x,
 						cs40l2x_write_virtual_waveform(
 						cs40l2x,
 						cs40l2x->virtual_gpio_index[r],
-						true, true);
+						true, true, false);
 					/* else virtual wvfrm already loaded */
 				else
 					index =
@@ -2395,7 +2431,7 @@ static int cs40l2x_gpio_edge_index_set(struct cs40l2x_private *cs40l2x,
 						cs40l2x_write_virtual_waveform(
 						cs40l2x,
 						cs40l2x->virtual_gpio_index[f],
-						true, false);
+						true, false, false);
 			}
 		}
 	}
@@ -5894,7 +5930,6 @@ static int cs40l2x_read_dyn_f0_table(struct cs40l2x_private *cs40l2x)
 	unsigned int enable = 0, reg, data[CS40l2X_F0_MAX_ENTRIES];
 	int ret, i, j = 0;
 
-
 	reg = cs40l2x_dsp_reg(cs40l2x, "DYNAMIC_F0_ENABLED",
 					CS40L2X_XM_UNPACKED_TYPE,
 					CS40L2X_ALGO_ID_DYN_F0);
@@ -8343,7 +8378,6 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 					}
 				}
 			}
-
 			if (wt_found && cs40l2x->cond_class_h_en) {
 				ret = cs40l2x_classh_wt_check(cs40l2x,
 						&fw->data[pos],
@@ -10666,6 +10700,11 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	cs40l2x->pbq_fw_raw_wt = devm_kzalloc(dev,
 		CS40L2X_WT_MAX_BIN_SIZE, GFP_KERNEL);
 	if (!cs40l2x->pbq_fw_raw_wt)
+		return -ENOMEM;
+
+	cs40l2x->ovwr_wav = devm_kzalloc(dev,
+		sizeof(struct cs40l2x_ovwr_composite), GFP_KERNEL);
+	if (!cs40l2x->ovwr_wav)
 		return -ENOMEM;
 
 	cs40l2x->virtual_bin = false;
