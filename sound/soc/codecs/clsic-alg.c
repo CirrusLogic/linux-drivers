@@ -1634,6 +1634,10 @@ static int clsic_alg_remove(struct platform_device *pdev)
 	snd_soc_unregister_codec(&pdev->dev);
 	module_put(alg->clsic->dev->driver->owner);
 
+	wm_adsp2_remove(&alg->dsp[CLSIC_DSP1]);
+	wm_adsp2_remove(&alg->dsp[CLSIC_DSP2]);
+	wm_adsp2_remove(&alg->dsp[CLSIC_VPU1]);
+
 	return 0;
 }
 
