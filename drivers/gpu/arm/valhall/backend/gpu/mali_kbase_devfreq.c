@@ -27,9 +27,7 @@
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/devfreq.h>
-#ifdef CONFIG_DEVFREQ_THERMAL
 #include <linux/devfreq_cooling.h>
-#endif
 
 #include <linux/version.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
