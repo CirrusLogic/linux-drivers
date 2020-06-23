@@ -30,6 +30,9 @@
 #include <sound/cirrus/power.h>
 #endif
 
+static struct wm_adsp_ops cs35l45_halo_ops;
+static int (*cs35l45_halo_start_core)(struct wm_adsp *dsp);
+
 static const char *cs35l45_fast_switch_text[] = {
 	"fast_switch1.txt",
 	"fast_switch2.txt",
@@ -353,49 +356,36 @@ int cs35l45_set_csplmboxcmd(struct cs35l45_private *cs35l45,
 }
 EXPORT_SYMBOL_GPL(cs35l45_set_csplmboxcmd);
 
-static int cs35l45_set_rate_block(struct cs35l45_private *cs35l45)
+static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
+				 struct snd_kcontrol *kcontrol, int event)
 {
-	struct wm_adsp *dsp = &cs35l45->dsp;
-	int ret, i;
-	unsigned int val;
+	struct snd_soc_component *component =
+		snd_soc_dapm_to_component(w->dapm);
+	struct cs35l45_private *cs35l45 =
+		snd_soc_component_get_drvdata(component);
 
-	mutex_lock(dsp->rate_lock);
-
-	for (i = 0; i < CS35L45_DSP_N_RX_RATES; ++i) {
-		val = 1 << CS35L45_DSP_RATE_SHIFT;
-
-		ret = regmap_update_bits(cs35l45->regmap,
-					 CS35L45_DSP1_CLOCK_FREQ +
-					 CS35L45_DSP_SAMPLE_RATE_RX1 + (i * 8),
-					 CS35L45_DSP_RATE_MASK,
-					 val);
-		if (ret) {
-			dev_err(cs35l45->dev, "Failed to set rate: %d\n", ret);
-			mutex_unlock(dsp->rate_lock);
-			return ret;
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		if (cs35l45->dsp.booted) {
+			dev_err(cs35l45->dev, "DSP already booted\n");
+			return -EPERM;
 		}
 
-		ret = regmap_update_bits(cs35l45->regmap,
-					 CS35L45_DSP1_CLOCK_FREQ +
-					 CS35L45_DSP_SAMPLE_RATE_TX1 + (i * 8),
-					 CS35L45_DSP_RATE_MASK,
-					 val);
-		if (ret) {
-			dev_err(cs35l45->dev, "Failed to set rate: %d\n", ret);
-			mutex_unlock(dsp->rate_lock);
-			return ret;
-		}
+		wm_adsp_early_event(w, kcontrol, event);
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+		wm_adsp_event(w, kcontrol, event);
+		break;
+	default:
+		dev_err(cs35l45->dev, "Invalid event = 0x%x\n", event);
+		return -EINVAL;
 	}
-
-	udelay(300);
-
-	mutex_unlock(dsp->rate_lock);
 
 	return 0;
 }
 
-static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
-				 struct snd_kcontrol *kcontrol, int event)
+static int cs35l45_dsp_boot_ev(struct snd_soc_dapm_widget *w,
+			       struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
@@ -408,94 +398,82 @@ static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		if (!cs35l45->dsp.booted) {
-			regmap_update_bits(cs35l45->regmap,
-					   CS35L45_GLOBAL_OVERRIDES,
-					   CS35L45_TEMPMON_GLOBAL_OVR_MASK,
-					   CS35L45_TEMPMON_GLOBAL_OVR_MASK);
-
-			regmap_update_bits(cs35l45->regmap,
-					   CS35L45_SYNC_TX_RX_ENABLES,
-					   CS35L45_SYNC_PWR_RX_EN_MASK,
-					   CS35L45_SYNC_PWR_RX_EN_MASK);
-
-			regmap_update_bits(cs35l45->regmap,
-					   CS35L45_BLOCK_ENABLES2,
-					   CS35L45_SYNC_EN_MASK,
-					   CS35L45_SYNC_EN_MASK);
-
-			regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
-					   CS35L45_MEM_RDY_MASK, 0);
-
-			wm_adsp_early_event(w, kcontrol, event);
+			dev_err(cs35l45->dev, "Preload DSP before boot\n");
+			return -EPERM;
 		}
-		break;
-	case SND_SOC_DAPM_POST_PMU:
-		if (!cs35l45->dsp.booted) {
-			regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
-					   CS35L45_MEM_RDY_MASK,
-					   CS35L45_MEM_RDY_MASK);
 
-			regmap_write(cs35l45->regmap,
-				     CS35L45_DSP1_CCM_CORE_CONTROL,
-				     CS35L45_CCM_PM_REMAP_MASK |
-				     CS35L45_CCM_CORE_RESET_MASK);
+		regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_OVERRIDES,
+				   CS35L45_TEMPMON_GLOBAL_OVR_MASK,
+				   CS35L45_TEMPMON_GLOBAL_OVR_MASK);
 
-			wm_adsp_event(w, kcontrol, event);
+		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
+				   CS35L45_SYNC_PWR_RX_EN_MASK,
+				   CS35L45_SYNC_PWR_RX_EN_MASK);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES2,
+				   CS35L45_SYNC_EN_MASK, CS35L45_SYNC_EN_MASK);
+
+		regmap_write(cs35l45->regmap, CS35L45_DSP1_CCM_CORE_CONTROL,
+			     CS35L45_CCM_PM_REMAP_MASK |
+			     CS35L45_CCM_CORE_RESET_MASK);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
+				   CS35L45_MEM_RDY_MASK,
+				   CS35L45_MEM_RDY_MASK);
 
 #ifdef CONFIG_SND_SOC_CIRRUS_AMP
-			cirrus_cal_apply(cs35l45->pdata.mfd_suffix);
+		cirrus_cal_apply(cs35l45->pdata.mfd_suffix);
 #endif
-			cs35l45_set_rate_block(cs35l45);
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+		(*cs35l45_halo_start_core)(&cs35l45->dsp);
 
-			regmap_update_bits(cs35l45->regmap,
-				     CS35L45_DSP1_CCM_CORE_CONTROL,
-				     CS35L45_CCM_CORE_EN_MASK,
-				     CS35L45_CCM_CORE_EN_MASK);
+		usleep_range(1000, 1100);
 
-			/* Poll for DSP ACK */
-			for (i = 0; i < 5; i++) {
-				usleep_range(1000, 1100);
+		/* Poll for DSP ACK */
+		for (i = 0; i < 5; i++) {
+			usleep_range(1000, 1100);
 
-				regmap_read(cs35l45->regmap,
-					    CS35L45_IRQ1_EINT_2, &sts);
-				if (!(sts & CS35L45_DSP_VIRT2_MBOX_MASK))
-					continue;
+			regmap_read(cs35l45->regmap,
+				    CS35L45_IRQ1_EINT_2, &sts);
+			if (!(sts & CS35L45_DSP_VIRT2_MBOX_MASK))
+				continue;
 
-				regmap_write(cs35l45->regmap,
-					     CS35L45_IRQ1_EINT_2,
-					     CS35L45_DSP_VIRT2_MBOX_MASK);
+			regmap_write(cs35l45->regmap,
+				     CS35L45_IRQ1_EINT_2,
+				     CS35L45_DSP_VIRT2_MBOX_MASK);
 
-				break;
-			}
+			break;
+		}
 
-			if (i == 5) {
-				dev_err(cs35l45->dev,
-					"Timeout waiting for MBOX ACK\n");
-				return -ETIMEDOUT;
-			}
+		if (i == 5) {
+			dev_err(cs35l45->dev,
+				"Timeout waiting for MBOX ACK\n");
+			return -ETIMEDOUT;
+		}
 
-			mboxcmd = CSPL_MBOX_CMD_PAUSE;
-			ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
-			if (ret < 0) {
-				dev_err(cs35l45->dev, "MBOX failure (%d)\n",
-					ret);
-				return ret;
-			}
+		mboxcmd = CSPL_MBOX_CMD_PAUSE;
+		ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
+		if (ret < 0) {
+			dev_err(cs35l45->dev, "MBOX failure (%d)\n",
+				ret);
+			return ret;
 		}
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		if (!cs35l45->dsp.preloaded) {
-			regmap_update_bits(cs35l45->regmap,
-				CS35L45_DSP1_STREAM_ARB_TX1_CONFIG_0,
-				CS35L45_DSP1_STREAM_ARB_TX1_EN_MASK, 0);
+		regmap_update_bits(cs35l45->regmap,
+				   CS35L45_DSP1_STREAM_ARB_TX1_CONFIG_0,
+				   CS35L45_DSP1_STREAM_ARB_TX1_EN_MASK, 0);
 
-			regmap_update_bits(cs35l45->regmap,
-				CS35L45_DSP1_STREAM_ARB_MSTR1_CONFIG_0,
-				CS35L45_DSP1_STREAM_ARB_MSTR0_EN_MASK, 0);
+		regmap_update_bits(cs35l45->regmap,
+				   CS35L45_DSP1_STREAM_ARB_MSTR1_CONFIG_0,
+				   CS35L45_DSP1_STREAM_ARB_MSTR0_EN_MASK, 0);
 
-			wm_adsp_early_event(w, kcontrol, event);
-			wm_adsp_event(w, kcontrol, event);
-		}
+		wm_adsp_early_event(w, kcontrol, event);
+		wm_adsp_event(w, kcontrol, event);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
+				   CS35L45_MEM_RDY_MASK, 0);
 		break;
 	default:
 		dev_err(cs35l45->dev, "Invalid event = 0x%x\n", event);
@@ -763,9 +741,14 @@ static const struct snd_kcontrol_new ngate_en_ctl =
 
 static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("DSP1 Preload", NULL),
+	SND_SOC_DAPM_SPK("DSP1 Enable", NULL),
 
 	SND_SOC_DAPM_SUPPLY_S("DSP1 Preloader", 100, SND_SOC_NOPM, 0, 0,
 			      cs35l45_dsp_loader_ev, SND_SOC_DAPM_PRE_PMU |
+			      SND_SOC_DAPM_POST_PMU),
+
+	SND_SOC_DAPM_SUPPLY_S("DSP1 Boot", 200, SND_SOC_NOPM, 0, 0,
+			      cs35l45_dsp_boot_ev, SND_SOC_DAPM_PRE_PMU |
 			      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 	SND_SOC_DAPM_OUT_DRV("DSP", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -831,8 +814,10 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	/* DSP */
 	{"DSP1 Preload", NULL, "DSP1 Preloader"},
+	{"DSP1 Enable", NULL, "DSP1 Boot"},
 
 	{"DSP", NULL, "DSP1 Preloader"},
+	{"DSP", NULL, "DSP1 Boot"},
 	{"DSP", NULL, "VMON"},
 	{"DSP", NULL, "IMON"},
 	{"DSP", NULL, "BATTMON"},
@@ -1112,6 +1097,45 @@ static int cs35l45_hibernate_mode_put(struct snd_kcontrol *kcontrol,
 	return cs35l45_hibernate(cs35l45, ucontrol->value.integer.value[0]);
 }
 
+static int cs35l45_dsp_boot_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	unsigned int val;
+
+	val = snd_soc_component_get_pin_status(component, "DSP1 Enable");
+
+	ucontrol->value.integer.value[0] = (val > 0) ? 1 : 0;
+
+	return 0;
+}
+
+static int cs35l45_dsp_boot_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm =
+			snd_soc_component_get_dapm(component);
+
+	if (!cs35l45->dsp.booted) {
+		dev_err(cs35l45->dev, "Preload DSP before boot\n");
+		return -EPERM;
+	}
+
+	if (ucontrol->value.integer.value[0])
+		snd_soc_component_force_enable_pin(component, "DSP1 Enable");
+	else
+		snd_soc_component_disable_pin(component, "DSP1 Enable");
+
+	snd_soc_dapm_sync(dapm);
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 #ifndef CONFIG_SND_SOC_CIRRUS_AMP
 	WM_ADSP_FW_CONTROL("DSP1", 0),
@@ -1119,6 +1143,8 @@ static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 	SOC_SINGLE_EXT("Fast Use Case Switch Enable", SND_SOC_NOPM, 0, 1, 0,
 		       cs35l45_fast_switch_en_get, cs35l45_fast_switch_en_put),
 	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
+	SOC_SINGLE_EXT("DSP1 Boot Switch", SND_SOC_NOPM, 1, 1, 0,
+		       cs35l45_dsp_boot_get, cs35l45_dsp_boot_put),
 	SOC_ENUM_EXT("Amplifier Mode", amplifier_mode_enum,
 		     cs35l45_amplifier_mode_get, cs35l45_amplifier_mode_put),
 	SOC_ENUM("AMP PCM Gain", gain_enum),
@@ -1527,6 +1553,7 @@ static int cs35l45_component_probe(struct snd_soc_component *component)
 	snd_soc_component_disable_pin(component, "SPK");
 	snd_soc_component_disable_pin(component, "RCV");
 	snd_soc_component_disable_pin(component, "AP");
+	snd_soc_component_disable_pin(component, "DSP1 Enable");
 
 	snd_soc_dapm_sync(dapm);
 
@@ -2495,7 +2522,13 @@ static int cs35l45_dsp_init(struct cs35l45_private *cs35l45)
 	for (i = 0; i < CS35L45_DSP_N_TX_RATES; i++)
 		dsp->tx_rate_cache[i] = 0x1;
 
-	dsp->ops->start_core = NULL;
+	if (!cs35l45_halo_start_core) {
+		cs35l45_halo_start_core = dsp->ops->start_core;
+		cs35l45_halo_ops = (*dsp->ops);
+		cs35l45_halo_ops.start_core = NULL;
+	}
+
+	dsp->ops = &cs35l45_halo_ops;
 
 	return ret;
 }
