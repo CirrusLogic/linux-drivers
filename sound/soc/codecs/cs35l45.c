@@ -2325,6 +2325,17 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 			return ret;
 		}
 
+		regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_OVERRIDES,
+				   CS35L45_TEMPMON_GLOBAL_OVR_MASK,
+				   CS35L45_TEMPMON_GLOBAL_OVR_MASK);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
+				   CS35L45_SYNC_PWR_RX_EN_MASK,
+				   CS35L45_SYNC_PWR_RX_EN_MASK);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES2,
+				   CS35L45_SYNC_EN_MASK, CS35L45_SYNC_EN_MASK);
+
 		regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
 				   CS35L45_MEM_RDY_MASK, CS35L45_MEM_RDY_MASK);
 
