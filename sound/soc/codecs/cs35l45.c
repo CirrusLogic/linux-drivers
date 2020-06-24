@@ -1118,6 +1118,7 @@ static int cs35l45_dsp_boot_put(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
+	WM_ADSP_FW_CONTROL("DSP1", 0),
 	SOC_SINGLE_EXT("Fast Use Case Switch Enable", SND_SOC_NOPM, 0, 1, 0,
 		       cs35l45_fast_switch_en_get, cs35l45_fast_switch_en_put),
 	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
