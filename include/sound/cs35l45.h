@@ -108,15 +108,6 @@ struct cs35l45_irq_monitor {
 	int (*callback)(struct cs35l45_private *cs35l45);
 };
 
-#ifdef CONFIG_SND_SOC_CIRRUS_AMP
-struct pwr_params_config {
-	bool is_present;
-	bool global_en;
-	unsigned int target_temp;
-	unsigned int exit_temp;
-};
-#endif
-
 struct cs35l45_platform_data {
 	struct bst_bpe_inst_config bst_bpe_inst_cfg;
 	struct bst_bpe_misc_config bst_bpe_misc_cfg;
@@ -136,11 +127,6 @@ struct cs35l45_platform_data {
 	unsigned int ngate_ch2_hold;
 	unsigned int ngate_ch2_thr;
 	bool use_tdm_slots;
-#ifdef CONFIG_SND_SOC_CIRRUS_AMP
-	struct pwr_params_config pwr_params_cfg;
-	const char *mfd_suffix;
-	unsigned int bd_max_temp;
-#endif
 };
 
 struct cs35l45_private {
