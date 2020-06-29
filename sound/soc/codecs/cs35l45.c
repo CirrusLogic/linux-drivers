@@ -395,17 +395,6 @@ static int cs35l45_dsp_boot_ev(struct snd_soc_dapm_widget *w,
 			return -EPERM;
 		}
 
-		regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_OVERRIDES,
-				   CS35L45_TEMPMON_GLOBAL_OVR_MASK,
-				   CS35L45_TEMPMON_GLOBAL_OVR_MASK);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
-				   CS35L45_SYNC_PWR_RX_EN_MASK,
-				   CS35L45_SYNC_PWR_RX_EN_MASK);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES2,
-				   CS35L45_SYNC_EN_MASK, CS35L45_SYNC_EN_MASK);
-
 		regmap_write(cs35l45->regmap, CS35L45_DSP1_CCM_CORE_CONTROL,
 			     CS35L45_CCM_PM_REMAP_MASK |
 			     CS35L45_CCM_CORE_RESET_MASK);
@@ -2196,17 +2185,6 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 			return ret;
 		}
 
-		regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_OVERRIDES,
-				   CS35L45_TEMPMON_GLOBAL_OVR_MASK,
-				   CS35L45_TEMPMON_GLOBAL_OVR_MASK);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
-				   CS35L45_SYNC_PWR_RX_EN_MASK,
-				   CS35L45_SYNC_PWR_RX_EN_MASK);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES2,
-				   CS35L45_SYNC_EN_MASK, CS35L45_SYNC_EN_MASK);
-
 		regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
 				   CS35L45_MEM_RDY_MASK, CS35L45_MEM_RDY_MASK);
 
@@ -2233,6 +2211,20 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 
 	return 0;
 }
+
+static const struct reg_sequence cs35l45_sync_patch[] = {
+	{0x00000040,			0x00000055},
+	{0x00000040,			0x000000AA},
+	{0x00000044,			0x00000055},
+	{0x00000044,			0x000000AA},
+	{CS35L45_GLOBAL_OVERRIDES,	0x0000000A},
+	{CS35L45_SYNC_TX_RX_ENABLES,	0x00000220},
+	{CS35L45_BLOCK_ENABLES2,	0x00000110},
+	{0x0000350C,			0x7FF0007C},
+	{0x00003510,			0x00007FF0},
+	{0x00000040,			0x00000000},
+	{0x00000044,			0x00000000},
+};
 
 static const struct reg_sequence cs35l45_init_patch[] = {
 	{0x00000040,		0x00000055},
@@ -2320,6 +2312,13 @@ static int __cs35l45_initialize(struct cs35l45_private *cs35l45)
 
 	regmap_update_bits(cs35l45->regmap, CS35L45_WKI2C_CTL,
 			   CS35L45_UPDT_WKI2C_MASK, CS35L45_UPDT_WKI2C_MASK);
+
+	ret = regmap_register_patch(cs35l45->regmap, cs35l45_sync_patch,
+				    ARRAY_SIZE(cs35l45_sync_patch));
+	if (ret < 0) {
+		dev_err(dev, "Failed to apply sync patch %d\n", ret);
+		return ret;
+	}
 
 	cs35l45->initialized = true;
 
