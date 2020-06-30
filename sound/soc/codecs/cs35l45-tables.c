@@ -135,6 +135,7 @@ bool cs35l45_readable_reg(struct device *dev, unsigned int reg)
 	case CS35L45_GLOBAL_OVERRIDES:
 	case CS35L45_GLOBAL_SYNC:
 	case CS35L45_ERROR_RELEASE:
+	case CS35L45_CHIP_STATUS:
 	case CS35L45_SYNC_GPIO1:
 	case CS35L45_INTB_GPIO2_MCLK_REF:
 	case CS35L45_GPIO3:
@@ -370,6 +371,7 @@ bool cs35l45_volatile_reg(struct device *dev, unsigned int reg)
 	case CS35L45_GLOBAL_ENABLES:
 	case CS35L45_BLOCK_ENABLES2:
 	case CS35L45_GLOBAL_OVERRIDES:
+	case CS35L45_CHIP_STATUS:
 	case CS35L45_PWRMGT_STS:
 	case CS35L45_SYNC_TX_RX_ENABLES:
 	case CS35L45_SYNC_SW_TX_ID:
