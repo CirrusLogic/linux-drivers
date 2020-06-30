@@ -145,7 +145,7 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 		return ret;
 	}
 
-	ret = cl_dsp_process_data_be(fw->data, 4, CL_DSP_WMDR_MAGIC_ID_SIZE,
+	ret = cl_dsp_process_data_be(fw->data, 4, CL_DSP_MAGIC_ID_SIZE,
 			&pos);
 	if (ret) {
 		dev_err(dev, "Could not read WMDR file header size\n");
@@ -608,135 +608,84 @@ static void cl_dsp_coeff_free(struct cl_dsp *dsp)
 int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 {
 	struct device *dev = dsp->dev;
-	unsigned int pos = CL_DSP_FW_FILE_HEADER_SIZE;
-	unsigned int block_offset, block_type, block_length;
-	int ret = -EINVAL;
+	unsigned int pos = CL_DSP_FW_FILE_HEADER_SIZE, reg = 0;
+	union cl_dsp_data_block_header header;
+	int ret;
 
 	if (!dsp)
 		return -EPERM;
 
-	if (memcmp(fw->data, "WMFW", 4)) {
+	if (memcmp(fw->data, CL_DSP_WMFW_MAGIC_ID, CL_DSP_MAGIC_ID_SIZE)) {
 		dev_err(dev, "Failed to recognize firmware file\n");
-		goto err;
+		return -ENOMEM;
 	}
 
-	if (fw->size % 4) {
+	if (fw->size % CL_DSP_BYTES_PER_WORD) {
 		dev_err(dev, "Firmware file is not word-aligned\n");
-		goto err;
+		return -EINVAL;
 	}
 
 	while (pos < fw->size) {
-		ret = cl_dsp_process_data_be(fw->data,
-				CL_DSP_FW_DBLK_OFFSET_SIZE, pos, &block_offset);
-		if (ret) {
-			dev_err(dsp->dev, "Failed to read data\n");
-			return ret;
-		}
-		pos += CL_DSP_FW_DBLK_OFFSET_SIZE;
+		memcpy(header.data, &fw->data[pos], CL_DSP_DBLK_HEADER_SIZE);
 
-		ret = cl_dsp_process_data_be(fw->data,
-				CL_DSP_FW_DBLK_TYPE_SIZE, pos, &block_type);
-		if (ret) {
-			dev_err(dsp->dev, "Failed to read data\n");
-			return ret;
-		}
-		pos += CL_DSP_FW_DBLK_TYPE_SIZE;
+		pos += CL_DSP_DBLK_HEADER_SIZE;
 
-		ret = cl_dsp_process_data_be(fw->data,
-				CL_DSP_FW_DBLK_LENGTH_SIZE, pos, &block_length);
-		if (ret) {
-			dev_err(dsp->dev, "Failed to read data\n");
-			return ret;
-		}
-		pos += CL_DSP_FW_DBLK_LENGTH_SIZE;
-
-		switch (block_type) {
+		switch (header.block_type) {
 		case CL_DSP_WMFW_INFO_TYPE:
 			break;
 		case CL_DSP_PM_PACKED_TYPE:
-			ret = cl_dsp_raw_write(dsp,
-					dsp->mem_reg_desc->pm_base_reg +
-					block_offset *
-					CL_DSP_PM_PACKED_NUM_BYTES,
-					&fw->data[pos], block_length,
-					CL_DSP_MAX_WLEN);
-			if (ret) {
-				dev_err(dev,
-					"Failed to write PM_PACKED memory\n");
-				goto err;
-			}
+			reg = dsp->mem_reg_desc->pm_base_reg
+					+ header.start_offset
+					* CL_DSP_PM_NUM_BYTES;
 			break;
 		case CL_DSP_XM_PACKED_TYPE:
-			ret = cl_dsp_raw_write(dsp,
-					dsp->mem_reg_desc->xm_base_reg_packed +
-					block_offset *
-					CL_DSP_XM_PACKED_NUM_BYTES,
-					&fw->data[pos], block_length,
-					CL_DSP_MAX_WLEN);
-			if (ret) {
-				dev_err(dev,
-					"Failed to write XM_PACKED memory\n");
-				goto err;
-			}
+			reg = dsp->mem_reg_desc->xm_base_reg_packed
+					+ header.start_offset
+					* CL_DSP_PACKED_NUM_BYTES;
 			break;
 		case CL_DSP_XM_UNPACKED_TYPE:
-			ret = cl_dsp_raw_write(dsp,
-				dsp->mem_reg_desc->xm_base_reg_unpacked_24 +
-				block_offset * CL_DSP_XM_UNPACKED_NUM_BYTES,
-				&fw->data[pos], block_length, CL_DSP_MAX_WLEN);
-			if (ret) {
-				dev_err(dev,
-					"Failed to write XM_UNPACKED memory\n");
-				goto err;
-			}
+			reg = dsp->mem_reg_desc->xm_base_reg_unpacked_24
+					+ header.start_offset
+					* CL_DSP_UNPACKED_NUM_BYTES;
 			break;
 		case CL_DSP_YM_PACKED_TYPE:
-			ret = cl_dsp_raw_write(dsp,
-					dsp->mem_reg_desc->ym_base_reg_packed +
-					block_offset *
-					CL_DSP_YM_PACKED_NUM_BYTES,
-					&fw->data[pos], block_length,
-					CL_DSP_MAX_WLEN);
-			if (ret) {
-				dev_err(dev,
-					"Failed to write YM_PACKED memory\n");
-				goto err;
-			}
+			reg = dsp->mem_reg_desc->ym_base_reg_packed
+					+ header.start_offset
+					* CL_DSP_PACKED_NUM_BYTES;
 			break;
 		case CL_DSP_YM_UNPACKED_TYPE:
-			ret = cl_dsp_raw_write(dsp,
-				dsp->mem_reg_desc->ym_base_reg_unpacked_24 +
-				block_offset * CL_DSP_YM_UNPACKED_NUM_BYTES,
-				&fw->data[pos], block_length, CL_DSP_MAX_WLEN);
-			if (ret) {
-				dev_err(dev,
-					"Failed to write YM_UNPACKED memory\n");
-				goto err;
-			}
+			reg = dsp->mem_reg_desc->ym_base_reg_unpacked_24
+					+ header.start_offset
+					* CL_DSP_UNPACKED_NUM_BYTES;
 			break;
 		case CL_DSP_ALGO_INFO_TYPE:
+			reg = 0;
+
 			ret = cl_dsp_algo_parse(dsp, &fw->data[pos]);
-			if (ret) {
-				dev_err(dev, "Failed to parse algorithm %d\n",
-						ret);
-				goto err;
-			}
+			if (ret)
+				return ret;
 			break;
 		default:
 			dev_err(dev, "Unexpected block type : 0x%02X\n",
-					block_type);
-			ret = -EINVAL;
-			goto err;
+					header.block_type);
+			return -EINVAL;
+		}
+
+		if (reg) {
+			ret = cl_dsp_raw_write(dsp, reg, &fw->data[pos],
+					header.data_len, CL_DSP_MAX_WLEN);
+			if (ret) {
+				dev_err(dev,
+					"Failed to write to base 0x%X\n", reg);
+				return ret;
+			}
 		}
 
 		/* Blocks are word-aligned */
-		pos += (block_length + 3) & ~0x00000003;
+		pos += (header.data_len + 3) & ~CL_DSP_WORD_ALIGN;
 	}
 
-	ret = cl_dsp_coeff_init(dsp);
-
-err:
-	return ret;
+	return cl_dsp_coeff_init(dsp);
 }
 EXPORT_SYMBOL(cl_dsp_firmware_parse);
 
