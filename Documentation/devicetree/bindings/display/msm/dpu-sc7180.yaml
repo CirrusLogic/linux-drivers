@@ -133,6 +133,9 @@ patternProperties:
           port@1:
             type: object
             description: DPU_INTF2 (DSI2)
+          port@2:
+            type: object
+            description: DPU_INTF0 (DP)
 
       assigned-clocks:
         maxItems: 4
@@ -229,6 +232,14 @@ examples:
                                                   remote-endpoint = <&dsi0_in>;
                                    };
                            };
+
+                           port@2 {
+                                   reg = <2>;
+                                   dpu_intf0_out: endpoint {
+                                                  remote-endpoint = <&dp_in>;
+                                   };
+                           };
+
                    };
          };
       };
