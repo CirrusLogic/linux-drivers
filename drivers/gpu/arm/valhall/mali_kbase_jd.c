@@ -34,6 +34,7 @@
 #include <mali_kbase_jm.h>
 #include <mali_kbase_hwaccess_jm.h>
 #include <tl/mali_kbase_tracepoints.h>
+#include <mali_linux_trace.h>
 
 #include "mali_kbase_dma_fence.h"
 #include <mali_kbase_cs_experimental.h>
@@ -94,6 +95,8 @@ static bool jd_run_atom(struct kbase_jd_atom *katom)
 
 	if ((katom->core_req & BASE_JD_REQ_ATOM_TYPE) == BASE_JD_REQ_DEP) {
 		/* Dependency only atom */
+		trace_sysgraph(SGR_SUBMIT, kctx->id,
+				kbase_jd_atom_id(katom->kctx, katom));
 		katom->status = KBASE_JD_ATOM_STATE_COMPLETED;
 		dev_dbg(kctx->kbdev->dev, "Atom %p status to completed\n",
 			(void *)katom);
@@ -274,7 +277,7 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 #endif /* CONFIG_MALI_VALHALL_DMA_FENCE */
 
 	/* Take the processes mmap lock */
-	down_read(&current->mm->mmap_sem);
+	mmap_read_lock(current->mm);
 
 	/* need to keep the GPU VM locked while we set up UMM buffers */
 	kbase_gpu_vm_lock(katom->kctx);
@@ -334,7 +337,7 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 	kbase_gpu_vm_unlock(katom->kctx);
 
 	/* Release the processes mmap lock */
-	up_read(&current->mm->mmap_sem);
+	mmap_read_unlock(current->mm);
 
 #ifdef CONFIG_MALI_VALHALL_DMA_FENCE
 	if (implicit_sync) {
@@ -359,7 +362,7 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 #ifdef CONFIG_MALI_VALHALL_DMA_FENCE
 failed_dma_fence_setup:
 	/* Lock the processes mmap lock */
-	down_read(&current->mm->mmap_sem);
+	mmap_read_lock(current->mm);
 
 	/* lock before we unmap */
 	kbase_gpu_vm_lock(katom->kctx);
@@ -375,7 +378,7 @@ failed_dma_fence_setup:
 	kbase_gpu_vm_unlock(katom->kctx);
 
 	/* Release the processes mmap lock */
-	up_read(&current->mm->mmap_sem);
+	mmap_read_unlock(current->mm);
 
  early_err_out:
 	kfree(katom->extres);
@@ -452,6 +455,9 @@ static inline void jd_resolve_dep(struct list_head *out_list,
 #endif /* CONFIG_MALI_VALHALL_DMA_FENCE */
 
 			if (dep_satisfied) {
+				trace_sysgraph(SGR_DEP_RES,
+				   dep_atom->kctx->id,
+				   kbase_jd_atom_id(katom->kctx, dep_atom));
 				dep_atom->in_jd_list = true;
 				list_add_tail(&dep_atom->jd_item, out_list);
 			}
@@ -540,6 +546,10 @@ static void jd_try_submitting_deps(struct list_head *out_list,
 #endif /* CONFIG_MALI_VALHALL_DMA_FENCE */
 
 				if (dep0_valid && dep1_valid && dep_satisfied) {
+					trace_sysgraph(SGR_DEP_RES,
+					    dep_atom->kctx->id,
+					    kbase_jd_atom_id(dep_atom->kctx,
+					    dep_atom));
 					dep_atom->in_jd_list = true;
 					list_add(&dep_atom->jd_item, out_list);
 				}
@@ -576,6 +586,7 @@ static void jd_update_jit_usage(struct kbase_jd_atom *katom)
 	for (idx = 0;
 		idx < ARRAY_SIZE(katom->jit_ids) && katom->jit_ids[idx];
 		idx++) {
+		enum heap_pointer { LOW = 0, HIGH, COUNT };
 		size_t size_to_read;
 		u64 read_val;
 
@@ -601,6 +612,8 @@ static void jd_update_jit_usage(struct kbase_jd_atom *katom)
 		size_to_read = sizeof(*ptr);
 		if (reg->flags & KBASE_REG_HEAP_INFO_IS_SIZE)
 			size_to_read = sizeof(u32);
+		else if (reg->flags & KBASE_REG_TILER_ALIGN_TOP)
+			size_to_read = sizeof(u64[COUNT]);
 
 		ptr = kbase_vmap(kctx, reg->heap_info_gpu_addr, size_to_read,
 				&mapping);
@@ -618,20 +631,41 @@ static void jd_update_jit_usage(struct kbase_jd_atom *katom)
 			read_val = READ_ONCE(*(u32 *)ptr);
 			used_pages = PFN_UP(read_val);
 		} else {
-			u64 addr_end = read_val = READ_ONCE(*ptr);
+			u64 addr_end;
 
 			if (reg->flags & KBASE_REG_TILER_ALIGN_TOP) {
-				unsigned long extent_bytes = reg->extent <<
-					PAGE_SHIFT;
+				const unsigned long extent_bytes = reg->extent
+					<< PAGE_SHIFT;
+				const u64 low_ptr = ptr[LOW];
+				const u64 high_ptr = ptr[HIGH];
+
+				/* As either the low or high pointer could
+				 * consume their partition and move onto the
+				 * next chunk, we need to account for both.
+				 * In the case where nothing has been allocated
+				 * from the high pointer the whole chunk could
+				 * be backed unnecessarily - but the granularity
+				 * is the chunk size anyway and any non-zero
+				 * offset of low pointer from the start of the
+				 * chunk would result in the whole chunk being
+				 * backed.
+				 */
+				read_val = max(high_ptr, low_ptr);
+
 				/* kbase_check_alloc_sizes() already satisfies
 				 * this, but here to avoid future maintenance
 				 * hazards
 				 */
 				WARN_ON(!is_power_of_2(extent_bytes));
-
 				addr_end = ALIGN(read_val, extent_bytes);
+			} else {
+				addr_end = read_val = READ_ONCE(*ptr);
 			}
-			used_pages = PFN_UP(addr_end) - reg->start_pfn;
+
+			if (addr_end >= (reg->start_pfn << PAGE_SHIFT))
+				used_pages = PFN_UP(addr_end) - reg->start_pfn;
+			else
+				used_pages = reg->used_pages;
 		}
 
 		trace_mali_jit_report(katom, reg, idx, read_val, used_pages);
@@ -876,6 +910,8 @@ static bool jd_submit_atom(struct kbase_context *const kctx,
 	katom->x_post_dep = NULL;
 	katom->will_fail_event_code = BASE_JD_EVENT_NOT_STARTED;
 	katom->softjob_data = NULL;
+
+	trace_sysgraph(SGR_ARRIVE, kctx->id, user_atom->atom_number);
 
 #if MALI_JIT_PRESSURE_LIMIT
 	/* Older API version atoms might have random values where jit_id now
@@ -1368,7 +1404,7 @@ void kbase_jd_done_worker(struct work_struct *data)
 	dev_dbg(kbdev->dev, "Enter atom %p done worker for kctx %p\n",
 		(void *)katom, (void *)kctx);
 
-	KBASE_TRACE_ADD(kbdev, JD_DONE_WORKER, kctx, katom, katom->jc, 0);
+	KBASE_KTRACE_ADD_JM(kbdev, JD_DONE_WORKER, kctx, katom, katom->jc, 0);
 
 	kbase_backend_complete_wq(kbdev, katom);
 
@@ -1508,7 +1544,7 @@ void kbase_jd_done_worker(struct work_struct *data)
 	if (context_idle)
 		kbase_pm_context_idle(kbdev);
 
-	KBASE_TRACE_ADD(kbdev, JD_DONE_WORKER_END, kctx, NULL, cache_jc, 0);
+	KBASE_KTRACE_ADD_JM(kbdev, JD_DONE_WORKER_END, kctx, NULL, cache_jc, 0);
 
 	dev_dbg(kbdev->dev, "Leave atom %p done worker for kctx %p\n",
 		(void *)katom, (void *)kctx);
@@ -1546,7 +1582,7 @@ static void jd_cancel_worker(struct work_struct *data)
 	jctx = &kctx->jctx;
 	js_kctx_info = &kctx->jctx.sched_info;
 
-	KBASE_TRACE_ADD(kbdev, JD_CANCEL_WORKER, kctx, katom, katom->jc, 0);
+	KBASE_KTRACE_ADD_JM(kbdev, JD_CANCEL_WORKER, kctx, katom, katom->jc, 0);
 
 	/* This only gets called on contexts that are scheduled out. Hence, we must
 	 * make sure we don't de-ref the number of running jobs (there aren't
@@ -1608,7 +1644,7 @@ void kbase_jd_done(struct kbase_jd_atom *katom, int slot_nr,
 	if (done_code & KBASE_JS_ATOM_DONE_EVICTED_FROM_NEXT)
 		katom->event_code = BASE_JD_EVENT_REMOVED_FROM_NEXT;
 
-	KBASE_TRACE_ADD(kbdev, JD_DONE, kctx, katom, katom->jc, 0);
+	KBASE_KTRACE_ADD_JM(kbdev, JD_DONE, kctx, katom, katom->jc, 0);
 
 	kbase_job_check_leave_disjoint(kbdev, katom);
 
@@ -1640,7 +1676,7 @@ void kbase_jd_cancel(struct kbase_device *kbdev, struct kbase_jd_atom *katom)
 	KBASE_DEBUG_ASSERT(NULL != kctx);
 
 	dev_dbg(kbdev->dev, "JD: cancelling atom %p\n", (void *)katom);
-	KBASE_TRACE_ADD(kbdev, JD_CANCEL, kctx, katom, katom->jc, 0);
+	KBASE_KTRACE_ADD_JM(kbdev, JD_CANCEL, kctx, katom, katom->jc, 0);
 
 	/* This should only be done from a context that is not scheduled */
 	KBASE_DEBUG_ASSERT(!kbase_ctx_flag(kctx, KCTX_SCHEDULED));
@@ -1664,7 +1700,7 @@ void kbase_jd_zap_context(struct kbase_context *kctx)
 
 	kbdev = kctx->kbdev;
 
-	KBASE_TRACE_ADD(kbdev, JD_ZAP_CONTEXT, kctx, NULL, 0u, 0u);
+	KBASE_KTRACE_ADD_JM(kbdev, JD_ZAP_CONTEXT, kctx, NULL, 0u, 0u);
 
 	kbase_js_zap_context(kctx);
 

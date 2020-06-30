@@ -51,6 +51,18 @@ void kbase_reg_write(struct kbase_device *kbdev, u32 offset, u32 value);
 u32 kbase_reg_read(struct kbase_device *kbdev, u32 offset);
 
 /**
+ * kbase_is_gpu_lost() - Has the GPU been lost.
+ * @kbdev:    Kbase device pointer
+ *
+ * This function will return true if the GPU has been lost.
+ * When this happens register reads will be zero. A zero GPU_ID is
+ * invalid so this is used to detect GPU_LOST
+ *
+ * Return: True if GPU LOST
+ */
+bool kbase_is_gpu_lost(struct kbase_device *kbdev);
+
+/**
  * kbase_gpu_start_cache_clean - Start a cache clean
  * @kbdev: Kbase device
  *

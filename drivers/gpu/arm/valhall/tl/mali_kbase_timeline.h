@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2015-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -31,15 +31,15 @@ struct kbase_timeline;
 
 /**
  * kbase_timeline_init - initialize timeline infrastructure in kernel
- * @timeline:            Newly created instance of kbase_timeline will
- *                       be stored in this pointer.
- * @timeline_is_enabled: Timeline status will be written to this variable
- *                       when a client is attached/detached. The variable
- *                       must be valid while timeline instance is valid.
+ * @timeline:       Newly created instance of kbase_timeline will be stored in
+ *                  this pointer.
+ * @timeline_flags: Timeline status will be written to this variable when a
+ *                  client is attached/detached. The variable must be valid
+ *                  while timeline instance is valid.
  * Return: zero on success, negative number on error
  */
 int kbase_timeline_init(struct kbase_timeline **timeline,
-	atomic_t *timeline_is_enabled);
+	atomic_t *timeline_flags);
 
 /**
  * kbase_timeline_term - terminate timeline infrastructure in kernel

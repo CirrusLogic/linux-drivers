@@ -56,10 +56,10 @@
  */
 #include "mali_kbase_defs.h"
 
+#include "debug/mali_kbase_debug_ktrace.h"
 #include "context/mali_kbase_context.h"
 #include "mali_kbase_strings.h"
 #include "mali_kbase_mem_lowlevel.h"
-#include "mali_kbase_js.h"
 #include "mali_kbase_utility.h"
 #include "mali_kbase_mem.h"
 #include "mmu/mali_kbase_mmu.h"
@@ -70,6 +70,7 @@
 #include "mali_kbase_debug_job_fault.h"
 #include "mali_kbase_jd_debugfs.h"
 #include "mali_kbase_jm.h"
+#include "mali_kbase_js.h"
 
 #include "ipa/mali_kbase_ipa.h"
 
@@ -160,6 +161,25 @@ void kbase_sysfs_term(struct kbase_device *kbdev);
 
 int kbase_protected_mode_init(struct kbase_device *kbdev);
 void kbase_protected_mode_term(struct kbase_device *kbdev);
+
+/**
+ * kbase_device_pm_init() - Performs power management initialization and
+ * Verifies device tree configurations.
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Return: 0 if successful, otherwise a standard Linux error code
+ */
+int kbase_device_pm_init(struct kbase_device *kbdev);
+
+/**
+ * kbase_device_pm_term() - Performs power management deinitialization and
+ * Free resources.
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Clean up all the resources
+ */
+void kbase_device_pm_term(struct kbase_device *kbdev);
+
 
 int power_control_init(struct kbase_device *kbdev);
 void power_control_term(struct kbase_device *kbdev);
@@ -385,6 +405,24 @@ static inline bool kbase_pm_is_suspending(struct kbase_device *kbdev)
 	return kbdev->pm.suspending;
 }
 
+#ifdef CONFIG_MALI_VALHALL_ARBITER_SUPPORT
+/*
+ * Check whether a gpu lost is in progress
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Indicates whether a gpu lost has been received and jobs are no longer
+ * being scheduled
+ *
+ * Return: false if gpu is lost
+ * Return: != false otherwise
+ */
+static inline bool kbase_pm_is_gpu_lost(struct kbase_device *kbdev)
+{
+	return kbdev->pm.gpu_lost;
+}
+#endif
+
 /**
  * kbase_pm_is_active - Determine whether the GPU is active
  *
@@ -534,181 +572,6 @@ void kbase_disjoint_state_down(struct kbase_device *kbdev);
 	#define UINT64_MAX ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
 #endif
 
-#if KBASE_TRACE_ENABLE
-void kbasep_trace_debugfs_init(struct kbase_device *kbdev);
-
-#ifndef CONFIG_MALI_VALHALL_SYSTEM_TRACE
-/** Add trace values about a job-slot
- *
- * @note Any functions called through this macro will still be evaluated in
- * Release builds (CONFIG_MALI_VALHALL_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
- * functions called to get the parameters supplied to this macro must:
- * - be static or static inline
- * - must just return 0 and have no other statements present in the body.
- */
-#define KBASE_TRACE_ADD_SLOT(kbdev, code, ctx, katom, gpu_addr, jobslot) \
-	kbasep_trace_add(kbdev, KBASE_TRACE_CODE(code), ctx, katom, gpu_addr, \
-			KBASE_TRACE_FLAG_JOBSLOT, 0, jobslot, 0)
-
-/** Add trace values about a job-slot, with info
- *
- * @note Any functions called through this macro will still be evaluated in
- * Release builds (CONFIG_MALI_VALHALL_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
- * functions called to get the parameters supplied to this macro must:
- * - be static or static inline
- * - must just return 0 and have no other statements present in the body.
- */
-#define KBASE_TRACE_ADD_SLOT_INFO(kbdev, code, ctx, katom, gpu_addr, jobslot, info_val) \
-	kbasep_trace_add(kbdev, KBASE_TRACE_CODE(code), ctx, katom, gpu_addr, \
-			KBASE_TRACE_FLAG_JOBSLOT, 0, jobslot, info_val)
-
-/** Add trace values about a ctx refcount
- *
- * @note Any functions called through this macro will still be evaluated in
- * Release builds (CONFIG_MALI_VALHALL_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
- * functions called to get the parameters supplied to this macro must:
- * - be static or static inline
- * - must just return 0 and have no other statements present in the body.
- */
-#define KBASE_TRACE_ADD_REFCOUNT(kbdev, code, ctx, katom, gpu_addr, refcount) \
-	kbasep_trace_add(kbdev, KBASE_TRACE_CODE(code), ctx, katom, gpu_addr, \
-			KBASE_TRACE_FLAG_REFCOUNT, refcount, 0, 0)
-/** Add trace values about a ctx refcount, and info
- *
- * @note Any functions called through this macro will still be evaluated in
- * Release builds (CONFIG_MALI_VALHALL_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
- * functions called to get the parameters supplied to this macro must:
- * - be static or static inline
- * - must just return 0 and have no other statements present in the body.
- */
-#define KBASE_TRACE_ADD_REFCOUNT_INFO(kbdev, code, ctx, katom, gpu_addr, refcount, info_val) \
-	kbasep_trace_add(kbdev, KBASE_TRACE_CODE(code), ctx, katom, gpu_addr, \
-			KBASE_TRACE_FLAG_REFCOUNT, refcount, 0, info_val)
-
-/** Add trace values (no slot or refcount)
- *
- * @note Any functions called through this macro will still be evaluated in
- * Release builds (CONFIG_MALI_VALHALL_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
- * functions called to get the parameters supplied to this macro must:
- * - be static or static inline
- * - must just return 0 and have no other statements present in the body.
- */
-#define KBASE_TRACE_ADD(kbdev, code, ctx, katom, gpu_addr, info_val)     \
-	kbasep_trace_add(kbdev, KBASE_TRACE_CODE(code), ctx, katom, gpu_addr, \
-			0, 0, 0, info_val)
-
-/** Clear the trace */
-#define KBASE_TRACE_CLEAR(kbdev) \
-	kbasep_trace_clear(kbdev)
-
-/** Dump the slot trace */
-#define KBASE_TRACE_DUMP(kbdev) \
-	kbasep_trace_dump(kbdev)
-
-/** PRIVATE - do not use directly. Use KBASE_TRACE_ADD() instead */
-void kbasep_trace_add(struct kbase_device *kbdev, enum kbase_trace_code code, void *ctx, struct kbase_jd_atom *katom, u64 gpu_addr, u8 flags, int refcount, int jobslot, unsigned long info_val);
-/** PRIVATE - do not use directly. Use KBASE_TRACE_CLEAR() instead */
-void kbasep_trace_clear(struct kbase_device *kbdev);
-#else /* #ifndef CONFIG_MALI_VALHALL_SYSTEM_TRACE */
-/* Dispatch kbase trace events as system trace events */
-#include <mali_linux_kbase_trace.h>
-#define KBASE_TRACE_ADD_SLOT(kbdev, code, ctx, katom, gpu_addr, jobslot)\
-	trace_mali_##code(jobslot, 0)
-
-#define KBASE_TRACE_ADD_SLOT_INFO(kbdev, code, ctx, katom, gpu_addr, jobslot, info_val)\
-	trace_mali_##code(jobslot, info_val)
-
-#define KBASE_TRACE_ADD_REFCOUNT(kbdev, code, ctx, katom, gpu_addr, refcount)\
-	trace_mali_##code(refcount, 0)
-
-#define KBASE_TRACE_ADD_REFCOUNT_INFO(kbdev, code, ctx, katom, gpu_addr, refcount, info_val)\
-	trace_mali_##code(refcount, info_val)
-
-#define KBASE_TRACE_ADD(kbdev, code, ctx, katom, gpu_addr, info_val)\
-	trace_mali_##code(gpu_addr, info_val)
-
-#define KBASE_TRACE_CLEAR(kbdev)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(0);\
-	} while (0)
-#define KBASE_TRACE_DUMP(kbdev)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(0);\
-	} while (0)
-
-#endif /* #ifndef CONFIG_MALI_VALHALL_SYSTEM_TRACE */
-#else
-#define KBASE_TRACE_ADD_SLOT(kbdev, code, ctx, katom, gpu_addr, jobslot)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(code);\
-		CSTD_UNUSED(ctx);\
-		CSTD_UNUSED(katom);\
-		CSTD_UNUSED(gpu_addr);\
-		CSTD_UNUSED(jobslot);\
-	} while (0)
-
-#define KBASE_TRACE_ADD_SLOT_INFO(kbdev, code, ctx, katom, gpu_addr, jobslot, info_val)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(code);\
-		CSTD_UNUSED(ctx);\
-		CSTD_UNUSED(katom);\
-		CSTD_UNUSED(gpu_addr);\
-		CSTD_UNUSED(jobslot);\
-		CSTD_UNUSED(info_val);\
-		CSTD_NOP(0);\
-	} while (0)
-
-#define KBASE_TRACE_ADD_REFCOUNT(kbdev, code, ctx, katom, gpu_addr, refcount)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(code);\
-		CSTD_UNUSED(ctx);\
-		CSTD_UNUSED(katom);\
-		CSTD_UNUSED(gpu_addr);\
-		CSTD_UNUSED(refcount);\
-		CSTD_NOP(0);\
-	} while (0)
-
-#define KBASE_TRACE_ADD_REFCOUNT_INFO(kbdev, code, ctx, katom, gpu_addr, refcount, info_val)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(code);\
-		CSTD_UNUSED(ctx);\
-		CSTD_UNUSED(katom);\
-		CSTD_UNUSED(gpu_addr);\
-		CSTD_UNUSED(info_val);\
-		CSTD_NOP(0);\
-	} while (0)
-
-#define KBASE_TRACE_ADD(kbdev, code, subcode, ctx, katom, val)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(code);\
-		CSTD_UNUSED(subcode);\
-		CSTD_UNUSED(ctx);\
-		CSTD_UNUSED(katom);\
-		CSTD_UNUSED(val);\
-		CSTD_NOP(0);\
-	} while (0)
-
-#define KBASE_TRACE_CLEAR(kbdev)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(0);\
-	} while (0)
-#define KBASE_TRACE_DUMP(kbdev)\
-	do {\
-		CSTD_UNUSED(kbdev);\
-		CSTD_NOP(0);\
-	} while (0)
-#endif /* KBASE_TRACE_ENABLE */
-/** PRIVATE - do not use directly. Use KBASE_TRACE_DUMP() instead */
-void kbasep_trace_dump(struct kbase_device *kbdev);
-
 #if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_MALI_VALHALL_NO_MALI)
 
 /* kbase_io_history_init - initialize data struct for register access history
@@ -757,6 +620,5 @@ int kbase_io_history_resize(struct kbase_io_history *h, u16 new_size);
 #define kbase_io_history_resize CSTD_NOP
 
 #endif /* CONFIG_DEBUG_FS */
-
 
 #endif

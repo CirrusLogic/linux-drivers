@@ -32,6 +32,7 @@
 #include <gpu/mali_kbase_gpu_regmap.h>
 #include <tl/mali_kbase_tracepoints.h>
 #include <mali_kbase_instr_defs.h>
+#include <mali_kbase_ctx_sched.h>
 #include <mali_kbase_debug.h>
 #include <mali_kbase_defs.h>
 #include <mali_kbase_hw.h>
@@ -517,6 +518,13 @@ static bool page_fault_try_alloc(struct kbase_context *kctx,
 	return true;
 }
 
+/* Small wrapper function to factor out GPU-dependent context releasing */
+static void release_ctx(struct kbase_device *kbdev,
+		struct kbase_context *kctx)
+{
+	kbasep_js_runpool_release_ctx(kbdev, kctx);
+}
+
 void page_fault_worker(struct work_struct *data)
 {
 	u64 fault_pfn;
@@ -552,8 +560,8 @@ void page_fault_worker(struct work_struct *data)
 	 * Therefore, it cannot be scheduled out of this AS until we explicitly
 	 * release it
 	 */
-	kctx = kbasep_js_runpool_lookup_ctx_noretain(kbdev, as_no);
-	if (WARN_ON(!kctx)) {
+	kctx = kbase_ctx_sched_as_to_ctx(kbdev, as_no);
+	if (!kctx) {
 		atomic_dec(&kbdev->faults_pending);
 		return;
 	}
@@ -917,7 +925,7 @@ fault_done:
 	 * By this point, the fault was handled in some way,
 	 * so release the ctx refcount
 	 */
-	kbasep_js_runpool_release_ctx(kbdev, kctx);
+	release_ctx(kbdev, kctx);
 
 	atomic_dec(&kbdev->faults_pending);
 	dev_dbg(kbdev->dev, "Leaving page_fault_worker %p\n", (void *)data);
@@ -1562,7 +1570,7 @@ static void kbase_mmu_flush_invalidate(struct kbase_context *kctx,
 
 	kbdev = kctx->kbdev;
 	mutex_lock(&kbdev->js_data.queue_mutex);
-	ctx_is_in_runpool = kbasep_js_runpool_retain_ctx(kbdev, kctx);
+	ctx_is_in_runpool = kbase_ctx_sched_inc_refcount(kctx);
 	mutex_unlock(&kbdev->js_data.queue_mutex);
 
 	if (ctx_is_in_runpool) {
@@ -1571,7 +1579,7 @@ static void kbase_mmu_flush_invalidate(struct kbase_context *kctx,
 		kbase_mmu_flush_invalidate_as(kbdev, &kbdev->as[kctx->as_nr],
 				vpfn, nr, sync);
 
-		kbasep_js_runpool_release_ctx(kbdev, kctx);
+		release_ctx(kbdev, kctx);
 	}
 }
 
@@ -2146,8 +2154,8 @@ void bus_fault_worker(struct work_struct *data)
 	 * flagging of the bus-fault. Therefore, it cannot be scheduled out of
 	 * this AS until we explicitly release it
 	 */
-	kctx = kbasep_js_runpool_lookup_ctx_noretain(kbdev, as_no);
-	if (WARN_ON(!kctx)) {
+	kctx = kbase_ctx_sched_as_to_ctx(kbdev, as_no);
+	if (!kctx) {
 		atomic_dec(&kbdev->faults_pending);
 		return;
 	}
@@ -2157,7 +2165,7 @@ void bus_fault_worker(struct work_struct *data)
 				"Permission failure", fault);
 		kbase_mmu_hw_clear_fault(kbdev, faulting_as,
 				KBASE_MMU_FAULT_TYPE_BUS_UNEXPECTED);
-		kbasep_js_runpool_release_ctx(kbdev, kctx);
+		release_ctx(kbdev, kctx);
 		atomic_dec(&kbdev->faults_pending);
 		return;
 
@@ -2172,7 +2180,7 @@ void bus_fault_worker(struct work_struct *data)
 		kbase_pm_context_idle(kbdev);
 	}
 
-	kbasep_js_runpool_release_ctx(kbdev, kctx);
+	release_ctx(kbdev, kctx);
 
 	atomic_dec(&kbdev->faults_pending);
 }

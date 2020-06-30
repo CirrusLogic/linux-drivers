@@ -1404,7 +1404,11 @@ static struct kbase_cpu_mapping *kbasep_find_enclosing_cpu_mapping(
 	unsigned long map_start;
 	size_t map_size;
 
-	lockdep_assert_held(&current->mm->mmap_sem);
+	/* We should call
+	 *	mmap_assert_locked(current->mm);
+	 * here but that calls dump_mm() which is not exported.
+	 */
+	lockdep_assert_held(&current->mm->mmap_lock);
 
 	if ((uintptr_t) uaddr + size < (uintptr_t) uaddr) /* overflow check */
 		return NULL;
@@ -2983,6 +2987,63 @@ static int kbase_jit_debugfs_phys_get(struct kbase_jit_debugfs_data *data)
 KBASE_JIT_DEBUGFS_DECLARE(kbase_jit_debugfs_phys_fops,
 		kbase_jit_debugfs_phys_get);
 
+#if MALI_JIT_PRESSURE_LIMIT
+static int kbase_jit_debugfs_used_get(struct kbase_jit_debugfs_data *data)
+{
+	struct kbase_context *kctx = data->kctx;
+	struct kbase_va_region *reg;
+
+	mutex_lock(&kctx->jctx.lock);
+	mutex_lock(&kctx->jit_evict_lock);
+	list_for_each_entry(reg, &kctx->jit_active_head, jit_node) {
+		data->active_value += reg->used_pages;
+	}
+	mutex_unlock(&kctx->jit_evict_lock);
+	mutex_unlock(&kctx->jctx.lock);
+
+	return 0;
+}
+
+KBASE_JIT_DEBUGFS_DECLARE(kbase_jit_debugfs_used_fops,
+		kbase_jit_debugfs_used_get);
+
+static int kbase_mem_jit_trim_pages_from_region(struct kbase_context *kctx,
+		struct kbase_va_region *reg, size_t pages_needed,
+		size_t *freed, bool shrink);
+
+static int kbase_jit_debugfs_trim_get(struct kbase_jit_debugfs_data *data)
+{
+	struct kbase_context *kctx = data->kctx;
+	struct kbase_va_region *reg;
+
+	mutex_lock(&kctx->jctx.lock);
+	kbase_gpu_vm_lock(kctx);
+	mutex_lock(&kctx->jit_evict_lock);
+	list_for_each_entry(reg, &kctx->jit_active_head, jit_node) {
+		int err;
+		size_t freed = 0u;
+
+		err = kbase_mem_jit_trim_pages_from_region(kctx, reg,
+				SIZE_MAX, &freed, false);
+
+		if (err) {
+			/* Failed to calculate, try the next region */
+			continue;
+		}
+
+		data->active_value += freed;
+	}
+	mutex_unlock(&kctx->jit_evict_lock);
+	kbase_gpu_vm_unlock(kctx);
+	mutex_unlock(&kctx->jctx.lock);
+
+	return 0;
+}
+
+KBASE_JIT_DEBUGFS_DECLARE(kbase_jit_debugfs_trim_fops,
+		kbase_jit_debugfs_trim_get);
+#endif /* MALI_JIT_PRESSURE_LIMIT */
+
 void kbase_jit_debugfs_init(struct kbase_context *kctx)
 {
 	/* prevent unprivileged use of debug file system
@@ -3021,6 +3082,22 @@ void kbase_jit_debugfs_init(struct kbase_context *kctx)
 	 */
 	debugfs_create_file("mem_jit_phys", mode, kctx->kctx_dentry,
 			kctx, &kbase_jit_debugfs_phys_fops);
+#if MALI_JIT_PRESSURE_LIMIT
+	/*
+	 * Debugfs entry for getting the number of pages used
+	 * by JIT allocations for estimating the physical pressure
+	 * limit.
+	 */
+	debugfs_create_file("mem_jit_used", mode, kctx->kctx_dentry,
+			kctx, &kbase_jit_debugfs_used_fops);
+
+	/*
+	 * Debugfs entry for getting the number of pages that could
+	 * be trimmed to free space for more JIT allocations.
+	 */
+	debugfs_create_file("mem_jit_trim", mode, kctx->kctx_dentry,
+			kctx, &kbase_jit_debugfs_trim_fops);
+#endif /* MALI_JIT_PRESSURE_LIMIT */
 }
 #endif /* CONFIG_DEBUG_FS */
 
@@ -3065,8 +3142,8 @@ int kbase_jit_init(struct kbase_context *kctx)
 	INIT_LIST_HEAD(&kctx->jit_destroy_head);
 	INIT_WORK(&kctx->jit_work, kbase_jit_destroy_worker);
 
-	INIT_LIST_HEAD(&kctx->jit_pending_alloc);
-	INIT_LIST_HEAD(&kctx->jit_atoms_head);
+	INIT_LIST_HEAD(&kctx->jctx.jit_atoms_head);
+	INIT_LIST_HEAD(&kctx->jctx.jit_pending_alloc);
 	mutex_unlock(&kctx->jit_evict_lock);
 
 	kctx->jit_max_allocations = 0;
@@ -3081,7 +3158,7 @@ int kbase_jit_init(struct kbase_context *kctx)
  * the alignment requirements.
  */
 static bool meet_size_and_tiler_align_top_requirements(struct kbase_context *kctx,
-	struct kbase_va_region *walker, struct base_jit_alloc_info *info)
+	struct kbase_va_region *walker, const struct base_jit_alloc_info *info)
 {
 	bool meet_reqs = true;
 
@@ -3103,7 +3180,7 @@ static bool meet_size_and_tiler_align_top_requirements(struct kbase_context *kct
  */
 static int kbase_mem_jit_trim_pages_from_region(struct kbase_context *kctx,
 		struct kbase_va_region *reg, size_t pages_needed,
-		size_t *freed)
+		size_t *freed, bool shrink)
 {
 	int err = 0;
 	size_t available_pages = 0u;
@@ -3199,10 +3276,11 @@ static int kbase_mem_jit_trim_pages_from_region(struct kbase_context *kctx,
 	available_pages = old_pages - reg->used_pages;
 	to_free = min(available_pages, pages_needed);
 
-	new_pages -= to_free;
+	if (shrink) {
+		new_pages -= to_free;
 
-	err = kbase_mem_shrink(kctx, reg, new_pages);
-
+		err = kbase_mem_shrink(kctx, reg, new_pages);
+	}
 out:
 	trace_mali_jit_trim_from_region(reg, to_free, old_pages,
 			available_pages, new_pages);
@@ -3210,7 +3288,25 @@ out:
 	return err;
 }
 
-size_t kbase_mem_jit_trim_pages(struct kbase_context *kctx,
+
+/**
+ * kbase_mem_jit_trim_pages - Trim JIT regions until sufficient pages have been
+ * freed
+ * @kctx: Pointer to the kbase context whose active JIT allocations will be
+ * checked.
+ * @pages_needed: The maximum number of pages to trim.
+ *
+ * This functions checks all active JIT allocations in @kctx for unused pages
+ * at the end, and trim the backed memory regions of those allocations down to
+ * the used portion and free the unused pages into the page pool.
+ *
+ * Specifying @pages_needed allows us to stop early when there's enough
+ * physical memory freed to sufficiently bring down the total JIT physical page
+ * usage (e.g. to below the pressure limit)
+ *
+ * Return: Total number of successfully freed pages
+ */
+static size_t kbase_mem_jit_trim_pages(struct kbase_context *kctx,
 		size_t pages_needed)
 {
 	struct kbase_va_region *reg, *tmp;
@@ -3223,7 +3319,7 @@ size_t kbase_mem_jit_trim_pages(struct kbase_context *kctx,
 		size_t freed = 0u;
 
 		err = kbase_mem_jit_trim_pages_from_region(kctx, reg,
-				pages_needed, &freed);
+				pages_needed, &freed, true);
 
 		if (err) {
 			/* Failed to trim, try the next region */
@@ -3246,7 +3342,8 @@ size_t kbase_mem_jit_trim_pages(struct kbase_context *kctx,
 #endif /* MALI_JIT_PRESSURE_LIMIT */
 
 static int kbase_jit_grow(struct kbase_context *kctx,
-		struct base_jit_alloc_info *info, struct kbase_va_region *reg)
+		const struct base_jit_alloc_info *info,
+		struct kbase_va_region *reg)
 {
 	size_t delta;
 	size_t pages_required;
@@ -3399,30 +3496,143 @@ static void trace_jit_stats(struct kbase_context *kctx,
 		max_allocations, alloc_count, va_pages, ph_pages);
 }
 
-struct kbase_va_region *kbase_jit_allocate(struct kbase_context *kctx,
-		struct base_jit_alloc_info *info)
+#if MALI_JIT_PRESSURE_LIMIT
+/**
+ * get_jit_backed_pressure() - calculate the physical backing of all JIT
+ * allocations
+ *
+ * @kctx: Pointer to the kbase context whose active JIT allocations will be
+ * checked
+ *
+ * Return: number of pages that are committed by JIT allocations
+ */
+static size_t get_jit_backed_pressure(struct kbase_context *kctx)
 {
-	struct kbase_va_region *reg = NULL;
+	size_t backed_pressure = 0;
+	int jit_id;
+
+	lockdep_assert_held(&kctx->jctx.lock);
+
+	kbase_gpu_vm_lock(kctx);
+	for (jit_id = 0; jit_id <= BASE_JIT_ALLOC_COUNT; jit_id++) {
+		struct kbase_va_region *reg = kctx->jit_alloc[jit_id];
+
+		if (reg && (reg != KBASE_RESERVED_REG_JIT_ALLOC)) {
+			/* If region has no report, be pessimistic */
+			if (reg->used_pages == reg->nr_pages) {
+				backed_pressure += reg->nr_pages;
+			} else {
+				backed_pressure +=
+					kbase_reg_current_backed_size(reg);
+			}
+		}
+	}
+	kbase_gpu_vm_unlock(kctx);
+
+	return backed_pressure;
+}
+
+/**
+ * jit_trim_necessary_pages() - calculate and trim the least pages possible to
+ * satisfy a new JIT allocation
+ *
+ * @kctx: Pointer to the kbase context
+ * @info: Pointer to JIT allocation information for the new allocation
+ *
+ * Before allocating a new just-in-time memory region or reusing a previous
+ * one, ensure that the total JIT physical page usage also will not exceed the
+ * pressure limit.
+ *
+ * If there are no reported-on allocations, then we already guarantee this will
+ * be the case - because our current pressure then only comes from the va_pages
+ * of each JIT region, hence JIT physical page usage is guaranteed to be
+ * bounded by this.
+ *
+ * However as soon as JIT allocations become "reported on", the pressure is
+ * lowered to allow new JIT regions to be allocated. It is after such a point
+ * that the total JIT physical page usage could (either now or in the future on
+ * a grow-on-GPU-page-fault) exceed the pressure limit, but only on newly
+ * allocated JIT regions. Hence, trim any "reported on" regions.
+ *
+ * Any pages freed will go into the pool and be allocated from there in
+ * kbase_mem_alloc().
+ */
+static void jit_trim_necessary_pages(struct kbase_context *kctx,
+		const struct base_jit_alloc_info *info)
+{
+	size_t backed_pressure = 0;
+	size_t needed_pages = 0;
+
+	backed_pressure = get_jit_backed_pressure(kctx);
+
+	/* It is possible that this is the case - if this is the first
+	 * allocation after "ignore_pressure_limit" allocation.
+	 */
+	if (backed_pressure > kctx->jit_phys_pages_limit) {
+		needed_pages +=
+			(backed_pressure - kctx->jit_phys_pages_limit)
+			+ info->va_pages;
+	} else {
+		size_t backed_diff =
+			kctx->jit_phys_pages_limit - backed_pressure;
+
+		if (info->va_pages > backed_diff)
+			needed_pages += info->va_pages - backed_diff;
+	}
+
+	if (needed_pages) {
+		size_t trimmed_pages = kbase_mem_jit_trim_pages(kctx,
+			needed_pages);
+
+		/* This should never happen - we already asserted that
+		 * we are not violating JIT pressure limit in earlier
+		 * checks, which means that in-flight JIT allocations
+		 * must have enough unused pages to satisfy the new
+		 * allocation
+		 */
+		WARN_ON(trimmed_pages < needed_pages);
+	}
+}
+#endif /* MALI_JIT_PRESSURE_LIMIT */
+
+/**
+ * jit_allow_allocate() - check whether basic conditions are satisfied to allow
+ * a new JIT allocation
+ *
+ * @kctx: Pointer to the kbase context
+ * @info: Pointer to JIT allocation information for the new allocation
+ * @ignore_pressure_limit: Flag to indicate whether JIT pressure limit check
+ * should be ignored
+ *
+ * Return: true if allocation can be executed, false otherwise
+ */
+static bool jit_allow_allocate(struct kbase_context *kctx,
+		const struct base_jit_alloc_info *info,
+		bool ignore_pressure_limit)
+{
+	lockdep_assert_held(&kctx->jctx.lock);
 
 #if MALI_JIT_PRESSURE_LIMIT
-	if (info->va_pages > (kctx->jit_phys_pages_limit -
-			kctx->jit_current_phys_pressure) &&
-			kctx->jit_current_phys_pressure > 0) {
+	if (likely(!ignore_pressure_limit) &&
+			((kctx->jit_phys_pages_limit <= kctx->jit_current_phys_pressure) ||
+			(info->va_pages > (kctx->jit_phys_pages_limit - kctx->jit_current_phys_pressure)))) {
 		dev_dbg(kctx->kbdev->dev,
 			"Max JIT page allocations limit reached: active pages %llu, max pages %llu\n",
 			kctx->jit_current_phys_pressure + info->va_pages,
 			kctx->jit_phys_pages_limit);
-		return NULL;
+		return false;
 	}
 #endif /* MALI_JIT_PRESSURE_LIMIT */
+
 	if (kctx->jit_current_allocations >= kctx->jit_max_allocations) {
 		/* Too many current allocations */
 		dev_dbg(kctx->kbdev->dev,
 			"Max JIT allocations limit reached: active allocations %d, max allocations %d\n",
 			kctx->jit_current_allocations,
 			kctx->jit_max_allocations);
-		return NULL;
+		return false;
 	}
+
 	if (info->max_allocations > 0 &&
 			kctx->jit_current_allocations_per_bin[info->bin_id] >=
 			info->max_allocations) {
@@ -3432,34 +3642,26 @@ struct kbase_va_region *kbase_jit_allocate(struct kbase_context *kctx,
 			info->bin_id,
 			kctx->jit_current_allocations_per_bin[info->bin_id],
 			info->max_allocations);
-		return NULL;
+		return false;
 	}
 
+	return true;
+}
+
+struct kbase_va_region *kbase_jit_allocate(struct kbase_context *kctx,
+		const struct base_jit_alloc_info *info,
+		bool ignore_pressure_limit)
+{
+	struct kbase_va_region *reg = NULL;
+
+	lockdep_assert_held(&kctx->jctx.lock);
+
+	if (!jit_allow_allocate(kctx, info, ignore_pressure_limit))
+		return NULL;
+
 #if MALI_JIT_PRESSURE_LIMIT
-	/* Before allocating a new just-in-time memory region or reusing a
-	 * previous one, ensure that the total JIT physical page usage also will
-	 * not exceed the pressure limit.
-	 *
-	 * If there are no reported-on allocations, then we already guarantee
-	 * this will be the case - because our current pressure then only comes
-	 * from the va_pages of each JIT region, hence JIT physical page usage
-	 * is guaranteed to be bounded by this.
-	 *
-	 * However as soon as JIT allocations become "reported on", the
-	 * pressure is lowered to allow new JIT regions to be allocated. It is
-	 * after such a point that the total JIT physical page usage could
-	 * (either now or in the future on a grow-on-GPU-page-fault) exceed the
-	 * pressure limit, but only on newly allocated JIT regions. Hence, trim
-	 * any "reported on" regions.
-	 *
-	 * Any pages freed will go into the pool and be allocated from there in
-	 * kbase_mem_alloc().
-	 *
-	 * In future, GPUCORE-21217: Only do this when physical page usage
-	 * could exceed the pressure limit, and only trim as much as is
-	 * necessary.
-	 */
-	kbase_mem_jit_trim_pages(kctx, SIZE_MAX);
+	if (!ignore_pressure_limit)
+		jit_trim_necessary_pages(kctx, info);
 #endif /* MALI_JIT_PRESSURE_LIMIT */
 
 	mutex_lock(&kctx->jit_evict_lock);
@@ -3572,7 +3774,10 @@ struct kbase_va_region *kbase_jit_allocate(struct kbase_context *kctx,
 			dev_dbg(kctx->kbdev->dev,
 				"JIT allocation resize failed: va_pages 0x%llx, commit_pages 0x%llx\n",
 				info->va_pages, info->commit_pages);
-			goto update_failed_unlocked;
+			mutex_lock(&kctx->jit_evict_lock);
+			list_move(&reg->jit_node, &kctx->jit_pool_head);
+			mutex_unlock(&kctx->jit_evict_lock);
+			return NULL;
 		}
 	} else {
 		/* No suitable JIT allocation was found so create a new one */
@@ -3598,7 +3803,7 @@ struct kbase_va_region *kbase_jit_allocate(struct kbase_context *kctx,
 			dev_dbg(kctx->kbdev->dev,
 				"Failed to allocate JIT memory: va_pages 0x%llx, commit_pages 0x%llx\n",
 				info->va_pages, info->commit_pages);
-			goto out_unlocked;
+			return NULL;
 		}
 
 		mutex_lock(&kctx->jit_evict_lock);
@@ -3624,13 +3829,6 @@ struct kbase_va_region *kbase_jit_allocate(struct kbase_context *kctx,
 #endif /* MALI_JIT_PRESSURE_LIMIT */
 
 	return reg;
-
-update_failed_unlocked:
-	mutex_lock(&kctx->jit_evict_lock);
-	list_move(&reg->jit_node, &kctx->jit_pool_head);
-	mutex_unlock(&kctx->jit_evict_lock);
-out_unlocked:
-	return NULL;
 }
 
 void kbase_jit_free(struct kbase_context *kctx, struct kbase_va_region *reg)
@@ -3848,35 +4046,6 @@ void kbase_jit_report_update_pressure(struct kbase_context *kctx,
 			kctx->jit_current_phys_pressure -= diff;
 
 		reg->used_pages = new_used_pages;
-
-		/* In the case of pressure reduced on a free, don't attempt to
-		 * trim the region: it will soon be placed on the evict_list
-		 * so that if we really were close to running out of memory then
-		 * the shrinker can reclaim the memory.
-		 */
-		if ((flags & KBASE_JIT_REPORT_ON_ALLOC_OR_FREE) == 0u) {
-			size_t freed;
-			int err;
-
-			kbase_gpu_vm_lock(kctx);
-			/* If this was from an allocation that a single
-			 * BASE_JD_REQ_SOFT_JIT_ALLOC atom that is allowed to
-			 * breach the pressure limit, then check whether we can
-			 * bring the total JIT physical page below (or at least
-			 * nearer) the pressure limit.
-			 *
-			 * In future, GPUCORE-21217: Only do this when physical
-			 * page usage currently exceeds the pressure limit, and
-			 * only trim as much as is necessary.
-			 */
-			err = kbase_mem_jit_trim_pages_from_region(kctx, reg,
-					SIZE_MAX, &freed);
-			kbase_gpu_vm_unlock(kctx);
-
-			CSTD_UNUSED(freed);
-			/* Nothing to do if trimming failed */
-			CSTD_UNUSED(err);
-		}
 	} else {
 		/* We increased the number of used pages */
 		diff = new_used_pages - reg->used_pages;
@@ -3950,7 +4119,7 @@ KERNEL_VERSION(4, 5, 0) > LINUX_VERSION_CODE
 			reg->flags & KBASE_REG_GPU_WR ? FOLL_WRITE : 0,
 			pages, NULL);
 #else
-	pinned_pages = get_user_pages_remote(NULL, mm,
+	pinned_pages = get_user_pages_remote(mm,
 			address,
 			alloc->imported.user_buf.nr_pages,
 			reg->flags & KBASE_REG_GPU_WR ? FOLL_WRITE : 0,

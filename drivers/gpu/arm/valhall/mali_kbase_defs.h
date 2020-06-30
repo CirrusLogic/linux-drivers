@@ -61,11 +61,15 @@
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
-#endif				/* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DEBUG_FS */
 
 #ifdef CONFIG_MALI_VALHALL_DEVFREQ
 #include <linux/devfreq.h>
 #endif /* CONFIG_MALI_VALHALL_DEVFREQ */
+
+#ifdef CONFIG_MALI_VALHALL_ARBITER_SUPPORT
+#include <arbiter/mali_kbase_arbiter_defs.h>
+#endif /* CONFIG_MALI_VALHALL_ARBITER_SUPPORT */
 
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
@@ -76,18 +80,7 @@
 #define KBASE_PM_RUNTIME 1
 #endif
 
-/** Enable SW tracing when set */
-#ifdef CONFIG_MALI_VALHALL_ENABLE_TRACE
-#define KBASE_TRACE_ENABLE 1
-#endif
-
-#ifndef KBASE_TRACE_ENABLE
-#ifdef CONFIG_MALI_VALHALL_DEBUG
-#define KBASE_TRACE_ENABLE 1
-#else
-#define KBASE_TRACE_ENABLE 0
-#endif				/* CONFIG_MALI_VALHALL_DEBUG */
-#endif				/* KBASE_TRACE_ENABLE */
+#include "debug/mali_kbase_debug_ktrace_defs.h"
 
 /** Number of milliseconds before we time out on a GPU soft/hard reset */
 #define RESET_TIMEOUT           500
@@ -130,11 +123,6 @@
  */
 #define KBASE_LOCK_REGION_MIN_SIZE_LOG2 (15)
 
-#define KBASE_TRACE_SIZE_LOG2 8	/* 256 entries */
-#define KBASE_TRACE_SIZE (1 << KBASE_TRACE_SIZE_LOG2)
-#define KBASE_TRACE_MASK ((1 << KBASE_TRACE_SIZE_LOG2)-1)
-
-#include "mali_kbase_js_defs.h"
 #include "mali_kbase_hwaccess_defs.h"
 
 /* Maximum number of pages of memory that require a permanent mapping, per
@@ -332,70 +320,6 @@ struct kbasep_mem_device {
 	atomic_t ir_threshold;
 };
 
-#define KBASE_TRACE_CODE(X) KBASE_TRACE_CODE_ ## X
-
-enum kbase_trace_code {
-	/* IMPORTANT: USE OF SPECIAL #INCLUDE OF NON-STANDARD HEADER FILE
-	 * THIS MUST BE USED AT THE START OF THE ENUM */
-#define KBASE_TRACE_CODE_MAKE_CODE(X) KBASE_TRACE_CODE(X)
-#include <tl/mali_kbase_trace_defs.h>
-#undef  KBASE_TRACE_CODE_MAKE_CODE
-	/* Comma on its own, to extend the list */
-	,
-	/* Must be the last in the enum */
-	KBASE_TRACE_CODE_COUNT
-};
-
-#define KBASE_TRACE_FLAG_REFCOUNT (((u8)1) << 0)
-#define KBASE_TRACE_FLAG_JOBSLOT  (((u8)1) << 1)
-
-/**
- * struct kbase_trace - object representing a trace message added to trace buffer
- *                      kbase_device::trace_rbuf
- * @timestamp:          CPU timestamp at which the trace message was added.
- * @thread_id:          id of the thread in the context of which trace message
- *                      was added.
- * @cpu:                indicates which CPU the @thread_id was scheduled on when
- *                      the trace message was added.
- * @ctx:                Pointer to the kbase context for which the trace message
- *                      was added. Will be NULL for certain trace messages like
- *                      for traces added corresponding to power management events.
- *                      Will point to the appropriate context corresponding to
- *                      job-slot & context's reference count related events.
- * @katom:              indicates if the trace message has atom related info.
- * @atom_number:        id of the atom for which trace message was added.
- *                      Only valid if @katom is true.
- * @atom_udata:         Copy of the user data sent for the atom in base_jd_submit.
- *                      Only valid if @katom is true.
- * @gpu_addr:           GPU address of the job-chain represented by atom. Could
- *                      be valid even if @katom is false.
- * @info_val:           value specific to the type of event being traced. For the
- *                      case where @katom is true, will be set to atom's affinity,
- *                      i.e. bitmask of shader cores chosen for atom's execution.
- * @code:               Identifies the event, refer enum kbase_trace_code.
- * @jobslot:            job-slot for which trace message was added, valid only for
- *                      job-slot management events.
- * @refcount:           reference count for the context, valid for certain events
- *                      related to scheduler core and policy.
- * @flags:              indicates if info related to @jobslot & @refcount is present
- *                      in the trace message, used during dumping of the message.
- */
-struct kbase_trace {
-	struct timespec timestamp;
-	u32 thread_id;
-	u32 cpu;
-	void *ctx;
-	bool katom;
-	int atom_number;
-	u64 atom_udata[2];
-	u64 gpu_addr;
-	unsigned long info_val;
-	u8 code;
-	u8 jobslot;
-	u8 refcount;
-	u8 flags;
-};
-
 /**
  * Data stored per device for power management.
  *
@@ -420,6 +344,10 @@ struct kbase_pm_device_data {
 	int active_count;
 	/** Flag indicating suspending/suspended */
 	bool suspending;
+#ifdef CONFIG_MALI_VALHALL_ARBITER_SUPPORT
+	/* Flag indicating gpu lost */
+	bool gpu_lost;
+#endif /* CONFIG_MALI_VALHALL_ARBITER_SUPPORT */
 	/* Wait queue set when active_count == 0 */
 	wait_queue_head_t zero_active_count_wait;
 
@@ -450,6 +378,13 @@ struct kbase_pm_device_data {
 	u32 dvfs_period;
 
 	struct kbase_pm_backend_data backend;
+
+#ifdef CONFIG_MALI_VALHALL_ARBITER_SUPPORT
+	/**
+	 * The state of the arbiter VM machine
+	 */
+	struct kbase_arbiter_vm_state *arb_vm_state;
+#endif /* CONFIG_MALI_VALHALL_ARBITER_SUPPORT */
 };
 
 /**
@@ -722,8 +657,9 @@ struct kbase_devfreq_queue_info {
  *                         kbase_hwcnt_context_enable() with @hwcnt_gpu_ctx.
  * @hwcnt_gpu_virt:        Virtualizer for GPU hardware counters.
  * @vinstr_ctx:            vinstr context created per device.
- * @timeline_is_enabled:   Non zero, if there is at least one timeline client,
- *                         zero otherwise.
+ * @timeline_flags:        Bitmask defining which sets of timeline tracepoints
+ *                         are enabled. If zero, there is no timeline client and
+ *                         therefore timeline is disabled.
  * @timeline:              Timeline context created per device.
  * @trace_lock:            Lock to serialize the access to trace buffer.
  * @trace_first_out:       Index/offset in the trace buffer at which the first
@@ -913,7 +849,6 @@ struct kbase_device {
 
 	struct kbase_pm_device_data pm;
 
-	struct kbasep_js_device_data js_data;
 	struct kbase_mem_pool_group mem_pools;
 	struct kbasep_mem_device memdev;
 	struct kbase_mmu_mode const *mmu_mode;
@@ -955,14 +890,11 @@ struct kbase_device {
 	struct kbase_hwcnt_virtualizer *hwcnt_gpu_virt;
 	struct kbase_vinstr_context *vinstr_ctx;
 
-	atomic_t               timeline_is_enabled;
+	atomic_t               timeline_flags;
 	struct kbase_timeline *timeline;
 
-#if KBASE_TRACE_ENABLE
-	spinlock_t              trace_lock;
-	u16                     trace_first_out;
-	u16                     trace_next_in;
-	struct kbase_trace            *trace_rbuf;
+#if KBASE_KTRACE_TARGET_RBUF
+	struct kbase_ktrace ktrace;
 #endif
 	u32 reset_timeout_ms;
 
@@ -1098,6 +1030,8 @@ struct kbase_device {
 	u8 l2_size_override;
 	u8 l2_hash_override;
 
+	struct kbasep_js_device_data js_data;
+
 	/* See KBASE_JS_*_PRIORITY_MODE for details. */
 	u32 js_ctx_scheduling_mode;
 
@@ -1115,6 +1049,11 @@ struct kbase_device {
 		int slot;
 		u64 flags;
 	} dummy_job_wa;
+
+#ifdef CONFIG_MALI_VALHALL_ARBITER_SUPPORT
+		/* Pointer to the arbiter device */
+		struct kbase_arbiter_device arb;
+#endif
 };
 
 #define KBASE_API_VERSION(major, minor) ((((major) & 0xFFF) << 20)  | \
@@ -1478,12 +1417,6 @@ struct kbase_sub_alloc {
  * @jit_work:             Work item queued to defer the freeing of a memory
  *                        region when a just-in-time memory allocation is moved
  *                        to @jit_destroy_head.
- * @jit_atoms_head:       A list of the just-in-time memory soft-jobs, both
- *                        allocate & free, in submission order, protected by
- *                        &struct_kbase_jd_context.lock.
- * @jit_pending_alloc:    A list of just-in-time memory allocation soft-jobs
- *                        which will be reattempted after the impending free of
- *                        other active allocations.
  * @ext_res_meta_head:    A list of sticky external resources which were requested to
  *                        be mapped on GPU side, through a softjob atom of type
  *                        EXT_RES_MAP or STICKY_RESOURCE_MAP ioctl.
@@ -1500,7 +1433,7 @@ struct kbase_sub_alloc {
  * @gwt_snapshot_list:    Snapshot of the @gwt_current_list for sending to user space.
  * @priority:             Indicates the context priority. Used along with @atoms_count
  *                        for context scheduling, protected by hwaccess_lock.
- * @atoms_count:          Number of gpu atoms currently in use, per priority
+ * @atoms_count:          Number of GPU atoms currently in use, per priority
  * @create_flags:         Flags used in context creation.
  *
  * A kernel base context is an entity among which the GPU is scheduled.
@@ -1563,7 +1496,7 @@ struct kbase_context {
 	pid_t tgid;
 	pid_t pid;
 	atomic_t used_pages;
-	atomic_t         nonmapped_pages;
+	atomic_t nonmapped_pages;
 	atomic_t permanent_mapped_pages;
 
 	struct kbase_mem_pool_group mem_pools;
@@ -1621,9 +1554,6 @@ struct kbase_context {
 	struct list_head jit_destroy_head;
 	struct mutex jit_evict_lock;
 	struct work_struct jit_work;
-
-	struct list_head jit_atoms_head;
-	struct list_head jit_pending_alloc;
 
 	struct list_head ext_res_meta_head;
 

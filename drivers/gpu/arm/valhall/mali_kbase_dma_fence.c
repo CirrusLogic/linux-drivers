@@ -241,9 +241,9 @@ kbase_dma_fence_add_reservation_callback(struct kbase_jd_atom *katom,
 	int err, i;
 
 	err = dma_resv_get_fences_rcu(resv,
-						&excl_fence,
-						&shared_count,
-						&shared_fences);
+				      &excl_fence,
+				      &shared_count,
+				      &shared_fences);
 	if (err)
 		return err;
 

@@ -614,11 +614,15 @@ static int kbase_jm_enter_protected_mode(struct kbase_device *kbdev,
 					return -EAGAIN;
 			}
 
-			if (kbase_pm_get_ready_cores(kbdev, KBASE_PM_CORE_L2) ||
-				kbase_pm_get_trans_cores(kbdev, KBASE_PM_CORE_L2)) {
+			if (kbase_pm_get_ready_cores(kbdev,
+						KBASE_PM_CORE_L2) ||
+				kbase_pm_get_trans_cores(kbdev,
+						KBASE_PM_CORE_L2) ||
+				kbase_is_gpu_lost(kbdev)) {
 				/*
-				 * The L2 is still powered, wait for all the users to
-				 * finish with it before doing the actual reset.
+				 * The L2 is still powered, wait for all
+				 * the users to finish with it before doing
+				 * the actual reset.
 				 */
 				return -EAGAIN;
 			}
@@ -806,7 +810,11 @@ void kbase_backend_slot_update(struct kbase_device *kbdev)
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
+#ifdef CONFIG_MALI_VALHALL_ARBITER_SUPPORT
+	if (kbase_reset_gpu_is_active(kbdev) || kbase_is_gpu_lost(kbdev))
+#else
 	if (kbase_reset_gpu_is_active(kbdev))
+#endif
 		return;
 
 	for (js = 0; js < kbdev->gpu_props.num_job_slots; js++) {
@@ -957,11 +965,11 @@ void kbase_backend_slot_update(struct kbase_device *kbdev)
 						other_slots_busy(kbdev, js))
 					break;
 
-				if ((kbdev->serialize_jobs &
-						KBASE_SERIALIZE_RESET) &&
-						kbase_reset_gpu_is_active(kbdev))
+#ifdef CONFIG_MALI_VALHALL_GEM5_BUILD
+				if (!kbasep_jm_is_js_free(kbdev, js,
+						katom[idx]->kctx))
 					break;
-
+#endif
 				/* Check if this job needs the cycle counter
 				 * enabled before submission */
 				if (katom[idx]->core_req & BASE_JD_REQ_PERMON)
@@ -1124,8 +1132,8 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 					kbase_gpu_exception_name(
 					completion_code));
 
-#if KBASE_TRACE_DUMP_ON_JOB_SLOT_ERROR != 0
-		KBASE_TRACE_DUMP(kbdev);
+#if KBASE_KTRACE_DUMP_ON_JOB_SLOT_ERROR != 0
+		KBASE_KTRACE_DUMP(kbdev);
 #endif
 		kbasep_js_clear_submit_allowed(js_devdata, katom->kctx);
 
@@ -1179,8 +1187,7 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 		}
 	}
 
-	KBASE_TRACE_ADD_SLOT_INFO(kbdev, JM_JOB_DONE, kctx, katom, katom->jc,
-					js, completion_code);
+	KBASE_KTRACE_ADD_JM_SLOT_INFO(kbdev, JM_JOB_DONE, kctx, katom, katom->jc, js, completion_code);
 
 	if (job_tail != 0 && job_tail != katom->jc) {
 		/* Some of the job has been executed */
@@ -1189,7 +1196,7 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 			(void *)katom, job_tail);
 
 		katom->jc = job_tail;
-		KBASE_TRACE_ADD_SLOT(kbdev, JM_UPDATE_HEAD, katom->kctx,
+		KBASE_KTRACE_ADD_JM_SLOT(kbdev, JM_UPDATE_HEAD, katom->kctx,
 					katom, job_tail, js);
 	}
 

@@ -59,12 +59,16 @@
 #include "mali_kbase_hwcnt_virtualizer.h"
 #include "mali_kbase_hwcnt_legacy.h"
 #include "mali_kbase_vinstr.h"
+#ifdef CONFIG_MALI_VALHALL_ARBITER_SUPPORT
+#include "arbiter/mali_kbase_arbiter_pm.h"
+#endif
 
 #include "mali_kbase_cs_experimental.h"
 
 #ifdef CONFIG_MALI_VALHALL_CINSTR_GWT
 #include "mali_kbase_gwt.h"
 #endif
+#include "mali_kbase_pm_internal.h"
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -852,7 +856,7 @@ static int kbase_api_get_cpu_gpu_timeinfo(struct kbase_context *kctx,
 		union kbase_ioctl_get_cpu_gpu_timeinfo *timeinfo)
 {
 	u32 flags = timeinfo->in.request_flags;
-	struct timespec ts;
+	struct timespec64 ts;
 	u64 timestamp;
 	u64 cycle_cnt;
 
@@ -2432,11 +2436,16 @@ struct kbasep_debug_command {
 	kbasep_debug_command_func *func;
 };
 
+void kbasep_ktrace_dump_wrapper(struct kbase_device *kbdev)
+{
+	KBASE_KTRACE_DUMP(kbdev);
+}
+
 /* Debug commands supported by the driver */
 static const struct kbasep_debug_command debug_commands[] = {
 	{
 	 .str = "dumptrace",
-	 .func = &kbasep_trace_dump,
+	 .func = &kbasep_ktrace_dump_wrapper,
 	 }
 };
 
@@ -2558,9 +2567,9 @@ static ssize_t kbase_show_gpuinfo(struct device *dev,
 		{ .id = GPU_ID2_PRODUCT_TTRX >> GPU_ID_VERSION_PRODUCT_ID_SHIFT,
 		  .name = "Mali-G77" },
 		{ .id = GPU_ID2_PRODUCT_TBEX >> GPU_ID_VERSION_PRODUCT_ID_SHIFT,
-		  .name = "Mali-TBEX" },
+		  .name = "Mali-G78" },
 		{ .id = GPU_ID2_PRODUCT_LBEX >> GPU_ID_VERSION_PRODUCT_ID_SHIFT,
-		  .name = "Mali-LBEX" },
+		  .name = "Mali-G68" },
 		{ .id = GPU_ID2_PRODUCT_TNAX >> GPU_ID_VERSION_PRODUCT_ID_SHIFT,
 		  .name = "Mali-G57" },
 		{ .id = GPU_ID2_PRODUCT_TODX >> GPU_ID_VERSION_PRODUCT_ID_SHIFT,
@@ -3373,6 +3382,124 @@ void registers_unmap(struct kbase_device *kbdev)
 	kbase_common_reg_unmap(kbdev);
 }
 
+#if defined(CONFIG_MALI_VALHALL_ARBITER_SUPPORT) && defined(CONFIG_OF)
+
+static bool kbase_is_pm_enabled(const struct device_node *gpu_node)
+{
+	const struct device_node *power_model_node;
+	const void *cooling_cells_node;
+	const void *operating_point_node;
+	bool is_pm_enable = false;
+
+	power_model_node = of_get_child_by_name(gpu_node,
+		"power_model");
+	if (power_model_node)
+		is_pm_enable = true;
+
+	cooling_cells_node = of_get_property(gpu_node,
+		"#cooling-cells", NULL);
+	if (cooling_cells_node)
+		is_pm_enable = true;
+
+	operating_point_node = of_get_property(gpu_node,
+		"operating-points", NULL);
+	if (operating_point_node)
+		is_pm_enable = true;
+
+	return is_pm_enable;
+}
+
+static bool kbase_is_pv_enabled(const struct device_node *gpu_node)
+{
+	const void *arbiter_if_node;
+
+	arbiter_if_node = of_get_property(gpu_node,
+		"arbiter_if", NULL);
+
+	return arbiter_if_node ? true : false;
+}
+
+static bool kbase_is_full_coherency_enabled(const struct device_node *gpu_node)
+{
+	const void *coherency_dts;
+	u32 coherency;
+
+	coherency_dts = of_get_property(gpu_node,
+					"system-coherency",
+					NULL);
+	if (coherency_dts) {
+		coherency = be32_to_cpup(coherency_dts);
+		if (coherency == COHERENCY_ACE)
+			return true;
+	}
+	return false;
+}
+
+#endif /* CONFIG_MALI_VALHALL_ARBITER_SUPPORT && CONFIG_OF */
+
+int kbase_device_pm_init(struct kbase_device *kbdev)
+{
+	int err = 0;
+
+#if defined(CONFIG_MALI_VALHALL_ARBITER_SUPPORT) && defined(CONFIG_OF)
+
+	u32 gpu_id;
+	u32 product_id;
+	u32 gpu_model_id;
+
+	if (kbase_is_pv_enabled(kbdev->dev->of_node)) {
+		if (kbase_is_pm_enabled(kbdev->dev->of_node)) {
+			/* Arbitration AND power management invalid */
+			dev_err(kbdev->dev, "Invalid combination of arbitration AND power management\n");
+			return -EPERM;
+		}
+		if (kbase_is_full_coherency_enabled(kbdev->dev->of_node)) {
+			/* Arbitration AND full coherency invalid */
+			dev_err(kbdev->dev, "Invalid combination of arbitration AND full coherency\n");
+			return -EPERM;
+		}
+		err = kbase_arbiter_pm_early_init(kbdev);
+		if (err == 0) {
+			/* Check if Arbitration is running on
+			 * supported GPU platform
+			 */
+			kbase_pm_register_access_enable(kbdev);
+			gpu_id = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_ID));
+			kbase_pm_register_access_disable(kbdev);
+			product_id = KBASE_UBFX32(gpu_id,
+				GPU_ID_VERSION_PRODUCT_ID_SHIFT, 16);
+			gpu_model_id = GPU_ID2_MODEL_MATCH_VALUE(product_id);
+
+			if (gpu_model_id != GPU_ID2_PRODUCT_TGOX
+				&& gpu_model_id != GPU_ID2_PRODUCT_TNOX) {
+				kbase_arbiter_pm_early_term(kbdev);
+				dev_err(kbdev->dev, "GPU platform not suitable for arbitration\n");
+				return -EPERM;
+			}
+		}
+	} else {
+		err = power_control_init(kbdev);
+	}
+#else
+	err = power_control_init(kbdev);
+#endif /* CONFIG_MALI_VALHALL_ARBITER_SUPPORT && CONFIG_OF */
+	return err;
+}
+
+void kbase_device_pm_term(struct kbase_device *kbdev)
+{
+#ifdef CONFIG_MALI_VALHALL_ARBITER_SUPPORT
+#ifdef CONFIG_OF
+	if (kbase_is_pv_enabled(kbdev->dev->of_node))
+		kbase_arbiter_pm_early_term(kbdev);
+	else
+		power_control_term(kbdev);
+#endif /* CONFIG_OF */
+#else
+	power_control_term(kbdev);
+#endif
+}
+
 int power_control_init(struct kbase_device *kbdev)
 {
 #if KERNEL_VERSION(3, 18, 0) > LINUX_VERSION_CODE || !defined(CONFIG_OF)
@@ -3770,9 +3897,7 @@ int kbase_device_debugfs_init(struct kbase_device *kbdev)
 			kbdev->mali_debugfs_directory, kbdev,
 			&fops_trigger_reset);
 
-#if KBASE_TRACE_ENABLE
-	kbasep_trace_debugfs_init(kbdev);
-#endif /* KBASE_TRACE_ENABLE */
+	kbase_ktrace_debugfs_init(kbdev);
 
 #ifdef CONFIG_MALI_VALHALL_DEVFREQ
 #ifdef CONFIG_DEVFREQ_THERMAL
@@ -4006,6 +4131,11 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 			"Probed as %s\n", dev_name(kbdev->mdev.this_device));
 #endif /* MALI_KBASE_BUILD */
 		kbase_increment_device_id();
+#ifdef CONFIG_MALI_VALHALL_ARBITER_SUPPORT
+		mutex_lock(&kbdev->pm.lock);
+		kbase_arbiter_pm_vm_event(kbdev, KBASE_VM_GPU_INITIALIZED_EVT);
+		mutex_unlock(&kbdev->pm.lock);
+#endif
 	}
 
 	return err;
@@ -4248,7 +4378,6 @@ MODULE_VERSION(MALI_RELEASE_NAME " (UK version " \
 		__stringify(BASE_UK_VERSION_MAJOR) "." \
 		__stringify(BASE_UK_VERSION_MINOR) ")");
 
-
 #define CREATE_TRACE_POINTS
 /* Create the trace points (otherwise we just get code to call a tracepoint) */
 #include "mali_linux_trace.h"
@@ -4282,6 +4411,3 @@ void kbase_trace_mali_total_alloc_pages_change(u32 dev_id, long long int event)
 	trace_mali_total_alloc_pages_change(dev_id, event);
 }
 #endif /* CONFIG_MALI_VALHALL_GATOR_SUPPORT */
-#ifdef CONFIG_MALI_VALHALL_SYSTEM_TRACE
-#include "mali_linux_kbase_trace.h"
-#endif

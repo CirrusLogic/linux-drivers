@@ -92,9 +92,11 @@
  *   flags member. Previous variants of this structure are kept and given _10_2
  *   and _11_5 suffixes.
  * - The above changes are checked for safe values in usual builds
+ * 11.21:
+ * - v2.0 of mali_trace debugfs file, which now versions the file separately
  */
 #define BASE_UK_VERSION_MAJOR 11
-#define BASE_UK_VERSION_MINOR 20
+#define BASE_UK_VERSION_MINOR 21
 
 /**
  * struct kbase_ioctl_job_submit - Submit jobs/atoms to the kernel

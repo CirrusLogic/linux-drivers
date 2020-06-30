@@ -66,12 +66,18 @@ enum tl_msg_id_obj {
 	KBASE_TL_EVENT_ATOM_SOFTSTOP_ISSUE,
 	KBASE_TL_EVENT_ATOM_SOFTJOB_START,
 	KBASE_TL_EVENT_ATOM_SOFTJOB_END,
+	KBASE_TL_EVENT_ARB_GRANTED,
+	KBASE_TL_EVENT_ARB_STARTED,
+	KBASE_TL_EVENT_ARB_STOP_REQUESTED,
+	KBASE_TL_EVENT_ARB_STOPPED,
 	KBASE_JD_GPU_SOFT_RESET,
 	KBASE_TL_KBASE_NEW_DEVICE,
 	KBASE_TL_KBASE_DEVICE_PROGRAM_CSG,
 	KBASE_TL_KBASE_DEVICE_DEPROGRAM_CSG,
 	KBASE_TL_KBASE_NEW_CTX,
 	KBASE_TL_KBASE_DEL_CTX,
+	KBASE_TL_KBASE_CTX_ASSIGN_AS,
+	KBASE_TL_KBASE_CTX_UNASSIGN_AS,
 	KBASE_TL_KBASE_NEW_KCPUQUEUE,
 	KBASE_TL_KBASE_DEL_KCPUQUEUE,
 	KBASE_TL_KBASE_KCPUQUEUE_ENQUEUE_FENCE_SIGNAL,
@@ -270,14 +276,30 @@ enum tl_msg_id_aux {
 		"atom soft job has completed", \
 		"@p", \
 		"atom") \
+	TRACEPOINT_DESC(KBASE_TL_EVENT_ARB_GRANTED, \
+		"Arbiter has granted gpu access", \
+		"@p", \
+		"gpu") \
+	TRACEPOINT_DESC(KBASE_TL_EVENT_ARB_STARTED, \
+		"Driver is running again and able to process jobs", \
+		"@p", \
+		"gpu") \
+	TRACEPOINT_DESC(KBASE_TL_EVENT_ARB_STOP_REQUESTED, \
+		"Arbiter has requested driver to stop using gpu", \
+		"@p", \
+		"gpu") \
+	TRACEPOINT_DESC(KBASE_TL_EVENT_ARB_STOPPED, \
+		"Driver has stopped using gpu", \
+		"@p", \
+		"gpu") \
 	TRACEPOINT_DESC(KBASE_JD_GPU_SOFT_RESET, \
 		"gpu soft reset", \
 		"@p", \
 		"gpu") \
 	TRACEPOINT_DESC(KBASE_TL_KBASE_NEW_DEVICE, \
 		"New KBase Device", \
-		"@III", \
-		"kbase_device_id,kbase_device_gpu_core_count,kbase_device_max_num_csgs") \
+		"@IIII", \
+		"kbase_device_id,kbase_device_gpu_core_count,kbase_device_max_num_csgs,kbase_device_as_count") \
 	TRACEPOINT_DESC(KBASE_TL_KBASE_DEVICE_PROGRAM_CSG, \
 		"CSG is programmed to a slot", \
 		"@III", \
@@ -292,6 +314,14 @@ enum tl_msg_id_aux {
 		"kernel_ctx_id,kbase_device_id") \
 	TRACEPOINT_DESC(KBASE_TL_KBASE_DEL_CTX, \
 		"Delete KBase Context", \
+		"@I", \
+		"kernel_ctx_id") \
+	TRACEPOINT_DESC(KBASE_TL_KBASE_CTX_ASSIGN_AS, \
+		"Address Space is assigned to a KBase context", \
+		"@II", \
+		"kernel_ctx_id,kbase_device_as_index") \
+	TRACEPOINT_DESC(KBASE_TL_KBASE_CTX_UNASSIGN_AS, \
+		"Address Space is unassigned from a KBase context", \
 		"@I", \
 		"kernel_ctx_id") \
 	TRACEPOINT_DESC(KBASE_TL_KBASE_NEW_KCPUQUEUE, \
@@ -1463,6 +1493,94 @@ void __kbase_tlstream_tl_event_atom_softjob_end(
 	kbase_tlstream_msgbuf_release(stream, acq_flags);
 }
 
+void __kbase_tlstream_tl_event_arb_granted(
+	struct kbase_tlstream *stream,
+	const void *gpu)
+{
+	const u32 msg_id = KBASE_TL_EVENT_ARB_GRANTED;
+	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
+		+ sizeof(gpu)
+		;
+	char *buffer;
+	unsigned long acq_flags;
+	size_t pos = 0;
+
+	buffer = kbase_tlstream_msgbuf_acquire(stream, msg_size, &acq_flags);
+
+	pos = kbasep_serialize_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_serialize_timestamp(buffer, pos);
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &gpu, sizeof(gpu));
+
+	kbase_tlstream_msgbuf_release(stream, acq_flags);
+}
+
+void __kbase_tlstream_tl_event_arb_started(
+	struct kbase_tlstream *stream,
+	const void *gpu)
+{
+	const u32 msg_id = KBASE_TL_EVENT_ARB_STARTED;
+	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
+		+ sizeof(gpu)
+		;
+	char *buffer;
+	unsigned long acq_flags;
+	size_t pos = 0;
+
+	buffer = kbase_tlstream_msgbuf_acquire(stream, msg_size, &acq_flags);
+
+	pos = kbasep_serialize_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_serialize_timestamp(buffer, pos);
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &gpu, sizeof(gpu));
+
+	kbase_tlstream_msgbuf_release(stream, acq_flags);
+}
+
+void __kbase_tlstream_tl_event_arb_stop_requested(
+	struct kbase_tlstream *stream,
+	const void *gpu)
+{
+	const u32 msg_id = KBASE_TL_EVENT_ARB_STOP_REQUESTED;
+	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
+		+ sizeof(gpu)
+		;
+	char *buffer;
+	unsigned long acq_flags;
+	size_t pos = 0;
+
+	buffer = kbase_tlstream_msgbuf_acquire(stream, msg_size, &acq_flags);
+
+	pos = kbasep_serialize_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_serialize_timestamp(buffer, pos);
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &gpu, sizeof(gpu));
+
+	kbase_tlstream_msgbuf_release(stream, acq_flags);
+}
+
+void __kbase_tlstream_tl_event_arb_stopped(
+	struct kbase_tlstream *stream,
+	const void *gpu)
+{
+	const u32 msg_id = KBASE_TL_EVENT_ARB_STOPPED;
+	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
+		+ sizeof(gpu)
+		;
+	char *buffer;
+	unsigned long acq_flags;
+	size_t pos = 0;
+
+	buffer = kbase_tlstream_msgbuf_acquire(stream, msg_size, &acq_flags);
+
+	pos = kbasep_serialize_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_serialize_timestamp(buffer, pos);
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &gpu, sizeof(gpu));
+
+	kbase_tlstream_msgbuf_release(stream, acq_flags);
+}
+
 void __kbase_tlstream_jd_gpu_soft_reset(
 	struct kbase_tlstream *stream,
 	const void *gpu)
@@ -1757,13 +1875,15 @@ void __kbase_tlstream_tl_kbase_new_device(
 	struct kbase_tlstream *stream,
 	u32 kbase_device_id,
 	u32 kbase_device_gpu_core_count,
-	u32 kbase_device_max_num_csgs)
+	u32 kbase_device_max_num_csgs,
+	u32 kbase_device_as_count)
 {
 	const u32 msg_id = KBASE_TL_KBASE_NEW_DEVICE;
 	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
 		+ sizeof(kbase_device_id)
 		+ sizeof(kbase_device_gpu_core_count)
 		+ sizeof(kbase_device_max_num_csgs)
+		+ sizeof(kbase_device_as_count)
 		;
 	char *buffer;
 	unsigned long acq_flags;
@@ -1779,6 +1899,8 @@ void __kbase_tlstream_tl_kbase_new_device(
 		pos, &kbase_device_gpu_core_count, sizeof(kbase_device_gpu_core_count));
 	pos = kbasep_serialize_bytes(buffer,
 		pos, &kbase_device_max_num_csgs, sizeof(kbase_device_max_num_csgs));
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &kbase_device_as_count, sizeof(kbase_device_as_count));
 
 	kbase_tlstream_msgbuf_release(stream, acq_flags);
 }
@@ -1870,6 +1992,54 @@ void __kbase_tlstream_tl_kbase_del_ctx(
 	u32 kernel_ctx_id)
 {
 	const u32 msg_id = KBASE_TL_KBASE_DEL_CTX;
+	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
+		+ sizeof(kernel_ctx_id)
+		;
+	char *buffer;
+	unsigned long acq_flags;
+	size_t pos = 0;
+
+	buffer = kbase_tlstream_msgbuf_acquire(stream, msg_size, &acq_flags);
+
+	pos = kbasep_serialize_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_serialize_timestamp(buffer, pos);
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &kernel_ctx_id, sizeof(kernel_ctx_id));
+
+	kbase_tlstream_msgbuf_release(stream, acq_flags);
+}
+
+void __kbase_tlstream_tl_kbase_ctx_assign_as(
+	struct kbase_tlstream *stream,
+	u32 kernel_ctx_id,
+	u32 kbase_device_as_index)
+{
+	const u32 msg_id = KBASE_TL_KBASE_CTX_ASSIGN_AS;
+	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
+		+ sizeof(kernel_ctx_id)
+		+ sizeof(kbase_device_as_index)
+		;
+	char *buffer;
+	unsigned long acq_flags;
+	size_t pos = 0;
+
+	buffer = kbase_tlstream_msgbuf_acquire(stream, msg_size, &acq_flags);
+
+	pos = kbasep_serialize_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_serialize_timestamp(buffer, pos);
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &kernel_ctx_id, sizeof(kernel_ctx_id));
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &kbase_device_as_index, sizeof(kbase_device_as_index));
+
+	kbase_tlstream_msgbuf_release(stream, acq_flags);
+}
+
+void __kbase_tlstream_tl_kbase_ctx_unassign_as(
+	struct kbase_tlstream *stream,
+	u32 kernel_ctx_id)
+{
+	const u32 msg_id = KBASE_TL_KBASE_CTX_UNASSIGN_AS;
 	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
 		+ sizeof(kernel_ctx_id)
 		;

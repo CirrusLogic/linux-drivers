@@ -139,10 +139,7 @@ static const struct file_operations vinstr_client_fops = {
  */
 static u64 kbasep_vinstr_timestamp_ns(void)
 {
-	struct timespec ts;
-
-	getrawmonotonic(&ts);
-	return (u64)ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
+	return ktime_get_raw_ns();
 }
 
 /**

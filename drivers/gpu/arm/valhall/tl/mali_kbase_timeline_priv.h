@@ -40,7 +40,7 @@
  *                          have access to the timeline streams at any given time.
  * @event_queue:            Timeline stream event queue
  * @bytes_collected:        Number of bytes read by user
- * @is_enabled:             Zero, if timeline is disabled. Timeline stream flags
+ * @timeline_flags:         Zero, if timeline is disabled. Timeline stream flags
  *                          otherwise. See kbase_timeline_io_acquire().
  * @obj_header_btc:         Remaining bytes to copy for the object stream header
  * @aux_header_btc:         Remaining bytes to copy for the aux stream header
@@ -54,7 +54,7 @@ struct kbase_timeline {
 #if MALI_UNIT_TEST
 	atomic_t          bytes_collected;
 #endif /* MALI_UNIT_TEST */
-	atomic_t         *is_enabled;
+	atomic_t         *timeline_flags;
 	size_t            obj_header_btc;
 	size_t            aux_header_btc;
 };

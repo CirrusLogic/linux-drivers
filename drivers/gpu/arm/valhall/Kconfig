@@ -22,12 +22,12 @@
 
 menuconfig MALI_VALHALL
 	tristate "Mali Valhall series support"
-	depends on ARM || ARM64
+	depends on ARM64 && ARM64_PAGE_SHIFT=12
 	depends on THERMAL || THERMAL=n
 	select GPU_TRACEPOINTS if ANDROID
 	select DMA_SHARED_BUFFER
-        depends on !MALI_MIDGARD
-        depends on !MALI_BIFROST
+	depends on !MALI_MIDGARD
+	depends on !MALI_BIFROST
 	default n
 	help
 	  Enable this option to build support for a ARM Mali Valhall GPU.
@@ -53,6 +53,7 @@ config MALI_VALHALL_DVFS
 config MALI_VALHALL_ENABLE_TRACE
 	bool "Enable kbase tracing"
 	depends on MALI_VALHALL
+	default y if MALI_VALHALL_DEBUG
 	default n
 	help
 	  Enables tracing in kbase.  Trace log available through
@@ -87,6 +88,17 @@ config MALI_VALHALL_PLATFORM_NAME
 	  Enter the name of the desired platform configuration directory to
 	  include in the build. 'platform/$(MALI_VALHALL_PLATFORM_NAME)/Kbuild' must
 	  exist.
+
+config MALI_VALHALL_ARBITER_SUPPORT
+	bool "Enable arbiter support for Mali"
+	depends on MALI_VALHALL
+	default n
+	help
+	  Enable support for the arbiter interface in the driver.
+	  This allows an external arbiter to manage driver access
+	  to GPU hardware in a virtualized environment
+
+	  If unsure, say N.
 
 # MALI_VALHALL_EXPERT configuration options
 
@@ -161,6 +173,7 @@ config MALI_VALHALL_ERROR_INJECT
 config MALI_VALHALL_SYSTEM_TRACE
 	bool "Enable system event tracing support"
 	depends on MALI_VALHALL && MALI_VALHALL_EXPERT
+	default y if MALI_VALHALL_DEBUG
 	depends on BROKEN
 	default n
 	help
@@ -245,6 +258,14 @@ config MALI_VALHALL_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE
 	  powering down the L2 cache. The clock can be specified in the device
 	  tree using the property, opp-mali-errata-1485982. Otherwise the
 	  slowest clock will be selected.
+
+config MALI_VALHALL_GEM5_BUILD
+	bool "Enable build of Mali kernel driver for GEM5"
+	depends on MALI_VALHALL
+	default n
+	help
+	  This option is to do a Mali GEM5 build.
+	  If unsure, say N.
 
 # Instrumentation options.
 

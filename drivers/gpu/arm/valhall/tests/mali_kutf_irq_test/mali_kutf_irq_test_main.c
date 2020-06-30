@@ -25,8 +25,8 @@
 #include <linux/interrupt.h>
 
 #include "mali_kbase.h"
-#include <midgard/backend/gpu/mali_kbase_device_internal.h>
-#include <midgard/backend/gpu/mali_kbase_pm_internal.h>
+#include <valhall/backend/gpu/mali_kbase_device_internal.h>
+#include <valhall/backend/gpu/mali_kbase_pm_internal.h>
 
 #include <kutf/kutf_suite.h>
 #include <kutf/kutf_utils.h>
@@ -58,10 +58,10 @@ struct kutf_irq_fixture_data {
 
 #define NR_TEST_IRQS ((u32)1000000)
 
-/* IRQ for the test to trigger. Currently MULTIPLE_GPU_FAULTS as we would not
- * expect to see this in normal use (e.g., when Android is running).
+/* IRQ for the test to trigger. Currently POWER_CHANGED_SINGLE as it is
+ * otherwise unused in the DDK
  */
-#define TEST_IRQ MULTIPLE_GPU_FAULTS
+#define TEST_IRQ POWER_CHANGED_SINGLE
 
 #define IRQ_TIMEOUT HZ
 
@@ -92,11 +92,11 @@ static irqreturn_t kbase_gpu_irq_custom_handler(int irq, void *data)
 	struct kbase_device *kbdev = kbase_untag(data);
 	u32 val = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_STATUS));
 	irqreturn_t result;
-	struct timespec tval;
+	u64 tval;
 	bool has_test_irq = val & TEST_IRQ;
 
 	if (has_test_irq) {
-		getnstimeofday(&tval);
+		tval = ktime_get_real_ns();
 		/* Clear the test source only here */
 		kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_CLEAR),
 				TEST_IRQ);
@@ -107,7 +107,7 @@ static irqreturn_t kbase_gpu_irq_custom_handler(int irq, void *data)
 	result = kbase_gpu_irq_test_handler(irq, data, val);
 
 	if (has_test_irq) {
-		irq_time = SEC_TO_NANO(tval.tv_sec) + (tval.tv_nsec);
+		irq_time = tval;
 		triggered = true;
 		wake_up(&wait);
 		result = IRQ_HANDLED;
@@ -191,12 +191,9 @@ static void mali_kutf_irq_latency(struct kutf_context *context)
 			GPU_IRQ_HANDLER);
 
 	for (i = 1; i <= NR_TEST_IRQS; i++) {
-		struct timespec tval;
-		u64 start_time;
+		u64 start_time = ktime_get_real_ns();
 
 		triggered = false;
-		getnstimeofday(&tval);
-		start_time = SEC_TO_NANO(tval.tv_sec) + (tval.tv_nsec);
 
 		/* Trigger fake IRQ */
 		kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_RAWSTAT),

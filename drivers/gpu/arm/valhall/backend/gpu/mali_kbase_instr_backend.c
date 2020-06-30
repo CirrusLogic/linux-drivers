@@ -212,8 +212,8 @@ int kbase_instr_hwcnt_request_dump(struct kbase_context *kctx)
 					kbdev->hwcnt.addr >> 32);
 
 	/* Start dumping */
-	KBASE_TRACE_ADD(kbdev, CORE_GPU_PRFCNT_SAMPLE, NULL, NULL,
-					kbdev->hwcnt.addr, 0);
+	KBASE_KTRACE_ADD(kbdev, CORE_GPU_PRFCNT_SAMPLE, NULL,
+			kbdev->hwcnt.addr);
 
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
 					GPU_COMMAND_PRFCNT_SAMPLE);
@@ -359,7 +359,7 @@ int kbase_instr_hwcnt_clear(struct kbase_context *kctx)
 		goto out;
 
 	/* Clear the counters */
-	KBASE_TRACE_ADD(kbdev, CORE_GPU_PRFCNT_CLEAR, NULL, NULL, 0u, 0);
+	KBASE_KTRACE_ADD(kbdev, CORE_GPU_PRFCNT_CLEAR, NULL, 0);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
 						GPU_COMMAND_PRFCNT_CLEAR);
 

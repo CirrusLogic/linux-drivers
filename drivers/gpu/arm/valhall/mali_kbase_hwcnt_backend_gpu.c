@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2018-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -73,11 +73,8 @@ struct kbase_hwcnt_backend_gpu {
 static u64 kbasep_hwcnt_backend_gpu_timestamp_ns(
 	struct kbase_hwcnt_backend *backend)
 {
-	struct timespec ts;
-
 	(void)backend;
-	getrawmonotonic(&ts);
-	return (u64)ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
+	return ktime_get_raw_ns();
 }
 
 /* GPU backend implementation of kbase_hwcnt_backend_dump_enable_nolock_fn */

@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2012-2019 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2020 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -40,6 +40,7 @@ config MALI_VALHALL_DVFS
 config MALI_VALHALL_ENABLE_TRACE
 	bool "Enable kbase tracing"
 	depends on MALI_VALHALL
+	default y if MALI_DEBUG
 	default n
 	help
 	  Enables tracing in kbase.  Trace log available through
@@ -80,6 +81,17 @@ config MALI_PLATFORM_NAME
 
 	  When PLATFORM_CUSTOM is set, this needs to be set manually to
 	  pick up the desired platform files.
+
+config MALI_ARBITER_SUPPORT
+	bool "Enable arbiter support for Mali"
+	depends on MALI_VALHALL
+	default n
+	help
+	  Enable support for the arbiter interface in the driver.
+	  This allows an external arbiter to manage driver access
+	  to GPU hardware in a virtualized environment
+
+	  If unsure, say N.
 
 # MALI_EXPERT configuration options
 
@@ -167,10 +179,11 @@ config MALI_ERROR_INJECT
 config MALI_SYSTEM_TRACE
 	bool "Enable system event tracing support"
 	depends on MALI_VALHALL && MALI_EXPERT
+	default y if MALI_DEBUG
 	default n
 	help
 	  Choose this option to enable system trace events for each
-	  kbase event.	This is typically used for debugging but has
+	  kbase event. This is typically used for debugging but has
 	  minimal overhead when not in use. Enable only if you know what
 	  you are doing.
 
@@ -249,9 +262,17 @@ config MALI_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE
 	  tree using the property, opp-mali-errata-1485982. Otherwise the
 	  slowest clock will be selected.
 
+config MALI_GEM5_BUILD
+	bool "Enable build of Mali kernel driver for GEM5"
+	depends on MALI_VALHALL
+	default n
+	help
+	  This option is to do a Mali GEM5 build.
+	  If unsure, say N.
+
 # Instrumentation options.
 
 # config MALI_JOB_DUMP exists in the Kernel Kconfig but is configured using CINSTR_JOB_DUMP in Mconfig.
 # config MALI_PRFCNT_SET_SECONDARY exists in the Kernel Kconfig but is configured using CINSTR_SECONDARY_HWC in Mconfig.
 
-source "kernel/drivers/gpu/arm/midgard/tests/Mconfig"
+source "kernel/drivers/gpu/arm/valhall/tests/Mconfig"

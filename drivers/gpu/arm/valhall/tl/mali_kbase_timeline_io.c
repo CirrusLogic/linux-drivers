@@ -324,6 +324,6 @@ static int kbasep_timeline_io_release(struct inode *inode, struct file *filp)
 	atomic_set(&timeline->autoflush_timer_active, 0);
 	del_timer_sync(&timeline->autoflush_timer);
 
-	atomic_set(timeline->is_enabled, 0);
+	atomic_set(timeline->timeline_flags, 0);
 	return 0;
 }

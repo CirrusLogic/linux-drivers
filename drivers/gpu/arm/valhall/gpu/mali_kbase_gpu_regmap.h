@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -232,8 +232,16 @@
 #define PRFCNT_SAMPLE_COMPLETED (1 << 16)   /* Set when a performance count sample has completed. */
 #define CLEAN_CACHES_COMPLETED  (1 << 17)   /* Set when a cache clean operation has completed. */
 
-#define GPU_IRQ_REG_ALL (GPU_FAULT | MULTIPLE_GPU_FAULTS | RESET_COMPLETED \
+/* Include POWER_CHANGED_SINGLE in debug builds for use in irq latency test.
+ */
+#define GPU_IRQ_REG_COMMON (GPU_FAULT | MULTIPLE_GPU_FAULTS | RESET_COMPLETED \
 		| POWER_CHANGED_ALL | PRFCNT_SAMPLE_COMPLETED)
+
+#ifdef CONFIG_MALI_VALHALL_DEBUG
+#define GPU_IRQ_REG_ALL (GPU_IRQ_REG_COMMON | POWER_CHANGED_SINGLE)
+#else /* CONFIG_MALI_VALHALL_DEBUG */
+#define GPU_IRQ_REG_ALL (GPU_IRQ_REG_COMMON)
+#endif /* CONFIG_MALI_VALHALL_DEBUG */
 
 /*
  * MMU_IRQ_RAWSTAT register values. Values are valid also for

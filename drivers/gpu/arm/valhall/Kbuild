@@ -21,7 +21,7 @@
 
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "r24p0-01rel0"
+MALI_RELEASE_NAME ?= "r25p0-01eac0"
 
 # Paths required for build
 KBASE_PATH = $(srctree)/$(src)
@@ -73,6 +73,7 @@ subdir-ccflags-y += $(DEFINES) -I$(KBASE_PATH)   -I$(KBASE_PLATFORM_PATH) -I$(UM
 
 SRC := \
 	context/mali_kbase_context.c \
+	debug/mali_kbase_debug_ktrace.c \
 	device/mali_kbase_device.c \
 	mali_kbase_cache_policy.c \
 	mali_kbase_mem.c \
@@ -81,7 +82,6 @@ SRC := \
 	mali_kbase_ctx_sched.c \
 	mali_kbase_jm.c \
 	mali_kbase_gpuprops.c \
-	mali_kbase_js.c \
 	mali_kbase_pm.c \
 	mali_kbase_config.c \
 	mali_kbase_vinstr.c \
@@ -120,6 +120,7 @@ SRC := \
 
 ifeq ($(MALI_USE_CSF),1)
 	SRC += \
+		debug/backend/mali_kbase_debug_ktrace_csf.c \
 		device/backend/mali_kbase_device_csf.c \
 		gpu/backend/mali_kbase_gpu_fault_csf.c \
 		tl/backend/mali_kbase_timeline_csf.c \
@@ -132,7 +133,9 @@ else
 		mali_kbase_event.c \
 		mali_kbase_jd.c \
 		mali_kbase_jd_debugfs.c \
+		mali_kbase_js.c \
 		mali_kbase_js_ctx_attr.c \
+		debug/backend/mali_kbase_debug_ktrace_jm.c \
 		device/backend/mali_kbase_device_jm.c \
 		gpu/backend/mali_kbase_gpu_fault_jm.c \
 		tl/backend/mali_kbase_timeline_jm.c \
@@ -153,7 +156,8 @@ ifeq ($(MALI_CUSTOMER_RELEASE),0)
 endif
 
 
-ccflags-y += -I$(KBASE_PATH)
+ccflags-y += -I$(KBASE_PATH) -I$(KBASE_PATH)/debug \
+	-I$(KBASE_PATH)/debug/backend
 
 # Tell the Linux build system from which .o file to create the kernel module
 obj-$(CONFIG_MALI_VALHALL) += mali_kbase.o
@@ -175,6 +179,12 @@ endif
 
 ifeq ($(MALI_USE_CSF),1)
 	include $(src)/csf/Kbuild
+else
+# empty
+endif
+
+ifeq ($(CONFIG_MALI_VALHALL_ARBITER_SUPPORT),y)
+	include $(src)/arbiter/Kbuild
 else
 # empty
 endif

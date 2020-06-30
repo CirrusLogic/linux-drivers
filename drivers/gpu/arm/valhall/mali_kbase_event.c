@@ -25,6 +25,7 @@
 #include <mali_kbase.h>
 #include <mali_kbase_debug.h>
 #include <tl/mali_kbase_tracepoints.h>
+#include <mali_linux_trace.h>
 
 static struct base_jd_udata kbase_event_process(struct kbase_context *kctx, struct kbase_jd_atom *katom)
 {
@@ -200,6 +201,10 @@ void kbase_event_post(struct kbase_context *ctx, struct kbase_jd_atom *atom)
 		dev_dbg(kbdev->dev, "Reporting %d events\n", event_count);
 
 		kbase_event_wakeup(ctx);
+
+		/* Post-completion latency */
+		trace_sysgraph(SGR_POST, ctx->id,
+					kbase_jd_atom_id(ctx, atom));
 	}
 }
 KBASE_EXPORT_TEST_API(kbase_event_post);

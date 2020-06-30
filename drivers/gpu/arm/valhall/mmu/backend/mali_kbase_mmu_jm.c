@@ -30,6 +30,7 @@
 #include <backend/gpu/mali_kbase_device_internal.h>
 #include <mali_kbase_as_fault_debugfs.h>
 #include "../mali_kbase_mmu_internal.h"
+#include "mali_kbase_device_internal.h"
 
 void kbase_mmu_get_as_setup(struct kbase_mmu_table *mmut,
 		struct kbase_mmu_setup * const setup)
@@ -295,6 +296,7 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 	unsigned long flags;
 	u32 new_mask;
 	u32 tmp, bf_bits, pf_bits;
+	bool gpu_lost = false;
 
 	dev_dbg(kbdev->dev, "Entering %s irq_stat %u\n",
 		__func__, irq_stat);
@@ -338,7 +340,7 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 		 * and a job causing the Bus/Page fault shouldn't complete until
 		 * the MMU is updated
 		 */
-		kctx = kbasep_js_runpool_lookup_ctx(kbdev, as_no);
+		kctx = kbase_ctx_sched_as_to_ctx_refcount(kbdev, as_no);
 
 		/* find faulting address */
 		fault->addr = kbase_reg_read(kbdev, MMU_AS_REG(as_no,
@@ -367,6 +369,14 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 			fault->extra_addr <<= 32;
 			fault->extra_addr |= kbase_reg_read(kbdev,
 					MMU_AS_REG(as_no, AS_FAULTEXTRA_LO));
+		}
+
+		/* check if we still have GPU */
+		gpu_lost = kbase_is_gpu_lost(kbdev);
+		if (gpu_lost) {
+			if (kctx)
+				kbasep_js_runpool_release_ctx(kbdev, kctx);
+			return;
 		}
 
 		if (kbase_as_has_bus_fault(as, fault)) {

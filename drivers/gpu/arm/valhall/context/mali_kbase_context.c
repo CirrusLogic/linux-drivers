@@ -80,7 +80,9 @@ int kbase_context_common_init(struct kbase_context *kctx)
 
 	mutex_lock(&kctx->kbdev->kctx_list_lock);
 	list_add(&kctx->kctx_list_link, &kctx->kbdev->kctx_list);
-	/* Trace with the AOM tracepoint even in CSF for dumping */
+
+	KBASE_TLSTREAM_TL_KBASE_NEW_CTX(kctx->kbdev, kctx->id,
+		kctx->kbdev->gpu_props.props.raw_props.gpu_id);
 	KBASE_TLSTREAM_TL_NEW_CTX(kctx->kbdev, kctx, kctx->id,
 			(u32)(kctx->tgid));
 	mutex_unlock(&kctx->kbdev->kctx_list_lock);
@@ -107,19 +109,21 @@ void kbase_context_common_term(struct kbase_context *kctx)
 	WARN_ON(atomic_read(&kctx->nonmapped_pages) != 0);
 
 	mutex_lock(&kctx->kbdev->kctx_list_lock);
-	/* Trace with the AOM tracepoint even in CSF for dumping */
+
+	KBASE_TLSTREAM_TL_KBASE_DEL_CTX(kctx->kbdev, kctx->id);
+
 	KBASE_TLSTREAM_TL_DEL_CTX(kctx->kbdev, kctx);
 	list_del(&kctx->kctx_list_link);
 	mutex_unlock(&kctx->kbdev->kctx_list_lock);
 
-	KBASE_TRACE_ADD(kctx->kbdev, CORE_CTX_DESTROY, kctx, NULL, 0u, 0u);
+	KBASE_KTRACE_ADD(kctx->kbdev, CORE_CTX_DESTROY, kctx, 0u);
 
 	/* Flush the timeline stream, so the user can see the termination
 	 * tracepoints being fired.
 	 * The "if" statement below is for optimization. It is safe to call
 	 * kbase_timeline_streams_flush when timeline is disabled.
 	 */
-	if (atomic_read(&kctx->kbdev->timeline_is_enabled) != 0)
+	if (atomic_read(&kctx->kbdev->timeline_flags) != 0)
 		kbase_timeline_streams_flush(kctx->kbdev->timeline);
 
 	vfree(kctx);

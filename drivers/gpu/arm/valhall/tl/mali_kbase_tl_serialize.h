@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -113,11 +113,9 @@ static inline size_t kbasep_serialize_string(
  */
 static inline size_t kbasep_serialize_timestamp(void *buffer, size_t pos)
 {
-	struct timespec ts;
 	u64             timestamp;
 
-	getrawmonotonic(&ts);
-	timestamp = (u64)ts.tv_sec * NSECS_IN_SEC + ts.tv_nsec;
+	timestamp = ktime_get_raw_ns();
 
 	return kbasep_serialize_bytes(
 			buffer, pos,

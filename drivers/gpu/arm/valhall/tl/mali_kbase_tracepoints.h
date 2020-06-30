@@ -56,8 +56,8 @@ extern const size_t __aux_stream_offset;
  * relies on offset variables:
  * __obj_stream_offset and __aux_stream_offset.
  */
-#define __TL_DISPATCH_STREAM(kbdev, stype) \
-	((struct kbase_tlstream *) \
+#define __TL_DISPATCH_STREAM(kbdev, stype)	\
+	((struct kbase_tlstream *)	\
 	 ((u8 *)kbdev->timeline + __ ## stype ## _stream_offset))
 
 struct tp_desc;
@@ -226,6 +226,18 @@ void __kbase_tlstream_tl_event_atom_softjob_start(
 void __kbase_tlstream_tl_event_atom_softjob_end(
 	struct kbase_tlstream *stream,
 	const void *atom);
+void __kbase_tlstream_tl_event_arb_granted(
+	struct kbase_tlstream *stream,
+	const void *gpu);
+void __kbase_tlstream_tl_event_arb_started(
+	struct kbase_tlstream *stream,
+	const void *gpu);
+void __kbase_tlstream_tl_event_arb_stop_requested(
+	struct kbase_tlstream *stream,
+	const void *gpu);
+void __kbase_tlstream_tl_event_arb_stopped(
+	struct kbase_tlstream *stream,
+	const void *gpu);
 void __kbase_tlstream_jd_gpu_soft_reset(
 	struct kbase_tlstream *stream,
 	const void *gpu);
@@ -275,7 +287,8 @@ void __kbase_tlstream_tl_kbase_new_device(
 	struct kbase_tlstream *stream,
 	u32 kbase_device_id,
 	u32 kbase_device_gpu_core_count,
-	u32 kbase_device_max_num_csgs);
+	u32 kbase_device_max_num_csgs,
+	u32 kbase_device_as_count);
 void __kbase_tlstream_tl_kbase_device_program_csg(
 	struct kbase_tlstream *stream,
 	u32 kbase_device_id,
@@ -290,6 +303,13 @@ void __kbase_tlstream_tl_kbase_new_ctx(
 	u32 kernel_ctx_id,
 	u32 kbase_device_id);
 void __kbase_tlstream_tl_kbase_del_ctx(
+	struct kbase_tlstream *stream,
+	u32 kernel_ctx_id);
+void __kbase_tlstream_tl_kbase_ctx_assign_as(
+	struct kbase_tlstream *stream,
+	u32 kernel_ctx_id,
+	u32 kbase_device_as_index);
+void __kbase_tlstream_tl_kbase_ctx_unassign_as(
 	struct kbase_tlstream *stream,
 	u32 kernel_ctx_id);
 void __kbase_tlstream_tl_kbase_new_kcpuqueue(
@@ -465,10 +485,10 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_NEW_CTX -
  *   object ctx is created
  *
- * @kbdev:	Kbase device
- * @ctx:	Name of the context object
- * @ctx_nr:	Kernel context number
- * @tgid:	Thread Group Id
+ * @kbdev: Kbase device
+ * @ctx: Name of the context object
+ * @ctx_nr: Kernel context number
+ * @tgid: Thread Group Id
  */
 #define KBASE_TLSTREAM_TL_NEW_CTX(	\
 	kbdev,	\
@@ -477,10 +497,10 @@ struct kbase_tlstream;
 	tgid	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_new_ctx(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				ctx, ctx_nr, tgid);	\
 	} while (0)
 
@@ -488,10 +508,10 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_NEW_GPU -
  *   object gpu is created
  *
- * @kbdev:	Kbase device
- * @gpu:	Name of the GPU object
- * @gpu_id:	Name of the GPU object
- * @core_count:	Number of cores this GPU hosts
+ * @kbdev: Kbase device
+ * @gpu: Name of the GPU object
+ * @gpu_id: Name of the GPU object
+ * @core_count: Number of cores this GPU hosts
  */
 #define KBASE_TLSTREAM_TL_NEW_GPU(	\
 	kbdev,	\
@@ -500,10 +520,10 @@ struct kbase_tlstream;
 	core_count	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_new_gpu(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				gpu, gpu_id, core_count);	\
 	} while (0)
 
@@ -511,10 +531,10 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_NEW_LPU -
  *   object lpu is created
  *
- * @kbdev:	Kbase device
- * @lpu:	Name of the Logical Processing Unit object
- * @lpu_nr:	Sequential number assigned to the newly created LPU
- * @lpu_fn:	Property describing functional abilities of this LPU
+ * @kbdev: Kbase device
+ * @lpu: Name of the Logical Processing Unit object
+ * @lpu_nr: Sequential number assigned to the newly created LPU
+ * @lpu_fn: Property describing functional abilities of this LPU
  */
 #define KBASE_TLSTREAM_TL_NEW_LPU(	\
 	kbdev,	\
@@ -523,10 +543,10 @@ struct kbase_tlstream;
 	lpu_fn	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_new_lpu(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				lpu, lpu_nr, lpu_fn);	\
 	} while (0)
 
@@ -534,9 +554,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_NEW_ATOM -
  *   object atom is created
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
- * @atom_nr:	Sequential number of an atom
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
+ * @atom_nr: Sequential number of an atom
  */
 #define KBASE_TLSTREAM_TL_NEW_ATOM(	\
 	kbdev,	\
@@ -544,10 +564,10 @@ struct kbase_tlstream;
 	atom_nr	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_new_atom(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				atom, atom_nr);	\
 	} while (0)
 
@@ -555,9 +575,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_NEW_AS -
  *   address space object is created
  *
- * @kbdev:	Kbase device
- * @address_space:	Name of the address space object
- * @as_nr:	Address space number
+ * @kbdev: Kbase device
+ * @address_space: Name of the address space object
+ * @as_nr: Address space number
  */
 #define KBASE_TLSTREAM_TL_NEW_AS(	\
 	kbdev,	\
@@ -565,10 +585,10 @@ struct kbase_tlstream;
 	as_nr	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_new_as(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				address_space, as_nr);	\
 	} while (0)
 
@@ -576,18 +596,18 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_DEL_CTX -
  *   context is destroyed
  *
- * @kbdev:	Kbase device
- * @ctx:	Name of the context object
+ * @kbdev: Kbase device
+ * @ctx: Name of the context object
  */
 #define KBASE_TLSTREAM_TL_DEL_CTX(	\
 	kbdev,	\
 	ctx	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_del_ctx(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				ctx);	\
 	} while (0)
 
@@ -595,18 +615,18 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_DEL_ATOM -
  *   atom is destroyed
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
  */
 #define KBASE_TLSTREAM_TL_DEL_ATOM(	\
 	kbdev,	\
 	atom	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_del_atom(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				atom);	\
 	} while (0)
 
@@ -614,9 +634,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_LIFELINK_LPU_GPU -
  *   lpu is deleted with gpu
  *
- * @kbdev:	Kbase device
- * @lpu:	Name of the Logical Processing Unit object
- * @gpu:	Name of the GPU object
+ * @kbdev: Kbase device
+ * @lpu: Name of the Logical Processing Unit object
+ * @gpu: Name of the GPU object
  */
 #define KBASE_TLSTREAM_TL_LIFELINK_LPU_GPU(	\
 	kbdev,	\
@@ -624,10 +644,10 @@ struct kbase_tlstream;
 	gpu	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_lifelink_lpu_gpu(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				lpu, gpu);	\
 	} while (0)
 
@@ -635,9 +655,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_LIFELINK_AS_GPU -
  *   address space is deleted with gpu
  *
- * @kbdev:	Kbase device
- * @address_space:	Name of the address space object
- * @gpu:	Name of the GPU object
+ * @kbdev: Kbase device
+ * @address_space: Name of the address space object
+ * @gpu: Name of the GPU object
  */
 #define KBASE_TLSTREAM_TL_LIFELINK_AS_GPU(	\
 	kbdev,	\
@@ -645,10 +665,10 @@ struct kbase_tlstream;
 	gpu	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_lifelink_as_gpu(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				address_space, gpu);	\
 	} while (0)
 
@@ -656,9 +676,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_RET_CTX_LPU -
  *   context is retained by lpu
  *
- * @kbdev:	Kbase device
- * @ctx:	Name of the context object
- * @lpu:	Name of the Logical Processing Unit object
+ * @kbdev: Kbase device
+ * @ctx: Name of the context object
+ * @lpu: Name of the Logical Processing Unit object
  */
 #define KBASE_TLSTREAM_TL_RET_CTX_LPU(	\
 	kbdev,	\
@@ -666,10 +686,10 @@ struct kbase_tlstream;
 	lpu	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_ret_ctx_lpu(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				ctx, lpu);	\
 	} while (0)
 
@@ -677,9 +697,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_RET_ATOM_CTX -
  *   atom is retained by context
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
- * @ctx:	Name of the context object
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
+ * @ctx: Name of the context object
  */
 #define KBASE_TLSTREAM_TL_RET_ATOM_CTX(	\
 	kbdev,	\
@@ -687,10 +707,10 @@ struct kbase_tlstream;
 	ctx	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_ret_atom_ctx(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				atom, ctx);	\
 	} while (0)
 
@@ -698,10 +718,10 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_RET_ATOM_LPU -
  *   atom is retained by lpu
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
- * @lpu:	Name of the Logical Processing Unit object
- * @attrib_match_list:	List containing match operator attributes
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
+ * @lpu: Name of the Logical Processing Unit object
+ * @attrib_match_list: List containing match operator attributes
  */
 #define KBASE_TLSTREAM_TL_RET_ATOM_LPU(	\
 	kbdev,	\
@@ -710,10 +730,10 @@ struct kbase_tlstream;
 	attrib_match_list	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_ret_atom_lpu(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				atom, lpu, attrib_match_list);	\
 	} while (0)
 
@@ -721,9 +741,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_NRET_CTX_LPU -
  *   context is released by lpu
  *
- * @kbdev:	Kbase device
- * @ctx:	Name of the context object
- * @lpu:	Name of the Logical Processing Unit object
+ * @kbdev: Kbase device
+ * @ctx: Name of the context object
+ * @lpu: Name of the Logical Processing Unit object
  */
 #define KBASE_TLSTREAM_TL_NRET_CTX_LPU(	\
 	kbdev,	\
@@ -731,10 +751,10 @@ struct kbase_tlstream;
 	lpu	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_nret_ctx_lpu(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				ctx, lpu);	\
 	} while (0)
 
@@ -742,9 +762,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_NRET_ATOM_CTX -
  *   atom is released by context
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
- * @ctx:	Name of the context object
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
+ * @ctx: Name of the context object
  */
 #define KBASE_TLSTREAM_TL_NRET_ATOM_CTX(	\
 	kbdev,	\
@@ -752,10 +772,10 @@ struct kbase_tlstream;
 	ctx	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_nret_atom_ctx(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				atom, ctx);	\
 	} while (0)
 
@@ -763,9 +783,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_NRET_ATOM_LPU -
  *   atom is released by lpu
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
- * @lpu:	Name of the Logical Processing Unit object
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
+ * @lpu: Name of the Logical Processing Unit object
  */
 #define KBASE_TLSTREAM_TL_NRET_ATOM_LPU(	\
 	kbdev,	\
@@ -773,10 +793,10 @@ struct kbase_tlstream;
 	lpu	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_nret_atom_lpu(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				atom, lpu);	\
 	} while (0)
 
@@ -784,9 +804,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_RET_AS_CTX -
  *   address space is retained by context
  *
- * @kbdev:	Kbase device
- * @address_space:	Name of the address space object
- * @ctx:	Name of the context object
+ * @kbdev: Kbase device
+ * @address_space: Name of the address space object
+ * @ctx: Name of the context object
  */
 #define KBASE_TLSTREAM_TL_RET_AS_CTX(	\
 	kbdev,	\
@@ -794,10 +814,10 @@ struct kbase_tlstream;
 	ctx	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_ret_as_ctx(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				address_space, ctx);	\
 	} while (0)
 
@@ -805,9 +825,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_NRET_AS_CTX -
  *   address space is released by context
  *
- * @kbdev:	Kbase device
- * @address_space:	Name of the address space object
- * @ctx:	Name of the context object
+ * @kbdev: Kbase device
+ * @address_space: Name of the address space object
+ * @ctx: Name of the context object
  */
 #define KBASE_TLSTREAM_TL_NRET_AS_CTX(	\
 	kbdev,	\
@@ -815,10 +835,10 @@ struct kbase_tlstream;
 	ctx	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_nret_as_ctx(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				address_space, ctx);	\
 	} while (0)
 
@@ -826,9 +846,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_RET_ATOM_AS -
  *   atom is retained by address space
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
- * @address_space:	Name of the address space object
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
+ * @address_space: Name of the address space object
  */
 #define KBASE_TLSTREAM_TL_RET_ATOM_AS(	\
 	kbdev,	\
@@ -836,10 +856,10 @@ struct kbase_tlstream;
 	address_space	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_ret_atom_as(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				atom, address_space);	\
 	} while (0)
 
@@ -847,9 +867,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_NRET_ATOM_AS -
  *   atom is released by address space
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
- * @address_space:	Name of the address space object
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
+ * @address_space: Name of the address space object
  */
 #define KBASE_TLSTREAM_TL_NRET_ATOM_AS(	\
 	kbdev,	\
@@ -857,10 +877,10 @@ struct kbase_tlstream;
 	address_space	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_nret_atom_as(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				atom, address_space);	\
 	} while (0)
 
@@ -868,11 +888,11 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_ATTRIB_ATOM_CONFIG -
  *   atom job slot attributes
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
- * @descriptor:	Job descriptor address
- * @affinity:	Job affinity
- * @config:	Job config
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
+ * @descriptor: Job descriptor address
+ * @affinity: Job affinity
+ * @config: Job config
  */
 #define KBASE_TLSTREAM_TL_ATTRIB_ATOM_CONFIG(	\
 	kbdev,	\
@@ -882,10 +902,10 @@ struct kbase_tlstream;
 	config	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_attrib_atom_config(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				atom, descriptor, affinity, config);	\
 	} while (0)
 
@@ -893,9 +913,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_ATTRIB_ATOM_PRIORITY -
  *   atom priority
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
- * @prio:	Atom priority
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
+ * @prio: Atom priority
  */
 #define KBASE_TLSTREAM_TL_ATTRIB_ATOM_PRIORITY(	\
 	kbdev,	\
@@ -903,7 +923,7 @@ struct kbase_tlstream;
 	prio	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled);	\
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & BASE_TLSTREAM_ENABLE_LATENCY_TRACEPOINTS)	\
 			__kbase_tlstream_tl_attrib_atom_priority(	\
 				__TL_DISPATCH_STREAM(kbdev, obj),	\
@@ -914,9 +934,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_ATTRIB_ATOM_STATE -
  *   atom state
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
- * @state:	Atom state
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
+ * @state: Atom state
  */
 #define KBASE_TLSTREAM_TL_ATTRIB_ATOM_STATE(	\
 	kbdev,	\
@@ -924,7 +944,7 @@ struct kbase_tlstream;
 	state	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled);	\
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & BASE_TLSTREAM_ENABLE_LATENCY_TRACEPOINTS)	\
 			__kbase_tlstream_tl_attrib_atom_state(	\
 				__TL_DISPATCH_STREAM(kbdev, obj),	\
@@ -935,15 +955,15 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_ATTRIB_ATOM_PRIORITIZED -
  *   atom caused priority change
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
  */
 #define KBASE_TLSTREAM_TL_ATTRIB_ATOM_PRIORITIZED(	\
 	kbdev,	\
 	atom	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled);	\
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & BASE_TLSTREAM_ENABLE_LATENCY_TRACEPOINTS)	\
 			__kbase_tlstream_tl_attrib_atom_prioritized(	\
 				__TL_DISPATCH_STREAM(kbdev, obj),	\
@@ -954,20 +974,20 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_ATTRIB_ATOM_JIT -
  *   jit done for atom
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
- * @edit_addr:	Address edited by jit
- * @new_addr:	Address placed into the edited location
- * @jit_flags:	Flags specifying the special requirements for
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
+ * @edit_addr: Address edited by jit
+ * @new_addr: Address placed into the edited location
+ * @jit_flags: Flags specifying the special requirements for
  * the JIT allocation.
- * @mem_flags:	Flags defining the properties of a memory region
- * @j_id:	Unique ID provided by the caller, this is used
+ * @mem_flags: Flags defining the properties of a memory region
+ * @j_id: Unique ID provided by the caller, this is used
  * to pair allocation and free requests.
- * @com_pgs:	The minimum number of physical pages which
+ * @com_pgs: The minimum number of physical pages which
  * should back the allocation.
- * @extent:	Granularity of physical pages to grow the
+ * @extent: Granularity of physical pages to grow the
  * allocation by during a fault.
- * @va_pgs:	The minimum number of virtual pages required
+ * @va_pgs: The minimum number of virtual pages required
  */
 #define KBASE_TLSTREAM_TL_ATTRIB_ATOM_JIT(	\
 	kbdev,	\
@@ -982,7 +1002,7 @@ struct kbase_tlstream;
 	va_pgs	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled);	\
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & BASE_TLSTREAM_JOB_DUMPING_ENABLED)	\
 			__kbase_tlstream_tl_attrib_atom_jit(	\
 				__TL_DISPATCH_STREAM(kbdev, obj),	\
@@ -993,9 +1013,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_JIT_USEDPAGES -
  *   used pages for jit
  *
- * @kbdev:	Kbase device
- * @used_pages:	Number of pages used for jit
- * @j_id:	Unique ID provided by the caller, this is used
+ * @kbdev: Kbase device
+ * @used_pages: Number of pages used for jit
+ * @j_id: Unique ID provided by the caller, this is used
  * to pair allocation and free requests.
  */
 #define KBASE_TLSTREAM_TL_JIT_USEDPAGES(	\
@@ -1004,10 +1024,10 @@ struct kbase_tlstream;
 	j_id	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_jit_usedpages(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				used_pages, j_id);	\
 	} while (0)
 
@@ -1015,22 +1035,22 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_ATTRIB_ATOM_JITALLOCINFO -
  *   Information about JIT allocations
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
- * @va_pgs:	The minimum number of virtual pages required
- * @com_pgs:	The minimum number of physical pages which
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
+ * @va_pgs: The minimum number of virtual pages required
+ * @com_pgs: The minimum number of physical pages which
  * should back the allocation.
- * @extent:	Granularity of physical pages to grow the
+ * @extent: Granularity of physical pages to grow the
  * allocation by during a fault.
- * @j_id:	Unique ID provided by the caller, this is used
+ * @j_id: Unique ID provided by the caller, this is used
  * to pair allocation and free requests.
- * @bin_id:	The JIT allocation bin, used in conjunction with
+ * @bin_id: The JIT allocation bin, used in conjunction with
  * max_allocations to limit the number of each
  * type of JIT allocation.
- * @max_allocs:	Maximum allocations allowed in this bin.
- * @jit_flags:	Flags specifying the special requirements for
+ * @max_allocs: Maximum allocations allowed in this bin.
+ * @jit_flags: Flags specifying the special requirements for
  * the JIT allocation.
- * @usg_id:	A hint about which allocation should be reused.
+ * @usg_id: A hint about which allocation should be reused.
  */
 #define KBASE_TLSTREAM_TL_ATTRIB_ATOM_JITALLOCINFO(	\
 	kbdev,	\
@@ -1045,10 +1065,10 @@ struct kbase_tlstream;
 	usg_id	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_attrib_atom_jitallocinfo(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				atom, va_pgs, com_pgs, extent, j_id, bin_id, max_allocs, jit_flags, usg_id);	\
 	} while (0)
 
@@ -1056,9 +1076,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_ATTRIB_ATOM_JITFREEINFO -
  *   Information about JIT frees
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
- * @j_id:	Unique ID provided by the caller, this is used
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
+ * @j_id: Unique ID provided by the caller, this is used
  * to pair allocation and free requests.
  */
 #define KBASE_TLSTREAM_TL_ATTRIB_ATOM_JITFREEINFO(	\
@@ -1067,10 +1087,10 @@ struct kbase_tlstream;
 	j_id	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_attrib_atom_jitfreeinfo(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				atom, j_id);	\
 	} while (0)
 
@@ -1078,11 +1098,11 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_ATTRIB_AS_CONFIG -
  *   address space attributes
  *
- * @kbdev:	Kbase device
- * @address_space:	Name of the address space object
- * @transtab:	Configuration of the TRANSTAB register
- * @memattr:	Configuration of the MEMATTR register
- * @transcfg:	Configuration of the TRANSCFG register (or zero if not present)
+ * @kbdev: Kbase device
+ * @address_space: Name of the address space object
+ * @transtab: Configuration of the TRANSTAB register
+ * @memattr: Configuration of the MEMATTR register
+ * @transcfg: Configuration of the TRANSCFG register (or zero if not present)
  */
 #define KBASE_TLSTREAM_TL_ATTRIB_AS_CONFIG(	\
 	kbdev,	\
@@ -1092,10 +1112,10 @@ struct kbase_tlstream;
 	transcfg	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_attrib_as_config(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				address_space, transtab, memattr, transcfg);	\
 	} while (0)
 
@@ -1103,18 +1123,18 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_EVENT_LPU_SOFTSTOP -
  *   softstop event on given lpu
  *
- * @kbdev:	Kbase device
- * @lpu:	Name of the Logical Processing Unit object
+ * @kbdev: Kbase device
+ * @lpu: Name of the Logical Processing Unit object
  */
 #define KBASE_TLSTREAM_TL_EVENT_LPU_SOFTSTOP(	\
 	kbdev,	\
 	lpu	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_event_lpu_softstop(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				lpu);	\
 	} while (0)
 
@@ -1122,18 +1142,18 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTSTOP_EX -
  *   atom softstopped
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
  */
 #define KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTSTOP_EX(	\
 	kbdev,	\
 	atom	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_event_atom_softstop_ex(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				atom);	\
 	} while (0)
 
@@ -1141,18 +1161,18 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTSTOP_ISSUE -
  *   atom softstop issued
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
  */
 #define KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTSTOP_ISSUE(	\
 	kbdev,	\
 	atom	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_event_atom_softstop_issue(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				atom);	\
 	} while (0)
 
@@ -1160,18 +1180,18 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTJOB_START -
  *   atom soft job has started
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
  */
 #define KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTJOB_START(	\
 	kbdev,	\
 	atom	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_event_atom_softjob_start(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				atom);	\
 	} while (0)
 
@@ -1179,37 +1199,113 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTJOB_END -
  *   atom soft job has completed
  *
- * @kbdev:	Kbase device
- * @atom:	Atom identifier
+ * @kbdev: Kbase device
+ * @atom: Atom identifier
  */
 #define KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTJOB_END(	\
 	kbdev,	\
 	atom	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_tl_event_atom_softjob_end(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				atom);	\
+	} while (0)
+
+/**
+ * KBASE_TLSTREAM_TL_EVENT_ARB_GRANTED -
+ *   Arbiter has granted gpu access
+ *
+ * @kbdev: Kbase device
+ * @gpu: Name of the GPU object
+ */
+#define KBASE_TLSTREAM_TL_EVENT_ARB_GRANTED(	\
+	kbdev,	\
+	gpu	\
+	)	\
+	do {	\
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
+		if (enabled & TLSTREAM_ENABLED)	\
+			__kbase_tlstream_tl_event_arb_granted(	\
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
+				gpu);	\
+	} while (0)
+
+/**
+ * KBASE_TLSTREAM_TL_EVENT_ARB_STARTED -
+ *   Driver is running again and able to process jobs
+ *
+ * @kbdev: Kbase device
+ * @gpu: Name of the GPU object
+ */
+#define KBASE_TLSTREAM_TL_EVENT_ARB_STARTED(	\
+	kbdev,	\
+	gpu	\
+	)	\
+	do {	\
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
+		if (enabled & TLSTREAM_ENABLED)	\
+			__kbase_tlstream_tl_event_arb_started(	\
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
+				gpu);	\
+	} while (0)
+
+/**
+ * KBASE_TLSTREAM_TL_EVENT_ARB_STOP_REQUESTED -
+ *   Arbiter has requested driver to stop using gpu
+ *
+ * @kbdev: Kbase device
+ * @gpu: Name of the GPU object
+ */
+#define KBASE_TLSTREAM_TL_EVENT_ARB_STOP_REQUESTED(	\
+	kbdev,	\
+	gpu	\
+	)	\
+	do {	\
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
+		if (enabled & TLSTREAM_ENABLED)	\
+			__kbase_tlstream_tl_event_arb_stop_requested(	\
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
+				gpu);	\
+	} while (0)
+
+/**
+ * KBASE_TLSTREAM_TL_EVENT_ARB_STOPPED -
+ *   Driver has stopped using gpu
+ *
+ * @kbdev: Kbase device
+ * @gpu: Name of the GPU object
+ */
+#define KBASE_TLSTREAM_TL_EVENT_ARB_STOPPED(	\
+	kbdev,	\
+	gpu	\
+	)	\
+	do {	\
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
+		if (enabled & TLSTREAM_ENABLED)	\
+			__kbase_tlstream_tl_event_arb_stopped(	\
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
+				gpu);	\
 	} while (0)
 
 /**
  * KBASE_TLSTREAM_JD_GPU_SOFT_RESET -
  *   gpu soft reset
  *
- * @kbdev:	Kbase device
- * @gpu:	Name of the GPU object
+ * @kbdev: Kbase device
+ * @gpu: Name of the GPU object
  */
 #define KBASE_TLSTREAM_JD_GPU_SOFT_RESET(	\
 	kbdev,	\
 	gpu	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_jd_gpu_soft_reset(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
+				__TL_DISPATCH_STREAM(kbdev, obj),	\
 				gpu);	\
 	} while (0)
 
@@ -1217,9 +1313,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_AUX_PM_STATE -
  *   PM state
  *
- * @kbdev:	Kbase device
- * @core_type:	Core type (shader, tiler, l2 cache, l3 cache)
- * @core_state_bitset:	64bits bitmask reporting power state of the cores
+ * @kbdev: Kbase device
+ * @core_type: Core type (shader, tiler, l2 cache, l3 cache)
+ * @core_state_bitset: 64bits bitmask reporting power state of the cores
  * (1-ON, 0-OFF)
  */
 #define KBASE_TLSTREAM_AUX_PM_STATE(	\
@@ -1228,10 +1324,10 @@ struct kbase_tlstream;
 	core_state_bitset	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_aux_pm_state(	\
-				__TL_DISPATCH_STREAM(kbdev, aux), \
+				__TL_DISPATCH_STREAM(kbdev, aux),	\
 				core_type, core_state_bitset);	\
 	} while (0)
 
@@ -1239,10 +1335,10 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_AUX_PAGEFAULT -
  *   Page fault
  *
- * @kbdev:	Kbase device
- * @ctx_nr:	Kernel context number
- * @as_nr:	Address space number
- * @page_cnt_change:	Number of pages to be added
+ * @kbdev: Kbase device
+ * @ctx_nr: Kernel context number
+ * @as_nr: Address space number
+ * @page_cnt_change: Number of pages to be added
  */
 #define KBASE_TLSTREAM_AUX_PAGEFAULT(	\
 	kbdev,	\
@@ -1251,10 +1347,10 @@ struct kbase_tlstream;
 	page_cnt_change	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_aux_pagefault(	\
-				__TL_DISPATCH_STREAM(kbdev, aux), \
+				__TL_DISPATCH_STREAM(kbdev, aux),	\
 				ctx_nr, as_nr, page_cnt_change);	\
 	} while (0)
 
@@ -1262,9 +1358,9 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_AUX_PAGESALLOC -
  *   Total alloc pages change
  *
- * @kbdev:	Kbase device
- * @ctx_nr:	Kernel context number
- * @page_cnt:	Number of pages used by the context
+ * @kbdev: Kbase device
+ * @ctx_nr: Kernel context number
+ * @page_cnt: Number of pages used by the context
  */
 #define KBASE_TLSTREAM_AUX_PAGESALLOC(	\
 	kbdev,	\
@@ -1272,10 +1368,10 @@ struct kbase_tlstream;
 	page_cnt	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_aux_pagesalloc(	\
-				__TL_DISPATCH_STREAM(kbdev, aux), \
+				__TL_DISPATCH_STREAM(kbdev, aux),	\
 				ctx_nr, page_cnt);	\
 	} while (0)
 
@@ -1283,18 +1379,18 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_AUX_DEVFREQ_TARGET -
  *   New device frequency target
  *
- * @kbdev:	Kbase device
- * @target_freq:	New target frequency
+ * @kbdev: Kbase device
+ * @target_freq: New target frequency
  */
 #define KBASE_TLSTREAM_AUX_DEVFREQ_TARGET(	\
 	kbdev,	\
 	target_freq	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_aux_devfreq_target(	\
-				__TL_DISPATCH_STREAM(kbdev, aux), \
+				__TL_DISPATCH_STREAM(kbdev, aux),	\
 				target_freq);	\
 	} while (0)
 
@@ -1302,15 +1398,15 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_AUX_PROTECTED_ENTER_START -
  *   enter protected mode start
  *
- * @kbdev:	Kbase device
- * @gpu:	Name of the GPU object
+ * @kbdev: Kbase device
+ * @gpu: Name of the GPU object
  */
 #define KBASE_TLSTREAM_AUX_PROTECTED_ENTER_START(	\
 	kbdev,	\
 	gpu	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled);	\
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & BASE_TLSTREAM_ENABLE_LATENCY_TRACEPOINTS)	\
 			__kbase_tlstream_aux_protected_enter_start(	\
 				__TL_DISPATCH_STREAM(kbdev, aux),	\
@@ -1321,15 +1417,15 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_AUX_PROTECTED_ENTER_END -
  *   enter protected mode end
  *
- * @kbdev:	Kbase device
- * @gpu:	Name of the GPU object
+ * @kbdev: Kbase device
+ * @gpu: Name of the GPU object
  */
 #define KBASE_TLSTREAM_AUX_PROTECTED_ENTER_END(	\
 	kbdev,	\
 	gpu	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled);	\
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & BASE_TLSTREAM_ENABLE_LATENCY_TRACEPOINTS)	\
 			__kbase_tlstream_aux_protected_enter_end(	\
 				__TL_DISPATCH_STREAM(kbdev, aux),	\
@@ -1340,15 +1436,15 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_AUX_PROTECTED_LEAVE_START -
  *   leave protected mode start
  *
- * @kbdev:	Kbase device
- * @gpu:	Name of the GPU object
+ * @kbdev: Kbase device
+ * @gpu: Name of the GPU object
  */
 #define KBASE_TLSTREAM_AUX_PROTECTED_LEAVE_START(	\
 	kbdev,	\
 	gpu	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled);	\
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & BASE_TLSTREAM_ENABLE_LATENCY_TRACEPOINTS)	\
 			__kbase_tlstream_aux_protected_leave_start(	\
 				__TL_DISPATCH_STREAM(kbdev, aux),	\
@@ -1359,15 +1455,15 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_AUX_PROTECTED_LEAVE_END -
  *   leave protected mode end
  *
- * @kbdev:	Kbase device
- * @gpu:	Name of the GPU object
+ * @kbdev: Kbase device
+ * @gpu: Name of the GPU object
  */
 #define KBASE_TLSTREAM_AUX_PROTECTED_LEAVE_END(	\
 	kbdev,	\
 	gpu	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled);	\
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & BASE_TLSTREAM_ENABLE_LATENCY_TRACEPOINTS)	\
 			__kbase_tlstream_aux_protected_leave_end(	\
 				__TL_DISPATCH_STREAM(kbdev, aux),	\
@@ -1378,13 +1474,13 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_AUX_JIT_STATS -
  *   per-bin JIT statistics
  *
- * @kbdev:	Kbase device
- * @ctx_nr:	Kernel context number
- * @bid:	JIT bin id
- * @max_allocs:	Maximum allocations allowed in this bin.
- * @allocs:	Number of active allocations in this bin
- * @va_pages:	Number of virtual pages allocated in this bin
- * @ph_pages:	Number of physical pages allocated in this bin
+ * @kbdev: Kbase device
+ * @ctx_nr: Kernel context number
+ * @bid: JIT bin id
+ * @max_allocs: Maximum allocations allowed in this bin.
+ * @allocs: Number of active allocations in this bin
+ * @va_pages: Number of virtual pages allocated in this bin
+ * @ph_pages: Number of physical pages allocated in this bin
  */
 #define KBASE_TLSTREAM_AUX_JIT_STATS(	\
 	kbdev,	\
@@ -1396,10 +1492,10 @@ struct kbase_tlstream;
 	ph_pages	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_aux_jit_stats(	\
-				__TL_DISPATCH_STREAM(kbdev, aux), \
+				__TL_DISPATCH_STREAM(kbdev, aux),	\
 				ctx_nr, bid, max_allocs, allocs, va_pages, ph_pages);	\
 	} while (0)
 
@@ -1407,11 +1503,11 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_AUX_EVENT_JOB_SLOT -
  *   event on a given job slot
  *
- * @kbdev:	Kbase device
- * @ctx:	Name of the context object
- * @slot_nr:	Job slot number
- * @atom_nr:	Sequential number of an atom
- * @event:	Event type. One of TL_JS_EVENT values
+ * @kbdev: Kbase device
+ * @ctx: Name of the context object
+ * @slot_nr: Job slot number
+ * @atom_nr: Sequential number of an atom
+ * @event: Event type. One of TL_JS_EVENT values
  */
 #define KBASE_TLSTREAM_AUX_EVENT_JOB_SLOT(	\
 	kbdev,	\
@@ -1421,10 +1517,10 @@ struct kbase_tlstream;
 	event	\
 	)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		if (enabled & TLSTREAM_ENABLED)	\
 			__kbase_tlstream_aux_event_job_slot(	\
-				__TL_DISPATCH_STREAM(kbdev, aux), \
+				__TL_DISPATCH_STREAM(kbdev, aux),	\
 				ctx, slot_nr, atom_nr, event);	\
 	} while (0)
 
@@ -1432,33 +1528,29 @@ struct kbase_tlstream;
  * KBASE_TLSTREAM_TL_KBASE_NEW_DEVICE -
  *   New KBase Device
  *
- * @kbdev:	Kbase device
- * @kbase_device_id:	The id of the physical hardware
- * @kbase_device_gpu_core_count:	The number of gpu cores in the physical hardware
- * @kbase_device_max_num_csgs:	The max number of CSGs the physical hardware supports
+ * @kbdev: Kbase device
+ * @kbase_device_id: The id of the physical hardware
+ * @kbase_device_gpu_core_count: The number of gpu cores in the physical hardware
+ * @kbase_device_max_num_csgs: The max number of CSGs the physical hardware supports
+ * @kbase_device_as_count: The number of address spaces the physical hardware has available
  */
 #define KBASE_TLSTREAM_TL_KBASE_NEW_DEVICE(	\
 	kbdev,	\
 	kbase_device_id,	\
 	kbase_device_gpu_core_count,	\
-	kbase_device_max_num_csgs	\
+	kbase_device_max_num_csgs,	\
+	kbase_device_as_count	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_new_device(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kbase_device_id, kbase_device_gpu_core_count, kbase_device_max_num_csgs);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_DEVICE_PROGRAM_CSG -
  *   CSG is programmed to a slot
  *
- * @kbdev:	Kbase device
- * @kbase_device_id:	The id of the physical hardware
- * @gpu_cmdq_grp_handle:	GPU Command Queue Group handle which will match userspace
- * @kbase_device_csg_slot_index:	The index of the slot in the scheduler being programmed
+ * @kbdev: Kbase device
+ * @kbase_device_id: The id of the physical hardware
+ * @gpu_cmdq_grp_handle: GPU Command Queue Group handle which will match userspace
+ * @kbase_device_csg_slot_index: The index of the slot in the scheduler being programmed
  */
 #define KBASE_TLSTREAM_TL_KBASE_DEVICE_PROGRAM_CSG(	\
 	kbdev,	\
@@ -1466,83 +1558,87 @@ struct kbase_tlstream;
 	gpu_cmdq_grp_handle,	\
 	kbase_device_csg_slot_index	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_device_program_csg(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kbase_device_id, gpu_cmdq_grp_handle, kbase_device_csg_slot_index);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_DEVICE_DEPROGRAM_CSG -
  *   CSG is deprogrammed from a slot
  *
- * @kbdev:	Kbase device
- * @kbase_device_id:	The id of the physical hardware
- * @kbase_device_csg_slot_index:	The index of the slot in the scheduler being programmed
+ * @kbdev: Kbase device
+ * @kbase_device_id: The id of the physical hardware
+ * @kbase_device_csg_slot_index: The index of the slot in the scheduler being programmed
  */
 #define KBASE_TLSTREAM_TL_KBASE_DEVICE_DEPROGRAM_CSG(	\
 	kbdev,	\
 	kbase_device_id,	\
 	kbase_device_csg_slot_index	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_device_deprogram_csg(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kbase_device_id, kbase_device_csg_slot_index);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_NEW_CTX -
  *   New KBase Context
  *
- * @kbdev:	Kbase device
- * @kernel_ctx_id:	Unique ID for the KBase Context
- * @kbase_device_id:	The id of the physical hardware
+ * @kbdev: Kbase device
+ * @kernel_ctx_id: Unique ID for the KBase Context
+ * @kbase_device_id: The id of the physical hardware
  */
 #define KBASE_TLSTREAM_TL_KBASE_NEW_CTX(	\
 	kbdev,	\
 	kernel_ctx_id,	\
 	kbase_device_id	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_new_ctx(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kernel_ctx_id, kbase_device_id);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_DEL_CTX -
  *   Delete KBase Context
  *
- * @kbdev:	Kbase device
- * @kernel_ctx_id:	Unique ID for the KBase Context
+ * @kbdev: Kbase device
+ * @kernel_ctx_id: Unique ID for the KBase Context
  */
 #define KBASE_TLSTREAM_TL_KBASE_DEL_CTX(	\
 	kbdev,	\
 	kernel_ctx_id	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_del_ctx(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kernel_ctx_id);	\
-	} while (0)
+	do { } while (0)
+
+/**
+ * KBASE_TLSTREAM_TL_KBASE_CTX_ASSIGN_AS -
+ *   Address Space is assigned to a KBase context
+ *
+ * @kbdev: Kbase device
+ * @kernel_ctx_id: Unique ID for the KBase Context
+ * @kbase_device_as_index: The index of the device address space being assigned
+ */
+#define KBASE_TLSTREAM_TL_KBASE_CTX_ASSIGN_AS(	\
+	kbdev,	\
+	kernel_ctx_id,	\
+	kbase_device_as_index	\
+	)	\
+	do { } while (0)
+
+/**
+ * KBASE_TLSTREAM_TL_KBASE_CTX_UNASSIGN_AS -
+ *   Address Space is unassigned from a KBase context
+ *
+ * @kbdev: Kbase device
+ * @kernel_ctx_id: Unique ID for the KBase Context
+ */
+#define KBASE_TLSTREAM_TL_KBASE_CTX_UNASSIGN_AS(	\
+	kbdev,	\
+	kernel_ctx_id	\
+	)	\
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_NEW_KCPUQUEUE -
  *   New KCPU Queue
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
- * @kernel_ctx_id:	Unique ID for the KBase Context
- * @kcpuq_num_pending_cmds:	Number of commands already enqueued
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
+ * @kernel_ctx_id: Unique ID for the KBase Context
+ * @kcpuq_num_pending_cmds: Number of commands already enqueued
  * in the KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_NEW_KCPUQUEUE(	\
@@ -1551,102 +1647,72 @@ struct kbase_tlstream;
 	kernel_ctx_id,	\
 	kcpuq_num_pending_cmds	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_new_kcpuqueue(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue, kernel_ctx_id, kcpuq_num_pending_cmds);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_DEL_KCPUQUEUE -
  *   Delete KCPU Queue
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_DEL_KCPUQUEUE(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_del_kcpuqueue(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_FENCE_SIGNAL -
  *   KCPU Queue enqueues Signal on Fence
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
- * @fence:	Fence object handle
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
+ * @fence: Fence object handle
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_FENCE_SIGNAL(	\
 	kbdev,	\
 	kcpu_queue,	\
 	fence	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_enqueue_fence_signal(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue, fence);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_FENCE_WAIT -
  *   KCPU Queue enqueues Wait on Fence
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
- * @fence:	Fence object handle
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
+ * @fence: Fence object handle
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_FENCE_WAIT(	\
 	kbdev,	\
 	kcpu_queue,	\
 	fence	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_enqueue_fence_wait(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue, fence);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_CQS_WAIT -
  *   Begin array of KCPU Queue enqueues Wait on Cross Queue Sync Object
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_CQS_WAIT(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_begin_kcpuqueue_enqueue_cqs_wait(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_ITEM_KCPUQUEUE_ENQUEUE_CQS_WAIT -
  *   Array item of KCPU Queue enqueues Wait on Cross Queue Sync Object
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
- * @cqs_obj_gpu_addr:	CQS Object GPU ptr
- * @cqs_obj_compare_value:	Semaphore value that should be exceeded
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
+ * @cqs_obj_gpu_addr: CQS Object GPU ptr
+ * @cqs_obj_compare_value: Semaphore value that should be exceeded
  * for the WAIT to pass
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_ITEM_KCPUQUEUE_ENQUEUE_CQS_WAIT(	\
@@ -1655,256 +1721,184 @@ struct kbase_tlstream;
 	cqs_obj_gpu_addr,	\
 	cqs_obj_compare_value	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_item_kcpuqueue_enqueue_cqs_wait(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue, cqs_obj_gpu_addr, cqs_obj_compare_value);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_END_KCPUQUEUE_ENQUEUE_CQS_WAIT -
  *   End array of KCPU Queue enqueues Wait on Cross Queue Sync Object
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_END_KCPUQUEUE_ENQUEUE_CQS_WAIT(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_end_kcpuqueue_enqueue_cqs_wait(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_CQS_SET -
  *   Begin array of KCPU Queue enqueues Set on Cross Queue Sync Object
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_CQS_SET(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_begin_kcpuqueue_enqueue_cqs_set(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_ITEM_KCPUQUEUE_ENQUEUE_CQS_SET -
  *   Array item of KCPU Queue enqueues Set on Cross Queue Sync Object
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
- * @cqs_obj_gpu_addr:	CQS Object GPU ptr
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
+ * @cqs_obj_gpu_addr: CQS Object GPU ptr
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_ITEM_KCPUQUEUE_ENQUEUE_CQS_SET(	\
 	kbdev,	\
 	kcpu_queue,	\
 	cqs_obj_gpu_addr	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_item_kcpuqueue_enqueue_cqs_set(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue, cqs_obj_gpu_addr);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_END_KCPUQUEUE_ENQUEUE_CQS_SET -
  *   End array of KCPU Queue enqueues Set on Cross Queue Sync Object
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_END_KCPUQUEUE_ENQUEUE_CQS_SET(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_end_kcpuqueue_enqueue_cqs_set(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_DEBUGCOPY -
  *   Begin array of KCPU Queue enqueues Debug Copy
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_DEBUGCOPY(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_begin_kcpuqueue_enqueue_debugcopy(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_ITEM_KCPUQUEUE_ENQUEUE_DEBUGCOPY -
  *   Array item of KCPU Queue enqueues Debug Copy
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
- * @debugcopy_dst_size:	Debug Copy destination size
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
+ * @debugcopy_dst_size: Debug Copy destination size
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_ITEM_KCPUQUEUE_ENQUEUE_DEBUGCOPY(	\
 	kbdev,	\
 	kcpu_queue,	\
 	debugcopy_dst_size	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_item_kcpuqueue_enqueue_debugcopy(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue, debugcopy_dst_size);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_END_KCPUQUEUE_ENQUEUE_DEBUGCOPY -
  *   End array of KCPU Queue enqueues Debug Copy
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_END_KCPUQUEUE_ENQUEUE_DEBUGCOPY(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_end_kcpuqueue_enqueue_debugcopy(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_MAP_IMPORT -
  *   KCPU Queue enqueues Map Import
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
- * @map_import_buf_gpu_addr:	Map import buffer GPU ptr
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
+ * @map_import_buf_gpu_addr: Map import buffer GPU ptr
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_MAP_IMPORT(	\
 	kbdev,	\
 	kcpu_queue,	\
 	map_import_buf_gpu_addr	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_enqueue_map_import(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue, map_import_buf_gpu_addr);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_UNMAP_IMPORT -
  *   KCPU Queue enqueues Unmap Import
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
- * @map_import_buf_gpu_addr:	Map import buffer GPU ptr
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
+ * @map_import_buf_gpu_addr: Map import buffer GPU ptr
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_UNMAP_IMPORT(	\
 	kbdev,	\
 	kcpu_queue,	\
 	map_import_buf_gpu_addr	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_enqueue_unmap_import(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue, map_import_buf_gpu_addr);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_UNMAP_IMPORT_FORCE -
  *   KCPU Queue enqueues Unmap Import ignoring reference count
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
- * @map_import_buf_gpu_addr:	Map import buffer GPU ptr
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
+ * @map_import_buf_gpu_addr: Map import buffer GPU ptr
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_ENQUEUE_UNMAP_IMPORT_FORCE(	\
 	kbdev,	\
 	kcpu_queue,	\
 	map_import_buf_gpu_addr	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_enqueue_unmap_import_force(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue, map_import_buf_gpu_addr);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_JIT_ALLOC -
  *   Begin array of KCPU Queue enqueues JIT Alloc
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_JIT_ALLOC(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_begin_kcpuqueue_enqueue_jit_alloc(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_ITEM_KCPUQUEUE_ENQUEUE_JIT_ALLOC -
  *   Array item of KCPU Queue enqueues JIT Alloc
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
- * @jit_alloc_gpu_alloc_addr_dest:	The GPU virtual address to write
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
+ * @jit_alloc_gpu_alloc_addr_dest: The GPU virtual address to write
  * the JIT allocated GPU virtual address to
- * @jit_alloc_va_pages:	The minimum number of virtual pages required
- * @jit_alloc_commit_pages:	The minimum number of physical pages which
+ * @jit_alloc_va_pages: The minimum number of virtual pages required
+ * @jit_alloc_commit_pages: The minimum number of physical pages which
  * should back the allocation
- * @jit_alloc_extent:	Granularity of physical pages to grow the allocation
+ * @jit_alloc_extent: Granularity of physical pages to grow the allocation
  * by during a fault
- * @jit_alloc_jit_id:	Unique ID provided by the caller, this is used
+ * @jit_alloc_jit_id: Unique ID provided by the caller, this is used
  * to pair allocation and free requests. Zero is not a valid value
- * @jit_alloc_bin_id:	The JIT allocation bin, used in conjunction with
+ * @jit_alloc_bin_id: The JIT allocation bin, used in conjunction with
  * max_allocations to limit the number of each type of JIT allocation
- * @jit_alloc_max_allocations:	The maximum number of allocations
+ * @jit_alloc_max_allocations: The maximum number of allocations
  * allowed within the bin specified by bin_id. Should be the same for all
  * JIT allocations within the same bin.
- * @jit_alloc_flags:	Flags specifying the special requirements for the
+ * @jit_alloc_flags: Flags specifying the special requirements for the
  * JIT allocation
- * @jit_alloc_usage_id:	A hint about which allocation should be
+ * @jit_alloc_usage_id: A hint about which allocation should be
  * reused. The kernel should attempt to use a previous allocation with the same
  * usage_id
  */
@@ -1921,59 +1915,41 @@ struct kbase_tlstream;
 	jit_alloc_flags,	\
 	jit_alloc_usage_id	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_item_kcpuqueue_enqueue_jit_alloc(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue, jit_alloc_gpu_alloc_addr_dest, jit_alloc_va_pages, jit_alloc_commit_pages, jit_alloc_extent, jit_alloc_jit_id, jit_alloc_bin_id, jit_alloc_max_allocations, jit_alloc_flags, jit_alloc_usage_id);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_END_KCPUQUEUE_ENQUEUE_JIT_ALLOC -
  *   End array of KCPU Queue enqueues JIT Alloc
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_END_KCPUQUEUE_ENQUEUE_JIT_ALLOC(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_end_kcpuqueue_enqueue_jit_alloc(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_JIT_FREE -
  *   Begin array of KCPU Queue enqueues JIT Free
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_JIT_FREE(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_begin_kcpuqueue_enqueue_jit_free(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_ITEM_KCPUQUEUE_ENQUEUE_JIT_FREE -
  *   Array item of KCPU Queue enqueues JIT Free
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
- * @jit_alloc_jit_id:	Unique ID provided by the caller, this is used
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
+ * @jit_alloc_jit_id: Unique ID provided by the caller, this is used
  * to pair allocation and free requests. Zero is not a valid value
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_ITEM_KCPUQUEUE_ENQUEUE_JIT_FREE(	\
@@ -1981,364 +1957,250 @@ struct kbase_tlstream;
 	kcpu_queue,	\
 	jit_alloc_jit_id	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_item_kcpuqueue_enqueue_jit_free(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue, jit_alloc_jit_id);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_END_KCPUQUEUE_ENQUEUE_JIT_FREE -
  *   End array of KCPU Queue enqueues JIT Free
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_END_KCPUQUEUE_ENQUEUE_JIT_FREE(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_end_kcpuqueue_enqueue_jit_free(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_FENCE_SIGNAL_START -
  *   KCPU Queue starts a Signal on Fence
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_FENCE_SIGNAL_START(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_fence_signal_start(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_FENCE_SIGNAL_END -
  *   KCPU Queue ends a Signal on Fence
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_FENCE_SIGNAL_END(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_fence_signal_end(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_FENCE_WAIT_START -
  *   KCPU Queue starts a Wait on Fence
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_FENCE_WAIT_START(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_fence_wait_start(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_FENCE_WAIT_END -
  *   KCPU Queue ends a Wait on Fence
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_FENCE_WAIT_END(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_fence_wait_end(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_CQS_WAIT_START -
  *   KCPU Queue starts a Wait on an array of Cross Queue Sync Objects
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_CQS_WAIT_START(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_cqs_wait_start(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_CQS_WAIT_END -
  *   KCPU Queue ends a Wait on an array of Cross Queue Sync Objects
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_CQS_WAIT_END(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_cqs_wait_end(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_CQS_SET -
  *   KCPU Queue executes a Set on an array of Cross Queue Sync Objects
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_CQS_SET(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_cqs_set(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_DEBUGCOPY_START -
  *   KCPU Queue starts an array of Debug Copys
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_DEBUGCOPY_START(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_debugcopy_start(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_DEBUGCOPY_END -
  *   KCPU Queue ends an array of Debug Copys
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_DEBUGCOPY_END(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_debugcopy_end(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_MAP_IMPORT_START -
  *   KCPU Queue starts a Map Import
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_MAP_IMPORT_START(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_map_import_start(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_MAP_IMPORT_END -
  *   KCPU Queue ends a Map Import
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_MAP_IMPORT_END(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_map_import_end(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_START -
  *   KCPU Queue starts an Unmap Import
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_START(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_unmap_import_start(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_END -
  *   KCPU Queue ends an Unmap Import
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_END(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_unmap_import_end(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_FORCE_START -
  *   KCPU Queue starts an Unmap Import ignoring reference count
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_FORCE_START(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_unmap_import_force_start(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_FORCE_END -
  *   KCPU Queue ends an Unmap Import ignoring reference count
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_UNMAP_IMPORT_FORCE_END(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_unmap_import_force_end(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_JIT_ALLOC_START -
  *   KCPU Queue starts an array of JIT Allocs
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_JIT_ALLOC_START(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_jit_alloc_start(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_EXECUTE_JIT_ALLOC_END -
  *   Begin array of KCPU Queue ends an array of JIT Allocs
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_EXECUTE_JIT_ALLOC_END(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_begin_kcpuqueue_execute_jit_alloc_end(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_ITEM_KCPUQUEUE_EXECUTE_JIT_ALLOC_END -
  *   Array item of KCPU Queue ends an array of JIT Allocs
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
- * @jit_alloc_gpu_alloc_addr:	The JIT allocated GPU virtual address
- * @jit_alloc_mmu_flags:	The MMU flags for the JIT allocation
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
+ * @jit_alloc_gpu_alloc_addr: The JIT allocated GPU virtual address
+ * @jit_alloc_mmu_flags: The MMU flags for the JIT allocation
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_ITEM_KCPUQUEUE_EXECUTE_JIT_ALLOC_END(	\
 	kbdev,	\
@@ -2346,78 +2208,54 @@ struct kbase_tlstream;
 	jit_alloc_gpu_alloc_addr,	\
 	jit_alloc_mmu_flags	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_item_kcpuqueue_execute_jit_alloc_end(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue, jit_alloc_gpu_alloc_addr, jit_alloc_mmu_flags);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_END_KCPUQUEUE_EXECUTE_JIT_ALLOC_END -
  *   End array of KCPU Queue ends an array of JIT Allocs
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_END_KCPUQUEUE_EXECUTE_JIT_ALLOC_END(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_end_kcpuqueue_execute_jit_alloc_end(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_JIT_FREE_START -
  *   KCPU Queue starts an array of JIT Frees
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_JIT_FREE_START(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_jit_free_start(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_EXECUTE_JIT_FREE_END -
  *   Begin array of KCPU Queue ends an array of JIT Frees
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_EXECUTE_JIT_FREE_END(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_begin_kcpuqueue_execute_jit_free_end(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_ITEM_KCPUQUEUE_EXECUTE_JIT_FREE_END -
  *   Array item of KCPU Queue ends an array of JIT Frees
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
- * @jit_free_pages_used:	The actual number of pages used by the JIT
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
+ * @jit_free_pages_used: The actual number of pages used by the JIT
  * allocation
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_ITEM_KCPUQUEUE_EXECUTE_JIT_FREE_END(	\
@@ -2425,72 +2263,48 @@ struct kbase_tlstream;
 	kcpu_queue,	\
 	jit_free_pages_used	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_item_kcpuqueue_execute_jit_free_end(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue, jit_free_pages_used);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_ARRAY_END_KCPUQUEUE_EXECUTE_JIT_FREE_END -
  *   End array of KCPU Queue ends an array of JIT Frees
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_ARRAY_END_KCPUQUEUE_EXECUTE_JIT_FREE_END(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_array_end_kcpuqueue_execute_jit_free_end(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_ERRORBARRIER -
  *   KCPU Queue executes an Error Barrier
  *
- * @kbdev:	Kbase device
- * @kcpu_queue:	KCPU queue
+ * @kbdev: Kbase device
+ * @kcpu_queue: KCPU queue
  */
 #define KBASE_TLSTREAM_TL_KBASE_KCPUQUEUE_EXECUTE_ERRORBARRIER(	\
 	kbdev,	\
 	kcpu_queue	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled); \
-		if (enabled & TLSTREAM_ENABLED)	\
-			__kbase_tlstream_tl_kbase_kcpuqueue_execute_errorbarrier(	\
-				__TL_DISPATCH_STREAM(kbdev, obj), \
-				kcpu_queue);	\
-	} while (0)
+	do { } while (0)
 
 /**
  * KBASE_TLSTREAM_TL_KBASE_CSFFW_TLSTREAM_OVERFLOW -
  *   An overflow has happened with the CSFFW Timeline stream
  *
- * @kbdev:	Kbase device
- * @csffw_timestamp:	Timestamp of a CSFFW event
- * @csffw_cycle:	Cycle number of a CSFFW event
+ * @kbdev: Kbase device
+ * @csffw_timestamp: Timestamp of a CSFFW event
+ * @csffw_cycle: Cycle number of a CSFFW event
  */
 #define KBASE_TLSTREAM_TL_KBASE_CSFFW_TLSTREAM_OVERFLOW(	\
 	kbdev,	\
 	csffw_timestamp,	\
 	csffw_cycle	\
 	)	\
-	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled);	\
-		if (enabled & BASE_TLSTREAM_ENABLE_CSFFW_TRACEPOINTS)	\
-			__kbase_tlstream_tl_kbase_csffw_tlstream_overflow(	\
-				__TL_DISPATCH_STREAM(kbdev, obj),	\
-				csffw_timestamp, csffw_cycle);	\
-	} while (0)
+	do { } while (0)
 
 
 /* Gator tracepoints are hooked into TLSTREAM interface.
@@ -2504,10 +2318,10 @@ struct kbase_tlstream;
  * with corresponding GATOR_JOB_SLOT values.
  */
 #undef KBASE_TLSTREAM_AUX_EVENT_JOB_SLOT
-#define KBASE_TLSTREAM_AUX_EVENT_JOB_SLOT(kbdev, \
+#define KBASE_TLSTREAM_AUX_EVENT_JOB_SLOT(kbdev,	\
 	context, slot_nr, atom_nr, event)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled);	\
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		kbase_trace_mali_job_slots_event(kbdev->id,	\
 			GATOR_MAKE_EVENT(event, slot_nr),	\
 			context, (u8) atom_nr);	\
@@ -2520,7 +2334,7 @@ struct kbase_tlstream;
 #undef KBASE_TLSTREAM_AUX_PM_STATE
 #define KBASE_TLSTREAM_AUX_PM_STATE(kbdev, core_type, state)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled);	\
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		kbase_trace_mali_pm_status(kbdev->id,	\
 			core_type, state);	\
 		if (enabled & TLSTREAM_ENABLED)	\
@@ -2530,10 +2344,10 @@ struct kbase_tlstream;
 	} while (0)
 
 #undef KBASE_TLSTREAM_AUX_PAGEFAULT
-#define KBASE_TLSTREAM_AUX_PAGEFAULT(kbdev, \
+#define KBASE_TLSTREAM_AUX_PAGEFAULT(kbdev,	\
 	ctx_nr, as_nr, page_cnt_change)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled);	\
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
 		kbase_trace_mali_page_fault_insert_pages(kbdev->id,	\
 			as_nr,	\
 			page_cnt_change);	\
@@ -2550,8 +2364,8 @@ struct kbase_tlstream;
 #undef KBASE_TLSTREAM_AUX_PAGESALLOC
 #define KBASE_TLSTREAM_AUX_PAGESALLOC(kbdev, ctx_nr, page_cnt)	\
 	do {	\
-		int enabled = atomic_read(&kbdev->timeline_is_enabled);	\
-		u32 global_pages_count = \
+		int enabled = atomic_read(&kbdev->timeline_flags);	\
+		u32 global_pages_count =	\
 			atomic_read(&kbdev->memdev.used_pages);	\
 			\
 		kbase_trace_mali_total_alloc_pages_change(kbdev->id,	\

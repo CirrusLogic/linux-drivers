@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
  * (C) COPYRIGHT 2010-2020 ARM Limited. All rights reserved.
@@ -50,23 +51,15 @@
 #include "backend/gpu/mali_kbase_pm_internal.h"
 #include "backend/gpu/mali_kbase_irq_internal.h"
 
+#ifdef CONFIG_MALI_VALHALL_ARBITER_SUPPORT
+#include "arbiter/mali_kbase_arbiter_pm.h"
+#endif /* CONFIG_MALI_VALHALL_ARBITER_SUPPORT */
+
 /* NOTE: Magic - 0x45435254 (TRCE in ASCII).
  * Supports tracing feature provided in the base module.
  * Please keep it in sync with the value of base module.
  */
 #define TRACE_BUFFER_HEADER_SPECIAL 0x45435254
-
-#if KBASE_TRACE_ENABLE
-static const char *kbasep_trace_code_string[] = {
-	/* IMPORTANT: USE OF SPECIAL #INCLUDE OF NON-STANDARD HEADER FILE
-	 * THIS MUST BE USED AT THE START OF THE ARRAY */
-#define KBASE_TRACE_CODE_MAKE_CODE(X) # X
-#include "tl/mali_kbase_trace_defs.h"
-#undef  KBASE_TRACE_CODE_MAKE_CODE
-};
-#endif
-
-#define DEBUG_MESSAGE_SIZE 256
 
 /* Number of register accesses for the buffer that we allocate during
  * initialization time. The buffer size can be changed later via debugfs.
@@ -76,10 +69,6 @@ static const char *kbasep_trace_code_string[] = {
 static DEFINE_MUTEX(kbase_dev_list_lock);
 static LIST_HEAD(kbase_dev_list);
 static int kbase_dev_nr;
-
-static int kbasep_trace_init(struct kbase_device *kbdev);
-static void kbasep_trace_term(struct kbase_device *kbdev);
-static void kbasep_trace_hook_wrapper(void *param);
 
 struct kbase_device *kbase_device_alloc(void)
 {
@@ -176,7 +165,9 @@ int kbase_device_misc_init(struct kbase_device * const kbdev)
 	 */
 	kbase_hw_set_features_mask(kbdev);
 
-	kbase_gpuprops_set_features(kbdev);
+	err = kbase_gpuprops_set_features(kbdev);
+	if (err)
+		goto fail;
 
 	/* On Linux 4.0+, dma coherency is determined from device tree */
 #if defined(CONFIG_ARM64) && LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -207,13 +198,13 @@ int kbase_device_misc_init(struct kbase_device * const kbdev)
 
 	spin_lock_init(&kbdev->hwcnt.lock);
 
-	err = kbasep_trace_init(kbdev);
+	err = kbase_ktrace_init(kbdev);
 	if (err)
 		goto term_as;
 
 	init_waitqueue_head(&kbdev->cache_clean_wait);
 
-	kbase_debug_assert_register_hook(&kbasep_trace_hook_wrapper, kbdev);
+	kbase_debug_assert_register_hook(&kbase_ktrace_hook_wrapper, kbdev);
 
 	atomic_set(&kbdev->ctx_num, 0);
 
@@ -233,9 +224,11 @@ int kbase_device_misc_init(struct kbase_device * const kbdev)
 	mutex_init(&kbdev->kctx_list_lock);
 	INIT_LIST_HEAD(&kbdev->kctx_list);
 
+	spin_lock_init(&kbdev->hwaccess_lock);
+
 	return 0;
 term_trace:
-	kbasep_trace_term(kbdev);
+	kbase_ktrace_term(kbdev);
 term_as:
 	kbase_device_all_as_term(kbdev);
 as_init_failed:
@@ -250,13 +243,13 @@ void kbase_device_misc_term(struct kbase_device *kbdev)
 
 	WARN_ON(!list_empty(&kbdev->kctx_list));
 
-#if KBASE_TRACE_ENABLE
+#if KBASE_KTRACE_ENABLE
 	kbase_debug_assert_register_hook(NULL, NULL);
 #endif
 
 	kbase_instr_backend_term(kbdev);
 
-	kbasep_trace_term(kbdev);
+	kbase_ktrace_term(kbdev);
 
 	kbase_device_all_as_term(kbdev);
 }
@@ -313,9 +306,8 @@ void kbase_device_hwcnt_virtualizer_term(struct kbase_device *kbdev)
 
 int kbase_device_timeline_init(struct kbase_device *kbdev)
 {
-	atomic_set(&kbdev->timeline_is_enabled, 0);
-	return kbase_timeline_init(&kbdev->timeline,
-			&kbdev->timeline_is_enabled);
+	atomic_set(&kbdev->timeline_flags, 0);
+	return kbase_timeline_init(&kbdev->timeline, &kbdev->timeline_flags);
 }
 
 void kbase_device_timeline_term(struct kbase_device *kbdev)
@@ -387,274 +379,6 @@ void kbase_device_put_list(const struct list_head *dev_list)
 }
 KBASE_EXPORT_TEST_API(kbase_device_put_list);
 
-/*
- * Device trace functions
- */
-#if KBASE_TRACE_ENABLE
-
-static int kbasep_trace_init(struct kbase_device *kbdev)
-{
-	struct kbase_trace *rbuf;
-
-	rbuf = kmalloc_array(KBASE_TRACE_SIZE, sizeof(*rbuf), GFP_KERNEL);
-
-	if (!rbuf)
-		return -EINVAL;
-
-	kbdev->trace_rbuf = rbuf;
-	spin_lock_init(&kbdev->trace_lock);
-	return 0;
-}
-
-static void kbasep_trace_term(struct kbase_device *kbdev)
-{
-	kfree(kbdev->trace_rbuf);
-}
-
-static void kbasep_trace_format_msg(struct kbase_trace *trace_msg, char *buffer, int len)
-{
-	s32 written = 0;
-
-	/* Initial part of message */
-	written += MAX(snprintf(buffer + written, MAX(len - written, 0), "%d.%.6d,%d,%d,%s,%p,", (int)trace_msg->timestamp.tv_sec, (int)(trace_msg->timestamp.tv_nsec / 1000), trace_msg->thread_id, trace_msg->cpu, kbasep_trace_code_string[trace_msg->code], trace_msg->ctx), 0);
-
-	if (trace_msg->katom)
-		written += MAX(snprintf(buffer + written, MAX(len - written, 0), "atom %d (ud: 0x%llx 0x%llx)", trace_msg->atom_number, trace_msg->atom_udata[0], trace_msg->atom_udata[1]), 0);
-
-	written += MAX(snprintf(buffer + written, MAX(len - written, 0), ",%.8llx,", trace_msg->gpu_addr), 0);
-
-	/* NOTE: Could add function callbacks to handle different message types */
-	/* Jobslot present */
-	if (trace_msg->flags & KBASE_TRACE_FLAG_JOBSLOT)
-		written += MAX(snprintf(buffer + written, MAX(len - written, 0), "%d", trace_msg->jobslot), 0);
-
-	written += MAX(snprintf(buffer + written, MAX(len - written, 0), ","), 0);
-
-	/* Refcount present */
-	if (trace_msg->flags & KBASE_TRACE_FLAG_REFCOUNT)
-		written += MAX(snprintf(buffer + written, MAX(len - written, 0), "%d", trace_msg->refcount), 0);
-
-	written += MAX(snprintf(buffer + written, MAX(len - written, 0), ","), 0);
-
-	/* Rest of message */
-	written += MAX(snprintf(buffer + written, MAX(len - written, 0), "0x%.8lx", trace_msg->info_val), 0);
-}
-
-static void kbasep_trace_dump_msg(struct kbase_device *kbdev, struct kbase_trace *trace_msg)
-{
-	char buffer[DEBUG_MESSAGE_SIZE];
-
-	kbasep_trace_format_msg(trace_msg, buffer, DEBUG_MESSAGE_SIZE);
-	dev_dbg(kbdev->dev, "%s", buffer);
-}
-
-void kbasep_trace_add(struct kbase_device *kbdev, enum kbase_trace_code code, void *ctx, struct kbase_jd_atom *katom, u64 gpu_addr, u8 flags, int refcount, int jobslot, unsigned long info_val)
-{
-	unsigned long irqflags;
-	struct kbase_trace *trace_msg;
-
-	spin_lock_irqsave(&kbdev->trace_lock, irqflags);
-
-	trace_msg = &kbdev->trace_rbuf[kbdev->trace_next_in];
-
-	/* Fill the message */
-	trace_msg->thread_id = task_pid_nr(current);
-	trace_msg->cpu = task_cpu(current);
-
-	getnstimeofday(&trace_msg->timestamp);
-
-	trace_msg->code = code;
-	trace_msg->ctx = ctx;
-
-	if (NULL == katom) {
-		trace_msg->katom = false;
-	} else {
-		trace_msg->katom = true;
-		trace_msg->atom_number = kbase_jd_atom_id(katom->kctx, katom);
-		trace_msg->atom_udata[0] = katom->udata.blob[0];
-		trace_msg->atom_udata[1] = katom->udata.blob[1];
-	}
-
-	trace_msg->gpu_addr = gpu_addr;
-	trace_msg->jobslot = jobslot;
-	trace_msg->refcount = MIN((unsigned int)refcount, 0xFF);
-	trace_msg->info_val = info_val;
-	trace_msg->flags = flags;
-
-	/* Update the ringbuffer indices */
-	kbdev->trace_next_in = (kbdev->trace_next_in + 1) & KBASE_TRACE_MASK;
-	if (kbdev->trace_next_in == kbdev->trace_first_out)
-		kbdev->trace_first_out = (kbdev->trace_first_out + 1) & KBASE_TRACE_MASK;
-
-	/* Done */
-
-	spin_unlock_irqrestore(&kbdev->trace_lock, irqflags);
-}
-
-void kbasep_trace_clear(struct kbase_device *kbdev)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&kbdev->trace_lock, flags);
-	kbdev->trace_first_out = kbdev->trace_next_in;
-	spin_unlock_irqrestore(&kbdev->trace_lock, flags);
-}
-
-void kbasep_trace_dump(struct kbase_device *kbdev)
-{
-	unsigned long flags;
-	u32 start;
-	u32 end;
-
-	dev_dbg(kbdev->dev, "Dumping trace:\nsecs,nthread,cpu,code,ctx,katom,gpu_addr,jobslot,refcount,info_val");
-	spin_lock_irqsave(&kbdev->trace_lock, flags);
-	start = kbdev->trace_first_out;
-	end = kbdev->trace_next_in;
-
-	while (start != end) {
-		struct kbase_trace *trace_msg = &kbdev->trace_rbuf[start];
-
-		kbasep_trace_dump_msg(kbdev, trace_msg);
-
-		start = (start + 1) & KBASE_TRACE_MASK;
-	}
-	dev_dbg(kbdev->dev, "TRACE_END");
-
-	spin_unlock_irqrestore(&kbdev->trace_lock, flags);
-
-	KBASE_TRACE_CLEAR(kbdev);
-}
-
-static void kbasep_trace_hook_wrapper(void *param)
-{
-	struct kbase_device *kbdev = (struct kbase_device *)param;
-
-	kbasep_trace_dump(kbdev);
-}
-
-#ifdef CONFIG_DEBUG_FS
-struct trace_seq_state {
-	struct kbase_trace trace_buf[KBASE_TRACE_SIZE];
-	u32 start;
-	u32 end;
-};
-
-static void *kbasep_trace_seq_start(struct seq_file *s, loff_t *pos)
-{
-	struct trace_seq_state *state = s->private;
-	int i;
-
-	if (*pos > KBASE_TRACE_SIZE)
-		return NULL;
-	i = state->start + *pos;
-	if ((state->end >= state->start && i >= state->end) ||
-			i >= state->end + KBASE_TRACE_SIZE)
-		return NULL;
-
-	i &= KBASE_TRACE_MASK;
-
-	return &state->trace_buf[i];
-}
-
-static void kbasep_trace_seq_stop(struct seq_file *s, void *data)
-{
-}
-
-static void *kbasep_trace_seq_next(struct seq_file *s, void *data, loff_t *pos)
-{
-	struct trace_seq_state *state = s->private;
-	int i;
-
-	(*pos)++;
-
-	i = (state->start + *pos) & KBASE_TRACE_MASK;
-	if (i == state->end)
-		return NULL;
-
-	return &state->trace_buf[i];
-}
-
-static int kbasep_trace_seq_show(struct seq_file *s, void *data)
-{
-	struct kbase_trace *trace_msg = data;
-	char buffer[DEBUG_MESSAGE_SIZE];
-
-	kbasep_trace_format_msg(trace_msg, buffer, DEBUG_MESSAGE_SIZE);
-	seq_printf(s, "%s\n", buffer);
-	return 0;
-}
-
-static const struct seq_operations kbasep_trace_seq_ops = {
-	.start = kbasep_trace_seq_start,
-	.next = kbasep_trace_seq_next,
-	.stop = kbasep_trace_seq_stop,
-	.show = kbasep_trace_seq_show,
-};
-
-static int kbasep_trace_debugfs_open(struct inode *inode, struct file *file)
-{
-	struct kbase_device *kbdev = inode->i_private;
-	unsigned long flags;
-
-	struct trace_seq_state *state;
-
-	state = __seq_open_private(file, &kbasep_trace_seq_ops, sizeof(*state));
-	if (!state)
-		return -ENOMEM;
-
-	spin_lock_irqsave(&kbdev->trace_lock, flags);
-	state->start = kbdev->trace_first_out;
-	state->end = kbdev->trace_next_in;
-	memcpy(state->trace_buf, kbdev->trace_rbuf, sizeof(state->trace_buf));
-	spin_unlock_irqrestore(&kbdev->trace_lock, flags);
-
-	return 0;
-}
-
-static const struct file_operations kbasep_trace_debugfs_fops = {
-	.owner = THIS_MODULE,
-	.open = kbasep_trace_debugfs_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release_private,
-};
-
-void kbasep_trace_debugfs_init(struct kbase_device *kbdev)
-{
-	debugfs_create_file("mali_trace", S_IRUGO,
-			kbdev->mali_debugfs_directory, kbdev,
-			&kbasep_trace_debugfs_fops);
-}
-
-#else
-void kbasep_trace_debugfs_init(struct kbase_device *kbdev)
-{
-}
-#endif				/* CONFIG_DEBUG_FS */
-
-#else				/* KBASE_TRACE_ENABLE  */
-static int kbasep_trace_init(struct kbase_device *kbdev)
-{
-	CSTD_UNUSED(kbdev);
-	return 0;
-}
-
-static void kbasep_trace_term(struct kbase_device *kbdev)
-{
-	CSTD_UNUSED(kbdev);
-}
-
-static void kbasep_trace_hook_wrapper(void *param)
-{
-	CSTD_UNUSED(param);
-}
-
-void kbasep_trace_dump(struct kbase_device *kbdev)
-{
-	CSTD_UNUSED(kbdev);
-}
-#endif				/* KBASE_TRACE_ENABLE  */
-
 int kbase_device_early_init(struct kbase_device *kbdev)
 {
 	int err;
@@ -692,7 +416,14 @@ fail_runtime_pm:
 
 void kbase_device_early_term(struct kbase_device *kbdev)
 {
+#ifdef CONFIG_MALI_VALHALL_ARBITER_SUPPORT
+	if (kbdev->arb.arb_if)
+		kbase_arbiter_pm_release_interrupts(kbdev);
+	else
+		kbase_release_interrupts(kbdev);
+#else
 	kbase_release_interrupts(kbdev);
+#endif /* CONFIG_MALI_VALHALL_ARBITER_SUPPORT */
 	kbase_pm_runtime_term(kbdev);
 	kbasep_platform_device_term(kbdev);
 }

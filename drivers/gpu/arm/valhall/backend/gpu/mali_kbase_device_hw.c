@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2016, 2018-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016, 2018-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -190,6 +190,15 @@ u32 kbase_reg_read(struct kbase_device *kbdev, u32 offset)
 }
 
 KBASE_EXPORT_TEST_API(kbase_reg_read);
+
+bool kbase_is_gpu_lost(struct kbase_device *kbdev)
+{
+	u32 val;
+
+	val = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_ID));
+
+	return val == 0;
+}
 #endif /* !defined(CONFIG_MALI_VALHALL_NO_MALI) */
 
 /**
@@ -245,7 +254,7 @@ void kbase_gpu_start_cache_clean_nolock(struct kbase_device *kbdev)
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK),
 				irq_mask | CLEAN_CACHES_COMPLETED);
 
-	KBASE_TRACE_ADD(kbdev, CORE_GPU_CLEAN_INV_CACHES, NULL, NULL, 0u, 0);
+	KBASE_KTRACE_ADD(kbdev, CORE_GPU_CLEAN_INV_CACHES, NULL, 0);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
 					GPU_COMMAND_CLEAN_INV_CACHES);
 
@@ -280,7 +289,7 @@ static void kbase_clean_caches_done(struct kbase_device *kbdev)
 	if (kbdev->cache_clean_queued) {
 		kbdev->cache_clean_queued = false;
 
-		KBASE_TRACE_ADD(kbdev, CORE_GPU_CLEAN_INV_CACHES, NULL, NULL, 0u, 0);
+		KBASE_KTRACE_ADD(kbdev, CORE_GPU_CLEAN_INV_CACHES, NULL, 0);
 		kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
 				GPU_COMMAND_CLEAN_INV_CACHES);
 	} else {
@@ -333,7 +342,7 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 {
 	bool clear_gpu_fault = false;
 
-	KBASE_TRACE_ADD(kbdev, CORE_GPU_IRQ, NULL, NULL, 0u, val);
+	KBASE_KTRACE_ADD(kbdev, CORE_GPU_IRQ, NULL, val);
 	if (val & GPU_FAULT)
 		clear_gpu_fault = kbase_gpu_fault_interrupt(kbdev,
 					val & MULTIPLE_GPU_FAULTS);
@@ -344,7 +353,7 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 	if (val & PRFCNT_SAMPLE_COMPLETED)
 		kbase_instr_hwcnt_sample_done(kbdev);
 
-	KBASE_TRACE_ADD(kbdev, CORE_GPU_IRQ_CLEAR, NULL, NULL, 0u, val);
+	KBASE_KTRACE_ADD(kbdev, CORE_GPU_IRQ_CLEAR, NULL, val);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_CLEAR), val);
 
 	/* kbase_pm_check_transitions (called by kbase_pm_power_changed) must
@@ -374,5 +383,5 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 	}
 
 
-	KBASE_TRACE_ADD(kbdev, CORE_GPU_IRQ_DONE, NULL, NULL, 0u, val);
+	KBASE_KTRACE_ADD(kbdev, CORE_GPU_IRQ_DONE, NULL, val);
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *
  * (C) COPYRIGHT 2011-2020 ARM Limited. All rights reserved.
@@ -37,19 +38,6 @@
 #include <linux/of_platform.h>
 #include <linux/moduleparam.h>
 
-/**
- * KBASE_UBFX32 - Extracts bits from a 32-bit bitfield.
- * @value:  The value from which to extract bits.
- * @offset: The first bit to extract (0 being the LSB).
- * @size:   The number of bits to extract.
- *
- * Context: @offset + @size <= 32.
- *
- * Return: Bits [@offset, @offset + @size) from @value.
- */
-/* from mali_cdsb.h */
-#define KBASE_UBFX32(value, offset, size) \
-	(((u32)(value) >> (u32)(offset)) & (u32)((1ULL << (u32)(size)) - 1))
 
 static void kbase_gpuprops_construct_coherent_groups(
 	struct base_gpu_props * const props)
@@ -126,18 +114,23 @@ static void kbase_gpuprops_construct_coherent_groups(
  *
  * Fill the &struct base_gpu_props structure with values from the GPU
  * configuration registers. Only the raw properties are filled in this function.
+ *
+ * Return: Zero on success, Linux error code on failure
  */
-static void kbase_gpuprops_get_props(struct base_gpu_props * const gpu_props,
+static int kbase_gpuprops_get_props(struct base_gpu_props * const gpu_props,
 	struct kbase_device *kbdev)
 {
 	struct kbase_gpuprops_regdump regdump;
 	int i;
+	int err;
 
 	KBASE_DEBUG_ASSERT(NULL != kbdev);
 	KBASE_DEBUG_ASSERT(NULL != gpu_props);
 
 	/* Dump relevant registers */
-	kbase_backend_gpuprops_get(kbdev, &regdump);
+	err = kbase_backend_gpuprops_get(kbdev, &regdump);
+	if (err)
+		return err;
 
 	gpu_props->raw_props.gpu_id = regdump.gpu_id;
 	gpu_props->raw_props.tiler_features = regdump.tiler_features;
@@ -172,6 +165,8 @@ static void kbase_gpuprops_get_props(struct base_gpu_props * const gpu_props,
 	gpu_props->raw_props.thread_max_workgroup_size = regdump.thread_max_workgroup_size;
 	gpu_props->raw_props.thread_features = regdump.thread_features;
 	gpu_props->raw_props.thread_tls_alloc = regdump.thread_tls_alloc;
+
+	return 0;
 }
 
 void kbase_gpuprops_update_core_props_gpu_id(
@@ -325,15 +320,18 @@ void kbase_gpuprops_set(struct kbase_device *kbdev)
 	gpu_props->num_job_slots = hweight32(raw->js_present);
 }
 
-void kbase_gpuprops_set_features(struct kbase_device *kbdev)
+int kbase_gpuprops_set_features(struct kbase_device *kbdev)
 {
 	struct base_gpu_props *gpu_props;
 	struct kbase_gpuprops_regdump regdump;
+	int err;
 
 	gpu_props = &kbdev->gpu_props.props;
 
 	/* Dump relevant registers */
-	kbase_backend_gpuprops_get_features(kbdev, &regdump);
+	err = kbase_backend_gpuprops_get_features(kbdev, &regdump);
+	if (err)
+		return err;
 
 	/*
 	 * Copy the raw value from the register, later this will get turned
@@ -345,6 +343,8 @@ void kbase_gpuprops_set_features(struct kbase_device *kbdev)
 
 	if (!kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_THREAD_GROUP_SPLIT))
 		gpu_props->thread_props.max_thread_group_split = 0;
+
+	return err;
 }
 
 /*
@@ -396,15 +396,17 @@ static bool kbase_read_l2_config_from_dt(struct kbase_device * const kbdev)
 	return false;
 }
 
-void kbase_gpuprops_update_l2_features(struct kbase_device *kbdev)
+int kbase_gpuprops_update_l2_features(struct kbase_device *kbdev)
 {
+	int err = 0;
+
 	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_L2_CONFIG)) {
 		struct kbase_gpuprops_regdump regdump;
 		struct base_gpu_props *gpu_props = &kbdev->gpu_props.props;
 
 		/* Check for L2 cache size & hash overrides */
 		if (!kbase_read_l2_config_from_dt(kbdev))
-			return;
+			return 0;
 
 		/* Need L2 to get powered to reflect to L2_FEATURES */
 		kbase_pm_context_active(kbdev);
@@ -413,7 +415,9 @@ void kbase_gpuprops_update_l2_features(struct kbase_device *kbdev)
 		kbase_pm_wait_for_l2_powered(kbdev);
 
 		/* Dump L2_FEATURES register */
-		kbase_backend_gpuprops_get_l2_features(kbdev, &regdump);
+		err = kbase_backend_gpuprops_get_l2_features(kbdev, &regdump);
+		if (err)
+			goto idle_gpu;
 
 		dev_info(kbdev->dev, "Reflected L2_FEATURES is 0x%x\n",
 				regdump.l2_features);
@@ -423,9 +427,12 @@ void kbase_gpuprops_update_l2_features(struct kbase_device *kbdev)
 		gpu_props->l2_props.log2_cache_size =
 			KBASE_UBFX32(gpu_props->raw_props.l2_features, 16U, 8);
 
+idle_gpu:
 		/* Let GPU idle */
 		kbase_pm_context_idle(kbdev);
 	}
+
+	return err;
 }
 
 static struct {

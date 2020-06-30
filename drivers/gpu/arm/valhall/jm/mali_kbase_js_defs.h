@@ -21,7 +21,6 @@
  */
 
 
-
 /**
  * @file mali_kbase_js.h
  * Job Scheduler Type Definitions

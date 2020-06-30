@@ -1457,11 +1457,13 @@ int kbase_jit_init(struct kbase_context *kctx);
  * kbase_jit_allocate - Allocate JIT memory
  * @kctx: kbase context
  * @info: JIT allocation information
+ * @ignore_pressure_limit: Whether the JIT memory pressure limit is ignored
  *
  * Return: JIT allocation on success or NULL on failure.
  */
 struct kbase_va_region *kbase_jit_allocate(struct kbase_context *kctx,
-		struct base_jit_alloc_info *info);
+		const struct base_jit_alloc_info *info,
+		bool ignore_pressure_limit);
 
 /**
  * kbase_jit_free - Free a JIT allocation
@@ -1560,26 +1562,6 @@ void kbase_trace_jit_report_gpu_mem_trace_enabled(struct kbase_context *kctx,
 void kbase_jit_report_update_pressure(struct kbase_context *kctx,
 		struct kbase_va_region *reg, u64 new_used_pages,
 		unsigned int flags);
-
-/**
- * kbase_mem_jit_trim_pages - Trim JIT regions until sufficient pages have been
- * freed
- * @kctx: Pointer to the kbase context whose active JIT allocations will be
- * checked.
- * @pages_needed: The maximum number of pages to trim.
- *
- * This functions checks all active JIT allocations in @kctx for unused pages
- * at the end, and trim the backed memory regions of those allocations down to
- * the used portion and free the unused pages into the page pool.
- *
- * Specifying @pages_needed allows us to stop early when there's enough
- * physical memory freed to sufficiently bring down the total JIT physical page
- * usage (e.g. to below the pressure limit)
- *
- * Return: Total number of successfully freed pages
- */
-size_t kbase_mem_jit_trim_pages(struct kbase_context *kctx,
-		size_t pages_needed);
 #endif /* MALI_JIT_PRESSURE_LIMIT */
 
 /**

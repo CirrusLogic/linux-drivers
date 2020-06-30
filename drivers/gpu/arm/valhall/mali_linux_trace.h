@@ -288,7 +288,7 @@ DEFINE_EVENT_PRINT(mali_jit_softjob_template, mali_jit_free,
 	TP_printk("start=0x%llx va_pages=0x%zx backed_size=0x%zx",
 		__entry->start_addr, __entry->nr_pages, __entry->backed_pages));
 
-#if MALI_JIT_PRESSURE_LIMIT && !MALI_USE_CSF
+#if MALI_JIT_PRESSURE_LIMIT
 /* trace_mali_jit_report
  *
  * Tracepoint about the GPU data structure read to form a just-in-time memory
@@ -326,9 +326,11 @@ TRACE_EVENT(mali_jit_report,
 		),
 		__entry->read_val, __entry->used_pages)
 );
-#endif /* MALI_JIT_PRESSURE_LIMIT && !MALI_USE_CSF */
+#endif /* MALI_JIT_PRESSURE_LIMIT */
 
+#if (KERNEL_VERSION(4, 1, 0) <= LINUX_VERSION_CODE)
 TRACE_DEFINE_ENUM(KBASE_JIT_REPORT_ON_ALLOC_OR_FREE);
+#endif
 
 #if MALI_JIT_PRESSURE_LIMIT
 /* trace_mali_jit_report_pressure
@@ -365,6 +367,70 @@ TRACE_EVENT(mali_jit_report_pressure,
 				"HAPPENED_ON_ALLOC_OR_FREE" }))
 );
 #endif /* MALI_JIT_PRESSURE_LIMIT */
+
+#ifndef __TRACE_SYSGRAPH_ENUM
+#define __TRACE_SYSGRAPH_ENUM
+/* Enum of sysgraph message IDs */
+enum sysgraph_msg {
+	SGR_ARRIVE,
+	SGR_DEP_RES,
+	SGR_SUBMIT,
+	SGR_COMPLETE,
+	SGR_POST,
+	SGR_ACTIVE,
+	SGR_INACTIVE
+};
+#endif /* __TRACE_SYSGRAPH_ENUM */
+
+/* A template for SYSGRAPH events
+ *
+ * Most of the sysgraph events contain only one input argument
+ * which is atom_id therefore they will be using a common template
+ */
+TRACE_EVENT(sysgraph,
+	TP_PROTO(enum sysgraph_msg message, unsigned int proc_id,
+		unsigned int atom_id),
+	TP_ARGS(message, proc_id, atom_id),
+	TP_STRUCT__entry(
+		__field(unsigned int, proc_id)
+		__field(enum sysgraph_msg, message)
+		__field(unsigned int, atom_id)
+	),
+	TP_fast_assign(
+		__entry->proc_id    = proc_id;
+		__entry->message    = message;
+		__entry->atom_id    = atom_id;
+	),
+	TP_printk("msg=%u proc_id=%u, param1=%d\n", __entry->message,
+		 __entry->proc_id,  __entry->atom_id)
+);
+
+/* A template for SYSGRAPH GPU events
+ *
+ * Sysgraph events that record start/complete events
+ * on GPU also record a js value in addition to the
+ * atom id.
+ */
+TRACE_EVENT(sysgraph_gpu,
+	TP_PROTO(enum sysgraph_msg message, unsigned int proc_id,
+		unsigned int atom_id, unsigned int js),
+	TP_ARGS(message, proc_id, atom_id, js),
+	TP_STRUCT__entry(
+		__field(unsigned int, proc_id)
+		__field(enum sysgraph_msg, message)
+		__field(unsigned int, atom_id)
+		__field(unsigned int, js)
+	),
+	TP_fast_assign(
+		__entry->proc_id    = proc_id;
+		__entry->message    = message;
+		__entry->atom_id    = atom_id;
+		__entry->js         = js;
+	),
+	TP_printk("msg=%u proc_id=%u, param1=%d, param2=%d\n",
+		  __entry->message,  __entry->proc_id,
+		  __entry->atom_id, __entry->js)
+);
 
 /* Tracepoint files get included more than once - protect against multiple
  * definition
@@ -450,9 +516,14 @@ TRACE_EVENT(mali_jit_trim,
 	TP_printk("freed_pages=%zu", __entry->freed_pages)
 );
 
+#include "mali_kbase_debug_linux_ktrace.h"
+
 #endif /* _TRACE_MALI_H */
 
 #undef TRACE_INCLUDE_PATH
+/* lwn.net/Articles/383362 suggests this should remain as '.', and instead
+ * extend CFLAGS
+ */
 #define TRACE_INCLUDE_PATH .
 #undef  TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE mali_linux_trace

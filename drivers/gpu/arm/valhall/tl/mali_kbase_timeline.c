@@ -105,12 +105,12 @@ static void kbasep_timeline_autoflush_timer_callback(struct timer_list *timer)
 /*****************************************************************************/
 
 int kbase_timeline_init(struct kbase_timeline **timeline,
-		atomic_t *timeline_is_enabled)
+		atomic_t *timeline_flags)
 {
 	enum tl_stream_type i;
 	struct kbase_timeline *result;
 
-	if (!timeline || !timeline_is_enabled)
+	if (!timeline || !timeline_flags)
 		return -EINVAL;
 
 	result = kzalloc(sizeof(*result), GFP_KERNEL);
@@ -129,7 +129,7 @@ int kbase_timeline_init(struct kbase_timeline **timeline,
 	atomic_set(&result->autoflush_timer_active, 0);
 	kbase_timer_setup(&result->autoflush_timer,
 			  kbasep_timeline_autoflush_timer_callback);
-	result->is_enabled = timeline_is_enabled;
+	result->timeline_flags = timeline_flags;
 
 
 	*timeline = result;
@@ -176,10 +176,10 @@ static void kbase_tlstream_current_devfreq_target(struct kbase_device *kbdev)
 int kbase_timeline_io_acquire(struct kbase_device *kbdev, u32 flags)
 {
 	int ret;
-	u32 tlstream_enabled = TLSTREAM_ENABLED | flags;
+	u32 timeline_flags = TLSTREAM_ENABLED | flags;
 	struct kbase_timeline *timeline = kbdev->timeline;
 
-	if (!atomic_cmpxchg(timeline->is_enabled, 0, tlstream_enabled)) {
+	if (!atomic_cmpxchg(timeline->timeline_flags, 0, timeline_flags)) {
 		int rcode;
 
 		ret = anon_inode_getfd(
@@ -188,7 +188,7 @@ int kbase_timeline_io_acquire(struct kbase_device *kbdev, u32 flags)
 				timeline,
 				O_RDONLY | O_CLOEXEC);
 		if (ret < 0) {
-			atomic_set(timeline->is_enabled, 0);
+			atomic_set(timeline->timeline_flags, 0);
 			return ret;
 		}
 

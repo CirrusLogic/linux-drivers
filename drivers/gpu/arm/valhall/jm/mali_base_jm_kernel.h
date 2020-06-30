@@ -182,14 +182,14 @@
 #define BASE_MEM_FLAGS_RESERVED \
 	(BASE_MEM_RESERVED_BIT_8 | BASE_MEM_RESERVED_BIT_19)
 
-#define BASEP_MEM_INVALID_HANDLE               (0ull  << PAGE_SHIFT)
-#define BASE_MEM_MMU_DUMP_HANDLE               (1ull  << PAGE_SHIFT)
-#define BASE_MEM_TRACE_BUFFER_HANDLE           (2ull  << PAGE_SHIFT)
-#define BASE_MEM_MAP_TRACKING_HANDLE           (3ull  << PAGE_SHIFT)
-#define BASEP_MEM_WRITE_ALLOC_PAGES_HANDLE     (4ull  << PAGE_SHIFT)
+#define BASEP_MEM_INVALID_HANDLE               (0ull  << 12)
+#define BASE_MEM_MMU_DUMP_HANDLE               (1ull  << 12)
+#define BASE_MEM_TRACE_BUFFER_HANDLE           (2ull  << 12)
+#define BASE_MEM_MAP_TRACKING_HANDLE           (3ull  << 12)
+#define BASEP_MEM_WRITE_ALLOC_PAGES_HANDLE     (4ull  << 12)
 /* reserved handles ..-47<<PAGE_SHIFT> for future special handles */
-#define BASE_MEM_COOKIE_BASE                   (64ul  << PAGE_SHIFT)
-#define BASE_MEM_FIRST_FREE_ADDRESS            ((BITS_PER_LONG << PAGE_SHIFT) + \
+#define BASE_MEM_COOKIE_BASE                   (64ul  << 12)
+#define BASE_MEM_FIRST_FREE_ADDRESS            ((BITS_PER_LONG << 12) + \
 						BASE_MEM_COOKIE_BASE)
 
 /**
@@ -264,7 +264,6 @@ typedef u32 base_context_create_flags;
 
 #define BASE_TLSTREAM_FLAGS_MASK (BASE_TLSTREAM_ENABLE_LATENCY_TRACEPOINTS | \
 		BASE_TLSTREAM_JOB_DUMPING_ENABLED)
-
 /*
  * Dependency stuff, keep it private for now. May want to expose it if
  * we decide to make the number of semaphores a configurable

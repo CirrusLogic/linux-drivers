@@ -30,8 +30,10 @@
 #ifndef _KBASE_JM_DEFS_H_
 #define _KBASE_JM_DEFS_H_
 
-/* Dump Job slot trace on error (only active if KBASE_TRACE_ENABLE != 0) */
-#define KBASE_TRACE_DUMP_ON_JOB_SLOT_ERROR 1
+#include "mali_kbase_js_defs.h"
+
+/* Dump Job slot trace on error (only active if KBASE_KTRACE_ENABLE != 0) */
+#define KBASE_KTRACE_DUMP_ON_JOB_SLOT_ERROR 1
 
 /*
  * Number of milliseconds before resetting the GPU when a job cannot be "zapped"
@@ -770,6 +772,12 @@ struct kbase_jd_renderpass {
  *                            reaching this offset.
  * @work_id:                  atomic variable used for GPU tracepoints,
  *                            incremented on every call to base_jd_submit.
+ * @jit_atoms_head:           A list of the just-in-time memory soft-jobs, both
+ *                            allocate & free, in submission order, protected
+ *                            by kbase_jd_context.lock.
+ * @jit_pending_alloc:        A list of just-in-time memory allocation
+ *                            soft-jobs which will be reattempted after the
+ *                            impending free of other active allocations.
  */
 struct kbase_jd_context {
 	struct mutex lock;
@@ -787,6 +795,9 @@ struct kbase_jd_context {
 #ifdef CONFIG_GPU_TRACEPOINTS
 	atomic_t work_id;
 #endif
+
+	struct list_head jit_atoms_head;
+	struct list_head jit_pending_alloc;
 };
 
 /**

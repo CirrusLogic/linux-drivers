@@ -257,74 +257,15 @@ static ssize_t show_dummy_job_wa_info(struct device * const dev,
 
 static DEVICE_ATTR(dummy_job_wa_info, 0444, show_dummy_job_wa_info, NULL);
 
-#define FAIL_PROBE 1
-#define SKIP_WA 2
-#define LOAD_WA 3
-
-static int check_wa_validity(struct kbase_device *kbdev,
-			bool wa_blob_present)
+static bool wa_blob_load_needed(struct kbase_device *kbdev)
 {
-	struct base_gpu_props *gpu_props = &kbdev->gpu_props.props;
-	const u32 major_revision = gpu_props->core_props.major_revision;
-	const u32 minor_revision = gpu_props->core_props.minor_revision;
-	const u32 gpu_id = gpu_props->raw_props.gpu_id;
-	const u32 product_id = (gpu_id & GPU_ID_VERSION_PRODUCT_ID) >>
-				GPU_ID_VERSION_PRODUCT_ID_SHIFT;
-	int ret = FAIL_PROBE;
+	if (of_machine_is_compatible("arm,juno"))
+		return false;
 
-	if (IS_ENABLED(CONFIG_ARCH_VEXPRESS))
-		return SKIP_WA;
+	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_TTRX_3485))
+		return true;
 
-	switch (GPU_ID2_MODEL_MATCH_VALUE(product_id)) {
-	case GPU_ID2_PRODUCT_TTRX:
-		/* WA needed for r0p0, r0p1 only */
-		if (major_revision == 0) {
-			if ((minor_revision <= 1) && wa_blob_present)
-				ret = LOAD_WA;
-			else if ((minor_revision > 1) && !wa_blob_present)
-				ret = SKIP_WA;
-		} else if ((major_revision > 0) && !wa_blob_present)
-			ret = SKIP_WA;
-		break;
-	case GPU_ID2_PRODUCT_TNAX:
-		/* WA needed for r0p0 only */
-		if (major_revision == 0) {
-			if ((minor_revision == 0) && wa_blob_present)
-				ret = LOAD_WA;
-			else if ((minor_revision > 0) && !wa_blob_present)
-				ret = SKIP_WA;
-		} else if ((major_revision > 0) && !wa_blob_present)
-			ret = SKIP_WA;
-		break;
-	case GPU_ID2_PRODUCT_TBEX:
-		/* WA needed for r0p0 only */
-		if ((major_revision == 0) && (minor_revision == 0)) {
-			if (!wa_blob_present) {
-				dev_warn(kbdev->dev, "Dummy job WA not applied, susceptible to GPU hang. Contact support-mali@arm.com");
-				ret = SKIP_WA;
-			} else
-				ret = LOAD_WA;
-		} else if (!wa_blob_present)
-			ret = SKIP_WA;
-		break;
-	case GPU_ID2_PRODUCT_LBEX:
-		/* WA needed for r1p0 only */
-		if ((major_revision == 1) && (minor_revision == 0)) {
-			if (!wa_blob_present) {
-				dev_warn(kbdev->dev, "Dummy job WA not applied, susceptible to GPU hang. Contact support-mali@arm.com");
-				ret = SKIP_WA;
-			} else
-				ret = LOAD_WA;
-		} else if (!wa_blob_present)
-			ret = SKIP_WA;
-		break;
-	default:
-		if (!wa_blob_present)
-			ret = SKIP_WA;
-		break;
-	}
-
-	return ret;
+	return false;
 }
 
 int kbase_dummy_job_wa_load(struct kbase_device *kbdev)
@@ -339,31 +280,17 @@ int kbase_dummy_job_wa_load(struct kbase_device *kbdev)
 	const struct wa_v2_info *v2_info;
 	u32 blob_offset;
 	int err;
-	int ret;
 	struct kbase_context *kctx;
 
-	/* load the wa */
-#if KERNEL_VERSION(4, 18, 0) <= LINUX_VERSION_CODE
-	err = firmware_request_nowarn(&firmware, wa_name, kbdev->dev);
-#else
-	err = request_firmware(&firmware, wa_name, kbdev->dev);
-#endif
-
-	ret = check_wa_validity(kbdev, err == 0);
-
-	if (ret == SKIP_WA) {
-		if (err == 0)
-			release_firmware(firmware);
+	if (!wa_blob_load_needed(kbdev))
 		return 0;
-	} else if (ret == FAIL_PROBE) {
-		if (err == 0) {
-			dev_err(kbdev->dev, "WA blob unexpectedly present. Please refer to the Arm Mali DDK Bifrost/Valhall Release Notes, "
-					    "Part number DC-06002 or contact support-mali@arm.com - driver probe will be failed");
-			release_firmware(firmware);
-		} else {
-			dev_err(kbdev->dev, "WA blob missing. Please refer to the Arm Mali DDK Valhall Release Notes, "
-					    "Part number DC-06002 or contact support-mali@arm.com - driver probe will be failed");
-		}
+
+	/* load the wa */
+	err = request_firmware(&firmware, wa_name, kbdev->dev);
+
+	if (err) {
+		dev_err(kbdev->dev, "WA blob missing. Please refer to the Arm Mali DDK Valhall Release Notes, "
+				    "Part number DC-06002 or contact support-mali@arm.com - driver probe will be failed");
 		return -ENODEV;
 	}
 
@@ -504,8 +431,9 @@ void kbase_dummy_job_wa_cleanup(struct kbase_device *kbdev)
 	sysfs_remove_file(&kbdev->dev->kobj, &dev_attr_dummy_job_wa_info.attr);
 
 	wa_ctx = READ_ONCE(kbdev->dummy_job_wa.ctx);
+	WRITE_ONCE(kbdev->dummy_job_wa.ctx, NULL);
 	/* make this write visible before we tear down the ctx */
-	smp_store_mb(kbdev->dummy_job_wa.ctx, NULL);
+	smp_mb();
 
 	if (wa_ctx) {
 		kbasep_js_release_privileged_ctx(kbdev, wa_ctx);
