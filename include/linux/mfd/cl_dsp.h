@@ -97,6 +97,7 @@ struct cl_dsp_fw_desc {
 	unsigned int num_coeff_files;
 	const char * const *coeff_files;
 	const char *fw_file;
+	bool write_fw;
 };
 
 struct cl_dsp_coeff_desc {
