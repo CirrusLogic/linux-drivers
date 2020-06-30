@@ -671,7 +671,7 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 			return -EINVAL;
 		}
 
-		if (reg) {
+		if (dsp->fw_desc->write_fw && reg) {
 			ret = cl_dsp_raw_write(dsp, reg, &fw->data[pos],
 					header.data_len, CL_DSP_MAX_WLEN);
 			if (ret) {
