@@ -93,9 +93,11 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 
 	if (((*reg & CL_DSP_MEM_REG_TYPE_MASK) >> CL_DSP_MEM_REG_TYPE_SHIFT)
 			!= mem_region_prefix) {
-		dev_err(dsp->dev, "DSP control %s found in unexpected region\n",
-				coeff_name);
-		ret = -ENXIO;
+		dev_err(dsp->dev,
+			"DSP control %s at 0x%X found in unexpected region\n",
+			coeff_name, *reg);
+
+		ret = -EFAULT;
 	}
 
 	return ret;
@@ -455,7 +457,7 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 	}
 
 	if (val > CL_DSP_NUM_ALGOS_MAX) {
-		dev_err(dev, "Invalid number of algorithms\n");
+		dev_err(dev, "Invalid number of algorithms: %d\n", val);
 		return -EINVAL;
 	}
 	dsp->num_algos = val + 1;
@@ -605,87 +607,171 @@ static void cl_dsp_coeff_free(struct cl_dsp *dsp)
 	}
 }
 
+static int cl_dsp_header_parse(struct cl_dsp *dsp,
+		union cl_dsp_wmfw_header header)
+{
+	struct device *dev = dsp->dev;
+
+	if (memcmp(header.magic, CL_DSP_WMFW_MAGIC_ID, CL_DSP_MAGIC_ID_SIZE)) {
+		dev_err(dev, "Failed to recognize firmware file\n");
+		return -EINVAL;
+	}
+
+	if (header.header_length != CL_DSP_FW_FILE_HEADER_SIZE) {
+		dev_err(dev, "Malformed fimrware header\n");
+		return -EINVAL;
+	}
+
+	if (header.api_revision != CL_DSP_API_REVISION) {
+		dev_err(dev, "Firmware API Revision Incompatible with Core\n");
+		return -EINVAL;
+	}
+
+	if (header.target_core != CL_DSP_TARGET_CORE_HALO) {
+		dev_err(dev, "Unexpected target core type: 0x%02X\n",
+				header.target_core);
+		return -EINVAL;
+	}
+
+	if (header.file_format_version < CL_DSP_MIN_FORMAT_VERSION) {
+		dev_err(dev, "File Format Version 0x%02X is outdated",
+				header.file_format_version);
+		return -EINVAL;
+	}
+
+	dev_info(dev,
+		"Loading memory (bytes): XM: %u, YM: %u, PM: %u, ZM: %u\n",
+		header.xm_size, header.ym_size, header.pm_size, header.zm_size);
+
+	return 0;
+}
+
+static void cl_dsp_handle_info_text(struct cl_dsp *dsp, const u8 *data, u32 len)
+{
+	char *info_str;
+
+	info_str = kzalloc(len, GFP_KERNEL);
+	if (!info_str)
+		/* info block is empty or memory not allocated */
+		return;
+
+	memcpy(info_str, data, len);
+
+	dev_info(dsp->dev, "WMFW Info: %s\n", info_str);
+
+	kfree(info_str);
+}
+
 int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 {
 	struct device *dev = dsp->dev;
 	unsigned int pos = CL_DSP_FW_FILE_HEADER_SIZE, reg = 0;
-	union cl_dsp_data_block_header header;
+	struct cl_dsp_data_block *data_block;
+	union cl_dsp_wmfw_header wmfw_header;
 	int ret;
 
 	if (!dsp)
 		return -EPERM;
 
-	if (memcmp(fw->data, CL_DSP_WMFW_MAGIC_ID, CL_DSP_MAGIC_ID_SIZE)) {
-		dev_err(dev, "Failed to recognize firmware file\n");
-		return -ENOMEM;
-	}
+	memcpy(wmfw_header.data, fw->data, CL_DSP_FW_FILE_HEADER_SIZE);
+
+	ret = cl_dsp_header_parse(dsp, wmfw_header);
+	if (ret)
+		return ret;
 
 	if (fw->size % CL_DSP_BYTES_PER_WORD) {
 		dev_err(dev, "Firmware file is not word-aligned\n");
 		return -EINVAL;
 	}
 
+	data_block = (struct cl_dsp_data_block *)
+			kmalloc(sizeof(struct cl_dsp_data_block), GFP_KERNEL);
+	if (!data_block)
+		return -ENOMEM;
+
 	while (pos < fw->size) {
-		memcpy(header.data, &fw->data[pos], CL_DSP_DBLK_HEADER_SIZE);
+		memcpy(data_block->header.data, &fw->data[pos],
+				CL_DSP_DBLK_HEADER_SIZE);
 
 		pos += CL_DSP_DBLK_HEADER_SIZE;
 
-		switch (header.block_type) {
+		data_block->payload =
+			(u8 *)kmalloc(data_block->header.data_len, GFP_KERNEL);
+		memcpy(data_block->payload, &fw->data[pos],
+				data_block->header.data_len);
+
+		switch (data_block->header.block_type) {
 		case CL_DSP_WMFW_INFO_TYPE:
+			reg = 0;
+			cl_dsp_handle_info_text(dsp, data_block->payload,
+					data_block->header.data_len);
 			break;
 		case CL_DSP_PM_PACKED_TYPE:
 			reg = dsp->mem_reg_desc->pm_base_reg
-					+ header.start_offset
+					+ data_block->header.start_offset
 					* CL_DSP_PM_NUM_BYTES;
 			break;
 		case CL_DSP_XM_PACKED_TYPE:
 			reg = dsp->mem_reg_desc->xm_base_reg_packed
-					+ header.start_offset
+					+ data_block->header.start_offset
 					* CL_DSP_PACKED_NUM_BYTES;
 			break;
 		case CL_DSP_XM_UNPACKED_TYPE:
 			reg = dsp->mem_reg_desc->xm_base_reg_unpacked_24
-					+ header.start_offset
+					+ data_block->header.start_offset
 					* CL_DSP_UNPACKED_NUM_BYTES;
 			break;
 		case CL_DSP_YM_PACKED_TYPE:
 			reg = dsp->mem_reg_desc->ym_base_reg_packed
-					+ header.start_offset
+					+ data_block->header.start_offset
 					* CL_DSP_PACKED_NUM_BYTES;
 			break;
 		case CL_DSP_YM_UNPACKED_TYPE:
 			reg = dsp->mem_reg_desc->ym_base_reg_unpacked_24
-					+ header.start_offset
+					+ data_block->header.start_offset
 					* CL_DSP_UNPACKED_NUM_BYTES;
 			break;
 		case CL_DSP_ALGO_INFO_TYPE:
 			reg = 0;
 
-			ret = cl_dsp_algo_parse(dsp, &fw->data[pos]);
+			ret = cl_dsp_algo_parse(dsp, data_block->payload);
 			if (ret)
-				return ret;
+				goto err_free;
 			break;
 		default:
 			dev_err(dev, "Unexpected block type : 0x%02X\n",
-					header.block_type);
-			return -EINVAL;
+					data_block->header.block_type);
+			ret = -EINVAL;
+			goto err_free;
 		}
 
 		if (dsp->fw_desc->write_fw && reg) {
-			ret = cl_dsp_raw_write(dsp, reg, &fw->data[pos],
-					header.data_len, CL_DSP_MAX_WLEN);
+			ret = cl_dsp_raw_write(dsp, reg, data_block->payload,
+					data_block->header.data_len,
+					CL_DSP_MAX_WLEN);
 			if (ret) {
 				dev_err(dev,
 					"Failed to write to base 0x%X\n", reg);
-				return ret;
+				goto err_free;
 			}
 		}
 
 		/* Blocks are word-aligned */
-		pos += (header.data_len + 3) & ~CL_DSP_WORD_ALIGN;
+		pos += (data_block->header.data_len + 3) & ~CL_DSP_WORD_ALIGN;
+
+		kfree(data_block->payload);
 	}
 
+	kfree(data_block);
 	return cl_dsp_coeff_init(dsp);
+
+err_free:
+	if (data_block->payload)
+		kfree(data_block->payload);
+
+	kfree(data_block);
+
+	return ret;
 }
 EXPORT_SYMBOL(cl_dsp_firmware_parse);
 
