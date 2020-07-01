@@ -162,7 +162,7 @@ struct cl_dsp {
 	struct cl_dsp_wt_desc *wt_desc;
 };
 
-struct cl_dsp *cl_dsp_create(struct device *dev);
+struct cl_dsp *cl_dsp_create(struct device *dev, struct regmap *regmap);
 int cl_dsp_destroy(struct cl_dsp *dsp);
 int cl_dsp_wavetable_create(struct cl_dsp *dsp, unsigned int id,
 		const char *wt_name_xm, const char *wt_name_ym,
