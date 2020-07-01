@@ -15,12 +15,15 @@
 #include <linux/list.h>
 #include <linux/regmap.h>
 #include <linux/of_device.h>
+#include <linux/slab.h>
 
 #ifndef __CL_DSP_H__
 #define __CL_DSP_H__
 
 #define CL_DSP_BYTES_PER_WORD		4
 #define CL_DSP_BITS_PER_BYTE		8
+
+#define CL_DSP_FW_FILE_HEADER_SIZE	40
 
 #define CL_DSP_MAGIC_ID_SIZE		4
 
@@ -29,7 +32,11 @@
 
 #define CL_DSP_DBLK_HEADER_SIZE	8
 
-#define CL_DSP_WORD_ALIGN	0x00000003
+#define CL_DSP_WORD_ALIGN		0x00000003
+
+#define CL_DSP_TARGET_CORE_HALO	0x04
+#define CL_DSP_MIN_FORMAT_VERSION	0x03
+#define CL_DSP_API_REVISION		0x0300
 
 #define CL_DSP_ALGO_ID_SIZE		4
 #define CL_DSP_COEFF_COUNT_SIZE	4
@@ -46,20 +53,18 @@
 
 #define CL_DSP_MAX_WLEN			4096
 
-#define CL_DSP_FW_FILE_HEADER_SIZE	40
-
 #define CL_DSP_XM_UNPACKED_TYPE	0x0005
 #define CL_DSP_YM_UNPACKED_TYPE	0x0006
-#define CL_DSP_PM_PACKED_TYPE	0x0010
-#define CL_DSP_XM_PACKED_TYPE	0x0011
-#define CL_DSP_YM_PACKED_TYPE	0x0012
-#define CL_DSP_ALGO_INFO_TYPE	0x00F2
-#define CL_DSP_WMFW_INFO_TYPE	0x00FF
+#define CL_DSP_PM_PACKED_TYPE		0x0010
+#define CL_DSP_XM_PACKED_TYPE		0x0011
+#define CL_DSP_YM_PACKED_TYPE		0x0012
+#define CL_DSP_ALGO_INFO_TYPE		0x00F2
+#define CL_DSP_WMFW_INFO_TYPE		0x00FF
 
 #define CL_DSP_MEM_REG_TYPE_MASK	GENMASK(27, 20)
 #define CL_DSP_MEM_REG_TYPE_SHIFT	20
 
-#define CL_DSP_PM_NUM_BYTES	5
+#define CL_DSP_PM_NUM_BYTES		5
 #define CL_DSP_PACKED_NUM_BYTES	3
 #define CL_DSP_UNPACKED_NUM_BYTES	4
 
@@ -81,6 +86,23 @@
 #define CL_DSP_WMDR_NAME_TYPE		0xFE00
 #define CL_DSP_WMDR_INFO_TYPE		0xFF00
 
+union cl_dsp_wmfw_header {
+	struct {
+		char magic[CL_DSP_BYTES_PER_WORD];
+		u32 header_length;
+		u16 api_revision;
+		u8 target_core;
+		u8 file_format_version;
+		u32 xm_size;
+		u32 ym_size;
+		u32 pm_size;
+		u32 zm_size;
+		u32 timestamp[2];
+		u32 checksum;
+	};
+	u8 data[CL_DSP_FW_FILE_HEADER_SIZE];
+};
+
 union cl_dsp_data_block_header {
 	struct {
 		u32 start_offset : 24;
@@ -88,6 +110,11 @@ union cl_dsp_data_block_header {
 		u32 data_len;
 	};
 	u8 data[CL_DSP_DBLK_HEADER_SIZE];
+};
+
+struct cl_dsp_data_block {
+	union cl_dsp_data_block_header header;
+	u8 *payload;
 };
 
 struct cl_dsp_fw_desc {
