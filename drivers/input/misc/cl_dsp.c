@@ -714,7 +714,7 @@ int cl_dsp_wavetable_create(struct cl_dsp *dsp, unsigned int id,
 }
 EXPORT_SYMBOL(cl_dsp_wavetable_create);
 
-struct cl_dsp *cl_dsp_create(struct device *dev)
+struct cl_dsp *cl_dsp_create(struct device *dev, struct regmap *regmap)
 {
 	struct cl_dsp *dsp;
 
@@ -723,6 +723,7 @@ struct cl_dsp *cl_dsp_create(struct device *dev)
 		return NULL;
 
 	dsp->dev = dev;
+	dsp->regmap = regmap;
 
 	INIT_LIST_HEAD(&dsp->coeff_desc_head);
 
