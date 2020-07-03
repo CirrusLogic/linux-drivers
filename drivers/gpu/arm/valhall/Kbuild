@@ -25,7 +25,8 @@ MALI_RELEASE_NAME ?= "r25p0-01eac0"
 
 # Paths required for build
 KBASE_PATH = $(srctree)/$(src)
-KBASE_PLATFORM_PATH = $(KBASE_PATH)/platform_dummy
+MALI_PLATFORM_DIR = platform/$(CONFIG_MALI_VALHALL_PLATFORM_NAME)
+KBASE_PLATFORM_PATH = $(KBASE_PATH)/$(MALI_PLATFORM_DIR)
 UMP_PATH = $(src)/../../../base
 
 # Set up defaults if not defined by build system
@@ -57,10 +58,10 @@ DEFINES = \
 
 ifeq ($(KBUILD_EXTMOD),)
 # in-tree
-DEFINES +=-DMALI_KBASE_PLATFORM_PATH=../../$(src)/platform/$(CONFIG_MALI_VALHALL_PLATFORM_NAME)
+DEFINES +=-DMALI_KBASE_PLATFORM_PATH=../../$(src)/$(MALI_PLATFORM_DIR)
 else
 # out-of-tree
-DEFINES +=-DMALI_KBASE_PLATFORM_PATH=$(src)/platform/$(CONFIG_MALI_VALHALL_PLATFORM_NAME)
+DEFINES +=-DMALI_KBASE_PLATFORM_PATH=$(src)/$(MALI_PLATFORM_DIR)
 endif
 
 DEFINES += -I$(srctree)/drivers/staging/android
@@ -68,8 +69,8 @@ DEFINES += -I$(srctree)/drivers/staging/android
 DEFINES += -DMALI_KBASE_BUILD
 
 # Use our defines when compiling
-ccflags-y += $(DEFINES) -I$(KBASE_PATH)   -I$(KBASE_PLATFORM_PATH) -I$(UMP_PATH) -I$(srctree)/include/linux
-subdir-ccflags-y += $(DEFINES) -I$(KBASE_PATH)   -I$(KBASE_PLATFORM_PATH) -I$(UMP_PATH) -I$(srctree)/include/linux
+ccflags-y += $(DEFINES) -I$(KBASE_PATH) -I$(KBASE_PLATFORM_PATH) -I$(UMP_PATH) -I$(srctree)/include/linux
+subdir-ccflags-y += $(DEFINES) -I$(KBASE_PATH) -I$(KBASE_PLATFORM_PATH) -I$(UMP_PATH) -I$(srctree)/include/linux
 
 SRC := \
 	context/mali_kbase_context.c \
