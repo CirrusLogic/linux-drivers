@@ -42,6 +42,7 @@ struct rt5682_platform_data {
 	unsigned int dmic_delay;
 
 	const char *dai_clk_names[RT5682_DAI_NUM_CLKS];
+	const char *mclk_name;
 };
 
 #endif
