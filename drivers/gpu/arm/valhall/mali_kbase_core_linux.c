@@ -4119,7 +4119,7 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 
 	if (err) {
 		if (err == -EPROBE_DEFER)
-			dev_dbg(kbdev->dev, "Device initialization Deferred\n");
+			dev_dbg(kbdev->dev, "Device initialization deferred\n");
 		else
 			dev_err(kbdev->dev, "Device initialization failed\n");
 

@@ -60,7 +60,7 @@ int kbase_ipa_model_recalculate(struct kbase_ipa_model *model)
 
 	if (model->ops->recalculate) {
 		err = model->ops->recalculate(model);
-		if (err) {
+		if (err && err != -EPROBE_DEFER) {
 			dev_err(model->kbdev->dev,
 				"recalculation of power model %s returned error %d\n",
 				model->ops->name, err);
