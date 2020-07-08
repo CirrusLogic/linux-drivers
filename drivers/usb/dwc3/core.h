@@ -1100,6 +1100,8 @@ struct dwc3 {
 	struct phy		*usb3_generic_phy;
 
 	bool			phys_ready;
+	bool                    need_phy_for_wakeup;
+	unsigned int            hs_phy_flags;
 
 	struct ulpi		*ulpi;
 	bool			ulpi_ready;
