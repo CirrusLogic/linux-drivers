@@ -17,9 +17,11 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
+#include <linux/pm_domain.h>
 #include <linux/usb/of.h>
 #include <linux/reset.h>
 #include <linux/iopoll.h>
+#include <linux/usb/hcd.h>
 
 #include "core.h"
 
@@ -293,21 +295,34 @@ static void dwc3_qcom_interconnect_exit(struct dwc3_qcom *qcom)
 
 static void dwc3_qcom_disable_interrupts(struct dwc3_qcom *qcom)
 {
+	struct dwc3 *dwc = platform_get_drvdata(qcom->dwc3);
+
 	if (qcom->hs_phy_irq) {
 		disable_irq_wake(qcom->hs_phy_irq);
 		disable_irq_nosync(qcom->hs_phy_irq);
 	}
+	if (dwc->hs_phy_flags & PHY_MODE_USB_HOST_LS) {
+		if (qcom->dp_hs_phy_irq) {
+			disable_irq_wake(qcom->dp_hs_phy_irq);
+			disable_irq_nosync(qcom->dp_hs_phy_irq);
+		}
+	} else if (dwc->hs_phy_flags & PHY_MODE_USB_HOST_HS) {
+		if (qcom->dm_hs_phy_irq) {
+			disable_irq_wake(qcom->dm_hs_phy_irq);
+			disable_irq_nosync(qcom->dm_hs_phy_irq);
+		}
+	} else {
 
-	if (qcom->dp_hs_phy_irq) {
-		disable_irq_wake(qcom->dp_hs_phy_irq);
-		disable_irq_nosync(qcom->dp_hs_phy_irq);
+		if (qcom->dp_hs_phy_irq) {
+			disable_irq_wake(qcom->dp_hs_phy_irq);
+			disable_irq_nosync(qcom->dp_hs_phy_irq);
+		}
+
+		if (qcom->dm_hs_phy_irq) {
+			disable_irq_wake(qcom->dm_hs_phy_irq);
+			disable_irq_nosync(qcom->dm_hs_phy_irq);
+		}
 	}
-
-	if (qcom->dm_hs_phy_irq) {
-		disable_irq_wake(qcom->dm_hs_phy_irq);
-		disable_irq_nosync(qcom->dm_hs_phy_irq);
-	}
-
 	if (qcom->ss_phy_irq) {
 		disable_irq_wake(qcom->ss_phy_irq);
 		disable_irq_nosync(qcom->ss_phy_irq);
@@ -316,21 +331,34 @@ static void dwc3_qcom_disable_interrupts(struct dwc3_qcom *qcom)
 
 static void dwc3_qcom_enable_interrupts(struct dwc3_qcom *qcom)
 {
+	struct dwc3 *dwc = platform_get_drvdata(qcom->dwc3);
+
 	if (qcom->hs_phy_irq) {
 		enable_irq(qcom->hs_phy_irq);
 		enable_irq_wake(qcom->hs_phy_irq);
 	}
+	if (dwc->hs_phy_flags & PHY_MODE_USB_HOST_LS) {
+		if (qcom->dp_hs_phy_irq) {
+			enable_irq(qcom->dp_hs_phy_irq);
+			enable_irq_wake(qcom->dp_hs_phy_irq);
+		}
+	} else if (dwc->hs_phy_flags & PHY_MODE_USB_HOST_HS) {
+		if (qcom->dm_hs_phy_irq) {
+			enable_irq(qcom->dm_hs_phy_irq);
+			enable_irq_wake(qcom->dm_hs_phy_irq);
+		}
+	} else {
 
-	if (qcom->dp_hs_phy_irq) {
-		enable_irq(qcom->dp_hs_phy_irq);
-		enable_irq_wake(qcom->dp_hs_phy_irq);
+		if (qcom->dp_hs_phy_irq) {
+			enable_irq(qcom->dp_hs_phy_irq);
+			enable_irq_wake(qcom->dp_hs_phy_irq);
+		}
+
+		if (qcom->dm_hs_phy_irq) {
+			enable_irq(qcom->dm_hs_phy_irq);
+			enable_irq_wake(qcom->dm_hs_phy_irq);
+		}
 	}
-
-	if (qcom->dm_hs_phy_irq) {
-		enable_irq(qcom->dm_hs_phy_irq);
-		enable_irq_wake(qcom->dm_hs_phy_irq);
-	}
-
 	if (qcom->ss_phy_irq) {
 		enable_irq(qcom->ss_phy_irq);
 		enable_irq_wake(qcom->ss_phy_irq);
@@ -341,6 +369,14 @@ static int dwc3_qcom_suspend(struct dwc3_qcom *qcom)
 {
 	u32 val;
 	int i, ret;
+	struct dwc3 *dwc = platform_get_drvdata(qcom->dwc3);
+	struct usb_hcd  *hcd = platform_get_drvdata(dwc->xhci);
+	struct generic_pm_domain *genpd;
+
+	genpd = pd_to_genpd(qcom->dev->pm_domain);
+
+	if (genpd && usb_wakeup_enabled_descendants(hcd->self.root_hub))
+		genpd->flags |= GENPD_FLAG_ACTIVE_WAKEUP;
 
 	if (qcom->is_suspended)
 		return 0;
@@ -366,6 +402,11 @@ static int dwc3_qcom_resume(struct dwc3_qcom *qcom)
 {
 	int ret;
 	int i;
+	struct generic_pm_domain *genpd;
+
+	genpd = pd_to_genpd(qcom->dev->pm_domain);
+	if (genpd)
+		genpd->flags &= ~GENPD_FLAG_ACTIVE_WAKEUP;
 
 	if (!qcom->is_suspended)
 		return 0;
