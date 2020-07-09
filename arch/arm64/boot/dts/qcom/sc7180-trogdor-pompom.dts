@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Google Pompom board device tree source
+ *
+ * Copyright 2020 Google LLC.
+ */
+
+#include "sc7180-trogdor-r1.dts"
+
+/ {
+	model = "Google Pompom (rev0+)";
+	compatible = "google,pompom", "qcom,sc7180";
+};
+
+/delete-node/ &ap_ts;
+&ap_ts_pen_1v8 {
+	ap_ts: touchscreen@10 {
+		compatible = "hid-over-i2c";
+		reg = <0x10>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_int_l>, <&ts_reset_l>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <9 IRQ_TYPE_LEVEL_LOW>;
+
+		post-power-on-delay-ms = <20>;
+		hid-descr-addr = <0x0001>;
+
+		vdd-supply = <&pp3300_ts>;
+	};
+};
+
+&panel {
+	/*
+	 * Actual panel is KD116N21-30NV but the timings for auo,b116xa01
+	 * work fine.
+	 */
+	compatible = "kingdisplay,kd116n21-30nv", "auo,b116xa01";
+};
