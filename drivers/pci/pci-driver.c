@@ -1450,6 +1450,9 @@ static int pci_bus_match(struct device *dev, struct device_driver *drv)
 	struct pci_driver *pci_drv;
 	const struct pci_device_id *found_id;
 
+	if (pci_dev->untrusted && !pci_drv_allowed_for_untrusted_devs(drv))
+		return 0;
+
 	if (!pci_dev->match_driver)
 		return 0;
 
