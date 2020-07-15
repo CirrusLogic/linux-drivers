@@ -1610,7 +1610,8 @@ static irqreturn_t cs35l45_irq(int irq, void *data)
 			     cs35l45_irq_mons[i].bitmask);
 
 		if (cs35l45_irq_mons[i].err_msg)
-			dev_err(cs35l45->dev, cs35l45_irq_mons[i].err_msg);
+			dev_err(cs35l45->dev, "%s\n",
+				cs35l45_irq_mons[i].err_msg);
 
 		if (cs35l45_irq_mons[i].callback) {
 			ret = cs35l45_irq_mons[i].callback(cs35l45);
