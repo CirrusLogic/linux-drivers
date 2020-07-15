@@ -1034,12 +1034,6 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 		return -EBUSY;
 	}
 
-	/*
-	 * Mark the msgproc as in use whilst the compressed stream is open
-	 * to prevent the shutdown cmd being issued.
-	 */
-	clsic_msgproc_use(alg->clsic, alg->service->service_instance);
-
 	clsic_dbg(clsic, "%s\n", rtd->codec_dai->name);
 
 	pm_runtime_get_sync(clsic->dev);
@@ -1054,9 +1048,6 @@ static int clsic_alg_compr_open(struct snd_compr_stream *stream)
 		clsic_err(alg->clsic,
 			  "Open compr stream for DAI '%s' failed %d\n",
 			  rtd->codec_dai->name, ret);
-
-		clsic_msgproc_release(alg->clsic,
-				      alg->service->service_instance);
 
 		module_put(clsic->dev->driver->owner);
 		module_put(alg->codec->component.card->owner);
@@ -1142,9 +1133,6 @@ static int clsic_alg_compr_free(struct snd_compr_stream *stream)
 				  "Notifier cancel failed (%d) for DAI '%s'\n",
 				  ret, rtd->codec_dai->name);
 	}
-
-	/* Release the msgproc when the compressed stream is freed. */
-	clsic_msgproc_release(alg->clsic, alg->service->service_instance);
 
 	module_put(clsic->dev->driver->owner);
 	module_put(alg->codec->component.card->owner);
