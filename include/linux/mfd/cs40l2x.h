@@ -813,6 +813,11 @@
 #define CS40L2X_FW_DBLK_TYPE_SIZE	1
 #define CS40L2X_FW_DBLK_LENGTH_SIZE	4
 
+#define CS40L2X_ZERO_INIT		0
+#define CS40L2X_ZERO_VAL		0
+#define CS40L2X_TWO_BYTES		2
+#define CS40L2X_FOUR_BITS		4
+
 #define CS40L2X_WT_FILE_DATE_MISSING	"N/A"
 #define CS40L2X_WT_FILE_DATE_LEN_MAX	16
 #define CS40L2X_WT_FILE_NAME_MISSING	"N/A"
@@ -1206,7 +1211,74 @@
 #define CS40L2X_VOL_LVL_MAX_STEPS	100
 #define CS40L2X_VOL_LVL_MAX		0x7fffff
 
-#define CS40L2X_SIZE_TWO_ARRAY	2
+#define CS40L2X_SIZE_TWO_ARRAY		2
+
+#define CS40L2X_PWLE_MIN_SEGS		2
+#define CS40L2X_PWLE_MAX_SEGS		255
+#define CS40L2X_PWLE_MAX_SEG_VALS	7
+#define CS40L2X_PWLE_MAX_TOT_SV (\
+	CS40L2X_PWLE_MAX_SEGS *\
+	CS40L2X_PWLE_MAX_SEG_VALS)
+#define CS40L2X_PWLE_TOTAL_VALS	(\
+	CS40L2X_PWLE_MAX_TOT_SV +\
+	CS40L2X_PWLE_MIN_SEGS)
+#define CS40L2X_PWLE_MAX_SEG_BYTES	9
+#define CS40L2X_PWLE_NON_SEG_BYTES	7
+#define CS40L2X_PWLE_BYTES_MAX	((\
+	CS40L2X_PWLE_MAX_SEGS *\
+	CS40L2X_PWLE_MAX_SEG_BYTES) +\
+	CS40L2X_PWLE_NON_SEG_BYTES)
+#define CS40L2X_PWLE_SEG_LEN_MAX	11
+#define CS40L2X_PWLE_MAX_RP_VAL		255
+#define CS40L2X_PWLE_MAX_WT_VAL		1023
+#define CS40L2X_PWLE_MAX_TIME_VAL	16383
+#define CS40L2X_PWLE_INDEF_TIME_VAL	65535
+#define CS40L2X_PWLE_TIME_RES		25
+#define CS40L2X_PWLE_FREQ_RES		125
+#define CS40L2X_PWLE_MAX_LEV_VAL	98256
+#define CS40L2X_PWLE_LEV_ADD_NEG	2048
+#define CS40L2X_PWLE_LEV_DIV		48
+#define CS40L2X_PWLE_MAX_FREQ_VAL	561
+#define CS40L2X_PWLE_MIN_FREQ_VAL	50
+#define CS40L2X_PWLE_MAX_VB_RES		9999999
+#define CS40L2X_PWLE_MAX_VB_TARG	8388607
+#define CS40L2X_PWLE_NUM_CONST_VALS	2
+#define CS40L2X_PWLE_MAX_VB_RES_DIG	6
+#define CS40L2X_PWLE_MAX_LV_RES_DIG	4
+#define CS40L2X_PWLE_MAX_WVFRM_FEAT	12
+#define CS40L2X_PWLE_WVFRM_FT_SHFT	20
+#define CS40L2X_PWLE_SAMPLES_PER_MS	8
+#define CS40L2X_PWLE_SEG_BYTES		6
+#define CS40L2X_PWLE_WV_SMPL_BYTES	3
+#define CS40L2X_PWLE_REPEAT_BYTES	1
+#define CS40L2X_PWLE_WT_BYTES		2
+#define CS40L2X_PWLE_NUM_SEG_BYTES	1
+#define CS40L2X_PWLE_NUM_VBT_BYTES	3
+#define CS40L2X_PWLE_END_PAD_BYTES	2
+#define CS40L2X_ZERO_PAD_MASK		0xFFFFFF00
+#define CS40L2X_MS_FOUR_BYTE_MASK	0xF0
+#define CS40L2X_LS_FOUR_BYTE_MASK	0x0F
+#define CS40L2X_PWLE_CHIRP_BIT		0x8
+#define CS40L2X_PWLE_BRAKE_BIT		0x4
+#define CS40L2X_PWLE_AMP_REG_BIT	0x2
+#define CS40L2X_PWLE_FIRST_BYTES	(\
+	CS40L2X_PWLE_WV_SMPL_BYTES +\
+	CS40L2X_PWLE_REPEAT_BYTES +\
+	CS40L2X_PWLE_WT_BYTES +\
+	CS40L2X_PWLE_NUM_SEG_BYTES)
+#define CS40L2X_PACKED_BYTES_MAX	(((\
+	CS40L2X_PWLE_BYTES_MAX / 2) *\
+	CS40L2X_WT_NUM_VIRT_SLOTS) + 3)
+#define CS40L2X_SINGLE_PACKED_MAX	(\
+	CS40L2X_PACKED_BYTES_MAX /\
+	CS40L2X_WT_NUM_VIRT_SLOTS)
+/* CS40L2X_PACKED_BYTES_MAX if changed, should stay above
+ * the recommended min value of 576 and be evenly divisible
+ * by CS40L2X_PBQ_FW_BYTES_MIN because the driver will attempt
+ * to automatically reduce the size of the required space for
+ * an open slot to use for open wavetable and chirp scalability
+ * if there aren't CS40L2X_PACKED_BYTES_MAX bytes available.
+ */
 
 bool cs40l2x_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l2x_precious_reg(struct device *dev, unsigned int reg);
@@ -1288,10 +1360,12 @@ struct cs40l2x_f0_dynamic {
 	bool changed;
 };
 
-struct cs40l2x_ovwr_composite {
+struct cs40l2x_ovwr_waveform {
 	bool is_xm;
 	unsigned int data_len;
-	char data[CS40L2X_PBQ_FW_BYTES_MAX];
+	unsigned int wvfrm_type;
+	unsigned int wvfrm_feature;
+	char data[CS40L2X_SINGLE_PACKED_MAX];
 };
 
 struct cs40l2x_private {
@@ -1339,6 +1413,7 @@ struct cs40l2x_private {
 	unsigned int *updated_offsets;
 	unsigned int updated_offsets_size;
 	unsigned int updated_block_size;
+	unsigned int pwle_str_size;
 	char *pbq_fw_raw_wt;
 	char *pbq_updated_fw_raw_wt;
 	char two_bytes[CS40L2X_SIZE_TWO_ARRAY];
@@ -1351,6 +1426,7 @@ struct cs40l2x_private {
 	bool xm_append;
 	char wt_file[CS40L2X_WT_FILE_NAME_LEN_MAX];
 	char wt_date[CS40L2X_WT_FILE_DATE_LEN_MAX];
+	char pwle_str[CS40L2X_PWLE_TOTAL_VALS];
 	bool exc_available;
 	struct cs40l2x_dblk_desc pre_dblks[CS40L2X_MAX_A2H_LEVELS];
 	struct cs40l2x_dblk_desc a2h_dblks[CS40L2X_MAX_A2H_LEVELS];
@@ -1376,6 +1452,16 @@ struct cs40l2x_private {
 	unsigned int pbq_index;
 	unsigned int pbq_state;
 	unsigned int pbq_cp_dig_scale;
+	unsigned int pwle_feature;
+	unsigned int pwle_wvfrm_len;
+	unsigned int pwle_repeat;
+	unsigned int wvfrm_len_wait_time;
+	unsigned int pwle_wait_time;
+	unsigned int pwle_num_segs;
+	unsigned int pwle_num_vb_targs;
+	unsigned int num_virtual_pwle_waves;
+	unsigned int last_type_entered;
+	unsigned int display_pwle_segs;
 	unsigned int comp_outer[CS40L2X_PBQ_DEPTH_MAX];
 	unsigned int comp_inner[CS40L2X_PBQ_DEPTH_MAX];
 	unsigned int pbq_fw_composite[CS40L2X_PBQ_DEPTH_MAX + 3];
@@ -1385,8 +1471,9 @@ struct cs40l2x_private {
 	unsigned int virtual_slot_index;
 	unsigned int virtual_gpio1_fall_index;
 	unsigned int virtual_gpio1_rise_index;
-	struct list_head virtual_composite_head;
-	struct cs40l2x_ovwr_composite *ovwr_wav;
+	struct list_head virtual_waveform_head;
+	struct list_head pwle_segment_head;
+	struct cs40l2x_ovwr_waveform *ovwr_wav;
 	int pbq_repeat;
 	int pbq_remain;
 	struct cs40l2x_wseq_pair wseq_table[CS40L2X_WSEQ_LENGTH_MAX];
@@ -1413,6 +1500,7 @@ struct cs40l2x_private {
 	bool f0_wt_en[CS40L2X_MAX_WAVEFORMS];
 	bool dyn_f0_enable;
 	bool cond_class_h_en;
+	bool save_pwle;
 	struct cs40l2x_wseq_pair dsp_cache[CS40L2X_DSP_CACHE_MAX];
 	unsigned int dsp_cache_depth;
 
@@ -1440,11 +1528,25 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 int cs40l2x_ack_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
 			unsigned int write_val, unsigned int reset_val);
 
-struct cs40l2x_virtual_composite {
+struct cs40l2x_virtual_waveform {
 	bool is_xm;
 	unsigned int index;
 	unsigned int data_len;
-	char data[CS40L2X_PBQ_FW_BYTES_MAX];
+	unsigned int wvfrm_type;
+	unsigned int wvfrm_feature;
+	char data[CS40L2X_SINGLE_PACKED_MAX];
+	struct list_head list;
+};
+
+struct cs40l2x_pwle_segment {
+	unsigned int index;
+	unsigned int time;
+	unsigned int level;
+	unsigned int freq;
+	unsigned int chirp;
+	unsigned int brake;
+	unsigned int amp_reg;
+	unsigned int vb_targ;
 	struct list_head list;
 };
 
