@@ -139,6 +139,7 @@ struct cs35l45_private {
 	struct mutex rate_lock;
 	bool initialized;
 	bool fast_switch_en;
+	bool sync_master;
 	unsigned int wksrc;
 	unsigned int i2c_addr;
 	int irq;
