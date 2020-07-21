@@ -256,22 +256,28 @@
 			"Headphone Jack", "HPOL",
 			"Headphone Jack", "HPOR";
 
-		dai-link-0 {
+		aux-dev = <&alc5682>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dai-link@0 {
 			link-name = "MultiMedia0";
+			reg = <0>;
 			cpu {
-				sound-dai = <&lpass_cpu  0>;
+				sound-dai = <&lpass_cpu 0>;
 			};
 
 			codec {
-				sound-dai = <&alc5682  0>;
+				sound-dai = <&alc5682 0>;
 			};
 		};
 
-		dai-link-1 {
+		dai-link@1 {
 			link-name = "MultiMedia1";
-			unidirectional = <0>;
+			reg = <1>;
 			cpu {
-				sound-dai = <&lpass_cpu  1>;
+				sound-dai = <&lpass_cpu 1>;
 			};
 
 			codec {
