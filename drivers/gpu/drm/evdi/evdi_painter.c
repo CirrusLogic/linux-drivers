@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2013 - 2019 DisplayLink (UK) Ltd.
+ * Copyright (c) 2013 - 2020 DisplayLink (UK) Ltd.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License v2. See the file COPYING in the main directory of this archive for
@@ -14,8 +14,11 @@
 #include <uapi/drm/evdi_drm.h>
 #include "evdi_drv.h"
 #include "evdi_cursor.h"
+#include "evdi_i2c.h"
 #include <linux/mutex.h>
 #include <linux/compiler.h>
+#include <linux/platform_device.h>
+#include <linux/completion.h>
 
 struct evdi_event_cursor_set_pending {
 	struct drm_pending_event base;
@@ -47,9 +50,16 @@ struct evdi_event_crtc_state_pending {
 	struct drm_evdi_event_crtc_state crtc_state;
 };
 
+struct evdi_event_ddcci_data_pending {
+	struct drm_pending_event base;
+	struct drm_evdi_event_ddcci_data ddcci_data;
+};
+
 #define MAX_DIRTS 16
 #define EDID_EXT_BLOCK_SIZE 128
 #define MAX_EDID_SIZE (255 * EDID_EXT_BLOCK_SIZE + sizeof(struct edid))
+#define I2C_ADDRESS_DDCCI 0x37
+#define DDCCI_TIMEOUT_MS 50
 
 struct evdi_painter {
 	bool is_connected;
@@ -67,6 +77,10 @@ struct evdi_painter {
 
 	bool was_update_requested;
 	bool needs_full_modeset;
+
+	struct completion ddcci_response_received;
+	char *ddcci_buffer;
+	unsigned int ddcci_buffer_length;
 };
 
 static void expand_rect(struct drm_clip_rect *a, const struct drm_clip_rect *b)
@@ -524,6 +538,59 @@ void evdi_painter_mode_changed_notify(struct evdi_device *evdi,
 		painter->needs_full_modeset = false;
 }
 
+static void evdi_add_i2c_adapter(struct evdi_device *evdi)
+{
+	struct drm_device *ddev = evdi->ddev;
+	struct platform_device *platdev = to_platform_device(ddev->dev);
+	int result = 0;
+
+	evdi->i2c_adapter = kzalloc(sizeof(*evdi->i2c_adapter), GFP_KERNEL);
+
+	if (!evdi->i2c_adapter) {
+		EVDI_ERROR("(dev=%d) Failed to allocate for i2c adapter",
+			evdi->dev_index);
+		return;
+	}
+
+	result = evdi_i2c_add(evdi->i2c_adapter, &platdev->dev,
+		ddev->dev_private);
+
+	if (result) {
+		kfree(evdi->i2c_adapter);
+		evdi->i2c_adapter = NULL;
+		EVDI_ERROR("(dev=%d) Failed to add i2c adapter, error %d",
+			evdi->dev_index, result);
+		return;
+	}
+
+	EVDI_DEBUG("(dev=%d) Added i2c adapter bus number %d",
+		evdi->dev_index, evdi->i2c_adapter->nr);
+
+	result = sysfs_create_link(&evdi->conn->kdev->kobj,
+			&evdi->i2c_adapter->dev.kobj, "ddc");
+
+	if (result) {
+		EVDI_ERROR("(dev=%d) Failed to create sysfs link, error %d",
+			evdi->dev_index, result);
+		return;
+	}
+}
+
+static void evdi_remove_i2c_adapter(struct evdi_device *evdi)
+{
+	if (evdi->i2c_adapter) {
+		EVDI_DEBUG("(dev=%d) Removing i2c adapter bus number %d",
+			evdi->dev_index, evdi->i2c_adapter->nr);
+
+		sysfs_remove_link(&evdi->conn->kdev->kobj, "ddc");
+
+		evdi_i2c_remove(evdi->i2c_adapter);
+
+		kfree(evdi->i2c_adapter);
+		evdi->i2c_adapter = NULL;
+	}
+}
+
 static int
 evdi_painter_connect(struct evdi_device *evdi,
 		     void const __user *edid_data, unsigned int edid_length,
@@ -580,6 +647,8 @@ evdi_painter_connect(struct evdi_device *evdi,
 	painter->is_connected = true;
 	painter->needs_full_modeset = true;
 
+	evdi_add_i2c_adapter(evdi);
+
 	painter_unlock(painter);
 
 	EVDI_DEBUG("(dev=%d) Connected with %p\n", evdi->dev_index,
@@ -624,11 +693,20 @@ static int evdi_painter_disconnect(struct evdi_device *evdi,
 
 	evdi_cursor_enable(evdi->cursor, false);
 
+	kfree(painter->ddcci_buffer);
+	painter->ddcci_buffer = NULL;
+	painter->ddcci_buffer_length = 0;
+
+	evdi_remove_i2c_adapter(evdi);
+
 	painter->drm_filp = NULL;
 
 	painter->was_update_requested = false;
 
 	painter_unlock(painter);
+
+	// Signal anything waiting for ddc/ci response with NULL buffer
+	complete(&painter->ddcci_response_received);
 
 	drm_helper_hpd_irq_event(evdi->ddev);
 	return 0;
@@ -806,6 +884,7 @@ int evdi_painter_init(struct evdi_device *dev)
 		dev->painter->edid = NULL;
 		dev->painter->edid_length = 0;
 		dev->painter->needs_full_modeset = true;
+		init_completion(&dev->painter->ddcci_response_received);
 		return 0;
 	}
 	return -ENOMEM;
@@ -884,4 +963,129 @@ bool evdi_painter_needs_full_modeset(struct evdi_device *evdi)
 	if (painter)
 		return painter->needs_full_modeset;
 	return false;
+}
+
+static struct drm_pending_event *create_ddcci_data_event(struct i2c_msg *msg)
+{
+	struct evdi_event_ddcci_data_pending *event;
+
+	event = kzalloc(sizeof(*event), GFP_KERNEL);
+	if (!event || !msg) {
+		EVDI_ERROR("Failed to create ddcci data event");
+		return NULL;
+	}
+
+	event->ddcci_data.base.type = DRM_EVDI_EVENT_DDCCI_DATA;
+	event->ddcci_data.base.length = sizeof(event->ddcci_data);
+	// Truncate buffers to a maximum of 64 bytes
+	event->ddcci_data.buffer_length = min_t(__u16, msg->len,
+		sizeof(event->ddcci_data.buffer));
+	memcpy(event->ddcci_data.buffer, msg->buf,
+		event->ddcci_data.buffer_length);
+	event->ddcci_data.flags = msg->flags;
+	event->ddcci_data.address = msg->addr;
+
+	event->base.event = &event->ddcci_data.base;
+	return &event->base;
+}
+
+static void evdi_painter_ddcci_data(struct evdi_painter *painter,
+		struct i2c_msg *msg)
+{
+	struct drm_pending_event *event;
+
+	if (!painter->drm_filp) {
+		EVDI_WARN("Painter is not connected!");
+		return;
+	}
+
+	event = create_ddcci_data_event(msg);
+
+	reinit_completion(&painter->ddcci_response_received);
+	evdi_painter_send_event(painter->drm_filp, &event->link);
+
+	if (wait_for_completion_interruptible_timeout(
+		&painter->ddcci_response_received,
+		msecs_to_jiffies(DDCCI_TIMEOUT_MS)) > 0) {
+
+		// Match expected buffer length including any truncation
+		const uint32_t expected_response_length = min_t(__u16, msg->len,
+				DDCCI_BUFFER_SIZE);
+
+		painter_lock(painter);
+
+		if (expected_response_length != painter->ddcci_buffer_length)
+			EVDI_WARN("DDCCI buffer length mismatch");
+		else if (painter->ddcci_buffer)
+			memcpy(msg->buf, painter->ddcci_buffer,
+					painter->ddcci_buffer_length);
+		else
+			EVDI_WARN("Ignoring NULL DDCCI buffer");
+
+		painter_unlock(painter);
+	} else {
+		EVDI_WARN("DDCCI response timeout");
+	}
+}
+
+bool evdi_painter_i2c_data_notify(struct evdi_device *evdi, struct i2c_msg *msg)
+{
+	struct evdi_painter *painter = evdi->painter;
+
+	if (!evdi_painter_is_connected(evdi)) {
+		EVDI_WARN("Painter not connected");
+		return false;
+	}
+
+	if (!msg) {
+		EVDI_WARN("Ignored NULL ddc/ci message");
+		return false;
+	}
+
+	if (msg->addr != I2C_ADDRESS_DDCCI) {
+		EVDI_DEBUG("Ignored ddc/ci data for address 0x%x\n", msg->addr);
+		return false;
+	}
+
+	evdi_painter_ddcci_data(painter, msg);
+	return true;
+}
+
+int evdi_painter_ddcci_response_ioctl(struct drm_device *drm_dev, void *data,
+				__always_unused struct drm_file *file)
+{
+	struct evdi_device *evdi = drm_dev->dev_private;
+	struct evdi_painter *painter = evdi->painter;
+	struct drm_evdi_ddcci_response *cmd = data;
+	int result = 0;
+
+	painter_lock(painter);
+
+	// Truncate any read to 64 bytes
+	painter->ddcci_buffer_length = min_t(uint32_t, cmd->buffer_length,
+			DDCCI_BUFFER_SIZE);
+
+	kfree(painter->ddcci_buffer);
+	painter->ddcci_buffer = kzalloc(painter->ddcci_buffer_length,
+			GFP_KERNEL);
+	if (!painter->ddcci_buffer) {
+		EVDI_ERROR("DDC buffer allocation failed\n");
+		result = -ENOMEM;
+		goto unlock;
+	}
+
+	if (copy_from_user(painter->ddcci_buffer, cmd->buffer,
+		painter->ddcci_buffer_length)) {
+		EVDI_ERROR("Failed to read ddcci_buffer\n");
+		kfree(painter->ddcci_buffer);
+		painter->ddcci_buffer = NULL;
+		result = -EFAULT;
+		goto unlock;
+	}
+
+	complete(&painter->ddcci_response_received);
+
+unlock:
+	painter_unlock(painter);
+	return result;
 }

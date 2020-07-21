@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only
  * Copyright (C) 2012 Red Hat
- * Copyright (c) 2015 - 2019 DisplayLink (UK) Ltd.
+ * Copyright (c) 2015 - 2020 DisplayLink (UK) Ltd.
  *
  * Based on parts on udlfb.c:
  * Copyright (C) 2009 its respective authors
@@ -26,10 +26,10 @@
 
 #define DRIVER_NAME   "evdi"
 #define DRIVER_DESC   "Extensible Virtual Display Interface"
-#define DRIVER_DATE   "20180315"
+#define DRIVER_DATE   "20200707"
 
 #define DRIVER_MAJOR      1
-#define DRIVER_MINOR      5
+#define DRIVER_MINOR      8
 #define DRIVER_PATCHLEVEL 0
 
 struct evdi_fbdev;
@@ -38,13 +38,14 @@ struct evdi_painter;
 extern bool evdi_enable_cursor_blending __read_mostly;
 
 struct evdi_device {
-	struct device *dev;
 	struct drm_device *ddev;
+	struct drm_connector *conn;
 	struct evdi_cursor *cursor;
 	uint32_t sku_area_limit;
 
 	struct evdi_fbdev *fbdev;
 	struct evdi_painter *painter;
+	struct i2c_adapter *i2c_adapter;
 
 	atomic_t frame_count;
 
@@ -138,6 +139,8 @@ int evdi_painter_grabpix_ioctl(struct drm_device *drm_dev, void *data,
 			       struct drm_file *file);
 int evdi_painter_request_update_ioctl(struct drm_device *drm_dev, void *data,
 				      struct drm_file *file);
+int evdi_painter_ddcci_response_ioctl(struct drm_device *drm_dev, void *data,
+				      struct drm_file *file);
 
 int evdi_painter_init(struct evdi_device *evdi);
 void evdi_painter_cleanup(struct evdi_device *evdi);
@@ -159,6 +162,8 @@ void evdi_painter_send_cursor_move(struct evdi_painter *painter,
 bool evdi_painter_needs_full_modeset(struct evdi_device *evdi);
 struct drm_clip_rect evdi_painter_framebuffer_size(
 			struct evdi_painter *painter);
+bool evdi_painter_i2c_data_notify(struct evdi_device *evdi,
+				struct i2c_msg *msg);
 
 int evdi_fb_get_bpp(uint32_t format);
 #endif
