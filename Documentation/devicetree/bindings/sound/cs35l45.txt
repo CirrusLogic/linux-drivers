@@ -49,6 +49,17 @@ Optional properties:
     noise gate considers the input audio to be at a low enough level to be
     valid to enter a noise gating state of operation.
 
+  - cirrus,sync-id : The MDSYNC SW packet ID the amplifier will use when
+    broadcasting and receiving messages.
+
+    0 - Indicates master device
+    Anything else - Indicates slave device
+
+  - cirrus,sync-num-slaves : Number of slaves present on the MDSYNC bus. Should
+    be the same for all amps on same MDSYNC bus. The master device will wait
+    for 'sync-num-slaves' number of parts to indicate PLL lock events before
+    broadcasting MDSYNC power packets.
+
 Optional Voltage Based Boost BPE Sub-node:
 
   Details found in section 4.9.4
