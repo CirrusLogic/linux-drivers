@@ -2619,12 +2619,11 @@ static void futex_wait_queue_me(struct futex_hash_bucket *hb, struct futex_q *q,
 		 */
 		if (!timeout || timeout->task) {
 			if (next) {
-				/*
-				 * wake_up_process() below will be replaced
-				 * in the next patch with
-				 * wake_up_process_prefer_current_cpu().
-				 */
+#ifdef CONFIG_SMP
+				wake_up_process_prefer_current_cpu(next);
+#else
 				wake_up_process(next);
+#endif
 				put_task_struct(next);
 				next = NULL;
 			}
