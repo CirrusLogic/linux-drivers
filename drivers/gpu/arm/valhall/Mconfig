@@ -14,10 +14,10 @@
 
 
 menuconfig MALI_VALHALL
-	bool "Mali Midgard series support"
+	bool "Mali Valhall series support"
 	default y
 	help
-	  Enable this option to build support for a ARM Mali Midgard GPU.
+	  Enable this option to build support for a ARM Mali Valhall GPU.
 
 	  To compile this driver as a module, choose M here:
 	  this will generate a single module, called mali_kbase.
@@ -35,7 +35,7 @@ config MALI_VALHALL_DVFS
 	depends on MALI_VALHALL && !MALI_DEVFREQ
 	default n
 	help
-	  Choose this option to enable legacy DVFS in the Mali Midgard DDK.
+	  Choose this option to enable legacy DVFS in the Mali Valhall DDK.
 
 config MALI_VALHALL_ENABLE_TRACE
 	bool "Enable kbase tracing"

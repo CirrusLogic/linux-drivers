@@ -48,7 +48,7 @@ config MALI_VALHALL_DVFS
 	depends on MALI_VALHALL && !MALI_VALHALL_DEVFREQ
 	default n
 	help
-	  Choose this option to enable legacy DVFS in the Mali Midgard DDK.
+	  Choose this option to enable legacy DVFS in the Mali Valhall DDK.
 
 config MALI_VALHALL_ENABLE_TRACE
 	bool "Enable kbase tracing"

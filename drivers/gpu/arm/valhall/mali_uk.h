@@ -44,12 +44,12 @@ extern "C" {
  * @defgroup uk_api User-Kernel Interface API
  *
  * The User-Kernel Interface abstracts the communication mechanism between the user and kernel-side code of device
- * drivers developed as part of the Midgard DDK. Currently that includes the Base driver.
+ * drivers developed as part of the Valhall DDK. Currently that includes the Base driver.
  *
  * It exposes an OS independent API to user-side code (UKU) which routes functions calls to an OS-independent
  * kernel-side API (UKK) via an OS-specific communication mechanism.
  *
- * This API is internal to the Midgard DDK and is not exposed to any applications.
+ * This API is internal to the Valhall DDK and is not exposed to any applications.
  *
  * @{
  */
