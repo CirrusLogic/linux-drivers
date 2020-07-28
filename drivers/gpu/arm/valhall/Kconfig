@@ -46,6 +46,7 @@ config MALI_VALHALL_GATOR_SUPPORT
 config MALI_VALHALL_DVFS
 	bool "Enable legacy DVFS"
 	depends on MALI_VALHALL && !MALI_VALHALL_DEVFREQ
+	depends on BROKEN
 	default n
 	help
 	  Choose this option to enable legacy DVFS in the Mali Valhall DDK.
