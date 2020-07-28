@@ -414,9 +414,13 @@ static int kbase_devfreq_init_core_mask_table(struct kbase_device *kbdev)
 		err = of_property_read_u64(node, "opp-hz-real", real_freqs);
 #endif
 		if (err < 0) {
-			dev_warn(kbdev->dev, "Failed to read opp-hz-real property with error %d\n",
-					err);
-			continue;
+			/* Failed to read opp-hz-real property, use opp-hz
+			 * value instead.
+			 */
+			int j;
+
+			for (j = 0; j < kbdev->nr_clocks; j++)
+				real_freqs[j] = opp_freq;
 		}
 #ifdef CONFIG_REGULATOR
 		err = of_property_read_u32_array(node,
