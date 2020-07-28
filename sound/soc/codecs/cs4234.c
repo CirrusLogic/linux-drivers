@@ -17,6 +17,7 @@
 #include <linux/pm_runtime.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
+#include <sound/pcm.h>
 #include <sound/pcm_params.h>
 
 #include "cs4234.h"
@@ -30,6 +31,9 @@ struct cs4234 {
 	struct clk *mclk;
 	unsigned long mclk_rate;
 	unsigned long lrclk_rate;
+	unsigned int format;
+	struct snd_ratnum rate_dividers[2];
+	struct snd_pcm_hw_constraint_ratnums rate_constraint;
 };
 
 /* -89.92dB to +6.02dB with step of 0.38dB */
@@ -244,7 +248,8 @@ static int cs4234_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int format
 	struct cs4234 *cs4234 = snd_soc_component_get_drvdata(component);
 	unsigned int sp_ctrl = 0;
 
-	switch (format & SND_SOC_DAIFMT_FORMAT_MASK) {
+	cs4234->format = format & SND_SOC_DAIFMT_FORMAT_MASK;
+	switch (cs4234->format) {
 	case SND_SOC_DAIFMT_LEFT_J:
 		sp_ctrl |= CS4234_LEFT_J << CS4234_SP_FORMAT_SHIFT;
 		break;
@@ -263,7 +268,7 @@ static int cs4234_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int format
 	case SND_SOC_DAIFMT_CBS_CFS:
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
-		if ((format & SND_SOC_DAIFMT_FORMAT_MASK) == SND_SOC_DAIFMT_DSP_A) {
+		if (cs4234->format == SND_SOC_DAIFMT_DSP_A) {
 			dev_err(component->dev, "unsupported DSP A format in master mode\n");
 			return -EINVAL;
 		}
@@ -371,24 +376,74 @@ static int cs4234_dai_hw_params(struct snd_pcm_substream *sub, struct snd_pcm_hw
 	return ret;
 }
 
+static const struct snd_ratnum cs4234_dividers[] = {
+	{
+		.num = 0,
+		.den_min = 256,
+		.den_max = 512,
+		.den_step = 128,
+	},
+	{
+		.num = 0,
+		.den_min = 128,
+		.den_max = 192,
+		.den_step = 64,
+	},
+};
+
 static int cs4234_dai_rule_rate(struct snd_pcm_hw_params *params, struct snd_pcm_hw_rule *rule)
 {
 	struct cs4234 *cs4234 = rule->private;
-	unsigned int lrclk = params_rate(params);
+	int mclk = cs4234->mclk_rate;
+	struct snd_interval ranges[] = {
+		{ /* Single Speed Mode */
+			.min = mclk / clamp(mclk / 30000, 256, 512),
+			.max = mclk / clamp(mclk / 50000, 256, 512),
+		},
+		{ /* Double Speed Mode */
+			.min = mclk / clamp(mclk / 60000,  128, 256),
+			.max = mclk / clamp(mclk / 100000, 128, 256),
+		},
+	};
 
-	if (cs4234->mclk_rate % lrclk != 0)
-		return -EINVAL;
-
-	return 0;
+	return snd_interval_ranges(hw_param_interval(params, rule->var),
+				   ARRAY_SIZE(ranges), ranges, 0);
 }
 
 static int cs4234_dai_startup(struct snd_pcm_substream *sub, struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *comp = dai->component;
 	struct cs4234 *cs4234 = snd_soc_component_get_drvdata(comp);
+	int i, ret;
 
-	return snd_pcm_hw_rule_add(sub->runtime, 0, SNDRV_PCM_HW_PARAM_RATE, cs4234_dai_rule_rate,
-				   cs4234, 0, -1);
+	switch (cs4234->format) {
+	case SND_SOC_DAIFMT_LEFT_J:
+	case SND_SOC_DAIFMT_I2S:
+		cs4234->rate_constraint.nrats = 2;
+		break;
+	case SND_SOC_DAIFMT_DSP_A:
+		cs4234->rate_constraint.nrats = 1;
+		break;
+	default:
+		dev_err(comp->dev, "Startup unsupported DAI format\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < cs4234->rate_constraint.nrats; i++)
+		cs4234->rate_dividers[i].num = cs4234->mclk_rate;
+
+	ret = snd_pcm_hw_constraint_ratnums(sub->runtime, 0,
+					    SNDRV_PCM_HW_PARAM_RATE,
+					    &cs4234->rate_constraint);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * MCLK/rate may be a valid ratio but out-of-spec (e.g. 24576000/64000)
+	 * so this rule limits the range of sample rate for given MCLK.
+	 */
+	return snd_pcm_hw_rule_add(sub->runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				   cs4234_dai_rule_rate, cs4234, -1);
 }
 
 static int cs4234_dai_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
@@ -675,6 +730,9 @@ static int cs4234_i2c_probe(struct i2c_client *i2c_client, const struct i2c_devi
 
 	pm_runtime_set_active(&i2c_client->dev);
 	pm_runtime_enable(&i2c_client->dev);
+
+	memcpy(&cs4234->rate_dividers, &cs4234_dividers, sizeof(cs4234_dividers));
+	cs4234->rate_constraint.rats = cs4234->rate_dividers;
 
 	ret = devm_snd_soc_register_component(dev, &soc_component_cs4234, cs4234_dai,
 					      ARRAY_SIZE(cs4234_dai));
