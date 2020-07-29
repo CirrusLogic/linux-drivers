@@ -3117,7 +3117,7 @@ static ssize_t cs40l2x_bemf_measured_show(struct device *dev,
 		goto err_bemf;
 	}
 
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l2x->f0_measured);
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l2x->bemf_measured);
 
 err_bemf:
 	mutex_unlock(&cs40l2x->lock);
