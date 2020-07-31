@@ -42,7 +42,12 @@
 #define CL_DSP_COEFF_COUNT_SIZE	4
 #define CL_DSP_COEFF_OFFSET_SIZE	2
 #define CL_DSP_COEFF_TYPE_SIZE		2
+#define CL_DSP_COEFF_BLOCK_LENGTH_SIZE	4
+#define CL_DSP_COEFF_NAME_LEN_SIZE	1
+#define CL_DSP_COEFF_FULLNAME_LEN_SIZE	1
+#define CL_DSP_COEFF_DESC_LEN_SIZE	2
 #define CL_DSP_COEFF_LENGTH_SIZE	4
+#define CL_DSP_COEFF_FLAGS_SIZE		4
 #define CL_DSP_COEFF_NAME_LEN_MAX	32
 
 #define CL_DSP_ALGO_LIST_TERM		0xBEDEAD
@@ -133,6 +138,8 @@ struct cl_dsp_coeff_desc {
 	unsigned int block_type;
 	unsigned char name[CL_DSP_COEFF_NAME_LEN_MAX];
 	unsigned int reg;
+	unsigned int flags;
+	unsigned int length;
 	struct list_head list;
 };
 
