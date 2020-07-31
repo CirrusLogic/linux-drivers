@@ -350,9 +350,11 @@ EXPORT_SYMBOL(cl_dsp_coeff_file_parse);
 static int cl_dsp_algo_parse(struct cl_dsp *dsp, const unsigned char *data)
 {
 	struct cl_dsp_coeff_desc *coeff_desc;
-	unsigned int pos = 0;
+	unsigned int pos = 0, header_pos = 0;
 	unsigned int algo_id, algo_desc_length, coeff_count;
 	unsigned int block_offset, block_type, block_length;
+	unsigned int coeff_name_length, coeff_fullname_length, coeff_desc_length;
+	unsigned int coeff_flags, coeff_length;
 	unsigned int val;
 	unsigned char algo_name_length;
 	int i, ret;
@@ -411,12 +413,14 @@ static int cl_dsp_algo_parse(struct cl_dsp *dsp, const unsigned char *data)
 		pos += CL_DSP_COEFF_TYPE_SIZE;
 
 		ret = cl_dsp_process_data_be(data,
-				CL_DSP_COEFF_LENGTH_SIZE, pos, &block_length);
+				CL_DSP_COEFF_BLOCK_LENGTH_SIZE,
+					pos, &block_length);
 		if (ret) {
 			dev_err(dsp->dev, "Failed to read data\n");
 			return ret;
 		}
-		pos += CL_DSP_COEFF_LENGTH_SIZE;
+		pos += CL_DSP_COEFF_BLOCK_LENGTH_SIZE;
+		header_pos = pos;
 
 		coeff_desc = devm_kzalloc(dsp->dev, sizeof(*coeff_desc),
 				GFP_KERNEL);
@@ -430,9 +434,56 @@ static int cl_dsp_algo_parse(struct cl_dsp *dsp, const unsigned char *data)
 		memcpy(coeff_desc->name, data + pos + 1, *(data + pos));
 		coeff_desc->name[*(data + pos)] = '\0';
 
+		ret = cl_dsp_process_data_be(data,
+				CL_DSP_COEFF_NAME_LEN_SIZE,
+				pos, &coeff_name_length);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data\n");
+			return ret;
+		}
+		pos += (coeff_name_length + CL_DSP_COEFF_NAME_LEN_SIZE + 3) & ~0x3;
+
+		ret = cl_dsp_process_data_be(data,
+				CL_DSP_COEFF_FULLNAME_LEN_SIZE,
+				pos, &coeff_fullname_length);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data\n");
+			return ret;
+		}
+		pos += (coeff_fullname_length + CL_DSP_COEFF_FULLNAME_LEN_SIZE + 3) & ~0x3;
+
+		ret = cl_dsp_process_data_be(data,
+				CL_DSP_COEFF_DESC_LEN_SIZE,
+				pos, &coeff_desc_length);
+
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data\n");
+			return ret;
+		}
+		pos += (coeff_desc_length + CL_DSP_COEFF_DESC_LEN_SIZE + 3) & ~0x3;
+
+		ret = cl_dsp_process_data_be(data, CL_DSP_COEFF_FLAGS_SIZE,
+							pos, &coeff_flags);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data\n");
+			return ret;
+		}
+		pos += CL_DSP_COEFF_FLAGS_SIZE;
+
+		ret = cl_dsp_process_data_be(data, CL_DSP_COEFF_LENGTH_SIZE,
+							pos, &coeff_length);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data\n");
+			return ret;
+		}
+		pos += CL_DSP_COEFF_LENGTH_SIZE;
+
+		coeff_desc->flags = coeff_flags >> 16;
+		coeff_desc->length = coeff_length;
+
 		list_add(&coeff_desc->list, &dsp->coeff_desc_head);
 
-		pos += block_length;
+		pos = header_pos + block_length;
 	}
 
 	return 0;
