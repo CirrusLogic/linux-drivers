@@ -31,9 +31,5 @@
 };
 
 &panel {
-	/*
-	 * Actual panel is KD116N21-30NV but the timings for auo,b116xa01
-	 * work fine.
-	 */
-	compatible = "kingdisplay,kd116n21-30nv", "auo,b116xa01";
+	compatible = "kingdisplay,kd116n21-30nv-a010";
 };
