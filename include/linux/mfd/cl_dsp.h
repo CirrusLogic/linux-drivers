@@ -32,7 +32,7 @@
 
 #define CL_DSP_DBLK_HEADER_SIZE	8
 
-#define CL_DSP_WORD_ALIGN		0x00000003
+#define CL_DSP_WORD_ALIGN	0x00000003
 
 #define CL_DSP_TARGET_CORE_HALO	0x04
 #define CL_DSP_MIN_FORMAT_VERSION	0x03
@@ -60,11 +60,11 @@
 
 #define CL_DSP_XM_UNPACKED_TYPE	0x0005
 #define CL_DSP_YM_UNPACKED_TYPE	0x0006
-#define CL_DSP_PM_PACKED_TYPE		0x0010
-#define CL_DSP_XM_PACKED_TYPE		0x0011
-#define CL_DSP_YM_PACKED_TYPE		0x0012
-#define CL_DSP_ALGO_INFO_TYPE		0x00F2
-#define CL_DSP_WMFW_INFO_TYPE		0x00FF
+#define CL_DSP_PM_PACKED_TYPE	0x0010
+#define CL_DSP_XM_PACKED_TYPE	0x0011
+#define CL_DSP_YM_PACKED_TYPE	0x0012
+#define CL_DSP_ALGO_INFO_TYPE	0x00F2
+#define CL_DSP_WMFW_INFO_TYPE	0x00FF
 
 #define CL_DSP_MEM_REG_TYPE_MASK	GENMASK(27, 20)
 #define CL_DSP_MEM_REG_TYPE_SHIFT	20
@@ -90,6 +90,29 @@
 
 #define CL_DSP_WMDR_NAME_TYPE		0xFE00
 #define CL_DSP_WMDR_INFO_TYPE		0xFF00
+
+//HALO core specific registers
+#define CL_DSP_HALO_XMEM_PACKED_BASE		0x02000000
+#define CL_DSP_HALO_XROM_PACKED_BASE		0x02006000
+#define CL_DSP_HALO_XMEM_UNPACKED32_BASE	0x02400000
+#define CL_DSP_HALO_XMEM_UNPACKED24_BASE	0x02800000
+#define CL_DSP_HALO_XROM_UNPACKED24_BASE	0x02808000
+#define CL_DSP_HALO_YMEM_PACKED_BASE		0x02C00000
+#define CL_DSP_HALO_YMEM_UNPACKED32_BASE	0x03000000
+#define CL_DSP_HALO_YMEM_UNPACKED24_BASE	0x03400000
+#define CL_DSP_HALO_PMEM_BASE			0x03800000
+#define CL_DSP_HALO_PROM_BASE			0x03C60000
+
+#define CL_DSP_HALO_XM_FW_ID_REG		0x0280000C
+#define CL_DSP_HALO_NUM_ALGOS_REG		0x02800024
+
+#define CL_DSP_HALO_ALGO_REV_OFFSET		4
+#define CL_DSP_HALO_ALGO_XM_BASE_OFFSET	8
+#define CL_DSP_HALO_ALGO_XM_SIZE_OFFSET	12
+#define CL_DSP_HALO_ALGO_YM_BASE_OFFSET	16
+#define CL_DSP_HALO_ALGO_YM_SIZE_OFFSET	20
+#define CL_DSP_ALGO_ENTRY_SIZE			24
+
 
 union cl_dsp_wmfw_header {
 	struct {
@@ -160,28 +183,6 @@ struct cl_dsp_algo_info {
 	unsigned int xm_size;
 	unsigned int ym_base;
 	unsigned int ym_size;
-};
-
-struct cl_dsp_mem_reg_desc {
-	unsigned int pm_base_reg;
-	unsigned int xm_base_reg_packed;
-	unsigned int xm_base_reg_unpacked_24;
-	unsigned int xm_base_reg_unpacked_32;
-	unsigned int ym_base_reg_packed;
-	unsigned int ym_base_reg_unpacked_24;
-	unsigned int ym_base_reg_unpacked_32;
-};
-
-struct cl_dsp_algo_params {
-	unsigned int xm_fw_id_reg;
-	unsigned int xm_num_algos_reg;
-	unsigned int algo_id_offset;
-	unsigned int algo_rev_offset;
-	unsigned int algo_xm_base_offset;
-	unsigned int algo_xm_size_offset;
-	unsigned int algo_ym_base_offset;
-	unsigned int algo_ym_size_offset;
-	unsigned int algo_entry_size;
 };
 
 struct cl_dsp {
