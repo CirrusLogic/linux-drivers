@@ -420,6 +420,21 @@ static int cs4234_dai_startup(struct snd_pcm_substream *sub, struct snd_soc_dai 
 	case SND_SOC_DAIFMT_LEFT_J:
 	case SND_SOC_DAIFMT_I2S:
 		cs4234->rate_constraint.nrats = 2;
+
+		/*
+		 * Playback only supports 24-bit samples in these modes.
+		 * Note: SNDRV_PCM_HW_PARAM_SAMPLE_BITS constrains the physical
+		 * width, which we don't care about, so constrain the format.
+		 */
+		if (sub->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			ret = snd_pcm_hw_constraint_mask64(
+						sub->runtime,
+						SNDRV_PCM_HW_PARAM_FORMAT,
+						SNDRV_PCM_FMTBIT_S24_LE |
+						SNDRV_PCM_FMTBIT_S24_3LE);
+			if (ret < 0)
+				return ret;
+		}
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
 		cs4234->rate_constraint.nrats = 1;
