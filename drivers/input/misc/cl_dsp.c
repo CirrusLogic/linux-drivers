@@ -61,27 +61,27 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 	/* verify register found in expected region */
 	switch (block_type) {
 	case CL_DSP_XM_PACKED_TYPE:
-		mem_region_prefix = (dsp->mem_reg_desc->xm_base_reg_packed
+		mem_region_prefix = (CL_DSP_HALO_XMEM_PACKED_BASE
 				& CL_DSP_MEM_REG_TYPE_MASK)
 				>> CL_DSP_MEM_REG_TYPE_SHIFT;
 		break;
 	case CL_DSP_XM_UNPACKED_TYPE:
-		mem_region_prefix = (dsp->mem_reg_desc->xm_base_reg_unpacked_24
+		mem_region_prefix = (CL_DSP_HALO_XMEM_UNPACKED24_BASE
 				& CL_DSP_MEM_REG_TYPE_MASK)
 				>> CL_DSP_MEM_REG_TYPE_SHIFT;
 		break;
 	case CL_DSP_YM_PACKED_TYPE:
-		mem_region_prefix = (dsp->mem_reg_desc->ym_base_reg_packed
+		mem_region_prefix = (CL_DSP_HALO_YMEM_PACKED_BASE
 				& CL_DSP_MEM_REG_TYPE_MASK)
 				>> CL_DSP_MEM_REG_TYPE_SHIFT;
 		break;
 	case CL_DSP_YM_UNPACKED_TYPE:
-		mem_region_prefix = (dsp->mem_reg_desc->ym_base_reg_unpacked_24
+		mem_region_prefix = (CL_DSP_HALO_YMEM_UNPACKED24_BASE
 				& CL_DSP_MEM_REG_TYPE_MASK)
 				>> CL_DSP_MEM_REG_TYPE_SHIFT;
 		break;
 	case CL_DSP_PM_PACKED_TYPE:
-		mem_region_prefix = (dsp->mem_reg_desc->pm_base_reg
+		mem_region_prefix = (CL_DSP_HALO_PMEM_BASE
 				& CL_DSP_MEM_REG_TYPE_MASK)
 				>> CL_DSP_MEM_REG_TYPE_SHIFT;
 		break;
@@ -250,9 +250,10 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 					CL_DSP_WMDR_DATE_PREFIX_LEN] = '\0';
 			break;
 		case CL_DSP_XM_UNPACKED_TYPE:
-			reg = dsp->mem_reg_desc->xm_base_reg_unpacked_24 +
-					block_offset +
-					dsp->algo_info[i].xm_base * 4;
+			reg = CL_DSP_HALO_XMEM_UNPACKED24_BASE + block_offset +
+					dsp->algo_info[i].xm_base *
+					CL_DSP_BYTES_PER_WORD;
+
 			if (dsp->wt_desc) {
 				ret = cl_dsp_get_reg(dsp,
 						dsp->wt_desc->wt_name_xm,
@@ -278,14 +279,15 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 			}
 			break;
 		case CL_DSP_XM_PACKED_TYPE:
-			reg = (dsp->mem_reg_desc->xm_base_reg_packed +
-					block_offset +
-					dsp->algo_info[i].xm_base * 3) & ~0x3;
+			reg = (CL_DSP_HALO_XMEM_PACKED_BASE + block_offset +
+					dsp->algo_info[i].xm_base *
+					CL_DSP_PACKED_NUM_BYTES) &
+					~CL_DSP_WORD_ALIGN;
 			break;
 		case CL_DSP_YM_UNPACKED_TYPE:
-			reg = dsp->mem_reg_desc->ym_base_reg_unpacked_24 +
-					block_offset +
-					dsp->algo_info[i].ym_base * 4;
+			reg = CL_DSP_HALO_YMEM_UNPACKED24_BASE + block_offset +
+					dsp->algo_info[i].ym_base *
+					CL_DSP_UNPACKED_NUM_BYTES;
 			if (dsp->wt_desc) {
 				ret = cl_dsp_get_reg(dsp,
 						dsp->wt_desc->wt_name_ym,
@@ -311,9 +313,10 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 			}
 			break;
 		case CL_DSP_YM_PACKED_TYPE:
-			reg = (dsp->mem_reg_desc->ym_base_reg_packed +
-					block_offset +
-					dsp->algo_info[i].ym_base * 3) & ~0x3;
+			reg = (CL_DSP_HALO_YMEM_PACKED_BASE + block_offset +
+					dsp->algo_info[i].ym_base *
+					CL_DSP_PACKED_NUM_BYTES) &
+					~CL_DSP_WORD_ALIGN;
 		break;
 		default:
 			dev_err(dev, "Unexpected block type: 0x%04X\n",
@@ -494,14 +497,14 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 	struct regmap *regmap = dsp->regmap;
 	struct device *dev = dsp->dev;
 	struct cl_dsp_coeff_desc *coeff_desc;
-	unsigned int reg = dsp->algo_params->xm_fw_id_reg;
+	unsigned int reg = CL_DSP_HALO_XM_FW_ID_REG;
 	unsigned int val;
 	int ret, i;
 
 	if  (!dsp)
 		return -EPERM;
 
-	ret = regmap_read(regmap, dsp->algo_params->xm_num_algos_reg, &val);
+	ret = regmap_read(regmap, CL_DSP_HALO_NUM_ALGOS_REG, &val);
 	if (ret) {
 		dev_err(dev, "Failed to read number of algorithms\n");
 		return ret;
@@ -514,48 +517,41 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 	dsp->num_algos = val + 1;
 
 	for (i = 0; i < dsp->num_algos; i++) {
-		ret = regmap_read(regmap, reg +
-				dsp->algo_params->algo_id_offset,
-				&dsp->algo_info[i].id);
+		ret = regmap_read(regmap, reg, &dsp->algo_info[i].id);
 		if (ret) {
 			dev_err(dev, "Failed to read algo. %d ID\n", i);
 			return ret;
 		}
 
-		ret = regmap_read(regmap, reg +
-				dsp->algo_params->algo_rev_offset,
+		ret = regmap_read(regmap, reg + CL_DSP_HALO_ALGO_REV_OFFSET,
 				&dsp->algo_info[i].rev);
 		if (ret) {
 			dev_err(dev, "Failed to read algo. %d revision\n", i);
 			return ret;
 		}
 
-		ret = regmap_read(regmap, reg +
-				dsp->algo_params->algo_xm_base_offset,
+		ret = regmap_read(regmap, reg + CL_DSP_HALO_ALGO_XM_BASE_OFFSET,
 				&dsp->algo_info[i].xm_base);
 		if (ret) {
 			dev_err(dev, "Failed to read algo. %d XM_BASE\n", i);
 			return ret;
 		}
 
-		ret = regmap_read(regmap, reg +
-				dsp->algo_params->algo_xm_size_offset,
+		ret = regmap_read(regmap, reg + CL_DSP_HALO_ALGO_XM_SIZE_OFFSET,
 				&dsp->algo_info[i].xm_size);
 		if (ret) {
 			dev_err(dev, "Failed to read algo. %d XM_SIZE\n", i);
 			return ret;
 		}
 
-		ret = regmap_read(regmap, reg +
-				dsp->algo_params->algo_ym_base_offset,
+		ret = regmap_read(regmap, reg + CL_DSP_HALO_ALGO_YM_BASE_OFFSET,
 				&dsp->algo_info[i].ym_base);
 		if (ret) {
 			dev_err(dev, "Failed to read algo. %d YM_BASE\n", i);
 			return ret;
 		}
 
-		ret = regmap_read(regmap, reg +
-				dsp->algo_params->algo_ym_size_offset,
+		ret = regmap_read(regmap, reg + CL_DSP_HALO_ALGO_YM_SIZE_OFFSET,
 				&dsp->algo_info[i].ym_size);
 		if (ret) {
 			dev_err(dev, "Failed to read algo. %d YM_SIZE\n", i);
@@ -570,27 +566,35 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 			switch (coeff_desc->block_type) {
 			case CL_DSP_XM_UNPACKED_TYPE:
 				coeff_desc->reg =
-				dsp->mem_reg_desc->xm_base_reg_unpacked_24
-					+ dsp->algo_info[i].xm_base * 4
-					+ coeff_desc->block_offset * 4;
+						CL_DSP_HALO_XMEM_UNPACKED24_BASE
+						+ dsp->algo_info[i].xm_base
+						* CL_DSP_UNPACKED_NUM_BYTES
+						+ coeff_desc->block_offset
+						* CL_DSP_UNPACKED_NUM_BYTES;
+
 				if (dsp->wt_desc && !strncmp(coeff_desc->name,
 						dsp->wt_desc->wt_name_xm,
 						CL_DSP_COEFF_NAME_LEN_MAX))
 					dsp->wt_desc->wt_limit_xm =
 						(dsp->algo_info[i].xm_size -
-						coeff_desc->block_offset) * 4;
+						coeff_desc->block_offset) *
+						CL_DSP_UNPACKED_NUM_BYTES;
 				break;
 			case CL_DSP_YM_UNPACKED_TYPE:
 				coeff_desc->reg =
-				dsp->mem_reg_desc->ym_base_reg_unpacked_24
-					+ dsp->algo_info[i].ym_base * 4
-					+ coeff_desc->block_offset * 4;
+					CL_DSP_HALO_YMEM_UNPACKED24_BASE +
+					dsp->algo_info[i].ym_base *
+					CL_DSP_BYTES_PER_WORD +
+					coeff_desc->block_offset *
+					CL_DSP_BYTES_PER_WORD;
+
 				if (dsp->wt_desc && !strncmp(coeff_desc->name,
 						dsp->wt_desc->wt_name_ym,
 						CL_DSP_COEFF_NAME_LEN_MAX))
 					dsp->wt_desc->wt_limit_ym =
 						(dsp->algo_info[i].ym_size -
-						coeff_desc->block_offset) * 4;
+						coeff_desc->block_offset) *
+						CL_DSP_UNPACKED_NUM_BYTES;
 				break;
 			}
 			dev_dbg(dev, "Found control %s at 0x%08X\n",
@@ -599,9 +603,9 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 
 		/* System algo. contains one extra register (num. algos.) */
 		if (i)
-			reg += dsp->algo_params->algo_entry_size;
+			reg += CL_DSP_ALGO_ENTRY_SIZE;
 		else
-			reg += (dsp->algo_params->algo_entry_size + 4);
+			reg += (CL_DSP_ALGO_ENTRY_SIZE + CL_DSP_BYTES_PER_WORD);
 	}
 
 	ret = regmap_read(regmap, reg, &val);
@@ -758,29 +762,29 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 					data_block->header.data_len);
 			break;
 		case CL_DSP_PM_PACKED_TYPE:
-			reg = dsp->mem_reg_desc->pm_base_reg
-					+ data_block->header.start_offset
-					* CL_DSP_PM_NUM_BYTES;
+			reg = CL_DSP_HALO_PMEM_BASE +
+					data_block->header.start_offset *
+					CL_DSP_PM_NUM_BYTES;
 			break;
 		case CL_DSP_XM_PACKED_TYPE:
-			reg = dsp->mem_reg_desc->xm_base_reg_packed
-					+ data_block->header.start_offset
-					* CL_DSP_PACKED_NUM_BYTES;
+			reg = CL_DSP_HALO_XMEM_PACKED_BASE +
+					data_block->header.start_offset *
+					CL_DSP_PACKED_NUM_BYTES;
 			break;
 		case CL_DSP_XM_UNPACKED_TYPE:
-			reg = dsp->mem_reg_desc->xm_base_reg_unpacked_24
-					+ data_block->header.start_offset
-					* CL_DSP_UNPACKED_NUM_BYTES;
+			reg = CL_DSP_HALO_XMEM_UNPACKED24_BASE +
+					data_block->header.start_offset *
+					CL_DSP_UNPACKED_NUM_BYTES;
 			break;
 		case CL_DSP_YM_PACKED_TYPE:
-			reg = dsp->mem_reg_desc->ym_base_reg_packed
-					+ data_block->header.start_offset
-					* CL_DSP_PACKED_NUM_BYTES;
+			reg = CL_DSP_HALO_YMEM_PACKED_BASE +
+					data_block->header.start_offset *
+					CL_DSP_PACKED_NUM_BYTES;
 			break;
 		case CL_DSP_YM_UNPACKED_TYPE:
-			reg = dsp->mem_reg_desc->ym_base_reg_unpacked_24
-					+ data_block->header.start_offset
-					* CL_DSP_UNPACKED_NUM_BYTES;
+			reg = CL_DSP_HALO_YMEM_UNPACKED24_BASE +
+					data_block->header.start_offset *
+					CL_DSP_UNPACKED_NUM_BYTES;
 			break;
 		case CL_DSP_ALGO_INFO_TYPE:
 			reg = 0;
