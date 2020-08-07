@@ -128,7 +128,7 @@ Optional Inductor Current Based Boost BPE Sub-node:
 
   Details found in section 4.9.5
 
-  The cs35l45 node can have a single "cirrus,bst-bpe-ind-curr-config" sub-node
+  The cs35l45 node can have a single "cirrus,bst-bpe-il-lim-config" sub-node
   to set configuration properties for the inductor current based boost brownout
   prevention engine. Configuration properties are all interpreted as 32-bit
   unsigned integers mapped to register bitfields.
