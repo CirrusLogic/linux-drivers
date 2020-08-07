@@ -745,6 +745,9 @@ static const struct snd_kcontrol_new ngate_en_ctl =
 static const struct snd_kcontrol_new nfr_en_ctl =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
+static const struct snd_kcontrol_new sync_pwr_en_ctl =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
 static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("DSP1 Preload", NULL),
 	SND_SOC_DAPM_SPK("DSP1 Enable", NULL),
@@ -759,11 +762,11 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 
 	SND_SOC_DAPM_OUT_DRV("DSP", SND_SOC_NOPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_PGA_S("SYNC Slave Enable", 100, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_PGA_S("SYNC Slave", 100, SND_SOC_NOPM, 0, 0,
 			   cs35l45_dsp_power_ev, SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_PGA_S("SYNC Master Enable", 200, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_PGA_S("SYNC Master", 200, SND_SOC_NOPM, 0, 0,
 			   cs35l45_dsp_power_ev, SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD),
 
@@ -783,8 +786,6 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("SYNC_SW_RX_EN", CS35L45_SYNC_TX_RX_ENABLES, 17, 0,
 			    NULL, 0),
 	SND_SOC_DAPM_SUPPLY("SYNC_SW_TX_EN", CS35L45_SYNC_TX_RX_ENABLES, 16, 0,
-			    NULL, 0),
-	SND_SOC_DAPM_SUPPLY("SYNC_PWR_RX_EN", CS35L45_SYNC_TX_RX_ENABLES, 5, 0,
 			    NULL, 0),
 	SND_SOC_DAPM_SUPPLY("SYNC_PWR_TX_EN", CS35L45_SYNC_TX_RX_ENABLES, 4, 0,
 			    NULL, 0),
@@ -824,6 +825,8 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_SWITCH("NFR Enable", CS35L45_BLOCK_ENABLES, 1, 0,
 			    &nfr_en_ctl),
 	SND_SOC_DAPM_SWITCH("NGATE Enable", SND_SOC_NOPM, 0, 0, &ngate_en_ctl),
+	SND_SOC_DAPM_SWITCH("SYNC PWR Enable", CS35L45_SYNC_TX_RX_ENABLES, 5, 0,
+			    &sync_pwr_en_ctl),
 
 	SND_SOC_DAPM_AIF_OUT("RCV_EN", NULL, 0, CS35L45_BLOCK_ENABLES, 2, 0),
 
@@ -986,16 +989,18 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 };
 
 static const struct snd_soc_dapm_route cs35l45_sync_master_routes[] = {
-	{"SYNC Master Enable", NULL, "AMP Enable"},
-	{"DSP", NULL, "SYNC Master Enable"},
+	{"SYNC Master", NULL, "AMP Enable"},
+	{"SYNC PWR Enable", "Switch", "AMP Enable"},
+	{"DSP", NULL, "SYNC PWR Enable"},
+	{"DSP", NULL, "SYNC Master"},
 	{"DSP", NULL, "SYNC_PWR_TX_EN"},
-	{"DSP", NULL, "SYNC_PWR_RX_EN"},
 };
 
 static const struct snd_soc_dapm_route cs35l45_sync_slave_routes[] = {
-	{"SYNC Slave Enable", NULL, "AMP Enable"},
-	{"DSP", NULL, "SYNC Slave Enable"},
-	{"DSP", NULL, "SYNC_PWR_RX_EN"},
+	{"SYNC Slave", NULL, "AMP Enable"},
+	{"SYNC PWR Enable", "Switch", "AMP Enable"},
+	{"DSP", NULL, "SYNC PWR Enable"},
+	{"DSP", NULL, "SYNC Slave"},
 };
 
 static int cs35l45_activate_ctl(struct cs35l45_private *cs35l45,
