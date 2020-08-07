@@ -677,10 +677,10 @@ static const unsigned int pcm_dac_val[] = {CS35L45_PCM_SRC_ZERO,
 			CS35L45_PCM_SRC_ASP_RX1, CS35L45_PCM_SRC_ASP_RX2,
 			CS35L45_PCM_SRC_DSP_TX1, CS35L45_PCM_SRC_DSP_TX2};
 
-static const char * const pcm_ng_txt[] = {"ASP_RX1", "ASP_RX2"};
+static const char * const pcm_ng_txt[] = {"Zero", "ASP_RX1", "ASP_RX2"};
 
-static const unsigned int pcm_ng_val[] = {CS35L45_PCM_SRC_ASP_RX1,
-			CS35L45_PCM_SRC_ASP_RX2};
+static const unsigned int pcm_ng_val[] = {CS35L45_PCM_SRC_ZERO,
+			CS35L45_PCM_SRC_ASP_RX1, CS35L45_PCM_SRC_ASP_RX2};
 
 static const struct soc_enum mux_enums[] = {
 	SOC_VALUE_ENUM_DOUBLE(CS35L45_ASPTX1_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
@@ -740,6 +740,9 @@ static const struct snd_kcontrol_new bbpe_en_ctl =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
 static const struct snd_kcontrol_new ngate_en_ctl =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
+static const struct snd_kcontrol_new nfr_en_ctl =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
 static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
@@ -818,6 +821,8 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_NOPM, 0, 0, &amp_en_ctl),
 	SND_SOC_DAPM_SWITCH("BBPE Enable", CS35L45_BLOCK_ENABLES2, 13, 0,
 			    &bbpe_en_ctl),
+	SND_SOC_DAPM_SWITCH("NFR Enable", CS35L45_BLOCK_ENABLES, 1, 0,
+			    &nfr_en_ctl),
 	SND_SOC_DAPM_SWITCH("NGATE Enable", SND_SOC_NOPM, 0, 0, &ngate_en_ctl),
 
 	SND_SOC_DAPM_AIF_OUT("RCV_EN", NULL, 0, CS35L45_BLOCK_ENABLES, 2, 0),
@@ -897,9 +902,12 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"Capture", NULL, "BSTMON"},
 
 	/* Playback */
-	{"BBPE Enable", "Switch", "Playback"},
 	{"AMP Enable", "Switch", "Playback"},
+	{"BBPE Enable", "Switch", "Playback"},
+	{"NFR Enable", "Switch", "Playback"},
+
 	{"AMP Enable", "Switch", "BBPE Enable"},
+	{"AMP Enable", "Switch", "NFR Enable"},
 
 	{"GLOBAL_EN", NULL, "AMP Enable"},
 	{"ASP", NULL, "AMP Enable"},
@@ -907,9 +915,11 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"ASP_RX1", NULL, "ASP"},
 	{"ASP_RX2", NULL, "ASP"},
 
+	{"NGATE1 Source", "Zero", "AMP Enable"},
 	{"NGATE1 Source", "ASP_RX1", "ASP_RX1"},
 	{"NGATE1 Source", "ASP_RX2", "ASP_RX2"},
 
+	{"NGATE2 Source", "Zero", "AMP Enable"},
 	{"NGATE2 Source", "ASP_RX1", "ASP_RX1"},
 	{"NGATE2 Source", "ASP_RX2", "ASP_RX2"},
 
