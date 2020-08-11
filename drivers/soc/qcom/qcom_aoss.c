@@ -366,6 +366,7 @@ static int qmp_pd_add(struct qmp *qmp)
 		res[i].pd.name = sdm845_resources[i];
 		res[i].pd.power_on = qmp_pd_power_on;
 		res[i].pd.power_off = qmp_pd_power_off;
+		res[i].pd.flags = GENPD_FLAG_SUSPEND_ON;
 
 		ret = pm_genpd_init(&res[i].pd, NULL, true);
 		if (ret < 0) {
