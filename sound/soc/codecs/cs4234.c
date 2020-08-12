@@ -434,7 +434,13 @@ static int cs4234_dai_startup(struct snd_pcm_substream *sub, struct snd_soc_dai 
 						SNDRV_PCM_FMTBIT_S24_3LE);
 			if (ret < 0)
 				return ret;
+
+			ret = snd_pcm_hw_constraint_minmax(sub->runtime,
+							   SNDRV_PCM_HW_PARAM_CHANNELS, 1, 4);
+			if (ret < 0)
+				return ret;
 		}
+
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
 		cs4234->rate_constraint.nrats = 1;
