@@ -23,6 +23,9 @@
 #define CL_DSP_BYTES_PER_WORD		4
 #define CL_DSP_BITS_PER_BYTE		8
 
+#define CL_DSP_BYTE_MASK		GENMASK(7, 0)
+#define CL_DSP_NIBBLE_MASK		GENMASK(15, 0)
+
 #define CL_DSP_FW_FILE_HEADER_SIZE	40
 
 #define CL_DSP_MAGIC_ID_SIZE		4
@@ -32,22 +35,24 @@
 
 #define CL_DSP_DBLK_HEADER_SIZE	8
 
-#define CL_DSP_WORD_ALIGN	0x00000003
+#define CL_DSP_ALIGN			0x00000003
 
 #define CL_DSP_TARGET_CORE_HALO	0x04
 #define CL_DSP_MIN_FORMAT_VERSION	0x03
 #define CL_DSP_API_REVISION		0x0300
 
+#define CL_DSP_ALGO_NAME_LEN_SIZE	1
+#define CL_DSP_ALGO_DESC_LEN_SIZE	2
 #define CL_DSP_ALGO_ID_SIZE		4
 #define CL_DSP_COEFF_COUNT_SIZE	4
 #define CL_DSP_COEFF_OFFSET_SIZE	2
 #define CL_DSP_COEFF_TYPE_SIZE		2
-#define CL_DSP_COEFF_BLOCK_LENGTH_SIZE	4
 #define CL_DSP_COEFF_NAME_LEN_SIZE	1
 #define CL_DSP_COEFF_FULLNAME_LEN_SIZE	1
 #define CL_DSP_COEFF_DESC_LEN_SIZE	2
-#define CL_DSP_COEFF_LENGTH_SIZE	4
-#define CL_DSP_COEFF_FLAGS_SIZE		4
+#define CL_DSP_COEFF_LEN_SIZE		4
+#define CL_DSP_COEFF_FLAGS_SIZE	4
+#define CL_DSP_COEFF_FLAGS_SHIFT	16
 #define CL_DSP_COEFF_NAME_LEN_MAX	32
 
 #define CL_DSP_ALGO_LIST_TERM		0xBEDEAD
@@ -78,9 +83,10 @@
 #define CL_DSP_WMDR_ALGO_ID_SIZE	4
 #define CL_DSP_WMDR_ALGO_REV_SIZE	4
 #define CL_DSP_WMDR_SAMPLE_RATE_SIZE	4
-#define CL_DSP_WMDR_DBLK_LENGTH_SIZE	4
+#define CL_DSP_WMDR_DBLK_LEN_SIZE	4
 #define CL_DSP_WMDR_NAME_LEN		32
 #define CL_DSP_WMDR_DATE_LEN		16
+#define CL_DSP_WMDR_HEADER_LEN_SIZE	4
 
 #define CL_DSP_WMDR_DATE_PREFIX	"Date: "
 #define CL_DSP_WMDR_DATE_PREFIX_LEN	6
@@ -113,11 +119,16 @@
 #define CL_DSP_HALO_ALGO_YM_SIZE_OFFSET	20
 #define CL_DSP_ALGO_ENTRY_SIZE			24
 
+/* macros */
+#define CL_DSP_WORD_ALIGN(n)	(CL_DSP_BYTES_PER_WORD +\
+				(((n) / CL_DSP_BYTES_PER_WORD) *\
+				CL_DSP_BYTES_PER_WORD))
+
 
 union cl_dsp_wmfw_header {
 	struct {
 		char magic[CL_DSP_BYTES_PER_WORD];
-		u32 header_length;
+		u32 header_len;
 		u16 api_revision;
 		u8 target_core;
 		u8 file_format_version;
@@ -127,7 +138,7 @@ union cl_dsp_wmfw_header {
 		u32 zm_size;
 		time_t timestamp[2];
 		u32 checksum;
-	};
+	} __attribute__((__packed__));
 	u8 data[CL_DSP_FW_FILE_HEADER_SIZE];
 };
 
@@ -136,7 +147,7 @@ union cl_dsp_data_block_header {
 		u32 start_offset : 24;
 		u8 block_type;
 		u32 data_len;
-	};
+	} __attribute__((__packed__));
 	u8 data[CL_DSP_DBLK_HEADER_SIZE];
 };
 
@@ -156,9 +167,10 @@ struct cl_dsp_fw_desc {
 };
 
 struct cl_dsp_coeff_desc {
-	unsigned int parent_id;
-	unsigned int block_offset;
-	unsigned int block_type;
+	u32 parent_id;
+	char *parent_name;
+	u16 block_offset;
+	u16 block_type;
 	unsigned char name[CL_DSP_COEFF_NAME_LEN_MAX];
 	unsigned int reg;
 	unsigned int flags;
