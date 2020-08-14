@@ -4397,6 +4397,108 @@ err_bemf:
 	return ret;
 }
 
+static ssize_t cs40l2x_bemf_rec_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	struct regmap *regmap = cs40l2x->regmap;
+	unsigned int reg, val;
+	int ret, i, size = 0;
+
+
+	pm_runtime_get_sync(cs40l2x->dev);
+	reg = cs40l2x_dsp_reg(cs40l2x, "BEMF_BUFFER",
+				CS40L2X_XM_UNPACKED_TYPE,
+				CS40L2X_ALGO_ID_PAR);
+	if (!reg) {
+		dev_err(dev, "Cannot get the register for the bemf buffer\n");
+		ret = -EINVAL;
+		goto err_bemf_rec;
+	}
+
+	for (i = 0; i < CS40L2X_BEMF_BUF_MAX; i++) {
+		ret = regmap_read(regmap, reg + (i*4), &val);
+		if (ret)
+			goto err_bemf_rec;
+
+		size += snprintf(buf, PAGE_SIZE, "%d\n", val);
+		buf += strlen(buf);
+	}
+
+	ret = size;
+
+err_bemf_rec:
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
+	return ret;
+
+}
+
+static ssize_t cs40l2x_bemf_rec_en_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	struct regmap *regmap = cs40l2x->regmap;
+	int ret;
+	unsigned int reg, val;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret || val > 1)
+		return -EINVAL;
+
+	pm_runtime_get_sync(dev);
+	reg = cs40l2x_dsp_reg(cs40l2x, "MEASURE_BEMF_ONLY",
+				CS40L2X_XM_UNPACKED_TYPE,
+				CS40L2X_ALGO_ID_PAR);
+	if (!reg) {
+		dev_err(dev, "Cannot get the register for bemf only\n");
+		ret = -EINVAL;
+		goto err_bemf_rec_en;
+	}
+
+	ret = regmap_write(regmap, reg, val);
+	if (ret)
+		goto err_bemf_rec_en;
+
+	ret = count;
+
+err_bemf_rec_en:
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+	return ret;
+}
+
+static ssize_t cs40l2x_bemf_rec_en_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	struct regmap *regmap = cs40l2x->regmap;
+	unsigned int reg, val;
+	int ret;
+
+	pm_runtime_get_sync(dev);
+	reg = cs40l2x_dsp_reg(cs40l2x, "MEASURE_BEMF_ONLY",
+				CS40L2X_XM_UNPACKED_TYPE,
+				CS40L2X_ALGO_ID_PAR);
+	if (!reg) {
+		dev_err(dev, "Cannot get the register for bemf only\n");
+		ret = -EINVAL;
+		goto err_bemf_rec_en;
+	}
+
+	ret = regmap_read(regmap, reg, &val);
+	if (ret)
+		goto err_bemf_rec_en;
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", val);
+
+err_bemf_rec_en:
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+	return ret;
+}
+
 static ssize_t cs40l2x_dyn_f0_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -6970,6 +7072,9 @@ static DEVICE_ATTR(f0_measured, 0660, cs40l2x_f0_measured_show, NULL);
 static DEVICE_ATTR(f0_stored, 0660, cs40l2x_f0_stored_show,
 		cs40l2x_f0_stored_store);
 static DEVICE_ATTR(bemf_measured, 0660, cs40l2x_bemf_measured_show, NULL);
+static DEVICE_ATTR(bemf_rec, 0660, cs40l2x_bemf_rec_show, NULL);
+static DEVICE_ATTR(bemf_rec_en, 0660, cs40l2x_bemf_rec_en_show,
+		cs40l2x_bemf_rec_en_store);
 static DEVICE_ATTR(dynamic_f0, 0660, cs40l2x_dyn_f0_show, NULL);
 static DEVICE_ATTR(dynamic_f0_index, 0660, cs40l2x_dyn_f0_index_show,
 		cs40l2x_dyn_f0_index_store);
@@ -7083,6 +7188,8 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_f0_measured.attr,
 	&dev_attr_f0_stored.attr,
 	&dev_attr_bemf_measured.attr,
+	&dev_attr_bemf_rec.attr,
+	&dev_attr_bemf_rec_en.attr,
 	&dev_attr_dynamic_f0.attr,
 	&dev_attr_dynamic_f0_index.attr,
 	&dev_attr_dynamic_f0_val.attr,
