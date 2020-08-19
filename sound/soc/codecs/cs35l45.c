@@ -1628,7 +1628,7 @@ static const struct cs35l45_irq_monitor cs35l45_irq_mons[] = {
 		.mask = CS35L45_IRQ1_MASK_1,
 		.bitmask = CS35L45_AMP_SHORT_ERR_MASK,
 		.description = "Amplifier short error",
-		.err_msg = "AMP short error detected!\n",
+		.err_msg = "AMP short error detected!",
 		.callback = NULL,
 	},
 	{
@@ -1636,7 +1636,7 @@ static const struct cs35l45_irq_monitor cs35l45_irq_mons[] = {
 		.mask = CS35L45_IRQ1_MASK_1,
 		.bitmask = CS35L45_BST_SHORT_ERR_MASK,
 		.description = "Boost inductor short error",
-		.err_msg = "BST short error detected!\n",
+		.err_msg = "BST short error detected!",
 		.callback = NULL,
 	},
 };
