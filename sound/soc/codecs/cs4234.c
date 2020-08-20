@@ -376,18 +376,20 @@ static int cs4234_dai_hw_params(struct snd_pcm_substream *sub, struct snd_pcm_hw
 	return ret;
 }
 
+#define CS4234_MCLK_SCALE  64
+
 static const struct snd_ratnum cs4234_dividers[] = {
 	{
 		.num = 0,
-		.den_min = 256,
-		.den_max = 512,
-		.den_step = 128,
+		.den_min = 256 / CS4234_MCLK_SCALE,
+		.den_max = 512 / CS4234_MCLK_SCALE,
+		.den_step = 128 / CS4234_MCLK_SCALE,
 	},
 	{
 		.num = 0,
-		.den_min = 128,
-		.den_max = 192,
-		.den_step = 64,
+		.den_min = 128 / CS4234_MCLK_SCALE,
+		.den_max = 192 / CS4234_MCLK_SCALE,
+		.den_step = 64 / CS4234_MCLK_SCALE,
 	},
 };
 
@@ -451,7 +453,7 @@ static int cs4234_dai_startup(struct snd_pcm_substream *sub, struct snd_soc_dai 
 	}
 
 	for (i = 0; i < cs4234->rate_constraint.nrats; i++)
-		cs4234->rate_dividers[i].num = cs4234->mclk_rate;
+		cs4234->rate_dividers[i].num = cs4234->mclk_rate / CS4234_MCLK_SCALE;
 
 	ret = snd_pcm_hw_constraint_ratnums(sub->runtime, 0,
 					    SNDRV_PCM_HW_PARAM_RATE,
