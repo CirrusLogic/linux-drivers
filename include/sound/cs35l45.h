@@ -120,8 +120,6 @@ struct cs35l45_platform_data {
 	struct gpio_ctrl gpio_ctrl3;
 	const char *dsp_part_name;
 	unsigned int asp_sdout_hiz_ctrl;
-	unsigned int sync_num_slaves;
-	unsigned int sync_id;
 	unsigned int ngate_ch1_hold;
 	unsigned int ngate_ch1_thr;
 	unsigned int ngate_ch2_hold;
@@ -139,7 +137,6 @@ struct cs35l45_private {
 	struct mutex rate_lock;
 	bool initialized;
 	bool fast_switch_en;
-	bool sync_master;
 	unsigned int wksrc;
 	unsigned int i2c_addr;
 	int irq;

@@ -288,6 +288,8 @@ static bool cs35l45_is_csplmboxsts_correct(enum cspl_mboxcmd cmd,
 		return (sts == CSPL_MBOX_STS_HIBERNATE);
 	case CSPL_MBOX_CMD_OUT_OF_HIBERNATE:
 		return (sts == CSPL_MBOX_STS_PAUSED);
+	case CSPL_MBOX_CMD_RECONFIGURE:
+		return (sts == CSPL_MBOX_STS_PAUSED);
 	default:
 		return false;
 	}
@@ -387,24 +389,21 @@ static int cs35l45_dsp_boot_ev(struct snd_soc_dapm_widget *w,
 	int ret;
 
 	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		if (!cs35l45->dsp.booted) {
-			dev_err(cs35l45->dev, "Preload DSP before boot\n");
+	case SND_SOC_DAPM_POST_PMU:
+		if (cs35l45->dsp.booted) {
+			dev_err(cs35l45->dev, "DSP already booted\n");
 			return -EPERM;
 		}
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
+				   CS35L45_MEM_RDY_MASK,
+				   CS35L45_MEM_RDY_MASK);
 
 		regmap_write(cs35l45->regmap, CS35L45_DSP1_CCM_CORE_CONTROL,
 			     CS35L45_CCM_PM_REMAP_MASK |
 			     CS35L45_CCM_CORE_RESET_MASK);
 
-		regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
-				   CS35L45_MEM_RDY_MASK,
-				   CS35L45_MEM_RDY_MASK);
-		break;
-	case SND_SOC_DAPM_POST_PMU:
 		(*cs35l45_halo_start_core)(&cs35l45->dsp);
-
-		usleep_range(1000, 1100);
 
 		/* Poll for DSP ACK */
 		for (i = 0; i < 10; i++) {
@@ -427,6 +426,17 @@ static int cs35l45_dsp_boot_ev(struct snd_soc_dapm_widget *w,
 		ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
 		if (ret < 0)
 			dev_err(cs35l45->dev, "MBOX failure (%d)\n", ret);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
+				   CS35L45_SYNC_SLAVE_MASK,
+				   CS35L45_SYNC_SLAVE_MASK);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+				   CS35L45_PLL_FORCE_EN_MASK,
+				   CS35L45_PLL_FORCE_EN_MASK);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES2,
+				   CS35L45_SYNC_EN_MASK, CS35L45_SYNC_EN_MASK);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		regmap_update_bits(cs35l45->regmap,
@@ -442,6 +452,15 @@ static int cs35l45_dsp_boot_ev(struct snd_soc_dapm_widget *w,
 
 		regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
 				   CS35L45_MEM_RDY_MASK, 0);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+				   CS35L45_PLL_FORCE_EN_MASK, 0);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
+				   CS35L45_SYNC_SLAVE_MASK, 0);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES2,
+				   CS35L45_SYNC_EN_MASK, 0);
 		break;
 	default:
 		dev_err(cs35l45->dev, "Invalid event = 0x%x\n", event);
@@ -459,8 +478,7 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 	struct cs35l45_private *cs35l45 =
 		snd_soc_component_get_drvdata(component);
 	enum cspl_mboxcmd mboxcmd = CSPL_MBOX_CMD_NONE;
-	unsigned int sts;
-	int ret = 0, i = 0;
+	int ret = 0;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -469,30 +487,10 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 			return -EPERM;
 		}
 
-		regmap_read(cs35l45->regmap, CS35L45_DSP_MBOX_2, &sts);
-
-		switch (sts) {
-		case CSPL_MBOX_STS_RDY_FOR_REINIT:
-			mboxcmd = CSPL_MBOX_CMD_REINIT;
-			break;
-		case CSPL_MBOX_STS_RUNNING: /* First playback */
-		case CSPL_MBOX_STS_PAUSED:
-			mboxcmd = CSPL_MBOX_CMD_RESUME;
-			break;
-		default:
-			dev_err(cs35l45->dev, "Invalid FW status (%u)\n", sts);
-			return -EINVAL;
-		}
-
+		mboxcmd = CSPL_MBOX_CMD_RESUME;
 		ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
 		if (ret < 0)
 			dev_err(cs35l45->dev, "MBOX failure (%d)\n", ret);
-
-		usleep_range(1000, 1100);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-				   CS35L45_PLL_FORCE_EN_MASK,
-				   CS35L45_PLL_FORCE_EN_MASK);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		if (!cs35l45->dsp.running) {
@@ -500,58 +498,10 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 			return -EPERM;
 		}
 
-		if (!cs35l45->sync_master)
-			goto skip_pll_unlock;
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-				   CS35L45_PLL_OPEN_LOOP_MASK,
-				   CS35L45_PLL_OPEN_LOOP_MASK);
-
-		regmap_read(cs35l45->regmap, CS35L45_IRQ1_STS_3, &sts);
-		for (i = 0; i < 5; i++) {
-			usleep_range(1000, 1100);
-			if (sts & CS35L45_PLL_UNLOCK_FLAG_RISE_MASK)
-				break;
-
-			regmap_read(cs35l45->regmap, CS35L45_IRQ1_STS_3, &sts);
-		}
-
-		if (i == 5)
-			dev_err(cs35l45->dev,
-				"Timeout waiting for PLL_UNLOCK\n");
-
-		usleep_range(1000, 1100);
-
-skip_pll_unlock:
 		mboxcmd = CSPL_MBOX_CMD_PAUSE;
 		ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
 		if (ret < 0)
 			dev_err(cs35l45->dev, "MBOX failure (%d)\n", ret);
-
-		usleep_range(1000, 1100);
-
-		if (!cs35l45->sync_master)
-			goto skip_power_down;
-
-		regmap_read(cs35l45->regmap, CS35L45_IRQ1_STS_1, &sts);
-		for (i = 0; i < 5; i++) {
-			usleep_range(1000, 1100);
-			if (!(sts & CS35L45_MSM_GLOBAL_EN_ASSERT_MASK))
-				break;
-
-			regmap_read(cs35l45->regmap, CS35L45_IRQ1_STS_1, &sts);
-		}
-
-		if (i == 5)
-			dev_err(cs35l45->dev,
-				"Timeout waiting for GLOBAL_EN deassert\n");
-
-		usleep_range(1000, 1100);
-
-skip_power_down:
-		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-				   CS35L45_PLL_FORCE_EN_MASK |
-				   CS35L45_PLL_OPEN_LOOP_MASK, 0);
 		break;
 	default:
 		dev_err(cs35l45->dev, "Invalid event = 0x%x\n", event);
@@ -648,6 +598,157 @@ static int cs35l45_global_en_power_ev(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static const struct snd_kcontrol_new amp_en_ctl =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
+static const struct snd_kcontrol_new bbpe_en_ctl =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
+static const struct snd_kcontrol_new ngate_en_ctl =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
+static const struct snd_kcontrol_new nfr_en_ctl =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
+static const struct snd_kcontrol_new sync_pwr_en_ctl =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
+static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
+	SND_SOC_DAPM_SPK("DSP1 Preload", NULL),
+	SND_SOC_DAPM_SPK("DSP1 Enable", NULL),
+
+	SND_SOC_DAPM_SUPPLY_S("DSP1 Preloader", 100, SND_SOC_NOPM, 0, 0,
+			      cs35l45_dsp_loader_ev, SND_SOC_DAPM_PRE_PMU |
+			      SND_SOC_DAPM_POST_PMU),
+
+	SND_SOC_DAPM_SUPPLY_S("DSP1 Boot", 200, SND_SOC_NOPM, 0, 0,
+			      cs35l45_dsp_boot_ev, SND_SOC_DAPM_POST_PMU |
+			      SND_SOC_DAPM_PRE_PMD),
+
+	SND_SOC_DAPM_MIXER("DSP", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Exit", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Entry", SND_SOC_NOPM, 0, 0, NULL, 0),
+
+	SND_SOC_DAPM_PGA_S("SYNC Slave", 100, SND_SOC_NOPM, 0, 0,
+			   cs35l45_dsp_power_ev, SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_PRE_PMD),
+
+	SND_SOC_DAPM_PGA_S("SYNC Master", 200, SND_SOC_NOPM, 0, 0,
+			   cs35l45_dsp_power_ev, SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_PRE_PMD),
+
+	SND_SOC_DAPM_PGA_E("GLOBAL_EN", SND_SOC_NOPM, 0, 0, NULL, 0,
+			   cs35l45_global_en_power_ev, SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_SUPPLY("VMON", CS35L45_BLOCK_ENABLES, 12, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("IMON", CS35L45_BLOCK_ENABLES, 13, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("BATTMON", CS35L45_BLOCK_ENABLES, 8, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("BSTMON", CS35L45_BLOCK_ENABLES, 9, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("RCV_EN", CS35L45_BLOCK_ENABLES, 2, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("SYNC_EN", CS35L45_BLOCK_ENABLES2, 8, 0, NULL, 0),
+
+	SND_SOC_DAPM_AIF_IN("ASP", NULL, 0, CS35L45_BLOCK_ENABLES2, 27, 0),
+	SND_SOC_DAPM_AIF_IN("ASP_RX1", NULL, 0, CS35L45_ASP_ENABLES1, 16, 0),
+	SND_SOC_DAPM_AIF_IN("ASP_RX2", NULL, 0, CS35L45_ASP_ENABLES1, 17, 0),
+	SND_SOC_DAPM_AIF_IN("NGATE_CH1", NULL, 0, CS35L45_MIXER_NGATE_CH1_CFG,
+			    16, 0),
+	SND_SOC_DAPM_AIF_IN("NGATE_CH2", NULL, 0, CS35L45_MIXER_NGATE_CH2_CFG,
+			    16, 0),
+
+	SND_SOC_DAPM_AIF_OUT("ASP_TX1", NULL, 0, CS35L45_ASP_ENABLES1, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("ASP_TX2", NULL, 0, CS35L45_ASP_ENABLES1, 1, 0),
+	SND_SOC_DAPM_AIF_OUT("ASP_TX3", NULL, 0, CS35L45_ASP_ENABLES1, 2, 0),
+	SND_SOC_DAPM_AIF_OUT("ASP_TX4", NULL, 0, CS35L45_ASP_ENABLES1, 3, 0),
+
+	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_NOPM, 0, 0, &amp_en_ctl),
+	SND_SOC_DAPM_SWITCH("BBPE Enable", CS35L45_BLOCK_ENABLES2, 13, 0,
+			    &bbpe_en_ctl),
+	SND_SOC_DAPM_SWITCH("NFR Enable", CS35L45_BLOCK_ENABLES, 1, 0,
+			    &nfr_en_ctl),
+	SND_SOC_DAPM_SWITCH("NGATE Enable", SND_SOC_NOPM, 0, 0, &ngate_en_ctl),
+
+	SND_SOC_DAPM_OUTPUT("SPK"),
+	SND_SOC_DAPM_OUTPUT("RCV"),
+	SND_SOC_DAPM_INPUT("AP"),
+};
+
+static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
+	/* DSP */
+	{"DSP1 Preload", NULL, "DSP1 Preloader"},
+	{"DSP1 Enable", NULL, "DSP1 Boot"},
+
+	{"DSP", NULL, "DSP1 Preloader"},
+	{"DSP", NULL, "DSP1 Boot"},
+	{"DSP", NULL, "VMON"},
+	{"DSP", NULL, "IMON"},
+	{"DSP", NULL, "BATTMON"},
+	{"DSP", NULL, "BSTMON"},
+
+	/* Feedback */
+	{"ASP_TX1", NULL, "AP"},
+	{"ASP_TX2", NULL, "AP"},
+	{"ASP_TX3", NULL, "AP"},
+	{"ASP_TX4", NULL, "AP"},
+
+	{"Capture", NULL, "ASP_TX1"},
+	{"Capture", NULL, "ASP_TX2"},
+	{"Capture", NULL, "ASP_TX3"},
+	{"Capture", NULL, "ASP_TX4"},
+
+	{"Capture", NULL, "VMON"},
+	{"Capture", NULL, "IMON"},
+	{"Capture", NULL, "BATTMON"},
+	{"Capture", NULL, "BSTMON"},
+
+	/* Playback */
+	{"Entry", NULL, "Playback"},
+
+	{"AMP Enable", "Switch", "Entry"},
+
+	{"ASP_RX1", NULL, "AMP Enable"},
+	{"ASP_RX2", NULL, "AMP Enable"},
+
+	{"ASP", NULL, "ASP_RX1"},
+	{"ASP", NULL, "ASP_RX2"},
+
+	{"BBPE Enable", "Switch", "AMP Enable"},
+	{"NFR Enable", "Switch", "AMP Enable"},
+
+	{"NGATE_CH1", NULL, "AMP Enable"},
+	{"NGATE_CH2", NULL, "AMP Enable"},
+
+	{"NGATE Enable", "Switch", "NGATE_CH1"},
+	{"NGATE Enable", "Switch", "NGATE_CH2"},
+
+	{"Exit", NULL, "ASP"},
+	{"Exit", NULL, "BBPE Enable"},
+	{"Exit", NULL, "NFR Enable"},
+	{"Exit", NULL, "NGATE Enable"},
+
+	{"RCV", NULL, "RCV_EN"},
+	{"RCV", NULL, "Exit"},
+
+	{"SPK", NULL, "Exit"},
+};
+
+static const struct snd_soc_dapm_route cs35l45_passive_routes[] = {
+	{"GLOBAL_EN", NULL, "Entry"},
+	{"Exit", NULL, "GLOBAL_EN"},
+};
+
+static const struct snd_soc_dapm_route cs35l45_sync_master_routes[] = {
+	{"DSP", NULL, "Entry"},
+	{"SYNC Master", NULL, "DSP"},
+	{"Exit", NULL, "SYNC Master"},
+};
+
+static const struct snd_soc_dapm_route cs35l45_sync_slave_routes[] = {
+	{"DSP", NULL, "Entry"},
+	{"SYNC Slave", NULL, "DSP"},
+	{"Exit", NULL, "SYNC Slave"},
+};
+
 static const char * const pcm_tx_txt[] = {"Zero", "ASP_RX1", "ASP_RX2", "VMON",
 			"IMON", "ERR_VOL", "VDD_BATTMON", "VDD_BSTMON",
 			"DSP_TX1", "DSP_TX2"};
@@ -683,325 +784,56 @@ static const unsigned int pcm_ng_val[] = {CS35L45_PCM_SRC_ZERO,
 			CS35L45_PCM_SRC_ASP_RX1, CS35L45_PCM_SRC_ASP_RX2};
 
 static const struct soc_enum mux_enums[] = {
-	SOC_VALUE_ENUM_DOUBLE(CS35L45_ASPTX1_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+	SOC_VALUE_ENUM_SINGLE(CS35L45_ASPTX1_INPUT, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_tx_txt), pcm_tx_txt, pcm_tx_val),
-	SOC_VALUE_ENUM_DOUBLE(CS35L45_ASPTX2_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+	SOC_VALUE_ENUM_SINGLE(CS35L45_ASPTX2_INPUT, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_tx_txt), pcm_tx_txt, pcm_tx_val),
-	SOC_VALUE_ENUM_DOUBLE(CS35L45_ASPTX3_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+	SOC_VALUE_ENUM_SINGLE(CS35L45_ASPTX3_INPUT, 0, CS35L45_PCM_SRC_MASK,
 			 ARRAY_SIZE(pcm_tx_txt), pcm_tx_txt, pcm_tx_val),
-	SOC_VALUE_ENUM_DOUBLE(CS35L45_ASPTX4_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+	SOC_VALUE_ENUM_SINGLE(CS35L45_ASPTX4_INPUT, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_tx_txt), pcm_tx_txt, pcm_tx_val),
-	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX1_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+	SOC_VALUE_ENUM_SINGLE(CS35L45_DSP1RX1_INPUT, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
-	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX2_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+	SOC_VALUE_ENUM_SINGLE(CS35L45_DSP1RX2_INPUT, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
-	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX3_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+	SOC_VALUE_ENUM_SINGLE(CS35L45_DSP1RX3_INPUT, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
-	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX4_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+	SOC_VALUE_ENUM_SINGLE(CS35L45_DSP1RX4_INPUT, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
-	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX5_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+	SOC_VALUE_ENUM_SINGLE(CS35L45_DSP1RX5_INPUT, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
-	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX6_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+	SOC_VALUE_ENUM_SINGLE(CS35L45_DSP1RX6_INPUT, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
-	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX7_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+	SOC_VALUE_ENUM_SINGLE(CS35L45_DSP1RX7_INPUT, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
-	SOC_VALUE_ENUM_DOUBLE(CS35L45_DSP1RX8_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+	SOC_VALUE_ENUM_SINGLE(CS35L45_DSP1RX8_INPUT, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_rx_txt), pcm_rx_txt, pcm_rx_val),
-	SOC_VALUE_ENUM_DOUBLE(CS35L45_DACPCM1_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+	SOC_VALUE_ENUM_SINGLE(CS35L45_DACPCM1_INPUT, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_dac_txt), pcm_dac_txt, pcm_dac_val),
-	SOC_VALUE_ENUM_DOUBLE(CS35L45_NGATE1_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+	SOC_VALUE_ENUM_SINGLE(CS35L45_NGATE1_INPUT, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_ng_txt), pcm_ng_txt, pcm_ng_val),
-	SOC_VALUE_ENUM_DOUBLE(CS35L45_NGATE2_INPUT, 0, 0, CS35L45_PCM_SRC_MASK,
+	SOC_VALUE_ENUM_SINGLE(CS35L45_NGATE2_INPUT, 0, CS35L45_PCM_SRC_MASK,
 			ARRAY_SIZE(pcm_ng_txt), pcm_ng_txt, pcm_ng_val),
 };
 
-static const struct snd_kcontrol_new muxes[] = {
-	SOC_DAPM_ENUM("ASP_TX1 Source", mux_enums[ASP_TX1]),
-	SOC_DAPM_ENUM("ASP_TX2 Source", mux_enums[ASP_TX2]),
-	SOC_DAPM_ENUM("ASP_TX3 Source", mux_enums[ASP_TX3]),
-	SOC_DAPM_ENUM("ASP_TX4 Source", mux_enums[ASP_TX4]),
-	SOC_DAPM_ENUM("DSP_RX1 Source", mux_enums[DSP_RX1]),
-	SOC_DAPM_ENUM("DSP_RX2 Source", mux_enums[DSP_RX2]),
-	SOC_DAPM_ENUM("DSP_RX3 Source", mux_enums[DSP_RX3]),
-	SOC_DAPM_ENUM("DSP_RX4 Source", mux_enums[DSP_RX4]),
-	SOC_DAPM_ENUM("DSP_RX5 Source", mux_enums[DSP_RX5]),
-	SOC_DAPM_ENUM("DSP_RX6 Source", mux_enums[DSP_RX6]),
-	SOC_DAPM_ENUM("DSP_RX7 Source", mux_enums[DSP_RX7]),
-	SOC_DAPM_ENUM("DSP_RX8 Source", mux_enums[DSP_RX8]),
-	SOC_DAPM_ENUM("DACPCM Source", mux_enums[DACPCM]),
-	SOC_DAPM_ENUM("NGATE1 Source", mux_enums[NGATE1]),
-	SOC_DAPM_ENUM("NGATE2 Source", mux_enums[NGATE2]),
-};
+static const char * const gain_texts[] = {"10dB", "13dB", "16dB", "19dB"};
+static const unsigned int gain_values[] = {0x00, 0x01, 0x02, 0x03};
+static SOC_VALUE_ENUM_SINGLE_DECL(gain_enum, CS35L45_AMP_GAIN,
+			CS35L45_AMP_GAIN_PCM_SHIFT,
+			CS35L45_AMP_GAIN_PCM_MASK >> CS35L45_AMP_GAIN_PCM_SHIFT,
+			gain_texts, gain_values);
 
-static const struct snd_kcontrol_new amp_en_ctl =
-	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+static const char * const amplifier_mode_texts[] = {"SPK", "RCV"};
+static SOC_ENUM_SINGLE_DECL(amplifier_mode_enum, SND_SOC_NOPM, 0,
+			    amplifier_mode_texts);
 
-static const struct snd_kcontrol_new bbpe_en_ctl =
-	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+static const char * const hibernate_mode_texts[] = {"Off", "On"};
+static SOC_ENUM_SINGLE_DECL(hibernate_mode_enum, SND_SOC_NOPM, 0,
+			    hibernate_mode_texts);
 
-static const struct snd_kcontrol_new ngate_en_ctl =
-	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
-
-static const struct snd_kcontrol_new nfr_en_ctl =
-	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
-
-static const struct snd_kcontrol_new sync_pwr_en_ctl =
-	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
-
-static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
-	SND_SOC_DAPM_SPK("DSP1 Preload", NULL),
-	SND_SOC_DAPM_SPK("DSP1 Enable", NULL),
-
-	SND_SOC_DAPM_SUPPLY_S("DSP1 Preloader", 100, SND_SOC_NOPM, 0, 0,
-			      cs35l45_dsp_loader_ev, SND_SOC_DAPM_PRE_PMU |
-			      SND_SOC_DAPM_POST_PMU),
-
-	SND_SOC_DAPM_SUPPLY_S("DSP1 Boot", 200, SND_SOC_NOPM, 0, 0,
-			      cs35l45_dsp_boot_ev, SND_SOC_DAPM_PRE_PMU |
-			      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-
-	SND_SOC_DAPM_OUT_DRV("DSP", SND_SOC_NOPM, 0, 0, NULL, 0),
-
-	SND_SOC_DAPM_PGA_S("SYNC Slave", 100, SND_SOC_NOPM, 0, 0,
-			   cs35l45_dsp_power_ev, SND_SOC_DAPM_POST_PMU |
-			   SND_SOC_DAPM_PRE_PMD),
-
-	SND_SOC_DAPM_PGA_S("SYNC Master", 200, SND_SOC_NOPM, 0, 0,
-			   cs35l45_dsp_power_ev, SND_SOC_DAPM_POST_PMU |
-			   SND_SOC_DAPM_PRE_PMD),
-
-	SND_SOC_DAPM_PGA_E("GLOBAL_EN", SND_SOC_NOPM, 0, 0, NULL, 0,
-			   cs35l45_global_en_power_ev, SND_SOC_DAPM_POST_PMU |
-			   SND_SOC_DAPM_POST_PMD),
-
-	SND_SOC_DAPM_SUPPLY("VMON", CS35L45_BLOCK_ENABLES, 12, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("IMON", CS35L45_BLOCK_ENABLES, 13, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("BATTMON", CS35L45_BLOCK_ENABLES, 8, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("BSTMON", CS35L45_BLOCK_ENABLES, 9, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("SYNC_EN", CS35L45_BLOCK_ENABLES2, 8, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("SYNC_LSW_RX_EN", CS35L45_SYNC_TX_RX_ENABLES, 19, 0,
-			    NULL, 0),
-	SND_SOC_DAPM_SUPPLY("SYNC_LSW_TX_EN", CS35L45_SYNC_TX_RX_ENABLES, 18, 0,
-			    NULL, 0),
-	SND_SOC_DAPM_SUPPLY("SYNC_SW_RX_EN", CS35L45_SYNC_TX_RX_ENABLES, 17, 0,
-			    NULL, 0),
-	SND_SOC_DAPM_SUPPLY("SYNC_SW_TX_EN", CS35L45_SYNC_TX_RX_ENABLES, 16, 0,
-			    NULL, 0),
-	SND_SOC_DAPM_SUPPLY("SYNC_PWR_TX_EN", CS35L45_SYNC_TX_RX_ENABLES, 4, 0,
-			    NULL, 0),
-
-	SND_SOC_DAPM_AIF_IN("ASP", NULL, 0, CS35L45_BLOCK_ENABLES2, 27, 0),
-	SND_SOC_DAPM_AIF_IN("ASP_RX1", NULL, 0, CS35L45_ASP_ENABLES1, 16, 0),
-	SND_SOC_DAPM_AIF_IN("ASP_RX2", NULL, 0, CS35L45_ASP_ENABLES1, 17, 0),
-	SND_SOC_DAPM_AIF_IN("NGATE_CH1", NULL, 0, CS35L45_MIXER_NGATE_CH1_CFG,
-			    16, 0),
-	SND_SOC_DAPM_AIF_IN("NGATE_CH2", NULL, 0, CS35L45_MIXER_NGATE_CH2_CFG,
-			    16, 0),
-
-	SND_SOC_DAPM_AIF_OUT("ASP_TX1", NULL, 0, CS35L45_ASP_ENABLES1, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("ASP_TX2", NULL, 0, CS35L45_ASP_ENABLES1, 1, 0),
-	SND_SOC_DAPM_AIF_OUT("ASP_TX3", NULL, 0, CS35L45_ASP_ENABLES1, 2, 0),
-	SND_SOC_DAPM_AIF_OUT("ASP_TX4", NULL, 0, CS35L45_ASP_ENABLES1, 3, 0),
-
-	SND_SOC_DAPM_MUX("ASP_TX1 Source", SND_SOC_NOPM, 0, 0, &muxes[ASP_TX1]),
-	SND_SOC_DAPM_MUX("ASP_TX2 Source", SND_SOC_NOPM, 0, 0, &muxes[ASP_TX2]),
-	SND_SOC_DAPM_MUX("ASP_TX3 Source", SND_SOC_NOPM, 0, 0, &muxes[ASP_TX3]),
-	SND_SOC_DAPM_MUX("ASP_TX4 Source", SND_SOC_NOPM, 0, 0, &muxes[ASP_TX4]),
-	SND_SOC_DAPM_MUX("DSP_RX1 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX1]),
-	SND_SOC_DAPM_MUX("DSP_RX2 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX2]),
-	SND_SOC_DAPM_MUX("DSP_RX3 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX3]),
-	SND_SOC_DAPM_MUX("DSP_RX4 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX4]),
-	SND_SOC_DAPM_MUX("DSP_RX5 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX5]),
-	SND_SOC_DAPM_MUX("DSP_RX6 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX6]),
-	SND_SOC_DAPM_MUX("DSP_RX7 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX7]),
-	SND_SOC_DAPM_MUX("DSP_RX8 Source", SND_SOC_NOPM, 0, 0, &muxes[DSP_RX8]),
-	SND_SOC_DAPM_MUX("DACPCM Source", SND_SOC_NOPM, 0, 0, &muxes[DACPCM]),
-	SND_SOC_DAPM_MUX("NGATE1 Source", SND_SOC_NOPM, 0, 0, &muxes[NGATE1]),
-	SND_SOC_DAPM_MUX("NGATE2 Source", SND_SOC_NOPM, 0, 0, &muxes[NGATE2]),
-
-	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_NOPM, 0, 0, &amp_en_ctl),
-	SND_SOC_DAPM_SWITCH("BBPE Enable", CS35L45_BLOCK_ENABLES2, 13, 0,
-			    &bbpe_en_ctl),
-	SND_SOC_DAPM_SWITCH("NFR Enable", CS35L45_BLOCK_ENABLES, 1, 0,
-			    &nfr_en_ctl),
-	SND_SOC_DAPM_SWITCH("NGATE Enable", SND_SOC_NOPM, 0, 0, &ngate_en_ctl),
-	SND_SOC_DAPM_SWITCH("SYNC PWR Enable", CS35L45_SYNC_TX_RX_ENABLES, 5, 0,
-			    &sync_pwr_en_ctl),
-
-	SND_SOC_DAPM_AIF_OUT("RCV_EN", NULL, 0, CS35L45_BLOCK_ENABLES, 2, 0),
-
-	SND_SOC_DAPM_OUTPUT("SPK"),
-	SND_SOC_DAPM_OUTPUT("RCV"),
-	SND_SOC_DAPM_INPUT("AP"),
-};
-
-static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
-	/* DSP */
-	{"DSP1 Preload", NULL, "DSP1 Preloader"},
-	{"DSP1 Enable", NULL, "DSP1 Boot"},
-
-	{"DSP", NULL, "DSP1 Preloader"},
-	{"DSP", NULL, "DSP1 Boot"},
-	{"DSP", NULL, "VMON"},
-	{"DSP", NULL, "IMON"},
-	{"DSP", NULL, "BATTMON"},
-	{"DSP", NULL, "BSTMON"},
-	{"DSP", NULL, "SYNC_EN"},
-	{"DSP", NULL, "SYNC_LSW_RX_EN"},
-	{"DSP", NULL, "SYNC_LSW_TX_EN"},
-	{"DSP", NULL, "SYNC_SW_RX_EN"},
-	{"DSP", NULL, "SYNC_SW_TX_EN"},
-
-	/* Feedback */
-	{"ASP_TX1", NULL, "AP"},
-	{"ASP_TX2", NULL, "AP"},
-	{"ASP_TX3", NULL, "AP"},
-	{"ASP_TX4", NULL, "AP"},
-
-	{"ASP_TX1 Source", "ASP_RX1", "ASP_TX1"},
-	{"ASP_TX1 Source", "ASP_RX2", "ASP_TX1"},
-	{"ASP_TX1 Source", "VMON", "ASP_TX1"},
-	{"ASP_TX1 Source", "IMON", "ASP_TX1"},
-	{"ASP_TX1 Source", "VDD_BATTMON", "ASP_TX1"},
-	{"ASP_TX1 Source", "VDD_BSTMON", "ASP_TX1"},
-	{"ASP_TX1 Source", "DSP_TX1", "ASP_TX1"},
-	{"ASP_TX1 Source", "DSP_TX2", "ASP_TX1"},
-
-	{"ASP_TX2 Source", "ASP_RX1", "ASP_TX2"},
-	{"ASP_TX2 Source", "ASP_RX2", "ASP_TX2"},
-	{"ASP_TX2 Source", "VMON", "ASP_TX2"},
-	{"ASP_TX2 Source", "IMON", "ASP_TX2"},
-	{"ASP_TX2 Source", "VDD_BATTMON", "ASP_TX2"},
-	{"ASP_TX2 Source", "VDD_BSTMON", "ASP_TX2"},
-	{"ASP_TX2 Source", "DSP_TX1", "ASP_TX2"},
-	{"ASP_TX2 Source", "DSP_TX2", "ASP_TX2"},
-
-	{"ASP_TX3 Source", "ASP_RX1", "ASP_TX3"},
-	{"ASP_TX3 Source", "ASP_RX2", "ASP_TX3"},
-	{"ASP_TX3 Source", "VMON", "ASP_TX3"},
-	{"ASP_TX3 Source", "IMON", "ASP_TX3"},
-	{"ASP_TX3 Source", "VDD_BATTMON", "ASP_TX3"},
-	{"ASP_TX3 Source", "VDD_BSTMON", "ASP_TX3"},
-	{"ASP_TX3 Source", "DSP_TX1", "ASP_TX3"},
-	{"ASP_TX3 Source", "DSP_TX2", "ASP_TX3"},
-
-	{"ASP_TX4 Source", "ASP_RX1", "ASP_TX4"},
-	{"ASP_TX4 Source", "ASP_RX2", "ASP_TX4"},
-	{"ASP_TX4 Source", "VMON", "ASP_TX4"},
-	{"ASP_TX4 Source", "IMON", "ASP_TX4"},
-	{"ASP_TX4 Source", "VDD_BATTMON", "ASP_TX4"},
-	{"ASP_TX4 Source", "VDD_BSTMON", "ASP_TX4"},
-	{"ASP_TX4 Source", "DSP_TX1", "ASP_TX4"},
-	{"ASP_TX4 Source", "DSP_TX2", "ASP_TX4"},
-
-	{"Capture", NULL, "ASP_TX1 Source"},
-	{"Capture", NULL, "ASP_TX2 Source"},
-	{"Capture", NULL, "ASP_TX3 Source"},
-	{"Capture", NULL, "ASP_TX4 Source"},
-
-	{"Capture", NULL, "VMON"},
-	{"Capture", NULL, "IMON"},
-	{"Capture", NULL, "BATTMON"},
-	{"Capture", NULL, "BSTMON"},
-
-	/* Playback */
-	{"AMP Enable", "Switch", "Playback"},
-	{"BBPE Enable", "Switch", "Playback"},
-	{"NFR Enable", "Switch", "Playback"},
-
-	{"AMP Enable", "Switch", "BBPE Enable"},
-	{"AMP Enable", "Switch", "NFR Enable"},
-
-	{"GLOBAL_EN", NULL, "AMP Enable"},
-	{"ASP", NULL, "AMP Enable"},
-
-	{"ASP_RX1", NULL, "ASP"},
-	{"ASP_RX2", NULL, "ASP"},
-
-	{"NGATE1 Source", "Zero", "AMP Enable"},
-	{"NGATE1 Source", "ASP_RX1", "ASP_RX1"},
-	{"NGATE1 Source", "ASP_RX2", "ASP_RX2"},
-
-	{"NGATE2 Source", "Zero", "AMP Enable"},
-	{"NGATE2 Source", "ASP_RX1", "ASP_RX1"},
-	{"NGATE2 Source", "ASP_RX2", "ASP_RX2"},
-
-	{"NGATE_CH1", NULL, "NGATE1 Source"},
-	{"NGATE_CH2", NULL, "NGATE2 Source"},
-
-	{"NGATE Enable", "Switch", "NGATE_CH1"},
-	{"NGATE Enable", "Switch", "NGATE_CH2"},
-
-	{"DSP_RX1 Source", "Zero", "AMP Enable"},
-	{"DSP_RX1 Source", "ASP_RX1", "ASP_RX1"},
-	{"DSP_RX1 Source", "ASP_RX2", "ASP_RX2"},
-
-	{"DSP_RX2 Source", "Zero", "AMP Enable"},
-	{"DSP_RX2 Source", "ASP_RX1", "ASP_RX1"},
-	{"DSP_RX2 Source", "ASP_RX2", "ASP_RX2"},
-
-	{"DSP_RX3 Source", "Zero", "AMP Enable"},
-	{"DSP_RX3 Source", "ASP_RX1", "ASP_RX1"},
-	{"DSP_RX3 Source", "ASP_RX2", "ASP_RX2"},
-
-	{"DSP_RX4 Source", "Zero", "AMP Enable"},
-	{"DSP_RX4 Source", "ASP_RX1", "ASP_RX1"},
-	{"DSP_RX4 Source", "ASP_RX2", "ASP_RX2"},
-
-	{"DSP_RX5 Source", "Zero", "AMP Enable"},
-	{"DSP_RX5 Source", "ASP_RX1", "ASP_RX1"},
-	{"DSP_RX5 Source", "ASP_RX2", "ASP_RX2"},
-
-	{"DSP_RX6 Source", "Zero", "AMP Enable"},
-	{"DSP_RX6 Source", "ASP_RX1", "ASP_RX1"},
-	{"DSP_RX6 Source", "ASP_RX2", "ASP_RX2"},
-
-	{"DSP_RX7 Source", "Zero", "AMP Enable"},
-	{"DSP_RX7 Source", "ASP_RX1", "ASP_RX1"},
-	{"DSP_RX7 Source", "ASP_RX2", "ASP_RX2"},
-
-	{"DSP_RX8 Source", "Zero", "AMP Enable"},
-	{"DSP_RX8 Source", "ASP_RX1", "ASP_RX1"},
-	{"DSP_RX8 Source", "ASP_RX2", "ASP_RX2"},
-
-	{"DSP", NULL, "DSP_RX1 Source"},
-	{"DSP", NULL, "DSP_RX2 Source"},
-	{"DSP", NULL, "DSP_RX3 Source"},
-	{"DSP", NULL, "DSP_RX4 Source"},
-	{"DSP", NULL, "DSP_RX5 Source"},
-	{"DSP", NULL, "DSP_RX6 Source"},
-	{"DSP", NULL, "DSP_RX7 Source"},
-	{"DSP", NULL, "DSP_RX8 Source"},
-
-	{"DACPCM Source", "Zero", "GLOBAL_EN"},
-	{"DACPCM Source", "ASP_RX1", "ASP_RX1"},
-	{"DACPCM Source", "ASP_RX1", "GLOBAL_EN"},
-	{"DACPCM Source", "ASP_RX2", "ASP_RX2"},
-	{"DACPCM Source", "ASP_RX2", "GLOBAL_EN"},
-	{"DACPCM Source", "DSP_TX1", "DSP"},
-	{"DACPCM Source", "DSP_TX2", "DSP"},
-
-	{"SPK", NULL, "DACPCM Source"},
-	{"SPK", NULL, "NGATE Enable"},
-
-	{"RCV_EN", NULL, "DACPCM Source"},
-	{"RCV", NULL, "RCV_EN"},
-};
-
-static const struct snd_soc_dapm_route cs35l45_sync_master_routes[] = {
-	{"SYNC Master", NULL, "AMP Enable"},
-	{"SYNC PWR Enable", "Switch", "AMP Enable"},
-	{"DSP", NULL, "SYNC PWR Enable"},
-	{"DSP", NULL, "SYNC Master"},
-	{"DSP", NULL, "SYNC_PWR_TX_EN"},
-};
-
-static const struct snd_soc_dapm_route cs35l45_sync_slave_routes[] = {
-	{"SYNC Slave", NULL, "AMP Enable"},
-	{"SYNC PWR Enable", "Switch", "AMP Enable"},
-	{"DSP", NULL, "SYNC PWR Enable"},
-	{"DSP", NULL, "SYNC Slave"},
-};
+static const DECLARE_TLV_DB_RANGE(dig_pcm_vol_tlv, 0, 0,
+				  TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
+				  1, 913, TLV_DB_SCALE_ITEM(-10200, 25, 0));
 
 static int cs35l45_activate_ctl(struct cs35l45_private *cs35l45,
 				const char *ctl_name, bool active)
@@ -1037,25 +869,6 @@ static int cs35l45_activate_ctl(struct cs35l45_private *cs35l45,
 
 	return 0;
 }
-
-static const char * const gain_texts[] = {"10dB", "13dB", "16dB", "19dB"};
-static const unsigned int gain_values[] = {0x00, 0x01, 0x02, 0x03};
-static SOC_VALUE_ENUM_SINGLE_DECL(gain_enum, CS35L45_AMP_GAIN,
-			CS35L45_AMP_GAIN_PCM_SHIFT,
-			CS35L45_AMP_GAIN_PCM_MASK >> CS35L45_AMP_GAIN_PCM_SHIFT,
-			gain_texts, gain_values);
-
-static const char * const amplifier_mode_texts[] = {"SPK", "RCV"};
-static SOC_ENUM_SINGLE_DECL(amplifier_mode_enum, SND_SOC_NOPM, 0,
-			    amplifier_mode_texts);
-
-static const char * const hibernate_mode_texts[] = {"Off", "On"};
-static SOC_ENUM_SINGLE_DECL(hibernate_mode_enum, SND_SOC_NOPM, 0,
-			    hibernate_mode_texts);
-
-static const DECLARE_TLV_DB_RANGE(dig_pcm_vol_tlv, 0, 0,
-				  TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
-				  1, 913, TLV_DB_SCALE_ITEM(-10200, 25, 0));
 
 static int cs35l45_amplifier_mode_get(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
@@ -1163,29 +976,103 @@ static int cs35l45_dsp_boot_put(struct snd_kcontrol *kcontrol,
 		return -EPERM;
 	}
 
-	if (ucontrol->value.integer.value[0])
+	if (ucontrol->value.integer.value[0]) {
 		snd_soc_component_force_enable_pin(component, "DSP1 Enable");
-	else
+
+		snd_soc_dapm_del_routes(dapm, cs35l45_passive_routes,
+					ARRAY_SIZE(cs35l45_passive_routes));
+	} else {
 		snd_soc_component_disable_pin(component, "DSP1 Enable");
+
+		snd_soc_dapm_add_routes(dapm, cs35l45_passive_routes,
+					ARRAY_SIZE(cs35l45_passive_routes));
+
+		snd_soc_dapm_del_routes(dapm, cs35l45_sync_master_routes,
+					ARRAY_SIZE(cs35l45_sync_master_routes));
+
+		snd_soc_dapm_del_routes(dapm, cs35l45_sync_slave_routes,
+					ARRAY_SIZE(cs35l45_sync_slave_routes));
+	}
 
 	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }
 
+static int cs35l45_dsp_reconfig_get(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static int cs35l45_dsp_reconfig_put(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_dapm_context *dapm =
+			snd_soc_component_get_dapm(component);
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(component);
+	enum cspl_mboxcmd mboxcmd = CSPL_MBOX_CMD_NONE;
+	unsigned int is_master;
+	__be32 buf;
+	int ret;
+
+	if (!cs35l45->dsp.running) {
+		dev_err(cs35l45->dev, "DSP not running\n");
+		return -EPERM;
+	}
+
+	if (!ucontrol->value.integer.value[0])
+		return 0;
+
+	mboxcmd = CSPL_MBOX_CMD_RECONFIGURE;
+	ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
+	if (ret < 0) {
+		dev_err(cs35l45->dev, "MBOX failure (%d)\n", ret);
+		return ret;
+	}
+
+	ret = wm_adsp_read_ctl(&cs35l45->dsp, "MASTER", WMFW_ADSP2_XM,
+			       CS35L45_ALGID_MDSYNC, &buf, sizeof(__be32));
+	if (ret < 0) {
+		dev_err(cs35l45->dev, "Control read error (%d)\n", ret);
+		return ret;
+	}
+
+	is_master = be32_to_cpu(buf);
+
+	if (is_master) {
+		snd_soc_dapm_add_routes(dapm, cs35l45_sync_master_routes,
+					ARRAY_SIZE(cs35l45_sync_master_routes));
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
+				   CS35L45_SYNC_PWR_TX_EN_MASK,
+				   CS35L45_SYNC_PWR_TX_EN_MASK);
+	} else {
+		snd_soc_dapm_add_routes(dapm, cs35l45_sync_slave_routes,
+					ARRAY_SIZE(cs35l45_sync_slave_routes));
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
+				   CS35L45_SYNC_PWR_TX_EN_MASK, 0);
+	}
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 	WM_ADSP_FW_CONTROL("DSP1", 0),
-	SOC_SINGLE_EXT("Fast Use Case Switch Enable", SND_SOC_NOPM, 0, 1, 0,
-		       cs35l45_fast_switch_en_get, cs35l45_fast_switch_en_put),
 	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
+
+	SOC_SINGLE("AMP Mute", CS35L45_AMP_OUTPUT_MUTE, 0, 1, 0),
+	SOC_SINGLE("SYNC Enable Switch", CS35L45_BLOCK_ENABLES2, 8, 1, 0),
 	SOC_SINGLE_EXT("DSP1 Boot Switch", SND_SOC_NOPM, 1, 1, 0,
 		       cs35l45_dsp_boot_get, cs35l45_dsp_boot_put),
-	SOC_ENUM_EXT("Amplifier Mode", amplifier_mode_enum,
-		     cs35l45_amplifier_mode_get, cs35l45_amplifier_mode_put),
-	SOC_ENUM("AMP PCM Gain", gain_enum),
-	SOC_SINGLE("AMP Mute", CS35L45_AMP_OUTPUT_MUTE, 0, 1, 0),
-	SOC_ENUM_EXT("Hibernate Mode", hibernate_mode_enum,
-		     cs35l45_hibernate_mode_get, cs35l45_hibernate_mode_put),
+	SOC_SINGLE_EXT("DSP1 Reconfigure Switch", SND_SOC_NOPM, 1, 1, 0,
+		       cs35l45_dsp_reconfig_get, cs35l45_dsp_reconfig_put),
+	SOC_SINGLE_EXT("Fast Use Case Switch Enable", SND_SOC_NOPM, 0, 1, 0,
+		       cs35l45_fast_switch_en_get, cs35l45_fast_switch_en_put),
 	SOC_SINGLE_RANGE("ASPTX1 Slot Position", CS35L45_ASP_FRAME_CONTROL1, 0,
 			 0, 63, 0),
 	SOC_SINGLE_RANGE("ASPTX2 Slot Position", CS35L45_ASP_FRAME_CONTROL1, 8,
@@ -1198,6 +1085,29 @@ static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 			 0, 63, 0),
 	SOC_SINGLE_RANGE("ASPRX2 Slot Position", CS35L45_ASP_FRAME_CONTROL5, 8,
 			 0, 63, 0),
+
+	SOC_ENUM("ASP_TX1 Source", mux_enums[ASP_TX1]),
+	SOC_ENUM("ASP_TX2 Source", mux_enums[ASP_TX2]),
+	SOC_ENUM("ASP_TX3 Source", mux_enums[ASP_TX3]),
+	SOC_ENUM("ASP_TX4 Source", mux_enums[ASP_TX4]),
+	SOC_ENUM("DSP_RX1 Source", mux_enums[DSP_RX1]),
+	SOC_ENUM("DSP_RX2 Source", mux_enums[DSP_RX2]),
+	SOC_ENUM("DSP_RX3 Source", mux_enums[DSP_RX3]),
+	SOC_ENUM("DSP_RX4 Source", mux_enums[DSP_RX4]),
+	SOC_ENUM("DSP_RX5 Source", mux_enums[DSP_RX5]),
+	SOC_ENUM("DSP_RX6 Source", mux_enums[DSP_RX6]),
+	SOC_ENUM("DSP_RX7 Source", mux_enums[DSP_RX7]),
+	SOC_ENUM("DSP_RX8 Source", mux_enums[DSP_RX8]),
+	SOC_ENUM("DACPCM Source", mux_enums[DACPCM]),
+	SOC_ENUM("NGATE1 Source", mux_enums[NGATE1]),
+	SOC_ENUM("NGATE2 Source", mux_enums[NGATE2]),
+	SOC_ENUM("AMP PCM Gain", gain_enum),
+
+	SOC_ENUM_EXT("Amplifier Mode", amplifier_mode_enum,
+		     cs35l45_amplifier_mode_get, cs35l45_amplifier_mode_put),
+	SOC_ENUM_EXT("Hibernate Mode", hibernate_mode_enum,
+		     cs35l45_hibernate_mode_get, cs35l45_hibernate_mode_put),
+
 	{
 		.name = "Digital PCM Volume",
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -1504,15 +1414,8 @@ static int cs35l45_component_probe(struct snd_soc_component *component)
 			snd_soc_component_get_dapm(component);
 	int ret;
 
-	if (cs35l45->pdata.sync_id & (~CS35L45_VALID_PDATA)) {
-		cs35l45->sync_master = false;
-		snd_soc_dapm_add_routes(dapm, cs35l45_sync_slave_routes,
-					ARRAY_SIZE(cs35l45_sync_slave_routes));
-	} else {
-		cs35l45->sync_master = true;
-		snd_soc_dapm_add_routes(dapm, cs35l45_sync_master_routes,
-					ARRAY_SIZE(cs35l45_sync_master_routes));
-	}
+	snd_soc_dapm_add_routes(dapm, cs35l45_passive_routes,
+				ARRAY_SIZE(cs35l45_passive_routes));
 
 	snd_soc_component_disable_pin(component, "SPK");
 	snd_soc_component_disable_pin(component, "RCV");
@@ -1737,20 +1640,6 @@ static int cs35l45_apply_of_data(struct cs35l45_private *cs35l45)
 
 	if (!pdata)
 		return 0;
-
-	if (pdata->sync_num_slaves & CS35L45_VALID_PDATA) {
-		val = pdata->sync_num_slaves & (~CS35L45_VALID_PDATA);
-		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_SW_TX_ID,
-				   CS35L45_SYNC_LSW_TXID_MASK,
-				   val << CS35L45_SYNC_LSW_TXID_SHIFT);
-	}
-
-	if (pdata->sync_id & CS35L45_VALID_PDATA) {
-		val = pdata->sync_id & (~CS35L45_VALID_PDATA);
-		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_SW_TX_ID,
-				   CS35L45_SYNC_SW_TXID_MASK,
-				   val << CS35L45_SYNC_SW_TXID_SHIFT);
-	}
 
 	if (pdata->asp_sdout_hiz_ctrl & CS35L45_VALID_PDATA) {
 		val = pdata->asp_sdout_hiz_ctrl & (~CS35L45_VALID_PDATA);
@@ -1993,14 +1882,6 @@ static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
 	ret = of_property_read_u32(node, "cirrus,asp-sdout-hiz-ctrl", &val);
 	if (!ret)
 		pdata->asp_sdout_hiz_ctrl = val | CS35L45_VALID_PDATA;
-
-	ret = of_property_read_u32(node, "cirrus,sync-num-slaves", &val);
-	if (!ret)
-		pdata->sync_num_slaves = val | CS35L45_VALID_PDATA;
-
-	ret = of_property_read_u32(node, "cirrus,sync-id", &val);
-	if (!ret)
-		pdata->sync_id = val | CS35L45_VALID_PDATA;
 
 	pdata->use_tdm_slots = of_property_read_bool(node,
 						     "cirrus,use-tdm-slots");
