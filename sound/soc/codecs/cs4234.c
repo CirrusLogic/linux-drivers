@@ -329,21 +329,23 @@ static int cs4234_dai_hw_params(struct snd_pcm_substream *sub, struct snd_pcm_hw
 
 	switch (cs4234->lrclk_rate) {
 	case 48000:
+	case 96000:
 		rate_ad = CS4234_48K;
 		break;
 	case 44100:
+	case 88200:
 		rate_ad = CS4234_44K1;
 		break;
 	case 32000:
+	case 64000:
 		rate_ad = CS4234_32K;
 		break;
 	default:
-		rate_ad = -1;
-		break;
+		dev_err(component->dev, "unsupported LR clock\n");
+		return -EINVAL;
 	}
-	if (rate_ad >= 0)
-		regmap_update_bits(cs4234->regmap, CS4234_CLOCK_SP, CS4234_BASE_RATE_MASK,
-				   rate_ad << CS4234_BASE_RATE_SHIFT);
+	regmap_update_bits(cs4234->regmap, CS4234_CLOCK_SP, CS4234_BASE_RATE_MASK,
+			   rate_ad << CS4234_BASE_RATE_SHIFT);
 
 	sample_width = params_width(params);
 	switch (sample_width) {
