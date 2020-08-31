@@ -713,6 +713,12 @@ enum hiber_mode {
 	HIBER_MODE_EN = 1,
 };
 
+enum dapm_route_mode {
+	DAPM_MODE_PASSIVE = 0,
+	DAPM_MODE_SYNC_SLAVE = 1,
+	DAPM_MODE_SYNC_MASTER = 2,
+};
+
 bool cs35l45_readable_reg(struct device *dev, unsigned int reg);
 bool cs35l45_volatile_reg(struct device *dev, unsigned int reg);
 bool cs35l45_precious_reg(struct device *dev, unsigned int reg);
