@@ -135,10 +135,13 @@ struct cs35l45_private {
 	struct regulator_bulk_data supplies[CS35L45_NUM_SUPPLIES];
 	struct cs35l45_platform_data pdata;
 	struct mutex rate_lock;
+	enum dapm_route_mode dapm_mode;
 	bool initialized;
 	bool fast_switch_en;
 	unsigned int wksrc;
 	unsigned int i2c_addr;
+	unsigned int sync_num_devices;
+	unsigned int sync_id;
 	int irq;
 	int slot_width;
 	int amplifier_mode;
