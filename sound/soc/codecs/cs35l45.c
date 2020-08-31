@@ -390,8 +390,8 @@ static int cs35l45_dsp_boot_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		if (cs35l45->dsp.booted) {
-			dev_err(cs35l45->dev, "DSP already booted\n");
+		if (!cs35l45->dsp.booted) {
+			dev_err(cs35l45->dev, "Preload DSP before boot\n");
 			return -EPERM;
 		}
 
@@ -426,17 +426,6 @@ static int cs35l45_dsp_boot_ev(struct snd_soc_dapm_widget *w,
 		ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
 		if (ret < 0)
 			dev_err(cs35l45->dev, "MBOX failure (%d)\n", ret);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
-				   CS35L45_SYNC_SLAVE_MASK,
-				   CS35L45_SYNC_SLAVE_MASK);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-				   CS35L45_PLL_FORCE_EN_MASK,
-				   CS35L45_PLL_FORCE_EN_MASK);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES2,
-				   CS35L45_SYNC_EN_MASK, CS35L45_SYNC_EN_MASK);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		regmap_update_bits(cs35l45->regmap,
@@ -452,15 +441,6 @@ static int cs35l45_dsp_boot_ev(struct snd_soc_dapm_widget *w,
 
 		regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
 				   CS35L45_MEM_RDY_MASK, 0);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-				   CS35L45_PLL_FORCE_EN_MASK, 0);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
-				   CS35L45_SYNC_SLAVE_MASK, 0);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES2,
-				   CS35L45_SYNC_EN_MASK, 0);
 		break;
 	default:
 		dev_err(cs35l45->dev, "Invalid event = 0x%x\n", event);
@@ -522,33 +502,6 @@ static int cs35l45_global_en_power_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		if (cs35l45->amplifier_mode == AMP_MODE_SPK) {
-			regmap_update_bits(cs35l45->regmap,
-					   CS35L45_BLOCK_ENABLES,
-					   CS35L45_BST_EN_MASK,
-					   CS35L45_BST_ENABLE <<
-					   CS35L45_BST_EN_SHIFT);
-
-			regmap_update_bits(cs35l45->regmap, CS35L45_HVLV_CONFIG,
-					   CS35L45_HVLV_MODE_MASK,
-					   CS35L45_HVLV_OPERATION <<
-					   CS35L45_HVLV_MODE_SHIFT);
-		} else  /* AMP_MODE_RCV */ {
-			regmap_update_bits(cs35l45->regmap, CS35L45_HVLV_CONFIG,
-					   CS35L45_HVLV_MODE_MASK,
-					   CS35L45_FORCE_LV_OPERATION <<
-					   CS35L45_HVLV_MODE_SHIFT);
-
-			regmap_update_bits(cs35l45->regmap,
-					   CS35L45_BLOCK_ENABLES2,
-					   CS35L45_AMP_DRE_EN_MASK, 0);
-
-			regmap_update_bits(cs35l45->regmap, CS35L45_AMP_GAIN,
-					   CS35L45_AMP_GAIN_PCM_MASK,
-					   CS35L45_AMP_GAIN_PCM_13DBV <<
-					   CS35L45_AMP_GAIN_PCM_SHIFT);
-		}
-
 		regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_ENABLES,
 				CS35L45_GLOBAL_EN_MASK, CS35L45_GLOBAL_EN_MASK);
 
@@ -574,21 +527,6 @@ static int cs35l45_global_en_power_ev(struct snd_soc_dapm_widget *w,
 
 		regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_ENABLES,
 				CS35L45_GLOBAL_EN_MASK, 0);
-
-		usleep_range(1000, 1100);
-
-		if (cs35l45->amplifier_mode == AMP_MODE_RCV) {
-			regmap_update_bits(cs35l45->regmap,
-					   CS35L45_BLOCK_ENABLES,
-					   CS35L45_BST_EN_MASK,
-					   CS35L45_BST_ENABLE <<
-					   CS35L45_BST_EN_SHIFT);
-
-			regmap_update_bits(cs35l45->regmap, CS35L45_HVLV_CONFIG,
-					   CS35L45_HVLV_MODE_MASK,
-					   CS35L45_HVLV_OPERATION <<
-					   CS35L45_HVLV_MODE_SHIFT);
-		}
 		break;
 	default:
 		dev_err(cs35l45->dev, "Invalid event = 0x%x\n", event);
@@ -749,6 +687,56 @@ static const struct snd_soc_dapm_route cs35l45_sync_slave_routes[] = {
 	{"Exit", NULL, "SYNC Slave"},
 };
 
+static int cs35l45_set_dapm_route_mode(struct cs35l45_private *cs35l45,
+				       enum dapm_route_mode dapm_mode)
+{
+	struct snd_soc_component *component =
+			snd_soc_lookup_component(cs35l45->dev, NULL);
+	struct snd_soc_dapm_context *dapm =
+			snd_soc_component_get_dapm(component);
+
+	if (cs35l45->dapm_mode == dapm_mode)
+		return 0;
+
+	switch (cs35l45->dapm_mode) {
+	case DAPM_MODE_PASSIVE:
+		snd_soc_dapm_del_routes(dapm, cs35l45_passive_routes,
+					ARRAY_SIZE(cs35l45_passive_routes));
+		break;
+	case DAPM_MODE_SYNC_SLAVE:
+		snd_soc_dapm_del_routes(dapm, cs35l45_sync_slave_routes,
+					ARRAY_SIZE(cs35l45_sync_slave_routes));
+		break;
+	case DAPM_MODE_SYNC_MASTER:
+		snd_soc_dapm_del_routes(dapm, cs35l45_sync_master_routes,
+					ARRAY_SIZE(cs35l45_sync_master_routes));
+		break;
+	}
+
+	switch (dapm_mode) {
+	case DAPM_MODE_PASSIVE:
+		snd_soc_dapm_add_routes(dapm, cs35l45_passive_routes,
+					ARRAY_SIZE(cs35l45_passive_routes));
+		break;
+	case DAPM_MODE_SYNC_SLAVE:
+		snd_soc_dapm_add_routes(dapm, cs35l45_sync_slave_routes,
+					ARRAY_SIZE(cs35l45_sync_slave_routes));
+		break;
+	case DAPM_MODE_SYNC_MASTER:
+		snd_soc_dapm_add_routes(dapm, cs35l45_sync_master_routes,
+					ARRAY_SIZE(cs35l45_sync_master_routes));
+		break;
+	default:
+		dev_err(cs35l45->dev, "Invalid DAPM route mode (%d)\n",
+			dapm_mode);
+		return -EINVAL;
+	}
+
+	cs35l45->dapm_mode = dapm_mode;
+
+	return 0;
+}
+
 static const char * const pcm_tx_txt[] = {"Zero", "ASP_RX1", "ASP_RX2", "VMON",
 			"IMON", "ERR_VOL", "VDD_BATTMON", "VDD_BSTMON",
 			"DSP_TX1", "DSP_TX2"};
@@ -908,6 +896,35 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 
 	snd_soc_dapm_sync(dapm);
 
+	msleep(100);
+
+	if (cs35l45->amplifier_mode == AMP_MODE_SPK) {
+		regmap_update_bits(cs35l45->regmap,
+				   CS35L45_BLOCK_ENABLES,
+				   CS35L45_BST_EN_MASK,
+				   CS35L45_BST_ENABLE <<
+				   CS35L45_BST_EN_SHIFT);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_HVLV_CONFIG,
+				   CS35L45_HVLV_MODE_MASK,
+				   CS35L45_HVLV_OPERATION <<
+				   CS35L45_HVLV_MODE_SHIFT);
+	} else  /* AMP_MODE_RCV */ {
+		regmap_update_bits(cs35l45->regmap, CS35L45_HVLV_CONFIG,
+				   CS35L45_HVLV_MODE_MASK,
+				   CS35L45_FORCE_LV_OPERATION <<
+				   CS35L45_HVLV_MODE_SHIFT);
+
+		regmap_update_bits(cs35l45->regmap,
+				   CS35L45_BLOCK_ENABLES2,
+				   CS35L45_AMP_DRE_EN_MASK, 0);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_AMP_GAIN,
+				   CS35L45_AMP_GAIN_PCM_MASK,
+				   CS35L45_AMP_GAIN_PCM_13DBV <<
+				   CS35L45_AMP_GAIN_PCM_SHIFT);
+	}
+
 	/* If playback is not in progress, exit */
 	if (!status)
 		goto skip_pin_enable;
@@ -919,6 +936,8 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 
 skip_pin_enable:
 	snd_soc_dapm_sync(dapm);
+
+	msleep(100);
 
 	return 0;
 }
@@ -978,42 +997,41 @@ static int cs35l45_dsp_boot_put(struct snd_kcontrol *kcontrol,
 
 	if (ucontrol->value.integer.value[0]) {
 		snd_soc_component_force_enable_pin(component, "DSP1 Enable");
+		cs35l45_set_dapm_route_mode(cs35l45, DAPM_MODE_SYNC_MASTER);
 
-		snd_soc_dapm_del_routes(dapm, cs35l45_passive_routes,
-					ARRAY_SIZE(cs35l45_passive_routes));
+		snd_soc_dapm_sync(dapm);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
+				   CS35L45_SYNC_SLAVE_MASK,
+				   CS35L45_SYNC_SLAVE_MASK);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+				   CS35L45_PLL_FORCE_EN_MASK,
+				   CS35L45_PLL_FORCE_EN_MASK);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES2,
+				   CS35L45_SYNC_EN_MASK, CS35L45_SYNC_EN_MASK);
 	} else {
 		snd_soc_component_disable_pin(component, "DSP1 Enable");
+		cs35l45_set_dapm_route_mode(cs35l45, DAPM_MODE_PASSIVE);
 
-		snd_soc_dapm_add_routes(dapm, cs35l45_passive_routes,
-					ARRAY_SIZE(cs35l45_passive_routes));
+		snd_soc_dapm_sync(dapm);
 
-		snd_soc_dapm_del_routes(dapm, cs35l45_sync_master_routes,
-					ARRAY_SIZE(cs35l45_sync_master_routes));
+		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+				   CS35L45_PLL_FORCE_EN_MASK, 0);
 
-		snd_soc_dapm_del_routes(dapm, cs35l45_sync_slave_routes,
-					ARRAY_SIZE(cs35l45_sync_slave_routes));
+		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
+				   CS35L45_SYNC_SLAVE_MASK, 0);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES2,
+				   CS35L45_SYNC_EN_MASK, 0);
 	}
 
-	snd_soc_dapm_sync(dapm);
-
 	return 0;
 }
 
-static int cs35l45_dsp_reconfig_get(struct snd_kcontrol *kcontrol,
-				    struct snd_ctl_elem_value *ucontrol)
+static int cs35l45_dsp_reconfigure(struct cs35l45_private *cs35l45)
 {
-	return 0;
-}
-
-static int cs35l45_dsp_reconfig_put(struct snd_kcontrol *kcontrol,
-				    struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component =
-			snd_soc_kcontrol_component(kcontrol);
-	struct snd_soc_dapm_context *dapm =
-			snd_soc_component_get_dapm(component);
-	struct cs35l45_private *cs35l45 =
-			snd_soc_component_get_drvdata(component);
 	enum cspl_mboxcmd mboxcmd = CSPL_MBOX_CMD_NONE;
 	unsigned int is_master;
 	__be32 buf;
@@ -1024,8 +1042,21 @@ static int cs35l45_dsp_reconfig_put(struct snd_kcontrol *kcontrol,
 		return -EPERM;
 	}
 
-	if (!ucontrol->value.integer.value[0])
-		return 0;
+	buf = cpu_to_be32(cs35l45->sync_num_devices);
+	ret = wm_adsp_write_ctl(&cs35l45->dsp, "NUM_DEVICES", WMFW_ADSP2_XM,
+				CS35L45_ALGID_MDSYNC, &buf, sizeof(__be32));
+	if (ret < 0) {
+		dev_err(cs35l45->dev, "Control write error (%d)\n", ret);
+		return ret;
+	}
+
+	buf = cpu_to_be32(cs35l45->sync_id);
+	ret = wm_adsp_write_ctl(&cs35l45->dsp, "ID", WMFW_ADSP2_XM,
+				CS35L45_ALGID_MDSYNC, &buf, sizeof(__be32));
+	if (ret < 0) {
+		dev_err(cs35l45->dev, "Control write error (%d)\n", ret);
+		return ret;
+	}
 
 	mboxcmd = CSPL_MBOX_CMD_RECONFIGURE;
 	ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
@@ -1044,21 +1075,77 @@ static int cs35l45_dsp_reconfig_put(struct snd_kcontrol *kcontrol,
 	is_master = be32_to_cpu(buf);
 
 	if (is_master) {
-		snd_soc_dapm_add_routes(dapm, cs35l45_sync_master_routes,
-					ARRAY_SIZE(cs35l45_sync_master_routes));
+		cs35l45_set_dapm_route_mode(cs35l45, DAPM_MODE_SYNC_MASTER);
 
 		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
 				   CS35L45_SYNC_PWR_TX_EN_MASK,
 				   CS35L45_SYNC_PWR_TX_EN_MASK);
 	} else {
-		snd_soc_dapm_add_routes(dapm, cs35l45_sync_slave_routes,
-					ARRAY_SIZE(cs35l45_sync_slave_routes));
+		cs35l45_set_dapm_route_mode(cs35l45, DAPM_MODE_SYNC_SLAVE);
 
 		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
 				   CS35L45_SYNC_PWR_TX_EN_MASK, 0);
 	}
 
 	return 0;
+}
+
+static int cs35l45_sync_num_devices_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(component);
+
+	return cs35l45->sync_num_devices;
+}
+
+static int cs35l45_sync_num_devices_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(component);
+
+	if (!cs35l45->dsp.running) {
+		dev_err(cs35l45->dev, "DSP not running\n");
+		return -EPERM;
+	}
+
+	cs35l45->sync_num_devices = ucontrol->value.integer.value[0];
+
+	return cs35l45_dsp_reconfigure(cs35l45);
+}
+
+static int cs35l45_sync_id_get(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(component);
+
+	return cs35l45->sync_id;
+}
+
+static int cs35l45_sync_id_put(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(component);
+
+	if (!cs35l45->dsp.running) {
+		dev_err(cs35l45->dev, "DSP not running\n");
+		return -EPERM;
+	}
+
+	cs35l45->sync_id = ucontrol->value.integer.value[0];
+
+	return cs35l45_dsp_reconfigure(cs35l45);
 }
 
 static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
@@ -1069,8 +1156,11 @@ static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 	SOC_SINGLE("SYNC Enable Switch", CS35L45_BLOCK_ENABLES2, 8, 1, 0),
 	SOC_SINGLE_EXT("DSP1 Boot Switch", SND_SOC_NOPM, 1, 1, 0,
 		       cs35l45_dsp_boot_get, cs35l45_dsp_boot_put),
-	SOC_SINGLE_EXT("DSP1 Reconfigure Switch", SND_SOC_NOPM, 1, 1, 0,
-		       cs35l45_dsp_reconfig_get, cs35l45_dsp_reconfig_put),
+	SOC_SINGLE_EXT("DSP1 SYNC NUM DEVICES", SND_SOC_NOPM, 1, 8, 0,
+		       cs35l45_sync_num_devices_get,
+		       cs35l45_sync_num_devices_put),
+	SOC_SINGLE_EXT("DSP1 SYNC ID", SND_SOC_NOPM, 1, 7, 0,
+		       cs35l45_sync_id_get, cs35l45_sync_id_put),
 	SOC_SINGLE_EXT("Fast Use Case Switch Enable", SND_SOC_NOPM, 0, 1, 0,
 		       cs35l45_fast_switch_en_get, cs35l45_fast_switch_en_put),
 	SOC_SINGLE_RANGE("ASPTX1 Slot Position", CS35L45_ASP_FRAME_CONTROL1, 0,
@@ -1413,6 +1503,8 @@ static int cs35l45_component_probe(struct snd_soc_component *component)
 	struct snd_soc_dapm_context *dapm =
 			snd_soc_component_get_dapm(component);
 	int ret;
+
+	cs35l45->dapm_mode = DAPM_MODE_PASSIVE;
 
 	snd_soc_dapm_add_routes(dapm, cs35l45_passive_routes,
 				ARRAY_SIZE(cs35l45_passive_routes));
