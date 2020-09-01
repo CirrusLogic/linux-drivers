@@ -369,6 +369,7 @@ bool cs35l45_volatile_reg(struct device *dev, unsigned int reg)
 	case CS35L45_SFT_RESET:
 	case CS35L45_REVID:
 	case CS35L45_GLOBAL_ENABLES:
+	case CS35L45_BLOCK_ENABLES:
 	case CS35L45_BLOCK_ENABLES2:
 	case CS35L45_GLOBAL_OVERRIDES:
 	case CS35L45_CHIP_STATUS:
