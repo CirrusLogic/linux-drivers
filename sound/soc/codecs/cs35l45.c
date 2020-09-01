@@ -491,8 +491,8 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 	return ret;
 }
 
-static int cs35l45_global_en_power_ev(struct snd_soc_dapm_widget *w,
-				      struct snd_kcontrol *kcontrol, int event)
+static int cs35l45_bst_en_power_ev(struct snd_soc_dapm_widget *w,
+				   struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component =
 			snd_soc_dapm_to_component(w->dapm);
@@ -501,19 +501,23 @@ static int cs35l45_global_en_power_ev(struct snd_soc_dapm_widget *w,
 	unsigned int val;
 
 	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		if (cs35l45->amplifier_mode == AMP_MODE_SPK)
+			regmap_update_bits(cs35l45->regmap,
+				CS35L45_BLOCK_ENABLES, CS35L45_BST_EN_MASK,
+				CS35L45_BST_ENABLE << CS35L45_BST_EN_SHIFT);
+		break;
 	case SND_SOC_DAPM_POST_PMU:
-		regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_ENABLES,
-				CS35L45_GLOBAL_EN_MASK, CS35L45_GLOBAL_EN_MASK);
+		if (cs35l45->amplifier_mode == AMP_MODE_RCV) {
+			usleep_range(3000, 3100);
 
-		usleep_range(3000, 3100);
-
-		if (cs35l45->amplifier_mode == AMP_MODE_RCV)
 			regmap_update_bits(cs35l45->regmap,
 				CS35L45_BLOCK_ENABLES, CS35L45_BST_EN_MASK,
 				CS35L45_BST_DISABLE_FET_ON <<
 				CS35L45_BST_EN_SHIFT);
+		}
 		break;
-	case SND_SOC_DAPM_POST_PMD:
+	case SND_SOC_DAPM_PRE_PMD:
 		regmap_read(cs35l45->regmap, CS35L45_BLOCK_ENABLES, &val);
 
 		val = (val & CS35L45_BST_EN_MASK) >> CS35L45_BST_EN_SHIFT;
@@ -524,9 +528,6 @@ static int cs35l45_global_en_power_ev(struct snd_soc_dapm_widget *w,
 				CS35L45_BST_EN_SHIFT);
 
 		usleep_range(1000, 1100);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_ENABLES,
-				CS35L45_GLOBAL_EN_MASK, 0);
 		break;
 	default:
 		dev_err(cs35l45->dev, "Invalid event = 0x%x\n", event);
@@ -649,9 +650,11 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 			   cs35l45_dsp_power_ev, SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_PGA_E("GLOBAL_EN", SND_SOC_NOPM, 0, 0, NULL, 0,
-			   cs35l45_global_en_power_ev, SND_SOC_DAPM_POST_PMU |
-			   SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_PGA("GLOBAL_EN", CS35L45_GLOBAL_ENABLES, 0, 0, NULL, 0),
+
+	SND_SOC_DAPM_OUT_DRV_E("BST_EN", SND_SOC_NOPM, 0, 0, NULL, 0,
+			       cs35l45_bst_en_power_ev, SND_SOC_DAPM_PRE_PMU |
+			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 	SND_SOC_DAPM_SUPPLY("VMON", CS35L45_BLOCK_ENABLES, 12, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("IMON", CS35L45_BLOCK_ENABLES, 13, 0, NULL, 0),
@@ -728,6 +731,8 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 
 	{"AMP Enable", "Switch", "Entry"},
 
+	{"BST_EN", NULL, "AMP Enable"},
+
 	{"ASP_RX1", NULL, "AMP Enable"},
 	{"ASP_RX2", NULL, "AMP Enable"},
 
@@ -747,6 +752,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"Exit", NULL, "BBPE Enable"},
 	{"Exit", NULL, "NFR Enable"},
 	{"Exit", NULL, "NGATE Enable"},
+	{"Exit", NULL, "BST_EN"},
 
 	{"RCV", NULL, "RCV_EN"},
 	{"RCV", NULL, "Exit"},
@@ -912,12 +918,6 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 	msleep(100);
 
 	if (cs35l45->amplifier_mode == AMP_MODE_SPK) {
-		regmap_update_bits(cs35l45->regmap,
-				   CS35L45_BLOCK_ENABLES,
-				   CS35L45_BST_EN_MASK,
-				   CS35L45_BST_ENABLE <<
-				   CS35L45_BST_EN_SHIFT);
-
 		regmap_update_bits(cs35l45->regmap, CS35L45_HVLV_CONFIG,
 				   CS35L45_HVLV_MODE_MASK,
 				   CS35L45_HVLV_OPERATION <<
