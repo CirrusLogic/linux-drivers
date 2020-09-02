@@ -934,38 +934,42 @@ static int cs40l2x_write_virtual_waveform(struct cs40l2x_private *cs40l2x,
 {
 	bool is_xm;
 	int ret = 0;
-	char *raw_composite_data;
-	unsigned int last_offset, size_in_words;
+	char *raw_waveform_data;
+	unsigned int last_offset, size_in_words, wvfrm_type;
 	unsigned int num_xm_registers, num_ym_registers;
 	unsigned int size_in_bytes = 0;
 	unsigned int wt_xm_header_end_reg, wt_ym_header_end_reg;
-	unsigned int len_reg, off_reg, data_reg;
+	unsigned int len_reg, off_reg, type_reg, data_reg;
 	struct regmap *regmap = cs40l2x->regmap;
-	struct cs40l2x_virtual_composite *virtual_wav;
+	struct cs40l2x_virtual_waveform *virtual_wav;
 	unsigned int reg_addr_size = CS40L2X_WT_TOTAL_WORD_SIZE;
 
 	if (over_write) {
 		is_xm = cs40l2x->ovwr_wav->is_xm;
+		wvfrm_type = cs40l2x->ovwr_wav->wvfrm_type +
+			cs40l2x->ovwr_wav->wvfrm_feature;
 		size_in_bytes = cs40l2x->ovwr_wav->data_len;
-		raw_composite_data = devm_kzalloc(cs40l2x->dev,
+		raw_waveform_data = devm_kzalloc(cs40l2x->dev,
 			size_in_bytes, GFP_KERNEL);
-		if (!raw_composite_data)
+		if (!raw_waveform_data)
 			return -ENOMEM;
-		memcpy(raw_composite_data, &cs40l2x->ovwr_wav->data[0],
+		memcpy(raw_waveform_data, &cs40l2x->ovwr_wav->data[0],
 			cs40l2x->ovwr_wav->data_len);
 	} else {
 		list_for_each_entry(virtual_wav,
-			&cs40l2x->virtual_composite_head, list) {
+			&cs40l2x->virtual_waveform_head, list) {
 			if (virtual_wav->index != index)
 				continue;
 
 			is_xm = virtual_wav->is_xm;
+			wvfrm_type = virtual_wav->wvfrm_type +
+				virtual_wav->wvfrm_feature;
 			size_in_bytes = virtual_wav->data_len;
-			raw_composite_data = devm_kzalloc(cs40l2x->dev,
+			raw_waveform_data = devm_kzalloc(cs40l2x->dev,
 				size_in_bytes, GFP_KERNEL);
-			if (!raw_composite_data)
+			if (!raw_waveform_data)
 				return -ENOMEM;
-			memcpy(raw_composite_data, &virtual_wav->data[0],
+			memcpy(raw_waveform_data, &virtual_wav->data[0],
 				virtual_wav->data_len);
 			break;
 		}
@@ -986,12 +990,15 @@ static int cs40l2x_write_virtual_waveform(struct cs40l2x_private *cs40l2x,
 			num_xm_registers);
 		len_reg = (wt_xm_header_end_reg - reg_addr_size);
 		off_reg = (wt_xm_header_end_reg - (reg_addr_size * 2));
+		type_reg = (wt_xm_header_end_reg - (reg_addr_size * 3));
 		if (is_gpio) {
 			len_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
 			off_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
+			type_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
 			if (is_rise) {
 				len_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
 				off_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
+				type_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
 			}
 		}
 		ret = regmap_read(regmap, off_reg, &last_offset);
@@ -1012,12 +1019,15 @@ static int cs40l2x_write_virtual_waveform(struct cs40l2x_private *cs40l2x,
 			num_ym_registers);
 		len_reg = (wt_ym_header_end_reg - reg_addr_size);
 		off_reg = (wt_ym_header_end_reg - (reg_addr_size * 2));
+		type_reg = (wt_ym_header_end_reg - (reg_addr_size * 3));
 		if (is_gpio) {
 			len_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
 			off_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
+			type_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
 			if (is_rise) {
 				len_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
 				off_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
+				type_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
 			}
 		}
 		ret = regmap_read(regmap, off_reg, &last_offset);
@@ -1040,7 +1050,14 @@ static int cs40l2x_write_virtual_waveform(struct cs40l2x_private *cs40l2x,
 			len_reg, ret);
 		goto err_free;
 	}
-	ret = cs40l2x_raw_write(cs40l2x, data_reg, &raw_composite_data[0],
+	ret = regmap_write(regmap, type_reg, wvfrm_type);
+	if (ret) {
+		dev_err(cs40l2x->dev,
+			"Failed to write waveform type 0x%08X: %d\n",
+			type_reg, ret);
+		goto err_free;
+	}
+	ret = cs40l2x_raw_write(cs40l2x, data_reg, &raw_waveform_data[0],
 		size_in_bytes, CS40L2X_MAX_WLEN);
 	if (ret) {
 		dev_err(cs40l2x->dev, "Failed to write wt virtual data\n");
@@ -1059,17 +1076,17 @@ static int cs40l2x_write_virtual_waveform(struct cs40l2x_private *cs40l2x,
 	}
 
 err_free:
-	devm_kfree(cs40l2x->dev, raw_composite_data);
+	devm_kfree(cs40l2x->dev, raw_waveform_data);
 
 	return ret;
 }
 
-static int cs40l2x_add_composite_to_virtual_list(
+static int cs40l2x_add_waveform_to_virtual_list(
 	struct cs40l2x_private *cs40l2x,
-	unsigned int index, unsigned int raw_composite_size,
-	char *raw_composite_data)
+	unsigned int type, unsigned int feature,
+	unsigned int raw_data_size, char *raw_data)
 {
-	struct cs40l2x_virtual_composite *virtual_wav;
+	struct cs40l2x_virtual_waveform *virtual_wav;
 
 	virtual_wav = devm_kzalloc(cs40l2x->dev,
 				sizeof(*virtual_wav), GFP_KERNEL);
@@ -1091,23 +1108,33 @@ static int cs40l2x_add_composite_to_virtual_list(
 	/* The minus 1 is to account for zero being a valid index */
 
 	virtual_wav->is_xm = cs40l2x->xm_append;
-	virtual_wav->data_len = raw_composite_size;
-	memcpy(virtual_wav->data, &raw_composite_data[0], raw_composite_size);
 
-	list_add(&virtual_wav->list, &cs40l2x->virtual_composite_head);
+	virtual_wav->wvfrm_type = type;
+
+	virtual_wav->wvfrm_feature = feature;
+
+	virtual_wav->data_len = raw_data_size;
+
+	memcpy(virtual_wav->data, &raw_data[0], raw_data_size);
+
+	list_add(&virtual_wav->list, &cs40l2x->virtual_waveform_head);
 
 	return 0;
 }
 
-static void cs40l2x_add_composite_to_ovwr_struct(
+static void cs40l2x_save_waveform_to_ovwr_struct(
 	struct cs40l2x_private *cs40l2x,
-	unsigned int raw_composite_size,
-	char *raw_composite_data)
+	unsigned int wvfrm_type,
+	unsigned int wvfrm_feature,
+	unsigned int raw_waveform_size,
+	char *raw_waveform_data)
 {
 	cs40l2x->ovwr_wav->is_xm = cs40l2x->xm_append;
-	cs40l2x->ovwr_wav->data_len = raw_composite_size;
-	memcpy(cs40l2x->ovwr_wav->data, &raw_composite_data[0],
-		raw_composite_size);
+	cs40l2x->ovwr_wav->wvfrm_type = wvfrm_type;
+	cs40l2x->ovwr_wav->wvfrm_feature = wvfrm_feature;
+	cs40l2x->ovwr_wav->data_len = raw_waveform_size;
+	memcpy(cs40l2x->ovwr_wav->data, &raw_waveform_data[0],
+		raw_waveform_size);
 }
 
 static void cs40l2x_calc_num_waves(struct cs40l2x_private *cs40l2x)
@@ -1164,7 +1191,7 @@ static void cs40l2x_calc_num_waves(struct cs40l2x_private *cs40l2x)
 static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 	unsigned int *is_xm)
 {
-	unsigned int wt_open_bytes = CS40L2X_PBQ_FW_BYTES_MAX +
+	unsigned int wt_open_bytes = CS40L2X_PACKED_BYTES_MAX +
 		(CS40L2X_WT_HEADER_ENTRY_SIZE * CS40L2X_WT_NUM_VIRT_SLOTS);
 	unsigned int comp_size;
 	int no_space = -ENOSPC;
@@ -1176,7 +1203,7 @@ static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 			wt_open_bytes = wt_open_bytes -
 				CS40L2X_PBQ_FW_BYTES_MIN;
 			if (wt_open_bytes < CS40L2X_PBQ_FW_BYTES_MIN) {
-				dev_warn(cs40l2x->dev,
+				dev_err(cs40l2x->dev,
 					"No space in wt for virtual wvfrms\n");
 				return -ENOSPC;
 			}
@@ -1198,6 +1225,10 @@ static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 	comp_size = (wt_open_bytes -
 		(CS40L2X_WT_HEADER_ENTRY_SIZE * CS40L2X_WT_NUM_VIRT_SLOTS));
 	cs40l2x->comp_bytes = comp_size;
+
+	cs40l2x->display_pwle_segs =
+		(((cs40l2x->comp_bytes / CS40L2X_WT_NUM_VIRT_SLOTS) -
+		CS40L2X_PWLE_NON_SEG_BYTES) / CS40L2X_PWLE_MAX_SEG_BYTES);
 
 	cs40l2x->wvfrm_lengths_size = (cs40l2x->num_waves * 2);
 
@@ -1281,10 +1312,12 @@ static int cs40l2x_convert_and_save_comp_data(struct cs40l2x_private *cs40l2x,
 		goto err_free;
 
 	if (over_write)
-		cs40l2x_add_composite_to_ovwr_struct(cs40l2x, comp_size,
+		cs40l2x_save_waveform_to_ovwr_struct(cs40l2x,
+			CS40L2X_WT_TYPE_10_COMP_FILE, 0, comp_size,
 			raw_composite_data);
 	else
-		ret = cs40l2x_add_composite_to_virtual_list(cs40l2x, index,
+		ret = cs40l2x_add_waveform_to_virtual_list(cs40l2x,
+			CS40L2X_WT_TYPE_10_COMP_FILE, 0,
 			comp_size, raw_composite_data);
 
 err_free:
@@ -1332,7 +1365,8 @@ static ssize_t cs40l2x_cp_trigger_index_store(struct device *dev,
 			return -EINVAL;
 		}
 		if (!cs40l2x->queue_stored) {
-			dev_err(cs40l2x->dev, "Playback queue empty, try again.\n");
+			dev_err(cs40l2x->dev,
+				"Empty wav data, save composite or PWLE first.\n");
 			return -EINVAL;
 		}
 		if (!cs40l2x->safe_save_state) {
@@ -1347,18 +1381,22 @@ static ssize_t cs40l2x_cp_trigger_index_store(struct device *dev,
 	case CS40L2X_INDEX_PBQ_SAVE:
 		ret = cs40l2x_convert_and_save_comp_data(cs40l2x, index, false);
 		if (ret)
-			dev_warn(cs40l2x->dev, "Unable to save virtual waveform.\n");
+			dev_err(cs40l2x->dev, "Unable to save virtual waveform.\n");
 		/* After save or save attempt, reset flag */
 		cs40l2x->queue_stored = false;
 		break;
 	case CS40L2X_INDEX_OVWR_SAVE:
-		ret = cs40l2x_convert_and_save_comp_data(cs40l2x, index, true);
-		if (ret)
-			dev_warn(cs40l2x->dev, "Unable to convert waveform.\n");
+		if (cs40l2x->last_type_entered ==
+			CS40L2X_WT_TYPE_10_COMP_FILE) {
+			ret = cs40l2x_convert_and_save_comp_data(cs40l2x,
+				index, true);
+			if (ret)
+				dev_err(cs40l2x->dev, "Unable to convert waveform.\n");
+		}
 		ret = cs40l2x_write_virtual_waveform(cs40l2x, index,
 			false, false, true);
 		if (ret)
-			dev_warn(cs40l2x->dev, "Unable to write waveform.\n");
+			dev_err(cs40l2x->dev, "Unable to write waveform.\n");
 		index = cs40l2x->virtual_slot_index;
 		/* After save or save attempt, reset flag */
 		cs40l2x->queue_stored = false;
@@ -1420,8 +1458,10 @@ static ssize_t cs40l2x_cp_trigger_index_store(struct device *dev,
 	ret = count;
 
 err_exit:
-	cs40l2x->virtual_stored = true;
-	enable_irq(i2c_client->irq);
+	if (!cs40l2x->virtual_stored) {
+		cs40l2x->virtual_stored = true;
+		enable_irq(i2c_client->irq);
+	}
 
 	pm_runtime_mark_last_busy(cs40l2x->dev);
 	pm_runtime_put_autosuspend(cs40l2x->dev);
@@ -1791,6 +1831,7 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 		cs40l2x->pbq_fw_composite[k + 3] = cs40l2x->comp_outer[k];
 
 	cs40l2x->pbq_fw_composite_len = comp_cnt + 3;
+	cs40l2x->last_type_entered = CS40L2X_WT_TYPE_10_COMP_FILE;
 	cs40l2x->queue_stored = true;
 
 err_mutex:
@@ -1802,6 +1843,1233 @@ err_mutex:
 	enable_irq(i2c_client->irq);
 
 	return ret;
+}
+
+static void cs40l2x_calc_pwle_samples(struct cs40l2x_private *cs40l2x,
+	unsigned int accu_time, bool indefinite)
+{
+	unsigned int wait_time = cs40l2x->wvfrm_len_wait_time;
+	unsigned int repeat = cs40l2x->pwle_repeat;
+	unsigned int total_time = 0;
+	unsigned int samples = 0;
+
+	total_time = (wait_time + accu_time);
+	if (repeat > 0)
+		total_time = ((repeat + 1) * total_time);
+	samples = (total_time - wait_time);
+	samples = (samples * CS40L2X_PWLE_SAMPLES_PER_MS);
+
+	if (indefinite)
+		cs40l2x->pwle_wvfrm_len = (samples +
+			CS40L2X_WT_COMP_INDEFINITE +
+			CS40L2X_WT_COMP_LEN_CALCD);
+	else
+		cs40l2x->pwle_wvfrm_len = (samples + CS40L2X_WT_COMP_LEN_CALCD);
+}
+
+static void cs40l2x_pwle_seg_free(struct cs40l2x_private *cs40l2x)
+{
+	struct cs40l2x_pwle_segment *pwle_seg_struct;
+
+	while (!list_empty(&cs40l2x->pwle_segment_head)) {
+		pwle_seg_struct = list_first_entry(&cs40l2x->pwle_segment_head,
+				struct cs40l2x_pwle_segment, list);
+		list_del(&pwle_seg_struct->list);
+		devm_kfree(cs40l2x->dev, pwle_seg_struct);
+	}
+}
+
+static int cs40l2x_calc_pwle_bytes(struct cs40l2x_private *cs40l2x)
+{
+	unsigned int unpadded_bytes;
+
+	unpadded_bytes = CS40L2X_PWLE_FIRST_BYTES;
+	unpadded_bytes += (cs40l2x->pwle_num_segs *
+		CS40L2X_PWLE_SEG_BYTES);
+	unpadded_bytes += (cs40l2x->pwle_num_vb_targs *
+		CS40L2X_PWLE_NUM_VBT_BYTES);
+	unpadded_bytes += CS40L2X_PWLE_END_PAD_BYTES;
+
+	return unpadded_bytes;
+}
+
+static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x)
+{
+	char *three_bytes_data, *two_bytes_data, *unpadded_data, *zero_pad_data;
+	char wait_time_byte, num_segs_byte, b_four_time, time_byte;
+	struct cs40l2x_pwle_segment *pwle_seg_struct;
+	int zero_pad_count = 0, count = 0, ret = 0;
+	unsigned int zero_pad_size, pwle_size;
+	int i, k;
+
+	pwle_size = cs40l2x_calc_pwle_bytes(cs40l2x);
+	zero_pad_size = ((pwle_size / 3) + pwle_size);
+
+	if (zero_pad_size > (cs40l2x->comp_bytes / CS40L2X_WT_NUM_VIRT_SLOTS)) {
+		dev_err(cs40l2x->dev, "PWLE size exceeds available space\n");
+		return -ENOSPC;
+	}
+
+	unpadded_data = devm_kzalloc(cs40l2x->dev, pwle_size, GFP_KERNEL);
+	if (!unpadded_data)
+		return -ENOMEM;
+
+	zero_pad_data = devm_kzalloc(cs40l2x->dev, zero_pad_size, GFP_KERNEL);
+	if (!zero_pad_data) {
+		devm_kfree(cs40l2x->dev, unpadded_data);
+		return -ENOMEM;
+	}
+
+	cs40l2x->two_bytes[0] = CS40L2X_ZERO_INIT;
+	cs40l2x->two_bytes[1] = CS40L2X_ZERO_INIT;
+	two_bytes_data = cs40l2x->two_bytes;
+
+	cs40l2x->three_bytes[0] = CS40L2X_ZERO_INIT;
+	cs40l2x->three_bytes[1] = CS40L2X_ZERO_INIT;
+	cs40l2x->three_bytes[2] = CS40L2X_ZERO_INIT;
+	three_bytes_data = cs40l2x->three_bytes;
+
+	/* Wvfrm Length in samples */
+	cs40l2x_to_bytes_msb(cs40l2x, cs40l2x->pwle_wvfrm_len,
+		CS40L2X_WT_WORD_SIZE, &three_bytes_data);
+	for (i = 0; i < CS40L2X_WT_WORD_SIZE; i++) {
+		unpadded_data[count] = three_bytes_data[i];
+		count++;
+	}
+
+	/* Repeat, wait time and first 4 bits of num_segs */
+	unpadded_data[count] = cs40l2x->pwle_repeat;
+	count++;
+	cs40l2x_to_bytes_msb(cs40l2x, cs40l2x->pwle_wait_time,
+		CS40L2X_TWO_BYTES, &two_bytes_data);
+	unpadded_data[count] = ((cs40l2x->two_bytes[0] << 4) +
+		(cs40l2x->two_bytes[1] >> 4));
+	count++;
+	wait_time_byte = (two_bytes_data[1] << 4);
+	num_segs_byte = cs40l2x->pwle_num_segs;
+	/* Last 4bits wait time and first 4bits num segs */
+	unpadded_data[count] = ((num_segs_byte >> 4) +
+		wait_time_byte);
+	count++;
+	b_four_time = (num_segs_byte << 4);
+
+	if (list_empty(&cs40l2x->pwle_segment_head)) {
+		ret = -EINVAL;
+		goto err_release;
+	}
+
+	list_for_each_entry_reverse(pwle_seg_struct,
+		&cs40l2x->pwle_segment_head, list) {
+		cs40l2x->two_bytes[0] = CS40L2X_ZERO_INIT;
+		cs40l2x->two_bytes[1] = CS40L2X_ZERO_INIT;
+		cs40l2x_to_bytes_msb(cs40l2x, pwle_seg_struct->time,
+			CS40L2X_TWO_BYTES, &two_bytes_data);
+		unpadded_data[count] += ((cs40l2x->two_bytes[0] >>
+			CS40L2X_FOUR_BITS) + b_four_time);
+		count++;
+		unpadded_data[count] = ((cs40l2x->two_bytes[0] <<
+			CS40L2X_FOUR_BITS) + (cs40l2x->two_bytes[1] >>
+			CS40L2X_FOUR_BITS));
+		count++;
+		time_byte = (cs40l2x->two_bytes[1] << CS40L2X_FOUR_BITS);
+		cs40l2x->two_bytes[0] = CS40L2X_ZERO_INIT;
+		cs40l2x->two_bytes[1] = CS40L2X_ZERO_INIT;
+		cs40l2x_to_bytes_msb(cs40l2x, pwle_seg_struct->level,
+			CS40L2X_TWO_BYTES, &two_bytes_data);
+		/* Last 4bits time + first 4bits level */
+		unpadded_data[count] = ((cs40l2x->two_bytes[0] &
+			CS40L2X_LS_FOUR_BYTE_MASK) + time_byte);
+		count++;
+		unpadded_data[count] = (cs40l2x->two_bytes[1]);
+		count++;
+		cs40l2x->two_bytes[0] = CS40L2X_ZERO_INIT;
+		cs40l2x->two_bytes[1] = CS40L2X_ZERO_INIT;
+		cs40l2x_to_bytes_msb(cs40l2x, pwle_seg_struct->freq,
+			CS40L2X_TWO_BYTES, &two_bytes_data);
+		unpadded_data[count] = ((cs40l2x->two_bytes[0] <<
+			CS40L2X_FOUR_BITS) + (cs40l2x->two_bytes[1] >>
+			CS40L2X_FOUR_BITS));
+		count++;
+		unpadded_data[count] = (cs40l2x->two_bytes[1] <<
+			CS40L2X_FOUR_BITS);
+		if (pwle_seg_struct->chirp)
+			unpadded_data[count] += CS40L2X_PWLE_CHIRP_BIT;
+		if (pwle_seg_struct->brake)
+			unpadded_data[count] += CS40L2X_PWLE_BRAKE_BIT;
+		if (pwle_seg_struct->amp_reg) {
+			unpadded_data[count] += CS40L2X_PWLE_AMP_REG_BIT;
+			count++;
+			cs40l2x->three_bytes[0] = CS40L2X_ZERO_INIT;
+			cs40l2x->three_bytes[1] = CS40L2X_ZERO_INIT;
+			cs40l2x->three_bytes[2] = CS40L2X_ZERO_INIT;
+			cs40l2x_to_bytes_msb(cs40l2x, pwle_seg_struct->vb_targ,
+				CS40L2X_WT_WORD_SIZE, &three_bytes_data);
+			unpadded_data[count] = (cs40l2x->three_bytes[0] >>
+				CS40L2X_FOUR_BITS);
+			count++;
+			unpadded_data[count] = ((cs40l2x->three_bytes[0] <<
+				CS40L2X_FOUR_BITS) + (cs40l2x->three_bytes[1] >>
+				CS40L2X_FOUR_BITS));
+			count++;
+			unpadded_data[count] = ((cs40l2x->three_bytes[1] <<
+				CS40L2X_FOUR_BITS) + (cs40l2x->three_bytes[2] >>
+				CS40L2X_FOUR_BITS));
+			count++;
+			unpadded_data[count] = (cs40l2x->three_bytes[2] <<
+				CS40L2X_FOUR_BITS);
+			b_four_time = (cs40l2x->three_bytes[2] <<
+				CS40L2X_FOUR_BITS);
+		} else {
+			count++;
+			unpadded_data[count] = CS40L2X_ZERO_VAL;
+			b_four_time = CS40L2X_ZERO_VAL;
+			/* Last 4bits of chirp byte are unused */
+		}
+	}
+	count++;
+	unpadded_data[count] = CS40L2X_ZERO_VAL;
+	count++;
+	unpadded_data[count] = CS40L2X_ZERO_VAL;
+	/* PWLE requires two zeros at end to complete last word */
+
+	/* Add zero padding bytes */
+	zero_pad_data[zero_pad_count] = CS40L2X_ZERO_VAL;
+	zero_pad_count++;
+	for (k = 0; k < count; k++) {
+		zero_pad_data[zero_pad_count] = unpadded_data[k];
+		zero_pad_count++;
+		if ((((k + 1) % 3) == 0) && ((k + 1) != count)) {
+			zero_pad_data[zero_pad_count] = CS40L2X_ZERO_VAL;
+			zero_pad_count++;
+		}
+	}
+
+	if (cs40l2x->save_pwle) {
+		ret = cs40l2x_add_waveform_to_virtual_list(cs40l2x,
+				CS40L2X_WT_TYPE_12_PWLE_FILE,
+				cs40l2x->pwle_feature,
+				zero_pad_size, zero_pad_data);
+		if (!ret)
+			cs40l2x->num_virtual_pwle_waves++;
+	} else {
+		cs40l2x_save_waveform_to_ovwr_struct(cs40l2x,
+			CS40L2X_WT_TYPE_12_PWLE_FILE, cs40l2x->pwle_feature,
+			zero_pad_size, zero_pad_data);
+	}
+
+err_release:
+	devm_kfree(cs40l2x->dev, unpadded_data);
+	devm_kfree(cs40l2x->dev, zero_pad_data);
+
+	return ret;
+}
+
+static int cs40l2x_pwle_save_entry(struct cs40l2x_private *cs40l2x,
+	char *pwle_seg_tok, unsigned int num_vals)
+{
+	unsigned int val;
+	int ret;
+
+	ret = kstrtou32(pwle_seg_tok, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	if (val > 1) {
+		dev_err(cs40l2x->dev, "Valid Save: 0 or 1\n");
+		return -EINVAL;
+	}
+
+	if (num_vals == 0) {
+		if (val)
+			cs40l2x->save_pwle = true;
+	} else {
+		dev_err(cs40l2x->dev,
+			"Malformed PWLE, missing Save entry\n");
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+static int cs40l2x_pwle_wvfrm_feature_entry(
+	struct cs40l2x_private *cs40l2x,
+	char *pwle_seg_tok, unsigned int num_vals)
+{
+	unsigned int val;
+	int ret;
+
+	ret = kstrtou32(pwle_seg_tok, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	if ((val > CS40L2X_PWLE_MAX_WVFRM_FEAT) ||
+		((val % 4) != 0)) {
+		dev_err(cs40l2x->dev,
+			"Valid Waveform Feature: 0, 4, 8, 12\n");
+		return -EINVAL;
+	}
+
+	if (num_vals == 1) {
+		cs40l2x->pwle_feature =
+			(val << CS40L2X_PWLE_WVFRM_FT_SHFT);
+	} else {
+		dev_err(cs40l2x->dev,
+			"Malformed PWLE, missing Feature entry\n");
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+static int cs40l2x_pwle_repeat_entry(struct cs40l2x_private *cs40l2x,
+	char *pwle_seg_tok, unsigned int num_vals)
+{
+	unsigned int val;
+	int ret;
+
+	ret = kstrtou32(pwle_seg_tok, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	if (val > CS40L2X_PWLE_MAX_RP_VAL) {
+		dev_err(cs40l2x->dev, "Valid Repeat: 0 to 255\n");
+		return -EINVAL;
+	}
+
+	if (num_vals == 2) {
+		cs40l2x->pwle_repeat = val;
+	} else {
+		dev_err(cs40l2x->dev,
+			"Malformed PWLE, missing Repeat entry\n");
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+static int cs40l2x_pwle_wait_time_entry(struct cs40l2x_private *cs40l2x,
+	char *pwle_seg_tok, char *pwle_dec, unsigned int num_vals)
+{
+	unsigned int adder = 0, val = 0;
+	unsigned int dec_val;
+	char *pwle_dec_tok;
+	int ret;
+
+	if (strnchr(pwle_dec, CS40L2X_PWLE_SEG_LEN_MAX, '.')) {
+		if (strnchr(pwle_dec, 1, '.')) {
+			pwle_dec++;
+			ret = kstrtou32(pwle_dec, 10, &dec_val);
+			if (ret)
+				return -EINVAL;
+			if ((dec_val == 5) &&
+				(strnchr(pwle_dec, 1, '5')))
+				dec_val *= 10;
+
+			/*
+			 * Wait time resolution is .25ms
+			 * Add one to final wait time for each .25ms
+			 */
+			if (dec_val >= CS40L2X_PWLE_TIME_RES)
+				adder++;
+			if (dec_val >= (CS40L2X_PWLE_TIME_RES * 2))
+				adder++;
+			if (dec_val >= (CS40L2X_PWLE_TIME_RES * 3))
+				adder++;
+		} else {
+			pwle_dec_tok = strsep(&pwle_dec, ".");
+			ret = kstrtou32(pwle_dec_tok, 10, &val);
+
+			pwle_dec_tok = strsep(&pwle_dec, ".");
+			ret = kstrtou32(pwle_dec_tok, 10, &dec_val);
+			if (ret)
+				return -EINVAL;
+			if ((dec_val == 5) &&
+				(strnchr(pwle_dec_tok, 1, '5')))
+				dec_val *= 10;
+
+			if (dec_val >= CS40L2X_PWLE_TIME_RES)
+				adder++;
+			if (dec_val >= (CS40L2X_PWLE_TIME_RES * 2))
+				adder++;
+			if (dec_val >= (CS40L2X_PWLE_TIME_RES * 3))
+				adder++;
+		}
+	} else {
+		ret = kstrtou32(pwle_seg_tok, 10, &val);
+		if (ret)
+			return -EINVAL;
+	}
+
+	if (val > CS40L2X_PWLE_MAX_WT_VAL)
+		return -EINVAL;
+
+	if (num_vals == 3) {
+		cs40l2x->wvfrm_len_wait_time = val;
+		/* WaitTime = val * 4, due to PWLE spec */
+		cs40l2x->pwle_wait_time = ((val * 4) + adder);
+	} else {
+		dev_err(cs40l2x->dev,
+			"Malformed PWLE, WaitTime follows Repeat\n");
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+static int cs40l2x_pwle_time_entry(struct cs40l2x_private *cs40l2x,
+	char *pwle_seg_tok, char *pwle_dec, unsigned int num_vals,
+	struct cs40l2x_pwle_segment *pwle_seg_struct,
+	unsigned int *accu_time, bool *indef)
+{
+	unsigned int val, dec_val;
+	unsigned int adder = 0;
+	char *pwle_dec_tok;
+	int ret;
+
+	if (strnchr(pwle_seg_tok, CS40L2X_PWLE_SEG_LEN_MAX, '.')) {
+		if (strnchr(pwle_dec, 1, '.')) {
+			val = 0;
+			pwle_dec++;
+			ret = kstrtou32(pwle_dec, 10, &dec_val);
+			if (ret)
+				return -EINVAL;
+
+			if ((dec_val == 5) &&
+				(strnchr(pwle_dec, 1, '5')))
+				dec_val *= 10;
+
+			/*
+			 * Time resolution is .25ms
+			 * Add one to final time for each .25ms
+			 */
+			if (dec_val >= CS40L2X_PWLE_TIME_RES)
+				adder++;
+			if (dec_val >= (CS40L2X_PWLE_TIME_RES * 2))
+				adder++;
+			if (dec_val >= (CS40L2X_PWLE_TIME_RES * 3))
+				adder++;
+		} else {
+			pwle_dec_tok = strsep(&pwle_dec, ".");
+			ret = kstrtou32(pwle_dec_tok, 10, &val);
+
+			pwle_dec_tok = strsep(&pwle_dec, ".");
+			ret = kstrtou32(pwle_dec_tok, 10, &dec_val);
+			if (ret)
+				return -EINVAL;
+
+			if ((dec_val == 5) &&
+				(strnchr(pwle_dec_tok, 1, '5')))
+				dec_val *= 10;
+
+			if (dec_val >= CS40L2X_PWLE_TIME_RES)
+				adder++;
+			if (dec_val >= (CS40L2X_PWLE_TIME_RES * 2))
+				adder++;
+			if (dec_val >= (CS40L2X_PWLE_TIME_RES * 3))
+				adder++;
+		}
+	} else {
+		ret = kstrtou32(pwle_seg_tok, 10, &val);
+		if (ret)
+			return -EINVAL;
+	}
+
+	if (val == CS40L2X_PWLE_INDEF_TIME_VAL) {
+		pwle_seg_struct->time = val;
+		*indef = true;
+	} else {
+		if (val > CS40L2X_PWLE_MAX_TIME_VAL) {
+			dev_err(cs40l2x->dev,
+				"Valid Time: 0 to 16383.5ms, or 65535\n");
+			return -EINVAL;
+		}
+		/* Time = val * 4, due to PWLE spec */
+		pwle_seg_struct->time = ((val * 4) + adder);
+		*accu_time += val;
+	}
+
+	return ret;
+}
+
+static int cs40l2x_pwle_level_entry(struct cs40l2x_private *cs40l2x,
+	char *pwle_seg_tok, char *pwle_dec_tok, char *pwle_dec,
+	struct cs40l2x_pwle_segment *pwle_seg_struct)
+{
+	unsigned int val, dec_val, limit;
+	unsigned int leading_zeros = 0, modder = 0;
+	bool only_whole = false, neg = false;
+	int i, ret;
+
+	if (strnchr(pwle_seg_tok, CS40L2X_PWLE_SEG_LEN_MAX, '.')) {
+		if (strnchr(pwle_dec, 1, '-')) {
+			neg = true;
+			pwle_dec++;
+		}
+		if (strnchr(pwle_dec, 1, '.')) {
+			val = 0;
+			pwle_dec++;
+			ret = kstrtou32(pwle_dec, 10, &dec_val);
+			if (ret)
+				return -EINVAL;
+
+			if (strnchr(pwle_dec_tok, 1, '0')) {
+				leading_zeros++;
+				pwle_dec_tok++;
+				if (strnchr(pwle_dec_tok, 1, '0')) {
+					leading_zeros++;
+					pwle_dec_tok++;
+					if (strnchr(pwle_dec_tok, 1, '0'))
+						leading_zeros++;
+				}
+			}
+		} else {
+			pwle_dec_tok = strsep(&pwle_dec, ".");
+			ret = kstrtou32(pwle_dec_tok, 10, &val);
+			if (val > 0) {
+				dev_err(cs40l2x->dev,
+					"Valid Level: -0.98256 to +0.98256\n");
+				return -E2BIG;
+			}
+
+			pwle_dec_tok = strsep(&pwle_dec, ".");
+			ret = kstrtou32(pwle_dec_tok, 10, &dec_val);
+			if (ret)
+				return -EINVAL;
+
+			if (strnchr(pwle_dec_tok, 1, '0')) {
+				leading_zeros++;
+				pwle_dec_tok++;
+				if (strnchr(pwle_dec_tok, 1, '0')) {
+					leading_zeros++;
+					pwle_dec_tok++;
+					if (strnchr(pwle_dec_tok, 1, '0'))
+						leading_zeros++;
+				}
+			}
+		}
+	} else {
+		ret = kstrtou32(pwle_dec_tok, 10, &val);
+		if (ret)
+			return -EINVAL;
+
+		if (val > 0) {
+			dev_err(cs40l2x->dev,
+				"Valid Level: -0.98256 to +0.98256\n");
+			return -E2BIG;
+		}
+		only_whole = true;
+	}
+
+	if (!only_whole) {
+		limit = (CS40L2X_PWLE_MAX_LV_RES_DIG - leading_zeros);
+		modder = 10;
+		for (i = 0; i < limit; i++) {
+			if (dec_val < modder)
+				dec_val = (dec_val * 10);
+			modder = (modder * 10);
+		}
+
+		if (dec_val > CS40L2X_PWLE_MAX_LEV_VAL)
+			return -EINVAL;
+
+		/* Level = dec_val / 48, see PWLE spec */
+		if (neg)
+			val = ((dec_val / 48) + CS40L2X_PWLE_LEV_ADD_NEG);
+		else
+			val = (dec_val / 48);
+	}
+
+	pwle_seg_struct->level = val;
+
+	return ret;
+}
+
+static int cs40l2x_pwle_frequency_entry(struct cs40l2x_private *cs40l2x,
+	char *pwle_seg_tok, char *pwle_dec,
+	struct cs40l2x_pwle_segment *pwle_seg_struct)
+{
+	unsigned int val, dec_val;
+	unsigned int adder = 0;
+	char *pwle_dec_tok;
+	int ret;
+
+	if (strnchr(pwle_seg_tok, CS40L2X_PWLE_SEG_LEN_MAX, '.')) {
+		if (strnchr(pwle_dec, 1, '.')) {
+			dev_err(cs40l2x->dev,
+				"Valid Freq: 50.125 to 561.875 Hz\n");
+			return -EINVAL;
+		}
+
+		pwle_dec_tok = strsep(&pwle_dec, ".");
+		ret = kstrtou32(pwle_dec_tok, 10, &val);
+		if (ret)
+			return -EINVAL;
+
+		pwle_dec_tok = strsep(&pwle_dec, ".");
+		ret = kstrtou32(pwle_dec_tok, 10, &dec_val);
+		if (ret)
+			return -EINVAL;
+
+		if ((dec_val == 25) &&
+			(strnchr(pwle_dec_tok, 1, '2')))
+			dec_val *= 10;
+		if ((dec_val == 5) &&
+			(strnchr(pwle_dec_tok, 1, '5')))
+			dec_val *= 100;
+		if ((dec_val == 50) &&
+			(strnchr(pwle_dec_tok, 1, '5')))
+			dec_val *= 10;
+		if ((dec_val == 75) &&
+			(strnchr(pwle_dec_tok, 1, '7')))
+			dec_val *= 10;
+
+		/*
+		 * Frequency resolution is .125Hz
+		 * Add one to final frequency for each .125Hz
+		 */
+		if (dec_val >= CS40L2X_PWLE_FREQ_RES)
+			adder++;
+		if (dec_val >= (CS40L2X_PWLE_FREQ_RES * 2))
+			adder++;
+		if (dec_val >= (CS40L2X_PWLE_FREQ_RES * 3))
+			adder++;
+		if (dec_val >= (CS40L2X_PWLE_FREQ_RES * 4))
+			adder++;
+		if (dec_val >= (CS40L2X_PWLE_FREQ_RES * 5))
+			adder++;
+		if (dec_val >= (CS40L2X_PWLE_FREQ_RES * 6))
+			adder++;
+		if (dec_val >= (CS40L2X_PWLE_FREQ_RES * 7))
+			adder++;
+
+	} else {
+		ret = kstrtou32(pwle_seg_tok, 10, &val);
+		if (ret)
+			return -EINVAL;
+	}
+
+	if (val != 0) {
+		if ((val > CS40L2X_PWLE_MAX_FREQ_VAL) ||
+			(val < CS40L2X_PWLE_MIN_FREQ_VAL)) {
+			dev_err(cs40l2x->dev,
+					"Valid Freq: 50.125 to 561.875 Hz\n");
+			return -EINVAL;
+		}
+		/* Freq = (val - 50) * 8, due to PWLE spec */
+		pwle_seg_struct->freq = (((val - 50) * 8) + adder);
+	} else {
+		pwle_seg_struct->freq = 0;
+	}
+
+	return ret;
+}
+
+static int cs40l2x_pwle_vb_target_entry(struct cs40l2x_private *cs40l2x,
+	char *pwle_seg_tok, char *pwle_dec, bool amp_reg,
+	struct cs40l2x_pwle_segment *pwle_seg_struct)
+{
+	unsigned int val, dec_val, mod_val;
+	unsigned int rounding_factor = 0;
+	unsigned int leading_zeros = 0;
+	unsigned int vb_target = 0;
+	unsigned int modder = 0;
+	unsigned int dig = 0;
+	unsigned int limit;
+	char *pwle_dec_tok;
+	int i, ret;
+
+	if (strnchr(pwle_seg_tok, CS40L2X_PWLE_SEG_LEN_MAX, '.')) {
+		if (strnchr(pwle_dec, 1, '.')) {
+			val = 0;
+			pwle_dec++;
+			ret = kstrtou32(pwle_dec, 10, &dec_val);
+			if (ret)
+				return -EINVAL;
+
+		} else {
+			pwle_dec_tok = strsep(&pwle_dec, ".");
+			ret = kstrtou32(pwle_dec_tok, 10, &val);
+			if (ret)
+				return -EINVAL;
+
+			if (val > 1) {
+				dev_err(cs40l2x->dev,
+					"Valid Vb Target: 0 to 1\n");
+				return -E2BIG;
+			}
+
+			pwle_dec_tok = strsep(&pwle_dec, ".");
+			ret = kstrtou32(pwle_dec_tok, 10, &dec_val);
+			if (ret)
+				return -EINVAL;
+
+			if (strnchr(pwle_dec_tok, 1, '0')) {
+				leading_zeros++;
+				pwle_dec_tok++;
+				if (strnchr(pwle_dec_tok, 1, '0')) {
+					leading_zeros++;
+					pwle_dec_tok++;
+					if (strnchr(pwle_dec_tok, 1, '0'))
+						leading_zeros++;
+				}
+			}
+		}
+	} else {
+		ret = kstrtou32(pwle_seg_tok, 10, &val);
+		if (ret)
+			return -EINVAL;
+
+		if (val > 1) {
+			dev_err(cs40l2x->dev,
+				"Valid Vb Target: 0 to 1\n");
+			return -E2BIG;
+		}
+		dec_val = 0;
+	}
+
+	if (dec_val >= CS40L2X_PWLE_MAX_VB_RES) {
+		dev_err(cs40l2x->dev,
+				"Exceeded Vb Target resolution\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * The section below converts decimal values into
+	 * Q1.23 format without the use of floating point
+	 * variables.  The numbers are not #defines in
+	 * order to see which decimal point is being
+	 * calculated more clearly.
+	 */
+	limit = (CS40L2X_PWLE_MAX_VB_RES_DIG - leading_zeros);
+	modder = 10;
+	for (i = 0; i < limit; i++) {
+		if (dec_val < modder)
+			dec_val = (dec_val * 10);
+		modder = (modder * 10);
+	}
+
+	if (dec_val > 999999) {
+		mod_val = (dec_val % 1000000);
+		dig = ((dec_val - mod_val) / 1000000);
+		rounding_factor = ((7 * dig) / 10);
+		vb_target += ((dig *
+			(CS40L2X_PWLE_MAX_VB_TARG / 10)) +
+			rounding_factor);
+		dec_val = mod_val;
+	}
+	if (dec_val > 99999) {
+		mod_val = (dec_val % 100000);
+		dig = ((dec_val - mod_val) / 100000);
+		vb_target += (dig *
+			(CS40L2X_PWLE_MAX_VB_TARG / 100));
+		dec_val = mod_val;
+	}
+	if (dec_val > 9999) {
+		mod_val = (dec_val % 10000);
+		dig = ((dec_val - mod_val) / 10000);
+		rounding_factor = ((6 * dig) / 10);
+		vb_target += ((dig *
+			(CS40L2X_PWLE_MAX_VB_TARG / 1000)) +
+			rounding_factor);
+		dec_val = mod_val;
+	}
+	if (dec_val > 999) {
+		mod_val = (dec_val % 1000);
+		dig = ((dec_val - mod_val) / 1000);
+		rounding_factor = ((8 * dig) / 10);
+		vb_target += ((dig *
+			(CS40L2X_PWLE_MAX_VB_TARG / 10000)) +
+			rounding_factor);
+		dec_val = mod_val;
+	}
+	if (dec_val > 99) {
+		mod_val = (dec_val % 100);
+		dig = ((dec_val - mod_val) / 100);
+		rounding_factor = ((8 * dig) / 10);
+		vb_target += ((dig *
+			(CS40L2X_PWLE_MAX_VB_TARG / 100000)) +
+			rounding_factor);
+		dec_val = mod_val;
+	}
+	if (dec_val > 9) {
+		mod_val = (dec_val % 10);
+		dig = ((dec_val - mod_val) / 10);
+		rounding_factor = ((3 * dig) / 10);
+		vb_target += ((dig *
+			(CS40L2X_PWLE_MAX_VB_TARG / 1000000)) +
+			rounding_factor);
+	}
+
+	/* Vb Target = Q1.23 fixed point, see PWLE spec */
+	if (val == 1)
+		val = CS40L2X_PWLE_MAX_VB_TARG;
+	else
+		val = vb_target;
+
+	/* Only add vb_target to array if amp_reg set */
+	if (amp_reg) {
+		pwle_seg_struct->vb_targ = val;
+		cs40l2x->pwle_num_vb_targs++;
+		amp_reg = false;
+	}
+
+	return ret;
+}
+
+static ssize_t cs40l2x_pwle_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	struct i2c_client *i2c_client = to_i2c_client(cs40l2x->dev);
+	struct cs40l2x_pwle_segment *pwle_seg_struct;
+	char *pwle_str_alloc, *pwle_str, *pwle_str_tok;
+	char *pwle_seg_alloc, *pwle_seg, *pwle_seg_tok;
+	char *pwle_dec_alloc, *pwle_dec, *pwle_dec_tok;
+	unsigned int accu_time = 0, num_vals = 0, num_segs = 0;
+	unsigned int val;
+	size_t pwle_seg_len;
+	size_t pwle_dec_len;
+	bool amp_reg = false, indef = false;
+	bool t = false, l = false, f = false, c = false, b = false;
+	bool a = false, v = false;
+	int ret;
+
+	/* This flag must be set before any possible return calls */
+	cs40l2x->queue_stored = false;
+
+	if (!cs40l2x->virtual_stored) {
+		dev_err(dev, "Unsafe condition encountered.\n");
+		return -EINVAL;
+	}
+
+	cs40l2x->pwle_num_vb_targs = 0;
+	cs40l2x->pwle_num_segs = 0;
+	cs40l2x->save_pwle = false;
+
+	pwle_str_alloc = kzalloc(count, GFP_KERNEL);
+	if (!pwle_str_alloc)
+		return -ENOMEM;
+
+	pwle_seg_alloc = kzalloc(CS40L2X_PWLE_SEG_LEN_MAX + 1, GFP_KERNEL);
+	if (!pwle_seg_alloc) {
+		kfree(pwle_str_alloc);
+		return -ENOMEM;
+	}
+
+	pwle_dec_alloc = kzalloc(CS40L2X_PWLE_SEG_LEN_MAX + 1, GFP_KERNEL);
+	if (!pwle_dec_alloc) {
+		kfree(pwle_str_alloc);
+		kfree(pwle_seg_alloc);
+		return -ENOMEM;
+	}
+
+	pwle_seg_struct = devm_kzalloc(cs40l2x->dev,
+		sizeof(*pwle_seg_struct), GFP_KERNEL);
+	if (!pwle_seg_struct) {
+		kfree(pwle_str_alloc);
+		kfree(pwle_seg_alloc);
+		kfree(pwle_dec_alloc);
+		return -ENOMEM;
+	}
+
+	disable_irq(i2c_client->irq);
+
+	mutex_lock(&cs40l2x->lock);
+
+	pwle_str = pwle_str_alloc;
+	strlcpy(pwle_str, buf, count);
+
+	pwle_str_tok = strsep(&pwle_str, ",");
+
+	while (pwle_str_tok) {
+		if (num_vals >= CS40L2X_PWLE_TOTAL_VALS) {
+			ret = -E2BIG;
+			goto err_exit;
+		}
+
+		pwle_seg = pwle_seg_alloc;
+		pwle_seg_len = strlcpy(pwle_seg, strim(pwle_str_tok),
+			CS40L2X_PWLE_SEG_LEN_MAX + 1);
+		if (pwle_seg_len > CS40L2X_PWLE_SEG_LEN_MAX) {
+			ret = -E2BIG;
+			goto err_exit;
+		}
+
+		if (strnchr(pwle_seg, CS40L2X_PWLE_SEG_LEN_MAX, ':')) {
+			pwle_seg_tok = strsep(&pwle_seg, ":");
+
+			if (strnchr(pwle_seg_tok, 1, 'S')) {
+				pwle_seg_tok = strsep(&pwle_seg, ":");
+
+				ret = cs40l2x_pwle_save_entry(cs40l2x,
+					pwle_seg_tok, num_vals);
+				if (ret)
+					goto err_exit;
+			}
+
+			if (strnchr(pwle_seg_tok, 1, 'W')) {
+				if (strnchr(pwle_seg_tok, 2, 'F')) {
+					pwle_seg_tok = strsep(&pwle_seg, ":");
+
+					ret = cs40l2x_pwle_wvfrm_feature_entry(
+						cs40l2x, pwle_seg_tok,
+						num_vals);
+					if (ret)
+						goto err_exit;
+				}
+			}
+
+			if (strnchr(pwle_seg_tok, 1, 'R')) {
+				if (strnchr(pwle_seg_tok, 2, 'P')) {
+					pwle_seg_tok = strsep(&pwle_seg, ":");
+
+					ret = cs40l2x_pwle_repeat_entry(cs40l2x,
+						pwle_seg_tok, num_vals);
+					if (ret)
+						goto err_exit;
+				}
+			}
+
+			if (strnchr(pwle_seg_tok, 1, 'W')) {
+				if (strnchr(pwle_seg_tok, 2, 'T')) {
+					pwle_seg_tok = strsep(&pwle_seg, ":");
+
+					pwle_dec = pwle_dec_alloc;
+					pwle_dec_len = strlcpy(pwle_dec,
+						strim(pwle_seg_tok),
+						CS40L2X_PWLE_SEG_LEN_MAX + 1);
+					if (pwle_dec_len >
+						CS40L2X_PWLE_SEG_LEN_MAX) {
+						ret = -E2BIG;
+						goto err_exit;
+					}
+
+					ret = cs40l2x_pwle_wait_time_entry(
+						cs40l2x, pwle_seg_tok,
+						pwle_dec, num_vals);
+					if (ret)
+						goto err_exit;
+				}
+			}
+
+			if (strnchr(pwle_seg_tok, 1, 'T')) {
+				if (num_vals > 4) {
+					/* Verify complete previous segment */
+					if ((!t) || (!l) || (!f) ||	(!c) ||
+						(!b) || (!a) || (!v)) {
+						dev_err(cs40l2x->dev,
+							"Malformed PWLE. Missing entry in seg %d\n",
+							(num_segs - 1));
+						ret = -EINVAL;
+						goto err_exit;
+					}
+					t = false;
+					l = false;
+					f = false;
+					c = false;
+					b = false;
+					a = false;
+					v = false;
+				}
+
+				pwle_seg_tok = strsep(&pwle_seg, ":");
+
+				pwle_dec = pwle_dec_alloc;
+				pwle_dec_len = strlcpy(pwle_dec,
+					strim(pwle_seg_tok),
+					CS40L2X_PWLE_SEG_LEN_MAX + 1);
+				if (pwle_dec_len > CS40L2X_PWLE_SEG_LEN_MAX) {
+					ret = -E2BIG;
+					goto err_exit;
+				}
+
+				if (num_segs > 0) {
+					pwle_seg_struct = devm_kzalloc(
+						cs40l2x->dev,
+						sizeof(*pwle_seg_struct),
+						GFP_KERNEL);
+					if (!pwle_seg_struct) {
+						ret = -ENOMEM;
+						goto err_exit;
+					}
+				}
+
+				ret = cs40l2x_pwle_time_entry(cs40l2x,
+					pwle_seg_tok, pwle_dec, num_vals,
+					pwle_seg_struct, &accu_time, &indef);
+				if (ret)
+					goto err_exit;
+
+				t = true;
+				pwle_seg_struct->index = num_segs;
+			}
+
+			if (strnchr(pwle_seg_tok, 1, 'L')) {
+				pwle_seg_tok = strsep(&pwle_seg, ":");
+				pwle_dec_tok = pwle_seg_tok;
+
+				pwle_dec = pwle_dec_alloc;
+				pwle_dec_len = strlcpy(pwle_dec,
+					strim(pwle_seg_tok),
+					CS40L2X_PWLE_SEG_LEN_MAX + 1);
+				if (pwle_dec_len > CS40L2X_PWLE_SEG_LEN_MAX) {
+					ret = -E2BIG;
+					goto err_exit;
+				}
+
+				ret = cs40l2x_pwle_level_entry(cs40l2x,
+					pwle_seg_tok, pwle_dec_tok, pwle_dec,
+					pwle_seg_struct);
+				if (ret)
+					goto err_exit;
+
+				l = true;
+			}
+
+			if (strnchr(pwle_seg_tok, 1, 'F')) {
+				pwle_seg_tok = strsep(&pwle_seg, ":");
+
+				pwle_dec = pwle_dec_alloc;
+				pwle_dec_len = strlcpy(pwle_dec,
+					strim(pwle_seg_tok),
+					CS40L2X_PWLE_SEG_LEN_MAX + 1);
+				if (pwle_dec_len > CS40L2X_PWLE_SEG_LEN_MAX) {
+					ret = -E2BIG;
+					goto err_exit;
+				}
+
+				ret = cs40l2x_pwle_frequency_entry(cs40l2x,
+					pwle_seg_tok, pwle_dec,
+					pwle_seg_struct);
+				if (ret)
+					goto err_exit;
+
+				f = true;
+			}
+
+			if (strnchr(pwle_seg_tok, 1, 'C')) {
+				pwle_seg_tok = strsep(&pwle_seg, ":");
+
+				ret = kstrtou32(pwle_seg_tok, 10, &val);
+				if (ret) {
+					ret = -EINVAL;
+					goto err_exit;
+				}
+
+				if (val > 1) {
+					dev_err(cs40l2x->dev,
+						"Valid Chirp: 0 or 1\n");
+					ret = -EINVAL;
+					goto err_exit;
+				}
+				pwle_seg_struct->chirp = val;
+				c = true;
+			}
+
+			if (strnchr(pwle_seg_tok, 1, 'B')) {
+				pwle_seg_tok = strsep(&pwle_seg, ":");
+
+				ret = kstrtou32(pwle_seg_tok, 10, &val);
+				if (ret) {
+					ret = -EINVAL;
+					goto err_exit;
+				}
+
+				if (val > 1) {
+					dev_err(cs40l2x->dev,
+						"Valid Braking: 0 or 1\n");
+					ret = -EINVAL;
+					goto err_exit;
+				}
+				pwle_seg_struct->brake = val;
+				b = true;
+			}
+
+			if (strnchr(pwle_seg_tok, 1, 'A')) {
+				if (strnchr(pwle_seg_tok, 2, 'R')) {
+					pwle_seg_tok = strsep(&pwle_seg, ":");
+
+					ret = kstrtou32(pwle_seg_tok, 10, &val);
+					if (ret) {
+						ret = -EINVAL;
+						goto err_exit;
+					}
+
+					if (val > 1) {
+						dev_err(cs40l2x->dev,
+							"Valid Amplitude Regulation: 0 or 1\n");
+						ret = -EINVAL;
+						goto err_exit;
+					}
+					pwle_seg_struct->amp_reg = val;
+					a = true;
+
+					if (val == 1)
+						amp_reg = true;
+				}
+			}
+
+			if (strnchr(pwle_seg_tok, 1, 'V')) {
+				pwle_seg_tok = strsep(&pwle_seg, ":");
+
+				pwle_dec = pwle_dec_alloc;
+				pwle_dec_len = strlcpy(pwle_dec,
+					strim(pwle_seg_tok),
+					CS40L2X_PWLE_SEG_LEN_MAX + 1);
+				if (pwle_dec_len > CS40L2X_PWLE_SEG_LEN_MAX) {
+					ret = -E2BIG;
+					goto err_exit;
+				}
+
+				ret = cs40l2x_pwle_vb_target_entry(cs40l2x,
+					pwle_seg_tok, pwle_dec, amp_reg,
+					pwle_seg_struct);
+				if (ret)
+					goto err_exit;
+
+				v = true;
+
+				list_add(&pwle_seg_struct->list,
+					&cs40l2x->pwle_segment_head);
+
+				num_segs++;
+			}
+		}
+		num_vals++;
+		pwle_str_tok = strsep(&pwle_str, ",");
+	}
+
+	/* Verify last segment was complete */
+	if ((!t) || (!l) || (!f) || (!c) || (!b) || (!a) || (!v)) {
+		dev_err(cs40l2x->dev,
+			"Malformed PWLE. Missing entry in seg %d\n",
+			(num_segs - 1));
+		ret = -EINVAL;
+		goto err_exit;
+	}
+
+	strlcpy(cs40l2x->pwle_str, buf, count);
+	cs40l2x->pwle_str_size = count;
+
+	cs40l2x->pwle_num_segs = num_segs;
+	cs40l2x_calc_pwle_samples(cs40l2x, accu_time, indef);
+	ret = cs40l2x_save_packed_pwle_data(cs40l2x);
+	if (ret) {
+		dev_err(cs40l2x->dev,
+			"Malformed PWLE. No segments found.\n");
+		ret = -EINVAL;
+		goto err_exit;
+	}
+	cs40l2x_pwle_seg_free(cs40l2x);
+
+	ret = count;
+
+	if (!cs40l2x->save_pwle)
+		cs40l2x->last_type_entered = CS40L2X_WT_TYPE_12_PWLE_FILE;
+	cs40l2x->queue_stored = true;
+
+err_exit:
+	mutex_unlock(&cs40l2x->lock);
+
+	kfree(pwle_str_alloc);
+	kfree(pwle_seg_alloc);
+	kfree(pwle_dec_alloc);
+
+	enable_irq(i2c_client->irq);
+
+	return ret;
+}
+
+static ssize_t cs40l2x_pwle_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	ssize_t len = 0;
+	int i;
+
+	mutex_lock(&cs40l2x->lock);
+
+	for (i = 0; i < cs40l2x->pwle_str_size; i++)
+		len += snprintf(buf + len, PAGE_SIZE - len, "%c",
+			cs40l2x->pwle_str[i]);
+	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+
+	mutex_unlock(&cs40l2x->lock);
+
+	return len;
+}
+
+static ssize_t cs40l2x_composite_indexes_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	struct cs40l2x_virtual_waveform *virtual_wav;
+	ssize_t len = 0;
+	int count = 0;
+
+	mutex_lock(&cs40l2x->lock);
+
+	list_for_each_entry_reverse(virtual_wav,
+		&cs40l2x->virtual_waveform_head, list) {
+		if (virtual_wav->wvfrm_type != CS40L2X_WT_TYPE_10_COMP_FILE)
+			continue;
+
+		count++;
+
+		len += snprintf(buf + len, PAGE_SIZE - len, "%d",
+			virtual_wav->index);
+
+		if (count != (cs40l2x->num_virtual_waves -
+			cs40l2x->num_virtual_pwle_waves))
+			len += snprintf(buf + len, PAGE_SIZE - len, ", ");
+	}
+	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+
+	mutex_unlock(&cs40l2x->lock);
+
+	return len;
+}
+
+static ssize_t cs40l2x_pwle_indexes_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	struct cs40l2x_virtual_waveform *virtual_wav;
+	ssize_t len = 0;
+	int count = 0;
+
+	mutex_lock(&cs40l2x->lock);
+
+	list_for_each_entry_reverse(virtual_wav,
+		&cs40l2x->virtual_waveform_head, list) {
+		if (virtual_wav->wvfrm_type != CS40L2X_WT_TYPE_12_PWLE_FILE)
+			continue;
+
+		count++;
+
+		len += snprintf(buf + len, PAGE_SIZE - len, "%d",
+			virtual_wav->index);
+
+		if (count != cs40l2x->num_virtual_pwle_waves)
+			len += snprintf(buf + len, PAGE_SIZE - len, ", ");
+	}
+	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
+
+	mutex_unlock(&cs40l2x->lock);
+
+	return len;
+}
+
+static ssize_t cs40l2x_available_pwle_segs_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	unsigned int index;
+
+	index = cs40l2x->display_pwle_segs;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", index);
 }
 
 static unsigned int cs40l2x_dsp_reg(struct cs40l2x_private *cs40l2x,
@@ -4640,6 +5908,33 @@ static ssize_t cs40l2x_num_virtual_waves_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", num_virtual_waves);
 }
 
+static ssize_t cs40l2x_num_virtual_composite_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	unsigned int num_virtual_comp_waves;
+
+	mutex_lock(&cs40l2x->lock);
+	num_virtual_comp_waves = (cs40l2x->num_virtual_waves -
+		cs40l2x->num_virtual_pwle_waves);
+	mutex_unlock(&cs40l2x->lock);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", num_virtual_comp_waves);
+}
+
+static ssize_t cs40l2x_num_virtual_pwle_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	unsigned int num_virtual_pwle_waves;
+
+	mutex_lock(&cs40l2x->lock);
+	num_virtual_pwle_waves = cs40l2x->num_virtual_pwle_waves;
+	mutex_unlock(&cs40l2x->lock);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", num_virtual_pwle_waves);
+}
+
 static ssize_t cs40l2x_fw_rev_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -5829,6 +7124,17 @@ static DEVICE_ATTR(max_back_emf, 0660, cs40l2x_max_back_emf_show,
 		cs40l2x_max_back_emf_store);
 static DEVICE_ATTR(autosuspend_delay, 0660, cs40l2x_autosuspend_delay_show,
 		   cs40l2x_autosuspend_delay_store);
+static DEVICE_ATTR(pwle, 0660, cs40l2x_pwle_show, cs40l2x_pwle_store);
+static DEVICE_ATTR(num_virtual_composite, 0660,
+	cs40l2x_num_virtual_composite_show, NULL);
+static DEVICE_ATTR(num_virtual_pwle, 0660,
+	cs40l2x_num_virtual_pwle_show, NULL);
+static DEVICE_ATTR(virtual_composite_indexes, 0660,
+	cs40l2x_composite_indexes_show, NULL);
+static DEVICE_ATTR(virtual_pwle_indexes, 0660,
+	cs40l2x_pwle_indexes_show, NULL);
+static DEVICE_ATTR(available_pwle_segments, 0660,
+	cs40l2x_available_pwle_segs_show, NULL);
 
 static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_cp_trigger_index.attr,
@@ -5894,6 +7200,12 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_safe_save_state.attr,
 	&dev_attr_max_back_emf.attr,
 	&dev_attr_autosuspend_delay.attr,
+	&dev_attr_pwle.attr,
+	&dev_attr_num_virtual_composite.attr,
+	&dev_attr_num_virtual_pwle.attr,
+	&dev_attr_virtual_composite_indexes.attr,
+	&dev_attr_virtual_pwle_indexes.attr,
+	&dev_attr_available_pwle_segments.attr,
 	NULL,
 };
 
@@ -10621,7 +11933,8 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	}
 
 	INIT_LIST_HEAD(&cs40l2x->coeff_desc_head);
-	INIT_LIST_HEAD(&cs40l2x->virtual_composite_head);
+	INIT_LIST_HEAD(&cs40l2x->virtual_waveform_head);
+	INIT_LIST_HEAD(&cs40l2x->pwle_segment_head);
 
 	cs40l2x->regmap = devm_regmap_init_i2c(i2c_client, &cs40l2x_regmap);
 	if (IS_ERR(cs40l2x->regmap)) {
@@ -10680,7 +11993,6 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 			CS40L2X_WT_FILE_DATE_MISSING,
 			CS40L2X_WT_FILE_DATE_LEN_MAX);
 
-	cs40l2x->cond_class_h_en = false;
 	/* Virtual wavetable slots mem init */
 	cs40l2x->updated_offsets = devm_kzalloc(dev,
 		CS40L2X_MAX_WAVEFORMS, GFP_KERNEL);
@@ -10703,10 +12015,11 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 		return -ENOMEM;
 
 	cs40l2x->ovwr_wav = devm_kzalloc(dev,
-		sizeof(struct cs40l2x_ovwr_composite), GFP_KERNEL);
+		sizeof(struct cs40l2x_ovwr_waveform), GFP_KERNEL);
 	if (!cs40l2x->ovwr_wav)
 		return -ENOMEM;
 
+	cs40l2x->cond_class_h_en = false;
 	cs40l2x->virtual_bin = false;
 	cs40l2x->queue_stored = false;
 	cs40l2x->virtual_stored = true;
@@ -10714,6 +12027,7 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	cs40l2x->loaded_virtual_index = 0;
 	cs40l2x->pbq_fw_composite_len = 0;
 	cs40l2x->num_virtual_waves = 0;
+	cs40l2x->num_virtual_pwle_waves = 0;
 	cs40l2x->comp_bytes = 0;
 
 	switch (pdata->fw_id_remap) {
