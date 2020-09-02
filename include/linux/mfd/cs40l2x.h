@@ -922,6 +922,7 @@
 #define CS40L2X_INDEX_CLICK_MIN		0x00000001
 #define CS40L2X_INDEX_CLICK_MAX		0x00007FFF
 #define CS40L2X_INDEX_CONT_MIN		0x00008000
+#define CS40L2X_INDEX_OVWR_SAVE		0x0000FFF9
 #define CS40L2X_INDEX_CONT_MAX		0x0000FFFA
 #define CS40L2X_INDEX_PBQ_SAVE		0x0000FFFB
 #define CS40L2X_INDEX_QEST		0x0000FFFC
@@ -1287,6 +1288,12 @@ struct cs40l2x_f0_dynamic {
 	bool changed;
 };
 
+struct cs40l2x_ovwr_composite {
+	bool is_xm;
+	unsigned int data_len;
+	char data[CS40L2X_PBQ_FW_BYTES_MAX];
+};
+
 struct cs40l2x_private {
 	struct device *dev;
 	struct regmap *regmap;
@@ -1379,6 +1386,7 @@ struct cs40l2x_private {
 	unsigned int virtual_gpio1_fall_index;
 	unsigned int virtual_gpio1_rise_index;
 	struct list_head virtual_composite_head;
+	struct cs40l2x_ovwr_composite *ovwr_wav;
 	int pbq_repeat;
 	int pbq_remain;
 	struct cs40l2x_wseq_pair wseq_table[CS40L2X_WSEQ_LENGTH_MAX];
@@ -1436,7 +1444,7 @@ struct cs40l2x_virtual_composite {
 	bool is_xm;
 	unsigned int index;
 	unsigned int data_len;
-	unsigned int data[CS40L2X_PBQ_FW_BYTES_MAX];
+	char data[CS40L2X_PBQ_FW_BYTES_MAX];
 	struct list_head list;
 };
 
