@@ -130,6 +130,12 @@ Optional properties:
     cs40l25a_f0.bin does not exist, then disabling dynamic F0 support is
     recommended.
 
+  - cirrus,open-wt-disable : Boolean for disabling open wavetable support
+    (silicon revision B1 only). If this property is omitted, open wavetable
+    remains enabled in the absence of the open-wt-disable property. The open
+    wavetable feature can only be disabled with this property due to the
+    required adjustment of the wavetable during initialization.
+
   - cirrus,gpio1-rise-index : Specifies the wavetable index mapped to GPIO1
     rising edges. If this value is omitted, specified as zero or exceeds the
     maximum available index in the wavetable, GPIO1 rising edges are mapped to
