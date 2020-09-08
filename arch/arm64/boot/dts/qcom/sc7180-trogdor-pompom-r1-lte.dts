@@ -5,10 +5,10 @@
  * Copyright 2020 Google LLC.
  */
 
-#include "sc7180-trogdor-pompom.dts"
+#include "sc7180-trogdor-pompom-r1.dts"
 #include "sc7180-trogdor-lte-sku.dtsi"
 
 / {
-	model = "Google Pompom (rev0+) with LTE";
+	model = "Google Pompom (rev1+) with LTE";
 	compatible = "google,pompom-sku0", "qcom,sc7180";
 };
