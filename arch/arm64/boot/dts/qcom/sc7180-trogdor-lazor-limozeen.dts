@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Google Lazor Limozeen board device tree source
+ *
+ * Copyright 2020 Google LLC.
+ */
+
+/dts-v1/;
+
+#include "sc7180-trogdor-lazor.dtsi"
+
+/ {
+	model = "Google Lazor Limozeen";
+	compatible = "google,lazor-sku4", "qcom,sc7180";
+};
+
+&panel {
+	compatible = "boe,nv116whm-t01";
+};
+
+&sdhc_2 {
+	status = "okay";
+};
