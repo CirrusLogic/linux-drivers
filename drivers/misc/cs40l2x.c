@@ -1369,10 +1369,17 @@ static ssize_t cs40l2x_cp_trigger_index_store(struct device *dev,
 				"Empty wav data, save composite or PWLE first.\n");
 			return -EINVAL;
 		}
+
+#ifdef CONFIG_ANDROID_TIMED_OUTPUT
+		cs40l2x->safe_save_state = true;
+		/* Bypass safe_save_state check for Timed Output */
+#else
 		if (!cs40l2x->safe_save_state) {
-			dev_err(cs40l2x->dev, "Save attmepted during vibe, try again.\n");
+			dev_err(cs40l2x->dev, "Save attempted during vibe, try again.\n");
 			return -EINVAL;
 		}
+#endif /* CONFIG_ANDROID_TIMED_OUTPUT */
+
 		cs40l2x->virtual_stored = false;
 		disable_irq(i2c_client->irq);
 	}
