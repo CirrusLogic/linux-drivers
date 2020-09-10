@@ -641,7 +641,7 @@
 #define CS35L45_DEFAULT_SLOT_WIDTH		32
 #define CS35L45_BUFSIZE				64
 #define CS35L45_ALGID				0xCD
-#define CS35L45_ALGID_MDSYNC			0xF209
+#define CS35L45_ALGID_MDSYNC			0xF20A
 
 struct cs35l45_private;
 
