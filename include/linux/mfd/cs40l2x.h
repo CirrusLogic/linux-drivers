@@ -818,6 +818,8 @@
 #define CS40L2X_TWO_BYTES		2
 #define CS40L2X_FOUR_BITS		4
 
+#define CS40L2X_CLAB_CONFIG_FILE_NAME	"cs40l25a_clab.bin"
+#define CS40L2X_PAR_CONFIG_FILE_NAME	"cs40l25a_par.bin"
 #define CS40L2X_WT_FILE_DATE_MISSING	"N/A"
 #define CS40L2X_WT_FILE_DATE_LEN_MAX	16
 #define CS40L2X_WT_FILE_NAME_MISSING	"N/A"
@@ -1501,6 +1503,8 @@ struct cs40l2x_private {
 	bool dyn_f0_enable;
 	bool cond_class_h_en;
 	bool save_pwle;
+	bool clab_bin_found;
+	bool par_bin_found;
 	struct cs40l2x_wseq_pair dsp_cache[CS40L2X_DSP_CACHE_MAX];
 	unsigned int dsp_cache_depth;
 
