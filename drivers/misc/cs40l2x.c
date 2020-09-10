@@ -2234,6 +2234,7 @@ static int cs40l2x_pwle_time_entry(struct cs40l2x_private *cs40l2x,
 			if (ret)
 				return -EINVAL;
 
+			/* In case zero is omitted after .5 */
 			if ((dec_val == 5) &&
 				(strnchr(pwle_dec, 1, '5')))
 				dec_val *= 10;
@@ -2257,6 +2258,7 @@ static int cs40l2x_pwle_time_entry(struct cs40l2x_private *cs40l2x,
 			if (ret)
 				return -EINVAL;
 
+			/* In case zero is omitted after .5 */
 			if ((dec_val == 5) &&
 				(strnchr(pwle_dec_tok, 1, '5')))
 				dec_val *= 10;
@@ -9797,7 +9799,8 @@ static void cs40l2x_coeff_file_load(const struct firmware *fw, void *context)
 	if (!ret)
 		num_coeff_files = ++(cs40l2x->num_coeff_files);
 
-	if (!cs40l2x->dyn_f0_enable)
+	if (!cs40l2x->dyn_f0_enable && !cs40l2x->par_bin_found &&
+		!cs40l2x->clab_bin_found)
 		total_coeff_files = (cs40l2x->fw_desc->num_coeff_files - 1);
 
 	if (num_coeff_files != total_coeff_files)
@@ -10036,6 +10039,14 @@ static void cs40l2x_firmware_load(const struct firmware *fw, void *context)
 				CS40L2X_DYN_F0_FILE_NAME,
 				CS40L2X_WT_FILE_NAME_LEN_MAX)))
 			continue;
+		if (strncmp(cs40l2x->fw_desc->coeff_files[i],
+				CS40L2X_PAR_CONFIG_FILE_NAME,
+				CS40L2X_WT_FILE_NAME_LEN_MAX))
+			cs40l2x->par_bin_found = true;
+		else if (strncmp(cs40l2x->fw_desc->coeff_files[i],
+				CS40L2X_CLAB_CONFIG_FILE_NAME,
+				CS40L2X_WT_FILE_NAME_LEN_MAX))
+			cs40l2x->clab_bin_found = true;
 		request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				cs40l2x->fw_desc->coeff_files[i], dev,
 				GFP_KERNEL, cs40l2x, cs40l2x_coeff_file_load);
@@ -12112,7 +12123,7 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	if (ret)
 		goto err;
 
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 			cs40l2x->fw_desc->fw_file, dev, GFP_KERNEL, cs40l2x,
 			cs40l2x_firmware_load);
 
