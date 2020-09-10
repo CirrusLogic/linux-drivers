@@ -3690,7 +3690,7 @@ static int cs40l2x_gpio_edge_index_set(struct cs40l2x_private *cs40l2x,
 				return -EINVAL;
 			}
 			if (gpio_offs == 0) {
-				if (gpio_rise)
+				if (gpio_rise) {
 					index =
 					cs40l2x->virtual_gpio1_rise_index;
 					if (cs40l2x->virtual_gpio_index[r] !=
@@ -3700,7 +3700,7 @@ static int cs40l2x_gpio_edge_index_set(struct cs40l2x_private *cs40l2x,
 						cs40l2x->virtual_gpio_index[r],
 						true, true, false);
 					/* else virtual wvfrm already loaded */
-				else
+				} else {
 					index =
 					cs40l2x->virtual_gpio1_fall_index;
 					if (cs40l2x->virtual_gpio_index[f] !=
@@ -3709,6 +3709,7 @@ static int cs40l2x_gpio_edge_index_set(struct cs40l2x_private *cs40l2x,
 						cs40l2x,
 						cs40l2x->virtual_gpio_index[f],
 						true, false, false);
+				}
 			}
 		}
 	}
