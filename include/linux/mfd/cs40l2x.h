@@ -840,7 +840,8 @@
 #define CS40L2X_WT_WORD_SIZE		3
 #define CS40L2X_WT_ZERO_PAD_SIZE	1
 #define CS40L2X_WT_TOTAL_WORD_SIZE	4
-#define CS40L2X_WT_COMP_WV_DTLS_SIZE	8
+#define CS40L2X_WT_COMP_LEGACY_DTLS	8
+#define CS40L2X_WT_COMP_WV_DTLS		12
 #define CS40L2X_WT_COMP_FIRST_REPEAT	255
 #define CS40L2X_WT_COMP_INDEF_OUTER	255
 #define CS40L2X_WT_HEADER_ENTRY_SIZE	12
@@ -868,6 +869,7 @@
 #define CS40L2X_WT_NUM_COMP_VSLOTS	1
 #define CS40L2X_WT_MAX_VIRT_WAVS	500
 #define CS40L2X_WT_MAX_BIN_SIZE		9584
+#define CS40L2X_WT_COMP_DUR_EN_BIT	128
 
 #define CS40L2X_WT_NUM_VIRT_SLOTS	(\
 	CS40L2X_WT_NUM_COMP_VSLOTS +\
@@ -951,8 +953,10 @@
 #define CS40L2X_PBQ_TAG_START		0x8000
 #define CS40L2X_PBQ_TAG_STOP		0x8001
 #define CS40L2X_PBQ_INNER_REPEAT	255
+#define CS40L2X_PBQ_INNER_FLAG		256
 #define CS40L2X_PBQ_FW_BYTES_MAX	2016 /* Recommended min value = 504 */
 #define CS40L2X_PBQ_FW_BYTES_MIN	192
+#define CS40L2X_PBQ_DUR_MIN_REV		0x0A0101
 
 #define CS40L2X_DIAG_STATE_INIT		0x00
 #define CS40L2X_DIAG_STATE_RUN1		0x01
@@ -1320,8 +1324,17 @@ struct cs40l2x_coeff_desc {
 struct cs40l2x_pbq_pair {
 	unsigned int tag;
 	unsigned int mag;
+	unsigned int dur;
 	unsigned int repeat;
 	unsigned int remain;
+};
+
+struct cs40l2x_composite_data {
+	unsigned int rpt;
+	unsigned int index;
+	unsigned int amp;
+	unsigned int delay;
+	unsigned int dur;
 };
 
 struct cs40l2x_wseq_pair {
@@ -1449,8 +1462,10 @@ struct cs40l2x_private {
 	unsigned int q_measured;
 	unsigned int bemf_measured;
 	struct cs40l2x_pbq_pair pbq_pairs[CS40L2X_PBQ_DEPTH_MAX];
+	struct cs40l2x_composite_data comp_sets[CS40L2X_PBQ_DEPTH_MAX];
 	struct hrtimer pbq_timer;
 	unsigned int pbq_depth;
+	unsigned int comp_sets_size;
 	unsigned int pbq_index;
 	unsigned int pbq_state;
 	unsigned int pbq_cp_dig_scale;
@@ -1497,6 +1512,8 @@ struct cs40l2x_private {
 	bool comp_enable;
 	bool comp_enable_redc;
 	bool comp_enable_f0;
+	bool comp_dur_en;
+	bool comp_dur_min_fw;
 	bool amp_gnd_stby;
 	bool clab_wt_en[CS40L2X_MAX_WAVEFORMS];
 	bool f0_wt_en[CS40L2X_MAX_WAVEFORMS];
