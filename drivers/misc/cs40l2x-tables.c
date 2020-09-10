@@ -982,12 +982,12 @@ static const char * const cs40l2x_coeff_files_cal[] = {
 
 static const char * const cs40l2x_coeff_files_clab[] = {
 	CS40L2X_WT_FILE_NAME_DEFAULT,
-	"cs40l25a_clab.bin",
+	CS40L2X_CLAB_CONFIG_FILE_NAME,
 };  /* Closed loop active braking */
 
 static const char * const cs40l2x_coeff_files_par[] = {
 	CS40L2X_WT_FILE_NAME_DEFAULT,
-	"cs40l25a_par.bin",
+	CS40L2X_PAR_CONFIG_FILE_NAME,
 };  /* PWLE Amplitude Regulation */
 
 static const char * const cs40l2x_coeff_files_a2h[] = {
