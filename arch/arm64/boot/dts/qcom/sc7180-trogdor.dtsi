@@ -793,10 +793,7 @@ hp_i2c: &i2c9 {
 	status = "okay";
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&sec_mi2s_active &sec_mi2s_dout_active
-		     &sec_mi2s_ws_active &pri_mi2s_active
-		     &pri_mi2s_dout_active &pri_mi2s_ws_active
-		     &pri_mi2s_din_active &pri_mi2s_mclk_active>;
+	pinctrl-0 = <&sec_mi2s_active &pri_mi2s_active &pri_mi2s_mclk_active>;
 
 	#address-cells = <1>;
 	#size-cells = <0>;
