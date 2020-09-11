@@ -62,6 +62,10 @@ ap_ts_pen_1v8: &i2c4 {
 	status = "okay";
 };
 
+&usb_c1 {
+	status = "disabled";
+};
+
 /* PINCTRL - board-specific pinctrl */
 
 &tlmm {
