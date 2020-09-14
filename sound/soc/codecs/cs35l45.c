@@ -1586,8 +1586,8 @@ static int cs35l45_get_clk_config(int freq)
 static int cs35l45_set_sysclk(struct cs35l45_private *cs35l45, int clk_id,
 			      unsigned int freq)
 {
+	unsigned int val;
 	int extclk_cfg, clksrc;
-
 
 	switch (clk_id) {
 	case 0:
@@ -1604,6 +1604,13 @@ static int cs35l45_set_sysclk(struct cs35l45_private *cs35l45, int clk_id,
 			extclk_cfg, freq);
 		return -EINVAL;
 	}
+
+	regmap_read(cs35l45->regmap, CS35L45_REFCLK_INPUT, &val);
+	val = (val & CS35L45_PLL_REFCLK_FREQ_MASK) >>
+		     CS35L45_PLL_REFCLK_FREQ_SHIFT;
+
+	if (val == extclk_cfg)
+		return 0;
 
 	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
 			   CS35L45_PLL_OPEN_LOOP_MASK,
