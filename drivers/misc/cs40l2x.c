@@ -8214,7 +8214,7 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 			if (ret)
 				goto err_mutex;
 		}
-
+	/* intentional fall through */
 	case CS40L2X_INDEX_VIBE:
 	case CS40L2X_INDEX_CONT_MIN ... CS40L2X_INDEX_CONT_MAX:
 	case CS40L2X_INDEX_QEST:
@@ -8225,9 +8225,8 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 						(cs40l2x->vibe_timeout % 1000)
 						* 1000000),
 				HRTIMER_MODE_REL);
-		/* intentionally fall through */
-
 #endif /* CONFIG_ANDROID_TIMED_OUTPUT */
+	/* intentional fall through */
 	case CS40L2X_INDEX_PBQ:
 		if (cs40l2x->vibe_mode != CS40L2X_VIBE_MODE_AUDIO
 				&& cs40l2x->vibe_state
