@@ -156,6 +156,9 @@ static int cs40l2x_check_wt_open_space(struct cs40l2x_private *cs40l2x,
 			cs40l2x->xm_append = false;
 			return 0;
 		}
+		/* YM exists, requested size too big */
+		if (size > cs40l2x->wt_open_ym)
+			return -ENOSPC;
 	}
 	if (size <=	cs40l2x->wt_open_xm) {
 		/* Add to end of existing XM */
@@ -170,7 +173,6 @@ static int cs40l2x_check_wt_open_space(struct cs40l2x_private *cs40l2x,
 		return 0;
 	}
 
-	dev_err(cs40l2x->dev, "No wavetable space available\n");
 	return -ENOSPC;
 }
 
@@ -354,12 +356,14 @@ static int cs40l2x_calc_index_samples(struct cs40l2x_private *cs40l2x,
 		if ((cs40l2x->wvfrm_lengths[len_indx + 1] -
 			(CS40L2X_WT_COMP_INDEFINITE +
 			CS40L2X_WT_COMP_LEN_CALCD)) != 0) {
-			/* Make sure not index 0, not Q-Factor Entry
-			 * and bit 23 is set in length
+			/* Make sure not index 0, not Q-Factor,
+			 * not composite and bit 23 is set in length
 			 */
 			if ((cs40l2x->wvfrm_lengths[len_indx] != 0) &&
 				(cs40l2x->wvfrm_lengths[len_indx] !=
 					CS40L2X_WT_TYPE_11_Q_FILE) &&
+				(cs40l2x->wvfrm_lengths[len_indx] !=
+					CS40L2X_WT_TYPE_10_COMP_FILE) &&
 				(cs40l2x->wvfrm_lengths[len_indx + 1] >
 					CS40L2X_WT_COMP_LEN_CALCD)) {
 				actual_wvfrm_len =
@@ -1211,12 +1215,11 @@ static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 		ret = cs40l2x_update_existing_block(cs40l2x, comp_size, true);
 	} else {
 		*is_xm = 0;
-		if (cs40l2x->create_ym) {
+		if (cs40l2x->create_ym)
 			ret = cs40l2x_create_block(cs40l2x, comp_size);
-		} else {
+		else
 			ret = cs40l2x_update_existing_block(cs40l2x,
 				comp_size, false);
-		}
 	}
 
 	return ret;
