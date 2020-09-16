@@ -6185,46 +6185,6 @@ static int cs40l2x_asp_switch(struct cs40l2x_private *cs40l2x, bool enable)
 	return 0;
 }
 
-static ssize_t cs40l2x_asp_enable_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", cs40l2x->asp_enable);
-}
-
-static ssize_t cs40l2x_asp_enable_store(struct device *dev,
-			struct device_attribute *attr,
-			const char *buf, size_t count)
-{
-	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-	int ret;
-	unsigned int val, fw_id;
-
-	if (!cs40l2x->asp_available)
-		return -EPERM;
-
-	mutex_lock(&cs40l2x->lock);
-	fw_id = cs40l2x->fw_desc->id;
-	mutex_unlock(&cs40l2x->lock);
-
-	if (fw_id == CS40L2X_FW_ID_CAL || fw_id == CS40L2X_FW_ID_ORIG)
-		return -EPERM;
-
-	ret = kstrtou32(buf, 10, &val);
-	if (ret)
-		return -EINVAL;
-
-	if (val > 0)
-		cs40l2x->asp_enable = CS40L2X_ASP_ENABLED;
-	else
-		cs40l2x->asp_enable = CS40L2X_ASP_DISABLED;
-
-	queue_work(cs40l2x->vibe_workqueue, &cs40l2x->vibe_mode_work);
-
-	return count;
-}
-
 static ssize_t cs40l2x_exc_enable_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -7068,8 +7028,6 @@ static DEVICE_ATTR(vbatt_max, 0660, cs40l2x_vbatt_max_show,
 		cs40l2x_vbatt_max_store);
 static DEVICE_ATTR(vbatt_min, 0660, cs40l2x_vbatt_min_show,
 		cs40l2x_vbatt_min_store);
-static DEVICE_ATTR(asp_enable, 0660, cs40l2x_asp_enable_show,
-		cs40l2x_asp_enable_store);
 static DEVICE_ATTR(exc_enable, 0660, cs40l2x_exc_enable_show,
 		cs40l2x_exc_enable_store);
 static DEVICE_ATTR(hw_err_count, 0660, cs40l2x_hw_err_count_show,
@@ -7154,7 +7112,6 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_ipp_measured.attr,
 	&dev_attr_vbatt_max.attr,
 	&dev_attr_vbatt_min.attr,
-	&dev_attr_asp_enable.attr,
 	&dev_attr_exc_enable.attr,
 	&dev_attr_hw_err_count.attr,
 	&dev_attr_hw_reset.attr,

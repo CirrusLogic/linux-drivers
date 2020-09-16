@@ -62,38 +62,28 @@ static int cs40l2x_get_clk_config(int freq)
 	return -EINVAL;
 }
 
-static int cs40l2x_swap_ext_clk(struct cs40l2x_codec *cs40l2x_codec,
-					const enum cs40l2x_clk_src src)
+static int cs40l2x_swap_ext_clk(struct cs40l2x_codec *codec,
+		const enum cs40l2x_clk_src src)
 {
-	struct device *dev = cs40l2x_codec->dev;
-	struct regmap *regmap = cs40l2x_codec->regmap;
+	struct device *dev = codec->dev;
+	struct regmap *regmap = codec->regmap;
+	struct cs40l2x_private *core = codec->core;
 	int clk_cfg, ret;
-	unsigned int ack;
 
 	if (src == CS40L2X_32KHZ_CLK)
 		clk_cfg = cs40l2x_get_clk_config(CS40L2X_MCLK_FREQ);
 	else
-		clk_cfg = cs40l2x_get_clk_config(cs40l2x_codec->codec_sysclk);
+		clk_cfg = cs40l2x_get_clk_config(codec->codec_sysclk);
 
 	if (clk_cfg < 0) {
 		dev_err(dev, "Invalid SYS Clock Frequency\n");
 		return -EINVAL;
 	}
 
-	ret = regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_4,
-					CS40L2X_PWRCTL_FORCE_STBY);
+	ret = cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_4,
+			CS40L2X_PWRCTL_FORCE_STBY, CS40L2X_PWRCTL_NONE);
 	if (ret)
 		return ret;
-
-	ret = regmap_read(regmap, CS40L2X_DSP_VIRT1_MBOX_4,
-					&ack);
-	if (ret)
-		return ret;
-
-	if (ack != CS40L2X_PWRCTL_NONE) {
-		dev_err(dev, "Incorrect ACK from VIRT_MBOX 4 %d\n", ack);
-		return -ENXIO;
-	}
 
 	regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
 		CS40L2X_PLL_OPENLOOP_MASK,
@@ -119,8 +109,8 @@ static int cs40l2x_swap_ext_clk(struct cs40l2x_codec *cs40l2x_codec,
 
 	usleep_range(1000, 1500);
 
-	return regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_4,
-					CS40L2X_PWRCTL_WAKE);
+	return cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_4,
+			CS40L2X_PWRCTL_WAKE, CS40L2X_PWRCTL_NONE);
 }
 
 static int cs40l2x_clk_en(struct snd_soc_dapm_widget *w,
@@ -171,17 +161,15 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 	struct regmap *regmap = codec->regmap;
 	struct device *dev = codec->dev;
 	const struct firmware *fw;
-	unsigned int reg, ack;
+	unsigned int reg;
 	int ret = 0;
 
-	if (core->dsp_reg) {
+	if (core->dsp_reg)
 		reg = core->dsp_reg(core, "A2HEN",
 				CS40L2X_XM_UNPACKED_TYPE,
 				CS40L2X_ALGO_ID_A2H);
-	} else {
-		dev_warn(dev, "DSP is not ready\n");
+	else
 		return 0;
-	}
 
 	if (!reg) {
 		dev_err(dev, "Cannot find the A2HENABLED register\n");
@@ -198,22 +186,12 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 						codec->bin_file);
 				return ret;
 			}
-			ret = regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_4,
-					CS40L2X_PWRCTL_FORCE_STBY);
+
+			ret = cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_4,
+					CS40L2X_PWRCTL_FORCE_STBY,
+					CS40L2X_PWRCTL_NONE);
 			if (ret)
 				return ret;
-
-			ret = regmap_read(regmap, CS40L2X_DSP_VIRT1_MBOX_4,
-						&ack);
-			if (ret)
-				return ret;
-
-			if (ack != CS40L2X_PWRCTL_NONE) {
-				dev_err(dev,
-					"Incorrect ACK from VIRT_MBOX 4 %d\n",
-					ack);
-				return -ENXIO;
-			}
 
 			ret = cs40l2x_coeff_file_parse(core, fw);
 			if (ret)
@@ -278,6 +256,66 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 	return ret;
 }
 
+static int cs40l2x_dsp_i2s_en(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *comp = snd_soc_dapm_to_component(w->dapm);
+	struct cs40l2x_codec *codec = snd_soc_component_get_drvdata(comp);
+	struct cs40l2x_private *core = codec->core;
+	struct regmap *regmap = codec->regmap;
+	struct device *dev = codec->dev;
+	int ret = 0;
+
+	if (!core->dsp_reg)
+		return 0;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+				CS40L2X_BST_CTL_SEL_MASK,
+				CS40L2X_BST_CTL_SEL_CLASSH);
+		if (ret)
+			return ret;
+
+		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
+				CS40L2X_CLASSH_EN_MASK,
+				1 << CS40L2X_CLASSH_EN_SHIFT);
+		if (ret)
+			return ret;
+
+		/* Enable I2S in the DSP */
+		ret = regmap_update_bits(regmap, CS40L2X_SP_ENABLES,
+				CS40L2X_ASP_RX_ENABLE_MASK,
+				CS40L2X_ASP_RX_ENABLE_MASK);
+		if (ret)
+			return ret;
+
+		ret = cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_5,
+				CS40L2X_A2H_I2S_START, CS40L2X_A2H_DISABLE);
+
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		ret = regmap_update_bits(regmap, CS40L2X_SP_ENABLES,
+				CS40L2X_ASP_RX_ENABLE_MASK, 0);
+		if (ret)
+			return ret;
+
+		ret = cs40l2x_swap_ext_clk(codec, CS40L2X_32KHZ_CLK);
+		if (ret)
+			return ret;
+
+		ret = cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_5,
+				CS40L2X_A2H_I2S_END, CS40L2X_A2H_DISABLE);
+
+		break;
+	default:
+		dev_err(dev, "Invalid event %d\n", event);
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 static int cs40l2x_vol_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
@@ -289,16 +327,14 @@ static int cs40l2x_vol_get(struct snd_kcontrol *kcontrol,
 	unsigned int val = 0, reg;
 	int ret;
 
-	if (!core->dsp_reg) {
-		dev_warn(dev, "DSP not available\n");
+	if (!core->dsp_reg || core->fw_id_remap != CS40L2X_FW_ID_A2H)
 		return 0;
-	}
 
 	reg = core->dsp_reg(core, "VOLUMELEVEL",
 			CS40L2X_XM_UNPACKED_TYPE,
 				CS40L2X_ALGO_ID_A2H);
 	if (!reg) {
-		dev_err(dev, "Cannot the the VOLUMELEVEL register\n");
+		dev_err(dev, "Cannot find the VOLUMELEVEL register\n");
 		return -EINVAL;
 	}
 
@@ -331,17 +367,14 @@ static int cs40l2x_vol_put(struct snd_kcontrol *kcontrol,
 	unsigned int val, reg;
 	int ret;
 
-	if (!core->dsp_reg) {
-		dev_warn(dev, "DSP not available\n");
+	if (!core->dsp_reg || core->fw_id_remap != CS40L2X_FW_ID_A2H)
 		return 0;
-	}
 
 	reg = core->dsp_reg(core, "VOLUMELEVEL",
 			CS40L2X_XM_UNPACKED_TYPE,
 				CS40L2X_ALGO_ID_A2H);
-
 	if (!reg) {
-		dev_err(dev, "Cannot the the VOLUMELEVEL register\n");
+		dev_err(dev, "Cannot find the VOLUMELEVEL register\n");
 		return -EINVAL;
 	}
 
@@ -410,10 +443,8 @@ static int cs40l2x_delay_get(struct snd_kcontrol *kcontrol,
 	unsigned int val = 0, reg;
 	int ret;
 
-	if (!core->dsp_reg) {
-		dev_warn(dev, "DSP not available\n");
+	if (!core->dsp_reg || core->fw_id_remap != CS40L2X_FW_ID_A2H)
 		return 0;
-	}
 
 	reg = core->dsp_reg(core, "LRADELAYSAMPS",
 			CS40L2X_XM_UNPACKED_TYPE,
@@ -447,10 +478,8 @@ static int cs40l2x_delay_put(struct snd_kcontrol *kcontrol,
 	unsigned int val, reg;
 	int ret;
 
-	if (!core->dsp_reg) {
-		dev_warn(dev, "DSP not available\n");
+	if (!core->dsp_reg || core->fw_id_remap != CS40L2X_FW_ID_A2H)
 		return 0;
-	}
 
 	reg = core->dsp_reg(core, "LRADELAYSAMPS",
 			CS40L2X_XM_UNPACKED_TYPE,
@@ -469,6 +498,8 @@ static int cs40l2x_delay_put(struct snd_kcontrol *kcontrol,
 
 static const struct snd_kcontrol_new cs40l2x_a2h =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+static const struct snd_kcontrol_new cs40l2x_dsp_i2s =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
 static const struct snd_kcontrol_new cs40l2x_controls[] = {
 	SOC_SINGLE_EXT("A2H Volume Level", 0, 0, CS40L2X_VOL_LVL_MAX_STEPS, 0,
@@ -484,11 +515,15 @@ static const struct snd_soc_dapm_widget cs40l2x_dapm_widgets[] = {
 		cs40l2x_clk_en, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 	/* ASPRX1 is always used in A2H */
-	SND_SOC_DAPM_AIF_IN_E("ASPRX1", NULL, 0, SND_SOC_NOPM, 0, 0,
-		cs40l2x_a2h_en, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_AIF_IN("ASPRX1", NULL, 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("ASPRX2", NULL, 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_MIXER("A2H Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_SWITCH("A2H", SND_SOC_NOPM, 0, 0, &cs40l2x_a2h),
+	SND_SOC_DAPM_MIXER("DSP Stream Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SWITCH_E("A2H", SND_SOC_NOPM, 0, 0, &cs40l2x_a2h,
+		cs40l2x_a2h_en, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_SWITCH_E("DSP Stream", SND_SOC_NOPM, 0, 0,
+		&cs40l2x_dsp_i2s, cs40l2x_dsp_i2s_en,
+		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_OUTPUT("LRA"),
 };
 
@@ -497,8 +532,12 @@ static const struct snd_soc_dapm_route cs40l2x_dapm_routes[] = {
 	{ "ASPRX2", NULL, "AIF Playback" },
 	{ "A2H Mixer", NULL, "ASPRX1" },
 	{ "A2H Mixer", NULL, "ASPRX2" },
+	{ "DSP Stream Mixer", NULL, "ASPRX1" },
+	{ "DSP Stream Mixer", NULL, "ASPRX2" },
+	{ "DSP Stream", "Switch", "DSP Stream Mixer" },
 	{ "A2H", "Switch", "A2H Mixer" },
 	{ "LRA", NULL, "A2H" },
+	{ "LRA", NULL, "DSP Stream" },
 
 	{ "AIF Playback", NULL, "AIFCLK" },
 };
