@@ -454,8 +454,7 @@ static int cs40l2x_calc_wvfrm_samples(struct cs40l2x_private *cs40l2x,
 	return 0;
 }
 
-static int cs40l2x_to_bytes_msb(struct cs40l2x_private *cs40l2x,
-	unsigned int val, int len, char **byte_data)
+static int cs40l2x_to_bytes_msb(unsigned int val, int len, char **byte_data)
 {
 	char two_bytes[2] = {0, 0};
 	char three_bytes[3] = {0, 0, 0};
@@ -517,7 +516,7 @@ static int cs40l2x_pack_wt_composite_data(struct cs40l2x_private *cs40l2x,
 	three_bytes_data = cs40l2x->three_bytes;
 
 	/* Wvfrm Length in samples */
-	cs40l2x_to_bytes_msb(cs40l2x, cs40l2x->pbq_fw_composite[0],
+	cs40l2x_to_bytes_msb(cs40l2x->pbq_fw_composite[0],
 		CS40L2X_WT_WORD_SIZE, &three_bytes_data);
 	for (i = 0; i < CS40L2X_WT_WORD_SIZE; i++) {
 		unpadded_data[count] = three_bytes_data[i];
@@ -546,7 +545,7 @@ static int cs40l2x_pack_wt_composite_data(struct cs40l2x_private *cs40l2x,
 				count++;
 				two_bytes_data[0] = 0;
 				two_bytes_data[1] = 0;
-				cs40l2x_to_bytes_msb(cs40l2x,
+				cs40l2x_to_bytes_msb(
 					cs40l2x->pbq_fw_composite[j], 2,
 					&two_bytes_data);
 				unpadded_data[count] = two_bytes_data[0];
@@ -560,7 +559,7 @@ static int cs40l2x_pack_wt_composite_data(struct cs40l2x_private *cs40l2x,
 			count++;
 			two_bytes_data[0] = 0;
 			two_bytes_data[1] = 0;
-			cs40l2x_to_bytes_msb(cs40l2x,
+			cs40l2x_to_bytes_msb(
 				cs40l2x->pbq_fw_composite[j], 2,
 				&two_bytes_data);
 			unpadded_data[count] = two_bytes_data[0];
@@ -628,7 +627,7 @@ static int cs40l2x_insert_comp_wt_header(struct cs40l2x_private *cs40l2x,
 	}
 
 	for (i = 0; i < CS40L2X_WT_NUM_VIRT_SLOTS; i++) {
-		cs40l2x_to_bytes_msb(cs40l2x, CS40L2X_WT_TYPE_10_COMP_FILE,
+		cs40l2x_to_bytes_msb(CS40L2X_WT_TYPE_10_COMP_FILE,
 			CS40L2X_WT_WORD_SIZE, &wt_file_type);
 		cs40l2x->pbq_updated_fw_raw_wt[i_pos] = 0; /* Zero pad */
 		cs40l2x->pbq_updated_fw_raw_wt[i_pos + 1] = wt_file_type[0];
@@ -636,7 +635,7 @@ static int cs40l2x_insert_comp_wt_header(struct cs40l2x_private *cs40l2x,
 		cs40l2x->pbq_updated_fw_raw_wt[i_pos + 3] = wt_file_type[2];
 
 		i_pos += 4;
-		cs40l2x_to_bytes_msb(cs40l2x, offset,
+		cs40l2x_to_bytes_msb(offset,
 			CS40L2X_WT_WORD_SIZE, &wt_offset);
 		cs40l2x->pbq_updated_fw_raw_wt[i_pos] = 0; /* Zero pad */
 		cs40l2x->pbq_updated_fw_raw_wt[i_pos + 1] = wt_offset[0];
@@ -644,7 +643,7 @@ static int cs40l2x_insert_comp_wt_header(struct cs40l2x_private *cs40l2x,
 		cs40l2x->pbq_updated_fw_raw_wt[i_pos + 3] = wt_offset[2];
 
 		i_pos += 4;
-		cs40l2x_to_bytes_msb(cs40l2x, (indv_comp_size / 4),
+		cs40l2x_to_bytes_msb((indv_comp_size / 4),
 			CS40L2X_WT_WORD_SIZE, &wt_length);
 		cs40l2x->pbq_updated_fw_raw_wt[i_pos] = 0; /* Zero pad */
 		cs40l2x->pbq_updated_fw_raw_wt[i_pos + 1] = wt_length[0];
@@ -687,7 +686,7 @@ static void cs40l2x_update_wt_header_offsets(struct cs40l2x_private *cs40l2x,
 		wt_offset[0] = 0;
 		wt_offset[1] = 0;
 		wt_offset[2] = 0;
-		cs40l2x_to_bytes_msb(cs40l2x, offset, CS40L2X_WT_WORD_SIZE,
+		cs40l2x_to_bytes_msb(offset, CS40L2X_WT_WORD_SIZE,
 			&wt_offset);
 		cs40l2x->pbq_updated_fw_raw_wt[pos] = 0; /* Zero pad */
 		cs40l2x->pbq_updated_fw_raw_wt[pos + 1] = wt_offset[0];
@@ -700,8 +699,6 @@ static void cs40l2x_update_wt_header_offsets(struct cs40l2x_private *cs40l2x,
 static int cs40l2x_create_wt_header(struct cs40l2x_private *cs40l2x,
 	bool is_xm)
 {
-	int i;
-	unsigned int i_pos = 0;
 	unsigned int start_pos;
 	unsigned int header_length;
 
@@ -715,13 +712,11 @@ static int cs40l2x_create_wt_header(struct cs40l2x_private *cs40l2x,
 		start_pos = cs40l2x->ym_hdr_strt_pos;
 	}
 
-	for (i = start_pos; i < (start_pos + header_length); i++) {
-		cs40l2x->pbq_updated_fw_raw_wt[i_pos] =
-			cs40l2x->pbq_fw_raw_wt[i];
-		i_pos++;
-	}
+	memcpy(&cs40l2x->pbq_updated_fw_raw_wt[0],
+		&cs40l2x->pbq_fw_raw_wt[start_pos],
+		(start_pos + header_length));
 
-	return i_pos;
+	return header_length;
 }
 
 static int cs40l2x_copy_waveform_data(struct cs40l2x_private *cs40l2x,
@@ -849,8 +844,8 @@ static int cs40l2x_create_block(struct cs40l2x_private *cs40l2x,
 			} else if (header_slot == 2) {
 				wt_offset[0] = 0;
 				wt_offset[1] = 0;
-				cs40l2x_to_bytes_msb(cs40l2x,
-					offset, 2, &wt_offset);
+				cs40l2x_to_bytes_msb(offset,
+					2, &wt_offset);
 				cs40l2x->pbq_updated_fw_raw_wt[i - 1] =
 					wt_offset[0];
 				cs40l2x->pbq_updated_fw_raw_wt[i] =
@@ -858,7 +853,7 @@ static int cs40l2x_create_block(struct cs40l2x_private *cs40l2x,
 			} else if (header_slot == 3) {
 				wvfrm_size[0] = 0;
 				wvfrm_size[1] = 0;
-				cs40l2x_to_bytes_msb(cs40l2x,
+				cs40l2x_to_bytes_msb(
 					(indv_comp_size / 4), 2, &wvfrm_size);
 				cs40l2x->pbq_updated_fw_raw_wt[i - 1] =
 					wvfrm_size[0];
@@ -1889,7 +1884,7 @@ static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x)
 	three_bytes_data = cs40l2x->three_bytes;
 
 	/* Wvfrm Length in samples */
-	cs40l2x_to_bytes_msb(cs40l2x, cs40l2x->pwle_wvfrm_len,
+	cs40l2x_to_bytes_msb(cs40l2x->pwle_wvfrm_len,
 		CS40L2X_WT_WORD_SIZE, &three_bytes_data);
 	for (i = 0; i < CS40L2X_WT_WORD_SIZE; i++) {
 		unpadded_data[count] = three_bytes_data[i];
@@ -1899,7 +1894,7 @@ static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x)
 	/* Repeat, wait time and first 4 bits of num_segs */
 	unpadded_data[count] = cs40l2x->pwle_repeat;
 	count++;
-	cs40l2x_to_bytes_msb(cs40l2x, cs40l2x->pwle_wait_time,
+	cs40l2x_to_bytes_msb(cs40l2x->pwle_wait_time,
 		CS40L2X_TWO_BYTES, &two_bytes_data);
 	unpadded_data[count] = ((cs40l2x->two_bytes[0] << 4) +
 		(cs40l2x->two_bytes[1] >> 4));
@@ -1921,7 +1916,7 @@ static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x)
 		&cs40l2x->pwle_segment_head, list) {
 		cs40l2x->two_bytes[0] = CS40L2X_ZERO_INIT;
 		cs40l2x->two_bytes[1] = CS40L2X_ZERO_INIT;
-		cs40l2x_to_bytes_msb(cs40l2x, pwle_seg_struct->time,
+		cs40l2x_to_bytes_msb(pwle_seg_struct->time,
 			CS40L2X_TWO_BYTES, &two_bytes_data);
 		unpadded_data[count] += ((cs40l2x->two_bytes[0] >>
 			CS40L2X_FOUR_BITS) + b_four_time);
@@ -1933,7 +1928,7 @@ static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x)
 		time_byte = (cs40l2x->two_bytes[1] << CS40L2X_FOUR_BITS);
 		cs40l2x->two_bytes[0] = CS40L2X_ZERO_INIT;
 		cs40l2x->two_bytes[1] = CS40L2X_ZERO_INIT;
-		cs40l2x_to_bytes_msb(cs40l2x, pwle_seg_struct->level,
+		cs40l2x_to_bytes_msb(pwle_seg_struct->level,
 			CS40L2X_TWO_BYTES, &two_bytes_data);
 		/* Last 4bits time + first 4bits level */
 		unpadded_data[count] = ((cs40l2x->two_bytes[0] &
@@ -1943,7 +1938,7 @@ static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x)
 		count++;
 		cs40l2x->two_bytes[0] = CS40L2X_ZERO_INIT;
 		cs40l2x->two_bytes[1] = CS40L2X_ZERO_INIT;
-		cs40l2x_to_bytes_msb(cs40l2x, pwle_seg_struct->freq,
+		cs40l2x_to_bytes_msb(pwle_seg_struct->freq,
 			CS40L2X_TWO_BYTES, &two_bytes_data);
 		unpadded_data[count] = ((cs40l2x->two_bytes[0] <<
 			CS40L2X_FOUR_BITS) + (cs40l2x->two_bytes[1] >>
@@ -1961,7 +1956,7 @@ static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x)
 			cs40l2x->three_bytes[0] = CS40L2X_ZERO_INIT;
 			cs40l2x->three_bytes[1] = CS40L2X_ZERO_INIT;
 			cs40l2x->three_bytes[2] = CS40L2X_ZERO_INIT;
-			cs40l2x_to_bytes_msb(cs40l2x, pwle_seg_struct->vb_targ,
+			cs40l2x_to_bytes_msb(pwle_seg_struct->vb_targ,
 				CS40L2X_WT_WORD_SIZE, &three_bytes_data);
 			unpadded_data[count] = (cs40l2x->three_bytes[0] >>
 				CS40L2X_FOUR_BITS);
@@ -11969,7 +11964,8 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 
 	/* Virtual wavetable slots mem init */
 	cs40l2x->updated_offsets = devm_kzalloc(dev,
-		CS40L2X_MAX_WAVEFORMS, GFP_KERNEL);
+		(CS40L2X_OWT_CALC_SIZE * sizeof(unsigned int)),
+		GFP_KERNEL);
 	if (!cs40l2x->updated_offsets)
 		return -ENOMEM;
 
@@ -11979,7 +11975,8 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 		return -ENOMEM;
 
 	cs40l2x->wvfrm_lengths = devm_kzalloc(dev,
-		(CS40L2X_MAX_WAVEFORMS * 2), GFP_KERNEL);
+		(CS40L2X_OWT_CALC_SIZE * sizeof(unsigned int)),
+		GFP_KERNEL);
 	if (!cs40l2x->wvfrm_lengths)
 		return -ENOMEM;
 
