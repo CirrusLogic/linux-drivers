@@ -843,6 +843,9 @@ static void add_smaps_sum(struct mem_size_stats *mss,
 {
 	mss_sum->resident += mss->resident;
 	mss_sum->pss += mss->pss;
+	mss_sum->pss_anon += mss->pss_anon;
+	mss_sum->pss_file += mss->pss_file;
+	mss_sum->pss_shmem += mss->pss_shmem;
 	mss_sum->shared_clean += mss->shared_clean;
 	mss_sum->shared_dirty += mss->shared_dirty;
 	mss_sum->private_clean += mss->private_clean;
@@ -882,6 +885,9 @@ static int totmaps_proc_show(struct seq_file *m, void *data)
 	seq_printf(m,
 		   "Rss:            %8lu kB\n"
 		   "Pss:            %8lu kB\n"
+		   "Pss_Anon:       %8lu kB\n"
+		   "Pss_File:       %8lu kB\n"
+		   "Pss_Shmem:      %8lu kB\n"
 		   "Shared_Clean:   %8lu kB\n"
 		   "Shared_Dirty:   %8lu kB\n"
 		   "Private_Clean:  %8lu kB\n"
@@ -892,6 +898,9 @@ static int totmaps_proc_show(struct seq_file *m, void *data)
 		   "Swap:           %8lu kB\n",
 		   mss_sum->resident >> 10,
 		   (unsigned long)(mss_sum->pss >> (10 + PSS_SHIFT)),
+		   (unsigned long)(mss_sum->pss_anon >> (10 + PSS_SHIFT)),
+		   (unsigned long)(mss_sum->pss_file >> (10 + PSS_SHIFT)),
+		   (unsigned long)(mss_sum->pss_shmem >> (10 + PSS_SHIFT)),
 		   mss_sum->shared_clean  >> 10,
 		   mss_sum->shared_dirty  >> 10,
 		   mss_sum->private_clean >> 10,
