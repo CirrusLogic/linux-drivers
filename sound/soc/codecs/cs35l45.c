@@ -897,15 +897,11 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 			snd_soc_component_get_drvdata(component);
 	struct snd_soc_dapm_context *dapm =
 			snd_soc_component_get_dapm(component);
-	int status;
 
 	if (ucontrol->value.integer.value[0] == cs35l45->amplifier_mode)
 		return 0;
 
 	cs35l45->amplifier_mode = ucontrol->value.integer.value[0];
-
-	status = snd_soc_component_get_pin_status(component, "SPK") |
-		 snd_soc_component_get_pin_status(component, "RCV");
 
 	/* Ensure device is disabled before switching amplifier mode */
 	snd_soc_component_disable_pin(component, "SPK");
@@ -942,16 +938,11 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 				   CS35L45_AMP_GAIN_PCM_SHIFT);
 	}
 
-	/* If playback is not in progress, exit */
-	if (!status)
-		goto skip_pin_enable;
-
 	if (cs35l45->amplifier_mode == AMP_MODE_SPK)
 		snd_soc_component_enable_pin(component, "SPK");
 	else /* AMP_MODE_RCV */
 		snd_soc_component_enable_pin(component, "RCV");
 
-skip_pin_enable:
 	snd_soc_dapm_sync(dapm);
 
 	msleep(100);
@@ -1415,11 +1406,8 @@ static int cs35l45_dai_set_sysclk(struct snd_soc_dai *dai,
 static int cs35l45_dai_startup(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
-	struct snd_soc_component *component = dai->component;
 	struct cs35l45_private *cs35l45 =
 			snd_soc_component_get_drvdata(dai->component);
-	struct snd_soc_dapm_context *dapm =
-			snd_soc_component_get_dapm(component);
 
 	if (cs35l45->hibernate_mode == HIBER_MODE_EN) {
 		dev_err(cs35l45->dev,
@@ -1427,40 +1415,11 @@ static int cs35l45_dai_startup(struct snd_pcm_substream *substream,
 		return -EPERM;
 	}
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (!cs35l45->amplifier_mode)
-			snd_soc_component_enable_pin(component, "SPK");
-		else
-			snd_soc_component_enable_pin(component, "RCV");
-	} else {
-		snd_soc_component_enable_pin(component, "AP");
-	}
-
-	snd_soc_dapm_sync(dapm);
-
 	return 0;
-}
-
-static void cs35l45_dai_shutdown(struct snd_pcm_substream *substream,
-				 struct snd_soc_dai *dai)
-{
-	struct snd_soc_component *component = dai->component;
-	struct snd_soc_dapm_context *dapm =
-			snd_soc_component_get_dapm(component);
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		snd_soc_component_disable_pin(component, "SPK");
-		snd_soc_component_disable_pin(component, "RCV");
-	} else {
-		snd_soc_component_disable_pin(component, "AP");
-	}
-
-	snd_soc_dapm_sync(dapm);
 }
 
 static const struct snd_soc_dai_ops cs35l45_dai_ops = {
 	.startup = cs35l45_dai_startup,
-	.shutdown = cs35l45_dai_shutdown,
 	.set_fmt = cs35l45_dai_set_fmt,
 	.hw_params = cs35l45_dai_hw_params,
 	.set_tdm_slot = cs35l45_dai_set_tdm_slot,
@@ -1522,9 +1481,7 @@ static int cs35l45_component_probe(struct snd_soc_component *component)
 	snd_soc_dapm_add_routes(dapm, cs35l45_passive_routes,
 				ARRAY_SIZE(cs35l45_passive_routes));
 
-	snd_soc_component_disable_pin(component, "SPK");
 	snd_soc_component_disable_pin(component, "RCV");
-	snd_soc_component_disable_pin(component, "AP");
 	snd_soc_component_disable_pin(component, "DSP1 Enable");
 
 	snd_soc_dapm_sync(dapm);
@@ -2161,10 +2118,8 @@ gpio_cfg:
 
 static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 {
-	struct snd_soc_component *component =
-			snd_soc_lookup_component(cs35l45->dev, NULL);
 	unsigned int sts, cmd, val;
-	int status, ret, i;
+	int ret, i;
 	struct cs35l45_mixer_cache mixer_cache[] = {
 		{CS35L45_ASPTX1_INPUT,	CS35L45_PCM_SRC_MASK, 0},
 		{CS35L45_ASPTX2_INPUT,	CS35L45_PCM_SRC_MASK, 0},
@@ -2191,20 +2146,12 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 	if (hiber_en == cs35l45->hibernate_mode)
 		return 0;
 
-	status = snd_soc_component_get_pin_status(component, "SPK") |
-		 snd_soc_component_get_pin_status(component, "RCV") |
-		 snd_soc_component_get_pin_status(component, "AP");
-	if (status) {
-		dev_info(cs35l45->dev, "Amp is active; cannot hibernate\n");
+	if (!cs35l45->dsp.booted) {
+		dev_err(cs35l45->dev, "Firmware not loaded\n");
 		return -EPERM;
 	}
 
 	if (hiber_en == HIBER_MODE_EN) {
-		if (!cs35l45->dsp.booted) {
-			dev_err(cs35l45->dev, "Firmware not loaded\n");
-			return -EPERM;
-		}
-
 		regmap_read(cs35l45->regmap, CS35L45_DSP_MBOX_2, &sts);
 		if (((enum cspl_mboxstate)sts) != CSPL_MBOX_STS_PAUSED) {
 			dev_err(cs35l45->dev, "FW not paused (%d)\n", sts);
@@ -2224,13 +2171,6 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 
 		regcache_cache_only(cs35l45->regmap, true);
 	} else  /* HIBER_MODE_DIS */ {
-		if (!cs35l45->dsp.booted) {
-			dev_err(cs35l45->dev, "Firmware not loaded\n");
-			return -EPERM;
-		}
-
-		usleep_range(200, 300);
-
 		for (i = 0; i < ARRAY_SIZE(mixer_cache); i++)
 			regmap_read(cs35l45->regmap, mixer_cache[i].reg,
 				    &mixer_cache[i].val);
