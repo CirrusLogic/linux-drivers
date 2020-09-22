@@ -970,8 +970,13 @@ static int cs35l45_hibernate_mode_put(struct snd_kcontrol *kcontrol,
 			snd_soc_kcontrol_component(kcontrol);
 	struct cs35l45_private *cs35l45 =
 			snd_soc_component_get_drvdata(component);
+	int ret;
 
-	return cs35l45_hibernate(cs35l45, ucontrol->value.integer.value[0]);
+	ret = cs35l45_hibernate(cs35l45, ucontrol->value.integer.value[0]);
+	if (ret < 0)
+		dev_err(cs35l45->dev, "Set hibernate mode failed (%d)\n", ret);
+
+	return 0;
 }
 
 static int cs35l45_dsp_boot_get(struct snd_kcontrol *kcontrol,
@@ -1106,7 +1111,9 @@ static int cs35l45_sync_num_devices_get(struct snd_kcontrol *kcontrol,
 	struct cs35l45_private *cs35l45 =
 			snd_soc_component_get_drvdata(component);
 
-	return cs35l45->sync_num_devices;
+	ucontrol->value.integer.value[0] = cs35l45->sync_num_devices;
+
+	return 0;
 }
 
 static int cs35l45_sync_num_devices_put(struct snd_kcontrol *kcontrol,
@@ -1116,6 +1123,7 @@ static int cs35l45_sync_num_devices_put(struct snd_kcontrol *kcontrol,
 			snd_soc_kcontrol_component(kcontrol);
 	struct cs35l45_private *cs35l45 =
 			snd_soc_component_get_drvdata(component);
+	int ret;
 
 	if (!cs35l45->dsp.running) {
 		dev_err(cs35l45->dev, "DSP not running\n");
@@ -1124,7 +1132,11 @@ static int cs35l45_sync_num_devices_put(struct snd_kcontrol *kcontrol,
 
 	cs35l45->sync_num_devices = ucontrol->value.integer.value[0];
 
-	return cs35l45_dsp_reconfigure(cs35l45);
+	ret = cs35l45_dsp_reconfigure(cs35l45);
+	if (ret < 0)
+		dev_err(cs35l45->dev, "DSP reconfiguration failed (%d)\n", ret);
+
+	return 0;
 }
 
 static int cs35l45_sync_id_get(struct snd_kcontrol *kcontrol,
@@ -1135,7 +1147,9 @@ static int cs35l45_sync_id_get(struct snd_kcontrol *kcontrol,
 	struct cs35l45_private *cs35l45 =
 			snd_soc_component_get_drvdata(component);
 
-	return cs35l45->sync_id;
+	ucontrol->value.integer.value[0] = cs35l45->sync_id;
+
+	return 0;
 }
 
 static int cs35l45_sync_id_put(struct snd_kcontrol *kcontrol,
@@ -1145,6 +1159,7 @@ static int cs35l45_sync_id_put(struct snd_kcontrol *kcontrol,
 			snd_soc_kcontrol_component(kcontrol);
 	struct cs35l45_private *cs35l45 =
 			snd_soc_component_get_drvdata(component);
+	int ret;
 
 	if (!cs35l45->dsp.running) {
 		dev_err(cs35l45->dev, "DSP not running\n");
@@ -1153,7 +1168,11 @@ static int cs35l45_sync_id_put(struct snd_kcontrol *kcontrol,
 
 	cs35l45->sync_id = ucontrol->value.integer.value[0];
 
-	return cs35l45_dsp_reconfigure(cs35l45);
+	ret = cs35l45_dsp_reconfigure(cs35l45);
+	if (ret < 0)
+		dev_err(cs35l45->dev, "DSP reconfiguration failed (%d)\n", ret);
+
+	return 0;
 }
 
 static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
