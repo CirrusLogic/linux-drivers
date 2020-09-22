@@ -1377,6 +1377,11 @@ static int cs35l45_dai_hw_params(struct snd_pcm_substream *substream,
 			      ARRAY_SIZE(cs35l45_lock));
 
 	asp_wl = params_width(params);
+	if (asp_wl > CS35L45_ASP_WL_MAX)
+		asp_wl = CS35L45_ASP_WL_MAX;
+	else if (asp_wl < CS35L45_ASP_WL_MIN)
+		asp_wl = CS35L45_ASP_WL_MIN;
+
 	asp_width = cs35l45->pdata.use_tdm_slots ?
 			    cs35l45->slot_width : params_physical_width(params);
 
@@ -1447,7 +1452,8 @@ static const struct snd_soc_dai_ops cs35l45_dai_ops = {
 
 #define CS35L45_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
 			 SNDRV_PCM_FMTBIT_S24_3LE| \
-			 SNDRV_PCM_FMTBIT_S24_LE)
+			 SNDRV_PCM_FMTBIT_S24_LE | \
+			 SNDRV_PCM_FMTBIT_S32_LE)
 
 #define CS35L45_RATES (SNDRV_PCM_RATE_8000  | \
 		       SNDRV_PCM_RATE_16000 | \
