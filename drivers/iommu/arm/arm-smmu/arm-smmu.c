@@ -789,6 +789,9 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	if (smmu_domain->non_strict)
 		pgtbl_cfg.quirks |= IO_PGTABLE_QUIRK_NON_STRICT;
 
+	if (smmu_domain->sys_cache)
+		pgtbl_cfg.quirks |= IO_PGTABLE_QUIRK_SYS_CACHE;
+
 	pgtbl_ops = alloc_io_pgtable_ops(fmt, &pgtbl_cfg, smmu_domain);
 	if (!pgtbl_ops) {
 		ret = -ENOMEM;
@@ -1513,6 +1516,9 @@ static int arm_smmu_domain_get_attr(struct iommu_domain *domain,
 		case DOMAIN_ATTR_DMA_USE_FLUSH_QUEUE:
 			*(int *)data = smmu_domain->non_strict;
 			return 0;
+		case DOMAIN_ATTR_SYS_CACHE:
+			*((int *)data) = smmu_domain->sys_cache;
+			return 0;
 		default:
 			return -ENODEV;
 		}
@@ -1543,6 +1549,17 @@ static int arm_smmu_domain_set_attr(struct iommu_domain *domain,
 				smmu_domain->stage = ARM_SMMU_DOMAIN_NESTED;
 			else
 				smmu_domain->stage = ARM_SMMU_DOMAIN_S1;
+			break;
+		case DOMAIN_ATTR_SYS_CACHE:
+			if (smmu_domain->smmu) {
+				ret = -EPERM;
+				goto out_unlock;
+			}
+
+			if (*((int *)data))
+				smmu_domain->sys_cache = true;
+			else
+				smmu_domain->sys_cache = false;
 			break;
 		default:
 			ret = -ENODEV;
