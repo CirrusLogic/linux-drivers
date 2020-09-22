@@ -1,6 +1,7 @@
 config INCREMENTAL_FS
 	tristate "Incremental file system support"
 	depends on BLOCK
+	depends on X86 || ARM64_4K_PAGES
 	select DECOMPRESS_LZ4
 	select DECOMPRESS_ZSTD
 	select CRYPTO_SHA256
