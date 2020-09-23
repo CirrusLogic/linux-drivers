@@ -19,21 +19,6 @@ ap_h1_spi: &spi6 {};
 	compatible = "google,trogdor-rev0-sku0",
 		     "google,trogdor-rev0-sku1",
 		     "qcom,sc7180";
-
-	panel: panel {
-		compatible = "auo,b116xa01";
-		power-supply = <&pp3300_dx_edp>;
-		backlight = <&backlight>;
-		no-hpd;
-
-		ports {
-			port {
-				panel_in_edp: endpoint {
-					remote-endpoint = <&sn65dsi86_out>;
-				};
-			};
-		};
-	};
 };
 
 &ap_sar_sensor_i2c {
@@ -67,6 +52,14 @@ ap_ts_pen_1v8: &i2c4 {
 
 		reset-gpios = <&tlmm 8 GPIO_ACTIVE_LOW>;
 	};
+};
+
+&panel {
+	compatible = "auo,b116xa01";
+
+	/* HPD is not hooked up */
+	/delete-property/hpd-gpios;
+	no-hpd;
 };
 
 &pp3300_ts {

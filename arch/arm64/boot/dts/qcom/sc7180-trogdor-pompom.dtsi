@@ -12,23 +12,6 @@ ap_h1_spi: &spi0 {};
 
 #include "sc7180-trogdor.dtsi"
 
-/ {
-	panel: panel {
-		compatible = "kingdisplay,kd116n21-30nv-a010";
-		power-supply = <&pp3300_dx_edp>;
-		backlight = <&backlight>;
-		hpd-gpios = <&sn65dsi86_bridge 2 GPIO_ACTIVE_HIGH>;
-
-		ports {
-			port {
-				panel_in_edp: endpoint {
-					remote-endpoint = <&sn65dsi86_out>;
-				};
-			};
-		};
-	};
-};
-
 &ap_sar_sensor {
 	compatible = "semtech,sx9311";
 	status = "okay";
@@ -56,6 +39,10 @@ ap_ts_pen_1v8: &i2c4 {
 
 &gpio_keys {
 	status = "okay";
+};
+
+&panel {
+	compatible = "kingdisplay,kd116n21-30nv-a010";
 };
 
 &sdhc_2 {
