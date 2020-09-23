@@ -178,6 +178,7 @@ struct clsic {
 	 * downloaded on every reset or power on.
 	 */
 	bool volatile_memory;
+	size_t spi_max_transfer;
 
 	int irq;
 
