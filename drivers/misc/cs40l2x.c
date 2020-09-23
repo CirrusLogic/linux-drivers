@@ -1467,6 +1467,7 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 {
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	struct i2c_client *i2c_client = to_i2c_client(cs40l2x->dev);
+	struct cs40l2x_composite_data empty_comp;
 	char *pbq_str_alloc, *pbq_str, *pbq_str_tok, *pbq_temp;
 	char *pbq_seg_alloc, *pbq_seg, *pbq_seg_tok;
 	size_t pbq_seg_len;
@@ -1475,7 +1476,7 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 	unsigned int val, num_empty, indx, amp;
 	bool next_is_delay = false;
 	bool inner_flag = false;
-	int ret, l, m, f_cnt;
+	int ret, l, m, n, f_cnt;
 	int pbq_marker = -1;
 
 	/* This flag must be set before any possible return calls */
@@ -1485,8 +1486,13 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 	cs40l2x->pbq_fw_composite_len = 0;
 	memset(&cs40l2x->pbq_fw_composite[0], 0,
 		sizeof(cs40l2x->pbq_fw_composite));
-	memset(&cs40l2x->comp_sets[0], 0,
-		sizeof(CS40L2X_PBQ_DEPTH_MAX));
+	empty_comp.rpt = 0;
+	empty_comp.index = 0;
+	empty_comp.amp = 0;
+	empty_comp.delay = 0;
+	empty_comp.dur = 0;
+	for (n = 0; n < CS40L2X_PBQ_DEPTH_MAX; n++)
+		cs40l2x->comp_sets[n] = empty_comp;
 
 	if (cs40l2x->virtual_bin)
 		num_waves = cs40l2x->num_waves - CS40L2X_WT_NUM_VIRT_SLOTS;
@@ -1546,6 +1552,8 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 				}
 			}
 			if (val == 0 || val >= num_waves) {
+				dev_err(cs40l2x->dev,
+					"Invalid index detected.\n");
 				ret = -EINVAL;
 				goto err_mutex;
 			}
@@ -1561,6 +1569,8 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 				goto err_mutex;
 			}
 			if (val == 0 || val > CS40L2X_PBQ_SCALE_MAX) {
+				dev_err(cs40l2x->dev,
+					"Invalid amplitude detected.\n");
 				ret = -EINVAL;
 				goto err_mutex;
 			}
@@ -1651,6 +1661,8 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 						goto err_mutex;
 					}
 					if (val > CS40L2X_PBQ_REPEAT_MAX) {
+						dev_err(cs40l2x->dev,
+							"Invalid repeat detected.\n");
 						ret = -EINVAL;
 						goto err_mutex;
 					}
@@ -1733,6 +1745,8 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 				goto err_mutex;
 			}
 			if (val > CS40L2X_PBQ_DELAY_MAX) {
+				dev_err(cs40l2x->dev,
+					"Invalid delay detected.\n");
 				ret = -EINVAL;
 				goto err_mutex;
 			}
