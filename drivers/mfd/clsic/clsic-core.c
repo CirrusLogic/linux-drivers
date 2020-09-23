@@ -378,7 +378,7 @@ static void clsic_boot(struct clsic *clsic)
 
 int clsic_dev_init(struct clsic *clsic)
 {
-	int ret = 0;
+	int ret = 0, max_pg = 0;
 
 	trace_clsic_dev_init(clsic_bootonload);
 
@@ -408,6 +408,13 @@ int clsic_dev_init(struct clsic *clsic)
 
 	clsic->volatile_memory = of_property_read_bool(clsic->dev->of_node,
 						       "volatile_memory");
+	ret = of_property_read_u32(clsic->dev->of_node, "spi-max-pages",
+				   &max_pg);
+	if (ret == 0 && max_pg > 0)
+		clsic->spi_max_transfer = min_t(size_t, max_pg * PAGE_SIZE,
+						CLSIC_FIFO_TRANSACTION_MAX);
+	else
+		clsic->spi_max_transfer = CLSIC_FIFO_TRANSACTION_MAX;
 
 	INIT_DELAYED_WORK(&clsic->maintenance_handler, clsic_maintenance);
 

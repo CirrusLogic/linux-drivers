@@ -67,6 +67,10 @@ Optional properties:
     set to a default of 32, this property allows that value to be adjusted to
     support different CLSIC devices that may require a pad_bits of 16.
 
+  - spi-max-pages : Maximum number of pages (PAGE_SIZE) that can be transferred
+    at once by spi bus. Without this property the driver will set the maximum
+    size to be (32 X 1024) bytes.
+
   - MICBIAS1x : Initial data for the MICBIAS regulators, as covered in
     Documentation/devicetree/bindings/regulator/regulator.txt.
 

@@ -1060,7 +1060,7 @@ static int clsic_fifo_read(struct clsic *clsic, uint8_t *dest,
 
 	while (bytes_left != 0) {
 		bytes_thisread = min_t(uint32_t, bytes_left,
-				       CLSIC_FIFO_TRANSACTION_MAX);
+				       clsic->spi_max_transfer);
 		ret = regmap_raw_read(clsic->regmap, clsic->fifo_tx,
 				      tmp_dest, bytes_thisread);
 		if (ret != 0)
@@ -1088,7 +1088,7 @@ static int clsic_fifo_write(struct clsic *clsic, uint8_t *src,
 
 	while (bytes_left != 0) {
 		bytes_thiswrite = min_t(uint32_t, bytes_left,
-					CLSIC_FIFO_TRANSACTION_MAX);
+					clsic->spi_max_transfer);
 		ret = regmap_raw_write(clsic->regmap,
 				       TACNA_CPF1_RX_WRDATA,
 				       tmp_src, bytes_thiswrite);
