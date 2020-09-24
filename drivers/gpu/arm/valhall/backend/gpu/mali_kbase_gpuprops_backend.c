@@ -38,6 +38,19 @@ int kbase_backend_gpuprops_get(struct kbase_device *kbdev,
 
 	/* Fill regdump with the content of the relevant registers */
 	registers.gpu_id = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_ID));
+	registers.orig_gpu_id = registers.gpu_id;
+
+	/* Mali-G57 on MT8192 has a different GPU ID 0x90930000.
+	 * Pretending it's a normal G57 to minimize the impact, but people can
+	 * still tell the difference from orig_gpu_id when needed.
+	 */
+	if (registers.gpu_id == GPU_ID2_PRODUCT_MAKE(9, 0, 9, 3)) {
+		registers.gpu_id = GPU_ID2_PRODUCT_MAKE(9, 0, 9, 1);
+		dev_info(kbdev->dev,
+			"Detected G-57 variant with GPU ID %08x. "
+			"Changing the ID to %08x.",
+			registers.orig_gpu_id, registers.gpu_id);
+	}
 
 	registers.l2_features = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(L2_FEATURES));
