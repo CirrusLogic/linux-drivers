@@ -297,6 +297,18 @@
 				sound-dai = <&max98357a>;
 			};
 		};
+
+		dai-link@2 {
+			link-name = "MultiMedia2";
+			reg = <2>;
+			cpu {
+				sound-dai = <&lpass_cpu 2>;
+			};
+
+			codec {
+				sound-dai = <&msm_dp>;
+			};
+		};
 	};
 
 	usb_hub: usb-hub {
@@ -823,6 +835,9 @@ hp_i2c: &i2c9 {
 	mi2s-secondary@1 {
 		reg = <MI2S_SECONDARY>;
 		qcom,playback-sd-lines = <0>;
+	};
+	hdmi-primary@0 {
+		reg = <LPASS_DP_RX>;
 	};
 };
 
