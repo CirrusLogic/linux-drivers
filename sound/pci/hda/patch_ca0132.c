@@ -8545,7 +8545,7 @@ static void amic_callback(struct hda_codec *codec, struct hda_jack_callback *cb)
 		ca0132_select_mic(codec);
 }
 
-static void ca0132_init_unsol(struct hda_codec *codec)
+static void ca0132_setup_unsol(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 	snd_hda_jack_detect_enable_callback(codec, spec->unsol_tag_hp, hp_callback);
@@ -9377,7 +9377,6 @@ static int ca0132_init(struct hda_codec *codec)
 	if (ca0132_quirk(spec) == QUIRK_AE5 || ca0132_quirk(spec) == QUIRK_AE7)
 		ae5_register_set(codec);
 
-	ca0132_init_unsol(codec);
 	ca0132_init_params(codec);
 	ca0132_init_flags(codec);
 
@@ -9941,6 +9940,8 @@ static int patch_ca0132(struct hda_codec *codec)
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
 	if (err < 0)
 		goto error;
+
+	ca0132_setup_unsol(codec);
 
 	return 0;
 
