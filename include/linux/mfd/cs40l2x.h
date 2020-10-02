@@ -1466,6 +1466,7 @@ struct cs40l2x_private {
 	bool vibe_init_success;
 	bool vibe_state;
 	bool safe_save_state;
+	bool gpio_event;
 	struct gpio_desc *reset_gpio;
 	struct cs40l2x_platform_data pdata;
 	unsigned int num_algos;
