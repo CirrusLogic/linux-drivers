@@ -154,6 +154,14 @@ static void cs40l2x_set_state(struct cs40l2x_private *cs40l2x, bool state)
 	}
 }
 
+static void cs40l2x_set_gpio_event(struct cs40l2x_private *cs40l2x, bool value)
+{
+	if (cs40l2x->gpio_event != value) {
+		cs40l2x->gpio_event = value;
+		cs40l2x_sysfs_notify(cs40l2x, "gpio_event");
+	}
+}
+
 static void cs40l2x_set_safe_save_state(struct cs40l2x_private *cs40l2x,
 	bool state)
 {
@@ -6720,6 +6728,31 @@ static ssize_t cs40l2x_vibe_state_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%u\n", cs40l2x->vibe_state);
 }
 
+static ssize_t cs40l2x_gpio_event_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", cs40l2x->gpio_event);
+}
+
+static ssize_t cs40l2x_gpio_event_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+	unsigned int val;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret || val != 0)
+		return -EINVAL;
+
+	cs40l2x_set_gpio_event(cs40l2x, false);
+
+	return count;
+}
+
 static ssize_t cs40l2x_safe_save_state_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -6944,6 +6977,8 @@ static DEVICE_ATTR(pwle_regulation_enable, 0660, cs40l2x_par_enable_show,
 static DEVICE_ATTR(gain_compensation_enable, 0660, cs40l2x_par_gain_comp_show,
 		cs40l2x_par_gain_comp_store);
 static DEVICE_ATTR(vibe_state, 0660, cs40l2x_vibe_state_show, NULL);
+static DEVICE_ATTR(gpio_event, 0660, cs40l2x_gpio_event_show,
+		   cs40l2x_gpio_event_store);
 static DEVICE_ATTR(safe_save_state, 0660, cs40l2x_safe_save_state_show, NULL);
 static DEVICE_ATTR(max_back_emf, 0660, cs40l2x_max_back_emf_show,
 		cs40l2x_max_back_emf_store);
@@ -7024,6 +7059,7 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_pwle_regulation_enable.attr,
 	&dev_attr_gain_compensation_enable.attr,
 	&dev_attr_vibe_state.attr,
+	&dev_attr_gpio_event.attr,
 	&dev_attr_safe_save_state.attr,
 	&dev_attr_max_back_emf.attr,
 	&dev_attr_autosuspend_delay.attr,
@@ -11597,6 +11633,8 @@ static irqreturn_t cs40l2x_irq(int irq, void *data)
 			else
 				queue_work(cs40l2x->vibe_workqueue,
 						&cs40l2x->vibe_mode_work);
+			if (val == CS40L2X_EVENT_CTRL_GPIO_STOP)
+				cs40l2x_set_gpio_event(cs40l2x, true);
 			complete(&cs40l2x->hap_done);
 			break;
 		case CS40L2X_EVENT_CTRL_TRIG_START:
