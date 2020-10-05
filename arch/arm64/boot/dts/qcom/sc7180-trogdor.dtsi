@@ -263,7 +263,7 @@
 		};
 	};
 
-	sound {
+	sound: sound  {
 		compatible = "qcom,sc7180-sndcard-rt5682-m98357-1mic";
 		model = "sc7180-snd-card";
 
