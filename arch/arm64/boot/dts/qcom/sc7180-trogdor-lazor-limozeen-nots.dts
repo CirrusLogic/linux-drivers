@@ -15,6 +15,10 @@
 	compatible = "google,lazor-sku5", "qcom,sc7180";
 };
 
+&ap_sar_sensor {
+	status = "okay";
+};
+
 /delete-node/&ap_ts;
 
 &panel {
