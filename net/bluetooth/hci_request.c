@@ -1271,7 +1271,7 @@ void hci_req_prepare_suspend(struct hci_dev *hdev, enum suspended_state next)
 		if (old_state != DISCOVERY_STOPPED) {
 			set_bit(SUSPEND_PAUSE_DISCOVERY, hdev->suspend_tasks);
 			hci_discovery_set_state(hdev, DISCOVERY_STOPPING);
-			queue_work(hdev->req_workqueue, &hdev->discov_update);
+			queue_work(hdev->req_workqueue, &hdev->stop_discov_update);
 		}
 
 		hdev->discovery_paused = true;
@@ -1363,7 +1363,7 @@ void hci_req_prepare_suspend(struct hci_dev *hdev, enum suspended_state next)
 		    hdev->discovery_old_state != DISCOVERY_STOPPING) {
 			set_bit(SUSPEND_UNPAUSE_DISCOVERY, hdev->suspend_tasks);
 			hci_discovery_set_state(hdev, DISCOVERY_STARTING);
-			queue_work(hdev->req_workqueue, &hdev->discov_update);
+			queue_work(hdev->req_workqueue, &hdev->start_discov_update);
 		}
 
 		hci_req_run(&req, suspend_req_complete);
