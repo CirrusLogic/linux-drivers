@@ -21,11 +21,6 @@ ap_h1_spi: &spi6 {};
 		     "qcom,sc7180";
 };
 
-&ap_sar_sensor_i2c {
-	/* Not hooked up */
-	status = "disabled";
-};
-
 &ap_tp_i2c {
 	/* Pullups are missing on r0, but it seems to work at 100 kHz */
 	clock-frequency = <100000>;
