@@ -676,11 +676,10 @@ static int vdec_output_conf(struct venus_inst *inst)
 			venus_helper_get_framesz_raw(out2_fmt, width, height);
 
 	if (is_ubwc_fmt(out_fmt) && is_ubwc_fmt(out2_fmt)) {
-		inst->output2_buf_size = 0;
-		inst->opb_buftype = HFI_BUFFER_OUTPUT;
-		inst->opb_fmt = out_fmt;
-		inst->dpb_buftype = 0;
-		inst->dpb_fmt = 0;
+		inst->opb_buftype = HFI_BUFFER_OUTPUT2;
+		inst->opb_fmt = out2_fmt;
+		inst->dpb_buftype = HFI_BUFFER_OUTPUT;
+		inst->dpb_fmt = out_fmt;
 	} else if (is_ubwc_fmt(out_fmt)) {
 		inst->opb_buftype = HFI_BUFFER_OUTPUT2;
 		inst->opb_fmt = out2_fmt;
