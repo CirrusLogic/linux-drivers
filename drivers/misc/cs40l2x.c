@@ -3984,7 +3984,8 @@ static ssize_t cs40l2x_bemf_rec_show(struct device *dev,
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	struct regmap *regmap = cs40l2x->regmap;
 	unsigned int reg, val;
-	int ret, i, size = 0;
+	ssize_t len = 0;
+	int ret, i;
 
 	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
@@ -4002,12 +4003,11 @@ static ssize_t cs40l2x_bemf_rec_show(struct device *dev,
 		ret = regmap_read(regmap, reg + (i*4), &val);
 		if (ret)
 			goto err_bemf_rec;
-
-		size += snprintf(buf, PAGE_SIZE, "%d\n", val);
-		buf += strlen(buf);
+		len += snprintf(buf + len, PAGE_SIZE - len, "%d ", val);
 	}
+	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
 
-	ret = size;
+	ret = len;
 
 err_bemf_rec:
 	mutex_unlock(&cs40l2x->lock);
