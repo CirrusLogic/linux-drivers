@@ -9,8 +9,8 @@
 #include "pci.h"
 
 /*
- * Parameter to disable allowlist (thus allow all drivers to connect
- * to any external PCI devices).
+ * Parameter to essentially disable allowlist code (thus allow all drivers to
+ * connect to any external PCI devices).
  */
 static bool trust_external_pci_devices;
 core_param(trust_external_pci_devices, trust_external_pci_devices, bool, 0444);
@@ -128,10 +128,39 @@ static bool pci_driver_is_allowed(const char *name)
 	return false;
 }
 
-bool pci_drv_allowed_for_untrusted_devs(struct device_driver *drv)
+bool pci_allowed_to_attach(struct pci_driver *drv, struct pci_dev *dev)
 {
-	if (trust_external_pci_devices || pci_driver_is_allowed(drv->name))
-		return true;
+	char event[16], drvr[32], *reason;
+	char *udev_env[] = { event, drvr, NULL };
 
+	snprintf(drvr, sizeof(drvr), "DRVR=%s", drv->name);
+
+	/* Bypass Allowlist code, if platform wants so */
+	if (trust_external_pci_devices) {
+		reason = "trust_external_pci_devices";
+		goto allowed;
+	}
+
+	/* Allow trusted devices */
+	if (!dev->untrusted) {
+		reason = "trusted device";
+		goto allowed;
+	}
+
+	/* Allow if driver is in allowlist */
+	if (pci_driver_is_allowed(drv->name)) {
+		reason = "drvr in allowlist";
+		goto allowed;
+	}
+	reason = "drvr not in allowlist";
+	pci_err(dev, "attach not allowed to drvr %s [%s]\n", drv->name, reason);
+	snprintf(event, sizeof(event), "EVENT=BLOCKED");
+	kobject_uevent_env(&dev->dev.kobj, KOBJ_CHANGE, udev_env);
 	return false;
+
+allowed:
+	pci_info(dev, "attach allowed to drvr %s [%s]\n", drv->name, reason);
+	snprintf(event, sizeof(event), "EVENT=ALLOWED");
+	kobject_uevent_env(&dev->dev.kobj, KOBJ_CHANGE, udev_env);
+	return true;
 }
