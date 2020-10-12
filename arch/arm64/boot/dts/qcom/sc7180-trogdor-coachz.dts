@@ -85,7 +85,7 @@ i2c_wlc: &i2c5 {
 };
 
 &sn65dsi86_out {
-	data-lanes = <0 1 2 4>;
+	data-lanes = <0 1 2 3>;
 };
 
 /* PINCTRL - modifications to sc7180-trogdor.dtsi */
