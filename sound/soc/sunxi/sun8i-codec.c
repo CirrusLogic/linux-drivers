@@ -640,6 +640,9 @@ static struct snd_soc_dai_driver sun8i_codec_dais[] = {
 			.rates		= SUN8I_CODEC_PCM_RATES,
 			.formats	= SUN8I_CODEC_PCM_FORMATS,
 		},
+		.symmetric_rates	= true,
+		.symmetric_channels	= true,
+		.symmetric_samplebits	= true,
 	},
 	{
 		.name	= "sun8i-codec-aif2",
