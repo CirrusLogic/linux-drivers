@@ -23,6 +23,16 @@ const struct cl_dsp_fw_desc cs40l26_fw = {
 	.write_fw = false,
 };
 
+const struct cl_dsp_fw_desc cs40l26_ram_fw = {
+	.id = CS40L26_FW_ROM_ID,
+	.min_rev = CS40L26_FW_ROM_MIN_REV,
+	.halo_state_run = CS40L26_DSP_HALO_STATE_ROM_RUN,
+	.num_coeff_files = 0,
+	.coeff_files = NULL,
+	.fw_file = CS40L26_FW_FILE_NAME_RAM,
+	.write_fw = true,
+};
+
 const struct reg_sequence
 		cs40l26_gpio_setup_asp[CS40L26_NUM_GPIO_SETUP_WRITES] = {
 	{CS40L26_LRCK_PAD_CONTROL, CS40L26_LRCK_PAD_CTRL_ASP},
