@@ -53,6 +53,38 @@ static ssize_t cs40l26_halo_heartbeat_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", halo_heartbeat);
 }
 
+static ssize_t cs40l26_fw_mode_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+
+	if (cs40l26->fw_mode != CS40L26_FW_MODE_ROM
+			&& cs40l26->fw_mode != CS40L26_FW_MODE_RAM) {
+		dev_err(cs40l26->dev, "Invalid firmware mode: %u\n",
+				cs40l26->fw_mode);
+		return -EINVAL;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "Firmware is in %s mode\n",
+		cs40l26->fw_mode == CS40L26_FW_MODE_ROM ? "ROM" : "RAM");
+}
+
+static DEVICE_ATTR(fw_mode, 0660, cs40l26_fw_mode_show, NULL);
+static DEVICE_ATTR(halo_state, 0660, cs40l26_halo_state_show, NULL);
+static DEVICE_ATTR(halo_heartbeat, 0660, cs40l26_halo_heartbeat_show, NULL);
+
+static struct attribute *cs40l26_dev_attrs[] = {
+	&dev_attr_fw_mode.attr,
+	&dev_attr_halo_state.attr,
+	&dev_attr_halo_heartbeat.attr,
+	NULL,
+};
+
+struct attribute_group cs40l26_dev_attr_group = {
+	.name = "default",
+	.attrs = cs40l26_dev_attrs,
+};
+
 static ssize_t cs40l26_debug_hibernate_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -240,20 +272,6 @@ static ssize_t cs40l26_debug_irq_frc2_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "0x%08X\n", val);
 }
-
-static DEVICE_ATTR(halo_state, 0660, cs40l26_halo_state_show, NULL);
-static DEVICE_ATTR(halo_heartbeat, 0660, cs40l26_halo_heartbeat_show, NULL);
-
-static struct attribute *cs40l26_dev_attrs[] = {
-	&dev_attr_halo_state.attr,
-	&dev_attr_halo_heartbeat.attr,
-	NULL,
-};
-
-struct attribute_group cs40l26_dev_attr_group = {
-	.name = "default",
-	.attrs = cs40l26_dev_attrs,
-};
 
 static DEVICE_ATTR(debug_irq_frc2, 0660, cs40l26_debug_irq_frc2_show,
 		cs40l26_debug_irq_frc2_store);
