@@ -107,6 +107,110 @@ int cs40l26_ack_write(struct cs40l26_private *cs40l26,
 }
 EXPORT_SYMBOL(cs40l26_ack_write);
 
+static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
+{
+	struct device *dev = cs40l26->dev;
+	struct regmap *regmap = cs40l26->regmap;
+	u32 base, last, len, write_ptr, read_ptr, mbox_response;
+	u32 *buffer;
+	int ret;
+
+	buffer = kmalloc_array(CS40L26_DSP_MBOX_BUFFER_NUM_REGS,
+			sizeof(*buffer), GFP_KERNEL);
+	if (!buffer)
+		return false;
+
+	ret = regmap_bulk_read(regmap, CS40L26_DSP_MBOX_BUFFER_BASE, buffer,
+			CS40L26_DSP_MBOX_BUFFER_NUM_REGS);
+	if (ret) {
+		dev_err(dev, "Failed to read buffer contents\n");
+		goto err_free;
+	}
+
+	base = buffer[0];
+	len = buffer[1];
+	write_ptr = buffer[2];
+	read_ptr = buffer[3];
+	last = base + ((len - 1) * CL_DSP_BYTES_PER_WORD);
+
+	if ((read_ptr - CL_DSP_BYTES_PER_WORD) == write_ptr) {
+		dev_err(dev, "Mailbox buffer is full, info missing\n");
+		ret = -ENOSPC;
+		goto err_free;
+	}
+
+	if (read_ptr == write_ptr) {
+		dev_warn(dev, "No new message to read\n");
+		ret = 0;
+		goto err_free;
+	}
+
+	ret = regmap_read(regmap, read_ptr, &mbox_response);
+	if (ret) {
+		dev_err(dev, "Failed to read from mailbox buffer\n");
+		goto err_free;
+	}
+
+	if (read_ptr == last)
+		read_ptr = base;
+	else
+		read_ptr += CL_DSP_BYTES_PER_WORD;
+
+	ret = regmap_write(regmap, CS40L26_DSP_MBOX_BUFFER_READ_PTR, read_ptr);
+	if (ret)
+		dev_err(dev, "Failed to update read pointer\n");
+
+err_free:
+	kfree(buffer);
+
+	*val = mbox_response;
+
+	return ret;
+}
+
+static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
+{
+	struct device *dev = cs40l26->dev;
+	u32 val = 0;
+	int ret;
+
+	ret = cs40l26_mbox_buffer_read(cs40l26, &val);
+	if (ret)
+		return ret;
+
+	if ((val & CS40L26_DSP_MBOX_CMD_INDEX_MASK)
+			== CS40L26_DSP_MBOX_PANIC) {
+		dev_alert(dev, "DSP PANIC! Error condition: 0x%06X\n",
+		(unsigned int) (val & CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK));
+		return -ENOTRECOVERABLE;
+	}
+
+	switch (val) {
+	case CS40L26_DSP_MBOX_TRIGGER_COMPLETE:
+		/* this will be needed soon */
+		break;
+	case CS40L26_DSP_MBOX_PM_AWAKE:
+		dev_dbg(dev, "HALO Core is awake\n");
+		break;
+	case CS40L26_DSP_MBOX_F0_EST_START:
+		/* intentionally fall through */
+	case CS40L26_DSP_MBOX_F0_EST_DONE:
+		/* intentionally fall through */
+	case CS40L26_DSP_MBOX_REDC_EST_START:
+		/* intentionally fall through */
+	case CS40L26_DSP_MBOX_REDC_EST_DONE:
+		/* intentionally fall through */
+	case CS40L26_DSP_MBOX_SYS_ACK:
+		dev_err(dev, "Mbox buffer value (0x%X) not supported\n", val);
+		return -EPERM;
+	default:
+		dev_err(dev, "MBOX buffer value (0x%X) is invalid\n", val);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 		enum cs40l26_pm_state state)
 {
@@ -398,10 +502,14 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 		dev_warn(dev, "Previously detected DC level removed\n");
 		break;
 	case CS40L26_IRQ1_VIRTUAL1_MBOX_WR:
-		dev_info(dev, "Virtual 1 MBOX write occurred\n");
+		dev_dbg(dev, "Virtual 1 MBOX write occurred\n");
 		break;
 	case CS40L26_IRQ1_VIRTUAL2_MBOX_WR:
-		dev_info(dev, "Virtual 2 MBOX write occurred\n");
+		dev_dbg(dev, "Virtual 2 MBOX write occurred\n");
+
+		ret = cs40l26_handle_mbox_buffer(cs40l26);
+		if (ret)
+			return ret;
 		break;
 	default:
 		dev_err(dev, "Unrecognized IRQ1 EINT1 status\n");
@@ -654,34 +762,26 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 {
 	struct cs40l26_private *cs40l26 = container_of(work,
 			struct cs40l26_private, vibe_start_work);
-	int ret;
-	unsigned int reg, freq, index;
+	struct device *dev = cs40l26->dev;
+	u16 duration = cs40l26->effect->replay.length;
+	int ret = 0;
+	unsigned int reg, freq;
+	u32 index;
 
 	mutex_lock(&cs40l26->lock);
 
 	hrtimer_start(&cs40l26->vibe_timer,
-		ktime_set(cs40l26->effect->replay.length / 1000,
-		(cs40l26->effect->replay.length % 1000) * 1000000),
-		HRTIMER_MODE_REL);
+			ktime_set(CS40L26_MS_TO_SECS(duration),
+			CS40L26_MS_TO_NS(duration % 1000)), HRTIMER_MODE_REL);
+
+	cs40l26->vibe_state = CS40L26_VIBE_STATE_HAPTIC;
 
 	switch (cs40l26->effect->u.periodic.waveform) {
 	case FF_CUSTOM:
 		index = cs40l26->trigger_indeces[cs40l26->effect->id];
 
-		if (index >= CS40L26_ROM_TRIGGER_INDEX_MIN &&
-				index <= CS40L26_ROM_TRIGGER_INDEX_MAX) {
-			ret = cs40l26_ack_write(cs40l26,
-					CS40L26_DSP_VIRTUAL1_MBOX_1,
-					(index - CS40L26_ROM_TRIGGER_INDEX_MIN)
-					+ CS40L26_ROM_INDEX_START,
-					CS40L26_DSP_MBOX_RESET);
-			if (ret)
-				goto err_mutex;
-		}
-
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-			index + CS40L26_RAM_INDEX_START,
-				CS40L26_DSP_MBOX_RESET);
+				index, CS40L26_DSP_MBOX_RESET);
 		if (ret)
 			goto err_mutex;
 		break;
@@ -690,39 +790,23 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID,
 			&reg);
 		if (ret) {
-			dev_err(cs40l26->dev,
-				"Failed to find BUZZGEN control\n");
+			dev_err(dev, "Failed to find BUZZGEN control\n");
 			goto err_mutex;
 		}
 
-		if (cs40l26->effect->u.periodic.period) {
-			/* cap off frequency at reasonable haptic values */
-			if (cs40l26->effect->u.periodic.period
-					< CS40L26_BUZZGEN_PERIOD_MIN)
-				freq = CS40L26_BUZZGEN_FREQ_MAX;
-			else if (cs40l26->effect->u.periodic.period >
-					CS40L26_BUZZGEN_PERIOD_MAX)
-				freq = CS40L26_BUZZGEN_FREQ_MIN;
-			else
-				freq = 1000 /
-					cs40l26->effect->u.periodic.period;
-		} else {
-			freq = CS40L26_BUZZGEN_FREQ_DEFAULT;
-		}
+		freq = CS40L26_MS_TO_HZ(cs40l26->effect->u.periodic.period);
 
 		ret = regmap_write(cs40l26->regmap, reg, freq);
 		if (ret) {
-			dev_err(cs40l26->dev,
-				"Failed to write BUZZGEN frequency\n");
+			dev_err(dev, "Failed to write BUZZGEN frequency\n");
 			goto err_mutex;
 		}
 
 		ret = regmap_write(cs40l26->regmap,
 				reg + CS40L26_BUZZGEN_DURATION_OFFSET,
-				cs40l26->effect->replay.length);
+				duration);
 		if (ret) {
-			dev_err(cs40l26->dev,
-				"Failed to write BUZZGEN duration\n");
+			dev_err(dev, "Failed to write BUZZGEN duration\n");
 			goto err_mutex;
 		}
 
@@ -733,13 +817,16 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 			goto err_mutex;
 		break;
 	default:
-		dev_err(cs40l26->dev, "Invalid waveform type: 0x%X\n",
+		dev_err(dev, "Invalid waveform type: 0x%X\n",
 				cs40l26->effect->u.periodic.waveform);
 		ret = -EINVAL;
 		goto err_mutex;
 	}
 
 err_mutex:
+	if (ret)
+		cs40l26->vibe_state = CS40L26_VIBE_STATE_STOPPED;
+
 	mutex_unlock(&cs40l26->lock);
 }
 
@@ -751,10 +838,19 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 
 	mutex_lock(&cs40l26->lock);
 
+	if (cs40l26->vibe_state == CS40L26_VIBE_STATE_STOPPED)
+		goto err_mutex;
+
 	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 		CS40L26_STOP_PLAYBACK, CS40L26_DSP_MBOX_RESET);
-	if (ret)
+	if (ret) {
 		dev_err(cs40l26->dev, "Failed to stop playback\n");
+		goto err_mutex;
+	}
+
+err_mutex:
+	if (cs40l26->vibe_state != CS40L26_VIBE_STATE_STOPPED)
+		cs40l26->vibe_state = CS40L26_VIBE_STATE_STOPPED;
 
 	mutex_unlock(&cs40l26->lock);
 }
@@ -797,52 +893,99 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 		struct ff_effect *effect, struct ff_effect *old)
 {
 	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
+	struct device *cdev = cs40l26->dev;
+	s16 *raw_custom_data = NULL;
 	int ret = 0;
-	s16 *raw_custom_data;
-
-	raw_custom_data = kzalloc(sizeof(s16), GFP_KERNEL);
-	if (!raw_custom_data)
-		return -ENOMEM;
+	u16 index, bank;
+	u32 bank_offset, trigger_val;
 
 	if (effect->type != FF_PERIODIC) {
-		dev_err(cs40l26->dev, "Effect type 0x%X not supported\n",
+		dev_err(cdev, "Effect type 0x%X not supported\n",
 				effect->type);
-		ret = -EINVAL;
-		goto err_free;
+		return -EINVAL;
 	}
 
 	if (effect->replay.length < 0 ||
 			effect->replay.length > CS40L26_TIMEOUT_MS_MAX) {
-		dev_err(cs40l26->dev,
-				"Invalid playback duration: %d ms\n",
+		dev_err(cdev, "Invalid playback duration: %d ms\n",
 				effect->replay.length);
-			ret = -EINVAL;
-			goto err_free;
+			return -EINVAL;
 	}
 
 	switch (effect->u.periodic.waveform) {
 	case FF_CUSTOM:
+		raw_custom_data =
+				kzalloc(sizeof(s16) * CS40L26_CUSTOM_DATA_SIZE,
+				GFP_KERNEL);
+		if (!raw_custom_data)
+			return -ENOMEM;
+
 		if (copy_from_user(raw_custom_data,
 				effect->u.periodic.custom_data,
 				sizeof(s16) * effect->u.periodic.custom_len)) {
-			dev_err(cs40l26->dev, "Failed to get user data\n");
+			dev_err(cdev, "Failed to get user data\n");
 			ret = -EFAULT;
 			goto err_free;
 		}
 
-		cs40l26->trigger_indeces[effect->id] =
-				((u16) raw_custom_data[0])
-				& CS40L26_MAX_INDEX_MASK;
+		bank = ((u16) raw_custom_data[0]);
+		switch (bank) {
+		case CS40L26_ROM_BANK0_ID:
+			bank_offset = CS40L26_ROM_BANK0_START;
+			break;
+		case CS40L26_ROM_BANK1_ID:
+			bank_offset = CS40L26_ROM_BANK1_START;
+			break;
+		case CS40L26_ROM_BANK2_ID:
+			bank_offset = CS40L26_ROM_BANK2_START;
+			break;
+		case CS40L26_ROM_BANK3_ID:
+			bank_offset = CS40L26_ROM_BANK3_START;
+			break;
+		case CS40L26_RAM_BANK_ID:
+			bank_offset = CS40L26_RAM_INDEX_START;
+			break;
+		default:
+			dev_err(cdev, "Bank ID (%u) out of bounds\n", bank);
+			ret = -EINVAL;
+			goto err_free;
+		}
+
+		index = ((u16) raw_custom_data[1]) & CS40L26_MAX_INDEX_MASK;
+		trigger_val = index + bank_offset;
+		if ((trigger_val >= CS40L26_RAM_INDEX_START
+				&& trigger_val <= CS40L26_RAM_INDEX_END)
+				|| (trigger_val >= CS40L26_ROM_INDEX_START
+				&& trigger_val <= CS40L26_ROM_INDEX_END)) {
+			cs40l26->trigger_indeces[effect->id] = trigger_val;
+		} else {
+			dev_err(cdev, "Trigger value (0x%X) out of bounds\n",
+					trigger_val);
+			ret = -EINVAL;
+			goto err_free;
+		}
+
 		break;
 	case FF_SINE:
-		/* Nothing special to do in upload */
+		if (effect->u.periodic.period) {
+			if (effect->u.periodic.period
+					< CS40L26_BUZZGEN_PERIOD_MIN
+					|| effect->u.periodic.period
+					> CS40L26_BUZZGEN_PERIOD_MAX) {
+				dev_err(cdev,
+				"%u ms duration not within range (4-10 ms)\n",
+				effect->u.periodic.period);
+				return -EINVAL;
+			}
+		} else {
+			dev_err(cdev, "Sine wave period not specified\n");
+			return -EINVAL;
+		}
 		break;
 	default:
-		dev_err(cs40l26->dev,
-				"Periodic waveform type 0x%X not supported\n",
+		dev_err(cdev, "Periodic waveform type 0x%X not supported\n",
 				effect->u.periodic.waveform);
-		ret = -EINVAL;
-		goto err_free;
+		return -EINVAL;
 	}
 
 err_free:
@@ -943,7 +1086,10 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26)
 	if (!cs40l26->dsp)
 		return -ENOMEM;
 
-	cs40l26->dsp->fw_desc = &cs40l26_fw;
+	if (cs40l26->fw_mode == CS40L26_FW_MODE_ROM)
+		cs40l26->dsp->fw_desc = &cs40l26_fw;
+	else
+		cs40l26->dsp->fw_desc = &cs40l26_ram_fw;
 
 	return 0;
 }
@@ -1456,9 +1602,58 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 
 static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
+	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
 	int ret;
 	u32 reg;
+
+	ret = cs40l26_pseq_init(cs40l26);
+	if (ret)
+		return ret;
+
+	ret = regmap_multi_reg_write(regmap, cs40l26_output_default,
+			CS40L26_NUM_OUTPUT_SETUP_WRITES);
+	if (ret) {
+		dev_err(dev, "Failed to configure output registers\n");
+		return ret;
+	}
+
+	ret = cs40l26_pseq_multi_add_pair(cs40l26, cs40l26_output_default,
+			CS40L26_NUM_OUTPUT_SETUP_WRITES);
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(regmap, CS40L26_IRQ1_MASK_1,
+			BIT(CS40L26_IRQ1_VIRTUAL2_MBOX_WR),
+			0 << CS40L26_IRQ1_VIRTUAL2_MBOX_WR);
+	if (ret) {
+		dev_err(dev, "Failed to unmask mailbox interrupt\n");
+		return ret;
+	}
+
+	ret = cs40l26_iseq_init(cs40l26);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_gpio_config(cs40l26);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_brownout_prevention_init(cs40l26);
+	if (ret)
+		return ret;
+
+	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM) {
+		ret = cl_dsp_get_reg(cs40l26->dsp, "CALL_RAM_INIT",
+				CL_DSP_XM_UNPACKED_TYPE,
+				cs40l26->dsp->fw_desc->id, &reg);
+		if (ret)
+			return ret;
+
+		ret = cs40l26_dsp_write(cs40l26, reg, CS40L26_ENABLE);
+		if (ret)
+			return ret;
+	}
 
 	/* ensure firmware running */
 	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_STATE",
@@ -1474,36 +1669,9 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	/* OTP configures device to allow hibernate on boot */
 	cs40l26->pm_state = CS40L26_PM_STATE_ALLOW_HIBERNATE;
+
 	ret = cs40l26_pm_state_transition(cs40l26,
 			CS40L26_PM_STATE_PREVENT_HIBERNATE);
-	if (ret)
-		return ret;
-
-	ret = cs40l26_pseq_init(cs40l26);
-	if (ret)
-		return ret;
-
-	ret = regmap_multi_reg_write(cs40l26->regmap, cs40l26_output_default,
-			CS40L26_NUM_OUTPUT_SETUP_WRITES);
-	if (ret) {
-		dev_err(dev, "Failed to configure output registers\n");
-		return ret;
-	}
-
-	ret = cs40l26_pseq_multi_add_pair(cs40l26, cs40l26_output_default,
-			CS40L26_NUM_OUTPUT_SETUP_WRITES);
-	if (ret)
-		return ret;
-
-	ret = cs40l26_iseq_init(cs40l26);
-	if (ret)
-		return ret;
-
-	ret = cs40l26_gpio_config(cs40l26);
-	if (ret)
-		return ret;
-
-	ret = cs40l26_brownout_prevention_init(cs40l26);
 	if (ret)
 		return ret;
 
@@ -1511,7 +1679,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	return 0;
 }
 
-void cs40l26_firmware_load(const struct firmware *fw, void *context)
+static void cs40l26_firmware_load(const struct firmware *fw, void *context)
 {
 	struct cs40l26_private *cs40l26 = (struct cs40l26_private *)context;
 	struct device *dev = cs40l26->dev;
@@ -1540,6 +1708,11 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 		dev_err(dev, "No platform data found\n");
 		return -ENOENT;
 	}
+
+	if (of_property_read_bool(np, "cirrus,basic-config"))
+		cs40l26->fw_mode = CS40L26_FW_MODE_ROM;
+	else
+		cs40l26->fw_mode = CS40L26_FW_MODE_RAM;
 
 	cs40l26->pdata.vbbr_en =
 			of_property_read_bool(np, "cirrus,vbbr-enable");
