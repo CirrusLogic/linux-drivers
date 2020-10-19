@@ -44,7 +44,7 @@ ap_ts_pen_1v8: &i2c4 {
 	clock-frequency = <400000>;
 
 	ap_ts: touchscreen@5d {
-		compatible = "hid-over-i2c";
+		compatible = "goodix,gt7375p";
 		reg = <0x5d>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_int_l>, <&ts_reset_l>;
@@ -52,8 +52,7 @@ ap_ts_pen_1v8: &i2c4 {
 		interrupt-parent = <&tlmm>;
 		interrupts = <9 IRQ_TYPE_LEVEL_LOW>;
 
-		post-power-on-delay-ms = <20>;
-		hid-descr-addr = <0x0001>;
+		reset-gpios = <&tlmm 8 GPIO_ACTIVE_LOW>;
 
 		vdd-supply = <&pp3300_ts>;
 	};
@@ -97,6 +96,16 @@ i2c_wlc: &i2c5 {
 
 	pinconf {
 		pins = "gpio52";
+	};
+};
+
+&ts_reset_l {
+	pinconf {
+		/*
+		 * We want reset state by default and it will be up to the
+		 * driver to disable this when it's ready.
+		 */
+		output-low;
 	};
 };
 
