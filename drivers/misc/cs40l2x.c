@@ -1433,9 +1433,14 @@ static ssize_t cs40l2x_cp_trigger_index_impl(struct cs40l2x_private *cs40l2x,
 		break;
 	case CS40L2X_INDEX_PEAK:
 	case CS40L2X_INDEX_PBQ:
-		if (cs40l2x->fw_desc->id == CS40L2X_FW_ID_CAL)
+		if (cs40l2x->fw_desc->id == CS40L2X_FW_ID_CAL) {
+			if (cs40l2x->cal_disabled_owt) {
+				cs40l2x->open_wt_enable = true;
+				cs40l2x->cal_disabled_owt = false;
+			}
 			ret = cs40l2x_firmware_swap(cs40l2x,
 					cs40l2x->fw_id_remap);
+		}
 		break;
 	case CS40L2X_INDEX_IDLE:
 		ret = -EINVAL;
@@ -1466,9 +1471,14 @@ static ssize_t cs40l2x_cp_trigger_index_impl(struct cs40l2x_private *cs40l2x,
 			}
 		}
 
-		if (cs40l2x->fw_desc->id == CS40L2X_FW_ID_CAL)
+		if (cs40l2x->fw_desc->id == CS40L2X_FW_ID_CAL) {
+			if (cs40l2x->cal_disabled_owt) {
+				cs40l2x->open_wt_enable = true;
+				cs40l2x->cal_disabled_owt = false;
+			}
 			ret = cs40l2x_firmware_swap(cs40l2x,
 					cs40l2x->fw_id_remap);
+		}
 	}
 	if (ret)
 		goto err_exit;
@@ -10026,7 +10036,11 @@ static int cs40l2x_firmware_swap(struct cs40l2x_private *cs40l2x,
 	if (fw_id == CS40L2X_FW_ID_CAL) {
 		cs40l2x->diag_state = CS40L2X_DIAG_STATE_INIT;
 		cs40l2x->dsp_cache_depth = 0;
-		cs40l2x->open_wt_enable = false;
+		if (cs40l2x->open_wt_enable) {
+			cs40l2x->open_wt_enable = false;
+			cs40l2x->virtual_bin = false;
+			cs40l2x->cal_disabled_owt = true;
+		}
 	}
 
 	cs40l2x->exc_available = false;
