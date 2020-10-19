@@ -10977,8 +10977,6 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 	bool active;
 	u32 tmp;
 
-	pipe_config->master_transcoder = INVALID_TRANSCODER;
-
 	power_domain = POWER_DOMAIN_PIPE(crtc->pipe);
 	wf = intel_display_power_get_if_enabled(dev_priv, power_domain);
 	if (!wf)
