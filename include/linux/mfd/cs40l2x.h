@@ -1525,6 +1525,7 @@ struct cs40l2x_private {
 	struct hrtimer asp_timer;
 	const struct cs40l2x_fw_desc *fw_desc;
 	unsigned int fw_id_remap;
+	bool cal_disabled_owt;
 	bool comp_enable_pend;
 	bool comp_enable;
 	bool comp_enable_redc;
