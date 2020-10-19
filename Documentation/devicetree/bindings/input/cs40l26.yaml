@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
-%YAML 1.2
+%YAML 0.2
 ---
 $id: http://devicetree.org/schemas/bindings/input/cs40l26.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
@@ -20,6 +20,14 @@ properties:
 
   reg:
     maxItems: 1
+
+  cirrus,basic-config:
+    description:
+      Boolean which, if present, will launch the device in basic (ROM) mode.
+      If this property is not included, the device will boot into full
+      featured (RAM) mode.
+      (Default) RAM mode
+    type: boolean
 
   cirrus,vbbr-enable:
     description:
