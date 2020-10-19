@@ -5929,6 +5929,84 @@ static ssize_t cs40l2x_fw_rev_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%u\n", fw_rev);
 }
 
+static ssize_t cs40l2x_fw_id_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	unsigned int fw_id;
+
+	mutex_lock(&cs40l2x->lock);
+	fw_id = cs40l2x->fw_desc->id;
+	mutex_unlock(&cs40l2x->lock);
+
+	return snprintf(buf, PAGE_SIZE, "0x%06X\n", fw_id);
+}
+
+static ssize_t cs40l2x_fw_swap_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	unsigned int fw_id;
+	int ret;
+
+	ret = kstrtou32(buf, 16, &fw_id);
+	if (ret)
+		return -EINVAL;
+
+	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
+
+	if (fw_id == cs40l2x->fw_desc->id)
+		goto err_exit;
+
+	if (fw_id == CS40L2X_FW_ID_ORIG || fw_id == CS40L2X_FW_ID_B1ROM) {
+		ret = -EINVAL;
+		goto err_exit;
+	}
+
+	if (cs40l2x->revid < CS40L2X_REVID_B1) {
+		ret = -EPERM;
+		goto err_exit;
+	}
+
+	ret = cs40l2x_firmware_swap(cs40l2x, fw_id);
+	if (ret) {
+		dev_err(cs40l2x->dev, "Failed to swap firmware: %d\n", ret);
+		goto err_exit;
+	}
+
+	cs40l2x->fw_id_remap = fw_id;
+
+	cs40l2x->dsp_cache_depth = 0;
+
+	if (cs40l2x->pbq_state != CS40L2X_PBQ_STATE_IDLE) {
+		ret = cs40l2x_cp_dig_scale_set(cs40l2x, cs40l2x->pbq_cp_dig_scale);
+		if (ret)
+			goto err_exit;
+
+		cs40l2x->pbq_state = CS40L2X_PBQ_STATE_IDLE;
+	}
+
+	if (cs40l2x->cp_trigger_index == cs40l2x->virtual_slot_index)
+		cs40l2x_write_virtual_waveform(cs40l2x,
+					       cs40l2x->loaded_virtual_index,
+					       false, false, false);
+
+	dev_info(cs40l2x->dev, "Successfully swapped firmware to 0x%06X\n",
+		 fw_id);
+
+err_exit:
+	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
+
+	if (ret)
+		return ret;
+
+	return count;
+}
+
 static ssize_t cs40l2x_vpp_measured_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -7075,6 +7153,8 @@ static DEVICE_ATTR(num_waves, 0660, cs40l2x_num_waves_show, NULL);
 static DEVICE_ATTR(num_virtual_waves, 0660, cs40l2x_num_virtual_waves_show,
 			NULL);
 static DEVICE_ATTR(fw_rev, 0660, cs40l2x_fw_rev_show, NULL);
+static DEVICE_ATTR(fw_id, 0660, cs40l2x_fw_id_show, NULL);
+static DEVICE_ATTR(fw_swap, 0660, NULL, cs40l2x_fw_swap_store);
 static DEVICE_ATTR(vpp_measured, 0660, cs40l2x_vpp_measured_show, NULL);
 static DEVICE_ATTR(ipp_measured, 0660, cs40l2x_ipp_measured_show, NULL);
 static DEVICE_ATTR(vbatt_max, 0660, cs40l2x_vbatt_max_show,
@@ -7167,6 +7247,8 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_num_waves.attr,
 	&dev_attr_num_virtual_waves.attr,
 	&dev_attr_fw_rev.attr,
+	&dev_attr_fw_id.attr,
+	&dev_attr_fw_swap.attr,
 	&dev_attr_vpp_measured.attr,
 	&dev_attr_ipp_measured.attr,
 	&dev_attr_vbatt_max.attr,
@@ -9882,6 +9964,9 @@ static void cs40l2x_coeff_file_load(const struct firmware *fw, void *context)
 			(cs40l2x->algo_info[0].rev & 0xFF00) >> 8,
 			cs40l2x->algo_info[0].rev & 0xFF);
 
+	dev_info(cs40l2x->dev, "Firmware ID 0x%06X\n",
+		cs40l2x->algo_info[0].id);
+
 	dev_info(cs40l2x->dev,
 			"Max. wavetable size: %d bytes (XM), %d bytes (YM)\n",
 			cs40l2x->wt_limit_xm / 4 * 3,
@@ -10159,6 +10244,8 @@ static int cs40l2x_firmware_swap(struct cs40l2x_private *cs40l2x,
 		if (ret)
 			return ret;
 	}
+
+	cs40l2x->dsp_reg = NULL;
 
 	ret = regmap_update_bits(regmap, CS40L2X_DSP1_CCM_CORE_CTRL,
 			CS40L2X_DSP1_EN_MASK, (0 << CS40L2X_DSP1_EN_SHIFT));
