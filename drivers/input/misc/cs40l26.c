@@ -303,7 +303,15 @@ static int cs40l26_error_release(struct cs40l26_private *cs40l26,
 	 * and a new interrupt is generated.
 	 */
 
-	err_cfg = err_sts | (1 << err_rls);
+	err_cfg = err_sts & ~BIT(err_rls);
+
+	ret = regmap_write(cs40l26->regmap, CS40L26_ERROR_RELEASE, err_cfg);
+	if (ret) {
+		dev_err(dev, "Actuator Safe Mode release sequence failed\n");
+		return ret;
+	}
+
+	err_cfg |= BIT(err_rls);
 
 	ret = regmap_write(regmap, CS40L26_ERROR_RELEASE, err_cfg);
 	if (ret) {
@@ -311,19 +319,13 @@ static int cs40l26_error_release(struct cs40l26_private *cs40l26,
 		return ret;
 	}
 
-	err_cfg &= ~(1 << err_rls);
+	err_cfg &= ~BIT(err_rls);
 
 	ret = regmap_write(cs40l26->regmap, CS40L26_ERROR_RELEASE, err_cfg);
 	if (ret) {
 		dev_err(dev, "Actuator Safe Mode release sequence failed\n");
 		return ret;
 	}
-
-	err_cfg |= (1 << err_rls);
-
-	ret = regmap_write(cs40l26->regmap, CS40L26_ERROR_RELEASE, err_cfg);
-	if (ret)
-		dev_err(dev, "Actuator Safe Mode release sequence failed\n");
 
 	return ret;
 }
