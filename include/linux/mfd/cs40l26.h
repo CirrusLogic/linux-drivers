@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/sysfs.h>
+#include <linux/bitops.h>
 
 #include <linux/mfd/cl_dsp.h>
 
