@@ -1345,10 +1345,21 @@ static void vdec_event_change(struct venus_inst *inst,
 
 	inst->width = format.fmt.pix_mp.width;
 	inst->height = format.fmt.pix_mp.height;
-	inst->crop.left = ev_data->input_crop.left;
-	inst->crop.top = ev_data->input_crop.top;
-	inst->crop.width = ev_data->input_crop.width;
-	inst->crop.height = ev_data->input_crop.height;
+	/*
+	 * Some versions of the firmware do not report crop information for
+	 * all codecs. For these cases, set the crop to the coded resolution.
+	 */
+	if (ev_data->input_crop.width > 0 && ev_data->input_crop.height > 0) {
+		inst->crop.left = ev_data->input_crop.left;
+		inst->crop.top = ev_data->input_crop.top;
+		inst->crop.width = ev_data->input_crop.width;
+		inst->crop.height = ev_data->input_crop.height;
+	} else {
+		inst->crop.left = 0;
+		inst->crop.top = 0;
+		inst->crop.width = ev_data->width;
+		inst->crop.height = ev_data->height;
+	}
 
 	inst->out_width = ev_data->width;
 	inst->out_height = ev_data->height;
