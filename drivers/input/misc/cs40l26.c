@@ -802,8 +802,9 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 {
 	struct cs40l26_private *cs40l26 = container_of(work,
 			struct cs40l26_private, vibe_start_work);
-	struct device *dev = cs40l26->dev;
 	u16 duration = cs40l26->effect->replay.length;
+	struct regmap *regmap = cs40l26->regmap;
+	struct device *dev = cs40l26->dev;
 	int ret = 0;
 	unsigned int reg, freq;
 	u32 index;
@@ -826,7 +827,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 			goto err_mutex;
 		break;
 	case FF_SINE:
-		ret = cl_dsp_get_reg(cs40l26->dsp, "BUZZ_EFFECTS1_BUZZ_FREQ",
+		ret = cl_dsp_get_reg(cs40l26->dsp, "BUZZ_EFFECTS2_BUZZ_FREQ",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID,
 			&reg);
 		if (ret) {
@@ -836,22 +837,29 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 
 		freq = CS40L26_MS_TO_HZ(cs40l26->effect->u.periodic.period);
 
-		ret = regmap_write(cs40l26->regmap, reg, freq);
+		ret = regmap_write(regmap, reg, freq);
 		if (ret) {
 			dev_err(dev, "Failed to write BUZZGEN frequency\n");
 			goto err_mutex;
 		}
 
-		ret = regmap_write(cs40l26->regmap,
+		ret = regmap_write(regmap, reg + CS40L26_BUZZGEN_LEVEL_OFFSET,
+				CS40L26_BUZZGEN_LEVEL_DEFAULT);
+		if (ret) {
+			dev_err(dev, "Failed to write BUZZGEN level\n");
+			goto err_mutex;
+		}
+
+		ret = regmap_write(regmap,
 				reg + CS40L26_BUZZGEN_DURATION_OFFSET,
-				duration);
+				duration / CS40L26_BUZZGEN_DURATION_DIV_STEP);
 		if (ret) {
 			dev_err(dev, "Failed to write BUZZGEN duration\n");
 			goto err_mutex;
 		}
 
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-					CS40L26_BUZZGEN_INDEX_START,
+					CS40L26_BUZZGEN_INDEX_CP_TRIGGER,
 					CS40L26_DSP_MBOX_RESET);
 		if (ret)
 			goto err_mutex;
@@ -1013,7 +1021,7 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 					|| effect->u.periodic.period
 					> CS40L26_BUZZGEN_PERIOD_MAX) {
 				dev_err(cdev,
-				"%u ms duration not within range (4-10 ms)\n",
+				"%u ms period not within range (4-10 ms)\n",
 				effect->u.periodic.period);
 				return -EINVAL;
 			}
