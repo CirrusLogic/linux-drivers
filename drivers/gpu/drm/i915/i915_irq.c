@@ -348,17 +348,14 @@ void ilk_update_display_irq(struct drm_i915_private *dev_priv,
 	u32 new_val;
 
 	lockdep_assert_held(&dev_priv->irq_lock);
-
 	drm_WARN_ON(&dev_priv->drm, enabled_irq_mask & ~interrupt_mask);
-
-	if (drm_WARN_ON(&dev_priv->drm, !intel_irqs_enabled(dev_priv)))
-		return;
 
 	new_val = dev_priv->irq_mask;
 	new_val &= ~interrupt_mask;
 	new_val |= (~enabled_irq_mask & interrupt_mask);
 
-	if (new_val != dev_priv->irq_mask) {
+	if (new_val != dev_priv->irq_mask &&
+	    !drm_WARN_ON(&dev_priv->drm, !intel_irqs_enabled(dev_priv))) {
 		dev_priv->irq_mask = new_val;
 		intel_uncore_write(&dev_priv->uncore, DEIMR, dev_priv->irq_mask);
 		intel_uncore_posting_read(&dev_priv->uncore, DEIMR);
@@ -2986,6 +2983,8 @@ static void ilk_irq_reset(struct drm_i915_private *dev_priv)
 	struct intel_uncore *uncore = &dev_priv->uncore;
 
 	GEN3_IRQ_RESET(uncore, DE);
+	dev_priv->irq_mask = ~0u;
+
 	if (IS_GEN(dev_priv, 7))
 		intel_uncore_write(uncore, GEN7_ERR_INT, 0xffffffff);
 
@@ -3793,6 +3792,7 @@ static void i8xx_irq_reset(struct drm_i915_private *dev_priv)
 	i9xx_pipestat_irq_reset(dev_priv);
 
 	GEN2_IRQ_RESET(uncore);
+	dev_priv->irq_mask = ~0u;
 }
 
 static void i8xx_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -3962,6 +3962,7 @@ static void i915_irq_reset(struct drm_i915_private *dev_priv)
 	i9xx_pipestat_irq_reset(dev_priv);
 
 	GEN3_IRQ_RESET(uncore, GEN2_);
+	dev_priv->irq_mask = ~0u;
 }
 
 static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -4068,6 +4069,7 @@ static void i965_irq_reset(struct drm_i915_private *dev_priv)
 	i9xx_pipestat_irq_reset(dev_priv);
 
 	GEN3_IRQ_RESET(uncore, GEN2_);
+	dev_priv->irq_mask = ~0u;
 }
 
 static void i965_irq_postinstall(struct drm_i915_private *dev_priv)
