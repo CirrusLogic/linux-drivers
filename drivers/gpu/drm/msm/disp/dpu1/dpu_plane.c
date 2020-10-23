@@ -1611,7 +1611,7 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 		num_formats = pdpu->pipe_sblk->num_formats;
 	}
 
-	ret = drm_universal_plane_init(dev, plane, 0xff, &dpu_plane_funcs,
+	ret = drm_universal_plane_init(dev, plane, possible_crtcs, &dpu_plane_funcs,
 				format_list, num_formats,
 				supported_format_modifiers, type, NULL);
 	if (ret)
