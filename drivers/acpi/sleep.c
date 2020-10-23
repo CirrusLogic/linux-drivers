@@ -714,6 +714,11 @@ static const struct acpi_device_id lps0_device_ids[] = {
 #define ACPI_LPS0_ENTRY		5
 #define ACPI_LPS0_EXIT		6
 
+/* AMD */
+#define ACPI_LPS0_DSM_UUID_AMD      "e3f32452-febc-43ce-9039-932122d37721"
+#define ACPI_LPS0_SCREEN_OFF_AMD    4
+#define ACPI_LPS0_SCREEN_ON_AMD     5
+
 static acpi_handle lps0_device_handle;
 static guid_t lps0_dsm_guid;
 static char lps0_dsm_func_mask;
@@ -737,8 +742,128 @@ struct lpi_constraints {
 	int min_dstate;
 };
 
+/* AMD */
+/* Device constraint entry structure */
+struct lpi_device_info_amd {
+	int revision;
+	int count;
+	union acpi_object *package;
+};
+
+/* Constraint package structure */
+struct lpi_device_constraint_amd {
+	char *name;
+	int enabled;
+	int function_states;
+	int min_dstate;
+};
+
 static struct lpi_constraints *lpi_constraints_table;
 static int lpi_constraints_table_size;
+static int rev_id;
+
+static void lpi_device_get_constraints_amd(void)
+{
+	union acpi_object *out_obj;
+	int i, j, k;
+
+	out_obj = acpi_evaluate_dsm_typed(lps0_device_handle, &lps0_dsm_guid,
+					  1, ACPI_LPS0_GET_DEVICE_CONSTRAINTS,
+					  NULL, ACPI_TYPE_PACKAGE);
+
+	if (!out_obj)
+		return;
+
+	acpi_handle_info(lps0_device_handle, "_DSM function 1 eval %s\n",
+			 out_obj ? "successful" : "failed");
+
+	for (i = 0; i < out_obj->package.count; i++) {
+		union acpi_object *package = &out_obj->package.elements[i];
+		struct lpi_device_info_amd info = { };
+
+		if (package->type == ACPI_TYPE_INTEGER) {
+			switch (i) {
+			case 0:
+				info.revision = package->integer.value;
+				break;
+			case 1:
+				info.count = package->integer.value;
+				break;
+			default:
+				break;
+			}
+		} else if (package->type == ACPI_TYPE_PACKAGE) {
+			lpi_constraints_table = kcalloc(package->package.count,
+							sizeof(*lpi_constraints_table),
+							GFP_KERNEL);
+
+			if (!lpi_constraints_table)
+				goto free_acpi_buffer;
+
+			acpi_handle_info(lps0_device_handle,
+					 "LPI: constraints list begin:\n");
+
+			for (j = 0; j < package->package.count; ++j) {
+				union acpi_object *info_obj = &package->package.elements[j];
+				struct lpi_device_constraint_amd dev_info = {};
+				struct lpi_constraints *list;
+				acpi_status status;
+
+				for (k = 0; k < info_obj->package.count; ++k) {
+					union acpi_object *obj = &info_obj->package.elements[k];
+					union acpi_object *obj_new;
+
+					list = &lpi_constraints_table[lpi_constraints_table_size];
+					list->min_dstate = -1;
+
+					obj_new = &obj[k];
+					switch (k) {
+					case 0:
+						dev_info.enabled = obj->integer.value;
+						break;
+					case 1:
+						dev_info.name = obj->string.pointer;
+						break;
+					case 2:
+						dev_info.function_states = obj->integer.value;
+						break;
+					case 3:
+						dev_info.min_dstate = obj->integer.value;
+						break;
+					default:
+						break;
+					}
+
+					if (!dev_info.enabled || !dev_info.name ||
+					    !dev_info.min_dstate)
+						continue;
+
+					status = acpi_get_handle(NULL, dev_info.name,
+								 &list->handle);
+					if (ACPI_FAILURE(status))
+						continue;
+
+					acpi_handle_info(lps0_device_handle,
+							 "index:%d Name:%s\n", k, dev_info.name);
+
+					list->min_dstate = dev_info.min_dstate;
+
+					if (list->min_dstate < 0) {
+						acpi_handle_info(lps0_device_handle,
+								 "Incomplete constraint defined\n");
+						continue;
+					}
+				}
+				lpi_constraints_table_size++;
+			}
+		}
+	}
+
+	acpi_handle_info(lps0_device_handle, "LPI: constraints list end\n");
+
+free_acpi_buffer:
+	ACPI_FREE(out_obj);
+}
 
 static void lpi_device_get_constraints(void)
 {
@@ -887,7 +1012,7 @@ static void acpi_sleep_run_lps0_dsm(unsigned int func)
 	if (!(lps0_dsm_func_mask & (1 << func)))
 		return;
 
-	out_obj = acpi_evaluate_dsm(lps0_device_handle, &lps0_dsm_guid, 1, func, NULL);
+	out_obj = acpi_evaluate_dsm(lps0_device_handle, &lps0_dsm_guid, rev_id, func, NULL);
 	ACPI_FREE(out_obj);
 
 	acpi_handle_debug(lps0_device_handle, "_DSM function %u evaluation %s\n",
@@ -898,6 +1023,7 @@ static int lps0_device_attach(struct acpi_device *adev,
 			      const struct acpi_device_id *not_used)
 {
 	union acpi_object *out_obj;
+	struct cpuinfo_x86 *c = &boot_cpu_data;
 
 	if (lps0_device_handle)
 		return 0;
@@ -905,9 +1031,17 @@ static int lps0_device_attach(struct acpi_device *adev,
 	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0))
 		return 0;
 
-	guid_parse(ACPI_LPS0_DSM_UUID, &lps0_dsm_guid);
+	if (c->x86_vendor == X86_VENDOR_AMD) {
+		guid_parse(ACPI_LPS0_DSM_UUID_AMD, &lps0_dsm_guid);
+		out_obj = acpi_evaluate_dsm(adev->handle, &lps0_dsm_guid, 0, 0, NULL);
+		rev_id = 0;
+	} else {
+		guid_parse(ACPI_LPS0_DSM_UUID, &lps0_dsm_guid);
+		out_obj = acpi_evaluate_dsm(adev->handle, &lps0_dsm_guid, 1, 0, NULL);
+		rev_id = 1;
+	}
+
 	/* Check if the _DSM is present and as expected. */
-	out_obj = acpi_evaluate_dsm(adev->handle, &lps0_dsm_guid, 1, 0, NULL);
 	if (!out_obj || out_obj->type != ACPI_TYPE_BUFFER) {
 		acpi_handle_debug(adev->handle,
 				  "_DSM function 0 evaluation failed\n");
@@ -923,7 +1057,12 @@ static int lps0_device_attach(struct acpi_device *adev,
 
 	lps0_device_handle = adev->handle;
 
-	lpi_device_get_constraints();
+	if (c->x86_vendor == X86_VENDOR_AMD) {
+		acpi_handle_info(adev->handle, "lpi_device_get_constraints_amd\n");
+		lpi_device_get_constraints_amd();
+	} else {
+		lpi_device_get_constraints();
+	}
 
 	/*
 	 * Use suspend-to-idle by default if the default suspend mode was not
@@ -972,14 +1111,19 @@ static int acpi_s2idle_prepare(void)
 
 static int acpi_s2idle_prepare_late(void)
 {
+	struct cpuinfo_x86 *c = &boot_cpu_data;
 	if (!lps0_device_handle || sleep_no_lps0)
 		return 0;
 
 	if (pm_debug_messages_on)
 		lpi_check_constraints();
 
-	acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF);
-	acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY);
+	if (c->x86_vendor == X86_VENDOR_AMD) {
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF_AMD);
+	} else {
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF);
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY);
+	}
 
 	return 0;
 }
@@ -1052,11 +1196,17 @@ static bool acpi_s2idle_wake(void)
 
 static void acpi_s2idle_restore_early(void)
 {
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+
 	if (!lps0_device_handle || sleep_no_lps0)
 		return;
 
-	acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT);
-	acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_ON);
+	if (c->x86_vendor == X86_VENDOR_AMD) {
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_ON_AMD);
+	} else {
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT);
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_ON);
+	}
 }
 
 static void acpi_s2idle_restore(void)
