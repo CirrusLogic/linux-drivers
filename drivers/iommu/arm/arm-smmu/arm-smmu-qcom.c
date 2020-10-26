@@ -163,14 +163,11 @@ struct arm_smmu_device *qcom_smmu_impl_init(struct arm_smmu_device *smmu)
 	if (!qcom_scm_is_available())
 		return ERR_PTR(-EPROBE_DEFER);
 
-	qsmmu = devm_kzalloc(smmu->dev, sizeof(*qsmmu), GFP_KERNEL);
+	qsmmu = devm_krealloc(smmu->dev, smmu, sizeof(*qsmmu), GFP_KERNEL);
 	if (!qsmmu)
 		return ERR_PTR(-ENOMEM);
 
-	qsmmu->smmu = *smmu;
-
 	qsmmu->smmu.impl = &qcom_smmu_impl;
-	devm_kfree(smmu->dev, smmu);
 
 	return &qsmmu->smmu;
 }
