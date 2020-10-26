@@ -134,7 +134,9 @@ struct cs35l45_private {
 	struct gpio_desc *reset_gpio;
 	struct regulator_bulk_data supplies[CS35L45_NUM_SUPPLIES];
 	struct cs35l45_platform_data pdata;
+	struct work_struct dsp_pmd_work;
 	struct mutex rate_lock;
+	struct mutex dsp_pmd_lock;
 	enum dapm_route_mode dapm_mode;
 	bool initialized;
 	bool fast_switch_en;

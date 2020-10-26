@@ -269,6 +269,36 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en);
 static int cs35l45_set_sysclk(struct cs35l45_private *cs35l45, int clk_id,
 			      unsigned int freq);
 
+static void cs35l45_dsp_pmd_work(struct work_struct *work)
+{
+	struct cs35l45_private *cs35l45 = container_of(work,
+						       struct cs35l45_private,
+						       dsp_pmd_work);
+	unsigned int pll_sts, pwr_sts, timeout;
+
+	mutex_lock(&cs35l45->dsp_pmd_lock);
+
+	timeout = 50;
+	do {
+		regmap_read(cs35l45->regmap, CS35L45_IRQ1_STS_1, &pwr_sts);
+		regmap_read(cs35l45->regmap, CS35L45_IRQ1_STS_3, &pll_sts);
+
+		pwr_sts &= CS35L45_MSM_GLOBAL_EN_ASSERT_MASK;
+		pll_sts &= CS35L45_PLL_LOCK_FLAG_MASK;
+
+		usleep_range(1000, 1100);
+		timeout--;
+	} while (pwr_sts && pll_sts && timeout);
+
+	if (timeout == 0)
+		dev_err(cs35l45->dev, "Timeout for PLL disable conditions\n");
+	else
+		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+				   CS35L45_PLL_FORCE_EN_MASK, 0);
+
+	mutex_unlock(&cs35l45->dsp_pmd_lock);
+}
+
 static bool cs35l45_is_csplmboxsts_correct(enum cspl_mboxcmd cmd,
 					   enum cspl_mboxstate sts)
 {
@@ -469,6 +499,14 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 			return -EPERM;
 		}
 
+		flush_work(&cs35l45->dsp_pmd_work);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+				   CS35L45_PLL_FORCE_EN_MASK,
+				   CS35L45_PLL_FORCE_EN_MASK);
+
+		usleep_range(5000, 5100);
+
 		mboxcmd = CSPL_MBOX_CMD_RESUME;
 		ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
 		if (ret < 0)
@@ -484,6 +522,9 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 		ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
 		if (ret < 0)
 			dev_err(cs35l45->dev, "MBOX failure (%d)\n", ret);
+
+		queue_work(system_unbound_wq, &cs35l45->dsp_pmd_work);
+
 		break;
 	default:
 		dev_err(cs35l45->dev, "Invalid event = 0x%x\n", event);
@@ -1011,10 +1052,6 @@ static int cs35l45_dsp_boot_put(struct snd_kcontrol *kcontrol,
 
 		snd_soc_dapm_sync(dapm);
 
-		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-				   CS35L45_PLL_FORCE_EN_MASK,
-				   CS35L45_PLL_FORCE_EN_MASK);
-
 		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES2,
 				   CS35L45_SYNC_EN_MASK, CS35L45_SYNC_EN_MASK);
 
@@ -1026,9 +1063,6 @@ static int cs35l45_dsp_boot_put(struct snd_kcontrol *kcontrol,
 		cs35l45_set_dapm_route_mode(cs35l45, DAPM_MODE_ASP);
 
 		snd_soc_dapm_sync(dapm);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-				   CS35L45_PLL_FORCE_EN_MASK, 0);
 
 		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES2,
 				   CS35L45_SYNC_EN_MASK, 0);
@@ -2154,6 +2188,8 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 			return -EINVAL;
 		}
 
+		flush_work(&cs35l45->dsp_pmd_work);
+
 		cmd = CSPL_MBOX_CMD_HIBERNATE;
 		regmap_write(cs35l45->regmap, CS35L45_DSP_VIRT1_MBOX_1, cmd);
 
@@ -2434,6 +2470,10 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 
 	cs35l45->fast_switch_en = false;
 	cs35l45->fast_switch_file_idx = 0;
+
+	INIT_WORK(&cs35l45->dsp_pmd_work, cs35l45_dsp_pmd_work);
+
+	mutex_init(&cs35l45->dsp_pmd_lock);
 
 	for (i = 0; i < ARRAY_SIZE(cs35l45_supplies); i++)
 		cs35l45->supplies[i].supply = cs35l45_supplies[i];
