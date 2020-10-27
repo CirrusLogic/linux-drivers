@@ -882,6 +882,7 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	return 0;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 static void mmhub_read_system_context(struct amdgpu_device *adev, struct dc_phy_addr_space_config *pa_config)
 {
 	uint64_t pt_base;
@@ -934,6 +935,7 @@ static void mmhub_read_system_context(struct amdgpu_device *adev, struct dc_phy_
 	pa_config->is_hvm_enabled = 0;
 
 }
+#endif
 
 static int amdgpu_dm_init(struct amdgpu_device *adev)
 {
@@ -941,7 +943,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct dc_callback_init init_params;
 #endif
-	struct dc_phy_addr_space_config pa_config;
 	int r;
 
 	adev->dm.ddev = adev_to_drm(adev);
@@ -1047,6 +1048,8 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (adev->asic_type == CHIP_RENOIR) {
+		struct dc_phy_addr_space_config pa_config;
+
 		mmhub_read_system_context(adev, &pa_config);
 
 		// Call the DC init_memory func
