@@ -1130,16 +1130,22 @@ static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
 
 static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26)
 {
+	int ret = 0;
+
 	cs40l26->dsp = cl_dsp_create(cs40l26->dev, cs40l26->regmap);
 	if (!cs40l26->dsp)
 		return -ENOMEM;
 
-	if (cs40l26->fw_mode == CS40L26_FW_MODE_ROM)
+	if (cs40l26->fw_mode == CS40L26_FW_MODE_ROM) {
 		cs40l26->dsp->fw_desc = &cs40l26_fw;
-	else
+	} else {
 		cs40l26->dsp->fw_desc = &cs40l26_ram_fw;
+		ret = cl_dsp_wavetable_create(cs40l26->dsp,
+				CS40L26_VIBEGEN_ALGO_ID, "WAVE_XM_TABLE",
+				"WAVE_YM_TABLE", "cs40l26.bin");
+	}
 
-	return 0;
+	return ret;
 }
 
 static bool cs40l26_pseq_addr_exists(struct cs40l26_private *cs40l26, u16 addr,
@@ -1630,6 +1636,27 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 	return 0;
 }
 
+int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves)
+{
+	int ret;
+	u32 reg;
+
+	/* dummy trigger to activate NUM_OF_WAVES */
+	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+			CS40L26_RAM_INDEX_END, CS40L26_DSP_MBOX_RESET);
+	if (ret)
+		return ret;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "NUM_OF_WAVES",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (ret)
+		return ret;
+
+	return cs40l26_dsp_read(cs40l26, reg, num_waves);
+}
+EXPORT_SYMBOL(cs40l26_get_num_waves);
+
 static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
@@ -1702,15 +1729,53 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
+	ret = cs40l26_get_num_waves(cs40l26, &cs40l26->num_waves);
+	if (ret)
+		return ret;
+
+	dev_info(dev, "%s loaded with %u RAM waveforms\n", CS40L26_DEV_NAME,
+			cs40l26->num_waves);
+
 	enable_irq(cs40l26->irq);
 	return 0;
+}
+
+static void cs40l26_coeff_file_load(const struct firmware *fw, void *context)
+{
+	struct cs40l26_private *cs40l26 = (struct cs40l26_private *)context;
+	unsigned int num_coeff_files = cs40l26->dsp->fw_desc->num_coeff_files;
+	unsigned int *num_load_attempts = &cs40l26->num_loaded_coeff_files;
+	struct device *dev = cs40l26->dev;
+
+	mutex_lock(&cs40l26->lock);
+
+	if (!fw) {
+		dev_warn(dev, "No coefficient file provided, continuing..\n");
+
+		cs40l26_dsp_config(cs40l26);
+		goto mutex_exit;
+	}
+
+	if (cl_dsp_coeff_file_parse(cs40l26->dsp, fw))
+		dev_warn(dev, "Could not load coefficient file %s\n",
+			cs40l26->dsp->fw_desc->coeff_files[*num_load_attempts]);
+	else
+		*num_load_attempts = *num_load_attempts + 1;
+
+	release_firmware(fw);
+
+	if (*num_load_attempts == num_coeff_files)
+		cs40l26_dsp_config(cs40l26);
+
+mutex_exit:
+	mutex_unlock(&cs40l26->lock);
 }
 
 static void cs40l26_firmware_load(const struct firmware *fw, void *context)
 {
 	struct cs40l26_private *cs40l26 = (struct cs40l26_private *)context;
 	struct device *dev = cs40l26->dev;
-	int ret;
+	int ret, i;
 
 	if (!fw) {
 		dev_err(dev, "Failed to request firmware file\n");
@@ -1722,7 +1787,14 @@ static void cs40l26_firmware_load(const struct firmware *fw, void *context)
 	if (ret)
 		return;
 
-	cs40l26_dsp_config(cs40l26);
+	if (cs40l26->dsp->fw_desc->num_coeff_files) {
+		for (i = 0; i < cs40l26->dsp->fw_desc->num_coeff_files; i++)
+			request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+				cs40l26->dsp->fw_desc->coeff_files[i], dev,
+				GFP_KERNEL, cs40l26, cs40l26_coeff_file_load);
+	} else {
+		cs40l26_dsp_config(cs40l26);
+	}
 }
 
 static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
