@@ -642,8 +642,6 @@
 
 #define CS40L26_DSP_MBOX_RESET			0x0
 
-#define CS40L26_DSP_MBOX_CMD_TRIGGER			0x1800000
-
 #define CS40L26_DSP_MBOX_CMD_HIBER			0x02000001
 #define CS40L26_DSP_MBOX_CMD_WAKEUP			0x02000002
 #define CS40L26_DSP_MBOX_CMD_PREVENT_HIBER		0x02000003
@@ -672,8 +670,6 @@
 #define CS40L26_DSP_MBOX_PANIC			0x0C000000
 
 /* Firmware Mode */
-#define CS40L26_FW_FILE_MAX_LEN	32
-
 #define CS40L26_FW_FILE_NAME		"cs40l26.wmfw"
 #define CS40L26_FW_FILE_NAME_RAM	"cs40l26-ram.wmfw"
 
@@ -727,9 +723,6 @@
 #define CS40L26_ROM_BANK3_START		0x01800021
 #define CS40L26_ROM_BANK3_END			0x01800026
 #define CS40L26_ROM_BANK3_ID			3
-
-#define CS40L26_ROM_TRIGGER_INDEX_MIN		0xFFD3
-#define CS40L26_ROM_TRIGGER_INDEX_MAX		0xFFFE
 
 #define CS40L26_BUZZGEN_INDEX_START		0x01800080
 #define CS40L26_BUZZGEN_INDEX_CP_TRIGGER	0x01800081
@@ -1048,9 +1041,12 @@ struct cs40l26_private {
 	struct cs40l26_iseq_pair iseq_table[CS40L26_ISEQ_MAX_ENTRIES];
 	enum cs40l26_fw_mode fw_mode;
 	enum cs40l26_vibe_state vibe_state;
+	int num_loaded_coeff_files;
+	u32 num_waves;
 };
 
 /* exported functions */
+int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves);
 int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 		enum cs40l26_pm_state state);
 int cs40l26_iseq_update(struct cs40l26_private *cs40l26,
