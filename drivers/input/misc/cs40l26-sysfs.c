@@ -32,6 +32,7 @@ static ssize_t cs40l26_halo_state_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", halo_state);
 }
+static DEVICE_ATTR(halo_state, 0660, cs40l26_halo_state_show, NULL);
 
 static ssize_t cs40l26_halo_heartbeat_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -52,6 +53,7 @@ static ssize_t cs40l26_halo_heartbeat_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", halo_heartbeat);
 }
+static DEVICE_ATTR(halo_heartbeat, 0660, cs40l26_halo_heartbeat_show, NULL);
 
 static ssize_t cs40l26_fw_mode_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -68,12 +70,20 @@ static ssize_t cs40l26_fw_mode_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "Firmware is in %s mode\n",
 		cs40l26->fw_mode == CS40L26_FW_MODE_ROM ? "ROM" : "RAM");
 }
-
 static DEVICE_ATTR(fw_mode, 0660, cs40l26_fw_mode_show, NULL);
-static DEVICE_ATTR(halo_state, 0660, cs40l26_halo_state_show, NULL);
-static DEVICE_ATTR(halo_heartbeat, 0660, cs40l26_halo_heartbeat_show, NULL);
+
+
+static ssize_t cs40l26_num_waves_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", cs40l26->num_waves);
+}
+static DEVICE_ATTR(num_waves, 0660, cs40l26_num_waves_show, NULL);
 
 static struct attribute *cs40l26_dev_attrs[] = {
+	&dev_attr_num_waves.attr,
 	&dev_attr_fw_mode.attr,
 	&dev_attr_halo_state.attr,
 	&dev_attr_halo_heartbeat.attr,
@@ -128,6 +138,9 @@ static ssize_t cs40l26_debug_hibernate_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
+static DEVICE_ATTR(debug_hibernate, 0660, cs40l26_debug_hibernate_show,
+	cs40l26_debug_hibernate_store);
+
 
 static ssize_t cs40l26_debug_irq_mask1_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -164,6 +177,8 @@ static ssize_t cs40l26_debug_irq_mask1_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "0x%08X\n", val);
 }
+static DEVICE_ATTR(debug_irq_mask1, 0660, cs40l26_debug_irq_mask1_show,
+	cs40l26_debug_irq_mask1_store);
 
 static ssize_t cs40l26_debug_irq_mask2_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -200,6 +215,8 @@ static ssize_t cs40l26_debug_irq_mask2_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "0x%08X\n", val);
 }
+static DEVICE_ATTR(debug_irq_mask2, 0660, cs40l26_debug_irq_mask2_show,
+	cs40l26_debug_irq_mask2_store);
 
 static ssize_t cs40l26_debug_irq_frc1_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -236,6 +253,8 @@ static ssize_t cs40l26_debug_irq_frc1_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "0x%08X\n", val);
 }
+static DEVICE_ATTR(debug_irq_frc1, 0660, cs40l26_debug_irq_frc1_show,
+	cs40l26_debug_irq_frc1_store);
 
 static ssize_t cs40l26_debug_irq_frc2_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -272,17 +291,8 @@ static ssize_t cs40l26_debug_irq_frc2_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "0x%08X\n", val);
 }
-
 static DEVICE_ATTR(debug_irq_frc2, 0660, cs40l26_debug_irq_frc2_show,
-		cs40l26_debug_irq_frc2_store);
-static DEVICE_ATTR(debug_irq_frc1, 0660, cs40l26_debug_irq_frc1_show,
-		cs40l26_debug_irq_frc1_store);
-static DEVICE_ATTR(debug_irq_mask2, 0660, cs40l26_debug_irq_mask2_show,
-		cs40l26_debug_irq_mask2_store);
-static DEVICE_ATTR(debug_irq_mask1, 0660, cs40l26_debug_irq_mask1_show,
-		cs40l26_debug_irq_mask1_store);
-static DEVICE_ATTR(debug_hibernate, 0660, cs40l26_debug_hibernate_show,
-		cs40l26_debug_hibernate_store);
+	cs40l26_debug_irq_frc2_store);
 
 static struct attribute *cs40l26_debug_dev_attrs[] = {
 	&dev_attr_debug_irq_frc2.attr,
