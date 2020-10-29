@@ -260,25 +260,17 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 		enum cs40l26_pm_state state)
 {
 	struct device *dev = cs40l26->dev;
-	struct regmap *regmap = cs40l26->regmap;
 	int ret;
-	u32 val;
 
 	if (cs40l26->pm_state == state)
 		return 0;
 
 	if (cs40l26->pm_state == CS40L26_PM_STATE_ALLOW_HIBERNATE
 			&& state == CS40L26_PM_STATE_PREVENT_HIBERNATE) {
-		ret = regmap_read(regmap, CL_DSP_HALO_XM_FW_ID_REG, &val);
-		if (ret) {
-			dev_err(dev, "Failed to read firmware ID\n");
+		ret = cs40l26_ack_read(cs40l26, CL_DSP_HALO_XM_FW_ID_REG,
+				cs40l26->dsp->fw_desc->id);
+		if (ret)
 			return ret;
-		}
-
-		if (val != cs40l26->dsp->fw_desc->id) {
-			dev_err(dev, "Firmware ID corrupted upon wake\n");
-			return -EINVAL;
-		}
 	}
 
 	switch (state) {
@@ -531,7 +523,7 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 		break;
 	case CS40L26_IRQ1_PDN_DONE:
 		dev_info(dev,
-			"Completed power down seq. (GLOBAL_EN cleared\n");
+			"Completed power down seq. (GLOBAL_EN cleared)\n");
 		break;
 	case CS40L26_IRQ1_PUP_DONE:
 		dev_info(dev,
@@ -1013,20 +1005,11 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 
 		bank = ((u16) raw_custom_data[0]);
 		switch (bank) {
-		case CS40L26_ROM_BANK0_ID:
-			bank_offset = CS40L26_ROM_BANK0_START;
-			break;
-		case CS40L26_ROM_BANK1_ID:
-			bank_offset = CS40L26_ROM_BANK1_START;
-			break;
-		case CS40L26_ROM_BANK2_ID:
-			bank_offset = CS40L26_ROM_BANK2_START;
-			break;
-		case CS40L26_ROM_BANK3_ID:
-			bank_offset = CS40L26_ROM_BANK3_START;
-			break;
 		case CS40L26_RAM_BANK_ID:
 			bank_offset = CS40L26_RAM_INDEX_START;
+			break;
+		case CS40L26_ROM_BANK_ID:
+			bank_offset = CS40L26_ROM_INDEX_START;
 			break;
 		default:
 			dev_err(cdev, "Bank ID (%u) out of bounds\n", bank);
