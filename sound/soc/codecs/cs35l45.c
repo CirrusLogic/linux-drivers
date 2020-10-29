@@ -1117,6 +1117,26 @@ static int cs35l45_dsp_apply_reconfig_get(struct snd_kcontrol *kcontrol,
 static int cs35l45_dsp_apply_reconfig_put(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_value *ucontrol)
 {
+	static const struct reg_sequence cs35l45_sync_pwr_en_patch[] = {
+		{0x00000040, 0x00000055},
+		{0x00000040, 0x000000AA},
+		{0x00000044, 0x00000055},
+		{0x00000044, 0x000000AA},
+		{0x00002114, 0x00040000},
+		{0x0000225C, 0x0002000A},
+		{0x00000040, 0x00000000},
+		{0x00000044, 0x00000000},
+	};
+	static const struct reg_sequence cs35l45_sync_pwr_dis_patch[] = {
+		{0x00000040, 0x00000055},
+		{0x00000040, 0x000000AA},
+		{0x00000044, 0x00000055},
+		{0x00000044, 0x000000AA},
+		{0x00002114, 0x00000000},
+		{0x0000225C, 0x00000000},
+		{0x00000040, 0x00000000},
+		{0x00000044, 0x00000000},
+	};
 	struct snd_soc_component *component =
 			snd_soc_kcontrol_component(kcontrol);
 	struct cs35l45_private *cs35l45 =
@@ -1162,6 +1182,15 @@ static int cs35l45_dsp_apply_reconfig_put(struct snd_kcontrol *kcontrol,
 	regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
 			   CS35L45_SYNC_PWR_TX_EN_MASK |
 			   CS35L45_SYNC_PWR_RX_EN_MASK, mask);
+
+	if (mask)
+		regmap_register_patch(cs35l45->regmap,
+				      cs35l45_sync_pwr_en_patch,
+				      ARRAY_SIZE(cs35l45_sync_pwr_en_patch));
+	else
+		regmap_register_patch(cs35l45->regmap,
+				      cs35l45_sync_pwr_dis_patch,
+				      ARRAY_SIZE(cs35l45_sync_pwr_dis_patch));
 
 	if (is_master)
 		cs35l45_set_dapm_route_mode(cs35l45, DAPM_MODE_DSP_MASTER);
