@@ -107,6 +107,51 @@ int cs40l26_ack_write(struct cs40l26_private *cs40l26,
 }
 EXPORT_SYMBOL(cs40l26_ack_write);
 
+static int cs40l26_dsp_wakeup(struct cs40l26_private *cs40l26)
+{
+	u32 reg, val;
+	int ret;
+
+	ret = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_WAKEUP);
+	if (ret)
+		return ret;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "PM_CUR_STATE",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_dsp_read(cs40l26, reg, &val);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_pm_state_transition(cs40l26,
+			CS40L26_PM_STATE_PREVENT_HIBERNATE);
+
+	return ret;
+}
+
+static int cs40l26_dsp_shutdown(struct cs40l26_private *cs40l26)
+{
+	u32 reg, val;
+	int ret;
+
+	ret = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_SHUTDOWN);
+	if (ret)
+		return ret;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "PM_CUR_STATE",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_dsp_read(cs40l26, reg, &val);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 {
 	struct device *dev = cs40l26->dev;
@@ -241,34 +286,31 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 		dev_err(dev, "Invalid PM state: %u\n", state);
 		return -EINVAL;
 	case CS40L26_PM_STATE_WAKEUP:
-		dev_err(dev, "Invalid PM state: %u\n", state);
-		return -EINVAL;
+		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+				CS40L26_DSP_MBOX_CMD_WAKEUP,
+				CS40L26_DSP_MBOX_RESET);
+		if (ret)
+			return ret;
 	case CS40L26_PM_STATE_PREVENT_HIBERNATE:
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				CS40L26_DSP_MBOX_CMD_PREVENT_HIBER,
 				CS40L26_DSP_MBOX_RESET);
-		if (ret) {
-			dev_err(dev, "Failed to prevent hibernate\n");
+		if (ret)
 			return ret;
-		}
 		break;
 	case CS40L26_PM_STATE_ALLOW_HIBERNATE:
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				CS40L26_DSP_MBOX_CMD_ALLOW_HIBER,
 				CS40L26_DSP_MBOX_RESET);
-		if (ret) {
-			dev_err(dev, "Failed to allow hibernate\n");
+		if (ret)
 			return ret;
-		}
 		break;
 	case CS40L26_PM_STATE_SHUTDOWN:
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				CS40L26_DSP_MBOX_CMD_SHUTDOWN,
 				CS40L26_DSP_MBOX_RESET);
-		if (ret) {
-			dev_err(dev, "Failed to shut down HALO core\n");
+		if (ret)
 			return ret;
-		}
 		break;
 	default:
 		dev_err(dev, "Unknown PM state: %u\n", state);
@@ -561,13 +603,9 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 	if (err_rls) {
 	/* boost related errors handled with global device enable turned off */
 		if (bst_err) {
-			ret = regmap_write(cs40l26->regmap,
-					CS40L26_GLOBAL_ENABLES, CS40L26_DISABLE
-					& CS40L26_GLOBAL_EN_MASK);
-			if (ret) {
-				dev_err(dev, "Failed to clear GLOBAL EN\n");
+			ret = cs40l26_dsp_shutdown(cs40l26);
+			if (ret)
 				return ret;
-			}
 		}
 
 		ret = cs40l26_error_release(cs40l26, err_rls);
@@ -575,12 +613,9 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 			return ret;
 
 		if (bst_err) {
-			ret = regmap_write(cs40l26->regmap,
-					CS40L26_GLOBAL_ENABLES, CS40L26_ENABLE);
-			if (ret) {
-				dev_err(dev, "Failed to set GLOBAL EN\n");
+			ret = cs40l26_dsp_wakeup(cs40l26);
+			if (ret)
 				return ret;
-			}
 		}
 	}
 
@@ -1141,8 +1176,8 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26)
 	} else {
 		cs40l26->dsp->fw_desc = &cs40l26_ram_fw;
 		ret = cl_dsp_wavetable_create(cs40l26->dsp,
-				CS40L26_VIBEGEN_ALGO_ID, "WAVE_XM_TABLE",
-				"WAVE_YM_TABLE", "cs40l26.bin");
+				CS40L26_VIBEGEN_ALGO_ID, CS40L26_WT_NAME_XM,
+				CS40L26_WT_NAME_YM, "cs40l26.bin");
 	}
 
 	return ret;
