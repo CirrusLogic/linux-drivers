@@ -1865,7 +1865,7 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	/* pass control to component driver for optional further init */
 	ret = soc_tplg_dai_load(tplg, dai_drv, pcm, NULL);
 	if (ret < 0) {
-		dev_err(tplg->comp->dev, "ASoC: DAI loading failed\n");
+		dev_err(tplg->dev, "ASoC: DAI loading failed\n");
 		goto err;
 	}
 
@@ -1983,13 +1983,13 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 	/* pass control to component driver for optional further init */
 	ret = soc_tplg_dai_link_load(tplg, link, NULL);
 	if (ret < 0) {
-		dev_err(tplg->comp->dev, "ASoC: FE link loading failed\n");
+		dev_err(tplg->dev, "ASoC: FE link loading failed\n");
 		goto err;
 	}
 
 	ret = snd_soc_add_pcm_runtime(tplg->comp->card, link);
 	if (ret < 0) {
-		dev_err(tplg->comp->dev, "ASoC: adding FE link failed\n");
+		dev_err(tplg->dev, "ASoC: adding FE link failed\n");
 		goto err;
 	}
 
@@ -2494,7 +2494,7 @@ static int soc_tplg_dai_config(struct soc_tplg *tplg,
 	/* pass control to component driver for optional further init */
 	ret = soc_tplg_dai_load(tplg, dai_drv, NULL, dai);
 	if (ret < 0) {
-		dev_err(tplg->comp->dev, "ASoC: DAI loading failed\n");
+		dev_err(tplg->dev, "ASoC: DAI loading failed\n");
 		goto err;
 	}
 
