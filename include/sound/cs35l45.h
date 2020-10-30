@@ -138,9 +138,9 @@ struct cs35l45_private {
 	struct mutex rate_lock;
 	struct mutex dsp_pmd_lock;
 	enum dapm_route_mode dapm_mode;
+	enum control_bus_type bus_type;
 	bool initialized;
 	bool fast_switch_en;
-	unsigned int wksrc;
 	unsigned int i2c_addr;
 	unsigned int sync_num_devices;
 	unsigned int sync_id;

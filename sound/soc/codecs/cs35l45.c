@@ -499,13 +499,16 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 			return -EPERM;
 		}
 
-		flush_work(&cs35l45->dsp_pmd_work);
+		if (cs35l45->bus_type == CONTROL_BUS_I2C) {
+			flush_work(&cs35l45->dsp_pmd_work);
 
-		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-				   CS35L45_PLL_FORCE_EN_MASK,
-				   CS35L45_PLL_FORCE_EN_MASK);
+			regmap_update_bits(cs35l45->regmap,
+					   CS35L45_REFCLK_INPUT,
+					   CS35L45_PLL_FORCE_EN_MASK,
+					   CS35L45_PLL_FORCE_EN_MASK);
 
-		usleep_range(5000, 5100);
+			usleep_range(5000, 5100);
+		}
 
 		mboxcmd = CSPL_MBOX_CMD_RESUME;
 		ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
@@ -523,7 +526,8 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 		if (ret < 0)
 			dev_err(cs35l45->dev, "MBOX failure (%d)\n", ret);
 
-		queue_work(system_unbound_wq, &cs35l45->dsp_pmd_work);
+		if (cs35l45->bus_type == CONTROL_BUS_I2C)
+			queue_work(system_unbound_wq, &cs35l45->dsp_pmd_work);
 
 		break;
 	default:
@@ -2323,7 +2327,7 @@ static const struct reg_sequence cs35l45_init_patch[] = {
 static int __cs35l45_initialize(struct cs35l45_private *cs35l45)
 {
 	struct device *dev = cs35l45->dev;
-	unsigned int sts;
+	unsigned int sts, wksrc;
 	int ret, i;
 
 	if (cs35l45->initialized)
@@ -2355,6 +2359,11 @@ static int __cs35l45_initialize(struct cs35l45_private *cs35l45)
 		return ret;
 	}
 
+	if (cs35l45->bus_type == CONTROL_BUS_SPI)
+		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+				   CS35L45_PLL_FORCE_EN_MASK,
+				   CS35L45_PLL_FORCE_EN_MASK);
+
 	regmap_write(cs35l45->regmap, CS35L45_MIXER_PILOT0_INPUT,
 		     CS35L45_PCM_SRC_DSP_TX2);
 
@@ -2373,9 +2382,14 @@ static int __cs35l45_initialize(struct cs35l45_private *cs35l45)
 		}
 	}
 
+	if (cs35l45->bus_type == CONTROL_BUS_I2C)
+		wksrc = CS35L45_WKSRC_I2C;
+	else
+		wksrc = CS35L45_WKSRC_SPI;
+
 	regmap_update_bits(cs35l45->regmap, CS35L45_WAKESRC_CTL,
 			   CS35L45_WKSRC_EN_MASK,
-			   cs35l45->wksrc << CS35L45_WKSRC_EN_SHIFT);
+			   wksrc << CS35L45_WKSRC_EN_SHIFT);
 
 	regmap_update_bits(cs35l45->regmap, CS35L45_WAKESRC_CTL,
 			   CS35L45_UPDT_WKCTL_MASK, CS35L45_UPDT_WKCTL_MASK);
