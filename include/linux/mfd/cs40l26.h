@@ -671,7 +671,9 @@
 
 /* Firmware Mode */
 #define CS40L26_FW_FILE_NAME		"cs40l26.wmfw"
-#define CS40L26_FW_FILE_NAME_RAM	"cs40l26-ram.wmfw"
+
+#define CS40L26_WT_FILE_NAME		"cs40l26.bin"
+#define CS40L26_SVC_FILE_NAME		"cs40l26-svc.bin"
 
 #define CS40L26_FW_ROM_ID		0x1800D4
 #define CS40L26_FW_ROM_MIN_REV		0x040000
@@ -952,6 +954,7 @@ enum cs40l26_irq2 {
 	CS40L26_IRQ2_NUM_IRQS,
 };
 
+/* Only ROM run is currently supported, even for RAM modes */
 enum cs40l26_halo_state {
 	CS40L26_DSP_HALO_STATE_CODE_INIT, /* 0 */
 	CS40L26_DSP_HALO_STATE_CODE_START,
