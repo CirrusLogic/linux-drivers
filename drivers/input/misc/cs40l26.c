@@ -1768,24 +1768,22 @@ static void cs40l26_coeff_file_load(const struct firmware *fw, void *context)
 	mutex_lock(&cs40l26->lock);
 
 	if (!fw) {
-		dev_warn(dev, "No coefficient file provided, continuing..\n");
-
-		cs40l26_dsp_config(cs40l26);
+		dev_warn(dev, "Could not find coeff. file %s\n",
+			cs40l26->dsp->fw_desc->coeff_files[*num_load_attempts]);
 		goto mutex_exit;
 	}
 
 	if (cl_dsp_coeff_file_parse(cs40l26->dsp, fw))
 		dev_warn(dev, "Could not load coefficient file %s\n",
 			cs40l26->dsp->fw_desc->coeff_files[*num_load_attempts]);
-	else
-		*num_load_attempts = *num_load_attempts + 1;
 
 	release_firmware(fw);
 
+mutex_exit:
+	*num_load_attempts = *num_load_attempts + 1;
 	if (*num_load_attempts == num_coeff_files)
 		cs40l26_dsp_config(cs40l26);
 
-mutex_exit:
 	mutex_unlock(&cs40l26->lock);
 }
 
