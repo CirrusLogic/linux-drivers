@@ -14,7 +14,8 @@
 #include <linux/mfd/cs40l26.h>
 
 static const char * const cs40l26_ram_coeff_files[] = {
-	"cs40l26.bin",
+	CS40L26_WT_FILE_NAME,
+	CS40L26_SVC_FILE_NAME,
 };
 
 const struct cl_dsp_fw_desc cs40l26_fw = {
@@ -33,7 +34,7 @@ const struct cl_dsp_fw_desc cs40l26_ram_fw = {
 	.halo_state_run = CS40L26_DSP_HALO_STATE_ROM_RUN,
 	.num_coeff_files = ARRAY_SIZE(cs40l26_ram_coeff_files),
 	.coeff_files = cs40l26_ram_coeff_files,
-	.fw_file = CS40L26_FW_FILE_NAME_RAM,
+	.fw_file = CS40L26_FW_FILE_NAME,
 	.write_fw = true,
 };
 
