@@ -210,6 +210,7 @@ static void rv1_update_clocks(struct clk_mgr *clk_mgr_base,
 	bool send_request_to_increase = false;
 	bool send_request_to_lower = false;
 	int display_count;
+	int i, clock_factor = 0;
 
 	bool enter_display_off = false;
 
@@ -219,6 +220,12 @@ static void rv1_update_clocks(struct clk_mgr *clk_mgr_base,
 		return;
 
 	pp_smu = &clk_mgr->pp_smu->rv_funcs;
+
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i]->timing.h_total > 3840
+			|| context->streams[i]->timing.v_total > 2160)
+			clock_factor = 2;
+	}
 
 	display_count = clk_mgr_helper_get_active_display_cnt(dc, context);
 
@@ -305,7 +312,7 @@ static void rv1_update_clocks(struct clk_mgr *clk_mgr_base,
 						(new_clocks->dcfclk_deep_sleep_khz + 999) / 1000);
 			} else {
 				pp_smu->set_hard_min_fclk_by_freq(&pp_smu->pp_smu,
-						new_clocks->fclk_khz / 1000);
+						((new_clocks->fclk_khz / 1000) * (100 + clock_factor)) / 100);
 				pp_smu->set_hard_min_dcfclk_by_freq(&pp_smu->pp_smu,
 						new_clocks->dcfclk_khz / 1000);
 				pp_smu->set_min_deep_sleep_dcfclk(&pp_smu->pp_smu,
