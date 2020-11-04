@@ -50,7 +50,7 @@ static struct drm_gem_object *udl_driver_gem_prime_import(struct drm_device *dev
 
 DEFINE_DRM_GEM_FOPS(udl_driver_fops);
 
-static struct drm_driver driver = {
+static const struct drm_driver driver = {
 	.driver_features = DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,
 
 	/* GEM hooks */

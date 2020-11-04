@@ -617,7 +617,7 @@ static struct drm_gem_object *gm12u320_gem_prime_import(struct drm_device *dev,
 
 DEFINE_DRM_GEM_FOPS(gm12u320_fops);
 
-static struct drm_driver gm12u320_drm_driver = {
+static const struct drm_driver gm12u320_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 
 	.name		 = DRIVER_NAME,

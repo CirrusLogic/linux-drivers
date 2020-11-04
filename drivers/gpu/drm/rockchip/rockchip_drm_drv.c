@@ -36,7 +36,7 @@
 #define DRIVER_MINOR	0
 
 static bool is_support_iommu = true;
-static struct drm_driver rockchip_drm_driver;
+static const struct drm_driver rockchip_drm_driver;
 
 /*
  * Attach a (component) device to the shared drm dma mapping from master drm
@@ -218,7 +218,7 @@ static const struct file_operations rockchip_drm_driver_fops = {
 	.release = drm_release,
 };
 
-static struct drm_driver rockchip_drm_driver = {
+static const struct drm_driver rockchip_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC |
 				  DRIVER_RENDER,
 	.lastclose		= drm_fb_helper_lastclose,
