@@ -3,7 +3,7 @@
  * evdi_cursor.c
  *
  * Copyright (c) 2016 The Chromium OS Authors
- * Copyright (c) 2016 - 2017 DisplayLink (UK) Ltd.
+ * Copyright (c) 2016 - 2020 DisplayLink (UK) Ltd.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -19,7 +19,6 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <drm/drm_drv.h>
 #include <drm/drm_crtc_helper.h>
 #include <linux/compiler.h>
 #include <linux/mutex.h>
@@ -176,12 +175,12 @@ static int evdi_cursor_compose_pixel(char __user *buffer,
 }
 
 int evdi_cursor_compose_and_copy(struct evdi_cursor *cursor,
-				 struct evdi_framebuffer *ufb,
+				 struct evdi_framebuffer *efb,
 				 char __user *buffer,
 				 int buf_byte_stride)
 {
 	int x, y;
-	struct drm_framebuffer *fb = &ufb->base;
+	struct drm_framebuffer *fb = &efb->base;
 	const int h_cursor_w = cursor->width >> 1;
 	const int h_cursor_h = cursor->height >> 1;
 	uint32_t *cursor_buffer = NULL;
@@ -232,7 +231,7 @@ int evdi_cursor_compose_and_copy(struct evdi_cursor *cursor,
 			cursor_pix = h_cursor_w+x +
 				    (h_cursor_h+y)*cursor->width;
 			curs_val = le32_to_cpu(cursor_buffer[cursor_pix]);
-			fbsrc = (int *)ufb->obj->vmapping;
+			fbsrc = (int *)(efb->obj->vmapping + fb->offsets[0]);
 			fb_value = *(fbsrc + ((fb->pitches[0]>>2) *
 						  mouse_pix_y + mouse_pix_x));
 			cmd_offset = (buf_byte_stride * mouse_pix_y) +

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Red Hat
- * Copyright (c) 2015 - 2018 DisplayLink (UK) Ltd.
+ * Copyright (c) 2015 - 2020 DisplayLink (UK) Ltd.
  *
  * Based on parts on udlfb.c:
  * Copyright (C) 2009 its respective authors
@@ -16,17 +16,19 @@
 #include <linux/fb.h>
 #endif /* CONFIG_FB */
 #include <linux/dma-buf.h>
-#include <drm/drm_drv.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_fourcc.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_damage_helper.h>
 #include "evdi_drv.h"
+
 
 struct evdi_fbdev {
 	struct drm_fb_helper helper;
-	struct evdi_framebuffer ufb;
+	struct evdi_framebuffer efb;
 	struct list_head fbdev_list;
+	struct fb_ops fb_ops;
 	int fb_count;
 };
 
@@ -64,19 +66,19 @@ struct drm_clip_rect evdi_framebuffer_sanitize_rect(
 	}
 
 	if (rect.x2 > fb->base.width) {
-		EVDI_VERBOSE("Wrong clip rect: x2 > fb.width\n");
+		EVDI_WARN("Wrong clip rect: x2 > fb.width\n");
 		rect.x2 = fb->base.width;
 	}
 
 	if (rect.y2 > fb->base.height) {
-		EVDI_VERBOSE("Wrong clip rect: y2 > fb.height\n");
+		EVDI_WARN("Wrong clip rect: y2 > fb.height\n");
 		rect.y2 = fb->base.height;
 	}
 
 	return rect;
 }
 
-static int evdi_handle_damage(struct evdi_framebuffer *fb,
+static int __maybe_unused evdi_handle_damage(struct evdi_framebuffer *fb,
 		       int x, int y, int width, int height)
 {
 	const struct drm_clip_rect dirty_rect = { x, y, x + width, y + height };
@@ -89,8 +91,7 @@ static int evdi_handle_damage(struct evdi_framebuffer *fb,
 
 	if (!fb->active)
 		return 0;
-	evdi_painter_set_new_scanout_buffer(evdi, fb);
-	evdi_painter_commit_scanout_buffer(evdi);
+	evdi_painter_set_scanout_buffer(evdi, fb);
 	evdi_painter_mark_dirty(evdi, &rect);
 
 	return 0;
@@ -103,6 +104,9 @@ static int evdi_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	unsigned long size = vma->vm_end - vma->vm_start;
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	unsigned long page, pos;
+
+	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
+		return -EINVAL;
 
 	if (offset > info->fix.smem_len ||
 	    size > info->fix.smem_len - offset)
@@ -131,33 +135,33 @@ static int evdi_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 static void evdi_fb_fillrect(struct fb_info *info,
 			     const struct fb_fillrect *rect)
 {
-	struct evdi_fbdev *ufbdev = info->par;
+	struct evdi_fbdev *efbdev = info->par;
 
 	EVDI_CHECKPT();
 	sys_fillrect(info, rect);
-	evdi_handle_damage(&ufbdev->ufb, rect->dx, rect->dy, rect->width,
+	evdi_handle_damage(&efbdev->efb, rect->dx, rect->dy, rect->width,
 			   rect->height);
 }
 
 static void evdi_fb_copyarea(struct fb_info *info,
 			     const struct fb_copyarea *region)
 {
-	struct evdi_fbdev *ufbdev = info->par;
+	struct evdi_fbdev *efbdev = info->par;
 
 	EVDI_CHECKPT();
 	sys_copyarea(info, region);
-	evdi_handle_damage(&ufbdev->ufb, region->dx, region->dy, region->width,
+	evdi_handle_damage(&efbdev->efb, region->dx, region->dy, region->width,
 			   region->height);
 }
 
 static void evdi_fb_imageblit(struct fb_info *info,
 			      const struct fb_image *image)
 {
-	struct evdi_fbdev *ufbdev = info->par;
+	struct evdi_fbdev *efbdev = info->par;
 
 	EVDI_CHECKPT();
 	sys_imageblit(info, image);
-	evdi_handle_damage(&ufbdev->ufb, image->dx, image->dy, image->width,
+	evdi_handle_damage(&efbdev->efb, image->dx, image->dy, image->width,
 			   image->height);
 }
 
@@ -168,11 +172,11 @@ static void evdi_fb_imageblit(struct fb_info *info,
  */
 static int evdi_fb_open(struct fb_info *info, int user)
 {
-	struct evdi_fbdev *ufbdev = info->par;
+	struct evdi_fbdev *efbdev = info->par;
 
-	ufbdev->fb_count++;
+	efbdev->fb_count++;
 	pr_notice("open /dev/fb%d user=%d fb_info=%p count=%d\n",
-		  info->node, user, info, ufbdev->fb_count);
+		  info->node, user, info, efbdev->fb_count);
 
 	return 0;
 }
@@ -182,12 +186,12 @@ static int evdi_fb_open(struct fb_info *info, int user)
  */
 static int evdi_fb_release(struct fb_info *info, int user)
 {
-	struct evdi_fbdev *ufbdev = info->par;
+	struct evdi_fbdev *efbdev = info->par;
 
-	ufbdev->fb_count--;
+	efbdev->fb_count--;
 
 	pr_warn("released /dev/fb%d user=%d count=%d\n",
-		info->node, user, ufbdev->fb_count);
+		info->node, user, efbdev->fb_count);
 
 	return 0;
 }
@@ -210,51 +214,6 @@ static struct fb_ops evdifb_ops = {
 };
 #endif /* CONFIG_FB */
 
-static int evdi_user_framebuffer_dirty(struct drm_framebuffer *fb,
-				       __always_unused struct drm_file *file,
-				       __always_unused unsigned int flags,
-				       __always_unused unsigned int color,
-				       struct drm_clip_rect *clips,
-				       unsigned int num_clips)
-{
-	struct evdi_framebuffer *ufb = to_evdi_fb(fb);
-	struct drm_device *dev = ufb->base.dev;
-	struct evdi_device *evdi = dev->dev_private;
-	int i;
-	int ret = 0;
-
-	EVDI_CHECKPT();
-	drm_modeset_lock_all(fb->dev);
-
-	if (!ufb->active)
-		goto unlock;
-
-	if (ufb->obj->base.import_attach) {
-		ret =
-		    dma_buf_begin_cpu_access(
-			ufb->obj->base.import_attach->dmabuf,
-			DMA_FROM_DEVICE);
-		if (ret)
-			goto unlock;
-	}
-
-	for (i = 0; i < num_clips; i++) {
-		ret = evdi_handle_damage(ufb, clips[i].x1, clips[i].y1,
-					 clips[i].x2 - clips[i].x1,
-					 clips[i].y2 - clips[i].y1);
-		if (ret)
-			goto unlock;
-	}
-
-	if (ufb->obj->base.import_attach)
-		dma_buf_end_cpu_access(ufb->obj->base.import_attach->dmabuf,
-				       DMA_FROM_DEVICE);
-	atomic_add(1, &evdi->frame_count);
- unlock:
-	drm_modeset_unlock_all(fb->dev);
-	return ret;
-}
-
 static int evdi_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 					       struct drm_file *file_priv,
 					       unsigned int *handle)
@@ -266,40 +225,38 @@ static int evdi_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 
 static void evdi_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
-	struct evdi_framebuffer *ufb = to_evdi_fb(fb);
+	struct evdi_framebuffer *efb = to_evdi_fb(fb);
 
 	EVDI_CHECKPT();
-
-	if (ufb->obj)
-		drm_gem_object_put(&ufb->obj->base);
-
+	if (efb->obj)
+		drm_gem_object_put(&efb->obj->base);
 	drm_framebuffer_cleanup(fb);
-	kfree(ufb);
+	kfree(efb);
 }
 
 static const struct drm_framebuffer_funcs evdifb_funcs = {
 	.create_handle = evdi_user_framebuffer_create_handle,
 	.destroy = evdi_user_framebuffer_destroy,
-	.dirty = evdi_user_framebuffer_dirty,
+	.dirty = drm_atomic_helper_dirtyfb,
 };
 
 static int
 evdi_framebuffer_init(struct drm_device *dev,
-		      struct evdi_framebuffer *ufb,
+		      struct evdi_framebuffer *efb,
 		      const struct drm_mode_fb_cmd2 *mode_cmd,
 		      struct evdi_gem_object *obj)
 {
-	ufb->obj = obj;
-	drm_helper_mode_fill_fb_struct(dev, &ufb->base, mode_cmd);
-	return drm_framebuffer_init(dev, &ufb->base, &evdifb_funcs);
+	efb->obj = obj;
+	drm_helper_mode_fill_fb_struct(dev, &efb->base, mode_cmd);
+	return drm_framebuffer_init(dev, &efb->base, &evdifb_funcs);
 }
 
 #ifdef CONFIG_FB
 static int evdifb_create(struct drm_fb_helper *helper,
 			 struct drm_fb_helper_surface_size *sizes)
 {
-	struct evdi_fbdev *ufbdev = (struct evdi_fbdev *)helper;
-	struct drm_device *dev = ufbdev->helper.dev;
+	struct evdi_fbdev *efbdev = (struct evdi_fbdev *)helper;
+	struct drm_device *dev = efbdev->helper.dev;
 	struct fb_info *info;
 	struct device *device = dev->dev;
 	struct drm_framebuffer *fb;
@@ -341,24 +298,29 @@ static int evdifb_create(struct drm_fb_helper *helper,
 		ret = -ENOMEM;
 		goto out_gfree;
 	}
+	info->par = efbdev;
 
-	ret = evdi_framebuffer_init(dev, &ufbdev->ufb, &mode_cmd, obj);
+	ret = evdi_framebuffer_init(dev, &efbdev->efb, &mode_cmd, obj);
 	if (ret)
 		goto out_gfree;
 
-	fb = &ufbdev->ufb.base;
+	fb = &efbdev->efb.base;
 
-	ufbdev->helper.fb = fb;
-	ufbdev->helper.fbdev = info;
+	efbdev->helper.fb = fb;
+	efbdev->helper.fbdev = info;
 
-	info->screen_base = ufbdev->ufb.obj->vmapping;
+	strcpy(info->fix.id, "evdidrmfb");
+
+	info->screen_base = efbdev->efb.obj->vmapping;
 	info->fix.smem_len = size;
-	info->fix.smem_start = (unsigned long)ufbdev->ufb.obj->vmapping;
+	info->fix.smem_start = (unsigned long)efbdev->efb.obj->vmapping;
 
 	info->flags = FBINFO_DEFAULT;
-	info->fbops = &evdifb_ops;
 
-	drm_fb_helper_fill_info(info, helper, sizes);
+	efbdev->fb_ops = evdifb_ops;
+	info->fbops = &efbdev->fb_ops;
+
+	drm_fb_helper_fill_info(info, &efbdev->helper, sizes);
 
 	ret = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (ret) {
@@ -367,11 +329,11 @@ static int evdifb_create(struct drm_fb_helper *helper,
 	}
 
 	DRM_DEBUG_KMS("allocated %dx%d vmal %p\n",
-		      fb->width, fb->height, ufbdev->ufb.obj->vmapping);
+		      fb->width, fb->height, efbdev->efb.obj->vmapping);
 
 	return ret;
  out_gfree:
-	drm_gem_object_put(&ufbdev->ufb.obj->base);
+	drm_gem_object_put(&efbdev->efb.obj->base);
  out:
 	return ret;
 }
@@ -381,48 +343,50 @@ static struct drm_fb_helper_funcs evdi_fb_helper_funcs = {
 };
 
 static void evdi_fbdev_destroy(__always_unused struct drm_device *dev,
-			       struct evdi_fbdev *ufbdev)
+			       struct evdi_fbdev *efbdev)
 {
 	struct fb_info *info;
 
-	if (ufbdev->helper.fbdev) {
-		info = ufbdev->helper.fbdev;
+	if (efbdev->helper.fbdev) {
+		info = efbdev->helper.fbdev;
 		unregister_framebuffer(info);
 		if (info->cmap.len)
 			fb_dealloc_cmap(&info->cmap);
 
 		framebuffer_release(info);
 	}
-	drm_fb_helper_fini(&ufbdev->helper);
-	drm_framebuffer_unregister_private(&ufbdev->ufb.base);
-	drm_framebuffer_cleanup(&ufbdev->ufb.base);
-	drm_gem_object_put(&ufbdev->ufb.obj->base);
+	drm_fb_helper_fini(&efbdev->helper);
+	if (efbdev->efb.obj) {
+		drm_framebuffer_unregister_private(&efbdev->efb.base);
+		drm_framebuffer_cleanup(&efbdev->efb.base);
+		drm_gem_object_put(&efbdev->efb.obj->base);
+	}
 }
 
 int evdi_fbdev_init(struct drm_device *dev)
 {
 	struct evdi_device *evdi;
-	struct evdi_fbdev *ufbdev;
+	struct evdi_fbdev *efbdev;
 	int ret;
 
 	evdi = dev->dev_private;
-	ufbdev = kzalloc(sizeof(struct evdi_fbdev), GFP_KERNEL);
-	if (!ufbdev)
+	efbdev = kzalloc(sizeof(struct evdi_fbdev), GFP_KERNEL);
+	if (!efbdev)
 		return -ENOMEM;
 
-	evdi->fbdev = ufbdev;
-	drm_fb_helper_prepare(dev, &ufbdev->helper, &evdi_fb_helper_funcs);
+	evdi->fbdev = efbdev;
+	drm_fb_helper_prepare(dev, &efbdev->helper, &evdi_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, &ufbdev->helper);
+	ret = drm_fb_helper_init(dev, &efbdev->helper);
 	if (ret) {
-		kfree(ufbdev);
+		kfree(efbdev);
 		return ret;
 	}
 
-	ret = drm_fb_helper_initial_config(&ufbdev->helper, 32);
+	ret = drm_fb_helper_initial_config(&efbdev->helper, 32);
 	if (ret) {
-		drm_fb_helper_fini(&ufbdev->helper);
-		kfree(ufbdev);
+		drm_fb_helper_fini(&efbdev->helper);
+		kfree(efbdev);
 	}
 	return ret;
 }
@@ -442,29 +406,28 @@ void evdi_fbdev_cleanup(struct drm_device *dev)
 void evdi_fbdev_unplug(struct drm_device *dev)
 {
 	struct evdi_device *evdi = dev->dev_private;
-	struct evdi_fbdev *ufbdev;
+	struct evdi_fbdev *efbdev;
 
 	if (!evdi->fbdev)
 		return;
 
-	ufbdev = evdi->fbdev;
-	if (ufbdev->helper.fbdev) {
+	efbdev = evdi->fbdev;
+	if (efbdev->helper.fbdev) {
 		struct fb_info *info;
 
-		info = ufbdev->helper.fbdev;
-		unlink_framebuffer(info);
+		info = efbdev->helper.fbdev;
+		unregister_framebuffer(info);
 	}
 }
 #endif /* CONFIG_FB */
 
 int evdi_fb_get_bpp(uint32_t format)
 {
-	const struct drm_format_info *info;
+	const struct drm_format_info *info = drm_format_info(format);
 
-	info = drm_format_info(format);
-	if (info && info->depth)
-		return info->cpp[0] * 8;
-	return 0;
+	if (!info)
+		return 0;
+	return info->cpp[0] * 8;
 }
 
 struct drm_framebuffer *evdi_fb_user_fb_create(
@@ -473,10 +436,9 @@ struct drm_framebuffer *evdi_fb_user_fb_create(
 					const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *obj;
-	struct evdi_framebuffer *ufb;
+	struct evdi_framebuffer *efb;
 	int ret;
 	uint32_t size;
-
 	int bpp = evdi_fb_get_bpp(mode_cmd->pixel_format);
 
 	if (bpp != 32) {
@@ -488,30 +450,31 @@ struct drm_framebuffer *evdi_fb_user_fb_create(
 	if (obj == NULL)
 		return ERR_PTR(-ENOENT);
 
-	size = mode_cmd->pitches[0] * mode_cmd->height;
+	size = mode_cmd->offsets[0] + mode_cmd->pitches[0] * mode_cmd->height;
 	size = ALIGN(size, PAGE_SIZE);
 
 	if (size > obj->size) {
-		DRM_ERROR("object size not sufficient for fb %d %zu %d %d\n",
-			  size, obj->size, mode_cmd->pitches[0],
-			  mode_cmd->height);
+		DRM_ERROR("object size not sufficient for fb %d %zu %u %d %d\n",
+			  size, obj->size, mode_cmd->offsets[0],
+			  mode_cmd->pitches[0], mode_cmd->height);
 		goto err_no_mem;
 	}
 
-	ufb = kzalloc(sizeof(*ufb), GFP_KERNEL);
-	if (ufb == NULL)
+	efb = kzalloc(sizeof(*efb), GFP_KERNEL);
+	if (efb == NULL)
 		goto err_no_mem;
+	efb->base.obj[0] = obj;
 
-	ret = evdi_framebuffer_init(dev, ufb, mode_cmd, to_evdi_bo(obj));
+	ret = evdi_framebuffer_init(dev, efb, mode_cmd, to_evdi_bo(obj));
 	if (ret)
 		goto err_inval;
-	return &ufb->base;
+	return &efb->base;
 
  err_no_mem:
 	drm_gem_object_put(obj);
 	return ERR_PTR(-ENOMEM);
  err_inval:
-	kfree(ufb);
+	kfree(efb);
 	drm_gem_object_put(obj);
 	return ERR_PTR(-EINVAL);
 }

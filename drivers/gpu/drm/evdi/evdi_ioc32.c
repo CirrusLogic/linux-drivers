@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * evdi_ioc32.c
  *
  * Copyright (c) 2016 The Chromium OS Authors
- * Copyright (c) 2018 DisplayLink (UK) Ltd.
+ * Copyright (c) 2017 - 2020 DisplayLink (UK) Ltd.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -21,10 +21,8 @@
 
 #include <linux/compat.h>
 
-#include <drm/drm_drv.h>
-#include <drm/drm_ioctl.h>
 #include <drm/drm_edid.h>
-#include <uapi/drm/evdi_drm.h>
+#include "evdi_drm.h"
 
 #include "evdi_drv.h"
 
@@ -58,12 +56,12 @@ static int compat_evdi_connect(struct file *file,
 
 	request = compat_alloc_user_space(sizeof(*request));
 	if (!access_ok(request, sizeof(*request))
-	    || __put_user(req32.connected, &request->connected)
-	    || __put_user(req32.dev_index, &request->dev_index)
-	    || __put_user((void __user *)(unsigned long)req32.edid_ptr32,
+		|| __put_user(req32.connected, &request->connected)
+		|| __put_user(req32.dev_index, &request->dev_index)
+		|| __put_user((void __user *)(unsigned long)req32.edid_ptr32,
 			  &request->edid)
-	    || __put_user(req32.edid_length, &request->edid_length)
-	    || __put_user(req32.sku_area_limit, &request->sku_area_limit))
+		|| __put_user(req32.edid_length, &request->edid_length)
+		|| __put_user(req32.sku_area_limit, &request->sku_area_limit))
 		return -EFAULT;
 
 	return drm_ioctl(file, DRM_IOCTL_EVDI_CONNECT,
@@ -82,14 +80,14 @@ static int compat_evdi_grabpix(struct file *file,
 
 	request = compat_alloc_user_space(sizeof(*request));
 	if (!access_ok(request, sizeof(*request))
-	    || __put_user(req32.mode, &request->mode)
-	    || __put_user(req32.buf_width, &request->buf_width)
-	    || __put_user(req32.buf_height, &request->buf_height)
-	    || __put_user(req32.buf_byte_stride, &request->buf_byte_stride)
-	    || __put_user((void __user *)(unsigned long)req32.buffer_ptr32,
+		|| __put_user(req32.mode, &request->mode)
+		|| __put_user(req32.buf_width, &request->buf_width)
+		|| __put_user(req32.buf_height, &request->buf_height)
+		|| __put_user(req32.buf_byte_stride, &request->buf_byte_stride)
+		|| __put_user((void __user *)(unsigned long)req32.buffer_ptr32,
 			  &request->buffer)
-	    || __put_user(req32.num_rects, &request->num_rects)
-	    || __put_user((void __user *)(unsigned long)req32.rects_ptr32,
+		|| __put_user(req32.num_rects, &request->num_rects)
+		|| __put_user((void __user *)(unsigned long)req32.rects_ptr32,
 			  &request->rects))
 		return -EFAULT;
 

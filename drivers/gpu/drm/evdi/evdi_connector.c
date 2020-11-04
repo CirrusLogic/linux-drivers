@@ -11,7 +11,6 @@
  * more details.
  */
 
-#include <drm/drm_drv.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_crtc_helper.h>
@@ -47,8 +46,8 @@ static int evdi_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
-static int evdi_mode_valid(struct drm_connector *connector,
-			   struct drm_display_mode *mode)
+static enum drm_mode_status evdi_mode_valid(struct drm_connector *connector,
+					    struct drm_display_mode *mode)
 {
 	struct evdi_device *evdi = connector->dev->dev_private;
 	uint32_t mode_area = mode->hdisplay * mode->vdisplay;
@@ -75,10 +74,12 @@ evdi_detect(struct drm_connector *connector, __always_unused bool force)
 
 	EVDI_CHECKPT();
 	if (evdi_painter_is_connected(evdi)) {
-		EVDI_DEBUG("(dev=%d) Painter is connected\n", evdi->dev_index);
+		EVDI_DEBUG("(dev=%d) poll connector state: connected\n",
+			   evdi->dev_index);
 		return connector_status_connected;
 	}
-	EVDI_DEBUG("(dev=%d) Painter is disconnected\n", evdi->dev_index);
+	EVDI_DEBUG("(dev=%d) poll connector state: disconnected\n",
+		   evdi->dev_index);
 	return connector_status_disconnected;
 }
 
@@ -89,9 +90,21 @@ static void evdi_connector_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
+static struct drm_encoder *evdi_best_encoder(struct drm_connector *connector)
+{
+	struct drm_encoder *encoder;
+
+	drm_connector_for_each_possible_encoder(connector, encoder) {
+		return encoder;
+	}
+
+	return NULL;
+}
+
 static struct drm_connector_helper_funcs evdi_connector_helper_funcs = {
 	.get_modes = evdi_get_modes,
 	.mode_valid = evdi_mode_valid,
+	.best_encoder = evdi_best_encoder,
 };
 
 static const struct drm_connector_funcs evdi_connector_funcs = {

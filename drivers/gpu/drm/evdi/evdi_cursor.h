@@ -1,9 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- *
  * evdi_cursor.h
  *
  * Copyright (c) 2016 The Chromium OS Authors
- * Copyright (c) 2016 - 2017 DisplayLink (UK) Ltd.
+ * Copyright (c) 2016 - 2020 DisplayLink (UK) Ltd.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -23,7 +22,6 @@
 #define _EVDI_CURSOR_H_
 
 #include <linux/module.h>
-#include <drm/drm_drv.h>
 #include <drm/drm_crtc.h>
 
 struct evdi_cursor;
@@ -53,7 +51,7 @@ void evdi_cursor_stride(struct evdi_cursor *cursor, uint32_t *stride);
 struct evdi_gem_object *evdi_cursor_gem(struct evdi_cursor *cursor);
 
 int evdi_cursor_compose_and_copy(struct evdi_cursor *cursor,
-				 struct evdi_framebuffer *ufb,
+				 struct evdi_framebuffer *efb,
 				 char __user *buffer,
 				 int buf_byte_stride);
 #endif

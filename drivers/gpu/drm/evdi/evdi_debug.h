@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- *
- * Copyright (c) 2015 - 2016 DisplayLink (UK) Ltd.
+ * Copyright (c) 2015 - 2019 DisplayLink (UK) Ltd.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License v2. See the file COPYING in the main directory of this archive for
@@ -10,6 +9,8 @@
 #ifndef EVDI_DEBUG_H
 #define EVDI_DEBUG_H
 
+#include "evdi_params.h"
+
 #define EVDI_LOGLEVEL_ALWAYS  0
 #define EVDI_LOGLEVEL_FATAL   1
 #define EVDI_LOGLEVEL_ERROR   2
@@ -18,10 +19,8 @@
 #define EVDI_LOGLEVEL_DEBUG   5
 #define EVDI_LOGLEVEL_VERBOSE 6
 
-extern unsigned int evdi_loglevel;
-
-#define EVDI_PRINTK(KERN_LEVEL, lEVEL, FORMAT_STR, ...)	do { \
-	if (lEVEL <= evdi_loglevel) {\
+#define EVDI_PRINTK(KERN_LEVEL, LEVEL, FORMAT_STR, ...)	do { \
+	if (evdi_loglevel >= LEVEL) {\
 		printk(KERN_LEVEL "evdi: " FORMAT_STR, ##__VA_ARGS__); \
 	} \
 } while (0)
@@ -54,5 +53,6 @@ extern unsigned int evdi_loglevel;
 #define EVDI_ENTER() EVDI_VERBOSE("enter\n")
 #define EVDI_EXIT() EVDI_VERBOSE("exit\n")
 
-#endif /* EVDI_DEBUG_H */
+void evdi_log_process(void);
 
+#endif /* EVDI_DEBUG_H */

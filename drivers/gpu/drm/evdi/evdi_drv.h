@@ -13,14 +13,18 @@
 #ifndef EVDI_DRV_H
 #define EVDI_DRV_H
 
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
+#include <linux/device.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_vblank.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
-# include <drm/drm_gem.h>
-#include <drm/drm_cache.h>
+#include <drm/drm_gem.h>
 #include <linux/dma-resv.h>
 #include "evdi_debug.h"
 
@@ -28,26 +32,25 @@
 #define DRIVER_DESC   "Extensible Virtual Display Interface"
 #define DRIVER_DATE   "20200707"
 
-#define DRIVER_MAJOR      1
-#define DRIVER_MINOR      8
-#define DRIVER_PATCHLEVEL 0
+#define DRIVER_MAJOR 1
+#define DRIVER_MINOR 8
+#define DRIVER_PATCH 0
 
 struct evdi_fbdev;
 struct evdi_painter;
-
-extern bool evdi_enable_cursor_blending __read_mostly;
 
 struct evdi_device {
 	struct drm_device *ddev;
 	struct drm_connector *conn;
 	struct evdi_cursor *cursor;
+	struct dev_ext_attribute cursor_attr;
+	bool cursor_events_enabled;
+
 	uint32_t sku_area_limit;
 
 	struct evdi_fbdev *fbdev;
 	struct evdi_painter *painter;
 	struct i2c_adapter *i2c_adapter;
-
-	atomic_t frame_count;
 
 	int dev_index;
 };
@@ -81,6 +84,7 @@ struct drm_encoder *evdi_encoder_init(struct drm_device *dev);
 int evdi_driver_load(struct drm_device *dev, unsigned long flags);
 void evdi_driver_unload(struct drm_device *dev);
 void evdi_driver_preclose(struct drm_device *dev, struct drm_file *file_priv);
+void evdi_driver_postclose(struct drm_device *dev, struct drm_file *file_priv);
 
 #ifdef CONFIG_COMPAT
 long evdi_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
@@ -107,20 +111,22 @@ struct evdi_gem_object *evdi_gem_alloc_object(struct drm_device *dev,
 uint32_t evdi_gem_object_handle_lookup(struct drm_file *filp,
 				      struct drm_gem_object *obj);
 
-struct drm_gem_object *evdi_gem_prime_import(struct drm_device *dev,
-					     struct dma_buf *dma_buf);
-struct dma_buf *evdi_gem_prime_export(struct drm_gem_object *obj, int flags);
+struct sg_table *evdi_prime_get_sg_table(struct drm_gem_object *obj);
+struct drm_gem_object *
+evdi_prime_import_sg_table(struct drm_device *dev,
+			   struct dma_buf_attachment *attach,
+			   struct sg_table *sg);
 
 int evdi_gem_vmap(struct evdi_gem_object *obj);
 void evdi_gem_vunmap(struct evdi_gem_object *obj);
 int evdi_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
+
 vm_fault_t evdi_gem_fault(struct vm_fault *vmf);
-void evdi_stats_init(struct evdi_device *evdi);
-void evdi_stats_cleanup(struct evdi_device *evdi);
 
 bool evdi_painter_is_connected(struct evdi_device *evdi);
 void evdi_painter_close(struct evdi_device *evdi, struct drm_file *file);
 u8 *evdi_painter_get_edid_copy(struct evdi_device *evdi);
+int evdi_painter_get_num_dirts(struct evdi_device *evdi);
 void evdi_painter_mark_dirty(struct evdi_device *evdi,
 			     const struct drm_clip_rect *rect);
 void evdi_painter_send_update_ready_if_needed(struct evdi_device *evdi);
@@ -144,27 +150,24 @@ int evdi_painter_ddcci_response_ioctl(struct drm_device *drm_dev, void *data,
 
 int evdi_painter_init(struct evdi_device *evdi);
 void evdi_painter_cleanup(struct evdi_device *evdi);
-void evdi_painter_set_new_scanout_buffer(struct evdi_device *evdi,
-					 struct evdi_framebuffer *buffer);
-void evdi_painter_commit_scanout_buffer(struct evdi_device *evdi);
+void evdi_painter_set_scanout_buffer(struct evdi_device *evdi,
+				     struct evdi_framebuffer *buffer);
 
 struct drm_clip_rect evdi_framebuffer_sanitize_rect(
 			const struct evdi_framebuffer *fb,
 			const struct drm_clip_rect *rect);
 
-int evdi_driver_setup_early(struct drm_device *dev);
-void evdi_driver_setup_late(struct drm_device *dev);
+int evdi_driver_setup(struct drm_device *dev);
 
 void evdi_painter_send_cursor_set(struct evdi_painter *painter,
 				  struct evdi_cursor *cursor);
 void evdi_painter_send_cursor_move(struct evdi_painter *painter,
 				   struct evdi_cursor *cursor);
 bool evdi_painter_needs_full_modeset(struct evdi_device *evdi);
+void evdi_painter_force_full_modeset(struct evdi_device *evdi);
 struct drm_clip_rect evdi_painter_framebuffer_size(
 			struct evdi_painter *painter);
-bool evdi_painter_i2c_data_notify(struct evdi_device *evdi,
-				struct i2c_msg *msg);
+bool evdi_painter_i2c_data_notify(struct evdi_device *evdi, struct i2c_msg *msg);
 
 int evdi_fb_get_bpp(uint32_t format);
 #endif
-
