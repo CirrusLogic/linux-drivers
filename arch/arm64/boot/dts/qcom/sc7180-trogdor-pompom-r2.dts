@@ -10,10 +10,6 @@
 #include "sc7180-trogdor-pompom.dtsi"
 
 / {
-	model = "Google Pompom (rev1)";
-	compatible = "google,pompom-rev1", "qcom,sc7180";
-};
-
-&usb_hub {
-	 vdd-supply = <&pp3300_l7c>;
+	model = "Google Pompom (rev2+)";
+	compatible = "google,pompom", "qcom,sc7180";
 };
