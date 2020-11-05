@@ -933,14 +933,13 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 			snd_soc_component_get_drvdata(component);
 	struct snd_soc_dapm_context *dapm =
 			snd_soc_component_get_dapm(component);
-	int status;
+	unsigned int val;
 
 	if (ucontrol->value.integer.value[0] == cs35l45->amplifier_mode)
 		return 0;
 
-	status = snd_soc_component_get_pin_status(component, "SPK") |
-		 snd_soc_component_get_pin_status(component, "RCV");
-	if (status) {
+	regmap_read(cs35l45->regmap, CS35L45_IRQ1_STS_1, &val);
+	if (val & CS35L45_MSM_GLOBAL_EN_ASSERT_MASK) {
 		dev_err(cs35l45->dev, "Only switch mode while powered down\n");
 		return -EINVAL;
 	}
