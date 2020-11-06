@@ -5,19 +5,12 @@
  * Copyright 2020 Google LLC.
  */
 
-/dts-v1/;
-
 #include "sc7180.dtsi"
 
 ap_ec_spi: &spi6 {};
 ap_h1_spi: &spi0 {};
 
 #include "sc7180-trogdor.dtsi"
-
-/ {
-	model = "Google CoachZ";
-	compatible = "google,coachz", "qcom,sc7180";
-};
 
 &alc5682 {
 	status = "disabled";
