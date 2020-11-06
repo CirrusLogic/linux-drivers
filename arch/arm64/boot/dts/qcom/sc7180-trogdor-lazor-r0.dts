@@ -22,3 +22,7 @@
 	 */
 	lane-polarities = <1 0>;
 };
+
+&usb_hub {
+	vdd-supply = <&pp3300_l7c>;
+};
