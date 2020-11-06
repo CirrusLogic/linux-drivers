@@ -205,51 +205,47 @@ static int chromiumos_security_file_open(struct file *file)
 	return policy == CHROMIUMOS_INODE_POLICY_BLOCK ? -EACCES : 0;
 }
 
-int chromiumos_sb_eat_lsm_opts(char *orig, void **mnt_opts)
+int chromiumos_sb_eat_lsm_opts(char *options, void **mnt_opts)
 {
-	char *orig_copy;
-	char *orig_copy_cur;
-	char *option;
-	size_t offset = 0;
+	char *from = options, *to = options;
 	bool found = false;
+	bool first = true;
 
-	if (!orig || *orig == 0)
-		return 0;
+	while (1) {
+		char *next = strchr(from, ',');
+		int len;
 
-	orig_copy = (char *)get_zeroed_page(GFP_KERNEL);
-	if (!orig_copy)
-		return -ENOMEM;
-	strncpy(orig_copy, orig, PAGE_SIZE);
+		if (next)
+			len = next - from;
+		else
+			len = strlen(from);
 
-	memset(orig, 0, strlen(orig));
-
-	orig_copy_cur = orig_copy;
-	while (orig_copy_cur) {
-		option = strsep(&orig_copy_cur, ",");
 		/*
 		 * Remove the option so that filesystems won't see it.
 		 * do_mount() has already forced the MS_NOSYMFOLLOW flag on
 		 * if it found this option, so no other action is needed.
 		 */
-		if (strcmp(option, "nosymfollow") == 0) {
-			if (found) /* Found multiple times. */
-				return -EINVAL;
+		if (len == strlen("nosymfollow") && !strncmp(next, "nosymfollow", len)) {
 			found = true;
 		} else {
-			if (offset > 0) {
-				orig[offset] = ',';
-				offset++;
+			if (!first) {   /* copy with preceding comma */
+				from--;
+				len++;
 			}
-			strcpy(orig + offset, option);
-			offset += strlen(option);
+			if (to != from)
+				memmove(to, from, len);
+			to += len;
+			first = false;
 		}
+		if (!next)
+			break;
+		from += len + 1;
 	}
+	*to = '\0';
 
-	if (found) {
+	if (found)
 		pr_notice("nosymfollow option should be changed to MS_NOSYMFOLLOW flag.");
-	}
 
-	free_page((unsigned long)orig_copy);
 	return 0;
 }
 
