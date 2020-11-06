@@ -3212,6 +3212,7 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 	struct path path;
 	int ret;
 
+#ifdef CONFIG_SECURITY_CHROMIUMOS_NO_SYMLINK_MOUNT
 	ret = nameidata_set_temporary(dir_name);
 	if (ret)
 		return ret;
@@ -3224,6 +3225,12 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 
 	ret = path_mount(dev_name, &path, type_page, flags, data_page);
 	nameidata_restore_temporary();
+#else
+	ret = user_path_at(AT_FDCWD, dir_name, LOOKUP_FOLLOW, &path);
+	if (ret)
+		return ret;
+	ret = path_mount(dev_name, &path, type_page, flags, data_page);
+#endif /* CONFIG_SECURITY_CHROMIUMOS_NO_SYMLINK_MOUNT */
 	path_put(&path);
 	return ret;
 }
