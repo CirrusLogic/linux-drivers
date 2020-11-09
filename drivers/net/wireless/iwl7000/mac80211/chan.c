@@ -282,7 +282,6 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 #endif
 			continue;
 		case NL80211_IFTYPE_ADHOC:
-		case NL80211_IFTYPE_WDS:
 		case NL80211_IFTYPE_MESH_POINT:
 #if CFG80211_VERSION >= KERNEL_VERSION(3,19,0)
 		case NL80211_IFTYPE_OCB:
@@ -290,6 +289,7 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 #endif
 			width = vif->bss_conf.chandef.width;
 			break;
+		case NL80211_IFTYPE_WDS:
 		case NL80211_IFTYPE_UNSPECIFIED:
 		case NUM_NL80211_IFTYPES:
 		case NL80211_IFTYPE_MONITOR:
@@ -810,7 +810,6 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 			continue;
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_ADHOC:
-		case NL80211_IFTYPE_WDS:
 		case NL80211_IFTYPE_MESH_POINT:
 #if CFG80211_VERSION >= KERNEL_VERSION(3,19,0)
 		case NL80211_IFTYPE_OCB:

@@ -2543,7 +2543,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 				return res;
 			}
 			break;
-		case NL80211_IFTYPE_WDS:
 		case NL80211_IFTYPE_AP_VLAN:
 		case NL80211_IFTYPE_MONITOR:
 		case NL80211_IFTYPE_P2P_DEVICE:
@@ -2553,6 +2552,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		case NUM_NL80211_IFTYPES:
 		case NL80211_IFTYPE_P2P_CLIENT:
 		case NL80211_IFTYPE_P2P_GO:
+		case NL80211_IFTYPE_WDS:
 			WARN_ON(1);
 			break;
 		}
