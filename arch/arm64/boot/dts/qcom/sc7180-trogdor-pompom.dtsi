@@ -90,7 +90,7 @@ ap_ts_pen_1v8: &i2c4 {
 };
 
 &sound {
-	compatible = "qcom,sc7180-sndcard-rt5682-m98357-2mic";
+	model = "sc7180-rt5682-max98357a-2mic";
 	pinctrl-names = "default";
 	pinctrl-0 = <&dmic_sel>;
 	dmic-gpios = <&tlmm 86 GPIO_ACTIVE_HIGH>;

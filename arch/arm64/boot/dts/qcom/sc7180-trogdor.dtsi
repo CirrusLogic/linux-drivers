@@ -281,8 +281,8 @@
 	};
 
 	sound: sound  {
-		compatible = "qcom,sc7180-sndcard-rt5682-m98357-1mic";
-		model = "sc7180-snd-card";
+		compatible = "google,sc7180-trogdor";
+		model = "sc7180-rt5682-max98357a-1mic";
 
 		audio-routing =
 			"Headphone Jack", "HPOL",
