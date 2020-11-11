@@ -134,9 +134,10 @@ static int cl_dsp_coeff_header_parse(struct cl_dsp *dsp,
 		return -EINVAL;
 	}
 
-	if (header.fw_revision != dsp->algo_info[0].rev) {
+	if (CL_DSP_GET_MAJOR(header.fw_revision)
+			!= CL_DSP_GET_MAJOR(dsp->algo_info[0].rev)) {
 		dev_err(dev,
-			"Coeff. revision 0x%06X does not match 0x%06X\n",
+			"Coeff. revision 0x%06X incompatible with 0x%06X\n",
 			header.fw_revision, dsp->algo_info[0].rev);
 		return -EINVAL;
 	}
@@ -189,7 +190,7 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 	struct cl_dsp_coeff_data_block data_block;
 	union cl_dsp_wmdr_header wmdr_header;
 	char wt_date[CL_DSP_WMDR_DATE_LEN];
-	unsigned int reg, wt_reg;
+	unsigned int reg, wt_reg, algo_rev;
 	int i;
 
 	if  (!dsp)
@@ -236,24 +237,23 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 				goto err_free;
 			}
 
-			if (((data_block.header.algo_rev >>
-					CL_DSP_ALGO_REV_SHIFT_RIGHT) &
-					CL_DSP_ALGO_REV_MASK) !=
-					(dsp->algo_info[i].rev &
-					CL_DSP_ALGO_REV_MASK)) {
+			algo_rev =
+				CL_DSP_SHIFT_REV(data_block.header.algo_rev);
+			if (CL_DSP_GET_MAJOR(algo_rev) !=
+				CL_DSP_GET_MAJOR(dsp->algo_info[i].rev)) {
 				dev_err(dev,
-				"Invalid algo. rev.: %d.%d.%d (ID 0x%06X)\n",
-				(data_block.header.algo_rev & 0xFF000000) >> 24,
-				(data_block.header.algo_rev & 0xFF0000) >> 16,
-				(data_block.header.algo_rev & 0xFF00) >> 8,
-				data_block.header.algo_id);
+				"Invalid algo. rev.: %d.%d.%d (0x%06X)\n",
+					(int) CL_DSP_GET_MAJOR(algo_rev),
+					(int) CL_DSP_GET_MINOR(algo_rev),
+					(int) CL_DSP_GET_PATCH(algo_rev),
+					data_block.header.algo_id);
 
 				ret = -EINVAL;
 				goto err_free;
 			}
 
-			if (dsp->wt_desc && data_block.header.algo_id
-					== dsp->wt_desc->id)
+			if (dsp->wt_desc &&
+				data_block.header.algo_id == dsp->wt_desc->id)
 				wt_found = true;
 		}
 
@@ -693,16 +693,16 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 
 	if (dsp->algo_info[0].rev < dsp->fw_desc->min_rev) {
 		dev_err(dev, "Invalid firmware revision: %d.%d.%d\n",
-				(dsp->algo_info[0].rev & 0xFF0000) >> 16,
-				(dsp->algo_info[0].rev & 0xFF00) >> 8,
-				dsp->algo_info[0].rev & 0xFF);
+				(int) CL_DSP_GET_MAJOR(dsp->algo_info[0].rev),
+				(int) CL_DSP_GET_MINOR(dsp->algo_info[0].rev),
+				(int) CL_DSP_GET_PATCH(dsp->algo_info[0].rev));
 		return -EINVAL;
 	}
 
 	dev_info(dev, "Firmware revision %d.%d.%d\n",
-			(dsp->algo_info[0].rev & 0xFF0000) >> 16,
-			(dsp->algo_info[0].rev & 0xFF00) >> 8,
-			dsp->algo_info[0].rev & 0xFF);
+			(int) CL_DSP_GET_MAJOR(dsp->algo_info[0].rev),
+			(int) CL_DSP_GET_MINOR(dsp->algo_info[0].rev),
+			(int) CL_DSP_GET_PATCH(dsp->algo_info[0].rev));
 
 	if (dsp->wt_desc)
 		dev_info(dev,
