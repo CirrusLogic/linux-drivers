@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -89,6 +89,7 @@ iwl_mvm_vendor_attr_policy[NUM_IWL_MVM_VENDOR_ATTR] = {
 	[IWL_MVM_VENDOR_ATTR_RFIM_FREQ]		    = { .type = NLA_U32 },
 	[IWL_MVM_VENDOR_ATTR_RFIM_CHANNELS]	    = { .type = NLA_U32 },
 	[IWL_MVM_VENDOR_ATTR_RFIM_BANDS]	    = { .type = NLA_U32 },
+	[IWL_MVM_VENDOR_ATTR_TIME_SYNC_PROTOCOL_TYPE] = { .type = NLA_U32 },
 };
 
 static struct nlattr **iwl_mvm_parse_vendor_data(const void *data, int data_len)
@@ -1319,6 +1320,57 @@ static int iwl_mvm_vendor_remove_pasn_sta(struct wiphy *wiphy,
 	return ret;
 }
 
+static int iwl_mvm_time_sync_measurement_config(struct wiphy *wiphy,
+						struct wireless_dev *wdev,
+						const void *data, int data_len)
+{
+	struct nlattr **tb;
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_time_sync_cfg_cmd cmd = {};
+	u32 protocol_types;
+	int err;
+
+	tb = iwl_mvm_parse_vendor_data(data, data_len);
+	if (IS_ERR(tb))
+		return PTR_ERR(tb);
+
+	if (!tb[IWL_MVM_VENDOR_ATTR_ADDR] ||
+	    !tb[IWL_MVM_VENDOR_ATTR_TIME_SYNC_PROTOCOL_TYPE])
+		return -EINVAL;
+
+	ether_addr_copy(cmd.peer_addr, nla_data(tb[IWL_MVM_VENDOR_ATTR_ADDR]));
+
+	protocol_types = nla_get_u32(tb[IWL_MVM_VENDOR_ATTR_TIME_SYNC_PROTOCOL_TYPE]);
+
+	/* Check if the requested configuration was already set earlier */
+	if (protocol_types == mvm->time_msmt_cfg)
+		return -EALREADY;
+
+	if (protocol_types <= (IWL_MVM_VENDOR_TIME_SYNC_PROTOCOL_TM |
+			      IWL_MVM_VENDOR_TIME_SYNC_PROTOCOL_FTM))
+		cmd.protocols = cpu_to_le32(protocol_types);
+	else
+		return -EINVAL;
+
+	mutex_lock(&mvm->mutex);
+	err = iwl_mvm_send_cmd_pdu(mvm,
+				   iwl_cmd_id(WNM_80211V_TIMING_MEASUREMENT_CONFIG_CMD,
+					      DATA_PATH_GROUP, 0),
+				   0, sizeof(cmd), &cmd);
+	mutex_unlock(&mvm->mutex);
+
+	if (err) {
+		IWL_ERR(mvm, "Failed to send TM/FTM Measurement cfg cmd: %d\n", err);
+		return err;
+	}
+
+	/* Save the changed time sync measurement configuration */
+	mvm->time_msmt_cfg = protocol_types;
+
+	return 0;
+}
+
 static const struct wiphy_vendor_command iwl_mvm_vendor_commands[] = {
 	{
 		.info = {
@@ -1615,6 +1667,21 @@ static const struct wiphy_vendor_command iwl_mvm_vendor_commands[] = {
 		},
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV,
 		.doit = iwl_vendor_rfim_get_table,
+#if CFG80211_VERSION >= KERNEL_VERSION(5,3,0)
+		.policy = iwl_mvm_vendor_attr_policy,
+#endif
+#if CFG80211_VERSION >= KERNEL_VERSION(5,3,0)
+		.maxattr = MAX_IWL_MVM_VENDOR_ATTR,
+#endif
+	},
+	{
+		.info = {
+			.vendor_id = INTEL_OUI,
+			.subcmd = IWL_MVM_VENDOR_CMD_TIME_SYNC_MEASUREMENT_CONFIG,
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
+			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.doit = iwl_mvm_time_sync_measurement_config,
 #if CFG80211_VERSION >= KERNEL_VERSION(5,3,0)
 		.policy = iwl_mvm_vendor_attr_policy,
 #endif

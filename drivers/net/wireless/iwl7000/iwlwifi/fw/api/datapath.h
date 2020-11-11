@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -25,6 +25,11 @@ enum iwl_data_path_subcmd_ids {
 	 * @TRIGGER_RX_QUEUES_NOTIF_CMD: &struct iwl_rxq_sync_cmd
 	 */
 	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
+
+	/**
+	 * @WNM_80211V_TIMING_MEASUREMENT_CONFIG_CMD: &struct iwl_time_sync_cfg_cmd
+	 */
+	WNM_80211V_TIMING_MEASUREMENT_CONFIG_CMD = 0x4,
 
 	/**
 	 * @STA_HE_CTXT_CMD: &struct iwl_he_sta_context_cmd
@@ -123,6 +128,25 @@ enum iwl_channel_estimation_flags {
 	/* starting from v2: */
 	IWL_CHANNEL_ESTIMATION_INTERVAL	= BIT(3),
 };
+
+enum iwl_time_sync_protocol_type {
+	IWL_TIME_SYNC_PROTOCOL_TM	= BIT(0),
+	IWL_TIME_SYNC_PROTOCOL_FTM	= BIT(1),
+}; /* WNM_TIMING_ENABLED_PROTOCOL_API_E_VER_1 */
+
+/**
+ * struct iwl_time_sync_cfg_cmd - TM/FTM time sync measurement configuration
+ *
+ * @protocols: The type of frames to raise notifications for. A bitmap
+ *	of @iwl_time_sync_protocol_type
+ * @peer_addr: peer address with which TM/FTM measurements are required
+ * @reserved: for alignment
+ */
+struct iwl_time_sync_cfg_cmd {
+	__le32 protocols;
+	u8 peer_addr[ETH_ALEN];
+	u8 reserved[2];
+} __packed; /* WNM_80211V_TIMING_MEASUREMENT_CONFIG_CMD_API_S_VER_1 */
 
 /**
  * struct iwl_channel_estimation_cfg_v1 - channel estimation reporting config

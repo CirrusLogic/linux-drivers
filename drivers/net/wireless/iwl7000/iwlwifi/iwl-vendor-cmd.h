@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -101,6 +101,11 @@
  *	HLTK for secure LTF bits generation.
  * @IWL_MVM_VENDOR_CMD_REMOVE_PASN_STA: remove the PASN station with the mac
  *	address specified with &IWL_MVM_VENDOR_ATTR_ADDR.
+ * @IWL_MVM_VENDOR_CMD_TIME_SYNC_MEASUREMENT_CONFIG: configure TM/FTM
+ *	measurement protocol for time synchronization.
+ *	&IWL_MVM_VENDOR_ATTR_TIME_SYNC_PROTOCOL_TYPE specifies bitmap of
+ *	time sync measurement protocols for which to record timestamps.
+ *	&IWL_MVM_VENDOR_ATTR_ADDR specifies peer MAC address.
  */
 
 enum iwl_mvm_vendor_cmd {
@@ -145,6 +150,7 @@ enum iwl_mvm_vendor_cmd {
 	IWL_MVM_VENDOR_CMD_REMOVE_PASN_STA			= 0x26,
 	IWL_MVM_VENDOR_CMD_RFIM_SET_TABLE			= 0x27,
 	IWL_MVM_VENDOR_CMD_RFIM_GET_TABLE			= 0x28,
+	IWL_MVM_VENDOR_CMD_TIME_SYNC_MEASUREMENT_CONFIG		= 0x29,
 };
 
 /**
@@ -592,6 +598,21 @@ enum iwl_vendor_fips_test_vector_hw {
 };
 
 /**
+ * enum iwl_mvm_vendor_time_sync_protocol_type - bitmap of time sync
+ * measurement protocols.
+ *
+ * @IWL_MVM_VENDOR_TIME_SYNC_PROTOCOL_NONE: Disable TM/FTM time sync
+ *	measurement protocol.
+ * @IWL_MVM_VENDOR_TIME_SYNC_PROTOCOL_TM: Timing measurement protocol.
+ * @IWL_MVM_VENDOR_TIME_SYNC_PROTOCOL_FTM: Fine Timing measurement protocol.
+ */
+enum iwl_mvm_vendor_time_sync_protocol_type {
+	IWL_MVM_VENDOR_TIME_SYNC_PROTOCOL_NONE,
+	IWL_MVM_VENDOR_TIME_SYNC_PROTOCOL_TM = BIT(0),
+	IWL_MVM_VENDOR_TIME_SYNC_PROTOCOL_FTM = BIT(1),
+};
+
+/**
  * enum iwl_mvm_vendor_attr - attributes used in vendor commands
  * @__IWL_MVM_VENDOR_ATTR_INVALID: attribute 0 is invalid
  * @IWL_MVM_VENDOR_ATTR_LOW_LATENCY: low-latency flag attribute
@@ -745,6 +766,9 @@ enum iwl_vendor_fips_test_vector_hw {
  * @IWL_MVM_VENDOR_ATTR_STA_CIPHER: the cipher to use for the station with the
  *	mac address specified in &IWL_MVM_VENDOR_ATTR_ADDR.
  *	One of WLAN_CIPHER_SUITE_*.
+ * @IWL_MVM_VENDOR_ATTR_TIME_SYNC_PROTOCOL_TYPE: bitmap of time sync
+ *	measurement protocols for which to record timestamps,
+ *	one of &enum iwl_mvm_vendor_time_sync_protocol_type.
  */
 enum iwl_mvm_vendor_attr {
 	__IWL_MVM_VENDOR_ATTR_INVALID				= 0x00,
@@ -833,6 +857,7 @@ enum iwl_mvm_vendor_attr {
 	IWL_MVM_VENDOR_ATTR_RFIM_FREQ				= 0x53,
 	IWL_MVM_VENDOR_ATTR_RFIM_CHANNELS			= 0x54,
 	IWL_MVM_VENDOR_ATTR_RFIM_BANDS				= 0x55,
+	IWL_MVM_VENDOR_ATTR_TIME_SYNC_PROTOCOL_TYPE		= 0x56,
 
 	NUM_IWL_MVM_VENDOR_ATTR,
 	MAX_IWL_MVM_VENDOR_ATTR = NUM_IWL_MVM_VENDOR_ATTR - 1,
