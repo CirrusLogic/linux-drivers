@@ -610,6 +610,12 @@
 #define CS40L26_DSP1_PROM_30714			0x3C7DFE8
 
 #define CS40L26_DEV_NAME		"CS40L26"
+#define CS40L26_DEVID_A			0x40A260
+#define CS40L26_DEVID_B			0x40A26B
+#define CS40L26_DEVID_MASK		GENMASK(23, 0)
+
+#define CS40L26_REVID_A0		0xA0
+#define CS40L26_REVID_MASK		GENMASK(7, 0)
 
 #define CS40L26_GLOBAL_EN_MASK		BIT(0)
 
@@ -618,6 +624,14 @@
 
 #define CS40L26_TIMEOUT_COUNT_MIN	1
 #define CS40L26_TIMEOUT_INTERVAL_MS	1
+
+#define CS40L26_DSP_CCM_CORE_KILL	0x00000080
+#define CS40L26_DSP_CCM_CORE_RESET	0x00000281
+
+#define CS40L26_MEM_RDY_MASK		BIT(1)
+#define CS40L26_MEM_RDY_SHIFT		1
+
+#define CS40L26_PM_CUR_STATE_ROM	0x02800358
 
 /* algorithms */
 #define CS40L26_VIBEGEN_ALGO_ID	0x0000BD
@@ -731,50 +745,6 @@
 
 #define CS40L26_ISEQ_MAX_ENTRIES		4
 
-/* GPIO */
-#define CS40L26_OTP_GPI_MASK			GENMASK(6, 4)
-#define CS40L26_OTP_GPI_SHIFT			4
-
-#define CS40L26_NUM_GPIO_SETUP_WRITES		3
-
-#define CS40L26_LRCK_PAD_CTRL_ASP		0x00000007
-#define CS40L26_SDIN_PAD_CTRL_ASP		0x00000007
-#define CS40L26_GPIO_PAD_CTRL_ASP		0x43010000
-
-#define CS40L26_LRCK_PAD_CTRL_GPI		0x00000017
-#define CS40L26_SDIN_PAD_CTRL_GPI		0x0000000F
-#define CS40L26_GPIO_PAD_CTRL_GPI		0x41010000
-
-#define CS40L26_GPI8_CTRL_MASK			GENMASK(30, 28)
-#define CS40L26_GPI8_CTRL_SHIFT		28
-#define CS40L26_GPI8_CTRL_HIZ			0x0
-#define CS40L26_GPI8_CTRL_OD_INTB		0x2
-#define CS40L26_GPI8_CTRL_MCLK			0x3
-#define CS40L26_GPI8_CTRL_CMOS_INTB		0x4
-#define CS40L26_GPI8_CTRL_CMOS_INT		0x5
-#define CS40L26_GPI8_CTRL_ASP_DOUT		0x6
-
-#define CS40L26_GPI4_CTRL_MASK			BIT(4)
-#define CS40L26_GPI4_CTRL_SHIFT		4
-#define CS40L26_GPI4_CTRL_ASP_FSYNC		0
-#define CS40L26_GPI4_CTRL_GPIO			1
-
-#define CS40L26_GPI3_CTRL_MASK			BIT(3)
-#define CS40L26_GPI3_CTRL_SHIFT		3
-#define CS40L26_GPI3_CTRL_ASP_DIN		0
-#define CS40L26_GPI3_CTRL_GPIO			1
-
-#define CS40L26_GPI2_CTRL_MASK			GENMASK(26, 24)
-#define CS40L26_GPI2_CTRL_SHIFT		24
-#define CS40L26_GPI2_CTRL_HIZ			0x0
-#define CS40L26_GPI2_CTRL_GPIO			0x1
-#define CS40L26_GPI2_CTRL_MCLK			0x3
-
-#define CS40L26_GPI1_CTRL_MASK			GENMASK(18, 16)
-#define CS40L26_GPI1_CTRL_SHIFT		16
-#define CS40L26_GPI1_CTRL_HIZ			0x0
-#define CS40L26_GPI1_CTRL_GPIO			0x1
-
 /* output */
 #define CS40L26_GLOBAL_ENABLES2_DEFAULT	0x01000000
 #define CS40L26_BST_CTRL_DEFAULT		0x000000AA
@@ -845,6 +815,12 @@
 #define CS40L26_VXBR_REL_RATE_MAX		0x7
 #define CS40L26_VXBR_REL_RATE_MASK		GENMASK(23, 21)
 #define CS40L26_VXBR_REL_RATE_SHIFT		21
+
+/* DSP State */
+#define CS40L26_DSP_STATE_HIBERNATE		0
+#define CS40L26_DSP_STATE_SHUTDOWN		1
+#define CS40L26_DSP_STATE_STANDBY		2
+#define CS40L26_DSP_STATE_ACTIVE		3
 
 /* macros */
 #define CS40L26_OTP_MEM(n)	(CS40L26_OTP_MEM0 + \
@@ -1003,8 +979,8 @@ struct cs40l26_platform_data {
 struct cs40l26_private {
 	struct device *dev;
 	struct regmap *regmap;
-	unsigned int devid;
-	unsigned int revid;
+	u32 devid : 24;
+	u8 revid;
 	struct mutex lock;
 	struct cs40l26_platform_data pdata;
 	struct gpio_desc *reset_gpio;
@@ -1048,10 +1024,6 @@ bool cs40l26_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l26_volatile_reg(struct device *dev,  unsigned int reg);
 
 /* external tables */
-extern const struct reg_sequence
-		cs40l26_gpio_setup_asp[CS40L26_NUM_GPIO_SETUP_WRITES];
-extern const struct reg_sequence
-		cs40l26_gpio_setup_gpi[CS40L26_NUM_GPIO_SETUP_WRITES];
 extern const struct reg_sequence
 		cs40l26_output_default[CS40L26_NUM_OUTPUT_SETUP_WRITES];
 

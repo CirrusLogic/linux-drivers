@@ -107,14 +107,17 @@ int cs40l26_ack_write(struct cs40l26_private *cs40l26,
 }
 EXPORT_SYMBOL(cs40l26_ack_write);
 
-static int cs40l26_dsp_wakeup(struct cs40l26_private *cs40l26)
+static int cs40l26_dsp_start(struct cs40l26_private *cs40l26)
 {
 	u32 reg, val;
 	int ret;
 
-	ret = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_WAKEUP);
-	if (ret)
+	ret = regmap_write(cs40l26->regmap, CS40L26_DSP1_CCM_CORE_CONTROL,
+			CS40L26_DSP_CCM_CORE_RESET);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to reset DSP core\n");
 		return ret;
+	}
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "PM_CUR_STATE",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
@@ -125,10 +128,14 @@ static int cs40l26_dsp_wakeup(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	ret = cs40l26_pm_state_transition(cs40l26,
-			CS40L26_PM_STATE_PREVENT_HIBERNATE);
+	if (val != CS40L26_DSP_STATE_ACTIVE &&
+			val != CS40L26_DSP_STATE_STANDBY) {
+		dev_err(cs40l26->dev, "Failed to wake DSP core\n");
+		return -EINVAL;
+	}
 
-	return ret;
+	return cs40l26_pm_state_transition(cs40l26,
+			CS40L26_PM_STATE_PREVENT_HIBERNATE);
 }
 
 static int cs40l26_dsp_shutdown(struct cs40l26_private *cs40l26)
@@ -136,20 +143,35 @@ static int cs40l26_dsp_shutdown(struct cs40l26_private *cs40l26)
 	u32 reg, val;
 	int ret;
 
-	ret = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_SHUTDOWN);
-	if (ret)
-		return ret;
+	ret = cs40l26_pm_state_transition(cs40l26,
+			CS40L26_PM_STATE_PREVENT_HIBERNATE);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "PM_CUR_STATE",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
-	if (ret)
-		return ret;
+	if (cs40l26->vibe_init_success) {
+		ret = cl_dsp_get_reg(cs40l26->dsp, "PM_CUR_STATE",
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID,
+				&reg);
+		if (ret)
+			return ret;
+	} else {
+		reg = CS40L26_PM_CUR_STATE_ROM;
+	}
 
 	ret = cs40l26_dsp_read(cs40l26, reg, &val);
 	if (ret)
 		return ret;
 
-	return 0;
+	if (val != CS40L26_DSP_STATE_SHUTDOWN &&
+			val != CS40L26_DSP_STATE_STANDBY) {
+		dev_err(cs40l26->dev, "Failed to shutdown DSP core\n");
+		return -EINVAL;
+	}
+
+	ret = regmap_write(cs40l26->regmap, CS40L26_DSP1_CCM_CORE_CONTROL,
+			CS40L26_DSP_CCM_CORE_KILL);
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to kill DSP core\n");
+
+	return ret;
 }
 
 static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
@@ -265,8 +287,8 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 	if (cs40l26->pm_state == state)
 		return 0;
 
-	if (cs40l26->pm_state == CS40L26_PM_STATE_ALLOW_HIBERNATE
-			&& state == CS40L26_PM_STATE_PREVENT_HIBERNATE) {
+	if (cs40l26->pm_state == CS40L26_PM_STATE_SHUTDOWN ||
+			cs40l26->pm_state == CS40L26_PM_STATE_ALLOW_HIBERNATE){
 		ret = cs40l26_ack_read(cs40l26, CL_DSP_HALO_XM_FW_ID_REG,
 				cs40l26->dsp->fw_desc->id);
 		if (ret)
@@ -275,14 +297,12 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 
 	switch (state) {
 	case CS40L26_PM_STATE_HIBERNATE:
+	/* intentionally fall through */
+	case CS40L26_PM_STATE_WAKEUP:
+	/* intentionally fall through */
+	case CS40L26_PM_STATE_SHUTDOWN:
 		dev_err(dev, "Invalid PM state: %u\n", state);
 		return -EINVAL;
-	case CS40L26_PM_STATE_WAKEUP:
-		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-				CS40L26_DSP_MBOX_CMD_WAKEUP,
-				CS40L26_DSP_MBOX_RESET);
-		if (ret)
-			return ret;
 	case CS40L26_PM_STATE_PREVENT_HIBERNATE:
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				CS40L26_DSP_MBOX_CMD_PREVENT_HIBER,
@@ -293,13 +313,6 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 	case CS40L26_PM_STATE_ALLOW_HIBERNATE:
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				CS40L26_DSP_MBOX_CMD_ALLOW_HIBER,
-				CS40L26_DSP_MBOX_RESET);
-		if (ret)
-			return ret;
-		break;
-	case CS40L26_PM_STATE_SHUTDOWN:
-		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-				CS40L26_DSP_MBOX_CMD_SHUTDOWN,
 				CS40L26_DSP_MBOX_RESET);
 		if (ret)
 			return ret;
@@ -605,7 +618,7 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 			return ret;
 
 		if (bst_err) {
-			ret = cs40l26_dsp_wakeup(cs40l26);
+			ret = cs40l26_dsp_start(cs40l26);
 			if (ret)
 				return ret;
 		}
@@ -1121,21 +1134,34 @@ static int cs40l26_input_init(struct cs40l26_private *cs40l26)
 
 static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
 {
-	int ret;
-	unsigned int val;
-	struct device *dev = cs40l26->dev;
 	struct regmap *regmap = cs40l26->regmap;
+	struct device *dev = cs40l26->dev;
+	int ret;
+	u32 val;
 
 	ret = regmap_read(regmap, CS40L26_DEVID, &val);
 	if (ret) {
 		dev_err(dev, "Failed to read device ID\n");
 		return ret;
 	}
+
+	val &= CS40L26_DEVID_MASK;
+	if (val != CS40L26_DEVID_A && val != CS40L26_DEVID_B) {
+		dev_err(dev, "Invalid device ID: 0x%06X\n", val);
+		return -EINVAL;
+	}
+
 	cs40l26->devid = val;
 
 	ret = regmap_read(regmap, CS40L26_REVID, &val);
 	if (ret) {
 		dev_err(dev, "Failed to read revision ID\n");
+		return ret;
+	}
+
+	val &= CS40L26_REVID_MASK;
+	if (val != CS40L26_REVID_A0) {
+		dev_err(dev, "Invalid device revision: 0x%02X\n", val);
 		return ret;
 	}
 	cs40l26->revid = val;
@@ -1346,55 +1372,14 @@ static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
 
 static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 {
-	struct device *dev = cs40l26->dev;
-	struct regmap *regmap = cs40l26->regmap;
-	u32 otp_gpio_cfg, unmask_bits = 0;
-	int ret;
-
-	ret = regmap_read(regmap, CS40L26_OTP_MEM(28), &otp_gpio_cfg);
-	if (ret) {
-		dev_err(dev, "Failed to get GPIO config from OTP\n");
-		return ret;
-	}
+	u32 unmask_bits = 0;
 
 	unmask_bits |= (BIT(CS40L26_IRQ1_GPIO1_RISE)
 			| BIT(CS40L26_IRQ1_GPIO1_FALL));
 
-	if (otp_gpio_cfg & CS40L26_OTP_GPI_MASK) { /* 4 GPIO config */
-		ret = regmap_multi_reg_write(regmap, cs40l26_gpio_setup_gpi,
-				CS40L26_NUM_GPIO_SETUP_WRITES);
-		if (ret) {
-			dev_err(dev, "Failed to configure GPIOs as 4 GPIs\n");
-			return ret;
-		}
-
-		ret = cs40l26_pseq_multi_add_pair(cs40l26,
-				cs40l26_gpio_setup_gpi,
-				CS40L26_NUM_GPIO_SETUP_WRITES);
-		if (ret) {
-			dev_err(dev, "Failed to sequence 4 GPI config\n");
-			return ret;
-		}
-
+	if (cs40l26->devid == CS40L26_DEVID_B) /* 4 GPIO config */
 		unmask_bits |= (u32) (GENMASK(CS40L26_IRQ1_GPIO4_FALL,
 				CS40L26_IRQ1_GPIO2_RISE));
-	} else { /* ASP config */
-		ret = regmap_multi_reg_write(regmap, cs40l26_gpio_setup_asp,
-				CS40L26_NUM_GPIO_SETUP_WRITES);
-		if (ret) {
-			dev_err(dev, "Failed to configure GPIOs for ASP\n");
-			return ret;
-		}
-
-		ret = cs40l26_pseq_multi_add_pair(cs40l26,
-				cs40l26_gpio_setup_asp,
-				CS40L26_NUM_GPIO_SETUP_WRITES);
-		if (ret) {
-			dev_err(dev, "Failed to sequence ASP config\n");
-			return ret;
-		}
-	}
-
 
 	return cs40l26_irq_unmask(cs40l26, CS40L26_IRQ1_MASK_1, unmask_bits);
 }
@@ -1659,12 +1644,6 @@ int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves)
 	int ret;
 	u32 reg;
 
-	/* dummy trigger to activate NUM_OF_WAVES */
-	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-			CS40L26_RAM_INDEX_END, CS40L26_DSP_MBOX_RESET);
-	if (ret)
-		return ret;
-
 	ret = cl_dsp_get_reg(cs40l26->dsp, "NUM_OF_WAVES",
 			CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
@@ -1681,6 +1660,33 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	struct device *dev = cs40l26->dev;
 	int ret;
 	u32 reg;
+
+	ret = regmap_update_bits(regmap, CS40L26_PWRMGT_CTL,
+			CS40L26_MEM_RDY_MASK,
+			CS40L26_ENABLE << CS40L26_MEM_RDY_SHIFT);
+	if (ret) {
+		dev_err(dev, "Failed to set MEM_RDY to initialize RAM\n");
+		return ret;
+	}
+
+	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM) {
+		ret = cl_dsp_get_reg(cs40l26->dsp, "CALL_RAM_INIT",
+				CL_DSP_XM_UNPACKED_TYPE,
+				cs40l26->dsp->fw_desc->id, &reg);
+		if (ret)
+			return ret;
+
+		ret = cs40l26_dsp_write(cs40l26, reg, CS40L26_ENABLE);
+		if (ret)
+			return ret;
+	}
+
+	/* OTP configures device to allow hibernate on boot */
+	cs40l26->pm_state = CS40L26_PM_STATE_ALLOW_HIBERNATE;
+
+	ret = cs40l26_dsp_start(cs40l26);
+	if (ret)
+		return ret;
 
 	ret = cs40l26_pseq_init(cs40l26);
 	if (ret)
@@ -1715,18 +1721,6 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM) {
-		ret = cl_dsp_get_reg(cs40l26->dsp, "CALL_RAM_INIT",
-				CL_DSP_XM_UNPACKED_TYPE,
-				cs40l26->dsp->fw_desc->id, &reg);
-		if (ret)
-			return ret;
-
-		ret = cs40l26_dsp_write(cs40l26, reg, CS40L26_ENABLE);
-		if (ret)
-			return ret;
-	}
-
 	/* ensure firmware running */
 	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_STATE",
 			CL_DSP_XM_UNPACKED_TYPE, cs40l26->dsp->fw_desc->id,
@@ -1736,14 +1730,6 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	ret = cs40l26_ack_read(cs40l26, reg,
 			cs40l26->dsp->fw_desc->halo_state_run);
-	if (ret)
-		return ret;
-
-	/* OTP configures device to allow hibernate on boot */
-	cs40l26->pm_state = CS40L26_PM_STATE_ALLOW_HIBERNATE;
-
-	ret = cs40l26_pm_state_transition(cs40l26,
-			CS40L26_PM_STATE_PREVENT_HIBERNATE);
 	if (ret)
 		return ret;
 
@@ -1967,6 +1953,10 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 	disable_irq(cs40l26->irq);
 
 	ret = cs40l26_cl_dsp_init(cs40l26);
+	if (ret)
+		goto err;
+
+	ret = cs40l26_dsp_shutdown(cs40l26);
 	if (ret)
 		goto err;
 
