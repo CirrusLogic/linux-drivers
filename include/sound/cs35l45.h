@@ -125,6 +125,7 @@ struct cs35l45_platform_data {
 	unsigned int ngate_ch2_hold;
 	unsigned int ngate_ch2_thr;
 	bool use_tdm_slots;
+	bool pll_auto_en;
 };
 
 struct cs35l45_private {
