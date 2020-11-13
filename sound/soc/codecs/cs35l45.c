@@ -1673,14 +1673,51 @@ static const struct cs35l45_irq_monitor cs35l45_irq_mons[] = {
 		.mask = CS35L45_IRQ1_MASK_1,
 		.bitmask = CS35L45_MSM_GLOBAL_EN_ASSERT_MASK,
 		.description = "Global enable assertion",
-		.err_msg = "Global enable assert detected!",
+		.info_msg = NULL,
+		.dbg_msg = "Global enable assert detected!",
+		.warn_msg = NULL,
+		.err_msg = NULL,
 		.callback = cs35l45_msm_global_en_assert,
+	},
+	{
+		.reg = CS35L45_IRQ1_EINT_3,
+		.mask = CS35L45_IRQ1_MASK_3,
+		.bitmask = CS35L45_PLL_LOCK_FLAG_MASK,
+		.description = "PLL lock",
+		.info_msg = NULL,
+		.dbg_msg = "PLL lock detected!",
+		.warn_msg = NULL,
+		.err_msg = NULL,
+		.callback = NULL,
+	},
+	{
+		.reg = CS35L45_IRQ1_EINT_3,
+		.mask = CS35L45_IRQ1_MASK_3,
+		.bitmask = CS35L45_PLL_UNLOCK_FLAG_RISE_MASK,
+		.description = "PLL unlock flag rise",
+		.info_msg = NULL,
+		.dbg_msg = "PLL unlock flag rise detected!",
+		.warn_msg = NULL,
+		.err_msg = NULL,
+		.callback = NULL,
+	},
+	{
+		.reg = CS35L45_IRQ1_EINT_18,
+		.mask = CS35L45_IRQ1_MASK_18,
+		.bitmask = CS35L45_GLOBAL_ERROR_MASK,
+		.description = "Global error",
+		.info_msg = NULL,
+		.dbg_msg = NULL,
+		.warn_msg = NULL,
+		.err_msg = "Global error detected!",
+		.callback = NULL,
 	},
 };
 
 static irqreturn_t cs35l45_irq(int irq, void *data)
 {
 	struct cs35l45_private *cs35l45 = data;
+	const struct cs35l45_irq_monitor *irq_mon;
 	unsigned int irq_regs[] = {CS35L45_IRQ1_EINT_1, CS35L45_IRQ1_EINT_2,
 				   CS35L45_IRQ1_EINT_3, CS35L45_IRQ1_EINT_4,
 				   CS35L45_IRQ1_EINT_5, CS35L45_IRQ1_EINT_7,
@@ -1709,23 +1746,31 @@ static irqreturn_t cs35l45_irq(int irq, void *data)
 		return IRQ_NONE;
 
 	for (i = 0; i < ARRAY_SIZE(cs35l45_irq_mons); i++) {
-		regmap_read(cs35l45->regmap, cs35l45_irq_mons[i].reg, &val);
-		if (!(val & cs35l45_irq_mons[i].bitmask))
+		irq_mon = &cs35l45_irq_mons[i];
+		regmap_read(cs35l45->regmap, irq_mon->reg, &val);
+		if (!(val & irq_mon->bitmask))
 			continue;
 
-		regmap_write(cs35l45->regmap, cs35l45_irq_mons[i].reg,
-			     cs35l45_irq_mons[i].bitmask);
+		regmap_write(cs35l45->regmap, irq_mon->reg, irq_mon->bitmask);
 
-		if (cs35l45_irq_mons[i].err_msg)
-			dev_err(cs35l45->dev, "%s\n",
-				cs35l45_irq_mons[i].err_msg);
+		if (irq_mon->info_msg)
+			dev_info(cs35l45->dev, "%s\n", irq_mon->info_msg);
 
-		if (cs35l45_irq_mons[i].callback) {
-			ret = cs35l45_irq_mons[i].callback(cs35l45);
+		if (irq_mon->dbg_msg)
+			dev_dbg(cs35l45->dev, "%s\n", irq_mon->dbg_msg);
+
+		if (irq_mon->warn_msg)
+			dev_warn(cs35l45->dev, "%s\n", irq_mon->warn_msg);
+
+		if (irq_mon->err_msg)
+			dev_err(cs35l45->dev, "%s\n", irq_mon->err_msg);
+
+		if (irq_mon->callback) {
+			ret = irq_mon->callback(cs35l45);
 			if (ret < 0)
 				dev_err(cs35l45->dev,
 					"IRQ (%s) callback failure (%d)\n",
-					cs35l45_irq_mons[i].description, ret);
+					irq_mon->description, ret);
 		}
 	}
 

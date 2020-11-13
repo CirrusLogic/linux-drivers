@@ -104,6 +104,9 @@ struct cs35l45_irq_monitor {
 	unsigned int mask;
 	unsigned int bitmask;
 	const char *description;
+	const char *info_msg;
+	const char *dbg_msg;
+	const char *warn_msg;
 	const char *err_msg;
 	int (*callback)(struct cs35l45_private *cs35l45);
 };
