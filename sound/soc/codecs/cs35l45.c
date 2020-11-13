@@ -502,10 +502,11 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 		if (cs35l45->bus_type == CONTROL_BUS_I2C) {
 			flush_work(&cs35l45->dsp_pmd_work);
 
-			regmap_update_bits(cs35l45->regmap,
-					   CS35L45_REFCLK_INPUT,
-					   CS35L45_PLL_FORCE_EN_MASK,
-					   CS35L45_PLL_FORCE_EN_MASK);
+			if (cs35l45->pdata.pll_auto_en)
+				regmap_update_bits(cs35l45->regmap,
+						   CS35L45_REFCLK_INPUT,
+						   CS35L45_PLL_FORCE_EN_MASK,
+						   CS35L45_PLL_FORCE_EN_MASK);
 
 			usleep_range(5000, 5100);
 		}
@@ -526,7 +527,8 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 		if (ret < 0)
 			dev_err(cs35l45->dev, "MBOX failure (%d)\n", ret);
 
-		if (cs35l45->bus_type == CONTROL_BUS_I2C)
+		if (cs35l45->pdata.pll_auto_en &&
+		    (cs35l45->bus_type == CONTROL_BUS_I2C))
 			queue_work(system_unbound_wq, &cs35l45->dsp_pmd_work);
 
 		break;
@@ -1214,6 +1216,7 @@ static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 
 	SOC_SINGLE("AMP Mute", CS35L45_AMP_OUTPUT_MUTE, 0, 1, 0),
 	SOC_SINGLE("SYNC Enable Switch", CS35L45_BLOCK_ENABLES2, 8, 1, 0),
+	SOC_SINGLE("PLL Force Enable Switch", CS35L45_REFCLK_INPUT, 16, 1, 0),
 	SOC_SINGLE_EXT("DSP1 Boot Switch", SND_SOC_NOPM, 1, 1, 0,
 		       cs35l45_dsp_boot_get, cs35l45_dsp_boot_put),
 	SOC_SINGLE_EXT("DSP1 Prepare Reconfiguration", SND_SOC_NOPM, 1, 1, 0,
@@ -2010,12 +2013,15 @@ static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
 	cs35l45->fast_switch_enum.mask		=
 		roundup_pow_of_two(num_fast_switch) - 1;
 
+
 	ret = of_property_read_u32(node, "cirrus,asp-sdout-hiz-ctrl", &val);
 	if (!ret)
 		pdata->asp_sdout_hiz_ctrl = val | CS35L45_VALID_PDATA;
 
 	pdata->use_tdm_slots = of_property_read_bool(node,
 						     "cirrus,use-tdm-slots");
+
+	pdata->pll_auto_en = of_property_read_bool(node, "cirrus,pll-auto-en");
 
 	ret = of_property_read_string(node, "cirrus,dsp-part-name",
 				      &pdata->dsp_part_name);
