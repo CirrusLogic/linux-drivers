@@ -85,6 +85,13 @@ static int cs40l2x_wavetable_swap(struct cs40l2x_private *cs40l2x,
 			const char *wt_file);
 static int cs40l2x_wavetable_sync(struct cs40l2x_private *cs40l2x);
 
+static unsigned int cs40l2x_dsp_reg(struct cs40l2x_private *cs40l2x,
+			const char *coeff_name, const unsigned int block_type,
+			const unsigned int algo_id);
+
+static int cs40l2x_dsp_cache(struct cs40l2x_private *cs40l2x,
+			unsigned int reg, unsigned int val);
+
 static const struct cs40l2x_fw_desc *cs40l2x_firmware_match(
 			struct cs40l2x_private *cs40l2x, unsigned int fw_id)
 {
@@ -1198,10 +1205,10 @@ static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 
 	cs40l2x->virtual_slot_index = ((cs40l2x->num_waves +
 		CS40L2X_WT_NUM_VIRT_SLOTS) - 1);
-	cs40l2x->virtual_gpio1_fall_index =
+	cs40l2x->virtual_gpio1_fall_slot =
 		cs40l2x->virtual_slot_index - 1;
-	cs40l2x->virtual_gpio1_rise_index =
-		cs40l2x->virtual_gpio1_fall_index - 1;
+	cs40l2x->virtual_gpio1_rise_slot =
+		cs40l2x->virtual_gpio1_fall_slot - 1;
 
 	comp_size = (wt_open_bytes -
 		(CS40L2X_WT_HEADER_ENTRY_SIZE * CS40L2X_WT_NUM_VIRT_SLOTS));
@@ -1292,12 +1299,18 @@ static ssize_t cs40l2x_cp_trigger_index_impl(struct cs40l2x_private *cs40l2x,
 					     unsigned int index)
 {
 	struct i2c_client *i2c_client = to_i2c_client(cs40l2x->dev);
+	bool gpio_pol, gpio_rise = false;
 	int ret = 0;
+	unsigned int reg;
+	unsigned int gpio_index = CS40L2X_GPIO_FALL;
+	unsigned int gpio_slot = cs40l2x->virtual_gpio1_fall_slot;
 
 	pm_runtime_get_sync(cs40l2x->dev);
 
 	if ((index == CS40L2X_INDEX_PBQ_SAVE) ||
-		(index == CS40L2X_INDEX_OVWR_SAVE)) {
+		(index == CS40L2X_INDEX_OVWR_SAVE) ||
+		(index == CS40L2X_INDEX_GP1F_OVWR) ||
+		(index == CS40L2X_INDEX_GP1R_OVWR)) {
 		if (!cs40l2x->virtual_bin) {
 			dev_err(cs40l2x->dev, "Virtual slot not enabled.\n");
 			return -EINVAL;
@@ -1344,6 +1357,59 @@ static ssize_t cs40l2x_cp_trigger_index_impl(struct cs40l2x_private *cs40l2x,
 			dev_err(cs40l2x->dev, "Unable to write waveform.\n");
 		index = cs40l2x->virtual_slot_index;
 		/* After save or save attempt, reset flag */
+		cs40l2x->queue_stored = false;
+		break;
+	case CS40L2X_INDEX_GP1R_OVWR:
+		gpio_rise = true;
+		gpio_index = CS40L2X_GPIO_RISE;
+		gpio_slot = cs40l2x->virtual_gpio1_rise_slot;
+		/* Intentional fall through */
+	case CS40L2X_INDEX_GP1F_OVWR:
+		if (cs40l2x->last_type_entered ==
+			CS40L2X_WT_TYPE_10_COMP_FILE) {
+			ret = cs40l2x_convert_and_save_comp_data(cs40l2x,
+				index, true);
+			if (ret) {
+				dev_err(cs40l2x->dev, "Unable to convert waveform.\n");
+				cs40l2x->queue_stored = false;
+				break;
+			}
+		}
+		ret = cs40l2x_write_virtual_waveform(cs40l2x, index,
+			true, gpio_rise, true);
+		if (ret) {
+			dev_err(cs40l2x->dev, "Unable to write waveform.\n");
+			cs40l2x->queue_stored = false;
+			break;
+		}
+
+		cs40l2x->virtual_gpio_index[gpio_index] = index;
+
+		gpio_pol = cs40l2x->pdata.gpio_indv_pol &
+			(1 << (CS40L2X_INDEXBUTTONPRESS1 >> 2));
+		reg = cs40l2x_dsp_reg(cs40l2x,
+				gpio_pol ^ gpio_rise ?
+					"INDEXBUTTONPRESS" :
+					"INDEXBUTTONRELEASE",
+				CS40L2X_XM_UNPACKED_TYPE,
+				cs40l2x->fw_desc->id);
+		if (!reg) {
+			dev_err(cs40l2x->dev, "Failed to find control.\n");
+			cs40l2x->queue_stored = false;
+			break;
+		}
+
+		ret = regmap_write(cs40l2x->regmap, reg, gpio_slot);
+		if (ret) {
+			dev_err(cs40l2x->dev, "Unable to set GPIO1 index.\n");
+			cs40l2x->queue_stored = false;
+			break;
+		}
+
+		ret = cs40l2x_dsp_cache(cs40l2x, reg, gpio_slot);
+		if (ret)
+			dev_err(cs40l2x->dev, "GPIO1 index cache failed.\n");
+		/* After save or save attempt, reset queue_stored flag */
 		cs40l2x->queue_stored = false;
 		break;
 	case CS40L2X_INDEX_QEST:
@@ -3352,12 +3418,13 @@ static int cs40l2x_gpio_edge_index_get(struct cs40l2x_private *cs40l2x,
 	ret = regmap_read(cs40l2x->regmap, reg, index);
 
 	if (cs40l2x->virtual_bin) {
-		if (*index == cs40l2x->virtual_gpio1_fall_index)
+		if (*index == cs40l2x->virtual_gpio1_fall_slot) {
 			*index =
 			cs40l2x->virtual_gpio_index[CS40L2X_GPIO_FALL];
-		if (*index == cs40l2x->virtual_gpio1_rise_index)
+		} else if (*index == cs40l2x->virtual_gpio1_rise_slot) {
 			*index =
 			cs40l2x->virtual_gpio_index[CS40L2X_GPIO_RISE];
+		}
 	}
 
 	return ret;
@@ -3398,7 +3465,7 @@ static int cs40l2x_gpio_edge_index_set(struct cs40l2x_private *cs40l2x,
 			if (gpio_offs == 0) {
 				if (gpio_rise) {
 					index =
-					cs40l2x->virtual_gpio1_rise_index;
+					cs40l2x->virtual_gpio1_rise_slot;
 					if (cs40l2x->virtual_gpio_index[r] !=
 						cs40l2x->loaded_gpio_index[r])
 						cs40l2x_write_virtual_waveform(
@@ -3408,7 +3475,7 @@ static int cs40l2x_gpio_edge_index_set(struct cs40l2x_private *cs40l2x,
 					/* else virtual wvfrm already loaded */
 				} else {
 					index =
-					cs40l2x->virtual_gpio1_fall_index;
+					cs40l2x->virtual_gpio1_fall_slot;
 					if (cs40l2x->virtual_gpio_index[f] !=
 						cs40l2x->loaded_gpio_index[f])
 						cs40l2x_write_virtual_waveform(
