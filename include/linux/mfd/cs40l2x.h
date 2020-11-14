@@ -949,8 +949,10 @@
 #define CS40L2X_INDEX_CLICK_MIN		0x00000001
 #define CS40L2X_INDEX_CLICK_MAX		0x00007FFF
 #define CS40L2X_INDEX_CONT_MIN		0x00008000
+#define CS40L2X_INDEX_CONT_MAX		0x0000FFF6
+#define CS40L2X_INDEX_GP1F_OVWR		0x0000FFF7
+#define CS40L2X_INDEX_GP1R_OVWR		0x0000FFF8
 #define CS40L2X_INDEX_OVWR_SAVE		0x0000FFF9
-#define CS40L2X_INDEX_CONT_MAX		0x0000FFFA
 #define CS40L2X_INDEX_PBQ_SAVE		0x0000FFFB
 #define CS40L2X_INDEX_QEST		0x0000FFFC
 #define CS40L2X_INDEX_PEAK		0x0000FFFD
@@ -1501,8 +1503,8 @@ struct cs40l2x_private {
 	unsigned int virtual_gpio_index[CS40L2X_SIZE_TWO_ARRAY];
 	unsigned int loaded_gpio_index[CS40L2X_SIZE_TWO_ARRAY];
 	unsigned int virtual_slot_index;
-	unsigned int virtual_gpio1_fall_index;
-	unsigned int virtual_gpio1_rise_index;
+	unsigned int virtual_gpio1_fall_slot;
+	unsigned int virtual_gpio1_rise_slot;
 	struct list_head virtual_waveform_head;
 	struct list_head pwle_segment_head;
 	struct cs40l2x_ovwr_waveform *ovwr_wav;
