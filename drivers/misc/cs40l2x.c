@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// cs40l2x.c  --  ALSA SoC Audio driver for Cirrus Logic CS40L2x
+// CS40L20/CS40L25/CS40L25A/CS40L25B Haptics Driver
 //
-// Copyright 2018 Cirrus Logic Inc.
-// Author: Jeff LaBundy <jeff.labundy@cirrus.com>
+// Copyright (C) 2018-2020 Cirrus Logic, Inc.
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
