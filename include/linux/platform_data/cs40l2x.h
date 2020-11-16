@@ -1,13 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Platform data for CS40L20/CS40L25/CS40L25A/CS40L25B
  *
- * linux/platform_data/cs40l2x.h -- Platform data for
- * CS40L20/CS40L25/CS40L25A/CS40L25B
- *
- * Copyright 2018 Cirrus Logic, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2018-2020 Cirrus Logic, Inc.
  */
 
 #ifndef __CS40L2X_H
