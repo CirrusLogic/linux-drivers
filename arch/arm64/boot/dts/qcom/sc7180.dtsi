@@ -1862,8 +1862,8 @@
 
 				pinconf {
 					pins = "gpio49", "gpio50", "gpio51";
-					drive-strength = <8>;
-					bias-pull-up;
+					drive-strength = <2>;
+					bias-pull-down;
 				};
 			};
 
@@ -1875,8 +1875,8 @@
 
 				pinconf {
 					pins = "gpio53", "gpio54", "gpio55", "gpio56";
-					drive-strength = <8>;
-					bias-pull-up;
+					drive-strength = <2>;
+					bias-pull-down;
 				};
 			};
 
@@ -1888,8 +1888,8 @@
 
 				pinconf {
 					pins = "gpio57";
-					drive-strength = <8>;
-					bias-pull-up;
+					drive-strength = <2>;
+					bias-pull-down;
 				};
 			};
 
