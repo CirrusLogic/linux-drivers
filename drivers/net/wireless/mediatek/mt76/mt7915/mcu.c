@@ -3551,5 +3551,7 @@ int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 		break;
 	}
 
+	dev_kfree_skb(skb);
+
 	return 0;
 }
