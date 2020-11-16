@@ -1,4 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Internal data for CS40L20/CS40L25/CS40L25A/CS40L25B
+ *
+ * Copyright (C) 2018-2020 Cirrus Logic, Inc.
+ */
 
 #ifndef __CS40L2X_H__
 #define __CS40L2X_H__
