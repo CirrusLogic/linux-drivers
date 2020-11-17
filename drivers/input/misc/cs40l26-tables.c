@@ -45,6 +45,11 @@ const struct reg_sequence
 	{CS40L26_DSP1RX5_INPUT, CS40L26_DSP1RX5_INPUT_DEFAULT},
 };
 
+struct regulator_bulk_data cs40l26_supplies[CS40L26_NUM_SUPPLIES] = {
+	{ .supply = CS40L26_VP_SUPPLY_NAME },
+	{ .supply = CS40L26_VA_SUPPLY_NAME },
+};
+
 bool cs40l26_precious_reg(struct device *dev, unsigned int reg)
 {
 	return false;
