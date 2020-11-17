@@ -228,4 +228,5 @@ static inline int cpuhp_smt_disable(enum cpuhp_smt_control ctrlval) { return 0; 
 extern bool cpu_mitigations_off(void);
 extern bool cpu_mitigations_auto_nosmt(void);
 
+extern bool coresched_cmd_secure(void);
 #endif /* _LINUX_CPU_H_ */

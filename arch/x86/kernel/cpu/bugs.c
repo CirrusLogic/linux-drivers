@@ -43,6 +43,7 @@ static void __init mds_select_mitigation(void);
 static void __init mds_print_mitigation(void);
 static void __init taa_select_mitigation(void);
 static void __init srbds_select_mitigation(void);
+static void __init coresched_select(void);
 
 /* The base value of the SPEC_CTRL MSR that always has to be preserved. */
 u64 x86_spec_ctrl_base;
@@ -102,6 +103,9 @@ void __init check_bugs(void)
 	/* Allow STIBP in MSR_SPEC_CTRL if supported */
 	if (boot_cpu_has(X86_FEATURE_STIBP))
 		x86_spec_ctrl_mask |= SPEC_CTRL_STIBP;
+
+	/* Update whether core-scheduling is needed. */
+	coresched_select();
 
 	/* Select the proper CPU mitigations before patching alternatives: */
 	spectre_v1_select_mitigation();
@@ -1754,4 +1758,19 @@ ssize_t cpu_show_srbds(struct device *dev, struct device_attribute *attr, char *
 {
 	return cpu_show_common(dev, attr, buf, X86_BUG_SRBDS);
 }
+
+/*
+ * When coresched=secure command line option is passed (default), disable core
+ * scheduling if CPU does not have MDS/L1TF vulnerability.
+ */
+static void __init coresched_select(void)
+{
+#ifdef CONFIG_SCHED_CORE
+	if (coresched_cmd_secure() &&
+	    !boot_cpu_has_bug(X86_BUG_MDS) &&
+	    !boot_cpu_has_bug(X86_BUG_L1TF))
+		static_branch_disable(&sched_coresched_supported);
+#endif
+}
+
 #endif
