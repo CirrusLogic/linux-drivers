@@ -13,11 +13,6 @@
 
 #include <linux/mfd/cs40l26.h>
 
-static struct regulator_bulk_data cs40l26_supplies[CS40L26_NUM_SUPPLIES] = {
-	{ .supply = CS40L26_VP_SUPPLY_NAME },
-	{ .supply = CS40L26_VA_SUPPLY_NAME },
-};
-
 int cs40l26_dsp_read(struct cs40l26_private *cs40l26, u32 reg, u32 *val)
 {
 	struct regmap *regmap = cs40l26->regmap;
@@ -1878,6 +1873,7 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 		struct cs40l26_platform_data *pdata)
 {
 	struct device *dev = cs40l26->dev;
+	struct regulator *vp_consumer, *va_consumer;
 	int ret;
 
 	mutex_init(&cs40l26->lock);
@@ -1898,6 +1894,9 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 		dev_err(dev, "Failed to request core supplies: %d\n", ret);
 		goto err;
 	}
+
+	vp_consumer = cs40l26_supplies[CS40L26_VP_SUPPLY].consumer;
+	va_consumer = cs40l26_supplies[CS40L26_VA_SUPPLY].consumer;
 
 	if (pdata) {
 		cs40l26->pdata = *pdata;
@@ -1971,9 +1970,7 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 	return 0;
 
 err:
-	regulator_bulk_disable(CS40L26_NUM_SUPPLIES, cs40l26_supplies);
-
-	gpiod_set_value_cansleep(cs40l26->reset_gpio, CS40L26_DISABLE);
+	cs40l26_remove(cs40l26);
 
 	return ret;
 }
@@ -1981,6 +1978,11 @@ EXPORT_SYMBOL(cs40l26_probe);
 
 int cs40l26_remove(struct cs40l26_private *cs40l26)
 {
+	struct regulator *vp_consumer =
+			cs40l26_supplies[CS40L26_VP_SUPPLY].consumer;
+	struct regulator *va_consumer =
+			cs40l26_supplies[CS40L26_VA_SUPPLY].consumer;
+
 	mutex_destroy(&cs40l26->lock);
 
 	if (cs40l26->vibe_workqueue) {
@@ -1989,7 +1991,11 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 		cancel_work_sync(&cs40l26->vibe_stop_work);
 	}
 
-	regulator_bulk_disable(CS40L26_NUM_SUPPLIES, cs40l26_supplies);
+	if (vp_consumer)
+		regulator_disable(vp_consumer);
+
+	if (va_consumer)
+		regulator_disable(va_consumer);
 
 	gpiod_set_value_cansleep(cs40l26->reset_gpio, CS40L26_DISABLE);
 
