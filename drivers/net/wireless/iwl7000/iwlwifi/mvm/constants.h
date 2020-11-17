@@ -94,6 +94,13 @@
 #define IWL_MVM_ENABLE_EBS			1
 #define IWL_MVM_FTM_INITIATOR_ALGO		IWL_TOF_ALGO_TYPE_MAX_LIKE
 #define IWL_MVM_FTM_INITIATOR_DYNACK		true
+#define IWL_MVM_FTM_R2I_MAX_REP			7
+#define IWL_MVM_FTM_I2R_MAX_REP			7
+#define IWL_MVM_FTM_R2I_MAX_STS			1
+#define IWL_MVM_FTM_I2R_MAX_STS			1
+#define IWL_MVM_FTM_R2I_MAX_TOTAL_LTF		3
+#define IWL_MVM_FTM_I2R_MAX_TOTAL_LTF		3
+#define IWL_MVM_FTM_INITIATOR_SECURE_LTF	false
 #define IWL_MVM_D3_DEBUG			false
 #define IWL_MVM_USE_TWT				true
 #define IWL_MVM_TWT_TESTMODE			false
@@ -194,6 +201,13 @@
 #define IWL_MVM_FTM_INITIATOR_MCSI_ENABLED	(mvm->trans->dbg_cfg.MVM_FTM_INITIATOR_MCSI_ENABLED)
 #define IWL_MVM_FTM_INITIATOR_COMMON_CALIB	(mvm->trans->dbg_cfg.MVM_FTM_INITIATOR_COMMON_CALIB)
 #define IWL_MVM_FTM_INITIATOR_FAST_ALGO_DISABLE (mvm->trans->dbg_cfg.MVM_FTM_INITIATOR_FAST_ALGO_DISABLE)
+#define IWL_MVM_FTM_R2I_MAX_REP                 (mvm->trans->dbg_cfg.MVM_FTM_R2I_MAX_REP)
+#define IWL_MVM_FTM_I2R_MAX_REP                 (mvm->trans->dbg_cfg.MVM_FTM_I2R_MAX_REP)
+#define IWL_MVM_FTM_R2I_MAX_STS                 (mvm->trans->dbg_cfg.MVM_FTM_R2I_MAX_STS)
+#define IWL_MVM_FTM_I2R_MAX_STS                 (mvm->trans->dbg_cfg.MVM_FTM_I2R_MAX_STS)
+#define IWL_MVM_FTM_R2I_MAX_TOTAL_LTF           (mvm->trans->dbg_cfg.MVM_FTM_R2I_MAX_TOTAL_LTF)
+#define IWL_MVM_FTM_I2R_MAX_TOTAL_LTF           (mvm->trans->dbg_cfg.MVM_FTM_I2R_MAX_TOTAL_LTF)
+#define IWL_MVM_FTM_INITIATOR_SECURE_LTF        (mvm->trans->dbg_cfg.MVM_FTM_INITIATOR_SECURE_LTF)
 #define IWL_MVM_D3_DEBUG			(((struct iwl_mvm *)ctx)->trans->dbg_cfg.MVM_D3_DEBUG)
 #define IWL_MVM_USE_TWT				(mvm->trans->dbg_cfg.MVM_USE_TWT)
 #define IWL_MVM_TWT_TESTMODE			(mvm->trans->dbg_cfg.MVM_TWT_TESTMODE)
