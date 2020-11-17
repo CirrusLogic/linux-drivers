@@ -700,6 +700,8 @@
 #define CS40L26_WT_NAME_YM	"WAVE_YM_TABLE"
 
 /* power supplies */
+#define CS40L26_VP_SUPPLY		0
+#define CS40L26_VA_SUPPLY		1
 #define CS40L26_NUM_SUPPLIES		2
 #define CS40L26_VP_SUPPLY_NAME		"VP"
 #define CS40L26_VA_SUPPLY_NAME		"VA"
@@ -1026,8 +1028,10 @@ bool cs40l26_volatile_reg(struct device *dev,  unsigned int reg);
 /* external tables */
 extern const struct reg_sequence
 		cs40l26_output_default[CS40L26_NUM_OUTPUT_SETUP_WRITES];
+extern struct regulator_bulk_data
+		cs40l26_supplies[CS40L26_NUM_SUPPLIES];
 
-/* syfs */
+/* sysfs */
 extern struct attribute_group cs40l26_dev_attr_group;
 extern struct attribute_group cs40l26_debug_dev_attr_group;
 
