@@ -53,6 +53,11 @@ ap_ts_pen_1v8: &i2c4 {
 	status = "okay";
 };
 
+&pen_insert {
+	/* Insert = high, eject = low */
+	gpios = <&tlmm 52 GPIO_ACTIVE_HIGH>;
+};
+
 &panel {
 	compatible = "kingdisplay,kd116n21-30nv-a010";
 };
