@@ -28,7 +28,7 @@ int cs40l26_dsp_read(struct cs40l26_private *cs40l26, u32 reg, u32 *val)
 		else
 			break;
 
-		msleep(CS40L26_TIMEOUT_INTERVAL_MS);
+		usleep_range(CS40L26_TIMEOUT_US_MIN, CS40L26_TIMEOUT_US_MAX);
 	}
 
 	if (i >= CS40L26_DSP_ACK_TIMEOUT_COUNT) {
@@ -57,7 +57,7 @@ int cs40l26_dsp_write(struct cs40l26_private *cs40l26, u32 reg, u32 val)
 		else
 			break;
 
-		msleep(CS40L26_TIMEOUT_INTERVAL_MS);
+		usleep_range(CS40L26_TIMEOUT_US_MIN, CS40L26_TIMEOUT_US_MAX);
 	}
 
 	if (i >= CS40L26_DSP_ACK_TIMEOUT_COUNT) {
