@@ -2119,6 +2119,12 @@ static inline bool nl80211_is_6ghz(enum nl80211_band band)
 #define ieee80211_preamble_he() BIT(NL80211_PREAMBLE_HE)
 #endif
 
+#if CFG80211_VERSION < KERNEL_VERSION(5,10,0)
+#define ftm_lmr_feedback(peer)		0
+#else
+#define ftm_lmr_feedback(peer)		((peer)->ftm.lmr_feedback)
+#endif
+
 #if CFG80211_VERSION < KERNEL_VERSION(5,6,0)
 int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 			      enum ieee80211_vht_chanwidth bw,
