@@ -496,11 +496,11 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 	case CS40L26_IRQ1_GPIO4_RISE:
 	/* intentionally fall through */
 	case CS40L26_IRQ1_GPIO4_FALL:
-		dev_info(dev, "GPIO%u %s event detected\n", (irq1 / 2) + 1,
+		dev_dbg(dev, "GPIO%u %s event detected\n", (irq1 / 2) + 1,
 				(irq1 % 2) ? "fall" : "rise");
 		break;
 	case CS40L26_IRQ1_WKSRC_STS_ANY:
-		dev_info(dev, "Wakesource detected (ANY)\n");
+		dev_dbg(dev, "Wakesource detected (ANY)\n");
 		ret = cs40l26_iseq_populate(cs40l26);
 		if (ret)
 			return ret;
@@ -517,24 +517,24 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 	case CS40L26_IRQ1_WKSRC_STS_GPIO3:
 	/* intentionally fall through */
 	case CS40L26_IRQ1_WKSRC_STS_GPIO4:
-		dev_info(dev, "GPIO%u event woke device from hibernate\n",
+		dev_dbg(dev, "GPIO%u event woke device from hibernate\n",
 				irq1 - CS40L26_IRQ1_WKSRC_STS_GPIO1 + 1);
 		break;
 	case CS40L26_IRQ1_WKSRC_STS_SPI:
-		dev_info(dev, "SPI event woke device from hibernate\n");
+		dev_dbg(dev, "SPI event woke device from hibernate\n");
 		break;
 	case CS40L26_IRQ1_WKSRC_STS_I2C:
-		dev_info(dev, "I2C event woke device from hibernate\n");
+		dev_dbg(dev, "I2C event woke device from hibernate\n");
 		break;
 	case CS40L26_IRQ1_GLOBAL_EN_ASSERT:
-		dev_info(dev, "Started power up seq. (GLOBAL_EN asserted)\n");
+		dev_dbg(dev, "Started power up seq. (GLOBAL_EN asserted)\n");
 		break;
 	case CS40L26_IRQ1_PDN_DONE:
-		dev_info(dev,
+		dev_dbg(dev,
 			"Completed power down seq. (GLOBAL_EN cleared)\n");
 		break;
 	case CS40L26_IRQ1_PUP_DONE:
-		dev_info(dev,
+		dev_dbg(dev,
 			"Completed power up seq. (GLOBAL_EN asserted)\n");
 		break;
 	case CS40L26_IRQ1_BST_OVP_FLAG_RISE:
@@ -637,13 +637,13 @@ static int cs40l26_handle_irq2(struct cs40l26_private *cs40l26,
 
 	switch (irq2) {
 	case CS40L26_IRQ2_PLL_LOCK:
-		dev_info(dev, "PLL achieved lock\n");
+		dev_dbg(dev, "PLL achieved lock\n");
 		break;
 	case CS40L26_IRQ2_PLL_PHASE_LOCK:
-		dev_info(dev, "PLL achieved phase lock\n");
+		dev_dbg(dev, "PLL achieved phase lock\n");
 		break;
 	case CS40L26_IRQ2_PLL_FREQ_LOCK:
-		dev_info(dev, "PLL achieved frequency lock\n");
+		dev_dbg(dev, "PLL achieved frequency lock\n");
 		break;
 	case CS40L26_IRQ2_PLL_UNLOCK_RISE:
 		dev_err(dev, "PLL has lost lock\n");
@@ -652,7 +652,7 @@ static int cs40l26_handle_irq2(struct cs40l26_private *cs40l26,
 		dev_warn(dev, "PLL has regained lock\n");
 		break;
 	case CS40L26_IRQ2_PLL_READY:
-		dev_info(dev, "PLL ready for use\n");
+		dev_dbg(dev, "PLL ready for use\n");
 		break;
 	case CS40L26_IRQ2_PLL_REFCLK_PRESENT:
 		dev_warn(dev, "REFCLK present for PLL\n");
