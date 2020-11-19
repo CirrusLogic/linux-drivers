@@ -6046,7 +6046,7 @@ intel_virtual_engine_get_sibling(struct intel_engine_cs *engine,
 void intel_execlists_show_requests(struct intel_engine_cs *engine,
 				   struct drm_printer *m,
 				   void (*show_request)(struct drm_printer *m,
-							struct i915_request *rq,
+							const struct i915_request *rq,
 							const char *prefix),
 				   unsigned int max)
 {
