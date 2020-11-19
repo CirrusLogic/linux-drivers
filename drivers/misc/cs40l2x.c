@@ -713,7 +713,7 @@ static int cs40l2x_create_wt_header(struct cs40l2x_private *cs40l2x,
 
 	memcpy(&cs40l2x->pbq_updated_fw_raw_wt[0],
 		&cs40l2x->pbq_fw_raw_wt[start_pos],
-		(start_pos + header_length));
+		header_length);
 
 	return header_length;
 }
