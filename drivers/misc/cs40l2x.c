@@ -12290,8 +12290,56 @@ err_mutex:
 	return ret;
 }
 
+static int cs40l2x_sys_suspend(struct device *dev)
+{
+	struct cs40l2x_private *cs40l2x = dev_get_drvdata(dev);
+	struct i2c_client *i2c_client = to_i2c_client(dev);
+
+	dev_dbg(cs40l2x->dev, "System suspend, disabling IRQ\n");
+	disable_irq(i2c_client->irq);
+
+	return 0;
+}
+
+static int cs40l2x_sys_suspend_noirq(struct device *dev)
+{
+	struct cs40l2x_private *cs40l2x = dev_get_drvdata(dev);
+	struct i2c_client *i2c_client = to_i2c_client(dev);
+
+	dev_dbg(cs40l2x->dev, "Late system suspend, reenabling IRQ\n");
+	enable_irq(i2c_client->irq);
+
+	return 0;
+}
+
+static int cs40l2x_sys_resume_noirq(struct device *dev)
+{
+	struct cs40l2x_private *cs40l2x = dev_get_drvdata(dev);
+	struct i2c_client *i2c_client = to_i2c_client(dev);
+
+	dev_dbg(cs40l2x->dev, "Early system resume, disabling IRQ\n");
+	disable_irq(i2c_client->irq);
+
+	return 0;
+}
+
+static int cs40l2x_sys_resume(struct device *dev)
+{
+	struct cs40l2x_private *cs40l2x = dev_get_drvdata(dev);
+	struct i2c_client *i2c_client = to_i2c_client(dev);
+
+	dev_dbg(cs40l2x->dev, "System resume, reenabling IRQ\n");
+	enable_irq(i2c_client->irq);
+
+	return 0;
+}
+
 static const struct dev_pm_ops cs40l2x_pm_ops = {
 	SET_RUNTIME_PM_OPS(cs40l2x_suspend, cs40l2x_resume, NULL)
+
+	SET_SYSTEM_SLEEP_PM_OPS(cs40l2x_sys_suspend, cs40l2x_sys_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(cs40l2x_sys_suspend_noirq,
+				      cs40l2x_sys_resume_noirq)
 };
 
 static const struct of_device_id cs40l2x_of_match[] = {
