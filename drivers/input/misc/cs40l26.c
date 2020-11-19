@@ -503,12 +503,12 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 		dev_dbg(dev, "Wakesource detected (ANY)\n");
 		ret = cs40l26_iseq_populate(cs40l26);
 		if (ret)
-			return ret;
+			goto err;
 
 		ret = cs40l26_pm_state_transition(cs40l26,
 				CS40L26_PM_STATE_PREVENT_HIBERNATE);
 		if (ret)
-			return ret;
+			goto err;
 		break;
 	case CS40L26_IRQ1_WKSRC_STS_GPIO1:
 	/* intentionally fall through */
@@ -593,7 +593,7 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 
 		ret = cs40l26_handle_mbox_buffer(cs40l26);
 		if (ret)
-			return ret;
+			goto err;
 		break;
 	default:
 		dev_err(dev, "Unrecognized IRQ1 EINT1 status\n");
@@ -605,24 +605,22 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 		if (bst_err) {
 			ret = cs40l26_dsp_shutdown(cs40l26);
 			if (ret)
-				return ret;
+				goto err;
 		}
 
 		ret = cs40l26_error_release(cs40l26, err_rls);
 		if (ret)
-			return ret;
+			goto err;
 
 		if (bst_err) {
 			ret = cs40l26_dsp_start(cs40l26);
 			if (ret)
-				return ret;
+				goto err;
 		}
 	}
 
-	/* write 1 to clear the interrupt flag */
-	ret = regmap_write(cs40l26->regmap, CS40L26_IRQ1_EINT_1, BIT(irq1));
-	if (ret)
-		dev_err(dev, "Failed to clear IRQ1 EINT1 %u\n", irq1);
+err:
+	regmap_write(cs40l26->regmap, CS40L26_IRQ1_EINT_1, BIT(irq1));
 
 	return ret;
 }
