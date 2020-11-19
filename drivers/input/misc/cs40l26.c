@@ -1253,7 +1253,7 @@ static int cs40l26_pseq_write(struct cs40l26_private *cs40l26,
 }
 
 static int cs40l26_pseq_add_pair(struct cs40l26_private *cs40l26, u16 addr,
-		u32 val)
+		u32 val, bool replace)
 {
 	unsigned int len = cs40l26->pseq_len;
 	struct device *dev = cs40l26->dev;
@@ -1265,7 +1265,7 @@ static int cs40l26_pseq_add_pair(struct cs40l26_private *cs40l26, u16 addr,
 		return -E2BIG;
 	}
 
-	if (cs40l26_pseq_addr_exists(cs40l26, addr, &index)) {
+	if (cs40l26_pseq_addr_exists(cs40l26, addr, &index) && replace) {
 		prev_val = cs40l26->pseq_table[index].val;
 		cs40l26->pseq_table[index].val = val;
 		pseq_offset = index;
@@ -1291,13 +1291,14 @@ static int cs40l26_pseq_add_pair(struct cs40l26_private *cs40l26, u16 addr,
 }
 
 static int cs40l26_pseq_multi_add_pair(struct cs40l26_private *cs40l26,
-		const struct reg_sequence *reg_seq, int num_regs)
+		const struct reg_sequence *reg_seq, int num_regs, bool replace)
 {
 	int ret, i;
 
 	for (i = 0; i < num_regs; i++) {
 		ret = cs40l26_pseq_add_pair(cs40l26, (u16) (reg_seq[i].reg
-				& CS40L26_PSEQ_ADDR_MASK), reg_seq[i].def);
+				& CS40L26_PSEQ_ADDR_MASK), reg_seq[i].def,
+				replace);
 		if (ret)
 			return ret;
 	}
@@ -1319,7 +1320,7 @@ static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	for (i = 0; i < CS40L26_PSEQ_MAX_ENTRIES; i++) {
+	for (i = 0; i < CS40L26_PSEQ_MAX_WRITES; i++) {
 		ret = regmap_read(cs40l26->regmap,
 				cs40l26->pseq_base +
 				(i * CL_DSP_BYTES_PER_WORD), &word);
@@ -1347,7 +1348,7 @@ static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
 		}
 	}
 
-	if (i == CS40L26_PSEQ_MAX_ENTRIES) {
+	if (i >= CS40L26_PSEQ_MAX_WRITES) {
 		dev_err(dev, "Original sequence exceeds max # of entries\n");
 		return -E2BIG;
 	}
@@ -1406,7 +1407,7 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 	}
 
 	ret = cs40l26_pseq_add_pair(cs40l26, (u16) (CS40L26_BLOCK_ENABLES2
-			& CS40L26_PSEQ_ADDR_MASK), val);
+			& CS40L26_PSEQ_ADDR_MASK), val, CS40L26_PSEQ_REPLACE);
 	if (ret) {
 		dev_err(dev, "Failed to sequence brownout prevention\n");
 		return ret;
@@ -1514,7 +1515,8 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 		}
 
 		ret = cs40l26_pseq_add_pair(cs40l26, (u16) (CS40L26_VBBR_CONFIG
-				& CS40L26_PSEQ_ADDR_MASK), val);
+				& CS40L26_PSEQ_ADDR_MASK), val,
+				CS40L26_PSEQ_REPLACE);
 		if (ret)
 			return ret;
 	}
@@ -1624,7 +1626,8 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 		}
 
 		ret = cs40l26_pseq_add_pair(cs40l26, (u16) (CS40L26_VPBR_CONFIG
-				& CS40L26_PSEQ_ADDR_MASK), val);
+				& CS40L26_PSEQ_ADDR_MASK), val,
+				CS40L26_PSEQ_REPLACE);
 		if (ret)
 			return ret;
 	}
@@ -1693,7 +1696,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	}
 
 	ret = cs40l26_pseq_multi_add_pair(cs40l26, cs40l26_output_default,
-			CS40L26_NUM_OUTPUT_SETUP_WRITES);
+			CS40L26_NUM_OUTPUT_SETUP_WRITES, CS40L26_PSEQ_REPLACE);
 	if (ret)
 		return ret;
 
