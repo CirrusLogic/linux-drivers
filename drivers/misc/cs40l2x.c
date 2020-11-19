@@ -12231,7 +12231,8 @@ static int __maybe_unused cs40l2x_suspend(struct device *dev)
 						cs40l2x->fw_desc->id),
 				CS40L2X_GPIO1_ENABLED);
 		if (ret) {
-			dev_err(dev, "Failed to enable GPIO1 upon suspend\n");
+			dev_err(dev, "Failed to enable GPIO1 upon suspend: %d\n",
+				ret);
 			goto err_mutex;
 		}
 	}
@@ -12242,7 +12243,8 @@ static int __maybe_unused cs40l2x_suspend(struct device *dev)
 		ret = cs40l2x_hiber_cmd_send(cs40l2x,
 				CS40L2X_POWERCONTROL_HIBERNATE);
 		if (ret)
-			dev_err(dev, "Failed to hibernate upon suspend\n");
+			dev_err(dev, "Failed to hibernate upon suspend: %d\n",
+				ret);
 	}
 
 err_mutex:
@@ -12264,7 +12266,8 @@ static int __maybe_unused cs40l2x_resume(struct device *dev)
 		ret = cs40l2x_hiber_cmd_send(cs40l2x,
 				CS40L2X_POWERCONTROL_WAKEUP);
 		if (ret) {
-			dev_err(dev, "Failed to wake up upon resume\n");
+			dev_err(dev, "Failed to wake up upon resume: %d\n",
+				ret);
 			goto err_mutex;
 		}
 	}
@@ -12277,7 +12280,8 @@ static int __maybe_unused cs40l2x_resume(struct device *dev)
 						cs40l2x->fw_desc->id),
 				CS40L2X_GPIO1_DISABLED);
 		if (ret)
-			dev_err(dev, "Failed to disable GPIO1 upon resume\n");
+			dev_err(dev, "Failed to disable GPIO1 upon resume; %d\n",
+				ret);
 	}
 
 err_mutex:
