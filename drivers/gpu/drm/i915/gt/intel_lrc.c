@@ -6047,7 +6047,8 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 				   struct drm_printer *m,
 				   void (*show_request)(struct drm_printer *m,
 							const struct i915_request *rq,
-							const char *prefix),
+							const char *prefix,
+							int indent),
 				   unsigned int max)
 {
 	const struct intel_engine_execlists *execlists = &engine->execlists;
@@ -6062,7 +6063,7 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 	count = 0;
 	list_for_each_entry(rq, &engine->active.requests, sched.link) {
 		if (count++ < max - 1)
-			show_request(m, rq, "\t\tE ");
+			show_request(m, rq, "\t\t", 0);
 		else
 			last = rq;
 	}
@@ -6072,7 +6073,7 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 				   "\t\t...skipping %d executing requests...\n",
 				   count - max);
 		}
-		show_request(m, last, "\t\tE ");
+		show_request(m, last, "\t\t", 0);
 	}
 
 	if (execlists->switch_priority_hint != INT_MIN)
@@ -6090,7 +6091,7 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 
 		priolist_for_each_request(rq, p, i) {
 			if (count++ < max - 1)
-				show_request(m, rq, "\t\tQ ");
+				show_request(m, rq, "\t\t", 0);
 			else
 				last = rq;
 		}
@@ -6101,7 +6102,7 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 				   "\t\t...skipping %d queued requests...\n",
 				   count - max);
 		}
-		show_request(m, last, "\t\tQ ");
+		show_request(m, last, "\t\t", 0);
 	}
 
 	last = NULL;
@@ -6113,7 +6114,7 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 
 		if (rq) {
 			if (count++ < max - 1)
-				show_request(m, rq, "\t\tV ");
+				show_request(m, rq, "\t\t", 0);
 			else
 				last = rq;
 		}
@@ -6124,7 +6125,7 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 				   "\t\t...skipping %d virtual requests...\n",
 				   count - max);
 		}
-		show_request(m, last, "\t\tV ");
+		show_request(m, last, "\t\t", 0);
 	}
 
 	spin_unlock_irqrestore(&engine->active.lock, flags);
