@@ -90,11 +90,13 @@ struct i2s_dev_data {
 	u16 i2s_instance;
 	u32 tdm_fmt;
 	u32 substream_type;
+	u32 sleep_us;
 	void __iomem *acp3x_base;
 	struct snd_pcm_substream *play_stream;
 	struct snd_pcm_substream *capture_stream;
 	struct snd_pcm_substream *i2ssp_play_stream;
 	struct snd_pcm_substream *i2ssp_capture_stream;
+	struct work_struct work;
 };
 
 struct i2s_stream_instance {
