@@ -9,6 +9,7 @@
 #include <net/mac80211.h>
 #include "mvm.h"
 #include "iwl-vendor-cmd.h"
+#include "fw/api/datapath.h"
 
 #include "iwl-io.h"
 #include "iwl-prph.h"
@@ -90,6 +91,11 @@ iwl_mvm_vendor_attr_policy[NUM_IWL_MVM_VENDOR_ATTR] = {
 	[IWL_MVM_VENDOR_ATTR_RFIM_CHANNELS]	    = { .type = NLA_U32 },
 	[IWL_MVM_VENDOR_ATTR_RFIM_BANDS]	    = { .type = NLA_U32 },
 	[IWL_MVM_VENDOR_ATTR_TIME_SYNC_PROTOCOL_TYPE] = { .type = NLA_U32 },
+	[IWL_MVM_VENDOR_ATTR_TIME_SYNC_DIALOG_TOKEN] = { .type = NLA_U32 },
+	[IWL_MVM_VENDOR_ATTR_TIME_SYNC_T1] = { .type = NLA_U64 },
+	[IWL_MVM_VENDOR_ATTR_TIME_SYNC_T1_MAX_ERROR] = { .type = NLA_U32 },
+	[IWL_MVM_VENDOR_ATTR_TIME_SYNC_T4] = { .type = NLA_U64 },
+	[IWL_MVM_VENDOR_ATTR_TIME_SYNC_T4_MAX_ERROR] = { .type = NLA_U32 },
 };
 
 static struct nlattr **iwl_mvm_parse_vendor_data(const void *data, int data_len)
@@ -1367,8 +1373,14 @@ static int iwl_mvm_time_sync_measurement_config(struct wiphy *wiphy,
 
 	/* Save the changed time sync measurement configuration */
 	mvm->time_msmt_cfg = protocol_types;
+	mvm->time_sync_wdev = wdev;
 
 	return 0;
+}
+
+static inline u64 iwl_mvm_get_64_bit(u32 high, u32 low)
+{
+	return ((u64)high << 32) | low;
 }
 
 static const struct wiphy_vendor_command iwl_mvm_vendor_commands[] = {
@@ -1694,6 +1706,7 @@ static const struct wiphy_vendor_command iwl_mvm_vendor_commands[] = {
 enum iwl_mvm_vendor_events_idx {
 	/* 0x0 is deprecated */
 	IWL_MVM_VENDOR_EVENT_IDX_CSI = 1,
+	IWL_MVM_VENDOR_EVENT_IDX_TSM_CFM,
 	NUM_IWL_MVM_VENDOR_EVENT_IDX
 };
 
@@ -1702,6 +1715,10 @@ iwl_mvm_vendor_events[NUM_IWL_MVM_VENDOR_EVENT_IDX] = {
 	[IWL_MVM_VENDOR_EVENT_IDX_CSI] = {
 		.vendor_id = INTEL_OUI,
 		.subcmd = IWL_MVM_VENDOR_CMD_CSI_EVENT,
+	},
+	[IWL_MVM_VENDOR_EVENT_IDX_TSM_CFM] = {
+		.vendor_id = INTEL_OUI,
+		.subcmd = IWL_MVM_VENDOR_CMD_TIME_SYNC_MSMT_CFM_EVENT,
 	},
 };
 
@@ -1764,6 +1781,53 @@ iwl_mvm_send_csi_event(struct iwl_mvm *mvm,
 	}
 
 	cfg80211_vendor_event(msg, GFP_KERNEL);
+	return;
+
+ nla_put_failure:
+	kfree_skb(msg);
+}
+
+void iwl_mvm_time_sync_msmt_confirm_event(struct iwl_mvm *mvm,
+					  struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_time_msmt_cfm_notify *cfm_notify = (void *)pkt->data;
+	u64 t1;
+	u64 t4;
+
+	struct sk_buff *msg =
+		cfg80211_vendor_event_alloc(mvm->hw->wiphy, mvm->time_sync_wdev,
+					    200,
+					    IWL_MVM_VENDOR_EVENT_IDX_TSM_CFM,
+					    GFP_ATOMIC);
+	if (!msg)
+		return;
+
+	t1 = iwl_mvm_get_64_bit(le32_to_cpu(cfm_notify->t1_hi),
+				le32_to_cpu(cfm_notify->t1_lo));
+	t4 = iwl_mvm_get_64_bit(le32_to_cpu(cfm_notify->t4_hi),
+				le32_to_cpu(cfm_notify->t4_lo));
+
+	if (!t1 || !t4)
+		IWL_WARN(mvm, "TSM CFM: Rx'ed zero timestamp(s), t1:%llu, t4:%llu\n",
+			 t1, t4);
+
+	if (nla_put(msg, IWL_MVM_VENDOR_ATTR_ADDR,
+		    ETH_ALEN, cfm_notify->peer_addr) ||
+		nla_put_u32(msg, IWL_MVM_VENDOR_ATTR_TIME_SYNC_DIALOG_TOKEN,
+			    le32_to_cpu(cfm_notify->dialog_token)) ||
+		nla_put_u64_64bit(msg, IWL_MVM_VENDOR_ATTR_TIME_SYNC_T1, t1,
+				  IWL_MVM_VENDOR_ATTR_PAD) ||
+		nla_put_u32(msg, IWL_MVM_VENDOR_ATTR_TIME_SYNC_T1_MAX_ERROR,
+			    le32_to_cpu(cfm_notify->t1_max_err)) ||
+		nla_put_u64_64bit(msg, IWL_MVM_VENDOR_ATTR_TIME_SYNC_T4, t4,
+				  IWL_MVM_VENDOR_ATTR_PAD) ||
+		nla_put_u32(msg, IWL_MVM_VENDOR_ATTR_TIME_SYNC_T4_MAX_ERROR,
+			    le32_to_cpu(cfm_notify->t4_max_err))) {
+		goto nla_put_failure;
+	}
+
+	cfg80211_vendor_event(msg, GFP_ATOMIC);
 	return;
 
  nla_put_failure:

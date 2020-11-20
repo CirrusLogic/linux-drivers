@@ -1096,6 +1096,9 @@ struct iwl_mvm {
 
 	/* Saved TM/FTM measurement configuration */
 	u32 time_msmt_cfg;
+
+	/* Saved wdev, to send time sync related vendor events to user space */
+	struct wireless_dev *time_sync_wdev;
 #endif
 
 #ifdef CPTCFG_IWLMVM_P2P_OPPPS_TEST_WA
@@ -2135,6 +2138,8 @@ void iwl_mvm_active_rx_filters(struct iwl_mvm *mvm);
 void iwl_mvm_rx_csi_header(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_csi_chunk(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 int iwl_mvm_send_csi_cmd(struct iwl_mvm *mvm);
+void iwl_mvm_time_sync_msmt_confirm_event(struct iwl_mvm *mvm,
+					  struct iwl_rx_cmd_buffer *rxb);
 #endif
 
 /* NAN */
