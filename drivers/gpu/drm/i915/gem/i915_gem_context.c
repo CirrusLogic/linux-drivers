@@ -905,9 +905,6 @@ static void init_contexts(struct i915_gem_contexts *gc)
 void i915_gem_init__contexts(struct drm_i915_private *i915)
 {
 	init_contexts(&i915->gem.contexts);
-	drm_dbg(&i915->drm, "%s context support initialized\n",
-		DRIVER_CAPS(i915)->has_logical_contexts ?
-		"logical" : "fake");
 }
 
 static int gem_context_register(struct i915_gem_context *ctx,
