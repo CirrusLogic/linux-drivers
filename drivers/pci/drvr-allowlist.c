@@ -126,40 +126,27 @@ static ssize_t
 drivers_allowlist_lockdown_store(struct bus_type *bus, const char *buf,
 				 size_t count)
 {
-	int ret = 0;
-	bool lockdown;
+	bool lockdown, state_changed = false;
 	struct pci_dev *dev = NULL;
 
 	if (strtobool(buf, &lockdown))
 		return -EINVAL;
 
 	down_write(&lockdown_sem);
-
-	if (lockdown == drivers_allowlist_lockdown) {
-		pr_err("%s: PID:%d [%.20s]: writing same val (%u) again?\n",
-		       __func__, current->pid, current->comm, lockdown);
-		ret = -EINVAL;
-		goto out;
+	if (drivers_allowlist_lockdown != lockdown) {
+		drivers_allowlist_lockdown = lockdown;
+		state_changed = true;
 	}
-
-	ret = count;
-	if (lockdown) {
-		/* Lock the drivers */
-		drivers_allowlist_lockdown = true;
-		goto out;
-	}
-
-	/* Unlock the drivers */
-	drivers_allowlist_lockdown = false;
-
-	/* Attach any devices blocked earlier, subject to allowlist */
-	for_each_pci_dev(dev) {
-		if (dev->untrusted && !device_attach(&dev->dev))
-			pci_dbg(dev, "No driver\n");
-	}
-out:
 	up_write(&lockdown_sem);
-	return ret;
+
+	if (state_changed && !lockdown) {
+		/* Attach any devices blocked earlier, subject to allowlist */
+		for_each_pci_dev(dev) {
+			if (dev->untrusted && !device_attach(&dev->dev))
+				pci_dbg(dev, "No driver\n");
+		}
+	}
+	return count;
 }
 static BUS_ATTR_RW(drivers_allowlist_lockdown);
 
