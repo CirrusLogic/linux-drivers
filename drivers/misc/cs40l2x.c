@@ -3299,6 +3299,60 @@ err_mutex:
 	return ret;
 }
 
+static int cs40l2x_wait_for_pwrmgt_sts(struct cs40l2x_private *cs40l2x)
+{
+	unsigned int sts;
+	int i, ret;
+
+	for (i = 0; i < CS40L2X_STATUS_RETRIES; i++) {
+		ret = regmap_read(cs40l2x->regmap, CS40L2X_PWRMGT_STS, &sts);
+		if (ret)
+			dev_err(cs40l2x->dev,
+				"Failed to read PWRMGT_STS: %d\n", ret);
+		else if (!(sts & CS40L2X_WR_PEND_STS_MASK))
+			return 0;
+	}
+
+	dev_err(cs40l2x->dev, "Timed out reading PWRMGT_STS\n");
+	return -ETIMEDOUT;
+}
+
+static int cs40l2x_apply_hibernate_errata(struct cs40l2x_private *cs40l2x)
+{
+	int ret;
+
+	dev_warn(cs40l2x->dev, "Retry hibernate\n");
+
+	cs40l2x_wait_for_pwrmgt_sts(cs40l2x);
+
+	ret = regmap_write(cs40l2x->regmap, CS40L2X_WAKESRC_CTL,
+			   (CS40L2X_WKSRC_EN_SDA << CS40L2X_WKSRC_EN_SHIFT) |
+			   (CS40L2X_WKSRC_POL_SDA << CS40L2X_WKSRC_POL_SHIFT));
+	if (ret)
+		dev_err(cs40l2x->dev, "Failed to set WAKESRC: %d\n", ret);
+
+	cs40l2x_wait_for_pwrmgt_sts(cs40l2x);
+
+	ret = regmap_write(cs40l2x->regmap, CS40L2X_WAKESRC_CTL,
+			   CS40L2X_UPDT_WKCTL_MASK |
+			   (CS40L2X_WKSRC_EN_SDA << CS40L2X_WKSRC_EN_SHIFT) |
+			   (CS40L2X_WKSRC_POL_SDA << CS40L2X_WKSRC_POL_SHIFT));
+	if (ret)
+		dev_err(cs40l2x->dev, "Failed to enable WAKESRC: %d\n", ret);
+
+	cs40l2x_wait_for_pwrmgt_sts(cs40l2x);
+
+	/*
+	 * This write may force the device into hibernation before the ACK is
+	 * returned, so ignore the return value.
+	 */
+	regmap_write(cs40l2x->regmap, CS40L2X_PWRMGT_CTL,
+		     (1 << CS40L2X_MEM_RDY_SHIFT) |
+		     (1 << CS40L2X_TRIG_HIBER_SHIFT));
+
+	return 0;
+}
+
 static int cs40l2x_hiber_cmd_send(struct cs40l2x_private *cs40l2x,
 			unsigned int hiber_cmd)
 {
@@ -3356,15 +3410,7 @@ static int cs40l2x_hiber_cmd_send(struct cs40l2x_private *cs40l2x,
 					"Unexpected firmware ID: 0x%06X\n",
 					val);
 
-			/*
-			 * this write may force the device into hibernation
-			 * before the ACK is returned, so ignore the return
-			 * value
-			 */
-			regmap_write(regmap, CS40L2X_PWRMGT_CTL,
-					(1 << CS40L2X_MEM_RDY_SHIFT) |
-					(1 << CS40L2X_TRIG_HIBER_SHIFT));
-
+			cs40l2x_apply_hibernate_errata(cs40l2x);
 			usleep_range(1000, 1100);
 		}
 		if (i == CS40L2X_WAKEUP_RETRIES)
