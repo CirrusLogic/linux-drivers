@@ -12,12 +12,19 @@ ap_h1_spi: &spi0 {};
 
 #include "sc7180-trogdor.dtsi"
 
-&alc5682 {
-	status = "disabled";
-};
+/* Deleted nodes from trogdor.dtsi */
 
-&ap_tp_i2c {
-	status = "disabled";
+/delete-node/ &alc5682;
+/delete-node/ &pp3300_codec;
+
+/ {
+	/* BOARD-SPECIFIC TOP LEVEL NODES */
+
+	adau7002: audio-codec-1 {
+		compatible = "adi,adau7002";
+		IOVDD-supply = <&pp1800_l15a>;
+		#sound-dai-cells = <0>;
+	};
 };
 
 &ap_spi_fp {
@@ -30,10 +37,6 @@ ap_h1_spi: &spi0 {};
 
 &camcc {
 	status = "okay";
-};
-
-&hp_i2c {
-	status = "disabled";
 };
 
 ap_ts_pen_1v8: &i2c4 {
@@ -64,12 +67,16 @@ i2c_wlc: &i2c5 {
 	/* Currently not connected to anything; see b/168652326 */
 };
 
-&panel {
-	compatible = "boe,nv110wtm-n61";
+&i2c7 {
+	status = "disabled";
 };
 
-&pp3300_codec {
+&i2c9 {
 	status = "disabled";
+};
+
+&panel {
+	compatible = "boe,nv110wtm-n61";
 };
 
 &pp3300_dx_edp {
@@ -82,6 +89,27 @@ i2c_wlc: &i2c5 {
 
 &sn65dsi86_out {
 	data-lanes = <0 1 2 3>;
+};
+
+&sound {
+	compatible = "google,sc7180-coachz";
+	model = "sc7180-adau7002-max98357a";
+	audio-routing =
+		"PDM_DAT", "DMIC";
+	pinctrl-names = "default";
+	pinctrl-0 = <&dmic_clk_en>;
+
+	dai-link@0 {
+		link-name = "MultiMedia0";
+		reg = <0>;
+		cpu {
+			sound-dai = <&lpass_cpu 0>;
+		};
+
+		codec {
+			sound-dai = <&adau7002>;
+		};
+	};
 };
 
 /* PINCTRL - modifications to sc7180-trogdor.dtsi */
@@ -107,35 +135,6 @@ i2c_wlc: &i2c5 {
 };
 
 /* PINCTRL - board-specific pinctrl */
-
-/ {
-	adau7002: audio-codec-1 {
-		compatible = "adi,adau7002";
-		IOVDD-supply = <&pp1800_alc5682>;
-		#sound-dai-cells = <0>;
-	};
-};
-
-&sound {
-	compatible = "google,sc7180-coachz";
-	model = "sc7180-adau7002-max98357a";
-	audio-routing =
-		"PDM_DAT", "DMIC";
-	pinctrl-names = "default";
-	pinctrl-0 = <&dmic_clk_en>;
-
-	dai-link@0 {
-		link-name = "MultiMedia0";
-		reg = <0>;
-		cpu {
-			sound-dai = <&lpass_cpu 0>;
-		};
-
-		codec {
-			sound-dai = <&adau7002>;
-		};
-	};
-};
 
 &tlmm {
 	gpio-line-names = "HUB_RST_L",
@@ -261,6 +260,7 @@ i2c_wlc: &i2c5 {
 			  "AP_TS_PEN_I2C_SCL",
 			  "DP_HOT_PLUG_DET",
 			  "EC_IN_RW_ODL";
+
 	dmic_clk_en: dmic_clk_en {
 		pinmux {
 			pins = "gpio83";
