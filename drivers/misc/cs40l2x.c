@@ -2238,15 +2238,25 @@ static int cs40l2x_pwle_frequency_entry(struct cs40l2x_private *cs40l2x,
 					struct cs40l2x_pwle_segment *pwle_seg_struct)
 {
 	int val, ret;
-
 	/* Valid values, as per spec, 50.125Hz - 561.875Hz */
-	ret = cs40l2x_parse_float(token, &val, 3, 50125, 561875);
+	int min = 50125, max = 561875;
+
+	if (cs40l2x->ext_freq_min_fw) {
+		/* Valid values, as per spec, 0.25Hz - 1023.75Hz */
+		min = 250;
+		max = 1023750;
+	}
+
+	ret = cs40l2x_parse_float(token, &val, 3, min, max);
 	if (ret) {
 		dev_err(cs40l2x->dev, "Failed to parse frequency: %d\n", ret);
 		return ret;
 	}
 
-	pwle_seg_struct->freq = (val / (1000 / 8)) - 400;
+	if (cs40l2x->ext_freq_min_fw)
+		pwle_seg_struct->freq = (val / (1000 / 4));
+	else
+		pwle_seg_struct->freq = (val / (1000 / 8)) - 400;
 
 	return ret;
 }
@@ -8506,6 +8516,9 @@ static int cs40l2x_coeff_init(struct cs40l2x_private *cs40l2x)
 
 	if (cs40l2x->algo_info[0].rev >= CS40L2X_PBQ_DUR_MIN_REV)
 		cs40l2x->comp_dur_min_fw = true;
+
+	if (cs40l2x->algo_info[0].rev >= CS40L2X_PWLE_FRQ_MIN_REV)
+		cs40l2x->ext_freq_min_fw = true;
 
 	return 0;
 }
