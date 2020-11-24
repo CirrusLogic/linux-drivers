@@ -2410,7 +2410,9 @@ static inline int thermal_zone_device_enable(struct thermal_zone_device *tz)
 static inline int thermal_zone_device_enable(struct thermal_zone_device *tz)
 { return -ENODEV; }
 #endif /* CONFIG_THERMAL */
+#endif /* < 5.9.0 */
 
+#if CFG80211_VERSION < KERNEL_VERSION(5,9,0)
 static inline bool nl80211_is_s1ghz(enum nl80211_band band)
 {
 	return false;
@@ -2427,13 +2429,13 @@ static inline bool nl80211_is_s1ghz_width(enum nl80211_chan_width w1,
 {
 	return false;
 }
-#else /* < 5.9.0 */
+#else /* CFG80211_VERSION < 5.9.0 */
 static inline bool nl80211_is_s1ghz_width(enum nl80211_chan_width w1,
 					  enum nl80211_chan_width w2)
 {
 	return w1 == w2;
 }
-#endif /* < 5.9.0 */
+#endif /* CFG80211_VERSION < 5.9.0 */
 
 #if LINUX_VERSION_IS_LESS(4,19,0)
 static inline void netif_receive_skb_list(struct list_head *head)
