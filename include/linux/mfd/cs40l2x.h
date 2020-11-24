@@ -974,6 +974,7 @@
 #define CS40L2X_PBQ_INNER_FLAG		256
 #define CS40L2X_PBQ_FW_BYTES_MIN	192
 #define CS40L2X_PBQ_DUR_MIN_REV		0x0A0101
+#define CS40L2X_PWLE_FRQ_MIN_REV	0x0A0302
 
 #define CS40L2X_DIAG_STATE_INIT		0x00
 #define CS40L2X_DIAG_STATE_RUN1		0x01
@@ -1526,6 +1527,7 @@ struct cs40l2x_private {
 	bool comp_enable_f0;
 	bool comp_dur_en;
 	bool comp_dur_min_fw;
+	bool ext_freq_min_fw;
 	bool amp_gnd_stby;
 	bool clab_wt_en[CS40L2X_MAX_WAVEFORMS];
 	bool f0_wt_en[CS40L2X_MAX_WAVEFORMS];
