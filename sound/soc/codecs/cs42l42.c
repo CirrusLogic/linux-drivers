@@ -490,6 +490,30 @@ static const struct snd_soc_dapm_route cs42l42_audio_map[] = {
 	{"SDIN2", NULL, "SCLK"},
 };
 
+static int cs42l42_set_bias_level(struct snd_soc_component *comp, enum snd_soc_bias_level level)
+{
+	enum snd_soc_bias_level current_level = snd_soc_component_get_bias_level(comp);
+
+	switch (current_level) {
+		case SND_SOC_BIAS_PREPARE:
+			if (level == SND_SOC_BIAS_ON) {
+				/* After SCLK is enabled, mark it as present to turn off the internal
+				 * oscillator. The internal oscillator can only be used for I2C
+				 * transactions.
+				 */
+				snd_soc_component_update_bits(comp, CS42L42_PLL_CTL1,
+								    CS42L42_PLL_START_MASK, 1);
+				snd_soc_component_update_bits(comp, CS42L42_OSC_SWITCH,
+								    CS42L42_SCLK_PRESENT_MASK, 1);
+			}
+			break;
+		default:
+			break;
+	}
+
+	return 0;
+}
+
 struct cs42l42_pll_params {
 	u32 sclk;
 	u8 mclk_div;
@@ -744,12 +768,33 @@ static int cs42l42_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct cs42l42_private *cs42l42 = snd_soc_component_get_drvdata(component);
 	int retval;
 
+	cs42l42->stream_use |= (1 << substream->stream);
 	cs42l42->srate = params_rate(params);
 	cs42l42->swidth = params_width(params);
 
 	retval = cs42l42_pll_config(component);
 
 	return retval;
+}
+
+static int cs42l42_pcm_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct cs42l42_private *cs42l42 = snd_soc_component_get_drvdata(component);
+
+	cs42l42->stream_use &= ~(1 << substream->stream);
+	if(!cs42l42->stream_use) {
+		/* Switch to the internal oscillator at hw_free, because set_bias_level is too
+		 * late, the SCLK is already gone by set_bias_level.
+		 * And without a source of clock the I2C bus doesnt work.
+		 */
+		snd_soc_component_update_bits(component, CS42L42_OSC_SWITCH,
+							 CS42L42_SCLK_PRESENT_MASK, 0);
+		snd_soc_component_update_bits(component, CS42L42_PLL_CTL1,
+							 CS42L42_PLL_START_MASK, 0);
+	}
+
+	return 0;
 }
 
 static int cs42l42_set_sysclk(struct snd_soc_dai *dai,
@@ -770,16 +815,6 @@ static int cs42l42_digital_mute(struct snd_soc_dai *dai, int mute)
 	u8 fullScaleVol;
 
 	if (mute) {
-		/* Mark SCLK as not present to turn on the internal
-		 * oscillator.
-		 */
-		snd_soc_component_update_bits(component, CS42L42_OSC_SWITCH,
-						CS42L42_SCLK_PRESENT_MASK, 0);
-
-		snd_soc_component_update_bits(component, CS42L42_PLL_CTL1,
-				CS42L42_PLL_START_MASK,
-				0 << CS42L42_PLL_START_SHIFT);
-
 		/* Mute the headphone */
 		snd_soc_component_update_bits(component, CS42L42_HP_CTL,
 				CS42L42_HP_ANA_AMUTE_MASK |
@@ -787,9 +822,6 @@ static int cs42l42_digital_mute(struct snd_soc_dai *dai, int mute)
 				CS42L42_HP_ANA_AMUTE_MASK |
 				CS42L42_HP_ANA_BMUTE_MASK);
 	} else {
-		snd_soc_component_update_bits(component, CS42L42_PLL_CTL1,
-				CS42L42_PLL_START_MASK,
-				1 << CS42L42_PLL_START_SHIFT);
 		/* Read the headphone load */
 		regval = snd_soc_component_read32(component, CS42L42_LOAD_DET_RCSTAT);
 		if (((regval & CS42L42_RLA_STAT_MASK) >>
@@ -804,11 +836,6 @@ static int cs42l42_digital_mute(struct snd_soc_dai *dai, int mute)
 				CS42L42_HP_ANA_AMUTE_MASK |
 				CS42L42_HP_ANA_BMUTE_MASK |
 				CS42L42_HP_FULL_SCALE_VOL_MASK, fullScaleVol);
-
-		/* Mark SCLK as present, turn off internal oscillator */
-		snd_soc_component_update_bits(component, CS42L42_OSC_SWITCH,
-				CS42L42_SCLK_PRESENT_MASK,
-				CS42L42_SCLK_PRESENT_MASK);
 	}
 
 	return 0;
@@ -821,6 +848,7 @@ static int cs42l42_digital_mute(struct snd_soc_dai *dai, int mute)
 
 static const struct snd_soc_dai_ops cs42l42_ops = {
 	.hw_params	= cs42l42_pcm_hw_params,
+	.hw_free 	= cs42l42_pcm_hw_free,
 	.set_fmt	= cs42l42_set_dai_fmt,
 	.set_sysclk	= cs42l42_set_sysclk,
 	.digital_mute = cs42l42_digital_mute
@@ -1727,6 +1755,7 @@ static int cs42l42_component_probe(struct snd_soc_component *comp)
 
 static const struct snd_soc_component_driver soc_component_dev_cs42l42 = {
 	.probe			= cs42l42_component_probe,
+	.set_bias_level		= cs42l42_set_bias_level,
 	.dapm_widgets		= cs42l42_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(cs42l42_dapm_widgets),
 	.dapm_routes		= cs42l42_audio_map,
