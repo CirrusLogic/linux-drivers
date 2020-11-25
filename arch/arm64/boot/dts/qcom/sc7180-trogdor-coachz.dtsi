@@ -73,7 +73,7 @@ i2c_wlc: &i2c5 {
 };
 
 &pp3300_dx_edp {
-	gpio = <&tlmm 52 GPIO_ACTIVE_HIGH>;
+	gpio = <&tlmm 67 GPIO_ACTIVE_HIGH>;
 };
 
 &sdhc_2 {
@@ -88,11 +88,11 @@ i2c_wlc: &i2c5 {
 
 &en_pp3300_dx_edp {
 	pinmux  {
-		pins = "gpio52";
+		pins = "gpio67";
 	};
 
 	pinconf {
-		pins = "gpio52";
+		pins = "gpio67";
 	};
 };
 
@@ -190,7 +190,7 @@ i2c_wlc: &i2c5 {
 			  "AMP_BCLK",
 			  "AMP_LRCLK",
 			  "AMP_DIN",
-			  "EN_PP3300_DX_EDP",
+			  "",
 			  "HP_BCLK",
 			  "HP_LRCLK",
 			  "HP_DOUT",
@@ -209,7 +209,7 @@ i2c_wlc: &i2c5 {
 			   * call it BIOS_FLASH_WP_L.
 			   */
 			  "AP_FLASH_WP_L",
-			  "",
+			  "EN_PP3300_DX_EDP",
 			  "AP_SPI_CS0_L",
 			  "SD_CD_ODL",
 			  "",
