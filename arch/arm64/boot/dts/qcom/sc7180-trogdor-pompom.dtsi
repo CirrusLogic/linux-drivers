@@ -100,6 +100,10 @@ ap_ts_pen_1v8: &i2c4 {
 	status = "disabled";
 };
 
+&wifi {
+	qcom,ath10k-calibration-variant = "GO_POMPOM";
+};
+
 /* PINCTRL - board-specific pinctrl */
 
 &tlmm {
