@@ -87,8 +87,8 @@ static void *iwl_acpi_get_dsm_object(struct device *dev, int rev, int func,
 }
 
 /**
- * Evaluate a DSM with no arguments and a single u8 return value (inside a
- * buffer object), verify and return that value.
+ * Evaluate a DSM with no arguments and a single u8 return value,
+ * verify and return that value.
  */
 int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
 			const guid_t *guid)
@@ -100,7 +100,7 @@ int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
 	if (IS_ERR(obj))
 		return -ENOENT;
 
-	if (obj->type != ACPI_TYPE_BUFFER) {
+	if (obj->type != ACPI_TYPE_INTEGER) {
 		IWL_DEBUG_DEV_RADIO(dev,
 				    "ACPI: DSM method did not return a valid object, type=%d\n",
 				    obj->type);
@@ -108,15 +108,7 @@ int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
 		goto out;
 	}
 
-	if (obj->buffer.length != sizeof(u8)) {
-		IWL_DEBUG_DEV_RADIO(dev,
-				    "ACPI: DSM method returned invalid buffer, length=%d\n",
-				    obj->buffer.length);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = obj->buffer.pointer[0];
+	ret = obj->integer.value;
 	IWL_DEBUG_DEV_RADIO(dev,
 			    "ACPI: DSM method evaluated: func=%d, ret=%d\n",
 			    func, ret);
