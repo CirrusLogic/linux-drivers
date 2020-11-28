@@ -3406,31 +3406,30 @@ static int cs40l2x_wake_from_hibernate(struct cs40l2x_private *cs40l2x)
 }
 
 static int cs40l2x_hiber_cmd_send(struct cs40l2x_private *cs40l2x,
-			unsigned int hiber_cmd)
+				  unsigned int hiber_cmd)
 {
 	int i;
 
 	switch (hiber_cmd) {
 	case CS40L2X_POWERCONTROL_NONE:
 	case CS40L2X_POWERCONTROL_FRC_STDBY:
-		return cs40l2x_ack_write(cs40l2x,
-				CS40L2X_MBOX_POWERCONTROL, hiber_cmd,
-				CS40L2X_POWERCONTROL_NONE);
+		return cs40l2x_ack_write(cs40l2x, CS40L2X_MBOX_POWERCONTROL,
+					 hiber_cmd, CS40L2X_POWERCONTROL_NONE);
 
 	case CS40L2X_POWERCONTROL_HIBERNATE:
 		/*
-		 * control port is unavailable immediately after
-		 * this write, so don't poll for acknowledgment
+		 * The control port is unavailable immediately after this write,
+		 * so don't poll for acknowledgment.
 		 */
-		return regmap_write(cs40l2x->regmap,
-				CS40L2X_MBOX_POWERCONTROL, hiber_cmd);
+		return regmap_write(cs40l2x->regmap, CS40L2X_MBOX_POWERCONTROL,
+				    hiber_cmd);
 
 	case CS40L2X_POWERCONTROL_WAKEUP:
+		/*
+		 * The first several transactions are expected to be NAK'd, so
+		 * retry multiple times in rapid succession.
+		 */
 		for (i = 0; i < CS40L2X_WAKEUP_RETRIES; i++) {
-			/*
-			 * the first several transactions are expected to be
-			 * NAK'd, so retry multiple times in rapid succession
-			 */
 			if (!cs40l2x_wake_from_hibernate(cs40l2x))
 				return 0;
 
