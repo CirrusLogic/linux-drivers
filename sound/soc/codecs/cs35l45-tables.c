@@ -373,6 +373,9 @@ bool cs35l45_volatile_reg(struct device *dev, unsigned int reg)
 	case CS35L45_BLOCK_ENABLES2:
 	case CS35L45_GLOBAL_OVERRIDES:
 	case CS35L45_CHIP_STATUS:
+	case CS35L45_SYNC_GPIO1:
+	case CS35L45_INTB_GPIO2_MCLK_REF:
+	case CS35L45_GPIO3:
 	case CS35L45_PWRMGT_STS:
 	case CS35L45_SYNC_TX_RX_ENABLES:
 	case CS35L45_SYNC_SW_TX_ID:
@@ -419,6 +422,9 @@ bool cs35l45_volatile_reg(struct device *dev, unsigned int reg)
 	case CS35L45_IRQ2_STS_8:
 	case CS35L45_IRQ2_STS_18:
 	case CS35L45_GPIO_STATUS1:
+	case CS35L45_GPIO1_CTRL1:
+	case CS35L45_GPIO2_CTRL1:
+	case CS35L45_GPIO3_CTRL1:
 	case CS35L45_DSP_MBOX_1:
 	case CS35L45_DSP_MBOX_2:
 	case CS35L45_DSP_MBOX_3:
