@@ -33,7 +33,6 @@
 #include <linux/dmi.h>
 #include <linux/acpi.h>
 #include <sound/core.h>
-#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
