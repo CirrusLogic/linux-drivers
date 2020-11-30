@@ -30,19 +30,12 @@ const struct cl_dsp_fw_desc cs40l26_fw = {
 
 const struct cl_dsp_fw_desc cs40l26_ram_fw = {
 	.id = CS40L26_FW_ROM_ID,
-	.min_rev = CS40L26_FW_ROM_MIN_REV,
+	.min_rev = CS40L26_FW_RAM_MIN_REV,
 	.halo_state_run = CS40L26_DSP_HALO_STATE_ROM_RUN,
 	.num_coeff_files = ARRAY_SIZE(cs40l26_ram_coeff_files),
 	.coeff_files = cs40l26_ram_coeff_files,
 	.fw_file = CS40L26_FW_FILE_NAME,
 	.write_fw = true,
-};
-
-const struct reg_sequence
-		cs40l26_output_default[CS40L26_NUM_OUTPUT_SETUP_WRITES] = {
-	{CS40L26_ASP_ENABLES1, CS40L26_ASP_ENABLES1_DEFAULT},
-	{CS40L26_ASP_CONTROL2, CS40L26_ASP_CTRL2_DEFAULT},
-	{CS40L26_DSP1RX5_INPUT, CS40L26_DSP1RX5_INPUT_DEFAULT},
 };
 
 struct regulator_bulk_data cs40l26_supplies[CS40L26_NUM_SUPPLIES] = {
