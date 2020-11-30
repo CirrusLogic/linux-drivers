@@ -1474,6 +1474,7 @@ enum lspcon_vendor {
 
 struct intel_lspcon {
 	bool active;
+	bool hdr_supported;
 	enum drm_lspcon_mode mode;
 	enum lspcon_vendor vendor;
 };
