@@ -507,6 +507,14 @@ intel_dp_aux_display_control_heuristic(struct intel_connector *connector)
 
 }
 
+static const struct intel_panel_bl_funcs intel_dp_bl_funcs = {
+	.setup = intel_dp_aux_setup_backlight,
+	.enable = intel_dp_aux_enable_backlight,
+	.disable = intel_dp_aux_disable_backlight,
+	.set = intel_dp_aux_set_backlight,
+	.get = intel_dp_aux_get_backlight,
+};
+
 int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector)
 {
 	struct intel_panel *panel = &intel_connector->panel;
@@ -540,11 +548,7 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector)
 	    !intel_dp_aux_display_control_heuristic(intel_connector))
 		return -ENODEV;
 
-	panel->backlight.setup = intel_dp_aux_setup_backlight;
-	panel->backlight.enable = intel_dp_aux_enable_backlight;
-	panel->backlight.disable = intel_dp_aux_disable_backlight;
-	panel->backlight.set = intel_dp_aux_set_backlight;
-	panel->backlight.get = intel_dp_aux_get_backlight;
+	panel->backlight.funcs = &intel_dp_bl_funcs;
 
 	return 0;
 }
