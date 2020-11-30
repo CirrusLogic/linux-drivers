@@ -104,7 +104,7 @@ EXPORT_SYMBOL(cs40l26_ack_write);
 
 static int cs40l26_dsp_start(struct cs40l26_private *cs40l26)
 {
-	u32 reg, val;
+	u32 reg, val, algo_id;
 	int ret;
 
 	ret = regmap_write(cs40l26->regmap, CS40L26_DSP1_CCM_CORE_CONTROL,
@@ -114,8 +114,13 @@ static int cs40l26_dsp_start(struct cs40l26_private *cs40l26)
 		return ret;
 	}
 
+	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
+		algo_id = CS40L26_PM_ALGO_ID;
+	else
+		algo_id = CS40L26_PM_ROM_ALGO_ID;
+
 	ret = cl_dsp_get_reg(cs40l26->dsp, "PM_CUR_STATE",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
+			CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
 	if (ret)
 		return ret;
 
@@ -135,23 +140,15 @@ static int cs40l26_dsp_start(struct cs40l26_private *cs40l26)
 
 static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 {
-	u32 reg, val;
+	u32 val;
 	int ret;
 
 	ret = cs40l26_pm_state_transition(cs40l26,
 			CS40L26_PM_STATE_PREVENT_HIBERNATE);
+	if (ret)
+		return ret;
 
-	if (cs40l26->vibe_init_success) {
-		ret = cl_dsp_get_reg(cs40l26->dsp, "PM_CUR_STATE",
-				CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID,
-				&reg);
-		if (ret)
-			return ret;
-	} else {
-		reg = CS40L26_PM_CUR_STATE_ROM;
-	}
-
-	ret = cs40l26_dsp_read(cs40l26, reg, &val);
+	ret = cs40l26_dsp_read(cs40l26, CS40L26_PM_CUR_STATE_ROM_REG, &val);
 	if (ret)
 		return ret;
 
@@ -277,10 +274,8 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 		enum cs40l26_pm_state state)
 {
 	struct device *dev = cs40l26->dev;
+	u32 cmd;
 	int ret;
-
-	if (cs40l26->pm_state == state)
-		return 0;
 
 	if (cs40l26->pm_state == CS40L26_PM_STATE_SHUTDOWN ||
 			cs40l26->pm_state == CS40L26_PM_STATE_ALLOW_HIBERNATE){
@@ -292,30 +287,29 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 
 	switch (state) {
 	case CS40L26_PM_STATE_HIBERNATE:
-	/* intentionally fall through */
-	case CS40L26_PM_STATE_WAKEUP:
-	/* intentionally fall through */
-	case CS40L26_PM_STATE_SHUTDOWN:
 		dev_err(dev, "Invalid PM state: %u\n", state);
 		return -EINVAL;
+	case CS40L26_PM_STATE_WAKEUP:
+		cmd = CS40L26_DSP_MBOX_CMD_WAKEUP;
+		break;
+	case CS40L26_PM_STATE_SHUTDOWN:
+		cmd = CS40L26_DSP_MBOX_CMD_SHUTDOWN;
+		break;
 	case CS40L26_PM_STATE_PREVENT_HIBERNATE:
-		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-				CS40L26_DSP_MBOX_CMD_PREVENT_HIBER,
-				CS40L26_DSP_MBOX_RESET);
-		if (ret)
-			return ret;
+		cmd = CS40L26_DSP_MBOX_CMD_PREVENT_HIBER;
 		break;
 	case CS40L26_PM_STATE_ALLOW_HIBERNATE:
-		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-				CS40L26_DSP_MBOX_CMD_ALLOW_HIBER,
-				CS40L26_DSP_MBOX_RESET);
-		if (ret)
-			return ret;
+		cmd = CS40L26_DSP_MBOX_CMD_ALLOW_HIBER;
 		break;
 	default:
 		dev_err(dev, "Unknown PM state: %u\n", state);
 		return -EINVAL;
 	}
+
+	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, cmd,
+			CS40L26_DSP_MBOX_RESET);
+	if (ret)
+		return ret;
 
 	cs40l26->pm_state = state;
 
@@ -601,12 +595,6 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 	}
 
 	if (err_rls) {
-	/* Boost related errors need to be handled with GLOBAL_EN cleared.
-	 * There is not a method to ensure this safely until the SHUTDOWN
-	 * mailbox command has been properly implemented. It is unlikely that
-	 * GLOBAL_EN will be set at this point but the driver cannot guarantee
-	 * that it is cleared until the firmware functionality is added.
-	 */
 		if (bst_err)
 			dev_warn(dev, "Boost error release may be unsafe\n");
 
@@ -835,11 +823,10 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	struct cs40l26_private *cs40l26 = container_of(work,
 			struct cs40l26_private, vibe_start_work);
 	u16 duration = cs40l26->effect->replay.length;
-	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
 	int ret = 0;
 	unsigned int reg, freq;
-	u32 index;
+	u32 index, algo_id;
 
 	mutex_lock(&cs40l26->lock);
 
@@ -859,9 +846,13 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 			goto err_mutex;
 		break;
 	case FF_SINE:
+		if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
+			algo_id = CS40L26_BUZZGEN_ALGO_ID;
+		else
+			algo_id = CS40L26_BUZZGEN_ROM_ALGO_ID;
+
 		ret = cl_dsp_get_reg(cs40l26->dsp, "BUZZ_EFFECTS2_BUZZ_FREQ",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID,
-			&reg);
+				CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
 		if (ret) {
 			dev_err(dev, "Failed to find BUZZGEN control\n");
 			goto err_mutex;
@@ -869,26 +860,21 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 
 		freq = CS40L26_MS_TO_HZ(cs40l26->effect->u.periodic.period);
 
-		ret = regmap_write(regmap, reg, freq);
-		if (ret) {
-			dev_err(dev, "Failed to write BUZZGEN frequency\n");
+		ret = cs40l26_dsp_write(cs40l26, reg, freq);
+		if (ret)
 			goto err_mutex;
-		}
 
-		ret = regmap_write(regmap, reg + CS40L26_BUZZGEN_LEVEL_OFFSET,
+		ret = cs40l26_dsp_write(cs40l26, reg +
+				CS40L26_BUZZGEN_LEVEL_OFFSET,
 				CS40L26_BUZZGEN_LEVEL_DEFAULT);
-		if (ret) {
-			dev_err(dev, "Failed to write BUZZGEN level\n");
+		if (ret)
 			goto err_mutex;
-		}
 
-		ret = regmap_write(regmap,
-				reg + CS40L26_BUZZGEN_DURATION_OFFSET,
-				duration / CS40L26_BUZZGEN_DURATION_DIV_STEP);
-		if (ret) {
-			dev_err(dev, "Failed to write BUZZGEN duration\n");
+		ret = cs40l26_dsp_write(cs40l26, reg +
+				CS40L26_BUZZGEN_DURATION_OFFSET, duration /
+				CS40L26_BUZZGEN_DURATION_DIV_STEP);
+		if (ret)
 			goto err_mutex;
-		}
 
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 					CS40L26_BUZZGEN_INDEX_CP_TRIGGER,
@@ -1289,33 +1275,21 @@ static int cs40l26_pseq_add_pair(struct cs40l26_private *cs40l26, u16 addr,
 	return ret;
 }
 
-static int cs40l26_pseq_multi_add_pair(struct cs40l26_private *cs40l26,
-		const struct reg_sequence *reg_seq, int num_regs, bool replace)
-{
-	int ret, i;
-
-	for (i = 0; i < num_regs; i++) {
-		ret = cs40l26_pseq_add_pair(cs40l26, (u16) (reg_seq[i].reg
-				& CS40L26_PSEQ_ADDR_MASK), reg_seq[i].def,
-				replace);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
 	int ret, i, index = 0;
 	u8 upper_val = 0;
 	u16 addr = 0;
-	u32 val, word;
+	u32 val, word, algo_id;
+
+	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
+		algo_id = CS40L26_PM_ALGO_ID;
+	else
+		algo_id = CS40L26_PM_ROM_ALGO_ID;
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "POWER_ON_SEQUENCE",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID,
-			&cs40l26->pseq_base);
+			CL_DSP_XM_UNPACKED_TYPE, algo_id, &cs40l26->pseq_base);
 	if (ret)
 		return ret;
 
@@ -1354,10 +1328,8 @@ static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
 
 	ret = regmap_write(cs40l26->regmap, cs40l26->pseq_base +
 			(i * CL_DSP_BYTES_PER_WORD), CS40L26_PSEQ_LIST_TERM);
-	if (ret) {
-		dev_err(dev, "Failed to write power on seq. list terminator\n");
+	if (ret)
 		return ret;
-	}
 
 	cs40l26->pseq_len = index + 1;
 	return 0;
@@ -1416,10 +1388,6 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 		ret = cs40l26_irq_unmask(cs40l26, CS40L26_IRQ1_MASK_2,
 				BIT(CS40L26_IRQ2_VBBR_ATT_CLR) |
 				BIT(CS40L26_IRQ2_VBBR_FLAG));
-		if (ret)
-			return ret;
-
-		ret = cs40l26_iseq_update(cs40l26, CS40L26_ISEQ_MASK2);
 		if (ret)
 			return ret;
 
@@ -1530,10 +1498,6 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 		ret = cs40l26_irq_unmask(cs40l26, CS40L26_IRQ1_MASK_2,
 				BIT(CS40L26_IRQ2_VPBR_ATT_CLR) |
 				BIT(CS40L26_IRQ2_VPBR_FLAG));
-		if (ret)
-			return ret;
-
-		ret = cs40l26_iseq_update(cs40l26, CS40L26_ISEQ_MASK2);
 		if (ret)
 			return ret;
 
@@ -1676,9 +1640,6 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 			return ret;
 	}
 
-	/* OTP configures device to allow hibernate on boot */
-	cs40l26->pm_state = CS40L26_PM_STATE_ALLOW_HIBERNATE;
-
 	ret = cs40l26_dsp_start(cs40l26);
 	if (ret)
 		return ret;
@@ -1687,24 +1648,12 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	ret = regmap_multi_reg_write(regmap, cs40l26_output_default,
-			CS40L26_NUM_OUTPUT_SETUP_WRITES);
-	if (ret) {
-		dev_err(dev, "Failed to configure output registers\n");
-		return ret;
-	}
-
-	ret = cs40l26_pseq_multi_add_pair(cs40l26, cs40l26_output_default,
-			CS40L26_NUM_OUTPUT_SETUP_WRITES, CS40L26_PSEQ_REPLACE);
+	ret = cs40l26_iseq_init(cs40l26);
 	if (ret)
 		return ret;
 
 	ret = cs40l26_irq_unmask(cs40l26, CS40L26_IRQ1_MASK_1,
 			BIT(CS40L26_IRQ1_VIRTUAL2_MBOX_WR));
-	if (ret)
-		return ret;
-
-	ret = cs40l26_iseq_init(cs40l26);
 	if (ret)
 		return ret;
 
