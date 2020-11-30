@@ -133,7 +133,7 @@ static int cs40l26_dsp_start(struct cs40l26_private *cs40l26)
 			CS40L26_PM_STATE_PREVENT_HIBERNATE);
 }
 
-static int cs40l26_dsp_shutdown(struct cs40l26_private *cs40l26)
+static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 {
 	u32 reg, val;
 	int ret;
@@ -157,7 +157,7 @@ static int cs40l26_dsp_shutdown(struct cs40l26_private *cs40l26)
 
 	if (val != CS40L26_DSP_STATE_SHUTDOWN &&
 			val != CS40L26_DSP_STATE_STANDBY) {
-		dev_err(cs40l26->dev, "Failed to shutdown DSP core\n");
+		dev_err(cs40l26->dev, "DSP core not safe to kill\n");
 		return -EINVAL;
 	}
 
@@ -601,22 +601,21 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 	}
 
 	if (err_rls) {
-	/* boost related errors handled with global device enable turned off */
-		if (bst_err) {
-			ret = cs40l26_dsp_shutdown(cs40l26);
-			if (ret)
-				goto err;
-		}
+	/* Boost related errors need to be handled with GLOBAL_EN cleared.
+	 * There is not a method to ensure this safely until the SHUTDOWN
+	 * mailbox command has been properly implemented. It is unlikely that
+	 * GLOBAL_EN will be set at this point but the driver cannot guarantee
+	 * that it is cleared until the firmware functionality is added.
+	 */
+		if (bst_err)
+			dev_warn(dev, "Boost error release may be unsafe\n");
 
 		ret = cs40l26_error_release(cs40l26, err_rls);
 		if (ret)
 			goto err;
 
-		if (bst_err) {
-			ret = cs40l26_dsp_start(cs40l26);
-			if (ret)
-				goto err;
-		}
+		if (bst_err)
+			dev_warn(dev, "Boost error was released\n");
 	}
 
 err:
@@ -1956,7 +1955,7 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 	if (ret)
 		goto err;
 
-	ret = cs40l26_dsp_shutdown(cs40l26);
+	ret = cs40l26_dsp_pre_config(cs40l26);
 	if (ret)
 		goto err;
 
