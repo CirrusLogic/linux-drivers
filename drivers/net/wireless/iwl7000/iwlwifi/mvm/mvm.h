@@ -1175,6 +1175,10 @@ struct iwl_mvm {
 	__le16 cur_aid;
 	u8 cur_bssid[ETH_ALEN];
 
+#ifdef CPTCFG_IWLWIFI_WIFI_6_SUPPORT
+	unsigned long last_6ghz_passive_scan_jiffies;
+	unsigned long last_reset_or_resume_time_jiffies;
+#endif /* CPTCFG_IWLWIFI_WIFI_6_SUPPORT */
 };
 
 /* Extract MVM priv from op_mode and _hw */
