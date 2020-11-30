@@ -48,7 +48,7 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 			continue;
 
 		*reg = coeff_desc->reg;
-		if (*reg == 0x0) {
+		if (*reg == 0) {
 			dev_err(dsp->dev,
 				"No DSP control called %s for block 0x%X\n",
 				coeff_name, block_type);
@@ -662,8 +662,11 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 						CL_DSP_UNPACKED_NUM_BYTES;
 				break;
 			}
-			dev_dbg(dev, "Found control %s at 0x%08X\n",
-					coeff_desc->name, coeff_desc->reg);
+			if (coeff_desc->reg == 0x2800358)
+				dev_dbg(dev,
+				"Control %s at 0x%08X with parent ID = 0x%X\n",
+				coeff_desc->name, coeff_desc->reg,
+				coeff_desc->parent_id);
 		}
 
 		/* System algo. contains one extra register (num. algos.) */
