@@ -1512,8 +1512,6 @@ static int iwl_pcie_rx_handle(struct iwl_trans *trans, int queue, int budget)
 	if (WARN_ON_ONCE(!trans_pcie->rxq || !trans_pcie->rxq[queue].bd))
 		return budget;
 
-	lock_map_acquire(&trans->sync_cmd_lockdep_map);
-
 	rxq = &trans_pcie->rxq[queue];
 
 restart:
@@ -1616,8 +1614,6 @@ out:
 		*rxq->cr_tail = cpu_to_le16(r);
 	spin_unlock(&rxq->lock);
 
-	lock_map_release(&trans->sync_cmd_lockdep_map);
-
 	/*
 	 * handle a case where in emergency there are some unallocated RBDs.
 	 * those RBDs are in the used list, but are not tracked by the queue's
@@ -1665,12 +1661,16 @@ irqreturn_t iwl_pcie_irq_rx_msix_handler(int irq, void *dev_id)
 	if (WARN_ONCE(!rxq, "Got MSI-X interrupt before we have Rx queues"))
 		return IRQ_NONE;
 
+	lock_map_acquire(&trans->sync_cmd_lockdep_map);
+
 	local_bh_disable();
 	if (napi_schedule_prep(&rxq->napi))
 		__napi_schedule(&rxq->napi);
 	else
 		iwl_pcie_clear_irq(trans, entry->entry);
 	local_bh_enable();
+
+	lock_map_release(&trans->sync_cmd_lockdep_map);
 
 	return IRQ_HANDLED;
 }
@@ -2196,6 +2196,8 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	u32 inta_fh, inta_hw;
 	bool polling = false;
 
+	lock_map_acquire(&trans->sync_cmd_lockdep_map);
+
 	spin_lock(&trans_pcie->irq_lock);
 	inta_fh = iwl_read32(trans, CSR_MSIX_FH_INT_CAUSES_AD);
 	inta_hw = iwl_read32(trans, CSR_MSIX_HW_INT_CAUSES_AD);
@@ -2210,6 +2212,7 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 
 	if (unlikely(!(inta_fh | inta_hw))) {
 		IWL_DEBUG_ISR(trans, "Ignore interrupt, inta == 0\n");
+		lock_map_release(&trans->sync_cmd_lockdep_map);
 		return IRQ_NONE;
 	}
 
@@ -2339,6 +2342,8 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 
 	if (!polling)
 		iwl_pcie_clear_irq(trans, entry->entry);
+
+	lock_map_release(&trans->sync_cmd_lockdep_map);
 
 	return IRQ_HANDLED;
 }
