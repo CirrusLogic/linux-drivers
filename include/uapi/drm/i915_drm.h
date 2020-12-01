@@ -179,7 +179,7 @@ enum drm_i915_pmu_engine_sample {
 #define I915_PMU_RC6_RESIDENCY		__I915_PMU_OTHER(3)
 #define I915_PMU_SOFTWARE_GT_AWAKE_TIME	__I915_PMU_OTHER(4)
 
-#define I915_PMU_LAST I915_PMU_RC6_RESIDENCY
+#define I915_PMU_LAST /* Deprecated - do not use */ I915_PMU_RC6_RESIDENCY
 
 /* Each region is a minimum of 16k, and there are at most 255 of them.
  */
