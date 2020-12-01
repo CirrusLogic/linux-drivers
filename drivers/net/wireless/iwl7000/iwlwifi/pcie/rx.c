@@ -514,10 +514,10 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 	IWL_DEBUG_TPT(trans, "Pending allocation requests = %d\n", pending);
 
 	/* If we were scheduled - there is at least one request */
-	spin_lock(&rba->lock);
+	spin_lock_bh(&rba->lock);
 	/* swap out the rba->rbd_empty to a local list */
 	list_replace_init(&rba->rbd_empty, &local_empty);
-	spin_unlock(&rba->lock);
+	spin_unlock_bh(&rba->lock);
 
 	while (pending) {
 		int i;
@@ -577,21 +577,21 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 					      pending);
 		}
 
-		spin_lock(&rba->lock);
+		spin_lock_bh(&rba->lock);
 		/* add the allocated rbds to the allocator allocated list */
 		list_splice_tail(&local_allocated, &rba->rbd_allocated);
 		/* get more empty RBDs for current pending requests */
 		list_splice_tail_init(&rba->rbd_empty, &local_empty);
-		spin_unlock(&rba->lock);
+		spin_unlock_bh(&rba->lock);
 
 		atomic_inc(&rba->req_ready);
 
 	}
 
-	spin_lock(&rba->lock);
+	spin_lock_bh(&rba->lock);
 	/* return unused rbds to the allocator empty list */
 	list_splice_tail(&local_empty, &rba->rbd_empty);
-	spin_unlock(&rba->lock);
+	spin_unlock_bh(&rba->lock);
 
 	IWL_DEBUG_TPT(trans, "%s, exit.\n", __func__);
 }
@@ -1097,12 +1097,12 @@ static int _iwl_pcie_rx_init(struct iwl_trans *trans)
 
 	cancel_work_sync(&rba->rx_alloc);
 
-	spin_lock(&rba->lock);
+	spin_lock_bh(&rba->lock);
 	atomic_set(&rba->req_pending, 0);
 	atomic_set(&rba->req_ready, 0);
 	INIT_LIST_HEAD(&rba->rbd_allocated);
 	INIT_LIST_HEAD(&rba->rbd_empty);
-	spin_unlock(&rba->lock);
+	spin_unlock_bh(&rba->lock);
 
 	/* free all first - we might be reconfigured for a different size */
 	iwl_pcie_free_rbs_pool(trans);
