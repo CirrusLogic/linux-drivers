@@ -985,6 +985,9 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 				iwl_trans->hw_rf_id = CSR_HW_RF_ID_TYPE_HR;
 			}
 			iwl_trans_release_nic_access(iwl_trans);
+		} else {
+			ret = -EIO;
+			goto out_free_trans;
 		}
 	}
 
