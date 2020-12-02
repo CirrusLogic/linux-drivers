@@ -59,6 +59,9 @@ void kbase_devfreq_set_core_mask(struct kbase_device *kbdev, u64 core_mask)
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
+	if (pm_backend->ca_cores_enabled == core_mask)
+		goto unlock;
+
 	if (!(core_mask & kbdev->pm.debug_core_mask_all)) {
 		dev_err(kbdev->dev, "OPP core mask 0x%llX does not intersect with debug mask 0x%llX\n",
 				core_mask, kbdev->pm.debug_core_mask_all);
