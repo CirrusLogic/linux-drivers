@@ -2140,6 +2140,8 @@ void iwl_mvm_rx_csi_chunk(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 int iwl_mvm_send_csi_cmd(struct iwl_mvm *mvm);
 void iwl_mvm_time_sync_msmt_confirm_event(struct iwl_mvm *mvm,
 					  struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_time_sync_msmt_event(struct iwl_mvm *mvm,
+				  struct iwl_rx_cmd_buffer *rxb);
 #endif
 
 /* NAN */

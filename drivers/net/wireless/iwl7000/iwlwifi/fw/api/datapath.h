@@ -179,6 +179,75 @@ struct iwl_time_msmt_cfm_notify {
 	__le32 t4_max_err;
 } __packed; /* WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NTFY_API_S_VER_1 */
 
+/* PTP_CTX_MAX_DATA_SIZE_IN_API_D_VER_1 */
+#define PTP_CTX_MAX_DATA_SIZE   128
+
+/**
+ * struct iwl_time_msmt_ptp_ctx - Vendor specific information element
+ * to allow a space for flexibility for the userspace App
+ *
+ * @element_id: element id of vendor specific ie
+ * @length: length of vendor specific ie
+ * @reserved: for alignment
+ * @data: vendor specific data blob
+ */
+struct iwl_time_msmt_ptp_ctx {
+	u8 element_id;
+	u8 length;
+	__le16 reserved;
+	u8 data[PTP_CTX_MAX_DATA_SIZE];
+} __packed /* PTP_CTX_VER_1 */;
+
+/**
+ * struct iwl_time_msmt_notify - Time Sync measurement notification
+ * for TM/FTM, along with additional meta data.
+ *
+ * @peer_addr: peer address
+ * @reserved: for alignment
+ * @dialog_token: measurement flow dialog token number
+ * @followup_dialog_token: Measurement flow previous dialog token number
+ * @t1_hi: high dword of t1-time of the Tx'ed action frame departure on
+ *	sender side in units of 10 nano seconds
+ * @t1_lo: low dword of t1-time of the Tx'ed action frame departure on
+ *	sender side in units of 10 nano seconds
+ * @t1_max_err: maximum t1-time error in units of 10 nano seconds
+ * @t4_hi: high dword of t4-time of the Rx'ed action frame's Ack arrival on
+ *	sender side in units of 10 nano seconds
+ * @t4_lo: low dword of t4-time of the Rx'ed action frame's Ack arrival on
+ *	sender side in units of 10 nano seconds
+ * @t4_max_err: maximum t4-time error in units of 10 nano seconds
+ * @t2_hi: high dword of t2-time of the Rx'ed action frame arrival on
+ *	receiver side in units of 10 nano seconds
+ * @t2_lo: low dword of t2-time of the Rx'ed action frame arrival on
+ *	receiver side in units of 10 nano seconds
+ * @t2_max_err: maximum t2-time error in units of 10 nano seconds
+ * @t3_hi: high dword of t3-time of the Tx'ed action frame's Ack departure on
+ *	receiver side in units of 10 nano seconds
+ * @t3_lo: low dword of t3-time of the Tx'ed action frame's Ack departure on
+ *	receiver side in units of 10 nano seconds
+ * @t3_max_err: maximum t3-time error in units of 10 nano seconds
+ * @ptp: vendor specific information element
+ */
+struct iwl_time_msmt_notify {
+	u8 peer_addr[ETH_ALEN];
+	u8 reserved[2];
+	__le32 dialog_token;
+	__le32 followup_dialog_token;
+	__le32 t1_hi;
+	__le32 t1_lo;
+	__le32 t1_max_err;
+	__le32 t4_hi;
+	__le32 t4_lo;
+	__le32 t4_max_err;
+	__le32 t2_hi;
+	__le32 t2_lo;
+	__le32 t2_max_err;
+	__le32 t3_hi;
+	__le32 t3_lo;
+	__le32 t3_max_err;
+	struct iwl_time_msmt_ptp_ctx ptp;
+} __packed; /* WNM_80211V_TIMING_MEASUREMENT_NTFY_API_S_VER_1 */
+
 /**
  * struct iwl_channel_estimation_cfg_v1 - channel estimation reporting config
  */

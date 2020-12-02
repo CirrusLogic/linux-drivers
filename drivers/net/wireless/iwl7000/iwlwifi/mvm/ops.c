@@ -386,6 +386,10 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		       iwl_mvm_nan_match, RX_HANDLER_SYNC,
 		       struct iwl_nan_disc_evt_notify_v1),
 	RX_HANDLER_GRP(LEGACY_GROUP,
+		       WNM_80211V_TIMING_MEASUREMENT_NOTIFICATION,
+		       iwl_mvm_time_sync_msmt_event, RX_HANDLER_SYNC,
+		       struct iwl_time_msmt_notify),
+	RX_HANDLER_GRP(LEGACY_GROUP,
 		       WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NOTIFICATION,
 		       iwl_mvm_time_sync_msmt_confirm_event, RX_HANDLER_SYNC,
 		       struct iwl_time_msmt_cfm_notify),
@@ -449,6 +453,7 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(BT_COEX_UPDATE_REDUCED_TXP),
 	HCMD_NAME(BT_COEX_CI),
 #ifdef CPTCFG_IWLMVM_VENDOR_CMDS
+	HCMD_NAME(WNM_80211V_TIMING_MEASUREMENT_NOTIFICATION),
 	HCMD_NAME(WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NOTIFICATION),
 #endif /* CPTCFG_IWLMVM_VENDOR_CMDS */
 	HCMD_NAME(PHY_CONFIGURATION_CMD),

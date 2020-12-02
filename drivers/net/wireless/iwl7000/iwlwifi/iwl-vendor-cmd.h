@@ -110,6 +110,10 @@
  *	confirmation notification for TM/FTM. Sent on receipt of 802.11 Ack from
  *	peer for the Tx'ed TM/FTM measurement action frame.
  *	&IWL_MVM_VENDOR_ATTR_TIME_SYNC_* specifies the details.
+ * @IWL_MVM_VENDOR_CMD_TIME_SYNC_MSMT_EVENT: Time Sync measurement
+ *	notification for TM/FTM. Sent on receipt of respective WNM action frame
+ *	for TM protocol or public action frame for FTM protocol, from peer device.
+ *	&IWL_MVM_VENDOR_ATTR_TIME_SYNC_* specifies the details.
  */
 
 enum iwl_mvm_vendor_cmd {
@@ -156,6 +160,7 @@ enum iwl_mvm_vendor_cmd {
 	IWL_MVM_VENDOR_CMD_RFIM_GET_TABLE			= 0x28,
 	IWL_MVM_VENDOR_CMD_TIME_SYNC_MEASUREMENT_CONFIG		= 0x29,
 	IWL_MVM_VENDOR_CMD_TIME_SYNC_MSMT_CFM_EVENT		= 0x2a,
+	IWL_MVM_VENDOR_CMD_TIME_SYNC_MSMT_EVENT			= 0x2b,
 };
 
 /**
@@ -785,6 +790,19 @@ enum iwl_mvm_vendor_time_sync_protocol_type {
  *	action frame's ack arrival on sender side in units of 10 nano seconds.
  * @IWL_MVM_VENDOR_ATTR_TIME_SYNC_T4_MAX_ERROR: u32 attribute. Maximum t4-time
  *	error in units of 10 nano seconds.
+ * @IWL_MVM_VENDOR_ATTR_TIME_SYNC_FUP_DIALOG_TOKEN: u32 attribute. Measurement
+ *	 flow previous dialog token number
+ * @IWL_MVM_VENDOR_ATTR_TIME_SYNC_T2: u64 attribute. t1-time of the Rx'ed
+ *	action frame arrival on receiver side in units of 10 nano seconds.
+ * @IWL_MVM_VENDOR_ATTR_TIME_SYNC_T2_MAX_ERROR: u32 attribute. Maximum t1-time
+ *	error in units of 10 nano seconds.
+ * @IWL_MVM_VENDOR_ATTR_TIME_SYNC_T3: u64 attribute. t4-time of the Tx'ed
+ *	action frame's Ack departure on receiver side in units of
+ *	10 nano seconds.
+ * @IWL_MVM_VENDOR_ATTR_TIME_SYNC_T3_MAX_ERROR: u32 attribute. Maximum t4-time
+ *	error in units of 10 nano seconds.
+ * @IWL_MVM_VENDOR_ATTR_TIME_SYNC_VS_DATA: vendor specific data. This does not
+ *	include the IE header.
  */
 enum iwl_mvm_vendor_attr {
 	__IWL_MVM_VENDOR_ATTR_INVALID				= 0x00,
@@ -880,6 +898,12 @@ enum iwl_mvm_vendor_attr {
 	IWL_MVM_VENDOR_ATTR_TIME_SYNC_T1_MAX_ERROR		= 0x5a,
 	IWL_MVM_VENDOR_ATTR_TIME_SYNC_T4			= 0x5b,
 	IWL_MVM_VENDOR_ATTR_TIME_SYNC_T4_MAX_ERROR		= 0x5c,
+	IWL_MVM_VENDOR_ATTR_TIME_SYNC_FUP_DIALOG_TOKEN		= 0x5d,
+	IWL_MVM_VENDOR_ATTR_TIME_SYNC_T2			= 0x5e,
+	IWL_MVM_VENDOR_ATTR_TIME_SYNC_T2_MAX_ERROR		= 0x5f,
+	IWL_MVM_VENDOR_ATTR_TIME_SYNC_T3			= 0x60,
+	IWL_MVM_VENDOR_ATTR_TIME_SYNC_T3_MAX_ERROR		= 0x61,
+	IWL_MVM_VENDOR_ATTR_TIME_SYNC_VS_DATA			= 0x62,
 
 	NUM_IWL_MVM_VENDOR_ATTR,
 	MAX_IWL_MVM_VENDOR_ATTR = NUM_IWL_MVM_VENDOR_ATTR - 1,
