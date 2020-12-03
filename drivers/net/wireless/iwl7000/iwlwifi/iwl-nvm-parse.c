@@ -560,7 +560,7 @@ static const struct ieee80211_sband_iftype_data iwl_he_capa[] = {
 				.mac_cap_info[3] =
 					IEEE80211_HE_MAC_CAP3_OMI_CONTROL,
 				.mac_cap_info[4] =
-					IEEE80211_HE_MAC_CAP4_AMDSU_IN_AMPDU |
+					IEEE80211_HE_MAC_CAP4_AMSDU_IN_AMPDU |
 					IEEE80211_HE_MAC_CAP4_MULTI_TID_AGG_TX_QOS_B39,
 				.mac_cap_info[5] =
 					IEEE80211_HE_MAC_CAP5_MULTI_TID_AGG_TX_QOS_B40 |
