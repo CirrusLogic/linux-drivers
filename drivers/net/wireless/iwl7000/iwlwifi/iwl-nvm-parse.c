@@ -1347,10 +1347,6 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		return NULL;
 	}
 
-#ifdef CPTCFG_IWLWIFI_SUPPORT_DEBUG_OVERRIDES
-	iwl_init_he_override(trans, &data->bands[NL80211_BAND_2GHZ]);
-	iwl_init_he_override(trans, &data->bands[NL80211_BAND_5GHZ]);
-#endif
 	if (lar_enabled &&
 	    fw_has_capa(&fw->ucode_capa, IWL_UCODE_TLV_CAPA_LAR_SUPPORT))
 		sbands_flags |= IWL_NVM_SBANDS_FLAGS_LAR;
@@ -1362,6 +1358,10 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 			sbands_flags, false);
 	data->calib_version = 255;
 
+#ifdef CPTCFG_IWLWIFI_SUPPORT_DEBUG_OVERRIDES
+	iwl_init_he_override(trans, &data->bands[NL80211_BAND_2GHZ]);
+	iwl_init_he_override(trans, &data->bands[NL80211_BAND_5GHZ]);
+#endif
 	return data;
 }
 IWL_EXPORT_SYMBOL(iwl_parse_nvm_data);
@@ -1878,10 +1878,6 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 		sbands_flags |= IWL_NVM_SBANDS_FLAGS_LAR;
 	}
 
-#ifdef CPTCFG_IWLWIFI_SUPPORT_DEBUG_OVERRIDES
-	iwl_init_he_override(trans, &nvm->bands[NL80211_BAND_2GHZ]);
-	iwl_init_he_override(trans, &nvm->bands[NL80211_BAND_5GHZ]);
-#endif
 	rsp_v3 = (void *)rsp;
 	channel_profile = v4 ? (void *)rsp->regulatory.channel_profile :
 			  (void *)rsp_v3->regulatory.channel_profile;
@@ -1891,6 +1887,10 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 			nvm->valid_rx_ant & fw->valid_rx_ant,
 			sbands_flags, v4);
 
+#ifdef CPTCFG_IWLWIFI_SUPPORT_DEBUG_OVERRIDES
+	iwl_init_he_override(trans, &nvm->bands[NL80211_BAND_2GHZ]);
+	iwl_init_he_override(trans, &nvm->bands[NL80211_BAND_5GHZ]);
+#endif
 	iwl_free_resp(&hcmd);
 	return nvm;
 
