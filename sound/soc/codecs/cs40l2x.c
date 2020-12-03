@@ -31,8 +31,6 @@ struct cs40l2x_codec {
 	struct device *dev;
 	struct regmap *regmap;
 	int tuning;
-	int tuning_prev;
-	char *bin_file;
 
 	unsigned int daifmt;
 	int sysclk_rate;
@@ -165,9 +163,7 @@ static int cs40l2x_a2h_ev(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *comp = snd_soc_dapm_to_component(w->dapm);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 	struct cs40l2x_private *core = priv->core;
-	const struct firmware *fw;
 	unsigned int reg;
-	int ret;
 
 	if (!core->dsp_reg)
 		return 0;
@@ -181,27 +177,6 @@ static int cs40l2x_a2h_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		if (priv->tuning != priv->tuning_prev) {
-			ret = request_firmware(&fw, priv->bin_file, priv->dev);
-			if (ret) {
-				dev_err(priv->dev, "Failed to request %s file\n",
-					priv->bin_file);
-				return ret;
-			}
-
-			ret = cs40l2x_coeff_file_parse(core, fw);
-			if (ret)
-				return ret;
-
-			priv->tuning_prev = priv->tuning;
-
-			ret = cs40l2x_ack_write(core, CS40L2X_MBOX_USER_CONTROL,
-						CS40L2X_USER_CTRL_REINIT_A2H,
-						CS40L2X_USER_CTRL_SUCCESS);
-			if (ret)
-				return ret;
-		}
-
 		return regmap_write(priv->regmap, reg, CS40L2X_A2H_ENABLE);
 	case SND_SOC_DAPM_PRE_PMD:
 		return regmap_write(priv->regmap, reg, CS40L2X_A2H_DISABLE);
@@ -349,6 +324,32 @@ static int cs40l2x_tuning_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int cs40l2x_tuning_swap(struct cs40l2x_codec *priv, int tuning)
+{
+	char bin_file[32] = "cs40l25a_a2h.bin";
+	const struct firmware *fw;
+	int ret;
+
+	if (tuning > 0)
+		snprintf(bin_file, PAGE_SIZE, "cs40l25a_a2h%d.bin", tuning);
+
+	ret = request_firmware(&fw, bin_file, priv->dev);
+	if (ret) {
+		dev_err(priv->dev, "Failed to request %s\n", bin_file);
+		return ret;
+	}
+
+	ret = cs40l2x_coeff_file_parse(priv->core, fw);
+	if (ret)
+		return ret;
+
+	priv->tuning = tuning;
+
+	return cs40l2x_ack_write(priv->core, CS40L2X_MBOX_USER_CONTROL,
+				 CS40L2X_USER_CTRL_REINIT_A2H,
+				 CS40L2X_USER_CTRL_SUCCESS);
+}
+
 static int cs40l2x_tuning_put(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
@@ -356,6 +357,7 @@ static int cs40l2x_tuning_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(comp);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 	struct cs40l2x_private *core = priv->core;
+	int tuning = ucontrol->value.enumerated.item[0];
 	int ret = 0;
 
 	if (!core->a2h_reinit_min_fw)
@@ -363,26 +365,17 @@ static int cs40l2x_tuning_put(struct snd_kcontrol *kcontrol,
 
 	snd_soc_dapm_mutex_lock(dapm);
 
-	if (ucontrol->value.enumerated.item[0] == priv->tuning)
-		goto out;
+	if (tuning == priv->tuning)
+		goto out_mutex;
 
-	if (core->a2h_enable) {
-		ret = -EBUSY;
-		goto out;
-	}
+	pm_runtime_get_sync(priv->dev);
 
-	priv->tuning = ucontrol->value.enumerated.item[0];
+	ret = cs40l2x_tuning_swap(priv, tuning);
 
-	memset(priv->bin_file, 0, PAGE_SIZE);
-	priv->bin_file[PAGE_SIZE - 1] = '\0';
+	pm_runtime_mark_last_busy(priv->dev);
+	pm_runtime_put_autosuspend(priv->dev);
 
-	if (priv->tuning > 0)
-		snprintf(priv->bin_file, PAGE_SIZE, "cs40l25a_a2h%d.bin",
-			 priv->tuning);
-	else
-		snprintf(priv->bin_file, PAGE_SIZE, "cs40l25a_a2h.bin");
-
-out:
+out_mutex:
 	snd_soc_dapm_mutex_unlock(dapm);
 
 	return ret;
@@ -694,12 +687,6 @@ static int cs40l2x_codec_probe(struct snd_soc_component *comp)
 {
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 
-	priv->bin_file = devm_kzalloc(priv->dev, PAGE_SIZE, GFP_KERNEL);
-	if (!priv->bin_file)
-		return -ENOMEM;
-
-	priv->bin_file[PAGE_SIZE - 1] = '\0';
-	snprintf(priv->bin_file, PAGE_SIZE, "cs40l25a_a2h.bin");
 	complete(&priv->core->hap_done);
 
 	priv->sysclk_rate = 1536000;
