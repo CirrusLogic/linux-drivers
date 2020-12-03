@@ -1177,6 +1177,10 @@
  *	includes the contents of the frame. %NL80211_ATTR_ACK flag is included
  *	if the recipient acknowledged the frame.
  *
+ * @NL80211_CMD_SET_SAR_SPECS: SAR power limitation configuration is
+ *	passed using %NL80211_ATTR_SAR_SPEC. %NL80211_ATTR_WIPHY is used to
+ *	specify the wiphy index to be applied to.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1406,6 +1410,8 @@ enum nl80211_commands {
 	NL80211_CMD_UNPROT_BEACON,
 
 	NL80211_CMD_CONTROL_PORT_FRAME_TX_STATUS,
+
+	NL80211_CMD_SET_SAR_SPECS,
 
 	/* add new commands above here */
 
@@ -2527,6 +2533,11 @@ enum nl80211_commands {
  *	override mask. Used with NL80211_ATTR_S1G_CAPABILITY in
  *	NL80211_CMD_ASSOCIATE or NL80211_CMD_CONNECT.
  *
+ * @NL80211_ATTR_SAR_SPEC: SAR power limitation specification when
+ *	used with %NL80211_CMD_SET_SAR_SPECS. The message contains fields
+ *	of %nl80211_sar_attrs which specifies the sar type and related
+ *	sar specs. Sar specs contains array of %nl80211_sar_specs_attrs.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3015,6 +3026,8 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_S1G_CAPABILITY,
 	NL80211_ATTR_S1G_CAPABILITY_MASK,
+
+	NL80211_ATTR_SAR_SPEC = 300 /* this is the upstream number */,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -7124,4 +7137,96 @@ enum nl80211_unsol_bcast_probe_resp_attributes {
 	NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_MAX =
 		__NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_LAST - 1
 };
+
+/**
+ * enum nl80211_sar_type - type of SAR specs
+ *
+ * @NL80211_SAR_TYPE_POWER: power limitation specified in 0.25dBm unit
+ *
+ */
+enum nl80211_sar_type {
+	NL80211_SAR_TYPE_POWER,
+
+	/* add new type here */
+
+	/* Keep last */
+	NUM_NL80211_SAR_TYPE,
+};
+
+/**
+ * enum nl80211_sar_attrs - Attributes for SAR spec
+ *
+ * @NL80211_SAR_ATTR_TYPE: the SAR type as defined in &enum nl80211_sar_type.
+ *
+ * @NL80211_SAR_ATTR_SPECS: Nested array of SAR power
+ *	limit specifications. Each specification contains a set
+ *	of %nl80211_sar_specs_attrs.
+ *
+ *	For SET operation, it contains array of %NL80211_SAR_ATTR_SPECS_POWER
+ *	and %NL80211_SAR_ATTR_SPECS_RANGE_INDEX.
+ *
+ *	For sar_capa dump, it contains array of
+ *	%NL80211_SAR_ATTR_SPECS_START_FREQ
+ *	and %NL80211_SAR_ATTR_SPECS_END_FREQ.
+ *
+ * @__NL80211_SAR_ATTR_LAST: Internal
+ * @NL80211_SAR_ATTR_MAX: highest sar attribute
+ *
+ * These attributes are used with %NL80211_CMD_SET_SAR_SPEC
+ */
+enum nl80211_sar_attrs {
+	__NL80211_SAR_ATTR_INVALID,
+
+	NL80211_SAR_ATTR_TYPE,
+	NL80211_SAR_ATTR_SPECS,
+
+	__NL80211_SAR_ATTR_LAST,
+	NL80211_SAR_ATTR_MAX = __NL80211_SAR_ATTR_LAST - 1,
+};
+
+/**
+ * enum nl80211_sar_specs_attrs - Attributes for SAR power limit specs
+ *
+ * @NL80211_SAR_ATTR_SPECS_POWER: Required (s32)value to specify the actual
+ *	power limit value in units of 0.25 dBm if type is
+ *	NL80211_SAR_TYPE_POWER. (i.e., a value of 44 represents 11 dBm).
+ *	0 means userspace doesn't have SAR limitation on this associated range.
+ *
+ * @NL80211_SAR_ATTR_SPECS_RANGE_INDEX: Required (u32) value to specify the
+ *	index of exported freq range table and the associated power limitation
+ *	is applied to this range.
+ *
+ *	Userspace isn't required to set all the ranges advertised by WLAN driver,
+ *	and userspace can skip some certain ranges. These skipped ranges don't
+ *	have SAR limitations, and they are same as setting the
+ *	%NL80211_SAR_ATTR_SPECS_POWER to any unreasonable high value because any
+ *	value higher than regulatory allowed value just means SAR power
+ *	limitation is removed, but it's required to set at least one range.
+ *	It's not allowed to set duplicated range in one SET operation.
+ *
+ *	Every SET operation overwrites previous SET operation.
+ *
+ * @NL80211_SAR_ATTR_SPECS_START_FREQ: Required (u32) value to specify the start
+ *	frequency of this range edge when registering SAR capability to wiphy.
+ *	It's not a channel center frequency. The unit is kHz.
+ *
+ * @NL80211_SAR_ATTR_SPECS_END_FREQ: Required (u32) value to specify the end
+ *	frequency of this range edge when registering SAR capability to wiphy.
+ *	It's not a channel center frequency. The unit is kHz.
+ *
+ * @__NL80211_SAR_ATTR_SPECS_LAST: Internal
+ * @NL80211_SAR_ATTR_SPECS_MAX: highest sar specs attribute
+ */
+enum nl80211_sar_specs_attrs {
+	__NL80211_SAR_ATTR_SPECS_INVALID,
+
+	NL80211_SAR_ATTR_SPECS_POWER,
+	NL80211_SAR_ATTR_SPECS_RANGE_INDEX,
+	NL80211_SAR_ATTR_SPECS_START_FREQ,
+	NL80211_SAR_ATTR_SPECS_END_FREQ,
+
+	__NL80211_SAR_ATTR_SPECS_LAST,
+	NL80211_SAR_ATTR_SPECS_MAX = __NL80211_SAR_ATTR_SPECS_LAST - 1,
+};
+
 #endif /* __LINUX_NL80211_H */
