@@ -1533,11 +1533,7 @@ void __hci_req_enable_advertising(struct hci_request *req)
 	flags = get_adv_instance_flags(hdev, hdev->cur_adv_instance);
 	adv_instance = hci_find_adv_instance(hdev, hdev->cur_adv_instance);
 
-	/* If the "connectable" instance flag was not set, then choose between
-	 * ADV_IND and ADV_NONCONN_IND based on the global connectable setting.
-	 */
-	connectable = (flags & MGMT_ADV_FLAG_CONNECTABLE) ||
-		      mgmt_get_connectable(hdev);
+	connectable = (flags & MGMT_ADV_FLAG_CONNECTABLE);
 
 	if (!is_advertising_allowed(hdev, connectable))
 		return;
