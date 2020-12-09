@@ -1721,7 +1721,7 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 			}
 
 		/* loop specifier */
-		} else if (strnchr(pbq_seg, CS40L2X_PBQ_SEG_LEN_MAX, '~')) {
+		} else if (!strcmp(pbq_seg, "~")) {
 			if (cs40l2x->pbq_repeat) {
 				ret = -EINVAL;
 				goto err_mutex;
