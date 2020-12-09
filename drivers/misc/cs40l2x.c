@@ -1549,8 +1549,7 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 					ret = -EINVAL;
 					goto err_mutex;
 				}
-			}
-			if (val == 0 || val >= num_waves) {
+			} else if (val >= num_waves) {
 				dev_err(cs40l2x->dev,
 					"Invalid index detected.\n");
 				ret = -EINVAL;
