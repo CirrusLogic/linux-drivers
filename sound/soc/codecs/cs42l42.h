@@ -772,6 +772,7 @@ struct  cs42l42_private {
 	struct completion pdn_done;
 	struct snd_soc_jack jack;
 	int irq;
+	int bclk;
 	u32 sclk;
 	u32 srate;
 	u8 plug_state;
