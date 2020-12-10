@@ -2905,6 +2905,8 @@
 
 			video-encoder {
 				compatible = "venus-encoder";
+				/* TODO(b/175315142) : enable when quality is adequate */
+				status = "disabled";
 			};
 
 			venus_opp_table: venus-opp-table {
