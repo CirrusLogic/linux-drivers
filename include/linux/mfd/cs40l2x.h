@@ -1483,14 +1483,17 @@ struct cs40l2x_private {
 	unsigned int bemf_measured;
 
 	struct wt_type10_comp pbq_comp;
+	unsigned int pbq_index;
+	unsigned int pbq_state;
+	int pbq_inner_mark;
+	int pbq_inner_loop;
+	int pbq_outer_loop;
 
 	struct cs40l2x_pbq_pair pbq_pairs[CS40L2X_PBQ_DEPTH_MAX];
 	struct cs40l2x_composite_data comp_sets[CS40L2X_PBQ_DEPTH_MAX];
 	struct hrtimer pbq_timer;
 	unsigned int pbq_depth;
 	unsigned int comp_sets_size;
-	unsigned int pbq_index;
-	unsigned int pbq_state;
 	unsigned int pbq_cp_dig_scale;
 	unsigned int pwle_feature;
 	unsigned int pwle_wvfrm_len;
@@ -1515,7 +1518,6 @@ struct cs40l2x_private {
 	struct list_head pwle_segment_head;
 	struct cs40l2x_ovwr_waveform *ovwr_wav;
 	int pbq_repeat;
-	int pbq_remain;
 	struct cs40l2x_wseq_pair wseq_table[CS40L2X_WSEQ_LENGTH_MAX];
 	unsigned int wseq_length;
 	unsigned int event_control;

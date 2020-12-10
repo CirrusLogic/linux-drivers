@@ -7531,94 +7531,101 @@ static int cs40l2x_pbq_cancel(struct cs40l2x_private *cs40l2x)
 	return 0;
 }
 
+static int cs40l2x_pbq_play(struct cs40l2x_private *cs40l2x,
+			    struct wt_type10_comp_section *section)
+{
+	unsigned int cp_dig_scale = cs40l2x->pbq_cp_dig_scale;
+	int ret;
+
+	cp_dig_scale += cs40l2x_pbq_dig_scale[section->amplitude];
+	clamp_t(unsigned int, cp_dig_scale, 0, CS40L2X_DIG_SCALE_MAX);
+
+	ret = cs40l2x_cp_dig_scale_set(cs40l2x, cp_dig_scale);
+	if (ret)
+		return ret;
+
+	ret = cs40l2x_ground_amp(cs40l2x, false);
+	if (ret)
+		return ret;
+
+	ret = cs40l2x_ack_write(cs40l2x, CS40L2X_MBOX_TRIGGERINDEX,
+				section->index, CS40L2X_MBOX_TRIGGERRESET);
+	if (ret)
+		return ret;
+
+	cs40l2x->pbq_state = CS40L2X_PBQ_STATE_PLAYING;
+
+	if (cs40l2x->event_control & CS40L2X_EVENT_END_ENABLED)
+		return 0;
+
+	hrtimer_start(&cs40l2x->pbq_timer, ktime_set(0, CS40L2X_PBQ_POLL_NS),
+		      HRTIMER_MODE_REL);
+
+	return 0;
+}
+
 static int cs40l2x_pbq_pair_launch(struct cs40l2x_private *cs40l2x)
 {
-	unsigned int tag, mag, cp_dig_scale;
-	int ret, i;
+	struct wt_type10_comp_section *section;
+	int ret;
 
-	do {
-		/* restart queue as necessary */
-		if (cs40l2x->pbq_index == cs40l2x->pbq_depth) {
-			cs40l2x->pbq_index = 0;
-			for (i = 0; i < cs40l2x->pbq_depth; i++)
-				cs40l2x->pbq_pairs[i].remain =
-						cs40l2x->pbq_pairs[i].repeat;
+	while (cs40l2x->pbq_index < (cs40l2x->pbq_comp.nsections << 1)) {
+		section = &cs40l2x->pbq_comp.sections[cs40l2x->pbq_index >> 1];
 
-			switch (cs40l2x->pbq_remain) {
-			case -1:
-				/* loop until stopped */
-				break;
-			case 0:
-				/* queue is finished */
-				cs40l2x->pbq_state = CS40L2X_PBQ_STATE_IDLE;
-				return cs40l2x_pbq_cancel(cs40l2x);
-			default:
-				/* loop once more */
-				cs40l2x->pbq_remain--;
-			}
+		if (!(cs40l2x->pbq_index & 0x1)) {
+			cs40l2x->pbq_index++;
+
+			if (section->amplitude)
+				return cs40l2x_pbq_play(cs40l2x, section);
 		}
 
-		tag = cs40l2x->pbq_pairs[cs40l2x->pbq_index].tag;
-		mag = cs40l2x->pbq_pairs[cs40l2x->pbq_index].mag;
-
-		switch (tag) {
-		case CS40L2X_PBQ_TAG_SILENCE:
+		if (section->delay) {
 			ret = cs40l2x_ground_amp(cs40l2x, true);
 			if (ret)
 				return ret;
 
 			hrtimer_start(&cs40l2x->pbq_timer,
-					ktime_set(mag / 1000,
-							(mag % 1000) * 1000000),
-					HRTIMER_MODE_REL);
+				      ktime_set(section->delay / 1000,
+						(section->delay % 1000) *
+						 1000000),
+				      HRTIMER_MODE_REL);
+
 			cs40l2x->pbq_state = CS40L2X_PBQ_STATE_SILENT;
-			cs40l2x->pbq_index++;
-			break;
-		case CS40L2X_PBQ_TAG_START:
-			cs40l2x->pbq_index++;
-			break;
-		case CS40L2X_PBQ_TAG_STOP:
-			if (cs40l2x->pbq_pairs[cs40l2x->pbq_index].remain) {
-				cs40l2x->pbq_pairs[cs40l2x->pbq_index].remain--;
-				cs40l2x->pbq_index = mag;
-			} else {
-				cs40l2x->pbq_index++;
-			}
-			break;
-		default:
-			cp_dig_scale = cs40l2x->pbq_cp_dig_scale
-					+ cs40l2x_pbq_dig_scale[mag];
-			if (cp_dig_scale > CS40L2X_DIG_SCALE_MAX)
-				cp_dig_scale = CS40L2X_DIG_SCALE_MAX;
-
-			ret = cs40l2x_cp_dig_scale_set(cs40l2x, cp_dig_scale);
-			if (ret)
-				return ret;
-
-			ret = cs40l2x_ground_amp(cs40l2x, false);
-			if (ret)
-				return ret;
-
-			ret = cs40l2x_ack_write(cs40l2x,
-					CS40L2X_MBOX_TRIGGERINDEX, tag,
-					CS40L2X_MBOX_TRIGGERRESET);
-			if (ret)
-				return ret;
-
-			cs40l2x->pbq_state = CS40L2X_PBQ_STATE_PLAYING;
-			cs40l2x->pbq_index++;
-
-			if (cs40l2x->event_control & CS40L2X_EVENT_END_ENABLED)
-				continue;
-
-			hrtimer_start(&cs40l2x->pbq_timer,
-					ktime_set(0, CS40L2X_PBQ_POLL_NS),
-					HRTIMER_MODE_REL);
 		}
 
-	} while (tag == CS40L2X_PBQ_TAG_START || tag == CS40L2X_PBQ_TAG_STOP);
+		/* Handle inner loops */
+		if (section->repeat == WT_REPEAT_LOOP_MARKER) {
+			cs40l2x->pbq_inner_mark = cs40l2x->pbq_index & ~0x1;
+		} else if (section->repeat) {
+			if (++cs40l2x->pbq_inner_loop <= section->repeat) {
+				if (cs40l2x->pbq_inner_mark >= 0)
+					cs40l2x->pbq_index = cs40l2x->pbq_inner_mark;
+				else
+					cs40l2x->pbq_index &= ~0x1;
+				continue;
+			}
 
-	return 0;
+			cs40l2x->pbq_inner_mark = -1;
+			cs40l2x->pbq_inner_loop = 0;
+		}
+
+		/* Handle outer loops */
+		if (++cs40l2x->pbq_index == (cs40l2x->pbq_comp.nsections << 1)) {
+			if (cs40l2x->pbq_comp.repeat != WT_REPEAT_LOOP_MARKER)
+				cs40l2x->pbq_outer_loop++;
+
+			if (cs40l2x->pbq_outer_loop > cs40l2x->pbq_comp.repeat)
+				cs40l2x->pbq_outer_loop = 0;
+			else
+				cs40l2x->pbq_index = 0;
+		}
+
+		if (section->delay)
+			return 0;
+	}
+
+	cs40l2x->pbq_state = CS40L2X_PBQ_STATE_IDLE;
+	return cs40l2x_pbq_cancel(cs40l2x);
 }
 
 static void cs40l2x_vibe_pbq_worker(struct work_struct *work)
@@ -8335,11 +8342,6 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 		}
 
 		cs40l2x->pbq_index = 0;
-		cs40l2x->pbq_remain = cs40l2x->pbq_repeat;
-
-		for (i = 0; i < cs40l2x->pbq_depth; i++)
-			cs40l2x->pbq_pairs[i].remain =
-					cs40l2x->pbq_pairs[i].repeat;
 
 		ret = cs40l2x_pbq_pair_launch(cs40l2x);
 		if (ret)
