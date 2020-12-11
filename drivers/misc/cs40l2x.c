@@ -10424,13 +10424,10 @@ static int cs40l2x_wavetable_sync(struct cs40l2x_private *cs40l2x)
 				&& cp_trigger_index != CS40L2X_INDEX_DIAG)
 			dev_warn(dev, "Invalid cp_trigger_index\n");
 
-		for (i = 0; i < cs40l2x->pbq_depth; i++) {
-			tag = cs40l2x->pbq_pairs[i].tag;
+		for (i = 0; i < cs40l2x->pbq_comp.nsections; i++) {
+			tag = cs40l2x->pbq_comp.sections[i].index;
 
-			if (tag >= cs40l2x->num_waves
-					&& tag != CS40L2X_PBQ_TAG_SILENCE
-					&& tag != CS40L2X_PBQ_TAG_START
-					&& tag != CS40L2X_PBQ_TAG_STOP)
+			if (tag >= cs40l2x->num_waves)
 				dev_warn(dev, "Invalid cp_trigger_queue\n");
 		}
 	} else {
