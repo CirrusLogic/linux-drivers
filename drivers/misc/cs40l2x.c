@@ -1575,6 +1575,8 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 {
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	struct i2c_client *i2c_client = to_i2c_client(cs40l2x->dev);
+	struct wt_type10_comp *comp = &cs40l2x->pbq_comp;
+	struct wt_type10_comp_section *section;
 	struct cs40l2x_composite_data empty_comp;
 	char *pbq_str_alloc, *pbq_str, *pbq_str_tok, *pbq_temp;
 	char *pbq_seg_alloc, *pbq_seg, *pbq_seg_tok;
@@ -1623,6 +1625,9 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 		ret = -EINVAL;
 		goto err_mutex;
 	}
+
+	memset(comp, 0, sizeof(*comp));
+	section = comp->sections;
 
 	cs40l2x->pbq_depth = 0;
 	cs40l2x->pbq_repeat = 0;
@@ -1881,13 +1886,18 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 	cs40l2x->pbq_fw_composite[1] = cs40l2x->pbq_repeat;
 	cs40l2x->pbq_fw_composite[2] = wav_count;
 
+	comp->repeat = cs40l2x->pbq_repeat;
+
 	f_cnt = 3;
 	for (m = 0; m < cs40l2x->comp_sets_size; m++) {
 		cs40l2x->pbq_fw_composite[f_cnt] = cs40l2x->comp_sets[m].rpt;
+		section->repeat = cs40l2x->comp_sets[m].rpt;
 		f_cnt++;
 		cs40l2x->pbq_fw_composite[f_cnt] = cs40l2x->comp_sets[m].index;
+		section->index = cs40l2x->comp_sets[m].index;
 		f_cnt++;
 		cs40l2x->pbq_fw_composite[f_cnt] = cs40l2x->comp_sets[m].amp;
+		section->amplitude = cs40l2x->comp_sets[m].amp;
 		f_cnt++;
 		/* Check if next one is a delay */
 		if ((!cs40l2x->comp_sets[m + 1].index) &&
@@ -1895,15 +1905,22 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 			(!cs40l2x->comp_sets[m + 1].dur)) {
 			cs40l2x->pbq_fw_composite[f_cnt] =
 				cs40l2x->comp_sets[m + 1].delay;
+				section->delay = cs40l2x->comp_sets[m + 1].delay;
 			next_is_delay = true;
 		}
 		f_cnt++;
 		cs40l2x->pbq_fw_composite[f_cnt] = cs40l2x->comp_sets[m].dur;
+		section->duration = cs40l2x->comp_sets[m].dur;
+		if (section->duration)
+			section->flags |= WT_T10_FLAG_DURATION;
 		f_cnt++;
 		if (next_is_delay) {
 			m++;
 			next_is_delay = false;
 		}
+
+		section++;
+		comp->nsections++;
 	}
 	cs40l2x->pbq_fw_composite_len = f_cnt;
 	cs40l2x->last_type_entered = CS40L2X_WT_TYPE_10_COMP_FILE;
