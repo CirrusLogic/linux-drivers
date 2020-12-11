@@ -1481,6 +1481,9 @@ struct cs40l2x_private {
 	unsigned int redc_measured;
 	unsigned int q_measured;
 	unsigned int bemf_measured;
+
+	struct wt_type10_comp pbq_comp;
+
 	struct cs40l2x_pbq_pair pbq_pairs[CS40L2X_PBQ_DEPTH_MAX];
 	struct cs40l2x_composite_data comp_sets[CS40L2X_PBQ_DEPTH_MAX];
 	struct hrtimer pbq_timer;
