@@ -25,6 +25,8 @@
 #include <linux/platform_data/cs40l2x.h>
 #include <linux/input.h>
 
+#include <linux/mfd/cs40l25-wavetable.h>
+
 #define CS40L2X_FIRSTREG		0x00000000
 #define CS40L2X_LASTREG			0x03804FE8
 #define CS40L2X_DEVID			0x00000000
