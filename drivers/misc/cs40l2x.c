@@ -1521,47 +1521,39 @@ static ssize_t cs40l2x_cp_trigger_queue_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-	ssize_t len = 0;
-	int i;
-
-	if (cs40l2x->pbq_depth == 0)
-		return -ENODATA;
+	struct wt_type10_comp_section *section = cs40l2x->pbq_comp.sections;
+	int i, len = 0;
 
 	mutex_lock(&cs40l2x->lock);
 
-	for (i = 0; i < cs40l2x->pbq_depth; i++) {
-		switch (cs40l2x->pbq_pairs[i].tag) {
-		case CS40L2X_PBQ_TAG_SILENCE:
-			len += snprintf(buf + len, PAGE_SIZE - len, "%d",
-					cs40l2x->pbq_pairs[i].mag);
-			break;
-		case CS40L2X_PBQ_TAG_START:
-			len += snprintf(buf + len, PAGE_SIZE - len, "!!");
-			break;
-		case CS40L2X_PBQ_TAG_STOP:
-			len += snprintf(buf + len, PAGE_SIZE - len, "%d!!",
-					cs40l2x->pbq_pairs[i].repeat);
-			break;
-		default:
-			len += snprintf(buf + len, PAGE_SIZE - len, "%d.%d",
-					cs40l2x->pbq_pairs[i].tag,
-					cs40l2x->pbq_pairs[i].mag);
-		}
+	for (i = 0; i < cs40l2x->pbq_comp.nsections; i++, section++) {
+		if (section->repeat == WT_REPEAT_LOOP_MARKER)
+			len += snprintf(buf + len, PAGE_SIZE - len, "!!, ");
 
-		if (i < (cs40l2x->pbq_depth - 1))
-			len += snprintf(buf + len, PAGE_SIZE - len, ", ");
+		if (section->amplitude)
+			len += snprintf(buf + len, PAGE_SIZE - len, "%d.%d, ",
+					section->index, section->amplitude);
+
+		if (section->delay)
+			len += snprintf(buf + len, PAGE_SIZE - len, "%d, ",
+					section->delay);
+
+		if (section->repeat && section->repeat != WT_REPEAT_LOOP_MARKER)
+			len += snprintf(buf + len, PAGE_SIZE - len, "%d!!, ",
+					section->repeat);
 	}
 
-	switch (cs40l2x->pbq_repeat) {
-	case -1:
-		len += snprintf(buf + len, PAGE_SIZE - len, ", ~\n");
+	switch (cs40l2x->pbq_comp.repeat) {
+	case WT_REPEAT_LOOP_MARKER:
+		len += snprintf(buf + len, PAGE_SIZE - len, "~\n");
 		break;
 	case 0:
+		len -= 2; // Remove ", " from end of string
 		len += snprintf(buf + len, PAGE_SIZE - len, "\n");
 		break;
 	default:
-		len += snprintf(buf + len, PAGE_SIZE - len, ", %d!\n",
-				cs40l2x->pbq_repeat);
+		len += snprintf(buf + len, PAGE_SIZE - len, "%d!\n",
+				cs40l2x->pbq_comp.repeat);
 	}
 
 	mutex_unlock(&cs40l2x->lock);
