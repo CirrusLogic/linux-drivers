@@ -230,6 +230,7 @@ static int cros_ec_activity_push_data(
 	case MOTIONSENSE_ACTIVITY_DOUBLE_TAP:
 		index = st->double_tap_channel_index;
 		dir = IIO_EV_DIR_FALLING;
+		break;
 	default:
 		dev_warn(&indio_dev->dev, "Unknown activity: %d\n", activity);
 		return 0;
