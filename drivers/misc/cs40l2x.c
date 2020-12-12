@@ -146,6 +146,91 @@ static void cs40l2x_sysfs_notify(struct cs40l2x_private *cs40l2x,
 	sysfs_notify(kobj, NULL, attr);
 }
 
+struct dspmem_chunk {
+	u8 *data;
+	u8 *max;
+	int bytes;
+
+	u32 cache;
+	int cachebits;
+};
+
+static inline struct dspmem_chunk dspmem_chunk(u8 *data, int size)
+{
+	struct dspmem_chunk ch = {
+		.data = data,
+		.max = data + size,
+	};
+
+	return ch;
+}
+
+static inline bool dspmem_chunk_end(struct dspmem_chunk *ch)
+{
+	return ch->data == ch->max;
+}
+
+static inline int dspmem_chunk_bytes(struct dspmem_chunk *ch)
+{
+	return ch->bytes;
+}
+
+static int dspmem_chunk_write(struct dspmem_chunk *ch, int nbits, u32 val)
+{
+	int nwrite, i;
+
+	nwrite = min(24 - ch->cachebits, nbits);
+
+	ch->cache <<= nwrite;
+	ch->cache |= val >> (nbits - nwrite);
+	ch->cachebits += nwrite;
+	nbits -= nwrite;
+
+	if (ch->cachebits == 24) {
+		if (dspmem_chunk_end(ch))
+			return -ENOSPC;
+
+		ch->cache &= 0xFFFFFF;
+		for (i = 0; i < sizeof(ch->cache); i++, ch->cache <<= 8)
+			*ch->data++ = (ch->cache & 0xFF000000) >> 24;
+
+		ch->bytes += sizeof(ch->cache);
+		ch->cachebits = 0;
+	}
+
+	if (nbits)
+		return dspmem_chunk_write(ch, nbits, val);
+
+	return 0;
+}
+
+static int cs40l2x_write_comp(struct cs40l2x_private *cs40l2x, void *buf,
+			      int size, struct wt_type10_comp *wave)
+{
+	struct dspmem_chunk ch = dspmem_chunk(buf, size);
+	int i;
+
+	dspmem_chunk_write(&ch, 24, wave->wlength);
+	dspmem_chunk_write(&ch, 8, 0); // padding
+	dspmem_chunk_write(&ch, 8, wave->nsections);
+	dspmem_chunk_write(&ch, 8, wave->repeat);
+
+	for (i = 0; i < wave->nsections; i++) {
+		dspmem_chunk_write(&ch, 8, wave->sections[i].amplitude);
+		dspmem_chunk_write(&ch, 8, wave->sections[i].index);
+		dspmem_chunk_write(&ch, 8, wave->sections[i].repeat);
+		dspmem_chunk_write(&ch, 8, wave->sections[i].flags);
+		dspmem_chunk_write(&ch, 16, wave->sections[i].delay);
+
+		if (wave->sections[i].flags & WT_T10_FLAG_DURATION) {
+			dspmem_chunk_write(&ch, 8, 0); // padding
+			dspmem_chunk_write(&ch, 16, wave->sections[i].duration);
+		}
+	}
+
+	return dspmem_chunk_bytes(&ch);
+}
+
 static void cs40l2x_set_state(struct cs40l2x_private *cs40l2x, bool state)
 {
 	if (cs40l2x->vibe_state != state) {
@@ -511,116 +596,6 @@ static int cs40l2x_to_bytes_msb(unsigned int val, int len, char **byte_data)
 		(*byte_data)[1] = three_bytes[1];
 		(*byte_data)[2] = three_bytes[2];
 	}
-
-	return 0;
-}
-
-static int cs40l2x_pack_wt_composite_data(struct cs40l2x_private *cs40l2x,
-	unsigned int comp_size, char **raw_composite_data)
-{
-	char *two_bytes_data;
-	char *three_bytes_data;
-	char *unpadded_data;
-	char *zero_pad_data;
-	int zero_pad_count = 0;
-	int count = 0;
-	int i, j, k;
-
-	unpadded_data = devm_kzalloc(cs40l2x->dev,
-		(comp_size / 4 * 3), GFP_KERNEL);
-	if (!unpadded_data)
-		return -ENOMEM;
-
-	zero_pad_data = devm_kzalloc(cs40l2x->dev, comp_size, GFP_KERNEL);
-	if (!zero_pad_data)
-		return -ENOMEM;
-
-	cs40l2x->two_bytes[0] = 0;
-	cs40l2x->two_bytes[1] = 0;
-	two_bytes_data = cs40l2x->two_bytes;
-
-	cs40l2x->three_bytes[0] = 0;
-	cs40l2x->three_bytes[1] = 0;
-	cs40l2x->three_bytes[2] = 0;
-	three_bytes_data = cs40l2x->three_bytes;
-
-	/* Wvfrm Length in samples */
-	cs40l2x_to_bytes_msb(cs40l2x->pbq_fw_composite[0],
-		CS40L2X_WT_WORD_SIZE, &three_bytes_data);
-	for (i = 0; i < CS40L2X_WT_WORD_SIZE; i++) {
-		unpadded_data[count] = three_bytes_data[i];
-		count++;
-	}
-
-	/* Next word = MSB empty, num wvfrms, repeat */
-	unpadded_data[count] = 0;
-	count++;
-	unpadded_data[count] = cs40l2x->pbq_fw_composite[2];
-	count++;
-	unpadded_data[count] = cs40l2x->pbq_fw_composite[1];
-	count++;
-
-	/* For each wvfrm in composite list there needs to be:
-	 * Nested Repeat, Wvfrm Index, Amplitude, Delay.
-	 * If composite duration is supported by FW,
-	 * add a word for Duration after Delay.
-	 */
-	for (j = 3; j < cs40l2x->pbq_fw_composite_len; j++) {
-		if (((j - 2) % 5) == 0) {
-			if (cs40l2x->pbq_fw_composite[j]) {
-				unpadded_data[count - 3] =
-					CS40L2X_WT_COMP_DUR_EN_BIT;
-				unpadded_data[count] = 0;
-				count++;
-				two_bytes_data[0] = 0;
-				two_bytes_data[1] = 0;
-				cs40l2x_to_bytes_msb(
-					cs40l2x->pbq_fw_composite[j], 2,
-					&two_bytes_data);
-				unpadded_data[count] = two_bytes_data[0];
-				count++;
-				unpadded_data[count] = two_bytes_data[1];
-				count++;
-			}
-		}
-		if (((j - 1) % 5) == 0) {
-			unpadded_data[count] = 0;
-			count++;
-			two_bytes_data[0] = 0;
-			two_bytes_data[1] = 0;
-			cs40l2x_to_bytes_msb(
-				cs40l2x->pbq_fw_composite[j], 2,
-				&two_bytes_data);
-			unpadded_data[count] = two_bytes_data[0];
-			count++;
-			unpadded_data[count] = two_bytes_data[1];
-			count++;
-		} else if ((j % 5) == 0) {
-			unpadded_data[count] = cs40l2x->pbq_fw_composite[j];
-			count++;
-			unpadded_data[count] = cs40l2x->pbq_fw_composite[j - 1];
-			count++;
-			unpadded_data[count] = cs40l2x->pbq_fw_composite[j - 2];
-			count++;
-		}
-	}
-
-	/* Add zero padding bytes */
-	zero_pad_data[zero_pad_count] = 0;
-	zero_pad_count++;
-	for (k = 0; k < count; k++) {
-		zero_pad_data[zero_pad_count] = unpadded_data[k];
-		zero_pad_count++;
-		if ((((k + 1) % 3) == 0) && ((k + 1) != count)) {
-			zero_pad_data[zero_pad_count] = 0;
-			zero_pad_count++;
-		}
-	}
-
-	memcpy((*raw_composite_data), &zero_pad_data[0], comp_size);
-
-	devm_kfree(cs40l2x->dev, unpadded_data);
-	devm_kfree(cs40l2x->dev, zero_pad_data);
 
 	return 0;
 }
@@ -1267,10 +1242,10 @@ static int cs40l2x_convert_and_save_comp_data(struct cs40l2x_private *cs40l2x,
 	if (ret)
 		goto err_free;
 
-	cs40l2x->pbq_fw_composite[0] = wvfrm_samples;
-	ret = cs40l2x_pack_wt_composite_data(cs40l2x, comp_size,
-		&raw_composite_data);
-	if (ret)
+	cs40l2x->pbq_comp.wlength = wvfrm_samples;
+	ret = cs40l2x_write_comp(cs40l2x, raw_composite_data, comp_size,
+				 &cs40l2x->pbq_comp);
+	if (ret < 0)
 		goto err_free;
 
 	if (over_write)
