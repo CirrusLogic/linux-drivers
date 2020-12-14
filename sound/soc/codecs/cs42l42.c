@@ -1780,8 +1780,8 @@ static int cs42l42_component_probe(struct snd_soc_component *comp)
 	}
 
 	/* Request IRQ */
-	ret = devm_request_threaded_irq(comp->dev, cs42l42->irq, NULL, cs42l42_irq_thread,
-					IRQF_ONESHOT | IRQF_TRIGGER_LOW, "cs42l42", cs42l42);
+	ret = request_threaded_irq(cs42l42->irq, NULL, cs42l42_irq_thread,
+				   IRQF_ONESHOT | IRQF_TRIGGER_LOW, "cs42l42", cs42l42);
 
 	if (ret)
 		dev_err(comp->dev, "Failed to request IRQ: %d\n", ret);
@@ -1789,8 +1789,16 @@ static int cs42l42_component_probe(struct snd_soc_component *comp)
 	return ret;
 }
 
+static void cs42l42_component_remove(struct snd_soc_component *comp)
+{
+	struct cs42l42_private *cs42l42 = snd_soc_component_get_drvdata(comp);
+
+	free_irq(cs42l42->irq, cs42l42);
+}
+
 static const struct snd_soc_component_driver soc_component_dev_cs42l42 = {
 	.probe			= cs42l42_component_probe,
+	.remove			= cs42l42_component_remove,
 	.set_bias_level		= cs42l42_set_bias_level,
 	.dapm_widgets		= cs42l42_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(cs42l42_dapm_widgets),
