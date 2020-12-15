@@ -16,17 +16,18 @@
 #include "debug.h"
 #include "bf.h"
 
-unsigned int rtw_fw_lps_deep_mode;
-EXPORT_SYMBOL(rtw_fw_lps_deep_mode);
+bool rtw_disable_lps_deep_mode;
+EXPORT_SYMBOL(rtw_disable_lps_deep_mode);
 bool rtw_bf_support = true;
 unsigned int rtw_debug_mask;
 EXPORT_SYMBOL(rtw_debug_mask);
+bool rtw_edcca_enabled = true;
 
-module_param_named(lps_deep_mode, rtw_fw_lps_deep_mode, uint, 0644);
+module_param_named(disable_lps_deep, rtw_disable_lps_deep_mode, bool, 0644);
 module_param_named(support_bf, rtw_bf_support, bool, 0644);
 module_param_named(debug_mask, rtw_debug_mask, uint, 0644);
 
-MODULE_PARM_DESC(lps_deep_mode, "Deeper PS mode. If 0, deep PS is disabled");
+MODULE_PARM_DESC(disable_lps_deep, "Set Y to disable Deep PS");
 MODULE_PARM_DESC(support_bf, "Set Y to enable beamformee support");
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
@@ -67,6 +68,7 @@ static struct ieee80211_channel rtw_channeltable_5g[] = {
 	{.center_freq = 5660, .hw_value = 132,},
 	{.center_freq = 5680, .hw_value = 136,},
 	{.center_freq = 5700, .hw_value = 140,},
+	{.center_freq = 5720, .hw_value = 144,},
 	{.center_freq = 5745, .hw_value = 149,},
 	{.center_freq = 5765, .hw_value = 153,},
 	{.center_freq = 5785, .hw_value = 157,},
@@ -1023,6 +1025,26 @@ static int rtw_wait_firmware_completion(struct rtw_dev *rtwdev)
 	return 0;
 }
 
+static enum rtw_lps_deep_mode rtw_update_lps_deep_mode(struct rtw_dev *rtwdev,
+						       struct rtw_fw_state *fw)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	if (rtw_disable_lps_deep_mode || !chip->lps_deep_mode_supported ||
+	    !fw->feature)
+		return LPS_DEEP_MODE_NONE;
+
+	if ((chip->lps_deep_mode_supported & BIT(LPS_DEEP_MODE_PG)) &&
+	    (fw->feature & FW_FEATURE_PG))
+		return LPS_DEEP_MODE_PG;
+
+	if ((chip->lps_deep_mode_supported & BIT(LPS_DEEP_MODE_LCLK)) &&
+	    (fw->feature & FW_FEATURE_LCLK))
+		return LPS_DEEP_MODE_LCLK;
+
+	return LPS_DEEP_MODE_NONE;
+}
+
 static int rtw_power_on(struct rtw_dev *rtwdev)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -1096,6 +1118,9 @@ int rtw_core_start(struct rtw_dev *rtwdev)
 		return ret;
 
 	rtw_sec_enable_sec_engine(rtwdev);
+
+	rtwdev->lps_conf.deep_mode = rtw_update_lps_deep_mode(rtwdev, &rtwdev->fw);
+	rtwdev->lps_conf.wow_deep_mode = rtw_update_lps_deep_mode(rtwdev, &rtwdev->wow_fw);
 
 	/* rcr reset after powered on */
 	rtw_write32(rtwdev, REG_RCR, rtwdev->hal.rcr);
@@ -1259,6 +1284,17 @@ static void rtw_unset_supported_band(struct ieee80211_hw *hw,
 	kfree(hw->wiphy->bands[NL80211_BAND_5GHZ]);
 }
 
+static void __update_firmware_feature(struct rtw_dev *rtwdev,
+				      struct rtw_fw_state *fw)
+{
+	u32 feature;
+	const struct rtw_fw_hdr *fw_hdr =
+				(const struct rtw_fw_hdr *)fw->firmware->data;
+
+	feature = le32_to_cpu(fw_hdr->feature);
+	fw->feature = feature & FW_FEATURE_SIG ? feature : 0;
+}
+
 static void __update_firmware_info(struct rtw_dev *rtwdev,
 				   struct rtw_fw_state *fw)
 {
@@ -1269,6 +1305,8 @@ static void __update_firmware_info(struct rtw_dev *rtwdev,
 	fw->version = le16_to_cpu(fw_hdr->version);
 	fw->sub_version = fw_hdr->subversion;
 	fw->sub_index = fw_hdr->subindex;
+
+	__update_firmware_feature(rtwdev, fw);
 }
 
 static void __update_firmware_info_legacy(struct rtw_dev *rtwdev,
@@ -1639,14 +1677,12 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	mutex_init(&rtwdev->hal.tx_power_mutex);
 
 	init_waitqueue_head(&rtwdev->coex.wait);
+	init_completion(&rtwdev->lps_leave_check);
 
 	rtwdev->sec.total_cam_num = 32;
 	rtwdev->hal.current_channel = 1;
+	rtwdev->dm_info.fix_rate = U8_MAX;
 	set_bit(RTW_BC_MC_MACID, rtwdev->mac_id_map);
-	if (!(BIT(rtw_fw_lps_deep_mode) & chip->lps_deep_mode_supported))
-		rtwdev->lps_conf.deep_mode = LPS_DEEP_MODE_NONE;
-	else
-		rtwdev->lps_conf.deep_mode = rtw_fw_lps_deep_mode;
 
 	rtw_stats_init(rtwdev);
 
@@ -1671,6 +1707,7 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 			return ret;
 		}
 	}
+
 	return 0;
 }
 EXPORT_SYMBOL(rtw_core_init);
@@ -1763,8 +1800,11 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 		return ret;
 	}
 
-	if (regulatory_hint(hw->wiphy, rtwdev->regd.alpha2))
-		rtw_err(rtwdev, "regulatory_hint fail\n");
+	if (!rtwdev->efuse.country_worldwide) {
+		ret = regulatory_hint(hw->wiphy, rtwdev->efuse.country_code);
+		if (ret)
+			rtw_warn(rtwdev, "failed to hint regulatory:%d\n", ret);
+	}
 
 	rtw_debugfs_init(rtwdev);
 

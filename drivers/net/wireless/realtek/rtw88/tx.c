@@ -290,7 +290,9 @@ static void rtw_tx_data_pkt_info_update(struct rtw_dev *rtwdev,
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	struct rtw_sta_info *si;
+	u8 fix_rate;
 	u16 seq;
 	u8 ampdu_factor = 0;
 	u8 ampdu_density = 0;
@@ -342,6 +344,13 @@ out:
 	pkt_info->bw = bw;
 	pkt_info->stbc = stbc;
 	pkt_info->ldpc = ldpc;
+
+	fix_rate = dm_info->fix_rate;
+	if (fix_rate < DESC_RATE_MAX) {
+		pkt_info->rate = fix_rate;
+		pkt_info->dis_rate_fallback = true;
+		pkt_info->use_rate = true;
+	}
 }
 
 void rtw_tx_pkt_info_update(struct rtw_dev *rtwdev,
@@ -552,12 +561,33 @@ static int rtw_txq_push_skb(struct rtw_dev *rtwdev,
 static struct sk_buff *rtw_txq_dequeue(struct rtw_dev *rtwdev,
 				       struct rtw_txq *rtwtxq)
 {
+	struct rtw_chip_info *chip = rtwdev->chip;
 	struct ieee80211_txq *txq = rtwtxq_to_txq(rtwtxq);
 	struct sk_buff *skb;
+	int headroom_needed;
 
-	skb = ieee80211_tx_dequeue(rtwdev->hw, txq);
-	if (!skb)
-		return NULL;
+	do {
+		skb = ieee80211_tx_dequeue(rtwdev->hw, txq);
+		if (!skb)
+			return NULL;
+
+		headroom_needed = chip->tx_pkt_desc_sz - skb_headroom(skb);
+		if (WARN_ONCE(headroom_needed > 0,
+			      "Insufficient headroom (%d bytes, need %d)\n",
+			      skb_headroom(skb), chip->tx_pkt_desc_sz)) {
+			if (skb_cloned(skb)) {
+				netdev_warn(skb->dev, "skb is cloned\n");
+				skb = skb_unshare(skb, GFP_ATOMIC);
+				if (!skb)
+					continue;
+				headroom_needed = chip->tx_pkt_desc_sz - skb_headroom(skb);
+			}
+			if (pskb_expand_head(skb, headroom_needed, 0, GFP_ATOMIC) < 0) {
+				kfree_skb(skb);
+				continue;
+			}
+		}
+	} while (!skb);
 
 	return skb;
 }
