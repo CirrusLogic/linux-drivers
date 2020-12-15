@@ -877,6 +877,7 @@ config VIDEO_OV2740
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
+	select REGMAP_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV2740 camera.
@@ -1049,6 +1050,20 @@ config VIDEO_OV9650
 	help
 	  This is a V4L2 sensor driver for the Omnivision
 	  OV9650 and OV9652 camera sensors.
+
+config VIDEO_OV9734
+	tristate "OmniVision OV9734 sensor support"
+	depends on VIDEO_V4L2 && I2C
+	depends on ACPI || COMPILE_TEST
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV9734 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module's name is ov9734.
 
 config VIDEO_OV13858
 	tristate "OmniVision OV13858 sensor support"
