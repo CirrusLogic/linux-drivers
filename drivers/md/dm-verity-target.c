@@ -16,8 +16,10 @@
 #include "dm-verity.h"
 #include "dm-verity-fec.h"
 #include "dm-verity-verify-sig.h"
+#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/reboot.h>
+#include <crypto/hash.h>
 
 #define DM_MSG_PREFIX			"verity"
 
@@ -33,8 +35,9 @@
 #define DM_VERITY_OPT_PANIC		"panic_on_corruption"
 #define DM_VERITY_OPT_IGN_ZEROES	"ignore_zero_blocks"
 #define DM_VERITY_OPT_AT_MOST_ONCE	"check_at_most_once"
+#define DM_VERITY_OPT_ERROR_BEHAVIOR	"error_behavior"
 
-#define DM_VERITY_OPTS_MAX		(2 + DM_VERITY_OPTS_FEC + \
+#define DM_VERITY_OPTS_MAX		(4 + DM_VERITY_OPTS_FEC + \
 					 DM_VERITY_ROOT_HASH_VERIFICATION_OPTS)
 
 static unsigned dm_verity_prefetch_cluster = DM_VERITY_DEFAULT_PREFETCH_SIZE;
@@ -47,6 +50,122 @@ struct dm_verity_prefetch_work {
 	sector_t block;
 	unsigned n_blocks;
 };
+
+/* Provide a lightweight means of specifying the global default for
+ * error behavior: eio, reboot, or none
+ * Legacy support for 0 = eio, 1 = reboot/panic, 2 = none, 3 = notify.
+ * This is matched to the enum in dm-verity.h.
+ */
+static char *error_behavior_istring[] = { "0", "1", "2", "3" };
+static const char *allowed_error_behaviors[] = { "eio", "panic", "none",
+						 "notify", NULL };
+static char *error_behavior = "eio";
+module_param(error_behavior, charp, 0644);
+MODULE_PARM_DESC(error_behavior, "Behavior on error "
+				 "(eio, panic, none, notify)");
+
+/* Controls whether verity_get_device will wait forever for a device. */
+static int dev_wait;
+module_param(dev_wait, int, 0444);
+MODULE_PARM_DESC(dev_wait, "Wait forever for a backing device");
+
+static BLOCKING_NOTIFIER_HEAD(verity_error_notifier);
+
+int dm_verity_register_error_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&verity_error_notifier, nb);
+}
+EXPORT_SYMBOL_GPL(dm_verity_register_error_notifier);
+
+int dm_verity_unregister_error_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&verity_error_notifier, nb);
+}
+EXPORT_SYMBOL_GPL(dm_verity_unregister_error_notifier);
+
+/* If the request is not successful, this handler takes action.
+ * TODO make this call a registered handler.
+ */
+static void verity_error(struct dm_verity *v, struct dm_verity_io *io,
+			 blk_status_t status)
+{
+	const char *message = v->hash_failed ? "integrity" : "block";
+	int error_behavior = DM_VERITY_ERROR_BEHAVIOR_PANIC;
+	dev_t devt = 0;
+	u64 block = ~0;
+	struct dm_verity_error_state error_state;
+	/* If the hash did not fail, then this is likely transient. */
+	int transient = !v->hash_failed;
+
+	devt = v->data_dev->bdev->bd_dev;
+	error_behavior = v->error_behavior;
+	if (io)
+		block = io->block;
+
+	DMERR_LIMIT("verification failure occurred: %s failure%s", message,
+		    transient ? " (transient)" : "");
+
+	if (error_behavior == DM_VERITY_ERROR_BEHAVIOR_NOTIFY) {
+		error_state.code = status;
+		error_state.transient = transient;
+		error_state.block = block;
+		error_state.message = message;
+		error_state.dev_start = v->data_start;
+		error_state.dev_len = v->data_blocks;
+		error_state.dev = v->data_dev->bdev;
+		error_state.hash_dev_start = v->hash_start;
+		error_state.hash_dev_len = v->hash_blocks;
+		error_state.hash_dev = v->hash_dev->bdev;
+
+		/* Set default fallthrough behavior. */
+		error_state.behavior = DM_VERITY_ERROR_BEHAVIOR_PANIC;
+		error_behavior = DM_VERITY_ERROR_BEHAVIOR_PANIC;
+
+		if (!blocking_notifier_call_chain(
+		    &verity_error_notifier, transient, &error_state)) {
+			error_behavior = error_state.behavior;
+		}
+	}
+
+	switch (error_behavior) {
+	case DM_VERITY_ERROR_BEHAVIOR_EIO:
+		break;
+	case DM_VERITY_ERROR_BEHAVIOR_NONE:
+		break;
+	default:
+		goto do_panic;
+	}
+	return;
+
+do_panic:
+	panic("dm-verity failure: "
+	      "device:%u:%u status:%d block:%llu message:%s",
+	      MAJOR(devt), MINOR(devt), status, (u64)block, message);
+}
+
+/**
+ * verity_parse_error_behavior - parse a behavior charp to the enum
+ * @behavior:	NUL-terminated char array
+ *
+ * Checks if the behavior is valid either as text or as an index digit
+ * and returns the proper enum value in string form or ERR_PTR(-EINVAL)
+ * on error.
+ */
+static char *verity_parse_error_behavior(const char *behavior)
+{
+	const char **allowed = allowed_error_behaviors;
+	int index;
+
+	for (index = 0; *allowed; allowed++, index++)
+		if (!strcmp(*allowed, behavior) || behavior[0] == index + '0')
+			break;
+
+	if (!*allowed)
+		return ERR_PTR(-EINVAL);
+
+	/* Convert to the integer index matching the enum. */
+	return error_behavior_istring[index];
+}
 
 /*
  * Auxiliary structure appended to each dm-bufio buffer. If the value
@@ -549,6 +668,8 @@ static void verity_finish_io(struct dm_verity_io *io, blk_status_t status)
 	struct dm_verity *v = io->v;
 	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
 
+	if (status && !verity_fec_is_enabled(io->v))
+		verity_error(v, io, status);
 	bio->bi_end_io = io->orig_bi_end_io;
 	bio->bi_status = status;
 
@@ -936,6 +1057,22 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 				return r;
 			continue;
 
+		} else if (!strcasecmp(arg_name, DM_VERITY_OPT_ERROR_BEHAVIOR)) {
+			int behavior;
+
+			if (!argc) {
+				ti->error = "Missing error behavior parameter";
+				return -EINVAL;
+			}
+			if (kstrtoint(dm_shift_arg(as), 0, &behavior) ||
+			    behavior < 0) {
+				ti->error = "Bad error behavior parameter";
+				return -EINVAL;
+			}
+			v->error_behavior = behavior;
+			argc--;
+			continue;
+
 		} else if (verity_is_fec_opt_arg(arg_name)) {
 			r = verity_fec_parse_opt_args(as, v, &argc, arg_name);
 			if (r)
@@ -956,6 +1093,132 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 	} while (argc && !r);
 
 	return r;
+}
+
+static int verity_get_device(struct dm_target *ti, const char *devname,
+			     struct dm_dev **dm_dev)
+{
+	do {
+		/* Try the normal path first since if everything is ready, it
+		 * will be the fastest.
+		 */
+		if (!dm_get_device(ti, devname,
+				   dm_table_get_mode(ti->table), dm_dev))
+			return 0;
+
+		if (!dev_wait)
+			break;
+
+		/* No need to be too aggressive since this is a slow path. */
+		msleep(500);
+	} while (dev_wait && (driver_probe_done() != 0 || *dm_dev == NULL));
+	return -1;
+}
+
+static void splitarg(char *arg, char **key, char **val)
+{
+	*key = strsep(&arg, "=");
+	*val = strsep(&arg, "");
+}
+
+/* Convert Chrome OS arguments into standard arguments */
+
+static char *chromeos_args(unsigned *pargc, char ***pargv)
+{
+	char *hashstart = NULL;
+	char **argv = *pargv;
+	int argc = *pargc;
+	char *key, *val;
+	int nargc = 10;
+	char **nargv;
+	char *errstr;
+	int i;
+
+	nargv = kcalloc(14, sizeof(char *), GFP_KERNEL);
+	if (!nargv)
+		return "Failed to allocate memory";
+
+	nargv[0] = "0";		/* version */
+	nargv[3] = "4096";	/* hash block size */
+	nargv[4] = "4096";	/* data block size */
+	nargv[9] = "-";		/* salt (optional) */
+
+	for (i = 0; i < argc; ++i) {
+		DMDEBUG("Argument %d: '%s'", i, argv[i]);
+		splitarg(argv[i], &key, &val);
+		if (!key) {
+			DMWARN("Bad argument %d: missing key?", i);
+			errstr = "Bad argument: missing key";
+			goto err;
+		}
+		if (!val) {
+			DMWARN("Bad argument %d='%s': missing value", i, key);
+			errstr = "Bad argument: missing value";
+			goto err;
+		}
+		if (!strcmp(key, "alg")) {
+			nargv[7] = val;
+		} else if (!strcmp(key, "payload")) {
+			nargv[1] = val;
+		} else if (!strcmp(key, "hashtree")) {
+			nargv[2] = val;
+		} else if (!strcmp(key, "root_hexdigest")) {
+			nargv[8] = val;
+		} else if (!strcmp(key, "hashstart")) {
+			unsigned long num;
+
+			if (kstrtoul(val, 10, &num)) {
+				errstr = "Invalid hashstart";
+				goto err;
+			}
+			num >>= (12 - SECTOR_SHIFT);
+			hashstart = kmalloc(24, GFP_KERNEL);
+			if (!hashstart) {
+				errstr = "Failed to allocate memory";
+				goto err;
+			}
+			scnprintf(hashstart, sizeof(hashstart), "%lu", num);
+			nargv[5] = hashstart;
+			nargv[6] = hashstart;
+		} else if (!strcmp(key, "salt")) {
+			nargv[9] = val;
+		} else if (!strcmp(key, DM_VERITY_OPT_ERROR_BEHAVIOR)) {
+			char *behavior = verity_parse_error_behavior(val);
+
+			if (IS_ERR(behavior)) {
+				errstr = "Invalid error behavior";
+				goto err;
+			}
+			nargv[10] = "2";
+			nargv[11] = key;
+			nargv[12] = behavior;
+			nargc = 13;
+		}
+	}
+
+	if (!nargv[1] || !nargv[2] || !nargv[5] || !nargv[7] || !nargv[8]) {
+		errstr = "Missing argument";
+		goto err;
+	}
+
+	*pargc = nargc;
+	*pargv = nargv;
+	return NULL;
+
+err:
+	kfree(nargv);
+	kfree(hashstart);
+	return errstr;
+}
+
+/* Release memory allocated for Chrome OS parameter conversion */
+
+static void free_chromeos_argv(char **argv)
+{
+	if (argv) {
+		kfree(argv[5]);
+		kfree(argv);
+	}
 }
 
 /*
@@ -984,10 +1247,19 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	sector_t hash_position;
 	char dummy;
 	char *root_hash_digest_to_validate;
+	char **chromeos_argv = NULL;
+
+	if (argc < 10) {
+		ti->error = chromeos_args(&argc, &argv);
+		if (ti->error)
+			return -EINVAL;
+		chromeos_argv = argv;
+	}
 
 	v = kzalloc(sizeof(struct dm_verity), GFP_KERNEL);
 	if (!v) {
 		ti->error = "Cannot allocate verity structure";
+		free_chromeos_argv(chromeos_argv);
 		return -ENOMEM;
 	}
 	ti->private = v;
@@ -1017,13 +1289,13 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 	v->version = num;
 
-	r = dm_get_device(ti, argv[1], FMODE_READ, &v->data_dev);
+	r = verity_get_device(ti, argv[1], &v->data_dev);
 	if (r) {
 		ti->error = "Data device lookup failed";
 		goto bad;
 	}
 
-	r = dm_get_device(ti, argv[2], FMODE_READ, &v->hash_dev);
+	r = verity_get_device(ti, argv[2], &v->hash_dev);
 	if (r) {
 		ti->error = "Hash device lookup failed";
 		goto bad;
@@ -1223,14 +1495,14 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 				       __alignof__(struct dm_verity_io));
 
 	verity_verify_sig_opts_cleanup(&verify_args);
-
+	free_chromeos_argv(chromeos_argv);
 	return 0;
 
 bad:
 
 	verity_verify_sig_opts_cleanup(&verify_args);
 	verity_dtr(ti);
-
+	free_chromeos_argv(chromeos_argv);
 	return r;
 }
 
