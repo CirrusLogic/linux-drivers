@@ -15,6 +15,14 @@ menuconfig CHROME_PLATFORMS
 
 if CHROME_PLATFORMS
 
+config CHROMEOS
+	bool
+	depends on NVRAM && ACPI_CHROMEOS
+	help
+	  Provides abstracted interfaces to the firmware features provided on
+	  ChromeOS devices. It depends on a lowlevel driver to implement the
+	  firmware interface on the platform.
+
 config CHROMEOS_LAPTOP
 	tristate "Chrome OS Laptop"
 	depends on I2C && DMI && X86
@@ -107,6 +115,16 @@ config CROS_EC_SPI
 	  through a SPI bus, using a byte-level protocol. Since the EC's
 	  response time cannot be guaranteed, we support ignoring
 	  'pre-amble' bytes before the response actually starts.
+
+config CROS_EC_UART
+	tristate "ChromeOS Embedded Controller (UART)"
+	depends on CROS_EC && ACPI && SERIAL_DEV_BUS
+	help
+	  If you say Y here, you get support for talking to the ChromeOS EC
+	  through a UART, using a byte-level protocol.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_uart.
 
 config CROS_EC_LPC
 	tristate "ChromeOS Embedded Controller (LPC)"
@@ -204,11 +222,24 @@ config CROS_EC_SYSFS
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_sysfs.
 
+config CROS_EC_PD_UPDATE
+	tristate "ChromeOS Embedded Controller PD device update driver"
+	depends on MFD_CROS_EC_DEV
+	depends on CROS_USBPD_NOTIFY
+
+	help
+	  If you say Y here, you get support for updating ChromeOS
+	  PD device firmware.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called cros_ec_pd_update.
+
 config CROS_EC_TYPEC
 	tristate "ChromeOS EC Type-C Connector Control"
 	depends on MFD_CROS_EC_DEV && TYPEC
 	depends on CROS_USBPD_NOTIFY
 	depends on USB_ROLE_SWITCH
+	depends on !EXTCON_TCSS_CROS_EC
 	default MFD_CROS_EC_DEV
 	help
 	  If you say Y here, you get support for accessing Type C connector
