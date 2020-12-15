@@ -2290,12 +2290,16 @@ void intel_hdcp_atomic_check(struct drm_connector *connector,
 			DRM_MODE_CONTENT_PROTECTION_DESIRED;
 
 	/*
-	 * Nothing to do if the state didn't change, or HDCP was activated since
-	 * the last commit. And also no change in hdcp content type.
+	 * Nothing to do if content type is unchanged and one of:
+	 *  - state didn't change
+	 *  - HDCP was activated since the last commit
+	 *  - attempting to set to desired while already enabled
 	 */
 	if (old_cp == new_cp ||
 	    (old_cp == DRM_MODE_CONTENT_PROTECTION_DESIRED &&
-	     new_cp == DRM_MODE_CONTENT_PROTECTION_ENABLED)) {
+	     new_cp == DRM_MODE_CONTENT_PROTECTION_ENABLED) ||
+	    (old_cp == DRM_MODE_CONTENT_PROTECTION_ENABLED &&
+	     new_cp == DRM_MODE_CONTENT_PROTECTION_DESIRED)) {
 		if (old_state->hdcp_content_type ==
 				new_state->hdcp_content_type)
 			return;

@@ -1990,13 +1990,17 @@ static int ccs_to_main_plane(const struct drm_framebuffer *fb, int ccs_plane)
 	return ccs_plane - fb->format->num_planes / 2;
 }
 
-/* Return either the main plane's CCS or - if not a CCS FB - UV plane */
 int intel_main_to_aux_plane(const struct drm_framebuffer *fb, int main_plane)
 {
+	struct drm_i915_private *i915 = to_i915(fb->dev);
+
 	if (is_ccs_modifier(fb->modifier))
 		return main_to_ccs_plane(fb, main_plane);
-
-	return 1;
+	else if (INTEL_GEN(i915) < 11 &&
+		 intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier))
+		return 1;
+	else
+		return 0;
 }
 
 bool
@@ -3930,7 +3934,7 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 	 * main surface offset, and it must be non-negative. Make
 	 * sure that is what we will get.
 	 */
-	if (offset > aux_offset)
+	if (aux_plane && offset > aux_offset)
 		offset = intel_plane_adjust_aligned_offset(&x, &y, plane_state, 0,
 							   offset, aux_offset & ~(alignment - 1));
 
@@ -4019,8 +4023,8 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 
 	if (is_ccs_modifier(fb->modifier)) {
 		int ccs_plane = main_to_ccs_plane(fb, uv_plane);
-		int aux_offset = plane_state->color_plane[ccs_plane].offset;
-		int alignment = intel_surf_alignment(fb, uv_plane);
+		u32 aux_offset = plane_state->color_plane[ccs_plane].offset;
+		u32 alignment = intel_surf_alignment(fb, uv_plane);
 
 		if (offset > aux_offset)
 			offset = intel_plane_adjust_aligned_offset(&x, &y,
@@ -4128,7 +4132,7 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 	}
 
 	for (i = fb->format->num_planes; i < ARRAY_SIZE(plane_state->color_plane); i++) {
-		plane_state->color_plane[i].offset = ~0xfff;
+		plane_state->color_plane[i].offset = 0;
 		plane_state->color_plane[i].x = 0;
 		plane_state->color_plane[i].y = 0;
 	}
@@ -4785,6 +4789,9 @@ u32 skl_plane_ctl_crtc(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	u32 plane_ctl = 0;
+
+	if (crtc_state->uapi.async_flip)
+		plane_ctl |= PLANE_CTL_ASYNC_FLIP;
 
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		return plane_ctl;
@@ -6560,6 +6567,43 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 		icl_wa_scalerclkgating(dev_priv, pipe, false);
 }
 
+static void skl_disable_async_flip_wa(struct intel_atomic_state *state,
+				      struct intel_crtc *crtc,
+				      const struct intel_crtc_state *new_crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_plane *plane;
+	struct intel_plane_state *new_plane_state;
+	int i;
+
+	for_each_new_intel_plane_in_state(state, plane, new_plane_state, i) {
+		u32 update_mask = new_crtc_state->update_planes;
+		u32 plane_ctl, surf_addr;
+		enum plane_id plane_id;
+		unsigned long irqflags;
+		enum pipe pipe;
+
+		if (crtc->pipe != plane->pipe ||
+		    !(update_mask & BIT(plane->id)))
+			continue;
+
+		plane_id = plane->id;
+		pipe = plane->pipe;
+
+		spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+		plane_ctl = intel_de_read_fw(dev_priv, PLANE_CTL(pipe, plane_id));
+		surf_addr = intel_de_read_fw(dev_priv, PLANE_SURF(pipe, plane_id));
+
+		plane_ctl &= ~PLANE_CTL_ASYNC_FLIP;
+
+		intel_de_write_fw(dev_priv, PLANE_CTL(pipe, plane_id), plane_ctl);
+		intel_de_write_fw(dev_priv, PLANE_SURF(pipe, plane_id), surf_addr);
+		spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+	}
+
+	intel_wait_for_vblank(dev_priv, crtc->pipe);
+}
+
 static void intel_pre_plane_update(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc)
 {
@@ -6645,6 +6689,15 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 	 */
 	if (IS_GEN(dev_priv, 2) && planes_disabling(old_crtc_state, new_crtc_state))
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
+
+	/*
+	 * WA for platforms where async address update enable bit
+	 * is double buffered and only latched at start of vblank.
+	 */
+	if (old_crtc_state->uapi.async_flip &&
+	    !new_crtc_state->uapi.async_flip &&
+	    IS_GEN_RANGE(dev_priv, 9, 10))
+		skl_disable_async_flip_wa(state, crtc, new_crtc_state);
 }
 
 static void intel_crtc_disable_planes(struct intel_atomic_state *state,
@@ -7275,7 +7328,7 @@ bool intel_phy_is_combo(struct drm_i915_private *dev_priv, enum phy phy)
 		return false;
 	else if (IS_ROCKETLAKE(dev_priv))
 		return phy <= PHY_D;
-	else if (IS_ELKHARTLAKE(dev_priv))
+	else if (IS_JSL_EHL(dev_priv))
 		return phy <= PHY_C;
 	else if (INTEL_GEN(dev_priv) >= 11)
 		return phy <= PHY_B;
@@ -7289,7 +7342,7 @@ bool intel_phy_is_tc(struct drm_i915_private *dev_priv, enum phy phy)
 		return false;
 	else if (INTEL_GEN(dev_priv) >= 12)
 		return phy >= PHY_D && phy <= PHY_I;
-	else if (INTEL_GEN(dev_priv) >= 11 && !IS_ELKHARTLAKE(dev_priv))
+	else if (INTEL_GEN(dev_priv) >= 11 && !IS_JSL_EHL(dev_priv))
 		return phy >= PHY_C && phy <= PHY_F;
 	else
 		return false;
@@ -7299,7 +7352,7 @@ enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port)
 {
 	if (IS_ROCKETLAKE(i915) && port >= PORT_D)
 		return (enum phy)port - 1;
-	else if (IS_ELKHARTLAKE(i915) && port == PORT_D)
+	else if (IS_JSL_EHL(i915) && port == PORT_D)
 		return PHY_A;
 
 	return (enum phy)port;
@@ -12560,6 +12613,7 @@ static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
 	struct intel_atomic_state *state = to_intel_atomic_state(crtc_state->uapi.state);
 	struct intel_plane *plane, *linked;
 	struct intel_plane_state *plane_state;
+	int ret;
 	int i;
 
 	if (INTEL_GEN(dev_priv) < 11)
@@ -12633,6 +12687,11 @@ static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
 		intel_plane_copy_uapi_to_hw_state(linked_state, plane_state);
 		linked_state->uapi.src = plane_state->uapi.src;
 		linked_state->uapi.dst = plane_state->uapi.dst;
+
+		/* Update Linked plane crtc same as of main plane */
+		ret = drm_atomic_set_crtc_for_plane(&linked_state->uapi, plane_state->uapi.crtc);
+		if (ret)
+			return ret;
 
 		if (icl_is_hdr_plane(dev_priv, plane->id)) {
 			if (linked->id == PLANE_SPRITE5)
@@ -14884,6 +14943,139 @@ static bool intel_cpu_transcoders_need_modeset(struct intel_atomic_state *state,
 }
 
 /**
+ * DOC: asynchronous flip implementation
+ *
+ * Asynchronous page flip is the implementation for the DRM_MODE_PAGE_FLIP_ASYNC
+ * flag. Currently async flip is only supported via the drmModePageFlip IOCTL.
+ * Correspondingly, support is currently added for primary plane only.
+ *
+ * Async flip can only change the plane surface address, so anything else
+ * changing is rejected from the intel_atomic_check_async() function.
+ * Once this check is cleared, flip done interrupt is enabled using
+ * the skl_enable_flip_done() function.
+ *
+ * As soon as the surface address register is written, flip done interrupt is
+ * generated and the requested events are sent to the usersapce in the interrupt
+ * handler itself. The timestamp and sequence sent during the flip done event
+ * correspond to the last vblank and have no relation to the actual time when
+ * the flip done event was sent.
+ */
+static int intel_atomic_check_async(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_crtc_state *old_crtc_state, *new_crtc_state;
+	const struct intel_plane_state *new_plane_state, *old_plane_state;
+	struct intel_crtc *crtc;
+	struct intel_plane *plane;
+	int i;
+
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		if (needs_modeset(new_crtc_state)) {
+			drm_dbg_kms(&i915->drm, "Modeset Required. Async flip not supported\n");
+			return -EINVAL;
+		}
+
+		if (!new_crtc_state->hw.active) {
+			drm_dbg_kms(&i915->drm, "CRTC inactive\n");
+			return -EINVAL;
+		}
+		if (old_crtc_state->active_planes != new_crtc_state->active_planes) {
+			drm_dbg_kms(&i915->drm,
+				    "Active planes cannot be changed during async flip\n");
+			return -EINVAL;
+		}
+	}
+
+	for_each_oldnew_intel_plane_in_state(state, plane, old_plane_state,
+					     new_plane_state, i) {
+		/*
+		 * TODO: Async flip is only supported through the page flip IOCTL
+		 * as of now. So support currently added for primary plane only.
+		 * Support for other planes on platforms on which supports
+		 * this(vlv/chv and icl+) should be added when async flip is
+		 * enabled in the atomic IOCTL path.
+		 */
+		if (plane->id != PLANE_PRIMARY)
+			return -EINVAL;
+
+		/*
+		 * FIXME: This check is kept generic for all platforms.
+		 * Need to verify this for all gen9 and gen10 platforms to enable
+		 * this selectively if required.
+		 */
+		switch (new_plane_state->hw.fb->modifier) {
+		case I915_FORMAT_MOD_X_TILED:
+		case I915_FORMAT_MOD_Y_TILED:
+		case I915_FORMAT_MOD_Yf_TILED:
+			break;
+		default:
+			drm_dbg_kms(&i915->drm,
+				    "Linear memory/CCS does not support async flips\n");
+			return -EINVAL;
+		}
+
+		if (old_plane_state->color_plane[0].stride !=
+		    new_plane_state->color_plane[0].stride) {
+			drm_dbg_kms(&i915->drm, "Stride cannot be changed in async flip\n");
+			return -EINVAL;
+		}
+
+		if (old_plane_state->hw.fb->modifier !=
+		    new_plane_state->hw.fb->modifier) {
+			drm_dbg_kms(&i915->drm,
+				    "Framebuffer modifiers cannot be changed in async flip\n");
+			return -EINVAL;
+		}
+
+		if (old_plane_state->hw.fb->format !=
+		    new_plane_state->hw.fb->format) {
+			drm_dbg_kms(&i915->drm,
+				    "Framebuffer format cannot be changed in async flip\n");
+			return -EINVAL;
+		}
+
+		if (old_plane_state->hw.rotation !=
+		    new_plane_state->hw.rotation) {
+			drm_dbg_kms(&i915->drm, "Rotation cannot be changed in async flip\n");
+			return -EINVAL;
+		}
+
+		if (!drm_rect_equals(&old_plane_state->uapi.src, &new_plane_state->uapi.src) ||
+		    !drm_rect_equals(&old_plane_state->uapi.dst, &new_plane_state->uapi.dst)) {
+			drm_dbg_kms(&i915->drm,
+				    "Plane size/co-ordinates cannot be changed in async flip\n");
+			return -EINVAL;
+		}
+
+		if (old_plane_state->hw.alpha != new_plane_state->hw.alpha) {
+			drm_dbg_kms(&i915->drm, "Alpha value cannot be changed in async flip\n");
+			return -EINVAL;
+		}
+
+		if (old_plane_state->hw.pixel_blend_mode !=
+		    new_plane_state->hw.pixel_blend_mode) {
+			drm_dbg_kms(&i915->drm,
+				    "Pixel blend mode cannot be changed in async flip\n");
+			return -EINVAL;
+		}
+
+		if (old_plane_state->hw.color_encoding != new_plane_state->hw.color_encoding) {
+			drm_dbg_kms(&i915->drm,
+				    "Color encoding cannot be changed in async flip\n");
+			return -EINVAL;
+		}
+
+		if (old_plane_state->hw.color_range != new_plane_state->hw.color_range) {
+			drm_dbg_kms(&i915->drm, "Color range cannot be changed in async flip\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+/**
  * intel_atomic_check - validate state object
  * @dev: drm device
  * @_state: state to validate
@@ -15051,6 +15243,12 @@ static int intel_atomic_check(struct drm_device *dev,
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
+		if (new_crtc_state->uapi.async_flip) {
+			ret = intel_atomic_check_async(state);
+			if (ret)
+				goto fail;
+		}
+
 		if (!needs_modeset(new_crtc_state) &&
 		    !new_crtc_state->update_pipe)
 			continue;
@@ -15616,6 +15814,11 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 
 	intel_dbuf_pre_plane_update(state);
 
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+		if (new_crtc_state->uapi.async_flip)
+			skl_enable_flip_done(crtc);
+	}
+
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	dev_priv->display.commit_modeset_enables(state);
 
@@ -15637,6 +15840,9 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	drm_atomic_helper_wait_for_flip_done(dev, &state->base);
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+		if (new_crtc_state->uapi.async_flip)
+			skl_disable_flip_done(crtc);
+
 		if (new_crtc_state->hw.active &&
 		    !needs_modeset(new_crtc_state) &&
 		    !new_crtc_state->preload_luts &&
@@ -15790,25 +15996,14 @@ static int intel_atomic_commit(struct drm_device *dev,
 	 * updates happen during the correct frames. Gen9+ have
 	 * double buffered watermarks and so shouldn't need this.
 	 *
-	 * Unset state->legacy_cursor_update before the call to
-	 * drm_atomic_helper_setup_commit() because otherwise
-	 * drm_atomic_helper_wait_for_flip_done() is a noop and
-	 * we get FIFO underruns because we didn't wait
-	 * for vblank.
-	 *
-	 * FIXME doing watermarks and fb cleanup from a vblank worker
-	 * (assuming we had any) would solve these problems.
+	 * Unfortunately, the GEN9+ double buffering seems to be buggy when it
+	 * races with a modeset. The result is that the register (CURCNTL)
+	 * appears to have been written (reads back as 0), but the cursor is
+	 * still on. This manifests itself as garbage in the upper-left corner
+	 * of the display (as we set position and base to 0).  We work around
+	 * that by always falling back to the vblank wait.
 	 */
-	if (INTEL_GEN(dev_priv) < 9 && state->base.legacy_cursor_update) {
-		struct intel_crtc_state *new_crtc_state;
-		struct intel_crtc *crtc;
-		int i;
-
-		for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i)
-			if (new_crtc_state->wm.need_postvbl_update ||
-			    new_crtc_state->update_wm_post)
-				state->base.legacy_cursor_update = false;
-	}
+	state->base.legacy_cursor_update = false;
 
 	ret = intel_atomic_prepare_commit(state);
 	if (ret) {
@@ -16907,7 +17102,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		intel_ddi_init(dev_priv, PORT_H);
 		intel_ddi_init(dev_priv, PORT_I);
 		icl_dsi_init(dev_priv);
-	} else if (IS_ELKHARTLAKE(dev_priv)) {
+	} else if (IS_JSL_EHL(dev_priv)) {
 		intel_ddi_init(dev_priv, PORT_A);
 		intel_ddi_init(dev_priv, PORT_B);
 		intel_ddi_init(dev_priv, PORT_C);
@@ -17816,6 +18011,9 @@ static void intel_mode_config_init(struct drm_i915_private *i915)
 	mode_config->allow_fb_modifiers = true;
 
 	mode_config->funcs = &intel_mode_funcs;
+
+	if (INTEL_GEN(i915) >= 9)
+		mode_config->async_page_flip = true;
 
 	/*
 	 * Maximum framebuffer dimensions, chosen to match
