@@ -55,9 +55,13 @@ int __net_init xfrm_sysctl_init(struct net *net)
 	table[2].data = &net->xfrm.sysctl_larval_drop;
 	table[3].data = &net->xfrm.sysctl_acq_expires;
 
-	/* Don't export sysctls to unprivileged users */
-	if (net->user_ns != &init_user_ns)
-		table[0].procname = NULL;
+	/* Only export xfrm_acq_expires to unprivileged users. This is required
+	 * By Android Ipsec stack as per CTS.
+	 */
+	if (net->user_ns != &init_user_ns) {
+		table[0] = table[3];
+		table[1].procname = NULL;
+	}
 
 	net->xfrm.sysctl_hdr = register_net_sysctl(net, "net/core", table);
 	if (!net->xfrm.sysctl_hdr)

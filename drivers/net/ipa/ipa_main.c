@@ -111,8 +111,7 @@ int ipa_setup(struct ipa *ipa)
 	struct device *dev = &ipa->pdev->dev;
 	int ret;
 
-	/* Setup for IPA v3.5.1 has some slight differences */
-	ret = gsi_setup(&ipa->gsi, ipa->version == IPA_VERSION_3_5_1);
+	ret = gsi_setup(&ipa->gsi);
 	if (ret)
 		return ret;
 
@@ -326,7 +325,7 @@ static void ipa_hardware_config(struct ipa *ipa)
 
 		/* Disable PA mask to allow HOLB drop (hardware workaround) */
 		val = ioread32(ipa->reg_virt + IPA_REG_TX_CFG_OFFSET);
-		val &= ~PA_MASK_EN;
+		val &= ~PA_MASK_EN_FMASK;
 		iowrite32(val, ipa->reg_virt + IPA_REG_TX_CFG_OFFSET);
 	}
 
@@ -336,14 +335,16 @@ static void ipa_hardware_config(struct ipa *ipa)
 	ipa_hardware_config_qsb(ipa);
 
 	/* Configure aggregation granularity */
-	val = ioread32(ipa->reg_virt + IPA_REG_COUNTER_CFG_OFFSET);
 	granularity = ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY);
-	val = u32_encode_bits(granularity, AGGR_GRANULARITY);
+	val = u32_encode_bits(granularity, AGGR_GRANULARITY_FMASK);
 	iowrite32(val, ipa->reg_virt + IPA_REG_COUNTER_CFG_OFFSET);
 
-	/* Disable hashed IPv4 and IPv6 routing and filtering for IPA v4.2 */
-	if (ipa->version == IPA_VERSION_4_2)
-		iowrite32(0, ipa->reg_virt + IPA_REG_FILT_ROUT_HASH_EN_OFFSET);
+	/* IPA v4.2 does not support hashed tables, so disable them */
+	if (ipa->version == IPA_VERSION_4_2) {
+		u32 offset = ipa_reg_filt_rout_hash_en_offset(ipa->version);
+
+		iowrite32(0, ipa->reg_virt + offset);
+	}
 
 	/* Enable dynamic clock division */
 	ipa_hardware_dcd_config(ipa);
@@ -363,52 +364,41 @@ static void ipa_hardware_deconfig(struct ipa *ipa)
 
 #ifdef IPA_VALIDATION
 
-/* # IPA resources used based on version (see IPA_RESOURCE_GROUP_COUNT) */
-static int ipa_resource_group_count(struct ipa *ipa)
-{
-	switch (ipa->version) {
-	case IPA_VERSION_3_5_1:
-		return 3;
-
-	case IPA_VERSION_4_0:
-	case IPA_VERSION_4_1:
-		return 4;
-
-	case IPA_VERSION_4_2:
-		return 1;
-
-	default:
-		return 0;
-	}
-}
-
 static bool ipa_resource_limits_valid(struct ipa *ipa,
 				      const struct ipa_resource_data *data)
 {
-	u32 group_count = ipa_resource_group_count(ipa);
+	u32 group_count;
 	u32 i;
 	u32 j;
 
-	if (!group_count)
+	/* We program at most 6 source or destination resource group limits */
+	BUILD_BUG_ON(IPA_RESOURCE_GROUP_SRC_MAX > 6);
+
+	group_count = ipa_resource_group_src_count(ipa->version);
+	if (!group_count || group_count > IPA_RESOURCE_GROUP_SRC_MAX)
 		return false;
 
-	/* Return an error if a non-zero resource group limit is specified
-	 * for a resource not supported by hardware.
+	/* Return an error if a non-zero resource limit is specified
+	 * for a resource group not supported by hardware.
 	 */
 	for (i = 0; i < data->resource_src_count; i++) {
 		const struct ipa_resource_src *resource;
 
 		resource = &data->resource_src[i];
-		for (j = group_count; j < IPA_RESOURCE_GROUP_COUNT; j++)
+		for (j = group_count; j < IPA_RESOURCE_GROUP_SRC_MAX; j++)
 			if (resource->limits[j].min || resource->limits[j].max)
 				return false;
 	}
+
+	group_count = ipa_resource_group_dst_count(ipa->version);
+	if (!group_count || group_count > IPA_RESOURCE_GROUP_DST_MAX)
+		return false;
 
 	for (i = 0; i < data->resource_dst_count; i++) {
 		const struct ipa_resource_dst *resource;
 
 		resource = &data->resource_dst[i];
-		for (j = group_count; j < IPA_RESOURCE_GROUP_COUNT; j++)
+		for (j = group_count; j < IPA_RESOURCE_GROUP_DST_MAX; j++)
 			if (resource->limits[j].min || resource->limits[j].max)
 				return false;
 	}
@@ -435,46 +425,64 @@ ipa_resource_config_common(struct ipa *ipa, u32 offset,
 
 	val = u32_encode_bits(xlimits->min, X_MIN_LIM_FMASK);
 	val |= u32_encode_bits(xlimits->max, X_MAX_LIM_FMASK);
-	val |= u32_encode_bits(ylimits->min, Y_MIN_LIM_FMASK);
-	val |= u32_encode_bits(ylimits->max, Y_MAX_LIM_FMASK);
+	if (ylimits) {
+		val |= u32_encode_bits(ylimits->min, Y_MIN_LIM_FMASK);
+		val |= u32_encode_bits(ylimits->max, Y_MAX_LIM_FMASK);
+	}
 
 	iowrite32(val, ipa->reg_virt + offset);
 }
 
-static void ipa_resource_config_src_01(struct ipa *ipa,
-				       const struct ipa_resource_src *resource)
+static void ipa_resource_config_src(struct ipa *ipa,
+				    const struct ipa_resource_src *resource)
 {
-	u32 offset = IPA_REG_SRC_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(resource->type);
+	u32 group_count = ipa_resource_group_src_count(ipa->version);
+	const struct ipa_resource_limits *ylimits;
+	u32 offset;
 
-	ipa_resource_config_common(ipa, offset,
-				   &resource->limits[0], &resource->limits[1]);
+	offset = IPA_REG_SRC_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(resource->type);
+	ylimits = group_count == 1 ? NULL : &resource->limits[1];
+	ipa_resource_config_common(ipa, offset, &resource->limits[0], ylimits);
+
+	if (group_count < 2)
+		return;
+
+	offset = IPA_REG_SRC_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(resource->type);
+	ylimits = group_count == 3 ? NULL : &resource->limits[3];
+	ipa_resource_config_common(ipa, offset, &resource->limits[2], ylimits);
+
+	if (group_count < 4)
+		return;
+
+	offset = IPA_REG_SRC_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(resource->type);
+	ylimits = group_count == 5 ? NULL : &resource->limits[5];
+	ipa_resource_config_common(ipa, offset, &resource->limits[4], ylimits);
 }
 
-static void ipa_resource_config_src_23(struct ipa *ipa,
-				       const struct ipa_resource_src *resource)
+static void ipa_resource_config_dst(struct ipa *ipa,
+				    const struct ipa_resource_dst *resource)
 {
-	u32 offset = IPA_REG_SRC_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(resource->type);
+	u32 group_count = ipa_resource_group_dst_count(ipa->version);
+	const struct ipa_resource_limits *ylimits;
+	u32 offset;
 
-	ipa_resource_config_common(ipa, offset,
-				   &resource->limits[2], &resource->limits[3]);
-}
+	offset = IPA_REG_DST_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(resource->type);
+	ylimits = group_count == 1 ? NULL : &resource->limits[1];
+	ipa_resource_config_common(ipa, offset, &resource->limits[0], ylimits);
 
-static void ipa_resource_config_dst_01(struct ipa *ipa,
-				       const struct ipa_resource_dst *resource)
-{
-	u32 offset = IPA_REG_DST_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(resource->type);
+	if (group_count < 2)
+		return;
 
-	ipa_resource_config_common(ipa, offset,
-				   &resource->limits[0], &resource->limits[1]);
-}
+	offset = IPA_REG_DST_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(resource->type);
+	ylimits = group_count == 3 ? NULL : &resource->limits[3];
+	ipa_resource_config_common(ipa, offset, &resource->limits[2], ylimits);
 
-static void ipa_resource_config_dst_23(struct ipa *ipa,
-				       const struct ipa_resource_dst *resource)
-{
-	u32 offset = IPA_REG_DST_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(resource->type);
+	if (group_count < 4)
+		return;
 
-	ipa_resource_config_common(ipa, offset,
-				   &resource->limits[2], &resource->limits[3]);
+	offset = IPA_REG_DST_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(resource->type);
+	ylimits = group_count == 5 ? NULL : &resource->limits[5];
+	ipa_resource_config_common(ipa, offset, &resource->limits[4], ylimits);
 }
 
 static int
@@ -485,15 +493,11 @@ ipa_resource_config(struct ipa *ipa, const struct ipa_resource_data *data)
 	if (!ipa_resource_limits_valid(ipa, data))
 		return -EINVAL;
 
-	for (i = 0; i < data->resource_src_count; i++) {
-		ipa_resource_config_src_01(ipa, &data->resource_src[i]);
-		ipa_resource_config_src_23(ipa, &data->resource_src[i]);
-	}
+	for (i = 0; i < data->resource_src_count; i++)
+		ipa_resource_config_src(ipa, data->resource_src);
 
-	for (i = 0; i < data->resource_dst_count; i++) {
-		ipa_resource_config_dst_01(ipa, &data->resource_dst[i]);
-		ipa_resource_config_dst_23(ipa, &data->resource_dst[i]);
-	}
+	for (i = 0; i < data->resource_dst_count; i++)
+		ipa_resource_config_dst(ipa, data->resource_dst);
 
 	return 0;
 }
@@ -678,16 +682,13 @@ static void ipa_validate_build(void)
 	 */
 	BUILD_BUG_ON(GSI_TLV_MAX > U8_MAX);
 
-	/* Exceeding 128 bytes makes the transaction pool *much* larger */
-	BUILD_BUG_ON(sizeof(struct gsi_trans) > 128);
-
 	/* This is used as a divisor */
 	BUILD_BUG_ON(!IPA_AGGR_GRANULARITY);
 
 	/* Aggregation granularity value can't be 0, and must fit */
 	BUILD_BUG_ON(!ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY));
 	BUILD_BUG_ON(ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY) >
-			field_max(AGGR_GRANULARITY));
+			field_max(AGGR_GRANULARITY_FMASK));
 #endif /* IPA_VALIDATE */
 }
 
@@ -720,14 +721,20 @@ static int ipa_probe(struct platform_device *pdev)
 	const struct ipa_data *data;
 	struct ipa_clock *clock;
 	struct rproc *rproc;
-	bool modem_alloc;
 	bool modem_init;
 	struct ipa *ipa;
-	bool prefetch;
 	phandle ph;
 	int ret;
 
 	ipa_validate_build();
+
+	/* Get configuration data early; needed for clock initialization */
+	data = of_device_get_match_data(dev);
+	if (!data) {
+		/* This is really IPA_VALIDATE (should never happen) */
+		dev_err(dev, "matched hardware not supported\n");
+		return -ENODEV;
+	}
 
 	/* If we need Trust Zone, make sure it's available */
 	modem_init = of_property_read_bool(dev->of_node, "modem-init");
@@ -749,22 +756,13 @@ static int ipa_probe(struct platform_device *pdev)
 	/* The clock and interconnects might not be ready when we're
 	 * probed, so might return -EPROBE_DEFER.
 	 */
-	clock = ipa_clock_init(dev);
+	clock = ipa_clock_init(dev, data->clock_data);
 	if (IS_ERR(clock)) {
 		ret = PTR_ERR(clock);
 		goto err_rproc_put;
 	}
 
-	/* No more EPROBE_DEFER.  Get our configuration data */
-	data = of_device_get_match_data(dev);
-	if (!data) {
-		/* This is really IPA_VALIDATE (should never happen) */
-		dev_err(dev, "matched hardware not supported\n");
-		ret = -ENOTSUPP;
-		goto err_clock_exit;
-	}
-
-	/* Allocate and initialize the IPA structure */
+	/* No more EPROBE_DEFER.  Allocate and initialize the IPA structure */
 	ipa = kzalloc(sizeof(*ipa), GFP_KERNEL);
 	if (!ipa) {
 		ret = -ENOMEM;
@@ -785,17 +783,12 @@ static int ipa_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_reg_exit;
 
-	/* GSI v2.0+ (IPA v4.0+) uses prefetch for the command channel */
-	prefetch = ipa->version != IPA_VERSION_3_5_1;
-	/* IPA v4.2 requires the AP to allocate channels for the modem */
-	modem_alloc = ipa->version == IPA_VERSION_4_2;
-
-	ret = gsi_init(&ipa->gsi, pdev, prefetch, data->endpoint_count,
-		       data->endpoint_data, modem_alloc);
+	ret = gsi_init(&ipa->gsi, pdev, ipa->version, data->endpoint_count,
+		       data->endpoint_data);
 	if (ret)
 		goto err_mem_exit;
 
-	/* Result is a non-zero mask endpoints that support filtering */
+	/* Result is a non-zero mask of endpoints that support filtering */
 	ipa->filter_map = ipa_endpoint_init(ipa, data->endpoint_count,
 					    data->endpoint_data);
 	if (!ipa->filter_map) {
@@ -870,6 +863,11 @@ static int ipa_remove(struct platform_device *pdev)
 
 	if (ipa->setup_complete) {
 		ret = ipa_modem_stop(ipa);
+		/* If starting or stopping is in progress, try once more */
+		if (ret == -EBUSY) {
+			usleep_range(USEC_PER_MSEC, 2 * USEC_PER_MSEC);
+			ret = ipa_modem_stop(ipa);
+		}
 		if (ret)
 			return ret;
 
@@ -888,6 +886,15 @@ static int ipa_remove(struct platform_device *pdev)
 	rproc_put(rproc);
 
 	return 0;
+}
+
+static void ipa_shutdown(struct platform_device *pdev)
+{
+	int ret;
+
+	ret = ipa_remove(pdev);
+	if (ret)
+		dev_err(&pdev->dev, "shutdown: remove returned %d\n", ret);
 }
 
 /**
@@ -947,8 +954,9 @@ static const struct dev_pm_ops ipa_pm_ops = {
 };
 
 static struct platform_driver ipa_driver = {
-	.probe	= ipa_probe,
-	.remove	= ipa_remove,
+	.probe		= ipa_probe,
+	.remove		= ipa_remove,
+	.shutdown	= ipa_shutdown,
 	.driver	= {
 		.name		= "ipa",
 		.pm		= &ipa_pm_ops,

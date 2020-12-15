@@ -665,8 +665,8 @@ static u32 ipa_reg_init_hol_block_timer_val(struct ipa *ipa, u32 microseconds)
 	/* ...but we still need to fit into a 32-bit register */
 	WARN_ON(ticks > U32_MAX);
 
-	/* IPA v3.5.1 just records the tick count */
-	if (ipa->version == IPA_VERSION_3_5_1)
+	/* IPA v3.5.1 through v4.1 just record the tick count */
+	if (ipa->version < IPA_VERSION_4_2)
 		return (u32)ticks;
 
 	/* For IPA v4.2, the tick count is represented by base and
@@ -749,6 +749,16 @@ static void ipa_endpoint_init_deaggr(struct ipa_endpoint *endpoint)
 	/* MAX_PACKET_LEN is 0 (not enforced) */
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
+}
+
+static void ipa_endpoint_init_rsrc_grp(struct ipa_endpoint *endpoint)
+{
+	u32 offset = IPA_REG_ENDP_INIT_RSRC_GRP_N_OFFSET(endpoint->endpoint_id);
+	struct ipa *ipa = endpoint->ipa;
+	u32 val;
+
+	val = rsrc_grp_encoded(ipa->version, endpoint->data->resource_group);
+	iowrite32(val, ipa->reg_virt + offset);
 }
 
 static void ipa_endpoint_init_seq(struct ipa_endpoint *endpoint)
@@ -1207,7 +1217,6 @@ static int ipa_endpoint_reset_rx_aggr(struct ipa_endpoint *endpoint)
 	struct gsi *gsi = &ipa->gsi;
 	bool suspended = false;
 	dma_addr_t addr;
-	bool legacy;
 	u32 retries;
 	u32 len = 1;
 	void *virt;
@@ -1269,8 +1278,7 @@ static int ipa_endpoint_reset_rx_aggr(struct ipa_endpoint *endpoint)
 	 * complete the channel reset sequence.  Finish by suspending the
 	 * channel again (if necessary).
 	 */
-	legacy = ipa->version == IPA_VERSION_3_5_1;
-	gsi_channel_reset(gsi, endpoint->channel_id, legacy);
+	gsi_channel_reset(gsi, endpoint->channel_id, true);
 
 	msleep(1);
 
@@ -1293,21 +1301,19 @@ static void ipa_endpoint_reset(struct ipa_endpoint *endpoint)
 	u32 channel_id = endpoint->channel_id;
 	struct ipa *ipa = endpoint->ipa;
 	bool special;
-	bool legacy;
 	int ret = 0;
 
 	/* On IPA v3.5.1, if an RX endpoint is reset while aggregation
 	 * is active, we need to handle things specially to recover.
 	 * All other cases just need to reset the underlying GSI channel.
-	 *
-	 * IPA v3.5.1 enables the doorbell engine.  Newer versions do not.
 	 */
-	legacy = ipa->version == IPA_VERSION_3_5_1;
-	special = !endpoint->toward_ipa && endpoint->data->aggregation;
+	special = ipa->version == IPA_VERSION_3_5_1 &&
+			!endpoint->toward_ipa &&
+			endpoint->data->aggregation;
 	if (special && ipa_endpoint_aggr_active(endpoint))
 		ret = ipa_endpoint_reset_rx_aggr(endpoint);
 	else
-		gsi_channel_reset(&ipa->gsi, channel_id, legacy);
+		gsi_channel_reset(&ipa->gsi, channel_id, true);
 
 	if (ret)
 		dev_err(&ipa->pdev->dev,
@@ -1328,6 +1334,7 @@ static void ipa_endpoint_program(struct ipa_endpoint *endpoint)
 	ipa_endpoint_init_mode(endpoint);
 	ipa_endpoint_init_aggr(endpoint);
 	ipa_endpoint_init_deaggr(endpoint);
+	ipa_endpoint_init_rsrc_grp(endpoint);
 	ipa_endpoint_init_seq(endpoint);
 	ipa_endpoint_status(endpoint);
 }
@@ -1538,8 +1545,8 @@ int ipa_endpoint_config(struct ipa *ipa)
 	val = ioread32(ipa->reg_virt + IPA_REG_FLAVOR_0_OFFSET);
 
 	/* Our RX is an IPA producer */
-	rx_base = u32_get_bits(val, BAM_PROD_LOWEST_FMASK);
-	max = rx_base + u32_get_bits(val, BAM_MAX_PROD_PIPES_FMASK);
+	rx_base = u32_get_bits(val, IPA_PROD_LOWEST_FMASK);
+	max = rx_base + u32_get_bits(val, IPA_MAX_PROD_PIPES_FMASK);
 	if (max > IPA_ENDPOINT_MAX) {
 		dev_err(dev, "too many endpoints (%u > %u)\n",
 			max, IPA_ENDPOINT_MAX);
@@ -1548,7 +1555,7 @@ int ipa_endpoint_config(struct ipa *ipa)
 	rx_mask = GENMASK(max - 1, rx_base);
 
 	/* Our TX is an IPA consumer */
-	max = u32_get_bits(val, BAM_MAX_CONS_PIPES_FMASK);
+	max = u32_get_bits(val, IPA_MAX_CONS_PIPES_FMASK);
 	tx_mask = GENMASK(max - 1, 0);
 
 	ipa->available = rx_mask | tx_mask;

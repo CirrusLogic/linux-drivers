@@ -2616,6 +2616,8 @@ bool sk_ns_capable(const struct sock *sk,
 		   struct user_namespace *user_ns, int cap);
 bool sk_capable(const struct sock *sk, int cap);
 bool sk_net_capable(const struct sock *sk, int cap);
+bool inet_sk_allowed(struct net *net, gid_t gid);
+bool android_ns_capable(struct net *net, int cap);
 
 void sk_get_meminfo(const struct sock *sk, u32 *meminfo);
 
