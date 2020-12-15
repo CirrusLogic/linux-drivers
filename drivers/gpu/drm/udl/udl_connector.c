@@ -60,6 +60,14 @@ static enum drm_mode_status udl_mode_valid(struct drm_connector *connector,
 			  struct drm_display_mode *mode)
 {
 	struct udl_device *udl = to_udl(connector->dev);
+	int con_type = connector->connector_type;
+
+	if ((con_type == DRM_MODE_CONNECTOR_DVII ||
+	     con_type == DRM_MODE_CONNECTOR_DVID ||
+	     con_type == DRM_MODE_CONNECTOR_DVIA) &&
+	    mode->clock > 165000)
+		return MODE_CLOCK_HIGH;
+
 	if (!udl->sku_pixel_limit)
 		return 0;
 

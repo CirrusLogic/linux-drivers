@@ -203,7 +203,12 @@ static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 static int
 drm_master_check_perm(struct drm_device *dev, struct drm_file *file_priv)
 {
-	if (file_priv->pid == task_pid(current) && file_priv->was_master)
+	/*
+	 * Despite the above explanation and reasoning, we still have to check
+	 * drm_master_relax. With frecon, the was_master flag is true, but the
+	 * file pid and the task pid pointers (and the actual PIDs) don't match.
+	 */
+	if ((drm_master_relax || file_priv->pid == task_pid(current)) && file_priv->was_master)
 		return 0;
 
 	if (!capable(CAP_SYS_ADMIN))
