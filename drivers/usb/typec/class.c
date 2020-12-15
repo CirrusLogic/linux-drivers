@@ -18,6 +18,7 @@ struct typec_plug {
 	struct device			dev;
 	enum typec_plug_index		index;
 	struct ida			mode_ids;
+	int				num_altmodes;
 };
 
 struct typec_cable {
@@ -33,6 +34,7 @@ struct typec_partner {
 	struct usb_pd_identity		*identity;
 	enum typec_accessory		accessory;
 	struct ida			mode_ids;
+	int				num_altmodes;
 };
 
 struct typec_port {
@@ -122,10 +124,40 @@ static ssize_t product_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(product);
 
+static ssize_t product_type_vdo1_show(struct device *dev, struct device_attribute *attr,
+				      char *buf)
+{
+	struct usb_pd_identity *id = get_pd_identity(dev);
+
+	return sprintf(buf, "0x%08x\n", id->vdo[0]);
+}
+static DEVICE_ATTR_RO(product_type_vdo1);
+
+static ssize_t product_type_vdo2_show(struct device *dev, struct device_attribute *attr,
+				      char *buf)
+{
+	struct usb_pd_identity *id = get_pd_identity(dev);
+
+	return sprintf(buf, "0x%08x\n", id->vdo[1]);
+}
+static DEVICE_ATTR_RO(product_type_vdo2);
+
+static ssize_t product_type_vdo3_show(struct device *dev, struct device_attribute *attr,
+				      char *buf)
+{
+	struct usb_pd_identity *id = get_pd_identity(dev);
+
+	return sprintf(buf, "0x%08x\n", id->vdo[2]);
+}
+static DEVICE_ATTR_RO(product_type_vdo3);
+
 static struct attribute *usb_pd_id_attrs[] = {
 	&dev_attr_id_header.attr,
 	&dev_attr_cert_stat.attr,
 	&dev_attr_product.attr,
+	&dev_attr_product_type_vdo1.attr,
+	&dev_attr_product_type_vdo2.attr,
+	&dev_attr_product_type_vdo3.attr,
 	NULL
 };
 
@@ -144,6 +176,9 @@ static void typec_report_identity(struct device *dev)
 	sysfs_notify(&dev->kobj, "identity", "id_header");
 	sysfs_notify(&dev->kobj, "identity", "cert_stat");
 	sysfs_notify(&dev->kobj, "identity", "product");
+	sysfs_notify(&dev->kobj, "identity", "product_type_vdo1");
+	sysfs_notify(&dev->kobj, "identity", "product_type_vdo2");
+	sysfs_notify(&dev->kobj, "identity", "product_type_vdo3");
 }
 
 /* ------------------------------------------------------------------------- */
@@ -532,12 +567,55 @@ static ssize_t supports_usb_power_delivery_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(supports_usb_power_delivery);
 
+static ssize_t number_of_alternate_modes_show(struct device *dev, struct device_attribute *attr,
+					      char *buf)
+{
+	struct typec_partner *partner;
+	struct typec_plug *plug;
+	int num_altmodes;
+
+	if (is_typec_partner(dev)) {
+		partner = to_typec_partner(dev);
+		num_altmodes = partner->num_altmodes;
+	} else if (is_typec_plug(dev)) {
+		plug = to_typec_plug(dev);
+		num_altmodes = plug->num_altmodes;
+	} else {
+		return 0;
+	}
+
+	return sprintf(buf, "%d\n", num_altmodes);
+}
+static DEVICE_ATTR_RO(number_of_alternate_modes);
+
 static struct attribute *typec_partner_attrs[] = {
 	&dev_attr_accessory_mode.attr,
 	&dev_attr_supports_usb_power_delivery.attr,
+	&dev_attr_number_of_alternate_modes.attr,
 	NULL
 };
-ATTRIBUTE_GROUPS(typec_partner);
+
+static umode_t typec_partner_attr_is_visible(struct kobject *kobj, struct attribute *attr, int n)
+{
+	struct typec_partner *partner = to_typec_partner(kobj_to_dev(kobj));
+
+	if (attr == &dev_attr_number_of_alternate_modes.attr) {
+		if (partner->num_altmodes < 0)
+			return 0;
+	}
+
+	return attr->mode;
+}
+
+static struct attribute_group typec_partner_group = {
+	.is_visible = typec_partner_attr_is_visible,
+	.attrs = typec_partner_attrs
+};
+
+static const struct attribute_group *typec_partner_groups[] = {
+	&typec_partner_group,
+	NULL
+};
 
 static void typec_partner_release(struct device *dev)
 {
@@ -569,6 +647,37 @@ int typec_partner_set_identity(struct typec_partner *partner)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(typec_partner_set_identity);
+
+/**
+ * typec_partner_set_num_altmodes - Set the number of available partner altmodes
+ * @partner: The partner to be updated.
+ * @num_altmodes: The number of altmodes we want to specify as available.
+ *
+ * This routine is used to report the number of alternate modes supported by the
+ * partner. This value is *not* enforced in alternate mode registration routines.
+ *
+ * @partner.num_altmodes is set to -1 on partner registration, denoting that
+ * a valid value has not been set for it yet.
+ *
+ * Returns 0 on success or negative error number on failure.
+ */
+int typec_partner_set_num_altmodes(struct typec_partner *partner, int num_altmodes)
+{
+	int ret;
+
+	if (num_altmodes < 0)
+		return -EINVAL;
+
+	partner->num_altmodes = num_altmodes;
+	ret = sysfs_update_group(&partner->dev.kobj, &typec_partner_group);
+	if (ret < 0)
+		return ret;
+
+	sysfs_notify(&partner->dev.kobj, NULL, "number_of_alternate_modes");
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(typec_partner_set_num_altmodes);
 
 /**
  * typec_partner_register_altmode - Register USB Type-C Partner Alternate Mode
@@ -612,6 +721,7 @@ struct typec_partner *typec_register_partner(struct typec_port *port,
 	ida_init(&partner->mode_ids);
 	partner->usb_pd = desc->usb_pd;
 	partner->accessory = desc->accessory;
+	partner->num_altmodes = -1;
 
 	if (desc->identity) {
 		/*
@@ -662,10 +772,69 @@ static void typec_plug_release(struct device *dev)
 	kfree(plug);
 }
 
+static struct attribute *typec_plug_attrs[] = {
+	&dev_attr_number_of_alternate_modes.attr,
+	NULL
+};
+
+static umode_t typec_plug_attr_is_visible(struct kobject *kobj, struct attribute *attr, int n)
+{
+	struct typec_plug *plug = to_typec_plug(kobj_to_dev(kobj));
+
+	if (attr == &dev_attr_number_of_alternate_modes.attr) {
+		if (plug->num_altmodes < 0)
+			return 0;
+	}
+
+	return attr->mode;
+}
+
+static struct attribute_group typec_plug_group = {
+	.is_visible = typec_plug_attr_is_visible,
+	.attrs = typec_plug_attrs
+};
+
+static const struct attribute_group *typec_plug_groups[] = {
+	&typec_plug_group,
+	NULL
+};
+
 static const struct device_type typec_plug_dev_type = {
 	.name = "typec_plug",
+	.groups = typec_plug_groups,
 	.release = typec_plug_release,
 };
+
+/**
+ * typec_plug_set_num_altmodes - Set the number of available plug altmodes
+ * @plug: The plug to be updated.
+ * @num_altmodes: The number of altmodes we want to specify as available.
+ *
+ * This routine is used to report the number of alternate modes supported by the
+ * plug. This value is *not* enforced in alternate mode registration routines.
+ *
+ * @plug.num_altmodes is set to -1 on plug registration, denoting that
+ * a valid value has not been set for it yet.
+ *
+ * Returns 0 on success or negative error number on failure.
+ */
+int typec_plug_set_num_altmodes(struct typec_plug *plug, int num_altmodes)
+{
+	int ret;
+
+	if (num_altmodes < 0)
+		return -EINVAL;
+
+	plug->num_altmodes = num_altmodes;
+	ret = sysfs_update_group(&plug->dev.kobj, &typec_plug_group);
+	if (ret < 0)
+		return ret;
+
+	sysfs_notify(&plug->dev.kobj, NULL, "number_of_alternate_modes");
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(typec_plug_set_num_altmodes);
 
 /**
  * typec_plug_register_altmode - Register USB Type-C Cable Plug Alternate Mode
@@ -712,6 +881,7 @@ struct typec_plug *typec_register_plug(struct typec_cable *cable,
 	sprintf(name, "plug%d", desc->index);
 
 	ida_init(&plug->mode_ids);
+	plug->num_altmodes = -1;
 	plug->index = desc->index;
 	plug->dev.class = typec_class;
 	plug->dev.parent = &cable->dev;
