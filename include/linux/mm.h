@@ -201,6 +201,7 @@ static inline void __mm_zero_struct_page(struct page *page)
 #define DEFAULT_MAX_MAP_COUNT	(USHRT_MAX - MAPCOUNT_ELF_CORE_MARGIN)
 
 extern int sysctl_max_map_count;
+extern int sysctl_mmap_noexec_taint;
 
 extern unsigned long sysctl_user_reserve_kbytes;
 extern unsigned long sysctl_admin_reserve_kbytes;
@@ -208,6 +209,8 @@ extern unsigned long sysctl_admin_reserve_kbytes;
 extern int sysctl_overcommit_memory;
 extern int sysctl_overcommit_ratio;
 extern unsigned long sysctl_overcommit_kbytes;
+
+extern int sysctl_disk_based_swap;
 
 int overcommit_ratio_handler(struct ctl_table *, int, void *, size_t *,
 		loff_t *);

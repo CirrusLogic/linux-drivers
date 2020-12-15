@@ -2559,6 +2559,8 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	struct filename *pathname;
 	int err, found = 0;
 	unsigned int old_block_size;
+	struct path path_holder;
+	struct path *victim_path = NULL;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -2571,10 +2573,16 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 
 	victim = file_open_name(pathname, O_RDWR|O_LARGEFILE, 0);
 	err = PTR_ERR(victim);
-	if (IS_ERR(victim))
-		goto out;
-
-	mapping = victim->f_mapping;
+	if (IS_ERR(victim)) {
+		/* Fallback to just the inode mapping if possible. */
+		if (kern_path(pathname->name, LOOKUP_FOLLOW, &path_holder))
+			goto out;  /* Propogate the original err. */
+		victim_path = &path_holder;
+		mapping = victim_path->dentry->d_inode->i_mapping;
+		victim = NULL;
+	} else {
+		mapping = victim->f_mapping;
+	}
 	spin_lock(&swap_lock);
 	plist_for_each_entry(p, &swap_active_head, list) {
 		if (p->flags & SWP_WRITEOK) {
@@ -2722,7 +2730,10 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	wake_up_interruptible(&proc_poll_wait);
 
 out_dput:
-	filp_close(victim, NULL);
+	if (victim)
+		filp_close(victim, NULL);
+	if (victim_path)
+		path_put(victim_path);
 out:
 	putname(pathname);
 	return err;
@@ -2916,17 +2927,29 @@ static struct swap_info_struct *alloc_swap_info(void)
 	return p;
 }
 
+/* This sysctl is only exposed when CONFIG_DISK_BASED_SWAP is enabled. */
+int sysctl_disk_based_swap;
+
 static int claim_swapfile(struct swap_info_struct *p, struct inode *inode)
 {
 	int error;
 
+	/* On Chromium OS, we only support zram swap devices. */
 	if (S_ISBLK(inode->i_mode)) {
+		char name[BDEVNAME_SIZE];
+
 		p->bdev = blkdev_get_by_dev(inode->i_rdev,
 				   FMODE_READ | FMODE_WRITE | FMODE_EXCL, p);
 		if (IS_ERR(p->bdev)) {
 			error = PTR_ERR(p->bdev);
 			p->bdev = NULL;
 			return error;
+		}
+		bdevname(p->bdev, name);
+		if (strncmp(name, "zram", strlen("zram"))) {
+			bdput(p->bdev);
+			p->bdev = NULL;
+			return -EINVAL;
 		}
 		p->old_block_size = block_size(p->bdev);
 		error = set_blocksize(p->bdev, PAGE_SIZE);
@@ -2941,6 +2964,8 @@ static int claim_swapfile(struct swap_info_struct *p, struct inode *inode)
 			return -EINVAL;
 		p->flags |= SWP_BLKDEV;
 	} else if (S_ISREG(inode->i_mode)) {
+		if (!sysctl_disk_based_swap)
+			return -EINVAL;
 		p->bdev = inode->i_sb->s_bdev;
 	}
 

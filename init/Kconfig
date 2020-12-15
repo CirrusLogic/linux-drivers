@@ -341,6 +341,15 @@ config SWAP
 	  used to provide more virtual memory than the actual RAM present
 	  in your computer.  If unsure say Y.
 
+config DISK_BASED_SWAP
+	bool "Allow disk-based swap files in Chromium OS kernels"
+	depends on SWAP
+	default n
+	help
+	  By default, the Chromium OS kernel allows swapping only to
+	  zram devices. This option allows you to use disk-based files
+	  as swap devices too.  If unsure say N.
+
 config SYSVIPC
 	bool "System V IPC"
 	help

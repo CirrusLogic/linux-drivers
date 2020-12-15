@@ -957,7 +957,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
 	struct task_struct *victim = oc->chosen;
 	struct mem_cgroup *oom_group;
 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
-					      DEFAULT_RATELIMIT_BURST);
+					      1);
 
 	/*
 	 * If the task is already exiting, don't alarm the sysadmin or kill
