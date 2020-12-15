@@ -643,10 +643,24 @@ unsigned long native_calibrate_tsc(void)
 	 * Denverton SoCs don't report crystal clock, and also don't support
 	 * CPUID.0x16 for the calculation below, so hardcode the 25MHz crystal
 	 * clock.
+	 * Also estimation code is not reliable and gives 1.5%  difference for
+	 * tsc/clock ratio on Skylake mobile. Therefore below is a hardcoded
+	 * crystal frequency for Skylake which was removed by upstream commit
+	 * "x86/tsc: Use CPUID.0x16 to calculate missing crystal frequency"
+	 * This is temporary workaround for bugs:
+	 * b/148108096, b/154283905, b/146787525, b/153400677, b/148178929
+	 * chromium/1031054
 	 */
-	if (crystal_khz == 0 &&
-			boot_cpu_data.x86_model == INTEL_FAM6_ATOM_GOLDMONT_D)
-		crystal_khz = 25000;
+	if (crystal_khz == 0) {
+		switch (boot_cpu_data.x86_model) {
+			case INTEL_FAM6_SKYLAKE_L:
+			crystal_khz = 24000;	/* 24.0 MHz */
+			break;
+		case INTEL_FAM6_ATOM_GOLDMONT_D:
+			crystal_khz = 25000;	/* 25.0 MHz */
+			break;
+		}
+	}
 
 	/*
 	 * TSC frequency reported directly by CPUID is a "hardware reported"
@@ -1414,6 +1428,8 @@ device_initcall(init_tsc_clocksource);
 
 static bool __init determine_cpu_tsc_frequencies(bool early)
 {
+	u64 initial_tsc;
+
 	/* Make sure that cpu and tsc are not already calibrated */
 	WARN_ON(cpu_khz || tsc_khz);
 
@@ -1429,6 +1445,8 @@ static bool __init determine_cpu_tsc_frequencies(bool early)
 		cpu_khz = pit_hpet_ptimer_calibrate_cpu();
 	}
 
+	initial_tsc = rdtsc();
+
 	/*
 	 * Trust non-zero tsc_khz as authoritative,
 	 * and use it to sanity check cpu_khz,
@@ -1441,6 +1459,10 @@ static bool __init determine_cpu_tsc_frequencies(bool early)
 
 	if (tsc_khz == 0)
 		return false;
+
+	do_div(initial_tsc, cpu_khz / 1000);
+	pr_info("Initial usec timer %llu\n",
+		(unsigned long long)initial_tsc);
 
 	pr_info("Detected %lu.%03lu MHz processor\n",
 		(unsigned long)cpu_khz / KHZ,
