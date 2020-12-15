@@ -40,6 +40,7 @@
 #include "../codecs/rt5645.h"
 
 #define CZ_PLAT_CLK 24000000
+#define DUAL_CHANNEL		2
 
 static struct snd_soc_jack cz_jack;
 
@@ -91,8 +92,50 @@ static int cz_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static struct snd_soc_ops cz_aif1_ops = {
+static const unsigned int channels[] = {
+	DUAL_CHANNEL,
+};
+
+static const unsigned int rates[] = {
+	48000,
+};
+
+static const struct snd_pcm_hw_constraint_list constraints_rates = {
+	.count = ARRAY_SIZE(rates),
+	.list  = rates,
+	.mask = 0,
+};
+
+static const struct snd_pcm_hw_constraint_list constraints_channels = {
+	.count = ARRAY_SIZE(channels),
+	.list = channels,
+	.mask = 0,
+};
+
+static int cz_fe_startup(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	/*
+	 * On this platform for PCM device we support stereo
+	 */
+
+	runtime->hw.channels_max = DUAL_CHANNEL;
+	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+				   &constraints_channels);
+	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				   &constraints_rates);
+
+	return 0;
+}
+
+static struct snd_soc_ops cz_aif1_play_ops = {
 	.hw_params = cz_aif1_hw_params,
+};
+
+static struct snd_soc_ops cz_aif1_cap_ops = {
+	.hw_params = cz_aif1_hw_params,
+	.startup = cz_fe_startup,
 };
 
 SND_SOC_DAILINK_DEF(designware1,
@@ -113,7 +156,7 @@ static struct snd_soc_dai_link cz_dai_rt5650[] = {
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.init = cz_init,
-		.ops = &cz_aif1_ops,
+		.ops = &cz_aif1_play_ops,
 		SND_SOC_DAILINK_REG(designware1, codec, platform),
 	},
 	{
@@ -121,7 +164,7 @@ static struct snd_soc_dai_link cz_dai_rt5650[] = {
 		.stream_name = "RT5645_AIF1",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
-		.ops = &cz_aif1_ops,
+		.ops = &cz_aif1_cap_ops,
 		SND_SOC_DAILINK_REG(designware2, codec, platform),
 	},
 };

@@ -256,17 +256,28 @@ static int sst_platform_alloc_stream(struct snd_pcm_substream *substream,
 static void sst_period_elapsed(void *arg)
 {
 	struct snd_pcm_substream *substream = arg;
+	struct snd_soc_pcm_runtime *rtd;
 	struct sst_runtime_stream *stream;
+	struct pcm_stream_info *str_info;
 	int status;
+	int ret_val;
 
 	if (!substream || !substream->runtime)
 		return;
+	rtd = substream->private_data;
 	stream = substream->runtime->private_data;
 	if (!stream)
 		return;
 	status = sst_get_stream_status(stream);
 	if (status != SST_PLATFORM_RUNNING)
 		return;
+	str_info = &stream->stream_info;
+
+	ret_val = stream->ops->stream_read_tstamp(sst->dev, str_info);
+	if (ret_val) {
+		dev_err(rtd->dev, "sst: err code = %d\n", ret_val);
+		return;
+	}
 	snd_pcm_period_elapsed(substream);
 }
 
@@ -640,20 +651,14 @@ static snd_pcm_uframes_t sst_soc_pointer(struct snd_soc_component *component,
 					 struct snd_pcm_substream *substream)
 {
 	struct sst_runtime_stream *stream;
-	int ret_val, status;
+	int status;
 	struct pcm_stream_info *str_info;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 
 	stream = substream->runtime->private_data;
 	status = sst_get_stream_status(stream);
 	if (status == SST_PLATFORM_INIT)
 		return 0;
 	str_info = &stream->stream_info;
-	ret_val = stream->ops->stream_read_tstamp(sst->dev, str_info);
-	if (ret_val) {
-		dev_err(rtd->dev, "sst: error code = %d\n", ret_val);
-		return ret_val;
-	}
 	substream->runtime->delay = str_info->pcm_delay;
 	return str_info->buffer_ptr;
 }
