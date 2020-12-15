@@ -48,5 +48,7 @@
 #define VIRTIO_ID_FS           26 /* virtio filesystem */
 #define VIRTIO_ID_PMEM         27 /* virtio pmem */
 #define VIRTIO_ID_MAC80211_HWSIM 29 /* virtio mac80211-hwsim */
+#define VIRTIO_ID_VIDEO_ENC    30 /* virtio video encoder */
+#define VIRTIO_ID_VIDEO_DEC    31 /* virtio video decoder */
 
 #endif /* _LINUX_VIRTIO_IDS_H */
