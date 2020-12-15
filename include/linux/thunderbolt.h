@@ -179,6 +179,8 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  * @lock: Lock to serialize access to the following fields of this structure
  * @vendor_name: Name of the vendor (or %NULL if not known)
  * @device_name: Name of the device (or %NULL if not known)
+ * @link_speed: Speed of the link in Gb/s
+ * @link_width: Width of the link (1 or 2)
  * @is_unplugged: The XDomain is unplugged
  * @resume: The XDomain is being resumed
  * @needs_uuid: If the XDomain does not have @remote_uuid it will be
@@ -223,6 +225,8 @@ struct tb_xdomain {
 	struct mutex lock;
 	const char *vendor_name;
 	const char *device_name;
+	unsigned int link_speed;
+	unsigned int link_width;
 	bool is_unplugged;
 	bool resume;
 	bool needs_uuid;
@@ -243,6 +247,8 @@ struct tb_xdomain {
 	u8 depth;
 };
 
+int tb_xdomain_lane_bonding_enable(struct tb_xdomain *xd);
+void tb_xdomain_lane_bonding_disable(struct tb_xdomain *xd);
 int tb_xdomain_enable_paths(struct tb_xdomain *xd, u16 transmit_path,
 			    u16 transmit_ring, u16 receive_path,
 			    u16 receive_ring);
@@ -344,6 +350,9 @@ void tb_unregister_protocol_handler(struct tb_protocol_handler *handler);
  * @prtcvers: Protocol version from the properties directory
  * @prtcrevs: Protocol software revision from the properties directory
  * @prtcstns: Protocol settings mask from the properties directory
+ * @debugfs_dir: Pointer to the service debugfs directory. Always created
+ *		 when debugfs is enabled. Can be used by service drivers to
+ *		 add their own entries under the service.
  *
  * Each domain exposes set of services it supports as collection of
  * properties. For each service there will be one corresponding
@@ -357,6 +366,7 @@ struct tb_service {
 	u32 prtcvers;
 	u32 prtcrevs;
 	u32 prtcstns;
+	struct dentry *debugfs_dir;
 };
 
 static inline struct tb_service *tb_service_get(struct tb_service *svc)
