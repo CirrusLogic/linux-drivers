@@ -133,6 +133,15 @@ config TCG_ATMEL
 	  will be accessible from within Linux.  To compile this driver 
 	  as a module, choose M here; the module will be called tpm_atmel.
 
+config TCG_CR50_I2C
+	tristate "Cr50 I2C Interface"
+	depends on I2C
+	help
+	  If you have a H1 secure module running Cr50 firmware on I2C bus,
+	  say Yes and it will be accessible from within Linux. To compile
+	  this driver as a module, choose M here; the module will be called
+	  cr50_i2c.
+
 config TCG_INFINEON
 	tristate "Infineon Technologies TPM Interface"
 	depends on PNP
@@ -188,6 +197,15 @@ config TCG_FTPM_TEE
 	depends on TEE && OPTEE
 	help
 	  This driver proxies for firmware TPM running in TEE.
+
+config TCG_VIRTIO_VTPM
+	tristate "Virtio vTPM"
+	depends on TCG_TPM && VIRTIO
+	help
+	  This driver provides the guest kernel side of TPM over Virtio. If
+	  you are building Linux to run inside of a hypervisor that supports
+	  TPM over Virtio, say Yes and the virtualized TPM will be
+	  accessible from the guest.
 
 source "drivers/char/tpm/st33zp24/Kconfig"
 endif # TCG_TPM

@@ -296,7 +296,7 @@ static int tpm_class_shutdown(struct device *dev)
 	struct tpm_chip *chip = container_of(dev, struct tpm_chip, dev);
 
 	down_write(&chip->ops_sem);
-	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
+	if (chip->ops && (chip->flags & TPM_CHIP_FLAG_TPM2)) {
 		if (!tpm_chip_start(chip)) {
 			tpm2_shutdown(chip, TPM2_SU_CLEAR);
 			tpm_chip_stop(chip);
@@ -474,7 +474,7 @@ static void tpm_del_char_device(struct tpm_chip *chip)
 
 	/* Make the driver uncallable. */
 	down_write(&chip->ops_sem);
-	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
+	if (chip->ops && (chip->flags & TPM_CHIP_FLAG_TPM2)) {
 		if (!tpm_chip_start(chip)) {
 			tpm2_shutdown(chip, TPM2_SU_CLEAR);
 			tpm_chip_stop(chip);
@@ -488,7 +488,7 @@ static void tpm_del_legacy_sysfs(struct tpm_chip *chip)
 {
 	struct attribute **i;
 
-	if (chip->flags & (TPM_CHIP_FLAG_TPM2 | TPM_CHIP_FLAG_VIRTUAL))
+	if (chip->flags & TPM_CHIP_FLAG_VIRTUAL)
 		return;
 
 	sysfs_remove_link(&chip->dev.parent->kobj, "ppi");
@@ -506,7 +506,7 @@ static int tpm_add_legacy_sysfs(struct tpm_chip *chip)
 	struct attribute **i;
 	int rc;
 
-	if (chip->flags & (TPM_CHIP_FLAG_TPM2 | TPM_CHIP_FLAG_VIRTUAL))
+	if (chip->flags & TPM_CHIP_FLAG_VIRTUAL)
 		return 0;
 
 	rc = compat_only_sysfs_link_entry_to_kobj(
@@ -543,6 +543,7 @@ static int tpm_add_hwrng(struct tpm_chip *chip)
 		 "tpm-rng-%d", chip->dev_num);
 	chip->hwrng.name = chip->hwrng_name;
 	chip->hwrng.read = tpm_hwrng_read;
+	chip->hwrng.quality = 1000;
 	return hwrng_register(&chip->hwrng);
 }
 
