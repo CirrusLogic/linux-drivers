@@ -21,6 +21,7 @@ extern const sys_call_ptr_t sys_call_table[];
 
 #if defined(CONFIG_X86_32)
 #define ia32_sys_call_table sys_call_table
+#define ia32_nr_syscalls nr_syscalls
 #endif
 
 #if defined(CONFIG_IA32_EMULATION)

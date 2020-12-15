@@ -855,7 +855,6 @@ asmlinkage long compat_sys_socketcall(int call, u32 __user *args);
 
 #endif /* CONFIG_ARCH_HAS_SYSCALL_WRAPPER */
 
-
 /*
  * For most but not all architectures, "am I in a compat syscall?" and
  * "am I a compat task?" are the same question.  For architectures on which
