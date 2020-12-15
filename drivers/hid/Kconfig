@@ -719,6 +719,17 @@ config HID_MULTITOUCH
 	  To compile this driver as a module, choose M here: the
 	  module will be called hid-multitouch.
 
+config HID_NINTENDO
+	tristate "Nintendo Joy-Con and Pro Controller support"
+	depends on HID
+	help
+	Adds support for the Nintendo Switch Joy-Cons and Pro Controller.
+	All controllers support bluetooth, and the Pro Controller also supports
+	its USB mode.
+
+	To compile this driver as a module, choose M here: the
+	module will be called hid-nintendo.
+
 config HID_NTI
 	tristate "NTI keyboard adapters"
 	help
@@ -859,6 +870,13 @@ config HID_PRIMAX
 	help
 	Support for Primax devices that are not fully compliant with the
 	HID standard.
+
+config HID_QUICKSTEP
+	tristate "ChromeOS Touch Latency Measurement Device -- Quickstep"
+	depends on USB_HID
+	help
+	This module is the driver for the ChromeOS Touch Latency Measurement
+	Device known as Quickstep.
 
 config HID_RETRODE
 	tristate "Retrode 2 USB adapter for vintage video games"
