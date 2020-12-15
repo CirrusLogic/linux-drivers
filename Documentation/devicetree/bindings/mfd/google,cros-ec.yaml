@@ -29,6 +29,9 @@ properties:
       - description:
           For implementations of the EC is connected through RPMSG.
         const: google,cros-ec-rpmsg
+      - description:
+          For implementations of the EC is connected through UART.
+        const: google,cros-ec-uart
 
   controller-data:
     description:
@@ -188,6 +191,14 @@ examples:
     scp0 {
         cros-ec {
             compatible = "google,cros-ec-rpmsg";
+        };
+    };
+
+  # Example for UART
+  - |
+    uart0 {
+        cros-ec {
+            compatible = "google,cros-ec-uart";
         };
     };
 ...

@@ -85,6 +85,48 @@ properties:
 
   operating-points-v2: true
 
+  power_model:
+    type: object
+    description:
+      Subnode with power model parameters. Note that this model was designed
+      for the Juno platform, and may not be suitable for other platforms.
+
+    properties:
+      compatible:
+        contains:
+          const: arm,mali-simple-power-model
+
+      dynamic-coefficient:
+        description:
+          Coefficient, in pW/(Hz V^2), which is multiplied by v^2*f to calculate
+          the dynamic power consumption.
+        $ref: /schemas/types.yaml#/definitions/int32
+
+      static-coefficient:
+        description:
+          Coefficient, in uW/V^3, which is multiplied by v^3 to calculate the
+          static power consumption.
+        $ref: /schemas/types.yaml#/definitions/int32
+
+      ts:
+        description:
+          An array containing coefficients for the temperature scaling factor.
+          This is used to scale the static power by a factor of tsf/1000000,
+          where tsf = ts[3]*T^3 + ts[2]*T^2 + ts[1]*T + ts[0], and
+          T = temperature in degrees.
+        $ref: /schemas/types.yaml#/definitions/int32
+
+      thermal-zone:
+        description:
+          A string identifying the thermal zone used for the GPU
+
+    required:
+      - compatible
+      - dynamic-coefficient
+      - static-coefficient
+      - ts
+      - thermal-zone
+
   "#cooling-cells":
     const: 2
 
