@@ -2463,6 +2463,16 @@ config HYPERV_TESTING
 
 endmenu # "Kernel Testing and Coverage"
 
+config ERROR_ON_WARNING
+	bool "Treat compiler warnings as errors"
+	depends on !COMPILE_TEST
+	help
+	  If you say Y here, the Makefile will pass the "-Werror" option to the
+	  compiler.  This will cause the compiler to fail on any warning, as if
+	  it were an error.
+
+	  If unsure, say N.
+
 source "Documentation/Kconfig"
 
 endmenu # Kernel hacking

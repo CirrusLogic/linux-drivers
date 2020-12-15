@@ -407,6 +407,8 @@ Thermal cooling device sys I/F, created once it's registered::
     |---stats/time_in_state_ms:	Time (msec) spent in various cooling states
     |---stats/total_trans:	Total number of times cooling state is changed
     |---stats/trans_table:	Cooing state transition table
+    |---bind_tz:	Interface for binding cooling device to thermal zone
+    |---unbind_tz:	Interface for unbinding cooling device from thermal zone
 
 
 Then next two dynamic attributes are created/removed in pairs. They represent
@@ -507,9 +509,12 @@ available_policies
 `cdev[0-*]_trip_point`
 	The trip point in this thermal zone which `cdev[0-*]` is associated
 	with; -1 means the cooling device is not associated with any trip
-	point.
+	point. Writing a value (a proper integer) will set new trip point
+	to this cooling device. The value -1 will cause the cooling device
+	is not associated to any trip point and can be unbind from the
+	thermal zone.
 
-	RO, Optional
+	RW, Optional
 
 `cdev[0-*]_weight`
 	The influence of `cdev[0-*]` in this thermal zone. This value
@@ -636,6 +641,27 @@ max_state
 	The maximum permissible cooling state of this cooling device.
 
 	RO, Required
+
+bind_tz
+	Writing the thermal zone name binds this cooling device with the
+	specified thermal zone. A new dynamic attributes 'cdev*' will be
+	created inside the thermal zone directory.
+	The proper thermal zone name can be from read the attribute:
+	/sys/class/thermal/thermal_zone*/type
+	The default (-1) trip point will be set into the cooling instance,
+	which should be updated later using 'cdev*_trip_point' interface.
+
+	WO, Required
+
+unbind_tz
+	Writing the thermal zone name unbinds this cooling device from
+	the specified thermal zone. The cooling instance needs to set -1
+	into the associated cooling device instance 'cdev*_trip_point'
+	first.
+	The proper thermal zone name can be read from the attribute:
+	/sys/class/thermal/thermal_zone*/type
+
+	WO, Required
 
 cur_state
 	The current cooling state of this cooling device.

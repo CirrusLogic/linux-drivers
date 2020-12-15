@@ -34,6 +34,12 @@ scm_version()
 	local short
 	short=false
 
+	# Check for .scmversion in output dir first.
+	if test -e .scmversion; then
+		cat .scmversion
+		return
+	fi
+
 	cd "$srctree"
 	if test -e .scmversion; then
 		cat .scmversion
