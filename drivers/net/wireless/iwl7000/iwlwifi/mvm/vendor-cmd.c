@@ -1378,6 +1378,7 @@ static int iwl_mvm_time_sync_measurement_config(struct wiphy *wiphy,
 
 	/* Save the changed time sync measurement configuration */
 	mvm->time_msmt_cfg = protocol_types;
+	ether_addr_copy(mvm->time_msmt_peer_addr, cmd.peer_addr);
 	mvm->time_sync_wdev = wdev;
 
 	return 0;

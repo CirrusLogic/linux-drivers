@@ -1097,6 +1097,9 @@ struct iwl_mvm {
 	/* Saved TM/FTM measurement configuration */
 	u32 time_msmt_cfg;
 
+	/* Peer address for time sync */
+	u8 time_msmt_peer_addr[ETH_ALEN];
+
 	/* Saved wdev, to send time sync related vendor events to user space */
 	struct wireless_dev *time_sync_wdev;
 #endif
