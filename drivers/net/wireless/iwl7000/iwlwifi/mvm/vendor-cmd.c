@@ -623,6 +623,8 @@ static int iwl_mvm_oppps_wa(struct wiphy *wiphy,
 		bool enable = !!tb[IWL_MVM_VENDOR_ATTR_OPPPS_WA];
 
 		err = iwl_mvm_oppps_wa_update_quota(mvm, vif, enable);
+	} else {
+		err = -EOPNOTSUPP;
 	}
 	mutex_unlock(&mvm->mutex);
 
