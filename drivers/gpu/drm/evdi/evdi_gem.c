@@ -11,6 +11,7 @@
 #include "evdi_drv.h"
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
+#include <linux/vmalloc.h>
 #include <drm/drm_cache.h>
 
 uint32_t evdi_gem_object_handle_lookup(struct drm_file *filp,
