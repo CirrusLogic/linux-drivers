@@ -217,7 +217,11 @@ enum ieee80211_rx_flags {
 };
 
 struct ieee80211_rx_data {
+#if LINUX_VERSION_IS_GEQ(4,19,0)
 	struct list_head *list;
+#else
+	struct sk_buff_head *list;
+#endif
 	struct sk_buff *skb;
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
