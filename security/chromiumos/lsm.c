@@ -225,7 +225,7 @@ int chromiumos_sb_eat_lsm_opts(char *options, void **mnt_opts)
 		 * do_mount() has already forced the MS_NOSYMFOLLOW flag on
 		 * if it found this option, so no other action is needed.
 		 */
-		if (len == strlen("nosymfollow") && !strncmp(next, "nosymfollow", len)) {
+		if (len == strlen("nosymfollow") && !strncmp(from, "nosymfollow", len)) {
 			found = true;
 		} else {
 			if (!first) {   /* copy with preceding comma */
