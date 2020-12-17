@@ -286,7 +286,7 @@ config LSM
 	default "lockdown,yama,loadpin,safesetid,integrity,apparmor,selinux,smack,tomoyo,bpf" if DEFAULT_SECURITY_APPARMOR
 	default "lockdown,yama,loadpin,safesetid,integrity,tomoyo,bpf" if DEFAULT_SECURITY_TOMOYO
 	default "lockdown,yama,loadpin,safesetid,integrity,bpf" if DEFAULT_SECURITY_DAC
-	default "lockdown,yama,loadpin,safesetid,integrity,chromiumos,selinux" if DEFAULT_SECURITY_CHROMIUMOS
+	default "lockdown,yama,loadpin,safesetid,integrity,chromiumos,selinux,bpf" if DEFAULT_SECURITY_CHROMIUMOS
 	default "lockdown,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf"
 	help
 	  A comma-separated list of LSMs, in initialization order.
