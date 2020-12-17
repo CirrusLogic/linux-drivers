@@ -599,7 +599,6 @@ struct iwl_mvm_tcm {
 		enum iwl_mvm_traffic_load global_load;
 		bool low_latency[NUM_MAC_INDEX_DRIVER];
 		bool change[NUM_MAC_INDEX_DRIVER];
-		bool global_change;
 	} result;
 };
 
@@ -2125,8 +2124,6 @@ void iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
 					  u16 tid);
 
 #ifdef CPTCFG_IWLMVM_VENDOR_CMDS
-void iwl_mvm_send_tcm_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
-
 void iwl_mvm_recalc_multicast(struct iwl_mvm *mvm);
 int iwl_mvm_configure_bcast_filter(struct iwl_mvm *mvm);
 

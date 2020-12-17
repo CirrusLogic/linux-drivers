@@ -1625,17 +1625,13 @@ static const struct wiphy_vendor_command iwl_mvm_vendor_commands[] = {
 };
 
 enum iwl_mvm_vendor_events_idx {
-	IWL_MVM_VENDOR_EVENT_IDX_TCM,
-	IWL_MVM_VENDOR_EVENT_IDX_CSI,
+	/* 0x0 is deprecated */
+	IWL_MVM_VENDOR_EVENT_IDX_CSI = 1,
 	NUM_IWL_MVM_VENDOR_EVENT_IDX
 };
 
 static const struct nl80211_vendor_cmd_info
 iwl_mvm_vendor_events[NUM_IWL_MVM_VENDOR_EVENT_IDX] = {
-	[IWL_MVM_VENDOR_EVENT_IDX_TCM] = {
-		.vendor_id = INTEL_OUI,
-		.subcmd = IWL_MVM_VENDOR_CMD_TCM_EVENT,
-	},
 	[IWL_MVM_VENDOR_EVENT_IDX_CSI] = {
 		.vendor_id = INTEL_OUI,
 		.subcmd = IWL_MVM_VENDOR_CMD_CSI_EVENT,
@@ -1659,58 +1655,6 @@ void iwl_mvm_vendor_cmds_unregister(struct iwl_mvm *mvm)
 	spin_lock_bh(&device_list_lock);
 	list_del(&mvm->list);
 	spin_unlock_bh(&device_list_lock);
-}
-
-static enum iwl_mvm_vendor_load
-iwl_mvm_get_vendor_load(enum iwl_mvm_traffic_load load)
-{
-	switch (load) {
-	case IWL_MVM_TRAFFIC_HIGH:
-		return IWL_MVM_VENDOR_LOAD_HIGH;
-	case IWL_MVM_TRAFFIC_MEDIUM:
-		return IWL_MVM_VENDOR_LOAD_MEDIUM;
-	case IWL_MVM_TRAFFIC_LOW:
-		return IWL_MVM_VENDOR_LOAD_LOW;
-	default:
-		break;
-	}
-
-	return IWL_MVM_VENDOR_LOAD_LOW;
-}
-
-void iwl_mvm_send_tcm_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
-{
-	struct sk_buff *msg =
-		cfg80211_vendor_event_alloc(mvm->hw->wiphy,
-					    ieee80211_vif_to_wdev(vif),
-					    200, IWL_MVM_VENDOR_EVENT_IDX_TCM,
-					    GFP_ATOMIC);
-
-	if (!msg)
-		return;
-
-	if (vif) {
-		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-
-		if (nla_put(msg, IWL_MVM_VENDOR_ATTR_VIF_ADDR,
-			    ETH_ALEN, vif->addr) ||
-		    nla_put_u8(msg, IWL_MVM_VENDOR_ATTR_VIF_LL,
-			       iwl_mvm_vif_low_latency(mvmvif)) ||
-		    nla_put_u8(msg, IWL_MVM_VENDOR_ATTR_VIF_LOAD,
-			       mvm->tcm.result.load[mvmvif->id]))
-			goto nla_put_failure;
-	}
-
-	if (nla_put_u8(msg, IWL_MVM_VENDOR_ATTR_LL, iwl_mvm_low_latency(mvm)) ||
-	    nla_put_u8(msg, IWL_MVM_VENDOR_ATTR_LOAD,
-		       iwl_mvm_get_vendor_load(mvm->tcm.result.global_load)))
-		goto nla_put_failure;
-
-	cfg80211_vendor_event(msg, GFP_ATOMIC);
-	return;
-
- nla_put_failure:
-	kfree_skb(msg);
 }
 
 static void

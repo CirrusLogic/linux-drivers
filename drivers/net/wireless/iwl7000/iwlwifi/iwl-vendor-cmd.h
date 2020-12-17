@@ -14,7 +14,6 @@
  * @IWL_MVM_VENDOR_CMD_SET_LOW_LATENCY: set low-latency mode for the given
  *	virtual interface
  * @IWL_MVM_VENDOR_CMD_GET_LOW_LATENCY: query low-latency mode
- * @IWL_MVM_VENDOR_CMD_TCM_EVENT: TCM event
  * @IWL_MVM_VENDOR_CMD_LTE_STATE: inform the LTE modem state
  * @IWL_MVM_VENDOR_CMD_LTE_COEX_CONFIG_INFO: configure LTE-Coex static
  *	parameters
@@ -107,7 +106,7 @@
 enum iwl_mvm_vendor_cmd {
 	IWL_MVM_VENDOR_CMD_SET_LOW_LATENCY			= 0x00,
 	IWL_MVM_VENDOR_CMD_GET_LOW_LATENCY			= 0x01,
-	IWL_MVM_VENDOR_CMD_TCM_EVENT				= 0x02,
+	/* 0x2 is deprecated */
 	IWL_MVM_VENDOR_CMD_LTE_STATE				= 0x03,
 	IWL_MVM_VENDOR_CMD_LTE_COEX_CONFIG_INFO			= 0x04,
 	IWL_MVM_VENDOR_CMD_LTE_COEX_DYNAMIC_INFO		= 0x05,
@@ -146,22 +145,6 @@ enum iwl_mvm_vendor_cmd {
 	IWL_MVM_VENDOR_CMD_REMOVE_PASN_STA			= 0x26,
 	IWL_MVM_VENDOR_CMD_RFIM_SET_TABLE			= 0x27,
 	IWL_MVM_VENDOR_CMD_RFIM_GET_TABLE			= 0x28,
-};
-
-/**
- * enum iwl_mvm_vendor_load - traffic load identifiers
- * @IWL_MVM_VENDOR_LOAD_LOW: low load: less than 10% airtime usage
- * @IWL_MVM_VENDOR_LOAD_MEDIUM: medium load: 10% or more, but less than 50%
- * @IWL_MVM_VENDOR_LOAD_HIGH: high load: 50% or more
- *
- * Traffic load is calculated based on the percentage of airtime used
- * (TX airtime is accounted as RTS+CTS+PPDU+ACK/BlockACK, RX airtime
- * is just the PPDU's time)
- */
-enum iwl_mvm_vendor_load {
-	IWL_MVM_VENDOR_LOAD_LOW,
-	IWL_MVM_VENDOR_LOAD_MEDIUM,
-	IWL_MVM_VENDOR_LOAD_HIGH,
 };
 
 /**
@@ -613,10 +596,6 @@ enum iwl_vendor_fips_test_vector_hw {
  * @__IWL_MVM_VENDOR_ATTR_INVALID: attribute 0 is invalid
  * @IWL_MVM_VENDOR_ATTR_LOW_LATENCY: low-latency flag attribute
  * @IWL_MVM_VENDOR_ATTR_VIF_ADDR: interface MAC address
- * @IWL_MVM_VENDOR_ATTR_VIF_LL: vif-low-latency (u8, 0/1)
- * @IWL_MVM_VENDOR_ATTR_LL: global low-latency (u8, 0/1)
- * @IWL_MVM_VENDOR_ATTR_VIF_LOAD: vif traffic load (u8, see load enum)
- * @IWL_MVM_VENDOR_ATTR_LOAD: global traffic load (u8, see load enum)
  * @IWL_MVM_VENDOR_ATTR_COUNTRY: MCC to set, for regulatory information (u16)
  * IWL_MVM_VENDOR_ATTR_FILTER_ARP_NA: filter gratuitous ARP and unsolicited
  *	Neighbor Advertisement frames
@@ -771,10 +750,10 @@ enum iwl_mvm_vendor_attr {
 	__IWL_MVM_VENDOR_ATTR_INVALID				= 0x00,
 	IWL_MVM_VENDOR_ATTR_LOW_LATENCY				= 0x01,
 	IWL_MVM_VENDOR_ATTR_VIF_ADDR				= 0x02,
-	IWL_MVM_VENDOR_ATTR_VIF_LL				= 0x03,
-	IWL_MVM_VENDOR_ATTR_LL					= 0x04,
-	IWL_MVM_VENDOR_ATTR_VIF_LOAD				= 0x05,
-	IWL_MVM_VENDOR_ATTR_LOAD				= 0x06,
+	/* 0x3 is deprecated */
+	/* 0x4 is deprecated */
+	/* 0x5 is deprecated */
+	/* 0x6 is deprecated */
 	IWL_MVM_VENDOR_ATTR_COUNTRY				= 0x07,
 	IWL_MVM_VENDOR_ATTR_FILTER_ARP_NA			= 0x08,
 	IWL_MVM_VENDOR_ATTR_FILTER_GTK				= 0x09,
