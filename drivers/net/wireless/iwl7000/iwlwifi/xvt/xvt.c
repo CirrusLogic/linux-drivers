@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
 #include <linux/module.h>
@@ -389,11 +389,9 @@ iwl_xvt_rx_get_tx_meta_data(struct iwl_xvt *xvt, u16 txq_id)
 
 	lmac_id = XVT_LMAC_0_ID;
 verify:
-	if (WARN(txq_id != xvt->tx_meta_data[lmac_id].queue &&
-		 xvt->queue_data[txq_id].allocated_queue == 0,
-		 "got TX_CMD from unidentified queue: (lmac %d) %d %d %d\n",
-		 lmac_id, txq_id, xvt->tx_meta_data[lmac_id].queue,
-		 xvt->queue_data[txq_id].allocated_queue))
+	if (WARN(txq_id != xvt->tx_meta_data[lmac_id].queue,
+		 "got TX_CMD from unidentified queue: (lmac %d) %d %d\n",
+		 lmac_id, txq_id, xvt->tx_meta_data[lmac_id].queue))
 		return NULL;
 
 	return &xvt->tx_meta_data[lmac_id];
@@ -430,15 +428,17 @@ static void iwl_xvt_txpath_flush(struct iwl_xvt *xvt,
 		if (tid == IWL_MGMT_TID)
 			tid = IWL_MAX_TID_COUNT;
 
-		tx_data = iwl_xvt_rx_get_tx_meta_data(xvt, queue_num);
-		if (!tx_data)
-			continue;
-
 		IWL_DEBUG_TX_QUEUES(xvt,
 				    "tid %d queue_id %d read-before %d read-after %d\n",
 				    tid, queue_num, read_before, read_after);
+		if (read_before != read_after &&
+		    xvt->queue_data[queue_num].txq_full != 1) {
+			tx_data = iwl_xvt_rx_get_tx_meta_data(xvt, queue_num);
+			if (!tx_data)
+				continue;
 
-		iwl_xvt_reclaim_and_free(xvt, tx_data, queue_num, read_after);
+			iwl_xvt_reclaim_and_free(xvt, tx_data, queue_num, read_after);
+		}
 	}
 }
 
