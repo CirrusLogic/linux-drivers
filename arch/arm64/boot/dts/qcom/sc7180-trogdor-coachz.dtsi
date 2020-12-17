@@ -87,8 +87,6 @@ ap_ts_pen_1v8: &i2c4 {
 	model = "sc7180-adau7002-max98357a";
 	audio-routing =
 		"PDM_DAT", "DMIC";
-	pinctrl-names = "default";
-	pinctrl-0 = <&dmic_clk_en>;
 
 	dai-link@0 {
 		link-name = "MultiMedia0";
@@ -215,7 +213,7 @@ ap_ts_pen_1v8: &i2c4 {
 			  "UIM1_CLK",
 			  "UIM1_RST",
 			  "",
-			  "DMIC_CLK_EN",
+			  "",
 			  "HUB_EN",
 			  "",
 			  "AP_SPI_FP_MISO",
@@ -251,17 +249,4 @@ ap_ts_pen_1v8: &i2c4 {
 			  "AP_TS_PEN_I2C_SCL",
 			  "DP_HOT_PLUG_DET",
 			  "EC_IN_RW_ODL";
-
-	dmic_clk_en: dmic_clk_en {
-		pinmux {
-			pins = "gpio83";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio83";
-			drive-strength = <8>;
-			bias-pull-up;
-		};
-	};
 };
