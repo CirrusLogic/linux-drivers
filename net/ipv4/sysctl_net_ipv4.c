@@ -219,8 +219,7 @@ static int ipv4_fwd_update_priority(struct ctl_table *table, int write,
 
 /* The current kernel does not rely on this value so we do nothing here */
 static int proc_tcp_default_init_rwnd(struct ctl_table *ctl, int write,
-				      void __user *buffer,
-				      size_t *lenp, loff_t *ppos)
+				      void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return proc_dointvec(ctl, write, buffer, lenp, ppos);
 }
