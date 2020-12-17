@@ -3495,7 +3495,7 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 
 	*chandef = he_chandef;
 
-	return false;
+	return true;
 }
 #endif
 
