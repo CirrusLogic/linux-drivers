@@ -139,5 +139,7 @@ void intel_dp_sync_state(struct intel_encoder *encoder,
 const struct dpll *vlv_get_dpll(struct drm_i915_private *i915);
 
 void intel_dp_check_frl_training(struct intel_dp *intel_dp);
+void intel_dp_pcon_dsc_configure(struct intel_dp *intel_dp,
+				 const struct intel_crtc_state *crtc_state);
 
 #endif /* __INTEL_DP_H__ */
