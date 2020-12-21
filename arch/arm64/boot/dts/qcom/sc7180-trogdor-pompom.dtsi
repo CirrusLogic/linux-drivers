@@ -16,7 +16,7 @@ ap_h1_spi: &spi0 {};
 	thermal-zones {
 		5v-choke-thermal {
 			polling-delay-passive = <0>;
-			polling-delay = <0>;
+			polling-delay = <250>;
 
 			thermal-sensors = <&pm6150_adc_tm 0>;
 
