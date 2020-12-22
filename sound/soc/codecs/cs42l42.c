@@ -517,8 +517,27 @@ static const struct snd_soc_dapm_route cs42l42_audio_map[] = {
 	{ "SDOUT2", NULL, "ASP TX EN" },
 };
 
+/* Switch to SCLK. Atomic delay after the write to allow the switch to complete. */
+static const struct reg_sequence cs42l42_to_sclk_seq[] = {
+	{
+		.reg = CS42L42_OSC_SWITCH,
+		.def = CS42L42_SCLK_PRESENT_MASK,
+		.delay_us = CS42L42_CLOCK_SWITCH_DELAY_US,
+	},
+};
+
+/* Switch to OSC. Atomic delay after the write to allow the switch to complete. */
+static const struct reg_sequence cs42l42_to_osc_seq[] = {
+	{
+		.reg = CS42L42_OSC_SWITCH,
+		.def = 0,
+		.delay_us = CS42L42_CLOCK_SWITCH_DELAY_US,
+	},
+};
+
 static int cs42l42_set_bias_level(struct snd_soc_component *comp, enum snd_soc_bias_level level)
 {
+	struct cs42l42_private *cs42l42 = snd_soc_component_get_drvdata(comp);
 	enum snd_soc_bias_level current_level = snd_soc_component_get_bias_level(comp);
 
 	switch (current_level) {
@@ -530,8 +549,10 @@ static int cs42l42_set_bias_level(struct snd_soc_component *comp, enum snd_soc_b
 				 */
 				snd_soc_component_update_bits(comp, CS42L42_PLL_CTL1,
 								    CS42L42_PLL_START_MASK, 1);
-				snd_soc_component_update_bits(comp, CS42L42_OSC_SWITCH,
-								    CS42L42_SCLK_PRESENT_MASK, 1);
+
+				regmap_multi_reg_write(cs42l42->regmap,
+						       cs42l42_to_sclk_seq,
+						       ARRAY_SIZE(cs42l42_to_sclk_seq));
 			}
 			break;
 		default:
@@ -832,8 +853,9 @@ static int cs42l42_pcm_hw_free(struct snd_pcm_substream *substream, struct snd_s
 		 * late, the SCLK is already gone by set_bias_level.
 		 * And without a source of clock the I2C bus doesnt work.
 		 */
-		snd_soc_component_update_bits(component, CS42L42_OSC_SWITCH,
-							 CS42L42_SCLK_PRESENT_MASK, 0);
+		regmap_multi_reg_write(cs42l42->regmap,
+				       cs42l42_to_osc_seq,
+				       ARRAY_SIZE(cs42l42_to_osc_seq));
 		snd_soc_component_update_bits(component, CS42L42_PLL_CTL1,
 							 CS42L42_PLL_START_MASK, 0);
 	}
