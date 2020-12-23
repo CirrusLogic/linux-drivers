@@ -535,33 +535,6 @@ static const struct reg_sequence cs42l42_to_osc_seq[] = {
 	},
 };
 
-static int cs42l42_set_bias_level(struct snd_soc_component *comp, enum snd_soc_bias_level level)
-{
-	struct cs42l42_private *cs42l42 = snd_soc_component_get_drvdata(comp);
-	enum snd_soc_bias_level current_level = snd_soc_component_get_bias_level(comp);
-
-	switch (current_level) {
-		case SND_SOC_BIAS_PREPARE:
-			if (level == SND_SOC_BIAS_ON) {
-				/* After SCLK is enabled, mark it as present to turn off the internal
-				 * oscillator. The internal oscillator can only be used for I2C
-				 * transactions.
-				 */
-				snd_soc_component_update_bits(comp, CS42L42_PLL_CTL1,
-								    CS42L42_PLL_START_MASK, 1);
-
-				regmap_multi_reg_write(cs42l42->regmap,
-						       cs42l42_to_sclk_seq,
-						       ARRAY_SIZE(cs42l42_to_sclk_seq));
-			}
-			break;
-		default:
-			break;
-	}
-
-	return 0;
-}
-
 struct cs42l42_pll_params {
 	u32 sclk;
 	u8 mclk_div;
@@ -806,7 +779,6 @@ static int cs42l42_pcm_hw_params(struct snd_pcm_substream *substream,
 	unsigned int width = (params_width(params) / 8) - 1;
 	unsigned int val = 0;
 
-	cs42l42->stream_use |= (1 << substream->stream);
 	cs42l42->srate = params_rate(params);
 	cs42l42->bclk = snd_soc_params_to_bclk(params);
 
@@ -841,28 +813,6 @@ static int cs42l42_pcm_hw_params(struct snd_pcm_substream *substream,
 	return cs42l42_pll_config(component);
 }
 
-static int cs42l42_pcm_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
-{
-	struct snd_soc_component *component = dai->component;
-	struct cs42l42_private *cs42l42 = snd_soc_component_get_drvdata(component);
-
-	cs42l42->stream_use &= ~(1 << substream->stream);
-	if(!cs42l42->stream_use) {
-		cs42l42->bclk = 0;
-		/* Switch to the internal oscillator at hw_free, because set_bias_level is too
-		 * late, the SCLK is already gone by set_bias_level.
-		 * And without a source of clock the I2C bus doesnt work.
-		 */
-		regmap_multi_reg_write(cs42l42->regmap,
-				       cs42l42_to_osc_seq,
-				       ARRAY_SIZE(cs42l42_to_osc_seq));
-		snd_soc_component_update_bits(component, CS42L42_PLL_CTL1,
-							 CS42L42_PLL_START_MASK, 0);
-	}
-
-	return 0;
-}
-
 static int cs42l42_set_sysclk(struct snd_soc_dai *dai,
 				int clk_id, unsigned int freq, int dir)
 {
@@ -874,34 +824,62 @@ static int cs42l42_set_sysclk(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static int cs42l42_digital_mute(struct snd_soc_dai *dai, int mute)
+static int cs42l42_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 {
 	struct snd_soc_component *component = dai->component;
+	struct cs42l42_private *cs42l42 = snd_soc_component_get_drvdata(component);
 	unsigned int regval;
 	u8 fullScaleVol;
 
 	if (mute) {
 		/* Mute the headphone */
-		snd_soc_component_update_bits(component, CS42L42_HP_CTL,
-				CS42L42_HP_ANA_AMUTE_MASK |
-				CS42L42_HP_ANA_BMUTE_MASK,
-				CS42L42_HP_ANA_AMUTE_MASK |
-				CS42L42_HP_ANA_BMUTE_MASK);
-	} else {
-		/* Read the headphone load */
-		regval = snd_soc_component_read32(component, CS42L42_LOAD_DET_RCSTAT);
-		if (((regval & CS42L42_RLA_STAT_MASK) >>
-			CS42L42_RLA_STAT_SHIFT) == CS42L42_RLA_STAT_15_OHM) {
-			fullScaleVol = CS42L42_HP_FULL_SCALE_VOL_MASK;
-		} else {
-			fullScaleVol = 0;
-		}
+		if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+			snd_soc_component_update_bits(component, CS42L42_HP_CTL,
+					CS42L42_HP_ANA_AMUTE_MASK |
+					CS42L42_HP_ANA_BMUTE_MASK,
+					CS42L42_HP_ANA_AMUTE_MASK |
+					CS42L42_HP_ANA_BMUTE_MASK);
 
-		/* Un-mute the headphone, set the full scale volume flag */
-		snd_soc_component_update_bits(component, CS42L42_HP_CTL,
-				CS42L42_HP_ANA_AMUTE_MASK |
-				CS42L42_HP_ANA_BMUTE_MASK |
-				CS42L42_HP_FULL_SCALE_VOL_MASK, fullScaleVol);
+		cs42l42->stream_use &= ~(1 << stream);
+		if(!cs42l42->stream_use) {
+			/*
+			 * Switch to the internal oscillator.
+			 * SCLK must remain running until after this clock switch.
+			 * Without a source of clock the I2C bus doesn't work.
+			 */
+			regmap_multi_reg_write(cs42l42->regmap,
+					       cs42l42_to_osc_seq,
+					       ARRAY_SIZE(cs42l42_to_osc_seq));
+			snd_soc_component_update_bits(component, CS42L42_PLL_CTL1,
+						      CS42L42_PLL_START_MASK, 0);
+		}
+	} else {
+		if (!cs42l42->stream_use) {
+			/* SCLK must be running before codec unmute */
+			snd_soc_component_update_bits(component, CS42L42_PLL_CTL1,
+						      CS42L42_PLL_START_MASK, 1);
+			regmap_multi_reg_write(cs42l42->regmap,
+					       cs42l42_to_sclk_seq,
+					       ARRAY_SIZE(cs42l42_to_sclk_seq));
+		}
+		cs42l42->stream_use |= 1 << stream;
+
+		if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			/* Read the headphone load */
+			regval = snd_soc_component_read32(component, CS42L42_LOAD_DET_RCSTAT);
+			if (((regval & CS42L42_RLA_STAT_MASK) >>
+				CS42L42_RLA_STAT_SHIFT) == CS42L42_RLA_STAT_15_OHM) {
+				fullScaleVol = CS42L42_HP_FULL_SCALE_VOL_MASK;
+			} else {
+				fullScaleVol = 0;
+			}
+
+			/* Un-mute the headphone, set the full scale volume flag */
+			snd_soc_component_update_bits(component, CS42L42_HP_CTL,
+					CS42L42_HP_ANA_AMUTE_MASK |
+					CS42L42_HP_ANA_BMUTE_MASK |
+					CS42L42_HP_FULL_SCALE_VOL_MASK, fullScaleVol);
+		}
 	}
 
 	return 0;
@@ -914,10 +892,9 @@ static int cs42l42_digital_mute(struct snd_soc_dai *dai, int mute)
 
 static const struct snd_soc_dai_ops cs42l42_ops = {
 	.hw_params	= cs42l42_pcm_hw_params,
-	.hw_free 	= cs42l42_pcm_hw_free,
 	.set_fmt	= cs42l42_set_dai_fmt,
 	.set_sysclk	= cs42l42_set_sysclk,
-	.digital_mute = cs42l42_digital_mute
+	.mute_stream	= cs42l42_mute_stream,
 };
 
 static struct snd_soc_dai_driver cs42l42_dai = {
@@ -1831,7 +1808,6 @@ static void cs42l42_component_remove(struct snd_soc_component *comp)
 static const struct snd_soc_component_driver soc_component_dev_cs42l42 = {
 	.probe			= cs42l42_component_probe,
 	.remove			= cs42l42_component_remove,
-	.set_bias_level		= cs42l42_set_bias_level,
 	.dapm_widgets		= cs42l42_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(cs42l42_dapm_widgets),
 	.dapm_routes		= cs42l42_audio_map,
