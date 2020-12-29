@@ -6,7 +6,7 @@
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * utilities for mac80211
  */
@@ -2988,6 +2988,9 @@ void ieee80211_ie_build_he_6ghz_cap(struct ieee80211_sub_if_data *sdata,
 
 	sband = ieee80211_get_sband(sdata);
 	if (!sband)
+		return;
+
+	if (!nl80211_is_6ghz(sband->band))
 		return;
 
 	iftd = ieee80211_get_sband_iftype_data(sband, iftype);
