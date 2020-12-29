@@ -8,7 +8,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2020 Intel Corporation
+ * Copyright (C) 2018 - 2021 Intel Corporation
  */
 
 #include <linux/delay.h>
@@ -796,50 +796,6 @@ static void ieee80211_add_he_ie(struct ieee80211_sub_if_data *sdata,
 	ieee80211_ie_build_he_6ghz_cap(sdata, skb);
 }
 
-static void ieee80211_add_he_6ghz_capa(struct ieee80211_sub_if_data *sdata,
-				       struct sk_buff *skb,
-				       struct ieee80211_supported_band *sband)
-{
-#if CFG80211_VERSION > KERNEL_VERSION(5,8,0)
-	const struct ieee80211_sband_iftype_data *data =
-		ieee80211_get_sband_iftype_data(sband, NL80211_IFTYPE_STATION);
-	u8 *pos;
-	u16 cap;
-
-	if (!data)
-		return;
-
-	cap = le16_to_cpu(cfg80211_iftd_he_6ghz_capa(data));
-
-	pos = skb_put(skb, 2 + 1 + sizeof(data->he_6ghz_capa));
-	*pos++ = WLAN_EID_EXTENSION;
-	*pos++ = 1 + sizeof(data->he_6ghz_capa);
-	*pos++ = WLAN_EID_EXT_HE_6GHZ_CAPA;
-
-	cap &= ~IEEE80211_HE_6GHZ_CAP_SM_PS;
-	switch (sdata->smps_mode) {
-	case IEEE80211_SMPS_AUTOMATIC:
-	case IEEE80211_SMPS_NUM_MODES:
-		WARN_ON(1);
-		/* fall through */
-	case IEEE80211_SMPS_OFF:
-		cap |= WLAN_HT_CAP_SM_PS_DISABLED <<
-			IEEE80211_HE_6GHZ_CAP_SM_PS_SHIFT;
-		break;
-	case IEEE80211_SMPS_STATIC:
-		cap |= WLAN_HT_CAP_SM_PS_STATIC <<
-			IEEE80211_HE_6GHZ_CAP_SM_PS_SHIFT;
-		break;
-	case IEEE80211_SMPS_DYNAMIC:
-		cap |= WLAN_HT_CAP_SM_PS_DYNAMIC <<
-			IEEE80211_HE_6GHZ_CAP_SM_PS_SHIFT;
-		break;
-	}
-
-	put_unaligned_le16(cap, pos);
-#endif
-}
-
 static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -1161,9 +1117,6 @@ skip_rates:
 
 	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HE))
 		ieee80211_add_he_ie(sdata, skb, sband);
-
-	if (nl80211_is_6ghz(sband->band))
-		ieee80211_add_he_6ghz_capa(sdata, skb, sband);
 
 	/* if present, add any custom non-vendor IEs that go after HE */
 	if (assoc_data->ie_len) {
