@@ -2531,6 +2531,8 @@ static int execlists_context_alloc(struct intel_context *ce)
 }
 
 static const struct intel_context_ops execlists_context_ops = {
+	.flags = COPS_HAS_INFLIGHT,
+
 	.alloc = execlists_context_alloc,
 
 	.pre_pin = execlists_context_pre_pin,
@@ -3440,6 +3442,8 @@ static void virtual_context_exit(struct intel_context *ce)
 }
 
 static const struct intel_context_ops virtual_context_ops = {
+	.flags = COPS_HAS_INFLIGHT,
+
 	.alloc = virtual_context_alloc,
 
 	.pre_pin = virtual_context_pre_pin,
