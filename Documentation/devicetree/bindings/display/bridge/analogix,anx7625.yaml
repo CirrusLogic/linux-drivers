@@ -44,16 +44,16 @@ properties:
     description: Regulator that provides the supply 3.3V power.
 
   ports:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description:
           Video port for MIPI DSI input.
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description:
           Video port for panel or connector.
 
