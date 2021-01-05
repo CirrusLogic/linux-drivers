@@ -380,7 +380,7 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 
 	switch (val) {
 	case CS40L26_DSP_MBOX_TRIGGER_COMPLETE:
-		/* this will be needed soon */
+		dev_dbg(dev, "Trigger Complete\n");
 		break;
 	case CS40L26_DSP_MBOX_PM_AWAKE:
 		dev_dbg(dev, "HALO Core is awake\n");
