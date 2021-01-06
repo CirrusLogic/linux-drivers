@@ -1147,8 +1147,8 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 	struct device *cdev = cs40l26->dev;
 	s16 *raw_custom_data = NULL;
 	int ret = 0;
+	u32 bank_offset, trigger_index, min_index, max_index;
 	u16 index, bank;
-	u32 bank_offset, trigger_val;
 
 	if (effect->type != FF_PERIODIC) {
 		dev_err(cdev, "Effect type 0x%X not supported\n",
@@ -1183,9 +1183,13 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 		switch (bank) {
 		case CS40L26_RAM_BANK_ID:
 			bank_offset = CS40L26_RAM_INDEX_START;
+			min_index = CS40L26_RAM_INDEX_START;
+			max_index = bank_offset + cs40l26->num_waves - 1;
 			break;
 		case CS40L26_ROM_BANK_ID:
 			bank_offset = CS40L26_ROM_INDEX_START;
+			min_index = CS40L26_ROM_INDEX_START;
+			max_index = CS40L26_ROM_INDEX_END;
 			break;
 		default:
 			dev_err(cdev, "Bank ID (%u) out of bounds\n", bank);
@@ -1194,15 +1198,13 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 		}
 
 		index = ((u16) raw_custom_data[1]) & CS40L26_MAX_INDEX_MASK;
-		trigger_val = index + bank_offset;
-		if ((trigger_val >= CS40L26_RAM_INDEX_START
-				&& trigger_val <= CS40L26_RAM_INDEX_END)
-				|| (trigger_val >= CS40L26_ROM_INDEX_START
-				&& trigger_val <= CS40L26_ROM_INDEX_END)) {
-			cs40l26->trigger_indeces[effect->id] = trigger_val;
+		trigger_index = index + bank_offset;
+
+		if (trigger_index >= min_index && trigger_index <= max_index) {
+			cs40l26->trigger_indeces[effect->id] = trigger_index;
 		} else {
-			dev_err(cdev, "Trigger value (0x%X) out of bounds\n",
-					trigger_val);
+			dev_err(cdev, "Trigger index (0x%X) out of bounds\n",
+					trigger_index);
 			ret = -EINVAL;
 			goto err_free;
 		}
