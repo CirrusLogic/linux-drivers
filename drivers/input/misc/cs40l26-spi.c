@@ -2,7 +2,7 @@
 //
 // cs40l26-spi.c -- CS40L26 SPI Driver
 //
-// Copyright 2020 Cirrus Logic, Inc.
+// Copyright 2021 Cirrus Logic, Inc.
 //
 // Author: Fred Treven <fred.treven@cirrus.com>
 //

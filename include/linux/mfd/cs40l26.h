@@ -3,7 +3,7 @@
  * cs40l26.h -- CS40L26 Boosted Haptic Driver with Integrated DSP and
  * Waveform Memory with Advanced Closed Loop Algorithms and LRA protection
  *
- * Copyright 2020 Cirrus Logic, Inc.
+ * Copyright 2021 Cirrus Logic, Inc.
  *
  * Author: Fred Treven <fred.treven@cirrus.com>
  */
