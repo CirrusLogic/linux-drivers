@@ -13,26 +13,39 @@
 
 #include <linux/mfd/cs40l26.h>
 
-static ssize_t cs40l26_halo_state_show(struct device *dev,
+static ssize_t cs40l26_dsp_state_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 reg, halo_state;
+	char str[CS40L26_DSP_STATE_STR_LEN];
+	u8 dsp_state;
 	int ret;
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_STATE",
-			CL_DSP_XM_UNPACKED_TYPE, cs40l26->dsp->fw_desc->id,
-			&reg);
+	ret = cs40l26_dsp_state_get(cs40l26, &dsp_state);
 	if (ret)
 		return ret;
 
-	ret = cs40l26_dsp_read(cs40l26, reg, &halo_state);
-	if (ret)
-		return ret;
+	switch (dsp_state) {
+	case CS40L26_DSP_STATE_HIBERNATE:
+		strncpy(str, "Hibernate", CS40L26_DSP_STATE_STR_LEN);
+		break;
+	case CS40L26_DSP_STATE_SHUTDOWN:
+		strncpy(str, "Shutdown", CS40L26_DSP_STATE_STR_LEN);
+		break;
+	case CS40L26_DSP_STATE_STANDBY:
+		strncpy(str, "Standby", CS40L26_DSP_STATE_STR_LEN);
+		break;
+	case CS40L26_DSP_STATE_ACTIVE:
+		strncpy(str, "Active", CS40L26_DSP_STATE_STR_LEN);
+		break;
+	default:
+		dev_err(cs40l26->dev, "DSP state %u is invalid\n", dsp_state);
+		return -EINVAL;
+	}
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", halo_state);
+	return snprintf(buf, PAGE_SIZE, "DSP state: %s\n", str);
 }
-static DEVICE_ATTR(halo_state, 0660, cs40l26_halo_state_show, NULL);
+static DEVICE_ATTR(dsp_state, 0660, cs40l26_dsp_state_show, NULL);
 
 static ssize_t cs40l26_halo_heartbeat_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -72,20 +85,9 @@ static ssize_t cs40l26_fw_mode_show(struct device *dev,
 }
 static DEVICE_ATTR(fw_mode, 0660, cs40l26_fw_mode_show, NULL);
 
-
-static ssize_t cs40l26_num_waves_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-
-	return snprintf(buf, PAGE_SIZE, "%u\n", cs40l26->num_waves);
-}
-static DEVICE_ATTR(num_waves, 0660, cs40l26_num_waves_show, NULL);
-
 static struct attribute *cs40l26_dev_attrs[] = {
-	&dev_attr_num_waves.attr,
 	&dev_attr_fw_mode.attr,
-	&dev_attr_halo_state.attr,
+	&dev_attr_dsp_state.attr,
 	&dev_attr_halo_heartbeat.attr,
 	NULL,
 };
@@ -141,164 +143,7 @@ static ssize_t cs40l26_debug_hibernate_show(struct device *dev,
 static DEVICE_ATTR(debug_hibernate, 0660, cs40l26_debug_hibernate_show,
 	cs40l26_debug_hibernate_store);
 
-
-static ssize_t cs40l26_debug_irq_mask1_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	unsigned int val;
-	int ret;
-
-	ret = kstrtou32(buf, 0, &val);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(cs40l26->regmap, CS40L26_IRQ1_MASK_1, val);
-	if (ret)
-		return ret;
-
-	ret = cs40l26_iseq_update(cs40l26, CS40L26_ISEQ_MASK1);
-	if (ret)
-		return ret;
-
-	return count;
-}
-
-static ssize_t cs40l26_debug_irq_mask1_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(cs40l26->regmap, CS40L26_IRQ1_MASK_1, &val);
-	if (ret)
-		return ret;
-
-	return snprintf(buf, PAGE_SIZE, "0x%08X\n", val);
-}
-static DEVICE_ATTR(debug_irq_mask1, 0660, cs40l26_debug_irq_mask1_show,
-	cs40l26_debug_irq_mask1_store);
-
-static ssize_t cs40l26_debug_irq_mask2_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	unsigned int val;
-	int ret;
-
-	ret = kstrtou32(buf, 0, &val);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(cs40l26->regmap, CS40L26_IRQ1_MASK_2, val);
-	if (ret)
-		return ret;
-
-	ret = cs40l26_iseq_update(cs40l26, CS40L26_ISEQ_MASK1);
-	if (ret)
-		return ret;
-
-	return count;
-}
-
-static ssize_t cs40l26_debug_irq_mask2_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(cs40l26->regmap, CS40L26_IRQ1_MASK_2, &val);
-	if (ret)
-		return ret;
-
-	return snprintf(buf, PAGE_SIZE, "0x%08X\n", val);
-}
-static DEVICE_ATTR(debug_irq_mask2, 0660, cs40l26_debug_irq_mask2_show,
-	cs40l26_debug_irq_mask2_store);
-
-static ssize_t cs40l26_debug_irq_frc1_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	unsigned int val;
-	int ret;
-
-	ret = kstrtou32(buf, 0, &val);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(cs40l26->regmap, CS40L26_IRQ1_FRC_1, val);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(cs40l26->regmap, CS40L26_IRQ1_FRC_1, 0x0);
-	if (ret)
-		return ret;
-
-	return count;
-}
-
-static ssize_t cs40l26_debug_irq_frc1_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(cs40l26->regmap, CS40L26_IRQ1_FRC_1, &val);
-	if (ret)
-		return ret;
-
-	return snprintf(buf, PAGE_SIZE, "0x%08X\n", val);
-}
-static DEVICE_ATTR(debug_irq_frc1, 0660, cs40l26_debug_irq_frc1_show,
-	cs40l26_debug_irq_frc1_store);
-
-static ssize_t cs40l26_debug_irq_frc2_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	unsigned int val;
-	int ret;
-
-	ret = kstrtou32(buf, 0, &val);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(cs40l26->regmap, CS40L26_IRQ1_FRC_2, val);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(cs40l26->regmap, CS40L26_IRQ1_FRC_2, 0x0);
-	if (ret)
-		return ret;
-
-	return count;
-}
-
-static ssize_t cs40l26_debug_irq_frc2_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(cs40l26->regmap, CS40L26_IRQ1_FRC_2, &val);
-	if (ret)
-		return ret;
-
-	return snprintf(buf, PAGE_SIZE, "0x%08X\n", val);
-}
-static DEVICE_ATTR(debug_irq_frc2, 0660, cs40l26_debug_irq_frc2_show,
-	cs40l26_debug_irq_frc2_store);
-
 static struct attribute *cs40l26_debug_dev_attrs[] = {
-	&dev_attr_debug_irq_frc2.attr,
-	&dev_attr_debug_irq_frc1.attr,
-	&dev_attr_debug_irq_mask2.attr,
-	&dev_attr_debug_irq_mask1.attr,
 	&dev_attr_debug_hibernate.attr,
 	NULL,
 };
