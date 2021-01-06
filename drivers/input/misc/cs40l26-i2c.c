@@ -2,7 +2,7 @@
 //
 // cs40l26-i2c.c -- CS40L26 I2C Driver
 //
-// Copyright 2020 Cirrus Logic, Inc.
+// Copyright 2021 Cirrus Logic, Inc.
 //
 // Author: Fred Treven <fred.treven@cirrus.com>
 //
