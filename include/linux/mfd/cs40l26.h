@@ -640,9 +640,11 @@
 #define CS40L26_DSP_STATE_STANDBY		2
 #define CS40L26_DSP_STATE_ACTIVE		3
 
+#define CS40L26_DSP_STATE_MASK			GENMASK(7, 0)
+
 /* ROM Controls A0 */
-#define CS40L26_PM_CUR_STATE_ROM_REG		0x02800358
-#define CS40L26_PM_TIMEOUT_TICKS_ROM_REG	0x02800338
+#define CS40L26_PM_CUR_STATE_STATIC_REG		0x02800358
+#define CS40L26_PM_TIMEOUT_TICKS_STATIC_REG		0x02800338
 
 /* algorithms */
 #define CS40L26_A2H_ALGO_ID		0x00000110
@@ -1028,6 +1030,7 @@ struct cs40l26_private {
 	enum cs40l26_vibe_state vibe_state;
 	int num_loaded_coeff_files;
 	u32 num_waves;
+	bool fw_loaded;
 };
 
 /* exported functions */
