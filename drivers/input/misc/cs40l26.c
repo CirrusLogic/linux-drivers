@@ -42,7 +42,7 @@ int cs40l26_dsp_read(struct cs40l26_private *cs40l26, u32 reg, u32 *val)
 }
 EXPORT_SYMBOL(cs40l26_dsp_read);
 
-int cs40l26_dsp_write(struct cs40l26_private *cs40l26, u32 reg, u32 val)
+static int cs40l26_dsp_write(struct cs40l26_private *cs40l26, u32 reg, u32 val)
 {
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
@@ -67,9 +67,8 @@ int cs40l26_dsp_write(struct cs40l26_private *cs40l26, u32 reg, u32 val)
 
 	return 0;
 }
-EXPORT_SYMBOL(cs40l26_dsp_write);
 
-int cs40l26_ack_read(struct cs40l26_private *cs40l26, u32 reg, u32 ack_val)
+static int cs40l26_ack_read(struct cs40l26_private *cs40l26, u32 reg, u32 ack_val)
 {
 	struct device *dev = cs40l26->dev;
 	int ret;
@@ -87,9 +86,8 @@ int cs40l26_ack_read(struct cs40l26_private *cs40l26, u32 reg, u32 ack_val)
 
 	return 0;
 }
-EXPORT_SYMBOL(cs40l26_ack_read);
 
-int cs40l26_ack_write(struct cs40l26_private *cs40l26,
+static int cs40l26_ack_write(struct cs40l26_private *cs40l26,
 		u32 reg, u32 write_val, u32 reset_val)
 {
 	int ret;
@@ -100,9 +98,8 @@ int cs40l26_ack_write(struct cs40l26_private *cs40l26,
 
 	return cs40l26_ack_read(cs40l26, reg, reset_val);
 }
-EXPORT_SYMBOL(cs40l26_ack_write);
 
-static int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
+int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 {
 	u32 algo_id, reg, dsp_state;
 	int ret;
@@ -142,6 +139,7 @@ static int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 
 	return ret;
 }
+EXPORT_SYMBOL(cs40l26_dsp_state_get);
 
 static int cs40l26_pm_shutdown_timeout_ms_set(struct cs40l26_private *cs40l26,
 		u32 timeout_ms)
@@ -1785,7 +1783,8 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 	return 0;
 }
 
-int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves)
+static int cs40l26_get_num_waves(struct cs40l26_private *cs40l26,
+		u32 *num_waves)
 {
 	int ret;
 	u32 reg;
@@ -1798,7 +1797,6 @@ int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves)
 
 	return cs40l26_dsp_read(cs40l26, reg, num_waves);
 }
-EXPORT_SYMBOL(cs40l26_get_num_waves);
 
 static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
