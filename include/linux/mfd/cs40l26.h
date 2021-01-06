@@ -642,6 +642,8 @@
 
 #define CS40L26_DSP_STATE_MASK			GENMASK(7, 0)
 
+#define CS40L26_DSP_STATE_STR_LEN		10
+
 /* ROM Controls A0 */
 #define CS40L26_PM_CUR_STATE_STATIC_REG		0x02800358
 #define CS40L26_PM_TIMEOUT_TICKS_STATIC_REG		0x02800338
@@ -1034,16 +1036,12 @@ struct cs40l26_private {
 };
 
 /* exported functions */
-int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves);
+int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state);
 int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 		enum cs40l26_pm_state state);
 int cs40l26_iseq_update(struct cs40l26_private *cs40l26,
 		enum cs40l26_iseq update);
 int cs40l26_dsp_read(struct cs40l26_private *cs40l26, u32 reg, u32 *val);
-int cs40l26_dsp_write(struct cs40l26_private *cs40l26, u32 reg, u32 val);
-int cs40l26_ack_read(struct cs40l26_private *cs40l26, u32 reg, u32 ack_val);
-int cs40l26_ack_write(struct cs40l26_private *cs40l26, u32 reg, u32 write_val,
-		u32 reset_val);
 int cs40l26_probe(struct cs40l26_private *cs40l26,
 		struct cs40l26_platform_data *pdata);
 int cs40l26_remove(struct cs40l26_private *cs40l26);
