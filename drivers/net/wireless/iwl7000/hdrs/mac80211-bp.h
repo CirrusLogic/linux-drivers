@@ -2367,6 +2367,11 @@ cfg80211_iftd_he_6ghz_capa(const struct ieee80211_sband_iftype_data *iftd)
 #endif /* fallthrough */
 
 #if CFG80211_VERSION < KERNEL_VERSION(5,10,0)
+#define WIPHY_FLAG_SPLIT_SCAN_6GHZ 0
+#define NL80211_SCAN_FLAG_COLOCATED_6GHZ 0
+#endif /* < 5.10 */
+
+#if CFG80211_VERSION < KERNEL_VERSION(5,11,0)
 static inline void
 LINUX_BACKPORT(cfg80211_ch_switch_started_notify)(struct net_device *dev,
 						  struct cfg80211_chan_def *chandef,
@@ -2375,12 +2380,9 @@ LINUX_BACKPORT(cfg80211_ch_switch_started_notify)(struct net_device *dev,
 	cfg80211_ch_switch_started_notify(dev, chandef, count);
 }
 #define cfg80211_ch_switch_started_notify LINUX_BACKPORT(cfg80211_ch_switch_started_notify)
+
 #define cfg80211_tx_mlme_mgmt(netdev, buf, len, reconnect) cfg80211_tx_mlme_mgmt(netdev, buf, len)
-
-#define WIPHY_FLAG_SPLIT_SCAN_6GHZ 0
-#define NL80211_SCAN_FLAG_COLOCATED_6GHZ 0
-
-#endif /* < 5.10 */
+#endif /* < 5.11 */
 
 #ifndef ETH_TLEN
 #define ETH_TLEN	2		/* Octets in ethernet type field */
