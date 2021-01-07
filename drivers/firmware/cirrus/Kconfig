@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig CIRRUS_FIRMWARE
+	bool "Cirrus Logic Firmware Drivers"
+	default n
+	help
+	  These are drivers used to load and configure
+	  firmware for Cirrus Logic Devices.
+
+if CIRRUS_FIRMWARE
+
+config CIRRUS_FIRMWARE_CL_DSP
+         tristate "Cirrus Logic Haptics DSP driver"
+         help
+           This driver is used to handle firmware loading
+           and configuration for Cirrus Logic Haptic devices.
+
+endif # CIRRUS_FIRMWARE
