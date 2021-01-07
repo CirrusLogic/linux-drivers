@@ -34,7 +34,7 @@
 #include <linux/sysfs.h>
 #include <linux/bitops.h>
 
-#include <linux/mfd/cl_dsp.h>
+#include <linux/firmware/cirrus/cl_dsp.h>
 
 #define CS40L26_FIRSTREG				0x0
 #define CS40L26_LASTREG					0x3C7DFE8
