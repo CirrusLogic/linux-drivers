@@ -2,11 +2,11 @@
 //
 // cl_dsp.c -- DSP Control for non-ALSA Cirrus Logic Devices
 //
-// Copyright 2019 Cirrus Logic, Inc.
+// Copyright 2021 Cirrus Logic, Inc.
 //
 // Author: Fred Treven <fred.treven@cirrus.com>
 
-#include <linux/mfd/cl_dsp.h>
+#include <linux/firmware/cirrus/cl_dsp.h>
 
 static int cl_dsp_raw_write(struct cl_dsp *dsp, unsigned int reg,
 		const void *val, size_t val_len, size_t limit)
