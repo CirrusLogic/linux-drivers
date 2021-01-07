@@ -2442,6 +2442,11 @@ static inline bool nl80211_is_s1ghz_width(enum nl80211_chan_width w1,
 	return false;
 }
 #else /* CFG80211_VERSION < 5.9.0 */
+static inline bool nl80211_is_s1ghz(enum nl80211_band band)
+{
+	return band == NL80211_BAND_S1GHZ;
+}
+
 static inline bool nl80211_is_s1ghz_width(enum nl80211_chan_width w1,
 					  enum nl80211_chan_width w2)
 {
