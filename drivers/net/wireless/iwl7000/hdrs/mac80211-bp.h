@@ -1,7 +1,7 @@
 /*
  * ChromeOS backport definitions
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  */
 #include <linux/if_ether.h>
 #include <net/cfg80211.h>
@@ -2386,7 +2386,12 @@ LINUX_BACKPORT(cfg80211_ch_switch_started_notify)(struct net_device *dev,
 #define ETH_TLEN	2		/* Octets in ethernet type field */
 #endif
 
-#if CFG80211_VERSION >= KERNEL_VERSION(5, 10, 0)
+#if CFG80211_VERSION < KERNEL_VERSION(5,4,0)
+static inline bool cfg80211_channel_is_psc(struct ieee80211_channel *chan)
+{
+	return false;
+}
+#elif CFG80211_VERSION < KERNEL_VERSION(5,8,0)
 /**
  * cfg80211_channel_is_psc - Check if the channel is a 6 GHz PSC
  * @chan: control channel to check
@@ -2394,6 +2399,7 @@ LINUX_BACKPORT(cfg80211_ch_switch_started_notify)(struct net_device *dev,
  * The Preferred Scanning Channels (PSC) are defined in
  * Draft IEEE P802.11ax/D5.0, 26.17.2.3.3
  */
+#
 static inline bool cfg80211_channel_is_psc(struct ieee80211_channel *chan)
 {
 	if (chan->band != NL80211_BAND_6GHZ)
@@ -2402,7 +2408,7 @@ static inline bool cfg80211_channel_is_psc(struct ieee80211_channel *chan)
 	return ieee80211_frequency_to_channel(chan->center_freq) % 16 == 5;
 }
 
-#endif /* >= 5.10.0 */
+#endif /* < 5.8.0 */
 
 #if LINUX_VERSION_IS_LESS(5,9,0)
 
