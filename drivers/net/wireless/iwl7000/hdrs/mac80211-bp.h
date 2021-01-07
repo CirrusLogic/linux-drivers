@@ -2119,7 +2119,7 @@ static inline bool nl80211_is_6ghz(enum nl80211_band band)
 #define ieee80211_preamble_he() BIT(NL80211_PREAMBLE_HE)
 #endif
 
-#if CFG80211_VERSION < KERNEL_VERSION(5,10,0)
+#if CFG80211_VERSION < KERNEL_VERSION(5,12,0)
 #define ftm_lmr_feedback(peer)		0
 #else
 #define ftm_lmr_feedback(peer)		((peer)->ftm.lmr_feedback)
