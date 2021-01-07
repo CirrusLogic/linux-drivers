@@ -788,6 +788,9 @@
 
 #define CS40L26_ISEQ_MAX_ENTRIES		4
 
+#define CS40L26_IRQ_UNMASK			0
+#define CS40L26_IRQ_MASK			1
+
 /* output */
 #define CS40L26_GLOBAL_ENABLES2_DEFAULT	0x01000000
 #define CS40L26_BST_CTRL_DEFAULT		0x000000AA
@@ -1039,8 +1042,6 @@ struct cs40l26_private {
 int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state);
 int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 		enum cs40l26_pm_state state);
-int cs40l26_iseq_update(struct cs40l26_private *cs40l26,
-		enum cs40l26_iseq update);
 int cs40l26_dsp_read(struct cs40l26_private *cs40l26, u32 reg, u32 *val);
 int cs40l26_probe(struct cs40l26_private *cs40l26,
 		struct cs40l26_platform_data *pdata);
