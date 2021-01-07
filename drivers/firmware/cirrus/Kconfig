@@ -3,3 +3,7 @@
 config FW_CS_DSP
 	tristate
 	default n
+
+config FW_CL_DSP
+	tristate
+	default n
