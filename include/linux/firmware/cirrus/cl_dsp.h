@@ -2,7 +2,7 @@
  *
  * cl_dsp.h -- DSP control for non-ALSA Cirrus Logic devices
  *
- * Copyright 2019 Cirrus Logic, Inc.
+ * Copyright 2021 Cirrus Logic, Inc.
  *
  * Author: Fred Treven <fred.treven@cirrus.com>
  */

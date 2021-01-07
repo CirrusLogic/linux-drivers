@@ -18,3 +18,7 @@ config FW_CS_DSP_KUNIT_TEST
 	  please refer to the KUnit documentation in
 	  Documentation/dev-tools/kunit/.
 	  If in doubt, say "N".
+
+config FW_CL_DSP
+	tristate
+	default n
