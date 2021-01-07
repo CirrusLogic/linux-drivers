@@ -2298,6 +2298,12 @@ cfg80211_iftd_he_6ghz_capa(const struct ieee80211_sband_iftype_data *iftd)
 	return 0;
 }
 
+static inline void
+cfg80211_iftd_set_he_6ghz_capa(struct ieee80211_sband_iftype_data *iftd,
+			       __le16 capa)
+{
+}
+
 int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 			      const u8 *buf, size_t len,
 			      const u8 *dest, __be16 proto, bool unencrypted,
@@ -2333,6 +2339,13 @@ static inline __le16
 cfg80211_iftd_he_6ghz_capa(const struct ieee80211_sband_iftype_data *iftd)
 {
 	return iftd->he_6ghz_capa.capa;
+}
+
+static inline void
+cfg80211_iftd_set_he_6ghz_capa(struct ieee80211_sband_iftype_data *iftd,
+			       __le16 capa)
+{
+	iftd->he_6ghz_capa.capa = capa;
 }
 #endif /* < 5.8 */
 

@@ -733,7 +733,8 @@ static void iwl_init_he_6ghz_capa(struct iwl_trans *trans,
 	/* we know it's writable - we set it before ourselves */
 	iftype_data = (void *) ieee80211_sband_get_iftypes_data(sband);
 	for (i = 0; i < ieee80211_sband_get_num_iftypes_data(sband); i++)
-		cfg80211_iftd_he_6ghz_capa(iftype_data) = cpu_to_le16(he_6ghz_capa);
+		cfg80211_iftd_set_he_6ghz_capa(iftype_data,
+				               cpu_to_le16(he_6ghz_capa));
 }
 #endif
 #endif
