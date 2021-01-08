@@ -7410,50 +7410,7 @@ static void cs40l2x_vibe_mode_worker(struct work_struct *work)
 	if (val != CS40L2X_STATUS_IDLE)
 		goto err_exit;
 
-	if (cs40l2x->vibe_mode == CS40L2X_VIBE_MODE_HAPTIC
-			&& cs40l2x->asp_enable == CS40L2X_ASP_ENABLED) {
-		/* switch to audio mode */
-		ret = cs40l2x_refclk_switch(cs40l2x,
-				cs40l2x->pdata.asp_bclk_freq);
-		if (ret) {
-			dev_err(dev, "Failed to switch to audio-rate REFCLK\n");
-			goto err_exit;
-		}
-
-		ret = cs40l2x_asp_switch(cs40l2x, CS40L2X_ASP_ENABLED);
-		if (ret) {
-			dev_err(dev, "Failed to enable ASP\n");
-			goto err_exit;
-		}
-
-		cs40l2x->vibe_mode = CS40L2X_VIBE_MODE_AUDIO;
-		if (cs40l2x->vibe_state != CS40L2X_VIBE_STATE_RUNNING)
-			cs40l2x_wl_apply(cs40l2x);
-	} else if (cs40l2x->vibe_mode == CS40L2X_VIBE_MODE_AUDIO
-			&& cs40l2x->asp_enable == CS40L2X_ASP_ENABLED) {
-		/* resume audio mode */
-		ret = regmap_read(regmap,
-				cs40l2x_dsp_reg(cs40l2x, "I2S_ENABLED",
-						CS40L2X_XM_UNPACKED_TYPE,
-						cs40l2x->fw_desc->id),
-				&val);
-		if (ret) {
-			dev_err(dev, "Failed to capture pause status\n");
-			goto err_exit;
-		}
-
-		if (val == CS40L2X_I2S_ENABLED)
-			goto err_exit;
-
-		if (cs40l2x->pbq_state == CS40L2X_PBQ_STATE_IDLE)
-			cs40l2x_set_state(cs40l2x, CS40L2X_VIBE_STATE_STOPPED);
-
-		ret = cs40l2x_user_ctrl_exec(cs40l2x, CS40L2X_USER_CTRL_PLAY,
-				0, NULL);
-		if (ret)
-			dev_err(dev, "Failed to resume playback\n");
-	} else if (cs40l2x->vibe_mode == CS40L2X_VIBE_MODE_AUDIO
-			&& cs40l2x->asp_enable == CS40L2X_ASP_DISABLED) {
+	if (cs40l2x->vibe_mode == CS40L2X_VIBE_MODE_AUDIO) {
 		/* switch to haptic mode */
 		ret = cs40l2x_asp_switch(cs40l2x, CS40L2X_ASP_DISABLED);
 		if (ret) {
@@ -7941,8 +7898,6 @@ static int cs40l2x_reset_recovery(struct cs40l2x_private *cs40l2x)
 					& CS40L2X_PLL_REFCLK_SEL_MASK));
 		if (ret)
 			return ret;
-
-		cs40l2x->asp_enable = CS40L2X_ASP_DISABLED;
 	}
 
 	cs40l2x->vibe_mode = CS40L2X_VIBE_MODE_HAPTIC;
