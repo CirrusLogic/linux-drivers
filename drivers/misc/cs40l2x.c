@@ -9473,15 +9473,12 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 				dev_dbg(dev, "Valid algo ID 0x%x\n", algo_id);
 			}
 
-			if (((algo_rev >> 8) & CS40L2X_ALGO_REV_MASK)
-					!= (cs40l2x->algo_info[i].rev
-						& CS40L2X_ALGO_REV_MASK)) {
-				dev_err(dev, "Invalid algo. rev.: %d.%d.%d\n",
-						(algo_rev & 0xFF000000) >> 24,
-						(algo_rev & 0xFF0000) >> 16,
-						(algo_rev & 0xFF00) >> 8);
-				ret = -EINVAL;
-				goto err_rls_fw;
+			if (((algo_rev >> 8) & CS40L2X_ALGO_REV_MASK) !=
+			    (cs40l2x->algo_info[i].rev & CS40L2X_ALGO_REV_MASK)) {
+				dev_warn(dev, "Algorithm revision mismatch: %d.%d.%d\n",
+					 (algo_rev & 0xFF000000) >> 24,
+					 (algo_rev & 0xFF0000) >> 16,
+					 (algo_rev & 0xFF00) >> 8);
 			}
 
 			switch (algo_id) {
