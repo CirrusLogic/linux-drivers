@@ -988,6 +988,12 @@ static const char * const cs40l2x_coeff_files_a2h[] = {
 	CS40L2X_DYN_F0_FILE_NAME,
 };  /* Audio to Haptics */
 
+static const char * const cs40l2x_coeff_files_df0_clab[] = {
+	CS40L2X_WT_FILE_NAME_DEFAULT,
+	CS40L2X_DYN_F0_FILE_NAME,
+	CS40L2X_CLAB_CONFIG_FILE_NAME,
+};  /* Dynamic F0 and CLAB includes dynamic ReDC */
+
 const struct cs40l2x_fw_desc cs40l2x_fw_fam[CS40L2X_NUM_FW_FAMS] = {
 	{
 		.id = CS40L2X_FW_ID_ORIG,
@@ -1045,6 +1051,15 @@ const struct cs40l2x_fw_desc cs40l2x_fw_fam[CS40L2X_NUM_FW_FAMS] = {
 		.coeff_files = cs40l2x_coeff_files_a2h,
 		.fw_file = "cs40l25a_a2h.wmfw",
 	},  /* Audio to Haptics */
+	{
+		.id = CS40L2X_FW_ID_DF0_CLAB,
+		.min_rev = 0x0A0303,
+		.halo_state_run = 203,
+		.num_coeff_files = ARRAY_SIZE(cs40l2x_coeff_files_df0_clab),
+		.coeff_files = cs40l2x_coeff_files_df0_clab,
+		.fw_file = "cs40l25a_df0_clab.wmfw",
+		/* Dynamic F0 and CLAB includes dynamic ReDC */
+	},
 };
 
 const struct cs40l2x_hw_err_desc cs40l2x_hw_errs[CS40L2X_NUM_HW_ERRS] = {
