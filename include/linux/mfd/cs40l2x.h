@@ -1517,7 +1517,6 @@ struct cs40l2x_private {
 	int vpp_measured;
 	int ipp_measured;
 	bool asp_available;
-	bool asp_enable;
 	bool a2h_enable;
 	struct hrtimer asp_timer;
 	const struct cs40l2x_fw_desc *fw_desc;
