@@ -1400,6 +1400,7 @@ bool intel_gt_verify_workarounds(struct intel_gt *gt, const char *from)
 	return wa_list_verify(gt->uncore, &gt->i915->gt_wa_list, from);
 }
 
+__maybe_unused
 static inline bool is_nonpriv_flags_valid(u32 flags)
 {
 	/* Check only valid flag bits are set */
