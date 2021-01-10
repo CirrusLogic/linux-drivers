@@ -880,7 +880,6 @@
 #define CS40L2X_WT_TERMINATOR		0x00FFFFFF
 #define CS40L2X_WT_COMP_INDEFINITE	0x00400000
 #define CS40L2X_WT_COMP_LEN_CALCD	0x00800000
-#define CS40L2X_WT_MAX_SAMPLES		0x003FFFFE
 #define CS40L2X_WT_CLR_EX_TYPE		0x0000FFFF
 #define CS40L2X_WT_YM_PRE_HEADER	0x00000600
 #define CS40L2X_WT_NUM_GPIO_VSLOTS	2
@@ -962,20 +961,12 @@
 #define CS40L2X_INDEX_DIAG		0x0000FFFF
 #define CS40L2X_INDEX_IDLE		0xFFFFFFFF
 
-#define CS40L2X_PBQ_SEG_LEN_MAX		20
-#define CS40L2X_PBQ_DEPTH_MAX		256
 #define CS40L2X_PBQ_SCALE_MAX		100
 #define CS40L2X_PBQ_DELAY_MAX		10000
-#define CS40L2X_PBQ_REPEAT_MAX		32
 #define CS40L2X_PBQ_POLL_NS		5000000
 #define CS40L2X_PBQ_STATE_IDLE		0x00
 #define CS40L2X_PBQ_STATE_PLAYING	0x01
 #define CS40L2X_PBQ_STATE_SILENT	0x02
-#define CS40L2X_PBQ_TAG_SILENCE		0x0000
-#define CS40L2X_PBQ_TAG_START		0x8000
-#define CS40L2X_PBQ_TAG_STOP		0x8001
-#define CS40L2X_PBQ_INNER_REPEAT	255
-#define CS40L2X_PBQ_INNER_FLAG		256
 #define CS40L2X_PBQ_FW_BYTES_MIN	192
 #define CS40L2X_PBQ_DUR_MIN_REV		0x0A0101
 #define CS40L2X_PWLE_FRQ_MIN_REV	0x0A0302
@@ -1130,9 +1121,6 @@
 
 #define CS40L2X_VIBE_STATE_STOPPED	0
 #define CS40L2X_VIBE_STATE_RUNNING	1
-
-#define CS40L2X_PBQ_SAVE_STATE_DONE	0
-#define CS40L2X_PBQ_SAVE_STATE_BUSY	1
 
 #define CS40L2X_SAVE_UNSAFE		0
 #define CS40L2X_SAVE_SAFE		1
@@ -1343,22 +1331,6 @@ struct cs40l2x_coeff_desc {
 	struct list_head list;
 };
 
-struct cs40l2x_pbq_pair {
-	unsigned int tag;
-	unsigned int mag;
-	unsigned int dur;
-	unsigned int repeat;
-	unsigned int remain;
-};
-
-struct cs40l2x_composite_data {
-	unsigned int rpt;
-	unsigned int index;
-	unsigned int amp;
-	unsigned int delay;
-	unsigned int dur;
-};
-
 struct cs40l2x_wseq_pair {
 	unsigned int reg;
 	unsigned int val;
@@ -1489,11 +1461,7 @@ struct cs40l2x_private {
 	int pbq_inner_loop;
 	int pbq_outer_loop;
 
-	struct cs40l2x_pbq_pair pbq_pairs[CS40L2X_PBQ_DEPTH_MAX];
-	struct cs40l2x_composite_data comp_sets[CS40L2X_PBQ_DEPTH_MAX];
 	struct hrtimer pbq_timer;
-	unsigned int pbq_depth;
-	unsigned int comp_sets_size;
 	unsigned int pbq_cp_dig_scale;
 	unsigned int pwle_feature;
 	unsigned int pwle_wvfrm_len;
@@ -1505,10 +1473,6 @@ struct cs40l2x_private {
 	unsigned int num_virtual_pwle_waves;
 	unsigned int last_type_entered;
 	unsigned int display_pwle_segs;
-	unsigned int comp_outer[CS40L2X_PBQ_DEPTH_MAX];
-	unsigned int comp_inner[CS40L2X_PBQ_DEPTH_MAX];
-	unsigned int pbq_fw_composite[CS40L2X_PBQ_DEPTH_MAX + 3];
-	unsigned int pbq_fw_composite_len;
 	unsigned int virtual_gpio_index[CS40L2X_SIZE_TWO_ARRAY];
 	unsigned int loaded_gpio_index[CS40L2X_SIZE_TWO_ARRAY];
 	unsigned int virtual_slot_index;
@@ -1517,7 +1481,6 @@ struct cs40l2x_private {
 	struct list_head virtual_waveform_head;
 	struct list_head pwle_segment_head;
 	struct cs40l2x_ovwr_waveform *ovwr_wav;
-	int pbq_repeat;
 	struct cs40l2x_wseq_pair wseq_table[CS40L2X_WSEQ_LENGTH_MAX];
 	unsigned int wseq_length;
 	unsigned int event_control;
@@ -1537,7 +1500,6 @@ struct cs40l2x_private {
 	bool comp_enable;
 	bool comp_enable_redc;
 	bool comp_enable_f0;
-	bool comp_dur_en;
 	bool comp_dur_min_fw;
 	bool ext_freq_min_fw;
 	bool amp_gnd_stby;
