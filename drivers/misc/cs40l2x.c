@@ -290,37 +290,6 @@ static int cs40l2x_check_wt_open_space(struct cs40l2x_private *cs40l2x,
 	return -ENOSPC;
 }
 
-static int cs40l2x_calc_composite_size(struct cs40l2x_private *cs40l2x,
-	unsigned int *size)
-{
-	unsigned int wav_count = 0;
-	unsigned int total_size = 0;
-
-	*size = total_size;
-
-	if (cs40l2x->pbq_fw_composite_len == 0)
-		return -ENODATA;
-
-	wav_count = cs40l2x->pbq_fw_composite[2];
-
-	/* Wvfrm Samples, Repeat, Num of Wavs, Empty Byte, Zero Pad */
-	total_size = CS40L2X_WT_COMP_NONRPTNG_SIZE;
-
-	if (cs40l2x->comp_dur_en)
-		total_size += (wav_count * CS40L2X_WT_COMP_WV_DTLS);
-	else
-		total_size += (wav_count * CS40L2X_WT_COMP_LEGACY_DTLS);
-
-	if (total_size > (cs40l2x->comp_bytes / CS40L2X_WT_NUM_VIRT_SLOTS)) {
-		dev_err(cs40l2x->dev, "Waveform size exceeds available space\n");
-		return -ENOSPC;
-	}
-
-	*size = total_size;
-
-	return 0;
-}
-
 static void cs40l2x_set_ym_data(struct cs40l2x_private *cs40l2x)
 {
 	cs40l2x->ym_hdr_strt_pos = (cs40l2x->wt_xm_size +
@@ -1230,11 +1199,7 @@ static int cs40l2x_convert_and_save_comp_data(struct cs40l2x_private *cs40l2x,
 	unsigned int wvfrm_samples;
 	char *raw_composite_data;
 
-	ret = cs40l2x_calc_composite_size(cs40l2x, &comp_size);
-	if (ret)
-		return ret;
-
-	raw_composite_data = kzalloc(comp_size, GFP_KERNEL);
+	raw_composite_data = kzalloc(CS40L2X_SINGLE_PACKED_MAX, GFP_KERNEL);
 	if (!raw_composite_data)
 		return -ENOMEM;
 
@@ -1243,10 +1208,18 @@ static int cs40l2x_convert_and_save_comp_data(struct cs40l2x_private *cs40l2x,
 		goto err_free;
 
 	cs40l2x->pbq_comp.wlength = wvfrm_samples;
-	ret = cs40l2x_write_comp(cs40l2x, raw_composite_data, comp_size,
-				 &cs40l2x->pbq_comp);
-	if (ret < 0)
+	comp_size = cs40l2x_write_comp(cs40l2x, raw_composite_data,
+				       CS40L2X_SINGLE_PACKED_MAX,
+				       &cs40l2x->pbq_comp);
+	if (comp_size < 0) {
+		ret = comp_size;
 		goto err_free;
+	}
+
+	if (comp_size > (cs40l2x->comp_bytes / CS40L2X_WT_NUM_VIRT_SLOTS)) {
+		dev_err(cs40l2x->dev, "Waveform size exceeds available space\n");
+		return -ENOSPC;
+	}
 
 	if (over_write)
 		cs40l2x_save_waveform_to_ovwr_struct(cs40l2x,
