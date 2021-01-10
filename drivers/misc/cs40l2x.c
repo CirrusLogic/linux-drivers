@@ -420,123 +420,6 @@ static int cs40l2x_create_wvfrm_len_type_pairs(struct cs40l2x_private *cs40l2x)
 	return 0;
 }
 
-static int cs40l2x_calc_index_samples(struct cs40l2x_private *cs40l2x,
-	unsigned int *index_samples)
-{
-	unsigned int index, factor, len_indx, actual_wvfrm_len;
-	unsigned int total_wvfrm_len = 0;
-	int i;
-
-	for (i = 0; i < cs40l2x->comp_sets_size; i++) {
-		if ((!cs40l2x->comp_sets[i].index) &&
-			(!cs40l2x->comp_sets[i].amp) &&
-			(!cs40l2x->comp_sets[i].dur))
-			continue;
-		index = cs40l2x->comp_sets[i].index;
-		factor = (cs40l2x->comp_sets[i].rpt + 1);
-		len_indx = index * 2;
-		/* First check for indefinite PWLE */
-		if ((cs40l2x->wvfrm_lengths[len_indx + 1] -
-			(CS40L2X_WT_COMP_INDEFINITE +
-			CS40L2X_WT_COMP_LEN_CALCD)) != 0) {
-			/* Make sure not index 0, not Q-Factor,
-			 * not composite and bit 23 is set in length
-			 */
-			if ((cs40l2x->wvfrm_lengths[len_indx] != 0) &&
-				(cs40l2x->wvfrm_lengths[len_indx] !=
-					CS40L2X_WT_TYPE_11_Q_FILE) &&
-				(cs40l2x->wvfrm_lengths[len_indx] !=
-					CS40L2X_WT_TYPE_10_COMP_FILE) &&
-				(cs40l2x->wvfrm_lengths[len_indx + 1] >
-					CS40L2X_WT_COMP_LEN_CALCD)) {
-				actual_wvfrm_len =
-					(cs40l2x->wvfrm_lengths[len_indx + 1] -
-					CS40L2X_WT_COMP_LEN_CALCD);
-				if (cs40l2x->comp_sets[i].dur)
-					actual_wvfrm_len =
-						(cs40l2x->comp_sets[i].dur * 8);
-				total_wvfrm_len +=
-					(actual_wvfrm_len * factor);
-			} else {
-				dev_err(cs40l2x->dev,
-					"Invalid pbq value detected\n");
-				return -EINVAL;
-			}
-		} else {
-			if (cs40l2x->comp_sets[i].dur) {
-				actual_wvfrm_len =
-					(cs40l2x->comp_sets[i].dur * 8);
-			} else {
-				dev_err(cs40l2x->dev,
-					"Indefinite pbq must have duration.\n");
-				return -EINVAL;
-			}
-			total_wvfrm_len +=
-				(actual_wvfrm_len * factor);
-		}
-	}
-	*index_samples = total_wvfrm_len;
-
-	return 0;
-}
-
-static void cs40l2x_calc_delay_samples(struct cs40l2x_private *cs40l2x,
-	unsigned int *delay_samples)
-{
-	unsigned int delay, factor;
-	unsigned int total = 0;
-	int i;
-
-	for (i = 0; i < cs40l2x->comp_sets_size; i++) {
-		if ((!cs40l2x->comp_sets[i].index) &&
-			(!cs40l2x->comp_sets[i].amp) &&
-			(!cs40l2x->comp_sets[i].dur)) {
-			delay = cs40l2x->comp_sets[i].delay;
-			factor = (cs40l2x->comp_sets[i].rpt + 1);
-			total += (delay * factor);
-		}
-	}
-	/* To get samples per ms */
-	*delay_samples = (total * 8);
-}
-
-static int cs40l2x_calc_wvfrm_samples(struct cs40l2x_private *cs40l2x,
-	unsigned int *wvfrm_samples)
-{
-	unsigned int index_samples;
-	unsigned int delay_samples;
-	unsigned int outer_loop_repeat;
-	int pos = CS40L2X_WT_COMP_REPEAT_INDX;
-	int ret;
-
-	outer_loop_repeat = cs40l2x->pbq_fw_composite[pos];
-
-	/* Infinite outer loop repeat */
-	if (outer_loop_repeat == CS40L2X_WT_COMP_INDEF_OUTER) {
-		*wvfrm_samples = (CS40L2X_WT_COMP_INDEFINITE +
-			CS40L2X_WT_COMP_LEN_CALCD);
-	} else {
-		ret = cs40l2x_calc_index_samples(cs40l2x,
-			&index_samples);
-
-		if (ret)
-			return ret;
-
-		cs40l2x_calc_delay_samples(cs40l2x,
-			&delay_samples);
-
-		*wvfrm_samples = ((index_samples + delay_samples) *
-			(outer_loop_repeat + 1));
-
-		if (*wvfrm_samples > CS40L2X_WT_MAX_SAMPLES)
-			return -EINVAL;
-
-		*wvfrm_samples = (*wvfrm_samples + CS40L2X_WT_COMP_LEN_CALCD);
-	}
-
-	return 0;
-}
-
 static int cs40l2x_to_bytes_msb(unsigned int val, int len, char **byte_data)
 {
 	char two_bytes[2] = {0, 0};
@@ -1194,20 +1077,14 @@ static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 static int cs40l2x_convert_and_save_comp_data(struct cs40l2x_private *cs40l2x,
 					      bool over_write)
 {
-	int ret = 0;
 	unsigned int comp_size;
-	unsigned int wvfrm_samples;
 	char *raw_composite_data;
+	int ret = 0;
 
 	raw_composite_data = kzalloc(CS40L2X_SINGLE_PACKED_MAX, GFP_KERNEL);
 	if (!raw_composite_data)
 		return -ENOMEM;
 
-	ret = cs40l2x_calc_wvfrm_samples(cs40l2x, &wvfrm_samples);
-	if (ret)
-		goto err_free;
-
-	cs40l2x->pbq_comp.wlength = wvfrm_samples;
 	comp_size = cs40l2x_write_comp(cs40l2x, raw_composite_data,
 				       CS40L2X_SINGLE_PACKED_MAX,
 				       &cs40l2x->pbq_comp);
@@ -1509,6 +1386,52 @@ static ssize_t cs40l2x_cp_trigger_queue_show(struct device *dev,
 	return len;
 }
 
+static int cs40l2x_comp_finalise_section(struct cs40l2x_private *cs40l2x)
+{
+	struct wt_type10_comp *comp = &cs40l2x->pbq_comp;
+	struct wt_type10_comp_section *sec = &comp->sections[comp->nsections];
+	unsigned int lindex = sec->index * 2;
+	int slen = 0;
+
+	if (sec->index) {
+		switch (cs40l2x->wvfrm_lengths[lindex]) {
+		case CS40L2X_WT_TYPE_8_PCM_FILE:
+		case CS40L2X_WT_TYPE_9_VAR_FILE:
+		case CS40L2X_WT_TYPE_12_PWLE_FILE:
+			break;
+		default:
+			dev_err(cs40l2x->dev, "Invalid PBQ waveform\n");
+			return -EINVAL;
+		}
+
+		slen = cs40l2x->wvfrm_lengths[lindex + 1];
+
+		if (slen & WT_WAVELEN_INDEFINITE) {
+			if (!(sec->flags & WT_T10_FLAG_DURATION)) {
+				dev_err(cs40l2x->dev, "Indefinite PBQ entry needs duration\n");
+				return -EINVAL;
+			}
+
+			slen = WT_WAVELEN_MAX;
+		} else {
+			slen &= WT_WAVELEN_MAX;
+		}
+	}
+
+	slen += sec->delay * 8;
+
+	if (sec->flags & WT_T10_FLAG_DURATION)
+		slen = min(slen, 2 * sec->duration);
+
+	comp->wlength += slen;
+	comp->nsections++;
+
+	if (comp->nsections == WT_MAX_SECTIONS)
+		return -E2BIG;
+
+	return slen;
+}
+
 static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 			struct device_attribute *attr,
 			const char *buf, size_t count)
@@ -1517,45 +1440,22 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 	struct i2c_client *i2c_client = to_i2c_client(cs40l2x->dev);
 	struct wt_type10_comp *comp = &cs40l2x->pbq_comp;
 	struct wt_type10_comp_section *section;
-	struct cs40l2x_composite_data empty_comp;
-	char *pbq_str_alloc, *pbq_str, *pbq_str_tok, *pbq_temp;
-	char *pbq_seg_alloc, *pbq_seg, *pbq_seg_tok;
-	size_t pbq_seg_len;
-	unsigned int pbq_depth = 0, wav_count = 0, s_cnt = 0;
+	char *pbq_str, *token, *cur;
 	unsigned int num_waves = cs40l2x->num_waves;
-	unsigned int val, num_empty, indx, amp;
-	bool next_is_delay = false;
-	bool inner_flag = false;
-	int ret, l, m, n, f_cnt;
-	int pbq_marker = -1;
+	unsigned int index, amp, val;
+	unsigned int inner_samples = 0;
+	bool inner_loop = false;
+	int ret;
 
-	pbq_str_alloc = kzalloc(count, GFP_KERNEL);
-	if (!pbq_str_alloc)
+	pbq_str = kstrndup(buf, count, GFP_KERNEL);
+	if (!pbq_str)
 		return -ENOMEM;
-
-	pbq_seg_alloc = kzalloc(CS40L2X_PBQ_SEG_LEN_MAX + 1, GFP_KERNEL);
-	if (!pbq_seg_alloc) {
-		kfree(pbq_str_alloc);
-		return -ENOMEM;
-	}
 
 	disable_irq(i2c_client->irq);
 
 	mutex_lock(&cs40l2x->lock);
 
 	cs40l2x->queue_stored = false;
-
-	cs40l2x->comp_dur_en = false;
-	cs40l2x->pbq_fw_composite_len = 0;
-	memset(&cs40l2x->pbq_fw_composite[0], 0,
-		sizeof(cs40l2x->pbq_fw_composite));
-	empty_comp.rpt = 0;
-	empty_comp.index = 0;
-	empty_comp.amp = 0;
-	empty_comp.delay = 0;
-	empty_comp.dur = 0;
-	for (n = 0; n < CS40L2X_PBQ_DEPTH_MAX; n++)
-		cs40l2x->comp_sets[n] = empty_comp;
 
 	if (cs40l2x->virtual_bin)
 		num_waves = cs40l2x->num_waves - CS40L2X_WT_NUM_VIRT_SLOTS;
@@ -1569,308 +1469,195 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 	memset(comp, 0, sizeof(*comp));
 	section = comp->sections;
 
-	cs40l2x->pbq_depth = 0;
-	cs40l2x->pbq_repeat = 0;
+	cur = pbq_str;
 
-	pbq_str = pbq_str_alloc;
-	strlcpy(pbq_str, buf, count);
-
-	pbq_str_tok = strsep(&pbq_str, ",");
-
-	while (pbq_str_tok) {
-		pbq_seg = pbq_seg_alloc;
-		pbq_seg_len = strlcpy(pbq_seg, strim(pbq_str_tok),
-				CS40L2X_PBQ_SEG_LEN_MAX + 1);
-		if (pbq_seg_len > CS40L2X_PBQ_SEG_LEN_MAX) {
-			ret = -E2BIG;
-			goto err_mutex;
-		}
-
-		/* waveform specifier */
-		if (strnchr(pbq_seg, CS40L2X_PBQ_SEG_LEN_MAX, '.')) {
-			/* index */
-			pbq_seg_tok = strsep(&pbq_seg, ".");
-
-			ret = kstrtou32(pbq_seg_tok, 10, &val);
-			if (ret) {
-				ret = -EINVAL;
-				goto err_mutex;
-			}
-			if (val == 0) {
-				pbq_temp = strnchr(pbq_seg, 20, '.');
-				if (pbq_temp == NULL) {
-					/* Valid zero entry not found. */
-					ret = -EINVAL;
-					goto err_mutex;
-				}
-			} else if (val >= num_waves) {
-				dev_err(cs40l2x->dev,
-					"Invalid index detected.\n");
-				ret = -EINVAL;
-				goto err_mutex;
-			}
-			cs40l2x->pbq_pairs[pbq_depth].tag = val;
-			indx = val;
-
-			/* scale */
-			pbq_seg_tok = strsep(&pbq_seg, ".");
-
-			ret = kstrtou32(pbq_seg_tok, 10, &val);
-			if (ret) {
-				ret = -EINVAL;
-				goto err_mutex;
-			}
-			if (val == 0 || val > CS40L2X_PBQ_SCALE_MAX) {
-				dev_err(cs40l2x->dev,
-					"Invalid amplitude detected.\n");
-				ret = -EINVAL;
-				goto err_mutex;
-			}
-			cs40l2x->pbq_pairs[pbq_depth].mag = val;
-			amp = val;
-
-			/* duration */
-			pbq_seg_tok = strsep(&pbq_seg, ".");
-
-			if (pbq_seg_tok != NULL) {
-				ret = kstrtou32(pbq_seg_tok, 10, &val);
-				if (ret) {
-					ret = -EINVAL;
-					goto err_mutex;
-				}
-				if (val == CS40L2X_PWLE_INDEF_TIME_VAL) {
-					if (cs40l2x->comp_dur_min_fw)
-						cs40l2x->comp_dur_en = true;
-					else {
-						dev_err(cs40l2x->dev,
-							"Composite duration not supported in FW.\n");
-						ret = -EINVAL;
-						goto err_mutex;
-					}
-					if (inner_flag)
-						cs40l2x->comp_sets[s_cnt].rpt =
-							CS40L2X_PBQ_INNER_FLAG;
-					cs40l2x->comp_sets[s_cnt].index =
-						indx;
-					cs40l2x->comp_sets[s_cnt].amp = amp;
-					cs40l2x->comp_sets[s_cnt].dur = val;
-					cs40l2x->pbq_pairs[pbq_depth].dur = val;
-					s_cnt++;
-					wav_count++;
-				} else {
-					if (val > CS40L2X_PWLE_MAX_TIME_VAL) {
-						dev_err(cs40l2x->dev,
-							"Valid Duration: 0 to 16383ms, or 65535\n");
-						ret = -EINVAL;
-						goto err_mutex;
-					}
-					if (cs40l2x->comp_dur_min_fw)
-						cs40l2x->comp_dur_en = true;
-					else {
-						dev_err(cs40l2x->dev,
-							"Composite duration not supported in FW.\n");
-						ret = -EINVAL;
-						goto err_mutex;
-					}
-					/* Time = val * 4, due to PWLE spec */
-					if (inner_flag)
-						cs40l2x->comp_sets[s_cnt].rpt =
-							CS40L2X_PBQ_INNER_FLAG;
-					cs40l2x->comp_sets[s_cnt].index =
-						indx;
-					cs40l2x->comp_sets[s_cnt].amp = amp;
-					cs40l2x->comp_sets[s_cnt].dur =
-						(val * 4);
-					cs40l2x->pbq_pairs[pbq_depth].dur = val;
-					s_cnt++;
-					wav_count++;
-				}
-			} else {
-				if (inner_flag)
-					cs40l2x->comp_sets[s_cnt].rpt =
-						CS40L2X_PBQ_INNER_FLAG;
-				cs40l2x->comp_sets[s_cnt].index = indx;
-				cs40l2x->comp_sets[s_cnt].amp = amp;
-				s_cnt++;
-				wav_count++;
-			}
-
-			pbq_depth++;
-
-		/* repetition specifier */
-		} else if (strnchr(pbq_seg, CS40L2X_PBQ_SEG_LEN_MAX, '!')) {
-			val = 0;
-			num_empty = 0;
-
-			pbq_seg_tok = strsep(&pbq_seg, "!");
-
-			while (pbq_seg_tok) {
-				if (strnlen(pbq_seg_tok,
-						CS40L2X_PBQ_SEG_LEN_MAX)) {
-					ret = kstrtou32(pbq_seg_tok, 10, &val);
-					if (ret) {
-						ret = -EINVAL;
-						goto err_mutex;
-					}
-					if (val > CS40L2X_PBQ_REPEAT_MAX) {
-						dev_err(cs40l2x->dev,
-							"Invalid repeat detected.\n");
-						ret = -EINVAL;
-						goto err_mutex;
-					}
-				} else {
-					num_empty++;
-				}
-
-				pbq_seg_tok = strsep(&pbq_seg, "!");
-			}
-
-			/* number of empty tokens reveals specifier type */
-			switch (num_empty) {
-			case 1:	/* outer loop: "n!" or "!n" */
-				if (cs40l2x->pbq_repeat) {
-					ret = -EINVAL;
-					goto err_mutex;
-				}
-				cs40l2x->pbq_repeat = val;
-				break;
-
-			case 2:	/* inner loop stop: "n!!" or "!!n" */
-				if (pbq_marker < 0) {
-					ret = -EINVAL;
-					goto err_mutex;
-				}
-
-				inner_flag = false;
-				for (l = 0; l < s_cnt; l++) {
-					if (cs40l2x->comp_sets[l].rpt ==
-						CS40L2X_PBQ_INNER_FLAG)
-						cs40l2x->comp_sets[l].rpt =
-							val;
-				}
-
-				cs40l2x->pbq_pairs[pbq_depth].tag =
-						CS40L2X_PBQ_TAG_STOP;
-				cs40l2x->pbq_pairs[pbq_depth].mag = pbq_marker;
-				cs40l2x->pbq_pairs[pbq_depth++].repeat = val;
-				pbq_marker = -1;
-				break;
-
-			case 3:	/* inner loop start: "!!" */
-				if (pbq_marker >= 0) {
-					ret = -EINVAL;
-					goto err_mutex;
-				}
-
-				inner_flag = true;
-
-				cs40l2x->pbq_pairs[pbq_depth].tag =
-						CS40L2X_PBQ_TAG_START;
-				pbq_marker = pbq_depth++;
-				break;
-
-			default:
-				ret = -EINVAL;
-				goto err_mutex;
-			}
+	while ((token = strsep(&cur, ","))) {
+		token = strim(token);
 
 		/* loop specifier */
-		} else if (!strcmp(pbq_seg, "~")) {
-			if (cs40l2x->pbq_repeat) {
+		if (!strcmp(token, "~")) {
+			if (comp->repeat) {
+				dev_err(cs40l2x->dev, "Duplicate outer loop specifier\n");
 				ret = -EINVAL;
 				goto err_mutex;
 			}
-			cs40l2x->pbq_repeat = -1;
 
-		/* duration specifier */
-		} else {
-			cs40l2x->pbq_pairs[pbq_depth].tag =
-					CS40L2X_PBQ_TAG_SILENCE;
+			comp->repeat = WT_REPEAT_LOOP_MARKER;
 
-			/* Increment if composite starts with delay */
-			if (pbq_depth == 0)
-				wav_count++;
+		/* inner loop start: "!!" */
+		} else if (!strcmp(token, "!!")) {
+			if (inner_loop) {
+				dev_err(cs40l2x->dev, "Nested inner loop specifier\n");
+				ret = -EINVAL;
+				goto err_mutex;
+			}
 
-			ret = kstrtou32(pbq_seg, 10, &val);
+			if (section->amplitude || section->delay) {
+				ret = cs40l2x_comp_finalise_section(cs40l2x);
+				if (ret < 0)
+					return ret;
+				section++;
+			}
+
+			section->repeat = WT_REPEAT_LOOP_MARKER;
+			inner_loop = true;
+
+		/* inner loop stop: "n!!" */
+		} else if (strstr(token, "!!")) {
+			if (!inner_loop) {
+				dev_err(cs40l2x->dev, "Inner loop with no start\n");
+				ret = -EINVAL;
+				goto err_mutex;
+			}
+
+			ret = kstrtou32(strsep(&token, "!"), 10, &val);
 			if (ret) {
-				ret = -EINVAL;
-				goto err_mutex;
-			}
-			if (val > CS40L2X_PBQ_DELAY_MAX) {
 				dev_err(cs40l2x->dev,
-					"Invalid delay detected.\n");
+					"Failed to parse inner loop specifier: %d\n",
+					ret);
+				goto err_mutex;
+			}
+
+			section->repeat = val;
+			ret = cs40l2x_comp_finalise_section(cs40l2x);
+			if (ret < 0)
+				return ret;
+			section++;
+
+			if (inner_loop)
+				comp->wlength += (inner_samples + ret) * val;
+
+			inner_loop = false;
+			inner_samples = 0;
+
+		/* repetition specifier */
+		} else if (strchr(token, '!')) {
+			if (comp->repeat) {
+				dev_err(cs40l2x->dev, "Duplicate outer loop specifier\n");
 				ret = -EINVAL;
 				goto err_mutex;
 			}
-			cs40l2x->pbq_pairs[pbq_depth++].mag = val;
-			if (inner_flag)
-				cs40l2x->comp_sets[s_cnt].rpt =
-					CS40L2X_PBQ_INNER_FLAG;
-			cs40l2x->comp_sets[s_cnt].delay = val;
-			s_cnt++;
-		}
 
-		if (pbq_depth == CS40L2X_PBQ_DEPTH_MAX) {
-			ret = -E2BIG;
-			goto err_mutex;
-		}
+			ret = kstrtou32(strsep(&token, "!"), 10, &val);
+			if (ret) {
+				dev_err(cs40l2x->dev,
+					"Failed to parse outer loop specifier: %d\n",
+					ret);
+				goto err_mutex;
+			}
 
-		pbq_str_tok = strsep(&pbq_str, ",");
+			comp->repeat = val;
+
+		/* waveform specifier */
+		} else if (strchr(token, '.')) {
+			ret = sscanf(token, "%u.%u.%u", &index, &amp, &val);
+
+			if (ret < 2) {
+				dev_err(cs40l2x->dev,
+					"Failed to parse waveform: %d\n", ret);
+				ret = -EINVAL;
+				goto err_mutex;
+			}
+
+			if ((ret == 2 && index == 0) || index >= num_waves) {
+				dev_err(cs40l2x->dev, "Invalid waveform index\n");
+				ret = -EINVAL;
+				goto err_mutex;
+			}
+			if (amp == 0 || amp > CS40L2X_PBQ_SCALE_MAX) {
+				dev_err(cs40l2x->dev, "Invalid waveform amplitude\n");
+				ret = -EINVAL;
+				goto err_mutex;
+			}
+
+			if (ret == 3) {
+				if (!cs40l2x->comp_dur_min_fw) {
+					dev_err(cs40l2x->dev, "Composite duration not supported by firmware\n");
+					ret = -EINVAL;
+					goto err_mutex;
+				}
+
+				if (val != CS40L2X_PWLE_INDEF_TIME_VAL) {
+					if (val > CS40L2X_PWLE_MAX_TIME_VAL) {
+						dev_err(cs40l2x->dev, "Invalid duration: 0 to 16383ms, or 65535\n");
+						ret = -EINVAL;
+						goto err_mutex;
+					}
+
+					val *= 4; /* Time stored in 1/4 ms */
+				}
+
+				section->flags |= WT_T10_FLAG_DURATION;
+			} else {
+				val = 0;
+			}
+
+			if (section->amplitude || section->delay) {
+				ret = cs40l2x_comp_finalise_section(cs40l2x);
+				if (ret < 0)
+					return ret;
+				section++;
+
+				if (inner_loop)
+					inner_samples += ret;
+			}
+
+			section->index = index;
+			section->amplitude = amp;
+			section->duration = val;
+
+		/* delay specifier */
+		} else {
+			ret = kstrtou32(token, 10, &val);
+			if (ret) {
+				dev_err(cs40l2x->dev,
+					"Failed to parse duration: %d\n", ret);
+				goto err_mutex;
+			}
+
+			if (val > CS40L2X_PBQ_DELAY_MAX) {
+				dev_err(cs40l2x->dev, "Delay too long\n");
+				ret = -EINVAL;
+				goto err_mutex;
+			}
+
+			if (section->delay) {
+				ret = cs40l2x_comp_finalise_section(cs40l2x);
+				if (ret < 0)
+					return ret;
+				section++;
+
+				if (inner_loop)
+					inner_samples += ret;
+			}
+
+			section->delay = val;
+		}
 	}
 
-	cs40l2x->comp_sets_size = s_cnt;
-	cs40l2x->pbq_depth = pbq_depth;
-	ret = count;
-
-	cs40l2x->pbq_fw_composite[0] = 0; /* Placeholder for wvfrm samples */
-	cs40l2x->pbq_fw_composite[1] = cs40l2x->pbq_repeat;
-	cs40l2x->pbq_fw_composite[2] = wav_count;
-
-	comp->repeat = cs40l2x->pbq_repeat;
-
-	f_cnt = 3;
-	for (m = 0; m < cs40l2x->comp_sets_size; m++) {
-		cs40l2x->pbq_fw_composite[f_cnt] = cs40l2x->comp_sets[m].rpt;
-		section->repeat = cs40l2x->comp_sets[m].rpt;
-		f_cnt++;
-		cs40l2x->pbq_fw_composite[f_cnt] = cs40l2x->comp_sets[m].index;
-		section->index = cs40l2x->comp_sets[m].index;
-		f_cnt++;
-		cs40l2x->pbq_fw_composite[f_cnt] = cs40l2x->comp_sets[m].amp;
-		section->amplitude = cs40l2x->comp_sets[m].amp;
-		f_cnt++;
-		/* Check if next one is a delay */
-		if ((!cs40l2x->comp_sets[m + 1].index) &&
-			(!cs40l2x->comp_sets[m + 1].amp) &&
-			(!cs40l2x->comp_sets[m + 1].dur)) {
-			cs40l2x->pbq_fw_composite[f_cnt] =
-				cs40l2x->comp_sets[m + 1].delay;
-				section->delay = cs40l2x->comp_sets[m + 1].delay;
-			next_is_delay = true;
-		}
-		f_cnt++;
-		cs40l2x->pbq_fw_composite[f_cnt] = cs40l2x->comp_sets[m].dur;
-		section->duration = cs40l2x->comp_sets[m].dur;
-		if (section->duration)
-			section->flags |= WT_T10_FLAG_DURATION;
-		f_cnt++;
-		if (next_is_delay) {
-			m++;
-			next_is_delay = false;
-		}
-
-		section++;
-		comp->nsections++;
+	if (section->amplitude || section->delay) {
+		ret = cs40l2x_comp_finalise_section(cs40l2x);
+		if (ret < 0)
+			return ret;
 	}
-	cs40l2x->pbq_fw_composite_len = f_cnt;
+
+	if (comp->repeat == WT_REPEAT_LOOP_MARKER) {
+		comp->wlength = WT_WAVELEN_INDEFINITE;
+	} else {
+		comp->wlength *= comp->repeat + 1;
+		clamp_t(unsigned int, comp->wlength, 0, WT_WAVELEN_MAX);
+	}
+	comp->wlength |= WT_WAVELEN_CALCULATED;
+
 	cs40l2x->last_type_entered = CS40L2X_WT_TYPE_10_COMP_FILE;
 	cs40l2x->queue_stored = true;
+
+	ret = count;
 
 err_mutex:
 	mutex_unlock(&cs40l2x->lock);
 
-	kfree(pbq_str_alloc);
-	kfree(pbq_seg_alloc);
+	kfree(pbq_str);
 
 	enable_irq(i2c_client->irq);
 
