@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  */
 #ifndef __iwl_fw_acpi__
 #define __iwl_fw_acpi__
@@ -114,7 +114,7 @@ extern const guid_t iwl_rfi_guid;
 void *iwl_acpi_get_object(struct device *dev, acpi_string method);
 
 int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
-			const guid_t *guid);
+			const guid_t *guid, u8 *value);
 
 union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 					 union acpi_object *data,
@@ -177,7 +177,7 @@ static inline void *iwl_acpi_get_dsm_object(struct device *dev, int rev,
 }
 
 static inline int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
-				      const guid_t *guid)
+					   const guid_t *guid, u8 *value)
 {
 	return -ENOENT;
 }
