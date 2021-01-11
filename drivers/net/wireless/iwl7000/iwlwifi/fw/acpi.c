@@ -163,6 +163,27 @@ int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_dsm_u8);
 
+/*
+ * Evaluate a DSM with no arguments and a u32 return value,
+ */
+int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
+			 const guid_t *guid, u32 *value)
+{
+	int ret;
+	u64 val;
+
+	ret = iwl_acpi_get_dsm_integer(dev, rev, func,
+				       guid, &val, sizeof(u32));
+
+	if (ret < 0)
+		return ret;
+
+	/* cast val (u64) to be u32 */
+	*value = (u32)val;
+	return 0;
+}
+IWL_EXPORT_SYMBOL(iwl_acpi_get_dsm_u32);
+
 union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 					 union acpi_object *data,
 					 int data_size, int *tbl_rev)
@@ -720,7 +741,6 @@ __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 	/*
 	 ** Evaluate func 'DSM_FUNC_DISABLE_SRD'
 	 */
-
 	ret = iwl_acpi_get_dsm_u8(fwrt->dev, 0,
 				  DSM_FUNC_DISABLE_SRD,
 				  &iwl_guid, &value);
