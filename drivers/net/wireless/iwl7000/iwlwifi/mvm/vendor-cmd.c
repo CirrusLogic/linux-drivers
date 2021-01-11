@@ -394,6 +394,40 @@ static int iwl_vendor_tdls_peer_cache_query(struct wiphy *wiphy,
 }
 #endif /* CPTCFG_IWLMVM_TDLS_PEER_CACHE */
 
+#define IWL_MVM_RFIM_CAPA_CNVI  (BIT(2))
+#define IWL_MVM_RFIM_CAPA_SCAN  (BIT(3))
+#define IWL_MVM_RFIM_CAPA_ASSOC (BIT(4))
+#define IWL_MVM_RFIM_CAPA_TPT   (BIT(5))
+#define IWL_MVM_RFIM_CAPA_ALL	(IWL_MVM_RFIM_CAPA_CNVI	  |\
+				IWL_MVM_RFIM_CAPA_SCAN    |\
+				IWL_MVM_RFIM_CAPA_ASSOC   |\
+				IWL_MVM_RFIM_CAPA_TPT)
+
+static int iwl_vendor_rfim_get_capa(struct wiphy *wiphy,
+				    struct wireless_dev *wdev,
+				    const void *data, int data_len)
+{
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct sk_buff *skb;
+	u8 capa = 0;
+
+	skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, 4);
+	if (!skb)
+		return -ENOMEM;
+
+	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210 &&
+	    mvm->trans->trans_cfg->integrated)
+		capa = IWL_MVM_RFIM_CAPA_ALL;
+
+	if (nla_put_u8(skb, IWL_MVM_VENDOR_ATTR_RFIM_CAPA, capa)) {
+		kfree_skb(skb);
+		return -ENOBUFS;
+	}
+
+	return cfg80211_vendor_cmd_reply(skb);
+}
+
 static int iwl_vendor_rfim_get_table(struct wiphy *wiphy,
 				     struct wireless_dev *wdev,
 				     const void *data, int data_len)
@@ -1700,6 +1734,20 @@ static const struct wiphy_vendor_command iwl_mvm_vendor_commands[] = {
 		},
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV,
 		.doit = iwl_vendor_rfim_get_table,
+#if CFG80211_VERSION >= KERNEL_VERSION(5,3,0)
+		.policy = iwl_mvm_vendor_attr_policy,
+#endif
+#if CFG80211_VERSION >= KERNEL_VERSION(5,3,0)
+		.maxattr = MAX_IWL_MVM_VENDOR_ATTR,
+#endif
+	},
+	{
+		.info = {
+			.vendor_id = INTEL_OUI,
+			.subcmd = IWL_MVM_VENDOR_CMD_RFIM_GET_CAPA,
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV,
+		.doit = iwl_vendor_rfim_get_capa,
 #if CFG80211_VERSION >= KERNEL_VERSION(5,3,0)
 		.policy = iwl_mvm_vendor_attr_policy,
 #endif
