@@ -6283,6 +6283,81 @@ static int cs40l2x_imon_offs_sync(struct cs40l2x_private *cs40l2x)
 	return regmap_write(regmap, reg_calc_enable, val_calc_enable);
 }
 
+static ssize_t cs40l2x_imon_offs_enable_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+	unsigned int reg, val;
+
+	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "VMON_IMON_OFFSET_ENABLE",
+			CS40L2X_XM_UNPACKED_TYPE, cs40l2x->fw_desc->id);
+	if (!reg) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
+	ret = regmap_read(cs40l2x->regmap, reg, &val);
+	if (ret)
+		goto err_mutex;
+
+	ret = snprintf(buf, PAGE_SIZE, "%u\n", val);
+
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
+
+	return ret;
+}
+
+static ssize_t cs40l2x_imon_offs_enable_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
+	unsigned int reg, val;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "VMON_IMON_OFFSET_ENABLE",
+			CS40L2X_XM_UNPACKED_TYPE, cs40l2x->fw_desc->id);
+	if (!reg) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
+	ret = regmap_write(cs40l2x->regmap, reg,
+			val ? CS40L2X_IMON_OFFS_CALC_EN :
+			CS40L2X_IMON_OFFS_CALC_DIS);
+	if (ret)
+		goto err_mutex;
+
+	ret = cs40l2x_dsp_cache(cs40l2x, reg,
+			val ? CS40L2X_IMON_OFFS_CALC_EN :
+			CS40L2X_IMON_OFFS_CALC_DIS);
+	if (ret)
+		goto err_mutex;
+
+	ret = count;
+
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
+
+	return ret;
+}
+
 static ssize_t cs40l2x_clab_enable_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -6791,6 +6866,8 @@ static DEVICE_ATTR(hw_reset, 0660, cs40l2x_hw_reset_show,
 		cs40l2x_hw_reset_store);
 static DEVICE_ATTR(wt_file, 0660, cs40l2x_wt_file_show, cs40l2x_wt_file_store);
 static DEVICE_ATTR(wt_date, 0660, cs40l2x_wt_date_show, NULL);
+static DEVICE_ATTR(vmon_imon_offs_enable, 0660, cs40l2x_imon_offs_enable_show,
+		cs40l2x_imon_offs_enable_store);
 static DEVICE_ATTR(clab_enable, 0660, cs40l2x_clab_enable_show,
 		cs40l2x_clab_enable_store);
 static DEVICE_ATTR(clab_peak, 0660, cs40l2x_clab_peak_show,
@@ -6874,6 +6951,7 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_hw_reset.attr,
 	&dev_attr_wt_file.attr,
 	&dev_attr_wt_date.attr,
+	&dev_attr_vmon_imon_offs_enable.attr,
 	&dev_attr_clab_enable.attr,
 	&dev_attr_clab_peak.attr,
 	&dev_attr_pwle_regulation_enable.attr,
