@@ -1244,7 +1244,7 @@ static int cs40l2x_convert_and_save_comp_data(struct cs40l2x_private *cs40l2x,
 	if (ret)
 		return ret;
 
-	raw_composite_data = devm_kzalloc(cs40l2x->dev,	comp_size, GFP_KERNEL);
+	raw_composite_data = kzalloc(comp_size, GFP_KERNEL);
 	if (!raw_composite_data)
 		return -ENOMEM;
 
@@ -1268,7 +1268,7 @@ static int cs40l2x_convert_and_save_comp_data(struct cs40l2x_private *cs40l2x,
 			comp_size, raw_composite_data);
 
 err_free:
-	devm_kfree(cs40l2x->dev, raw_composite_data);
+	kfree(raw_composite_data);
 
 	return ret;
 }
