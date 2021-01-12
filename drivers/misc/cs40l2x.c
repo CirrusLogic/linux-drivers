@@ -2127,6 +2127,8 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 {
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	struct i2c_client *i2c_client = to_i2c_client(cs40l2x->dev);
+	struct wt_type12_pwle *pwle;
+	struct wt_type12_pwle_section *section;
 	struct cs40l2x_pwle_segment *pwle_seg_struct;
 	char *pwle_str_alloc, *pwle_str, *pwle_str_tok;
 	char *pwle_seg_alloc, *pwle_seg, *pwle_seg_tok;
@@ -2144,14 +2146,23 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 	if (!pwle_str_alloc)
 		return -ENOMEM;
 
+	pwle = kzalloc(sizeof(*pwle), GFP_KERNEL);
+	if (!pwle) {
+		kfree(pwle_str_alloc);
+		return -ENOMEM;
+	}
+	section = pwle->sections;
+
 	pwle_seg_alloc = kzalloc(CS40L2X_PWLE_SEG_LEN_MAX + 1, GFP_KERNEL);
 	if (!pwle_seg_alloc) {
+		kfree(pwle);
 		kfree(pwle_str_alloc);
 		return -ENOMEM;
 	}
 
 	pwle_dec_alloc = kzalloc(CS40L2X_PWLE_SEG_LEN_MAX + 1, GFP_KERNEL);
 	if (!pwle_dec_alloc) {
+		kfree(pwle);
 		kfree(pwle_str_alloc);
 		kfree(pwle_seg_alloc);
 		return -ENOMEM;
@@ -2160,6 +2171,7 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 	pwle_seg_struct = devm_kzalloc(cs40l2x->dev,
 		sizeof(*pwle_seg_struct), GFP_KERNEL);
 	if (!pwle_seg_struct) {
+		kfree(pwle);
 		kfree(pwle_str_alloc);
 		kfree(pwle_seg_alloc);
 		kfree(pwle_dec_alloc);
@@ -2233,6 +2245,8 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 						pwle_seg_tok, num_vals);
 					if (ret)
 						goto err_exit;
+
+					pwle->repeat = cs40l2x->pwle_repeat;
 				}
 			}
 
@@ -2254,6 +2268,8 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 						cs40l2x, pwle_dec, num_vals);
 					if (ret)
 						goto err_exit;
+
+					pwle->wait = cs40l2x->pwle_wait_time;
 				}
 			}
 
@@ -2305,6 +2321,8 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 				if (ret)
 					goto err_exit;
 
+				section->time = pwle_seg_struct->time;
+
 				t = true;
 				pwle_seg_struct->index = num_segs;
 			}
@@ -2327,6 +2345,8 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 				if (ret)
 					goto err_exit;
 
+				section->level = pwle_seg_struct->level;
+
 				l = true;
 			}
 
@@ -2347,6 +2367,8 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 				if (ret)
 					goto err_exit;
 
+				section->frequency = pwle_seg_struct->freq;
+
 				f = true;
 			}
 
@@ -2365,6 +2387,9 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 					ret = -EINVAL;
 					goto err_exit;
 				}
+				if (val)
+					section->flags |= WT_T12_FLAG_CHIRP;
+
 				pwle_seg_struct->chirp = val;
 				c = true;
 			}
@@ -2384,6 +2409,9 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 					ret = -EINVAL;
 					goto err_exit;
 				}
+				if (val)
+					section->flags |= WT_T12_FLAG_BRAKE;
+
 				pwle_seg_struct->brake = val;
 				b = true;
 			}
@@ -2404,6 +2432,9 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 						ret = -EINVAL;
 						goto err_exit;
 					}
+					if (val)
+						section->flags |= WT_T12_FLAG_AMP_REG;
+
 					pwle_seg_struct->amp_reg = val;
 					a = true;
 
@@ -2430,12 +2461,15 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 				if (ret)
 					goto err_exit;
 
+				section->vbtarget = pwle_seg_struct->vb_targ;
+
 				v = true;
 
 				list_add(&pwle_seg_struct->list,
 					&cs40l2x->pwle_segment_head);
 
 				num_segs++;
+				section++;
 			}
 		}
 		num_vals++;
@@ -2451,11 +2485,16 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 		goto err_exit;
 	}
 
+	pwle->nsections = num_segs;
+
 	strlcpy(cs40l2x->pwle_str, buf, count);
 	cs40l2x->pwle_str_size = count;
 
 	cs40l2x->pwle_num_segs = num_segs;
 	cs40l2x_calc_pwle_samples(cs40l2x, accu_time, indef);
+
+	pwle->wlength = cs40l2x->pwle_wvfrm_len;
+
 	ret = cs40l2x_save_packed_pwle_data(cs40l2x);
 	if (ret) {
 		dev_err(cs40l2x->dev,
@@ -2474,6 +2513,7 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 err_exit:
 	mutex_unlock(&cs40l2x->lock);
 
+	kfree(pwle);
 	kfree(pwle_str_alloc);
 	kfree(pwle_seg_alloc);
 	kfree(pwle_dec_alloc);
