@@ -240,6 +240,32 @@ static int cs40l2x_write_comp(struct cs40l2x_private *cs40l2x, void *buf,
 	return dspmem_chunk_bytes(&ch);
 }
 
+static int cs40l2x_write_pwle(struct cs40l2x_private *cs40l2x, void *buf,
+			      int size, struct wt_type12_pwle *wave)
+{
+	struct dspmem_chunk ch = dspmem_chunk(buf, size);
+	int i;
+
+	dspmem_chunk_write(&ch, 24, wave->wlength);
+	dspmem_chunk_write(&ch, 8, wave->repeat);
+	dspmem_chunk_write(&ch, 12, wave->wait);
+	dspmem_chunk_write(&ch, 8, wave->nsections);
+
+	for (i = 0; i < wave->nsections; i++) {
+		dspmem_chunk_write(&ch, 16, wave->sections[i].time);
+		dspmem_chunk_write(&ch, 12, wave->sections[i].level);
+		dspmem_chunk_write(&ch, 12, wave->sections[i].frequency);
+		dspmem_chunk_write(&ch, 8, wave->sections[i].flags);
+
+		if (wave->sections[i].flags & WT_T12_FLAG_AMP_REG)
+			dspmem_chunk_write(&ch, 24, wave->sections[i].vbtarget);
+	}
+
+	dspmem_chunk_flush(&ch);
+
+	return dspmem_chunk_bytes(&ch);
+}
+
 static void cs40l2x_set_state(struct cs40l2x_private *cs40l2x, bool state)
 {
 	if (cs40l2x->vibe_state != state) {
@@ -1721,14 +1747,12 @@ static int cs40l2x_calc_pwle_bytes(struct cs40l2x_private *cs40l2x)
 	return unpadded_bytes;
 }
 
-static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x)
+static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x,
+					 struct wt_type12_pwle *pwle)
 {
-	char *three_bytes_data, *two_bytes_data, *unpadded_data, *zero_pad_data;
-	char wait_time_byte, num_segs_byte, b_four_time, time_byte;
-	struct cs40l2x_pwle_segment *pwle_seg_struct;
-	int zero_pad_count = 0, count = 0, ret = 0;
+	char *zero_pad_data;
+	int ret = 0;
 	unsigned int zero_pad_size, pwle_size;
-	int i, k;
 
 	pwle_size = cs40l2x_calc_pwle_bytes(cs40l2x);
 	zero_pad_size = ((pwle_size / 3) + pwle_size);
@@ -1738,139 +1762,11 @@ static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x)
 		return -ENOSPC;
 	}
 
-	unpadded_data = devm_kzalloc(cs40l2x->dev, pwle_size, GFP_KERNEL);
-	if (!unpadded_data)
+	zero_pad_data = kzalloc(zero_pad_size, GFP_KERNEL);
+	if (!zero_pad_data)
 		return -ENOMEM;
 
-	zero_pad_data = devm_kzalloc(cs40l2x->dev, zero_pad_size, GFP_KERNEL);
-	if (!zero_pad_data) {
-		devm_kfree(cs40l2x->dev, unpadded_data);
-		return -ENOMEM;
-	}
-
-	cs40l2x->two_bytes[0] = CS40L2X_ZERO_INIT;
-	cs40l2x->two_bytes[1] = CS40L2X_ZERO_INIT;
-	two_bytes_data = cs40l2x->two_bytes;
-
-	cs40l2x->three_bytes[0] = CS40L2X_ZERO_INIT;
-	cs40l2x->three_bytes[1] = CS40L2X_ZERO_INIT;
-	cs40l2x->three_bytes[2] = CS40L2X_ZERO_INIT;
-	three_bytes_data = cs40l2x->three_bytes;
-
-	/* Wvfrm Length in samples */
-	cs40l2x_to_bytes_msb(cs40l2x->pwle_wvfrm_len,
-		CS40L2X_WT_WORD_SIZE, &three_bytes_data);
-	for (i = 0; i < CS40L2X_WT_WORD_SIZE; i++) {
-		unpadded_data[count] = three_bytes_data[i];
-		count++;
-	}
-
-	/* Repeat, wait time and first 4 bits of num_segs */
-	unpadded_data[count] = cs40l2x->pwle_repeat;
-	count++;
-	cs40l2x_to_bytes_msb(cs40l2x->pwle_wait_time,
-		CS40L2X_TWO_BYTES, &two_bytes_data);
-	unpadded_data[count] = ((cs40l2x->two_bytes[0] << 4) +
-		(cs40l2x->two_bytes[1] >> 4));
-	count++;
-	wait_time_byte = (two_bytes_data[1] << 4);
-	num_segs_byte = cs40l2x->pwle_num_segs;
-	/* Last 4bits wait time and first 4bits num segs */
-	unpadded_data[count] = ((num_segs_byte >> 4) +
-		wait_time_byte);
-	count++;
-	b_four_time = (num_segs_byte << 4);
-
-	if (list_empty(&cs40l2x->pwle_segment_head)) {
-		ret = -EINVAL;
-		goto err_release;
-	}
-
-	list_for_each_entry_reverse(pwle_seg_struct,
-		&cs40l2x->pwle_segment_head, list) {
-		cs40l2x->two_bytes[0] = CS40L2X_ZERO_INIT;
-		cs40l2x->two_bytes[1] = CS40L2X_ZERO_INIT;
-		cs40l2x_to_bytes_msb(pwle_seg_struct->time,
-			CS40L2X_TWO_BYTES, &two_bytes_data);
-		unpadded_data[count] += ((cs40l2x->two_bytes[0] >>
-			CS40L2X_FOUR_BITS) + b_four_time);
-		count++;
-		unpadded_data[count] = ((cs40l2x->two_bytes[0] <<
-			CS40L2X_FOUR_BITS) + (cs40l2x->two_bytes[1] >>
-			CS40L2X_FOUR_BITS));
-		count++;
-		time_byte = (cs40l2x->two_bytes[1] << CS40L2X_FOUR_BITS);
-		cs40l2x->two_bytes[0] = CS40L2X_ZERO_INIT;
-		cs40l2x->two_bytes[1] = CS40L2X_ZERO_INIT;
-		cs40l2x_to_bytes_msb(pwle_seg_struct->level,
-			CS40L2X_TWO_BYTES, &two_bytes_data);
-		/* Last 4bits time + first 4bits level */
-		unpadded_data[count] = ((cs40l2x->two_bytes[0] &
-			CS40L2X_LS_FOUR_BYTE_MASK) + time_byte);
-		count++;
-		unpadded_data[count] = (cs40l2x->two_bytes[1]);
-		count++;
-		cs40l2x->two_bytes[0] = CS40L2X_ZERO_INIT;
-		cs40l2x->two_bytes[1] = CS40L2X_ZERO_INIT;
-		cs40l2x_to_bytes_msb(pwle_seg_struct->freq,
-			CS40L2X_TWO_BYTES, &two_bytes_data);
-		unpadded_data[count] = ((cs40l2x->two_bytes[0] <<
-			CS40L2X_FOUR_BITS) + (cs40l2x->two_bytes[1] >>
-			CS40L2X_FOUR_BITS));
-		count++;
-		unpadded_data[count] = (cs40l2x->two_bytes[1] <<
-			CS40L2X_FOUR_BITS);
-		if (pwle_seg_struct->chirp)
-			unpadded_data[count] += CS40L2X_PWLE_CHIRP_BIT;
-		if (pwle_seg_struct->brake)
-			unpadded_data[count] += CS40L2X_PWLE_BRAKE_BIT;
-		if (pwle_seg_struct->amp_reg) {
-			unpadded_data[count] += CS40L2X_PWLE_AMP_REG_BIT;
-			count++;
-			cs40l2x->three_bytes[0] = CS40L2X_ZERO_INIT;
-			cs40l2x->three_bytes[1] = CS40L2X_ZERO_INIT;
-			cs40l2x->three_bytes[2] = CS40L2X_ZERO_INIT;
-			cs40l2x_to_bytes_msb(pwle_seg_struct->vb_targ,
-				CS40L2X_WT_WORD_SIZE, &three_bytes_data);
-			unpadded_data[count] = (cs40l2x->three_bytes[0] >>
-				CS40L2X_FOUR_BITS);
-			count++;
-			unpadded_data[count] = ((cs40l2x->three_bytes[0] <<
-				CS40L2X_FOUR_BITS) + (cs40l2x->three_bytes[1] >>
-				CS40L2X_FOUR_BITS));
-			count++;
-			unpadded_data[count] = ((cs40l2x->three_bytes[1] <<
-				CS40L2X_FOUR_BITS) + (cs40l2x->three_bytes[2] >>
-				CS40L2X_FOUR_BITS));
-			count++;
-			unpadded_data[count] = (cs40l2x->three_bytes[2] <<
-				CS40L2X_FOUR_BITS);
-			b_four_time = (cs40l2x->three_bytes[2] <<
-				CS40L2X_FOUR_BITS);
-		} else {
-			count++;
-			unpadded_data[count] = CS40L2X_ZERO_VAL;
-			b_four_time = CS40L2X_ZERO_VAL;
-			/* Last 4bits of chirp byte are unused */
-		}
-	}
-	count++;
-	unpadded_data[count] = CS40L2X_ZERO_VAL;
-	count++;
-	unpadded_data[count] = CS40L2X_ZERO_VAL;
-	/* PWLE requires two zeros at end to complete last word */
-
-	/* Add zero padding bytes */
-	zero_pad_data[zero_pad_count] = CS40L2X_ZERO_VAL;
-	zero_pad_count++;
-	for (k = 0; k < count; k++) {
-		zero_pad_data[zero_pad_count] = unpadded_data[k];
-		zero_pad_count++;
-		if ((((k + 1) % 3) == 0) && ((k + 1) != count)) {
-			zero_pad_data[zero_pad_count] = CS40L2X_ZERO_VAL;
-			zero_pad_count++;
-		}
-	}
+	cs40l2x_write_pwle(cs40l2x, zero_pad_data, zero_pad_size, pwle);
 
 	if (cs40l2x->save_pwle) {
 		ret = cs40l2x_add_waveform_to_virtual_list(cs40l2x,
@@ -1885,9 +1781,7 @@ static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x)
 			zero_pad_size, zero_pad_data);
 	}
 
-err_release:
-	devm_kfree(cs40l2x->dev, unpadded_data);
-	devm_kfree(cs40l2x->dev, zero_pad_data);
+	kfree(zero_pad_data);
 
 	return ret;
 }
@@ -2503,7 +2397,7 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 
 	pwle->wlength = cs40l2x->pwle_wvfrm_len;
 
-	ret = cs40l2x_save_packed_pwle_data(cs40l2x);
+	ret = cs40l2x_save_packed_pwle_data(cs40l2x, pwle);
 	if (ret) {
 		dev_err(cs40l2x->dev,
 			"Malformed PWLE. No segments found.\n");
