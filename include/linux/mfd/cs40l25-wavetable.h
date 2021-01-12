@@ -39,4 +39,25 @@ struct wt_type10_comp {
 	struct wt_type10_comp_section sections[WT_MAX_SECTIONS];
 };
 
+#define WT_T12_FLAG_CHIRP	BIT(7)
+#define WT_T12_FLAG_BRAKE	BIT(6)
+#define WT_T12_FLAG_AMP_REG	BIT(5)
+
+struct wt_type12_pwle_section {
+	u16 time;
+	u16 level;
+	u16 frequency;
+	u8 flags;
+	u32 vbtarget;
+};
+
+struct wt_type12_pwle {
+	u32 wlength;
+	u8 repeat;
+	u16 wait;
+	u8 nsections;
+
+	struct wt_type12_pwle_section sections[WT_MAX_SECTIONS];
+};
+
 #endif
