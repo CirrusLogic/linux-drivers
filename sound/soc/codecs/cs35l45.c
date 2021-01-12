@@ -585,6 +585,16 @@ static int cs35l45_global_en_ev(struct snd_soc_dapm_widget *w,
 
 	return ret;
 }
+static void cs35l45_hibernate_work(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct cs35l45_private *cs35l45 =
+		container_of(dwork, struct cs35l45_private, hb_work);
+
+	mutex_lock(&cs35l45->hb_lock);
+	cs35l45_hibernate(cs35l45, true);
+	mutex_unlock(&cs35l45->hb_lock);
+}
 
 static const char * const pcm_tx_txt[] = {"Zero", "ASP_RX1", "ASP_RX2", "VMON",
 			"IMON", "ERR_VOL", "VDD_BATTMON", "VDD_BSTMON",
@@ -1021,11 +1031,10 @@ static int cs35l45_hibernate_mode_put(struct snd_kcontrol *kcontrol,
 			snd_soc_kcontrol_component(kcontrol);
 	struct cs35l45_private *cs35l45 =
 			snd_soc_component_get_drvdata(component);
-	int ret;
 
-	ret = cs35l45_hibernate(cs35l45, ucontrol->value.integer.value[0]);
-	if (ret < 0)
-		dev_err(cs35l45->dev, "Set hibernate mode failed (%d)\n", ret);
+	dev_dbg(cs35l45->dev, "Set hibernation mode to (%d)\n",
+			(int) (ucontrol->value.integer.value[0]));
+	cs35l45->hibernate_mode = ucontrol->value.integer.value[0];
 
 	return 0;
 }
@@ -1072,6 +1081,15 @@ static int cs35l45_dsp_boot_put(struct snd_kcontrol *kcontrol,
 				   CS35L45_SYNC_SW_EN_MASK,
 				   CS35L45_SYNC_SW_EN_MASK);
 	} else {
+		cancel_delayed_work_sync(&cs35l45->hb_work);
+
+		if (cs35l45->hibernate_state == HIBER_MODE_EN) {
+			dev_dbg(cs35l45->dev, "Wake up AMP\n");
+			mutex_lock(&cs35l45->hb_lock);
+			cs35l45_hibernate(cs35l45, false);
+			mutex_unlock(&cs35l45->hb_lock);
+		}
+
 		snd_soc_component_disable_pin(component, "DSP1 Enable");
 		cs35l45_set_dapm_route_mode(cs35l45, DAPM_MODE_ASP);
 
@@ -1478,16 +1496,35 @@ static int cs35l45_dai_startup(struct snd_pcm_substream *substream,
 	struct cs35l45_private *cs35l45 =
 			snd_soc_component_get_drvdata(dai->component);
 
-	if (cs35l45->hibernate_mode == HIBER_MODE_EN) {
-		dev_err(cs35l45->dev,
-			"Amp is hibernating; please wake up first\n");
-		return -EPERM;
+	cancel_delayed_work_sync(&cs35l45->hb_work);
+
+	if (cs35l45->hibernate_state == HIBER_MODE_EN) {
+		dev_dbg(cs35l45->dev, "Wake up AMP\n");
+		mutex_lock(&cs35l45->hb_lock);
+		cs35l45_hibernate(cs35l45, false);
+		mutex_unlock(&cs35l45->hb_lock);
 	}
 
 	return 0;
 }
+static void cs35l45_dai_shutdown(struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *dai)
+{
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(dai->component);
 
+	cancel_delayed_work_sync(&cs35l45->hb_work);
+
+	if ((cs35l45->hibernate_mode == HIBER_MODE_EN) &&
+	    (cs35l45->hibernate_state == HIBER_MODE_DIS))  {
+		dev_dbg(cs35l45->dev, "Schedule sleep time\n");
+		queue_delayed_work(cs35l45->wq, &cs35l45->hb_work,
+					msecs_to_jiffies(2000));
+	}
+
+}
 static const struct snd_soc_dai_ops cs35l45_dai_ops = {
+	.shutdown = cs35l45_dai_shutdown,
 	.startup = cs35l45_dai_startup,
 	.set_fmt = cs35l45_dai_set_fmt,
 	.hw_params = cs35l45_dai_hw_params,
@@ -2262,7 +2299,7 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 		{CS35L45_ASPTX2_INPUT,	CS35L45_PCM_SRC_MASK, 0},
 		{CS35L45_ASPTX3_INPUT,	CS35L45_PCM_SRC_MASK, 0},
 		{CS35L45_ASPTX4_INPUT,	CS35L45_PCM_SRC_MASK, 0},
-		{CS35L45_DSP1RX1_INPUT,	CS35L45_PCM_SRC_MASK, 0},
+		{CS35L45_DSP1RX1_INPUT, CS35L45_PCM_SRC_MASK, 0},
 		{CS35L45_DSP1RX2_INPUT, CS35L45_PCM_SRC_MASK, 0},
 		{CS35L45_DSP1RX3_INPUT, CS35L45_PCM_SRC_MASK, 0},
 		{CS35L45_DSP1RX4_INPUT, CS35L45_PCM_SRC_MASK, 0},
@@ -2281,7 +2318,7 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 		{CS35L45_REFCLK_INPUT, CS35L45_PLL_FORCE_EN_MASK, 0},
 	};
 
-	if (hiber_en == cs35l45->hibernate_mode)
+	if (cs35l45->hibernate_state == hiber_en)
 		return 0;
 
 	if (!cs35l45->dsp.booted) {
@@ -2310,6 +2347,7 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 		cs35l45->initialized = false;
 
 		regcache_cache_only(cs35l45->regmap, true);
+		dev_dbg(cs35l45->dev, "Enter into hibernation state\n");
 	} else  /* HIBER_MODE_DIS */ {
 		for (i = 0; i < ARRAY_SIZE(mixer_cache); i++)
 			regmap_read(cs35l45->regmap, mixer_cache[i].reg,
@@ -2360,9 +2398,10 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 		if (ret < 0)
 			dev_err(cs35l45->dev, "Unable to activate ctl (%d)\n",
 				ret);
+		dev_dbg(cs35l45->dev, "Exit from hibernation state\n");
 	}
 
-	cs35l45->hibernate_mode = hiber_en;
+	cs35l45->hibernate_state = hiber_en;
 
 	return 0;
 }
@@ -2590,8 +2629,10 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 	cs35l45->fast_switch_file_idx = 0;
 
 	INIT_WORK(&cs35l45->dsp_pmd_work, cs35l45_dsp_pmd_work);
+	INIT_DELAYED_WORK(&cs35l45->hb_work, cs35l45_hibernate_work);
 
 	mutex_init(&cs35l45->dsp_pmd_lock);
+	mutex_init(&cs35l45->hb_lock);
 
 	for (i = 0; i < ARRAY_SIZE(cs35l45_supplies); i++)
 		cs35l45->supplies[i].supply = cs35l45_supplies[i];
@@ -2644,6 +2685,12 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 		goto err;
 	}
 
+	cs35l45->wq = create_singlethread_workqueue("cs35l45");
+	if (cs35l45->wq == NULL) {
+		ret = -ENOMEM;
+		goto err_dsp;
+	}
+
 	if (cs35l45->irq) {
 		if (cs35l45->pdata.gpio_ctrl2.invert & (~CS35L45_VALID_PDATA))
 			irq_pol |= IRQF_TRIGGER_HIGH;
@@ -2658,10 +2705,16 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 				 ret);
 	}
 
+	cs35l45->hibernate_state = HIBER_MODE_DIS;
 	return devm_snd_soc_register_component(dev, &cs35l45_component,
 					       &cs35l45_dai, 1);
 
+err_dsp:
+	mutex_destroy(&cs35l45->rate_lock);
+	wm_adsp2_remove(&cs35l45->dsp);
 err:
+	mutex_destroy(&cs35l45->dsp_pmd_lock);
+	mutex_destroy(&cs35l45->hb_lock);
 	regulator_bulk_disable(CS35L45_NUM_SUPPLIES, cs35l45->supplies);
 	return ret;
 }
@@ -2672,6 +2725,10 @@ int cs35l45_remove(struct cs35l45_private *cs35l45)
 	if (cs35l45->reset_gpio)
 		gpiod_set_value_cansleep(cs35l45->reset_gpio, 0);
 
+	mutex_destroy(&cs35l45->dsp_pmd_lock);
+	mutex_destroy(&cs35l45->hb_lock);
+	mutex_destroy(&cs35l45->rate_lock);
+	destroy_workqueue(cs35l45->wq);
 	wm_adsp2_remove(&cs35l45->dsp);
 	regulator_bulk_disable(CS35L45_NUM_SUPPLIES, cs35l45->supplies);
 
