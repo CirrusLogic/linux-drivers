@@ -77,6 +77,7 @@ static struct spi_driver cs40l26_spi_driver = {
 	.driver = {
 		.name = "cs40l26",
 		.of_match_table = cs40l26_of_match,
+		.pm = &cs40l26_pm_ops,
 	},
 
 	.id_table = cs40l26_id_spi,

@@ -33,6 +33,7 @@
 #include <linux/firmware.h>
 #include <linux/sysfs.h>
 #include <linux/bitops.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/firmware/cirrus/cl_dsp.h>
 
@@ -622,10 +623,6 @@
 #define CS40L26_DISABLE			0
 #define CS40L26_ENABLE			1
 
-#define CS40L26_TIMEOUT_COUNT_MIN		1
-#define CS40L26_TIMEOUT_US_MIN			1000
-#define CS40L26_TIMEOUT_US_MAX			1100
-
 #define CS40L26_DSP_CCM_CORE_KILL		0x00000080
 #define CS40L26_DSP_CCM_CORE_RESET		0x00000281
 
@@ -690,17 +687,22 @@
 #define CS40L26_PM_HIBERNATE_TIMEOUT_MS	5000
 
 #define CS40L26_PM_STATE_MAX_READS		10
+#define CS40L26_PM_STATE_STR_LEN		20
+
+#define CS40L26_AUTOSUSPEND_DELAY_MS		2000
 
 /* DSP mailbox controls */
-#define CS40L26_DSP_ACK_TIMEOUT_COUNT		10
+#define CS40L26_DSP_TIMEOUT_US_MIN		1000
+#define CS40L26_DSP_TIMEOUT_US_MAX		1100
+#define CS40L26_DSP_TIMEOUT_COUNT		10
 
 #define CS40L26_DSP_MBOX_RESET			0x0
 
-#define CS40L26_DSP_MBOX_CMD_HIBER			0x02000001
-#define CS40L26_DSP_MBOX_CMD_WAKEUP			0x02000002
-#define CS40L26_DSP_MBOX_CMD_PREVENT_HIBER		0x02000003
-#define CS40L26_DSP_MBOX_CMD_ALLOW_HIBER		0x02000004
-#define CS40L26_DSP_MBOX_CMD_SHUTDOWN			0x02000005
+#define CS40L26_DSP_MBOX_CMD_HIBER		0x02000001
+#define CS40L26_DSP_MBOX_CMD_WAKEUP		0x02000002
+#define CS40L26_DSP_MBOX_CMD_PREVENT_HIBER	0x02000003
+#define CS40L26_DSP_MBOX_CMD_ALLOW_HIBER	0x02000004
+#define CS40L26_DSP_MBOX_CMD_SHUTDOWN		0x02000005
 
 #define CS40L26_DSP_MBOX_BUFFER_BASE		0x028073C0
 #define CS40L26_DSP_MBOX_BUFFER_LEN		0x028073C4
@@ -1036,13 +1038,17 @@ struct cs40l26_private {
 	int num_loaded_coeff_files;
 	u32 num_waves;
 	bool fw_loaded;
+	bool pm_ready;
 };
 
-/* exported functions */
+/* exported function prototypes */
+int cs40l26_resume(struct device *dev);
+int cs40l26_sys_resume(struct device *dev);
+int cs40l26_sys_resume_noirq(struct device *dev);
+int cs40l26_suspend(struct device *dev);
+int cs40l26_sys_suspend(struct device *dev);
+int cs40l26_sys_suspend_noirq(struct device *dev);
 int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state);
-int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
-		enum cs40l26_pm_state state);
-int cs40l26_dsp_read(struct cs40l26_private *cs40l26, u32 reg, u32 *val);
 int cs40l26_probe(struct cs40l26_private *cs40l26,
 		struct cs40l26_platform_data *pdata);
 int cs40l26_remove(struct cs40l26_private *cs40l26);
@@ -1053,9 +1059,9 @@ bool cs40l26_volatile_reg(struct device *dev,  unsigned int reg);
 /* external tables */
 extern struct regulator_bulk_data
 		cs40l26_supplies[CS40L26_NUM_SUPPLIES];
+extern const struct dev_pm_ops cs40l26_pm_ops;
 
 /* sysfs */
 extern struct attribute_group cs40l26_dev_attr_group;
-extern struct attribute_group cs40l26_debug_dev_attr_group;
 
 #endif /* __CS40L26_H__ */
