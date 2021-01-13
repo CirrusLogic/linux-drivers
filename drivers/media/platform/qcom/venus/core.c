@@ -62,7 +62,8 @@ static void venus_sys_error_handler(struct work_struct *work)
 
 	mutex_lock(&core->lock);
 
-	while (pm_runtime_active(core->dev_dec) || pm_runtime_active(core->dev_enc))
+	while ((core->dev_dec && pm_runtime_active(core->dev_dec)) ||
+			(core->dev_enc && pm_runtime_active(core->dev_enc)))
 		msleep(10);
 
 	venus_shutdown(core);
