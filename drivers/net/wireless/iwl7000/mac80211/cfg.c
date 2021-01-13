@@ -445,6 +445,7 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	case WLAN_CIPHER_SUITE_WEP104:
 		if (WARN_ON_ONCE(fips_enabled))
 			return -EINVAL;
+		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
 	case WLAN_CIPHER_SUITE_AES_CMAC:
@@ -3419,6 +3420,7 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
 			if (cfg80211_get_chandef_type(&params->chandef) !=
 			    cfg80211_get_chandef_type(&sdata->u.ibss.chandef))
 				return -EINVAL;
+			break;
 		case NL80211_CHAN_WIDTH_5:
 		case NL80211_CHAN_WIDTH_10:
 		case NL80211_CHAN_WIDTH_20_NOHT:
@@ -4235,6 +4237,17 @@ static int ieee80211_reset_tid_config(struct wiphy *wiphy,
 }
 #endif
 
+static int ieee80211_set_sar_specs(struct wiphy *wiphy,
+				   struct cfg80211_sar_specs *sar)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+
+	if (!local->ops->set_sar_specs)
+		return -EOPNOTSUPP;
+
+	return local->ops->set_sar_specs(&local->hw, sar);
+}
+
 #if CFG80211_VERSION < KERNEL_VERSION(3,14,0)
 static int _wrap_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			 struct ieee80211_channel *chan, bool offchan,
@@ -4427,4 +4440,5 @@ const struct cfg80211_ops mac80211_config_ops = {
 #if CFG80211_VERSION >= KERNEL_VERSION(5,7,0)
 	.reset_tid_config = ieee80211_reset_tid_config,
 #endif
+	.set_sar_specs = ieee80211_set_sar_specs,
 };

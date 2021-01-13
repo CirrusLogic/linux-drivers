@@ -2405,6 +2405,8 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	/* clear bssid only after building the needed mgmt frames */
 	eth_zero_addr(ifmgd->bssid);
 
+	sdata->vif.bss_conf.ssid_len = 0;
+
 	/* remove AP and TDLS peers */
 	sta_info_flush(sdata);
 
@@ -3553,14 +3555,6 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		bss_conf->frame_time_rts_th =
 			le32_get_bits(elems->he_operation->he_oper_params,
 			      IEEE80211_HE_OPERATION_RTS_THRESHOLD_MASK);
-
-		bss_conf->multi_sta_back_32bit =
-			sta->sta.he_cap.he_cap_elem.mac_cap_info[2] &
-			IEEE80211_HE_MAC_CAP2_32BIT_BA_BITMAP;
-
-		bss_conf->ack_enabled =
-			sta->sta.he_cap.he_cap_elem.mac_cap_info[2] &
-			IEEE80211_HE_MAC_CAP2_ACK_EN;
 
 		bss_conf->uora_exists = !!elems->uora_element;
 		if (elems->uora_element)
@@ -5561,6 +5555,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgd_assoc_data *assoc_data;
 	const struct cfg80211_bss_ies *beacon_ies;
 	struct ieee80211_supported_band *sband;
+	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
 	const u8 *ssidie, *ht_ie, *vht_ie;
 	int i, err;
 	bool override = false;
@@ -5578,6 +5573,8 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	}
 	memcpy(assoc_data->ssid, ssidie + 2, ssidie[1]);
 	assoc_data->ssid_len = ssidie[1];
+	memcpy(bss_conf->ssid, assoc_data->ssid, assoc_data->ssid_len);
+	bss_conf->ssid_len = assoc_data->ssid_len;
 	rcu_read_unlock();
 
 	if (ifmgd->associated) {

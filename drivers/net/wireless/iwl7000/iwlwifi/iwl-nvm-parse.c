@@ -109,7 +109,7 @@ static const u16 iwl_uhb_nvm_channels[] = {
 #define IWL_NVM_NUM_CHANNELS_EXT	ARRAY_SIZE(iwl_ext_nvm_channels)
 #define IWL_NVM_NUM_CHANNELS_UHB	ARRAY_SIZE(iwl_uhb_nvm_channels)
 #define NUM_2GHZ_CHANNELS		14
-#define NUM_5GHZ_CHANNELS               37
+#define NUM_5GHZ_CHANNELS		37
 #define FIRST_2GHZ_HT_MINUS		5
 #define LAST_2GHZ_HT_PLUS		9
 #define N_HW_ADDR_MASK			0xF
