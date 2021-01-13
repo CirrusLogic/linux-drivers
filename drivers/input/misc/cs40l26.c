@@ -419,19 +419,14 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 	struct device *dev = cs40l26->dev;
 	struct regmap *regmap = cs40l26->regmap;
 	u32 base, last, len, write_ptr, read_ptr, mbox_response;
-	u32 *buffer;
+	u32 buffer[CS40L26_DSP_MBOX_BUFFER_NUM_REGS];
 	int ret;
-
-	buffer = kmalloc_array(CS40L26_DSP_MBOX_BUFFER_NUM_REGS,
-			sizeof(*buffer), GFP_KERNEL);
-	if (!buffer)
-		return false;
 
 	ret = regmap_bulk_read(regmap, CS40L26_DSP_MBOX_BUFFER_BASE, buffer,
 			CS40L26_DSP_MBOX_BUFFER_NUM_REGS);
 	if (ret) {
 		dev_err(dev, "Failed to read buffer contents\n");
-		goto err_free;
+		return ret;
 	}
 
 	base = buffer[0];
@@ -442,20 +437,18 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 
 	if ((read_ptr - CL_DSP_BYTES_PER_WORD) == write_ptr) {
 		dev_err(dev, "Mailbox buffer is full, info missing\n");
-		ret = -ENOSPC;
-		goto err_free;
+		return -ENOSPC;
 	}
 
 	if (read_ptr == write_ptr) {
-		dev_warn(dev, "No new message to read\n");
-		ret = 0;
-		goto err_free;
+		dev_dbg(dev, "Reached end of queue\n");
+		return 1;
 	}
 
 	ret = regmap_read(regmap, read_ptr, &mbox_response);
 	if (ret) {
 		dev_err(dev, "Failed to read from mailbox buffer\n");
-		goto err_free;
+		return ret;
 	}
 
 	if (read_ptr == last)
@@ -464,55 +457,53 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 		read_ptr += CL_DSP_BYTES_PER_WORD;
 
 	ret = regmap_write(regmap, CS40L26_DSP_MBOX_BUFFER_READ_PTR, read_ptr);
-	if (ret)
+	if (ret) {
 		dev_err(dev, "Failed to update read pointer\n");
-
-err_free:
-	kfree(buffer);
+		return ret;
+	}
 
 	*val = mbox_response;
 
-	return ret;
+	return 0;
 }
 
 static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
 	u32 val = 0;
-	int ret;
 
-	ret = cs40l26_mbox_buffer_read(cs40l26, &val);
-	if (ret)
-		return ret;
+	while (!cs40l26_mbox_buffer_read(cs40l26, &val)) {
+		if ((val & CS40L26_DSP_MBOX_CMD_INDEX_MASK)
+				== CS40L26_DSP_MBOX_PANIC) {
+			dev_alert(dev, "DSP PANIC! Error condition: 0x%06X\n",
+			(u32) (val & CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK));
+			return -ENOTRECOVERABLE;
+		}
 
-	if ((val & CS40L26_DSP_MBOX_CMD_INDEX_MASK)
-			== CS40L26_DSP_MBOX_PANIC) {
-		dev_alert(dev, "DSP PANIC! Error condition: 0x%06X\n",
-		(unsigned int) (val & CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK));
-		return -ENOTRECOVERABLE;
-	}
-
-	switch (val) {
-	case CS40L26_DSP_MBOX_TRIGGER_COMPLETE:
-		dev_dbg(dev, "Trigger Complete\n");
-		break;
-	case CS40L26_DSP_MBOX_PM_AWAKE:
-		dev_dbg(dev, "HALO Core is awake\n");
-		break;
-	case CS40L26_DSP_MBOX_F0_EST_START:
-		/* intentionally fall through */
-	case CS40L26_DSP_MBOX_F0_EST_DONE:
-		/* intentionally fall through */
-	case CS40L26_DSP_MBOX_REDC_EST_START:
-		/* intentionally fall through */
-	case CS40L26_DSP_MBOX_REDC_EST_DONE:
-		/* intentionally fall through */
-	case CS40L26_DSP_MBOX_SYS_ACK:
-		dev_err(dev, "Mbox buffer value (0x%X) not supported\n", val);
-		return -EPERM;
-	default:
-		dev_err(dev, "MBOX buffer value (0x%X) is invalid\n", val);
-		return -EINVAL;
+		switch (val) {
+		case CS40L26_DSP_MBOX_TRIGGER_COMPLETE:
+			dev_dbg(dev, "Trigger Complete\n");
+			break;
+		case CS40L26_DSP_MBOX_PM_AWAKE:
+			dev_dbg(dev, "HALO Core is awake\n");
+			break;
+		case CS40L26_DSP_MBOX_F0_EST_START:
+			/* intentionally fall through */
+		case CS40L26_DSP_MBOX_F0_EST_DONE:
+			/* intentionally fall through */
+		case CS40L26_DSP_MBOX_REDC_EST_START:
+			/* intentionally fall through */
+		case CS40L26_DSP_MBOX_REDC_EST_DONE:
+			/* intentionally fall through */
+		case CS40L26_DSP_MBOX_SYS_ACK:
+			dev_err(dev, "Mbox buffer value (0x%X) not supported\n",
+					val);
+			return -EPERM;
+		default:
+			dev_err(dev, "MBOX buffer value (0x%X) is invalid\n",
+					val);
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -808,8 +799,6 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 		dev_dbg(dev, "Virtual 1 MBOX write occurred\n");
 		break;
 	case CS40L26_IRQ1_VIRTUAL2_MBOX_WR:
-		dev_dbg(dev, "Virtual 2 MBOX write occurred\n");
-
 		ret = cs40l26_handle_mbox_buffer(cs40l26);
 		if (ret)
 			goto err;
