@@ -13,25 +13,26 @@
 
 #include <linux/mfd/cs40l26.h>
 
-int cs40l26_dsp_read(struct cs40l26_private *cs40l26, u32 reg, u32 *val)
+static int cs40l26_dsp_read(struct cs40l26_private *cs40l26, u32 reg, u32 *val)
 {
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
 	int ret, i;
 	u32 read_val;
 
-	for (i = 0; i < CS40L26_DSP_ACK_TIMEOUT_COUNT; i++) {
+	for (i = 0; i < CS40L26_DSP_TIMEOUT_COUNT; i++) {
 		ret = regmap_read(regmap, reg, &read_val);
 		if (ret)
-			dev_warn(dev, "Failed to read 0x%X, attempt(s) = %d\n",
+			dev_dbg(dev, "Failed to read 0x%X, attempt(s) = %d\n",
 					reg, i + 1);
 		else
 			break;
 
-		usleep_range(CS40L26_TIMEOUT_US_MIN, CS40L26_TIMEOUT_US_MAX);
+		usleep_range(CS40L26_DSP_TIMEOUT_US_MIN,
+				CS40L26_DSP_TIMEOUT_US_MAX);
 	}
 
-	if (i >= CS40L26_DSP_ACK_TIMEOUT_COUNT) {
+	if (i >= CS40L26_DSP_TIMEOUT_COUNT) {
 		dev_err(dev, "Timed out attempting to read 0x%X\n", reg);
 		return -ETIME;
 	}
@@ -40,7 +41,6 @@ int cs40l26_dsp_read(struct cs40l26_private *cs40l26, u32 reg, u32 *val)
 
 	return 0;
 }
-EXPORT_SYMBOL(cs40l26_dsp_read);
 
 static int cs40l26_dsp_write(struct cs40l26_private *cs40l26, u32 reg, u32 val)
 {
@@ -48,19 +48,20 @@ static int cs40l26_dsp_write(struct cs40l26_private *cs40l26, u32 reg, u32 val)
 	struct device *dev = cs40l26->dev;
 	int ret, i;
 
-	for (i = 0; i < CS40L26_DSP_ACK_TIMEOUT_COUNT; i++) {
+	for (i = 0; i < CS40L26_DSP_TIMEOUT_COUNT; i++) {
 		ret = regmap_write(regmap, reg, val);
 		if (ret)
-			dev_warn(dev,
+			dev_dbg(dev,
 				"Failed to write to 0x%X, attempt(s) = %d\n",
 				reg, i + 1);
 		else
 			break;
 
-		usleep_range(CS40L26_TIMEOUT_US_MIN, CS40L26_TIMEOUT_US_MAX);
+		usleep_range(CS40L26_DSP_TIMEOUT_US_MIN,
+				CS40L26_DSP_TIMEOUT_US_MAX);
 	}
 
-	if (i >= CS40L26_DSP_ACK_TIMEOUT_COUNT) {
+	if (i >= CS40L26_DSP_TIMEOUT_COUNT) {
 		dev_err(dev, "Timed out attempting to write to 0x%X\n", reg);
 		return -ETIME;
 	}
@@ -68,20 +69,31 @@ static int cs40l26_dsp_write(struct cs40l26_private *cs40l26, u32 reg, u32 val)
 	return 0;
 }
 
-static int cs40l26_ack_read(struct cs40l26_private *cs40l26, u32 reg, u32 ack_val)
+static int cs40l26_ack_read(struct cs40l26_private *cs40l26, u32 reg,
+		u32 ack_val)
 {
 	struct device *dev = cs40l26->dev;
-	int ret;
+	int ret, i;
 	u32 val;
 
-	ret = cs40l26_dsp_read(cs40l26, reg, &val);
-	if (ret)
-		return ret;
+	for (i = 0; i < CS40L26_DSP_TIMEOUT_COUNT; i++) {
+		ret = cs40l26_dsp_read(cs40l26, reg, &val);
+		if (ret)
+			return ret;
 
-	if (val != ack_val) {
-		dev_err(dev, "Read value 0x%X does not match expected 0x%X\n",
-				val, ack_val);
-		return -EINVAL;
+		if (val != ack_val)
+			dev_dbg(dev, "Ack'ed value not equal to expected\n");
+		else
+			break;
+
+		usleep_range(CS40L26_DSP_TIMEOUT_US_MIN,
+				CS40L26_DSP_TIMEOUT_US_MAX);
+	}
+
+	if (i >= CS40L26_DSP_TIMEOUT_COUNT) {
+		dev_err(dev, "Ack timed out (0x%08X != 0x%08X) reg. 0x%08X\n",
+				val, ack_val, reg);
+		return -ETIME;
 	}
 
 	return 0;
@@ -212,6 +224,77 @@ static int cs40l26_pm_shutdown_timeout_ms_get(struct cs40l26_private *cs40l26,
 		((upper_val & CS40L26_PM_TIMEOUT_TICKS_UPPER_MASK) <<
 		CS40L26_PM_TIMEOUT_TICKS_UPPER_SHIFT)) /
 		CS40L26_PM_TICKS_MS_DIV;
+
+	return 0;
+}
+
+static void cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
+{
+	struct device *dev = cs40l26->dev;
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	pm_runtime_set_autosuspend_delay(dev, CS40L26_AUTOSUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(dev);
+
+	cs40l26->pm_ready = true;
+}
+
+static void cs40l26_pm_runtime_teardown(struct cs40l26_private *cs40l26)
+{
+	struct device *dev = cs40l26->dev;
+
+	pm_runtime_set_suspended(dev);
+	pm_runtime_disable(dev);
+	pm_runtime_dont_use_autosuspend(dev);
+
+	cs40l26->pm_ready = false;
+}
+
+static int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
+		enum cs40l26_pm_state state)
+{
+	struct device *dev = cs40l26->dev;
+	u32 cmd;
+	int ret;
+
+	switch (state) {
+	case CS40L26_PM_STATE_HIBERNATE:
+		dev_err(dev, "Invalid PM state: %u\n", state);
+		return -EINVAL;
+	case CS40L26_PM_STATE_WAKEUP:
+		cmd = CS40L26_DSP_MBOX_CMD_WAKEUP;
+		break;
+	case CS40L26_PM_STATE_SHUTDOWN:
+		cmd = CS40L26_DSP_MBOX_CMD_SHUTDOWN;
+		break;
+	case CS40L26_PM_STATE_PREVENT_HIBERNATE:
+		cmd = CS40L26_DSP_MBOX_CMD_PREVENT_HIBER;
+		break;
+	case CS40L26_PM_STATE_ALLOW_HIBERNATE:
+		cmd = CS40L26_DSP_MBOX_CMD_ALLOW_HIBER;
+		break;
+	default:
+		dev_err(dev, "Unknown PM state: %u\n", state);
+		return -EINVAL;
+	}
+
+	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, cmd,
+			CS40L26_DSP_MBOX_RESET);
+	if (ret)
+		return ret;
+
+	/* Verify data is valid after exiting hibernate or shutdown modes */
+	if (cs40l26->pm_state == CS40L26_PM_STATE_SHUTDOWN ||
+			cs40l26->pm_state == CS40L26_PM_STATE_ALLOW_HIBERNATE){
+		ret = cs40l26_ack_read(cs40l26, CL_DSP_HALO_XM_FW_ID_REG,
+				cs40l26->dsp->fw_desc->id);
+		if (ret)
+			return ret;
+	}
+
+	cs40l26->pm_state = state;
 
 	return 0;
 }
@@ -435,53 +518,6 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 	return 0;
 }
 
-int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
-		enum cs40l26_pm_state state)
-{
-	struct device *dev = cs40l26->dev;
-	u32 cmd;
-	int ret;
-
-	if (cs40l26->pm_state == CS40L26_PM_STATE_SHUTDOWN ||
-			cs40l26->pm_state == CS40L26_PM_STATE_ALLOW_HIBERNATE){
-		ret = cs40l26_ack_read(cs40l26, CL_DSP_HALO_XM_FW_ID_REG,
-				cs40l26->dsp->fw_desc->id);
-		if (ret)
-			return ret;
-	}
-
-	switch (state) {
-	case CS40L26_PM_STATE_HIBERNATE:
-		dev_err(dev, "Invalid PM state: %u\n", state);
-		return -EINVAL;
-	case CS40L26_PM_STATE_WAKEUP:
-		cmd = CS40L26_DSP_MBOX_CMD_WAKEUP;
-		break;
-	case CS40L26_PM_STATE_SHUTDOWN:
-		cmd = CS40L26_DSP_MBOX_CMD_SHUTDOWN;
-		break;
-	case CS40L26_PM_STATE_PREVENT_HIBERNATE:
-		cmd = CS40L26_DSP_MBOX_CMD_PREVENT_HIBER;
-		break;
-	case CS40L26_PM_STATE_ALLOW_HIBERNATE:
-		cmd = CS40L26_DSP_MBOX_CMD_ALLOW_HIBER;
-		break;
-	default:
-		dev_err(dev, "Unknown PM state: %u\n", state);
-		return -EINVAL;
-	}
-
-	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, cmd,
-			CS40L26_DSP_MBOX_RESET);
-	if (ret)
-		return ret;
-
-	cs40l26->pm_state = state;
-
-	return 0;
-}
-EXPORT_SYMBOL(cs40l26_pm_state_transition);
-
 static int cs40l26_error_release(struct cs40l26_private *cs40l26,
 		unsigned int err_rls, bool bst_err)
 {
@@ -692,10 +728,6 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 		if (ret)
 			goto err;
 
-		ret = cs40l26_pm_state_transition(cs40l26,
-				CS40L26_PM_STATE_PREVENT_HIBERNATE);
-		if (ret)
-			goto err;
 		break;
 	case CS40L26_IRQ1_WKSRC_STS_GPIO1:
 	/* intentionally fall through */
@@ -933,6 +965,8 @@ static irqreturn_t cs40l26_irq(int irq, void *data)
 		return IRQ_NONE;
 	}
 
+	pm_runtime_get_sync(dev);
+
 	ret = regmap_read(regmap, CS40L26_IRQ1_EINT_1, &eint);
 	if (ret) {
 		dev_err(dev, "Failed to read interrupts status 1\n");
@@ -992,6 +1026,8 @@ static irqreturn_t cs40l26_irq(int irq, void *data)
 	}
 
 err:
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 	/* if an error has occurred, all IRQs have not been successfully
 	 * processed; however, IRQ_HANDLED is still returned if at least one
 	 * interrupt request generated by CS40L26 was handled successfully.
@@ -1012,6 +1048,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	unsigned int reg, freq;
 	u32 index, algo_id;
 
+	pm_runtime_get_sync(dev);
 	mutex_lock(&cs40l26->lock);
 
 	hrtimer_start(&cs40l26->vibe_timer,
@@ -1078,6 +1115,8 @@ err_mutex:
 		cs40l26->vibe_state = CS40L26_VIBE_STATE_STOPPED;
 
 	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 }
 
 static void cs40l26_vibe_stop_worker(struct work_struct *work)
@@ -1086,6 +1125,7 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 			struct cs40l26_private, vibe_stop_work);
 	int ret;
 
+	pm_runtime_get_sync(cs40l26->dev);
 	mutex_lock(&cs40l26->lock);
 
 	if (cs40l26->vibe_state == CS40L26_VIBE_STATE_STOPPED)
@@ -1103,6 +1143,8 @@ err_mutex:
 		cs40l26->vibe_state = CS40L26_VIBE_STATE_STOPPED;
 
 	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
 }
 
 static enum hrtimer_restart cs40l26_vibe_timer(struct hrtimer *timer)
@@ -1278,13 +1320,6 @@ static int cs40l26_input_init(struct cs40l26_private *cs40l26)
 
 	hrtimer_init(&cs40l26->vibe_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	cs40l26->vibe_timer.function = cs40l26_vibe_timer;
-
-	ret = sysfs_create_group(&cs40l26->input->dev.kobj,
-			&cs40l26_debug_dev_attr_group);
-	if (ret) {
-		dev_err(dev, "Failed to create sysfs group: %d\n", ret);
-		return ret;
-	}
 
 	ret = sysfs_create_group(&cs40l26->input->dev.kobj,
 			&cs40l26_dev_attr_group);
@@ -1861,6 +1896,8 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	cs40l26->fw_loaded = true;
 
+	cs40l26_pm_runtime_setup(cs40l26);
+
 	ret = cs40l26_dsp_start(cs40l26);
 	if (ret)
 		return ret;
@@ -1910,7 +1947,9 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 			cs40l26->num_waves);
 
 	enable_irq(cs40l26->irq);
-	return 0;
+
+	return cs40l26_pm_state_transition(cs40l26,
+			CS40L26_PM_STATE_ALLOW_HIBERNATE);
 }
 
 static void cs40l26_coeff_file_load(const struct firmware *fw, void *context)
@@ -1952,6 +1991,8 @@ static void cs40l26_firmware_load(const struct firmware *fw, void *context)
 		dev_err(dev, "Failed to request firmware file\n");
 		return;
 	}
+
+	cs40l26->pm_ready = false;
 
 	ret = cl_dsp_firmware_parse(cs40l26->dsp, fw);
 	release_firmware(fw);
@@ -2157,7 +2198,12 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 	struct regulator *va_consumer =
 			cs40l26_supplies[CS40L26_VA_SUPPLY].consumer;
 
+	disable_irq(cs40l26->irq);
 	mutex_destroy(&cs40l26->lock);
+
+
+	if (cs40l26->pm_ready)
+		cs40l26_pm_runtime_teardown(cs40l26);
 
 	if (cs40l26->vibe_workqueue) {
 		destroy_workqueue(cs40l26->vibe_workqueue);
@@ -2176,12 +2222,9 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 	if (cs40l26->vibe_timer.function)
 		hrtimer_cancel(&cs40l26->vibe_timer);
 
-	if (cs40l26->vibe_init_success) {
+	if (cs40l26->vibe_init_success)
 		sysfs_remove_group(&cs40l26->input->dev.kobj,
 				&cs40l26_dev_attr_group);
-		sysfs_remove_group(&cs40l26->input->dev.kobj,
-				&cs40l26_debug_dev_attr_group);
-	}
 
 	if (cs40l26->input)
 		input_unregister_device(cs40l26->input);
@@ -2189,6 +2232,89 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 	return 0;
 }
 EXPORT_SYMBOL(cs40l26_remove);
+
+int cs40l26_suspend(struct device *dev)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+
+	if (!cs40l26->pm_ready) {
+		dev_dbg(dev, "Suspend call ignored\n");
+		return 0;
+	}
+
+	dev_dbg(cs40l26->dev, "%s: Enabling hibernate\n", __func__);
+
+	return cs40l26_pm_state_transition(cs40l26,
+			CS40L26_PM_STATE_ALLOW_HIBERNATE);
+}
+EXPORT_SYMBOL(cs40l26_suspend);
+
+int cs40l26_sys_suspend(struct device *dev)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	struct i2c_client *i2c_client = to_i2c_client(dev);
+
+	dev_dbg(cs40l26->dev, "System suspend, disabling IRQ\n");
+
+	disable_irq(i2c_client->irq);
+
+	return 0;
+}
+EXPORT_SYMBOL(cs40l26_sys_suspend);
+
+int cs40l26_sys_suspend_noirq(struct device *dev)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	struct i2c_client *i2c_client = to_i2c_client(dev);
+
+	dev_dbg(cs40l26->dev, "Late system suspend, re-enabling IRQ\n");
+	enable_irq(i2c_client->irq);
+
+	return 0;
+}
+EXPORT_SYMBOL(cs40l26_sys_suspend_noirq);
+
+int cs40l26_resume(struct device *dev)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+
+	if (!cs40l26->pm_ready) {
+		dev_dbg(dev, "Resume call ignored\n");
+		return 0;
+	}
+
+	dev_dbg(cs40l26->dev, "%s: Disabling hibernate\n", __func__);
+
+	return cs40l26_pm_state_transition(cs40l26,
+			CS40L26_PM_STATE_PREVENT_HIBERNATE);
+}
+EXPORT_SYMBOL(cs40l26_resume);
+
+int cs40l26_sys_resume(struct device *dev)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	struct i2c_client *i2c_client = to_i2c_client(dev);
+
+	dev_dbg(cs40l26->dev, "System resume, re-enabling IRQ\n");
+
+	enable_irq(i2c_client->irq);
+
+	return 0;
+}
+EXPORT_SYMBOL(cs40l26_sys_resume);
+
+int cs40l26_sys_resume_noirq(struct device *dev)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	struct i2c_client *i2c_client = to_i2c_client(dev);
+
+	dev_dbg(cs40l26->dev, "Early system resume, disabling IRQ\n");
+
+	disable_irq(i2c_client->irq);
+
+	return 0;
+}
+EXPORT_SYMBOL(cs40l26_sys_resume_noirq);
 
 MODULE_DESCRIPTION("CS40L26 Boosted Mono Class D Amplifier for Haptics");
 MODULE_AUTHOR("Fred Treven, Cirrus Logic Inc. <fred.treven@cirrus.com>");
