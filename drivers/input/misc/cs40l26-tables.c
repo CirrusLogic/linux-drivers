@@ -13,6 +13,13 @@
 
 #include <linux/mfd/cs40l26.h>
 
+const struct dev_pm_ops cs40l26_pm_ops = {
+	SET_RUNTIME_PM_OPS(cs40l26_suspend, cs40l26_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(cs40l26_sys_suspend, cs40l26_sys_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(cs40l26_sys_suspend_noirq,
+			cs40l26_sys_resume_noirq)
+};
+
 static const char * const cs40l26_ram_coeff_files[] = {
 	CS40L26_WT_FILE_NAME,
 	CS40L26_SVC_FILE_NAME,
