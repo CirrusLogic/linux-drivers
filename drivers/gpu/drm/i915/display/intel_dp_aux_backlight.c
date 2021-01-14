@@ -128,7 +128,7 @@ static bool intel_dp_aux_vesa_backlight_dpcd_mode(struct intel_connector *connec
  * Read the current backlight value from DPCD register(s) based
  * on if 8-bit(MSB) or 16-bit(MSB and LSB) values are supported
  */
-static u32 intel_dp_aux_vesa_get_backlight(struct intel_connector *connector)
+static u32 intel_dp_aux_vesa_get_backlight(struct intel_connector *connector, enum pipe unused)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
@@ -485,7 +485,7 @@ static int intel_dp_aux_vesa_setup_backlight(struct intel_connector *connector,
 		return -ENODEV;
 
 	panel->backlight.min = 0;
-	panel->backlight.level = intel_dp_aux_vesa_get_backlight(connector);
+	panel->backlight.level = intel_dp_aux_vesa_get_backlight(connector, pipe);
 	panel->backlight.enabled = intel_dp_aux_vesa_backlight_dpcd_mode(connector) &&
 				   panel->backlight.level != 0;
 
