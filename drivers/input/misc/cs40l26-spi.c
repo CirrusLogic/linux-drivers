@@ -27,7 +27,8 @@ static struct regmap_config cs40l26_regmap_spi = {
 };
 
 static const struct spi_device_id cs40l26_id_spi[] = {
-	{"cs40l26", 0},
+	{"cs40l26a", 0},
+	{"cs40l26b", 1},
 	{}
 };
 
@@ -67,7 +68,8 @@ static int cs40l26_spi_remove(struct spi_device *spi)
 }
 
 static const struct of_device_id cs40l26_of_match[] = {
-	{ .compatible = "cirrus,cs40l26" },
+	{ .compatible = "cirrus,cs40l26a" },
+	{ .compatible = "cirrus,cs40l26b" },
 	{ }
 };
 
