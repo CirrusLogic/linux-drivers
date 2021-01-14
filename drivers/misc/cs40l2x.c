@@ -2137,66 +2137,51 @@ static int cs40l2x_pwle_repeat_entry(struct cs40l2x_private *cs40l2x,
 	return ret;
 }
 
-static int cs40l2x_pwle_wait_time_entry(struct cs40l2x_private *cs40l2x,
-	char *pwle_seg_tok, char *pwle_dec, unsigned int num_vals)
+static int cs40l2x_parse_float(char *frac, int *result, int nfracdigits,
+			       int min, int max)
 {
-	unsigned int adder = 0, val = 0;
-	unsigned int dec_val;
-	char *pwle_dec_tok;
+	char *inte, convert[] = "000000000";
+	int ninte, nfrac = 0;
 	int ret;
 
-	if (strnchr(pwle_dec, CS40L2X_PWLE_SEG_LEN_MAX, '.')) {
-		if (strnchr(pwle_dec, 1, '.')) {
-			pwle_dec++;
-			ret = kstrtou32(pwle_dec, 10, &dec_val);
-			if (ret)
-				return -EINVAL;
-			if ((dec_val == 5) &&
-				(strnchr(pwle_dec, 1, '5')))
-				dec_val *= 10;
+	if (strlen(frac) > strlen(convert))
+		return -EOVERFLOW;
 
-			/*
-			 * Wait time resolution is .25ms
-			 * Add one to final wait time for each .25ms
-			 */
-			if (dec_val >= CS40L2X_PWLE_TIME_RES)
-				adder++;
-			if (dec_val >= (CS40L2X_PWLE_TIME_RES * 2))
-				adder++;
-			if (dec_val >= (CS40L2X_PWLE_TIME_RES * 3))
-				adder++;
-		} else {
-			pwle_dec_tok = strsep(&pwle_dec, ".");
-			ret = kstrtou32(pwle_dec_tok, 10, &val);
+	inte = strsep(&frac, ".");
 
-			pwle_dec_tok = strsep(&pwle_dec, ".");
-			ret = kstrtou32(pwle_dec_tok, 10, &dec_val);
-			if (ret)
-				return -EINVAL;
-			if ((dec_val == 5) &&
-				(strnchr(pwle_dec_tok, 1, '5')))
-				dec_val *= 10;
+	ninte = strlen(inte);
+	if (frac)
+		nfrac = strlen(frac);
 
-			if (dec_val >= CS40L2X_PWLE_TIME_RES)
-				adder++;
-			if (dec_val >= (CS40L2X_PWLE_TIME_RES * 2))
-				adder++;
-			if (dec_val >= (CS40L2X_PWLE_TIME_RES * 3))
-				adder++;
-		}
-	} else {
-		ret = kstrtou32(pwle_seg_tok, 10, &val);
-		if (ret)
-			return -EINVAL;
+	memcpy(convert, inte, ninte);
+	memcpy(convert + ninte, frac, min(nfrac, nfracdigits));
+	convert[ninte + nfracdigits] = 0;
+
+	ret = kstrtoint(convert, 10, result);
+	if (ret)
+		return ret;
+
+	if (*result < min || *result > max)
+		return -ERANGE;
+
+	return 0;
+}
+
+static int cs40l2x_pwle_wait_time_entry(struct cs40l2x_private *cs40l2x,
+					char *token, unsigned int num_vals)
+{
+	int val, ret;
+
+	/* Valid values, as per spec, 0mS - 1023.75mS */
+	ret = cs40l2x_parse_float(token, &val, 2, 0, 102375);
+	if (ret) {
+		dev_err(cs40l2x->dev, "Failed to parse wait time: %d\n", ret);
+		return ret;
 	}
 
-	if (val > CS40L2X_PWLE_MAX_WT_VAL)
-		return -EINVAL;
-
 	if (num_vals == 3) {
-		cs40l2x->wvfrm_len_wait_time = val;
-		/* WaitTime = val * 4, due to PWLE spec */
-		cs40l2x->pwle_wait_time = ((val * 4) + adder);
+		cs40l2x->pwle_wait_time = val / (100 / 4);
+		cs40l2x->wvfrm_len_wait_time = cs40l2x->pwle_wait_time / 4;
 	} else {
 		dev_err(cs40l2x->dev,
 			"Malformed PWLE, WaitTime follows Repeat\n");
@@ -2207,396 +2192,84 @@ static int cs40l2x_pwle_wait_time_entry(struct cs40l2x_private *cs40l2x,
 }
 
 static int cs40l2x_pwle_time_entry(struct cs40l2x_private *cs40l2x,
-	char *pwle_seg_tok, char *pwle_dec, unsigned int num_vals,
-	struct cs40l2x_pwle_segment *pwle_seg_struct,
-	unsigned int *accu_time, bool *indef)
+				   char *token, unsigned int num_vals,
+				   struct cs40l2x_pwle_segment *pwle_seg_struct,
+				   unsigned int *accu_time, bool *indef)
 {
-	unsigned int val, dec_val;
-	unsigned int adder = 0;
-	char *pwle_dec_tok;
-	int ret;
+	int val, ret;
 
-	if (strnchr(pwle_seg_tok, CS40L2X_PWLE_SEG_LEN_MAX, '.')) {
-		if (strnchr(pwle_dec, 1, '.')) {
-			val = 0;
-			pwle_dec++;
-			ret = kstrtou32(pwle_dec, 10, &dec_val);
-			if (ret)
-				return -EINVAL;
-
-			/* In case zero is omitted after .5 */
-			if ((dec_val == 5) &&
-				(strnchr(pwle_dec, 1, '5')))
-				dec_val *= 10;
-
-			/*
-			 * Time resolution is .25ms
-			 * Add one to final time for each .25ms
-			 */
-			if (dec_val >= CS40L2X_PWLE_TIME_RES)
-				adder++;
-			if (dec_val >= (CS40L2X_PWLE_TIME_RES * 2))
-				adder++;
-			if (dec_val >= (CS40L2X_PWLE_TIME_RES * 3))
-				adder++;
-		} else {
-			pwle_dec_tok = strsep(&pwle_dec, ".");
-			ret = kstrtou32(pwle_dec_tok, 10, &val);
-
-			pwle_dec_tok = strsep(&pwle_dec, ".");
-			ret = kstrtou32(pwle_dec_tok, 10, &dec_val);
-			if (ret)
-				return -EINVAL;
-
-			/* In case zero is omitted after .5 */
-			if ((dec_val == 5) &&
-				(strnchr(pwle_dec_tok, 1, '5')))
-				dec_val *= 10;
-
-			if (dec_val >= CS40L2X_PWLE_TIME_RES)
-				adder++;
-			if (dec_val >= (CS40L2X_PWLE_TIME_RES * 2))
-				adder++;
-			if (dec_val >= (CS40L2X_PWLE_TIME_RES * 3))
-				adder++;
-		}
-	} else {
-		ret = kstrtou32(pwle_seg_tok, 10, &val);
-		if (ret)
-			return -EINVAL;
+	/* Valid values, as per spec, 0mS - 16383.5mS, 16383.75mS = infinite */
+	ret = cs40l2x_parse_float(token, &val, 2, 0, 1638375);
+	if (ret) {
+		dev_err(cs40l2x->dev, "Failed to parse time: %d\n", ret);
+		return ret;
 	}
 
-	if (val == CS40L2X_PWLE_INDEF_TIME_VAL) {
-		pwle_seg_struct->time = val;
+	pwle_seg_struct->time = val / (100 / 4);
+
+	if (val == CS40L2X_PWLE_INDEF_TIME_VAL)
 		*indef = true;
-	} else {
-		if (val > CS40L2X_PWLE_MAX_TIME_VAL) {
-			dev_err(cs40l2x->dev,
-				"Valid Time: 0 to 16383.5ms, or 65535\n");
-			return -EINVAL;
-		}
-		/* Time = val * 4, due to PWLE spec */
-		pwle_seg_struct->time = ((val * 4) + adder);
-		*accu_time += val;
-	}
+	else
+		*accu_time += pwle_seg_struct->time / 4;
 
 	return ret;
 }
 
 static int cs40l2x_pwle_level_entry(struct cs40l2x_private *cs40l2x,
-	char *pwle_seg_tok, char *pwle_dec_tok, char *pwle_dec,
-	struct cs40l2x_pwle_segment *pwle_seg_struct)
+				    char *token,
+				    struct cs40l2x_pwle_segment *pwle_seg_struct)
 {
-	unsigned int val, dec_val, limit;
-	unsigned int leading_zeros = 0, modder = 0;
-	bool only_whole = false, neg = false;
-	int i, ret;
+	int val, ret;
 
-	if (strnchr(pwle_seg_tok, CS40L2X_PWLE_SEG_LEN_MAX, '.')) {
-		if (strnchr(pwle_dec, 1, '-')) {
-			neg = true;
-			pwle_dec++;
-		}
-		if (strnchr(pwle_dec, 1, '.')) {
-			val = 0;
-			pwle_dec++;
-			ret = kstrtou32(pwle_dec, 10, &dec_val);
-			if (ret)
-				return -EINVAL;
-
-			if (strnchr(pwle_dec_tok, 1, '0')) {
-				leading_zeros++;
-				pwle_dec_tok++;
-				if (strnchr(pwle_dec_tok, 1, '0')) {
-					leading_zeros++;
-					pwle_dec_tok++;
-					if (strnchr(pwle_dec_tok, 1, '0'))
-						leading_zeros++;
-				}
-			}
-		} else {
-			pwle_dec_tok = strsep(&pwle_dec, ".");
-			ret = kstrtou32(pwle_dec_tok, 10, &val);
-			if (val > 0) {
-				dev_err(cs40l2x->dev,
-					"Valid Level: -0.98256 to +0.98256\n");
-				return -E2BIG;
-			}
-
-			pwle_dec_tok = strsep(&pwle_dec, ".");
-			ret = kstrtou32(pwle_dec_tok, 10, &dec_val);
-			if (ret)
-				return -EINVAL;
-
-			if (strnchr(pwle_dec_tok, 1, '0')) {
-				leading_zeros++;
-				pwle_dec_tok++;
-				if (strnchr(pwle_dec_tok, 1, '0')) {
-					leading_zeros++;
-					pwle_dec_tok++;
-					if (strnchr(pwle_dec_tok, 1, '0'))
-						leading_zeros++;
-				}
-			}
-		}
-	} else {
-		ret = kstrtou32(pwle_dec_tok, 10, &val);
-		if (ret)
-			return -EINVAL;
-
-		if (val > 0) {
-			dev_err(cs40l2x->dev,
-				"Valid Level: -0.98256 to +0.98256\n");
-			return -E2BIG;
-		}
-		only_whole = true;
+	/* Valid values, as per spec, -1 - 0.9995118 */
+	ret = cs40l2x_parse_float(token, &val, 7, -10000000, 9995118);
+	if (ret) {
+		dev_err(cs40l2x->dev, "Failed to parse level: %d\n", ret);
+		return ret;
 	}
 
-	if (!only_whole) {
-		limit = (CS40L2X_PWLE_MAX_LV_RES_DIG - leading_zeros);
-		modder = 10;
-		for (i = 0; i < limit; i++) {
-			if (dec_val < modder)
-				dec_val = (dec_val * 10);
-			modder = (modder * 10);
-		}
-
-		if (dec_val > CS40L2X_PWLE_MAX_LEV_VAL)
-			return -EINVAL;
-
-		/* Level = dec_val / 48, see PWLE spec */
-		if (neg)
-			val = ((dec_val / 48) + CS40L2X_PWLE_LEV_ADD_NEG);
-		else
-			val = (dec_val / 48);
-	}
-
-	pwle_seg_struct->level = val;
+	pwle_seg_struct->level = val / (10000000 / 2048);
 
 	return ret;
 }
 
 static int cs40l2x_pwle_frequency_entry(struct cs40l2x_private *cs40l2x,
-	char *pwle_seg_tok, char *pwle_dec,
-	struct cs40l2x_pwle_segment *pwle_seg_struct)
+					char *token,
+					struct cs40l2x_pwle_segment *pwle_seg_struct)
 {
-	unsigned int val, dec_val;
-	unsigned int adder = 0;
-	char *pwle_dec_tok;
-	int ret;
+	int val, ret;
 
-	if (strnchr(pwle_seg_tok, CS40L2X_PWLE_SEG_LEN_MAX, '.')) {
-		if (strnchr(pwle_dec, 1, '.')) {
-			dev_err(cs40l2x->dev,
-				"Valid Freq: 50.125 to 561.875 Hz\n");
-			return -EINVAL;
-		}
-
-		pwle_dec_tok = strsep(&pwle_dec, ".");
-		ret = kstrtou32(pwle_dec_tok, 10, &val);
-		if (ret)
-			return -EINVAL;
-
-		pwle_dec_tok = strsep(&pwle_dec, ".");
-		ret = kstrtou32(pwle_dec_tok, 10, &dec_val);
-		if (ret)
-			return -EINVAL;
-
-		if ((dec_val == 25) &&
-			(strnchr(pwle_dec_tok, 1, '2')))
-			dec_val *= 10;
-		if ((dec_val == 5) &&
-			(strnchr(pwle_dec_tok, 1, '5')))
-			dec_val *= 100;
-		if ((dec_val == 50) &&
-			(strnchr(pwle_dec_tok, 1, '5')))
-			dec_val *= 10;
-		if ((dec_val == 75) &&
-			(strnchr(pwle_dec_tok, 1, '7')))
-			dec_val *= 10;
-
-		/*
-		 * Frequency resolution is .125Hz
-		 * Add one to final frequency for each .125Hz
-		 */
-		if (dec_val >= CS40L2X_PWLE_FREQ_RES)
-			adder++;
-		if (dec_val >= (CS40L2X_PWLE_FREQ_RES * 2))
-			adder++;
-		if (dec_val >= (CS40L2X_PWLE_FREQ_RES * 3))
-			adder++;
-		if (dec_val >= (CS40L2X_PWLE_FREQ_RES * 4))
-			adder++;
-		if (dec_val >= (CS40L2X_PWLE_FREQ_RES * 5))
-			adder++;
-		if (dec_val >= (CS40L2X_PWLE_FREQ_RES * 6))
-			adder++;
-		if (dec_val >= (CS40L2X_PWLE_FREQ_RES * 7))
-			adder++;
-
-	} else {
-		ret = kstrtou32(pwle_seg_tok, 10, &val);
-		if (ret)
-			return -EINVAL;
+	/* Valid values, as per spec, 50.125Hz - 561.875Hz */
+	ret = cs40l2x_parse_float(token, &val, 3, 50125, 561875);
+	if (ret) {
+		dev_err(cs40l2x->dev, "Failed to parse frequency: %d\n", ret);
+		return ret;
 	}
 
-	if (val != 0) {
-		if ((val > CS40L2X_PWLE_MAX_FREQ_VAL) ||
-			(val < CS40L2X_PWLE_MIN_FREQ_VAL)) {
-			dev_err(cs40l2x->dev,
-					"Valid Freq: 50.125 to 561.875 Hz\n");
-			return -EINVAL;
-		}
-		/* Freq = (val - 50) * 8, due to PWLE spec */
-		pwle_seg_struct->freq = (((val - 50) * 8) + adder);
-	} else {
-		pwle_seg_struct->freq = 0;
-	}
+	pwle_seg_struct->freq = (val / (1000 / 8)) - 400;
 
 	return ret;
 }
 
 static int cs40l2x_pwle_vb_target_entry(struct cs40l2x_private *cs40l2x,
-	char *pwle_seg_tok, char *pwle_dec, bool amp_reg,
-	struct cs40l2x_pwle_segment *pwle_seg_struct)
+					char *token, bool amp_reg,
+					struct cs40l2x_pwle_segment *pwle_seg_struct)
 {
-	unsigned int val, dec_val, mod_val;
-	unsigned int rounding_factor = 0;
-	unsigned int leading_zeros = 0;
-	unsigned int vb_target = 0;
-	unsigned int modder = 0;
-	unsigned int dig = 0;
-	unsigned int limit;
-	char *pwle_dec_tok;
-	int i, ret;
-
-	if (strnchr(pwle_seg_tok, CS40L2X_PWLE_SEG_LEN_MAX, '.')) {
-		if (strnchr(pwle_dec, 1, '.')) {
-			val = 0;
-			pwle_dec++;
-			ret = kstrtou32(pwle_dec, 10, &dec_val);
-			if (ret)
-				return -EINVAL;
-
-		} else {
-			pwle_dec_tok = strsep(&pwle_dec, ".");
-			ret = kstrtou32(pwle_dec_tok, 10, &val);
-			if (ret)
-				return -EINVAL;
-
-			if (val > 1) {
-				dev_err(cs40l2x->dev,
-					"Valid Vb Target: 0 to 1\n");
-				return -E2BIG;
-			}
-
-			pwle_dec_tok = strsep(&pwle_dec, ".");
-			ret = kstrtou32(pwle_dec_tok, 10, &dec_val);
-			if (ret)
-				return -EINVAL;
-
-			if (strnchr(pwle_dec_tok, 1, '0')) {
-				leading_zeros++;
-				pwle_dec_tok++;
-				if (strnchr(pwle_dec_tok, 1, '0')) {
-					leading_zeros++;
-					pwle_dec_tok++;
-					if (strnchr(pwle_dec_tok, 1, '0'))
-						leading_zeros++;
-				}
-			}
-		}
-	} else {
-		ret = kstrtou32(pwle_seg_tok, 10, &val);
-		if (ret)
-			return -EINVAL;
-
-		if (val > 1) {
-			dev_err(cs40l2x->dev,
-				"Valid Vb Target: 0 to 1\n");
-			return -E2BIG;
-		}
-		dec_val = 0;
-	}
-
-	if (dec_val >= CS40L2X_PWLE_MAX_VB_RES) {
-		dev_err(cs40l2x->dev,
-				"Exceeded Vb Target resolution\n");
-		return -EINVAL;
-	}
+	int val, ret;
 
 	/*
-	 * The section below converts decimal values into
-	 * Q1.23 format without the use of floating point
-	 * variables.  The numbers are not #defines in
-	 * order to see which decimal point is being
-	 * calculated more clearly.
+	 * We don't pass a scale value as we will scale locally, valid values,
+	 * as per spec, are 0 - 1.
 	 */
-	limit = (CS40L2X_PWLE_MAX_VB_RES_DIG - leading_zeros);
-	modder = 10;
-	for (i = 0; i < limit; i++) {
-		if (dec_val < modder)
-			dec_val = (dec_val * 10);
-		modder = (modder * 10);
+	ret = cs40l2x_parse_float(token, &val, 6, 0, 1000000);
+	if (ret) {
+		dev_err(cs40l2x->dev, "Failed to parse frequency: %d\n", ret);
+		return ret;
 	}
 
-	if (dec_val > 999999) {
-		mod_val = (dec_val % 1000000);
-		dig = ((dec_val - mod_val) / 1000000);
-		rounding_factor = ((7 * dig) / 10);
-		vb_target += ((dig *
-			(CS40L2X_PWLE_MAX_VB_TARG / 10)) +
-			rounding_factor);
-		dec_val = mod_val;
-	}
-	if (dec_val > 99999) {
-		mod_val = (dec_val % 100000);
-		dig = ((dec_val - mod_val) / 100000);
-		vb_target += (dig *
-			(CS40L2X_PWLE_MAX_VB_TARG / 100));
-		dec_val = mod_val;
-	}
-	if (dec_val > 9999) {
-		mod_val = (dec_val % 10000);
-		dig = ((dec_val - mod_val) / 10000);
-		rounding_factor = ((6 * dig) / 10);
-		vb_target += ((dig *
-			(CS40L2X_PWLE_MAX_VB_TARG / 1000)) +
-			rounding_factor);
-		dec_val = mod_val;
-	}
-	if (dec_val > 999) {
-		mod_val = (dec_val % 1000);
-		dig = ((dec_val - mod_val) / 1000);
-		rounding_factor = ((8 * dig) / 10);
-		vb_target += ((dig *
-			(CS40L2X_PWLE_MAX_VB_TARG / 10000)) +
-			rounding_factor);
-		dec_val = mod_val;
-	}
-	if (dec_val > 99) {
-		mod_val = (dec_val % 100);
-		dig = ((dec_val - mod_val) / 100);
-		rounding_factor = ((8 * dig) / 10);
-		vb_target += ((dig *
-			(CS40L2X_PWLE_MAX_VB_TARG / 100000)) +
-			rounding_factor);
-		dec_val = mod_val;
-	}
-	if (dec_val > 9) {
-		mod_val = (dec_val % 10);
-		dig = ((dec_val - mod_val) / 10);
-		rounding_factor = ((3 * dig) / 10);
-		vb_target += ((dig *
-			(CS40L2X_PWLE_MAX_VB_TARG / 1000000)) +
-			rounding_factor);
-	}
-
-	/* Vb Target = Q1.23 fixed point, see PWLE spec */
-	if (val == 1)
-		val = CS40L2X_PWLE_MAX_VB_TARG;
-	else
-		val = vb_target;
+	/* Approximation to scaling to 999999/0x7fffff without overflowing */
+	val = (val * 1770) / 211;
+	clamp(val, 0, 0x7FFFFF);
 
 	/* Only add vb_target to array if amp_reg set */
 	if (amp_reg) {
@@ -2738,8 +2411,7 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 					}
 
 					ret = cs40l2x_pwle_wait_time_entry(
-						cs40l2x, pwle_seg_tok,
-						pwle_dec, num_vals);
+						cs40l2x, pwle_dec, num_vals);
 					if (ret)
 						goto err_exit;
 				}
@@ -2788,7 +2460,7 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 				}
 
 				ret = cs40l2x_pwle_time_entry(cs40l2x,
-					pwle_seg_tok, pwle_dec, num_vals,
+					pwle_dec, num_vals,
 					pwle_seg_struct, &accu_time, &indef);
 				if (ret)
 					goto err_exit;
@@ -2811,8 +2483,7 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 				}
 
 				ret = cs40l2x_pwle_level_entry(cs40l2x,
-					pwle_seg_tok, pwle_dec_tok, pwle_dec,
-					pwle_seg_struct);
+					pwle_dec, pwle_seg_struct);
 				if (ret)
 					goto err_exit;
 
@@ -2832,8 +2503,7 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 				}
 
 				ret = cs40l2x_pwle_frequency_entry(cs40l2x,
-					pwle_seg_tok, pwle_dec,
-					pwle_seg_struct);
+					pwle_dec, pwle_seg_struct);
 				if (ret)
 					goto err_exit;
 
@@ -2915,7 +2585,7 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 				}
 
 				ret = cs40l2x_pwle_vb_target_entry(cs40l2x,
-					pwle_seg_tok, pwle_dec, amp_reg,
+					pwle_dec, amp_reg,
 					pwle_seg_struct);
 				if (ret)
 					goto err_exit;
