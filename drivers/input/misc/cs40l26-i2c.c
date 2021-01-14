@@ -27,7 +27,8 @@ static struct regmap_config cs40l26_regmap_i2c = {
 };
 
 static const struct i2c_device_id cs40l26_id_i2c[] = {
-	{"cs40l26", 0},
+	{"cs40l26a", 0},
+	{"cs40l26b", 1},
 	{}
 };
 
@@ -68,7 +69,8 @@ static int cs40l26_i2c_remove(struct i2c_client *client)
 }
 
 static const struct of_device_id cs40l26_of_match[] = {
-	{ .compatible = "cirrus,cs40l26" },
+	{ .compatible = "cirrus,cs40l26a" },
+	{ .compatible = "cirrus,cs40l26b" },
 	{ }
 };
 
