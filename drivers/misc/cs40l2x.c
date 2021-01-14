@@ -1733,40 +1733,26 @@ static void cs40l2x_pwle_seg_free(struct cs40l2x_private *cs40l2x)
 	}
 }
 
-static int cs40l2x_calc_pwle_bytes(struct cs40l2x_private *cs40l2x)
-{
-	unsigned int unpadded_bytes;
-
-	unpadded_bytes = CS40L2X_PWLE_FIRST_BYTES;
-	unpadded_bytes += (cs40l2x->pwle_num_segs *
-		CS40L2X_PWLE_SEG_BYTES);
-	unpadded_bytes += (cs40l2x->pwle_num_vb_targs *
-		CS40L2X_PWLE_NUM_VBT_BYTES);
-	unpadded_bytes += CS40L2X_PWLE_END_PAD_BYTES;
-
-	return unpadded_bytes;
-}
-
 static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x,
 					 struct wt_type12_pwle *pwle)
 {
+	unsigned int zero_pad_size;
 	char *zero_pad_data;
-	int ret = 0;
-	unsigned int zero_pad_size, pwle_size;
+	int ret;
 
-	pwle_size = cs40l2x_calc_pwle_bytes(cs40l2x);
-	zero_pad_size = ((pwle_size / 3) + pwle_size);
+	zero_pad_data = kzalloc(CS40L2X_PWLE_BYTES_MAX, GFP_KERNEL);
+	if (!zero_pad_data)
+		return -ENOMEM;
 
-	if (zero_pad_size > (cs40l2x->comp_bytes / CS40L2X_WT_NUM_VIRT_SLOTS)) {
+	ret = cs40l2x_write_pwle(cs40l2x, zero_pad_data,
+				 CS40L2X_PWLE_BYTES_MAX, pwle);
+
+	if (ret > (cs40l2x->comp_bytes / CS40L2X_WT_NUM_VIRT_SLOTS)) {
 		dev_err(cs40l2x->dev, "PWLE size exceeds available space\n");
 		return -ENOSPC;
 	}
 
-	zero_pad_data = kzalloc(zero_pad_size, GFP_KERNEL);
-	if (!zero_pad_data)
-		return -ENOMEM;
-
-	cs40l2x_write_pwle(cs40l2x, zero_pad_data, zero_pad_size, pwle);
+	zero_pad_size = ret;
 
 	if (cs40l2x->save_pwle) {
 		ret = cs40l2x_add_waveform_to_virtual_list(cs40l2x,
