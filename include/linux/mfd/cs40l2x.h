@@ -589,8 +589,6 @@
 #define CS40L2X_WT_YM_PRE_HDR_VAL		6
 #define CS40L2X_WT_TERMINATOR_BYTE		255
 #define CS40L2X_WT_TERMINATOR			0x00FFFFFF
-#define CS40L2X_WT_COMP_INDEFINITE		0x00400000
-#define CS40L2X_WT_COMP_LEN_CALCD		0x00800000
 #define CS40L2X_WT_CLR_EX_TYPE			0x0000FFFF
 #define CS40L2X_WT_YM_PRE_HEADER		0x00000600
 #define CS40L2X_WT_NUM_GPIO_VSLOTS		2
@@ -1172,12 +1170,6 @@ struct cs40l2x_private {
 	struct hrtimer pbq_timer;
 	unsigned int pbq_cp_dig_scale;
 	unsigned int pwle_feature;
-	unsigned int pwle_wvfrm_len;
-	unsigned int pwle_repeat;
-	unsigned int wvfrm_len_wait_time;
-	unsigned int pwle_wait_time;
-	unsigned int pwle_num_segs;
-	unsigned int pwle_num_vb_targs;
 	unsigned int num_virtual_pwle_waves;
 	unsigned int last_type_entered;
 	unsigned int display_pwle_segs;
@@ -1187,7 +1179,6 @@ struct cs40l2x_private {
 	unsigned int virtual_gpio1_fall_slot;
 	unsigned int virtual_gpio1_rise_slot;
 	struct list_head virtual_waveform_head;
-	struct list_head pwle_segment_head;
 	struct cs40l2x_ovwr_waveform *ovwr_wav;
 	struct cs40l2x_wseq_pair wseq_table[CS40L2X_WSEQ_LENGTH_MAX];
 	unsigned int wseq_length;
@@ -1255,18 +1246,6 @@ struct cs40l2x_virtual_waveform {
 	unsigned int wvfrm_type;
 	unsigned int wvfrm_feature;
 	char data[CS40L2X_SINGLE_PACKED_MAX];
-	struct list_head list;
-};
-
-struct cs40l2x_pwle_segment {
-	unsigned int index;
-	unsigned int time;
-	unsigned int level;
-	unsigned int freq;
-	unsigned int chirp;
-	unsigned int brake;
-	unsigned int amp_reg;
-	unsigned int vb_targ;
 	struct list_head list;
 };
 
