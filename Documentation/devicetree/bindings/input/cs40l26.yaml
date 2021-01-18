@@ -16,7 +16,8 @@ description: |
 properties:
   compatible:
     enum:
-      - cirrus,cs40l26
+      - cirrus,cs40l26a
+      - cirrus,cs40l26b
 
   reg:
     maxItems: 1
