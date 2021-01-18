@@ -2503,7 +2503,7 @@ int dev_pm_opp_xlate_performance_state(struct opp_table *src_table,
 	 * and so none of them have the "required-opps" property set. Return the
 	 * pstate of the src_table as it is in such cases.
 	 */
-	if (!src_table->required_opp_count)
+	if (!src_table || !src_table->required_opp_count)
 		return pstate;
 
 	/* required-opps not fully initialized yet */
