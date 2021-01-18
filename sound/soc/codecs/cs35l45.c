@@ -2295,6 +2295,10 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 	unsigned int sts, cmd, val;
 	int ret, i;
 	struct cs35l45_mixer_cache mixer_cache[] = {
+		{CS35L45_BLOCK_ENABLES, CS35L45_BLOCK_ENABLES_MASK, 0},
+		{CS35L45_BLOCK_ENABLES2, CS35L45_SYNC_EN_MASK, 0},
+		{CS35L45_SYNC_TX_RX_ENABLES, CS35L45_SYNC_MASK, 0},
+		{CS35L45_ASP_ENABLES1, CS35L45_ASP_ENABLES1_MASK, 0},
 		{CS35L45_ASPTX1_INPUT,	CS35L45_PCM_SRC_MASK, 0},
 		{CS35L45_ASPTX2_INPUT,	CS35L45_PCM_SRC_MASK, 0},
 		{CS35L45_ASPTX3_INPUT,	CS35L45_PCM_SRC_MASK, 0},
@@ -2352,7 +2356,6 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 		for (i = 0; i < ARRAY_SIZE(mixer_cache); i++)
 			regmap_read(cs35l45->regmap, mixer_cache[i].reg,
 				    &mixer_cache[i].val);
-
 		regcache_cache_only(cs35l45->regmap, false);
 
 		regcache_drop_region(cs35l45->regmap, CS35L45_DEVID,
