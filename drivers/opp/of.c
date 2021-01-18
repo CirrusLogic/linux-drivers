@@ -378,13 +378,6 @@ static void lazy_link_required_opp_table(struct opp_table *new_table)
 	struct dev_pm_opp *opp;
 	int i, ret;
 
-	/*
-	 * We only support genpd's OPPs in the "required-opps" for now,
-	 * as we don't know much about other cases.
-	 */
-	if (!new_table->is_genpd)
-		return;
-
 	mutex_lock(&opp_table_lock);
 
 	list_for_each_entry_safe(opp_table, temp, &lazy_opp_tables, lazy) {
