@@ -283,8 +283,10 @@ static int iwl_pnvm_get_from_efi(struct iwl_trans *trans,
 
 	IWL_DEBUG_FW(trans, "Read PNVM fro UEFI with size %zd\n", package_size);
 
-	*len = package_size - sizeof(*package);
 	*data = kmemdup(package->data, *len, GFP_KERNEL);
+	if (!*data)
+		err = -ENOMEM;
+	*len = package_size - sizeof(*package);
 
 out:
 	kfree(package);
