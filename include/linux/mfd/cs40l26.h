@@ -1054,7 +1054,7 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 int cs40l26_remove(struct cs40l26_private *cs40l26);
 bool cs40l26_precious_reg(struct device *dev, unsigned int ret);
 bool cs40l26_readable_reg(struct device *dev, unsigned int reg);
-bool cs40l26_volatile_reg(struct device *dev,  unsigned int reg);
+bool cs40l26_volatile_reg(struct device *dev, unsigned int reg);
 
 /* external tables */
 extern struct regulator_bulk_data
