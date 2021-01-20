@@ -401,41 +401,54 @@ static int iwl_vendor_rfim_get_table(struct wiphy *wiphy,
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_rfi_freq_table_resp_cmd *resp;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	struct nlattr *rfim_info;
-	int i;
+	int i, ret;
 
 	resp = iwl_rfi_get_freq_table(mvm);
 
-	if (IS_ERR(resp) || resp->status != RFI_FREQ_TABLE_OK)
-		return -EINVAL;
+	if (IS_ERR(resp))
+		return PTR_ERR(resp);
+
+	if (resp->status != RFI_FREQ_TABLE_OK) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, sizeof(rfim_info));
 	if (!skb) {
-		kfree(resp);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	rfim_info = nla_nest_start(skb, IWL_MVM_VENDOR_ATTR_RFIM_INFO |
 					NLA_F_NESTED);
-	if (!rfim_info)
-		return -ENOBUFS;
+	if (!rfim_info) {
+		ret = -ENOBUFS;
+		goto out;
+	}
 
 	for (i = 0; i < 4; i++) {
-		nla_put_u16(skb, IWL_MVM_VENDOR_ATTR_RFIM_FREQ,
-			    le16_to_cpu(resp->table[i].freq));
-		nla_put(skb, IWL_MVM_VENDOR_ATTR_RFIM_CHANNELS,
-			sizeof(resp->table[i].channels),
-			resp->table[i].channels);
-		nla_put(skb, IWL_MVM_VENDOR_ATTR_RFIM_BANDS,
-			sizeof(resp->table[i].bands),
-			resp->table[i].bands);
+		if (nla_put_u16(skb, IWL_MVM_VENDOR_ATTR_RFIM_FREQ,
+				le16_to_cpu(resp->table[i].freq)) ||
+		    nla_put(skb, IWL_MVM_VENDOR_ATTR_RFIM_CHANNELS,
+			    sizeof(resp->table[i].channels),
+			    resp->table[i].channels) ||
+		    nla_put(skb, IWL_MVM_VENDOR_ATTR_RFIM_BANDS,
+			    sizeof(resp->table[i].bands),
+			    resp->table[i].bands)) {
+			ret = -ENOBUFS;
+			goto out;
+		}
 	}
 
 	nla_nest_end(skb, rfim_info);
 
+	ret = cfg80211_vendor_cmd_reply(skb);
+out:
+	kfree_skb(skb);
 	kfree(resp);
-	return cfg80211_vendor_cmd_reply(skb);
+	return ret;
 }
 
 static int iwl_vendor_rfim_set_table(struct wiphy *wiphy,
@@ -456,7 +469,7 @@ static int iwl_vendor_rfim_set_table(struct wiphy *wiphy,
 
 	if (!tb[IWL_MVM_VENDOR_ATTR_RFIM_INFO]) {
 		err = -EINVAL;
-		goto err;
+		goto out;
 	}
 
 	nla_for_each_nested(attr, tb[IWL_MVM_VENDOR_ATTR_RFIM_INFO], rem) {
@@ -469,7 +482,7 @@ static int iwl_vendor_rfim_set_table(struct wiphy *wiphy,
 		case IWL_MVM_VENDOR_ATTR_RFIM_CHANNELS:
 			if (row_idx < 0) {
 				err = -EINVAL;
-				goto err;
+				goto out;
 			}
 			memcpy(rfim_table[row_idx].channels, nla_data(attr),
 			       ARRAY_SIZE(rfim_table[row_idx].channels));
@@ -477,7 +490,7 @@ static int iwl_vendor_rfim_set_table(struct wiphy *wiphy,
 		case IWL_MVM_VENDOR_ATTR_RFIM_BANDS:
 			if (row_idx < 0) {
 				err = -EINVAL;
-				goto err;
+				goto out;
 			}
 			memcpy(rfim_table[row_idx].bands, nla_data(attr),
 			       ARRAY_SIZE(rfim_table[row_idx].bands));
@@ -485,7 +498,7 @@ static int iwl_vendor_rfim_set_table(struct wiphy *wiphy,
 		default:
 			IWL_ERR(mvm, "Invalid attribute %d\n", nla_type(attr));
 			err = -EINVAL;
-			goto err;
+			goto out;
 		}
 	}
 
@@ -493,7 +506,7 @@ static int iwl_vendor_rfim_set_table(struct wiphy *wiphy,
 	if (err)
 		IWL_ERR(mvm, "Failed to send rfi table to FW, error %d\n", err);
 
-err:
+out:
 	kfree(tb);
 	return err;
 }
