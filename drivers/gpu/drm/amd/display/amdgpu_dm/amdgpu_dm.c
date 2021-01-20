@@ -5403,7 +5403,6 @@ static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 	if (!dc_interrupt_set(adev->dm.dc, irq_source, enable))
 		return -EBUSY;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (amdgpu_in_reset(adev))
 		return 0;
 
@@ -5423,7 +5422,6 @@ static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 
 	mutex_unlock(&dm->dc_lock);
 
-#endif
 	return 0;
 }
 
