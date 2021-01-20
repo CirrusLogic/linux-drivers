@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
-/******************************************************************************
- *
- * Copyright(c) 2020 Intel Corporation
- *
- *****************************************************************************/
+/*
+ * Copyright(c) 2020-2021 Intel Corporation
+ */
 
 #include "iwl-drv.h"
 #include "pnvm.h"
@@ -327,7 +325,7 @@ static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
 	}
 
 	*data = kmemdup(pnvm->data, pnvm->size, GFP_KERNEL);
-	if (!data)
+	if (!*data)
 		return -ENOMEM;
 
 	*len = pnvm->size;
