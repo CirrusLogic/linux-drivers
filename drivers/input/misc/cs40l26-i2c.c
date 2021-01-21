@@ -12,20 +12,6 @@
 
 #include <linux/mfd/cs40l26.h>
 
-static struct regmap_config cs40l26_regmap_i2c = {
-	.reg_bits = 32,
-	.val_bits = 32,
-	.reg_stride = 4,
-	.reg_format_endian = REGMAP_ENDIAN_BIG,
-	.val_format_endian = REGMAP_ENDIAN_BIG,
-	.max_register = CS40L26_LASTREG,
-	.num_reg_defaults = 0,
-	.precious_reg = cs40l26_precious_reg,
-	.readable_reg = cs40l26_readable_reg,
-	.volatile_reg = cs40l26_volatile_reg,
-	.cache_type = REGCACHE_NONE,
-};
-
 static const struct i2c_device_id cs40l26_id_i2c[] = {
 	{"cs40l26a", 0},
 	{"cs40l26b", 1},
@@ -48,7 +34,7 @@ static int cs40l26_i2c_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, cs40l26);
 
-	cs40l26->regmap = devm_regmap_init_i2c(client, &cs40l26_regmap_i2c);
+	cs40l26->regmap = devm_regmap_init_i2c(client, &cs40l26_regmap);
 	if (IS_ERR(cs40l26->regmap)) {
 		ret = PTR_ERR(cs40l26->regmap);
 		dev_err(dev, "Failed to allocate register map: %d\n", ret);
