@@ -1060,6 +1060,7 @@ bool cs40l26_volatile_reg(struct device *dev, unsigned int reg);
 extern struct regulator_bulk_data
 		cs40l26_supplies[CS40L26_NUM_SUPPLIES];
 extern const struct dev_pm_ops cs40l26_pm_ops;
+extern const struct regmap_config cs40l26_regmap;
 
 /* sysfs */
 extern struct attribute_group cs40l26_dev_attr_group;
