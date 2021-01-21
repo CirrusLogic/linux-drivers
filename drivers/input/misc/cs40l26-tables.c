@@ -13,6 +13,20 @@
 
 #include <linux/mfd/cs40l26.h>
 
+const struct regmap_config cs40l26_regmap = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+	.max_register = CS40L26_LASTREG,
+	.num_reg_defaults = 0,
+	.precious_reg = cs40l26_precious_reg,
+	.readable_reg = cs40l26_readable_reg,
+	.volatile_reg = cs40l26_volatile_reg,
+	.cache_type = REGCACHE_NONE,
+};
+
 const struct dev_pm_ops cs40l26_pm_ops = {
 	SET_RUNTIME_PM_OPS(cs40l26_suspend, cs40l26_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(cs40l26_sys_suspend, cs40l26_sys_resume)
