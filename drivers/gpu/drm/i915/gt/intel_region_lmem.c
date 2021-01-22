@@ -121,7 +121,7 @@ intel_gt_setup_fake_lmem(struct intel_gt *gt)
 
 	/* Your mappable aperture belongs to me now! */
 	mappable_end = pci_resource_len(pdev, 2);
-	io_start = pci_resource_start(pdev, 2),
+	io_start = pci_resource_start(pdev, 2);
 	start = i915->params.fake_lmem_start;
 
 	mem = intel_memory_region_create(i915,
