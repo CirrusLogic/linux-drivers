@@ -15,6 +15,8 @@
 bool msft_monitor_supported(struct hci_dev *hdev);
 void msft_do_open(struct hci_dev *hdev);
 void msft_do_close(struct hci_dev *hdev);
+void msft_power_on(struct hci_dev *hdev);
+void msft_power_off(struct hci_dev *hdev);
 void msft_vendor_evt(struct hci_dev *hdev, struct sk_buff *skb);
 __u64 msft_get_features(struct hci_dev *hdev);
 int msft_add_monitor_pattern(struct hci_dev *hdev, struct adv_monitor *monitor);
@@ -32,6 +34,8 @@ static inline bool msft_monitor_supported(struct hci_dev *hdev)
 
 static inline void msft_do_open(struct hci_dev *hdev) {}
 static inline void msft_do_close(struct hci_dev *hdev) {}
+static inline void msft_power_on(struct hci_dev *hdev) {}
+static inline void msft_power_off(struct hci_dev *hdev) {}
 static inline void msft_vendor_evt(struct hci_dev *hdev, struct sk_buff *skb) {}
 static inline __u64 msft_get_features(struct hci_dev *hdev) { return 0; }
 static inline int msft_add_monitor_pattern(struct hci_dev *hdev,

@@ -200,19 +200,11 @@ void msft_do_open(struct hci_dev *hdev)
 
 	INIT_LIST_HEAD(&msft->handle_map);
 	hdev->msft_data = msft;
-
-	if (msft_monitor_supported(hdev)) {
-		msft->reregistering = true;
-		msft_set_filter_enable(hdev, true);
-		reregister_monitor_on_restart(hdev, 0);
-	}
 }
 
 void msft_do_close(struct hci_dev *hdev)
 {
 	struct msft_data *msft = hdev->msft_data;
-	struct msft_monitor_advertisement_handle_data *handle_data, *tmp;
-	struct adv_monitor *monitor;
 
 	if (!msft)
 		return;
@@ -221,6 +213,36 @@ void msft_do_close(struct hci_dev *hdev)
 
 	hdev->msft_data = NULL;
 
+	kfree(msft->evt_prefix);
+	kfree(msft);
+}
+
+void msft_power_on(struct hci_dev *hdev)
+{
+	struct msft_data *msft = hdev->msft_data;
+
+	if (msft_monitor_supported(hdev)) {
+		msft->reregistering = true;
+		msft_set_filter_enable(hdev, true);
+		/* Monitors get removed on power off, so we need to explicitly
+		 * tell the controller to re-monitor.
+		 */
+		reregister_monitor_on_restart(hdev, 0);
+	}
+}
+
+void msft_power_off(struct hci_dev *hdev)
+{
+	struct msft_data *msft = hdev->msft_data;
+	struct msft_monitor_advertisement_handle_data *handle_data, *tmp;
+	struct adv_monitor *monitor;
+
+	if (!msft)
+		return;
+
+	/* The controller will silently remove all monitors on power off.
+	 * Therefore, remove handle_data mapping and reset monitor state.
+	 */
 	list_for_each_entry_safe(handle_data, tmp, &msft->handle_map, list) {
 		monitor = idr_find(&hdev->adv_monitors_idr,
 				   handle_data->mgmt_handle);
@@ -231,9 +253,6 @@ void msft_do_close(struct hci_dev *hdev)
 		list_del(&handle_data->list);
 		kfree(handle_data);
 	}
-
-	kfree(msft->evt_prefix);
-	kfree(msft);
 }
 
 void msft_vendor_evt(struct hci_dev *hdev, struct sk_buff *skb)
