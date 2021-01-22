@@ -697,6 +697,7 @@ config SND_SOC_CS42L42_CORE
 	tristate
 config SND_SOC_CS40L2X
 	tristate "Cirrus Logic CS40L2X CODEC"
+	depends on HAPTICS_CS40L2X
 
 config SND_SOC_CS42L42
 	tristate "Cirrus Logic CS42L42 CODEC (I2C)"
