@@ -1125,6 +1125,9 @@ static void cs40l2x_calc_num_waves(struct cs40l2x_private *cs40l2x)
 	unsigned int pos;
 	int i;
 
+	cs40l2x->num_xm_wavs = 0;
+	cs40l2x->num_ym_wavs = 0;
+
 	if (cs40l2x->xm_hdr_strt_pos > 0) {
 		block_length = cs40l2x->wt_xm_size -
 			cs40l2x->xm_hdr_strt_pos;
@@ -1141,8 +1144,6 @@ static void cs40l2x_calc_num_waves(struct cs40l2x_private *cs40l2x)
 				break;
 			pos += CS40L2X_WT_HEADER_ENTRY_SIZE;
 		}
-	} else {
-		cs40l2x->num_xm_wavs = 0;
 	}
 
 	if (cs40l2x->ym_hdr_strt_pos > 0) {
@@ -1162,8 +1163,6 @@ static void cs40l2x_calc_num_waves(struct cs40l2x_private *cs40l2x)
 				break;
 			pos += CS40L2X_WT_HEADER_ENTRY_SIZE;
 		}
-	} else {
-		cs40l2x->num_ym_wavs = 0;
 	}
 
 	cs40l2x->num_waves = cs40l2x->num_xm_wavs + cs40l2x->num_ym_wavs;
