@@ -128,7 +128,9 @@ static void cs40l2x_sysfs_notify(struct cs40l2x_private *cs40l2x,
 {
 	struct kobject *kobj;
 
-#ifdef CONFIG_ANDROID_TIMED_OUTPUT
+#ifdef CONFIG_HAPTICS_CS40L2X_INPUT
+	kobj = &cs40l2x->input->dev.kobj;
+#elif defined CONFIG_ANDROID_TIMED_OUTPUT
 	kobj = &cs40l2x->timed_dev.dev->kobj;
 #else
 	kobj = &cs40l2x->dev->kobj;
@@ -8434,7 +8436,49 @@ static void cs40l2x_vibe_stop_worker(struct work_struct *work)
 	pm_runtime_put_autosuspend(cs40l2x->dev);
 }
 
-#ifdef CONFIG_ANDROID_TIMED_OUTPUT
+#ifdef CONFIG_HAPTICS_CS40L2X_INPUT
+static int cs40l2x_create_input_ff(struct cs40l2x_private *cs40l2x)
+{
+	struct device *dev = cs40l2x->dev;
+	int ret;
+
+	cs40l2x->input = devm_input_allocate_device(cs40l2x->dev);
+	if (!cs40l2x->input)
+		return -ENOMEM;
+
+	cs40l2x->input->name = "cs40l25_input";
+	cs40l2x->input->id.product = cs40l2x->devid;
+	cs40l2x->input->id.version = cs40l2x->revid;
+
+	input_set_drvdata(cs40l2x->input, cs40l2x);
+	input_set_capability(cs40l2x->input, EV_FF, FF_PERIODIC);
+	input_set_capability(cs40l2x->input, EV_FF, FF_CUSTOM);
+
+	ret = input_ff_create(cs40l2x->input, FF_MAX_EFFECTS);
+	if (ret) {
+		dev_err(dev, "Failed to create FF device: %d\n", ret);
+		return ret;
+	}
+
+	/* input_ff_create() automatically sets FF_RUMBLE capabilities
+	 * We want to restrict this to be only FF_PERIODIC
+	 */
+	__clear_bit(FF_RUMBLE, cs40l2x->input->ffbit);
+
+	ret = input_register_device(cs40l2x->input);
+	if (ret) {
+		dev_err(dev, "Cannot register input device: %d\n", ret);
+		return ret;
+	}
+
+	ret = sysfs_create_group(&cs40l2x->input->dev.kobj,
+				 &cs40l2x_dev_attr_group);
+	if (ret)
+		dev_err(dev, "Failed to create sysfs group: %d\n", ret);
+
+	return ret;
+}
+#elif defined CONFIG_ANDROID_TIMED_OUTPUT
 /* vibration callback for timed output device */
 static void cs40l2x_vibe_enable(struct timed_output_dev *sdev, int timeout)
 {
@@ -9710,7 +9754,9 @@ static void cs40l2x_coeff_file_load(const struct firmware *fw, void *context)
 	if (ret)
 		goto err_mutex;
 
-#ifdef CONFIG_ANDROID_TIMED_OUTPUT
+#ifdef CONFIG_HAPTICS_CS40L2X_INPUT
+	ret = cs40l2x_create_input_ff(cs40l2x);
+#elif defined CONFIG_ANDROID_TIMED_OUTPUT
 	ret = cs40l2x_create_timed_output(cs40l2x);
 #else
 	ret = cs40l2x_create_led(cs40l2x);
@@ -11934,7 +11980,11 @@ static int cs40l2x_i2c_remove(struct i2c_client *i2c_client)
 		devm_free_irq(&i2c_client->dev, i2c_client->irq, cs40l2x);
 
 	if (cs40l2x->vibe_init_success) {
-#ifdef CONFIG_ANDROID_TIMED_OUTPUT
+#ifdef CONFIG_HAPTICS_CS40L2X_INPUT
+		input_unregister_device(cs40l2x->input);
+		sysfs_remove_group(&cs40l2x->input->dev.kobj,
+				   &cs40l2x_dev_attr_group);
+#elif defined CONFIG_ANDROID_TIMED_OUTPUT
 		hrtimer_cancel(&cs40l2x->vibe_timer);
 
 		timed_output_dev_unregister(&cs40l2x->timed_dev);
