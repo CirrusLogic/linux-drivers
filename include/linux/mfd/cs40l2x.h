@@ -23,6 +23,7 @@
 #include <linux/completion.h>
 #include <linux/firmware.h>
 #include <linux/platform_data/cs40l2x.h>
+#include <linux/input.h>
 
 #define CS40L2X_FIRSTREG		0x00000000
 #define CS40L2X_LASTREG			0x03804FE8
@@ -1546,7 +1547,9 @@ struct cs40l2x_private {
 	struct cs40l2x_f0_dynamic dynamic_f0[CS40l2X_F0_MAX_ENTRIES];
 	int dynamic_f0_index;
 
-#ifdef CONFIG_ANDROID_TIMED_OUTPUT
+#ifdef CONFIG_HAPTICS_CS40L2X_INPUT
+	struct input_dev *input;
+#elif defined CONFIG_ANDROID_TIMED_OUTPUT
 	struct timed_output_dev timed_dev;
 	struct hrtimer vibe_timer;
 	int vibe_timeout;
