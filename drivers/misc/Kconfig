@@ -423,6 +423,12 @@ config SRAM
 config SRAM_EXEC
 	bool
 
+config HAPTICS_CS40L2X_INPUT
+	bool "Cirrus Logic CS40L25 Input Interface"
+	depends on HAPTICS_CS40L2X
+	help
+	  Use the input subsystem as an interface for cs40l25.
+
 config HAPTICS_CS40L2X
 	tristate "Cirrus Logic CS40L20/CS40L25/CS40L25A/CS40L25B haptics driver"
 	depends on I2C && SYSFS && NEW_LEDS
