@@ -532,7 +532,7 @@ static int tb_create_usb3_tunnels(struct tb_switch *sw)
 
 static void tb_scan_port(struct tb_port *port);
 
-/**
+/*
  * tb_scan_switch() - scan for and initialize downstream switches
  */
 static void tb_scan_switch(struct tb_switch *sw)
@@ -548,7 +548,7 @@ static void tb_scan_switch(struct tb_switch *sw)
 	pm_runtime_put_autosuspend(&sw->dev);
 }
 
-/**
+/*
  * tb_scan_port() - check for and initialize switches below port
  */
 static void tb_scan_port(struct tb_port *port)
@@ -708,7 +708,7 @@ static void tb_deactivate_and_free_tunnel(struct tb_tunnel *tunnel)
 	tb_tunnel_free(tunnel);
 }
 
-/**
+/*
  * tb_free_invalid_tunnels() - destroy tunnels of devices that have gone away
  */
 static void tb_free_invalid_tunnels(struct tb *tb)
@@ -723,7 +723,7 @@ static void tb_free_invalid_tunnels(struct tb *tb)
 	}
 }
 
-/**
+/*
  * tb_free_unplugged_children() - traverse hierarchy and free unplugged switches
  */
 static void tb_free_unplugged_children(struct tb_switch *sw)
@@ -1124,7 +1124,7 @@ static int tb_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
 
 /* hotplug handling */
 
-/**
+/*
  * tb_handle_hotplug() - handle hotplug event
  *
  * Executes on tb->wq.
@@ -1233,7 +1233,7 @@ out:
 	kfree(ev);
 }
 
-/**
+/*
  * tb_schedule_hotplug_handler() - callback function for the control channel
  *
  * Delegates to tb_handle_hotplug.
