@@ -426,6 +426,7 @@ static inline int dev_pm_opp_sync_regulators(struct device *dev)
 #if defined(CONFIG_PM_OPP) && defined(CONFIG_OF)
 int dev_pm_opp_of_add_table(struct device *dev);
 int dev_pm_opp_of_add_table_indexed(struct device *dev, int index);
+int dev_pm_opp_of_add_table_noclk(struct device *dev, int index);
 void dev_pm_opp_of_remove_table(struct device *dev);
 int devm_pm_opp_of_add_table(struct device *dev);
 int dev_pm_opp_of_cpumask_add_table(const struct cpumask *cpumask);
@@ -447,6 +448,11 @@ static inline int dev_pm_opp_of_add_table(struct device *dev)
 }
 
 static inline int dev_pm_opp_of_add_table_indexed(struct device *dev, int index)
+{
+	return -ENOTSUPP;
+}
+
+static inline int dev_pm_opp_of_add_table_noclk(struct device *dev, int index)
 {
 	return -ENOTSUPP;
 }
