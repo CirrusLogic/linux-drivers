@@ -57,6 +57,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS35L34 if I2C
 	select SND_SOC_CS35L35 if I2C
 	select SND_SOC_CS35L36 if I2C
+	select SND_SOC_CS40L26
 	select SND_SOC_CS42L42 if I2C
 	select SND_SOC_CS42L51_I2C if I2C
 	select SND_SOC_CS42L52 if I2C && INPUT
@@ -501,6 +502,9 @@ config SND_SOC_CS35L35
 config SND_SOC_CS35L36
 	tristate "Cirrus Logic CS35L36 CODEC"
 	depends on I2C
+
+config SND_SOC_CS40L26
+	tristate "Cirrus Logic CS40L26 Stub CODEC"
 
 config SND_SOC_CS42L42
 	tristate "Cirrus Logic CS42L42 CODEC"
