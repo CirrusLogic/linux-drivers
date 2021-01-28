@@ -36,7 +36,8 @@ const struct dev_pm_ops cs40l26_pm_ops = {
 
 static const char * const cs40l26_ram_coeff_files[] = {
 	CS40L26_WT_FILE_NAME,
-	CS40L26_SVC_FILE_NAME,
+	CS40L26_SVC_TUNING_FILE_NAME,
+	CS40L26_A2H_TUNING_FILE_NAME,
 };
 
 const struct cl_dsp_fw_desc cs40l26_fw = {
@@ -62,6 +63,10 @@ const struct cl_dsp_fw_desc cs40l26_ram_fw = {
 struct regulator_bulk_data cs40l26_supplies[CS40L26_NUM_SUPPLIES] = {
 	{ .supply = CS40L26_VP_SUPPLY_NAME },
 	{ .supply = CS40L26_VA_SUPPLY_NAME },
+};
+
+const struct mfd_cell cs40l26_devs[CS40L26_NUM_MFD_DEVS] = {
+	{ .name = "cs40l26-codec" },
 };
 
 bool cs40l26_precious_reg(struct device *dev, unsigned int reg)
