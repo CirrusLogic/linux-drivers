@@ -1886,7 +1886,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 			CS40L26_ENABLE << CS40L26_MEM_RDY_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to set MEM_RDY to initialize RAM\n");
-		return ret;
+		goto err_out;
 	}
 
 	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM) {
@@ -1894,11 +1894,11 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 				CL_DSP_XM_UNPACKED_TYPE,
 				cs40l26->dsp->fw_desc->id, &reg);
 		if (ret)
-			return ret;
+			goto err_out;
 
 		ret = cs40l26_dsp_write(cs40l26, reg, CS40L26_ENABLE);
 		if (ret)
-			return ret;
+			goto err_out;
 	}
 
 	cs40l26->fw_loaded = true;
@@ -1907,56 +1907,59 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	ret = cs40l26_dsp_start(cs40l26);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	ret = cs40l26_pseq_init(cs40l26);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	ret = cs40l26_iseq_init(cs40l26);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	ret = cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1,
 			BIT(CS40L26_IRQ1_VIRTUAL2_MBOX_WR), CS40L26_IRQ_UNMASK);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	ret = cs40l26_wksrc_config(cs40l26);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	ret = cs40l26_gpio_config(cs40l26);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	ret = cs40l26_brownout_prevention_init(cs40l26);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	/* ensure firmware running */
 	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_STATE",
 			CL_DSP_XM_UNPACKED_TYPE, cs40l26->dsp->fw_desc->id,
 			&reg);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	ret = cs40l26_ack_read(cs40l26, reg,
 			cs40l26->dsp->fw_desc->halo_state_run);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	ret = cs40l26_get_num_waves(cs40l26, &cs40l26->num_waves);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	dev_info(dev, "%s loaded with %u RAM waveforms\n", CS40L26_DEV_NAME,
 			cs40l26->num_waves);
 
+	ret = cs40l26_pm_state_transition(cs40l26,
+			CS40L26_PM_STATE_ALLOW_HIBERNATE);
+
+err_out:
 	enable_irq(cs40l26->irq);
 
-	return cs40l26_pm_state_transition(cs40l26,
-			CS40L26_PM_STATE_ALLOW_HIBERNATE);
+	return ret;
 }
 
 static void cs40l26_coeff_file_load(const struct firmware *fw, void *context)
