@@ -379,12 +379,32 @@ static const u8 he_if_types_ext_capa_sta[] = {
 #endif
 
 #if CFG80211_VERSION >= KERNEL_VERSION(4,8,0)
-static const struct wiphy_iftype_ext_capab he_iftypes_ext_capa[] = {
+static const u8 tm_if_types_ext_capa_sta[] = {
+	 [0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
+	 [2] = WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT |
+	       WLAN_EXT_CAPA3_TIMING_MEASUREMENT_SUPPORT,
+	 [7] = WLAN_EXT_CAPA8_OPMODE_NOTIF,
+	 [9] = WLAN_EXT_CAPA10_TWT_REQUESTER_SUPPORT,
+};
+#endif
+
+/*
+ * Additional interface types for which extended capabilities are
+ * specified separately
+ */
+#if CFG80211_VERSION >= KERNEL_VERSION(4,8,0)
+static const struct wiphy_iftype_ext_capab add_iftypes_ext_capa[] = {
 	{
 		.iftype = NL80211_IFTYPE_STATION,
 		.extended_capabilities = he_if_types_ext_capa_sta,
 		.extended_capabilities_mask = he_if_types_ext_capa_sta,
 		.extended_capabilities_len = sizeof(he_if_types_ext_capa_sta),
+	},
+	{
+		.iftype = NL80211_IFTYPE_STATION,
+		.extended_capabilities = tm_if_types_ext_capa_sta,
+		.extended_capabilities_mask = tm_if_types_ext_capa_sta,
+		.extended_capabilities_len = sizeof(tm_if_types_ext_capa_sta),
 	},
 };
 #endif
@@ -774,16 +794,42 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	}
 
 #if CFG80211_VERSION >= KERNEL_VERSION(4,8,0)
+	hw->wiphy->iftype_ext_capab = NULL;
+#endif
+#if CFG80211_VERSION >= KERNEL_VERSION(4,8,0)
+	hw->wiphy->num_iftype_ext_capab = 0;
+#endif
+
+#if CFG80211_VERSION >= KERNEL_VERSION(4,8,0)
 	if (mvm->nvm_data->sku_cap_11ax_enable &&
 	    !iwlwifi_mod_params.disable_11ax) {
-		hw->wiphy->iftype_ext_capab = he_iftypes_ext_capa;
-		hw->wiphy->num_iftype_ext_capab =
-			ARRAY_SIZE(he_iftypes_ext_capa);
+#if CFG80211_VERSION >= KERNEL_VERSION(4,8,0)
+		hw->wiphy->iftype_ext_capab = add_iftypes_ext_capa;
+#endif
+#if CFG80211_VERSION >= KERNEL_VERSION(4,8,0)
+		hw->wiphy->num_iftype_ext_capab = ARRAY_SIZE(add_iftypes_ext_capa) - 1;
+#endif
 
 		ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
 		ieee80211_hw_set(hw, SUPPORTS_ONLY_HE_MULTI_BSSID);
 	}
 #endif
+
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, DATA_PATH_GROUP,
+				  WNM_80211V_TIMING_MEASUREMENT_CONFIG_CMD,
+				  IWL_FW_CMD_VER_UNKNOWN) == 1) {
+		IWL_DEBUG_INFO(mvm->trans, "Timing measurement supported\n");
+
+#if CFG80211_VERSION >= KERNEL_VERSION(4,8,0)
+		hw->wiphy->iftype_ext_capab = add_iftypes_ext_capa + 1;
+#endif
+		if (!hw->wiphy->iftype_ext_capab) {
+#if CFG80211_VERSION >= KERNEL_VERSION(4,8,0)
+			hw->wiphy->num_iftype_ext_capab =
+				hw->wiphy->num_iftype_ext_capab + 1;
+#endif
+		}
+	}
 
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 
