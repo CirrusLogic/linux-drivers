@@ -786,21 +786,21 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"Capture", NULL, "BSTMON"},
 
 	/* Playback */
-	{"Entry", NULL, "Playback"},
+	{"AMP Enable", "Switch", "Playback"},
 
-	{"AMP Enable", "Switch", "Entry"},
+	{"Entry", NULL, "AMP Enable"},
 
-	{"ASP_RX1", NULL, "AMP Enable"},
-	{"ASP_RX2", NULL, "AMP Enable"},
+	{"BBPE Enable", "Switch", "Entry"},
+	{"NFR Enable", "Switch", "Entry"},
+
+	{"NGATE_CH1", NULL, "Entry"},
+	{"NGATE_CH2", NULL, "Entry"},
+
+	{"ASP_RX1", NULL, "Entry"},
+	{"ASP_RX2", NULL, "Entry"},
 
 	{"ASP", NULL, "ASP_RX1"},
 	{"ASP", NULL, "ASP_RX2"},
-
-	{"BBPE Enable", "Switch", "AMP Enable"},
-	{"NFR Enable", "Switch", "AMP Enable"},
-
-	{"NGATE_CH1", NULL, "AMP Enable"},
-	{"NGATE_CH2", NULL, "AMP Enable"},
 
 	{"NGATE Enable", "Switch", "NGATE_CH1"},
 	{"NGATE Enable", "Switch", "NGATE_CH2"},
