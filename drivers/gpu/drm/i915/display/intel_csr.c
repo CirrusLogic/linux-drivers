@@ -652,7 +652,7 @@ static void csr_load_work_fn(struct work_struct *work)
 	     "Timing out after waiting %dms for SYSTEM_RUNNING",
 	     rootfs_timeout_ms);
 
-	request_firmware(&fw, dev_priv->csr.fw_path, &dev_priv->drm.pdev->dev);
+	request_firmware(&fw, dev_priv->csr.fw_path, dev_priv->drm.dev);
 	parse_csr_fw(dev_priv, fw);
 
 	if (dev_priv->csr.dmc_payload) {
