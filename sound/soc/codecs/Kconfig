@@ -67,6 +67,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_CS35L41_I2C
 	imply SND_SOC_CS35L45_I2C
 	imply SND_SOC_CS35L45_SPI
+	imply SND_SOC_CS40L26
 	imply SND_SOC_CS42L42
 	imply SND_SOC_CS42L51_I2C
 	imply SND_SOC_CS42L52
@@ -318,7 +319,6 @@ config SND_SOC_ALL_CODECS
 	  uses them is also built since they are only usable with a machine
 	  driver.  Selecting this option will allow these drivers to be built
 	  without an explicit machine driver for test and development purposes.
-
 	  Support for the bus types used to access the codecs to be built must
 	  be selected separately.
 
@@ -691,6 +691,10 @@ config SND_SOC_CS35L45_I2C
 	help
 	  Enable support for Cirrus Logic CS35L45 smart speaker amplifier
 	  with I2C control.
+
+config SND_SOC_CS40L26
+	tristate "Cirrus Logic CS40L26 Stub CODEC"
+	depends on INPUT_CS40L26_I2C || INPUT_CS40L26_SPI
 
 config SND_SOC_CS42L42_CORE
 	tristate
