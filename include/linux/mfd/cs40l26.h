@@ -34,6 +34,12 @@
 #include <linux/sysfs.h>
 #include <linux/bitops.h>
 #include <linux/pm_runtime.h>
+#include <sound/core.h>
+#include <sound/pcm.h>
+#include <sound/pcm_params.h>
+#include <sound/soc.h>
+#include <sound/initval.h>
+#include <sound/tlv.h>
 
 #include <linux/firmware/cirrus/cl_dsp.h>
 
@@ -646,16 +652,17 @@
 #define CS40L26_PM_TIMEOUT_TICKS_STATIC_REG		0x02800338
 
 /* algorithms */
-#define CS40L26_A2H_ALGO_ID		0x00000110
+#define CS40L26_A2H_ALGO_ID		0x00010110
 #define CS40L26_BUZZGEN_ALGO_ID	0x0001F202
 #define CS40L26_DYNAMIC_F0_ALGO_ID	0x0001F21B
 #define CS40L26_EVENT_HANDLER_ALGO_ID	0x0001F200
+#define CS40L26_F0_EST_ALGO_ID		0x0001F20C
 #define CS40L26_GPIO_ALGO_ID		0x0001F201
 #define CS40L26_MAILBOX_ALGO_ID	0x0001F203
 #define CS40L26_MDSYNC_ALGO_ID		0x0001F20F
 #define CS40L26_PM_ALGO_ID		0x0001F206
 #define CS40l26_SVC_ALGO_ID		0x0001F207
-#define CS40L26_VIBEGEN_ALGO_ID	0x000000BD
+#define CS40L26_VIBEGEN_ALGO_ID	0x000100BD
 
 #define CS40L26_BUZZGEN_ROM_ALGO_ID	0x0000F202
 #define CS40L26_PM_ROM_ALGO_ID		0x0000F206
@@ -704,6 +711,11 @@
 #define CS40L26_DSP_MBOX_CMD_ALLOW_HIBER	0x02000004
 #define CS40L26_DSP_MBOX_CMD_SHUTDOWN		0x02000005
 
+#define CS40L26_DSP_MBOX_CMD_DURATION_REPORT	0x03000001
+#define CS40L26_DSP_MBOX_CMD_START_I2S		0x03000002
+#define CS40L26_DSP_MBOX_CMD_STOP_I2S		0x03000003
+#define CS40L26_DSP_MBOX_CMD_A2H_REINIT	0x03000007
+
 #define CS40L26_DSP_MBOX_BUFFER_BASE		0x028073C0
 #define CS40L26_DSP_MBOX_BUFFER_LEN		0x028073C4
 #define CS40L26_DSP_MBOX_BUFFER_WRITE_PTR	0x028073C8
@@ -729,11 +741,12 @@
 #define CS40L26_FW_FILE_NAME		"cs40l26.wmfw"
 
 #define CS40L26_WT_FILE_NAME		"cs40l26.bin"
-#define CS40L26_SVC_FILE_NAME		"cs40l26-svc.bin"
+#define CS40L26_SVC_TUNING_FILE_NAME	"cs40l26-svc.bin"
+#define CS40L26_A2H_TUNING_FILE_NAME	"cs40l26-a2h.bin"
 
 #define CS40L26_FW_ROM_ID		0x1800D4
 #define CS40L26_FW_ROM_MIN_REV		0x040000
-#define CS40L26_FW_RAM_MIN_REV		0x040101
+#define CS40L26_FW_RAM_MIN_REV		0x050001
 
 #define CS40L26_CCM_CORE_RESET		0x00000200
 #define CS40L26_CCM_CORE_ENABLE	0x00000281
@@ -863,6 +876,99 @@
 #define CS40L26_VXBR_REL_RATE_MAX		0x7
 #define CS40L26_VXBR_REL_RATE_MASK		GENMASK(23, 21)
 #define CS40L26_VXBR_REL_RATE_SHIFT		21
+
+/* audio */
+#define CS40L26_PLL_CLK_CFG0			0x00
+#define CS40L26_PLL_CLK_CFG1			0x1B
+#define CS40L26_PLL_CLK_CFG2			0x21
+#define CS40L26_PLL_CLK_CFG3			0x28
+#define CS40L26_PLL_CLK_CFG4			0x30
+#define CS40L26_PLL_CLK_CFG5			0x33
+
+#define CS40L26_PLL_CLK_FRQ0			32768
+#define CS40L26_PLL_CLK_FRQ1			1536000
+#define CS40L26_PLL_CLK_FRQ2			3072000
+#define CS40L26_PLL_CLK_FRQ3			6144000
+#define CS40L26_PLL_CLK_FRQ4			9600000
+#define CS40L26_PLL_CLK_FRQ5			12288000
+
+#define CS40L26_PLL_CLK_SEL_BCLK		0x0
+#define CS40L26_PLL_CLK_SEL_FSYNC		0x1
+#define CS40L26_PLL_CLK_SEL_MCLK		0x5
+
+#define CS40L26_PLL_CLK_FREQ_MASK		GENMASK(31, 0)
+#define CS40L26_PLL_CLK_CFG_MASK		GENMASK(5, 0)
+
+#define CS40L26_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
+
+#define CS40L26_ASP_RX_WIDTH_MASK		GENMASK(31, 24)
+#define CS40L26_ASP_RX_WIDTH_SHIFT		24
+#define CS40L26_ASP_BCLK_INV_MASK		BIT(6)
+#define CS40L26_ASP_BCLK_INV_SHIFT		6
+#define CS40L26_ASP_FSYNC_INV_MASK		BIT(2)
+#define CS40L26_ASP_FSYNC_INV_SHIFT		2
+
+#define CS40L26_PLL_REFCLK_BCLK		0x0
+#define CS40L26_PLL_REFCLK_FSYNC		0x1
+#define CS40L26_PLL_REFCLK_MCLK		0x5
+
+#define CS40L26_PLL_REFCLK_SEL_MASK		GENMASK(2, 0)
+#define CS40L26_PLL_REFCLK_EN_MASK		BIT(4)
+#define CS40L26_PLL_REFCLK_EN_SHIFT		4
+#define CS40L26_PLL_REFCLK_FREQ_MASK		GENMASK(10, 5)
+#define CS40L26_PLL_REFCLK_FREQ_SHIFT		5
+#define CS40L26_PLL_OPEN_LOOP_MASK		BIT(11)
+#define CS40L26_PLL_OPEN_LOOP_SHIFT		11
+#define CS40L26_PLL_FORCE_EN_MASK		BIT(16)
+#define CS40L26_PLL_FORCE_EN_SHIFT		16
+
+#define CS40L26_ASP_RX_WL_MASK			GENMASK(5, 0)
+
+#define CS40L26_DATA_SRC_ZERO_FILL		0x00
+#define CS40L26_DATA_SRC_DIAG_GEN		0x04
+#define CS40L26_DATA_SRC_ASPRX1		0x08
+#define CS40L26_DATA_SRC_ASPRX2		0x09
+#define CS40L26_DATA_SRC_ASPRX3		0x0A
+#define CS40L26_DATA_SRC_VMON			0x18
+#define CS40L26_DATA_SRC_IMON			0x19
+#define CS40L26_DATA_SRC_VMON_FSX2		0x1A
+#define CS40L26_DATA_SRC_IMON_FSX2		0x1B
+#define CS40L26_DATA_SRC_ERR_VOL		0x20
+#define CS40L26_DATA_SRC_CLASSH_TGT		0x21
+#define CS40L26_DATA_SRC_VPMON			0x28
+#define CS40L26_DATA_SRC_VBSTMON		0x29
+#define CS40L26_DATA_SRC_BOOST_MON_MUX0	0x30
+#define CS40L26_DATA_SRC_BOOST_MON_MUX1	0x31
+#define CS40L26_DATA_SRC_DSP1TX1		0x32
+#define CS40L26_DATA_SRC_DSP1TX2		0x33
+#define CS40L26_DATA_SRC_DSP1TX3		0x34
+#define CS40L26_DATA_SRC_DSP1TX4		0x35
+#define CS40L26_DATA_SRC_DSP1TX5		0x36
+#define CS40L26_DATA_SRC_DSP1TX6		0x37
+#define CS40L26_DATA_SRC_TEMP_MON		0x3A
+#define CS40L26_DATA_SRC_AMP_INTP		0x40
+
+#define CS40L26_DATA_SRC_MASK		GENMASK(6, 0)
+
+#define CS40L26_ASP_TX1_EN_MASK	BIT(0)
+#define CS40L26_ASP_TX2_EN_MASK	BIT(1)
+#define CS40L26_ASP_TX2_EN_SHIFT	1
+#define CS40L26_ASP_TX3_EN_MASK	BIT(2)
+#define CS40L26_ASP_TX3_EN_SHIFT	2
+#define CS40L26_ASP_TX4_EN_MASK	BIT(3)
+#define CS40L26_ASP_TX4_EN_SHIFT	3
+#define CS40L26_ASP_RX1_EN_MASK	BIT(16)
+#define CS40L26_ASP_RX1_EN_SHIFT	16
+#define CS40L26_ASP_RX2_EN_MASK	BIT(17)
+#define CS40L26_ASP_RX2_EN_SHIFT	17
+#define CS40L26_ASP_RX3_EN_MASK	BIT(18)
+#define CS40L26_ASP_RX3_EN_SHIFT	18
+
+#define CS40L26_CLK_NORMAL		0
+#define CS40L26_CLK_INV			1
+
+/* MFD */
+#define CS40L26_NUM_MFD_DEVS		1
 
 /* macros */
 #define CS40L26_OTP_MEM(n)	(CS40L26_OTP_MEM0 + \
@@ -1039,9 +1145,29 @@ struct cs40l26_private {
 	u32 num_waves;
 	bool fw_loaded;
 	bool pm_ready;
+	bool asp_enable;
+};
+
+struct cs40l26_codec {
+	struct cs40l26_private *core;
+	struct device *dev;
+	struct regmap *regmap;
+	int sysclk_rate;
+	int tuning;
+	int tuning_prev;
+	char *bin_file;
+};
+
+struct cs40l26_pll_sysclk_config {
+	u32 freq;
+	u8 clk_cfg;
 };
 
 /* exported function prototypes */
+int cs40l26_ack_write(struct cs40l26_private *cs40l26, u32 reg, u32 write_val,
+		u32 reset_val);
+int cs40l26_pseq_multi_add_pair(struct cs40l26_private *cs40l26,
+		const struct reg_sequence *reg_seq, int num_regs, bool replace);
 int cs40l26_resume(struct device *dev);
 int cs40l26_sys_resume(struct device *dev);
 int cs40l26_sys_resume_noirq(struct device *dev);
@@ -1061,6 +1187,7 @@ extern struct regulator_bulk_data
 		cs40l26_supplies[CS40L26_NUM_SUPPLIES];
 extern const struct dev_pm_ops cs40l26_pm_ops;
 extern const struct regmap_config cs40l26_regmap;
+extern const struct mfd_cell cs40l26_devs[CS40L26_NUM_MFD_DEVS];
 
 /* sysfs */
 extern struct attribute_group cs40l26_dev_attr_group;
