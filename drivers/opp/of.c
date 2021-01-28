@@ -953,7 +953,7 @@ remove_static_opp:
 	return ret;
 }
 
-static int _of_add_table_indexed(struct device *dev, int index)
+static int _of_add_table_indexed(struct device *dev, int index, bool getclk)
 {
 	struct opp_table *opp_table;
 	int ret, count;
@@ -969,7 +969,7 @@ static int _of_add_table_indexed(struct device *dev, int index)
 			index = 0;
 	}
 
-	opp_table = _add_opp_table_indexed(dev, index);
+	opp_table = _add_opp_table_indexed(dev, index, getclk);
 	if (IS_ERR(opp_table))
 		return PTR_ERR(opp_table);
 
@@ -1007,7 +1007,7 @@ static int _of_add_table_indexed(struct device *dev, int index)
  */
 int dev_pm_opp_of_add_table(struct device *dev)
 {
-	return _of_add_table_indexed(dev, 0);
+	return _of_add_table_indexed(dev, 0, true);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table);
 
@@ -1023,7 +1023,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table);
  */
 int dev_pm_opp_of_add_table_indexed(struct device *dev, int index)
 {
-	return _of_add_table_indexed(dev, index);
+	return _of_add_table_indexed(dev, index, true);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table_indexed);
 
