@@ -99,8 +99,8 @@ static int cs40l26_ack_read(struct cs40l26_private *cs40l26, u32 reg,
 	return 0;
 }
 
-static int cs40l26_ack_write(struct cs40l26_private *cs40l26,
-		u32 reg, u32 write_val, u32 reset_val)
+int cs40l26_ack_write(struct cs40l26_private *cs40l26, u32 reg, u32 write_val,
+		u32 reset_val)
 {
 	int ret;
 
@@ -110,6 +110,7 @@ static int cs40l26_ack_write(struct cs40l26_private *cs40l26,
 
 	return cs40l26_ack_read(cs40l26, reg, reset_val);
 }
+EXPORT_SYMBOL(cs40l26_ack_write);
 
 int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 {
@@ -1485,6 +1486,23 @@ static int cs40l26_pseq_add_pair(struct cs40l26_private *cs40l26, u16 addr,
 	return ret;
 }
 
+int cs40l26_pseq_multi_add_pair(struct cs40l26_private *cs40l26,
+		const struct reg_sequence *reg_seq, int num_regs, bool replace)
+{
+	int ret, i;
+
+	for (i = 0; i < num_regs; i++) {
+		ret = cs40l26_pseq_add_pair(cs40l26, (u16) (reg_seq[i].reg &
+				CS40L26_PSEQ_ADDR_MASK), reg_seq[i].def,
+				replace);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(cs40l26_pseq_multi_add_pair);
+
 static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
@@ -1959,6 +1977,9 @@ static void cs40l26_coeff_file_load(const struct firmware *fw, void *context)
 	if (cl_dsp_coeff_file_parse(cs40l26->dsp, fw))
 		dev_warn(dev, "Could not load coefficient file %s\n",
 			cs40l26->dsp->fw_desc->coeff_files[*num_load_attempts]);
+	else
+		dev_dbg(dev, "%s Loaded Successfully\n",
+			cs40l26->dsp->fw_desc->coeff_files[*num_load_attempts]);
 
 	release_firmware(fw);
 
@@ -2170,6 +2191,13 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 	ret = cs40l26_input_init(cs40l26);
 	if (ret)
 		goto err;
+
+	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE, cs40l26_devs,
+			CS40L26_NUM_MFD_DEVS, NULL, 0, NULL);
+	if (ret) {
+		dev_err(dev, "Failed to register codec component\n");
+		goto err;
+	}
 
 	return 0;
 
