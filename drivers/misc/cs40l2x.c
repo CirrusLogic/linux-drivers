@@ -10617,6 +10617,7 @@ static int cs40l2x_asp_config(struct cs40l2x_private *cs40l2x)
 	unsigned int asp_slot_width = cs40l2x->pdata.asp_slot_width;
 	unsigned int asp_samp_width = cs40l2x->pdata.asp_samp_width;
 	unsigned int asp_frame_cfg = 0;
+	unsigned int val;
 	int ret, i;
 
 	if (asp_bclk_freq % asp_slot_width
@@ -10725,8 +10726,13 @@ static int cs40l2x_asp_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_SP_FRAME_RX_SLOT,
-			asp_slot_num << CS40L2X_ASP_RX1_SLOT_SHIFT);
+	ret = regmap_read(regmap, CS40L2X_SP_FRAME_RX_SLOT, &val);
+	if (ret) {
+		dev_err(dev, "Failed to read ASP slot number\n");
+		return ret;
+	}
+
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_SP_FRAME_RX_SLOT, val);
 	if (ret) {
 		dev_err(dev, "Failed to sequence ASP slot number\n");
 		return ret;
