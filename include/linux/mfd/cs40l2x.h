@@ -1117,9 +1117,6 @@
 #define CS40L2X_I2S_ENABLED		1
 #define CS40L2X_I2S_DISABLED		0
 
-#define CS40L2X_VIBE_MODE_HAPTIC	0
-#define CS40L2X_VIBE_MODE_AUDIO		1
-
 #define CS40L2X_VIBE_STATE_STOPPED	0
 #define CS40L2X_VIBE_STATE_RUNNING	1
 
@@ -1460,7 +1457,6 @@ struct cs40l2x_private {
 	struct cs40l2x_dblk_desc pre_dblks[CS40L2X_MAX_A2H_LEVELS];
 	struct cs40l2x_dblk_desc a2h_dblks[CS40L2X_MAX_A2H_LEVELS];
 	bool vibe_init_success;
-	bool vibe_mode;
 	bool vibe_state;
 	bool safe_save_state;
 	struct gpio_desc *reset_gpio;
