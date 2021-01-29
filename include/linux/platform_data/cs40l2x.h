@@ -55,12 +55,7 @@ struct cs40l2x_platform_data {
 	unsigned int gpio_indv_pol;
 	bool hiber_enable;
 	unsigned int asp_bclk_freq;
-	bool asp_bclk_inv;
-	bool asp_fsync_inv;
-	unsigned int asp_fmt;
 	unsigned int asp_slot_num;
-	unsigned int asp_slot_width;
-	unsigned int asp_samp_width;
 	unsigned int asp_timeout;
 	bool vpbr_enable;
 	bool vbbr_enable;
