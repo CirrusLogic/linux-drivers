@@ -11,6 +11,8 @@ maintainers:
 
 description:
   Supports the Goodix GT7375P touchscreen.
+  This touchscreen uses the i2c-hid protocol but has some non-standard
+  power sequencing required.
 
 properties:
   compatible:
