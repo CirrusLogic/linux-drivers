@@ -6246,95 +6246,6 @@ err_mutex:
 	return ret;
 }
 
-static int cs40l2x_refclk_switch(struct cs40l2x_private *cs40l2x,
-			unsigned int refclk_freq)
-{
-	unsigned int refclk_sel, pll_config;
-	int ret, i;
-
-	refclk_sel = (refclk_freq == CS40L2X_PLL_REFCLK_FREQ_32K) ?
-			CS40L2X_PLL_REFCLK_SEL_MCLK :
-			CS40L2X_PLL_REFCLK_SEL_BCLK;
-
-	for (i = 0; i < CS40L2X_NUM_REFCLKS; i++)
-		if (cs40l2x_refclks[i].freq == refclk_freq)
-			break;
-	if (i == CS40L2X_NUM_REFCLKS)
-		return -EINVAL;
-
-	pll_config = ((1 << CS40L2X_PLL_REFCLK_EN_SHIFT)
-				& CS40L2X_PLL_REFCLK_EN_MASK) |
-			((i << CS40L2X_PLL_REFCLK_FREQ_SHIFT)
-				& CS40L2X_PLL_REFCLK_FREQ_MASK) |
-			((refclk_sel << CS40L2X_PLL_REFCLK_SEL_SHIFT)
-				& CS40L2X_PLL_REFCLK_SEL_MASK);
-
-	ret = cs40l2x_ack_write(cs40l2x,
-			CS40L2X_MBOX_POWERCONTROL,
-			CS40L2X_POWERCONTROL_FRC_STDBY,
-			CS40L2X_POWERCONTROL_NONE);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(cs40l2x->regmap, CS40L2X_PLL_CLK_CTRL, pll_config);
-	if (ret)
-		return ret;
-
-	ret = cs40l2x_wseq_replace(cs40l2x, CS40L2X_PLL_CLK_CTRL, pll_config);
-	if (ret)
-		return ret;
-
-	return cs40l2x_ack_write(cs40l2x,
-			CS40L2X_MBOX_POWERCONTROL,
-			CS40L2X_POWERCONTROL_WAKEUP,
-			CS40L2X_POWERCONTROL_NONE);
-}
-
-static int cs40l2x_asp_switch(struct cs40l2x_private *cs40l2x, bool enable)
-{
-	unsigned int val;
-	int ret;
-
-	if (!enable) {
-		ret = cs40l2x_user_ctrl_exec(cs40l2x,
-				CS40L2X_USER_CTRL_STOP, 0, NULL);
-		if (ret)
-			return ret;
-
-		ret = cs40l2x_ground_amp(cs40l2x, true);
-		if (ret)
-			return ret;
-	}
-
-	ret = regmap_read(cs40l2x->regmap, CS40L2X_SP_ENABLES, &val);
-	if (ret)
-		return ret;
-
-	val &= ~CS40L2X_ASP_RX1_EN_MASK;
-	val |= (enable << CS40L2X_ASP_RX1_EN_SHIFT) & CS40L2X_ASP_RX1_EN_MASK;
-
-	ret = regmap_write(cs40l2x->regmap, CS40L2X_SP_ENABLES, val);
-	if (ret)
-		return ret;
-
-	ret = cs40l2x_wseq_replace(cs40l2x, CS40L2X_SP_ENABLES, val);
-	if (ret)
-		return ret;
-
-	if (enable) {
-		ret = cs40l2x_ground_amp(cs40l2x, false);
-		if (ret)
-			return ret;
-
-		ret = cs40l2x_user_ctrl_exec(cs40l2x,
-				CS40L2X_USER_CTRL_PLAY, 0, NULL);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 static ssize_t cs40l2x_exc_enable_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -6519,8 +6430,7 @@ static ssize_t cs40l2x_hw_reset_store(struct device *dev,
 	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
 
-	if (cs40l2x->vibe_mode == CS40L2X_VIBE_MODE_AUDIO
-			|| cs40l2x->vibe_state == CS40L2X_VIBE_STATE_RUNNING) {
+	if (cs40l2x->vibe_state == CS40L2X_VIBE_STATE_RUNNING) {
 		ret = -EPERM;
 		goto err_mutex;
 	}
@@ -7409,31 +7319,7 @@ static void cs40l2x_vibe_mode_worker(struct work_struct *work)
 	if (val != CS40L2X_STATUS_IDLE)
 		goto err_exit;
 
-	if (cs40l2x->vibe_mode == CS40L2X_VIBE_MODE_AUDIO) {
-		/* switch to haptic mode */
-		ret = cs40l2x_asp_switch(cs40l2x, CS40L2X_ASP_DISABLED);
-		if (ret) {
-			dev_err(dev, "Failed to disable ASP\n");
-			goto err_exit;
-		}
-
-		ret = cs40l2x_refclk_switch(cs40l2x,
-				CS40L2X_PLL_REFCLK_FREQ_32K);
-		if (ret) {
-			dev_err(dev, "Failed to switch to 32.768-kHz REFCLK\n");
-			goto err_exit;
-		}
-
-		cs40l2x->vibe_mode = CS40L2X_VIBE_MODE_HAPTIC;
-
-		if (cs40l2x->pbq_state != CS40L2X_PBQ_STATE_IDLE)
-			goto err_exit;
-
-		cs40l2x_set_state(cs40l2x, CS40L2X_VIBE_STATE_STOPPED);
-		cs40l2x_wl_relax(cs40l2x);
-	} else if (cs40l2x->vibe_mode == CS40L2X_VIBE_MODE_HAPTIC &&
-						cs40l2x->a2h_enable) {
-
+	if (cs40l2x->a2h_enable) {
 		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
 					CS40L2X_BST_CTL_SEL_MASK,
 					CS40L2X_BST_CTL_SEL_CLASSH);
@@ -7530,8 +7416,7 @@ static int cs40l2x_pbq_cancel(struct cs40l2x_private *cs40l2x)
 			return ret;
 
 		cs40l2x_set_state(cs40l2x, CS40L2X_VIBE_STATE_STOPPED);
-		if (cs40l2x->vibe_mode != CS40L2X_VIBE_MODE_AUDIO)
-			cs40l2x_wl_relax(cs40l2x);
+		cs40l2x_wl_relax(cs40l2x);
 		break;
 	case CS40L2X_PBQ_STATE_PLAYING:
 		ret = cs40l2x_stop_playback(cs40l2x);
@@ -7547,8 +7432,7 @@ static int cs40l2x_pbq_cancel(struct cs40l2x_private *cs40l2x)
 			break;
 
 		cs40l2x_set_state(cs40l2x, CS40L2X_VIBE_STATE_STOPPED);
-		if (cs40l2x->vibe_mode != CS40L2X_VIBE_MODE_AUDIO)
-			cs40l2x_wl_relax(cs40l2x);
+		cs40l2x_wl_relax(cs40l2x);
 		break;
 	default:
 		return -EINVAL;
@@ -7876,8 +7760,7 @@ static int cs40l2x_peak_capture(struct cs40l2x_private *cs40l2x)
 
 static int cs40l2x_reset_recovery(struct cs40l2x_private *cs40l2x)
 {
-	bool wl_pending = (cs40l2x->vibe_mode == CS40L2X_VIBE_MODE_AUDIO)
-			|| (cs40l2x->vibe_state == CS40L2X_VIBE_STATE_RUNNING);
+	bool wl_pending = (cs40l2x->vibe_state == CS40L2X_VIBE_STATE_RUNNING);
 	unsigned int fw_id_restore;
 	int ret, i;
 
@@ -7895,7 +7778,6 @@ static int cs40l2x_reset_recovery(struct cs40l2x_private *cs40l2x)
 			return ret;
 	}
 
-	cs40l2x->vibe_mode = CS40L2X_VIBE_MODE_HAPTIC;
 	cs40l2x_set_state(cs40l2x, CS40L2X_VIBE_STATE_STOPPED);
 
 	cs40l2x->cp_trailer_index = CS40L2X_INDEX_IDLE;
@@ -8214,9 +8096,7 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 #endif /* CONFIG_ANDROID_TIMED_OUTPUT */
 	/* intentional fall through */
 	case CS40L2X_INDEX_PBQ:
-		if (cs40l2x->vibe_mode != CS40L2X_VIBE_MODE_AUDIO
-				&& cs40l2x->vibe_state
-					!= CS40L2X_VIBE_STATE_RUNNING)
+		if (cs40l2x->vibe_state != CS40L2X_VIBE_STATE_RUNNING)
 			cs40l2x_wl_apply(cs40l2x);
 		cs40l2x_set_state(cs40l2x, CS40L2X_VIBE_STATE_RUNNING);
 		break;
@@ -8225,9 +8105,7 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 		if (!(cs40l2x->event_control & CS40L2X_EVENT_END_ENABLED))
 			break;
 
-		if (cs40l2x->vibe_mode != CS40L2X_VIBE_MODE_AUDIO
-				&& cs40l2x->vibe_state
-					!= CS40L2X_VIBE_STATE_RUNNING)
+		if (cs40l2x->vibe_state != CS40L2X_VIBE_STATE_RUNNING)
 			cs40l2x_wl_apply(cs40l2x);
 		cs40l2x_set_state(cs40l2x, CS40L2X_VIBE_STATE_RUNNING);
 		break;
@@ -8453,8 +8331,7 @@ err_relax:
 
 	if (ret) {
 		cs40l2x_set_state(cs40l2x, CS40L2X_VIBE_STATE_STOPPED);
-		if (cs40l2x->vibe_mode != CS40L2X_VIBE_MODE_AUDIO)
-			cs40l2x_wl_relax(cs40l2x);
+		cs40l2x_wl_relax(cs40l2x);
 	}
 
 err_mutex:
@@ -8505,8 +8382,7 @@ static void cs40l2x_vibe_stop_worker(struct work_struct *work)
 			break;
 
 		cs40l2x_set_state(cs40l2x, CS40L2X_VIBE_STATE_STOPPED);
-		if (cs40l2x->vibe_mode != CS40L2X_VIBE_MODE_AUDIO)
-			cs40l2x_wl_relax(cs40l2x);
+		cs40l2x_wl_relax(cs40l2x);
 		break;
 
 	case CS40L2X_INDEX_CLICK_MIN ... CS40L2X_INDEX_CLICK_MAX:
@@ -10077,8 +9953,7 @@ static int cs40l2x_firmware_swap(struct cs40l2x_private *cs40l2x,
 	struct device *dev = cs40l2x->dev;
 	int ret, i;
 
-	if (cs40l2x->vibe_mode == CS40L2X_VIBE_MODE_AUDIO
-			|| cs40l2x->vibe_state == CS40L2X_VIBE_STATE_RUNNING)
+	if (cs40l2x->vibe_state == CS40L2X_VIBE_STATE_RUNNING)
 		return -EPERM;
 
 	switch (cs40l2x->fw_desc->id) {
