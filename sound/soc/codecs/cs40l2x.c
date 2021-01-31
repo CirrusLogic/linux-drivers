@@ -202,6 +202,10 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 				return ret;
 		}
 
+		ret = regmap_write(regmap, reg, CS40L2X_A2H_ENABLE);
+		if (ret)
+			return ret;
+
 		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
 					CS40L2X_BST_CTL_SEL_MASK,
 					CS40L2X_BST_CTL_SEL_CLASSH);
@@ -218,10 +222,6 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 		ret = regmap_update_bits(regmap, CS40L2X_SP_ENABLES,
 					CS40L2X_ASP_RX_ENABLE_MASK,
 					CS40L2X_ASP_RX_ENABLE_MASK);
-		if (ret)
-			return ret;
-
-		ret = regmap_write(regmap, reg, CS40L2X_A2H_ENABLE);
 		if (ret)
 			return ret;
 
