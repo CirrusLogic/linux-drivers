@@ -21,9 +21,6 @@
 
 #include "cs40l2x.h"
 
-struct cs40l2x_codec;
-struct cs40l2x_private;
-
 enum cs40l2x_clk_src {
 	CS40L2X_32KHZ_CLK,
 	CS40L2X_SCLK
