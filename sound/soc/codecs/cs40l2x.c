@@ -229,8 +229,9 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 		if (ret)
 			return ret;
 
-		ret = regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_5,
-					CS40L2X_A2H_I2S_START);
+		ret = cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_5,
+					CS40L2X_A2H_I2S_START,
+					CS40L2X_A2H_DISABLE);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		ret = regmap_update_bits(regmap, CS40L2X_SP_ENABLES,
@@ -242,10 +243,9 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 		if (ret)
 			return ret;
 
-		ret = regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_5,
-					CS40L2X_A2H_I2S_END);
-		if (ret)
-			return ret;
+		ret = cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_5,
+					CS40L2X_A2H_I2S_END,
+					CS40L2X_A2H_DISABLE);
 
 		ret = regmap_write(regmap, reg, CS40L2X_A2H_DISABLE);
 		break;
