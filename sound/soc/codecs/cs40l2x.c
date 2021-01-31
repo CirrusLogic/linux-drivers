@@ -124,7 +124,6 @@ static int cs40l2x_clk_en(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		pm_runtime_get_sync(core->dev);
 		mutex_lock(&codec->core->lock);
 		core->a2h_enable = true;
 		mutex_unlock(&codec->core->lock);
@@ -144,9 +143,6 @@ static int cs40l2x_clk_en(struct snd_soc_dapm_widget *w,
 		mutex_lock(&codec->core->lock);
 		core->a2h_enable = false;
 		mutex_unlock(&codec->core->lock);
-
-		pm_runtime_mark_last_busy(core->dev);
-		pm_runtime_put_autosuspend(core->dev);
 		break;
 	default:
 		dev_err(dev, "Invalid event %d\n", event);
@@ -334,7 +330,7 @@ static int cs40l2x_vol_get(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	pm_runtime_get_sync(core->dev);
+	pm_runtime_get_sync(cs40l2x->dev);
 	ret = regmap_read(regmap, reg, &val);
 	if (ret)
 		goto vol_get_err;
@@ -345,8 +341,8 @@ static int cs40l2x_vol_get(struct snd_kcontrol *kcontrol,
 		val /= (CS40L2X_VOL_LVL_MAX / CS40L2X_VOL_LVL_MAX_STEPS);
 
 vol_get_err:
-	pm_runtime_mark_last_busy(core->dev);
-	pm_runtime_put_autosuspend(core->dev);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
 
 	ucontrol->value.integer.value[0] = val;
 	return ret;
@@ -381,12 +377,12 @@ static int cs40l2x_vol_put(struct snd_kcontrol *kcontrol,
 	else
 		val *= (CS40L2X_VOL_LVL_MAX / CS40L2X_VOL_LVL_MAX_STEPS);
 
-	pm_runtime_get_sync(core->dev);
+	pm_runtime_get_sync(cs40l2x->dev);
 
 	ret = regmap_write(regmap, reg, val);
 
-	pm_runtime_mark_last_busy(core->dev);
-	pm_runtime_put_autosuspend(core->dev);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
 	return ret;
 }
 
@@ -450,15 +446,15 @@ static int cs40l2x_delay_get(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	pm_runtime_get_sync(core->dev);
+	pm_runtime_get_sync(cs40l2x->dev);
 	ret = regmap_read(regmap, reg, &val);
 	if (ret)
 		goto vol_get_err;
 
 	ucontrol->value.integer.value[0] = val;
 vol_get_err:
-	pm_runtime_mark_last_busy(core->dev);
-	pm_runtime_put_autosuspend(core->dev);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
 
 	return ret;
 }
@@ -544,7 +540,6 @@ static int cs40l2x_component_set_sysclk(struct snd_soc_component *component,
 {
 	struct cs40l2x_codec *codec = snd_soc_component_get_drvdata(component);
 	struct regmap *regmap = codec->regmap;
-	struct cs40l2x_private *core = codec->core;
 	struct device *dev = codec->dev;
 	int clk_cfg, ret = 0;
 
@@ -565,10 +560,10 @@ static int cs40l2x_component_set_sysclk(struct snd_soc_component *component,
 	}
 
 	codec->codec_sysclk = freq;
-	pm_runtime_get_sync(core->dev);
+	pm_runtime_get_sync(codec->dev);
 	ret = regmap_write(regmap, CS40L2X_SP_RATE_CTRL, clk_cfg);
-	pm_runtime_mark_last_busy(core->dev);
-	pm_runtime_put_autosuspend(core->dev);
+	pm_runtime_mark_last_busy(codec->dev);
+	pm_runtime_put_autosuspend(codec->dev);
 sysclk_err:
 
 	return ret;
@@ -600,7 +595,6 @@ static int cs40l2x_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct cs40l2x_codec *cs40l2x =
 		snd_soc_component_get_drvdata(codec_dai->component);
 	struct device *dev = cs40l2x->dev;
-	struct cs40l2x_private *core = cs40l2x->core;
 	struct regmap *regmap = cs40l2x->regmap;
 	unsigned int lrclk_fmt, sclk_fmt;
 	int ret;
@@ -643,7 +637,7 @@ static int cs40l2x_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	pm_runtime_get_sync(core->dev);
+	pm_runtime_get_sync(cs40l2x->dev);
 	ret = regmap_update_bits(regmap, CS40L2X_SP_FORMAT,
 					CS40L2X_LRCLK_INV_MASK,
 					lrclk_fmt << CS40L2X_LRCLK_INV_SHIFT);
@@ -654,8 +648,8 @@ static int cs40l2x_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 					CS40L2X_SCLK_INV_MASK,
 					sclk_fmt << CS40L2X_SCLK_INV_SHIFT);
 fmt_err:
-	pm_runtime_mark_last_busy(core->dev);
-	pm_runtime_put_autosuspend(core->dev);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
 	return ret;
 }
 
@@ -765,6 +759,8 @@ static int cs40l2x_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, cs40l2x_codec);
 
+	pm_runtime_enable(&pdev->dev);
+
 	ret = snd_soc_register_component(&pdev->dev, &soc_codec_dev_cs40l2x,
 				      cs40l2x_dai, ARRAY_SIZE(cs40l2x_dai));
 	if (ret < 0)
@@ -775,6 +771,8 @@ static int cs40l2x_probe(struct platform_device *pdev)
 
 static int cs40l2x_remove(struct platform_device *pdev)
 {
+	pm_runtime_disable(&pdev->dev);
+
 	snd_soc_unregister_component(&pdev->dev);
 	return 0;
 }
