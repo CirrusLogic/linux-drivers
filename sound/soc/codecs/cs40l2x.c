@@ -149,27 +149,23 @@ static int cs40l2x_clk_en(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
-			struct snd_kcontrol *kcontrol, int event)
+static int cs40l2x_a2h_ev(struct snd_soc_dapm_widget *w,
+			  struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *comp = snd_soc_dapm_to_component(w->dapm);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 	struct cs40l2x_private *core = priv->core;
-	struct regmap *regmap = priv->regmap;
-	struct device *dev = priv->dev;
 	const struct firmware *fw;
 	unsigned int reg;
-	int ret = 0;
+	int ret;
 
-	if (core->dsp_reg)
-		reg = core->dsp_reg(core, "A2HEN",
-				CS40L2X_XM_UNPACKED_TYPE,
-				CS40L2X_ALGO_ID_A2H);
-	else
+	if (!core->dsp_reg)
 		return 0;
 
+	reg = core->dsp_reg(core, "A2HEN", CS40L2X_XM_UNPACKED_TYPE,
+			    CS40L2X_ALGO_ID_A2H);
 	if (!reg) {
-		dev_err(dev, "Cannot find the A2HENABLED register\n");
+		dev_err(priv->dev, "Cannot find the A2HENABLED register\n");
 		return -EINVAL;
 	}
 
@@ -178,14 +174,14 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 		if (priv->tuning != priv->tuning_prev) {
 			ret = request_firmware(&fw, priv->bin_file, priv->dev);
 			if (ret) {
-				dev_err(dev, "Failed to request %s file\n",
+				dev_err(priv->dev, "Failed to request %s file\n",
 					priv->bin_file);
 				return ret;
 			}
 
 			ret = cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_4,
-					CS40L2X_PWRCTL_FORCE_STBY,
-					CS40L2X_PWRCTL_NONE);
+						CS40L2X_PWRCTL_FORCE_STBY,
+						CS40L2X_PWRCTL_NONE);
 			if (ret)
 				return ret;
 
@@ -196,112 +192,67 @@ static int cs40l2x_a2h_en(struct snd_soc_dapm_widget *w,
 			priv->tuning_prev = priv->tuning;
 
 			ret =  cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_4,
-					CS40L2X_PWRCTL_WAKE,
-					CS40L2X_POWERCONTROL_NONE);
+						 CS40L2X_PWRCTL_WAKE,
+						 CS40L2X_POWERCONTROL_NONE);
 			if (ret)
 				return ret;
 		}
 
-		ret = regmap_write(regmap, reg, CS40L2X_A2H_ENABLE);
-		if (ret)
-			return ret;
-
-		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
-					CS40L2X_BST_CTL_SEL_MASK,
-					CS40L2X_BST_CTL_SEL_CLASSH);
-		if (ret)
-			return ret;
-
-		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
-			CS40L2X_CLASSH_EN_MASK,
-			1 << CS40L2X_CLASSH_EN_SHIFT);
-		if (ret)
-			return ret;
-
-		/* Enable I2S in the DSP */
-		ret = regmap_update_bits(regmap, CS40L2X_SP_ENABLES,
-					CS40L2X_ASP_RX_ENABLE_MASK,
-					CS40L2X_ASP_RX_ENABLE_MASK);
-		if (ret)
-			return ret;
-
-		ret = cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_5,
-					CS40L2X_A2H_I2S_START,
-					CS40L2X_A2H_DISABLE);
-		break;
+		return regmap_write(priv->regmap, reg, CS40L2X_A2H_ENABLE);
 	case SND_SOC_DAPM_PRE_PMD:
-		ret = regmap_update_bits(regmap, CS40L2X_SP_ENABLES,
-					CS40L2X_ASP_RX_ENABLE_MASK, 0);
-		if (ret)
-			return ret;
-
-		ret = cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_5,
-					CS40L2X_A2H_I2S_END,
-					CS40L2X_A2H_DISABLE);
-
-		ret = regmap_write(regmap, reg, CS40L2X_A2H_DISABLE);
-		break;
+		return regmap_write(priv->regmap, reg, CS40L2X_A2H_DISABLE);
 	default:
-		dev_err(dev, "Invalid event %d\n", event);
+		dev_err(priv->dev, "Invalid A2H event: %d\n", event);
 		return -EINVAL;
 	}
-	return ret;
 }
 
-static int cs40l2x_dsp_i2s_en(struct snd_soc_dapm_widget *w,
-		struct snd_kcontrol *kcontrol, int event)
+static int cs40l2x_pcm_ev(struct snd_soc_dapm_widget *w,
+			  struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *comp = snd_soc_dapm_to_component(w->dapm);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 	struct cs40l2x_private *core = priv->core;
 	struct regmap *regmap = priv->regmap;
-	struct device *dev = priv->dev;
-	int ret = 0;
-
-	if (!core->dsp_reg)
-		return 0;
+	int ret;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
-				CS40L2X_BST_CTL_SEL_MASK,
-				CS40L2X_BST_CTL_SEL_CLASSH);
+					 CS40L2X_BST_CTL_SEL_MASK,
+					 CS40L2X_BST_CTL_SEL_CLASSH);
 		if (ret)
 			return ret;
 
 		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
-				CS40L2X_CLASSH_EN_MASK,
-				1 << CS40L2X_CLASSH_EN_SHIFT);
+					 CS40L2X_CLASSH_EN_MASK,
+					 CS40L2X_CLASSH_EN_MASK);
 		if (ret)
 			return ret;
 
 		/* Enable I2S in the DSP */
 		ret = regmap_update_bits(regmap, CS40L2X_SP_ENABLES,
-				CS40L2X_ASP_RX_ENABLE_MASK,
-				CS40L2X_ASP_RX_ENABLE_MASK);
+					 CS40L2X_ASP_RX_ENABLE_MASK,
+					 CS40L2X_ASP_RX_ENABLE_MASK);
 		if (ret)
 			return ret;
 
-		ret = cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_5,
-				CS40L2X_A2H_I2S_START, CS40L2X_A2H_DISABLE);
-
-		break;
+		return cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_5,
+					 CS40L2X_A2H_I2S_START,
+					 CS40L2X_A2H_DISABLE);
 	case SND_SOC_DAPM_PRE_PMD:
 		ret = regmap_update_bits(regmap, CS40L2X_SP_ENABLES,
-				CS40L2X_ASP_RX_ENABLE_MASK, 0);
+					 CS40L2X_ASP_RX_ENABLE_MASK, 0);
 		if (ret)
 			return ret;
 
-		ret = cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_5,
-				CS40L2X_A2H_I2S_END, CS40L2X_A2H_DISABLE);
-
-		break;
+		return cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_5,
+					 CS40L2X_A2H_I2S_END,
+					 CS40L2X_A2H_DISABLE);
 	default:
-		dev_err(dev, "Invalid event %d\n", event);
-		ret = -EINVAL;
+		dev_err(priv->dev, "Invalid PCM event: %d\n", event);
+		return -EINVAL;
 	}
-
-	return ret;
 }
 
 static int cs40l2x_vol_get(struct snd_kcontrol *kcontrol,
@@ -484,11 +435,6 @@ static int cs40l2x_delay_put(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 
-static const struct snd_kcontrol_new cs40l2x_a2h =
-	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
-static const struct snd_kcontrol_new cs40l2x_dsp_i2s =
-	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
-
 static const struct snd_kcontrol_new cs40l2x_controls[] = {
 	SOC_SINGLE_EXT("A2H Volume Level", 0, 0, CS40L2X_VOL_LVL_MAX_STEPS, 0,
 		cs40l2x_vol_get, cs40l2x_vol_put),
@@ -498,36 +444,38 @@ static const struct snd_kcontrol_new cs40l2x_controls[] = {
 		cs40l2x_delay_get, cs40l2x_delay_put),
 };
 
-static const struct snd_soc_dapm_widget cs40l2x_dapm_widgets[] = {
-	SND_SOC_DAPM_SUPPLY_S("AIFCLK", 100, SND_SOC_NOPM, 0, 0,
-		cs40l2x_clk_en, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+static const char * const cs40l2x_out_mux_texts[] = { "PCM", "A2H" };
+static SOC_ENUM_SINGLE_VIRT_DECL(cs40l2x_out_mux_enum, cs40l2x_out_mux_texts);
+static const struct snd_kcontrol_new cs40l2x_out_mux =
+	SOC_DAPM_ENUM("Haptics Source", cs40l2x_out_mux_enum);
 
-	/* ASPRX1 is always used in A2H */
-	SND_SOC_DAPM_AIF_IN("ASPRX1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("ASPRX2", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_MIXER("A2H Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("DSP Stream Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_SWITCH_E("A2H", SND_SOC_NOPM, 0, 0, &cs40l2x_a2h,
-		cs40l2x_a2h_en, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_SWITCH_E("DSP Stream", SND_SOC_NOPM, 0, 0,
-		&cs40l2x_dsp_i2s, cs40l2x_dsp_i2s_en,
-		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_OUTPUT("LRA"),
+static const struct snd_soc_dapm_widget cs40l2x_dapm_widgets[] = {
+SND_SOC_DAPM_SUPPLY_S("ASP PLL", 0, SND_SOC_NOPM, 0, 0, cs40l2x_clk_en,
+		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_AIF_IN("ASPRX1", NULL, 0, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("ASPRX2", NULL, 0, SND_SOC_NOPM, 0, 0),
+
+SND_SOC_DAPM_PGA_E("PCM", SND_SOC_NOPM, 0, 0, NULL, 0, cs40l2x_pcm_ev,
+		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_MIXER_E("A2H", SND_SOC_NOPM, 0, 0, NULL, 0, cs40l2x_a2h_ev,
+		     SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+
+SND_SOC_DAPM_MUX("Haptics Source", SND_SOC_NOPM, 0, 0, &cs40l2x_out_mux),
+SND_SOC_DAPM_OUTPUT("OUT"),
 };
 
 static const struct snd_soc_dapm_route cs40l2x_dapm_routes[] = {
-	{ "ASPRX1", NULL, "AIF Playback" },
-	{ "ASPRX2", NULL, "AIF Playback" },
-	{ "A2H Mixer", NULL, "ASPRX1" },
-	{ "A2H Mixer", NULL, "ASPRX2" },
-	{ "DSP Stream Mixer", NULL, "ASPRX1" },
-	{ "DSP Stream Mixer", NULL, "ASPRX2" },
-	{ "DSP Stream", "Switch", "DSP Stream Mixer" },
-	{ "A2H", "Switch", "A2H Mixer" },
-	{ "LRA", NULL, "A2H" },
-	{ "LRA", NULL, "DSP Stream" },
+	{ "ASP Playback", NULL, "ASP PLL" },
+	{ "ASPRX1", NULL, "ASP Playback" },
+	{ "ASPRX2", NULL, "ASP Playback" },
 
-	{ "AIF Playback", NULL, "AIFCLK" },
+	{ "PCM", NULL, "ASPRX1" },
+	{ "PCM", NULL, "ASPRX2" },
+	{ "A2H", NULL, "PCM" },
+
+	{ "Haptics Source", "PCM", "PCM" },
+	{ "Haptics Source", "A2H", "A2H" },
+	{ "OUT", NULL, "Haptics Source" },
 };
 
 static int cs40l2x_component_set_sysclk(struct snd_soc_component *comp,
@@ -692,7 +640,7 @@ static struct snd_soc_dai_driver cs40l2x_dai[] = {
 		.name = "cs40l2x-pcm",
 		.id = 0,
 		.playback = {
-			.stream_name = "AIF Playback",
+			.stream_name = "ASP Playback",
 			.channels_min = 1,
 			.channels_max = 2,
 			.rates = CS40L2X_RATES,
