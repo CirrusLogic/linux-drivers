@@ -114,7 +114,7 @@ static int cs40l2x_swap_ext_clk(struct cs40l2x_codec *priv,
 }
 
 static int cs40l2x_clk_en(struct snd_soc_dapm_widget *w,
-			struct snd_kcontrol *kcontrol, int event)
+			  struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *comp = snd_soc_dapm_to_component(w->dapm);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
@@ -259,7 +259,7 @@ static int cs40l2x_pcm_ev(struct snd_soc_dapm_widget *w,
 }
 
 static int cs40l2x_vol_get(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_value *ucontrol)
+			   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
@@ -272,15 +272,15 @@ static int cs40l2x_vol_get(struct snd_kcontrol *kcontrol,
 	if (!core->dsp_reg || core->fw_id_remap != CS40L2X_FW_ID_A2H)
 		return 0;
 
-	reg = core->dsp_reg(core, "VOLUMELEVEL",
-			CS40L2X_XM_UNPACKED_TYPE,
-				CS40L2X_ALGO_ID_A2H);
+	reg = core->dsp_reg(core, "VOLUMELEVEL", CS40L2X_XM_UNPACKED_TYPE,
+			    CS40L2X_ALGO_ID_A2H);
 	if (!reg) {
 		dev_err(dev, "Cannot find the VOLUMELEVEL register\n");
 		return -EINVAL;
 	}
 
 	pm_runtime_get_sync(priv->dev);
+
 	ret = regmap_read(regmap, reg, &val);
 	if (ret)
 		goto vol_get_err;
@@ -295,11 +295,12 @@ vol_get_err:
 	pm_runtime_put_autosuspend(priv->dev);
 
 	ucontrol->value.integer.value[0] = val;
+
 	return ret;
 }
 
 static int cs40l2x_vol_put(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
+			   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
@@ -312,9 +313,8 @@ static int cs40l2x_vol_put(struct snd_kcontrol *kcontrol,
 	if (!core->dsp_reg || core->fw_id_remap != CS40L2X_FW_ID_A2H)
 		return 0;
 
-	reg = core->dsp_reg(core, "VOLUMELEVEL",
-			CS40L2X_XM_UNPACKED_TYPE,
-				CS40L2X_ALGO_ID_A2H);
+	reg = core->dsp_reg(core, "VOLUMELEVEL", CS40L2X_XM_UNPACKED_TYPE,
+			    CS40L2X_ALGO_ID_A2H);
 	if (!reg) {
 		dev_err(dev, "Cannot find the VOLUMELEVEL register\n");
 		return -EINVAL;
@@ -333,11 +333,12 @@ static int cs40l2x_vol_put(struct snd_kcontrol *kcontrol,
 
 	pm_runtime_mark_last_busy(priv->dev);
 	pm_runtime_put_autosuspend(priv->dev);
+
 	return ret;
 }
 
 static int cs40l2x_tuning_get(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
+			      struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
@@ -348,7 +349,7 @@ static int cs40l2x_tuning_get(struct snd_kcontrol *kcontrol,
 }
 
 static int cs40l2x_tuning_put(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
+			      struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
@@ -375,7 +376,7 @@ static int cs40l2x_tuning_put(struct snd_kcontrol *kcontrol,
 }
 
 static int cs40l2x_delay_get(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_value *ucontrol)
+			     struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
@@ -388,21 +389,19 @@ static int cs40l2x_delay_get(struct snd_kcontrol *kcontrol,
 	if (!core->dsp_reg || core->fw_id_remap != CS40L2X_FW_ID_A2H)
 		return 0;
 
-	reg = core->dsp_reg(core, "LRADELAYSAMPS",
-			CS40L2X_XM_UNPACKED_TYPE,
-				CS40L2X_ALGO_ID_A2H);
+	reg = core->dsp_reg(core, "LRADELAYSAMPS", CS40L2X_XM_UNPACKED_TYPE,
+			    CS40L2X_ALGO_ID_A2H);
 	if (!reg) {
 		dev_err(dev, "Cannot find the LRADELAYSAMPS register\n");
 		return -EINVAL;
 	}
 
 	pm_runtime_get_sync(priv->dev);
-	ret = regmap_read(regmap, reg, &val);
-	if (ret)
-		goto vol_get_err;
 
-	ucontrol->value.integer.value[0] = val;
-vol_get_err:
+	ret = regmap_read(regmap, reg, &val);
+	if (!ret)
+		ucontrol->value.integer.value[0] = val;
+
 	pm_runtime_mark_last_busy(priv->dev);
 	pm_runtime_put_autosuspend(priv->dev);
 
@@ -423,9 +422,8 @@ static int cs40l2x_delay_put(struct snd_kcontrol *kcontrol,
 	if (!core->dsp_reg || core->fw_id_remap != CS40L2X_FW_ID_A2H)
 		return 0;
 
-	reg = core->dsp_reg(core, "LRADELAYSAMPS",
-			CS40L2X_XM_UNPACKED_TYPE,
-				CS40L2X_ALGO_ID_A2H);
+	reg = core->dsp_reg(core, "LRADELAYSAMPS", CS40L2X_XM_UNPACKED_TYPE,
+			    CS40L2X_ALGO_ID_A2H);
 
 	if (!reg) {
 		dev_err(dev, "Cannot find the LRADELAYSAMPS register\n");
@@ -618,9 +616,7 @@ hw_params_err:
 	return ret;
 }
 
-
 #define CS40L2X_RATES SNDRV_PCM_RATE_48000
-
 #define CS40L2X_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 
 static const struct snd_soc_dai_ops cs40l2x_dai_ops = {
@@ -697,7 +693,7 @@ static int cs40l2x_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	ret = snd_soc_register_component(&pdev->dev, &soc_codec_dev_cs40l2x,
-				      cs40l2x_dai, ARRAY_SIZE(cs40l2x_dai));
+					 cs40l2x_dai, ARRAY_SIZE(cs40l2x_dai));
 	if (ret < 0)
 		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
 
@@ -709,6 +705,7 @@ static int cs40l2x_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	snd_soc_unregister_component(&pdev->dev);
+
 	return 0;
 }
 
@@ -716,10 +713,10 @@ static struct platform_driver cs40l2x_codec_driver = {
 	.driver = {
 		.name = "cs40l2x-codec",
 	},
+
 	.probe = cs40l2x_probe,
 	.remove = cs40l2x_remove,
 };
-
 module_platform_driver(cs40l2x_codec_driver);
 
 MODULE_DESCRIPTION("ASoC CS40L2X driver");
