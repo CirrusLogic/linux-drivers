@@ -19,7 +19,7 @@
 #include <sound/tlv.h>
 #include <linux/mfd/cs40l2x.h>
 
-#include "cs40l2x.h"
+#define CS40L2X_MCLK_FREQ		32768
 
 enum cs40l2x_clk_src {
 	CS40L2X_32KHZ_CLK,
@@ -85,26 +85,27 @@ static int cs40l2x_swap_ext_clk(struct cs40l2x_codec *priv,
 		return ret;
 
 	regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
-		CS40L2X_PLL_OPENLOOP_MASK,
-		1 << CS40L2X_PLL_OPENLOOP_SHIFT);
+			   CS40L2X_PLL_OPEN_LOOP_MASK,
+			   CS40L2X_PLL_OPEN_LOOP_MASK);
 
 	regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
-			CS40L2X_REFCLK_FREQ_MASK,
-			clk_cfg << CS40L2X_REFCLK_FREQ_SHIFT);
+			   CS40L2X_PLL_REFCLK_FREQ_MASK,
+			   clk_cfg << CS40L2X_PLL_REFCLK_FREQ_SHIFT);
 
 	if (src == CS40L2X_32KHZ_CLK)
 		regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
-			CS40L2X_PLL_CLK_SEL_MASK, CS40L2X_PLLSRC_MCLK);
+				   CS40L2X_PLL_REFCLK_SEL_MASK,
+				   CS40L2X_PLLSRC_MCLK);
 	else
 		regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
-			CS40L2X_PLL_CLK_SEL_MASK, CS40L2X_PLLSRC_SCLK);
+				   CS40L2X_PLL_REFCLK_SEL_MASK,
+				   CS40L2X_PLLSRC_SCLK);
 
 	regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
-			CS40L2X_PLL_OPENLOOP_MASK,
-			0 << CS40L2X_PLL_OPENLOOP_SHIFT);
+			   CS40L2X_PLL_OPEN_LOOP_MASK, 0);
 	regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
-			CS40L2X_PLL_CLK_EN_MASK,
-			1 << CS40L2X_PLL_CLK_EN_SHIFT);
+			   CS40L2X_PLL_REFCLK_EN_MASK,
+			   CS40L2X_PLL_REFCLK_EN_MASK);
 
 	usleep_range(1000, 1500);
 
@@ -555,13 +556,14 @@ static int cs40l2x_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_IF:
-		priv->daifmt = CS40L2X_LRCLK_INV_MASK;
+		priv->daifmt = CS40L2X_ASP_FSYNC_INV_MASK;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
-		priv->daifmt = CS40L2X_SCLK_INV_MASK;
+		priv->daifmt = CS40L2X_ASP_BCLK_INV_MASK;
 		break;
 	case SND_SOC_DAIFMT_IB_IF:
-		priv->daifmt = CS40L2X_LRCLK_INV_MASK | CS40L2X_SCLK_INV_MASK;
+		priv->daifmt = CS40L2X_ASP_FSYNC_INV_MASK |
+			       CS40L2X_ASP_BCLK_INV_MASK;
 		break;
 	case SND_SOC_DAIFMT_NB_NF:
 		priv->daifmt = 0;
@@ -580,8 +582,9 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *comp = dai->component;
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
-	unsigned int mask = CS40L2X_ASP_WIDTH_RX_MASK | CS40L2X_LRCLK_INV_MASK |
-			    CS40L2X_SCLK_INV_MASK;
+	unsigned int mask = CS40L2X_ASP_WIDTH_RX_MASK |
+			    CS40L2X_ASP_FSYNC_INV_MASK |
+			    CS40L2X_ASP_BCLK_INV_MASK;
 	unsigned int bclk_rate, asp_wl;
 	int ret = 0;
 
@@ -654,10 +657,9 @@ static int cs40l2x_codec_probe(struct snd_soc_component *comp)
 	priv->bin_file[PAGE_SIZE - 1] = '\0';
 	snprintf(priv->bin_file, PAGE_SIZE, "cs40l25a_a2h.bin");
 	complete(&priv->core->hap_done);
-	/* ASPRX1 --> DSP1RX1_SRC */
-	regmap_write(regmap, CS40L2X_DSP1RX1_INPUT, CS40L2X_ROUTE_ASPRX1);
-	/* ASPRX2 --> DSP1RX5_SRC */
-	regmap_write(regmap, CS40L2X_DSP1RX5_INPUT, CS40L2X_ROUTE_ASPRX2);
+
+	regmap_write(regmap, CS40L2X_DSP1RX1_INPUT, CS40L2X_DSP1_RXn_SRC_ASPRX1);
+	regmap_write(regmap, CS40L2X_DSP1RX5_INPUT, CS40L2X_DSP1_RXn_SRC_ASPRX2);
 
 	priv->sysclk_rate = 1536000;
 
