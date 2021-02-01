@@ -511,27 +511,6 @@ static int cs40l2x_component_set_sysclk(struct snd_soc_component *comp,
 	return 0;
 }
 
-static const unsigned int cs40l2x_src_rates[] = { 48000 };
-
-static const struct snd_pcm_hw_constraint_list cs40l2x_constraints = {
-	.count = ARRAY_SIZE(cs40l2x_src_rates),
-	.list = cs40l2x_src_rates,
-};
-
-static int cs40l2x_pcm_startup(struct snd_pcm_substream *substream,
-			       struct snd_soc_dai *dai)
-{
-	int ret = 0;
-
-	if (substream->runtime)
-		ret = snd_pcm_hw_constraint_list(substream->runtime,
-							0,
-							SNDRV_PCM_HW_PARAM_RATE,
-							&cs40l2x_constraints);
-
-	return ret;
-}
-
 static int cs40l2x_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(dai->component);
@@ -614,7 +593,6 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 #define CS40L2X_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 
 static const struct snd_soc_dai_ops cs40l2x_dai_ops = {
-	.startup = cs40l2x_pcm_startup,
 	.set_fmt = cs40l2x_set_dai_fmt,
 	.hw_params = cs40l2x_pcm_hw_params,
 };
