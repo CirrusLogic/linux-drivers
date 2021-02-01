@@ -584,14 +584,9 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 			    CS40L2X_ASP_FSYNC_INV_MASK |
 			    CS40L2X_ASP_BCLK_INV_MASK;
 	unsigned int bclk_rate, asp_wl;
-	int ret = 0;
+	int ret;
 
 	asp_wl = params_width(params);
-
-	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK) {
-		ret = -EINVAL;
-		goto hw_params_err;
-	}
 
 	bclk_rate = snd_soc_params_to_bclk(params);
 
@@ -612,8 +607,7 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 	regmap_update_bits(priv->regmap, CS40L2X_SP_RX_WL,
 			   CS40L2X_ASP_RX_WL_MASK, asp_wl);
 
-hw_params_err:
-	return ret;
+	return 0;
 }
 
 #define CS40L2X_RATES SNDRV_PCM_RATE_48000
