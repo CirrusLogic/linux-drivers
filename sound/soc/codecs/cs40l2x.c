@@ -34,6 +34,8 @@ struct cs40l2x_codec {
 	int tuning;
 	int tuning_prev;
 	char *bin_file;
+
+	unsigned int daifmt;
 };
 
 struct cs40l2x_pll_sysclk_config {
@@ -543,16 +545,12 @@ static int cs40l2x_pcm_startup(struct snd_pcm_substream *substream,
 static int cs40l2x_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(dai->component);
-	struct device *dev = priv->dev;
-	struct regmap *regmap = priv->regmap;
-	unsigned int lrclk_fmt, sclk_fmt;
-	int ret;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
 		break;
 	default:
-		dev_err(dev, "This device can be slave only\n");
+		dev_err(priv->dev, "This device can be slave only\n");
 		return -EINVAL;
 	}
 
@@ -560,46 +558,29 @@ static int cs40l2x_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_I2S:
 		break;
 	default:
-		dev_err(dev, "Invalid format. I2S only.\n");
+		dev_err(priv->dev, "Invalid format. I2S only.\n");
 		return -EINVAL;
 	}
+
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_IF:
-		lrclk_fmt = 1;
-		sclk_fmt = 0;
+		priv->daifmt = CS40L2X_LRCLK_INV_MASK;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
-		lrclk_fmt = 0;
-		sclk_fmt = 1;
+		priv->daifmt = CS40L2X_SCLK_INV_MASK;
 		break;
 	case SND_SOC_DAIFMT_IB_IF:
-		lrclk_fmt = 1;
-		sclk_fmt = 1;
+		priv->daifmt = CS40L2X_LRCLK_INV_MASK | CS40L2X_SCLK_INV_MASK;
 		break;
 	case SND_SOC_DAIFMT_NB_NF:
-		lrclk_fmt = 0;
-		sclk_fmt = 0;
+		priv->daifmt = 0;
 		break;
 	default:
-		dev_err(dev,
-			"%s: Invalid DAI clock INV\n", __func__);
+		dev_err(priv->dev, "Invalid DAI clock format\n");
 		return -EINVAL;
 	}
 
-	pm_runtime_get_sync(priv->dev);
-	ret = regmap_update_bits(regmap, CS40L2X_SP_FORMAT,
-					CS40L2X_LRCLK_INV_MASK,
-					lrclk_fmt << CS40L2X_LRCLK_INV_SHIFT);
-	if (ret)
-		goto fmt_err;
-
-	ret = regmap_update_bits(regmap, CS40L2X_SP_FORMAT,
-					CS40L2X_SCLK_INV_MASK,
-					sclk_fmt << CS40L2X_SCLK_INV_SHIFT);
-fmt_err:
-	pm_runtime_mark_last_busy(priv->dev);
-	pm_runtime_put_autosuspend(priv->dev);
-	return ret;
+	return 0;
 }
 
 static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -608,6 +589,8 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *comp = dai->component;
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
+	unsigned int mask = CS40L2X_ASP_WIDTH_RX_MASK | CS40L2X_LRCLK_INV_MASK |
+			    CS40L2X_SCLK_INV_MASK;
 	unsigned int asp_wl;
 	int ret = 0;
 
@@ -618,9 +601,8 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 		goto hw_params_err;
 	}
 
-	regmap_update_bits(priv->regmap, CS40L2X_SP_FORMAT,
-			   CS40L2X_ASP_WIDTH_RX_MASK,
-			   asp_wl << CS40L2X_ASP_WIDTH_RX_SHIFT);
+	regmap_update_bits(priv->regmap, CS40L2X_SP_FORMAT, mask,
+			   (asp_wl << CS40L2X_ASP_WIDTH_RX_SHIFT) | priv->daifmt);
 	regmap_update_bits(priv->regmap, CS40L2X_SP_RX_WL,
 			   CS40L2X_ASP_RX_WL_MASK, asp_wl);
 
