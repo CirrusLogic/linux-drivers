@@ -7828,7 +7828,7 @@ static int cs40l2x_check_recovery(struct cs40l2x_private *cs40l2x)
 	unsigned int val;
 	int ret;
 
-	ret = regmap_read(cs40l2x->regmap, CS40L2X_DSP1_RX2_SRC, &val);
+	ret = regmap_read(cs40l2x->regmap, CS40L2X_DSP1RX2_INPUT, &val);
 	if (ret) {
 		dev_err(cs40l2x->dev, "Failed to read known register\n");
 		return ret;
@@ -10719,10 +10719,10 @@ static const struct reg_sequence cs40l2x_mpu_config[] = {
 
 static const struct reg_sequence cs40l2x_pcm_routing[] = {
 	{CS40L2X_DAC_PCM1_SRC,		CS40L2X_DAC_PCM1_SRC_DSP1TX1},
-	{CS40L2X_DSP1_RX1_SRC,		CS40L2X_DSP1_RXn_SRC_ASPRX1},
-	{CS40L2X_DSP1_RX2_SRC,		CS40L2X_DSP1_RXn_SRC_VMON},
-	{CS40L2X_DSP1_RX3_SRC,		CS40L2X_DSP1_RXn_SRC_IMON},
-	{CS40L2X_DSP1_RX4_SRC,		CS40L2X_DSP1_RXn_SRC_VPMON},
+	{CS40L2X_DSP1RX1_INPUT,		CS40L2X_DSP1_RXn_SRC_ASPRX1},
+	{CS40L2X_DSP1RX2_INPUT,		CS40L2X_DSP1_RXn_SRC_VMON},
+	{CS40L2X_DSP1RX3_INPUT,		CS40L2X_DSP1_RXn_SRC_IMON},
+	{CS40L2X_DSP1RX4_INPUT,		CS40L2X_DSP1_RXn_SRC_VPMON},
 };
 
 static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
