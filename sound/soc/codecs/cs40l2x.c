@@ -30,12 +30,12 @@ struct cs40l2x_codec {
 	struct cs40l2x_private *core;
 	struct device *dev;
 	struct regmap *regmap;
-	int codec_sysclk;
 	int tuning;
 	int tuning_prev;
 	char *bin_file;
 
 	unsigned int daifmt;
+	int sysclk_rate;
 };
 
 struct cs40l2x_pll_sysclk_config {
@@ -72,7 +72,7 @@ static int cs40l2x_swap_ext_clk(struct cs40l2x_codec *priv,
 	if (src == CS40L2X_32KHZ_CLK)
 		clk_cfg = cs40l2x_get_clk_config(CS40L2X_MCLK_FREQ);
 	else
-		clk_cfg = cs40l2x_get_clk_config(priv->codec_sysclk);
+		clk_cfg = cs40l2x_get_clk_config(priv->sysclk_rate);
 
 	if (clk_cfg < 0) {
 		dev_err(dev, "Invalid SYS Clock Frequency\n");
@@ -491,34 +491,25 @@ static int cs40l2x_component_set_sysclk(struct snd_soc_component *comp,
 					unsigned int freq, int dir)
 {
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
-	struct regmap *regmap = priv->regmap;
-	struct device *dev = priv->dev;
-	int clk_cfg, ret = 0;
+	int ret;
 
-	clk_cfg = cs40l2x_get_clk_config(freq);
-	if (clk_cfg < 0) {
-		dev_err(dev, "Invalid Clock Frequency %d\n", freq);
-		ret = -EINVAL;
-		goto sysclk_err;
+	ret = cs40l2x_get_clk_config(freq);
+	if (ret < 0) {
+		dev_err(priv->dev, "Invalid clock frequency: %d\n", freq);
+		return -EINVAL;
 	}
 
 	switch (clk_id) {
 	case 0:
 		break;
 	default:
-		dev_err(dev, "Invalid Input Clock\n");
-		ret = -EINVAL;
-		goto sysclk_err;
+		dev_err(priv->dev, "Invalid input clock\n");
+		return -EINVAL;
 	}
 
-	priv->codec_sysclk = freq;
-	pm_runtime_get_sync(priv->dev);
-	ret = regmap_write(regmap, CS40L2X_SP_RATE_CTRL, clk_cfg);
-	pm_runtime_mark_last_busy(priv->dev);
-	pm_runtime_put_autosuspend(priv->dev);
-sysclk_err:
+	priv->sysclk_rate = freq;
 
-	return ret;
+	return 0;
 }
 
 static const unsigned int cs40l2x_src_rates[] = { 48000 };
@@ -591,7 +582,7 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 	unsigned int mask = CS40L2X_ASP_WIDTH_RX_MASK | CS40L2X_LRCLK_INV_MASK |
 			    CS40L2X_SCLK_INV_MASK;
-	unsigned int asp_wl;
+	unsigned int bclk_rate, asp_wl;
 	int ret = 0;
 
 	asp_wl = params_width(params);
@@ -600,6 +591,20 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 		ret = -EINVAL;
 		goto hw_params_err;
 	}
+
+	bclk_rate = snd_soc_params_to_bclk(params);
+
+	if (priv->sysclk_rate != bclk_rate)
+		dev_warn(priv->dev, "Expect BCLK of %dHz but got %dHz\n",
+			 priv->sysclk_rate, bclk_rate);
+
+	ret = cs40l2x_get_clk_config(bclk_rate);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_write(priv->regmap, CS40L2X_SP_RATE_CTRL, ret);
+	if (ret)
+		return ret;
 
 	regmap_update_bits(priv->regmap, CS40L2X_SP_FORMAT, mask,
 			   (asp_wl << CS40L2X_ASP_WIDTH_RX_SHIFT) | priv->daifmt);
@@ -654,7 +659,7 @@ static int cs40l2x_codec_probe(struct snd_soc_component *comp)
 	/* ASPRX2 --> DSP1RX5_SRC */
 	regmap_write(regmap, CS40L2X_DSP1RX5_INPUT, CS40L2X_ROUTE_ASPRX2);
 
-	priv->codec_sysclk = CS40L2X_SCLK_DEFAULT; /* 1.536MHz */
+	priv->sysclk_rate = 1536000;
 
 	return 0;
 }
