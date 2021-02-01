@@ -608,11 +608,10 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *comp = dai->component;
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
-	unsigned int asp_width, asp_wl;
+	unsigned int asp_wl;
 	int ret = 0;
 
 	asp_wl = params_width(params);
-	asp_width = params_physical_width(params);
 
 	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK) {
 		ret = -EINVAL;
@@ -620,11 +619,10 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	regmap_update_bits(priv->regmap, CS40L2X_SP_FORMAT,
-			CS40L2X_ASP_WIDTH_RX_MASK,
-			asp_width << CS40L2X_ASP_WIDTH_RX_SHIFT);
+			   CS40L2X_ASP_WIDTH_RX_MASK,
+			   asp_wl << CS40L2X_ASP_WIDTH_RX_SHIFT);
 	regmap_update_bits(priv->regmap, CS40L2X_SP_RX_WL,
-			CS40L2X_ASP_RX_WL_MASK,
-			asp_wl);
+			   CS40L2X_ASP_RX_WL_MASK, asp_wl);
 
 hw_params_err:
 	return ret;
