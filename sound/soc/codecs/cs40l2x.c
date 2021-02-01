@@ -79,8 +79,8 @@ static int cs40l2x_swap_ext_clk(struct cs40l2x_codec *priv,
 		return -EINVAL;
 	}
 
-	ret = cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_4,
-			CS40L2X_PWRCTL_FORCE_STBY, CS40L2X_PWRCTL_NONE);
+	ret = cs40l2x_ack_write(core, CS40L2X_MBOX_POWERCONTROL,
+				CS40L2X_PWRCTL_FORCE_STBY, CS40L2X_PWRCTL_NONE);
 	if (ret)
 		return ret;
 
@@ -109,8 +109,8 @@ static int cs40l2x_swap_ext_clk(struct cs40l2x_codec *priv,
 
 	usleep_range(1000, 1500);
 
-	return cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_4,
-			CS40L2X_PWRCTL_WAKE, CS40L2X_PWRCTL_NONE);
+	return cs40l2x_ack_write(core, CS40L2X_MBOX_POWERCONTROL,
+				 CS40L2X_PWRCTL_WAKE, CS40L2X_PWRCTL_NONE);
 }
 
 static int cs40l2x_clk_en(struct snd_soc_dapm_widget *w,
@@ -182,7 +182,7 @@ static int cs40l2x_a2h_ev(struct snd_soc_dapm_widget *w,
 				return ret;
 			}
 
-			ret = cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_4,
+			ret = cs40l2x_ack_write(core, CS40L2X_MBOX_POWERCONTROL,
 						CS40L2X_PWRCTL_FORCE_STBY,
 						CS40L2X_PWRCTL_NONE);
 			if (ret)
@@ -194,7 +194,7 @@ static int cs40l2x_a2h_ev(struct snd_soc_dapm_widget *w,
 
 			priv->tuning_prev = priv->tuning;
 
-			ret =  cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_4,
+			ret =  cs40l2x_ack_write(core, CS40L2X_MBOX_POWERCONTROL,
 						 CS40L2X_PWRCTL_WAKE,
 						 CS40L2X_POWERCONTROL_NONE);
 			if (ret)
@@ -240,7 +240,7 @@ static int cs40l2x_pcm_ev(struct snd_soc_dapm_widget *w,
 		if (ret)
 			return ret;
 
-		return cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_5,
+		return cs40l2x_ack_write(core, CS40L2X_MBOX_USER_CONTROL,
 					 CS40L2X_A2H_I2S_START,
 					 CS40L2X_A2H_DISABLE);
 	case SND_SOC_DAPM_PRE_PMD:
@@ -249,7 +249,7 @@ static int cs40l2x_pcm_ev(struct snd_soc_dapm_widget *w,
 		if (ret)
 			return ret;
 
-		return cs40l2x_ack_write(core, CS40L2X_DSP_VIRT1_MBOX_5,
+		return cs40l2x_ack_write(core, CS40L2X_MBOX_USER_CONTROL,
 					 CS40L2X_A2H_I2S_END,
 					 CS40L2X_A2H_DISABLE);
 	default:
