@@ -873,7 +873,9 @@ int gsi_channel_start(struct gsi *gsi, u32 channel_id)
 
 	mutex_unlock(&gsi->mutex);
 
-	gsi_channel_thaw(channel);
+	/* Thaw the channel if successful */
+	if (!ret)
+		gsi_channel_thaw(channel);
 
 	return ret;
 }
@@ -898,7 +900,7 @@ int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
 
 	mutex_unlock(&gsi->mutex);
 
-	/* Thaw the channel if we need to retry (or on error) */
+	/* Re-thaw the channel if an error occurred while stopping */
 	if (ret)
 		gsi_channel_thaw(channel);
 
