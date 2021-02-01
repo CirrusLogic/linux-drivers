@@ -431,7 +431,13 @@ static int cs40l2x_delay_put(struct snd_kcontrol *kcontrol,
 
 	val = ucontrol->value.integer.value[0];
 
+	pm_runtime_get_sync(priv->dev);
+
 	ret = regmap_write(regmap, reg, val);
+
+	pm_runtime_mark_last_busy(priv->dev);
+	pm_runtime_put_autosuspend(priv->dev);
+
 	return ret;
 }
 
