@@ -844,6 +844,8 @@ static void iwl_mvm_me_conn_status(void *priv, const struct iwl_mei_conn_info *c
 	prev_conn_info = rcu_dereference_protected(mvm->csme_conn_info, true);
 
 	curr_conn_info = kzalloc(sizeof(*curr_conn_info), GFP_KERNEL);
+	if (!curr_conn_info)
+		return;
 
 	curr_conn_info->conn_info = *conn_info;
 
