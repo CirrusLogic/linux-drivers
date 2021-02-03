@@ -1549,6 +1549,8 @@ struct cs40l2x_private {
 
 #ifdef CONFIG_HAPTICS_CS40L2X_INPUT
 	struct input_dev *input;
+	struct ff_effect *effect;
+	unsigned int trigger_indices[FF_MAX_EFFECTS];
 #elif defined CONFIG_ANDROID_TIMED_OUTPUT
 	struct timed_output_dev timed_dev;
 	struct hrtimer vibe_timer;
