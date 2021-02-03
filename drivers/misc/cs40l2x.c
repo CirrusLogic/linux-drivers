@@ -1289,18 +1289,11 @@ static ssize_t cs40l2x_cp_trigger_index_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", index);
 }
 
-static ssize_t cs40l2x_cp_trigger_index_store(struct device *dev,
-			struct device_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t cs40l2x_cp_trigger_index_impl(struct cs40l2x_private *cs40l2x,
+					     unsigned int index)
 {
-	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	struct i2c_client *i2c_client = to_i2c_client(cs40l2x->dev);
-	int ret;
-	unsigned int index;
-
-	ret = kstrtou32(buf, 10, &index);
-	if (ret)
-		return -EINVAL;
+	int ret = 0;
 
 	pm_runtime_get_sync(cs40l2x->dev);
 
@@ -1408,7 +1401,6 @@ static ssize_t cs40l2x_cp_trigger_index_store(struct device *dev,
 		goto err_exit;
 
 	cs40l2x->cp_trigger_index = index;
-	ret = count;
 
 err_exit:
 	if (!cs40l2x->virtual_stored) {
@@ -1420,6 +1412,25 @@ err_exit:
 	pm_runtime_put_autosuspend(cs40l2x->dev);
 
 	return ret;
+}
+
+static ssize_t cs40l2x_cp_trigger_index_store(struct device *dev,
+					      struct device_attribute *attr,
+					      const char *buf, size_t count)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	unsigned int index;
+	int ret;
+
+	ret = kstrtou32(buf, 10, &index);
+	if (ret)
+		return -EINVAL;
+
+	ret = cs40l2x_cp_trigger_index_impl(cs40l2x, index);
+	if (ret)
+		return ret;
+
+	return count;
 }
 
 static ssize_t cs40l2x_cp_trigger_queue_show(struct device *dev,
@@ -8029,6 +8040,14 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 	int ret, i;
 	unsigned int reg;
 
+#ifdef CONFIG_HAPTICS_CS40L2X_INPUT
+	if (cs40l2x->effect) {
+		i = cs40l2x->trigger_indices[cs40l2x->effect->id];
+		cs40l2x_cp_trigger_index_impl(cs40l2x, i);
+		cs40l2x->effect = NULL;
+	}
+#endif
+
 	if (!cs40l2x->virtual_stored) {
 		dev_warn(dev, "Unsafe condition encountered.\n");
 		return;
@@ -8437,6 +8456,87 @@ static void cs40l2x_vibe_stop_worker(struct work_struct *work)
 }
 
 #ifdef CONFIG_HAPTICS_CS40L2X_INPUT
+static int cs40l2x_playback_effect(struct input_dev *dev, int effect_id, int val)
+{
+	struct cs40l2x_private *cs40l2x = input_get_drvdata(dev);
+	struct ff_effect *effect;
+
+	effect = &dev->ff->effects[effect_id];
+	if (!effect) {
+		dev_err(cs40l2x->dev, "No such effect\n");
+		return -EINVAL;
+	}
+
+	cs40l2x->effect = effect;
+
+	if (val > 0)
+		queue_work(cs40l2x->vibe_workqueue, &cs40l2x->vibe_start_work);
+	else
+		queue_work(cs40l2x->vibe_workqueue, &cs40l2x->vibe_stop_work);
+
+	return 0;
+}
+
+static int cs40l2x_upload_effect(struct input_dev *dev,
+				 struct ff_effect *effect,
+				 struct ff_effect *old)
+{
+	struct cs40l2x_private *cs40l2x = input_get_drvdata(dev);
+	unsigned int data_length;
+	s16 *raw_custom_data;
+	int ret;
+
+	switch (effect->type) {
+	case FF_PERIODIC:
+		if (effect->u.periodic.waveform != FF_CUSTOM) {
+			dev_err(cs40l2x->dev,
+				"Waveform type must be FF_CUSTOM\n");
+			return -EINVAL;
+		}
+
+		if (effect->replay.length < 0 ||
+		    effect->replay.length > CS40L2X_TIMEOUT_MS_MAX) {
+			dev_err(cs40l2x->dev,
+				"Invalid playback duration %d ms\n",
+				effect->replay.length);
+			return -EINVAL;
+		}
+
+		data_length = effect->u.periodic.custom_len;
+
+		raw_custom_data = kmalloc_array(data_length,
+						sizeof(*raw_custom_data),
+						GFP_KERNEL);
+		if (!raw_custom_data)
+			return -ENOMEM;
+
+		if (copy_from_user(raw_custom_data,
+				   effect->u.periodic.custom_data,
+				   sizeof(*raw_custom_data) * data_length)) {
+			dev_err(cs40l2x->dev, "Failed to get user data\n");
+			ret = -EFAULT;
+			goto err_free;
+		}
+
+		if (raw_custom_data[1] >= cs40l2x->num_waves) {
+			dev_err(cs40l2x->dev, "Index out of bounds\n");
+			ret = -EINVAL;
+			goto err_free;
+		}
+
+		cs40l2x->trigger_indices[effect->id] = raw_custom_data[1];
+		break;
+	default:
+		dev_err(cs40l2x->dev, "Effect type 0x%X not supported\n",
+			effect->type);
+		ret = -EINVAL;
+	}
+
+err_free:
+	kfree(raw_custom_data);
+	return ret;
+}
+
 static int cs40l2x_create_input_ff(struct cs40l2x_private *cs40l2x)
 {
 	struct device *dev = cs40l2x->dev;
@@ -8464,6 +8564,9 @@ static int cs40l2x_create_input_ff(struct cs40l2x_private *cs40l2x)
 	 * We want to restrict this to be only FF_PERIODIC
 	 */
 	__clear_bit(FF_RUMBLE, cs40l2x->input->ffbit);
+
+	cs40l2x->input->ff->upload = cs40l2x_upload_effect;
+	cs40l2x->input->ff->playback = cs40l2x_playback_effect;
 
 	ret = input_register_device(cs40l2x->input);
 	if (ret) {
