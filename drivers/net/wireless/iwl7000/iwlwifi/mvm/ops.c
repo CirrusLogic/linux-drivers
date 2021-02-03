@@ -6,6 +6,7 @@
  */
 #include <linux/module.h>
 #include <linux/vmalloc.h>
+#include <uapi/linux/rfkill.h>
 #include <net/mac80211.h>
 
 #include "fw/notif-wait.h"
