@@ -131,6 +131,21 @@ struct cs35l45_platform_data {
 	bool pll_auto_en;
 };
 
+struct cs35l45_compr {
+	struct wm_adsp *dsp;
+	struct snd_compr_stream *stream;
+	struct snd_compressed_buffer size;
+	struct work_struct start_work;
+	struct work_struct stop_work;
+	u32 *raw_buf;
+	unsigned int copied_total;
+	unsigned int sample_rate;
+	int read_index;
+	int last_read_index;
+	int buffer_size;
+	int avail;
+};
+
 struct cs35l45_private {
 	struct wm_adsp dsp; /* needs to be first member */
 	struct device *dev;
@@ -138,6 +153,7 @@ struct cs35l45_private {
 	struct gpio_desc *reset_gpio;
 	struct regulator_bulk_data supplies[CS35L45_NUM_SUPPLIES];
 	struct cs35l45_platform_data pdata;
+	struct cs35l45_compr *compr;
 	struct work_struct dsp_pmu_work;
 	struct work_struct dsp_pmd_work;
 	struct delayed_work hb_work;
