@@ -138,12 +138,14 @@ struct cs35l45_private {
 	struct gpio_desc *reset_gpio;
 	struct regulator_bulk_data supplies[CS35L45_NUM_SUPPLIES];
 	struct cs35l45_platform_data pdata;
+	struct work_struct dsp_pmu_work;
 	struct work_struct dsp_pmd_work;
 	struct delayed_work hb_work;
 	struct workqueue_struct *wq;
 	struct mutex rate_lock;
-	struct mutex dsp_pmd_lock;
+	struct mutex dsp_power_lock;
 	struct mutex hb_lock;
+	struct completion virt2_mbox_comp;
 	enum dapm_route_mode dapm_mode;
 	enum control_bus_type bus_type;
 	bool initialized;
