@@ -35,6 +35,7 @@ static int cs35l45_i2c_probe(struct i2c_client *client,
 {
 	struct cs35l45_private *cs35l45;
 	struct device *dev = &client->dev;
+	const struct i2c_adapter_quirks *quirks;
 	int ret;
 
 	cs35l45 = devm_kzalloc(dev, sizeof(struct cs35l45_private), GFP_KERNEL);
@@ -53,6 +54,10 @@ static int cs35l45_i2c_probe(struct i2c_client *client,
 	cs35l45->irq = client->irq;
 	cs35l45->bus_type = CONTROL_BUS_I2C;
 	cs35l45->i2c_addr = client->addr;
+
+	quirks = client->adapter->quirks;
+	if (quirks != NULL)
+		cs35l45->max_quirks_read_nwords = (int) quirks->max_read_len / 4;
 
 	ret = cs35l45_probe(cs35l45);
 	if (ret < 0) {

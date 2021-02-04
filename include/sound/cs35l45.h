@@ -158,6 +158,7 @@ struct cs35l45_private {
 	int slot_width;
 	int amplifier_mode;
 	int hibernate_mode;
+	int max_quirks_read_nwords;
 	/* Run-time mixer */
 	struct snd_kcontrol_new fast_ctl;
 	unsigned int fast_switch_file_idx;
