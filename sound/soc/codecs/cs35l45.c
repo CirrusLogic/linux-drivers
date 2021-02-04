@@ -23,6 +23,14 @@
 #include "cs35l45.h"
 #include <sound/cs35l45.h>
 
+#define DRV_NAME "cs35l45"
+
+#define CS35L45_DSP_DATA_WORD_SIZE 3
+#define CS35L45_DSP_MIN_FRAGMENTS		1
+#define CS35L45_DSP_MAX_FRAGMENTS		256
+#define CS35L45_DSP_MIN_FRAGMENT_SIZE_WORDS	64
+#define CS35L45_DSP_MAX_FRAGMENT_SIZE_WORDS	4096
+
 static struct wm_adsp_ops cs35l45_halo_ops;
 static int (*cs35l45_halo_start_core)(struct wm_adsp *dsp);
 
@@ -34,6 +42,7 @@ static int cs35l45_gpio_configuration(struct cs35l45_private *cs35l45);
 static void cs35l45_hibernate_work(struct work_struct *work);
 static int cs35l45_activate_ctl(struct cs35l45_private *cs35l45,
 				const char *ctl_name, bool active);
+static int cs35l45_buffer_update_avail(struct cs35l45_private *cs35l45);
 
 struct cs35l45_mixer_cache {
 	unsigned int reg;
@@ -453,6 +462,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"DSP1 Master", NULL, "IMON"},
 	{"DSP1 Master", NULL, "BATTMON"},
 	{"DSP1 Master", NULL, "BSTMON"},
+	{"DSP Log DSP", NULL, "DSP1 Master"},
 
 	/* Feedback */
 	{"ASP_TX1", NULL, "AP"},
@@ -1450,7 +1460,425 @@ static struct snd_soc_dai_driver cs35l45_dai[] = {
 				  .formats = CS35L45_FORMATS,
 		},
 		.ops = &cs35l45_dai_ops,
+	},
+	{
+		.name = "cs35l45-cpu-dsplog",
+		.capture = {
+			.stream_name = "DSP Log CPU",
+			.channels_min = 1,
+			.channels_max = 1,
+			.rates = CS35L45_RATES,
+			.formats = CS35L45_FORMATS,
+		},
+		.compress_new = &snd_soc_new_compress,
+	},
+	{
+		.name = "cs35l45-dsp-dsplog",
+		.capture = {
+			.stream_name = "DSP Log DSP",
+			.channels_min = 1,
+			.channels_max = 1,
+			.rates = CS35L45_RATES,
+			.formats = CS35L45_FORMATS,
+		},
 	}
+};
+
+static int cs35l45_compr_switch(struct wm_adsp *dsp, int cmd)
+{
+	__be32 cmd_ctl;
+	int ret;
+
+	cmd_ctl = cpu_to_be32(cmd);
+	ret = wm_adsp_write_ctl(dsp, "ENABLED", WMFW_ADSP2_XM,
+				CS35L45_ALGID_TRACE, &cmd_ctl, sizeof(cmd_ctl));
+	if (ret) {
+		dev_err(dsp->dev, "Failed to write '%x ENABLED' (%d)\n",
+			CS35L45_ALGID_TRACE, ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+static void cs35l45_compr_start_work(struct work_struct *work)
+{
+	struct cs35l45_compr *compr =
+		container_of(work, struct cs35l45_compr, start_work);
+	struct wm_adsp *dsp = compr->dsp;
+
+	cs35l45_compr_switch(dsp, 1);
+}
+
+static void cs35l45_compr_stop_work(struct work_struct *work)
+{
+	struct cs35l45_compr *compr =
+		container_of(work, struct cs35l45_compr, stop_work);
+	struct wm_adsp *dsp = compr->dsp;
+
+	cs35l45_compr_switch(dsp, 0);
+}
+
+static int cs35l45_compr_open(struct snd_compr_stream *stream)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
+	struct cs35l45_private *cs35l45 = snd_soc_component_get_drvdata(component);
+	__be32 buffer_size;
+	int ret;
+
+	if (strcmp(rtd->codec_dai->name, "cs35l45-dsp-dsplog")) {
+		dev_err(cs35l45->dev,
+			"No suitable compressed stream for DAI '%s'\n",
+			rtd->codec_dai->name);
+		return -EINVAL;
+	}
+
+	mutex_lock(&cs35l45->dsp.pwr_lock);
+
+	if (stream->direction != SND_COMPRESS_CAPTURE) {
+		dev_err(cs35l45->dev, "Does not support stream direction\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = wm_adsp_read_ctl(&cs35l45->dsp, "BUFFER_SIZE", WMFW_ADSP2_XM,
+			       CS35L45_ALGID_TRACE,
+			       &buffer_size, sizeof(buffer_size));
+	if (ret) {
+		dev_err(cs35l45->dev, "Failed to read '%x BUFFER_SIZE' (%d)\n",
+			CS35L45_ALGID_TRACE, ret);
+		ret = -ENODEV;
+		goto out;
+	}
+
+	cs35l45->compr = kzalloc(sizeof(*cs35l45->compr), GFP_KERNEL);
+	if (!cs35l45->compr) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	cs35l45->compr->dsp = &cs35l45->dsp;
+	cs35l45->compr->stream = stream;
+	cs35l45->compr->buffer_size = be32_to_cpu(buffer_size);
+
+	INIT_WORK(&cs35l45->compr->start_work, cs35l45_compr_start_work);
+	INIT_WORK(&cs35l45->compr->stop_work, cs35l45_compr_stop_work);
+
+	stream->runtime->private_data = cs35l45->compr;
+
+out:
+	mutex_unlock(&cs35l45->dsp.pwr_lock);
+	return ret;
+}
+
+static int cs35l45_compr_free(struct snd_compr_stream *stream)
+{
+	struct cs35l45_compr *compr = stream->runtime->private_data;
+	struct wm_adsp *dsp = compr->dsp;
+
+	flush_scheduled_work();
+
+	cancel_work_sync(&compr->start_work);
+	cancel_work_sync(&compr->stop_work);
+
+	mutex_lock(&dsp->pwr_lock);
+
+	kfree(compr->raw_buf);
+	kfree(compr);
+
+	mutex_unlock(&dsp->pwr_lock);
+
+	return 0;
+}
+static int cs35l45_compr_set_params(struct snd_compr_stream *stream,
+				    struct snd_compr_params *params)
+{
+	struct cs35l45_compr *compr = stream->runtime->private_data;
+	struct wm_adsp *dsp = compr->dsp;
+	unsigned int size;
+
+	if (params->buffer.fragment_size < (CS35L45_DSP_MIN_FRAGMENT_SIZE_WORDS
+					    * CS35L45_DSP_DATA_WORD_SIZE) ||
+	    params->buffer.fragment_size > (CS35L45_DSP_MAX_FRAGMENT_SIZE_WORDS
+					    * CS35L45_DSP_DATA_WORD_SIZE) ||
+	    params->buffer.fragments < CS35L45_DSP_MIN_FRAGMENTS ||
+	    params->buffer.fragments > CS35L45_DSP_MAX_FRAGMENTS ||
+	    params->buffer.fragment_size % CS35L45_DSP_DATA_WORD_SIZE) {
+		dev_err(dsp->dev, "Invalid buffer fragsize=%d fragments=%d\n",
+			params->buffer.fragment_size,
+			params->buffer.fragments);
+
+		return -EINVAL;
+	}
+
+	compr->size = params->buffer;
+
+	dev_dbg(dsp->dev, "fragment_size=%d fragments=%d\n",
+		compr->size.fragment_size, compr->size.fragments);
+
+	size = compr->buffer_size * sizeof(*compr->raw_buf);
+	compr->raw_buf = kmalloc(size, GFP_DMA | GFP_KERNEL);
+	if (!compr->raw_buf)
+		return -ENOMEM;
+
+	compr->sample_rate = params->codec.sample_rate;
+
+	return 0;
+}
+static int cs35l45_compr_get_caps(struct snd_compr_stream *stream,
+				  struct snd_compr_caps *caps)
+{
+	caps->codecs[0] = SND_AUDIOCODEC_BESPOKE;
+	caps->num_codecs = 1;
+	caps->direction = SND_COMPRESS_CAPTURE;
+	caps->min_fragment_size = CS35L45_DSP_MIN_FRAGMENT_SIZE_WORDS
+			* CS35L45_DSP_DATA_WORD_SIZE;
+	caps->max_fragment_size = CS35L45_DSP_MAX_FRAGMENT_SIZE_WORDS
+			* CS35L45_DSP_DATA_WORD_SIZE;
+	caps->min_fragments = CS35L45_DSP_MIN_FRAGMENTS;
+	caps->max_fragments = CS35L45_DSP_MAX_FRAGMENTS;
+
+	return 0;
+}
+
+static int cs35l45_compr_trigger(struct snd_compr_stream *stream, int cmd)
+{
+	struct cs35l45_compr *compr = stream->runtime->private_data;
+	struct wm_adsp *dsp = compr->dsp;
+	int ret = 0;
+
+	dev_dbg(dsp->dev, "Trigger: %d\n", cmd);
+
+	mutex_lock(&dsp->pwr_lock);
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+		schedule_work(&compr->start_work);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+		schedule_work(&compr->stop_work);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	mutex_unlock(&dsp->pwr_lock);
+
+	return ret;
+}
+
+static int cs35l45_buffer_update_avail(struct cs35l45_private *cs35l45)
+{
+	__be32 addr;
+	int read_index;
+	int ret;
+
+	ret = wm_adsp_read_ctl(&cs35l45->dsp, "BUFFER", WMFW_ADSP2_XM,
+			       CS35L45_ALGID_TRACE,
+			       &addr, sizeof(addr));
+	if (ret) {
+		dev_err(cs35l45->dev, "Failed to read '%x BUFFER' (%d)\n",
+			CS35L45_ALGID_TRACE, ret);
+		return ret;
+	}
+	read_index = be32_to_cpu(addr);
+
+	if (read_index == cs35l45->compr->last_read_index) {
+		dev_warn(cs35l45->dev, "Avail check on unstarted stream\n");
+		return 0;
+	}
+
+	cs35l45->compr->read_index = read_index;
+	cs35l45->compr->last_read_index = read_index;
+	cs35l45->compr->avail = cs35l45->compr->buffer_size
+			* CS35L45_DSP_DATA_WORD_SIZE;
+
+	dev_dbg(cs35l45->dev, "readindex=0x%x, avail=%d\n",
+		cs35l45->compr->read_index,
+		cs35l45->compr->avail);
+
+	return 0;
+}
+
+static int cs35l45_compr_pointer(struct snd_compr_stream *stream,
+				 struct snd_compr_tstamp *tstamp)
+{
+	struct cs35l45_compr *compr = stream->runtime->private_data;
+	struct wm_adsp *dsp = compr->dsp;
+	struct cs35l45_private *cs35l45 =
+		container_of(dsp, struct cs35l45_private, dsp);
+	int ret = 0;
+
+	dev_dbg(dsp->dev, "Pointer request\n");
+
+	mutex_lock(&dsp->pwr_lock);
+
+	if (dsp->fatal_error) {
+		snd_compr_stop_error(stream, SNDRV_PCM_STATE_XRUN);
+		ret = -EIO;
+		goto out;
+	}
+
+	if (compr->buffer_size == 0) {
+		ret = cs35l45_buffer_update_avail(cs35l45);
+		if (ret < 0) {
+			dev_err(dsp->dev, "Error reading avail: %d\n", ret);
+			goto out;
+		}
+	}
+
+	tstamp->copied_total = compr->copied_total;
+	tstamp->copied_total += compr->buffer_size * CS35L45_DSP_DATA_WORD_SIZE;
+	tstamp->sampling_rate = compr->sample_rate;
+
+out:
+	mutex_unlock(&dsp->pwr_lock);
+
+	return ret;
+}
+
+static int cs35l45_dsp_read_data_block(struct cs35l45_private *cs35l45,
+				       int mem_type, unsigned int mem_addr,
+				       unsigned int num_words, u32 *data)
+{
+	struct wm_adsp *dsp = &cs35l45->dsp;
+	struct wm_adsp_region const *mem;
+	unsigned int reg;
+	int ret, i;
+
+	for (i = 0; i < dsp->num_mems; i++)
+		if (dsp->mem[i].type == mem_type)
+			mem = &dsp->mem[i];
+
+	if (!mem)
+		return -EINVAL;
+
+	reg = dsp->ops->region_to_reg(mem, mem_addr);
+
+	ret = regmap_raw_read(dsp->regmap, reg, data,
+			      sizeof(*data) * num_words);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static void cs35l45_remove_padding(u32 *buf, int nwords)
+{
+	u8 *pack_in = (u8 *)buf;
+	u8 *pack_out = (u8 *)buf;
+	int i;
+
+	/* Remove the padding bytes from the data read from the DSP */
+	for (i = 0; i < nwords; i++) {
+		*pack_out++ = pack_in[3];
+		*pack_out++ = pack_in[2];
+		*pack_out++ = pack_in[1];
+		pack_in += 4;
+	}
+}
+
+static int cs35l45_compr_read(struct cs35l45_compr *compr,
+			      char __user *buf, size_t count)
+{
+	struct wm_adsp *dsp = compr->dsp;
+	struct cs35l45_private *cs35l45 =
+		container_of(dsp, struct cs35l45_private, dsp);
+	int ntotal = 0;
+	int nwords, nbytes;
+	__be32 cmd_ctl;
+	int ret;
+
+	dev_dbg(dsp->dev, "Requested read of %zu bytes\n", count);
+
+	if (dsp->fatal_error) {
+		snd_compr_stop_error(compr->stream, SNDRV_PCM_STATE_XRUN);
+		return -EIO;
+	}
+
+	count /= CS35L45_DSP_DATA_WORD_SIZE;
+
+	do {
+		nwords = compr->avail;
+		if (!nwords)
+			return 0;
+
+		nwords = min_t(int, nwords, count);
+		if (cs35l45->max_quirks_read_nwords != 0)
+			nwords = min(nwords, cs35l45->max_quirks_read_nwords);
+		ret = cs35l45_dsp_read_data_block(cs35l45, WMFW_ADSP2_XM,
+						  compr->read_index, nwords, compr->raw_buf);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to read data from DSP (%d)\n", ret);
+				return ret;
+		}
+
+		cs35l45_remove_padding(compr->raw_buf, nwords);
+
+		nbytes = nwords * CS35L45_DSP_DATA_WORD_SIZE;
+
+		dev_dbg(dsp->dev, "Read %d bytes from compr stream\n", nbytes);
+
+		if (copy_to_user(buf + ntotal, compr->raw_buf, nbytes)) {
+			dev_err(dsp->dev, "Failed to copy data to user: %d, %d\n",
+				ntotal, nbytes);
+			return -EFAULT;
+		}
+
+		/* update avail to account for words read */
+		compr->avail -= nwords;
+		count -= nwords;
+		ntotal += nbytes;
+		compr->read_index += nwords;
+	} while (nwords > 0 && count > 0);
+
+	compr->copied_total += ntotal;
+
+	if (compr->avail <= 0) {
+		/* Write ACK to DSP */
+		cmd_ctl = cpu_to_be32(1);
+		ret = wm_adsp_write_ctl(&cs35l45->dsp, "TRANSFER_COMPLETED",
+					WMFW_ADSP2_XM, CS35L45_ALGID_TRACE,
+					&cmd_ctl, sizeof(cmd_ctl));
+		if (ret) {
+			dev_err(cs35l45->dev, "Failed to write '%x TRANSFER_COMPLETED' (%d)\n",
+				CS35L45_ALGID_TRACE, ret);
+			return ret;
+		}
+	}
+
+	return ntotal;
+}
+
+static int cs35l45_compr_copy(struct snd_compr_stream *stream, char __user *buf,
+			      size_t count)
+{
+	struct cs35l45_compr *compr = stream->runtime->private_data;
+	struct wm_adsp *dsp = compr->dsp;
+	int ret;
+
+	mutex_lock(&dsp->pwr_lock);
+
+	if (stream->direction == SND_COMPRESS_CAPTURE)
+		ret = cs35l45_compr_read(compr, buf, count);
+	else
+		ret = -EOPNOTSUPP;
+
+	mutex_unlock(&dsp->pwr_lock);
+
+	return ret;
+}
+
+static const struct snd_compr_ops cs35l145_compr_ops = {
+	.open = &cs35l45_compr_open,
+	.free = &cs35l45_compr_free,
+	.set_params = &cs35l45_compr_set_params,
+	.get_caps = &cs35l45_compr_get_caps,
+	.trigger = &cs35l45_compr_trigger,
+	.pointer = &cs35l45_compr_pointer,
+	.copy = &cs35l45_compr_copy,
 };
 
 static int cs35l45_component_set_sysclk(struct snd_soc_component *component,
@@ -1523,6 +1951,9 @@ static const struct snd_soc_component_driver cs35l45_component = {
 
 	.controls = cs35l45_aud_controls,
 	.num_controls = ARRAY_SIZE(cs35l45_aud_controls),
+
+	.name = DRV_NAME,
+	.compr_ops = &cs35l145_compr_ops,
 };
 
 static int cs35l45_get_clk_config(int freq)
@@ -1602,6 +2033,35 @@ static int cs35l45_msm_global_en_assert(struct cs35l45_private *cs35l45)
 	return 0;
 }
 
+static int cs35l45_compr_handle_irq(struct cs35l45_private *cs35l45)
+{
+	struct cs35l45_compr *compr;
+	int ret = 0;
+
+	mutex_lock(&cs35l45->dsp.pwr_lock);
+
+	if (!cs35l45->compr) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	compr = cs35l45->compr;
+
+	ret = cs35l45_buffer_update_avail(cs35l45);
+	if (ret < 0) {
+		dev_err(cs35l45->dev, "Error reading avail: %d\n", ret);
+		goto out;
+	}
+
+	if (compr->stream)
+		snd_compr_fragment_elapsed(compr->stream);
+
+out:
+	mutex_unlock(&cs35l45->dsp.pwr_lock);
+
+	return ret;
+}
+
 static int cs35l45_dsp_virt2_mbox4_irq_handle(struct cs35l45_private *cs35l45)
 {
 	__be32 enabled;
@@ -1623,8 +2083,11 @@ static int cs35l45_dsp_virt2_mbox4_irq_handle(struct cs35l45_private *cs35l45)
 	}
 
 	if (be32_to_cpu(enabled) == 1) {
-		// TODO: handle IRQ here
-		dev_info(cs35l45->dev, "Handled DSP log IRQ\n");
+		ret = cs35l45_compr_handle_irq(cs35l45);
+		if (ret == -ENODEV) {
+			dev_err(cs35l45->dev, "Spurious DSP log IRQ\n");
+			return -EINVAL;
+		}
 	} else {
 		dev_err(cs35l45->dev, "Spurious DSP log IRQ\n");
 		return -EINVAL;
