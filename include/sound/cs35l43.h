@@ -44,7 +44,8 @@ struct cs35l43_pll_sysclk_config {
 extern const struct cs35l43_pll_sysclk_config cs35l43_pll_sysclk[64];
 
 struct cs35l43_private {
-	struct snd_soc_codec *codec;
+	struct wm_adsp dsp; /* needs to be first member */
+	struct snd_soc_component *component;
 	struct cs35l43_platform_data pdata;
 	struct device *dev;
 	struct regmap *regmap;
