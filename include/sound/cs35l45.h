@@ -133,7 +133,6 @@ struct cs35l45_platform_data {
 	unsigned int ngate_ch2_hold;
 	unsigned int ngate_ch2_thr;
 	bool use_tdm_slots;
-	bool pll_auto_en;
 };
 
 struct cs35l45_compr {
@@ -169,14 +168,11 @@ struct cs35l45_private {
 	struct mutex dsp_power_lock;
 	struct mutex hb_lock;
 	struct completion virt2_mbox_comp;
-	enum dapm_route_mode dapm_mode;
 	enum control_bus_type bus_type;
 	bool initialized;
 	bool fast_switch_en;
 	bool hibernate_state;
 	unsigned int i2c_addr;
-	unsigned int sync_num_devices;
-	unsigned int sync_id;
 	unsigned int speaker_status;
 	int irq;
 	int slot_width;
