@@ -1602,10 +1602,53 @@ static int cs35l45_msm_global_en_assert(struct cs35l45_private *cs35l45)
 	return 0;
 }
 
+static int cs35l45_dsp_virt2_mbox4_irq_handle(struct cs35l45_private *cs35l45)
+{
+	__be32 enabled;
+	int ret;
+
+	/* Clear DSP_VIR2_MBOX 4 */
+	regmap_write(cs35l45->regmap,
+		     CS35L45_DSP_VIRT2_MBOX_4,
+		     CS35L45_DSP_LOG_MBOX_4_CLEAR);
+
+	/* Check if DSP log is enabled */
+	ret = wm_adsp_read_ctl(&cs35l45->dsp, "ENABLED", WMFW_ADSP2_XM,
+			       CS35L45_ALGID_TRACE, &enabled, sizeof(enabled));
+	if (ret) {
+		dev_err(cs35l45->dev,
+			"Failed to read control '%x ENABLED' (%d)\n",
+			CS35L45_ALGID_TRACE, ret);
+		return -EINVAL;
+	}
+
+	if (be32_to_cpu(enabled) == 1) {
+		// TODO: handle IRQ here
+		dev_info(cs35l45->dev, "Handled DSP log IRQ\n");
+	} else {
+		dev_err(cs35l45->dev, "Spurious DSP log IRQ\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int cs35l45_dsp_virt2_mbox_cb(struct cs35l45_private *cs35l45)
 {
+	unsigned int mbox_val;
+	int ret;
 
 	complete(&cs35l45->virt2_mbox_comp);
+
+	/* Handle DSP trace log IRQ */
+	regmap_read(cs35l45->regmap, CS35L45_DSP_VIRT2_MBOX_4, &mbox_val);
+	if (mbox_val == CS35L45_DSP_LOG_MBOX_4_TRIGGERED) {
+		ret = cs35l45_dsp_virt2_mbox4_irq_handle(cs35l45);
+		if (ret) {
+			dev_err(cs35l45->dev, "Spurious DSP MBOX4 IRQ\n");
+			return ret;
+		}
+	}
 
 	return 0;
 }
