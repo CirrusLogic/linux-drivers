@@ -41,36 +41,6 @@ struct cs35l45_mixer_cache {
 	unsigned int val;
 };
 
-static void cs35l45_dsp_pmd_work(struct work_struct *work)
-{
-	struct cs35l45_private *cs35l45 = container_of(work,
-						       struct cs35l45_private,
-						       dsp_pmd_work);
-	unsigned int pll_sts, pwr_sts, timeout;
-
-	mutex_lock(&cs35l45->dsp_pmd_lock);
-
-	timeout = 50;
-	do {
-		regmap_read(cs35l45->regmap, CS35L45_IRQ1_STS_1, &pwr_sts);
-		regmap_read(cs35l45->regmap, CS35L45_IRQ1_STS_3, &pll_sts);
-
-		pwr_sts &= CS35L45_MSM_GLOBAL_EN_ASSERT_MASK;
-		pll_sts &= CS35L45_PLL_LOCK_FLAG_MASK;
-
-		usleep_range(1000, 1100);
-		timeout--;
-	} while (pwr_sts && pll_sts && timeout);
-
-	if (timeout == 0)
-		dev_err(cs35l45->dev, "Timeout for PLL disable conditions\n");
-	else
-		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-				   CS35L45_PLL_FORCE_EN_MASK, 0);
-
-	mutex_unlock(&cs35l45->dsp_pmd_lock);
-}
-
 static bool cs35l45_is_csplmboxsts_correct(enum cspl_mboxcmd cmd,
 					   enum cspl_mboxstate sts)
 {
@@ -102,42 +72,16 @@ static bool cs35l45_is_csplmboxsts_correct(enum cspl_mboxcmd cmd,
 int cs35l45_set_csplmboxcmd(struct cs35l45_private *cs35l45,
 			    enum cspl_mboxcmd cmd)
 {
-	unsigned int sts, i;
+	unsigned int sts;
+	int ret;
 
-	/* Reset DSP sticky bit */
-	regmap_write(cs35l45->regmap, CS35L45_IRQ2_EINT_2,
-		     CS35L45_DSP_VIRT1_MBOX_MASK);
-
-	/* Reset AP sticky bit */
-	regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_2,
-		     CS35L45_DSP_VIRT2_MBOX_MASK);
-
-	/* Unmask DSP INT */
-	regmap_update_bits(cs35l45->regmap, CS35L45_IRQ2_MASK_2,
-			   CS35L45_DSP_VIRT1_MBOX_MASK, 0);
+	reinit_completion(&cs35l45->virt2_mbox_comp);
 
 	regmap_write(cs35l45->regmap, CS35L45_DSP_VIRT1_MBOX_1, cmd);
 
-	/* Poll for DSP ACK */
-	for (i = 0; i < 5; i++) {
-		usleep_range(1000, 1100);
-
-		regmap_read(cs35l45->regmap, CS35L45_IRQ1_EINT_2, &sts);
-		if (!(sts & CS35L45_DSP_VIRT2_MBOX_MASK))
-			continue;
-
-		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_2,
-			     CS35L45_DSP_VIRT2_MBOX_MASK);
-
-		break;
-	}
-
-	/* Mask DSP INT */
-	regmap_update_bits(cs35l45->regmap, CS35L45_IRQ2_MASK_2,
-			   CS35L45_DSP_VIRT1_MBOX_MASK,
-			   CS35L45_DSP_VIRT1_MBOX_MASK);
-
-	if (i == 5) {
+	ret = wait_for_completion_timeout(&cs35l45->virt2_mbox_comp,
+					  msecs_to_jiffies(100));
+	if (ret == 0) {
 		dev_err(cs35l45->dev, "Timeout waiting for MBOX ACK\n");
 		return -ETIMEDOUT;
 	}
@@ -152,6 +96,28 @@ int cs35l45_set_csplmboxcmd(struct cs35l45_private *cs35l45,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cs35l45_set_csplmboxcmd);
+
+static void cs35l45_dsp_pmu_work(struct work_struct *work)
+{
+	struct cs35l45_private *cs35l45 = container_of(work,
+						       struct cs35l45_private,
+						       dsp_pmu_work);
+
+	mutex_lock(&cs35l45->dsp_power_lock);
+	cs35l45_set_csplmboxcmd(cs35l45, CSPL_MBOX_CMD_RESUME);
+	mutex_unlock(&cs35l45->dsp_power_lock);
+}
+
+static void cs35l45_dsp_pmd_work(struct work_struct *work)
+{
+	struct cs35l45_private *cs35l45 = container_of(work,
+						       struct cs35l45_private,
+						       dsp_pmd_work);
+
+	mutex_lock(&cs35l45->dsp_power_lock);
+	cs35l45_set_csplmboxcmd(cs35l45, CSPL_MBOX_CMD_PAUSE);
+	mutex_unlock(&cs35l45->dsp_power_lock);
+}
 
 static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 				 struct snd_kcontrol *kcontrol, int event)
@@ -188,8 +154,6 @@ static int cs35l45_dsp_boot_ev(struct snd_soc_dapm_widget *w,
 		snd_soc_dapm_to_component(w->dapm);
 	struct cs35l45_private *cs35l45 =
 		snd_soc_component_get_drvdata(component);
-	enum cspl_mboxcmd mboxcmd = CSPL_MBOX_CMD_NONE;
-	unsigned int sts, i;
 	int ret;
 
 	switch (event) {
@@ -207,29 +171,16 @@ static int cs35l45_dsp_boot_ev(struct snd_soc_dapm_widget *w,
 			     CS35L45_CCM_PM_REMAP_MASK |
 			     CS35L45_CCM_CORE_RESET_MASK);
 
+		reinit_completion(&cs35l45->virt2_mbox_comp);
+
 		(*cs35l45_halo_start_core)(&cs35l45->dsp);
 
-		/* Poll for DSP ACK */
-		for (i = 0; i < 10; i++) {
-			usleep_range(1000, 1100);
-
-			regmap_read(cs35l45->regmap, CS35L45_IRQ1_EINT_2, &sts);
-			if (!(sts & CS35L45_DSP_VIRT2_MBOX_MASK))
-				continue;
-
-			regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_2,
-				     CS35L45_DSP_VIRT2_MBOX_MASK);
-
-			break;
-		}
-
-		if (i == 10)
+		ret = wait_for_completion_timeout(&cs35l45->virt2_mbox_comp,
+						  msecs_to_jiffies(100));
+		if (ret == 0) {
 			dev_err(cs35l45->dev, "Timeout waiting for MBOX ACK\n");
-
-		mboxcmd = CSPL_MBOX_CMD_PAUSE;
-		ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
-		if (ret < 0)
-			dev_err(cs35l45->dev, "MBOX failure (%d)\n", ret);
+			return -ETIMEDOUT;
+		}
 
 		ret = cs35l45_gpio_configuration(cs35l45);
 		if (ret < 0) {
@@ -268,7 +219,6 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 		snd_soc_dapm_to_component(w->dapm);
 	struct cs35l45_private *cs35l45 =
 		snd_soc_component_get_drvdata(component);
-	enum cspl_mboxcmd mboxcmd = CSPL_MBOX_CMD_NONE;
 	int ret = 0;
 
 	switch (event) {
@@ -278,22 +228,8 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 			return -EPERM;
 		}
 
-		if (cs35l45->bus_type == CONTROL_BUS_I2C) {
-			flush_work(&cs35l45->dsp_pmd_work);
-
-			if (cs35l45->pdata.pll_auto_en)
-				regmap_update_bits(cs35l45->regmap,
-						   CS35L45_REFCLK_INPUT,
-						   CS35L45_PLL_FORCE_EN_MASK,
-						   CS35L45_PLL_FORCE_EN_MASK);
-
-			usleep_range(5000, 5100);
-		}
-
-		mboxcmd = CSPL_MBOX_CMD_RESUME;
-		ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
-		if (ret < 0)
-			dev_err(cs35l45->dev, "MBOX failure (%d)\n", ret);
+		flush_work(&cs35l45->dsp_pmd_work);
+		queue_work(system_unbound_wq, &cs35l45->dsp_pmu_work);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		if (!cs35l45->dsp.running) {
@@ -301,15 +237,8 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 			return -EPERM;
 		}
 
-		mboxcmd = CSPL_MBOX_CMD_PAUSE;
-		ret = cs35l45_set_csplmboxcmd(cs35l45, mboxcmd);
-		if (ret < 0)
-			dev_err(cs35l45->dev, "MBOX failure (%d)\n", ret);
-
-		if (cs35l45->pdata.pll_auto_en &&
-		    (cs35l45->bus_type == CONTROL_BUS_I2C))
-			queue_work(system_unbound_wq, &cs35l45->dsp_pmd_work);
-
+		flush_work(&cs35l45->dsp_pmu_work);
+		queue_work(system_unbound_wq, &cs35l45->dsp_pmd_work);
 		break;
 	default:
 		dev_err(cs35l45->dev, "Invalid event = 0x%x\n", event);
@@ -1671,6 +1600,14 @@ static int cs35l45_msm_global_en_assert(struct cs35l45_private *cs35l45)
 	return 0;
 }
 
+static int cs35l45_dsp_virt2_mbox_cb(struct cs35l45_private *cs35l45)
+{
+
+	complete(&cs35l45->virt2_mbox_comp);
+
+	return 0;
+}
+
 static const struct cs35l45_irq_monitor cs35l45_irq_mons[] = {
 	{
 		.reg = CS35L45_IRQ1_EINT_1,
@@ -1682,6 +1619,17 @@ static const struct cs35l45_irq_monitor cs35l45_irq_mons[] = {
 		.warn_msg = NULL,
 		.err_msg = NULL,
 		.callback = cs35l45_msm_global_en_assert,
+	},
+	{
+		.reg = CS35L45_IRQ1_EINT_2,
+		.mask = CS35L45_IRQ1_MASK_2,
+		.bitmask = CS35L45_DSP_VIRT2_MBOX_MASK,
+		.description = "DSP virtual MBOX 2 write flag",
+		.info_msg = NULL,
+		.dbg_msg = "DSP virtual MBOX 2 write detected!",
+		.warn_msg = NULL,
+		.err_msg = NULL,
+		.callback = cs35l45_dsp_virt2_mbox_cb,
 	},
 	{
 		.reg = CS35L45_IRQ1_EINT_3,
@@ -2638,11 +2586,15 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 	cs35l45->fast_switch_en = false;
 	cs35l45->fast_switch_file_idx = 0;
 
+	INIT_WORK(&cs35l45->dsp_pmu_work, cs35l45_dsp_pmu_work);
 	INIT_WORK(&cs35l45->dsp_pmd_work, cs35l45_dsp_pmd_work);
+
 	INIT_DELAYED_WORK(&cs35l45->hb_work, cs35l45_hibernate_work);
 
-	mutex_init(&cs35l45->dsp_pmd_lock);
+	mutex_init(&cs35l45->dsp_power_lock);
 	mutex_init(&cs35l45->hb_lock);
+
+	init_completion(&cs35l45->virt2_mbox_comp);
 
 	for (i = 0; i < ARRAY_SIZE(cs35l45_supplies); i++)
 		cs35l45->supplies[i].supply = cs35l45_supplies[i];
@@ -2723,7 +2675,7 @@ err_dsp:
 	mutex_destroy(&cs35l45->rate_lock);
 	wm_adsp2_remove(&cs35l45->dsp);
 err:
-	mutex_destroy(&cs35l45->dsp_pmd_lock);
+	mutex_destroy(&cs35l45->dsp_power_lock);
 	mutex_destroy(&cs35l45->hb_lock);
 	regulator_bulk_disable(CS35L45_NUM_SUPPLIES, cs35l45->supplies);
 	return ret;
@@ -2735,7 +2687,7 @@ int cs35l45_remove(struct cs35l45_private *cs35l45)
 	if (cs35l45->reset_gpio)
 		gpiod_set_value_cansleep(cs35l45->reset_gpio, 0);
 
-	mutex_destroy(&cs35l45->dsp_pmd_lock);
+	mutex_destroy(&cs35l45->dsp_power_lock);
 	mutex_destroy(&cs35l45->hb_lock);
 	mutex_destroy(&cs35l45->rate_lock);
 	destroy_workqueue(cs35l45->wq);
