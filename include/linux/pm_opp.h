@@ -156,6 +156,7 @@ void dev_pm_opp_unregister_set_opp_helper(struct opp_table *opp_table);
 struct opp_table *dev_pm_opp_attach_genpd(struct device *dev, const char **names, struct device ***virt_devs);
 void dev_pm_opp_detach_genpd(struct opp_table *opp_table);
 struct opp_table *devm_pm_opp_attach_genpd(struct device *dev, const char **names, struct device ***virt_devs);
+struct dev_pm_opp *dev_pm_opp_xlate_required_opp(struct opp_table *src_table, struct opp_table *dst_table, struct dev_pm_opp *src_opp);
 int dev_pm_opp_xlate_performance_state(struct opp_table *src_table, struct opp_table *dst_table, unsigned int pstate);
 int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq);
 int dev_pm_opp_set_bw(struct device *dev, struct dev_pm_opp *opp);
@@ -351,6 +352,12 @@ static inline struct opp_table *devm_pm_opp_attach_genpd(struct device *dev,
 				const char **names, struct device ***virt_devs)
 {
 	return ERR_PTR(-ENOTSUPP);
+}
+
+static inline struct dev_pm_opp *dev_pm_opp_xlate_required_opp(struct opp_table *src_table,
+				struct opp_table *dst_table, struct dev_pm_opp *src_opp)
+{
+	return ERR_PTR(-EOPNOTSUPP);
 }
 
 static inline int dev_pm_opp_xlate_performance_state(struct opp_table *src_table, struct opp_table *dst_table, unsigned int pstate)
