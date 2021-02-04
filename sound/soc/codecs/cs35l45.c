@@ -1432,23 +1432,25 @@ static const struct snd_soc_dai_ops cs35l45_dai_ops = {
 		       SNDRV_PCM_RATE_88200 | \
 		       SNDRV_PCM_RATE_96000)
 
-static struct snd_soc_dai_driver cs35l45_dai = {
-	.name = "cs35l45",
-	.playback = {
-		      .stream_name = "Playback",
-		      .channels_min = 1,
-		      .channels_max = 8,
-		      .rates = CS35L45_RATES,
-		      .formats = CS35L45_FORMATS,
-	},
-	.capture = {
-		      .stream_name = "Capture",
-		      .channels_min = 1,
-		      .channels_max = 8,
-		      .rates = CS35L45_RATES,
-		      .formats = CS35L45_FORMATS,
-	},
-	.ops = &cs35l45_dai_ops,
+static struct snd_soc_dai_driver cs35l45_dai[] = {
+	{
+		.name = "cs35l45",
+		.playback = {
+				  .stream_name = "Playback",
+				  .channels_min = 1,
+				  .channels_max = 8,
+				  .rates = CS35L45_RATES,
+				  .formats = CS35L45_FORMATS,
+		},
+		.capture = {
+				  .stream_name = "Capture",
+				  .channels_min = 1,
+				  .channels_max = 8,
+				  .rates = CS35L45_RATES,
+				  .formats = CS35L45_FORMATS,
+		},
+		.ops = &cs35l45_dai_ops,
+	}
 };
 
 static int cs35l45_component_set_sysclk(struct snd_soc_component *component,
@@ -2669,7 +2671,8 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 
 	cs35l45->hibernate_state = HIBER_MODE_DIS;
 	return devm_snd_soc_register_component(dev, &cs35l45_component,
-					       &cs35l45_dai, 1);
+					       cs35l45_dai,
+					       ARRAY_SIZE(cs35l45_dai));
 
 err_dsp:
 	mutex_destroy(&cs35l45->rate_lock);
