@@ -21,6 +21,7 @@
 
 #include "wm_adsp.h"
 #include "cs35l45.h"
+#include "cs35l45_dsp_events.h"
 #include <sound/cs35l45.h>
 
 #define DRV_NAME "cs35l45"
@@ -1133,6 +1134,19 @@ static int cs35l45_fast_switch_file_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int cs35l45_get_speaker_status(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
+	struct cs35l45_private *cs35l45 =
+		snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = cs35l45->speaker_status;
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 	WM_ADSP_FW_CONTROL("DSP1", 0),
 	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
@@ -1150,6 +1164,9 @@ static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 		       cs35l45_dsp_apply_reconfig_put),
 	SOC_SINGLE_EXT("Fast Use Case Switch Enable", SND_SOC_NOPM, 0, 1, 0,
 		       cs35l45_fast_switch_en_get, cs35l45_fast_switch_en_put),
+	SOC_SINGLE_EXT("Speaker Open / Short Status", SND_SOC_NOPM, 0,
+			SPK_STATUS_SHORT_CIRCUIT, 0,
+			cs35l45_get_speaker_status, NULL),
 	SOC_SINGLE_RANGE("ASPTX1 Slot Position", CS35L45_ASP_FRAME_CONTROL1, 0,
 			 0, 63, 0),
 	SOC_SINGLE_RANGE("ASPTX2 Slot Position", CS35L45_ASP_FRAME_CONTROL1, 8,
@@ -2062,6 +2079,21 @@ out:
 	return ret;
 }
 
+static int cs35l45_dsp_virt2_mbox3_irq_handle(struct cs35l45_private *cs35l45, unsigned int cmd,
+					      unsigned int data)
+{
+	switch (cmd) {
+	case EVENT_SPEAKER_OPEN_SHORT_STATUS:
+		cs35l45->speaker_status = data;
+		break;
+	default:
+		dev_err(cs35l45->dev, "MBox 3 event not supported %u\n", cmd);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int cs35l45_dsp_virt2_mbox4_irq_handle(struct cs35l45_private *cs35l45)
 {
 	__be32 enabled;
@@ -2102,6 +2134,14 @@ static int cs35l45_dsp_virt2_mbox_cb(struct cs35l45_private *cs35l45)
 	int ret;
 
 	complete(&cs35l45->virt2_mbox_comp);
+
+	regmap_read(cs35l45->regmap, CS35L45_DSP_VIRT2_MBOX_3, &mbox_val);
+	if (mbox_val) {
+		ret = cs35l45_dsp_virt2_mbox3_irq_handle(cs35l45, mbox_val & CS35L45_MBOX3_CMD_MASK,
+				(mbox_val & CS35L45_MBOX3_DATA_MASK) >> CS35L45_MBOX3_DATA_SHIFT);
+		if (ret)
+			return ret;
+	}
 
 	/* Handle DSP trace log IRQ */
 	regmap_read(cs35l45->regmap, CS35L45_DSP_VIRT2_MBOX_4, &mbox_val);
@@ -3066,6 +3106,7 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 
 	cs35l45->fast_switch_en = false;
 	cs35l45->fast_switch_file_idx = 0;
+	cs35l45->speaker_status = SPK_STATUS_ALL_CLEAR;
 
 	INIT_WORK(&cs35l45->dsp_pmu_work, cs35l45_dsp_pmu_work);
 	INIT_WORK(&cs35l45->dsp_pmd_work, cs35l45_dsp_pmd_work);
