@@ -170,6 +170,7 @@ struct cs35l45_private {
 	unsigned int i2c_addr;
 	unsigned int sync_num_devices;
 	unsigned int sync_id;
+	unsigned int speaker_status;
 	int irq;
 	int slot_width;
 	int amplifier_mode;
