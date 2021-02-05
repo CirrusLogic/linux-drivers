@@ -16,6 +16,10 @@
 #include <linux/thermal.h>
 #endif
 
+#ifdef CPTCFG_IWLMVM_VENDOR_CMDS
+#include <linux/ptp_clock_kernel.h>
+#endif
+
 #include <linux/ktime.h>
 
 #include "iwl-op-mode.h"
@@ -799,6 +803,13 @@ struct iwl_csi_data_buffer {
 	unsigned int offset;
 	unsigned int page_order;
 };
+
+struct ptp_data {
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_clock_info;
+	/* keeps track of GP2 wrap-around */
+	u32 last_gp2;
+};
 #endif
 
 struct iwl_mvm {
@@ -1172,6 +1183,7 @@ struct iwl_mvm {
 
 	struct list_head list;
 
+	struct ptp_data ptp_data;
 #endif /* CPTCFG_IWLMVM_VENDOR_CMDS */
 	struct {
 #ifdef CPTCFG_IWLMVM_VENDOR_CMDS

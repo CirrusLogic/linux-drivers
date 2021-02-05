@@ -1700,6 +1700,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			IWL_ERR(mvm, "Failed to re-configure time sync on FW restart: %d\n",
 				err);
 	}
+
 #endif /* CPTCFG_IWLMVM_VENDOR_CMDS */
 
 	if (iwl_acpi_get_eckv(mvm->dev, &mvm->ext_clock_valid))
