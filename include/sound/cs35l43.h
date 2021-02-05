@@ -42,6 +42,16 @@ struct cs35l43_pll_sysclk_config {
 };
 
 extern const struct cs35l43_pll_sysclk_config cs35l43_pll_sysclk[64];
+extern const unsigned int cs35l43_hibernate_update_regs[CS35L43_POWER_SEQ_LENGTH];
+
+enum cs35l43_hibernate_state {
+	CS35L43_HIBERNATE_AWAKE		= 0,
+	CS35L43_HIBERNATE_STANDBY	= 1,
+	CS35L43_HIBERNATE_UPDATE	= 2,
+	CS35L43_HIBERNATE_NOT_LOADED	= 3,
+	CS35L43_HIBERNATE_DISABLED	= 4,
+};
+
 
 struct cs35l43_private {
 	struct wm_adsp dsp; /* needs to be first member */
@@ -53,10 +63,17 @@ struct cs35l43_private {
 	int num_supplies;
 	int irq;
 	int extclk_cfg;
-	bool i2s_mode;
-	bool dspa_mode;
-	/* GPIO for /RST */
+	int clk_id;
+	int lrclk_fmt;
+	int sclk_fmt;
+	int asp_fmt;
+	int clock_mode;
+	int hibernate_state;
+	int hibernate_delay_ms;
 	struct gpio_desc *reset_gpio;
+	struct delayed_work hb_work;
+	struct workqueue_struct *wq;
+	struct mutex hb_lock;
 };
 
 int cs35l43_probe(struct cs35l43_private *cs35l43,
