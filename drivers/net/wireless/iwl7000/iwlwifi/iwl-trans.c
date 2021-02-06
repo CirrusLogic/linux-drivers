@@ -124,15 +124,17 @@ void iwl_trans_free(struct iwl_trans *trans)
 {
 	int i;
 
-	for_each_possible_cpu(i) {
-		struct iwl_tso_hdr_page *p =
-			per_cpu_ptr(trans->txqs.tso_hdr_page, i);
+	if (trans->txqs.tso_hdr_page) {
+		for_each_possible_cpu(i) {
+			struct iwl_tso_hdr_page *p =
+				per_cpu_ptr(trans->txqs.tso_hdr_page, i);
 
-		if (p->page)
-			__free_page(p->page);
+			if (p && p->page)
+				__free_page(p->page);
+		}
+
+		free_percpu(trans->txqs.tso_hdr_page);
 	}
-
-	free_percpu(trans->txqs.tso_hdr_page);
 
 	kmem_cache_destroy(trans->dev_cmd_pool);
 }
