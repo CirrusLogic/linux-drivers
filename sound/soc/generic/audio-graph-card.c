@@ -545,7 +545,7 @@ static int graph_for_each_link(struct asoc_simple_priv *priv,
 static int graph_get_dais_count(struct asoc_simple_priv *priv,
 				struct link_info *li);
 
-int graph_parse_of(struct asoc_simple_priv *priv, struct device *dev)
+int audio_graph_parse_of(struct asoc_simple_priv *priv, struct device *dev)
 {
 	struct snd_soc_card *card = simple_priv_to_card(priv);
 	struct link_info *li;
@@ -614,7 +614,7 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(graph_parse_of);
+EXPORT_SYMBOL_GPL(audio_graph_parse_of);
 
 static int graph_count_noml(struct asoc_simple_priv *priv,
 			    struct device_node *cpu_ep,
@@ -721,7 +721,7 @@ static int graph_get_dais_count(struct asoc_simple_priv *priv,
 				   graph_count_dpcm);
 }
 
-int graph_card_probe(struct snd_soc_card *card)
+int audio_graph_card_probe(struct snd_soc_card *card)
 {
 	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(card);
 	int ret;
@@ -736,7 +736,7 @@ int graph_card_probe(struct snd_soc_card *card)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(graph_card_probe);
+EXPORT_SYMBOL_GPL(audio_graph_card_probe);
 
 static int graph_probe(struct platform_device *pdev)
 {
@@ -752,20 +752,21 @@ static int graph_probe(struct platform_device *pdev)
 	card = simple_priv_to_card(priv);
 	card->dapm_widgets	= graph_dapm_widgets;
 	card->num_dapm_widgets	= ARRAY_SIZE(graph_dapm_widgets);
-	card->probe		= graph_card_probe;
+	card->probe		= audio_graph_card_probe;
 
 	if (of_device_get_match_data(dev))
 		priv->dpcm_selectable = 1;
 
-	return graph_parse_of(priv, dev);
+	return audio_graph_parse_of(priv, dev);
 }
 
-static int graph_remove(struct platform_device *pdev)
+int audio_graph_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
 	return asoc_simple_clean_reference(card);
 }
+EXPORT_SYMBOL_GPL(audio_graph_remove);
 
 static const struct of_device_id graph_of_match[] = {
 	{ .compatible = "audio-graph-card", },
@@ -782,7 +783,7 @@ static struct platform_driver graph_card = {
 		.of_match_table = graph_of_match,
 	},
 	.probe = graph_probe,
-	.remove = graph_remove,
+	.remove = audio_graph_remove,
 };
 module_platform_driver(graph_card);
 
