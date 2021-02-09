@@ -63,10 +63,10 @@ static int cs40l26_swap_ext_clk(struct cs40l26_codec *codec, u8 clk_src)
 	}
 
 	ret = regmap_update_bits(regmap, CS40L26_REFCLK_INPUT,
-			CS40L26_PLL_REFCLK_EN_MASK, CS40L26_DISABLE <<
-			CS40L26_PLL_REFCLK_EN_SHIFT);
+			CS40L26_PLL_REFCLK_OPEN_LOOP_MASK, CS40L26_ENABLE <<
+			CS40L26_PLL_REFCLK_OPEN_LOOP_SHIFT);
 	if (ret) {
-		dev_err(dev, "Failed to disable REFCLK input\n");
+		dev_err(dev, "Failed to set Open-Loop PLL\n");
 		return ret;
 	}
 
@@ -80,10 +80,10 @@ static int cs40l26_swap_ext_clk(struct cs40l26_codec *codec, u8 clk_src)
 	}
 
 	ret = regmap_update_bits(regmap, CS40L26_REFCLK_INPUT,
-			CS40L26_PLL_REFCLK_EN_MASK, CS40L26_ENABLE <<
-			CS40L26_PLL_REFCLK_EN_SHIFT);
+			CS40L26_PLL_REFCLK_OPEN_LOOP_MASK, CS40L26_DISABLE <<
+			CS40L26_PLL_REFCLK_OPEN_LOOP_SHIFT);
 	if (ret)
-		dev_err(dev, "Failed to enable REFCLK input\n");
+		dev_err(dev, "Failed to close PLL loop\n");
 
 	return ret;
 }
