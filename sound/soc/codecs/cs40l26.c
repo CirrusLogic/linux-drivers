@@ -6,9 +6,6 @@
 
 #include <linux/mfd/cs40l26.h>
 
-static const struct snd_kcontrol_new cs40l26_asp =
-		SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
-
 static const struct cs40l26_pll_sysclk_config cs40l26_pll_sysclk[] = {
 	{CS40L26_PLL_CLK_FRQ0, CS40L26_PLL_CLK_CFG0},
 	{CS40L26_PLL_CLK_FRQ1, CS40L26_PLL_CLK_CFG1},
