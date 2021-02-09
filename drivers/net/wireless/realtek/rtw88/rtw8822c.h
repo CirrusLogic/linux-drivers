@@ -165,8 +165,6 @@ const struct rtw_table name ## _tbl = {			\
 #define RTW8822C_EDCCA_MAX	0x7f
 #define REG_ANAPARLDO_POW_MAC	0x0029
 #define BIT_LDOE25_PON		BIT(0)
-#define REG_RRSR		0x0440
-#define BITS_RRSR_RSC		(BIT(21) | BIT(22))
 
 #define REG_TXDFIR0	0x808
 #define REG_DFIRBW	0x810
