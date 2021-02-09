@@ -4237,6 +4237,7 @@ static int ieee80211_reset_tid_config(struct wiphy *wiphy,
 }
 #endif
 
+#if CFG80211_VERSION >= KERNEL_VERSION(5,11,0)
 static int ieee80211_set_sar_specs(struct wiphy *wiphy,
 				   struct cfg80211_sar_specs *sar)
 {
@@ -4247,6 +4248,7 @@ static int ieee80211_set_sar_specs(struct wiphy *wiphy,
 
 	return local->ops->set_sar_specs(&local->hw, sar);
 }
+#endif
 
 #if CFG80211_VERSION < KERNEL_VERSION(3,14,0)
 static int _wrap_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
@@ -4440,5 +4442,7 @@ const struct cfg80211_ops mac80211_config_ops = {
 #if CFG80211_VERSION >= KERNEL_VERSION(5,7,0)
 	.reset_tid_config = ieee80211_reset_tid_config,
 #endif
+#if CFG80211_VERSION >= KERNEL_VERSION(5,11,0)
 	.set_sar_specs = ieee80211_set_sar_specs,
+#endif
 };
