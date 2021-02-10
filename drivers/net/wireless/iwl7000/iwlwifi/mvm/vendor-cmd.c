@@ -1978,6 +1978,7 @@ static const struct wiphy_vendor_command iwl_mvm_vendor_commands[] = {
 	},
 	{
 		.info = {
+			.vendor_id = INTEL_OUI,
 			.subcmd = IWL_MVM_VENDOR_CMD_HOST_ASSOC,
 		},
 		.doit = iwl_mvm_vendor_host_associated,
