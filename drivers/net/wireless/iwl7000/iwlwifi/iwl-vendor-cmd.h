@@ -115,10 +115,14 @@
  *	for TM protocol or public action frame for FTM protocol, from peer device.
  *	&IWL_MVM_VENDOR_ATTR_TIME_SYNC_* specifies the details.
  * @IWL_MVM_VENDOR_CMD_GET_CSME_CONN_INFO: reports CSME connection info.
- * @IWL_MVM_VENDOR_CMD_HOST_DISASSOC: reports host disconnection.
- * @IWL_MVM_VENDOR_CMD_HOST_ASSOC: reports host association.
+ * @IWL_MVM_VENDOR_CMD_HOST_DISASSOC: reports host disconnection and sets disassoc
+ *	type with one of the options in &iwl_vendor_host_disconnect_type.
+ * @IWL_MVM_VENDOR_CMD_HOST_ASSOC: reports host association info, including SSID,
+ *	bssid, channel info, auth type which is on of the options in
+ *	&iwl_vendor_auth_akm_mode, and cipher suite.
  * @IWL_MVM_VENDOR_CMD_HOST_GET_OWNERSHIP: host ask for ownership on the device.
- * @IWL_MVM_VENDOR_CMD_HOST_SET_SW_RFKILL_STATE: set SW RF kill state.
+ * @IWL_MVM_VENDOR_CMD_HOST_SET_SW_RFKILL_STATE: set SW RF kill state
+ *	with on of the options in &iwl_vendor_sw_rfkill_state.
  * @IWL_MVM_VENDOR_CMD_ROAMING_FORBIDDEN_EVENT: notifies if roaming is allowed.
  *	contains a &IWL_MVM_VENDOR_ATTR_ROAMING_FORBIDDEN and a
  *	&IWL_MVM_VENDOR_ATTR_VIF_ADDR attribute.
@@ -635,6 +639,39 @@ enum iwl_mvm_vendor_time_sync_protocol_type {
 	IWL_MVM_VENDOR_TIME_SYNC_PROTOCOL_NONE,
 	IWL_MVM_VENDOR_TIME_SYNC_PROTOCOL_TM = BIT(0),
 	IWL_MVM_VENDOR_TIME_SYNC_PROTOCOL_FTM = BIT(1),
+};
+
+/**
+ * enum iwl_vendor_host_disconnect_type - host disconnection type.
+ * @IWL_VENDOR_DISCONNECT_TYPE_UNKNOWN: unknown.
+ * @IWL_VENDOR_DISCONNECT_TYPE_TEMPORARY: temporary host disconnection.
+ * @IWL_VENDOR_DISCONNECT_TYPE_LONG: long disconnection.
+ */
+enum iwl_vendor_host_disconnect_type {
+	IWL_VENDOR_DISCONNECT_TYPE_UNKNOWN,
+	IWL_VENDOR_DISCONNECT_TYPE_TEMPORARY,
+	IWL_VENDOR_DISCONNECT_TYPE_LONG,
+};
+
+enum iwl_vendor_auth_akm_mode {
+	IWL_VENDOR_AUTH_OPEN,
+	IWL_VENDOR_AUTH_SHARED,
+	IWL_VENDOR_AUTH_WPA = 0x3,
+	IWL_VENDOR_AUTH_WPA_PSK,
+	IWL_VENDOR_AUTH_RSNA = 0x6,
+	IWL_VENDOR_AUTH_RSNA_PSK,
+	IWL_VENDOR_AUTH_SAE = 0x9,
+	IWL_VENDOR_AUTH_MAX,
+};
+
+/**
+ * enum iwl_vendor_sw_rfkill_state - sw rfkill states
+ * @IWL_VENDOR_SW_RFKILL_ON: sw rfkill is on.
+ * @IWL_VENDOR_SW_RFKILL_OFF: sw rfkill is off
+ */
+enum iwl_vendor_sw_rfkill_state {
+	IWL_VENDOR_SW_RFKILL_ON,
+	IWL_VENDOR_SW_RFKILL_OFF,
 };
 
 /**
