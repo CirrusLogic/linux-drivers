@@ -644,6 +644,12 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			smps_mode = IEEE80211_SMPS_DYNAMIC;
 	}
 
+#ifdef CPTCFG_IWLWIFI_SUPPORT_DEBUG_OVERRIDES
+	if (mvmvif->smps_requests[IWL_MVM_SMPS_REQ_DBG] !=
+	    IEEE80211_SMPS_AUTOMATIC)
+		smps_mode = mvmvif->smps_requests[IWL_MVM_SMPS_REQ_DBG];
+#endif
+
 	ieee80211_request_smps(vif, smps_mode);
 }
 

@@ -3433,6 +3433,12 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		}
 
 		sta->max_rc_amsdu_len = 1;
+
+#ifdef CPTCFG_IWLWIFI_SUPPORT_DEBUG_OVERRIDES
+		if (mvm->trans->dbg_cfg.ht_dynamic_smps)
+			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_DBG,
+					    IEEE80211_SMPS_DYNAMIC);
+#endif
 	} else if (old_state == IEEE80211_STA_NONE &&
 		   new_state == IEEE80211_STA_AUTH) {
 		/*

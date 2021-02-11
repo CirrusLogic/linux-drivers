@@ -260,6 +260,7 @@ struct iwl_dbg_cfg {
 	IWL_DBG_CFG_NODEF(u32, FW_DBG_DOMAIN)
 	IWL_DBG_CFG_FN(FW_DBG_PRESET, iwl_dbg_cfg_parse_fw_dbg_preset)
 	IWL_DBG_CFG_NODEF(bool, he_smps_disabled)
+	IWL_DBG_CFG_NODEF(bool, ht_dynamic_smps)
 #ifdef CPTCFG_IWLWIFI_DEBUG
 	IWL_MOD_PARAM(u32, debug_level)
 #endif /* CPTCFG_IWLWIFI_DEBUG */
