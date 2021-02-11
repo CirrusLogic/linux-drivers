@@ -745,12 +745,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 			       NL80211_FEATURE_STATIC_SMPS |
 			       NL80211_FEATURE_SUPPORTS_WMM_ADMISSION;
 
-#ifdef CPTCFG_IWLWIFI_SUPPORT_DEBUG_OVERRIDES
-	if (mvm->trans->dbg_cfg.smps_disabled)
-		hw->wiphy->features &= ~(NL80211_FEATURE_STATIC_SMPS |
-					 NL80211_FEATURE_DYNAMIC_SMPS);
-#endif
-
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_TXPOWER_INSERTION_SUPPORT))
 		hw->wiphy->features |= NL80211_FEATURE_TX_POWER_INSERTION;
@@ -3438,6 +3432,9 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		if (mvm->trans->dbg_cfg.ht_dynamic_smps)
 			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_DBG,
 					    IEEE80211_SMPS_DYNAMIC);
+		else if (mvm->trans->dbg_cfg.smps_disabled)
+			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_DBG,
+					    IEEE80211_SMPS_OFF);
 #endif
 	} else if (old_state == IEEE80211_STA_NONE &&
 		   new_state == IEEE80211_STA_AUTH) {
