@@ -1374,7 +1374,7 @@ vm_fault_t amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
 	struct ttm_operation_ctx ctx = { false, false };
 	struct amdgpu_bo *abo = ttm_to_amdgpu_bo(bo);
-	unsigned long offset, size;
+	unsigned long offset;
 	int r;
 
 	/* Remember that this BO was accessed by the CPU */
@@ -1383,9 +1383,8 @@ vm_fault_t amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	if (bo->mem.mem_type != TTM_PL_VRAM)
 		return 0;
 
-	size = bo->mem.num_pages << PAGE_SHIFT;
 	offset = bo->mem.start << PAGE_SHIFT;
-	if ((offset + size) <= adev->gmc.visible_vram_size)
+	if ((offset + bo->base.size) <= adev->gmc.visible_vram_size)
 		return 0;
 
 	/* Can't move a pinned BO to visible VRAM */
@@ -1410,7 +1409,7 @@ vm_fault_t amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	offset = bo->mem.start << PAGE_SHIFT;
 	/* this should never happen */
 	if (bo->mem.mem_type == TTM_PL_VRAM &&
-	    (offset + size) > adev->gmc.visible_vram_size)
+	    (offset + bo->base.size) > adev->gmc.visible_vram_size)
 		return VM_FAULT_SIGBUS;
 
 	ttm_bo_move_to_lru_tail_unlocked(bo);
