@@ -15,7 +15,7 @@
 #include "cs35l45.h"
 #include <sound/cs35l45.h>
 
-const struct reg_default cs35l45_reg[CS35L45_MAX_CACHE_REG] = {
+static const struct reg_default cs35l45_reg[] = {
 	{CS35L45_BLOCK_ENABLES,			0x00003323},
 	{CS35L45_BLOCK_ENABLES2,		0x00000010},
 	{CS35L45_GLOBAL_OVERRIDES,		0x00000002},
@@ -121,7 +121,7 @@ const struct reg_default cs35l45_reg[CS35L45_MAX_CACHE_REG] = {
 	{CS35L45_CLOCK_DETECT_1,		0x00000030},
 };
 
-bool cs35l45_readable_reg(struct device *dev, unsigned int reg)
+static bool cs35l45_readable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case CS35L45_DEVID:
@@ -362,7 +362,7 @@ bool cs35l45_readable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-bool cs35l45_volatile_reg(struct device *dev, unsigned int reg)
+static bool cs35l45_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case CS35L45_DEVID:
@@ -462,6 +462,37 @@ bool cs35l45_volatile_reg(struct device *dev, unsigned int reg)
 		return false;
 	}
 }
+
+const struct regmap_config cs35l45_i2c_regmap = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = CS35L45_REGSTRIDE,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+	.max_register = CS35L45_LASTREG,
+	.reg_defaults = cs35l45_reg,
+	.num_reg_defaults = ARRAY_SIZE(cs35l45_reg),
+	.volatile_reg = cs35l45_volatile_reg,
+	.readable_reg = cs35l45_readable_reg,
+	.cache_type = REGCACHE_RBTREE,
+};
+EXPORT_SYMBOL_GPL(cs35l45_i2c_regmap);
+
+const struct regmap_config cs35l45_spi_regmap = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.pad_bits = 16,
+	.reg_stride = CS35L45_REGSTRIDE,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+	.max_register = CS35L45_LASTREG,
+	.reg_defaults = cs35l45_reg,
+	.num_reg_defaults = ARRAY_SIZE(cs35l45_reg),
+	.volatile_reg = cs35l45_volatile_reg,
+	.readable_reg = cs35l45_readable_reg,
+	.cache_type = REGCACHE_RBTREE,
+};
+EXPORT_SYMBOL_GPL(cs35l45_spi_regmap);
 
 const struct cs35l45_pll_sysclk_config
 		cs35l45_pll_sysclk[CS35L45_MAX_PLL_CONFIGS] = {

@@ -648,7 +648,6 @@
 #define CS35L45_AUX_NGATE_CH_HOLD_DEFAULT	0x03
 #define CS35L45_AUX_NGATE_CH_THR_DEFAULT	0x03
 
-#define CS35L45_MAX_CACHE_REG			0x0000006B
 #define CS35L45_MAX_PLL_CONFIGS			64
 #define CS35L45_REGSTRIDE			4
 #define CS35L45_VALID_PDATA			0x80000000
@@ -744,13 +743,11 @@ enum control_bus_type {
 	CONTROL_BUS_SPI = 1,
 };
 
-bool cs35l45_readable_reg(struct device *dev, unsigned int reg);
-bool cs35l45_volatile_reg(struct device *dev, unsigned int reg);
-bool cs35l45_precious_reg(struct device *dev, unsigned int reg);
 int cs35l45_set_csplmboxcmd(struct cs35l45_private *cs35l45,
 			    enum cspl_mboxcmd cmd);
 
-extern const struct reg_default cs35l45_reg[CS35L45_MAX_CACHE_REG];
+extern const struct regmap_config cs35l45_i2c_regmap;
+extern const struct regmap_config cs35l45_spi_regmap;
 extern const struct cs35l45_pll_sysclk_config
 		cs35l45_pll_sysclk[CS35L45_MAX_PLL_CONFIGS];
 

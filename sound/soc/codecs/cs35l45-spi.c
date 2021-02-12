@@ -16,21 +16,6 @@
 #include "cs35l45.h"
 #include <sound/cs35l45.h>
 
-static struct regmap_config cs35l45_regmap = {
-	.reg_bits = 32,
-	.val_bits = 32,
-	.pad_bits = 16,
-	.reg_stride = CS35L45_REGSTRIDE,
-	.reg_format_endian = REGMAP_ENDIAN_BIG,
-	.val_format_endian = REGMAP_ENDIAN_BIG,
-	.max_register = CS35L45_LASTREG,
-	.reg_defaults = cs35l45_reg,
-	.num_reg_defaults = ARRAY_SIZE(cs35l45_reg),
-	.volatile_reg = cs35l45_volatile_reg,
-	.readable_reg = cs35l45_readable_reg,
-	.cache_type = REGCACHE_RBTREE,
-};
-
 static int cs35l45_spi_probe(struct spi_device *spi)
 {
 	struct cs35l45_private *cs35l45;
@@ -42,7 +27,7 @@ static int cs35l45_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	spi_set_drvdata(spi, cs35l45);
-	cs35l45->regmap = devm_regmap_init_spi(spi, &cs35l45_regmap);
+	cs35l45->regmap = devm_regmap_init_spi(spi, &cs35l45_spi_regmap);
 	if (IS_ERR(cs35l45->regmap)) {
 		ret = PTR_ERR(cs35l45->regmap);
 		dev_err(dev, "Failed to allocate register map: %d\n", ret);
