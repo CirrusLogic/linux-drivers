@@ -64,10 +64,13 @@ static int cs35l45_spi_probe(struct spi_device *spi)
 	ret = cs35l45_initialize(cs35l45);
 	if (ret < 0) {
 		dev_err(dev, "Failed device initialization: %d\n", ret);
-		return ret;
+		goto fail;
 	}
 
 	return 0;
+fail:
+	cs35l45_remove(cs35l45);
+	return ret;
 }
 
 static int cs35l45_spi_remove(struct spi_device *spi)
