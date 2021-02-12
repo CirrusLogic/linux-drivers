@@ -35,6 +35,54 @@ ap_h1_spi: &spi0 {};
 	realtek,dmic-clk-driving-high = "true";
 };
 
+&cpu6_alert0 {
+	temperature = <60000>;
+};
+
+&cpu6_alert1 {
+	temperature = <65000>;
+};
+
+&cpu6_thermal {
+	sustainable-power = <948>;
+};
+
+&cpu7_alert0 {
+	temperature = <60000>;
+};
+
+&cpu7_alert1 {
+	temperature = <65000>;
+};
+
+&cpu7_thermal {
+	sustainable-power = <948>;
+};
+
+&cpu8_alert0 {
+	temperature = <60000>;
+};
+
+&cpu8_alert1 {
+	temperature = <65000>;
+};
+
+&cpu8_thermal {
+	sustainable-power = <948>;
+};
+
+&cpu9_alert0 {
+	temperature = <60000>;
+};
+
+&cpu9_alert1 {
+	temperature = <65000>;
+};
+
+&cpu9_thermal {
+	sustainable-power = <948>;
+};
+
 &gpio_keys {
 	status = "okay";
 };
