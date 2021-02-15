@@ -99,9 +99,7 @@ struct gpio_ctrl {
 	unsigned int invert;
 };
 
-struct cs35l45_irq_monitor {
-	unsigned int reg;
-	unsigned int mask;
+struct cs35l45_irq_bit_monitor {
 	unsigned int bitmask;
 	const char *description;
 	const char *info_msg;
@@ -109,6 +107,13 @@ struct cs35l45_irq_monitor {
 	const char *warn_msg;
 	const char *err_msg;
 	int (*callback)(struct cs35l45_private *cs35l45);
+};
+
+struct cs35l45_irq_monitor {
+	unsigned int reg;
+	unsigned int mask;
+	unsigned int nbits;
+	struct cs35l45_irq_bit_monitor *bits;
 };
 
 struct cs35l45_platform_data {
