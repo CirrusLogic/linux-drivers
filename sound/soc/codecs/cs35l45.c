@@ -2126,14 +2126,6 @@ static const struct cs35l45_irq_monitor cs35l45_irq_mons[] = {
 		.callback = cs35l45_msm_global_en_assert,
 	},
 	{
-		.reg = CS35L45_IRQ1_EINT_2,
-		.mask = CS35L45_IRQ1_MASK_2,
-		.bitmask = CS35L45_DSP_VIRT2_MBOX_MASK,
-		.description = "DSP virtual MBOX 2 write flag",
-		.dbg_msg = "DSP virtual MBOX 2 write detected!",
-		.callback = cs35l45_dsp_virt2_mbox_cb,
-	},
-	{
 		.reg = CS35L45_IRQ1_EINT_3,
 		.mask = CS35L45_IRQ1_MASK_3,
 		.bitmask = CS35L45_PLL_LOCK_FLAG_MASK,
@@ -2153,6 +2145,14 @@ static const struct cs35l45_irq_monitor cs35l45_irq_mons[] = {
 		.bitmask = CS35L45_GLOBAL_ERROR_MASK,
 		.description = "Global error",
 		.err_msg = "Global error detected!",
+	},
+	{
+		.reg = CS35L45_IRQ1_EINT_2,
+		.mask = CS35L45_IRQ1_MASK_2,
+		.bitmask = CS35L45_DSP_VIRT2_MBOX_MASK,
+		.description = "DSP virtual MBOX 2 write flag",
+		.dbg_msg = "DSP virtual MBOX 2 write detected!",
+		.callback = cs35l45_dsp_virt2_mbox_cb,
 	},
 };
 
