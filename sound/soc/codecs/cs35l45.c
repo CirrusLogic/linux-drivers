@@ -2189,6 +2189,13 @@ static const struct cs35l45_irq_monitor cs35l45_irq_mons[] = {
 	{
 		.reg = CS35L45_IRQ1_EINT_2,
 		.mask = CS35L45_IRQ1_MASK_2,
+		.bitmask = CS35L45_DSP_WDT_EXPIRE_STS_1,
+		.description = "DSP Watchdog Timer",
+		.err_msg = "DSP Watchdog expired!",
+	},
+	{
+		.reg = CS35L45_IRQ1_EINT_2,
+		.mask = CS35L45_IRQ1_MASK_2,
 		.bitmask = CS35L45_DSP_VIRT2_MBOX_MASK,
 		.description = "DSP virtual MBOX 2 write flag",
 		.dbg_msg = "DSP virtual MBOX 2 write detected!",
