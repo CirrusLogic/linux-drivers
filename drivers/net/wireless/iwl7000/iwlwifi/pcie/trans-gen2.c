@@ -299,7 +299,7 @@ static void iwl_pcie_get_rf_name(struct iwl_trans *trans)
 	pos += scnprintf(buf + pos, buflen - pos, ", rfid=0x%x",
 			 trans->hw_rf_id);
 
-	IWL_INFO(trans, "Detected CRF %s\n", buf);
+	IWL_INFO(trans, "Detected RF %s\n", buf);
 
 	/*
 	 * also add a \n for debugfs - need to do it after printing
