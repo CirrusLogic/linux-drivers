@@ -346,11 +346,10 @@ static int cs40l26_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(dai->component);
-	u8 asp_rx_wl, asp_rx_width;
+	u8 asp_rx_wl;
 	int ret;
 
 	asp_rx_wl = params_width(params);
-	asp_rx_width = params_physical_width(params);
 
 	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK) {
 		dev_err(codec->dev, "Invalid stream type\n");
@@ -360,7 +359,7 @@ static int cs40l26_pcm_hw_params(struct snd_pcm_substream *substream,
 	pm_runtime_get_sync(codec->dev);
 
 	ret = regmap_update_bits(codec->regmap, CS40L26_ASP_CONTROL2,
-			CS40L26_ASP_RX_WIDTH_MASK, asp_rx_width <<
+			CS40L26_ASP_RX_WIDTH_MASK, asp_rx_wl <<
 			CS40L26_ASP_RX_WIDTH_SHIFT);
 	if (ret) {
 		dev_err(codec->dev, "Failed to update ASP RX width\n");
