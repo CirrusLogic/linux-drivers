@@ -1090,6 +1090,11 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 	if (!iwl_mvm_firmware_running(mvm))
 		return -EIO;
 
+	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
+		iwl_force_nmi(mvm->trans);
+		return count;
+	}
+
 	mutex_lock(&mvm->mutex);
 
 	/* allow one more restart that we're provoking here */
