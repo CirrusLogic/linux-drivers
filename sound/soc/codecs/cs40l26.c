@@ -289,10 +289,6 @@ static int cs40l26_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
 	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(codec_dai->component);
-	struct cs40l26_private *cs40l26 = codec->core;
-	struct regmap *regmap = cs40l26->regmap;
-	u8 lrck_fmt, sclk_fmt;
-	int ret;
 
 	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
 		dev_err(codec->dev, "Device can not be master\n");
@@ -306,39 +302,24 @@ static int cs40l26_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		lrck_fmt = CS40L26_CLK_NORMAL;
-		sclk_fmt = CS40L26_CLK_NORMAL;
+		codec->daifmt = 0;
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
-		lrck_fmt = CS40L26_CLK_INV;
-		sclk_fmt = CS40L26_CLK_NORMAL;
+		codec->daifmt = CS40L26_ASP_FSYNC_INV_MASK;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
-		lrck_fmt = CS40L26_CLK_NORMAL;
-		sclk_fmt = CS40L26_CLK_INV;
+		codec->daifmt = CS40L26_ASP_BCLK_INV_MASK;
 		break;
 	case SND_SOC_DAIFMT_IB_IF:
-		lrck_fmt = CS40L26_CLK_INV;
-		sclk_fmt = CS40L26_CLK_INV;
+		codec->daifmt = CS40L26_ASP_FSYNC_INV_MASK |
+				CS40L26_ASP_BCLK_INV_MASK;
 		break;
 	default:
 		dev_err(codec->dev, "Invalid DAI clock INV\n");
 		return -EINVAL;
 	}
 
-	pm_runtime_get_sync(codec->dev);
-
-	ret = regmap_update_bits(regmap, CS40L26_ASP_CONTROL2,
-			CS40L26_ASP_BCLK_INV_MASK | CS40L26_ASP_FSYNC_INV_MASK,
-			(sclk_fmt << CS40L26_ASP_BCLK_INV_SHIFT) |
-			(lrck_fmt << CS40L26_ASP_FSYNC_INV_SHIFT));
-	if (ret)
-		dev_err(codec->dev, "Failed to update ASP settings\n");
-
-	pm_runtime_mark_last_busy(codec->dev);
-	pm_runtime_put_autosuspend(codec->dev);
-
-	return ret;
+	return 0;
 }
 
 static int cs40l26_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -359,8 +340,9 @@ static int cs40l26_pcm_hw_params(struct snd_pcm_substream *substream,
 	pm_runtime_get_sync(codec->dev);
 
 	ret = regmap_update_bits(codec->regmap, CS40L26_ASP_CONTROL2,
-			CS40L26_ASP_RX_WIDTH_MASK, asp_rx_wl <<
-			CS40L26_ASP_RX_WIDTH_SHIFT);
+			CS40L26_ASP_FSYNC_INV_MASK | CS40L26_ASP_BCLK_INV_MASK |
+			CS40L26_ASP_RX_WIDTH_MASK, (asp_rx_wl <<
+			CS40L26_ASP_RX_WIDTH_SHIFT) | codec->daifmt);
 	if (ret) {
 		dev_err(codec->dev, "Failed to update ASP RX width\n");
 		goto err_pm;
