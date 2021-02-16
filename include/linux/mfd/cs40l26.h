@@ -964,9 +964,6 @@
 #define CS40L26_ASP_RX3_EN_MASK	BIT(18)
 #define CS40L26_ASP_RX3_EN_SHIFT	18
 
-#define CS40L26_CLK_NORMAL		0
-#define CS40L26_CLK_INV			1
-
 /* MFD */
 #define CS40L26_NUM_MFD_DEVS		1
 
@@ -1156,6 +1153,7 @@ struct cs40l26_codec {
 	int tuning;
 	int tuning_prev;
 	char *bin_file;
+	u8 daifmt;
 };
 
 struct cs40l26_pll_sysclk_config {
