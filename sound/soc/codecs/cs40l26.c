@@ -332,11 +332,6 @@ static int cs40l26_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	asp_rx_wl = params_width(params);
 
-	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK) {
-		dev_err(codec->dev, "Invalid stream type\n");
-		return -EINVAL;
-	}
-
 	pm_runtime_get_sync(codec->dev);
 
 	ret = regmap_update_bits(codec->regmap, CS40L26_ASP_CONTROL2,
