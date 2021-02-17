@@ -903,10 +903,16 @@
 
 #define CS40L26_ASP_RX_WIDTH_MASK		GENMASK(31, 24)
 #define CS40L26_ASP_RX_WIDTH_SHIFT		24
+#define CS40L26_ASP_FMT_MASK			GENMASK(10, 8)
+#define CS40L26_ASP_FMT_SHIFT			8
 #define CS40L26_ASP_BCLK_INV_MASK		BIT(6)
 #define CS40L26_ASP_BCLK_INV_SHIFT		6
 #define CS40L26_ASP_FSYNC_INV_MASK		BIT(2)
 #define CS40L26_ASP_FSYNC_INV_SHIFT		2
+
+#define CS40L26_ASP_FMT_TDM1_DSPA		0x0
+#define CS40L26_ASP_FMT_I2S			0x2
+#define CS40L26_ASP_FMT_TDM1P5			0x4
 
 #define CS40L26_PLL_REFCLK_BCLK		0x0
 #define CS40L26_PLL_REFCLK_FSYNC		0x1
@@ -1153,7 +1159,7 @@ struct cs40l26_codec {
 	int tuning;
 	int tuning_prev;
 	char *bin_file;
-	u8 daifmt;
+	u32 daifmt;
 };
 
 struct cs40l26_pll_sysclk_config {
