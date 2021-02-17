@@ -295,11 +295,6 @@ static int cs40l26_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	if ((fmt & SND_SOC_DAIFMT_FORMAT_MASK) != SND_SOC_DAIFMT_I2S) {
-		dev_err(codec->dev, "Format must be I2S\n");
-		return -EINVAL;
-	}
-
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
 		codec->daifmt = 0;
@@ -319,6 +314,21 @@ static int cs40l26_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_DSP_A:
+		codec->daifmt |= ((CS40L26_ASP_FMT_TDM1_DSPA <<
+				CS40L26_ASP_FMT_SHIFT) & CS40L26_ASP_FMT_MASK);
+		break;
+	case SND_SOC_DAIFMT_I2S:
+		codec->daifmt |= ((CS40L26_ASP_FMT_I2S <<
+				CS40L26_ASP_FMT_SHIFT) & CS40L26_ASP_FMT_MASK);
+		break;
+	default:
+		dev_err(codec->dev, "Invalid DAI format: 0x%X\n",
+				fmt & SND_SOC_DAIFMT_FORMAT_MASK);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -331,13 +341,15 @@ static int cs40l26_pcm_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	asp_rx_wl = params_width(params);
+	codec->daifmt |= ((asp_rx_wl << CS40L26_ASP_RX_WIDTH_SHIFT) &
+			CS40L26_ASP_RX_WIDTH_MASK);
 
 	pm_runtime_get_sync(codec->dev);
 
 	ret = regmap_update_bits(codec->regmap, CS40L26_ASP_CONTROL2,
 			CS40L26_ASP_FSYNC_INV_MASK | CS40L26_ASP_BCLK_INV_MASK |
-			CS40L26_ASP_RX_WIDTH_MASK, (asp_rx_wl <<
-			CS40L26_ASP_RX_WIDTH_SHIFT) | codec->daifmt);
+			CS40L26_ASP_FMT_MASK | CS40L26_ASP_RX_WIDTH_MASK,
+			codec->daifmt);
 	if (ret) {
 		dev_err(codec->dev, "Failed to update ASP RX width\n");
 		goto err_pm;
