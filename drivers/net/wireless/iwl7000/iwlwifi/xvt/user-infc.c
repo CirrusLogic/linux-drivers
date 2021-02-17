@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -1639,9 +1639,8 @@ static int iwl_xvt_allocate_dma(struct iwl_xvt *xvt,
 	xvt->dma_cpu_addr = dma_alloc_coherent(xvt->trans->dev, dma_req->size,
 					       &(xvt->dma_addr), GFP_KERNEL);
 
-	if (!xvt->dma_cpu_addr) {
-		return false;
-	}
+	if (!xvt->dma_cpu_addr)
+		return -ENOMEM;
 
 	dma_res = kmalloc(sizeof(*dma_res), GFP_KERNEL);
 	if (!dma_res) {
