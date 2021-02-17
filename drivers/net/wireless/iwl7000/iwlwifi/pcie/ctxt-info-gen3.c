@@ -165,14 +165,6 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 		cpu_to_le32(sizeof(*prph_scratch));
 	ctxt_info_gen3->cr_head_idx_arr_base_addr =
 		cpu_to_le64(trans_pcie->rxq->rb_stts_dma);
-	ctxt_info_gen3->tr_tail_idx_arr_base_addr =
-		cpu_to_le64(trans_pcie->rxq->tr_tail_dma);
-	ctxt_info_gen3->cr_tail_idx_arr_base_addr =
-		cpu_to_le64(trans_pcie->rxq->cr_tail_dma);
-	ctxt_info_gen3->cr_idx_arr_size =
-		cpu_to_le16(IWL_NUM_OF_COMPLETION_RINGS);
-	ctxt_info_gen3->tr_idx_arr_size =
-		cpu_to_le16(IWL_NUM_OF_TRANSFER_RINGS);
 	ctxt_info_gen3->mtr_base_addr =
 		cpu_to_le64(trans->txqs.txq[trans->txqs.cmd.q_id]->dma_addr);
 	ctxt_info_gen3->mcr_base_addr =
