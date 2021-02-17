@@ -337,30 +337,33 @@ static int cs40l26_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(dai->component);
-	u8 asp_rx_wl;
+	u8 asp_rx_wl, asp_rx_width;
 	int ret;
-
-	asp_rx_wl = params_width(params);
-	codec->daifmt |= ((asp_rx_wl << CS40L26_ASP_RX_WIDTH_SHIFT) &
-			CS40L26_ASP_RX_WIDTH_MASK);
 
 	pm_runtime_get_sync(codec->dev);
 
-	ret = regmap_update_bits(codec->regmap, CS40L26_ASP_CONTROL2,
-			CS40L26_ASP_FSYNC_INV_MASK | CS40L26_ASP_BCLK_INV_MASK |
-			CS40L26_ASP_FMT_MASK | CS40L26_ASP_RX_WIDTH_MASK,
-			codec->daifmt);
-	if (ret) {
-		dev_err(codec->dev, "Failed to update ASP RX width\n");
-		goto err_pm;
-	}
-
+	asp_rx_wl = (u8) (params_width(params) & 0xFF);
 	ret = regmap_update_bits(codec->regmap, CS40L26_ASP_DATA_CONTROL5,
 			CS40L26_ASP_RX_WL_MASK, asp_rx_wl);
 	if (ret) {
 		dev_err(codec->dev, "Failed to update ASP RX WL\n");
 		goto err_pm;
 	}
+
+	if (codec->tdm_width)
+		asp_rx_width = asp_rx_wl;
+	else
+		asp_rx_width = (u8) (codec->tdm_width & 0xFF);
+
+	codec->daifmt |= ((asp_rx_width << CS40L26_ASP_RX_WIDTH_SHIFT) &
+			CS40L26_ASP_RX_WIDTH_MASK);
+
+	ret = regmap_update_bits(codec->regmap, CS40L26_ASP_CONTROL2,
+			CS40L26_ASP_FSYNC_INV_MASK | CS40L26_ASP_BCLK_INV_MASK |
+			CS40L26_ASP_FMT_MASK | CS40L26_ASP_RX_WIDTH_MASK,
+			codec->daifmt);
+	if (ret)
+		dev_err(codec->dev, "Failed to update ASP RX width\n");
 
 err_pm:
 	pm_runtime_mark_last_busy(codec->dev);
@@ -369,8 +372,25 @@ err_pm:
 	return ret;
 }
 
+static int cs40l26_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
+		unsigned int rx_mask, int slots, int slot_width)
+{
+	struct cs40l26_codec *codec =
+			snd_soc_component_get_drvdata(dai->component);
+
+	if (dai->id != 0) {
+		dev_err(codec->dev, "Invalid DAI ID: %d\n", dai->id);
+		return -EINVAL;
+	}
+
+	codec->tdm_width = slot_width;
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops cs40l26_dai_ops = {
 	.set_fmt = cs40l26_set_dai_fmt,
+	.set_tdm_slot = cs40l26_set_tdm_slot,
 	.hw_params = cs40l26_pcm_hw_params,
 };
 
