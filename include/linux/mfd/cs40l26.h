@@ -1160,6 +1160,7 @@ struct cs40l26_codec {
 	int tuning_prev;
 	char *bin_file;
 	u32 daifmt;
+	int tdm_width;
 };
 
 struct cs40l26_pll_sysclk_config {
