@@ -4605,6 +4605,12 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 		mvmvif->ap_ibss_active = false;
 		break;
 	case NL80211_IFTYPE_STATION:
+		/*
+		 * We are unbinding, so remove a possible session protection
+		 * requested by the driver
+		 */
+		iwl_mvm_stop_session_protection(mvm, vif);
+
 		if (!switching_chanctx)
 			break;
 

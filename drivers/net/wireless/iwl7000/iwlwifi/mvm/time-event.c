@@ -740,11 +740,6 @@ void iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 		IWL_ERR(mvm, "Couldn't remove the time event\n");
 }
 
-/*
- * When the firmware supports the session protection API,
- * this is not needed since it'll automatically remove the
- * session protection after association + beacon reception.
- */
 void iwl_mvm_stop_session_protection(struct iwl_mvm *mvm,
 				     struct ieee80211_vif *vif)
 {
@@ -758,7 +753,15 @@ void iwl_mvm_stop_session_protection(struct iwl_mvm *mvm,
 	id = te_data->id;
 	spin_unlock_bh(&mvm->time_event_lock);
 
-	if (id != TE_BSS_STA_AGGRESSIVE_ASSOC) {
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD)) {
+		if (id != SESSION_PROTECT_CONF_ASSOC) {
+			IWL_DEBUG_TE(mvm,
+				     "don't remove session protection id=%u\n",
+				     id);
+			return;
+		}
+	} else if (id != TE_BSS_STA_AGGRESSIVE_ASSOC) {
 		IWL_DEBUG_TE(mvm,
 			     "don't remove TE with id=%u (not session protection)\n",
 			     id);
