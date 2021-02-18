@@ -798,6 +798,11 @@
 #define CS40L26_BUZZGEN_LEVEL_OFFSET		4
 #define CS40L26_BUZZGEN_LEVEL_DEFAULT		0x50
 
+#define CS40L26_AMP_CTRL_VOL_PCM_MASK		GENMASK(13, 3)
+#define CS40L26_AMP_CTRL_VOL_PCM_SHIFT		3
+
+#define CS40L26_AMP_VOL_PCM_MAX		0x07FF
+
 /* Interrupts */
 #define CS40L26_IRQ_STATUS_DEASSERT		0x0
 #define CS40L26_IRQ_STATUS_ASSERT		0x1
@@ -1135,6 +1140,7 @@ struct cs40l26_private {
 	struct hrtimer vibe_timer;
 	struct work_struct vibe_start_work;
 	struct work_struct vibe_stop_work;
+	struct work_struct set_gain_work;
 	struct workqueue_struct *vibe_workqueue;
 	int irq;
 	bool vibe_init_success;
@@ -1150,6 +1156,7 @@ struct cs40l26_private {
 	bool fw_loaded;
 	bool pm_ready;
 	bool asp_enable;
+	u16 amp_vol_pcm;
 };
 
 struct cs40l26_codec {
