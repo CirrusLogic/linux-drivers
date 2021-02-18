@@ -772,6 +772,7 @@ static int cs40l2x_update_existing_block(struct cs40l2x_private *cs40l2x,
 	unsigned int end_header_pos;
 	unsigned int existing_wt_size;
 	unsigned int wav_data_end;
+	unsigned int pbq_updated_fw_raw_wt_size;
 	unsigned int start;
 
 	if (is_xm) {
@@ -790,7 +791,7 @@ static int cs40l2x_update_existing_block(struct cs40l2x_private *cs40l2x,
 
 	existing_wt_size = (wav_data_end - start);
 
-	cs40l2x->pbq_updated_fw_raw_wt_size = (existing_wt_size +
+	pbq_updated_fw_raw_wt_size = (existing_wt_size +
 		(comp_size + (CS40L2X_WT_HEADER_ENTRY_SIZE *
 			CS40L2X_WT_NUM_VIRT_SLOTS)));
 
@@ -814,8 +815,7 @@ static int cs40l2x_update_existing_block(struct cs40l2x_private *cs40l2x,
 	end_data_pos += comp_size;
 	cs40l2x->updated_block_size = end_data_pos;
 
-	if (cs40l2x->updated_block_size >
-		cs40l2x->pbq_updated_fw_raw_wt_size) {
+	if (cs40l2x->updated_block_size > pbq_updated_fw_raw_wt_size) {
 		dev_err(cs40l2x->dev, "Virtual block copy failed.\n");
 		return -EINVAL;
 	}
@@ -832,6 +832,7 @@ static int cs40l2x_create_block(struct cs40l2x_private *cs40l2x,
 	unsigned int offset;
 	unsigned int end_data_pos;
 	unsigned int indv_comp_size = (comp_size / CS40L2X_WT_NUM_VIRT_SLOTS);
+	unsigned int pbq_updated_fw_raw_wt_size;
 	int i, count = 0, header_slot = 0;
 
 	cs40l2x->two_bytes[0] = 0;
@@ -839,7 +840,7 @@ static int cs40l2x_create_block(struct cs40l2x_private *cs40l2x,
 	wt_offset = cs40l2x->two_bytes;
 	wvfrm_size = cs40l2x->two_bytes;
 
-	cs40l2x->pbq_updated_fw_raw_wt_size = (CS40L2X_WT_TERMINATOR_BYTES +
+	pbq_updated_fw_raw_wt_size = (CS40L2X_WT_TERMINATOR_BYTES +
 		(comp_size + (CS40L2X_WT_HEADER_ENTRY_SIZE *
 			CS40L2X_WT_NUM_VIRT_SLOTS)));
 
@@ -902,8 +903,7 @@ static int cs40l2x_create_block(struct cs40l2x_private *cs40l2x,
 		return -EINVAL;
 	}
 
-	if (cs40l2x->updated_block_size >
-		cs40l2x->pbq_updated_fw_raw_wt_size) {
+	if (cs40l2x->updated_block_size > pbq_updated_fw_raw_wt_size) {
 		dev_err(cs40l2x->dev, "Failed to create virtual block.\n");
 		return -EINVAL;
 	}
