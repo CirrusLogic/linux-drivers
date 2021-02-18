@@ -2441,6 +2441,9 @@ static inline int thermal_zone_device_enable(struct thermal_zone_device *tz)
 { return -ENODEV; }
 #endif /* CONFIG_THERMAL */
 
+#endif /* < 5.9.0 */
+
+#if LINUX_VERSION_IS_LESS(5,4,0)
 static inline void
 tasklet_setup(struct tasklet_struct *t,
 	      void (*callback)(struct tasklet_struct *))
@@ -2452,8 +2455,7 @@ tasklet_setup(struct tasklet_struct *t,
 
 #define from_tasklet(var, callback_tasklet, tasklet_fieldname) \
 	container_of(callback_tasklet, typeof(*var), tasklet_fieldname)
-
-#endif /* < 5.9.0 */
+#endif /* < 5.4.0 */
 
 #if CFG80211_VERSION < KERNEL_VERSION(5,9,0)
 static inline bool nl80211_is_s1ghz(enum nl80211_band band)
@@ -2591,7 +2593,7 @@ static inline void dev_sw_netstats_tx_add(struct net_device *dev,
 
 #endif /* < 5.10 */
 
-#if LINUX_VERSION_IS_LESS(5,11,0)
+#if CFG80211_VERSION < KERNEL_VERSION(5,4,0)
 enum nl80211_sar_type {
 	NL80211_SAR_TYPE_NONE,
 };
@@ -2612,4 +2614,4 @@ struct cfg80211_sar_specs {
 	u32 num_sub_specs;
 	struct cfg80211_sar_sub_specs sub_specs[];
 };
-#endif /* < 5.11 */
+#endif /* < 5.4.0 */
