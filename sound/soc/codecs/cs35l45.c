@@ -2039,15 +2039,19 @@ static int cs35l45_set_sysclk(struct cs35l45_private *cs35l45, int clk_id,
 	return 0;
 }
 
-static int cs35l45_msm_global_en_assert(struct cs35l45_private *cs35l45)
+static irqreturn_t cs35l45_msm_global_en_assert(int irq, void *data)
 {
+	struct cs35l45_private *cs35l45 = data;
+
+	dev_dbg(cs35l45->dev, "Global enable assert detected!");
+
 	if (cs35l45->amplifier_mode == AMP_MODE_RCV)
 		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES,
 				   CS35L45_BST_EN_MASK,
 				   CS35L45_BST_DISABLE_FET_ON <<
 				   CS35L45_BST_EN_SHIFT);
 
-	return 0;
+	return IRQ_HANDLED;
 }
 
 static int cs35l45_compr_handle_irq(struct cs35l45_private *cs35l45)
@@ -2128,203 +2132,96 @@ static int cs35l45_dsp_virt2_mbox4_irq_handle(struct cs35l45_private *cs35l45)
 	return 0;
 }
 
-static int cs35l45_dsp_virt2_mbox_cb(struct cs35l45_private *cs35l45)
+static irqreturn_t cs35l45_dsp_virt2_mbox_cb(int irq, void *data)
 {
+	struct cs35l45_private *cs35l45 = data;
 	unsigned int mbox_val;
-	int ret;
+	int ret = 0;
+
+	dev_dbg(cs35l45->dev, "DSP virtual MBOX 2 write detected!");
 
 	complete(&cs35l45->virt2_mbox_comp);
 
-	regmap_read(cs35l45->regmap, CS35L45_DSP_VIRT2_MBOX_3, &mbox_val);
-	if (mbox_val) {
+	ret = regmap_read(cs35l45->regmap, CS35L45_DSP_VIRT2_MBOX_3, &mbox_val);
+	if (!ret && mbox_val)
 		ret = cs35l45_dsp_virt2_mbox3_irq_handle(cs35l45, mbox_val & CS35L45_MBOX3_CMD_MASK,
 				(mbox_val & CS35L45_MBOX3_DATA_MASK) >> CS35L45_MBOX3_DATA_SHIFT);
-		if (ret)
-			return ret;
-	}
 
 	/* Handle DSP trace log IRQ */
-	regmap_read(cs35l45->regmap, CS35L45_DSP_VIRT2_MBOX_4, &mbox_val);
-	if (mbox_val == CS35L45_DSP_LOG_MBOX_4_TRIGGERED) {
+	ret = regmap_read(cs35l45->regmap, CS35L45_DSP_VIRT2_MBOX_4, &mbox_val);
+	if (!ret && mbox_val == CS35L45_DSP_LOG_MBOX_4_TRIGGERED) {
 		ret = cs35l45_dsp_virt2_mbox4_irq_handle(cs35l45);
-		if (ret) {
+		if (ret)
 			dev_err(cs35l45->dev, "Spurious DSP MBOX4 IRQ\n");
-			return ret;
-		}
 	}
 
-	return 0;
+	return IRQ_RETVAL(ret);
 }
 
-static struct cs35l45_irq_bit_monitor cs35l45_irq1_eint_1[] = {
-	{
-		.bitmask = CS35L45_MSM_GLOBAL_EN_ASSERT_MASK,
-		.description = "Global enable assertion",
-		.dbg_msg = "Global enable assert detected!",
-		.callback = cs35l45_msm_global_en_assert,
-	},
-};
-
-static struct cs35l45_irq_bit_monitor cs35l45_irq1_eint_2[] = {
-	{
-		.bitmask = CS35L45_DSP_WDT_EXPIRE_STS_1,
-		.description = "DSP Watchdog Timer",
-		.err_msg = "DSP Watchdog expired!",
-	},
-	{
-		.bitmask = CS35L45_DSP_VIRT2_MBOX_MASK,
-		.description = "DSP virtual MBOX 2 write flag",
-		.dbg_msg = "DSP virtual MBOX 2 write detected!",
-		.callback = cs35l45_dsp_virt2_mbox_cb,
-	},
-};
-
-static struct cs35l45_irq_bit_monitor cs35l45_irq1_eint_3[] = {
-	{
-		.bitmask = CS35L45_PLL_LOCK_FLAG_MASK,
-		.description = "PLL lock",
-		.dbg_msg = "PLL lock detected!",
-	},
-	{
-		.bitmask = CS35L45_PLL_UNLOCK_FLAG_RISE_MASK,
-		.description = "PLL unlock flag rise",
-		.dbg_msg = "PLL unlock flag rise detected!",
-	},
-};
-
-static struct cs35l45_irq_bit_monitor cs35l45_irq1_eint_18[] = {
-	{
-		.bitmask = CS35L45_GLOBAL_ERROR_MASK,
-		.description = "Global error",
-		.err_msg = "Global error detected!",
-	},
-};
-
-static const struct cs35l45_irq_monitor cs35l45_irq_mons[] = {
-	{
-		.reg = CS35L45_IRQ1_EINT_1,
-		.mask = CS35L45_IRQ1_MASK_1,
-		.nbits = ARRAY_SIZE(cs35l45_irq1_eint_1),
-		.bits = cs35l45_irq1_eint_1,
-	},
-	{
-		.reg = CS35L45_IRQ1_EINT_3,
-		.mask = CS35L45_IRQ1_MASK_3,
-		.nbits = ARRAY_SIZE(cs35l45_irq1_eint_3),
-		.bits = cs35l45_irq1_eint_3,
-	},
-	{
-		.reg = CS35L45_IRQ1_EINT_18,
-		.mask = CS35L45_IRQ1_MASK_18,
-		.nbits = ARRAY_SIZE(cs35l45_irq1_eint_18),
-		.bits = cs35l45_irq1_eint_18,
-	},
-	{
-		.reg = CS35L45_IRQ1_EINT_2,
-		.mask = CS35L45_IRQ1_MASK_2,
-		.nbits = ARRAY_SIZE(cs35l45_irq1_eint_2),
-		.bits = cs35l45_irq1_eint_2,
-	},
-};
-
-static irqreturn_t cs35l45_irq(int irq, void *data)
+static irqreturn_t cs35l45_dsp_wdt_expire(int irq, void *data)
 {
 	struct cs35l45_private *cs35l45 = data;
-	const struct cs35l45_irq_monitor *irq_mon;
-	struct cs35l45_irq_bit_monitor *bit_mon;
-	unsigned int irq_regs[] = {CS35L45_IRQ1_EINT_1, CS35L45_IRQ1_EINT_2,
-				   CS35L45_IRQ1_EINT_3, CS35L45_IRQ1_EINT_4,
-				   CS35L45_IRQ1_EINT_5, CS35L45_IRQ1_EINT_7,
-				   CS35L45_IRQ1_EINT_8, CS35L45_IRQ1_EINT_18};
-	unsigned int irq_masks[] = {CS35L45_IRQ1_MASK_1, CS35L45_IRQ1_MASK_2,
-				    CS35L45_IRQ1_MASK_3, CS35L45_IRQ1_MASK_4,
-				    CS35L45_IRQ1_MASK_5, CS35L45_IRQ1_MASK_7,
-				    CS35L45_IRQ1_MASK_8, CS35L45_IRQ1_MASK_18};
-	unsigned int status[ARRAY_SIZE(irq_regs)];
-	unsigned int masks[ARRAY_SIZE(irq_masks)];
-	unsigned int val;
-	unsigned int i, j;
-	int ret;
-	bool irq_detect = false;
 
-	if (!cs35l45->initialized)
-		return IRQ_NONE;
-
-	for (i = 0; i < ARRAY_SIZE(irq_regs); i++) {
-		regmap_read(cs35l45->regmap, irq_regs[i], &status[i]);
-		regmap_read(cs35l45->regmap, irq_masks[i], &masks[i]);
-		irq_detect |= (status[i] & (~masks[i]));
-	}
-
-	if (!irq_detect)
-		return IRQ_NONE;
-
-	for (i = 0; i < ARRAY_SIZE(cs35l45_irq_mons); i++) {
-		irq_mon = &cs35l45_irq_mons[i];
-		regmap_read(cs35l45->regmap, irq_mon->reg, &val);
-
-		for (j = 0; j < irq_mon->nbits; j++) {
-			bit_mon = &irq_mon->bits[j];
-
-			if (!(val & bit_mon->bitmask))
-				continue;
-
-			regmap_write(cs35l45->regmap, irq_mon->reg, bit_mon->bitmask);
-
-			if (bit_mon->info_msg)
-				dev_info(cs35l45->dev, "%s\n", bit_mon->info_msg);
-
-			if (bit_mon->dbg_msg)
-				dev_dbg(cs35l45->dev, "%s\n", bit_mon->dbg_msg);
-
-			if (bit_mon->warn_msg)
-				dev_warn(cs35l45->dev, "%s\n", bit_mon->warn_msg);
-
-			if (bit_mon->err_msg)
-				dev_err(cs35l45->dev, "%s\n", bit_mon->err_msg);
-
-			if (bit_mon->callback) {
-				ret = bit_mon->callback(cs35l45);
-				if (ret < 0)
-					dev_err(cs35l45->dev, "IRQ (%s) callback failure (%d)\n",
-						bit_mon->description, ret);
-			}
-		}
-	}
+	dev_err(cs35l45->dev, "DSP Watchdog expired!");
 
 	return IRQ_HANDLED;
 }
 
-static int cs35l45_register_irq_monitors(struct cs35l45_private *cs35l45)
+static irqreturn_t cs35l45_pll_unlock(int irq, void *data)
 {
-	unsigned int val, mask;
-	const struct cs35l45_irq_monitor *irq;
-	struct cs35l45_irq_bit_monitor *bit;
-	int i, j;
+	struct cs35l45_private *cs35l45 = data;
 
-	if (!cs35l45->irq)
-		return 0;
+	dev_dbg(cs35l45->dev,"PLL unlock flag rise detected!");
 
-	for (i = 0; i < ARRAY_SIZE(cs35l45_irq_mons); i++) {
-		irq = &cs35l45_irq_mons[i];
-		regmap_read(cs35l45->regmap, irq->mask, &val);
-
-		mask = 0;
-		for (j = 0; j < irq->nbits; j++) {
-			bit = &irq->bits[j];
-			if (!(val & bit->bitmask)) {
-				dev_err(cs35l45->dev, "IRQ (%s) is already unmasked\n",
-						bit->description);
-				continue;
-			}
-			mask |= bit->bitmask;
-		}
-		regmap_write(cs35l45->regmap, irq->reg, mask);
-		regmap_update_bits(cs35l45->regmap, irq->mask, mask, 0);
-	}
-
-	return 0;
+	return IRQ_HANDLED;
 }
+
+static irqreturn_t cs35l45_pll_lock(int irq, void *data)
+{
+	struct cs35l45_private *cs35l45 = data;
+
+	dev_dbg(cs35l45->dev,"PLL lock detected!");
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs35l45_global_err(int irq, void *data)
+{
+	struct cs35l45_private *cs35l45 = data;
+
+	dev_err(cs35l45->dev,"Global error detected!");
+
+	return IRQ_HANDLED;
+}
+
+static const struct cs35l45_irq cs35l45_irqs[] = {
+	CS35L45_IRQ(MSM_GLOBAL_EN_ASSERT, "Global enable assertion", cs35l45_msm_global_en_assert),
+	CS35L45_IRQ(DSP_VIRT2_MBOX, "DSP virtual MBOX 2 write flag", cs35l45_dsp_virt2_mbox_cb),
+	CS35L45_IRQ(DSP_WDT_EXPIRE,"DSP Watchdog Timer", cs35l45_dsp_wdt_expire),
+	CS35L45_IRQ(PLL_UNLOCK_FLAG_RISE, "PLL unlock flag rise", cs35l45_pll_unlock),
+	CS35L45_IRQ(PLL_LOCK_FLAG, "PLL lock", cs35l45_pll_lock),
+	CS35L45_IRQ(GLOBAL_ERROR, "Global error", cs35l45_global_err),
+};
+
+static const struct regmap_irq cs35l45_reg_irqs[] = {
+	CS35L45_REG_IRQ(IRQ1_EINT_1, MSM_GLOBAL_EN_ASSERT),
+	CS35L45_REG_IRQ(IRQ1_EINT_2, DSP_VIRT2_MBOX),
+	CS35L45_REG_IRQ(IRQ1_EINT_2, DSP_WDT_EXPIRE),
+	CS35L45_REG_IRQ(IRQ1_EINT_3, PLL_UNLOCK_FLAG_RISE),
+	CS35L45_REG_IRQ(IRQ1_EINT_3, PLL_LOCK_FLAG),
+	CS35L45_REG_IRQ(IRQ1_EINT_18, GLOBAL_ERROR),
+};
+
+static const struct regmap_irq_chip cs35l45_regmap_irq_chip = {
+	.name = "cs35l45 IRQ1 Controller",
+	.main_status = CS35L45_IRQ1_STATUS,
+	.status_base = CS35L45_IRQ1_EINT_1,
+	.mask_base = CS35L45_IRQ1_MASK_1,
+	.ack_base = CS35L45_IRQ1_EINT_1,
+	.num_regs = 18,
+	.irqs = cs35l45_reg_irqs,
+	.num_irqs = ARRAY_SIZE(cs35l45_reg_irqs),
+};
 
 static int cs35l45_gpio_configuration(struct cs35l45_private *cs35l45)
 {
@@ -3008,15 +2905,6 @@ static int __cs35l45_initialize(struct cs35l45_private *cs35l45)
 		return ret;
 	}
 
-	if (cs35l45->irq) {
-		ret = cs35l45_register_irq_monitors(cs35l45);
-		if (ret < 0) {
-			dev_err(dev, "Failed to register IRQ monitors: %d\n",
-				ret);
-			return ret;
-		}
-	}
-
 	if (cs35l45->bus_type == CONTROL_BUS_I2C)
 		wksrc = CS35L45_WKSRC_I2C;
 	else
@@ -3051,7 +2939,8 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 {
 	struct device *dev = cs35l45->dev;
 	unsigned int dev_id, rev_id;
-	int ret;
+	unsigned long irq_pol = IRQF_ONESHOT | IRQF_SHARED;
+	int ret, i, irq;
 
 	ret = regmap_read(cs35l45->regmap, CS35L45_DEVID, &dev_id);
 	if (ret < 0) {
@@ -3084,6 +2973,37 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 
 	dev_info(dev, "Cirrus Logic CS35L45 (%x), Revision: %02X\n", dev_id,
 		 rev_id);
+
+
+	if (cs35l45->irq) {
+		if (cs35l45->pdata.gpio_ctrl2.invert & (~CS35L45_VALID_PDATA))
+			irq_pol |= IRQF_TRIGGER_HIGH;
+		else
+			irq_pol |= IRQF_TRIGGER_LOW;
+
+		ret = devm_regmap_add_irq_chip(dev, cs35l45->regmap, cs35l45->irq, irq_pol, 0,
+					       &cs35l45_regmap_irq_chip, &cs35l45->irq_data);
+		if (ret) {
+			dev_err(dev, "Failed to register IRQ chip: %d\n", ret);
+			return ret;
+		}
+
+		for (i = 0; i < ARRAY_SIZE(cs35l45_irqs); i++) {
+			irq = regmap_irq_get_virq(cs35l45->irq_data, cs35l45_irqs[i].irq);
+			if (irq < 0) {
+				dev_err(dev, "Failed to get %s\n", cs35l45_irqs[i].name);
+				return irq;
+			}
+
+			ret = devm_request_threaded_irq(dev, irq, NULL, cs35l45_irqs[i].handler,
+							irq_pol, cs35l45_irqs[i].name, cs35l45);
+			if (ret) {
+				dev_err(dev, "Failed to request IRQ %s: %d\n",
+					cs35l45_irqs[i].name, ret);
+				return ret;
+			}
+		}
+	}
 
 	return 0;
 }
@@ -3141,9 +3061,11 @@ static const char * const cs35l45_supplies[] = {"VA", "VP"};
 int cs35l45_probe(struct cs35l45_private *cs35l45)
 {
 	struct device *dev = cs35l45->dev;
-	unsigned long irq_pol = IRQF_ONESHOT | IRQF_SHARED;
 	int ret;
 	u32 i;
+
+	BUILD_BUG_ON(ARRAY_SIZE(cs35l45_reg_irqs) < ARRAY_SIZE(cs35l45_reg_irqs));
+	BUILD_BUG_ON(ARRAY_SIZE(cs35l45_irqs) != CS35L45_NUM_IRQ);
 
 	cs35l45->fast_switch_en = false;
 	cs35l45->fast_switch_file_idx = 0;
@@ -3214,20 +3136,6 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 	if (cs35l45->wq == NULL) {
 		ret = -ENOMEM;
 		goto err_dsp;
-	}
-
-	if (cs35l45->irq) {
-		if (cs35l45->pdata.gpio_ctrl2.invert & (~CS35L45_VALID_PDATA))
-			irq_pol |= IRQF_TRIGGER_HIGH;
-		else
-			irq_pol |= IRQF_TRIGGER_LOW;
-
-		ret = devm_request_threaded_irq(dev, cs35l45->irq, NULL,
-						cs35l45_irq, irq_pol,
-						"cs35l45", cs35l45);
-		if (ret < 0)
-			dev_warn(cs35l45->dev, "Failed to request IRQ: %d\n",
-				 ret);
 	}
 
 	cs35l45->hibernate_state = HIBER_MODE_DIS;
