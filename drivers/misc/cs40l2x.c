@@ -806,7 +806,6 @@ static int cs40l2x_update_existing_block(struct cs40l2x_private *cs40l2x,
 	 */
 	end_header_pos =
 		cs40l2x_insert_comp_wt_header(cs40l2x, is_xm, comp_size, pos);
-	cs40l2x->virt_wt_end_header_pos = end_header_pos;
 
 	/* Copy waveform data */
 	end_data_pos =
