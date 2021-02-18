@@ -26,7 +26,6 @@
 
 #define DRV_NAME "cs35l45"
 
-#define CS35L45_DSP_DATA_WORD_SIZE 3
 #define CS35L45_DSP_MIN_FRAGMENTS		1
 #define CS35L45_DSP_MAX_FRAGMENTS		256
 #define CS35L45_DSP_MIN_FRAGMENT_SIZE_WORDS	64
@@ -1557,11 +1556,11 @@ static int cs35l45_compr_switch(struct wm_adsp *dsp, int cmd)
 	int ret;
 
 	cmd_ctl = cpu_to_be32(cmd);
-	ret = wm_adsp_write_ctl(dsp, "ENABLED", WMFW_ADSP2_XM,
+	ret = wm_adsp_write_ctl(dsp, CS35L45_DSP_LOG_ENABLED, WMFW_ADSP2_XM,
 				CS35L45_ALGID_TRACE, &cmd_ctl, sizeof(cmd_ctl));
 	if (ret) {
-		dev_err(dsp->dev, "Failed to write '%x ENABLED' (%d)\n",
-			CS35L45_ALGID_TRACE, ret);
+		dev_err(dsp->dev, "Failed to write '%x %s' (%d)\n",
+			CS35L45_ALGID_TRACE, CS35L45_DSP_LOG_ENABLED, ret);
 		return ret;
 	}
 
@@ -1609,12 +1608,12 @@ static int cs35l45_compr_open(struct snd_compr_stream *stream)
 		goto out;
 	}
 
-	ret = wm_adsp_read_ctl(&cs35l45->dsp, "BUFFER_SIZE", WMFW_ADSP2_XM,
-			       CS35L45_ALGID_TRACE,
+	ret = wm_adsp_read_ctl(&cs35l45->dsp, CS35L45_DSP_LOG_BUFFER_SIZE,
+			       WMFW_ADSP2_XM, CS35L45_ALGID_TRACE,
 			       &buffer_size, sizeof(buffer_size));
 	if (ret) {
-		dev_err(cs35l45->dev, "Failed to read '%x BUFFER_SIZE' (%d)\n",
-			CS35L45_ALGID_TRACE, ret);
+		dev_err(cs35l45->dev, "Failed to read '%x %s' (%d)\n",
+			CS35L45_ALGID_TRACE, CS35L45_DSP_LOG_BUFFER_SIZE, ret);
 		ret = -ENODEV;
 		goto out;
 	}
@@ -1742,12 +1741,12 @@ static int cs35l45_buffer_update_avail(struct cs35l45_private *cs35l45)
 	int read_index;
 	int ret;
 
-	ret = wm_adsp_read_ctl(&cs35l45->dsp, "BUFFER", WMFW_ADSP2_XM,
+	ret = wm_adsp_read_ctl(&cs35l45->dsp, CS35L45_DSP_LOG_BUFFER, WMFW_ADSP2_XM,
 			       CS35L45_ALGID_TRACE,
 			       &addr, sizeof(addr));
 	if (ret) {
-		dev_err(cs35l45->dev, "Failed to read '%x BUFFER' (%d)\n",
-			CS35L45_ALGID_TRACE, ret);
+		dev_err(cs35l45->dev, "Failed to read '%x %s' (%d)\n",
+			CS35L45_ALGID_TRACE, CS35L45_DSP_LOG_BUFFER, ret);
 		return ret;
 	}
 	read_index = be32_to_cpu(addr);
@@ -1906,12 +1905,13 @@ static int cs35l45_compr_read(struct cs35l45_compr *compr,
 	if (compr->avail <= 0) {
 		/* Write ACK to DSP */
 		cmd_ctl = cpu_to_be32(1);
-		ret = wm_adsp_write_ctl(&cs35l45->dsp, "TRANSFER_COMPLETED",
+		ret = wm_adsp_write_ctl(&cs35l45->dsp,
+					CS35L45_DSP_LOG_TRANSFER_COMPLETED,
 					WMFW_ADSP2_XM, CS35L45_ALGID_TRACE,
 					&cmd_ctl, sizeof(cmd_ctl));
 		if (ret) {
-			dev_err(cs35l45->dev, "Failed to write '%x TRANSFER_COMPLETED' (%d)\n",
-				CS35L45_ALGID_TRACE, ret);
+			dev_err(cs35l45->dev, "Failed to write '%x %s' (%d)\n",
+				CS35L45_ALGID_TRACE, CS35L45_DSP_LOG_TRANSFER_COMPLETED, ret);
 			return ret;
 		}
 	}
@@ -2159,12 +2159,13 @@ static int cs35l45_dsp_virt2_mbox4_irq_handle(struct cs35l45_private *cs35l45)
 		     CS35L45_DSP_LOG_MBOX_4_CLEAR);
 
 	/* Check if DSP log is enabled */
-	ret = wm_adsp_read_ctl(&cs35l45->dsp, "ENABLED", WMFW_ADSP2_XM,
-			       CS35L45_ALGID_TRACE, &enabled, sizeof(enabled));
+	ret = wm_adsp_read_ctl(&cs35l45->dsp, CS35L45_DSP_LOG_ENABLED,
+			       WMFW_ADSP2_XM, CS35L45_ALGID_TRACE,
+			       &enabled, sizeof(enabled));
 	if (ret) {
 		dev_err(cs35l45->dev,
-			"Failed to read control '%x ENABLED' (%d)\n",
-			CS35L45_ALGID_TRACE, ret);
+			"Failed to read control '%x %s' (%d)\n",
+			CS35L45_ALGID_TRACE, CS35L45_DSP_LOG_ENABLED, ret);
 		return -EINVAL;
 	}
 
