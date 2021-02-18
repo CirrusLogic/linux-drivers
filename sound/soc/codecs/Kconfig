@@ -608,6 +608,7 @@ config SND_SOC_CS35L45
 	tristate "Cirrus Logic CS35L45 CODEC"
 	depends on SND_SOC_CS35L45_SPI || SND_SOC_CS35L45_I2C
 	select SND_SOC_WM_ADSP
+	select REGMAP_IRQ
 	help
 	  Enable support for Cirrus Logic CS35L45 smart speaker amplifier.
 	  This amplifier supports control over I2C, SPI, and SoundWire.
