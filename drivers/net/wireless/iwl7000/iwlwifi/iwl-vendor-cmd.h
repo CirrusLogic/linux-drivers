@@ -754,9 +754,6 @@ enum iwl_vendor_sw_rfkill_state {
  *	listed SSIDs
  * @IWL_MVM_VENDOR_ATTR_GSCAN_MAX_NUM_BLACK_LISTED_SSID: max number of block
  *	listed SSIDs
- *
- * @NUM_IWL_MVM_VENDOR_ATTR: number of vendor attributes
- * @MAX_IWL_MVM_VENDOR_ATTR: highest vendor attribute number
  * @IWL_MVM_VENDOR_ATTR_WIPHY_FREQ: frequency of the selected channel in MHz,
  *	defines the channel together with the attributes
  *	%IWL_MVM_VENDOR_ATTR_CHANNEL_WIDTH and if needed
@@ -855,6 +852,26 @@ enum iwl_vendor_sw_rfkill_state {
  *	error in units of 10 nano seconds.
  * @IWL_MVM_VENDOR_ATTR_TIME_SYNC_VS_DATA: vendor specific data. This does not
  *	include the IE header.
+ * @IWL_MVM_VENDOR_ATTR_ROAMING_FORBIDDEN: u8 attribute. Indicates whether
+ *	roaming is forbidden or not. Value 1 means roaming is forbidden,
+ *	0 mean roaming is allowed.
+ * @IWL_MVM_VENDOR_ATTR_AUTH_MODE: u32 attribute. Authentication mode type
+ *	as specified in &enum iwl_vendor_auth_akm_mode.
+ * @IWL_MVM_VENDOR_ATTR_CHANNEL_NUM: u8 attribute. Contains channel number.
+ * @IWL_MVM_VENDOR_ATTR_HOST_DISASSOC_TYPE: u8 attribute. Host disassociation
+ *	type as specified in &enum iwl_vendor_host_disconnect_type.
+ * @IWL_MVM_VENDOR_ATTR_SW_RFKILL_STATE: u8 attribute. SW rf kill state as
+ *	specified in &enum iwl_vendor_sw_rfkill_state.
+ * @IWL_MVM_VENDOR_ATTR_BAND: u8 attribute.
+ *	0 for 2.4 GHz band, 1 for 5.2GHz band and 2 for 6GHz band.
+ * @IWL_MVM_VENDOR_ATTR_COLLOC_CHANNEL: u32 attribute. Channel number of
+ *	collocated AP. Relevant for 6GHz AP info.
+ * @IWL_MVM_VENDOR_ATTR_COLLOC_ADDR: MAC address of a collocated AP.
+ *	Relevant for 6GHz AP info.
+ *
+ * @NUM_IWL_MVM_VENDOR_ATTR: number of vendor attributes
+ * @MAX_IWL_MVM_VENDOR_ATTR: highest vendor attribute number
+
  */
 enum iwl_mvm_vendor_attr {
 	__IWL_MVM_VENDOR_ATTR_INVALID				= 0x00,
