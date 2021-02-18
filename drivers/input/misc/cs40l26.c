@@ -1028,359 +1028,6 @@ err:
 	return (irq1_count + irq2_count) ? IRQ_HANDLED : IRQ_NONE;
 }
 
-static void cs40l26_vibe_start_worker(struct work_struct *work)
-{
-	struct cs40l26_private *cs40l26 = container_of(work,
-			struct cs40l26_private, vibe_start_work);
-	u16 duration = cs40l26->effect->replay.length;
-	struct device *dev = cs40l26->dev;
-	int ret = 0;
-	unsigned int reg, freq;
-	u32 index, algo_id;
-
-	pm_runtime_get_sync(dev);
-	mutex_lock(&cs40l26->lock);
-
-	hrtimer_start(&cs40l26->vibe_timer,
-			ktime_set(CS40L26_MS_TO_SECS(duration),
-			CS40L26_MS_TO_NS(duration % 1000)), HRTIMER_MODE_REL);
-
-	cs40l26->vibe_state = CS40L26_VIBE_STATE_HAPTIC;
-
-	switch (cs40l26->effect->u.periodic.waveform) {
-	case FF_CUSTOM:
-		index = cs40l26->trigger_indeces[cs40l26->effect->id];
-
-		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-				index, CS40L26_DSP_MBOX_RESET);
-		if (ret)
-			goto err_mutex;
-		break;
-	case FF_SINE:
-		if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
-			algo_id = CS40L26_BUZZGEN_ALGO_ID;
-		else
-			algo_id = CS40L26_BUZZGEN_ROM_ALGO_ID;
-
-		ret = cl_dsp_get_reg(cs40l26->dsp, "BUZZ_EFFECTS2_BUZZ_FREQ",
-				CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
-		if (ret) {
-			dev_err(dev, "Failed to find BUZZGEN control\n");
-			goto err_mutex;
-		}
-
-		freq = CS40L26_MS_TO_HZ(cs40l26->effect->u.periodic.period);
-
-		ret = cs40l26_dsp_write(cs40l26, reg, freq);
-		if (ret)
-			goto err_mutex;
-
-		ret = cs40l26_dsp_write(cs40l26, reg +
-				CS40L26_BUZZGEN_LEVEL_OFFSET,
-				CS40L26_BUZZGEN_LEVEL_DEFAULT);
-		if (ret)
-			goto err_mutex;
-
-		ret = cs40l26_dsp_write(cs40l26, reg +
-				CS40L26_BUZZGEN_DURATION_OFFSET, duration /
-				CS40L26_BUZZGEN_DURATION_DIV_STEP);
-		if (ret)
-			goto err_mutex;
-
-		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-					CS40L26_BUZZGEN_INDEX_CP_TRIGGER,
-					CS40L26_DSP_MBOX_RESET);
-		if (ret)
-			goto err_mutex;
-		break;
-	default:
-		dev_err(dev, "Invalid waveform type: 0x%X\n",
-				cs40l26->effect->u.periodic.waveform);
-		ret = -EINVAL;
-		goto err_mutex;
-	}
-
-err_mutex:
-	if (ret)
-		cs40l26->vibe_state = CS40L26_VIBE_STATE_STOPPED;
-
-	mutex_unlock(&cs40l26->lock);
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
-}
-
-static void cs40l26_vibe_stop_worker(struct work_struct *work)
-{
-	struct cs40l26_private *cs40l26 = container_of(work,
-			struct cs40l26_private, vibe_stop_work);
-	int ret;
-
-	pm_runtime_get_sync(cs40l26->dev);
-	mutex_lock(&cs40l26->lock);
-
-	if (cs40l26->vibe_state == CS40L26_VIBE_STATE_STOPPED)
-		goto err_mutex;
-
-	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-		CS40L26_STOP_PLAYBACK, CS40L26_DSP_MBOX_RESET);
-	if (ret) {
-		dev_err(cs40l26->dev, "Failed to stop playback\n");
-		goto err_mutex;
-	}
-
-err_mutex:
-	if (cs40l26->vibe_state != CS40L26_VIBE_STATE_STOPPED)
-		cs40l26->vibe_state = CS40L26_VIBE_STATE_STOPPED;
-
-	mutex_unlock(&cs40l26->lock);
-	pm_runtime_mark_last_busy(cs40l26->dev);
-	pm_runtime_put_autosuspend(cs40l26->dev);
-}
-
-static enum hrtimer_restart cs40l26_vibe_timer(struct hrtimer *timer)
-{
-	struct cs40l26_private *cs40l26 =
-		container_of(timer, struct cs40l26_private, vibe_timer);
-
-	queue_work(cs40l26->vibe_workqueue, &cs40l26->vibe_stop_work);
-
-	return HRTIMER_NORESTART;
-}
-
-static int cs40l26_playback_effect(struct input_dev *dev,
-		int effect_id, int val)
-{
-	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
-	struct ff_effect *effect;
-
-	effect = &dev->ff->effects[effect_id];
-	if (!effect) {
-		dev_err(cs40l26->dev, "No such effect to playback\n");
-		return -EINVAL;
-	}
-
-	cs40l26->effect = effect;
-
-	if (val > 0) {
-		queue_work(cs40l26->vibe_workqueue, &cs40l26->vibe_start_work);
-	} else {
-		hrtimer_cancel(&cs40l26->vibe_timer);
-		queue_work(cs40l26->vibe_workqueue, &cs40l26->vibe_stop_work);
-	}
-
-	return 0;
-}
-
-static int cs40l26_upload_effect(struct input_dev *dev,
-		struct ff_effect *effect, struct ff_effect *old)
-{
-	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
-	struct device *cdev = cs40l26->dev;
-	s16 *raw_custom_data = NULL;
-	int ret = 0;
-	u32 bank_offset, trigger_index, min_index, max_index;
-	u16 index, bank;
-
-	if (effect->type != FF_PERIODIC) {
-		dev_err(cdev, "Effect type 0x%X not supported\n",
-				effect->type);
-		return -EINVAL;
-	}
-
-	if (effect->replay.length < 0 ||
-			effect->replay.length > CS40L26_TIMEOUT_MS_MAX) {
-		dev_err(cdev, "Invalid playback duration: %d ms\n",
-				effect->replay.length);
-			return -EINVAL;
-	}
-
-	switch (effect->u.periodic.waveform) {
-	case FF_CUSTOM:
-		raw_custom_data =
-				kzalloc(sizeof(s16) * CS40L26_CUSTOM_DATA_SIZE,
-				GFP_KERNEL);
-		if (!raw_custom_data)
-			return -ENOMEM;
-
-		if (copy_from_user(raw_custom_data,
-				effect->u.periodic.custom_data,
-				sizeof(s16) * effect->u.periodic.custom_len)) {
-			dev_err(cdev, "Failed to get user data\n");
-			ret = -EFAULT;
-			goto err_free;
-		}
-
-		bank = ((u16) raw_custom_data[0]);
-		switch (bank) {
-		case CS40L26_RAM_BANK_ID:
-			bank_offset = CS40L26_RAM_INDEX_START;
-			min_index = CS40L26_RAM_INDEX_START;
-			max_index = bank_offset + cs40l26->num_waves - 1;
-			break;
-		case CS40L26_ROM_BANK_ID:
-			bank_offset = CS40L26_ROM_INDEX_START;
-			min_index = CS40L26_ROM_INDEX_START;
-			max_index = CS40L26_ROM_INDEX_END;
-			break;
-		default:
-			dev_err(cdev, "Bank ID (%u) out of bounds\n", bank);
-			ret = -EINVAL;
-			goto err_free;
-		}
-
-		index = ((u16) raw_custom_data[1]) & CS40L26_MAX_INDEX_MASK;
-		trigger_index = index + bank_offset;
-
-		if (trigger_index >= min_index && trigger_index <= max_index) {
-			cs40l26->trigger_indeces[effect->id] = trigger_index;
-		} else {
-			dev_err(cdev, "Trigger index (0x%X) out of bounds\n",
-					trigger_index);
-			ret = -EINVAL;
-			goto err_free;
-		}
-
-		break;
-	case FF_SINE:
-		if (effect->u.periodic.period) {
-			if (effect->u.periodic.period
-					< CS40L26_BUZZGEN_PERIOD_MIN
-					|| effect->u.periodic.period
-					> CS40L26_BUZZGEN_PERIOD_MAX) {
-				dev_err(cdev,
-				"%u ms period not within range (4-10 ms)\n",
-				effect->u.periodic.period);
-				return -EINVAL;
-			}
-		} else {
-			dev_err(cdev, "Sine wave period not specified\n");
-			return -EINVAL;
-		}
-		break;
-	default:
-		dev_err(cdev, "Periodic waveform type 0x%X not supported\n",
-				effect->u.periodic.waveform);
-		return -EINVAL;
-	}
-
-err_free:
-	kfree(raw_custom_data);
-
-	return ret;
-}
-
-static int cs40l26_input_init(struct cs40l26_private *cs40l26)
-{
-	int ret;
-	struct device *dev = cs40l26->dev;
-
-	cs40l26->input = devm_input_allocate_device(dev);
-	if (!cs40l26->input)
-		return -ENOMEM;
-
-	cs40l26->input->name = "cs40l26_input";
-	cs40l26->input->id.product = cs40l26->devid;
-	cs40l26->input->id.version = cs40l26->revid;
-
-	input_set_drvdata(cs40l26->input, cs40l26);
-	input_set_capability(cs40l26->input, EV_FF, FF_PERIODIC);
-	input_set_capability(cs40l26->input, EV_FF, FF_CUSTOM);
-	input_set_capability(cs40l26->input, EV_FF, FF_SINE);
-
-	ret = input_ff_create(cs40l26->input, FF_MAX_EFFECTS);
-	if (ret) {
-		dev_err(dev, "Failed to create FF device: %d\n", ret);
-		return ret;
-	}
-
-	/*
-	 * input_ff_create() automatically sets FF_RUMBLE capabilities;
-	 * we want to restrtict this to only FF_PERIODIC
-	 */
-	__clear_bit(FF_RUMBLE, cs40l26->input->ffbit);
-
-	cs40l26->input->ff->upload = cs40l26_upload_effect;
-	cs40l26->input->ff->playback = cs40l26_playback_effect;
-
-	ret = input_register_device(cs40l26->input);
-	if (ret) {
-		dev_err(dev, "Cannot register input device: %d\n", ret);
-		return ret;
-	}
-
-	hrtimer_init(&cs40l26->vibe_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	cs40l26->vibe_timer.function = cs40l26_vibe_timer;
-
-	ret = sysfs_create_group(&cs40l26->input->dev.kobj,
-			&cs40l26_dev_attr_group);
-	if (ret)
-		dev_err(dev, "Failed to create sysfs group: %d\n", ret);
-	else
-		cs40l26->vibe_init_success = true;
-
-	return ret;
-}
-
-static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
-{
-	struct regmap *regmap = cs40l26->regmap;
-	struct device *dev = cs40l26->dev;
-	int ret;
-	u32 val;
-
-	ret = regmap_read(regmap, CS40L26_DEVID, &val);
-	if (ret) {
-		dev_err(dev, "Failed to read device ID\n");
-		return ret;
-	}
-
-	val &= CS40L26_DEVID_MASK;
-	if (val != CS40L26_DEVID_A && val != CS40L26_DEVID_B) {
-		dev_err(dev, "Invalid device ID: 0x%06X\n", val);
-		return -EINVAL;
-	}
-
-	cs40l26->devid = val;
-
-	ret = regmap_read(regmap, CS40L26_REVID, &val);
-	if (ret) {
-		dev_err(dev, "Failed to read revision ID\n");
-		return ret;
-	}
-
-	val &= CS40L26_REVID_MASK;
-	if (val != CS40L26_REVID_A0) {
-		dev_err(dev, "Invalid device revision: 0x%02X\n", val);
-		return ret;
-	}
-	cs40l26->revid = val;
-
-	dev_info(dev, "Cirrus Logic %s ID: 0x%06X, Revision: 0x%02X\n",
-			CS40L26_DEV_NAME, cs40l26->devid, cs40l26->revid);
-
-	return 0;
-}
-
-static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26)
-{
-	int ret = 0;
-
-	cs40l26->dsp = cl_dsp_create(cs40l26->dev, cs40l26->regmap);
-	if (!cs40l26->dsp)
-		return -ENOMEM;
-
-	if (cs40l26->fw_mode == CS40L26_FW_MODE_ROM) {
-		cs40l26->dsp->fw_desc = &cs40l26_fw;
-	} else {
-		cs40l26->dsp->fw_desc = &cs40l26_ram_fw;
-		ret = cl_dsp_wavetable_create(cs40l26->dsp,
-				CS40L26_VIBEGEN_ALGO_ID, CS40L26_WT_NAME_XM,
-				CS40L26_WT_NAME_YM, "cs40l26.bin");
-	}
-
-	return ret;
-}
-
 static bool cs40l26_pseq_addr_exists(struct cs40l26_private *cs40l26, u16 addr,
 		int *index)
 {
@@ -1561,6 +1208,402 @@ static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
 
 	cs40l26->pseq_len = index + 1;
 	return 0;
+}
+
+static void cs40l26_set_gain_worker(struct work_struct *work)
+{
+	struct cs40l26_private *cs40l26 =
+		container_of(work, struct cs40l26_private, set_gain_work);
+	u32 val;
+	int ret;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	ret = regmap_update_bits(cs40l26->regmap, CS40L26_AMP_CTRL,
+			CS40L26_AMP_CTRL_VOL_PCM_MASK,
+			cs40l26->amp_vol_pcm << CS40L26_AMP_CTRL_VOL_PCM_SHIFT);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to update digtal gain\n");
+		goto err_mutex;
+	}
+
+	ret = regmap_read(cs40l26->regmap, CS40L26_AMP_CTRL, &val);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to read AMP control\n");
+		goto err_mutex;
+	}
+
+	cs40l26_pseq_add_pair(cs40l26, CS40L26_AMP_CTRL, val, true);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+}
+
+static void cs40l26_vibe_start_worker(struct work_struct *work)
+{
+	struct cs40l26_private *cs40l26 = container_of(work,
+			struct cs40l26_private, vibe_start_work);
+	u16 duration = cs40l26->effect->replay.length;
+	struct device *dev = cs40l26->dev;
+	int ret = 0;
+	unsigned int reg, freq;
+	u32 index, algo_id;
+
+	pm_runtime_get_sync(dev);
+	mutex_lock(&cs40l26->lock);
+
+	hrtimer_start(&cs40l26->vibe_timer,
+			ktime_set(CS40L26_MS_TO_SECS(duration),
+			CS40L26_MS_TO_NS(duration % 1000)), HRTIMER_MODE_REL);
+
+	cs40l26->vibe_state = CS40L26_VIBE_STATE_HAPTIC;
+
+	switch (cs40l26->effect->u.periodic.waveform) {
+	case FF_CUSTOM:
+		index = cs40l26->trigger_indeces[cs40l26->effect->id];
+
+		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+				index, CS40L26_DSP_MBOX_RESET);
+		if (ret)
+			goto err_mutex;
+		break;
+	case FF_SINE:
+		if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
+			algo_id = CS40L26_BUZZGEN_ALGO_ID;
+		else
+			algo_id = CS40L26_BUZZGEN_ROM_ALGO_ID;
+
+		ret = cl_dsp_get_reg(cs40l26->dsp, "BUZZ_EFFECTS2_BUZZ_FREQ",
+				CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
+		if (ret) {
+			dev_err(dev, "Failed to find BUZZGEN control\n");
+			goto err_mutex;
+		}
+
+		freq = CS40L26_MS_TO_HZ(cs40l26->effect->u.periodic.period);
+
+		ret = cs40l26_dsp_write(cs40l26, reg, freq);
+		if (ret)
+			goto err_mutex;
+
+		ret = cs40l26_dsp_write(cs40l26, reg +
+				CS40L26_BUZZGEN_LEVEL_OFFSET,
+				CS40L26_BUZZGEN_LEVEL_DEFAULT);
+		if (ret)
+			goto err_mutex;
+
+		ret = cs40l26_dsp_write(cs40l26, reg +
+				CS40L26_BUZZGEN_DURATION_OFFSET, duration /
+				CS40L26_BUZZGEN_DURATION_DIV_STEP);
+		if (ret)
+			goto err_mutex;
+
+		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+					CS40L26_BUZZGEN_INDEX_CP_TRIGGER,
+					CS40L26_DSP_MBOX_RESET);
+		if (ret)
+			goto err_mutex;
+		break;
+	default:
+		dev_err(dev, "Invalid waveform type: 0x%X\n",
+				cs40l26->effect->u.periodic.waveform);
+		ret = -EINVAL;
+		goto err_mutex;
+	}
+
+err_mutex:
+	if (ret)
+		cs40l26->vibe_state = CS40L26_VIBE_STATE_STOPPED;
+
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+}
+
+static void cs40l26_vibe_stop_worker(struct work_struct *work)
+{
+	struct cs40l26_private *cs40l26 = container_of(work,
+			struct cs40l26_private, vibe_stop_work);
+	int ret;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	if (cs40l26->vibe_state == CS40L26_VIBE_STATE_STOPPED)
+		goto err_mutex;
+
+	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+		CS40L26_STOP_PLAYBACK, CS40L26_DSP_MBOX_RESET);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to stop playback\n");
+		goto err_mutex;
+	}
+
+err_mutex:
+	if (cs40l26->vibe_state != CS40L26_VIBE_STATE_STOPPED)
+		cs40l26->vibe_state = CS40L26_VIBE_STATE_STOPPED;
+
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+}
+
+static enum hrtimer_restart cs40l26_vibe_timer(struct hrtimer *timer)
+{
+	struct cs40l26_private *cs40l26 =
+		container_of(timer, struct cs40l26_private, vibe_timer);
+
+	queue_work(cs40l26->vibe_workqueue, &cs40l26->vibe_stop_work);
+
+	return HRTIMER_NORESTART;
+}
+
+static void cs40l26_set_gain(struct input_dev *dev, u16 gain)
+{
+	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
+
+	cs40l26->amp_vol_pcm = CS40L26_AMP_VOL_PCM_MAX & gain;
+
+	queue_work(cs40l26->vibe_workqueue, &cs40l26->set_gain_work);
+}
+
+static int cs40l26_playback_effect(struct input_dev *dev,
+		int effect_id, int val)
+{
+	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
+	struct ff_effect *effect;
+
+	effect = &dev->ff->effects[effect_id];
+	if (!effect) {
+		dev_err(cs40l26->dev, "No such effect to playback\n");
+		return -EINVAL;
+	}
+
+	cs40l26->effect = effect;
+
+	if (val > 0) {
+		queue_work(cs40l26->vibe_workqueue, &cs40l26->vibe_start_work);
+	} else {
+		hrtimer_cancel(&cs40l26->vibe_timer);
+		queue_work(cs40l26->vibe_workqueue, &cs40l26->vibe_stop_work);
+	}
+
+	return 0;
+}
+
+static int cs40l26_upload_effect(struct input_dev *dev,
+		struct ff_effect *effect, struct ff_effect *old)
+{
+	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
+	struct device *cdev = cs40l26->dev;
+	s16 *raw_custom_data = NULL;
+	int ret = 0;
+	u32 bank_offset, trigger_index, min_index, max_index;
+	u16 index, bank;
+
+	if (effect->type != FF_PERIODIC) {
+		dev_err(cdev, "Effect type 0x%X not supported\n",
+				effect->type);
+		return -EINVAL;
+	}
+
+	if (effect->replay.length < 0 ||
+			effect->replay.length > CS40L26_TIMEOUT_MS_MAX) {
+		dev_err(cdev, "Invalid playback duration: %d ms\n",
+				effect->replay.length);
+			return -EINVAL;
+	}
+
+	switch (effect->u.periodic.waveform) {
+	case FF_CUSTOM:
+		raw_custom_data =
+				kzalloc(sizeof(s16) * CS40L26_CUSTOM_DATA_SIZE,
+				GFP_KERNEL);
+		if (!raw_custom_data)
+			return -ENOMEM;
+
+		if (copy_from_user(raw_custom_data,
+				effect->u.periodic.custom_data,
+				sizeof(s16) * effect->u.periodic.custom_len)) {
+			dev_err(cdev, "Failed to get user data\n");
+			ret = -EFAULT;
+			goto err_free;
+		}
+
+		bank = ((u16) raw_custom_data[0]);
+		switch (bank) {
+		case CS40L26_RAM_BANK_ID:
+			bank_offset = CS40L26_RAM_INDEX_START;
+			min_index = CS40L26_RAM_INDEX_START;
+			max_index = bank_offset + cs40l26->num_waves - 1;
+			break;
+		case CS40L26_ROM_BANK_ID:
+			bank_offset = CS40L26_ROM_INDEX_START;
+			min_index = CS40L26_ROM_INDEX_START;
+			max_index = CS40L26_ROM_INDEX_END;
+			break;
+		default:
+			dev_err(cdev, "Bank ID (%u) out of bounds\n", bank);
+			ret = -EINVAL;
+			goto err_free;
+		}
+
+		index = ((u16) raw_custom_data[1]) & CS40L26_MAX_INDEX_MASK;
+		trigger_index = index + bank_offset;
+
+		if (trigger_index >= min_index && trigger_index <= max_index) {
+			cs40l26->trigger_indeces[effect->id] = trigger_index;
+		} else {
+			dev_err(cdev, "Trigger index (0x%X) out of bounds\n",
+					trigger_index);
+			ret = -EINVAL;
+			goto err_free;
+		}
+
+		break;
+	case FF_SINE:
+		if (effect->u.periodic.period) {
+			if (effect->u.periodic.period
+					< CS40L26_BUZZGEN_PERIOD_MIN
+					|| effect->u.periodic.period
+					> CS40L26_BUZZGEN_PERIOD_MAX) {
+				dev_err(cdev,
+				"%u ms period not within range (4-10 ms)\n",
+				effect->u.periodic.period);
+				return -EINVAL;
+			}
+		} else {
+			dev_err(cdev, "Sine wave period not specified\n");
+			return -EINVAL;
+		}
+		break;
+	default:
+		dev_err(cdev, "Periodic waveform type 0x%X not supported\n",
+				effect->u.periodic.waveform);
+		return -EINVAL;
+	}
+
+err_free:
+	kfree(raw_custom_data);
+
+	return ret;
+}
+
+static int cs40l26_input_init(struct cs40l26_private *cs40l26)
+{
+	int ret;
+	struct device *dev = cs40l26->dev;
+
+	cs40l26->input = devm_input_allocate_device(dev);
+	if (!cs40l26->input)
+		return -ENOMEM;
+
+	cs40l26->input->name = "cs40l26_input";
+	cs40l26->input->id.product = cs40l26->devid;
+	cs40l26->input->id.version = cs40l26->revid;
+
+	input_set_drvdata(cs40l26->input, cs40l26);
+	input_set_capability(cs40l26->input, EV_FF, FF_PERIODIC);
+	input_set_capability(cs40l26->input, EV_FF, FF_CUSTOM);
+	input_set_capability(cs40l26->input, EV_FF, FF_SINE);
+	input_set_capability(cs40l26->input, EV_FF, FF_GAIN);
+
+	ret = input_ff_create(cs40l26->input, FF_MAX_EFFECTS);
+	if (ret) {
+		dev_err(dev, "Failed to create FF device: %d\n", ret);
+		return ret;
+	}
+
+	/*
+	 * input_ff_create() automatically sets FF_RUMBLE capabilities;
+	 * we want to restrtict this to only FF_PERIODIC
+	 */
+	__clear_bit(FF_RUMBLE, cs40l26->input->ffbit);
+
+	cs40l26->input->ff->upload = cs40l26_upload_effect;
+	cs40l26->input->ff->playback = cs40l26_playback_effect;
+	cs40l26->input->ff->set_gain = cs40l26_set_gain;
+
+	ret = input_register_device(cs40l26->input);
+	if (ret) {
+		dev_err(dev, "Cannot register input device: %d\n", ret);
+		return ret;
+	}
+
+	hrtimer_init(&cs40l26->vibe_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	cs40l26->vibe_timer.function = cs40l26_vibe_timer;
+
+	ret = sysfs_create_group(&cs40l26->input->dev.kobj,
+			&cs40l26_dev_attr_group);
+	if (ret)
+		dev_err(dev, "Failed to create sysfs group: %d\n", ret);
+	else
+		cs40l26->vibe_init_success = true;
+
+	return ret;
+}
+
+static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
+{
+	struct regmap *regmap = cs40l26->regmap;
+	struct device *dev = cs40l26->dev;
+	int ret;
+	u32 val;
+
+	ret = regmap_read(regmap, CS40L26_DEVID, &val);
+	if (ret) {
+		dev_err(dev, "Failed to read device ID\n");
+		return ret;
+	}
+
+	val &= CS40L26_DEVID_MASK;
+	if (val != CS40L26_DEVID_A && val != CS40L26_DEVID_B) {
+		dev_err(dev, "Invalid device ID: 0x%06X\n", val);
+		return -EINVAL;
+	}
+
+	cs40l26->devid = val;
+
+	ret = regmap_read(regmap, CS40L26_REVID, &val);
+	if (ret) {
+		dev_err(dev, "Failed to read revision ID\n");
+		return ret;
+	}
+
+	val &= CS40L26_REVID_MASK;
+	if (val != CS40L26_REVID_A0) {
+		dev_err(dev, "Invalid device revision: 0x%02X\n", val);
+		return ret;
+	}
+	cs40l26->revid = val;
+
+	dev_info(dev, "Cirrus Logic %s ID: 0x%06X, Revision: 0x%02X\n",
+			CS40L26_DEV_NAME, cs40l26->devid, cs40l26->revid);
+
+	return 0;
+}
+
+static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26)
+{
+	int ret = 0;
+
+	cs40l26->dsp = cl_dsp_create(cs40l26->dev, cs40l26->regmap);
+	if (!cs40l26->dsp)
+		return -ENOMEM;
+
+	if (cs40l26->fw_mode == CS40L26_FW_MODE_ROM) {
+		cs40l26->dsp->fw_desc = &cs40l26_fw;
+	} else {
+		cs40l26->dsp->fw_desc = &cs40l26_ram_fw;
+		ret = cl_dsp_wavetable_create(cs40l26->dsp,
+				CS40L26_VIBEGEN_ALGO_ID, CS40L26_WT_NAME_XM,
+				CS40L26_WT_NAME_YM, "cs40l26.bin");
+	}
+
+	return ret;
 }
 
 static int cs40l26_wksrc_config(struct cs40l26_private *cs40l26)
@@ -2115,6 +2158,7 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 
 	INIT_WORK(&cs40l26->vibe_start_work, cs40l26_vibe_start_worker);
 	INIT_WORK(&cs40l26->vibe_stop_work, cs40l26_vibe_stop_worker);
+	INIT_WORK(&cs40l26->set_gain_work, cs40l26_set_gain_worker);
 
 	ret = devm_regulator_bulk_get(dev, CS40L26_NUM_SUPPLIES,
 			cs40l26_supplies);
@@ -2229,6 +2273,7 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 		destroy_workqueue(cs40l26->vibe_workqueue);
 		cancel_work_sync(&cs40l26->vibe_start_work);
 		cancel_work_sync(&cs40l26->vibe_stop_work);
+		cancel_work_sync(&cs40l26->set_gain_work);
 	}
 
 	if (vp_consumer)
