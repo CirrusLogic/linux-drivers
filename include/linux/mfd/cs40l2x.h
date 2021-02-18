@@ -1436,7 +1436,6 @@ struct cs40l2x_private {
 	unsigned int wt_ym_header_last_offset;
 	unsigned int wt_xm_header_last_size;
 	unsigned int wt_ym_header_last_size;
-	unsigned int pbq_updated_fw_raw_wt_size;
 	unsigned int comp_bytes;
 	unsigned int *wvfrm_lengths;
 	unsigned int wvfrm_lengths_size;
