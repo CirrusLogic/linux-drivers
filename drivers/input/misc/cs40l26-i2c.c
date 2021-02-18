@@ -54,14 +54,6 @@ static int cs40l26_i2c_remove(struct i2c_client *client)
 	return cs40l26_remove(cs40l26);
 }
 
-static const struct of_device_id cs40l26_of_match[] = {
-	{ .compatible = "cirrus,cs40l26a" },
-	{ .compatible = "cirrus,cs40l26b" },
-	{ }
-};
-
-MODULE_DEVICE_TABLE(of, cs40l26_of_match);
-
 static struct i2c_driver cs40l26_i2c_driver = {
 	.driver = {
 		.name = "cs40l26",
