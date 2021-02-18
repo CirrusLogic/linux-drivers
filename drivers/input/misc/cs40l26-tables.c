@@ -13,6 +13,13 @@
 
 #include <linux/mfd/cs40l26.h>
 
+const struct of_device_id cs40l26_of_match[CS40L26_NUM_DEVS + 1] = {
+	{ .compatible = "cirrus,cs40l26a" },
+	{ .compatible = "cirrus,cs40l26b" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, cs40l26_of_match);
+
 const struct regmap_config cs40l26_regmap = {
 	.reg_bits = 32,
 	.val_bits = 32,
