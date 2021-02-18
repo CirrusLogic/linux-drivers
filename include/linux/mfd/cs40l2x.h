@@ -1432,7 +1432,6 @@ struct cs40l2x_private {
 	unsigned int ym_hdr_strt_reg;
 	unsigned int wt_xm_header_end_pos;
 	unsigned int wt_ym_header_end_pos;
-	unsigned int virt_wt_end_header_pos;
 	unsigned int wt_xm_header_last_offset;
 	unsigned int wt_ym_header_last_offset;
 	unsigned int wt_xm_header_last_size;
