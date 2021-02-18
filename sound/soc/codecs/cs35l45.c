@@ -26,11 +26,6 @@
 
 #define DRV_NAME "cs35l45"
 
-#define CS35L45_DSP_MIN_FRAGMENTS		1
-#define CS35L45_DSP_MAX_FRAGMENTS		256
-#define CS35L45_DSP_MIN_FRAGMENT_SIZE_WORDS	64
-#define CS35L45_DSP_MAX_FRAGMENT_SIZE_WORDS	4096
-
 static struct wm_adsp_ops cs35l45_halo_ops;
 static int (*cs35l45_halo_start_core)(struct wm_adsp *dsp);
 
@@ -1664,13 +1659,7 @@ static int cs35l45_compr_set_params(struct snd_compr_stream *stream,
 	struct wm_adsp *dsp = compr->dsp;
 	unsigned int size;
 
-	if (params->buffer.fragment_size < (CS35L45_DSP_MIN_FRAGMENT_SIZE_WORDS
-					    * CS35L45_DSP_DATA_WORD_SIZE) ||
-	    params->buffer.fragment_size > (CS35L45_DSP_MAX_FRAGMENT_SIZE_WORDS
-					    * CS35L45_DSP_DATA_WORD_SIZE) ||
-	    params->buffer.fragments < CS35L45_DSP_MIN_FRAGMENTS ||
-	    params->buffer.fragments > CS35L45_DSP_MAX_FRAGMENTS ||
-	    params->buffer.fragment_size % CS35L45_DSP_DATA_WORD_SIZE) {
+	if (params->buffer.fragment_size % CS35L45_DSP_DATA_WORD_SIZE) {
 		dev_err(dsp->dev, "Invalid buffer fragsize=%d fragments=%d\n",
 			params->buffer.fragment_size,
 			params->buffer.fragments);
@@ -1698,12 +1687,6 @@ static int cs35l45_compr_get_caps(struct snd_compr_stream *stream,
 	caps->codecs[0] = SND_AUDIOCODEC_BESPOKE;
 	caps->num_codecs = 1;
 	caps->direction = SND_COMPRESS_CAPTURE;
-	caps->min_fragment_size = CS35L45_DSP_MIN_FRAGMENT_SIZE_WORDS
-			* CS35L45_DSP_DATA_WORD_SIZE;
-	caps->max_fragment_size = CS35L45_DSP_MAX_FRAGMENT_SIZE_WORDS
-			* CS35L45_DSP_DATA_WORD_SIZE;
-	caps->min_fragments = CS35L45_DSP_MIN_FRAGMENTS;
-	caps->max_fragments = CS35L45_DSP_MAX_FRAGMENTS;
 
 	return 0;
 }
