@@ -53,14 +53,6 @@ static int cs40l26_spi_remove(struct spi_device *spi)
 	return cs40l26_remove(cs40l26);
 }
 
-static const struct of_device_id cs40l26_of_match[] = {
-	{ .compatible = "cirrus,cs40l26a" },
-	{ .compatible = "cirrus,cs40l26b" },
-	{ }
-};
-
-MODULE_DEVICE_TABLE(of, cs40l26_of_match);
-
 static struct spi_driver cs40l26_spi_driver = {
 	.driver = {
 		.name = "cs40l26",
