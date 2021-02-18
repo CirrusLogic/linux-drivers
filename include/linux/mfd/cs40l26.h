@@ -620,6 +620,7 @@
 #define CS40L26_DEVID_A			0x40A260
 #define CS40L26_DEVID_B			0x40A26B
 #define CS40L26_DEVID_MASK		GENMASK(23, 0)
+#define CS40L26_NUM_DEVS		2
 
 #define CS40L26_REVID_A0		0xA0
 #define CS40L26_REVID_MASK		GENMASK(7, 0)
@@ -1188,6 +1189,7 @@ bool cs40l26_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l26_volatile_reg(struct device *dev, unsigned int reg);
 
 /* external tables */
+extern const struct of_device_id cs40l26_of_match[CS40L26_NUM_DEVS + 1];
 extern struct regulator_bulk_data
 		cs40l26_supplies[CS40L26_NUM_SUPPLIES];
 extern const struct dev_pm_ops cs40l26_pm_ops;
