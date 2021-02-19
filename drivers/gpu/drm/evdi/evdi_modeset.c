@@ -203,9 +203,9 @@ static const struct drm_crtc_funcs evdi_crtc_funcs = {
 };
 
 static void evdi_plane_atomic_update(struct drm_plane *plane,
-				     struct drm_plane_state *old_state)
+				     struct drm_atomic_state *state)
 {
-	struct drm_plane_state *state;
+	struct drm_plane_state *old_plane_state, *plane_state;
 	struct evdi_device *evdi;
 	struct evdi_painter *painter;
 	struct drm_crtc *crtc;
@@ -220,19 +220,20 @@ static void evdi_plane_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
-	state = plane->state;
+	old_plane_state = drm_atomic_get_old_plane_state(state, plane);
+	plane_state = plane->state;
 	evdi = plane->dev->dev_private;
 	painter = evdi->painter;
-	crtc = state->crtc;
+	crtc = plane_state->crtc;
 
-	if (!old_state->crtc && state->crtc)
+	if (!old_plane_state->crtc && plane_state->crtc)
 		evdi_painter_dpms_notify(evdi, DRM_MODE_DPMS_ON);
-	else if (old_state->crtc && !state->crtc)
+	else if (old_plane_state->crtc && !plane_state->crtc)
 		evdi_painter_dpms_notify(evdi, DRM_MODE_DPMS_OFF);
 
-	if (state->fb) {
-		struct drm_framebuffer *fb = state->fb;
-		struct drm_framebuffer *old_fb = old_state->fb;
+	if (plane_state->fb) {
+		struct drm_framebuffer *fb = plane_state->fb;
+		struct drm_framebuffer *old_fb = old_plane_state->fb;
 		struct evdi_framebuffer *efb = to_evdi_fb(fb);
 
 		const struct drm_clip_rect fullscreen_rect = {
@@ -268,8 +269,12 @@ static void evdi_cursor_atomic_get_rect(struct drm_clip_rect *rect,
 }
 
 static void evdi_cursor_atomic_update(struct drm_plane *plane,
-				      struct drm_plane_state *old_state)
+				      struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_plane_state;
+
+	old_plane_state = drm_atomic_get_old_plane_state(state, plane);
+
 	if (plane && plane->state && plane->dev && plane->dev->dev_private) {
 		struct drm_plane_state *state = plane->state;
 		struct evdi_device *evdi = plane->dev->dev_private;
@@ -291,7 +296,7 @@ static void evdi_cursor_atomic_update(struct drm_plane *plane,
 		cursor_position_changed = cursor_position_x != state->crtc_x ||
 					  cursor_position_y != state->crtc_y;
 
-		if (fb != old_state->fb) {
+		if (fb != old_plane_state->fb) {
 			if (fb != NULL) {
 				uint32_t stride = 4 * fb->width;
 
@@ -311,7 +316,7 @@ static void evdi_cursor_atomic_update(struct drm_plane *plane,
 
 		mutex_unlock(&plane->dev->struct_mutex);
 		if (!evdi->cursor_events_enabled) {
-			evdi_cursor_atomic_get_rect(&old_rect, old_state);
+			evdi_cursor_atomic_get_rect(&old_rect, old_plane_state);
 			evdi_cursor_atomic_get_rect(&rect, state);
 
 			evdi_painter_mark_dirty(evdi, &old_rect);
