@@ -132,7 +132,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	limits.min_lane_count =
 	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
 
-	limits.min_bpp = intel_dp_min_bpp(pipe_config);
+	limits.min_bpp = intel_dp_min_bpp(pipe_config->output_format);
 	/*
 	 * FIXME: If all the streams can't fit into the link with
 	 * their current pipe_bpp we should reduce pipe_bpp across
@@ -593,6 +593,15 @@ static void intel_dp_mst_enc_get_config(struct intel_encoder *encoder,
 	intel_ddi_get_config(&dig_port->base, pipe_config);
 }
 
+static bool intel_dp_mst_initial_fastset_check(struct intel_encoder *encoder,
+					       struct intel_crtc_state *crtc_state)
+{
+	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(encoder);
+	struct intel_digital_port *dig_port = intel_mst->primary;
+
+	return intel_dp_initial_fastset_check(&dig_port->base, crtc_state);
+}
+
 static int intel_dp_mst_get_ddc_modes(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
@@ -707,7 +716,7 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 		return 0;
 	}
 
-	*status = intel_mode_valid_max_plane_size(dev_priv, mode);
+	*status = intel_mode_valid_max_plane_size(dev_priv, mode, false);
 	return 0;
 }
 
@@ -899,6 +908,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *dig_port, enum pipe 
 	intel_encoder->enable = intel_mst_enable_dp;
 	intel_encoder->get_hw_state = intel_dp_mst_enc_get_hw_state;
 	intel_encoder->get_config = intel_dp_mst_enc_get_config;
+	intel_encoder->initial_fastset_check = intel_dp_mst_initial_fastset_check;
 
 	return intel_mst;
 
