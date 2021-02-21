@@ -59,6 +59,7 @@ struct i915_request_coredump {
 struct intel_engine_coredump {
 	const struct intel_engine_cs *engine;
 
+	bool hung;
 	bool simulated;
 	u32 reset_count;
 
@@ -90,7 +91,7 @@ struct intel_engine_coredump {
 		char comm[TASK_COMM_LEN];
 
 		u64 total_runtime;
-		u32 avg_runtime;
+		u64 avg_runtime;
 
 		pid_t pid;
 		int active;
@@ -218,8 +219,10 @@ struct drm_i915_error_state_buf {
 __printf(2, 3)
 void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...);
 
-struct i915_gpu_coredump *i915_gpu_coredump(struct drm_i915_private *i915);
-void i915_capture_error_state(struct drm_i915_private *i915);
+struct i915_gpu_coredump *i915_gpu_coredump(struct intel_gt *gt,
+					    intel_engine_mask_t engine_mask);
+void i915_capture_error_state(struct intel_gt *gt,
+			      intel_engine_mask_t engine_mask);
 
 struct i915_gpu_coredump *
 i915_gpu_coredump_alloc(struct drm_i915_private *i915, gfp_t gfp);
@@ -271,7 +274,8 @@ void i915_disable_error_state(struct drm_i915_private *i915, int err);
 
 #else
 
-static inline void i915_capture_error_state(struct drm_i915_private *i915)
+static inline void
+i915_capture_error_state(struct intel_gt *gt, intel_engine_mask_t engine_mask)
 {
 }
 
