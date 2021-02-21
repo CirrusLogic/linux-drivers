@@ -2615,3 +2615,7 @@ struct cfg80211_sar_specs {
 	struct cfg80211_sar_sub_specs sub_specs[];
 };
 #endif /* < 5.4.0 */
+
+#if CFG80211_VERSION < KERNEL_VERSION(5,13,0)
+#define NL80211_EXT_FEATURE_PROT_RANGE_NEGO_AND_MEASURE -1
+#endif /* < 5.12.0 */
