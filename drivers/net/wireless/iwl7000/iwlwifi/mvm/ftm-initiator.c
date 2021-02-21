@@ -809,9 +809,9 @@ iwl_mvm_ftm_set_ndp_params(struct iwl_mvm *mvm,
 		IWL_MVM_FTM_I2R_MAX_STS;
 
 	target->r2i_ndp_params = IWL_MVM_FTM_R2I_MAX_REP |
-		(i2r_max_sts << IWL_LOCATION_MAX_STS_POS);
+		(IWL_MVM_FTM_R2I_MAX_STS << IWL_LOCATION_MAX_STS_POS);
 	target->i2r_ndp_params = IWL_MVM_FTM_I2R_MAX_REP |
-		(IWL_MVM_FTM_I2R_MAX_STS << IWL_LOCATION_MAX_STS_POS);
+		(i2r_max_sts << IWL_LOCATION_MAX_STS_POS);
 	target->r2i_max_total_ltf = IWL_MVM_FTM_R2I_MAX_TOTAL_LTF;
 	target->i2r_max_total_ltf = IWL_MVM_FTM_I2R_MAX_TOTAL_LTF;
 }
