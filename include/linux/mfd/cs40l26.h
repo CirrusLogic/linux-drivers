@@ -699,10 +699,21 @@
 
 #define CS40L26_AUTOSUSPEND_DELAY_MS		2000
 
+#define CS40L26_WKSRC_STS_MASK			GENMASK(9, 4)
+#define CS40L26_WKSRC_STS_SHIFT		4
+
+#define CS40L26_WKSRC_GPIO_POL_MASK		GENMASK(3, 0)
+
+#define CS40L26_IRQ1_WKSRC_MASK		GENMASK(14, 9)
+#define CS40L26_IRQ1_WKSRC_SHIFT		9
+#define CS40L26_IRQ1_WKSRC_GPIO_MASK		GENMASK(3, 0)
+
+#define CS40L26_WKSRC_STS_EN			BIT(7)
+
 /* DSP mailbox controls */
 #define CS40L26_DSP_TIMEOUT_US_MIN		1000
 #define CS40L26_DSP_TIMEOUT_US_MAX		1100
-#define CS40L26_DSP_TIMEOUT_COUNT		10
+#define CS40L26_DSP_TIMEOUT_COUNT		50
 
 #define CS40L26_DSP_MBOX_RESET			0x0
 
@@ -1157,6 +1168,8 @@ struct cs40l26_private {
 	bool pm_ready;
 	bool asp_enable;
 	u16 amp_vol_pcm;
+	u8 last_wksrc_pol;
+	u8 wksrc_sts;
 };
 
 struct cs40l26_codec {
