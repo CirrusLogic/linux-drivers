@@ -154,10 +154,11 @@ int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 }
 EXPORT_SYMBOL(cs40l26_dsp_state_get);
 
-static int cs40l26_pm_shutdown_timeout_ms_set(struct cs40l26_private *cs40l26,
+int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26,
 		u32 timeout_ms)
 {
 	u32 timeout_ticks = timeout_ms * CS40L26_PM_TICKS_MS_DIV;
+	struct regmap *regmap = cs40l26->regmap;
 	u32 lower_val, reg, algo_id;
 	u8 upper_val;
 	int ret;
@@ -167,30 +168,27 @@ static int cs40l26_pm_shutdown_timeout_ms_set(struct cs40l26_private *cs40l26,
 
 	lower_val = timeout_ticks & CS40L26_PM_TIMEOUT_TICKS_LOWER_MASK;
 
-	if (cs40l26->fw_loaded) {
-		if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
-			algo_id = CS40L26_PM_ALGO_ID;
-		else
-			algo_id = CS40L26_PM_ROM_ALGO_ID;
+	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
+		algo_id = CS40L26_PM_ALGO_ID;
+	else
+		algo_id = CS40L26_PM_ROM_ALGO_ID;
 
-		ret = cl_dsp_get_reg(cs40l26->dsp, "PM_TIMER_TIMEOUT_TICKS",
-				CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
-		if (ret)
-			return ret;
-	} else {
-		reg = CS40L26_PM_TIMEOUT_TICKS_STATIC_REG;
-	}
-
-	ret = cs40l26_dsp_write(cs40l26, reg +
-			CS40L26_PM_STDBY_TIMEOUT_LOWER_OFFSET, lower_val);
+	ret = cl_dsp_get_reg(cs40l26->dsp, "PM_TIMER_TIMEOUT_TICKS",
+			CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
 	if (ret)
 		return ret;
 
-	return cs40l26_dsp_write(cs40l26, reg +
-			CS40L26_PM_STDBY_TIMEOUT_UPPER_OFFSET, upper_val);
-}
+	ret = regmap_write(regmap, reg + CS40L26_PM_STDBY_TIMEOUT_LOWER_OFFSET,
+			lower_val);
+	if (ret)
+		return ret;
 
-static int cs40l26_pm_shutdown_timeout_ms_get(struct cs40l26_private *cs40l26,
+	return regmap_write(regmap, reg + CS40L26_PM_STDBY_TIMEOUT_UPPER_OFFSET,
+			upper_val);
+}
+EXPORT_SYMBOL(cs40l26_pm_timeout_ms_set);
+
+int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26,
 		u32 *timeout_ms)
 {
 	u32 lower_val, upper_val, algo_id, reg;
@@ -228,10 +226,16 @@ static int cs40l26_pm_shutdown_timeout_ms_get(struct cs40l26_private *cs40l26,
 
 	return 0;
 }
+EXPORT_SYMBOL(cs40l26_pm_timeout_ms_get);
 
-static void cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
+static int cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
+	int ret;
+
+	ret = cs40l26_pm_timeout_ms_set(cs40l26, CS40L26_PM_TIMEOUT_MS_MIN);
+	if (ret)
+		return ret;
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_set_active(dev);
@@ -240,6 +244,8 @@ static void cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
 	pm_runtime_use_autosuspend(dev);
 
 	cs40l26->pm_ready = true;
+
+	return 0;
 }
 
 static void cs40l26_pm_runtime_teardown(struct cs40l26_private *cs40l26)
@@ -348,33 +354,18 @@ static int cs40l26_dsp_wake(struct cs40l26_private *cs40l26)
 static int cs40l26_dsp_shutdown(struct cs40l26_private *cs40l26)
 {
 	u32 timeout_ms;
-	u8 dsp_state;
-	int ret, i;
+	int ret;
+
+	ret = cs40l26_pm_timeout_ms_get(cs40l26, &timeout_ms);
+	if (ret)
+		return ret;
 
 	ret = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_SHUTDOWN);
 	if (ret)
 		return ret;
 
-	ret = cs40l26_pm_shutdown_timeout_ms_get(cs40l26, &timeout_ms);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < CS40L26_PM_STATE_MAX_READS; i++) {
-		usleep_range(CS40L26_MS_TO_US(timeout_ms),
-				CS40L26_MS_TO_US(timeout_ms) + 100);
-
-		ret = cs40l26_dsp_state_get(cs40l26, &dsp_state);
-		if (ret)
-			return ret;
-
-		if (dsp_state == CS40L26_DSP_STATE_SHUTDOWN)
-			break;
-	}
-
-	if (i >= CS40L26_PM_STATE_MAX_READS) {
-		dev_err(cs40l26->dev, "Failed to shut down DSP\n");
-		return -EINVAL;
-	}
+	usleep_range(CS40L26_MS_TO_US(timeout_ms),
+			CS40L26_MS_TO_US(timeout_ms) + 100);
 
 	return 0;
 }
@@ -508,26 +499,11 @@ static int cs40l26_error_release(struct cs40l26_private *cs40l26,
 {
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
-	u32 timeout_ms_orig, err_sts, err_cfg;
+	u32 err_sts, err_cfg;
 	int ret;
 
 	/* Boost related errors must be handled with DSP turned off */
 	if (bst_err) {
-		ret = cs40l26_pm_shutdown_timeout_ms_get(cs40l26,
-				&timeout_ms_orig);
-		if (ret)
-			return ret;
-
-		/* The HIBERNATE and SHUTDOWN timeout values are represented
-		 * in a single firmware control field. When issuing a SHUTDOWN
-		 * command this value should be low (10 ms)
-		 * to permit a quick transition.
-		 */
-		ret = cs40l26_pm_shutdown_timeout_ms_set(cs40l26,
-				CS40L26_PM_SHUTDOWN_TIMEOUT_MS);
-		if (ret)
-			return ret;
-
 		ret = cs40l26_dsp_shutdown(cs40l26);
 		if (ret)
 			return ret;
@@ -564,15 +540,6 @@ static int cs40l26_error_release(struct cs40l26_private *cs40l26,
 	}
 
 	if (bst_err) {
-		/* When waking the DSP, the HIBERNATE/SHUTDOWN timeout should
-		 * be returned to its original value to avoid entering
-		 * hibernate mode too quickly
-		 */
-		ret = cs40l26_pm_shutdown_timeout_ms_set(cs40l26,
-				timeout_ms_orig);
-		if (ret)
-			return ret;
-
 		ret = cs40l26_dsp_wake(cs40l26);
 		if (ret)
 			return ret;
@@ -1976,7 +1943,9 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	cs40l26->fw_loaded = true;
 
-	cs40l26_pm_runtime_setup(cs40l26);
+	ret = cs40l26_pm_runtime_setup(cs40l26);
+	if (ret)
+		goto err_out;
 
 	ret = cs40l26_dsp_start(cs40l26);
 	if (ret)
@@ -2338,7 +2307,7 @@ int cs40l26_suspend(struct device *dev)
 		return 0;
 	}
 
-	dev_dbg(cs40l26->dev, "%s: Enabling hibernate\n", __func__);
+	dev_dbg(cs40l26->dev, "%s: Enabling hibernation\n", __func__);
 
 	return cs40l26_pm_state_transition(cs40l26,
 			CS40L26_PM_STATE_ALLOW_HIBERNATE);
@@ -2379,7 +2348,7 @@ int cs40l26_resume(struct device *dev)
 		return 0;
 	}
 
-	dev_dbg(cs40l26->dev, "%s: Disabling hibernate\n", __func__);
+	dev_dbg(cs40l26->dev, "%s: Disabling hibernation\n", __func__);
 
 	return cs40l26_pm_state_transition(cs40l26,
 			CS40L26_PM_STATE_PREVENT_HIBERNATE);
