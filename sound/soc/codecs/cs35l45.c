@@ -2942,6 +2942,12 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 	unsigned long irq_pol = IRQF_ONESHOT | IRQF_SHARED;
 	int ret, i, irq;
 
+	ret = __cs35l45_initialize(cs35l45);
+	if (ret < 0) {
+		dev_err(dev, "CS35L45 failed to initialize (%d)\n", ret);
+		return ret;
+	}
+
 	ret = regmap_read(cs35l45->regmap, CS35L45_DEVID, &dev_id);
 	if (ret < 0) {
 		dev_err(dev, "Get Device ID failed\n");
@@ -2951,12 +2957,6 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 	ret = regmap_read(cs35l45->regmap, CS35L45_REVID, &rev_id);
 	if (ret < 0) {
 		dev_err(dev, "Get Revision ID failed\n");
-		return ret;
-	}
-
-	ret = __cs35l45_initialize(cs35l45);
-	if (ret < 0) {
-		dev_err(dev, "CS35L45 failed to initialize (%d)\n", ret);
 		return ret;
 	}
 
