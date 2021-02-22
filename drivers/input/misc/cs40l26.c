@@ -269,12 +269,14 @@ static int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 		break;
 	case CS40L26_PM_STATE_SHUTDOWN:
 		cmd = CS40L26_DSP_MBOX_CMD_SHUTDOWN;
+		cs40l26->wksrc_sts = 0x00;
 		break;
 	case CS40L26_PM_STATE_PREVENT_HIBERNATE:
 		cmd = CS40L26_DSP_MBOX_CMD_PREVENT_HIBER;
 		break;
 	case CS40L26_PM_STATE_ALLOW_HIBERNATE:
 		cmd = CS40L26_DSP_MBOX_CMD_ALLOW_HIBER;
+		cs40l26->wksrc_sts = 0x00;
 		break;
 	default:
 		dev_err(dev, "Unknown PM state: %u\n", state);
@@ -322,8 +324,7 @@ static int cs40l26_dsp_start(struct cs40l26_private *cs40l26)
 		return -EINVAL;
 	}
 
-	return cs40l26_pm_state_transition(cs40l26,
-			CS40L26_PM_STATE_PREVENT_HIBERNATE);
+	return 0;
 }
 
 static int cs40l26_dsp_wake(struct cs40l26_private *cs40l26)
@@ -486,6 +487,7 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 			dev_dbg(dev, "Trigger Complete\n");
 			break;
 		case CS40L26_DSP_MBOX_PM_AWAKE:
+			cs40l26->wksrc_sts |= CS40L26_WKSRC_STS_EN;
 			dev_dbg(dev, "HALO Core is awake\n");
 			break;
 		case CS40L26_DSP_MBOX_F0_EST_START:
@@ -692,6 +694,7 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 {
 	struct device *dev = cs40l26->dev;
 	u32 err_rls = 0;
+	unsigned int reg, val;
 	bool bst_err;
 	int ret;
 
@@ -711,15 +714,42 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 	case CS40L26_IRQ1_GPIO4_RISE:
 	/* intentionally fall through */
 	case CS40L26_IRQ1_GPIO4_FALL:
-		dev_dbg(dev, "GPIO%u %s event detected\n", (irq1 / 2) + 1,
-				(irq1 % 2) ? "fall" : "rise");
+		if (cs40l26->wksrc_sts & CS40L26_WKSRC_STS_EN)
+			dev_dbg(dev, "GPIO%u %s edge detected\n",
+					(irq1 / 2) + 1,
+					irq1 % 2 ? "falling" : "rising");
+
+		cs40l26->wksrc_sts |= CS40L26_WKSRC_STS_EN;
 		break;
 	case CS40L26_IRQ1_WKSRC_STS_ANY:
 		dev_dbg(dev, "Wakesource detected (ANY)\n");
+
 		ret = cs40l26_iseq_populate(cs40l26);
 		if (ret)
 			goto err;
 
+		ret = regmap_read(cs40l26->regmap, CS40L26_PWRMGT_STS, &val);
+		if (ret) {
+			dev_err(dev, "Failed to get Power Management Status\n");
+			goto err;
+		}
+
+		cs40l26->wksrc_sts = (u8) ((val & CS40L26_WKSRC_STS_MASK) >>
+				CS40L26_WKSRC_STS_SHIFT);
+
+		ret = cl_dsp_get_reg(cs40l26->dsp, "LAST_WAKESRC_CTL",
+				CL_DSP_XM_UNPACKED_TYPE,
+				cs40l26->dsp->fw_desc->id, &reg);
+		if (ret)
+			goto err;
+
+		ret = regmap_read(cs40l26->regmap, reg, &val);
+		if (ret) {
+			dev_err(dev, "Failed to read LAST_WAKESRC_CTL\n");
+			goto err;
+		}
+		cs40l26->last_wksrc_pol =
+				(u8) (val & CS40L26_WKSRC_GPIO_POL_MASK);
 		break;
 	case CS40L26_IRQ1_WKSRC_STS_GPIO1:
 	/* intentionally fall through */
@@ -730,6 +760,15 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 	case CS40L26_IRQ1_WKSRC_STS_GPIO4:
 		dev_dbg(dev, "GPIO%u event woke device from hibernate\n",
 				irq1 - CS40L26_IRQ1_WKSRC_STS_GPIO1 + 1);
+
+		if (cs40l26->wksrc_sts & cs40l26->last_wksrc_pol) {
+			dev_dbg(dev, "GPIO%u falling edge detected\n",
+					irq1 - 8);
+			cs40l26->wksrc_sts |= CS40L26_WKSRC_STS_EN;
+		} else {
+			dev_dbg(dev, "GPIO%u rising edge detected\n",
+					irq1 - 8);
+		}
 		break;
 	case CS40L26_IRQ1_WKSRC_STS_SPI:
 		dev_dbg(dev, "SPI event woke device from hibernate\n");
@@ -1952,56 +1991,57 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		goto err_out;
 
+	pm_runtime_get_sync(dev);
+
 	ret = cs40l26_pseq_init(cs40l26);
 	if (ret)
-		goto err_out;
+		goto pm_err_out;
 
 	ret = cs40l26_iseq_init(cs40l26);
 	if (ret)
-		goto err_out;
+		goto pm_err_out;
 
 	ret = cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1,
 			BIT(CS40L26_IRQ1_VIRTUAL2_MBOX_WR), CS40L26_IRQ_UNMASK);
 	if (ret)
-		goto err_out;
+		goto pm_err_out;
 
 	ret = cs40l26_wksrc_config(cs40l26);
 	if (ret)
-		goto err_out;
+		goto pm_err_out;
 
 	ret = cs40l26_gpio_config(cs40l26);
 	if (ret)
-		goto err_out;
+		goto pm_err_out;
 
 	ret = cs40l26_brownout_prevention_init(cs40l26);
 	if (ret)
-		goto err_out;
+		goto pm_err_out;
 
 	/* ensure firmware running */
 	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_STATE",
 			CL_DSP_XM_UNPACKED_TYPE, cs40l26->dsp->fw_desc->id,
 			&reg);
 	if (ret)
-		goto err_out;
+		goto pm_err_out;
 
 	ret = cs40l26_ack_read(cs40l26, reg,
 			cs40l26->dsp->fw_desc->halo_state_run);
 	if (ret)
-		goto err_out;
+		goto pm_err_out;
 
 	ret = cs40l26_get_num_waves(cs40l26, &cs40l26->num_waves);
 	if (ret)
-		goto err_out;
+		goto pm_err_out;
 
 	dev_info(dev, "%s loaded with %u RAM waveforms\n", CS40L26_DEV_NAME,
 			cs40l26->num_waves);
 
-	ret = cs40l26_pm_state_transition(cs40l26,
-			CS40L26_PM_STATE_ALLOW_HIBERNATE);
-
+pm_err_out:
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 err_out:
 	enable_irq(cs40l26->irq);
-
 	return ret;
 }
 
