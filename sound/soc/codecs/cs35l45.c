@@ -1744,7 +1744,7 @@ static int cs35l45_dsp_read_data_block(struct cs35l45_private *cs35l45,
 				       unsigned int num_words, u32 *data)
 {
 	struct wm_adsp *dsp = &cs35l45->dsp;
-	struct wm_adsp_region const *mem;
+	struct wm_adsp_region const *mem = NULL;
 	unsigned int reg;
 	int ret, i;
 
