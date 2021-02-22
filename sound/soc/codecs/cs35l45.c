@@ -2891,29 +2891,20 @@ static int __cs35l45_initialize(struct cs35l45_private *cs35l45)
 {
 	struct device *dev = cs35l45->dev;
 	unsigned int sts, wksrc;
-	int ret, i;
+	int ret;
 
 	if (cs35l45->initialized)
 		return -EPERM;
 
-	for (i = 0; i < 5; i++) {
-		usleep_range(1000, 1100);
-
-		regmap_read(cs35l45->regmap, CS35L45_IRQ1_EINT_4, &sts);
-		if (!(sts & CS35L45_OTP_BOOT_DONE_STS_MASK))
-			continue;
-
-		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_4,
-			     CS35L45_OTP_BOOT_DONE_STS_MASK |
-			     CS35L45_OTP_BUSY_MASK);
-
-		break;
-	}
-
-	if (i == 5) {
+	ret = regmap_read_poll_timeout(cs35l45->regmap, CS35L45_IRQ1_EINT_4, sts,
+				       (sts & CS35L45_OTP_BOOT_DONE_STS_MASK), 1000, 5000);
+	if (ret < 0) {
 		dev_err(cs35l45->dev, "Timeout waiting for OTP boot\n");
-		return -ETIMEDOUT;
+		return ret;
 	}
+
+	regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_4,
+		     CS35L45_OTP_BOOT_DONE_STS_MASK | CS35L45_OTP_BUSY_MASK);
 
 	ret = regmap_register_patch(cs35l45->regmap, cs35l45_init_patch,
 				    ARRAY_SIZE(cs35l45_init_patch));
