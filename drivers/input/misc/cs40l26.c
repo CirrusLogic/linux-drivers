@@ -288,15 +288,6 @@ static int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 	if (ret)
 		return ret;
 
-	/* Verify data is valid after exiting hibernate or shutdown modes */
-	if (cs40l26->pm_state == CS40L26_PM_STATE_SHUTDOWN ||
-			cs40l26->pm_state == CS40L26_PM_STATE_ALLOW_HIBERNATE){
-		ret = cs40l26_ack_read(cs40l26, CL_DSP_HALO_XM_FW_ID_REG,
-				cs40l26->dsp->fw_desc->id);
-		if (ret)
-			return ret;
-	}
-
 	cs40l26->pm_state = state;
 
 	return 0;
