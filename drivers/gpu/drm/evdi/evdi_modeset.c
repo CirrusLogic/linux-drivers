@@ -25,7 +25,7 @@
 #include "evdi_drm_drv.h"
 #include "evdi_cursor.h"
 #include "evdi_params.h"
-#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
 
 static void evdi_crtc_dpms(__always_unused struct drm_crtc *crtc,
 			   __always_unused int mode)
@@ -329,12 +329,12 @@ static void evdi_cursor_atomic_update(struct drm_plane *plane,
 
 static const struct drm_plane_helper_funcs evdi_plane_helper_funcs = {
 	.atomic_update = evdi_plane_atomic_update,
-	.prepare_fb = drm_gem_fb_prepare_fb
+	.prepare_fb = drm_gem_plane_helper_prepare_fb
 };
 
 static const struct drm_plane_helper_funcs evdi_cursor_helper_funcs = {
 	.atomic_update = evdi_cursor_atomic_update,
-	.prepare_fb = drm_gem_fb_prepare_fb
+	.prepare_fb = drm_gem_plane_helper_prepare_fb
 };
 
 static const struct drm_plane_funcs evdi_plane_funcs = {
