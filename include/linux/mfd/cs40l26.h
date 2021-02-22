@@ -691,11 +691,7 @@
 #define CS40L26_PM_TIMEOUT_TICKS_UPPER_SHIFT	24
 #define CS40L26_PM_TICKS_MS_DIV		32
 
-#define CS40L26_PM_SHUTDOWN_TIMEOUT_MS		10
-#define CS40L26_PM_HIBERNATE_TIMEOUT_MS	5000
-
-#define CS40L26_PM_STATE_MAX_READS		10
-#define CS40L26_PM_STATE_STR_LEN		20
+#define CS40L26_PM_TIMEOUT_MS_MIN		100
 
 #define CS40L26_AUTOSUSPEND_DELAY_MS		2000
 
@@ -1190,6 +1186,10 @@ struct cs40l26_pll_sysclk_config {
 };
 
 /* exported function prototypes */
+int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26,
+		u32 *timeout_ms);
+int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26,
+		u32 timeout_ms);
 int cs40l26_ack_write(struct cs40l26_private *cs40l26, u32 reg, u32 write_val,
 		u32 reset_val);
 int cs40l26_pseq_multi_add_pair(struct cs40l26_private *cs40l26,
