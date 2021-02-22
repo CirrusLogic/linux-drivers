@@ -17,6 +17,7 @@ iwlwifi-$(CPTCFG_IWLXVT)	+= fw/init.o
 iwlwifi-$(CPTCFG_IWLWIFI_DEBUGFS) += fw/debugfs.o
 
 iwlwifi-$(CONFIG_ACPI)	+= fw/acpi.o
+iwlwifi-$(CONFIG_EFI)	+= fw/uefi.o
 
 # Bus
 iwlwifi-$(CONFIG_PCI) += pcie/drv.o pcie/rx.o pcie/tx.o pcie/trans.o
