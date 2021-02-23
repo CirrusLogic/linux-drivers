@@ -66,6 +66,7 @@ struct cs40l2x_platform_data {
 	unsigned int fw_id_remap;
 	bool amp_gnd_stby;
 	bool auto_recovery;
+	const char *unique_device_name;
 };
 
 #endif /* __CS40L2X_H */

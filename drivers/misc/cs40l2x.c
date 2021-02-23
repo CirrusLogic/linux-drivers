@@ -8670,8 +8670,15 @@ static int cs40l2x_create_led(struct cs40l2x_private *cs40l2x)
 	int ret;
 	struct led_classdev *led_dev = &cs40l2x->led_dev;
 	struct device *dev = cs40l2x->dev;
+	const char *name;
 
-	led_dev->name = CS40L2X_DEVICE_NAME;
+	if (cs40l2x->pdata.unique_device_name != NULL)
+		name = cs40l2x->pdata.unique_device_name;
+	else
+		name = CS40L2X_DEVICE_NAME;
+
+	led_dev->name = devm_kasprintf(cs40l2x->dev, GFP_KERNEL,
+				       "%s:%s", "cs40l25", name);
 	led_dev->max_brightness = LED_FULL;
 	led_dev->brightness_set = cs40l2x_vibe_brightness_set;
 	led_dev->default_trigger = "transient";
@@ -11226,6 +11233,8 @@ static int cs40l2x_handle_of_data(struct i2c_client *i2c_client,
 		return -EINVAL;
 	}
 	pdata->boost_ipk = out_val;
+
+	of_property_read_string(np, "label", &pdata->unique_device_name);
 
 	ret = of_property_read_u32(np, "cirrus,boost-ctl-millivolt", &out_val);
 	if (!ret)
