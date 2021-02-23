@@ -223,7 +223,7 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 	return ret;
 }
 
-static const char * const cs40l26_out_mux_texts[] = { "PCM", "A2H" };
+static const char * const cs40l26_out_mux_texts[] = { "Off", "PCM", "A2H" };
 static SOC_ENUM_SINGLE_VIRT_DECL(cs40l26_out_mux_enum, cs40l26_out_mux_texts);
 static const struct snd_kcontrol_new cs40l26_out_mux =
 	SOC_DAPM_ENUM("Haptics Source", cs40l26_out_mux_enum);
