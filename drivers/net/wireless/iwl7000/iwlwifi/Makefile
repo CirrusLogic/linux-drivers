@@ -28,9 +28,6 @@ iwlwifi-$(CPTCFG_IWLMVM) += cfg/9000.o cfg/22000.o
 
 iwlwifi-$(CPTCFG_IWLWIFI_SUPPORT_DEBUG_OVERRIDES) += iwl-dbg-cfg.o
 
-ifeq ($(CPTCFG_NO_DMA),y)
-endif
-
 iwlwifi-objs += $(iwlwifi-m)
 iwlwifi-objs += $(iwlwifi-y)
 
