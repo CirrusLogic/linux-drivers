@@ -4,7 +4,8 @@
  */
 
 
-#define IWL_UEFI_OEM_PNVM_NAME	L"UefiCnvWlanOemSignedPnvm"
+#define IWL_UEFI_OEM_PNVM_NAME		L"UefiCnvWlanOemSignedPnvm"
+#define IWL_UEFI_REDUCED_POWER_NAME	L"UefiCnvWlanReducedPower"
 
 /*
  * TODO: we have these hardcoded values that the caller must pass,
@@ -12,7 +13,8 @@
  * properly, we have to change iwl_pnvm_get_from_uefi() to call
  * efivar_entry_size() and return the value to the caller instead.
  */
-#define IWL_HARDCODED_PNVM_SIZE 4096
+#define IWL_HARDCODED_PNVM_SIZE		4096
+#define IWL_HARDCODED_REDUCE_POWER_SIZE	32768
 
 /*
  * This is known to be broken on v4.19 and to work on v5.4.  Until we
@@ -21,9 +23,16 @@
  */
 #if defined(CONFIG_EFI) && LINUX_VERSION_IS_GEQ(5,4,0)
 void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len);
+void *iwl_uefi_get_reduced_power(struct iwl_trans *trans, size_t *len);
 #else /* CONFIG_EFI */
 static inline
 void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline
+void *iwl_uefi_get_reduced_power(struct iwl_trans *trans, size_t *len)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
