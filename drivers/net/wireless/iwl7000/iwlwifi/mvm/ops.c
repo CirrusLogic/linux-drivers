@@ -1376,11 +1376,7 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 #endif
 	kfree(mvm->nvm_data);
 	kfree(mvm->mei_nvm_data);
-	/*
-	 * This is an RCU pointer but at this stage,
-	 * we can't have any readers anymore.
-	 */
-	kfree(mvm->csme_conn_info);
+	kfree(rcu_access_pointer(mvm->csme_conn_info));
 	kfree(mvm->temp_nvm_data);
 	for (i = 0; i < NVM_MAX_NUM_SECTIONS; i++)
 		kfree(mvm->nvm_sections[i].data);
@@ -1701,7 +1697,8 @@ void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state)
 
 struct iwl_mvm_csme_conn_info *iwl_mvm_get_csme_conn_info(struct iwl_mvm *mvm)
 {
-	return mvm->csme_conn_info;
+	return rcu_dereference_protected(mvm->csme_conn_info,
+					 lockdep_is_held(&mvm->mutex));
 }
 
 static bool iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
