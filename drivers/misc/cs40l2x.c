@@ -11765,7 +11765,6 @@ static irqreturn_t cs40l2x_irq(int irq, void *data)
 			else
 				queue_work(cs40l2x->vibe_workqueue,
 						&cs40l2x->vibe_mode_work);
-			/* intentionally fall through */
 			complete(&cs40l2x->hap_done);
 			break;
 		case CS40L2X_EVENT_CTRL_TRIG_START:
