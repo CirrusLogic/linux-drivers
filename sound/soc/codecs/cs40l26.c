@@ -187,6 +187,18 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 			return ret;
 		}
 
+		ret = regmap_update_bits(regmap, CS40L26_VBST_CTL_2,
+				CS40L26_BST_CTL_SEL_MASK,
+				CS40L26_BST_CTL_SEL_CLASSH);
+		if (ret) {
+			dev_err(dev, "Failed to select Class H BST CTRL\n");
+			return ret;
+		}
+
+		ret = cs40l26_class_h_set(cs40l26, true);
+		if (ret)
+			return ret;
+
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				CS40L26_DSP_MBOX_CMD_START_I2S,
 				CS40L26_DSP_MBOX_RESET);
@@ -195,6 +207,10 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				CS40L26_DSP_MBOX_CMD_STOP_I2S,
 				CS40L26_DSP_MBOX_RESET);
+		if (ret)
+			return ret;
+
+		ret = cs40l26_class_h_set(cs40l26, false);
 		if (ret)
 			return ret;
 
