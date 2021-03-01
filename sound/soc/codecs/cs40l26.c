@@ -98,6 +98,7 @@ static int cs40l26_clk_en(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		mutex_lock(&cs40l26->lock);
 		cs40l26->asp_enable = true;
+		cs40l26_vibe_state_set(cs40l26, CS40L26_VIBE_STATE_ASP);
 		mutex_unlock(&cs40l26->lock);
 
 		ret = cs40l26_swap_ext_clk(codec, CS40L26_PLL_REFCLK_BCLK);
@@ -112,6 +113,7 @@ static int cs40l26_clk_en(struct snd_soc_dapm_widget *w,
 
 		mutex_lock(&cs40l26->lock);
 		cs40l26->asp_enable = false;
+		cs40l26_vibe_state_set(cs40l26, CS40L26_VIBE_STATE_STOPPED);
 		mutex_unlock(&cs40l26->lock);
 
 		break;

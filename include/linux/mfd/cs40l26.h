@@ -1012,6 +1012,7 @@ extern const struct cl_dsp_fw_desc cs40l26_ram_fw;
 enum cs40l26_vibe_state {
 	CS40L26_VIBE_STATE_STOPPED,
 	CS40L26_VIBE_STATE_HAPTIC,
+	CS40L26_VIBE_STATE_ASP,
 };
 
 enum cs40l26_fw_mode {
