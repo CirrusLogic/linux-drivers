@@ -480,6 +480,8 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 
 		switch (val) {
 		case CS40L26_DSP_MBOX_TRIGGER_COMPLETE:
+			cs40l26_vibe_state_set(cs40l26,
+					CS40L26_VIBE_STATE_STOPPED);
 			dev_dbg(dev, "Trigger Complete\n");
 			break;
 		case CS40L26_DSP_MBOX_PM_AWAKE:
@@ -506,6 +508,34 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 	}
 
 	return 0;
+}
+
+void cs40l26_vibe_state_set(struct cs40l26_private *cs40l26,
+		enum cs40l26_vibe_state vibe_state)
+{
+	if (cs40l26->vibe_state != vibe_state) {
+		cs40l26->vibe_state = vibe_state;
+		sysfs_notify(&cs40l26->dev->kobj, NULL, "vibe_state");
+	}
+}
+EXPORT_SYMBOL(cs40l26_vibe_state_set);
+
+static int cs40l26_event_count_get(struct cs40l26_private *cs40l26, u32 *count)
+{
+	unsigned int reg;
+	int ret;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "EVENT_POST_COUNT",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EVENT_HANDLER_ALGO_ID,
+			&reg);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(cs40l26->regmap, reg, count);
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to get event count\n");
+
+	return ret;
 }
 
 static int cs40l26_error_release(struct cs40l26_private *cs40l26,
@@ -662,7 +692,7 @@ static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 irq_reg,
 }
 
 static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
-		enum cs40l26_irq1 irq1)
+		enum cs40l26_irq1 irq1, bool trigger)
 {
 	struct device *dev = cs40l26->dev;
 	u32 err_rls = 0;
@@ -686,10 +716,14 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 	case CS40L26_IRQ1_GPIO4_RISE:
 	/* intentionally fall through */
 	case CS40L26_IRQ1_GPIO4_FALL:
-		if (cs40l26->wksrc_sts & CS40L26_WKSRC_STS_EN)
+		if (cs40l26->wksrc_sts & CS40L26_WKSRC_STS_EN) {
 			dev_dbg(dev, "GPIO%u %s edge detected\n",
 					(irq1 / 2) + 1,
 					irq1 % 2 ? "falling" : "rising");
+			if (trigger)
+				cs40l26_vibe_state_set(cs40l26,
+						CS40L26_VIBE_STATE_HAPTIC);
+		}
 
 		cs40l26->wksrc_sts |= CS40L26_WKSRC_STS_EN;
 		break;
@@ -741,6 +775,9 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 			dev_dbg(dev, "GPIO%u rising edge detected\n",
 					irq1 - 8);
 		}
+		if (trigger)
+			cs40l26_vibe_state_set(cs40l26,
+					CS40L26_VIBE_STATE_HAPTIC);
 		break;
 	case CS40L26_IRQ1_WKSRC_STS_SPI:
 		dev_dbg(dev, "SPI event woke device from hibernate\n");
@@ -958,6 +995,8 @@ static irqreturn_t cs40l26_irq(int irq, void *data)
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
 	unsigned long num_irq;
+	u32 event_count;
+	bool trigger;
 	int ret;
 
 	if (cs40l26_ack_read(cs40l26, CS40L26_IRQ1_STATUS,
@@ -982,12 +1021,17 @@ static irqreturn_t cs40l26_irq(int irq, void *data)
 
 	val = eint & ~mask;
 	if (val) {
-		num_irq = hweight_long(val);
+		ret = cs40l26_event_count_get(cs40l26, &event_count);
+		if (ret)
+			goto err;
 
+		trigger = (event_count > cs40l26->event_count);
+
+		num_irq = hweight_long(val);
 		i = 0;
 		while (irq1_count < num_irq && i < CS40L26_IRQ1_NUM_IRQS) {
 			if (val & BIT(i)) {
-				ret = cs40l26_handle_irq1(cs40l26, i);
+				ret = cs40l26_handle_irq1(cs40l26, i, trigger);
 				if (ret)
 					goto err;
 				else
@@ -1027,6 +1071,8 @@ static irqreturn_t cs40l26_irq(int irq, void *data)
 	}
 
 err:
+	cs40l26_event_count_get(cs40l26, &cs40l26->event_count);
+
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 	/* if an error has occurred, all IRQs have not been successfully
@@ -1270,7 +1316,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 			ktime_set(CS40L26_MS_TO_SECS(duration),
 			CS40L26_MS_TO_NS(duration % 1000)), HRTIMER_MODE_REL);
 
-	cs40l26->vibe_state = CS40L26_VIBE_STATE_HAPTIC;
+	cs40l26_vibe_state_set(cs40l26, CS40L26_VIBE_STATE_HAPTIC);
 
 	switch (cs40l26->effect->u.periodic.waveform) {
 	case FF_CUSTOM:
@@ -1327,7 +1373,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 
 err_mutex:
 	if (ret)
-		cs40l26->vibe_state = CS40L26_VIBE_STATE_STOPPED;
+		cs40l26_vibe_state_set(cs40l26, CS40L26_VIBE_STATE_STOPPED);
 
 	mutex_unlock(&cs40l26->lock);
 	pm_runtime_mark_last_busy(dev);
@@ -1344,19 +1390,18 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	mutex_lock(&cs40l26->lock);
 
 	if (cs40l26->vibe_state == CS40L26_VIBE_STATE_STOPPED)
-		goto err_mutex;
+		goto mutex_exit;
 
 	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 		CS40L26_STOP_PLAYBACK, CS40L26_DSP_MBOX_RESET);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to stop playback\n");
-		goto err_mutex;
+		goto mutex_exit;
 	}
 
-err_mutex:
-	if (cs40l26->vibe_state != CS40L26_VIBE_STATE_STOPPED)
-		cs40l26->vibe_state = CS40L26_VIBE_STATE_STOPPED;
+	cs40l26_vibe_state_set(cs40l26, CS40L26_VIBE_STATE_STOPPED);
 
+mutex_exit:
 	mutex_unlock(&cs40l26->lock);
 	pm_runtime_mark_last_busy(cs40l26->dev);
 	pm_runtime_put_autosuspend(cs40l26->dev);
