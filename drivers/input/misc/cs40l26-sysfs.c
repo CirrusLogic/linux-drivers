@@ -146,11 +146,46 @@ static ssize_t cs40l26_pm_timeout_ms_store(struct device *dev,
 static DEVICE_ATTR(pm_timeout_ms, 0660, cs40l26_pm_timeout_ms_show,
 		cs40l26_pm_timeout_ms_store);
 
+static ssize_t cs40l26_vibe_state_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret = 0;
+	char str[10];
+
+	mutex_lock(&cs40l26->lock);
+
+	switch (cs40l26->vibe_state) {
+	case CS40L26_VIBE_STATE_STOPPED:
+		strncpy(str, "Stopped", 10);
+		break;
+	case CS40L26_VIBE_STATE_HAPTIC:
+		strncpy(str, "Haptic", 10);
+		break;
+	case CS40L26_VIBE_STATE_ASP:
+		strncpy(str, "ASP", 10);
+		break;
+	default:
+		dev_err(cs40l26->dev, "Invalid vibe state: %u\n",
+				cs40l26->vibe_state);
+		ret = -EINVAL;
+	}
+
+	mutex_unlock(&cs40l26->lock);
+
+	if (ret)
+		return ret;
+	else
+		return snprintf(buf, PAGE_SIZE, "Vibe state: %s\n", str);
+}
+static DEVICE_ATTR(vibe_state, 0660, cs40l26_vibe_state_show, NULL);
+
 static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_dsp_state.attr,
 	&dev_attr_halo_heartbeat.attr,
 	&dev_attr_fw_mode.attr,
 	&dev_attr_pm_timeout_ms.attr,
+	&dev_attr_vibe_state.attr,
 	NULL,
 };
 
