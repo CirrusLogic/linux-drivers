@@ -480,8 +480,9 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 
 		switch (val) {
 		case CS40L26_DSP_MBOX_TRIGGER_COMPLETE:
-			cs40l26_vibe_state_set(cs40l26,
-					CS40L26_VIBE_STATE_STOPPED);
+			if (cs40l26->vibe_state != CS40L26_VIBE_STATE_ASP)
+				cs40l26_vibe_state_set(cs40l26,
+						CS40L26_VIBE_STATE_STOPPED);
 			dev_dbg(dev, "Trigger Complete\n");
 			break;
 		case CS40L26_DSP_MBOX_PM_AWAKE:
@@ -511,12 +512,27 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 }
 
 void cs40l26_vibe_state_set(struct cs40l26_private *cs40l26,
-		enum cs40l26_vibe_state vibe_state)
+		enum cs40l26_vibe_state new_state)
 {
-	if (cs40l26->vibe_state != vibe_state) {
-		cs40l26->vibe_state = vibe_state;
-		sysfs_notify(&cs40l26->dev->kobj, NULL, "vibe_state");
+	if (cs40l26->vibe_state == new_state)
+		return;
+
+	if (new_state == CS40L26_VIBE_STATE_STOPPED && cs40l26->asp_enable) {
+		/* Re-enable audio stream */
+		cs40l26_class_h_set(cs40l26, true);
+		if (!cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+				CS40L26_DSP_MBOX_CMD_START_I2S,
+				CS40L26_DSP_MBOX_RESET)) {
+			cs40l26->vibe_state = CS40L26_VIBE_STATE_ASP;
+			return;
+		} else if (new_state == CS40L26_VIBE_STATE_HAPTIC &&
+				cs40l26->vibe_state == CS40L26_VIBE_STATE_ASP) {
+			cs40l26_class_h_set(cs40l26, false);
+		}
 	}
+
+	cs40l26->vibe_state = new_state;
+	sysfs_notify(&cs40l26->dev->kobj, NULL, "vibe_state");
 }
 EXPORT_SYMBOL(cs40l26_vibe_state_set);
 
