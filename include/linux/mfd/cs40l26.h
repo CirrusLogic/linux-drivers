@@ -1173,6 +1173,7 @@ struct cs40l26_private {
 	u16 amp_vol_pcm;
 	u8 last_wksrc_pol;
 	u8 wksrc_sts;
+	u32 event_count;
 };
 
 struct cs40l26_codec {
@@ -1193,6 +1194,8 @@ struct cs40l26_pll_sysclk_config {
 };
 
 /* exported function prototypes */
+void cs40l26_vibe_state_set(struct cs40l26_private *cs40l26,
+		enum cs40l26_vibe_state);
 int cs40l26_class_h_set(struct cs40l26_private *cs40l26, bool class_h);
 int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26,
 		u32 *timeout_ms);
