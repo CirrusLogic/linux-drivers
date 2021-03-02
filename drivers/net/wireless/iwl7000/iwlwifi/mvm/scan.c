@@ -1888,6 +1888,54 @@ iwl_mvm_umac_scan_cfg_channels_v6_6g(struct iwl_mvm_scan_params *params,
 	}
 }
 #endif
+
+static void
+iwl_mvm_umac_scan_cfg_6g_direct_ssids(struct iwl_mvm *mvm,
+				      struct iwl_mvm_scan_params *params,
+				      struct iwl_scan_probe_params_v4 *pp)
+{
+	u8 next_free_idx = pp->short_ssid_num;
+	int i;
+
+	if (!fw_has_capa(&mvm->fw->ucode_capa,
+			 IWL_UCODE_TLV_CAPA_HIDDEN_6GHZ_SCAN)) {
+		IWL_DEBUG_SCAN(mvm,
+			       "6GHz hidden scan: Not supported by FW\n");
+		return;
+	}
+
+	for (i = params->n_ssids - 1; i >= 0; i--) {
+		__le32 short_ssid;
+		u8 ssid_idx, j;
+
+		if (!params->ssids[i].ssid_len)
+			continue;
+
+		short_ssid = cpu_to_le32(~crc32_le(~0, params->ssids[i].ssid,
+						   params->ssids[i].ssid_len));
+
+		for (j = 0; j < pp->short_ssid_num; j++)
+			if (short_ssid == pp->short_ssid[i])
+				break;
+
+		if (j == pp->short_ssid_num)
+			ssid_idx = next_free_idx++;
+		else
+			ssid_idx = j;
+
+		if (ssid_idx >= PROBE_OPTION_MAX)
+			continue;
+
+		pp->direct_scan[ssid_idx].id = WLAN_EID_SSID;
+		pp->direct_scan[ssid_idx].len = params->ssids[i].ssid_len;
+		memcpy(pp->direct_scan[ssid_idx].ssid, params->ssids[i].ssid,
+		       params->ssids[i].ssid_len);
+		pp->short_ssid[ssid_idx] = short_ssid;
+	}
+
+	pp->short_ssid_num = next_free_idx;
+}
+
 #endif
 
 static u8 iwl_mvm_scan_umac_chan_flags_v2(struct iwl_mvm *mvm,
@@ -2439,6 +2487,8 @@ static int iwl_mvm_scan_umac_v14(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 						  &pb->bssid_num);
 	if (ret)
 		return ret;
+
+	iwl_mvm_umac_scan_cfg_6g_direct_ssids(mvm, params, pb);
 
 	iwl_mvm_umac_scan_cfg_channels_v6_6g(params,
 					     params->n_channels,
