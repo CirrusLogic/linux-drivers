@@ -4586,17 +4586,22 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 	iwl_mvm_remove_time_event(mvm, mvmvif, &mvmvif->time_event_data);
 
-	iwl_mvm_remove_time_event(mvm, mvmvif, &mvmvif->time_event_data);
-
 	switch (vif->type) {
 	case NL80211_IFTYPE_ADHOC:
+		iwl_mvm_remove_time_event(mvm, mvmvif,
+					  &mvmvif->time_event_data);
 		goto out;
 	case NL80211_IFTYPE_MONITOR:
+		iwl_mvm_remove_time_event(mvm, mvmvif,
+					  &mvmvif->time_event_data);
 		mvmvif->monitor_active = false;
 		mvmvif->ps_disabled = false;
 		iwl_mvm_rm_snif_sta(mvm, vif);
 		break;
 	case NL80211_IFTYPE_AP:
+		iwl_mvm_remove_time_event(mvm, mvmvif,
+					  &mvmvif->time_event_data);
+
 		/* This part is triggered only during CSA */
 		if (!switching_chanctx || !mvmvif->ap_ibss_active)
 			goto out;
