@@ -2415,17 +2415,20 @@ static int iwl_mvm_scan_umac_v14(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (ret)
 		return ret;
 
-	iwl_mvm_scan_umac_fill_probe_p_v4(params, &scan_p->probe_params,
-					  &bitmap_ssid);
 #ifdef CPTCFG_IWLWIFI_WIFI_6_SUPPORT
 	if (!params->scan_6ghz) {
 #endif
+	iwl_mvm_scan_umac_fill_probe_p_v4(params, &scan_p->probe_params,
+					  &bitmap_ssid);
 	iwl_mvm_scan_umac_fill_ch_p_v6(mvm, params, vif,
 				       &scan_p->channel_params, bitmap_ssid);
 
 	return 0;
 #ifdef CPTCFG_IWLWIFI_WIFI_6_SUPPORT
+	} else {
+		pb->preq = params->preq;
 	}
+
 	cp->flags = iwl_mvm_scan_umac_chan_flags_v2(mvm, params, vif);
 	cp->n_aps_override[0] = IWL_SCAN_ADWELL_N_APS_GO_FRIENDLY;
 	cp->n_aps_override[1] = IWL_SCAN_ADWELL_N_APS_SOCIAL_CHS;
