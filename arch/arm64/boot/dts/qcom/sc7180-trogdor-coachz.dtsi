@@ -58,15 +58,6 @@ ap_ts_pen_1v8: &i2c4 {
 	};
 };
 
-/*
- * There's no SAR sensor, so i2c5 is re-purposed.  We leave the
- * proximity@28 node under i2c5 (from trogdor.dtsi) since it's "disabled"
- * and doesn't hurt.
- */
-i2c_wlc: &i2c5 {
-	/* Currently not connected to anything; see b/168652326 */
-};
-
 &i2c7 {
 	status = "disabled";
 };
