@@ -9,6 +9,6 @@
 #include "sc7180-trogdor-lte-sku.dtsi"
 
 / {
-	model = "Google Trogdor (rev1+) with LTE";
-	compatible = "google,trogdor-sku0", "qcom,sc7180";
+	model = "Google Trogdor (rev1) with LTE";
+	compatible = "google,trogdor-rev1-sku0", "qcom,sc7180";
 };
