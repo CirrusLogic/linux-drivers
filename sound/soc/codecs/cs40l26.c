@@ -130,6 +130,8 @@ static int cs40l26_a2h_ev(struct snd_soc_dapm_widget *w,
 {	struct cs40l26_codec *codec =
 	snd_soc_component_get_drvdata(snd_soc_dapm_to_component(w->dapm));
 	struct cs40l26_private *cs40l26 = codec->core;
+	struct device *dev = cs40l26->dev;
+	const struct firmware *fw;
 	int ret;
 	u32 reg;
 
@@ -140,11 +142,32 @@ static int cs40l26_a2h_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		if (codec->tuning != codec->tuning_prev) {
+			ret = request_firmware(&fw, codec->bin_file, dev);
+			if (ret) {
+				dev_err(codec->dev, "Failed to request %s\n",
+						codec->bin_file);
+				return ret;
+			}
+
+			ret = cl_dsp_coeff_file_parse(cs40l26->dsp, fw);
+			if (ret)
+				return ret;
+			codec->tuning_prev = codec->tuning;
+			release_firmware(fw);
+
+			ret = cs40l26_ack_write(cs40l26,
+					CS40L26_DSP_VIRTUAL1_MBOX_1,
+					CS40L26_DSP_MBOX_CMD_A2H_REINIT,
+					CS40L26_DSP_MBOX_RESET);
+			if (ret)
+				return ret;
+		}
 		return regmap_write(cs40l26->regmap, reg, CS40L26_ENABLE);
 	case SND_SOC_DAPM_PRE_PMD:
 		return regmap_write(cs40l26->regmap, reg, CS40L26_DISABLE);
 	default:
-		dev_err(cs40l26->dev, "Invalid A2H event: %d\n", event);
+		dev_err(dev, "Invalid A2H event: %d\n", event);
 		return -EINVAL;
 	}
 }
@@ -240,6 +263,49 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 
 	return ret;
 }
+
+static int cs40l26_tuning_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct cs40l26_codec *codec =
+	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
+
+	ucontrol->value.enumerated.item[0] = codec->tuning;
+
+	return 0;
+}
+
+static int cs40l26_tuning_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct cs40l26_codec *codec =
+	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
+	struct cs40l26_private *cs40l26 = codec->core;
+
+	if (ucontrol->value.enumerated.item[0] == codec->tuning)
+		return 0;
+
+	if (cs40l26->asp_enable)
+		return -EBUSY;
+
+	codec->tuning = ucontrol->value.enumerated.item[0];
+
+	memset(codec->bin_file, 0, PAGE_SIZE);
+	codec->bin_file[PAGE_SIZE - 1] = '\0';
+
+	if (codec->tuning > 0)
+		snprintf(codec->bin_file, PAGE_SIZE, "cs40l26-a2h%d.bin",
+				codec->tuning);
+	else
+		snprintf(codec->bin_file, PAGE_SIZE, "cs40l26-a2h.bin");
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new cs40l26_controls[] = {
+	SOC_SINGLE_EXT("A2H Tuning", 0, 0, CS40L26_A2H_MAX_TUNINGS, 0,
+			cs40l26_tuning_get, cs40l26_tuning_put),
+};
 
 static const char * const cs40l26_out_mux_texts[] = { "Off", "PCM", "A2H" };
 static SOC_ENUM_SINGLE_VIRT_DECL(cs40l26_out_mux_enum, cs40l26_out_mux_texts);
@@ -465,8 +531,8 @@ static const struct snd_soc_component_driver soc_codec_dev_cs40l26 = {
 	.num_dapm_widgets = ARRAY_SIZE(cs40l26_dapm_widgets),
 	.dapm_routes = cs40l26_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(cs40l26_dapm_routes),
-	.controls = NULL,
-	.num_controls = 0,
+	.controls = cs40l26_controls,
+	.num_controls = ARRAY_SIZE(cs40l26_controls),
 };
 
 static int cs40l26_codec_driver_probe(struct platform_device *pdev)
