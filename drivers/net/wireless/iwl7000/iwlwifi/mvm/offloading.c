@@ -184,7 +184,7 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 			 * common part.
 			 */
 			size -= sizeof(cmd.v4.sta_id);
-			hcmd.data[0] = &common;
+			hcmd.data[0] = common;
 		}
 	} else if (capa_flags & IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS) {
 		common = &cmd.v2.common;
