@@ -21,6 +21,7 @@ properties:
       - qcom,msm8998-rpmpd
       - qcom,qcs404-rpmpd
       - qcom,sc7180-rpmhpd
+      - qcom,sc7280-rpmhpd
       - qcom,sdm845-rpmhpd
       - qcom,sm8150-rpmhpd
       - qcom,sm8250-rpmhpd
