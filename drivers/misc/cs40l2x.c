@@ -1313,8 +1313,6 @@ static ssize_t cs40l2x_cp_trigger_index_impl(struct cs40l2x_private *cs40l2x,
 	unsigned int gpio_index = CS40L2X_GPIO_FALL;
 	unsigned int gpio_slot = cs40l2x->virtual_gpio1_fall_slot;
 
-	pm_runtime_get_sync(cs40l2x->dev);
-
 	if ((index == CS40L2X_INDEX_PBQ_SAVE) ||
 		(index == CS40L2X_INDEX_OVWR_SAVE) ||
 		(index == CS40L2X_INDEX_GP1F_OVWR) ||
@@ -1491,9 +1489,6 @@ err_exit:
 		enable_irq(i2c_client->irq);
 	}
 
-	pm_runtime_mark_last_busy(cs40l2x->dev);
-	pm_runtime_put_autosuspend(cs40l2x->dev);
-
 	return ret;
 }
 
@@ -1509,7 +1504,15 @@ static ssize_t cs40l2x_cp_trigger_index_store(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
+	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
+
 	ret = cs40l2x_cp_trigger_index_impl(cs40l2x, index);
+
+	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
+
 	if (ret)
 		return ret;
 
@@ -1586,7 +1589,20 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 	int ret, l, m, n, f_cnt;
 	int pbq_marker = -1;
 
-	/* This flag must be set before any possible return calls */
+	pbq_str_alloc = kzalloc(count, GFP_KERNEL);
+	if (!pbq_str_alloc)
+		return -ENOMEM;
+
+	pbq_seg_alloc = kzalloc(CS40L2X_PBQ_SEG_LEN_MAX + 1, GFP_KERNEL);
+	if (!pbq_seg_alloc) {
+		kfree(pbq_str_alloc);
+		return -ENOMEM;
+	}
+
+	disable_irq(i2c_client->irq);
+
+	mutex_lock(&cs40l2x->lock);
+
 	cs40l2x->queue_stored = false;
 
 	cs40l2x->comp_dur_en = false;
@@ -1606,22 +1622,9 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 
 	if (!cs40l2x->virtual_stored) {
 		dev_err(dev, "Unsafe condition encountered.\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_mutex;
 	}
-
-	pbq_str_alloc = kzalloc(count, GFP_KERNEL);
-	if (!pbq_str_alloc)
-		return -ENOMEM;
-
-	pbq_seg_alloc = kzalloc(CS40L2X_PBQ_SEG_LEN_MAX + 1, GFP_KERNEL);
-	if (!pbq_seg_alloc) {
-		kfree(pbq_str_alloc);
-		return -ENOMEM;
-	}
-
-	disable_irq(i2c_client->irq);
-
-	mutex_lock(&cs40l2x->lock);
 
 	cs40l2x->pbq_depth = 0;
 	cs40l2x->pbq_repeat = 0;
@@ -2394,18 +2397,6 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 	bool a = false, v = false;
 	int ret;
 
-	/* This flag must be set before any possible return calls */
-	cs40l2x->queue_stored = false;
-
-	if (!cs40l2x->virtual_stored) {
-		dev_err(dev, "Unsafe condition encountered.\n");
-		return -EINVAL;
-	}
-
-	cs40l2x->pwle_num_vb_targs = 0;
-	cs40l2x->pwle_num_segs = 0;
-	cs40l2x->save_pwle = false;
-
 	pwle_str_alloc = kzalloc(count, GFP_KERNEL);
 	if (!pwle_str_alloc)
 		return -ENOMEM;
@@ -2435,6 +2426,18 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 	disable_irq(i2c_client->irq);
 
 	mutex_lock(&cs40l2x->lock);
+
+	cs40l2x->queue_stored = false;
+
+	if (!cs40l2x->virtual_stored) {
+		dev_err(dev, "Unsafe condition encountered.\n");
+		ret = -EINVAL;
+		goto err_exit;
+	}
+
+	cs40l2x->pwle_num_vb_targs = 0;
+	cs40l2x->pwle_num_segs = 0;
+	cs40l2x->save_pwle = false;
 
 	pwle_str = pwle_str_alloc;
 	strlcpy(pwle_str, buf, count);
@@ -2823,7 +2826,9 @@ static ssize_t cs40l2x_available_pwle_segs_show(struct device *dev,
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	unsigned int index;
 
+	mutex_lock(&cs40l2x->lock);
 	index = cs40l2x->display_pwle_segs;
+	mutex_unlock(&cs40l2x->lock);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", index);
 }
@@ -4238,8 +4243,9 @@ static ssize_t cs40l2x_bemf_rec_show(struct device *dev,
 	unsigned int reg, val;
 	int ret, i, size = 0;
 
-
 	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
+
 	reg = cs40l2x_dsp_reg(cs40l2x, "BEMF_BUFFER",
 				CS40L2X_XM_UNPACKED_TYPE,
 				CS40L2X_ALGO_ID_PAR);
@@ -4261,6 +4267,7 @@ static ssize_t cs40l2x_bemf_rec_show(struct device *dev,
 	ret = size;
 
 err_bemf_rec:
+	mutex_unlock(&cs40l2x->lock);
 	pm_runtime_mark_last_busy(cs40l2x->dev);
 	pm_runtime_put_autosuspend(cs40l2x->dev);
 	return ret;
@@ -4281,6 +4288,8 @@ static ssize_t cs40l2x_bemf_rec_en_store(struct device *dev,
 		return -EINVAL;
 
 	pm_runtime_get_sync(dev);
+	mutex_lock(&cs40l2x->lock);
+
 	reg = cs40l2x_dsp_reg(cs40l2x, "MEASURE_BEMF_ONLY",
 				CS40L2X_XM_UNPACKED_TYPE,
 				CS40L2X_ALGO_ID_PAR);
@@ -4297,6 +4306,7 @@ static ssize_t cs40l2x_bemf_rec_en_store(struct device *dev,
 	ret = count;
 
 err_bemf_rec_en:
+	mutex_unlock(&cs40l2x->lock);
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 	return ret;
@@ -4311,6 +4321,8 @@ static ssize_t cs40l2x_bemf_rec_en_show(struct device *dev,
 	int ret;
 
 	pm_runtime_get_sync(dev);
+	mutex_lock(&cs40l2x->lock);
+
 	reg = cs40l2x_dsp_reg(cs40l2x, "MEASURE_BEMF_ONLY",
 				CS40L2X_XM_UNPACKED_TYPE,
 				CS40L2X_ALGO_ID_PAR);
@@ -4327,6 +4339,7 @@ static ssize_t cs40l2x_bemf_rec_en_show(struct device *dev,
 	ret = snprintf(buf, PAGE_SIZE, "%d\n", val);
 
 err_bemf_rec_en:
+	mutex_unlock(&cs40l2x->lock);
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 	return ret;
@@ -4402,7 +4415,7 @@ static ssize_t cs40l2x_dyn_f0_val_store(struct device *dev,
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	struct regmap *regmap = cs40l2x->regmap;
 	unsigned int val, reg;
-	int ret, i, loc = -1, index = cs40l2x->dynamic_f0_index;
+	int ret, i, loc = -1, index;
 
 	ret = kstrtou32(buf, 10, &val);
 	if (ret)
@@ -4413,14 +4426,18 @@ static ssize_t cs40l2x_dyn_f0_val_store(struct device *dev,
 		return -EINVAL;
 	}
 
+	pm_runtime_get_sync(dev);
+	mutex_lock(&cs40l2x->lock);
+
 	reg = cs40l2x_dsp_reg(cs40l2x, "DYN_F0_TABLE", CS40L2X_XM_UNPACKED_TYPE,
 				CS40L2X_ALGO_ID_DYN_F0);
 	if (!reg) {
 		dev_err(dev, "Cannot get the register for the f0 table\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_mutex;
 	}
 
-	mutex_lock(&cs40l2x->lock);
+	index = cs40l2x->dynamic_f0_index;
 
 	for (i = 0; i < CS40l2X_F0_MAX_ENTRIES; i++) {
 		if (!cs40l2x->dynamic_f0[i].changed) {
@@ -4457,6 +4474,8 @@ static ssize_t cs40l2x_dyn_f0_val_store(struct device *dev,
 	ret = count;
 err_mutex:
 	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return ret;
 }
@@ -4465,9 +4484,11 @@ static ssize_t cs40l2x_dyn_f0_val_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-	int ret = 0, i, index = cs40l2x->dynamic_f0_index;
+	int ret = 0, i, index;
 
 	mutex_lock(&cs40l2x->lock);
+
+	index = cs40l2x->dynamic_f0_index;
 
 	for (i = 0; i < CS40l2X_F0_MAX_ENTRIES; i++)
 		if (index == cs40l2x->dynamic_f0[i].index)
@@ -4977,12 +4998,15 @@ static ssize_t cs40l2x_dig_scale_show(struct device *dev,
 	unsigned int dig_scale;
 
 	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
+
 	/*
 	 * this operation is agnostic to the variable firmware ID and may
 	 * therefore be performed without mutex protection
 	 */
 	ret = cs40l2x_dig_scale_get(cs40l2x, &dig_scale);
 
+	mutex_unlock(&cs40l2x->lock);
 	pm_runtime_mark_last_busy(cs40l2x->dev);
 	pm_runtime_put_autosuspend(cs40l2x->dev);
 
@@ -5030,41 +5054,58 @@ err_mutex:
 static int cs40l2x_gpio1_dig_scale_get(struct cs40l2x_private *cs40l2x,
 			unsigned int *dig_scale)
 {
-	unsigned int val;
-	unsigned int reg = cs40l2x_dsp_reg(cs40l2x, "GAIN_CONTROL",
-			CS40L2X_XM_UNPACKED_TYPE, cs40l2x->fw_desc->id);
+	unsigned int val, reg;
 	int ret;
 
-	if (!reg)
-		return -EPERM;
+	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "GAIN_CONTROL",
+			      CS40L2X_XM_UNPACKED_TYPE, cs40l2x->fw_desc->id);
+	if (!reg) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
 
 	ret = regmap_read(cs40l2x->regmap, reg, &val);
 	if (ret)
-		return ret;
+		goto err_mutex;
 
 	*dig_scale = (val & CS40L2X_GAIN_CTRL_GPIO_MASK)
 			>> CS40L2X_GAIN_CTRL_GPIO_SHIFT;
 
-	return 0;
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
+
+	return ret;
 }
 
 static int cs40l2x_gpio1_dig_scale_set(struct cs40l2x_private *cs40l2x,
 			unsigned int dig_scale)
 {
-	unsigned int val;
-	unsigned int reg = cs40l2x_dsp_reg(cs40l2x, "GAIN_CONTROL",
-			CS40L2X_XM_UNPACKED_TYPE, cs40l2x->fw_desc->id);
+	unsigned int val, reg;
 	int ret;
 
-	if (!reg)
-		return -EPERM;
+	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
 
-	if (dig_scale == CS40L2X_DIG_SCALE_RESET)
-		return -EINVAL;
+	reg = cs40l2x_dsp_reg(cs40l2x, "GAIN_CONTROL",
+			      CS40L2X_XM_UNPACKED_TYPE, cs40l2x->fw_desc->id);
+	if (!reg) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
+	if (dig_scale == CS40L2X_DIG_SCALE_RESET) {
+		ret = -EINVAL;
+		goto err_mutex;
+	}
 
 	ret = regmap_read(cs40l2x->regmap, reg, &val);
 	if (ret)
-		return ret;
+		goto err_mutex;
 
 	val &= ~CS40L2X_GAIN_CTRL_GPIO_MASK;
 	val |= CS40L2X_GAIN_CTRL_GPIO_MASK &
@@ -5072,9 +5113,16 @@ static int cs40l2x_gpio1_dig_scale_set(struct cs40l2x_private *cs40l2x,
 
 	ret = regmap_write(cs40l2x->regmap, reg, val);
 	if (ret)
-		return ret;
+		goto err_mutex;
 
-	return cs40l2x_dsp_cache(cs40l2x, reg, val);
+	ret = cs40l2x_dsp_cache(cs40l2x, reg, val);
+
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
+
+	return ret;
 }
 
 static ssize_t cs40l2x_gpio1_dig_scale_show(struct device *dev,
@@ -5138,21 +5186,29 @@ static int cs40l2x_gpio_edge_dig_scale_get(struct cs40l2x_private *cs40l2x,
 			unsigned int gpio_offs, bool gpio_rise)
 {
 	bool gpio_pol = cs40l2x->pdata.gpio_indv_pol & (1 << (gpio_offs >> 2));
-	unsigned int val;
-	unsigned int reg = cs40l2x_dsp_reg(cs40l2x, "GPIO_GAIN",
-			CS40L2X_XM_UNPACKED_TYPE, cs40l2x->fw_desc->id);
+	unsigned int val, reg;
 	int ret;
 
-	if (!reg)
-		return -EPERM;
+	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "GPIO_GAIN",
+			      CS40L2X_XM_UNPACKED_TYPE, cs40l2x->fw_desc->id);
+	if (!reg) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
 	reg += gpio_offs;
 
-	if (!(cs40l2x->gpio_mask & (1 << (gpio_offs >> 2))))
-		return -EPERM;
+	if (!(cs40l2x->gpio_mask & (1 << (gpio_offs >> 2)))) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
 
 	ret = regmap_read(cs40l2x->regmap, reg, &val);
 	if (ret)
-		return ret;
+		goto err_mutex;
 
 	*dig_scale = (val & (gpio_pol ^ gpio_rise ?
 			CS40L2X_GPIO_GAIN_RISE_MASK :
@@ -5161,7 +5217,12 @@ static int cs40l2x_gpio_edge_dig_scale_get(struct cs40l2x_private *cs40l2x,
 					CS40L2X_GPIO_GAIN_RISE_SHIFT :
 					CS40L2X_GPIO_GAIN_FALL_SHIFT);
 
-	return 0;
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
+
+	return ret;
 }
 
 static int cs40l2x_gpio_edge_dig_scale_set(struct cs40l2x_private *cs40l2x,
@@ -5169,25 +5230,35 @@ static int cs40l2x_gpio_edge_dig_scale_set(struct cs40l2x_private *cs40l2x,
 			unsigned int gpio_offs, bool gpio_rise)
 {
 	bool gpio_pol = cs40l2x->pdata.gpio_indv_pol & (1 << (gpio_offs >> 2));
-	unsigned int val;
-	unsigned int reg = cs40l2x_dsp_reg(cs40l2x, "GPIO_GAIN",
-			CS40L2X_XM_UNPACKED_TYPE, cs40l2x->fw_desc->id);
+	unsigned int val, reg;
 	int ret;
 
-	if (!reg)
-		return -EPERM;
+	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "GPIO_GAIN",
+			      CS40L2X_XM_UNPACKED_TYPE, cs40l2x->fw_desc->id);
+	if (!reg) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
 	reg += gpio_offs;
 
-	if (!(cs40l2x->gpio_mask & (1 << (gpio_offs >> 2))))
-		return -EPERM;
+	if (!(cs40l2x->gpio_mask & (1 << (gpio_offs >> 2)))) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
 
 	if (dig_scale == CS40L2X_DIG_SCALE_RESET
-			|| dig_scale > CS40L2X_DIG_SCALE_MAX)
-		return -EINVAL;
+			|| dig_scale > CS40L2X_DIG_SCALE_MAX) {
+		ret = -EINVAL;
+		goto err_mutex;
+	}
 
 	ret = regmap_read(cs40l2x->regmap, reg, &val);
 	if (ret)
-		return ret;
+		goto err_mutex;
 
 	val &= ~(gpio_pol ^ gpio_rise ?
 			CS40L2X_GPIO_GAIN_RISE_MASK :
@@ -5202,9 +5273,16 @@ static int cs40l2x_gpio_edge_dig_scale_set(struct cs40l2x_private *cs40l2x,
 
 	ret = regmap_write(cs40l2x->regmap, reg, val);
 	if (ret)
-		return ret;
+		goto err_mutex;
 
-	return cs40l2x_dsp_cache(cs40l2x, reg, val);
+	ret = cs40l2x_dsp_cache(cs40l2x, reg, val);
+
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
+
+	return ret;
 }
 
 static ssize_t cs40l2x_gpio1_rise_dig_scale_show(struct device *dev,
@@ -6601,6 +6679,7 @@ static ssize_t cs40l2x_par_enable_show(struct device *dev,
 	int ret;
 	unsigned int reg, val;
 
+	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "PWLE_REGULATION_ENABLED",
@@ -6618,6 +6697,8 @@ static ssize_t cs40l2x_par_enable_show(struct device *dev,
 
 err_mutex:
 	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
 
 	return ret;
 }
@@ -6634,6 +6715,7 @@ static ssize_t cs40l2x_par_enable_store(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
+	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "PWLE_REGULATION_ENABLED",
@@ -6657,6 +6739,8 @@ static ssize_t cs40l2x_par_enable_store(struct device *dev,
 
 err_mutex:
 	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
 
 	return ret;
 }
@@ -6668,6 +6752,7 @@ static ssize_t cs40l2x_par_gain_comp_show(struct device *dev,
 	int ret;
 	unsigned int reg, val;
 
+	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "PCM_GAIN_COMPENSATION_ENABLED",
@@ -6685,6 +6770,8 @@ static ssize_t cs40l2x_par_gain_comp_show(struct device *dev,
 
 err_mutex:
 	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
 
 	return ret;
 }
@@ -6701,6 +6788,7 @@ static ssize_t cs40l2x_par_gain_comp_store(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
+	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "PCM_GAIN_COMPENSATION_ENABLED",
@@ -6724,6 +6812,8 @@ static ssize_t cs40l2x_par_gain_comp_store(struct device *dev,
 
 err_mutex:
 	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
 
 	return ret;
 }
@@ -6732,18 +6822,28 @@ static ssize_t cs40l2x_vibe_state_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
 
 	flush_workqueue(cs40l2x->vibe_workqueue);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", cs40l2x->vibe_state);
+	mutex_lock(&cs40l2x->lock);
+	ret = snprintf(buf, PAGE_SIZE, "%u\n", cs40l2x->vibe_state);
+	mutex_unlock(&cs40l2x->lock);
+
+	return ret;
 }
 
 static ssize_t cs40l2x_gpio_event_show(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", cs40l2x->gpio_event);
+	mutex_lock(&cs40l2x->lock);
+	ret = snprintf(buf, PAGE_SIZE, "%u\n", cs40l2x->gpio_event);
+	mutex_unlock(&cs40l2x->lock);
+
+	return ret;
 }
 
 static ssize_t cs40l2x_gpio_event_store(struct device *dev,
@@ -6758,7 +6858,9 @@ static ssize_t cs40l2x_gpio_event_store(struct device *dev,
 	if (ret || val != 0)
 		return -EINVAL;
 
+	mutex_lock(&cs40l2x->lock);
 	cs40l2x_set_gpio_event(cs40l2x, false);
+	mutex_unlock(&cs40l2x->lock);
 
 	return count;
 }
@@ -6767,8 +6869,13 @@ static ssize_t cs40l2x_safe_save_state_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	int ret;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", cs40l2x->safe_save_state);
+	mutex_lock(&cs40l2x->lock);
+	ret = snprintf(buf, PAGE_SIZE, "%u\n", cs40l2x->safe_save_state);
+	mutex_unlock(&cs40l2x->lock);
+
+	return ret;
 }
 
 static ssize_t cs40l2x_max_back_emf_show(struct device *dev,
@@ -6779,6 +6886,7 @@ static ssize_t cs40l2x_max_back_emf_show(struct device *dev,
 	int ret;
 	unsigned int reg, val;
 
+	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "MAXBACKEMF",
@@ -6796,6 +6904,8 @@ static ssize_t cs40l2x_max_back_emf_show(struct device *dev,
 
 err_mutex:
 	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
 
 	return ret;
 }
@@ -6813,6 +6923,7 @@ static ssize_t cs40l2x_max_back_emf_store(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
+	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "MAXBACKEMF",
@@ -6830,6 +6941,8 @@ static ssize_t cs40l2x_max_back_emf_store(struct device *dev,
 
 err_mutex:
 	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
 
 	return ret;
 }
@@ -7191,6 +7304,7 @@ static void cs40l2x_vibe_mode_worker(struct work_struct *work)
 	int ret;
 
 	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
 
 	ret = regmap_read(regmap, cs40l2x_dsp_reg(cs40l2x, "STATUS",
 			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_VIBE), &val);
@@ -7248,6 +7362,7 @@ static void cs40l2x_vibe_mode_worker(struct work_struct *work)
 		goto err_exit;
 
 err_exit:
+	mutex_unlock(&cs40l2x->lock);
 	pm_runtime_mark_last_busy(cs40l2x->dev);
 	pm_runtime_put_autosuspend(cs40l2x->dev);
 }
@@ -7427,6 +7542,7 @@ static void cs40l2x_vibe_pbq_worker(struct work_struct *work)
 	int ret;
 
 	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
 
 	switch (cs40l2x->pbq_state) {
 	case CS40L2X_PBQ_STATE_IDLE:
@@ -7481,6 +7597,7 @@ static void cs40l2x_vibe_pbq_worker(struct work_struct *work)
 		dev_err(dev, "Failed to continue playback queue\n");
 
 err_exit:
+	mutex_unlock(&cs40l2x->lock);
 	pm_runtime_mark_last_busy(cs40l2x->dev);
 	pm_runtime_put_autosuspend(cs40l2x->dev);
 }
@@ -7824,7 +7941,6 @@ static int cs40l2x_cond_classh(struct cs40l2x_private *cs40l2x, int index)
 	int ret = 0;
 	bool disable_classh = false;
 
-
 	if (index < 0 || index >= CS40L2X_MAX_WAVEFORMS)
 		return -EINVAL;
 
@@ -7910,6 +8026,9 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 	int ret, i;
 	unsigned int reg;
 
+	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
+
 #ifdef CONFIG_HAPTICS_CS40L2X_INPUT
 	if (cs40l2x->effect) {
 		i = cs40l2x->trigger_indices[cs40l2x->effect->id];
@@ -7920,12 +8039,10 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 
 	if (!cs40l2x->virtual_stored) {
 		dev_warn(dev, "Unsafe condition encountered.\n");
-		return;
+		goto err_mutex;
 	}
 
 	cs40l2x_set_safe_save_state(cs40l2x, CS40L2X_SAVE_UNSAFE);
-
-	pm_runtime_get_sync(cs40l2x->dev);
 
 	/* handle interruption of special cases */
 	switch (cs40l2x->cp_trailer_index) {
@@ -8226,6 +8343,7 @@ err_relax:
 	}
 
 err_mutex:
+	mutex_unlock(&cs40l2x->lock);
 	pm_runtime_mark_last_busy(cs40l2x->dev);
 	pm_runtime_put_autosuspend(cs40l2x->dev);
 }
@@ -8239,6 +8357,7 @@ static void cs40l2x_vibe_stop_worker(struct work_struct *work)
 	int ret;
 
 	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
 
 	if (!cs40l2x->virtual_stored) {
 		dev_warn(dev, "Unsafe condition encountered.\n");
@@ -8321,6 +8440,7 @@ static void cs40l2x_vibe_stop_worker(struct work_struct *work)
 
 	cs40l2x_set_safe_save_state(cs40l2x, CS40L2X_SAVE_SAFE);
 
+	mutex_unlock(&cs40l2x->lock);
 	pm_runtime_mark_last_busy(cs40l2x->dev);
 	pm_runtime_put_autosuspend(cs40l2x->dev);
 }
@@ -8331,6 +8451,8 @@ static int cs40l2x_playback_effect(struct input_dev *dev, int effect_id, int val
 	struct cs40l2x_private *cs40l2x = input_get_drvdata(dev);
 	struct ff_effect *effect;
 
+	mutex_lock(&cs40l2x->lock);
+
 	effect = &dev->ff->effects[effect_id];
 	if (!effect) {
 		dev_err(cs40l2x->dev, "No such effect\n");
@@ -8338,6 +8460,8 @@ static int cs40l2x_playback_effect(struct input_dev *dev, int effect_id, int val
 	}
 
 	cs40l2x->effect = effect;
+
+	mutex_unlock(&cs40l2x->lock);
 
 	if (val > 0)
 		queue_work(cs40l2x->vibe_workqueue, &cs40l2x->vibe_start_work);
@@ -8388,6 +8512,8 @@ static int cs40l2x_upload_effect(struct input_dev *dev,
 			goto err_free;
 		}
 
+		mutex_lock(&cs40l2x->lock);
+
 		if (raw_custom_data[1] >= cs40l2x->num_waves) {
 			dev_err(cs40l2x->dev, "Index out of bounds\n");
 			ret = -EINVAL;
@@ -8395,6 +8521,8 @@ static int cs40l2x_upload_effect(struct input_dev *dev,
 		}
 
 		cs40l2x->trigger_indices[effect->id] = raw_custom_data[1];
+
+		mutex_unlock(&cs40l2x->lock);
 		break;
 	default:
 		dev_err(cs40l2x->dev, "Effect type 0x%X not supported\n",
@@ -8459,7 +8587,10 @@ static void cs40l2x_vibe_enable(struct timed_output_dev *sdev, int timeout)
 		container_of(sdev, struct cs40l2x_private, timed_dev);
 
 	if (timeout > 0) {
+		mutex_lock(&cs40l2x->lock);
 		cs40l2x->vibe_timeout = timeout;
+		mutex_unlock(&cs40l2x->lock);
+
 		queue_work(cs40l2x->vibe_workqueue, &cs40l2x->vibe_start_work);
 	} else {
 		hrtimer_cancel(&cs40l2x->vibe_timer);
@@ -9947,9 +10078,11 @@ static void cs40l2x_firmware_load(const struct firmware *fw, void *context)
 		return;
 	}
 
+	mutex_lock(&cs40l2x->lock);
+
 	ret = cs40l2x_firmware_parse(cs40l2x, fw);
 	if (ret)
-		return;
+		goto err_mutex;
 
 	for (i = 0; i < cs40l2x->fw_desc->num_coeff_files; i++) {
 		if ((!cs40l2x->dyn_f0_enable) &&
@@ -9969,6 +10102,9 @@ static void cs40l2x_firmware_load(const struct firmware *fw, void *context)
 				cs40l2x->fw_desc->coeff_files[i], dev,
 				GFP_KERNEL, cs40l2x, cs40l2x_coeff_file_load);
 	}
+
+err_mutex:
+	mutex_unlock(&cs40l2x->lock);
 }
 
 static int cs40l2x_firmware_swap(struct cs40l2x_private *cs40l2x,
@@ -11589,6 +11725,7 @@ static irqreturn_t cs40l2x_irq(int irq, void *data)
 	irqreturn_t ret_irq = IRQ_NONE;
 
 	pm_runtime_get_sync(cs40l2x->dev);
+	mutex_lock(&cs40l2x->lock);
 
 	ret = regmap_read(regmap, CS40L2X_DSP1_SCRATCH1, &val);
 	if (ret) {
@@ -11697,6 +11834,7 @@ static irqreturn_t cs40l2x_irq(int irq, void *data)
 		ret_irq = IRQ_HANDLED;
 
 err_exit:
+	mutex_unlock(&cs40l2x->lock);
 	pm_runtime_mark_last_busy(cs40l2x->dev);
 	pm_runtime_put_autosuspend(cs40l2x->dev);
 
