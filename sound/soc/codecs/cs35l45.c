@@ -2760,6 +2760,10 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 
 		flush_work(&cs35l45->dsp_pmd_work);
 
+		regmap_update_bits(cs35l45->regmap, CS35L45_IRQ1_MASK_2,
+				   CS35L45_DSP_VIRT2_MBOX_MASK,
+				   CS35L45_DSP_VIRT2_MBOX_MASK);
+
 		cmd = CSPL_MBOX_CMD_HIBERNATE;
 		regmap_write(cs35l45->regmap, CS35L45_DSP_VIRT1_MBOX_1, cmd);
 
@@ -2807,6 +2811,9 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 				   CS35L45_MEM_RDY_MASK, CS35L45_MEM_RDY_MASK);
 
 		usleep_range(100, 200);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_IRQ1_MASK_2,
+				   CS35L45_DSP_VIRT2_MBOX_MASK, 0);
 
 		cmd = CSPL_MBOX_CMD_OUT_OF_HIBERNATE;
 		ret = cs35l45_set_csplmboxcmd(cs35l45, cmd);
