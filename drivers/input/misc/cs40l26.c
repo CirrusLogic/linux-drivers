@@ -222,12 +222,12 @@ int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26,
 		reg = CS40L26_PM_TIMEOUT_TICKS_STATIC_REG;
 	}
 
-	ret = cs40l26_dsp_read(cs40l26, reg +
+	ret = regmap_read(cs40l26->regmap, reg +
 			CS40L26_PM_STDBY_TIMEOUT_LOWER_OFFSET, &lower_val);
 	if (ret)
 		return ret;
 
-	ret = cs40l26_dsp_read(cs40l26, reg +
+	ret = regmap_read(cs40l26->regmap, reg +
 			CS40L26_PM_STDBY_TIMEOUT_UPPER_OFFSET, &upper_val);
 	if (ret)
 		return ret;
@@ -1358,17 +1358,17 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 
 		freq = CS40L26_MS_TO_HZ(cs40l26->effect->u.periodic.period);
 
-		ret = cs40l26_dsp_write(cs40l26, reg, freq);
+		ret = regmap_write(cs40l26->regmap, reg, freq);
 		if (ret)
 			goto err_mutex;
 
-		ret = cs40l26_dsp_write(cs40l26, reg +
+		ret = regmap_write(cs40l26->regmap, reg +
 				CS40L26_BUZZGEN_LEVEL_OFFSET,
 				CS40L26_BUZZGEN_LEVEL_DEFAULT);
 		if (ret)
 			goto err_mutex;
 
-		ret = cs40l26_dsp_write(cs40l26, reg +
+		ret = regmap_write(cs40l26->regmap, reg +
 				CS40L26_BUZZGEN_DURATION_OFFSET, duration /
 				CS40L26_BUZZGEN_DURATION_DIV_STEP);
 		if (ret)
@@ -1986,7 +1986,7 @@ static int cs40l26_get_num_waves(struct cs40l26_private *cs40l26,
 	if (ret)
 		return ret;
 
-	return cs40l26_dsp_read(cs40l26, reg, num_waves);
+	return regmap_read(cs40l26->regmap, reg, num_waves);
 }
 
 static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
