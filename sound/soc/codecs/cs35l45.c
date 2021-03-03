@@ -51,6 +51,56 @@ struct cs35l45_mixer_cache {
 	unsigned int val;
 };
 
+static int cs35l45_supported_devid(struct cs35l45_private *cs35l45)
+{
+	unsigned int dev_id, rev_id, rel_id, otp_id;
+	int ret = 0;
+
+	ret = regmap_read(cs35l45->regmap, CS35L45_DEVID, &dev_id);
+	if (ret < 0) {
+		dev_err(cs35l45->dev, "Get Device ID failed\n");
+		return ret;
+	}
+
+	ret = regmap_read(cs35l45->regmap, CS35L45_REVID, &rev_id);
+	if (ret < 0) {
+		dev_err(cs35l45->dev, "Get Revision ID failed\n");
+		return ret;
+	}
+
+	ret = regmap_read(cs35l45->regmap, CS35L45_RELID, &rel_id);
+	if (ret < 0) {
+		dev_err(cs35l45->dev, "Get Software ID failed\n");
+		return ret;
+	}
+
+	ret = regmap_read(cs35l45->regmap, CS35L45_OTPID, &otp_id);
+	if (ret < 0) {
+		dev_err(cs35l45->dev, "Get OTP ID failed\n");
+		return ret;
+	}
+
+	switch (dev_id) {
+	case CS35L45_SUPPORTED_ID_35A450:
+		dev_info(cs35l45->dev,
+			 "Cirrus Logic CS35L45: DEVID %02X REVID 0x%02X RELID 0x%02X OTPID 0x%02X.\n",
+			 dev_id, rev_id, rel_id, otp_id);
+		break;
+	case CS35L45_SUPPORTED_ID_35A460:
+		dev_info(cs35l45->dev,
+			 "Cirrus Logic CS35L46: DEVID %02X REVID 0x%02X RELID 0x%02X OTPID 0x%02X.\n",
+			 dev_id, rev_id, rel_id, otp_id);
+		break;
+	default:
+		dev_err(cs35l45->dev,
+			"DEVID %02X not supported. REVID 0x%02X RELID 0x%02X OTPID 0x%02X.\n",
+			dev_id, rev_id, rel_id, otp_id);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static bool cs35l45_is_csplmboxsts_correct(enum cspl_mboxcmd cmd,
 					   enum cspl_mboxstate sts)
 {
@@ -2888,6 +2938,10 @@ static int __cs35l45_initialize(struct cs35l45_private *cs35l45)
 		return ret;
 	}
 
+	ret = cs35l45_supported_devid(cs35l45);
+	if (ret)
+		return ret;
+
 	regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_4,
 		     CS35L45_OTP_BOOT_DONE_STS_MASK | CS35L45_OTP_BUSY_MASK);
 
@@ -2945,25 +2999,12 @@ static int __cs35l45_initialize(struct cs35l45_private *cs35l45)
 int cs35l45_initialize(struct cs35l45_private *cs35l45)
 {
 	struct device *dev = cs35l45->dev;
-	unsigned int dev_id, rev_id;
 	unsigned long irq_pol = IRQF_ONESHOT | IRQF_SHARED;
 	int ret, i, irq;
 
 	ret = __cs35l45_initialize(cs35l45);
 	if (ret < 0) {
 		dev_err(dev, "CS35L45 failed to initialize (%d)\n", ret);
-		return ret;
-	}
-
-	ret = regmap_read(cs35l45->regmap, CS35L45_DEVID, &dev_id);
-	if (ret < 0) {
-		dev_err(dev, "Get Device ID failed\n");
-		return ret;
-	}
-
-	ret = regmap_read(cs35l45->regmap, CS35L45_REVID, &rev_id);
-	if (ret < 0) {
-		dev_err(dev, "Get Revision ID failed\n");
 		return ret;
 	}
 
@@ -2977,10 +3018,6 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 
 	regmap_update_bits(cs35l45->regmap, CS35L45_DSP1_CCM_CORE_CONTROL,
 			   CS35L45_CCM_CORE_EN_MASK, 0);
-
-	dev_info(dev, "Cirrus Logic CS35L45 (%x), Revision: %02X\n", dev_id,
-		 rev_id);
-
 
 	if (cs35l45->irq) {
 		if (cs35l45->pdata.gpio_ctrl2.invert & (~CS35L45_VALID_PDATA))
