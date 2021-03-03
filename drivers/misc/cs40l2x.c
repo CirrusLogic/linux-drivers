@@ -1248,7 +1248,7 @@ static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 }
 
 static int cs40l2x_convert_and_save_comp_data(struct cs40l2x_private *cs40l2x,
-	unsigned int index, bool over_write)
+					      bool over_write)
 {
 	int ret = 0;
 	unsigned int comp_size;
@@ -1343,7 +1343,7 @@ static ssize_t cs40l2x_cp_trigger_index_impl(struct cs40l2x_private *cs40l2x,
 
 	switch (index) {
 	case CS40L2X_INDEX_PBQ_SAVE:
-		ret = cs40l2x_convert_and_save_comp_data(cs40l2x, index, false);
+		ret = cs40l2x_convert_and_save_comp_data(cs40l2x, false);
 		if (ret)
 			dev_err(cs40l2x->dev, "Unable to save virtual waveform.\n");
 		/* After save or save attempt, reset flag */
@@ -1352,8 +1352,7 @@ static ssize_t cs40l2x_cp_trigger_index_impl(struct cs40l2x_private *cs40l2x,
 	case CS40L2X_INDEX_OVWR_SAVE:
 		if (cs40l2x->last_type_entered ==
 			CS40L2X_WT_TYPE_10_COMP_FILE) {
-			ret = cs40l2x_convert_and_save_comp_data(cs40l2x,
-				index, true);
+			ret = cs40l2x_convert_and_save_comp_data(cs40l2x, true);
 			if (ret)
 				dev_err(cs40l2x->dev, "Unable to convert waveform.\n");
 		}
@@ -1373,8 +1372,7 @@ static ssize_t cs40l2x_cp_trigger_index_impl(struct cs40l2x_private *cs40l2x,
 	case CS40L2X_INDEX_GP1F_OVWR:
 		if (cs40l2x->last_type_entered ==
 			CS40L2X_WT_TYPE_10_COMP_FILE) {
-			ret = cs40l2x_convert_and_save_comp_data(cs40l2x,
-				index, true);
+			ret = cs40l2x_convert_and_save_comp_data(cs40l2x, true);
 			if (ret) {
 				dev_err(cs40l2x->dev, "Unable to convert waveform.\n");
 				cs40l2x->queue_stored = false;
