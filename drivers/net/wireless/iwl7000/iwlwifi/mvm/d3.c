@@ -415,7 +415,7 @@ static int iwl_mvm_send_patterns(struct iwl_mvm *mvm,
 	cmd.len[0] = sizeof(*pattern_cmd) +
 		wowlan->n_patterns * sizeof(struct iwl_wowlan_pattern_v2);
 
-	pattern_cmd = kmalloc(cmd.len[0], GFP_KERNEL);
+	pattern_cmd = kzalloc(cmd.len[0], GFP_KERNEL);
 	if (!pattern_cmd)
 		return -ENOMEM;
 
