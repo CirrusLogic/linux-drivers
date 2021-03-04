@@ -12058,7 +12058,7 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 			cs40l2x->fw_desc->fw_file, dev, GFP_KERNEL, cs40l2x,
 			cs40l2x_firmware_load);
 
-	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE, cs40l2x_devs,
+	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO, cs40l2x_devs,
 				ARRAY_SIZE(cs40l2x_devs), NULL, 0, NULL);
 	if (ret) {
 		dev_err(dev, "Cannot register codec component\n");
