@@ -722,8 +722,9 @@ enum pcm_mixers {
 };
 
 enum amp_mode {
-	AMP_MODE_SPK = 0,
-	AMP_MODE_RCV = 1,
+	AMP_MODE_NONE = 0,
+	AMP_MODE_SPK  = 1,
+	AMP_MODE_RCV  = 2,
 };
 
 enum hiber_mode {
