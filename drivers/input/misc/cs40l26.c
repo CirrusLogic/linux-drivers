@@ -112,6 +112,20 @@ int cs40l26_ack_write(struct cs40l26_private *cs40l26, u32 reg, u32 write_val,
 }
 EXPORT_SYMBOL(cs40l26_ack_write);
 
+int cs40l26_class_h_set(struct cs40l26_private *cs40l26, bool class_h)
+{
+	int ret;
+
+	ret = regmap_update_bits(cs40l26->regmap, CS40L26_BLOCK_ENABLES2,
+			CS40L26_CLASS_H_EN_MASK, class_h <<
+			CS40L26_CLASS_H_EN_SHIFT);
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to update CLASS H tracking\n");
+
+	return ret;
+}
+EXPORT_SYMBOL(cs40l26_class_h_set);
+
 int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 {
 	u32 algo_id, reg, dsp_state;
