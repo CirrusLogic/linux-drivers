@@ -425,6 +425,9 @@ static const struct snd_kcontrol_new muxes[] = {
 	SOC_DAPM_ENUM("ASP_TX4 Source", mux_enums[ASP_TX4]),
 };
 
+static const struct snd_kcontrol_new force_en_ctl =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
 static const struct snd_kcontrol_new amp_en_ctl =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
@@ -485,6 +488,7 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("ASP_TX3 Source", SND_SOC_NOPM, 0, 0, &muxes[ASP_TX3]),
 	SND_SOC_DAPM_MUX("ASP_TX4 Source", SND_SOC_NOPM, 0, 0, &muxes[ASP_TX4]),
 
+	SND_SOC_DAPM_SWITCH("Force Enable", SND_SOC_NOPM, 0, 0, &force_en_ctl),
 	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_NOPM, 0, 0, &amp_en_ctl),
 	SND_SOC_DAPM_SWITCH("BBPE Enable", CS35L45_BLOCK_ENABLES2, 13, 0,
 			    &bbpe_en_ctl),
@@ -497,6 +501,7 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 
 	SND_SOC_DAPM_OUTPUT("SPK"),
 	SND_SOC_DAPM_OUTPUT("RCV"),
+	SND_SOC_DAPM_OUTPUT("Bypass"),
 	SND_SOC_DAPM_INPUT("AP"),
 };
 
@@ -570,6 +575,9 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"RCV", NULL, "Exit"},
 
 	{"SPK", NULL, "Exit"},
+
+	{"Force Enable", "Switch", "Exit"},
+	{"Bypass", NULL, "Force Enable"},
 };
 
 static const struct snd_soc_dapm_route cs35l45_asp_routes[] = {
@@ -644,7 +652,7 @@ static SOC_VALUE_ENUM_SINGLE_DECL(gain_enum, CS35L45_AMP_GAIN,
 			CS35L45_AMP_GAIN_PCM_MASK >> CS35L45_AMP_GAIN_PCM_SHIFT,
 			gain_texts, gain_values);
 
-static const char * const amplifier_mode_texts[] = {"SPK", "RCV"};
+static const char * const amplifier_mode_texts[] = {"None", "SPK", "RCV"};
 static SOC_ENUM_SINGLE_DECL(amplifier_mode_enum, SND_SOC_NOPM, 0,
 			    amplifier_mode_texts);
 
@@ -680,8 +688,16 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 			snd_soc_component_get_dapm(component);
 	unsigned int val;
 
-	if (ucontrol->value.integer.value[0] == cs35l45->amplifier_mode)
+	if (ucontrol->value.integer.value[0] == AMP_MODE_NONE) {
+		cs35l45->amplifier_mode = ucontrol->value.integer.value[0];
+
+		snd_soc_component_disable_pin(component, "RCV");
+		snd_soc_component_disable_pin(component, "SPK");
+
+		snd_soc_dapm_sync(dapm);
+
 		return 0;
+	}
 
 	regmap_read(cs35l45->regmap, CS35L45_IRQ1_STS_1, &val);
 	if (val & CS35L45_MSM_GLOBAL_EN_ASSERT_MASK) {
@@ -689,12 +705,12 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
+	if (ucontrol->value.integer.value[0] == cs35l45->amplifier_mode)
+		goto dapm_sync;
+
 	cs35l45->amplifier_mode = ucontrol->value.integer.value[0];
 
 	if (cs35l45->amplifier_mode == AMP_MODE_SPK) {
-		snd_soc_component_enable_pin(component, "SPK");
-		snd_soc_component_disable_pin(component, "RCV");
-
 		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES,
 				   CS35L45_BST_EN_MASK,
 				   CS35L45_BST_ENABLE << CS35L45_BST_EN_SHIFT);
@@ -704,9 +720,6 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 				   CS35L45_HVLV_OPERATION <<
 				   CS35L45_HVLV_MODE_SHIFT);
 	} else  /* AMP_MODE_RCV */ {
-		snd_soc_component_enable_pin(component, "RCV");
-		snd_soc_component_disable_pin(component, "SPK");
-
 		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES,
 				   CS35L45_BST_EN_MASK,
 				   CS35L45_BST_DISABLE_FET_OFF <<
@@ -726,6 +739,12 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 				   CS35L45_AMP_GAIN_PCM_13DBV <<
 				   CS35L45_AMP_GAIN_PCM_SHIFT);
 	}
+
+dapm_sync:
+	if (cs35l45->amplifier_mode == AMP_MODE_SPK)
+		snd_soc_component_enable_pin(component, "SPK");
+	else  /* AMP_MODE_RCV */
+		snd_soc_component_enable_pin(component, "RCV");
 
 	snd_soc_dapm_sync(dapm);
 
@@ -1478,7 +1497,6 @@ static void cs35l45_dai_shutdown(struct snd_pcm_substream *substream,
 		queue_delayed_work(cs35l45->wq, &cs35l45->hb_work,
 					msecs_to_jiffies(2000));
 	}
-
 }
 static const struct snd_soc_dai_ops cs35l45_dai_ops = {
 	.shutdown = cs35l45_dai_shutdown,
@@ -1955,6 +1973,7 @@ static int cs35l45_component_probe(struct snd_soc_component *component)
 	snd_soc_dapm_add_routes(dapm, cs35l45_asp_routes,
 				ARRAY_SIZE(cs35l45_asp_routes));
 
+	snd_soc_component_disable_pin(component, "SPK");
 	snd_soc_component_disable_pin(component, "RCV");
 	snd_soc_component_disable_pin(component, "DSP1 Enable");
 
