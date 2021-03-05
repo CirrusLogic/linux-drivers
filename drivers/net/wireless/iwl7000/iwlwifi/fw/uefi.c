@@ -28,6 +28,8 @@ void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 	unsigned long package_size;
 	int err;
 
+	*len = 0;
+
 	pnvm_efivar = kzalloc(sizeof(*pnvm_efivar), GFP_KERNEL);
 	if (!pnvm_efivar)
 		return ERR_PTR(-ENOMEM);
@@ -46,7 +48,6 @@ void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 	data = kmalloc(package_size, GFP_KERNEL);
 	if (!data) {
 		data = ERR_PTR(-ENOMEM);
-		*len = 0;
 		goto out;
 	}
 
