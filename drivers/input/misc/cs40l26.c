@@ -280,31 +280,27 @@ static int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 	u32 cmd;
 	int ret;
 
+	cmd = (u32) CS40L26_DSP_MBOX_PM_CMD_BASE + state;
+
 	switch (state) {
-	case CS40L26_PM_STATE_HIBERNATE:
-		dev_err(dev, "Invalid PM state: %u\n", state);
-		return -EINVAL;
 	case CS40L26_PM_STATE_WAKEUP:
-		cmd = CS40L26_DSP_MBOX_CMD_WAKEUP;
-		break;
-	case CS40L26_PM_STATE_SHUTDOWN:
-		cmd = CS40L26_DSP_MBOX_CMD_SHUTDOWN;
-		cs40l26->wksrc_sts = 0x00;
-		break;
+	/* intentionally fall through */
 	case CS40L26_PM_STATE_PREVENT_HIBERNATE:
-		cmd = CS40L26_DSP_MBOX_CMD_PREVENT_HIBER;
+		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+				cmd, CS40L26_DSP_MBOX_RESET);
 		break;
 	case CS40L26_PM_STATE_ALLOW_HIBERNATE:
-		cmd = CS40L26_DSP_MBOX_CMD_ALLOW_HIBER;
+	/* intentionally fall through */
+	case CS40L26_PM_STATE_SHUTDOWN:
 		cs40l26->wksrc_sts = 0x00;
+		ret = cs40l26_dsp_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+				cmd);
 		break;
 	default:
-		dev_err(dev, "Unknown PM state: %u\n", state);
+		dev_err(dev, "Invalid PM state: %u\n", state);
 		return -EINVAL;
 	}
 
-	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, cmd,
-			CS40L26_DSP_MBOX_RESET);
 	if (ret)
 		return ret;
 
