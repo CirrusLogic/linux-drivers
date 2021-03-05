@@ -56,6 +56,7 @@ void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 		IWL_DEBUG_FW(trans,
 			     "PNVM UEFI variable not found %d (len %zd)\n",
 			     err, package_size);
+		kfree(data);
 		data = ERR_PTR(err);
 		goto out;
 	}
@@ -103,6 +104,7 @@ void *iwl_uefi_get_reduced_power(struct iwl_trans *trans, size_t *len)
 		IWL_DEBUG_FW(trans,
 			     "Reduced Power UEFI variable not found %d (len %zd)\n",
 			     err, package_size);
+		kfree(data);
 		data = ERR_PTR(err);
 		goto out;
 	}
