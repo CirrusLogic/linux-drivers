@@ -515,12 +515,21 @@ static int cs40l26_codec_probe(struct snd_soc_component *component)
 	dsp1rx_config[1].reg = CS40L26_DSP1RX5_INPUT;
 	dsp1rx_config[1].def = CS40L26_DATA_SRC_ASPRX2;
 
-	ret = regmap_multi_reg_write(codec->regmap, dsp1rx_config, 2);
-	if (ret)
-		dev_err(codec->dev, "Failed to configure ASP path\n");
+	pm_runtime_get_sync(codec->dev);
 
-	return cs40l26_pseq_multi_add_pair(codec->core, dsp1rx_config, 2,
+	ret = regmap_multi_reg_write(codec->regmap, dsp1rx_config, 2);
+	if (ret) {
+		dev_err(codec->dev, "Failed to configure ASP path\n");
+		goto pm_err;
+	}
+
+	ret = cs40l26_pseq_multi_add_pair(codec->core, dsp1rx_config, 2,
 			CS40L26_PSEQ_REPLACE);
+pm_err:
+	pm_runtime_mark_last_busy(codec->dev);
+	pm_runtime_put_autosuspend(codec->dev);
+
+	return ret;
 }
 
 static const struct snd_soc_component_driver soc_codec_dev_cs40l26 = {
