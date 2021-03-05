@@ -322,6 +322,7 @@ parse:
 	kfree(data);
 
 skip_parse:
+	data = NULL;
 	/* now try to get the reduce power table, if not loaded yet */
 	if (!trans->reduce_power_loaded) {
 		data = iwl_uefi_get_reduced_power(trans, &len);
