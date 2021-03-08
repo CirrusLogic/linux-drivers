@@ -2195,11 +2195,11 @@ void iwl_mvm_time_sync_msmt_event(struct iwl_mvm *mvm,
 				le32_to_cpu(msmt_notify->t3_lo));
 
 	if (!t1 || !t4)
-		IWL_WARN(mvm, "TSM CFM: Rx'ed zero timestamps, t1:%llu, t4:%llu\n",
+		IWL_WARN(mvm, "TSM MSMT: Rx'ed zero timestamps, t1:%llu, t4:%llu\n",
 			 t1, t4);
 
 	if (!t2 || !t3)
-		IWL_WARN(mvm, "TSM CFM: Rx'ed zero timestamps, t2:%llu, t3:%llu\n",
+		IWL_WARN(mvm, "TSM MSMT: Rx'ed zero timestamps, t2:%llu, t3:%llu\n",
 			 t2, t3);
 
 	if (nla_put(msg, IWL_MVM_VENDOR_ATTR_ADDR,
@@ -2223,9 +2223,21 @@ void iwl_mvm_time_sync_msmt_event(struct iwl_mvm *mvm,
 		nla_put_u64_64bit(msg, IWL_MVM_VENDOR_ATTR_TIME_SYNC_T3, t3,
 				  IWL_MVM_VENDOR_ATTR_PAD) ||
 		nla_put_u32(msg, IWL_MVM_VENDOR_ATTR_TIME_SYNC_T3_MAX_ERROR,
-			    le32_to_cpu(msmt_notify->t3_max_err)) ||
-		nla_put(msg, IWL_MVM_VENDOR_ATTR_TIME_SYNC_VS_DATA,
-			msmt_notify->ptp.length, msmt_notify->ptp.data)) {
+			    le32_to_cpu(msmt_notify->t3_max_err))) {
+		goto nla_put_failure;
+	}
+
+	if (mvm->time_msmt_cfg == IWL_MVM_VENDOR_TIME_SYNC_PROTOCOL_FTM) {
+		if (nla_put(msg, IWL_MVM_VENDOR_ATTR_TIME_SYNC_VS_DATA,
+			    msmt_notify->ptp.ftm.length, msmt_notify->ptp.ftm.data))
+			goto nla_put_failure;
+	} else if (mvm->time_msmt_cfg == IWL_MVM_VENDOR_TIME_SYNC_PROTOCOL_TM) {
+		if (nla_put(msg, IWL_MVM_VENDOR_ATTR_TIME_SYNC_VS_DATA,
+			    msmt_notify->ptp.tm.length, msmt_notify->ptp.tm.data))
+			goto nla_put_failure;
+	} else {
+		IWL_WARN(mvm, "TSM MSMT: Unknown protocol config saved %d\n",
+			 mvm->time_msmt_cfg);
 		goto nla_put_failure;
 	}
 
@@ -2233,6 +2245,7 @@ void iwl_mvm_time_sync_msmt_event(struct iwl_mvm *mvm,
 	return;
 
 nla_put_failure:
+	IWL_ERR(mvm, "(%d) TSM MSMT: nla_put failed\n", __LINE__);
 	kfree_skb(msg);
 }
 

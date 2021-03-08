@@ -198,10 +198,20 @@ struct iwl_time_msmt_cfm_notify {
  * @data: vendor specific data blob
  */
 struct iwl_time_msmt_ptp_ctx {
-	u8 element_id;
-	u8 length;
-	__le16 reserved;
-	u8 data[PTP_CTX_MAX_DATA_SIZE];
+	/* Differentiate between FTM and TM specific Vendor IEs */
+	union {
+		struct {
+			u8 element_id;
+			u8 length;
+			__le16 reserved;
+			u8 data[PTP_CTX_MAX_DATA_SIZE];
+		} ftm; /* FTM specific vendor IE */
+		struct {
+			u8 element_id;
+			u8 length;
+			u8 data[PTP_CTX_MAX_DATA_SIZE];
+		} tm; /* TM specific vendor IE */
+	};
 } __packed /* PTP_CTX_VER_1 */;
 
 /**
