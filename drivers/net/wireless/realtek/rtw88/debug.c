@@ -901,6 +901,40 @@ static int rtw_debugfs_get_edcca_enable(struct seq_file *m, void *v)
 	return 0;
 }
 
+static ssize_t rtw_debugfs_set_fw_crash(struct file *filp,
+					const char __user *buffer,
+					size_t count, loff_t *loff)
+{
+	struct seq_file *seqpriv = (struct seq_file *)filp->private_data;
+	struct rtw_debugfs_priv *debugfs_priv = seqpriv->private;
+	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
+	char tmp[32 + 1];
+	bool input;
+	int ret;
+
+	rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 1);
+
+	ret = kstrtobool(tmp, &input);
+	if (ret)
+		return -EINVAL;
+
+	if (!input)
+		return -EINVAL;
+
+	rtw_write8(rtwdev, REG_HRCV_MSG, 1);
+
+	return count;
+}
+
+static int rtw_debugfs_get_fw_crash(struct seq_file *m, void *v)
+{
+	struct rtw_debugfs_priv *debugfs_priv = m->private;
+	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
+
+	seq_printf(m, "%d\n", test_bit(RTW_FLAG_RESTARTING, rtwdev->flags));
+	return 0;
+}
+
 static ssize_t rtw_debugfs_set_dm_cap(struct file *filp,
 				      const char __user *buffer,
 				      size_t count, loff_t *loff)
@@ -1091,6 +1125,11 @@ static struct rtw_debugfs_priv rtw_debug_priv_edcca_enable = {
 	.cb_read = rtw_debugfs_get_edcca_enable,
 };
 
+static struct rtw_debugfs_priv rtw_debug_priv_fw_crash = {
+	.cb_write = rtw_debugfs_set_fw_crash,
+	.cb_read = rtw_debugfs_get_fw_crash,
+};
+
 static struct rtw_debugfs_priv rtw_debug_priv_dm_cap = {
 	.cb_write = rtw_debugfs_set_dm_cap,
 	.cb_read = rtw_debugfs_get_dm_cap,
@@ -1171,6 +1210,7 @@ void rtw_debugfs_init(struct rtw_dev *rtwdev)
 	rtw_debugfs_add_r(rf_dump);
 	rtw_debugfs_add_r(tx_pwr_tbl);
 	rtw_debugfs_add_rw(edcca_enable);
+	rtw_debugfs_add_rw(fw_crash);
 	rtw_debugfs_add_rw(dm_cap);
 }
 
