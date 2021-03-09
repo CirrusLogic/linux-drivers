@@ -638,7 +638,7 @@ static void iwl_xvt_nic_config(struct iwl_op_mode *op_mode)
 				       ~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
 }
 
-static void iwl_xvt_nic_error(struct iwl_op_mode *op_mode)
+static void iwl_xvt_nic_error(struct iwl_op_mode *op_mode, bool sync)
 {
 	struct iwl_xvt *xvt = IWL_OP_MODE_GET_XVT(op_mode);
 	void *p_table;
@@ -687,7 +687,7 @@ static void iwl_xvt_nic_error(struct iwl_op_mode *op_mode)
 		kfree(p_table_umac);
 	}
 
-	iwl_fw_error_collect(&xvt->fwrt);
+	iwl_fw_error_collect(&xvt->fwrt, sync);
 }
 
 static bool iwl_xvt_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)

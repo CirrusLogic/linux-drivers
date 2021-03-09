@@ -1783,7 +1783,7 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 	 * can't recover this since we're already half suspended.
 	 */
 	if (!mvm->fw_restart && fw_error) {
-		iwl_fw_error_collect(&mvm->fwrt);
+		iwl_fw_error_collect(&mvm->fwrt, false);
 	} else if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
 		struct iwl_mvm_reprobe *reprobe;
 
@@ -1834,7 +1834,7 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 			}
 		}
 
-		iwl_fw_error_collect(&mvm->fwrt);
+		iwl_fw_error_collect(&mvm->fwrt, false);
 #ifdef CPTCFG_IWLWIFI_DEVICE_TESTMODE
 		iwl_dnt_dispatch_handle_nic_err(mvm->trans);
 #endif
@@ -1845,12 +1845,22 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 	}
 }
 
-static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
+static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode, bool sync)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
 	if (!test_bit(STATUS_TRANS_DEAD, &mvm->trans->status))
 		iwl_mvm_dump_nic_error_log(mvm);
+
+	if (sync) {
+		iwl_fw_error_collect(&mvm->fwrt, true);
+		/*
+		 * Currently, the only case for sync=true is during
+		 * shutdown, so just stop in this case. If/when that
+		 * changes, we need to be a bit smarter here.
+		 */
+		return;
+	}
 
 	/*
 	 * If the firmware crashes while we're already considering it
