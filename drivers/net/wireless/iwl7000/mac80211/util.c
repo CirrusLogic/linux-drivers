@@ -1968,8 +1968,18 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 		pos = ieee80211_ie_build_he_cap(pos, he_cap, end);
 		if (!pos)
 			goto out_err;
+	}
 
-		if (nl80211_is_6ghz(sband->band)) {
+#if CFG80211_VERSION >= KERNEL_VERSION(5,4,0)
+	if (cfg80211_any_usable_channels(local->hw.wiphy,
+					 BIT(NL80211_BAND_6GHZ),
+					 IEEE80211_CHAN_NO_HE)) {
+		struct ieee80211_supported_band *sband6;
+
+		sband6 = local->hw.wiphy->bands[NL80211_BAND_6GHZ];
+		he_cap = ieee80211_get_he_sta_cap(sband6);
+
+		if (he_cap) {
 			enum nl80211_iftype iftype =
 				ieee80211_vif_type_p2p(&sdata->vif);
 			__le16 cap = ieee80211_get_he_6ghz_capa(sband, iftype);
@@ -1977,6 +1987,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 			pos = ieee80211_write_he_6ghz_cap(pos, cap, end);
 		}
 	}
+#endif
 
 	/*
 	 * If adding more here, adjust code in main.c
