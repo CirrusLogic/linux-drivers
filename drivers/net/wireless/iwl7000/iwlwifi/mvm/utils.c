@@ -238,11 +238,6 @@ u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx)
 	return last_idx;
 }
 
-void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
-{
-	iwl_fwrt_dump_error_logs(&mvm->fwrt);
-}
-
 int iwl_mvm_reconfig_scd(struct iwl_mvm *mvm, int queue, int fifo, int sta_id,
 			 int tid, int frame_limit, u16 ssn)
 {
