@@ -1370,7 +1370,7 @@ static int iwl_mvm_vendor_remove_pasn_sta(struct wiphy *wiphy,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct ieee80211_vif *vif = wdev_to_ieee80211_vif(wdev);
 	u8 *addr;
-	int ret;
+	int ret = 0;
 
 	if (!vif)
 		return -ENODEV;
@@ -1385,7 +1385,10 @@ static int iwl_mvm_vendor_remove_pasn_sta(struct wiphy *wiphy,
 	addr = nla_data(tb[IWL_MVM_VENDOR_ATTR_ADDR]);
 
 	mutex_lock(&mvm->mutex);
-	ret = iwl_mvm_ftm_resp_remove_pasn_sta(mvm, vif, addr);
+	if (vif->bss_conf.ftm_responder)
+		ret = iwl_mvm_ftm_resp_remove_pasn_sta(mvm, vif, addr);
+	else
+		iwl_mvm_ftm_remove_pasn_sta(mvm, addr);
 	mutex_unlock(&mvm->mutex);
 	return ret;
 }
