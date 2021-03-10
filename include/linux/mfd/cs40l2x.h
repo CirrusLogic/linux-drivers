@@ -1160,6 +1160,9 @@ struct cs40l2x_private {
 	unsigned int q_measured;
 	unsigned int bemf_measured;
 
+	struct wt_wavetable wt_xm;
+	struct wt_wavetable wt_ym;
+
 	struct wt_type10_comp pbq_comp;
 	unsigned int pbq_index;
 	unsigned int pbq_state;
