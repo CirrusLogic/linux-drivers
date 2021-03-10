@@ -302,6 +302,41 @@ static int cs40l2x_write_pwle(struct cs40l2x_private *cs40l2x, void *buf,
 	return dspmem_chunk_bytes(&ch);
 }
 
+static int cs40l2x_read_wavetable(struct cs40l2x_private *cs40l2x, void *buf,
+				  int size, struct wt_wavetable *table)
+{
+	struct dspmem_chunk ch = dspmem_chunk(buf, size);
+	struct wt_entry *entry = table->waves;
+	u32 *data = buf, *max = buf;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(table->waves); i++, entry++) {
+		entry->flags = dspmem_chunk_read(&ch, 16);
+		entry->type = dspmem_chunk_read(&ch, 8);
+
+		if (entry->type == WT_TYPE_TERMINATOR) {
+			table->nwaves = i;
+			table->bytes = max(dspmem_chunk_bytes(&ch),
+					   (void *)max - buf);
+
+			return table->bytes;
+		}
+
+		entry->index = dspmem_chunk_read(&ch, 24);
+		entry->size = dspmem_chunk_read(&ch, 24);
+		entry->data = data + entry->index;
+
+		if (data + entry->index + entry->size > max) {
+			max = data + entry->index + entry->size;
+
+			if (!dspmem_chunk_valid_addr(&ch, max))
+				return -EINVAL;
+		}
+	}
+
+	return -E2BIG;
+}
+
 static void cs40l2x_set_state(struct cs40l2x_private *cs40l2x, bool state)
 {
 	if (cs40l2x->vibe_state != state) {
@@ -9134,6 +9169,10 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 						memcpy(cs40l2x->pbq_fw_raw_wt,
 							&fw->data[0],
 							fw->size);
+						ret = cs40l2x_read_wavetable(cs40l2x,
+								(void *)&cs40l2x->pbq_fw_raw_wt[pos],
+								block_length,
+								&cs40l2x->wt_xm);
 					}
 				}
 			}
@@ -9164,6 +9203,10 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 					if (wt_found) {
 						cs40l2x_set_ym(cs40l2x, pos,
 							reg, block_length);
+						ret = cs40l2x_read_wavetable(cs40l2x,
+								(void *)&cs40l2x->pbq_fw_raw_wt[pos],
+								block_length,
+								&cs40l2x->wt_ym);
 					}
 				}
 			}
@@ -11289,6 +11332,11 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 
 	cs40l2x->dyn_f0_enable = !pdata->dyn_f0_disable;
 	cs40l2x->open_wt_enable = !pdata->open_wt_disable;
+
+	cs40l2x->wt_xm.waves[0].type = WT_TYPE_TERMINATOR;
+	cs40l2x->wt_xm.waves[0].flags = WT_FLAG_TERMINATOR;
+	cs40l2x->wt_ym.waves[0].type = WT_TYPE_TERMINATOR;
+	cs40l2x->wt_ym.waves[0].flags = WT_FLAG_TERMINATOR;
 
 	strlcpy(cs40l2x->wt_file,
 			CS40L2X_WT_FILE_NAME_MISSING,
