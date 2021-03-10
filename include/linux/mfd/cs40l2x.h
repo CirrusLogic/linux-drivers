@@ -566,7 +566,6 @@
 #define CS40L2X_WT_COMP_REPEAT_INDX		1
 #define CS40L2X_WT_COMP_NUMWVS_SIZE		1
 #define CS40L2X_WT_COMP_NUMWVS_INDX		2
-#define CS40L2X_WT_WORD_SIZE			3
 #define CS40L2X_WT_ZERO_PAD_SIZE		1
 #define CS40L2X_WT_TOTAL_WORD_SIZE		4
 #define CS40L2X_WT_COMP_LEGACY_DTLS		8
@@ -584,7 +583,6 @@
 #define CS40L2X_WT_DATE_HDR_BYTES		16
 #define CS40L2X_WT_TERMINATOR_BYTES		4
 #define CS40L2X_WT_PRE_HDR_COMMON		12
-#define CS40L2X_WT_ZERO				0
 #define CS40L2X_WT_YM_PRE_HDR_VAL		6
 #define CS40L2X_WT_TERMINATOR_BYTE		255
 #define CS40L2X_WT_TERMINATOR			0x00FFFFFF
@@ -1108,19 +1106,11 @@ struct cs40l2x_private {
 	unsigned int ym_hdr_strt_reg;
 	unsigned int wt_xm_header_end_pos;
 	unsigned int wt_ym_header_end_pos;
-	unsigned int wt_xm_header_last_offset;
-	unsigned int wt_ym_header_last_offset;
-	unsigned int wt_xm_header_last_size;
-	unsigned int wt_ym_header_last_size;
 	unsigned int comp_bytes;
-	unsigned int *updated_offsets;
-	unsigned int updated_offsets_size;
 	unsigned int updated_block_size;
 	unsigned int pwle_str_size;
 	char *pbq_fw_raw_wt;
 	char *pbq_updated_fw_raw_wt;
-	char two_bytes[CS40L2X_SIZE_TWO_ARRAY];
-	char three_bytes[CS40L2X_WT_WORD_SIZE];
 	bool open_wt_enable;
 	bool virtual_stored;
 	bool queue_stored;
