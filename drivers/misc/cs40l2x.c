@@ -337,6 +337,38 @@ static int cs40l2x_read_wavetable(struct cs40l2x_private *cs40l2x, void *buf,
 	return -E2BIG;
 }
 
+static inline struct wt_entry *
+	cs40l2x_get_wave(struct cs40l2x_private *cs40l2x, int index)
+{
+	if (index < cs40l2x->wt_xm.nwaves)
+		return &cs40l2x->wt_xm.waves[index];
+	else
+		return &cs40l2x->wt_ym.waves[index - cs40l2x->wt_xm.nwaves];
+}
+
+static int cs40l2x_get_wlength(struct cs40l2x_private *cs40l2x, int index)
+{
+	struct wt_entry *entry = cs40l2x_get_wave(cs40l2x, index);
+	struct dspmem_chunk ch;
+
+	switch (entry->type) {
+	case WT_TYPE_V6_PCM_F0_REDC:
+	case WT_TYPE_V6_PCM_F0_REDC_VAR:
+	case WT_TYPE_V6_PWLE:
+		break;
+	case WT_TYPE_V6_COMPOSITE:
+		dev_err(cs40l2x->dev, "Nested composites not allowed\n");
+		return -EINVAL;
+	default:
+		dev_err(cs40l2x->dev, "Can't size waveform: %x\n", entry->type);
+		return -EINVAL;
+	}
+
+	ch = dspmem_chunk(entry->data, sizeof(u32));
+
+	return dspmem_chunk_read(&ch, 24);
+}
+
 static void cs40l2x_set_state(struct cs40l2x_private *cs40l2x, bool state)
 {
 	if (cs40l2x->vibe_state != state) {
@@ -411,11 +443,9 @@ static void cs40l2x_set_ym_data(struct cs40l2x_private *cs40l2x)
 
 static int cs40l2x_create_wvfrm_len_type_pairs(struct cs40l2x_private *cs40l2x)
 {
-	unsigned int wt_file_type;
 	unsigned int wt_offset = 0;
 	unsigned int wt_length = 0;
 	unsigned int waveform_length;
-	unsigned int cleared_extra_bits;
 	unsigned int pos, offset_pos;
 	int i, wt_entry_words;
 	int count = 0;
@@ -428,20 +458,10 @@ static int cs40l2x_create_wvfrm_len_type_pairs(struct cs40l2x_private *cs40l2x)
 	if (cs40l2x->create_ym)
 		cs40l2x_set_ym_data(cs40l2x);
 
-	memset(&cs40l2x->wvfrm_lengths[0], 0,
-		cs40l2x->wvfrm_lengths_size);
-
 	cs40l2x->updated_offsets_size = cs40l2x->num_waves;
 
 	pos = cs40l2x->xm_hdr_strt_pos;
 	for (i = 0; i < cs40l2x->wt_xm.nwaves; i++) {
-		wt_file_type = (cs40l2x->pbq_fw_raw_wt[pos] << 24)
-			+ (cs40l2x->pbq_fw_raw_wt[pos + 1] << 16)
-			+ (cs40l2x->pbq_fw_raw_wt[pos + 2] << 8)
-			+ (cs40l2x->pbq_fw_raw_wt[pos + 3]);
-		cleared_extra_bits = (wt_file_type & CS40L2X_WT_CLR_EX_TYPE);
-		cs40l2x->wvfrm_lengths[count] = cleared_extra_bits;
-
 		pos += 4;
 		wt_offset = (cs40l2x->pbq_fw_raw_wt[pos] << 24)
 			+ (cs40l2x->pbq_fw_raw_wt[pos + 1] << 16)
@@ -467,7 +487,6 @@ static int cs40l2x_create_wvfrm_len_type_pairs(struct cs40l2x_private *cs40l2x)
 			+ (cs40l2x->pbq_fw_raw_wt[offset_pos + 1] << 16)
 			+ (cs40l2x->pbq_fw_raw_wt[offset_pos + 2] << 8)
 			+ (cs40l2x->pbq_fw_raw_wt[offset_pos + 3]);
-		cs40l2x->wvfrm_lengths[count + 1] = waveform_length;
 		count = count + 2;
 		pos += 4;
 	}
@@ -480,14 +499,6 @@ static int cs40l2x_create_wvfrm_len_type_pairs(struct cs40l2x_private *cs40l2x)
 		for (i = cs40l2x->wt_xm.nwaves;
 			i < (cs40l2x->wt_xm.nwaves +
 				cs40l2x->wt_ym.nwaves); i++) {
-			wt_file_type = (cs40l2x->pbq_fw_raw_wt[pos] << 24)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 1] << 16)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 2] << 8)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 3]);
-			cleared_extra_bits =
-				(wt_file_type & CS40L2X_WT_CLR_EX_TYPE);
-			cs40l2x->wvfrm_lengths[count] = cleared_extra_bits;
-
 			pos += 4;
 			wt_offset = (cs40l2x->pbq_fw_raw_wt[pos] << 24)
 				+ (cs40l2x->pbq_fw_raw_wt[pos + 1] << 16)
@@ -514,7 +525,6 @@ static int cs40l2x_create_wvfrm_len_type_pairs(struct cs40l2x_private *cs40l2x)
 				+ (cs40l2x->pbq_fw_raw_wt[offset_pos + 1] << 16)
 				+ (cs40l2x->pbq_fw_raw_wt[offset_pos + 2] << 8)
 				+ (cs40l2x->pbq_fw_raw_wt[offset_pos + 3]);
-			cs40l2x->wvfrm_lengths[count + 1] = waveform_length;
 			count = count + 2;
 			pos += 4;
 		}
@@ -1109,8 +1119,6 @@ static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 		(((cs40l2x->comp_bytes / CS40L2X_WT_NUM_VIRT_SLOTS) -
 		CS40L2X_PWLE_NON_SEG_BYTES) / CS40L2X_PWLE_MAX_SEG_BYTES);
 
-	cs40l2x->wvfrm_lengths_size = (cs40l2x->num_waves * 2);
-
 	ret = cs40l2x_create_wvfrm_len_type_pairs(cs40l2x);
 	if (ret)
 		return ret;
@@ -1446,21 +1454,12 @@ static int cs40l2x_comp_finalise_section(struct cs40l2x_private *cs40l2x)
 {
 	struct wt_type10_comp *comp = &cs40l2x->pbq_comp;
 	struct wt_type10_comp_section *sec = &comp->sections[comp->nsections];
-	unsigned int lindex = sec->index * 2;
 	int slen = 0;
 
 	if (sec->index) {
-		switch (cs40l2x->wvfrm_lengths[lindex]) {
-		case CS40L2X_WT_TYPE_8_PCM_FILE:
-		case CS40L2X_WT_TYPE_9_VAR_FILE:
-		case CS40L2X_WT_TYPE_12_PWLE_FILE:
-			break;
-		default:
-			dev_err(cs40l2x->dev, "Invalid PBQ waveform\n");
-			return -EINVAL;
-		}
-
-		slen = cs40l2x->wvfrm_lengths[lindex + 1];
+		slen = cs40l2x_get_wlength(cs40l2x, sec->index);
+		if (slen < 0)
+			return slen;
 
 		if (slen & WT_WAVELEN_INDEFINITE) {
 			if (!(sec->flags & WT_T10_FLAG_DURATION)) {
@@ -11301,12 +11300,6 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	cs40l2x->pbq_updated_fw_raw_wt = devm_kzalloc(dev,
 		CS40L2X_WT_MAX_BIN_SIZE, GFP_KERNEL);
 	if (!cs40l2x->pbq_updated_fw_raw_wt)
-		return -ENOMEM;
-
-	cs40l2x->wvfrm_lengths = devm_kzalloc(dev,
-		(CS40L2X_OWT_CALC_SIZE * sizeof(unsigned int)),
-		GFP_KERNEL);
-	if (!cs40l2x->wvfrm_lengths)
 		return -ENOMEM;
 
 	cs40l2x->pbq_fw_raw_wt = devm_kzalloc(dev,
