@@ -567,7 +567,6 @@
 #define CS40L2X_WT_COMP_NUMWVS_SIZE		1
 #define CS40L2X_WT_COMP_NUMWVS_INDX		2
 #define CS40L2X_WT_ZERO_PAD_SIZE		1
-#define CS40L2X_WT_TOTAL_WORD_SIZE		4
 #define CS40L2X_WT_COMP_LEGACY_DTLS		8
 #define CS40L2X_WT_COMP_WV_DTLS			12
 #define CS40L2X_WT_COMP_FIRST_REPEAT		255
@@ -579,9 +578,7 @@
 #define CS40L2X_WT_TYPE_11_Q_FILE		11
 #define CS40L2X_WT_TYPE_12_PWLE_FILE		12
 #define CS40L2X_WT_YM_SECTION_HEADER		6
-#define CS40L2X_WT_YM_PRE_HDR_BYTES		16
 #define CS40L2X_WT_DATE_HDR_BYTES		16
-#define CS40L2X_WT_TERMINATOR_BYTES		4
 #define CS40L2X_WT_PRE_HDR_COMMON		12
 #define CS40L2X_WT_YM_PRE_HDR_VAL		6
 #define CS40L2X_WT_TERMINATOR_BYTE		255
@@ -1097,15 +1094,6 @@ struct cs40l2x_private {
 	unsigned int num_waves;
 	unsigned int num_virtual_waves;
 	unsigned int loaded_virtual_index;
-	unsigned int wt_xm_size;
-	unsigned int wt_ym_size;
-	unsigned int wt_total_size;
-	unsigned int xm_hdr_strt_pos;
-	unsigned int ym_hdr_strt_pos;
-	unsigned int xm_hdr_strt_reg;
-	unsigned int ym_hdr_strt_reg;
-	unsigned int wt_xm_header_end_pos;
-	unsigned int wt_ym_header_end_pos;
 	unsigned int comp_bytes;
 	unsigned int updated_block_size;
 	unsigned int pwle_str_size;
