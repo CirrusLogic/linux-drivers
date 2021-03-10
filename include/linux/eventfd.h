@@ -26,8 +26,14 @@
 #define EFD_CLOEXEC O_CLOEXEC
 #define EFD_NONBLOCK O_NONBLOCK
 
+/*
+ * We intentionally use the value of O_NOFOLLOW for EFD_ZERO_ON_WAKE
+ * because O_NOFOLLOW would have no meaning with an eventfd.
+ */
+#define EFD_ZERO_ON_WAKE O_NOFOLLOW
+
 #define EFD_SHARED_FCNTL_FLAGS (O_CLOEXEC | O_NONBLOCK)
-#define EFD_FLAGS_SET (EFD_SHARED_FCNTL_FLAGS | EFD_SEMAPHORE)
+#define EFD_FLAGS_SET (EFD_SHARED_FCNTL_FLAGS | EFD_SEMAPHORE | EFD_ZERO_ON_WAKE)
 
 struct eventfd_ctx;
 struct file;
