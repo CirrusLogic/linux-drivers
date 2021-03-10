@@ -434,7 +434,7 @@ static int cs40l2x_create_wvfrm_len_type_pairs(struct cs40l2x_private *cs40l2x)
 	cs40l2x->updated_offsets_size = cs40l2x->num_waves;
 
 	pos = cs40l2x->xm_hdr_strt_pos;
-	for (i = 0; i < cs40l2x->num_xm_wavs; i++) {
+	for (i = 0; i < cs40l2x->wt_xm.nwaves; i++) {
 		wt_file_type = (cs40l2x->pbq_fw_raw_wt[pos] << 24)
 			+ (cs40l2x->pbq_fw_raw_wt[pos + 1] << 16)
 			+ (cs40l2x->pbq_fw_raw_wt[pos + 2] << 8)
@@ -475,11 +475,11 @@ static int cs40l2x_create_wvfrm_len_type_pairs(struct cs40l2x_private *cs40l2x)
 	cs40l2x->wt_xm_header_last_offset = wt_offset;
 	cs40l2x->wt_xm_header_last_size = wt_length;
 
-	if (cs40l2x->num_ym_wavs > 0) {
+	if (cs40l2x->wt_ym.nwaves > 0) {
 		pos = cs40l2x->ym_hdr_strt_pos;
-		for (i = cs40l2x->num_xm_wavs;
-			i < (cs40l2x->num_xm_wavs +
-				cs40l2x->num_ym_wavs); i++) {
+		for (i = cs40l2x->wt_xm.nwaves;
+			i < (cs40l2x->wt_xm.nwaves +
+				cs40l2x->wt_ym.nwaves); i++) {
 			wt_file_type = (cs40l2x->pbq_fw_raw_wt[pos] << 24)
 				+ (cs40l2x->pbq_fw_raw_wt[pos + 1] << 16)
 				+ (cs40l2x->pbq_fw_raw_wt[pos + 2] << 8)
@@ -634,16 +634,16 @@ static void cs40l2x_update_wt_header_offsets(struct cs40l2x_private *cs40l2x,
 	wt_offset = cs40l2x->three_bytes;
 
 	if (is_xm)
-		num_wavs = cs40l2x->num_xm_wavs;
+		num_wavs = cs40l2x->wt_xm.nwaves;
 	else
-		num_wavs = cs40l2x->num_ym_wavs;
+		num_wavs = cs40l2x->wt_ym.nwaves;
 
 	for (i = 0; i < num_wavs; i++) {
 		pos += 4;
 		offset = cs40l2x->updated_offsets[i];
 		if (!is_xm) {
 			offset =
-			cs40l2x->updated_offsets[i + cs40l2x->num_xm_wavs];
+			cs40l2x->updated_offsets[i + cs40l2x->wt_xm.nwaves];
 		}
 		wt_offset[0] = 0;
 		wt_offset[1] = 0;
@@ -665,11 +665,11 @@ static int cs40l2x_create_wt_header(struct cs40l2x_private *cs40l2x,
 	unsigned int header_length;
 
 	if (is_xm) {
-		header_length = (cs40l2x->num_xm_wavs *
+		header_length = (cs40l2x->wt_xm.nwaves *
 			CS40L2X_WT_HEADER_ENTRY_SIZE);
 		start_pos = cs40l2x->xm_hdr_strt_pos;
 	} else {
-		header_length = (cs40l2x->num_ym_wavs *
+		header_length = (cs40l2x->wt_ym.nwaves *
 			CS40L2X_WT_HEADER_ENTRY_SIZE);
 		start_pos = cs40l2x->ym_hdr_strt_pos;
 	}
@@ -1067,56 +1067,6 @@ static void cs40l2x_save_waveform_to_ovwr_struct(
 		raw_waveform_size);
 }
 
-static void cs40l2x_calc_num_waves(struct cs40l2x_private *cs40l2x)
-{
-	unsigned int wt_file_type;
-	unsigned int block_length;
-	unsigned int pos;
-	int i;
-
-	cs40l2x->num_xm_wavs = 0;
-	cs40l2x->num_ym_wavs = 0;
-
-	if (cs40l2x->xm_hdr_strt_pos > 0) {
-		block_length = cs40l2x->wt_xm_size -
-			cs40l2x->xm_hdr_strt_pos;
-		pos = cs40l2x->xm_hdr_strt_pos;
-		for (i = 0; i < block_length - CS40L2X_WT_HEADER_ENTRY_SIZE;
-			i += CS40L2X_WT_HEADER_ENTRY_SIZE) {
-			wt_file_type = (cs40l2x->pbq_fw_raw_wt[pos] << 24)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 1] << 16)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 2] << 8)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 3]);
-			if (wt_file_type != CS40L2X_WT_TERMINATOR)
-				cs40l2x->num_xm_wavs++;
-			else
-				break;
-			pos += CS40L2X_WT_HEADER_ENTRY_SIZE;
-		}
-	}
-
-	if (cs40l2x->ym_hdr_strt_pos > 0) {
-		block_length = cs40l2x->wt_ym_size -
-			(cs40l2x->ym_hdr_strt_pos -
-				cs40l2x->wt_xm_size);
-		pos = cs40l2x->ym_hdr_strt_pos;
-		for (i = 0; i < block_length - CS40L2X_WT_HEADER_ENTRY_SIZE;
-			i += CS40L2X_WT_HEADER_ENTRY_SIZE) {
-			wt_file_type = (cs40l2x->pbq_fw_raw_wt[pos] << 24)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 1] << 16)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 2] << 8)
-				+ (cs40l2x->pbq_fw_raw_wt[pos + 3]);
-			if (wt_file_type != CS40L2X_WT_TERMINATOR)
-				cs40l2x->num_ym_wavs++;
-			else
-				break;
-			pos += CS40L2X_WT_HEADER_ENTRY_SIZE;
-		}
-	}
-
-	cs40l2x->num_waves = cs40l2x->num_xm_wavs + cs40l2x->num_ym_wavs;
-}
-
 static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 	unsigned int *is_xm)
 {
@@ -1142,7 +1092,7 @@ static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 		"Total size of all virtual slots: %d bytes\n",
 		wt_open_bytes);
 
-	cs40l2x_calc_num_waves(cs40l2x);
+	cs40l2x->num_waves = cs40l2x->wt_xm.nwaves + cs40l2x->wt_ym.nwaves;
 
 	cs40l2x->virtual_slot_index = ((cs40l2x->num_waves +
 		CS40L2X_WT_NUM_VIRT_SLOTS) - 1);
