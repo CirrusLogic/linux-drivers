@@ -582,7 +582,6 @@
 #define CS40L2X_WT_YM_SECTION_HEADER		6
 #define CS40L2X_WT_YM_PRE_HDR_BYTES		16
 #define CS40L2X_WT_DATE_HDR_BYTES		16
-#define CS40L2X_WT_YM_EMPTY_SIZE		4
 #define CS40L2X_WT_TERMINATOR_BYTES		4
 #define CS40L2X_WT_PRE_HDR_COMMON		12
 #define CS40L2X_WT_ZERO				0
@@ -1101,13 +1100,9 @@ struct cs40l2x_private {
 	unsigned int num_waves;
 	unsigned int num_virtual_waves;
 	unsigned int loaded_virtual_index;
-	unsigned int wt_limit_xm;
-	unsigned int wt_limit_ym;
 	unsigned int wt_xm_size;
 	unsigned int wt_ym_size;
 	unsigned int wt_total_size;
-	unsigned int wt_open_xm;
-	unsigned int wt_open_ym;
 	unsigned int xm_hdr_strt_pos;
 	unsigned int ym_hdr_strt_pos;
 	unsigned int xm_hdr_strt_reg;

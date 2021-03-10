@@ -363,33 +363,33 @@ static void cs40l2x_set_safe_save_state(struct cs40l2x_private *cs40l2x,
 }
 
 static int cs40l2x_check_wt_open_space(struct cs40l2x_private *cs40l2x,
-	unsigned int size)
+				       unsigned int size)
 {
-	unsigned int default_empty_ym_size = (cs40l2x->wt_limit_ym -
-		CS40L2X_WT_YM_EMPTY_SIZE);
-
 	/* If YM exists, must add to end of YM to keep index order */
-	if (cs40l2x->wt_open_ym < default_empty_ym_size) {
-		if (size <= cs40l2x->wt_open_ym) {
-			/* Add to end of existing YM */
-			cs40l2x->create_ym = false;
-			cs40l2x->xm_append = false;
-			return 0;
-		}
-		/* YM exists, requested size too big */
-		if (size > cs40l2x->wt_open_ym)
+	if (cs40l2x->wt_ym.nwaves) {
+		if (size > wt_get_space(&cs40l2x->wt_ym))
 			return -ENOSPC;
+
+		/* Add to end of existing YM */
+		cs40l2x->create_ym = false;
+		cs40l2x->xm_append = false;
+
+		return 0;
 	}
-	if (size <=	cs40l2x->wt_open_xm) {
+
+	if (size <= wt_get_space(&cs40l2x->wt_xm)) {
 		/* Add to end of existing XM */
 		cs40l2x->create_ym = false;
 		cs40l2x->xm_append = true;
+
 		return 0;
 	}
-	if (size > cs40l2x->wt_open_xm) {
+
+	if (size <= wt_get_space(&cs40l2x->wt_ym)) {
 		/* Create YM section and add to YM */
 		cs40l2x->create_ym = true;
 		cs40l2x->xm_append = false;
+
 		return 0;
 	}
 
@@ -8186,7 +8186,7 @@ static int cs40l2x_coeff_init(struct cs40l2x_private *cs40l2x)
 					+ coeff_desc->block_offset * 4;
 				if (!strncmp(coeff_desc->name, "WAVETABLE",
 						CS40L2X_COEFF_NAME_LEN_MAX))
-					cs40l2x->wt_limit_xm =
+					cs40l2x->wt_xm.byteslimit =
 						(cs40l2x->algo_info[i].xm_size
 						- coeff_desc->block_offset) * 4;
 				break;
@@ -8196,7 +8196,7 @@ static int cs40l2x_coeff_init(struct cs40l2x_private *cs40l2x)
 					+ coeff_desc->block_offset * 4;
 				if (!strncmp(coeff_desc->name, "WAVETABLEYM",
 						CS40L2X_COEFF_NAME_LEN_MAX))
-					cs40l2x->wt_limit_ym =
+					cs40l2x->wt_ym.byteslimit =
 						(cs40l2x->algo_info[i].ym_size
 						- coeff_desc->block_offset) * 4;
 				break;
@@ -8974,9 +8974,6 @@ static void cs40l2x_set_xm(struct cs40l2x_private *cs40l2x, unsigned int pos,
 			unsigned int reg, unsigned int block_length,
 			unsigned int size)
 {
-	cs40l2x->wt_open_xm = (cs40l2x->wt_limit_xm - block_length);
-	/* Set YM available space in case no YM block defined in bin file. */
-	cs40l2x->wt_open_ym = cs40l2x->wt_limit_ym;
 	cs40l2x->xm_hdr_strt_pos = pos;
 	cs40l2x->xm_hdr_strt_reg = reg;
 	cs40l2x->wt_xm_size = pos + block_length;
@@ -8986,7 +8983,6 @@ static void cs40l2x_set_xm(struct cs40l2x_private *cs40l2x, unsigned int pos,
 static void cs40l2x_set_ym(struct cs40l2x_private *cs40l2x, unsigned int pos,
 			unsigned int reg, unsigned int block_length)
 {
-	cs40l2x->wt_open_ym = (cs40l2x->wt_limit_ym - block_length);
 	cs40l2x->ym_hdr_strt_pos = pos;
 	cs40l2x->ym_hdr_strt_reg = reg;
 	cs40l2x->wt_ym_size = ((pos - cs40l2x->wt_xm_size) + block_length);
@@ -9105,7 +9101,7 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 						"WAVETABLE",
 						CS40L2X_XM_UNPACKED_TYPE,
 						CS40L2X_ALGO_ID_VIBE)) {
-				if (block_length > cs40l2x->wt_limit_xm) {
+				if (block_length > cs40l2x->wt_xm.byteslimit) {
 					dev_err(dev,
 						"Wvtbl too big: %d bytes XM\n",
 						block_length / 4 * 3);
@@ -9143,7 +9139,7 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 						"WAVETABLEYM",
 						CS40L2X_YM_UNPACKED_TYPE,
 						CS40L2X_ALGO_ID_VIBE)) {
-				if (block_length > cs40l2x->wt_limit_ym) {
+				if (block_length > cs40l2x->wt_ym.byteslimit) {
 					dev_err(dev,
 						"Wvtbl too big: %d bytes YM\n",
 						block_length / 4 * 3);
@@ -9308,8 +9304,8 @@ static void cs40l2x_coeff_file_load(const struct firmware *fw, void *context)
 
 	dev_info(cs40l2x->dev,
 			"Max. wavetable size: %d bytes (XM), %d bytes (YM)\n",
-			cs40l2x->wt_limit_xm / 4 * 3,
-			cs40l2x->wt_limit_ym / 4 * 3);
+			cs40l2x->wt_xm.byteslimit / 4 * 3,
+			cs40l2x->wt_ym.byteslimit / 4 * 3);
 
 	mutex_unlock(&cs40l2x->lock);
 	pm_runtime_mark_last_busy(cs40l2x->dev);
