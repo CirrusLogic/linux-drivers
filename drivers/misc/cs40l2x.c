@@ -302,6 +302,44 @@ static int cs40l2x_write_pwle(struct cs40l2x_private *cs40l2x, void *buf,
 	return dspmem_chunk_bytes(&ch);
 }
 
+static int cs40l2x_write_wavetable(struct cs40l2x_private *cs40l2x, void *buf,
+				   int size, struct wt_wavetable *table)
+{
+	struct dspmem_chunk ch = dspmem_chunk(buf, size);
+	struct wt_entry *entry = table->waves;
+	int i, index = (table->nwaves * WT_ENTRY_SIZE_WORDS) + 1;
+	u32 *data = buf;
+
+	for (i = 0; i < table->nwaves + 1; i++, entry++) {
+		dspmem_chunk_write(&ch, 16, entry->flags);
+		dspmem_chunk_write(&ch, 8, entry->type);
+
+		if (entry->type == WT_TYPE_TERMINATOR)
+			break;
+
+		entry->index = index;
+
+		dspmem_chunk_write(&ch, 24, entry->index);
+		dspmem_chunk_write(&ch, 24, entry->size);
+
+		if (!dspmem_chunk_valid_addr(&ch, data + index + entry->size))
+			return -EINVAL;
+
+		if (entry->data)
+			memcpy(data + index, entry->data,
+			       entry->size * sizeof(*data));
+		else
+			memset(data + index, 0, entry->size * sizeof(*data));
+
+		index += entry->size;
+	}
+
+	if (i != table->nwaves)
+		return -E2BIG;
+
+	return index * sizeof(*data);
+}
+
 static int cs40l2x_read_wavetable(struct cs40l2x_private *cs40l2x, void *buf,
 				  int size, struct wt_wavetable *table)
 {
