@@ -479,41 +479,6 @@ static int cs40l2x_check_wt_open_space(struct cs40l2x_private *cs40l2x,
 	return -ENOSPC;
 }
 
-static void cs40l2x_set_ym_data(struct cs40l2x_private *cs40l2x)
-{
-	cs40l2x->ym_hdr_strt_pos = (cs40l2x->wt_xm_size +
-		CS40L2X_WT_YM_PRE_HDR_BYTES +
-		CS40L2X_WT_DBLK_LENGTH_SIZE);
-	cs40l2x->wt_ym_size = (CS40L2X_WT_YM_PRE_HDR_BYTES +
-		CS40L2X_WT_DBLK_LENGTH_SIZE +
-		(CS40L2X_WT_HEADER_ENTRY_SIZE *
-		CS40L2X_WT_NUM_VIRT_SLOTS) +
-		CS40L2X_WT_TERMINATOR_BYTES +
-		cs40l2x->comp_bytes);
-}
-
-static int cs40l2x_create_wvfrm_len_type_pairs(struct cs40l2x_private *cs40l2x)
-{
-	if (memcmp(cs40l2x->pbq_fw_raw_wt, "WMDR", 4)) {
-		dev_err(cs40l2x->dev, "Failed to recognize raw wavetable\n");
-		return -ENODATA;
-	}
-
-	if (cs40l2x->create_ym)
-		cs40l2x_set_ym_data(cs40l2x);
-
-	cs40l2x->wt_xm_header_end_pos = cs40l2x->xm_hdr_strt_pos;
-	cs40l2x->wt_xm_header_end_pos += (cs40l2x->wt_xm.nwaves * 12);
-
-	if (!cs40l2x->wt_ym.nwaves)
-		return 0;
-
-	cs40l2x->wt_ym_header_end_pos = cs40l2x->ym_hdr_strt_pos;
-	cs40l2x->wt_ym_header_end_pos += (cs40l2x->wt_ym.nwaves * 12);
-
-	return 0;
-}
-
 static int cs40l2x_update_existing_block(struct cs40l2x_private *cs40l2x,
 					 unsigned int comp_size, bool is_xm)
 {
@@ -548,49 +513,39 @@ static int cs40l2x_update_existing_block(struct cs40l2x_private *cs40l2x,
 }
 
 static int cs40l2x_write_virtual_waveform(struct cs40l2x_private *cs40l2x,
-	unsigned int index, bool is_gpio, bool is_rise, bool over_write)
+					  unsigned int index, bool is_gpio,
+					  bool is_rise, bool over_write)
 {
-	bool is_xm;
-	int ret = 0;
-	char *raw_waveform_data;
-	unsigned int last_offset, size_in_words, wvfrm_type;
-	unsigned int num_xm_registers, num_ym_registers;
 	unsigned int size_in_bytes = 0;
-	unsigned int wt_xm_header_end_reg, wt_ym_header_end_reg;
-	unsigned int len_reg, off_reg, type_reg, data_reg;
-	struct regmap *regmap = cs40l2x->regmap;
 	struct cs40l2x_virtual_waveform *virtual_wav;
-	unsigned int reg_addr_size = CS40L2X_WT_TOTAL_WORD_SIZE;
+	unsigned int wtype, wflags;
+	int hreg, dreg;
+	struct wt_entry *entry;
+	uint8_t raw_header[WT_ENTRY_SIZE_BYTES];
+	char *raw_waveform_data;
+	bool is_xm;
+	int ret;
 
 	if (over_write) {
 		is_xm = cs40l2x->ovwr_wav->is_xm;
-		wvfrm_type = cs40l2x->ovwr_wav->wvfrm_type +
-			cs40l2x->ovwr_wav->wvfrm_feature;
+		wtype = cs40l2x->ovwr_wav->wvfrm_type;
+		wflags = cs40l2x->ovwr_wav->wvfrm_feature;
 		size_in_bytes = cs40l2x->ovwr_wav->data_len;
-		raw_waveform_data = devm_kzalloc(cs40l2x->dev,
-			size_in_bytes, GFP_KERNEL);
-		if (!raw_waveform_data)
-			return -ENOMEM;
-		memcpy(raw_waveform_data, &cs40l2x->ovwr_wav->data[0],
-			cs40l2x->ovwr_wav->data_len);
+		raw_waveform_data = cs40l2x->ovwr_wav->data;
 	} else {
 		list_for_each_entry(virtual_wav,
-			&cs40l2x->virtual_waveform_head, list) {
+				    &cs40l2x->virtual_waveform_head, list) {
 			if (virtual_wav->index != index)
 				continue;
 
 			is_xm = virtual_wav->is_xm;
-			wvfrm_type = virtual_wav->wvfrm_type +
-				virtual_wav->wvfrm_feature;
+			wtype = virtual_wav->wvfrm_type;
+			wflags = virtual_wav->wvfrm_feature;
 			size_in_bytes = virtual_wav->data_len;
-			raw_waveform_data = devm_kzalloc(cs40l2x->dev,
-				size_in_bytes, GFP_KERNEL);
-			if (!raw_waveform_data)
-				return -ENOMEM;
-			memcpy(raw_waveform_data, &virtual_wav->data[0],
-				virtual_wav->data_len);
+			raw_waveform_data = virtual_wav->data;
 			break;
 		}
+
 		if (size_in_bytes == 0) {
 			dev_err(cs40l2x->dev,
 				"Unable to find index in virtual list\n");
@@ -598,105 +553,67 @@ static int cs40l2x_write_virtual_waveform(struct cs40l2x_private *cs40l2x,
 		}
 	}
 
-	/* wt_xm_header_end_pos is last byte before header terminator */
-	if (is_xm) {
-		num_xm_registers = ((cs40l2x->wt_xm_header_end_pos +
-			(CS40L2X_WT_NUM_VIRT_SLOTS *
-			CS40L2X_WT_HEADER_ENTRY_SIZE)) -
-			cs40l2x->xm_hdr_strt_pos);
-		wt_xm_header_end_reg = (cs40l2x->xm_hdr_strt_reg +
-			num_xm_registers);
-		len_reg = (wt_xm_header_end_reg - reg_addr_size);
-		off_reg = (wt_xm_header_end_reg - (reg_addr_size * 2));
-		type_reg = (wt_xm_header_end_reg - (reg_addr_size * 3));
-		if (is_gpio) {
-			len_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-			off_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-			type_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-			if (is_rise) {
-				len_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-				off_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-				type_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-			}
+	if (is_gpio) {
+		if (is_rise) {
+			cs40l2x->loaded_gpio_index[CS40L2X_GPIO_RISE] = index;
+			index = cs40l2x->virtual_gpio1_rise_slot;
+		} else {
+			cs40l2x->loaded_gpio_index[CS40L2X_GPIO_FALL] = index;
+			index = cs40l2x->virtual_gpio1_fall_slot;
 		}
-		ret = regmap_read(regmap, off_reg, &last_offset);
-		if (ret) {
-			dev_err(cs40l2x->dev,
-				"Failed to read last offset 0x%08X: %d\n",
-				off_reg, ret);
-			goto err_free;
-		}
-		data_reg = (cs40l2x->xm_hdr_strt_reg +
-			(last_offset * reg_addr_size));
 	} else {
-		num_ym_registers = ((cs40l2x->wt_ym_header_end_pos +
-			(CS40L2X_WT_NUM_VIRT_SLOTS *
-			CS40L2X_WT_HEADER_ENTRY_SIZE)) -
-			cs40l2x->ym_hdr_strt_pos);
-		wt_ym_header_end_reg = (cs40l2x->ym_hdr_strt_reg +
-			num_ym_registers);
-		len_reg = (wt_ym_header_end_reg - reg_addr_size);
-		off_reg = (wt_ym_header_end_reg - (reg_addr_size * 2));
-		type_reg = (wt_ym_header_end_reg - (reg_addr_size * 3));
-		if (is_gpio) {
-			len_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-			off_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-			type_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-			if (is_rise) {
-				len_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-				off_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-				type_reg -= CS40L2X_WT_HEADER_ENTRY_SIZE;
-			}
-		}
-		ret = regmap_read(regmap, off_reg, &last_offset);
-		if (ret) {
-			dev_err(cs40l2x->dev,
-				"Failed to read last offset 0x%08X: %d\n",
-				off_reg, ret);
-			goto err_free;
-		}
-		data_reg = (cs40l2x->ym_hdr_strt_reg +
-			(last_offset * reg_addr_size));
-	}
-
-	size_in_words = (size_in_bytes / CS40L2X_WT_TOTAL_WORD_SIZE);
-
-	ret = regmap_write(regmap, len_reg, size_in_words);
-	if (ret) {
-		dev_err(cs40l2x->dev,
-			"Failed to write waveform size 0x%08X: %d\n",
-			len_reg, ret);
-		goto err_free;
-	}
-	ret = regmap_write(regmap, type_reg, wvfrm_type);
-	if (ret) {
-		dev_err(cs40l2x->dev,
-			"Failed to write waveform type 0x%08X: %d\n",
-			type_reg, ret);
-		goto err_free;
-	}
-	ret = cs40l2x_raw_write(cs40l2x, data_reg, &raw_waveform_data[0],
-		size_in_bytes, CS40L2X_MAX_WLEN);
-	if (ret) {
-		dev_err(cs40l2x->dev, "Failed to write wt virtual data\n");
-		goto err_free;
-	}
-
-	if (!is_gpio)
 		cs40l2x->loaded_virtual_index = index;
-	else {
-		if (is_rise)
-			cs40l2x->loaded_gpio_index[CS40L2X_GPIO_RISE] =
-				index;
-		else
-			cs40l2x->loaded_gpio_index[CS40L2X_GPIO_FALL] =
-				index;
+		index = cs40l2x->virtual_slot_index;
 	}
 
-err_free:
-	devm_kfree(cs40l2x->dev, raw_waveform_data);
+	if (is_xm) {
+		entry = cs40l2x->wt_xm.waves;
 
-	return ret;
+		hreg = cs40l2x_dsp_reg(cs40l2x, "WAVETABLE",
+				       CS40L2X_XM_UNPACKED_TYPE,
+				       CS40L2X_ALGO_ID_VIBE);
+	} else {
+		entry = cs40l2x->wt_ym.waves;
+		index -= cs40l2x->wt_xm.nwaves;
+
+		hreg = cs40l2x_dsp_reg(cs40l2x, "WAVETABLEYM",
+				       CS40L2X_YM_UNPACKED_TYPE,
+				       CS40L2X_ALGO_ID_VIBE);
+	}
+
+	if (!hreg) {
+		dev_err(cs40l2x->dev, "Failed to locate wavetable\n");
+		return -EINVAL;
+	}
+
+	dreg = hreg;
+	hreg += index * WT_ENTRY_SIZE_BYTES;
+	dreg += entry[index].index * sizeof(u32);
+
+	entry[index].size = size_in_bytes / sizeof(u32);
+	entry[index].type = wtype;
+	entry[index].flags = wflags;
+	entry[index].data = raw_waveform_data;
+
+	cs40l2x_write_header(cs40l2x, raw_header, ARRAY_SIZE(raw_header),
+			     &entry[index]);
+
+	ret = cs40l2x_raw_write(cs40l2x, hreg, raw_header,
+				ARRAY_SIZE(raw_header), CS40L2X_MAX_WLEN);
+	if (ret) {
+		dev_err(cs40l2x->dev, "Failed to sync header: %d\n", ret);
+		return ret;
+	}
+
+	ret = cs40l2x_raw_write(cs40l2x, dreg, entry[index].data,
+				entry[index].size * sizeof(u32),
+				CS40L2X_MAX_WLEN);
+	if (ret) {
+		dev_err(cs40l2x->dev, "Failed to sync waveform: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int cs40l2x_add_waveform_to_virtual_list(
@@ -762,7 +679,6 @@ static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 		(CS40L2X_WT_HEADER_ENTRY_SIZE * CS40L2X_WT_NUM_VIRT_SLOTS);
 	unsigned int comp_size;
 	int no_space = -ENOSPC;
-	int ret = 0;
 
 	while (no_space) {
 		no_space = cs40l2x_check_wt_open_space(cs40l2x, wt_open_bytes);
@@ -796,15 +712,6 @@ static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 	cs40l2x->display_pwle_segs =
 		(((cs40l2x->comp_bytes / CS40L2X_WT_NUM_VIRT_SLOTS) -
 		CS40L2X_PWLE_NON_SEG_BYTES) / CS40L2X_PWLE_MAX_SEG_BYTES);
-
-	ret = cs40l2x_create_wvfrm_len_type_pairs(cs40l2x);
-	if (ret)
-		return ret;
-
-	if (cs40l2x->create_ym) {
-		cs40l2x->ym_hdr_strt_pos = 0;
-		cs40l2x->wt_ym_header_end_pos = 0;
-	}
 
 	*is_xm = cs40l2x->xm_append;
 
@@ -8642,24 +8549,6 @@ int cs40l2x_ack_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
 }
 EXPORT_SYMBOL_GPL(cs40l2x_ack_write);
 
-static void cs40l2x_set_xm(struct cs40l2x_private *cs40l2x, unsigned int pos,
-			unsigned int reg, unsigned int block_length,
-			unsigned int size)
-{
-	cs40l2x->xm_hdr_strt_pos = pos;
-	cs40l2x->xm_hdr_strt_reg = reg;
-	cs40l2x->wt_xm_size = pos + block_length;
-	cs40l2x->wt_total_size = size;
-}
-
-static void cs40l2x_set_ym(struct cs40l2x_private *cs40l2x, unsigned int pos,
-			unsigned int reg, unsigned int block_length)
-{
-	cs40l2x->ym_hdr_strt_pos = pos;
-	cs40l2x->ym_hdr_strt_reg = reg;
-	cs40l2x->wt_ym_size = ((pos - cs40l2x->wt_xm_size) + block_length);
-}
-
 int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 			const struct firmware *fw)
 {
@@ -8781,9 +8670,6 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 					goto err_rls_fw;
 				} else {
 					if (wt_found) {
-						cs40l2x_set_xm(cs40l2x, pos,
-							reg, block_length,
-							fw->size);
 						memcpy(cs40l2x->pbq_fw_raw_wt,
 							&fw->data[0],
 							fw->size);
@@ -8819,8 +8705,6 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 					goto err_rls_fw;
 				} else {
 					if (wt_found) {
-						cs40l2x_set_ym(cs40l2x, pos,
-							reg, block_length);
 						ret = cs40l2x_read_wavetable(cs40l2x,
 								(void *)&cs40l2x->pbq_fw_raw_wt[pos],
 								block_length,
