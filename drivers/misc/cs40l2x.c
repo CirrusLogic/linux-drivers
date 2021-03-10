@@ -302,6 +302,19 @@ static int cs40l2x_write_pwle(struct cs40l2x_private *cs40l2x, void *buf,
 	return dspmem_chunk_bytes(&ch);
 }
 
+static int cs40l2x_write_header(struct cs40l2x_private *cs40l2x, void *buf,
+				int size, struct wt_entry *entry)
+{
+	struct dspmem_chunk ch = dspmem_chunk(buf, size);
+
+	dspmem_chunk_write(&ch, 16, entry->flags);
+	dspmem_chunk_write(&ch, 8, entry->type);
+	dspmem_chunk_write(&ch, 24, entry->index);
+	dspmem_chunk_write(&ch, 24, entry->size);
+
+	return dspmem_chunk_bytes(&ch);
+}
+
 static int cs40l2x_write_wavetable(struct cs40l2x_private *cs40l2x, void *buf,
 				   int size, struct wt_wavetable *table)
 {
