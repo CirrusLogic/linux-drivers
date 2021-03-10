@@ -176,6 +176,11 @@ static inline int dspmem_chunk_bytes(struct dspmem_chunk *ch)
 	return ch->bytes;
 }
 
+static inline bool dspmem_chunk_valid_addr(struct dspmem_chunk *ch, void *addr)
+{
+	return (u8 *)addr <= ch->max;
+}
+
 static int dspmem_chunk_write(struct dspmem_chunk *ch, int nbits, u32 val)
 {
 	int nwrite, i;
@@ -211,6 +216,37 @@ static int dspmem_chunk_flush(struct dspmem_chunk *ch)
 		return 0;
 
 	return dspmem_chunk_write(ch, 24 - ch->cachebits, 0);
+}
+
+static int dspmem_chunk_read(struct dspmem_chunk *ch, int nbits)
+{
+	int nread, i;
+	u32 result;
+
+	if (!ch->cachebits) {
+		if (dspmem_chunk_end(ch))
+			return -ENOSPC;
+
+		ch->cache = 0;
+		ch->cachebits = 24;
+
+		for (i = 0; i < sizeof(ch->cache); i++, ch->cache <<= 8)
+			ch->cache |= *ch->data++;
+
+		ch->bytes += sizeof(ch->cache);
+	}
+
+	nread = min(ch->cachebits, nbits);
+	nbits -= nread;
+
+	result = ch->cache >> (32 - nread);
+	ch->cache <<= nread;
+	ch->cachebits -= nread;
+
+	if (nbits)
+		result = (result << nbits) | dspmem_chunk_read(ch, nbits);
+
+	return result;
 }
 
 static int cs40l2x_write_comp(struct cs40l2x_private *cs40l2x, void *buf,
