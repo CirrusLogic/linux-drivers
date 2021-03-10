@@ -588,7 +588,6 @@
 #define CS40L2X_WT_YM_PRE_HDR_VAL		6
 #define CS40L2X_WT_TERMINATOR_BYTE		255
 #define CS40L2X_WT_TERMINATOR			0x00FFFFFF
-#define CS40L2X_WT_CLR_EX_TYPE			0x0000FFFF
 #define CS40L2X_WT_YM_PRE_HEADER		0x00000600
 #define CS40L2X_WT_NUM_GPIO_VSLOTS		2
 #define CS40L2X_WT_NUM_COMP_VSLOTS		1
@@ -1114,8 +1113,6 @@ struct cs40l2x_private {
 	unsigned int wt_xm_header_last_size;
 	unsigned int wt_ym_header_last_size;
 	unsigned int comp_bytes;
-	unsigned int *wvfrm_lengths;
-	unsigned int wvfrm_lengths_size;
 	unsigned int *updated_offsets;
 	unsigned int updated_offsets_size;
 	unsigned int updated_block_size;
