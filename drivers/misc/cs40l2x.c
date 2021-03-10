@@ -156,7 +156,7 @@ struct dspmem_chunk {
 	int cachebits;
 };
 
-static inline struct dspmem_chunk dspmem_chunk(u8 *data, int size)
+static inline struct dspmem_chunk dspmem_chunk(void *data, int size)
 {
 	struct dspmem_chunk ch = {
 		.data = data,
