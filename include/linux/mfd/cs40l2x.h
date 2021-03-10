@@ -1099,8 +1099,6 @@ struct cs40l2x_private {
 	unsigned int cp_trigger_index;
 	unsigned int cp_trailer_index;
 	unsigned int num_waves;
-	unsigned int num_xm_wavs;
-	unsigned int num_ym_wavs;
 	unsigned int num_virtual_waves;
 	unsigned int loaded_virtual_index;
 	unsigned int wt_limit_xm;
