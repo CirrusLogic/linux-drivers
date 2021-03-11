@@ -282,7 +282,7 @@
 		};
 	};
 
-	sound: sound  {
+	sound: sound {
 		compatible = "google,sc7180-trogdor";
 		model = "sc7180-rt5682-max98357a-1mic";
 
@@ -295,36 +295,36 @@
 
 		dai-link@0 {
 			link-name = "MultiMedia0";
-			reg = <0>;
+			reg = <MI2S_PRIMARY>;
 			cpu {
-				sound-dai = <&lpass_cpu 0>;
+				sound-dai = <&lpass_cpu MI2S_PRIMARY>;
 			};
 
-			codec {
-				sound-dai = <&alc5682 0>;
+			sound_multimedia0_codec: codec {
+				sound-dai = <&alc5682 0 /* aif1 */>;
 			};
 		};
 
 		dai-link@1 {
 			link-name = "MultiMedia1";
-			reg = <1>;
+			reg = <MI2S_SECONDARY>;
 			cpu {
-				sound-dai = <&lpass_cpu 1>;
+				sound-dai = <&lpass_cpu MI2S_SECONDARY>;
 			};
 
-			codec {
+			sound_multimedia1_codec: codec {
 				sound-dai = <&max98357a>;
 			};
 		};
 
-		dai-link@2 {
+		dai-link@5 {
 			link-name = "MultiMedia2";
-			reg = <2>;
+			reg = <LPASS_DP_RX>;
 			cpu {
-				sound-dai = <&lpass_cpu 2>;
+				sound-dai = <&lpass_cpu LPASS_DP_RX>;
 			};
 
-			codec {
+			sound_multimedia2_codec: codec {
 				sound-dai = <&msm_dp>;
 			};
 		};
@@ -775,22 +775,23 @@ hp_i2c: &i2c9 {
 	status = "okay";
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&sec_mi2s_active &pri_mi2s_active &pri_mi2s_mclk_active>;
+	pinctrl-0 = <&sec_mi2s_active>, <&pri_mi2s_active>, <&pri_mi2s_mclk_active>;
 
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	mi2s-primary@0 {
+	mi2s@0 {
 		reg = <MI2S_PRIMARY>;
 		qcom,playback-sd-lines = <1>;
 		qcom,capture-sd-lines = <0>;
 	};
 
-	mi2s-secondary@1 {
+	mi2s@1 {
 		reg = <MI2S_SECONDARY>;
 		qcom,playback-sd-lines = <0>;
 	};
-	hdmi-primary@0 {
+
+	hdmi@5 {
 		reg = <LPASS_DP_RX>;
 	};
 };
