@@ -1495,7 +1495,7 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 			if (section->amplitude || section->delay) {
 				ret = cs40l2x_comp_finalise_section(cs40l2x);
 				if (ret < 0)
-					return ret;
+					goto err_mutex;
 				section++;
 			}
 
@@ -1521,7 +1521,7 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 			section->repeat = val;
 			ret = cs40l2x_comp_finalise_section(cs40l2x);
 			if (ret < 0)
-				return ret;
+				goto err_mutex;
 			section++;
 
 			if (inner_loop)
@@ -1595,7 +1595,7 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 			if (section->amplitude || section->delay) {
 				ret = cs40l2x_comp_finalise_section(cs40l2x);
 				if (ret < 0)
-					return ret;
+					goto err_mutex;
 				section++;
 
 				if (inner_loop)
@@ -1624,7 +1624,7 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 			if (section->delay) {
 				ret = cs40l2x_comp_finalise_section(cs40l2x);
 				if (ret < 0)
-					return ret;
+					goto err_mutex;
 				section++;
 
 				if (inner_loop)
@@ -1638,7 +1638,7 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 	if (section->amplitude || section->delay) {
 		ret = cs40l2x_comp_finalise_section(cs40l2x);
 		if (ret < 0)
-			return ret;
+			goto err_mutex;
 	}
 
 	if (comp->repeat == WT_REPEAT_LOOP_MARKER) {
