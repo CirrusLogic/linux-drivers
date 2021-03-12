@@ -29,6 +29,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/platform_data/cs40l2x.h>
 #include <linux/mfd/cs40l2x.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_ANDROID_TIMED_OUTPUT
 #include "../staging/android/timed_output.h"
@@ -8149,8 +8150,8 @@ static int cs40l2x_upload_effect(struct input_dev *dev,
 {
 	struct cs40l2x_private *cs40l2x = input_get_drvdata(dev);
 	unsigned int data_length;
-	s16 *raw_custom_data;
-	int ret;
+	s16 *raw_custom_data = NULL;
+	int ret = 0;
 
 	switch (effect->type) {
 	case FF_PERIODIC:
