@@ -59,6 +59,11 @@
  * VIRTIO_GPU_CMD_RESOURCE_CREATE_BLOB
  */
 #define VIRTIO_GPU_F_RESOURCE_BLOB       3
+/*
+ * VIRTIO_GPU_CMD_CREATE_CONTEXT with
+ * context_init
+ */
+#define VIRTIO_GPU_F_CONTEXT_INIT        4
 
 enum virtio_gpu_ctrl_type {
 	VIRTIO_GPU_UNDEFINED = 0,
@@ -103,6 +108,11 @@ enum virtio_gpu_ctrl_type {
 	VIRTIO_GPU_RESP_OK_EDID,
 	VIRTIO_GPU_RESP_OK_RESOURCE_UUID,
 	VIRTIO_GPU_RESP_OK_MAP_INFO,
+
+	/* CHROMIUM: legacy responses */
+	VIRTIO_GPU_RESP_OK_RESOURCE_PLANE_INFO_LEGACY = 0x1104,
+	/* CHROMIUM: success responses */
+	VIRTIO_GPU_RESP_OK_RESOURCE_PLANE_INFO = 0x11FF,
 
 	/* error responses */
 	VIRTIO_GPU_RESP_ERR_UNSPEC = 0x1200,
@@ -265,10 +275,11 @@ struct virtio_gpu_resource_create_3d {
 };
 
 /* VIRTIO_GPU_CMD_CTX_CREATE */
+#define VIRTIO_GPU_CONTEXT_INIT_CAPSET_ID_MASK 0x00ff
 struct virtio_gpu_ctx_create {
 	struct virtio_gpu_ctrl_hdr hdr;
 	__le32 nlen;
-	__le32 padding;
+	__le32 context_init;
 	char debug_name[64];
 };
 
@@ -336,6 +347,15 @@ struct virtio_gpu_resp_edid {
 	__le32 size;
 	__le32 padding;
 	__u8 edid[1024];
+};
+
+/* VIRTIO_GPU_RESP_OK_RESOURCE_PLANE_INFO */
+struct virtio_gpu_resp_resource_plane_info {
+	struct virtio_gpu_ctrl_hdr hdr;
+	__le32 num_planes;
+	__le64 format_modifier;
+	__le32 strides[4];
+	__le32 offsets[4];
 };
 
 #define VIRTIO_GPU_EVENT_DISPLAY (1 << 0)

@@ -103,6 +103,7 @@ enum i915_power_well_id {
 	SKL_DISP_PW_2,
 	ICL_DISP_PW_3,
 	SKL_DISP_DC_OFF,
+	TGL_DISP_PW_TC_COLD_OFF,
 };
 
 #define POWER_DOMAIN_PIPE(pipe) ((pipe) + POWER_DOMAIN_PIPE_A)

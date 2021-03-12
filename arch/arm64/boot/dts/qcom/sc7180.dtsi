@@ -1411,8 +1411,8 @@
 				    "ipa-shared",
 				    "gsi";
 
-			interrupts-extended = <&intc 0 311 IRQ_TYPE_EDGE_RISING>,
-					      <&intc 0 432 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts-extended = <&intc GIC_SPI 311 IRQ_TYPE_EDGE_RISING>,
+					      <&intc GIC_SPI 432 IRQ_TYPE_LEVEL_HIGH>,
 					      <&ipa_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
 					      <&ipa_smp2p_in 1 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "ipa",
@@ -1434,8 +1434,6 @@
 					   <&ipa_smp2p_out 1>;
 			qcom,smem-state-names = "ipa-clock-enabled-valid",
 						"ipa-clock-enabled";
-
-			modem-remoteproc = <&remoteproc_mpss>;
 
 			status = "disabled";
 		};
@@ -1468,12 +1466,6 @@
 				pinmux {
 					pins = "gpio117";
 					function = "dp_hot";
-				};
-
-				pinconf {
-					pins = "gpio117";
-					bias-disable;
-					input-enable;
 				};
 			};
 
@@ -1860,12 +1852,6 @@
 					pins = "gpio49", "gpio50", "gpio51";
 					function = "mi2s_1";
 				};
-
-				pinconf {
-					pins = "gpio49", "gpio50", "gpio51";
-					drive-strength = <2>;
-					bias-pull-down;
-				};
 			};
 
 			pri_mi2s_active: pri-mi2s-active {
@@ -1873,24 +1859,12 @@
 					pins = "gpio53", "gpio54", "gpio55", "gpio56";
 					function = "mi2s_0";
 				};
-
-				pinconf {
-					pins = "gpio53", "gpio54", "gpio55", "gpio56";
-					drive-strength = <2>;
-					bias-pull-down;
-				};
 			};
 
 			pri_mi2s_mclk_active: pri-mi2s-mclk-active {
 				pinmux {
 					pins = "gpio57";
 					function = "lpass_ext";
-				};
-
-				pinconf {
-					pins = "gpio57";
-					drive-strength = <2>;
-					bias-pull-down;
 				};
 			};
 
@@ -2906,8 +2880,6 @@
 
 			video-encoder {
 				compatible = "venus-encoder";
-				/* TODO(b/175315142) : enable when quality is adequate */
-				status = "disabled";
 			};
 
 			venus_opp_table: venus-opp-table {
@@ -3447,6 +3419,7 @@
 			compatible = "qcom,apss-wdt-sc7180", "qcom,kpss-wdt";
 			reg = <0 0x17c10000 0 0x1000>;
 			clocks = <&sleep_clk>;
+			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		timer@17c20000{
@@ -3692,7 +3665,7 @@
 	};
 
 	thermal-zones {
-		cpu0-thermal {
+		cpu0_thermal: cpu0-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -3741,7 +3714,7 @@
 			};
 		};
 
-		cpu1-thermal {
+		cpu1_thermal: cpu1-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -3790,7 +3763,7 @@
 			};
 		};
 
-		cpu2-thermal {
+		cpu2_thermal: cpu2-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -3839,7 +3812,7 @@
 			};
 		};
 
-		cpu3-thermal {
+		cpu3_thermal: cpu3-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -3888,7 +3861,7 @@
 			};
 		};
 
-		cpu4-thermal {
+		cpu4_thermal: cpu4-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -3937,7 +3910,7 @@
 			};
 		};
 
-		cpu5-thermal {
+		cpu5_thermal: cpu5-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -3986,7 +3959,7 @@
 			};
 		};
 
-		cpu6-thermal {
+		cpu6_thermal: cpu6-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -4027,7 +4000,7 @@
 			};
 		};
 
-		cpu7-thermal {
+		cpu7_thermal: cpu7-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -4068,7 +4041,7 @@
 			};
 		};
 
-		cpu8-thermal {
+		cpu8_thermal: cpu8-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
@@ -4109,7 +4082,7 @@
 			};
 		};
 
-		cpu9-thermal {
+		cpu9_thermal: cpu9-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 

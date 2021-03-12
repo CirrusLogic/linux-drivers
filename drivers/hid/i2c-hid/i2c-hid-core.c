@@ -35,7 +35,6 @@
 #include <linux/kernel.h>
 #include <linux/hid.h>
 #include <linux/mutex.h>
-#include <linux/regulator/consumer.h>
 
 #include "../hid-ids.h"
 #include "i2c-hid.h"
@@ -159,7 +158,7 @@ struct i2c_hid {
 	bool			irq_wake_enabled;
 	struct mutex		reset_lock;
 
-	struct i2chid_subclass_data *subclass;
+	struct i2chid_ops	*ops;
 };
 
 static const struct i2c_hid_quirks {
@@ -886,22 +885,29 @@ static int i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 
 static int i2c_hid_core_power_up(struct i2c_hid *ihid)
 {
-	if (!ihid->subclass->power_up_device)
+	if (!ihid->ops->power_up)
 		return 0;
 
-	return ihid->subclass->power_up_device(ihid->subclass);
+	return ihid->ops->power_up(ihid->ops);
 }
 
 static void i2c_hid_core_power_down(struct i2c_hid *ihid)
 {
-	if (!ihid->subclass->power_down_device)
+	if (!ihid->ops->power_down)
 		return;
 
-	ihid->subclass->power_down_device(ihid->subclass);
+	ihid->ops->power_down(ihid->ops);
 }
 
-int i2c_hid_core_probe(struct i2c_client *client,
-		       struct i2chid_subclass_data *subclass,
+static void i2c_hid_core_shutdown_tail(struct i2c_hid *ihid)
+{
+	if (!ihid->ops->shutdown_tail)
+		return;
+
+	ihid->ops->shutdown_tail(ihid->ops);
+}
+
+int i2c_hid_core_probe(struct i2c_client *client, struct i2chid_ops *ops,
 		       u16 hid_descriptor_address)
 {
 	int ret, retries = 0;
@@ -927,7 +933,7 @@ int i2c_hid_core_probe(struct i2c_client *client,
 	if (!ihid)
 		return -ENOMEM;
 
-	ihid->subclass = subclass;
+	ihid->ops = ops;
 
 	ret = i2c_hid_core_power_up(ihid);
 	if (ret)
@@ -974,8 +980,11 @@ int i2c_hid_core_probe(struct i2c_client *client,
 	}
 
 	ret = i2c_hid_fetch_hid_descriptor(ihid);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"Failed to fetch the HID Descriptor\n");
 		goto err_powered;
+	}
 
 	ret = i2c_hid_init_irq(client);
 	if (ret < 0)
@@ -1050,11 +1059,13 @@ void i2c_hid_core_shutdown(struct i2c_client *client)
 
 	i2c_hid_set_power(client, I2C_HID_PWR_SLEEP);
 	free_irq(client->irq, ihid);
+
+	i2c_hid_core_shutdown_tail(ihid);
 }
 EXPORT_SYMBOL_GPL(i2c_hid_core_shutdown);
 
 #ifdef CONFIG_PM_SLEEP
-int i2c_hid_core_suspend(struct device *dev)
+static int i2c_hid_core_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
@@ -1086,9 +1097,8 @@ int i2c_hid_core_suspend(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(i2c_hid_core_suspend);
 
-int i2c_hid_core_resume(struct device *dev)
+static int i2c_hid_core_resume(struct device *dev)
 {
 	int ret;
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1132,8 +1142,12 @@ int i2c_hid_core_resume(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(i2c_hid_core_resume);
 #endif
+
+const struct dev_pm_ops i2c_hid_core_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(i2c_hid_core_suspend, i2c_hid_core_resume)
+};
+EXPORT_SYMBOL_GPL(i2c_hid_core_pm);
 
 MODULE_DESCRIPTION("HID over I2C core driver");
 MODULE_AUTHOR("Benjamin Tissoires <benjamin.tissoires@gmail.com>");

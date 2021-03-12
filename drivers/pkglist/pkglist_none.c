@@ -42,13 +42,13 @@ EXPORT_SYMBOL_GPL(pkglist_register_update_listener);
 void pkglist_unregister_update_listener(struct pkg_list *pkg) { }
 EXPORT_SYMBOL_GPL(pkglist_unregister_update_listener);
 
-int __init pkglist_init(void)
+static int __init pkglist_init(void)
 {
 	return 0;
 }
 module_init(pkglist_init);
 
-void pkglist_exit(void) { }
+static void pkglist_exit(void) { }
 
 module_exit(pkglist_exit);
 

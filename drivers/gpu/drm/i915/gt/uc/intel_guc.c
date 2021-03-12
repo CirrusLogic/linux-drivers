@@ -312,18 +312,18 @@ void intel_guc_write_params(struct intel_guc *guc)
 	int i;
 
 	/*
-	 * All SOFT_SCRATCH registers are in FORCEWAKE_BLITTER domain and
+	 * All SOFT_SCRATCH registers are in FORCEWAKE_GT domain and
 	 * they are power context saved so it's ok to release forcewake
 	 * when we are done here and take it again at xfer time.
 	 */
-	intel_uncore_forcewake_get(uncore, FORCEWAKE_BLITTER);
+	intel_uncore_forcewake_get(uncore, FORCEWAKE_GT);
 
 	intel_uncore_write(uncore, SOFT_SCRATCH(0), 0);
 
 	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
 		intel_uncore_write(uncore, SOFT_SCRATCH(1 + i), guc->params[i]);
 
-	intel_uncore_forcewake_put(uncore, FORCEWAKE_BLITTER);
+	intel_uncore_forcewake_put(uncore, FORCEWAKE_GT);
 }
 
 int intel_guc_init(struct intel_guc *guc)
@@ -597,20 +597,8 @@ int intel_guc_reset_engine(struct intel_guc *guc,
  */
 int intel_guc_resume(struct intel_guc *guc)
 {
-	u32 action[] = {
-		INTEL_GUC_ACTION_EXIT_S_STATE,
-		GUC_POWER_D0,
-	};
-
-	/*
-	 * If GuC communication is enabled but submission is not supported,
-	 * we do not need to resume the GuC but we do need to enable the
-	 * GuC communication on resume (above).
-	 */
-	if (!intel_guc_submission_is_used(guc) || !intel_guc_is_ready(guc))
-		return 0;
-
-	return intel_guc_send(guc, action, ARRAY_SIZE(action));
+	/* XXX: to be implemented with submission interface rework */
+	return 0;
 }
 
 /**

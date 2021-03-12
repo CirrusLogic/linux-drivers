@@ -23,17 +23,17 @@ struct goodix_i2c_hid_timing_data {
 };
 
 struct i2c_hid_of_goodix {
-	struct i2chid_subclass_data subclass;
+	struct i2chid_ops ops;
 
 	struct regulator *vdd;
 	struct gpio_desc *reset_gpio;
 	const struct goodix_i2c_hid_timing_data *timings;
 };
 
-static int goodix_i2c_hid_power_up_device(struct i2chid_subclass_data *subclass)
+static int goodix_i2c_hid_power_up(struct i2chid_ops *ops)
 {
 	struct i2c_hid_of_goodix *ihid_goodix =
-		container_of(subclass, struct i2c_hid_of_goodix, subclass);
+		container_of(ops, struct i2c_hid_of_goodix, ops);
 	int ret;
 
 	ret = regulator_enable(ihid_goodix->vdd);
@@ -50,10 +50,10 @@ static int goodix_i2c_hid_power_up_device(struct i2chid_subclass_data *subclass)
 	return 0;
 }
 
-static void goodix_i2c_hid_power_down_device(struct i2chid_subclass_data *subclass)
+static void goodix_i2c_hid_power_down(struct i2chid_ops *ops)
 {
 	struct i2c_hid_of_goodix *ihid_goodix =
-		container_of(subclass, struct i2c_hid_of_goodix, subclass);
+		container_of(ops, struct i2c_hid_of_goodix, ops);
 
 	gpiod_set_value_cansleep(ihid_goodix->reset_gpio, 1);
 	regulator_disable(ihid_goodix->vdd);
@@ -69,8 +69,8 @@ static int i2c_hid_of_goodix_probe(struct i2c_client *client,
 	if (!ihid_goodix)
 		return -ENOMEM;
 
-	ihid_goodix->subclass.power_up_device = goodix_i2c_hid_power_up_device;
-	ihid_goodix->subclass.power_down_device = goodix_i2c_hid_power_down_device;
+	ihid_goodix->ops.power_up = goodix_i2c_hid_power_up;
+	ihid_goodix->ops.power_down = goodix_i2c_hid_power_down;
 
 	/* Start out with reset asserted */
 	ihid_goodix->reset_gpio =
@@ -84,12 +84,12 @@ static int i2c_hid_of_goodix_probe(struct i2c_client *client,
 
 	ihid_goodix->timings = device_get_match_data(&client->dev);
 
-	return i2c_hid_core_probe(client, &ihid_goodix->subclass, 0x0001);
+	return i2c_hid_core_probe(client, &ihid_goodix->ops, 0x0001);
 }
 
 static const struct goodix_i2c_hid_timing_data goodix_gt7375p_timing_data = {
 	.post_power_delay_ms = 10,
-	.post_gpio_reset_delay_ms = 120,
+	.post_gpio_reset_delay_ms = 180,
 };
 
 static const struct of_device_id goodix_i2c_hid_of_match[] = {
@@ -98,14 +98,10 @@ static const struct of_device_id goodix_i2c_hid_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, goodix_i2c_hid_of_match);
 
-static const struct dev_pm_ops goodix_i2c_hid_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(i2c_hid_core_suspend, i2c_hid_core_resume)
-};
-
 static struct i2c_driver goodix_i2c_hid_ts_driver = {
 	.driver = {
 		.name	= "i2c_hid_of_goodix",
-		.pm	= &goodix_i2c_hid_pm,
+		.pm	= &i2c_hid_core_pm,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(goodix_i2c_hid_of_match),
 	},

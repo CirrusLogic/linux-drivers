@@ -29,9 +29,8 @@
 #include "i2c-hid.h"
 
 struct i2c_hid_acpi {
-	struct i2chid_subclass_data subclass;
+	struct i2chid_ops ops;
 	struct i2c_client *client;
-	bool power_fixed;
 };
 
 static const struct acpi_device_id i2c_hid_acpi_blacklist[] = {
@@ -75,23 +74,12 @@ static int i2c_hid_acpi_get_descriptor(struct i2c_client *client)
 	return hid_descriptor_address;
 }
 
-static int i2c_hid_acpi_power_up_device(struct i2chid_subclass_data *subclass)
+static void i2c_hid_acpi_shutdown_tail(struct i2chid_ops *ops)
 {
-	struct i2c_hid_acpi *ihid_of =
-		container_of(subclass, struct i2c_hid_acpi, subclass);
-	struct device *dev = &ihid_of->client->dev;
-	struct acpi_device *adev;
-
-	/* Only need to call acpi_device_fix_up_power() the first time */
-	if (ihid_of->power_fixed)
-		return 0;
-	ihid_of->power_fixed = true;
-
-	adev = ACPI_COMPANION(dev);
-	if (adev)
-		acpi_device_fix_up_power(adev);
-
-	return 0;
+	struct i2c_hid_acpi *ihid_acpi =
+		container_of(ops, struct i2c_hid_acpi, ops);
+	struct device *dev = &ihid_acpi->client->dev;
+	acpi_device_set_power(ACPI_COMPANION(dev), ACPI_STATE_D3_COLD);
 }
 
 static int i2c_hid_acpi_probe(struct i2c_client *client,
@@ -99,6 +87,7 @@ static int i2c_hid_acpi_probe(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	struct i2c_hid_acpi *ihid_acpi;
+	struct acpi_device *adev;
 	u16 hid_descriptor_address;
 	int ret;
 
@@ -107,31 +96,25 @@ static int i2c_hid_acpi_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	ihid_acpi->client = client;
-	ihid_acpi->subclass.power_up_device = i2c_hid_acpi_power_up_device;
+	ihid_acpi->ops.shutdown_tail = i2c_hid_acpi_shutdown_tail;
 
 	ret = i2c_hid_acpi_get_descriptor(client);
 	if (ret < 0)
 		return ret;
 	hid_descriptor_address = ret;
 
+	adev = ACPI_COMPANION(dev);
+	if (adev)
+		acpi_device_fix_up_power(adev);
+
 	if (acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0) {
 		device_set_wakeup_capable(dev, true);
 		device_set_wakeup_enable(dev, false);
 	}
 
-	return i2c_hid_core_probe(client, &ihid_acpi->subclass,
+	return i2c_hid_core_probe(client, &ihid_acpi->ops,
 				  hid_descriptor_address);
 }
-
-static void i2c_hid_acpi_shutdown(struct i2c_client *client)
-{
-	i2c_hid_core_shutdown(client);
-	acpi_device_set_power(ACPI_COMPANION(&client->dev), ACPI_STATE_D3_COLD);
-}
-
-static const struct dev_pm_ops i2c_hid_acpi_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(i2c_hid_core_suspend, i2c_hid_core_resume)
-};
 
 static const struct acpi_device_id i2c_hid_acpi_match[] = {
 	{"ACPI0C50", 0 },
@@ -140,25 +123,17 @@ static const struct acpi_device_id i2c_hid_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, i2c_hid_acpi_match);
 
-static const struct i2c_device_id i2c_hid_acpi_id_table[] = {
-	{ "hid", 0 },
-	{ "hid-over-i2c", 0 },
-	{ },
-};
-MODULE_DEVICE_TABLE(i2c, i2c_hid_acpi_id_table);
-
 static struct i2c_driver i2c_hid_acpi_driver = {
 	.driver = {
 		.name	= "i2c_hid_acpi",
-		.pm	= &i2c_hid_acpi_pm,
+		.pm	= &i2c_hid_core_pm,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.acpi_match_table = ACPI_PTR(i2c_hid_acpi_match),
 	},
 
 	.probe		= i2c_hid_acpi_probe,
 	.remove		= i2c_hid_core_remove,
-	.shutdown	= i2c_hid_acpi_shutdown,
-	.id_table	= i2c_hid_acpi_id_table,
+	.shutdown	= i2c_hid_core_shutdown,
 };
 
 module_i2c_driver(i2c_hid_acpi_driver);

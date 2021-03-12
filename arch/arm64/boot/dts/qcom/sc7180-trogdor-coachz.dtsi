@@ -39,6 +39,13 @@ ap_h1_spi: &spi0 {};
 	status = "okay";
 };
 
+&cros_ec {
+	cros_ec_proximity: proximity {
+		compatible = "google,cros-ec-mkbp-proximity";
+		label = "proximity-wifi";
+	};
+};
+
 ap_ts_pen_1v8: &i2c4 {
 	status = "okay";
 	clock-frequency = <400000>;
@@ -56,15 +63,6 @@ ap_ts_pen_1v8: &i2c4 {
 
 		vdd-supply = <&pp3300_ts>;
 	};
-};
-
-/*
- * There's no SAR sensor, so i2c5 is re-purposed.  We leave the
- * proximity@28 node under i2c5 (from trogdor.dtsi) since it's "disabled"
- * and doesn't hurt.
- */
-i2c_wlc: &i2c5 {
-	/* Currently not connected to anything; see b/168652326 */
 };
 
 &i2c7 {
@@ -96,8 +94,6 @@ i2c_wlc: &i2c5 {
 	model = "sc7180-adau7002-max98357a";
 	audio-routing =
 		"PDM_DAT", "DMIC";
-	pinctrl-names = "default";
-	pinctrl-0 = <&dmic_clk_en>;
 
 	dai-link@0 {
 		link-name = "MultiMedia0";
@@ -215,7 +211,7 @@ i2c_wlc: &i2c5 {
 			  "",
 			  "",
 			  "",
-			  "FPMCU_SEL",
+			  "EN_FP_RAILS",
 			  "UIM2_DATA",
 			  "UIM2_CLK",
 			  "UIM2_RST",
@@ -224,7 +220,7 @@ i2c_wlc: &i2c5 {
 			  "UIM1_CLK",
 			  "UIM1_RST",
 			  "",
-			  "DMIC_CLK_EN",
+			  "",
 			  "HUB_EN",
 			  "",
 			  "AP_SPI_FP_MISO",
@@ -260,17 +256,4 @@ i2c_wlc: &i2c5 {
 			  "AP_TS_PEN_I2C_SCL",
 			  "DP_HOT_PLUG_DET",
 			  "EC_IN_RW_ODL";
-
-	dmic_clk_en: dmic_clk_en {
-		pinmux {
-			pins = "gpio83";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio83";
-			drive-strength = <8>;
-			bias-pull-up;
-		};
-	};
 };

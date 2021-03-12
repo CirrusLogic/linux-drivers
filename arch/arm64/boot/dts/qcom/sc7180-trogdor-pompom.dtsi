@@ -16,14 +16,16 @@ ap_h1_spi: &spi0 {};
 	thermal-zones {
 		5v-choke-thermal {
 			polling-delay-passive = <0>;
-			polling-delay = <0>;
+			polling-delay = <250>;
 
-			thermal-sensors = <&pm6150_adc_tm 0>;
+			thermal-sensors = <&pm6150_adc_tm 1>;
 
 			trips {
-				temperature = <125000>;
-				hysteresis = <1000>;
-				type = "critical";
+				5v-choke-crit {
+					temperature = <125000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
 			};
 		};
 	};
@@ -31,6 +33,58 @@ ap_h1_spi: &spi0 {};
 
 &alc5682 {
 	realtek,dmic-clk-driving-high = "true";
+};
+
+&cpu6_alert0 {
+	temperature = <60000>;
+};
+
+&cpu6_alert1 {
+	temperature = <65000>;
+};
+
+&cpu6_thermal {
+	sustainable-power = <948>;
+};
+
+&cpu7_alert0 {
+	temperature = <60000>;
+};
+
+&cpu7_alert1 {
+	temperature = <65000>;
+};
+
+&cpu7_thermal {
+	sustainable-power = <948>;
+};
+
+&cpu8_alert0 {
+	temperature = <60000>;
+};
+
+&cpu8_alert1 {
+	temperature = <65000>;
+};
+
+&cpu8_thermal {
+	sustainable-power = <948>;
+};
+
+&cpu9_alert0 {
+	temperature = <60000>;
+};
+
+&cpu9_alert1 {
+	temperature = <65000>;
+};
+
+&cpu9_thermal {
+	sustainable-power = <948>;
+};
+
+&gpio_keys {
+	status = "okay";
 };
 
 ap_ts_pen_1v8: &i2c4 {
@@ -53,17 +107,13 @@ ap_ts_pen_1v8: &i2c4 {
 	};
 };
 
-&gpio_keys {
-	status = "okay";
+&panel {
+	compatible = "kingdisplay,kd116n21-30nv-a010";
 };
 
 &pen_insert {
 	/* Insert = high, eject = low */
 	gpios = <&tlmm 52 GPIO_ACTIVE_HIGH>;
-};
-
-&panel {
-	compatible = "kingdisplay,kd116n21-30nv-a010";
 };
 
 &pm6150_adc {
@@ -77,8 +127,8 @@ ap_ts_pen_1v8: &i2c4 {
 &pm6150_adc_tm {
 	status = "okay";
 
-	5v-choke-thermistor@0 {
-		reg = <0>;
+	5v-choke-thermistor@1 {
+		reg = <1>;
 		io-channels = <&pm6150_adc ADC5_AMUX_THM2_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time-us = <200>;

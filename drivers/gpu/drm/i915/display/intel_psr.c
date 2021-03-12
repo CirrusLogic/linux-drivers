@@ -28,9 +28,10 @@
 #include "i915_drv.h"
 #include "intel_atomic.h"
 #include "intel_display_types.h"
+#include "intel_dp_aux.h"
+#include "intel_hdmi.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
-#include "intel_hdmi.h"
 
 /**
  * DOC: Panel Self Refresh (PSR/SRD)
@@ -555,7 +556,7 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 
 	if (dev_priv->psr.psr2_sel_fetch_enabled) {
 		/* WA 1408330847 */
-		if (IS_TGL_DISP_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_A0) ||
+		if (IS_TGL_DISP_STEPPING(dev_priv, STEP_A0, STEP_A0) ||
 		    IS_RKL_REVID(dev_priv, RKL_REVID_A0, RKL_REVID_A0))
 			intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
 				     DIS_RAM_BYPASS_PSR2_MAN_TRACK,
@@ -1109,7 +1110,7 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 
 	/* WA 1408330847 */
 	if (dev_priv->psr.psr2_sel_fetch_enabled &&
-	    (IS_TGL_DISP_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_A0) ||
+	    (IS_TGL_DISP_STEPPING(dev_priv, STEP_A0, STEP_A0) ||
 	     IS_RKL_REVID(dev_priv, RKL_REVID_A0, RKL_REVID_A0)))
 		intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
 			     DIS_RAM_BYPASS_PSR2_MAN_TRACK, 0);
@@ -1171,6 +1172,49 @@ static void psr_force_hw_tracking_exit(struct drm_i915_private *dev_priv)
 		intel_psr_exit(dev_priv);
 }
 
+void intel_psr2_program_plane_sel_fetch(struct intel_plane *plane,
+					const struct intel_crtc_state *crtc_state,
+					const struct intel_plane_state *plane_state,
+					int color_plane)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+	const struct drm_rect *clip;
+	u32 val, offset;
+	int ret, x, y;
+
+	if (!crtc_state->enable_psr2_sel_fetch)
+		return;
+
+	val = plane_state ? plane_state->ctl : 0;
+	val &= plane->id == PLANE_CURSOR ? val : PLANE_SEL_FETCH_CTL_ENABLE;
+	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_CTL(pipe, plane->id), val);
+	if (!val || plane->id == PLANE_CURSOR)
+		return;
+
+	clip = &plane_state->psr2_sel_fetch_area;
+
+	val = (clip->y1 + plane_state->uapi.dst.y1) << 16;
+	val |= plane_state->uapi.dst.x1;
+	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_POS(pipe, plane->id), val);
+
+	/* TODO: consider auxiliary surfaces */
+	x = plane_state->uapi.src.x1 >> 16;
+	y = (plane_state->uapi.src.y1 >> 16) + clip->y1;
+	ret = skl_calc_main_surface_offset(plane_state, &x, &y, &offset);
+	if (ret)
+		drm_warn_once(&dev_priv->drm, "skl_calc_main_surface_offset() returned %i\n",
+			      ret);
+	val = y << 16 | x;
+	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_OFFSET(pipe, plane->id),
+			  val);
+
+	/* Sizes are 0 based */
+	val = (drm_rect_height(clip) - 1) << 16;
+	val |= (drm_rect_width(&plane_state->uapi.src) >> 16) - 1;
+	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_SIZE(pipe, plane->id), val);
+}
+
 void intel_psr2_program_trans_man_trk_ctl(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -1185,16 +1229,181 @@ void intel_psr2_program_trans_man_trk_ctl(const struct intel_crtc_state *crtc_st
 		       crtc_state->psr2_man_track_ctl);
 }
 
-void intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
-				 struct intel_crtc *crtc)
+static void psr2_man_trk_ctl_calc(struct intel_crtc_state *crtc_state,
+				  struct drm_rect *clip, bool full_update)
+{
+	u32 val = PSR2_MAN_TRK_CTL_ENABLE;
+
+	if (full_update) {
+		val |= PSR2_MAN_TRK_CTL_SF_SINGLE_FULL_FRAME;
+		goto exit;
+	}
+
+	if (clip->y1 == -1)
+		goto exit;
+
+	drm_WARN_ON(crtc_state->uapi.crtc->dev, clip->y1 % 4 || clip->y2 % 4);
+
+	val |= PSR2_MAN_TRK_CTL_SF_PARTIAL_FRAME_UPDATE;
+	val |= PSR2_MAN_TRK_CTL_SU_REGION_START_ADDR(clip->y1 / 4 + 1);
+	val |= PSR2_MAN_TRK_CTL_SU_REGION_END_ADDR(clip->y2 / 4 + 1);
+exit:
+	crtc_state->psr2_man_track_ctl = val;
+}
+
+static void clip_area_update(struct drm_rect *overlap_damage_area,
+			     struct drm_rect *damage_area)
+{
+	if (overlap_damage_area->y1 == -1) {
+		overlap_damage_area->y1 = damage_area->y1;
+		overlap_damage_area->y2 = damage_area->y2;
+		return;
+	}
+
+	if (damage_area->y1 < overlap_damage_area->y1)
+		overlap_damage_area->y1 = damage_area->y1;
+
+	if (damage_area->y2 > overlap_damage_area->y2)
+		overlap_damage_area->y2 = damage_area->y2;
+}
+
+int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
+				struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
+	struct drm_rect pipe_clip = { .x1 = 0, .y1 = -1, .x2 = INT_MAX, .y2 = -1 };
+	struct intel_plane_state *new_plane_state, *old_plane_state;
+	struct intel_plane *plane;
+	bool full_update = false;
+	int i, ret;
 
 	if (!crtc_state->enable_psr2_sel_fetch)
-		return;
+		return 0;
 
-	crtc_state->psr2_man_track_ctl = PSR2_MAN_TRK_CTL_ENABLE |
-					 PSR2_MAN_TRK_CTL_SF_SINGLE_FULL_FRAME;
+	ret = drm_atomic_add_affected_planes(&state->base, &crtc->base);
+	if (ret)
+		return ret;
+
+	/*
+	 * Calculate minimal selective fetch area of each plane and calculate
+	 * the pipe damaged area.
+	 * In the next loop the plane selective fetch area will actually be set
+	 * using whole pipe damaged area.
+	 */
+	for_each_oldnew_intel_plane_in_state(state, plane, old_plane_state,
+					     new_plane_state, i) {
+		struct drm_rect src, damaged_area = { .y1 = -1 };
+		struct drm_mode_rect *damaged_clips;
+		u32 num_clips, j;
+
+		if (new_plane_state->uapi.crtc != crtc_state->uapi.crtc)
+			continue;
+
+		if (!new_plane_state->uapi.visible &&
+		    !old_plane_state->uapi.visible)
+			continue;
+
+		/*
+		 * TODO: Not clear how to handle planes with negative position,
+		 * also planes are not updated if they have a negative X
+		 * position so for now doing a full update in this cases
+		 */
+		if (new_plane_state->uapi.dst.y1 < 0 ||
+		    new_plane_state->uapi.dst.x1 < 0) {
+			full_update = true;
+			break;
+		}
+
+		num_clips = drm_plane_get_damage_clips_count(&new_plane_state->uapi);
+
+		/*
+		 * If visibility or plane moved, mark the whole plane area as
+		 * damaged as it needs to be complete redraw in the new and old
+		 * position.
+		 */
+		if (new_plane_state->uapi.visible != old_plane_state->uapi.visible ||
+		    !drm_rect_equals(&new_plane_state->uapi.dst,
+				     &old_plane_state->uapi.dst)) {
+			if (old_plane_state->uapi.visible) {
+				damaged_area.y1 = old_plane_state->uapi.dst.y1;
+				damaged_area.y2 = old_plane_state->uapi.dst.y2;
+				clip_area_update(&pipe_clip, &damaged_area);
+			}
+
+			if (new_plane_state->uapi.visible) {
+				damaged_area.y1 = new_plane_state->uapi.dst.y1;
+				damaged_area.y2 = new_plane_state->uapi.dst.y2;
+				clip_area_update(&pipe_clip, &damaged_area);
+			}
+			continue;
+		} else if (new_plane_state->uapi.alpha != old_plane_state->uapi.alpha ||
+			   (!num_clips &&
+			    new_plane_state->uapi.fb != old_plane_state->uapi.fb)) {
+			/*
+			 * If the plane don't have damaged areas but the
+			 * framebuffer changed or alpha changed, mark the whole
+			 * plane area as damaged.
+			 */
+			damaged_area.y1 = new_plane_state->uapi.dst.y1;
+			damaged_area.y2 = new_plane_state->uapi.dst.y2;
+			clip_area_update(&pipe_clip, &damaged_area);
+			continue;
+		}
+
+		drm_rect_fp_to_int(&src, &new_plane_state->uapi.src);
+		damaged_clips = drm_plane_get_damage_clips(&new_plane_state->uapi);
+
+		for (j = 0; j < num_clips; j++) {
+			struct drm_rect clip;
+
+			clip.x1 = damaged_clips[j].x1;
+			clip.y1 = damaged_clips[j].y1;
+			clip.x2 = damaged_clips[j].x2;
+			clip.y2 = damaged_clips[j].y2;
+			if (drm_rect_intersect(&clip, &src))
+				clip_area_update(&damaged_area, &clip);
+		}
+
+		if (damaged_area.y1 == -1)
+			continue;
+
+		damaged_area.y1 += new_plane_state->uapi.dst.y1 - src.y1;
+		damaged_area.y2 += new_plane_state->uapi.dst.y1 - src.y1;
+		clip_area_update(&pipe_clip, &damaged_area);
+	}
+
+	if (full_update)
+		goto skip_sel_fetch_set_loop;
+
+	/* It must be aligned to 4 lines */
+	pipe_clip.y1 -= pipe_clip.y1 % 4;
+	if (pipe_clip.y2 % 4)
+		pipe_clip.y2 = ((pipe_clip.y2 / 4) + 1) * 4;
+
+	/*
+	 * Now that we have the pipe damaged area check if it intersect with
+	 * every plane, if it does set the plane selective fetch area.
+	 */
+	for_each_oldnew_intel_plane_in_state(state, plane, old_plane_state,
+					     new_plane_state, i) {
+		struct drm_rect *sel_fetch_area, inter;
+
+		if (new_plane_state->uapi.crtc != crtc_state->uapi.crtc ||
+		    !new_plane_state->uapi.visible)
+			continue;
+
+		inter = pipe_clip;
+		if (!drm_rect_intersect(&inter, &new_plane_state->uapi.dst))
+			continue;
+
+		sel_fetch_area = &new_plane_state->psr2_sel_fetch_area;
+		sel_fetch_area->y1 = inter.y1 - new_plane_state->uapi.dst.y1;
+		sel_fetch_area->y2 = inter.y2 - new_plane_state->uapi.dst.y1;
+	}
+
+skip_sel_fetch_set_loop:
+	psr2_man_trk_ctl_calc(crtc_state, &pipe_clip, full_update);
+	return 0;
 }
 
 /**

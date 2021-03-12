@@ -6,11 +6,11 @@
 #ifndef __INTEL_REGION_LMEM_H
 #define __INTEL_REGION_LMEM_H
 
-struct drm_i915_private;
+struct intel_gt;
 
-extern const struct intel_memory_region_ops intel_region_lmem_ops;
+struct intel_memory_region *intel_gt_setup_lmem(struct intel_gt *gt);
 
 struct intel_memory_region *
-intel_setup_fake_lmem(struct drm_i915_private *i915);
+intel_gt_setup_fake_lmem(struct intel_gt *gt);
 
 #endif /* !__INTEL_REGION_LMEM_H */

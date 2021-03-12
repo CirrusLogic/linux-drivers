@@ -1439,36 +1439,6 @@ static const struct panel_desc boe_nv110wtm_n61 = {
 	.connector_type = DRM_MODE_CONNECTOR_eDP,
 };
 
-static const struct drm_display_mode boe_nv116whm_t01_modes = {
-	.clock = 70190,
-	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC,
-	.hdisplay = 1366,
-	.hsync_start = 1366 + 38,
-	.hsync_end = 1366 + 38 + 22,
-	.htotal = 1366 + 38 + 22 + 40,
-	.vdisplay = 768,
-	.vsync_start = 768 + 4,
-	.vsync_end = 768 + 4 + 4,
-	.vtotal = 768 + 4 + 4 + 22,
-};
-
-static const struct panel_desc boe_nv116whm_t01 = {
-	.modes = &boe_nv116whm_t01_modes,
-	.num_modes = 1,
-	.bpc = 6,
-	.size = {
-		.width = 256,
-		.height = 144,
-	},
-	.delay = {
-		.hpd_absent_delay = 200,
-		.unprepare = 500,
-	},
-	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
-	.bus_flags = DRM_BUS_FLAG_DATA_MSB_TO_LSB,
-	.connector_type = DRM_MODE_CONNECTOR_eDP,
-};
-
 /* Also used for boe_nv133fhm_n62 */
 static const struct drm_display_mode boe_nv133fhm_n61_modes = {
 	.clock = 147840,
@@ -4135,9 +4105,6 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "boe,nv110wtm-n61",
 		.data = &boe_nv110wtm_n61,
-	}, {
-		.compatible = "boe,nv116whm-t01",
-		.data = &boe_nv116whm_t01,
 	}, {
 		.compatible = "boe,nv133fhm-n61",
 		.data = &boe_nv133fhm_n61,
