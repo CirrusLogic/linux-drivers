@@ -4584,6 +4584,7 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 	struct ieee80211_vif *disabled_vif = NULL;
 
 	lockdep_assert_held(&mvm->mutex);
+	iwl_mvm_remove_time_event(mvm, mvmvif, &mvmvif->time_event_data);
 
 	iwl_mvm_remove_time_event(mvm, mvmvif, &mvmvif->time_event_data);
 
@@ -4611,12 +4612,6 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 		mvmvif->ap_ibss_active = false;
 		break;
 	case NL80211_IFTYPE_STATION:
-		/*
-		 * We are unbinding, so remove a possible session protection
-		 * requested by the driver
-		 */
-		iwl_mvm_stop_session_protection(mvm, vif);
-
 		if (!switching_chanctx)
 			break;
 
