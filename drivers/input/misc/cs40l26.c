@@ -383,7 +383,19 @@ static int cs40l26_dsp_shutdown(struct cs40l26_private *cs40l26)
 static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 {
 	u8 dsp_state;
+	u32 halo_state;
 	int ret;
+
+	ret = regmap_read(cs40l26->regmap, CS40L26_DSP_HALO_STATE_REG,
+			&halo_state);
+	if (ret)
+		return ret;
+
+	if (halo_state != CS40L26_DSP_HALO_STATE_ROM_RUN) {
+		dev_err(cs40l26->dev, "DSP not Ready: HALO_STATE: %08X\n",
+				halo_state);
+		return -EINVAL;
+	}
 
 	ret = cs40l26_pm_state_transition(cs40l26,
 			CS40L26_PM_STATE_PREVENT_HIBERNATE);
