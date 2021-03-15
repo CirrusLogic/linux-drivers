@@ -957,9 +957,15 @@ static int iwl_mvm_vendor_set_dynamic_txp_profile(struct wiphy *wiphy,
 	mvm->fwrt.sar_chain_a_profile = chain_a;
 	mvm->fwrt.sar_chain_b_profile = chain_b;
 
+	if (!iwl_mvm_firmware_running(mvm)) {
+		err = 0;
+		goto free;
+	}
+
 	mutex_lock(&mvm->mutex);
 	err = iwl_mvm_sar_select_profile(mvm, chain_a, chain_b);
 	mutex_unlock(&mvm->mutex);
+
 free:
 	kfree(tb);
 	if (err > 0)
