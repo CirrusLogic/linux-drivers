@@ -2252,11 +2252,36 @@ static irqreturn_t cs35l45_pll_lock(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static void cs35l45_global_err_rls_work(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct cs35l45_private *cs35l45 =
+		container_of(dwork, struct cs35l45_private, global_err_rls_work);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_ERROR_RELEASE,
+			   CS35L45_GLOBAL_ERR_RLS_MASK, 0);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_ERROR_RELEASE,
+			   CS35L45_GLOBAL_ERR_RLS_MASK,
+			   CS35L45_GLOBAL_ERR_RLS_MASK);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_ERROR_RELEASE,
+			   CS35L45_GLOBAL_ERR_RLS_MASK, 0);
+}
+
 static irqreturn_t cs35l45_global_err(int irq, void *data)
 {
 	struct cs35l45_private *cs35l45 = data;
+	unsigned int val;
 
 	dev_err(cs35l45->dev, "Global error detected!");
+
+	regmap_read(cs35l45->regmap, CS35L45_CHIP_STATUS, &val);
+
+	dev_err(cs35l45->dev, "Chip status: 0x%08x\n", val);
+
+	queue_delayed_work(cs35l45->wq, &cs35l45->global_err_rls_work,
+			   msecs_to_jiffies(100));
 
 	return IRQ_HANDLED;
 }
@@ -3134,6 +3159,7 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 	INIT_WORK(&cs35l45->dsp_pmd_work, cs35l45_dsp_pmd_work);
 
 	INIT_DELAYED_WORK(&cs35l45->hb_work, cs35l45_hibernate_work);
+	INIT_DELAYED_WORK(&cs35l45->global_err_rls_work, cs35l45_global_err_rls_work);
 
 	mutex_init(&cs35l45->dsp_power_lock);
 	mutex_init(&cs35l45->hb_lock);
