@@ -1532,7 +1532,6 @@ struct cs40l2x_private {
 #else
 	struct led_classdev led_dev;
 #endif /* CONFIG_ANDROID_TIMED_OUTPUT */
-	unsigned int autosuspend_delay;
 	struct completion hap_done;
 };
 
