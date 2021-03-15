@@ -6683,42 +6683,6 @@ err_mutex:
 	return ret;
 }
 
-static ssize_t cs40l2x_autosuspend_delay_show(struct device *dev,
-					      struct device_attribute *attr,
-					      char *buf)
-{
-	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-	unsigned int val;
-
-	mutex_lock(&cs40l2x->lock);
-	val = cs40l2x->autosuspend_delay;
-	mutex_unlock(&cs40l2x->lock);
-
-	return snprintf(buf, PAGE_SIZE, "%u\n", val);
-}
-
-static ssize_t cs40l2x_autosuspend_delay_store(struct device *dev,
-					       struct device_attribute *attr,
-					       const char *buf,
-					       size_t count)
-{
-	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
-	int ret;
-	unsigned int val;
-
-	ret = kstrtou32(buf, 10, &val);
-	if (ret)
-		return -EINVAL;
-
-	mutex_lock(&cs40l2x->lock);
-	cs40l2x->autosuspend_delay = val;
-	mutex_unlock(&cs40l2x->lock);
-
-	pm_runtime_set_autosuspend_delay(cs40l2x->dev, val);
-
-	return count;
-}
-
 static DEVICE_ATTR(cp_trigger_index, 0660, cs40l2x_cp_trigger_index_show,
 		cs40l2x_cp_trigger_index_store);
 static DEVICE_ATTR(cp_trigger_queue, 0660, cs40l2x_cp_trigger_queue_show,
@@ -6845,8 +6809,6 @@ static DEVICE_ATTR(gpio_event, 0660, cs40l2x_gpio_event_show,
 static DEVICE_ATTR(safe_save_state, 0660, cs40l2x_safe_save_state_show, NULL);
 static DEVICE_ATTR(max_back_emf, 0660, cs40l2x_max_back_emf_show,
 		cs40l2x_max_back_emf_store);
-static DEVICE_ATTR(autosuspend_delay, 0660, cs40l2x_autosuspend_delay_show,
-		   cs40l2x_autosuspend_delay_store);
 static DEVICE_ATTR(pwle, 0660, cs40l2x_pwle_show, cs40l2x_pwle_store);
 static DEVICE_ATTR(num_virtual_composite, 0660,
 	cs40l2x_num_virtual_composite_show, NULL);
@@ -6928,7 +6890,6 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_gpio_event.attr,
 	&dev_attr_safe_save_state.attr,
 	&dev_attr_max_back_emf.attr,
-	&dev_attr_autosuspend_delay.attr,
 	&dev_attr_pwle.attr,
 	&dev_attr_num_virtual_composite.attr,
 	&dev_attr_num_virtual_pwle.attr,
@@ -9632,7 +9593,8 @@ static void cs40l2x_coeff_file_load(const struct firmware *fw, void *context)
 	pm_runtime_mark_last_busy(cs40l2x->dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	pm_runtime_set_autosuspend_delay(dev, cs40l2x->autosuspend_delay);
+
+	pm_runtime_set_autosuspend_delay(dev, CS40L2X_AUTOSUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(dev);
 
 	return;
@@ -11634,8 +11596,6 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 
 	cs40l2x->dyn_f0_enable = !pdata->dyn_f0_disable;
 	cs40l2x->open_wt_enable = !pdata->open_wt_disable;
-
-	cs40l2x->autosuspend_delay = CS40L2X_AUTOSUSPEND_DELAY_MS;
 
 	strlcpy(cs40l2x->wt_file,
 			CS40L2X_WT_FILE_NAME_MISSING,
