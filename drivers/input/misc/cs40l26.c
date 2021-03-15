@@ -2014,61 +2014,58 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	cs40l26->fw_loaded = true;
 
-	ret = cs40l26_pm_runtime_setup(cs40l26);
-	if (ret)
-		goto err_out;
-
 	ret = cs40l26_dsp_start(cs40l26);
 	if (ret)
 		goto err_out;
 
-	pm_runtime_get_sync(dev);
-
 	ret = cs40l26_pseq_init(cs40l26);
 	if (ret)
-		goto pm_err_out;
+		goto err_out;
 
 	ret = cs40l26_iseq_init(cs40l26);
 	if (ret)
-		goto pm_err_out;
+		goto err_out;
 
 	ret = cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1,
 			BIT(CS40L26_IRQ1_VIRTUAL2_MBOX_WR), CS40L26_IRQ_UNMASK);
 	if (ret)
-		goto pm_err_out;
+		goto err_out;
 
 	ret = cs40l26_wksrc_config(cs40l26);
 	if (ret)
-		goto pm_err_out;
+		goto err_out;
 
 	ret = cs40l26_gpio_config(cs40l26);
 	if (ret)
-		goto pm_err_out;
+		goto err_out;
 
 	ret = cs40l26_brownout_prevention_init(cs40l26);
 	if (ret)
-		goto pm_err_out;
+		goto err_out;
 
 	/* ensure firmware running */
 	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_STATE",
 			CL_DSP_XM_UNPACKED_TYPE, cs40l26->dsp->fw_desc->id,
 			&reg);
 	if (ret)
-		goto pm_err_out;
+		goto err_out;
 
 	ret = cs40l26_ack_read(cs40l26, reg,
 			cs40l26->dsp->fw_desc->halo_state_run);
 	if (ret)
-		goto pm_err_out;
+		goto err_out;
+
+	ret = cs40l26_pm_runtime_setup(cs40l26);
+	if (ret)
+		goto err_out;
+
+	pm_runtime_get_sync(dev);
 
 	ret = cs40l26_get_num_waves(cs40l26, &cs40l26->num_waves);
-	if (ret)
-		goto pm_err_out;
+	if (!ret)
+		dev_info(dev, "%s loaded with %u RAM waveforms\n",
+				CS40L26_DEV_NAME, cs40l26->num_waves);
 
-	dev_info(dev, "%s loaded with %u RAM waveforms\n", CS40L26_DEV_NAME,
-			cs40l26->num_waves);
-
-pm_err_out:
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 err_out:
