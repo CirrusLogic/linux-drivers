@@ -339,7 +339,7 @@ skip_parse:
 	}
 
 	ret = iwl_trans_set_reduce_power(trans, data, len);
-	if (!ret)
+	if (ret)
 		IWL_DEBUG_FW(trans,
 			     "Failed to set reduce power table %d\n",
 			     ret);
