@@ -23,11 +23,6 @@
 	status = "disabled";
 };
 
-&sound {
-	pinctrl-names = "default";
-	pinctrl-0 = <&dmic_clk_en>;
-};
-
 &tlmm {
 	gpio-line-names = "HUB_RST_L",
 			  "AP_RAM_ID0",
