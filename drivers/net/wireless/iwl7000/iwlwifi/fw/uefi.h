@@ -16,6 +16,14 @@
 #define IWL_HARDCODED_PNVM_SIZE		4096
 #define IWL_HARDCODED_REDUCE_POWER_SIZE	32768
 
+struct pnvm_sku_package {
+	u8 rev;
+	u32 total_size;
+	u8 n_skus;
+	u32 reserved[2];
+	u8 data[];
+} __packed;
+
 /*
  * This is known to be broken on v4.19 and to work on v5.4.  Until we
  * figure out why this is the case and how to make it work, simply
