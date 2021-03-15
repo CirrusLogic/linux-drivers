@@ -163,6 +163,7 @@ struct cs35l45_private {
 	struct work_struct dsp_pmu_work;
 	struct work_struct dsp_pmd_work;
 	struct delayed_work hb_work;
+	struct delayed_work global_err_rls_work;
 	struct workqueue_struct *wq;
 	struct mutex rate_lock;
 	struct mutex dsp_power_lock;
