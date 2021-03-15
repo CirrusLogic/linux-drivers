@@ -17,15 +17,6 @@ struct iwl_pnvm_section {
 	const u8 data[];
 } __packed;
 
-struct pnvm_sku_package {
-	u8 rev;
-	u8 reserved1[3];
-	u32 total_size;
-	u8 n_skus;
-	u8 reserved2[11];
-	u8 data[];
-};
-
 static bool iwl_pnvm_complete_fn(struct iwl_notif_wait_data *notif_wait,
 				 struct iwl_rx_packet *pkt, void *data)
 {
@@ -343,6 +334,7 @@ skip_parse:
 		IWL_DEBUG_FW(trans,
 			     "Failed to set reduce power table %d\n",
 			     ret);
+	kfree(data);
 
 skip_reduce_power:
 	iwl_init_notification_wait(notif_wait, &pnvm_wait,
