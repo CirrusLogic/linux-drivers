@@ -1622,6 +1622,7 @@ static int cs35l45_compr_open(struct snd_compr_stream *stream)
 	cs35l45->compr->dsp = &cs35l45->dsp;
 	cs35l45->compr->stream = stream;
 	cs35l45->compr->buffer_size = be32_to_cpu(buffer_size);
+	cs35l45->compr->buffer_count = 0;
 
 	INIT_WORK(&cs35l45->compr->start_work, cs35l45_compr_start_work);
 	INIT_WORK(&cs35l45->compr->stop_work, cs35l45_compr_stop_work);
@@ -2087,7 +2088,8 @@ static irqreturn_t cs35l45_msm_global_en_assert(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int cs35l45_compr_handle_irq(struct cs35l45_private *cs35l45)
+static int cs35l45_compr_handle_irq(struct cs35l45_private *cs35l45,
+				    unsigned int data)
 {
 	struct cs35l45_compr *compr;
 	int ret = 0;
@@ -2100,6 +2102,22 @@ static int cs35l45_compr_handle_irq(struct cs35l45_private *cs35l45)
 	}
 
 	compr = cs35l45->compr;
+
+	if (data == cs35l45->compr->buffer_count) {
+		dev_err(cs35l45->dev, "Buffer count is equal to the previous one: %d\n",
+			cs35l45->compr->buffer_count);
+		goto out;
+	}
+
+	if (data != cs35l45->compr->buffer_count + 1) {
+		dev_warn(cs35l45->dev, "Buffer count is intermittent: %d", data);
+		if (cs35l45->compr->buffer_count == 0)
+			dev_warn(cs35l45->dev, "Compressed stream is reopened since last IRQ\n");
+		else
+			dev_warn(cs35l45->dev, "Buffer skipped. Last received: %d\n",
+				 cs35l45->compr->buffer_count);
+	}
+	cs35l45->compr->buffer_count = data;
 
 	ret = cs35l45_buffer_update_avail(cs35l45);
 	if (ret < 0) {
@@ -2131,7 +2149,8 @@ static int cs35l45_dsp_virt2_mbox3_irq_handle(struct cs35l45_private *cs35l45, u
 	return 0;
 }
 
-static int cs35l45_dsp_virt2_mbox4_irq_handle(struct cs35l45_private *cs35l45)
+static int cs35l45_dsp_virt2_mbox4_irq_handle(struct cs35l45_private *cs35l45,
+					      unsigned int data)
 {
 	__be32 enabled;
 	int ret;
@@ -2153,7 +2172,7 @@ static int cs35l45_dsp_virt2_mbox4_irq_handle(struct cs35l45_private *cs35l45)
 	}
 
 	if (be32_to_cpu(enabled) == 1) {
-		ret = cs35l45_compr_handle_irq(cs35l45);
+		ret = cs35l45_compr_handle_irq(cs35l45, data);
 		if (ret == -ENODEV) {
 			dev_err(cs35l45->dev, "Spurious DSP log IRQ\n");
 			return -EINVAL;
@@ -2183,8 +2202,8 @@ static irqreturn_t cs35l45_dsp_virt2_mbox_cb(int irq, void *data)
 
 	/* Handle DSP trace log IRQ */
 	ret = regmap_read(cs35l45->regmap, CS35L45_DSP_VIRT2_MBOX_4, &mbox_val);
-	if (!ret && mbox_val == CS35L45_DSP_LOG_MBOX_4_TRIGGERED) {
-		ret = cs35l45_dsp_virt2_mbox4_irq_handle(cs35l45);
+	if (!ret && mbox_val != 0) {
+		ret = cs35l45_dsp_virt2_mbox4_irq_handle(cs35l45, mbox_val);
 		if (ret)
 			dev_err(cs35l45->dev, "Spurious DSP MBOX4 IRQ\n");
 	}
