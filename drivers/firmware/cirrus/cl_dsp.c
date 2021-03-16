@@ -662,8 +662,8 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 						CL_DSP_UNPACKED_NUM_BYTES;
 				break;
 			}
-			if (coeff_desc->reg == 0x2800358)
-				dev_dbg(dev,
+
+			dev_dbg(dev,
 				"Control %s at 0x%08X with parent ID = 0x%X\n",
 				coeff_desc->name, coeff_desc->reg,
 				coeff_desc->parent_id);
