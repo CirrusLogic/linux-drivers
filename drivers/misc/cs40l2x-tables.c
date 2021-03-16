@@ -513,6 +513,9 @@ bool cs40l2x_precious_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case CS40L2X_OTP_MEM0 ... CS40L2X_OTP_MEM31:
+	case CS40L2X_DSP1_XMEM_PACK_0 ... CS40L2X_DSP1_XMEM_PACK_3068:
+	case CS40L2X_DSP1_YMEM_PACK_0 ... CS40L2X_DSP1_YMEM_PACK_1532:
+	case CS40L2X_DSP1_PMEM_0 ... CS40L2X_DSP1_PMEM_5114:
 		return true;
 	default:
 		return false;
