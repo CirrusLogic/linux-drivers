@@ -8,7 +8,91 @@
 
 #include <linux/firmware/cirrus/cl_dsp.h>
 
-static int cl_dsp_raw_write(struct cl_dsp *dsp, unsigned int reg,
+struct cl_dsp_memchunk cl_dsp_memchunk_create(void *data, int size)
+{
+	struct cl_dsp_memchunk ch = {
+		.data = data,
+		.max = data + size,
+	};
+
+	return ch;
+}
+EXPORT_SYMBOL(cl_dsp_memchunk_create);
+
+static inline bool cl_dsp_memchunk_end(struct cl_dsp_memchunk *ch)
+{
+	return ch->data == ch->max;
+}
+
+static inline bool cl_dsp_memchunk_valid_addr(struct cl_dsp_memchunk *ch,
+		void *addr)
+{
+	return (u8 *)addr <= ch->max;
+}
+
+int cl_dsp_memchunk_read(struct cl_dsp_memchunk *ch, int nbits)
+{
+	int nread, i;
+	u32 result;
+
+	if (!ch->cachebits) {
+		if (cl_dsp_memchunk_end(ch))
+			return -ENOSPC;
+
+		ch->cache = 0;
+		ch->cachebits = 24;
+
+		for (i = 0; i < sizeof(ch->cache); i++, ch->cache <<= 8)
+			ch->cache |= *ch->data++;
+
+		ch->bytes += sizeof(ch->cache);
+	}
+
+	nread = min(ch->cachebits, nbits);
+	nbits -= nread;
+
+	result = ch->cache >> (32 - nread);
+	ch->cache <<= nread;
+	ch->cachebits -= nread;
+
+	if (nbits)
+		result = (result << nbits) | cl_dsp_memchunk_read(ch, nbits);
+
+	return result;
+}
+EXPORT_SYMBOL(cl_dsp_memchunk_read);
+
+int cl_dsp_memchunk_write(struct cl_dsp_memchunk *ch, int nbits, u32 val)
+{
+	int nwrite, i;
+
+	nwrite = min(24 - ch->cachebits, nbits);
+
+	ch->cache <<= nwrite;
+	ch->cache |= val >> (nbits - nwrite);
+	ch->cachebits += nwrite;
+	nbits -= nwrite;
+
+	if (ch->cachebits == 24) {
+		if (cl_dsp_memchunk_end(ch))
+			return -ENOSPC;
+
+		ch->cache &= 0xFFFFFF;
+		for (i = 0; i < sizeof(ch->cache); i++, ch->cache <<= 8)
+			*ch->data++ = (ch->cache & 0xFF000000) >> 24;
+
+		ch->bytes += sizeof(ch->cache);
+		ch->cachebits = 0;
+	}
+
+	if (nbits)
+		return cl_dsp_memchunk_write(ch, nbits, val);
+
+	return 0;
+}
+EXPORT_SYMBOL(cl_dsp_memchunk_write);
+
+int cl_dsp_raw_write(struct cl_dsp *dsp, unsigned int reg,
 		const void *val, size_t val_len, size_t limit)
 {
 	int i, ret = 0;
@@ -26,6 +110,7 @@ static int cl_dsp_raw_write(struct cl_dsp *dsp, unsigned int reg,
 
 	return ret;
 }
+EXPORT_SYMBOL(cl_dsp_raw_write);
 
 int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 		const unsigned int block_type,
@@ -117,6 +202,53 @@ static int cl_dsp_process_data_be(const u8 *data,
 		*val += *(data + i) << (i * CL_DSP_BITS_PER_BYTE);
 
 	return 0;
+}
+
+static int cl_dsp_owt_init(struct cl_dsp *dsp, const struct firmware *bin)
+{
+	if (!dsp->wt_desc) {
+		dev_err(dsp->dev, "Wavetable not supported by core driver\n");
+		return -EPERM;
+	}
+
+	memcpy(&dsp->wt_desc->owt.raw_data, &bin->data[0], bin->size);
+
+	return 0;
+}
+
+static int cl_dsp_read_wt(struct cl_dsp *dsp, int pos, int size)
+{
+	struct cl_dsp_owt_header *entry = dsp->wt_desc->owt.waves;
+	void *buf = (void *)&dsp->wt_desc->owt.raw_data[pos];
+	struct cl_dsp_memchunk ch = cl_dsp_memchunk_create(buf, size);
+	u32 *wbuf = buf, *max = buf;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dsp->wt_desc->owt.waves); i++, entry++) {
+		entry->flags = cl_dsp_memchunk_read(&ch, 16);
+		entry->type = cl_dsp_memchunk_read(&ch, 8);
+
+		if (entry->type == WT_TYPE_TERMINATOR) {
+			dsp->wt_desc->owt.nwaves = i;
+			dsp->wt_desc->owt.bytes = max(ch.bytes,
+					(void *)max - buf);
+
+			return dsp->wt_desc->owt.bytes;
+		}
+
+		entry->offset = cl_dsp_memchunk_read(&ch, 24);
+		entry->size = cl_dsp_memchunk_read(&ch, 24);
+		entry->data = wbuf + entry->offset;
+
+		if (wbuf + entry->offset + entry->size > max) {
+			max = wbuf + entry->offset + entry->size;
+
+			if (!cl_dsp_memchunk_valid_addr(&ch, max))
+				return -EINVAL;
+		}
+	}
+
+	return -E2BIG;
 }
 
 static int cl_dsp_coeff_header_parse(struct cl_dsp *dsp,
@@ -304,6 +436,16 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 
 						ret = -EINVAL;
 						goto err_free;
+					} else {
+						ret = cl_dsp_owt_init(dsp, fw);
+						if (ret)
+							goto err_free;
+
+						ret = cl_dsp_read_wt(dsp, pos,
+						data_block.header.data_len);
+						if (ret < 0)
+							goto err_free;
+						dsp->wt_desc->is_xm = true;
 					}
 
 					dev_info(dev,
@@ -342,6 +484,12 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 
 						ret = -EINVAL;
 						goto err_free;
+					} else {
+						ret = cl_dsp_read_wt(dsp, pos,
+						data_block.header.data_len);
+						if (ret < 0)
+							goto err_free;
+						dsp->wt_desc->is_xm = false;
 					}
 
 					dev_dbg(dev,
