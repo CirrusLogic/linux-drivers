@@ -786,7 +786,7 @@
 
 #define CS40L26_FW_ROM_ID		0x1800D4
 #define CS40L26_FW_ROM_MIN_REV		0x040000
-#define CS40L26_FW_RAM_MIN_REV		0x050001
+#define CS40L26_FW_RAM_MIN_REV		0x050002
 
 #define CS40L26_CCM_CORE_RESET		0x00000200
 #define CS40L26_CCM_CORE_ENABLE	0x00000281
@@ -822,8 +822,13 @@
 #define CS40L26_ROM_INDEX_START		0x01800000
 #define CS40L26_ROM_INDEX_END			0x01800026
 
+#define CS40L26_OWT_INDEX_START		0x01400000
+#define CS40L26_OWT_INDEX_END			0x01400005
+
+
 #define CS40L26_RAM_BANK_ID			0
 #define CS40L26_ROM_BANK_ID			1
+#define CS40L26_OWT_BANK_ID			2
 
 #define CS40L26_BUZZGEN_INDEX_START		0x01800080
 #define CS40L26_BUZZGEN_INDEX_CP_TRIGGER	0x01800081
@@ -1024,6 +1029,30 @@
 
 #define CS40L26_A2H_MAX_TUNINGS	5
 
+/* OWT */
+#define CS40L26_WT_STR_MAX_LEN			512
+#define CS40L26_WT_MAX_SEGS			512
+#define CS40L26_WT_MAX_SECTS			256
+#define CS40L26_WT_MAX_DELAY			10000
+#define CS40L26_WT_MAX_FINITE_REPEAT		32
+
+#define CS40L26_WT_REPEAT_LOOP_MARKER		0xFF
+#define CS40L26_WT_INDEF_TIME_VAL		0xFFFF
+#define CS40L26_WT_MAX_TIME_VAL		16383 /* ms */
+
+#define CS40L26_WT_WLEN_TERM_SIZE		8
+#define CS40L26_WT_HEADER_TERM			0xFFFFFF
+#define CS40L26_WT_HEADER_OFFSET		4
+
+#define CS40L26_WT_TYPE10_COMP_SEG_LEN_MAX	20
+
+#define CS40L26_WT_TYPE10_WAVELEN_MAX		0x3FFFFF
+#define CS40L26_WT_TYPE10_WAVELEN_INDEF	0x400000
+#define CS40L26_WT_TYPE10_WAVELEN_CALCULATED	0x800000
+#define CS40L26_WT_TYPE10_COMP_DURATION_FLAG	0x8
+#define CS40L26_WT_TYPE10_WRITE_FLAGS		0x0000
+
+
 /* MFD */
 #define CS40L26_NUM_MFD_DEVS		1
 
@@ -1038,6 +1067,8 @@
 #define CS40L26_MS_TO_NS(n)	((n) * 1000000)
 
 #define CS40L26_MS_TO_HZ(n)	(1000 / (n))
+
+#define CS40L26_SAMPS_TO_MS(n)	((n) / 8)
 
 extern const struct cl_dsp_fw_desc cs40l26_fw;
 extern const struct cl_dsp_fw_desc cs40l26_ram_fw;
@@ -1147,6 +1178,14 @@ enum cs40l26_pm_state {
 };
 
 /* structs */
+struct cs40l26_owt_section {
+	u8 flags;
+	u8 repeat;
+	u8 index;
+	u16 delay;
+	u16 duration;
+};
+
 struct cs40l26_iseq_pair {
 	u32 addr;
 	u32 val;
@@ -1219,6 +1258,8 @@ struct cs40l26_private {
 	u8 last_wksrc_pol;
 	u8 wksrc_sts;
 	u32 event_count;
+	u32 owt_wlength;
+	int num_owt_effects;
 };
 
 struct cs40l26_codec {
