@@ -1647,14 +1647,22 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 {
 	struct cs40l26_private *cs40l26 = container_of(work,
 			struct cs40l26_private, vibe_start_work);
-	u16 duration = cs40l26->effect->replay.length;
 	struct device *dev = cs40l26->dev;
 	int ret = 0;
 	unsigned int reg, freq;
 	u32 index, algo_id;
+	u16 duration;
 
 	pm_runtime_get_sync(dev);
 	mutex_lock(&cs40l26->lock);
+
+	if (cs40l26->effect->u.periodic.waveform == FF_CUSTOM)
+		index = cs40l26->trigger_indeces[cs40l26->effect->id];
+
+	if (index >= CS40L26_OWT_INDEX_START && index <= CS40L26_OWT_INDEX_END)
+		duration = CS40L26_SAMPS_TO_MS(cs40l26->owt_wlength);
+	else
+		duration = cs40l26->effect->replay.length;
 
 	hrtimer_start(&cs40l26->vibe_timer,
 			ktime_set(CS40L26_MS_TO_SECS(duration),
@@ -1664,8 +1672,6 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 
 	switch (cs40l26->effect->u.periodic.waveform) {
 	case FF_CUSTOM:
-		index = cs40l26->trigger_indeces[cs40l26->effect->id];
-
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				index, CS40L26_DSP_MBOX_RESET);
 		if (ret)
@@ -1794,6 +1800,244 @@ static int cs40l26_playback_effect(struct input_dev *dev,
 	return 0;
 }
 
+static int cs40l26_owt_get_wlength(struct cs40l26_private *cs40l26, u8 index)
+{
+	struct device *dev = cs40l26->dev;
+	struct cl_dsp_owt_header *entry;
+	struct cl_dsp_memchunk ch;
+
+	if (index == 0)
+		return 0;
+
+	entry = &cs40l26->dsp->wt_desc->owt.waves[index];
+
+	switch (entry->type) {
+	case WT_TYPE_V6_PCM_F0_REDC:
+	case WT_TYPE_V6_PCM_F0_REDC_VAR:
+	case WT_TYPE_V6_PWLE:
+		break;
+	default:
+		dev_err(dev, "Cannot size waveform type %u\n", entry->type);
+		return -EINVAL;
+	}
+
+	ch = cl_dsp_memchunk_create(entry->data, sizeof(u32));
+
+	/* First 24 bits of each waveform is the length in samples @ 8 kHz */
+	return cl_dsp_memchunk_read(&ch, 24);
+}
+
+static void cs40l26_owt_get_section_info(struct cs40l26_private *cs40l26,
+		struct cl_dsp_memchunk *ch,
+		struct cs40l26_owt_section *sections, u8 nsections)
+{
+	int i;
+
+	for (i = 0; i < nsections; i++) {
+		cl_dsp_memchunk_read(ch, 8); /* Skip amplitude */
+		sections[i].index = cl_dsp_memchunk_read(ch, 8);
+		sections[i].repeat = cl_dsp_memchunk_read(ch, 8);
+		sections[i].flags = cl_dsp_memchunk_read(ch, 8);
+		sections[i].delay = cl_dsp_memchunk_read(ch, 16);
+
+		if (sections[i].flags & CS40L26_WT_TYPE10_COMP_DURATION_FLAG) {
+			cl_dsp_memchunk_read(ch, 8); /* Skip padding */
+			sections[i].duration = cl_dsp_memchunk_read(ch, 16);
+		}
+	}
+}
+
+static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26,
+		struct cl_dsp_memchunk *ch)
+{
+	u32 total_len = 0, section_len = 0, loop_len = 0;
+	bool in_loop = false;
+	struct cs40l26_owt_section *sections;
+	int ret = 0, i, wlen_whole;
+	u8 nsections, global_rep;
+	u32 dlen, wlen;
+
+	cl_dsp_memchunk_read(ch, 8); /* Skip padding */
+	nsections = cl_dsp_memchunk_read(ch, 8);
+	global_rep = cl_dsp_memchunk_read(ch, 8);
+
+	if (nsections < 1) {
+		dev_err(cs40l26->dev, "Not enough sections for composite\n");
+		return -EINVAL;
+	}
+
+	sections = kcalloc(nsections, sizeof(struct cs40l26_owt_section),
+			GFP_KERNEL);
+	if (!sections) {
+		dev_err(cs40l26->dev, "Failed to allocate OWT sections\n");
+		return -ENOMEM;
+	}
+
+	cs40l26_owt_get_section_info(cs40l26, ch, sections, nsections);
+
+	for (i = 0; i < nsections; i++) {
+		wlen_whole = cs40l26_owt_get_wlength(cs40l26,
+				sections[i].index);
+		if (wlen_whole < 0) {
+			dev_err(cs40l26->dev,
+					"Failed to get wlength for index %u\n",
+					sections[i].index);
+			ret = wlen_whole;
+			goto err_free;
+		}
+
+		if (wlen_whole & CS40L26_WT_TYPE10_WAVELEN_INDEF) {
+			if (!(sections[i].flags &
+					CS40L26_WT_TYPE10_COMP_DURATION_FLAG)) {
+				dev_err(cs40l26->dev,
+					"Indefinite entry needs duration\n");
+				ret = -EINVAL;
+				goto err_free;
+			}
+
+			wlen = CS40L26_WT_TYPE10_WAVELEN_MAX;
+		} else {
+			/* Length is 22 LSBs, filter out flags */
+			wlen = wlen_whole & CS40L26_WT_TYPE10_WAVELEN_MAX;
+		}
+
+		dlen = 8 * sections[i].delay;
+
+		if (sections[i].flags & CS40L26_WT_TYPE10_COMP_DURATION_FLAG) {
+			if (wlen > (2 * sections[i].duration))
+				wlen = 2 * sections[i].duration;
+		}
+
+		section_len = wlen + dlen;
+		loop_len += section_len;
+
+		if (sections[i].repeat == 0xFF) {
+			in_loop = true;
+		} else if (sections[i].repeat) {
+			total_len += (loop_len * (sections[i].repeat + 1));
+
+			in_loop = false;
+			loop_len = 0;
+		} else if (!in_loop) {
+			total_len += section_len;
+			loop_len = 0;
+		}
+
+		section_len = 0;
+	}
+
+	cs40l26->owt_wlength = (total_len * (global_rep + 1)) |
+			CS40L26_WT_TYPE10_WAVELEN_CALCULATED;
+
+err_free:
+	kfree(sections);
+
+	return ret;
+}
+
+static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, s16 *data,
+		u32 data_size)
+{
+	u32 data_size_bytes = data_size * 2;
+	struct device *dev = cs40l26->dev;
+	struct cl_dsp *dsp = cs40l26->dsp;
+	unsigned int write_reg, reg, wt_offset, wt_size, wt_base;
+	u32 full_data_size, header_size = CL_DSP_OWT_HEADER_ENTRY_SIZE;
+	struct cl_dsp_memchunk header_ch, data_ch;
+	u8 *full_data, *header;
+	int ret = 0, i;
+
+	data_ch = cl_dsp_memchunk_create((void *) data, data_size_bytes);
+	ret = cs40l26_owt_calculate_wlength(cs40l26, &data_ch);
+	if (ret)
+		return ret;
+
+	header_size += CS40L26_WT_WLEN_TERM_SIZE;
+	full_data_size = header_size + data_size_bytes;
+
+	header = kcalloc(header_size, sizeof(u8), GFP_KERNEL);
+	if (!header)
+		return -ENOMEM;
+
+	header_ch = cl_dsp_memchunk_create((void *) header, header_size);
+
+	/* Header */
+	cl_dsp_memchunk_write(&header_ch, 16, CS40L26_WT_TYPE10_WRITE_FLAGS);
+	cl_dsp_memchunk_write(&header_ch, 8, WT_TYPE_V6_COMPOSITE);
+	cl_dsp_memchunk_write(&header_ch, 24, CS40L26_WT_HEADER_OFFSET);
+	cl_dsp_memchunk_write(&header_ch, 24, full_data_size /
+					CL_DSP_BYTES_PER_WORD);
+
+	cl_dsp_memchunk_write(&header_ch, 24, CS40L26_WT_HEADER_TERM);
+	cl_dsp_memchunk_write(&header_ch, 24, cs40l26->owt_wlength);
+
+	full_data = kcalloc(full_data_size, sizeof(u8), GFP_KERNEL);
+	if (!full_data) {
+		ret = -ENOMEM;
+		goto err_free;
+	}
+
+	memcpy(full_data, header, header_ch.bytes);
+	memcpy(full_data + header_ch.bytes, data, data_size_bytes);
+
+	pm_runtime_get_sync(dev);
+
+	ret = cl_dsp_get_reg(dsp, "OWT_BASE_XM", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (ret)
+		goto err_pm;
+
+	ret = regmap_read(cs40l26->regmap, reg, &wt_offset);
+	if (ret) {
+		dev_err(dev, "Failed to get wavetable offset\n");
+		goto err_pm;
+	}
+
+	ret = cl_dsp_get_reg(dsp, "OWT_SIZE_XM", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (ret)
+		goto err_pm;
+
+	ret = regmap_read(cs40l26->regmap, reg, &wt_size);
+	if (ret) {
+		dev_err(dev, "Failed to get available WT size\n");
+		goto err_pm;
+	}
+
+	if (wt_size < full_data_size) {
+		dev_err(dev, "No space for OWT waveform\n");
+		ret = -ENOSPC;
+		goto err_pm;
+	}
+
+	ret = cl_dsp_get_reg(dsp, CS40L26_WT_NAME_XM, CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &wt_base);
+	if (ret)
+		goto err_pm;
+
+	write_reg = wt_base + (wt_offset * CL_DSP_BYTES_PER_WORD);
+
+	ret = cl_dsp_raw_write(cs40l26->dsp, write_reg, full_data,
+			full_data_size, CL_DSP_MAX_WLEN);
+	if (ret) {
+		dev_err(dev, "Failed to sync OWT\n");
+		goto err_pm;
+	}
+
+	dev_dbg(dev, "Successfully wrote waveform (%u bytes) to 0x%08X\n",
+			full_data_size, write_reg);
+
+err_pm:
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
+err_free:
+	kfree(header);
+	kfree(full_data);
+
+	return ret;
+}
+
 static int cs40l26_upload_effect(struct input_dev *dev,
 		struct ff_effect *effect, struct ff_effect *old)
 {
@@ -1801,7 +2045,7 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 	struct device *cdev = cs40l26->dev;
 	s16 *raw_custom_data = NULL;
 	int ret = 0;
-	u32 bank_offset, trigger_index, min_index, max_index;
+	u32 trigger_index, min_index, max_index;
 	u16 index, bank;
 
 	if (effect->type != FF_PERIODIC) {
@@ -1820,8 +2064,8 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 	switch (effect->u.periodic.waveform) {
 	case FF_CUSTOM:
 		raw_custom_data =
-				kzalloc(sizeof(s16) * CS40L26_CUSTOM_DATA_SIZE,
-				GFP_KERNEL);
+				kzalloc(sizeof(s16) *
+				effect->u.periodic.custom_len, GFP_KERNEL);
 		if (!raw_custom_data)
 			return -ENOMEM;
 
@@ -1830,29 +2074,43 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 				sizeof(s16) * effect->u.periodic.custom_len)) {
 			dev_err(cdev, "Failed to get user data\n");
 			ret = -EFAULT;
-			goto err_free;
+			goto out_free;
 		}
 
-		bank = ((u16) raw_custom_data[0]);
+		if (effect->u.periodic.custom_len > CS40L26_CUSTOM_DATA_SIZE) {
+			ret = cs40l26_owt_upload(cs40l26, raw_custom_data,
+					effect->u.periodic.custom_len);
+			if (ret)
+				goto out_free;
+
+			bank = CS40L26_OWT_BANK_ID;
+			index = cs40l26->num_owt_effects;
+		} else {
+			bank = ((u16) raw_custom_data[0]);
+			index = ((u16) raw_custom_data[1]) &
+					CS40L26_MAX_INDEX_MASK;
+		}
+
 		switch (bank) {
 		case CS40L26_RAM_BANK_ID:
-			bank_offset = CS40L26_RAM_INDEX_START;
 			min_index = CS40L26_RAM_INDEX_START;
-			max_index = bank_offset + cs40l26->num_waves - 1;
+			max_index = min_index + cs40l26->num_waves - 1;
 			break;
 		case CS40L26_ROM_BANK_ID:
-			bank_offset = CS40L26_ROM_INDEX_START;
 			min_index = CS40L26_ROM_INDEX_START;
 			max_index = CS40L26_ROM_INDEX_END;
+			break;
+		case CS40L26_OWT_BANK_ID:
+			min_index = CS40L26_OWT_INDEX_START;
+			max_index = CS40L26_OWT_INDEX_END;
 			break;
 		default:
 			dev_err(cdev, "Bank ID (%u) out of bounds\n", bank);
 			ret = -EINVAL;
-			goto err_free;
+			goto out_free;
 		}
 
-		index = ((u16) raw_custom_data[1]) & CS40L26_MAX_INDEX_MASK;
-		trigger_index = index + bank_offset;
+		trigger_index = index + min_index;
 
 		if (trigger_index >= min_index && trigger_index <= max_index) {
 			cs40l26->trigger_indeces[effect->id] = trigger_index;
@@ -1860,7 +2118,7 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 			dev_err(cdev, "Trigger index (0x%X) out of bounds\n",
 					trigger_index);
 			ret = -EINVAL;
-			goto err_free;
+			goto out_free;
 		}
 
 		break;
@@ -1886,7 +2144,7 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 		return -EINVAL;
 	}
 
-err_free:
+out_free:
 	kfree(raw_custom_data);
 
 	return ret;
@@ -2006,6 +2264,8 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26)
 				CS40L26_VIBEGEN_ALGO_ID, CS40L26_WT_NAME_XM,
 				CS40L26_WT_NAME_YM, "cs40l26.bin");
 	}
+
+	cs40l26->num_owt_effects = 0;
 
 	return ret;
 }
