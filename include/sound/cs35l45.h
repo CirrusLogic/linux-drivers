@@ -149,6 +149,7 @@ struct cs35l45_compr {
 	int last_read_index;
 	int buffer_size;
 	int avail;
+	int buffer_count;
 };
 
 struct cs35l45_private {
