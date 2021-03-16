@@ -136,6 +136,12 @@
 #define CL_DSP_HALO_ALGO_YM_SIZE_OFFSET	20
 #define CL_DSP_ALGO_ENTRY_SIZE			24
 
+/* open wavetable */
+#define CL_DSP_OWT_HEADER_MAX_LEN		128
+#define CL_DSP_OWT_HEADER_ENTRY_SIZE		12
+
+#define CL_DSP_MAX_BIN_SIZE			9584
+
 /* macros */
 #define CL_DSP_WORD_ALIGN(n)	(CL_DSP_BYTES_PER_WORD +\
 				(((n) / CL_DSP_BYTES_PER_WORD) *\
@@ -151,6 +157,24 @@
 				CL_DSP_REV_MINOR_SHIFT)
 
 #define CL_DSP_GET_PATCH(n)	((n) & CL_DSP_REV_PATCH_MASK)
+
+enum cl_dsp_wt_type {
+	WT_TYPE_V4_PCM			= 0,
+	WT_TYPE_V4_PWLE			= 1,
+	WT_TYPE_V4_PCM_F0_REDC		= 2,
+	WT_TYPE_V4_PCM_F0_REDC_VAR	= 3,
+	WT_TYPE_V4_COMPOSITE		= 4,
+	WT_TYPE_V5_PCM_PCM_F0_REDC_Q	= 5,
+	WT_TYPE_V5_PWLE_LONG		= 6,
+	WT_TYPE_V5_PWLE_LINEAR		= 7,
+	WT_TYPE_V6_PCM_F0_REDC		= 8,
+	WT_TYPE_V6_PCM_F0_REDC_VAR	= 9,
+	WT_TYPE_V6_COMPOSITE		= 10,
+	WT_TYPE_V6_PCM_F0_REDC_Q	= 11,
+	WT_TYPE_V6_PWLE			= 12,
+
+	WT_TYPE_TERMINATOR		= 0xFF,
+};
 
 union cl_dsp_wmdr_header {
 	struct {
@@ -234,6 +258,29 @@ struct cl_dsp_coeff_desc {
 	struct list_head list;
 };
 
+struct cl_dsp_memchunk {
+	u8 *data;
+	u8 *max;
+	int bytes;
+	u32 cache;
+	int cachebits;
+};
+
+struct cl_dsp_owt_header {
+	enum cl_dsp_wt_type type;
+	u16 flags;
+	u32 offset;
+	u32 size;
+	void *data;
+};
+
+struct cl_dsp_owt_desc {
+	struct cl_dsp_owt_header waves[CL_DSP_OWT_HEADER_MAX_LEN];
+	int nwaves;
+	int bytes;
+	u8 raw_data[CL_DSP_MAX_BIN_SIZE];
+};
+
 struct cl_dsp_wt_desc {
 	unsigned int id;
 	char wt_name_xm[CL_DSP_WMDR_NAME_LEN];
@@ -242,6 +289,8 @@ struct cl_dsp_wt_desc {
 	unsigned int wt_limit_ym;
 	char wt_file[CL_DSP_WMDR_NAME_LEN];
 	char wt_date[CL_DSP_WMDR_DATE_LEN];
+	struct cl_dsp_owt_desc owt;
+	bool is_xm;
 };
 
 struct cl_dsp_algo_info {
@@ -275,5 +324,10 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw);
 int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 		const unsigned int block_type, const unsigned int algo_id,
 		unsigned int *reg);
+struct cl_dsp_memchunk cl_dsp_memchunk_create(void *data, int size);
+int cl_dsp_memchunk_write(struct cl_dsp_memchunk *ch, int nbits, u32 val);
+int cl_dsp_memchunk_read(struct cl_dsp_memchunk *ch, int nbits);
+int cl_dsp_raw_write(struct cl_dsp *dsp, unsigned int reg,
+		const void *val, size_t val_len, size_t limit);
 
 #endif /* __CL_DSP_H */
