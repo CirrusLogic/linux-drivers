@@ -23,6 +23,16 @@ ap_h1_spi: &spi0 {};
 	status = "okay";
 };
 
+&sn65dsi86_out {
+	/*
+	 * This board will end up being used with the same panel (and cable)
+	 * as lazor but has the mappings on the board as per trogdor. Thus we
+	 * end up with the same problems as lazor-rev0 and need to do a swap
+	 * here.
+	 */
+	lane-polarities = <1 0>;
+};
+
 ap_ts_pen_1v8: &i2c4 {
 	status = "okay";
 	clock-frequency = <400000>;
