@@ -4769,7 +4769,7 @@ static int cs40l2x_dig_scale_get(struct cs40l2x_private *cs40l2x,
 	int ret;
 	unsigned int val;
 
-	ret = regmap_read(cs40l2x->regmap, CS40L2X_AMP_DIG_VOL_CTRL, &val);
+	ret = regmap_read(cs40l2x->regmap, CS40L2X_AMP_CTRL, &val);
 	if (ret)
 		return ret;
 
@@ -4788,7 +4788,7 @@ static int cs40l2x_dig_scale_set(struct cs40l2x_private *cs40l2x,
 	if (dig_scale == CS40L2X_DIG_SCALE_RESET)
 		return -EINVAL;
 
-	ret = regmap_read(cs40l2x->regmap, CS40L2X_AMP_DIG_VOL_CTRL, &val);
+	ret = regmap_read(cs40l2x->regmap, CS40L2X_AMP_CTRL, &val);
 	if (ret)
 		return ret;
 
@@ -4797,11 +4797,11 @@ static int cs40l2x_dig_scale_set(struct cs40l2x_private *cs40l2x,
 			(((CS40L2X_DIG_SCALE_ZERO - dig_scale)
 			& CS40L2X_DIG_SCALE_MASK) << CS40L2X_AMP_VOL_PCM_SHIFT);
 
-	ret = regmap_write(cs40l2x->regmap, CS40L2X_AMP_DIG_VOL_CTRL, val);
+	ret = regmap_write(cs40l2x->regmap, CS40L2X_AMP_CTRL, val);
 	if (ret)
 		return ret;
 
-	return cs40l2x_wseq_replace(cs40l2x, CS40L2X_AMP_DIG_VOL_CTRL, val);
+	return cs40l2x_wseq_replace(cs40l2x, CS40L2X_AMP_CTRL, val);
 }
 
 static ssize_t cs40l2x_dig_scale_show(struct device *dev,
@@ -6983,13 +6983,13 @@ static int cs40l2x_enable_classh(struct cs40l2x_private *cs40l2x)
 
 	/* Add 50 ms delay to settle the waveform */
 	msleep(CS40L2X_SETTLE_DELAY_MS);
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+	ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 					CS40L2X_BST_CTL_SEL_MASK,
 					CS40L2X_BST_CTL_SEL_CLASSH);
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
+	ret = regmap_update_bits(regmap, CS40L2X_BLOCK_ENABLES2,
 			CS40L2X_CLASSH_EN_MASK,
 			1 << CS40L2X_CLASSH_EN_SHIFT);
 	if (ret)
@@ -7021,19 +7021,19 @@ static void cs40l2x_vibe_mode_worker(struct work_struct *work)
 		goto err_exit;
 
 	if (cs40l2x->a2h_enable) {
-		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+		ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 					CS40L2X_BST_CTL_SEL_MASK,
 					CS40L2X_BST_CTL_SEL_CLASSH);
 		if (ret)
 			goto err_exit;
 
-		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
+		ret = regmap_update_bits(regmap, CS40L2X_BLOCK_ENABLES2,
 				CS40L2X_CLASSH_EN_MASK,
 				1 << CS40L2X_CLASSH_EN_SHIFT);
 		if (ret)
 			goto err_exit;
 
-		ret = regmap_write(regmap, CS40L2X_DSP_VIRT1_MBOX_5,
+		ret = regmap_write(regmap, CS40L2X_MBOX_USER_CONTROL,
 					CS40L2X_A2H_I2S_START);
 		if (ret)
 			goto err_exit;
@@ -7614,7 +7614,7 @@ static int cs40l2x_set_boost_voltage(struct cs40l2x_private *cs40l2x,
 		return -EINVAL;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL1,
+	ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_1,
 			CS40L2X_BST_CTL_MASK,
 			bst_ctl_scaled << CS40L2X_BST_CTL_SHIFT);
 	if (ret) {
@@ -7622,7 +7622,7 @@ static int cs40l2x_set_boost_voltage(struct cs40l2x_private *cs40l2x,
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+	ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 			CS40L2X_BST_CTL_LIM_EN_MASK,
 			1 << CS40L2X_BST_CTL_LIM_EN_SHIFT);
 	if (ret) {
@@ -7684,25 +7684,25 @@ static int cs40l2x_cond_classh(struct cs40l2x_private *cs40l2x, int index)
 		if (ret)
 			return ret;
 
-		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+		ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 						CS40L2X_BST_CTL_SEL_MASK,
 						CS40L2X_BST_CTL_SEL_CP_VAL);
 		if (ret)
 			return ret;
 
-		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
+		ret = regmap_update_bits(regmap, CS40L2X_BLOCK_ENABLES2,
 				CS40L2X_CLASSH_EN_MASK,
 				0 << CS40L2X_CLASSH_EN_SHIFT);
 		if (ret)
 			return ret;
 	} else {
-		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+		ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 						CS40L2X_BST_CTL_SEL_MASK,
 						CS40L2X_BST_CTL_SEL_CLASSH);
 		if (ret)
 			return ret;
 
-		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
+		ret = regmap_update_bits(regmap, CS40L2X_BLOCK_ENABLES2,
 				CS40L2X_CLASSH_EN_MASK,
 				1 << CS40L2X_CLASSH_EN_SHIFT);
 		if (ret)
@@ -8572,7 +8572,7 @@ static int cs40l2x_hw_err_rls(struct cs40l2x_private *cs40l2x,
 	}
 
 	if (cs40l2x_hw_errs[i].bst_cycle) {
-		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL2,
+		ret = regmap_update_bits(regmap, CS40L2X_BLOCK_ENABLES,
 				CS40L2X_BST_EN_MASK,
 				CS40L2X_BST_DISABLED << CS40L2X_BST_EN_SHIFT);
 		if (ret) {
@@ -8581,27 +8581,27 @@ static int cs40l2x_hw_err_rls(struct cs40l2x_private *cs40l2x,
 		}
 	}
 
-	ret = regmap_write(regmap, CS40L2X_PROTECT_REL_ERR_IGN, 0);
+	ret = regmap_write(regmap, CS40L2X_ERROR_RELEASE, 0);
 	if (ret) {
 		dev_err(dev, "Failed to cycle error release (step 1 of 3)\n");
 		return ret;
 	}
 
-	ret = regmap_write(regmap, CS40L2X_PROTECT_REL_ERR_IGN,
+	ret = regmap_write(regmap, CS40L2X_ERROR_RELEASE,
 			cs40l2x_hw_errs[i].rls_mask);
 	if (ret) {
 		dev_err(dev, "Failed to cycle error release (step 2 of 3)\n");
 		return ret;
 	}
 
-	ret = regmap_write(regmap, CS40L2X_PROTECT_REL_ERR_IGN, 0);
+	ret = regmap_write(regmap, CS40L2X_ERROR_RELEASE, 0);
 	if (ret) {
 		dev_err(dev, "Failed to cycle error release (step 3 of 3)\n");
 		return ret;
 	}
 
 	if (cs40l2x_hw_errs[i].bst_cycle) {
-		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL2,
+		ret = regmap_update_bits(regmap, CS40L2X_BLOCK_ENABLES,
 				CS40L2X_BST_EN_MASK,
 				CS40L2X_BST_ENABLED << CS40L2X_BST_EN_SHIFT);
 		if (ret) {
@@ -8622,7 +8622,7 @@ static int cs40l2x_hw_err_chk(struct cs40l2x_private *cs40l2x)
 	unsigned int val;
 	int ret, i;
 
-	ret = regmap_read(regmap, CS40L2X_IRQ2_STATUS1, &val);
+	ret = regmap_read(regmap, CS40L2X_IRQ2_EINT_1, &val);
 	if (ret) {
 		dev_err(dev, "Failed to read hardware error status\n");
 		return ret;
@@ -8635,7 +8635,7 @@ static int cs40l2x_hw_err_chk(struct cs40l2x_private *cs40l2x)
 		dev_crit(dev, "Encountered %s error\n",
 				cs40l2x_hw_errs[i].err_name);
 
-		ret = regmap_write(regmap, CS40L2X_IRQ2_STATUS1,
+		ret = regmap_write(regmap, CS40L2X_IRQ2_EINT_1,
 				cs40l2x_hw_errs[i].irq_mask);
 		if (ret) {
 			dev_err(dev, "Failed to acknowledge hardware error\n");
@@ -8657,10 +8657,10 @@ static int cs40l2x_hw_err_chk(struct cs40l2x_private *cs40l2x)
 }
 
 static const struct reg_sequence cs40l2x_irq2_masks[] = {
-	{CS40L2X_IRQ2_MASK1,		0xFFFFFFFF},
-	{CS40L2X_IRQ2_MASK2,		0xFFFFFFFF},
-	{CS40L2X_IRQ2_MASK3,		0xFFFF87FF},
-	{CS40L2X_IRQ2_MASK4,		0xFEFFFFFF},
+	{CS40L2X_IRQ2_MASK_1,		0xFFFFFFFF},
+	{CS40L2X_IRQ2_MASK_2,		0xFFFFFFFF},
+	{CS40L2X_IRQ2_MASK_3,		0xFFFF87FF},
+	{CS40L2X_IRQ2_MASK_4,		0xFEFFFFFF},
 };
 
 static const struct reg_sequence cs40l2x_amp_gnd_setup[] = {
@@ -8778,7 +8778,7 @@ static int cs40l2x_dsp_pre_config(struct cs40l2x_private *cs40l2x)
 		for (i = 0; i < ARRAY_SIZE(cs40l2x_irq2_masks); i++) {
 			/* unmask hardware error interrupts */
 			val = cs40l2x_irq2_masks[i].def;
-			if (cs40l2x_irq2_masks[i].reg == CS40L2X_IRQ2_MASK1)
+			if (cs40l2x_irq2_masks[i].reg == CS40L2X_IRQ2_MASK_1)
 				val &= ~cs40l2x->hw_err_mask;
 
 			/* upper half */
@@ -8830,22 +8830,22 @@ static int cs40l2x_dsp_pre_config(struct cs40l2x_private *cs40l2x)
 static const struct reg_sequence cs40l2x_dsp_errata[] = {
 	{0x02BC2020,			0x00000000},
 	{0x02BC20E0,			0x00000000},
-	{CS40L2X_DSP1_RX1_RATE,		0x00000001},
-	{CS40L2X_DSP1_RX2_RATE,		0x00000001},
-	{CS40L2X_DSP1_RX3_RATE,		0x00000001},
-	{CS40L2X_DSP1_RX4_RATE,		0x00000001},
-	{CS40L2X_DSP1_RX5_RATE,		0x00000001},
-	{CS40L2X_DSP1_RX6_RATE,		0x00000001},
-	{CS40L2X_DSP1_RX7_RATE,		0x00000001},
-	{CS40L2X_DSP1_RX8_RATE,		0x00000001},
-	{CS40L2X_DSP1_TX1_RATE,		0x00000001},
-	{CS40L2X_DSP1_TX2_RATE,		0x00000001},
-	{CS40L2X_DSP1_TX3_RATE,		0x00000001},
-	{CS40L2X_DSP1_TX4_RATE,		0x00000001},
-	{CS40L2X_DSP1_TX5_RATE,		0x00000001},
-	{CS40L2X_DSP1_TX6_RATE,		0x00000001},
-	{CS40L2X_DSP1_TX7_RATE,		0x00000001},
-	{CS40L2X_DSP1_TX8_RATE,		0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_RX1,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_RX2,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_RX3,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_RX4,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_RX5,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_RX6,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_RX7,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_RX8,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_TX1,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_TX2,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_TX3,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_TX4,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_TX5,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_TX6,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_TX7,	0x00000001},
+	{CS40L2X_DSP1_SAMPLE_RATE_TX8,	0x00000001},
 };
 
 static int cs40l2x_dsp_start(struct cs40l2x_private *cs40l2x)
@@ -8865,7 +8865,7 @@ static int cs40l2x_dsp_start(struct cs40l2x_private *cs40l2x)
 
 	switch (cs40l2x->revid) {
 	case CS40L2X_REVID_A0:
-		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL1,
+		ret = regmap_update_bits(regmap, CS40L2X_GLOBAL_ENABLES,
 				CS40L2X_GLOBAL_EN_MASK,
 				1 << CS40L2X_GLOBAL_EN_SHIFT);
 		if (ret) {
@@ -8884,10 +8884,11 @@ static int cs40l2x_dsp_start(struct cs40l2x_private *cs40l2x)
 		}
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_DSP1_CCM_CORE_CTRL,
-			CS40L2X_DSP1_RESET_MASK | CS40L2X_DSP1_EN_MASK,
-			(1 << CS40L2X_DSP1_RESET_SHIFT) |
-				(1 << CS40L2X_DSP1_EN_SHIFT));
+	ret = regmap_update_bits(regmap, CS40L2X_DSP1_CCM_CORE_CONTROL,
+				 CS40L2X_DSP1_CCM_CORE_RESET_MASK |
+				 CS40L2X_DSP1_CCM_CORE_EN_MASK,
+				 (1 << CS40L2X_DSP1_CCM_CORE_RESET_SHIFT) |
+				 (1 << CS40L2X_DSP1_CCM_CORE_EN_SHIFT));
 	if (ret) {
 		dev_err(dev, "Failed to start DSP\n");
 		return ret;
@@ -9865,8 +9866,8 @@ static int cs40l2x_firmware_swap(struct cs40l2x_private *cs40l2x,
 
 	cs40l2x->dsp_reg = NULL;
 
-	ret = regmap_update_bits(regmap, CS40L2X_DSP1_CCM_CORE_CTRL,
-			CS40L2X_DSP1_EN_MASK, (0 << CS40L2X_DSP1_EN_SHIFT));
+	ret = regmap_update_bits(regmap, CS40L2X_DSP1_CCM_CORE_CONTROL,
+				 CS40L2X_DSP1_CCM_CORE_EN_MASK, 0);
 	if (ret) {
 		dev_err(dev, "Failed to stop DSP\n");
 		return ret;
@@ -10086,7 +10087,7 @@ static int cs40l2x_boost_short_test(struct cs40l2x_private *cs40l2x)
 	unsigned int val;
 	int ret;
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+	ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 			CS40L2X_BST_CTL_SEL_MASK,
 			CS40L2X_BST_CTL_SEL_CP_VAL
 				<< CS40L2X_BST_CTL_SEL_SHIFT);
@@ -10095,7 +10096,7 @@ static int cs40l2x_boost_short_test(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL1,
+	ret = regmap_update_bits(regmap, CS40L2X_GLOBAL_ENABLES,
 			CS40L2X_GLOBAL_EN_MASK, 1 << CS40L2X_GLOBAL_EN_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to enable device\n");
@@ -10104,7 +10105,7 @@ static int cs40l2x_boost_short_test(struct cs40l2x_private *cs40l2x)
 
 	usleep_range(10000, 10100);
 
-	ret = regmap_read(regmap, CS40L2X_IRQ1_STATUS1, &val);
+	ret = regmap_read(regmap, CS40L2X_IRQ1_EINT_1, &val);
 	if (ret) {
 		dev_err(dev, "Failed to read boost converter error status\n");
 		return ret;
@@ -10115,14 +10116,14 @@ static int cs40l2x_boost_short_test(struct cs40l2x_private *cs40l2x)
 		return -EIO;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL1,
+	ret = regmap_update_bits(regmap, CS40L2X_GLOBAL_ENABLES,
 			CS40L2X_GLOBAL_EN_MASK, 0 << CS40L2X_GLOBAL_EN_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to disable device\n");
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+	ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 			CS40L2X_BST_CTL_SEL_MASK,
 			CS40L2X_BST_CTL_SEL_CLASSH
 				<< CS40L2X_BST_CTL_SEL_SHIFT);
@@ -10184,7 +10185,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		bst_cbst_range = 4;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_COEFF,
+	ret = regmap_update_bits(regmap, CS40L2X_BST_LOOP_COEFF,
 			CS40L2X_BST_K1_MASK,
 			cs40l2x_bst_k1_table[bst_lbst_val][bst_cbst_range]
 				<< CS40L2X_BST_K1_SHIFT);
@@ -10193,7 +10194,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_COEFF,
+	ret = regmap_update_bits(regmap, CS40L2X_BST_LOOP_COEFF,
 			CS40L2X_BST_K2_MASK,
 			cs40l2x_bst_k2_table[bst_lbst_val][bst_cbst_range]
 				<< CS40L2X_BST_K2_SHIFT);
@@ -10202,7 +10203,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BSTCVRT_COEFF,
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BST_LOOP_COEFF,
 			(cs40l2x_bst_k2_table[bst_lbst_val][bst_cbst_range]
 				<< CS40L2X_BST_K2_SHIFT) |
 			(cs40l2x_bst_k1_table[bst_lbst_val][bst_cbst_range]
@@ -10212,7 +10213,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_SLOPE_LBST,
+	ret = regmap_update_bits(regmap, CS40L2X_LBST_SLOPE,
 			CS40L2X_BST_SLOPE_MASK,
 			cs40l2x_bst_slope_table[bst_lbst_val]
 				<< CS40L2X_BST_SLOPE_SHIFT);
@@ -10221,7 +10222,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_SLOPE_LBST,
+	ret = regmap_update_bits(regmap, CS40L2X_LBST_SLOPE,
 			CS40L2X_BST_LBST_VAL_MASK,
 			bst_lbst_val << CS40L2X_BST_LBST_VAL_SHIFT);
 	if (ret) {
@@ -10229,7 +10230,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BSTCVRT_SLOPE_LBST,
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_LBST_SLOPE,
 			(cs40l2x_bst_slope_table[bst_lbst_val]
 				<< CS40L2X_BST_SLOPE_SHIFT) |
 			(bst_lbst_val << CS40L2X_BST_LBST_VAL_SHIFT));
@@ -10245,7 +10246,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 	}
 	bst_ipk_scaled = ((boost_ipk - 1600) / 50) + 0x10;
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_PEAK_CUR,
+	ret = regmap_update_bits(regmap, CS40L2X_BST_IPK_CTL,
 			CS40L2X_BST_IPK_MASK,
 			bst_ipk_scaled << CS40L2X_BST_IPK_SHIFT);
 	if (ret) {
@@ -10253,7 +10254,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BSTCVRT_PEAK_CUR,
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BST_IPK_CTL,
 			bst_ipk_scaled << CS40L2X_BST_IPK_SHIFT);
 	if (ret) {
 		dev_err(dev,
@@ -10278,7 +10279,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return -EINVAL;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL1,
+	ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_1,
 			CS40L2X_BST_CTL_MASK,
 			bst_ctl_scaled << CS40L2X_BST_CTL_SHIFT);
 	if (ret) {
@@ -10286,14 +10287,14 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BSTCVRT_VCTRL1,
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_VBST_CTL_1,
 			bst_ctl_scaled << CS40L2X_BST_CTL_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to sequence VBST limit\n");
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+	ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 			CS40L2X_BST_CTL_LIM_EN_MASK,
 			1 << CS40L2X_BST_CTL_LIM_EN_SHIFT);
 	if (ret) {
@@ -10301,7 +10302,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BSTCVRT_VCTRL2,
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_VBST_CTL_2,
 			(1 << CS40L2X_BST_CTL_LIM_EN_SHIFT) |
 			(CS40L2X_BST_CTL_SEL_CLASSH
 				<< CS40L2X_BST_CTL_SEL_SHIFT));
@@ -10316,7 +10317,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 	case 9000 ... 12875:
 		bst_ovp_scaled = ((boost_ovp - 9000) / 125) * 2;
 
-		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_OVERVOLT_CTRL,
+		ret = regmap_update_bits(regmap, CS40L2X_VBST_OVP,
 				CS40L2X_BST_OVP_THLD_MASK,
 				bst_ovp_scaled << CS40L2X_BST_OVP_THLD_SHIFT);
 		if (ret) {
@@ -10324,8 +10325,7 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 			return ret;
 		}
 
-		ret = cs40l2x_wseq_add_reg(cs40l2x,
-				CS40L2X_BSTCVRT_OVERVOLT_CTRL,
+		ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_VBST_OVP,
 				(1 << CS40L2X_BST_OVP_EN_SHIFT) |
 				(bst_ovp_scaled << CS40L2X_BST_OVP_THLD_SHIFT));
 		if (ret) {
@@ -10356,7 +10356,7 @@ static int cs40l2x_brownout_config(struct cs40l2x_private *cs40l2x,
 	int ret;
 
 	switch (br_reg) {
-	case CS40L2X_VPBR_CFG:
+	case CS40L2X_VPBR_CONFIG:
 		br_enable = cs40l2x->pdata.vpbr_enable;
 		br_config = &cs40l2x->pdata.vpbr_config;
 
@@ -10376,7 +10376,7 @@ static int cs40l2x_brownout_config(struct cs40l2x_private *cs40l2x,
 		br_thld1_scaled = ((br_thld1 - 2497) * 1000 / 47482) + 0x02;
 		break;
 
-	case CS40L2X_VBBR_CFG:
+	case CS40L2X_VBBR_CONFIG:
 		br_enable = cs40l2x->pdata.vbbr_enable;
 		br_config = &cs40l2x->pdata.vbbr_config;
 
@@ -10404,7 +10404,7 @@ static int cs40l2x_brownout_config(struct cs40l2x_private *cs40l2x,
 	if (!br_enable)
 		return 0;
 
-	ret = regmap_read(regmap, CS40L2X_PWR_CTRL3, &val);
+	ret = regmap_read(regmap, CS40L2X_BLOCK_ENABLES2, &val);
 	if (ret) {
 		dev_err(dev, "Failed to read VPBR/VBBR enable controls\n");
 		return ret;
@@ -10412,13 +10412,13 @@ static int cs40l2x_brownout_config(struct cs40l2x_private *cs40l2x,
 
 	val |= br_en_mask;
 
-	ret = regmap_write(regmap, CS40L2X_PWR_CTRL3, val);
+	ret = regmap_write(regmap, CS40L2X_BLOCK_ENABLES2, val);
 	if (ret) {
 		dev_err(dev, "Failed to write VPBR/VBBR enable controls\n");
 		return ret;
 	}
 
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_PWR_CTRL3, val);
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BLOCK_ENABLES2, val);
 	if (ret) {
 		dev_err(dev, "Failed to sequence VPBR/VBBR enable controls\n");
 		return ret;
@@ -10507,27 +10507,27 @@ static int cs40l2x_brownout_config(struct cs40l2x_private *cs40l2x,
 }
 
 static const struct reg_sequence cs40l2x_mpu_config[] = {
-	{CS40L2X_DSP1_MPU_LOCK_CONFIG,	CS40L2X_MPU_UNLOCK_CODE1},
-	{CS40L2X_DSP1_MPU_LOCK_CONFIG,	CS40L2X_MPU_UNLOCK_CODE2},
-	{CS40L2X_DSP1_MPU_XM_ACCESS0,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_YM_ACCESS0,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_WNDW_ACCESS0,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_XREG_ACCESS0,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_YREG_ACCESS0,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_WNDW_ACCESS1,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_XREG_ACCESS1,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_YREG_ACCESS1,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_WNDW_ACCESS2,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_XREG_ACCESS2,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_YREG_ACCESS2,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_WNDW_ACCESS3,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_XREG_ACCESS3,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_YREG_ACCESS3,	0xFFFFFFFF},
-	{CS40L2X_DSP1_MPU_LOCK_CONFIG,	0x00000000}
+	{CS40L2X_DSP1_MPU_LOCK_CONFIG,		CS40L2X_MPU_UNLOCK_CODE1},
+	{CS40L2X_DSP1_MPU_LOCK_CONFIG,		CS40L2X_MPU_UNLOCK_CODE2},
+	{CS40L2X_DSP1_MPU_XM_ACCESS_0,		0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_YM_ACCESS_0,		0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_WINDOW_ACCESS_0,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_XREG_ACCESS_0,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_YREG_ACCESS_0,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_WINDOW_ACCESS_1,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_XREG_ACCESS_1,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_YREG_ACCESS_1,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_WINDOW_ACCESS_2,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_XREG_ACCESS_2,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_YREG_ACCESS_2,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_WINDOW_ACCESS_3,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_XREG_ACCESS_3,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_YREG_ACCESS_3,	0xFFFFFFFF},
+	{CS40L2X_DSP1_MPU_LOCK_CONFIG,		0x00000000}
 };
 
 static const struct reg_sequence cs40l2x_pcm_routing[] = {
-	{CS40L2X_DAC_PCM1_SRC,		CS40L2X_DAC_PCM1_SRC_DSP1TX1},
+	{CS40L2X_DACPCM1_INPUT,		CS40L2X_DACPCM1_SRC_DSP1TX1},
 	{CS40L2X_DSP1RX1_INPUT,		CS40L2X_DSP1_RXn_SRC_ASPRX1},
 	{CS40L2X_DSP1RX2_INPUT,		CS40L2X_DSP1_RXn_SRC_VMON},
 	{CS40L2X_DSP1RX3_INPUT,		CS40L2X_DSP1_RXn_SRC_IMON},
@@ -10569,7 +10569,7 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 			return ret;
 		}
 
-		ret = regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
+		ret = regmap_update_bits(regmap, CS40L2X_REFCLK_INPUT,
 				CS40L2X_PLL_REFCLK_SEL_MASK,
 				CS40L2X_PLL_REFCLK_SEL_MCLK
 					<< CS40L2X_PLL_REFCLK_SEL_SHIFT);
@@ -10578,7 +10578,7 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 			return ret;
 		}
 
-		ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_PLL_CLK_CTRL,
+		ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_REFCLK_INPUT,
 				((1 << CS40L2X_PLL_REFCLK_EN_SHIFT)
 					& CS40L2X_PLL_REFCLK_EN_MASK) |
 				((CS40L2X_PLL_REFCLK_SEL_MCLK
@@ -10609,7 +10609,7 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_AMP_DIG_VOL_CTRL,
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_AMP_CTRL,
 			(1 << CS40L2X_AMP_HPF_PCM_EN_SHIFT)
 				& CS40L2X_AMP_HPF_PCM_EN_MASK);
 	if (ret) {
@@ -10666,12 +10666,12 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 	}
 
 	if (cs40l2x->pdata.dcm_disable) {
-		ret = regmap_write(regmap, CS40L2X_BSTCVRT_DCM_CTRL,
+		ret = regmap_write(regmap, CS40L2X_BST_DCM_CTL,
 				CS40L2X_DCM_DISABLE);
 		if (ret)
 			return ret;
 
-		ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BSTCVRT_DCM_CTRL,
+		ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BST_DCM_CTL,
 					CS40L2X_DCM_DISABLE);
 		if (ret) {
 			dev_err(dev, "Failed to sequence DCM Control\n");
@@ -10679,11 +10679,11 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 		}
 	}
 
-	ret = cs40l2x_brownout_config(cs40l2x, CS40L2X_VPBR_CFG);
+	ret = cs40l2x_brownout_config(cs40l2x, CS40L2X_VPBR_CONFIG);
 	if (ret)
 		return ret;
 
-	return cs40l2x_brownout_config(cs40l2x, CS40L2X_VBBR_CFG);
+	return cs40l2x_brownout_config(cs40l2x, CS40L2X_VBBR_CONFIG);
 }
 
 static int cs40l2x_otp_unpack(struct cs40l2x_private *cs40l2x)
@@ -11068,13 +11068,13 @@ static int cs40l2x_handle_of_data(struct i2c_client *i2c_client,
 }
 
 static const struct reg_sequence cs40l2x_basic_mode_revert[] = {
-	{CS40L2X_PWR_CTRL1,		0x00000000},
-	{CS40L2X_PWR_CTRL2,		0x00003321},
+	{CS40L2X_GLOBAL_ENABLES,	0x00000000},
+	{CS40L2X_BLOCK_ENABLES,		0x00003321},
 	{CS40L2X_LRCK_PAD_CONTROL,	0x00000007},
 	{CS40L2X_SDIN_PAD_CONTROL,	0x00000007},
-	{CS40L2X_AMP_DIG_VOL_CTRL,	0x00008000},
-	{CS40L2X_IRQ2_MASK1,		0xFFFFFFFF},
-	{CS40L2X_IRQ2_MASK2,		0xFFFFFFFF},
+	{CS40L2X_AMP_CTRL,		0x00008000},
+	{CS40L2X_IRQ2_MASK_1,		0xFFFFFFFF},
+	{CS40L2X_IRQ2_MASK_2,		0xFFFFFFFF},
 };
 
 static int cs40l2x_basic_mode_exit(struct cs40l2x_private *cs40l2x)
@@ -11184,10 +11184,10 @@ static const struct reg_sequence cs40l2x_rev_a0_errata[] = {
 	{CS40L2X_OTP_TRIM_30,		0x9091A1C8},
 	{0x3008,			0x000C1837},
 	{0x3014,			0x03008E0E},
-	{CS40L2X_BSTCVRT_DCM_CTRL,	0x00000051},
+	{CS40L2X_BST_DCM_CTL,		0x00000051},
 	{0x0054,			0x00000004},
-	{CS40L2X_IRQ1_DB3,		0x00000000},
-	{CS40L2X_IRQ2_DB3,		0x00000000},
+	{CS40L2X_IRQ1_DB_3,		0x00000000},
+	{CS40L2X_IRQ2_DB_3,		0x00000000},
 	{CS40L2X_TEST_KEY_CTL,		CS40L2X_TEST_KEY_UNLOCK_CODE1},
 	{CS40L2X_TEST_KEY_CTL,		CS40L2X_TEST_KEY_UNLOCK_CODE2},
 	{0x4100,			0x00000000},
@@ -11224,7 +11224,7 @@ static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
 	while (otp_timeout > 0) {
 		usleep_range(10000, 10100);
 
-		ret = regmap_read(regmap, CS40L2X_IRQ1_STATUS4, &val);
+		ret = regmap_read(regmap, CS40L2X_IRQ1_EINT_4, &val);
 		if (ret) {
 			dev_err(dev, "Failed to read OTP boot status\n");
 			return ret;
@@ -11241,7 +11241,7 @@ static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
 		return -ETIME;
 	}
 
-	ret = regmap_read(regmap, CS40L2X_IRQ1_STATUS3, &val);
+	ret = regmap_read(regmap, CS40L2X_IRQ1_EINT_3, &val);
 	if (ret) {
 		dev_err(dev, "Failed to read OTP error status\n");
 		return ret;
