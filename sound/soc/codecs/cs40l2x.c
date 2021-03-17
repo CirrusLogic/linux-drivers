@@ -91,26 +91,26 @@ static int cs40l2x_swap_ext_clk(struct cs40l2x_codec *priv,
 	if (ret)
 		return ret;
 
-	regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
+	regmap_update_bits(regmap, CS40L2X_REFCLK_INPUT,
 			   CS40L2X_PLL_OPEN_LOOP_MASK,
 			   CS40L2X_PLL_OPEN_LOOP_MASK);
 
-	regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
+	regmap_update_bits(regmap, CS40L2X_REFCLK_INPUT,
 			   CS40L2X_PLL_REFCLK_FREQ_MASK,
 			   pll_conf->clk_cfg << CS40L2X_PLL_REFCLK_FREQ_SHIFT);
 
 	if (src == CS40L2X_32KHZ_CLK)
-		regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
+		regmap_update_bits(regmap, CS40L2X_REFCLK_INPUT,
 				   CS40L2X_PLL_REFCLK_SEL_MASK,
 				   CS40L2X_PLLSRC_MCLK);
 	else
-		regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
+		regmap_update_bits(regmap, CS40L2X_REFCLK_INPUT,
 				   CS40L2X_PLL_REFCLK_SEL_MASK,
 				   CS40L2X_PLLSRC_SCLK);
 
-	regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
+	regmap_update_bits(regmap, CS40L2X_REFCLK_INPUT,
 			   CS40L2X_PLL_OPEN_LOOP_MASK, 0);
-	regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
+	regmap_update_bits(regmap, CS40L2X_REFCLK_INPUT,
 			   CS40L2X_PLL_REFCLK_EN_MASK,
 			   CS40L2X_PLL_REFCLK_EN_MASK);
 
@@ -228,20 +228,20 @@ static int cs40l2x_pcm_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		ret = regmap_update_bits(regmap, CS40L2X_BSTCVRT_VCTRL2,
+		ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 					 CS40L2X_BST_CTL_SEL_MASK,
 					 CS40L2X_BST_CTL_SEL_CLASSH);
 		if (ret)
 			return ret;
 
-		ret = regmap_update_bits(regmap, CS40L2X_PWR_CTRL3,
+		ret = regmap_update_bits(regmap, CS40L2X_BLOCK_ENABLES2,
 					 CS40L2X_CLASSH_EN_MASK,
 					 CS40L2X_CLASSH_EN_MASK);
 		if (ret)
 			return ret;
 
 		/* Enable I2S in the DSP */
-		ret = regmap_update_bits(regmap, CS40L2X_SP_ENABLES,
+		ret = regmap_update_bits(regmap, CS40L2X_ASP_ENABLES1,
 					 CS40L2X_ASP_RX_ENABLE_MASK,
 					 CS40L2X_ASP_RX_ENABLE_MASK);
 		if (ret)
@@ -251,7 +251,7 @@ static int cs40l2x_pcm_ev(struct snd_soc_dapm_widget *w,
 					 CS40L2X_A2H_I2S_START,
 					 CS40L2X_A2H_DISABLE);
 	case SND_SOC_DAPM_PRE_PMD:
-		ret = regmap_update_bits(regmap, CS40L2X_SP_ENABLES,
+		ret = regmap_update_bits(regmap, CS40L2X_ASP_ENABLES1,
 					 CS40L2X_ASP_RX_ENABLE_MASK, 0);
 		if (ret)
 			return ret;
@@ -622,16 +622,16 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	ret = regmap_write(priv->regmap, CS40L2X_SP_RATE_CTRL,
+	ret = regmap_write(priv->regmap, CS40L2X_ASP_CONTROL1,
 			   pll_conf->clk_cfg);
 	if (ret)
 		return ret;
 
-	regmap_update_bits(priv->regmap, CS40L2X_SP_FORMAT, mask,
+	regmap_update_bits(priv->regmap, CS40L2X_ASP_CONTROL2, mask,
 			   (asp_sl << CS40L2X_ASP_WIDTH_RX_SHIFT) | priv->daifmt);
-	regmap_update_bits(priv->regmap, CS40L2X_SP_RX_WL,
+	regmap_update_bits(priv->regmap, CS40L2X_ASP_DATA_CONTROL5,
 			   CS40L2X_ASP_RX_WL_MASK, asp_wl);
-	ret = regmap_update_bits(priv->regmap, CS40L2X_SP_FRAME_RX_SLOT,
+	ret = regmap_update_bits(priv->regmap, CS40L2X_ASP_FRAME_CONTROL5,
 				 CS40L2X_ASP_RX1_SLOT_MASK | CS40L2X_ASP_RX2_SLOT_MASK,
 				 priv->tdm_slot[0] << CS40L2X_ASP_RX1_SLOT_SHIFT |
 				 priv->tdm_slot[1] << CS40L2X_ASP_RX2_SLOT_SHIFT);
