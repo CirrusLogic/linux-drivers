@@ -2103,11 +2103,12 @@ static int cs35l45_compr_handle_irq(struct cs35l45_private *cs35l45,
 
 	compr = cs35l45->compr;
 
-	if (data == cs35l45->compr->buffer_count) {
-		dev_err(cs35l45->dev, "Buffer count is equal to the previous one: %d\n",
-			cs35l45->compr->buffer_count);
+	/* If the received count is the same as the previous one, it indicates that
+	 * another MBOX register was written to, which should not be dealt within
+	 * this handler.
+	 */
+	if (data == cs35l45->compr->buffer_count)
 		goto out;
-	}
 
 	if (data != cs35l45->compr->buffer_count + 1) {
 		dev_warn(cs35l45->dev, "Buffer count is intermittent: %d", data);
@@ -2154,11 +2155,6 @@ static int cs35l45_dsp_virt2_mbox4_irq_handle(struct cs35l45_private *cs35l45,
 {
 	__be32 enabled;
 	int ret;
-
-	/* Clear DSP_VIR2_MBOX 4 */
-	regmap_write(cs35l45->regmap,
-		     CS35L45_DSP_VIRT2_MBOX_4,
-		     CS35L45_DSP_LOG_MBOX_4_CLEAR);
 
 	/* Check if DSP log is enabled */
 	ret = wm_adsp_read_ctl(&cs35l45->dsp, CS35L45_DSP_LOG_ENABLED,
