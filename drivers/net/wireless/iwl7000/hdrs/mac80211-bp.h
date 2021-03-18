@@ -2117,6 +2117,12 @@ static inline bool nl80211_is_6ghz(enum nl80211_band band)
 #define ieee80211_preamble_he() BIT(NL80211_PREAMBLE_HE)
 #endif
 
+#if CFG80211_VERSION < KERNEL_VERSION(5,12,0)
+#define ftm_lmr_feedback(peer)		0
+#else
+#define ftm_lmr_feedback(peer)		((peer)->ftm.lmr_feedback)
+#endif
+
 #if CFG80211_VERSION < KERNEL_VERSION(5,6,0)
 int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 			      enum ieee80211_vht_chanwidth bw,
@@ -2462,18 +2468,12 @@ static inline bool nl80211_is_s1ghz_width(enum nl80211_chan_width w1,
 #endif /* CFG80211_VERSION < 5.9.0 */
 
 #if LINUX_VERSION_IS_LESS(4,19,0)
-static inline void netif_receive_skb_list(struct list_head *head)
+static inline void netif_receive_skb_list(struct sk_buff_head *head)
 {
-	struct sk_buff *skb;
-	struct list_head *l, *next;
+	struct sk_buff *skb, *next;
 
-	if (list_empty(head))
-		return;
-
-	list_for_each_safe(l, next, head) {
-		skb = (void *)l;
-
-		skb_list_del_init(skb);
+	skb_queue_walk_safe(head, skb, next) {
+		__skb_unlink(skb, head);
 		netif_receive_skb(skb);
 	}
 }
