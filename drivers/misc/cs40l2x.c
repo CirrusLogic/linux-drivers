@@ -10556,37 +10556,12 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 			return ret;
 		}
 
-		ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_GPIO_PAD_CONTROL,
-				((CS40L2X_GPx_CTRL_MCLK
-					<< CS40L2X_GP2_CTRL_SHIFT)
-					& CS40L2X_GP2_CTRL_MASK) |
-				((CS40L2X_GPx_CTRL_GPIO
-					<< CS40L2X_GP1_CTRL_SHIFT)
-					& CS40L2X_GP1_CTRL_MASK));
-		if (ret) {
-			dev_err(dev,
-				"Failed to sequence GPIO1/2 configuration\n");
-			return ret;
-		}
-
 		ret = regmap_update_bits(regmap, CS40L2X_REFCLK_INPUT,
 				CS40L2X_PLL_REFCLK_SEL_MASK,
 				CS40L2X_PLL_REFCLK_SEL_MCLK
 					<< CS40L2X_PLL_REFCLK_SEL_SHIFT);
 		if (ret) {
 			dev_err(dev, "Failed to select clock source\n");
-			return ret;
-		}
-
-		ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_REFCLK_INPUT,
-				((1 << CS40L2X_PLL_REFCLK_EN_SHIFT)
-					& CS40L2X_PLL_REFCLK_EN_MASK) |
-				((CS40L2X_PLL_REFCLK_SEL_MCLK
-					<< CS40L2X_PLL_REFCLK_SEL_SHIFT)
-					& CS40L2X_PLL_REFCLK_SEL_MASK));
-		if (ret) {
-			dev_err(dev,
-				"Failed to sequence PLL configuration\n");
 			return ret;
 		}
 	}
@@ -11296,15 +11271,6 @@ static int cs40l2x_part_num_resolve(struct cs40l2x_private *cs40l2x)
 		if (ret) {
 			dev_err(dev, "Failed to apply revision %02X errata\n",
 					revid);
-			return ret;
-		}
-
-		ret = cs40l2x_wseq_add_seq(cs40l2x, cs40l2x_rev_b0_errata,
-				ARRAY_SIZE(cs40l2x_rev_b0_errata));
-		if (ret) {
-			dev_err(dev,
-				"Failed to sequence revision %02X errata\n",
-				revid);
 			return ret;
 		}
 		break;
