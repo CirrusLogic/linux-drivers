@@ -741,14 +741,14 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 #endif
 
 		local->hw_scan_band = 0;
-#if CFG80211_VERSION > KERNEL_VERSION(9,9,9)
+#if CFG80211_VERSION > KERNEL_VERSION(5,10,0)
 		local->hw_scan_req->req.n_6ghz_params = req->n_6ghz_params;
 #endif
-#if CFG80211_VERSION > KERNEL_VERSION(9,9,9)
+#if CFG80211_VERSION > KERNEL_VERSION(5,10,0)
 		local->hw_scan_req->req.scan_6ghz_params =
 			req->scan_6ghz_params;
 #endif
-#if CFG80211_VERSION > KERNEL_VERSION(9,9,9)
+#if CFG80211_VERSION > KERNEL_VERSION(5,10,0)
 		local->hw_scan_req->req.scan_6ghz = req->scan_6ghz;
 #endif
 
