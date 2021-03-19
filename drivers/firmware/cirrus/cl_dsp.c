@@ -272,6 +272,10 @@ static int cl_dsp_coeff_header_parse(struct cl_dsp *dsp,
 			"Coeff. revision 0x%06X incompatible with 0x%06X\n",
 			header.fw_revision, dsp->algo_info[0].rev);
 		return -EINVAL;
+	} else if (header.fw_revision != dsp->algo_info[0].rev) {
+		dev_warn(dev,
+			"Coeff. rev. 0x%06X mistmatches 0x%06X, continuing..\n",
+			header.fw_revision, dsp->algo_info[0].rev);
 	}
 
 	if (header.file_format_version < CL_DSP_COEFF_MIN_FORMAT_VERSION) {
