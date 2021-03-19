@@ -45,4 +45,7 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 				       struct drm_file *file_priv,
 				       const struct drm_mode_fb_cmd2 *mode_cmd);
 
+int amdgpu_display_suspend_helper(struct amdgpu_device *adev);
+int amdgpu_display_resume_helper(struct amdgpu_device *adev);
+
 #endif
