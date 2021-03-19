@@ -10380,38 +10380,6 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 	return cs40l2x_boost_short_test(cs40l2x);
 }
 
-static int cs40l2x_asp_config(struct cs40l2x_private *cs40l2x)
-{
-	struct regmap *regmap = cs40l2x->regmap;
-	struct device *dev = cs40l2x->dev;
-	unsigned int asp_bclk_freq = cs40l2x->pdata.asp_bclk_freq;
-	int ret, i;
-
-	for (i = 0; i < CS40L2X_NUM_REFCLKS; i++)
-		if (cs40l2x_refclks[i].freq == asp_bclk_freq)
-			break;
-	if (i == CS40L2X_NUM_REFCLKS) {
-		dev_err(dev, "Invalid ASP_BCLK frequency: %d Hz\n",
-				asp_bclk_freq);
-		return -EINVAL;
-	}
-
-	ret = regmap_write(regmap, CS40L2X_FS_MON_0, cs40l2x_refclks[i].coeff);
-	if (ret) {
-		dev_err(dev, "Failed to write ASP coefficients\n");
-		return ret;
-	}
-
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_FS_MON_0,
-			cs40l2x_refclks[i].coeff);
-	if (ret) {
-		dev_err(dev, "Failed to sequence ASP coefficients\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 static int cs40l2x_brownout_config(struct cs40l2x_private *cs40l2x,
 			unsigned int br_reg)
 {
@@ -10731,12 +10699,6 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 			dev_err(dev, "Failed to sequence wake sources\n");
 			return ret;
 		}
-	}
-
-	if (cs40l2x->asp_available) {
-		ret = cs40l2x_asp_config(cs40l2x);
-		if (ret)
-			return ret;
 	}
 
 	if (cs40l2x->pdata.dcm_disable) {
@@ -11088,10 +11050,6 @@ static int cs40l2x_handle_of_data(struct i2c_client *i2c_client,
 	}
 
 	pdata->hiber_enable = of_property_read_bool(np, "cirrus,hiber-enable");
-
-	ret = of_property_read_u32(np, "cirrus,asp-bclk-freq-hz", &out_val);
-	if (!ret)
-		pdata->asp_bclk_freq = out_val;
 
 	ret = of_property_read_u32(np, "cirrus,asp-slot-num", &out_val);
 	if (!ret) {
@@ -11754,9 +11712,6 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	ret = cs40l2x_part_num_resolve(cs40l2x);
 	if (ret)
 		goto err;
-
-	cs40l2x->asp_available = (cs40l2x->devid == CS40L2X_DEVID_L25A) &&
-				 pdata->asp_bclk_freq;
 
 	init_completion(&cs40l2x->hap_done);
 
