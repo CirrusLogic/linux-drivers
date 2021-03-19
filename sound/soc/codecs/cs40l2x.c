@@ -41,27 +41,26 @@ struct cs40l2x_codec {
 struct cs40l2x_pll_sysclk_config {
 	int freq;
 	int clk_cfg;
+	int fs_mon;
+} cs40l2x_pll_sysclk[] = {
+	{ 32768,    0x00, 0x00000000 },
+	{ 1536000,  0x1b, 0x00054034 },
+	{ 3072000,  0x21, 0x0002C01C },
+	{ 6144000,  0x28, 0x00018010 },
+	{ 9600000,  0x30, 0x00024010 },
+	{ 12288000, 0x33, 0x00024010 },
 };
 
-static const struct cs40l2x_pll_sysclk_config cs40l2x_pll_sysclk[] = {
-	{ 32768,        0x00 },
-	{ 1536000,      0x1B },
-	{ 3072000,      0x21 },
-	{ 6144000,      0x28 },
-	{ 9600000,      0x30 },
-	{ 12288000,     0x33 },
-};
-
-static int cs40l2x_get_clk_config(int freq)
+static struct cs40l2x_pll_sysclk_config *cs40l2x_get_clk_config(int freq)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(cs40l2x_pll_sysclk); i++) {
 		if (cs40l2x_pll_sysclk[i].freq == freq)
-			return cs40l2x_pll_sysclk[i].clk_cfg;
+			return &cs40l2x_pll_sysclk[i];
 	}
 
-	return -EINVAL;
+	return NULL;
 }
 
 static int cs40l2x_swap_ext_clk(struct cs40l2x_codec *priv,
@@ -70,14 +69,15 @@ static int cs40l2x_swap_ext_clk(struct cs40l2x_codec *priv,
 	struct device *dev = priv->dev;
 	struct regmap *regmap = priv->regmap;
 	struct cs40l2x_private *core = priv->core;
-	int clk_cfg, ret;
+	struct cs40l2x_pll_sysclk_config *pll_conf;
+	int ret;
 
 	if (src == CS40L2X_32KHZ_CLK)
-		clk_cfg = cs40l2x_get_clk_config(CS40L2X_MCLK_FREQ);
+		pll_conf = cs40l2x_get_clk_config(CS40L2X_MCLK_FREQ);
 	else
-		clk_cfg = cs40l2x_get_clk_config(priv->sysclk_rate);
+		pll_conf = cs40l2x_get_clk_config(priv->sysclk_rate);
 
-	if (clk_cfg < 0) {
+	if (!pll_conf) {
 		dev_err(dev, "Invalid SYS Clock Frequency\n");
 		return -EINVAL;
 	}
@@ -93,7 +93,7 @@ static int cs40l2x_swap_ext_clk(struct cs40l2x_codec *priv,
 
 	regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
 			   CS40L2X_PLL_REFCLK_FREQ_MASK,
-			   clk_cfg << CS40L2X_PLL_REFCLK_FREQ_SHIFT);
+			   pll_conf->clk_cfg << CS40L2X_PLL_REFCLK_FREQ_SHIFT);
 
 	if (src == CS40L2X_32KHZ_CLK)
 		regmap_update_bits(regmap, CS40L2X_PLL_CLK_CTRL,
@@ -493,10 +493,8 @@ static int cs40l2x_component_set_sysclk(struct snd_soc_component *comp,
 					unsigned int freq, int dir)
 {
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
-	int ret;
 
-	ret = cs40l2x_get_clk_config(freq);
-	if (ret < 0) {
+	if (!cs40l2x_get_clk_config(freq)) {
 		dev_err(priv->dev, "Invalid clock frequency: %d\n", freq);
 		return -EINVAL;
 	}
@@ -563,6 +561,7 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *comp = dai->component;
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 	struct cs40l2x_platform_data *pdata = &priv->core->pdata;
+	struct cs40l2x_pll_sysclk_config *pll_conf;
 	unsigned int mask = CS40L2X_ASP_WIDTH_RX_MASK |
 			    CS40L2X_ASP_FSYNC_INV_MASK |
 			    CS40L2X_ASP_BCLK_INV_MASK;
@@ -577,11 +576,14 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 		dev_warn(priv->dev, "Expect BCLK of %dHz but got %dHz\n",
 			 priv->sysclk_rate, bclk_rate);
 
-	ret = cs40l2x_get_clk_config(bclk_rate);
-	if (ret < 0)
-		return ret;
+	pll_conf = cs40l2x_get_clk_config(bclk_rate);
+	if (!pll_conf) {
+		dev_err(priv->dev, "Invalid BCLK frequency: %d\n", bclk_rate);
+		return -EINVAL;
+	}
 
-	ret = regmap_write(priv->regmap, CS40L2X_SP_RATE_CTRL, ret);
+	ret = regmap_write(priv->regmap, CS40L2X_SP_RATE_CTRL,
+			   pll_conf->clk_cfg);
 	if (ret)
 		return ret;
 
@@ -592,6 +594,12 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 	regmap_update_bits(priv->regmap, CS40L2X_SP_FRAME_RX_SLOT,
 			   CS40L2X_ASP_RX1_SLOT_MASK,
 			   pdata->asp_slot_num << CS40L2X_ASP_RX1_SLOT_SHIFT);
+
+	ret = regmap_write(priv->regmap, CS40L2X_FS_MON_0, pll_conf->fs_mon);
+	if (ret) {
+		dev_err(priv->dev, "Failed to write ASP coefficients\n");
+		return ret;
+	}
 
 	return 0;
 }
