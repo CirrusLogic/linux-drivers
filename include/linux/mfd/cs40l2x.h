@@ -1361,11 +1361,6 @@ struct cs40l2x_dblk_desc {
 	unsigned int reg;
 };
 
-struct cs40l2x_refclk_pair {
-	unsigned int freq;
-	unsigned int coeff;
-};
-
 struct cs40l2x_f0_dynamic {
 	unsigned int index;
 	unsigned int f0;
@@ -1493,7 +1488,6 @@ struct cs40l2x_private {
 	unsigned int gpio_mask;
 	int vpp_measured;
 	int ipp_measured;
-	bool asp_available;
 	bool a2h_enable;
 	struct hrtimer asp_timer;
 	const struct cs40l2x_fw_desc *fw_desc;
@@ -1577,7 +1571,5 @@ extern const unsigned int cs40l2x_pbq_dig_scale[CS40L2X_PBQ_SCALE_MAX + 1];
 extern const struct cs40l2x_fw_desc cs40l2x_fw_fam[CS40L2X_NUM_FW_FAMS];
 
 extern const struct cs40l2x_hw_err_desc cs40l2x_hw_errs[CS40L2X_NUM_HW_ERRS];
-
-extern const struct cs40l2x_refclk_pair cs40l2x_refclks[CS40L2X_NUM_REFCLKS];
 
 #endif /*__CS40L2X_H__*/
