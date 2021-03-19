@@ -10385,14 +10385,7 @@ static int cs40l2x_asp_config(struct cs40l2x_private *cs40l2x)
 	struct regmap *regmap = cs40l2x->regmap;
 	struct device *dev = cs40l2x->dev;
 	unsigned int asp_bclk_freq = cs40l2x->pdata.asp_bclk_freq;
-	unsigned int asp_slot_num = cs40l2x->pdata.asp_slot_num;
-	unsigned int val;
 	int ret, i;
-
-	if (asp_slot_num > CS40L2X_ASP_RX1_SLOT_MAX) {
-		dev_err(dev, "Invalid ASP slot number: %d\n", asp_slot_num);
-		return -EINVAL;
-	}
 
 	for (i = 0; i < CS40L2X_NUM_REFCLKS; i++)
 		if (cs40l2x_refclks[i].freq == asp_bclk_freq)
@@ -10413,26 +10406,6 @@ static int cs40l2x_asp_config(struct cs40l2x_private *cs40l2x)
 			cs40l2x_refclks[i].coeff);
 	if (ret) {
 		dev_err(dev, "Failed to sequence ASP coefficients\n");
-		return ret;
-	}
-
-	ret = regmap_update_bits(regmap, CS40L2X_SP_FRAME_RX_SLOT,
-			CS40L2X_ASP_RX1_SLOT_MASK,
-			asp_slot_num << CS40L2X_ASP_RX1_SLOT_SHIFT);
-	if (ret) {
-		dev_err(dev, "Failed to write ASP slot number\n");
-		return ret;
-	}
-
-	ret = regmap_read(regmap, CS40L2X_SP_FRAME_RX_SLOT, &val);
-	if (ret) {
-		dev_err(dev, "Failed to read ASP slot number\n");
-		return ret;
-	}
-
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_SP_FRAME_RX_SLOT, val);
-	if (ret) {
-		dev_err(dev, "Failed to sequence ASP slot number\n");
 		return ret;
 	}
 
@@ -11121,8 +11094,14 @@ static int cs40l2x_handle_of_data(struct i2c_client *i2c_client,
 		pdata->asp_bclk_freq = out_val;
 
 	ret = of_property_read_u32(np, "cirrus,asp-slot-num", &out_val);
-	if (!ret)
-		pdata->asp_slot_num = out_val;
+	if (!ret) {
+		if (out_val > CS40L2X_ASP_RX1_SLOT_MAX)
+			dev_warn(dev, "Invalid ASP slot number: %d\n",
+				 pdata->asp_slot_num);
+		else
+			pdata->asp_slot_num = out_val;
+	}
+
 
 	ret = of_property_read_u32(np, "cirrus,asp-timeout", &out_val);
 	if (!ret) {
