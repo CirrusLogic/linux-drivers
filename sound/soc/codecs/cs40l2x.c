@@ -559,6 +559,7 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *comp = dai->component;
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
+	struct cs40l2x_platform_data *pdata = &priv->core->pdata;
 	unsigned int mask = CS40L2X_ASP_WIDTH_RX_MASK |
 			    CS40L2X_ASP_FSYNC_INV_MASK |
 			    CS40L2X_ASP_BCLK_INV_MASK;
@@ -585,6 +586,9 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 			   (asp_wl << CS40L2X_ASP_WIDTH_RX_SHIFT) | priv->daifmt);
 	regmap_update_bits(priv->regmap, CS40L2X_SP_RX_WL,
 			   CS40L2X_ASP_RX_WL_MASK, asp_wl);
+	regmap_update_bits(priv->regmap, CS40L2X_SP_FRAME_RX_SLOT,
+			   CS40L2X_ASP_RX1_SLOT_MASK,
+			   pdata->asp_slot_num << CS40L2X_ASP_RX1_SLOT_SHIFT);
 
 	return 0;
 }
