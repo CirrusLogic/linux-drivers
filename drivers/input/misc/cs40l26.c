@@ -424,11 +424,17 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 {
 	struct device *dev = cs40l26->dev;
 	struct regmap *regmap = cs40l26->regmap;
-	u32 base, last, len, write_ptr, read_ptr, mbox_response;
+	u32 base, last, len, write_ptr, read_ptr, mbox_response, reg;
 	u32 buffer[CS40L26_DSP_MBOX_BUFFER_NUM_REGS];
 	int ret;
 
-	ret = regmap_bulk_read(regmap, CS40L26_DSP_MBOX_BUFFER_BASE, buffer,
+	ret = cl_dsp_get_reg(cs40l26->dsp, "QUEUE_BASE",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_MAILBOX_ALGO_ID,
+			&reg);
+	if (ret)
+		return ret;
+
+	ret = regmap_bulk_read(regmap, reg, buffer,
 			CS40L26_DSP_MBOX_BUFFER_NUM_REGS);
 	if (ret) {
 		dev_err(dev, "Failed to read buffer contents\n");
@@ -462,7 +468,13 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 	else
 		read_ptr += CL_DSP_BYTES_PER_WORD;
 
-	ret = regmap_write(regmap, CS40L26_DSP_MBOX_BUFFER_READ_PTR, read_ptr);
+	ret = cl_dsp_get_reg(cs40l26->dsp, "QUEUE_RD",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_MAILBOX_ALGO_ID,
+			&reg);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(regmap, reg, read_ptr);
 	if (ret) {
 		dev_err(dev, "Failed to update read pointer\n");
 		return ret;
