@@ -142,7 +142,19 @@ int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 		if (ret)
 			return ret;
 	} else {
-		reg = CS40L26_PM_CUR_STATE_STATIC_REG;
+		switch (cs40l26->revid) {
+		case CS40L26_REVID_A0:
+			reg = CS40L26_A0_PM_CUR_STATE_STATIC_REG;
+			break;
+		case CS40L26_REVID_A1:
+			reg = CS40L26_A1_PM_CUR_STATE_STATIC_REG;
+			break;
+		default:
+			dev_err(cs40l26->dev,
+					"Revid ID not supported: 0x%02X\n",
+					cs40l26->revid);
+			return -EINVAL;
+		}
 	}
 
 	ret = cs40l26_dsp_read(cs40l26, reg, &dsp_state);
@@ -219,7 +231,18 @@ int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26,
 		if (ret)
 			return ret;
 	} else {
-		reg = CS40L26_PM_TIMEOUT_TICKS_STATIC_REG;
+		switch (cs40l26->revid) {
+		case CS40L26_REVID_A0:
+			reg = CS40L26_A0_PM_TIMEOUT_TICKS_STATIC_REG;
+			break;
+		case CS40L26_REVID_A1:
+			reg = CS40L26_A1_PM_TIMEOUT_TICKS_STATIC_REG;
+			break;
+		default:
+			dev_err(cs40l26->dev, "Revid ID not supported: %02X\n",
+				cs40l26->revid);
+			return -EINVAL;
+		}
 	}
 
 	ret = regmap_read(cs40l26->regmap, reg +
@@ -383,10 +406,23 @@ static int cs40l26_dsp_shutdown(struct cs40l26_private *cs40l26)
 static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 {
 	u8 dsp_state;
-	u32 halo_state;
+	u32 halo_state, halo_state_reg;
 	int ret;
 
-	ret = regmap_read(cs40l26->regmap, CS40L26_DSP_HALO_STATE_REG,
+	switch (cs40l26->revid) {
+	case CS40L26_REVID_A0:
+		halo_state_reg = CS40L26_A0_DSP_HALO_STATE_REG;
+		break;
+	case CS40L26_REVID_A1:
+		halo_state_reg = CS40L26_A1_DSP_HALO_STATE_REG;
+		break;
+	default:
+		dev_err(cs40l26->dev, "Revid ID not supported: %02X\n",
+			cs40l26->revid);
+		return -EINVAL;
+	}
+
+	ret = regmap_read(cs40l26->regmap, halo_state_reg,
 			&halo_state);
 	if (ret)
 		return ret;
@@ -1666,11 +1702,15 @@ static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
 	}
 
 	val &= CS40L26_REVID_MASK;
-	if (val != CS40L26_REVID_A0) {
+	switch (val) {
+	case CS40L26_REVID_A0:
+	case CS40L26_REVID_A1:
+		cs40l26->revid = val;
+		break;
+	default:
 		dev_err(dev, "Invalid device revision: 0x%02X\n", val);
-		return ret;
+		return -EINVAL;
 	}
-	cs40l26->revid = val;
 
 	dev_info(dev, "Cirrus Logic %s ID: 0x%06X, Revision: 0x%02X\n",
 			CS40L26_DEV_NAME, cs40l26->devid, cs40l26->revid);
