@@ -1926,11 +1926,18 @@ iwl_mvm_umac_scan_cfg_6g_direct_ssids(struct iwl_mvm *mvm,
 		if (ssid_idx >= PROBE_OPTION_MAX)
 			continue;
 
+		/*
+		 * If there are no available slots for the short SSID, do not
+		 * place it and only set the direct SSID which is required for
+		 * discovery of non collocated APs
+		 */
 		pp->direct_scan[ssid_idx].id = WLAN_EID_SSID;
 		pp->direct_scan[ssid_idx].len = params->ssids[i].ssid_len;
 		memcpy(pp->direct_scan[ssid_idx].ssid, params->ssids[i].ssid,
 		       params->ssids[i].ssid_len);
-		pp->short_ssid[ssid_idx] = short_ssid;
+
+		if (ssid_idx < SCAN_SHORT_SSID_MAX_SIZE)
+			pp->short_ssid[ssid_idx] = short_ssid;
 	}
 
 	pp->short_ssid_num = next_free_idx;
