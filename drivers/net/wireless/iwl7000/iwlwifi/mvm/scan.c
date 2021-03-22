@@ -1755,9 +1755,8 @@ iwl_mvm_umac_scan_cfg_channels_v6_6g(struct iwl_mvm_scan_params *params,
 /* TODO: this function can be merged with iwl_mvm_scan_umac_fill_ch_p_v6 */
 static void
 iwl_mvm_umac_scan_cfg_channels_v6_6g(struct iwl_mvm_scan_params *params,
-				     u32 n_channels, __le32 *cmd_short_ssid,
-				     u8 *cmd_bssid, u8 scan_ssid_num,
-				     u8 bssid_num,
+				     u32 n_channels,
+				     struct iwl_scan_probe_params_v4 *pp,
 				     struct iwl_scan_channel_params_v6 *cp,
 				     enum nl80211_iftype vif_type)
 {
@@ -1797,9 +1796,9 @@ iwl_mvm_umac_scan_cfg_channels_v6_6g(struct iwl_mvm_scan_params *params,
 				scan_6ghz_params[j].unsolicited_probe;
 			psc_no_listen |= scan_6ghz_params[j].psc_no_listen;
 
-			for (k = 0; k < scan_ssid_num; k++) {
+			for (k = 0; k < pp->short_ssid_num; k++) {
 				if (!scan_6ghz_params[j].unsolicited_probe &&
-				    le32_to_cpu(cmd_short_ssid[k]) ==
+				    le32_to_cpu(pp->short_ssid[k]) ==
 				    scan_6ghz_params[j].short_ssid) {
 					/* Relevant short SSID bit set */
 					if (s_ssid_bitmap & BIT(k)) {
@@ -1824,8 +1823,8 @@ iwl_mvm_umac_scan_cfg_channels_v6_6g(struct iwl_mvm_scan_params *params,
 			if (found)
 				continue;
 
-			for (k = 0; k < bssid_num; k++) {
-				if (!memcmp(&cmd_bssid[ETH_ALEN * k],
+			for (k = 0; k < pp->bssid_num; k++) {
+				if (!memcmp(&pp->bssid_array[k],
 					    scan_6ghz_params[j].bssid,
 					    ETH_ALEN)) {
 					if (!(bssid_bitmap & BIT(k))) {
@@ -2499,11 +2498,7 @@ static int iwl_mvm_scan_umac_v14(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	iwl_mvm_umac_scan_cfg_channels_v6_6g(params,
 					     params->n_channels,
-					     pb->short_ssid,
-					     pb->bssid_array[0],
-					     pb->short_ssid_num,
-					     pb->bssid_num, cp,
-					     vif->type);
+					     pb, cp, vif->type);
 	cp->count = params->n_channels;
 	if (!params->n_ssids ||
 	    (params->n_ssids == 1 && !params->ssids[0].ssid_len))
