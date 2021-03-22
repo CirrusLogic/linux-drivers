@@ -1135,6 +1135,7 @@ static int mtk_fd_probe(struct platform_device *pdev)
 
 	mutex_init(&fd->vfd_lock);
 	init_completion(&fd->fd_job_finished);
+	complete_all(&fd->fd_job_finished);
 	INIT_DELAYED_WORK(&fd->job_timeout_work, mtk_fd_job_timeout_work);
 	pm_runtime_enable(dev);
 
