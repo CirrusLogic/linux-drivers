@@ -1915,7 +1915,7 @@ iwl_mvm_umac_scan_cfg_6g_direct_ssids(struct iwl_mvm *mvm,
 						   params->ssids[i].ssid_len));
 
 		for (j = 0; j < pp->short_ssid_num; j++)
-			if (short_ssid == pp->short_ssid[i])
+			if (short_ssid == pp->short_ssid[j])
 				break;
 
 		if (j == pp->short_ssid_num)
