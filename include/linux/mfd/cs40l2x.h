@@ -680,6 +680,7 @@
 #define CS40L2X_PBQ_FW_BYTES_MIN		192
 #define CS40L2X_PBQ_DUR_MIN_REV			0x0A0101
 #define CS40L2X_PWLE_FRQ_MIN_REV		0x0A0302
+#define CS40L2X_A2H_REINIT_MIN_REV		0x0A0503
 #define CS40L2X_OWT_MIN_REV			0x080908
 
 #define CS40L2X_DIAG_STATE_INIT			0x00
@@ -772,6 +773,7 @@
 #define CS40L2X_USER_CTRL_STOP			0x00000003
 #define CS40L2X_USER_CTRL_PLAY_AUTO		0x00000004
 #define CS40L2X_USER_CTRL_Q_INDEX		0x00000005
+#define CS40L2X_USER_CTRL_REINIT_A2H		0x00000007
 
 #define CS40L2X_GPIO_BTNDETECT_GPIO1		1
 #define CS40L2X_GPIO_BTNDETECT_GPIO2		2
@@ -1207,6 +1209,7 @@ struct cs40l2x_private {
 	bool comp_enable_f0;
 	bool comp_dur_min_fw;
 	bool ext_freq_min_fw;
+	bool a2h_reinit_min_fw;
 	bool amp_gnd_stby;
 	bool clab_wt_en[CS40L2X_MAX_WAVEFORMS];
 	bool f0_wt_en[CS40L2X_MAX_WAVEFORMS];
