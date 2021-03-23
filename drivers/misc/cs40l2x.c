@@ -8540,6 +8540,9 @@ static int cs40l2x_coeff_init(struct cs40l2x_private *cs40l2x)
 	if (cs40l2x->algo_info[0].rev < CS40L2X_OWT_MIN_REV)
 		cs40l2x->open_wt_enable = false;
 
+	if (cs40l2x->algo_info[0].rev >= CS40L2X_A2H_REINIT_MIN_REV)
+		cs40l2x->a2h_reinit_min_fw = true;
+
 	return 0;
 }
 

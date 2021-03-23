@@ -194,6 +194,12 @@ static int cs40l2x_a2h_ev(struct snd_soc_dapm_widget *w,
 				return ret;
 
 			priv->tuning_prev = priv->tuning;
+
+			ret = cs40l2x_ack_write(core, CS40L2X_MBOX_USER_CONTROL,
+						CS40L2X_USER_CTRL_REINIT_A2H,
+						CS40L2X_USER_CTRL_SUCCESS);
+			if (ret)
+				return ret;
 		}
 
 		return regmap_write(priv->regmap, reg, CS40L2X_A2H_ENABLE);
@@ -347,14 +353,23 @@ static int cs40l2x_tuning_put(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(comp);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 	struct cs40l2x_private *core = priv->core;
+	int ret = 0;
+
+	if (!core->a2h_reinit_min_fw)
+		return -EOPNOTSUPP;
+
+	snd_soc_dapm_mutex_lock(dapm);
 
 	if (ucontrol->value.enumerated.item[0] == priv->tuning)
-		return 0;
+		goto out;
 
-	if (core->a2h_enable)
-		return -EBUSY;
+	if (core->a2h_enable) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 	priv->tuning = ucontrol->value.enumerated.item[0];
 
@@ -367,7 +382,10 @@ static int cs40l2x_tuning_put(struct snd_kcontrol *kcontrol,
 	else
 		snprintf(priv->bin_file, PAGE_SIZE, "cs40l25a_a2h.bin");
 
-	return 0;
+out:
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	return ret;
 }
 
 static int cs40l2x_delay_get(struct snd_kcontrol *kcontrol,
@@ -407,12 +425,16 @@ static int cs40l2x_delay_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(comp);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 	struct regmap *regmap = priv->regmap;
 	struct device *dev = priv->dev;
 	struct cs40l2x_private *core = priv->core;
 	unsigned int val, reg;
 	int ret;
+
+	if (!core->a2h_reinit_min_fw)
+		return -EOPNOTSUPP;
 
 	if (!core->dsp_reg || core->fw_id_remap != CS40L2X_FW_ID_A2H)
 		return 0;
@@ -427,12 +449,18 @@ static int cs40l2x_delay_put(struct snd_kcontrol *kcontrol,
 
 	val = ucontrol->value.integer.value[0];
 
+	snd_soc_dapm_mutex_lock(dapm);
 	pm_runtime_get_sync(priv->dev);
 
 	ret = regmap_write(regmap, reg, val);
+	if (!ret)
+		ret = cs40l2x_ack_write(core, CS40L2X_MBOX_USER_CONTROL,
+					CS40L2X_USER_CTRL_REINIT_A2H,
+					CS40L2X_USER_CTRL_SUCCESS);
 
 	pm_runtime_mark_last_busy(priv->dev);
 	pm_runtime_put_autosuspend(priv->dev);
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	return ret;
 }
