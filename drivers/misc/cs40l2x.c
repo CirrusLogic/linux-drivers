@@ -7883,7 +7883,7 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 
 		if (cs40l2x->cond_class_h_en) {
 			ret = cs40l2x_cond_classh(cs40l2x,
-				cs40l2x->cp_trailer_index);
+				cs40l2x->cp_trailer_index & CS40L2X_INDEX_MASK);
 			if (ret) {
 				dev_err(dev, "Conditional ClassH failed\n");
 				break;
