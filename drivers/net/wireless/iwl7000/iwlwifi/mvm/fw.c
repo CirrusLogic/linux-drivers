@@ -1717,18 +1717,15 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 
 #endif /* CPTCFG_IWLMVM_VENDOR_CMDS */
 
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		iwl_mvm_send_recovery_cmd(mvm, ERROR_RECOVERY_UPDATE_DB);
+
 	if (iwl_acpi_get_eckv(mvm->dev, &mvm->ext_clock_valid))
 		IWL_DEBUG_INFO(mvm, "ECKV table doesn't exist in BIOS\n");
 
 	ret = iwl_mvm_ppag_init(mvm);
 	if (ret)
 		goto error;
-
-	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
-		iwl_mvm_send_recovery_cmd(mvm, ERROR_RECOVERY_UPDATE_DB);
-
-	if (iwl_acpi_get_eckv(mvm->dev, &mvm->ext_clock_valid))
-		IWL_DEBUG_INFO(mvm, "ECKV table doesn't exist in BIOS\n");
 
 	ret = iwl_mvm_sar_init(mvm);
 	if (ret == 0) {
