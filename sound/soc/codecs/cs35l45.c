@@ -2226,7 +2226,7 @@ static irqreturn_t cs35l45_pll_unlock(int irq, void *data)
 {
 	struct cs35l45_private *cs35l45 = data;
 
-	dev_dbg(cs35l45->dev,"PLL unlock flag rise detected!");
+	dev_dbg(cs35l45->dev, "PLL unlock flag rise detected!");
 
 	return IRQ_HANDLED;
 }
@@ -2235,7 +2235,7 @@ static irqreturn_t cs35l45_pll_lock(int irq, void *data)
 {
 	struct cs35l45_private *cs35l45 = data;
 
-	dev_dbg(cs35l45->dev,"PLL lock detected!");
+	dev_dbg(cs35l45->dev, "PLL lock detected!");
 
 	return IRQ_HANDLED;
 }
@@ -2244,7 +2244,7 @@ static irqreturn_t cs35l45_global_err(int irq, void *data)
 {
 	struct cs35l45_private *cs35l45 = data;
 
-	dev_err(cs35l45->dev,"Global error detected!");
+	dev_err(cs35l45->dev, "Global error detected!");
 
 	return IRQ_HANDLED;
 }
@@ -2252,7 +2252,7 @@ static irqreturn_t cs35l45_global_err(int irq, void *data)
 static const struct cs35l45_irq cs35l45_irqs[] = {
 	CS35L45_IRQ(MSM_GLOBAL_EN_ASSERT, "Global enable assertion", cs35l45_msm_global_en_assert),
 	CS35L45_IRQ(DSP_VIRT2_MBOX, "DSP virtual MBOX 2 write flag", cs35l45_dsp_virt2_mbox_cb),
-	CS35L45_IRQ(DSP_WDT_EXPIRE,"DSP Watchdog Timer", cs35l45_dsp_wdt_expire),
+	CS35L45_IRQ(DSP_WDT_EXPIRE, "DSP Watchdog Timer", cs35l45_dsp_wdt_expire),
 	CS35L45_IRQ(PLL_UNLOCK_FLAG_RISE, "PLL unlock flag rise", cs35l45_pll_unlock),
 	CS35L45_IRQ(PLL_LOCK_FLAG, "PLL lock", cs35l45_pll_lock),
 	CS35L45_IRQ(GLOBAL_ERROR, "Global error", cs35l45_global_err),
