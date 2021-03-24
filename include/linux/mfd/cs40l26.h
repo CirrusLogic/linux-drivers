@@ -1231,7 +1231,7 @@ struct cs40l26_private {
 	struct gpio_desc *reset_gpio;
 	struct input_dev *input;
 	struct cl_dsp *dsp;
-	unsigned int trigger_indeces[FF_MAX_EFFECTS];
+	unsigned int trigger_indices[FF_MAX_EFFECTS];
 	struct ff_effect *effect;
 	struct hrtimer vibe_timer;
 	struct work_struct vibe_start_work;
