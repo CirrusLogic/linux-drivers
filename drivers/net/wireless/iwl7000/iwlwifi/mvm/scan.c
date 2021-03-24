@@ -1771,7 +1771,7 @@ iwl_mvm_umac_scan_cfg_channels_v6_6g(struct iwl_mvm_scan_params *params,
 
 		u32 s_ssid_bitmap = 0, bssid_bitmap = 0, flags = 0;
 		u8 j, k, s_max = 0, b_max = 0, n_used_bssid_entries;
-		bool force_passive, found = false,
+		bool force_passive, found = false, allow_passive = true,
 		     unsolicited_probe_on_chan = false, psc_no_listen = false;
 
 		cfg->v1.channel_num = params->channels[i]->hw_value;
@@ -1808,13 +1808,22 @@ iwl_mvm_umac_scan_cfg_channels_v6_6g(struct iwl_mvm_scan_params *params,
 
 					/*
 					 * Use short SSID only to create a new
-					 * iteration during channel dwell.
+					 * iteration during channel dwell or in
+					 * case that the short SSID has a
+					 * matching SSID, i.e., scan for hidden
+					 * APs.
 					 */
 					if (n_used_bssid_entries >= 3) {
 						s_ssid_bitmap |= BIT(k);
 						s_max++;
 						n_used_bssid_entries -= 3;
 						found = true;
+						break;
+					} else if (pp->direct_scan[k].len) {
+						s_ssid_bitmap |= BIT(k);
+						s_max++;
+						found = true;
+						allow_passive = false;
 						break;
 					}
 				}
@@ -1879,7 +1888,7 @@ iwl_mvm_umac_scan_cfg_channels_v6_6g(struct iwl_mvm_scan_params *params,
 			force_passive |= (unsolicited_probe_on_chan &&
 					  (s_max > 1 || b_max > 3));
 		}
-		if (force_passive ||
+		if ((allow_passive && force_passive) ||
 		    (!flags && !cfg80211_channel_is_psc(params->channels[i])))
 			flags |= IWL_UHB_CHAN_CFG_FLAG_FORCE_PASSIVE;
 
