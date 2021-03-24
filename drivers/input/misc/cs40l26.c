@@ -1657,7 +1657,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	mutex_lock(&cs40l26->lock);
 
 	if (cs40l26->effect->u.periodic.waveform == FF_CUSTOM)
-		index = cs40l26->trigger_indeces[cs40l26->effect->id];
+		index = cs40l26->trigger_indices[cs40l26->effect->id];
 
 	if (index >= CS40L26_OWT_INDEX_START && index <= CS40L26_OWT_INDEX_END)
 		duration = CS40L26_SAMPS_TO_MS(cs40l26->owt_wlength);
@@ -2113,7 +2113,7 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 		trigger_index = index + min_index;
 
 		if (trigger_index >= min_index && trigger_index <= max_index) {
-			cs40l26->trigger_indeces[effect->id] = trigger_index;
+			cs40l26->trigger_indices[effect->id] = trigger_index;
 		} else {
 			dev_err(cdev, "Trigger index (0x%X) out of bounds\n",
 					trigger_index);
