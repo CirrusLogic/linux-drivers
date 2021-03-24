@@ -189,23 +189,11 @@ static int cs40l2x_a2h_ev(struct snd_soc_dapm_widget *w,
 				return ret;
 			}
 
-			ret = cs40l2x_ack_write(core, CS40L2X_MBOX_POWERCONTROL,
-						CS40L2X_PWRCTL_FORCE_STBY,
-						CS40L2X_PWRCTL_NONE);
-			if (ret)
-				return ret;
-
 			ret = cs40l2x_coeff_file_parse(core, fw);
 			if (ret)
 				return ret;
 
 			priv->tuning_prev = priv->tuning;
-
-			ret =  cs40l2x_ack_write(core, CS40L2X_MBOX_POWERCONTROL,
-						 CS40L2X_PWRCTL_WAKE,
-						 CS40L2X_POWERCONTROL_NONE);
-			if (ret)
-				return ret;
 		}
 
 		return regmap_write(priv->regmap, reg, CS40L2X_A2H_ENABLE);
