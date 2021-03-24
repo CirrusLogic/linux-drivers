@@ -448,6 +448,14 @@ static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 		return -EINVAL;
 	}
 
+	/* errata write fixing indeterminent PLL lock time */
+	ret = regmap_update_bits(cs40l26->regmap, CS40L26_PLL_REFCLK_DETECT_0,
+			CS40L26_PLL_REFCLK_DET_EN_MASK, CS40L26_DISABLE);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to disable PLL refclk detect\n");
+		return ret;
+	}
+
 	ret = regmap_write(cs40l26->regmap, CS40L26_DSP1_CCM_CORE_CONTROL,
 			CS40L26_DSP_CCM_CORE_KILL);
 	if (ret)
