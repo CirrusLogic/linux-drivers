@@ -505,6 +505,7 @@ config SND_SOC_CS35L36
 
 config SND_SOC_CS40L26
 	tristate "Cirrus Logic CS40L26 Stub CODEC"
+	depends on INPUT_CS40L26_I2C || INPUT_CS40L26_SPI
 
 config SND_SOC_CS42L42
 	tristate "Cirrus Logic CS42L42 CODEC"
