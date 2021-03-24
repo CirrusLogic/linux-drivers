@@ -434,7 +434,7 @@ static int cs40l26_pcm_hw_params(struct snd_pcm_substream *substream,
 		goto err_pm;
 	}
 
-	if (codec->tdm_width)
+	if (!codec->tdm_width)
 		asp_rx_width = asp_rx_wl;
 	else
 		asp_rx_width = (u8) (codec->tdm_width & 0xFF);
