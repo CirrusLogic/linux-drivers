@@ -616,7 +616,6 @@ static struct snd_soc_dai_driver cs40l2x_dai[] = {
 static int cs40l2x_codec_probe(struct snd_soc_component *comp)
 {
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
-	struct regmap *regmap = priv->regmap;
 
 	priv->bin_file = devm_kzalloc(priv->dev, PAGE_SIZE, GFP_KERNEL);
 	if (!priv->bin_file)
@@ -625,9 +624,6 @@ static int cs40l2x_codec_probe(struct snd_soc_component *comp)
 	priv->bin_file[PAGE_SIZE - 1] = '\0';
 	snprintf(priv->bin_file, PAGE_SIZE, "cs40l25a_a2h.bin");
 	complete(&priv->core->hap_done);
-
-	regmap_write(regmap, CS40L2X_DSP1RX1_INPUT, CS40L2X_DSP1_RXn_SRC_ASPRX1);
-	regmap_write(regmap, CS40L2X_DSP1RX5_INPUT, CS40L2X_DSP1_RXn_SRC_ASPRX2);
 
 	priv->sysclk_rate = 1536000;
 

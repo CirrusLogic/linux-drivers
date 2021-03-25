@@ -10638,6 +10638,7 @@ static const struct reg_sequence cs40l2x_pcm_routing[] = {
 	{CS40L2X_DSP1RX2_INPUT,		CS40L2X_DSP1_RXn_SRC_VMON},
 	{CS40L2X_DSP1RX3_INPUT,		CS40L2X_DSP1_RXn_SRC_IMON},
 	{CS40L2X_DSP1RX4_INPUT,		CS40L2X_DSP1_RXn_SRC_VPMON},
+	{CS40L2X_DSP1RX5_INPUT,		CS40L2X_DSP1_RXn_SRC_ASPRX2},
 };
 
 static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
