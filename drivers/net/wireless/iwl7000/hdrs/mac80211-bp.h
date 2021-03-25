@@ -2649,3 +2649,10 @@ static inline bool cfg80211_any_usable_channels(struct wiphy *wiphy,
 	return false;
 }
 #endif /* < 5.12.0 */
+
+#if LINUX_VERSION_IS_LESS(5,11,0)
+static inline u64 skb_get_kcov_handle(struct sk_buff *skb)
+{
+	return 0;
+}
+#endif
