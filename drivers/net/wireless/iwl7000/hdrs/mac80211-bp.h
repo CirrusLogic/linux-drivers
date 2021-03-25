@@ -2652,4 +2652,9 @@ static inline void dev_sw_netstats_tx_add(struct net_device *dev,
 	tstats->tx_packets += packets;
 	u64_stats_update_end(&tstats->syncp);
 }
+
+static inline u64 skb_get_kcov_handle(struct sk_buff *skb)
+{
+	return 0;
+}
 #endif
