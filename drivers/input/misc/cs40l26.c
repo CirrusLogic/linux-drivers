@@ -1165,16 +1165,16 @@ err:
 	return (irq1_count + irq2_count) ? IRQ_HANDLED : IRQ_NONE;
 }
 
-static bool cs40l26_pseq_addr_exists(struct cs40l26_private *cs40l26, u16 addr,
-		int *index)
+static bool cs40l26_pseq_v1_addr_exists(struct cs40l26_private *cs40l26,
+							u16 addr, int *index)
 {
 	int i;
 
-	if (cs40l26->pseq_len == 0)
+	if (cs40l26->pseq_v1_len == 0)
 		return false;
 
-	for (i = 0; i < cs40l26->pseq_len; i++) {
-		if (cs40l26->pseq_table[i].addr == addr) {
+	for (i = 0; i < cs40l26->pseq_v1_len; i++) {
+		if (cs40l26->pseq_v1_table[i].addr == addr) {
 			*index = i;
 			return true;
 		}
@@ -1185,28 +1185,28 @@ static bool cs40l26_pseq_addr_exists(struct cs40l26_private *cs40l26, u16 addr,
 	return false;
 }
 
-static int cs40l26_pseq_write(struct cs40l26_private *cs40l26,
-		unsigned int pseq_offset)
+static int cs40l26_pseq_v1_write(struct cs40l26_private *cs40l26,
+		unsigned int pseq_v1_offset)
 {
 	struct regmap *regmap = cs40l26->regmap;
-	unsigned int len = cs40l26->pseq_len;
+	unsigned int len = cs40l26->pseq_v1_len;
 	struct device *dev = cs40l26->dev;
 	u32 val;
 	u16 addr;
 	int ret;
 
-	addr = cs40l26->pseq_table[pseq_offset].addr;
-	val = cs40l26->pseq_table[pseq_offset].val;
+	addr = cs40l26->pseq_v1_table[pseq_v1_offset].addr;
+	val = cs40l26->pseq_v1_table[pseq_v1_offset].val;
 
 	/* the "upper half" first 24-bit word of the sequence pair is written
 	 * to the write sequencer as: [23-16] addr{15-0},
 	 * [15-0] val{31-24} with bits [24-31] acting as a buffer
 	 */
 	ret = regmap_write(regmap, cs40l26->pseq_base +
-			(pseq_offset * CS40L26_PSEQ_STRIDE),
-			(addr << CS40L26_PSEQ_ADDR_SHIFT) |
-			((val & ~CS40L26_PSEQ_VAL_MASK)
-			>> CS40L26_PSEQ_VAL_SHIFT));
+			(pseq_v1_offset * CS40L26_PSEQ_V1_STRIDE),
+			(addr << CS40L26_PSEQ_V1_ADDR_SHIFT) |
+			((val & ~CS40L26_PSEQ_V1_VAL_MASK)
+			>> CS40L26_PSEQ_V1_VAL_SHIFT));
 	if (ret) {
 		dev_err(dev, "Failed to write power on seq. (upper half)\n");
 		return ret;
@@ -1216,8 +1216,8 @@ static int cs40l26_pseq_write(struct cs40l26_private *cs40l26,
 	 * sequencer as: [23-0] data{23-0} with bits [24-31] acting as a buffer
 	 */
 	ret = regmap_write(regmap, cs40l26->pseq_base + CL_DSP_BYTES_PER_WORD
-			+ (pseq_offset * CS40L26_PSEQ_STRIDE),
-			val & CS40L26_PSEQ_VAL_MASK);
+			+ (pseq_v1_offset * CS40L26_PSEQ_V1_STRIDE),
+			val & CS40L26_PSEQ_V1_VAL_MASK);
 	if (ret) {
 		dev_err(dev, "Failed to write power on seq. (lower half)\n");
 		return ret;
@@ -1225,59 +1225,60 @@ static int cs40l26_pseq_write(struct cs40l26_private *cs40l26,
 
 	/* end of sequence must be marked by list terminator */
 	ret = regmap_write(regmap, cs40l26->pseq_base +
-			(len * CS40L26_PSEQ_STRIDE), CS40L26_PSEQ_LIST_TERM);
+			(len * CS40L26_PSEQ_V1_STRIDE),
+			CS40L26_PSEQ_V1_LIST_TERM);
 	if (ret)
 		dev_err(dev, "Failed to write power on seq. terminator\n");
 
 	return ret;
 }
 
-static int cs40l26_pseq_add_pair(struct cs40l26_private *cs40l26, u16 addr,
+static int cs40l26_pseq_v1_add_pair(struct cs40l26_private *cs40l26, u16 addr,
 		u32 val, bool replace)
 {
-	unsigned int len = cs40l26->pseq_len;
+	unsigned int len = cs40l26->pseq_v1_len;
 	struct device *dev = cs40l26->dev;
-	unsigned int pseq_offset, prev_val;
+	unsigned int pseq_v1_offset, prev_val;
 	int ret, index;
 
-	if (len >= CS40L26_PSEQ_MAX_ENTRIES) {
+	if (len >= CS40L26_PSEQ_V1_MAX_ENTRIES) {
 		dev_err(dev, "Power on seq. exceeded max number of entries\n");
 		return -E2BIG;
 	}
 
-	if (cs40l26_pseq_addr_exists(cs40l26, addr, &index) && replace) {
-		prev_val = cs40l26->pseq_table[index].val;
-		cs40l26->pseq_table[index].val = val;
-		pseq_offset = index;
+	if (cs40l26_pseq_v1_addr_exists(cs40l26, addr, &index) && replace) {
+		prev_val = cs40l26->pseq_v1_table[index].val;
+		cs40l26->pseq_v1_table[index].val = val;
+		pseq_v1_offset = index;
 	} else {
-		cs40l26->pseq_table[len].addr = addr;
-		cs40l26->pseq_table[len].val = val;
-		cs40l26->pseq_len++;
-		pseq_offset = len;
+		cs40l26->pseq_v1_table[len].addr = addr;
+		cs40l26->pseq_v1_table[len].val = val;
+		cs40l26->pseq_v1_len++;
+		pseq_v1_offset = len;
 	}
 
-	ret = cs40l26_pseq_write(cs40l26, pseq_offset);
+	ret = cs40l26_pseq_v1_write(cs40l26, pseq_v1_offset);
 	if (ret) { /* If an error occurs during write, reset the sequence */
 		if (index < 0) { /* No previous value for this address */
-			cs40l26->pseq_table[len].addr = 0;
-			cs40l26->pseq_table[len].val = 0;
-			cs40l26->pseq_len--;
+			cs40l26->pseq_v1_table[len].addr = 0;
+			cs40l26->pseq_v1_table[len].val = 0;
+			cs40l26->pseq_v1_len--;
 		} else {
-			cs40l26->pseq_table[index].val = prev_val;
+			cs40l26->pseq_v1_table[index].val = prev_val;
 		}
 	}
 
 	return ret;
 }
 
-int cs40l26_pseq_multi_add_pair(struct cs40l26_private *cs40l26,
+int cs40l26_pseq_v1_multi_add_pair(struct cs40l26_private *cs40l26,
 		const struct reg_sequence *reg_seq, int num_regs, bool replace)
 {
 	int ret, i;
 
 	for (i = 0; i < num_regs; i++) {
-		ret = cs40l26_pseq_add_pair(cs40l26, (u16) (reg_seq[i].reg &
-				CS40L26_PSEQ_ADDR_MASK), reg_seq[i].def,
+		ret = cs40l26_pseq_v1_add_pair(cs40l26, (u16) (reg_seq[i].reg &
+				CS40L26_PSEQ_V1_ADDR_MASK), reg_seq[i].def,
 				replace);
 		if (ret)
 			return ret;
@@ -1285,9 +1286,131 @@ int cs40l26_pseq_multi_add_pair(struct cs40l26_private *cs40l26,
 
 	return 0;
 }
-EXPORT_SYMBOL(cs40l26_pseq_multi_add_pair);
+EXPORT_SYMBOL(cs40l26_pseq_v1_multi_add_pair);
 
-static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
+static int cs40l26_pseq_v2_add_op(struct cs40l26_private *cs40l26,
+		int num_words, u32 *words)
+{
+	struct regmap *regmap = cs40l26->regmap;
+	struct device *dev = cs40l26->dev;
+	u32 offset_for_new_op, *op_words;
+	int ret;
+	struct cs40l26_pseq_v2_op *pseq_v2_op_end, *pseq_v2_op_new, *op;
+
+	/* get location of the list terminator */
+	list_for_each_entry(pseq_v2_op_end, &cs40l26->pseq_v2_op_head, list) {
+		if (pseq_v2_op_end->operation == CS40L26_PSEQ_V2_OP_END)
+			break;
+	}
+
+	if (pseq_v2_op_end->operation != CS40L26_PSEQ_V2_OP_END) {
+		dev_err(dev, "Failed to find END_OF_SCRIPT\n");
+		return -EINVAL;
+	}
+
+	offset_for_new_op = pseq_v2_op_end->offset;
+
+	/* add new op to list */
+	op_words = kzalloc(num_words * CL_DSP_BYTES_PER_WORD, GFP_KERNEL);
+	if (!op_words)
+		return -ENOMEM;
+	memcpy(op_words, words, num_words * CL_DSP_BYTES_PER_WORD);
+	pseq_v2_op_new = devm_kzalloc(dev, sizeof(*pseq_v2_op_new), GFP_KERNEL);
+	if (!pseq_v2_op_new) {
+		ret = -ENOMEM;
+		goto err_free;
+	}
+
+	pseq_v2_op_new->size = num_words;
+	pseq_v2_op_new->offset = offset_for_new_op;
+	pseq_v2_op_new->words = op_words;
+	list_add(&pseq_v2_op_new->list, &cs40l26->pseq_v2_op_head);
+
+	cs40l26->pseq_v2_num_ops++;
+
+	/* bump end of script offset to accomodate new operation */
+	pseq_v2_op_end->offset += num_words * CL_DSP_BYTES_PER_WORD;
+
+	list_for_each_entry(op, &cs40l26->pseq_v2_op_head, list) {
+		if (op->offset >= offset_for_new_op) {
+			ret = regmap_bulk_write(regmap, cs40l26->pseq_base +
+							op->offset,
+							op->words,
+							op->size);
+			if (ret) {
+				dev_err(dev, "Failed to write op\n");
+				return -EIO;
+			}
+		}
+	}
+
+	return ret;
+
+err_free:
+	kfree(op_words);
+
+	return ret;
+}
+
+static int cs40l26_pseq_v2_add_write_reg_full(struct cs40l26_private *cs40l26,
+		u32 addr, u32 data, bool update_if_op_already_in_seq)
+{
+	int ret;
+	struct cs40l26_pseq_v2_op *op;
+	u32 op_words[CS40L26_PSEQ_V2_OP_WRITE_REG_FULL_WORDS];
+
+	op_words[0] = (CS40L26_PSEQ_V2_OP_WRITE_REG_FULL <<
+						CS40L26_PSEQ_V2_OP_SHIFT);
+	op_words[0] |= addr >> 16;
+	op_words[1] = (addr & 0x0000FFFF) << 8;
+	op_words[1] |= (data & 0xFF000000) >> 24;
+	op_words[2] = (data & 0x00FFFFFF);
+
+	if (update_if_op_already_in_seq) {
+		list_for_each_entry(op, &cs40l26->pseq_v2_op_head, list) {
+			/* check if op with same op and addr already exists */
+			if ((op->words[0] == op_words[0]) &&
+				((op->words[1] & 0xFFFFFF00) ==
+				(op_words[1] & 0xFFFFFF00))) {
+				/* update data in the existing op and return */
+				ret = regmap_bulk_write(cs40l26->regmap,
+						cs40l26->pseq_base + op->offset,
+						op_words, op->size);
+				if (ret)
+					dev_err(cs40l26->dev,
+						"Failed to update op\n");
+				return ret;
+			}
+		}
+	}
+
+	/* if no matching op is found or !update, add the op */
+	ret = cs40l26_pseq_v2_add_op(cs40l26,
+				CS40L26_PSEQ_V2_OP_WRITE_REG_FULL_WORDS,
+				op_words);
+
+	return ret;
+}
+
+int cs40l26_pseq_v2_multi_add_write_reg_full(struct cs40l26_private *cs40l26,
+		const struct reg_sequence *reg_seq, int num_regs,
+		bool update_if_op_already_in_seq)
+{
+	int ret, i;
+
+	for (i = 0; i < num_regs; i++) {
+		ret = cs40l26_pseq_v2_add_write_reg_full(cs40l26,
+						reg_seq[i].reg, reg_seq[i].def,
+						update_if_op_already_in_seq);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(cs40l26_pseq_v2_multi_add_write_reg_full);
+
+static int cs40l26_pseq_v1_init(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
 	int ret, i, index = 0;
@@ -1305,7 +1428,7 @@ static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	for (i = 0; i < CS40L26_PSEQ_MAX_WRITES; i++) {
+	for (i = 0; i < CS40L26_PSEQ_V1_MAX_WRITES; i++) {
 		ret = regmap_read(cs40l26->regmap,
 				cs40l26->pseq_base +
 				(i * CL_DSP_BYTES_PER_WORD), &word);
@@ -1314,37 +1437,163 @@ static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
 			return ret;
 		}
 
-		if ((word & CS40L26_PSEQ_LIST_TERM_MASK) ==
-				CS40L26_PSEQ_LIST_TERM)
+		if ((word & CS40L26_PSEQ_V1_LIST_TERM_MASK) ==
+				CS40L26_PSEQ_V1_LIST_TERM)
 			break;
 
-		if (i % CS40L26_PSEQ_PAIR_NUM_WORDS) { /* lower half */
-			index = i / CS40L26_PSEQ_PAIR_NUM_WORDS;
-			val = (upper_val << CS40L26_PSEQ_VAL_SHIFT) |
-					(word & CS40L26_PSEQ_VAL_MASK);
+		if (i % CS40L26_PSEQ_V1_PAIR_NUM_WORDS) { /* lower half */
+			index = i / CS40L26_PSEQ_V1_PAIR_NUM_WORDS;
+			val = (upper_val << CS40L26_PSEQ_V1_VAL_SHIFT) |
+					(word & CS40L26_PSEQ_V1_VAL_MASK);
 
-			cs40l26->pseq_table[index].addr = addr;
-			cs40l26->pseq_table[index].val = val;
+			cs40l26->pseq_v1_table[index].addr = addr;
+			cs40l26->pseq_v1_table[index].val = val;
 		} else { /* upper half */
-			addr = (word & CS40L26_PSEQ_ADDR_WORD_MASK) >>
-					CS40L26_PSEQ_ADDR_SHIFT;
+			addr = (word & CS40L26_PSEQ_V1_ADDR_WORD_MASK) >>
+					CS40L26_PSEQ_V1_ADDR_SHIFT;
 
-			upper_val = word & CS40L26_PSEQ_VAL_WORD_UPPER_MASK;
+			upper_val = word & CS40L26_PSEQ_V1_VAL_WORD_UPPER_MASK;
 		}
 	}
 
-	if (i >= CS40L26_PSEQ_MAX_WRITES) {
+	if (i >= CS40L26_PSEQ_V1_MAX_WRITES) {
 		dev_err(dev, "Original sequence exceeds max # of entries\n");
 		return -E2BIG;
 	}
 
 	ret = regmap_write(cs40l26->regmap, cs40l26->pseq_base +
-			(i * CL_DSP_BYTES_PER_WORD), CS40L26_PSEQ_LIST_TERM);
+			(i * CL_DSP_BYTES_PER_WORD), CS40L26_PSEQ_V1_LIST_TERM);
 	if (ret)
 		return ret;
 
-	cs40l26->pseq_len = index + 1;
+	cs40l26->pseq_v1_len = index + 1;
 	return 0;
+}
+
+static int cs40l26_pseq_v2_init(struct cs40l26_private *cs40l26)
+{
+	struct device *dev = cs40l26->dev;
+	int ret, i, j, num_words, read_size;
+	u8 operation;
+	u32 words[CS40L26_PSEQ_V2_MAX_WORDS], algo_id, *op_words;
+	struct cs40l26_pseq_v2_op *pseq_v2_op;
+
+	INIT_LIST_HEAD(&cs40l26->pseq_v2_op_head);
+	cs40l26->pseq_v2_num_ops = 0;
+
+	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
+		algo_id = CS40L26_PM_ALGO_ID;
+	else
+		algo_id = CS40L26_PM_ROM_ALGO_ID;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "POWER_ON_SEQUENCE",
+			CL_DSP_XM_UNPACKED_TYPE, algo_id, &cs40l26->pseq_base);
+	if (ret)
+		return ret;
+
+	/* read pseq memory space */
+	i = 0;
+	while (i < CS40L26_PSEQ_V2_MAX_WORDS) {
+		read_size = min(CS40L26_MAX_I2C_READ_SIZE_BYTES,
+			CS40L26_PSEQ_V2_MAX_WORDS - i);
+		ret = regmap_bulk_read(cs40l26->regmap,
+			cs40l26->pseq_base + i * CL_DSP_BYTES_PER_WORD,
+			words + i,
+			read_size);
+		if (ret) {
+			dev_err(dev, "Failed to read from power on seq.\n");
+			return ret;
+		}
+		i += read_size;
+	}
+
+	i = 0;
+	while (i < CS40L26_PSEQ_V2_MAX_WORDS) {
+		operation = (words[i] & CS40L26_PSEQ_V2_OP_MASK) >>
+			CS40L26_PSEQ_V2_OP_SHIFT;
+
+		/* get num words for given operation */
+		for (j = 0; j < CS40L26_PSEQ_V2_NUM_OPS; j++) {
+			if (cs40l26_pseq_v2_op_sizes[j][0] == operation) {
+				num_words = cs40l26_pseq_v2_op_sizes[j][1];
+				break;
+			}
+		}
+
+		if (j == CS40L26_PSEQ_V2_NUM_OPS) {
+			dev_err(dev, "Failed to determine pseq_v2 op size\n");
+			return -EINVAL;
+		}
+
+		op_words = kzalloc(num_words * CL_DSP_BYTES_PER_WORD,
+								GFP_KERNEL);
+		if (!op_words)
+			return -ENOMEM;
+		memcpy(op_words, &words[i], num_words * CL_DSP_BYTES_PER_WORD);
+
+		pseq_v2_op = devm_kzalloc(dev, sizeof(*pseq_v2_op), GFP_KERNEL);
+		if (!pseq_v2_op) {
+			ret = -ENOMEM;
+			goto err_free;
+		}
+
+		pseq_v2_op->size = num_words;
+		pseq_v2_op->offset = i * CL_DSP_BYTES_PER_WORD;
+		pseq_v2_op->operation = operation;
+		pseq_v2_op->words = op_words;
+		list_add(&pseq_v2_op->list, &cs40l26->pseq_v2_op_head);
+
+		cs40l26->pseq_v2_num_ops++;
+		i += num_words;
+
+		if (operation == CS40L26_PSEQ_V2_OP_END)
+			break;
+
+	}
+
+	dev_dbg(dev, "PSEQ_V2 num ops: %d\n", cs40l26->pseq_v2_num_ops);
+	dev_dbg(dev, "offset\tsize\twords\n");
+	list_for_each_entry(pseq_v2_op, &cs40l26->pseq_v2_op_head, list) {
+		dev_dbg(dev, "0x%04X\t%d", pseq_v2_op->offset,
+							pseq_v2_op->size);
+		for (j = 0; j < pseq_v2_op->size; j++)
+			dev_dbg(dev, "0x%08X", *(pseq_v2_op->words + j));
+	}
+
+	if (operation != CS40L26_PSEQ_V2_OP_END) {
+		dev_err(dev, "PSEQ_V2 END_OF_SCRIPT not found\n");
+		return -E2BIG;
+	}
+
+	return ret;
+
+err_free:
+	kfree(op_words);
+
+	return ret;
+}
+
+static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
+{
+	int ret;
+
+	switch (cs40l26->revid) {
+	case CS40L26_REVID_A0:
+		ret = cs40l26_pseq_v1_init(cs40l26);
+		break;
+	case CS40L26_REVID_A1:
+		ret = cs40l26_pseq_v2_init(cs40l26);
+		break;
+	default:
+		dev_err(cs40l26->dev, "Revid ID not supported: %02X\n",
+			cs40l26->revid);
+		return -EINVAL;
+	}
+
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to init pseq\n");
+
+	return ret;
 }
 
 static void cs40l26_set_gain_worker(struct work_struct *work)
@@ -1371,7 +1620,22 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 		goto err_mutex;
 	}
 
-	cs40l26_pseq_add_pair(cs40l26, CS40L26_AMP_CTRL, val, true);
+	switch (cs40l26->revid) {
+	case CS40L26_REVID_A0:
+		ret = cs40l26_pseq_v1_add_pair(cs40l26,
+						CS40L26_AMP_CTRL, val, true);
+		break;
+	case CS40L26_REVID_A1:
+		ret = cs40l26_pseq_v2_add_write_reg_full(cs40l26,
+						CS40L26_AMP_CTRL, val, true);
+		break;
+	default:
+		dev_err(cs40l26->dev, "Revid ID not supported: %02X\n",
+			cs40l26->revid);
+	}
+
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to set gain in pseq\n");
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -1819,8 +2083,21 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 		return ret;
 	}
 
-	ret = cs40l26_pseq_add_pair(cs40l26, (u16) (CS40L26_BLOCK_ENABLES2
-			& CS40L26_PSEQ_ADDR_MASK), val, CS40L26_PSEQ_REPLACE);
+	switch (cs40l26->revid) {
+	case CS40L26_REVID_A0:
+		ret = cs40l26_pseq_v1_add_pair(cs40l26,
+			CS40L26_BLOCK_ENABLES2, val, CS40L26_PSEQ_V1_REPLACE);
+		break;
+	case CS40L26_REVID_A1:
+		ret = cs40l26_pseq_v2_add_write_reg_full(cs40l26,
+			CS40L26_BLOCK_ENABLES2, val, true);
+		break;
+	default:
+		dev_err(cs40l26->dev, "Revid ID not supported: %02X\n",
+			cs40l26->revid);
+		return -EINVAL;
+	}
+
 	if (ret) {
 		dev_err(dev, "Failed to sequence brownout prevention\n");
 		return ret;
@@ -1924,9 +2201,22 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 			return ret;
 		}
 
-		ret = cs40l26_pseq_add_pair(cs40l26, (u16) (CS40L26_VBBR_CONFIG
-				& CS40L26_PSEQ_ADDR_MASK), val,
-				CS40L26_PSEQ_REPLACE);
+		switch (cs40l26->revid) {
+		case CS40L26_REVID_A0:
+			ret = cs40l26_pseq_v1_add_pair(cs40l26,
+				CS40L26_VBBR_CONFIG, val,
+				CS40L26_PSEQ_V1_REPLACE);
+			break;
+		case CS40L26_REVID_A1:
+			ret = cs40l26_pseq_v2_add_write_reg_full(cs40l26,
+				CS40L26_VBBR_CONFIG, val,
+				true);
+			break;
+		default:
+			dev_err(cs40l26->dev, "Revid ID not supported: %02X\n",
+				cs40l26->revid);
+			return -EINVAL;
+		}
 		if (ret)
 			return ret;
 	}
@@ -2032,9 +2322,22 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 			return ret;
 		}
 
-		ret = cs40l26_pseq_add_pair(cs40l26, (u16) (CS40L26_VPBR_CONFIG
-				& CS40L26_PSEQ_ADDR_MASK), val,
-				CS40L26_PSEQ_REPLACE);
+		switch (cs40l26->revid) {
+		case CS40L26_REVID_A0:
+			ret = cs40l26_pseq_v1_add_pair(cs40l26,
+				CS40L26_VPBR_CONFIG, val,
+				CS40L26_PSEQ_V1_REPLACE);
+			break;
+		case CS40L26_REVID_A1:
+			ret = cs40l26_pseq_v2_add_write_reg_full(cs40l26,
+				CS40L26_VPBR_CONFIG, val,
+				true);
+			break;
+		default:
+			dev_err(cs40l26->dev, "Revid ID not supported: %02X\n",
+				cs40l26->revid);
+			return -EINVAL;
+		}
 		if (ret)
 			return ret;
 	}
