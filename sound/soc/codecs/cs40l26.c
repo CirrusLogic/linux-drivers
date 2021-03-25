@@ -523,8 +523,24 @@ static int cs40l26_codec_probe(struct snd_soc_component *component)
 		goto pm_err;
 	}
 
-	ret = cs40l26_pseq_multi_add_pair(codec->core, dsp1rx_config, 2,
-			CS40L26_PSEQ_REPLACE);
+	switch (codec->core->revid) {
+	case CS40L26_REVID_A0:
+		ret = cs40l26_pseq_v1_multi_add_pair(codec->core,
+			dsp1rx_config, 2, CS40L26_PSEQ_V1_REPLACE);
+		break;
+	case CS40L26_REVID_A1:
+		ret = cs40l26_pseq_v2_multi_add_write_reg_full(codec->core,
+			dsp1rx_config, 2, true);
+		break;
+	default:
+		dev_err(codec->dev, "Revid ID not supported: %02X\n",
+			codec->core->revid);
+		return -EINVAL;
+	}
+
+	if (ret)
+		dev_err(codec->dev, "Failed to add ASP config to pseq\n");
+
 pm_err:
 	pm_runtime_mark_last_busy(codec->dev);
 	pm_runtime_put_autosuspend(codec->dev);
