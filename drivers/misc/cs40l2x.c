@@ -8515,6 +8515,9 @@ static int cs40l2x_coeff_init(struct cs40l2x_private *cs40l2x)
 	if (cs40l2x->algo_info[0].rev >= CS40L2X_PWLE_FRQ_MIN_REV)
 		cs40l2x->ext_freq_min_fw = true;
 
+	if (cs40l2x->algo_info[0].rev < CS40L2X_OWT_MIN_REV)
+		cs40l2x->open_wt_enable = false;
+
 	return 0;
 }
 
