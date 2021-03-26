@@ -129,7 +129,7 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 			continue;
 		if (coeff_desc->block_type != block_type)
 			continue;
-		if (coeff_desc->parent_id != algo_id)
+		if ((coeff_desc->parent_id & 0xFFFF) != (algo_id & 0xFFFF))
 			continue;
 
 		*reg = coeff_desc->reg;
