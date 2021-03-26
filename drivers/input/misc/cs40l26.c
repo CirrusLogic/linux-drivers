@@ -1660,7 +1660,8 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		index = cs40l26->trigger_indices[cs40l26->effect->id];
 
 	if (index >= CS40L26_OWT_INDEX_START && index <= CS40L26_OWT_INDEX_END)
-		duration = CS40L26_SAMPS_TO_MS(cs40l26->owt_wlength);
+		duration = CS40L26_SAMPS_TO_MS((cs40l26->owt_wlength &
+				CS40L26_WT_TYPE10_WAVELEN_MAX));
 	else
 		duration = cs40l26->effect->replay.length;
 
@@ -1938,21 +1939,29 @@ err_free:
 static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, s16 *data,
 		u32 data_size)
 {
+	bool pwle = (data[0] == 0x0000) ? false : true;
 	u32 data_size_bytes = data_size * 2;
 	struct device *dev = cs40l26->dev;
 	struct cl_dsp *dsp = cs40l26->dsp;
-	unsigned int write_reg, reg, wt_offset, wt_size, wt_base;
 	u32 full_data_size, header_size = CL_DSP_OWT_HEADER_ENTRY_SIZE;
+	unsigned int write_reg, reg, wt_offset, wt_size, wt_base;
 	struct cl_dsp_memchunk header_ch, data_ch;
 	u8 *full_data, *header;
 	int ret = 0, i;
 
 	data_ch = cl_dsp_memchunk_create((void *) data, data_size_bytes);
-	ret = cs40l26_owt_calculate_wlength(cs40l26, &data_ch);
-	if (ret)
-		return ret;
 
-	header_size += CS40L26_WT_WLEN_TERM_SIZE;
+	if (pwle) {
+		header_size += CS40L26_WT_TERM_SIZE;
+
+		cs40l26->owt_wlength = cl_dsp_memchunk_read(&data_ch, 24);
+	} else {
+		header_size += CS40L26_WT_WLEN_TERM_SIZE;
+
+		ret = cs40l26_owt_calculate_wlength(cs40l26, &data_ch);
+		if (ret)
+			return ret;
+	}
 	full_data_size = header_size + data_size_bytes;
 
 	header = kcalloc(header_size, sizeof(u8), GFP_KERNEL);
@@ -1960,16 +1969,23 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, s16 *data,
 		return -ENOMEM;
 
 	header_ch = cl_dsp_memchunk_create((void *) header, header_size);
-
 	/* Header */
-	cl_dsp_memchunk_write(&header_ch, 16, CS40L26_WT_TYPE10_WRITE_FLAGS);
-	cl_dsp_memchunk_write(&header_ch, 8, WT_TYPE_V6_COMPOSITE);
+	cl_dsp_memchunk_write(&header_ch, 16,
+			CS40L26_WT_HEADER_DEFAULT_FLAGS);
+
+	if (pwle)
+		cl_dsp_memchunk_write(&header_ch, 8, WT_TYPE_V6_PWLE);
+	else
+		cl_dsp_memchunk_write(&header_ch, 8, WT_TYPE_V6_COMPOSITE);
+
 	cl_dsp_memchunk_write(&header_ch, 24, CS40L26_WT_HEADER_OFFSET);
 	cl_dsp_memchunk_write(&header_ch, 24, full_data_size /
 					CL_DSP_BYTES_PER_WORD);
 
 	cl_dsp_memchunk_write(&header_ch, 24, CS40L26_WT_HEADER_TERM);
-	cl_dsp_memchunk_write(&header_ch, 24, cs40l26->owt_wlength);
+
+	if (!pwle) /* Wlength is included in PWLE raw data */
+		cl_dsp_memchunk_write(&header_ch, 24, cs40l26->owt_wlength);
 
 	full_data = kcalloc(full_data_size, sizeof(u8), GFP_KERNEL);
 	if (!full_data) {
