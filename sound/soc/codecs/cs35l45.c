@@ -1965,6 +1965,7 @@ static int cs35l45_component_probe(struct snd_soc_component *component)
 	component->regmap = cs35l45->regmap;
 
 	wm_adsp2_component_probe(&cs35l45->dsp, component);
+	cs35l45->component = component;
 
 	/* Add run-time mixer control for fast use case switch */
 	cs35l45->fast_ctl.name	= fast_ctl;
@@ -2717,8 +2718,7 @@ gpio_cfg:
 static int cs35l45_activate_ctl(struct cs35l45_private *cs35l45,
 				const char *ctl_name, bool active)
 {
-	struct snd_soc_component *component =
-			snd_soc_lookup_component(cs35l45->dev, NULL);
+	struct snd_soc_component *component = cs35l45->component;
 	struct snd_card *card = component->card->snd_card;
 	struct snd_kcontrol *kcontrol;
 	struct snd_kcontrol_volatile *vd;
