@@ -188,6 +188,7 @@ struct cs35l45_private {
 	struct soc_enum fast_switch_enum;
 	const char **fast_switch_names;
 	struct regmap_irq_chip_data *irq_data;
+	struct snd_soc_component *component;
 };
 
 int cs35l45_initialize(struct cs35l45_private *cs35l45);
