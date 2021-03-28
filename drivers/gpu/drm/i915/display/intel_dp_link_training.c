@@ -86,6 +86,18 @@ static void intel_dp_read_lttpr_phy_caps(struct intel_dp *intel_dp,
 
 static bool intel_dp_read_lttpr_common_caps(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	if (intel_dp_is_edp(intel_dp))
+		return false;
+
+	/*
+	 * Detecting LTTPRs must be avoided on platforms with an AUX timeout
+	 * period < 3.2ms. (see DP Standard v2.0, 2.11.2, 3.6.6.1).
+	 */
+	if (INTEL_GEN(i915) < 10)
+		return false;
+
 	if (drm_dp_read_lttpr_common_caps(&intel_dp->aux,
 					  intel_dp->lttpr_common_caps) < 0) {
 		intel_dp_reset_lttpr_common_caps(intel_dp);
@@ -132,9 +144,6 @@ int intel_dp_init_lttpr_and_dprx_caps(struct intel_dp *intel_dp)
 	int lttpr_count;
 	bool ret;
 	int i;
-
-	if (intel_dp_is_edp(intel_dp))
-		return 0;
 
 	ret = intel_dp_read_lttpr_common_caps(intel_dp);
 
