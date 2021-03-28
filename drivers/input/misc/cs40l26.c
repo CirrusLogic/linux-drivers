@@ -2277,7 +2277,11 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26)
 		cs40l26->fw.num_coeff_files = 0;
 		cs40l26->fw.coeff_files = NULL;
 	} else {
-		cs40l26->fw.min_rev = CS40L26_FW_RAM_MIN_REV;
+		if (cs40l26->revid == CS40L26_REVID_A1)
+			cs40l26->fw.min_rev = CS40L26_FW_A1_RAM_MIN_REV;
+		else
+			cs40l26->fw.min_rev = CS40L26_FW_A0_RAM_MIN_REV;
+
 		cs40l26->fw.num_coeff_files =
 				ARRAY_SIZE(cs40l26_ram_coeff_files);
 		cs40l26->fw.coeff_files = cs40l26_ram_coeff_files;
