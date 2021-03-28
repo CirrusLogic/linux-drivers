@@ -236,16 +236,6 @@ struct cl_dsp_coeff_data_block {
 	u8 *payload;
 };
 
-struct cl_dsp_fw_desc {
-	unsigned int id;
-	unsigned int min_rev;
-	unsigned int halo_state_run;
-	unsigned int num_coeff_files;
-	const char * const *coeff_files;
-	const char *fw_file;
-	bool write_fw;
-};
-
 struct cl_dsp_coeff_desc {
 	u32 parent_id;
 	char *parent_name;
@@ -319,7 +309,8 @@ int cl_dsp_destroy(struct cl_dsp *dsp);
 int cl_dsp_wavetable_create(struct cl_dsp *dsp, unsigned int id,
 		const char *wt_name_xm, const char *wt_name_ym,
 		const char *wt_file);
-int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw);
+int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw,
+		bool write_fw);
 int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw);
 int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 		const unsigned int block_type, const unsigned int algo_id,
@@ -329,5 +320,7 @@ int cl_dsp_memchunk_write(struct cl_dsp_memchunk *ch, int nbits, u32 val);
 int cl_dsp_memchunk_read(struct cl_dsp_memchunk *ch, int nbits);
 int cl_dsp_raw_write(struct cl_dsp *dsp, unsigned int reg,
 		const void *val, size_t val_len, size_t limit);
+int cl_dsp_fw_id_get(struct cl_dsp *dsp, unsigned int *id);
+int cl_dsp_fw_rev_get(struct cl_dsp *dsp, unsigned int *rev);
 
 #endif /* __CL_DSP_H */
