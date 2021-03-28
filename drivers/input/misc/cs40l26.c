@@ -1071,7 +1071,7 @@ static int cs40l26_handle_irq2(struct cs40l26_private *cs40l26,
 static irqreturn_t cs40l26_irq(int irq, void *data)
 {
 	struct cs40l26_private *cs40l26 = (struct cs40l26_private *)data;
-	unsigned int val, eint, mask, i, irq1_count = 0, irq2_count = 0;
+	unsigned int sts, val, eint, mask, i, irq1_count = 0, irq2_count = 0;
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
 	unsigned long num_irq;
@@ -1079,8 +1079,12 @@ static irqreturn_t cs40l26_irq(int irq, void *data)
 	bool trigger;
 	int ret;
 
-	if (cs40l26_ack_read(cs40l26, CS40L26_IRQ1_STATUS,
-			CS40L26_IRQ_STATUS_ASSERT)) {
+	if (cs40l26_dsp_read(cs40l26, CS40L26_IRQ1_STATUS, &sts)) {
+		dev_err(dev, "Failed to read IRQ1 Status\n");
+		return IRQ_NONE;
+	}
+
+	if (sts != CS40L26_IRQ_STATUS_ASSERT) {
 		dev_err(dev, "IRQ1 asserted with no pending interrupts\n");
 		return IRQ_NONE;
 	}
@@ -2685,6 +2689,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
+	unsigned int val;
 	int ret;
 	u32 reg;
 
@@ -2750,9 +2755,16 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		goto err_out;
 
-	ret = cs40l26_ack_read(cs40l26, reg, CS40L26_DSP_HALO_STATE_RUN);
-	if (ret)
+	ret = regmap_read(regmap, reg, &val);
+	if (ret) {
+		dev_err(dev, "Failed to read HALO_STATE\n");
 		goto err_out;
+	}
+
+	if (val != CS40L26_DSP_HALO_STATE_RUN) {
+		dev_err(dev, "Firmware in unexpected state: 0x%X\n", val);
+		goto err_out;
+	}
 
 	ret = cs40l26_pm_runtime_setup(cs40l26);
 	if (ret)
