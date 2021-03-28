@@ -706,6 +706,31 @@ err_free:
 	return ret;
 }
 
+int cl_dsp_fw_id_get(struct cl_dsp *dsp, unsigned int *id)
+{
+	int ret = 0;
+
+	ret = regmap_read(dsp->regmap, CL_DSP_HALO_XM_FW_ID_REG, id);
+	if (ret)
+		dev_err(dsp->dev, "Failed to read firmware ID\n");
+
+	return ret;
+}
+EXPORT_SYMBOL(cl_dsp_fw_id_get);
+
+int cl_dsp_fw_rev_get(struct cl_dsp *dsp, unsigned int *rev)
+{
+	int ret = 0;
+
+	ret = regmap_read(dsp->regmap, CL_DSP_HALO_XM_FW_ID_REG +
+			CL_DSP_HALO_ALGO_REV_OFFSET, rev);
+	if (ret)
+		dev_err(dsp->dev, "Failed to read firmware revision\n");
+
+	return ret;
+}
+EXPORT_SYMBOL(cl_dsp_fw_rev_get);
+
 static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 {
 	struct regmap *regmap = dsp->regmap;
@@ -840,25 +865,6 @@ static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 		return -EINVAL;
 	}
 
-	if (dsp->algo_info[0].id != dsp->fw_desc->id) {
-		dev_err(dev, "Invalid firmware ID\n: 0x%06X\n",
-				dsp->algo_info[0].id);
-		return -EINVAL;
-	}
-
-	if (dsp->algo_info[0].rev < dsp->fw_desc->min_rev) {
-		dev_err(dev, "Invalid firmware revision: %d.%d.%d\n",
-				(int) CL_DSP_GET_MAJOR(dsp->algo_info[0].rev),
-				(int) CL_DSP_GET_MINOR(dsp->algo_info[0].rev),
-				(int) CL_DSP_GET_PATCH(dsp->algo_info[0].rev));
-		return -EINVAL;
-	}
-
-	dev_info(dev, "Firmware revision %d.%d.%d\n",
-			(int) CL_DSP_GET_MAJOR(dsp->algo_info[0].rev),
-			(int) CL_DSP_GET_MINOR(dsp->algo_info[0].rev),
-			(int) CL_DSP_GET_PATCH(dsp->algo_info[0].rev));
-
 	if (dsp->wt_desc)
 		dev_info(dev,
 			"Max. wavetable size: %d bytes (XM), %d bytes (YM)\n",
@@ -940,7 +946,8 @@ static void cl_dsp_handle_info_text(struct cl_dsp *dsp,
 	kfree(info_str);
 }
 
-int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
+int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw,
+		bool write_fw)
 {
 	struct device *dev = dsp->dev;
 	unsigned int pos = CL_DSP_FW_FILE_HEADER_SIZE, reg = 0;
@@ -1018,7 +1025,7 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 			goto err_free;
 		}
 
-		if (dsp->fw_desc->write_fw && reg) {
+		if (write_fw && reg) {
 			ret = cl_dsp_raw_write(dsp, reg, data_block.payload,
 					data_block.header.data_len,
 					CL_DSP_MAX_WLEN);
