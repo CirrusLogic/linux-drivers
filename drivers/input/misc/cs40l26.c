@@ -427,7 +427,7 @@ static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	if (halo_state != CS40L26_DSP_HALO_STATE_ROM_RUN) {
+	if (halo_state != CS40L26_DSP_HALO_STATE_RUN) {
 		dev_err(cs40l26->dev, "DSP not Ready: HALO_STATE: %08X\n",
 				halo_state);
 		return -EINVAL;
@@ -825,7 +825,7 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 
 		ret = cl_dsp_get_reg(cs40l26->dsp, "LAST_WAKESRC_CTL",
 				CL_DSP_XM_UNPACKED_TYPE,
-				cs40l26->dsp->fw_desc->id, &reg);
+				CS40L26_FW_ID, &reg);
 		if (ret)
 			goto err;
 
@@ -2273,9 +2273,15 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26)
 		return -ENOMEM;
 
 	if (cs40l26->fw_mode == CS40L26_FW_MODE_ROM) {
-		cs40l26->dsp->fw_desc = &cs40l26_fw;
+		cs40l26->fw.min_rev = CS40L26_FW_ROM_MIN_REV;
+		cs40l26->fw.num_coeff_files = 0;
+		cs40l26->fw.coeff_files = NULL;
 	} else {
-		cs40l26->dsp->fw_desc = &cs40l26_ram_fw;
+		cs40l26->fw.min_rev = CS40L26_FW_RAM_MIN_REV;
+		cs40l26->fw.num_coeff_files =
+				ARRAY_SIZE(cs40l26_ram_coeff_files);
+		cs40l26->fw.coeff_files = cs40l26_ram_coeff_files;
+
 		ret = cl_dsp_wavetable_create(cs40l26->dsp,
 				CS40L26_VIBEGEN_ALGO_ID, CS40L26_WT_NAME_XM,
 				CS40L26_WT_NAME_YM, "cs40l26.bin");
@@ -2636,12 +2642,51 @@ static int cs40l26_get_num_waves(struct cs40l26_private *cs40l26,
 	return regmap_read(cs40l26->regmap, reg, num_waves);
 }
 
+static int cs40l26_verify_fw(struct cs40l26_private *cs40l26)
+{
+	struct cs40l26_fw *fw = &cs40l26->fw;
+	unsigned int val;
+	int ret;
+
+	ret = cl_dsp_fw_id_get(cs40l26->dsp, &val);
+	if (ret)
+		return ret;
+
+	if (val != CS40L26_FW_ID) {
+		dev_err(cs40l26->dev, "Invalid firmware ID: 0x%X\n", val);
+		return -EINVAL;
+	}
+
+	ret = cl_dsp_fw_rev_get(cs40l26->dsp, &val);
+	if (ret)
+		return ret;
+
+	if (val < fw->min_rev) {
+		dev_err(cs40l26->dev, "Invalid firmware revision: %d.%d.%d\n",
+			(int) CL_DSP_GET_MAJOR(val),
+			(int) CL_DSP_GET_MINOR(val),
+			(int) CL_DSP_GET_PATCH(val));
+		return -EINVAL;
+	}
+
+	dev_info(cs40l26->dev, "Firmware revision %d.%d.%d\n",
+			(int) CL_DSP_GET_MAJOR(val),
+			(int) CL_DSP_GET_MINOR(val),
+			(int) CL_DSP_GET_PATCH(val));
+
+	return 0;
+}
+
 static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
 	int ret;
 	u32 reg;
+
+	ret = cs40l26_verify_fw(cs40l26);
+	if (ret)
+		goto err_out;
 
 	ret = regmap_update_bits(regmap, CS40L26_PWRMGT_CTL,
 			CS40L26_MEM_RDY_MASK,
@@ -2654,7 +2699,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM) {
 		ret = cl_dsp_get_reg(cs40l26->dsp, "CALL_RAM_INIT",
 				CL_DSP_XM_UNPACKED_TYPE,
-				cs40l26->dsp->fw_desc->id, &reg);
+				CS40L26_FW_ID, &reg);
 		if (ret)
 			goto err_out;
 
@@ -2696,13 +2741,12 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	/* ensure firmware running */
 	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_STATE",
-			CL_DSP_XM_UNPACKED_TYPE, cs40l26->dsp->fw_desc->id,
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_FW_ID,
 			&reg);
 	if (ret)
 		goto err_out;
 
-	ret = cs40l26_ack_read(cs40l26, reg,
-			cs40l26->dsp->fw_desc->halo_state_run);
+	ret = cs40l26_ack_read(cs40l26, reg, CS40L26_DSP_HALO_STATE_RUN);
 	if (ret)
 		goto err_out;
 
@@ -2727,7 +2771,7 @@ err_out:
 static void cs40l26_coeff_file_load(const struct firmware *fw, void *context)
 {
 	struct cs40l26_private *cs40l26 = (struct cs40l26_private *)context;
-	unsigned int num_coeff_files = cs40l26->dsp->fw_desc->num_coeff_files;
+	unsigned int num_coeff_files = cs40l26->fw.num_coeff_files;
 	unsigned int *num_load_attempts = &cs40l26->num_loaded_coeff_files;
 	struct device *dev = cs40l26->dev;
 
@@ -2735,16 +2779,16 @@ static void cs40l26_coeff_file_load(const struct firmware *fw, void *context)
 
 	if (!fw) {
 		dev_warn(dev, "Could not find coeff. file %s\n",
-			cs40l26->dsp->fw_desc->coeff_files[*num_load_attempts]);
+			cs40l26->fw.coeff_files[*num_load_attempts]);
 		goto mutex_exit;
 	}
 
 	if (cl_dsp_coeff_file_parse(cs40l26->dsp, fw))
 		dev_warn(dev, "Could not load coefficient file %s\n",
-			cs40l26->dsp->fw_desc->coeff_files[*num_load_attempts]);
+			cs40l26->fw.coeff_files[*num_load_attempts]);
 	else
 		dev_dbg(dev, "%s Loaded Successfully\n",
-			cs40l26->dsp->fw_desc->coeff_files[*num_load_attempts]);
+			cs40l26->fw.coeff_files[*num_load_attempts]);
 
 	release_firmware(fw);
 
@@ -2769,15 +2813,16 @@ static void cs40l26_firmware_load(const struct firmware *fw, void *context)
 
 	cs40l26->pm_ready = false;
 
-	ret = cl_dsp_firmware_parse(cs40l26->dsp, fw);
+	ret = cl_dsp_firmware_parse(cs40l26->dsp, fw,
+			cs40l26->fw_mode == CS40L26_FW_MODE_RAM);
 	release_firmware(fw);
 	if (ret)
 		return;
 
-	if (cs40l26->dsp->fw_desc->num_coeff_files) {
-		for (i = 0; i < cs40l26->dsp->fw_desc->num_coeff_files; i++)
+	if (cs40l26->fw.num_coeff_files) {
+		for (i = 0; i < cs40l26->fw.num_coeff_files; i++)
 			request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
-				cs40l26->dsp->fw_desc->coeff_files[i], dev,
+				cs40l26->fw.coeff_files[i], dev,
 				GFP_KERNEL, cs40l26, cs40l26_coeff_file_load);
 	} else {
 		cs40l26_dsp_config(cs40l26);
@@ -2951,8 +2996,8 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 		goto err;
 
 	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
-			cs40l26->dsp->fw_desc->fw_file, dev, GFP_KERNEL,
-			cs40l26, cs40l26_firmware_load);
+			CS40L26_FW_FILE_NAME, dev, GFP_KERNEL, cs40l26,
+			cs40l26_firmware_load);
 
 	ret = cs40l26_input_init(cs40l26);
 	if (ret)

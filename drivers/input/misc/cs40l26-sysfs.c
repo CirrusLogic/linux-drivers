@@ -62,8 +62,7 @@ static ssize_t cs40l26_halo_heartbeat_show(struct device *dev,
 	pm_runtime_get_sync(cs40l26->dev);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_HEARTBEAT",
-			CL_DSP_XM_UNPACKED_TYPE, cs40l26->dsp->fw_desc->id,
-			&reg);
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_FW_ID, &reg);
 	if (ret)
 		return ret;
 

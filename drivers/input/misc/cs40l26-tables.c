@@ -41,30 +41,10 @@ const struct dev_pm_ops cs40l26_pm_ops = {
 			cs40l26_sys_resume_noirq)
 };
 
-static const char * const cs40l26_ram_coeff_files[] = {
+const char * const cs40l26_ram_coeff_files[3] = {
 	CS40L26_WT_FILE_NAME,
 	CS40L26_SVC_TUNING_FILE_NAME,
 	CS40L26_A2H_TUNING_FILE_NAME,
-};
-
-const struct cl_dsp_fw_desc cs40l26_fw = {
-	.id = CS40L26_FW_ROM_ID,
-	.min_rev = CS40L26_FW_ROM_MIN_REV,
-	.halo_state_run = CS40L26_DSP_HALO_STATE_ROM_RUN,
-	.num_coeff_files = 0,
-	.coeff_files = NULL,
-	.fw_file = CS40L26_FW_FILE_NAME,
-	.write_fw = false,
-};
-
-const struct cl_dsp_fw_desc cs40l26_ram_fw = {
-	.id = CS40L26_FW_ROM_ID,
-	.min_rev = CS40L26_FW_RAM_MIN_REV,
-	.halo_state_run = CS40L26_DSP_HALO_STATE_ROM_RUN,
-	.num_coeff_files = ARRAY_SIZE(cs40l26_ram_coeff_files),
-	.coeff_files = cs40l26_ram_coeff_files,
-	.fw_file = CS40L26_FW_FILE_NAME,
-	.write_fw = true,
 };
 
 const u8 cs40l26_pseq_v2_op_sizes[CS40L26_PSEQ_V2_NUM_OPS][2] = {
