@@ -642,7 +642,7 @@
 
 #define CS40L26_PLL_REFCLK_DET_EN_MASK		BIT(0)
 
-#define CS40L26_DSP_HALO_STATE_ROM_RUN		2
+#define CS40L26_DSP_HALO_STATE_RUN		2
 
 /* DSP State */
 #define CS40L26_DSP_STATE_HIBERNATE		0
@@ -784,7 +784,7 @@
 #define CS40L26_SVC_TUNING_FILE_NAME	"cs40l26-svc.bin"
 #define CS40L26_A2H_TUNING_FILE_NAME	"cs40l26-a2h.bin"
 
-#define CS40L26_FW_ROM_ID		0x1800D4
+#define CS40L26_FW_ID			0x1800D4
 #define CS40L26_FW_ROM_MIN_REV		0x040000
 #define CS40L26_FW_RAM_MIN_REV		0x050002
 
@@ -1179,6 +1179,16 @@ enum cs40l26_pm_state {
 };
 
 /* structs */
+struct cs40l26_fw {
+	unsigned int id;
+	unsigned int min_rev;
+	unsigned int halo_state_run;
+	unsigned int num_coeff_files;
+	const char * const *coeff_files;
+	const char *fw_file;
+	bool write_fw;
+};
+
 struct cs40l26_owt_section {
 	u8 flags;
 	u8 repeat;
@@ -1252,6 +1262,7 @@ struct cs40l26_private {
 	enum cs40l26_vibe_state vibe_state;
 	int num_loaded_coeff_files;
 	u32 num_waves;
+	struct cs40l26_fw fw;
 	bool fw_loaded;
 	bool pm_ready;
 	bool asp_enable;
@@ -1317,6 +1328,7 @@ extern const struct dev_pm_ops cs40l26_pm_ops;
 extern const struct regmap_config cs40l26_regmap;
 extern const struct mfd_cell cs40l26_devs[CS40L26_NUM_MFD_DEVS];
 extern const u8 cs40l26_pseq_v2_op_sizes[CS40L26_PSEQ_V2_NUM_OPS][2];
+extern const char * const cs40l26_ram_coeff_files[3];
 
 
 /* sysfs */
