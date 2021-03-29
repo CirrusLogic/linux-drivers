@@ -6261,10 +6261,11 @@ static int cs40l2x_read_dyn_f0_table(struct cs40l2x_private *cs40l2x)
 static int cs40l2x_enable_classh(struct cs40l2x_private *cs40l2x)
 {
 	struct regmap *regmap = cs40l2x->regmap;
+	unsigned int classh = WT_FLAG_CLAB | WT_FLAG_F0;
 	int ret, i;
 
 	for (i = 0; i < CS40L2X_MAX_WAVEFORMS; i++)
-		if (cs40l2x->clab_wt_en[i] || cs40l2x->f0_wt_en[i])
+		if (cs40l2x_get_wave(cs40l2x, i)->flags & classh)
 			break;
 
 	if (i == CS40L2X_MAX_WAVEFORMS)
@@ -6841,43 +6842,6 @@ static int cs40l2x_check_recovery(struct cs40l2x_private *cs40l2x)
 	return ret;
 }
 
-static int cs40l2x_classh_wt_check(struct cs40l2x_private *cs40l2x,
-					const unsigned char *data,
-					const int len, int *pos)
-{
-	struct device *dev = cs40l2x->dev;
-	int i, index;
-	unsigned int header_end = CS40L2X_WT_HEAD_END;
-
-	if (*pos < 0 || *pos >= CS40L2X_MAX_WAVEFORMS)
-		return -EINVAL;
-
-	index = *pos;
-	/* Check the wave table header for CLAB and F0 waveforms */
-	for (i = 1; i < len; i += CS40L2X_WT_DESC_BYTE_OFFSET) {
-		if (!memcmp(&header_end, (data + i), 3))
-			break;
-
-		if (*(data + i) & CS40L2X_CLAB_WT_EN)
-			cs40l2x->clab_wt_en[index] = true;
-
-		if (*(data + i) & CS40L2X_F0_WT_EN)
-			cs40l2x->f0_wt_en[index] = true;
-
-		dev_dbg(dev, "header = 0x%x clab_wt_en = 0x%x\n", *(data + i),
-			 cs40l2x->clab_wt_en[index]);
-		index++;
-		if (index >= CS40L2X_MAX_WAVEFORMS) {
-			dev_err(dev, "Overflow on waveforms\n");
-			return -EFAULT;
-		}
-	}
-
-	*pos += index;
-
-	return 0;
-}
-
 static int cs40l2x_set_boost_voltage(struct cs40l2x_private *cs40l2x,
 					unsigned int boost_ctl)
 {
@@ -6944,11 +6908,9 @@ static int cs40l2x_cond_classh(struct cs40l2x_private *cs40l2x, int index)
 		}
 	}
 
-	if (enable) {
-		if (cs40l2x->f0_wt_en[index]) {
-			boost = cs40l2x->pdata.boost_ctl;
-			disable_classh = true;
-		}
+	if (enable && cs40l2x_get_wave(cs40l2x, index)->flags & WT_FLAG_F0) {
+		boost = cs40l2x->pdata.boost_ctl;
+		disable_classh = true;
 	}
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "CLAB_ENABLED",
@@ -6960,11 +6922,10 @@ static int cs40l2x_cond_classh(struct cs40l2x_private *cs40l2x, int index)
 		if (ret)
 			return ret;
 
-		if (enable) {
-			if (cs40l2x->clab_wt_en[index]) {
-				boost = cs40l2x->pdata.boost_clab;
-				disable_classh = true;
-			}
+		if (enable &&
+		    cs40l2x_get_wave(cs40l2x, index)->flags & WT_FLAG_CLAB) {
+			boost = cs40l2x->pdata.boost_clab;
+			disable_classh = true;
 		}
 	}
 
@@ -8561,7 +8522,7 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 	unsigned int reg = 0;
 	unsigned int is_xm;
 	int ret = -EINVAL;
-	int i = 0, wt_index = 0;
+	int i = 0;
 
 	*wt_date = '\0';
 
@@ -8680,13 +8641,6 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 					}
 				}
 			}
-			if (wt_found && cs40l2x->cond_class_h_en) {
-				ret = cs40l2x_classh_wt_check(cs40l2x,
-						&fw->data[pos],
-						block_length, &wt_index);
-				if (ret)
-					goto err_rls_fw;
-			}
 
 			break;
 		case CS40L2X_YM_UNPACKED_TYPE:
@@ -8711,13 +8665,6 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 								&cs40l2x->wt_ym);
 					}
 				}
-			}
-			if (wt_found && cs40l2x->cond_class_h_en) {
-				ret = cs40l2x_classh_wt_check(cs40l2x,
-						&fw->data[pos],
-						block_length, &wt_index);
-				if (ret)
-					goto err_rls_fw;
 			}
 
 			break;
