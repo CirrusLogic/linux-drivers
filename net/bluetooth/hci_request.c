@@ -1556,10 +1556,8 @@ void __hci_req_enable_advertising(struct hci_request *req)
 	if (!is_advertising_allowed(hdev, connectable))
 		return;
 
-	/* Request that the controller stop advertising. This can be called
-	 * whether or not there is an active advertisement.
-	 */
-	__hci_req_disable_advertising(req);
+	if (hci_dev_test_flag(hdev, HCI_LE_ADV))
+		__hci_req_disable_advertising(req);
 
 	/* Clear the HCI_LE_ADV bit temporarily so that the
 	 * hci_update_random_address knows that it's safe to go ahead
