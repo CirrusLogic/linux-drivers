@@ -601,9 +601,6 @@
 	CS40L2X_WT_ZERO_PAD_SIZE +\
 	CS40L2X_WT_ZERO_PAD_SIZE)
 
-#define CS40L2X_WT_HEADER_END			0xffffff
-#define CS40L2X_WT_DESC_BYTE_OFFSET		12
-
 #define CS40L2X_SETTLE_DELAY_MS			50
 #define CS40L2X_MAX_WAVEFORMS			128
 #define CS40L2X_OWT_CALC_SIZE			(CS40L2X_MAX_WAVEFORMS * 2)
@@ -883,11 +880,6 @@
 #define CS40L2X_CLAB_ENABLED			1
 #define CS40L2X_CLAB_DISABLED			0
 #define CS40L2X_CLAB_PEAK_MAX			0x400000
-
-/* MSB in the WT Header */
-#define CS40L2X_CLAB_WT_EN			BIT(6)
-#define CS40L2X_F0_WT_EN			BIT(4)
-#define CS40L2X_WT_HEAD_END			0xFFFFFF
 
 #define CS40L2X_PAR_ENABLED			1
 #define CS40L2X_PAR_DISABLED			0
@@ -1172,8 +1164,6 @@ struct cs40l2x_private {
 	bool ext_freq_min_fw;
 	bool a2h_reinit_min_fw;
 	bool amp_gnd_stby;
-	bool clab_wt_en[CS40L2X_MAX_WAVEFORMS];
-	bool f0_wt_en[CS40L2X_MAX_WAVEFORMS];
 	bool dyn_f0_enable;
 	bool cond_class_h_en;
 	bool clab_bin_found;
