@@ -158,7 +158,13 @@ static void cs35l45_dsp_pmu_work(struct work_struct *work)
 						       dsp_pmu_work);
 
 	mutex_lock(&cs35l45->dsp_power_lock);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_OVERRIDES,
+			   CS35L45_TEMPMON_GLOBAL_OVR_MASK,
+			   CS35L45_TEMPMON_GLOBAL_OVR_MASK);
+
 	cs35l45_set_csplmboxcmd(cs35l45, CSPL_MBOX_CMD_RESUME);
+
 	mutex_unlock(&cs35l45->dsp_power_lock);
 }
 
@@ -169,7 +175,12 @@ static void cs35l45_dsp_pmd_work(struct work_struct *work)
 						       dsp_pmd_work);
 
 	mutex_lock(&cs35l45->dsp_power_lock);
+
 	cs35l45_set_csplmboxcmd(cs35l45, CSPL_MBOX_CMD_PAUSE);
+
+	regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_OVERRIDES,
+			   CS35L45_TEMPMON_GLOBAL_OVR_MASK, 0);
+
 	mutex_unlock(&cs35l45->dsp_power_lock);
 }
 
@@ -2893,7 +2904,6 @@ static const struct reg_sequence cs35l45_sync_patch[] = {
 	{0x00000040,			0x000000AA},
 	{0x00000044,			0x00000055},
 	{0x00000044,			0x000000AA},
-	{CS35L45_GLOBAL_OVERRIDES,	0x0000000A},
 	{0x0000350C,			0x7FF0007C},
 	{0x00003510,			0x00007FF0},
 	{0x00000040,			0x00000000},
