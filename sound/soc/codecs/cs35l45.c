@@ -795,9 +795,6 @@ static int cs35l45_dsp_boot_put(struct snd_kcontrol *kcontrol,
 
 		snd_soc_dapm_sync(dapm);
 
-		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES2,
-				   CS35L45_SYNC_EN_MASK, CS35L45_SYNC_EN_MASK);
-
 		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
 				   CS35L45_SYNC_SW_EN_MASK,
 				   CS35L45_SYNC_SW_EN_MASK);
@@ -815,9 +812,6 @@ static int cs35l45_dsp_boot_put(struct snd_kcontrol *kcontrol,
 		cs35l45_set_dapm_route_mode(cs35l45, DAPM_MODE_ASP);
 
 		snd_soc_dapm_sync(dapm);
-
-		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES2,
-				   CS35L45_SYNC_EN_MASK, 0);
 
 		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
 				   CS35L45_SYNC_SW_EN_MASK, 0);
