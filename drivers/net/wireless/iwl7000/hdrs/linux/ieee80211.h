@@ -3867,9 +3867,6 @@ struct ieee80211_neighbor_ap_info {
 	u8 channel;
 } __packed;
 
-#define IEEE80211_MIN_AP_NEIGHBOR_INFO_SIZE \
-	sizeof(struct ieee80211_neighbor_ap_info)
-
 enum ieee80211_range_params_max_total_ltf {
 	IEEE80211_RANGE_PARAMS_MAX_TOTAL_LTF_4 = 0,
 	IEEE80211_RANGE_PARAMS_MAX_TOTAL_LTF_8,
