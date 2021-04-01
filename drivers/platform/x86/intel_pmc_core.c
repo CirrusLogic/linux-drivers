@@ -23,13 +23,18 @@
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/uaccess.h>
+#include <linux/uuid.h>
 
+#include <acpi/acpi_bus.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include <asm/msr.h>
 #include <asm/tsc.h>
 
 #include "intel_pmc_core.h"
+
+#define ACPI_S0IX_DSM_UUID		"57a6512e-3979-4e9d-9708-ff13b2508972"
+#define ACPI_GET_LOW_MODE_REGISTERS	1
 
 /* PKGC MSRs are common across Intel Core SoCs */
 static const struct pmc_bit_map msr_map[] = {
@@ -586,6 +591,46 @@ static const struct pmc_reg_map tgl_reg_map = {
 	.lpm_status_offset = TGL_LPM_STATUS_OFFSET,
 	.lpm_live_status_offset = TGL_LPM_LIVE_STATUS_OFFSET,
 };
+
+static void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev)
+{
+	struct pmc_dev *pmcdev = platform_get_drvdata(pdev);
+	const int num_maps = pmcdev->map->lpm_num_maps;
+	size_t lpm_size = LPM_MAX_NUM_MODES * num_maps * 4;
+	union acpi_object *out_obj;
+	struct acpi_device *adev;
+	guid_t s0ix_dsm_guid;
+	u32 *lpm_req_regs;
+
+	adev = ACPI_COMPANION(&pdev->dev);
+	if (!adev)
+		return;
+
+	lpm_req_regs = devm_kzalloc(&pdev->dev, lpm_size * sizeof(u32),
+				     GFP_KERNEL);
+	if (!lpm_req_regs)
+		return;
+
+	guid_parse(ACPI_S0IX_DSM_UUID, &s0ix_dsm_guid);
+
+	out_obj = acpi_evaluate_dsm(adev->handle, &s0ix_dsm_guid, 0,
+				    ACPI_GET_LOW_MODE_REGISTERS, NULL);
+	if (out_obj && out_obj->type == ACPI_TYPE_BUFFER) {
+		u32 *addr = (u32 *)out_obj->buffer.pointer;
+		int size = out_obj->buffer.length;
+
+		if (size != lpm_size)
+			return;
+
+		memcpy_fromio(lpm_req_regs, addr, lpm_size);
+	} else
+		acpi_handle_debug(adev->handle,
+				  "_DSM function 0 evaluation failed\n");
+
+	ACPI_FREE(out_obj);
+
+	pmcdev->lpm_req_regs = lpm_req_regs;
+}
 
 static inline u32 pmc_core_reg_read(struct pmc_dev *pmcdev, int reg_offset)
 {
@@ -1312,9 +1357,13 @@ static int pmc_core_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mutex_init(&pmcdev->lock);
+
 	pmcdev->pmc_xram_read_bit = pmc_core_check_read_lock_bit(pmcdev);
 	pmc_core_get_low_power_modes(pmcdev);
 	pmc_core_do_dmi_quirks(pmcdev);
+
+	if (pmcdev->map == &tgl_reg_map)
+		pmc_core_get_tgl_lpm_reqs(pdev);
 
 	/*
 	 * On TGL, due to a hardware limitation, the GBE LTR blocks PC10 when
