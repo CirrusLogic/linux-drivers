@@ -388,9 +388,8 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 				goto err_free;
 			}
 
-			if (dsp->wt_desc &&
-				data_block.header.algo_id == dsp->wt_desc->id)
-				wt_found = true;
+			wt_found = ((data_block.header.algo_id & 0xFFFF) ==
+					(dsp->wt_desc->id & 0xFFFF));
 		}
 
 		switch (data_block.header.block_type) {
