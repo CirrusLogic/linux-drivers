@@ -2684,6 +2684,53 @@ static int cs40l26_verify_fw(struct cs40l26_private *cs40l26)
 	return 0;
 }
 
+static int cs40l26_asp_config(struct cs40l26_private *cs40l26)
+{
+	struct reg_sequence *dsp1rx_config =
+			kcalloc(2, sizeof(struct reg_sequence), GFP_KERNEL);
+	int ret;
+
+	if (!dsp1rx_config) {
+		dev_err(cs40l26->dev, "Failed to allocate reg. sequence\n");
+		return -ENOMEM;
+	}
+
+	dsp1rx_config[0].reg = CS40L26_DSP1RX1_INPUT;
+	dsp1rx_config[0].def = CS40L26_DATA_SRC_ASPRX1;
+	dsp1rx_config[1].reg = CS40L26_DSP1RX5_INPUT;
+	dsp1rx_config[1].def = CS40L26_DATA_SRC_ASPRX2;
+
+	ret = regmap_multi_reg_write(cs40l26->regmap, dsp1rx_config, 2);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to configure ASP\n");
+		goto err_free;
+	}
+
+	switch (cs40l26->revid) {
+	case CS40L26_REVID_A0:
+		ret = cs40l26_pseq_v1_multi_add_pair(cs40l26, dsp1rx_config, 2,
+				CS40L26_PSEQ_V1_REPLACE);
+		break;
+	case CS40L26_REVID_A1:
+		ret = cs40l26_pseq_v2_multi_add_write_reg_full(cs40l26,
+				dsp1rx_config, 2, true);
+		break;
+	default:
+		dev_err(cs40l26->dev, "Revid ID not supported: %02X\n",
+			cs40l26->revid);
+		ret = -EINVAL;
+		goto err_free;
+	}
+
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to add ASP config to pseq\n");
+
+err_free:
+	kfree(dsp1rx_config);
+
+	return ret;
+}
+
 static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
@@ -2771,11 +2818,16 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	pm_runtime_get_sync(dev);
 
+	ret = cs40l26_asp_config(cs40l26);
+	if (ret)
+		goto pm_err;
+
 	ret = cs40l26_get_num_waves(cs40l26, &cs40l26->num_waves);
 	if (!ret)
 		dev_info(dev, "%s loaded with %u RAM waveforms\n",
 				CS40L26_DEV_NAME, cs40l26->num_waves);
 
+pm_err:
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 err_out:
