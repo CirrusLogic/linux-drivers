@@ -2784,42 +2784,11 @@ err_out:
 	return ret;
 }
 
-static void cs40l26_coeff_file_load(const struct firmware *fw, void *context)
-{
-	struct cs40l26_private *cs40l26 = (struct cs40l26_private *)context;
-	unsigned int num_coeff_files = cs40l26->fw.num_coeff_files;
-	unsigned int *num_load_attempts = &cs40l26->num_loaded_coeff_files;
-	struct device *dev = cs40l26->dev;
-
-	mutex_lock(&cs40l26->lock);
-
-	if (!fw) {
-		dev_warn(dev, "Could not find coeff. file %s\n",
-			cs40l26->fw.coeff_files[*num_load_attempts]);
-		goto mutex_exit;
-	}
-
-	if (cl_dsp_coeff_file_parse(cs40l26->dsp, fw))
-		dev_warn(dev, "Could not load coefficient file %s\n",
-			cs40l26->fw.coeff_files[*num_load_attempts]);
-	else
-		dev_dbg(dev, "%s Loaded Successfully\n",
-			cs40l26->fw.coeff_files[*num_load_attempts]);
-
-	release_firmware(fw);
-
-mutex_exit:
-	*num_load_attempts = *num_load_attempts + 1;
-	if (*num_load_attempts == num_coeff_files)
-		cs40l26_dsp_config(cs40l26);
-
-	mutex_unlock(&cs40l26->lock);
-}
-
 static void cs40l26_firmware_load(const struct firmware *fw, void *context)
 {
 	struct cs40l26_private *cs40l26 = (struct cs40l26_private *)context;
 	struct device *dev = cs40l26->dev;
+	const struct firmware *coeff_fw;
 	int ret, i;
 
 	if (!fw) {
@@ -2835,14 +2804,22 @@ static void cs40l26_firmware_load(const struct firmware *fw, void *context)
 	if (ret)
 		return;
 
-	if (cs40l26->fw.num_coeff_files) {
-		for (i = 0; i < cs40l26->fw.num_coeff_files; i++)
-			request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
-				cs40l26->fw.coeff_files[i], dev,
-				GFP_KERNEL, cs40l26, cs40l26_coeff_file_load);
-	} else {
-		cs40l26_dsp_config(cs40l26);
+	for (i = 0; i < cs40l26->fw.num_coeff_files; i++) {
+		request_firmware(&coeff_fw, cs40l26->fw.coeff_files[i],
+				dev);
+		if (!coeff_fw) {
+			dev_warn(dev, "Continuing...\n");
+			continue;
+		}
+
+		if (cl_dsp_coeff_file_parse(cs40l26->dsp, coeff_fw))
+			dev_warn(dev, "Continuing...\n");
+		else
+			dev_dbg(dev, "%s Loaded Successfully\n",
+				cs40l26->fw.coeff_files[i]);
 	}
+
+	cs40l26_dsp_config(cs40l26);
 }
 
 static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
