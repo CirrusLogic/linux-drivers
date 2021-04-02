@@ -497,8 +497,6 @@ static struct snd_soc_dai_driver cs40l26_dai[] = {
 static int cs40l26_codec_probe(struct snd_soc_component *component)
 {
 	struct cs40l26_codec *codec = snd_soc_component_get_drvdata(component);
-	struct reg_sequence dsp1rx_config[2];
-	int ret;
 
 	codec->bin_file = devm_kzalloc(codec->dev, PAGE_SIZE, GFP_KERNEL);
 	if (!codec->bin_file)
@@ -510,42 +508,7 @@ static int cs40l26_codec_probe(struct snd_soc_component *component)
 	/* Default audio SCLK frequency */
 	codec->sysclk_rate = CS40L26_PLL_CLK_FRQ1;
 
-	dsp1rx_config[0].reg = CS40L26_DSP1RX1_INPUT;
-	dsp1rx_config[0].def = CS40L26_DATA_SRC_ASPRX1;
-	dsp1rx_config[1].reg = CS40L26_DSP1RX5_INPUT;
-	dsp1rx_config[1].def = CS40L26_DATA_SRC_ASPRX2;
-
-	pm_runtime_get_sync(codec->dev);
-
-	ret = regmap_multi_reg_write(codec->regmap, dsp1rx_config, 2);
-	if (ret) {
-		dev_err(codec->dev, "Failed to configure ASP path\n");
-		goto pm_err;
-	}
-
-	switch (codec->core->revid) {
-	case CS40L26_REVID_A0:
-		ret = cs40l26_pseq_v1_multi_add_pair(codec->core,
-			dsp1rx_config, 2, CS40L26_PSEQ_V1_REPLACE);
-		break;
-	case CS40L26_REVID_A1:
-		ret = cs40l26_pseq_v2_multi_add_write_reg_full(codec->core,
-			dsp1rx_config, 2, true);
-		break;
-	default:
-		dev_err(codec->dev, "Revid ID not supported: %02X\n",
-			codec->core->revid);
-		return -EINVAL;
-	}
-
-	if (ret)
-		dev_err(codec->dev, "Failed to add ASP config to pseq\n");
-
-pm_err:
-	pm_runtime_mark_last_busy(codec->dev);
-	pm_runtime_put_autosuspend(codec->dev);
-
-	return ret;
+	return 0;
 }
 
 static const struct snd_soc_component_driver soc_codec_dev_cs40l26 = {
