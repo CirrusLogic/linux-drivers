@@ -428,6 +428,8 @@ void mark_page_accessed(struct page *page)
 		 * this list is never rotated or maintained, so marking an
 		 * evictable page accessed has no effect.
 		 */
+	} else if (lru_gen_enabled()) {
+		page_inc_usage(page);
 	} else if (!PageActive(page)) {
 		/*
 		 * If the page is on the LRU, queue it for activation via
@@ -462,6 +464,10 @@ void lru_cache_add(struct page *page)
 
 	VM_BUG_ON_PAGE(PageActive(page) && PageUnevictable(page), page);
 	VM_BUG_ON_PAGE(PageLRU(page), page);
+
+	if (lru_gen_enabled() && !PageActive(page) && !PageUnevictable(page) &&
+	    task_in_user_fault() && !(current->flags & PF_MEMALLOC))
+		SetPageActive(page);
 
 	get_page(page);
 	local_lock(&lru_pvecs.lock);
@@ -569,7 +575,7 @@ static void lru_deactivate_file_fn(struct page *page, struct lruvec *lruvec,
 static void lru_deactivate_fn(struct page *page, struct lruvec *lruvec,
 			    void *arg)
 {
-	if (PageLRU(page) && PageActive(page) && !PageUnevictable(page)) {
+	if (PageLRU(page) && !PageUnevictable(page) && (PageActive(page) || lru_gen_enabled())) {
 		int nr_pages = thp_nr_pages(page);
 
 		del_page_from_lru_list(page, lruvec);
@@ -684,7 +690,7 @@ void deactivate_file_page(struct page *page)
  */
 void deactivate_page(struct page *page)
 {
-	if (PageLRU(page) && PageActive(page) && !PageUnevictable(page)) {
+	if (PageLRU(page) && !PageUnevictable(page) && (PageActive(page) || lru_gen_enabled())) {
 		struct pagevec *pvec;
 
 		local_lock(&lru_pvecs.lock);
