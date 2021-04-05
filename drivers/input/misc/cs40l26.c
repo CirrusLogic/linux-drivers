@@ -3048,7 +3048,7 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 	if (ret)
 		goto err;
 
-	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE, cs40l26_devs,
+	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO, cs40l26_devs,
 			CS40L26_NUM_MFD_DEVS, NULL, 0, NULL);
 	if (ret) {
 		dev_err(dev, "Failed to register codec component\n");
