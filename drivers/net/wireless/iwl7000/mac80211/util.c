@@ -1800,6 +1800,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 	int shift;
 	u32 rate_flags;
 	bool have_80mhz = false;
+	enum nl80211_iftype iftype;
 
 	*offset = 0;
 
@@ -1961,7 +1962,8 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 		*offset = noffset;
 	}
 
-	he_cap = ieee80211_get_he_sta_cap(sband);
+	iftype = ieee80211_vif_type_p2p(&sdata->vif);
+	he_cap = ieee80211_get_he_iftype_cap(sband, iftype);
 	if (he_cap &&
 	    cfg80211_any_usable_channels(local->hw.wiphy, BIT(sband->band),
 					 IEEE80211_CHAN_NO_HE)) {
@@ -1977,11 +1979,9 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 		struct ieee80211_supported_band *sband6;
 
 		sband6 = local->hw.wiphy->bands[NL80211_BAND_6GHZ];
-		he_cap = ieee80211_get_he_sta_cap(sband6);
+		he_cap = ieee80211_get_he_iftype_cap(sband6, iftype);
 
 		if (he_cap) {
-			enum nl80211_iftype iftype =
-				ieee80211_vif_type_p2p(&sdata->vif);
 			__le16 cap = ieee80211_get_he_6ghz_capa(sband, iftype);
 
 			pos = ieee80211_write_he_6ghz_cap(pos, cap, end);
