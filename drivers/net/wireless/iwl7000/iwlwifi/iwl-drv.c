@@ -1414,6 +1414,7 @@ fw_dbg_conf:
 		case IWL_UCODE_TLV_TYPE_HCMD:
 		case IWL_UCODE_TLV_TYPE_REGIONS:
 		case IWL_UCODE_TLV_TYPE_TRIGGERS:
+		case IWL_UCODE_TLV_TYPE_CONF_SET:
 			if (iwlwifi_mod_params.enable_ini)
 				iwl_dbg_tlv_alloc(drv->trans, tlv, false);
 			break;

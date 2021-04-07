@@ -775,6 +775,7 @@ struct iwl_trans_debug {
 	struct list_head periodic_trig_list;
 
 	u32 domains_bitmap;
+	u32 ucode_preset;
 };
 
 struct iwl_dma_ptr {
