@@ -10,15 +10,17 @@
 #ifndef CS40L25_WAVETABLE_H
 #define CS40L25_WAVETABLE_H
 
-#define WT_WAVELEN_MAX		0x3FFFFF
-#define WT_WAVELEN_INDEFINITE	0x400000
-#define WT_WAVELEN_CALCULATED	0x800000
+#include <linux/bitops.h>
+
+#define WT_WAVELEN_MAX		GENMASK(21, 0)
+#define WT_WAVELEN_INDEFINITE	BIT(22)
+#define WT_WAVELEN_CALCULATED	BIT(23)
 
 #define WT_REPEAT_LOOP_MARKER	0xFF
 
 #define WT_MAX_SECTIONS		255
 
-#define WT_T10_FLAG_DURATION	0x80
+#define WT_T10_FLAG_DURATION	BIT(8)
 
 struct wt_type10_comp_section {
 	u8 amplitude;
