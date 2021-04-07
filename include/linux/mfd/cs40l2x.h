@@ -1169,7 +1169,6 @@ struct cs40l2x_private {
 
 	struct hrtimer pbq_timer;
 	unsigned int pbq_cp_dig_scale;
-	unsigned int pwle_feature;
 	unsigned int num_virtual_pwle_waves;
 	unsigned int last_type_entered;
 	unsigned int display_pwle_segs;
@@ -1206,7 +1205,6 @@ struct cs40l2x_private {
 	bool f0_wt_en[CS40L2X_MAX_WAVEFORMS];
 	bool dyn_f0_enable;
 	bool cond_class_h_en;
-	bool save_pwle;
 	bool clab_bin_found;
 	bool par_bin_found;
 	struct cs40l2x_wseq_pair dsp_cache[CS40L2X_DSP_CACHE_MAX];
