@@ -1700,7 +1700,8 @@ err_mutex:
 }
 
 static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x,
-					 struct wt_type12_pwle *pwle)
+					 struct wt_type12_pwle *pwle,
+					 unsigned int feature, bool save)
 {
 	unsigned int zero_pad_size;
 	char *zero_pad_data;
@@ -1720,60 +1721,19 @@ static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x,
 
 	zero_pad_size = ret;
 
-	if (cs40l2x->save_pwle) {
+	if (save) {
 		ret = cs40l2x_add_waveform_to_virtual_list(cs40l2x,
 				CS40L2X_WT_TYPE_12_PWLE_FILE,
-				cs40l2x->pwle_feature,
-				zero_pad_size, zero_pad_data);
+				feature, zero_pad_size, zero_pad_data);
 		if (!ret)
 			cs40l2x->num_virtual_pwle_waves++;
 	} else {
 		cs40l2x_save_waveform_to_ovwr_struct(cs40l2x,
-			CS40L2X_WT_TYPE_12_PWLE_FILE, cs40l2x->pwle_feature,
-			zero_pad_size, zero_pad_data);
+				CS40L2X_WT_TYPE_12_PWLE_FILE,
+				feature, zero_pad_size, zero_pad_data);
 	}
 
 	kfree(zero_pad_data);
-
-	return ret;
-}
-
-static int cs40l2x_pwle_save_entry(struct cs40l2x_private *cs40l2x, char *token)
-{
-	unsigned int val;
-	int ret;
-
-	ret = kstrtou32(token, 10, &val);
-	if (ret)
-		return ret;
-
-	if (val > 1) {
-		dev_err(cs40l2x->dev, "Valid Save: 0 or 1\n");
-		return -EINVAL;
-	}
-
-	if (val)
-		cs40l2x->save_pwle = true;
-
-	return ret;
-}
-
-static int cs40l2x_pwle_wvfrm_feature_entry(struct cs40l2x_private *cs40l2x,
-					    char *token)
-{
-	unsigned int val;
-	int ret;
-
-	ret = kstrtou32(token, 10, &val);
-	if (ret)
-		return ret;
-
-	if (val > CS40L2X_PWLE_MAX_WVFRM_FEAT || (val % 4) != 0) {
-		dev_err(cs40l2x->dev, "Valid Waveform Feature: 0, 4, 8, 12\n");
-		return -EINVAL;
-	}
-
-	cs40l2x->pwle_feature = val << CS40L2X_PWLE_WVFRM_FT_SHFT;
 
 	return ret;
 }
@@ -1949,9 +1909,9 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 	struct wt_type12_pwle *pwle;
 	struct wt_type12_pwle_section *section;
 	char *pwle_str, *cur, *token, *type;
-	unsigned int num_vals = 0, num_segs = 0;
+	unsigned int num_vals = 0, num_segs = 0, feature = 0;
 	unsigned int val;
-	bool indef = false;
+	bool indef = false, save_pwle = false;
 	bool t = false, l = false, f = false, c = false, b = false;
 	bool a = false, v = false;
 	int ret;
@@ -1979,8 +1939,6 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 		goto err_exit;
 	}
 
-	cs40l2x->save_pwle = false;
-
 	section = pwle->sections;
 
 	strlcpy(pwle_str, buf, count);
@@ -2006,9 +1964,18 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 				goto err_exit;
 			}
 
-			ret = cs40l2x_pwle_save_entry(cs40l2x, token);
+			ret = kstrtou32(token, 10, &val);
 			if (ret)
 				goto err_exit;
+
+			if (val > 1) {
+				dev_err(cs40l2x->dev, "Valid Save: 0 or 1\n");
+				ret = -EINVAL;
+				goto err_exit;
+			}
+
+			if (val)
+				save_pwle = true;
 		} else if (!strncmp(type, "WF", 2)) {
 			if (num_vals != 1) {
 				dev_err(cs40l2x->dev,
@@ -2017,9 +1984,17 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 				goto err_exit;
 			}
 
-			ret = cs40l2x_pwle_wvfrm_feature_entry(cs40l2x, token);
+			ret = kstrtou32(token, 10, &val);
 			if (ret)
 				goto err_exit;
+
+			if (val > CS40L2X_PWLE_MAX_WVFRM_FEAT || (val % 4) != 0) {
+				dev_err(cs40l2x->dev, "Valid Waveform Feature: 0, 4, 8, 12\n");
+				ret = -EINVAL;
+				goto err_exit;
+			}
+
+			feature = val << CS40L2X_PWLE_WVFRM_FT_SHFT;
 		} else if (!strncmp(type, "RP", 2)) {
 			if (num_vals != 2) {
 				dev_err(cs40l2x->dev,
@@ -2172,7 +2147,7 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 
 	pwle->wlength |= WT_WAVELEN_CALCULATED;
 
-	ret = cs40l2x_save_packed_pwle_data(cs40l2x, pwle);
+	ret = cs40l2x_save_packed_pwle_data(cs40l2x, pwle, feature, save_pwle);
 	if (ret) {
 		dev_err(cs40l2x->dev,
 			"Malformed PWLE. No segments found.\n");
@@ -2182,7 +2157,7 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 
 	ret = count;
 
-	if (!cs40l2x->save_pwle)
+	if (!save_pwle)
 		cs40l2x->last_type_entered = CS40L2X_WT_TYPE_12_PWLE_FILE;
 	cs40l2x->queue_stored = true;
 
