@@ -18,7 +18,7 @@
 
 #define WT_MAX_SECTIONS		255
 
-#define WT_T10_FLAG_DURATION	0x8
+#define WT_T10_FLAG_DURATION	0x80
 
 struct wt_type10_comp_section {
 	u8 amplitude;
