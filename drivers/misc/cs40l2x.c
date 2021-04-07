@@ -205,6 +205,14 @@ static int dspmem_chunk_write(struct dspmem_chunk *ch, int nbits, u32 val)
 	return 0;
 }
 
+static int dspmem_chunk_flush(struct dspmem_chunk *ch)
+{
+	if (!ch->cachebits)
+		return 0;
+
+	return dspmem_chunk_write(ch, 24 - ch->cachebits, 0);
+}
+
 static int cs40l2x_write_comp(struct cs40l2x_private *cs40l2x, void *buf,
 			      int size, struct wt_type10_comp *wave)
 {
