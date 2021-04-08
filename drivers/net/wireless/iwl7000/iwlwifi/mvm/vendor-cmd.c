@@ -1037,20 +1037,19 @@ static int iwl_mvm_vendor_get_geo_profile_info(struct wiphy *wiphy,
 		goto out;
 
 	for (i = 0; i < IWL_MVM_SAR_GEO_NUM_BANDS; i++) {
-		u8 *value;
 		struct nlattr *nl_chain = nla_nest_start(skb, i + 1);
-		int idx = i * ACPI_GEO_PER_CHAIN_SIZE;
 
 		if (!nl_chain) {
 			kfree_skb(skb);
 			return -ENOBUFS;
 		}
 
-		value =  &mvm->fwrt.geo_profiles[tbl_idx - 1].values[idx];
-
-		nla_put_u8(skb, IWL_VENDOR_SAR_GEO_MAX_TXP, value[0]);
-		nla_put_u8(skb, IWL_VENDOR_SAR_GEO_CHAIN_A_OFFSET, value[1]);
-		nla_put_u8(skb, IWL_VENDOR_SAR_GEO_CHAIN_B_OFFSET, value[2]);
+		nla_put_u8(skb, IWL_VENDOR_SAR_GEO_MAX_TXP,
+			   mvm->fwrt.geo_profiles[tbl_idx - 1].bands[i].max);
+		nla_put_u8(skb, IWL_VENDOR_SAR_GEO_CHAIN_A_OFFSET,
+			   mvm->fwrt.geo_profiles[tbl_idx - 1].bands[i].chains[0]);
+		nla_put_u8(skb, IWL_VENDOR_SAR_GEO_CHAIN_B_OFFSET,
+			   mvm->fwrt.geo_profiles[tbl_idx - 1].bands[i].chains[1]);
 		nla_nest_end(skb, nl_chain);
 	}
 out:
