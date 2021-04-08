@@ -5431,6 +5431,9 @@ void intel_dp_mst_suspend(struct drm_i915_private *dev_priv)
 {
 	struct intel_encoder *encoder;
 
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
 		struct intel_dp *intel_dp;
 
@@ -5450,6 +5453,9 @@ void intel_dp_mst_suspend(struct drm_i915_private *dev_priv)
 void intel_dp_mst_resume(struct drm_i915_private *dev_priv)
 {
 	struct intel_encoder *encoder;
+
+	if (!HAS_DISPLAY(dev_priv))
+		return;
 
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
 		struct intel_dp *intel_dp;
