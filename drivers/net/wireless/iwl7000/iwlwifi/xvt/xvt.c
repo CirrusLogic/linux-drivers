@@ -913,7 +913,7 @@ int iwl_xvt_sar_select_profile(struct iwl_xvt *xvt, int prof_a, int prof_b)
 	/* all structs have the same common part, add it */
 	len += sizeof(cmd.common);
 
-	if (iwl_sar_select_profile(&xvt->fwrt, per_chain, ACPI_SAR_NUM_TABLES,
+	if (iwl_sar_select_profile(&xvt->fwrt, per_chain, IWL_NUM_CHAIN_TABLES,
 				   n_subbands, prof_a, prof_b))
 		return -ENOENT;
 
