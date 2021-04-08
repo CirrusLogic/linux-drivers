@@ -676,7 +676,7 @@ static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 	unsigned int *is_xm)
 {
 	unsigned int wt_open_bytes = CS40L2X_PACKED_BYTES_MAX +
-		(CS40L2X_WT_HEADER_ENTRY_SIZE * CS40L2X_WT_NUM_VIRT_SLOTS);
+		(WT_ENTRY_SIZE_BYTES * CS40L2X_WT_NUM_VIRT_SLOTS);
 	unsigned int comp_size;
 	int no_space = -ENOSPC;
 
@@ -706,7 +706,7 @@ static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 		cs40l2x->virtual_gpio1_fall_slot - 1;
 
 	comp_size = (wt_open_bytes -
-		(CS40L2X_WT_HEADER_ENTRY_SIZE * CS40L2X_WT_NUM_VIRT_SLOTS));
+		(WT_ENTRY_SIZE_BYTES * CS40L2X_WT_NUM_VIRT_SLOTS));
 	cs40l2x->comp_bytes = comp_size;
 
 	cs40l2x->display_pwle_segs =
