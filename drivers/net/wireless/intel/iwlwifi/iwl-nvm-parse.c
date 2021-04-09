@@ -631,7 +631,7 @@ static struct ieee80211_sband_iftype_data iwl_he_capa[] = {
 				.phy_cap_info[6] =
 					IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT,
 				.phy_cap_info[7] =
-					IEEE80211_HE_PHY_CAP7_POWER_BOOST_FACTOR_AR |
+					IEEE80211_HE_PHY_CAP7_POWER_BOOST_FACTOR_SUPP |
 					IEEE80211_HE_PHY_CAP7_HE_SU_MU_PPDU_4XLTF_AND_08_US_GI |
 					IEEE80211_HE_PHY_CAP7_MAX_NC_1,
 				.phy_cap_info[8] =
