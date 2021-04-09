@@ -41,7 +41,7 @@ struct drm_ioctl_desc evdi_painter_ioctls[] = {
 			  DRM_UNLOCKED),
 };
 
-#if KERNEL_VERSION(5, 11, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 #else
 static const struct vm_operations_struct evdi_gem_vm_ops = {
 	.fault = evdi_gem_fault,
@@ -64,7 +64,7 @@ static const struct file_operations evdi_driver_fops = {
 	.llseek = noop_llseek,
 };
 
-#if KERNEL_VERSION(5, 11, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 #else
 static int evdi_enable_vblank(__always_unused struct drm_device *dev,
 			      __always_unused unsigned int pipe)
@@ -90,14 +90,14 @@ static struct drm_driver driver = {
 	.postclose = evdi_driver_postclose,
 
 	/* gem hooks */
-#if KERNEL_VERSION(5, 11, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 #elif KERNEL_VERSION(5, 9, 0) <= LINUX_VERSION_CODE
 	.gem_free_object_unlocked = evdi_gem_free_object,
 #else
 	.gem_free_object = evdi_gem_free_object,
 #endif
 
-#if KERNEL_VERSION(5, 11, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 #else
 	.gem_vm_ops = &evdi_gem_vm_ops,
 #endif
@@ -117,7 +117,7 @@ static struct drm_driver driver = {
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import = drm_gem_prime_import,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-#if KERNEL_VERSION(5, 11, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 #else
 	.preclose = evdi_driver_preclose,
 	.gem_prime_export = drm_gem_prime_export,

@@ -19,7 +19,7 @@
 #include <drm/drm_cache.h>
 
 
-#if KERNEL_VERSION(5, 11, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 static const struct vm_operations_struct evdi_gem_vm_ops = {
 	.fault = evdi_gem_fault,
 	.open = drm_gem_vm_open,
@@ -74,7 +74,7 @@ struct evdi_gem_object *evdi_gem_alloc_object(struct drm_device *dev,
 #endif
 	obj->resv = &obj->_resv;
 
-#if KERNEL_VERSION(5, 11, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 	obj->base.funcs = &gem_obj_funcs;
 #endif
 
@@ -230,7 +230,7 @@ int evdi_gem_vmap(struct evdi_gem_object *obj)
 	int ret;
 
 	if (obj->base.import_attach) {
-#if KERNEL_VERSION(5, 11, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 		struct dma_buf_map map;
 
 		ret = dma_buf_vmap(obj->base.import_attach->dmabuf, &map);
@@ -258,7 +258,7 @@ int evdi_gem_vmap(struct evdi_gem_object *obj)
 void evdi_gem_vunmap(struct evdi_gem_object *obj)
 {
 	if (obj->base.import_attach) {
-#if KERNEL_VERSION(5, 11, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 		struct dma_buf_map map = DMA_BUF_MAP_INIT_VADDR(obj->vmapping);
 
 		dma_buf_vunmap(obj->base.import_attach->dmabuf, &map);
