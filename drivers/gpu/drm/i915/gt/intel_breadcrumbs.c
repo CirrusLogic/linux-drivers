@@ -462,11 +462,9 @@ void i915_request_cancel_breadcrumb(struct i915_request *rq)
 		return;
 	}
 
-	spin_lock_irqsave(&ce->signal_lock, flags);
-
 	list_del_rcu(&rq->signal_link);
 	release = remove_signaling_context(b, ce);
-	spin_unlock_irqrestore(&ce->signal_lock, flags);
+	spin_unlock(&ce->signal_lock);
 	if (release)
 		intel_context_put(ce);
 
