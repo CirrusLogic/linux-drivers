@@ -1029,11 +1029,15 @@ void amdgpu_bo_unpin(struct amdgpu_bo *bo)
  */
 int amdgpu_bo_evict_vram(struct amdgpu_device *adev)
 {
+	struct ttm_resource_manager *man;
+
 	if (adev->in_s3 && (adev->flags & AMD_IS_APU)) {
 		/* No need to evict vram on APUs for suspend to ram */
 		return 0;
 	}
-	return ttm_bo_evict_mm(&adev->mman.bdev, TTM_PL_VRAM);
+
+	man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
+	return ttm_resource_manager_evict_all(&adev->mman.bdev, man);
 }
 
 static const char *amdgpu_vram_names[] = {
