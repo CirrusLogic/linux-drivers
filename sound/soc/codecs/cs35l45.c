@@ -1351,16 +1351,14 @@ static int cs35l45_dai_hw_params(struct snd_pcm_substream *substream,
 	struct cs35l45_private *cs35l45 =
 			snd_soc_component_get_drvdata(dai->component);
 	unsigned int asp_width, asp_wl, global_fs;
-	unsigned int hpf_override = CS35l45_HPF_DEFAULT;
-	static const struct reg_sequence cs35l45_unlock[] = {
-		{0x00000040, 0x00000055},
-		{0x00000040, 0x000000AA},
-		{0x00000044, 0x00000055},
-		{0x00000044, 0x000000AA},
-	};
-	static const struct reg_sequence cs35l45_lock[] = {
-		{0x00000040, 0x00000000},
-		{0x00000044, 0x00000000},
+	struct reg_sequence cs35l45_hpf_override[] = {
+		{0x00000040,			0x00000055},
+		{0x00000040,			0x000000AA},
+		{0x00000044,			0x00000055},
+		{0x00000044,			0x000000AA},
+		{CS35L45_AMP_PCM_HPF_TST,	CS35l45_HPF_DEFAULT},
+		{0x00000040,			0x00000000},
+		{0x00000044,			0x00000000},
 	};
 
 	switch (params_rate(params)) {
@@ -1371,14 +1369,14 @@ static int cs35l45_dai_hw_params(struct snd_pcm_substream *substream,
 		global_fs = CS35L45_16_KHZ;
 		break;
 	case 44100:
-		hpf_override = CS35L45_HPF_44P1;
+		cs35l45_hpf_override[4].def = CS35L45_HPF_44P1;
 		global_fs = CS35L45_44P100_KHZ;
 		break;
 	case 48000:
 		global_fs = CS35L45_48P0_KHZ;
 		break;
 	case 88200:
-		hpf_override = CS35L45_HPF_88P2;
+		cs35l45_hpf_override[4].def = CS35L45_HPF_88P2;
 		global_fs = CS35L45_88P200_KHZ;
 		break;
 	case 96000:
@@ -1394,13 +1392,8 @@ static int cs35l45_dai_hw_params(struct snd_pcm_substream *substream,
 			   CS35L45_GLOBAL_FS_MASK,
 			   global_fs << CS35L45_GLOBAL_FS_SHIFT);
 
-	regmap_register_patch(cs35l45->regmap, cs35l45_unlock,
-			      ARRAY_SIZE(cs35l45_unlock));
-
-	regmap_write(cs35l45->regmap, CS35L45_AMP_PCM_HPF_TST, hpf_override);
-
-	regmap_register_patch(cs35l45->regmap, cs35l45_lock,
-			      ARRAY_SIZE(cs35l45_lock));
+	regmap_multi_reg_write(cs35l45->regmap, cs35l45_hpf_override,
+				       ARRAY_SIZE(cs35l45_hpf_override));
 
 	asp_wl = params_width(params);
 	if (asp_wl > CS35L45_ASP_WL_MAX)
