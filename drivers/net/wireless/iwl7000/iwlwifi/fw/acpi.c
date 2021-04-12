@@ -754,6 +754,7 @@ int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
 		}
 	}
 
+	fwrt->geo_enabled = true;
 	ret = 0;
 out_free:
 	kfree(data);
