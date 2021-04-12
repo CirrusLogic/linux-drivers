@@ -217,7 +217,7 @@ static u64 amdgpu_vram_mgr_vis_size(struct amdgpu_device *adev,
 u64 amdgpu_vram_mgr_bo_visible_size(struct amdgpu_bo *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
-	struct ttm_resource *mem = &bo->tbo.mem;
+	struct ttm_resource *mem = bo->tbo.resource;
 	struct drm_mm_node *nodes = mem->mm_node;
 	unsigned pages = mem->num_pages;
 	u64 usage;
@@ -403,7 +403,7 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 		pages_per_node = 2UL << (20UL - PAGE_SHIFT);
 #endif
 		pages_per_node = max_t(uint32_t, pages_per_node,
-				       mem->page_alignment);
+				       tbo->page_alignment);
 		num_nodes = DIV_ROUND_UP(mem->num_pages, pages_per_node);
 	}
 
@@ -427,7 +427,7 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 	i = 0;
 	spin_lock(&mgr->lock);
 	while (pages_left) {
-		uint32_t alignment = mem->page_alignment;
+		uint32_t alignment = tbo->page_alignment;
 
 		if (pages >= pages_per_node)
 			alignment = pages_per_node;
