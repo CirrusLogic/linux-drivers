@@ -36,6 +36,10 @@ struct cs40l2x_codec {
 
 	unsigned int daifmt;
 	int sysclk_rate;
+
+	int tdm_slots;
+	int tdm_width;
+	int tdm_slot[2];
 };
 
 struct cs40l2x_pll_sysclk_config {
@@ -526,30 +530,56 @@ static int cs40l2x_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
+		priv->daifmt = CS40L2X_ASP_FMT_I2S;
+		break;
+	case SND_SOC_DAIFMT_DSP_A:
+		priv->daifmt = CS40L2X_ASP_FMT_TDM1;
 		break;
 	default:
-		dev_err(priv->dev, "Invalid format. I2S only.\n");
+		dev_err(priv->dev, "Unsupported DAI format\n");
 		return -EINVAL;
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_IF:
-		priv->daifmt = CS40L2X_ASP_FSYNC_INV_MASK;
+		priv->daifmt |= CS40L2X_ASP_FSYNC_INV_MASK;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
-		priv->daifmt = CS40L2X_ASP_BCLK_INV_MASK;
+		priv->daifmt |= CS40L2X_ASP_BCLK_INV_MASK;
 		break;
 	case SND_SOC_DAIFMT_IB_IF:
-		priv->daifmt = CS40L2X_ASP_FSYNC_INV_MASK |
-			       CS40L2X_ASP_BCLK_INV_MASK;
+		priv->daifmt |= CS40L2X_ASP_FSYNC_INV_MASK |
+				CS40L2X_ASP_BCLK_INV_MASK;
 		break;
 	case SND_SOC_DAIFMT_NB_NF:
-		priv->daifmt = 0;
 		break;
 	default:
 		dev_err(priv->dev, "Invalid DAI clock format\n");
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int cs40l2x_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
+				unsigned int rx_mask, int slots, int slot_width)
+{
+	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(dai->component);
+
+	priv->tdm_slots = slots;
+	priv->tdm_width = slot_width;
+
+	/*
+	 * Reset to slots 0,1 if TDM is being disabled, and catch the
+	 * case where both RX1 and RX2 would be set to slot 0 since
+	 * that causes the hardware to flag an error.
+	 */
+	if (!slots || rx_mask == 0x1)
+		rx_mask = 0x3;
+
+	priv->tdm_slot[0] = ffs(rx_mask) - 1;
+	rx_mask &= ~(1 << priv->tdm_slot[0]);
+	priv->tdm_slot[1] = ffs(rx_mask) - 1;
 
 	return 0;
 }
@@ -560,17 +590,27 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *comp = dai->component;
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
-	struct cs40l2x_platform_data *pdata = &priv->core->pdata;
 	struct cs40l2x_pll_sysclk_config *pll_conf;
 	unsigned int mask = CS40L2X_ASP_WIDTH_RX_MASK |
+			    CS40L2X_ASP_FMT_MASK |
 			    CS40L2X_ASP_FSYNC_INV_MASK |
 			    CS40L2X_ASP_BCLK_INV_MASK;
-	unsigned int bclk_rate, asp_wl;
+	unsigned int bclk_rate, asp_wl, asp_sl;
 	int ret;
 
 	asp_wl = params_width(params);
 
-	bclk_rate = snd_soc_params_to_bclk(params);
+	if (priv->tdm_slots) {
+		bclk_rate = priv->tdm_slots * priv->tdm_width * params_rate(params);
+		asp_sl = priv->tdm_width;
+	} else {
+		bclk_rate = snd_soc_params_to_bclk(params);
+		asp_sl = asp_wl;
+	}
+
+	dev_dbg(priv->dev,
+		"ASP setup for %d bits in %d bit slots, using slots %d, %d\n",
+		asp_wl, asp_sl, priv->tdm_slot[0], priv->tdm_slot[1]);
 
 	if (priv->sysclk_rate != bclk_rate)
 		dev_warn(priv->dev, "Expect BCLK of %dHz but got %dHz\n",
@@ -588,12 +628,17 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	regmap_update_bits(priv->regmap, CS40L2X_SP_FORMAT, mask,
-			   (asp_wl << CS40L2X_ASP_WIDTH_RX_SHIFT) | priv->daifmt);
+			   (asp_sl << CS40L2X_ASP_WIDTH_RX_SHIFT) | priv->daifmt);
 	regmap_update_bits(priv->regmap, CS40L2X_SP_RX_WL,
 			   CS40L2X_ASP_RX_WL_MASK, asp_wl);
-	regmap_update_bits(priv->regmap, CS40L2X_SP_FRAME_RX_SLOT,
-			   CS40L2X_ASP_RX1_SLOT_MASK,
-			   pdata->asp_slot_num << CS40L2X_ASP_RX1_SLOT_SHIFT);
+	ret = regmap_update_bits(priv->regmap, CS40L2X_SP_FRAME_RX_SLOT,
+				 CS40L2X_ASP_RX1_SLOT_MASK | CS40L2X_ASP_RX2_SLOT_MASK,
+				 priv->tdm_slot[0] << CS40L2X_ASP_RX1_SLOT_SHIFT |
+				 priv->tdm_slot[1] << CS40L2X_ASP_RX2_SLOT_SHIFT);
+	if (ret) {
+		dev_err(priv->dev, "Failed to write ASP slots: %d\n", ret);
+		return ret;
+	}
 
 	ret = regmap_write(priv->regmap, CS40L2X_FS_MON_0, pll_conf->fs_mon);
 	if (ret) {
@@ -609,6 +654,7 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 
 static const struct snd_soc_dai_ops cs40l2x_dai_ops = {
 	.set_fmt = cs40l2x_set_dai_fmt,
+	.set_tdm_slot = cs40l2x_set_tdm_slot,
 	.hw_params = cs40l2x_pcm_hw_params,
 };
 
@@ -641,6 +687,9 @@ static int cs40l2x_codec_probe(struct snd_soc_component *comp)
 	complete(&priv->core->hap_done);
 
 	priv->sysclk_rate = 1536000;
+
+	priv->tdm_slot[0] = priv->core->pdata.asp_slot_num;
+	priv->tdm_slot[1] = priv->tdm_slot[0] + 1;
 
 	return 0;
 }
