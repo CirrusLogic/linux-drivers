@@ -341,8 +341,8 @@ static int cs35l45_global_en_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		regmap_write(cs35l45->regmap, CS35L45_GLOBAL_ENABLES,
-			     CS35L45_GLOBAL_EN_MASK);
+		regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_ENABLES,
+			     CS35L45_GLOBAL_EN_MASK, CS35L45_GLOBAL_EN_MASK);
 
 		usleep_range(5000, 5100);
 
@@ -369,7 +369,8 @@ static int cs35l45_global_en_ev(struct snd_soc_dapm_widget *w,
 
 		usleep_range(3000, 3100);
 
-		regmap_write(cs35l45->regmap, CS35L45_GLOBAL_ENABLES, 0);
+		regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_ENABLES,
+			     CS35L45_GLOBAL_EN_MASK, 0);
 		break;
 	default:
 		dev_err(cs35l45->dev, "Invalid event = 0x%x\n", event);
@@ -1059,6 +1060,7 @@ static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 	SOC_SINGLE("AMP Mute", CS35L45_AMP_OUTPUT_MUTE, 0, 1, 0),
 	SOC_SINGLE("SYNC Enable Switch", CS35L45_BLOCK_ENABLES2, 8, 1, 0),
 	SOC_SINGLE("PLL Force Enable Switch", CS35L45_REFCLK_INPUT, 16, 1, 0),
+	SOC_SINGLE("GLOBAL_EN from GPIO", CS35L45_GLOBAL_ENABLES, 8, 1, 0),
 	SOC_SINGLE_EXT("DSP1 Boot Switch", SND_SOC_NOPM, 1, 1, 0,
 		       cs35l45_dsp_boot_get, cs35l45_dsp_boot_put),
 	SOC_SINGLE_EXT("Fast Use Case Switch Enable", SND_SOC_NOPM, 0, 1, 0,
@@ -2230,6 +2232,14 @@ static int cs35l45_apply_of_data(struct cs35l45_private *cs35l45)
 				   val << CS35L45_AUX_NGATE_CH_THR_SHIFT);
 	}
 
+	if (pdata->global_en_gpio & CS35L45_VALID_PDATA) {
+		val = pdata->global_en_gpio & (~CS35L45_VALID_PDATA);
+		regmap_update_bits(cs35l45->regmap,
+				   CS35L45_GPIO_GLOBAL_ENABLE_CONTROL,
+				   CS35L45_GLOB_EN_GPIO_MASK,
+				   val << CS35L45_GLOB_EN_GPIO_SHIFT);
+	}
+
 	if (!pdata->bst_bpe_inst_cfg.is_present)
 		goto bst_bpe_misc_cfg;
 
@@ -2421,6 +2431,10 @@ static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
 	ret = of_property_read_u32(node, "cirrus,ngate-ch2-thr", &val);
 	if (!ret)
 		pdata->ngate_ch2_thr = val | CS35L45_VALID_PDATA;
+
+	ret = of_property_read_u32(node, "cirrus,global-en-gpio", &val);
+	if (!ret)
+		pdata->global_en_gpio = val | CS35L45_VALID_PDATA;
 
 	child = of_get_child_by_name(node, "cirrus,bst-bpe-inst-config");
 	pdata->bst_bpe_inst_cfg.is_present = child ? true : false;
