@@ -60,6 +60,12 @@ Optional properties:
     for 'sync-num-slaves' number of parts to indicate PLL lock events before
     broadcasting MDSYNC power packets.
 
+  - cirrus,global-en-gpio : Sets which GPIO pin is used to control GLOBAL_EN.
+    0 = (Default) Not enabled
+    1 = GPIO1
+    2 = GPIO2
+    3 = GPIO3
+
 Optional Voltage Based Boost BPE Sub-node:
 
   Details found in section 4.9.4
