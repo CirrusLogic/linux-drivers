@@ -173,10 +173,30 @@ static void cs35l45_dsp_pmd_work(struct work_struct *work)
 	struct cs35l45_private *cs35l45 = container_of(work,
 						       struct cs35l45_private,
 						       dsp_pmd_work);
+	__be32 state;
+	int i;
 
 	mutex_lock(&cs35l45->dsp_power_lock);
 
 	cs35l45_set_csplmboxcmd(cs35l45, CSPL_MBOX_CMD_PAUSE);
+
+	usleep_range(10000, 11000);
+
+	for (i = 0; i < 10; i++) {
+		wm_adsp_read_ctl(&cs35l45->dsp, "STATE", WMFW_ADSP2_XM,
+				 CS35L45_ALGID_PAUSE_RESUME, &state,
+				 sizeof(__be32));
+
+		if (be32_to_cpu(state) == CSPL_PR_PAUSED)
+			break;
+
+		usleep_range(10000, 11000);
+	}
+
+	if (i == 10) {
+		dev_err(cs35l45->dev, "PAUSE_RESUME STATE (%d) is not paused\n",
+			be32_to_cpu(state));
+	}
 
 	regmap_update_bits(cs35l45->regmap, CS35L45_GLOBAL_OVERRIDES,
 			   CS35L45_TEMPMON_GLOBAL_OVR_MASK, 0);
