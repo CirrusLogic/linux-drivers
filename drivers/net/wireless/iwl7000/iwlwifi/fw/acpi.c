@@ -749,20 +749,16 @@ int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
 read_table:
 	fwrt->geo_rev = tbl_rev;
 	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
-		for (j = 0; j < num_bands; j++) {
+		for (j = 0; j < ACPI_GEO_NUM_BANDS_REV2; j++) {
 			union acpi_object *entry;
 
-			entry = &wifi_pkg->package.elements[idx++];
-			if (entry->type != ACPI_TYPE_INTEGER ||
-			    entry->integer.value > U8_MAX) {
-				ret = -EINVAL;
-				goto out_free;
-			}
-
-			fwrt->geo_profiles[i].bands[j].max =
-				entry->integer.value;
-
-			for (k = 0; k < ACPI_GEO_NUM_CHAINS; k++) {
+			/*
+			 * If we don't have all bands in ACPI, use the
+			 * maximum as default.
+			 */
+			if (j >= num_bands) {
+				fwrt->geo_profiles[i].bands[j].max = 0xff;
+			} else {
 				entry = &wifi_pkg->package.elements[idx++];
 				if (entry->type != ACPI_TYPE_INTEGER ||
 				    entry->integer.value > U8_MAX) {
@@ -770,8 +766,29 @@ read_table:
 					goto out_free;
 				}
 
-				fwrt->geo_profiles[i].bands[j].chains[k] =
+				fwrt->geo_profiles[i].bands[j].max =
 					entry->integer.value;
+			}
+
+			for (k = 0; k < ACPI_GEO_NUM_CHAINS; k++) {
+				/*
+				 * If we don't have all bands in ACPI,
+				 * use no offset as default.
+				 */
+
+				if (j >= num_bands) {
+					fwrt->geo_profiles[i].bands[j].chains[k] = 0;
+				} else {
+					entry = &wifi_pkg->package.elements[idx++];
+					if (entry->type != ACPI_TYPE_INTEGER ||
+					    entry->integer.value > U8_MAX) {
+						ret = -EINVAL;
+						goto out_free;
+					}
+
+					fwrt->geo_profiles[i].bands[j].chains[k] =
+						entry->integer.value;
+				}
 			}
 		}
 	}
