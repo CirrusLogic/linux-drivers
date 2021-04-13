@@ -453,7 +453,6 @@ void i915_request_cancel_breadcrumb(struct i915_request *rq)
 {
 	struct intel_breadcrumbs *b = READ_ONCE(rq->engine)->breadcrumbs;
 	struct intel_context *ce = rq->context;
-	unsigned long flags;
 	bool release;
 
 	spin_lock(&ce->signal_lock);
