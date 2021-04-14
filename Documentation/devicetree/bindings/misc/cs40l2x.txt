@@ -415,6 +415,9 @@ brownout prevention child nodes:
     if VPBR_MAX_ATT/VBBR_MAX_ATT is reached during the attack state in the
     continued presence of a brownout condition.
 
+  - cirrus,dcm-disable: Boolean to disable DCM automatic low power mode in
+    favor of CCM mode for specific hardware configurations.
+
 Examples:
 
   cs40l20: cs40l20@43 {
