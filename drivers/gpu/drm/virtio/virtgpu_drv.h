@@ -137,8 +137,8 @@ typedef void (*virtio_gpu_resp_cb)(struct virtio_gpu_device *vgdev,
 				   struct virtio_gpu_vbuffer *vbuf);
 
 struct virtio_gpu_fence_driver {
-	atomic64_t       last_seq;
-	uint64_t         sync_seq;
+	atomic64_t       last_fence_id;
+	uint64_t         current_fence_id;
 	uint64_t         context;
 	struct list_head fences;
 	spinlock_t       lock;
@@ -434,7 +434,7 @@ void virtio_gpu_fence_emit(struct virtio_gpu_device *vgdev,
 			  struct virtio_gpu_ctrl_hdr *cmd_hdr,
 			  struct virtio_gpu_fence *fence);
 void virtio_gpu_fence_event_process(struct virtio_gpu_device *vdev,
-				    u64 last_seq);
+				    u64 fence_id);
 
 /* virtgpu_object.c */
 void virtio_gpu_cleanup_object(struct virtio_gpu_object *bo);

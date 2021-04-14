@@ -11,13 +11,18 @@
  * more details.
  */
 
+#include <linux/version.h>
+#if KERNEL_VERSION(5, 5, 0) <= LINUX_VERSION_CODE || defined(EL8)
+#else
+#include <drm/drmP.h>
+#endif
 #include <drm/drm_atomic.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include "evdi_drm.h"
-#include "evdi_drv.h"
+#include "evdi_drm_drv.h"
 #include "evdi_cursor.h"
 #include "evdi_params.h"
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -51,27 +56,31 @@ static void evdi_crtc_set_nofb(__always_unused struct drm_crtc *crtc)
 
 static void evdi_crtc_atomic_flush(
 	struct drm_crtc *crtc
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
+	, struct drm_atomic_state *state
+#else
 	, __always_unused struct drm_crtc_state *old_state
+#endif
 	)
 {
-	struct drm_crtc_state *state = crtc->state;
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+#else
+	struct drm_crtc_state *crtc_state = crtc->state;
+#endif
 	struct evdi_device *evdi = crtc->dev->dev_private;
-	unsigned long flags;
 
-	if (state->event) {
-		spin_lock_irqsave(&crtc->dev->event_lock, flags);
-		drm_crtc_send_vblank_event(crtc, state->event);
-		state->event = NULL;
-		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-	}
-	if (state->mode_changed && state->active)
-		evdi_painter_mode_changed_notify(evdi, &state->adjusted_mode);
 
-	if (state->active_changed)
+	if (crtc_state->mode_changed && crtc_state->active)
+		evdi_painter_mode_changed_notify(evdi, &crtc_state->adjusted_mode);
+
+	if (crtc_state->active_changed)
 		evdi_painter_dpms_notify(evdi,
-			state->active ? DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF);
+			crtc_state->active ? DRM_MODE_DPMS_ON : DRM_MODE_DPMS_OFF);
 
-	evdi_painter_send_update_ready_if_needed(evdi);
+	evdi_painter_set_vblank(evdi->painter, crtc, crtc_state->event);
+	evdi_painter_send_update_ready_if_needed(evdi->painter);
+	crtc_state->event = NULL;
 }
 
 static void evdi_mark_full_screen_dirty(struct evdi_device *evdi)
@@ -80,7 +89,7 @@ static void evdi_mark_full_screen_dirty(struct evdi_device *evdi)
 		evdi_painter_framebuffer_size(evdi->painter);
 
 	evdi_painter_mark_dirty(evdi, &rect);
-	evdi_painter_send_update_ready_if_needed(evdi);
+	evdi_painter_send_update_ready_if_needed(evdi->painter);
 }
 
 static int evdi_crtc_cursor_set(struct drm_crtc *crtc,
@@ -124,7 +133,11 @@ static int evdi_crtc_cursor_set(struct drm_crtc *crtc,
 	evdi_cursor_set(evdi->cursor,
 			eobj, width, height, hot_x, hot_y,
 			format, stride);
+#if KERNEL_VERSION(5, 9, 0) <= LINUX_VERSION_CODE
 	drm_gem_object_put(obj);
+#else
+	drm_gem_object_put_unlocked(obj);
+#endif
 
 	/*
 	 * For now we don't care whether the application wanted the mouse set,
@@ -162,6 +175,17 @@ static struct drm_crtc_helper_funcs evdi_helper_funcs = {
 	.disable        = evdi_crtc_disable
 };
 
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
+static int evdi_enable_vblank(__always_unused struct drm_crtc *crtc)
+{
+	return 1;
+}
+
+static void evdi_disable_vblank(__always_unused struct drm_crtc *crtc)
+{
+}
+#endif
+
 static const struct drm_crtc_funcs evdi_crtc_funcs = {
 	.reset                  = drm_atomic_helper_crtc_reset,
 	.destroy                = evdi_crtc_destroy,
@@ -171,7 +195,11 @@ static const struct drm_crtc_funcs evdi_crtc_funcs = {
 	.atomic_destroy_state   = drm_atomic_helper_crtc_destroy_state,
 
 	.cursor_set2            = evdi_crtc_cursor_set,
-	.cursor_move            = evdi_crtc_cursor_move
+	.cursor_move            = evdi_crtc_cursor_move,
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
+	.enable_vblank          = evdi_enable_vblank,
+	.disable_vblank         = evdi_disable_vblank,
+#endif
 };
 
 static void evdi_plane_atomic_update(struct drm_plane *plane,
@@ -179,6 +207,7 @@ static void evdi_plane_atomic_update(struct drm_plane *plane,
 {
 	struct drm_plane_state *state;
 	struct evdi_device *evdi;
+	struct evdi_painter *painter;
 	struct drm_crtc *crtc;
 
 	if (!plane || !plane->state) {
@@ -193,6 +222,7 @@ static void evdi_plane_atomic_update(struct drm_plane *plane,
 
 	state = plane->state;
 	evdi = plane->dev->dev_private;
+	painter = evdi->painter;
 	crtc = state->crtc;
 
 	if (!old_state->crtc && state->crtc)
@@ -210,19 +240,19 @@ static void evdi_plane_atomic_update(struct drm_plane *plane,
 		};
 
 		if (!old_fb && crtc)
-			evdi_painter_force_full_modeset(evdi);
+			evdi_painter_force_full_modeset(painter);
 
 		if (old_fb &&
 		    fb->format && old_fb->format &&
 		    fb->format->format != old_fb->format->format)
-			evdi_painter_force_full_modeset(evdi);
+			evdi_painter_force_full_modeset(painter);
 
 		if (fb != old_fb ||
-		    evdi_painter_needs_full_modeset(evdi)) {
+		    evdi_painter_needs_full_modeset(painter)) {
 
-			evdi_painter_set_scanout_buffer(evdi, efb);
+			evdi_painter_set_scanout_buffer(painter, efb);
 			evdi_painter_mark_dirty(evdi, &fullscreen_rect);
-		} else if (evdi_painter_get_num_dirts(evdi) == 0) {
+		} else if (evdi_painter_get_num_dirts(painter) == 0) {
 			evdi_painter_mark_dirty(evdi, &fullscreen_rect);
 		}
 	}
@@ -394,7 +424,7 @@ static int evdi_atomic_check(struct drm_device *dev,
 	int i;
 	struct evdi_device *evdi = dev->dev_private;
 
-	if (evdi_painter_needs_full_modeset(evdi)) {
+	if (evdi_painter_needs_full_modeset(evdi->painter)) {
 		for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 			crtc_state->active_changed = true;
 			crtc_state->mode_changed = true;
@@ -416,6 +446,7 @@ void evdi_modeset_init(struct drm_device *dev)
 	struct drm_encoder *encoder;
 
 	EVDI_CHECKPT();
+
 	drm_mode_config_init(dev);
 
 	dev->mode_config.min_width = 64;

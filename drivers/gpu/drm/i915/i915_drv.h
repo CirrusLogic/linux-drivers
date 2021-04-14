@@ -110,8 +110,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20200917"
-#define DRIVER_TIMESTAMP	1600375437
+#define DRIVER_DATE		"20201103"
+#define DRIVER_TIMESTAMP	1604406085
 
 struct drm_i915_gem_object;
 
@@ -510,7 +510,6 @@ struct i915_psr {
 	bool dc3co_enabled;
 	u32 dc3co_exit_delay;
 	struct delayed_work dc3co_work;
-	bool force_mode_changed;
 	struct drm_dp_vsc_sdp vsc;
 };
 
@@ -1667,8 +1666,7 @@ tgl_stepping_get(struct drm_i915_private *dev_priv)
 #define HAS_SNOOP(dev_priv)	(INTEL_INFO(dev_priv)->has_snoop)
 #define HAS_EDRAM(dev_priv)	((dev_priv)->edram_size_mb)
 #define HAS_SECURE_BATCHES(dev_priv) (INTEL_GEN(dev_priv) < 6)
-#define HAS_WT(dev_priv)	((IS_HASWELL(dev_priv) || \
-				 IS_BROADWELL(dev_priv)) && HAS_EDRAM(dev_priv))
+#define HAS_WT(dev_priv)	HAS_EDRAM(dev_priv)
 
 #define HWS_NEEDS_PHYSICAL(dev_priv)	(INTEL_INFO(dev_priv)->hws_needs_physical)
 

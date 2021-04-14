@@ -3009,6 +3009,7 @@ static void execlists_reset_cancel(struct intel_engine_cs *engine)
 	/* Mark all executing requests as skipped. */
 	list_for_each_entry(rq, &engine->active.requests, sched.link)
 		mark_eio(rq);
+	intel_engine_signal_breadcrumbs(engine);
 
 	/* Flush the queued requests to the timeline list (for retiring). */
 	while ((rb = rb_first_cached(&execlists->queue))) {
@@ -3849,18 +3850,6 @@ int intel_virtual_engine_attach_bond(struct intel_engine_cs *engine,
 	ve->num_bonds++;
 
 	return 0;
-}
-
-struct intel_engine_cs *
-intel_virtual_engine_get_sibling(struct intel_engine_cs *engine,
-				 unsigned int sibling)
-{
-	struct virtual_engine *ve = to_virtual_engine(engine);
-
-	if (sibling >= ve->num_siblings)
-		return NULL;
-
-	return ve->siblings[sibling];
 }
 
 void intel_execlists_show_requests(struct intel_engine_cs *engine,
