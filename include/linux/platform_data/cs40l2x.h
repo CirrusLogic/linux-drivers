@@ -67,6 +67,7 @@ struct cs40l2x_platform_data {
 	bool amp_gnd_stby;
 	bool auto_recovery;
 	const char *unique_device_name;
+	bool dcm_disable;
 };
 
 #endif /* __CS40L2X_H */
