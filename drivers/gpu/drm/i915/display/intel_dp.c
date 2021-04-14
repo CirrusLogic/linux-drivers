@@ -654,7 +654,8 @@ intel_dp_output_format(struct drm_connector *connector,
 	struct intel_dp *intel_dp = intel_attached_dp(to_intel_connector(connector));
 	const struct drm_display_info *info = &connector->display_info;
 
-	if (!drm_mode_is_420_only(info, mode))
+	if (!connector->ycbcr_420_allowed ||
+	    !drm_mode_is_420_only(info, mode))
 		return INTEL_OUTPUT_FORMAT_RGB;
 
 	if (intel_dp->dfp.ycbcr_444_to_420)
@@ -1491,25 +1492,6 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	return 0;
 }
 
-static int
-intel_dp_ycbcr420_config(struct intel_crtc_state *crtc_state,
-			 const struct drm_connector_state *conn_state)
-{
-	struct drm_connector *connector = conn_state->connector;
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->hw.adjusted_mode;
-
-	if (!connector->ycbcr_420_allowed)
-		return 0;
-
-	crtc_state->output_format = intel_dp_output_format(connector, adjusted_mode);
-
-	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_YCBCR420)
-		return 0;
-
-	return intel_pch_panel_fitting(crtc_state, conn_state);
-}
-
 bool intel_dp_limited_color_range(const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state)
 {
@@ -1748,7 +1730,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct intel_lspcon *lspcon = enc_to_intel_lspcon(encoder);
 	enum port port = encoder->port;
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	struct intel_digital_connector_state *intel_conn_state =
@@ -1760,14 +1741,14 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && port != PORT_A)
 		pipe_config->has_pch_encoder = true;
 
-	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
+	pipe_config->output_format = intel_dp_output_format(&intel_connector->base,
+							    adjusted_mode);
 
-	if (lspcon->active)
-		lspcon_ycbcr420_config(&intel_connector->base, pipe_config);
-	else
-		ret = intel_dp_ycbcr420_config(pipe_config, conn_state);
-	if (ret)
-		return ret;
+	if (pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR420) {
+		ret = intel_pch_panel_fitting(pipe_config, conn_state);
+		if (ret)
+			return ret;
+	}
 
 	if (!intel_dp_port_has_audio(dev_priv, port))
 		pipe_config->has_audio = false;
@@ -2091,6 +2072,8 @@ void intel_dp_set_power(struct intel_dp *intel_dp, u8 mode)
 	} else {
 		struct intel_lspcon *lspcon = dp_to_lspcon(intel_dp);
 
+		lspcon_resume(dp_to_dig_port(intel_dp));
+
 		/*
 		 * When turning on, we need to retry for 1ms to give the sink
 		 * time to wake up.
@@ -2319,6 +2302,12 @@ bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
 	 */
 	if (crtc_state->dsc.compression_enable) {
 		drm_dbg_kms(&i915->drm, "Forcing full modeset due to DSC being enabled\n");
+		crtc_state->uapi.mode_changed = true;
+		return false;
+	}
+
+	if (CAN_PSR(i915) && intel_dp_is_edp(intel_dp)) {
+		drm_dbg_kms(&i915->drm, "Forcing full modeset to compute PSR state\n");
 		crtc_state->uapi.mode_changed = true;
 		return false;
 	}
@@ -4658,15 +4647,14 @@ static enum drm_connector_status
 intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
-	struct intel_lspcon *lspcon = dp_to_lspcon(intel_dp);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	u8 *dpcd = intel_dp->dpcd;
 	u8 type;
 
 	if (drm_WARN_ON(&i915->drm, intel_dp_is_edp(intel_dp)))
 		return connector_status_connected;
 
-	if (lspcon->active)
-		lspcon_resume(lspcon);
+	lspcon_resume(dig_port);
 
 	if (!intel_dp_get_dpcd(intel_dp))
 		return connector_status_disconnected;
@@ -4872,7 +4860,9 @@ intel_dp_update_420(struct intel_dp *intel_dp)
 	ycbcr_420_passthrough =
 		drm_dp_downstream_420_passthrough(intel_dp->dpcd,
 						  intel_dp->downstream_ports);
+	/* on-board LSPCON always assumed to support 4:4:4->4:2:0 conversion */
 	ycbcr_444_to_420 =
+		dp_to_dig_port(intel_dp)->lspcon.active ||
 		drm_dp_downstream_444_to_420_conversion(intel_dp->dpcd,
 							intel_dp->downstream_ports);
 
@@ -5210,13 +5200,9 @@ void intel_dp_encoder_reset(struct drm_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(to_intel_encoder(encoder));
-	struct intel_lspcon *lspcon = dp_to_lspcon(intel_dp);
 
 	if (!HAS_DDI(dev_priv))
 		intel_dp->DP = intel_de_read(dev_priv, intel_dp->output_reg);
-
-	if (lspcon->active)
-		lspcon_resume(lspcon);
 
 	intel_dp->reset_link_params = true;
 

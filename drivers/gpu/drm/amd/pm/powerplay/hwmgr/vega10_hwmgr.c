@@ -3206,6 +3206,8 @@ static int vega10_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 
 	result = vega10_get_powerplay_table_entry(hwmgr, entry_index, state,
 			vega10_get_pp_table_entry_callback_func);
+	if (result)
+		return result;
 
 	/*
 	 * This is the earliest time we have all the dependency table

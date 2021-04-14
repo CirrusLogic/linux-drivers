@@ -4405,7 +4405,7 @@ static u16 cnl_nearest_filter_coef(int t)
 	return t == 3 ? 0x0800 : 0x3000;
 }
 
-/**
+/*
  *  Theory behind setting nearest-neighbor integer scaling:
  *
  *  17 phase of 7 taps requires 119 coefficients in 60 dwords per set.
@@ -8968,18 +8968,6 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 	} else {
 		pipe_config->output_format =
 			bdw_get_pipemisc_output_format(crtc);
-
-		/*
-		 * Currently there is no interface defined to
-		 * check user preference between RGB/YCBCR444
-		 * or YCBCR420. So the only possible case for
-		 * YCBCR444 usage is driving YCBCR420 output
-		 * with LSPCON, when pipe is configured for
-		 * YCBCR444 output and LSPCON takes care of
-		 * downsampling it.
-		 */
-		pipe_config->lspcon_downsampling =
-			pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR444;
 	}
 
 	pipe_config->gamma_mode = intel_de_read(dev_priv,
@@ -14952,8 +14940,6 @@ int intel_modeset_init(struct drm_i915_private *i915)
 
 	intel_init_ipc(i915);
 
-	intel_psr_set_force_mode_changed(i915->psr.dp);
-
 	return 0;
 }
 
@@ -15623,6 +15609,15 @@ static void intel_early_display_was(struct drm_i915_private *dev_priv)
 		 */
 		intel_de_write(dev_priv, CHICKEN_PAR1_1,
 			       intel_de_read(dev_priv, CHICKEN_PAR1_1) | FORCE_ARB_IDLE_PLANES);
+	}
+
+	if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv) || IS_COMETLAKE(dev_priv)) {
+		/* Display WA #1142:kbl,cfl,cml */
+		intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
+			     KBL_ARB_FILL_SPARE_22, KBL_ARB_FILL_SPARE_22);
+		intel_de_rmw(dev_priv, CHICKEN_MISC_2,
+			     KBL_ARB_FILL_SPARE_13 | KBL_ARB_FILL_SPARE_14,
+			     KBL_ARB_FILL_SPARE_14);
 	}
 }
 

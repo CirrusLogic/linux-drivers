@@ -348,17 +348,14 @@ void ilk_update_display_irq(struct drm_i915_private *dev_priv,
 	u32 new_val;
 
 	lockdep_assert_held(&dev_priv->irq_lock);
-
 	drm_WARN_ON(&dev_priv->drm, enabled_irq_mask & ~interrupt_mask);
-
-	if (drm_WARN_ON(&dev_priv->drm, !intel_irqs_enabled(dev_priv)))
-		return;
 
 	new_val = dev_priv->irq_mask;
 	new_val &= ~interrupt_mask;
 	new_val |= (~enabled_irq_mask & interrupt_mask);
 
-	if (new_val != dev_priv->irq_mask) {
+	if (new_val != dev_priv->irq_mask &&
+	    !drm_WARN_ON(&dev_priv->drm, !intel_irqs_enabled(dev_priv))) {
 		dev_priv->irq_mask = new_val;
 		intel_uncore_write(&dev_priv->uncore, DEIMR, dev_priv->irq_mask);
 		intel_uncore_posting_read(&dev_priv->uncore, DEIMR);
@@ -2912,24 +2909,6 @@ static void ibx_irq_reset(struct drm_i915_private *dev_priv)
 		intel_uncore_write(&dev_priv->uncore, SERR_INT, 0xffffffff);
 }
 
-/*
- * SDEIER is also touched by the interrupt handler to work around missed PCH
- * interrupts. Hence we can't update it after the interrupt handler is enabled -
- * instead we unconditionally enable all PCH interrupt sources here, but then
- * only unmask them as needed with SDEIMR.
- *
- * This function needs to be called before interrupts are enabled.
- */
-static void ibx_irq_pre_postinstall(struct drm_i915_private *dev_priv)
-{
-	if (HAS_PCH_NOP(dev_priv))
-		return;
-
-	drm_WARN_ON(&dev_priv->drm, intel_uncore_read(&dev_priv->uncore, SDEIER) != 0);
-	intel_uncore_write(&dev_priv->uncore, SDEIER, 0xffffffff);
-	intel_uncore_posting_read(&dev_priv->uncore, SDEIER);
-}
-
 static void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
@@ -2986,6 +2965,8 @@ static void ilk_irq_reset(struct drm_i915_private *dev_priv)
 	struct intel_uncore *uncore = &dev_priv->uncore;
 
 	GEN3_IRQ_RESET(uncore, DE);
+	dev_priv->irq_mask = ~0u;
+
 	if (IS_GEN(dev_priv, 7))
 		intel_uncore_write(uncore, GEN7_ERR_INT, 0xffffffff);
 
@@ -3549,8 +3530,20 @@ static void bxt_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	bxt_hpd_detection_setup(dev_priv);
 }
 
+/*
+ * SDEIER is also touched by the interrupt handler to work around missed PCH
+ * interrupts. Hence we can't update it after the interrupt handler is enabled -
+ * instead we unconditionally enable all PCH interrupt sources here, but then
+ * only unmask them as needed with SDEIMR.
+ *
+ * Note that we currently do this after installing the interrupt handler,
+ * but before we enable the master interrupt. That should be sufficient
+ * to avoid races with the irq handler, assuming we have MSI. Shared legacy
+ * interrupts could still race.
+ */
 static void ibx_irq_postinstall(struct drm_i915_private *dev_priv)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 mask;
 
 	if (HAS_PCH_NOP(dev_priv))
@@ -3563,8 +3556,7 @@ static void ibx_irq_postinstall(struct drm_i915_private *dev_priv)
 	else
 		mask = SDE_GMBUS_CPT;
 
-	gen3_assert_iir_is_zero(&dev_priv->uncore, SDEIIR);
-	intel_uncore_write(&dev_priv->uncore, SDEIMR, ~mask);
+	GEN3_IRQ_INIT(uncore, SDE, ~mask, 0xffffffff);
 }
 
 static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -3582,7 +3574,7 @@ static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)
 		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
 				DE_AUX_CHANNEL_A | DE_PIPEB_CRC_DONE |
 				DE_PIPEA_CRC_DONE | DE_POISON);
-		extra_mask = (DE_PIPEA_VBLANK | DE_PIPEB_VBLANK | DE_PCU_EVENT |
+		extra_mask = (DE_PIPEA_VBLANK | DE_PIPEB_VBLANK |
 			      DE_PIPEB_FIFO_UNDERRUN | DE_PIPEA_FIFO_UNDERRUN |
 			      DE_DP_A_HOTPLUG);
 	}
@@ -3592,27 +3584,17 @@ static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)
 		display_mask |= DE_EDP_PSR_INT_HSW;
 	}
 
+	if (IS_IRONLAKE_M(dev_priv))
+		extra_mask |= DE_PCU_EVENT;
+
 	dev_priv->irq_mask = ~display_mask;
 
-	ibx_irq_pre_postinstall(dev_priv);
+	ibx_irq_postinstall(dev_priv);
 
 	gen5_gt_irq_postinstall(&dev_priv->gt);
 
 	GEN3_IRQ_INIT(uncore, DE, dev_priv->irq_mask,
 		      display_mask | extra_mask);
-
-	ibx_irq_postinstall(dev_priv);
-
-	if (IS_IRONLAKE_M(dev_priv)) {
-		/* Enable PCU event interrupts
-		 *
-		 * spinlocking not required here for correctness since interrupt
-		 * setup is guaranteed to run in single-threaded context. But we
-		 * need it to make the assert_spin_locked happy. */
-		spin_lock_irq(&dev_priv->irq_lock);
-		ilk_enable_display_irq(dev_priv, DE_PCU_EVENT);
-		spin_unlock_irq(&dev_priv->irq_lock);
-	}
 }
 
 void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv)
@@ -3738,13 +3720,10 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 static void gen8_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	if (HAS_PCH_SPLIT(dev_priv))
-		ibx_irq_pre_postinstall(dev_priv);
+		ibx_irq_postinstall(dev_priv);
 
 	gen8_gt_irq_postinstall(&dev_priv->gt);
 	gen8_de_irq_postinstall(dev_priv);
-
-	if (HAS_PCH_SPLIT(dev_priv))
-		ibx_irq_postinstall(dev_priv);
 
 	gen8_master_intr_enable(dev_priv->uncore.regs);
 }
@@ -3801,6 +3780,7 @@ static void i8xx_irq_reset(struct drm_i915_private *dev_priv)
 	i9xx_pipestat_irq_reset(dev_priv);
 
 	GEN2_IRQ_RESET(uncore);
+	dev_priv->irq_mask = ~0u;
 }
 
 static void i8xx_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -3970,6 +3950,7 @@ static void i915_irq_reset(struct drm_i915_private *dev_priv)
 	i9xx_pipestat_irq_reset(dev_priv);
 
 	GEN3_IRQ_RESET(uncore, GEN2_);
+	dev_priv->irq_mask = ~0u;
 }
 
 static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -4076,6 +4057,7 @@ static void i965_irq_reset(struct drm_i915_private *dev_priv)
 	i9xx_pipestat_irq_reset(dev_priv);
 
 	GEN3_IRQ_RESET(uncore, GEN2_);
+	dev_priv->irq_mask = ~0u;
 }
 
 static void i965_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -4223,10 +4205,6 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = &dev_priv->drm;
 	int i;
 
-	intel_hpd_init_pins(dev_priv);
-
-	intel_hpd_init_work(dev_priv);
-
 	INIT_WORK(&dev_priv->l3_parity.error_work, ivb_parity_work);
 	for (i = 0; i < MAX_L3_SLICES; ++i)
 		dev_priv->l3_parity.remap_info[i] = NULL;
@@ -4234,6 +4212,13 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	/* pre-gen11 the guc irqs bits are in the upper 16 bits of the pm reg */
 	if (HAS_GT_UC(dev_priv) && INTEL_GEN(dev_priv) < 11)
 		dev_priv->gt.pm_guc_events = GUC_INTR_GUC2HOST << 16;
+
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
+	intel_hpd_init_pins(dev_priv);
+
+	intel_hpd_init_work(dev_priv);
 
 	dev->vblank_disable_immediate = true;
 
