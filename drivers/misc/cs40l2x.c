@@ -10787,6 +10787,20 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 			return ret;
 	}
 
+	if (cs40l2x->pdata.dcm_disable) {
+		ret = regmap_write(regmap, CS40L2X_BSTCVRT_DCM_CTRL,
+				CS40L2X_DCM_DISABLE);
+		if (ret)
+			return ret;
+
+		ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BSTCVRT_DCM_CTRL,
+					CS40L2X_DCM_DISABLE);
+		if (ret) {
+			dev_err(dev, "Failed to sequence DCM Control\n");
+			return ret;
+		}
+	}
+
 	ret = cs40l2x_brownout_config(cs40l2x, CS40L2X_VPBR_CFG);
 	if (ret)
 		return ret;
@@ -11168,6 +11182,8 @@ static int cs40l2x_handle_of_data(struct i2c_client *i2c_client,
 	pdata->auto_recovery = of_property_read_bool(np,
 			"cirrus,auto-recovery");
 
+	pdata->dcm_disable = of_property_read_bool(np,
+			"cirrus,dcm-disable");
 	return 0;
 }
 
