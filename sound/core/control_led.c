@@ -55,11 +55,15 @@ static struct list_head *snd_ctl_led_controls_by_access(unsigned int access)
 	return &snd_ctl_led_controls[group];
 }
 
+/*
+ * A note for callers:
+ *   The two static variables info and value are protected using snd_ctl_led_mutex.
+ */
 static int snd_ctl_led_get(struct snd_ctl_led *lctl)
 {
+	static struct snd_ctl_elem_info info;
+	static struct snd_ctl_elem_value value;
 	struct snd_kcontrol *kctl = lctl->kctl;
-	struct snd_ctl_elem_info info;
-	struct snd_ctl_elem_value value;
 	unsigned int i;
 	int result;
 
