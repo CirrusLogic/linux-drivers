@@ -16,6 +16,7 @@
 #include "evdi_drm_drv.h"
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
+#include <linux/vmalloc.h>
 #include <drm/drm_cache.h>
 
 
