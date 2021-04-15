@@ -45,8 +45,9 @@ config SND_SOC_AMD_RENOIR
 	 This option enables ACP support for Renoir platform
 
 config SND_SOC_AMD_RENOIR_MACH
-	tristate "AMD Renoir support for DMIC"
+	tristate "AMD Renoir support for DMIC RT5682"
 	select SND_SOC_DMIC
-	depends on SND_SOC_AMD_RENOIR
+	select SND_SOC_RT5682_I2C
+	depends on SND_SOC_AMD_RENOIR && I2C
 	help
 	 This option enables machine driver for DMIC
