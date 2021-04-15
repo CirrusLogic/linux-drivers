@@ -14,6 +14,15 @@
 	compatible = "google,coachz-rev1", "qcom,sc7180";
 };
 
+/*
+ * CoachZ rev1 is stuffed with a 47k NTC as thermistor for skin temperature,
+ * which currently is not supported by the PM6150 ADC driver. Disable the
+ * skin temperature thermal zone to avoid using bogus temperature values.
+ */
+&skin_temp_thermal {
+	status = "disabled";
+};
+
 &sound {
 	pinctrl-names = "default";
 	pinctrl-0 = <&dmic_clk_en>;
