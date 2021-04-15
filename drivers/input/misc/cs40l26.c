@@ -1951,7 +1951,7 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, s16 *data,
 	unsigned int write_reg, reg, wt_offset, wt_size, wt_base;
 	struct cl_dsp_memchunk header_ch, data_ch;
 	u8 *full_data, *header;
-	int ret = 0, i;
+	int ret = 0;
 
 	data_ch = cl_dsp_memchunk_create((void *) data, data_size_bytes);
 
