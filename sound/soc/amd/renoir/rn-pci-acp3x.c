@@ -6,14 +6,13 @@
 
 #include <linux/pci.h>
 #include <linux/acpi.h>
-#include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
-
+#include <sound/pcm_params.h>
 #include "rn_acp3x.h"
 
 static int acp_power_gating;
@@ -21,18 +20,22 @@ module_param(acp_power_gating, int, 0644);
 MODULE_PARM_DESC(acp_power_gating, "Enable acp power gating");
 
 /**
- * dmic_acpi_check = -1 - Use ACPI/DMI method to detect the DMIC hardware presence at runtime
- *                 =  0 - Skip the DMIC device creation and return probe failure
- *                 =  1 - Force DMIC support
+ * dmic_acpi_check = -1 - Checks ACPI method to know DMIC hardware status runtime
+ *                 = 0 - Skips the DMIC device creation and returns probe failure
+ *                 = 1 - Assumes that platform has DMIC support and skips ACPI
+ *                       method check
  */
-static int dmic_acpi_check = ACP_DMIC_AUTO;
+//static int dmic_acpi_check = ACP_DMIC_AUTO;
+static int dmic_acpi_check = 1;
 module_param(dmic_acpi_check, bint, 0644);
-MODULE_PARM_DESC(dmic_acpi_check, "Digital microphone presence (-1=auto, 0=none, 1=force)");
+MODULE_PARM_DESC(dmic_acpi_check, "checks Dmic hardware runtime");
 
 struct acp_dev_data {
 	void __iomem *acp_base;
 	struct resource *res;
+	bool acp3x_audio_mode;
 	struct platform_device *pdev[ACP_DEVS];
+	u32 pme_en;
 };
 
 static int rn_acp_power_on(void __iomem *acp_base)
@@ -102,18 +105,14 @@ static int rn_acp_reset(void __iomem *acp_base)
 
 static void rn_acp_enable_interrupts(void __iomem *acp_base)
 {
-	u32 ext_intr_ctrl;
-
 	rn_writel(0x01, acp_base + ACP_EXTERNAL_INTR_ENB);
-	ext_intr_ctrl = rn_readl(acp_base + ACP_EXTERNAL_INTR_CNTL);
-	ext_intr_ctrl |= ACP_ERROR_MASK;
-	rn_writel(ext_intr_ctrl, acp_base + ACP_EXTERNAL_INTR_CNTL);
 }
 
 static void rn_acp_disable_interrupts(void __iomem *acp_base)
 {
 	rn_writel(ACP_EXT_INTR_STAT_CLEAR_MASK, acp_base +
 		  ACP_EXTERNAL_INTR_STAT);
+	rn_writel(0x00, acp_base + ACP_EXTERNAL_INTR_CNTL);
 	rn_writel(0x00, acp_base + ACP_EXTERNAL_INTR_ENB);
 }
 
@@ -163,37 +162,75 @@ static int rn_acp_deinit(void __iomem *acp_base)
 	return 0;
 }
 
-static const struct dmi_system_id rn_acp_quirk_table[] = {
-	{
-		/* Lenovo IdeaPad S340-14API */
-		.matches = {
-			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
-			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "81NB"),
-		}
-	},
-	{
-		/* Lenovo IdeaPad Flex 5 14ARE05 */
-		.matches = {
-			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
-			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "81X2"),
-		}
-	},
-	{
-		/* Lenovo IdeaPad 5 15ARE05 */
-		.matches = {
-			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
-			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "81YQ"),
-		}
-	},
-	{
-		/* Lenovo ThinkPad X395 */
-		.matches = {
-			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
-			DMI_EXACT_MATCH(DMI_BOARD_NAME, "20NLCTO1WW"),
-		}
-	},
-	{}
-};
+static irqreturn_t acp_irq_handler(int irq, void *dev_id)
+{
+	struct acp_dev_data *adata;
+	struct i2s_dev_data *rn_i2s_data;
+	struct pdm_dev_data *rn_pdm_data;
+	u16 play_flag, cap_flag, err_flag;
+	u32 val;
+	u32 err;
+
+	adata = dev_id;
+	if (!adata)
+		return IRQ_NONE;
+
+	play_flag = 0;
+	cap_flag = 0;
+	err_flag = 0;
+	err = 0;
+	val = rn_readl(adata->acp_base + ACP_EXTERNAL_INTR_STAT);
+	if (val & BIT(BT_TX_THRESHOLD)) {
+		rn_i2s_data = dev_get_drvdata(&adata->pdev[0]->dev);
+		rn_writel(BIT(BT_TX_THRESHOLD), adata->acp_base +
+			  ACP_EXTERNAL_INTR_STAT);
+		if (rn_i2s_data->play_stream)
+			snd_pcm_period_elapsed(rn_i2s_data->play_stream);
+		play_flag = 1;
+	}
+	if (val & BIT(I2S_TX_THRESHOLD)) {
+		rn_i2s_data = dev_get_drvdata(&adata->pdev[0]->dev);
+		rn_writel(BIT(I2S_TX_THRESHOLD),
+			  adata->acp_base + ACP_EXTERNAL_INTR_STAT);
+		if (rn_i2s_data->i2ssp_play_stream)
+			snd_pcm_period_elapsed(rn_i2s_data->i2ssp_play_stream);
+		play_flag = 1;
+	}
+
+	if (val & BIT(BT_RX_THRESHOLD)) {
+		rn_i2s_data = dev_get_drvdata(&adata->pdev[0]->dev);
+		rn_writel(BIT(BT_RX_THRESHOLD), adata->acp_base +
+			  ACP_EXTERNAL_INTR_STAT);
+		if (rn_i2s_data->capture_stream)
+			snd_pcm_period_elapsed(rn_i2s_data->capture_stream);
+		cap_flag = 1;
+	}
+	if (val & BIT(I2S_RX_THRESHOLD)) {
+		rn_i2s_data = dev_get_drvdata(&adata->pdev[0]->dev);
+		rn_writel(BIT(I2S_RX_THRESHOLD),
+			  adata->acp_base + ACP_EXTERNAL_INTR_STAT);
+		if (rn_i2s_data->i2ssp_capture_stream)
+			snd_pcm_period_elapsed(rn_i2s_data->i2ssp_capture_stream);
+		cap_flag = 1;
+	}
+	if (val & BIT(PDM_DMA_STAT)) {
+		rn_pdm_data = dev_get_drvdata(&adata->pdev[1]->dev);
+		rn_writel(BIT(PDM_DMA_STAT), adata->acp_base +
+			  ACP_EXTERNAL_INTR_STAT);
+		if (rn_pdm_data->capture_stream)
+			snd_pcm_period_elapsed(rn_pdm_data->capture_stream);
+		cap_flag = 1;
+	}
+	if (val & BIT(29)) {
+		err = rn_readl(adata->acp_base + ACP_SW_I2S_ERROR_REASON);
+		rn_writel(BIT(29), adata->acp_base + ACP_EXTERNAL_INTR_STAT);
+		err_flag = 1;
+	}
+	if (play_flag | cap_flag | err_flag)
+		return IRQ_HANDLED;
+	else
+		return IRQ_NONE;
+}
 
 static int snd_rn_acp_probe(struct pci_dev *pci,
 			    const struct pci_device_id *pci_id)
@@ -204,14 +241,11 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 	acpi_handle handle;
 	acpi_integer dmic_status;
 #endif
-	const struct dmi_system_id *dmi_id;
 	unsigned int irqflags;
 	int ret, index;
+	int acp_devs = 0x00;
+	int val =  0x00;
 	u32 addr;
-
-	/* Renoir device check */
-	if (pci->revision != 0x01)
-		return -ENODEV;
 
 	if (pci_enable_device(pci)) {
 		dev_err(&pci->dev, "pci_enable_device failed\n");
@@ -231,27 +265,21 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 		goto release_regions;
 	}
 
-	/* check for msi interrupt support */
-	ret = pci_enable_msi(pci);
-	if (ret)
-		/* msi is not enabled */
-		irqflags = IRQF_SHARED;
-	else
-		/* msi is enabled */
-		irqflags = 0;
+	irqflags = IRQF_SHARED;
 
 	addr = pci_resource_start(pci, 0);
 	adata->acp_base = devm_ioremap(&pci->dev, addr,
 				       pci_resource_len(pci, 0));
 	if (!adata->acp_base) {
 		ret = -ENOMEM;
-		goto disable_msi;
+		goto release_regions;
 	}
 	pci_set_master(pci);
 	pci_set_drvdata(pci, adata);
+	adata->pme_en = rn_readl(adata->acp_base + ACP_PME_EN);
 	ret = rn_acp_init(adata->acp_base);
 	if (ret)
-		goto disable_msi;
+		goto release_regions;
 
 	if (!dmic_acpi_check) {
 		ret = -ENODEV;
@@ -269,56 +297,133 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 			goto de_init;
 		}
 #endif
-		dmi_id = dmi_first_match(rn_acp_quirk_table);
-		if (dmi_id && !dmi_id->driver_data) {
-			dev_info(&pci->dev, "ACPI settings override using DMI (ACP mic is not present)");
-			ret = -ENODEV;
+	}
+	rn_writel(0x04, adata->acp_base + ACP_I2S_PIN_CONFIG);
+	val = rn_readl(adata->acp_base + ACP_I2S_PIN_CONFIG);
+	pr_info("ACP_I2S_PIN_CONFIG: %d\n", val);
+	switch (val) {
+	case I2S_MODE:
+		adata->res = devm_kzalloc(&pci->dev,
+					  sizeof(struct resource) * 3,
+					  GFP_KERNEL);
+		if (!adata->res) {
+			ret = -ENOMEM;
 			goto de_init;
 		}
-	}
 
-	adata->res = devm_kzalloc(&pci->dev,
-				  sizeof(struct resource) * 2,
-				  GFP_KERNEL);
-	if (!adata->res) {
-		ret = -ENOMEM;
-		goto de_init;
-	}
+		adata->res[0].name = "acp_iomem";
+		adata->res[0].flags = IORESOURCE_MEM;
+		adata->res[0].start = addr;
+		adata->res[0].end = addr + (ACP_REG_END - ACP_REG_START);
 
-	adata->res[0].name = "acp_pdm_iomem";
-	adata->res[0].flags = IORESOURCE_MEM;
-	adata->res[0].start = addr;
-	adata->res[0].end = addr + (ACP_REG_END - ACP_REG_START);
-	adata->res[1].name = "acp_pdm_irq";
-	adata->res[1].flags = IORESOURCE_IRQ;
-	adata->res[1].start = pci->irq;
-	adata->res[1].end = pci->irq;
+		adata->res[1].name = "acp_i2s_sp";
+		adata->res[1].flags = IORESOURCE_MEM;
+		adata->res[1].start = addr + ACP_I2STDM_REG_START;
+		adata->res[1].end = addr + ACP_I2STDM_REG_END;
 
-	memset(&pdevinfo, 0, sizeof(pdevinfo));
-	pdevinfo[0].name = "acp_rn_pdm_dma";
-	pdevinfo[0].id = 0;
-	pdevinfo[0].parent = &pci->dev;
-	pdevinfo[0].num_res = 2;
-	pdevinfo[0].res = adata->res;
-	pdevinfo[0].data = &irqflags;
-	pdevinfo[0].size_data = sizeof(irqflags);
+		adata->res[2].name = "acp_i2s_bt";
+		adata->res[2].flags = IORESOURCE_MEM;
+		adata->res[2].start = addr + ACP_BT_TDM_REG_START;
+		adata->res[2].end = addr + ACP_BT_TDM_REG_END;
 
-	pdevinfo[1].name = "dmic-codec";
-	pdevinfo[1].id = 0;
-	pdevinfo[1].parent = &pci->dev;
-	pdevinfo[2].name = "acp_pdm_mach";
-	pdevinfo[2].id = 0;
-	pdevinfo[2].parent = &pci->dev;
-	for (index = 0; index < ACP_DEVS; index++) {
-		adata->pdev[index] =
+		adata->acp3x_audio_mode = ACP_I2S_MODE;
+
+		memset(&pdevinfo, 0, sizeof(pdevinfo));
+		pdevinfo[0].name = "acp_rn_i2s_dma";
+		pdevinfo[0].id = 0;
+		pdevinfo[0].parent = &pci->dev;
+		pdevinfo[0].num_res = 3;
+		pdevinfo[0].res = &adata->res[0];
+
+		pdevinfo[1].name = "acp_rn_pdm_dma";
+		pdevinfo[1].id = 1;
+		pdevinfo[1].parent = &pci->dev;
+		pdevinfo[1].num_res = 1;
+		pdevinfo[1].res = &adata->res[0];
+
+		pdevinfo[2].name = "acp_i2s_playcap";
+		pdevinfo[2].id = 0;
+		pdevinfo[2].parent = &pci->dev;
+		pdevinfo[2].num_res = 1;
+		pdevinfo[2].res = &adata->res[1];
+
+		pdevinfo[3].name = "acp_i2s_playcap";
+		pdevinfo[3].id = 1;
+		pdevinfo[3].parent = &pci->dev;
+		pdevinfo[3].num_res = 1;
+		pdevinfo[3].res = &adata->res[2];
+
+		pdevinfo[4].name = "dmic-codec";
+		pdevinfo[4].id = 0;
+		pdevinfo[4].parent = &pci->dev;
+
+		pdevinfo[5].name = "acp_rn_mi_mach";
+		pdevinfo[5].id = 0;
+		pdevinfo[5].parent = &pci->dev;
+
+		acp_devs = 6;
+		for (index = 0; index < acp_devs; index++) {
+			adata->pdev[index] =
 				platform_device_register_full(&pdevinfo[index]);
-		if (IS_ERR(adata->pdev[index])) {
-			dev_err(&pci->dev, "cannot register %s device\n",
-				pdevinfo[index].name);
-			ret = PTR_ERR(adata->pdev[index]);
-			goto unregister_devs;
+			if (IS_ERR(adata->pdev[index])) {
+				dev_err(&pci->dev, "cannot register %s device\n",
+					pdevinfo[index].name);
+				ret = PTR_ERR(adata->pdev[index]);
+				goto unregister_devs;
+			}
+		}
+		break;
+	default:
+		adata->res = devm_kzalloc(&pci->dev,
+					  sizeof(struct resource) * 2,
+					  GFP_KERNEL);
+		if (!adata->res) {
+			ret = -ENOMEM;
+			goto de_init;
+		}
+		adata->res[0].name = "acp_pdm_iomem";
+		adata->res[0].flags = IORESOURCE_MEM;
+		adata->res[0].start = addr;
+		adata->res[0].end = addr + (ACP_REG_END - ACP_REG_START);
+		adata->res[1].name = "acp_pdm_irq";
+		adata->res[1].flags = IORESOURCE_IRQ;
+		adata->res[1].start = pci->irq;
+		adata->res[1].end = pci->irq;
+
+		memset(&pdevinfo, 0, sizeof(pdevinfo));
+		pdevinfo[0].name = "acp_rn_pdm_dma";
+		pdevinfo[0].id = 0;
+		pdevinfo[0].parent = &pci->dev;
+		pdevinfo[0].num_res = 2;
+		pdevinfo[0].res = adata->res;
+		pdevinfo[0].data = &irqflags;
+		pdevinfo[0].size_data = sizeof(irqflags);
+
+		pdevinfo[1].name = "dmic-codec";
+		pdevinfo[1].id = 0;
+		pdevinfo[1].parent = &pci->dev;
+		pdevinfo[2].name = "acp_pdm_mach";
+		pdevinfo[2].id = 0;
+		pdevinfo[2].parent = &pci->dev;
+		acp_devs = 3;
+		for (index = 0; index < acp_devs; index++) {
+			adata->pdev[index] =
+				platform_device_register_full(&pdevinfo[index]);
+			if (IS_ERR(adata->pdev[index])) {
+				dev_err(&pci->dev, "cannot register %s device\n",
+					pdevinfo[index].name);
+				ret = PTR_ERR(adata->pdev[index]);
+				goto unregister_devs;
+			}
 		}
 	}
+	ret = devm_request_irq(&pci->dev, pci->irq, acp_irq_handler,
+			       irqflags, "ACP_PCI_IRQ", adata);
+	if (ret) {
+		dev_err(&pci->dev, "ACP PCI IRQ request failed\n");
+		return -ENODEV;
+	}
+
 	pm_runtime_set_autosuspend_delay(&pci->dev, ACP_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&pci->dev);
 	pm_runtime_put_noidle(&pci->dev);
@@ -326,13 +431,11 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 	return 0;
 
 unregister_devs:
-	for (index = 0; index < ACP_DEVS; index++)
+	for (index = 0; index < acp_devs; index++)
 		platform_device_unregister(adata->pdev[index]);
 de_init:
 	if (rn_acp_deinit(adata->acp_base))
 		dev_err(&pci->dev, "ACP de-init failed\n");
-disable_msi:
-	pci_disable_msi(pci);
 release_regions:
 	pci_release_regions(pci);
 disable_pci:
@@ -347,6 +450,7 @@ static int snd_rn_acp_suspend(struct device *dev)
 	struct acp_dev_data *adata;
 
 	adata = dev_get_drvdata(dev);
+	pr_info("%s\n", __func__);
 	ret = rn_acp_deinit(adata->acp_base);
 	if (ret)
 		dev_err(dev, "ACP de-init failed\n");
@@ -362,6 +466,7 @@ static int snd_rn_acp_resume(struct device *dev)
 	struct acp_dev_data *adata;
 
 	adata = dev_get_drvdata(dev);
+	pr_info("%s\n", __func__);
 	ret = rn_acp_init(adata->acp_base);
 	if (ret) {
 		dev_err(dev, "ACP init failed\n");
@@ -381,16 +486,26 @@ static void snd_rn_acp_remove(struct pci_dev *pci)
 {
 	struct acp_dev_data *adata;
 	int ret, index;
+	int acp_devs = 0x00;
+	u32 val = 0x00;
 
 	adata = pci_get_drvdata(pci);
-	for (index = 0; index < ACP_DEVS; index++)
+
+	val = rn_readl(adata->acp_base + ACP_I2S_PIN_CONFIG);
+	switch (val) {
+	case I2S_MODE:
+		acp_devs = 6;
+		break;
+	default:
+		acp_devs = 3;
+	}
+	for (index = 0; index < acp_devs; index++)
 		platform_device_unregister(adata->pdev[index]);
 	ret = rn_acp_deinit(adata->acp_base);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
 	pm_runtime_forbid(&pci->dev);
 	pm_runtime_get_noresume(&pci->dev);
-	pci_disable_msi(pci);
 	pci_release_regions(pci);
 	pci_disable_device(pci);
 }
