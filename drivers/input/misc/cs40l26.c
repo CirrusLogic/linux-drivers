@@ -1654,11 +1654,13 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	struct device *dev = cs40l26->dev;
 	int ret = 0;
 	unsigned int reg, freq;
-	u32 index, algo_id;
+	u32 index = 0, buzz_id;
 	u16 duration;
 
-	pm_runtime_get_sync(dev);
-	mutex_lock(&cs40l26->lock);
+	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
+		buzz_id = CS40L26_BUZZGEN_ALGO_ID;
+	else
+		buzz_id = CS40L26_BUZZGEN_ROM_ALGO_ID;
 
 	if (cs40l26->effect->u.periodic.waveform == FF_CUSTOM)
 		index = cs40l26->trigger_indices[cs40l26->effect->id];
@@ -1669,7 +1671,11 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	else
 		duration = cs40l26->effect->replay.length;
 
-	hrtimer_start(&cs40l26->vibe_timer,
+	pm_runtime_get_sync(dev);
+	mutex_lock(&cs40l26->lock);
+
+	if (duration > 0) /* Effect duration is known */
+		hrtimer_start(&cs40l26->vibe_timer,
 			ktime_set(CS40L26_MS_TO_SECS(duration),
 			CS40L26_MS_TO_NS(duration % 1000)), HRTIMER_MODE_REL);
 
@@ -1683,17 +1689,10 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 			goto err_mutex;
 		break;
 	case FF_SINE:
-		if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
-			algo_id = CS40L26_BUZZGEN_ALGO_ID;
-		else
-			algo_id = CS40L26_BUZZGEN_ROM_ALGO_ID;
-
 		ret = cl_dsp_get_reg(cs40l26->dsp, "BUZZ_EFFECTS2_BUZZ_FREQ",
-				CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
-		if (ret) {
-			dev_err(dev, "Failed to find BUZZGEN control\n");
+				CL_DSP_XM_UNPACKED_TYPE, buzz_id, &reg);
+		if (ret)
 			goto err_mutex;
-		}
 
 		freq = CS40L26_MS_TO_HZ(cs40l26->effect->u.periodic.period);
 
@@ -2818,6 +2817,17 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		goto err_out;
 
 	pm_runtime_get_sync(dev);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "TIMEOUT_MS",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (ret)
+		goto pm_err;
+
+	ret = regmap_write(regmap, reg, 0);
+	if (ret) {
+		dev_err(dev, "Failed to set TIMEOUT_MS\n");
+		goto pm_err;
+	}
 
 	ret = cs40l26_asp_config(cs40l26);
 	if (ret)
