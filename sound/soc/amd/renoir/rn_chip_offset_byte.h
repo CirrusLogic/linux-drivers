@@ -114,6 +114,7 @@
 #define ACP_PAD_PULLUP_PULLDOWN_CTRL                  0x1241404
 #define ACP_PAD_DRIVE_STRENGTH_CTRL                   0x1241408
 #define ACP_SW_PAD_KEEPER_EN                          0x124140C
+#define ACP_PME_EN                                    0x1241418
 #define ACP_PGFSM_CONTROL                             0x124141C
 #define ACP_PGFSM_STATUS                              0x1241420
 #define ACP_CLKMUX_SEL                                0x1241424
