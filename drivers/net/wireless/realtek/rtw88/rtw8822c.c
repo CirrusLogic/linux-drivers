@@ -17,6 +17,7 @@
 #include "util.h"
 #include "bf.h"
 #include "efuse.h"
+#include "coex.h"
 
 static void rtw8822c_config_trx_mode(struct rtw_dev *rtwdev, u8 tx_path,
 				     u8 rx_path, bool is_tx2_path);
@@ -37,7 +38,7 @@ static int rtw8822c_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 
 	efuse->rfe_option = map->rfe_option;
 	efuse->rf_board_option = map->rf_board_option;
-	efuse->crystal_cap = map->xtal_k;
+	efuse->crystal_cap = map->xtal_k & XCAP_MASK;
 	efuse->channel_plan = map->channel_plan;
 	efuse->country_code[0] = map->country_code[0];
 	efuse->country_code[1] = map->country_code[1];
@@ -1855,6 +1856,7 @@ static void query_phy_status_page1(struct rtw_dev *rtwdev, u8 *phy_status,
 		}
 		dm_info->rx_evm_dbm[path] = evm_dbm;
 	}
+	rtw_phy_parsing_cfo(rtwdev, pkt_stat);
 }
 
 static void query_phy_status(struct rtw_dev *rtwdev, u8 *phy_status,
@@ -1910,6 +1912,7 @@ static void rtw8822c_query_rx_desc(struct rtw_dev *rtwdev, u8 *rx_desc,
 
 	hdr = (struct ieee80211_hdr *)(rx_desc + desc_sz + pkt_stat->shift +
 				       pkt_stat->drv_info_sz);
+	pkt_stat->hdr = hdr;
 	if (pkt_stat->phy_status) {
 		phy_status = rx_desc + desc_sz + pkt_stat->shift;
 		query_phy_status(rtwdev, phy_status, pkt_stat);
@@ -3427,6 +3430,128 @@ static void rtw8822c_dpk_track(struct rtw_dev *rtwdev)
 	}
 }
 
+#define XCAP_EXTEND(val) ({typeof(val) _v = (val); _v | _v << 7; })
+static void rtw8822c_set_crystal_cap_reg(struct rtw_dev *rtwdev, u8 crystal_cap)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	struct rtw_cfo_track *cfo = &dm_info->cfo_track;
+	u32 val = 0;
+
+	val = XCAP_EXTEND(crystal_cap);
+	cfo->crystal_cap = crystal_cap;
+	rtw_write32_mask(rtwdev, REG_ANAPAR_XTAL_0, BIT_XCAP_0, val);
+}
+
+static void rtw8822c_set_crystal_cap(struct rtw_dev *rtwdev, u8 crystal_cap)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	struct rtw_cfo_track *cfo = &dm_info->cfo_track;
+
+	if (cfo->crystal_cap == crystal_cap)
+		return;
+
+	rtw8822c_set_crystal_cap_reg(rtwdev, crystal_cap);
+}
+
+static void rtw8822c_cfo_tracking_reset(struct rtw_dev *rtwdev)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	struct rtw_cfo_track *cfo = &dm_info->cfo_track;
+
+	cfo->is_adjust = true;
+
+	if (cfo->crystal_cap > rtwdev->efuse.crystal_cap)
+		rtw8822c_set_crystal_cap(rtwdev, cfo->crystal_cap - 1);
+	else if (cfo->crystal_cap < rtwdev->efuse.crystal_cap)
+		rtw8822c_set_crystal_cap(rtwdev, cfo->crystal_cap + 1);
+}
+
+static void rtw8822c_cfo_init(struct rtw_dev *rtwdev)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	struct rtw_cfo_track *cfo = &dm_info->cfo_track;
+
+	cfo->crystal_cap = rtwdev->efuse.crystal_cap;
+	cfo->is_adjust = true;
+}
+
+#define REPORT_TO_KHZ(val) ({typeof(val) _v = (val); (_v << 1) + (_v >> 1); })
+static s32 rtw8822c_cfo_calc_avg(struct rtw_dev *rtwdev, u8 path_num)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	struct rtw_cfo_track *cfo = &dm_info->cfo_track;
+	s32 cfo_avg, cfo_path_sum = 0, cfo_rpt_sum;
+	u8 i;
+
+	for (i = 0; i < path_num; i++) {
+		cfo_rpt_sum = REPORT_TO_KHZ(cfo->cfo_tail[i]);
+
+		if (cfo->cfo_cnt[i])
+			cfo_avg = cfo_rpt_sum / cfo->cfo_cnt[i];
+		else
+			cfo_avg = 0;
+
+		cfo_path_sum += cfo_avg;
+	}
+
+	for (i = 0; i < path_num; i++) {
+		cfo->cfo_tail[i] = 0;
+		cfo->cfo_cnt[i] = 0;
+	}
+
+	return cfo_path_sum / path_num;
+}
+
+static void rtw8822c_cfo_need_adjust(struct rtw_dev *rtwdev, s32 cfo_avg)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	struct rtw_cfo_track *cfo = &dm_info->cfo_track;
+
+	if (!cfo->is_adjust) {
+		if (abs(cfo_avg) > CFO_TRK_ENABLE_TH)
+			cfo->is_adjust = true;
+	} else {
+		if (abs(cfo_avg) <= CFO_TRK_STOP_TH)
+			cfo->is_adjust = false;
+	}
+
+	if (!rtw_coex_disabled(rtwdev)) {
+		cfo->is_adjust = false;
+		rtw8822c_set_crystal_cap(rtwdev, rtwdev->efuse.crystal_cap);
+	}
+}
+
+static void rtw8822c_cfo_track(struct rtw_dev *rtwdev)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	struct rtw_cfo_track *cfo = &dm_info->cfo_track;
+	u8 path_num = rtwdev->hal.rf_path_num;
+	s8 crystal_cap = cfo->crystal_cap;
+	s32 cfo_avg = 0;
+
+	if (rtwdev->sta_cnt != 1) {
+		rtw8822c_cfo_tracking_reset(rtwdev);
+		return;
+	}
+
+	if (cfo->packet_count == cfo->packet_count_pre)
+		return;
+
+	cfo->packet_count_pre = cfo->packet_count;
+	cfo_avg = rtw8822c_cfo_calc_avg(rtwdev, path_num);
+	rtw8822c_cfo_need_adjust(rtwdev, cfo_avg);
+
+	if (cfo->is_adjust) {
+		if (cfo_avg > CFO_TRK_ADJ_TH)
+			crystal_cap++;
+		else if (cfo_avg < -CFO_TRK_ADJ_TH)
+			crystal_cap--;
+
+		crystal_cap = clamp_t(s8, crystal_cap, 0, XCAP_MASK);
+		rtw8822c_set_crystal_cap(rtwdev, (u8)crystal_cap);
+	}
+}
+
 static const struct rtw_phy_cck_pd_reg
 rtw8822c_cck_pd_reg[RTW_CHANNEL_WIDTH_40 + 1][RTW_RF_PATH_MAX] = {
 	{
@@ -4033,6 +4158,8 @@ static struct rtw_chip_ops rtw8822c_ops = {
 	.cfg_csi_rate		= rtw_bf_cfg_csi_rate,
 	.adaptivity_init	= rtw8822c_adaptivity_init,
 	.adaptivity		= rtw8822c_adaptivity,
+	.cfo_init		= rtw8822c_cfo_init,
+	.cfo_track		= rtw8822c_cfo_track,
 
 	.coex_set_init		= rtw8822c_coex_cfg_init,
 	.coex_set_ant_switch	= NULL,
