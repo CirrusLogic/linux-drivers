@@ -90,6 +90,7 @@ struct cmdq_pkt {
 	struct cmdq_task_cb	cb;
 	struct cmdq_task_cb	async_cb;
 	void			*cl;
+	void			*crtc;
 };
 
 u8 cmdq_get_shift_pa(struct mbox_chan *chan);
