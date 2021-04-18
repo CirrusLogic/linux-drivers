@@ -356,12 +356,7 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 		pdevinfo[4].name = "dmic-codec";
 		pdevinfo[4].id = 0;
 		pdevinfo[4].parent = &pci->dev;
-
-		pdevinfo[5].name = "acp_rn_mi_mach";
-		pdevinfo[5].id = 0;
-		pdevinfo[5].parent = &pci->dev;
-
-		acp_devs = 6;
+		acp_devs = 5;
 		for (index = 0; index < acp_devs; index++) {
 			adata->pdev[index] =
 				platform_device_register_full(&pdevinfo[index]);
@@ -494,7 +489,7 @@ static void snd_rn_acp_remove(struct pci_dev *pci)
 	val = rn_readl(adata->acp_base + ACP_I2S_PIN_CONFIG);
 	switch (val) {
 	case I2S_MODE:
-		acp_devs = 6;
+		acp_devs = 5;
 		break;
 	default:
 		acp_devs = 3;

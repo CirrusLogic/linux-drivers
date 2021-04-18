@@ -21,24 +21,18 @@
 
 #include "rn_acp3x.h"
 #include "../../codecs/rt5682.h"
-#include "../../codecs/rt1015.h"
+#include "../../codecs/rt1019.h"
 
 #define PCO_PLAT_CLK 48000000
 #define RT5682_PLL_FREQ (48000 * 512)
 #define DUAL_CHANNEL		2
 
-#define DRV_NAME "acp_rn_mi_mach"
 
 static struct snd_soc_jack pco_jack;
 static struct clk *rt5682_dai_wclk;
 static struct clk *rt5682_dai_bclk;
-//void *rn_soc_is_rltk(struct device *dev);
 
-enum {
-	RT5682 = 0,
-//	RT1015,
-	DMIC,
-};
+void *acp_rn_soc_is_rltk(struct device *dev);
 
 static int acp3x_rn_5682_init(struct snd_soc_pcm_runtime *rtd)
 {
@@ -128,8 +122,7 @@ static int rn_rt5682_clk_enable(struct snd_pcm_substream *substream)
 	return ret;
 }
 
-#if 0
-static int acp3x_rn_1015p_hw_params(struct snd_pcm_substream *substream,
+static int acp3x_rn_1019_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -140,21 +133,20 @@ static int acp3x_rn_1015p_hw_params(struct snd_pcm_substream *substream,
 	srate = params_rate(params);
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
-		if (strcmp(codec_dai->name, "rt1015-aif"))
+		if (strcmp(codec_dai->name, "rt1019-aif"))
 			continue;
 
-		ret = snd_soc_dai_set_pll(codec_dai, 0, RT1015_PLL_S_BCLK,
+		ret = snd_soc_dai_set_pll(codec_dai, 0, RT1019_PLL_S_BCLK,
 					  64 * srate, 256 * srate);
 		if (ret < 0)
 			return ret;
-		ret = snd_soc_dai_set_sysclk(codec_dai, RT1015_SCLK_S_PLL,
+		ret = snd_soc_dai_set_sysclk(codec_dai, RT1019_SCLK_S_PLL,
 					     256 * srate, SND_SOC_CLOCK_IN);
 		if (ret < 0)
 			return ret;
 	}
 	return ret;
 }
-#endif
 
 static void rn_rt5682_clk_disable(void)
 {
@@ -199,15 +191,14 @@ static int acp3x_rn_5682_startup(struct snd_pcm_substream *substream)
 	return rn_rt5682_clk_enable(substream);
 }
 
-#if 0
-static int acp3x_rn_rt1015p_startup(struct snd_pcm_substream *substream)
+static int acp3x_rn_rt1019_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_card *card = rtd->card;
 	struct acp3x_platform_info *machine = snd_soc_card_get_drvdata(card);
 
-	machine->play_i2s_instance = I2S_BT_INSTANCE;
+	machine->play_i2s_instance = I2S_SP_INSTANCE;
 
 	runtime->hw.channels_max = DUAL_CHANNEL;
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
@@ -216,8 +207,6 @@ static int acp3x_rn_rt1015p_startup(struct snd_pcm_substream *substream)
 				   &constraints_rates);
 	return rn_rt5682_clk_enable(substream);
 }
-
-#endif
 
 static void rn_rt5682_shutdown(struct snd_pcm_substream *substream)
 {
@@ -229,13 +218,11 @@ static const struct snd_soc_ops acp3x_rn_5682_ops = {
 	.shutdown = rn_rt5682_shutdown,
 };
 
-#if 0
-static const struct snd_soc_ops acp3x_rn_rt1015p_play_ops = {
-	.startup = acp3x_rn_rt1015p_startup,
+static const struct snd_soc_ops acp3x_rn_rt1019_play_ops = {
+	.startup = acp3x_rn_rt1019_startup,
 	.shutdown = rn_rt5682_shutdown,
-	.hw_params = acp3x_rn_1015p_hw_params,
+	.hw_params = acp3x_rn_1019_hw_params,
 };
-#endif
 
 SND_SOC_DAILINK_DEF(acp_pdm,
 		    DAILINK_COMP_ARRAY(COMP_CPU("acp_rn_pdm_dma.1")));
@@ -256,11 +243,23 @@ SND_SOC_DAILINK_DEF(i2s_platform,
 SND_SOC_DAILINK_DEF(rt5682,
 		    DAILINK_COMP_ARRAY(COMP_CODEC("i2c-10EC5682:00", "rt5682-aif1")));
 
-//SND_SOC_DAILINK_DEF(rt1015p,
-//		      DAILINK_COMP_ARRAY(COMP_CODEC("RTL1015:00", "HiFi")));
+SND_SOC_DAILINK_DEF(rt1019,
+	DAILINK_COMP_ARRAY(COMP_CODEC("i2c-10EC1019:00", "rt1019-aif"),
+			COMP_CODEC("i2c-10EC1019:01", "rt1019-aif")));
+
+static struct snd_soc_codec_conf rt1019_conf[] = {
+	{
+		.dlc = COMP_CODEC_CONF("i2c-10EC1019:00"),
+		.name_prefix = "Left",
+	},
+	{
+		.dlc = COMP_CODEC_CONF("i2c-10EC1019:01"),
+		.name_prefix = "Right",
+	},
+};
 
 static struct snd_soc_dai_link acp3x_rn_dai[] = {
-	[RT5682] = {
+	{
 		.name = "acp3x-5682-play",
 		.stream_name = "Playback",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
@@ -271,18 +270,16 @@ static struct snd_soc_dai_link acp3x_rn_dai[] = {
 		.ops = &acp3x_rn_5682_ops,
 		SND_SOC_DAILINK_REG(acp3x_i2s, rt5682, i2s_platform),
 	},
-#if 0
-	[RT1015] = {
-		.name = "acp3x-rt1015p-play",
+	{
+		.name = "acp3x-rt1019-play",
 		.stream_name = "HiFi Playback",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBS_CFS,
 		.dpcm_playback = 1,
-		.ops = &acp3x_rn_rt1015p_play_ops,
-		SND_SOC_DAILINK_REG(acp3x_i2s, rt1015p, i2s_platform),
+		.ops = &acp3x_rn_rt1019_play_ops,
+		SND_SOC_DAILINK_REG(acp3x_i2s, rt1019, i2s_platform),
 	},
-#endif
-	[DMIC] = {
+	{
 		.name = "acp3x-dmic-capture",
 		.stream_name = "DMIC capture",
 		.capture_only = 1,
@@ -290,41 +287,45 @@ static struct snd_soc_dai_link acp3x_rn_dai[] = {
 	},
 };
 
-static const struct snd_soc_dapm_widget acp3x_rn_1015p_widgets[] = {
+static const struct snd_soc_dapm_widget acp3x_rn_1019_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-//	SND_SOC_DAPM_SPK("Speakers", NULL),
+	SND_SOC_DAPM_SPK("Left Spk", NULL),
+	SND_SOC_DAPM_SPK("Right Spk", NULL),
 };
 
-static const struct snd_soc_dapm_route acp3x_rn_1015p_route[] = {
+static const struct snd_soc_dapm_route acp3x_rn_1019_route[] = {
 	{"Headphone Jack", NULL, "HPOL"},
 	{"Headphone Jack", NULL, "HPOR"},
 	{"IN1P", NULL, "Headset Mic"},
 	/* speaker */
-//	{ "Speakers", NULL, "Speaker" },
+	{"Left Spk", NULL, "Left SPO"},
+	{"Right Spk", NULL, "Right SPO"},
 };
 
-static const struct snd_kcontrol_new acp3x_rn_mc_1015p_controls[] = {
-//	SOC_DAPM_PIN_SWITCH("Speakers"),
+static const struct snd_kcontrol_new acp3x_rn_mc_1019_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
+	SOC_DAPM_PIN_SWITCH("Left Spk"),
+	SOC_DAPM_PIN_SWITCH("Right Spk"),
 };
 
 static struct snd_soc_card acp3x_rn_5682 = {
-	.name = "acp3xalc56821015p",
+	.name = "acp3xalc56821019",
 	.owner = THIS_MODULE,
 	.dai_link = acp3x_rn_dai,
 	.num_links = ARRAY_SIZE(acp3x_rn_dai),
-	.dapm_widgets = acp3x_rn_1015p_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(acp3x_rn_1015p_widgets),
-	.dapm_routes = acp3x_rn_1015p_route,
-	.num_dapm_routes = ARRAY_SIZE(acp3x_rn_1015p_route),
-	.controls = acp3x_rn_mc_1015p_controls,
-	.num_controls = ARRAY_SIZE(acp3x_rn_mc_1015p_controls),
+	.dapm_widgets = acp3x_rn_1019_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(acp3x_rn_1019_widgets),
+	.dapm_routes = acp3x_rn_1019_route,
+	.num_dapm_routes = ARRAY_SIZE(acp3x_rn_1019_route),
+	.codec_conf = rt1019_conf,
+	.num_configs = ARRAY_SIZE(rt1019_conf),
+	.controls = acp3x_rn_mc_1019_controls,
+	.num_controls = ARRAY_SIZE(acp3x_rn_mc_1019_controls),
 };
 
-#if 0
-void *rn_soc_is_rltk(struct device *dev)
+void *acp_rn_soc_is_rltk(struct device *dev)
 {
 	const struct acpi_device_id *match;
 
@@ -333,22 +334,22 @@ void *rn_soc_is_rltk(struct device *dev)
 		return NULL;
 	return (void *)match->driver_data;
 }
-#endif
+
 static int acp3x_rn_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct snd_soc_card *card;
 	struct acp3x_platform_info *machine;
-	//struct device *dev = &pdev->dev;
+	struct device *dev = &pdev->dev;
 
-	//card = (struct snd_soc_card *)rn_soc_is_rltk(dev);
-	//if (!card)
-	//	return -ENODEV;
+	card = (struct snd_soc_card *)acp_rn_soc_is_rltk(dev);
+	if (!card)
+		return -ENODEV;
 
 	machine = devm_kzalloc(&pdev->dev, sizeof(*machine), GFP_KERNEL);
 	if (!machine)
 		return -ENOMEM;
-	card = &acp3x_rn_5682;
+	pr_err("%s entry\n", __func__);
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
@@ -363,21 +364,19 @@ static int acp3x_rn_probe(struct platform_device *pdev)
 				"devm_snd_soc_register_card(%s) probe deferred: %d\n",
 				card->name, ret);
 	}
-
+	pr_err("%s exit\n", __func__);
 	return ret;
 }
-#if 0
+
 static const struct acpi_device_id acp3x_rn_audio_acpi_match[] = {
 	{ "AMDI5682", (unsigned long)&acp3x_rn_5682},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, acp3x_rn_audio_acpi_match);
-#endif
 static struct platform_driver acp3x_rn_audio = {
 	.driver = {
-		//.name = "acp3x-alc5682-rt1015p",
-		.name = "acp_rn_mi_mach",
-//		.acpi_match_table = ACPI_PTR(acp3x_rn_audio_acpi_match),
+		.name = "acp3x-alc5682-rt1019",
+		.acpi_match_table = ACPI_PTR(acp3x_rn_audio_acpi_match),
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = acp3x_rn_probe,
@@ -388,4 +387,3 @@ module_platform_driver(acp3x_rn_audio);
 MODULE_AUTHOR("Vijendar.Mukunda@amd.com");
 MODULE_DESCRIPTION("ALC5682, ALC1015P & DMIC audio support");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:" DRV_NAME);

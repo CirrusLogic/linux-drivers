@@ -48,6 +48,7 @@ config SND_SOC_AMD_RENOIR_MACH
 	tristate "AMD Renoir support for DMIC RT5682"
 	select SND_SOC_DMIC
 	select SND_SOC_RT5682_I2C
+	select SND_SOC_RT1019
 	depends on SND_SOC_AMD_RENOIR && I2C
 	help
 	 This option enables machine driver for DMIC
