@@ -186,13 +186,9 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 	if (le32_to_cpu(tlv->length) < sizeof(*reg))
 		return -EINVAL;
 
-	/*
-	 * For safe using a string from FW make sure we have a
-	 * null terminator
-	 */
-	reg->name[IWL_FW_INI_MAX_NAME - 1] = 0;
-
-	IWL_DEBUG_FW(trans, "WRT: parsing region: %s\n", reg->name);
+	/* for safe use of a string from FW, limit it to IWL_FW_INI_MAX_NAME */
+	IWL_DEBUG_FW(trans, "WRT: parsing region: %.*s\n",
+		     IWL_FW_INI_MAX_NAME, reg->name);
 
 	if (id >= IWL_FW_INI_MAX_REGION_ID) {
 		IWL_ERR(trans, "WRT: Invalid region id %u\n", id);
