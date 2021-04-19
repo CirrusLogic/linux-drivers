@@ -1407,18 +1407,9 @@ static void ieee80211_txq_enqueue(struct ieee80211_local *local,
 	ieee80211_set_skb_enqueue_time(skb);
 
 	spin_lock_bh(&fq->lock);
-	/*
-	 * For management frames, don't really apply codel etc.,
-	 * we don't want to apply any shaping or anything we just
-	 * want to simplify the driver API by having them on the
-	 * txqi.
-	 */
-	if (unlikely(txqi->txq.tid == IEEE80211_NUM_TIDS))
-		__skb_queue_tail(&txqi->frags, skb);
-	else
-		fq_tin_enqueue(fq, tin, flow_idx, skb,
-			       fq_skb_free_func,
-			       fq_flow_get_default_func);
+	fq_tin_enqueue(fq, tin, flow_idx, skb,
+		       fq_skb_free_func,
+		       fq_flow_get_default_func);
 	spin_unlock_bh(&fq->lock);
 }
 
@@ -3861,9 +3852,6 @@ bool ieee80211_txq_airtime_check(struct ieee80211_hw *hw,
 		return true;
 
 	if (!txq->sta)
-		return true;
-
-	if (unlikely(txq->tid == IEEE80211_NUM_TIDS))
 		return true;
 
 	sta = container_of(txq->sta, struct sta_info, sta);
