@@ -216,6 +216,8 @@ void *iwl_uefi_get_reduced_power(struct iwl_trans *trans, size_t *len)
 	unsigned long package_size;
 	int err;
 
+	*len = 0;
+
 	reduce_power_efivar = kzalloc(sizeof(*reduce_power_efivar), GFP_KERNEL);
 	if (!reduce_power_efivar)
 		return ERR_PTR(-ENOMEM);
@@ -234,7 +236,6 @@ void *iwl_uefi_get_reduced_power(struct iwl_trans *trans, size_t *len)
 	package = kmalloc(package_size, GFP_KERNEL);
 	if (!package) {
 		package = ERR_PTR(-ENOMEM);
-		*len = 0;
 		goto out;
 	}
 
