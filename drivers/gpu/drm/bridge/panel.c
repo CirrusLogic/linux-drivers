@@ -125,6 +125,23 @@ static int panel_bridge_get_modes(struct drm_bridge *bridge,
 	return drm_panel_get_modes(panel_bridge->panel, connector);
 }
 
+int panel_bridge_prepare_power(struct drm_bridge *bridge)
+{
+	struct panel_bridge *panel_bridge = drm_bridge_to_panel_bridge(bridge);
+
+	return drm_panel_prepare_power(panel_bridge->panel);
+}
+EXPORT_SYMBOL(panel_bridge_prepare_power);
+
+int panel_bridge_unprepare_power(struct drm_bridge *bridge)
+{
+        struct panel_bridge *panel_bridge = drm_bridge_to_panel_bridge(bridge);
+
+        return drm_panel_unprepare_power(panel_bridge->panel);
+}
+EXPORT_SYMBOL(panel_bridge_unprepare_power);
+
+
 static const struct drm_bridge_funcs panel_bridge_bridge_funcs = {
 	.attach = panel_bridge_attach,
 	.detach = panel_bridge_detach,

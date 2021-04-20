@@ -69,6 +69,13 @@ enum drm_panel_orientation;
  */
 struct drm_panel_funcs {
 	/**
+	 * @prepare_power:
+	 *
+	 * Turn on panel power.
+	 */
+	int (*prepare_power)(struct drm_panel *panel);
+
+	/**
 	 * @prepare:
 	 *
 	 * Turn on panel and perform set up.
@@ -114,6 +121,13 @@ struct drm_panel_funcs {
 	 */
 	int (*get_modes)(struct drm_panel *panel,
 			 struct drm_connector *connector);
+
+	/**
+	 * @unprepare_power:
+	 *
+	 * Turn off panel_power.
+	 */
+	int (*unprepare_power)(struct drm_panel *panel);
 
 	/**
 	 * @get_timings:
@@ -179,6 +193,9 @@ void drm_panel_init(struct drm_panel *panel, struct device *dev,
 
 void drm_panel_add(struct drm_panel *panel);
 void drm_panel_remove(struct drm_panel *panel);
+
+int drm_panel_prepare_power(struct drm_panel *panel);
+int drm_panel_unprepare_power(struct drm_panel *panel);
 
 int drm_panel_prepare(struct drm_panel *panel);
 int drm_panel_unprepare(struct drm_panel *panel);
