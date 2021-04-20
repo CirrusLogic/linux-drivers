@@ -38,6 +38,8 @@ struct cs40l2x_codec {
 	int tdm_slots;
 	int tdm_width;
 	int tdm_slot[2];
+	bool mute_left;
+	bool mute_right;
 };
 
 struct cs40l2x_pll_sysclk_config {
@@ -157,8 +159,43 @@ static int cs40l2x_clk_en(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int cs40l2x_reset_mute(struct cs40l2x_codec *codec)
+{
+	struct regmap *regmap = codec->regmap;
+	struct device *dev = codec->dev;
+	struct cs40l2x_private *core = codec->core;
+	unsigned int reg_l, reg_r;
+	int ret;
+
+	if (!core->dsp_reg)
+		return -EINVAL;
+
+	reg_l = core->dsp_reg(core, "AUDIOLEFTENABLE",
+			CS40L2X_XM_UNPACKED_TYPE,
+			CS40L2X_ALGO_ID_A2H);
+	if (!reg_l) {
+		dev_err(dev, "Cannot find the AUDIOLEFTENABLE register\n");
+		return -EINVAL;
+	}
+
+	reg_r = core->dsp_reg(core, "AUDIORIGHTENABLE",
+			CS40L2X_XM_UNPACKED_TYPE,
+			CS40L2X_ALGO_ID_A2H);
+	if (!reg_l) {
+		dev_err(dev, "Cannot find the AUDIORIGHTENABLE register\n");
+		return -EINVAL;
+	}
+
+	ret = regmap_write(regmap, reg_l, !codec->mute_left);
+	if (ret)
+		return ret;
+
+	return regmap_write(regmap, reg_r, !codec->mute_right);
+
+}
+
 static int cs40l2x_a2h_ev(struct snd_soc_dapm_widget *w,
-			  struct snd_kcontrol *kcontrol, int event)
+			struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *comp = snd_soc_dapm_to_component(w->dapm);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
@@ -357,6 +394,10 @@ static int cs40l2x_tuning_swap(struct cs40l2x_codec *priv, int tuning)
 
 	priv->tuning = tuning;
 
+	ret = cs40l2x_reset_mute(priv);
+	if (ret)
+		return ret;
+
 	return cs40l2x_ack_write(priv->core, CS40L2X_MBOX_USER_CONTROL,
 				 CS40L2X_USER_CTRL_REINIT_A2H,
 				 CS40L2X_USER_CTRL_SUCCESS);
@@ -525,48 +566,19 @@ static int cs40l2x_mute_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
 	struct cs40l2x_codec *cs40l2x = snd_soc_component_get_drvdata(comp);
-	struct regmap *regmap = cs40l2x->regmap;
-	struct device *dev = cs40l2x->dev;
 	struct cs40l2x_private *core = cs40l2x->core;
-	unsigned int val, reg_l, reg_r;
-	int ret;
 
-	if (!core->dsp_reg) {
-		dev_warn(dev, "DSP not available\n");
-		return 0;
-	}
-
-	reg_l = core->dsp_reg(core, "AUDIOLEFTENABLE",
-			CS40L2X_XM_UNPACKED_TYPE,
-				CS40L2X_ALGO_ID_A2H);
-	if (!reg_l) {
-		dev_err(dev, "Cannot find the AUDIOLEFTENABLE register\n");
-		return -EINVAL;
-	}
-
-	reg_r = core->dsp_reg(core, "AUDIORIGHTENABLE",
-			CS40L2X_XM_UNPACKED_TYPE,
-				CS40L2X_ALGO_ID_A2H);
-	if (!reg_l) {
-		dev_err(dev, "Cannot find the AUDIORIGHTENABLE register\n");
-		return -EINVAL;
-	}
-
-	val = ucontrol->value.integer.value[0];
+	cs40l2x->mute_left = ucontrol->value.integer.value[0];
+	cs40l2x->mute_right = ucontrol->value.integer.value[1];
 
 	pm_runtime_get_sync(core->dev);
-	ret = regmap_write(regmap, reg_l, !val);
-	if (ret)
-		goto mute_put_err;
 
-	val = ucontrol->value.integer.value[1];
+	cs40l2x_reset_mute(cs40l2x);
 
-	ret = regmap_write(regmap, reg_r, !val);
-mute_put_err:
 	pm_runtime_mark_last_busy(core->dev);
 	pm_runtime_put_autosuspend(core->dev);
 
-	return ret;
+	return 0;
 }
 
 static const struct snd_kcontrol_new cs40l2x_controls[] = {
