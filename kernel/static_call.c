@@ -150,7 +150,7 @@ void __static_call_update(struct static_call_key *key, void *tramp, void *func)
 
 	for (site_mod = &first; site_mod; site_mod = site_mod->next) {
 		bool init = system_state < SYSTEM_RUNNING;
-		struct module *mod = site_mod->mod;
+		struct module __maybe_unused *mod = site_mod->mod;
 
 		if (!site_mod->sites) {
 			/*
