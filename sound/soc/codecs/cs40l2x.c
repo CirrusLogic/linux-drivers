@@ -44,9 +44,12 @@ struct cs40l2x_pll_sysclk_config {
 };
 
 static const struct cs40l2x_pll_sysclk_config cs40l2x_pll_sysclk[] = {
-	{32768, 0x00},
-	{1536000, 0x1b},
-	{3072000, 0x21},
+	{ 32768,        0x00 },
+	{ 1536000,      0x1B },
+	{ 3072000,      0x21 },
+	{ 6144000,      0x28 },
+	{ 9600000,      0x30 },
+	{ 12288000,     0x33 },
 };
 
 static int cs40l2x_get_clk_config(int freq)
