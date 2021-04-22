@@ -357,9 +357,13 @@ static int ieee80211_open(struct net_device *dev)
 	if (err)
 		return err;
 
+#if CFG80211_VERSION >= KERNEL_VERSION(5,12,0)
 	wiphy_lock(sdata->local->hw.wiphy);
+#endif
 	err = ieee80211_do_open(&sdata->wdev, true);
+#if CFG80211_VERSION >= KERNEL_VERSION(5,12,0)
 	wiphy_unlock(sdata->local->hw.wiphy);
+#endif
 
 	return err;
 }
@@ -643,9 +647,13 @@ static int ieee80211_stop(struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
+#if CFG80211_VERSION >= KERNEL_VERSION(5,12,0)
 	wiphy_lock(sdata->local->hw.wiphy);
+#endif
 	ieee80211_do_stop(sdata, true);
+#if CFG80211_VERSION >= KERNEL_VERSION(5,12,0)
 	wiphy_unlock(sdata->local->hw.wiphy);
+#endif
 
 	return 0;
 }
@@ -2187,13 +2195,17 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 
 	unregister_netdevice_many(&unreg_list);
 
+#if CFG80211_VERSION >= KERNEL_VERSION(5,12,0)
 	wiphy_lock(local->hw.wiphy);
+#endif
 	list_for_each_entry_safe(sdata, tmp, &wdev_list, list) {
 		list_del(&sdata->list);
 		cfg80211_unregister_wdev(&sdata->wdev);
 		kfree(sdata);
 	}
+#if CFG80211_VERSION >= KERNEL_VERSION(5,12,0)
 	wiphy_unlock(local->hw.wiphy);
+#endif
 }
 
 static int netdev_notify(struct notifier_block *nb,

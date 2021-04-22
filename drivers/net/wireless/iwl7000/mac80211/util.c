@@ -3919,10 +3919,17 @@ void ieee80211_dfs_radar_detected_work(struct work_struct *work)
 	}
 	mutex_unlock(&local->chanctx_mtx);
 
+#if CFG80211_VERSION >= KERNEL_VERSION(5,12,0)
 	wiphy_lock(local->hw.wiphy);
+#else
+	rtnl_lock();
+#endif
 	ieee80211_dfs_cac_cancel(local);
+#if CFG80211_VERSION >= KERNEL_VERSION(5,12,0)
 	wiphy_unlock(local->hw.wiphy);
-
+#else
+	rtnl_unlock();
+#endif
 	if (num_chanctx > 1)
 		/* XXX: multi-channel is not supported yet */
 		WARN_ON(1);

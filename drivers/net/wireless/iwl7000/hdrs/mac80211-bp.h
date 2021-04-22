@@ -2636,7 +2636,7 @@ static inline bool cfg80211_any_usable_channels(struct wiphy *wiphy,
 
 	return false;
 }
-#endif /* < 5.12.0 */
+#endif /* < 5.13.0 */
 
 #if LINUX_VERSION_IS_LESS(5,11,0)
 static inline u64 skb_get_kcov_handle(struct sk_buff *skb)
@@ -2656,3 +2656,13 @@ static inline void dev_sw_netstats_tx_add(struct net_device *dev,
 	u64_stats_update_end(&tstats->syncp);
 }
 #endif
+
+#if CFG80211_VERSION < KERNEL_VERSION(5,12,0)
+#define wiphy_dereference(w, r) rtnl_dereference(r)
+#define regulatory_set_wiphy_regd_sync(w, r) regulatory_set_wiphy_regd_sync_rtnl(w, r)
+#define lockdep_assert_wiphy(w) ASSERT_RTNL()
+#define cfg80211_register_netdevice(n) register_netdevice(n)
+#define cfg80211_unregister_netdevice(n) unregister_netdevice(n)
+#define cfg80211_sched_scan_stopped_locked(w, r) cfg80211_sched_scan_stopped_rtnl(w, r)
+#define ASSOC_REQ_DISABLE_HE BIT(4)
+#endif /* < 5.12 */
