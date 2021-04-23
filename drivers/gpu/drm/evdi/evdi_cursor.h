@@ -21,7 +21,12 @@
 #ifndef _EVDI_CURSOR_H_
 #define _EVDI_CURSOR_H_
 
+#include <linux/version.h>
 #include <linux/module.h>
+#if KERNEL_VERSION(5, 5, 0) <= LINUX_VERSION_CODE || defined(EL8)
+#else
+#include <drm/drmP.h>
+#endif
 #include <drm/drm_crtc.h>
 
 struct evdi_cursor;

@@ -6790,8 +6790,10 @@ static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 		ctx->tqm_fp_rings_count = resp->tqm_fp_rings_count;
 		if (!ctx->tqm_fp_rings_count)
 			ctx->tqm_fp_rings_count = bp->max_q;
+		else if (ctx->tqm_fp_rings_count > BNXT_MAX_TQM_FP_RINGS)
+			ctx->tqm_fp_rings_count = BNXT_MAX_TQM_FP_RINGS;
 
-		tqm_rings = ctx->tqm_fp_rings_count + 1;
+		tqm_rings = ctx->tqm_fp_rings_count + BNXT_MAX_TQM_SP_RINGS;
 		ctx_pg = kcalloc(tqm_rings, sizeof(*ctx_pg), GFP_KERNEL);
 		if (!ctx_pg) {
 			kfree(ctx);
@@ -6925,7 +6927,8 @@ static int bnxt_hwrm_func_backing_store_cfg(struct bnxt *bp, u32 enables)
 	     pg_attr = &req.tqm_sp_pg_size_tqm_sp_lvl,
 	     pg_dir = &req.tqm_sp_page_dir,
 	     ena = FUNC_BACKING_STORE_CFG_REQ_ENABLES_TQM_SP;
-	     i < 9; i++, num_entries++, pg_attr++, pg_dir++, ena <<= 1) {
+	     i < BNXT_MAX_TQM_RINGS;
+	     i++, num_entries++, pg_attr++, pg_dir++, ena <<= 1) {
 		if (!(enables & ena))
 			continue;
 
@@ -8427,9 +8430,17 @@ static void bnxt_setup_inta(struct bnxt *bp)
 	bp->irq_tbl[0].handler = bnxt_inta;
 }
 
+static int bnxt_init_int_mode(struct bnxt *bp);
+
 static int bnxt_setup_int_mode(struct bnxt *bp)
 {
 	int rc;
+
+	if (!bp->irq_tbl) {
+		rc = bnxt_init_int_mode(bp);
+		if (rc || !bp->irq_tbl)
+			return rc ?: -ENODEV;
+	}
 
 	if (bp->flags & BNXT_FLAG_USING_MSIX)
 		bnxt_setup_msix(bp);
@@ -8615,7 +8626,7 @@ static int bnxt_init_inta(struct bnxt *bp)
 
 static int bnxt_init_int_mode(struct bnxt *bp)
 {
-	int rc = 0;
+	int rc = -ENODEV;
 
 	if (bp->flags & BNXT_FLAG_MSIX_CAP)
 		rc = bnxt_init_msix(bp);
@@ -8853,9 +8864,10 @@ void bnxt_tx_disable(struct bnxt *bp)
 			txr->dev_state = BNXT_DEV_STATE_CLOSING;
 		}
 	}
+	/* Drop carrier first to prevent TX timeout */
+	netif_carrier_off(bp->dev);
 	/* Stop all TX queues */
 	netif_tx_disable(bp->dev);
-	netif_carrier_off(bp->dev);
 }
 
 void bnxt_tx_enable(struct bnxt *bp)
@@ -9335,7 +9347,8 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 {
 	struct hwrm_func_drv_if_change_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_func_drv_if_change_input req = {0};
-	bool resc_reinit = false, fw_reset = false;
+	bool fw_reset = !bp->irq_tbl;
+	bool resc_reinit = false;
 	u32 flags = 0;
 	int rc;
 
@@ -9363,6 +9376,7 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 
 	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state) && !fw_reset) {
 		netdev_err(bp->dev, "RESET_DONE not set during FW reset.\n");
+		set_bit(BNXT_STATE_ABORT_ERR, &bp->state);
 		return -ENODEV;
 	}
 	if (resc_reinit || fw_reset) {
@@ -12887,10 +12901,10 @@ static pci_ers_result_t bnxt_io_error_detected(struct pci_dev *pdev,
  */
 static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 {
+	pci_ers_result_t result = PCI_ERS_RESULT_DISCONNECT;
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct bnxt *bp = netdev_priv(netdev);
 	int err = 0, off;
-	pci_ers_result_t result = PCI_ERS_RESULT_DISCONNECT;
 
 	netdev_info(bp->dev, "PCI Slot Reset\n");
 
@@ -12919,22 +12933,8 @@ static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 		pci_save_state(pdev);
 
 		err = bnxt_hwrm_func_reset(bp);
-		if (!err) {
-			err = bnxt_hwrm_func_qcaps(bp);
-			if (!err && netif_running(netdev))
-				err = bnxt_open(netdev);
-		}
-		bnxt_ulp_start(bp, err);
-		if (!err) {
-			bnxt_reenable_sriov(bp);
+		if (!err)
 			result = PCI_ERS_RESULT_RECOVERED;
-		}
-	}
-
-	if (result != PCI_ERS_RESULT_RECOVERED) {
-		if (netif_running(netdev))
-			dev_close(netdev);
-		pci_disable_device(pdev);
 	}
 
 	rtnl_unlock();
@@ -12952,10 +12952,21 @@ static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 static void bnxt_io_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct bnxt *bp = netdev_priv(netdev);
+	int err;
 
+	netdev_info(bp->dev, "PCI Slot Resume\n");
 	rtnl_lock();
 
-	netif_device_attach(netdev);
+	err = bnxt_hwrm_func_qcaps(bp);
+	if (!err && netif_running(netdev))
+		err = bnxt_open(netdev);
+
+	bnxt_ulp_start(bp, err);
+	if (!err) {
+		bnxt_reenable_sriov(bp);
+		netif_device_attach(netdev);
+	}
 
 	rtnl_unlock();
 }

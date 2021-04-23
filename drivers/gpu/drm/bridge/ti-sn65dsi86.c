@@ -724,9 +724,9 @@ static int ti_sn_link_training(struct ti_sn_bridge *pdata, int dp_rate_idx,
 		/* Semi auto link training mode */
 		regmap_write(pdata->regmap, SN_ML_TX_MODE_REG, 0x0A);
 		ret = regmap_read_poll_timeout(pdata->regmap, SN_ML_TX_MODE_REG, val,
-					val == ML_TX_MAIN_LINK_OFF ||
-					val == ML_TX_NORMAL_MODE, 1000,
-					500 * 1000);
+					       val == ML_TX_MAIN_LINK_OFF ||
+					       val == ML_TX_NORMAL_MODE, 1000,
+					       500 * 1000);
 		if (ret) {
 			*last_err_str = "Training complete polling failed";
 		} else if (val == ML_TX_MAIN_LINK_OFF) {
@@ -856,8 +856,7 @@ static void ti_sn_bridge_post_disable(struct drm_bridge *bridge)
 {
 	struct ti_sn_bridge *pdata = bridge_to_ti_sn_bridge(bridge);
 
-	if (pdata->refclk)
-		clk_disable_unprepare(pdata->refclk);
+	clk_disable_unprepare(pdata->refclk);
 
 	pm_runtime_put_sync(pdata->dev);
 }

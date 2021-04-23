@@ -30,6 +30,7 @@
 #define ENGINE_SAMPLE_BITS (1 << I915_PMU_SAMPLE_BITS)
 
 static cpumask_t i915_pmu_cpumask;
+static unsigned int i915_pmu_target_cpu = -1;
 
 static u8 engine_config_sample(u64 config)
 {
@@ -184,13 +185,24 @@ static u64 get_rc6(struct intel_gt *gt)
 	return val;
 }
 
+static void init_rc6(struct i915_pmu *pmu)
+{
+	struct drm_i915_private *i915 = container_of(pmu, typeof(*i915), pmu);
+	intel_wakeref_t wakeref;
+
+	with_intel_runtime_pm(i915->gt.uncore->rpm, wakeref) {
+		pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
+		pmu->sample[__I915_SAMPLE_RC6_LAST_REPORTED].cur =
+					pmu->sample[__I915_SAMPLE_RC6].cur;
+		pmu->sleep_last = ktime_get();
+	}
+}
+
 static void park_rc6(struct drm_i915_private *i915)
 {
 	struct i915_pmu *pmu = &i915->pmu;
 
-	if (pmu->enable & config_enabled_mask(I915_PMU_RC6_RESIDENCY))
-		pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
-
+	pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
 	pmu->sleep_last = ktime_get();
 }
 
@@ -201,6 +213,7 @@ static u64 get_rc6(struct intel_gt *gt)
 	return __get_rc6(gt);
 }
 
+static void init_rc6(struct i915_pmu *pmu) { }
 static void park_rc6(struct drm_i915_private *i915) {}
 
 #endif
@@ -445,6 +458,8 @@ static void i915_pmu_event_destroy(struct perf_event *event)
 		container_of(event->pmu, typeof(*i915), pmu.base);
 
 	drm_WARN_ON(&i915->drm, event->parent);
+
+	drm_dev_put(&i915->drm);
 }
 
 static int
@@ -485,6 +500,8 @@ config_status(struct drm_i915_private *i915, u64 config)
 		if (!HAS_RC6(i915))
 			return -ENODEV;
 		break;
+	case I915_PMU_SOFTWARE_GT_AWAKE_TIME:
+		break;
 	default:
 		return -ENOENT;
 	}
@@ -510,7 +527,11 @@ static int i915_pmu_event_init(struct perf_event *event)
 {
 	struct drm_i915_private *i915 =
 		container_of(event->pmu, typeof(*i915), pmu.base);
+	struct i915_pmu *pmu = &i915->pmu;
 	int ret;
+
+	if (pmu->closed)
+		return -ENODEV;
 
 	if (event->attr.type != event->pmu->type)
 		return -ENOENT;
@@ -536,8 +557,10 @@ static int i915_pmu_event_init(struct perf_event *event)
 	if (ret)
 		return ret;
 
-	if (!event->parent)
+	if (!event->parent) {
+		drm_dev_get(&i915->drm);
 		event->destroy = i915_pmu_event_destroy;
+	}
 
 	return 0;
 }
@@ -586,6 +609,9 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 		case I915_PMU_RC6_RESIDENCY:
 			val = get_rc6(&i915->gt);
 			break;
+		case I915_PMU_SOFTWARE_GT_AWAKE_TIME:
+			val = ktime_to_ns(intel_gt_get_awake_time(&i915->gt));
+			break;
 		}
 	}
 
@@ -594,9 +620,16 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 
 static void i915_pmu_event_read(struct perf_event *event)
 {
+	struct drm_i915_private *i915 =
+		container_of(event->pmu, typeof(*i915), pmu.base);
 	struct hw_perf_event *hwc = &event->hw;
+	struct i915_pmu *pmu = &i915->pmu;
 	u64 prev, new;
 
+	if (pmu->closed) {
+		event->hw.state = PERF_HES_STOPPED;
+		return;
+	}
 again:
 	prev = local64_read(&hwc->prev_count);
 	new = __i915_pmu_event_read(event);
@@ -613,10 +646,8 @@ static void i915_pmu_enable(struct perf_event *event)
 		container_of(event->pmu, typeof(*i915), pmu.base);
 	unsigned int bit = event_enabled_bit(event);
 	struct i915_pmu *pmu = &i915->pmu;
-	intel_wakeref_t wakeref;
 	unsigned long flags;
 
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 	spin_lock_irqsave(&pmu->lock, flags);
 
 	/*
@@ -626,13 +657,6 @@ static void i915_pmu_enable(struct perf_event *event)
 	BUILD_BUG_ON(ARRAY_SIZE(pmu->enable_count) != I915_PMU_MASK_BITS);
 	GEM_BUG_ON(bit >= ARRAY_SIZE(pmu->enable_count));
 	GEM_BUG_ON(pmu->enable_count[bit] == ~0);
-
-	if (pmu->enable_count[bit] == 0 &&
-	    config_enabled_mask(I915_PMU_RC6_RESIDENCY) & BIT_ULL(bit)) {
-		pmu->sample[__I915_SAMPLE_RC6_LAST_REPORTED].cur = 0;
-		pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
-		pmu->sleep_last = ktime_get();
-	}
 
 	pmu->enable |= BIT_ULL(bit);
 	pmu->enable_count[bit]++;
@@ -674,8 +698,6 @@ static void i915_pmu_enable(struct perf_event *event)
 	 * an existing non-zero value.
 	 */
 	local64_set(&event->hw.prev_count, __i915_pmu_event_read(event));
-
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
 
 static void i915_pmu_disable(struct perf_event *event)
@@ -724,6 +746,13 @@ static void i915_pmu_disable(struct perf_event *event)
 
 static void i915_pmu_event_start(struct perf_event *event, int flags)
 {
+	struct drm_i915_private *i915 =
+		container_of(event->pmu, typeof(*i915), pmu.base);
+	struct i915_pmu *pmu = &i915->pmu;
+
+	if (pmu->closed)
+		return;
+
 	i915_pmu_enable(event);
 	event->hw.state = 0;
 }
@@ -738,6 +767,13 @@ static void i915_pmu_event_stop(struct perf_event *event, int flags)
 
 static int i915_pmu_event_add(struct perf_event *event, int flags)
 {
+	struct drm_i915_private *i915 =
+		container_of(event->pmu, typeof(*i915), pmu.base);
+	struct i915_pmu *pmu = &i915->pmu;
+
+	if (pmu->closed)
+		return -ENODEV;
+
 	if (flags & PERF_EF_START)
 		i915_pmu_event_start(event, flags);
 
@@ -868,6 +904,7 @@ create_event_attributes(struct i915_pmu *pmu)
 		__event(I915_PMU_REQUESTED_FREQUENCY, "requested-frequency", "M"),
 		__event(I915_PMU_INTERRUPTS, "interrupts", NULL),
 		__event(I915_PMU_RC6_RESIDENCY, "rc6-residency", "ns"),
+		__event(I915_PMU_SOFTWARE_GT_AWAKE_TIME, "software-gt-awake-time", "ns"),
 	};
 	static const struct {
 		enum drm_i915_pmu_engine_sample sample;
@@ -1020,25 +1057,39 @@ static int i915_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
 static int i915_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)
 {
 	struct i915_pmu *pmu = hlist_entry_safe(node, typeof(*pmu), cpuhp.node);
-	unsigned int target;
+	unsigned int target = i915_pmu_target_cpu;
 
 	GEM_BUG_ON(!pmu->base.event_init);
 
+	/*
+	 * Unregistering an instance generates a CPU offline event which we must
+	 * ignore to avoid incorrectly modifying the shared i915_pmu_cpumask.
+	 */
+	if (pmu->closed)
+		return 0;
+
 	if (cpumask_test_and_clear_cpu(cpu, &i915_pmu_cpumask)) {
 		target = cpumask_any_but(topology_sibling_cpumask(cpu), cpu);
+
 		/* Migrate events if there is a valid target */
 		if (target < nr_cpu_ids) {
 			cpumask_set_cpu(target, &i915_pmu_cpumask);
-			perf_pmu_migrate_context(&pmu->base, cpu, target);
+			i915_pmu_target_cpu = target;
 		}
+	}
+
+	if (target < nr_cpu_ids && target != pmu->cpuhp.cpu) {
+		perf_pmu_migrate_context(&pmu->base, cpu, target);
+		pmu->cpuhp.cpu = target;
 	}
 
 	return 0;
 }
 
-static int i915_pmu_register_cpuhp_state(struct i915_pmu *pmu)
+static enum cpuhp_state cpuhp_slot = CPUHP_INVALID;
+
+void i915_pmu_init(void)
 {
-	enum cpuhp_state slot;
 	int ret;
 
 	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN,
@@ -1046,27 +1097,29 @@ static int i915_pmu_register_cpuhp_state(struct i915_pmu *pmu)
 				      i915_pmu_cpu_online,
 				      i915_pmu_cpu_offline);
 	if (ret < 0)
-		return ret;
+		pr_notice("Failed to setup cpuhp state for i915 PMU! (%d)\n",
+			  ret);
+	else
+		cpuhp_slot = ret;
+}
 
-	slot = ret;
-	ret = cpuhp_state_add_instance(slot, &pmu->cpuhp.node);
-	if (ret) {
-		cpuhp_remove_multi_state(slot);
-		return ret;
-	}
+void i915_pmu_exit(void)
+{
+	if (cpuhp_slot != CPUHP_INVALID)
+		cpuhp_remove_multi_state(cpuhp_slot);
+}
 
-	pmu->cpuhp.slot = slot;
-	return 0;
+static int i915_pmu_register_cpuhp_state(struct i915_pmu *pmu)
+{
+	if (cpuhp_slot == CPUHP_INVALID)
+		return -EINVAL;
+
+	return cpuhp_state_add_instance(cpuhp_slot, &pmu->cpuhp.node);
 }
 
 static void i915_pmu_unregister_cpuhp_state(struct i915_pmu *pmu)
 {
-	struct drm_i915_private *i915 = container_of(pmu, typeof(*i915), pmu);
-
-	drm_WARN_ON(&i915->drm, pmu->cpuhp.slot == CPUHP_INVALID);
-	drm_WARN_ON(&i915->drm, cpuhp_state_remove_instance(pmu->cpuhp.slot, &pmu->cpuhp.node));
-	cpuhp_remove_multi_state(pmu->cpuhp.slot);
-	pmu->cpuhp.slot = CPUHP_INVALID;
+	cpuhp_state_remove_instance(cpuhp_slot, &pmu->cpuhp.node);
 }
 
 static bool is_igp(struct drm_i915_private *i915)
@@ -1100,7 +1153,8 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	spin_lock_init(&pmu->lock);
 	hrtimer_init(&pmu->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pmu->timer.function = i915_sample;
-	pmu->cpuhp.slot = CPUHP_INVALID;
+	pmu->cpuhp.cpu = -1;
+	init_rc6(pmu);
 
 	if (!is_igp(i915)) {
 		pmu->name = kasprintf(GFP_KERNEL,
@@ -1167,7 +1221,13 @@ void i915_pmu_unregister(struct drm_i915_private *i915)
 	if (!pmu->base.event_init)
 		return;
 
-	drm_WARN_ON(&i915->drm, pmu->enable);
+	/*
+	 * "Disconnect" the PMU callbacks - since all are atomic synchronize_rcu
+	 * ensures all currently executing ones will have exited before we
+	 * proceed with unregistration.
+	 */
+	pmu->closed = true;
+	synchronize_rcu();
 
 	hrtimer_cancel(&pmu->timer);
 

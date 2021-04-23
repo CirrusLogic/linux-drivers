@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015 - 2018 DisplayLink (UK) Ltd.
+# Copyright (c) 2015 - 2019 DisplayLink (UK) Ltd.
 #
 # This file is subject to the terms and conditions of the GNU General Public
 # License v2. See the file COPYING in the main directory of this archive for
@@ -9,6 +9,9 @@
 config DRM_EVDI
 	tristate "Extensible Virtual Display Interface"
 	depends on DRM
+	depends on USB_SUPPORT
+	depends on USB_ARCH_HAS_HCD
+	select USB
 	select DRM_KMS_HELPER
 	help
 		This is a KMS interface driver allowing user-space programs to

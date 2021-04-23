@@ -2409,7 +2409,7 @@ static unsigned long kvm_mmu_zap_oldest_mmu_pages(struct kvm *kvm,
 		return 0;
 
 restart:
-	list_for_each_entry_safe(sp, tmp, &kvm->arch.active_mmu_pages, link) {
+	list_for_each_entry_safe_reverse(sp, tmp, &kvm->arch.active_mmu_pages, link) {
 		/*
 		 * Don't zap active root pages, the page itself can't be freed
 		 * and zapping it will just force vCPUs to realloc and reload.
@@ -3485,16 +3485,16 @@ static bool mmio_info_in_cache(struct kvm_vcpu *vcpu, u64 addr, bool direct)
  * Return the level of the lowest level SPTE added to sptes.
  * That SPTE may be non-present.
  */
-static int get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes)
+static int get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes, int *root_level)
 {
 	struct kvm_shadow_walk_iterator iterator;
-	int leaf = vcpu->arch.mmu->root_level;
+	int leaf = -1;
 	u64 spte;
-
 
 	walk_shadow_page_lockless_begin(vcpu);
 
-	for (shadow_walk_init(&iterator, vcpu, addr);
+	for (shadow_walk_init(&iterator, vcpu, addr),
+	     *root_level = iterator.level;
 	     shadow_walk_okay(&iterator);
 	     __shadow_walk_next(&iterator, spte)) {
 		leaf = iterator.level;
@@ -3504,7 +3504,6 @@ static int get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes)
 
 		if (!is_shadow_present_pte(spte))
 			break;
-
 	}
 
 	walk_shadow_page_lockless_end(vcpu);
@@ -3517,9 +3516,7 @@ static bool get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 {
 	u64 sptes[PT64_ROOT_MAX_LEVEL];
 	struct rsvd_bits_validate *rsvd_check;
-	int root = vcpu->arch.mmu->shadow_root_level;
-	int leaf;
-	int level;
+	int root, leaf, level;
 	bool reserved = false;
 
 	if (!VALID_PAGE(vcpu->arch.mmu->root_hpa)) {
@@ -3528,9 +3525,14 @@ static bool get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 	}
 
 	if (is_tdp_mmu_root(vcpu->kvm, vcpu->arch.mmu->root_hpa))
-		leaf = kvm_tdp_mmu_get_walk(vcpu, addr, sptes);
+		leaf = kvm_tdp_mmu_get_walk(vcpu, addr, sptes, &root);
 	else
-		leaf = get_walk(vcpu, addr, sptes);
+		leaf = get_walk(vcpu, addr, sptes, &root);
+
+	if (unlikely(leaf < 0)) {
+		*sptep = 0ull;
+		return reserved;
+	}
 
 	rsvd_check = &vcpu->arch.mmu->shadow_zero_check;
 
@@ -5970,6 +5972,7 @@ static void kvm_recover_nx_lpages(struct kvm *kvm)
 	struct kvm_mmu_page *sp;
 	unsigned int ratio;
 	LIST_HEAD(invalid_list);
+	bool flush = false;
 	ulong to_zap;
 
 	rcu_idx = srcu_read_lock(&kvm->srcu);
@@ -5990,20 +5993,20 @@ static void kvm_recover_nx_lpages(struct kvm *kvm)
 				      struct kvm_mmu_page,
 				      lpage_disallowed_link);
 		WARN_ON_ONCE(!sp->lpage_disallowed);
-		if (sp->tdp_mmu_page)
-			kvm_tdp_mmu_zap_gfn_range(kvm, sp->gfn,
-				sp->gfn + KVM_PAGES_PER_HPAGE(sp->role.level));
-		else {
+		if (sp->tdp_mmu_page) {
+			flush |= kvm_tdp_mmu_zap_sp(kvm, sp);
+		} else {
 			kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list);
 			WARN_ON_ONCE(sp->lpage_disallowed);
 		}
 
 		if (need_resched() || spin_needbreak(&kvm->mmu_lock)) {
-			kvm_mmu_commit_zap_page(kvm, &invalid_list);
+			kvm_mmu_remote_flush_or_zap(kvm, &invalid_list, flush);
 			cond_resched_lock(&kvm->mmu_lock);
+			flush = false;
 		}
 	}
-	kvm_mmu_commit_zap_page(kvm, &invalid_list);
+	kvm_mmu_remote_flush_or_zap(kvm, &invalid_list, flush);
 
 	spin_unlock(&kvm->mmu_lock);
 	srcu_read_unlock(&kvm->srcu, rcu_idx);

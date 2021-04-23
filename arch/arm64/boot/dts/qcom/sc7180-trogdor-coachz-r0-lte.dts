@@ -12,3 +12,7 @@
 	model = "Google CoachZ (rev0) with LTE";
 	compatible = "google,coachz-rev0-sku0", "qcom,sc7180";
 };
+
+&cros_ec_proximity {
+	label = "proximity-wifi-lte";
+};

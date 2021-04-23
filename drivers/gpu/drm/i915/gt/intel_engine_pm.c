@@ -17,6 +17,25 @@
 #include "intel_ring.h"
 #include "shmem_utils.h"
 
+static void dbg_poison_ce(struct intel_context *ce)
+{
+	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		return;
+
+	if (ce->state) {
+		struct drm_i915_gem_object *obj = ce->state->obj;
+		int type = i915_coherent_map_type(ce->engine->i915);
+		void *map;
+
+		map = i915_gem_object_pin_map(obj, type);
+		if (!IS_ERR(map)) {
+			memset(map, CONTEXT_REDZONE, obj->base.size);
+			i915_gem_object_flush_map(obj);
+			i915_gem_object_unpin_map(obj);
+		}
+	}
+}
+
 static int __engine_unpark(struct intel_wakeref *wf)
 {
 	struct intel_engine_cs *engine =
@@ -32,26 +51,28 @@ static int __engine_unpark(struct intel_wakeref *wf)
 	if (ce) {
 		GEM_BUG_ON(test_bit(CONTEXT_VALID_BIT, &ce->flags));
 
+		/* Flush all pending HW writes before we touch the context */
+		while (unlikely(intel_context_inflight(ce)))
+			intel_engine_flush_submission(engine);
+
 		/* First poison the image to verify we never fully trust it */
-		if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM) && ce->state) {
-			struct drm_i915_gem_object *obj = ce->state->obj;
-			int type = i915_coherent_map_type(engine->i915);
-			void *map;
+		dbg_poison_ce(ce);
 
-			map = i915_gem_object_pin_map(obj, type);
-			if (!IS_ERR(map)) {
-				memset(map, CONTEXT_REDZONE, obj->base.size);
-				i915_gem_object_flush_map(obj);
-				i915_gem_object_unpin_map(obj);
-			}
-		}
-
+		/* Scrub the context image after our loss of control */
 		ce->ops->reset(ce);
+
+		CE_TRACE(ce, "reset { seqno:%x, *hwsp:%x, ring:%x }\n",
+			 ce->timeline->seqno,
+			 READ_ONCE(*ce->timeline->hwsp_seqno),
+			 ce->ring->emit);
+		GEM_BUG_ON(ce->timeline->seqno !=
+			   READ_ONCE(*ce->timeline->hwsp_seqno));
 	}
 
 	if (engine->unpark)
 		engine->unpark(engine);
 
+	intel_breadcrumbs_unpark(engine->breadcrumbs);
 	intel_engine_unpark_heartbeat(engine);
 	return 0;
 }
@@ -123,7 +144,7 @@ __queue_and_release_pm(struct i915_request *rq,
 		list_add_tail(&tl->link, &timelines->active_list);
 
 	/* Hand the request over to HW and so engine_retire() */
-	__i915_request_queue(rq, NULL);
+	__i915_request_queue_bh(rq);
 
 	/* Let new submissions commence (and maybe retire this timeline) */
 	__intel_wakeref_defer_park(&engine->wakeref);

@@ -798,8 +798,6 @@ destroy_decompress_ctx:
 	if (cops->destroy_decompress_ctx)
 		cops->destroy_decompress_ctx(dic);
 out_free_dic:
-	if (verity)
-		atomic_set(&dic->pending_pages, dic->nr_cpages);
 	if (!verity)
 		f2fs_decompress_end_io(dic->rpages, dic->cluster_size,
 								ret, false);
@@ -1395,7 +1393,7 @@ retry_write:
 
 		ret = f2fs_write_single_data_page(cc->rpages[i], &_submitted,
 						NULL, NULL, wbc, io_type,
-						compr_blocks);
+						compr_blocks, false);
 		if (ret) {
 			if (ret == AOP_WRITEPAGE_ACTIVATE) {
 				unlock_page(cc->rpages[i]);
@@ -1430,6 +1428,9 @@ retry_write:
 
 		*submitted += _submitted;
 	}
+
+	f2fs_balance_fs(F2FS_M_SB(mapping), true);
+
 	return 0;
 out_err:
 	for (++i; i < cc->cluster_size; i++) {

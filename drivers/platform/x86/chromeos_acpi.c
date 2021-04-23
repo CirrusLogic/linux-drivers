@@ -256,7 +256,7 @@ static ssize_t show_acpi_attribute(struct device *dev,
 	struct acpi_attribute *paa;
 
 	paa = container_of(attr, struct acpi_attribute, dev_attr);
-	return snprintf(buf, PAGE_SIZE, paa->value);
+	return snprintf(buf, PAGE_SIZE, "%s", paa->value);
 }
 
 /*

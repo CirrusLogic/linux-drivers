@@ -953,6 +953,8 @@ int rt5682_headset_detect(struct snd_soc_component *component, int jack_insert)
 		case 0x1:
 		case 0x2:
 			rt5682->jack_type = SND_JACK_HEADSET;
+			snd_soc_component_update_bits(component, RT5682_CBJ_CTRL_1,
+				RT5682_FAST_OFF_MASK, RT5682_FAST_OFF_EN);
 			rt5682_enable_push_button_irq(component, true);
 			break;
 		default:
@@ -982,6 +984,8 @@ int rt5682_headset_detect(struct snd_soc_component *component, int jack_insert)
 		snd_soc_component_update_bits(component, RT5682_MICBIAS_2,
 			RT5682_PWR_CLK25M_MASK | RT5682_PWR_CLK1M_MASK,
 			RT5682_PWR_CLK25M_PD | RT5682_PWR_CLK1M_PD);
+		snd_soc_component_update_bits(component, RT5682_CBJ_CTRL_1,
+			RT5682_FAST_OFF_MASK, RT5682_FAST_OFF_DIS);
 
 		rt5682->jack_type = 0;
 	}
@@ -1012,10 +1016,12 @@ static int rt5682_set_jack_detect(struct snd_soc_component *component,
 		switch (rt5682->pdata.jd_src) {
 		case RT5682_JD1:
 			snd_soc_component_update_bits(component,
+				RT5682_CBJ_CTRL_5, 0x0700, 0x0600);
+			snd_soc_component_update_bits(component,
 				RT5682_CBJ_CTRL_2, RT5682_EXT_JD_SRC,
 				RT5682_EXT_JD_SRC_MANUAL);
 			snd_soc_component_write(component, RT5682_CBJ_CTRL_1,
-				0xd042);
+				0xd142);
 			snd_soc_component_update_bits(component,
 				RT5682_CBJ_CTRL_3, RT5682_CBJ_IN_BUF_EN,
 				RT5682_CBJ_IN_BUF_EN);
@@ -1088,6 +1094,7 @@ void rt5682_jack_detect_handler(struct work_struct *work)
 			/* jack was out, report jack type */
 			rt5682->jack_type =
 				rt5682_headset_detect(rt5682->component, 1);
+			rt5682->irq_work_delay_time = 0;
 		} else if ((rt5682->jack_type & SND_JACK_HEADSET) ==
 			SND_JACK_HEADSET) {
 			/* jack is already in, report button event */
@@ -1133,6 +1140,7 @@ void rt5682_jack_detect_handler(struct work_struct *work)
 	} else {
 		/* jack out */
 		rt5682->jack_type = rt5682_headset_detect(rt5682->component, 0);
+		rt5682->irq_work_delay_time = 50;
 	}
 
 	snd_soc_jack_report(rt5682->hs_jack, rt5682->jack_type,

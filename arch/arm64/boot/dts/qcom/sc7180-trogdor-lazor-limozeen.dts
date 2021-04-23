@@ -34,7 +34,7 @@
 };
 
 &panel {
-	compatible = "boe,nv116whm-t01";
+	compatible = "auo,b116xa01";
 };
 
 &sdhc_2 {

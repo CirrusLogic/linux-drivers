@@ -52,6 +52,7 @@ static int virtio_gpu_features(struct seq_file *m, void *data)
 	virtio_add_bool(m, "blob resources", vgdev->has_resource_blob);
 	virtio_add_int(m, "cap sets", vgdev->num_capsets);
 	virtio_add_int(m, "scanouts", vgdev->num_scanouts);
+	virtio_add_bool(m, "context init", vgdev->has_context_init);
 	if (vgdev->host_visible_region.len) {
 		seq_printf(m, "%-16s : 0x%lx +0x%lx\n", "host visible region",
 			   (unsigned long)vgdev->host_visible_region.addr,
@@ -67,8 +68,8 @@ virtio_gpu_debugfs_irq_info(struct seq_file *m, void *data)
 	struct virtio_gpu_device *vgdev = node->minor->dev->dev_private;
 
 	seq_printf(m, "fence %llu %lld\n",
-		   (u64)atomic64_read(&vgdev->fence_drv.last_seq),
-		   vgdev->fence_drv.sync_seq);
+		   (u64)atomic64_read(&vgdev->fence_drv.last_fence_id),
+		   vgdev->fence_drv.current_fence_id);
 	return 0;
 }
 

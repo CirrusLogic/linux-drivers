@@ -33,12 +33,14 @@
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
 #include "intel_engine_user.h"
+#include "intel_execlists_submission.h"
 #include "intel_gt.h"
 #include "intel_gt_requests.h"
 #include "intel_gt_pm.h"
-#include "intel_lrc.h"
+#include "intel_lrc_reg.h"
 #include "intel_reset.h"
 #include "intel_ring.h"
+#include "uc/intel_guc_submission.h"
 
 /* Haswell does have the CXT_SIZE register however it does not appear to be
  * valid. Now, docs explain in dwords what is in the context object. The full
@@ -305,8 +307,9 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	engine->i915 = i915;
 	engine->gt = gt;
 	engine->uncore = gt->uncore;
-	engine->hw_id = engine->guc_id = info->hw_id;
 	engine->mmio_base = __engine_mmio_base(i915, info->mmio_bases);
+	engine->hw_id = info->hw_id;
+	engine->guc_id = MAKE_GUC_ID(info->class, info->instance);
 
 	engine->class = info->class;
 	engine->instance = info->instance;
@@ -646,6 +649,8 @@ static int init_status_page(struct intel_engine_cs *engine)
 	void *vaddr;
 	int ret;
 
+	INIT_LIST_HEAD(&engine->status_page.timelines);
+
 	/*
 	 * Though the HWS register does support 36bit addresses, historically
 	 * we have had hangs and corruption reported due to wild writes if
@@ -708,9 +713,12 @@ static int engine_setup_common(struct intel_engine_cs *engine)
 		goto err_status;
 	}
 
+	err = intel_engine_init_cmd_parser(engine);
+	if (err)
+		goto err_cmd_parser;
+
 	intel_engine_init_active(engine, ENGINE_PHYSICAL);
 	intel_engine_init_execlists(engine);
-	intel_engine_init_cmd_parser(engine);
 	intel_engine_init__pm(engine);
 	intel_engine_init_retire(engine);
 
@@ -722,8 +730,13 @@ static int engine_setup_common(struct intel_engine_cs *engine)
 	intel_engine_init_whitelist(engine);
 	intel_engine_init_ctx_wa(engine);
 
+	if (INTEL_GEN(engine->i915) >= 12)
+		engine->flags |= I915_ENGINE_HAS_RELATIVE_MMIO;
+
 	return 0;
 
+err_cmd_parser:
+	intel_breadcrumbs_free(engine->breadcrumbs);
 err_status:
 	cleanup_status_page(engine);
 	return err;
@@ -828,6 +841,21 @@ create_pinned_context(struct intel_engine_cs *engine,
 	return ce;
 }
 
+static void destroy_pinned_context(struct intel_context *ce)
+{
+	struct intel_engine_cs *engine = ce->engine;
+	struct i915_vma *hwsp = engine->status_page.vma;
+
+	GEM_BUG_ON(ce->timeline->hwsp_ggtt != hwsp);
+
+	mutex_lock(&hwsp->vm->mutex);
+	list_del(&ce->timeline->engine_link);
+	mutex_unlock(&hwsp->vm->mutex);
+
+	intel_context_unpin(ce);
+	intel_context_put(ce);
+}
+
 static struct intel_context *
 create_kernel_context(struct intel_engine_cs *engine)
 {
@@ -888,7 +916,9 @@ int intel_engines_init(struct intel_gt *gt)
 	enum intel_engine_id id;
 	int err;
 
-	if (HAS_EXECLISTS(gt->i915))
+	if (intel_uc_uses_guc_submission(&gt->uc))
+		setup = intel_guc_submission_setup;
+	else if (HAS_EXECLISTS(gt->i915))
 		setup = intel_execlists_submission_setup;
 	else
 		setup = intel_ring_submission_setup;
@@ -924,7 +954,6 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	GEM_BUG_ON(!list_empty(&engine->active.requests));
 	tasklet_kill(&engine->execlists.tasklet); /* flush the callback */
 
-	cleanup_status_page(engine);
 	intel_breadcrumbs_free(engine->breadcrumbs);
 
 	intel_engine_fini_retire(engine);
@@ -933,11 +962,11 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	if (engine->default_state)
 		fput(engine->default_state);
 
-	if (engine->kernel_context) {
-		intel_context_unpin(engine->kernel_context);
-		intel_context_put(engine->kernel_context);
-	}
+	if (engine->kernel_context)
+		destroy_pinned_context(engine->kernel_context);
+
 	GEM_BUG_ON(!llist_empty(&engine->barrier_tasks));
+	cleanup_status_page(engine);
 
 	intel_wa_list_free(&engine->ctx_wa_list);
 	intel_wa_list_free(&engine->wa_list);
@@ -1001,31 +1030,38 @@ static unsigned long stop_timeout(const struct intel_engine_cs *engine)
 	return READ_ONCE(engine->props.stop_timeout_ms);
 }
 
-int intel_engine_stop_cs(struct intel_engine_cs *engine)
+static int __intel_engine_stop_cs(struct intel_engine_cs *engine,
+				  int fast_timeout_us,
+				  int slow_timeout_ms)
 {
 	struct intel_uncore *uncore = engine->uncore;
-	const u32 base = engine->mmio_base;
-	const i915_reg_t mode = RING_MI_MODE(base);
+	const i915_reg_t mode = RING_MI_MODE(engine->mmio_base);
 	int err;
+
+	intel_uncore_write_fw(uncore, mode, _MASKED_BIT_ENABLE(STOP_RING));
+	err = __intel_wait_for_register_fw(engine->uncore, mode,
+					   MODE_IDLE, MODE_IDLE,
+					   fast_timeout_us,
+					   slow_timeout_ms,
+					   NULL);
+
+	/* A final mmio read to let GPU writes be hopefully flushed to memory */
+	intel_uncore_posting_read_fw(uncore, mode);
+	return err;
+}
+
+int intel_engine_stop_cs(struct intel_engine_cs *engine)
+{
+	int err = 0;
 
 	if (INTEL_GEN(engine->i915) < 3)
 		return -ENODEV;
 
 	ENGINE_TRACE(engine, "\n");
-
-	intel_uncore_write_fw(uncore, mode, _MASKED_BIT_ENABLE(STOP_RING));
-
-	err = 0;
-	if (__intel_wait_for_register_fw(uncore,
-					 mode, MODE_IDLE, MODE_IDLE,
-					 1000, stop_timeout(engine),
-					 NULL)) {
+	if (__intel_engine_stop_cs(engine, 1000, stop_timeout(engine))) {
 		ENGINE_TRACE(engine, "timed out on STOP_RING -> IDLE\n");
 		err = -ETIMEDOUT;
 	}
-
-	/* A final mmio read to let GPU writes be hopefully flushed to memory */
-	intel_uncore_posting_read_fw(uncore, mode);
 
 	return err;
 }
@@ -1272,8 +1308,12 @@ void intel_engines_reset_default_submission(struct intel_gt *gt)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, gt, id)
+	for_each_engine(engine, gt, id) {
+		if (engine->sanitize)
+			engine->sanitize(engine);
+
 		engine->set_default_submission(engine);
+	}
 }
 
 bool intel_engine_can_store_dword(struct intel_engine_cs *engine)
@@ -1291,44 +1331,6 @@ bool intel_engine_can_store_dword(struct intel_engine_cs *engine)
 	default:
 		return true;
 	}
-}
-
-static int print_sched_attr(const struct i915_sched_attr *attr,
-			    char *buf, int x, int len)
-{
-	if (attr->priority == I915_PRIORITY_INVALID)
-		return x;
-
-	x += snprintf(buf + x, len - x,
-		      " prio=%d", attr->priority);
-
-	return x;
-}
-
-static void print_request(struct drm_printer *m,
-			  struct i915_request *rq,
-			  const char *prefix)
-{
-	const char *name = rq->fence.ops->get_timeline_name(&rq->fence);
-	char buf[80] = "";
-	int x = 0;
-
-	x = print_sched_attr(&rq->sched.attr, buf, x, sizeof(buf));
-
-	drm_printf(m, "%s %llx:%llx%s%s %s @ %dms: %s\n",
-		   prefix,
-		   rq->fence.context, rq->fence.seqno,
-		   i915_request_completed(rq) ? "!" :
-		   i915_request_started(rq) ? "*" :
-		   "",
-		   test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
-			    &rq->fence.flags) ? "+" :
-		   test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
-			    &rq->fence.flags) ? "-" :
-		   "",
-		   buf,
-		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
-		   name);
 }
 
 static struct intel_timeline *get_timeline(struct i915_request *rq)
@@ -1479,7 +1481,9 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 		drm_printf(m, "\tIPEHR: 0x%08x\n", ENGINE_READ(engine, IPEHR));
 	}
 
-	if (HAS_EXECLISTS(dev_priv)) {
+	if (intel_engine_in_guc_submission_mode(engine)) {
+		/* nothing to print yet */
+	} else if (HAS_EXECLISTS(dev_priv)) {
 		struct i915_request * const *port, *rq;
 		const u32 *hws =
 			&engine->status_page.addr[I915_HWS_CSB_BUF0_INDEX];
@@ -1528,7 +1532,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 					intel_context_is_banned(rq->context) ? "*" : "");
 			len += print_ring(hdr + len, sizeof(hdr) - len, rq);
 			scnprintf(hdr + len, sizeof(hdr) - len, "rq: ");
-			print_request(m, rq, hdr);
+			i915_request_show(m, rq, hdr, 0);
 		}
 		for (port = execlists->pending; (rq = *port); port++) {
 			char hdr[160];
@@ -1542,7 +1546,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 					intel_context_is_banned(rq->context) ? "*" : "");
 			len += print_ring(hdr + len, sizeof(hdr) - len, rq);
 			scnprintf(hdr + len, sizeof(hdr) - len, "rq: ");
-			print_request(m, rq, hdr);
+			i915_request_show(m, rq, hdr, 0);
 		}
 		rcu_read_unlock();
 		execlists_active_unlock_bh(execlists);
@@ -1600,6 +1604,41 @@ static unsigned long list_count(struct list_head *list)
 	return count;
 }
 
+static unsigned long read_ul(void *p, size_t x)
+{
+	return *(unsigned long *)(p + x);
+}
+
+static void print_properties(struct intel_engine_cs *engine,
+			     struct drm_printer *m)
+{
+	static const struct pmap {
+		size_t offset;
+		const char *name;
+	} props[] = {
+#define P(x) { \
+	.offset = offsetof(typeof(engine->props), x), \
+	.name = #x \
+}
+		P(heartbeat_interval_ms),
+		P(max_busywait_duration_ns),
+		P(preempt_timeout_ms),
+		P(stop_timeout_ms),
+		P(timeslice_duration_ms),
+
+		{},
+#undef P
+	};
+	const struct pmap *p;
+
+	drm_printf(m, "\tProperties:\n");
+	for (p = props; p->name; p++)
+		drm_printf(m, "\t\t%s: %lu [default %lu]\n",
+			   p->name,
+			   read_ul(&engine->props, p->offset),
+			   read_ul(&engine->defaults, p->offset));
+}
+
 void intel_engine_dump(struct intel_engine_cs *engine,
 		       struct drm_printer *m,
 		       const char *header, ...)
@@ -1642,6 +1681,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	drm_printf(m, "\tReset count: %d (global %d)\n",
 		   i915_reset_engine_count(error, engine),
 		   i915_reset_count(error));
+	print_properties(engine, m);
 
 	drm_printf(m, "\tRequests:\n");
 
@@ -1650,7 +1690,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	if (rq) {
 		struct intel_timeline *tl = get_timeline(rq);
 
-		print_request(m, rq, "\t\tactive ");
+		i915_request_show(m, rq, "\t\tactive ", 0);
 
 		drm_printf(m, "\t\tring->start:  0x%08x\n",
 			   i915_ggtt_offset(rq->ring->vma));
@@ -1688,7 +1728,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		drm_printf(m, "\tDevice is asleep; skipping register dump\n");
 	}
 
-	intel_execlists_show_requests(engine, m, print_request, 8);
+	intel_execlists_show_requests(engine, m, i915_request_show, 8);
 
 	drm_printf(m, "HWSP:\n");
 	hexdump(m, engine->status_page.addr, PAGE_SIZE);

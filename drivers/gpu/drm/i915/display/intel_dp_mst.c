@@ -23,6 +23,7 @@
  *
  */
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_probe_helper.h>
@@ -68,7 +69,9 @@ static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 
 		slots = drm_dp_atomic_find_vcpi_slots(state, &intel_dp->mst_mgr,
 						      connector->port,
-						      crtc_state->pbn, 0);
+						      crtc_state->pbn,
+						      drm_dp_get_vc_payload_bw(crtc_state->port_clock,
+									       crtc_state->lane_count));
 		if (slots == -EDEADLK)
 			return slots;
 		if (slots >= 0)
@@ -130,7 +133,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	limits.min_lane_count =
 	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
 
-	limits.min_bpp = intel_dp_min_bpp(pipe_config);
+	limits.min_bpp = intel_dp_min_bpp(pipe_config->output_format);
 	/*
 	 * FIXME: If all the streams can't fit into the link with
 	 * their current pipe_bpp we should reduce pipe_bpp across
@@ -492,7 +495,7 @@ static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
 		    intel_dp->active_mst_links);
 
 	if (first_mst_stream)
-		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
+		intel_dp_set_power(intel_dp, DP_SET_POWER_D0);
 
 	drm_dp_send_power_updown_phy(&intel_dp->mst_mgr, connector->port, true);
 
@@ -589,6 +592,15 @@ static void intel_dp_mst_enc_get_config(struct intel_encoder *encoder,
 	struct intel_digital_port *dig_port = intel_mst->primary;
 
 	intel_ddi_get_config(&dig_port->base, pipe_config);
+}
+
+static bool intel_dp_mst_initial_fastset_check(struct intel_encoder *encoder,
+					       struct intel_crtc_state *crtc_state)
+{
+	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(encoder);
+	struct intel_digital_port *dig_port = intel_mst->primary;
+
+	return intel_dp_initial_fastset_check(&dig_port->base, crtc_state);
 }
 
 static int intel_dp_mst_get_ddc_modes(struct drm_connector *connector)
@@ -705,16 +717,18 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 		return 0;
 	}
 
-	*status = intel_mode_valid_max_plane_size(dev_priv, mode);
+	*status = intel_mode_valid_max_plane_size(dev_priv, mode, false);
 	return 0;
 }
 
 static struct drm_encoder *intel_mst_atomic_best_encoder(struct drm_connector *connector,
-							 struct drm_connector_state *state)
+							 struct drm_atomic_state *state)
 {
+	struct drm_connector_state *connector_state = drm_atomic_get_new_connector_state(state,
+											 connector);
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct intel_dp *intel_dp = intel_connector->mst_port;
-	struct intel_crtc *crtc = to_intel_crtc(state->crtc);
+	struct intel_crtc *crtc = to_intel_crtc(connector_state->crtc);
 
 	return &intel_dp->mst_encoders[crtc->pipe]->base.base;
 }
@@ -897,6 +911,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *dig_port, enum pipe 
 	intel_encoder->enable = intel_mst_enable_dp;
 	intel_encoder->get_hw_state = intel_dp_mst_enc_get_hw_state;
 	intel_encoder->get_config = intel_dp_mst_enc_get_config;
+	intel_encoder->initial_fastset_check = intel_dp_mst_initial_fastset_check;
 
 	return intel_mst;
 

@@ -32,6 +32,7 @@
 #include "gen6_ppgtt.h"
 #include "gen7_renderclear.h"
 #include "i915_drv.h"
+#include "i915_mitigations.h"
 #include "intel_breadcrumbs.h"
 #include "intel_context.h"
 #include "intel_gt.h"
@@ -321,6 +322,39 @@ out:
 	return ret;
 }
 
+static void sanitize_hwsp(struct intel_engine_cs *engine)
+{
+	struct intel_timeline *tl;
+
+	list_for_each_entry(tl, &engine->status_page.timelines, engine_link)
+		intel_timeline_reset_seqno(tl);
+}
+
+static void xcs_sanitize(struct intel_engine_cs *engine)
+{
+	/*
+	 * Poison residual state on resume, in case the suspend didn't!
+	 *
+	 * We have to assume that across suspend/resume (or other loss
+	 * of control) that the contents of our pinned buffers has been
+	 * lost, replaced by garbage. Since this doesn't always happen,
+	 * let's poison such state so that we more quickly spot when
+	 * we falsely assume it has been preserved.
+	 */
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		memset(engine->status_page.addr, POISON_INUSE, PAGE_SIZE);
+
+	/*
+	 * The kernel_context HWSP is stored in the status_page. As above,
+	 * that may be lost on resume/initialisation, and so we need to
+	 * reset the value in the HWSP.
+	 */
+	sanitize_hwsp(engine);
+
+	/* And scrub the dirty cachelines for the HWSP */
+	clflush_cache_range(engine->status_page.addr, PAGE_SIZE);
+}
+
 static void reset_prepare(struct intel_engine_cs *engine)
 {
 	struct intel_uncore *uncore = engine->uncore;
@@ -444,6 +478,7 @@ static void reset_cancel(struct intel_engine_cs *engine)
 		i915_request_set_error_once(request, -EIO);
 		i915_request_mark_complete(request);
 	}
+	intel_engine_signal_breadcrumbs(engine);
 
 	/* Remaining _unready_ requests will be nop'ed when submitted */
 
@@ -885,7 +920,8 @@ static int switch_context(struct i915_request *rq)
 	GEM_BUG_ON(HAS_EXECLISTS(engine->i915));
 
 	if (engine->wa_ctx.vma && ce != engine->kernel_context) {
-		if (engine->wa_ctx.vma->private != ce) {
+		if (engine->wa_ctx.vma->private != ce &&
+		    i915_mitigate_clear_residuals()) {
 			ret = clear_residuals(rq);
 			if (ret)
 				return ret;
@@ -1068,6 +1104,8 @@ static void setup_common(struct intel_engine_cs *engine)
 	setup_irq(engine);
 
 	engine->resume = xcs_resume;
+	engine->sanitize = xcs_sanitize;
+
 	engine->reset.prepare = reset_prepare;
 	engine->reset.rewind = reset_rewind;
 	engine->reset.cancel = reset_cancel;
@@ -1289,7 +1327,7 @@ int intel_ring_submission_setup(struct intel_engine_cs *engine)
 
 	GEM_BUG_ON(timeline->hwsp_ggtt != engine->status_page.vma);
 
-	if (IS_HASWELL(engine->i915) && engine->class == RENDER_CLASS) {
+	if (IS_GEN(engine->i915, 7) && engine->class == RENDER_CLASS) {
 		err = gen7_ctx_switch_bb_init(engine);
 		if (err)
 			goto err_ring_unpin;
