@@ -19,6 +19,40 @@
 #include "mali_kbase_config_platform.h"
 #include <mali_kbase_defs.h>
 
+
+/* Definition for PMIC regulators */
+#define VSRAM_GPU_MAX_VOLT (925000)	/* uV */
+#define VSRAM_GPU_MIN_VOLT (850000) /* uV */
+#define VGPU_MAX_VOLT (825000)	/* uV */
+#define VGPU_MIN_VOLT (625000)	/* uV */
+
+#define MIN_VOLT_BIAS (100000) /* uV */
+#define MAX_VOLT_BIAS (250000) /* uV */
+#define VOLT_TOL (125) /* uV */
+
+/**
+ * Maximum frequency GPU will be clocked at. Given in kHz.
+ * This must be specified as there is no default value.
+ *
+ * Attached value: number in kHz
+ * Default value: NA
+ */
+#define GPU_FREQ_KHZ_MAX (800000)
+/**
+ * Minimum frequency GPU will be clocked at. Given in kHz.
+ * This must be specified as there is no default value.
+ *
+ * Attached value: number in kHz
+ * Default value: NA
+ */
+#define GPU_FREQ_KHZ_MIN (300000)
+/**
+ * Autosuspend delay
+ *
+ * The delay time (in milliseconds) to be used for autosuspend
+ */
+#define AUTO_SUSPEND_DELAY (100)
+
 static struct platform_device *probe_gpu_core1_dev;
 static struct platform_device *probe_gpu_core2_dev;
 
@@ -63,6 +97,17 @@ static struct platform_driver mtk_gpu_corex_driver = {
 		.name = "gpu_corex",
 		.of_match_table = mtk_gpu_corex_of_ids,
 	}
+};
+
+struct mfg_base {
+	struct clk *clk_mux;
+	struct clk *clk_main_parent;
+	struct clk *clk_sub_parent;
+	struct clk *subsys_mfg_cg;
+	struct platform_device *gpu_core1_dev;
+	struct platform_device *gpu_core2_dev;
+	bool is_powered;
+	bool reg_is_powered;
 };
 
 static int pm_callback_power_on(struct kbase_device *kbdev)
@@ -260,7 +305,7 @@ static void pm_callback_suspend(struct kbase_device *kbdev)
 	pm_callback_runtime_off(kbdev);
 }
 
-struct kbase_pm_callback_conf pm_callbacks = {
+struct kbase_pm_callback_conf mt8183_pm_callbacks = {
 	.power_on_callback = pm_callback_power_on,
 	.power_off_callback = pm_callback_power_off,
 	.power_suspend_callback = pm_callback_suspend,
@@ -279,7 +324,7 @@ struct kbase_pm_callback_conf pm_callbacks = {
 };
 
 
-int mali_mfgsys_init(struct kbase_device *kbdev, struct mfg_base *mfg)
+static int mali_mfgsys_init(struct kbase_device *kbdev, struct mfg_base *mfg)
 {
 	int err = 0, i;
 	unsigned long volt;
@@ -538,7 +583,7 @@ static void platform_term(struct kbase_device *kbdev)
 	pm_runtime_disable(kbdev->dev);
 }
 
-struct kbase_platform_funcs_conf platform_funcs = {
+struct kbase_platform_funcs_conf mt8183_platform_funcs = {
 	.platform_init_func = platform_init,
 	.platform_term_func = platform_term
 };

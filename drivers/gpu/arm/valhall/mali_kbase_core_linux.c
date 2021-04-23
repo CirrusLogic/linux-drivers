@@ -4103,6 +4103,11 @@ int kbase_backend_devfreq_init(struct kbase_device *kbdev)
 	return 0;
 }
 
+static const struct kbase_mali_platform_functions default_data = {
+	.pm_callbacks = POWER_MANAGEMENT_CALLBACKS,
+	.platform_funcs = PLATFORM_FUNCS,
+};
+
 static int kbase_platform_device_probe(struct platform_device *pdev)
 {
 	struct kbase_device *kbdev;
@@ -4118,6 +4123,12 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 
 	kbdev->dev = &pdev->dev;
 	dev_set_drvdata(kbdev->dev, kbdev);
+
+	kbdev->funcs = (struct kbase_mali_platform_functions *)
+				of_device_get_match_data(kbdev->dev);
+	if (!kbdev->funcs)
+		kbdev->funcs = (struct kbase_mali_platform_functions *)
+					&default_data;
 
 	err = kbase_device_init(kbdev);
 
@@ -4320,17 +4331,6 @@ static const struct dev_pm_ops kbase_pm_ops = {
 	.runtime_idle = kbase_device_runtime_idle,
 #endif /* KBASE_PM_RUNTIME */
 };
-
-#ifdef CONFIG_OF
-static const struct of_device_id kbase_dt_ids[] = {
-	{ .compatible = "arm,malit6xx" },
-	{ .compatible = "arm,mali-midgard" },
-	{ .compatible = "arm,mali-bifrost" },
-	{ .compatible = "arm,mali-valhall" },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, kbase_dt_ids);
-#endif
 
 static struct platform_driver kbase_platform_driver = {
 	.probe = kbase_platform_device_probe,

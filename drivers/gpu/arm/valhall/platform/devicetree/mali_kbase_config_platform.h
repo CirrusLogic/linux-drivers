@@ -44,3 +44,5 @@ extern struct kbase_pm_callback_conf pm_callbacks;
  * The delay time (in milliseconds) to be used for autosuspend
  */
 #define AUTO_SUSPEND_DELAY (100)
+
+extern const struct of_device_id kbase_dt_ids[];

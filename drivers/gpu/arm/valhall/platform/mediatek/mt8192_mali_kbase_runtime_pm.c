@@ -20,6 +20,48 @@
 #include "mali_kbase_config_platform.h"
 #include <mali_kbase_defs.h>
 
+
+/* Definition for PMIC regulators */
+#define VSRAM_GPU_MAX_VOLT (843750)	/* uV */
+#define VSRAM_GPU_MIN_VOLT (750000)	/* uV */
+#define VGPU_MAX_VOLT (843750)	/* uV */
+#define VGPU_MIN_VOLT (562500)	/* uV */
+
+#define MIN_VOLT_BIAS (0)	/* uV */
+#define MAX_VOLT_BIAS (250000)	/* uV */
+#define VOLT_TOL (125)	/* uV */
+
+#define GPU_CORE_NUM 5
+
+/* Definition for MFG registers */
+#define MFG_QCHANNEL_CON 0xb4
+#define MFG_DEBUG_SEL 0x170
+#define MFG_DEBUG_TOP 0x178
+#define BUS_IDLE_BIT 0x4
+
+/**
+ * Maximum frequency GPU will be clocked at. Given in kHz.
+ * This must be specified as there is no default value.
+ *
+ * Attached value: number in kHz
+ * Default value: NA
+ */
+#define GPU_FREQ_KHZ_MAX (950000)
+/**
+ * Minimum frequency GPU will be clocked at. Given in kHz.
+ * This must be specified as there is no default value.
+ *
+ * Attached value: number in kHz
+ * Default value: NA
+ */
+#define GPU_FREQ_KHZ_MIN (358000)
+/**
+ * Autosuspend delay
+ *
+ * The delay time (in milliseconds) to be used for autosuspend
+ */
+#define AUTO_SUSPEND_DELAY (100)
+
 enum gpu_clk_idx {main, sub, mux, cg};
 /* list of clocks required by GPU */
 static const char * const gpu_clocks[] = {
@@ -110,6 +152,13 @@ err:
 	pm_domain_term(kbdev);
 	return err;
 }
+
+struct mfg_base {
+	struct clk_bulk_data *clks;
+	int num_clks;
+	void __iomem *g_mfg_base;
+	bool is_powered;
+};
 
 static void check_bus_idle(struct kbase_device *kbdev)
 {
@@ -249,7 +298,7 @@ static void pm_callback_suspend(struct kbase_device *kbdev)
 	pm_callback_power_off(kbdev);
 }
 
-struct kbase_pm_callback_conf pm_callbacks = {
+struct kbase_pm_callback_conf mt8192_pm_callbacks = {
 	.power_on_callback = pm_callback_power_on,
 	.power_off_callback = pm_callback_power_off,
 	.power_suspend_callback = pm_callback_suspend,
@@ -268,7 +317,7 @@ struct kbase_pm_callback_conf pm_callbacks = {
 };
 
 
-int mali_mfgsys_init(struct kbase_device *kbdev, struct mfg_base *mfg)
+static int mali_mfgsys_init(struct kbase_device *kbdev, struct mfg_base *mfg)
 {
 	int err, i;
 	unsigned long volt;
@@ -416,7 +465,7 @@ static void platform_term(struct kbase_device *kbdev)
 	pm_domain_term(kbdev);
 }
 
-struct kbase_platform_funcs_conf platform_funcs = {
+struct kbase_platform_funcs_conf mt8192_platform_funcs = {
 	.platform_init_func = platform_init,
 	.platform_term_func = platform_term
 };
