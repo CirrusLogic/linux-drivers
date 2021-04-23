@@ -4030,7 +4030,7 @@ static ssize_t cs40l2x_bemf_rec_en_store(struct device *dev,
 	if (ret || val > 1)
 		return -EINVAL;
 
-	pm_runtime_get_sync(dev);
+	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "MEASURE_BEMF_ONLY",
@@ -4050,8 +4050,8 @@ static ssize_t cs40l2x_bemf_rec_en_store(struct device *dev,
 
 err_bemf_rec_en:
 	mutex_unlock(&cs40l2x->lock);
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
 	return ret;
 }
 
@@ -4063,7 +4063,7 @@ static ssize_t cs40l2x_bemf_rec_en_show(struct device *dev,
 	unsigned int reg, val;
 	int ret;
 
-	pm_runtime_get_sync(dev);
+	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "MEASURE_BEMF_ONLY",
@@ -4083,8 +4083,8 @@ static ssize_t cs40l2x_bemf_rec_en_show(struct device *dev,
 
 err_bemf_rec_en:
 	mutex_unlock(&cs40l2x->lock);
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
 	return ret;
 }
 
@@ -4169,7 +4169,7 @@ static ssize_t cs40l2x_dyn_f0_val_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	pm_runtime_get_sync(dev);
+	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "DYN_F0_TABLE", CS40L2X_XM_UNPACKED_TYPE,
@@ -4217,8 +4217,8 @@ static ssize_t cs40l2x_dyn_f0_val_store(struct device *dev,
 	ret = count;
 err_mutex:
 	mutex_unlock(&cs40l2x->lock);
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
 
 	return ret;
 }
