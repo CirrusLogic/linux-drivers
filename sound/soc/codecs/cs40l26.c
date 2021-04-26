@@ -520,8 +520,23 @@ static int cs40l26_pcm_hw_params(struct snd_pcm_substream *substream,
 			CS40L26_ASP_FSYNC_INV_MASK | CS40L26_ASP_BCLK_INV_MASK |
 			CS40L26_ASP_FMT_MASK | CS40L26_ASP_RX_WIDTH_MASK,
 			codec->daifmt);
-	if (ret)
+	if (ret) {
 		dev_err(codec->dev, "Failed to update ASP RX width\n");
+		goto err_pm;
+	}
+
+	ret = regmap_update_bits(codec->regmap, CS40L26_ASP_FRAME_CONTROL5,
+			CS40L26_ASP_RX1_SLOT_MASK | CS40L26_ASP_RX2_SLOT_MASK,
+			codec->tdm_slot[0] | (codec->tdm_slot[1] <<
+			CS40L26_ASP_RX2_SLOT_SHIFT));
+	if (ret) {
+		dev_err(codec->dev, "Failed to update ASP slot number\n");
+		goto err_pm;
+	}
+
+	dev_dbg(codec->dev, "ASP: %d bits in %d bit slots, slot #s: %d, %d\n",
+			asp_rx_wl, asp_rx_width, codec->tdm_slot[0],
+			codec->tdm_slot[1]);
 
 err_pm:
 	pm_runtime_mark_last_busy(codec->dev);
@@ -542,6 +557,18 @@ static int cs40l26_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	}
 
 	codec->tdm_width = slot_width;
+	codec->tdm_slots = slots;
+
+	/* Reset to slots 0,1 if TDM is being disabled, and catch the case
+	 * where both RX1 and RX2 would be set to slot 0 since that causes
+	 * hardware to flag an error
+	 */
+	if (!slots || rx_mask == 0x1)
+		rx_mask = 0x3;
+
+	codec->tdm_slot[0] = ffs(rx_mask) - 1;
+	rx_mask &= ~(1 << codec->tdm_slot[0]);
+	codec->tdm_slot[1] = ffs(rx_mask) - 1;
 
 	return 0;
 }
@@ -581,6 +608,9 @@ static int cs40l26_codec_probe(struct snd_soc_component *component)
 
 	/* Default audio SCLK frequency */
 	codec->sysclk_rate = CS40L26_PLL_CLK_FRQ1;
+
+	codec->tdm_slot[0] = 0;
+	codec->tdm_slot[1] = 1;
 
 	return 0;
 }
