@@ -1022,6 +1022,10 @@
 #define CS40L26_ASP_RX3_EN_MASK	BIT(18)
 #define CS40L26_ASP_RX3_EN_SHIFT	18
 
+#define CS40L26_ASP_RX1_SLOT_MASK	GENMASK(5, 0)
+#define CS40L26_ASP_RX2_SLOT_MASK	GENMASK(13, 8)
+#define CS40L26_ASP_RX2_SLOT_SHIFT	8
+
 #define CS40L26_CLASS_H_EN_MASK	BIT(4)
 #define CS40L26_CLASS_H_EN_SHIFT	4
 
@@ -1291,6 +1295,8 @@ struct cs40l26_codec {
 	char *bin_file;
 	u32 daifmt;
 	int tdm_width;
+	int tdm_slots;
+	int tdm_slot[2];
 };
 
 struct cs40l26_pll_sysclk_config {
