@@ -1972,11 +1972,13 @@ iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, u8 sta_id)
 	__le32 station_id = cpu_to_le32(sta_id);
 	u32 cmd_size = cmd_ver != IWL_FW_CMD_VER_UNKNOWN ? sizeof(station_id) : 0;
 
-	/* only for tracing for now */
-	int ret = iwl_mvm_send_cmd_pdu(mvm, OFFLOADS_QUERY_CMD, 0,
-				       cmd_size, &station_id);
-	if (ret)
-		IWL_ERR(mvm, "failed to query offload statistics (%d)\n", ret);
+	if (!mvm->net_detect) {
+		/* only for tracing for now */
+		int ret = iwl_mvm_send_cmd_pdu(mvm, OFFLOADS_QUERY_CMD, 0,
+					       cmd_size, &station_id);
+		if (ret)
+			IWL_ERR(mvm, "failed to query offload statistics (%d)\n", ret);
+	}
 
 	return iwl_mvm_send_wowlan_get_status(mvm, sta_id);
 }
