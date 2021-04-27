@@ -2808,9 +2808,6 @@ static int __cs35l45_initialize(struct cs35l45_private *cs35l45)
 		return ret;
 	}
 
-	regmap_write(cs35l45->regmap, CS35L45_MIXER_PILOT0_INPUT,
-		     CS35L45_PCM_SRC_DSP_TX2);
-
 	ret = cs35l45_apply_of_data(cs35l45);
 	if (ret < 0) {
 		dev_err(dev, "applying OF data failed (%d)\n", ret);
