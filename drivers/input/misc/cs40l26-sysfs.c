@@ -192,3 +192,531 @@ struct attribute_group cs40l26_dev_attr_group = {
 	.name = "default",
 	.attrs = cs40l26_dev_attrs,
 };
+
+static ssize_t cs40l26_trigger_calibration_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 mailbox_command, calibration_request_payload;
+	int ret;
+
+	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
+
+	ret = kstrtou32(buf, 16, &calibration_request_payload);
+	if (ret ||
+		calibration_request_payload < 1 ||
+		calibration_request_payload > 2)
+		return -EINVAL;
+
+	mailbox_command = ((CS40L26_DSP_MBOX_CMD_INDEX_CALIBRATION_CONTROL <<
+				CS40L26_DSP_MBOX_CMD_INDEX_SHIFT) &
+				CS40L26_DSP_MBOX_CMD_INDEX_MASK) |
+				(calibration_request_payload &
+				CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK);
+
+	/* pm_runtime_put occurs is irq_handler after diagnostic is finished */
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+		mailbox_command, CS40L26_DSP_MBOX_RESET);
+
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to request calibration\n");
+		cs40l26->cal_requested = 0;
+	} else {
+		cs40l26->cal_requested = calibration_request_payload;
+		ret = count;
+	}
+
+	mutex_unlock(&cs40l26->lock);
+
+	return ret;
+}
+
+static ssize_t cs40l26_f0_measured_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	u32 reg, f0_measured;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_EST",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_F0_EST_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_read(cs40l26->regmap, reg, &f0_measured);
+	if (ret)
+		goto err_mutex;
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+	else
+		return snprintf(buf, PAGE_SIZE, "%08X\n", f0_measured);
+}
+
+static ssize_t cs40l26_q_measured_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	u32 reg, q_measured;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "Q_EST",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_F0_EST_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_read(cs40l26->regmap, reg, &q_measured);
+	if (ret)
+		goto err_mutex;
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+	else
+		return snprintf(buf, PAGE_SIZE, "%08X\n", q_measured);
+}
+
+static ssize_t cs40l26_redc_measured_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	u32 reg, redc_measured;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "RE_EST_STATUS",
+			CL_DSP_YM_UNPACKED_TYPE,
+			CS40l26_SVC_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_read(cs40l26->regmap, reg, &redc_measured);
+	if (ret)
+		goto err_mutex;
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+	else
+		return snprintf(buf, PAGE_SIZE, "%08X\n", redc_measured);
+}
+
+static ssize_t cs40l26_redc_est_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	u32 reg, redc_est;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_F0_EST_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_read(cs40l26->regmap, reg, &redc_est);
+	if (ret)
+		goto err_mutex;
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+	else
+		return snprintf(buf, PAGE_SIZE, "%08X\n", redc_est);
+}
+
+static ssize_t cs40l26_redc_est_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	u32 reg, redc_est;
+
+	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
+
+	ret = kstrtou32(buf, 16, &redc_est);
+	if (ret)
+		return ret;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_F0_EST_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_write(cs40l26->regmap, reg, redc_est);
+	if (ret)
+		goto err_mutex;
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+	else
+		return count;
+}
+
+static ssize_t cs40l26_f0_stored_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	u32 reg, f0_stored;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_read(cs40l26->regmap, reg, &f0_stored);
+	if (ret)
+		goto err_mutex;
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+	else
+		return snprintf(buf, PAGE_SIZE, "%08X\n", f0_stored);
+}
+
+static ssize_t cs40l26_f0_stored_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	u32 reg, f0_stored;
+
+	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
+
+	ret = kstrtou32(buf, 16, &f0_stored);
+
+	if (ret ||
+		f0_stored < CS40L26_F0_EST_MIN ||
+		f0_stored > CS40L26_F0_EST_MAX)
+		return -EINVAL;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_write(cs40l26->regmap, reg, f0_stored);
+	if (ret)
+		goto err_mutex;
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+	else
+		return count;
+}
+
+static ssize_t cs40l26_q_stored_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	u32 reg, q_stored;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_read(cs40l26->regmap, reg, &q_stored);
+	if (ret)
+		goto err_mutex;
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+	else
+		return snprintf(buf, PAGE_SIZE, "%08X\n", q_stored);
+}
+
+static ssize_t cs40l26_q_stored_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	u32 reg, q_stored;
+
+	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
+
+	ret = kstrtou32(buf, 16, &q_stored);
+
+	if (ret || q_stored < CS40L26_Q_EST_MIN || q_stored > CS40L26_Q_EST_MAX)
+		return -EINVAL;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_write(cs40l26->regmap, reg, q_stored);
+	if (ret)
+		goto err_mutex;
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+	else
+		return count;
+}
+
+static ssize_t cs40l26_redc_stored_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	u32 reg, redc_stored;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_read(cs40l26->regmap, reg, &redc_stored);
+	if (ret)
+		goto err_mutex;
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+	else
+		return snprintf(buf, PAGE_SIZE, "%08X\n", redc_stored);
+}
+
+static ssize_t cs40l26_redc_stored_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	u32 reg, redc_stored;
+
+	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
+
+	ret = kstrtou32(buf, 16, &redc_stored);
+	if (ret)
+		return ret;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_write(cs40l26->regmap, reg, redc_stored);
+	if (ret)
+		goto err_mutex;
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+	else
+		return count;
+}
+
+static ssize_t cs40l26_f0_and_q_cal_time_ms_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	u32 reg, freq_span, freq_centre, f0_and_q_cal_time_ms;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "FREQ_SPAN",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_F0_EST_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_read(cs40l26->regmap, reg, &freq_span);
+	if (ret)
+		goto err_mutex;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "FREQ_CENTRE",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_F0_EST_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_read(cs40l26->regmap, reg, &freq_centre);
+
+	f0_and_q_cal_time_ms = ((CS40L26_F0_CHIRP_DURATION_FACTOR *
+				(freq_span >> CS40L26_F0_EST_FREQ_SHIFT)) /
+				(freq_centre >> CS40L26_F0_EST_FREQ_SHIFT)) +
+				CS40L26_F0_AND_Q_CALIBRATION_BUFFER_MS;
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+	else
+		return snprintf(buf, PAGE_SIZE, "%d\n", f0_and_q_cal_time_ms);
+}
+
+static ssize_t cs40l26_redc_cal_time_ms_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	/* FIRMWARE_STUMPY_CALIB_REDC_PLAYTIME_MS + SVC_INIT + buffer */
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	u32 reg, redc_playtime_ms, redc_total_cal_time_ms;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_PLAYTIME_MS",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_FW_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_read(cs40l26->regmap, reg, &redc_playtime_ms);
+
+	redc_total_cal_time_ms = redc_playtime_ms +
+					CS40L26_SVC_INITIALIZATION_PERIOD_MS +
+					CS40L26_REDC_CALIBRATION_BUFFER_MS;
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+	else
+		return snprintf(buf, PAGE_SIZE, "%d\n", redc_total_cal_time_ms);
+}
+
+static DEVICE_ATTR(trigger_calibration,
+		0220, NULL, cs40l26_trigger_calibration_store);
+static DEVICE_ATTR(f0_measured,
+		0440, cs40l26_f0_measured_show, NULL);
+static DEVICE_ATTR(q_measured,
+		0440, cs40l26_q_measured_show, NULL);
+static DEVICE_ATTR(redc_measured,
+		0440, cs40l26_redc_measured_show, NULL);
+static DEVICE_ATTR(redc_est,
+		0660, cs40l26_redc_est_show, cs40l26_redc_est_store);
+static DEVICE_ATTR(f0_stored,
+		0660, cs40l26_f0_stored_show, cs40l26_f0_stored_store);
+static DEVICE_ATTR(q_stored,
+		0660, cs40l26_q_stored_show, cs40l26_q_stored_store);
+static DEVICE_ATTR(redc_stored,
+		0660, cs40l26_redc_stored_show, cs40l26_redc_stored_store);
+static DEVICE_ATTR(f0_and_q_cal_time_ms,
+		0440, cs40l26_f0_and_q_cal_time_ms_show, NULL);
+static DEVICE_ATTR(redc_cal_time_ms,
+		0440, cs40l26_redc_cal_time_ms_show, NULL);
+
+static struct attribute *cs40l26_dev_attrs_cal[] = {
+	&dev_attr_trigger_calibration.attr,
+	&dev_attr_f0_measured.attr,
+	&dev_attr_q_measured.attr,
+	&dev_attr_redc_measured.attr,
+	&dev_attr_redc_est.attr,
+	&dev_attr_f0_stored.attr,
+	&dev_attr_q_stored.attr,
+	&dev_attr_redc_stored.attr,
+	&dev_attr_f0_and_q_cal_time_ms.attr,
+	&dev_attr_redc_cal_time_ms.attr,
+	NULL,
+};
+
+struct attribute_group cs40l26_dev_attr_cal_group = {
+	.name = "calibration",
+	.attrs = cs40l26_dev_attrs_cal,
+};
