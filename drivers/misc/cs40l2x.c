@@ -9267,7 +9267,11 @@ int cs40l2x_ack_write(struct cs40l2x_private *cs40l2x, unsigned int reg,
 
 	ret = regmap_write(regmap, reg, write_val);
 	if (ret) {
-		dev_err(dev, "Failed to write register 0x%08X: %d\n", reg, ret);
+		/* A NACK is expected when waking from hibernate */
+		if (reg != CS40L2X_MBOX_POWERCONTROL ||
+		    write_val != CS40L2X_POWERCONTROL_WAKEUP)
+			dev_err(dev, "Failed to write register 0x%08X: %d\n",
+				reg, ret);
 		return ret;
 	}
 
