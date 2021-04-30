@@ -767,13 +767,15 @@
 
 #define CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK	GENMASK(23, 0)
 
+#define CS40L26_DSP_MBOX_CMD_INDEX_CALIBRATION_CONTROL 0x7
+
 #define CS40L26_DSP_MBOX_BUFFER_NUM_REGS	4
 
 #define CS40L26_DSP_MBOX_TRIGGER_COMPLETE	0x01000000
 #define CS40L26_DSP_MBOX_PM_AWAKE		0x02000002
 #define CS40L26_DSP_MBOX_F0_EST_START		0x07000011
 #define CS40L26_DSP_MBOX_F0_EST_DONE		0x07000021
-#define CS40L26_DSP_MBOX_REDC_EST_START	0x07000012
+#define CS40L26_DSP_MBOX_REDC_EST_START		0x07000012
 #define CS40L26_DSP_MBOX_REDC_EST_DONE		0x07000022
 #define CS40L26_DSP_MBOX_SYS_ACK		0x0A000000
 #define CS40L26_DSP_MBOX_PANIC			0x0C000000
@@ -788,7 +790,7 @@
 #define CS40L26_FW_ID			0x1800D4
 #define CS40L26_FW_ROM_MIN_REV		0x040000
 #define CS40L26_FW_A0_RAM_MIN_REV	0x050004
-#define CS40L26_FW_A1_RAM_MIN_REV	0x070001
+#define CS40L26_FW_A1_RAM_MIN_REV	0x070100
 
 #define CS40L26_CCM_CORE_RESET		0x00000200
 #define CS40L26_CCM_CORE_ENABLE	0x00000281
@@ -1064,6 +1066,20 @@
 #define CS40L26_WT_TYPE10_WAVELEN_CALCULATED	0x800000
 #define CS40L26_WT_TYPE10_COMP_DURATION_FLAG	0x8
 
+/* Calibration */
+#define CS40L26_F0_EST_MIN 0xC8000
+#define CS40L26_F0_EST_MAX 0x7FC000
+#define CS40L26_Q_EST_MIN 0
+#define CS40L26_Q_EST_MAX 0x7FFFFF
+
+#define CS40L26_F0_EST_FREQ_SHIFT 14 /* centre, span, and f0 in Q10.14 */
+
+#define CS40L26_SVC_INITIALIZATION_PERIOD_MS 6
+#define CS40L26_REDC_CALIBRATION_BUFFER_MS 10
+#define CS40L26_F0_AND_Q_CALIBRATION_BUFFER_MS 100
+#define CS40L26_F0_CHIRP_DURATION_FACTOR 3662 /* t=factor*span/center */
+#define CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q BIT(0)
+#define CS40L26_CALIBRATION_CONTROL_REQUEST_REDC BIT(1)
 
 /* MFD */
 #define CS40L26_NUM_MFD_DEVS		1
@@ -1283,6 +1299,7 @@ struct cs40l26_private {
 	u32 event_count;
 	u32 owt_wlength;
 	int num_owt_effects;
+	int cal_requested;
 };
 
 struct cs40l26_codec {
@@ -1312,6 +1329,8 @@ int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26,
 		u32 *timeout_ms);
 int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26,
 		u32 timeout_ms);
+int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
+		enum cs40l26_pm_state state);
 int cs40l26_ack_write(struct cs40l26_private *cs40l26, u32 reg, u32 write_val,
 		u32 reset_val);
 int cs40l26_pseq_v1_multi_add_pair(struct cs40l26_private *cs40l26,
@@ -1346,5 +1365,6 @@ extern const char * const cs40l26_ram_coeff_files[3];
 
 /* sysfs */
 extern struct attribute_group cs40l26_dev_attr_group;
+extern struct attribute_group cs40l26_dev_attr_cal_group;
 
 #endif /* __CS40L26_H__ */
