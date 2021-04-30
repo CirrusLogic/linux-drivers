@@ -296,7 +296,7 @@ static void cs40l26_pm_runtime_teardown(struct cs40l26_private *cs40l26)
 	cs40l26->pm_ready = false;
 }
 
-static int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
+int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 		enum cs40l26_pm_state state)
 {
 	struct device *dev = cs40l26->dev;
@@ -554,13 +554,40 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 			dev_dbg(dev, "HALO Core is awake\n");
 			break;
 		case CS40L26_DSP_MBOX_F0_EST_START:
-			/* intentionally fall through */
+			dev_dbg(dev, "F0_EST_START\n");
+			break;
 		case CS40L26_DSP_MBOX_F0_EST_DONE:
-			/* intentionally fall through */
+			dev_dbg(dev, "F0_EST_DONE\n");
+			if (cs40l26->cal_requested &
+				CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q) {
+				cs40l26->cal_requested &=
+				~CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q;
+				/* for pm_runtime_get see trigger_calibration */
+				pm_runtime_mark_last_busy(cs40l26->dev);
+				pm_runtime_put_autosuspend(cs40l26->dev);
+			} else {
+				dev_err(dev, "Unexpected mbox msg: %d", val);
+				return -EINVAL;
+			}
+
+			break;
 		case CS40L26_DSP_MBOX_REDC_EST_START:
-			/* intentionally fall through */
+			dev_dbg(dev, "REDC_EST_START\n");
+			break;
 		case CS40L26_DSP_MBOX_REDC_EST_DONE:
-			/* intentionally fall through */
+			dev_dbg(dev, "REDC_EST_DONE\n");
+			if (cs40l26->cal_requested &
+				CS40L26_CALIBRATION_CONTROL_REQUEST_REDC) {
+				cs40l26->cal_requested &=
+				~CS40L26_CALIBRATION_CONTROL_REQUEST_REDC;
+				/* for pm_runtime_get see trigger_calibration */
+				pm_runtime_mark_last_busy(cs40l26->dev);
+				pm_runtime_put_autosuspend(cs40l26->dev);
+			} else {
+				dev_err(dev, "Unexpected mbox msg: %d", val);
+				return -EINVAL;
+			}
+			break;
 		case CS40L26_DSP_MBOX_SYS_ACK:
 			dev_err(dev, "Mbox buffer value (0x%X) not supported\n",
 					val);
@@ -2238,10 +2265,19 @@ static int cs40l26_input_init(struct cs40l26_private *cs40l26)
 
 	ret = sysfs_create_group(&cs40l26->input->dev.kobj,
 			&cs40l26_dev_attr_group);
-	if (ret)
+	if (ret) {
 		dev_err(dev, "Failed to create sysfs group: %d\n", ret);
-	else
-		cs40l26->vibe_init_success = true;
+		return ret;
+	}
+
+	ret = sysfs_create_group(&cs40l26->input->dev.kobj,
+			&cs40l26_dev_attr_cal_group);
+	if (ret) {
+		dev_err(dev, "Failed to create cal sysfs group: %d\n", ret);
+		return ret;
+	}
+
+	cs40l26->vibe_init_success = true;
 
 	return ret;
 }
@@ -3129,9 +3165,12 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 	if (cs40l26->vibe_timer.function)
 		hrtimer_cancel(&cs40l26->vibe_timer);
 
-	if (cs40l26->vibe_init_success)
+	if (cs40l26->vibe_init_success) {
 		sysfs_remove_group(&cs40l26->input->dev.kobj,
 				&cs40l26_dev_attr_group);
+		sysfs_remove_group(&cs40l26->input->dev.kobj,
+				&cs40l26_dev_attr_cal_group);
+	}
 
 	if (cs40l26->input)
 		input_unregister_device(cs40l26->input);
