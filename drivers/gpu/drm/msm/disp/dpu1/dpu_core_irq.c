@@ -23,7 +23,7 @@ static void dpu_core_irq_callback_handler(void *arg, int irq_idx)
 	struct dpu_irq *irq_obj = &dpu_kms->irq_obj;
 	struct dpu_irq_callback *cb;
 
-	pr_debug("irq_idx=%d\n", irq_idx);
+	VERB("irq_idx=%d\n", irq_idx);
 
 	if (list_empty(&irq_obj->irq_cb_tbl[irq_idx]))
 		DRM_ERROR("no registered cb, idx:%d\n", irq_idx);
@@ -77,7 +77,7 @@ int dpu_core_irq_register_callback(struct dpu_kms *dpu_kms, int irq_idx,
 		return -EINVAL;
 	}
 
-	DPU_DEBUG("[%pS] irq_idx=%d\n", __builtin_return_address(0), irq_idx);
+	VERB("[%pS] irq_idx=%d\n", __builtin_return_address(0), irq_idx);
 
 	irq_flags = dpu_kms->hw_intr->ops.lock(dpu_kms->hw_intr);
 	trace_dpu_core_irq_register_callback(irq_idx, register_irq_cb);
@@ -121,7 +121,7 @@ int dpu_core_irq_unregister_callback(struct dpu_kms *dpu_kms, int irq_idx,
 		return -EINVAL;
 	}
 
-	DPU_DEBUG("[%pS] irq_idx=%d\n", __builtin_return_address(0), irq_idx);
+	VERB("[%pS] irq_idx=%d\n", __builtin_return_address(0), irq_idx);
 
 	irq_flags = dpu_kms->hw_intr->ops.lock(dpu_kms->hw_intr);
 	trace_dpu_core_irq_unregister_callback(irq_idx, register_irq_cb);
@@ -134,7 +134,7 @@ int dpu_core_irq_unregister_callback(struct dpu_kms *dpu_kms, int irq_idx,
 		if (ret)
 			DPU_ERROR("Fail to disable IRQ for irq_idx:%d\n",
 					irq_idx);
-		DPU_DEBUG("irq_idx=%d ret=%d\n", irq_idx, ret);
+		VERB("irq_idx=%d ret=%d\n", irq_idx, ret);
 	}
 	dpu_kms->hw_intr->ops.unlock(dpu_kms->hw_intr, irq_flags);
 
