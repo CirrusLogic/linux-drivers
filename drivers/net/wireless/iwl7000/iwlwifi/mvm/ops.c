@@ -796,9 +796,8 @@ static int iwl_mvm_tm_send_hcmd(void *op_mode, struct iwl_host_cmd *host_cmd)
 
 static int iwl_mvm_start_get_nvm(struct iwl_mvm *mvm)
 {
-	int ret;
-
 	struct iwl_trans *trans = mvm->trans;
+	int ret;
 
 	if (trans->csme_own) {
 		if (WARN(!mvm->mei_registered,
