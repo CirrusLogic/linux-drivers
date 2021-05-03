@@ -835,6 +835,7 @@ get_nvm_from_fw:
 #if CFG80211_VERSION >= KERNEL_VERSION(5,12,0)
 		wiphy_unlock(mvm->hw->wiphy);
 #endif
+		rtnl_unlock();
 		return ret;
 	}
 
