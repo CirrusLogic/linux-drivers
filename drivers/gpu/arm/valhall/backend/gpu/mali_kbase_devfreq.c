@@ -168,6 +168,10 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	unsigned long volts[BASE_MAX_NR_CLOCKS_REGULATORS] = {0};
 	u64 core_mask;
 	int err;
+#if IS_ENABLED(CONFIG_MTK_SVS)
+	unsigned long unused_volts[BASE_MAX_NR_CLOCKS_REGULATORS] = {0};
+	int i;
+#endif
 
 	nominal_freq = *target_freq;
 
@@ -182,10 +186,27 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 		dev_err(dev, "Failed to get opp (%ld)\n", PTR_ERR(opp));
 		return PTR_ERR(opp);
 	}
+
+#if IS_ENABLED(CONFIG_MTK_SVS)
+	for (i = 0; i < BASE_MAX_NR_CLOCKS_REGULATORS; i++)
+		volts[i] = dev_pm_opp_get_voltage_supply(opp, i);
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
 	dev_pm_opp_put(opp);
 #endif
 
+#if IS_ENABLED(CONFIG_MTK_SVS)
+	/*
+	 * Update if there is a frequency or voltage change
+	 */
+	if (kbdev->current_nominal_freq == nominal_freq &&
+		kbdev->current_voltages[0] == volts[0]) {
+		*target_freq = nominal_freq;
+		return 0;
+	}
+
+	opp_translate(kbdev, nominal_freq, &core_mask, freqs, unused_volts);
+#else
 	/*
 	 * Only update if there is a change of frequency
 	 */
@@ -195,6 +216,7 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	}
 
 	opp_translate(kbdev, nominal_freq, &core_mask, freqs, volts);
+#endif  /* CONFIG_MTK_SVS */
 	voltage_range_check(kbdev, volts);
 
 #ifdef CONFIG_REGULATOR
