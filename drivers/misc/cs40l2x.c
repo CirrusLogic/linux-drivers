@@ -6562,8 +6562,6 @@ static ssize_t cs40l2x_vibe_state_show(struct device *dev,
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	int ret;
 
-	flush_workqueue(cs40l2x->vibe_workqueue);
-
 	mutex_lock(&cs40l2x->lock);
 	ret = snprintf(buf, PAGE_SIZE, "%u\n", cs40l2x->vibe_state);
 	mutex_unlock(&cs40l2x->lock);
