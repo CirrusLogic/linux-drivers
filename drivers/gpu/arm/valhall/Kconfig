@@ -62,10 +62,7 @@ config MALI_VALHALL_ENABLE_TRACE
 
 config MALI_VALHALL_DEVFREQ
 	bool "devfreq support for Mali"
-	depends on MALI_VALHALL
-	select DEVFREQ_GOV_SIMPLE_ONDEMAND
-	select DEVFREQ_THERMAL
-	select PM_DEVFREQ
+	depends on MALI_VALHALL && PM_DEVFREQ
 	default y
 	help
 	  Support devfreq for Mali.
