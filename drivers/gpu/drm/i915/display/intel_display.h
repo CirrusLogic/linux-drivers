@@ -642,7 +642,7 @@ void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 
 bool
 intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
-				    uint64_t modifier);
+				    u64 modifier);
 
 int intel_plane_compute_gtt(struct intel_plane_state *plane_state);
 u32 intel_plane_compute_aligned_offset(int *x, int *y,
@@ -653,6 +653,12 @@ void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state);
 struct intel_encoder *
 intel_get_crtc_new_encoder(const struct intel_atomic_state *state,
 			   const struct intel_crtc_state *crtc_state);
+unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
+				  int color_plane);
+u32 intel_plane_adjust_aligned_offset(int *x, int *y,
+				      const struct intel_plane_state *state,
+				      int color_plane,
+				      u32 old_offset, u32 new_offset);
 
 /* modesetting */
 void intel_modeset_init_hw(struct drm_i915_private *i915);

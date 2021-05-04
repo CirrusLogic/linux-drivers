@@ -699,25 +699,15 @@ u32 g4x_get_vblank_counter(struct drm_crtc *crtc)
 	return intel_uncore_read(&dev_priv->uncore, PIPE_FRMCOUNT_G4X(pipe));
 }
 
-/*
- * On certain encoders on certain platforms, pipe
- * scanline register will not work to get the scanline,
- * since the timings are driven from the PORT or issues
- * with scanline register updates.
- * This function will use Framestamp and current
- * timestamp registers to calculate the scanline.
- */
-static u32 __intel_get_crtc_scanline_from_timestamp(struct intel_crtc *crtc)
+static u32 intel_crtc_scanlines_since_frame_timestamp(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct drm_vblank_crtc *vblank =
 		&crtc->base.dev->vblank[drm_crtc_index(&crtc->base)];
 	const struct drm_display_mode *mode = &vblank->hwmode;
-	u32 vblank_start = mode->crtc_vblank_start;
-	u32 vtotal = mode->crtc_vtotal;
 	u32 htotal = mode->crtc_htotal;
 	u32 clock = mode->crtc_clock;
-	u32 scanline, scan_prev_time, scan_curr_time, scan_post_time;
+	u32 scan_prev_time, scan_curr_time, scan_post_time;
 
 	/*
 	 * To avoid the race condition where we might cross into the
@@ -744,8 +734,28 @@ static u32 __intel_get_crtc_scanline_from_timestamp(struct intel_crtc *crtc)
 						  PIPE_FRMTMSTMP(crtc->pipe));
 	} while (scan_post_time != scan_prev_time);
 
-	scanline = div_u64(mul_u32_u32(scan_curr_time - scan_prev_time,
-					clock), 1000 * htotal);
+	return div_u64(mul_u32_u32(scan_curr_time - scan_prev_time,
+				   clock), 1000 * htotal);
+}
+
+/*
+ * On certain encoders on certain platforms, pipe
+ * scanline register will not work to get the scanline,
+ * since the timings are driven from the PORT or issues
+ * with scanline register updates.
+ * This function will use Framestamp and current
+ * timestamp registers to calculate the scanline.
+ */
+static u32 __intel_get_crtc_scanline_from_timestamp(struct intel_crtc *crtc)
+{
+	struct drm_vblank_crtc *vblank =
+		&crtc->base.dev->vblank[drm_crtc_index(&crtc->base)];
+	const struct drm_display_mode *mode = &vblank->hwmode;
+	u32 vblank_start = mode->crtc_vblank_start;
+	u32 vtotal = mode->crtc_vtotal;
+	u32 scanline;
+
+	scanline = intel_crtc_scanlines_since_frame_timestamp(crtc);
 	scanline = min(scanline, vtotal - 1);
 	scanline = (scanline + vblank_start) % vtotal;
 
@@ -864,7 +874,20 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 	if (stime)
 		*stime = ktime_get();
 
-	if (use_scanline_counter) {
+	if (crtc->mode_flags & I915_MODE_FLAG_VRR) {
+		int scanlines = intel_crtc_scanlines_since_frame_timestamp(crtc);
+
+		position = __intel_get_crtc_scanline(crtc);
+
+		/*
+		 * Already exiting vblank? If so, shift our position
+		 * so it looks like we're already apporaching the full
+		 * vblank end. This should make the generated timestamp
+		 * more or less match when the active portion will start.
+		 */
+		if (position >= vbl_start && scanlines < position)
+			position = min(crtc->vmax_vblank_start + scanlines, vtotal - 1);
+	} else if (use_scanline_counter) {
 		/* No obvious pixelcount register. Only query vertical
 		 * scanout position from Display scan line register.
 		 */
@@ -1043,17 +1066,12 @@ static bool gen11_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
 	switch (pin) {
 	case HPD_PORT_TC1:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(HPD_PORT_TC1);
 	case HPD_PORT_TC2:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(HPD_PORT_TC2);
 	case HPD_PORT_TC3:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(HPD_PORT_TC3);
 	case HPD_PORT_TC4:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(HPD_PORT_TC4);
 	case HPD_PORT_TC5:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(HPD_PORT_TC5);
 	case HPD_PORT_TC6:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(HPD_PORT_TC6);
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(pin);
 	default:
 		return false;
 	}
@@ -1077,13 +1095,10 @@ static bool icp_ddi_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
 	switch (pin) {
 	case HPD_PORT_A:
-		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(HPD_PORT_A);
 	case HPD_PORT_B:
-		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(HPD_PORT_B);
 	case HPD_PORT_C:
-		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(HPD_PORT_C);
 	case HPD_PORT_D:
-		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(HPD_PORT_D);
+		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(pin);
 	default:
 		return false;
 	}
@@ -1093,17 +1108,12 @@ static bool icp_tc_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
 	switch (pin) {
 	case HPD_PORT_TC1:
-		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC1);
 	case HPD_PORT_TC2:
-		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC2);
 	case HPD_PORT_TC3:
-		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC3);
 	case HPD_PORT_TC4:
-		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC4);
 	case HPD_PORT_TC5:
-		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC5);
 	case HPD_PORT_TC6:
-		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC6);
+		return val & ICP_TC_HPD_LONG_DETECT(pin);
 	default:
 		return false;
 	}
@@ -1510,6 +1520,9 @@ static void valleyview_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 	for_each_pipe(dev_priv, pipe) {
 		if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS)
 			intel_handle_vblank(dev_priv, pipe);
+
+		if (pipe_stats[pipe] & PLANE_FLIP_DONE_INT_STATUS_VLV)
+			flip_done_handler(dev_priv, pipe);
 
 		if (pipe_stats[pipe] & PIPE_CRC_DONE_INTERRUPT_STATUS)
 			i9xx_pipe_crc_irq_handler(dev_priv, pipe);
@@ -2019,6 +2032,9 @@ static void ilk_display_irq_handler(struct drm_i915_private *dev_priv,
 		if (de_iir & DE_PIPE_VBLANK(pipe))
 			intel_handle_vblank(dev_priv, pipe);
 
+		if (de_iir & DE_PLANE_FLIP_DONE(pipe))
+			flip_done_handler(dev_priv, pipe);
+
 		if (de_iir & DE_PIPE_FIFO_UNDERRUN(pipe))
 			intel_cpu_fifo_underrun_irq_handler(dev_priv, pipe);
 
@@ -2069,8 +2085,11 @@ static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
 		intel_opregion_asle_intr(dev_priv);
 
 	for_each_pipe(dev_priv, pipe) {
-		if (de_iir & (DE_PIPE_VBLANK_IVB(pipe)))
+		if (de_iir & DE_PIPE_VBLANK_IVB(pipe))
 			intel_handle_vblank(dev_priv, pipe);
+
+		if (de_iir & DE_PLANE_FLIP_DONE_IVB(pipe))
+			flip_done_handler(dev_priv, pipe);
 	}
 
 	/* check event from PCH */
@@ -2345,6 +2364,14 @@ static void gen11_dsi_te_interrupt_handler(struct drm_i915_private *dev_priv,
 	intel_uncore_write(&dev_priv->uncore, DSI_INTR_IDENT_REG(port), tmp);
 }
 
+static u32 gen8_de_pipe_flip_done_mask(struct drm_i915_private *i915)
+{
+	if (INTEL_GEN(i915) >= 9)
+		return GEN9_PIPE_PLANE1_FLIP_DONE;
+	else
+		return GEN8_PIPE_PRIMARY_FLIP_DONE;
+}
+
 static irqreturn_t
 gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 {
@@ -2447,7 +2474,7 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 		if (iir & GEN8_PIPE_VBLANK)
 			intel_handle_vblank(dev_priv, pipe);
 
-		if (iir & GEN9_PIPE_PLANE1_FLIP_DONE)
+		if (iir & gen8_de_pipe_flip_done_mask(dev_priv))
 			flip_done_handler(dev_priv, pipe);
 
 		if (iir & GEN8_PIPE_CDCLK_CRC_DONE)
@@ -2806,19 +2833,6 @@ int bdw_enable_vblank(struct drm_crtc *crtc)
 	return 0;
 }
 
-void skl_enable_flip_done(struct intel_crtc *crtc)
-{
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	enum pipe pipe = crtc->pipe;
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&i915->irq_lock, irqflags);
-
-	bdw_enable_pipe_irq(i915, pipe, GEN9_PIPE_PLANE1_FLIP_DONE);
-
-	spin_unlock_irqrestore(&i915->irq_lock, irqflags);
-}
-
 /* Called from drm generic code, passed 'crtc' which
  * we use as a pipe index
  */
@@ -2881,19 +2895,6 @@ void bdw_disable_vblank(struct drm_crtc *crtc)
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	bdw_disable_pipe_irq(dev_priv, pipe, GEN8_PIPE_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-}
-
-void skl_disable_flip_done(struct intel_crtc *crtc)
-{
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	enum pipe pipe = crtc->pipe;
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&i915->irq_lock, irqflags);
-
-	bdw_disable_pipe_irq(i915, pipe, GEN9_PIPE_PLANE1_FLIP_DONE);
-
-	spin_unlock_irqrestore(&i915->irq_lock, irqflags);
 }
 
 static void ibx_irq_reset(struct drm_i915_private *dev_priv)
@@ -3088,12 +3089,9 @@ void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
-
-	u32 extra_ier = GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN;
+	u32 extra_ier = GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN |
+		gen8_de_pipe_flip_done_mask(dev_priv);
 	enum pipe pipe;
-
-	if (INTEL_GEN(dev_priv) >= 9)
-		extra_ier |= GEN9_PIPE_PLANE1_FLIP_DONE;
 
 	spin_lock_irq(&dev_priv->irq_lock);
 
@@ -3569,6 +3567,9 @@ static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)
 				DE_PCH_EVENT_IVB | DE_AUX_CHANNEL_A_IVB);
 		extra_mask = (DE_PIPEC_VBLANK_IVB | DE_PIPEB_VBLANK_IVB |
 			      DE_PIPEA_VBLANK_IVB | DE_ERR_INT_IVB |
+			      DE_PLANE_FLIP_DONE_IVB(PLANE_C) |
+			      DE_PLANE_FLIP_DONE_IVB(PLANE_B) |
+			      DE_PLANE_FLIP_DONE_IVB(PLANE_A) |
 			      DE_DP_A_HOTPLUG_IVB);
 	} else {
 		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
@@ -3576,6 +3577,8 @@ static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)
 				DE_PIPEA_CRC_DONE | DE_POISON);
 		extra_mask = (DE_PIPEA_VBLANK | DE_PIPEB_VBLANK |
 			      DE_PIPEB_FIFO_UNDERRUN | DE_PIPEA_FIFO_UNDERRUN |
+			      DE_PLANE_FLIP_DONE(PLANE_A) |
+			      DE_PLANE_FLIP_DONE(PLANE_B) |
 			      DE_DP_A_HOTPLUG);
 	}
 
@@ -3666,11 +3669,9 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 			de_port_masked |= DSI0_TE | DSI1_TE;
 	}
 
-	de_pipe_enables = de_pipe_masked | GEN8_PIPE_VBLANK |
-					   GEN8_PIPE_FIFO_UNDERRUN;
-
-	if (INTEL_GEN(dev_priv) >= 9)
-		de_pipe_enables |= GEN9_PIPE_PLANE1_FLIP_DONE;
+	de_pipe_enables = de_pipe_masked |
+		GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN |
+		gen8_de_pipe_flip_done_mask(dev_priv);
 
 	de_port_enables = de_port_masked;
 	if (IS_GEN9_LP(dev_priv))

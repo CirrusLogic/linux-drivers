@@ -838,18 +838,6 @@ snb_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 static void
 ivb_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	/* WaDisableEarlyCull:ivb */
-	wa_masked_en(wal, _3D_CHICKEN3, _3D_CHICKEN_SF_DISABLE_OBJEND_CULL);
-
-	/* WaDisablePSDDualDispatchEnable:ivb */
-	if (IS_IVB_GT1(i915))
-		wa_masked_en(wal,
-			     GEN7_HALF_SLICE_CHICKEN1,
-			     GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE);
-
-	/* WaDisable_RenderCache_OperationalFlush:ivb */
-	wa_masked_dis(wal, CACHE_MODE_0_GEN7, RC_OP_FLUSH_ENABLE);
-
 	/* Apply the WaDisableRHWOOptimizationForRenderHang:ivb workaround. */
 	wa_masked_dis(wal,
 		      GEN7_COMMON_SLICE_CHICKEN1,
@@ -861,89 +849,13 @@ ivb_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 
 	/* WaForceL3Serialization:ivb */
 	wa_write_clr(wal, GEN7_L3SQCREG4, L3SQ_URB_READ_CAM_MATCH_DISABLE);
-
-	/*
-	 * WaVSThreadDispatchOverride:ivb,vlv
-	 *
-	 * This actually overrides the dispatch
-	 * mode for all thread types.
-	 */
-	wa_write_clr_set(wal, GEN7_FF_THREAD_MODE,
-			 GEN7_FF_SCHED_MASK,
-			 GEN7_FF_TS_SCHED_HW |
-			 GEN7_FF_VS_SCHED_HW |
-			 GEN7_FF_DS_SCHED_HW);
-
-	if (0) { /* causes HiZ corruption on ivb:gt1 */
-		/* enable HiZ Raw Stall Optimization */
-		wa_masked_dis(wal, CACHE_MODE_0_GEN7, HIZ_RAW_STALL_OPT_DISABLE);
-	}
-
-	/* WaDisable4x2SubspanOptimization:ivb */
-	wa_masked_en(wal, CACHE_MODE_1, PIXEL_SUBSPAN_COLLECT_OPT_DISABLE);
-
-	/*
-	 * BSpec recommends 8x4 when MSAA is used,
-	 * however in practice 16x4 seems fastest.
-	 *
-	 * Note that PS/WM thread counts depend on the WIZ hashing
-	 * disable bit, which we don't touch here, but it's good
-	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
-	 */
-	wa_add(wal, GEN7_GT_MODE, 0,
-	       _MASKED_FIELD(GEN6_WIZ_HASHING_MASK, GEN6_WIZ_HASHING_16x4),
-	       GEN6_WIZ_HASHING_16x4);
 }
 
 static void
 vlv_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	/* WaDisableEarlyCull:vlv */
-	wa_masked_en(wal, _3D_CHICKEN3, _3D_CHICKEN_SF_DISABLE_OBJEND_CULL);
-
-	/* WaPsdDispatchEnable:vlv */
-	/* WaDisablePSDDualDispatchEnable:vlv */
-	wa_masked_en(wal,
-		     GEN7_HALF_SLICE_CHICKEN1,
-		     GEN7_MAX_PS_THREAD_DEP |
-		     GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE);
-
-	/* WaDisable_RenderCache_OperationalFlush:vlv */
-	wa_masked_dis(wal, CACHE_MODE_0_GEN7, RC_OP_FLUSH_ENABLE);
-
 	/* WaForceL3Serialization:vlv */
 	wa_write_clr(wal, GEN7_L3SQCREG4, L3SQ_URB_READ_CAM_MATCH_DISABLE);
-
-	/*
-	 * WaVSThreadDispatchOverride:ivb,vlv
-	 *
-	 * This actually overrides the dispatch
-	 * mode for all thread types.
-	 */
-	wa_write_clr_set(wal,
-			 GEN7_FF_THREAD_MODE,
-			 GEN7_FF_SCHED_MASK,
-			 GEN7_FF_TS_SCHED_HW |
-			 GEN7_FF_VS_SCHED_HW |
-			 GEN7_FF_DS_SCHED_HW);
-
-	/*
-	 * BSpec says this must be set, even though
-	 * WaDisable4x2SubspanOptimization isn't listed for VLV.
-	 */
-	wa_masked_en(wal, CACHE_MODE_1, PIXEL_SUBSPAN_COLLECT_OPT_DISABLE);
-
-	/*
-	 * BSpec recommends 8x4 when MSAA is used,
-	 * however in practice 16x4 seems fastest.
-	 *
-	 * Note that PS/WM thread counts depend on the WIZ hashing
-	 * disable bit, which we don't touch here, but it's good
-	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
-	 */
-	wa_add(wal, GEN7_GT_MODE, 0,
-	       _MASKED_FIELD(GEN6_WIZ_HASHING_MASK, GEN6_WIZ_HASHING_16x4),
-	       GEN6_WIZ_HASHING_16x4);
 
 	/*
 	 * WaIncreaseL3CreditsForVLVB0:vlv
@@ -1400,7 +1312,8 @@ bool intel_gt_verify_workarounds(struct intel_gt *gt, const char *from)
 	return wa_list_verify(gt->uncore, &gt->i915->gt_wa_list, from);
 }
 
-static inline bool is_nonpriv_flags_valid(u32 flags)
+__maybe_unused
+static bool is_nonpriv_flags_valid(u32 flags)
 {
 	/* Check only valid flag bits are set */
 	if (flags & ~RING_FORCE_TO_NONPRIV_MASK_VALID)
@@ -1937,6 +1850,14 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		wa_write_or(wal,
 			    GEN8_L3SQCREG4,
 			    GEN8_LQSC_FLUSH_COHERENT_LINES);
+
+		/* Disable atomics in L3 to prevent unrecoverable hangs */
+		wa_write_clr_set(wal, GEN9_SCRATCH_LNCF1,
+				 GEN9_LNCF_NONIA_COHERENT_ATOMICS_ENABLE, 0);
+		wa_write_clr_set(wal, GEN8_L3SQCREG4,
+				 GEN8_LQSQ_NONIA_COHERENT_ATOMICS_ENABLE, 0);
+		wa_write_clr_set(wal, GEN9_SCRATCH1,
+				 EVICTION_PERF_FIX_ENABLE, 0);
 	}
 
 	if (IS_HASWELL(i915)) {
@@ -1946,13 +1867,90 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 
 		wa_masked_dis(wal,
 			      CACHE_MODE_0_GEN7,
-			      /* WaDisable_RenderCache_OperationalFlush:hsw */
-			      RC_OP_FLUSH_ENABLE |
 			      /* enable HiZ Raw Stall Optimization */
 			      HIZ_RAW_STALL_OPT_DISABLE);
 
 		/* WaDisable4x2SubspanOptimization:hsw */
 		wa_masked_en(wal, CACHE_MODE_1, PIXEL_SUBSPAN_COLLECT_OPT_DISABLE);
+	}
+
+	if (IS_VALLEYVIEW(i915)) {
+		/* WaDisableEarlyCull:vlv */
+		wa_masked_en(wal,
+			     _3D_CHICKEN3,
+			     _3D_CHICKEN_SF_DISABLE_OBJEND_CULL);
+
+		/*
+		 * WaVSThreadDispatchOverride:ivb,vlv
+		 *
+		 * This actually overrides the dispatch
+		 * mode for all thread types.
+		 */
+		wa_write_clr_set(wal,
+				 GEN7_FF_THREAD_MODE,
+				 GEN7_FF_SCHED_MASK,
+				 GEN7_FF_TS_SCHED_HW |
+				 GEN7_FF_VS_SCHED_HW |
+				 GEN7_FF_DS_SCHED_HW);
+
+		/* WaPsdDispatchEnable:vlv */
+		/* WaDisablePSDDualDispatchEnable:vlv */
+		wa_masked_en(wal,
+			     GEN7_HALF_SLICE_CHICKEN1,
+			     GEN7_MAX_PS_THREAD_DEP |
+			     GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE);
+	}
+
+	if (IS_IVYBRIDGE(i915)) {
+		/* WaDisableEarlyCull:ivb */
+		wa_masked_en(wal,
+			     _3D_CHICKEN3,
+			     _3D_CHICKEN_SF_DISABLE_OBJEND_CULL);
+
+		if (0) { /* causes HiZ corruption on ivb:gt1 */
+			/* enable HiZ Raw Stall Optimization */
+			wa_masked_dis(wal,
+				      CACHE_MODE_0_GEN7,
+				      HIZ_RAW_STALL_OPT_DISABLE);
+		}
+
+		/*
+		 * WaVSThreadDispatchOverride:ivb,vlv
+		 *
+		 * This actually overrides the dispatch
+		 * mode for all thread types.
+		 */
+		wa_write_clr_set(wal,
+				 GEN7_FF_THREAD_MODE,
+				 GEN7_FF_SCHED_MASK,
+				 GEN7_FF_TS_SCHED_HW |
+				 GEN7_FF_VS_SCHED_HW |
+				 GEN7_FF_DS_SCHED_HW);
+
+		/* WaDisablePSDDualDispatchEnable:ivb */
+		if (IS_IVB_GT1(i915))
+			wa_masked_en(wal,
+				     GEN7_HALF_SLICE_CHICKEN1,
+				     GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE);
+	}
+
+	if (IS_GEN(i915, 7)) {
+		/* WaBCSVCSTlbInvalidationMode:ivb,vlv,hsw */
+		wa_masked_en(wal,
+			     GFX_MODE_GEN7,
+			     GFX_TLB_INVALIDATE_EXPLICIT | GFX_REPLAY_MODE);
+
+		/* WaDisable_RenderCache_OperationalFlush:ivb,vlv,hsw */
+		wa_masked_dis(wal, CACHE_MODE_0_GEN7, RC_OP_FLUSH_ENABLE);
+
+		/*
+		 * BSpec says this must be set, even though
+		 * WaDisable4x2SubspanOptimization:ivb,hsw
+		 * WaDisable4x2SubspanOptimization isn't listed for VLV.
+		 */
+		wa_masked_en(wal,
+			     CACHE_MODE_1,
+			     PIXEL_SUBSPAN_COLLECT_OPT_DISABLE);
 
 		/*
 		 * BSpec recommends 8x4 when MSAA is used,
@@ -1967,12 +1965,6 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 				     GEN6_WIZ_HASHING_16x4),
 		       GEN6_WIZ_HASHING_16x4);
 	}
-
-	if (IS_GEN(i915, 7))
-		/* WaBCSVCSTlbInvalidationMode:ivb,vlv,hsw */
-		wa_masked_en(wal,
-			     GFX_MODE_GEN7,
-			     GFX_TLB_INVALIDATE_EXPLICIT | GFX_REPLAY_MODE);
 
 	if (IS_GEN_RANGE(i915, 6, 7))
 		/*
@@ -2105,39 +2097,6 @@ void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
 	wa_list_apply(engine->uncore, &engine->wa_list);
 }
 
-static struct i915_vma *
-create_scratch(struct i915_address_space *vm, int count)
-{
-	struct drm_i915_gem_object *obj;
-	struct i915_vma *vma;
-	unsigned int size;
-	int err;
-
-	size = round_up(count * sizeof(u32), PAGE_SIZE);
-	obj = i915_gem_object_create_internal(vm->i915, size);
-	if (IS_ERR(obj))
-		return ERR_CAST(obj);
-
-	i915_gem_object_set_cache_coherency(obj, I915_CACHE_LLC);
-
-	vma = i915_vma_instance(obj, vm, NULL);
-	if (IS_ERR(vma)) {
-		err = PTR_ERR(vma);
-		goto err_obj;
-	}
-
-	err = i915_vma_pin(vma, 0, 0,
-			   i915_vma_is_ggtt(vma) ? PIN_GLOBAL : PIN_USER);
-	if (err)
-		goto err_obj;
-
-	return vma;
-
-err_obj:
-	i915_gem_object_put(obj);
-	return ERR_PTR(err);
-}
-
 struct mcr_range {
 	u32 start;
 	u32 end;
@@ -2240,7 +2199,8 @@ static int engine_wa_list_verify(struct intel_context *ce,
 	if (!wal->count)
 		return 0;
 
-	vma = create_scratch(&ce->engine->gt->ggtt->vm, wal->count);
+	vma = __vm_create_scratch_for_read(&ce->engine->gt->ggtt->vm,
+					   wal->count * sizeof(u32));
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 

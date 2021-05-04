@@ -27,29 +27,7 @@
 
 static struct i915_vma *create_scratch(struct intel_gt *gt)
 {
-	struct drm_i915_gem_object *obj;
-	struct i915_vma *vma;
-	int err;
-
-	obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
-	if (IS_ERR(obj))
-		return ERR_CAST(obj);
-
-	i915_gem_object_set_cache_coherency(obj, I915_CACHING_CACHED);
-
-	vma = i915_vma_instance(obj, &gt->ggtt->vm, NULL);
-	if (IS_ERR(vma)) {
-		i915_gem_object_put(obj);
-		return vma;
-	}
-
-	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL);
-	if (err) {
-		i915_gem_object_put(obj);
-		return ERR_PTR(err);
-	}
-
-	return vma;
+	return __vm_create_scratch_for_read(&gt->ggtt->vm, PAGE_SIZE);
 }
 
 static bool is_active(struct i915_request *rq)
@@ -70,6 +48,9 @@ static int wait_for_submit(struct intel_engine_cs *engine,
 			   struct i915_request *rq,
 			   unsigned long timeout)
 {
+	/* Ignore our own attempts to suppress excess tasklets */
+	tasklet_hi_schedule(&engine->execlists.tasklet);
+
 	timeout += jiffies;
 	do {
 		bool done = time_after(jiffies, timeout);
@@ -158,9 +139,10 @@ static int live_lrc_layout(void *arg)
 	 * match the layout saved by HW.
 	 */
 
-	lrc = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	lrc = (u32 *)__get_free_page(GFP_KERNEL); /* requires page alignment */
 	if (!lrc)
 		return -ENOMEM;
+	GEM_BUG_ON(offset_in_page(lrc));
 
 	err = 0;
 	for_each_engine(engine, gt, id) {
@@ -182,7 +164,7 @@ static int live_lrc_layout(void *arg)
 
 		dw = 0;
 		do {
-			u32 lri = hw[dw];
+			u32 lri = READ_ONCE(hw[dw]);
 
 			if (lri == 0) {
 				dw++;
@@ -215,9 +197,11 @@ static int live_lrc_layout(void *arg)
 			dw++;
 
 			while (lri) {
-				if (hw[dw] != lrc[dw]) {
+				u32 offset = READ_ONCE(hw[dw]);
+
+				if (offset != lrc[dw]) {
 					pr_err("%s: Different registers found at dword %d, expected %x, found %x\n",
-					       engine->name, dw, hw[dw], lrc[dw]);
+					       engine->name, dw, offset, lrc[dw]);
 					err = -EINVAL;
 					break;
 				}
@@ -229,7 +213,7 @@ static int live_lrc_layout(void *arg)
 				dw += 2;
 				lri -= 2;
 			}
-		} while ((lrc[dw] & ~BIT(0)) != MI_BATCH_BUFFER_END);
+		} while (!err && (lrc[dw] & ~BIT(0)) != MI_BATCH_BUFFER_END);
 
 		if (err) {
 			pr_info("%s: HW register image:\n", engine->name);
@@ -244,7 +228,7 @@ static int live_lrc_layout(void *arg)
 			break;
 	}
 
-	kfree(lrc);
+	free_page((unsigned long)lrc);
 	return err;
 }
 
@@ -627,6 +611,10 @@ static int __live_lrc_gpr(struct intel_engine_cs *engine,
 			goto err_rq;
 
 		err = emit_semaphore_signal(engine->kernel_context, slot);
+		if (err)
+			goto err_rq;
+
+		err = wait_for_submit(engine, rq, HZ / 2);
 		if (err)
 			goto err_rq;
 	} else {

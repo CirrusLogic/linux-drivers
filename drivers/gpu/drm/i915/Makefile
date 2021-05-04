@@ -21,7 +21,6 @@ subdir-ccflags-y += $(call cc-disable-warning, unused-but-set-variable)
 subdir-ccflags-y += $(call cc-disable-warning, sign-compare)
 subdir-ccflags-y += $(call cc-disable-warning, sometimes-uninitialized)
 subdir-ccflags-y += $(call cc-disable-warning, initializer-overrides)
-subdir-ccflags-y += $(call cc-disable-warning, uninitialized)
 subdir-ccflags-y += $(call cc-disable-warning, frame-address)
 subdir-ccflags-y += $(call cc-disable-warning, tautological-compare)
 subdir-ccflags-$(CONFIG_DRM_I915_WERROR) += -Werror
@@ -61,6 +60,7 @@ i915-y += i915_config.o \
 
 # core library code
 i915-y += \
+	dma_resv_utils.o \
 	i915_memcpy.o \
 	i915_mm.o \
 	i915_sw_fence.o \
@@ -137,6 +137,7 @@ gem-y += \
 	gem/i915_gem_clflush.o \
 	gem/i915_gem_client_blt.o \
 	gem/i915_gem_context.o \
+	gem/i915_gem_create.o \
 	gem/i915_gem_dmabuf.o \
 	gem/i915_gem_domain.o \
 	gem/i915_gem_execbuffer.o \
@@ -261,6 +262,7 @@ i915-y += \
 	display/intel_sdvo.o \
 	display/intel_tv.o \
 	display/intel_vdsc.o \
+	display/intel_vrr.o \
 	display/vlv_dsi.o \
 	display/vlv_dsi_pll.o
 
@@ -295,15 +297,7 @@ obj-$(CONFIG_DRM_I915_GVT_KVMGT) += gvt/kvmgt.o
 
 # exclude some broken headers from the test coverage
 no-header-test := \
-	display/intel_vbt_defs.h \
-	gvt/execlist.h \
-	gvt/fb_decoder.h \
-	gvt/gtt.h \
-	gvt/gvt.h \
-	gvt/interrupt.h \
-	gvt/mmio_context.h \
-	gvt/mpt.h \
-	gvt/scheduler.h
+	display/intel_vbt_defs.h
 
 extra-$(CONFIG_DRM_I915_WERROR) += \
 	$(patsubst %.h,%.hdrtest, $(filter-out $(no-header-test), \

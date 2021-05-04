@@ -27,8 +27,6 @@
 	 BIT(I915_SAMPLE_WAIT) | \
 	 BIT(I915_SAMPLE_SEMA))
 
-#define ENGINE_SAMPLE_BITS (1 << I915_PMU_SAMPLE_BITS)
-
 static cpumask_t i915_pmu_cpumask;
 static unsigned int i915_pmu_target_cpu = -1;
 
@@ -57,17 +55,42 @@ static bool is_engine_config(u64 config)
 	return config < __I915_PMU_OTHER(0);
 }
 
-static unsigned int config_enabled_bit(u64 config)
+static unsigned int other_bit(const u64 config)
+{
+	unsigned int val;
+
+	switch (config) {
+	case I915_PMU_ACTUAL_FREQUENCY:
+		val =  __I915_PMU_ACTUAL_FREQUENCY_ENABLED;
+		break;
+	case I915_PMU_REQUESTED_FREQUENCY:
+		val = __I915_PMU_REQUESTED_FREQUENCY_ENABLED;
+		break;
+	case I915_PMU_RC6_RESIDENCY:
+		val = __I915_PMU_RC6_RESIDENCY_ENABLED;
+		break;
+	default:
+		/*
+		 * Events that do not require sampling, or tracking state
+		 * transitions between enabled and disabled can be ignored.
+		 */
+		return -1;
+	}
+
+	return I915_ENGINE_SAMPLE_COUNT + val;
+}
+
+static unsigned int config_bit(const u64 config)
 {
 	if (is_engine_config(config))
 		return engine_config_sample(config);
 	else
-		return ENGINE_SAMPLE_BITS + (config - __I915_PMU_OTHER(0));
+		return other_bit(config);
 }
 
-static u64 config_enabled_mask(u64 config)
+static u64 config_mask(u64 config)
 {
-	return BIT_ULL(config_enabled_bit(config));
+	return BIT_ULL(config_bit(config));
 }
 
 static bool is_engine_event(struct perf_event *event)
@@ -75,15 +98,15 @@ static bool is_engine_event(struct perf_event *event)
 	return is_engine_config(event->attr.config);
 }
 
-static unsigned int event_enabled_bit(struct perf_event *event)
+static unsigned int event_bit(struct perf_event *event)
 {
-	return config_enabled_bit(event->attr.config);
+	return config_bit(event->attr.config);
 }
 
 static bool pmu_needs_timer(struct i915_pmu *pmu, bool gpu_active)
 {
 	struct drm_i915_private *i915 = container_of(pmu, typeof(*i915), pmu);
-	u64 enable;
+	u32 enable;
 
 	/*
 	 * Only some counters need the sampling timer.
@@ -96,8 +119,8 @@ static bool pmu_needs_timer(struct i915_pmu *pmu, bool gpu_active)
 	 * Mask out all the ones which do not need the timer, or in
 	 * other words keep all the ones that could need the timer.
 	 */
-	enable &= config_enabled_mask(I915_PMU_ACTUAL_FREQUENCY) |
-		  config_enabled_mask(I915_PMU_REQUESTED_FREQUENCY) |
+	enable &= config_mask(I915_PMU_ACTUAL_FREQUENCY) |
+		  config_mask(I915_PMU_REQUESTED_FREQUENCY) |
 		  ENGINE_SAMPLE_MASK;
 
 	/*
@@ -138,11 +161,9 @@ static u64 __get_rc6(struct intel_gt *gt)
 	return val;
 }
 
-#if IS_ENABLED(CONFIG_PM)
-
-static inline s64 ktime_since(const ktime_t kt)
+static inline s64 ktime_since_raw(const ktime_t kt)
 {
-	return ktime_to_ns(ktime_sub(ktime_get(), kt));
+	return ktime_to_ns(ktime_sub(ktime_get_raw(), kt));
 }
 
 static u64 get_rc6(struct intel_gt *gt)
@@ -171,7 +192,7 @@ static u64 get_rc6(struct intel_gt *gt)
 		 * on top of the last known real value, as the approximated RC6
 		 * counter value.
 		 */
-		val = ktime_since(pmu->sleep_last);
+		val = ktime_since_raw(pmu->sleep_last);
 		val += pmu->sample[__I915_SAMPLE_RC6].cur;
 	}
 
@@ -194,7 +215,7 @@ static void init_rc6(struct i915_pmu *pmu)
 		pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
 		pmu->sample[__I915_SAMPLE_RC6_LAST_REPORTED].cur =
 					pmu->sample[__I915_SAMPLE_RC6].cur;
-		pmu->sleep_last = ktime_get();
+		pmu->sleep_last = ktime_get_raw();
 	}
 }
 
@@ -203,20 +224,8 @@ static void park_rc6(struct drm_i915_private *i915)
 	struct i915_pmu *pmu = &i915->pmu;
 
 	pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
-	pmu->sleep_last = ktime_get();
+	pmu->sleep_last = ktime_get_raw();
 }
-
-#else
-
-static u64 get_rc6(struct intel_gt *gt)
-{
-	return __get_rc6(gt);
-}
-
-static void init_rc6(struct i915_pmu *pmu) { }
-static void park_rc6(struct drm_i915_private *i915) {}
-
-#endif
 
 static void __i915_pmu_maybe_start_timer(struct i915_pmu *pmu)
 {
@@ -356,8 +365,8 @@ add_sample_mult(struct i915_pmu_sample *sample, u32 val, u32 mul)
 static bool frequency_sampling_enabled(struct i915_pmu *pmu)
 {
 	return pmu->enable &
-	       (config_enabled_mask(I915_PMU_ACTUAL_FREQUENCY) |
-		config_enabled_mask(I915_PMU_REQUESTED_FREQUENCY));
+	       (config_mask(I915_PMU_ACTUAL_FREQUENCY) |
+		config_mask(I915_PMU_REQUESTED_FREQUENCY));
 }
 
 static void
@@ -375,7 +384,7 @@ frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 	if (!intel_gt_pm_get_if_awake(gt))
 		return;
 
-	if (pmu->enable & config_enabled_mask(I915_PMU_ACTUAL_FREQUENCY)) {
+	if (pmu->enable & config_mask(I915_PMU_ACTUAL_FREQUENCY)) {
 		u32 val;
 
 		/*
@@ -397,7 +406,7 @@ frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 				intel_gpu_freq(rps, val), period_ns / 1000);
 	}
 
-	if (pmu->enable & config_enabled_mask(I915_PMU_REQUESTED_FREQUENCY)) {
+	if (pmu->enable & config_mask(I915_PMU_REQUESTED_FREQUENCY)) {
 		add_sample_mult(&pmu->sample[__I915_SAMPLE_FREQ_REQ],
 				intel_gpu_freq(rps, rps->cur_freq),
 				period_ns / 1000);
@@ -644,9 +653,13 @@ static void i915_pmu_enable(struct perf_event *event)
 {
 	struct drm_i915_private *i915 =
 		container_of(event->pmu, typeof(*i915), pmu.base);
-	unsigned int bit = event_enabled_bit(event);
 	struct i915_pmu *pmu = &i915->pmu;
 	unsigned long flags;
+	unsigned int bit;
+
+	bit = event_bit(event);
+	if (bit == -1)
+		goto update;
 
 	spin_lock_irqsave(&pmu->lock, flags);
 
@@ -692,6 +705,7 @@ static void i915_pmu_enable(struct perf_event *event)
 
 	spin_unlock_irqrestore(&pmu->lock, flags);
 
+update:
 	/*
 	 * Store the current counter value so we can report the correct delta
 	 * for all listeners. Even when the event was already enabled and has
@@ -704,9 +718,12 @@ static void i915_pmu_disable(struct perf_event *event)
 {
 	struct drm_i915_private *i915 =
 		container_of(event->pmu, typeof(*i915), pmu.base);
-	unsigned int bit = event_enabled_bit(event);
+	unsigned int bit = event_bit(event);
 	struct i915_pmu *pmu = &i915->pmu;
 	unsigned long flags;
+
+	if (bit == -1)
+		return;
 
 	spin_lock_irqsave(&pmu->lock, flags);
 
