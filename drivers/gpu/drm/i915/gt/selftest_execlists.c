@@ -25,33 +25,6 @@
 #define NUM_GPR 16
 #define NUM_GPR_DW (NUM_GPR * 2) /* each GPR is 2 dwords */
 
-static struct i915_vma *create_scratch(struct intel_gt *gt)
-{
-	struct drm_i915_gem_object *obj;
-	struct i915_vma *vma;
-	int err;
-
-	obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
-	if (IS_ERR(obj))
-		return ERR_CAST(obj);
-
-	i915_gem_object_set_cache_coherency(obj, I915_CACHING_CACHED);
-
-	vma = i915_vma_instance(obj, &gt->ggtt->vm, NULL);
-	if (IS_ERR(vma)) {
-		i915_gem_object_put(obj);
-		return vma;
-	}
-
-	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL);
-	if (err) {
-		i915_gem_object_put(obj);
-		return ERR_PTR(err);
-	}
-
-	return vma;
-}
-
 static bool is_active(struct i915_request *rq)
 {
 	if (i915_request_is_active(rq))
@@ -70,6 +43,9 @@ static int wait_for_submit(struct intel_engine_cs *engine,
 			   struct i915_request *rq,
 			   unsigned long timeout)
 {
+	/* Ignore our own attempts to suppress excess tasklets */
+	tasklet_hi_schedule(&engine->execlists.tasklet);
+
 	timeout += jiffies;
 	do {
 		bool done = time_after(jiffies, timeout);
@@ -1206,7 +1182,7 @@ static int live_timeslice_rewind(void *arg)
 
 		/* ELSP[] = { { A:rq1, A:rq2 }, { B:rq1 } } */
 		ENGINE_TRACE(engine, "forcing tasklet for rewind\n");
-		if (i915_request_is_active(rq[A2])) { /* semaphore yielded! */
+		while (i915_request_is_active(rq[A2])) { /* semaphore yield! */
 			/* Wait for the timeslice to kick in */
 			del_timer(&engine->execlists.timer);
 			tasklet_hi_schedule(&engine->execlists.tasklet);
@@ -3322,8 +3298,10 @@ static int live_preempt_user(void *arg)
 
 			rq = create_gpr_client(engine, global,
 					       NUM_GPR * i * sizeof(u32));
-			if (IS_ERR(rq))
+			if (IS_ERR(rq)) {
+				err = PTR_ERR(rq);
 				goto end_test;
+			}
 
 			client[i] = rq;
 		}
@@ -4219,7 +4197,8 @@ static int preserved_virtual_engine(struct intel_gt *gt,
 	int err = 0;
 	u32 *cs;
 
-	scratch = create_scratch(siblings[0]->gt);
+	scratch = __vm_create_scratch_for_read(&siblings[0]->gt->ggtt->vm,
+					       PAGE_SIZE);
 	if (IS_ERR(scratch))
 		return PTR_ERR(scratch);
 

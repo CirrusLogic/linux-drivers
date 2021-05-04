@@ -4376,7 +4376,7 @@ void i915_perf_init(struct drm_i915_private *i915)
 		oa_sample_rate_hard_limit = i915->gt.clock_frequency / 2;
 
 		mutex_init(&perf->metrics_lock);
-		idr_init(&perf->metrics_idr);
+		idr_init_base(&perf->metrics_idr, 1);
 
 		/* We set up some ratelimit state to potentially throttle any
 		 * _NOTES about spurious, invalid OA reports which we don't

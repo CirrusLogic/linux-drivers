@@ -357,7 +357,7 @@ evdi_prime_import_sg_table(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-#if KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 	drm_prime_sg_to_page_array(sg, obj->pages, npages);
 #else
 	drm_prime_sg_to_page_addr_arrays(sg, obj->pages, NULL, npages);

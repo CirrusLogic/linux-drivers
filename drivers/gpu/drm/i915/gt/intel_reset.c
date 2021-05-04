@@ -151,8 +151,7 @@ static void mark_innocent(struct i915_request *rq)
 void __i915_request_reset(struct i915_request *rq, bool guilty)
 {
 	RQ_TRACE(rq, "guilty? %s\n", yesno(guilty));
-
-	GEM_BUG_ON(i915_request_completed(rq));
+	GEM_BUG_ON(__i915_request_is_complete(rq));
 
 	rcu_read_lock(); /* protect the GEM context */
 	if (guilty) {
@@ -1110,7 +1109,7 @@ error:
 	goto finish;
 }
 
-static inline int intel_gt_reset_engine(struct intel_engine_cs *engine)
+static int intel_gt_reset_engine(struct intel_engine_cs *engine)
 {
 	return __intel_gt_reset(engine->gt, engine->mask);
 }
@@ -1396,6 +1395,17 @@ void intel_gt_init_reset(struct intel_gt *gt)
 	init_waitqueue_head(&gt->reset.queue);
 	mutex_init(&gt->reset.mutex);
 	init_srcu_struct(&gt->reset.backoff_srcu);
+
+	/*
+	 * While undesirable to wait inside the shrinker, complain anyway.
+	 *
+	 * If we have to wait during shrinking, we guarantee forward progress
+	 * by forcing the reset. Therefore during the reset we must not
+	 * re-enter the shrinker. By declaring that we take the reset mutex
+	 * within the shrinker, we forbid ourselves from performing any
+	 * fs-reclaim or taking related locks during reset.
+	 */
+	i915_gem_shrinker_taints_mutex(gt->i915, &gt->reset.mutex);
 
 	/* no GPU until we are ready! */
 	__set_bit(I915_WEDGED, &gt->reset.flags);
