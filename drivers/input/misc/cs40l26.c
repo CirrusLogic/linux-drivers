@@ -1631,42 +1631,53 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 {
 	struct cs40l26_private *cs40l26 =
 		container_of(work, struct cs40l26_private, set_gain_work);
-	u32 val;
+	u16 amp_vol_pcm;
+	u32 reg, val;
 	int ret;
 
 	pm_runtime_get_sync(cs40l26->dev);
 	mutex_lock(&cs40l26->lock);
 
-	ret = regmap_update_bits(cs40l26->regmap, CS40L26_AMP_CTRL,
-			CS40L26_AMP_CTRL_VOL_PCM_MASK,
-			cs40l26->amp_vol_pcm << CS40L26_AMP_CTRL_VOL_PCM_SHIFT);
-	if (ret) {
-		dev_err(cs40l26->dev, "Failed to update digtal gain\n");
-		goto err_mutex;
-	}
-
-	ret = regmap_read(cs40l26->regmap, CS40L26_AMP_CTRL, &val);
-	if (ret) {
-		dev_err(cs40l26->dev, "Failed to read AMP control\n");
-		goto err_mutex;
-	}
-
 	switch (cs40l26->revid) {
 	case CS40L26_REVID_A0:
+		amp_vol_pcm = CS40L26_AMP_VOL_PCM_MAX & cs40l26->gain_pct;
+
+		ret = regmap_update_bits(cs40l26->regmap, CS40L26_AMP_CTRL,
+				CS40L26_AMP_CTRL_VOL_PCM_MASK, amp_vol_pcm <<
+				CS40L26_AMP_CTRL_VOL_PCM_SHIFT);
+		if (ret) {
+			dev_err(cs40l26->dev, "Failed to update digtal gain\n");
+			goto err_mutex;
+		}
+
+		ret = regmap_read(cs40l26->regmap, CS40L26_AMP_CTRL, &val);
+		if (ret) {
+			dev_err(cs40l26->dev, "Failed to read AMP control\n");
+			goto err_mutex;
+		}
+
 		ret = cs40l26_pseq_v1_add_pair(cs40l26,
 						CS40L26_AMP_CTRL, val, true);
+		if (ret)
+			dev_err(cs40l26->dev, "Failed to set gain in pseq\n");
 		break;
 	case CS40L26_REVID_A1:
-		ret = cs40l26_pseq_v2_add_write_reg_full(cs40l26,
-						CS40L26_AMP_CTRL, val, true);
+		val = cs40l26_attn_q21_2_vals[cs40l26->gain_pct];
+
+		/* Write Q21.2 value to SOURCE_ATTENUATION */
+		ret = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_ATTENUATION",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+		if (ret)
+			goto err_mutex;
+
+		ret = regmap_write(cs40l26->regmap, reg, val);
+		if (ret)
+			dev_err(cs40l26->dev, "Failed to set attenuation\n");
 		break;
 	default:
 		dev_err(cs40l26->dev, "Revid ID not supported: %02X\n",
 			cs40l26->revid);
 	}
-
-	if (ret)
-		dev_err(cs40l26->dev, "Failed to set gain in pseq\n");
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -1825,7 +1836,7 @@ static void cs40l26_set_gain(struct input_dev *dev, u16 gain)
 {
 	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
 
-	cs40l26->amp_vol_pcm = CS40L26_AMP_VOL_PCM_MAX & gain;
+	cs40l26->gain_pct = gain;
 
 	queue_work(cs40l26->vibe_workqueue, &cs40l26->set_gain_work);
 }
