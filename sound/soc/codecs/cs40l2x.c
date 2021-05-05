@@ -35,10 +35,7 @@ struct cs40l2x_codec {
 	char *bin_file;
 
 	unsigned int daifmt;
-	unsigned int rx1_slot;
-	unsigned int rx2_slot;
 	int sysclk_rate;
-	bool dsp_a;
 };
 
 struct cs40l2x_pll_sysclk_config {
@@ -47,70 +44,9 @@ struct cs40l2x_pll_sysclk_config {
 };
 
 static const struct cs40l2x_pll_sysclk_config cs40l2x_pll_sysclk[] = {
-	{ 32768,        0x00 },
-	{ 8000,         0x01 },
-	{ 11025,        0x02 },
-	{ 12000,        0x03 },
-	{ 16000,        0x04 },
-	{ 22050,        0x05 },
-	{ 24000,        0x06 },
-	{ 32000,        0x07 },
-	{ 44100,        0x08 },
-	{ 48000,        0x09 },
-	{ 88200,        0x0A },
-	{ 96000,        0x0B },
-	{ 128000,       0x0C },
-	{ 176400,       0x0D },
-	{ 192000,       0x0E },
-	{ 256000,       0x0F },
-	{ 352800,       0x10 },
-	{ 384000,       0x11 },
-	{ 512000,       0x12 },
-	{ 705600,       0x13 },
-	{ 750000,       0x14 },
-	{ 768000,       0x15 },
-	{ 1000000,      0x16 },
-	{ 1024000,      0x17 },
-	{ 1200000,      0x18 },
-	{ 1411200,      0x19 },
-	{ 1500000,      0x1A },
-	{ 1536000,      0x1B },
-	{ 2000000,      0x1C },
-	{ 2048000,      0x1D },
-	{ 2400000,      0x1E },
-	{ 2822400,      0x1F },
-	{ 3000000,      0x20 },
-	{ 3072000,      0x21 },
-	{ 3200000,      0x22 },
-	{ 4000000,      0x23 },
-	{ 4096000,      0x24 },
-	{ 4800000,      0x25 },
-	{ 5644800,      0x26 },
-	{ 6000000,      0x27 },
-	{ 6144000,      0x28 },
-	{ 6250000,      0x29 },
-	{ 6400000,      0x2A },
-	{ 6500000,      0x2B },
-	{ 6750000,      0x2C },
-	{ 7526400,      0x2D },
-	{ 8000000,      0x2E },
-	{ 8192000,      0x2F },
-	{ 9600000,      0x30 },
-	{ 11289600,     0x31 },
-	{ 12000000,     0x32 },
-	{ 12288000,     0x33 },
-	{ 12500000,     0x34 },
-	{ 12800000,     0x35 },
-	{ 13000000,     0x36 },
-	{ 13500000,     0x37 },
-	{ 19200000,     0x38 },
-	{ 22579200,     0x39 },
-	{ 24000000,     0x3A },
-	{ 24576000,     0x3B },
-	{ 25000000,     0x3C },
-	{ 25600000,     0x3D },
-	{ 26000000,     0x3E },
-	{ 27000000,     0x3F },
+	{32768, 0x00},
+	{1536000, 0x1b},
+	{3072000, 0x21},
 };
 
 static int cs40l2x_get_clk_config(int freq)
@@ -506,30 +442,6 @@ static int cs40l2x_delay_put(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 
-static int cs40l2x_slots_get(struct snd_kcontrol *kcontrol,
-			     struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
-	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
-
-	ucontrol->value.integer.value[0] = priv->rx1_slot;
-	ucontrol->value.integer.value[1] = priv->rx2_slot;
-
-	return 0;
-}
-
-static int cs40l2x_slots_put(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
-	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
-
-	priv->rx1_slot = ucontrol->value.integer.value[0];
-	priv->rx2_slot = ucontrol->value.integer.value[1];
-
-	return 0;
-}
-
 static const struct snd_kcontrol_new cs40l2x_controls[] = {
 	SOC_SINGLE_EXT("A2H Volume Level", 0, 0, CS40L2X_VOL_LVL_MAX_STEPS, 0,
 		cs40l2x_vol_get, cs40l2x_vol_put),
@@ -537,8 +449,6 @@ static const struct snd_kcontrol_new cs40l2x_controls[] = {
 		cs40l2x_tuning_get, cs40l2x_tuning_put),
 	SOC_SINGLE_EXT("A2H Delay", 0, 0, CS40L2X_A2H_DELAY_MAX, 0,
 		cs40l2x_delay_get, cs40l2x_delay_put),
-	SOC_DOUBLE_EXT("RX Slots", 0, 0, 1, CS40L2X_ASP_RX1_SLOT_MAX, 0,
-		cs40l2x_slots_get, cs40l2x_slots_put),
 };
 
 static const char * const cs40l2x_out_mux_texts[] = { "PCM", "A2H" };
@@ -604,7 +514,6 @@ static int cs40l2x_component_set_sysclk(struct snd_soc_component *comp,
 static int cs40l2x_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(dai->component);
-	unsigned int asp_fmt;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
@@ -616,14 +525,9 @@ static int cs40l2x_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		asp_fmt = CS40L2X_ASP_FMT_I2S;
-		break;
-	case SND_SOC_DAIFMT_DSP_A:
-		priv->dsp_a = true;
-		asp_fmt = CS40L2X_ASP_FMT_TDM1;
 		break;
 	default:
-		dev_err(priv->dev, "Invalid format.\n");
+		dev_err(priv->dev, "Invalid format. I2S only.\n");
 		return -EINVAL;
 	}
 
@@ -646,9 +550,7 @@ static int cs40l2x_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	return regmap_update_bits(priv->regmap, CS40L2X_SP_FORMAT,
-					CS40L2X_ASP_FMT_MASK,
-					asp_fmt << CS40L2X_ASP_FMT_SHIFT);
+	return 0;
 }
 
 static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -660,16 +562,12 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 	unsigned int mask = CS40L2X_ASP_WIDTH_RX_MASK |
 			    CS40L2X_ASP_FSYNC_INV_MASK |
 			    CS40L2X_ASP_BCLK_INV_MASK;
-	unsigned int bclk_rate, asp_wl, asp_width;
-	int ret = 0;
+	unsigned int bclk_rate, asp_wl;
+	int ret;
 
 	asp_wl = params_width(params);
-	asp_width = params_physical_width(params);
 
 	bclk_rate = snd_soc_params_to_bclk(params);
-
-	dev_dbg(priv->dev, "asp_wl %d asp_width %d bclk_rate %d\n", asp_wl,
-			asp_width, bclk_rate);
 
 	if (priv->sysclk_rate != bclk_rate)
 		dev_warn(priv->dev, "Expect BCLK of %dHz but got %dHz\n",
@@ -683,28 +581,12 @@ static int cs40l2x_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(priv->regmap, CS40L2X_SP_FORMAT, mask,
-			(asp_width << CS40L2X_ASP_WIDTH_RX_SHIFT)
-			| priv->daifmt);
-	if (ret)
-		return ret;
-
-	ret = regmap_update_bits(priv->regmap, CS40L2X_SP_RX_WL,
+	regmap_update_bits(priv->regmap, CS40L2X_SP_FORMAT, mask,
+			   (asp_wl << CS40L2X_ASP_WIDTH_RX_SHIFT) | priv->daifmt);
+	regmap_update_bits(priv->regmap, CS40L2X_SP_RX_WL,
 			   CS40L2X_ASP_RX_WL_MASK, asp_wl);
-	if (ret)
-		return ret;
 
-	if (priv->dsp_a)
-		ret = regmap_write(priv->regmap, CS40L2X_SP_FRAME_RX_SLOT,
-				(priv->rx1_slot & CS40L2X_ASP_RX1_SLOT_MASK) |
-				((priv->rx2_slot << CS40L2X_ASP_RX2_SLOT_SHIFT)
-				& CS40L2X_ASP_RX2_SLOT_MASK));
-	else
-		ret = regmap_write(priv->regmap, CS40L2X_SP_FRAME_RX_SLOT,
-				1 << CS40L2X_ASP_RX2_SLOT_SHIFT); /* defalut */
-
-	return ret;
-
+	return 0;
 }
 
 #define CS40L2X_RATES SNDRV_PCM_RATE_48000
@@ -748,8 +630,6 @@ static int cs40l2x_codec_probe(struct snd_soc_component *comp)
 	regmap_write(regmap, CS40L2X_DSP1RX5_INPUT, CS40L2X_DSP1_RXn_SRC_ASPRX2);
 
 	priv->sysclk_rate = 1536000;
-	priv->rx1_slot = 0; /* RX1 HW default slot */
-	priv->rx2_slot = 1; /* RX2 HW default slot */
 
 	return 0;
 }
