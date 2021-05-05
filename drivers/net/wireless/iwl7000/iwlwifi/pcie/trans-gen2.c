@@ -140,8 +140,6 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 				     CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
 				     5000);
 			msleep(100);
-			iwl_set_bit(trans, CSR_GP_CNTRL,
-				    CSR_GP_CNTRL_REG_FLAG_SW_RESET);
 		} else if (trans_pcie->fw_reset_handshake) {
 			iwl_trans_pcie_fw_reset_handshake(trans);
 		}
@@ -178,7 +176,10 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 	/* Make sure (redundant) we've released our request to stay awake */
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
 		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
+		iwl_set_bit(trans, CSR_GP_CNTRL,
+			    CSR_GP_CNTRL_REG_FLAG_SW_RESET);
+	}
 	/* Stop the device, and put it in low power state */
 	iwl_pcie_gen2_apm_stop(trans, false);
 
