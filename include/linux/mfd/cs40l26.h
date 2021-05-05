@@ -679,6 +679,7 @@
 #define CS40l26_SVC_ALGO_ID		0x0001F207
 #define CS40L26_VIBEGEN_ALGO_ID	0x000100BD
 #define CS40L26_LOGGER_ALGO_ID		0x0004013D
+#define CS40L26_EXT_ALGO_ID		0x0004013C
 
 #define CS40L26_VIBEGEN_ROM_ALGO_ID	0x000000BD
 #define CS40L26_BUZZGEN_ROM_ALGO_ID	0x0000F202
@@ -1300,13 +1301,13 @@ struct cs40l26_private {
 	bool fw_loaded;
 	bool pm_ready;
 	bool asp_enable;
-	u16 amp_vol_pcm;
 	u8 last_wksrc_pol;
 	u8 wksrc_sts;
 	u32 event_count;
 	u32 owt_wlength;
 	int num_owt_effects;
 	int cal_requested;
+	u16 gain_pct;
 };
 
 struct cs40l26_codec {
@@ -1368,6 +1369,7 @@ extern const struct regmap_config cs40l26_regmap;
 extern const struct mfd_cell cs40l26_devs[CS40L26_NUM_MFD_DEVS];
 extern const u8 cs40l26_pseq_v2_op_sizes[CS40L26_PSEQ_V2_NUM_OPS][2];
 extern const char * const cs40l26_ram_coeff_files[3];
+extern const u32 cs40l26_attn_q21_2_vals[101];
 
 
 /* sysfs */
