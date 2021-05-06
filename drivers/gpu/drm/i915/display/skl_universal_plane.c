@@ -1009,6 +1009,14 @@ skl_program_plane(struct intel_plane *plane,
 		intel_psr2_program_plane_sel_fetch(plane, crtc_state, plane_state, color_plane);
 
 	/*
+	 * Enable the scaler before the plane so that we don't
+	 * get a catastrophic underrun even if the two operations
+	 * end up happening in two different frames.
+	 */
+	if (plane_state->scaler_id >= 0)
+		skl_program_plane_scaler(plane, crtc_state, plane_state);
+
+	/*
 	 * The control register self-arms if the plane was previously
 	 * disabled. Try to make the plane enable atomic by writing
 	 * the control register just before the surface register.
@@ -1016,9 +1024,6 @@ skl_program_plane(struct intel_plane *plane,
 	intel_de_write_fw(dev_priv, PLANE_CTL(pipe, plane_id), plane_ctl);
 	intel_de_write_fw(dev_priv, PLANE_SURF(pipe, plane_id),
 			  intel_plane_ggtt_offset(plane_state) + surf_addr);
-
-	if (plane_state->scaler_id >= 0)
-		skl_program_plane_scaler(plane, crtc_state, plane_state);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
