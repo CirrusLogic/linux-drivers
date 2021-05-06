@@ -208,7 +208,7 @@ static void *get_mfg_base(const char *node_name)
 
 static int pm_callback_power_on(struct kbase_device *kbdev)
 {
-	int error, i;
+	int error, err, r_idx, p_idx;
 	struct mfg_base *mfg = kbdev->platform_context;
 
 	if (mfg->is_powered) {
@@ -216,25 +216,23 @@ static int pm_callback_power_on(struct kbase_device *kbdev)
 		return 0;
 	}
 
-	mfg->is_powered = true;
-
-	for (i = 0; i < kbdev->nr_regulators; i++) {
-		error = regulator_enable(kbdev->regulators[i]);
+	for (r_idx = 0; r_idx < kbdev->nr_regulators; r_idx++) {
+		error = regulator_enable(kbdev->regulators[r_idx]);
 		if (error < 0) {
 			dev_err(kbdev->dev,
 				"Power on reg %d failed error = %d\n",
-				i, error);
-			return error;
+				r_idx, error);
+			goto reg_err;
 		}
 	}
 
-	for (i = 0; i < kbdev->num_pm_domains; i++) {
-		error = pm_runtime_get_sync(kbdev->pm_domain_devs[i]);
+	for (p_idx = 0; p_idx < kbdev->num_pm_domains; p_idx++) {
+		error = pm_runtime_get_sync(kbdev->pm_domain_devs[p_idx]);
 		if (error < 0) {
 			dev_err(kbdev->dev,
 				"Power on core %d failed (err: %d)\n",
-				i+1, error);
-			return error;
+				p_idx+1, error);
+			goto pm_err;
 		}
 	}
 
@@ -243,12 +241,42 @@ static int pm_callback_power_on(struct kbase_device *kbdev)
 		dev_err(kbdev->dev,
 			"gpu clock enable failed (err: %d)\n",
 			error);
-		return error;
+		goto clk_err;
 	}
+
+	mfg->is_powered = true;
 
 	enable_timestamp_register(kbdev);
 
 	return 1;
+
+clk_err:
+	clk_bulk_disable_unprepare(mfg->num_clks, mfg->clks);
+
+pm_err:
+	if (p_idx >= kbdev->num_pm_domains)
+		p_idx = kbdev->num_pm_domains - 1;
+	for (; p_idx >= 0; p_idx--) {
+		pm_runtime_mark_last_busy(kbdev->pm_domain_devs[p_idx]);
+		err = pm_runtime_put_autosuspend(kbdev->pm_domain_devs[p_idx]);
+		if (err < 0)
+			dev_err(kbdev->dev,
+				"Power off core %d failed (err: %d)\n",
+				p_idx+1, err);
+	}
+
+reg_err:
+	if (r_idx >= kbdev->nr_regulators)
+		r_idx = kbdev->nr_regulators - 1;
+	for (; r_idx >= 0; r_idx--) {
+		err = regulator_disable(kbdev->regulators[r_idx]);
+		if (err < 0)
+			dev_err(kbdev->dev,
+				"Power off reg %d failed error = %d\n",
+				r_idx, err);
+	}
+
+	return error;
 }
 
 static void pm_callback_power_off(struct kbase_device *kbdev)
