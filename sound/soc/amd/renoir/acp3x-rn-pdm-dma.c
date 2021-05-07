@@ -25,7 +25,7 @@ static const struct snd_pcm_hardware acp_pdm_hardware_capture = {
 		SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME,
 	.formats = SNDRV_PCM_FMTBIT_S32_LE,
 	.channels_min = 2,
-	.channels_max = 2,
+	.channels_max = 4,
 	.rates = SNDRV_PCM_RATE_48000,
 	.rate_min = 48000,
 	.rate_max = 48000,
@@ -303,6 +303,9 @@ static int acp_pdm_dai_trigger(struct snd_pcm_substream *substream,
 	case TWO_CH:
 		ch_mask = 0x00;
 		break;
+	case FOUR_CH:
+		ch_mask = 0x01;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -343,7 +346,7 @@ static struct snd_soc_dai_driver acp_pdm_dai_driver = {
 		.formats = SNDRV_PCM_FMTBIT_S24_LE |
 			   SNDRV_PCM_FMTBIT_S32_LE,
 		.channels_min = 2,
-		.channels_max = 2,
+		.channels_max = 4,
 		.rate_min = 48000,
 		.rate_max = 48000,
 	},

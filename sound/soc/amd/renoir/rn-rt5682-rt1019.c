@@ -26,7 +26,7 @@
 #define PCO_PLAT_CLK 48000000
 #define RT5682_PLL_FREQ (48000 * 512)
 #define DUAL_CHANNEL		2
-
+#define FOUR_CHANNEL		4
 
 static struct snd_soc_jack pco_jack;
 static struct clk *rt5682_dai_wclk;
@@ -173,6 +173,16 @@ static const struct snd_pcm_hw_constraint_list constraints_channels = {
 	.mask = 0,
 };
 
+static const unsigned int dmic_channels[] = {
+	DUAL_CHANNEL, FOUR_CHANNEL,
+};
+
+static const struct snd_pcm_hw_constraint_list dmic_constraints_channels = {
+	.count = ARRAY_SIZE(dmic_channels),
+	.list = dmic_channels,
+	.mask = 0,
+};
+
 static int acp3x_rn_5682_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -208,6 +218,16 @@ static int acp3x_rn_rt1019_startup(struct snd_pcm_substream *substream)
 	return rn_rt5682_clk_enable(substream);
 }
 
+static int acp3x_rn_dmic_startup(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	runtime->hw.channels_max = FOUR_CHANNEL;
+	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+				   &dmic_constraints_channels);
+	return 0;
+}
+
 static void rn_rt5682_shutdown(struct snd_pcm_substream *substream)
 {
 	rn_rt5682_clk_disable();
@@ -222,6 +242,10 @@ static const struct snd_soc_ops acp3x_rn_rt1019_play_ops = {
 	.startup = acp3x_rn_rt1019_startup,
 	.shutdown = rn_rt5682_shutdown,
 	.hw_params = acp3x_rn_1019_hw_params,
+};
+
+static const struct snd_soc_ops acp3x_rn_dmic_ops = {
+	.startup = acp3x_rn_dmic_startup,
 };
 
 SND_SOC_DAILINK_DEF(acp_pdm,
@@ -283,6 +307,7 @@ static struct snd_soc_dai_link acp3x_rn_dai[] = {
 		.name = "acp3x-dmic-capture",
 		.stream_name = "DMIC capture",
 		.capture_only = 1,
+		.ops = &acp3x_rn_dmic_ops,
 		SND_SOC_DAILINK_REG(acp_pdm, dmic_codec, pdm_platform),
 	},
 };

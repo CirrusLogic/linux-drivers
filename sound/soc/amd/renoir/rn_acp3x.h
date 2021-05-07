@@ -44,6 +44,7 @@
 #define ACP_PDM_DISABLE 0x00
 #define ACP_PDM_DMA_EN_STATUS 0x02
 #define TWO_CH 0x02
+#define FOUR_CH 0x04
 #define DELAY_US 5
 #define ACP_COUNTER 20000
 /* time in ms for runtime suspend delay */
