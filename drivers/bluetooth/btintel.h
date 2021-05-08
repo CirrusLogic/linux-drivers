@@ -171,10 +171,15 @@ int btintel_download_firmware_newgen(struct hci_dev *hdev,
 				     u32 *boot_param, u8 hw_variant,
 				     u8 sbe_type);
 void btintel_reset_to_bootloader(struct hci_dev *hdev);
+#ifdef CONFIG_BT_FEATURE_QUALITY_REPORT
 int btintel_read_debug_features(struct hci_dev *hdev,
 				struct intel_debug_features *features);
 int btintel_set_debug_features(struct hci_dev *hdev,
 			       const struct intel_debug_features *features);
+int btintel_reset_debug_features(struct hci_dev *hdev,
+			       const struct intel_debug_features *features);
+int btintel_set_quality_report(struct hci_dev *hdev, bool enable);
+#endif
 #else
 
 static inline int btintel_check_bdaddr(struct hci_dev *hdev)
@@ -301,10 +306,18 @@ static inline int btintel_read_debug_features(struct hci_dev *hdev,
 	return -EOPNOTSUPP;
 }
 
+#ifdef CONFIG_BT_FEATURE_QUALITY_REPORT
 static inline int btintel_set_debug_features(struct hci_dev *hdev,
 					     const struct intel_debug_features *features)
 {
 	return -EOPNOTSUPP;
 }
+
+static inline int btintel_reset_debug_features(struct hci_dev *hdev,
+					       const struct intel_debug_features *features)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 #endif
