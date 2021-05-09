@@ -115,6 +115,7 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
 					   TOF_RESPONDER_CONFIG_CMD, 6);
 	int err;
+	int cmd_size;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -139,6 +140,10 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 			cpu_to_le16(IWL_MVM_FTM_NON_TB_MIN_TIME_BETWEEN_MSR);
 		cmd.max_time_between_msr =
 			cpu_to_le16(IWL_MVM_FTM_NON_TB_MAX_TIME_BETWEEN_MSR);
+		cmd_size = sizeof(struct iwl_tof_responder_config_cmd_v9);
+	} else {
+		/* All versions up to version 8 have the same size */
+		cmd_size = sizeof(struct iwl_tof_responder_config_cmd_v8);
 	}
 
 	if (cmd_ver >= 8)
@@ -160,7 +165,7 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 
 	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(TOF_RESPONDER_CONFIG_CMD,
 						    LOCATION_GROUP, 0),
-				    0, sizeof(cmd), &cmd);
+				    0, cmd_size, &cmd);
 }
 
 static int
