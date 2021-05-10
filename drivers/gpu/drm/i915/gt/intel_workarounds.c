@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2014-2018 Intel Corporation
  */
 
@@ -52,45 +51,6 @@
  * - WAs per platform in standard gen/chrono order
  * - Public functions to init or apply the given workaround type.
  */
-
-/*
- * KBL revision ID ordering is bizarre; higher revision ID's map to lower
- * steppings in some cases.  So rather than test against the revision ID
- * directly, let's map that into our own range of increasing ID's that we
- * can test against in a regular manner.
- */
-
-const struct i915_rev_steppings kbl_revids[] = {
-	[0] = { .gt_stepping = KBL_REVID_A0, .disp_stepping = KBL_REVID_A0 },
-	[1] = { .gt_stepping = KBL_REVID_B0, .disp_stepping = KBL_REVID_B0 },
-	[2] = { .gt_stepping = KBL_REVID_C0, .disp_stepping = KBL_REVID_B0 },
-	[3] = { .gt_stepping = KBL_REVID_D0, .disp_stepping = KBL_REVID_B0 },
-	[4] = { .gt_stepping = KBL_REVID_F0, .disp_stepping = KBL_REVID_C0 },
-	[5] = { .gt_stepping = KBL_REVID_C0, .disp_stepping = KBL_REVID_B1 },
-	[6] = { .gt_stepping = KBL_REVID_D1, .disp_stepping = KBL_REVID_B1 },
-	[7] = { .gt_stepping = KBL_REVID_G0, .disp_stepping = KBL_REVID_C0 },
-};
-
-const struct i915_rev_steppings tgl_uy_revid_step_tbl[] = {
-	[0] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_A0 },
-	[1] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_C0 },
-	[2] = { .gt_stepping = STEP_B1, .disp_stepping = STEP_C0 },
-	[3] = { .gt_stepping = STEP_C0, .disp_stepping = STEP_D0 },
-};
-
-/* Same GT stepping between tgl_uy_revids and tgl_revids don't mean the same HW */
-const struct i915_rev_steppings tgl_revid_step_tbl[] = {
-	[0] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_B0 },
-	[1] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_D0 },
-};
-
-const struct i915_rev_steppings adls_revid_step_tbl[] = {
-	[0x0] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_A0 },
-	[0x1] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_A2 },
-	[0x4] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_B0 },
-	[0x8] = { .gt_stepping = STEP_C0, .disp_stepping = STEP_B0 },
-	[0xC] = { .gt_stepping = STEP_D0, .disp_stepping = STEP_C0 },
-};
 
 static void wa_init_start(struct i915_wa_list *wal, const char *name, const char *engine_name)
 {
@@ -281,7 +241,7 @@ static void gen8_ctx_workarounds_init(struct intel_engine_cs *engine,
 		     PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
 
 	/* Use Force Non-Coherent whenever executing a 3D context. This is a
-	 * workaround for for a possible hang in the unlikely event a TLB
+	 * workaround for a possible hang in the unlikely event a TLB
 	 * invalidation occurs during a PSD flush.
 	 */
 	/* WaForceEnableNonCoherent:bdw,chv */
@@ -521,7 +481,7 @@ static void kbl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	gen9_ctx_workarounds_init(engine, wal);
 
 	/* WaToEnableHwFixForPushConstHWBug:kbl */
-	if (IS_KBL_GT_REVID(i915, KBL_REVID_C0, REVID_FOREVER))
+	if (IS_KBL_GT_STEP(i915, STEP_C0, STEP_FOREVER))
 		wa_masked_en(wal, COMMON_SLICE_CHICKEN2,
 			     GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
 
@@ -758,7 +718,7 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 	else if (IS_GEN(i915, 6))
 		gen6_ctx_workarounds_init(engine, wal);
 	else if (INTEL_GEN(i915) < 8)
-		return;
+		;
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 
@@ -939,7 +899,7 @@ kbl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	gen9_gt_workarounds_init(i915, wal);
 
 	/* WaDisableDynamicCreditSharing:kbl */
-	if (IS_KBL_GT_REVID(i915, 0, KBL_REVID_B0))
+	if (IS_KBL_GT_STEP(i915, 0, STEP_B0))
 		wa_write_or(wal,
 			    GAMT_CHKN_BIT_REG,
 			    GAMT_CHKN_DISABLE_DYNAMIC_CREDIT_SHARING);
@@ -1112,11 +1072,10 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 
 	/* Wa_1607087056:icl,ehl,jsl */
 	if (IS_ICELAKE(i915) ||
-		IS_JSL_EHL_REVID(i915, EHL_REVID_A0, EHL_REVID_A0)) {
+	    IS_JSL_EHL_REVID(i915, EHL_REVID_A0, EHL_REVID_A0))
 		wa_write_or(wal,
 			    SLICE_UNIT_LEVEL_CLKGATE,
 			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
-	}
 }
 
 static void
@@ -1132,19 +1091,19 @@ tgl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	gen12_gt_workarounds_init(i915, wal);
 
 	/* Wa_1409420604:tgl */
-	if (IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0))
+	if (IS_TGL_UY_GT_STEP(i915, STEP_A0, STEP_A0))
 		wa_write_or(wal,
 			    SUBSLICE_UNIT_LEVEL_CLKGATE2,
 			    CPSSUNIT_CLKGATE_DIS);
 
 	/* Wa_1607087056:tgl also know as BUG:1409180338 */
-	if (IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0))
+	if (IS_TGL_UY_GT_STEP(i915, STEP_A0, STEP_A0))
 		wa_write_or(wal,
 			    SLICE_UNIT_LEVEL_CLKGATE,
 			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
 
 	/* Wa_1408615072:tgl[a0] */
-	if (IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0))
+	if (IS_TGL_UY_GT_STEP(i915, STEP_A0, STEP_A0))
 		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
 			    VSUNIT_CLKGATE_DIS_TGL);
 }
@@ -1211,7 +1170,7 @@ gt_init_workarounds(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	else if (IS_GEN(i915, 4))
 		gen4_gt_workarounds_init(i915, wal);
 	else if (INTEL_GEN(i915) <= 8)
-		return;
+		;
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 }
@@ -1586,7 +1545,7 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 	else if (IS_SKYLAKE(i915))
 		skl_whitelist_build(engine);
 	else if (INTEL_GEN(i915) <= 8)
-		return;
+		;
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 
@@ -1622,7 +1581,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	struct drm_i915_private *i915 = engine->i915;
 
 	if (IS_DG1_REVID(i915, DG1_REVID_A0, DG1_REVID_A0) ||
-	    IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0)) {
+	    IS_TGL_UY_GT_STEP(i915, STEP_A0, STEP_A0)) {
 		/*
 		 * Wa_1607138336:tgl[a0],dg1[a0]
 		 * Wa_1607063988:tgl[a0],dg1[a0]
@@ -1632,7 +1591,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    GEN12_DISABLE_POSH_BUSY_FF_DOP_CG);
 	}
 
-	if (IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0)) {
+	if (IS_TGL_UY_GT_STEP(i915, STEP_A0, STEP_A0)) {
 		/*
 		 * Wa_1606679103:tgl
 		 * (see also Wa_1606682166:icl)
@@ -2061,7 +2020,7 @@ xcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	struct drm_i915_private *i915 = engine->i915;
 
 	/* WaKBLVECSSemaphoreWaitPoll:kbl */
-	if (IS_KBL_GT_REVID(i915, KBL_REVID_A0, KBL_REVID_E0)) {
+	if (IS_KBL_GT_STEP(i915, STEP_A0, STEP_E0)) {
 		wa_write(wal,
 			 RING_SEMA_WAIT_POLL(engine->mmio_base),
 			 1);
@@ -2213,10 +2172,15 @@ retry:
 	if (err)
 		goto err_pm;
 
+	err = i915_vma_pin_ww(vma, &ww, 0, 0,
+			   i915_vma_is_ggtt(vma) ? PIN_GLOBAL : PIN_USER);
+	if (err)
+		goto err_unpin;
+
 	rq = i915_request_create(ce);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
-		goto err_unpin;
+		goto err_vma;
 	}
 
 	err = i915_request_await_object(rq, vma->obj, true);
@@ -2257,6 +2221,8 @@ retry:
 
 err_rq:
 	i915_request_put(rq);
+err_vma:
+	i915_vma_unpin(vma);
 err_unpin:
 	intel_context_unpin(ce);
 err_pm:
@@ -2267,7 +2233,6 @@ err_pm:
 	}
 	i915_gem_ww_ctx_fini(&ww);
 	intel_engine_pm_put(ce->engine);
-	i915_vma_unpin(vma);
 	i915_vma_put(vma);
 	return err;
 }

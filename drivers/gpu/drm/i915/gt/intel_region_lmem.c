@@ -26,12 +26,12 @@ static int init_fake_lmem_bar(struct intel_memory_region *mem)
 	if (ret)
 		return ret;
 
-	mem->remap_addr = dma_map_resource(&i915->drm.pdev->dev,
+	mem->remap_addr = dma_map_resource(i915->drm.dev,
 					   mem->region.start,
 					   mem->fake_mappable.size,
 					   PCI_DMA_BIDIRECTIONAL,
 					   DMA_ATTR_FORCE_CONTIGUOUS);
-	if (dma_mapping_error(&i915->drm.pdev->dev, mem->remap_addr)) {
+	if (dma_mapping_error(i915->drm.dev, mem->remap_addr)) {
 		drm_mm_remove_node(&mem->fake_mappable);
 		return -EINVAL;
 	}
@@ -56,7 +56,7 @@ static void release_fake_lmem_bar(struct intel_memory_region *mem)
 
 	drm_mm_remove_node(&mem->fake_mappable);
 
-	dma_unmap_resource(&mem->i915->drm.pdev->dev,
+	dma_unmap_resource(mem->i915->drm.dev,
 			   mem->remap_addr,
 			   mem->fake_mappable.size,
 			   PCI_DMA_BIDIRECTIONAL,
@@ -90,8 +90,6 @@ region_lmem_init(struct intel_memory_region *mem)
 	if (ret)
 		io_mapping_fini(&mem->iomap);
 
-	intel_memory_region_set_name(mem, "local");
-
 	return ret;
 }
 
@@ -105,7 +103,7 @@ struct intel_memory_region *
 intel_gt_setup_fake_lmem(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
-	struct pci_dev *pdev = i915->drm.pdev;
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	struct intel_memory_region *mem;
 	resource_size_t mappable_end;
 	resource_size_t io_start;
@@ -121,7 +119,7 @@ intel_gt_setup_fake_lmem(struct intel_gt *gt)
 
 	/* Your mappable aperture belongs to me now! */
 	mappable_end = pci_resource_len(pdev, 2);
-	io_start = pci_resource_start(pdev, 2),
+	io_start = pci_resource_start(pdev, 2);
 	start = i915->params.fake_lmem_start;
 
 	mem = intel_memory_region_create(i915,
