@@ -290,7 +290,7 @@ EXPORT_SYMBOL(dma_resv_add_shared_fence);
  */
 void dma_resv_add_excl_fence(struct dma_resv *obj, struct dma_fence *fence)
 {
-	struct dma_fence *old_fence = dma_resv_get_excl(obj);
+	struct dma_fence *old_fence = dma_resv_excl_fence(obj);
 	struct dma_resv_list *old;
 	u32 i = 0;
 
@@ -386,7 +386,7 @@ retry:
 	rcu_read_unlock();
 
 	src_list = dma_resv_get_list(dst);
-	old = dma_resv_get_excl(dst);
+	old = dma_resv_excl_fence(dst);
 
 	write_seqcount_begin(&dst->seq);
 	/* write_seqcount_begin provides the necessary memory barrier */
@@ -433,7 +433,7 @@ int dma_resv_get_fences(struct dma_resv *obj, struct dma_fence **pfence_excl,
 		rcu_read_lock();
 		seq = read_seqcount_begin(&obj->seq);
 
-		fence_excl = rcu_dereference(obj->fence_excl);
+		fence_excl = dma_resv_excl_fence(obj);
 		if (fence_excl && !dma_fence_get_rcu(fence_excl))
 			goto unlock;
 
@@ -614,7 +614,7 @@ retry:
 	rcu_read_lock();
 	i = -1;
 
-	fence = rcu_dereference(obj->fence_excl);
+	fence = dma_resv_excl_fence(obj);
 	if (fence && !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
 		if (!dma_fence_get_rcu(fence))
 			goto unlock_retry;
@@ -738,7 +738,7 @@ retry:
 	}
 
 	if (!shared_count) {
-		struct dma_fence *fence_excl = rcu_dereference(obj->fence_excl);
+		struct dma_fence *fence_excl = dma_resv_excl_fence(obj);
 
 		if (fence_excl) {
 			ret = dma_resv_test_signaled_single(fence_excl);
