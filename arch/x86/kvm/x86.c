@@ -2060,6 +2060,7 @@ static atomic_t kvm_guest_has_master_clock = ATOMIC_INIT(0);
 #endif
 
 static DEFINE_PER_CPU(unsigned long, cpu_tsc_khz);
+static DEFINE_PER_CPU(unsigned long, cpu_tsc_khz_changed);
 static unsigned long max_tsc_khz;
 
 static u32 adjust_tsc_khz(u32 khz, s32 ppm)
@@ -2698,6 +2699,14 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 		kvm_make_request(KVM_REQ_CLOCK_UPDATE, v);
 		return 1;
 	}
+	/*
+	 * Use the refined tsc_khz instead of the tsc_khz at boot (which was
+	 * not refined yet when we got it), if the tsc frequency hasn't changed.
+	 * If the frequency does change, it does not get refined any further,
+	 * so it is safe ot use the one gotten from the notifiers.
+	 */
+	if (!__this_cpu_read(cpu_tsc_khz_changed))
+		tgt_tsc_khz = tsc_khz;
 	if (!use_master_clock) {
 		host_tsc = rdtsc();
 		kernel_ns = get_kvmclock_base_ns();
@@ -7697,6 +7706,8 @@ static void tsc_khz_changed(void *data)
 		khz = freq->new;
 	else if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
 		khz = cpufreq_quick_get(raw_smp_processor_id());
+	if (khz)
+		__this_cpu_write(cpu_tsc_khz_changed, true);
 	if (!khz)
 		khz = tsc_khz;
 	__this_cpu_write(cpu_tsc_khz, khz);
