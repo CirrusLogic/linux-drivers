@@ -606,6 +606,8 @@ struct iwl_trans_ops {
 	void (*debugfs_cleanup)(struct iwl_trans *trans);
 	void (*sync_nmi)(struct iwl_trans *trans);
 	int (*set_pnvm)(struct iwl_trans *trans, const void *data, u32 len);
+	int (*set_reduce_power)(struct iwl_trans *trans,
+				const void *data, u32 len);
 	void (*interrupts)(struct iwl_trans *trans, bool enable);
 };
 
@@ -919,6 +921,7 @@ struct iwl_trans_txqs {
 /**
  * struct iwl_trans - transport common data
  *
+ * @csme_own - true if we couldn't get ownership on the device
  * @ops - pointer to iwl_trans_ops
  * @op_mode - pointer to the op_mode
  * @trans_cfg: the trans-specific configuration part
@@ -953,6 +956,7 @@ struct iwl_trans_txqs {
  * @iwl_trans_txqs: transport tx queues data.
  */
 struct iwl_trans {
+	bool csme_own;
 	const struct iwl_trans_ops *ops;
 	struct iwl_op_mode *op_mode;
 	const struct iwl_cfg_trans_params *trans_cfg;
@@ -975,6 +979,7 @@ struct iwl_trans {
 	bool pm_support;
 	bool ltr_enabled;
 	u8 pnvm_loaded:1;
+	u8 reduce_power_loaded:1;
 
 	const struct iwl_hcmd_arr *command_groups;
 	int command_groups_size;
@@ -1482,6 +1487,20 @@ static inline int iwl_trans_set_pnvm(struct iwl_trans *trans,
 
 	trans->pnvm_loaded = true;
 
+	return 0;
+}
+
+static inline int iwl_trans_set_reduce_power(struct iwl_trans *trans,
+					     const void *data, u32 len)
+{
+	if (trans->ops->set_reduce_power) {
+		int ret = trans->ops->set_reduce_power(trans, data, len);
+
+		if (ret)
+			return ret;
+	}
+
+	trans->reduce_power_loaded = true;
 	return 0;
 }
 
