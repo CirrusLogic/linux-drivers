@@ -1207,7 +1207,79 @@ ieee80211_get_he_sta_cap(const struct ieee80211_supported_band *sband)
 	return NULL;
 }
 
-#endif
+static inline void
+ieee80211_sband_set_num_iftypes_data(struct ieee80211_supported_band *sband,
+				     u16 n)
+{
+}
+
+static inline u16
+ieee80211_sband_get_num_iftypes_data(struct ieee80211_supported_band *sband)
+{
+	return 0;
+}
+
+static inline void
+ieee80211_sband_set_iftypes_data(struct ieee80211_supported_band *sband,
+				 const struct ieee80211_sband_iftype_data *data)
+{
+}
+
+static inline struct ieee80211_sband_iftype_data *
+ieee80211_sband_get_iftypes_data(struct ieee80211_supported_band *sband)
+{
+	return NULL;
+}
+
+static inline struct ieee80211_sband_iftype_data *
+ieee80211_sband_get_iftypes_data_entry(struct ieee80211_supported_band *sband,
+				       u16 i)
+{
+	WARN_ONCE(1,
+		  "Tried to use unsupported sband iftype data\n");
+	return NULL;
+}
+
+static inline const struct ieee80211_sband_iftype_data *
+ieee80211_get_sband_iftype_data(const struct ieee80211_supported_band *sband,
+				u8 iftype)
+{
+	return NULL;
+}
+#else  /* CFG80211_VERSION < KERNEL_VERSION(4,19,0) */
+static inline void
+ieee80211_sband_set_num_iftypes_data(struct ieee80211_supported_band *sband,
+				     u16 n)
+{
+	sband->n_iftype_data = n;
+}
+
+static inline u16
+ieee80211_sband_get_num_iftypes_data(struct ieee80211_supported_band *sband)
+{
+	return sband->n_iftype_data;
+}
+
+static inline void
+ieee80211_sband_set_iftypes_data(struct ieee80211_supported_band *sband,
+				 const struct ieee80211_sband_iftype_data *data)
+{
+	sband->iftype_data = data;
+}
+
+static inline const struct ieee80211_sband_iftype_data *
+ieee80211_sband_get_iftypes_data(struct ieee80211_supported_band *sband)
+{
+	return sband->iftype_data;
+}
+
+static inline const struct ieee80211_sband_iftype_data *
+ieee80211_sband_get_iftypes_data_entry(struct ieee80211_supported_band *sband,
+				       u16 i)
+{
+	return &sband->iftype_data[i];
+}
+#endif /* CFG80211_VERSION < KERNEL_VERSION(4,19,0) */
 
 #if CFG80211_VERSION < KERNEL_VERSION(5,8,0)
 /**
@@ -1240,6 +1312,12 @@ static inline const struct ieee80211_sta_he_cap *
 ieee80211_get_he_iftype_cap(const struct ieee80211_supported_band *sband,
 			    u8 iftype)
 {
+	const struct ieee80211_sband_iftype_data *data =
+		ieee80211_get_sband_iftype_data(sband, iftype);
+
+	if (data && data->he_cap.has_he)
+		return &data->he_cap;
+
 	return NULL;
 }
 
@@ -1956,81 +2034,6 @@ static inline void u64_to_ether_addr(u64 u, u8 *addr)
 	}
 }
 #endif /* < 4,11,0 */
-
-#if CFG80211_VERSION < KERNEL_VERSION(4, 19, 0)
-static inline void
-ieee80211_sband_set_num_iftypes_data(struct ieee80211_supported_band *sband,
-				     u16 n)
-{
-}
-
-static inline u16
-ieee80211_sband_get_num_iftypes_data(struct ieee80211_supported_band *sband)
-{
-	return 0;
-}
-
-static inline void
-ieee80211_sband_set_iftypes_data(struct ieee80211_supported_band *sband,
-				 const struct ieee80211_sband_iftype_data *data)
-{
-}
-
-static inline struct ieee80211_sband_iftype_data *
-ieee80211_sband_get_iftypes_data(struct ieee80211_supported_band *sband)
-{
-	return NULL;
-}
-
-static inline struct ieee80211_sband_iftype_data *
-ieee80211_sband_get_iftypes_data_entry(struct ieee80211_supported_band *sband,
-				       u16 i)
-{
-	WARN_ONCE(1,
-		  "Tried to use unsupported sband iftype data\n");
-	return NULL;
-}
-
-static inline const struct ieee80211_sband_iftype_data *
-ieee80211_get_sband_iftype_data(const struct ieee80211_supported_band *sband,
-				u8 iftype)
-{
-	return NULL;
-}
-#else  /* CFG80211_VERSION < KERNEL_VERSION(4,19,0) */
-static inline void
-ieee80211_sband_set_num_iftypes_data(struct ieee80211_supported_band *sband,
-				     u16 n)
-{
-	sband->n_iftype_data = n;
-}
-
-static inline u16
-ieee80211_sband_get_num_iftypes_data(struct ieee80211_supported_band *sband)
-{
-	return sband->n_iftype_data;
-}
-
-static inline void
-ieee80211_sband_set_iftypes_data(struct ieee80211_supported_band *sband,
-				 const struct ieee80211_sband_iftype_data *data)
-{
-	sband->iftype_data = data;
-}
-
-static inline const struct ieee80211_sband_iftype_data *
-ieee80211_sband_get_iftypes_data(struct ieee80211_supported_band *sband)
-{
-	return sband->iftype_data;
-}
-
-static inline const struct ieee80211_sband_iftype_data *
-ieee80211_sband_get_iftypes_data_entry(struct ieee80211_supported_band *sband,
-				       u16 i)
-{
-	return &sband->iftype_data[i];
-}
-#endif /* CFG80211_VERSION < KERNEL_VERSION(4,19,0) */
 
 #if CFG80211_VERSION < KERNEL_VERSION(5,1,0)
 static inline int cfg80211_vendor_cmd_get_sender(struct wiphy *wiphy)
