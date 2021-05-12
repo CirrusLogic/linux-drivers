@@ -1194,19 +1194,6 @@ struct ieee80211_sband_iftype_data {
 	struct ieee80211_sta_he_cap he_cap;
 };
 
-/**
- * ieee80211_get_he_sta_cap - return HE capabilities for an sband's STA
- * @sband: the sband to search for the STA on
- *
- * Return: pointer to the struct ieee80211_sta_he_cap, or NULL is none found
- *	Currently, not supported
- */
-static inline const struct ieee80211_sta_he_cap *
-ieee80211_get_he_sta_cap(const struct ieee80211_supported_band *sband)
-{
-	return NULL;
-}
-
 static inline void
 ieee80211_sband_set_num_iftypes_data(struct ieee80211_supported_band *sband,
 				     u16 n)
