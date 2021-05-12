@@ -873,6 +873,11 @@
 
 #define CS40L26_NUM_OUTPUT_SETUP_WRITES	3
 
+/* BST */
+#define CS40L26_BST_DCM_EN_DEFAULT		1
+#define CS40L26_BST_DCM_EN_MASK			BIT(0)
+#define CS40L26_BST_DCM_EN_SHIFT		0
+
 /* brownout prevention */
 #define CS40L26_VXBR_DEFAULT			0xFFFFFFFF
 
@@ -1265,6 +1270,7 @@ struct cs40l26_platform_data {
 	u32 vpbr_atk_rate;
 	u32 vpbr_wait;
 	u32 vpbr_rel_rate;
+	bool bst_dcm_en;
 };
 
 struct cs40l26_private {

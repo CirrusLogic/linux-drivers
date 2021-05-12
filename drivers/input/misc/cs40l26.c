@@ -2801,6 +2801,42 @@ err_free:
 	return ret;
 }
 
+static int cs40l26_bst_dcm_config(struct cs40l26_private *cs40l26)
+{
+	int ret = 0;
+	u32 val;
+
+	if (cs40l26->pdata.bst_dcm_en != CS40L26_BST_DCM_EN_DEFAULT) {
+		ret = regmap_read(cs40l26->regmap, CS40L26_BST_DCM_CTL, &val);
+		if (ret)
+			return ret;
+
+		val &= ~CS40L26_BST_DCM_EN_MASK;
+		val |= cs40l26->pdata.bst_dcm_en << CS40L26_BST_DCM_EN_SHIFT;
+
+		ret = regmap_write(cs40l26->regmap, CS40L26_BST_DCM_CTL, val);
+		if (ret)
+			return ret;
+
+		switch (cs40l26->revid) {
+		case CS40L26_REVID_A0:
+			ret = cs40l26_pseq_v1_add_pair(cs40l26,
+						CS40L26_BST_DCM_CTL, val, true);
+			break;
+		case CS40L26_REVID_A1:
+			ret = cs40l26_pseq_v2_add_write_reg_full(cs40l26,
+						CS40L26_BST_DCM_CTL, val, true);
+			break;
+		default:
+			dev_err(cs40l26->dev, "Revid ID not supported: %02X\n",
+				cs40l26->revid);
+			ret = -EINVAL;
+		}
+	}
+
+	return ret;
+}
+
 static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
@@ -2857,6 +2893,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		goto err_out;
 
 	ret = cs40l26_gpio_config(cs40l26);
+	if (ret)
+		goto err_out;
+
+	ret = cs40l26_bst_dcm_config(cs40l26);
 	if (ret)
 		goto err_out;
 
@@ -3025,6 +3065,11 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 		cs40l26->pdata.vpbr_rel_rate = val;
 	else
 		cs40l26->pdata.vpbr_rel_rate = CS40L26_VXBR_DEFAULT;
+
+	if (!of_property_read_u32(np, "cirrus,bst-dcm-en", &val))
+		cs40l26->pdata.bst_dcm_en = val;
+	else
+		cs40l26->pdata.bst_dcm_en = CS40L26_BST_DCM_EN_DEFAULT;
 
 	return 0;
 }
