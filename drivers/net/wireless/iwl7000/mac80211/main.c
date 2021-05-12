@@ -1028,8 +1028,14 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		supp_ht = supp_ht || sband->ht_cap.ht_supported;
 		supp_vht = supp_vht || sband->vht_cap.vht_supported;
 
-		if (!supp_he)
-			supp_he = !!ieee80211_get_he_sta_cap(sband);
+		for (i = 0; i < ieee80211_sband_get_num_iftypes_data(sband); i++) {
+			const struct ieee80211_sband_iftype_data *iftd;
+
+			iftd = ieee80211_sband_get_iftypes_data_entry(sband,
+								      i);
+
+			supp_he = supp_he || (iftd && iftd->he_cap.has_he);
+		}
 
 		/* HT, VHT, HE require QoS, thus >= 4 queues */
 		if (WARN_ON(local->hw.queues < IEEE80211_NUM_ACS &&
