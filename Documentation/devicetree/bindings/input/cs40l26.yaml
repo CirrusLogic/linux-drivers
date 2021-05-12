@@ -226,6 +226,15 @@ properties:
     maximum: 0x7
     default: 0x5
 
+  cirrus,bst-dcm-en:
+    description:
+      Boost converter automatic DCM Mode enable. This enables the digital
+      boost converter to operate in a low power (DCM) mode during low loading
+      conditions.
+      0 = Boost converter automatic low power mode disabled (DISABLED)
+      1 = Boost converter automatic low power mode enabled  (ENABLED)
+    type: boolean
+
 required:
   - compatible
 
