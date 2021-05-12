@@ -88,6 +88,7 @@ static const struct iwl_hcmd_names iwl_xvt_long_cmd_names[] = {
 	HCMD_NAME(GET_SET_PHY_DB_CMD),
 	HCMD_NAME(TX_ANT_CONFIGURATION_CMD),
 	HCMD_NAME(REPLY_SF_CFG_CMD),
+	HCMD_NAME(DEBUG_HOST_COMMAND),
 };
 
 /* Please keep this array *SORTED* by hex value.
