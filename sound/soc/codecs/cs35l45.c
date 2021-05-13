@@ -1668,14 +1668,21 @@ static void cs35l45_remove_padding(u32 *buf, int nwords)
 {
 	u8 *pack_in = (u8 *)buf;
 	u8 *pack_out = (u8 *)buf;
+	u8 temp = pack_in[1];
 	int i;
 
+	/* The first interaction will swap position 1 and 2, so use the saved value */
+	*pack_out++ = pack_in[3];
+	*pack_out++ = pack_in[2]; /* Writing to pack_in[1] */
+	*pack_out++ = temp; /* Receive pack_in[1] */
+	pack_in += 4;
+
 	/* Remove the padding bytes from the data read from the DSP */
-	for (i = 0; i < nwords; i++) {
+	for (i = 0; i < nwords - 1; i++) {
 		*pack_out++ = pack_in[3];
 		*pack_out++ = pack_in[2];
 		*pack_out++ = pack_in[1];
-		pack_in += 4;
+		pack_in += sizeof(*buf);
 	}
 }
 
