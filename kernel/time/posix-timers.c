@@ -1196,8 +1196,8 @@ int ksys_clock_adjtime32(clockid_t which_clock, struct old_timex32 __user * utp)
 
 	err = do_clock_adjtime(which_clock, &ktx);
 
-	if (err >= 0)
-		err = put_old_timex32(utp, &ktx);
+	if (err >= 0 && put_old_timex32(utp, &ktx))
+		return -EFAULT;
 
 	return err;
 }
