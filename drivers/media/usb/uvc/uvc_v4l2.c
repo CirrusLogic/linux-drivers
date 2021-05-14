@@ -1208,7 +1208,7 @@ static int uvc_ioctl_g_roi_target(struct file *file, void *fh,
 		query = UVC_GET_DEF;
 		break;
 	case V4L2_SEL_TGT_ROI_BOUNDS_MIN:
-		query = UVC_GET_MAX;
+		query = UVC_GET_MIN;
 		break;
 	case V4L2_SEL_TGT_ROI_BOUNDS_MAX:
 		query = UVC_GET_MAX;
