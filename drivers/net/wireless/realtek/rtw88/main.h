@@ -1651,6 +1651,8 @@ struct rtw_dm_info {
 	enum rtw_edcca_mode edcca_mode;
 	struct rtw_gapk_info gapk;
 	bool is_bt_iqk_timeout;
+
+	u8 scan_density;
 };
 
 struct rtw_efuse {
@@ -1909,6 +1911,7 @@ struct rtw_dev {
 	struct rtw_wow_param wow;
 
 	bool need_rfk;
+	struct completion fw_scan_density;
 
 	struct rtw_sar sar;
 
@@ -2010,5 +2013,6 @@ int rtw_sta_add(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 void rtw_sta_remove(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 		    bool fw_exist);
 void rtw_fw_recovery(struct rtw_dev *rtwdev);
+void rtw_core_fw_scan_notify(struct rtw_dev *rtwdev, bool start);
 
 #endif
