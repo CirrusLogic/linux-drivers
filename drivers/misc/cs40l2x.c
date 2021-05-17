@@ -6351,9 +6351,11 @@ static void cs40l2x_vibe_mode_worker(struct work_struct *work)
 		}
 	}
 
-	ret = cs40l2x_enable_classh(cs40l2x);
-	if (ret)
-		goto err_exit;
+	if (cs40l2x->cond_class_h_en) {
+		ret = cs40l2x_enable_classh(cs40l2x);
+		if (ret)
+			goto err_exit;
+	}
 
 err_exit:
 	mutex_unlock(&cs40l2x->lock);
@@ -7778,7 +7780,8 @@ static int cs40l2x_coeff_init(struct cs40l2x_private *cs40l2x)
 		return -EINVAL;
 	}
 
-	if (cs40l2x->algo_info[0].rev >= CS40L2X_COND_CLSH_MIN_REV)
+	if ((cs40l2x->algo_info[0].rev >= CS40L2X_COND_CLSH_MIN_REV) &&
+		cs40l2x->pdata.cond_classh)
 		cs40l2x->cond_class_h_en = true;
 
 	if (cs40l2x->algo_info[0].rev >= CS40L2X_PBQ_DUR_MIN_REV)
@@ -9514,23 +9517,6 @@ static int cs40l2x_boost_config(struct cs40l2x_private *cs40l2x)
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
-			CS40L2X_BST_CTL_LIM_EN_MASK,
-			1 << CS40L2X_BST_CTL_LIM_EN_SHIFT);
-	if (ret) {
-		dev_err(dev, "Failed to configure VBST control\n");
-		return ret;
-	}
-
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_VBST_CTL_2,
-			(1 << CS40L2X_BST_CTL_LIM_EN_SHIFT) |
-			(CS40L2X_BST_CTL_SEL_CLASSH
-				<< CS40L2X_BST_CTL_SEL_SHIFT));
-	if (ret) {
-		dev_err(dev, "Failed to sequence VBST control\n");
-		return ret;
-	}
-
 	switch (boost_ovp) {
 	case 0:
 		break;
@@ -9638,7 +9624,7 @@ static int cs40l2x_brownout_config(struct cs40l2x_private *cs40l2x,
 		return ret;
 	}
 
-	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BLOCK_ENABLES2, val);
+	ret = cs40l2x_wseq_replace(cs40l2x, CS40L2X_BLOCK_ENABLES2, val);
 	if (ret) {
 		dev_err(dev, "Failed to sequence VPBR/VBBR enable controls\n");
 		return ret;
@@ -9724,6 +9710,46 @@ static int cs40l2x_brownout_config(struct cs40l2x_private *cs40l2x,
 	}
 
 	return 0;
+}
+
+static int cs40l2x_classh_config(struct cs40l2x_private *cs40l2x)
+{
+	struct regmap *regmap = cs40l2x->regmap;
+	unsigned int val_en, val_ctl;
+	int ret;
+
+	ret = regmap_read(regmap, CS40L2X_VBST_CTL_2, &val_ctl);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(regmap, CS40L2X_BLOCK_ENABLES2, &val_en);
+	if (ret)
+		return ret;
+
+	val_ctl &= ~CS40L2X_BST_CTL_SEL_MASK;
+	val_ctl |= 1 << CS40L2X_BST_CTL_LIM_EN_SHIFT;
+
+	if (!cs40l2x->pdata.cond_classh) {
+		val_en &= ~(1 << CS40L2X_CLASSH_EN_SHIFT);
+	} else {
+		val_en |= 1 << CS40L2X_CLASSH_EN_SHIFT;
+		val_ctl |= CS40L2X_BST_CTL_SEL_CLASSH;
+	}
+
+	ret = regmap_write(regmap, CS40L2X_VBST_CTL_2, val_ctl);
+	if (ret)
+		return ret;
+
+	ret = cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_VBST_CTL_2,
+				val_ctl);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(regmap, CS40L2X_BLOCK_ENABLES2, val_en);
+	if (ret)
+		return ret;
+
+	return cs40l2x_wseq_add_reg(cs40l2x, CS40L2X_BLOCK_ENABLES2, val_en);
 }
 
 static const struct reg_sequence cs40l2x_mpu_config[] = {
@@ -9874,11 +9900,11 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 		}
 	}
 
-	ret = cs40l2x_brownout_config(cs40l2x, CS40L2X_VPBR_CONFIG);
+	ret = cs40l2x_classh_config(cs40l2x);
 	if (ret)
 		return ret;
 
-	return cs40l2x_brownout_config(cs40l2x, CS40L2X_VBBR_CONFIG);
+	return cs40l2x_brownout_config(cs40l2x, CS40L2X_VPBR_CONFIG);
 }
 
 static int cs40l2x_otp_unpack(struct cs40l2x_private *cs40l2x)
@@ -10259,6 +10285,10 @@ static int cs40l2x_handle_of_data(struct i2c_client *i2c_client,
 
 	pdata->dcm_disable = of_property_read_bool(np,
 			"cirrus,dcm-disable");
+
+	pdata->cond_classh = of_property_read_bool(np,
+			"cirrus,cond-classh");
+
 	return 0;
 }
 
