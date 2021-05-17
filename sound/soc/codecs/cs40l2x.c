@@ -225,6 +225,18 @@ static int cs40l2x_pcm_ev(struct snd_soc_dapm_widget *w,
 		if (ret)
 			return ret;
 
+		if (!core->cond_class_h_en) {
+			ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
+					 CS40L2X_BST_CTL_SEL_MASK, 0);
+			if (ret)
+				return ret;
+
+			ret = regmap_update_bits(regmap, CS40L2X_BLOCK_ENABLES2,
+					 CS40L2X_CLASSH_EN_MASK, 0);
+			if (ret)
+				return ret;
+		}
+
 		return cs40l2x_ack_write(core, CS40L2X_MBOX_USER_CONTROL,
 					 CS40L2X_A2H_I2S_END,
 					 CS40L2X_A2H_DISABLE);
