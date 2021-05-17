@@ -805,6 +805,7 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc,
 	return 0;
 
 disable_pm_runtime:
+	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
 free_ddc:
 	if (panel->ddc && (!panel->aux || panel->ddc != &panel->aux->ddc))
@@ -821,6 +822,7 @@ static int panel_simple_remove(struct device *dev)
 	drm_panel_disable(&panel->base);
 	drm_panel_unprepare(&panel->base);
 
+	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
 	if (panel->ddc && (!panel->aux || panel->ddc != &panel->aux->ddc))
 		put_device(&panel->ddc->dev);
