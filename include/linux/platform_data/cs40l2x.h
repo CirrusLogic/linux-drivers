@@ -67,6 +67,7 @@ struct cs40l2x_platform_data {
 	bool amp_gnd_stby;
 	bool auto_recovery;
 	bool dcm_disable;
+	bool cond_classh;
 };
 
 #endif /* __CS40L2X_H */
