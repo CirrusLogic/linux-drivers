@@ -68,6 +68,7 @@ struct cs40l2x_platform_data {
 	bool auto_recovery;
 	const char *unique_device_name;
 	bool dcm_disable;
+	bool cond_classh;
 };
 
 #endif /* __CS40L2X_H */
