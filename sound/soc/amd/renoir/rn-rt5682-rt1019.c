@@ -221,8 +221,13 @@ static int acp3x_rn_rt1019_startup(struct snd_pcm_substream *substream)
 static int acp3x_rn_dmic_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_card *card = rtd->card;
 
-	runtime->hw.channels_max = FOUR_CHANNEL;
+	if (!strcmp(card->name, "acp3xalc56821019"))
+		runtime->hw.channels_max = FOUR_CHANNEL;
+	else
+		runtime->hw.channels_max = DUAL_CHANNEL;
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
 				   &dmic_constraints_channels);
 	return 0;
@@ -335,7 +340,7 @@ static const struct snd_kcontrol_new acp3x_rn_mc_1019_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Right Spk"),
 };
 
-static struct snd_soc_card acp3x_rn_5682 = {
+static struct snd_soc_card acp3x_rn_5682_1019 = {
 	.name = "acp3xalc56821019",
 	.owner = THIS_MODULE,
 	.dai_link = acp3x_rn_dai,
@@ -348,6 +353,65 @@ static struct snd_soc_card acp3x_rn_5682 = {
 	.num_configs = ARRAY_SIZE(rt1019_conf),
 	.controls = acp3x_rn_mc_1019_controls,
 	.num_controls = ARRAY_SIZE(acp3x_rn_mc_1019_controls),
+};
+
+static struct snd_soc_card acp3x_rn_dmic_5682_1019 = {
+	.name = "acp3xsingledmic56821019",
+	.owner = THIS_MODULE,
+	.dai_link = acp3x_rn_dai,
+	.num_links = ARRAY_SIZE(acp3x_rn_dai),
+	.dapm_widgets = acp3x_rn_1019_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(acp3x_rn_1019_widgets),
+	.dapm_routes = acp3x_rn_1019_route,
+	.num_dapm_routes = ARRAY_SIZE(acp3x_rn_1019_route),
+	.codec_conf = rt1019_conf,
+	.num_configs = ARRAY_SIZE(rt1019_conf),
+	.controls = acp3x_rn_mc_1019_controls,
+	.num_controls = ARRAY_SIZE(acp3x_rn_mc_1019_controls),
+};
+
+
+static struct snd_soc_dai_link acp3x_rn_5682_dai[] = {
+	{
+		.name = "acp3x-5682-play",
+		.stream_name = "Playback",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
+				| SND_SOC_DAIFMT_CBM_CFM,
+		.init = acp3x_rn_5682_init,
+		.dpcm_playback = 1,
+		.dpcm_capture = 1,
+		.ops = &acp3x_rn_5682_ops,
+		SND_SOC_DAILINK_REG(acp3x_i2s, rt5682, i2s_platform),
+	},
+};
+
+static const struct snd_soc_dapm_widget acp3x_rn_5682_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+};
+
+static const struct snd_soc_dapm_route acp3x_rn_5682_route[] = {
+	{"Headphone Jack", NULL, "HPOL"},
+	{"Headphone Jack", NULL, "HPOR"},
+	{"IN1P", NULL, "Headset Mic"},
+};
+
+static const struct snd_kcontrol_new acp3x_rn_5682_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
+	SOC_DAPM_PIN_SWITCH("Headset Mic"),
+};
+
+static struct snd_soc_card acp3x_rn_5682 = {
+	.name = "acp3xalc5682",
+	.owner = THIS_MODULE,
+	.dai_link = acp3x_rn_5682_dai,
+	.num_links = ARRAY_SIZE(acp3x_rn_5682_dai),
+	.dapm_widgets = acp3x_rn_5682_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(acp3x_rn_5682_widgets),
+	.dapm_routes = acp3x_rn_5682_route,
+	.num_dapm_routes = ARRAY_SIZE(acp3x_rn_5682_route),
+	.controls = acp3x_rn_5682_controls,
+	.num_controls = ARRAY_SIZE(acp3x_rn_5682_controls),
 };
 
 void *acp_rn_soc_is_rltk(struct device *dev)
@@ -394,7 +458,9 @@ static int acp3x_rn_probe(struct platform_device *pdev)
 }
 
 static const struct acpi_device_id acp3x_rn_audio_acpi_match[] = {
-	{ "AMDI5682", (unsigned long)&acp3x_rn_5682},
+	{ "AMDI5682", (unsigned long)&acp3x_rn_5682_1019},
+	{ "AMDI1019", (unsigned long)&acp3x_rn_dmic_5682_1019},
+	{ "10025682", (unsigned long)&acp3x_rn_5682},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, acp3x_rn_audio_acpi_match);
