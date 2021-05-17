@@ -381,6 +381,10 @@ Optional properties:
     of a single I2C read transaction. If this property is omitted, auto-recovery
     mode remains disabled and I2C-triggered playback is unaffected.
 
+  - cirrus,cond-classh : Boolean for enabling conditional classh. This will
+    keep classh enabled unless a clab waveform is triggered. Otherwise, classh
+    will be disabled unless data is streamed to the ASP port.
+
 Optional properties for VP (cirrus,vpbr-config) and VBST (cirrus,vbbr-config)
 brownout prevention child nodes:
 
