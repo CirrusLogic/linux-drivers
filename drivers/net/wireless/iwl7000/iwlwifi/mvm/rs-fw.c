@@ -359,31 +359,6 @@ out:
 	rcu_read_unlock();
 }
 
-#if defined(CPTCFG_MAC80211_DEBUGFS) && \
-	defined(CPTCFG_IWLWIFI_DEBUG_HOST_CMD_ENABLED)
-int iwl_rs_dhc_set_ampdu_size(struct ieee80211_sta *sta, u32 ampdu_size)
-{
-	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	struct iwl_lq_sta_rs_fw *lq_sta = &mvmsta->lq_sta.rs_fw;
-	struct iwl_mvm *mvm = lq_sta->pers.drv;
-
-	int ret = iwl_rs_send_dhc(mvm, lq_sta,
-				  IWL_TLC_DEBUG_AGG_FRAME_CNT_LIM,
-				  ampdu_size);
-	if (!ret)
-		return ret;
-
-	lq_sta->pers.dbg_agg_frame_count_lim = ampdu_size;
-
-	IWL_DEBUG_RATE(mvm, "sta_id ret: %d, %d agg_frame_cmdt_lim %d\n",
-		       ret,
-		       lq_sta->pers.sta_id,
-		       lq_sta->pers.dbg_agg_frame_count_lim);
-
-	return 0;
-}
-#endif /* CPTCFG_MAC80211_DEBUGFS */
-
 u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta)
 {
 #ifdef CPTCFG_IWLWIFI_WIFI_6_SUPPORT
