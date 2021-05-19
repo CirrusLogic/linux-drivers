@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fw_api_rs_h__
@@ -183,6 +183,16 @@ struct iwl_tlc_update_notif {
 	__le32 amsdu_size;
 	__le32 amsdu_enabled;
 } __packed; /* TLC_MNG_UPDATE_NTFY_API_S_VER_2 */
+
+#ifdef CPTCFG_IWLWIFI_DHC
+/**
+ * enum iwl_tlc_debug_types - debug options
+ */
+enum iwl_tlc_debug_types {
+	/* @IWL_TLC_DEBUG_FIXED_RATE: set fixed rate for rate scaling */
+	IWL_TLC_DEBUG_FIXED_RATE,
+}; /* TLC_MNG_DEBUG_TYPES_API_E */
+#endif /* CPTCFG_IWLWIFI_DHC */
 
 /*
  * These serve as indexes into
