@@ -1223,6 +1223,11 @@ static int iwl_mvm_vendor_geo_sar_get_table(struct wiphy *wiphy,
 	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
 		struct nlattr *nl_profile = nla_nest_start(skb, i + 1);
 
+		if (!nl_profile) {
+			ret = -ENOBUFS;
+			goto out;
+		}
+
 		/* put into the skb the info for profile i+1
 		 * (we don't have profile 0) */
 		ret = iwl_mvm_vendor_put_geo_profile(mvm, skb, i + 1);
