@@ -317,9 +317,9 @@ static int iwl_mvm_rx_mgmt_prot(struct ieee80211_sta *sta,
 	 * both keys will have the same cipher and MIC length, use
 	 * whichever one is available
 	 */
-	key = rcu_dereference(mvmvif->bcn_prot.keys[6]);
+	key = rcu_dereference(mvmvif->bcn_prot.keys[0]);
 	if (!key) {
-		key = rcu_dereference(mvmvif->bcn_prot.keys[7]);
+		key = rcu_dereference(mvmvif->bcn_prot.keys[1]);
 		if (!key)
 			return -1;
 	}
@@ -337,7 +337,7 @@ static int iwl_mvm_rx_mgmt_prot(struct ieee80211_sta *sta,
 		 */
 		if (keyid != 6 && keyid != 7)
 			return -1;
-		key = rcu_dereference(mvmvif->bcn_prot.keys[keyid]);
+		key = rcu_dereference(mvmvif->bcn_prot.keys[keyid - 6]);
 		if (!key)
 			return -1;
 	}
