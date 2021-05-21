@@ -2062,7 +2062,7 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, s16 *data,
 
 	pm_runtime_get_sync(dev);
 
-	ret = cl_dsp_get_reg(dsp, "OWT_BASE_XM", CL_DSP_XM_UNPACKED_TYPE,
+	ret = cl_dsp_get_reg(dsp, "OWT_NEXT_XM", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
 	if (ret)
 		goto err_pm;
@@ -2095,7 +2095,7 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, s16 *data,
 	if (ret)
 		goto err_pm;
 
-	write_reg = wt_base + (wt_offset * CL_DSP_BYTES_PER_WORD);
+	write_reg = wt_base + (wt_offset * 4);
 
 	ret = cl_dsp_raw_write(cs40l26->dsp, write_reg, full_data,
 			full_data_size, CL_DSP_MAX_WLEN);
@@ -2103,6 +2103,11 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, s16 *data,
 		dev_err(dev, "Failed to sync OWT\n");
 		goto err_pm;
 	}
+
+	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+			CS40L26_DSP_MBOX_CMD_OWT_PUSH, CS40L26_DSP_MBOX_RESET);
+	if (ret)
+		goto err_pm;
 
 	dev_dbg(dev, "Successfully wrote waveform (%u bytes) to 0x%08X\n",
 			full_data_size, write_reg);
@@ -2158,6 +2163,13 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 		}
 
 		if (effect->u.periodic.custom_len > CS40L26_CUSTOM_DATA_SIZE) {
+			ret = cs40l26_ack_write(cs40l26,
+					CS40L26_DSP_VIRTUAL1_MBOX_1,
+					CS40L26_DSP_MBOX_CMD_OWT_RESET,
+					CS40L26_DSP_MBOX_RESET);
+			if (ret)
+				goto out_free;
+
 			ret = cs40l26_owt_upload(cs40l26, raw_custom_data,
 					effect->u.periodic.custom_len);
 			if (ret)
