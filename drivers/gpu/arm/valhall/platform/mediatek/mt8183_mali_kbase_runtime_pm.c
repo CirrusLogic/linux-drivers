@@ -377,7 +377,9 @@ static int mali_mfgsys_init(struct kbase_device *kbdev, struct mfg_base *mfg)
 				i, err);
 			return err;
 		}
+#ifdef CONFIG_MALI_VALHALL_DEVFREQ
 		kbdev->current_voltages[i] = volt;
+#endif
 	}
 
 	mfg->is_powered = false;
@@ -386,6 +388,7 @@ static int mali_mfgsys_init(struct kbase_device *kbdev, struct mfg_base *mfg)
 	return 0;
 }
 
+#ifdef CONFIG_MALI_VALHALL_DEVFREQ
 static void voltage_range_check(struct kbase_device *kbdev,
 				unsigned long *voltages)
 {
@@ -523,6 +526,7 @@ static int set_frequency(struct kbase_device *kbdev, unsigned long freq)
 
 	return 0;
 }
+#endif
 
 static int platform_init(struct kbase_device *kbdev)
 {
@@ -561,11 +565,13 @@ static int platform_init(struct kbase_device *kbdev)
 		goto platform_init_err;
 	}
 
+#ifdef CONFIG_MALI_VALHALL_DEVFREQ
 	kbdev->devfreq_ops.set_frequency = set_frequency;
 #ifdef CONFIG_REGULATOR
 	kbdev->devfreq_ops.set_voltages = set_voltages;
 #endif
 	kbdev->devfreq_ops.voltage_range_check = voltage_range_check;
+#endif
 
 	return 0;
 
