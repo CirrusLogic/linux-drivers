@@ -6271,8 +6271,6 @@ static int cs40l2x_enable_classh(struct cs40l2x_private *cs40l2x)
 	if (i == CS40L2X_MAX_WAVEFORMS)
 		return 0;
 
-	/* Add 50 ms delay to settle the waveform */
-	msleep(CS40L2X_SETTLE_DELAY_MS);
 	ret = regmap_update_bits(regmap, CS40L2X_VBST_CTL_2,
 					CS40L2X_BST_CTL_SEL_MASK,
 					CS40L2X_BST_CTL_SEL_CLASSH);
