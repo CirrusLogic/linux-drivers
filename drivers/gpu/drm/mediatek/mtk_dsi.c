@@ -189,6 +189,7 @@ struct mtk_dsi {
 	struct drm_bridge bridge;
 	struct drm_bridge *next_bridge;
 	struct drm_connector *connector;
+	struct drm_panel *panel;
 	struct phy *phy;
 	struct regmap *mmsys_sw_rst_b;
 	u32 sw_rst_b;
@@ -634,7 +635,7 @@ static int mtk_dsi_poweron(struct mtk_dsi *dsi)
 	dsi->data_rate = DIV_ROUND_UP_ULL(dsi->vm.pixelclock * bit_per_pixel,
 					  dsi->lanes);
 
-	if (panel_bridge_prepare_power(dsi->next_bridge))
+	if (dsi->panel && drm_panel_prepare_power(dsi->panel))
 		DRM_INFO("can't prepare power the panel\n");
 
 	ret = clk_set_rate(dsi->hs_clk, dsi->data_rate);
@@ -684,7 +685,7 @@ err_disable_engine_clk:
 err_phy_power_off:
 	phy_power_off(dsi->phy);
 err_prepare_power:
-	if (panel_bridge_unprepare_power(dsi->next_bridge))
+	if (dsi->panel && drm_panel_unprepare_power(dsi->panel))
 		DRM_INFO("Can't unprepare power the panel\n");
 	dsi->refcount--;
 	return ret;
@@ -719,7 +720,7 @@ static void mtk_dsi_poweroff(struct mtk_dsi *dsi)
 
 	phy_power_off(dsi->phy);
 
-	if (panel_bridge_unprepare_power(dsi->next_bridge))
+	if (dsi->panel && drm_panel_unprepare_power(dsi->panel))
 		DRM_INFO("Can't unprepare power the panel\n");
 }
 
@@ -1033,7 +1034,6 @@ static int mtk_dsi_probe(struct platform_device *pdev)
 {
 	struct mtk_dsi *dsi;
 	struct device *dev = &pdev->dev;
-	struct drm_panel *panel;
 	struct resource *regs;
 	struct regmap *regmap;
 	int irq_num;
@@ -1068,12 +1068,12 @@ static int mtk_dsi_probe(struct platform_device *pdev)
 	dsi->mmsys_sw_rst_b = regmap;
 
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0,
-					  &panel, &dsi->next_bridge);
+					  &dsi->panel, &dsi->next_bridge);
 	if (ret)
 		goto err_unregister_host;
 
-	if (panel) {
-		dsi->next_bridge = devm_drm_panel_bridge_add(dev, panel);
+	if (dsi->panel) {
+		dsi->next_bridge = devm_drm_panel_bridge_add(dev, dsi->panel);
 		if (IS_ERR(dsi->next_bridge)) {
 			ret = PTR_ERR(dsi->next_bridge);
 			goto err_unregister_host;
