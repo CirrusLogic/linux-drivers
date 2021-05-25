@@ -2358,8 +2358,31 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	 * monitor flag interfaces used for AP support.
 	 */
 	if (!cfg80211_reg_can_beacon(local->hw.wiphy, chandef,
-				     sdata->vif.type))
-		goto fail_rcu;
+				     sdata->vif.type)) {
+		/*
+		 * Allow probe request transmissions on non radar channels
+		 * in case the AP is known to be in range. This is in accordance
+		 * to section 11.1.4.3.8 (Non-scanning probe request
+		 * transmission) in Draft P802.11REVmd_D5.0 specification.
+		 */
+		if (!ieee80211_is_probe_req(hdr->frame_control) ||
+		    chandef->chan->flags & IEEE80211_CHAN_RADAR) {
+			goto fail_rcu;
+		} else {
+			struct cfg80211_bss *tmp =
+				cfg80211_get_bss(local->hw.wiphy,
+						 chandef->chan,
+						 hdr->addr1,
+						 NULL, 0,
+						 IEEE80211_BSS_TYPE_ANY,
+						 IEEE80211_PRIVACY_ANY);
+
+			if (!tmp)
+				goto fail_rcu;
+			else
+				cfg80211_put_bss(local->hw.wiphy, tmp);
+		}
+	}
 
 	info->band = chandef->chan->band;
 
