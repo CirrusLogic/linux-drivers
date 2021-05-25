@@ -55,7 +55,7 @@ static int get_target_freq_with_cpufreq(struct devfreq *devfreq,
 	unsigned long freq = 0;
 
 	for_each_online_cpu(cpu) {
-		cpu_data = p_data->cpu_data[cpu];
+		cpu_data = p_data->cpudata[cpu];
 		if (!cpu_data || cpu_data->first_cpu != cpu)
 			continue;
 
@@ -168,10 +168,10 @@ static int cpufreq_passive_notifier_call(struct notifier_block *nb,
 	int ret;
 
 	if (event != CPUFREQ_POSTCHANGE || !freqs ||
-		!data->cpu_data[freqs->policy->cpu])
+		!data->cpudata[freqs->policy->cpu])
 		return 0;
 
-	cpu_data = data->cpu_data[freqs->policy->cpu];
+	cpu_data = data->cpudata[freqs->policy->cpu];
 	if (cpu_data->cur_freq == freqs->new)
 		return 0;
 
@@ -213,7 +213,7 @@ static int cpufreq_passive_register_notifier(struct devfreq *devfreq)
 	}
 
 	for_each_online_cpu(cpu) {
-		if (p_data->cpu_data[cpu])
+		if (p_data->cpudata[cpu])
 			continue;
 
 		policy = cpufreq_cpu_get(cpu);
@@ -244,7 +244,7 @@ static int cpufreq_passive_register_notifier(struct devfreq *devfreq)
 			cpu_data->min_freq = policy->cpuinfo.min_freq;
 			cpu_data->max_freq = policy->cpuinfo.max_freq;
 
-			p_data->cpu_data[cpu] = cpu_data;
+			p_data->cpudata[cpu] = cpu_data;
 			cpufreq_cpu_put(policy);
 		} else {
 			ret = -EPROBE_DEFER;
@@ -276,7 +276,7 @@ static int cpufreq_passive_unregister_notifier(struct devfreq *devfreq)
 		cpufreq_unregister_notifier(&p_data->nb, CPUFREQ_TRANSITION_NOTIFIER);
 
 	for_each_possible_cpu(cpu) {
-		cpu_data = p_data->cpu_data[cpu];
+		cpu_data = p_data->cpudata[cpu];
 		if (cpu_data) {
 			if (cpu_data->opp_table)
 				dev_pm_opp_put_opp_table(cpu_data->opp_table);
