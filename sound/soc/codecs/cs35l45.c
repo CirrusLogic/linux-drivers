@@ -21,7 +21,6 @@
 
 #include "wm_adsp.h"
 #include "cs35l45.h"
-#include "cs35l45_dsp_events.h"
 #include <sound/cs35l45.h>
 
 #define DRV_NAME "cs35l45"
@@ -1975,11 +1974,15 @@ static int cs35l45_dsp_virt2_mbox3_irq_handle(struct cs35l45_private *cs35l45, u
 					      unsigned int data)
 {
 	switch (cmd) {
-	case EVENT_SPEAKER_OPEN_SHORT_STATUS:
+	case EVENT_SPEAKER_STATUS:
 		cs35l45->speaker_status = data;
+		dev_dbg(cs35l45->dev, "MBOX 3 event detected (SPEAKER_STATUS)\n");
+		break;
+	case EVENT_BOOT_DONE:
+		dev_dbg(cs35l45->dev, "MBOX 3 event detected (BOOT_DONE)\n");
 		break;
 	default:
-		dev_err(cs35l45->dev, "MBox 3 event not supported %u\n", cmd);
+		dev_err(cs35l45->dev, "MBOX 3 event not supported %u\n", cmd);
 		return -EINVAL;
 	}
 
