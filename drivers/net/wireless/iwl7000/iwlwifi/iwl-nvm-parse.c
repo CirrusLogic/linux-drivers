@@ -552,9 +552,7 @@ static const u8 iwl_vendor_caps[] = {
 	0x08,			/* type (Intel Capabilities) */
 	/* followed by 16 bits of capabilities */
 #define IWL_VENDOR_CAP_IMPROVED_BF_FDBK_160MHZ	BIT(0)
-#define IWL_VENDOR_CAP_IMPROVED_BF_FDBK_RATE	BIT(1)
-	IWL_VENDOR_CAP_IMPROVED_BF_FDBK_160MHZ |
-	IWL_VENDOR_CAP_IMPROVED_BF_FDBK_RATE,
+	IWL_VENDOR_CAP_IMPROVED_BF_FDBK_160MHZ,
 	0x00
 };
 #endif
@@ -819,17 +817,10 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 			IEEE80211_HE_MAC_CAP2_BCAST_TWT;
 
 #if CFG80211_VERSION >= KERNEL_VERSION(5,14,0)
-	switch (CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
-	case IWL_CFG_RF_TYPE_HR2:
-	case IWL_CFG_RF_TYPE_HR1:
-	case IWL_CFG_RF_TYPE_GF:
-		if (!is_ap) {
-			iftype_data->vendor_elems.data =
-				iwl_vendor_caps;
-			iftype_data->vendor_elems.len =
-				ARRAY_SIZE(iwl_vendor_caps);
-		}
-		break;
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000 &&
+	    !is_ap) {
+		iftype_data->vendor_elems.data = iwl_vendor_caps;
+		iftype_data->vendor_elems.len = ARRAY_SIZE(iwl_vendor_caps);
 	}
 #endif
 }
