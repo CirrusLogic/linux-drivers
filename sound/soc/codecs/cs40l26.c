@@ -302,7 +302,7 @@ static int cs40l26_tuning_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int cs40l26_volume_get(struct snd_kcontrol *kcontrol,
+static int cs40l26_a2h_volume_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct cs40l26_codec *codec =
@@ -321,17 +321,9 @@ static int cs40l26_volume_get(struct snd_kcontrol *kcontrol,
 	pm_runtime_get_sync(dev);
 
 	ret = regmap_read(regmap, reg, &val);
-	if (ret) {
+	if (ret)
 		dev_err(dev, "Failed to get VOLUMELEVEL\n");
-		goto err_pm;
-	}
 
-	if (val == CS40L26_VOLUME_MAX)
-		val = CS40L26_VOLUME_MAX_STEPS;
-	else
-		val /= CS40L26_VOLUME_STEP_SIZE;
-
-err_pm:
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
@@ -340,7 +332,7 @@ err_pm:
 	return ret;
 }
 
-static int cs40l26_volume_put(struct snd_kcontrol *kcontrol,
+static int cs40l26_a2h_volume_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct cs40l26_codec *codec =
@@ -356,11 +348,12 @@ static int cs40l26_volume_put(struct snd_kcontrol *kcontrol,
 	if (ret)
 		return ret;
 
-	val = ucontrol->value.integer.value[0];
-	if (val == CS40L26_VOLUME_MAX_STEPS)
-		val = CS40L26_VOLUME_MAX;
+	if (ucontrol->value.integer.value[0] > CS40L26_A2H_VOLUME_MAX)
+		val = CS40L26_A2H_VOLUME_MAX;
+	else if (ucontrol->value.integer.value[0] < 0)
+		val = 0;
 	else
-		val *= CS40L26_VOLUME_STEP_SIZE;
+		val = ucontrol->value.integer.value[0];
 
 	pm_runtime_get_sync(dev);
 
@@ -377,8 +370,8 @@ static int cs40l26_volume_put(struct snd_kcontrol *kcontrol,
 static const struct snd_kcontrol_new cs40l26_controls[] = {
 	SOC_SINGLE_EXT("A2H Tuning", 0, 0, CS40L26_A2H_MAX_TUNINGS, 0,
 			cs40l26_tuning_get, cs40l26_tuning_put),
-	SOC_SINGLE_EXT("A2H Volume", 0, 0, CS40L26_VOLUME_MAX_STEPS, 0,
-			cs40l26_volume_get, cs40l26_volume_put),
+	SOC_SINGLE_EXT("A2H Volume", 0, 0, CS40L26_A2H_VOLUME_MAX, 0,
+			cs40l26_a2h_volume_get, cs40l26_a2h_volume_put),
 };
 
 static const char * const cs40l26_out_mux_texts[] = { "Off", "PCM", "A2H" };
