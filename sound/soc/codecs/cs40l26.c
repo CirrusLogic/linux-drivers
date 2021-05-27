@@ -94,6 +94,9 @@ static int cs40l26_clk_en(struct snd_soc_dapm_widget *w,
 	struct device *dev = cs40l26->dev;
 	int ret;
 
+	dev_dbg(dev, "%s: %s\n", __func__,
+			event == SND_SOC_DAPM_POST_PMU ? "PMU" : "PMD");
+
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		mutex_lock(&cs40l26->lock);
@@ -134,6 +137,9 @@ static int cs40l26_a2h_ev(struct snd_soc_dapm_widget *w,
 	const struct firmware *fw;
 	int ret;
 	u32 reg;
+
+	dev_dbg(dev, "%s: %s\n", __func__,
+			event == SND_SOC_DAPM_POST_PMU ? "PMU" : "PMD");
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "A2HEN", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_A2H_ALGO_ID, &reg);
@@ -183,6 +189,9 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 			CS40L26_ASP_RX1_EN_MASK | CS40L26_ASP_RX2_EN_MASK;
 	u32 asp_enables;
 	int ret;
+
+	dev_dbg(dev, "%s: %s\n", __func__,
+			event == SND_SOC_DAPM_POST_PMU ? "PMU" : "PMD");
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
