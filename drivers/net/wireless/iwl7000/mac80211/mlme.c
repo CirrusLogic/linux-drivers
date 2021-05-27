@@ -1137,7 +1137,7 @@ skip_rates:
 	if (iftd) {
 		/* iftd assigned means HE is supported, so we want this */
 		static const u8 iwl_vendor_elem[] = {
-			0xdd, 0x06, 0x00, 0x17, 0x35, 0x08, 0x01, 0x00,
+			0xdd, 0x06, 0x00, 0x17, 0x35, 0x08, 0x03, 0x00,
 		};
 
 		skb_put_data(skb, iwl_vendor_elem, sizeof(iwl_vendor_elem));
