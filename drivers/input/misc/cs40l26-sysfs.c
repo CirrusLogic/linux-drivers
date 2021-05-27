@@ -179,7 +179,44 @@ static ssize_t cs40l26_vibe_state_show(struct device *dev,
 }
 static DEVICE_ATTR(vibe_state, 0660, cs40l26_vibe_state_show, NULL);
 
+static ssize_t cs40l26_pseq_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	struct list_head *op_head = &cs40l26->pseq_v2_op_head;
+	u32 base = cs40l26->pseq_base;
+	int i, count = 0;
+	struct cs40l26_pseq_v2_op *pseq_v2_op;
+
+	if (cs40l26->revid == CS40L26_REVID_A0)
+		return -EPERM;
+
+	mutex_lock(&cs40l26->lock);
+
+	list_for_each_entry_reverse(pseq_v2_op, op_head, list) {
+		dev_info(cs40l26->dev, "%d: Address: 0x%08X, Size: %d words\n",
+			count + 1, base + pseq_v2_op->offset, pseq_v2_op->size);
+
+		for (i = 0; i < pseq_v2_op->size; i++)
+			dev_info(cs40l26->dev, "0x%08X\n",
+					*(pseq_v2_op->words + i));
+
+		count++;
+	}
+
+	mutex_unlock(&cs40l26->lock);
+
+	if (count != cs40l26->pseq_v2_num_ops) {
+		dev_err(cs40l26->dev, "Malformed Power on seq.\n");
+		return -EINVAL;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->pseq_v2_num_ops);
+}
+static DEVICE_ATTR(power_on_seq, 0440, cs40l26_pseq_show, NULL);
+
 static struct attribute *cs40l26_dev_attrs[] = {
+	&dev_attr_power_on_seq.attr,
 	&dev_attr_dsp_state.attr,
 	&dev_attr_halo_heartbeat.attr,
 	&dev_attr_fw_mode.attr,

@@ -1582,15 +1582,6 @@ static int cs40l26_pseq_v2_init(struct cs40l26_private *cs40l26)
 
 	}
 
-	dev_dbg(dev, "PSEQ_V2 num ops: %d\n", cs40l26->pseq_v2_num_ops);
-	dev_dbg(dev, "offset\tsize\twords\n");
-	list_for_each_entry(pseq_v2_op, &cs40l26->pseq_v2_op_head, list) {
-		dev_dbg(dev, "0x%04X\t%d", pseq_v2_op->offset,
-							pseq_v2_op->size);
-		for (j = 0; j < pseq_v2_op->size; j++)
-			dev_dbg(dev, "0x%08X", *(pseq_v2_op->words + j));
-	}
-
 	if (operation != CS40L26_PSEQ_V2_OP_END) {
 		dev_err(dev, "PSEQ_V2 END_OF_SCRIPT not found\n");
 		return -E2BIG;
