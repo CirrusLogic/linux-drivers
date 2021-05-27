@@ -1686,6 +1686,8 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	u32 index = 0, buzz_id;
 	u16 duration;
 
+	dev_dbg(dev, "%s\n", __func__);
+
 	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
 		buzz_id = CS40L26_BUZZGEN_ALGO_ID;
 	else
@@ -1771,6 +1773,8 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	u32 algo_id;
 	int ret;
 
+	dev_dbg(cs40l26->dev, "%s\n", __func__);
+
 	pm_runtime_get_sync(cs40l26->dev);
 	mutex_lock(&cs40l26->lock);
 
@@ -1837,6 +1841,9 @@ static int cs40l26_playback_effect(struct input_dev *dev,
 {
 	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
 	struct ff_effect *effect;
+
+	dev_dbg(cs40l26->dev, "%s: effect ID = %d, val = %d\n", __func__,
+			effect_id, val);
 
 	effect = &dev->ff->effects[effect_id];
 	if (!effect) {
@@ -2204,6 +2211,8 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 			goto out_free;
 		}
 
+		dev_dbg(cdev, "%s: ID = %u, index = 0x%08X\n",
+				__func__, effect->id, trigger_index);
 		break;
 	case FF_SINE:
 		if (effect->u.periodic.period) {
