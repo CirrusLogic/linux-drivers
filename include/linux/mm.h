@@ -3214,6 +3214,8 @@ unsigned long wp_shared_mapping_range(struct address_space *mapping,
 
 extern int sysctl_nr_trim_pages;
 extern int min_filelist_kbytes;
+extern int min_filelist_kbytes_handler(struct ctl_table *table, int write,
+		void *buf, size_t *len, loff_t *pos);
 
 /**
  * seal_check_future_write - Check for F_SEAL_FUTURE_WRITE flag and handle it
