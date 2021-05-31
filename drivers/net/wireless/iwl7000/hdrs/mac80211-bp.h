@@ -2168,7 +2168,7 @@ static inline size_t cfg80211_rekey_akm(struct cfg80211_gtk_rekey_data *data)
 #endif
 }
 
-#if CFG80211_VERSION < KERNEL_VERSION(5,7,0)
+#if CFG80211_VERSION < KERNEL_VERSION(5,4,0)
 /**
  * struct cfg80211_he_bss_color - AP settings for BSS coloring
  *
@@ -2181,6 +2181,9 @@ struct cfg80211_he_bss_color {
 	bool disabled;
 	bool partial;
 };
+#endif
+
+#if CFG80211_VERSION < KERNEL_VERSION(5,7,0)
 
 /**
  * enum nl80211_tid_config - TID config state
