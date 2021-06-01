@@ -215,7 +215,41 @@ static ssize_t cs40l26_pseq_show(struct device *dev,
 }
 static DEVICE_ATTR(power_on_seq, 0440, cs40l26_pseq_show, NULL);
 
+static ssize_t cs40l26_owt_free_space_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 reg, nbytes;
+	int ret;
+
+	if (cs40l26->revid == CS40L26_REVID_A0)
+		return -EPERM;
+
+	pm_runtime_get_sync(cs40l26->dev);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "OWT_SIZE_XM",
+		CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (ret)
+		goto err_pm;
+
+	ret = regmap_read(cs40l26->regmap, reg, &nbytes);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to get remaining OWT space\n");
+		goto err_pm;
+	}
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", nbytes);
+
+err_pm:
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	return ret;
+}
+static DEVICE_ATTR(owt_free_space, 0440, cs40l26_owt_free_space_show, NULL);
+
 static struct attribute *cs40l26_dev_attrs[] = {
+	&dev_attr_owt_free_space.attr,
 	&dev_attr_power_on_seq.attr,
 	&dev_attr_dsp_state.attr,
 	&dev_attr_halo_heartbeat.attr,
