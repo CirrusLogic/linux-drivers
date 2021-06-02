@@ -384,6 +384,11 @@ static int cs40l2x_read_wavetable(struct cs40l2x_private *cs40l2x, void *buf,
 			if (!dspmem_chunk_valid_addr(&ch, max))
 				return -EINVAL;
 		}
+
+		dev_info(cs40l2x->dev,
+			"Wave %03d (Type: 0x%02x, Flags: 0x%04x, Index: % 6d, Size: % 4d, Data: 0x%06x)\n",
+			i, entry->type, entry->flags, entry->index, entry->size,
+			be32_to_cpu(*((unsigned int *)entry->data)));
 	}
 
 	return -E2BIG;
