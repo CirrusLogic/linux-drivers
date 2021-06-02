@@ -395,7 +395,7 @@ static long dma_buf_export_sync_file(struct dma_buf *dmabuf,
 			goto err_put_fd;
 		}
 	} else if (arg.flags & DMA_BUF_SYNC_READ) {
-		fence = dma_resv_get_excl_rcu(dmabuf->resv);
+		fence = dma_resv_get_excl_unlocked(dmabuf->resv);
 	}
 
 	if (!fence)
