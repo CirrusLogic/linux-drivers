@@ -319,6 +319,7 @@ enum {
 struct mt76_hw_cap {
 	bool has_2ghz;
 	bool has_5ghz;
+	bool has_6ghz;
 };
 
 #define MT_DRV_TXWI_NO_FREE		BIT(0)
