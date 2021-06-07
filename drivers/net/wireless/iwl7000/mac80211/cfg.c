@@ -2502,7 +2502,16 @@ static int ieee80211_suspend(struct wiphy *wiphy,
 
 static int ieee80211_resume(struct wiphy *wiphy)
 {
+#if CFG80211_VERSION < KERNEL_VERSION(5,12,0)
+	int ret = __ieee80211_resume(wiphy_priv(wiphy));
+
+	if (ret)
+		cfg80211_shutdown_all_interfaces(wiphy);
+
+	return ret;
+#else
 	return __ieee80211_resume(wiphy_priv(wiphy));
+#endif
 }
 #else
 #define ieee80211_suspend NULL
