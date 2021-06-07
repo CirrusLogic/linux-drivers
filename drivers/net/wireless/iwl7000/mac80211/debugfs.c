@@ -4,7 +4,7 @@
  *
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2018 - 2019, 2021 Intel Corporation
  */
 
 #include <linux/debugfs.h>
@@ -395,8 +395,14 @@ static ssize_t reset_write(struct file *file, const char __user *user_buf,
 	struct ieee80211_local *local = file->private_data;
 
 	rtnl_lock();
+#if CFG80211_VERSION >= KERNEL_VERSION(5,12,0)
+	wiphy_lock(local->hw.wiphy);
+#endif
 	__ieee80211_suspend(&local->hw, NULL);
 	__ieee80211_resume(&local->hw);
+#if CFG80211_VERSION >= KERNEL_VERSION(5,12,0)
+	wiphy_unlock(local->hw.wiphy);
+#endif
 	rtnl_unlock();
 
 	return count;
