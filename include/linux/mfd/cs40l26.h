@@ -648,6 +648,8 @@
 
 #define CS40L26_DSP_HALO_STATE_RUN		2
 
+#define CS40L26_NUM_PCT_MAP_VALUES		101
+
 /* DSP State */
 #define CS40L26_DSP_STATE_HIBERNATE		0
 #define CS40L26_DSP_STATE_SHUTDOWN		1
@@ -1378,7 +1380,8 @@ extern const struct regmap_config cs40l26_regmap;
 extern const struct mfd_cell cs40l26_devs[CS40L26_NUM_MFD_DEVS];
 extern const u8 cs40l26_pseq_v2_op_sizes[CS40L26_PSEQ_V2_NUM_OPS][2];
 extern const char * const cs40l26_ram_coeff_files[3];
-extern const u32 cs40l26_attn_q21_2_vals[101];
+extern const u32 cs40l26_a0_gain_vals[CS40L26_NUM_PCT_MAP_VALUES];
+extern const u32 cs40l26_attn_q21_2_vals[CS40L26_NUM_PCT_MAP_VALUES];
 
 
 /* sysfs */
