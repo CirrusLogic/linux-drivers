@@ -1622,7 +1622,6 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 {
 	struct cs40l26_private *cs40l26 =
 		container_of(work, struct cs40l26_private, set_gain_work);
-	u16 amp_vol_pcm;
 	u32 reg, val;
 	int ret;
 
@@ -1631,10 +1630,10 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 
 	switch (cs40l26->revid) {
 	case CS40L26_REVID_A0:
-		amp_vol_pcm = CS40L26_AMP_VOL_PCM_MAX & cs40l26->gain_pct;
+		val = cs40l26_a0_gain_vals[cs40l26->gain_pct];
 
 		ret = regmap_update_bits(cs40l26->regmap, CS40L26_AMP_CTRL,
-				CS40L26_AMP_CTRL_VOL_PCM_MASK, amp_vol_pcm <<
+				CS40L26_AMP_CTRL_VOL_PCM_MASK, val <<
 				CS40L26_AMP_CTRL_VOL_PCM_SHIFT);
 		if (ret) {
 			dev_err(cs40l26->dev, "Failed to update digtal gain\n");
@@ -1830,6 +1829,11 @@ static enum hrtimer_restart cs40l26_vibe_timer(struct hrtimer *timer)
 static void cs40l26_set_gain(struct input_dev *dev, u16 gain)
 {
 	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
+
+	if (gain < 0 || gain >= CS40L26_NUM_PCT_MAP_VALUES) {
+		dev_err(cs40l26->dev, "Gain value %u out of bounds\n", gain);
+		return;
+	}
 
 	cs40l26->gain_pct = gain;
 
