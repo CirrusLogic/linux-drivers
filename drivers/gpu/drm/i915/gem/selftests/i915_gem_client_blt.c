@@ -20,12 +20,10 @@ static int __igt_client_fill(struct intel_engine_cs *engine)
 {
 	struct intel_context *ce = engine->kernel_context;
 	struct drm_i915_gem_object *obj;
-	struct rnd_state prng;
+	I915_RND_STATE(prng);
 	IGT_TIMEOUT(end);
 	u32 *vaddr;
 	int err = 0;
-
-	prandom_seed_state(&prng, i915_selftest.random_seed);
 
 	intel_engine_pm_get(engine);
 	do {
@@ -47,7 +45,7 @@ static int __igt_client_fill(struct intel_engine_cs *engine)
 			goto err_flush;
 		}
 
-		vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
+		vaddr = i915_gem_object_pin_map_unlocked(obj, I915_MAP_WB);
 		if (IS_ERR(vaddr)) {
 			err = PTR_ERR(vaddr);
 			goto err_put;
@@ -159,7 +157,7 @@ static int prepare_blit(const struct tiled_blits *t,
 	u32 src_pitch, dst_pitch;
 	u32 cmd, *cs;
 
-	cs = i915_gem_object_pin_map(batch, I915_MAP_WC);
+	cs = i915_gem_object_pin_map_unlocked(batch, I915_MAP_WC);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -379,7 +377,7 @@ static int verify_buffer(const struct tiled_blits *t,
 	y = i915_prandom_u32_max_state(t->height, prng);
 	p = y * t->width + x;
 
-	vaddr = i915_gem_object_pin_map(buf->vma->obj, I915_MAP_WC);
+	vaddr = i915_gem_object_pin_map_unlocked(buf->vma->obj, I915_MAP_WC);
 	if (IS_ERR(vaddr))
 		return PTR_ERR(vaddr);
 
@@ -566,7 +564,7 @@ static int tiled_blits_prepare(struct tiled_blits *t,
 	int err;
 	int i;
 
-	map = i915_gem_object_pin_map(t->scratch.vma->obj, I915_MAP_WC);
+	map = i915_gem_object_pin_map_unlocked(t->scratch.vma->obj, I915_MAP_WC);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 

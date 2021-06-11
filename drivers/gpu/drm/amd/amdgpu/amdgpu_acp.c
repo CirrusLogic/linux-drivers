@@ -36,17 +36,17 @@
 
 #include "acp_gfx_if.h"
 
-#define ACP_TILE_ON_MASK                	0x03
-#define ACP_TILE_OFF_MASK               	0x02
-#define ACP_TILE_ON_RETAIN_REG_MASK     	0x1f
-#define ACP_TILE_OFF_RETAIN_REG_MASK    	0x20
+#define ACP_TILE_ON_MASK			0x03
+#define ACP_TILE_OFF_MASK			0x02
+#define ACP_TILE_ON_RETAIN_REG_MASK		0x1f
+#define ACP_TILE_OFF_RETAIN_REG_MASK		0x20
 
-#define ACP_TILE_P1_MASK                	0x3e
-#define ACP_TILE_P2_MASK                	0x3d
-#define ACP_TILE_DSP0_MASK              	0x3b
-#define ACP_TILE_DSP1_MASK              	0x37
+#define ACP_TILE_P1_MASK			0x3e
+#define ACP_TILE_P2_MASK			0x3d
+#define ACP_TILE_DSP0_MASK			0x3b
+#define ACP_TILE_DSP1_MASK			0x37
 
-#define ACP_TILE_DSP2_MASK              	0x2f
+#define ACP_TILE_DSP2_MASK			0x2f
 
 #define ACP_DMA_REGS_END			0x146c0
 #define ACP_I2S_PLAY_REGS_START			0x14840
@@ -75,8 +75,8 @@
 #define mmACP_CONTROL				0x5131
 #define mmACP_STATUS				0x5133
 #define mmACP_SOFT_RESET			0x5134
-#define ACP_CONTROL__ClkEn_MASK 		0x1
-#define ACP_SOFT_RESET__SoftResetAud_MASK 	0x100
+#define ACP_CONTROL__ClkEn_MASK			0x1
+#define ACP_SOFT_RESET__SoftResetAud_MASK	0x100
 #define ACP_SOFT_RESET__SoftResetAudDone_MASK	0x1000000
 #define ACP_CLOCK_EN_TIME_OUT_VALUE		0x000000FF
 #define ACP_SOFT_RESET_DONE_TIME_OUT_VALUE	0x000000FF
@@ -176,7 +176,7 @@ static struct device *get_mfd_cell_dev(const char *device_name, int r)
 /**
  * acp_hw_init - start and test ACP block
  *
- * @adev: amdgpu_device pointer
+ * @handle: handle used to pass amdgpu_device pointer
  *
  */
 static int acp_hw_init(void *handle)
@@ -245,42 +245,30 @@ static int acp_hw_init(void *handle)
 		goto failure;
 	}
 
-	switch (adev->asic_type) {
-	case CHIP_STONEY:
-		i2s_pdata[0].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET |
-			DW_I2S_QUIRK_16BIT_IDX_OVERRIDE;
-		break;
-	default:
-		i2s_pdata[0].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET;
-	}
+	i2s_pdata[0].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET |
+			      DW_I2S_QUIRK_STOP_ON_SHUTDOWN;
+	if (adev->asic_type == CHIP_STONEY)
+		i2s_pdata[0].quirks |= DW_I2S_QUIRK_16BIT_IDX_OVERRIDE;
+
 	i2s_pdata[0].cap = DWC_I2S_PLAY;
 	i2s_pdata[0].snd_rates = SNDRV_PCM_RATE_8000_96000;
 	i2s_pdata[0].i2s_reg_comp1 = ACP_I2S_COMP1_PLAY_REG_OFFSET;
 	i2s_pdata[0].i2s_reg_comp2 = ACP_I2S_COMP2_PLAY_REG_OFFSET;
-	switch (adev->asic_type) {
-	case CHIP_STONEY:
-		i2s_pdata[1].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET |
-			DW_I2S_QUIRK_COMP_PARAM1 |
-			DW_I2S_QUIRK_16BIT_IDX_OVERRIDE;
-		break;
-	default:
-		i2s_pdata[1].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET |
-			DW_I2S_QUIRK_COMP_PARAM1;
-	}
+	i2s_pdata[1].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET |
+			      DW_I2S_QUIRK_COMP_PARAM1 |
+			      DW_I2S_QUIRK_STOP_ON_SHUTDOWN;
+	if (adev->asic_type == CHIP_STONEY)
+		i2s_pdata[1].quirks |= DW_I2S_QUIRK_16BIT_IDX_OVERRIDE;
 
 	i2s_pdata[1].cap = DWC_I2S_RECORD;
 	i2s_pdata[1].snd_rates = SNDRV_PCM_RATE_8000_96000;
 	i2s_pdata[1].i2s_reg_comp1 = ACP_I2S_COMP1_CAP_REG_OFFSET;
 	i2s_pdata[1].i2s_reg_comp2 = ACP_I2S_COMP2_CAP_REG_OFFSET;
 
-	i2s_pdata[2].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET;
-	switch (adev->asic_type) {
-	case CHIP_STONEY:
+	i2s_pdata[2].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET |
+			      DW_I2S_QUIRK_STOP_ON_SHUTDOWN;
+	if (adev->asic_type == CHIP_STONEY)
 		i2s_pdata[2].quirks |= DW_I2S_QUIRK_16BIT_IDX_OVERRIDE;
-		break;
-	default:
-		break;
-	}
 
 	i2s_pdata[2].cap = DWC_I2S_PLAY | DWC_I2S_RECORD;
 	i2s_pdata[2].snd_rates = SNDRV_PCM_RATE_8000_96000;
@@ -405,7 +393,7 @@ failure:
 /**
  * acp_hw_fini - stop the hardware block
  *
- * @adev: amdgpu_device pointer
+ * @handle: handle used to pass amdgpu_device pointer
  *
  */
 static int acp_hw_fini(void *handle)

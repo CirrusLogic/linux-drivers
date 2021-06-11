@@ -47,11 +47,13 @@ bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev)
 
 void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 {
+	struct drm_device *ddev = adev_to_drm(adev);
+
 	/* enable virtual display */
 	if (adev->mode_info.num_crtc == 0)
 		adev->mode_info.num_crtc = 1;
 	adev->enable_virtual_display = true;
-	adev_to_drm(adev)->driver->driver_features &= ~DRIVER_ATOMIC;
+	ddev->driver_features &= ~DRIVER_ATOMIC;
 	adev->cg_flags = 0;
 	adev->pg_flags = 0;
 }
@@ -104,7 +106,7 @@ failed_kiq:
 
 /**
  * amdgpu_virt_request_full_gpu() - request full gpu access
- * @amdgpu:	amdgpu device.
+ * @adev:	amdgpu device.
  * @init:	is driver init time.
  * When start to init/fini driver, first need to request full gpu access.
  * Return: Zero if request success, otherwise will return error.
@@ -127,7 +129,7 @@ int amdgpu_virt_request_full_gpu(struct amdgpu_device *adev, bool init)
 
 /**
  * amdgpu_virt_release_full_gpu() - release full gpu access
- * @amdgpu:	amdgpu device.
+ * @adev:	amdgpu device.
  * @init:	is driver init time.
  * When finishing driver init/fini, need to release full gpu access.
  * Return: Zero if release success, otherwise will returen error.
@@ -149,7 +151,7 @@ int amdgpu_virt_release_full_gpu(struct amdgpu_device *adev, bool init)
 
 /**
  * amdgpu_virt_reset_gpu() - reset gpu
- * @amdgpu:	amdgpu device.
+ * @adev:	amdgpu device.
  * Send reset command to GPU hypervisor to reset GPU that VM is using
  * Return: Zero if reset success, otherwise will return error.
  */
@@ -184,7 +186,7 @@ void amdgpu_virt_request_init_data(struct amdgpu_device *adev)
 
 /**
  * amdgpu_virt_wait_reset() - wait for reset gpu completed
- * @amdgpu:	amdgpu device.
+ * @adev:	amdgpu device.
  * Wait for GPU reset completed.
  * Return: Zero if reset success, otherwise will return error.
  */
@@ -200,7 +202,7 @@ int amdgpu_virt_wait_reset(struct amdgpu_device *adev)
 
 /**
  * amdgpu_virt_alloc_mm_table() - alloc memory for mm table
- * @amdgpu:	amdgpu device.
+ * @adev:	amdgpu device.
  * MM table is used by UVD and VCE for its initialization
  * Return: Zero if allocate success.
  */
@@ -230,7 +232,7 @@ int amdgpu_virt_alloc_mm_table(struct amdgpu_device *adev)
 
 /**
  * amdgpu_virt_free_mm_table() - free mm table memory
- * @amdgpu:	amdgpu device.
+ * @adev:	amdgpu device.
  * Free MM table memory
  */
 void amdgpu_virt_free_mm_table(struct amdgpu_device *adev)
@@ -280,8 +282,8 @@ static int amdgpu_virt_init_ras_err_handler_data(struct amdgpu_device *adev)
 	if (!*data)
 		return -ENOMEM;
 
-	bps = kmalloc(align_space * sizeof((*data)->bps), GFP_KERNEL);
-	bps_bo = kmalloc(align_space * sizeof((*data)->bps_bo), GFP_KERNEL);
+	bps = kmalloc_array(align_space, sizeof((*data)->bps), GFP_KERNEL);
+	bps_bo = kmalloc_array(align_space, sizeof((*data)->bps_bo), GFP_KERNEL);
 
 	if (!bps || !bps_bo) {
 		kfree(bps);
@@ -464,6 +466,8 @@ static int amdgpu_virt_read_pf2vf_data(struct amdgpu_device *adev)
 			((struct amd_sriov_msg_pf2vf_info *)pf2vf_info)->vf2pf_update_interval_ms;
 		adev->virt.gim_feature =
 			((struct amd_sriov_msg_pf2vf_info *)pf2vf_info)->feature_flags.all;
+		adev->virt.reg_access =
+			((struct amd_sriov_msg_pf2vf_info *)pf2vf_info)->reg_access_flags.all;
 
 		break;
 	default:
@@ -555,13 +559,17 @@ static int amdgpu_virt_write_vf2pf_data(struct amdgpu_device *adev)
 	return 0;
 }
 
-void amdgpu_virt_update_vf2pf_work_item(struct work_struct *work)
+static void amdgpu_virt_update_vf2pf_work_item(struct work_struct *work)
 {
 	struct amdgpu_device *adev = container_of(work, struct amdgpu_device, virt.vf2pf_work.work);
+	int ret;
 
-	amdgpu_virt_read_pf2vf_data(adev);
+	ret = amdgpu_virt_read_pf2vf_data(adev);
+	if (ret)
+		goto out;
 	amdgpu_virt_write_vf2pf_data(adev);
 
+out:
 	schedule_delayed_work(&(adev->virt.vf2pf_work), adev->virt.vf2pf_update_interval_ms);
 }
 
@@ -569,8 +577,8 @@ void amdgpu_virt_fini_data_exchange(struct amdgpu_device *adev)
 {
 	if (adev->virt.vf2pf_update_interval_ms != 0) {
 		DRM_INFO("clean up the vf2pf work item\n");
-		flush_delayed_work(&adev->virt.vf2pf_work);
 		cancel_delayed_work_sync(&adev->virt.vf2pf_work);
+		adev->virt.vf2pf_update_interval_ms = 0;
 	}
 }
 
@@ -611,6 +619,14 @@ void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev)
 				if (adev->virt.ras_init_done)
 					amdgpu_virt_add_bad_page(adev, bp_block_offset, bp_block_size);
 			}
+	} else if (adev->bios != NULL) {
+		adev->virt.fw_reserve.p_pf2vf =
+			(struct amd_sriov_msg_pf2vf_info_header *)
+			(adev->bios + (AMD_SRIOV_MSG_PF2VF_OFFSET_KB << 10));
+
+		amdgpu_virt_read_pf2vf_data(adev);
+
+		return;
 	}
 
 	if (adev->virt.vf2pf_update_interval_ms != 0) {
@@ -634,6 +650,7 @@ void amdgpu_detect_virtualization(struct amdgpu_device *adev)
 	case CHIP_NAVI12:
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_ARCTURUS:
+	case CHIP_ALDEBARAN:
 		reg = RREG32(mmRCC_IOV_FUNC_IDENTIFIER);
 		break;
 	default: /* other chip doesn't support SRIOV */

@@ -75,23 +75,22 @@ void ttm_resource_manager_init(struct ttm_resource_manager *man,
 EXPORT_SYMBOL(ttm_resource_manager_init);
 
 /*
- * ttm_resource_manager_force_list_clean
+ * ttm_resource_manager_evict_all
  *
  * @bdev - device to use
  * @man - manager to use
  *
- * Force all the objects out of a memory manager until clean.
+ * Evict all the objects out of a memory manager until it is empty.
  * Part of memory manager cleanup sequence.
  */
-int ttm_resource_manager_force_list_clean(struct ttm_bo_device *bdev,
-					  struct ttm_resource_manager *man)
+int ttm_resource_manager_evict_all(struct ttm_device *bdev,
+				   struct ttm_resource_manager *man)
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
 		.no_wait_gpu = false,
-		.flags = TTM_OPT_FLAG_FORCE_ALLOC
+		.force_alloc = true
 	};
-	struct ttm_bo_global *glob = &ttm_bo_glob;
 	struct dma_fence *fence;
 	int ret;
 	unsigned i;
@@ -100,18 +99,18 @@ int ttm_resource_manager_force_list_clean(struct ttm_bo_device *bdev,
 	 * Can't use standard list traversal since we're unlocking.
 	 */
 
-	spin_lock(&glob->lru_lock);
+	spin_lock(&bdev->lru_lock);
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
 		while (!list_empty(&man->lru[i])) {
-			spin_unlock(&glob->lru_lock);
+			spin_unlock(&bdev->lru_lock);
 			ret = ttm_mem_evict_first(bdev, man, NULL, &ctx,
 						  NULL);
 			if (ret)
 				return ret;
-			spin_lock(&glob->lru_lock);
+			spin_lock(&bdev->lru_lock);
 		}
 	}
-	spin_unlock(&glob->lru_lock);
+	spin_unlock(&bdev->lru_lock);
 
 	spin_lock(&man->move_lock);
 	fence = dma_fence_get(man->move);
@@ -126,7 +125,7 @@ int ttm_resource_manager_force_list_clean(struct ttm_bo_device *bdev,
 
 	return 0;
 }
-EXPORT_SYMBOL(ttm_resource_manager_force_list_clean);
+EXPORT_SYMBOL(ttm_resource_manager_evict_all);
 
 /**
  * ttm_resource_manager_debug

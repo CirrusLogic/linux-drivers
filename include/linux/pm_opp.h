@@ -90,7 +90,6 @@ struct dev_pm_set_opp_data {
 #if defined(CONFIG_PM_OPP)
 
 struct opp_table *dev_pm_opp_get_opp_table(struct device *dev);
-struct opp_table *dev_pm_opp_get_opp_table_indexed(struct device *dev, int index);
 void dev_pm_opp_put_opp_table(struct opp_table *opp_table);
 
 unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp);
@@ -101,6 +100,9 @@ unsigned long dev_pm_opp_get_voltage_supply(struct dev_pm_opp *opp,
 unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp);
 
 unsigned int dev_pm_opp_get_level(struct dev_pm_opp *opp);
+
+unsigned int dev_pm_opp_get_required_pstate(struct dev_pm_opp *opp,
+					    unsigned int index);
 
 bool dev_pm_opp_is_turbo(struct dev_pm_opp *opp);
 
@@ -153,6 +155,8 @@ struct opp_table *dev_pm_opp_register_set_opp_helper(struct device *dev, int (*s
 void dev_pm_opp_unregister_set_opp_helper(struct opp_table *opp_table);
 struct opp_table *dev_pm_opp_attach_genpd(struct device *dev, const char **names, struct device ***virt_devs);
 void dev_pm_opp_detach_genpd(struct opp_table *opp_table);
+struct opp_table *devm_pm_opp_attach_genpd(struct device *dev, const char **names, struct device ***virt_devs);
+struct dev_pm_opp *dev_pm_opp_xlate_required_opp(struct opp_table *src_table, struct opp_table *dst_table, struct dev_pm_opp *src_opp);
 int dev_pm_opp_xlate_performance_state(struct opp_table *src_table, struct opp_table *dst_table, unsigned int pstate);
 int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq);
 int dev_pm_opp_set_bw(struct device *dev, struct dev_pm_opp *opp);
@@ -184,6 +188,13 @@ static inline unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp)
 }
 
 static inline unsigned int dev_pm_opp_get_level(struct dev_pm_opp *opp)
+{
+	return 0;
+}
+
+static inline
+unsigned int dev_pm_opp_get_required_pstate(struct dev_pm_opp *opp,
+					    unsigned int index)
 {
 	return 0;
 }
@@ -336,6 +347,18 @@ static inline struct opp_table *dev_pm_opp_attach_genpd(struct device *dev, cons
 }
 
 static inline void dev_pm_opp_detach_genpd(struct opp_table *opp_table) {}
+
+static inline struct opp_table *devm_pm_opp_attach_genpd(struct device *dev,
+				const char **names, struct device ***virt_devs)
+{
+	return ERR_PTR(-ENOTSUPP);
+}
+
+static inline struct dev_pm_opp *dev_pm_opp_xlate_required_opp(struct opp_table *src_table,
+				struct opp_table *dst_table, struct dev_pm_opp *src_opp)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
 
 static inline int dev_pm_opp_xlate_performance_state(struct opp_table *src_table, struct opp_table *dst_table, unsigned int pstate)
 {

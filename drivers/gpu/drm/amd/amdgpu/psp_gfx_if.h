@@ -47,7 +47,7 @@ enum psp_gfx_crtl_cmd_id
     GFX_CTRL_CMD_ID_DISABLE_INT     = 0x00060000,   /* disable PSP-to-Gfx interrupt */
     GFX_CTRL_CMD_ID_MODE1_RST       = 0x00070000,   /* trigger the Mode 1 reset */
     GFX_CTRL_CMD_ID_GBR_IH_SET      = 0x00080000,   /* set Gbr IH_RB_CNTL registers */
-    GFX_CTRL_CMD_ID_CONSUME_CMD     = 0x000A0000,   /* send interrupt to psp for updating write pointer of vf */
+    GFX_CTRL_CMD_ID_CONSUME_CMD     = 0x00090000,   /* send interrupt to psp for updating write pointer of vf */
     GFX_CTRL_CMD_ID_DESTROY_GPCOM_RING = 0x000C0000, /* destroy GPCOM ring */
 
     GFX_CTRL_CMD_ID_MAX             = 0x000F0000,   /* max command ID */
@@ -86,21 +86,37 @@ struct psp_gfx_ctrl
 /* TEE Gfx Command IDs for the ring buffer interface. */
 enum psp_gfx_cmd_id
 {
-    GFX_CMD_ID_LOAD_TA      = 0x00000001,   /* load TA */
-    GFX_CMD_ID_UNLOAD_TA    = 0x00000002,   /* unload TA */
-    GFX_CMD_ID_INVOKE_CMD   = 0x00000003,   /* send command to TA */
-    GFX_CMD_ID_LOAD_ASD     = 0x00000004,   /* load ASD Driver */
-    GFX_CMD_ID_SETUP_TMR    = 0x00000005,   /* setup TMR region */
-    GFX_CMD_ID_LOAD_IP_FW   = 0x00000006,   /* load HW IP FW */
-    GFX_CMD_ID_DESTROY_TMR  = 0x00000007,   /* destroy TMR region */
-    GFX_CMD_ID_SAVE_RESTORE = 0x00000008,   /* save/restore HW IP FW */
-    GFX_CMD_ID_SETUP_VMR    = 0x00000009,   /* setup VMR region */
-    GFX_CMD_ID_DESTROY_VMR  = 0x0000000A,   /* destroy VMR region */
-    GFX_CMD_ID_PROG_REG     = 0x0000000B,   /* program regs */
-    GFX_CMD_ID_CLEAR_VF_FW  = 0x0000000D,   /* Clear VF FW, to be used on VF shutdown. */
+    GFX_CMD_ID_LOAD_TA            = 0x00000001,   /* load TA */
+    GFX_CMD_ID_UNLOAD_TA          = 0x00000002,   /* unload TA */
+    GFX_CMD_ID_INVOKE_CMD         = 0x00000003,   /* send command to TA */
+    GFX_CMD_ID_LOAD_ASD           = 0x00000004,   /* load ASD Driver */
+    GFX_CMD_ID_SETUP_TMR          = 0x00000005,   /* setup TMR region */
+    GFX_CMD_ID_LOAD_IP_FW         = 0x00000006,   /* load HW IP FW */
+    GFX_CMD_ID_DESTROY_TMR        = 0x00000007,   /* destroy TMR region */
+    GFX_CMD_ID_SAVE_RESTORE       = 0x00000008,   /* save/restore HW IP FW */
+    GFX_CMD_ID_SETUP_VMR          = 0x00000009,   /* setup VMR region */
+    GFX_CMD_ID_DESTROY_VMR        = 0x0000000A,   /* destroy VMR region */
+    GFX_CMD_ID_PROG_REG           = 0x0000000B,   /* program regs */
+    GFX_CMD_ID_CLEAR_VF_FW        = 0x0000000D,   /* Clear VF FW, to be used on VF shutdown. */
+    GFX_CMD_ID_GET_FW_ATTESTATION = 0x0000000F,   /* Query GPUVA of the Fw Attestation DB */
     /* IDs upto 0x1F are reserved for older programs (Raven, Vega 10/12/20) */
-    GFX_CMD_ID_LOAD_TOC     = 0x00000020,   /* Load TOC and obtain TMR size */
-    GFX_CMD_ID_AUTOLOAD_RLC = 0x00000021,   /* Indicates all graphics fw loaded, start RLC autoload */
+    GFX_CMD_ID_LOAD_TOC           = 0x00000020,   /* Load TOC and obtain TMR size */
+    GFX_CMD_ID_AUTOLOAD_RLC       = 0x00000021,   /* Indicates all graphics fw loaded, start RLC autoload */
+    GFX_CMD_ID_BOOT_CFG           = 0x00000022,   /* Boot Config */
+};
+
+/* PSP boot config sub-commands */
+enum psp_gfx_boot_config_cmd
+{
+    BOOTCFG_CMD_SET         = 1, /* Set boot configuration settings */
+    BOOTCFG_CMD_GET         = 2, /* Get boot configuration settings */
+    BOOTCFG_CMD_INVALIDATE  = 3  /* Reset current boot configuration settings to VBIOS defaults */
+};
+
+/* PSP boot config bitmask values */
+enum psp_gfx_boot_config
+{
+    BOOT_CONFIG_GECC = 0x1,
 };
 
 /* Command to load Trusted Application binary into PSP OS. */
@@ -234,6 +250,7 @@ enum psp_gfx_fw_type {
 	GFX_FW_TYPE_SDMA6                           = 56,   /* SDMA6                    MI      */
 	GFX_FW_TYPE_SDMA7                           = 57,   /* SDMA7                    MI      */
 	GFX_FW_TYPE_VCN1                            = 58,   /* VCN1                     MI      */
+	GFX_FW_TYPE_REG_LIST                        = 67,   /* REG_LIST                 MI      */
 	GFX_FW_TYPE_MAX
 };
 
@@ -271,6 +288,15 @@ struct psp_gfx_cmd_load_toc
     uint32_t        toc_size;               /* FW buffer size in bytes */
 };
 
+/* Dynamic boot configuration */
+struct psp_gfx_cmd_boot_cfg
+{
+    uint32_t                        timestamp;            /* calendar time as number of seconds */
+    enum psp_gfx_boot_config_cmd    sub_cmd;              /* sub-command indicating how to process command data */
+    uint32_t                        boot_config;          /* dynamic boot configuration bitmask */
+    uint32_t                        boot_config_valid;    /* dynamic boot configuration valid bits bitmask */
+};
+
 /* All GFX ring buffer commands. */
 union psp_gfx_commands
 {
@@ -283,6 +309,26 @@ union psp_gfx_commands
     struct psp_gfx_cmd_reg_prog       cmd_setup_reg_prog;
     struct psp_gfx_cmd_setup_tmr        cmd_setup_vmr;
     struct psp_gfx_cmd_load_toc         cmd_load_toc;
+    struct psp_gfx_cmd_boot_cfg         boot_cfg;
+};
+
+struct psp_gfx_uresp_reserved
+{
+    uint32_t reserved[8];
+};
+
+/* Command-specific response for Fw Attestation Db */
+struct psp_gfx_uresp_fwar_db_info
+{
+    uint32_t fwar_db_addr_lo;
+    uint32_t fwar_db_addr_hi;
+};
+
+/* Union of command-specific responses for GPCOM ring. */
+union psp_gfx_uresp
+{
+    struct psp_gfx_uresp_reserved reserved;
+    struct psp_gfx_uresp_fwar_db_info fwar_db_info;
 };
 
 /* Structure of GFX Response buffer.
@@ -297,9 +343,11 @@ struct psp_gfx_resp
     uint32_t	fw_addr_hi;	/* +12 bits [63:32] of FW address within TMR (in response to cmd_load_ip_fw command) */
     uint32_t	tmr_size;	/* +16 size of the TMR to be reserved including MM fw and Gfx fw in response to cmd_load_toc command */
 
-    uint32_t	reserved[3];
+    uint32_t	reserved[11];
 
-    /* total 32 bytes */
+    union psp_gfx_uresp uresp;      /* +64 response union containing command-specific responses */
+
+    /* total 96 bytes */
 };
 
 /* Structure of Command buffer pointed by psp_gfx_rb_frame.cmd_buf_addr_hi

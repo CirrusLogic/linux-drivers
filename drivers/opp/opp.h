@@ -26,7 +26,7 @@ struct regulator;
 /* Lock to allow exclusive modification to the device and opp lists */
 extern struct mutex opp_table_lock;
 
-extern struct list_head opp_tables;
+extern struct list_head opp_tables, lazy_opp_tables;
 
 /*
  * Internal data structure organization with the OPP layer library is as
@@ -166,7 +166,7 @@ enum opp_table_access {
  * meant for book keeping and private to OPP library.
  */
 struct opp_table {
-	struct list_head node;
+	struct list_head node, lazy;
 
 	struct blocking_notifier_head head;
 	struct list_head dev_list;
@@ -223,8 +223,14 @@ int _opp_compare_key(struct dev_pm_opp *opp1, struct dev_pm_opp *opp2);
 int _opp_add(struct device *dev, struct dev_pm_opp *new_opp, struct opp_table *opp_table, bool rate_not_available);
 int _opp_add_v1(struct opp_table *opp_table, struct device *dev, unsigned long freq, long u_volt, bool dynamic);
 void _dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask, int last_cpu);
-struct opp_table *_add_opp_table(struct device *dev);
+struct opp_table *_add_opp_table_indexed(struct device *dev, int index, bool getclk);
 void _put_opp_list_kref(struct opp_table *opp_table);
+void _required_opps_available(struct dev_pm_opp *opp, int count);
+
+static inline bool lazy_linking_pending(struct opp_table *opp_table)
+{
+	return unlikely(!list_empty(&opp_table->lazy));
+}
 
 #ifdef CONFIG_OF
 void _of_init_opp_table(struct opp_table *opp_table, struct device *dev, int index);

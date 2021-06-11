@@ -57,6 +57,7 @@ static void dmub_abm_enable_fractional_pwm(struct dc_context *dc)
 	union dmub_rb_cmd cmd;
 	uint32_t fractional_pwm = (dc->dc->config.disable_fractional_pwm == false) ? 1 : 0;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.abm_set_pwm_frac.header.type = DMUB_CMD__ABM;
 	cmd.abm_set_pwm_frac.header.sub_type = DMUB_CMD__ABM_SET_PWM_FRAC;
 	cmd.abm_set_pwm_frac.abm_set_pwm_frac_data.fractional_pwm = fractional_pwm;
@@ -71,11 +72,11 @@ static void dmub_abm_init(struct abm *abm, uint32_t backlight)
 {
 	struct dce_abm *dce_abm = TO_DMUB_ABM(abm);
 
-	REG_WRITE(DC_ABM1_HG_SAMPLE_RATE, 0x103);
-	REG_WRITE(DC_ABM1_HG_SAMPLE_RATE, 0x101);
-	REG_WRITE(DC_ABM1_LS_SAMPLE_RATE, 0x103);
-	REG_WRITE(DC_ABM1_LS_SAMPLE_RATE, 0x101);
-	REG_WRITE(BL1_PWM_BL_UPDATE_SAMPLE_RATE, 0x101);
+	REG_WRITE(DC_ABM1_HG_SAMPLE_RATE, 0x3);
+	REG_WRITE(DC_ABM1_HG_SAMPLE_RATE, 0x1);
+	REG_WRITE(DC_ABM1_LS_SAMPLE_RATE, 0x3);
+	REG_WRITE(DC_ABM1_LS_SAMPLE_RATE, 0x1);
+	REG_WRITE(BL1_PWM_BL_UPDATE_SAMPLE_RATE, 0x1);
 
 	REG_SET_3(DC_ABM1_HG_MISC_CTRL, 0,
 			ABM1_HG_NUM_OF_BINS_SEL, 0,
@@ -135,6 +136,7 @@ static bool dmub_abm_set_level(struct abm *abm, uint32_t level)
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = abm->ctx;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.abm_set_level.header.type = DMUB_CMD__ABM;
 	cmd.abm_set_level.header.sub_type = DMUB_CMD__ABM_SET_LEVEL;
 	cmd.abm_set_level.abm_set_level_data.level = level;
@@ -160,6 +162,7 @@ static bool dmub_abm_init_config(struct abm *abm,
 	// Copy iramtable into cw7
 	memcpy(dc->dmub_srv->dmub->scratch_mem_fb.cpu_addr, (void *)src, bytes);
 
+	memset(&cmd, 0, sizeof(cmd));
 	// Fw will copy from cw7 to fw_state
 	cmd.abm_init_config.header.type = DMUB_CMD__ABM;
 	cmd.abm_init_config.header.sub_type = DMUB_CMD__ABM_INIT_CONFIG;

@@ -13,13 +13,33 @@
 
 struct drm_i915_gem_object *alloc_pt_dma(struct i915_address_space *vm, int sz)
 {
+	struct drm_i915_gem_object *obj;
+
 	if (I915_SELFTEST_ONLY(should_fail(&vm->fault_attr, 1)))
 		i915_gem_shrink_all(vm->i915);
 
-	return i915_gem_object_create_internal(vm->i915, sz);
+	obj = i915_gem_object_create_internal(vm->i915, sz);
+	/* ensure all dma objects have the same reservation class */
+	if (!IS_ERR(obj))
+		obj->base.resv = &vm->resv;
+	return obj;
 }
 
 int pin_pt_dma(struct i915_address_space *vm, struct drm_i915_gem_object *obj)
+{
+	int err;
+
+	i915_gem_object_lock(obj, NULL);
+	err = i915_gem_object_pin_pages(obj);
+	i915_gem_object_unlock(obj);
+	if (err)
+		return err;
+
+	i915_gem_object_make_unshrinkable(obj);
+	return 0;
+}
+
+int pin_pt_dma_locked(struct i915_address_space *vm, struct drm_i915_gem_object *obj)
 {
 	int err;
 
@@ -56,6 +76,20 @@ void __i915_vm_close(struct i915_address_space *vm)
 	mutex_unlock(&vm->mutex);
 }
 
+/* lock the vm into the current ww, if we lock one, we lock all */
+int i915_vm_lock_objects(struct i915_address_space *vm,
+			 struct i915_gem_ww_ctx *ww)
+{
+	if (vm->scratch[0]->base.resv == &vm->resv) {
+		return i915_gem_object_lock(vm->scratch[0], ww);
+	} else {
+		struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
+
+		/* We borrowed the scratch page from ggtt, take the top level object */
+		return i915_gem_object_lock(ppgtt->pd->pt.base, ww);
+	}
+}
+
 void i915_address_space_fini(struct i915_address_space *vm)
 {
 	drm_mm_takedown(&vm->mm);
@@ -69,6 +103,7 @@ static void __i915_vm_release(struct work_struct *work)
 
 	vm->cleanup(vm);
 	i915_address_space_fini(vm);
+	dma_resv_fini(&vm->resv);
 
 	kfree(vm);
 }
@@ -98,6 +133,7 @@ void i915_address_space_init(struct i915_address_space *vm, int subclass)
 	mutex_init(&vm->mutex);
 	lockdep_set_subclass(&vm->mutex, subclass);
 	i915_gem_shrinker_taints_mutex(vm->i915, &vm->mutex);
+	dma_resv_init(&vm->resv);
 
 	GEM_BUG_ON(!vm->total);
 	drm_mm_init(&vm->mm, 0, vm->total);
@@ -324,7 +360,7 @@ static void cnl_setup_private_ppat(struct intel_uncore *uncore)
 			   GEN8_PPAT_WC | GEN8_PPAT_LLCELLC);
 	intel_uncore_write(uncore,
 			   GEN10_PAT_INDEX(2),
-			   GEN8_PPAT_WT | GEN8_PPAT_LLCELLC);
+			   GEN8_PPAT_WB | GEN8_PPAT_ELLC_OVERRIDE);
 	intel_uncore_write(uncore,
 			   GEN10_PAT_INDEX(3),
 			   GEN8_PPAT_UC);
@@ -349,16 +385,22 @@ static void cnl_setup_private_ppat(struct intel_uncore *uncore)
  */
 static void bdw_setup_private_ppat(struct intel_uncore *uncore)
 {
+	struct drm_i915_private *i915 = uncore->i915;
 	u64 pat;
 
 	pat = GEN8_PPAT(0, GEN8_PPAT_WB | GEN8_PPAT_LLC) |	/* for normal objects, no eLLC */
 	      GEN8_PPAT(1, GEN8_PPAT_WC | GEN8_PPAT_LLCELLC) |	/* for something pointing to ptes? */
-	      GEN8_PPAT(2, GEN8_PPAT_WT | GEN8_PPAT_LLCELLC) |	/* for scanout with eLLC */
 	      GEN8_PPAT(3, GEN8_PPAT_UC) |			/* Uncached objects, mostly for scanout */
 	      GEN8_PPAT(4, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(0)) |
 	      GEN8_PPAT(5, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(1)) |
 	      GEN8_PPAT(6, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2)) |
 	      GEN8_PPAT(7, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
+
+	/* for scanout with eLLC */
+	if (INTEL_GEN(i915) >= 9)
+		pat |= GEN8_PPAT(2, GEN8_PPAT_WB | GEN8_PPAT_ELLC_OVERRIDE);
+	else
+		pat |= GEN8_PPAT(2, GEN8_PPAT_WT | GEN8_PPAT_LLCELLC);
 
 	intel_uncore_write(uncore, GEN8_PRIVATE_PAT_LO, lower_32_bits(pat));
 	intel_uncore_write(uncore, GEN8_PRIVATE_PAT_HI, upper_32_bits(pat));
@@ -414,6 +456,47 @@ void setup_private_pat(struct intel_uncore *uncore)
 		chv_setup_private_ppat(uncore);
 	else
 		bdw_setup_private_ppat(uncore);
+}
+
+struct i915_vma *
+__vm_create_scratch_for_read(struct i915_address_space *vm, unsigned long size)
+{
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+
+	obj = i915_gem_object_create_internal(vm->i915, PAGE_ALIGN(size));
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
+
+	i915_gem_object_set_cache_coherency(obj, I915_CACHING_CACHED);
+
+	vma = i915_vma_instance(obj, vm, NULL);
+	if (IS_ERR(vma)) {
+		i915_gem_object_put(obj);
+		return vma;
+	}
+
+	return vma;
+}
+
+struct i915_vma *
+__vm_create_scratch_for_read_pinned(struct i915_address_space *vm, unsigned long size)
+{
+	struct i915_vma *vma;
+	int err;
+
+	vma = __vm_create_scratch_for_read(vm, size);
+	if (IS_ERR(vma))
+		return vma;
+
+	err = i915_vma_pin(vma, 0, 0,
+			   i915_vma_is_ggtt(vma) ? PIN_GLOBAL : PIN_USER);
+	if (err) {
+		i915_vma_put(vma);
+		return ERR_PTR(err);
+	}
+
+	return vma;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

@@ -28,6 +28,14 @@
 #include <linux/regulator/consumer.h>
 #include "mali_kbase_config_platform.h"
 
+
+/**
+ * Autosuspend delay
+ *
+ * The delay time (in milliseconds) to be used for autosuspend
+ */
+#define AUTO_SUSPEND_DELAY (100)
+
 static void enable_gpu_power_control(struct kbase_device *kbdev)
 {
 	unsigned int i;
@@ -181,5 +189,3 @@ struct kbase_pm_callback_conf pm_callbacks = {
 	.power_runtime_off_callback = NULL,
 #endif				/* KBASE_PM_RUNTIME */
 };
-
-

@@ -181,7 +181,7 @@ int ipa_mem_config(struct ipa *ipa)
 	 * for the region, write "canary" values in the space prior to
 	 * the region's base address.
 	 */
-	for (mem_id = 0; mem_id < IPA_MEM_COUNT; mem_id++) {
+	for (mem_id = 0; mem_id < ipa->mem_count; mem_id++) {
 		const struct ipa_mem *mem = &ipa->mem[mem_id];
 		u16 canary_count;
 		__le32 *canary;
@@ -336,7 +336,7 @@ static void ipa_imem_exit(struct ipa *ipa)
 
 		size = iommu_unmap(domain, ipa->imem_iova, ipa->imem_size);
 		if (size != ipa->imem_size)
-			dev_warn(dev, "unmapped %zu IMEM bytes, expected %lu\n",
+			dev_warn(dev, "unmapped %zu IMEM bytes, expected %zu\n",
 				 size, ipa->imem_size);
 	} else {
 		dev_err(dev, "couldn't get IPA IOMMU domain for IMEM\n");
@@ -440,7 +440,7 @@ static void ipa_smem_exit(struct ipa *ipa)
 
 		size = iommu_unmap(domain, ipa->smem_iova, ipa->smem_size);
 		if (size != ipa->smem_size)
-			dev_warn(dev, "unmapped %zu SMEM bytes, expected %lu\n",
+			dev_warn(dev, "unmapped %zu SMEM bytes, expected %zu\n",
 				 size, ipa->smem_size);
 
 	} else {
@@ -488,6 +488,7 @@ int ipa_mem_init(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 	ipa->mem_size = resource_size(res);
 
 	/* The ipa->mem[] array is indexed by enum ipa_mem_id values */
+	ipa->mem_count = mem_data->local_count;
 	ipa->mem = mem_data->local;
 
 	ret = ipa_imem_init(ipa, mem_data->imem_addr, mem_data->imem_size);

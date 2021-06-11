@@ -62,7 +62,7 @@ static int remap_sg(pte_t *pte, unsigned long addr, void *data)
 {
 	struct remap_pfn *r = data;
 
-	if (GEM_WARN_ON(!r->sgt.pfn))
+	if (GEM_WARN_ON(!r->sgt.sgp))
 		return -EINVAL;
 
 	/* Special PTE are not associated with any struct page */
@@ -132,7 +132,7 @@ int remap_io_sg(struct vm_area_struct *vma,
 		.sgt = __sgt_iter(sgl, use_dma(iobase)),
 		.iobase = iobase,
 	};
-	int err;
+	int err = 0;
 
 	/* We rely on prevalidation of the io-mapping to skip track_pfn(). */
 	GEM_BUG_ON((vma->vm_flags & EXPECTED_FLAGS) != EXPECTED_FLAGS);

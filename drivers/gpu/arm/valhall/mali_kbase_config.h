@@ -223,6 +223,11 @@ struct kbase_pm_callback_conf {
 	int (*soft_reset_callback)(struct kbase_device *kbdev);
 };
 
+struct kbase_mali_platform_functions {
+        struct kbase_pm_callback_conf *pm_callbacks;
+        struct kbase_platform_funcs_conf *platform_funcs;
+};
+
 #ifdef CONFIG_OF
 struct kbase_platform_config {
 };

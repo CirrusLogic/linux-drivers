@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include "tb.h"
 
-/**
+/*
  * tb_eeprom_ctl_write() - write control word
  */
 static int tb_eeprom_ctl_write(struct tb_switch *sw, struct tb_eeprom_ctl *ctl)
@@ -20,7 +20,7 @@ static int tb_eeprom_ctl_write(struct tb_switch *sw, struct tb_eeprom_ctl *ctl)
 	return tb_sw_write(sw, ctl, TB_CFG_SWITCH, sw->cap_plug_events + 4, 1);
 }
 
-/**
+/*
  * tb_eeprom_ctl_write() - read control word
  */
 static int tb_eeprom_ctl_read(struct tb_switch *sw, struct tb_eeprom_ctl *ctl)
@@ -33,7 +33,7 @@ enum tb_eeprom_transfer {
 	TB_EEPROM_OUT,
 };
 
-/**
+/*
  * tb_eeprom_active - enable rom access
  *
  * WARNING: Always disable access after usage. Otherwise the controller will
@@ -62,7 +62,7 @@ static int tb_eeprom_active(struct tb_switch *sw, bool enable)
 	}
 }
 
-/**
+/*
  * tb_eeprom_transfer - transfer one bit
  *
  * If TB_EEPROM_IN is passed, then the bit can be retrieved from ctl->data_in.
@@ -90,7 +90,7 @@ static int tb_eeprom_transfer(struct tb_switch *sw, struct tb_eeprom_ctl *ctl,
 	return tb_eeprom_ctl_write(sw, ctl);
 }
 
-/**
+/*
  * tb_eeprom_out - write one byte to the bus
  */
 static int tb_eeprom_out(struct tb_switch *sw, u8 val)
@@ -110,7 +110,7 @@ static int tb_eeprom_out(struct tb_switch *sw, u8 val)
 	return 0;
 }
 
-/**
+/*
  * tb_eeprom_in - read one byte from the bus
  */
 static int tb_eeprom_in(struct tb_switch *sw, u8 *val)
@@ -131,7 +131,7 @@ static int tb_eeprom_in(struct tb_switch *sw, u8 *val)
 	return 0;
 }
 
-/**
+/*
  * tb_eeprom_get_drom_offset - get drom offset within eeprom
  */
 static int tb_eeprom_get_drom_offset(struct tb_switch *sw, u16 *offset)
@@ -162,7 +162,7 @@ static int tb_eeprom_get_drom_offset(struct tb_switch *sw, u16 *offset)
 	return 0;
 }
 
-/**
+/*
  * tb_eeprom_read_n - read count bytes from offset into val
  */
 static int tb_eeprom_read_n(struct tb_switch *sw, u16 offset, u8 *val,
@@ -277,9 +277,21 @@ struct tb_drom_entry_port {
 	u8 unknown4:2;
 } __packed;
 
+/* USB4 product descriptor */
+struct tb_drom_entry_desc {
+	struct tb_drom_entry_header header;
+	u16 bcdUSBSpec;
+	u16 idVendor;
+	u16 idProduct;
+	u16 bcdProductFWRevision;
+	u32 TID;
+	u8 productHWRevision;
+};
 
 /**
- * tb_drom_read_uid_only - read uid directly from drom
+ * tb_drom_read_uid_only() - Read UID directly from DROM
+ * @sw: Router whose UID to read
+ * @uid: UID is placed here
  *
  * Does not use the cached copy in sw->drom. Used during resume to check switch
  * identity.
@@ -327,6 +339,16 @@ static int tb_drom_parse_entry_generic(struct tb_switch *sw,
 		if (!sw->device_name)
 			return -ENOMEM;
 		break;
+	case 9: {
+		const struct tb_drom_entry_desc *desc =
+			(const struct tb_drom_entry_desc *)entry;
+
+		if (!sw->vendor && !sw->device) {
+			sw->vendor = desc->idVendor;
+			sw->device = desc->idProduct;
+		}
+		break;
+	}
 	}
 
 	return 0;
@@ -374,7 +396,7 @@ static int tb_drom_parse_entry_port(struct tb_switch *sw,
 	return 0;
 }
 
-/**
+/*
  * tb_drom_parse_entries - parse the linked list of drom entries
  *
  * Drom must have been copied to sw->drom.
@@ -410,7 +432,7 @@ static int tb_drom_parse_entries(struct tb_switch *sw)
 	return 0;
 }
 
-/**
+/*
  * tb_drom_copy_efi - copy drom supplied by EFI to sw->drom if present
  */
 static int tb_drom_copy_efi(struct tb_switch *sw, u16 *size)
@@ -519,13 +541,64 @@ static int tb_drom_read_n(struct tb_switch *sw, u16 offset, u8 *val,
 	return tb_eeprom_read_n(sw, offset, val, count);
 }
 
+static int tb_drom_parse(struct tb_switch *sw)
+{
+	const struct tb_drom_header *header =
+		(const struct tb_drom_header *)sw->drom;
+	u32 crc;
+
+	crc = tb_crc8((u8 *) &header->uid, 8);
+	if (crc != header->uid_crc8) {
+		tb_sw_warn(sw,
+			"DROM UID CRC8 mismatch (expected: %#x, got: %#x), aborting\n",
+			header->uid_crc8, crc);
+		return -EINVAL;
+	}
+	if (!sw->uid)
+		sw->uid = header->uid;
+	sw->vendor = header->vendor_id;
+	sw->device = header->model_id;
+
+	crc = tb_crc32(sw->drom + TB_DROM_DATA_START, header->data_len);
+	if (crc != header->data_crc32) {
+		tb_sw_warn(sw,
+			"DROM data CRC32 mismatch (expected: %#x, got: %#x), continuing\n",
+			header->data_crc32, crc);
+	}
+
+	return tb_drom_parse_entries(sw);
+}
+
+static int usb4_drom_parse(struct tb_switch *sw)
+{
+	const struct tb_drom_header *header =
+		(const struct tb_drom_header *)sw->drom;
+	u32 crc;
+
+	crc = tb_crc32(sw->drom + TB_DROM_DATA_START, header->data_len);
+	if (crc != header->data_crc32) {
+		tb_sw_warn(sw,
+			   "DROM data CRC32 mismatch (expected: %#x, got: %#x), aborting\n",
+			   header->data_crc32, crc);
+		return -EINVAL;
+	}
+
+	return tb_drom_parse_entries(sw);
+}
+
 /**
- * tb_drom_read - copy drom to sw->drom and parse it
+ * tb_drom_read() - Copy DROM to sw->drom and parse it
+ * @sw: Router whose DROM to read and parse
+ *
+ * This function reads router DROM and if successful parses the entries and
+ * populates the fields in @sw accordingly. Can be called for any router
+ * generation.
+ *
+ * Returns %0 in case of success and negative errno otherwise.
  */
 int tb_drom_read(struct tb_switch *sw)
 {
 	u16 size;
-	u32 crc;
 	struct tb_drom_header *header;
 	int res, retries = 1;
 
@@ -590,31 +663,21 @@ parse:
 		goto err;
 	}
 
-	crc = tb_crc8((u8 *) &header->uid, 8);
-	if (crc != header->uid_crc8) {
-		tb_sw_warn(sw,
-			"drom uid crc8 mismatch (expected: %#x, got: %#x), aborting\n",
-			header->uid_crc8, crc);
-		goto err;
-	}
-	if (!sw->uid)
-		sw->uid = header->uid;
-	sw->vendor = header->vendor_id;
-	sw->device = header->model_id;
-	tb_check_quirks(sw);
+	tb_sw_dbg(sw, "DROM version: %d\n", header->device_rom_revision);
 
-	crc = tb_crc32(sw->drom + TB_DROM_DATA_START, header->data_len);
-	if (crc != header->data_crc32) {
-		tb_sw_warn(sw,
-			"drom data crc32 mismatch (expected: %#x, got: %#x), continuing\n",
-			header->data_crc32, crc);
+	switch (header->device_rom_revision) {
+	case 3:
+		res = usb4_drom_parse(sw);
+		break;
+	default:
+		tb_sw_warn(sw, "DROM device_rom_revision %#x unknown\n",
+			   header->device_rom_revision);
+		fallthrough;
+	case 1:
+		res = tb_drom_parse(sw);
+		break;
 	}
 
-	if (header->device_rom_revision > 2)
-		tb_sw_warn(sw, "drom device_rom_revision %#x unknown\n",
-			header->device_rom_revision);
-
-	res = tb_drom_parse_entries(sw);
 	/* If the DROM parsing fails, wait a moment and retry once */
 	if (res == -EILSEQ && retries--) {
 		tb_sw_warn(sw, "parsing DROM failed, retrying\n");
@@ -624,10 +687,11 @@ parse:
 			goto parse;
 	}
 
-	return res;
+	if (!res)
+		return 0;
+
 err:
 	kfree(sw->drom);
 	sw->drom = NULL;
 	return -EIO;
-
 }

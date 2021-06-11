@@ -52,6 +52,8 @@
 #include "dpcd_defs.h"
 #include "dsc.h"
 #include "dce/dmub_hw_lock_mgr.h"
+#include "dc_trace.h"
+#include "dce/dmub_outbox.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -646,8 +648,13 @@ static void power_on_plane(
 	if (REG(DC_IP_REQUEST_CNTL)) {
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 1);
-		hws->funcs.dpp_pg_control(hws, plane_id, true);
-		hws->funcs.hubp_pg_control(hws, plane_id, true);
+
+		if (hws->funcs.dpp_pg_control)
+			hws->funcs.dpp_pg_control(hws, plane_id, true);
+
+		if (hws->funcs.hubp_pg_control)
+			hws->funcs.hubp_pg_control(hws, plane_id, true);
+
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
 		DC_LOG_DEBUG(
@@ -1020,15 +1027,17 @@ static bool dcn10_hw_wa_force_recovery(struct dc *dc)
 
 }
 
-
 void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 {
 	static bool should_log_hw_state; /* prevent hw state log by default */
 
 	if (!hubbub1_verify_allow_pstate_change_high(dc->res_pool->hubbub)) {
-		if (should_log_hw_state) {
+		int i = 0;
+
+		if (should_log_hw_state)
 			dcn10_log_hw_state(dc, NULL);
-		}
+
+		TRACE_DC_PIPE_STATE(pipe_ctx, i, MAX_PIPES);
 		BREAK_TO_DEBUGGER();
 		if (dcn10_hw_wa_force_recovery(dc)) {
 		/*check again*/
@@ -1079,8 +1088,13 @@ void dcn10_plane_atomic_power_down(struct dc *dc,
 	if (REG(DC_IP_REQUEST_CNTL)) {
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 1);
-		hws->funcs.dpp_pg_control(hws, dpp->inst, false);
-		hws->funcs.hubp_pg_control(hws, hubp->inst, false);
+
+		if (hws->funcs.dpp_pg_control)
+			hws->funcs.dpp_pg_control(hws, dpp->inst, false);
+
+		if (hws->funcs.hubp_pg_control)
+			hws->funcs.hubp_pg_control(hws, hubp->inst, false);
+
 		dpp->funcs->dpp_reset(dpp);
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
@@ -1211,6 +1225,7 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 			// signals when OTG blanked. This is to prevent pipe from
 			// requesting data while in PSR.
 			tg->funcs->tg_init(tg);
+			hubp->power_gated = true;
 			continue;
 		}
 
@@ -1341,6 +1356,10 @@ void dcn10_init_hw(struct dc *dc)
 				hws->funcs.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
 	}
 
+	/* Enable outbox notification feature of dmub */
+	if (dc->debug.enable_dmub_aux_for_legacy_ddc)
+		dmub_enable_outbox_notification(dc);
+
 	/* we want to turn off all dp displays before doing detection */
 	if (dc->config.power_down_display_on_boot) {
 		uint8_t dpcd_power_state = '\0';
@@ -1434,37 +1453,35 @@ void dcn10_init_hw(struct dc *dc)
 
 	if (dc->clk_mgr->funcs->notify_wm_ranges)
 		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
-
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
-	if (dc->clk_mgr->funcs->set_hard_max_memclk)
-		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
-#endif
-
 }
 
 /* In headless boot cases, DIG may be turned
  * on which causes HW/SW discrepancies.
  * To avoid this, power down hardware on boot
- * if DIG is turned on and seamless boot not enabled
+ * if DIG is turned on
  */
 void dcn10_power_down_on_boot(struct dc *dc)
 {
-	int i = 0;
+	struct dc_link *edp_links[MAX_NUM_EDP];
 	struct dc_link *edp_link;
+	int edp_num;
+	int i = 0;
 
-	if (!dc->config.power_down_display_on_boot)
-		return;
+	get_edp_links(dc, edp_links, &edp_num);
 
-	edp_link = get_edp_link(dc);
-	if (edp_link &&
-			edp_link->link_enc->funcs->is_dig_enabled &&
-			edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
-			dc->hwseq->funcs.edp_backlight_control &&
-			dc->hwss.power_down &&
-			dc->hwss.edp_power_control) {
-		dc->hwseq->funcs.edp_backlight_control(edp_link, false);
-		dc->hwss.power_down(dc);
-		dc->hwss.edp_power_control(edp_link, false);
+	if (edp_num) {
+		for (i = 0; i < edp_num; i++) {
+			edp_link = edp_links[i];
+			if (edp_link->link_enc->funcs->is_dig_enabled &&
+					edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
+					dc->hwseq->funcs.edp_backlight_control &&
+					dc->hwss.power_down &&
+					dc->hwss.edp_power_control) {
+				dc->hwseq->funcs.edp_backlight_control(edp_link, false);
+				dc->hwss.power_down(dc);
+				dc->hwss.edp_power_control(edp_link, false);
+			}
+		}
 	} else {
 		for (i = 0; i < dc->link_count; i++) {
 			struct dc_link *link = dc->links[i];
@@ -1541,6 +1558,8 @@ static bool patch_address_for_sbs_tb_stereo(
 			plane_state->address.type = PLN_ADDR_TYPE_GRPH_STEREO;
 			plane_state->address.grph_stereo.right_addr =
 			plane_state->address.grph_stereo.left_addr;
+			plane_state->address.grph_stereo.right_meta_addr =
+			plane_state->address.grph_stereo.left_meta_addr;
 		}
 	}
 	return false;
@@ -1844,6 +1863,230 @@ static bool wait_for_reset_trigger_to_occur(
 	return rc;
 }
 
+uint64_t reduceSizeAndFraction(
+	uint64_t *numerator,
+	uint64_t *denominator,
+	bool checkUint32Bounary)
+{
+	int i;
+	bool ret = checkUint32Bounary == false;
+	uint64_t max_int32 = 0xffffffff;
+	uint64_t num, denom;
+	static const uint16_t prime_numbers[] = {
+		2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43,
+		47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103,
+		107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163,
+		167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227,
+		229, 233, 239, 241, 251, 257, 263, 269, 271, 277, 281,
+		283, 293, 307, 311, 313, 317, 331, 337, 347, 349, 353,
+		359, 367, 373, 379, 383, 389, 397, 401, 409, 419, 421,
+		431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487,
+		491, 499, 503, 509, 521, 523, 541, 547, 557, 563, 569,
+		571, 577, 587, 593, 599, 601, 607, 613, 617, 619, 631,
+		641, 643, 647, 653, 659, 661, 673, 677, 683, 691, 701,
+		709, 719, 727, 733, 739, 743, 751, 757, 761, 769, 773,
+		787, 797, 809, 811, 821, 823, 827, 829, 839, 853, 857,
+		859, 863, 877, 881, 883, 887, 907, 911, 919, 929, 937,
+		941, 947, 953, 967, 971, 977, 983, 991, 997};
+	int count = ARRAY_SIZE(prime_numbers);
+
+	num = *numerator;
+	denom = *denominator;
+	for (i = 0; i < count; i++) {
+		uint32_t num_remainder, denom_remainder;
+		uint64_t num_result, denom_result;
+		if (checkUint32Bounary &&
+			num <= max_int32 && denom <= max_int32) {
+			ret = true;
+			break;
+		}
+		do {
+			num_result = div_u64_rem(num, prime_numbers[i], &num_remainder);
+			denom_result = div_u64_rem(denom, prime_numbers[i], &denom_remainder);
+			if (num_remainder == 0 && denom_remainder == 0) {
+				num = num_result;
+				denom = denom_result;
+			}
+		} while (num_remainder == 0 && denom_remainder == 0);
+	}
+	*numerator = num;
+	*denominator = denom;
+	return ret;
+}
+
+bool is_low_refresh_rate(struct pipe_ctx *pipe)
+{
+	uint32_t master_pipe_refresh_rate =
+		pipe->stream->timing.pix_clk_100hz * 100 /
+		pipe->stream->timing.h_total /
+		pipe->stream->timing.v_total;
+	return master_pipe_refresh_rate <= 30;
+}
+
+uint8_t get_clock_divider(struct pipe_ctx *pipe, bool account_low_refresh_rate)
+{
+	uint32_t clock_divider = 1;
+	uint32_t numpipes = 1;
+
+	if (account_low_refresh_rate && is_low_refresh_rate(pipe))
+		clock_divider *= 2;
+
+	if (pipe->stream_res.pix_clk_params.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		clock_divider *= 2;
+
+	while (pipe->next_odm_pipe) {
+		pipe = pipe->next_odm_pipe;
+		numpipes++;
+	}
+	clock_divider *= numpipes;
+
+	return clock_divider;
+}
+
+int dcn10_align_pixel_clocks(
+	struct dc *dc,
+	int group_size,
+	struct pipe_ctx *grouped_pipes[])
+{
+	struct dc_context *dc_ctx = dc->ctx;
+	int i, master = -1, embedded = -1;
+	struct dc_crtc_timing hw_crtc_timing[MAX_PIPES] = {0};
+	uint64_t phase[MAX_PIPES];
+	uint64_t modulo[MAX_PIPES];
+	unsigned int pclk;
+
+	uint32_t embedded_pix_clk_100hz;
+	uint16_t embedded_h_total;
+	uint16_t embedded_v_total;
+	bool clamshell_closed = false;
+	uint32_t dp_ref_clk_100hz =
+		dc->res_pool->dp_clock_source->ctx->dc->clk_mgr->dprefclk_khz*10;
+
+	if (dc->config.vblank_alignment_dto_params &&
+		dc->res_pool->dp_clock_source->funcs->override_dp_pix_clk) {
+		clamshell_closed =
+			(dc->config.vblank_alignment_dto_params >> 63);
+		embedded_h_total =
+			(dc->config.vblank_alignment_dto_params >> 32) & 0x7FFF;
+		embedded_v_total =
+			(dc->config.vblank_alignment_dto_params >> 48) & 0x7FFF;
+		embedded_pix_clk_100hz =
+			dc->config.vblank_alignment_dto_params & 0xFFFFFFFF;
+
+		for (i = 0; i < group_size; i++) {
+			grouped_pipes[i]->stream_res.tg->funcs->get_hw_timing(
+					grouped_pipes[i]->stream_res.tg,
+					&hw_crtc_timing[i]);
+			dc->res_pool->dp_clock_source->funcs->get_pixel_clk_frequency_100hz(
+				dc->res_pool->dp_clock_source,
+				grouped_pipes[i]->stream_res.tg->inst,
+				&pclk);
+			hw_crtc_timing[i].pix_clk_100hz = pclk;
+			if (dc_is_embedded_signal(
+					grouped_pipes[i]->stream->signal)) {
+				embedded = i;
+				master = i;
+				phase[i] = embedded_pix_clk_100hz*100;
+				modulo[i] = dp_ref_clk_100hz*100;
+			} else {
+
+				phase[i] = (uint64_t)embedded_pix_clk_100hz*
+					hw_crtc_timing[i].h_total*
+					hw_crtc_timing[i].v_total;
+				phase[i] = div_u64(phase[i], get_clock_divider(grouped_pipes[i], true));
+				modulo[i] = (uint64_t)dp_ref_clk_100hz*
+					embedded_h_total*
+					embedded_v_total;
+
+				if (reduceSizeAndFraction(&phase[i],
+						&modulo[i], true) == false) {
+					/*
+					 * this will help to stop reporting
+					 * this timing synchronizable
+					 */
+					DC_SYNC_INFO("Failed to reduce DTO parameters\n");
+					grouped_pipes[i]->stream->has_non_synchronizable_pclk = true;
+				}
+			}
+		}
+
+		for (i = 0; i < group_size; i++) {
+			if (i != embedded && !grouped_pipes[i]->stream->has_non_synchronizable_pclk) {
+				dc->res_pool->dp_clock_source->funcs->override_dp_pix_clk(
+					dc->res_pool->dp_clock_source,
+					grouped_pipes[i]->stream_res.tg->inst,
+					phase[i], modulo[i]);
+				dc->res_pool->dp_clock_source->funcs->get_pixel_clk_frequency_100hz(
+					dc->res_pool->dp_clock_source,
+					grouped_pipes[i]->stream_res.tg->inst, &pclk);
+					grouped_pipes[i]->stream->timing.pix_clk_100hz =
+						pclk*get_clock_divider(grouped_pipes[i], false);
+				if (master == -1)
+					master = i;
+			}
+		}
+
+	}
+	return master;
+}
+
+void dcn10_enable_vblanks_synchronization(
+	struct dc *dc,
+	int group_index,
+	int group_size,
+	struct pipe_ctx *grouped_pipes[])
+{
+	struct dc_context *dc_ctx = dc->ctx;
+	struct output_pixel_processor *opp;
+	struct timing_generator *tg;
+	int i, width, height, master;
+
+	for (i = 1; i < group_size; i++) {
+		opp = grouped_pipes[i]->stream_res.opp;
+		tg = grouped_pipes[i]->stream_res.tg;
+		tg->funcs->get_otg_active_size(tg, &width, &height);
+		if (opp->funcs->opp_program_dpg_dimensions)
+			opp->funcs->opp_program_dpg_dimensions(opp, width, 2*(height) + 1);
+	}
+
+	for (i = 0; i < group_size; i++) {
+		if (grouped_pipes[i]->stream == NULL)
+			continue;
+		grouped_pipes[i]->stream->vblank_synchronized = false;
+		grouped_pipes[i]->stream->has_non_synchronizable_pclk = false;
+	}
+
+	DC_SYNC_INFO("Aligning DP DTOs\n");
+
+	master = dcn10_align_pixel_clocks(dc, group_size, grouped_pipes);
+
+	DC_SYNC_INFO("Synchronizing VBlanks\n");
+
+	if (master >= 0) {
+		for (i = 0; i < group_size; i++) {
+			if (i != master && !grouped_pipes[i]->stream->has_non_synchronizable_pclk)
+			grouped_pipes[i]->stream_res.tg->funcs->align_vblanks(
+				grouped_pipes[master]->stream_res.tg,
+				grouped_pipes[i]->stream_res.tg,
+				grouped_pipes[master]->stream->timing.pix_clk_100hz,
+				grouped_pipes[i]->stream->timing.pix_clk_100hz,
+				get_clock_divider(grouped_pipes[master], false),
+				get_clock_divider(grouped_pipes[i], false));
+				grouped_pipes[i]->stream->vblank_synchronized = true;
+		}
+		grouped_pipes[master]->stream->vblank_synchronized = true;
+		DC_SYNC_INFO("Sync complete\n");
+	}
+
+	for (i = 1; i < group_size; i++) {
+		opp = grouped_pipes[i]->stream_res.opp;
+		tg = grouped_pipes[i]->stream_res.tg;
+		tg->funcs->get_otg_active_size(tg, &width, &height);
+		if (opp->funcs->opp_program_dpg_dimensions)
+			opp->funcs->opp_program_dpg_dimensions(opp, width, height);
+	}
+}
+
 void dcn10_enable_timing_synchronization(
 	struct dc *dc,
 	int group_index,
@@ -1851,9 +2094,25 @@ void dcn10_enable_timing_synchronization(
 	struct pipe_ctx *grouped_pipes[])
 {
 	struct dc_context *dc_ctx = dc->ctx;
-	int i;
+	struct output_pixel_processor *opp;
+	struct timing_generator *tg;
+	int i, width, height;
 
 	DC_SYNC_INFO("Setting up OTG reset trigger\n");
+
+	for (i = 1; i < group_size; i++) {
+		opp = grouped_pipes[i]->stream_res.opp;
+		tg = grouped_pipes[i]->stream_res.tg;
+		tg->funcs->get_otg_active_size(tg, &width, &height);
+		if (opp->funcs->opp_program_dpg_dimensions)
+			opp->funcs->opp_program_dpg_dimensions(opp, width, 2*(height) + 1);
+	}
+
+	for (i = 0; i < group_size; i++) {
+		if (grouped_pipes[i]->stream == NULL)
+			continue;
+		grouped_pipes[i]->stream->vblank_synchronized = false;
+	}
 
 	for (i = 1; i < group_size; i++)
 		grouped_pipes[i]->stream_res.tg->funcs->enable_reset_trigger(
@@ -1870,6 +2129,14 @@ void dcn10_enable_timing_synchronization(
 	for (i = 1; i < group_size; i++)
 		grouped_pipes[i]->stream_res.tg->funcs->disable_reset_trigger(
 				grouped_pipes[i]->stream_res.tg);
+
+	for (i = 1; i < group_size; i++) {
+		opp = grouped_pipes[i]->stream_res.opp;
+		tg = grouped_pipes[i]->stream_res.tg;
+		tg->funcs->get_otg_active_size(tg, &width, &height);
+		if (opp->funcs->opp_program_dpg_dimensions)
+			opp->funcs->opp_program_dpg_dimensions(opp, width, height);
+	}
 
 	DC_SYNC_INFO("Sync complete\n");
 }
@@ -2171,6 +2438,13 @@ static void dcn10_enable_plane(
 	if (dc->debug.sanity_checks) {
 		hws->funcs.verify_allow_pstate_change_high(dc);
 	}
+
+	if (!pipe_ctx->top_pipe
+		&& pipe_ctx->plane_state
+		&& pipe_ctx->plane_state->flip_int_enabled
+		&& pipe_ctx->plane_res.hubp->funcs->hubp_set_flip_int)
+			pipe_ctx->plane_res.hubp->funcs->hubp_set_flip_int(pipe_ctx->plane_res.hubp);
+
 }
 
 void dcn10_program_gamut_remap(struct pipe_ctx *pipe_ctx)
@@ -2722,7 +2996,7 @@ static void dcn10_program_all_pipe_in_tree(
 				pipe_ctx->pipe_dlg_param.vupdate_width);
 
 		pipe_ctx->stream_res.tg->funcs->set_vtg_params(
-				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
+				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing, true);
 
 		if (hws->funcs.setup_vupdate_interrupt)
 			hws->funcs.setup_vupdate_interrupt(dc, pipe_ctx);
@@ -2759,122 +3033,6 @@ static struct pipe_ctx *dcn10_find_top_pipe_for_stream(
 			return pipe_ctx;
 	}
 	return NULL;
-}
-
-bool dcn10_disconnect_pipes(
-		struct dc *dc,
-		struct dc_state *context)
-{
-		bool found_pipe = false;
-		int i, j;
-		struct dce_hwseq *hws = dc->hwseq;
-		struct dc_state *old_ctx = dc->current_state;
-		bool mpcc_disconnected = false;
-		struct pipe_ctx *old_pipe;
-		struct pipe_ctx *new_pipe;
-		DC_LOGGER_INIT(dc->ctx->logger);
-
-		/* Set pipe update flags and lock pipes */
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
-			new_pipe = &context->res_ctx.pipe_ctx[i];
-			new_pipe->update_flags.raw = 0;
-
-			if (!old_pipe->plane_state && !new_pipe->plane_state)
-				continue;
-
-			if (old_pipe->plane_state && !new_pipe->plane_state)
-				new_pipe->update_flags.bits.disable = 1;
-
-			/* Check for scl update */
-			if (memcmp(&old_pipe->plane_res.scl_data, &new_pipe->plane_res.scl_data, sizeof(struct scaler_data)))
-					new_pipe->update_flags.bits.scaler = 1;
-
-			/* Check for vp update */
-			if (memcmp(&old_pipe->plane_res.scl_data.viewport, &new_pipe->plane_res.scl_data.viewport, sizeof(struct rect))
-					|| memcmp(&old_pipe->plane_res.scl_data.viewport_c,
-						&new_pipe->plane_res.scl_data.viewport_c, sizeof(struct rect)))
-				new_pipe->update_flags.bits.viewport = 1;
-
-		}
-
-		if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
-			/* Disconnect mpcc here only if losing pipe split*/
-			for (i = 0; i < dc->res_pool->pipe_count; i++) {
-				if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable &&
-					old_ctx->res_ctx.pipe_ctx[i].top_pipe) {
-
-					/* Find the top pipe in the new ctx for the bottom pipe that we
-					 * want to remove by comparing the streams and planes. If both
-					 * pipes are being disabled then do it in the regular pipe
-					 * programming sequence
-					 */
-					for (j = 0; j < dc->res_pool->pipe_count; j++) {
-						if (old_ctx->res_ctx.pipe_ctx[i].top_pipe->stream == context->res_ctx.pipe_ctx[j].stream &&
-							old_ctx->res_ctx.pipe_ctx[i].top_pipe->plane_state == context->res_ctx.pipe_ctx[j].plane_state &&
-							!context->res_ctx.pipe_ctx[j].top_pipe &&
-							!context->res_ctx.pipe_ctx[j].update_flags.bits.disable) {
-							found_pipe = true;
-							break;
-						}
-					}
-
-					// Disconnect if the top pipe lost it's pipe split
-					if (found_pipe && !context->res_ctx.pipe_ctx[j].bottom_pipe) {
-						hws->funcs.plane_atomic_disconnect(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
-						DC_LOG_DC("Reset mpcc for pipe %d\n", dc->current_state->res_ctx.pipe_ctx[i].pipe_idx);
-						mpcc_disconnected = true;
-					}
-				}
-				found_pipe = false;
-			}
-		}
-
-		if (mpcc_disconnected) {
-			for (i = 0; i < dc->res_pool->pipe_count; i++) {
-				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-				struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
-				struct dc_plane_state *plane_state = pipe_ctx->plane_state;
-				struct hubp *hubp = pipe_ctx->plane_res.hubp;
-
-				if (!pipe_ctx || !plane_state || !pipe_ctx->stream)
-					continue;
-
-				// Only update scaler and viewport here if we lose a pipe split.
-				// This is to prevent half the screen from being black when we
-				// unlock after disconnecting MPCC.
-				if (!(old_pipe && !pipe_ctx->top_pipe &&
-					!pipe_ctx->bottom_pipe && old_pipe->bottom_pipe))
-					continue;
-
-				if (pipe_ctx->update_flags.raw || pipe_ctx->plane_state->update_flags.raw || pipe_ctx->stream->update_flags.raw) {
-					if (pipe_ctx->update_flags.bits.scaler ||
-						plane_state->update_flags.bits.scaling_change ||
-						plane_state->update_flags.bits.position_change ||
-						plane_state->update_flags.bits.per_pixel_alpha_change ||
-						pipe_ctx->stream->update_flags.bits.scaling) {
-
-						pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->plane_state->per_pixel_alpha;
-						ASSERT(pipe_ctx->plane_res.scl_data.lb_params.depth == LB_PIXEL_DEPTH_30BPP);
-						/* scaler configuration */
-						pipe_ctx->plane_res.dpp->funcs->dpp_set_scaler(
-						pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data);
-					}
-
-					if (pipe_ctx->update_flags.bits.viewport ||
-						(context == dc->current_state && plane_state->update_flags.bits.position_change) ||
-						(context == dc->current_state && plane_state->update_flags.bits.scaling_change) ||
-						(context == dc->current_state && pipe_ctx->stream->update_flags.bits.scaling)) {
-
-						hubp->funcs->mem_program_viewport(
-							hubp,
-							&pipe_ctx->plane_res.scl_data.viewport,
-							&pipe_ctx->plane_res.scl_data.viewport_c);
-					}
-				}
-			}
-		}
-	return mpcc_disconnected;
 }
 
 void dcn10_wait_for_pending_cleared(struct dc *dc,
@@ -3113,8 +3271,7 @@ void dcn10_optimize_bandwidth(
 }
 
 void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
-		int num_pipes, unsigned int vmin, unsigned int vmax,
-		unsigned int vmid, unsigned int vmid_frame_number)
+		int num_pipes, struct dc_crtc_timing_adjust adjust)
 {
 	int i = 0;
 	struct drr_params params = {0};
@@ -3123,11 +3280,10 @@ void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
 	// Note DRR trigger events are generated regardless of whether num frames met.
 	unsigned int num_frames = 2;
 
-	params.vertical_total_max = vmax;
-	params.vertical_total_min = vmin;
-	params.vertical_total_mid = vmid;
-	params.vertical_total_mid_frame_num = vmid_frame_number;
-
+	params.vertical_total_max = adjust.v_total_max;
+	params.vertical_total_min = adjust.v_total_min;
+	params.vertical_total_mid = adjust.v_total_mid;
+	params.vertical_total_mid_frame_num = adjust.v_total_mid_frame_num;
 	/* TODO: If multiple pipes are to be supported, you need
 	 * some GSL stuff. Static screen triggers may be programmed differently
 	 * as well.
@@ -3135,7 +3291,7 @@ void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
 	for (i = 0; i < num_pipes; i++) {
 		pipe_ctx[i]->stream_res.tg->funcs->set_drr(
 			pipe_ctx[i]->stream_res.tg, &params);
-		if (vmax != 0 && vmin != 0)
+		if (adjust.v_total_max != 0 && adjust.v_total_min != 0)
 			pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(
 					pipe_ctx[i]->stream_res.tg,
 					event_triggers, num_frames);
@@ -3226,7 +3382,7 @@ void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct dc *dc)
 
 	pipe_ctx->stream_res.opp->funcs->opp_program_stereo(
 		pipe_ctx->stream_res.opp,
-		flags.PROGRAM_STEREO == 1 ? true:false,
+		flags.PROGRAM_STEREO == 1,
 		&stream->timing);
 
 	pipe_ctx->stream_res.tg->funcs->program_stereo(
@@ -3378,6 +3534,8 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	};
 	bool pipe_split_on = (pipe_ctx->top_pipe != NULL) ||
 		(pipe_ctx->bottom_pipe != NULL);
+	bool odm_combine_on = (pipe_ctx->next_odm_pipe != NULL) ||
+		(pipe_ctx->prev_odm_pipe != NULL);
 
 	int x_plane = pipe_ctx->plane_state->dst_rect.x;
 	int y_plane = pipe_ctx->plane_state->dst_rect.y;
@@ -3461,16 +3619,56 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		uint32_t temp_y = pos_cpy.y;
 		int viewport_height =
 			pipe_ctx->plane_res.scl_data.viewport.height;
+		int viewport_y =
+			pipe_ctx->plane_res.scl_data.viewport.y;
 
-		if (pipe_split_on) {
+		/**
+		 * Display groups that are 1xnY, have pos_cpy.x > 2 * viewport.height
+		 * For pipe split cases:
+		 * - apply offset of viewport.y to normalize pos_cpy.x
+		 * - calculate the pos_cpy.y as before
+		 * - shift pos_cpy.y back by same offset to get final value
+		 * - since we iterate through both pipes, use the lower
+		 *   viewport.y for offset
+		 * For non pipe split cases, use the same calculation for
+		 *  pos_cpy.y as the 180 degree rotation case below,
+		 *  but use pos_cpy.x as our input because we are rotating
+		 *  270 degrees
+		 */
+		if (pipe_split_on || odm_combine_on) {
+			int pos_cpy_x_offset;
+			int other_pipe_viewport_y;
+
+			if (pipe_split_on) {
+				if (pipe_ctx->bottom_pipe) {
+					other_pipe_viewport_y =
+						pipe_ctx->bottom_pipe->plane_res.scl_data.viewport.y;
+				} else {
+					other_pipe_viewport_y =
+						pipe_ctx->top_pipe->plane_res.scl_data.viewport.y;
+				}
+			} else {
+				if (pipe_ctx->next_odm_pipe) {
+					other_pipe_viewport_y =
+						pipe_ctx->next_odm_pipe->plane_res.scl_data.viewport.y;
+				} else {
+					other_pipe_viewport_y =
+						pipe_ctx->prev_odm_pipe->plane_res.scl_data.viewport.y;
+				}
+			}
+			pos_cpy_x_offset = (viewport_y > other_pipe_viewport_y) ?
+				other_pipe_viewport_y : viewport_y;
+			pos_cpy.x -= pos_cpy_x_offset;
 			if (pos_cpy.x > viewport_height) {
 				pos_cpy.x = pos_cpy.x - viewport_height;
 				pos_cpy.y = viewport_height - pos_cpy.x;
 			} else {
 				pos_cpy.y = 2 * viewport_height - pos_cpy.x;
 			}
-		} else
-			pos_cpy.y = viewport_height - pos_cpy.x;
+			pos_cpy.y += pos_cpy_x_offset;
+		} else {
+			pos_cpy.y = (2 * viewport_y) + viewport_height - pos_cpy.x;
+		}
 		pos_cpy.x = temp_y;
 	}
 	// Mirror horizontally and vertically
@@ -3480,7 +3678,7 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		int viewport_x =
 			pipe_ctx->plane_res.scl_data.viewport.x;
 
-		if (pipe_split_on) {
+		if (pipe_split_on || odm_combine_on) {
 			if (pos_cpy.x >= viewport_width + viewport_x) {
 				pos_cpy.x = 2 * viewport_width
 						- pos_cpy.x + 2 * viewport_x;
@@ -3498,7 +3696,17 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		} else {
 			pos_cpy.x = viewport_width - pos_cpy.x + 2 * viewport_x;
 		}
-		pos_cpy.y = pipe_ctx->plane_res.scl_data.viewport.height - pos_cpy.y;
+
+		/**
+		 * Display groups that are 1xnY, have pos_cpy.y > viewport.height
+		 * Calculation:
+		 *   delta_from_bottom = viewport.y + viewport.height - pos_cpy.y
+		 *   pos_cpy.y_new = viewport.y + delta_from_bottom
+		 * Simplify it as:
+		 *   pos_cpy.y = viewport.y * 2 + viewport.height - pos_cpy.y
+		 */
+		pos_cpy.y = (2 * pipe_ctx->plane_res.scl_data.viewport.y) +
+			pipe_ctx->plane_res.scl_data.viewport.height - pos_cpy.y;
 	}
 
 	hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
@@ -3770,4 +3978,20 @@ void dcn10_get_clock(struct dc *dc,
 	if (dc->clk_mgr && dc->clk_mgr->funcs->get_clock)
 				dc->clk_mgr->funcs->get_clock(dc->clk_mgr, context, clock_type, clock_cfg);
 
+}
+
+void dcn10_get_dcc_en_bits(struct dc *dc, int *dcc_en_bits)
+{
+	struct resource_pool *pool = dc->res_pool;
+	int i;
+
+	for (i = 0; i < pool->pipe_count; i++) {
+		struct hubp *hubp = pool->hubps[i];
+		struct dcn_hubp_state *s = &(TO_DCN10_HUBP(hubp)->state);
+
+		hubp->funcs->hubp_read_state(hubp);
+
+		if (!s->blank_en)
+			dcc_en_bits[i] = s->dcc_en ? 1 : 0;
+	}
 }

@@ -797,6 +797,7 @@ void dce110_edp_power_control(
 	struct dc_context *ctx = link->ctx;
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result bp_result;
+	uint8_t panel_instance;
 
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
@@ -807,7 +808,6 @@ void dce110_edp_power_control(
 
 	if (!link->panel_cntl)
 		return;
-
 	if (power_up !=
 		link->panel_cntl->funcs->is_panel_powered_on(link->panel_cntl)) {
 
@@ -880,15 +880,18 @@ void dce110_edp_power_control(
 		cntl.coherent = false;
 		cntl.lanes_number = LANE_COUNT_FOUR;
 		cntl.hpd_sel = link->link_enc->hpd_source;
+		panel_instance = link->panel_cntl->inst;
 
 		if (ctx->dc->ctx->dmub_srv &&
 				ctx->dc->debug.dmub_command_table) {
 			if (cntl.action == TRANSMITTER_CONTROL_POWER_ON)
 				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
-						LVTMA_CONTROL_POWER_ON);
+						LVTMA_CONTROL_POWER_ON,
+						panel_instance);
 			else
 				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
-						LVTMA_CONTROL_POWER_OFF);
+						LVTMA_CONTROL_POWER_OFF,
+						panel_instance);
 		}
 
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
@@ -921,6 +924,37 @@ void dce110_edp_power_control(
 	}
 }
 
+void dce110_edp_wait_for_T12(
+		struct dc_link *link)
+{
+	struct dc_context *ctx = link->ctx;
+
+	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
+			!= CONNECTOR_ID_EDP) {
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+
+	if (!link->panel_cntl)
+		return;
+
+	if (!link->panel_cntl->funcs->is_panel_powered_on(link->panel_cntl) &&
+			link->link_trace.time_stamp.edp_poweroff != 0) {
+		unsigned int t12_duration = 500; // Default T12 as per spec
+		unsigned long long current_ts = dm_get_timestamp(ctx);
+		unsigned long long time_since_edp_poweroff_ms =
+				div64_u64(dm_get_elapse_time_in_ns(
+						ctx,
+						current_ts,
+						link->link_trace.time_stamp.edp_poweroff), 1000000);
+
+		t12_duration += link->local_sink->edid_caps.panel_patch.extra_t12_ms; // Add extra T12
+
+		if (time_since_edp_poweroff_ms < t12_duration)
+			msleep(t12_duration - time_since_edp_poweroff_ms);
+	}
+}
+
 /*todo: cloned in stream enc, fix*/
 /*
  * @brief
@@ -932,6 +966,7 @@ void dce110_edp_backlight_control(
 {
 	struct dc_context *ctx = link->ctx;
 	struct bp_transmitter_control cntl = { 0 };
+	uint8_t panel_instance;
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
 		!= CONNECTOR_ID_EDP) {
@@ -939,12 +974,15 @@ void dce110_edp_backlight_control(
 		return;
 	}
 
-	if (enable && link->panel_cntl &&
-		link->panel_cntl->funcs->is_panel_backlight_on(link->panel_cntl)) {
-		DC_LOG_HW_RESUME_S3(
-				"%s: panel already powered up. Do nothing.\n",
+	if (link->panel_cntl) {
+		bool is_backlight_on = link->panel_cntl->funcs->is_panel_backlight_on(link->panel_cntl);
+
+		if ((enable && is_backlight_on) || (!enable && !is_backlight_on)) {
+			DC_LOG_HW_RESUME_S3(
+				"%s: panel already powered up/off. Do nothing.\n",
 				__func__);
-		return;
+			return;
+		}
 	}
 
 	/* Send VBIOS command to control eDP panel backlight */
@@ -977,6 +1015,7 @@ void dce110_edp_backlight_control(
 	 */
 	/* dc_service_sleep_in_milliseconds(50); */
 		/*edp 1.2*/
+	panel_instance = link->panel_cntl->inst;
 	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
 		edp_receiver_ready_T7(link);
 
@@ -984,15 +1023,15 @@ void dce110_edp_backlight_control(
 			ctx->dc->debug.dmub_command_table) {
 		if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
 			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
-					LVTMA_CONTROL_LCD_BLON);
+					LVTMA_CONTROL_LCD_BLON,
+					panel_instance);
 		else
 			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
-					LVTMA_CONTROL_LCD_BLOFF);
+					LVTMA_CONTROL_LCD_BLOFF,
+					panel_instance);
 	}
 
 	link_transmitter_control(ctx->dc_bios, &cntl);
-
-
 
 	if (enable && link->dpcd_sink_ext_caps.bits.oled)
 		msleep(OLED_POST_T7_DELAY);
@@ -1004,7 +1043,7 @@ void dce110_edp_backlight_control(
 
 	/*edp 1.2*/
 	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_OFF)
-		edp_receiver_ready_T9(link);
+		edp_add_delay_for_T9(link);
 
 	if (!enable && link->dpcd_sink_ext_caps.bits.oled)
 		msleep(OLED_PRE_T11_DELAY);
@@ -1145,12 +1184,14 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
 		pipe_ctx->stream_res.stream_enc->funcs->dp_blank(pipe_ctx->stream_res.stream_enc);
 
-		/*
-		 * After output is idle pattern some sinks need time to recognize the stream
-		 * has changed or they enter protection state and hang.
-		 */
-		if (!dc_is_embedded_signal(pipe_ctx->stream->signal))
+		if (!dc_is_embedded_signal(pipe_ctx->stream->signal)) {
+			/*
+			 * After output is idle pattern some sinks need time to recognize the stream
+			 * has changed or they enter protection state and hang.
+			 */
 			msleep(60);
+		} else if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP)
+			edp_receiver_ready_T9(link);
 	}
 
 }
@@ -1527,6 +1568,8 @@ static void power_down_encoders(struct dc *dc)
 				dc->links[i]->link_enc, signal);
 
 		dc->links[i]->link_status.link_active = false;
+		memset(&dc->links[i]->cur_link_settings, 0,
+				sizeof(dc->links[i]->cur_link_settings));
 	}
 }
 
@@ -1593,37 +1636,42 @@ static void disable_vga_and_power_gate_all_controllers(
 }
 
 
-static struct dc_stream_state *get_edp_stream(struct dc_state *context)
+static void get_edp_streams(struct dc_state *context,
+		struct dc_stream_state **edp_streams,
+		int *edp_stream_num)
 {
 	int i;
 
+	*edp_stream_num = 0;
 	for (i = 0; i < context->stream_count; i++) {
-		if (context->streams[i]->signal == SIGNAL_TYPE_EDP)
-			return context->streams[i];
+		if (context->streams[i]->signal == SIGNAL_TYPE_EDP) {
+			edp_streams[*edp_stream_num] = context->streams[i];
+			if (++(*edp_stream_num) == MAX_NUM_EDP)
+				return;
+		}
 	}
-	return NULL;
 }
 
-static struct dc_link *get_edp_link_with_sink(
+static void get_edp_links_with_sink(
 		struct dc *dc,
-		struct dc_state *context)
+		struct dc_link **edp_links_with_sink,
+		int *edp_with_sink_num)
 {
 	int i;
-	struct dc_link *link = NULL;
 
 	/* check if there is an eDP panel not in use */
+	*edp_with_sink_num = 0;
 	for (i = 0; i < dc->link_count; i++) {
 		if (dc->links[i]->local_sink &&
 			dc->links[i]->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
-			link = dc->links[i];
-			break;
+			edp_links_with_sink[*edp_with_sink_num] = dc->links[i];
+			if (++(*edp_with_sink_num) == MAX_NUM_EDP)
+				return;
 		}
 	}
-
-	return link;
 }
 
-/**
+/*
  * When ASIC goes from VBIOS/VGA mode to driver/accelerated mode we need:
  *  1. Power down all DC HW blocks
  *  2. Disable VGA engine on all controllers
@@ -1632,36 +1680,48 @@ static struct dc_link *get_edp_link_with_sink(
  */
 void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 {
-	int i;
-	struct dc_link *edp_link_with_sink = get_edp_link_with_sink(dc, context);
-	struct dc_link *edp_link = get_edp_link(dc);
+	struct dc_link *edp_links_with_sink[MAX_NUM_EDP];
+	struct dc_link *edp_links[MAX_NUM_EDP];
+	struct dc_stream_state *edp_streams[MAX_NUM_EDP];
+	struct dc_link *edp_link_with_sink = NULL;
+	struct dc_link *edp_link = NULL;
 	struct dc_stream_state *edp_stream = NULL;
+	struct dce_hwseq *hws = dc->hwseq;
+	int edp_with_sink_num;
+	int edp_num;
+	int edp_stream_num;
+	int i;
 	bool can_apply_edp_fast_boot = false;
 	bool can_apply_seamless_boot = false;
 	bool keep_edp_vdd_on = false;
-	struct dce_hwseq *hws = dc->hwseq;
+
+	get_edp_links_with_sink(dc, edp_links_with_sink, &edp_with_sink_num);
+	get_edp_links(dc, edp_links, &edp_num);
 
 	if (hws->funcs.init_pipes)
 		hws->funcs.init_pipes(dc, context);
 
-	edp_stream = get_edp_stream(context);
+	get_edp_streams(context, edp_streams, &edp_stream_num);
 
 	// Check fastboot support, disable on DCE8 because of blank screens
-	if (edp_link && dc->ctx->dce_version != DCE_VERSION_8_0 &&
+	if (edp_num && dc->ctx->dce_version != DCE_VERSION_8_0 &&
 		    dc->ctx->dce_version != DCE_VERSION_8_1 &&
 		    dc->ctx->dce_version != DCE_VERSION_8_3) {
-
-		// enable fastboot if backend is enabled on eDP
-		if (edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc)) {
-			/* Set optimization flag on eDP stream*/
-			if (edp_stream && edp_link->link_status.link_active) {
-				edp_stream->apply_edp_fast_boot_optimization = true;
-				can_apply_edp_fast_boot = true;
+		for (i = 0; i < edp_num; i++) {
+			edp_link = edp_links[i];
+			// enable fastboot if backend is enabled on eDP
+			if (edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc)) {
+				/* Set optimization flag on eDP stream*/
+				if (edp_stream_num && edp_link->link_status.link_active) {
+					edp_stream = edp_streams[0];
+					edp_stream->apply_edp_fast_boot_optimization = true;
+					can_apply_edp_fast_boot = true;
+					break;
+				}
 			}
 		}
-
 		// We are trying to enable eDP, don't power down VDD
-		if (edp_stream)
+		if (edp_stream_num)
 			keep_edp_vdd_on = true;
 	}
 
@@ -1676,6 +1736,9 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	/* eDP should not have stream in resume from S4 and so even with VBios post
 	 * it should get turned off
 	 */
+	if (edp_with_sink_num)
+		edp_link_with_sink = edp_links_with_sink[0];
+
 	if (!can_apply_edp_fast_boot && !can_apply_seamless_boot) {
 		if (edp_link_with_sink && !keep_edp_vdd_on) {
 			/*turn off backlight before DP_blank and encoder powered down*/
@@ -1687,7 +1750,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 		if (edp_link_with_sink && !keep_edp_vdd_on)
 			dc->hwss.edp_power_control(edp_link_with_sink, false);
 	}
-	bios_set_scratch_acc_mode_change(dc->ctx->dc_bios);
+	bios_set_scratch_acc_mode_change(dc->ctx->dc_bios, 1);
 }
 
 static uint32_t compute_pstate_blackout_duration(
@@ -1783,8 +1846,7 @@ void dce110_set_safe_displaymarks(
  ******************************************************************************/
 
 static void set_drr(struct pipe_ctx **pipe_ctx,
-		int num_pipes, unsigned int vmin, unsigned int vmax,
-		unsigned int vmid, unsigned int vmid_frame_number)
+		int num_pipes, struct dc_crtc_timing_adjust adjust)
 {
 	int i = 0;
 	struct drr_params params = {0};
@@ -1793,8 +1855,8 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 	// Note DRR trigger events are generated regardless of whether num frames met.
 	unsigned int num_frames = 2;
 
-	params.vertical_total_max = vmax;
-	params.vertical_total_min = vmin;
+	params.vertical_total_max = adjust.v_total_max;
+	params.vertical_total_min = adjust.v_total_min;
 
 	/* TODO: If multiple pipes are to be supported, you need
 	 * some GSL stuff. Static screen triggers may be programmed differently
@@ -1804,7 +1866,7 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 		pipe_ctx[i]->stream_res.tg->funcs->set_drr(
 			pipe_ctx[i]->stream_res.tg, &params);
 
-		if (vmax != 0 && vmin != 0)
+		if (adjust.v_total_max != 0 && adjust.v_total_min != 0)
 			pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(
 					pipe_ctx[i]->stream_res.tg,
 					event_triggers, num_frames);
