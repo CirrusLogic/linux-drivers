@@ -350,6 +350,8 @@ static void __rq_arm_watchdog(struct i915_request *rq)
 	if (!ce->watchdog.timeout_us)
 		return;
 
+	i915_request_get(rq);
+
 	hrtimer_init(&wdg->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	wdg->timer.function = __rq_watchdog_expired;
 	hrtimer_start_range_ns(&wdg->timer,
@@ -357,7 +359,6 @@ static void __rq_arm_watchdog(struct i915_request *rq)
 					   NSEC_PER_USEC),
 			       NSEC_PER_MSEC,
 			       HRTIMER_MODE_REL);
-	i915_request_get(rq);
 }
 
 static void __rq_cancel_watchdog(struct i915_request *rq)
@@ -1175,12 +1176,12 @@ __emit_semaphore_wait(struct i915_request *to,
 		      struct i915_request *from,
 		      u32 seqno)
 {
-	const int has_token = INTEL_GEN(to->engine->i915) >= 12;
+	const int has_token = GRAPHICS_VER(to->engine->i915) >= 12;
 	u32 hwsp_offset;
 	int len, err;
 	u32 *cs;
 
-	GEM_BUG_ON(INTEL_GEN(to->engine->i915) < 8);
+	GEM_BUG_ON(GRAPHICS_VER(to->engine->i915) < 8);
 	GEM_BUG_ON(i915_request_has_initial_breadcrumb(to));
 
 	/* We need to pin the signaler's HWSP until we are finished reading. */

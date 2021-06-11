@@ -2810,7 +2810,6 @@ static void intel_ddi_pre_enable(struct intel_atomic_state *state,
 					conn_state);
 
 		/* FIXME precompute everything properly */
-		/* FIXME how do we turn infoframes off again? */
 		if (dig_port->lspcon.active && dig_port->dp.has_hdmi_sink)
 			dig_port->set_infoframes(encoder,
 						 crtc_state->has_infoframe,
@@ -4063,9 +4062,11 @@ static int intel_ddi_compute_config_late(struct intel_encoder *encoder,
 
 static void intel_ddi_encoder_destroy(struct drm_encoder *encoder)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(to_intel_encoder(encoder));
 
 	intel_dp_encoder_flush_work(encoder);
+	intel_display_power_flush_work(i915);
 
 	drm_encoder_cleanup(encoder);
 	if (dig_port)

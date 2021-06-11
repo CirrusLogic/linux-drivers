@@ -975,6 +975,11 @@ void intel_enable_pipe(const struct intel_crtc_state *new_crtc_state)
 		/* FIXME: assert CPU port conditions for SNB+ */
 	}
 
+	/* Wa_22012358565:adlp */
+	if (DISPLAY_VER(dev_priv) == 13)
+		intel_de_rmw(dev_priv, PIPE_ARB_CTL(pipe),
+			     0, PIPE_ARB_USE_PROG_SLOTS);
+
 	reg = PIPECONF(cpu_transcoder);
 	val = intel_de_read(dev_priv, reg);
 	if (val & PIPECONF_ENABLE) {
@@ -1690,7 +1695,8 @@ initial_plane_vma(struct drm_i915_private *i915,
 	 * important and we should probably use that space with FBC or other
 	 * features.
 	 */
-	if (size * 2 > i915->stolen_usable_size)
+	if (IS_ENABLED(CONFIG_FRAMEBUFFER_CONSOLE) &&
+	    size * 2 > i915->stolen_usable_size)
 		return NULL;
 
 	obj = i915_gem_object_create_stolen_for_preallocated(i915, base, size);
@@ -2208,6 +2214,21 @@ static void icl_set_pipe_chicken(struct intel_crtc *crtc)
 	 * across pipe
 	 */
 	tmp |= PIXEL_ROUNDING_TRUNC_FB_PASSTHRU;
+
+	/*
+	 * "The underrun recovery mechanism should be disabled
+	 *  when the following is enabled for this pipe:
+	 *  WiDi
+	 *  Downscaling (this includes YUV420 fullblend)
+	 *  COG
+	 *  DSC
+	 *  PSR2"
+	 *
+	 * FIXME: enable whenever possible...
+	 */
+	if (IS_ALDERLAKE_P(dev_priv))
+		tmp |= UNDERRUN_RECOVERY_DISABLE;
+
 	intel_de_write(dev_priv, PIPE_CHICKEN(pipe), tmp);
 }
 
@@ -8300,6 +8321,16 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	} \
 } while (0)
 
+#define PIPE_CONF_CHECK_X_WITH_MASK(name, mask) do { \
+	if ((current_config->name & (mask)) != (pipe_config->name & (mask))) { \
+		pipe_config_mismatch(fastset, crtc, __stringify(name), \
+				     "(expected 0x%08x, found 0x%08x)", \
+				     current_config->name & (mask), \
+				     pipe_config->name & (mask)); \
+		ret = false; \
+	} \
+} while (0)
+
 #define PIPE_CONF_CHECK_I(name) do { \
 	if (current_config->name != pipe_config->name) { \
 		pipe_config_mismatch(fastset, crtc, __stringify(name), \
@@ -8588,6 +8619,11 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 		bp_gamma = intel_color_get_gamma_bit_precision(pipe_config);
 		if (bp_gamma)
 			PIPE_CONF_CHECK_COLOR_LUT(gamma_mode, hw.gamma_lut, bp_gamma);
+
+		PIPE_CONF_CHECK_BOOL(has_psr);
+		PIPE_CONF_CHECK_BOOL(has_psr2);
+		PIPE_CONF_CHECK_BOOL(enable_psr2_sel_fetch);
+		PIPE_CONF_CHECK_I(dc3co_exitline);
 	}
 
 	PIPE_CONF_CHECK_BOOL(double_wide);
@@ -8641,7 +8677,12 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 		PIPE_CONF_CHECK_I(min_voltage_level);
 	}
 
-	PIPE_CONF_CHECK_X(infoframes.enable);
+	if (fastset && (current_config->has_psr || pipe_config->has_psr))
+		PIPE_CONF_CHECK_X_WITH_MASK(infoframes.enable,
+					    ~intel_hdmi_infoframe_enable(DP_SDP_VSC));
+	else
+		PIPE_CONF_CHECK_X(infoframes.enable);
+
 	PIPE_CONF_CHECK_X(infoframes.gcp);
 	PIPE_CONF_CHECK_INFOFRAME(avi);
 	PIPE_CONF_CHECK_INFOFRAME(spd);
@@ -8671,11 +8712,6 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_I(vrr.flipline);
 	PIPE_CONF_CHECK_I(vrr.pipeline_full);
 	PIPE_CONF_CHECK_I(vrr.guardband);
-
-	PIPE_CONF_CHECK_BOOL(has_psr);
-	PIPE_CONF_CHECK_BOOL(has_psr2);
-	PIPE_CONF_CHECK_BOOL(enable_psr2_sel_fetch);
-	PIPE_CONF_CHECK_I(dc3co_exitline);
 
 #undef PIPE_CONF_CHECK_X
 #undef PIPE_CONF_CHECK_I
@@ -11722,10 +11758,19 @@ intel_user_framebuffer_create(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 	struct drm_i915_gem_object *obj;
 	struct drm_mode_fb_cmd2 mode_cmd = *user_mode_cmd;
+	struct drm_i915_private *i915;
 
 	obj = i915_gem_object_lookup(filp, mode_cmd.handles[0]);
 	if (!obj)
 		return ERR_PTR(-ENOENT);
+
+	/* object is backed with LMEM for discrete */
+	i915 = to_i915(obj->base.dev);
+	if (HAS_LMEM(i915) && !i915_gem_object_is_lmem(obj)) {
+		/* object is "remote", not in local memory */
+		i915_gem_object_put(obj);
+		return ERR_PTR(-EREMOTE);
+	}
 
 	fb = intel_framebuffer_create(obj, &mode_cmd);
 	i915_gem_object_put(obj);

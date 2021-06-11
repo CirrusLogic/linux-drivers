@@ -112,7 +112,7 @@ int ttm_global_swapout(struct ttm_operation_ctx *ctx, gfp_t gfp_flags)
 {
 	struct ttm_global *glob = &ttm_glob;
 	struct ttm_device *bdev;
-	int ret = -EBUSY;
+	int ret = 0;
 
 	mutex_lock(&ttm_global_mutex);
 	list_for_each_entry(bdev, &glob->device_list, device_list) {
@@ -145,7 +145,7 @@ int ttm_device_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
 			list_for_each_entry(bo, &man->lru[j], lru) {
 				uint32_t num_pages;
 
-				if (!bo->ttm ||
+				if (!bo->ttm || !ttm_tt_is_populated(bo->ttm) ||
 				    bo->ttm->page_flags & TTM_PAGE_FLAG_SG ||
 				    bo->ttm->page_flags & TTM_PAGE_FLAG_SWAPPED)
 					continue;
