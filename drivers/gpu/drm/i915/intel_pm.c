@@ -4163,7 +4163,7 @@ skl_crtc_allocate_ddb(struct intel_atomic_state *state, struct intel_crtc *crtc)
 	struct intel_crtc_state *crtc_state;
 	struct skl_ddb_entry ddb_slices;
 	enum pipe pipe = crtc->pipe;
-	unsigned int mbus_offset;
+	unsigned int mbus_offset = 0;
 	u32 ddb_range_size;
 	u32 dbuf_slice_mask;
 	u32 start, end;
@@ -7859,9 +7859,9 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.init_clock_gating = adlp_init_clock_gating;
 	else if (IS_DG1(dev_priv))
 		dev_priv->display.init_clock_gating = dg1_init_clock_gating;
-	else if (IS_GEN(dev_priv, 12))
+	else if (GRAPHICS_VER(dev_priv) == 12)
 		dev_priv->display.init_clock_gating = gen12lp_init_clock_gating;
-	else if (IS_GEN(dev_priv, 11))
+	else if (GRAPHICS_VER(dev_priv) == 11)
 		dev_priv->display.init_clock_gating = icl_init_clock_gating;
 	else if (IS_CANNONLAKE(dev_priv))
 		dev_priv->display.init_clock_gating = cnl_init_clock_gating;
@@ -7885,9 +7885,9 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.init_clock_gating = ivb_init_clock_gating;
 	else if (IS_VALLEYVIEW(dev_priv))
 		dev_priv->display.init_clock_gating = vlv_init_clock_gating;
-	else if (IS_GEN(dev_priv, 6))
+	else if (GRAPHICS_VER(dev_priv) == 6)
 		dev_priv->display.init_clock_gating = gen6_init_clock_gating;
-	else if (IS_GEN(dev_priv, 5))
+	else if (GRAPHICS_VER(dev_priv) == 5)
 		dev_priv->display.init_clock_gating = ilk_init_clock_gating;
 	else if (IS_G4X(dev_priv))
 		dev_priv->display.init_clock_gating = g4x_init_clock_gating;
@@ -7895,11 +7895,11 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.init_clock_gating = i965gm_init_clock_gating;
 	else if (IS_I965G(dev_priv))
 		dev_priv->display.init_clock_gating = i965g_init_clock_gating;
-	else if (IS_GEN(dev_priv, 3))
+	else if (GRAPHICS_VER(dev_priv) == 3)
 		dev_priv->display.init_clock_gating = gen3_init_clock_gating;
 	else if (IS_I85X(dev_priv) || IS_I865G(dev_priv))
 		dev_priv->display.init_clock_gating = i85x_init_clock_gating;
-	else if (IS_GEN(dev_priv, 2))
+	else if (GRAPHICS_VER(dev_priv) == 2)
 		dev_priv->display.init_clock_gating = i830_init_clock_gating;
 	else {
 		MISSING_CASE(INTEL_DEVID(dev_priv));
@@ -7913,7 +7913,7 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 	/* For cxsr */
 	if (IS_PINEVIEW(dev_priv))
 		pnv_get_mem_freq(dev_priv);
-	else if (IS_GEN(dev_priv, 5))
+	else if (GRAPHICS_VER(dev_priv) == 5)
 		ilk_get_mem_freq(dev_priv);
 
 	if (intel_has_sagv(dev_priv))
@@ -8093,7 +8093,8 @@ void intel_dbuf_pre_plane_update(struct intel_atomic_state *state)
 		intel_atomic_get_old_dbuf_state(state);
 
 	if (!new_dbuf_state ||
-	    new_dbuf_state->enabled_slices == old_dbuf_state->enabled_slices)
+	    ((new_dbuf_state->enabled_slices == old_dbuf_state->enabled_slices)
+	    && (new_dbuf_state->joined_mbus == old_dbuf_state->joined_mbus)))
 		return;
 
 	WARN_ON(!new_dbuf_state->base.changed);
@@ -8113,7 +8114,8 @@ void intel_dbuf_post_plane_update(struct intel_atomic_state *state)
 		intel_atomic_get_old_dbuf_state(state);
 
 	if (!new_dbuf_state ||
-	    new_dbuf_state->enabled_slices == old_dbuf_state->enabled_slices)
+	    ((new_dbuf_state->enabled_slices == old_dbuf_state->enabled_slices)
+	    && (new_dbuf_state->joined_mbus == old_dbuf_state->joined_mbus)))
 		return;
 
 	WARN_ON(!new_dbuf_state->base.changed);

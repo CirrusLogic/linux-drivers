@@ -934,12 +934,17 @@ static int vi_fmts_bitmap_init(struct tegra_vi_channel *chan)
 	return 0;
 }
 
+static void tegra_channel_host1x_syncpts_free(struct tegra_vi_channel *chan)
+{
+	host1x_syncpt_put(chan->mw_ack_sp);
+	host1x_syncpt_put(chan->frame_start_sp);
+}
+
 static void tegra_channel_cleanup(struct tegra_vi_channel *chan)
 {
 	v4l2_ctrl_handler_free(&chan->ctrl_handler);
 	media_entity_cleanup(&chan->video.entity);
-	host1x_syncpt_free(chan->mw_ack_sp);
-	host1x_syncpt_free(chan->frame_start_sp);
+	tegra_channel_host1x_syncpts_free(chan);
 	mutex_destroy(&chan->video_lock);
 }
 
@@ -994,7 +999,7 @@ static int tegra_channel_init(struct tegra_vi_channel *chan)
 	if (!chan->mw_ack_sp) {
 		dev_err(vi->dev, "failed to request memory ack syncpoint\n");
 		ret = -ENOMEM;
-		goto free_fs_syncpt;
+		goto free_syncpts;
 	}
 
 	/* initialize the media entity */
@@ -1003,7 +1008,7 @@ static int tegra_channel_init(struct tegra_vi_channel *chan)
 	if (ret < 0) {
 		dev_err(vi->dev,
 			"failed to initialize media entity: %d\n", ret);
-		goto free_mw_ack_syncpt;
+		goto free_syncpts;
 	}
 
 	ret = v4l2_ctrl_handler_init(&chan->ctrl_handler, MAX_CID_CONTROLS);
@@ -1055,10 +1060,8 @@ free_v4l2_ctrl_hdl:
 	v4l2_ctrl_handler_free(&chan->ctrl_handler);
 cleanup_media:
 	media_entity_cleanup(&chan->video.entity);
-free_mw_ack_syncpt:
-	host1x_syncpt_free(chan->mw_ack_sp);
-free_fs_syncpt:
-	host1x_syncpt_free(chan->frame_start_sp);
+free_syncpts:
+	tegra_channel_host1x_syncpts_free(chan);
 	return ret;
 }
 
