@@ -2853,6 +2853,35 @@ static int cs40l26_bst_dcm_config(struct cs40l26_private *cs40l26)
 	return ret;
 }
 
+static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
+{
+	u32 val, bst_ipk_ma = cs40l26->pdata.bst_ipk / 1000;
+	int ret;
+
+	if (bst_ipk_ma < CS40L26_BST_IPK_MILLIAMP_MIN ||
+			bst_ipk_ma > CS40L26_BST_IPK_MILLIAMP_MAX) {
+		val = CS40L26_BST_IPK_DEFAULT;
+		dev_dbg(cs40l26->dev, "Using default BST_IPK\n");
+	} else {
+		val = (bst_ipk_ma / 50) - 16;
+	}
+
+	ret = regmap_write(cs40l26->regmap, CS40L26_BST_IPK_CTL, val);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to update BST peak current\n");
+		return ret;
+	}
+
+	if (cs40l26->revid == CS40L26_REVID_A0)
+		ret = cs40l26_pseq_v1_add_pair(cs40l26,
+				CS40L26_BST_IPK_CTL, val, true);
+	else
+		ret = cs40l26_pseq_v2_add_write_reg_full(cs40l26,
+				CS40L26_BST_IPK_CTL, val, true);
+
+	return ret;
+}
+
 static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
@@ -2913,6 +2942,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		goto err_out;
 
 	ret = cs40l26_bst_dcm_config(cs40l26);
+	if (ret)
+		goto err_out;
+
+	ret = cs40l26_bst_ipk_config(cs40l26);
 	if (ret)
 		goto err_out;
 
@@ -3086,6 +3119,11 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 		cs40l26->pdata.bst_dcm_en = val;
 	else
 		cs40l26->pdata.bst_dcm_en = CS40L26_BST_DCM_EN_DEFAULT;
+
+	if (!of_property_read_u32(np, "cirrus,bst-ipk-microamp", &val))
+		cs40l26->pdata.bst_ipk = val;
+	else
+		cs40l26->pdata.bst_ipk = 0;
 
 	return 0;
 }
