@@ -128,17 +128,12 @@ EXPORT_SYMBOL(cs40l26_class_h_set);
 
 int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 {
-	u32 algo_id, reg, dsp_state;
+	u32 reg, dsp_state;
 	int ret;
 
 	if (cs40l26->fw_loaded) {
-		if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
-			algo_id = CS40L26_PM_ALGO_ID;
-		else
-			algo_id = CS40L26_PM_ROM_ALGO_ID;
-
 		ret = cl_dsp_get_reg(cs40l26->dsp, "PM_CUR_STATE",
-				CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
 		if (ret)
 			return ret;
 	} else {
@@ -185,7 +180,7 @@ int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26,
 {
 	u32 timeout_ticks = timeout_ms * CS40L26_PM_TICKS_MS_DIV;
 	struct regmap *regmap = cs40l26->regmap;
-	u32 lower_val, reg, algo_id;
+	u32 lower_val, reg;
 	u8 upper_val;
 	int ret;
 
@@ -194,13 +189,8 @@ int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26,
 
 	lower_val = timeout_ticks & CS40L26_PM_TIMEOUT_TICKS_LOWER_MASK;
 
-	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
-		algo_id = CS40L26_PM_ALGO_ID;
-	else
-		algo_id = CS40L26_PM_ROM_ALGO_ID;
-
 	ret = cl_dsp_get_reg(cs40l26->dsp, "PM_TIMER_TIMEOUT_TICKS",
-			CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
 	if (ret)
 		return ret;
 
@@ -217,17 +207,12 @@ EXPORT_SYMBOL(cs40l26_pm_timeout_ms_set);
 int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26,
 		u32 *timeout_ms)
 {
-	u32 lower_val, upper_val, algo_id, reg;
+	u32 lower_val, upper_val, reg;
 	int ret;
 
 	if (cs40l26->fw_loaded) {
-		if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
-			algo_id = CS40L26_PM_ALGO_ID;
-		else
-			algo_id = CS40L26_PM_ROM_ALGO_ID;
-
 		ret = cl_dsp_get_reg(cs40l26->dsp, "PM_TIMER_TIMEOUT_TICKS",
-				CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
 		if (ret)
 			return ret;
 	} else {
@@ -1447,15 +1432,11 @@ static int cs40l26_pseq_v1_init(struct cs40l26_private *cs40l26)
 	int ret, i, index = 0;
 	u8 upper_val = 0;
 	u16 addr = 0;
-	u32 val, word, algo_id;
-
-	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
-		algo_id = CS40L26_PM_ALGO_ID;
-	else
-		algo_id = CS40L26_PM_ROM_ALGO_ID;
+	u32 val, word;
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "POWER_ON_SEQUENCE",
-			CL_DSP_XM_UNPACKED_TYPE, algo_id, &cs40l26->pseq_base);
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID,
+			&cs40l26->pseq_base);
 	if (ret)
 		return ret;
 
@@ -1504,21 +1485,17 @@ static int cs40l26_pseq_v1_init(struct cs40l26_private *cs40l26)
 static int cs40l26_pseq_v2_init(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
+	u32 words[CS40L26_PSEQ_V2_MAX_WORDS], *op_words;
+	struct cs40l26_pseq_v2_op *pseq_v2_op;
 	int ret, i, j, num_words, read_size;
 	u8 operation;
-	u32 words[CS40L26_PSEQ_V2_MAX_WORDS], algo_id, *op_words;
-	struct cs40l26_pseq_v2_op *pseq_v2_op;
 
 	INIT_LIST_HEAD(&cs40l26->pseq_v2_op_head);
 	cs40l26->pseq_v2_num_ops = 0;
 
-	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
-		algo_id = CS40L26_PM_ALGO_ID;
-	else
-		algo_id = CS40L26_PM_ROM_ALGO_ID;
-
 	ret = cl_dsp_get_reg(cs40l26->dsp, "POWER_ON_SEQUENCE",
-			CL_DSP_XM_UNPACKED_TYPE, algo_id, &cs40l26->pseq_base);
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID,
+			&cs40l26->pseq_base);
 	if (ret)
 		return ret;
 
@@ -1622,6 +1599,7 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 {
 	struct cs40l26_private *cs40l26 =
 		container_of(work, struct cs40l26_private, set_gain_work);
+	u16 amp_vol_pcm;
 	u32 reg, val;
 	int ret;
 
@@ -1630,10 +1608,10 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 
 	switch (cs40l26->revid) {
 	case CS40L26_REVID_A0:
-		val = cs40l26_a0_gain_vals[cs40l26->gain_pct];
+		amp_vol_pcm = CS40L26_AMP_VOL_PCM_MAX & cs40l26->gain_pct;
 
 		ret = regmap_update_bits(cs40l26->regmap, CS40L26_AMP_CTRL,
-				CS40L26_AMP_CTRL_VOL_PCM_MASK, val <<
+				CS40L26_AMP_CTRL_VOL_PCM_MASK, amp_vol_pcm <<
 				CS40L26_AMP_CTRL_VOL_PCM_SHIFT);
 		if (ret) {
 			dev_err(cs40l26->dev, "Failed to update digtal gain\n");
@@ -1680,17 +1658,12 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	struct cs40l26_private *cs40l26 = container_of(work,
 			struct cs40l26_private, vibe_start_work);
 	struct device *dev = cs40l26->dev;
+	u32 index = 0;
 	int ret = 0;
 	unsigned int reg, freq;
-	u32 index = 0, buzz_id;
 	u16 duration;
 
 	dev_dbg(dev, "%s\n", __func__);
-
-	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM)
-		buzz_id = CS40L26_BUZZGEN_ALGO_ID;
-	else
-		buzz_id = CS40L26_BUZZGEN_ROM_ALGO_ID;
 
 	if (cs40l26->effect->u.periodic.waveform == FF_CUSTOM)
 		index = cs40l26->trigger_indices[cs40l26->effect->id];
@@ -1720,7 +1693,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		break;
 	case FF_SINE:
 		ret = cl_dsp_get_reg(cs40l26->dsp, "BUZZ_EFFECTS2_BUZZ_FREQ",
-				CL_DSP_XM_UNPACKED_TYPE, buzz_id, &reg);
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID, &reg);
 		if (ret)
 			goto err_mutex;
 
@@ -1769,7 +1742,6 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	struct cs40l26_private *cs40l26 = container_of(work,
 			struct cs40l26_private, vibe_stop_work);
 	unsigned int reg;
-	u32 algo_id;
 	int ret;
 
 	dev_dbg(cs40l26->dev, "%s\n", __func__);
@@ -1785,13 +1757,8 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 			goto mutex_exit;
 		}
 	} else {
-		if (cs40l26->fw_mode == CS40L26_FW_MODE_ROM)
-			algo_id = CS40L26_VIBEGEN_ROM_ALGO_ID;
-		else
-			algo_id = CS40L26_VIBEGEN_ALGO_ID;
-
 		ret = cl_dsp_get_reg(cs40l26->dsp, "END_PLAYBACK",
-				CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
 		if (ret)
 			goto mutex_exit;
 
