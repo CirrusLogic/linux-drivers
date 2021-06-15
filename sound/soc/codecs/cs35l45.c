@@ -270,6 +270,8 @@ static int cs35l45_dsp_boot_ev(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
+		flush_work(&cs35l45->dsp_pmd_work);
+
 		regmap_update_bits(cs35l45->regmap,
 				   CS35L45_DSP1_STREAM_ARB_TX1_CONFIG_0,
 				   CS35L45_DSP1_STREAM_ARB_TX1_EN_MASK, 0);
