@@ -886,6 +886,11 @@
 #define CS40L26_BST_DCM_EN_MASK			BIT(0)
 #define CS40L26_BST_DCM_EN_SHIFT		0
 
+#define CS40L26_BST_IPK_MILLIAMP_MAX		4800
+#define CS40L26_BST_IPK_MILLIAMP_MIN		1600
+
+#define CS40L26_BST_IPK_DEFAULT			0x4A
+
 /* brownout prevention */
 #define CS40L26_VXBR_DEFAULT			0xFFFFFFFF
 
@@ -1276,6 +1281,7 @@ struct cs40l26_platform_data {
 	u32 vpbr_wait;
 	u32 vpbr_rel_rate;
 	bool bst_dcm_en;
+	u32 bst_ipk;
 };
 
 struct cs40l26_private {
