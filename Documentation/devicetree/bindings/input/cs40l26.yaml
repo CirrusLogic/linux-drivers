@@ -235,6 +235,16 @@ properties:
       1 = Boost converter automatic low power mode enabled  (ENABLED)
     type: boolean
 
+  cirrus,bst-ipk-microamp:
+    description:
+      Maximum amount of current that can be drawn by the device's boost
+      converter in uA. Accepted values are between 1600000 uA and 4800000 uA in
+      50000 uA increments.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 1600000
+    maximum: 4800000
+    default: 4500000
+
 required:
   - compatible
 
