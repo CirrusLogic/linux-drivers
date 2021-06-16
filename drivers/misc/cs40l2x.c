@@ -5144,7 +5144,7 @@ static ssize_t cs40l2x_exc_enable_store(struct device *dev,
 
 	reg = cs40l2x_dsp_reg(cs40l2x, "EX_PROTECT_ENABLED",
 			CS40L2X_XM_UNPACKED_TYPE, CS40L2X_ALGO_ID_EXC);
-	if (!reg || !cs40l2x->exc_available) {
+	if (!reg) {
 		ret = -EPERM;
 		goto err_mutex;
 	}
@@ -8593,9 +8593,6 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 			}
 
 			switch (algo_id) {
-			case CS40L2X_ALGO_ID_EXC:
-				cs40l2x->exc_available = true;
-				break;
 			case CS40L2X_ALGO_ID_VIBE:
 				wt_found = true;
 				/* intentionally fall through */
@@ -9107,8 +9104,6 @@ static int cs40l2x_firmware_swap(struct cs40l2x_private *cs40l2x,
 			cs40l2x->cal_disabled_owt = true;
 		}
 	}
-
-	cs40l2x->exc_available = false;
 
 	cs40l2x->fw_desc = cs40l2x_firmware_match(cs40l2x, fw_id);
 	if (!cs40l2x->fw_desc)
