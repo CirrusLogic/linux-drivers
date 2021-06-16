@@ -1021,63 +1021,6 @@ int sysctl_protected_hardlinks __read_mostly = 1;
 int sysctl_protected_fifos __read_mostly;
 int sysctl_protected_regular __read_mostly;
 
-#ifdef CONFIG_SECURITY_CHROMIUMOS_NO_SYMLINK_MOUNT
-
-/**
- * nameidata_set_temporary - Used by Chromium OS LSM to check
- * whether a mount point includes traversing symlinks.
- */
-int nameidata_set_temporary(const char __user *dir_name)
-{
-	struct nameidata *tmp;
-	struct filename *name;
-
-	tmp = kmalloc(sizeof(*tmp), GFP_KERNEL);
-	if (unlikely(!tmp))
-		return -ENOMEM;
-	name = getname_flags(dir_name, LOOKUP_FOLLOW, NULL);
-	if (IS_ERR(name)) {
-		kfree(tmp);
-		return PTR_ERR(name);
-	}
-	set_nameidata(tmp, AT_FDCWD, name);
-	return 0;
-}
-
-/**
- * nameidata_restore_temporary - Used by Chromium OS LSM to check
- * whether a mount point includes traversing symlinks.
- */
-void nameidata_restore_temporary(void)
-{
-	struct nameidata *tmp = current->nameidata;
-
-	restore_nameidata();
-	putname(tmp->name);
-	kfree(tmp);
-}
-
-/**
- * nameidata_get_total_link_count - Used by security/chromiumos/lsm.c to check
- * whether a mount point includes traversing symlinks.
- */
-int nameidata_get_total_link_count(void)
-{
-	struct nameidata *tmp = current->nameidata;
-
-	if (unlikely(!tmp)) {
-		WARN(1, "Unexpectedly got here with current->nameidata == NULL");
-		/* Pretend we did traverse symlinks, that is the safe/sane
-		 * result here from a security point of view...
-		 */
-		return MAXSYMLINKS;
-	}
-	return tmp->total_link_count;
-}
-EXPORT_SYMBOL(nameidata_get_total_link_count);
-
-#endif /* CONFIG_SECURITY_CHROMIUMOS_NO_SYMLINK_MOUNT */
-
 /**
  * may_follow_link - Check symlink following for unsafe situations
  * @nd: nameidata pathwalk data
@@ -2509,6 +2452,9 @@ int filename_lookup(int dfd, struct filename *name, unsigned flags,
 	if (likely(!retval))
 		audit_inode(name, path->dentry,
 			    flags & LOOKUP_MOUNTPOINT ? AUDIT_INODE_NOEVAL : 0);
+#ifdef CONFIG_SECURITY_CHROMIUMOS_NO_SYMLINK_MOUNT
+	path->link_count = nd.total_link_count | PATH_LINK_COUNT_VALID;
+#endif /* CONFIG_SECURITY_CHROMIUMOS_NO_SYMLINK_MOUNT */
 	restore_nameidata();
 	putname(name);
 	return retval;
@@ -2554,6 +2500,9 @@ static struct filename *filename_parentat(int dfd, struct filename *name,
 		putname(name);
 		name = ERR_PTR(retval);
 	}
+#ifdef CONFIG_SECURITY_CHROMIUMOS_NO_SYMLINK_MOUNT
+	parent->link_count = nd.total_link_count | PATH_LINK_COUNT_VALID;
+#endif /* CONFIG_SECURITY_CHROMIUMOS_NO_SYMLINK_MOUNT */
 	restore_nameidata();
 	return name;
 }

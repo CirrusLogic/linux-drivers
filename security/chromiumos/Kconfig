@@ -13,7 +13,6 @@ config SECURITY_CHROMIUMOS
 config SECURITY_CHROMIUMOS_NO_SYMLINK_MOUNT
 	bool "Chromium OS Security: prohibit mount to symlinked target"
 	depends on SECURITY_CHROMIUMOS
-	depends on BROKEN
 	default y
 	help
 	  When enabled mount() syscall will return ELOOP whenever target path

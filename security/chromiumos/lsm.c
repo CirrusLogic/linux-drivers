@@ -80,7 +80,10 @@ static int chromiumos_security_sb_mount(const char *dev_name,
 					void *data)
 {
 #ifdef CONFIG_SECURITY_CHROMIUMOS_NO_SYMLINK_MOUNT
-	if (nameidata_get_total_link_count()) {
+	if (!(path->link_count & PATH_LINK_COUNT_VALID)) {
+		WARN(1, "No link count available");
+		return -ELOOP;
+	} else if (path->link_count & ~PATH_LINK_COUNT_VALID) {
 		report("sb_mount", path, "Mount path with symlinks prohibited");
 		pr_notice("sb_mount dev=%s type=%s flags=%#lx\n",
 			  dev_name, type, flags);
