@@ -1061,7 +1061,6 @@ struct cs40l2x_private {
 	char wt_file[CS40L2X_WT_FILE_NAME_LEN_MAX];
 	char wt_date[CS40L2X_WT_FILE_DATE_LEN_MAX];
 	char pwle_str[CS40L2X_PWLE_TOTAL_VALS];
-	bool exc_available;
 	bool vibe_init_success;
 	bool vibe_state;
 	bool safe_save_state;
