@@ -9902,7 +9902,11 @@ static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
 	if (ret)
 		return ret;
 
-	return cs40l2x_brownout_config(cs40l2x, CS40L2X_VPBR_CONFIG);
+	ret =  cs40l2x_brownout_config(cs40l2x, CS40L2X_VPBR_CONFIG);
+	if (ret)
+		return ret;
+
+	return cs40l2x_brownout_config(cs40l2x, CS40L2X_VBBR_CONFIG);
 }
 
 static int cs40l2x_otp_unpack(struct cs40l2x_private *cs40l2x)
