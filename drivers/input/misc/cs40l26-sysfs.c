@@ -248,7 +248,51 @@ err_pm:
 }
 static DEVICE_ATTR(owt_free_space, 0440, cs40l26_owt_free_space_show, NULL);
 
+static ssize_t cs40l26_die_temp_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	struct regmap *regmap = cs40l26->regmap;
+	u16 die_temp;
+	int ret;
+	u32 val;
+
+	pm_runtime_get_sync(cs40l26->dev);
+
+	ret = regmap_read(regmap, CS40L26_GLOBAL_ENABLES, &val);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to read GLOBAL_EN status\n");
+		goto err_pm;
+	}
+
+	if (!(val & CS40L26_GLOBAL_EN_MASK)) {
+		dev_err(cs40l26->dev,
+			"Global enable must be set to get die temp.\n");
+		ret = -EPERM;
+		goto err_pm;
+	}
+
+	ret = regmap_read(regmap, CS40L26_ENABLES_AND_CODES_DIG, &val);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to get die temperature\n");
+		goto err_pm;
+	}
+
+	die_temp = (val & CS40L26_TEMP_RESULT_FILT_MASK) >>
+			CS40L26_TEMP_RESULT_FILT_SHIFT;
+
+	ret = snprintf(buf, PAGE_SIZE, "0x%03X\n", die_temp);
+
+err_pm:
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	return ret;
+}
+static DEVICE_ATTR(die_temp, 0440, cs40l26_die_temp_show, NULL);
+
 static struct attribute *cs40l26_dev_attrs[] = {
+	&dev_attr_die_temp.attr,
 	&dev_attr_owt_free_space.attr,
 	&dev_attr_power_on_seq.attr,
 	&dev_attr_dsp_state.attr,
