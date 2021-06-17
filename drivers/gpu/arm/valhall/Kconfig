@@ -312,3 +312,4 @@ config MALI_VALHALL_PRFCNT_SET_SECONDARY_VIA_DEBUG_FS
 	  If unsure, say N.
 
 source "drivers/gpu/arm/valhall/platform/Kconfig"
+source "drivers/gpu/arm/valhall/tests/Kconfig"
