@@ -243,12 +243,17 @@ static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
 	}
 
 	*data = kmemdup(pnvm->data, pnvm->size, GFP_KERNEL);
-	if (!*data)
-		return -ENOMEM;
+	if (!*data) {
+		ret = -ENOMEM;
+		goto release;
+	}
 
 	*len = pnvm->size;
+	ret = 0;
 
-	return 0;
+release:
+	release_firmware(pnvm);
+	return ret;
 }
 
 int iwl_pnvm_load(struct iwl_trans *trans,
