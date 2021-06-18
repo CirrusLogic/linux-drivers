@@ -154,135 +154,367 @@ static const struct snd_kcontrol_new cs35l43_aud_controls[] = {
 	WM_ADSP_FW_CONTROL("DSP1", 0),
 };
 
-static int cs35l43_write_seq_add(struct cs35l43_private *cs35l43,
-			const char *name, unsigned int length,
-			unsigned int update_reg, unsigned int update_value,
-			bool read)
+static int cs35l43_write_seq_elem_update(struct cs35l43_write_seq_elem *write_seq_elem,
+						unsigned int addr, unsigned int value)
 {
-	u32 reg, value;
-	u64 cache, update = 0;
-	u64 *buf;
-	unsigned int i, ret;
+	switch (write_seq_elem->operation) {
+	case CS35L43_POWER_SEQ_OP_WRITE_REG_FULL:
+		write_seq_elem->words[0] = (addr & 0xFFFF0000) >> 16;
+		write_seq_elem->words[1] = ((addr & 0xFFFF) << 8) |
+						((value & 0xFF000000) >> 24);
+		write_seq_elem->words[2] = (value & 0xFFFFFF);
 
-	buf = kzalloc(sizeof(u64) * length, GFP_KERNEL);
+		break;
+	case CS35L43_POWER_SEQ_OP_WRITE_REG_ADDR8:
+		write_seq_elem->words[0] = (CS35L43_POWER_SEQ_OP_WRITE_REG_ADDR8 << 16) |
+						((addr & 0xFF) << 8) |
+						((value & 0xFF000000) >> 24);
+		write_seq_elem->words[1] = (value & 0xFFFFFF);
+		break;
+	case CS35L43_POWER_SEQ_OP_WRITE_REG_L16:
+		write_seq_elem->words[0] = (CS35L43_POWER_SEQ_OP_WRITE_REG_L16 << 16) |
+						((addr & 0xFFFF00) >> 8);
+		write_seq_elem->words[1] = ((addr & 0xFF) << 16) | (value & 0xFFFF);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int cs35l43_write_seq_add(struct cs35l43_private *cs35l43,
+				struct cs35l43_write_seq *sequence,
+				unsigned int update_reg, unsigned int update_value,
+				bool read)
+{
+	struct device *dev = cs35l43->dev;
+	u32 *buf, *op_words, addr, prev_addr, value;
+	u8 operation;
+	unsigned int i, j, num_words, ret = 0;
+	struct cs35l43_write_seq_elem *write_seq_elem;
+
+	buf = kzalloc(sizeof(u32) * sequence->length, GFP_KERNEL);
 	if (!buf) {
 		dev_err(cs35l43->dev, "%s: failed to alloc write seq\n",
 			__func__);
 		return -ENOMEM;
 	}
 
-	ret = wm_adsp_read_ctl(&cs35l43->dsp, name,
+	ret = wm_adsp_read_ctl(&cs35l43->dsp, sequence->name,
 			WMFW_ADSP2_XM, CS35L43_ALG_ID_PM, (void *)buf,
-			length * sizeof(u64));
+			sequence->length * sizeof(u32));
 	if (ret != 0) {
-		dev_err(cs35l43->dev, "%s: failed to read write seq\n",
-			__func__);
-		goto err;
+		dev_err(dev, "%s: Failed to read control\n", __func__);
+		goto exit;
 	}
 
-	for (i = 0; i < length; i++) {
+	for (i = 0; i < sequence->length; i++) {
+		buf[i] = be32_to_cpu(buf[i]);
+		dev_dbg(dev, "%s[%d] = 0x%x\n", sequence->name, i, buf[i]);
+	}
 
-		cache = buf[i];
-
-		reg = be32_to_cpu(cache & 0xFFFFFFFF) >> 8;
-		value = be32_to_cpu((cache >> 32 ) & 0xFFFFFFFF);
-		value |= (be32_to_cpu(cache & 0xFFFFFFFF) & 0xFF) << 24;
-
-		dev_dbg(cs35l43->dev, "write seq(%d) 0x%x = 0x%x",
-							i, reg, value);
-
-		if ((reg == 0xFFFF) || (reg == update_reg)) {
-			if (read)
-				regmap_read(cs35l43->regmap, update_reg, &value);
-			else
-				value = update_value;
-
-			update |= cpu_to_be32(value & 0xFFFFFF);
-			update <<= 32;
-			update |= cpu_to_be32(update_reg << 8);
-			update |= cpu_to_be32(value >> 24);
-
-			buf[i] = update;
-			if (reg == 0xFFFF && i < length - 1)
-				buf[i + 1] = 0xFFFFFF00;
-
+	list_for_each_entry(write_seq_elem, &sequence->list_head, list) {
+		switch (write_seq_elem->operation) {
+		case CS35L43_POWER_SEQ_OP_WRITE_REG_FULL:
+			addr = ((write_seq_elem->words[0] & 0xFFFF) << 16) |
+				((write_seq_elem->words[1] & 0xFFFF00) >> 8);
+			value = ((write_seq_elem->words[1] & 0xFF) << 24) |
+				(write_seq_elem->words[2] & 0xFFFFFF);
 			break;
+		case CS35L43_POWER_SEQ_OP_WRITE_REG_ADDR8:
+			addr = (prev_addr & 0xFFFFFF00) |
+				((write_seq_elem->words[0] & 0xFF00) >> 8);
+			value = ((write_seq_elem->words[0] & 0xFF) << 24) |
+				(write_seq_elem->words[1] & 0xFFFFFF);
+			break;
+		case CS35L43_POWER_SEQ_OP_WRITE_REG_L16:
+			addr = ((write_seq_elem->words[0] & 0xFFFF) << 8) |
+				((write_seq_elem->words[1] & 0xFF0000) >> 16);
+			value = (write_seq_elem->words[1] & 0xFFFF);
+			break;
+		default:
+			break;
+		}
+		dev_dbg(dev, "write seq elem: addr=0x%x, prev_addr=0x%x, val=0x%x\n",
+								addr, prev_addr, value);
+		prev_addr = addr;
+
+		if (addr == update_reg) {
+			if (read)
+				regmap_read(cs35l43->regmap, addr, &update_value);
+
+			dev_info(dev, "%s: Updating register 0x%x with value 0x%x\n",
+					__func__, addr, update_value);
+			cs35l43_write_seq_elem_update(write_seq_elem, update_reg, update_value);
+			memcpy(buf + write_seq_elem->offset, write_seq_elem->words,
+					write_seq_elem->size * sizeof(u32));
+			goto write_exit;
 		}
 	}
 
-	if (i == length) {
-		dev_err(cs35l43->dev, "Write sequencer is full\n");
-		ret = -EINVAL;
-		goto err;
+	i = 0;
+	while (i < sequence->length) {
+		operation = (buf[i] & CS35L43_POWER_SEQ_OP_MASK) >>
+			CS35L43_POWER_SEQ_OP_SHIFT;
+
+		if (operation == CS35L43_POWER_SEQ_OP_END)
+			break;
+
+		/* get num words for given operation */
+		for (j = 0; j < CS35L43_POWER_SEQ_NUM_OPS; j++) {
+			if (cs35l43_write_seq_op_sizes[j][0] == operation) {
+				num_words = cs35l43_write_seq_op_sizes[j][1];
+				break;
+			}
+		}
+
+		i += num_words;
 	}
 
-	ret = wm_adsp_write_ctl(&cs35l43->dsp, name,
-			WMFW_ADSP2_XM, CS35L43_ALG_ID_PM, (void *)buf,
-			length * sizeof(u64));
-	if (ret != 0)
-		dev_err(cs35l43->dev, "%s: failed to update write seq\n",
-			__func__);
-err:
+	if (operation != CS35L43_POWER_SEQ_OP_END ||
+		i + CS35L43_POWER_SEQ_OP_WRITE_REG_FULL_WORDS +
+		CS35L43_POWER_SEQ_OP_END_WORDS > sequence->length) {
+		dev_err(dev, "WRITE SEQ END_OF_SCRIPT not found or sequence full\n");
+		ret = -E2BIG;
+		goto exit;
+	}
+
+	write_seq_elem = devm_kzalloc(dev, sizeof(*write_seq_elem), GFP_KERNEL);
+	if (!write_seq_elem) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	write_seq_elem->size = CS35L43_POWER_SEQ_OP_WRITE_REG_FULL_WORDS;
+	write_seq_elem->offset = i;
+	write_seq_elem->operation = CS35L43_POWER_SEQ_OP_WRITE_REG_FULL;
+
+	op_words = kzalloc(write_seq_elem->size * sizeof(u32), GFP_KERNEL);
+	if (!op_words) {
+		ret =  -ENOMEM;
+		goto err_elem;
+	}
+
+	write_seq_elem->words = op_words;
+
+	if (read)
+		regmap_read(cs35l43->regmap, update_reg, &update_value);
+
+	cs35l43_write_seq_elem_update(write_seq_elem, update_reg, update_value);
+	list_add_tail(&write_seq_elem->list, &sequence->list_head);
+
+	sequence->num_ops++;
+
+	memcpy(&buf[i], op_words, write_seq_elem->size * sizeof(u32));
+
+	dev_info(dev, "%s: Added register 0x%x with value 0x%x\n",
+			__func__, update_reg, update_value);
+	for (i = 0; i < write_seq_elem->size; i++)
+		dev_dbg(dev, "elem[%d]: 0x%x\n", i, write_seq_elem->words[i]);
+
+	buf[write_seq_elem->offset + write_seq_elem->size] = 0xFFFFFFFF;
+
+write_exit:
+	for (i = 0; i < sequence->length; i++) {
+		dev_dbg(dev, "%s[%d] = 0x%x\n", sequence->name, i, buf[i]);
+		buf[i] = cpu_to_be32(buf[i]);
+	}
+
+	ret = wm_adsp_write_ctl(&cs35l43->dsp, sequence->name,
+		WMFW_ADSP2_XM, CS35L43_ALG_ID_PM, (void *)buf,
+		sequence->length * sizeof(u32));
+	goto exit;
+
+err_elem:
+	kfree(write_seq_elem);
+exit:
 	kfree(buf);
 	return ret;
 }
 
 static int cs35l43_write_seq_update(struct cs35l43_private *cs35l43,
-			const char *name, unsigned int length)
+					struct cs35l43_write_seq *sequence)
 {
-	u32 reg, value;
-	u64 cache, update;
-	u64 *buf;
-	unsigned int i, ret;
+	struct device *dev = cs35l43->dev;
+	u32 *buf;
+	u32 addr, prev_addr, value, reg_value;
+	unsigned int ret = 0, i;
+	struct cs35l43_write_seq_elem *write_seq_elem;
 
-	buf = kzalloc(sizeof(u64) * length, GFP_KERNEL);
+	buf = kzalloc(sizeof(u32) * sequence->length, GFP_KERNEL);
 	if (!buf) {
 		dev_err(cs35l43->dev, "%s: failed to alloc write seq\n",
 			__func__);
 		return -ENOMEM;
 	}
 
-	ret = wm_adsp_read_ctl(&cs35l43->dsp, name,
+	ret = wm_adsp_read_ctl(&cs35l43->dsp, sequence->name,
 			WMFW_ADSP2_XM, CS35L43_ALG_ID_PM, (void *)buf,
-			length * sizeof(u64));
+			sequence->length * sizeof(u32));
 	if (ret != 0) {
-		dev_err(cs35l43->dev, "%s: failed to read write seq\n",
-			__func__);
-		goto err;
+		dev_err(dev, "%s: Failed to read control\n", __func__);
+		goto err_free;
 	}
 
-	for (i = 0; i < length; i++) {
+	for (i = 0; i < sequence->length; i++) {
+		buf[i] = be32_to_cpu(buf[i]);
+		dev_dbg(dev, "%s[%d] = 0x%x\n", sequence->name, i, buf[i]);
+	}
 
-		cache = buf[i];
+	dev_dbg(dev, "%s num ops: %d\n", sequence->name, sequence->num_ops);
+	dev_dbg(dev, "offset\tsize\twords\n");
+	list_for_each_entry(write_seq_elem, &sequence->list_head, list) {
+		switch (write_seq_elem->operation) {
+		case CS35L43_POWER_SEQ_OP_WRITE_REG_FULL:
+			addr = ((write_seq_elem->words[0] & 0xFFFF) << 16) |
+				((write_seq_elem->words[1] & 0xFFFF00) >> 8);
+			value = ((write_seq_elem->words[1] & 0xFF) << 24) |
+				(write_seq_elem->words[2] & 0xFFFFFF);
+			break;
+		case CS35L43_POWER_SEQ_OP_WRITE_REG_ADDR8:
+			addr = (prev_addr & 0xFFFFFF00) |
+				((write_seq_elem->words[0] & 0xFF00) >> 8);
+			value = ((write_seq_elem->words[0] & 0xFF) << 24) |
+				(write_seq_elem->words[1] & 0xFFFFFF);
+			break;
+		case CS35L43_POWER_SEQ_OP_WRITE_REG_L16:
+			addr = ((write_seq_elem->words[0] & 0xFFFF) << 8) |
+				((write_seq_elem->words[1] & 0xFF0000) >> 16);
+			value = (write_seq_elem->words[1] & 0xFFFF);
+			break;
+		default:
+			break;
+		}
+		dev_dbg(dev, "write seq elem: addr=0x%x, prev_addr=0x%x, val=0x%x\n",
+								addr, prev_addr, value);
+		prev_addr = addr;
 
-		reg = be32_to_cpu(cache & 0xFFFFFFFF) >> 8;
-		value = be32_to_cpu((cache >> 32 ) & 0xFFFFFFFF);
-		value |= (be32_to_cpu(cache & 0xFFFFFFFF) & 0xFF) << 24;
+		regmap_read(cs35l43->regmap, addr, &reg_value);
 
-		dev_dbg(cs35l43->dev, "write seq(%d) 0x%x = 0x%x",
-							i, reg, value);
+		if (reg_value != value && addr != CS35L43_TEST_KEY_CTRL &&
+					cs35l43_readable_reg(dev, addr)) {
+			dev_info(dev,
+				"%s: Updating register 0x%x with value 0x%x\t(prev value: 0x%x)\n",
+					__func__, addr, reg_value, value);
+			cs35l43_write_seq_elem_update(write_seq_elem, addr, reg_value);
+			memcpy(buf + write_seq_elem->offset, write_seq_elem->words,
+					write_seq_elem->size * sizeof(u32));
+			for (i = 0; i < write_seq_elem->size; i++)
+				dev_dbg(dev, "elem[%d]: 0x%x\n", i, write_seq_elem->words[i]);
+		}
+	}
 
-		if (reg == 0xFFFF)
+	for (i = 0; i < sequence->length; i++) {
+		dev_dbg(dev, "%s[%d] = 0x%x\n", sequence->name, i, buf[i]);
+		buf[i] = cpu_to_be32(buf[i]);
+	}
+
+	ret = wm_adsp_write_ctl(&cs35l43->dsp, sequence->name,
+			WMFW_ADSP2_XM, CS35L43_ALG_ID_PM, (void *)buf,
+			sequence->length * sizeof(u32));
+
+err_free:
+	kfree(buf);
+	return ret;
+
+}
+
+static int cs35l43_write_seq_init(struct cs35l43_private *cs35l43,
+					struct cs35l43_write_seq *sequence)
+{
+	struct device *dev = cs35l43->dev;
+	u32 *buf, *op_words;
+	u8 operation;
+	unsigned int i, j, num_words, ret = 0;
+	struct cs35l43_write_seq_elem *write_seq_elem;
+
+	INIT_LIST_HEAD(&sequence->list_head);
+	sequence->num_ops = 0;
+
+	buf = kzalloc(sizeof(u32) * sequence->length, GFP_KERNEL);
+	if (!buf) {
+		dev_err(cs35l43->dev, "%s: failed to alloc write seq\n",
+			__func__);
+		return -ENOMEM;
+	}
+
+	ret = wm_adsp_read_ctl(&cs35l43->dsp, sequence->name,
+			WMFW_ADSP2_XM, CS35L43_ALG_ID_PM, (void *)buf,
+			sequence->length * sizeof(u32));
+	if (ret != 0) {
+		dev_err(dev, "%s: Failed to read control\n", __func__);
+		goto err_free;
+	}
+
+
+	for (i = 0; i < sequence->length; i++) {
+		buf[i] = be32_to_cpu(buf[i]);
+		dev_dbg(dev, "%s[%d] = 0x%x\n", sequence->name, i, buf[i]);
+	}
+
+	i = 0;
+	while (i < sequence->length) {
+		operation = (buf[i] & CS35L43_POWER_SEQ_OP_MASK) >>
+			CS35L43_POWER_SEQ_OP_SHIFT;
+
+		if (operation == CS35L43_POWER_SEQ_OP_END)
 			break;
 
-		regmap_read(cs35l43->regmap, reg, &value);
+		/* get num words for given operation */
+		for (j = 0; j < CS35L43_POWER_SEQ_NUM_OPS; j++) {
+			if (cs35l43_write_seq_op_sizes[j][0] == operation) {
+				num_words = cs35l43_write_seq_op_sizes[j][1];
+				break;
+			}
+		}
 
-		update = 0;
-		update |= cpu_to_be32(value & 0xFFFFFF);
-		update <<= 32;
-		update |= cpu_to_be32(reg << 8);
-		update |= cpu_to_be32(value >> 24);
+		if (j == CS35L43_POWER_SEQ_NUM_OPS) {
+			dev_err(dev, "Failed to determine op size\n");
+			return -EINVAL;
+		}
 
-		buf[i] = update;
+		op_words = kzalloc(num_words * sizeof(u32), GFP_KERNEL);
+		if (!op_words)
+			return -ENOMEM;
+		memcpy(op_words, &buf[i], num_words * sizeof(u32));
+
+		write_seq_elem = devm_kzalloc(dev, sizeof(*write_seq_elem), GFP_KERNEL);
+		if (!write_seq_elem) {
+			ret = -ENOMEM;
+			goto err_parse;
+		}
+
+		write_seq_elem->size = num_words;
+		write_seq_elem->offset = i;
+		write_seq_elem->operation = operation;
+		write_seq_elem->words = op_words;
+		list_add_tail(&write_seq_elem->list, &sequence->list_head);
+
+		sequence->num_ops++;
+		i += num_words;
 	}
 
-	ret = wm_adsp_write_ctl(&cs35l43->dsp, name,
-			WMFW_ADSP2_XM, CS35L43_ALG_ID_PM, (void *)buf,
-			length * sizeof(u64));
-	if (ret != 0)
-		dev_err(cs35l43->dev, "%s: failed to update write seq\n",
-			__func__);
-err:
+	dev_dbg(dev, "%s num ops: %d\n", sequence->name, sequence->num_ops);
+	dev_dbg(dev, "offset\tsize\twords\n");
+	list_for_each_entry(write_seq_elem, &sequence->list_head, list) {
+		dev_dbg(dev, "0x%04X\t%d", write_seq_elem->offset,
+							write_seq_elem->size);
+		for (j = 0; j < write_seq_elem->size; j++)
+			dev_dbg(dev, "0x%08X", *(write_seq_elem->words + j));
+	}
+
+	if (operation != CS35L43_POWER_SEQ_OP_END) {
+		dev_err(dev, "WRITE SEQ END_OF_SCRIPT not found\n");
+		ret = -E2BIG;
+	}
+
+	kfree(buf);
+	return ret;
+
+err_parse:
+	kfree(op_words);
+err_free:
 	kfree(buf);
 	return ret;
 }
@@ -380,8 +612,7 @@ static int cs35l43_enter_hibernate(struct cs35l43_private *cs35l43)
 
 	dev_info(cs35l43->dev, "%s\n", __func__);
 
-	cs35l43_write_seq_update(cs35l43, "POWER_ON_SEQUENCE",
-				CS35L43_POWER_SEQ_LENGTH);
+	cs35l43_write_seq_update(cs35l43, &cs35l43->power_on_seq);
 
 	regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 					CS35L43_MBOX_CMD_ALLOW_HIBERNATE);
@@ -407,7 +638,8 @@ static int cs35l43_exit_hibernate(struct cs35l43_private *cs35l43)
 	regcache_drop_region(cs35l43->regmap, CS35L43_DEVID,
 					CS35L43_MIXER_NGATE_CH2_CFG);
 
-	//write seq does not properly handle regs with 4+ digit addresses
+	cs35l43->hibernate_state = CS35L43_HIBERNATE_AWAKE;
+
 	regmap_write(cs35l43->regmap, CS35L43_IRQ1_MASK_1, 0xFFFFFFFF);
 	regmap_update_bits(cs35l43->regmap, CS35L43_IRQ1_MASK_1,
 				CS35L43_AMP_ERR_EINT1_MASK |
@@ -415,10 +647,9 @@ static int cs35l43_exit_hibernate(struct cs35l43_private *cs35l43)
 				CS35L43_BST_DCM_UVP_ERR_EINT1_MASK |
 				CS35L43_BST_OVP_ERR_EINT1_MASK |
 				CS35L43_DSP_VIRTUAL2_MBOX_WR_EINT1_MASK |
+				CS35L43_DC_WATCHDOG_IRQ_RISE_EINT1_MASK |
 				CS35L43_WKSRC_STATUS6_EINT1_MASK |
 				CS35L43_WKSRC_STATUS_ANY_EINT1_MASK, 0);
-
-	cs35l43->hibernate_state = CS35L43_HIBERNATE_AWAKE;
 
 	return 0;
 }
@@ -451,21 +682,25 @@ static int cs35l43_hibernate(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		if (cs35l43->hibernate_state == CS35L43_HIBERNATE_NOT_LOADED &&
-														cs35l43->dsp.cs_dsp.running) {
+				cs35l43->dsp.cs_dsp.running) {
+			cs35l43->power_on_seq.name = "POWER_ON_SEQUENCE";
+			cs35l43->power_on_seq.length = CS35L43_POWER_SEQ_MAX_WORDS;
+			cs35l43_write_seq_init(cs35l43, &cs35l43->power_on_seq);
+			cs35l43_write_seq_update(cs35l43, &cs35l43->power_on_seq);
+
 			for (i = 0; i < ARRAY_SIZE(cs35l43_hibernate_update_regs); i++) {
 				if (cs35l43_hibernate_update_regs[i] == 0)
 					break;
-				cs35l43_write_seq_add(cs35l43,
-						"POWER_ON_SEQUENCE",
-						CS35L43_POWER_SEQ_LENGTH,
+				cs35l43_write_seq_add(cs35l43, &cs35l43->power_on_seq,
 						cs35l43_hibernate_update_regs[i],
 						0, true);
 			}
+
 			cs35l43->hibernate_state = CS35L43_HIBERNATE_AWAKE;
 			cs35l43->hibernate_delay_ms = 2000;
 		}
 		if (cs35l43->hibernate_state == CS35L43_HIBERNATE_AWAKE &&
-														cs35l43->dsp.cs_dsp.running)
+				cs35l43->dsp.cs_dsp.running)
 			queue_delayed_work(cs35l43->wq, &cs35l43->hb_work,
 				msecs_to_jiffies(cs35l43->hibernate_delay_ms));
 		break;
@@ -986,11 +1221,17 @@ int cs35l43_component_write(struct snd_soc_component *component,
 {
 	struct cs35l43_private *cs35l43 =
 				snd_soc_component_get_drvdata(component);
+	int ret = 0;
 
-	if (cs35l43->hibernate_state == CS35L43_HIBERNATE_STANDBY)
-		return cs35l43_write_seq_add(cs35l43, "POWER_ON_SEQUENCE",
-				CS35L43_POWER_SEQ_LENGTH, reg, val, false);
-	else
+	if (cs35l43->hibernate_state == CS35L43_HIBERNATE_STANDBY) {
+		mutex_lock(&cs35l43->hb_lock);
+		ret = cs35l43_exit_hibernate(cs35l43);
+		regmap_write(cs35l43->regmap, reg, val);
+		mutex_unlock(&cs35l43->hb_lock);
+		queue_delayed_work(cs35l43->wq, &cs35l43->hb_work,
+				msecs_to_jiffies(cs35l43->hibernate_delay_ms));
+		return ret;
+	} else
 		return regmap_write(cs35l43->regmap, reg, val);
 }
 
