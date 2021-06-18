@@ -99,7 +99,7 @@ static int iwl_pnvm_handle_section(struct iwl_trans *trans, const u8 *data,
 				 */
 				if (mac_type == IWL_CFG_MAC_TYPE_SO &&
 				    CSR_HW_REV_TYPE(trans->hw_rev) == IWL_CFG_MAC_TYPE_SOF &&
-				    rf_id == CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
+				    rf_id != CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
 					IWL_DEBUG_FW(trans,
 						     "mac_type 0x%0x is equivalent to mac_type 0x%0x, accept PNVM section.\n",
 						     CSR_HW_REV_TYPE(trans->hw_rev),
