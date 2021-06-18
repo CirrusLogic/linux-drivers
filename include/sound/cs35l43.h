@@ -43,6 +43,7 @@ struct cs35l43_pll_sysclk_config {
 
 extern const struct cs35l43_pll_sysclk_config cs35l43_pll_sysclk[64];
 extern const unsigned int cs35l43_hibernate_update_regs[CS35L43_POWER_SEQ_LENGTH];
+extern const u8 cs35l43_write_seq_op_sizes[CS35L43_POWER_SEQ_NUM_OPS][2];
 
 enum cs35l43_hibernate_state {
 	CS35L43_HIBERNATE_AWAKE		= 0,
@@ -52,6 +53,20 @@ enum cs35l43_hibernate_state {
 	CS35L43_HIBERNATE_DISABLED	= 4,
 };
 
+struct cs35l43_write_seq_elem {
+	u8 size;
+	u16 offset; /* offset in words from pseq_base */
+	u8 operation;
+	u32 *words;
+	struct list_head list;
+};
+
+struct cs35l43_write_seq {
+	const char *name;
+	struct list_head list_head;
+	unsigned int num_ops;
+	unsigned int length;
+};
 
 struct cs35l43_private {
 	struct wm_adsp dsp; /* needs to be first member */
@@ -74,6 +89,7 @@ struct cs35l43_private {
 	struct delayed_work hb_work;
 	struct workqueue_struct *wq;
 	struct mutex hb_lock;
+	struct cs35l43_write_seq power_on_seq;
 };
 
 int cs35l43_probe(struct cs35l43_private *cs35l43,
