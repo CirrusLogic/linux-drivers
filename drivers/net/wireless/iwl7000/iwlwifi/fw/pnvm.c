@@ -92,21 +92,6 @@ static int iwl_pnvm_handle_section(struct iwl_trans *trans, const u8 *data,
 
 			if (mac_type != CSR_HW_REV_TYPE(trans->hw_rev) ||
 			    rf_id != CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
-				/*
-				 * Workaround: SOF needs to use the section
-				 *  marked as SO, so check if that's the case,
-				 * still making sure the rf_id matches.
-				 */
-				if (mac_type == IWL_CFG_MAC_TYPE_SO &&
-				    CSR_HW_REV_TYPE(trans->hw_rev) == IWL_CFG_MAC_TYPE_SOF &&
-				    rf_id != CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
-					IWL_DEBUG_FW(trans,
-						     "mac_type 0x%0x is equivalent to mac_type 0x%0x, accept PNVM section.\n",
-						     CSR_HW_REV_TYPE(trans->hw_rev),
-						     mac_type);
-					break;
-				}
-
 				IWL_DEBUG_FW(trans,
 					     "HW mismatch, skipping PNVM section, mac_type 0x%0x, rf_id 0x%0x.\n",
 					     CSR_HW_REV_TYPE(trans->hw_rev), trans->hw_rf_id);
