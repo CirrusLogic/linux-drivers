@@ -2897,6 +2897,25 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 }
 EXPORT_SYMBOL_GPL(cs35l45_initialize);
 
+static const struct reg_sequence cs35l45_fs_errata_patch[] = {
+	{0x02B80080,			0x00000001},
+	{0x02B80088,			0x00000001},
+	{0x02B80090,			0x00000001},
+	{0x02B80098,			0x00000001},
+	{0x02B800A0,			0x00000001},
+	{0x02B800A8,			0x00000001},
+	{0x02B800B0,			0x00000001},
+	{0x02B800B8,			0x00000001},
+	{0x02B80280,			0x00000001},
+	{0x02B80288,			0x00000001},
+	{0x02B80290,			0x00000001},
+	{0x02B80298,			0x00000001},
+	{0x02B802A0,			0x00000001},
+	{0x02B802A8,			0x00000001},
+	{0x02B802B0,			0x00000001},
+	{0x02B802B8,			0x00000001},
+};
+
 static const struct wm_adsp_region cs35l45_dsp1_regions[] = {
 	{ .type = WMFW_HALO_PM_PACKED,	.base = CS35L45_DSP1_PMEM_0 },
 	{ .type = WMFW_HALO_XM_PACKED,	.base = CS35L45_DSP1_XMEM_PACK_0 },
@@ -2908,7 +2927,7 @@ static const struct wm_adsp_region cs35l45_dsp1_regions[] = {
 static int cs35l45_dsp_init(struct cs35l45_private *cs35l45)
 {
 	struct wm_adsp *dsp = &cs35l45->dsp;
-	int ret, i;
+	int ret;
 
 	dsp->part = cs35l45->pdata.dsp_part_name;
 	dsp->num = 1;
@@ -2921,17 +2940,11 @@ static int cs35l45_dsp_init(struct cs35l45_private *cs35l45)
 	dsp->mem = cs35l45_dsp1_regions;
 	dsp->num_mems = ARRAY_SIZE(cs35l45_dsp1_regions);
 	dsp->lock_regions = 0xFFFFFFFF;
-	dsp->n_rx_channels = CS35L45_DSP_N_RX_RATES;
-	dsp->n_tx_channels = CS35L45_DSP_N_TX_RATES;
 
-	mutex_init(&cs35l45->rate_lock);
-	ret = wm_halo_init(dsp, &cs35l45->rate_lock);
+	ret = wm_halo_init(dsp);
 
-	for (i = 0; i < CS35L45_DSP_N_RX_RATES; i++)
-		dsp->rx_rate_cache[i] = 0x1;
-
-	for (i = 0; i < CS35L45_DSP_N_TX_RATES; i++)
-		dsp->tx_rate_cache[i] = 0x1;
+	regmap_multi_reg_write(cs35l45->regmap, cs35l45_fs_errata_patch,
+						   ARRAY_SIZE(cs35l45_fs_errata_patch));
 
 	if (!cs35l45_halo_start_core) {
 		cs35l45_halo_start_core = dsp->ops->start_core;
@@ -3033,7 +3046,6 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 					       ARRAY_SIZE(cs35l45_dai));
 
 err_dsp:
-	mutex_destroy(&cs35l45->rate_lock);
 	wm_adsp2_remove(&cs35l45->dsp);
 err:
 	mutex_destroy(&cs35l45->dsp_power_lock);
@@ -3050,7 +3062,6 @@ int cs35l45_remove(struct cs35l45_private *cs35l45)
 
 	mutex_destroy(&cs35l45->dsp_power_lock);
 	mutex_destroy(&cs35l45->hb_lock);
-	mutex_destroy(&cs35l45->rate_lock);
 	destroy_workqueue(cs35l45->wq);
 	wm_adsp2_remove(&cs35l45->dsp);
 	regulator_bulk_disable(CS35L45_NUM_SUPPLIES, cs35l45->supplies);

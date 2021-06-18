@@ -165,7 +165,6 @@ struct cs35l45_private {
 	struct delayed_work hb_work;
 	struct delayed_work global_err_rls_work;
 	struct workqueue_struct *wq;
-	struct mutex rate_lock;
 	struct mutex dsp_power_lock;
 	struct mutex hb_lock;
 	struct completion virt2_mbox_comp;
