@@ -203,9 +203,8 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 		goto unpin;
 	}
 
-	r = dma_resv_get_fences_rcu(new_abo->tbo.base.resv, &work->excl,
-					      &work->shared_count,
-					      &work->shared);
+	r = dma_resv_get_fences(new_abo->tbo.base.resv, &work->excl,
+				&work->shared_count, &work->shared);
 	if (unlikely(r != 0)) {
 		DRM_ERROR("failed to get fences for buffer\n");
 		goto unpin;
@@ -1057,7 +1056,7 @@ int amdgpu_display_gem_fb_init(struct drm_device *dev,
 
 	return 0;
 err:
-	drm_err(dev, "Failed to init gem fb: %d\n", ret);
+	drm_dbg_kms(dev, "Failed to init gem fb: %d\n", ret);
 	rfb->base.obj[0] = NULL;
 	return ret;
 }
@@ -1094,7 +1093,7 @@ int amdgpu_display_gem_fb_verify_and_init(
 
 	return 0;
 err:
-	drm_err(dev, "Failed to verify and init gem fb: %d\n", ret);
+	drm_dbg_kms(dev, "Failed to verify and init gem fb: %d\n", ret);
 	rfb->base.obj[0] = NULL;
 	return ret;
 }
