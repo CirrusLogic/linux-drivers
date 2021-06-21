@@ -1331,6 +1331,7 @@ static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x,
 		cs40l2x_save_waveform_to_ovwr_struct(cs40l2x,
 				CS40L2X_WT_TYPE_12_PWLE_FILE,
 				feature, zero_pad_size, zero_pad_data);
+		ret = 0;
 	}
 
 	kfree(zero_pad_data);
