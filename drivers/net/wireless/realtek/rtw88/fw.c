@@ -276,6 +276,7 @@ void rtw_fw_c2h_cmd_rx_irqsafe(struct rtw_dev *rtwdev, u32 pkt_offset,
 		break;
 	case C2H_ADAPTIVITY:
 		rtw_fw_adaptivity_result(rtwdev, c2h->payload, len);
+		dev_kfree_skb_any(skb);
 		break;
 	default:
 		/* pass offset for further operation */
