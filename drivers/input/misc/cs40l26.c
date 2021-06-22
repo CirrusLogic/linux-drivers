@@ -3225,10 +3225,10 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 		cs40l26_pm_runtime_teardown(cs40l26);
 
 	if (cs40l26->vibe_workqueue) {
-		destroy_workqueue(cs40l26->vibe_workqueue);
 		cancel_work_sync(&cs40l26->vibe_start_work);
 		cancel_work_sync(&cs40l26->vibe_stop_work);
 		cancel_work_sync(&cs40l26->set_gain_work);
+		destroy_workqueue(cs40l26->vibe_workqueue);
 	}
 
 	if (vp_consumer)
