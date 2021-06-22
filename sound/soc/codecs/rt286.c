@@ -1020,7 +1020,7 @@ static struct snd_soc_dai_driver rt286_dai[] = {
 			.formats = RT286_FORMATS,
 		},
 		.ops = &rt286_aif_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "rt286-aif2",
@@ -1040,7 +1040,7 @@ static struct snd_soc_dai_driver rt286_dai[] = {
 			.formats = RT286_FORMATS,
 		},
 		.ops = &rt286_aif_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 
 };

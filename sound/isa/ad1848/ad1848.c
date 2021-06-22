@@ -22,9 +22,6 @@
 MODULE_DESCRIPTION(CRD_NAME);
 MODULE_AUTHOR("Tugrul Galatali <galatalt@stuy.edu>, Jaroslav Kysela <perex@perex.cz>");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Analog Devices,AD1848},"
-	        "{Analog Devices,AD1847},"
-		"{Crystal Semiconductors,CS4248}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -95,8 +92,8 @@ static int snd_ad1848_probe(struct device *dev, unsigned int n)
 	if (error < 0)
 		goto out;
 
-	strlcpy(card->driver, "AD1848", sizeof(card->driver));
-	strlcpy(card->shortname, chip->pcm->name, sizeof(card->shortname));
+	strscpy(card->driver, "AD1848", sizeof(card->driver));
+	strscpy(card->shortname, chip->pcm->name, sizeof(card->shortname));
 
 	if (!thinkpad[n])
 		snprintf(card->longname, sizeof(card->longname),

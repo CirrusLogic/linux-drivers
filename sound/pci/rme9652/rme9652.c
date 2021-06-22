@@ -39,8 +39,6 @@ MODULE_PARM_DESC(precise_ptr, "Enable precise pointer (doesn't work reliably).")
 MODULE_AUTHOR("Paul Davis <pbd@op.net>, Winfried Ritsch");
 MODULE_DESCRIPTION("RME Digi9652/Digi9636");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{RME,Hammerfall},"
-		"{RME,Hammerfall-Light}}");
 
 /* The Hammerfall has two sets of 24 ADAT + 2 S/PDIF channels, one for
    capture, one for playback. Both the ADAT and S/PDIF channels appear
@@ -732,34 +730,27 @@ static inline int rme9652_spdif_sample_rate(struct snd_rme9652 *s)
 	switch (rme9652_decode_spdif_rate(rate_bits)) {
 	case 0x7:
 		return 32000;
-		break;
 
 	case 0x6:
 		return 44100;
-		break;
 
 	case 0x5:
 		return 48000;
-		break;
 
 	case 0x4:
 		return 88200;
-		break;
 
 	case 0x3:
 		return 96000;
-		break;
 
 	case 0x0:
 		return 64000;
-		break;
 
 	default:
 		dev_err(s->card->dev,
 			"%s: unknown S/PDIF input rate (bits = 0x%x)\n",
 			   s->card_name, rate_bits);
 		return 0;
-		break;
 	}
 }
 
