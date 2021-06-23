@@ -825,6 +825,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MIN_BUFFERS_FOR_OUTPUT:	return "Min Number of Output Buffers";
 	case V4L2_CID_ALPHA_COMPONENT:		return "Alpha Component";
 	case V4L2_CID_COLORFX_CBCR:		return "Color Effects, CbCr";
+	case V4L2_CID_REGION_OF_INTEREST_AUTO:	return "Region Of Interest Auto Controls";
 
 	/* Codec controls */
 	/* The MPEG controls are applicable to all codec controls
