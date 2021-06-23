@@ -435,7 +435,7 @@ static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 
 	/* errata write fixing indeterminent PLL lock time */
 	ret = regmap_update_bits(cs40l26->regmap, CS40L26_PLL_REFCLK_DETECT_0,
-			CS40L26_PLL_REFCLK_DET_EN_MASK, CS40L26_DISABLE);
+			CS40L26_PLL_REFCLK_DET_EN_MASK, 0);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to disable PLL refclk detect\n");
 		return ret;
@@ -2862,8 +2862,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		goto err_out;
 
 	ret = regmap_update_bits(regmap, CS40L26_PWRMGT_CTL,
-			CS40L26_MEM_RDY_MASK,
-			CS40L26_ENABLE << CS40L26_MEM_RDY_SHIFT);
+			CS40L26_MEM_RDY_MASK, 1 << CS40L26_MEM_RDY_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to set MEM_RDY to initialize RAM\n");
 		goto err_out;
@@ -2876,7 +2875,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		if (ret)
 			goto err_out;
 
-		ret = cs40l26_dsp_write(cs40l26, reg, CS40L26_ENABLE);
+		ret = cs40l26_dsp_write(cs40l26, reg, 1);
 		if (ret)
 			goto err_out;
 	}
@@ -3156,7 +3155,7 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 	usleep_range(CS40L26_MIN_RESET_PULSE_WIDTH,
 			CS40L26_MIN_RESET_PULSE_WIDTH + 100);
 
-	gpiod_set_value_cansleep(cs40l26->reset_gpio, CS40L26_ENABLE);
+	gpiod_set_value_cansleep(cs40l26->reset_gpio, 1);
 
 	usleep_range(CS40L26_CONTROL_PORT_READY_DELAY,
 			CS40L26_CONTROL_PORT_READY_DELAY + 100);
@@ -3237,7 +3236,7 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 	if (va_consumer)
 		regulator_disable(va_consumer);
 
-	gpiod_set_value_cansleep(cs40l26->reset_gpio, CS40L26_DISABLE);
+	gpiod_set_value_cansleep(cs40l26->reset_gpio, 0);
 
 	if (cs40l26->vibe_timer.function)
 		hrtimer_cancel(&cs40l26->vibe_timer);
