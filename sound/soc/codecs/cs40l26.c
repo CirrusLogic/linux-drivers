@@ -60,7 +60,7 @@ static int cs40l26_swap_ext_clk(struct cs40l26_codec *codec, u8 clk_src)
 	}
 
 	ret = regmap_update_bits(regmap, CS40L26_REFCLK_INPUT,
-			CS40L26_PLL_REFCLK_OPEN_LOOP_MASK, CS40L26_ENABLE <<
+			CS40L26_PLL_REFCLK_OPEN_LOOP_MASK, 1 <<
 			CS40L26_PLL_REFCLK_OPEN_LOOP_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to set Open-Loop PLL\n");
@@ -77,7 +77,7 @@ static int cs40l26_swap_ext_clk(struct cs40l26_codec *codec, u8 clk_src)
 	}
 
 	ret = regmap_update_bits(regmap, CS40L26_REFCLK_INPUT,
-			CS40L26_PLL_REFCLK_OPEN_LOOP_MASK, CS40L26_DISABLE <<
+			CS40L26_PLL_REFCLK_OPEN_LOOP_MASK, 0 <<
 			CS40L26_PLL_REFCLK_OPEN_LOOP_SHIFT);
 	if (ret)
 		dev_err(dev, "Failed to close PLL loop\n");
@@ -169,9 +169,9 @@ static int cs40l26_a2h_ev(struct snd_soc_dapm_widget *w,
 			if (ret)
 				return ret;
 		}
-		return regmap_write(cs40l26->regmap, reg, CS40L26_ENABLE);
+		return regmap_write(cs40l26->regmap, reg, 1);
 	case SND_SOC_DAPM_PRE_PMD:
-		return regmap_write(cs40l26->regmap, reg, CS40L26_DISABLE);
+		return regmap_write(cs40l26->regmap, reg, 0);
 	default:
 		dev_err(dev, "Invalid A2H event: %d\n", event);
 		return -EINVAL;
@@ -209,10 +209,9 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 			return ret;
 		}
 
-		asp_enables = CS40L26_ENABLE | (CS40L26_ENABLE <<
-				CS40L26_ASP_TX2_EN_SHIFT) | (CS40L26_ENABLE <<
-				CS40L26_ASP_RX1_EN_SHIFT) | (CS40L26_ENABLE <<
-				CS40L26_ASP_RX2_EN_SHIFT);
+		asp_enables = 1 | (1 << CS40L26_ASP_TX2_EN_SHIFT)
+				| (1 << CS40L26_ASP_RX1_EN_SHIFT)
+				| (1 << CS40L26_ASP_RX2_EN_SHIFT);
 
 		ret = regmap_update_bits(regmap, CS40L26_ASP_ENABLES1,
 				asp_en_mask, asp_enables);
