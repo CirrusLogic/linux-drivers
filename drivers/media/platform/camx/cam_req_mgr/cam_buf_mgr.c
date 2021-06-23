@@ -401,7 +401,7 @@ static void _op_dma_buf_release(struct dma_buf *dmabuf)
 	kfree(dmabuf->exp_name);
 }
 
-static void *_op_dma_buf_vmap(struct dma_buf *dmabuf)
+static int _op_dma_buf_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 {
 	struct cmm_buffer *buffer = dmabuf->priv;
 	void *vaddr = ERR_PTR(-EINVAL);
@@ -410,10 +410,12 @@ static void *_op_dma_buf_vmap(struct dma_buf *dmabuf)
 	vaddr = _cmm_dma_kmap_get(buffer);
 	mutex_unlock(&buffer->b_lock);
 
-	return vaddr;
+	map->vaddr = vaddr;
+
+	return PTR_ERR_OR_ZERO(vaddr);
 }
 
-static void _op_dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
+static void _op_dma_buf_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 {
 	struct cmm_buffer *buffer = dmabuf->priv;
 

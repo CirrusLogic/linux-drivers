@@ -47,6 +47,7 @@ static int cam_mem_util_map_cpu_va(struct dma_buf *dmabuf,
 	uintptr_t *vaddr,
 	size_t *len)
 {
+	struct dma_buf_map map;
 	void *addr;
 	int rc;
 
@@ -60,12 +61,12 @@ static int cam_mem_util_map_cpu_va(struct dma_buf *dmabuf,
 		return rc;
 	}
 
-	addr = dma_buf_vmap(dmabuf);
-	if (IS_ERR_OR_NULL(addr)) {
+	rc = dma_buf_vmap(dmabuf, &map);
+	if (rc) {
 		CAM_ERR(CAM_MEM, "Mapping failed");
-		rc =  PTR_ERR(addr);
 		goto err_end_cpu_access;
 	}
+	addr = map.vaddr;
 
 	*vaddr = (uintptr_t)addr;
 	*len = dmabuf->size;
@@ -81,8 +82,11 @@ static int cam_mem_util_unmap_cpu_va(struct dma_buf *dmabuf,
 	uint64_t vaddr)
 {
 	int rc;
+	struct dma_buf_map map;
 
-	dma_buf_vunmap(dmabuf, (void *)vaddr);
+	map.vaddr = (void *)vaddr;
+
+	dma_buf_vunmap(dmabuf, &map);
 
 	/*
 	 * dma_buf_begin_cpu_access() and
