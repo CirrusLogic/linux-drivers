@@ -327,3 +327,5 @@ ap_ts_pen_1v8: &i2c4 {
 		};
 	};
 };
+
+#include "sc7180-trogdor-mipi-camera.dtsi"
