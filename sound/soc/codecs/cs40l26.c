@@ -248,13 +248,8 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 		if (ret)
 			return ret;
 
-		asp_enables = CS40L26_DISABLE | (CS40L26_DISABLE <<
-				CS40L26_ASP_TX2_EN_SHIFT) | (CS40L26_DISABLE <<
-				CS40L26_ASP_RX1_EN_SHIFT) | (CS40L26_DISABLE <<
-				CS40L26_ASP_RX2_EN_SHIFT);
-
 		ret = regmap_update_bits(regmap, CS40L26_ASP_ENABLES1,
-				asp_en_mask, asp_enables);
+				asp_en_mask, 0);
 		if (ret) {
 			dev_err(dev, "Failed to clear ASPTX1 input\n");
 			return ret;
