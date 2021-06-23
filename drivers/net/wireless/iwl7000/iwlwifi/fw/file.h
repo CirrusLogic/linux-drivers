@@ -100,6 +100,7 @@ enum iwl_ucode_tlv_type {
 
 	IWL_UCODE_TLV_PNVM_VERSION		= 62,
 	IWL_UCODE_TLV_PNVM_SKU			= 64,
+	IWL_UCODE_TLV_TCM_DEBUG_ADDRS		= 65,
 
 	IWL_UCODE_TLV_FW_NUM_STATIONS		= IWL_UCODE_TLV_CONST_BASE + 0,
 
@@ -435,6 +436,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_PROTECTED_TWT		= (__force iwl_ucode_tlv_capa_t)56,
 	IWL_UCODE_TLV_CAPA_FW_RESET_HANDSHAKE		= (__force iwl_ucode_tlv_capa_t)57,
 	IWL_UCODE_TLV_CAPA_PASSIVE_6GHZ_SCAN		= (__force iwl_ucode_tlv_capa_t)58,
+	IWL_UCODE_TLV_CAPA_HIDDEN_6GHZ_SCAN		= (__force iwl_ucode_tlv_capa_t)59,
 	IWL_UCODE_TLV_CAPA_BROADCAST_TWT		= (__force iwl_ucode_tlv_capa_t)60,
 
 	/* set 2 */
@@ -979,6 +981,10 @@ struct iwl_fw_cmd_version {
 	u8 cmd_ver;
 	u8 notif_ver;
 } __packed;
+
+struct iwl_fw_tcm_error_addr {
+	__le32 addr;
+}; /* FW_TLV_TCM_ERROR_INFO_ADDRS_S */
 
 static inline size_t _iwl_tlv_array_len(const struct iwl_ucode_tlv *tlv,
 					size_t fixed_size, size_t var_size)

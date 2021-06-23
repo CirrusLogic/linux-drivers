@@ -606,6 +606,8 @@ static const struct ieee80211_sband_iftype_data iwl_he_capa[] = {
 					IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_COMP_SIGB |
 					IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB |
 					IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_RESERVED,
+				.phy_cap_info[10] =
+					IEEE80211_HE_PHY_CAP10_HE_MU_M1RU_MAX_LTF,
 			},
 			/*
 			 * Set default Tx/Rx HE MCS NSS Support field.
@@ -643,7 +645,6 @@ static const struct ieee80211_sband_iftype_data iwl_he_capa[] = {
 					IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G |
 					IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G,
 				.phy_cap_info[1] =
-					IEEE80211_HE_PHY_CAP1_PREAMBLE_PUNC_RX_MASK |
 					IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD,
 				.phy_cap_info[2] =
 					IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ |
@@ -1138,8 +1139,10 @@ static void iwl_flip_hw_address(__le32 mac_addr0, __le32 mac_addr1, u8 *dest)
 static void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
 					struct iwl_nvm_data *data)
 {
-	__le32 mac_addr0 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR0_STRAP));
-	__le32 mac_addr1 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR1_STRAP));
+	__le32 mac_addr0 = cpu_to_le32(iwl_read32(trans,
+						  CSR_MAC_ADDR0_STRAP(trans)));
+	__le32 mac_addr1 = cpu_to_le32(iwl_read32(trans,
+						  CSR_MAC_ADDR1_STRAP(trans)));
 
 	iwl_flip_hw_address(mac_addr0, mac_addr1, data->hw_addr);
 	/*
@@ -1149,8 +1152,8 @@ static void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
 	if (is_valid_ether_addr(data->hw_addr))
 		return;
 
-	mac_addr0 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR0_OTP));
-	mac_addr1 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR1_OTP));
+	mac_addr0 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR0_OTP(trans)));
+	mac_addr1 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR1_OTP(trans)));
 
 	iwl_flip_hw_address(mac_addr0, mac_addr1, data->hw_addr);
 }

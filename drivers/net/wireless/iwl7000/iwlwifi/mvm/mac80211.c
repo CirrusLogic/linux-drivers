@@ -495,7 +495,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->netdev_features = NETIF_F_HIGHDMA | NETIF_F_SG;
 #endif
 
-	hw->queues = IEEE80211_MAX_QUEUES;
+	hw->queues = IEEE80211_NUM_ACS;
 	hw->offchannel_tx_hw_queue = IWL_MVM_OFFCHANNEL_QUEUE;
 	hw->radiotap_mcs_details |= IEEE80211_RADIOTAP_MCS_HAVE_FEC |
 				    IEEE80211_RADIOTAP_MCS_HAVE_STBC;
@@ -944,11 +944,11 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 	    !test_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status))
 		goto drop;
 
-	/* treat non-bufferable MMPDUs on AP interfaces as broadcast */
-	if ((info->control.vif->type == NL80211_IFTYPE_AP ||
-	     info->control.vif->type == NL80211_IFTYPE_ADHOC) &&
-	    ieee80211_is_mgmt(hdr->frame_control) &&
-	    !ieee80211_is_bufferable_mmpdu(hdr->frame_control))
+	/*
+	 * bufferable MMPDUs or MMPDUs on STA interfaces come via TXQs
+	 * so we treat the others as broadcast
+	 */
+	if (ieee80211_is_mgmt(hdr->frame_control))
 		sta = NULL;
 
 	/* If there is no sta, and it's not offchannel - send through AP */
@@ -3277,16 +3277,20 @@ static void iwl_mvm_check_he_obss_narrow_bw_ru_iter(struct wiphy *wiphy,
 						    void *_data)
 {
 	struct iwl_mvm_he_obss_narrow_bw_ru_data *data = _data;
+	const struct cfg80211_bss_ies *ies;
 	const struct element *elem;
 
-	elem = cfg80211_find_elem(WLAN_EID_EXT_CAPABILITY, bss->ies->data,
-				  bss->ies->len);
+	rcu_read_lock();
+	ies = rcu_dereference(bss->ies);
+	elem = cfg80211_find_elem(WLAN_EID_EXT_CAPABILITY, ies->data,
+				  ies->len);
 
 	if (!elem || elem->datalen < 10 ||
 	    !(elem->data[10] &
 	      WLAN_EXT_CAPA10_OBSS_NARROW_BW_RU_TOLERANCE_SUPPORT)) {
 		data->tolerated = false;
 	}
+	rcu_read_unlock();
 }
 
 static void iwl_mvm_check_he_obss_narrow_bw_ru(struct ieee80211_hw *hw,
@@ -4591,20 +4595,13 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_ADHOC:
-		iwl_mvm_remove_time_event(mvm, mvmvif,
-					  &mvmvif->time_event_data);
 		goto out;
 	case NL80211_IFTYPE_MONITOR:
-		iwl_mvm_remove_time_event(mvm, mvmvif,
-					  &mvmvif->time_event_data);
 		mvmvif->monitor_active = false;
 		mvmvif->ps_disabled = false;
 		iwl_mvm_rm_snif_sta(mvm, vif);
 		break;
 	case NL80211_IFTYPE_AP:
-		iwl_mvm_remove_time_event(mvm, mvmvif,
-					  &mvmvif->time_event_data);
-
 		/* This part is triggered only during CSA */
 		if (!switching_chanctx || !mvmvif->ap_ibss_active)
 			goto out;
@@ -5413,18 +5410,10 @@ static void iwl_mvm_event_mlme_callback_ini(struct iwl_mvm *mvm,
 					    struct ieee80211_vif *vif,
 					    const  struct ieee80211_mlme_event *mlme)
 {
-	if (mlme->data == ASSOC_EVENT && (mlme->status == MLME_DENIED ||
-					  mlme->status == MLME_TIMEOUT)) {
+	if ((mlme->data == ASSOC_EVENT || mlme->data == AUTH_EVENT) &&
+	    (mlme->status == MLME_DENIED || mlme->status == MLME_TIMEOUT)) {
 		iwl_dbg_tlv_time_point(&mvm->fwrt,
 				       IWL_FW_INI_TIME_POINT_ASSOC_FAILED,
-				       NULL);
-		return;
-	}
-
-	if (mlme->data == AUTH_EVENT && (mlme->status == MLME_DENIED ||
-					 mlme->status == MLME_TIMEOUT)) {
-		iwl_dbg_tlv_time_point(&mvm->fwrt,
-				       IWL_FW_INI_TIME_POINT_EAPOL_FAILED,
 				       NULL);
 		return;
 	}

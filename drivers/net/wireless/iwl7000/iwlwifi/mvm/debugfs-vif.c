@@ -692,6 +692,86 @@ static ssize_t iwl_dbgfs_quota_min_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
+#ifdef CPTCFG_IWLWIFI_DHC
+static ssize_t iwl_dbgfs_twt_setup_write(struct ieee80211_vif *vif, char *buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	struct iwl_dhc_twt_operation *dhc_twt_cmd;
+	struct iwl_dhc_cmd *cmd;
+
+	u32 twt_operation;
+	u64 target_wake_time;
+	u32 interval_exp;
+	u32 interval_mantissa;
+	u32 min_wake_duration;
+	u8 trigger;
+	u8 flow_type;
+	u8 flow_id;
+	u8 protection;
+	u8 twt_request = 1;
+	u8 broadcast = 0;
+	u8 tenth_param;
+	int ret;
+
+	ret = sscanf(buf, "%u %llu %u %u %u %hhu %hhu %hhu %hhu %hhu",
+		     &twt_operation, &target_wake_time, &interval_exp,
+		     &interval_mantissa, &min_wake_duration, &trigger,
+		     &flow_type, &flow_id, &protection, &tenth_param);
+
+	// the new twt_request parameter is optional for station
+	if ((ret != 9 && ret != 10) ||
+	    (vif->type != NL80211_IFTYPE_STATION && tenth_param == 1))
+		return -EINVAL;
+
+	/*
+	 * The 10th parameter:
+	 * In STA mode - the TWT type (broadcast or individual)
+	 * In AP mode - the role (0 responder, 1 requester, 2 unsolicited)
+	 */
+	if (ret == 10) {
+		if (vif->type == NL80211_IFTYPE_STATION)
+			broadcast = tenth_param;
+		else
+			twt_request = tenth_param;
+	}
+
+	cmd = kzalloc(sizeof(*cmd) + sizeof(*dhc_twt_cmd), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	dhc_twt_cmd = (void *)cmd->data;
+	dhc_twt_cmd->mac_id = cpu_to_le32(mvmvif->id);
+	dhc_twt_cmd->twt_operation = cpu_to_le32(twt_operation);
+	dhc_twt_cmd->target_wake_time = cpu_to_le64(target_wake_time);
+	dhc_twt_cmd->interval_exp = cpu_to_le32(interval_exp);
+	dhc_twt_cmd->interval_mantissa = cpu_to_le32(interval_mantissa);
+	dhc_twt_cmd->min_wake_duration = cpu_to_le32(min_wake_duration);
+	dhc_twt_cmd->trigger = trigger;
+	dhc_twt_cmd->flow_type = flow_type;
+	dhc_twt_cmd->flow_id = flow_id;
+	dhc_twt_cmd->protection = protection;
+	dhc_twt_cmd->twt_request = twt_request;
+	dhc_twt_cmd->negotiation_type = broadcast ? 3 : 0;
+
+	cmd->length = cpu_to_le32(sizeof(*dhc_twt_cmd) >> 2);
+	cmd->index_and_mask =
+		cpu_to_le32(DHC_TABLE_INTEGRATION | DHC_TARGET_UMAC |
+			    DHC_INT_UMAC_TWT_OPERATION);
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(DEBUG_HOST_COMMAND,
+						   IWL_ALWAYS_LONG_GROUP, 0),
+				   0, sizeof(*cmd) + sizeof(*dhc_twt_cmd),
+				   cmd);
+	mutex_unlock(&mvm->mutex);
+	kfree(cmd);
+
+	return ret ?: count;
+}
+#endif
+
 #define MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz) \
 	_MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz, struct ieee80211_vif)
 #define MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz) \
@@ -711,6 +791,9 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(uapsd_misbehaving, 20);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(rx_phyinfo, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(quota_min, 32);
 MVM_DEBUGFS_READ_FILE_OPS(os_device_timediff);
+#ifdef CPTCFG_IWLWIFI_DHC
+MVM_DEBUGFS_WRITE_FILE_OPS(twt_setup, 256);
+#endif
 
 
 void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
@@ -755,6 +838,10 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
 	    mvmvif == mvm->bf_allowed_vif)
 		MVM_DEBUGFS_ADD_FILE_VIF(bf_params, mvmvif->dbgfs_dir, 0600);
+
+#ifdef CPTCFG_IWLWIFI_DHC
+	MVM_DEBUGFS_ADD_FILE_VIF(twt_setup, mvmvif->dbgfs_dir, S_IWUSR);
+#endif
 
 	/*
 	 * Create symlink for convenience pointing to interface specific

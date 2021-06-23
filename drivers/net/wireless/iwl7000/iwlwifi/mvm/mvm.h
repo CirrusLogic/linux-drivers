@@ -446,8 +446,6 @@ struct iwl_mvm_vif {
 static inline struct iwl_mvm_vif *
 iwl_mvm_vif_from_mac80211(struct ieee80211_vif *vif)
 {
-	if (!vif)
-		return NULL;
 	return (void *)vif->drv_priv;
 }
 
@@ -1575,7 +1573,12 @@ void iwl_mvm_hwrate_to_tx_rate(u32 rate_n_flags,
 			       struct ieee80211_tx_rate *r);
 u8 iwl_mvm_mac80211_idx_to_hwrate(int rate_idx);
 u8 iwl_mvm_mac80211_ac_to_ucode_ac(enum ieee80211_ac_numbers ac);
-void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm);
+
+static inline void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
+{
+	iwl_fwrt_dump_error_logs(&mvm->fwrt);
+}
+
 u8 first_antenna(u8 mask);
 u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx);
 void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, int clock_type, u32 *gp2,
@@ -2214,6 +2217,7 @@ int iwl_mvm_nan_config_nan_faw_cmd(struct iwl_mvm *mvm,
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b);
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm);
 int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm);
+void iwl_mvm_get_acpi_tables(struct iwl_mvm *mvm);
 #ifdef CPTCFG_IWLWIFI_DEBUGFS
 void iwl_mvm_sta_add_debugfs(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,

@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  */
 
 #ifndef IEEE80211_I_H
@@ -841,9 +841,12 @@ struct txq_info {
 	struct fq_flow def_flow;
 	struct codel_vars def_cvars;
 	struct codel_stats cstats;
-	struct sk_buff_head frags;
-	struct list_head schedule_order;
+
 	u16 schedule_round;
+	struct list_head schedule_order;
+
+	struct sk_buff_head frags;
+
 	unsigned long flags;
 
 	/* keep last! */
@@ -1066,6 +1069,7 @@ enum queue_stop_reason {
 	IEEE80211_QUEUE_STOP_REASON_FLUSH,
 	IEEE80211_QUEUE_STOP_REASON_TDLS_TEARDOWN,
 	IEEE80211_QUEUE_STOP_REASON_RESERVE_TID,
+	IEEE80211_QUEUE_STOP_REASON_IFTYPE_CHANGE,
 
 	IEEE80211_QUEUE_STOP_REASONS,
 };

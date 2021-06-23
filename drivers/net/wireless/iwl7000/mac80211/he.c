@@ -3,7 +3,7 @@
  * HE handling
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2019 - 2020 Intel Corporation
+ * Copyright(c) 2019 - 2021 Intel Corporation
  */
 
 #include "ieee80211_i.h"
@@ -64,10 +64,11 @@ ieee80211_he_cap_ie_to_sta_he_cap(struct ieee80211_sub_if_data *sdata,
 	u8 he_ppe_size;
 	u8 mcs_nss_size;
 	u8 he_total_size;
+	enum nl80211_iftype iftype = ieee80211_vif_type_p2p(&sdata->vif);
 
 	memset(he_cap, 0, sizeof(*he_cap));
 
-	if (!he_cap_ie || !ieee80211_get_he_sta_cap(sband))
+	if (!he_cap_ie || !ieee80211_get_he_iftype_cap(sband, iftype))
 		return;
 
 	/* Make sure size is OK */

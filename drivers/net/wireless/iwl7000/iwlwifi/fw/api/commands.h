@@ -521,6 +521,11 @@ enum iwl_legacy_cmds {
 	DTS_MEASUREMENT_NOTIFICATION = 0xdd,
 
 	/**
+	 * @DEBUG_HOST_COMMAND: &struct iwl_dhc_cmd
+	 */
+	DEBUG_HOST_COMMAND = 0xf1,
+
+	/**
 	 * @LDBG_CONFIG_CMD: configure continuous trace recording
 	 */
 	LDBG_CONFIG_CMD = 0xf6,
@@ -575,7 +580,8 @@ enum iwl_legacy_cmds {
 	WOWLAN_CONFIGURATION = 0xe1,
 
 	/**
-	 * @WOWLAN_TSC_RSC_PARAM: &struct iwl_wowlan_rsc_tsc_params_cmd
+	 * @WOWLAN_TSC_RSC_PARAM: &struct iwl_wowlan_rsc_tsc_params_cmd_v4,
+	 *	&struct iwl_wowlan_rsc_tsc_params_cmd
 	 */
 	WOWLAN_TSC_RSC_PARAM = 0xe2,
 

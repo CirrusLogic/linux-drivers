@@ -1141,7 +1141,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 				      IEEE80211_HE_OPERATION_RTS_THRESHOLD_MASK);
 		changed |= BSS_CHANGED_HE_OBSS_PD;
 
-#if CFG80211_VERSION >= KERNEL_VERSION(5,7,0)
+#if CFG80211_VERSION >= KERNEL_VERSION(5,4,0)
 		if (params->he_bss_color.enabled)
 #endif
 			changed |= BSS_CHANGED_HE_BSS_COLOR;
@@ -1194,7 +1194,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	sdata->vif.bss_conf.twt_responder = params->twt_responder;
 	sdata->vif.bss_conf.he_obss_pd = params->he_obss_pd;
 #endif
-#if CFG80211_VERSION >= KERNEL_VERSION(5,7,0)
+#if CFG80211_VERSION >= KERNEL_VERSION(5,4,0)
 	sdata->vif.bss_conf.he_bss_color = params->he_bss_color;
 #endif
 #if CFG80211_VERSION >= KERNEL_VERSION(5,10,0)

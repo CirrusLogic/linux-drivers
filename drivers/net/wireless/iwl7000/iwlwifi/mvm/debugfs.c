@@ -379,7 +379,6 @@ static ssize_t iwl_dbgfs_sar_geo_profile_read(struct file *file,
 	int pos = 0;
 	int bufsz = sizeof(buf);
 	int tbl_idx;
-	u8 *value;
 
 	if (!iwl_mvm_firmware_running(mvm))
 		return -EIO;
@@ -395,16 +394,18 @@ static ssize_t iwl_dbgfs_sar_geo_profile_read(struct file *file,
 		pos = scnprintf(buf, bufsz,
 				"SAR geographic profile disabled\n");
 	} else {
-		value = &mvm->fwrt.geo_profiles[tbl_idx - 1].values[0];
-
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "Use geographic profile %d\n", tbl_idx);
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "2.4GHz:\n\tChain A offset: %hhu dBm\n\tChain B offset: %hhu dBm\n\tmax tx power: %hhu dBm\n",
-				 value[1], value[2], value[0]);
+				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[0].max,
+				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[0].chains[0],
+				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[0].chains[1]);
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "5.2GHz:\n\tChain A offset: %hhu dBm\n\tChain B offset: %hhu dBm\n\tmax tx power: %hhu dBm\n",
-				 value[4], value[5], value[3]);
+				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[1].max,
+				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[1].chains[0],
+				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[1].chains[1]);
 	}
 	mutex_unlock(&mvm->mutex);
 
@@ -486,6 +487,46 @@ static ssize_t iwl_dbgfs_rs_data_read(struct file *file, char __user *user_buf,
 	kfree(buff);
 	return ret;
 }
+
+#ifdef CPTCFG_IWLWIFI_DHC
+static void iwl_rs_set_fixed_rate(struct iwl_mvm *mvm,
+				  struct iwl_lq_sta_rs_fw *lq_sta)
+{
+	int ret = iwl_rs_send_dhc(mvm, lq_sta,
+				  IWL_TLC_DEBUG_FIXED_RATE,
+				  lq_sta->pers.dbg_fixed_rate);
+
+	char pretty_rate[100];
+
+	if (ret) {
+		lq_sta->pers.dbg_fixed_rate = 0;
+		return;
+	}
+
+	rs_pretty_print_rate(pretty_rate, sizeof(pretty_rate),
+			     lq_sta->pers.dbg_fixed_rate);
+	IWL_DEBUG_RATE(mvm, "sta_id %d rate %s\n",
+		       lq_sta->pers.sta_id, pretty_rate);
+}
+
+static ssize_t iwl_dbgfs_fixed_rate_write(struct ieee80211_sta *sta,
+					  char *buf, size_t count,
+					  loff_t *ppos)
+{
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_lq_sta_rs_fw *lq_sta = &mvmsta->lq_sta.rs_fw;
+	struct iwl_mvm *mvm = lq_sta->pers.drv;
+	u32 parsed_rate;
+
+	if (kstrtou32(buf, 0, &parsed_rate))
+		lq_sta->pers.dbg_fixed_rate = 0;
+	else
+		lq_sta->pers.dbg_fixed_rate = parsed_rate;
+
+	iwl_rs_set_fixed_rate(mvm, lq_sta);
+	return count;
+}
+#endif /* CPTCFG_IWLWIFI_DHC */
 
 static ssize_t iwl_dbgfs_amsdu_len_write(struct ieee80211_sta *sta,
 					 char *buf, size_t count,
@@ -1090,11 +1131,6 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 	if (!iwl_mvm_firmware_running(mvm))
 		return -EIO;
 
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
-		iwl_force_nmi(mvm->trans);
-		return count;
-	}
-
 	mutex_lock(&mvm->mutex);
 
 	/* allow one more restart that we're provoking here */
@@ -1102,7 +1138,9 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 		mvm->fw_restart++;
 
 	/* take the return value to make compiler happy - it will fail anyway */
-	ret = iwl_mvm_send_cmd_pdu(mvm, REPLY_ERROR, 0, 0, NULL);
+	ret = iwl_mvm_send_cmd_pdu(mvm,
+				   WIDE_ID(LONG_GROUP, REPLY_ERROR),
+				   0, 0, NULL);
 
 	mutex_unlock(&mvm->mutex);
 
@@ -2274,6 +2312,9 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters_macs, 256);
 MVM_DEBUGFS_READ_FILE_OPS(sar_geo_profile);
 #endif
 
+#ifdef CPTCFG_IWLWIFI_DHC
+MVM_DEBUGFS_WRITE_STA_FILE_OPS(fixed_rate, 64);
+#endif
 MVM_DEBUGFS_READ_WRITE_STA_FILE_OPS(amsdu_len, 16);
 
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(he_sniffer_params, 32);
@@ -2422,6 +2463,9 @@ void iwl_mvm_sta_add_debugfs(struct ieee80211_hw *hw,
 
 	if (iwl_mvm_has_tlc_offload(mvm)) {
 		MVM_DEBUGFS_ADD_STA_FILE(rs_data, dir, 0400);
+#ifdef CPTCFG_IWLWIFI_DHC
+		MVM_DEBUGFS_ADD_STA_FILE(fixed_rate, dir, 0200);
+#endif
 	}
 	MVM_DEBUGFS_ADD_STA_FILE(amsdu_len, dir, 0600);
 }
