@@ -398,14 +398,14 @@ static ssize_t iwl_dbgfs_sar_geo_profile_read(struct file *file,
 				 "Use geographic profile %d\n", tbl_idx);
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "2.4GHz:\n\tChain A offset: %hhu dBm\n\tChain B offset: %hhu dBm\n\tmax tx power: %hhu dBm\n",
-				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[0].max,
 				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[0].chains[0],
-				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[0].chains[1]);
+				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[0].chains[1],
+				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[0].max);
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "5.2GHz:\n\tChain A offset: %hhu dBm\n\tChain B offset: %hhu dBm\n\tmax tx power: %hhu dBm\n",
-				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[1].max,
 				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[1].chains[0],
-				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[1].chains[1]);
+				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[1].chains[1],
+				 mvm->fwrt.geo_profiles[tbl_idx - 1].bands[1].max);
 	}
 	mutex_unlock(&mvm->mutex);
 
