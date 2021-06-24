@@ -591,8 +591,10 @@ void rtw_coex_info_response(struct rtw_dev *rtwdev, struct sk_buff *skb)
 	struct rtw_coex *coex = &rtwdev->coex;
 	u8 *payload = get_payload_from_coex_resp(skb);
 
-	if (payload[0] != COEX_RESP_ACK_BY_WL_FW)
+	if (payload[0] != COEX_RESP_ACK_BY_WL_FW) {
+		dev_kfree_skb_any(skb);
 		return;
+	}
 
 	skb_queue_tail(&coex->queue, skb);
 	wake_up(&coex->wait);
@@ -3511,6 +3513,7 @@ static bool rtw_coex_get_bt_reg(struct rtw_dev *rtwdev,
 
 	payload = get_payload_from_coex_resp(skb);
 	*val = GET_COEX_RESP_BT_REG_VAL(payload);
+	dev_kfree_skb_any(skb);
 
 	return true;
 }
@@ -3529,6 +3532,8 @@ static bool rtw_coex_get_bt_patch_version(struct rtw_dev *rtwdev,
 
 	payload = get_payload_from_coex_resp(skb);
 	*patch_version = GET_COEX_RESP_BT_PATCH_VER(payload);
+	dev_kfree_skb_any(skb);
+
 	return true;
 }
 
@@ -3546,6 +3551,8 @@ static bool rtw_coex_get_bt_supported_version(struct rtw_dev *rtwdev,
 
 	payload = get_payload_from_coex_resp(skb);
 	*supported_version = GET_COEX_RESP_BT_SUPP_VER(payload);
+	dev_kfree_skb_any(skb);
+
 	return true;
 }
 
@@ -3563,6 +3570,8 @@ static bool rtw_coex_get_bt_supported_feature(struct rtw_dev *rtwdev,
 
 	payload = get_payload_from_coex_resp(skb);
 	*supported_feature = GET_COEX_RESP_BT_SUPP_FEAT(payload);
+	dev_kfree_skb_any(skb);
+
 	return true;
 }
 
