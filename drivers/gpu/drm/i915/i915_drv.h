@@ -471,6 +471,7 @@ struct i915_drrs {
 #define QUIRK_INCREASE_T12_DELAY (1<<6)
 #define QUIRK_INCREASE_DDI_DISABLED_TIME (1<<7)
 #define QUIRK_SHIFT_EDP_BACKLIGHT_BRIGHTNESS (1<<8)
+#define QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK (1<<9)
 
 struct intel_fbdev;
 struct intel_fbc_work;
