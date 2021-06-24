@@ -1012,6 +1012,9 @@ struct kvm_arch {
 	struct list_head tdp_mmu_roots;
 	/* List of struct tdp_mmu_pages not being used as roots */
 	struct list_head tdp_mmu_pages;
+
+	spinlock_t mmu_page_list_lock;
+	struct list_head mmu_page_list;
 };
 
 struct kvm_vm_stat {
