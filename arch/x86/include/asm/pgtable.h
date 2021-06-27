@@ -1458,6 +1458,12 @@ static inline bool arch_faults_on_old_pte(void)
 	return false;
 }
 
+static inline bool arch_has_hw_pte_young(void)
+{
+	return true;
+}
+#define arch_has_hw_pte_young arch_has_hw_pte_young
+
 #endif	/* __ASSEMBLY__ */
 
 #endif /* _ASM_X86_PGTABLE_H */
