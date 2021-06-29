@@ -2928,7 +2928,7 @@ int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level)
 	struct {
 		u8 ver;
 		u8 pad;
-		__le16 len;
+		u16 len;
 		u8 level;
 		u8 rsv[3];
 		__le32 module_idx;
@@ -3177,12 +3177,12 @@ int mt7915_mcu_rdd_cmd(struct mt7915_dev *dev,
 int mt7915_mcu_set_fcc5_lpn(struct mt7915_dev *dev, int val)
 {
 	struct {
-		__le32 tag;
-		__le16 min_lpn;
+		u32 tag;
+		u16 min_lpn;
 		u8 rsv[2];
 	} __packed req = {
-		.tag = cpu_to_le32(0x1),
-		.min_lpn = cpu_to_le16(val),
+		.tag = 0x1,
+		.min_lpn = val,
 	};
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_RDD_TH,
@@ -3193,28 +3193,13 @@ int mt7915_mcu_set_pulse_th(struct mt7915_dev *dev,
 			    const struct mt7915_dfs_pulse *pulse)
 {
 	struct {
-		__le32 tag;
-
-		__le32 max_width;		/* us */
-		__le32 max_pwr;			/* dbm */
-		__le32 min_pwr;			/* dbm */
-		__le32 min_stgr_pri;		/* us */
-		__le32 max_stgr_pri;		/* us */
-		__le32 min_cr_pri;		/* us */
-		__le32 max_cr_pri;		/* us */
+		u32 tag;
+		struct mt7915_dfs_pulse pulse;
 	} __packed req = {
-		.tag = cpu_to_le32(0x3),
-
-#define __req_field(field) .field = cpu_to_le32(pulse->field)
-		__req_field(max_width),
-		__req_field(max_pwr),
-		__req_field(min_pwr),
-		__req_field(min_stgr_pri),
-		__req_field(max_stgr_pri),
-		__req_field(min_cr_pri),
-		__req_field(max_cr_pri),
-#undef __req_field
+		.tag = 0x3,
 	};
+
+	memcpy(&req.pulse, pulse, sizeof(*pulse));
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_RDD_TH,
 				   &req, sizeof(req), true);
@@ -3224,49 +3209,15 @@ int mt7915_mcu_set_radar_th(struct mt7915_dev *dev, int index,
 			    const struct mt7915_dfs_pattern *pattern)
 {
 	struct {
-		__le32 tag;
-		__le16 radar_type;
-
-		u8 enb;
-		u8 stgr;
-		u8 min_crpn;
-		u8 max_crpn;
-		u8 min_crpr;
-		u8 min_pw;
-		u32 min_pri;
-		u32 max_pri;
-		u8 max_pw;
-		u8 min_crbn;
-		u8 max_crbn;
-		u8 min_stgpn;
-		u8 max_stgpn;
-		u8 min_stgpr;
-		u8 rsv[2];
-		u32 min_stgpr_diff;
+		u32 tag;
+		u16 radar_type;
+		struct mt7915_dfs_pattern pattern;
 	} __packed req = {
-		.tag = cpu_to_le32(0x2),
-		.radar_type = cpu_to_le16(index),
-
-#define __req_field_u8(field) .field = pattern->field
-#define __req_field_u32(field) .field = cpu_to_le32(pattern->field)
-		__req_field_u8(enb),
-		__req_field_u8(stgr),
-		__req_field_u8(min_crpn),
-		__req_field_u8(max_crpn),
-		__req_field_u8(min_crpr),
-		__req_field_u8(min_pw),
-		__req_field_u32(min_pri),
-		__req_field_u32(max_pri),
-		__req_field_u8(max_pw),
-		__req_field_u8(min_crbn),
-		__req_field_u8(max_crbn),
-		__req_field_u8(min_stgpn),
-		__req_field_u8(max_stgpn),
-		__req_field_u8(min_stgpr),
-		__req_field_u32(min_stgpr_diff),
-#undef __req_field_u8
-#undef __req_field_u32
+		.tag = 0x2,
+		.radar_type = index,
 	};
+
+	memcpy(&req.pattern, pattern, sizeof(*pattern));
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_RDD_TH,
 				   &req, sizeof(req), true);
@@ -3498,12 +3449,12 @@ int mt7915_mcu_add_obss_spr(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 		u8 drop_tx_idx;
 		u8 sta_idx;	/* 256 sta */
 		u8 rsv[2];
-		__le32 val;
+		u32 val;
 	} __packed req = {
 		.action = MT_SPR_ENABLE,
 		.arg_num = 1,
 		.band_idx = mvif->band_idx,
-		.val = cpu_to_le32(enable),
+		.val = enable,
 	};
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_SPR,
