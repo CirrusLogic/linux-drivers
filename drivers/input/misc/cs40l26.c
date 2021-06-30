@@ -394,6 +394,11 @@ static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 	u32 halo_state, halo_state_reg;
 	int ret;
 
+	ret = cs40l26_pm_state_transition(cs40l26,
+			CS40L26_PM_STATE_PREVENT_HIBERNATE);
+	if (ret)
+		return ret;
+
 	switch (cs40l26->revid) {
 	case CS40L26_REVID_A0:
 		halo_state_reg = CS40L26_A0_DSP_HALO_STATE_REG;
@@ -402,26 +407,22 @@ static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 		halo_state_reg = CS40L26_A1_DSP_HALO_STATE_REG;
 		break;
 	default:
-		dev_err(cs40l26->dev, "Revid ID not supported: %02X\n",
+		dev_err(cs40l26->dev, "Rev. ID not supported: %02X\n",
 			cs40l26->revid);
 		return -EINVAL;
 	}
 
-	ret = regmap_read(cs40l26->regmap, halo_state_reg,
-			&halo_state);
-	if (ret)
+	ret = regmap_read(cs40l26->regmap, halo_state_reg, &halo_state);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to get HALO state\n");
 		return ret;
+	}
 
 	if (halo_state != CS40L26_DSP_HALO_STATE_RUN) {
 		dev_err(cs40l26->dev, "DSP not Ready: HALO_STATE: %08X\n",
 				halo_state);
 		return -EINVAL;
 	}
-
-	ret = cs40l26_pm_state_transition(cs40l26,
-			CS40L26_PM_STATE_PREVENT_HIBERNATE);
-	if (ret)
-		return ret;
 
 	ret = cs40l26_dsp_state_get(cs40l26, &dsp_state);
 	if (ret)
@@ -836,8 +837,7 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 				CS40L26_WKSRC_STS_SHIFT);
 
 		ret = cl_dsp_get_reg(cs40l26->dsp, "LAST_WAKESRC_CTL",
-				CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_FW_ID, &reg);
+				CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw.id, &reg);
 		if (ret)
 			goto err;
 
@@ -2320,23 +2320,42 @@ static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
 	return 0;
 }
 
-static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26)
+static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26, u32 id)
 {
 	int ret = 0;
 
+	if (cs40l26->dsp) {
+		ret = cl_dsp_destroy(cs40l26->dsp);
+		if (ret) {
+			dev_err(cs40l26->dev,
+				"Failed to destroy existing DSP structure\n");
+			return ret;
+		}
+		cs40l26->dsp = NULL;
+	}
+
 	cs40l26->dsp = cl_dsp_create(cs40l26->dev, cs40l26->regmap);
-	if (!cs40l26->dsp)
+	if (!cs40l26->dsp) {
+		dev_err(cs40l26->dev, "Failed to allocate space for DSP\n");
 		return -ENOMEM;
+	}
 
 	if (cs40l26->fw_mode == CS40L26_FW_MODE_ROM) {
+		cs40l26->fw.id = CS40L26_FW_ID;
 		cs40l26->fw.min_rev = CS40L26_FW_ROM_MIN_REV;
 		cs40l26->fw.num_coeff_files = 0;
 		cs40l26->fw.coeff_files = NULL;
 	} else {
-		if (cs40l26->revid == CS40L26_REVID_A1)
-			cs40l26->fw.min_rev = CS40L26_FW_A1_RAM_MIN_REV;
-		else
+		cs40l26->fw.id = id;
+
+		if (cs40l26->revid == CS40L26_REVID_A1) {
+			if (id == CS40L26_FW_ID)
+				cs40l26->fw.min_rev = CS40L26_FW_A1_RAM_MIN_REV;
+			if (id == CS40L26_FW_CALIB_ID)
+				cs40l26->fw.min_rev = CS40L26_FW_CALIB_MIN_REV;
+		} else {
 			cs40l26->fw.min_rev = CS40L26_FW_A0_RAM_MIN_REV;
+		}
 
 		cs40l26->fw.num_coeff_files =
 				ARRAY_SIZE(cs40l26_ram_coeff_files);
@@ -2344,7 +2363,7 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26)
 
 		ret = cl_dsp_wavetable_create(cs40l26->dsp,
 				CS40L26_VIBEGEN_ALGO_ID, CS40L26_WT_NAME_XM,
-				CS40L26_WT_NAME_YM, "cs40l26.bin");
+				CS40L26_WT_NAME_YM, CS40L26_WT_FILE_NAME);
 	}
 
 	cs40l26->num_owt_effects = 0;
@@ -2712,7 +2731,7 @@ static int cs40l26_verify_fw(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	if (val != CS40L26_FW_ID) {
+	if (val != cs40l26->fw.id) {
 		dev_err(cs40l26->dev, "Invalid firmware ID: 0x%X\n", val);
 		return -EINVAL;
 	}
@@ -2870,8 +2889,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM) {
 		ret = cl_dsp_get_reg(cs40l26->dsp, "CALL_RAM_INIT",
-				CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_FW_ID, &reg);
+				CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw.id, &reg);
 		if (ret)
 			goto err_out;
 
@@ -2921,8 +2939,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	/* ensure firmware running */
 	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_STATE",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_FW_ID,
-			&reg);
+			CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw.id, &reg);
 	if (ret)
 		goto err_out;
 
@@ -3008,6 +3025,78 @@ static void cs40l26_firmware_load(const struct firmware *fw, void *context)
 
 	cs40l26_dsp_config(cs40l26);
 }
+
+static int cs40l26_fw_load_prepare(struct cs40l26_private *cs40l26, u32 id)
+{
+	int ret;
+
+	cs40l26->fw_loaded = false;
+
+	/* the /ALERT pin may be asserted prior to firmware initialization.
+	 * Disable the interrupt handler until firmware has downloaded
+	 * so erroneous interrupt requests are ignored
+	 */
+	disable_irq(cs40l26->irq);
+
+	ret = cs40l26_cl_dsp_init(cs40l26, id);
+	if (ret)
+		return ret;
+
+	return cs40l26_dsp_pre_config(cs40l26);
+}
+
+int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
+{
+	struct device *dev = cs40l26->dev;
+	const struct firmware *swap_fw, *coeff_fw;
+	int ret, i;
+
+	if (id == cs40l26->fw.id) {
+		dev_warn(dev, "Cannot swap to same ID as running firmware\n");
+		return 0;
+	}
+
+	cs40l26_pm_runtime_teardown(cs40l26);
+
+	ret = cs40l26_fw_load_prepare(cs40l26, id);
+
+	if (cs40l26->fw.id == CS40L26_FW_ID)
+		ret = request_firmware(&swap_fw, CS40L26_FW_FILE_NAME, dev);
+	else
+		ret = request_firmware(&swap_fw, CS40L26_FW_CALIB_NAME, dev);
+
+	if (ret) {
+		dev_err(dev, "Failed to request calibration firmware\n");
+		goto irq_exit;
+	}
+
+	ret = cl_dsp_firmware_parse(cs40l26->dsp, swap_fw, true);
+	release_firmware(swap_fw);
+	if (ret)
+		goto irq_exit;
+
+	for (i = 0; i < cs40l26->fw.num_coeff_files; i++) {
+		request_firmware(&coeff_fw, cs40l26->fw.coeff_files[i], dev);
+		if (!coeff_fw) {
+			dev_warn(dev, "Continuing...\n");
+			continue;
+		}
+
+		if (cl_dsp_coeff_file_parse(cs40l26->dsp, coeff_fw))
+			dev_warn(dev, "Continuing...\n");
+		else
+			dev_dbg(dev, "%s Loaded Successfully\n",
+				cs40l26->fw.coeff_files[i]);
+	}
+
+	return cs40l26_dsp_config(cs40l26);
+
+irq_exit:
+	enable_irq(cs40l26->irq);
+
+	return ret;
+}
+EXPORT_SYMBOL(cs40l26_fw_swap);
 
 static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 {
@@ -3171,17 +3260,8 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 		dev_err(dev, "Failed to request threaded IRQ\n");
 		goto err;
 	}
-	/* the /ALERT pin may be asserted prior to firmware initialization.
-	 * Disable the interrupt handler until firmware has downloaded
-	 * so erroneous interrupt requests are ignored
-	 */
-	disable_irq(cs40l26->irq);
 
-	ret = cs40l26_cl_dsp_init(cs40l26);
-	if (ret)
-		goto err;
-
-	ret = cs40l26_dsp_pre_config(cs40l26);
+	ret = cs40l26_fw_load_prepare(cs40l26, CS40L26_FW_ID);
 	if (ret)
 		goto err;
 
