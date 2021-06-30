@@ -786,6 +786,7 @@
 
 /* Firmware Mode */
 #define CS40L26_FW_FILE_NAME		"cs40l26.wmfw"
+#define CS40L26_FW_CALIB_NAME		"cs40l26-calib.wmfw"
 
 #define CS40L26_WT_FILE_NAME		"cs40l26.bin"
 #define CS40L26_SVC_TUNING_FILE_NAME	"cs40l26-svc.bin"
@@ -795,6 +796,8 @@
 #define CS40L26_FW_ROM_MIN_REV		0x040000
 #define CS40L26_FW_A0_RAM_MIN_REV	0x050004
 #define CS40L26_FW_A1_RAM_MIN_REV	0x070201
+#define CS40L26_FW_CALIB_ID		0x1800DA
+#define CS40L26_FW_CALIB_MIN_REV	0x010000
 
 #define CS40L26_CCM_CORE_RESET		0x00000200
 #define CS40L26_CCM_CORE_ENABLE	0x00000281
@@ -1120,9 +1123,6 @@
 
 #define CS40L26_SAMPS_TO_MS(n)	((n) / 8)
 
-extern const struct cl_dsp_fw_desc cs40l26_fw;
-extern const struct cl_dsp_fw_desc cs40l26_ram_fw;
-
 /* enums */
 enum cs40l26_vibe_state {
 	CS40L26_VIBE_STATE_STOPPED,
@@ -1231,11 +1231,8 @@ enum cs40l26_pm_state {
 struct cs40l26_fw {
 	unsigned int id;
 	unsigned int min_rev;
-	unsigned int halo_state_run;
 	unsigned int num_coeff_files;
 	const char * const *coeff_files;
-	const char *fw_file;
-	bool write_fw;
 };
 
 struct cs40l26_owt_section {
@@ -1346,6 +1343,7 @@ struct cs40l26_pll_sysclk_config {
 };
 
 /* exported function prototypes */
+int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id);
 void cs40l26_vibe_state_set(struct cs40l26_private *cs40l26,
 		enum cs40l26_vibe_state);
 int cs40l26_class_h_set(struct cs40l26_private *cs40l26, bool class_h);
