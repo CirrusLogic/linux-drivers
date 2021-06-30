@@ -884,7 +884,6 @@ static void cl_dsp_coeff_free(struct cl_dsp *dsp)
 		coeff_desc = list_first_entry(&dsp->coeff_desc_head,
 				struct cl_dsp_coeff_desc, list);
 		list_del(&coeff_desc->list);
-		kfree(coeff_desc->parent_name);
 		devm_kfree(dsp->dev, coeff_desc);
 	}
 }
