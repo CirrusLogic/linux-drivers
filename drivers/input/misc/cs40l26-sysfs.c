@@ -62,7 +62,7 @@ static ssize_t cs40l26_halo_heartbeat_show(struct device *dev,
 	pm_runtime_get_sync(cs40l26->dev);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_HEARTBEAT",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_FW_ID, &reg);
+			CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw.id, &reg);
 	if (ret)
 		return ret;
 
@@ -775,7 +775,7 @@ static ssize_t cs40l26_redc_cal_time_ms_show(struct device *dev,
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_PLAYTIME_MS",
 			CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_FW_ID, &reg);
+			cs40l26->fw.id, &reg);
 	if (ret)
 		goto err_mutex;
 
@@ -982,6 +982,49 @@ err_mutex:
 	return snprintf(buf, PAGE_SIZE, "0x%06X\n", max_vbst);
 }
 
+static ssize_t cs40l26_calib_fw_load_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+
+	mutex_lock(&cs40l26->lock);
+
+	if (cs40l26->fw.id == CS40L26_FW_ID)
+		ret = snprintf(buf, PAGE_SIZE, "%u\n", 0);
+	else if (cs40l26->fw.id == CS40L26_FW_CALIB_ID)
+		ret = snprintf(buf, PAGE_SIZE, "%u\n", 1);
+	else
+		ret = -EINVAL;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return ret;
+}
+
+static ssize_t cs40l26_calib_fw_load_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	unsigned int variant;
+
+	ret = kstrtou32(buf, 10, &variant);
+	if (ret)
+		return ret;
+
+	if (variant == 0)
+		ret = cs40l26_fw_swap(cs40l26, CS40L26_FW_ID);
+	else if (variant == 1)
+		ret = cs40l26_fw_swap(cs40l26, CS40L26_FW_CALIB_ID);
+	else
+		ret = -EINVAL;
+
+	return ret ? ret : count;
+}
+
+static DEVICE_ATTR(calib_fw_load, 0660, cs40l26_calib_fw_load_show,
+		cs40l26_calib_fw_load_store);
 static DEVICE_ATTR(max_vbst, 0440, cs40l26_max_vbst_show, NULL);
 static DEVICE_ATTR(max_bemf, 0440, cs40l26_max_bemf_show, NULL);
 static DEVICE_ATTR(logging_max_reset,
@@ -1010,6 +1053,7 @@ static DEVICE_ATTR(redc_cal_time_ms,
 		0440, cs40l26_redc_cal_time_ms_show, NULL);
 
 static struct attribute *cs40l26_dev_attrs_cal[] = {
+	&dev_attr_calib_fw_load.attr,
 	&dev_attr_max_vbst.attr,
 	&dev_attr_max_bemf.attr,
 	&dev_attr_logging_max_reset.attr,
