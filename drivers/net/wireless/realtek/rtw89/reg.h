@@ -1277,6 +1277,7 @@
 			    B_AX_A_MC_LIST_CAM_MATCH |			       \
 			    u32_encode_bits(3, B_AX_UID_FILTER_MASK) |	       \
 			    B_AX_A_BCN_CHK_EN)
+#define B_AX_RX_FLTR_CFG_MASK ((u32)~B_AX_RX_MPDU_MAX_LEN_MASK)
 
 #define R_AX_CTRL_FLTR 0xCE24
 #define R_AX_CTRL_FLTR_C1 0xEE24

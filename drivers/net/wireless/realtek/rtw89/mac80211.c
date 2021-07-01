@@ -190,14 +190,16 @@ static void rtw89_ops_configure_filter(struct ieee80211_hw *hw,
 		}
 	}
 
-	rtw89_write32(rtwdev,
-		      rtw89_mac_reg_by_idx(R_AX_RX_FLTR_OPT, RTW89_MAC_0),
-		      rtwdev->hal.rx_fltr);
+	rtw89_write32_mask(rtwdev,
+			   rtw89_mac_reg_by_idx(R_AX_RX_FLTR_OPT, RTW89_MAC_0),
+			   B_AX_RX_FLTR_CFG_MASK,
+			   rtwdev->hal.rx_fltr);
 	if (!rtwdev->dbcc_en)
 		goto out;
-	rtw89_write32(rtwdev,
-		      rtw89_mac_reg_by_idx(R_AX_RX_FLTR_OPT, RTW89_MAC_1),
-		      rtwdev->hal.rx_fltr);
+	rtw89_write32_mask(rtwdev,
+			   rtw89_mac_reg_by_idx(R_AX_RX_FLTR_OPT, RTW89_MAC_1),
+			   B_AX_RX_FLTR_CFG_MASK,
+			   rtwdev->hal.rx_fltr);
 
 out:
 	mutex_unlock(&rtwdev->mutex);
