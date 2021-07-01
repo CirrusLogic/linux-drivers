@@ -758,11 +758,13 @@ read_table:
 			union acpi_object *entry;
 
 			/*
-			 * If we don't have all bands in ACPI, use the
-			 * maximum as default.
+			 * num_bands is either 2 or 3, if it's only 2 then
+			 * fill the third band (6 GHz) with the values from
+			 * 5 GHz (second band)
 			 */
 			if (j >= num_bands) {
-				fwrt->geo_profiles[i].bands[j].max = 0xff;
+				fwrt->geo_profiles[i].bands[j].max =
+					fwrt->geo_profiles[i].bands[1].max;
 			} else {
 				entry = &wifi_pkg->package.elements[idx++];
 				if (entry->type != ACPI_TYPE_INTEGER ||
@@ -776,13 +778,10 @@ read_table:
 			}
 
 			for (k = 0; k < ACPI_GEO_NUM_CHAINS; k++) {
-				/*
-				 * If we don't have all bands in ACPI,
-				 * use no offset as default.
-				 */
-
+				/* same here as above */
 				if (j >= num_bands) {
-					fwrt->geo_profiles[i].bands[j].chains[k] = 0;
+					fwrt->geo_profiles[i].bands[j].chains[k] =
+						fwrt->geo_profiles[i].bands[1].chains[k];
 				} else {
 					entry = &wifi_pkg->package.elements[idx++];
 					if (entry->type != ACPI_TYPE_INTEGER ||
