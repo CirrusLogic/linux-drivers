@@ -189,7 +189,7 @@ static int s0ix_stats_show(struct seq_file *s, void *unused)
 	exit_time = exit_time << 32 | ioread32(dev->fch_virt_addr + FCH_S0I3_EXIT_TIME_L_OFFSET);
 
 	/* It's in 48MHz. We need to convert it */
-	residency = (exit_time - entry_time) / 48;
+	residency = div_u64(exit_time - entry_time, 48);
 
 	seq_puts(s, "=== S0ix statistics ===\n");
 	seq_printf(s, "S0ix Entry Time: %lld\n", entry_time);
