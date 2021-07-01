@@ -2988,48 +2988,13 @@ err_out:
 	return ret;
 }
 
-static void cs40l26_firmware_load(const struct firmware *fw, void *context)
+static int cs40l26_firmware_load(struct cs40l26_private *cs40l26, u32 id)
 {
-	struct cs40l26_private *cs40l26 = (struct cs40l26_private *)context;
 	struct device *dev = cs40l26->dev;
-	const struct firmware *coeff_fw;
+	const struct firmware *fw, *coeff;
 	int ret, i;
 
-	if (!fw) {
-		dev_err(dev, "Failed to request firmware file\n");
-		return;
-	}
-
 	cs40l26->pm_ready = false;
-
-	ret = cl_dsp_firmware_parse(cs40l26->dsp, fw,
-			cs40l26->fw_mode == CS40L26_FW_MODE_RAM);
-	release_firmware(fw);
-	if (ret)
-		return;
-
-	for (i = 0; i < cs40l26->fw.num_coeff_files; i++) {
-		request_firmware(&coeff_fw, cs40l26->fw.coeff_files[i],
-				dev);
-		if (!coeff_fw) {
-			dev_warn(dev, "Continuing...\n");
-			continue;
-		}
-
-		if (cl_dsp_coeff_file_parse(cs40l26->dsp, coeff_fw))
-			dev_warn(dev, "Continuing...\n");
-		else
-			dev_dbg(dev, "%s Loaded Successfully\n",
-				cs40l26->fw.coeff_files[i]);
-	}
-
-	cs40l26_dsp_config(cs40l26);
-}
-
-static int cs40l26_fw_load_prepare(struct cs40l26_private *cs40l26, u32 id)
-{
-	int ret;
-
 	cs40l26->fw_loaded = false;
 
 	/* the /ALERT pin may be asserted prior to firmware initialization.
@@ -3040,16 +3005,51 @@ static int cs40l26_fw_load_prepare(struct cs40l26_private *cs40l26, u32 id)
 
 	ret = cs40l26_cl_dsp_init(cs40l26, id);
 	if (ret)
-		return ret;
+		goto irq_exit;
 
-	return cs40l26_dsp_pre_config(cs40l26);
+	ret = cs40l26_dsp_pre_config(cs40l26);
+	if (ret)
+		goto irq_exit;
+
+	if (cs40l26->fw.id == CS40L26_FW_ID)
+		ret = request_firmware(&fw, CS40L26_FW_FILE_NAME, dev);
+	else
+		ret = request_firmware(&fw, CS40L26_FW_CALIB_NAME, dev);
+
+	if (ret)
+		goto irq_exit;
+
+	ret = cl_dsp_firmware_parse(cs40l26->dsp, fw, true);
+	release_firmware(fw);
+	if (ret)
+		goto irq_exit;
+
+	for (i = 0; i < cs40l26->fw.num_coeff_files; i++) {
+		request_firmware(&coeff, cs40l26->fw.coeff_files[i], dev);
+		if (!coeff) {
+			dev_warn(dev, "Continuing...\n");
+			continue;
+		}
+
+		if (cl_dsp_coeff_file_parse(cs40l26->dsp, coeff))
+			dev_warn(dev, "Continuing...\n");
+		else
+			dev_dbg(dev, "%s Loaded Successfully\n",
+				cs40l26->fw.coeff_files[i]);
+	}
+
+	ret = cs40l26_dsp_config(cs40l26);
+
+irq_exit:
+	enable_irq(cs40l26->irq);
+
+	return ret;
 }
 
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 {
 	struct device *dev = cs40l26->dev;
-	const struct firmware *swap_fw, *coeff_fw;
-	int ret, i;
+	int ret;
 
 	if (id == cs40l26->fw.id) {
 		dev_warn(dev, "Cannot swap to same ID as running firmware\n");
@@ -3058,41 +3058,9 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 
 	cs40l26_pm_runtime_teardown(cs40l26);
 
-	ret = cs40l26_fw_load_prepare(cs40l26, id);
-
-	if (cs40l26->fw.id == CS40L26_FW_ID)
-		ret = request_firmware(&swap_fw, CS40L26_FW_FILE_NAME, dev);
-	else
-		ret = request_firmware(&swap_fw, CS40L26_FW_CALIB_NAME, dev);
-
-	if (ret) {
-		dev_err(dev, "Failed to request calibration firmware\n");
-		goto irq_exit;
-	}
-
-	ret = cl_dsp_firmware_parse(cs40l26->dsp, swap_fw, true);
-	release_firmware(swap_fw);
+	ret = cs40l26_firmware_load(cs40l26, id);
 	if (ret)
-		goto irq_exit;
-
-	for (i = 0; i < cs40l26->fw.num_coeff_files; i++) {
-		request_firmware(&coeff_fw, cs40l26->fw.coeff_files[i], dev);
-		if (!coeff_fw) {
-			dev_warn(dev, "Continuing...\n");
-			continue;
-		}
-
-		if (cl_dsp_coeff_file_parse(cs40l26->dsp, coeff_fw))
-			dev_warn(dev, "Continuing...\n");
-		else
-			dev_dbg(dev, "%s Loaded Successfully\n",
-				cs40l26->fw.coeff_files[i]);
-	}
-
-	return cs40l26_dsp_config(cs40l26);
-
-irq_exit:
-	enable_irq(cs40l26->irq);
+		dev_err(dev, "Failed to request calibration firmware\n");
 
 	return ret;
 }
@@ -3261,13 +3229,9 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 		goto err;
 	}
 
-	ret = cs40l26_fw_load_prepare(cs40l26, CS40L26_FW_ID);
+	ret = cs40l26_firmware_load(cs40l26, CS40L26_FW_ID);
 	if (ret)
 		goto err;
-
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
-			CS40L26_FW_FILE_NAME, dev, GFP_KERNEL, cs40l26,
-			cs40l26_firmware_load);
 
 	ret = cs40l26_input_init(cs40l26);
 	if (ret)
