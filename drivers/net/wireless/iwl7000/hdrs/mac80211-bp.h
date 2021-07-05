@@ -2175,9 +2175,6 @@ struct cfg80211_he_bss_color {
 	bool disabled;
 	bool partial;
 };
-#endif
-
-#if CFG80211_VERSION < KERNEL_VERSION(5,7,0)
 
 /**
  * enum nl80211_tid_config - TID config state
@@ -2188,7 +2185,9 @@ enum nl80211_tid_config {
 	NL80211_TID_CONFIG_ENABLE,
 	NL80211_TID_CONFIG_DISABLE,
 };
+#endif
 
+#if CFG80211_VERSION < KERNEL_VERSION(5,7,0)
 /**
  * struct cfg80211_tid_cfg - TID specific configuration
  * @config_override: Flag to notify driver to reset TID configuration
