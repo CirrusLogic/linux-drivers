@@ -2192,7 +2192,7 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			gpio-ranges = <&tlmm 0 0 150>;
+			gpio-ranges = <&tlmm 0 0 151>;
 			wakeup-parent = <&pdc_intc>;
 
 			cci0_default: cci0-default {
@@ -3704,10 +3704,6 @@
 					required-opps = <&rpmhpd_opp_turbo>;
 				};
 			};
-
-			video-firmware {
-				iommus = <&apps_smmu 0x10b2 0x0>;
-			};
 		};
 
 		videocc: clock-controller@ab00000 {
@@ -4382,6 +4378,7 @@
 			compatible = "qcom,apss-wdt-sdm845", "qcom,kpss-wdt";
 			reg = <0 0x17980000 0 0x1000>;
 			clocks = <&sleep_clk>;
+			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		apss_shared: mailbox@17990000 {

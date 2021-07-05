@@ -362,12 +362,18 @@ static int ti_sn_bridge_attach(struct drm_bridge *bridge,
 		return -EINVAL;
 	}
 
+	ret = drm_dp_aux_register(&pdata->aux);
+	if (ret < 0) {
+		drm_err(bridge->dev, "Failed to register DP AUX channel: %d\n", ret);
+		return ret;
+	}
+
 	ret = drm_connector_init(bridge->dev, &pdata->connector,
 				 &ti_sn_bridge_connector_funcs,
 				 DRM_MODE_CONNECTOR_eDP);
 	if (ret) {
 		DRM_ERROR("Failed to initialize connector with drm\n");
-		return ret;
+		goto err_conn_init;
 	}
 
 	drm_connector_helper_add(&pdata->connector,
@@ -424,7 +430,14 @@ err_dsi_attach:
 	mipi_dsi_device_unregister(dsi);
 err_dsi_host:
 	drm_connector_cleanup(&pdata->connector);
+err_conn_init:
+	drm_dp_aux_unregister(&pdata->aux);
 	return ret;
+}
+
+static void ti_sn_bridge_detach(struct drm_bridge *bridge)
+{
+	drm_dp_aux_unregister(&bridge_to_ti_sn_bridge(bridge)->aux);
 }
 
 static void ti_sn_bridge_disable(struct drm_bridge *bridge)
@@ -724,9 +737,9 @@ static int ti_sn_link_training(struct ti_sn_bridge *pdata, int dp_rate_idx,
 		/* Semi auto link training mode */
 		regmap_write(pdata->regmap, SN_ML_TX_MODE_REG, 0x0A);
 		ret = regmap_read_poll_timeout(pdata->regmap, SN_ML_TX_MODE_REG, val,
-					val == ML_TX_MAIN_LINK_OFF ||
-					val == ML_TX_NORMAL_MODE, 1000,
-					500 * 1000);
+					       val == ML_TX_MAIN_LINK_OFF ||
+					       val == ML_TX_NORMAL_MODE, 1000,
+					       500 * 1000);
 		if (ret) {
 			*last_err_str = "Training complete polling failed";
 		} else if (val == ML_TX_MAIN_LINK_OFF) {
@@ -856,14 +869,14 @@ static void ti_sn_bridge_post_disable(struct drm_bridge *bridge)
 {
 	struct ti_sn_bridge *pdata = bridge_to_ti_sn_bridge(bridge);
 
-	if (pdata->refclk)
-		clk_disable_unprepare(pdata->refclk);
+	clk_disable_unprepare(pdata->refclk);
 
 	pm_runtime_put_sync(pdata->dev);
 }
 
 static const struct drm_bridge_funcs ti_sn_bridge_funcs = {
 	.attach = ti_sn_bridge_attach,
+	.detach = ti_sn_bridge_detach,
 	.pre_enable = ti_sn_bridge_pre_enable,
 	.enable = ti_sn_bridge_enable,
 	.disable = ti_sn_bridge_disable,
@@ -1288,7 +1301,7 @@ static int ti_sn_bridge_probe(struct i2c_client *client,
 	pdata->aux.name = "ti-sn65dsi86-aux";
 	pdata->aux.dev = pdata->dev;
 	pdata->aux.transfer = ti_sn_aux_transfer;
-	drm_dp_aux_register(&pdata->aux);
+	drm_dp_aux_init(&pdata->aux);
 
 	pdata->bridge.funcs = &ti_sn_bridge_funcs;
 	pdata->bridge.of_node = client->dev.of_node;

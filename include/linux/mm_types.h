@@ -15,6 +15,8 @@
 #include <linux/page-flags-layout.h>
 #include <linux/workqueue.h>
 #include <linux/seqlock.h>
+#include <linux/nodemask.h>
+#include <linux/mmdebug.h>
 
 #include <asm/mmu.h>
 
@@ -23,6 +25,7 @@
 #endif
 #define AT_VECTOR_SIZE (2*(AT_VECTOR_SIZE_ARCH + AT_VECTOR_SIZE_BASE + 1))
 
+#define INIT_PASID	0
 
 struct address_space;
 struct mem_cgroup;
@@ -96,10 +99,10 @@ struct page {
 		};
 		struct {	/* page_pool used by netstack */
 			/**
-			 * @dma_addr: might require a 64-bit value even on
+			 * @dma_addr: might require a 64-bit value on
 			 * 32-bit architectures.
 			 */
-			dma_addr_t dma_addr;
+			unsigned long dma_addr[2];
 		};
 		struct {	/* slab, slob and slub */
 			union {
@@ -454,13 +457,6 @@ struct mm_struct {
 		 */
 		atomic_t has_pinned;
 
-		/**
-		 * @write_protect_seq: Locked when any thread is write
-		 * protecting pages mapped by this mm to enforce a later COW,
-		 * for instance during page table copying for fork().
-		 */
-		seqcount_t write_protect_seq;
-
 #ifdef CONFIG_MMU
 		atomic_long_t pgtables_bytes;	/* PTE page table pages */
 #endif
@@ -469,6 +465,18 @@ struct mm_struct {
 		spinlock_t page_table_lock; /* Protects page tables and some
 					     * counters
 					     */
+		/*
+		 * With some kernel config, the current mmap_lock's offset
+		 * inside 'mm_struct' is at 0x120, which is very optimal, as
+		 * its two hot fields 'count' and 'owner' sit in 2 different
+		 * cachelines,  and when mmap_lock is highly contended, both
+		 * of the 2 fields will be accessed frequently, current layout
+		 * will help to reduce cache bouncing.
+		 *
+		 * So please be careful with adding new fields before
+		 * mmap_lock, which can easily push the 2 fields into one
+		 * cacheline.
+		 */
 		struct rw_semaphore mmap_lock;
 
 		struct list_head mmlist; /* List of maybe swapped mm's.	These
@@ -489,7 +497,15 @@ struct mm_struct {
 		unsigned long stack_vm;	   /* VM_STACK */
 		unsigned long def_flags;
 
+		/**
+		 * @write_protect_seq: Locked when any thread is write
+		 * protecting pages mapped by this mm to enforce a later COW,
+		 * for instance during page table copying for fork().
+		 */
+		seqcount_t write_protect_seq;
+
 		spinlock_t arg_lock; /* protect the below fields */
+
 		unsigned long start_code, end_code, start_data, end_data;
 		unsigned long start_brk, brk, start_stack;
 		unsigned long arg_start, arg_end, env_start, env_end;
@@ -571,6 +587,22 @@ struct mm_struct {
 #ifdef CONFIG_IOMMU_SUPPORT
 		u32 pasid;
 #endif
+#ifdef CONFIG_LRU_GEN
+		struct {
+			/* the node of a global or per-memcg mm_struct list */
+			struct list_head list;
+#ifdef CONFIG_MEMCG
+			/* points to the memcg of the owner task above */
+			struct mem_cgroup *memcg;
+#endif
+			/* whether this mm_struct has been used since the last walk */
+			nodemask_t nodes;
+#ifndef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+			/* the number of CPUs using this mm_struct */
+			atomic_t nr_cpus;
+#endif
+		} lrugen;
+#endif
 	} __randomize_layout;
 
 	/*
@@ -596,6 +628,95 @@ static inline cpumask_t *mm_cpumask(struct mm_struct *mm)
 {
 	return (struct cpumask *)&mm->cpu_bitmap;
 }
+
+#ifdef CONFIG_LRU_GEN
+
+void lru_gen_init_mm(struct mm_struct *mm);
+void lru_gen_add_mm(struct mm_struct *mm);
+void lru_gen_del_mm(struct mm_struct *mm);
+#ifdef CONFIG_MEMCG
+int lru_gen_alloc_mm_list(struct mem_cgroup *memcg);
+void lru_gen_free_mm_list(struct mem_cgroup *memcg);
+void lru_gen_migrate_mm(struct mm_struct *mm);
+#endif
+
+/* Track the usage of each mm_struct so that we can skip inactive ones. */
+static inline void lru_gen_switch_mm(struct mm_struct *old, struct mm_struct *new)
+{
+	/* exclude init_mm, efi_mm, etc. */
+	if (!core_kernel_data((unsigned long)old)) {
+		VM_BUG_ON(old == &init_mm);
+
+		nodes_setall(old->lrugen.nodes);
+#ifndef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+		atomic_dec(&old->lrugen.nr_cpus);
+		VM_BUG_ON_MM(atomic_read(&old->lrugen.nr_cpus) < 0, old);
+#endif
+	} else
+		VM_BUG_ON_MM(READ_ONCE(old->lrugen.list.prev) ||
+			     READ_ONCE(old->lrugen.list.next), old);
+
+	if (!core_kernel_data((unsigned long)new)) {
+		VM_BUG_ON(new == &init_mm);
+
+#ifndef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+		atomic_inc(&new->lrugen.nr_cpus);
+		VM_BUG_ON_MM(atomic_read(&new->lrugen.nr_cpus) < 0, new);
+#endif
+	} else
+		VM_BUG_ON_MM(READ_ONCE(new->lrugen.list.prev) ||
+			     READ_ONCE(new->lrugen.list.next), new);
+}
+
+/* Return whether this mm_struct is being used on any CPUs. */
+static inline bool lru_gen_mm_is_active(struct mm_struct *mm)
+{
+#ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+	return !cpumask_empty(mm_cpumask(mm));
+#else
+	return atomic_read(&mm->lrugen.nr_cpus);
+#endif
+}
+
+#else /* CONFIG_LRU_GEN */
+
+static inline void lru_gen_init_mm(struct mm_struct *mm)
+{
+}
+
+static inline void lru_gen_add_mm(struct mm_struct *mm)
+{
+}
+
+static inline void lru_gen_del_mm(struct mm_struct *mm)
+{
+}
+
+#ifdef CONFIG_MEMCG
+static inline int lru_gen_alloc_mm_list(struct mem_cgroup *memcg)
+{
+	return 0;
+}
+
+static inline void lru_gen_free_mm_list(struct mem_cgroup *memcg)
+{
+}
+
+static inline void lru_gen_migrate_mm(struct mm_struct *mm)
+{
+}
+#endif
+
+static inline void lru_gen_switch_mm(struct mm_struct *old, struct mm_struct *new)
+{
+}
+
+static inline bool lru_gen_mm_is_active(struct mm_struct *mm)
+{
+	return false;
+}
+
+#endif /* CONFIG_LRU_GEN */
 
 struct mmu_gather;
 extern void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,

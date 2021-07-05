@@ -190,6 +190,19 @@ kallsyms()
 	${NM} -n ${1} | scripts/kallsyms ${kallsymopt} > ${2}
 }
 
+kallsyms_diff()
+{
+	if [ "${quiet}" != "silent_" ]; then
+		local ksym_prev="${kallsymso_prev}.sym"
+		local ksym="${kallsymso}.sym"
+
+		echo "Symbol file differences:"
+		objdump --syms "${kallsymso_prev}" > "${ksym_prev}"
+		objdump --syms "${kallsymso}" > "${ksym}"
+		diff -I ".tmp_vmlinux.kallsyms" -u "${ksym_prev}" "${ksym}"
+	fi
+}
+
 # Perform one step in kallsyms generation, including temporary linking of
 # vmlinux.
 kallsyms_step()
@@ -335,6 +348,13 @@ if [ -n "${CONFIG_KALLSYMS}" ]; then
 
 	if [ $size1 -ne $size2 ] || [ -n "${KALLSYMS_EXTRA_PASS}" ]; then
 		kallsyms_step 3
+		size1=$(${CONFIG_SHELL} "${srctree}/scripts/file-size.sh" ${kallsymso_prev})
+		size2=$(${CONFIG_SHELL} "${srctree}/scripts/file-size.sh" ${kallsymso})
+	fi
+
+	# Display symbol file differences if they will result in a build failure
+	if [ $size1 -ne $size2 ]; then
+		kallsyms_diff
 	fi
 fi
 
@@ -364,6 +384,8 @@ if [ -n "${CONFIG_KALLSYMS}" ]; then
 	if ! cmp -s System.map .tmp_System.map; then
 		echo >&2 Inconsistent kallsyms data
 		echo >&2 Try "make KALLSYMS_EXTRA_PASS=1" as a workaround
+		echo >&2 System.map differences:
+		diff -u System.map .tmp_System.map >&2
 		exit 1
 	fi
 fi

@@ -19,26 +19,24 @@ static inline char *i2c_hid_get_dmi_hid_report_desc_override(uint8_t *i2c_name,
 #endif
 
 /**
- * struct i2chid_subclass_data - Data passed from subclass to the core.
+ * struct i2chid_ops - Ops provided to the core.
  *
- * @power_up_device: do sequencing to power up the device.
- * @power_down_device: do sequencing to power down the device.
+ * @power_up: do sequencing to power up the device.
+ * @power_down: do sequencing to power down the device.
+ * @shutdown_tail: called at the end of shutdown.
  */
-struct i2chid_subclass_data {
-	int (*power_up_device)(struct i2chid_subclass_data *subclass);
-	void (*power_down_device)(struct i2chid_subclass_data *subclass);
+struct i2chid_ops {
+	int (*power_up)(struct i2chid_ops *ops);
+	void (*power_down)(struct i2chid_ops *ops);
+	void (*shutdown_tail)(struct i2chid_ops *ops);
 };
 
-int i2c_hid_core_probe(struct i2c_client *client,
-		       struct i2chid_subclass_data *subclass,
+int i2c_hid_core_probe(struct i2c_client *client, struct i2chid_ops *ops,
 		       u16 hid_descriptor_address);
 int i2c_hid_core_remove(struct i2c_client *client);
 
 void i2c_hid_core_shutdown(struct i2c_client *client);
 
-#ifdef CONFIG_PM_SLEEP
-int i2c_hid_core_suspend(struct device *dev);
-int i2c_hid_core_resume(struct device *dev);
-#endif
+extern const struct dev_pm_ops i2c_hid_core_pm;
 
 #endif

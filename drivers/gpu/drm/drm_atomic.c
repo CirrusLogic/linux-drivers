@@ -53,6 +53,45 @@ void __drm_crtc_commit_free(struct kref *kref)
 EXPORT_SYMBOL(__drm_crtc_commit_free);
 
 /**
+ * drm_crtc_commit_wait - Waits for a commit to complete
+ * @commit: &drm_crtc_commit to wait for
+ *
+ * Waits for a given &drm_crtc_commit to be programmed into the
+ * hardware and flipped to.
+ *
+ * Returns:
+ *
+ * 0 on success, a negative error code otherwise.
+ */
+int drm_crtc_commit_wait(struct drm_crtc_commit *commit)
+{
+	unsigned long timeout = 10 * HZ;
+	int ret;
+
+	if (!commit)
+		return 0;
+
+	ret = wait_for_completion_timeout(&commit->hw_done, timeout);
+	if (!ret) {
+		DRM_ERROR("hw_done timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	/*
+	 * Currently no support for overwriting flips, hence
+	 * stall for previous one to execute completely.
+	 */
+	ret = wait_for_completion_timeout(&commit->flip_done, timeout);
+	if (!ret) {
+		DRM_ERROR("flip_done timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_crtc_commit_wait);
+
+/**
  * drm_atomic_state_default_release -
  * release memory initialized by drm_atomic_state_init
  * @state: atomic state
@@ -280,6 +319,10 @@ EXPORT_SYMBOL(__drm_atomic_state_free);
  * This function returns the CRTC state for the given CRTC, allocating it if
  * needed. It will also grab the relevant CRTC lock to make sure that the state
  * is consistent.
+ *
+ * WARNING: Drivers may only add new CRTC states to a @state if
+ * drm_atomic_state.allow_modeset is set, or if it's a driver-internal commit
+ * not created by userspace through an IOCTL call.
  *
  * Returns:
  *
@@ -574,13 +617,9 @@ static int drm_atomic_plane_check(const struct drm_plane_state *old_plane_state,
 	ret = drm_plane_check_pixel_format(plane, fb->format->format,
 					   fb->modifier);
 	if (ret) {
-		struct drm_format_name_buf format_name;
-
-		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] invalid pixel format %s, modifier 0x%llx\n",
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] invalid pixel format %p4cc, modifier 0x%llx\n",
 				 plane->base.id, plane->name,
-				 drm_get_format_name(fb->format->format,
-						     &format_name),
-				 fb->modifier);
+				 &fb->format->format, fb->modifier);
 		return ret;
 	}
 
@@ -1143,7 +1182,7 @@ EXPORT_SYMBOL(drm_atomic_add_encoder_bridges);
  * This function walks the current configuration and adds all connectors
  * currently using @crtc to the atomic configuration @state. Note that this
  * function must acquire the connection mutex. This can potentially cause
- * unneeded seralization if the update is just for the planes on one CRTC. Hence
+ * unneeded serialization if the update is just for the planes on one CRTC. Hence
  * drivers and helpers should only call this when really needed (e.g. when a
  * full modeset needs to happen due to some change).
  *
@@ -1208,7 +1247,7 @@ EXPORT_SYMBOL(drm_atomic_add_affected_connectors);
  *
  * Since acquiring a plane state will always also acquire the w/w mutex of the
  * current CRTC for that plane (if there is any) adding all the plane states for
- * a CRTC will not reduce parallism of atomic updates.
+ * a CRTC will not reduce parallelism of atomic updates.
  *
  * Returns:
  * 0 on success or can fail with -EDEADLK or -ENOMEM. When the error is EDEADLK
@@ -1262,9 +1301,14 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 	struct drm_crtc_state *new_crtc_state;
 	struct drm_connector *conn;
 	struct drm_connector_state *conn_state;
+	unsigned requested_crtc = 0;
+	unsigned affected_crtc = 0;
 	int i, ret = 0;
 
 	DRM_DEBUG_ATOMIC("checking %p\n", state);
+
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i)
+		requested_crtc |= drm_crtc_mask(crtc);
 
 	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
 		ret = drm_atomic_plane_check(old_plane_state, new_plane_state);
@@ -1311,6 +1355,26 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 				return -EINVAL;
 			}
 		}
+	}
+
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i)
+		affected_crtc |= drm_crtc_mask(crtc);
+
+	/*
+	 * For commits that allow modesets drivers can add other CRTCs to the
+	 * atomic commit, e.g. when they need to reallocate global resources.
+	 * This can cause spurious EBUSY, which robs compositors of a very
+	 * effective sanity check for their drawing loop. Therefor only allow
+	 * drivers to add unrelated CRTC states for modeset commits.
+	 *
+	 * FIXME: Should add affected_crtc mask to the ATOMIC IOCTL as an output
+	 * so compositors know what's going on.
+	 */
+	if (affected_crtc != requested_crtc) {
+		DRM_DEBUG_ATOMIC("driver added CRTC to commit: requested 0x%x, affected 0x%0x\n",
+				 requested_crtc, affected_crtc);
+		WARN(!state->allow_modeset, "adding CRTC not allowed without modesets: requested 0x%x, affected 0x%0x\n",
+		     requested_crtc, affected_crtc);
 	}
 
 	return 0;
@@ -1613,11 +1677,11 @@ static void __drm_state_dump(struct drm_device *dev, struct drm_printer *p,
  * to dmesg in case of error irq's.  (Hint, you probably want to
  * ratelimit this!)
  *
- * The caller must drm_modeset_lock_all(), or if this is called
- * from error irq handler, it should not be enabled by default.
- * (Ie. if you are debugging errors you might not care that this
- * is racey.  But calling this without all modeset locks held is
- * not inherently safe.)
+ * The caller must wrap this drm_modeset_lock_all_ctx() and
+ * drm_modeset_drop_locks(). If this is called from error irq handler, it should
+ * not be enabled by default - if you are debugging errors you might
+ * not care that this is racey, but calling this without all modeset locks held
+ * is inherently unsafe.
  */
 void drm_state_dump(struct drm_device *dev, struct drm_printer *p)
 {

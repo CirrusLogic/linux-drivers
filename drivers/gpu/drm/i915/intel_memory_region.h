@@ -11,6 +11,7 @@
 #include <linux/mutex.h>
 #include <linux/io-mapping.h>
 #include <drm/drm_mm.h>
+#include <drm/i915_drm.h>
 
 #include "i915_buddy.h"
 
@@ -19,30 +20,25 @@ struct drm_i915_gem_object;
 struct intel_memory_region;
 struct sg_table;
 
-/**
- *  Base memory type
- */
 enum intel_memory_type {
-	INTEL_MEMORY_SYSTEM = 0,
-	INTEL_MEMORY_LOCAL,
-	INTEL_MEMORY_STOLEN,
+	INTEL_MEMORY_SYSTEM = I915_MEMORY_CLASS_SYSTEM,
+	INTEL_MEMORY_LOCAL = I915_MEMORY_CLASS_DEVICE,
+	INTEL_MEMORY_STOLEN_SYSTEM,
+	INTEL_MEMORY_STOLEN_LOCAL,
 };
 
 enum intel_region_id {
 	INTEL_REGION_SMEM = 0,
 	INTEL_REGION_LMEM,
-	INTEL_REGION_STOLEN,
+	INTEL_REGION_STOLEN_SMEM,
+	INTEL_REGION_STOLEN_LMEM,
 	INTEL_REGION_UNKNOWN, /* Should be last */
 };
 
 #define REGION_SMEM     BIT(INTEL_REGION_SMEM)
 #define REGION_LMEM     BIT(INTEL_REGION_LMEM)
-#define REGION_STOLEN   BIT(INTEL_REGION_STOLEN)
-
-#define INTEL_MEMORY_TYPE_SHIFT 16
-
-#define MEMORY_TYPE_FROM_REGION(r) (ilog2((r) >> INTEL_MEMORY_TYPE_SHIFT))
-#define MEMORY_INSTANCE_FROM_REGION(r) (ilog2((r) & 0xffff))
+#define REGION_STOLEN_SMEM   BIT(INTEL_REGION_STOLEN_SMEM)
+#define REGION_STOLEN_LMEM   BIT(INTEL_REGION_STOLEN_LMEM)
 
 #define I915_ALLOC_MIN_PAGE_SIZE  BIT(0)
 #define I915_ALLOC_CONTIGUOUS     BIT(1)
@@ -51,21 +47,16 @@ enum intel_region_id {
 	for (id = 0; id < ARRAY_SIZE((i915)->mm.regions); id++) \
 		for_each_if((mr) = (i915)->mm.regions[id])
 
-/**
- * Memory regions encoded as type | instance
- */
-extern const u32 intel_region_map[];
-
 struct intel_memory_region_ops {
 	unsigned int flags;
 
 	int (*init)(struct intel_memory_region *mem);
 	void (*release)(struct intel_memory_region *mem);
 
-	struct drm_i915_gem_object *
-	(*create_object)(struct intel_memory_region *mem,
-			 resource_size_t size,
-			 unsigned int flags);
+	int (*init_object)(struct intel_memory_region *mem,
+			   struct drm_i915_gem_object *obj,
+			   resource_size_t size,
+			   unsigned int flags);
 };
 
 struct intel_memory_region {
@@ -89,10 +80,13 @@ struct intel_memory_region {
 	resource_size_t total;
 	resource_size_t avail;
 
-	unsigned int type;
-	unsigned int instance;
-	unsigned int id;
-	char name[8];
+	u16 type;
+	u16 instance;
+	enum intel_region_id id;
+	char name[16];
+	bool private; /* not for userspace */
+
+	struct list_head reserved;
 
 	dma_addr_t remap_addr;
 
@@ -102,6 +96,10 @@ struct intel_memory_region {
 		struct list_head purgeable;
 	} objects;
 };
+
+struct intel_memory_region *
+intel_memory_region_lookup(struct drm_i915_private *i915,
+			   u16 class, u16 instance);
 
 int intel_memory_region_init_buddy(struct intel_memory_region *mem);
 void intel_memory_region_release_buddy(struct intel_memory_region *mem);
@@ -117,6 +115,9 @@ __intel_memory_region_get_block_buddy(struct intel_memory_region *mem,
 void __intel_memory_region_put_pages_buddy(struct intel_memory_region *mem,
 					   struct list_head *blocks);
 void __intel_memory_region_put_block_buddy(struct i915_buddy_block *block);
+
+int intel_memory_region_reserve(struct intel_memory_region *mem,
+				u64 offset, u64 size);
 
 struct intel_memory_region *
 intel_memory_region_create(struct drm_i915_private *i915,

@@ -14,6 +14,7 @@
 #include <linux/ctype.h>
 #include <linux/pm.h>
 #include <linux/completion.h>
+#include <linux/interrupt.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -176,7 +177,7 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 	if (extra_size > 0)
 		card->private_data = (char *)card + sizeof(struct snd_card);
 	if (xid)
-		strlcpy(card->id, xid, sizeof(card->id));
+		strscpy(card->id, xid, sizeof(card->id));
 	err = 0;
 	mutex_lock(&snd_card_mutex);
 	if (idx < 0) /* first check the matching module-name slot */
@@ -389,10 +390,8 @@ int snd_card_disconnect(struct snd_card *card)
 		return 0;
 	}
 	card->shutdown = 1;
-	spin_unlock(&card->files_lock);
 
 	/* replace file->f_op with special dummy operations */
-	spin_lock(&card->files_lock);
 	list_for_each_entry(mfile, &card->files_list, list) {
 		/* it's critical part, use endless loop */
 		/* we have no room to fail */
@@ -417,6 +416,9 @@ int snd_card_disconnect(struct snd_card *card)
 
 	/* notify all devices that we are disconnected */
 	snd_device_disconnect_all(card);
+
+	if (card->sync_irq > 0)
+		synchronize_irq(card->sync_irq);
 
 	snd_info_card_disconnect(card);
 	if (card->registered) {
@@ -625,7 +627,7 @@ static void snd_card_set_id_no_lock(struct snd_card *card, const char *src,
 	/* last resort... */
 	dev_err(card->dev, "unable to set card id (%s)\n", id);
 	if (card->proc_root->name)
-		strlcpy(card->id, card->proc_root->name, sizeof(card->id));
+		strscpy(card->id, card->proc_root->name, sizeof(card->id));
 }
 
 /**

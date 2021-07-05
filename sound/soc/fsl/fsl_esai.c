@@ -524,11 +524,13 @@ static int fsl_esai_startup(struct snd_pcm_substream *substream,
 				   ESAI_SAICR_SYNC, esai_priv->synchronous ?
 				   ESAI_SAICR_SYNC : 0);
 
-		/* Set a default slot number -- 2 */
+		/* Set slots count */
 		regmap_update_bits(esai_priv->regmap, REG_ESAI_TCCR,
-				   ESAI_xCCR_xDC_MASK, ESAI_xCCR_xDC(2));
+				   ESAI_xCCR_xDC_MASK,
+				   ESAI_xCCR_xDC(esai_priv->slots));
 		regmap_update_bits(esai_priv->regmap, REG_ESAI_RCCR,
-				   ESAI_xCCR_xDC_MASK, ESAI_xCCR_xDC(2));
+				   ESAI_xCCR_xDC_MASK,
+				   ESAI_xCCR_xDC(esai_priv->slots));
 	}
 
 	return 0;
@@ -1042,9 +1044,9 @@ static int fsl_esai_probe(struct platform_device *pdev)
 
 	/* Implement full symmetry for synchronous mode */
 	if (esai_priv->synchronous) {
-		fsl_esai_dai.symmetric_rates = 1;
+		fsl_esai_dai.symmetric_rate = 1;
 		fsl_esai_dai.symmetric_channels = 1;
-		fsl_esai_dai.symmetric_samplebits = 1;
+		fsl_esai_dai.symmetric_sample_bits = 1;
 	}
 
 	dev_set_drvdata(&pdev->dev, esai_priv);

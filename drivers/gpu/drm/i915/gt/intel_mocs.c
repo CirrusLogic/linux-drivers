@@ -1,31 +1,14 @@
+// SPDX-License-Identifier: MIT
 /*
- * Copyright (c) 2015 Intel Corporation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions: *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright © 2015 Intel Corporation
  */
 
 #include "i915_drv.h"
 
 #include "intel_engine.h"
 #include "intel_gt.h"
+#include "intel_lrc_reg.h"
 #include "intel_mocs.h"
-#include "intel_lrc.h"
 #include "intel_ring.h"
 
 /* structures required */
@@ -123,7 +106,7 @@ struct drm_i915_mocs_table {
 		   LE_1_UC | LE_TC_2_LLC_ELLC, \
 		   L3_1_UC), \
 	MOCS_ENTRY(I915_MOCS_PTE, \
-		   LE_0_PAGETABLE | LE_TC_2_LLC_ELLC | LE_LRUM(3), \
+		   LE_0_PAGETABLE | LE_TC_0_PAGETABLE | LE_LRUM(3), \
 		   L3_3_WB)
 
 static const struct drm_i915_mocs_entry skl_mocs_table[] = {
@@ -292,7 +275,7 @@ static const struct drm_i915_mocs_entry icl_mocs_table[] = {
 		   L3_1_UC),
 	/* Base - L3 + LeCC:PAT (Deprecated) */
 	MOCS_ENTRY(I915_MOCS_PTE,
-		   LE_0_PAGETABLE | LE_TC_1_LLC,
+		   LE_0_PAGETABLE | LE_TC_0_PAGETABLE,
 		   L3_3_WB),
 
 	GEN11_MOCS_ENTRIES
@@ -472,7 +455,7 @@ static u16 get_entry_l3cc(const struct drm_i915_mocs_table *table,
 	return table->table[I915_MOCS_PTE].l3cc_value;
 }
 
-static inline u32 l3cc_combine(u16 low, u16 high)
+static u32 l3cc_combine(u16 low, u16 high)
 {
 	return low | (u32)high << 16;
 }

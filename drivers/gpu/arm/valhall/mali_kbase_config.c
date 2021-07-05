@@ -30,7 +30,7 @@ int kbasep_platform_device_init(struct kbase_device *kbdev)
 {
 	struct kbase_platform_funcs_conf *platform_funcs_p;
 
-	platform_funcs_p = (struct kbase_platform_funcs_conf *)PLATFORM_FUNCS;
+	platform_funcs_p = kbdev->funcs->platform_funcs;
 	if (platform_funcs_p && platform_funcs_p->platform_init_func)
 		return platform_funcs_p->platform_init_func(kbdev);
 
@@ -41,7 +41,7 @@ void kbasep_platform_device_term(struct kbase_device *kbdev)
 {
 	struct kbase_platform_funcs_conf *platform_funcs_p;
 
-	platform_funcs_p = (struct kbase_platform_funcs_conf *)PLATFORM_FUNCS;
+	platform_funcs_p = kbdev->funcs->platform_funcs;
 	if (platform_funcs_p && platform_funcs_p->platform_term_func)
 		platform_funcs_p->platform_term_func(kbdev);
 }

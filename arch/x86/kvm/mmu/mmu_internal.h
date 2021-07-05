@@ -57,6 +57,10 @@ struct kvm_mmu_page {
 	atomic_t write_flooding_count;
 
 	bool tdp_mmu_page;
+
+	atomic_t ref_count;
+	struct rcu_head rcu_head;
+	struct list_head mmu_page_list;
 };
 
 extern struct kmem_cache *mmu_page_header_cache;

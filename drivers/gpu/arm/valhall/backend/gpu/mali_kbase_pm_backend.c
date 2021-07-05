@@ -47,7 +47,7 @@ int kbase_pm_runtime_init(struct kbase_device *kbdev)
 {
 	struct kbase_pm_callback_conf *callbacks;
 
-	callbacks = (struct kbase_pm_callback_conf *)POWER_MANAGEMENT_CALLBACKS;
+	callbacks = kbdev->funcs->pm_callbacks;
 	if (callbacks) {
 		kbdev->pm.backend.callback_power_on =
 					callbacks->power_on_callback;
@@ -101,7 +101,7 @@ void kbase_pm_register_access_enable(struct kbase_device *kbdev)
 {
 	struct kbase_pm_callback_conf *callbacks;
 
-	callbacks = (struct kbase_pm_callback_conf *)POWER_MANAGEMENT_CALLBACKS;
+	callbacks = kbdev->funcs->pm_callbacks;
 
 	if (callbacks)
 		callbacks->power_on_callback(kbdev);
@@ -113,7 +113,7 @@ void kbase_pm_register_access_disable(struct kbase_device *kbdev)
 {
 	struct kbase_pm_callback_conf *callbacks;
 
-	callbacks = (struct kbase_pm_callback_conf *)POWER_MANAGEMENT_CALLBACKS;
+	callbacks = kbdev->funcs->pm_callbacks;
 
 	if (callbacks)
 		callbacks->power_off_callback(kbdev);

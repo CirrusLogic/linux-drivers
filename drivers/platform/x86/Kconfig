@@ -835,7 +835,7 @@ config INTEL_HID_EVENT
 
 config INTEL_INT0002_VGPIO
 	tristate "Intel ACPI INT0002 Virtual GPIO driver"
-	depends on GPIOLIB && ACPI
+	depends on GPIOLIB && ACPI && PM_SLEEP
 	select GPIOLIB_IRQCHIP
 	help
 	  Some peripherals on Bay Trail and Cherry Trail platforms signal a
@@ -1385,6 +1385,42 @@ config INTEL_PMC_CORE
 		- PCH IP Power Gating status
 		- LTR Ignore
 		- MPHY/PLL gating status (Sunrisepoint PCH only)
+
+config INTEL_PMT_CLASS
+	tristate
+	help
+	  The Intel Platform Monitoring Technology (PMT) class driver provides
+	  the basic sysfs interface and file hierarchy uses by PMT devices.
+
+	  For more information, see:
+	  <file:Documentation/ABI/testing/sysfs-class-intel_pmt>
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel_pmt_class.
+
+config INTEL_PMT_TELEMETRY
+	tristate "Intel Platform Monitoring Technology (PMT) Telemetry driver"
+	depends on MFD_INTEL_PMT
+	select INTEL_PMT_CLASS
+	help
+	  The Intel Platform Monitory Technology (PMT) Telemetry driver provides
+	  access to hardware telemetry metrics on devices that support the
+	  feature.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel_pmt_telemetry.
+
+config INTEL_PMT_CRASHLOG
+	tristate "Intel Platform Monitoring Technology (PMT) Crashlog driver"
+	depends on MFD_INTEL_PMT
+	select INTEL_PMT_CLASS
+	help
+	  The Intel Platform Monitoring Technology (PMT) crashlog driver provides
+	  access to hardware crashlog capabilities on devices that support the
+	  feature.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel_pmt_crashlog.
 
 config INTEL_PUNIT_IPC
 	tristate "Intel P-Unit IPC Driver"

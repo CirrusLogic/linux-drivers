@@ -35,6 +35,7 @@
 
 #include "i915_drv.h"
 #include "gt/intel_context.h"
+#include "gt/intel_gpu_commands.h"
 #include "gt/intel_ring.h"
 #include "gvt.h"
 #include "trace.h"
@@ -372,7 +373,7 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu,
 	 */
 	fw = intel_uncore_forcewake_for_reg(uncore, reg,
 					    FW_REG_READ | FW_REG_WRITE);
-	if (engine->id == RCS0 && INTEL_GEN(engine->i915) >= 9)
+	if (engine->id == RCS0 && GRAPHICS_VER(engine->i915) >= 9)
 		fw |= FORCEWAKE_RENDER;
 
 	intel_uncore_forcewake_get(uncore, fw);
@@ -408,7 +409,7 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 	if (drm_WARN_ON(&engine->i915->drm, engine->id >= ARRAY_SIZE(regs)))
 		return;
 
-	if (engine->id == RCS0 && IS_GEN(engine->i915, 9))
+	if (engine->id == RCS0 && GRAPHICS_VER(engine->i915) == 9)
 		return;
 
 	if (!pre && !gen9_render_mocs.initialized)
@@ -473,7 +474,7 @@ static void switch_mmio(struct intel_vgpu *pre,
 	struct engine_mmio *mmio;
 	u32 old_v, new_v;
 
-	if (INTEL_GEN(engine->i915) >= 9)
+	if (GRAPHICS_VER(engine->i915) >= 9)
 		switch_mocs(pre, next, engine);
 
 	for (mmio = engine->i915->gvt->engine_mmio_list.mmio;
@@ -485,7 +486,7 @@ static void switch_mmio(struct intel_vgpu *pre,
 		 * state image on gen9, it's initialized by lri command and
 		 * save or restore with context together.
 		 */
-		if (IS_GEN(engine->i915, 9) && mmio->in_context)
+		if (GRAPHICS_VER(engine->i915) == 9 && mmio->in_context)
 			continue;
 
 		// save
@@ -579,7 +580,7 @@ void intel_gvt_init_engine_mmio_context(struct intel_gvt *gvt)
 {
 	struct engine_mmio *mmio;
 
-	if (INTEL_GEN(gvt->gt->i915) >= 9) {
+	if (GRAPHICS_VER(gvt->gt->i915) >= 9) {
 		gvt->engine_mmio_list.mmio = gen9_engine_mmio_list;
 		gvt->engine_mmio_list.tlb_mmio_offset_list = gen8_tlb_mmio_offset_list;
 		gvt->engine_mmio_list.tlb_mmio_offset_list_cnt = ARRAY_SIZE(gen8_tlb_mmio_offset_list);

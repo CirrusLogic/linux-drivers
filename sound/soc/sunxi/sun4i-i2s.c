@@ -887,7 +887,7 @@ static struct snd_soc_dai_driver sun4i_i2s_dai = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.ops = &sun4i_i2s_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static const struct snd_soc_component_driver sun4i_i2s_component = {

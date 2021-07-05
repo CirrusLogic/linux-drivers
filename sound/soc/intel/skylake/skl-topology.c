@@ -3613,38 +3613,38 @@ static int skl_manifest_load(struct snd_soc_component *cmpnt, int index,
 static void skl_tplg_complete(struct snd_soc_component *component)
 {
 	struct snd_soc_dobj *dobj;
-	struct snd_soc_acpi_mach *mach =
-		dev_get_platdata(component->card->dev);
+	struct snd_soc_acpi_mach *mach;
+	struct snd_ctl_elem_value *val;
 	int i;
 
+	val = kmalloc(sizeof(*val), GFP_KERNEL);
+	if (!val)
+		return;
+
+	mach = dev_get_platdata(component->card->dev);
 	list_for_each_entry(dobj, &component->dobj_list, list) {
-		struct snd_kcontrol *kcontrol;
+		struct snd_kcontrol *kcontrol = dobj->control.kcontrol;
 		struct soc_enum *se;
 		char **texts;
 		char chan_text[4];
 
-		kcontrol = dobj->control.kcontrol;
-		if (!kcontrol)
+		if (dobj->type != SND_SOC_DOBJ_ENUM || !kcontrol ||
+		    kcontrol->put != skl_tplg_multi_config_set_dmic)
 			continue;
 
 		se = (struct soc_enum *)kcontrol->private_value;
 		texts = dobj->control.dtexts;
-
-		if (dobj->type != SND_SOC_DOBJ_ENUM ||
-		    dobj->control.kcontrol->put !=
-		    skl_tplg_multi_config_set_dmic)
-			continue;
 		sprintf(chan_text, "c%d", mach->mach_params.dmic_num);
 
 		for (i = 0; i < se->items; i++) {
-			struct snd_ctl_elem_value val;
-
 			if (strstr(texts[i], chan_text)) {
-				val.value.enumerated.item[0] = i;
-				kcontrol->put(kcontrol, &val);
+				memset(val, 0, sizeof(*val));
+				val->value.enumerated.item[0] = i;
+				kcontrol->put(kcontrol, val);
 			}
 		}
 	}
+	kfree(val);
 }
 
 static struct snd_soc_tplg_ops skl_tplg_ops  = {
@@ -3748,12 +3748,7 @@ int skl_tplg_init(struct snd_soc_component *component, struct hdac_bus *bus)
 	}
 
 component_load:
-
-	/*
-	 * The complete tplg for SKL is loaded as index 0, we don't use
-	 * any other index
-	 */
-	ret = snd_soc_tplg_component_load(component, &skl_tplg_ops, fw, 0);
+	ret = snd_soc_tplg_component_load(component, &skl_tplg_ops, fw);
 	if (ret < 0) {
 		dev_err(bus->dev, "tplg component load failed%d\n", ret);
 		goto err;
@@ -3783,5 +3778,5 @@ void skl_tplg_exit(struct snd_soc_component *component, struct hdac_bus *bus)
 		list_del(&ppl->node);
 
 	/* clean up topology */
-	snd_soc_tplg_component_remove(component, SND_SOC_TPLG_INDEX_ALL);
+	snd_soc_tplg_component_remove(component);
 }

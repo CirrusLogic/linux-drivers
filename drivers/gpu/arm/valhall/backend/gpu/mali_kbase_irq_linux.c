@@ -177,7 +177,7 @@ static irq_handler_t kbase_handler_table[] = {
  * Return: IRQ_HANDLED if the requests are from the GPU device,
  *         IRQ_NONE otherwise
  */
-static irqreturn_t kbase_gpu_irq_test_handler(int irq, void *data, u32 val)
+irqreturn_t kbase_gpu_irq_test_handler(int irq, void *data, u32 val)
 {
 	struct kbase_device *kbdev = kbase_untag(data);
 

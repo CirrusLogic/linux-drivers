@@ -57,18 +57,18 @@ Compressed Formats
       - H264 parsed slice data, including slice headers, either with or
 	without the start code, as extracted from the H264 bitstream.
 	This format is adapted for stateless video decoders that implement an
-	H264 pipeline (using the :ref:`mem2mem` and :ref:`media-request-api`).
+	H264 pipeline with the :ref:`stateless_decoder`.
 	This pixelformat has two modifiers that must be set at least once
-	through the ``V4L2_CID_MPEG_VIDEO_H264_DECODE_MODE``
-        and ``V4L2_CID_MPEG_VIDEO_H264_START_CODE`` controls.
+	through the ``V4L2_CID_STATELESS_H264_DECODE_MODE``
+        and ``V4L2_CID_STATELESS_H264_START_CODE`` controls.
 	In addition, metadata associated with the frame to decode are
-	required to be passed through the ``V4L2_CID_MPEG_VIDEO_H264_SPS``,
-	``V4L2_CID_MPEG_VIDEO_H264_PPS``,
-	``V4L2_CID_MPEG_VIDEO_H264_SCALING_MATRIX``,
-	``V4L2_CID_MPEG_VIDEO_H264_SLICE_PARAMS`` and
-	``V4L2_CID_MPEG_VIDEO_H264_DECODE_PARAMS`` controls.  See the
-	:ref:`associated Codec Control IDs <v4l2-mpeg-h264>`.  Exactly
-	one output and one capture buffer must be provided for use
+	required to be passed through the ``V4L2_CID_STATELESS_H264_SPS``,
+	``V4L2_CID_STATELESS_H264_PPS``,
+	``V4L2_CID_STATELESS_H264_SCALING_MATRIX``,
+	``V4L2_CID_STATELESS_H264_SLICE_PARAMS`` and
+	``V4L2_CID_STATELESS_H264_DECODE_PARAMS`` controls.  See the
+	:ref:`associated Codec Control IDs <v4l2-codec-stateless-h264>`.
+        Exactly one output and one capture buffer must be provided for use
 	with this pixel format. The output buffer must contain the
 	appropriate number of macroblocks to decode a full
 	corresponding frame to the matching capture buffer.
@@ -76,11 +76,6 @@ Compressed Formats
 	The syntax for this format is documented in :ref:`h264`, section
 	7.3.2.8 "Slice layer without partitioning RBSP syntax" and the following
 	sections.
-
-	.. note::
-
-	   This format is not yet part of the public kernel API and it
-	   is expected to change.
 
     * .. _V4L2-PIX-FMT-H263:
 
@@ -152,21 +147,16 @@ Compressed Formats
 
       - ``V4L2_PIX_FMT_VP8_FRAME``
       - 'VP8F'
-      - VP8 parsed frame, as extracted from the container.
-	This format is adapted for stateless video decoders that implement a
-	VP8 pipeline (using the :ref:`mem2mem` and :ref:`media-request-api`).
+      - VP8 parsed frame, including the frame header, as extracted from the container.
+	This format is adapted for stateless video decoders that implement an
+	VP8 pipeline with the :ref:`stateless_decoder`.
 	Metadata associated with the frame to decode is required to be passed
-	through the ``V4L2_CID_MPEG_VIDEO_VP8_FRAME_HEADER`` control.
-	See the :ref:`associated Codec Control IDs <v4l2-mpeg-vp8>`.
+	through the ``V4L2_CID_STATELESS_VP8_FRAME`` control.
+	See the :ref:`associated Codec Control IDs <v4l2-codec-stateless-vp8>`.
 	Exactly one output and one capture buffer must be provided for use with
 	this pixel format. The output buffer must contain the appropriate number
 	of macroblocks to decode a full corresponding frame to the matching
 	capture buffer.
-
-	.. note::
-
-	   This format is not yet part of the public kernel API and it
-	   is expected to change.
 
     * .. _V4L2-PIX-FMT-VP9:
 
@@ -222,4 +212,6 @@ Compressed Formats
       - ``V4L2_PIX_FMT_FWHT_STATELESS``
       - 'SFWH'
       - Same format as V4L2_PIX_FMT_FWHT but requires stateless codec implementation.
-	See the :ref:`associated Codec Control IDs <v4l2-mpeg-fwht>`.
+        Metadata associated with the frame to decode is required to be passed
+        through the ``V4L2_CID_STATELESS_FWHT_PARAMS`` control.
+	See the :ref:`associated Codec Control ID <codec-stateless-fwht>`.

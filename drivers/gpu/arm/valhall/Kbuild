@@ -34,6 +34,9 @@ MALI_CUSTOMER_RELEASE ?= 1
 MALI_USE_CSF ?= 0
 MALI_UNIT_TEST ?= 0
 MALI_KERNEL_TEST_API ?= 0
+ifeq ($(CONFIG_MALI_VALHALL_DEBUG),y)
+	MALI_KERNEL_TEST_API = 1
+endif
 MALI_COVERAGE ?= 0
 CONFIG_MALI_VALHALL_PLATFORM_NAME ?= "devicetree"
 # Experimental features (corresponding -D definition should be appended to

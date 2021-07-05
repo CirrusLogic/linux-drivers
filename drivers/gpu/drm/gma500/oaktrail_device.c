@@ -504,9 +504,10 @@ static const struct psb_offset oaktrail_regmap[2] = {
 static int oaktrail_chip_setup(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int ret;
-	
-	if (pci_enable_msi(dev->pdev))
+
+	if (pci_enable_msi(pdev))
 		dev_warn(dev->dev, "Enabling MSI failed!\n");
 
 	dev_priv->regmap = oaktrail_regmap;
@@ -536,7 +537,6 @@ static void oaktrail_teardown(struct drm_device *dev)
 
 const struct psb_ops oaktrail_chip_ops = {
 	.name = "Oaktrail",
-	.accel_2d = 1,
 	.pipes = 2,
 	.crtcs = 2,
 	.hdmi_mask = (1 << 1),
@@ -548,7 +548,7 @@ const struct psb_ops oaktrail_chip_ops = {
 	.chip_setup = oaktrail_chip_setup,
 	.chip_teardown = oaktrail_teardown,
 	.crtc_helper = &oaktrail_helper_funcs,
-	.crtc_funcs = &psb_intel_crtc_funcs,
+	.crtc_funcs = &gma_intel_crtc_funcs,
 
 	.output_init = oaktrail_output_init,
 

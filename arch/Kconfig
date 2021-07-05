@@ -675,6 +675,15 @@ config HAVE_ARCH_TRANSPARENT_HUGEPAGE
 config HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
 	bool
 
+config HAVE_ARCH_PARENT_PMD_YOUNG
+	bool
+	depends on PGTABLE_LEVELS > 2
+	help
+	  Architectures that select this are able to set the accessed bit on
+	  non-leaf PMD entries in addition to leaf PTE entries where pages are
+	  mapped. For them, page table walkers that clear the accessed bit may
+	  stop at non-leaf PMD entries if they do not see the accessed bit.
+
 config HAVE_ARCH_HUGE_VMAP
 	bool
 
@@ -1052,6 +1061,12 @@ config ARCH_WANT_LD_ORPHAN_WARN
 	  important because we never want expected sections to be placed heuristically
 	  by the linker, since the locations of such sections can change between linker
 	  versions.
+
+config ARCH_SPLIT_ARG64
+	bool
+	help
+	   If a 32-bit architecture requires 64-bit arguments to be split into
+	   pairs of 32-bit arguments, select this option.
 
 source "kernel/gcov/Kconfig"
 

@@ -31,17 +31,16 @@
 #include "i2c-hid.h"
 
 struct i2c_hid_of {
-	struct i2chid_subclass_data subclass;
+	struct i2chid_ops ops;
 
 	struct i2c_client *client;
 	struct regulator_bulk_data supplies[2];
 	int post_power_delay_ms;
 };
 
-static int i2c_hid_of_power_up_device(struct i2chid_subclass_data *subclass)
+static int i2c_hid_of_power_up(struct i2chid_ops *ops)
 {
-	struct i2c_hid_of *ihid_of =
-		container_of(subclass, struct i2c_hid_of, subclass);
+	struct i2c_hid_of *ihid_of = container_of(ops, struct i2c_hid_of, ops);
 	struct device *dev = &ihid_of->client->dev;
 	int ret;
 
@@ -58,10 +57,9 @@ static int i2c_hid_of_power_up_device(struct i2chid_subclass_data *subclass)
 	return 0;
 }
 
-static void i2c_hid_of_power_down_device(struct i2chid_subclass_data *subclass)
+static void i2c_hid_of_power_down(struct i2chid_ops *ops)
 {
-	struct i2c_hid_of *ihid_of = container_of(subclass, struct i2c_hid_of,
-						  subclass);
+	struct i2c_hid_of *ihid_of = container_of(ops, struct i2c_hid_of, ops);
 
 	regulator_bulk_disable(ARRAY_SIZE(ihid_of->supplies),
 			       ihid_of->supplies);
@@ -80,8 +78,8 @@ static int i2c_hid_of_probe(struct i2c_client *client,
 	if (!ihid_of)
 		return -ENOMEM;
 
-	ihid_of->subclass.power_up_device = i2c_hid_of_power_up_device;
-	ihid_of->subclass.power_down_device = i2c_hid_of_power_down_device;
+	ihid_of->ops.power_up = i2c_hid_of_power_up;
+	ihid_of->ops.power_down = i2c_hid_of_power_down;
 
 	ret = of_property_read_u32(dev->of_node, "hid-descr-addr", &val);
 	if (ret) {
@@ -107,13 +105,9 @@ static int i2c_hid_of_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	return i2c_hid_core_probe(client, &ihid_of->subclass,
+	return i2c_hid_core_probe(client, &ihid_of->ops,
 				  hid_descriptor_address);
 }
-
-static const struct dev_pm_ops i2c_hid_of_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(i2c_hid_core_suspend, i2c_hid_core_resume)
-};
 
 static const struct of_device_id i2c_hid_of_match[] = {
 	{ .compatible = "hid-over-i2c" },
@@ -131,7 +125,7 @@ MODULE_DEVICE_TABLE(i2c, i2c_hid_of_id_table);
 static struct i2c_driver i2c_hid_of_driver = {
 	.driver = {
 		.name	= "i2c_hid_of",
-		.pm	= &i2c_hid_of_pm,
+		.pm	= &i2c_hid_core_pm,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(i2c_hid_of_match),
 	},

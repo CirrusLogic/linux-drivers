@@ -190,6 +190,19 @@ int kbase_device_misc_init(struct kbase_device * const kbdev)
 	if (err)
 		goto dma_set_mask_failed;
 
+	if (!kbdev->dev->dma_parms) {
+		kbdev->dev->dma_parms = devm_kzalloc(kbdev->dev,
+				sizeof(*kbdev->dev->dma_parms), GFP_KERNEL);
+		if (!kbdev->dev->dma_parms) {
+			err = -ENOMEM;
+			goto dma_set_mask_failed;
+		}
+	}
+	err = dma_set_max_seg_size(kbdev->dev,
+			(unsigned int)DMA_BIT_MASK(kbdev->gpu_props.mmu.pa_bits));
+	if (err)
+		goto dma_set_mask_failed;
+
 	kbdev->nr_hw_address_spaces = kbdev->gpu_props.num_address_spaces;
 
 	err = kbase_device_all_as_init(kbdev);

@@ -2177,7 +2177,8 @@ static void ath10k_peer_assoc_h_crypto(struct ath10k *ar,
 	if (WARN_ON(ath10k_mac_vif_chan(vif, &def)))
 		return;
 
-	bss = cfg80211_get_bss(ar->hw->wiphy, def.chan, info->bssid, NULL, 0,
+	bss = cfg80211_get_bss(ar->hw->wiphy, def.chan, info->bssid,
+			       info->ssid_len ? info->ssid : NULL, info->ssid_len,
 			       IEEE80211_BSS_TYPE_ANY, IEEE80211_PRIVACY_ANY);
 	if (bss) {
 		const struct cfg80211_bss_ies *ies;
@@ -3763,23 +3764,16 @@ bool ath10k_mac_tx_frm_has_freq(struct ath10k *ar)
 static int ath10k_mac_tx_wmi_mgmt(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct sk_buff_head *q = &ar->wmi_mgmt_tx_queue;
-	int ret = 0;
 
-	spin_lock_bh(&ar->data_lock);
-
-	if (skb_queue_len(q) == ATH10K_MAX_NUM_MGMT_PENDING) {
+	if (skb_queue_len_lockless(q) >= ATH10K_MAX_NUM_MGMT_PENDING) {
 		ath10k_warn(ar, "wmi mgmt tx queue is full\n");
-		ret = -ENOSPC;
-		goto unlock;
+		return -ENOSPC;
 	}
 
-	__skb_queue_tail(q, skb);
+	skb_queue_tail(q, skb);
 	ieee80211_queue_work(ar->hw, &ar->wmi_mgmt_tx_work);
 
-unlock:
-	spin_unlock_bh(&ar->data_lock);
-
-	return ret;
+	return 0;
 }
 
 static enum ath10k_mac_tx_path
@@ -4953,7 +4947,7 @@ int ath10k_mac_rfkill_enable_radio(struct ath10k *ar, bool enable)
 	return 0;
 }
 
-static int ath10k_start(struct ieee80211_hw *hw)
+static int __ath10k_start(struct ieee80211_hw *hw)
 {
 	struct ath10k *ar = hw->priv;
 	u32 param;
@@ -5167,6 +5161,31 @@ err_off:
 
 err:
 	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static int ath10k_start(struct ieee80211_hw *hw)
+{
+	struct ath10k *ar = hw->priv;
+	int ret, loop = ar->hw_params.start_retry + 1;
+	enum ath10k_state state = ar->state;
+
+	while (loop != 0) {
+
+		mutex_lock(&ar->conf_mutex);
+		ar->state = state;
+		mutex_unlock(&ar->conf_mutex);
+
+		ret = __ath10k_start(hw);
+		loop--;
+
+		if (ret)
+			ath10k_warn(ar, "failed to start, loops: %d, ret: %d\n",
+				    loop, ret);
+		else
+			break;
+	}
+
 	return ret;
 }
 
@@ -9117,7 +9136,9 @@ static void ath10k_sta_statistics(struct ieee80211_hw *hw,
 	if (!ath10k_peer_stats_enabled(ar))
 		return;
 
+	mutex_lock(&ar->conf_mutex);
 	ath10k_debug_fw_stats_request(ar);
+	mutex_unlock(&ar->conf_mutex);
 
 	sinfo->rx_duration = arsta->rx_duration;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_DURATION);

@@ -852,6 +852,8 @@ struct kbase_device {
 	spinlock_t reg_op_lock;
 #endif	/* CONFIG_MALI_VALHALL_NO_MALI */
 
+	struct kbase_mali_platform_functions *funcs;
+
 	struct kbase_pm_device_data pm;
 
 	struct kbase_mem_pool_group mem_pools;

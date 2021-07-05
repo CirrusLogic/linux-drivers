@@ -90,7 +90,8 @@ union psr_error_status {
 	struct {
 		unsigned char LINK_CRC_ERROR        :1;
 		unsigned char RFB_STORAGE_ERROR     :1;
-		unsigned char RESERVED              :6;
+		unsigned char VSC_SDP_ERROR         :1;
+		unsigned char RESERVED              :5;
 	} bits;
 	unsigned char raw;
 };
@@ -125,6 +126,14 @@ struct link_enc_state {
 		uint32_t dp_link_training_complete;
 
 };
+
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	enum encoder_type_select {
+		ENCODER_TYPE_DIG = 0,
+		ENCODER_TYPE_HDMI_FRL = 1,
+		ENCODER_TYPE_DP_128B132B = 2
+	};
+#endif
 
 struct link_encoder_funcs {
 	void (*read_state)(
@@ -184,6 +193,25 @@ struct link_encoder_funcs {
 
 	enum signal_type (*get_dig_mode)(
 		struct link_encoder *enc);
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+	void (*set_dio_phy_mux)(
+		struct link_encoder *enc,
+		enum encoder_type_select sel,
+		uint32_t hpo_inst);
+#endif
+};
+
+/*
+ * Used to track assignments of links (display endpoints) to link encoders.
+ *
+ * Entry in link_enc_assignments table in struct resource_context.
+ * Entries only marked valid once encoder assigned to a link and invalidated once unassigned.
+ * Uses engine ID as identifier since PHY ID not relevant for USB4 DPIA endpoint.
+ */
+struct link_enc_assignment {
+	bool valid;
+	struct display_endpoint_id ep_id;
+	enum engine_id eng_id;
 };
 
 #endif /* LINK_ENCODER_H_ */

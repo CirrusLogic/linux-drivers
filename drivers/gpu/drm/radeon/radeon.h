@@ -75,7 +75,6 @@
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
-#include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 
 #include <drm/drm_gem.h>
@@ -452,13 +451,8 @@ struct radeon_surface_reg {
  * TTM.
  */
 struct radeon_mman {
-	struct ttm_bo_device		bdev;
+	struct ttm_device		bdev;
 	bool				initialized;
-
-#if defined(CONFIG_DEBUG_FS)
-	struct dentry			*vram;
-	struct dentry			*gtt;
-#endif
 };
 
 struct radeon_bo_list {
@@ -497,7 +491,6 @@ struct radeon_bo {
 	struct ttm_buffer_object	tbo;
 	struct ttm_bo_kmap_obj		kmap;
 	u32				flags;
-	unsigned			pin_count;
 	void				*kptr;
 	u32				tiling_flags;
 	u32				pitch;
@@ -510,7 +503,6 @@ struct radeon_bo {
 	/* Constant after initialization */
 	struct radeon_device		*rdev;
 
-	struct ttm_bo_kmap_obj		dma_buf_vmap;
 	pid_t				pid;
 
 #ifdef CONFIG_MMU_NOTIFIER
@@ -518,8 +510,6 @@ struct radeon_bo {
 #endif
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, tbo.base)
-
-int radeon_gem_debugfs_init(struct radeon_device *rdev);
 
 /* sub-allocation manager, it has to be protected by another lock.
  * By conception this is an helper for other part of the driver
@@ -576,6 +566,8 @@ struct radeon_gem {
 	struct mutex		mutex;
 	struct list_head	objects;
 };
+
+extern const struct drm_gem_object_funcs radeon_gem_object_funcs;
 
 int radeon_gem_init(struct radeon_device *rdev);
 void radeon_gem_fini(struct radeon_device *rdev);
@@ -836,6 +828,7 @@ struct radeon_ib {
 };
 
 struct radeon_ring {
+	struct radeon_device	*rdev;
 	struct radeon_bo	*ring_obj;
 	volatile uint32_t	*ring;
 	unsigned		rptr_offs;
@@ -1113,9 +1106,6 @@ struct radeon_cs_packet {
 typedef int (*radeon_packet0_check_t)(struct radeon_cs_parser *p,
 				      struct radeon_cs_packet *pkt,
 				      unsigned idx, unsigned reg);
-typedef int (*radeon_packet3_check_t)(struct radeon_cs_parser *p,
-				      struct radeon_cs_packet *pkt);
-
 
 /*
  * AGP
@@ -1559,6 +1549,7 @@ struct radeon_dpm {
 	void                    *priv;
 	u32			new_active_crtcs;
 	int			new_active_crtc_count;
+	int			high_pixelclock_count;
 	u32			current_active_crtcs;
 	int			current_active_crtc_count;
 	bool single_display;
@@ -1799,15 +1790,8 @@ static inline void radeon_mn_unregister(struct radeon_bo *bo) {}
 /*
  * Debugfs
  */
-struct radeon_debugfs {
-	struct drm_info_list	*files;
-	unsigned		num_files;
-};
-
-int radeon_debugfs_add_files(struct radeon_device *rdev,
-			     struct drm_info_list *files,
-			     unsigned nfiles);
-int radeon_debugfs_fence_init(struct radeon_device *rdev);
+void radeon_debugfs_fence_init(struct radeon_device *rdev);
+void radeon_gem_debugfs_init(struct radeon_device *rdev);
 
 /*
  * ASIC ring specific functions.
@@ -1992,6 +1976,7 @@ struct radeon_asic {
 		int (*get_fan_speed_percent)(struct radeon_device *rdev, u32 *speed);
 		u32 (*get_current_sclk)(struct radeon_device *rdev);
 		u32 (*get_current_mclk)(struct radeon_device *rdev);
+		u16 (*get_current_vddc)(struct radeon_device *rdev);
 	} dpm;
 	/* pageflipping */
 	struct {
@@ -2245,6 +2230,7 @@ int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
 int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
+int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 
 /* VRAM scratch page for HDP bug, default vram page */
 struct r600_vram_scratch {
@@ -2314,6 +2300,9 @@ struct radeon_device {
 	struct device			*dev;
 	struct drm_device		*ddev;
 	struct pci_dev			*pdev;
+#ifdef __alpha__
+	struct pci_controller		*hose;
+#endif
 	struct rw_semaphore		exclusive_lock;
 	/* ASIC */
 	union radeon_asic_config	config;
@@ -2427,9 +2416,6 @@ struct radeon_device {
 	struct drm_file *cmask_filp;
 	/* i2c buses */
 	struct radeon_i2c_chan *i2c_bus[RADEON_MAX_I2C_BUS];
-	/* debugfs */
-	struct radeon_debugfs	debugfs[RADEON_DEBUGFS_MAX_COMPONENTS];
-	unsigned 		debugfs_count;
 	/* virtual memory */
 	struct radeon_vm_manager	vm_manager;
 	struct mutex			gpu_clock_mutex;
@@ -2623,14 +2609,14 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 		(rdev->family == CHIP_RV410) ||			\
 		(rdev->family == CHIP_RS400) ||			\
 		(rdev->family == CHIP_RS480))
-#define ASIC_IS_X2(rdev) ((rdev->ddev->pdev->device == 0x9441) || \
-		(rdev->ddev->pdev->device == 0x9443) || \
-		(rdev->ddev->pdev->device == 0x944B) || \
-		(rdev->ddev->pdev->device == 0x9506) || \
-		(rdev->ddev->pdev->device == 0x9509) || \
-		(rdev->ddev->pdev->device == 0x950F) || \
-		(rdev->ddev->pdev->device == 0x689C) || \
-		(rdev->ddev->pdev->device == 0x689D))
+#define ASIC_IS_X2(rdev) ((rdev->pdev->device == 0x9441) || \
+		(rdev->pdev->device == 0x9443) || \
+		(rdev->pdev->device == 0x944B) || \
+		(rdev->pdev->device == 0x9506) || \
+		(rdev->pdev->device == 0x9509) || \
+		(rdev->pdev->device == 0x950F) || \
+		(rdev->pdev->device == 0x689C) || \
+		(rdev->pdev->device == 0x689D))
 #define ASIC_IS_AVIVO(rdev) ((rdev->family >= CHIP_RS600))
 #define ASIC_IS_DCE2(rdev) ((rdev->family == CHIP_RS600)  ||	\
 			    (rdev->family == CHIP_RS690)  ||	\
@@ -2653,14 +2639,14 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 #define ASIC_IS_DCE83(rdev) ((rdev->family == CHIP_KABINI) || \
 			     (rdev->family == CHIP_MULLINS))
 
-#define ASIC_IS_LOMBOK(rdev) ((rdev->ddev->pdev->device == 0x6849) || \
-			      (rdev->ddev->pdev->device == 0x6850) || \
-			      (rdev->ddev->pdev->device == 0x6858) || \
-			      (rdev->ddev->pdev->device == 0x6859) || \
-			      (rdev->ddev->pdev->device == 0x6840) || \
-			      (rdev->ddev->pdev->device == 0x6841) || \
-			      (rdev->ddev->pdev->device == 0x6842) || \
-			      (rdev->ddev->pdev->device == 0x6843))
+#define ASIC_IS_LOMBOK(rdev) ((rdev->pdev->device == 0x6849) || \
+			      (rdev->pdev->device == 0x6850) || \
+			      (rdev->pdev->device == 0x6858) || \
+			      (rdev->pdev->device == 0x6859) || \
+			      (rdev->pdev->device == 0x6840) || \
+			      (rdev->pdev->device == 0x6841) || \
+			      (rdev->pdev->device == 0x6842) || \
+			      (rdev->pdev->device == 0x6843))
 
 /*
  * BIOS helpers.
@@ -2820,7 +2806,7 @@ extern int radeon_ttm_tt_set_userptr(struct radeon_device *rdev,
 				     uint32_t flags);
 extern bool radeon_ttm_tt_has_userptr(struct radeon_device *rdev, struct ttm_tt *ttm);
 extern bool radeon_ttm_tt_is_readonly(struct radeon_device *rdev, struct ttm_tt *ttm);
-bool radeon_ttm_tt_is_bound(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
+bool radeon_ttm_tt_is_bound(struct ttm_device *bdev, struct ttm_tt *ttm);
 extern void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 base);
 extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon);
@@ -2830,7 +2816,13 @@ extern void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size
 extern void radeon_program_register_sequence(struct radeon_device *rdev,
 					     const u32 *registers,
 					     const u32 array_size);
-struct radeon_device *radeon_get_rdev(struct ttm_bo_device *bdev);
+struct radeon_device *radeon_get_rdev(struct ttm_device *bdev);
+
+/* KMS */
+
+u32 radeon_get_vblank_counter_kms(struct drm_crtc *crtc);
+int radeon_enable_vblank_kms(struct drm_crtc *crtc);
+void radeon_disable_vblank_kms(struct drm_crtc *crtc);
 
 /*
  * vm

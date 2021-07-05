@@ -363,38 +363,24 @@ static bool dpu_encoder_phys_vid_needs_single_flush(
 	return phys_enc->split_role != ENC_ROLE_SOLO;
 }
 
-static void _dpu_encoder_phys_vid_setup_irq_hw_idx(
-		struct dpu_encoder_phys *phys_enc)
-{
-	struct dpu_encoder_irq *irq;
-
-	/*
-	 * Initialize irq->hw_idx only when irq is not registered.
-	 * Prevent invalidating irq->irq_idx as modeset may be
-	 * called many times during dfps.
-	 */
-
-	irq = &phys_enc->irq[INTR_IDX_VSYNC];
-	if (irq->irq_idx < 0)
-		irq->hw_idx = phys_enc->intf_idx;
-
-	irq = &phys_enc->irq[INTR_IDX_UNDERRUN];
-	if (irq->irq_idx < 0)
-		irq->hw_idx = phys_enc->intf_idx;
-}
-
 static void dpu_encoder_phys_vid_mode_set(
 		struct dpu_encoder_phys *phys_enc,
 		struct drm_display_mode *mode,
 		struct drm_display_mode *adj_mode)
 {
+	struct dpu_encoder_irq *irq;
+
 	if (adj_mode) {
 		phys_enc->cached_mode = *adj_mode;
 		drm_mode_debug_printmodeline(adj_mode);
 		DPU_DEBUG_VIDENC(phys_enc, "caching mode:\n");
 	}
 
-	_dpu_encoder_phys_vid_setup_irq_hw_idx(phys_enc);
+	irq = &phys_enc->irq[INTR_IDX_VSYNC];
+	irq->irq_idx = phys_enc->hw_intf->cap->intr_vsync;
+
+	irq = &phys_enc->irq[INTR_IDX_UNDERRUN];
+	irq->irq_idx = phys_enc->hw_intf->cap->intr_underrun;
 }
 
 static int dpu_encoder_phys_vid_control_vblank_irq(
@@ -636,7 +622,7 @@ static void dpu_encoder_phys_vid_irq_control(struct dpu_encoder_phys *phys_enc,
 
 	if (enable) {
 		ret = dpu_encoder_phys_vid_control_vblank_irq(phys_enc, true);
-		if (ret)
+		if (WARN_ON(ret))
 			return;
 
 		dpu_encoder_helper_register_irq(phys_enc, INTR_IDX_UNDERRUN);
@@ -658,6 +644,31 @@ static int dpu_encoder_phys_vid_get_line_count(
 	return phys_enc->hw_intf->ops.get_line_count(phys_enc->hw_intf);
 }
 
+static int dpu_encoder_phys_vid_get_frame_count(
+		struct dpu_encoder_phys *phys_enc)
+{
+	struct intf_status s = {0};
+	u32 fetch_start = 0;
+	struct drm_display_mode mode = phys_enc->cached_mode;
+
+	if (!dpu_encoder_phys_vid_is_master(phys_enc))
+		return -EINVAL;
+
+	if (!phys_enc->hw_intf || !phys_enc->hw_intf->ops.get_status)
+		return -EINVAL;
+
+	phys_enc->hw_intf->ops.get_status(phys_enc->hw_intf, &s);
+
+	if (s.is_prog_fetch_en && s.is_en) {
+		fetch_start = mode.vtotal - (mode.vsync_start - mode.vdisplay);
+		if ((s.line_count > fetch_start) &&
+			(s.line_count <= mode.vtotal))
+			return s.frame_count + 1;
+	}
+
+	return s.frame_count;
+}
+
 static void dpu_encoder_phys_vid_init_ops(struct dpu_encoder_phys_ops *ops)
 {
 	ops->is_master = dpu_encoder_phys_vid_is_master;
@@ -676,6 +687,7 @@ static void dpu_encoder_phys_vid_init_ops(struct dpu_encoder_phys_ops *ops)
 	ops->handle_post_kickoff = dpu_encoder_phys_vid_handle_post_kickoff;
 	ops->needs_single_flush = dpu_encoder_phys_vid_needs_single_flush;
 	ops->get_line_count = dpu_encoder_phys_vid_get_line_count;
+	ops->get_frame_count = dpu_encoder_phys_vid_get_frame_count;
 }
 
 struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
@@ -712,19 +724,16 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 		irq = &phys_enc->irq[i];
 		INIT_LIST_HEAD(&irq->cb.list);
 		irq->irq_idx = -EINVAL;
-		irq->hw_idx = -EINVAL;
 		irq->cb.arg = phys_enc;
 	}
 
 	irq = &phys_enc->irq[INTR_IDX_VSYNC];
 	irq->name = "vsync_irq";
-	irq->intr_type = DPU_IRQ_TYPE_INTF_VSYNC;
 	irq->intr_idx = INTR_IDX_VSYNC;
 	irq->cb.func = dpu_encoder_phys_vid_vblank_irq;
 
 	irq = &phys_enc->irq[INTR_IDX_UNDERRUN];
 	irq->name = "underrun";
-	irq->intr_type = DPU_IRQ_TYPE_INTF_UNDER_RUN;
 	irq->intr_idx = INTR_IDX_UNDERRUN;
 	irq->cb.func = dpu_encoder_phys_vid_underrun_irq;
 
