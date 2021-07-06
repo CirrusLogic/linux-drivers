@@ -11,8 +11,10 @@
  * GNU General Public License for more details.
  */
 
-#include "linux/gfp.h"
+#include <linux/gfp.h>
+#include <linux/types.h>
 #include <linux/module.h>
+#include <linux/bug.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-direction.h>
 #include <linux/of_platform.h>
@@ -21,12 +23,14 @@
 #include <linux/dma-mapping.h>
 #include <linux/workqueue.h>
 #include <linux/genalloc.h>
+#include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <uapi/media/cam_req_mgr.h>
 #include <linux/debugfs.h>
 #include "cam_smmu_api.h"
 #include "cam_debug_util.h"
 
+#define IO_MEM_POOL_GRANULARITY 12
 #define SHARED_MEM_POOL_GRANULARITY 16
 
 #define BYTE_SIZE 8
@@ -101,6 +105,7 @@ struct cam_context_bank_info {
 	bool is_qdss_allocated;
 
 	struct gen_pool *shared_mem_pool;
+	struct gen_pool *io_mem_pool;
 
 	struct cam_smmu_region_info firmware_info;
 	struct cam_smmu_region_info shared_info;
@@ -787,88 +792,6 @@ static int cam_smmu_detach_device(int idx)
 	return 0;
 }
 
-static int cam_smmu_alloc_iova(size_t size,
-	int32_t smmu_hdl, uint32_t *iova)
-{
-	int rc = 0;
-	int idx;
-	uint32_t vaddr = 0;
-
-	if (!iova || !size || (smmu_hdl == HANDLE_INIT)) {
-		CAM_ERR(CAM_SMMU, "Error: Input args are invalid");
-		return -EINVAL;
-	}
-
-	CAM_DBG(CAM_SMMU, "Allocating iova size = %zu for smmu hdl=%X",
-		size, smmu_hdl);
-
-	idx = GET_SMMU_TABLE_IDX(smmu_hdl);
-	if (idx < 0 || idx >= iommu_cb_set.cb_num) {
-		CAM_ERR(CAM_SMMU,
-			"Error: handle or index invalid. idx = %d hdl = %x",
-			idx, smmu_hdl);
-		return -EINVAL;
-	}
-
-	if (iommu_cb_set.cb_info[idx].handle != smmu_hdl) {
-		CAM_ERR(CAM_SMMU,
-			"Error: hdl is not valid, table_hdl = %x, hdl = %x",
-			iommu_cb_set.cb_info[idx].handle, smmu_hdl);
-		rc = -EINVAL;
-		goto get_addr_end;
-	}
-
-	if (!iommu_cb_set.cb_info[idx].shared_support) {
-		CAM_ERR(CAM_SMMU,
-			"Error: Shared memory not supported for hdl = %X",
-			smmu_hdl);
-		rc = -EINVAL;
-		goto get_addr_end;
-	}
-
-	vaddr = gen_pool_alloc(iommu_cb_set.cb_info[idx].shared_mem_pool, size);
-	if (!vaddr)
-		return -ENOMEM;
-
-	*iova = vaddr;
-
-get_addr_end:
-	return rc;
-}
-
-static int cam_smmu_free_iova(uint32_t addr, size_t size,
-	int32_t smmu_hdl)
-{
-	int rc = 0;
-	int idx;
-
-	if (!size || (smmu_hdl == HANDLE_INIT)) {
-		CAM_ERR(CAM_SMMU, "Error: Input args are invalid");
-		return -EINVAL;
-	}
-
-	idx = GET_SMMU_TABLE_IDX(smmu_hdl);
-	if (idx < 0 || idx >= iommu_cb_set.cb_num) {
-		CAM_ERR(CAM_SMMU,
-			"Error: handle or index invalid. idx = %d hdl = %x",
-			idx, smmu_hdl);
-		return -EINVAL;
-	}
-
-	if (iommu_cb_set.cb_info[idx].handle != smmu_hdl) {
-		CAM_ERR(CAM_SMMU,
-			"Error: hdl is not valid, table_hdl = %x, hdl = %x",
-			iommu_cb_set.cb_info[idx].handle, smmu_hdl);
-		rc = -EINVAL;
-		goto get_addr_end;
-	}
-
-	gen_pool_free(iommu_cb_set.cb_info[idx].shared_mem_pool, addr, size);
-
-get_addr_end:
-	return rc;
-}
-
 int cam_smmu_alloc_firmware(int32_t smmu_hdl,
 	dma_addr_t *iova,
 	uintptr_t *cpuva,
@@ -1303,17 +1226,93 @@ int cam_smmu_get_region_info(int32_t smmu_hdl,
 }
 EXPORT_SYMBOL(cam_smmu_get_region_info);
 
+static int cam_smmu_map_to_pool(struct iommu_domain *domain,
+				struct gen_pool *pool, struct sg_table *table,
+				dma_addr_t *iova, size_t *size)
+{
+	struct scatterlist *sg;
+	size_t buffer_size;
+	size_t mapped_size;
+	int i;
+
+	if (!pool)
+		return -EINVAL;
+
+	buffer_size = 0;
+	for_each_sg(table->sgl, sg, table->orig_nents, i)
+		buffer_size += sg->length;
+
+	/*
+	 * The real buffer size is less than it was requested by the caller.
+	 * Handle this gracefully by allocating more IOVA space. This will
+	 * prevent out of bounds access, which instead will result in IOMMU
+	 * page faults.
+	 */
+	if (WARN_ON_ONCE(buffer_size < *size))
+		buffer_size = *size;
+
+	/*
+	 * iommu_map_sgtable() will map the entire sgtable, even if
+	 * the assumed buffer size is smaller. Use the real buffer size
+	 * for IOVA space allocation to take care of this.
+	 */
+	WARN_ON_ONCE(buffer_size > *size);
+
+	*iova = gen_pool_alloc(pool, buffer_size);
+	if (!*iova)
+		return -ENOMEM;
+
+	mapped_size = iommu_map_sgtable(domain, *iova, table,
+					IOMMU_READ | IOMMU_WRITE);
+	if (mapped_size < *size) {
+		CAM_ERR(CAM_SMMU, "iommu_map_sgtable() failed");
+		goto err_free_iova;
+	}
+	*size = mapped_size;
+
+	return 0;
+
+err_free_iova:
+	gen_pool_free(pool, *iova, buffer_size);
+
+	return -ENOMEM;
+}
+
+static void cam_smmu_unmap_from_pool(struct iommu_domain *domain,
+				     struct gen_pool *pool,
+				     dma_addr_t iova, size_t size)
+{
+	if (!pool)
+		return;
+
+	iommu_unmap(domain, iova, size);
+	gen_pool_free(pool, iova, size);
+}
+
+static struct gen_pool *
+cam_smmu_get_pool_for_region(struct cam_context_bank_info *cb,
+			     enum cam_smmu_region_id region_id)
+{
+	switch (region_id) {
+	case CAM_SMMU_REGION_SHARED:
+		return cb->shared_mem_pool;
+	case CAM_SMMU_REGION_IO:
+		return cb->io_mem_pool;
+	default:
+		return NULL;
+	}
+}
+
 static int cam_smmu_map_buffer_validate(struct dma_buf *buf,
 	int idx, enum dma_data_direction dma_dir, dma_addr_t *paddr_ptr,
 	size_t *len_ptr, enum cam_smmu_region_id region_id,
 	struct cam_dma_buff_info **mapping_info)
 {
-	struct dma_buf_attachment *attach = NULL;
-	struct sg_table *table = NULL;
-	struct iommu_domain *domain = NULL;
-	size_t size = 0;
-	uint32_t iova = 0;
-	int rc = 0;
+	struct cam_context_bank_info *cb = &iommu_cb_set.cb_info[idx];
+	struct dma_buf_attachment *attach;
+	struct sg_table *table;
+	struct gen_pool *pool;
+	int rc;
 
 	if (IS_ERR_OR_NULL(buf)) {
 		rc = PTR_ERR(buf);
@@ -1327,7 +1326,7 @@ static int cam_smmu_map_buffer_validate(struct dma_buf *buf,
 		return rc;
 	}
 
-	attach = dma_buf_attach(buf, iommu_cb_set.cb_info[idx].dev);
+	attach = dma_buf_attach(buf, cb->dev);
 	if (IS_ERR_OR_NULL(attach)) {
 		rc = PTR_ERR(attach);
 		CAM_ERR(CAM_SMMU, "Error: dma buf attach failed");
@@ -1341,51 +1340,27 @@ static int cam_smmu_map_buffer_validate(struct dma_buf *buf,
 		goto err_buf_detach;
 	}
 
-	if (region_id == CAM_SMMU_REGION_SHARED) {
-		domain = iommu_cb_set.cb_info[idx].domain;
-		if (!domain) {
-			CAM_ERR(CAM_SMMU, "CB has no domain set");
-			goto err_buf_unmap_attach;
-		}
-
-		rc = cam_smmu_alloc_iova(*len_ptr,
-			iommu_cb_set.cb_info[idx].handle,
-			&iova);
-		if (rc < 0) {
-			CAM_ERR(CAM_SMMU,
-				"Alloc failed, size=%zu, idx=%d, handle=%d",
-				*len_ptr, idx,
-				iommu_cb_set.cb_info[idx].handle);
-			goto err_buf_unmap_attach;
-		}
-
-		size = iommu_map_sg(domain, iova, table->sgl, table->orig_nents,
-				IOMMU_READ | IOMMU_WRITE);
-		if (!size) {
-			CAM_ERR(CAM_SMMU, "IOMMU mapping failed");
-			if (rc)
-				CAM_ERR(CAM_SMMU, "IOVA free failed");
-			rc = -ENOMEM;
-			goto err_free_iova;
-		}
-
-		CAM_DBG(CAM_SMMU, "iommu_map_sg returned iova=%x, size=%zu",
-			iova, size);
-		*paddr_ptr = iova;
-		*len_ptr = size;
-
-	} else {
-		*paddr_ptr = sg_dma_address(table->sgl);
-		*len_ptr = (size_t)buf->size;
+	pool = cam_smmu_get_pool_for_region(cb, region_id);
+	if (!pool) {
+		CAM_ERR(CAM_SMMU, "Error: Wrong region requested");
+		rc = -EINVAL;
+		goto err_buf_unmap_attach;
 	}
 
-	CAM_DBG(CAM_SMMU, "iova=%x, region_id=%d, paddr=%llx, len=%zu",
-		iova, region_id, *paddr_ptr, *len_ptr);
-
-	if (IS_ERR_OR_NULL(table->sgl)) {
-		CAM_ERR(CAM_SMMU, "Error: table sgl is null");
-		goto err_free_iova;
+	rc = cam_smmu_map_to_pool(cb->domain, pool, table, paddr_ptr, len_ptr);
+	if (rc < 0) {
+		CAM_ERR(CAM_SMMU,
+			"Buffer map failed, region_id=%u, size=%zu, idx=%d, handle=%d",
+			region_id, *len_ptr, idx,
+			iommu_cb_set.cb_info[idx].handle);
+		goto err_buf_unmap_attach;
 	}
+
+	CAM_DBG(CAM_SMMU, "cam_smmu_map_to_pool returned iova=%pad, size=%zu",
+		paddr_ptr, *len_ptr);
+
+	CAM_DBG(CAM_SMMU, "region_id=%d, paddr=%llx, len=%zu",
+		region_id, *paddr_ptr, *len_ptr);
 
 	CAM_DBG(CAM_SMMU,
 		"DMA buf: %pK, device: %pK, attach: %pK, table: %pK",
@@ -1427,12 +1402,7 @@ static int cam_smmu_map_buffer_validate(struct dma_buf *buf,
 	return 0;
 
 err_free_iova:
-	if (region_id == CAM_SMMU_REGION_SHARED) {
-		domain = iommu_cb_set.cb_info[idx].domain;
-		iommu_unmap(domain, *paddr_ptr, *len_ptr);
-		cam_smmu_free_iova(iova, size,
-				   iommu_cb_set.cb_info[idx].handle);
-	}
+	cam_smmu_unmap_from_pool(cb->domain, pool, *len_ptr, *paddr_ptr);
 err_buf_unmap_attach:
 	dma_buf_unmap_attachment(attach, table, dma_dir);
 err_buf_detach:
@@ -1498,9 +1468,8 @@ static int cam_smmu_unmap_buf_and_remove_from_list(
 	struct cam_dma_buff_info *mapping_info,
 	int idx)
 {
-	int rc;
-	size_t size;
-	struct iommu_domain *domain = NULL;
+	struct cam_context_bank_info *cb = &iommu_cb_set.cb_info[idx];
+	struct gen_pool *pool = NULL;
 
 	if ((!mapping_info->buf) || (!mapping_info->table) ||
 		(!mapping_info->attach)) {
@@ -1514,31 +1483,13 @@ static int cam_smmu_unmap_buf_and_remove_from_list(
 		return -EINVAL;
 	}
 
-	if (mapping_info->region_id == CAM_SMMU_REGION_SHARED) {
-		CAM_DBG(CAM_SMMU,
-			"Removing SHARED buffer paddr = %pK, len = %zu",
-			(void *)mapping_info->paddr, mapping_info->len);
+	CAM_DBG(CAM_SMMU, "Removing SHARED buffer paddr = %pK, len = %zu",
+		(void *)mapping_info->paddr, mapping_info->len);
 
-		domain = iommu_cb_set.cb_info[idx].domain;
-		size = iommu_unmap(domain,
-			mapping_info->paddr,
-			mapping_info->len);
-
-		if (size != mapping_info->len) {
-			CAM_ERR(CAM_SMMU, "IOMMU unmap failed");
-			CAM_ERR(CAM_SMMU, "Unmapped = %zu, requested = %zu",
-				size,
-				mapping_info->len);
-		}
-
-		rc = cam_smmu_free_iova(mapping_info->paddr,
-			mapping_info->len,
-			iommu_cb_set.cb_info[idx].handle);
-
-		if (rc)
-			CAM_ERR(CAM_SMMU, "IOVA free failed");
-
-	}
+	pool = cam_smmu_get_pool_for_region(cb, mapping_info->region_id);
+	cam_smmu_unmap_from_pool(cb->domain, pool,
+				 mapping_info->paddr,
+				 mapping_info->len);
 
 	dma_buf_unmap_attachment(mapping_info->attach,
 		mapping_info->table, mapping_info->dir);
@@ -2057,9 +2008,15 @@ static void cam_smmu_deinit_cb(struct cam_context_bank_info *cb)
 	if (cb->shared_support) {
 		gen_pool_destroy(cb->shared_mem_pool);
 		cb->shared_mem_pool = NULL;
-	} else {
+	}
+
+	if (cb->io_support) {
+		gen_pool_destroy(cb->io_mem_pool);
 		iommu_cb_set.non_fatal_fault = false;
 	}
+
+	WARN_ON(cb->state == CAM_SMMU_ATTACH);
+	iommu_domain_free(cb->domain);
 }
 
 static void cam_smmu_release_cb(struct platform_device *pdev)
@@ -2071,6 +2028,26 @@ static void cam_smmu_release_cb(struct platform_device *pdev)
 
 	devm_kfree(&pdev->dev, iommu_cb_set.cb_info);
 	iommu_cb_set.cb_num = 0;
+}
+
+static struct gen_pool *
+cam_smmu_pool_create(size_t iova_start, size_t iova_len, int granularity)
+{
+	struct gen_pool *pool;
+	int rc;
+
+	pool = gen_pool_create(granularity, -1);
+	if (!pool)
+		return ERR_PTR(-ENOMEM);
+
+	rc = gen_pool_add(pool, iova_start, iova_len, -1);
+	if (rc) {
+		CAM_ERR(CAM_SMMU, "Genpool chunk creation failed");
+		gen_pool_destroy(pool);
+		return ERR_PTR(rc);
+	}
+
+	return pool;
 }
 
 static int cam_smmu_setup_cb(struct cam_context_bank_info *cb,
@@ -2089,36 +2066,50 @@ static int cam_smmu_setup_cb(struct cam_context_bank_info *cb,
 
 	/* Create a pool with 64K granularity for supporting shared memory */
 	if (cb->shared_support) {
-		cb->shared_mem_pool = gen_pool_create(
-			SHARED_MEM_POOL_GRANULARITY, -1);
-
-		if (!cb->shared_mem_pool)
-			return -ENOMEM;
-
-		rc = gen_pool_add(cb->shared_mem_pool,
-			cb->shared_info.iova_start,
-			cb->shared_info.iova_len,
-			-1);
+		cb->shared_mem_pool =
+			cam_smmu_pool_create(cb->shared_info.iova_start,
+					     cb->shared_info.iova_len,
+					     SHARED_MEM_POOL_GRANULARITY);
+		if (IS_ERR(cb->shared_mem_pool)) {
+			CAM_ERR(CAM_SMMU, "Shared memory pool creation failed");
+			return PTR_ERR(cb->shared_mem_pool);
+		}
 
 		CAM_DBG(CAM_SMMU, "Shared mem start->%lX",
 			(unsigned long)cb->shared_info.iova_start);
 		CAM_DBG(CAM_SMMU, "Shared mem len->%zu",
 			cb->shared_info.iova_len);
-
-		if (rc) {
-			CAM_ERR(CAM_SMMU, "Genpool chunk creation failed");
-			gen_pool_destroy(cb->shared_mem_pool);
-			cb->shared_mem_pool = NULL;
-			return rc;
-		}
 	}
 
 	/* create a virtual mapping */
 	if (cb->io_support) {
+		cb->io_mem_pool =
+			cam_smmu_pool_create(cb->io_info.iova_start,
+					     cb->io_info.iova_len,
+					     IO_MEM_POOL_GRANULARITY);
+		if (IS_ERR(cb->io_mem_pool)) {
+			CAM_ERR(CAM_SMMU, "IO memory pool creation failed");
+			rc = PTR_ERR(cb->io_mem_pool);
+			goto err_free_shared;
+		}
+
+		CAM_DBG(CAM_SMMU, "IO mem start->%lX",
+			(unsigned long)cb->io_info.iova_start);
+		CAM_DBG(CAM_SMMU, "IO mem len->%zu",
+			cb->io_info.iova_len);
 		iommu_cb_set.non_fatal_fault = smmu_fatal_flag;
 	} else {
 		CAM_ERR(CAM_SMMU, "Context bank does not have IO region");
 		rc = -ENODEV;
+		goto err_free_shared;
+	}
+
+	return 0;
+
+err_free_shared:
+	if (cb->shared_support) {
+		gen_pool_destroy(cb->shared_mem_pool);
+		cb->shared_mem_pool = NULL;
 	}
 
 	return rc;
@@ -2341,7 +2332,7 @@ static int cam_populate_smmu_context_banks(struct device *dev,
 		goto cb_init_fail;
 	}
 
-	cb->domain = iommu_get_domain_for_dev(dev);
+	cb->domain = iommu_domain_alloc(&platform_bus_type);
 	if (IS_ERR_OR_NULL(cb->domain)) {
 		CAM_ERR(CAM_SMMU, "Invalid domain for device");
 		return PTR_ERR(cb->domain);
