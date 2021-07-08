@@ -1661,6 +1661,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	u32 index = 0;
 	int ret = 0;
 	unsigned int reg, freq;
+	bool invert;
 	u16 duration;
 
 	dev_dbg(dev, "%s\n", __func__);
@@ -1681,6 +1682,29 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		hrtimer_start(&cs40l26->vibe_timer,
 			ktime_set(CS40L26_MS_TO_SECS(duration),
 			CS40L26_MS_TO_NS(duration % 1000)), HRTIMER_MODE_REL);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_INVERT",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	switch (cs40l26->effect->direction) {
+	case 0x0000:
+		invert = false;
+		break;
+	case 0x8000:
+		invert = true;
+		break;
+	default:
+		dev_err(dev, "Invalid ff_effect direction: 0x%X\n",
+			cs40l26->effect->direction);
+		ret = -EINVAL;
+		goto err_mutex;
+	}
+
+	ret = regmap_write(cs40l26->regmap, reg, invert);
+	if (ret)
+		goto err_mutex;
 
 	cs40l26_vibe_state_set(cs40l26, CS40L26_VIBE_STATE_HAPTIC);
 
