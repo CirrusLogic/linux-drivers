@@ -26,6 +26,7 @@
 
 #include "mali_kbase.h"
 #include <valhall/backend/gpu/mali_kbase_device_internal.h>
+#include <valhall/backend/gpu/mali_kbase_irq_internal.h>
 #include <valhall/backend/gpu/mali_kbase_pm_internal.h>
 
 #include <kutf/kutf_suite.h>
@@ -69,7 +70,6 @@ struct kutf_irq_fixture_data {
 extern int kbase_set_custom_irq_handler(struct kbase_device *kbdev,
 		irq_handler_t custom_handler,
 		int irq_type);
-extern irqreturn_t kbase_gpu_irq_test_handler(int irq, void *data, u32 val);
 
 static DECLARE_WAIT_QUEUE_HEAD(wait);
 static bool triggered;
@@ -236,7 +236,7 @@ static void mali_kutf_irq_latency(struct kutf_context *context)
 /**
  * Module entry point for this test.
  */
-int mali_kutf_irq_test_main_init(void)
+static int mali_kutf_irq_test_main_init(void)
 {
 	struct kutf_suite *suite;
 
@@ -265,7 +265,7 @@ int mali_kutf_irq_test_main_init(void)
 /**
  * Module exit point for this test.
  */
-void mali_kutf_irq_test_main_exit(void)
+static void mali_kutf_irq_test_main_exit(void)
 {
 	kutf_destroy_application(irq_app);
 }
