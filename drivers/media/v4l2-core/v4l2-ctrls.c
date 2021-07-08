@@ -1536,6 +1536,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_MPEG_VIDEO_VP9_FRAME_CONTEXT(2):
 	case V4L2_CID_MPEG_VIDEO_VP9_FRAME_CONTEXT(3):
 		*type = V4L2_CTRL_TYPE_VP9_FRAME_CONTEXT;
+		break;
 	case V4L2_CID_COLORIMETRY_HDR10_CLL_INFO:
 		*type = V4L2_CTRL_TYPE_HDR10_CLL_INFO;
 		break;
