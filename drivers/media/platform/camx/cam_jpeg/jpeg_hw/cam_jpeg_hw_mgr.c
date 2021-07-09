@@ -1088,7 +1088,7 @@ hw_dump:
 	tm = ktime_to_timespec64(p_cfg_req->submit_timestamp);
 	if (diff < CAM_JPEG_RESPONSE_TIME_THRESHOLD) {
 		CAM_INFO(CAM_JPEG,
-			"No error req %lld %ld:%06ld %ld:%06ld",
+			"No error req %lld %lld:%06ld %lld:%06ld",
 			dump_args->request_id,
 			tm.tv_sec,
 			tm.tv_nsec / NSEC_PER_USEC,
@@ -1098,7 +1098,7 @@ hw_dump:
 		return 0;
 	}
 	CAM_INFO(CAM_JPEG,
-		"Error req %lld %ld:%06ld %ld:%06ld",
+		"Error req %lld %lld:%06ld %lld:%06ld",
 		dump_args->request_id,
 		tm.tv_sec,
 		tm.tv_nsec / NSEC_PER_USEC,

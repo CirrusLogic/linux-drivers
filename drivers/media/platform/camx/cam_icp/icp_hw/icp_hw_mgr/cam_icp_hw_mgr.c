@@ -4555,20 +4555,20 @@ hw_dump:
 	tm = ktime_to_timespec64(frm_process->submit_timestamp[i]);
 	cur_tm = ktime_to_timespec64(cur_time);
 	if (diff < CAM_ICP_CTX_RESPONSE_TIME_THRESHOLD) {
-		CAM_INFO(CAM_ICP, "No Error req %lld %ld:%06ld %ld:%06ld",
-			dump_args->request_id,
-			tm.tv_sec,
-			tm.tv_nsec / NSEC_PER_USEC,
-			cur_tm.tv_sec,
-			cur_tm.tv_nsec / NSEC_PER_USEC);
+		CAM_INFO(CAM_ICP, "No Error req %lld %lld:%06ld %lld:%06ld",
+			 dump_args->request_id,
+			 tm.tv_sec,
+			 tm.tv_nsec / NSEC_PER_USEC,
+			 cur_tm.tv_sec,
+			 cur_tm.tv_nsec / NSEC_PER_USEC);
 		return 0;
 	}
-	CAM_INFO(CAM_ICP, "Error req %lld %ld:%06ld %ld:%06ld",
-		dump_args->request_id,
-		tm.tv_sec,
-		tm.tv_nsec / NSEC_PER_USEC,
-		cur_tm.tv_sec,
-		cur_tm.tv_nsec / NSEC_PER_USEC);
+	CAM_INFO(CAM_ICP, "Error req %lld %lld:%06ld %lld:%06ld",
+		 dump_args->request_id,
+		 tm.tv_sec,
+		 tm.tv_nsec / NSEC_PER_USEC,
+		 cur_tm.tv_sec,
+		 cur_tm.tv_nsec / NSEC_PER_USEC);
 	rc  = cam_mem_get_cpu_buf(dump_args->buf_handle,
 		&icp_dump_args.cpu_addr, &icp_dump_args.buf_len);
 	if (!icp_dump_args.cpu_addr || !icp_dump_args.buf_len || rc) {

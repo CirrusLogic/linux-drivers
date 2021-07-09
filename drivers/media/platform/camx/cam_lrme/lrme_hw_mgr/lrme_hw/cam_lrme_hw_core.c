@@ -109,21 +109,21 @@ static int cam_lrme_hw_dump(struct cam_hw_info *lrme_hw,
 	tm = ktime_to_timespec64(req->submit_timestamp);
 	cur_tm = ktime_to_timespec64(cur_time);
 	if (diff < CAM_LRME_RESPONSE_TIME_THRESHOLD) {
-		CAM_INFO(CAM_LRME, "No error req %lld %ld:%06ld %ld:%06ld",
-			dump_args->request_id,
-			tm.tv_sec,
-			tm.tv_nsec / NSEC_PER_USEC,
-			cur_tm.tv_sec,
-			cur_tm.tv_nsec / NSEC_PER_USEC);
+		CAM_INFO(CAM_LRME, "No error req %lld %lld:%06ld %lld:%06ld",
+			 dump_args->request_id,
+			 tm.tv_sec,
+			 tm.tv_nsec / NSEC_PER_USEC,
+			 cur_tm.tv_sec,
+			 cur_tm.tv_nsec / NSEC_PER_USEC);
 		mutex_unlock(&lrme_hw->hw_mutex);
 		return 0;
 	}
-	CAM_INFO(CAM_LRME, "Error req %lld %ld:%06ld %ld:%06ld",
-		dump_args->request_id,
-		tm.tv_sec,
-		tm.tv_nsec / NSEC_PER_USEC,
-		cur_tm.tv_sec,
-		cur_tm.tv_nsec / NSEC_PER_USEC);
+	CAM_INFO(CAM_LRME, "Error req %lld %lld:%06ld %lld:%06ld",
+		 dump_args->request_id,
+		 tm.tv_sec,
+		 tm.tv_nsec / NSEC_PER_USEC,
+		 cur_tm.tv_sec,
+		 cur_tm.tv_nsec / NSEC_PER_USEC);
 	remain_len = dump_args->buf_len - dump_args->offset;
 	min_len =  2 * (sizeof(struct cam_lrme_hw_dump_header) +
 		    CAM_LRME_HW_DUMP_TAG_MAX_LEN);
