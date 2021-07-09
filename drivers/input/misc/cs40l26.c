@@ -1595,6 +1595,95 @@ static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
 	return ret;
 }
 
+static int cs40l26_buzzgen_set(struct cs40l26_private *cs40l26, u16 freq,
+		u16 level, u16 duration, u8 offset)
+{
+	int ret;
+	unsigned int base_reg, offset_reg;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "BUZZ_EFFECTS1_BUZZ_FREQ",
+		CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID, &base_reg);
+	if (ret)
+		return ret;
+
+	offset_reg = base_reg + (offset * 12);
+
+	ret = regmap_write(cs40l26->regmap, offset_reg, freq);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to write BUZZGEN frequency\n");
+		return ret;
+	}
+
+	ret = regmap_write(cs40l26->regmap, offset_reg + 4,
+			CS40L26_BUZZGEN_LEVEL_DEFAULT);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to write BUZZGEN level\n");
+		return ret;
+	}
+
+	ret = regmap_write(cs40l26->regmap, offset_reg + 8, duration / 4);
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to write BUZZGEN duration\n");
+
+	return ret;
+}
+
+static int cs40l26_gpio_index_set(struct cs40l26_private *cs40l26,
+		struct ff_effect *effect)
+{
+	u16 button = effect->trigger.button;
+	u8 bank = (button & CS40L26_BTN_BANK_MASK) >> CS40L26_BTN_BANK_SHIFT;
+	u8 edge = (button & CS40L26_BTN_EDGE_MASK) >> CS40L26_BTN_EDGE_SHIFT;
+	u8 gpio = (button & CS40L26_BTN_NUM_MASK) >> CS40L26_BTN_NUM_SHIFT;
+	u8 index = button & CS40L26_BTN_INDEX_MASK;
+	u8 buzz = button & CS40L26_BTN_BUZZ_MASK;
+	u16 write_val, freq;
+	u8 offset;
+	u32 reg;
+	int ret;
+
+	if (gpio != 1) {
+		dev_err(cs40l26->dev, "GPIO%u not supported on 0x%02X\n", gpio,
+				cs40l26->revid);
+		return -EINVAL;
+	}
+
+	if (edge > 1) {
+		dev_err(cs40l26->dev, "Invalid GPI edge %u\n", edge);
+		return -EINVAL;
+	}
+
+	offset = ((edge ^ 1)) * 4;
+	reg = cs40l26->event_map_base + offset;
+
+	pm_runtime_get_sync(cs40l26->dev);
+
+	if (buzz) {
+		freq = CS40L26_MS_TO_HZ(effect->u.periodic.period);
+
+		ret = cs40l26_buzzgen_set(cs40l26, freq,
+				CS40L26_BUZZGEN_LEVEL_DEFAULT,
+				effect->replay.length, 0);
+		if (ret)
+			goto pm_err;
+
+		write_val = 1 << CS40L26_BTN_BUZZ_SHIFT;
+	} else {
+		write_val = index | (bank << CS40L26_BTN_BANK_SHIFT);
+	}
+
+	ret = regmap_update_bits(cs40l26->regmap, reg,
+			CS40L26_EVENT_MAP_INDEX_MASK, write_val);
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to update event map\n");
+
+pm_err:
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	return ret;
+}
+
 static void cs40l26_set_gain_worker(struct work_struct *work)
 {
 	struct cs40l26_private *cs40l26 =
@@ -1716,26 +1805,10 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 			goto err_mutex;
 		break;
 	case FF_SINE:
-		ret = cl_dsp_get_reg(cs40l26->dsp, "BUZZ_EFFECTS2_BUZZ_FREQ",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID, &reg);
-		if (ret)
-			goto err_mutex;
-
 		freq = CS40L26_MS_TO_HZ(cs40l26->effect->u.periodic.period);
 
-		ret = regmap_write(cs40l26->regmap, reg, freq);
-		if (ret)
-			goto err_mutex;
-
-		ret = regmap_write(cs40l26->regmap, reg +
-				CS40L26_BUZZGEN_LEVEL_OFFSET,
-				CS40L26_BUZZGEN_LEVEL_DEFAULT);
-		if (ret)
-			goto err_mutex;
-
-		ret = regmap_write(cs40l26->regmap, reg +
-				CS40L26_BUZZGEN_DURATION_OFFSET, duration /
-				CS40L26_BUZZGEN_DURATION_DIV_STEP);
+		ret = cs40l26_buzzgen_set(cs40l26, freq,
+				CS40L26_BUZZGEN_LEVEL_DEFAULT, duration, 1);
 		if (ret)
 			goto err_mutex;
 
@@ -2231,6 +2304,10 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 		return -EINVAL;
 	}
 
+	if (effect->trigger.button)
+		ret = cs40l26_gpio_index_set(cs40l26, effect);
+
+
 out_free:
 	kfree(raw_custom_data);
 
@@ -2428,6 +2505,13 @@ static int cs40l26_wksrc_config(struct cs40l26_private *cs40l26)
 static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 {
 	u32 unmask_bits;
+	int ret;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "ENT_MAP_TABLE_EVENT_DATA_PACKED",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EVENT_HANDLER_ALGO_ID,
+			&cs40l26->event_map_base);
+	if (ret)
+		return ret;
 
 	unmask_bits = BIT(CS40L26_IRQ1_GPIO1_RISE)
 			| BIT(CS40L26_IRQ1_GPIO1_FALL);
