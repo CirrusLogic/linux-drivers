@@ -89,6 +89,7 @@ struct cam_req_mgr_core_workq {
 	struct work_struct         work;
 	struct workqueue_struct   *job;
 	spinlock_t                 lock_bh;
+	spinlock_t		   lock_irq;
 	uint32_t                   in_irq;
 
 	/* tasks */

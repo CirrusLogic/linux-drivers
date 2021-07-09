@@ -16,14 +16,14 @@
 
 #define WORKQ_ACQUIRE_LOCK(workq, flags) {\
 	if ((workq)->in_irq) \
-		spin_lock_irqsave(&(workq)->lock_bh, (flags)); \
+		spin_lock_irqsave(&(workq)->lock_irq, (flags)); \
 	else \
 		spin_lock_bh(&(workq)->lock_bh); \
 }
 
 #define WORKQ_RELEASE_LOCK(workq, flags) {\
 	if ((workq)->in_irq) \
-		spin_unlock_irqrestore(&(workq)->lock_bh, (flags)); \
+		spin_unlock_irqrestore(&(workq)->lock_irq, (flags)); \
 	else	\
 		spin_unlock_bh(&(workq)->lock_bh); \
 }
@@ -210,8 +210,13 @@ int cam_req_mgr_workq_create(char *name, int32_t num_tasks,
 		/* Workq attributes initialization */
 		INIT_WORK(&crm_workq->work, cam_req_mgr_process_workq);
 		spin_lock_init(&crm_workq->lock_bh);
-		CAM_DBG(CAM_CRM, "LOCK_DBG workq %s lock %pK",
-			name, &crm_workq->lock_bh);
+		spin_lock_init(&crm_workq->lock_irq);
+		if (in_irq)
+			CAM_DBG(CAM_CRM, "LOCK_DBG workq %s lock %pK",
+				name, &crm_workq->lock_irq);
+		else
+			CAM_DBG(CAM_CRM, "LOCK_DBG workq %s lock %pK",
+				name, &crm_workq->lock_bh);
 
 		/* Task attributes initialization */
 		atomic_set(&crm_workq->task.pending_cnt, 0);
