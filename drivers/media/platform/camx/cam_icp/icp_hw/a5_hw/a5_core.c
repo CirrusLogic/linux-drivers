@@ -246,7 +246,7 @@ static int cam_a5_fw_dump(struct cam_icp_hw_dump_args *dump_args,
 	struct cam_a5_device_core_info *core_info)
 {
 	u8 *dest;
-	u8 *src;
+	const __iomem void *src;
 	uint64_t size_required = 0;
 	struct cam_icp_dump_header *hdr;
 
@@ -272,7 +272,7 @@ static int cam_a5_fw_dump(struct cam_icp_hw_dump_args *dump_args,
 	snprintf(hdr->tag, CAM_ICP_DUMP_TAG_MAX_LEN, "ICP_FW:");
 	hdr->word_size = sizeof(u8);
 	hdr->size = core_info->fw_buf_len;
-	src = (u8 *)core_info->fw_kva_addr;
+	src = (void __iomem *)core_info->fw_kva_addr;
 	dest = (u8 *)dest + sizeof(struct cam_icp_dump_header);
 	memcpy_fromio(dest, src, core_info->fw_buf_len);
 	dump_args->offset += hdr->size + sizeof(struct cam_icp_dump_header);
