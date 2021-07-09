@@ -858,6 +858,19 @@
 
 #define CS40L26_AMP_VOL_PCM_MAX		0x07FF
 
+/* GPI Triggering */
+#define CS40L26_EVENT_MAP_INDEX_MASK	GENMASK(8, 0)
+
+#define CS40L26_BTN_INDEX_MASK	GENMASK(6, 0)
+#define CS40L26_BTN_BUZZ_MASK	BIT(7)
+#define CS40L26_BTN_BUZZ_SHIFT	7
+#define CS40L26_BTN_BANK_MASK	BIT(8)
+#define CS40L26_BTN_BANK_SHIFT	8
+#define CS40L26_BTN_NUM_MASK	GENMASK(14, 12)
+#define CS40L26_BTN_NUM_SHIFT	12
+#define CS40L26_BTN_EDGE_MASK	BIT(15)
+#define CS40L26_BTN_EDGE_SHIFT	15
+
 /* Interrupts */
 #define CS40L26_IRQ_STATUS_DEASSERT		0x0
 #define CS40L26_IRQ_STATUS_ASSERT		0x1
@@ -1321,6 +1334,7 @@ struct cs40l26_private {
 	int num_owt_effects;
 	int cal_requested;
 	u16 gain_pct;
+	u32 event_map_base;
 };
 
 struct cs40l26_codec {
