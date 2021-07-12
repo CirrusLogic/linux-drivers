@@ -4161,29 +4161,19 @@ static int cs40l2x_gpio1_dig_scale_get(struct cs40l2x_private *cs40l2x,
 	unsigned int val, reg;
 	int ret;
 
-	pm_runtime_get_sync(cs40l2x->dev);
-	mutex_lock(&cs40l2x->lock);
-
 	reg = cs40l2x_dsp_reg(cs40l2x, "GAIN_CONTROL",
 			      CS40L2X_XM_UNPACKED_TYPE, cs40l2x->fw_desc->id);
-	if (!reg) {
-		ret = -EPERM;
-		goto err_mutex;
-	}
+	if (!reg)
+		return -EPERM;
 
 	ret = regmap_read(cs40l2x->regmap, reg, &val);
 	if (ret)
-		goto err_mutex;
+		return ret;
 
 	*dig_scale = (val & CS40L2X_GAIN_CTRL_GPIO_MASK)
 			>> CS40L2X_GAIN_CTRL_GPIO_SHIFT;
 
-err_mutex:
-	mutex_unlock(&cs40l2x->lock);
-	pm_runtime_mark_last_busy(cs40l2x->dev);
-	pm_runtime_put_autosuspend(cs40l2x->dev);
-
-	return ret;
+	return 0;
 }
 
 static int cs40l2x_gpio1_dig_scale_set(struct cs40l2x_private *cs40l2x,
@@ -4192,24 +4182,17 @@ static int cs40l2x_gpio1_dig_scale_set(struct cs40l2x_private *cs40l2x,
 	unsigned int val, reg;
 	int ret;
 
-	pm_runtime_get_sync(cs40l2x->dev);
-	mutex_lock(&cs40l2x->lock);
-
 	reg = cs40l2x_dsp_reg(cs40l2x, "GAIN_CONTROL",
 			      CS40L2X_XM_UNPACKED_TYPE, cs40l2x->fw_desc->id);
-	if (!reg) {
-		ret = -EPERM;
-		goto err_mutex;
-	}
+	if (!reg)
+		return -EPERM;
 
-	if (dig_scale == CS40L2X_DIG_SCALE_RESET) {
-		ret = -EINVAL;
-		goto err_mutex;
-	}
+	if (dig_scale == CS40L2X_DIG_SCALE_RESET)
+		return -EINVAL;
 
 	ret = regmap_read(cs40l2x->regmap, reg, &val);
 	if (ret)
-		goto err_mutex;
+		return ret;
 
 	val &= ~CS40L2X_GAIN_CTRL_GPIO_MASK;
 	val |= CS40L2X_GAIN_CTRL_GPIO_MASK &
@@ -4217,16 +4200,9 @@ static int cs40l2x_gpio1_dig_scale_set(struct cs40l2x_private *cs40l2x,
 
 	ret = regmap_write(cs40l2x->regmap, reg, val);
 	if (ret)
-		goto err_mutex;
+		return ret;
 
-	ret = cs40l2x_dsp_cache(cs40l2x, reg, val);
-
-err_mutex:
-	mutex_unlock(&cs40l2x->lock);
-	pm_runtime_mark_last_busy(cs40l2x->dev);
-	pm_runtime_put_autosuspend(cs40l2x->dev);
-
-	return ret;
+	return cs40l2x_dsp_cache(cs40l2x, reg, val);
 }
 
 static ssize_t cs40l2x_gpio1_dig_scale_show(struct device *dev,
@@ -4556,9 +4532,6 @@ static ssize_t cs40l2x_gpio3_rise_dig_scale_store(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
-	pm_runtime_get_sync(cs40l2x->dev);
-	mutex_lock(&cs40l2x->lock);
-
 	ret = cs40l2x_gpio_edge_dig_scale_set(cs40l2x, dig_scale,
 			CS40L2X_INDEXBUTTONPRESS3, CS40L2X_GPIO_RISE);
 	if (ret)
@@ -4573,9 +4546,6 @@ static ssize_t cs40l2x_gpio3_fall_dig_scale_show(struct device *dev,
 	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
 	int ret;
 	unsigned int dig_scale;
-
-	pm_runtime_get_sync(cs40l2x->dev);
-	mutex_lock(&cs40l2x->lock);
 
 	ret = cs40l2x_gpio_edge_dig_scale_get(cs40l2x, &dig_scale,
 			CS40L2X_INDEXBUTTONRELEASE3, CS40L2X_GPIO_FALL);
