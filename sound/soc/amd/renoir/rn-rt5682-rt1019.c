@@ -35,36 +35,16 @@
 static struct snd_soc_jack pco_jack;
 static struct clk *rt5682_dai_wclk;
 static struct clk *rt5682_dai_bclk;
-static int rt1019_conf_quirk;
 
 void *acp_rn_soc_is_rltk(struct device *dev);
 
-static int rn_quirk_cb(const struct dmi_system_id *id)
-{
-	rt1019_conf_quirk = (unsigned long)id->driver_data;
-	return 0;
-}
-
 static const struct dmi_system_id rn_quirk_table[] = {
 	{
-		.callback = rn_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Guybrush"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "rev1"),
 		},
-
-		.driver_data = (void *)RT1019_DEV0_DEV1,
-	},
-	{
-		.callback = rn_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Guybrush"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "rev2"),
-		},
-
-		.driver_data = (void *)RT1019_DEV1_DEV2,
 	},
 	{},
 };
@@ -436,23 +416,20 @@ void *acp_rn_soc_is_rltk(struct device *dev)
 	return (void *)match->driver_data;
 }
 
-static int acp_card_dai_links_create(struct snd_soc_card *card,
-				    unsigned int card_quirk)
+static int acp_card_dai_links_create(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *links;
 	struct device *dev = card->dev;
 	int num_links = 3;
-
-	if (card_quirk != RT1019_DEV0_DEV1 || card_quirk != RT1019_DEV1_DEV2) {
-		dev_warn(dev, "Invalid card quirk %d\n", card_quirk);
-		return -1;
-	}
 
 	links = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link) *
 			     num_links, GFP_KERNEL);
 
 	/* Initialize Headset codec dai link if defined */
 	links[0].name = "acp3x-5682-play";
+	links[0].stream_name = "Playback";
+	links[0].dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			   SND_SOC_DAIFMT_CBM_CFM;
 	links[0].codecs = rt5682;
 	links[0].num_codecs = ARRAY_SIZE(rt5682);
 	links[0].cpus = acp3x_i2s;
@@ -466,10 +443,13 @@ static int acp_card_dai_links_create(struct snd_soc_card *card,
 
 	/* Initialize Amp codec dai link if defined */
 	links[1].name = "acp3x-rt1019-play";
-	if (card_quirk == RT1019_DEV0_DEV1) {
+	links[1].stream_name = "HiFi Playback";
+	links[1].dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			   SND_SOC_DAIFMT_CBS_CFS;
+	if (dmi_check_system(rn_quirk_table)) {
 		links[1].codecs = rt1019;
 		links[1].num_codecs = ARRAY_SIZE(rt1019);
-	} else if (card_quirk == RT1019_DEV1_DEV2) {
+	} else {
 		links[1].codecs = rt1019_1;
 		links[1].num_codecs = ARRAY_SIZE(rt1019_1);
 	}
@@ -482,6 +462,7 @@ static int acp_card_dai_links_create(struct snd_soc_card *card,
 
 	/* Initialize Dmic codec dai link if defined */
 	links[2].name = "acp3x-dmic-capture";
+	links[2].stream_name = "DMIC capture";
 	links[2].cpus = acp_pdm;
 	links[2].num_cpus = ARRAY_SIZE(acp_pdm);
 	links[2].codecs = dmic_codec;
@@ -491,10 +472,10 @@ static int acp_card_dai_links_create(struct snd_soc_card *card,
 	links[2].capture_only = 1;
 	links[2].ops = &acp3x_rn_dmic_ops;
 
-	if (card_quirk == RT1019_DEV0_DEV1) {
+	if (dmi_check_system(rn_quirk_table)) {
 		card->codec_conf = rt1019_conf;
 		card->num_configs = ARRAY_SIZE(rt1019_conf);
-	} else if (card_quirk == RT1019_DEV1_DEV2) {
+	} else {
 		card->codec_conf = rt1019_conf_1;
 		card->num_configs = ARRAY_SIZE(rt1019_conf_1);
 	}
@@ -512,8 +493,6 @@ static int acp3x_rn_probe(struct platform_device *pdev)
 	struct acp3x_platform_info *machine;
 	struct device *dev = &pdev->dev;
 
-	dmi_check_system(rn_quirk_table);
-
 	card = (struct snd_soc_card *)acp_rn_soc_is_rltk(dev);
 	if (!card)
 		return -ENODEV;
@@ -526,7 +505,7 @@ static int acp3x_rn_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
 
-	ret = acp_card_dai_links_create(card, rt1019_conf_quirk);
+	ret = acp_card_dai_links_create(card);
 	if (ret)
 		return -EINVAL;
 
