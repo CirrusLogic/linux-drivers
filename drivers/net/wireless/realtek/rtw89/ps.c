@@ -51,25 +51,25 @@ static void __rtw89_leave_ps_mode(struct rtw89_dev *rtwdev)
 
 static void __rtw89_enter_lps(struct rtw89_dev *rtwdev, u8 mac_id)
 {
-	struct rtw89_lps_parm *lps_param = &rtwdev->lps_parm;
-
-	lps_param->macid = mac_id;
-	lps_param->psmode = RTW89_MAC_AX_PS_MODE_LEGACY;
-	lps_param->lastrpwm = RTW89_LAST_RPWM_PS;
+	struct rtw89_lps_parm lps_param = {
+		.macid = mac_id,
+		.psmode = RTW89_MAC_AX_PS_MODE_LEGACY,
+		.lastrpwm = RTW89_LAST_RPWM_PS,
+	};
 
 	rtw89_btc_ntfy_radio_state(rtwdev, BTC_RFCTRL_FW_CTRL);
-	rtw89_fw_h2c_lps_parm(rtwdev, mac_id);
+	rtw89_fw_h2c_lps_parm(rtwdev, &lps_param);
 }
 
 static void __rtw89_leave_lps(struct rtw89_dev *rtwdev, u8 mac_id)
 {
-	struct rtw89_lps_parm *lps_param = &rtwdev->lps_parm;
+	struct rtw89_lps_parm lps_param = {
+		.macid = mac_id,
+		.psmode = RTW89_MAC_AX_PS_MODE_ACTIVE,
+		.lastrpwm = RTW89_LAST_RPWM_ACTIVE,
+	};
 
-	lps_param->macid = mac_id;
-	lps_param->psmode = RTW89_MAC_AX_PS_MODE_ACTIVE;
-	lps_param->lastrpwm = RTW89_LAST_RPWM_ACTIVE;
-
-	rtw89_fw_h2c_lps_parm(rtwdev, mac_id);
+	rtw89_fw_h2c_lps_parm(rtwdev, &lps_param);
 	rtw89_fw_leave_lps_check(rtwdev, 0);
 	rtw89_btc_ntfy_radio_state(rtwdev, BTC_RFCTRL_WL_ON);
 }
@@ -93,7 +93,7 @@ void rtw89_enter_lps(struct rtw89_dev *rtwdev, u8 mac_id)
 	rtw89_hci_link_ps(rtwdev, true);
 }
 
-static void rtw_leave_lps_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+static void rtw89_leave_lps_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct rtw89_dev *rtwdev = data;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
@@ -113,14 +113,14 @@ void rtw89_leave_lps(struct rtw89_dev *rtwdev, bool held_vifmtx)
 		return;
 
 	rtw89_hci_link_ps(rtwdev, false);
-	rtw89_iterate_vifs(rtwdev, rtw_leave_lps_iter, rtwdev, held_vifmtx);
+	rtw89_iterate_vifs(rtwdev, rtw89_leave_lps_iter, rtwdev, held_vifmtx);
 }
 
 void rtw89_enter_ips(struct rtw89_dev *rtwdev)
 {
 	set_bit(RTW89_FLAG_INACTIVE_PS, rtwdev->flags);
 
-	rtw89_iterate_vifs(rtwdev, rtw_remove_vif_cfg_iter, rtwdev, false);
+	rtw89_iterate_vifs(rtwdev, rtw89_remove_vif_cfg_iter, rtwdev, false);
 
 	rtw89_core_stop(rtwdev);
 	rtw89_hci_link_ps(rtwdev, true);
@@ -137,7 +137,7 @@ void rtw89_leave_ips(struct rtw89_dev *rtwdev)
 
 	rtw89_set_channel(rtwdev);
 
-	rtw89_iterate_vifs(rtwdev, rtw_restore_vif_cfg_iter, rtwdev, false);
+	rtw89_iterate_vifs(rtwdev, rtw89_restore_vif_cfg_iter, rtwdev, false);
 
 	clear_bit(RTW89_FLAG_INACTIVE_PS, rtwdev->flags);
 }

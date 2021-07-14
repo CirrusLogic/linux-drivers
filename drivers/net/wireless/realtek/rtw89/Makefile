@@ -13,6 +13,7 @@ rtw89_core-y += core.o \
 		cam.o \
 		efuse.o \
 		regd.o \
+		sar.o \
 		coex.o \
 		ps.o \
 		util.o \
