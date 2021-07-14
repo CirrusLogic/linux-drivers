@@ -399,7 +399,7 @@ static int mtk_mdp_m2m_start_streaming(struct vb2_queue *q, unsigned int count)
 		mtk_mdp_dbg(1, "[%d] pm_runtime_resume_and_get failed:%d",
 			    ctx->id, ret);
 
-	return 0;
+	return ret;
 }
 
 static void *mtk_mdp_m2m_buf_remove(struct mtk_mdp_ctx *ctx,
