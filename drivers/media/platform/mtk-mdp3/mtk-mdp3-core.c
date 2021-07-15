@@ -14,6 +14,7 @@
 #include <media/videobuf2-dma-contig.h>
 #include "mtk-mdp3-core.h"
 #include "mtk-mdp3-m2m.h"
+#include "mtk-mdp3-debug.h"
 
 /* MDP debug log level (0-3). 3 shows all the logs. */
 int mtk_mdp_debug;
@@ -145,6 +146,9 @@ static int mdp_probe(struct platform_device *pdev)
 	init_waitqueue_head(&mdp->callback_wq);
 	ida_init(&mdp->mdp_ida);
 	platform_set_drvdata(pdev, mdp);
+#ifdef MDP_DEBUG
+	mdp_debug_init(pdev);
+#endif
 
 	vb2_dma_contig_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
 
