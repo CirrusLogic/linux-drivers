@@ -141,7 +141,7 @@ config VIRTIO_DMA_SHARED_BUFFER
 
 config VIRTIO_WL
 	bool "Virtio Wayland driver"
-	depends on VIRTIO
+	depends on VIRTIO && MMU
 	help
 	 This driver supports proxying of a wayland socket from host to guest.
 
