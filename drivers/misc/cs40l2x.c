@@ -775,7 +775,6 @@ static ssize_t cs40l2x_cp_trigger_index_show(struct device *dev,
 static ssize_t cs40l2x_cp_trigger_index_impl(struct cs40l2x_private *cs40l2x,
 					     unsigned int index)
 {
-	struct i2c_client *i2c_client = to_i2c_client(cs40l2x->dev);
 	bool gpio_pol, gpio_rise = false;
 	int ret = 0;
 	unsigned int reg;
@@ -807,7 +806,6 @@ static ssize_t cs40l2x_cp_trigger_index_impl(struct cs40l2x_private *cs40l2x,
 #endif /* CONFIG_ANDROID_TIMED_OUTPUT */
 
 		cs40l2x->virtual_stored = false;
-		disable_irq(i2c_client->irq);
 	}
 
 	switch (index) {
@@ -951,10 +949,8 @@ static ssize_t cs40l2x_cp_trigger_index_impl(struct cs40l2x_private *cs40l2x,
 	cs40l2x->cp_trigger_index = index;
 
 err_exit:
-	if (!cs40l2x->virtual_stored) {
+	if (!cs40l2x->virtual_stored)
 		cs40l2x->virtual_stored = true;
-		enable_irq(i2c_client->irq);
-	}
 
 	return ret;
 }
