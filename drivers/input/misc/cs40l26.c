@@ -1426,6 +1426,52 @@ int cs40l26_pseq_v2_multi_add_write_reg_full(struct cs40l26_private *cs40l26,
 }
 EXPORT_SYMBOL(cs40l26_pseq_v2_multi_add_write_reg_full);
 
+/* 24-bit address, 16-bit data */
+static int cs40l26_pseq_v2_add_write_reg_h16(struct cs40l26_private *cs40l26,
+		u32 addr, u16 data, bool update_if_op_already_in_seq)
+{
+	int ret;
+	struct device *dev = cs40l26->dev;
+	struct cs40l26_pseq_v2_op *op;
+	u32 op_words[CS40L26_PSEQ_V2_OP_WRITE_REG_H16_WORDS];
+
+	if (addr & 0xFF000000) {
+		dev_err(dev, "invalid address for pseq_v2 write_reg_h16\n");
+		return -EINVAL;
+	}
+
+	op_words[0] = (CS40L26_PSEQ_V2_OP_WRITE_REG_H16 <<
+						CS40L26_PSEQ_V2_OP_SHIFT);
+	op_words[0] |= (addr & 0x00FFFF00) >> 8;
+	op_words[1] = (addr & 0x000000FF) << 16;
+	op_words[1] |= data;
+
+	if (update_if_op_already_in_seq) {
+		list_for_each_entry(op, &cs40l26->pseq_v2_op_head, list) {
+			/* check if op with same op and addr already exists */
+			if ((op->words[0] == op_words[0]) &&
+				((op->words[1] & 0x00FF0000) ==
+				(op_words[1] & 0x00FF0000))) {
+				/* update data in the existing op and return */
+				ret = regmap_bulk_write(cs40l26->regmap,
+						cs40l26->pseq_base + op->offset,
+						op_words, op->size);
+				if (ret)
+					dev_err(cs40l26->dev,
+						"Failed to update op\n");
+				return ret;
+			}
+		}
+	}
+
+	/* if no matching op is found or !update, add the op */
+	ret = cs40l26_pseq_v2_add_op(cs40l26,
+				CS40L26_PSEQ_V2_OP_WRITE_REG_H16_WORDS,
+				op_words);
+
+	return ret;
+}
+
 static int cs40l26_pseq_v1_init(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
@@ -1591,6 +1637,38 @@ static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
 
 	if (ret)
 		dev_err(cs40l26->dev, "Failed to init pseq\n");
+
+	return ret;
+}
+
+static int cs40l26_update_reg_defaults_via_pseq(struct cs40l26_private *cs40l26)
+{
+	struct device *dev = cs40l26->dev;
+	int ret;
+
+	switch (cs40l26->revid) {
+	case CS40L26_REVID_A0:
+		/* set SPK_DEFAULT_HIZ to 1 */
+		ret = cs40l26_pseq_v1_add_pair(cs40l26,
+			CS40L26_TST_DAC_MSM_CONFIG,
+			CS40L26_TST_DAC_MSM_CONFIG_DEFAULT_CHANGE_VALUE_FULL,
+			CS40L26_PSEQ_V1_REPLACE);
+		break;
+	case CS40L26_REVID_A1:
+		/* set SPK_DEFAULT_HIZ to 1 */
+		ret = cs40l26_pseq_v2_add_write_reg_h16(cs40l26,
+			CS40L26_TST_DAC_MSM_CONFIG,
+			CS40L26_TST_DAC_MSM_CONFIG_DEFAULT_CHANGE_VALUE_H16,
+			true);
+		break;
+	default:
+		dev_err(cs40l26->dev, "Revid ID not supported: %02X\n",
+			cs40l26->revid);
+		return -EINVAL;
+	}
+
+	if (ret)
+		dev_err(dev, "Failed to sequence register default updates\n");
 
 	return ret;
 }
@@ -3016,6 +3094,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		goto err_out;
 
+	ret = cs40l26_update_reg_defaults_via_pseq(cs40l26);
+	if (ret)
+		goto err_out;
+
 	ret = cs40l26_iseq_init(cs40l26);
 	if (ret)
 		goto err_out;
@@ -3174,6 +3256,17 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 }
 EXPORT_SYMBOL(cs40l26_fw_swap);
 
+static int cs40l26_update_reg_defaults(struct cs40l26_private *cs40l26)
+{
+	int ret;
+
+	ret = regmap_update_bits(cs40l26->regmap, CS40L26_TST_DAC_MSM_CONFIG,
+			CS40L26_SPK_DEFAULT_HIZ_MASK, 1 <<
+			CS40L26_SPK_DEFAULT_HIZ_SHIFT);
+
+	return ret;
+}
+
 static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
@@ -3328,6 +3421,12 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 	ret = cs40l26_part_num_resolve(cs40l26);
 	if (ret)
 		goto err;
+
+	ret = cs40l26_update_reg_defaults(cs40l26);
+	if (ret) {
+		dev_err(dev, "Failed to update reg defaults\n");
+		goto err;
+	}
 
 	ret = devm_request_threaded_irq(dev, cs40l26->irq, NULL, cs40l26_irq,
 			IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_LOW,
