@@ -1616,6 +1616,11 @@
 				 <&gce 21 CMDQ_THR_PRIO_LOWEST 0>,
 				 <&gce 22 CMDQ_THR_PRIO_LOWEST 0>,
 				 <&gce 23 CMDQ_THR_PRIO_LOWEST 0>;
+			mdp3-rsz0 = <&mdp3_rsz0>; /* debug only */
+			mdp3-rsz1 = <&mdp3_rsz1>; /* debug only */
+			mdp3-wrot0 = <&mdp3_wrot0>; /* debug only */
+			mdp3-wdma0 = <&mdp3_wdma>; /* debug only */
+			mdp3-ccorr0 = <&mdp3_ccorr>; /* debug only */
 			gce-subsys = <&gce 0x14000000 SUBSYS_1400XXXX>,
 				     <&gce 0x14010000 SUBSYS_1401XXXX>,
 				     <&gce 0x14020000 SUBSYS_1402XXXX>,
