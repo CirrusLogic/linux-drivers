@@ -377,6 +377,22 @@ rtw89_core_tx_update_sec_key(struct rtw89_dev *rtwdev,
 	desc_info->sec_cam_idx = sec_cam->sec_cam_idx;
 }
 
+static u16 rtw89_core_get_mgmt_rate(struct rtw89_dev *rtwdev,
+				    struct rtw89_core_tx_request *tx_req)
+{
+	struct sk_buff *skb = tx_req->skb;
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_vif *vif = tx_info->control.vif;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u16 lowest_rate = hal->current_band_type == RTW89_BAND_2G ?
+			  RTW89_HW_RATE_CCK1 : RTW89_HW_RATE_OFDM6;
+
+	if (!vif || !vif->bss_conf.basic_rates || !tx_req->sta)
+		return lowest_rate;
+
+	return __ffs(vif->bss_conf.basic_rates) + lowest_rate;
+}
+
 static void
 rtw89_core_tx_update_mgmt_info(struct rtw89_dev *rtwdev,
 			       struct rtw89_core_tx_request *tx_req)
@@ -394,7 +410,12 @@ rtw89_core_tx_update_mgmt_info(struct rtw89_dev *rtwdev,
 	desc_info->en_wd_info = true;
 	desc_info->use_rate = true;
 	desc_info->dis_data_fb = true;
-	desc_info->data_rate = 0x00;
+	desc_info->data_rate = rtw89_core_get_mgmt_rate(rtwdev, tx_req);
+
+	rtw89_debug(rtwdev, RTW89_DBG_TXRX,
+		    "tx mgmt frame with rate 0x%x on channel %d (bw %d)\n",
+		    desc_info->data_rate, rtwdev->hal.current_channel,
+		    rtwdev->hal.current_band_width);
 }
 
 static void
