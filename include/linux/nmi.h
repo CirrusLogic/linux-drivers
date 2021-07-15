@@ -126,8 +126,10 @@ void watchdog_nmi_disable(unsigned int cpu);
 
 #ifdef CONFIG_HARDLOCKUP_DETECTOR_BUDDY_CPU
 extern void buddy_cpu_touch_watchdog(void);
+void watchdog_check_hardlockup(void);
 #else
 static inline void buddy_cpu_touch_watchdog(void) {}
+static inline void watchdog_check_hardlockup(void) {}
 #endif
 
 /**
