@@ -1356,6 +1356,7 @@ struct cs40l26_codec {
 	int tdm_width;
 	int tdm_slots;
 	int tdm_slot[2];
+	bool svc_for_streaming_data;
 };
 
 struct cs40l26_pll_sysclk_config {
