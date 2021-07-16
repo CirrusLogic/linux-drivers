@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2012 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2017 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -20,5 +20,9 @@
 #
 
 
-obj-$(CONFIG_MALI_MIDGARD) += midgard/
-obj-$(CONFIG_MALI_VALHALL) += valhall/
+config MALI_KUTF
+ tristate "Mali Kernel Unit Test Framework"
+ default m
+ help
+   Enables MALI testing framework. To compile it as a module,
+   choose M here - this will generate a single module called kutf.
