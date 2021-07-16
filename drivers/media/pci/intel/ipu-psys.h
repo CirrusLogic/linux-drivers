@@ -81,10 +81,10 @@ struct ipu_psys {
 	struct device dev;
 
 	struct mutex mutex;	/* Psys various */
-	int power;
+	int ready; /* psys fw status */
 	bool icache_prefetch_sp;
 	bool icache_prefetch_isp;
-	spinlock_t power_lock;	/* Serialize access to power */
+	spinlock_t ready_lock;	/* protect psys firmware state */
 	spinlock_t pgs_lock;	/* Protect pgs list access */
 	struct list_head fhs;
 	struct list_head pgs;
