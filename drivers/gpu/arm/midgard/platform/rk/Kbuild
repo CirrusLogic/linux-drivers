@@ -7,8 +7,5 @@
 # of such GNU licence.
 #
 
-ifeq ($(CONFIG_MALI_MIDGARD),y)
-	obj-y += platform/rk/mali_kbase_config_rk.o
-else ifeq ($(CONFIG_MALI_MIDGARD),m)
-	SRC += platform/rk/mali_kbase_config_rk.c
-endif
+mali_kbase-y += \
+	$(MALI_PLATFORM_DIR)/mali_kbase_config_rk.o

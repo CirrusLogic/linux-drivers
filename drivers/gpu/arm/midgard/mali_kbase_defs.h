@@ -47,6 +47,7 @@
 #include <linux/mempool.h>
 #include <linux/slab.h>
 #include <linux/file.h>
+#include <linux/time.h>
 #include <linux/sizes.h>
 
 #ifdef CONFIG_MALI_FPGA_BUS_LOGGER
@@ -988,7 +989,7 @@ enum kbase_trace_code {
  *                      in the trace message, used during dumping of the message.
  */
 struct kbase_trace {
-	struct timespec timestamp;
+	struct timespec64 timestamp;
 	u32 thread_id;
 	u32 cpu;
 	void *ctx;

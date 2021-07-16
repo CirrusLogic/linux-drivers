@@ -24,8 +24,9 @@
 MALI_RELEASE_NAME ?= "r14p0-01rel0"
 
 # Paths required for build
-KBASE_PATH = $(src)
-KBASE_PLATFORM_PATH = $(KBASE_PATH)/platform_dummy
+KBASE_PATH = $(srctree)/$(src)
+MALI_PLATFORM_DIR = platform/$(CONFIG_MALI_PLATFORM_NAME)
+KBASE_PLATFORM_PATH = $(KBASE_PATH)/$(MALI_PLATFORM_DIR)
 UMP_PATH = $(src)/../../../base
 
 # Set up defaults if not defined by build system
@@ -163,8 +164,8 @@ include  $(src)/backend/gpu/Kbuild
 mali_kbase-y += $(BACKEND:.c=.o)
 
 
-ccflags-y += -I$(src)/backend/gpu
-subdir-ccflags-y += -I$(src)/backend/gpu
+ccflags-y += -I$(srctree)/$(src)/backend/gpu
+subdir-ccflags-y += -I$(srctree)/$(src)/backend/gpu
 
 # For kutf and mali_kutf_irq_latency_test
 obj-$(CONFIG_MALI_KUTF) += tests/

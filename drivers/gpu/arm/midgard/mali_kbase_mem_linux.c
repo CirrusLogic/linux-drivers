@@ -786,7 +786,7 @@ int kbase_mem_flags_change(struct kbase_context *kctx, u64 gpu_addr, unsigned in
 		real_flags |= KBASE_REG_SHARE_IN;
 
 	/* now we can lock down the context, and find the region */
-	down_write(&current->mm->mmap_sem);
+	mmap_write_lock(current->mm);
 	kbase_gpu_vm_lock(kctx);
 
 	/* Validate the region */
@@ -862,7 +862,7 @@ int kbase_mem_flags_change(struct kbase_context *kctx, u64 gpu_addr, unsigned in
 
 out_unlock:
 	kbase_gpu_vm_unlock(kctx);
-	up_write(&current->mm->mmap_sem);
+	mmap_write_unlock(current->mm);
 out:
 	return ret;
 }
@@ -1097,7 +1097,7 @@ static struct kbase_va_region *kbase_mem_from_user_buffer(
 		*flags |= KBASE_MEM_IMPORT_HAVE_PAGES;
 	}
 
-	down_read(&current->mm->mmap_sem);
+	mmap_read_lock(current->mm);
 
 	write = reg->flags & (KBASE_REG_CPU_WR | KBASE_REG_GPU_WR);
 
@@ -1117,7 +1117,7 @@ KERNEL_VERSION(4, 5, 0) > LINUX_VERSION_CODE
 			write ? FOLL_WRITE : 0, pages, NULL);
 #endif
 
-	up_read(&current->mm->mmap_sem);
+	mmap_read_unlock(current->mm);
 
 	if (faulted_pages != *va_pages)
 		goto fault_mismatch;
@@ -1594,7 +1594,7 @@ int kbase_mem_commit(struct kbase_context *kctx, u64 gpu_addr, u64 new_pages)
 		return -EINVAL;
 	}
 
-	down_write(&current->mm->mmap_sem);
+	mmap_write_lock(current->mm);
 	kbase_gpu_vm_lock(kctx);
 
 	/* Validate the region */
@@ -1647,7 +1647,7 @@ int kbase_mem_commit(struct kbase_context *kctx, u64 gpu_addr, u64 new_pages)
 		 * No update to the mm so downgrade the writer lock to a read
 		 * lock so other readers aren't blocked after this point.
 		 */
-		downgrade_write(&current->mm->mmap_sem);
+		mmap_write_downgrade(current->mm);
 		read_locked = true;
 
 		/* Allocate some more pages */
@@ -1703,9 +1703,9 @@ int kbase_mem_commit(struct kbase_context *kctx, u64 gpu_addr, u64 new_pages)
 out_unlock:
 	kbase_gpu_vm_unlock(kctx);
 	if (read_locked)
-		up_read(&current->mm->mmap_sem);
+		mmap_read_unlock(current->mm);
 	else
-		up_write(&current->mm->mmap_sem);
+		mmap_write_unlock(current->mm);
 
 	return res;
 }
@@ -1762,7 +1762,7 @@ KBASE_EXPORT_TEST_API(kbase_cpu_vm_close);
 static int kbase_cpu_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 #else
-static int kbase_cpu_vm_fault(struct vm_fault *vmf)
+static vm_fault_t kbase_cpu_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 #endif
@@ -1794,9 +1794,9 @@ static int kbase_cpu_vm_fault(struct vm_fault *vmf)
 	addr = (pgoff_t)(vmf->address >> PAGE_SHIFT);
 #endif
 	while (i < map->alloc->nents && (addr < vma->vm_end >> PAGE_SHIFT)) {
-		int ret = vm_insert_pfn(vma, addr << PAGE_SHIFT,
+		int ret = vmf_insert_pfn(vma, addr << PAGE_SHIFT,
 		    PFN_DOWN(as_phys_addr_t(map->alloc->pages[i])));
-		if (ret < 0 && ret != -EBUSY)
+		if (ret != VM_FAULT_NOPAGE)
 			goto locked_bad_fault;
 
 		i++; addr++;
@@ -1883,12 +1883,14 @@ static int kbase_cpu_mmap(struct kbase_context *kctx,
 			phys_addr_t phys;
 
 			phys = as_phys_addr_t(page_array[i + start_off]);
-			err = vm_insert_pfn(vma, addr, PFN_DOWN(phys));
-			if (WARN_ON(err))
+			err = vmf_insert_pfn(vma, addr, PFN_DOWN(phys));
+			if (WARN_ON(err != VM_FAULT_NOPAGE))
 				break;
 
 			addr += PAGE_SIZE;
 		}
+		if (err == VM_FAULT_NOPAGE)
+			err = 0;
 	} else {
 		WARN_ON(aligned_offset);
 		/* MIXEDMAP so we can vfree the kaddr early and not track it after map time */
@@ -1981,14 +1983,14 @@ void kbase_os_mem_map_lock(struct kbase_context *kctx)
 {
 	struct mm_struct *mm = current->mm;
 	(void)kctx;
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 }
 
 void kbase_os_mem_map_unlock(struct kbase_context *kctx)
 {
 	struct mm_struct *mm = current->mm;
 	(void)kctx;
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 }
 
 static int kbasep_reg_mmap(struct kbase_context *kctx,
@@ -2393,6 +2395,20 @@ void kbase_vunmap(struct kbase_context *kctx, struct kbase_vmap_struct *map)
 }
 KBASE_EXPORT_TEST_API(kbase_vunmap);
 
+static void kbasep_add_mm_counter(struct mm_struct *mm, int member, long value)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0))
+	/* To avoid the build breakage due to an unexported kernel symbol
+	 * 'mm_trace_rss_stat' from later kernels, i.e. from V5.5.0 onwards,
+	 * we inline here the equivalent of 'add_mm_counter()' from linux
+	 * kernel V5.4.0~8.
+	 */
+	atomic_long_add(value, &mm->rss_stat.count[member]);
+#else
+	add_mm_counter(mm, member, value);
+#endif
+}
+
 void kbasep_os_process_page_usage_update(struct kbase_context *kctx, int pages)
 {
 	struct mm_struct *mm;
@@ -2402,10 +2418,10 @@ void kbasep_os_process_page_usage_update(struct kbase_context *kctx, int pages)
 	if (mm) {
 		atomic_add(pages, &kctx->nonmapped_pages);
 #ifdef SPLIT_RSS_COUNTING
-		add_mm_counter(mm, MM_FILEPAGES, pages);
+		kbasep_add_mm_counter(mm, MM_FILEPAGES, pages);
 #else
 		spin_lock(&mm->page_table_lock);
-		add_mm_counter(mm, MM_FILEPAGES, pages);
+		kbasep_add_mm_counter(mm, MM_FILEPAGES, pages);
 		spin_unlock(&mm->page_table_lock);
 #endif
 	}
@@ -2430,10 +2446,10 @@ static void kbasep_os_process_page_usage_drain(struct kbase_context *kctx)
 
 	pages = atomic_xchg(&kctx->nonmapped_pages, 0);
 #ifdef SPLIT_RSS_COUNTING
-	add_mm_counter(mm, MM_FILEPAGES, -pages);
+	kbasep_add_mm_counter(mm, MM_FILEPAGES, -pages);
 #else
 	spin_lock(&mm->page_table_lock);
-	add_mm_counter(mm, MM_FILEPAGES, -pages);
+	kbasep_add_mm_counter(mm, MM_FILEPAGES, -pages);
 	spin_unlock(&mm->page_table_lock);
 #endif
 }
