@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2013 - 2020 Intel Corporation
+// Copyright (C) 2013 - 2021 Intel Corporation
 
 #include <linux/delay.h>
 #include <linux/firmware.h>
@@ -154,7 +154,7 @@ static int video_open(struct file *file)
 	if (rval)
 		goto out_power_down;
 
-	rval = v4l2_pipeline_pm_use(&av->vdev.entity, 1);
+	rval = v4l2_pipeline_pm_get(&av->vdev.entity);
 	if (rval)
 		goto out_v4l2_fh_release;
 
@@ -199,7 +199,7 @@ static int video_open(struct file *file)
 out_lib_init:
 	isys->video_opened--;
 	mutex_unlock(&isys->mutex);
-	v4l2_pipeline_pm_use(&av->vdev.entity, 0);
+	v4l2_pipeline_pm_put(&av->vdev.entity);
 
 out_v4l2_fh_release:
 	v4l2_fh_release(file);
@@ -228,7 +228,7 @@ static int video_release(struct file *file)
 
 	mutex_unlock(&av->isys->mutex);
 
-	v4l2_pipeline_pm_use(&av->vdev.entity, 0);
+	v4l2_pipeline_pm_put(&av->vdev.entity);
 
 	if (av->isys->reset_needed)
 		pm_runtime_put_sync(&av->isys->adev->dev);
@@ -1718,7 +1718,7 @@ int ipu_isys_video_init(struct ipu_isys_video *av,
 
 	mutex_lock(&av->mutex);
 
-	rval = video_register_device(&av->vdev, VFL_TYPE_GRABBER, -1);
+	rval = video_register_device(&av->vdev, VFL_TYPE_VIDEO, -1);
 	if (rval)
 		goto out_media_entity_cleanup;
 
