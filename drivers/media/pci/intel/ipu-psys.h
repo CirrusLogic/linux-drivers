@@ -65,7 +65,7 @@ struct ipu_psys_resource_pool {
 /*
  * This struct keeps book of the resources allocated for a specific PG.
  * It is used for freeing up resources from struct ipu_psys_resources
- * when the PG is released from IPU4 (or model of IPU4).
+ * when the PG is released from IPU (or model of IPU).
  */
 struct ipu_psys_resource_alloc {
 	u32 cells;	/* Bitmask of cells needed */

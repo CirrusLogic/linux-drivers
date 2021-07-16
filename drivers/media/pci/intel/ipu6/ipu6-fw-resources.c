@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2015 - 2020 Intel Corporation
+// Copyright (C) 2015 - 2021 Intel Corporation
 
 #include <linux/err.h>
 #include <linux/string.h>
@@ -557,6 +557,9 @@ void ipu6_fw_psys_pg_dump(struct ipu_psys *psys,
 		mem_type = IPU6_FW_PSYS_N_DATA_MEM_TYPE_ID;
 		max_mem_id = IPU6_FW_PSYS_N_MEM_ID;
 		dev_chn = IPU6_FW_PSYS_N_DEV_CHN_ID;
+	} else {
+		WARN(1, "%s ipu_ver:[%u] is unsupported!\n", __func__, ipu_ver);
+		return;
 	}
 
 	dev_dbg(&psys->adev->dev, "%s %s pgid %i has %i processes:\n",
