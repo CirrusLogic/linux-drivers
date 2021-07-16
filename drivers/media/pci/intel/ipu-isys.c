@@ -398,9 +398,11 @@ void update_watermark_setting(struct ipu_isys *isys)
 	u32 iwake_threshold, iwake_critical_threshold;
 	u64 threshold_bytes;
 	u64 isys_pb_datarate_mbs = 0;
-	u16 sram_granulrity_shift = (ipu_ver == IPU_VER_6) ?
+	u16 sram_granulrity_shift =
+		(ipu_ver == IPU_VER_6 || ipu_ver == IPU_VER_6EP) ?
 		IPU6_SRAM_GRANULRITY_SHIFT : IPU6SE_SRAM_GRANULRITY_SHIFT;
-	int max_sram_size = (ipu_ver == IPU_VER_6) ?
+	int max_sram_size =
+		(ipu_ver == IPU_VER_6 || ipu_ver == IPU_VER_6EP) ?
 		IPU6_MAX_SRAM_SIZE : IPU6SE_MAX_SRAM_SIZE;
 
 	mutex_lock(&iwake_watermark->mutex);
@@ -1047,7 +1049,7 @@ static int isys_probe(struct ipu_bus_device *adev)
 	isys->pdata = adev->pdata;
 
 	/* initial streamID for different sensor types */
-	if (ipu_ver == IPU_VER_6) {
+	if (ipu_ver == IPU_VER_6 || ipu_ver == IPU_VER_6EP) {
 		isys->sensor_info.vc1_data_start =
 			IPU6_FW_ISYS_VC1_SENSOR_DATA_START;
 		isys->sensor_info.vc1_data_end =
@@ -1450,6 +1452,7 @@ module_ipu_bus_driver(isys_driver);
 static const struct pci_device_id ipu_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, IPU6_PCI_ID)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, IPU6SE_PCI_ID)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, IPU6EP_PCI_ID)},
 	{0,}
 };
 MODULE_DEVICE_TABLE(pci, ipu_pci_tbl);

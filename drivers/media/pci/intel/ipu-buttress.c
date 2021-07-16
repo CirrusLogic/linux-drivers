@@ -495,7 +495,8 @@ int ipu_buttress_power(struct device *dev,
 	} else {
 		val = BUTTRESS_FREQ_CTL_START |
 			ctrl->divisor << ctrl->divisor_shift |
-			ctrl->qos_floor << BUTTRESS_FREQ_CTL_QOS_FLOOR_SHIFT;
+			ctrl->qos_floor << BUTTRESS_FREQ_CTL_QOS_FLOOR_SHIFT |
+			BUTTRESS_FREQ_CTL_ICCMAX_LEVEL;
 
 		pwr_sts = ctrl->pwr_sts_on << ctrl->pwr_sts_shift;
 	}

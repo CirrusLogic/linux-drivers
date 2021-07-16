@@ -88,8 +88,8 @@ void isys_setup_hw(struct ipu_isys *isys)
 	u32 irqs = 0;
 	unsigned int i, nr;
 
-	nr = (ipu_ver == IPU_VER_6) ? IPU6_ISYS_CSI_PORT_NUM :
-		IPU6SE_ISYS_CSI_PORT_NUM;
+	nr = (ipu_ver == IPU_VER_6 || ipu_ver == IPU_VER_6EP) ?
+		IPU6_ISYS_CSI_PORT_NUM : IPU6SE_ISYS_CSI_PORT_NUM;
 
 	/* Enable irqs for all MIPI ports */
 	for (i = 0; i < nr; i++)
@@ -186,8 +186,8 @@ void ipu_isys_tpg_sof_event(struct ipu_isys_tpg *tpg)
 	unsigned long flags;
 	unsigned int i, nr;
 
-	nr = (ipu_ver == IPU_VER_6) ? IPU6_ISYS_CSI_PORT_NUM :
-		IPU6SE_ISYS_CSI_PORT_NUM;
+	nr = (ipu_ver == IPU_VER_6 || ipu_ver == IPU_VER_6EP) ?
+		IPU6_ISYS_CSI_PORT_NUM : IPU6SE_ISYS_CSI_PORT_NUM;
 
 	spin_lock_irqsave(&tpg->isys->lock, flags);
 	for (i = 0; i < nr; i++) {
@@ -221,8 +221,8 @@ void ipu_isys_tpg_eof_event(struct ipu_isys_tpg *tpg)
 	unsigned int i, nr;
 	u32 frame_sequence;
 
-	nr = (ipu_ver == IPU_VER_6) ? IPU6_ISYS_CSI_PORT_NUM :
-		IPU6SE_ISYS_CSI_PORT_NUM;
+	nr = (ipu_ver == IPU_VER_6 || ipu_ver == IPU_VER_6EP) ?
+		IPU6_ISYS_CSI_PORT_NUM : IPU6SE_ISYS_CSI_PORT_NUM;
 
 	spin_lock_irqsave(&tpg->isys->lock, flags);
 	for (i = 0; i < nr; i++) {

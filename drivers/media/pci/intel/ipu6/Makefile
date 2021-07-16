@@ -49,6 +49,7 @@ intel-ipu6-psys-objs			+= ../ipu-psys.o \
 intel-ipu6-psys-objs			+= ipu-fw-resources.o \
 					   ipu6-fw-resources.o \
 					   ipu6se-fw-resources.o \
+					   ipu6ep-fw-resources.o \
 					   ../ipu-fw-psys.o
 
 ifeq ($(CONFIG_COMPAT),y)

@@ -343,7 +343,7 @@ int ipu_buttress_psys_freq_get(void *data, u64 *val)
 
 void ipu_internal_pdata_init(void)
 {
-	if (ipu_ver == IPU_VER_6) {
+	if (ipu_ver == IPU_VER_6 || ipu_ver == IPU_VER_6EP) {
 		isys_ipdata.csi2.nports = ARRAY_SIZE(ipu6_csi_offsets);
 		isys_ipdata.csi2.offsets = ipu6_csi_offsets;
 #ifdef CONFIG_VIDEO_INTEL_IPU_TPG
