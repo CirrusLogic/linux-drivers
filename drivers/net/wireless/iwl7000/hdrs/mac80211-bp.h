@@ -2571,7 +2571,7 @@ static inline void dev_sw_netstats_rx_add(struct net_device *dev, unsigned int l
 
 #endif /* < 5.10 */
 
-#if CFG80211_VERSION < KERNEL_VERSION(5,11,0) &&     \
+#if CFG80211_VERSION < KERNEL_VERSION(5,10,0) &&     \
 	(CFG80211_VERSION < KERNEL_VERSION(5,4,0) || \
 	 CFG80211_VERSION >= KERNEL_VERSION(5,5,0))
 enum nl80211_sar_type {
