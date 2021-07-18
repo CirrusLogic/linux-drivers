@@ -1342,8 +1342,13 @@ cfg80211_iftype_allowed(struct wiphy *wiphy, enum nl80211_iftype iftype,
 
 	return false;
 }
-#define cfg80211_tx_mlme_mgmt(netdev, buf, len, reconnect) cfg80211_tx_mlme_mgmt(netdev, buf, len)
 #endif /* < 5.4.0 */
+
+#if CFG80211_VERSION < KERNEL_VERSION(5,11,0) &&  \
+	(CFG80211_VERSION < KERNEL_VERSION(5,4,0) || \
+	 CFG80211_VERSION >= KERNEL_VERSION(5,5,0))
+#define cfg80211_tx_mlme_mgmt(netdev, buf, len, reconnect) cfg80211_tx_mlme_mgmt(netdev, buf, len)
+#endif
 
 #if LINUX_VERSION_IS_LESS(5,5,0)
 #define kcov_remote_start_common(id) {}
