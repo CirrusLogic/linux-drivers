@@ -245,6 +245,16 @@ properties:
     maximum: 4800000
     default: 4500000
 
+  cirrus,svc-leX:
+    description:
+      LE range to load specific tuning with 'X' being equal to 1/2, and
+      corresponding to a SVC binary file titled cs40l26-svcX.bin, where 'X'
+      again is 1 or 2 matching the property placed in the devicetree. The values
+      provided for the range are given in Q0.23 format and are in Henries. If
+      the LE value found from the attached LRA does not fit in a provided range,
+      or if these properties are omitted, the default tuning "cs40l26-svc.bin"
+      will be loaded. See examples section for how to populate this control.
+
 required:
   - compatible
 
@@ -267,5 +277,8 @@ examples:
       cirrus,vbbr-thld-mv = <300>;
       cirrus,vpbr-enable;
       cirrus,vpbr-thld-mv = <2592>;
+
+      cirrus,svc-le1 = <6000000 7000000>;
+      cirrus,svc-le2 = <16000000 1700000>;
     };
 };
