@@ -773,6 +773,8 @@
 #define CS40L26_DSP_MBOX_CMD_OWT_PUSH	0x03000008
 #define CS40L26_DSP_MBOX_CMD_OWT_RESET	0x03000009
 
+#define CS40L26_DSP_MBOX_CMD_LE_EST	0x07000004
+
 #define CS40L26_DSP_MBOX_CMD_INDEX_MASK	GENMASK(28, 24)
 #define CS40L26_DSP_MBOX_CMD_INDEX_SHIFT	24
 
@@ -788,6 +790,8 @@
 #define CS40L26_DSP_MBOX_F0_EST_DONE		0x07000021
 #define CS40L26_DSP_MBOX_REDC_EST_START		0x07000012
 #define CS40L26_DSP_MBOX_REDC_EST_DONE		0x07000022
+#define CS40L26_DSP_MBOX_LE_EST_START		0x07000014
+#define CS40L26_DSP_MBOX_LE_EST_DONE		0x07000024
 #define CS40L26_DSP_MBOX_SYS_ACK		0x0A000000
 #define CS40L26_DSP_MBOX_PANIC			0x0C000000
 
@@ -797,6 +801,8 @@
 
 #define CS40L26_WT_FILE_NAME		"cs40l26.bin"
 #define CS40L26_SVC_TUNING_FILE_NAME	"cs40l26-svc.bin"
+#define CS40L26_SVC_TUNING_FILE_NAME1	"cs40l26-svc1.bin"
+#define CS40L26_SVC_TUNING_FILE_NAME2	"cs40l26-svc2.bin"
 #define CS40L26_A2H_TUNING_FILE_NAME	"cs40l26-a2h.bin"
 
 #define CS40L26_FW_ID			0x1800D4
@@ -1252,7 +1258,7 @@ struct cs40l26_fw {
 	unsigned int id;
 	unsigned int min_rev;
 	unsigned int num_coeff_files;
-	const char * const *coeff_files;
+	const char *coeff_files[3];
 };
 
 struct cs40l26_owt_section {
@@ -1281,6 +1287,13 @@ struct cs40l26_pseq_v2_op {
 	struct list_head list;
 };
 
+struct cs40l26_svc_le {
+	u32 le1_min;
+	u32 le1_max;
+	u32 le2_min;
+	u32 le2_max;
+};
+
 struct cs40l26_platform_data {
 	bool vbbr_en;
 	u32 vbbr_thld;
@@ -1298,6 +1311,7 @@ struct cs40l26_platform_data {
 	u32 vpbr_rel_rate;
 	bool bst_dcm_en;
 	u32 bst_ipk;
+	u32 svc_le_is_valid;
 };
 
 struct cs40l26_private {
@@ -1342,6 +1356,7 @@ struct cs40l26_private {
 	int cal_requested;
 	u16 gain_pct;
 	u32 event_map_base;
+	struct cs40l26_svc_le *svc_le;
 };
 
 struct cs40l26_codec {
@@ -1404,7 +1419,6 @@ extern const struct dev_pm_ops cs40l26_pm_ops;
 extern const struct regmap_config cs40l26_regmap;
 extern const struct mfd_cell cs40l26_devs[CS40L26_NUM_MFD_DEVS];
 extern const u8 cs40l26_pseq_v2_op_sizes[CS40L26_PSEQ_V2_NUM_OPS][2];
-extern const char * const cs40l26_ram_coeff_files[3];
 extern const u32 cs40l26_a0_gain_vals[CS40L26_NUM_PCT_MAP_VALUES];
 extern const u32 cs40l26_attn_q21_2_vals[CS40L26_NUM_PCT_MAP_VALUES];
 
