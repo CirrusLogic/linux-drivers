@@ -390,9 +390,9 @@ static int cs40l26_dsp_shutdown(struct cs40l26_private *cs40l26)
 
 static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 {
+	u32 halo_state, halo_state_reg, timeout_ms;
 	u8 dsp_state;
-	u32 halo_state, halo_state_reg;
-	int ret;
+	int ret, i;
 
 	ret = cs40l26_pm_state_transition(cs40l26,
 			CS40L26_PM_STATE_PREVENT_HIBERNATE);
@@ -424,13 +424,28 @@ static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 		return -EINVAL;
 	}
 
-	ret = cs40l26_dsp_state_get(cs40l26, &dsp_state);
+
+	ret = cs40l26_pm_timeout_ms_get(cs40l26, &timeout_ms);
 	if (ret)
 		return ret;
 
-	if (dsp_state != CS40L26_DSP_STATE_SHUTDOWN &&
-			dsp_state != CS40L26_DSP_STATE_STANDBY) {
-		dev_err(cs40l26->dev, "DSP core not safe to kill\n");
+	for (i = 0; i < 10; i++) {
+		ret = cs40l26_dsp_state_get(cs40l26, &dsp_state);
+		if (ret)
+			return ret;
+
+		if (dsp_state != CS40L26_DSP_STATE_SHUTDOWN &&
+				dsp_state != CS40L26_DSP_STATE_STANDBY)
+			dev_warn(cs40l26->dev, "DSP core not safe to kill\n");
+		else
+			break;
+
+		usleep_range(CS40L26_MS_TO_US(timeout_ms),
+			CS40L26_MS_TO_US(timeout_ms) + 100);
+	}
+
+	if (i == 10) {
+		dev_err(cs40l26->dev, "DSP Core could not be shut down\n");
 		return -EINVAL;
 	}
 
@@ -573,6 +588,12 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 				dev_err(dev, "Unexpected mbox msg: %d", val);
 				return -EINVAL;
 			}
+			break;
+		case CS40L26_DSP_MBOX_LE_EST_START:
+			dev_dbg(dev, "LE_EST_START\n");
+			break;
+		case CS40L26_DSP_MBOX_LE_EST_DONE:
+			dev_dbg(dev, "LE_EST_DONE\n");
 			break;
 		case CS40L26_DSP_MBOX_SYS_ACK:
 			dev_err(dev, "Mbox buffer value (0x%X) not supported\n",
@@ -2523,7 +2544,6 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26, u32 id)
 		cs40l26->fw.id = CS40L26_FW_ID;
 		cs40l26->fw.min_rev = CS40L26_FW_ROM_MIN_REV;
 		cs40l26->fw.num_coeff_files = 0;
-		cs40l26->fw.coeff_files = NULL;
 	} else {
 		cs40l26->fw.id = id;
 
@@ -2536,9 +2556,10 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26, u32 id)
 			cs40l26->fw.min_rev = CS40L26_FW_A0_RAM_MIN_REV;
 		}
 
-		cs40l26->fw.num_coeff_files =
-				ARRAY_SIZE(cs40l26_ram_coeff_files);
-		cs40l26->fw.coeff_files = cs40l26_ram_coeff_files;
+		cs40l26->fw.num_coeff_files = 3;
+		cs40l26->fw.coeff_files[0] = CS40L26_WT_FILE_NAME;
+		cs40l26->fw.coeff_files[1] = CS40L26_A2H_TUNING_FILE_NAME;
+		cs40l26->fw.coeff_files[2] = CS40L26_SVC_TUNING_FILE_NAME;
 
 		ret = cl_dsp_wavetable_create(cs40l26->dsp,
 				CS40L26_VIBEGEN_ALGO_ID, CS40L26_WT_NAME_XM,
@@ -3064,89 +3085,89 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	ret = cs40l26_verify_fw(cs40l26);
 	if (ret)
-		goto err_out;
+		return ret;
 
 	ret = regmap_update_bits(regmap, CS40L26_PWRMGT_CTL,
 			CS40L26_MEM_RDY_MASK, 1 << CS40L26_MEM_RDY_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to set MEM_RDY to initialize RAM\n");
-		goto err_out;
+		return ret;
 	}
 
 	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM) {
 		ret = cl_dsp_get_reg(cs40l26->dsp, "CALL_RAM_INIT",
 				CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw.id, &reg);
 		if (ret)
-			goto err_out;
+			return ret;
 
 		ret = cs40l26_dsp_write(cs40l26, reg, 1);
 		if (ret)
-			goto err_out;
+			return ret;
 	}
 
 	cs40l26->fw_loaded = true;
 
 	ret = cs40l26_dsp_start(cs40l26);
 	if (ret)
-		goto err_out;
+		return ret;
 
 	ret = cs40l26_pseq_init(cs40l26);
 	if (ret)
-		goto err_out;
+		return ret;
 
 	ret = cs40l26_update_reg_defaults_via_pseq(cs40l26);
 	if (ret)
-		goto err_out;
+		return ret;
 
 	ret = cs40l26_iseq_init(cs40l26);
 	if (ret)
-		goto err_out;
+		return ret;
 
 	ret = cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1,
 			BIT(CS40L26_IRQ1_VIRTUAL2_MBOX_WR), CS40L26_IRQ_UNMASK);
 	if (ret)
-		goto err_out;
+		return ret;
 
 	ret = cs40l26_wksrc_config(cs40l26);
 	if (ret)
-		goto err_out;
+		return ret;
 
 	ret = cs40l26_gpio_config(cs40l26);
 	if (ret)
-		goto err_out;
+		return ret;
 
 	ret = cs40l26_bst_dcm_config(cs40l26);
 	if (ret)
-		goto err_out;
+		return ret;
 
 	ret = cs40l26_bst_ipk_config(cs40l26);
 	if (ret)
-		goto err_out;
+		return ret;
 
 	ret = cs40l26_brownout_prevention_init(cs40l26);
 	if (ret)
-		goto err_out;
+		return ret;
 
 	/* ensure firmware running */
 	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_STATE",
 			CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw.id, &reg);
 	if (ret)
-		goto err_out;
+		return ret;
 
 	ret = regmap_read(regmap, reg, &val);
 	if (ret) {
 		dev_err(dev, "Failed to read HALO_STATE\n");
-		goto err_out;
+		return ret;
 	}
 
 	if (val != CS40L26_DSP_HALO_STATE_RUN) {
 		dev_err(dev, "Firmware in unexpected state: 0x%X\n", val);
-		goto err_out;
+		return ret;
 	}
 
 	ret = cs40l26_pm_runtime_setup(cs40l26);
 	if (ret)
-		goto err_out;
+		return ret;
 
 	pm_runtime_get_sync(dev);
 
@@ -3173,46 +3194,65 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 pm_err:
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
-err_out:
-	enable_irq(cs40l26->irq);
+
 	return ret;
 }
 
-static int cs40l26_firmware_load(struct cs40l26_private *cs40l26, u32 id)
+static int cs40l26_svc_le_select(struct cs40l26_private *cs40l26)
 {
-	struct device *dev = cs40l26->dev;
-	const struct firmware *fw, *coeff;
+	unsigned int reg, le_est = 0;
 	int ret, i;
 
-	cs40l26->pm_ready = false;
-	cs40l26->fw_loaded = false;
+	pm_runtime_get_sync(cs40l26->dev);
 
-	/* the /ALERT pin may be asserted prior to firmware initialization.
-	 * Disable the interrupt handler until firmware has downloaded
-	 * so erroneous interrupt requests are ignored
-	 */
-	disable_irq(cs40l26->irq);
-
-	ret = cs40l26_cl_dsp_init(cs40l26, id);
+	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+			CS40L26_DSP_MBOX_CMD_LE_EST, CS40L26_DSP_MBOX_RESET);
 	if (ret)
-		goto irq_exit;
+		goto pm_err;
 
-	ret = cs40l26_dsp_pre_config(cs40l26);
+	ret = cl_dsp_get_reg(cs40l26->dsp, "LE_EST_STATUS",
+			CL_DSP_YM_UNPACKED_TYPE, CS40l26_SVC_ALGO_ID, &reg);
 	if (ret)
-		goto irq_exit;
+		goto pm_err;
 
-	if (cs40l26->fw.id == CS40L26_FW_ID)
-		ret = request_firmware(&fw, CS40L26_FW_FILE_NAME, dev);
-	else
-		ret = request_firmware(&fw, CS40L26_FW_CALIB_NAME, dev);
+	for (i = 0; i < 2; i++) {
+		usleep_range(5000, 5100);
+		ret = regmap_read(cs40l26->regmap, reg, &le_est);
+		if (ret) {
+			dev_err(cs40l26->dev, "Failed to get LE_EST_STATUS\n");
+			goto pm_err;
+		}
 
-	if (ret)
-		goto irq_exit;
+		if (le_est >= cs40l26->svc_le->le1_min &&
+				le_est <= cs40l26->svc_le->le1_max) {
+			cs40l26->fw.coeff_files[2] =
+					CS40L26_SVC_TUNING_FILE_NAME1;
+			break;
+		} else if (le_est >= cs40l26->svc_le->le2_min &&
+				le_est <= cs40l26->svc_le->le2_max) {
+			cs40l26->fw.coeff_files[2] =
+					CS40L26_SVC_TUNING_FILE_NAME2;
+			break;
+		}
+	}
 
-	ret = cl_dsp_firmware_parse(cs40l26->dsp, fw, true);
-	release_firmware(fw);
-	if (ret)
-		goto irq_exit;
+	if (i == 2) {
+		dev_warn(cs40l26->dev, "Falling back to default SVC tuning\n");
+		cs40l26->fw.coeff_files[2] = CS40L26_SVC_TUNING_FILE_NAME;
+	}
+
+pm_err:
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	return ret;
+}
+
+static void cs40l26_coeff_load(struct cs40l26_private *cs40l26)
+{
+	struct device *dev = cs40l26->dev;
+	const struct firmware *coeff;
+	int i;
 
 	for (i = 0; i < cs40l26->fw.num_coeff_files; i++) {
 		request_firmware(&coeff, cs40l26->fw.coeff_files[i], dev);
@@ -3224,14 +3264,27 @@ static int cs40l26_firmware_load(struct cs40l26_private *cs40l26, u32 id)
 		if (cl_dsp_coeff_file_parse(cs40l26->dsp, coeff))
 			dev_warn(dev, "Continuing...\n");
 		else
-			dev_dbg(dev, "%s Loaded Successfully\n",
-				cs40l26->fw.coeff_files[i]);
+			dev_info(dev, "%s Loaded Successfully\n",
+					cs40l26->fw.coeff_files[i]);
 	}
+}
 
-	ret = cs40l26_dsp_config(cs40l26);
+static int cs40l26_firmware_load(struct cs40l26_private *cs40l26, u32 id)
+{
+	struct device *dev = cs40l26->dev;
+	const struct firmware *fw;
+	int ret;
 
-irq_exit:
-	enable_irq(cs40l26->irq);
+	if (cs40l26->fw.id == CS40L26_FW_ID)
+		ret = request_firmware(&fw, CS40L26_FW_FILE_NAME, dev);
+	else
+		ret = request_firmware(&fw, CS40L26_FW_CALIB_NAME, dev);
+
+	if (ret)
+		return ret;
+
+	ret = cl_dsp_firmware_parse(cs40l26->dsp, fw, true);
+	release_firmware(fw);
 
 	return ret;
 }
@@ -3271,7 +3324,7 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
 	struct device_node *np = dev->of_node;
-	u32 val;
+	u32 val, tmp;
 
 	if (!np) {
 		dev_err(dev, "No platform data found\n");
@@ -3348,6 +3401,30 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 		cs40l26->pdata.bst_ipk = val;
 	else
 		cs40l26->pdata.bst_ipk = 0;
+
+	if (of_property_count_u32_elems(np, "cirrus,svc-le1") == 2 &&
+		of_property_count_u32_elems(np, "cirrus,svc-le2") == 2) {
+		of_property_read_u32_index(np, "cirrus,svc-le1", 0, &tmp);
+		of_property_read_u32_index(np, "cirrus,svc-le1", 1, &val);
+
+		cs40l26->svc_le = devm_kzalloc(dev,
+				sizeof(struct cs40l26_svc_le), GFP_KERNEL);
+		if (!cs40l26->svc_le)
+			return -ENOMEM;
+
+		cs40l26->svc_le->le1_min = min(tmp, val);
+		cs40l26->svc_le->le1_max = max(tmp, val);
+
+		of_property_read_u32_index(np, "cirrus,svc-le2", 0, &tmp);
+		of_property_read_u32_index(np, "cirrus,svc-le2", 1, &val);
+
+		cs40l26->svc_le->le2_min = min(tmp, val);
+		cs40l26->svc_le->le2_max = max(tmp, val);
+
+		cs40l26->pdata.svc_le_is_valid = true;
+	} else {
+		cs40l26->pdata.svc_le_is_valid = false;
+	}
 
 	return 0;
 }
@@ -3436,9 +3513,53 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 		goto err;
 	}
 
-	ret = cs40l26_firmware_load(cs40l26, CS40L26_FW_ID);
+	/* the /ALERT pin may be asserted prior to firmware initialization.
+	 * Disable the interrupt handler until firmware has downloaded
+	 * so erroneous interrupt requests are ignored
+	 */
+	disable_irq(cs40l26->irq);
+
+	cs40l26->pm_ready = false;
+	cs40l26->fw_loaded = false;
+
+	ret = cs40l26_cl_dsp_init(cs40l26, CS40L26_FW_ID);
 	if (ret)
-		goto err;
+		goto irq_err;
+
+	ret = cs40l26_dsp_pre_config(cs40l26);
+	if (ret)
+		goto irq_err;
+
+	ret = cs40l26_firmware_load(cs40l26, cs40l26->fw.id);
+	if (ret)
+		goto irq_err;
+
+	if (cs40l26->pdata.svc_le_is_valid) {
+		ret = cs40l26_dsp_config(cs40l26);
+		if (ret)
+			goto irq_err;
+
+		enable_irq(cs40l26->irq);
+
+		ret = cs40l26_svc_le_select(cs40l26);
+		if (ret)
+			goto err;
+
+		disable_irq(cs40l26->irq);
+		cs40l26_pm_runtime_teardown(cs40l26);
+
+		ret = cs40l26_dsp_pre_config(cs40l26);
+		if (ret)
+			goto err;
+	}
+
+	cs40l26_coeff_load(cs40l26);
+
+	ret = cs40l26_dsp_config(cs40l26);
+	if (ret)
+		goto irq_err;
+
+	enable_irq(cs40l26->irq);
 
 	ret = cs40l26_input_init(cs40l26);
 	if (ret)
@@ -3453,6 +3574,8 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 
 	return 0;
 
+irq_err:
+	enable_irq(cs40l26->irq);
 err:
 	cs40l26_remove(cs40l26);
 
