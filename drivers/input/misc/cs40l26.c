@@ -3301,9 +3301,28 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 
 	cs40l26_pm_runtime_teardown(cs40l26);
 
+	cs40l26->fw_loaded = false;
+
+	disable_irq(cs40l26->irq);
+
+	ret = cs40l26_cl_dsp_init(cs40l26, id);
+	if (ret)
+		goto irq_exit;
+
+	ret = cs40l26_dsp_pre_config(cs40l26);
+	if (ret)
+		goto irq_exit;
+
 	ret = cs40l26_firmware_load(cs40l26, id);
 	if (ret)
-		dev_err(dev, "Failed to request calibration firmware\n");
+		goto irq_exit;
+
+	cs40l26_coeff_load(cs40l26);
+
+	ret = cs40l26_dsp_config(cs40l26);
+
+irq_exit:
+	enable_irq(cs40l26->irq);
 
 	return ret;
 }
