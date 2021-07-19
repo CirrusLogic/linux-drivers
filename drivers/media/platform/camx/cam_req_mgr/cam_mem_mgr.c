@@ -82,9 +82,7 @@ static int cam_mem_util_unmap_cpu_va(struct dma_buf *dmabuf,
 	uint64_t vaddr)
 {
 	int rc;
-	struct dma_buf_map map;
-
-	map.vaddr = (void *)vaddr;
+	struct dma_buf_map map = DMA_BUF_MAP_INIT_VADDR((void *)vaddr);
 
 	dma_buf_vunmap(dmabuf, &map);
 

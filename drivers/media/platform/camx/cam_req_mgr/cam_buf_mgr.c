@@ -410,7 +410,7 @@ static int _op_dma_buf_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 	vaddr = _cmm_dma_kmap_get(buffer);
 	mutex_unlock(&buffer->b_lock);
 
-	map->vaddr = vaddr;
+	dma_buf_map_set_vaddr(map, vaddr);
 
 	return PTR_ERR_OR_ZERO(vaddr);
 }
