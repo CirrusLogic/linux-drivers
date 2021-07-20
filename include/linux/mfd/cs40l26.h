@@ -636,7 +636,6 @@
 #define CS40L26_DEVID_MASK		GENMASK(23, 0)
 #define CS40L26_NUM_DEVS		2
 
-#define CS40L26_REVID_A0		0xA0
 #define CS40L26_REVID_A1		0xA1
 #define CS40L26_REVID_MASK		GENMASK(7, 0)
 
@@ -664,12 +663,6 @@
 
 #define CS40L26_DSP_STATE_STR_LEN		10
 
-/* ROM Controls A0 */
-#define CS40L26_A0_PM_CUR_STATE_STATIC_REG		0x02800358
-#define CS40L26_A0_PM_TIMEOUT_TICKS_STATIC_REG		0x02800338
-#define CS40L26_A0_DSP_HALO_STATE_REG			0x02806f40
-
-
 /* ROM Controls A1 */
 #define CS40L26_A1_PM_CUR_STATE_STATIC_REG		0x02800370
 #define CS40L26_A1_PM_TIMEOUT_TICKS_STATIC_REG		0x02800350
@@ -692,42 +685,27 @@
 #define CS40L26_EXT_ALGO_ID		0x0004013C
 
 /* power management */
-#define CS40L26_PSEQ_V1_MAX_ENTRIES		32
-#define CS40L26_PSEQ_V1_MAX_WRITES		64
-#define CS40L26_PSEQ_V1_VAL_SHIFT			24
-#define CS40L26_PSEQ_V1_VAL_MASK			GENMASK(23, 0)
-#define CS40L26_PSEQ_V1_ADDR_SHIFT		8
-#define CS40L26_PSEQ_V1_ADDR_MASK			GENMASK(15, 0)
-#define CS40L26_PSEQ_V1_LIST_TERM			0xFFFFFF
-#define CS40L26_PSEQ_V1_LIST_TERM_MASK		GENMASK(31, 0)
-#define CS40L26_PSEQ_V1_STRIDE			8
-#define CS40L26_PSEQ_V1_PAIR_NUM_WORDS		2
-#define CS40L26_PSEQ_V1_ADDR_WORD_MASK		GENMASK(23, 8)
-#define CS40L26_PSEQ_V1_VAL_WORD_UPPER_MASK	GENMASK(8, 0)
-#define CS40L26_PSEQ_V1_DO_NOT_REPLACE		0
-#define CS40L26_PSEQ_V1_REPLACE			1
-
-#define CS40L26_PSEQ_V2_MAX_WORDS_PER_OP CS40L26_PSEQ_V2_OP_WRITE_FIELD_WORDS
-#define CS40L26_PSEQ_V2_MAX_WORDS			129
-#define CS40L26_PSEQ_V2_NUM_OPS				8
-#define CS40L26_PSEQ_V2_OP_MASK				GENMASK(23, 16)
-#define CS40L26_PSEQ_V2_OP_SHIFT			16
-#define CS40L26_PSEQ_V2_OP_WRITE_REG_FULL		0x00
-#define CS40L26_PSEQ_V2_OP_WRITE_REG_FULL_WORDS		3
-#define CS40L26_PSEQ_V2_OP_WRITE_FIELD			0x01
-#define CS40L26_PSEQ_V2_OP_WRITE_FIELD_WORDS		4
-#define CS40L26_PSEQ_V2_OP_WRITE_REG_ADDR8		0x02
-#define CS40L26_PSEQ_V2_OP_WRITE_REG_ADDR8_WORDS	2
-#define CS40L26_PSEQ_V2_OP_WRITE_REG_INCR		0x03
-#define CS40L26_PSEQ_V2_OP_WRITE_REG_INCR_WORDS		2
-#define CS40L26_PSEQ_V2_OP_WRITE_REG_L16		0x04
-#define CS40L26_PSEQ_V2_OP_WRITE_REG_L16_WORDS		2
-#define CS40L26_PSEQ_V2_OP_WRITE_REG_H16		0x05
-#define CS40L26_PSEQ_V2_OP_WRITE_REG_H16_WORDS		2
-#define CS40L26_PSEQ_V2_OP_DELAY			0xFE
-#define CS40L26_PSEQ_V2_OP_DELAY_WORDS			1
-#define CS40L26_PSEQ_V2_OP_END				0xFF
-#define CS40L26_PSEQ_V2_OP_END_WORDS			1
+#define CS40L26_PSEQ_MAX_WORDS_PER_OP CS40L26_PSEQ_OP_WRITE_FIELD_WORDS
+#define CS40L26_PSEQ_MAX_WORDS			129
+#define CS40L26_PSEQ_NUM_OPS				8
+#define CS40L26_PSEQ_OP_MASK				GENMASK(23, 16)
+#define CS40L26_PSEQ_OP_SHIFT			16
+#define CS40L26_PSEQ_OP_WRITE_REG_FULL		0x00
+#define CS40L26_PSEQ_OP_WRITE_REG_FULL_WORDS		3
+#define CS40L26_PSEQ_OP_WRITE_FIELD			0x01
+#define CS40L26_PSEQ_OP_WRITE_FIELD_WORDS		4
+#define CS40L26_PSEQ_OP_WRITE_REG_ADDR8		0x02
+#define CS40L26_PSEQ_OP_WRITE_REG_ADDR8_WORDS	2
+#define CS40L26_PSEQ_OP_WRITE_REG_INCR		0x03
+#define CS40L26_PSEQ_OP_WRITE_REG_INCR_WORDS		2
+#define CS40L26_PSEQ_OP_WRITE_REG_L16		0x04
+#define CS40L26_PSEQ_OP_WRITE_REG_L16_WORDS		2
+#define CS40L26_PSEQ_OP_WRITE_REG_H16		0x05
+#define CS40L26_PSEQ_OP_WRITE_REG_H16_WORDS		2
+#define CS40L26_PSEQ_OP_DELAY			0xFE
+#define CS40L26_PSEQ_OP_DELAY_WORDS			1
+#define CS40L26_PSEQ_OP_END				0xFF
+#define CS40L26_PSEQ_OP_END_WORDS			1
 
 #define CS40L26_PM_STDBY_TIMEOUT_LOWER_OFFSET	16
 #define CS40L26_PM_STDBY_TIMEOUT_UPPER_OFFSET	20
@@ -1274,12 +1252,7 @@ struct cs40l26_iseq_pair {
 	u32 val;
 };
 
-struct cs40l26_pseq_v1_pair {
-	u16 addr;
-	u32 val;
-};
-
-struct cs40l26_pseq_v2_op {
+struct cs40l26_pseq_op {
 	u8 size;
 	u16 offset; /* offset in bytes from pseq_base */
 	u8 operation;
@@ -1333,11 +1306,9 @@ struct cs40l26_private {
 	struct workqueue_struct *vibe_workqueue;
 	int irq;
 	bool vibe_init_success;
-	unsigned int pseq_v1_len;
-	unsigned int pseq_v2_num_ops;
+	unsigned int pseq_num_ops;
 	u32 pseq_base;
-	struct cs40l26_pseq_v1_pair pseq_v1_table[CS40L26_PSEQ_V1_MAX_ENTRIES];
-	struct list_head pseq_v2_op_head;
+	struct list_head pseq_op_head;
 	enum cs40l26_pm_state pm_state;
 	struct cs40l26_iseq_pair iseq_table[CS40L26_ISEQ_MAX_ENTRIES];
 	enum cs40l26_fw_mode fw_mode;
@@ -1392,9 +1363,7 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 		enum cs40l26_pm_state state);
 int cs40l26_ack_write(struct cs40l26_private *cs40l26, u32 reg, u32 write_val,
 		u32 reset_val);
-int cs40l26_pseq_v1_multi_add_pair(struct cs40l26_private *cs40l26,
-		const struct reg_sequence *reg_seq, int num_regs, bool replace);
-int cs40l26_pseq_v2_multi_add_write_reg_full(struct cs40l26_private *cs40l26,
+int cs40l26_pseq_multi_add_write_reg_full(struct cs40l26_private *cs40l26,
 		const struct reg_sequence *reg_seq, int num_regs,
 		bool update_if_op_already_in_seq);
 int cs40l26_resume(struct device *dev);
@@ -1418,8 +1387,7 @@ extern struct regulator_bulk_data
 extern const struct dev_pm_ops cs40l26_pm_ops;
 extern const struct regmap_config cs40l26_regmap;
 extern const struct mfd_cell cs40l26_devs[CS40L26_NUM_MFD_DEVS];
-extern const u8 cs40l26_pseq_v2_op_sizes[CS40L26_PSEQ_V2_NUM_OPS][2];
-extern const u32 cs40l26_a0_gain_vals[CS40L26_NUM_PCT_MAP_VALUES];
+extern const u8 cs40l26_pseq_op_sizes[CS40L26_PSEQ_NUM_OPS][2];
 extern const u32 cs40l26_attn_q21_2_vals[CS40L26_NUM_PCT_MAP_VALUES];
 
 
