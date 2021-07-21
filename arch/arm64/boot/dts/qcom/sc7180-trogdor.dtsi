@@ -307,7 +307,7 @@
 			};
 
 			sound_multimedia2_codec: codec {
-				sound-dai = <&msm_dp>;
+				sound-dai = <&mdss_dp>;
 			};
 		};
 	};
