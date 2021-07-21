@@ -155,8 +155,7 @@ int dma_resv_reserve_shared(struct dma_resv *obj, unsigned int num_fences)
 
 	dma_resv_assert_held(obj);
 
-	old = dma_resv_get_list(obj);
-
+	old = dma_resv_shared_list(obj);
 	if (old && old->shared_max) {
 		if ((old->shared_count + num_fences) <= old->shared_max)
 			return 0;
@@ -214,6 +213,28 @@ int dma_resv_reserve_shared(struct dma_resv *obj, unsigned int num_fences)
 }
 EXPORT_SYMBOL(dma_resv_reserve_shared);
 
+#ifdef CONFIG_DEBUG_MUTEXES
+/**
+ * dma_resv_reset_shared_max - reset shared fences for debugging
+ * @obj: the dma_resv object to reset
+ *
+ * Reset the number of pre-reserved shared slots to test that drivers do
+ * correct slot allocation using dma_resv_reserve_shared(). See also
+ * &dma_resv_list.shared_max.
+ */
+void dma_resv_reset_shared_max(struct dma_resv *obj)
+{
+	struct dma_resv_list *fences = dma_resv_shared_list(obj);
+
+	dma_resv_assert_held(obj);
+
+	/* Test shared fence slot reservation */
+	if (fences)
+		fences->shared_max = fences->shared_count;
+}
+EXPORT_SYMBOL(dma_resv_reset_shared_max);
+#endif
+
 /**
  * dma_resv_add_shared_fence - Add a fence to a shared slot
  * @obj: the reservation object
@@ -232,7 +253,7 @@ void dma_resv_add_shared_fence(struct dma_resv *obj, struct dma_fence *fence)
 
 	dma_resv_assert_held(obj);
 
-	fobj = dma_resv_get_list(obj);
+	fobj = dma_resv_shared_list(obj);
 	count = fobj->shared_count;
 
 	write_seqcount_begin(&obj->seq);
@@ -269,13 +290,13 @@ EXPORT_SYMBOL(dma_resv_add_shared_fence);
  */
 void dma_resv_add_excl_fence(struct dma_resv *obj, struct dma_fence *fence)
 {
-	struct dma_fence *old_fence = dma_resv_get_excl(obj);
+	struct dma_fence *old_fence = dma_resv_excl_fence(obj);
 	struct dma_resv_list *old;
 	u32 i = 0;
 
 	dma_resv_assert_held(obj);
 
-	old = dma_resv_get_list(obj);
+	old = dma_resv_shared_list(obj);
 	if (old)
 		i = old->shared_count;
 
@@ -314,7 +335,7 @@ int dma_resv_copy_fences(struct dma_resv *dst, struct dma_resv *src)
 	dma_resv_assert_held(dst);
 
 	rcu_read_lock();
-	src_list = rcu_dereference(src->fence);
+	src_list = dma_resv_shared_list(src);
 
 retry:
 	if (src_list) {
@@ -327,7 +348,7 @@ retry:
 			return -ENOMEM;
 
 		rcu_read_lock();
-		src_list = rcu_dereference(src->fence);
+		src_list = dma_resv_shared_list(src);
 		if (!src_list || src_list->shared_count > shared_count) {
 			kfree(dst_list);
 			goto retry;
@@ -345,7 +366,7 @@ retry:
 
 			if (!dma_fence_get_rcu(fence)) {
 				dma_resv_list_free(dst_list);
-				src_list = rcu_dereference(src->fence);
+				src_list = dma_resv_shared_list(src);
 				goto retry;
 			}
 
@@ -364,8 +385,8 @@ retry:
 	new = dma_fence_get_rcu_safe(&src->fence_excl);
 	rcu_read_unlock();
 
-	src_list = dma_resv_get_list(dst);
-	old = dma_resv_get_excl(dst);
+	src_list = dma_resv_shared_list(dst);
+	old = dma_resv_excl_fence(dst);
 
 	write_seqcount_begin(&dst->seq);
 	/* write_seqcount_begin provides the necessary memory barrier */
@@ -412,11 +433,11 @@ int dma_resv_get_fences(struct dma_resv *obj, struct dma_fence **pfence_excl,
 		rcu_read_lock();
 		seq = read_seqcount_begin(&obj->seq);
 
-		fence_excl = rcu_dereference(obj->fence_excl);
+		fence_excl = dma_resv_excl_fence(obj);
 		if (fence_excl && !dma_fence_get_rcu(fence_excl))
 			goto unlock;
 
-		fobj = rcu_dereference(obj->fence);
+		fobj = dma_resv_shared_list(obj);
 		if (fobj)
 			sz += sizeof(*shared) * fobj->shared_max;
 
@@ -593,7 +614,7 @@ retry:
 	rcu_read_lock();
 	i = -1;
 
-	fence = rcu_dereference(obj->fence_excl);
+	fence = dma_resv_excl_fence(obj);
 	if (fence && !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
 		if (!dma_fence_get_rcu(fence))
 			goto unlock_retry;
@@ -608,7 +629,7 @@ retry:
 	}
 
 	if (wait_all) {
-		struct dma_resv_list *fobj = rcu_dereference(obj->fence);
+		struct dma_resv_list *fobj = dma_resv_shared_list(obj);
 
 		if (fobj)
 			shared_count = fobj->shared_count;
@@ -695,7 +716,7 @@ retry:
 	seq = read_seqcount_begin(&obj->seq);
 
 	if (test_all) {
-		struct dma_resv_list *fobj = rcu_dereference(obj->fence);
+		struct dma_resv_list *fobj = dma_resv_shared_list(obj);
 		unsigned int i;
 
 		if (fobj)
@@ -717,7 +738,7 @@ retry:
 	}
 
 	if (!shared_count) {
-		struct dma_fence *fence_excl = rcu_dereference(obj->fence_excl);
+		struct dma_fence *fence_excl = dma_resv_excl_fence(obj);
 
 		if (fence_excl) {
 			ret = dma_resv_test_signaled_single(fence_excl);

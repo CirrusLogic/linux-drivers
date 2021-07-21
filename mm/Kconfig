@@ -876,6 +876,9 @@ config ARCH_HAS_HUGEPD
 config MAPPING_DIRTY_HELPERS
         bool
 
+config KMAP_LOCAL
+	bool
+
 config LOW_MEM_NOTIFY
 	bool "Create device that lets processes detect low-memory conditions"
 	default n
