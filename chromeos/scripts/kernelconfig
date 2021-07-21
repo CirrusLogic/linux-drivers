@@ -74,7 +74,8 @@ build_one() {
 	ccompiler="${cross}-${compiler}"
 	if ! which "${ccompiler}" >/dev/null; then
 		if [[ -e /etc/cros_chroot_version ]]; then
-			die "${ccompiler} not found."
+			die "${ccompiler} not found. Try running "\
+			"\`sudo cros_setup_toolchains -t ${cross}\`"
 		else
 			die "${ccompiler} not found. Try running inside chroot."
 		fi
