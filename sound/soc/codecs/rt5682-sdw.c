@@ -420,6 +420,19 @@ static int rt5682_io_init(struct device *dev, struct sdw_slave *slave)
 		regcache_cache_bypass(rt5682->regmap, true);
 	}
 
+	while (loop > 0) {
+		regmap_read(rt5682->regmap, RT5682_DEVICE_ID, &val);
+		if (val == DEVICE_ID)
+			break;
+		dev_warn(dev, "Device with ID register %x is not rt5682\n", val);
+		usleep_range(30000, 30005);
+		loop--;
+	}
+	if (val != DEVICE_ID) {
+		dev_err(dev, "Device with ID register %x is not rt5682\n", val);
+		return -ENODEV;
+	}
+
 	rt5682_calibrate(rt5682);
 
 	if (rt5682->first_hw_init) {
@@ -746,7 +759,7 @@ static int __maybe_unused rt5682_dev_resume(struct device *dev)
 	struct rt5682_priv *rt5682 = dev_get_drvdata(dev);
 	unsigned long time;
 
-	if (!rt5682->hw_init)
+	if (!rt5682->first_hw_init)
 		return 0;
 
 	if (!slave->unattach_request)

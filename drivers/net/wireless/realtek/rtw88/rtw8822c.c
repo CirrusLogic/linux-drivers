@@ -2108,6 +2108,53 @@ static int rtw8822c_mac_init(struct rtw_dev *rtwdev)
 	return 0;
 }
 
+#define FWCD_SIZE_REG_8822C 0x2000
+#define FWCD_SIZE_DMEM_8822C 0x10000
+#define FWCD_SIZE_IMEM_8822C 0x10000
+#define FWCD_SIZE_EMEM_8822C 0x20000
+#define FWCD_SIZE_ROM_8822C 0x10000
+
+static const u32 __fwcd_segs_8822c[] = {
+	FWCD_SIZE_REG_8822C,
+	FWCD_SIZE_DMEM_8822C,
+	FWCD_SIZE_IMEM_8822C,
+	FWCD_SIZE_EMEM_8822C,
+	FWCD_SIZE_ROM_8822C,
+};
+
+static const struct rtw_fwcd_segs rtw8822c_fwcd_segs = {
+	.segs = __fwcd_segs_8822c,
+	.num = ARRAY_SIZE(__fwcd_segs_8822c),
+};
+
+static int rtw8822c_dump_fw_crash(struct rtw_dev *rtwdev)
+{
+#define __dump_fw_8822c(_dev, _mem) \
+	rtw_dump_fw(_dev, OCPBASE_ ## _mem ## _88XX, \
+		    FWCD_SIZE_ ## _mem ## _8822C, RTW_FWCD_ ## _mem)
+	int ret;
+
+	ret = rtw_dump_reg(rtwdev, 0x0, FWCD_SIZE_REG_8822C);
+	if (ret)
+		return ret;
+	ret = __dump_fw_8822c(rtwdev, DMEM);
+	if (ret)
+		return ret;
+	ret = __dump_fw_8822c(rtwdev, IMEM);
+	if (ret)
+		return ret;
+	ret = __dump_fw_8822c(rtwdev, EMEM);
+	if (ret)
+		return ret;
+	ret = __dump_fw_8822c(rtwdev, ROM);
+	if (ret)
+		return ret;
+
+	return 0;
+
+#undef __dump_fw_8822c
+}
+
 static void rtw8822c_rstb_3wire(struct rtw_dev *rtwdev, bool enable)
 {
 	if (enable) {
@@ -4877,6 +4924,7 @@ static struct rtw_chip_ops rtw8822c_ops = {
 	.query_rx_desc		= rtw8822c_query_rx_desc,
 	.set_channel		= rtw8822c_set_channel,
 	.mac_init		= rtw8822c_mac_init,
+	.dump_fw_crash		= rtw8822c_dump_fw_crash,
 	.read_rf		= rtw_phy_read_rf,
 	.write_rf		= rtw_phy_write_rf_reg_mix,
 	.set_tx_power_index	= rtw8822c_set_tx_power_index,
@@ -5317,6 +5365,7 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 	.coex_info_hw_regs = coex_info_hw_regs_8822c,
 
 	.fw_fifo_addr = {0x780, 0x700, 0x780, 0x660, 0x650, 0x680},
+	.fwcd_segs = &rtw8822c_fwcd_segs,
 };
 EXPORT_SYMBOL(rtw8822c_hw_spec);
 

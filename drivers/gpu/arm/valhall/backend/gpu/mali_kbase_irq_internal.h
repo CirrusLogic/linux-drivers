@@ -41,4 +41,6 @@ void kbase_synchronize_irqs(struct kbase_device *kbdev);
 int kbasep_common_test_interrupt_handlers(
 					struct kbase_device * const kbdev);
 
+irqreturn_t kbase_gpu_irq_test_handler(int irq, void *data, u32 val);
+
 #endif /* _KBASE_IRQ_INTERNAL_H_ */

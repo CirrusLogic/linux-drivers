@@ -90,18 +90,25 @@ struct venus_format {
  * struct venus_core - holds core parameters valid for all instances
  *
  * @base:	IO memory base address
- * @vbif_base	IO memory vbif base address
- * @cpu_base	IO memory cpu base address
- * @cpu_cs_base	IO memory cpu_cs base address
- * @cpu_ic_base	IO memory cpu_ic base address
- * @wrapper_base	IO memory wrapper base address
- * @wrapper_base	IO memory wrapper TZ base address
- * @aon_base	AON base address
+ * @vbif_base:	IO memory vbif base address
+ * @cpu_base:	IO memory cpu base address
+ * @cpu_cs_base:	IO memory cpu_cs base address
+ * @cpu_ic_base:	IO memory cpu_ic base address
+ * @wrapper_base:	IO memory wrapper base address
+ * @wrapper_tz_base:	IO memory wrapper TZ base address
+ * @aon_base:	AON base address
  * @irq:		Venus irq
  * @clks:	an array of struct clk pointers
  * @vcodec0_clks: an array of vcodec0 struct clk pointers
  * @vcodec1_clks: an array of vcodec1 struct clk pointers
+ * @video_path: an interconnect handle to video to/from memory path
+ * @cpucfg_path: an interconnect handle to cpu configuration path
+ * @opp_table: an device OPP table handle
+ * @has_opp_table: does OPP table exist
  * @pmdomains:	an array of pmdomains struct device pointers
+ * @opp_dl_venus: an device-link for device OPP
+ * @opp_pmdomain: an OPP power-domain
+ * @resets: an array of reset signals
  * @vdev_dec:	a reference to video device structure for decoder instances
  * @vdev_enc:	a reference to video device structure for encoder instances
  * @v4l2_dev:	a holder for v4l2 device structure
@@ -110,6 +117,7 @@ struct venus_format {
  * @dev_dec:	convenience struct device pointer for decoder device
  * @dev_enc:	convenience struct device pointer for encoder device
  * @use_tz:	a flag that suggests presence of trustzone
+ * @fw:		structure of firmware parameters
  * @lock:	a lock for this strucure
  * @instances:	a list_head of all instances
  * @insts_count:	num of instances
@@ -118,6 +126,7 @@ struct venus_format {
  * @error:	an error returned during last HFI sync operations
  * @sys_error:	an error flag that signal system error event
  * @core_ops:	the core operations
+ * @pm_ops:	a pointer to pm operations
  * @pm_lock:	a lock for PM operations
  * @enc_codecs:	encoders supported by this core
  * @dec_codecs:	decoders supported by this core
@@ -125,6 +134,10 @@ struct venus_format {
  * @priv:	a private filed for HFI operations
  * @ops:		the core HFI operations
  * @work:	a delayed work for handling system fatal error
+ * @caps:	an array of supported HFI capabilities
+ * @codecs_count: platform codecs count
+ * @core0_usage_count: usage counter for core0
+ * @core1_usage_count: usage counter for core1
  * @root:	debugfs root directory
  */
 struct venus_core {
@@ -190,6 +203,9 @@ struct vdec_controls {
 	u32 post_loop_deb_mode;
 	u32 profile;
 	u32 level;
+	u32 display_delay;
+	u32 display_delay_enable;
+	u64 conceal_color;
 };
 
 struct venc_controls {
@@ -210,9 +226,27 @@ struct venc_controls {
 	u32 h264_b_qp;
 	u32 h264_min_qp;
 	u32 h264_max_qp;
+	u32 h264_i_min_qp;
+	u32 h264_i_max_qp;
+	u32 h264_p_min_qp;
+	u32 h264_p_max_qp;
+	u32 h264_b_min_qp;
+	u32 h264_b_max_qp;
 	u32 h264_loop_filter_mode;
 	s32 h264_loop_filter_alpha;
 	s32 h264_loop_filter_beta;
+
+	u32 hevc_i_qp;
+	u32 hevc_p_qp;
+	u32 hevc_b_qp;
+	u32 hevc_min_qp;
+	u32 hevc_max_qp;
+	u32 hevc_i_min_qp;
+	u32 hevc_i_max_qp;
+	u32 hevc_p_min_qp;
+	u32 hevc_p_max_qp;
+	u32 hevc_b_min_qp;
+	u32 hevc_b_max_qp;
 
 	u32 vp8_min_qp;
 	u32 vp8_max_qp;
@@ -222,6 +256,7 @@ struct venc_controls {
 	u32 multi_slice_max_mb;
 
 	u32 header_mode;
+	bool aud_enable;
 
 	struct {
 		u32 h264;
@@ -236,6 +271,11 @@ struct venc_controls {
 		u32 hevc;
 		u32 vp9;
 	} level;
+
+	u32 base_priority_id;
+	u32 ltr_count;
+	struct v4l2_ctrl_hdr10_cll_info cll;
+	struct v4l2_ctrl_hdr10_mastering_display mastering;
 };
 
 struct venus_buffer {
@@ -253,6 +293,7 @@ struct clock_data {
 	unsigned long freq;
 	unsigned long vpp_freq;
 	unsigned long vsp_freq;
+	unsigned long low_power_freq;
 };
 
 #define to_venus_buffer(ptr)	container_of(ptr, struct venus_buffer, vb)
@@ -284,16 +325,21 @@ struct venus_ts_metadata {
 	struct v4l2_timecode tc;
 };
 
+enum venus_inst_modes {
+	VENUS_LOW_POWER = BIT(0),
+};
+
 /**
  * struct venus_inst - holds per instance parameters
  *
  * @list:	used for attach an instance to the core
  * @lock:	instance lock
  * @core:	a reference to the core struct
+ * @clk_data:	clock data per core ID
  * @dpbbufs:	a list of decoded picture buffers
  * @internalbufs:	a list of internal bufferes
  * @registeredbufs:	a list of registered capture bufferes
- * @delayed_process	a list of delayed buffers
+ * @delayed_process:	a list of delayed buffers
  * @delayed_process_work:	a work_struct for process delayed buffers
  * @ctrl_handler:	v4l control handler
  * @controls:	a union of decoder and encoder control parameters
@@ -302,22 +348,26 @@ struct venus_ts_metadata {
  * @streamon_out: stream on flag for output queue
  * @width:	current capture width
  * @height:	current capture height
+ * @crop:	current crop rectangle
  * @out_width:	current output width
  * @out_height:	current output height
  * @colorspace:	current color space
+ * @ycbcr_enc:	current YCbCr encoding
  * @quantization:	current quantization
  * @xfer_func:	current xfer function
  * @codec_state:	current codec API state (see DEC/ENC_STATE_)
  * @reconf_wait:	wait queue for resolution change event
  * @subscriptions:	used to hold current events subscriptions
  * @buf_count:		used to count number of buffers (reqbuf(0))
+ * @tss:		timestamp metadata
+ * @payloads:		cache plane payload to use it for clock/BW scaling
  * @fps:		holds current FPS
  * @timeperframe:	holds current time per frame structure
  * @fmt_out:	a reference to output format structure
  * @fmt_cap:	a reference to capture format structure
  * @num_input_bufs:	holds number of input buffers
  * @num_output_bufs:	holds number of output buffers
- * @input_buf_size	holds input buffer size
+ * @input_buf_size:	holds input buffer size
  * @output_buf_size:	holds output buffer size
  * @output2_buf_size:	holds secondary decoder output buffer size
  * @dpb_buftype:	decoded picture buffer type
@@ -338,7 +388,11 @@ struct venus_ts_metadata {
  * @priv:	a private for HFI operations callbacks
  * @session_type:	the type of the session (decoder or encoder)
  * @hprop:	a union used as a holder by get property
+ * @core_acquired:	the Core has been acquired
+ * @bit_depth:		current bitstream bit-depth
+ * @pic_struct:		bitstream progressive vs interlaced
  * @next_buf_last: a flag to mark next queued capture buffer as last
+ * @drain_active:	Drain sequence is in progress
  */
 struct venus_inst {
 	struct list_head list;
@@ -405,6 +459,7 @@ struct venus_inst {
 	unsigned int pic_struct;
 	bool next_buf_last;
 	bool drain_active;
+	enum venus_inst_modes flags;
 };
 
 #define IS_V1(core)	((core)->res->hfi_version == HFI_VERSION_1XX)

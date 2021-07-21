@@ -365,6 +365,7 @@ enum rtw_flags {
 	RTW_FLAG_BUSY_TRAFFIC,
 	RTW_FLAG_WOWLAN,
 	RTW_FLAG_RESTARTING,
+	RTW_FLAG_USE_LOWEST_RATE,
 
 	NUM_OF_RTW_FLAGS,
 };
@@ -822,6 +823,7 @@ struct rtw_regulatory {
 
 struct rtw_chip_ops {
 	int (*mac_init)(struct rtw_dev *rtwdev);
+	int (*dump_fw_crash)(struct rtw_dev *rtwdev);
 	void (*shutdown)(struct rtw_dev *rtwdev);
 	int (*read_efuse)(struct rtw_dev *rtwdev, u8 *map);
 	void (*phy_set_param)(struct rtw_dev *rtwdev);
@@ -1122,6 +1124,15 @@ enum rtw_fw_fifo_sel {
 	RTW_FW_FIFO_MAX,
 };
 
+enum rtw_fwcd_item {
+	RTW_FWCD_TLV,
+	RTW_FWCD_REG,
+	RTW_FWCD_ROM,
+	RTW_FWCD_IMEM,
+	RTW_FWCD_DMEM,
+	RTW_FWCD_EMEM,
+};
+
 /* hardware configuration for each IC */
 struct rtw_chip_info {
 	struct rtw_chip_ops *ops;
@@ -1150,6 +1161,8 @@ struct rtw_chip_info {
 	u8 max_power_index;
 
 	u16 fw_fifo_addr[RTW_FW_FIFO_MAX];
+	const struct rtw_fwcd_segs *fwcd_segs;
+
 	u8 default_1ss_tx_path;
 
 	bool path_div_supported;
@@ -1757,6 +1770,17 @@ struct rtw_fifo_conf {
 	const struct rtw_rqpn *rqpn;
 };
 
+struct rtw_fwcd_desc {
+	u32 size;
+	u8 *next;
+	u8 *data;
+};
+
+struct rtw_fwcd_segs {
+	const u32 *segs;
+	u8 num;
+};
+
 #define FW_CD_TYPE 0xffff
 #define FW_CD_LEN 4
 #define FW_CD_VAL 0xaabbccdd
@@ -1764,11 +1788,11 @@ struct rtw_fw_state {
 	const struct firmware *firmware;
 	struct rtw_dev *rtwdev;
 	struct completion completion;
+	struct rtw_fwcd_desc fwcd_desc;
 	u16 version;
 	u8 sub_version;
 	u8 sub_index;
 	u16 h2c_version;
-	u8 prev_dump_seq;
 	u32 feature;
 };
 
@@ -1984,6 +2008,14 @@ static inline void rtw_release_macid(struct rtw_dev *rtwdev, u8 mac_id)
 	clear_bit(mac_id, rtwdev->mac_id_map);
 }
 
+static inline int rtw_chip_dump_fw_crash(struct rtw_dev *rtwdev)
+{
+	if (rtwdev->chip->ops->dump_fw_crash)
+		return rtwdev->chip->ops->dump_fw_crash(rtwdev);
+
+	return 0;
+}
+
 void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 			    struct rtw_channel_params *ch_param);
 bool check_hw_ready(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 target);
@@ -2014,5 +2046,8 @@ void rtw_sta_remove(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 		    bool fw_exist);
 void rtw_fw_recovery(struct rtw_dev *rtwdev);
 void rtw_core_fw_scan_notify(struct rtw_dev *rtwdev, bool start);
+int rtw_dump_fw(struct rtw_dev *rtwdev, const u32 ocp_src, u32 size,
+		u32 fwcd_item);
+int rtw_dump_reg(struct rtw_dev *rtwdev, const u32 addr, const u32 size);
 
 #endif
