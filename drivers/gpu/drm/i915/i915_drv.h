@@ -51,7 +51,6 @@
 #include <linux/xarray.h>
 
 #include <drm/intel-gtt.h>
-#include <drm/drm_legacy.h> /* for struct drm_dma_handle */
 #include <drm/drm_gem.h>
 #include <drm/drm_auth.h>
 #include <drm/drm_cache.h>
@@ -60,6 +59,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_connector.h>
 #include <drm/i915_mei_hdcp_interface.h>
+#include <drm/ttm/ttm_device.h>
 
 #include "i915_params.h"
 #include "i915_reg.h"
@@ -771,6 +771,7 @@ struct intel_cdclk_config {
 
 struct i915_selftest_stash {
 	atomic_t counter;
+	struct ida mock_region_instances;
 };
 
 struct drm_i915_private {
@@ -1164,6 +1165,9 @@ struct drm_i915_private {
 
 	/* Mutex to protect the above hdcp component related values. */
 	struct mutex hdcp_comp_mutex;
+
+	/* The TTM device structure. */
+	struct ttm_device bdev;
 
 	I915_SELFTEST_DECLARE(struct i915_selftest_stash selftest;)
 
@@ -1757,7 +1761,8 @@ void i915_gem_cleanup_userptr(struct drm_i915_private *dev_priv);
 void i915_gem_init_early(struct drm_i915_private *dev_priv);
 void i915_gem_cleanup_early(struct drm_i915_private *dev_priv);
 
-struct intel_memory_region *i915_gem_shmem_setup(struct drm_i915_private *i915);
+struct intel_memory_region *i915_gem_shmem_setup(struct drm_i915_private *i915,
+						 u16 type, u16 instance);
 
 static inline void i915_gem_drain_freed_objects(struct drm_i915_private *i915)
 {

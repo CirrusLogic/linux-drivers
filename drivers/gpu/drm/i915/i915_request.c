@@ -29,6 +29,7 @@
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
 
 #include "gem/i915_gem_context.h"
 #include "gt/intel_breadcrumbs.h"
@@ -929,7 +930,7 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	u32 seqno;
 	int ret;
 
-	might_sleep_if(gfpflags_allow_blocking(gfp));
+	might_alloc(gfp);
 
 	/* Check that the caller provided an already pinned context */
 	__intel_context_pin(ce);
@@ -1611,7 +1612,7 @@ i915_request_await_object(struct i915_request *to,
 			dma_fence_put(shared[i]);
 		kfree(shared);
 	} else {
-		excl = dma_resv_get_excl_rcu(obj->base.resv);
+		excl = dma_resv_get_excl_unlocked(obj->base.resv);
 	}
 
 	if (excl) {

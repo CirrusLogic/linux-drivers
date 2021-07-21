@@ -200,7 +200,7 @@ static inline unsigned amdgpu_bo_ngpu_pages(struct amdgpu_bo *bo)
 
 static inline unsigned amdgpu_bo_gpu_page_alignment(struct amdgpu_bo *bo)
 {
-	return (bo->tbo.mem.page_alignment << PAGE_SHIFT) / AMDGPU_GPU_PAGE_SIZE;
+	return (bo->tbo.page_alignment << PAGE_SHIFT) / AMDGPU_GPU_PAGE_SIZE;
 }
 
 /**
@@ -222,10 +222,10 @@ static inline bool amdgpu_bo_in_cpu_visible_vram(struct amdgpu_bo *bo)
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct amdgpu_res_cursor cursor;
 
-	if (bo->tbo.mem.mem_type != TTM_PL_VRAM)
+	if (bo->tbo.resource->mem_type != TTM_PL_VRAM)
 		return false;
 
-	amdgpu_res_first(&bo->tbo.mem, 0, amdgpu_bo_size(bo), &cursor);
+	amdgpu_res_first(bo->tbo.resource, 0, amdgpu_bo_size(bo), &cursor);
 	while (cursor.remaining) {
 		if (cursor.start < adev->gmc.visible_vram_size)
 			return true;

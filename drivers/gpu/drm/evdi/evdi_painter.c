@@ -733,12 +733,16 @@ void evdi_painter_crtc_state_notify(struct evdi_device *evdi, int state)
 	}
 }
 
-static void evdi_log_pixel_format(uint32_t pixel_format)
+static void evdi_log_pixel_format(uint32_t pixel_format, char *buf, size_t size)
 {
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
+	snprintf(buf, size, "pixel format %p4cc", &pixel_format);
+#else
 	struct drm_format_name_buf format_name;
 
 	drm_get_format_name(pixel_format, &format_name);
-	EVDI_DEBUG("pixel format %s\n", format_name.str);
+	snprintf(buf, size, "pixel format %s", format_name.str);
+#endif
 }
 
 void evdi_painter_mode_changed_notify(struct evdi_device *evdi,
@@ -748,6 +752,7 @@ void evdi_painter_mode_changed_notify(struct evdi_device *evdi,
 	struct drm_framebuffer *fb;
 	int bits_per_pixel;
 	uint32_t pixel_format;
+	char buf[100];
 
 	if (painter == NULL)
 		return;
@@ -759,10 +764,10 @@ void evdi_painter_mode_changed_notify(struct evdi_device *evdi,
 	bits_per_pixel = fb->format->cpp[0] * 8;
 	pixel_format = fb->format->format;
 
-	EVDI_DEBUG("(dev=%d) Notifying mode changed: %dx%d@%d; bpp %d; ",
-		   evdi->dev_index, new_mode->hdisplay, new_mode->vdisplay,
-		   drm_mode_vrefresh(new_mode), bits_per_pixel);
-	evdi_log_pixel_format(pixel_format);
+	evdi_log_pixel_format(pixel_format, buf, sizeof(buf));
+	EVDI_INFO("(card%d) Notifying mode changed: %dx%d@%d; bpp %d; %s",
+		  evdi->dev_index, new_mode->hdisplay, new_mode->vdisplay,
+		  drm_mode_vrefresh(new_mode), bits_per_pixel, buf);
 
 	evdi_painter_send_mode_changed(painter,
 				       new_mode,
