@@ -28,6 +28,11 @@
 
 #define RTW_WATCH_DOG_DELAY_TIME	round_jiffies_relative(HZ * 2)
 
+/* AP need to stop beaconing after hearing radar signal in 10s.
+ * So design 10s to restore NO_IR flag referenced by beacon hint.
+ */
+#define RTW_DFS_TIMEOUT			msecs_to_jiffies(10000)
+
 #define RFREG_MASK			0xfffff
 #define INV_RF_DATA			0xffffffff
 #define TX_PAGE_SIZE_SHIFT		7
@@ -1940,6 +1945,11 @@ struct rtw_dev {
 
 	struct rtw_sar sar;
 
+	/* protects dfs channel context */
+	struct mutex dfs_mutex;
+	u32 dfs_channel_map;
+	unsigned long dfs_last_update;
+
 	/* hci related data, must be last */
 	u8 priv[] __aligned(sizeof(void *));
 };
@@ -2055,5 +2065,7 @@ void rtw_core_fw_scan_notify(struct rtw_dev *rtwdev, bool start);
 int rtw_dump_fw(struct rtw_dev *rtwdev, const u32 ocp_src, u32 size,
 		u32 fwcd_item);
 int rtw_dump_reg(struct rtw_dev *rtwdev, const u32 addr, const u32 size);
+void rtw_replace_radar_flag_with_no_ir(struct ieee80211_hw *hw);
+void rtw_restore_no_ir_flag(struct rtw_dev *rtwdev);
 
 #endif

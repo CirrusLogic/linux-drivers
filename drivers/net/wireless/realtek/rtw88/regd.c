@@ -447,6 +447,8 @@ void rtw_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 	struct rtw_hal *hal = &rtwdev->hal;
 	int ret;
 
+	rtw_replace_radar_flag_with_no_ir(hw);
+
 	ret = rtw_regd_notifier_apply(rtwdev, wiphy, request);
 	if (ret) {
 		rtw_warn(rtwdev, "failed to apply regulatory from initiator %d: %d\n",

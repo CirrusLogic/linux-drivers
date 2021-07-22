@@ -610,6 +610,8 @@ static void rtw_ops_sw_scan_start(struct ieee80211_hw *hw,
 	set_bit(RTW_FLAG_DIG_DISABLE, rtwdev->flags);
 	set_bit(RTW_FLAG_SCANNING, rtwdev->flags);
 
+	rtw_restore_no_ir_flag(rtwdev);
+
 	mutex_unlock(&rtwdev->mutex);
 }
 
