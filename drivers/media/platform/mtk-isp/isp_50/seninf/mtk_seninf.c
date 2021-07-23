@@ -325,7 +325,6 @@ static void mtk_seninf_set_csi_mipi(struct mtk_seninf *priv,
 	void __iomem *pseninf = priv->base_reg + 0x1000 * seninf;
 	unsigned int dpcm = mtk_seninf_get_dpcm(priv);
 	unsigned int data_lane_num = priv->sensor[priv->port].num_data_lanes;
-	unsigned int cal_sel;
 	unsigned int data_header_order = 1;
 	unsigned int pad_sel = PAD_10BIT;
 	unsigned int val = 0;
@@ -335,26 +334,22 @@ static void mtk_seninf_set_csi_mipi(struct mtk_seninf *priv,
 
 	switch (priv->port) {
 	case CFG_CSI_PORT_1:
-		cal_sel = 1;
 		writel((0x7ffff8fe & readl(seninf_base +
 			SENINF_TOP_PHY_SENINF_CTL_CSI1)) | 0x80000200,
 		       seninf_base + SENINF_TOP_PHY_SENINF_CTL_CSI1);
 		break;
 	case CFG_CSI_PORT_2:
-		cal_sel = 2;
 		writel((0x7ffff8fe & readl(seninf_base +
 			SENINF_TOP_PHY_SENINF_CTL_CSI2)) | 0x80000200,
 		       seninf_base + SENINF_TOP_PHY_SENINF_CTL_CSI2);
 		break;
 	case CFG_CSI_PORT_0:
-		cal_sel = 0;
 		writel((0x7ffff8fe & readl(seninf_base +
 			SENINF_TOP_PHY_SENINF_CTL_CSI0)) | 0x80000200,
 		       seninf_base + SENINF_TOP_PHY_SENINF_CTL_CSI0);
 		break;
 	case CFG_CSI_PORT_0A:
 	case CFG_CSI_PORT_0B:
-		cal_sel = 0;
 		writel((0x7fffc8fe & readl(seninf_base +
 			SENINF_TOP_PHY_SENINF_CTL_CSI0)) | 0x80001100,
 		       seninf_base + SENINF_TOP_PHY_SENINF_CTL_CSI0);
@@ -942,7 +937,7 @@ static int seninf_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int seninf_pm_suspend(struct device *dev)
+static int __maybe_unused seninf_pm_suspend(struct device *dev)
 {
 	struct mtk_seninf *priv = dev_get_drvdata(dev);
 
@@ -952,7 +947,7 @@ static int seninf_pm_suspend(struct device *dev)
 	return 0;
 }
 
-static int seninf_pm_resume(struct device *dev)
+static int __maybe_unused seninf_pm_resume(struct device *dev)
 {
 	struct mtk_seninf *priv = dev_get_drvdata(dev);
 	int ret;
