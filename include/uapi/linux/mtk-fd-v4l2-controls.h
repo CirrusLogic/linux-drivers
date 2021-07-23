@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-//
-// Copyright (c) 2019 MediaTek Inc.
 /*
+ * Copyright (c) 2019 MediaTek Inc.
+ *
  * For V4L2_CID_MTK_FD_DETECT_POSE, User can set the desired face direction to
  * be detected for each face angle, there are five face angle and 12 directions.
  * Below shows the definition of face angle and face direction,
