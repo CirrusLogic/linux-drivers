@@ -315,6 +315,10 @@
 	cd-gpios = <&tlmm 91 GPIO_ACTIVE_LOW>;
 };
 
+&qupv3_id_1 {
+	status = "okay";
+};
+
 &uart5 {
 	status = "okay";
 };
