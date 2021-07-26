@@ -548,6 +548,18 @@
 #define CS35L43_INPUT_MASK			0x3F
 
 /************************************************/
+/* DAC_MSM_ALIVE_DCIN_WD			*/
+/************************************************/
+#define CS35L43_WD_MODE_MASK			0x00000C00
+#define CS35L43_WD_MODE_SHIFT			10
+#define CS35L43_DCIN_WD_DUR_MASK		0x00000380
+#define CS35L43_DCIN_WD_DUR_SHIFT		7
+#define CS35L43_DCIN_WD_THLD_MASK		0x0000007E
+#define CS35L43_DCIN_WD_THLD_SHIFT		1
+#define CS35L43_DCIN_WD_EN_MASK			0x00000001
+#define CS35L43_DCIN_WD_EN_SHIFT		0
+
+/************************************************/
 /* IRQ1_IRQ1_EINT_1				*/
 /************************************************/
 #define CS35L43_DSP_VIRTUAL2_MBOX_WR_EINT1_MASK		0x80000000
