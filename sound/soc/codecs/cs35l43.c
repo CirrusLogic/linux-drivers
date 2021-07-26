@@ -143,7 +143,20 @@ static SOC_VALUE_ENUM_SINGLE_DECL(cs35l43_dacpcm_enum,
 static const struct snd_kcontrol_new dacpcm_mux =
 	SOC_DAPM_ENUM("PCM Source", cs35l43_dacpcm_enum);
 
+static const char * const cs35l43_wd_mode_texts[] = {"Normal", "Mute"};
+static const unsigned int cs35l43_wd_mode_values[] = {0x0, 0x3};
+static SOC_VALUE_ENUM_SINGLE_DECL(cs35l43_dc_wd_mode_enum, CS35L43_ALIVE_DCIN_WD,
+			CS35L43_WD_MODE_SHIFT, 0x3,
+			cs35l43_wd_mode_texts, cs35l43_wd_mode_values);
+
 static const struct snd_kcontrol_new cs35l43_aud_controls[] = {
+	SOC_SINGLE("DC Watchdog Enable", CS35L43_ALIVE_DCIN_WD,
+			CS35L43_DCIN_WD_EN_SHIFT, 1, 0),
+	SOC_SINGLE("DC Watchdog Threshold", CS35L43_ALIVE_DCIN_WD,
+			CS35L43_DCIN_WD_THLD_SHIFT, 0x28, 0),
+	SOC_SINGLE("DC Watchdog Duration", CS35L43_ALIVE_DCIN_WD,
+			CS35L43_DCIN_WD_DUR_SHIFT, 0x7, 0),
+	SOC_ENUM("DC Watchdog Mode", cs35l43_dc_wd_mode_enum),
 	SOC_SINGLE_SX_TLV("Digital PCM Volume", CS35L43_AMP_CTRL,
 				CS35L43_AMP_VOL_PCM_SHIFT,
 				0x4CF, 0x391, dig_vol_tlv),
@@ -989,6 +1002,14 @@ static irqreturn_t cs35l43_irq(int irq, void *data)
 					CS35L43_BST_EN_SHIFT);
 	}
 
+	if (status & CS35L43_DC_WATCHDOG_IRQ_RISE_EINT1_MASK) {
+		dev_err(cs35l43->dev, "DC Detect INT\n");
+		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_1,
+				CS35L43_DC_WATCHDOG_IRQ_RISE_EINT1_MASK);
+		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_1,
+				CS35L43_DC_WATCHDOG_IRQ_RISE_EINT1_MASK);
+	}
+
 	if (status & CS35L43_DSP_VIRTUAL2_MBOX_WR_EINT1_MASK ||
 		status & CS35L43_WKSRC_STATUS6_EINT1_MASK) {
 		dev_info(cs35l43->dev, "Wakeup INT\n");
@@ -1604,8 +1625,16 @@ int cs35l43_probe(struct cs35l43_private *cs35l43,
 				CS35L43_BST_DCM_UVP_ERR_EINT1_MASK |
 				CS35L43_BST_OVP_ERR_EINT1_MASK |
 				CS35L43_DSP_VIRTUAL2_MBOX_WR_EINT1_MASK |
+				CS35L43_DC_WATCHDOG_IRQ_RISE_EINT1_MASK |
 				CS35L43_WKSRC_STATUS6_EINT1_MASK |
 				CS35L43_WKSRC_STATUS_ANY_EINT1_MASK, 0);
+
+	regmap_update_bits(cs35l43->regmap, CS35L43_ALIVE_DCIN_WD,
+				CS35L43_DCIN_WD_EN_MASK,
+				CS35L43_DCIN_WD_EN_MASK);
+	regmap_update_bits(cs35l43->regmap, CS35L43_ALIVE_DCIN_WD,
+				CS35L43_DCIN_WD_THLD_MASK,
+				1 << CS35L43_DCIN_WD_THLD_SHIFT);
 
 	ret = devm_request_threaded_irq(cs35l43->dev, cs35l43->irq, NULL,
 				cs35l43_irq, IRQF_ONESHOT | IRQF_SHARED |
