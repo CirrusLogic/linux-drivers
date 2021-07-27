@@ -2785,7 +2785,7 @@ static const struct reg_sequence cs35l45_init_patch[] = {
 	{0x00000044,		0x00000000},
 	{CS35L45_BOOST_CCM_CFG,	0xF0000003},
 	{CS35L45_BOOST_DCM_CFG,	0x08710220},
-	{CS35L45_ERROR_RELEASE,	0x00200000},
+	{CS35L45_ERROR_RELEASE,	0x02200000},
 };
 
 static int __cs35l45_initialize(struct cs35l45_private *cs35l45)
