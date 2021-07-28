@@ -77,6 +77,14 @@ obj-$(CONFIG_VIDEO_MEDIATEK_MDP3)	+= mtk-mdp3/
 
 obj-$(CONFIG_VIDEO_MEDIATEK_JPEG)	+= mtk-jpeg/
 
+obj-$(CONFIG_VIDEO_MEDIATEK_ISP_PASS1)	+= mtk-isp/isp_50/
+
+obj-$(CONFIG_VIDEO_MEDIATEK_FD)		+= mtk-isp/fd/
+
+obj-$(CONFIG_VIDEO_MEDIATEK_ISP_DIP)	+= mtk-isp/isp_50/
+
+obj-$(CONFIG_MTK_SENINF)		+= mtk-isp/isp_50/
+
 obj-$(CONFIG_VIDEO_QCOM_CAMSS)		+= qcom/camss/
 
 obj-$(CONFIG_VIDEO_QCOM_VENUS)		+= qcom/venus/

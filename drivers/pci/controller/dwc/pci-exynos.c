@@ -229,30 +229,9 @@ static void exynos_pcie_assert_reset(struct exynos_pcie *ep)
 				GPIOF_OUT_INIT_HIGH, "RESET");
 }
 
-static int exynos_pcie_establish_link(struct exynos_pcie *ep)
+static int exynos_pcie_start_link(struct dw_pcie *pci)
 {
-	struct dw_pcie *pci = ep->pci;
-	struct pcie_port *pp = &pci->pp;
-	struct device *dev = pci->dev;
-
-	if (dw_pcie_link_up(pci)) {
-		dev_err(dev, "Link already up\n");
-		return 0;
-	}
-
-	exynos_pcie_assert_core_reset(ep);
-
-	phy_reset(ep->phy);
-
-	exynos_pcie_writel(ep->mem_res->elbi_base, 1,
-			PCIE_PWR_RESET);
-
-	phy_power_on(ep->phy);
-	phy_init(ep->phy);
-
-	exynos_pcie_deassert_core_reset(ep);
-	dw_pcie_setup_rc(pp);
-	exynos_pcie_assert_reset(ep);
+	struct exynos_pcie *ep = to_exynos_pcie(pci);
 
 	/* assert LTSSM enable */
 	exynos_pcie_writel(ep->mem_res->elbi_base, PCIE_ELBI_LTSSM_ENABLE,
@@ -294,11 +273,7 @@ static irqreturn_t exynos_pcie_irq_handler(int irq, void *arg)
 
 static void exynos_pcie_msi_init(struct exynos_pcie *ep)
 {
-	struct dw_pcie *pci = ep->pci;
-	struct pcie_port *pp = &pci->pp;
 	u32 val;
-
-	dw_pcie_msi_init(pp);
 
 	/* enable MSI interrupt */
 	val = exynos_pcie_readl(ep->mem_res->elbi_base, PCIE_IRQ_EN_LEVEL);
@@ -386,7 +361,19 @@ static int exynos_pcie_host_init(struct pcie_port *pp)
 
 	pp->bridge->ops = &exynos_pci_ops;
 
-	exynos_pcie_establish_link(ep);
+	exynos_pcie_assert_core_reset(ep);
+
+	phy_reset(ep->phy);
+
+	exynos_pcie_writel(ep->mem_res->elbi_base, 1,
+			PCIE_PWR_RESET);
+
+	phy_power_on(ep->phy);
+	phy_init(ep->phy);
+
+	exynos_pcie_deassert_core_reset(ep);
+	exynos_pcie_assert_reset(ep);
+
 	exynos_pcie_enable_interrupts(ep);
 
 	return 0;
@@ -415,12 +402,6 @@ static int __init exynos_add_pcie_port(struct exynos_pcie *ep,
 		return ret;
 	}
 
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		pp->msi_irq = platform_get_irq(pdev, 0);
-		if (pp->msi_irq < 0)
-			return pp->msi_irq;
-	}
-
 	pp->ops = &exynos_pcie_host_ops;
 
 	ret = dw_pcie_host_init(pp);
@@ -436,6 +417,7 @@ static const struct dw_pcie_ops dw_pcie_ops = {
 	.read_dbi = exynos_pcie_read_dbi,
 	.write_dbi = exynos_pcie_write_dbi,
 	.link_up = exynos_pcie_link_up,
+	.start_link = exynos_pcie_start_link,
 };
 
 static int __init exynos_pcie_probe(struct platform_device *pdev)

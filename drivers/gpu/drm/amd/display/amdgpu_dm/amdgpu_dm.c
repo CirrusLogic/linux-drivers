@@ -1295,6 +1295,15 @@ error:
 	return -EINVAL;
 }
 
+static int amdgpu_dm_early_fini(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	amdgpu_dm_audio_fini(adev);
+
+	return 0;
+}
+
 static void amdgpu_dm_fini(struct amdgpu_device *adev)
 {
 	int i;
@@ -1302,8 +1311,6 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 	for (i = 0; i < adev->dm.display_indexes_num; i++) {
 		drm_encoder_cleanup(&adev->dm.mst_encoders[i].base);
 	}
-
-	amdgpu_dm_audio_fini(adev);
 
 	amdgpu_dm_destroy_drm_device(&adev->dm);
 
@@ -2363,6 +2370,7 @@ static const struct amd_ip_funcs amdgpu_dm_funcs = {
 	.late_init = dm_late_init,
 	.sw_init = dm_sw_init,
 	.sw_fini = dm_sw_fini,
+	.early_fini = amdgpu_dm_early_fini,
 	.hw_init = dm_hw_init,
 	.hw_fini = dm_hw_fini,
 	.suspend = dm_suspend,
@@ -3910,7 +3918,6 @@ fail:
 
 static void amdgpu_dm_destroy_drm_device(struct amdgpu_display_manager *dm)
 {
-	drm_mode_config_cleanup(dm->ddev);
 	drm_atomic_private_obj_fini(&dm->atomic_obj);
 	return;
 }
@@ -6527,25 +6534,6 @@ static int fill_hdr_info_packet(const struct drm_connector_state *state,
 	return 0;
 }
 
-static bool
-is_hdr_metadata_different(const struct drm_connector_state *old_state,
-			  const struct drm_connector_state *new_state)
-{
-	struct drm_property_blob *old_blob = old_state->hdr_output_metadata;
-	struct drm_property_blob *new_blob = new_state->hdr_output_metadata;
-
-	if (old_blob != new_blob) {
-		if (old_blob && new_blob &&
-		    old_blob->length == new_blob->length)
-			return memcmp(old_blob->data, new_blob->data,
-				      old_blob->length);
-
-		return true;
-	}
-
-	return false;
-}
-
 static int
 amdgpu_dm_connector_atomic_check(struct drm_connector *conn,
 				 struct drm_atomic_state *state)
@@ -6563,7 +6551,7 @@ amdgpu_dm_connector_atomic_check(struct drm_connector *conn,
 	if (!crtc)
 		return 0;
 
-	if (is_hdr_metadata_different(old_con_state, new_con_state)) {
+	if (!drm_connector_atomic_hdr_metadata_equal(old_con_state, new_con_state)) {
 		struct dc_info_packet hdr_infopacket;
 
 		ret = fill_hdr_info_packet(new_con_state, &hdr_infopacket);
@@ -7753,9 +7741,7 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 	if (connector_type == DRM_MODE_CONNECTOR_HDMIA ||
 	    connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
 	    connector_type == DRM_MODE_CONNECTOR_eDP) {
-		drm_object_attach_property(
-			&aconnector->base.base,
-			dm->ddev->mode_config.hdr_output_metadata_property, 0);
+		drm_connector_attach_hdr_output_metadata_property(&aconnector->base);
 
 		if (!aconnector->mst_port)
 			drm_connector_attach_vrr_capable_property(&aconnector->base);
@@ -9058,7 +9044,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			      dm_old_crtc_state->abm_level;
 
 		hdr_changed =
-			is_hdr_metadata_different(old_con_state, new_con_state);
+			!drm_connector_atomic_hdr_metadata_equal(old_con_state, new_con_state);
 
 		if (!scaling_changed && !abm_changed && !hdr_changed)
 			continue;

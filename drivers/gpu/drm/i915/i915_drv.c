@@ -39,6 +39,7 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/vt.h>
 
+#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_irq.h>
@@ -84,6 +85,7 @@
 #include "intel_gvt.h"
 #include "intel_memory_region.h"
 #include "intel_pm.h"
+#include "intel_region_ttm.h"
 #include "intel_sideband.h"
 #include "vlv_suspend.h"
 
@@ -335,6 +337,10 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	if (ret < 0)
 		goto err_workqueues;
 
+	ret = intel_region_ttm_device_init(dev_priv);
+	if (ret)
+		goto err_ttm;
+
 	intel_wopcm_init_early(&dev_priv->wopcm);
 
 	intel_gt_init_early(&dev_priv->gt, dev_priv);
@@ -362,6 +368,8 @@ err_gem:
 	i915_gem_cleanup_early(dev_priv);
 	i915_drm_clients_fini(&dev_priv->clients);
 	intel_gt_driver_late_release(&dev_priv->gt);
+	intel_region_ttm_device_fini(dev_priv);
+err_ttm:
 	vlv_suspend_cleanup(dev_priv);
 err_workqueues:
 	i915_workqueues_cleanup(dev_priv);
@@ -380,6 +388,7 @@ static void i915_driver_late_release(struct drm_i915_private *dev_priv)
 	i915_gem_cleanup_early(dev_priv);
 	i915_drm_clients_fini(&dev_priv->clients);
 	intel_gt_driver_late_release(&dev_priv->gt);
+	intel_region_ttm_device_fini(dev_priv);
 	vlv_suspend_cleanup(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
 
@@ -558,7 +567,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_perf;
 
-	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, "inteldrmfb");
+	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, "inteldrmfb");
 	if (ret)
 		goto err_ggtt;
 
@@ -635,6 +644,8 @@ err_mem_regions:
 	intel_memory_regions_driver_release(dev_priv);
 err_ggtt:
 	i915_ggtt_driver_release(dev_priv);
+	i915_gem_drain_freed_objects(dev_priv);
+	i915_ggtt_driver_late_release(dev_priv);
 err_perf:
 	i915_perf_fini(dev_priv);
 	return ret;
@@ -762,7 +773,6 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (IS_ERR(i915))
 		return i915;
 
-	i915->drm.pdev = pdev;
 	pci_set_drvdata(pdev, i915);
 
 	/* Device parameters start as a copy of module parameters. */
@@ -885,6 +895,8 @@ out_cleanup_hw:
 	i915_driver_hw_remove(i915);
 	intel_memory_regions_driver_release(i915);
 	i915_ggtt_driver_release(i915);
+	i915_gem_drain_freed_objects(i915);
+	i915_ggtt_driver_late_release(i915);
 out_cleanup_mmio:
 	i915_driver_mmio_release(i915);
 out_runtime_pm_put:
@@ -941,6 +953,7 @@ static void i915_driver_release(struct drm_device *dev)
 	intel_memory_regions_driver_release(dev_priv);
 	i915_ggtt_driver_release(dev_priv);
 	i915_gem_drain_freed_objects(dev_priv);
+	i915_ggtt_driver_late_release(dev_priv);
 
 	i915_driver_mmio_release(dev_priv);
 

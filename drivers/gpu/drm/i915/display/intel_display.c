@@ -11138,7 +11138,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 		if (ret < 0)
 			goto unpin_fb;
 
-		fence = dma_resv_get_excl_rcu(obj->base.resv);
+		fence = dma_resv_get_excl_unlocked(obj->base.resv);
 		if (fence) {
 			add_rps_boost_after_vblank(new_plane_state->hw.crtc,
 						   fence);
@@ -12212,8 +12212,6 @@ static void intel_mode_config_init(struct drm_i915_private *i915)
 
 	mode_config->preferred_depth = 24;
 	mode_config->prefer_shadow = 1;
-
-	mode_config->allow_fb_modifiers = true;
 
 	mode_config->funcs = &intel_mode_funcs;
 

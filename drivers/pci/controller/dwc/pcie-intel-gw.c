@@ -39,6 +39,10 @@
 #define PCIE_APP_IRN_PM_TO_ACK		BIT(9)
 #define PCIE_APP_IRN_LINK_AUTO_BW_STAT	BIT(11)
 #define PCIE_APP_IRN_BW_MGT		BIT(12)
+#define PCIE_APP_IRN_INTA		BIT(13)
+#define PCIE_APP_IRN_INTB		BIT(14)
+#define PCIE_APP_IRN_INTC		BIT(15)
+#define PCIE_APP_IRN_INTD		BIT(16)
 #define PCIE_APP_IRN_MSG_LTR		BIT(18)
 #define PCIE_APP_IRN_SYS_ERR_RC		BIT(29)
 #define PCIE_APP_INTX_OFST		12
@@ -48,18 +52,14 @@
 	PCIE_APP_IRN_RX_VDM_MSG | PCIE_APP_IRN_SYS_ERR_RC | \
 	PCIE_APP_IRN_PM_TO_ACK | PCIE_APP_IRN_MSG_LTR | \
 	PCIE_APP_IRN_BW_MGT | PCIE_APP_IRN_LINK_AUTO_BW_STAT | \
-	(PCIE_APP_INTX_OFST + PCI_INTERRUPT_INTA) | \
-	(PCIE_APP_INTX_OFST + PCI_INTERRUPT_INTB) | \
-	(PCIE_APP_INTX_OFST + PCI_INTERRUPT_INTC) | \
-	(PCIE_APP_INTX_OFST + PCI_INTERRUPT_INTD))
+	PCIE_APP_IRN_INTA | PCIE_APP_IRN_INTB | \
+	PCIE_APP_IRN_INTC | PCIE_APP_IRN_INTD)
 
 #define BUS_IATU_OFFSET			SZ_256M
 #define RESET_INTERVAL_MS		100
 
 struct intel_pcie_soc {
 	unsigned int	pcie_ver;
-	unsigned int	pcie_atu_offset;
-	u32		num_viewport;
 };
 
 struct intel_pcie_port {
@@ -153,15 +153,6 @@ static void intel_pcie_init_n_fts(struct dw_pcie *pci)
 	pci->n_fts[0] = PORT_AFR_N_FTS_GEN12_DFT;
 }
 
-static void intel_pcie_rc_setup(struct intel_pcie_port *lpp)
-{
-	intel_pcie_ltssm_disable(lpp);
-	intel_pcie_link_setup(lpp);
-	intel_pcie_init_n_fts(&lpp->pci);
-	dw_pcie_setup_rc(&lpp->pci.pp);
-	dw_pcie_upconfig_setup(&lpp->pci);
-}
-
 static int intel_pcie_ep_rst_init(struct intel_pcie_port *lpp)
 {
 	struct device *dev = lpp->pci.dev;
@@ -213,14 +204,6 @@ static void intel_pcie_device_rst_deassert(struct intel_pcie_port *lpp)
 	gpiod_set_value_cansleep(lpp->reset_gpio, 0);
 }
 
-static int intel_pcie_app_logic_setup(struct intel_pcie_port *lpp)
-{
-	intel_pcie_device_rst_deassert(lpp);
-	intel_pcie_ltssm_enable(lpp);
-
-	return dw_pcie_wait_for_link(&lpp->pci);
-}
-
 static void intel_pcie_core_irq_disable(struct intel_pcie_port *lpp)
 {
 	pcie_app_wr(lpp, PCIE_APP_IRNEN, 0);
@@ -233,10 +216,6 @@ static int intel_pcie_get_resources(struct platform_device *pdev)
 	struct dw_pcie *pci = &lpp->pci;
 	struct device *dev = pci->dev;
 	int ret;
-
-	pci->dbi_base = devm_platform_ioremap_resource_byname(pdev, "dbi");
-	if (IS_ERR(pci->dbi_base))
-		return PTR_ERR(pci->dbi_base);
 
 	lpp->core_clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(lpp->core_clk)) {
@@ -272,11 +251,6 @@ static int intel_pcie_get_resources(struct platform_device *pdev)
 	}
 
 	return 0;
-}
-
-static void intel_pcie_deinit_phy(struct intel_pcie_port *lpp)
-{
-	phy_exit(lpp->phy);
 }
 
 static int intel_pcie_wait_l2(struct intel_pcie_port *lpp)
@@ -315,6 +289,7 @@ static void intel_pcie_turn_off(struct intel_pcie_port *lpp)
 static int intel_pcie_host_setup(struct intel_pcie_port *lpp)
 {
 	int ret;
+	struct dw_pcie *pci = &lpp->pci;
 
 	intel_pcie_core_rst_assert(lpp);
 	intel_pcie_device_rst_assert(lpp);
@@ -331,8 +306,18 @@ static int intel_pcie_host_setup(struct intel_pcie_port *lpp)
 		goto clk_err;
 	}
 
-	intel_pcie_rc_setup(lpp);
-	ret = intel_pcie_app_logic_setup(lpp);
+	pci->atu_base = pci->dbi_base + 0xC0000;
+
+	intel_pcie_ltssm_disable(lpp);
+	intel_pcie_link_setup(lpp);
+	intel_pcie_init_n_fts(pci);
+	dw_pcie_setup_rc(&pci->pp);
+	dw_pcie_upconfig_setup(pci);
+
+	intel_pcie_device_rst_deassert(lpp);
+	intel_pcie_ltssm_enable(lpp);
+
+	ret = dw_pcie_wait_for_link(pci);
 	if (ret)
 		goto app_init_err;
 
@@ -346,7 +331,7 @@ app_init_err:
 	clk_disable_unprepare(lpp->core_clk);
 clk_err:
 	intel_pcie_core_rst_assert(lpp);
-	intel_pcie_deinit_phy(lpp);
+	phy_exit(lpp->phy);
 
 	return ret;
 }
@@ -357,7 +342,7 @@ static void __intel_pcie_remove(struct intel_pcie_port *lpp)
 	intel_pcie_turn_off(lpp);
 	clk_disable_unprepare(lpp->core_clk);
 	intel_pcie_core_rst_assert(lpp);
-	intel_pcie_deinit_phy(lpp);
+	phy_exit(lpp->phy);
 }
 
 static int intel_pcie_remove(struct platform_device *pdev)
@@ -381,7 +366,7 @@ static int __maybe_unused intel_pcie_suspend_noirq(struct device *dev)
 	if (ret)
 		return ret;
 
-	intel_pcie_deinit_phy(lpp);
+	phy_exit(lpp->phy);
 	clk_disable_unprepare(lpp->core_clk);
 	return ret;
 }
@@ -401,14 +386,6 @@ static int intel_pcie_rc_init(struct pcie_port *pp)
 	return intel_pcie_host_setup(lpp);
 }
 
-/*
- * Dummy function so that DW core doesn't configure MSI
- */
-static int intel_pcie_msi_init(struct pcie_port *pp)
-{
-	return 0;
-}
-
 static u64 intel_pcie_cpu_addr(struct dw_pcie *pcie, u64 cpu_addr)
 {
 	return cpu_addr + BUS_IATU_OFFSET;
@@ -420,13 +397,10 @@ static const struct dw_pcie_ops intel_pcie_ops = {
 
 static const struct dw_pcie_host_ops intel_pcie_dw_ops = {
 	.host_init =		intel_pcie_rc_init,
-	.msi_host_init =	intel_pcie_msi_init,
 };
 
 static const struct intel_pcie_soc pcie_data = {
 	.pcie_ver =		0x520A,
-	.pcie_atu_offset =	0xC0000,
-	.num_viewport =		3,
 };
 
 static int intel_pcie_probe(struct platform_device *pdev)
@@ -461,7 +435,6 @@ static int intel_pcie_probe(struct platform_device *pdev)
 
 	pci->ops = &intel_pcie_ops;
 	pci->version = data->pcie_ver;
-	pci->atu_base = pci->dbi_base + data->pcie_atu_offset;
 	pp->ops = &intel_pcie_dw_ops;
 
 	ret = dw_pcie_host_init(pp);
@@ -469,12 +442,6 @@ static int intel_pcie_probe(struct platform_device *pdev)
 		dev_err(dev, "Cannot initialize host\n");
 		return ret;
 	}
-
-	/*
-	 * Intel PCIe doesn't configure IO region, so set viewport
-	 * to not perform IO region access.
-	 */
-	pci->num_viewport = data->num_viewport;
 
 	return 0;
 }

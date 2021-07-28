@@ -3055,14 +3055,14 @@
 				status = "disabled";
 			};
 
-			msm_dp: displayport-controller@ae90000 {
-				status = "disabled";
+			mdss_dp: displayport-controller@ae90000 {
 				compatible = "qcom,sc7180-dp";
+				status = "disabled";
 
 				reg = <0 0x0ae90000 0 0x1400>;
 
 				interrupt-parent = <&mdss>;
-				interrupts = <12 IRQ_TYPE_NONE>;
+				interrupts = <12>;
 
 				clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>,
 					 <&dispcc DISP_CC_MDSS_DP_AUX_CLK>,
@@ -3082,6 +3082,7 @@
 				power-domains = <&rpmhpd SC7180_CX>;
 
 				#sound-dai-cells = <0>;
+
 				ports {
 					#address-cells = <1>;
 					#size-cells = <0>;
@@ -3098,7 +3099,7 @@
 					};
 				};
 
-				dp_opp_table: dp-opp-table {
+				dp_opp_table: opp-table {
 					compatible = "operating-points-v2";
 
 					opp-160000000 {

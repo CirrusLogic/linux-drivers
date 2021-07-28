@@ -31,6 +31,8 @@
 #include "amdgpu_ras.h"
 #include "amdgpu_xgmi.h"
 
+#include <drm/drm_drv.h>
+
 /**
  * amdgpu_gmc_pdb0_alloc - allocate vram for pdb0
  *
@@ -99,7 +101,7 @@ void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 
-	switch (bo->tbo.mem.mem_type) {
+	switch (bo->tbo.resource->mem_type) {
 	case TTM_PL_TT:
 		*addr = bo->tbo.ttm->dma_address[0];
 		break;
@@ -110,7 +112,7 @@ void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
 		*addr = 0;
 		break;
 	}
-	*flags = amdgpu_ttm_tt_pde_flags(bo->tbo.ttm, &bo->tbo.mem);
+	*flags = amdgpu_ttm_tt_pde_flags(bo->tbo.ttm, bo->tbo.resource);
 	amdgpu_gmc_get_vm_pde(adev, level, addr, flags);
 }
 
@@ -151,6 +153,10 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
 {
 	void __iomem *ptr = (void *)cpu_pt_addr;
 	uint64_t value;
+	int idx;
+
+	if (!drm_dev_enter(&adev->ddev, &idx))
+		return 0;
 
 	/*
 	 * The following is for PTE only. GART does not have PDEs.
@@ -158,6 +164,9 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
 	value = addr & 0x0000FFFFFFFFF000ULL;
 	value |= flags;
 	writeq(value, ptr + (gpu_page_idx * 8));
+
+	drm_dev_exit(idx);
+
 	return 0;
 }
 

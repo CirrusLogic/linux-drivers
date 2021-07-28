@@ -241,7 +241,7 @@ static int amdgpu_amdkfd_remove_eviction_fence(struct amdgpu_bo *bo,
 	if (!ef)
 		return -EINVAL;
 
-	old = dma_resv_get_list(resv);
+	old = dma_resv_shared_list(resv);
 	if (!old)
 		return 0;
 
@@ -1393,8 +1393,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 		domain = alloc_domain = AMDGPU_GEM_DOMAIN_VRAM;
 		alloc_flags = AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE;
 		alloc_flags |= (flags & KFD_IOC_ALLOC_MEM_FLAGS_PUBLIC) ?
-			AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED :
-			AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
+			AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED : 0;
 	} else if (flags & KFD_IOC_ALLOC_MEM_FLAGS_GTT) {
 		domain = alloc_domain = AMDGPU_GEM_DOMAIN_GTT;
 		alloc_flags = 0;
@@ -1658,7 +1657,7 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 	 * the next restore worker
 	 */
 	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm) &&
-	    bo->tbo.mem.mem_type == TTM_PL_SYSTEM)
+	    bo->tbo.resource->mem_type == TTM_PL_SYSTEM)
 		is_invalid_userptr = true;
 
 	ret = vm_validate_pt_pd_bos(avm);

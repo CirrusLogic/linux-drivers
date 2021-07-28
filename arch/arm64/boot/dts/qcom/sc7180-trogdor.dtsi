@@ -246,27 +246,12 @@
 		};
 	};
 
-	max98357a: audio-codec-0 {
-		compatible = "maxim,max98357a";
+	max98360a: audio-codec-0 {
+		compatible = "maxim,max98360a";
 		pinctrl-names = "default";
 		pinctrl-0 = <&amp_en>;
 		sdmode-gpios = <&tlmm 23 GPIO_ACTIVE_HIGH>;
 		#sound-dai-cells = <0>;
-	};
-
-	panel: panel {
-		/* Compatible will be filled in per-board */
-		power-supply = <&pp3300_dx_edp>;
-		backlight = <&backlight>;
-		hpd-gpios = <&sn65dsi86_bridge 2 GPIO_ACTIVE_HIGH>;
-
-		ports {
-			port {
-				panel_in_edp: endpoint {
-					remote-endpoint = <&sn65dsi86_out>;
-				};
-			};
-		};
 	};
 
 	pwmleds {
@@ -310,7 +295,7 @@
 			};
 
 			sound_multimedia1_codec: codec {
-				sound-dai = <&max98357a>;
+				sound-dai = <&max98360a>;
 			};
 		};
 
@@ -322,7 +307,7 @@
 			};
 
 			sound_multimedia2_codec: codec {
-				sound-dai = <&msm_dp>;
+				sound-dai = <&mdss_dp>;
 			};
 		};
 	};
@@ -661,6 +646,8 @@ edp_brij_i2c: &i2c2 {
 		clocks = <&rpmhcc RPMH_LN_BB_CLK3>;
 		clock-names = "refclk";
 
+		no-hpd;
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -677,6 +664,21 @@ edp_brij_i2c: &i2c2 {
 				sn65dsi86_out: endpoint {
 					data-lanes = <0 1>;
 					remote-endpoint = <&panel_in_edp>;
+				};
+			};
+		};
+
+		aux-bus {
+			panel: panel {
+				/* Compatible will be filled in per-board */
+				power-supply = <&pp3300_dx_edp>;
+				backlight = <&backlight>;
+				hpd-gpios = <&sn65dsi86_bridge 2 GPIO_ACTIVE_HIGH>;
+
+				port {
+					panel_in_edp: endpoint {
+						remote-endpoint = <&sn65dsi86_out>;
+					};
 				};
 			};
 		};
@@ -796,7 +798,7 @@ hp_i2c: &i2c9 {
 	status = "okay";
 };
 
-&msm_dp {
+&mdss_dp {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&dp_hot_plug_det>;

@@ -67,6 +67,7 @@ static int mt7663_usb_sdio_set_rates(struct mt7615_dev *dev,
 	struct mt7615_rate_desc *rate = &wrd->rate;
 	struct mt7615_sta *sta = wrd->sta;
 	u32 w5, w27, addr, val;
+	u16 idx;
 
 	lockdep_assert_held(&dev->mt76.mutex);
 
@@ -118,7 +119,11 @@ static int mt7663_usb_sdio_set_rates(struct mt7615_dev *dev,
 
 	sta->rate_probe = sta->rateset[rate->rateset].probe_rate.idx != -1;
 
-	mt76_set(dev, MT_LPON_T0CR, MT_LPON_T0CR_MODE); /* TSF read */
+	idx = sta->vif->mt76.omac_idx;
+	idx = idx > HW_BSSID_MAX ? HW_BSSID_0 : idx;
+	addr = idx > 1 ? MT_LPON_TCR2(idx): MT_LPON_TCR0(idx);
+
+	mt76_rmw(dev, addr, MT_LPON_TCR_MODE, MT_LPON_TCR_READ); /* TSF read */
 	val = mt76_rr(dev, MT_LPON_UTTR0);
 	sta->rate_set_tsf = (val & ~BIT(0)) | rate->rateset;
 
@@ -319,8 +324,8 @@ int mt7663_usb_sdio_register_device(struct mt7615_dev *dev)
 			hw->max_tx_fragments = 1;
 	}
 
-	err = mt76_register_device(&dev->mt76, true, mt7615_rates,
-				   ARRAY_SIZE(mt7615_rates));
+	err = mt76_register_device(&dev->mt76, true, mt76_rates,
+				   ARRAY_SIZE(mt76_rates));
 	if (err < 0)
 		return err;
 

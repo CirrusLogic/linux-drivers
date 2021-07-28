@@ -303,10 +303,7 @@ static void __gen8_ppgtt_alloc(struct i915_address_space * const vm,
 			__i915_gem_object_pin_pages(pt->base);
 			i915_gem_object_make_unshrinkable(pt->base);
 
-			if (lvl ||
-			    gen8_pt_count(*start, end) < I915_PDES ||
-			    intel_vgpu_active(vm->i915))
-				fill_px(pt, vm->scratch[lvl]->encode);
+			fill_px(pt, vm->scratch[lvl]->encode);
 
 			spin_lock(&pd->lock);
 			if (likely(!pd->entry[idx])) {
@@ -709,7 +706,7 @@ struct i915_ppgtt *gen8_ppgtt_create(struct intel_gt *gt)
 	 *
 	 * Gen12 has inherited the same read-only fault issue from gen11.
 	 */
-	ppgtt->vm.has_read_only = !IS_GEN_RANGE(gt->i915, 11, 12);
+	ppgtt->vm.has_read_only = !IS_GRAPHICS_VER(gt->i915, 11, 12);
 
 	if (HAS_LMEM(gt->i915))
 		ppgtt->vm.alloc_pt_dma = alloc_pt_lmem;

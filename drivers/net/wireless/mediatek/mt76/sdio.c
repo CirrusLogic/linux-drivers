@@ -157,10 +157,14 @@ static void mt76s_net_worker(struct mt76_worker *w)
 
 static int mt76s_process_tx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	bool wake, mcu = q == dev->q_mcu[MT_MCUQ_WM];
 	struct mt76_queue_entry entry;
 	int nframes = 0;
+	bool mcu;
 
+	if (!q)
+		return 0;
+
+	mcu = q == dev->q_mcu[MT_MCUQ_WM];
 	while (q->queued > 0) {
 		if (!q->entry[q->tail].done)
 			break;
@@ -177,21 +181,9 @@ static int mt76s_process_tx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 		nframes++;
 	}
 
-	wake = q->stopped && q->queued < q->ndesc - 8;
-	if (wake)
-		q->stopped = false;
-
 	if (!q->queued)
 		wake_up(&dev->tx_wait);
 
-	if (mcu)
-		goto out;
-
-	mt76_txq_schedule(&dev->phy, q->qid);
-
-	if (wake)
-		ieee80211_wake_queue(dev->hw, q->qid);
-out:
 	return nframes;
 }
 
@@ -200,19 +192,28 @@ static void mt76s_status_worker(struct mt76_worker *w)
 	struct mt76_sdio *sdio = container_of(w, struct mt76_sdio,
 					      status_worker);
 	struct mt76_dev *dev = container_of(sdio, struct mt76_dev, sdio);
+	bool resched = false;
 	int i, nframes;
 
 	do {
+		int ndata_frames = 0;
+
 		nframes = mt76s_process_tx_queue(dev, dev->q_mcu[MT_MCUQ_WM]);
 
 		for (i = 0; i <= MT_TXQ_PSD; i++)
-			nframes += mt76s_process_tx_queue(dev,
-							  dev->phy.q_tx[i]);
+			ndata_frames += mt76s_process_tx_queue(dev,
+							       dev->phy.q_tx[i]);
+		nframes += ndata_frames;
+		if (ndata_frames > 0)
+			resched = true;
 
 		if (dev->drv->tx_status_data &&
 		    !test_and_set_bit(MT76_READING_STATS, &dev->phy.state))
 			queue_work(dev->wq, &dev->sdio.stat_work);
 	} while (nframes > 0);
+
+	if (resched)
+		mt76_worker_schedule(&dev->sdio.txrx_worker);
 }
 
 static void mt76s_tx_status_data(struct work_struct *work)
@@ -261,6 +262,7 @@ mt76s_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 
 	q->entry[q->head].skb = tx_info.skb;
 	q->entry[q->head].buf_sz = len;
+	q->entry[q->head].wcid = 0xffff;
 
 	smp_wmb();
 

@@ -575,8 +575,6 @@ void mtk_drm_crtc_async_update(struct drm_crtc *crtc, struct drm_plane *plane,
 			       struct drm_atomic_state *state)
 {
 	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
-	const struct drm_plane_helper_funcs *plane_helper_funcs =
-			plane->helper_private;
 
 	if (!mtk_crtc->enabled)
 		return;

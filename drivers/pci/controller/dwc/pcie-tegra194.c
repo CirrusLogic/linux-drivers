@@ -765,8 +765,6 @@ static void tegra_pcie_enable_msi_interrupts(struct pcie_port *pp)
 	struct tegra_pcie_dw *pcie = to_tegra_pcie(pci);
 	u32 val;
 
-	dw_pcie_msi_init(pp);
-
 	/* Enable MSI interrupt generation */
 	val = appl_readl(pcie, APPL_INTR_EN_L0_0);
 	val |= APPL_INTR_EN_L0_0_SYS_MSI_INTR_EN;
@@ -855,11 +853,23 @@ static void config_gen3_gen4_eq_presets(struct tegra_pcie_dw *pcie)
 	dw_pcie_writel_dbi(pci, GEN3_RELATED_OFF, val);
 }
 
-static void tegra_pcie_prepare_host(struct pcie_port *pp)
+static int tegra_pcie_dw_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct tegra_pcie_dw *pcie = to_tegra_pcie(pci);
 	u32 val;
+
+	pp->bridge->ops = &tegra_pci_ops;
+
+	if (!pcie->pcie_cap_base)
+		pcie->pcie_cap_base = dw_pcie_find_capability(&pcie->pci,
+							      PCI_CAP_ID_EXP);
+
+	/* Disable ASPM-L1SS advertisement if there is no CLKREQ routing */
+	if (!pcie->supports_clkreq) {
+		disable_aspm_l11(pcie);
+		disable_aspm_l12(pcie);
+	}
 
 	val = dw_pcie_readl_dbi(pci, PCI_IO_BASE);
 	val &= ~(IO_BASE_IO_DECODE | IO_BASE_IO_DECODE_BIT8);
@@ -899,10 +909,24 @@ static void tegra_pcie_prepare_host(struct pcie_port *pp)
 		dw_pcie_writel_dbi(pci, CFG_TIMER_CTRL_MAX_FUNC_NUM_OFF, val);
 	}
 
-	dw_pcie_setup_rc(pp);
-
 	clk_set_rate(pcie->core_clk, GEN4_CORE_CLK_FREQ);
 
+	return 0;
+}
+
+static int tegra_pcie_dw_start_link(struct dw_pcie *pci)
+{
+	u32 val, offset, speed, tmp;
+	struct tegra_pcie_dw *pcie = to_tegra_pcie(pci);
+	struct pcie_port *pp = &pci->pp;
+	bool retry = true;
+
+	if (pcie->mode == DW_PCIE_EP_TYPE) {
+		enable_irq(pcie->pex_rst_irq);
+		return 0;
+	}
+
+retry_link:
 	/* Assert RST */
 	val = appl_readl(pcie, APPL_PINMUX);
 	val &= ~APPL_PINMUX_PEX_RST;
@@ -921,19 +945,10 @@ static void tegra_pcie_prepare_host(struct pcie_port *pp)
 	appl_writel(pcie, val, APPL_PINMUX);
 
 	msleep(100);
-}
-
-static int tegra_pcie_dw_host_init(struct pcie_port *pp)
-{
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct tegra_pcie_dw *pcie = to_tegra_pcie(pci);
-	u32 val, tmp, offset, speed;
-
-	pp->bridge->ops = &tegra_pci_ops;
-
-	tegra_pcie_prepare_host(pp);
 
 	if (dw_pcie_wait_for_link(pci)) {
+		if (!retry)
+			return 0;
 		/*
 		 * There are some endpoints which can't get the link up if
 		 * root port has Data Link Feature (DLF) enabled.
@@ -967,10 +982,11 @@ static int tegra_pcie_dw_host_init(struct pcie_port *pp)
 		val &= ~PCI_DLF_EXCHANGE_ENABLE;
 		dw_pcie_writel_dbi(pci, offset, val);
 
-		tegra_pcie_prepare_host(pp);
+		tegra_pcie_dw_host_init(pp);
+		dw_pcie_setup_rc(pp);
 
-		if (dw_pcie_wait_for_link(pci))
-			return 0;
+		retry = false;
+		goto retry_link;
 	}
 
 	speed = dw_pcie_readw_dbi(pci, pcie->pcie_cap_base + PCI_EXP_LNKSTA) &
@@ -990,20 +1006,6 @@ static int tegra_pcie_dw_link_up(struct dw_pcie *pci)
 	return !!(val & PCI_EXP_LNKSTA_DLLLA);
 }
 
-static void tegra_pcie_set_msi_vec_num(struct pcie_port *pp)
-{
-	pp->num_vectors = MAX_MSI_IRQS;
-}
-
-static int tegra_pcie_dw_start_link(struct dw_pcie *pci)
-{
-	struct tegra_pcie_dw *pcie = to_tegra_pcie(pci);
-
-	enable_irq(pcie->pex_rst_irq);
-
-	return 0;
-}
-
 static void tegra_pcie_dw_stop_link(struct dw_pcie *pci)
 {
 	struct tegra_pcie_dw *pcie = to_tegra_pcie(pci);
@@ -1019,7 +1021,6 @@ static const struct dw_pcie_ops tegra_dw_pcie_ops = {
 
 static struct dw_pcie_host_ops tegra_pcie_dw_host_ops = {
 	.host_init = tegra_pcie_dw_host_init,
-	.set_num_vectors = tegra_pcie_set_msi_vec_num,
 };
 
 static void tegra_pcie_disable_phy(struct tegra_pcie_dw *pcie)
@@ -1061,8 +1062,15 @@ phy_exit:
 
 static int tegra_pcie_dw_parse_dt(struct tegra_pcie_dw *pcie)
 {
+	struct platform_device *pdev = to_platform_device(pcie->dev);
 	struct device_node *np = pcie->dev->of_node;
 	int ret;
+
+	pcie->dbi_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
+	if (!pcie->dbi_res) {
+		dev_err(pcie->dev, "Failed to find \"dbi\" region\n");
+		return -ENODEV;
+	}
 
 	ret = of_property_read_u32(np, "nvidia,aspm-cmrt-us", &pcie->aspm_cmrt);
 	if (ret < 0) {
@@ -1390,15 +1398,6 @@ static int tegra_pcie_config_controller(struct tegra_pcie_dw *pcie,
 
 	reset_control_deassert(pcie->core_rst);
 
-	pcie->pcie_cap_base = dw_pcie_find_capability(&pcie->pci,
-						      PCI_CAP_ID_EXP);
-
-	/* Disable ASPM-L1SS advertisement as there is no CLKREQ routing */
-	if (!pcie->supports_clkreq) {
-		disable_aspm_l11(pcie);
-		disable_aspm_l12(pcie);
-	}
-
 	return ret;
 
 fail_phy:
@@ -1555,18 +1554,9 @@ static int tegra_pcie_deinit_controller(struct tegra_pcie_dw *pcie)
 
 static int tegra_pcie_config_rp(struct tegra_pcie_dw *pcie)
 {
-	struct pcie_port *pp = &pcie->pci.pp;
 	struct device *dev = pcie->dev;
 	char *name;
 	int ret;
-
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		pp->msi_irq = of_irq_get_byname(dev->of_node, "msi");
-		if (!pp->msi_irq) {
-			dev_err(dev, "Failed to get MSI interrupt\n");
-			return -ENODEV;
-		}
-	}
 
 	pm_runtime_enable(dev);
 
@@ -1841,7 +1831,7 @@ static int tegra_pcie_ep_raise_msi_irq(struct tegra_pcie_dw *pcie, u16 irq)
 	if (unlikely(irq > 31))
 		return -EINVAL;
 
-	appl_writel(pcie, (1 << irq), APPL_MSI_CTRL_1);
+	appl_writel(pcie, BIT(irq), APPL_MSI_CTRL_1);
 
 	return 0;
 }
@@ -1907,19 +1897,12 @@ static int tegra_pcie_config_ep(struct tegra_pcie_dw *pcie,
 	struct dw_pcie *pci = &pcie->pci;
 	struct device *dev = pcie->dev;
 	struct dw_pcie_ep *ep;
-	struct resource *res;
 	char *name;
 	int ret;
 
 	ep = &pci->ep;
 	ep->ops = &pcie_ep_ops;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "addr_space");
-	if (!res)
-		return -EINVAL;
-
-	ep->phys_base = res->start;
-	ep->addr_size = resource_size(res);
 	ep->page_size = SZ_64K;
 
 	ret = gpiod_set_debounce(pcie->pex_rst_gpiod, PERST_DEBOUNCE_TIME);
@@ -1982,7 +1965,6 @@ static int tegra_pcie_dw_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *atu_dma_res;
 	struct tegra_pcie_dw *pcie;
-	struct resource *dbi_res;
 	struct pcie_port *pp;
 	struct dw_pcie *pci;
 	struct phy **phys;
@@ -2003,6 +1985,7 @@ static int tegra_pcie_dw_probe(struct platform_device *pdev)
 	pci->n_fts[1] = FTS_VAL;
 
 	pp = &pci->pp;
+	pp->num_vectors = MAX_MSI_IRQS;
 	pcie->dev = &pdev->dev;
 	pcie->mode = (enum dw_pcie_device_mode)data->mode;
 
@@ -2091,20 +2074,6 @@ static int tegra_pcie_dw_probe(struct platform_device *pdev)
 
 	pcie->phys = phys;
 
-	dbi_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-	if (!dbi_res) {
-		dev_err(dev, "Failed to find \"dbi\" region\n");
-		return -ENODEV;
-	}
-	pcie->dbi_res = dbi_res;
-
-	pci->dbi_base = devm_ioremap_resource(dev, dbi_res);
-	if (IS_ERR(pci->dbi_base))
-		return PTR_ERR(pci->dbi_base);
-
-	/* Tegra HW locates DBI2 at a fixed offset from DBI */
-	pci->dbi_base2 = pci->dbi_base + 0x1000;
-
 	atu_dma_res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   "atu_dma");
 	if (!atu_dma_res) {
@@ -2113,6 +2082,7 @@ static int tegra_pcie_dw_probe(struct platform_device *pdev)
 	}
 	pcie->atu_dma_res = atu_dma_res;
 
+	pci->atu_size = resource_size(atu_dma_res);
 	pci->atu_base = devm_ioremap_resource(dev, atu_dma_res);
 	if (IS_ERR(pci->atu_base))
 		return PTR_ERR(pci->atu_base);
@@ -2246,6 +2216,10 @@ static int tegra_pcie_dw_resume_noirq(struct device *dev)
 		dev_err(dev, "Failed to init host: %d\n", ret);
 		goto fail_host_init;
 	}
+
+	ret = tegra_pcie_dw_start_link(&pcie->pci);
+	if (ret < 0)
+		goto fail_host_init;
 
 	/* Restore MSI interrupt vector */
 	dw_pcie_writel_dbi(&pcie->pci, PORT_LOGIC_MSI_CTRL_INT_0_EN,

@@ -79,15 +79,41 @@ mt76_free_pending_txwi(struct mt76_dev *dev)
 	local_bh_enable();
 }
 
+static void
+mt76_dma_sync_idx(struct mt76_dev *dev, struct mt76_queue *q)
+{
+	writel(q->desc_dma, &q->regs->desc_base);
+	writel(q->ndesc, &q->regs->ring_size);
+	q->head = readl(&q->regs->dma_idx);
+	q->tail = q->head;
+}
+
+static void
+mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q)
+{
+	int i;
+
+	if (!q)
+		return;
+
+	/* clear descriptors */
+	for (i = 0; i < q->ndesc; i++)
+		q->desc[i].ctrl = cpu_to_le32(MT_DMA_CTL_DMA_DONE);
+
+	writel(0, &q->regs->cpu_idx);
+	writel(0, &q->regs->dma_idx);
+	mt76_dma_sync_idx(dev, q);
+}
+
 static int
 mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
 		     int idx, int n_desc, int bufsize,
 		     u32 ring_base)
 {
 	int size;
-	int i;
 
 	spin_lock_init(&q->lock);
+	spin_lock_init(&q->cleanup_lock);
 
 	q->regs = dev->mmio.regs + ring_base + idx * MT_RING_SIZE;
 	q->ndesc = n_desc;
@@ -104,14 +130,7 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
 	if (!q->entry)
 		return -ENOMEM;
 
-	/* clear descriptors */
-	for (i = 0; i < q->ndesc; i++)
-		q->desc[i].ctrl = cpu_to_le32(MT_DMA_CTL_DMA_DONE);
-
-	writel(q->desc_dma, &q->regs->desc_base);
-	writel(0, &q->regs->cpu_idx);
-	writel(0, &q->regs->dma_idx);
-	writel(q->ndesc, &q->regs->ring_size);
+	mt76_dma_queue_reset(dev, q);
 
 	return 0;
 }
@@ -172,6 +191,7 @@ mt76_dma_add_buf(struct mt76_dev *dev, struct mt76_queue *q,
 
 	q->entry[idx].txwi = txwi;
 	q->entry[idx].skb = skb;
+	q->entry[idx].wcid = 0xffff;
 
 	return idx;
 }
@@ -201,15 +221,6 @@ mt76_dma_tx_cleanup_idx(struct mt76_dev *dev, struct mt76_queue *q, int idx,
 }
 
 static void
-mt76_dma_sync_idx(struct mt76_dev *dev, struct mt76_queue *q)
-{
-	writel(q->desc_dma, &q->regs->desc_base);
-	writel(q->ndesc, &q->regs->ring_size);
-	q->head = readl(&q->regs->dma_idx);
-	q->tail = q->head;
-}
-
-static void
 mt76_dma_kick_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
 	wmb();
@@ -220,12 +231,12 @@ static void
 mt76_dma_tx_cleanup(struct mt76_dev *dev, struct mt76_queue *q, bool flush)
 {
 	struct mt76_queue_entry entry;
-	bool wake = false;
 	int last;
 
 	if (!q)
 		return;
 
+	spin_lock_bh(&q->cleanup_lock);
 	if (flush)
 		last = -1;
 	else
@@ -238,13 +249,13 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, struct mt76_queue *q, bool flush)
 		if (entry.txwi) {
 			if (!(dev->drv->drv_flags & MT_DRV_TXWI_NO_FREE))
 				mt76_put_txwi(dev, entry.txwi);
-			wake = !flush;
 		}
 
 		if (!flush && q->tail == last)
 			last = readl(&q->regs->dma_idx);
 
 	}
+	spin_unlock_bh(&q->cleanup_lock);
 
 	if (flush) {
 		spin_lock_bh(&q->lock);
@@ -253,16 +264,8 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, struct mt76_queue *q, bool flush)
 		spin_unlock_bh(&q->lock);
 	}
 
-	wake = wake && q->stopped &&
-	       q->qid < IEEE80211_NUM_ACS && q->queued < q->ndesc - 8;
-	if (wake)
-		q->stopped = false;
-
 	if (!q->queued)
 		wake_up(&dev->tx_wait);
-
-	if (wake)
-		ieee80211_wake_queue(dev->hw, q->qid);
 }
 
 static void *
@@ -316,7 +319,7 @@ static int
 mt76_dma_tx_queue_skb_raw(struct mt76_dev *dev, struct mt76_queue *q,
 			  struct sk_buff *skb, u32 tx_info)
 {
-	struct mt76_queue_buf buf;
+	struct mt76_queue_buf buf = {};
 	dma_addr_t addr;
 
 	if (q->queued + 1 >= q->ndesc - 1)
@@ -347,6 +350,9 @@ mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 		      struct sk_buff *skb, struct mt76_wcid *wcid,
 		      struct ieee80211_sta *sta)
 {
+	struct ieee80211_tx_status status = {
+		.sta = sta,
+	};
 	struct mt76_tx_info tx_info = {
 		.skb = skb,
 	};
@@ -358,11 +364,9 @@ mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 	u8 *txwi;
 
 	t = mt76_get_txwi(dev);
-	if (!t) {
-		hw = mt76_tx_status_get_hw(dev, skb);
-		ieee80211_free_txskb(hw, skb);
-		return -ENOMEM;
-	}
+	if (!t)
+		goto free_skb;
+
 	txwi = mt76_get_txwi_ptr(dev, t);
 
 	skb->prev = skb->next = NULL;
@@ -417,12 +421,21 @@ unmap:
 free:
 #ifdef CONFIG_NL80211_TESTMODE
 	/* fix tx_done accounting on queue overflow */
-	if (tx_info.skb == dev->test.tx_skb)
-		dev->test.tx_done--;
+	if (mt76_is_testmode_skb(dev, skb, &hw)) {
+		struct mt76_phy *phy = hw->priv;
+
+		if (tx_info.skb == phy->test.tx_skb)
+			phy->test.tx_done--;
+	}
 #endif
 
-	dev_kfree_skb(tx_info.skb);
 	mt76_put_txwi(dev, t);
+
+free_skb:
+	status.skb = tx_info.skb;
+	hw = mt76_tx_status_get_hw(dev, tx_info.skb);
+	ieee80211_tx_status_ext(hw, &status);
+
 	return ret;
 }
 
@@ -596,8 +609,7 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
 	return done;
 }
 
-static int
-mt76_dma_rx_poll(struct napi_struct *napi, int budget)
+int mt76_dma_rx_poll(struct napi_struct *napi, int budget)
 {
 	struct mt76_dev *dev;
 	int qid, done = 0, cur;
@@ -622,17 +634,18 @@ mt76_dma_rx_poll(struct napi_struct *napi, int budget)
 
 	return done;
 }
+EXPORT_SYMBOL_GPL(mt76_dma_rx_poll);
 
 static int
-mt76_dma_init(struct mt76_dev *dev)
+mt76_dma_init(struct mt76_dev *dev,
+	      int (*poll)(struct napi_struct *napi, int budget))
 {
 	int i;
 
 	init_dummy_netdev(&dev->napi_dev);
 
 	mt76_for_each_q_rx(dev, i) {
-		netif_napi_add(&dev->napi_dev, &dev->napi[i], mt76_dma_rx_poll,
-			       64);
+		netif_napi_add(&dev->napi_dev, &dev->napi[i], poll, 64);
 		mt76_dma_rx_fill(dev, &dev->q_rx[i]);
 		napi_enable(&dev->napi[i]);
 	}
@@ -643,9 +656,11 @@ mt76_dma_init(struct mt76_dev *dev)
 static const struct mt76_queue_ops mt76_dma_ops = {
 	.init = mt76_dma_init,
 	.alloc = mt76_dma_alloc_queue,
+	.reset_q = mt76_dma_queue_reset,
 	.tx_queue_skb_raw = mt76_dma_tx_queue_skb_raw,
 	.tx_queue_skb = mt76_dma_tx_queue_skb,
 	.tx_cleanup = mt76_dma_tx_cleanup,
+	.rx_cleanup = mt76_dma_rx_cleanup,
 	.rx_reset = mt76_dma_rx_reset,
 	.kick = mt76_dma_kick_queue,
 };
