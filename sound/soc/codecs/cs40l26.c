@@ -243,6 +243,17 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 			return ret;
 		}
 
+		ret = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_INVERT",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(regmap, reg, codec->invert_streaming_data);
+		if (ret) {
+			dev_err(dev, "Failed to specify SVC for streaming\n");
+			return ret;
+		}
+
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				CS40L26_DSP_MBOX_CMD_START_I2S,
 				CS40L26_DSP_MBOX_RESET);
@@ -315,6 +326,45 @@ static int cs40l26_svc_for_streaming_data_put(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
+
+static int cs40l26_invert_streaming_data_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct cs40l26_codec *codec =
+	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
+	struct cs40l26_private *cs40l26 = codec->core;
+
+	mutex_lock(&cs40l26->lock);
+
+	if (codec->invert_streaming_data)
+		ucontrol->value.enumerated.item[0] = 1;
+	else
+		ucontrol->value.enumerated.item[0] = 0;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return 0;
+}
+
+static int cs40l26_invert_streaming_data_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct cs40l26_codec *codec =
+	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
+	struct cs40l26_private *cs40l26 = codec->core;
+
+	mutex_lock(&cs40l26->lock);
+
+	if (ucontrol->value.enumerated.item[0])
+		codec->invert_streaming_data = true;
+	else
+		codec->invert_streaming_data = false;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return 0;
+}
+
 
 static int cs40l26_tuning_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
@@ -427,6 +477,9 @@ static const struct snd_kcontrol_new cs40l26_controls[] = {
 	SOC_SINGLE_EXT("SVC for streaming data", 0, 0, 1, 0,
 			cs40l26_svc_for_streaming_data_get,
 			cs40l26_svc_for_streaming_data_put),
+	SOC_SINGLE_EXT("Invert streaming data", 0, 0, 1, 0,
+			cs40l26_invert_streaming_data_get,
+			cs40l26_invert_streaming_data_put),
 };
 
 static const char * const cs40l26_out_mux_texts[] = { "Off", "PCM", "A2H" };
