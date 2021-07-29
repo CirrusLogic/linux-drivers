@@ -539,6 +539,8 @@ int ipu6_fw_psys_get_program_manifest_by_process(
 	return 0;
 }
 
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG) || \
+	(defined(CONFIG_DYNAMIC_DEBUG_CORE) && defined(DYNAMIC_DEBUG_MODULE))
 void ipu6_fw_psys_pg_dump(struct ipu_psys *psys,
 			  struct ipu_psys_kcmd *kcmd, const char *note)
 {
@@ -593,3 +595,14 @@ void ipu6_fw_psys_pg_dump(struct ipu_psys *psys,
 		}
 	}
 }
+#else
+void ipu6_fw_psys_pg_dump(struct ipu_psys *psys,
+			  struct ipu_psys_kcmd *kcmd, const char *note)
+{
+	if (ipu_ver == IPU_VER_6SE || ipu_ver == IPU_VER_6 ||
+	    ipu_ver == IPU_VER_6EP)
+		return;
+
+	WARN(1, "%s ipu_ver:[%u] is unsupported!\n", __func__, ipu_ver);
+}
+#endif
