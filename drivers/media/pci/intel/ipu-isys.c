@@ -1407,34 +1407,6 @@ leave:
 	return 0;
 }
 
-static void isys_isr_poll(struct ipu_bus_device *adev)
-{
-	struct ipu_isys *isys = ipu_bus_get_drvdata(adev);
-
-	if (!isys->fwcom) {
-		dev_dbg(&isys->adev->dev,
-			"got interrupt but device not configured yet\n");
-		return;
-	}
-
-	mutex_lock(&isys->mutex);
-	isys_isr(adev);
-	mutex_unlock(&isys->mutex);
-}
-
-int ipu_isys_isr_run(void *ptr)
-{
-	struct ipu_isys *isys = ptr;
-
-	while (!kthread_should_stop()) {
-		usleep_range(500, 1000);
-		if (isys->stream_opened)
-			isys_isr_poll(isys->adev);
-	}
-
-	return 0;
-}
-
 static struct ipu_bus_driver isys_driver = {
 	.probe = isys_probe,
 	.remove = isys_remove,
