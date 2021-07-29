@@ -969,9 +969,8 @@ int ipu_buttress_tsc_read(struct ipu_device *isp, u64 *val)
 	short retry = IPU_BUTTRESS_TSC_RETRY;
 
 	do {
-		spin_lock_irqsave(&b->tsc_lock, flags);
+		local_irq_save(flags);
 		tsc_hi = readl(isp->base + BUTTRESS_REG_TSC_HI);
-
 		/*
 		 * We are occasionally getting broken values from
 		 * HH. Reading 3 times and doing sanity check as a WA
@@ -980,7 +979,8 @@ int ipu_buttress_tsc_read(struct ipu_device *isp, u64 *val)
 		tsc_lo_2 = readl(isp->base + BUTTRESS_REG_TSC_LO);
 		tsc_lo_3 = readl(isp->base + BUTTRESS_REG_TSC_LO);
 		tsc_chk = readl(isp->base + BUTTRESS_REG_TSC_HI);
-		spin_unlock_irqrestore(&b->tsc_lock, flags);
+		local_irq_restore(flags);
+
 		if (tsc_chk == tsc_hi && tsc_lo_2 &&
 		    tsc_lo_2 - tsc_lo_1 <= IPU_BUTTRESS_TSC_LIMIT &&
 		    tsc_lo_3 - tsc_lo_2 <= IPU_BUTTRESS_TSC_LIMIT) {
@@ -1299,7 +1299,6 @@ int ipu_buttress_init(struct ipu_device *isp)
 	mutex_init(&b->auth_mutex);
 	mutex_init(&b->cons_mutex);
 	mutex_init(&b->ipc_mutex);
-	spin_lock_init(&b->tsc_lock);
 	init_completion(&b->ish.send_complete);
 	init_completion(&b->cse.send_complete);
 	init_completion(&b->ish.recv_complete);
