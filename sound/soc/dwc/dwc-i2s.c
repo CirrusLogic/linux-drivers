@@ -308,10 +308,6 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 static void dw_i2s_shutdown(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	struct dw_i2s_dev *dev = snd_soc_dai_get_drvdata(dai);
-
-	if (dev->quirks & DW_I2S_QUIRK_STOP_ON_SHUTDOWN)
-		i2s_stop(dev, substream);
 	snd_soc_dai_set_dma_data(dai, substream, NULL);
 }
 
@@ -346,8 +342,7 @@ static int dw_i2s_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		dev->active--;
-		if (!(dev->quirks & DW_I2S_QUIRK_STOP_ON_SHUTDOWN))
-			i2s_stop(dev, substream);
+		i2s_stop(dev, substream);
 		break;
 	default:
 		ret = -EINVAL;
