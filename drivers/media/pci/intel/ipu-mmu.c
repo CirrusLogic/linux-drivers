@@ -840,7 +840,6 @@ struct ipu_mmu *ipu_mmu_init(struct device *dev,
 
 	return mmu;
 }
-EXPORT_SYMBOL(ipu_mmu_init);
 
 void ipu_mmu_cleanup(struct ipu_mmu *mmu)
 {
