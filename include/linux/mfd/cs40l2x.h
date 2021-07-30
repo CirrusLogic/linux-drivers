@@ -957,6 +957,10 @@
  * if there aren't CS40L2X_PACKED_BYTES_MAX bytes available.
  */
 
+#define CS40L2X_TEMP_RESULT_UNFILT_MASK		0x1FF
+#define CS40L2X_TEMP_RESULT_MIN			-64
+#define CS40L2X_TEMP_RESULT_MAX			176
+
 bool cs40l2x_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l2x_precious_reg(struct device *dev, unsigned int reg);
 
