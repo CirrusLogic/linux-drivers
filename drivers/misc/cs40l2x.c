@@ -4,6 +4,7 @@
 //
 // Copyright (C) 2018-2020 Cirrus Logic, Inc.
 
+#include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/version.h>
@@ -5939,6 +5940,38 @@ err_mutex:
 	return ret;
 }
 
+static ssize_t cs40l2x_die_temp_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	unsigned int val;
+	s32 temp;
+	int ret;
+
+	pm_runtime_get_sync(cs40l2x->dev);
+
+	/* Zero value could mean that the device is in standby */
+	ret = regmap_read(cs40l2x->regmap, CS40L2X_ENABLES_AND_CODES_DIG, &val);
+	if (!ret) {
+		temp = sign_extend32(val & CS40L2X_TEMP_RESULT_UNFILT_MASK,
+				     fls(CS40L2X_TEMP_RESULT_UNFILT_MASK) - 1);
+
+		if (temp < CS40L2X_TEMP_RESULT_MIN ||
+		    temp > CS40L2X_TEMP_RESULT_MAX) {
+			dev_err(cs40l2x->dev, "Read invalid die temperature\n");
+			ret = -EINVAL;
+		} else {
+			ret = snprintf(buf, PAGE_SIZE, "%d\n", temp);
+		}
+	}
+
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
+
+	return ret;
+}
+
 static DEVICE_ATTR(cp_trigger_index, 0660, cs40l2x_cp_trigger_index_show,
 		cs40l2x_cp_trigger_index_store);
 static DEVICE_ATTR(cp_trigger_queue, 0660, cs40l2x_cp_trigger_queue_show,
@@ -6076,6 +6109,7 @@ static DEVICE_ATTR(virtual_pwle_indexes, 0660,
 	cs40l2x_pwle_indexes_show, NULL);
 static DEVICE_ATTR(available_pwle_segments, 0660,
 	cs40l2x_available_pwle_segs_show, NULL);
+static DEVICE_ATTR(die_temp, 0660, cs40l2x_die_temp_show, NULL);
 
 static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_cp_trigger_index.attr,
@@ -6152,6 +6186,7 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_virtual_composite_indexes.attr,
 	&dev_attr_virtual_pwle_indexes.attr,
 	&dev_attr_available_pwle_segments.attr,
+	&dev_attr_die_temp.attr,
 	NULL,
 };
 
