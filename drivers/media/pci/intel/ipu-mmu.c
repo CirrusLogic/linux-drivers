@@ -851,7 +851,6 @@ void ipu_mmu_cleanup(struct ipu_mmu *mmu)
 	put_iova_domain(&dmap->iovad);
 	kfree(dmap);
 }
-EXPORT_SYMBOL(ipu_mmu_cleanup);
 
 MODULE_AUTHOR("Sakari Ailus <sakari.ailus@linux.intel.com>");
 MODULE_AUTHOR("Samu Onkalo <samu.onkalo@intel.com>");
