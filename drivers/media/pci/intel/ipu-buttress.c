@@ -893,7 +893,6 @@ iunit_power_off:
 
 	return rval;
 }
-EXPORT_SYMBOL(ipu_buttress_authenticate);
 
 static int ipu_buttress_send_tsc_request(struct ipu_device *isp)
 {
