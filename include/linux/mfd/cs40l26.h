@@ -737,7 +737,7 @@
 /* DSP mailbox controls */
 #define CS40L26_DSP_TIMEOUT_US_MIN		1000
 #define CS40L26_DSP_TIMEOUT_US_MAX		1100
-#define CS40L26_DSP_TIMEOUT_COUNT		50
+#define CS40L26_DSP_TIMEOUT_COUNT		100
 
 #define CS40L26_DSP_MBOX_RESET			0x0
 
@@ -757,6 +757,8 @@
 #define CS40L26_DSP_MBOX_CMD_OWT_RESET	0x03000009
 
 #define CS40L26_DSP_MBOX_CMD_LE_EST	0x07000004
+
+#define CS40L26_DSP_MBOX_CMD_OWT_DELETE_BASE	0x0D000000
 
 #define CS40L26_DSP_MBOX_CMD_INDEX_MASK	GENMASK(28, 24)
 #define CS40L26_DSP_MBOX_CMD_INDEX_SHIFT	24
@@ -830,7 +832,7 @@
 #define CS40L26_ROM_INDEX_END			0x01800026
 
 #define CS40L26_OWT_INDEX_START		0x01400000
-#define CS40L26_OWT_INDEX_END			0x01400005
+#define CS40L26_OWT_INDEX_END			0x01400010
 
 
 #define CS40L26_RAM_BANK_ID			0
@@ -1077,11 +1079,9 @@
 #define CS40L26_WT_INDEF_TIME_VAL		0xFFFF
 #define CS40L26_WT_MAX_TIME_VAL		16383 /* ms */
 
-#define CS40L26_WT_TERM_SIZE			4
-#define CS40L26_WT_WLEN_TERM_SIZE		8
-#define CS40L26_WT_HEADER_TERM			0xFFFFFF
-#define CS40L26_WT_HEADER_OFFSET		4
-#define CS40L26_WT_HEADER_DEFAULT_FLAGS	0x0000
+#define CS40L26_WT_WLEN_SIZE			4
+#define CS40L26_WT_HEADER_OFFSET		3
+#define CS40L26_WT_HEADER_DEFAULT_FLAGS		0x0000
 
 #define CS40L26_WT_TYPE10_COMP_SEG_LEN_MAX	20
 
@@ -1287,6 +1287,13 @@ struct cs40l26_platform_data {
 	u32 svc_le_is_valid;
 };
 
+struct cs40l26_owt {
+	int effect_id;
+	u32 wlength;
+	u32 trigger_index;
+	struct list_head list;
+};
+
 struct cs40l26_private {
 	struct device *dev;
 	struct regmap *regmap;
@@ -1322,7 +1329,7 @@ struct cs40l26_private {
 	u8 last_wksrc_pol;
 	u8 wksrc_sts;
 	u32 event_count;
-	u32 owt_wlength;
+	struct list_head owt_head;
 	int num_owt_effects;
 	int cal_requested;
 	u16 gain_pct;
