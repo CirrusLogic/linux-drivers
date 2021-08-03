@@ -2,6 +2,7 @@ config VIDEO_MEDIATEK_ISP_PASS1
 	tristate "Mediatek ISP Pass 1 driver"
 	depends on VIDEO_V4L2
 	depends on ARCH_MEDIATEK
+	depends on REMOTEPROC
 	select V4L2_FWNODE
 	select VIDEO_V4L2_SUBDEV_API
 	select VIDEOBUF2_VMALLOC
@@ -21,6 +22,7 @@ config VIDEO_MEDIATEK_ISP_DIP
 	tristate "Mediatek Digital Image Processing function"
 	select MTK_SCP
 	depends on VIDEO_MEDIATEK_MDP3
+	depends on REMOTEPROC
 	select VIDEO_V4L2_SUBDEV_API
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEOBUF2_CORE
