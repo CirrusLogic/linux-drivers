@@ -13,6 +13,12 @@
 
 #include <linux/mfd/cs40l26.h>
 
+static inline bool is_owt(unsigned int index)
+{
+	return index >= CS40L26_OWT_INDEX_START &&
+						index <= CS40L26_OWT_INDEX_END;
+}
+
 static int cs40l26_dsp_read(struct cs40l26_private *cs40l26, u32 reg, u32 *val)
 {
 	struct regmap *regmap = cs40l26->regmap;
@@ -1537,6 +1543,29 @@ pm_err:
 	return ret;
 }
 
+static struct cs40l26_owt *cs40l26_owt_find(struct cs40l26_private *cs40l26,
+		int id)
+{
+	struct cs40l26_owt *owt;
+
+	if (list_empty(&cs40l26->owt_head)) {
+		dev_err(cs40l26->dev, "OWT list is empty\n");
+		return NULL;
+	}
+
+	list_for_each_entry(owt, &cs40l26->owt_head, list) {
+		if (owt->effect_id == id)
+			break;
+	}
+
+	if (owt->effect_id != id) {
+		dev_err(cs40l26->dev, "OWT effect with ID %d not found\n", id);
+		return NULL;
+	}
+
+	return owt;
+}
+
 static void cs40l26_set_gain_worker(struct work_struct *work)
 {
 	struct cs40l26_private *cs40l26 =
@@ -1571,6 +1600,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	struct device *dev = cs40l26->dev;
 	u32 index = 0;
 	int ret = 0;
+	struct cs40l26_owt *owt;
 	unsigned int reg, freq;
 	bool invert;
 	u16 duration;
@@ -1580,11 +1610,16 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	if (cs40l26->effect->u.periodic.waveform == FF_CUSTOM)
 		index = cs40l26->trigger_indices[cs40l26->effect->id];
 
-	if (index >= CS40L26_OWT_INDEX_START && index <= CS40L26_OWT_INDEX_END)
-		duration = CS40L26_SAMPS_TO_MS((cs40l26->owt_wlength &
+	if (is_owt(index)) {
+		owt = cs40l26_owt_find(cs40l26, cs40l26->effect->id);
+		if (owt == NULL)
+			return;
+
+		duration = CS40L26_SAMPS_TO_MS((owt->wlength &
 				CS40L26_WT_TYPE10_WAVELEN_MAX));
-	else
+	} else {
 		duration = cs40l26->effect->replay.length;
+	}
 
 	pm_runtime_get_sync(dev);
 	mutex_lock(&cs40l26->lock);
@@ -1753,6 +1788,35 @@ static int cs40l26_playback_effect(struct input_dev *dev,
 	return 0;
 }
 
+static int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves)
+{
+	int ret;
+	u32 reg, nwaves, nowt;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "NUM_OF_WAVES",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_dsp_read(cs40l26, reg, &nwaves);
+	if (ret)
+		return ret;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "OWT_NUM_OF_WAVES_XM",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_dsp_read(cs40l26, reg, &nowt);
+	if (ret)
+		return ret;
+
+	*num_waves = nwaves + nowt;
+
+	return 0;
+}
+
 static int cs40l26_owt_get_wlength(struct cs40l26_private *cs40l26, u8 index)
 {
 	struct device *dev = cs40l26->dev;
@@ -1801,8 +1865,10 @@ static void cs40l26_owt_get_section_info(struct cs40l26_private *cs40l26,
 }
 
 static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26,
-		struct cl_dsp_memchunk *ch)
+		s16 *data, u32 data_size, u32 *owt_wlen)
 {
+	u32 data_size_bytes = data_size * 2;
+	struct cl_dsp_memchunk ch;
 	u32 total_len = 0, section_len = 0, loop_len = 0;
 	bool in_loop = false;
 	struct cs40l26_owt_section *sections;
@@ -1810,9 +1876,11 @@ static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26,
 	u8 nsections, global_rep;
 	u32 dlen, wlen;
 
-	cl_dsp_memchunk_read(ch, 8); /* Skip padding */
-	nsections = cl_dsp_memchunk_read(ch, 8);
-	global_rep = cl_dsp_memchunk_read(ch, 8);
+	ch = cl_dsp_memchunk_create((void *) data, data_size_bytes);
+
+	cl_dsp_memchunk_read(&ch, 8); /* Skip padding */
+	nsections = cl_dsp_memchunk_read(&ch, 8);
+	global_rep = cl_dsp_memchunk_read(&ch, 8);
 
 	if (nsections < 1) {
 		dev_err(cs40l26->dev, "Not enough sections for composite\n");
@@ -1826,7 +1894,7 @@ static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26,
 		return -ENOMEM;
 	}
 
-	cs40l26_owt_get_section_info(cs40l26, ch, sections, nsections);
+	cs40l26_owt_get_section_info(cs40l26, &ch, sections, nsections);
 
 	for (i = 0; i < nsections; i++) {
 		wlen_whole = cs40l26_owt_get_wlength(cs40l26,
@@ -1879,7 +1947,7 @@ static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26,
 		section_len = 0;
 	}
 
-	cs40l26->owt_wlength = (total_len * (global_rep + 1)) |
+	*owt_wlen = (total_len * (global_rep + 1)) |
 			CS40L26_WT_TYPE10_WAVELEN_CALCULATED;
 
 err_free:
@@ -1888,65 +1956,70 @@ err_free:
 	return ret;
 }
 
-static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, s16 *data,
-		u32 data_size)
+static int cs40l26_owt_add(struct cs40l26_private *cs40l26, u32 wlen,
+		int effect_id, u32 index)
 {
-	bool pwle = (data[0] == 0x0000) ? false : true;
-	u32 data_size_bytes = data_size * 2;
-	struct device *dev = cs40l26->dev;
-	struct cl_dsp *dsp = cs40l26->dsp;
-	u32 full_data_size, header_size = CL_DSP_OWT_HEADER_ENTRY_SIZE;
-	unsigned int write_reg, reg, wt_offset, wt_size, wt_base;
-	struct cl_dsp_memchunk header_ch, data_ch;
-	u8 *full_data, *header;
-	int ret = 0;
+	struct cs40l26_owt *owt_new;
 
-	data_ch = cl_dsp_memchunk_create((void *) data, data_size_bytes);
-
-	if (pwle) {
-		header_size += CS40L26_WT_TERM_SIZE;
-
-		cs40l26->owt_wlength = cl_dsp_memchunk_read(&data_ch, 24);
-	} else {
-		header_size += CS40L26_WT_WLEN_TERM_SIZE;
-
-		ret = cs40l26_owt_calculate_wlength(cs40l26, &data_ch);
-		if (ret)
-			return ret;
-	}
-	full_data_size = header_size + data_size_bytes;
-
-	header = kcalloc(header_size, sizeof(u8), GFP_KERNEL);
-	if (!header)
+	owt_new = kzalloc(sizeof(*owt_new), GFP_KERNEL);
+	if (!owt_new)
 		return -ENOMEM;
 
-	header_ch = cl_dsp_memchunk_create((void *) header, header_size);
-	/* Header */
-	cl_dsp_memchunk_write(&header_ch, 16,
-			CS40L26_WT_HEADER_DEFAULT_FLAGS);
+	owt_new->effect_id = effect_id;
+	owt_new->wlength = wlen;
+	owt_new->trigger_index = index;
+	list_add(&owt_new->list, &cs40l26->owt_head);
+
+	cs40l26->num_owt_effects++;
+
+	return 0;
+}
+
+static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, s16 *data,
+		u32 data_size, u32 *wlength)
+{
+	bool pwle = (data[0] == 0x0000) ? false : true;
+	u32 data_size_bytes = (data_size * 2) + (pwle ? 0 : 4);
+	struct device *dev = cs40l26->dev;
+	struct cl_dsp *dsp = cs40l26->dsp;
+	unsigned int write_reg, reg, wt_offset, wt_size_words, wt_base;
+	u32 owt_wlength, full_data_size_bytes = 12 + data_size_bytes;
+	struct cl_dsp_memchunk data_ch;
+	u8 *full_data;
+	int ret = 0;
+
+	full_data = kcalloc(full_data_size_bytes, sizeof(u8), GFP_KERNEL);
+	if (!full_data)
+		return -ENOMEM;
+
+	data_ch = cl_dsp_memchunk_create((void *) full_data,
+			full_data_size_bytes);
+	cl_dsp_memchunk_write(&data_ch, 16, CS40L26_WT_HEADER_DEFAULT_FLAGS);
 
 	if (pwle)
-		cl_dsp_memchunk_write(&header_ch, 8, WT_TYPE_V6_PWLE);
+		cl_dsp_memchunk_write(&data_ch, 8, WT_TYPE_V6_PWLE);
 	else
-		cl_dsp_memchunk_write(&header_ch, 8, WT_TYPE_V6_COMPOSITE);
+		cl_dsp_memchunk_write(&data_ch, 8, WT_TYPE_V6_COMPOSITE);
 
-	cl_dsp_memchunk_write(&header_ch, 24, CS40L26_WT_HEADER_OFFSET);
-	cl_dsp_memchunk_write(&header_ch, 24, full_data_size /
-					CL_DSP_BYTES_PER_WORD);
+	cl_dsp_memchunk_write(&data_ch, 24, CS40L26_WT_HEADER_OFFSET);
+	cl_dsp_memchunk_write(&data_ch, 24, data_size_bytes /
+							CL_DSP_BYTES_PER_WORD);
 
-	cl_dsp_memchunk_write(&header_ch, 24, CS40L26_WT_HEADER_TERM);
+	if (!pwle) { /* Wlength is included in PWLE raw data */
+		ret = cs40l26_owt_calculate_wlength(cs40l26, data, data_size,
+				&owt_wlength);
+		if (ret)
+			goto err_free;
 
-	if (!pwle) /* Wlength is included in PWLE raw data */
-		cl_dsp_memchunk_write(&header_ch, 24, cs40l26->owt_wlength);
-
-	full_data = kcalloc(full_data_size, sizeof(u8), GFP_KERNEL);
-	if (!full_data) {
-		ret = -ENOMEM;
-		goto err_free;
+		cl_dsp_memchunk_write(&data_ch, 24, owt_wlength);
 	}
 
-	memcpy(full_data, header, header_ch.bytes);
-	memcpy(full_data + header_ch.bytes, data, data_size_bytes);
+	memcpy(full_data + data_ch.bytes, data, data_size_bytes);
+
+	if (pwle)
+		owt_wlength = (full_data[data_ch.bytes + 1] << 16) |
+				(full_data[data_ch.bytes + 2] << 8) |
+				full_data[data_ch.bytes + 3];
 
 	pm_runtime_get_sync(dev);
 
@@ -1966,13 +2039,13 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, s16 *data,
 	if (ret)
 		goto err_pm;
 
-	ret = regmap_read(cs40l26->regmap, reg, &wt_size);
+	ret = regmap_read(cs40l26->regmap, reg, &wt_size_words);
 	if (ret) {
 		dev_err(dev, "Failed to get available WT size\n");
 		goto err_pm;
 	}
 
-	if (wt_size < full_data_size) {
+	if ((wt_size_words * 3) < full_data_size_bytes) {
 		dev_err(dev, "No space for OWT waveform\n");
 		ret = -ENOSPC;
 		goto err_pm;
@@ -1986,7 +2059,7 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, s16 *data,
 	write_reg = wt_base + (wt_offset * 4);
 
 	ret = cl_dsp_raw_write(cs40l26->dsp, write_reg, full_data,
-			full_data_size, CL_DSP_MAX_WLEN);
+			full_data_size_bytes, CL_DSP_MAX_WLEN);
 	if (ret) {
 		dev_err(dev, "Failed to sync OWT\n");
 		goto err_pm;
@@ -1998,14 +2071,15 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, s16 *data,
 		goto err_pm;
 
 	dev_dbg(dev, "Successfully wrote waveform (%u bytes) to 0x%08X\n",
-			full_data_size, write_reg);
+			full_data_size_bytes, write_reg);
+
+	*wlength = owt_wlength;
 
 err_pm:
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 err_free:
-	kfree(header);
 	kfree(full_data);
 
 	return ret;
@@ -2018,12 +2092,11 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 	struct device *cdev = cs40l26->dev;
 	s16 *raw_custom_data = NULL;
 	int ret = 0;
-	u32 trigger_index, min_index, max_index;
+	u32 trigger_index, min_index, max_index, nwaves, owt_wlen;
 	u16 index, bank;
 
 	if (effect->type != FF_PERIODIC) {
-		dev_err(cdev, "Effect type 0x%X not supported\n",
-				effect->type);
+		dev_err(cdev, "Effect type 0x%X not supported\n", effect->type);
 		return -EINVAL;
 	}
 
@@ -2051,15 +2124,8 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 		}
 
 		if (effect->u.periodic.custom_len > CS40L26_CUSTOM_DATA_SIZE) {
-			ret = cs40l26_ack_write(cs40l26,
-					CS40L26_DSP_VIRTUAL1_MBOX_1,
-					CS40L26_DSP_MBOX_CMD_OWT_RESET,
-					CS40L26_DSP_MBOX_RESET);
-			if (ret)
-				goto out_free;
-
 			ret = cs40l26_owt_upload(cs40l26, raw_custom_data,
-					effect->u.periodic.custom_len);
+				effect->u.periodic.custom_len, &owt_wlen);
 			if (ret)
 				goto out_free;
 
@@ -2101,6 +2167,13 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 			goto out_free;
 		}
 
+		if (is_owt(trigger_index)) {
+			ret = cs40l26_owt_add(cs40l26, owt_wlen, effect->id,
+					trigger_index);
+			if (ret)
+				goto out_free;
+		}
+
 		dev_dbg(cdev, "%s: ID = %u, index = 0x%08X\n",
 				__func__, effect->id, trigger_index);
 		break;
@@ -2126,12 +2199,65 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 		return -EINVAL;
 	}
 
-	if (effect->trigger.button)
+	if (effect->trigger.button) {
 		ret = cs40l26_gpio_index_set(cs40l26, effect);
+		if (ret)
+			goto out_free;
+	}
+
+	ret = cs40l26_get_num_waves(cs40l26, &nwaves);
+	if (ret)
+		goto out_free;
+
+	dev_dbg(cdev, "Total number of waveforms = %u\n", nwaves);
 
 
 out_free:
 	kfree(raw_custom_data);
+
+	return ret;
+}
+
+static int cs40l26_erase_effect(struct input_dev *dev, int effect_id)
+{
+	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
+	u32 index = cs40l26->trigger_indices[effect_id];
+	u32 cmd = CS40L26_DSP_MBOX_CMD_OWT_DELETE_BASE;
+	struct cs40l26_owt *owt, *owt_tmp;
+	int ret;
+
+	if (!is_owt(index))
+		return 0;
+
+	/* Update indices for OWT waveforms uploaded after erased effect */
+	list_for_each_entry(owt_tmp, &cs40l26->owt_head, list) {
+		if (owt_tmp->trigger_index > index) {
+			owt_tmp->trigger_index--;
+			cs40l26->trigger_indices[owt_tmp->effect_id]--;
+		}
+	}
+
+	owt = cs40l26_owt_find(cs40l26, effect_id);
+	if (owt == NULL)
+		return -ENOMEM;
+
+	cmd |= (owt->trigger_index & 0xFF);
+
+	list_del(&owt->list);
+	kfree(owt);
+
+	pm_runtime_get_sync(cs40l26->dev);
+
+	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, cmd,
+			CS40L26_DSP_MBOX_RESET);
+	if (ret)
+		goto pm_err;
+
+	cs40l26->num_owt_effects--;
+
+pm_err:
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
 
 	return ret;
 }
@@ -2170,6 +2296,7 @@ static int cs40l26_input_init(struct cs40l26_private *cs40l26)
 	cs40l26->input->ff->upload = cs40l26_upload_effect;
 	cs40l26->input->ff->playback = cs40l26_playback_effect;
 	cs40l26->input->ff->set_gain = cs40l26_set_gain;
+	cs40l26->input->ff->erase = cs40l26_erase_effect;
 
 	ret = input_register_device(cs40l26->input);
 	if (ret) {
@@ -2281,8 +2408,6 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26, u32 id)
 				CS40L26_VIBEGEN_ALGO_ID, CS40L26_WT_NAME_XM,
 				CS40L26_WT_NAME_YM, CS40L26_WT_FILE_NAME);
 	}
-
-	cs40l26->num_owt_effects = 0;
 
 	return ret;
 }
@@ -2588,21 +2713,6 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 	return 0;
 }
 
-static int cs40l26_get_num_waves(struct cs40l26_private *cs40l26,
-		u32 *num_waves)
-{
-	int ret;
-	u32 reg;
-
-	ret = cl_dsp_get_reg(cs40l26->dsp, "NUM_OF_WAVES",
-			CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_VIBEGEN_ALGO_ID, &reg);
-	if (ret)
-		return ret;
-
-	return regmap_read(cs40l26->regmap, reg, num_waves);
-}
-
 static int cs40l26_verify_fw(struct cs40l26_private *cs40l26)
 {
 	struct cs40l26_fw *fw = &cs40l26->fw;
@@ -2718,6 +2828,37 @@ static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
 			val, true);
 }
 
+static int cs40l26_owt_setup(struct cs40l26_private *cs40l26)
+{
+	u32 reg, offset, base;
+	int ret;
+
+	INIT_LIST_HEAD(&cs40l26->owt_head);
+	cs40l26->num_owt_effects = 0;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, CS40L26_WT_NAME_XM,
+		CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &base);
+	if (ret)
+		return ret;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "OWT_NEXT_XM",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(cs40l26->regmap, reg, &offset);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to get wavetable offset\n");
+		return ret;
+	}
+
+	ret = regmap_write(cs40l26->regmap, reg, 0xFFFFFF);
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to write OWT terminator\n");
+
+	return ret;
+}
+
 static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
@@ -2830,9 +2971,15 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		goto pm_err;
 
 	ret = cs40l26_get_num_waves(cs40l26, &cs40l26->num_waves);
-	if (!ret)
-		dev_info(dev, "%s loaded with %u RAM waveforms\n",
-				CS40L26_DEV_NAME, cs40l26->num_waves);
+	if (ret)
+		goto pm_err;
+
+	dev_info(dev, "%s loaded with %u RAM waveforms\n", CS40L26_DEV_NAME,
+			cs40l26->num_waves);
+
+	ret = cs40l26_owt_setup(cs40l26);
+	if (ret)
+		goto pm_err;
 
 pm_err:
 	pm_runtime_mark_last_busy(dev);
