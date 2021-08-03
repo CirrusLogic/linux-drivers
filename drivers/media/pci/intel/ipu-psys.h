@@ -60,6 +60,8 @@ struct ipu_psys_resource_pool {
 	struct ipu_resource ext_memory[32];
 	struct ipu_resource dfms[16];
 	DECLARE_BITMAP(cmd_queues, 32);
+	/* Protects cmd_queues bitmap */
+	spinlock_t queues_lock;
 };
 
 /*

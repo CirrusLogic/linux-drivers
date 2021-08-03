@@ -141,15 +141,14 @@ static void ipu_resource_cleanup(struct ipu_resource *res)
 }
 
 /********** IPU PSYS-specific resource handling **********/
-static DEFINE_SPINLOCK(cq_bitmap_lock);
-int ipu_psys_resource_pool_init(struct ipu_psys_resource_pool
-				*pool)
+int ipu_psys_resource_pool_init(struct ipu_psys_resource_pool *pool)
 {
 	int i, j, k, ret;
 	const struct ipu_fw_resource_definitions *res_defs;
 
 	res_defs = get_res();
 
+	spin_lock_init(&pool->queues_lock);
 	pool->cells = 0;
 
 	for (i = 0; i < res_defs->num_dev_channels; i++) {
@@ -172,14 +171,14 @@ int ipu_psys_resource_pool_init(struct ipu_psys_resource_pool
 			goto dfm_error;
 	}
 
-	spin_lock(&cq_bitmap_lock);
+	spin_lock(&pool->queues_lock);
 	if (ipu_ver == IPU_VER_6SE)
 		bitmap_zero(pool->cmd_queues,
 			    IPU6SE_FW_PSYS_N_PSYS_CMD_QUEUE_ID);
 	else
 		bitmap_zero(pool->cmd_queues,
 			    IPU6_FW_PSYS_N_PSYS_CMD_QUEUE_ID);
-	spin_unlock(&cq_bitmap_lock);
+	spin_unlock(&pool->queues_lock);
 
 	return 0;
 
@@ -398,17 +397,17 @@ int ipu_psys_allocate_cmd_queue_resource(struct ipu_psys_resource_pool *pool)
 		start = IPU6SE_FW_PSYS_CMD_QUEUE_PPG0_COMMAND_ID;
 	}
 
-	spin_lock(&cq_bitmap_lock);
+	spin_lock(&pool->queues_lock);
 	/* find available cmd queue from ppg0_cmd_id */
 	p = bitmap_find_next_zero_area(pool->cmd_queues, size, start, 1, 0);
 
 	if (p >= size) {
-		spin_unlock(&cq_bitmap_lock);
+		spin_unlock(&pool->queues_lock);
 		return -ENOSPC;
 	}
 
 	bitmap_set(pool->cmd_queues, p, 1);
-	spin_unlock(&cq_bitmap_lock);
+	spin_unlock(&pool->queues_lock);
 
 	return p;
 }
@@ -416,9 +415,9 @@ int ipu_psys_allocate_cmd_queue_resource(struct ipu_psys_resource_pool *pool)
 void ipu_psys_free_cmd_queue_resource(struct ipu_psys_resource_pool *pool,
 				      u8 queue_id)
 {
-	spin_lock(&cq_bitmap_lock);
+	spin_lock(&pool->queues_lock);
 	bitmap_clear(pool->cmd_queues, queue_id, 1);
-	spin_unlock(&cq_bitmap_lock);
+	spin_unlock(&pool->queues_lock);
 }
 
 int ipu_psys_try_allocate_resources(struct device *dev,
