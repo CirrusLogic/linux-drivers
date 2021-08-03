@@ -106,7 +106,6 @@ struct ipu_psys {
 
 	/* Resources needed to be managed for process groups */
 	struct ipu_psys_resource_pool resource_pool_running;
-	struct ipu_psys_resource_pool resource_pool_started;
 
 	const struct firmware *fw;
 	struct sg_table fw_sgt;

@@ -1360,18 +1360,11 @@ static int ipu_psys_probe(struct ipu_bus_device *adev)
 
 	ipu_bus_set_drvdata(adev, psys);
 
-	rval = ipu_psys_resource_pool_init(&psys->resource_pool_started);
-	if (rval < 0) {
-		dev_err(&psys->dev,
-			"unable to alloc process group resources\n");
-		goto out_mutex_destroy;
-	}
-
 	rval = ipu_psys_resource_pool_init(&psys->resource_pool_running);
 	if (rval < 0) {
 		dev_err(&psys->dev,
 			"unable to alloc process group resources\n");
-		goto out_resources_started_free;
+		goto out_mutex_destroy;
 	}
 
 	ipu6_psys_hw_res_variant_init();
@@ -1459,8 +1452,6 @@ out_free_pgs:
 	}
 
 	ipu_psys_resource_pool_cleanup(&psys->resource_pool_running);
-out_resources_started_free:
-	ipu_psys_resource_pool_cleanup(&psys->resource_pool_started);
 out_mutex_destroy:
 	mutex_destroy(&psys->mutex);
 	cdev_del(&psys->cdev);
@@ -1514,7 +1505,6 @@ static void ipu_psys_remove(struct ipu_bus_device *adev)
 
 	ipu_trace_uninit(&adev->dev);
 
-	ipu_psys_resource_pool_cleanup(&psys->resource_pool_started);
 	ipu_psys_resource_pool_cleanup(&psys->resource_pool_running);
 
 	device_unregister(&psys->dev);
