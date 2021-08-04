@@ -20,10 +20,6 @@
 #include "ipu-platform-regs.h"
 #include "ipu-trace.h"
 
-#define is_ppg_kcmd(kcmd) (ipu_fw_psys_pg_get_protocol(	\
-			(struct ipu_psys_kcmd *)kcmd)	\
-			== IPU_FW_PSYS_PROCESS_GROUP_PROTOCOL_PPG)
-
 static bool early_pg_transfer;
 module_param(early_pg_transfer, bool, 0664);
 MODULE_PARM_DESC(early_pg_transfer,
@@ -702,7 +698,8 @@ int ipu_psys_kcmd_new(struct ipu_psys_command *cmd, struct ipu_psys_fh *fh)
 		goto error;
 	}
 
-	if (!is_ppg_kcmd(kcmd)) {
+	if (ipu_fw_psys_pg_get_protocol(kcmd) !=
+			IPU_FW_PSYS_PROCESS_GROUP_PROTOCOL_PPG) {
 		dev_err(&psys->adev->dev, "No support legacy pg now\n");
 		ret = -EINVAL;
 		goto error;
