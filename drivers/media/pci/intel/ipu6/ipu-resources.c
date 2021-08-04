@@ -271,17 +271,6 @@ static int __alloc_one_resrc(const struct device *dev,
 	return 0;
 }
 
-static inline unsigned int bit_count(unsigned int n)
-{
-	unsigned int counter = 0;
-
-	while (n) {
-		counter++;
-		n &= (n - 1);
-	}
-	return counter;
-}
-
 static int ipu_psys_allocate_one_dfm(const struct device *dev,
 				     struct ipu_fw_psys_process *process,
 				     struct ipu_resource *resource,
@@ -315,7 +304,7 @@ static int ipu_psys_allocate_one_dfm(const struct device *dev,
 		}
 		*resource->bitmap |= dfm_bitmap_req;
 	} else {
-		unsigned int n = bit_count(dfm_bitmap_req);
+		unsigned int n = hweight32(dfm_bitmap_req);
 
 		p = bitmap_find_next_zero_area(resource->bitmap,
 					       resource->elements, 0, n, 0);
