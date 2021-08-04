@@ -1340,7 +1340,6 @@ static int ipu_psys_probe(struct ipu_bus_device *adev)
 	INIT_LIST_HEAD(&psys->fhs);
 	INIT_LIST_HEAD(&psys->pgs);
 	INIT_LIST_HEAD(&psys->started_kcmds_list);
-	INIT_WORK(&psys->watchdog_work, ipu_psys_watchdog_work);
 
 	init_waitqueue_head(&psys->sched_cmd_wq);
 	atomic_set(&psys->wakeup_count, 0);

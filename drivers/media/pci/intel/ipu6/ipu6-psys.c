@@ -515,21 +515,6 @@ error:
 	return ret;
 }
 
-void ipu_psys_watchdog_work(struct work_struct *work)
-{
-	struct ipu_psys *psys = container_of(work,
-					     struct ipu_psys, watchdog_work);
-	dev_dbg(&psys->adev->dev, "watchdog for ppg not implemented yet!\n");
-}
-
-static void ipu_psys_watchdog(struct timer_list *t)
-{
-	struct ipu_psys_kcmd *kcmd = from_timer(kcmd, t, watchdog);
-	struct ipu_psys *psys = kcmd->fh->psys;
-
-	queue_work(IPU_PSYS_WORK_QUEUE, &psys->watchdog_work);
-}
-
 static int ipu_psys_kcmd_send_to_ppg_start(struct ipu_psys_kcmd *kcmd)
 {
 	struct ipu_psys_fh *fh = kcmd->fh;
@@ -704,8 +689,6 @@ int ipu_psys_kcmd_new(struct ipu_psys_command *cmd, struct ipu_psys_fh *fh)
 		ret = -EINVAL;
 		goto error;
 	}
-
-	timer_setup(&kcmd->watchdog, ipu_psys_watchdog, 0);
 
 	if (cmd->min_psys_freq) {
 		kcmd->constraint.min_freq = cmd->min_psys_freq;
