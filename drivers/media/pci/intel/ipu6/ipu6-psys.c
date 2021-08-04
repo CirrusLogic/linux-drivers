@@ -497,7 +497,7 @@ int ipu_psys_kcmd_start(struct ipu_psys *psys, struct ipu_psys_kcmd *kcmd)
 	ret = ipu_fw_psys_pg_start(kcmd);
 	if (ret) {
 		dev_err(&psys->adev->dev, "failed to start kcmd!\n");
-		goto error;
+		return ret;
 	}
 
 	ipu_fw_psys_pg_dump(psys, kcmd, "run");
@@ -505,14 +505,10 @@ int ipu_psys_kcmd_start(struct ipu_psys *psys, struct ipu_psys_kcmd *kcmd)
 	ret = ipu_fw_psys_pg_disown(kcmd);
 	if (ret) {
 		dev_err(&psys->adev->dev, "failed to start kcmd!\n");
-		goto error;
+		return ret;
 	}
 
 	return 0;
-
-error:
-	dev_err(&psys->adev->dev, "failed to start process group\n");
-	return ret;
 }
 
 static int ipu_psys_kcmd_send_to_ppg_start(struct ipu_psys_kcmd *kcmd)
