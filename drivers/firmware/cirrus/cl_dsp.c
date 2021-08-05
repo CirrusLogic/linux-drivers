@@ -211,7 +211,12 @@ static int cl_dsp_owt_init(struct cl_dsp *dsp, const struct firmware *bin)
 		return -EPERM;
 	}
 
-	memcpy(&dsp->wt_desc->owt.raw_data, &bin->data[0], bin->size);
+	dsp->wt_desc->owt.raw_data = devm_kzalloc(dsp->dev, bin->size,
+			GFP_KERNEL);
+	if (!dsp->wt_desc->owt.raw_data)
+		return -ENOMEM;
+
+	memcpy(dsp->wt_desc->owt.raw_data, &bin->data[0], bin->size);
 
 	return 0;
 }
@@ -219,7 +224,7 @@ static int cl_dsp_owt_init(struct cl_dsp *dsp, const struct firmware *bin)
 static int cl_dsp_read_wt(struct cl_dsp *dsp, int pos, int size)
 {
 	struct cl_dsp_owt_header *entry = dsp->wt_desc->owt.waves;
-	void *buf = (void *)&dsp->wt_desc->owt.raw_data[pos];
+	void *buf = (void *)(dsp->wt_desc->owt.raw_data + pos);
 	struct cl_dsp_memchunk ch = cl_dsp_memchunk_create(buf, size);
 	u32 *wbuf = buf, *max = buf;
 	int i;
