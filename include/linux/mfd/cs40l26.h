@@ -1053,11 +1053,6 @@
 #define CS40L26_ASP_RX2_SLOT_MASK	GENMASK(13, 8)
 #define CS40L26_ASP_RX2_SLOT_SHIFT	8
 
-#define CS40L26_CLASS_H_EN_MASK	BIT(4)
-#define CS40L26_CLASS_H_EN_SHIFT	4
-
-#define CS40L26_BST_CTL_SEL_MASK	GENMASK(1, 0)
-
 #define CS40L26_A2H_MAX_TUNINGS	5
 
 #define CS40L26_A2H_VOLUME_MAX		0x7FFFFF
@@ -1365,7 +1360,6 @@ void cs40l26_asp_worker(struct work_struct *work);
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id);
 void cs40l26_vibe_state_set(struct cs40l26_private *cs40l26,
 		enum cs40l26_vibe_state);
-int cs40l26_class_h_set(struct cs40l26_private *cs40l26, bool class_h);
 int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26,
 		u32 *timeout_ms);
 int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26,
