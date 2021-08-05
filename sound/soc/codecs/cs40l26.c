@@ -220,12 +220,6 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 			goto err_mutex;
 		}
 
-		if (!codec->bypass_dsp && !codec->svc_for_streaming_data) {
-			ret = cs40l26_class_h_set(cs40l26, true);
-			if (ret)
-				goto err_mutex;
-		}
-
 		asp_enables = 1 | (1 << CS40L26_ASP_TX2_EN_SHIFT)
 				| (1 << CS40L26_ASP_RX1_EN_SHIFT)
 				| (1 << CS40L26_ASP_RX2_EN_SHIFT);
@@ -266,10 +260,6 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				CS40L26_DSP_MBOX_CMD_STOP_I2S,
 				CS40L26_DSP_MBOX_RESET);
-		if (ret)
-			goto err_mutex;
-
-		ret = cs40l26_class_h_set(cs40l26, false);
 		if (ret)
 			goto err_mutex;
 
