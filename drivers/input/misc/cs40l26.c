@@ -116,26 +116,6 @@ int cs40l26_ack_write(struct cs40l26_private *cs40l26, u32 reg, u32 write_val,
 }
 EXPORT_SYMBOL(cs40l26_ack_write);
 
-int cs40l26_class_h_set(struct cs40l26_private *cs40l26, bool class_h)
-{
-	int ret;
-
-	ret = regmap_update_bits(cs40l26->regmap, CS40L26_VBST_CTL_2,
-			CS40L26_BST_CTL_SEL_MASK, class_h);
-	if (ret) {
-		dev_err(cs40l26->dev, "Failed to select Class H BST CTRL\n");
-		return ret;
-	}
-
-	ret = regmap_update_bits(cs40l26->regmap, CS40L26_BLOCK_ENABLES2,
-		CS40L26_CLASS_H_EN_MASK, class_h << CS40L26_CLASS_H_EN_SHIFT);
-	if (ret)
-		dev_err(cs40l26->dev, "Failed to update CLASS H tracking\n");
-
-	return ret;
-}
-EXPORT_SYMBOL(cs40l26_class_h_set);
-
 int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 {
 	u32 reg, dsp_state;
@@ -600,15 +580,8 @@ void cs40l26_vibe_state_set(struct cs40l26_private *cs40l26,
 	if (cs40l26->vibe_state == new_state)
 		return;
 
-	if (new_state == CS40L26_VIBE_STATE_STOPPED && cs40l26->asp_enable) {
-		/* Re-enable audio stream */
-		cs40l26_class_h_set(cs40l26, true);
+	if (new_state == CS40L26_VIBE_STATE_STOPPED && cs40l26->asp_enable)
 		queue_work(cs40l26->asp_workqueue, &cs40l26->asp_work);
-
-	} else if (new_state == CS40L26_VIBE_STATE_HAPTIC &&
-				cs40l26->vibe_state == CS40L26_VIBE_STATE_ASP) {
-		cs40l26_class_h_set(cs40l26, false);
-	}
 
 	cs40l26->vibe_state = new_state;
 	sysfs_notify(&cs40l26->dev->kobj, NULL, "vibe_state");
