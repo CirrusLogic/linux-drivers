@@ -26,8 +26,8 @@ menuconfig MALI_VALHALL
 	depends on THERMAL || THERMAL=n
 	select GPU_TRACEPOINTS if ANDROID
 	select DMA_SHARED_BUFFER
-	depends on !MALI_MIDGARD
-	depends on !MALI_BIFROST
+	depends on !MALI_MIDGARD && MALI_MIDGARD!=m
+	depends on !MALI_BIFROST && MALI_BIFROST!=m
 	default n
 	help
 	  Enable this option to build support for a ARM Mali Valhall GPU.
