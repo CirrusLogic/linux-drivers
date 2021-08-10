@@ -3904,11 +3904,6 @@ static ssize_t cs40l2x_comp_enable_show(struct device *dev,
 		goto err_mutex;
 	}
 
-	if (cs40l2x->comp_enable_pend) {
-		ret = -EIO;
-		goto err_mutex;
-	}
-
 	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l2x->comp_enable);
 
 err_mutex:
@@ -3932,7 +3927,6 @@ static ssize_t cs40l2x_comp_enable_store(struct device *dev,
 	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
 
-	cs40l2x->comp_enable_pend = true;
 	cs40l2x->comp_enable = val > 0;
 
 	switch (cs40l2x->fw_desc->id) {
@@ -3962,7 +3956,6 @@ static ssize_t cs40l2x_comp_enable_store(struct device *dev,
 	if (ret)
 		goto err_mutex;
 
-	cs40l2x->comp_enable_pend = false;
 	ret = count;
 
 err_mutex:
@@ -3984,11 +3977,6 @@ static ssize_t cs40l2x_redc_comp_enable_show(struct device *dev,
 	if (cs40l2x->fw_desc->id == CS40L2X_FW_ID_CAL
 			|| cs40l2x->fw_desc->id == CS40L2X_FW_ID_ORIG) {
 		ret = -EPERM;
-		goto err_mutex;
-	}
-
-	if (cs40l2x->comp_enable_pend) {
-		ret = -EIO;
 		goto err_mutex;
 	}
 
@@ -4015,7 +4003,6 @@ static ssize_t cs40l2x_redc_comp_enable_store(struct device *dev,
 	pm_runtime_get_sync(cs40l2x->dev);
 	mutex_lock(&cs40l2x->lock);
 
-	cs40l2x->comp_enable_pend = true;
 	cs40l2x->comp_enable_redc = val > 0;
 
 	switch (cs40l2x->fw_desc->id) {
@@ -4039,7 +4026,6 @@ static ssize_t cs40l2x_redc_comp_enable_store(struct device *dev,
 	if (ret)
 		goto err_mutex;
 
-	cs40l2x->comp_enable_pend = false;
 	ret = count;
 
 err_mutex:
