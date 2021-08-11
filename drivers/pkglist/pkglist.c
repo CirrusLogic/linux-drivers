@@ -586,7 +586,7 @@ static void package_details_release(struct config_item *item)
 {
 	struct package_details *package_details = to_package_details(item);
 
-	pr_info("pkglist: removing %s\n", package_details->name.name);
+	pr_debug("pkglist: removing %s\n", package_details->name.name);
 	remove_packagelist_entry(&package_details->name);
 	kfree(package_details->name.name);
 	kfree(package_details);
