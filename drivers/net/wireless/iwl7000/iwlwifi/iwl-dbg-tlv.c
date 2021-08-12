@@ -61,7 +61,8 @@ dbg_ver_table[IWL_DBG_TLV_TYPE_NUM] = {
 	[IWL_DBG_TLV_TYPE_TRIGGER]	= {.min_ver = 1, .max_ver = 1,},
 };
 
-static int iwl_dbg_tlv_add(struct iwl_ucode_tlv *tlv, struct list_head *list)
+static int iwl_dbg_tlv_add(const struct iwl_ucode_tlv *tlv,
+			   struct list_head *list)
 {
 	u32 len = le32_to_cpu(tlv->length);
 	struct iwl_dbg_tlv_node *node;
@@ -76,9 +77,9 @@ static int iwl_dbg_tlv_add(struct iwl_ucode_tlv *tlv, struct list_head *list)
 	return 0;
 }
 
-static bool iwl_dbg_tlv_ver_support(struct iwl_ucode_tlv *tlv)
+static bool iwl_dbg_tlv_ver_support(const struct iwl_ucode_tlv *tlv)
 {
-	struct iwl_fw_ini_header *hdr = (void *)&tlv->data[0];
+	const struct iwl_fw_ini_header *hdr = (const void *)&tlv->data[0];
 	u32 type = le32_to_cpu(tlv->type);
 	u32 tlv_idx = type - IWL_UCODE_TLV_DEBUG_BASE;
 	u32 ver = le32_to_cpu(hdr->version);
@@ -91,9 +92,9 @@ static bool iwl_dbg_tlv_ver_support(struct iwl_ucode_tlv *tlv)
 }
 
 static int iwl_dbg_tlv_alloc_debug_info(struct iwl_trans *trans,
-					struct iwl_ucode_tlv *tlv)
+					const struct iwl_ucode_tlv *tlv)
 {
-	struct iwl_fw_ini_debug_info_tlv *debug_info = (void *)tlv->data;
+	const struct iwl_fw_ini_debug_info_tlv *debug_info = (const void *)tlv->data;
 
 	if (le32_to_cpu(tlv->length) != sizeof(*debug_info))
 		return -EINVAL;
@@ -105,9 +106,9 @@ static int iwl_dbg_tlv_alloc_debug_info(struct iwl_trans *trans,
 }
 
 static int iwl_dbg_tlv_alloc_buf_alloc(struct iwl_trans *trans,
-				       struct iwl_ucode_tlv *tlv)
+				       const struct iwl_ucode_tlv *tlv)
 {
-	struct iwl_fw_ini_allocation_tlv *alloc = (void *)tlv->data;
+	const struct iwl_fw_ini_allocation_tlv *alloc = (const void *)tlv->data;
 	u32 buf_location;
 	u32 alloc_id;
 
@@ -144,9 +145,9 @@ err:
 }
 
 static int iwl_dbg_tlv_alloc_hcmd(struct iwl_trans *trans,
-				  struct iwl_ucode_tlv *tlv)
+				  const struct iwl_ucode_tlv *tlv)
 {
-	struct iwl_fw_ini_hcmd_tlv *hcmd = (void *)tlv->data;
+	const struct iwl_fw_ini_hcmd_tlv *hcmd = (const void *)tlv->data;
 	u32 tp = le32_to_cpu(hcmd->time_point);
 
 	if (le32_to_cpu(tlv->length) <= sizeof(*hcmd))
@@ -168,9 +169,9 @@ static int iwl_dbg_tlv_alloc_hcmd(struct iwl_trans *trans,
 }
 
 static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
-				    struct iwl_ucode_tlv *tlv)
+				    const struct iwl_ucode_tlv *tlv)
 {
-	struct iwl_fw_ini_region_tlv *reg = (void *)tlv->data;
+	const struct iwl_fw_ini_region_tlv *reg = (const void *)tlv->data;
 	struct iwl_ucode_tlv **active_reg;
 	u32 id = le32_to_cpu(reg->id);
 	u32 type = le32_to_cpu(reg->type);
@@ -186,13 +187,9 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 	if (le32_to_cpu(tlv->length) < sizeof(*reg))
 		return -EINVAL;
 
-	/*
-	 * For safe using a string from FW make sure we have a
-	 * null terminator
-	 */
-	reg->name[IWL_FW_INI_MAX_NAME - 1] = 0;
-
-	IWL_DEBUG_FW(trans, "WRT: parsing region: %s\n", reg->name);
+	/* for safe use of a string from FW, limit it to IWL_FW_INI_MAX_NAME */
+	IWL_DEBUG_FW(trans, "WRT: parsing region: %.*s\n",
+		     IWL_FW_INI_MAX_NAME, reg->name);
 
 	if (id >= IWL_FW_INI_MAX_REGION_ID) {
 		IWL_ERR(trans, "WRT: Invalid region id %u\n", id);
@@ -228,9 +225,10 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 }
 
 static int iwl_dbg_tlv_alloc_trigger(struct iwl_trans *trans,
-				     struct iwl_ucode_tlv *tlv)
+				     const struct iwl_ucode_tlv *tlv)
 {
-	struct iwl_fw_ini_trigger_tlv *trig = (void *)tlv->data;
+	const struct iwl_fw_ini_trigger_tlv *trig = (const void *)tlv->data;
+	struct iwl_fw_ini_trigger_tlv *dup_trig;
 	u32 tp = le32_to_cpu(trig->time_point);
 	struct iwl_ucode_tlv *dup = NULL;
 	int ret;
@@ -251,8 +249,8 @@ static int iwl_dbg_tlv_alloc_trigger(struct iwl_trans *trans,
 				GFP_KERNEL);
 		if (!dup)
 			return -ENOMEM;
-		trig = (void *)dup->data;
-		trig->occurrences = cpu_to_le32(-1);
+		dup_trig = (void *)dup->data;
+		dup_trig->occurrences = cpu_to_le32(-1);
 		tlv = dup;
 	}
 
@@ -263,7 +261,7 @@ static int iwl_dbg_tlv_alloc_trigger(struct iwl_trans *trans,
 }
 
 static int (*dbg_tlv_alloc[])(struct iwl_trans *trans,
-			      struct iwl_ucode_tlv *tlv) = {
+			      const struct iwl_ucode_tlv *tlv) = {
 	[IWL_DBG_TLV_TYPE_DEBUG_INFO]	= iwl_dbg_tlv_alloc_debug_info,
 	[IWL_DBG_TLV_TYPE_BUF_ALLOC]	= iwl_dbg_tlv_alloc_buf_alloc,
 	[IWL_DBG_TLV_TYPE_HCMD]		= iwl_dbg_tlv_alloc_hcmd,
@@ -271,10 +269,10 @@ static int (*dbg_tlv_alloc[])(struct iwl_trans *trans,
 	[IWL_DBG_TLV_TYPE_TRIGGER]	= iwl_dbg_tlv_alloc_trigger,
 };
 
-void iwl_dbg_tlv_alloc(struct iwl_trans *trans, struct iwl_ucode_tlv *tlv,
+void iwl_dbg_tlv_alloc(struct iwl_trans *trans, const struct iwl_ucode_tlv *tlv,
 		       bool ext)
 {
-	struct iwl_fw_ini_header *hdr = (void *)&tlv->data[0];
+	const struct iwl_fw_ini_header *hdr = (const void *)&tlv->data[0];
 	u32 type = le32_to_cpu(tlv->type);
 	u32 tlv_idx = type - IWL_UCODE_TLV_DEBUG_BASE;
 	u32 domain = le32_to_cpu(hdr->domain);
@@ -410,7 +408,7 @@ void iwl_dbg_tlv_free(struct iwl_trans *trans)
 static int iwl_dbg_tlv_parse_bin(struct iwl_trans *trans, const u8 *data,
 				 size_t len)
 {
-	struct iwl_ucode_tlv *tlv;
+	const struct iwl_ucode_tlv *tlv;
 	u32 tlv_len;
 
 	while (len >= sizeof(*tlv)) {
@@ -625,6 +623,7 @@ static int iwl_dbg_tlv_apply_buffer(struct iwl_fw_runtime *fwrt,
 			.id = WIDE_ID(DEBUG_GROUP, BUFFER_ALLOCATION),
 			.data[0] = &data,
 			.len[0] = sizeof(data),
+			.flags = CMD_SEND_IN_RFKILL,
 		};
 		int ret, j;
 
@@ -654,8 +653,8 @@ static void iwl_dbg_tlv_apply_buffers(struct iwl_fw_runtime *fwrt)
 		ret = iwl_dbg_tlv_apply_buffer(fwrt, i);
 		if (ret)
 			IWL_WARN(fwrt,
-				 "WRT: Failed to apply DRAM buffer for allocation id %d, ret=%d\n",
-				 i, ret);
+				"WRT: Failed to apply DRAM buffer for allocation id %d, ret=%d\n",
+				i, ret);
 	}
 }
 
@@ -755,12 +754,12 @@ static void iwl_dbg_tlv_set_periodic_trigs(struct iwl_fw_runtime *fwrt)
 	}
 }
 
-static bool is_trig_data_contained(struct iwl_ucode_tlv *new,
-				   struct iwl_ucode_tlv *old)
+static bool is_trig_data_contained(const struct iwl_ucode_tlv *new,
+				   const struct iwl_ucode_tlv *old)
 {
-	struct iwl_fw_ini_trigger_tlv *new_trig = (void *)new->data;
-	struct iwl_fw_ini_trigger_tlv *old_trig = (void *)old->data;
-	__le32 *new_data = new_trig->data, *old_data = old_trig->data;
+	const struct iwl_fw_ini_trigger_tlv *new_trig = (const void *)new->data;
+	const struct iwl_fw_ini_trigger_tlv *old_trig = (const void *)old->data;
+	const __le32 *new_data = new_trig->data, *old_data = old_trig->data;
 	u32 new_dwords_num = iwl_tlv_array_len(new, new_trig, data);
 	u32 old_dwords_num = iwl_tlv_array_len(old, old_trig, data);
 	int i, j;

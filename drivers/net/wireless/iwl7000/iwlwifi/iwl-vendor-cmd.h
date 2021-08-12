@@ -130,11 +130,11 @@
  *	Contains a &IWL_MVM_VENDOR_ATTR_PPAG_TABLE and a
  *	&IWL_MVM_VENDOR_ATTR_PPAG_NUM_SUB_BANDS attribute.
  * @IWL_MVM_VENDOR_CMD_SAR_GET_TABLE: retrieves the full SAR table.
- *	Contains a & IWL_MVM_VENDOR_ATTR_SAR_TABLE and a
+ *	Contains a &IWL_MVM_VENDOR_ATTR_SAR_TABLE and a
  *	&IWL_MVM_VENDOR_ATTR_SAR_VER attributes.
  * @IWL_MVM_VENDOR_CMD_GEO_SAR_GET_TABLE: retrieves the full GEO SAR table.
  *	Contains a &IWL_MVM_VENDOR_ATTR_SAR_TABLE and a
- *	&UWL_MVM_VENDOR_ATTR_GEO_SAR_VER attributes.
+ *	&IWL_MVM_VENDOR_ATTR_GEO_SAR_VER attributes.
  */
 
 enum iwl_mvm_vendor_cmd {

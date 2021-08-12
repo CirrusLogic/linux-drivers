@@ -838,7 +838,6 @@ enum txq_info_flags {
  */
 struct txq_info {
 	struct fq_tin tin;
-	struct fq_flow def_flow;
 	struct codel_vars def_cvars;
 	struct codel_stats cstats;
 
@@ -1134,6 +1133,10 @@ enum mac80211_scan_state {
 	SCAN_RESUME,
 	SCAN_ABORT,
 };
+
+#if LINUX_VERSION_IS_GEQ(4,10,0)
+DECLARE_STATIC_KEY_FALSE(aql_disable);
+#endif
 
 #if CFG80211_VERSION < KERNEL_VERSION(4,0,0)
 /* private copy of a cfg80211 structure */

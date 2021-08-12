@@ -1927,7 +1927,7 @@ ieee80211_process_tdls_channel_switch(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_tdls_data *tf = (void *)skb->data;
 	struct wiphy *wiphy = sdata->local->hw.wiphy;
 
-	ASSERT_RTNL();
+	lockdep_assert_wiphy(wiphy);
 
 	/* make sure the driver supports it */
 	if (!(wiphy->features & NL80211_FEATURE_TDLS_CHANNEL_SWITCH))
@@ -1979,7 +1979,11 @@ void ieee80211_tdls_chsw_work(struct work_struct *wk)
 	struct sk_buff *skb;
 	struct ieee80211_tdls_data *tf;
 
+#if CFG80211_VERSION >= KERNEL_VERSION(5,12,0)
+	wiphy_lock(local->hw.wiphy);
+#else
 	rtnl_lock();
+#endif
 	while ((skb = skb_dequeue(&local->skb_queue_tdls_chsw))) {
 		tf = (struct ieee80211_tdls_data *)skb->data;
 		list_for_each_entry(sdata, &local->interfaces, list) {
@@ -1994,7 +1998,11 @@ void ieee80211_tdls_chsw_work(struct work_struct *wk)
 
 		kfree_skb(skb);
 	}
+#if CFG80211_VERSION >= KERNEL_VERSION(5,12,0)
+	wiphy_unlock(local->hw.wiphy);
+#else
 	rtnl_unlock();
+#endif
 }
 
 void ieee80211_tdls_handle_disconnect(struct ieee80211_sub_if_data *sdata,
