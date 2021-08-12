@@ -2113,6 +2113,37 @@ static irqreturn_t cs35l45_global_err(int irq, void *data)
 	queue_delayed_work(cs35l45->wq, &cs35l45->global_err_rls_work,
 			   msecs_to_jiffies(100));
 
+	if (val & CS35L45_UVLO_VDDLV_ERR_MASK) {
+		dev_err(cs35l45->dev, "LV threshold detector error condition detected\n");
+		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_18,
+				 CS35L45_UVLO_VDDLV_ERR_MASK);
+	}
+
+	regmap_read(cs35l45->regmap, CS35L45_IRQ1_EINT_1, &val);
+	if (val & CS35L45_BST_UVP_ERR_MASK) {
+		dev_err(cs35l45->dev, "Boost undervoltage error condition detected\n");
+		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_1,
+			     CS35L45_BST_UVP_ERR_MASK);
+	}
+
+	if (val & CS35L45_BST_STARTUP_ERR_MASK) {
+		dev_err(cs35l45->dev, "Boost startup time expired\n");
+		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_1,
+			     CS35L45_BST_STARTUP_ERR_MASK);
+	}
+
+	if (val & CS35L45_TEMP_ERR_MASK) {
+		dev_err(cs35l45->dev, "Overtemperature error condition detected\n");
+		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_1,
+			     CS35L45_TEMP_ERR_MASK);
+	}
+
+	if (val & CS35L45_UVLO_VDDBATT_ERR_MASK) {
+		dev_err(cs35l45->dev, "VDDBATT undervoltage error condition detected\n");
+		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_1,
+			     CS35L45_UVLO_VDDBATT_ERR_MASK);
+	}
+
 	return IRQ_HANDLED;
 }
 
