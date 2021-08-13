@@ -160,7 +160,6 @@ static void mdp_m2m_device_run(void *priv)
 static int mdp_m2m_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct mdp_m2m_ctx *ctx = vb2_get_drv_priv(q);
-	int ret;
 
 	ctx->frame_count = 0;
 

@@ -1279,7 +1279,6 @@ static int mdp_mm_init(struct mdp_dev *mdp, struct mdp_comp *comp,
 {
 	struct device_node *node;
 	struct device *dev = &mdp->pdev->dev;
-	int ret;
 
 	node = of_parse_phandle(dev->of_node, ref_name, 0);
 	if (!node) {
