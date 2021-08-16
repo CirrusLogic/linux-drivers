@@ -838,8 +838,6 @@
 #define CS40L2X_ALGO_ID_CLAB			0x000117
 #define CS40L2X_ALGO_ID_PAR			0x000121
 
-#define CS40L2X_MAX_A2H_LEVELS			10
-
 #define CS40L2X_DSP_CACHE_MAX			64
 
 #define CS40L2X_CLAB_ENABLED			1
@@ -1017,12 +1015,6 @@ struct cs40l2x_hw_err_desc {
 	const char *err_name;
 };
 
-struct cs40l2x_dblk_desc {
-	unsigned int *data;
-	unsigned int length;
-	unsigned int reg;
-};
-
 struct cs40l2x_f0_dynamic {
 	unsigned int index;
 	unsigned int f0;
@@ -1070,8 +1062,6 @@ struct cs40l2x_private {
 	char wt_date[CS40L2X_WT_FILE_DATE_LEN_MAX];
 	char pwle_str[CS40L2X_PWLE_TOTAL_VALS];
 	bool exc_available;
-	struct cs40l2x_dblk_desc pre_dblks[CS40L2X_MAX_A2H_LEVELS];
-	struct cs40l2x_dblk_desc a2h_dblks[CS40L2X_MAX_A2H_LEVELS];
 	bool vibe_init_success;
 	bool vibe_state;
 	bool safe_save_state;
