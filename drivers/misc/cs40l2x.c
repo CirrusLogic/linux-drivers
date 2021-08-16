@@ -450,28 +450,13 @@ static int cs40l2x_check_wt_open_space(struct cs40l2x_private *cs40l2x,
 				       unsigned int size)
 {
 	/* If YM exists, must add to end of YM to keep index order */
-	if (cs40l2x->wt_ym.nwaves) {
-		if (size > wt_get_space(&cs40l2x->wt_ym))
-			return -ENOSPC;
-
-		/* Add to end of existing YM */
-		cs40l2x->create_ym = false;
-		cs40l2x->xm_append = false;
-
-		return 0;
-	}
-
-	if (size <= wt_get_space(&cs40l2x->wt_xm)) {
-		/* Add to end of existing XM */
-		cs40l2x->create_ym = false;
+	if (!cs40l2x->wt_ym.nwaves && size <= wt_get_space(&cs40l2x->wt_xm)) {
 		cs40l2x->xm_append = true;
 
 		return 0;
 	}
 
 	if (size <= wt_get_space(&cs40l2x->wt_ym)) {
-		/* Create YM section and add to YM */
-		cs40l2x->create_ym = true;
 		cs40l2x->xm_append = false;
 
 		return 0;
