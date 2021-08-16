@@ -1056,7 +1056,6 @@ struct cs40l2x_private {
 	bool virtual_stored;
 	bool queue_stored;
 	bool virtual_bin;
-	bool create_ym;
 	bool xm_append;
 	char wt_file[CS40L2X_WT_FILE_NAME_LEN_MAX];
 	char wt_date[CS40L2X_WT_FILE_DATE_LEN_MAX];
