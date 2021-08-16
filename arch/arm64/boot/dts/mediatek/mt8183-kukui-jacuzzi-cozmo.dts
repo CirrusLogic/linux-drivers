@@ -17,7 +17,7 @@
 };
 
 &i2c2 {
-	clock-stretch-ns = <25000>;
+	i2c-scl-internal-delay-ns = <25000>;
 
 	trackpad@2c {
 		compatible = "hid-over-i2c";
