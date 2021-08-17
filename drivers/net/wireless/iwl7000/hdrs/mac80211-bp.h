@@ -1194,19 +1194,6 @@ struct ieee80211_sband_iftype_data {
 	struct ieee80211_sta_he_cap he_cap;
 };
 
-/**
- * ieee80211_get_he_sta_cap - return HE capabilities for an sband's STA
- * @sband: the sband to search for the STA on
- *
- * Return: pointer to the struct ieee80211_sta_he_cap, or NULL is none found
- *	Currently, not supported
- */
-static inline const struct ieee80211_sta_he_cap *
-ieee80211_get_he_sta_cap(const struct ieee80211_supported_band *sband)
-{
-	return NULL;
-}
-
 static inline void
 ieee80211_sband_set_num_iftypes_data(struct ieee80211_supported_band *sband,
 				     u16 n)
@@ -1355,6 +1342,8 @@ cfg80211_iftype_allowed(struct wiphy *wiphy, enum nl80211_iftype iftype,
 
 	return false;
 }
+
+#define cfg80211_tx_mlme_mgmt(netdev, buf, len, reconnect) cfg80211_tx_mlme_mgmt(netdev, buf, len)
 #endif /* < 5.4.0 */
 
 #if LINUX_VERSION_IS_LESS(5,5,0)
@@ -2125,6 +2114,12 @@ static inline bool nl80211_is_6ghz(enum nl80211_band band)
 #define ftm_lmr_feedback(peer)		((peer)->ftm.lmr_feedback)
 #endif
 
+#if CFG80211_VERSION < KERNEL_VERSION(5,13,0)
+#define ftm_bss_color(peer)		0
+#else
+#define ftm_bss_color(peer)		((peer)->ftm.bss_color)
+#endif
+
 #if CFG80211_VERSION < KERNEL_VERSION(5,6,0)
 int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 			      enum ieee80211_vht_chanwidth bw,
@@ -2181,9 +2176,6 @@ struct cfg80211_he_bss_color {
 	bool disabled;
 	bool partial;
 };
-#endif
-
-#if CFG80211_VERSION < KERNEL_VERSION(5,7,0)
 
 /**
  * enum nl80211_tid_config - TID config state
@@ -2194,7 +2186,6 @@ enum nl80211_tid_config {
 	NL80211_TID_CONFIG_ENABLE,
 	NL80211_TID_CONFIG_DISABLE,
 };
-
 /**
  * struct cfg80211_tid_cfg - TID specific configuration
  * @config_override: Flag to notify driver to reset TID configuration
@@ -2229,7 +2220,9 @@ struct cfg80211_tid_config {
 	u32 n_tid_conf;
 	struct cfg80211_tid_cfg tid_conf[];
 };
+#endif
 
+#if CFG80211_VERSION < KERNEL_VERSION(5,7,0)
 #define NL80211_EXT_FEATURE_CONTROL_PORT_NO_PREAUTH -1
 #define NL80211_EXT_FEATURE_DEL_IBSS_STA -1
 
@@ -2396,7 +2389,6 @@ LINUX_BACKPORT(cfg80211_ch_switch_started_notify)(struct net_device *dev,
 	cfg80211_ch_switch_started_notify(dev, chandef, count);
 }
 #define cfg80211_ch_switch_started_notify LINUX_BACKPORT(cfg80211_ch_switch_started_notify)
-
 #endif /* < 5.11 */
 
 #ifndef ETH_TLEN
@@ -2580,7 +2572,9 @@ static inline void dev_sw_netstats_rx_add(struct net_device *dev, unsigned int l
 
 #endif /* < 5.10 */
 
-#if CFG80211_VERSION < KERNEL_VERSION(5,4,0)
+#if CFG80211_VERSION < KERNEL_VERSION(5,10,0) &&     \
+	(CFG80211_VERSION < KERNEL_VERSION(5,4,0) || \
+	 CFG80211_VERSION >= KERNEL_VERSION(5,5,0))
 enum nl80211_sar_type {
 	NL80211_SAR_TYPE_NONE,
 };
@@ -2635,7 +2629,7 @@ static inline bool cfg80211_any_usable_channels(struct wiphy *wiphy,
 
 	return false;
 }
-#endif /* < 5.12.0 */
+#endif /* < 5.13.0 */
 
 #if LINUX_VERSION_IS_LESS(5,10,0)
 static inline u64 skb_get_kcov_handle(struct sk_buff *skb)
@@ -2657,6 +2651,16 @@ static inline void dev_sw_netstats_tx_add(struct net_device *dev,
 	u64_stats_update_end(&tstats->syncp);
 }
 #endif
+
+#if CFG80211_VERSION < KERNEL_VERSION(5,12,0)
+#define wiphy_dereference(w, r) rtnl_dereference(r)
+#define regulatory_set_wiphy_regd_sync(w, r) regulatory_set_wiphy_regd_sync_rtnl(w, r)
+#define lockdep_assert_wiphy(w) ASSERT_RTNL()
+#define cfg80211_register_netdevice(n) register_netdevice(n)
+#define cfg80211_unregister_netdevice(n) unregister_netdevice(n)
+#define cfg80211_sched_scan_stopped_locked(w, r) cfg80211_sched_scan_stopped_rtnl(w, r)
+#define ASSOC_REQ_DISABLE_HE BIT(4)
+#endif /* < 5.12 */
 
 #if CFG80211_VERSION < KERNEL_VERSION(5,13,0)
 #define ieee80211_data_to_8023_exthdr iwl7000_ieee80211_data_to_8023_exthdr

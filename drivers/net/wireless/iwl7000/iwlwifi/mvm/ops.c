@@ -404,7 +404,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		       struct iwl_mfu_assert_dump_notif),
 	RX_HANDLER_GRP(PROT_OFFLOAD_GROUP, STORED_BEACON_NTF,
 		       iwl_mvm_rx_stored_beacon_notif, RX_HANDLER_SYNC,
-		       struct iwl_stored_beacon_notif),
+		       struct iwl_stored_beacon_notif_v2),
 	RX_HANDLER_GRP(DATA_PATH_GROUP, MU_GROUP_MGMT_NOTIF,
 		       iwl_mvm_mu_mimo_grp_notif, RX_HANDLER_SYNC,
 		       struct iwl_mu_group_mgmt_notif),
@@ -797,9 +797,8 @@ static int iwl_mvm_tm_send_hcmd(void *op_mode, struct iwl_host_cmd *host_cmd)
 
 static int iwl_mvm_start_get_nvm(struct iwl_mvm *mvm)
 {
-	int ret;
-
 	struct iwl_trans *trans = mvm->trans;
+	int ret;
 
 	if (trans->csme_own) {
 		if (WARN(!mvm->mei_registered,
@@ -826,11 +825,18 @@ static int iwl_mvm_start_get_nvm(struct iwl_mvm *mvm)
 get_nvm_from_fw:
 
 	rtnl_lock();
+#if CFG80211_VERSION >= KERNEL_VERSION(5,12,0)
+	wiphy_lock(mvm->hw->wiphy);
+#endif
 	mutex_lock(&mvm->mutex);
 
 	ret = iwl_trans_start_hw(mvm->trans);
 	if (ret) {
 		mutex_unlock(&mvm->mutex);
+#if CFG80211_VERSION >= KERNEL_VERSION(5,12,0)
+		wiphy_unlock(mvm->hw->wiphy);
+#endif
+		rtnl_unlock();
 		return ret;
 	}
 
@@ -847,6 +853,9 @@ get_nvm_from_fw:
 		iwl_mvm_stop_device(mvm);
 
 	mutex_unlock(&mvm->mutex);
+#if CFG80211_VERSION >= KERNEL_VERSION(5,12,0)
+	wiphy_unlock(mvm->hw->wiphy);
+#endif
 	rtnl_unlock();
 
 	if (ret)

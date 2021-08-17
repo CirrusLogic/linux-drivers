@@ -1882,8 +1882,10 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 		}
 
 		if (sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
-		    sta->sdata->u.vlan.sta)
+		    sta->sdata->u.vlan.sta) {
+			ieee80211_clear_fast_rx(sta);
 			RCU_INIT_POINTER(sta->sdata->u.vlan.sta, NULL);
+		}
 
 		if (test_sta_flag(sta, WLAN_STA_AUTHORIZED))
 			ieee80211_vif_dec_num_mcast(sta->sdata);
@@ -2500,7 +2502,16 @@ static int ieee80211_suspend(struct wiphy *wiphy,
 
 static int ieee80211_resume(struct wiphy *wiphy)
 {
+#if CFG80211_VERSION < KERNEL_VERSION(5,12,0)
+	int ret = __ieee80211_resume(wiphy_priv(wiphy));
+
+	if (ret)
+		cfg80211_shutdown_all_interfaces(wiphy);
+
+	return ret;
+#else
 	return __ieee80211_resume(wiphy_priv(wiphy));
+#endif
 }
 #else
 #define ieee80211_suspend NULL
@@ -3061,14 +3072,14 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 			continue;
 
 		for (j = 0; j < IEEE80211_HT_MCS_MASK_LEN; j++) {
-			if (~sdata->rc_rateidx_mcs_mask[i][j]) {
+			if (sdata->rc_rateidx_mcs_mask[i][j] != 0xff) {
 				sdata->rc_has_mcs_mask[i] = true;
 				break;
 			}
 		}
 
 		for (j = 0; j < NL80211_VHT_NSS_MAX; j++) {
-			if (~sdata->rc_rateidx_vht_mcs_mask[i][j]) {
+			if (sdata->rc_rateidx_vht_mcs_mask[i][j] != 0xffff) {
 				sdata->rc_has_vht_mcs_mask[i] = true;
 				break;
 			}
