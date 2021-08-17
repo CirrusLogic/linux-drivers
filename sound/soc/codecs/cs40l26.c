@@ -289,6 +289,40 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 	return ret;
 }
 
+static int cs40l26_i2s_vmon_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct cs40l26_codec *codec =
+	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
+	struct cs40l26_private *cs40l26 = codec->core;
+	int ret;
+	u32 val;
+
+	pm_runtime_get_sync(cs40l26->dev);
+
+	ret = regmap_read(cs40l26->regmap, CS40L26_SPKMON_VMON_DEC_OUT_DATA,
+			&val);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to get VMON Data for I2S\n");
+		goto pm_err;
+	}
+
+	if (val & CS40L26_VMON_OVFL_FLAG_MASK) {
+		dev_err(cs40l26->dev, "I2S VMON overflow detected\n");
+		ret = -EOVERFLOW;
+		goto pm_err;
+	}
+
+	ucontrol->value.enumerated.item[0] = val &
+			CS40L26_VMON_DEC_OUT_DATA_MASK;
+
+pm_err:
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	return ret;
+}
+
 static int cs40l26_svc_for_streaming_data_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
@@ -480,6 +514,8 @@ static const struct snd_kcontrol_new cs40l26_controls[] = {
 	SOC_SINGLE_EXT("Invert streaming data", 0, 0, 1, 0,
 			cs40l26_invert_streaming_data_get,
 			cs40l26_invert_streaming_data_put),
+	SOC_SINGLE_EXT("I2S VMON", 0, 0, CS40L26_VMON_DEC_OUT_DATA_MAX, 0,
+			cs40l26_i2s_vmon_get, NULL),
 };
 
 static const char * const cs40l26_out_mux_texts[] = { "Off", "PCM", "A2H" };
