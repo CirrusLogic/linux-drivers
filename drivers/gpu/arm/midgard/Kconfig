@@ -24,6 +24,7 @@ menuconfig MALI_MIDGARD
 	tristate "Mali Midgard series support"
 	depends on ARM || ARM64
 	depends on THERMAL || THERMAL=n
+	depends on !COMPILE_TEST
 	select GPU_TRACEPOINTS if ANDROID
 	default n
 	help
