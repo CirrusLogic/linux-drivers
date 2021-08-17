@@ -220,16 +220,7 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 			goto err_mutex;
 		}
 
-		if (!codec->bypass_dsp) {
-			ret = regmap_update_bits(regmap, CS40L26_VBST_CTL_2,
-					CS40L26_BST_CTL_SEL_MASK,
-					CS40L26_BST_CTL_SEL_CLASSH);
-			if (ret) {
-				dev_err(dev,
-					"Failed to select Class H BST CTRL\n");
-				goto err_mutex;
-			}
-
+		if (!codec->bypass_dsp && !codec->svc_for_streaming_data) {
 			ret = cs40l26_class_h_set(cs40l26, true);
 			if (ret)
 				goto err_mutex;
