@@ -334,6 +334,7 @@ bool cs40l26_readable_reg(struct device *dev, unsigned int reg)
 	case CS40L26_SPKMON_RATE_SEL:
 	case CS40L26_MONITOR_FILT:
 	case CS40L26_IMON_COMP:
+	case CS40L26_SPKMON_VMON_DEC_OUT_DATA:
 	case CS40L26_WARN_LIMIT_THRESHOLD:
 	case CS40L26_CONFIGURATION:
 	case CS40L26_STATUS:
