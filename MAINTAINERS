@@ -11226,6 +11226,16 @@ S:	Maintained
 F:	drivers/net/dsa/mt7530.*
 F:	net/dsa/tag_mtk.c
 
+MEDIATEK T7XX 5G WWAN MODEM DRIVER
+M:	Devegowda, Chandrashekar <chandrashekar.devegowda@intel.com>
+M:	Haijun, Liu <haijun.liu@mediatek.com>
+M:	Intel Corporation <linuxwwan@intel.com>
+R:	Martinez, Ricardo <ricardo.martinez@linux.intel.com>
+R:	Rapolu, Chiranjeevi <chiranjeevi.rapolu@linux.intel.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/wwan/t7xx/
+
 MEDIATEK USB3 DRD IP DRIVER
 M:	Chunfeng Yun <chunfeng.yun@mediatek.com>
 L:	linux-usb@vger.kernel.org
