@@ -107,7 +107,6 @@ static int cs40l26_clk_en(struct snd_soc_dapm_widget *w,
 		ret = cs40l26_swap_ext_clk(codec, CS40L26_PLL_REFCLK_BCLK);
 		if (ret)
 			return ret;
-
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		ret = cs40l26_swap_ext_clk(codec, CS40L26_PLL_REFCLK_MCLK);
@@ -254,9 +253,8 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 			return ret;
 		}
 
-		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-				CS40L26_DSP_MBOX_CMD_START_I2S,
-				CS40L26_DSP_MBOX_RESET);
+		queue_work(cs40l26->asp_workqueue, &cs40l26->asp_work);
+
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
@@ -793,9 +791,11 @@ static int cs40l26_codec_driver_probe(struct platform_device *pdev)
 
 static int cs40l26_codec_driver_remove(struct platform_device *pdev)
 {
-	pm_runtime_disable(&pdev->dev);
+	struct cs40l26_codec *codec = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_component(&pdev->dev);
+	pm_runtime_disable(codec->dev);
+
+	snd_soc_unregister_component(codec->dev);
 
 	return 0;
 }
