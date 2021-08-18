@@ -5948,6 +5948,41 @@ static ssize_t cs40l2x_die_temp_show(struct device *dev,
 	return ret;
 }
 
+static ssize_t cs40l2x_vbst_avg_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l2x_private *cs40l2x = cs40l2x_get_private(dev);
+	struct regmap *regmap = cs40l2x->regmap;
+	int ret;
+	unsigned int reg, val;
+
+	pm_runtime_get_sync(cs40l2x->dev);
+
+	mutex_lock(&cs40l2x->lock);
+
+	reg = cs40l2x_dsp_reg(cs40l2x, "VBST_AVG",
+			CS40L2X_XM_UNPACKED_TYPE,
+			cs40l2x->fw_desc->id);
+	if (!reg) {
+		ret = -EINVAL;
+		goto err_vbst_avg;
+	}
+
+	ret = regmap_read(regmap, reg, &val);
+	if (ret)
+		goto err_vbst_avg;
+
+	/* The value is unsigned Q0.24 */
+	ret = snprintf(buf, PAGE_SIZE, "%d\n",  val);
+
+err_vbst_avg:
+	mutex_unlock(&cs40l2x->lock);
+	pm_runtime_mark_last_busy(cs40l2x->dev);
+	pm_runtime_put_autosuspend(cs40l2x->dev);
+
+	return ret;
+}
+
 static DEVICE_ATTR(cp_trigger_index, 0660, cs40l2x_cp_trigger_index_show,
 		cs40l2x_cp_trigger_index_store);
 static DEVICE_ATTR(cp_trigger_queue, 0660, cs40l2x_cp_trigger_queue_show,
@@ -6086,6 +6121,7 @@ static DEVICE_ATTR(virtual_pwle_indexes, 0660,
 static DEVICE_ATTR(available_pwle_segments, 0660,
 	cs40l2x_available_pwle_segs_show, NULL);
 static DEVICE_ATTR(die_temp, 0660, cs40l2x_die_temp_show, NULL);
+static DEVICE_ATTR(vbst_avg, 0660, cs40l2x_vbst_avg_show, NULL);
 
 static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_cp_trigger_index.attr,
@@ -6163,6 +6199,7 @@ static struct attribute *cs40l2x_dev_attrs[] = {
 	&dev_attr_virtual_pwle_indexes.attr,
 	&dev_attr_available_pwle_segments.attr,
 	&dev_attr_die_temp.attr,
+	&dev_attr_vbst_avg.attr,
 	NULL,
 };
 
@@ -9750,6 +9787,7 @@ static const struct reg_sequence cs40l2x_pcm_routing[] = {
 	{CS40L2X_DSP1RX3_INPUT,		CS40L2X_DSP1_RXn_SRC_IMON},
 	{CS40L2X_DSP1RX4_INPUT,		CS40L2X_DSP1_RXn_SRC_VPMON},
 	{CS40L2X_DSP1RX5_INPUT,		CS40L2X_DSP1_RXn_SRC_ASPRX2},
+	{CS40L2X_DSP1RX8_INPUT,		CS40L2X_DSP1_RXn_SRC_VBSTMON},
 };
 
 static int cs40l2x_init(struct cs40l2x_private *cs40l2x)
