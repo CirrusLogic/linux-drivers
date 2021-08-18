@@ -6,10 +6,9 @@ mtk_t7xx-y:=	t7xx_pci.o \
 		t7xx_pci_ats.o \
 		t7xx_netdev.o \
 		t7xx_buffer_manager.o \
-		t7xx_core.o \
+		t7xx_dev_node.o \
 		t7xx_modem_ops.o \
 		t7xx_state_monitor.o  \
-		t7xx_usr_monitor.o \
 		t7xx_err_handler.o \
 		t7xx_hif_cldma.o  \
 		t7xx_ctrl_dma.o \
