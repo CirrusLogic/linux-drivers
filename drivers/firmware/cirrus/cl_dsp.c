@@ -253,6 +253,7 @@ static int cl_dsp_read_wt(struct cl_dsp *dsp, int pos, int size)
 		}
 	}
 
+	dev_err(dsp->dev, "Maximum number of wavetable entries exceeded\n");
 	return -E2BIG;
 }
 
