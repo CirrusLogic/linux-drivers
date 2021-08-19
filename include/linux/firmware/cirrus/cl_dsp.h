@@ -137,7 +137,7 @@
 #define CL_DSP_ALGO_ENTRY_SIZE			24
 
 /* open wavetable */
-#define CL_DSP_OWT_HEADER_MAX_LEN		128
+#define CL_DSP_OWT_HEADER_MAX_LEN		254
 #define CL_DSP_OWT_HEADER_ENTRY_SIZE		12
 
 /* macros */
