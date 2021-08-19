@@ -3,6 +3,7 @@
  * Copyright (c) 2021, MediaTek Inc.
  * Copyright (c) 2021, Intel Corporation.
  */
+#include <linux/tty.h>
 #include <linux/tty_flip.h>
 
 #include "t7xx_tty_ops.h"
@@ -58,7 +59,7 @@ static int ccci_tty_write(struct tty_struct *tty,
 	return ret;
 }
 
-static unsigned int ccci_tty_write_room(struct tty_struct *tty)
+static int ccci_tty_write_room(struct tty_struct *tty)
 {
 	return CCCI_MTU;
 }
