@@ -399,6 +399,14 @@ struct uvc_frame {
 	u32 *dwFrameInterval;
 };
 
+struct uvc_roi {
+	u16 wROI_Top;
+	u16 wROI_Left;
+	u16 wROI_Bottom;
+	u16 wROI_Right;
+	u16 bmAutoControls;
+} __packed;
+
 struct uvc_format {
 	u8 type;
 	u8 index;
