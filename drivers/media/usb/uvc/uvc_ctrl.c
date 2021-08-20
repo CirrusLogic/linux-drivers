@@ -2258,6 +2258,50 @@ static void uvc_ctrl_prune_entity(struct uvc_device *dev,
 	}
 }
 
+static int uvc_ctrl_init_roi(struct uvc_device *dev, struct uvc_control *ctrl)
+{
+	const u8 entity[16] = UVC_GUID_UVC_CAMERA;
+	struct uvc_roi *def;
+	int ret;
+
+	if (ctrl->info.selector != UVC_CT_REGION_OF_INTEREST_CONTROL ||
+	    !uvc_entity_match_guid(ctrl->entity, entity) ||
+	    !(dev->quirks & UVC_QUIRK_REINIT_ROI))
+		return 0;
+
+	if (WARN_ON(sizeof(struct uvc_roi) != ctrl->info.size))
+		return -EINVAL;
+
+	def = (struct uvc_roi *)uvc_ctrl_data(ctrl, UVC_CTRL_DATA_DEF);
+
+	ret = uvc_query_ctrl(dev, UVC_GET_DEF, ctrl->entity->id, dev->intfnum,
+			     UVC_CT_REGION_OF_INTEREST_CONTROL, def,
+			     sizeof(struct uvc_roi));
+	if (ret)
+		goto out;
+
+	/*
+	 * Some firmwares have wrong GET_CURRENT configuration. E.g. it's
+	 * below GET_MIN, or have rectangle coordinates mixed up. This
+	 * causes problems sometimes, because we are unable to set
+	 * auto-controls value without first setting ROI rectangle to
+	 * valid configuration.
+	 *
+	 * We expect that default configuration is always correct and
+	 * is within the GET_MIN / GET_MAX boundaries.
+	 *
+	 * Set current ROI configuration to GET_DEF, so that we will
+	 * always have properly configured ROI.
+	 */
+	ret = uvc_query_ctrl(dev, UVC_SET_CUR, 1, dev->intfnum,
+			     UVC_CT_REGION_OF_INTEREST_CONTROL, def,
+			     sizeof(struct uvc_roi));
+out:
+	if (ret)
+		uvc_printk(KERN_ERR, "Failed to fixup ROI (%d).\n",  ret);
+	return ret;
+}
+
 /*
  * Add control information and hardcoded stock control mappings to the given
  * device.
@@ -2289,6 +2333,7 @@ static void uvc_ctrl_init_ctrl(struct uvc_device *dev, struct uvc_control *ctrl)
 			 * GET_INFO on standard controls.
 			 */
 			uvc_ctrl_get_flags(dev, ctrl, &ctrl->info);
+			uvc_ctrl_init_roi(dev, ctrl);
 			break;
 		 }
 	}
