@@ -479,7 +479,7 @@ static const struct snd_kcontrol_new cs40l2x_controls[] = {
 		cs40l2x_delay_get, cs40l2x_delay_put),
 };
 
-static const char * const cs40l2x_out_mux_texts[] = { "PCM", "A2H" };
+static const char * const cs40l2x_out_mux_texts[] = { "Off", "PCM", "A2H" };
 static SOC_ENUM_SINGLE_VIRT_DECL(cs40l2x_out_mux_enum, cs40l2x_out_mux_texts);
 static const struct snd_kcontrol_new cs40l2x_out_mux =
 	SOC_DAPM_ENUM("Haptics Source", cs40l2x_out_mux_enum);
