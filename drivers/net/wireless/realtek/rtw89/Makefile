@@ -16,7 +16,6 @@ rtw89_core-y += core.o \
 		sar.o \
 		coex.o \
 		ps.o \
-		util.o \
 		ser.o
 
 rtw89_core-$(CONFIG_RTW89_DEBUG) += debug.o

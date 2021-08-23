@@ -76,7 +76,7 @@ static int rtw89_ops_config(struct ieee80211_hw *hw, u32 changed)
 		if (hw->conf.flags & IEEE80211_CONF_PS) {
 			rtwdev->lps_enabled = true;
 		} else {
-			rtw89_leave_lps(rtwdev, true);
+			rtw89_leave_lps(rtwdev);
 			rtwdev->lps_enabled = false;
 		}
 	}
@@ -101,6 +101,7 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	int ret = 0;
 
 	mutex_lock(&rtwdev->mutex);
+	list_add_tail(&rtwvif->list, &rtwdev->rtwvifs_list);
 	rtw89_leave_ps_mode(rtwdev);
 
 	rtw89_traffic_stats_init(rtwdev, &rtwvif->stats);
@@ -144,6 +145,7 @@ static void rtw89_ops_remove_interface(struct ieee80211_hw *hw,
 	rtw89_btc_ntfy_role_info(rtwdev, rtwvif, NULL, BTC_ROLE_STOP);
 	rtw89_mac_remove_vif(rtwdev, rtwvif);
 	rtw89_core_release_bit_map(rtwdev->hw_port, rtwvif->port);
+	list_del_init(&rtwvif->list);
 	mutex_unlock(&rtwdev->mutex);
 }
 
@@ -527,7 +529,7 @@ static void rtw89_ops_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct rtw89_dev *rtwdev = hw->priv;
 
 	mutex_lock(&rtwdev->mutex);
-	rtw89_leave_lps(rtwdev, false);
+	rtw89_leave_lps(rtwdev);
 	rtw89_hci_flush_queues(rtwdev, queues, drop);
 	rtw89_mac_flush_txq(rtwdev, queues, drop);
 	mutex_unlock(&rtwdev->mutex);
@@ -616,8 +618,9 @@ static void rtw89_ops_sw_scan_start(struct ieee80211_hw *hw,
 
 	mutex_lock(&rtwdev->mutex);
 	rtwdev->scanning = true;
-	rtw89_leave_lps(rtwdev, false);
+	rtw89_leave_lps(rtwdev);
 	rtw89_btc_ntfy_scan_start(rtwdev, RTW89_PHY_0, hal->current_band_type);
+	rtw89_hci_recalc_int_mit(rtwdev);
 	mutex_unlock(&rtwdev->mutex);
 }
 
@@ -629,6 +632,7 @@ static void rtw89_ops_sw_scan_complete(struct ieee80211_hw *hw,
 	mutex_lock(&rtwdev->mutex);
 	rtw89_btc_ntfy_scan_finish(rtwdev, RTW89_PHY_0);
 	rtwdev->scanning = false;
+	rtwdev->dig.bypass_dig = true;
 	mutex_unlock(&rtwdev->mutex);
 }
 

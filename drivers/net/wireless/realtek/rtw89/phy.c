@@ -14,15 +14,21 @@ static u16 get_max_amsdu_len(struct rtw89_dev *rtwdev,
 {
 	const struct rate_info *txrate = &report->txrate;
 	u32 bit_rate = report->bit_rate;
+	u8 mcs;
 
 	/* lower than ofdm, do not aggregate */
 	if (bit_rate < 550)
 		return 1;
 
 	/* prevent hardware rate fallback to G mode rate */
-	if ((txrate->flags & (RATE_INFO_FLAGS_MCS | RATE_INFO_FLAGS_VHT_MCS |
-			      RATE_INFO_FLAGS_HE_MCS)) &&
-	    (txrate->mcs & 0x07) <= 2)
+	if (txrate->flags & RATE_INFO_FLAGS_MCS)
+		mcs = txrate->mcs & 0x07;
+	else if (txrate->flags & (RATE_INFO_FLAGS_VHT_MCS | RATE_INFO_FLAGS_HE_MCS))
+		mcs = txrate->mcs;
+	else
+		mcs = 0;
+
+	if (mcs <= 2)
 		return 1;
 
 	/* lower than 20M vht 2ss mcs8, make it small */
@@ -245,7 +251,7 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	}
 
 	if (mode >= RTW89_RA_MODE_HT) {
-		for (i = 0; i < rtwdev->chip->tx_nss; i++)
+		for (i = 0; i < rtwdev->hal.tx_nss; i++)
 			high_rate_mask |= high_rate_masks[i];
 		ra_mask &= high_rate_mask;
 		if (mode & RTW89_RA_MODE_OFDM)
@@ -292,7 +298,7 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	ra->macid = rtwsta->mac_id;
 	ra->stbc_cap = stbc_en;
 	ra->ldpc_cap = ldpc_en;
-	ra->ss_num = min(sta->rx_nss, rtwdev->chip->tx_nss) - 1;
+	ra->ss_num = min(sta->rx_nss, rtwdev->hal.tx_nss) - 1;
 	ra->en_sgi = sgi;
 	ra->ra_mask = ra_mask;
 
@@ -1320,9 +1326,9 @@ static u8 rtw89_phy_cfo_get_xcap_reg(struct rtw89_dev *rtwdev, bool sc_xo)
 	u32 reg_mask;
 
 	if (sc_xo)
-		reg_mask = B_AX_XTAL_SC_XO_MSK;
+		reg_mask = B_AX_XTAL_SC_XO_MASK;
 	else
-		reg_mask = B_AX_XTAL_SC_XI_MSK;
+		reg_mask = B_AX_XTAL_SC_XI_MASK;
 
 	return (u8)rtw89_read32_mask(rtwdev, R_AX_XTAL_ON_CTRL0, reg_mask);
 }
@@ -1333,9 +1339,9 @@ static void rtw89_phy_cfo_set_xcap_reg(struct rtw89_dev *rtwdev, bool sc_xo,
 	u32 reg_mask;
 
 	if (sc_xo)
-		reg_mask = B_AX_XTAL_SC_XO_MSK;
+		reg_mask = B_AX_XTAL_SC_XO_MASK;
 	else
-		reg_mask = B_AX_XTAL_SC_XI_MSK;
+		reg_mask = B_AX_XTAL_SC_XI_MASK;
 
 	rtw89_write32_mask(rtwdev, R_AX_XTAL_ON_CTRL0, reg_mask, val);
 }
@@ -1368,7 +1374,7 @@ static void rtw89_phy_cfo_reset(struct rtw89_dev *rtwdev)
 	struct rtw89_cfo_tracking_info *cfo = &rtwdev->cfo_tracking;
 	u8 cap;
 
-	cfo->def_x_cap = cfo->crystal_cap_default & B_AX_XTAL_SC_MSK;
+	cfo->def_x_cap = cfo->crystal_cap_default & B_AX_XTAL_SC_MASK;
 	cfo->is_adjust = false;
 	if (cfo->crystal_cap == cfo->def_x_cap)
 		return;
@@ -1409,7 +1415,7 @@ static void rtw89_dcfo_comp_init(struct rtw89_dev *rtwdev)
 {
 	rtw89_phy_set_phy_regs(rtwdev, R_DCFO_OPT, B_DCFO_OPT_EN, 1);
 	rtw89_phy_set_phy_regs(rtwdev, R_DCFO_WEIGHT, B_DCFO_WEIGHT_MSK, 8);
-	rtw89_write32_clr(rtwdev, R_AX_PWR_UL_CTRL2, B_AX_PWR_UL_CFO_MSK);
+	rtw89_write32_clr(rtwdev, R_AX_PWR_UL_CTRL2, B_AX_PWR_UL_CFO_MASK);
 }
 
 static void rtw89_phy_cfo_init(struct rtw89_dev *rtwdev)
@@ -1417,7 +1423,7 @@ static void rtw89_phy_cfo_init(struct rtw89_dev *rtwdev)
 	struct rtw89_cfo_tracking_info *cfo = &rtwdev->cfo_tracking;
 	struct rtw89_efuse *efuse = &rtwdev->efuse;
 
-	cfo->crystal_cap_default = efuse->xtal_cap & B_AX_XTAL_SC_MSK;
+	cfo->crystal_cap_default = efuse->xtal_cap & B_AX_XTAL_SC_MASK;
 	cfo->crystal_cap = cfo->crystal_cap_default;
 	cfo->def_x_cap = cfo->crystal_cap;
 	cfo->is_adjust = false;
@@ -2636,6 +2642,7 @@ void rtw89_phy_dig_reset(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_dig_info *dig = &rtwdev->dig;
 
+	dig->bypass_dig = false;
 	rtw89_phy_dig_para_reset(rtwdev);
 	rtw89_phy_dig_set_igi_cr(rtwdev, dig->force_gaincode);
 	rtw89_phy_dig_dyn_pd_th(rtwdev, rssi_nolink, false);
@@ -2648,6 +2655,11 @@ void rtw89_phy_dig(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_dig_info *dig = &rtwdev->dig;
 	bool is_linked = rtwdev->total_sta_assoc > 0;
+
+	if (unlikely(dig->bypass_dig)) {
+		dig->bypass_dig = false;
+		return;
+	}
 
 	if (!dig->is_linked_pre && is_linked) {
 		rtw89_debug(rtwdev, RTW89_DBG_DIG, "First connected\n");
