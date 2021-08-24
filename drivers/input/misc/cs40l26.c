@@ -1788,7 +1788,7 @@ static int cs40l26_playback_effect(struct input_dev *dev,
 	return 0;
 }
 
-static int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves)
+int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves)
 {
 	int ret;
 	u32 reg, nwaves, nowt;
@@ -1816,6 +1816,7 @@ static int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves
 
 	return 0;
 }
+EXPORT_SYMBOL(cs40l26_get_num_waves);
 
 static int cs40l26_owt_get_wlength(struct cs40l26_private *cs40l26, u8 index)
 {

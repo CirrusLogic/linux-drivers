@@ -1362,6 +1362,7 @@ struct cs40l26_pll_sysclk_config {
 };
 
 /* exported function prototypes */
+int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves);
 void cs40l26_asp_worker(struct work_struct *work);
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id);
 void cs40l26_vibe_state_set(struct cs40l26_private *cs40l26,
