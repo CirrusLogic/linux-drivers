@@ -285,7 +285,31 @@ err_pm:
 }
 static DEVICE_ATTR(die_temp, 0440, cs40l26_die_temp_show, NULL);
 
+static ssize_t cs40l26_num_waves_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 nwaves;
+	int ret;
+
+	pm_runtime_get_sync(cs40l26->dev);
+
+	ret = cs40l26_get_num_waves(cs40l26, &nwaves);
+	if (ret)
+		goto err_pm;
+
+	ret = snprintf(buf, PAGE_SIZE, "%u\n", nwaves);
+
+err_pm:
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	return ret;
+}
+static DEVICE_ATTR(num_waves, 0440, cs40l26_num_waves_show, NULL);
+
 static struct attribute *cs40l26_dev_attrs[] = {
+	&dev_attr_num_waves.attr,
 	&dev_attr_die_temp.attr,
 	&dev_attr_owt_free_space.attr,
 	&dev_attr_power_on_seq.attr,
