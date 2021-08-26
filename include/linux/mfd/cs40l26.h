@@ -1333,6 +1333,8 @@ struct cs40l26_private {
 	u16 gain_pct;
 	u32 event_map_base;
 	struct cs40l26_svc_le *svc_le;
+	struct workqueue_struct *asp_workqueue;
+	struct work_struct asp_work;
 };
 
 struct cs40l26_codec {
@@ -1357,6 +1359,7 @@ struct cs40l26_pll_sysclk_config {
 };
 
 /* exported function prototypes */
+void cs40l26_asp_worker(struct work_struct *work);
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id);
 void cs40l26_vibe_state_set(struct cs40l26_private *cs40l26,
 		enum cs40l26_vibe_state);
