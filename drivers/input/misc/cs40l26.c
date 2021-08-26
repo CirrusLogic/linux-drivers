@@ -87,9 +87,7 @@ static int cs40l26_ack_read(struct cs40l26_private *cs40l26, u32 reg,
 		if (ret)
 			return ret;
 
-		if (val != ack_val)
-			dev_dbg(dev, "Ack'ed value not equal to expected\n");
-		else
+		if (val == ack_val)
 			break;
 
 		usleep_range(CS40L26_DSP_TIMEOUT_US_MIN,
