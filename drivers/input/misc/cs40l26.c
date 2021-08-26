@@ -574,6 +574,16 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 	return 0;
 }
 
+void cs40l26_asp_worker(struct work_struct *work)
+{
+	struct cs40l26_private *cs40l26 =
+			container_of(work, struct cs40l26_private, asp_work);
+
+	cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+			CS40L26_DSP_MBOX_CMD_START_I2S, CS40L26_DSP_MBOX_RESET);
+}
+EXPORT_SYMBOL(cs40l26_asp_worker);
+
 void cs40l26_vibe_state_set(struct cs40l26_private *cs40l26,
 		enum cs40l26_vibe_state new_state)
 {
@@ -583,15 +593,11 @@ void cs40l26_vibe_state_set(struct cs40l26_private *cs40l26,
 	if (new_state == CS40L26_VIBE_STATE_STOPPED && cs40l26->asp_enable) {
 		/* Re-enable audio stream */
 		cs40l26_class_h_set(cs40l26, true);
-		if (!cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-				CS40L26_DSP_MBOX_CMD_START_I2S,
-				CS40L26_DSP_MBOX_RESET)) {
-			cs40l26->vibe_state = CS40L26_VIBE_STATE_ASP;
-			return;
-		} else if (new_state == CS40L26_VIBE_STATE_HAPTIC &&
+		queue_work(cs40l26->asp_workqueue, &cs40l26->asp_work);
+
+	} else if (new_state == CS40L26_VIBE_STATE_HAPTIC &&
 				cs40l26->vibe_state == CS40L26_VIBE_STATE_ASP) {
-			cs40l26_class_h_set(cs40l26, false);
-		}
+		cs40l26_class_h_set(cs40l26, false);
 	}
 
 	cs40l26->vibe_state = new_state;
@@ -3105,6 +3111,15 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 	INIT_WORK(&cs40l26->vibe_stop_work, cs40l26_vibe_stop_worker);
 	INIT_WORK(&cs40l26->set_gain_work, cs40l26_set_gain_worker);
 
+	cs40l26->asp_workqueue = alloc_ordered_workqueue("asp_workqueue",
+			WQ_HIGHPRI);
+	if (!cs40l26->asp_workqueue) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	INIT_WORK(&cs40l26->asp_work, cs40l26_asp_worker);
+
 	ret = devm_regulator_bulk_get(dev, CS40L26_NUM_SUPPLIES,
 			cs40l26_supplies);
 	if (ret) {
@@ -3258,6 +3273,11 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 		cancel_work_sync(&cs40l26->vibe_stop_work);
 		cancel_work_sync(&cs40l26->set_gain_work);
 		destroy_workqueue(cs40l26->vibe_workqueue);
+	}
+
+	if (cs40l26->asp_workqueue) {
+		cancel_work_sync(&cs40l26->asp_work);
+		destroy_workqueue(cs40l26->asp_workqueue);
 	}
 
 	if (vp_consumer)
