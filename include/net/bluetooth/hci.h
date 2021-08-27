@@ -246,6 +246,11 @@ enum {
 	 * HCI after resume.
 	 */
 	HCI_QUIRK_NO_SUSPEND_NOTIFIER,
+
+	/* CHROMIUM-only: This quirk prevents RTL8822 to perform remote wake
+	 * on system suspend to save power. This shouldn't be upstreamed.
+	 */
+	HCI_QUIRK_DISABLE_REMOTE_WAKE,
 };
 
 /* HCI device flags */
