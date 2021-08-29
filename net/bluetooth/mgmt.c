@@ -3786,14 +3786,6 @@ static const u8 debug_uuid[16] = {
 };
 #endif
 
-#ifdef CONFIG_BT_FEATURE_QUALITY_REPORT
-/* 330859bc-7506-492d-9370-9a6f0614037f */
-static const u8 quality_report_uuid[16] = {
-	0x7f, 0x03, 0x14, 0x06, 0x6f, 0x9a, 0x70, 0x93,
-	0x2d, 0x49, 0x06, 0x75, 0xbc, 0x59, 0x08, 0x33,
-};
-#endif
-
 /* 671b10b5-42c0-4696-9227-eb28d1b049d6 */
 static const u8 simult_central_periph_uuid[16] = {
 	0xd6, 0x49, 0xb0, 0xd1, 0x28, 0xeb, 0x27, 0x92,
@@ -3809,7 +3801,7 @@ static const u8 rpa_resolution_uuid[16] = {
 static int read_exp_features_info(struct sock *sk, struct hci_dev *hdev,
 				  void *data, u16 data_len)
 {
-	char buf[82];   /* Enough space for 4 features: 2 + 20 * 4 */
+	char buf[62];	/* Enough space for 3 features */
 	struct mgmt_rp_read_exp_features_info *rp = (void *)buf;
 	u16 idx = 0;
 	u32 flags;
@@ -3853,26 +3845,6 @@ static int read_exp_features_info(struct sock *sk, struct hci_dev *hdev,
 		idx++;
 	}
 
-#ifdef CONFIG_BT_FEATURE_QUALITY_REPORT
-	if (hdev) {
-		if (hdev->set_quality_report) {
-			/* BIT(0): indicating if set_quality_report is
-			 * supported by controller.
-			 */
-			flags = BIT(0);
-
-			/* BIT(1): indicating if the feature is enabled. */
-			if (hci_dev_test_flag(hdev, HCI_QUALITY_REPORT))
-				flags |= BIT(1);
-		} else {
-			flags = 0;
-		}
-		memcpy(rp->features[idx].uuid, quality_report_uuid, 16);
-		rp->features[idx].flags = cpu_to_le32(flags);
-		idx++;
-	}
-#endif
-
 	rp->feature_count = cpu_to_le16(idx);
 
 	/* After reading the experimental features information, enable
@@ -3907,23 +3879,6 @@ static int exp_debug_feature_changed(bool enabled, struct sock *skip)
 
 	memset(&ev, 0, sizeof(ev));
 	memcpy(ev.uuid, debug_uuid, 16);
-	ev.flags = cpu_to_le32(enabled ? BIT(0) : 0);
-
-	return mgmt_limited_event(MGMT_EV_EXP_FEATURE_CHANGED, NULL,
-				  &ev, sizeof(ev),
-				  HCI_MGMT_EXP_FEATURE_EVENTS, skip);
-}
-#endif
-
-#ifdef CONFIG_BT_FEATURE_QUALITY_REPORT
-static int exp_quality_report_feature_changed(bool enabled, struct sock *skip)
-{
-	struct mgmt_ev_exp_feature_changed ev;
-
-	BT_INFO("enabled %d", enabled);
-
-	memset(&ev, 0, sizeof(ev));
-	memcpy(ev.uuid, quality_report_uuid, 16);
 	ev.flags = cpu_to_le32(enabled ? BIT(0) : 0);
 
 	return mgmt_limited_event(MGMT_EV_EXP_FEATURE_CHANGED, NULL,
@@ -4077,77 +4032,6 @@ static int set_exp_feature(struct sock *sk, struct hci_dev *hdev,
 
 		return err;
 	}
-
-#ifdef CONFIG_BT_FEATURE_QUALITY_REPORT
-	if (!memcmp(cp->uuid, quality_report_uuid, 16)) {
-		bool val, changed;
-		int err;
-
-		/* Command requires to use a valid controller index */
-		if (!hdev)
-			return mgmt_cmd_status(sk, MGMT_INDEX_NONE,
-					       MGMT_OP_SET_EXP_FEATURE,
-					       MGMT_STATUS_INVALID_INDEX);
-
-		/* Parameters are limited to a single octet */
-		if (data_len != MGMT_SET_EXP_FEATURE_SIZE + 1)
-			return mgmt_cmd_status(sk, hdev->id,
-					       MGMT_OP_SET_EXP_FEATURE,
-					       MGMT_STATUS_INVALID_PARAMS);
-
-		/* Only boolean on/off is supported */
-		if (cp->param[0] != 0x00 && cp->param[0] != 0x01)
-			return mgmt_cmd_status(sk, hdev->id,
-					       MGMT_OP_SET_EXP_FEATURE,
-					       MGMT_STATUS_INVALID_PARAMS);
-
-		hci_req_sync_lock(hdev);
-
-		val = !!cp->param[0];
-		changed = (val != hci_dev_test_flag(hdev, HCI_QUALITY_REPORT));
-
-		if (!hdev->set_quality_report) {
-			BT_INFO("quality report not supported");
-			err = mgmt_cmd_status(sk, hdev->id,
-					      MGMT_OP_SET_EXP_FEATURE,
-					      MGMT_STATUS_NOT_SUPPORTED);
-			goto unlock_quality_report;
-		}
-
-		if (changed) {
-			err = hdev->set_quality_report(hdev, val);
-			if (err) {
-				BT_ERR("set_quality_report value %d err %d",
-				       val, err);
-				err = mgmt_cmd_status(sk, hdev->id,
-						      MGMT_OP_SET_EXP_FEATURE,
-						      MGMT_STATUS_FAILED);
-				goto unlock_quality_report;
-			}
-			if (val)
-				hci_dev_set_flag(hdev, HCI_QUALITY_REPORT);
-			else
-				hci_dev_clear_flag(hdev, HCI_QUALITY_REPORT);
-		}
-
-		BT_INFO("quality report enable %d changed %d",
-			val, changed);
-
-		memcpy(rp.uuid, quality_report_uuid, 16);
-		rp.flags = cpu_to_le32(val ? BIT(0) : 0);
-		hci_sock_set_flag(sk, HCI_MGMT_EXP_FEATURE_EVENTS);
-		err = mgmt_cmd_complete(sk, hdev->id,
-					MGMT_OP_SET_EXP_FEATURE, 0,
-					&rp, sizeof(rp));
-
-		if (changed)
-			exp_quality_report_feature_changed(val, sk);
-
-unlock_quality_report:
-		hci_req_sync_unlock(hdev);
-		return err;
-	}
-#endif
 
 	return mgmt_cmd_status(sk, hdev ? hdev->id : MGMT_INDEX_NONE,
 			       MGMT_OP_SET_EXP_FEATURE,
