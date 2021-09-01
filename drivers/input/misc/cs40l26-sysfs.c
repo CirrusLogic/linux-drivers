@@ -308,6 +308,71 @@ err_pm:
 }
 static DEVICE_ATTR(num_waves, 0440, cs40l26_num_waves_show, NULL);
 
+/* boost_disable_delay is in units of 125us, e.g. 8 ->  1ms */
+static ssize_t cs40l26_boost_disable_delay_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 reg, boost_disable_delay;
+	int ret;
+
+	pm_runtime_get_sync(cs40l26->dev);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+	if (ret)
+		goto err_pm;
+
+	ret = regmap_read(cs40l26->regmap, reg, &boost_disable_delay);
+	if (ret)
+		goto err_pm;
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", boost_disable_delay);
+
+err_pm:
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	return ret;
+}
+
+static ssize_t cs40l26_boost_disable_delay_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 reg, boost_disable_delay;
+	int ret;
+
+	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
+
+	ret = kstrtou32(buf, 10, &boost_disable_delay);
+
+	if (ret ||
+		boost_disable_delay < CS40L26_BOOST_DISABLE_DELAY_MIN ||
+		boost_disable_delay > CS40L26_BOOST_DISABLE_DELAY_MAX)
+		return -EINVAL;
+
+	pm_runtime_get_sync(cs40l26->dev);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+	if (ret)
+		goto err_pm;
+
+	ret = regmap_write(cs40l26->regmap, reg, boost_disable_delay);
+
+err_pm:
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+	else
+		return count;
+}
+static DEVICE_ATTR(boost_disable_delay, 0660, cs40l26_boost_disable_delay_show,
+		cs40l26_boost_disable_delay_store);
+
 static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_num_waves.attr,
 	&dev_attr_die_temp.attr,
@@ -318,6 +383,7 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_fw_mode.attr,
 	&dev_attr_pm_timeout_ms.attr,
 	&dev_attr_vibe_state.attr,
+	&dev_attr_boost_disable_delay.attr,
 	NULL,
 };
 
