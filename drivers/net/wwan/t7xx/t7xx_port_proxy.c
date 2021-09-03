@@ -45,7 +45,7 @@ static ssize_t port_add_store(struct device *dev,
 	int i;
 
 	if (strlen(buf) >= BUFF_LEN) {
-		pr_err("Input string too large: %lu >= %d\n", strlen(buf), BUFF_LEN);
+		pr_err("Input string too large: %zu >= %d\n", strlen(buf), BUFF_LEN);
 		return 0;
 	}
 

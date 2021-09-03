@@ -158,11 +158,10 @@ static int cldma_gpd_rx_collect(struct md_cd_queue *queue, int budget, int block
 	struct cldma_rgpd *rgpd;
 	struct sk_buff *new_skb;
 	struct sk_buff *skb;
-	int ret = 0, count = 0, rxbytes = 0;
+	int ret = 0, count = 0;
 	unsigned char hwo_polling_count = 0;
 	unsigned long long gpd_addr_h_inreg;
 	unsigned long long gpd_addr_l_inreg;
-	unsigned long long skb_bytes;
 	unsigned int L2RISAR0;
 	unsigned long flags;
 	int over_budget = 0;
@@ -217,7 +216,6 @@ again:
 		skb->len = 0;
 		skb_reset_tail_pointer(skb);
 		skb_put(skb, rgpd->data_buff_len);
-		skb_bytes = skb->len;
 		/* check wakeup source */
 		if (atomic_cmpxchg(&md_ctrl->wakeup_src, 1, 0) == 1)
 			dev_notice(md_ctrl->dev, "CLDMA_MD wakeup source:%d\n", queue->index);
@@ -241,8 +239,6 @@ again:
 		cldma_rgpd_set_data_ptr(rgpd, 0);
 		/* step forward */
 		queue->tr_done = cldma_ring_step_forward(queue->tr_ring, req);
-		/* update log */
-		rxbytes += skb_bytes;
 
 		req = queue->rx_refill;
 		rgpd = (struct cldma_rgpd *)req->gpd;
@@ -444,8 +440,8 @@ static void cldma_tx_queue_empty_handler(struct md_cd_queue *queue)
 				(dma_addr_t)ul_curr_addr_l;
 		if (req->gpd_addr != ul_curr_addr)
 			dev_err(md_ctrl->dev,
-				"CLDMA%d Q%d TGPD addr, SW:%llX, HW:%llX\n",
-				md_ctrl->hif_id, queue->index, req->gpd_addr, ul_curr_addr);
+				"CLDMA%d Q%d TGPD addr, SW:%pad, HW:%llX\n",
+				md_ctrl->hif_id, queue->index, &req->gpd_addr, ul_curr_addr);
 		else
 			/* retry */
 			cldma_hw_resume_queue(&md_ctrl->hw_info, queue->index, false);
