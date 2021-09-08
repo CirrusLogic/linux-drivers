@@ -1672,7 +1672,6 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 {
 	struct cs40l26_private *cs40l26 = container_of(work,
 			struct cs40l26_private, vibe_stop_work);
-	unsigned int reg;
 	int ret;
 
 	dev_dbg(cs40l26->dev, "%s\n", __func__);
@@ -1680,30 +1679,14 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	pm_runtime_get_sync(cs40l26->dev);
 	mutex_lock(&cs40l26->lock);
 
-	if (cs40l26->effect->u.periodic.waveform == FF_SINE) {
-		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+	if (cs40l26->vibe_state != CS40L26_VIBE_STATE_HAPTIC)
+		goto mutex_exit;
+
+	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				CS40L26_STOP_PLAYBACK, CS40L26_DSP_MBOX_RESET);
-		if (ret) {
-			dev_err(cs40l26->dev, "Failed to stop playback\n");
-			goto mutex_exit;
-		}
-	} else {
-		ret = cl_dsp_get_reg(cs40l26->dsp, "END_PLAYBACK",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
-		if (ret)
-			goto mutex_exit;
-
-		ret = regmap_write(cs40l26->regmap, reg, 1);
-		if (ret) {
-			dev_err(cs40l26->dev, "Failed to end VIBE playback\n");
-			goto mutex_exit;
-		}
-
-		ret = regmap_write(cs40l26->regmap, reg, 0);
-		if (ret) {
-			dev_err(cs40l26->dev, "Failed to reset END_PLAYBACK\n");
-			goto mutex_exit;
-		}
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to stop playback\n");
+		goto mutex_exit;
 	}
 
 	cs40l26_vibe_state_set(cs40l26, CS40L26_VIBE_STATE_STOPPED);
