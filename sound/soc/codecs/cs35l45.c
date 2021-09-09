@@ -3035,6 +3035,8 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 		goto err;
 	}
 
+	usleep_range(2000, 2100);
+
 	ret = cs35l45_dsp_init(cs35l45);
 	if (ret < 0) {
 		dev_err(dev, "dsp_init failed: %d\n", ret);
