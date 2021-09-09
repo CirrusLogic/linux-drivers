@@ -51,8 +51,6 @@ static int cs35l45_i2c_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	usleep_range(2000, 2100);
-
 	ret = cs35l45_initialize(cs35l45);
 	if (ret < 0) {
 		dev_err(dev, "Failed device initialization: %d\n", ret);
