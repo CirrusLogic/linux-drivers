@@ -245,15 +245,17 @@ properties:
     maximum: 4800000
     default: 4500000
 
-  cirrus,svc-leX:
+  svc-le:
     description:
-      LE range to load specific tuning with 'X' being equal to 1/2, and
-      corresponding to a SVC binary file titled cs40l26-svcX.bin, where 'X'
-      again is 1 or 2 matching the property placed in the devicetree. The values
-      provided for the range are given in Q0.23 format and are in Henries. If
-      the LE value found from the attached LRA does not fit in a provided range,
-      or if these properties are omitted, the default tuning "cs40l26-svc.bin"
-      will be loaded. See examples section for how to populate this control.
+      Range of LE values, defined by "cirrus,min" and "cirrus,max" in Henries
+      using Q0.23 number format, that determines which SVC and Wavetable tuning
+      files should be loaded by the driver. The files must be named
+      "cs40l26-svcX.bin" for SVC tunings and "cs40l26-wtX.bin" for wavetables,
+      where 'X' corresponds to the value given to "cirrus,index".
+      If the LE value found for the attached LRA does not match a provided
+      range, or if these properties are omitted/malformed, the default tunings
+      ("cs40l26-svc.bin" and "cs40l26.bin") will be loaded.
+      See examples section for how to use these controls.
 
 required:
   - compatible
@@ -278,7 +280,20 @@ examples:
       cirrus,vpbr-enable;
       cirrus,vpbr-thld-mv = <2592>;
 
-      cirrus,svc-le1 = <6000000 7000000>;
-      cirrus,svc-le2 = <16000000 1700000>;
+      svc-le1 {
+        cirrus,min = <500>; //59.6 uH
+        cirrus,max = <750>; //89.4 uH
+        cirrus,index = <1>;
+      };
+      svc-le2 {
+        cirrus,min = <1000>; //119.2 uH
+        cirrus,max = <1500>; //178.8 uH
+        cirrus,index = <2>;
+      };
+      svc-le3 {
+        cirrus,min = <2000>; //238.4 uH
+        cirrus,max = <2400>; //286.1 uH
+        cirrus,index = <3>;
+      };
     };
 };
