@@ -2330,7 +2330,7 @@ static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
 
 static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26, u32 id)
 {
-	int ret = 0;
+	int ret = 0, i;
 
 	if (cs40l26->dsp) {
 		ret = cl_dsp_destroy(cs40l26->dsp);
@@ -2360,10 +2360,22 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26, u32 id)
 		if (id == CS40L26_FW_CALIB_ID)
 			cs40l26->fw.min_rev = CS40L26_FW_CALIB_MIN_REV;
 
-		cs40l26->fw.num_coeff_files = 3;
-		cs40l26->fw.coeff_files[0] = CS40L26_WT_FILE_NAME;
-		cs40l26->fw.coeff_files[1] = CS40L26_A2H_TUNING_FILE_NAME;
-		cs40l26->fw.coeff_files[2] = CS40L26_SVC_TUNING_FILE_NAME;
+		cs40l26->fw.num_coeff_files = CS40L26_TUNING_FILES_MAX;
+		cs40l26->fw.coeff_files = devm_kcalloc(cs40l26->dev,
+			CS40L26_TUNING_FILES_MAX, sizeof(char *), GFP_KERNEL);
+
+		for (i = 0; i < CS40L26_TUNING_FILES_MAX; i++)
+			cs40l26->fw.coeff_files[i] = devm_kzalloc(cs40l26->dev,
+				CS40L26_TUNING_FILE_NAME_MAX_LEN, GFP_KERNEL);
+
+		strncpy(cs40l26->fw.coeff_files[0], CS40L26_WT_FILE_NAME,
+				CS40L26_WT_FILE_NAME_LEN);
+		strncpy(cs40l26->fw.coeff_files[1],
+				CS40L26_A2H_TUNING_FILE_NAME,
+				CS40L26_A2H_TUNING_FILE_NAME_LEN);
+		strncpy(cs40l26->fw.coeff_files[2],
+				CS40L26_SVC_TUNING_FILE_NAME,
+				CS40L26_SVC_TUNING_FILE_NAME_LEN);
 
 		ret = cl_dsp_wavetable_create(cs40l26->dsp,
 				CS40L26_VIBEGEN_ALGO_ID, CS40L26_WT_NAME_XM,
@@ -2949,10 +2961,13 @@ pm_err:
 	return ret;
 }
 
-static int cs40l26_svc_le_select(struct cs40l26_private *cs40l26)
+static int cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26)
 {
-	unsigned int reg, le_est = 0;
-	int ret, i;
+	unsigned int reg, le = 0;
+	char svc_bin_file[CS40L26_TUNING_FILE_NAME_MAX_LEN];
+	char wt_bin_file[CS40L26_TUNING_FILE_NAME_MAX_LEN];
+	char n_str[2];
+	int ret, i, j;
 
 	pm_runtime_get_sync(cs40l26->dev);
 
@@ -2966,35 +2981,56 @@ static int cs40l26_svc_le_select(struct cs40l26_private *cs40l26)
 	if (ret)
 		goto pm_err;
 
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < CS40L26_SVC_LE_MAX_ATTEMPTS; i++) {
 		usleep_range(5000, 5100);
-		ret = regmap_read(cs40l26->regmap, reg, &le_est);
+		ret = regmap_read(cs40l26->regmap, reg, &le);
 		if (ret) {
 			dev_err(cs40l26->dev, "Failed to get LE_EST_STATUS\n");
 			goto pm_err;
 		}
 
-		if (le_est >= cs40l26->svc_le->le1_min &&
-				le_est <= cs40l26->svc_le->le1_max) {
-			cs40l26->fw.coeff_files[2] =
-					CS40L26_SVC_TUNING_FILE_NAME1;
-			break;
-		} else if (le_est >= cs40l26->svc_le->le2_min &&
-				le_est <= cs40l26->svc_le->le2_max) {
-			cs40l26->fw.coeff_files[2] =
-					CS40L26_SVC_TUNING_FILE_NAME2;
-			break;
+		for (j = 0; j < cs40l26->num_svc_le_vals; j++) {
+			if (le >= cs40l26->svc_le_vals[j]->min &&
+					le <= cs40l26->svc_le_vals[j]->max) {
+				strncpy(svc_bin_file,
+					CS40L26_SVC_TUNING_FILE_PREFIX,
+					CS40L26_SVC_TUNING_FILE_PREFIX_LEN);
+
+				strncpy(wt_bin_file, CS40L26_WT_FILE_PREFIX,
+					CS40L26_WT_FILE_PREFIX_LEN);
+
+				snprintf(n_str, 2, "%d",
+						cs40l26->svc_le_vals[j]->n);
+
+				strncat(svc_bin_file, n_str, 2);
+				strncat(wt_bin_file, n_str, 2);
+
+				break;
+			}
 		}
+		if (j < cs40l26->num_svc_le_vals)
+			break;
 	}
 
 	if (i == 2) {
-		dev_warn(cs40l26->dev, "Falling back to default SVC tuning\n");
-		cs40l26->fw.coeff_files[2] = CS40L26_SVC_TUNING_FILE_NAME;
+		dev_warn(cs40l26->dev, "Using default tunings\n");
+	} else {
+		strncat(svc_bin_file, CS40L26_TUNING_FILE_SUFFIX,
+				CS40L26_TUNING_FILE_SUFFIX_LEN);
+		strncat(wt_bin_file, CS40L26_TUNING_FILE_SUFFIX,
+				CS40L26_TUNING_FILE_SUFFIX_LEN);
+
+		strncpy(cs40l26->fw.coeff_files[0], wt_bin_file,
+				CS40L26_WT_FILE_CONCAT_NAME_LEN);
+		strncpy(cs40l26->fw.coeff_files[2], svc_bin_file,
+				CS40L26_SVC_TUNING_FILE_NAME_LEN);
 	}
 
 pm_err:
 	pm_runtime_mark_last_busy(cs40l26->dev);
 	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	kfree(cs40l26->svc_le_vals);
 
 	return ret;
 }
@@ -3090,11 +3126,79 @@ static int cs40l26_update_reg_defaults(struct cs40l26_private *cs40l26)
 	return ret;
 }
 
+static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
+{
+	struct device *dev = cs40l26->dev;
+	int i, init_count, node_count = 0;
+	struct fwnode_handle *child;
+	unsigned int min, max, index;
+	const char *node_name;
+
+	init_count = device_get_child_node_count(dev);
+	if (!init_count)
+		return 0;
+
+	cs40l26->svc_le_vals = kcalloc(init_count,
+			sizeof(struct cs40l26_svc_le *), GFP_KERNEL);
+
+	device_for_each_child_node(dev, child) {
+		node_name = fwnode_get_name(child);
+
+		if (strncmp(node_name, CS40L26_SVC_DT_PREFIX, 6))
+			continue;
+
+		if (fwnode_property_read_u32(child, "cirrus,min", &min)) {
+			dev_err(dev, "No minimum value for SVC LE node\n");
+			continue;
+		}
+
+		if (fwnode_property_read_u32(child, "cirrus,max", &max)) {
+			dev_err(dev, "No maximum value for SVC LE node\n");
+			continue;
+		}
+
+		if (max <= min) {
+			dev_err(dev, "Max <= Min, SVC LE node malformed\n");
+			continue;
+		}
+
+		if (fwnode_property_read_u32(child, "cirrus,index", &index)) {
+			dev_err(dev, "No index specified for SVC LE node\n");
+			continue;
+		}
+
+		for (i = 0; i < node_count; i++) {
+			if (index == cs40l26->svc_le_vals[i]->n)
+				break;
+		}
+
+		if (i < node_count) {
+			dev_err(dev, "SVC LE nodes must have unique index\n");
+			return -EINVAL;
+		}
+
+		cs40l26->svc_le_vals[node_count] =
+			kzalloc(sizeof(struct cs40l26_svc_le), GFP_KERNEL);
+
+		cs40l26->svc_le_vals[node_count]->min = min;
+		cs40l26->svc_le_vals[node_count]->max = max;
+		cs40l26->svc_le_vals[node_count]->n = index;
+		node_count++;
+	}
+
+	if (node_count != init_count)
+		dev_warn(dev, "%d platform nodes unused for SVC LE\n",
+				init_count - node_count);
+
+	return node_count;
+}
+
 static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
 	struct device_node *np = dev->of_node;
-	u32 val, tmp;
+	int ret;
+	u32 val;
 
 	if (!np) {
 		dev_err(dev, "No platform data found\n");
@@ -3172,29 +3276,11 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 	else
 		cs40l26->pdata.bst_ipk = 0;
 
-	if (of_property_count_u32_elems(np, "cirrus,svc-le1") == 2 &&
-		of_property_count_u32_elems(np, "cirrus,svc-le2") == 2) {
-		of_property_read_u32_index(np, "cirrus,svc-le1", 0, &tmp);
-		of_property_read_u32_index(np, "cirrus,svc-le1", 1, &val);
-
-		cs40l26->svc_le = devm_kzalloc(dev,
-				sizeof(struct cs40l26_svc_le), GFP_KERNEL);
-		if (!cs40l26->svc_le)
-			return -ENOMEM;
-
-		cs40l26->svc_le->le1_min = min(tmp, val);
-		cs40l26->svc_le->le1_max = max(tmp, val);
-
-		of_property_read_u32_index(np, "cirrus,svc-le2", 0, &tmp);
-		of_property_read_u32_index(np, "cirrus,svc-le2", 1, &val);
-
-		cs40l26->svc_le->le2_min = min(tmp, val);
-		cs40l26->svc_le->le2_max = max(tmp, val);
-
-		cs40l26->pdata.svc_le_is_valid = true;
-	} else {
-		cs40l26->pdata.svc_le_is_valid = false;
-	}
+	ret = cs40l26_handle_svc_le_nodes(cs40l26);
+	if (ret < 0)
+		cs40l26->num_svc_le_vals = 0;
+	else
+		cs40l26->num_svc_le_vals = ret;
 
 	return 0;
 }
@@ -3313,14 +3399,14 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 	if (ret)
 		goto irq_err;
 
-	if (cs40l26->pdata.svc_le_is_valid) {
+	if (cs40l26->num_svc_le_vals) {
 		ret = cs40l26_dsp_config(cs40l26);
 		if (ret)
 			goto irq_err;
 
 		enable_irq(cs40l26->irq);
 
-		ret = cs40l26_svc_le_select(cs40l26);
+		ret = cs40l26_tuning_select_from_svc_le(cs40l26);
 		if (ret)
 			goto err;
 
