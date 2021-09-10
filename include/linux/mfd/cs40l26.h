@@ -784,11 +784,25 @@
 #define CS40L26_FW_FILE_NAME		"cs40l26.wmfw"
 #define CS40L26_FW_CALIB_NAME		"cs40l26-calib.wmfw"
 
-#define CS40L26_WT_FILE_NAME		"cs40l26.bin"
-#define CS40L26_SVC_TUNING_FILE_NAME	"cs40l26-svc.bin"
-#define CS40L26_SVC_TUNING_FILE_NAME1	"cs40l26-svc1.bin"
-#define CS40L26_SVC_TUNING_FILE_NAME2	"cs40l26-svc2.bin"
-#define CS40L26_A2H_TUNING_FILE_NAME	"cs40l26-a2h.bin"
+#define CS40L26_TUNING_FILES_MAX	3
+
+#define CS40L26_WT_FILE_NAME			"cs40l26.bin"
+#define CS40L26_WT_FILE_NAME_LEN		12
+#define CS40L26_WT_FILE_PREFIX			"cs40l26-wt"
+#define CS40L26_WT_FILE_PREFIX_LEN		11
+#define CS40L26_WT_FILE_CONCAT_NAME_LEN		16
+#define CS40L26_SVC_TUNING_FILE_PREFIX		"cs40l26-svc"
+#define CS40L26_SVC_TUNING_FILE_PREFIX_LEN	12
+#define CS40L26_SVC_TUNING_FILE_NAME		"cs40l26-svc.bin"
+#define CS40L26_SVC_TUNING_FILE_NAME_LEN	16
+#define CS40L26_A2H_TUNING_FILE_NAME		"cs40l26-a2h.bin"
+#define CS40L26_A2H_TUNING_FILE_NAME_LEN	16
+#define CS40L26_TUNING_FILE_NAME_MAX_LEN	20
+#define CS40L26_TUNING_FILE_SUFFIX		".bin"
+#define CS40L26_TUNING_FILE_SUFFIX_LEN		4
+
+#define CS40L26_SVC_LE_MAX_ATTEMPTS	2
+#define CS40L26_SVC_DT_PREFIX		"svc-le"
 
 #define CS40L26_FW_ID			0x1800D4
 #define CS40L26_FW_ROM_MIN_REV		0x040000
@@ -1232,7 +1246,7 @@ struct cs40l26_fw {
 	unsigned int id;
 	unsigned int min_rev;
 	unsigned int num_coeff_files;
-	const char *coeff_files[3];
+	char **coeff_files;
 };
 
 struct cs40l26_owt_section {
@@ -1257,10 +1271,9 @@ struct cs40l26_pseq_op {
 };
 
 struct cs40l26_svc_le {
-	u32 le1_min;
-	u32 le1_max;
-	u32 le2_min;
-	u32 le2_max;
+	u32 min;
+	u32 max;
+	u32 n;
 };
 
 struct cs40l26_platform_data {
@@ -1280,7 +1293,6 @@ struct cs40l26_platform_data {
 	u32 vpbr_rel_rate;
 	bool bst_dcm_en;
 	u32 bst_ipk;
-	u32 svc_le_is_valid;
 };
 
 struct cs40l26_owt {
@@ -1330,7 +1342,8 @@ struct cs40l26_private {
 	int cal_requested;
 	u16 gain_pct;
 	u32 event_map_base;
-	struct cs40l26_svc_le *svc_le;
+	struct cs40l26_svc_le **svc_le_vals;
+	int num_svc_le_vals;
 	struct workqueue_struct *asp_workqueue;
 	struct work_struct asp_work;
 };
