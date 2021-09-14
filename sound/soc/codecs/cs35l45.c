@@ -2058,36 +2058,15 @@ static irqreturn_t cs35l45_global_err(int irq, void *data)
 
 	dev_err(cs35l45->dev, "Global error detected!");
 
-	regmap_read(cs35l45->regmap, CS35L45_CHIP_STATUS, &val);
-
-	dev_err(cs35l45->dev, "Chip status: 0x%08x\n", val);
-
 	queue_delayed_work(cs35l45->wq, &cs35l45->global_err_rls_work,
 			   msecs_to_jiffies(100));
 
-	if (val & CS35L45_UVLO_VDDLV_ERR_MASK) {
-		dev_err(cs35l45->dev, "LV threshold detector error condition detected\n");
-		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_18,
-				 CS35L45_UVLO_VDDLV_ERR_MASK);
-	}
-
 	regmap_read(cs35l45->regmap, CS35L45_IRQ1_EINT_1, &val);
-	if (val & CS35L45_BST_UVP_ERR_MASK) {
-		dev_err(cs35l45->dev, "Boost undervoltage error condition detected\n");
-		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_1,
-			     CS35L45_BST_UVP_ERR_MASK);
-	}
 
-	if (val & CS35L45_BST_STARTUP_ERR_MASK) {
-		dev_err(cs35l45->dev, "Boost startup time expired\n");
+	if (val & CS35L45_AMP_SHORT_ERR_MASK) {
+		dev_err(cs35l45->dev, "Amplifier short error condition detected\n");
 		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_1,
-			     CS35L45_BST_STARTUP_ERR_MASK);
-	}
-
-	if (val & CS35L45_TEMP_ERR_MASK) {
-		dev_err(cs35l45->dev, "Overtemperature error condition detected\n");
-		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_1,
-			     CS35L45_TEMP_ERR_MASK);
+					CS35L45_AMP_SHORT_ERR_MASK);
 	}
 
 	if (val & CS35L45_UVLO_VDDBATT_ERR_MASK) {
@@ -2096,6 +2075,39 @@ static irqreturn_t cs35l45_global_err(int irq, void *data)
 			     CS35L45_UVLO_VDDBATT_ERR_MASK);
 	}
 
+	if (val & CS35L45_BST_SHORT_ERR_MASK) {
+		dev_err(cs35l45->dev, "Boost inductor short error condition detected\n");
+		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_1,
+				CS35L45_BST_SHORT_ERR_MASK);
+	}
+
+	if (val & CS35L45_BST_UVP_ERR_MASK) {
+		dev_err(cs35l45->dev, "Boost undervoltage error condition detected\n");
+		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_1,
+			     CS35L45_BST_UVP_ERR_MASK);
+	}
+
+	if (val & CS35L45_TEMP_ERR_MASK) {
+		dev_err(cs35l45->dev, "Overtemperature error condition detected\n");
+		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_1,
+			     CS35L45_TEMP_ERR_MASK);
+	}
+
+	regmap_read(cs35l45->regmap, CS35L45_IRQ1_EINT_3, &val);
+
+	if (val & CS35L45_AMP_CAL_ERR_MASK) {
+		dev_err(cs35l45->dev, "Amplifier calibration error condition detected\n");
+		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_3,
+				CS35L45_AMP_CAL_ERR_MASK);
+	}
+
+	regmap_read(cs35l45->regmap, CS35L45_IRQ1_EINT_18, &val);
+
+	if (val & CS35L45_UVLO_VDDLV_ERR_MASK) {
+		dev_err(cs35l45->dev, "LV threshold detector error condition detected\n");
+		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_18,
+				 CS35L45_UVLO_VDDLV_ERR_MASK);
+	}
 	return IRQ_HANDLED;
 }
 
@@ -2108,6 +2120,7 @@ static const struct cs35l45_irq cs35l45_irqs[] = {
 };
 
 static const struct regmap_irq cs35l45_reg_irqs[] = {
+	CS35L45_REG_IRQ(IRQ1_EINT_1, GLOBAL_ERROR),
 	CS35L45_REG_IRQ(IRQ1_EINT_2, DSP_VIRT2_MBOX),
 	CS35L45_REG_IRQ(IRQ1_EINT_2, DSP_WDT_EXPIRE),
 	CS35L45_REG_IRQ(IRQ1_EINT_3, PLL_UNLOCK_FLAG_RISE),
