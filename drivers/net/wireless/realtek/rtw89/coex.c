@@ -1009,7 +1009,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 
 	if (rpt_type == BTC_RPT_TYPE_TDMA) {
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
-			    "[BTC], %s(): check %d %ld\n", __func__,
+			    "[BTC], %s(): check %d %zu\n", __func__,
 			    BTC_DCNT_TDMA_NONSYNC, sizeof(dm->tdma_now));
 
 		if (memcmp(&dm->tdma_now, &pfwinfo->rpt_fbtc_tdma.finfo,
@@ -1043,7 +1043,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 
 	if (rpt_type == BTC_RPT_TYPE_SLOT) {
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
-			    "[BTC], %s(): check %d %ld\n",
+			    "[BTC], %s(): check %d %zu\n",
 			    __func__, BTC_DCNT_SLOT_NONSYNC,
 			    sizeof(dm->slot_now));
 
