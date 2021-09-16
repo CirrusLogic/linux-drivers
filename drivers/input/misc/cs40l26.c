@@ -1591,20 +1591,12 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		owt = cs40l26_owt_find(cs40l26, cs40l26->effect->id);
 		if (owt == NULL)
 			return;
-
-		duration = CS40L26_SAMPS_TO_MS((owt->wlength &
-				CS40L26_WT_TYPE10_WAVELEN_MAX));
-	} else {
-		duration = cs40l26->effect->replay.length;
 	}
+
+	duration = cs40l26->effect->replay.length;
 
 	pm_runtime_get_sync(dev);
 	mutex_lock(&cs40l26->lock);
-
-	if (duration > 0) /* Effect duration is known */
-		hrtimer_start(&cs40l26->vibe_timer,
-			ktime_set(CS40L26_MS_TO_SECS(duration),
-			CS40L26_MS_TO_NS(duration % 1000)), HRTIMER_MODE_REL);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_INVERT",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
@@ -1628,6 +1620,13 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	ret = regmap_write(cs40l26->regmap, reg, invert);
 	if (ret)
 		goto err_mutex;
+
+	if (duration > 0) { /* Effect duration is known */
+		dev_dbg(dev, "starting timer with value: %d\n", duration);
+		hrtimer_start(&cs40l26->vibe_timer,
+			ktime_set(CS40L26_MS_TO_SECS(duration),
+			CS40L26_MS_TO_NS(duration % 1000)), HRTIMER_MODE_REL);
+	}
 
 	cs40l26_vibe_state_set(cs40l26, CS40L26_VIBE_STATE_HAPTIC);
 
@@ -1702,6 +1701,7 @@ static enum hrtimer_restart cs40l26_vibe_timer(struct hrtimer *timer)
 	struct cs40l26_private *cs40l26 =
 		container_of(timer, struct cs40l26_private, vibe_timer);
 
+	dev_dbg(cs40l26->dev, "timer ended, queuing stop work\n");
 	queue_work(cs40l26->vibe_workqueue, &cs40l26->vibe_stop_work);
 
 	return HRTIMER_NORESTART;
@@ -1741,6 +1741,7 @@ static int cs40l26_playback_effect(struct input_dev *dev,
 	if (val > 0) {
 		queue_work(cs40l26->vibe_workqueue, &cs40l26->vibe_start_work);
 	} else {
+		dev_dbg(cs40l26->dev, "cancel timer and queue stop work\n");
 		hrtimer_cancel(&cs40l26->vibe_timer);
 		queue_work(cs40l26->vibe_workqueue, &cs40l26->vibe_stop_work);
 	}
