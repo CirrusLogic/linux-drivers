@@ -688,7 +688,16 @@ static int mtk_dsi_poweron(struct mtk_dsi *dsi)
 	mtk_dsi_lane0_ulp_mode_leave(dsi);
 	mtk_dsi_clk_hs_mode(dsi, 0);
 
+	if (dsi->panel) {
+		if (drm_panel_prepare(dsi->panel)) {
+			DRM_ERROR("failed to prepare the panel\n");
+			goto err_disable_digital_clk;
+		}
+	}
+
 	return 0;
+err_disable_digital_clk:
+	clk_disable_unprepare(dsi->digital_clk);
 err_disable_engine_clk:
 	clk_disable_unprepare(dsi->engine_clk);
 err_phy_power_off:
@@ -717,7 +726,15 @@ static void mtk_dsi_poweroff(struct mtk_dsi *dsi)
 	 */
 	mtk_dsi_stop(dsi);
 
-	mtk_dsi_switch_to_cmd_mode(dsi, VM_DONE_INT_FLAG, 500);
+	if (!mtk_dsi_switch_to_cmd_mode(dsi, VM_DONE_INT_FLAG, 500)) {
+		if (dsi->panel) {
+			if (drm_panel_unprepare(dsi->panel)) {
+				DRM_ERROR("failed to unprepare the panel\n");
+				return;
+			}
+		}
+	}
+
 	mtk_dsi_reset_engine(dsi);
 	mtk_dsi_lane0_ulp_mode_enter(dsi);
 	mtk_dsi_clk_ulp_mode_enter(dsi);
@@ -751,13 +768,32 @@ static void mtk_output_dsi_enable(struct mtk_dsi *dsi)
 
 	mtk_dsi_start(dsi);
 
+	if (dsi->panel) {
+		if (drm_panel_enable(dsi->panel)) {
+			DRM_ERROR("failed to enable the panel\n");
+			goto err_dsi_power_off;
+		}
+	}
+
 	dsi->enabled = true;
+
+	return;
+err_dsi_power_off:
+	mtk_dsi_stop(dsi);
+	mtk_dsi_poweroff(dsi);
 }
 
 static void mtk_output_dsi_disable(struct mtk_dsi *dsi)
 {
 	if (!dsi->enabled)
 		return;
+
+	if (dsi->panel) {
+		if (drm_panel_disable(dsi->panel)) {
+			DRM_ERROR("failed to disable the panel\n");
+			return;
+		}
+	}
 
 	mtk_dsi_poweroff(dsi);
 
