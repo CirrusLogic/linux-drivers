@@ -59,18 +59,18 @@ static const DECLARE_TLV_DB_RANGE(dig_vol_tlv,
 		1, 913, TLV_DB_SCALE_ITEM(-10200, 25, 0));
 static DECLARE_TLV_DB_SCALE(amp_gain_tlv, 0, 1, 1);
 
-static const char * const cs35l43_tx_input_texts[] = {"Zero", "ASPRX1",
-							"ASPRX2", "VMON",
-							"IMON", "VPMON",
-							"VBSTMON",
-							"DSPTX1", "DSPTX2",
-							"DSPTX3", "DSPTX4",
-							"DSPTX5", "DSPTX6"};
+static const char * const cs35l43_tx_input_texts[] = {
+	"Zero", "ASPRX1", "ASPRX2", "VMON", "IMON", "VMON FS2", "IMON FS2",
+	"VPMON", "VBSTMON", "DSPTX1", "DSPTX2", "DSPTX3", "DSPTX4",
+	"DSPTX5", "DSPTX6"};
+
 static const unsigned int cs35l43_tx_input_values[] = {0x00,
 						CS35L43_INPUT_SRC_ASPRX1,
 						CS35L43_INPUT_SRC_ASPRX2,
 						CS35L43_INPUT_SRC_VMON,
 						CS35L43_INPUT_SRC_IMON,
+						CS35L43_INPUT_SRC_VMON_FS2,
+						CS35L43_INPUT_SRC_IMON_FS2,
 						CS35L43_INPUT_SRC_VPMON,
 						CS35L43_INPUT_SRC_VBSTMON,
 						CS35L43_INPUT_DSP_TX1,
@@ -143,11 +143,149 @@ static SOC_VALUE_ENUM_SINGLE_DECL(cs35l43_dacpcm_enum,
 static const struct snd_kcontrol_new dacpcm_mux =
 	SOC_DAPM_ENUM("PCM Source", cs35l43_dacpcm_enum);
 
+static SOC_VALUE_ENUM_SINGLE_DECL(cs35l43_dacpcm2_enum,
+				CS35L43_DACPCM2_INPUT,
+				0, CS35L43_INPUT_MASK,
+				cs35l43_tx_input_texts,
+				cs35l43_tx_input_values);
+
+static const struct snd_kcontrol_new dacpcm2_mux =
+	SOC_DAPM_ENUM("High Rate PCM Source", cs35l43_dacpcm2_enum);
+
+static const char * const cs35l43_ultrasonic_mode_texts[] = {
+	"Disabled", "In Band", "Out of Band"
+};
+static SOC_ENUM_SINGLE_DECL(cs35l43_ultrasonic_mode_enum, SND_SOC_NOPM, 0,
+				cs35l43_ultrasonic_mode_texts);
+
+static const struct snd_kcontrol_new ultra_mux =
+	SOC_DAPM_ENUM("Ultrasonic Mode", cs35l43_ultrasonic_mode_enum);
+
 static const char * const cs35l43_wd_mode_texts[] = {"Normal", "Mute"};
 static const unsigned int cs35l43_wd_mode_values[] = {0x0, 0x3};
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l43_dc_wd_mode_enum, CS35L43_ALIVE_DCIN_WD,
 			CS35L43_WD_MODE_SHIFT, 0x3,
 			cs35l43_wd_mode_texts, cs35l43_wd_mode_values);
+
+static int cs35l43_ultrasonic_mode_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component;
+	struct cs35l43_private *cs35l43;
+
+	component = snd_soc_kcontrol_component(kcontrol);
+	cs35l43 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = cs35l43->ultrasonic_mode;
+
+	return 0;
+}
+
+static int cs35l43_ultrasonic_mode_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component;
+	struct cs35l43_private *cs35l43;
+	unsigned int mon_rates, rx_rates, tx_rates, high_rate_enable;
+
+	component = snd_soc_kcontrol_component(kcontrol);
+	cs35l43 = snd_soc_component_get_drvdata(component);
+
+	cs35l43->ultrasonic_mode = ucontrol->value.integer.value[0];
+
+	switch (cs35l43->ultrasonic_mode) {
+	case CS35L43_ULTRASONIC_MODE_DISABLED:
+		mon_rates = CS35L43_BASE_RATE;
+		rx_rates = CS35L43_BASE_RATE;
+		tx_rates = CS35L43_BASE_RATE;
+		high_rate_enable = 0;
+		break;
+	case CS35L43_ULTRASONIC_MODE_INBAND:
+		mon_rates = CS35L43_BASE_RATE;
+		rx_rates = CS35L43_HIGH_RATE;
+		tx_rates = CS35L43_HIGH_RATE;
+		high_rate_enable = 1;
+
+		break;
+	case CS35L43_ULTRASONIC_MODE_OUT_OF_BAND:
+		mon_rates = CS35L43_BASE_RATE;
+		rx_rates = CS35L43_HIGH_RATE;
+		tx_rates = CS35L43_HIGH_RATE;
+		high_rate_enable = 1;
+		break;
+	default:
+		break;
+	}
+
+	regmap_update_bits(cs35l43->regmap,
+			CS35L43_DSP1_SAMPLE_RATE_RX1,
+			CS35L43_DSP_RX1_RATE_MASK,
+			rx_rates << CS35L43_DSP_RX1_RATE_SHIFT);
+	regmap_update_bits(cs35l43->regmap,
+			CS35L43_DSP1_SAMPLE_RATE_RX1,
+			CS35L43_DSP_RX2_RATE_MASK,
+			rx_rates << CS35L43_DSP_RX2_RATE_SHIFT);
+	regmap_update_bits(cs35l43->regmap,
+			CS35L43_DSP1_SAMPLE_RATE_RX1,
+			CS35L43_DSP_RX3_RATE_MASK,
+			rx_rates << CS35L43_DSP_RX3_RATE_SHIFT);
+	regmap_update_bits(cs35l43->regmap,
+			CS35L43_DSP1_SAMPLE_RATE_RX1,
+			CS35L43_DSP_RX4_RATE_MASK,
+			mon_rates << CS35L43_DSP_RX4_RATE_SHIFT);
+	regmap_update_bits(cs35l43->regmap,
+			CS35L43_DSP1_SAMPLE_RATE_RX2,
+			CS35L43_DSP_RX5_RATE_MASK,
+			mon_rates << CS35L43_DSP_RX5_RATE_SHIFT);
+	regmap_update_bits(cs35l43->regmap,
+			CS35L43_DSP1_SAMPLE_RATE_RX2,
+			CS35L43_DSP_RX6_RATE_MASK,
+			mon_rates << CS35L43_DSP_RX6_RATE_SHIFT);
+
+	regmap_update_bits(cs35l43->regmap,
+			CS35L43_DSP1_SAMPLE_RATE_TX1,
+			CS35L43_DSP_TX1_RATE_MASK,
+			tx_rates << CS35L43_DSP_TX1_RATE_SHIFT);
+	regmap_update_bits(cs35l43->regmap,
+			CS35L43_DSP1_SAMPLE_RATE_TX1,
+			CS35L43_DSP_TX2_RATE_MASK,
+			tx_rates << CS35L43_DSP_TX2_RATE_SHIFT);
+	regmap_update_bits(cs35l43->regmap,
+			CS35L43_DSP1_SAMPLE_RATE_TX1,
+			CS35L43_DSP_TX3_RATE_MASK,
+			tx_rates << CS35L43_DSP_TX3_RATE_SHIFT);
+	regmap_update_bits(cs35l43->regmap,
+			CS35L43_DSP1_SAMPLE_RATE_TX1,
+			CS35L43_DSP_TX4_RATE_MASK,
+			tx_rates << CS35L43_DSP_TX4_RATE_SHIFT);
+	regmap_update_bits(cs35l43->regmap,
+			CS35L43_DSP1_SAMPLE_RATE_TX2,
+			CS35L43_DSP_TX5_RATE_MASK,
+			CS35L43_BASE_RATE << CS35L43_DSP_TX5_RATE_SHIFT);
+	regmap_update_bits(cs35l43->regmap,
+			CS35L43_DSP1_SAMPLE_RATE_TX2,
+			CS35L43_DSP_TX6_RATE_MASK,
+			tx_rates << CS35L43_DSP_TX6_RATE_SHIFT);
+
+	if (high_rate_enable) {
+		regmap_update_bits(cs35l43->regmap, CS35L43_DAC_MSM_CONFIG,
+				CS35L43_AMP_PCM_FSX2_EN_MASK,
+				CS35L43_AMP_PCM_FSX2_EN_MASK);
+		regmap_update_bits(cs35l43->regmap, CS35L43_MONITOR_FILT,
+				CS35L43_VIMON_DUAL_RATE_MASK,
+				CS35L43_VIMON_DUAL_RATE_MASK);
+	} else {
+		regmap_update_bits(cs35l43->regmap, CS35L43_DAC_MSM_CONFIG,
+				CS35L43_AMP_PCM_FSX2_EN_MASK, 0);
+		regmap_update_bits(cs35l43->regmap, CS35L43_MONITOR_FILT,
+				CS35L43_VIMON_DUAL_RATE_MASK, 0);
+	}
+
+	regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
+			CS35L43_MBOX_CMD_AUDIO_REINIT);
+
+	return 0;
+}
 
 static const struct snd_kcontrol_new cs35l43_aud_controls[] = {
 	SOC_SINGLE("DC Watchdog Enable", CS35L43_ALIVE_DCIN_WD,
@@ -163,6 +301,8 @@ static const struct snd_kcontrol_new cs35l43_aud_controls[] = {
 	SOC_SINGLE_TLV("Amp Gain", CS35L43_AMP_GAIN,
 			CS35L43_AMP_GAIN_PCM_SHIFT, 20, 0,
 			amp_gain_tlv),
+	SOC_ENUM_EXT("Ultrasonic Mode", cs35l43_ultrasonic_mode_enum,
+			cs35l43_ultrasonic_mode_get, cs35l43_ultrasonic_mode_put),
 	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
 	WM_ADSP_FW_CONTROL("DSP1", 0),
 };
@@ -792,6 +932,8 @@ static const struct snd_soc_dapm_widget cs35l43_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("DSP RX1 Source", SND_SOC_NOPM, 0, 0, &dsp_rx1_mux),
 	SND_SOC_DAPM_MUX("DSP RX2 Source", SND_SOC_NOPM, 0, 0, &dsp_rx2_mux),
 	SND_SOC_DAPM_MUX("PCM Source", SND_SOC_NOPM, 0, 0, &dacpcm_mux),
+	SND_SOC_DAPM_MUX("High Rate PCM Source", SND_SOC_NOPM, 0, 0, &dacpcm2_mux),
+	SND_SOC_DAPM_MUX("Ultrasonic Mode", SND_SOC_NOPM, 0, 0, &ultra_mux),
 
 	SND_SOC_DAPM_ADC("VMON ADC", NULL, CS35L43_BLOCK_ENABLES,
 					CS35L43_VMON_EN_SHIFT, 0),
@@ -841,6 +983,17 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 	{"PCM Source", "DSPTX4", "DSP1"},
 	{"PCM Source", "DSPTX5", "DSP1"},
 	{"PCM Source", "DSPTX6", "DSP1"},
+	{"High Rate PCM Source", "ASPRX1", "ASPRX1"},
+	{"High Rate PCM Source", "ASPRX1", "ASPRX1"},
+	{"High Rate PCM Source", "DSPTX1", "DSP1"},
+	{"High Rate PCM Source", "DSPTX2", "DSP1"},
+	{"High Rate PCM Source", "DSPTX3", "DSP1"},
+	{"High Rate PCM Source", "DSPTX4", "DSP1"},
+	{"High Rate PCM Source", "DSPTX5", "DSP1"},
+	{"High Rate PCM Source", "DSPTX6", "DSP1"},
+	{"Ultrasonic Mode", "In Band", "High Rate PCM Source"},
+	{"Ultrasonic Mode", "Out of Band", "High Rate PCM Source"},
+	{"Main AMP", NULL, "Ultrasonic Mode"},
 	{"Main AMP", NULL, "PCM Source"},
 	{"SPK", NULL, "Main AMP"},
 	{"SPK", NULL, "Hibernate"},
@@ -1127,9 +1280,14 @@ static int cs35l43_pcm_hw_params(struct snd_pcm_substream *substream,
 			break;
 	}
 
-	if (i < ARRAY_SIZE(cs35l43_fs_rates))
+	if (i < ARRAY_SIZE(cs35l43_fs_rates) &&
+			cs35l43->ultrasonic_mode == CS35L43_ULTRASONIC_MODE_DISABLED)
 		regmap_update_bits(cs35l43->regmap, CS35L43_GLOBAL_SAMPLE_RATE,
 			CS35L43_GLOBAL_FS_MASK, cs35l43_fs_rates[i].fs_cfg);
+	else if (cs35l43->ultrasonic_mode != CS35L43_ULTRASONIC_MODE_DISABLED)
+		/* Assume 48k base rate */
+		regmap_update_bits(cs35l43->regmap, CS35L43_GLOBAL_SAMPLE_RATE,
+			CS35L43_GLOBAL_FS_MASK, 0x03);
 	else {
 		dev_err(cs35l43->dev, "%s: Unsupported rate\n", __func__);
 		return -EINVAL;

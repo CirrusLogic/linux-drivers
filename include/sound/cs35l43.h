@@ -68,6 +68,12 @@ struct cs35l43_write_seq {
 	unsigned int length;
 };
 
+enum cs35l43_hibernate_mode {
+	CS35L43_ULTRASONIC_MODE_DISABLED = 0,
+	CS35L43_ULTRASONIC_MODE_INBAND = 1,
+	CS35L43_ULTRASONIC_MODE_OUT_OF_BAND = 2,
+};
+
 struct cs35l43_private {
 	struct wm_adsp dsp; /* needs to be first member */
 	struct snd_soc_component *component;
@@ -85,6 +91,7 @@ struct cs35l43_private {
 	int clock_mode;
 	int hibernate_state;
 	int hibernate_delay_ms;
+	int ultrasonic_mode;
 	struct gpio_desc *reset_gpio;
 	struct delayed_work hb_work;
 	struct workqueue_struct *wq;
