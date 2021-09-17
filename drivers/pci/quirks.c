@@ -5755,3 +5755,14 @@ static void apex_pci_fixup_class(struct pci_dev *pdev)
 }
 DECLARE_PCI_FIXUP_CLASS_HEADER(0x1ac1, 0x089a,
 			       PCI_CLASS_NOT_DEFINED, 8, apex_pci_fixup_class);
+
+static void chromeos_internal_but_untrusted_device(struct pci_dev *pdev)
+{
+	if (dmi_match(DMI_SYS_VENDOR, "Google")) {
+		pci_info(pdev, "ChromeOS internal device marked untrusted\n");
+		pdev->untrusted = true;
+	}
+}
+/* 5G Modem on x86 systems (Brya onwards) */
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_MEDIATEK, 0x4d75,
+			chromeos_internal_but_untrusted_device);
