@@ -109,25 +109,6 @@
  */
 #define INTEL_IOMMU_PGSIZES	(~0xFFFUL)
 
-/*
- * Certain ChromeOS devices are internal but still should be treated
- * "strict"ly by the IOMMU. In the next kernel, this should be dealt
- * with differently in later kernels. Please see b/195152713 for
- * discussion.
- */
-static inline bool internal_but_untrusted_dev(struct pci_dev *pdev)
-{
-
-	struct pci_dev *parent = pci_upstream_bridge(pdev);
-
-	/* 5G Modem on Brya Platforms */
-	return (dmi_match(DMI_PRODUCT_FAMILY, "Google_Brya") &&
-		pdev->vendor == PCI_VENDOR_ID_MEDIATEK &&
-		pdev->device == 0x4d75 &&
-		parent && parent->bus->number == 0 &&
-		parent->devfn == PCI_DEVFN(0x1C, 0));
-}
-
 static inline int agaw_to_level(int agaw)
 {
 	return agaw + 2;
@@ -410,8 +391,7 @@ DEFINE_SPINLOCK(device_domain_lock);
 static LIST_HEAD(device_domain_list);
 
 #define device_needs_bounce(d) (!intel_no_bounce && dev_is_pci(d) &&	\
-				(to_pci_dev(d)->untrusted ||		\
-				 internal_but_untrusted_dev(to_pci_dev(d))))
+				to_pci_dev(d)->untrusted)
 
 /*
  * Iterate over elements in device_domain_list and call the specified
@@ -2994,7 +2974,7 @@ static int device_def_domain_type(struct device *dev)
 		 * Prevent any device marked as untrusted from getting
 		 * placed into the statically identity mapping domain.
 		 */
-		if (pdev->untrusted || internal_but_untrusted_dev(pdev))
+		if (pdev->untrusted)
 			return IOMMU_DOMAIN_DMA;
 
 		if ((iommu_identity_mapping & IDENTMAP_AZALIA) && IS_AZALIA(pdev))
@@ -3655,7 +3635,6 @@ static void intel_unmap(struct device *dev, dma_addr_t dev_addr, size_t size)
 
 	freelist = domain_unmap(domain, start_pfn, last_pfn, NULL);
 	if (intel_iommu_strict || (pdev && pdev->untrusted) ||
-			(pdev && internal_but_untrusted_dev(pdev)) ||
 			!has_iova_flush_queue(&domain->iovad)) {
 		iommu_flush_iotlb_psi(iommu, domain, start_pfn,
 				      nrpages, !freelist, 0);
