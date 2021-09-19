@@ -1076,7 +1076,19 @@ static irqreturn_t cs40l26_irq(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	pm_runtime_get_sync(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		pm_runtime_set_active(dev);
+
+		dev_alert(dev, "PM Runtime Resume failed, interrupts missed\n");
+
+		cs40l26_dsp_write(cs40l26, CS40L26_IRQ1_EINT_1,
+				CS40L26_IRQ_EINT1_ALL_MASK);
+		cs40l26_dsp_write(cs40l26, CS40L26_IRQ1_EINT_2,
+				CS40L26_IRQ_EINT2_ALL_MASK);
+
+		goto err;
+	}
 
 	ret = regmap_read(regmap, CS40L26_IRQ1_EINT_1, &eint);
 	if (ret) {
