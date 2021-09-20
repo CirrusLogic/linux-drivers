@@ -1610,6 +1610,17 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	pm_runtime_get_sync(dev);
 	mutex_lock(&cs40l26->lock);
 
+	ret = cl_dsp_get_reg(cs40l26->dsp, "TIMEOUT_MS",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_write(cs40l26->regmap, reg, duration);
+	if (ret) {
+		dev_err(dev, "Failed to set TIMEOUT_MS\n");
+		goto err_mutex;
+	}
+
 	ret = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_INVERT",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
 	if (ret)
@@ -1632,13 +1643,6 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	ret = regmap_write(cs40l26->regmap, reg, invert);
 	if (ret)
 		goto err_mutex;
-
-	if (duration > 0) { /* Effect duration is known */
-		dev_dbg(dev, "starting timer with value: %d\n", duration);
-		hrtimer_start(&cs40l26->vibe_timer,
-			ktime_set(CS40L26_MS_TO_SECS(duration),
-			CS40L26_MS_TO_NS(duration % 1000)), HRTIMER_MODE_REL);
-	}
 
 	cs40l26_vibe_state_set(cs40l26, CS40L26_VIBE_STATE_HAPTIC);
 
@@ -1708,17 +1712,6 @@ mutex_exit:
 	pm_runtime_put_autosuspend(cs40l26->dev);
 }
 
-static enum hrtimer_restart cs40l26_vibe_timer(struct hrtimer *timer)
-{
-	struct cs40l26_private *cs40l26 =
-		container_of(timer, struct cs40l26_private, vibe_timer);
-
-	dev_dbg(cs40l26->dev, "timer ended, queuing stop work\n");
-	queue_work(cs40l26->vibe_workqueue, &cs40l26->vibe_stop_work);
-
-	return HRTIMER_NORESTART;
-}
-
 static void cs40l26_set_gain(struct input_dev *dev, u16 gain)
 {
 	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
@@ -1750,13 +1743,10 @@ static int cs40l26_playback_effect(struct input_dev *dev,
 
 	cs40l26->effect = effect;
 
-	if (val > 0) {
+	if (val > 0)
 		queue_work(cs40l26->vibe_workqueue, &cs40l26->vibe_start_work);
-	} else {
-		dev_dbg(cs40l26->dev, "cancel timer and queue stop work\n");
-		hrtimer_cancel(&cs40l26->vibe_timer);
+	else
 		queue_work(cs40l26->vibe_workqueue, &cs40l26->vibe_stop_work);
-	}
 
 	return 0;
 }
@@ -2277,9 +2267,6 @@ static int cs40l26_input_init(struct cs40l26_private *cs40l26)
 		dev_err(dev, "Cannot register input device: %d\n", ret);
 		return ret;
 	}
-
-	hrtimer_init(&cs40l26->vibe_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	cs40l26->vibe_timer.function = cs40l26_vibe_timer;
 
 	ret = sysfs_create_group(&cs40l26->input->dev.kobj,
 			&cs40l26_dev_attr_group);
@@ -3494,9 +3481,6 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 		regulator_disable(va_consumer);
 
 	gpiod_set_value_cansleep(cs40l26->reset_gpio, 0);
-
-	if (cs40l26->vibe_timer.function)
-		hrtimer_cancel(&cs40l26->vibe_timer);
 
 	if (cs40l26->vibe_init_success) {
 		sysfs_remove_group(&cs40l26->input->dev.kobj,
