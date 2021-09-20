@@ -1321,7 +1321,6 @@ struct cs40l26_private {
 	struct cl_dsp *dsp;
 	unsigned int trigger_indices[FF_MAX_EFFECTS];
 	struct ff_effect *effect;
-	struct hrtimer vibe_timer;
 	struct work_struct vibe_start_work;
 	struct work_struct vibe_stop_work;
 	struct work_struct set_gain_work;
