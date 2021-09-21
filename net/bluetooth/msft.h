@@ -24,6 +24,8 @@ int msft_remove_monitor(struct hci_dev *hdev, struct adv_monitor *monitor,
 			u16 handle);
 void msft_req_add_set_filter_enable(struct hci_request *req, bool enable);
 int msft_set_filter_enable(struct hci_dev *hdev, bool enable);
+void msft_suspend(struct hci_dev *hdev);
+void msft_resume(struct hci_dev *hdev);
 
 #else
 
@@ -57,5 +59,8 @@ static inline int msft_set_filter_enable(struct hci_dev *hdev, bool enable)
 {
 	return -EOPNOTSUPP;
 }
+
+void msft_suspend(struct hci_dev *hdev) {}
+void msft_resume(struct hci_dev *hdev) {}
 
 #endif
