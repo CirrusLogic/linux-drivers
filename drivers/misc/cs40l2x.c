@@ -6429,9 +6429,9 @@ static void cs40l2x_vibe_mode_worker(struct work_struct *work)
 			dev_err(dev, "Failed to ground amplifier outputs\n");
 			goto err_exit;
 		}
-		cs40l2x_set_state(cs40l2x, CS40L2X_VIBE_STATE_STOPPED);
-		cs40l2x_wl_relax(cs40l2x);
 	}
+	cs40l2x_set_state(cs40l2x, CS40L2X_VIBE_STATE_STOPPED);
+	cs40l2x_wl_relax(cs40l2x);
 
 	if (cs40l2x->dyn_f0_enable) {
 		ret = cs40l2x_read_dyn_f0_table(cs40l2x);
