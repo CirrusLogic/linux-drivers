@@ -411,13 +411,18 @@ static void setup_sch_info(struct xhci_ep_ctx *ep_ctx,
 static u32 get_max_bw(struct mu3h_sch_bw_info *sch_bw,
 	struct mu3h_sch_ep_info *sch_ep, u32 offset)
 {
-	u32 bw, max_bw = 0;
-	int i, j, idx;
+	u32 num_esit;
+	u32 max_bw = 0;
+	u32 bw;
+	int i;
+	int j;
 
-	for (i = 0; i < XHCI_MTK_MAX_ESIT; i += sch_ep->esit) {
+	num_esit = XHCI_MTK_MAX_ESIT / sch_ep->esit;
+	for (i = 0; i < num_esit; i++) {
+		u32 base = offset + i * sch_ep->esit;
+
 		for (j = 0; j < sch_ep->num_budget_microframes; j++) {
-			idx = XHCI_MTK_BW_IDX(i + offset + j);
-			bw = sch_bw->bus_bw[idx] +
+			bw = sch_bw->bus_bw[base + j] +
 					sch_ep->bw_budget_table[j];
 			if (bw > max_bw)
 				max_bw = bw;
@@ -429,16 +434,20 @@ static u32 get_max_bw(struct mu3h_sch_bw_info *sch_bw,
 static void update_bus_bw(struct mu3h_sch_bw_info *sch_bw,
 	struct mu3h_sch_ep_info *sch_ep, bool used)
 {
-	int i, j, idx;
+	u32 num_esit;
+	u32 base;
+	int i;
+	int j;
 
-	for (i = 0; i < XHCI_MTK_MAX_ESIT; i += sch_ep->esit) {
+	num_esit = XHCI_MTK_MAX_ESIT / sch_ep->esit;
+	for (i = 0; i < num_esit; i++) {
+		base = sch_ep->offset + i * sch_ep->esit;
 		for (j = 0; j < sch_ep->num_budget_microframes; j++) {
-			idx = XHCI_MTK_BW_IDX(i + sch_ep->offset + j);
 			if (used)
-				sch_bw->bus_bw[idx] +=
+				sch_bw->bus_bw[base + j] +=
 					sch_ep->bw_budget_table[j];
 			else
-				sch_bw->bus_bw[idx] -=
+				sch_bw->bus_bw[base + j] -=
 					sch_ep->bw_budget_table[j];
 		}
 	}
@@ -447,18 +456,22 @@ static void update_bus_bw(struct mu3h_sch_bw_info *sch_bw,
 static int check_fs_bus_bw(struct mu3h_sch_ep_info *sch_ep, int offset)
 {
 	struct mu3h_sch_tt *tt = sch_ep->sch_tt;
-	u32 bw;
-	int i, j, idx;
+	u32 num_esit, tmp;
+	int base;
+	int i, j;
 	u8 uframes = DIV_ROUND_UP(sch_ep->maxpkt, FS_PAYLOAD_MAX);
+
+	num_esit = XHCI_MTK_MAX_ESIT / sch_ep->esit;
 
 	if (sch_ep->ep_type == INT_IN_EP || sch_ep->ep_type == ISOC_IN_EP)
 		offset++;
 
-	for (i = 0; i < XHCI_MTK_MAX_ESIT; i += sch_ep->esit) {
+	for (i = 0; i < num_esit; i++) {
+		base = offset + i * sch_ep->esit;
+
 		for (j = 0; j < uframes; j++) {
-			idx = XHCI_MTK_BW_IDX(i + offset + j);
-			bw = tt->fs_bus_bw[idx] + sch_ep->bw_cost_per_microframe;
-			if (bw > FS_PAYLOAD_MAX)
+			tmp = tt->fs_bus_bw[base + j] + sch_ep->bw_cost_per_microframe;
+			if (tmp > FS_PAYLOAD_MAX)
 				return -ESCH_BW_OVERFLOW;
 		}
 	}
@@ -531,10 +544,13 @@ static int check_sch_tt(struct mu3h_sch_ep_info *sch_ep, u32 offset)
 static void update_sch_tt(struct mu3h_sch_ep_info *sch_ep, bool used)
 {
 	struct mu3h_sch_tt *tt = sch_ep->sch_tt;
+	u32 base, num_esit;
 	int bw_updated;
-	int i, j, idx;
+	int i, j;
 	int offset = sch_ep->offset;
 	u8 uframes = DIV_ROUND_UP(sch_ep->maxpkt, FS_PAYLOAD_MAX);
+
+	num_esit = XHCI_MTK_MAX_ESIT / sch_ep->esit;
 
 	if (used)
 		bw_updated = sch_ep->bw_cost_per_microframe;
@@ -544,11 +560,11 @@ static void update_sch_tt(struct mu3h_sch_ep_info *sch_ep, bool used)
 	if (sch_ep->ep_type == INT_IN_EP || sch_ep->ep_type == ISOC_IN_EP)
 		offset++;
 
-	for (i = 0; i < XHCI_MTK_MAX_ESIT; i += sch_ep->esit) {
-		for (j = 0; j < uframes; j++) {
-			idx = XHCI_MTK_BW_IDX(i + offset + j);
-			tt->fs_bus_bw[idx] += bw_updated;
-		}
+	for (i = 0; i < num_esit; i++) {
+		base = offset + i * sch_ep->esit;
+
+		for (j = 0; j < uframes; j++)
+			tt->fs_bus_bw[base + j] += bw_updated;
 	}
 
 	if (used)
@@ -570,9 +586,25 @@ static int load_ep_bw(struct mu3h_sch_bw_info *sch_bw,
 	return 0;
 }
 
+static u32 get_esit_boundary(struct mu3h_sch_ep_info *sch_ep)
+{
+	u32 boundary = sch_ep->esit;
+
+	if (sch_ep->sch_tt) { /* LS/FS with TT */
+		/* tune for CS */
+		if (sch_ep->ep_type != ISOC_OUT_EP)
+			boundary++;
+		else if (boundary > 1) /* normally esit >= 8 for FS/LS */
+			boundary--;
+	}
+
+	return boundary;
+}
+
 static int check_sch_bw(struct mu3h_sch_ep_info *sch_ep)
 {
 	struct mu3h_sch_bw_info *sch_bw = sch_ep->bw_info;
+	const u32 esit_boundary = get_esit_boundary(sch_ep);
 	const u32 bw_boundary = get_bw_boundary(sch_ep->speed);
 	u32 offset;
 	u32 worst_bw;
@@ -588,6 +620,9 @@ static int check_sch_bw(struct mu3h_sch_ep_info *sch_ep)
 		ret = check_sch_tt(sch_ep, offset);
 		if (ret)
 			continue;
+
+		if ((offset + sch_ep->num_budget_microframes) > esit_boundary)
+			break;
 
 		worst_bw = get_max_bw(sch_bw, sch_ep, offset);
 		if (worst_bw > bw_boundary)
