@@ -183,8 +183,7 @@ void msft_do_open(struct hci_dev *hdev)
 {
 	struct msft_data *msft;
 
-	/* Skip if opcode is not supported or MSFT has been initiatlized */
-	if (hdev->msft_opcode == HCI_OP_NOP || hdev->msft_data)
+	if (hdev->msft_opcode == HCI_OP_NOP)
 		return;
 
 	bt_dev_dbg(hdev, "Initialize MSFT extension");
