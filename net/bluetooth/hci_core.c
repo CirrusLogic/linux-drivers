@@ -1592,7 +1592,6 @@ setup_failed:
 		ret = hdev->set_diag(hdev, true);
 
 	msft_do_open(hdev);
-	msft_power_on(hdev);
 
 	clear_bit(HCI_INIT, &hdev->flags);
 
@@ -1793,8 +1792,6 @@ int hci_dev_do_close(struct hci_dev *hdev)
 	smp_unregister(hdev);
 
 	hci_sock_dev_event(hdev, HCI_DEV_DOWN);
-
-	msft_power_off(hdev);
 
 	if (hdev->flush)
 		hdev->flush(hdev);
