@@ -1488,6 +1488,11 @@ static int cs35l43_dsp_init(struct cs35l43_private *cs35l43)
 
 	dsp->ops->stop_core(dsp);
 
+	regmap_write(cs35l43->regmap, CS35L43_DSP1RX3_INPUT, 0x00);
+	regmap_write(cs35l43->regmap, CS35L43_DSP1RX4_INPUT, CS35L43_INPUT_SRC_IMON);
+	regmap_write(cs35l43->regmap, CS35L43_DSP1RX5_INPUT, CS35L43_INPUT_SRC_VMON);
+	regmap_write(cs35l43->regmap, CS35L43_DSP1RX6_INPUT, CS35L43_INPUT_SRC_VPMON);
+
 	return 0;
 
 err:
