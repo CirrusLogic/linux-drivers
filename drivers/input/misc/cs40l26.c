@@ -3440,6 +3440,7 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26, u32 id)
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 {
 	struct device *dev = cs40l26->dev;
+	bool register_irq = false;
 	int ret;
 
 	if (id == cs40l26->fw.id) {
@@ -3449,6 +3450,7 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 
 	if (cs40l26->fw_mode == CS40L26_FW_MODE_NONE) {
 		cs40l26->fw_mode = CS40L26_FW_MODE_RAM;
+		register_irq = true;
 	} else {
 		disable_irq(cs40l26->irq);
 		cs40l26_pm_runtime_teardown(cs40l26);
@@ -3460,7 +3462,17 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 	if (ret)
 		return ret;
 
-	enable_irq(cs40l26->irq);
+	if (register_irq) {
+		ret = devm_request_threaded_irq(dev, cs40l26->irq, NULL, cs40l26_irq,
+						IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_LOW,
+						"cs40l26", cs40l26);
+		if (ret) {
+			dev_err(dev, "Failed to request threaded IRQ: %d\n", ret);
+			return ret;
+		}
+	} else {
+		enable_irq(cs40l26->irq);
+	}
 
 	return 0;
 }
@@ -3730,20 +3742,6 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 		goto err;
 	}
 
-	ret = devm_request_threaded_irq(dev, cs40l26->irq, NULL, cs40l26_irq,
-			IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_LOW,
-			"cs40l26", cs40l26);
-	if (ret) {
-		dev_err(dev, "Failed to request threaded IRQ\n");
-		goto err;
-	}
-
-	/* the /ALERT pin may be asserted prior to firmware initialization.
-	 * Disable the interrupt handler until firmware has downloaded
-	 * so erroneous interrupt requests are ignored
-	 */
-	disable_irq(cs40l26->irq);
-
 	cs40l26->pm_ready = false;
 	cs40l26->fw_loaded = false;
 
@@ -3751,9 +3749,16 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 		ret = cs40l26_fw_upload(cs40l26, CS40L26_FW_ID);
 		if (ret)
 			goto err;
-	}
 
-	enable_irq(cs40l26->irq);
+		ret = devm_request_threaded_irq(dev, cs40l26->irq, NULL, cs40l26_irq,
+				IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_LOW,
+				"cs40l26", cs40l26);
+		if (ret) {
+			dev_err(dev, "Failed to request threaded IRQ\n");
+			goto err;
+		}
+
+	}
 
 	ret = cs40l26_input_init(cs40l26);
 	if (ret)
