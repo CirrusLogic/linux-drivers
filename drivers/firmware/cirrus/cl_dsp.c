@@ -123,6 +123,9 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 	if  (!dsp)
 		return -EPERM;
 
+	if (list_empty(&dsp->coeff_desc_head))
+		return -ENOENT;
+
 	list_for_each_entry(coeff_desc, &dsp->coeff_desc_head, list) {
 		if (strncmp(coeff_desc->name, coeff_name,
 				CL_DSP_COEFF_NAME_LEN_MAX))
