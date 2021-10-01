@@ -41,7 +41,14 @@ struct cs35l43_pll_sysclk_config {
 	int clk_cfg;
 };
 
+struct cs35l43_fs_mon_config {
+	int freq;
+	unsigned int fs1;
+	unsigned int fs2;
+};
+
 extern const struct cs35l43_pll_sysclk_config cs35l43_pll_sysclk[64];
+extern const struct cs35l43_fs_mon_config cs35l43_fs_mon[7];
 extern const unsigned int cs35l43_hibernate_update_regs[CS35L43_POWER_SEQ_LENGTH];
 extern const u8 cs35l43_write_seq_op_sizes[CS35L43_POWER_SEQ_NUM_OPS][2];
 

@@ -1359,12 +1359,28 @@ static int cs35l43_pcm_startup(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+static int cs35l41_get_fs_mon_config_index(int freq)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(cs35l43_fs_mon); i++) {
+		if (cs35l43_fs_mon[i].freq == freq)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
 static int cs35l43_component_set_sysclk(struct snd_soc_component *component,
 				int clk_id, int source, unsigned int freq,
 				int dir)
 {
 	struct cs35l43_private *cs35l43 =
 				snd_soc_component_get_drvdata(component);
+	unsigned int fs1_val;
+	unsigned int fs2_val;
+	unsigned int val;
+	int fsIndex;
 
 	dev_dbg(cs35l43->dev, "%s\n", __func__);
 	dev_dbg(cs35l43->dev, "%s id = %d, freq=%d\n", __func__, clk_id, freq);
@@ -1372,14 +1388,35 @@ static int cs35l43_component_set_sysclk(struct snd_soc_component *component,
 	cs35l43->extclk_cfg = cs35l43_get_clk_config(freq);
 	cs35l43->clk_id = clk_id;
 
+	if (freq <= 6000000) {
+		/* Use the lookup table */
+		fsIndex = cs35l41_get_fs_mon_config_index(freq);
+		if (fsIndex < 0) {
+			dev_err(cs35l43->dev, "Invalid CLK Config freq: %u\n", freq);
+			return -EINVAL;
+		}
+
+		fs1_val = cs35l43_fs_mon[fsIndex].fs1;
+		fs2_val = cs35l43_fs_mon[fsIndex].fs2;
+	} else {
+		/* Use hard-coded values */
+		fs1_val = 18;
+		fs2_val = 33;
+	}
+
+	val = fs1_val;
+	val |= (fs2_val << CS35L43_FS2_START_WINDOW_SHIFT) & CS35L43_FS2_START_WINDOW_MASK;
+
 	if (cs35l43->extclk_cfg < 0) {
 		dev_err(cs35l43->dev, "Invalid CLK Config: %d, freq: %u\n",
 			cs35l43->extclk_cfg, freq);
 		return -EINVAL;
 	}
 
-	if (cs35l43->hibernate_state != CS35L43_HIBERNATE_STANDBY)
+	if (cs35l43->hibernate_state != CS35L43_HIBERNATE_STANDBY) {
 		cs35l43_pll_config(cs35l43);
+		regmap_write(cs35l43->regmap, CS35L43_FS_MON_0, val);
+	}
 
 	return 0;
 }
@@ -1705,6 +1742,10 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l43 = {
 	.read = cs35l43_component_read,
 };
 
+static struct reg_sequence cs35l43_errata_patch[] = {
+	{0x7404,	0x11330000},
+};
+
 int cs35l43_probe(struct cs35l43_private *cs35l43,
 				struct cs35l43_platform_data *pdata)
 {
@@ -1777,6 +1818,14 @@ int cs35l43_probe(struct cs35l43_private *cs35l43,
 	ret = regmap_read(cs35l43->regmap, CS35L43_REVID, &revid);
 	if (ret < 0) {
 		dev_err(cs35l43->dev, "Get Revision ID failed\n");
+		goto err;
+	}
+
+	ret = regmap_register_patch(cs35l43->regmap,
+			cs35l43_errata_patch,
+			ARRAY_SIZE(cs35l43_errata_patch));
+	if (ret < 0) {
+		dev_err(cs35l43->dev, "Failed to apply errata patch %d\n", ret);
 		goto err;
 	}
 

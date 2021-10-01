@@ -358,6 +358,8 @@ const unsigned int cs35l43_hibernate_update_regs[CS35L43_POWER_SEQ_LENGTH] = {
 	CS35L43_VBST_CTL_2,
 	CS35L43_NG_CONFIG,
 	CS35L43_IRQ1_MASK_1,
+	CS35L43_FS_MON_0,
+	0x7404,
 };
 
 const struct cs35l43_pll_sysclk_config cs35l43_pll_sysclk[64] = {
@@ -425,6 +427,16 @@ const struct cs35l43_pll_sysclk_config cs35l43_pll_sysclk[64] = {
 	{ 25600000,	0x3D },
 	{ 26000000,	0x3E },
 	{ 27000000,	0x3F },
+};
+
+const struct cs35l43_fs_mon_config cs35l43_fs_mon[7] = {
+	{ 705600,	154,	244 },
+	{ 768000,	141,	224 },
+	{ 1411200,	77,	125 },
+	{ 1536000,	71,	115 },
+	{ 2822400,	39,	65 },
+	{ 3072000,	36,	60 },
+	{ 5644800,	20,	35 },
 };
 
 const u8 cs35l43_write_seq_op_sizes[CS35L43_POWER_SEQ_NUM_OPS][2] = {
