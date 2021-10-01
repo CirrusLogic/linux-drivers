@@ -153,6 +153,37 @@ int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 }
 EXPORT_SYMBOL(cs40l26_dsp_state_get);
 
+static int cs40l26_pm_timer_timeout_ticks4_set(struct cs40l26_private *cs40l26,
+		u32 pm_timer_timeout_ticks4)
+{
+	struct regmap *regmap = cs40l26->regmap;
+	u32 lower_val, reg;
+	u8 upper_val;
+	int ret;
+
+	upper_val = (pm_timer_timeout_ticks4 >>
+					CS40L26_PM_TIMEOUT_TICKS_UPPER_SHIFT) &
+					CS40L26_PM_TIMEOUT_TICKS_UPPER_MASK;
+
+	lower_val = pm_timer_timeout_ticks4 &
+					CS40L26_PM_TIMEOUT_TICKS_LOWER_MASK;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "PM_TIMER_TIMEOUT_TICKS",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(regmap,
+			reg + CS40L26_PM_TIMER_TIMEOUT_TICKS4_LOWER_OFFSET,
+			lower_val);
+	if (ret)
+		return ret;
+
+	return regmap_write(regmap,
+			reg + CS40L26_PM_TIMER_TIMEOUT_TICKS4_UPPER_OFFSET,
+			upper_val);
+}
+
 int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26,
 		u32 timeout_ms)
 {
@@ -3056,6 +3087,20 @@ static void cs40l26_coeff_load(struct cs40l26_private *cs40l26)
 	}
 }
 
+static int cs40l26_change_firmware_control_defaults(
+						struct cs40l26_private *cs40l26)
+{
+	struct device *dev = cs40l26->dev;
+	int ret;
+
+	ret = cs40l26_pm_timer_timeout_ticks4_set(cs40l26,
+					cs40l26->pdata.pm_timer_timeout_ticks4);
+	if (ret)
+		dev_err(dev, "failed to set pm_timer_timeout_ticks4, %d", ret);
+
+	return ret;
+}
+
 static int cs40l26_firmware_load(struct cs40l26_private *cs40l26, u32 id)
 {
 	struct device *dev = cs40l26->dev;
@@ -3072,6 +3117,17 @@ static int cs40l26_firmware_load(struct cs40l26_private *cs40l26, u32 id)
 
 	ret = cl_dsp_firmware_parse(cs40l26->dsp, fw, true);
 	release_firmware(fw);
+
+	if (ret) {
+		dev_err(dev, "cl_dsp_firmware_parse failed, %d", ret);
+		return ret;
+	}
+
+	ret = cs40l26_change_firmware_control_defaults(cs40l26);
+
+	if (ret)
+		dev_err(dev, "changing firmware control defaults failed %d",
+									ret);
 
 	return ret;
 }
@@ -3275,6 +3331,12 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 		cs40l26->pdata.bst_ipk = val;
 	else
 		cs40l26->pdata.bst_ipk = 0;
+
+	if (!of_property_read_u32(np, "cirrus,pm-timer-timeout-ticks4", &val))
+		cs40l26->pdata.pm_timer_timeout_ticks4 = val;
+	else
+		cs40l26->pdata.pm_timer_timeout_ticks4 =
+					CS40L26_PM_TIMER_TIMEOUT_TICKS4_DEFAULT;
 
 	ret = cs40l26_handle_svc_le_nodes(cs40l26);
 	if (ret < 0)
