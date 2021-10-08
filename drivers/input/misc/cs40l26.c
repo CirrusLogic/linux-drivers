@@ -2132,10 +2132,15 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 					CS40L26_MAX_INDEX_MASK;
 		}
 
+		ret = cs40l26_get_num_waves(cs40l26, &nwaves);
+		if (ret)
+			goto out_free;
+
 		switch (bank) {
 		case CS40L26_RAM_BANK_ID:
 			min_index = CS40L26_RAM_INDEX_START;
-			max_index = min_index + cs40l26->num_waves - 1;
+			max_index = min_index + nwaves - 1 -
+					cs40l26->num_owt_effects;
 			break;
 		case CS40L26_ROM_BANK_ID:
 			min_index = CS40L26_ROM_INDEX_START;
@@ -2156,8 +2161,9 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 		if (trigger_index >= min_index && trigger_index <= max_index) {
 			cs40l26->trigger_indices[effect->id] = trigger_index;
 		} else {
-			dev_err(cdev, "Trigger index (0x%X) out of bounds\n",
-					trigger_index);
+			dev_err(cdev,
+				"Index (0x%X) out of bounds (0x%X - 0x%X)\n",
+				trigger_index, min_index, max_index);
 			ret = -EINVAL;
 			goto out_free;
 		}
@@ -2868,8 +2874,8 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
 	unsigned int val;
+	u32 reg, nwaves;
 	int ret;
-	u32 reg;
 
 	ret = cs40l26_verify_fw(cs40l26);
 	if (ret)
@@ -2974,12 +2980,12 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		goto pm_err;
 
-	ret = cs40l26_get_num_waves(cs40l26, &cs40l26->num_waves);
+	ret = cs40l26_get_num_waves(cs40l26, &nwaves);
 	if (ret)
 		goto pm_err;
 
 	dev_info(dev, "%s loaded with %u RAM waveforms\n", CS40L26_DEV_NAME,
-			cs40l26->num_waves);
+			nwaves);
 
 	ret = cs40l26_owt_setup(cs40l26);
 	if (ret)
