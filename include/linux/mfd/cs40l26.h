@@ -1341,7 +1341,6 @@ struct cs40l26_private {
 	enum cs40l26_fw_mode fw_mode;
 	enum cs40l26_vibe_state vibe_state;
 	int num_loaded_coeff_files;
-	u32 num_waves;
 	struct cs40l26_fw fw;
 	bool fw_loaded;
 	bool pm_ready;
