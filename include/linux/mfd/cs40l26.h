@@ -1359,6 +1359,7 @@ struct cs40l26_private {
 	int num_svc_le_vals;
 	struct workqueue_struct *asp_workqueue;
 	struct work_struct asp_work;
+	u32 delay_before_stop_playback_us;
 };
 
 struct cs40l26_codec {
