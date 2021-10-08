@@ -443,6 +443,45 @@ err_mutex:
 static DEVICE_ATTR(f0_offset, 0660, cs40l26_f0_offset_show,
 		cs40l26_f0_offset_store);
 
+static ssize_t cs40l26_delay_before_stop_playback_us_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+
+	mutex_lock(&cs40l26->lock);
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n",
+					cs40l26->delay_before_stop_playback_us);
+
+	mutex_unlock(&cs40l26->lock);
+
+	return ret;
+}
+
+static ssize_t cs40l26_delay_before_stop_playback_us_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 val;
+	int ret;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	mutex_lock(&cs40l26->lock);
+
+	cs40l26->delay_before_stop_playback_us = val;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return count;
+}
+static DEVICE_ATTR(delay_before_stop_playback_us, 0660,
+				cs40l26_delay_before_stop_playback_us_show,
+				cs40l26_delay_before_stop_playback_us_store);
+
 static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_num_waves.attr,
 	&dev_attr_die_temp.attr,
@@ -455,6 +494,7 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_vibe_state.attr,
 	&dev_attr_boost_disable_delay.attr,
 	&dev_attr_f0_offset.attr,
+	&dev_attr_delay_before_stop_playback_us.attr,
 	NULL,
 };
 
