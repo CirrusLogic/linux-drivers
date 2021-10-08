@@ -1733,6 +1733,11 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	if (cs40l26->vibe_state != CS40L26_VIBE_STATE_HAPTIC)
 		goto mutex_exit;
 
+	/* wait for SVC init phase to complete */
+	if (cs40l26->delay_before_stop_playback_us)
+		usleep_range(cs40l26->delay_before_stop_playback_us,
+				cs40l26->delay_before_stop_playback_us + 100);
+
 	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				CS40L26_STOP_PLAYBACK, CS40L26_DSP_MBOX_RESET);
 	if (ret) {
