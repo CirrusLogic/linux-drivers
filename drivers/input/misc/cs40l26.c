@@ -3400,6 +3400,43 @@ static int cs40l26_firmware_load(struct cs40l26_private *cs40l26, u32 id)
 	return ret;
 }
 
+static int cs40l26_fw_upload(struct cs40l26_private *cs40l26, u32 id)
+{
+	int ret;
+
+	ret = cs40l26_cl_dsp_init(cs40l26, id);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_dsp_pre_config(cs40l26);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_firmware_load(cs40l26, id);
+	if (ret)
+		return ret;
+
+	if (cs40l26->num_svc_le_vals && id != CS40L26_FW_CALIB_ID) {
+		ret = cs40l26_dsp_config(cs40l26);
+		if (ret)
+			return ret;
+
+		ret = cs40l26_tuning_select_from_svc_le(cs40l26);
+		if (ret)
+			return ret;
+
+		cs40l26_pm_runtime_teardown(cs40l26);
+
+		ret = cs40l26_dsp_pre_config(cs40l26);
+		if (ret)
+			return ret;
+	}
+
+	cs40l26_coeff_load(cs40l26);
+
+	return cs40l26_dsp_config(cs40l26);
+}
+
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 {
 	struct device *dev = cs40l26->dev;
@@ -3410,32 +3447,22 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 		return 0;
 	}
 
-	cs40l26_pm_runtime_teardown(cs40l26);
+	if (cs40l26->fw_mode == CS40L26_FW_MODE_NONE) {
+		cs40l26->fw_mode = CS40L26_FW_MODE_RAM;
+	} else {
+		disable_irq(cs40l26->irq);
+		cs40l26_pm_runtime_teardown(cs40l26);
+	}
 
 	cs40l26->fw_loaded = false;
 
-	disable_irq(cs40l26->irq);
-
-	ret = cs40l26_cl_dsp_init(cs40l26, id);
+	ret = cs40l26_fw_upload(cs40l26, id);
 	if (ret)
-		goto irq_exit;
+		return ret;
 
-	ret = cs40l26_dsp_pre_config(cs40l26);
-	if (ret)
-		goto irq_exit;
-
-	ret = cs40l26_firmware_load(cs40l26, id);
-	if (ret)
-		goto irq_exit;
-
-	cs40l26_coeff_load(cs40l26);
-
-	ret = cs40l26_dsp_config(cs40l26);
-
-irq_exit:
 	enable_irq(cs40l26->irq);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(cs40l26_fw_swap);
 
@@ -3533,6 +3560,9 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 		cs40l26->fw_mode = CS40L26_FW_MODE_ROM;
 	else
 		cs40l26->fw_mode = CS40L26_FW_MODE_RAM;
+
+	if (of_property_read_bool(np, "cirrus,fw-defer"))
+		cs40l26->fw_mode = CS40L26_FW_MODE_NONE;
 
 	cs40l26->pdata.vbbr_en =
 			of_property_read_bool(np, "cirrus,vbbr-enable");
@@ -3717,42 +3747,11 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 	cs40l26->pm_ready = false;
 	cs40l26->fw_loaded = false;
 
-	ret = cs40l26_cl_dsp_init(cs40l26, CS40L26_FW_ID);
-	if (ret)
-		goto irq_err;
-
-	ret = cs40l26_dsp_pre_config(cs40l26);
-	if (ret)
-		goto irq_err;
-
-	ret = cs40l26_firmware_load(cs40l26, cs40l26->fw.id);
-	if (ret)
-		goto irq_err;
-
-	if (cs40l26->num_svc_le_vals) {
-		ret = cs40l26_dsp_config(cs40l26);
-		if (ret)
-			goto irq_err;
-
-		enable_irq(cs40l26->irq);
-
-		ret = cs40l26_tuning_select_from_svc_le(cs40l26);
-		if (ret)
-			goto err;
-
-		disable_irq(cs40l26->irq);
-		cs40l26_pm_runtime_teardown(cs40l26);
-
-		ret = cs40l26_dsp_pre_config(cs40l26);
+	if (cs40l26->fw_mode != CS40L26_FW_MODE_NONE) {
+		ret = cs40l26_fw_upload(cs40l26, CS40L26_FW_ID);
 		if (ret)
 			goto err;
 	}
-
-	cs40l26_coeff_load(cs40l26);
-
-	ret = cs40l26_dsp_config(cs40l26);
-	if (ret)
-		goto irq_err;
 
 	enable_irq(cs40l26->irq);
 
@@ -3768,9 +3767,6 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 	}
 
 	return 0;
-
-irq_err:
-	enable_irq(cs40l26->irq);
 err:
 	cs40l26_remove(cs40l26);
 
