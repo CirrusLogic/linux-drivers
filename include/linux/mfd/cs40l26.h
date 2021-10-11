@@ -1160,6 +1160,7 @@ enum cs40l26_vibe_state {
 enum cs40l26_fw_mode {
 	CS40L26_FW_MODE_ROM,
 	CS40L26_FW_MODE_RAM,
+	CS40L26_FW_MODE_NONE,
 };
 
 enum cs40l26_iseq {
