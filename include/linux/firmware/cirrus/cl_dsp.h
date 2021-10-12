@@ -316,6 +316,7 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 struct cl_dsp_memchunk cl_dsp_memchunk_create(void *data, int size);
 int cl_dsp_memchunk_write(struct cl_dsp_memchunk *ch, int nbits, u32 val);
 int cl_dsp_memchunk_read(struct cl_dsp_memchunk *ch, int nbits);
+int cl_dsp_memchunk_flush(struct cl_dsp_memchunk *ch);
 int cl_dsp_raw_write(struct cl_dsp *dsp, unsigned int reg,
 		const void *val, size_t val_len, size_t limit);
 int cl_dsp_fw_id_get(struct cl_dsp *dsp, unsigned int *id);
