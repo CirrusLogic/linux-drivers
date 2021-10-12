@@ -1765,6 +1765,9 @@ static irqreturn_t cs35l41_irq(int irq, void *data)
 	unsigned int mbox_3_val, mbox_3_cmd, mbox_3_data;
 	int ret;
 
+	if (cs35l41->amp_hibernate == CS35L41_HIBERNATE_STANDBY)
+		return IRQ_NONE;
+
 	for (i = 0; i < ARRAY_SIZE(status); i++) {
 		regmap_read(cs35l41->regmap,
 			    CS35L41_IRQ1_STATUS1 + (i * CS35L41_REGSTRIDE),
@@ -3361,10 +3364,10 @@ static int cs35l41_enter_hibernate(struct cs35l41_private *cs35l41)
 
 	/* Disable interrupts */
 	regmap_write(cs35l41->regmap, CS35L41_IRQ1_MASK1, 0xFFFFFFFF);
+
 	if (cs35l41->pdata.shared_boost == SHARED_BOOST_PASSIVE)
 		regmap_write(cs35l41->regmap, CS35L41_IRQ1_MASK3,
 			     CS35L41_INT3_MASK_DEFAULT);
-	disable_irq(cs35l41->irq);
 
 	/* Reset DSP sticky bit */
 	regmap_write(cs35l41->regmap, CS35L41_IRQ2_STATUS2,
@@ -3508,8 +3511,6 @@ static int cs35l41_exit_hibernate(struct cs35l41_private *cs35l41)
 	else
 		dev_dbg(cs35l41->dev, "cs35l41 restored in %d attempts\n",
 			6 - retries);
-
-	enable_irq(cs35l41->irq);
 
 	return ret;
 }
