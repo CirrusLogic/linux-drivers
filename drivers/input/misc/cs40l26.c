@@ -2030,7 +2030,7 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, u8 *data,
 		goto err_pm;
 	}
 
-	if ((wt_size_words * 3) < data_size_bytes) {
+	if ((wt_size_words * CL_DSP_BYTES_PER_WORD) < data_size_bytes) {
 		dev_err(dev, "No space for OWT waveform\n");
 		ret = -ENOSPC;
 		goto err_pm;
