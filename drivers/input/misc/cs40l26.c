@@ -19,6 +19,24 @@ static inline bool is_owt(unsigned int index)
 						index <= CS40L26_OWT_INDEX_END;
 }
 
+static inline bool is_buzz(unsigned int index)
+{
+	return (index >= CS40L26_BUZZGEN_INDEX_START &&
+					index <= CS40L26_BUZZGEN_INDEX_END);
+}
+
+static inline bool is_ram(unsigned int index)
+{
+	return (index >= CS40L26_RAM_INDEX_START &&
+					index <= CS40L26_RAM_INDEX_END);
+}
+
+static inline bool is_rom(unsigned int index)
+{
+	return (index >= CS40L26_ROM_INDEX_START &&
+					index <= CS40L26_ROM_INDEX_END);
+}
+
 static inline bool section_complete(struct cs40l26_owt_section *s)
 {
 	return s->delay ? true : false;
@@ -1480,88 +1498,101 @@ static int cs40l26_update_reg_defaults_via_pseq(struct cs40l26_private *cs40l26)
 }
 
 static int cs40l26_buzzgen_set(struct cs40l26_private *cs40l26, u16 freq,
-		u16 level, u16 duration, u8 offset)
+		u16 level, u16 duration, u8 buzzgen_num)
 {
 	int ret;
-	unsigned int base_reg, offset_reg;
+	unsigned int base_reg, freq_reg, level_reg, duration_reg;
 
+	/* BUZZ_EFFECTS1_BUZZ_xxx are initially populated by contents of OTP.
+	 * The buzz specified by these controls is triggered by writing
+	 * 0x01800080 to the DSP mailbox
+	 */
 	ret = cl_dsp_get_reg(cs40l26->dsp, "BUZZ_EFFECTS1_BUZZ_FREQ",
 		CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID, &base_reg);
 	if (ret)
 		return ret;
 
-	offset_reg = base_reg + (offset * 12);
+	freq_reg = base_reg
+			+ ((buzzgen_num) * CS40L26_BUZZGEN_CONFIG_OFFSET);
+	level_reg = base_reg
+			+ ((buzzgen_num) * CS40L26_BUZZGEN_CONFIG_OFFSET)
+			+ CS40L26_BUZZGEN_LEVEL_OFFSET;
+	duration_reg = base_reg
+			+ ((buzzgen_num) * CS40L26_BUZZGEN_CONFIG_OFFSET)
+			+ CS40L26_BUZZGEN_DURATION_OFFSET;
 
-	ret = regmap_write(cs40l26->regmap, offset_reg, freq);
+	pm_runtime_get_sync(cs40l26->dev);
+
+	ret = regmap_write(cs40l26->regmap, freq_reg, freq);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to write BUZZGEN frequency\n");
-		return ret;
+		goto err_pm;
 	}
 
-	ret = regmap_write(cs40l26->regmap, offset_reg + 4,
-			CS40L26_BUZZGEN_LEVEL_DEFAULT);
+	ret = regmap_write(cs40l26->regmap, level_reg, level);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to write BUZZGEN level\n");
-		return ret;
+		goto err_pm;
 	}
 
-	ret = regmap_write(cs40l26->regmap, offset_reg + 8, duration / 4);
+	ret = regmap_write(cs40l26->regmap, duration_reg, duration / 4);
 	if (ret)
 		dev_err(cs40l26->dev, "Failed to write BUZZGEN duration\n");
+
+err_pm:
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
 
 	return ret;
 }
 
-static int cs40l26_gpio_index_set(struct cs40l26_private *cs40l26,
-		struct ff_effect *effect)
+static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26,
+				u32 index, u8 bank, struct ff_effect *effect)
 {
-	u16 button = effect->trigger.button;
-	u8 bank = (button & CS40L26_BTN_BANK_MASK) >> CS40L26_BTN_BANK_SHIFT;
-	u8 edge = (button & CS40L26_BTN_EDGE_MASK) >> CS40L26_BTN_EDGE_SHIFT;
-	u8 gpio = (button & CS40L26_BTN_NUM_MASK) >> CS40L26_BTN_NUM_SHIFT;
-	u8 index = button & CS40L26_BTN_INDEX_MASK;
-	u8 buzz = button & CS40L26_BTN_BUZZ_MASK;
-	u16 write_val, freq;
-	u8 offset;
-	u32 reg;
 	int ret;
+	bool edge, ev_handler_bank_ram, owt;
+	u32 reg, write_val;
+	u16 button = effect->trigger.button;
+	u8 gpio = (button & CS40L26_BTN_NUM_MASK) >> CS40L26_BTN_NUM_SHIFT;
 
-	if (gpio != 1) {
+	edge = (button & CS40L26_BTN_EDGE_MASK) >> CS40L26_BTN_EDGE_SHIFT;
+
+	switch (bank) {
+	case CS40L26_RAM_BANK_ID:
+		owt = false;
+		ev_handler_bank_ram = true;
+		break;
+	case CS40L26_ROM_BANK_ID:
+		owt = false;
+		ev_handler_bank_ram = false;
+		break;
+	case CS40L26_OWT_BANK_ID:
+		owt = true;
+		ev_handler_bank_ram = true;
+		break;
+	default:
+		dev_err(cs40l26->dev, "Effect bank %u not supported\n",
+								bank);
+		return -EINVAL;
+	}
+
+	if (gpio != CS40L26_GPIO1) {
 		dev_err(cs40l26->dev, "GPIO%u not supported on 0x%02X\n", gpio,
 				cs40l26->revid);
 		return -EINVAL;
 	}
 
-	if (edge > 1) {
-		dev_err(cs40l26->dev, "Invalid GPI edge %u\n", edge);
-		return -EINVAL;
-	}
-
-	offset = ((edge ^ 1)) * 4;
-	reg = cs40l26->event_map_base + offset;
+	reg = cs40l26->event_map_base + (edge ? 0 : 4);
+	write_val = (index & CS40L26_BTN_INDEX_MASK) |
+			(ev_handler_bank_ram << CS40L26_BTN_BANK_SHIFT) |
+			(owt << CS40L26_BTN_OWT_SHIFT);
 
 	pm_runtime_get_sync(cs40l26->dev);
 
-	if (buzz) {
-		freq = CS40L26_MS_TO_HZ(effect->u.periodic.period);
-
-		ret = cs40l26_buzzgen_set(cs40l26, freq,
-				CS40L26_BUZZGEN_LEVEL_DEFAULT,
-				effect->replay.length, 0);
-		if (ret)
-			goto pm_err;
-
-		write_val = 1 << CS40L26_BTN_BUZZ_SHIFT;
-	} else {
-		write_val = index | (bank << CS40L26_BTN_BANK_SHIFT);
-	}
-
-	ret = regmap_update_bits(cs40l26->regmap, reg,
-			CS40L26_EVENT_MAP_INDEX_MASK, write_val);
+	ret = regmap_write(cs40l26->regmap, reg, write_val);
 	if (ret)
 		dev_err(cs40l26->dev, "Failed to update event map\n");
 
-pm_err:
 	pm_runtime_mark_last_busy(cs40l26->dev);
 	pm_runtime_put_autosuspend(cs40l26->dev);
 
@@ -1626,13 +1657,14 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	u32 index = 0;
 	int ret = 0;
 	struct cs40l26_owt *owt;
-	unsigned int reg, freq;
+	unsigned int reg;
 	bool invert;
 	u16 duration;
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	if (cs40l26->effect->u.periodic.waveform == FF_CUSTOM)
+	if (cs40l26->effect->u.periodic.waveform == FF_CUSTOM ||
+				cs40l26->effect->u.periodic.waveform == FF_SINE)
 		index = cs40l26->trigger_indices[cs40l26->effect->id];
 
 	if (is_owt(index)) {
@@ -1684,22 +1716,9 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 
 	switch (cs40l26->effect->u.periodic.waveform) {
 	case FF_CUSTOM:
+	case FF_SINE:
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				index, CS40L26_DSP_MBOX_RESET);
-		if (ret)
-			goto err_mutex;
-		break;
-	case FF_SINE:
-		freq = CS40L26_MS_TO_HZ(cs40l26->effect->u.periodic.period);
-
-		ret = cs40l26_buzzgen_set(cs40l26, freq,
-				CS40L26_BUZZGEN_LEVEL_DEFAULT, duration, 1);
-		if (ret)
-			goto err_mutex;
-
-		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-					CS40L26_BUZZGEN_INDEX_CP_TRIGGER,
-					CS40L26_DSP_MBOX_RESET);
 		if (ret)
 			goto err_mutex;
 		break;
@@ -2332,6 +2351,94 @@ sections_err_free:
 	return ret ? ret : out_data_bytes;
 }
 
+static u8 cs40l26_get_lowest_free_buzzgen(struct cs40l26_private *cs40l26)
+{
+	int buzzgen, i;
+
+	mutex_lock(&cs40l26->lock);
+
+	/* Note that this search starts at RAM_BUZZ1 and does not utilize the
+	 * OTP buzz
+	 */
+	for (buzzgen = 1; buzzgen <= CS40L26_BUZZGEN_NUM_CONFIGS; buzzgen++) {
+		for (i = 0; i < FF_MAX_EFFECTS; i++) {
+			if (cs40l26->trigger_indices[i] ==
+					CS40L26_BUZZGEN_INDEX_START + buzzgen)
+				break;
+		}
+
+		if (i == FF_MAX_EFFECTS)
+			break;
+	}
+
+	mutex_unlock(&cs40l26->lock);
+
+	return buzzgen;
+}
+
+static int cs40l26_sine_upload(struct cs40l26_private *cs40l26,
+						struct ff_effect *effect)
+{
+	struct device *dev = cs40l26->dev;
+	int ret;
+	u8 lowest_free_buzzgen, level;
+	u16 freq;
+	u32 trigger_index;
+
+	if (effect->u.periodic.period) {
+		if (effect->u.periodic.period < CS40L26_BUZZGEN_PERIOD_MIN ||
+		effect->u.periodic.period > CS40L26_BUZZGEN_PERIOD_MAX) {
+			dev_err(dev,
+				"%u ms period not within range (4-10 ms)\n",
+				effect->u.periodic.period);
+			return -EINVAL;
+		}
+	} else {
+		dev_err(dev, "Sine wave period not specified\n");
+		return -EINVAL;
+	}
+
+	if (effect->u.periodic.magnitude) {
+		if (effect->u.periodic.magnitude < CS40L26_BUZZGEN_LEVEL_MIN ||
+		effect->u.periodic.magnitude > CS40L26_BUZZGEN_LEVEL_MAX) {
+			dev_err(dev,
+				"%u magnitude not within range (%d-%d)\n",
+				effect->u.periodic.magnitude,
+				CS40L26_BUZZGEN_LEVEL_MIN,
+				CS40L26_BUZZGEN_LEVEL_MAX);
+			return -EINVAL;
+		}
+
+		level = effect->u.periodic.magnitude;
+	} else {
+		level = CS40L26_BUZZGEN_LEVEL_DEFAULT;
+	}
+
+	lowest_free_buzzgen = cs40l26_get_lowest_free_buzzgen(cs40l26);
+	dev_dbg(dev, "lowest_free_buzzgen: %d", lowest_free_buzzgen);
+
+	if (lowest_free_buzzgen > CS40L26_BUZZGEN_NUM_CONFIGS) {
+		dev_err(dev, "Unable to upload buzzgen effect\n");
+		return -ENOSPC;
+	}
+
+	freq = CS40L26_MS_TO_HZ(effect->u.periodic.period);
+
+	ret = cs40l26_buzzgen_set(cs40l26, freq, level,
+				effect->replay.length, lowest_free_buzzgen);
+	if (ret)
+		return ret;
+
+	trigger_index = CS40L26_BUZZGEN_INDEX_START + lowest_free_buzzgen;
+	cs40l26->trigger_indices[effect->id] = trigger_index;
+
+	if (effect->trigger.button)
+		ret = cs40l26_map_gpi_to_haptic(cs40l26, trigger_index,
+						CS40L26_RAM_BANK_ID, effect);
+
+	return ret;
+}
+
 static int cs40l26_upload_effect(struct input_dev *dev,
 		struct ff_effect *effect, struct ff_effect *old)
 {
@@ -2444,33 +2551,25 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 
 		dev_dbg(cdev, "%s: ID = %u, index = 0x%08X\n",
 				__func__, effect->id, trigger_index);
+
+		if (effect->trigger.button) {
+			ret = cs40l26_map_gpi_to_haptic(cs40l26,
+						trigger_index, bank, effect);
+			if (ret)
+				goto out_free;
+		}
+
 		break;
 	case FF_SINE:
-		if (effect->u.periodic.period) {
-			if (effect->u.periodic.period
-					< CS40L26_BUZZGEN_PERIOD_MIN
-					|| effect->u.periodic.period
-					> CS40L26_BUZZGEN_PERIOD_MAX) {
-				dev_err(cdev,
-				"%u ms period not within range (4-10 ms)\n",
-				effect->u.periodic.period);
-				return -EINVAL;
-			}
-		} else {
-			dev_err(cdev, "Sine wave period not specified\n");
-			return -EINVAL;
-		}
+		ret = cs40l26_sine_upload(cs40l26, effect);
+		if (ret)
+			return ret;
+
 		break;
 	default:
 		dev_err(cdev, "Periodic waveform type 0x%X not supported\n",
 				effect->u.periodic.waveform);
 		return -EINVAL;
-	}
-
-	if (effect->trigger.button) {
-		ret = cs40l26_gpio_index_set(cs40l26, effect);
-		if (ret)
-			goto out_free;
 	}
 
 	ret = cs40l26_get_num_waves(cs40l26, &nwaves);
@@ -2486,16 +2585,71 @@ out_free:
 	return ret;
 }
 
-static int cs40l26_erase_effect(struct input_dev *dev, int effect_id)
+static int cs40l26_clear_gpi_event_reg(struct cs40l26_private *cs40l26, u32 reg)
 {
-	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
-	u32 index = cs40l26->trigger_indices[effect_id];
-	u32 cmd = CS40L26_DSP_MBOX_CMD_OWT_DELETE_BASE;
-	struct cs40l26_owt *owt, *owt_tmp;
+	struct regmap *regmap = cs40l26->regmap;
 	int ret;
 
-	if (!is_owt(index))
-		return 0;
+	ret = regmap_write(regmap, reg, 0);
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to clear gpi reg: %08X", reg);
+
+	return ret;
+}
+
+static int cs40l26_erase_gpi_mapping(struct cs40l26_private *cs40l26,
+								int effect_id)
+{
+	struct device *dev = cs40l26->dev;
+	u32 index = cs40l26->trigger_indices[effect_id];
+	u8 trigger_index, gpi_index;
+	u32 reg, val;
+	int i, ret;
+
+	trigger_index = index & 0xFF;
+
+	pm_runtime_get_sync(dev);
+	for (i = 0; i < CS40L26_EVENT_MAP_NUM_GPI_REGS; i++) {
+		reg = cs40l26->event_map_base + (i * 4);
+		ret = regmap_read(cs40l26->regmap, reg, &val);
+		if (ret) {
+			dev_err(dev, "Failed to read gpi event reg: %u",  reg);
+			goto pm_err;
+		}
+		gpi_index = val & 0xFF;
+
+		if (is_buzz(index) ||
+			(is_owt(index) && val & CS40L26_BTN_OWT_MASK) ||
+			(is_ram(index) && val & CS40L26_BTN_BANK_MASK) ||
+			(is_rom(index) && ~val & CS40L26_BTN_BANK_MASK)) {
+			if (trigger_index == gpi_index) {
+				ret = cs40l26_clear_gpi_event_reg(cs40l26, reg);
+				if (ret)
+					goto pm_err;
+			}
+		}
+	}
+
+pm_err:
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
+	return ret;
+}
+
+static int cs40l26_erase_buzz(struct cs40l26_private *cs40l26, int effect_id)
+{
+	cs40l26->trigger_indices[effect_id] = 0;
+
+	return 0;
+}
+
+static int cs40l26_erase_owt(struct cs40l26_private *cs40l26, int effect_id)
+{
+	u32 cmd = CS40L26_DSP_MBOX_CMD_OWT_DELETE_BASE;
+	u32 index = cs40l26->trigger_indices[effect_id];
+	struct cs40l26_owt *owt, *owt_tmp;
+	int ret;
 
 	/* Update indices for OWT waveforms uploaded after erased effect */
 	list_for_each_entry(owt_tmp, &cs40l26->owt_head, list) {
@@ -2526,6 +2680,36 @@ static int cs40l26_erase_effect(struct input_dev *dev, int effect_id)
 pm_err:
 	pm_runtime_mark_last_busy(cs40l26->dev);
 	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	return ret;
+}
+
+
+static int cs40l26_erase_effect(struct input_dev *dev, int effect_id)
+{
+	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
+	u32 index = cs40l26->trigger_indices[effect_id];
+	int ret = 0;
+
+	if (is_owt(index)) {
+		ret = cs40l26_erase_owt(cs40l26, effect_id);
+		if (ret)
+			dev_err(cs40l26->dev, "Failed to erase OWT effect: %d",
+									ret);
+		return ret;
+	}
+
+	if (is_buzz(index)) {
+		ret = cs40l26_erase_buzz(cs40l26, effect_id);
+		if (ret)
+			dev_err(cs40l26->dev, "Failed to erase buzz effect: %d",
+									ret);
+		return ret;
+	}
+
+	ret = cs40l26_erase_gpi_mapping(cs40l26, effect_id);
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to erase gpi mapping: %d", ret);
 
 	return ret;
 }
