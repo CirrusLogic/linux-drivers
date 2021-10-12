@@ -232,7 +232,7 @@ static ssize_t cs40l26_owt_free_space_show(struct device *dev,
 		goto err_pm;
 	}
 
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", words * 3);
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", words * CL_DSP_BYTES_PER_WORD);
 
 err_pm:
 	pm_runtime_mark_last_busy(cs40l26->dev);
