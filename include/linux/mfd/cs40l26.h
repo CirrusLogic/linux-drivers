@@ -1097,14 +1097,15 @@
 #define CS40L26_WT_INDEF_TIME_VAL		0xFFFF
 #define CS40L26_WT_MAX_TIME_VAL		16383 /* ms */
 
-#define CS40L26_WT_WLEN_SIZE			4
 #define CS40L26_WT_HEADER_OFFSET		3
 #define CS40L26_WT_HEADER_DEFAULT_FLAGS		0x0000
+#define CS40L26_WT_HEADER_PWLE_SIZE		12
+#define CS40L26_WT_HEADER_COMP_SIZE		20
 
-#define CS40L26_WT_TYPE10_COMP_SEG_LEN_MAX	20
-
+#define CS40L26_WT_TYPE10_SECTION_BYTES_MIN	8
+#define CS40L26_WT_TYPE10_SECTION_BYTES_MAX	12
 #define CS40L26_WT_TYPE10_WAVELEN_MAX		0x3FFFFF
-#define CS40L26_WT_TYPE10_WAVELEN_INDEF	0x400000
+#define CS40L26_WT_TYPE10_WAVELEN_INDEF		0x400000
 #define CS40L26_WT_TYPE10_WAVELEN_CALCULATED	0x800000
 #define CS40L26_WT_TYPE10_COMP_DURATION_FLAG	0x8
 
@@ -1264,6 +1265,7 @@ struct cs40l26_fw {
 struct cs40l26_owt_section {
 	u8 flags;
 	u8 repeat;
+	u8 amplitude;
 	u8 index;
 	u16 delay;
 	u16 duration;
@@ -1310,7 +1312,6 @@ struct cs40l26_platform_data {
 
 struct cs40l26_owt {
 	int effect_id;
-	u32 wlength;
 	u32 trigger_index;
 	struct list_head list;
 };
