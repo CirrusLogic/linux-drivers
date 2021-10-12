@@ -92,6 +92,15 @@ int cl_dsp_memchunk_write(struct cl_dsp_memchunk *ch, int nbits, u32 val)
 }
 EXPORT_SYMBOL(cl_dsp_memchunk_write);
 
+int cl_dsp_memchunk_flush(struct cl_dsp_memchunk *ch)
+{
+	if (!ch->cachebits)
+		return 0;
+
+	return cl_dsp_memchunk_write(ch, 24 - ch->cachebits, 0);
+}
+EXPORT_SYMBOL(cl_dsp_memchunk_flush);
+
 int cl_dsp_raw_write(struct cl_dsp *dsp, unsigned int reg,
 		const void *val, size_t val_len, size_t limit)
 {
