@@ -19,6 +19,11 @@ static inline bool is_owt(unsigned int index)
 						index <= CS40L26_OWT_INDEX_END;
 }
 
+static inline bool section_complete(struct cs40l26_owt_section *s)
+{
+	return s->delay ? true : false;
+}
+
 static int cs40l26_dsp_read(struct cs40l26_private *cs40l26, u32 reg, u32 *val)
 {
 	struct regmap *regmap = cs40l26->regmap;
@@ -1812,6 +1817,16 @@ int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves)
 }
 EXPORT_SYMBOL(cs40l26_get_num_waves);
 
+static struct cl_dsp_owt_header *cs40l26_header(struct cs40l26_private *cs40l26,
+		u8 index)
+{
+	if (index >= cs40l26->dsp->wt_desc->owt.nwaves)
+		return NULL;
+
+	return &cs40l26->dsp->wt_desc->owt.waves[index];
+
+}
+
 static int cs40l26_owt_get_wlength(struct cs40l26_private *cs40l26, u8 index)
 {
 	struct device *dev = cs40l26->dev;
@@ -1821,7 +1836,9 @@ static int cs40l26_owt_get_wlength(struct cs40l26_private *cs40l26, u8 index)
 	if (index == 0)
 		return 0;
 
-	entry = &cs40l26->dsp->wt_desc->owt.waves[index];
+	entry = cs40l26_header(cs40l26, index);
+	if (entry == NULL)
+		return -EINVAL;
 
 	switch (entry->type) {
 	case WT_TYPE_V6_PCM_F0_REDC:
@@ -1839,6 +1856,26 @@ static int cs40l26_owt_get_wlength(struct cs40l26_private *cs40l26, u8 index)
 	return cl_dsp_memchunk_read(&ch, 24);
 }
 
+static void cs40l26_owt_set_section_info(struct cs40l26_private *cs40l26,
+		struct cl_dsp_memchunk *ch,
+		struct cs40l26_owt_section *sections, u8 nsections)
+{
+	int i;
+
+	for (i = 0; i < nsections; i++) {
+		cl_dsp_memchunk_write(ch, 8, sections[i].amplitude);
+		cl_dsp_memchunk_write(ch, 8, sections[i].index);
+		cl_dsp_memchunk_write(ch, 8, sections[i].repeat);
+		cl_dsp_memchunk_write(ch, 8, sections[i].flags);
+		cl_dsp_memchunk_write(ch, 16, sections[i].delay);
+
+		if (sections[i].flags & CS40L26_WT_TYPE10_COMP_DURATION_FLAG) {
+			cl_dsp_memchunk_write(ch, 8, 0x00); /* Pad */
+			cl_dsp_memchunk_write(ch, 16, sections[i].duration);
+		}
+	}
+}
+
 static void cs40l26_owt_get_section_info(struct cs40l26_private *cs40l26,
 		struct cl_dsp_memchunk *ch,
 		struct cs40l26_owt_section *sections, u8 nsections)
@@ -1846,7 +1883,7 @@ static void cs40l26_owt_get_section_info(struct cs40l26_private *cs40l26,
 	int i;
 
 	for (i = 0; i < nsections; i++) {
-		cl_dsp_memchunk_read(ch, 8); /* Skip amplitude */
+		sections[i].amplitude = cl_dsp_memchunk_read(ch, 8);
 		sections[i].index = cl_dsp_memchunk_read(ch, 8);
 		sections[i].repeat = cl_dsp_memchunk_read(ch, 8);
 		sections[i].flags = cl_dsp_memchunk_read(ch, 8);
@@ -1860,22 +1897,15 @@ static void cs40l26_owt_get_section_info(struct cs40l26_private *cs40l26,
 }
 
 static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26,
-		s16 *data, u32 data_size, u32 *owt_wlen)
+	u8 nsections, u8 global_rep, u8 *data, u32 data_size_bytes,
+	u32 *owt_wlen)
 {
-	u32 data_size_bytes = data_size * 2;
 	struct cl_dsp_memchunk ch;
 	u32 total_len = 0, section_len = 0, loop_len = 0;
 	bool in_loop = false;
 	struct cs40l26_owt_section *sections;
 	int ret = 0, i, wlen_whole;
-	u8 nsections, global_rep;
 	u32 dlen, wlen;
-
-	ch = cl_dsp_memchunk_create((void *) data, data_size_bytes);
-
-	cl_dsp_memchunk_read(&ch, 8); /* Skip padding */
-	nsections = cl_dsp_memchunk_read(&ch, 8);
-	global_rep = cl_dsp_memchunk_read(&ch, 8);
 
 	if (nsections < 1) {
 		dev_err(cs40l26->dev, "Not enough sections for composite\n");
@@ -1884,11 +1914,10 @@ static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26,
 
 	sections = kcalloc(nsections, sizeof(struct cs40l26_owt_section),
 			GFP_KERNEL);
-	if (!sections) {
-		dev_err(cs40l26->dev, "Failed to allocate OWT sections\n");
+	if (!sections)
 		return -ENOMEM;
-	}
 
+	ch = cl_dsp_memchunk_create((void *) data, data_size_bytes);
 	cs40l26_owt_get_section_info(cs40l26, &ch, sections, nsections);
 
 	for (i = 0; i < nsections; i++) {
@@ -1951,8 +1980,8 @@ err_free:
 	return ret;
 }
 
-static int cs40l26_owt_add(struct cs40l26_private *cs40l26, u32 wlen,
-		int effect_id, u32 index)
+static int cs40l26_owt_add(struct cs40l26_private *cs40l26, int effect_id,
+		u32 index)
 {
 	struct cs40l26_owt *owt_new;
 
@@ -1961,7 +1990,6 @@ static int cs40l26_owt_add(struct cs40l26_private *cs40l26, u32 wlen,
 		return -ENOMEM;
 
 	owt_new->effect_id = effect_id;
-	owt_new->wlength = wlen;
 	owt_new->trigger_index = index;
 	list_add(&owt_new->list, &cs40l26->owt_head);
 
@@ -1970,51 +1998,13 @@ static int cs40l26_owt_add(struct cs40l26_private *cs40l26, u32 wlen,
 	return 0;
 }
 
-static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, s16 *data,
-		u32 data_size, u32 *wlength)
+static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, u8 *data,
+		u32 data_size_bytes)
 {
-	bool pwle = (data[0] == 0x0000) ? false : true;
-	u32 data_size_bytes = (data_size * 2) + (pwle ? 0 : 4);
 	struct device *dev = cs40l26->dev;
 	struct cl_dsp *dsp = cs40l26->dsp;
 	unsigned int write_reg, reg, wt_offset, wt_size_words, wt_base;
-	u32 owt_wlength, full_data_size_bytes = 12 + data_size_bytes;
-	struct cl_dsp_memchunk data_ch;
-	u8 *full_data;
-	int ret = 0;
-
-	full_data = kcalloc(full_data_size_bytes, sizeof(u8), GFP_KERNEL);
-	if (!full_data)
-		return -ENOMEM;
-
-	data_ch = cl_dsp_memchunk_create((void *) full_data,
-			full_data_size_bytes);
-	cl_dsp_memchunk_write(&data_ch, 16, CS40L26_WT_HEADER_DEFAULT_FLAGS);
-
-	if (pwle)
-		cl_dsp_memchunk_write(&data_ch, 8, WT_TYPE_V6_PWLE);
-	else
-		cl_dsp_memchunk_write(&data_ch, 8, WT_TYPE_V6_COMPOSITE);
-
-	cl_dsp_memchunk_write(&data_ch, 24, CS40L26_WT_HEADER_OFFSET);
-	cl_dsp_memchunk_write(&data_ch, 24, data_size_bytes /
-							CL_DSP_BYTES_PER_WORD);
-
-	if (!pwle) { /* Wlength is included in PWLE raw data */
-		ret = cs40l26_owt_calculate_wlength(cs40l26, data, data_size,
-				&owt_wlength);
-		if (ret)
-			goto err_free;
-
-		cl_dsp_memchunk_write(&data_ch, 24, owt_wlength);
-	}
-
-	memcpy(full_data + data_ch.bytes, data, data_size_bytes);
-
-	if (pwle)
-		owt_wlength = (full_data[data_ch.bytes + 1] << 16) |
-				(full_data[data_ch.bytes + 2] << 8) |
-				full_data[data_ch.bytes + 3];
+	int ret;
 
 	pm_runtime_get_sync(dev);
 
@@ -2040,7 +2030,7 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, s16 *data,
 		goto err_pm;
 	}
 
-	if ((wt_size_words * 3) < full_data_size_bytes) {
+	if ((wt_size_words * 3) < data_size_bytes) {
 		dev_err(dev, "No space for OWT waveform\n");
 		ret = -ENOSPC;
 		goto err_pm;
@@ -2053,8 +2043,8 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, s16 *data,
 
 	write_reg = wt_base + (wt_offset * 4);
 
-	ret = cl_dsp_raw_write(cs40l26->dsp, write_reg, full_data,
-			full_data_size_bytes, CL_DSP_MAX_WLEN);
+	ret = cl_dsp_raw_write(cs40l26->dsp, write_reg, data, data_size_bytes,
+			CL_DSP_MAX_WLEN);
 	if (ret) {
 		dev_err(dev, "Failed to sync OWT\n");
 		goto err_pm;
@@ -2066,29 +2056,288 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, s16 *data,
 		goto err_pm;
 
 	dev_dbg(dev, "Successfully wrote waveform (%u bytes) to 0x%08X\n",
-			full_data_size_bytes, write_reg);
-
-	*wlength = owt_wlength;
+			data_size_bytes, write_reg);
 
 err_pm:
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
-err_free:
-	kfree(full_data);
-
 	return ret;
+}
+
+static u8 *cs40l26_ncw_amp_scaling(struct cs40l26_private *cs40l26, u8 amp,
+		u8 nsections, void *in_data, u32 data_bytes)
+{
+	struct cs40l26_owt_section *sections;
+	struct cl_dsp_memchunk in_ch, out_ch;
+	u16 amp_product;
+	u8 *out_data;
+	int i;
+
+	if (nsections <= 0) {
+		dev_err(cs40l26->dev, "Too few sections for NCW\n");
+		return NULL;
+	}
+
+	sections = kcalloc(nsections, sizeof(struct cs40l26_owt_section),
+			GFP_KERNEL);
+	if (!sections)
+		return NULL;
+
+	in_ch = cl_dsp_memchunk_create(in_data, data_bytes);
+
+	cs40l26_owt_get_section_info(cs40l26, &in_ch, sections, nsections);
+
+	for (i = 0; i < nsections; i++) {
+		if (sections[i].index != 0) {
+			amp_product = sections[i].amplitude * amp;
+			sections[i].amplitude =
+					(u8) DIV_ROUND_UP(amp_product, 100);
+		}
+	}
+
+	out_data = kcalloc(data_bytes, sizeof(u8), GFP_KERNEL);
+	if (!out_data)
+		goto sections_free;
+
+	out_ch = cl_dsp_memchunk_create((void *) out_data, data_bytes);
+	cs40l26_owt_set_section_info(cs40l26, &out_ch, sections, nsections);
+
+
+sections_free:
+	kfree(sections);
+
+	return out_data;
+}
+
+static int cs40l26_owt_comp_data_size(struct cs40l26_private *cs40l26,
+		u8 nsections, struct cs40l26_owt_section *sections)
+{
+	int i, size = 0;
+	struct cl_dsp_owt_header *header;
+
+	for (i = 0; i < nsections; i++) {
+		if (sections[i].index == 0) {
+			size += CS40L26_WT_TYPE10_SECTION_BYTES_MIN;
+			continue;
+		}
+
+		header = cs40l26_header(cs40l26, sections[i].index);
+		if (header == NULL)
+			return -ENOMEM;
+
+		if (header->type == WT_TYPE_V6_COMPOSITE) {
+			size += (header->size - 2) * 4;
+
+			if (section_complete(&sections[i]))
+				size += CS40L26_WT_TYPE10_SECTION_BYTES_MIN;
+		} else {
+			size += sections[i].duration ?
+					CS40L26_WT_TYPE10_SECTION_BYTES_MAX :
+					CS40L26_WT_TYPE10_SECTION_BYTES_MIN;
+		}
+	}
+
+	return size;
+}
+
+static int cs40l26_refactor_owt(struct cs40l26_private *cs40l26, s16 *in_data,
+		u32 in_data_nibbles, bool pwle, u8 **out_data)
+{
+	u8 nsections, global_rep, out_nsections = 0;
+	int ret = 0, pos_byte = 0, in_pos_nib = 2;
+	int in_data_bytes = 2 * in_data_nibbles;
+	int out_data_bytes = 0, data_bytes = 0;
+	struct device *dev = cs40l26->dev;
+	u8 delay_section_data[CS40L26_WT_TYPE10_SECTION_BYTES_MIN];
+	u8 ncw_nsections, ncw_global_rep, *data, *ncw_data;
+	struct cs40l26_owt_section *sections;
+	struct cl_dsp_memchunk ch, out_ch;
+	struct cl_dsp_owt_header *header;
+	u16 section_size_bytes;
+	u32 ncw_bytes, wlen;
+	int i;
+
+	if (pwle) {
+		out_data_bytes = CS40L26_WT_HEADER_PWLE_SIZE + in_data_bytes;
+		*out_data = kcalloc(out_data_bytes, sizeof(u8), GFP_KERNEL);
+		if (!*out_data) {
+			dev_err(dev, "No space for refactored data\n");
+			return -ENOMEM;
+		}
+
+		out_ch = cl_dsp_memchunk_create((void *) *out_data,
+					out_data_bytes);
+		cl_dsp_memchunk_write(&out_ch, 16,
+					CS40L26_WT_HEADER_DEFAULT_FLAGS);
+		cl_dsp_memchunk_write(&out_ch, 8, WT_TYPE_V6_PWLE);
+		cl_dsp_memchunk_write(&out_ch, 24, CS40L26_WT_HEADER_OFFSET);
+		cl_dsp_memchunk_write(&out_ch, 24, in_data_bytes / 4);
+
+		memcpy(*out_data + out_ch.bytes, in_data, in_data_bytes);
+
+		return out_data_bytes;
+	}
+
+	ch = cl_dsp_memchunk_create((void *) in_data, in_data_bytes);
+	cl_dsp_memchunk_read(&ch, 8); /* Skip padding */
+	nsections = cl_dsp_memchunk_read(&ch, 8);
+	global_rep = cl_dsp_memchunk_read(&ch, 8);
+
+	sections = kcalloc(nsections, sizeof(struct cs40l26_owt_section),
+			GFP_KERNEL);
+	if (!sections)
+		return -ENOMEM;
+
+	cs40l26_owt_get_section_info(cs40l26, &ch, sections, nsections);
+
+	data_bytes = cs40l26_owt_comp_data_size(cs40l26, nsections,
+			sections);
+	if (data_bytes <= 0) {
+		dev_err(dev, "Failed to get OWT Composite Data Size\n");
+		ret = data_bytes;
+		goto sections_err_free;
+	}
+
+	data = kcalloc(data_bytes, sizeof(u8), GFP_KERNEL);
+	if (!data) {
+		ret = -ENOMEM;
+		goto sections_err_free;
+	}
+
+	cl_dsp_memchunk_flush(&ch);
+	memset(&delay_section_data, 0, CS40L26_WT_TYPE10_SECTION_BYTES_MIN);
+
+	for (i = 0; i < nsections; i++) {
+		section_size_bytes = sections[i].duration ?
+				CS40L26_WT_TYPE10_SECTION_BYTES_MAX :
+				CS40L26_WT_TYPE10_SECTION_BYTES_MIN;
+
+		if (sections[i].index == 0) {
+			memcpy(data + pos_byte, in_data + in_pos_nib,
+					section_size_bytes);
+			pos_byte += section_size_bytes;
+			in_pos_nib += section_size_bytes / 2;
+			out_nsections++;
+			continue;
+		}
+
+		if (sections[i].repeat != 0) {
+			dev_err(dev, "Inner repeats not allowed for NCWs\n");
+			ret = -EPERM;
+			goto data_err_free;
+		}
+
+		header = cs40l26_header(cs40l26, sections[i].index);
+		if (header == NULL) {
+			ret = -ENOMEM;
+			goto data_err_free;
+		}
+
+		if (header->type == WT_TYPE_V6_COMPOSITE) {
+			ch = cl_dsp_memchunk_create(header->data, 8);
+			cl_dsp_memchunk_read(&ch, 24); /* Skip Wlength */
+			cl_dsp_memchunk_read(&ch, 8); /* Skip Padding */
+			ncw_nsections = cl_dsp_memchunk_read(&ch, 8);
+
+			ncw_global_rep = cl_dsp_memchunk_read(&ch, 8);
+			if (ncw_global_rep != 0) {
+				dev_err(dev,
+					"No NCW support for outer repeat\n");
+				ret = -EPERM;
+				goto data_err_free;
+			}
+
+			cl_dsp_memchunk_flush(&ch);
+
+			ncw_bytes = (header->size - 2) * 4;
+			ncw_data = cs40l26_ncw_amp_scaling(cs40l26,
+					sections[i].amplitude, ncw_nsections,
+					header->data + 8, ncw_bytes);
+			if (ncw_data == NULL) {
+				ret = -ENOMEM;
+				goto data_err_free;
+			}
+
+			memcpy(data + pos_byte, ncw_data, ncw_bytes);
+			pos_byte += ncw_bytes;
+			out_nsections += ncw_nsections;
+			kfree(ncw_data);
+
+			if (section_complete(&sections[i])) {
+				ch = cl_dsp_memchunk_create((void *)
+					delay_section_data,
+					CS40L26_WT_TYPE10_SECTION_BYTES_MIN);
+
+				cl_dsp_memchunk_write(&ch, 24, 0x000000);
+				cl_dsp_memchunk_write(&ch, 8, 0x00);
+				cl_dsp_memchunk_write(&ch, 16,
+						sections[i].delay);
+
+				memcpy(data + pos_byte,
+					delay_section_data,
+					CS40L26_WT_TYPE10_SECTION_BYTES_MIN);
+
+				cl_dsp_memchunk_flush(&ch);
+
+				pos_byte +=
+					CS40L26_WT_TYPE10_SECTION_BYTES_MIN;
+				out_nsections++;
+			}
+		} else {
+			memcpy(data + pos_byte, in_data + in_pos_nib,
+					section_size_bytes);
+			pos_byte += section_size_bytes;
+			out_nsections++;
+		}
+		in_pos_nib += section_size_bytes / 2;
+	}
+
+	out_data_bytes = data_bytes + CS40L26_WT_HEADER_COMP_SIZE;
+	*out_data = kcalloc(out_data_bytes, sizeof(u8), GFP_KERNEL);
+	if (!*out_data) {
+		dev_err(dev, "Failed to allocate space for composite\n");
+		ret = -ENOMEM;
+		goto data_err_free;
+	}
+
+	out_ch = cl_dsp_memchunk_create((void *) *out_data, out_data_bytes);
+	cl_dsp_memchunk_write(&out_ch, 16, CS40L26_WT_HEADER_DEFAULT_FLAGS);
+	cl_dsp_memchunk_write(&out_ch, 8, WT_TYPE_V6_COMPOSITE);
+	cl_dsp_memchunk_write(&out_ch, 24, CS40L26_WT_HEADER_OFFSET);
+	cl_dsp_memchunk_write(&out_ch, 24, data_bytes / CL_DSP_BYTES_PER_WORD);
+
+	ret = cs40l26_owt_calculate_wlength(cs40l26, out_nsections, global_rep,
+			data, data_bytes, &wlen);
+	if (ret)
+		goto data_err_free;
+
+	cl_dsp_memchunk_write(&out_ch, 24, wlen);
+	cl_dsp_memchunk_write(&out_ch, 8, 0x00); /* Pad */
+	cl_dsp_memchunk_write(&out_ch, 8, out_nsections);
+	cl_dsp_memchunk_write(&out_ch, 8, global_rep);
+
+	memcpy(*out_data + out_ch.bytes, data, data_bytes);
+
+data_err_free:
+	kfree(data);
+sections_err_free:
+	kfree(sections);
+
+	return ret ? ret : out_data_bytes;
 }
 
 static int cs40l26_upload_effect(struct input_dev *dev,
 		struct ff_effect *effect, struct ff_effect *old)
 {
 	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
-	struct device *cdev = cs40l26->dev;
 	s16 *raw_custom_data = NULL;
-	int ret = 0;
-	u32 trigger_index, min_index, max_index, nwaves, owt_wlen;
+	u8 *refactored_data = NULL;
+	struct device *cdev = cs40l26->dev;
+	int ret = 0, refactored_size;
+	u32 trigger_index, min_index, max_index, nwaves;
 	u16 index, bank;
+	bool pwle;
 
 	if (effect->type != FF_PERIODIC) {
 		dev_err(cdev, "Effect type 0x%X not supported\n", effect->type);
@@ -2118,9 +2367,22 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 			goto out_free;
 		}
 
+		pwle = (raw_custom_data[0] == 0x0000) ? false : true;
+
 		if (effect->u.periodic.custom_len > CS40L26_CUSTOM_DATA_SIZE) {
-			ret = cs40l26_owt_upload(cs40l26, raw_custom_data,
-				effect->u.periodic.custom_len, &owt_wlen);
+			refactored_size = cs40l26_refactor_owt(cs40l26,
+				raw_custom_data, effect->u.periodic.custom_len,
+				pwle, &refactored_data);
+
+			if (refactored_size <= 0) {
+				dev_err(cdev,
+					"Failed to refactor OWT waveform\n");
+				ret = refactored_size;
+				goto out_free;
+			}
+
+			ret = cs40l26_owt_upload(cs40l26, refactored_data,
+					refactored_size);
 			if (ret)
 				goto out_free;
 
@@ -2169,7 +2431,7 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 		}
 
 		if (is_owt(trigger_index)) {
-			ret = cs40l26_owt_add(cs40l26, owt_wlen, effect->id,
+			ret = cs40l26_owt_add(cs40l26, effect->id,
 					trigger_index);
 			if (ret)
 				goto out_free;
@@ -2212,9 +2474,9 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 
 	dev_dbg(cdev, "Total number of waveforms = %u\n", nwaves);
 
-
 out_free:
 	kfree(raw_custom_data);
+	kfree(refactored_data);
 
 	return ret;
 }
