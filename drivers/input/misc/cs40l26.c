@@ -1410,7 +1410,7 @@ static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
 	/* read pseq memory space */
 	i = 0;
 	while (i < CS40L26_PSEQ_MAX_WORDS) {
-		read_size = min(CS40L26_MAX_I2C_READ_SIZE_BYTES,
+		read_size = min_t(unsigned int, CS40L26_MAX_I2C_READ_SIZE_BYTES,
 			CS40L26_PSEQ_MAX_WORDS - i);
 
 		ret = regmap_bulk_read(cs40l26->regmap,
