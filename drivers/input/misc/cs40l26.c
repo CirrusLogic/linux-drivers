@@ -1844,6 +1844,9 @@ EXPORT_SYMBOL(cs40l26_get_num_waves);
 static struct cl_dsp_owt_header *cs40l26_header(struct cs40l26_private *cs40l26,
 		u8 index)
 {
+	if (!cs40l26->dsp || !cs40l26->dsp->wt_desc)
+		return NULL;
+
 	if (index >= cs40l26->dsp->wt_desc->owt.nwaves)
 		return NULL;
 
