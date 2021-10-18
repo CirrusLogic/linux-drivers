@@ -3057,7 +3057,9 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26, u32 id)
 		strncpy(cs40l26->fw.coeff_files[2],
 				CS40L26_SVC_TUNING_FILE_NAME,
 				CS40L26_SVC_TUNING_FILE_NAME_LEN);
-
+		strncpy(cs40l26->fw.coeff_files[3],
+				CS40L26_DVL_FILE_NAME,
+				CS40L26_DVL_FILE_NAME_LEN);
 		ret = cl_dsp_wavetable_create(cs40l26->dsp,
 				CS40L26_VIBEGEN_ALGO_ID, CS40L26_WT_NAME_XM,
 				CS40L26_WT_NAME_YM, CS40L26_WT_FILE_NAME);
