@@ -1749,7 +1749,7 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	pm_runtime_get_sync(cs40l26->dev);
 	mutex_lock(&cs40l26->lock);
 
-	if (cs40l26->vibe_state != CS40L26_VIBE_STATE_HAPTIC)
+	if (cs40l26->vibe_state == CS40L26_VIBE_STATE_ASP)
 		goto mutex_exit;
 
 	/* wait for SVC init phase to complete */
