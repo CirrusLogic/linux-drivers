@@ -1390,6 +1390,52 @@ static int cs40l26_pseq_add_write_reg_h16(struct cs40l26_private *cs40l26,
 	return ret;
 }
 
+static int cs40l26_pseq_add_write_reg_l16(struct cs40l26_private *cs40l26,
+		u32 addr, u16 data, bool update_if_op_already_in_seq)
+{
+	int ret;
+	struct device *dev = cs40l26->dev;
+	struct cs40l26_pseq_op *op;
+	u32 op_words[CS40L26_PSEQ_OP_WRITE_REG_L16_WORDS];
+
+	memset(op_words, 0, CS40L26_PSEQ_OP_WRITE_REG_L16_WORDS*sizeof(u32));
+
+	if (addr & CS40L26_PSEQ_INVALID_ADDR) {
+		dev_err(dev, "invalid address for pseq write_reg_l16\n");
+		return -EINVAL;
+	}
+
+	op_words[0] = (CS40L26_PSEQ_OP_WRITE_REG_L16 <<
+						CS40L26_PSEQ_OP_SHIFT);
+	op_words[0] |= (addr & CS40L26_PSEQ_WORD1_MASK) >> 8;
+	op_words[1] = (addr & CS40L26_PSEQ_WORD2_MASK) << 16;
+	op_words[1] |= data;
+
+	if (update_if_op_already_in_seq) {
+		list_for_each_entry(op, &cs40l26->pseq_op_head, list) {
+			/* check if op with same op and addr already exists */
+			if ((op->words[0] == op_words[0]) &&
+				((op->words[1] & CS40L26_PSEQ_EQ_MASK) ==
+				(op_words[1] & CS40L26_PSEQ_EQ_MASK))) {
+				/* update data in the existing op and return */
+				ret = regmap_bulk_write(cs40l26->regmap,
+						cs40l26->pseq_base + op->offset,
+						op_words, op->size);
+				if (ret)
+					dev_err(cs40l26->dev,
+						"Failed to update op\n");
+				return ret;
+			}
+		}
+	}
+
+	ret = cs40l26_pseq_add_op(cs40l26,
+				CS40L26_PSEQ_OP_WRITE_REG_L16_WORDS,
+				op_words);
+
+	return ret;
+}
+
 static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
@@ -1485,6 +1531,20 @@ static int cs40l26_update_reg_defaults_via_pseq(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
 	int ret;
+
+	ret = cs40l26_pseq_add_write_reg_l16(cs40l26, CS40L26_NGATE1_INPUT,
+			CS40L26_DATA_SRC_DSP1TX4, true);
+	if (ret) {
+		dev_err(dev, "Failed to sequence Noise Gate Input register default updates\n");
+		return ret;
+	}
+
+	ret = cs40l26_pseq_add_write_reg_full(cs40l26, CS40L26_MIXER_NGATE_CH1_CFG,
+			CS40L26_MIXER_NGATE_CH1_CFG_DEFAULT_NEW, true);
+	if (ret) {
+		dev_err(dev, "Failed to sequence Mixer Noise Gate register default updates\n");
+		return ret;
+	}
 
 	/* set SPK_DEFAULT_HIZ to 1 */
 	ret = cs40l26_pseq_add_write_reg_h16(cs40l26,
