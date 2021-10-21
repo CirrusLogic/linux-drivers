@@ -2120,7 +2120,6 @@ static const struct cs35l45_irq cs35l45_irqs[] = {
 };
 
 static const struct regmap_irq cs35l45_reg_irqs[] = {
-	CS35L45_REG_IRQ(IRQ1_EINT_1, GLOBAL_ERROR),
 	CS35L45_REG_IRQ(IRQ1_EINT_2, DSP_VIRT2_MBOX),
 	CS35L45_REG_IRQ(IRQ1_EINT_2, DSP_WDT_EXPIRE),
 	CS35L45_REG_IRQ(IRQ1_EINT_3, PLL_UNLOCK_FLAG_RISE),
