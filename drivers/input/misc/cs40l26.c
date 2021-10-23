@@ -819,8 +819,8 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 	struct device *dev = cs40l26->dev;
 	u32 err_rls = 0;
 	unsigned int reg, val;
-	bool bst_err;
-	int ret;
+	bool bst_err = false;
+	int ret = 0;
 
 	switch (irq1) {
 	case CS40L26_IRQ1_GPIO1_RISE:
@@ -1233,7 +1233,7 @@ static int cs40l26_pseq_add_op(struct cs40l26_private *cs40l26,
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
 	u32 offset_for_new_op, *op_words;
-	int ret;
+	int ret = 0;
 	struct cs40l26_pseq_op *pseq_op_end, *pseq_op_new, *op;
 
 	/* get location of the list terminator */
@@ -3659,20 +3659,24 @@ static void cs40l26_coeff_load(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
 	const struct firmware *coeff;
-	int i;
+	int i, ret;
 
 	for (i = 0; i < cs40l26->fw.num_coeff_files; i++) {
-		request_firmware(&coeff, cs40l26->fw.coeff_files[i], dev);
-		if (!coeff) {
-			dev_warn(dev, "Continuing...\n");
+		ret = request_firmware(&coeff, cs40l26->fw.coeff_files[i], dev);
+		if (ret) {
+			dev_warn(dev, "Continuing...");
 			continue;
 		}
 
-		if (cl_dsp_coeff_file_parse(cs40l26->dsp, coeff))
-			dev_warn(dev, "Continuing...\n");
+		ret = cl_dsp_coeff_file_parse(cs40l26->dsp, coeff);
+		if (ret)
+			dev_warn(dev, "Failed to load, %s, %d. Continuing...",
+					cs40l26->fw.coeff_files[i], ret);
 		else
 			dev_info(dev, "%s Loaded Successfully\n",
 					cs40l26->fw.coeff_files[i]);
+
+		release_firmware(coeff);
 	}
 }
 
