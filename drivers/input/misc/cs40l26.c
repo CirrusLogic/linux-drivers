@@ -211,9 +211,7 @@ int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26,
 		u32 timeout_ms)
 {
 	u32 timeout_ticks = timeout_ms * CS40L26_PM_TICKS_MS_DIV;
-	struct regmap *regmap = cs40l26->regmap;
-	u32 lower_val, reg;
-	u8 upper_val;
+	u32 lower_val, upper_val, reg;
 	int ret;
 
 	upper_val = (timeout_ticks >> CS40L26_PM_TIMEOUT_TICKS_UPPER_SHIFT) &
@@ -226,12 +224,12 @@ int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26,
 	if (ret)
 		return ret;
 
-	ret = regmap_write(regmap, reg + CS40L26_PM_STDBY_TIMEOUT_LOWER_OFFSET,
+	ret = cs40l26_dsp_write(cs40l26, reg + CS40L26_PM_STDBY_TIMEOUT_LOWER_OFFSET,
 			lower_val);
 	if (ret)
 		return ret;
 
-	return regmap_write(regmap, reg + CS40L26_PM_STDBY_TIMEOUT_UPPER_OFFSET,
+	return cs40l26_dsp_write(cs40l26, reg + CS40L26_PM_STDBY_TIMEOUT_UPPER_OFFSET,
 			upper_val);
 }
 EXPORT_SYMBOL(cs40l26_pm_timeout_ms_set);
@@ -3779,6 +3777,15 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 	} else {
 		disable_irq(cs40l26->irq);
 		cs40l26_pm_runtime_teardown(cs40l26);
+	}
+
+	if (cs40l26->fw_loaded) {
+		ret = cs40l26_pm_timeout_ms_set(cs40l26,
+				CS40L26_PM_TIMEOUT_MS_MAX);
+		if (ret) {
+			dev_err(cs40l26->dev, "Can't set pm_timeout %d\n", ret);
+			return ret;
+		}
 	}
 
 	cs40l26->fw_loaded = false;
