@@ -1838,6 +1838,8 @@ static void cs40l26_set_gain(struct input_dev *dev, u16 gain)
 {
 	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
 
+	dev_dbg(cs40l26->dev, "%s: gain = %u\n", __func__, gain);
+
 	if (gain < 0 || gain >= CS40L26_NUM_PCT_MAP_VALUES) {
 		dev_err(cs40l26->dev, "Gain value %u out of bounds\n", gain);
 		return;
@@ -2792,6 +2794,8 @@ static void cs40l26_erase_worker(struct work_struct *work)
 
 	effect_id = cs40l26->erase_effect->id;
 	index = cs40l26->trigger_indices[effect_id];
+
+	dev_dbg(cs40l26->dev, "%s: effect ID = %d\n", __func__, effect_id);
 
 	if (is_owt(index)) {
 		ret = cs40l26_erase_owt(cs40l26, effect_id);
