@@ -12,6 +12,7 @@
 #define __CS35L45_H__
 
 #include <linux/regmap.h>
+#include <linux/pm_runtime.h>
 
 #define CS35L45_DEVID				0x00000000
 #define CS35L45_REVID				0x00000004
@@ -843,5 +844,10 @@ enum speaker_status {
 	SPK_STATUS_OPEN_CIRCUIT = 2,
 	SPK_STATUS_SHORT_CIRCUIT = 4,
 };
+
+/* Power management */
+extern const struct dev_pm_ops cs35l45_pm_ops;
+int cs35l45_suspend_runtime(struct device *dev);
+int cs35l45_resume_runtime(struct device *dev);
 
 #endif /*__CS35L45_H__*/
