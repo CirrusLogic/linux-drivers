@@ -300,36 +300,87 @@ static void cs40l26_pm_runtime_teardown(struct cs40l26_private *cs40l26)
 	cs40l26->pm_ready = false;
 }
 
+static int cs40l26_check_pm_lock(struct cs40l26_private *cs40l26, bool *locked)
+{
+	int ret;
+	unsigned int dsp_lock;
+
+	ret = regmap_read(cs40l26->regmap, CS40L26_A1_PM_STATE_LOCKS_STATIC_REG
+				+ CS40L26_DSP_LOCK3_OFFSET, &dsp_lock);
+	if (ret)
+		return ret;
+
+	if (dsp_lock & CS40L26_DSP_LOCK3_MASK)
+		*locked = true;
+	else
+		*locked = false;
+
+	return 0;
+}
+
 int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 		enum cs40l26_pm_state state)
 {
 	struct device *dev = cs40l26->dev;
 	u32 cmd;
-	int ret;
+	u8 curr_state;
+	bool dsp_lock;
+	int ret, i;
 
 	cmd = (u32) CS40L26_DSP_MBOX_PM_CMD_BASE + state;
 
 	switch (state) {
 	case CS40L26_PM_STATE_WAKEUP:
-	/* intentionally fall through */
-	case CS40L26_PM_STATE_PREVENT_HIBERNATE:
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				cmd, CS40L26_DSP_MBOX_RESET);
+		if (ret)
+			return ret;
+
+		break;
+	case CS40L26_PM_STATE_PREVENT_HIBERNATE:
+		for (i = 0; i < CS40L26_DSP_STATE_ATTEMPTS; i++) {
+			ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+					cmd, CS40L26_DSP_MBOX_RESET);
+			if (ret)
+				return ret;
+
+			ret = cs40l26_dsp_state_get(cs40l26, &curr_state);
+			if (ret)
+				return ret;
+
+			if (curr_state == CS40L26_DSP_STATE_ACTIVE)
+				break;
+
+			if (curr_state == CS40L26_DSP_STATE_STANDBY) {
+				ret = cs40l26_check_pm_lock(cs40l26, &dsp_lock);
+				if (ret)
+					return ret;
+
+				if (dsp_lock)
+					break;
+			}
+			usleep_range(5000, 5100);
+		}
+
+		if (i == CS40L26_DSP_STATE_ATTEMPTS) {
+			dev_err(cs40l26->dev, "DSP not starting\n");
+			return -ETIMEDOUT;
+		}
+
 		break;
 	case CS40L26_PM_STATE_ALLOW_HIBERNATE:
-	/* intentionally fall through */
 	case CS40L26_PM_STATE_SHUTDOWN:
 		cs40l26->wksrc_sts = 0x00;
 		ret = cs40l26_dsp_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				cmd);
+		if (ret)
+			return ret;
+
 		break;
 	default:
 		dev_err(dev, "Invalid PM state: %u\n", state);
 		return -EINVAL;
 	}
-
-	if (ret)
-		return ret;
 
 	cs40l26->pm_state = state;
 
@@ -339,7 +390,19 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 static int cs40l26_dsp_start(struct cs40l26_private *cs40l26)
 {
 	u8 dsp_state;
+	unsigned int val;
 	int ret;
+
+
+	ret = regmap_read(cs40l26->regmap, CS40L26_A1_DSP_REQ_ACTIVE_REG,
+			&val);
+	if (ret) {
+		dev_err(cs40l26->dev, "Can't read REQ ACTIVE %d\n", ret);
+		return ret;
+	}
+
+	if (val & CS40L26_DSP_PM_ACTIVE)
+		dev_warn(cs40l26->dev, "REQ ACTIVE is 0x%x\n", val);
 
 	ret = regmap_write(cs40l26->regmap, CS40L26_DSP1_CCM_CORE_CONTROL,
 			CS40L26_DSP_CCM_CORE_RESET);
@@ -3529,6 +3592,13 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
+	/* Send prevent hibernate to ensure we can read HALO STATE */
+	ret = cs40l26_pm_state_transition(cs40l26,
+			CS40L26_PM_STATE_PREVENT_HIBERNATE);
+	if (ret)
+		return ret;
+
+	/* ensure firmware running */
 	ret = regmap_read(regmap, reg, &val);
 	if (ret) {
 		dev_err(dev, "Failed to read HALO_STATE\n");
@@ -3539,6 +3609,11 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		dev_err(dev, "Firmware in unexpected state: 0x%X\n", val);
 		return ret;
 	}
+
+	ret = cs40l26_pm_state_transition(cs40l26,
+			CS40L26_PM_STATE_ALLOW_HIBERNATE);
+	if (ret)
+		return ret;
 
 	ret = cs40l26_pm_runtime_setup(cs40l26);
 	if (ret)
