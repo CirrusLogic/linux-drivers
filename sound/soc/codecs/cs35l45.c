@@ -37,6 +37,7 @@ static void cs35l45_hibernate_work(struct work_struct *work);
 static int cs35l45_activate_ctl(struct cs35l45_private *cs35l45,
 				const char *ctl_name, bool active);
 static int cs35l45_buffer_update_avail(struct cs35l45_private *cs35l45);
+static void cs35l45_pm_runtime_setup(struct cs35l45_private *cs35l45);
 
 struct cs35l45_mixer_cache {
 	unsigned int reg;
@@ -788,15 +789,10 @@ static int cs35l45_dsp_boot_put(struct snd_kcontrol *kcontrol,
 		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
 				   CS35L45_SYNC_SW_EN_MASK,
 				   CS35L45_SYNC_SW_EN_MASK);
+		pm_runtime_put_noidle(cs35l45->dev);
 	} else {
 		cancel_delayed_work_sync(&cs35l45->hb_work);
-
-		if (cs35l45->hibernate_state == HIBER_MODE_EN) {
-			dev_dbg(cs35l45->dev, "Wake up AMP\n");
-			mutex_lock(&cs35l45->hb_lock);
-			cs35l45_hibernate(cs35l45, false);
-			mutex_unlock(&cs35l45->hb_lock);
-		}
+		pm_runtime_resume_and_get(cs35l45->dev);
 
 		snd_soc_component_disable_pin(component, "DSP1");
 
@@ -2172,6 +2168,7 @@ static const struct regmap_irq_chip cs35l45_regmap_irq_chip = {
 	.num_regs = 18,
 	.irqs = cs35l45_reg_irqs,
 	.num_irqs = ARRAY_SIZE(cs35l45_reg_irqs),
+	.runtime_pm = true,
 };
 
 static int cs35l45_gpio_configuration(struct cs35l45_private *cs35l45)
@@ -2671,6 +2668,28 @@ static void cs35l45_hibernate_work(struct work_struct *work)
 	mutex_unlock(&cs35l45->hb_lock);
 }
 
+int cs35l45_suspend_runtime(struct device *dev)
+{
+	struct cs35l45_private *cs35l45 = dev_get_drvdata(dev);
+
+	if (cs35l45->dsp.booted)
+		return cs35l45_hibernate(cs35l45, HIBER_MODE_EN);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs35l45_suspend_runtime);
+
+int cs35l45_resume_runtime(struct device *dev)
+{
+	struct cs35l45_private *cs35l45 = dev_get_drvdata(dev);
+
+	if (cs35l45->dsp.booted)
+		return cs35l45_hibernate(cs35l45, HIBER_MODE_DIS);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs35l45_resume_runtime);
+
 static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 {
 	unsigned int sts, cmd, val;
@@ -2703,9 +2722,6 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 		{CS35L45_REFCLK_INPUT, CS35L45_PLL_FORCE_EN_MASK, 0},
 	};
 
-	if (cs35l45->hibernate_state == hiber_en)
-		return 0;
-
 	if (!cs35l45->dsp.booted) {
 		dev_err(cs35l45->dev, "Firmware not loaded\n");
 		return -EPERM;
@@ -2737,7 +2753,7 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 
 		regcache_cache_only(cs35l45->regmap, true);
 
-		dev_dbg(cs35l45->dev, "Enter into hibernation state\n");
+		dev_info(cs35l45->dev, "Enter into hibernation state\n");
 	} else  /* HIBER_MODE_DIS */ {
 		for (i = 0; i < ARRAY_SIZE(mixer_cache); i++)
 			regmap_read(cs35l45->regmap, mixer_cache[i].reg,
@@ -2772,13 +2788,21 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 
 		usleep_range(100, 200);
 
+		cmd = CSPL_MBOX_CMD_OUT_OF_HIBERNATE;
+
+		regmap_write(cs35l45->regmap, CS35L45_DSP_VIRT1_MBOX_1, cmd);
+
+		usleep_range(1000, 1200);
+
+		regmap_read(cs35l45->regmap, CS35L45_IRQ1_EINT_2, &val);
+		if (!(val & CS35L45_DSP_VIRT2_MBOX_MASK))
+			dev_err(cs35l45->dev, "Timeout waiting for MBOX ACK\n");
+
+		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_2,
+				   CS35L45_DSP_VIRT2_MBOX_MASK);
+
 		regmap_update_bits(cs35l45->regmap, CS35L45_IRQ1_MASK_2,
 				   CS35L45_DSP_VIRT2_MBOX_MASK, 0);
-
-		cmd = CSPL_MBOX_CMD_OUT_OF_HIBERNATE;
-		ret = cs35l45_set_csplmboxcmd(cs35l45, cmd);
-		if (ret < 0)
-			dev_err(cs35l45->dev, "MBOX failure (%d)\n", ret);
 
 		for (i = 0; i < ARRAY_SIZE(mixer_cache); i++)
 			regmap_update_bits(cs35l45->regmap, mixer_cache[i].reg,
@@ -2791,10 +2815,8 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 			dev_err(cs35l45->dev, "Unable to activate ctl (%d)\n",
 				ret);
 
-		dev_dbg(cs35l45->dev, "Exit from hibernation state\n");
+		dev_info(cs35l45->dev, "Exit from hibernation state\n");
 	}
-
-	cs35l45->hibernate_state = hiber_en;
 
 	return 0;
 }
@@ -3082,7 +3104,8 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 		goto err_dsp;
 	}
 
-	cs35l45->hibernate_state = HIBER_MODE_DIS;
+	cs35l45_pm_runtime_setup(cs35l45);
+
 	return devm_snd_soc_register_component(dev, &cs35l45_component,
 					       cs35l45_dai,
 					       ARRAY_SIZE(cs35l45_dai));
@@ -3102,6 +3125,7 @@ int cs35l45_remove(struct cs35l45_private *cs35l45)
 	if (cs35l45->reset_gpio)
 		gpiod_set_value_cansleep(cs35l45->reset_gpio, 0);
 
+	pm_runtime_disable(cs35l45->dev);
 	mutex_destroy(&cs35l45->dsp_power_lock);
 	mutex_destroy(&cs35l45->hb_lock);
 	destroy_workqueue(cs35l45->wq);
@@ -3111,6 +3135,16 @@ int cs35l45_remove(struct cs35l45_private *cs35l45)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cs35l45_remove);
+
+static void cs35l45_pm_runtime_setup(struct cs35l45_private *cs35l45)
+{
+	struct device *dev = cs35l45->dev;
+
+	pm_runtime_set_autosuspend_delay(dev, 5000);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+}
 
 MODULE_DESCRIPTION("ASoC CS35L45 driver");
 MODULE_AUTHOR("James Schulman, Cirrus Logic Inc, <james.schulman@cirrus.com>");
