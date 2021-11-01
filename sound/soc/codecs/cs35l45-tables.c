@@ -760,3 +760,7 @@ const struct of_entry classh_map[CLASSH_PARAMS] = {
 	[AUD_MEM_DEPTH] = {"aud-mem-depth", CS35L45_AUD_MEM,
 		CS35L45_AUD_MEM_DEPTH_MASK, CS35L45_AUD_MEM_DEPTH_SHIFT},
 };
+
+const struct dev_pm_ops cs35l45_pm_ops = {
+	SET_RUNTIME_PM_OPS(cs35l45_suspend_runtime, cs35l45_resume_runtime, NULL)
+};
