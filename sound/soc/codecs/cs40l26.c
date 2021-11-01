@@ -162,10 +162,11 @@ static int cs40l26_a2h_ev(struct snd_soc_dapm_widget *w,
 			}
 
 			ret = cl_dsp_coeff_file_parse(cs40l26->dsp, fw);
+			release_firmware(fw);
 			if (ret)
 				return ret;
+
 			codec->tuning_prev = codec->tuning;
-			release_firmware(fw);
 
 			ret = cs40l26_ack_write(cs40l26,
 					CS40L26_DSP_VIRTUAL1_MBOX_1,
