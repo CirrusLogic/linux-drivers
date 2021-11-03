@@ -3545,15 +3545,15 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	cs40l26->fw_loaded = true;
 
-	ret = cs40l26_dsp_start(cs40l26);
-	if (ret)
-		return ret;
-
 	ret = cs40l26_pseq_init(cs40l26);
 	if (ret)
 		return ret;
 
 	ret = cs40l26_update_reg_defaults_via_pseq(cs40l26);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_dsp_start(cs40l26);
 	if (ret)
 		return ret;
 
