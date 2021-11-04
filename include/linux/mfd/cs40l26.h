@@ -1345,10 +1345,16 @@ struct cs40l26_private {
 	struct input_dev *input;
 	struct cl_dsp *dsp;
 	unsigned int trigger_indices[FF_MAX_EFFECTS];
-	struct ff_effect *effect;
+	struct ff_effect *trigger_effect;
+	struct ff_effect upload_effect;
+	struct ff_effect *erase_effect;
+	s16 *raw_custom_data;
+	int raw_custom_data_len;
 	struct work_struct vibe_start_work;
 	struct work_struct vibe_stop_work;
 	struct work_struct set_gain_work;
+	struct work_struct upload_work;
+	struct work_struct erase_work;
 	struct workqueue_struct *vibe_workqueue;
 	int irq;
 	bool vibe_init_success;
@@ -1377,6 +1383,8 @@ struct cs40l26_private {
 	struct workqueue_struct *asp_workqueue;
 	struct work_struct asp_work;
 	u32 delay_before_stop_playback_us;
+	int upload_ret;
+	int erase_ret;
 };
 
 struct cs40l26_codec {
