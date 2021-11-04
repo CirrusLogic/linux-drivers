@@ -1586,27 +1586,21 @@ static int cs40l26_buzzgen_set(struct cs40l26_private *cs40l26, u16 freq,
 			+ ((buzzgen_num) * CS40L26_BUZZGEN_CONFIG_OFFSET)
 			+ CS40L26_BUZZGEN_DURATION_OFFSET;
 
-	pm_runtime_get_sync(cs40l26->dev);
-
 	ret = regmap_write(cs40l26->regmap, freq_reg, freq);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to write BUZZGEN frequency\n");
-		goto err_pm;
+		return ret;
 	}
 
 	ret = regmap_write(cs40l26->regmap, level_reg, level);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to write BUZZGEN level\n");
-		goto err_pm;
+		return ret;
 	}
 
 	ret = regmap_write(cs40l26->regmap, duration_reg, duration / 4);
 	if (ret)
 		dev_err(cs40l26->dev, "Failed to write BUZZGEN duration\n");
-
-err_pm:
-	pm_runtime_mark_last_busy(cs40l26->dev);
-	pm_runtime_put_autosuspend(cs40l26->dev);
 
 	return ret;
 }
@@ -1721,6 +1715,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	struct device *dev = cs40l26->dev;
 	u32 index = 0;
 	int ret = 0;
+	struct ff_effect *effect;
 	struct cs40l26_owt *owt;
 	unsigned int reg;
 	bool invert;
@@ -1728,20 +1723,22 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	if (cs40l26->effect->u.periodic.waveform == FF_CUSTOM ||
-				cs40l26->effect->u.periodic.waveform == FF_SINE)
-		index = cs40l26->trigger_indices[cs40l26->effect->id];
+	pm_runtime_get_sync(dev);
+	mutex_lock(&cs40l26->lock);
+
+	effect = cs40l26->trigger_effect;
+
+	if (effect->u.periodic.waveform == FF_CUSTOM ||
+			effect->u.periodic.waveform == FF_SINE)
+		index = cs40l26->trigger_indices[effect->id];
 
 	if (is_owt(index)) {
-		owt = cs40l26_owt_find(cs40l26, cs40l26->effect->id);
+		owt = cs40l26_owt_find(cs40l26, effect->id);
 		if (owt == NULL)
 			return;
 	}
 
-	duration = cs40l26->effect->replay.length;
-
-	pm_runtime_get_sync(dev);
-	mutex_lock(&cs40l26->lock);
+	duration = effect->replay.length;
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "TIMEOUT_MS",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
@@ -1759,7 +1756,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	if (ret)
 		goto err_mutex;
 
-	switch (cs40l26->effect->direction) {
+	switch (effect->direction) {
 	case 0x0000:
 		invert = false;
 		break;
@@ -1768,7 +1765,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		break;
 	default:
 		dev_err(dev, "Invalid ff_effect direction: 0x%X\n",
-			cs40l26->effect->direction);
+				effect->direction);
 		ret = -EINVAL;
 		goto err_mutex;
 	}
@@ -1779,7 +1776,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 
 	cs40l26_vibe_state_set(cs40l26, CS40L26_VIBE_STATE_HAPTIC);
 
-	switch (cs40l26->effect->u.periodic.waveform) {
+	switch (effect->u.periodic.waveform) {
 	case FF_CUSTOM:
 	case FF_SINE:
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
@@ -1789,7 +1786,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		break;
 	default:
 		dev_err(dev, "Invalid waveform type: 0x%X\n",
-				cs40l26->effect->u.periodic.waveform);
+				effect->u.periodic.waveform);
 		ret = -EINVAL;
 		goto err_mutex;
 	}
@@ -1866,7 +1863,7 @@ static int cs40l26_playback_effect(struct input_dev *dev,
 		return -EINVAL;
 	}
 
-	cs40l26->effect = effect;
+	cs40l26->trigger_effect = effect;
 
 	if (val > 0)
 		queue_work(cs40l26->vibe_workqueue, &cs40l26->vibe_start_work);
@@ -2423,8 +2420,6 @@ static u8 cs40l26_get_lowest_free_buzzgen(struct cs40l26_private *cs40l26)
 {
 	int buzzgen, i;
 
-	mutex_lock(&cs40l26->lock);
-
 	/* Note that this search starts at RAM_BUZZ1 and does not utilize the
 	 * OTP buzz
 	 */
@@ -2438,8 +2433,6 @@ static u8 cs40l26_get_lowest_free_buzzgen(struct cs40l26_private *cs40l26)
 		if (i == FF_MAX_EFFECTS)
 			break;
 	}
-
-	mutex_unlock(&cs40l26->lock);
 
 	return buzzgen;
 }
@@ -2507,58 +2500,53 @@ static int cs40l26_sine_upload(struct cs40l26_private *cs40l26,
 	return ret;
 }
 
-static int cs40l26_upload_effect(struct input_dev *dev,
-		struct ff_effect *effect, struct ff_effect *old)
+static void cs40l26_upload_worker(struct work_struct *work)
 {
-	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
-	s16 *raw_custom_data = NULL;
-	u8 *refactored_data = NULL;
+	struct cs40l26_private *cs40l26 = container_of(work,
+			struct cs40l26_private, upload_work);
 	struct device *cdev = cs40l26->dev;
-	int ret = 0, refactored_size;
+	u8 *refactored_data = NULL;
+	int ret = 0, refactored_size, len;
 	u32 trigger_index, min_index, max_index, nwaves;
+	struct ff_effect *effect;
 	u16 index, bank;
 	bool pwle;
 
+	pm_runtime_get_sync(cdev);
+	mutex_lock(&cs40l26->lock);
+
+	effect = &cs40l26->upload_effect;
+
 	if (effect->type != FF_PERIODIC) {
 		dev_err(cdev, "Effect type 0x%X not supported\n", effect->type);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_mutex;
 	}
 
 	if (effect->replay.length < 0 ||
 			effect->replay.length > CS40L26_TIMEOUT_MS_MAX) {
 		dev_err(cdev, "Invalid playback duration: %d ms\n",
 				effect->replay.length);
-			return -EINVAL;
+		ret = -EINVAL;
+		goto out_mutex;
 	}
 
 	switch (effect->u.periodic.waveform) {
 	case FF_CUSTOM:
-		raw_custom_data =
-				kzalloc(sizeof(s16) *
-				effect->u.periodic.custom_len, GFP_KERNEL);
-		if (!raw_custom_data)
-			return -ENOMEM;
+		pwle = (cs40l26->raw_custom_data[0] == 0x0000) ? false : true;
 
-		if (copy_from_user(raw_custom_data,
-				effect->u.periodic.custom_data,
-				sizeof(s16) * effect->u.periodic.custom_len)) {
-			dev_err(cdev, "Failed to get user data\n");
-			ret = -EFAULT;
-			goto out_free;
-		}
+		len = effect->u.periodic.custom_len;
 
-		pwle = (raw_custom_data[0] == 0x0000) ? false : true;
-
-		if (effect->u.periodic.custom_len > CS40L26_CUSTOM_DATA_SIZE) {
+		if (len > CS40L26_CUSTOM_DATA_SIZE) {
 			refactored_size = cs40l26_refactor_owt(cs40l26,
-				raw_custom_data, effect->u.periodic.custom_len,
-				pwle, &refactored_data);
+				cs40l26->raw_custom_data, len, pwle,
+				&refactored_data);
 
 			if (refactored_size <= 0) {
 				dev_err(cdev,
 					"Failed to refactor OWT waveform\n");
 				ret = refactored_size;
-				goto out_free;
+				goto out_mutex;
 			}
 
 			ret = cs40l26_owt_upload(cs40l26, refactored_data,
@@ -2569,8 +2557,8 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 			bank = CS40L26_OWT_BANK_ID;
 			index = cs40l26->num_owt_effects;
 		} else {
-			bank = ((u16) raw_custom_data[0]);
-			index = ((u16) raw_custom_data[1]) &
+			bank = ((u16) cs40l26->raw_custom_data[0]);
+			index = ((u16) cs40l26->raw_custom_data[1]) &
 					CS40L26_MAX_INDEX_MASK;
 		}
 
@@ -2631,13 +2619,14 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 	case FF_SINE:
 		ret = cs40l26_sine_upload(cs40l26, effect);
 		if (ret)
-			return ret;
+			goto out_mutex;
 
 		break;
 	default:
 		dev_err(cdev, "Periodic waveform type 0x%X not supported\n",
 				effect->u.periodic.waveform);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_mutex;
 	}
 
 	ret = cs40l26_get_num_waves(cs40l26, &nwaves);
@@ -2647,8 +2636,56 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 	dev_dbg(cdev, "Total number of waveforms = %u\n", nwaves);
 
 out_free:
-	kfree(raw_custom_data);
 	kfree(refactored_data);
+
+out_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cdev);
+	pm_runtime_put_autosuspend(cdev);
+
+	cs40l26->upload_ret = ret;
+}
+
+static int cs40l26_upload_effect(struct input_dev *dev,
+		struct ff_effect *effect, struct ff_effect *old)
+{
+	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
+	int len = effect->u.periodic.custom_len;
+	int ret;
+
+	dev_dbg(cs40l26->dev, "%s: effect ID = %d\n", __func__, effect->id);
+
+	memcpy(&cs40l26->upload_effect, effect, sizeof(struct ff_effect));
+
+	if (effect->u.periodic.waveform == FF_CUSTOM) {
+		cs40l26->raw_custom_data_len = len;
+
+		cs40l26->raw_custom_data = kcalloc(len, sizeof(s16),
+				GFP_KERNEL);
+		if (!cs40l26->raw_custom_data) {
+			ret = -ENOMEM;
+			goto out_free;
+		}
+
+		if (copy_from_user(cs40l26->raw_custom_data,
+				effect->u.periodic.custom_data,
+				sizeof(s16) * len)) {
+			dev_err(cs40l26->dev, "Failed to get user data\n");
+			ret = -EFAULT;
+			goto out_free;
+		}
+	}
+
+	queue_work(cs40l26->vibe_workqueue, &cs40l26->upload_work);
+
+	/* Wait for upload to finish */
+	flush_work(&cs40l26->upload_work);
+
+	ret = cs40l26->upload_ret;
+
+out_free:
+	memset(&cs40l26->upload_effect, 0, sizeof(struct ff_effect));
+	kfree(cs40l26->raw_custom_data);
 
 	return ret;
 }
@@ -2676,13 +2713,12 @@ static int cs40l26_erase_gpi_mapping(struct cs40l26_private *cs40l26,
 
 	trigger_index = index & 0xFF;
 
-	pm_runtime_get_sync(dev);
 	for (i = 0; i < CS40L26_EVENT_MAP_NUM_GPI_REGS; i++) {
 		reg = cs40l26->event_map_base + (i * 4);
 		ret = regmap_read(cs40l26->regmap, reg, &val);
 		if (ret) {
 			dev_err(dev, "Failed to read gpi event reg: %u",  reg);
-			goto pm_err;
+			return ret;
 		}
 		gpi_index = val & 0xFF;
 
@@ -2693,16 +2729,12 @@ static int cs40l26_erase_gpi_mapping(struct cs40l26_private *cs40l26,
 			if (trigger_index == gpi_index) {
 				ret = cs40l26_clear_gpi_event_reg(cs40l26, reg);
 				if (ret)
-					goto pm_err;
+					return ret;
 			}
 		}
 	}
 
-pm_err:
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
-
-	return ret;
+	return 0;
 }
 
 static int cs40l26_erase_buzz(struct cs40l26_private *cs40l26, int effect_id)
@@ -2736,35 +2768,37 @@ static int cs40l26_erase_owt(struct cs40l26_private *cs40l26, int effect_id)
 	list_del(&owt->list);
 	kfree(owt);
 
-	pm_runtime_get_sync(cs40l26->dev);
-
 	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, cmd,
 			CS40L26_DSP_MBOX_RESET);
 	if (ret)
-		goto pm_err;
+		return ret;
 
 	cs40l26->num_owt_effects--;
 
-pm_err:
-	pm_runtime_mark_last_busy(cs40l26->dev);
-	pm_runtime_put_autosuspend(cs40l26->dev);
-
-	return ret;
+	return 0;
 }
 
 
-static int cs40l26_erase_effect(struct input_dev *dev, int effect_id)
+static void cs40l26_erase_worker(struct work_struct *work)
 {
-	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
-	u32 index = cs40l26->trigger_indices[effect_id];
+	struct cs40l26_private *cs40l26 = container_of(work,
+			struct cs40l26_private, erase_work);
 	int ret = 0;
+	int effect_id;
+	u32 index;
+
+	mutex_lock(&cs40l26->lock);
+	pm_runtime_get_sync(cs40l26->dev);
+
+	effect_id = cs40l26->erase_effect->id;
+	index = cs40l26->trigger_indices[effect_id];
 
 	if (is_owt(index)) {
 		ret = cs40l26_erase_owt(cs40l26, effect_id);
 		if (ret)
 			dev_err(cs40l26->dev, "Failed to erase OWT effect: %d",
 									ret);
-		return ret;
+		goto out_mutex;
 	}
 
 	if (is_buzz(index)) {
@@ -2772,14 +2806,40 @@ static int cs40l26_erase_effect(struct input_dev *dev, int effect_id)
 		if (ret)
 			dev_err(cs40l26->dev, "Failed to erase buzz effect: %d",
 									ret);
-		return ret;
+		goto out_mutex;
 	}
 
 	ret = cs40l26_erase_gpi_mapping(cs40l26, effect_id);
 	if (ret)
 		dev_err(cs40l26->dev, "Failed to erase gpi mapping: %d", ret);
 
-	return ret;
+out_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	cs40l26->erase_ret = ret;
+}
+
+static int cs40l26_erase_effect(struct input_dev *dev, int effect_id)
+{
+	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
+	struct ff_effect *effect;
+
+	effect = &dev->ff->effects[effect_id];
+	if (!effect) {
+		dev_err(cs40l26->dev, "No such effect to erase\n");
+		return -EINVAL;
+	}
+
+	cs40l26->erase_effect = effect;
+
+	queue_work(cs40l26->vibe_workqueue, &cs40l26->erase_work);
+
+	/* Wait for erase to finish */
+	flush_work(&cs40l26->erase_work);
+
+	return cs40l26->erase_ret;
 }
 
 static int cs40l26_input_init(struct cs40l26_private *cs40l26)
@@ -3933,6 +3993,8 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 	INIT_WORK(&cs40l26->vibe_start_work, cs40l26_vibe_start_worker);
 	INIT_WORK(&cs40l26->vibe_stop_work, cs40l26_vibe_stop_worker);
 	INIT_WORK(&cs40l26->set_gain_work, cs40l26_set_gain_worker);
+	INIT_WORK(&cs40l26->upload_work, cs40l26_upload_worker);
+	INIT_WORK(&cs40l26->erase_work, cs40l26_erase_worker);
 
 	cs40l26->asp_workqueue = alloc_ordered_workqueue("asp_workqueue",
 			WQ_HIGHPRI);
@@ -4054,6 +4116,8 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 		cancel_work_sync(&cs40l26->vibe_start_work);
 		cancel_work_sync(&cs40l26->vibe_stop_work);
 		cancel_work_sync(&cs40l26->set_gain_work);
+		cancel_work_sync(&cs40l26->upload_work);
+		cancel_work_sync(&cs40l26->erase_work);
 		destroy_workqueue(cs40l26->vibe_workqueue);
 	}
 
