@@ -1131,6 +1131,9 @@ static irqreturn_t cs40l26_irq(int irq, void *data)
 	}
 
 	ret = pm_runtime_get_sync(dev);
+
+	mutex_lock(&cs40l26->lock);
+
 	if (ret < 0) {
 		pm_runtime_set_active(dev);
 
@@ -1209,6 +1212,8 @@ static irqreturn_t cs40l26_irq(int irq, void *data)
 
 err:
 	cs40l26_event_count_get(cs40l26, &cs40l26->event_count);
+
+	mutex_unlock(&cs40l26->lock);
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
