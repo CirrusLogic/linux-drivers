@@ -3723,8 +3723,6 @@ pm_err:
 	pm_runtime_mark_last_busy(cs40l26->dev);
 	pm_runtime_put_autosuspend(cs40l26->dev);
 
-	kfree(cs40l26->svc_le_vals);
-
 	return ret;
 }
 
@@ -3899,7 +3897,7 @@ static int cs40l26_update_reg_defaults(struct cs40l26_private *cs40l26)
 static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
-	int i, init_count, node_count = 0;
+	int i, ret = 0, init_count, node_count = 0;
 	struct fwnode_handle *child;
 	unsigned int min, max, index;
 	const char *node_name;
@@ -3908,8 +3906,11 @@ static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 	if (!init_count)
 		return 0;
 
-	cs40l26->svc_le_vals = kcalloc(init_count,
+	cs40l26->svc_le_vals = devm_kcalloc(dev, init_count,
 			sizeof(struct cs40l26_svc_le *), GFP_KERNEL);
+
+	if (!cs40l26->svc_le_vals)
+		return -ENOMEM;
 
 	device_for_each_child_node(dev, child) {
 		node_name = fwnode_get_name(child);
@@ -3948,7 +3949,13 @@ static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 		}
 
 		cs40l26->svc_le_vals[node_count] =
-			kzalloc(sizeof(struct cs40l26_svc_le), GFP_KERNEL);
+			devm_kzalloc(dev, sizeof(struct cs40l26_svc_le),
+					GFP_KERNEL);
+
+		if (!cs40l26->svc_le_vals[node_count]) {
+			ret = -ENOMEM;
+			goto err;
+		}
 
 		cs40l26->svc_le_vals[node_count]->min = min;
 		cs40l26->svc_le_vals[node_count]->max = max;
@@ -3961,6 +3968,10 @@ static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 				init_count - node_count);
 
 	return node_count;
+
+err:
+	devm_kfree(dev, cs40l26->svc_le_vals);
+	return ret;
 }
 
 static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
