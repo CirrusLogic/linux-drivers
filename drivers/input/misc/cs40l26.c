@@ -499,7 +499,7 @@ static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < CS40L26_DSP_SHUTDOWN_MAX_ATTEMPTS; i++) {
 		ret = cs40l26_dsp_state_get(cs40l26, &dsp_state);
 		if (ret)
 			return ret;
@@ -514,7 +514,7 @@ static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 			CS40L26_MS_TO_US(timeout_ms) + 100);
 	}
 
-	if (i == 10) {
+	if (i == CS40L26_DSP_SHUTDOWN_MAX_ATTEMPTS) {
 		dev_err(cs40l26->dev, "DSP Core could not be shut down\n");
 		return -EINVAL;
 	}
@@ -2654,9 +2654,15 @@ static void cs40l26_upload_worker(struct work_struct *work)
 
 		switch (bank) {
 		case CS40L26_RAM_BANK_ID:
-			min_index = CS40L26_RAM_INDEX_START;
-			max_index = min_index + nwaves - 1 -
-					cs40l26->num_owt_effects;
+			if (nwaves - cs40l26->num_owt_effects == 0) {
+				dev_err(cdev, "No waveforms in RAM bank\n");
+				ret = -EINVAL;
+				goto out_free;
+			} else {
+				min_index = CS40L26_RAM_INDEX_START;
+				max_index = min_index + nwaves - 1 -
+						cs40l26->num_owt_effects;
+			}
 			break;
 		case CS40L26_ROM_BANK_ID:
 			min_index = CS40L26_ROM_INDEX_START;
@@ -3486,7 +3492,7 @@ static int cs40l26_bst_dcm_config(struct cs40l26_private *cs40l26)
 
 static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
 {
-	u32 val, bst_ipk_ma = cs40l26->pdata.bst_ipk / 1000;
+	u32 val, bst_ipk_ma = cs40l26->pdata.bst_ipk / MILLIAMPS_PER_AMPS;
 	int ret;
 
 	if (bst_ipk_ma < CS40L26_BST_IPK_MILLIAMP_MIN ||
@@ -3494,7 +3500,7 @@ static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
 		val = CS40L26_BST_IPK_DEFAULT;
 		dev_dbg(cs40l26->dev, "Using default BST_IPK\n");
 	} else {
-		val = (bst_ipk_ma / 50) - 16;
+		val = (bst_ipk_ma / CS40L26_BST_IPK_CTL_STEP_SIZE) - CS40L26_BST_IPK_CTL_RESERVED;
 	}
 
 	ret = regmap_write(cs40l26->regmap, CS40L26_BST_IPK_CTL, val);
@@ -3730,7 +3736,7 @@ static int cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26)
 			break;
 	}
 
-	if (i == 2) {
+	if (i == CS40L26_SVC_LE_MAX_ATTEMPTS) {
 		dev_warn(cs40l26->dev, "Using default tunings\n");
 	} else {
 		strncat(svc_bin_file, CS40L26_TUNING_FILE_SUFFIX,
