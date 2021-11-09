@@ -2810,17 +2810,9 @@ static int cs40l26_erase_buzz(struct cs40l26_private *cs40l26, int effect_id)
 static int cs40l26_erase_owt(struct cs40l26_private *cs40l26, int effect_id)
 {
 	u32 cmd = CS40L26_DSP_MBOX_CMD_OWT_DELETE_BASE;
-	u32 index = cs40l26->trigger_indices[effect_id];
 	struct cs40l26_owt *owt, *owt_tmp;
+	u32 index;
 	int ret;
-
-	/* Update indices for OWT waveforms uploaded after erased effect */
-	list_for_each_entry(owt_tmp, &cs40l26->owt_head, list) {
-		if (owt_tmp->trigger_index > index) {
-			owt_tmp->trigger_index--;
-			cs40l26->trigger_indices[owt_tmp->effect_id]--;
-		}
-	}
 
 	owt = cs40l26_owt_find(cs40l26, effect_id);
 	if (owt == NULL)
@@ -2828,14 +2820,22 @@ static int cs40l26_erase_owt(struct cs40l26_private *cs40l26, int effect_id)
 
 	cmd |= (owt->trigger_index & 0xFF);
 
-	list_del(&owt->list);
-	kfree(owt);
-
 	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, cmd,
 			CS40L26_DSP_MBOX_RESET);
 	if (ret)
 		return ret;
 
+	/* Update indices for OWT waveforms uploaded after erased effect */
+	index = cs40l26->trigger_indices[effect_id];
+	list_for_each_entry(owt_tmp, &cs40l26->owt_head, list) {
+		if (owt_tmp->trigger_index > index) {
+			owt_tmp->trigger_index--;
+			cs40l26->trigger_indices[owt_tmp->effect_id]--;
+		}
+	}
+
+	list_del(&owt->list);
+	kfree(owt);
 	cs40l26->num_owt_effects--;
 
 	return 0;
