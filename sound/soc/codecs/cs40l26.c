@@ -254,8 +254,6 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 			goto err_mutex;
 		}
 
-		queue_work(cs40l26->asp_workqueue, &cs40l26->asp_work);
-
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
