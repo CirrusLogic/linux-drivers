@@ -103,7 +103,11 @@ static int cs40l26_clk_en(struct snd_soc_dapm_widget *w,
 		mutex_lock(&cs40l26->lock);
 		cs40l26->asp_enable = true;
 		cs40l26_vibe_state_set(cs40l26, CS40L26_VIBE_STATE_ASP);
+
+		ret = cs40l26_asp_start(cs40l26);
 		mutex_unlock(&cs40l26->lock);
+		if (ret)
+			return ret;
 
 		ret = cs40l26_swap_ext_clk(codec, CS40L26_PLL_REFCLK_BCLK);
 		if (ret)
