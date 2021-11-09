@@ -1393,8 +1393,6 @@ struct cs40l26_private {
 	u32 event_map_base;
 	struct cs40l26_svc_le **svc_le_vals;
 	int num_svc_le_vals;
-	struct workqueue_struct *asp_workqueue;
-	struct work_struct asp_work;
 	u32 delay_before_stop_playback_us;
 	int upload_ret;
 	int erase_ret;
@@ -1423,8 +1421,8 @@ struct cs40l26_pll_sysclk_config {
 };
 
 /* exported function prototypes */
+int cs40l26_asp_start(struct cs40l26_private *cs40l26);
 int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves);
-void cs40l26_asp_worker(struct work_struct *work);
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id);
 void cs40l26_vibe_state_set(struct cs40l26_private *cs40l26,
 		enum cs40l26_vibe_state);
