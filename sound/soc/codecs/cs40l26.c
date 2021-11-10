@@ -250,7 +250,7 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 		ret = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_INVERT",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
 		if (ret)
-			return ret;
+			goto err_mutex;
 
 		ret = regmap_write(regmap, reg, codec->invert_streaming_data);
 		if (ret) {
