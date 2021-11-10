@@ -1824,8 +1824,10 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 
 	if (is_owt(index)) {
 		owt = cs40l26_owt_find(cs40l26, effect->id);
-		if (owt == NULL)
-			return;
+		if (owt == NULL) {
+			ret = -ENOMEM;
+			goto err_mutex;
+		}
 	}
 
 	duration = effect->replay.length;
@@ -2611,14 +2613,6 @@ static void cs40l26_upload_worker(struct work_struct *work)
 
 	if (effect->type != FF_PERIODIC) {
 		dev_err(cdev, "Effect type 0x%X not supported\n", effect->type);
-		ret = -EINVAL;
-		goto out_mutex;
-	}
-
-	if (effect->replay.length < 0 ||
-			effect->replay.length > CS40L26_TIMEOUT_MS_MAX) {
-		dev_err(cdev, "Invalid playback duration: %d ms\n",
-				effect->replay.length);
 		ret = -EINVAL;
 		goto out_mutex;
 	}
@@ -4116,7 +4110,6 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 		struct cs40l26_platform_data *pdata)
 {
 	struct device *dev = cs40l26->dev;
-	struct regulator *vp_consumer, *va_consumer;
 	int ret;
 
 	mutex_init(&cs40l26->lock);
@@ -4140,9 +4133,6 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 		dev_err(dev, "Failed to request core supplies: %d\n", ret);
 		goto err;
 	}
-
-	vp_consumer = cs40l26_supplies[CS40L26_VP_SUPPLY].consumer;
-	va_consumer = cs40l26_supplies[CS40L26_VA_SUPPLY].consumer;
 
 	if (pdata) {
 		cs40l26->pdata = *pdata;
