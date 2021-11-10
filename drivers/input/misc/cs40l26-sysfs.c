@@ -17,7 +17,6 @@ static ssize_t cs40l26_dsp_state_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	char str[CS40L26_DSP_STATE_STR_LEN];
 	u8 dsp_state;
 	int ret;
 
@@ -27,28 +26,11 @@ static ssize_t cs40l26_dsp_state_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	switch (dsp_state) {
-	case CS40L26_DSP_STATE_HIBERNATE:
-		strncpy(str, "Hibernate", CS40L26_DSP_STATE_STR_LEN);
-		break;
-	case CS40L26_DSP_STATE_SHUTDOWN:
-		strncpy(str, "Shutdown", CS40L26_DSP_STATE_STR_LEN);
-		break;
-	case CS40L26_DSP_STATE_STANDBY:
-		strncpy(str, "Standby", CS40L26_DSP_STATE_STR_LEN);
-		break;
-	case CS40L26_DSP_STATE_ACTIVE:
-		strncpy(str, "Active", CS40L26_DSP_STATE_STR_LEN);
-		break;
-	default:
-		dev_err(cs40l26->dev, "DSP state %u is invalid\n", dsp_state);
-		return -EINVAL;
-	}
-
 	pm_runtime_mark_last_busy(cs40l26->dev);
 	pm_runtime_put_autosuspend(cs40l26->dev);
 
-	return snprintf(buf, PAGE_SIZE, "DSP state: %s\n", str);
+	return snprintf(buf, PAGE_SIZE, "%u\n",
+			(unsigned int) (dsp_state & 0xFF));
 }
 static DEVICE_ATTR(dsp_state, 0660, cs40l26_dsp_state_show, NULL);
 
@@ -81,21 +63,26 @@ static ssize_t cs40l26_fw_mode_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret = 0;
+	unsigned int mode;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
 
 	if (cs40l26->fw_mode != CS40L26_FW_MODE_ROM
 			&& cs40l26->fw_mode != CS40L26_FW_MODE_RAM) {
 		dev_err(cs40l26->dev, "Invalid firmware mode: %u\n",
 				cs40l26->fw_mode);
-		return -EINVAL;
+		ret = -EINVAL;
+	} else {
+		mode = cs40l26->fw_mode;
 	}
 
-	pm_runtime_mark_last_busy(cs40l26->dev);
-	pm_runtime_put_autosuspend(cs40l26->dev);
+	mutex_unlock(&cs40l26->lock);
 
-	return snprintf(buf, PAGE_SIZE, "Firmware is in %s mode\n",
-		cs40l26->fw_mode == CS40L26_FW_MODE_ROM ? "ROM" : "RAM");
+	if (ret)
+		return ret;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", mode);
 }
 static DEVICE_ATTR(fw_mode, 0660, cs40l26_fw_mode_show, NULL);
 
@@ -149,33 +136,13 @@ static ssize_t cs40l26_vibe_state_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret = 0;
-	char str[10];
+	unsigned int state;
 
 	mutex_lock(&cs40l26->lock);
-
-	switch (cs40l26->vibe_state) {
-	case CS40L26_VIBE_STATE_STOPPED:
-		strncpy(str, "Stopped", 10);
-		break;
-	case CS40L26_VIBE_STATE_HAPTIC:
-		strncpy(str, "Haptic", 10);
-		break;
-	case CS40L26_VIBE_STATE_ASP:
-		strncpy(str, "ASP", 10);
-		break;
-	default:
-		dev_err(cs40l26->dev, "Invalid vibe state: %u\n",
-				cs40l26->vibe_state);
-		ret = -EINVAL;
-	}
-
+	state = cs40l26->vibe_state;
 	mutex_unlock(&cs40l26->lock);
 
-	if (ret)
-		return ret;
-	else
-		return snprintf(buf, PAGE_SIZE, "Vibe state: %s\n", str);
+	return snprintf(buf, PAGE_SIZE, "%u\n", state);
 }
 static DEVICE_ATTR(vibe_state, 0660, cs40l26_vibe_state_show, NULL);
 
@@ -394,7 +361,7 @@ static ssize_t cs40l26_f0_offset_show(struct device *dev,
 	if (ret)
 		goto err_mutex;
 
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", val);
+	ret = snprintf(buf, PAGE_SIZE, "%u\n", val);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -1186,9 +1153,9 @@ static ssize_t cs40l26_calib_fw_load_show(struct device *dev,
 	mutex_lock(&cs40l26->lock);
 
 	if (cs40l26->fw.id == CS40L26_FW_ID)
-		ret = snprintf(buf, PAGE_SIZE, "%u\n", 0);
+		ret = snprintf(buf, PAGE_SIZE, "%d\n", 0);
 	else if (cs40l26->fw.id == CS40L26_FW_CALIB_ID)
-		ret = snprintf(buf, PAGE_SIZE, "%u\n", 1);
+		ret = snprintf(buf, PAGE_SIZE, "%d\n", 1);
 	else
 		ret = -EINVAL;
 
