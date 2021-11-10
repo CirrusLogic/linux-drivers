@@ -713,6 +713,12 @@ EXPORT_SYMBOL(cs40l26_asp_start);
 void cs40l26_vibe_state_set(struct cs40l26_private *cs40l26,
 		enum cs40l26_vibe_state new_state)
 {
+	if (!mutex_is_locked(&cs40l26->lock)) {
+		dev_err(cs40l26->dev, "%s must be called under mutex lock\n",
+				__func__);
+		return;
+	}
+
 	if (cs40l26->vibe_state == new_state)
 		return;
 
