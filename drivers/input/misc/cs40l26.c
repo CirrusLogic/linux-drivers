@@ -931,7 +931,7 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 		if (cs40l26->wksrc_sts & CS40L26_WKSRC_STS_EN) {
 			dev_dbg(dev, "GPIO%u %s edge detected\n",
 					(irq1 / 2) + 1,
-					irq1 % 2 ? "falling" : "rising");
+					(irq1 % 2) ? "falling" : "rising");
 			if (trigger)
 				cs40l26_vibe_state_set(cs40l26,
 						CS40L26_VIBE_STATE_HAPTIC);
