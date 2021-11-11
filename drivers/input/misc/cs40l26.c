@@ -1545,7 +1545,7 @@ static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
 	struct device *dev = cs40l26->dev;
 	u32 words[CS40L26_PSEQ_MAX_WORDS], *op_words;
 	struct cs40l26_pseq_op *pseq_op;
-	int ret, i, j, num_words, read_size;
+	int ret, i, j, num_words, read_size_words;
 	u8 operation;
 
 	INIT_LIST_HEAD(&cs40l26->pseq_op_head);
@@ -1560,18 +1560,20 @@ static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
 	/* read pseq memory space */
 	i = 0;
 	while (i < CS40L26_PSEQ_MAX_WORDS) {
-		read_size = min_t(unsigned int, CS40L26_MAX_I2C_READ_SIZE_BYTES,
-			CS40L26_PSEQ_MAX_WORDS - i);
+		if ((CS40L26_PSEQ_MAX_WORDS - i) >
+				CS40L26_MAX_I2C_READ_SIZE_WORDS)
+			read_size_words = CS40L26_MAX_I2C_READ_SIZE_WORDS;
+		else
+			read_size_words = CS40L26_PSEQ_MAX_WORDS - i;
 
 		ret = regmap_bulk_read(cs40l26->regmap,
 			cs40l26->pseq_base + i * CL_DSP_BYTES_PER_WORD,
-			words + i,
-			read_size);
+			words + i, read_size_words);
 		if (ret) {
 			dev_err(dev, "Failed to read from power on seq.\n");
 			return ret;
 		}
-		i += read_size;
+		i += read_size_words;
 	}
 
 	i = 0;
