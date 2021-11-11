@@ -616,18 +616,21 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 		switch (val) {
 		case CS40L26_DSP_MBOX_COMPLETE_MBOX:
 			dev_dbg(dev, "Mailbox: COMPLETE_MBOX\n");
-			if (cs40l26->vibe_state != CS40L26_VIBE_STATE_ASP)
-				cs40l26_vibe_state_set(cs40l26,
-						CS40L26_VIBE_STATE_STOPPED);
+			cs40l26_vibe_state_update(cs40l26,
+					CS40L26_VIBE_STATE_EVENT_MBOX_COMPLETE);
 			break;
 		case CS40L26_DSP_MBOX_COMPLETE_GPIO:
 			dev_dbg(dev, "Mailbox: COMPLETE_GPIO\n");
+			cs40l26_vibe_state_update(cs40l26,
+					CS40L26_VIBE_STATE_EVENT_GPIO_COMPLETE);
 			break;
 		case CS40L26_DSP_MBOX_COMPLETE_I2S:
 			dev_dbg(dev, "Mailbox: COMPLETE_I2S\n");
 			break;
 		case CS40L26_DSP_MBOX_TRIGGER_GPIO:
 			dev_dbg(dev, "Mailbox: TRIGGER_GPIO\n");
+			cs40l26_vibe_state_update(cs40l26,
+					CS40L26_VIBE_STATE_EVENT_GPIO_TRIGGER);
 			break;
 		case CS40L26_DSP_MBOX_PM_AWAKE:
 			cs40l26->wksrc_sts |= CS40L26_WKSRC_STS_EN;
@@ -726,8 +729,8 @@ int cs40l26_asp_start(struct cs40l26_private *cs40l26) {
 }
 EXPORT_SYMBOL(cs40l26_asp_start);
 
-void cs40l26_vibe_state_set(struct cs40l26_private *cs40l26,
-		enum cs40l26_vibe_state new_state)
+void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26,
+		enum cs40l26_vibe_state_event event)
 {
 	if (!mutex_is_locked(&cs40l26->lock)) {
 		dev_err(cs40l26->dev, "%s must be called under mutex lock\n",
@@ -735,18 +738,42 @@ void cs40l26_vibe_state_set(struct cs40l26_private *cs40l26,
 		return;
 	}
 
-	if (cs40l26->vibe_state == new_state)
-		return;
-
-	if (new_state == CS40L26_VIBE_STATE_STOPPED && cs40l26->asp_enable) {
-		if (cs40l26_asp_start(cs40l26))
-			return;
+	switch (event) {
+	case CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK:
+	case CS40L26_VIBE_STATE_EVENT_GPIO_TRIGGER:
+		cs40l26->effects_in_flight++;
+		break;
+	case CS40L26_VIBE_STATE_EVENT_MBOX_COMPLETE:
+	case CS40L26_VIBE_STATE_EVENT_GPIO_COMPLETE:
+		cs40l26->effects_in_flight--;
+		if (cs40l26->effects_in_flight < 0)
+			dev_err(cs40l26->dev, "effects_in_flight < 0, %d\n",
+						cs40l26->effects_in_flight);
+		if (cs40l26->effects_in_flight == 0 && cs40l26->asp_enable)
+			if (cs40l26_asp_start(cs40l26))
+				return;
+		break;
+	case CS40L26_VIBE_STATE_EVENT_ASP_START:
+		cs40l26->asp_enable = true;
+		break;
+	case CS40L26_VIBE_STATE_EVENT_ASP_STOP:
+		cs40l26->asp_enable = false;
+		break;
+	default:
+		dev_err(cs40l26->dev, "Invalid vibe state event: %d\n", event);
+		break;
 	}
 
-	cs40l26->vibe_state = new_state;
+	if (cs40l26->effects_in_flight)
+		cs40l26->vibe_state = CS40L26_VIBE_STATE_HAPTIC;
+	else if (cs40l26->asp_enable)
+		cs40l26->vibe_state = CS40L26_VIBE_STATE_ASP;
+	else
+		cs40l26->vibe_state = CS40L26_VIBE_STATE_STOPPED;
+
 	sysfs_notify(&cs40l26->dev->kobj, NULL, "vibe_state");
 }
-EXPORT_SYMBOL(cs40l26_vibe_state_set);
+EXPORT_SYMBOL(cs40l26_vibe_state_update);
 
 static int cs40l26_error_release(struct cs40l26_private *cs40l26,
 		unsigned int err_rls, bool bst_err)
@@ -930,9 +957,6 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 			dev_dbg(dev, "GPIO%u %s edge detected\n",
 					(irq1 / 2) + 1,
 					(irq1 % 2) ? "falling" : "rising");
-			if (trigger)
-				cs40l26_vibe_state_set(cs40l26,
-						CS40L26_VIBE_STATE_HAPTIC);
 		}
 
 		cs40l26->wksrc_sts |= CS40L26_WKSRC_STS_EN;
@@ -984,9 +1008,6 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 			dev_dbg(dev, "GPIO%u rising edge detected\n",
 					irq1 - 8);
 		}
-		if (trigger)
-			cs40l26_vibe_state_set(cs40l26,
-					CS40L26_VIBE_STATE_HAPTIC);
 		break;
 	case CS40L26_IRQ1_WKSRC_STS_SPI:
 		dev_dbg(dev, "SPI event woke device from hibernate\n");
@@ -1854,8 +1875,6 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	if (ret)
 		goto err_mutex;
 
-	cs40l26_vibe_state_set(cs40l26, CS40L26_VIBE_STATE_HAPTIC);
-
 	switch (effect->u.periodic.waveform) {
 	case FF_CUSTOM:
 	case FF_SINE:
@@ -1863,6 +1882,8 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 				index, CS40L26_DSP_MBOX_RESET);
 		if (ret)
 			goto err_mutex;
+		cs40l26_vibe_state_update(cs40l26,
+					CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK);
 		break;
 	default:
 		dev_err(dev, "Invalid waveform type: 0x%X\n",
@@ -1872,9 +1893,6 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	}
 
 err_mutex:
-	if (ret)
-		cs40l26_vibe_state_set(cs40l26, CS40L26_VIBE_STATE_STOPPED);
-
 	mutex_unlock(&cs40l26->lock);
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -1891,7 +1909,7 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	pm_runtime_get_sync(cs40l26->dev);
 	mutex_lock(&cs40l26->lock);
 
-	if (cs40l26->vibe_state == CS40L26_VIBE_STATE_ASP)
+	if (cs40l26->vibe_state != CS40L26_VIBE_STATE_HAPTIC)
 		goto mutex_exit;
 
 	/* wait for SVC init phase to complete */
@@ -1905,8 +1923,6 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 		dev_err(cs40l26->dev, "Failed to stop playback\n");
 		goto mutex_exit;
 	}
-
-	cs40l26_vibe_state_set(cs40l26, CS40L26_VIBE_STATE_STOPPED);
 
 mutex_exit:
 	mutex_unlock(&cs40l26->lock);

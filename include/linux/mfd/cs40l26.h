@@ -1194,6 +1194,15 @@ enum cs40l26_vibe_state {
 	CS40L26_VIBE_STATE_ASP,
 };
 
+enum cs40l26_vibe_state_event {
+	CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK,
+	CS40L26_VIBE_STATE_EVENT_MBOX_COMPLETE,
+	CS40L26_VIBE_STATE_EVENT_GPIO_TRIGGER,
+	CS40L26_VIBE_STATE_EVENT_GPIO_COMPLETE,
+	CS40L26_VIBE_STATE_EVENT_ASP_START,
+	CS40L26_VIBE_STATE_EVENT_ASP_STOP,
+};
+
 enum cs40l26_fw_mode {
 	CS40L26_FW_MODE_ROM,
 	CS40L26_FW_MODE_RAM,
@@ -1402,6 +1411,7 @@ struct cs40l26_private {
 	u32 delay_before_stop_playback_us;
 	int upload_ret;
 	int erase_ret;
+	int effects_in_flight;
 };
 
 struct cs40l26_codec {
@@ -1430,8 +1440,8 @@ struct cs40l26_pll_sysclk_config {
 int cs40l26_asp_start(struct cs40l26_private *cs40l26);
 int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves);
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id);
-void cs40l26_vibe_state_set(struct cs40l26_private *cs40l26,
-		enum cs40l26_vibe_state);
+void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26,
+		enum cs40l26_vibe_state_event event);
 int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26,
 		u32 *timeout_ms);
 int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26,
