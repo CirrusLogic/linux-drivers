@@ -2908,6 +2908,8 @@ static int cs40l26_erase_effect(struct input_dev *dev, int effect_id)
 	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
 	struct ff_effect *effect;
 
+	dev_dbg(cs40l26->dev, "%s: effect ID = %d\n", __func__, effect_id);
+
 	effect = &dev->ff->effects[effect_id];
 	if (!effect) {
 		dev_err(cs40l26->dev, "No such effect to erase\n");
