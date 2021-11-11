@@ -3425,7 +3425,7 @@ static int cs40l26_verify_fw(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	if (val < fw->min_rev) {
+	if ((val & ~CS40L26_FW_BRANCH_MASK) < fw->min_rev) {
 		dev_err(cs40l26->dev, "Invalid firmware revision: %d.%d.%d\n",
 			(int) CL_DSP_GET_MAJOR(val),
 			(int) CL_DSP_GET_MINOR(val),
