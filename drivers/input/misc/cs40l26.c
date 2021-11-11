@@ -680,9 +680,17 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 }
 
 int cs40l26_asp_start(struct cs40l26_private *cs40l26) {
+	struct device *dev = cs40l26->dev;
 	bool ack = false;
 	unsigned int val;
 	int ret;
+
+	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+				CS40L26_STOP_PLAYBACK, CS40L26_DSP_MBOX_RESET);
+	if (ret) {
+		dev_err(dev, "Failed to stop playback before I2S start\n");
+		return ret;
+	}
 
 	ret = regmap_write(cs40l26->regmap, CS40L26_DSP_VIRTUAL1_MBOX_1,
 			CS40L26_DSP_MBOX_CMD_START_I2S);
