@@ -614,21 +614,30 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 		}
 
 		switch (val) {
-		case CS40L26_DSP_MBOX_TRIGGER_COMPLETE:
+		case CS40L26_DSP_MBOX_COMPLETE_MBOX:
+			dev_dbg(dev, "Mailbox: COMPLETE_MBOX\n");
 			if (cs40l26->vibe_state != CS40L26_VIBE_STATE_ASP)
 				cs40l26_vibe_state_set(cs40l26,
 						CS40L26_VIBE_STATE_STOPPED);
-			dev_dbg(dev, "Trigger Complete\n");
+			break;
+		case CS40L26_DSP_MBOX_COMPLETE_GPIO:
+			dev_dbg(dev, "Mailbox: COMPLETE_GPIO\n");
+			break;
+		case CS40L26_DSP_MBOX_COMPLETE_I2S:
+			dev_dbg(dev, "Mailbox: COMPLETE_I2S\n");
+			break;
+		case CS40L26_DSP_MBOX_TRIGGER_GPIO:
+			dev_dbg(dev, "Mailbox: TRIGGER_GPIO\n");
 			break;
 		case CS40L26_DSP_MBOX_PM_AWAKE:
 			cs40l26->wksrc_sts |= CS40L26_WKSRC_STS_EN;
-			dev_dbg(dev, "HALO Core is awake\n");
+			dev_dbg(dev, "Mailbox: AWAKE\n");
 			break;
 		case CS40L26_DSP_MBOX_F0_EST_START:
-			dev_dbg(dev, "F0_EST_START\n");
+			dev_dbg(dev, "Mailbox: F0_EST_START\n");
 			break;
 		case CS40L26_DSP_MBOX_F0_EST_DONE:
-			dev_dbg(dev, "F0_EST_DONE\n");
+			dev_dbg(dev, "Mailbox: F0_EST_DONE\n");
 			if (cs40l26->cal_requested &
 				CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q) {
 				cs40l26->cal_requested &=
@@ -643,10 +652,10 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 
 			break;
 		case CS40L26_DSP_MBOX_REDC_EST_START:
-			dev_dbg(dev, "REDC_EST_START\n");
+			dev_dbg(dev, "Mailbox: REDC_EST_START\n");
 			break;
 		case CS40L26_DSP_MBOX_REDC_EST_DONE:
-			dev_dbg(dev, "REDC_EST_DONE\n");
+			dev_dbg(dev, "Mailbox: REDC_EST_DONE\n");
 			if (cs40l26->cal_requested &
 				CS40L26_CALIBRATION_CONTROL_REQUEST_REDC) {
 				cs40l26->cal_requested &=
@@ -660,14 +669,13 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 			}
 			break;
 		case CS40L26_DSP_MBOX_LE_EST_START:
-			dev_dbg(dev, "LE_EST_START\n");
+			dev_dbg(dev, "Mailbox: LE_EST_START\n");
 			break;
 		case CS40L26_DSP_MBOX_LE_EST_DONE:
-			dev_dbg(dev, "LE_EST_DONE\n");
+			dev_dbg(dev, "Mailbox: LE_EST_DONE\n");
 			break;
 		case CS40L26_DSP_MBOX_SYS_ACK:
-			dev_err(dev, "Mbox buffer value (0x%X) not supported\n",
-					val);
+			dev_err(dev, "Mailbox: ACK\n");
 			return -EPERM;
 		default:
 			dev_err(dev, "MBOX buffer value (0x%X) is invalid\n",
@@ -739,24 +747,6 @@ void cs40l26_vibe_state_set(struct cs40l26_private *cs40l26,
 	sysfs_notify(&cs40l26->dev->kobj, NULL, "vibe_state");
 }
 EXPORT_SYMBOL(cs40l26_vibe_state_set);
-
-static int cs40l26_event_count_get(struct cs40l26_private *cs40l26, u32 *count)
-{
-	unsigned int reg;
-	int ret;
-
-	ret = cl_dsp_get_reg(cs40l26->dsp, "EVENT_POST_COUNT",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EVENT_HANDLER_ALGO_ID,
-			&reg);
-	if (ret)
-		return ret;
-
-	ret = regmap_read(cs40l26->regmap, reg, count);
-	if (ret)
-		dev_err(cs40l26->dev, "Failed to get event count\n");
-
-	return ret;
-}
 
 static int cs40l26_error_release(struct cs40l26_private *cs40l26,
 		unsigned int err_rls, bool bst_err)
@@ -912,7 +902,7 @@ static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 irq_reg,
 }
 
 static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
-		enum cs40l26_irq1 irq1, bool trigger)
+		enum cs40l26_irq1 irq1)
 {
 	struct device *dev = cs40l26->dev;
 	u32 err_rls = 0;
@@ -1214,8 +1204,6 @@ static irqreturn_t cs40l26_irq(int irq, void *data)
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
 	unsigned long num_irq;
-	u32 event_count;
-	bool trigger;
 	int ret;
 
 	if (cs40l26_dsp_read(cs40l26, CS40L26_IRQ1_STATUS, &sts)) {
@@ -1259,17 +1247,11 @@ static irqreturn_t cs40l26_irq(int irq, void *data)
 
 	val = eint & ~mask;
 	if (val) {
-		ret = cs40l26_event_count_get(cs40l26, &event_count);
-		if (ret)
-			goto err;
-
-		trigger = (event_count > cs40l26->event_count);
-
 		num_irq = hweight_long(val);
 		i = 0;
 		while (irq1_count < num_irq && i < CS40L26_IRQ1_NUM_IRQS) {
 			if (val & BIT(i)) {
-				ret = cs40l26_handle_irq1(cs40l26, i, trigger);
+				ret = cs40l26_handle_irq1(cs40l26, i);
 				if (ret)
 					goto err;
 				else
@@ -1309,8 +1291,6 @@ static irqreturn_t cs40l26_irq(int irq, void *data)
 	}
 
 err:
-	cs40l26_event_count_get(cs40l26, &cs40l26->event_count);
-
 	mutex_unlock(&cs40l26->lock);
 
 	pm_runtime_mark_last_busy(dev);
