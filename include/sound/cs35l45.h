@@ -134,6 +134,7 @@ struct cs35l45_platform_data {
 	unsigned int ngate_ch2_thr;
 	unsigned int global_en_gpio;
 	bool use_tdm_slots;
+	bool allow_hibernate;
 };
 
 struct cs35l45_compr {
