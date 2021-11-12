@@ -20,6 +20,9 @@ Optional properties:
   - cirrus,use-tdm-slots : Give preference to set_tdm_slot callback from
     DAI interface for configuring ASP slot width.
 
+  - cirrus,allow-hibernate : Allow the DSP to enter a hibernate state when
+    possible.
+
   - cirrus,asp-sdout-hiz-ctrl : ASP TX data pin (DOUT) Hi-Z control.
 
   0 = Logic 0 during unused timeslots, and while all transmit channels disabled
