@@ -2480,6 +2480,9 @@ static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
 		pdata->ngate_ch2_thr = val | CS35L45_VALID_PDATA;
 
 	ret = of_property_read_u32(node, "cirrus,global-en-gpio", &val);
+
+	pdata->allow_hibernate = of_property_read_bool(node, "cirrus,allow-hibernate");
+
 	if (!ret)
 		pdata->global_en_gpio = val | CS35L45_VALID_PDATA;
 
@@ -2672,7 +2675,7 @@ int cs35l45_suspend_runtime(struct device *dev)
 {
 	struct cs35l45_private *cs35l45 = dev_get_drvdata(dev);
 
-	if (cs35l45->dsp.booted)
+	if (cs35l45->dsp.booted && cs35l45->pdata.allow_hibernate)
 		return cs35l45_hibernate(cs35l45, HIBER_MODE_EN);
 
 	return 0;
@@ -2683,7 +2686,7 @@ int cs35l45_resume_runtime(struct device *dev)
 {
 	struct cs35l45_private *cs35l45 = dev_get_drvdata(dev);
 
-	if (cs35l45->dsp.booted)
+	if (cs35l45->dsp.booted && cs35l45->pdata.allow_hibernate)
 		return cs35l45_hibernate(cs35l45, HIBER_MODE_DIS);
 
 	return 0;
