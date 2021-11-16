@@ -245,6 +245,17 @@ properties:
     maximum: 4800000
     default: 4500000
 
+  cirrus,asp-gain-scale-pct:
+    description:
+      Scaling applied to gain for ASP streaming if present and less or equal to
+      100.
+      The value given is in percent between 0 - 100 with 100 being full scale
+      and 0 being mute.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 100
+    default: 100
+
   svc-le:
     description:
       Range of LE values, defined by "cirrus,min" and "cirrus,max" in Henries
@@ -279,6 +290,8 @@ examples:
       cirrus,vbbr-thld-mv = <300>;
       cirrus,vpbr-enable;
       cirrus,vpbr-thld-mv = <2592>;
+
+      cirrus,asp-gain-scale-pct = <30>;
 
       svc-le1 {
         cirrus,min = <500>; //59.6 uH
