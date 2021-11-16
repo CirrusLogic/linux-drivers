@@ -1123,6 +1123,8 @@
 #define CS40L26_VMON_OVFL_FLAG_MASK	BIT(31)
 #define CS40L26_VMON_DEC_OUT_DATA_MAX	CS40L26_VMON_DEC_OUT_DATA_MASK
 
+#define CS40L26_GAIN_FULL_SCALE		100
+
 /* OWT */
 #define CS40L26_WT_STR_MAX_LEN			512
 #define CS40L26_WT_MAX_SEGS			512
@@ -1355,6 +1357,7 @@ struct cs40l26_platform_data {
 	bool bst_dcm_en;
 	u32 bst_ipk;
 	u32 pm_timer_timeout_ticks4;
+	u32 asp_scale_pct;
 };
 
 struct cs40l26_owt {
@@ -1405,6 +1408,8 @@ struct cs40l26_private {
 	int num_owt_effects;
 	int cal_requested;
 	u16 gain_pct;
+	u16 gain_tmp;
+	bool scaling_applied;
 	u32 event_map_base;
 	struct cs40l26_svc_le **svc_le_vals;
 	int num_svc_le_vals;
