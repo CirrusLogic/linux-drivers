@@ -318,6 +318,28 @@ static int cs40l26_check_pm_lock(struct cs40l26_private *cs40l26, bool *locked)
 	return 0;
 }
 
+static void cs40l26_remove_asp_scaling(struct cs40l26_private *cs40l26)
+{
+	struct device *dev = cs40l26->dev;
+	u16 gain;
+
+	if (cs40l26->pdata.asp_scale_pct >= CS40L26_GAIN_FULL_SCALE ||
+			!cs40l26->scaling_applied)
+		return;
+
+	gain = cs40l26->gain_tmp;
+
+	if (gain >= CS40L26_NUM_PCT_MAP_VALUES) {
+		dev_err(dev, "Gain %u%% out of bounds\n", gain);
+		return;
+	}
+
+	cs40l26->gain_pct = gain;
+	cs40l26->scaling_applied = false;
+
+	queue_work(cs40l26->vibe_workqueue, &cs40l26->set_gain_work);
+}
+
 int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 		enum cs40l26_pm_state state)
 {
@@ -690,11 +712,15 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 	return 0;
 }
 
-int cs40l26_asp_start(struct cs40l26_private *cs40l26) {
+int cs40l26_asp_start(struct cs40l26_private *cs40l26)
+{
 	struct device *dev = cs40l26->dev;
 	bool ack = false;
 	unsigned int val;
 	int ret;
+
+	if (cs40l26->pdata.asp_scale_pct < CS40L26_GAIN_FULL_SCALE)
+		queue_work(cs40l26->vibe_workqueue, &cs40l26->set_gain_work);
 
 	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				CS40L26_STOP_PLAYBACK, CS40L26_DSP_MBOX_RESET);
@@ -741,6 +767,7 @@ void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26,
 	switch (event) {
 	case CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK:
 	case CS40L26_VIBE_STATE_EVENT_GPIO_TRIGGER:
+		cs40l26_remove_asp_scaling(cs40l26);
 		cs40l26->effects_in_flight++;
 		break;
 	case CS40L26_VIBE_STATE_EVENT_MBOX_COMPLETE:
@@ -757,6 +784,7 @@ void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26,
 		cs40l26->asp_enable = true;
 		break;
 	case CS40L26_VIBE_STATE_EVENT_ASP_STOP:
+		cs40l26_remove_asp_scaling(cs40l26);
 		cs40l26->asp_enable = false;
 		break;
 	default:
@@ -1786,11 +1814,24 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 {
 	struct cs40l26_private *cs40l26 =
 		container_of(work, struct cs40l26_private, set_gain_work);
+	u16 gain;
 	u32 reg;
 	int ret;
 
 	pm_runtime_get_sync(cs40l26->dev);
 	mutex_lock(&cs40l26->lock);
+
+	if (cs40l26->vibe_state == CS40L26_VIBE_STATE_ASP) {
+		gain = (cs40l26->pdata.asp_scale_pct * cs40l26->gain_pct) /
+				CS40L26_GAIN_FULL_SCALE;
+		cs40l26->gain_tmp = cs40l26->gain_pct;
+		cs40l26->gain_pct = gain;
+		cs40l26->scaling_applied = true;
+	} else {
+		gain = cs40l26->gain_pct;
+	}
+
+	dev_dbg(cs40l26->dev, "%s: gain = %u%%\n", __func__, gain);
 
 	/* Write Q21.2 value to SOURCE_ATTENUATION */
 	ret = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_ATTENUATION",
@@ -1798,8 +1839,7 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 	if (ret)
 		goto err_mutex;
 
-	ret = regmap_write(cs40l26->regmap, reg,
-			cs40l26_attn_q21_2_vals[cs40l26->gain_pct]);
+	ret = regmap_write(cs40l26->regmap, reg, cs40l26_attn_q21_2_vals[gain]);
 	if (ret)
 		dev_err(cs40l26->dev, "Failed to set attenuation\n");
 
@@ -1936,10 +1976,8 @@ static void cs40l26_set_gain(struct input_dev *dev, u16 gain)
 {
 	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
 
-	dev_dbg(cs40l26->dev, "%s: gain = %u\n", __func__, gain);
-
-	if (gain < 0 || gain >= CS40L26_NUM_PCT_MAP_VALUES) {
-		dev_err(cs40l26->dev, "Gain value %u out of bounds\n", gain);
+	if (gain >= CS40L26_NUM_PCT_MAP_VALUES) {
+		dev_err(cs40l26->dev, "Gain value %u %% out of bounds\n", gain);
 		return;
 	}
 
@@ -4110,6 +4148,16 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 		cs40l26->num_svc_le_vals = 0;
 	else
 		cs40l26->num_svc_le_vals = ret;
+
+	cs40l26->pdata.asp_scale_pct = CS40L26_GAIN_FULL_SCALE;
+	cs40l26->gain_pct = CS40L26_GAIN_FULL_SCALE;
+	cs40l26->gain_tmp = CS40L26_GAIN_FULL_SCALE;
+	if (!of_property_read_u32(np, "cirrus,asp-gain-scale-pct", &val)) {
+		if (val <= CS40L26_GAIN_FULL_SCALE)
+			cs40l26->pdata.asp_scale_pct = val;
+		else
+			dev_warn(dev, "ASP scaling > 100 %%, using maximum\n");
+	}
 
 	return 0;
 }
