@@ -3536,6 +3536,80 @@ static int cs40l26_bst_dcm_config(struct cs40l26_private *cs40l26)
 	return ret;
 }
 
+static int calib_device_tree_config(struct cs40l26_private *cs40l26)
+{
+	int ret = 0;
+	u32 reg, bst_ctl;
+
+	if (cs40l26->pdata.f0_default <= CS40L26_F0_EST_MAX &&
+			cs40l26->pdata.f0_default >= CS40L26_F0_EST_MIN) {
+		ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED",
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(cs40l26->regmap, reg, cs40l26->pdata.f0_default);
+		if (ret) {
+			dev_err(cs40l26->dev, "Failed to write default f0\n");
+			return ret;
+		}
+	}
+
+	if (cs40l26->pdata.redc_default &&
+			cs40l26->pdata.redc_default <= CS40L26_UINT_24_BITS_MAX) {
+		ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED",
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(cs40l26->regmap, reg, cs40l26->pdata.redc_default);
+		if (ret) {
+			dev_err(cs40l26->dev, "Failed to write default ReDC\n");
+			return ret;
+		}
+	}
+
+	if (cs40l26->pdata.q_default <= CS40L26_Q_EST_MAX &&
+			cs40l26->pdata.q_default >= CS40L26_Q_EST_MIN) {
+		ret = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED",
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(cs40l26->regmap, reg, cs40l26->pdata.q_default);
+		if (ret) {
+			dev_err(cs40l26->dev, "Failed to write default Q\n");
+			return ret;
+		}
+	}
+
+	if (cs40l26->pdata.boost_ctl <= CS40L26_BST_VOLT_MAX &&
+			cs40l26->pdata.boost_ctl >= CS40L26_BST_VOLT_MIN) {
+		bst_ctl = ((cs40l26->pdata.boost_ctl - CS40L26_BST_VOLT_MIN)
+						/ CS40L26_BST_VOLT_STEP) + 1;
+
+		ret = regmap_update_bits(cs40l26->regmap, CS40L26_VBST_CTL_1,
+				CS40L26_BST_CTL_MASK,
+				bst_ctl << CS40L26_BST_CTL_SHIFT);
+		if (ret) {
+			dev_err(cs40l26->dev, "Failed to write VBST limit\n");
+			return ret;
+		}
+
+		ret = regmap_update_bits(cs40l26->regmap, CS40L26_VBST_CTL_2,
+				CS40L26_BST_CTL_LIM_EN_MASK,
+				1 << CS40L26_BST_CTL_LIM_EN_SHIFT);
+		if (ret) {
+			dev_err(cs40l26->dev, "Failed to configure VBST control\n");
+			return ret;
+		}
+
+		ret = cs40l26_pseq_add_write_reg_full(cs40l26, CS40L26_VBST_CTL_1, bst_ctl, true);
+	}
+
+	return ret;
+}
+
 static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
 {
 	u32 val, bst_ipk_ma = cs40l26->pdata.bst_ipk / MILLIAMPS_PER_AMPS;
@@ -3658,6 +3732,12 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	ret = cs40l26_bst_ipk_config(cs40l26);
 	if (ret)
 		return ret;
+
+	if (!cs40l26->vibe_init_success) {
+		ret = calib_device_tree_config(cs40l26);
+		if (ret)
+			return ret;
+	}
 
 	ret = cs40l26_brownout_prevention_init(cs40l26);
 	if (ret)
@@ -4158,6 +4238,20 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 		else
 			dev_warn(dev, "ASP scaling > 100 %%, using maximum\n");
 	}
+
+	if (!of_property_read_u32(np, "cirrus,boost-ctl-microvolt", &val))
+		cs40l26->pdata.boost_ctl = val | CS40L26_PDATA_PRESENT;
+	else
+		cs40l26->pdata.boost_ctl = CS40L26_BST_CTL_DEFAULT;
+
+	if (!of_property_read_u32(np, "cirrus,f0-default", &val))
+		cs40l26->pdata.f0_default = val;
+
+	if (!of_property_read_u32(np, "cirrus,redc-default", &val))
+		cs40l26->pdata.redc_default = val;
+
+	if (!of_property_read_u32(np, "cirrus,q-default", &val))
+		cs40l26->pdata.q_default = val;
 
 	return 0;
 }
