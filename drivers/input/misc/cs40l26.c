@@ -176,66 +176,53 @@ int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 }
 EXPORT_SYMBOL(cs40l26_dsp_state_get);
 
-static int cs40l26_pm_timer_timeout_ticks4_set(struct cs40l26_private *cs40l26,
-		u32 pm_timer_timeout_ticks4)
+static int cs40l26_pm_timeout_ticks_write(struct cs40l26_private *cs40l26,
+		u32 ms, unsigned int lower_offset, unsigned int upper_offset)
 {
 	struct regmap *regmap = cs40l26->regmap;
-	u32 lower_val, reg;
+	struct device *dev = cs40l26->dev;
+	u32 lower_val, reg, ticks;
 	u8 upper_val;
 	int ret;
 
-	upper_val = (pm_timer_timeout_ticks4 >>
-					CS40L26_PM_TIMEOUT_TICKS_UPPER_SHIFT) &
-					CS40L26_PM_TIMEOUT_TICKS_UPPER_MASK;
+	if (ms < CS40L26_PM_TIMEOUT_MS_MIN) {
+		dev_warn(dev, "Timeout out of bounds, using minimum\n");
+		ticks = CS40L26_PM_TIMEOUT_MS_MIN * CS40L26_PM_TICKS_MS_DIV;
+	} else if (ms > CS40L26_PM_TIMEOUT_MS_MAX) {
+		dev_warn(dev, "Timeout out of bounds, using maximum\n");
+		ticks = CS40L26_PM_TIMEOUT_MS_MAX * CS40L26_PM_TICKS_MS_DIV;
+	} else {
+		ticks = ms * CS40L26_PM_TICKS_MS_DIV;
+	}
 
-	lower_val = pm_timer_timeout_ticks4 &
-					CS40L26_PM_TIMEOUT_TICKS_LOWER_MASK;
-
-	ret = cl_dsp_get_reg(cs40l26->dsp, "PM_TIMER_TIMEOUT_TICKS",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(regmap,
-			reg + CS40L26_PM_TIMER_TIMEOUT_TICKS4_LOWER_OFFSET,
-			lower_val);
-	if (ret)
-		return ret;
-
-	return regmap_write(regmap,
-			reg + CS40L26_PM_TIMER_TIMEOUT_TICKS4_UPPER_OFFSET,
-			upper_val);
-}
-
-int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26,
-		u32 timeout_ms)
-{
-	u32 timeout_ticks = timeout_ms * CS40L26_PM_TICKS_MS_DIV;
-	u32 lower_val, upper_val, reg;
-	int ret;
-
-	upper_val = (timeout_ticks >> CS40L26_PM_TIMEOUT_TICKS_UPPER_SHIFT) &
+	upper_val = (ticks >> CS40L26_PM_TIMEOUT_TICKS_UPPER_SHIFT) &
 			CS40L26_PM_TIMEOUT_TICKS_UPPER_MASK;
 
-	lower_val = timeout_ticks & CS40L26_PM_TIMEOUT_TICKS_LOWER_MASK;
+	lower_val = ticks & CS40L26_PM_TIMEOUT_TICKS_LOWER_MASK;
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "PM_TIMER_TIMEOUT_TICKS",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
 	if (ret)
 		return ret;
 
-	ret = cs40l26_dsp_write(cs40l26, reg + CS40L26_PM_STDBY_TIMEOUT_LOWER_OFFSET,
-			lower_val);
-	if (ret)
+	ret = regmap_write(regmap, reg + lower_offset, lower_val);
+	if (ret) {
+		dev_err(dev, "Failed to write timeout ticks to 0x%08X\n",
+				reg + lower_offset);
 		return ret;
+	}
 
-	return cs40l26_dsp_write(cs40l26, reg + CS40L26_PM_STDBY_TIMEOUT_UPPER_OFFSET,
-			upper_val);
+	ret = regmap_write(regmap, reg + upper_offset, upper_val);
+	if (ret)
+		dev_err(dev, "Failed to write timeout ticks to 0x%08X\n",
+				reg + upper_offset);
+
+	return ret;
 }
-EXPORT_SYMBOL(cs40l26_pm_timeout_ms_set);
 
-int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26,
-		u32 *timeout_ms)
+static int cs40l26_pm_timeout_ticks_read(struct cs40l26_private *cs40l26,
+		unsigned int lower_offset, unsigned int upper_offset,
+		u32 *ticks)
 {
 	u32 lower_val, upper_val, reg;
 	int ret = 0;
@@ -249,34 +236,78 @@ int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26,
 	if (ret)
 		return ret;
 
-	ret = regmap_read(cs40l26->regmap, reg +
-			CS40L26_PM_STDBY_TIMEOUT_LOWER_OFFSET, &lower_val);
+	ret = regmap_read(cs40l26->regmap, reg + lower_offset, &lower_val);
 	if (ret)
 		return ret;
 
-	ret = regmap_read(cs40l26->regmap, reg +
-			CS40L26_PM_STDBY_TIMEOUT_UPPER_OFFSET, &upper_val);
+	ret = regmap_read(cs40l26->regmap, reg + upper_offset, &upper_val);
 	if (ret)
 		return ret;
 
-	*timeout_ms =
-		((lower_val & CS40L26_PM_TIMEOUT_TICKS_LOWER_MASK) |
+	*ticks = ((lower_val & CS40L26_PM_TIMEOUT_TICKS_LOWER_MASK) |
 		((upper_val & CS40L26_PM_TIMEOUT_TICKS_UPPER_MASK) <<
-		CS40L26_PM_TIMEOUT_TICKS_UPPER_SHIFT)) /
-		CS40L26_PM_TICKS_MS_DIV;
+		CS40L26_PM_TIMEOUT_TICKS_UPPER_SHIFT));
 
 	return 0;
 }
-EXPORT_SYMBOL(cs40l26_pm_timeout_ms_get);
 
-static int cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
+int cs40l26_pm_active_timeout_ms_set(struct cs40l26_private *cs40l26,
+		u32 timeout_ms)
 {
-	struct device *dev = cs40l26->dev;
+	return cs40l26_pm_timeout_ticks_write(cs40l26, timeout_ms,
+			CS40L26_PM_ACTIVE_TIMEOUT_LOWER_OFFSET,
+			CS40L26_PM_ACTIVE_TIMEOUT_UPPER_OFFSET);
+}
+EXPORT_SYMBOL(cs40l26_pm_active_timeout_ms_set);
+
+int cs40l26_pm_active_timeout_ms_get(struct cs40l26_private *cs40l26,
+		u32 *timeout_ms)
+{
+	u32 ticks;
 	int ret;
 
-	ret = cs40l26_pm_timeout_ms_set(cs40l26, CS40L26_PM_TIMEOUT_MS_MIN);
+	ret = cs40l26_pm_timeout_ticks_read(cs40l26,
+			CS40L26_PM_ACTIVE_TIMEOUT_LOWER_OFFSET,
+			CS40L26_PM_ACTIVE_TIMEOUT_UPPER_OFFSET, &ticks);
 	if (ret)
 		return ret;
+
+	*timeout_ms = ticks / CS40L26_PM_TICKS_MS_DIV;
+
+	return 0;
+}
+EXPORT_SYMBOL(cs40l26_pm_active_timeout_ms_get);
+
+int cs40l26_pm_stdby_timeout_ms_set(struct cs40l26_private *cs40l26,
+		u32 timeout_ms)
+{
+	return cs40l26_pm_timeout_ticks_write(cs40l26, timeout_ms,
+			CS40L26_PM_STDBY_TIMEOUT_LOWER_OFFSET,
+			CS40L26_PM_STDBY_TIMEOUT_UPPER_OFFSET);
+}
+EXPORT_SYMBOL(cs40l26_pm_stdby_timeout_ms_set);
+
+int cs40l26_pm_stdby_timeout_ms_get(struct cs40l26_private *cs40l26,
+		u32 *timeout_ms)
+{
+	u32 ticks;
+	int ret;
+
+	ret = cs40l26_pm_timeout_ticks_read(cs40l26,
+			CS40L26_PM_STDBY_TIMEOUT_LOWER_OFFSET,
+			CS40L26_PM_STDBY_TIMEOUT_UPPER_OFFSET, &ticks);
+	if (ret)
+		return ret;
+
+	*timeout_ms = ticks / CS40L26_PM_TICKS_MS_DIV;
+
+	return 0;
+}
+EXPORT_SYMBOL(cs40l26_pm_stdby_timeout_ms_get);
+
+static void cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
+{
+	struct device *dev = cs40l26->dev;
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_set_active(dev);
@@ -285,8 +316,6 @@ static int cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
 	pm_runtime_use_autosuspend(dev);
 
 	cs40l26->pm_ready = true;
-
-	return 0;
 }
 
 static void cs40l26_pm_runtime_teardown(struct cs40l26_private *cs40l26)
@@ -478,7 +507,7 @@ static int cs40l26_dsp_shutdown(struct cs40l26_private *cs40l26)
 	u32 timeout_ms;
 	int ret;
 
-	ret = cs40l26_pm_timeout_ms_get(cs40l26, &timeout_ms);
+	ret = cs40l26_pm_stdby_timeout_ms_get(cs40l26, &timeout_ms);
 	if (ret)
 		return ret;
 
@@ -516,8 +545,7 @@ static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 		return -EINVAL;
 	}
 
-
-	ret = cs40l26_pm_timeout_ms_get(cs40l26, &timeout_ms);
+	ret = cs40l26_pm_stdby_timeout_ms_get(cs40l26, &timeout_ms);
 	if (ret)
 		return ret;
 
@@ -3772,9 +3800,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	ret = cs40l26_pm_runtime_setup(cs40l26);
-	if (ret)
-		return ret;
+	cs40l26_pm_runtime_setup(cs40l26);
 
 	pm_runtime_get_sync(dev);
 
@@ -3908,18 +3934,17 @@ static void cs40l26_coeff_load(struct cs40l26_private *cs40l26)
 	}
 }
 
-static int cs40l26_change_firmware_control_defaults(
-						struct cs40l26_private *cs40l26)
+static int cs40l26_change_fw_control_defaults(struct cs40l26_private *cs40l26)
 {
-	struct device *dev = cs40l26->dev;
 	int ret;
 
-	ret = cs40l26_pm_timer_timeout_ticks4_set(cs40l26,
-					cs40l26->pdata.pm_timer_timeout_ticks4);
+	ret = cs40l26_pm_stdby_timeout_ms_set(cs40l26,
+			cs40l26->pdata.pm_stdby_timeout_ms);
 	if (ret)
-		dev_err(dev, "failed to set pm_timer_timeout_ticks4, %d", ret);
+		return ret;
 
-	return ret;
+	return cs40l26_pm_active_timeout_ms_set(cs40l26,
+			cs40l26->pdata.pm_active_timeout_ms);
 }
 
 static int cs40l26_firmware_load(struct cs40l26_private *cs40l26, u32 id)
@@ -3944,13 +3969,7 @@ static int cs40l26_firmware_load(struct cs40l26_private *cs40l26, u32 id)
 		return ret;
 	}
 
-	ret = cs40l26_change_firmware_control_defaults(cs40l26);
-
-	if (ret)
-		dev_err(dev, "changing firmware control defaults failed %d",
-									ret);
-
-	return ret;
+	return cs40l26_change_fw_control_defaults(cs40l26);
 }
 
 static int cs40l26_fw_upload(struct cs40l26_private *cs40l26, u32 id)
@@ -4001,21 +4020,24 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 		return 0;
 	}
 
+	if (cs40l26->fw_loaded) {
+		pm_runtime_get_sync(dev);
+		ret = cs40l26_pm_stdby_timeout_ms_set(cs40l26,
+				CS40L26_PM_TIMEOUT_MS_MAX);
+		if (ret) {
+			dev_err(cs40l26->dev, "Can't set pm_timeout %d\n", ret);
+			return ret;
+		}
+		pm_runtime_mark_last_busy(dev);
+		pm_runtime_put_autosuspend(dev);
+	}
+
 	if (cs40l26->fw_mode == CS40L26_FW_MODE_NONE) {
 		cs40l26->fw_mode = CS40L26_FW_MODE_RAM;
 		register_irq = true;
 	} else {
 		disable_irq(cs40l26->irq);
 		cs40l26_pm_runtime_teardown(cs40l26);
-	}
-
-	if (cs40l26->fw_loaded) {
-		ret = cs40l26_pm_timeout_ms_set(cs40l26,
-				CS40L26_PM_TIMEOUT_MS_MAX);
-		if (ret) {
-			dev_err(cs40l26->dev, "Can't set pm_timeout %d\n", ret);
-			return ret;
-		}
 	}
 
 	cs40l26->fw_loaded = false;
@@ -4217,11 +4239,17 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 	else
 		cs40l26->pdata.bst_ipk = 0;
 
-	if (!of_property_read_u32(np, "cirrus,pm-timer-timeout-ticks4", &val))
-		cs40l26->pdata.pm_timer_timeout_ticks4 = val;
+	if (!of_property_read_u32(np, "cirrus,pm-stdby-timeout-ms", &val))
+		cs40l26->pdata.pm_stdby_timeout_ms = val;
 	else
-		cs40l26->pdata.pm_timer_timeout_ticks4 =
-					CS40L26_PM_TIMER_TIMEOUT_TICKS4_DEFAULT;
+		cs40l26->pdata.pm_stdby_timeout_ms =
+				CS40L26_PM_TIMEOUT_MS_MIN;
+
+	if (!of_property_read_u32(np, "cirrus,pm-active-timeout-ms", &val))
+		cs40l26->pdata.pm_active_timeout_ms = val;
+	else
+		cs40l26->pdata.pm_active_timeout_ms =
+				CS40L26_PM_ACTIVE_TIMEOUT_MS_DEFAULT;
 
 	ret = cs40l26_handle_svc_le_nodes(cs40l26);
 	if (ret < 0)
