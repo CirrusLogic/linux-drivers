@@ -86,7 +86,7 @@ static ssize_t fw_mode_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(fw_mode);
 
-static ssize_t pm_timeout_ms_show(struct device *dev,
+static ssize_t pm_stdby_timeout_ms_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -95,7 +95,7 @@ static ssize_t pm_timeout_ms_show(struct device *dev,
 
 	pm_runtime_get_sync(cs40l26->dev);
 
-	ret = cs40l26_pm_timeout_ms_get(cs40l26, &timeout_ms);
+	ret = cs40l26_pm_stdby_timeout_ms_get(cs40l26, &timeout_ms);
 
 	pm_runtime_mark_last_busy(cs40l26->dev);
 	pm_runtime_put_autosuspend(cs40l26->dev);
@@ -106,7 +106,7 @@ static ssize_t pm_timeout_ms_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%u\n", timeout_ms);
 }
 
-static ssize_t pm_timeout_ms_store(struct device *dev,
+static ssize_t pm_stdby_timeout_ms_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -114,12 +114,12 @@ static ssize_t pm_timeout_ms_store(struct device *dev,
 	int ret;
 
 	ret = kstrtou32(buf, 10, &timeout_ms);
-	if (ret || timeout_ms < CS40L26_PM_TIMEOUT_MS_MIN)
+	if (ret)
 		return -EINVAL;
 
 	pm_runtime_get_sync(cs40l26->dev);
 
-	ret = cs40l26_pm_timeout_ms_set(cs40l26, timeout_ms);
+	ret = cs40l26_pm_stdby_timeout_ms_set(cs40l26, timeout_ms);
 
 	pm_runtime_mark_last_busy(cs40l26->dev);
 	pm_runtime_put_autosuspend(cs40l26->dev);
@@ -129,7 +129,52 @@ static ssize_t pm_timeout_ms_store(struct device *dev,
 
 	return count;
 }
-static DEVICE_ATTR_RW(pm_timeout_ms);
+static DEVICE_ATTR_RW(pm_stdby_timeout_ms);
+
+static ssize_t pm_active_timeout_ms_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 timeout_ms;
+	int ret;
+
+	pm_runtime_get_sync(cs40l26->dev);
+
+	ret = cs40l26_pm_active_timeout_ms_get(cs40l26, &timeout_ms);
+
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", timeout_ms);
+}
+
+static ssize_t pm_active_timeout_ms_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 timeout_ms;
+	int ret;
+
+	ret = kstrtou32(buf, 10, &timeout_ms);
+	if (ret)
+		return -EINVAL;
+
+	pm_runtime_get_sync(cs40l26->dev);
+
+	ret = cs40l26_pm_active_timeout_ms_set(cs40l26, timeout_ms);
+
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+
+	return count;
+}
+static DEVICE_ATTR_RW(pm_active_timeout_ms);
 
 static ssize_t vibe_state_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -452,7 +497,8 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_dsp_state.attr,
 	&dev_attr_halo_heartbeat.attr,
 	&dev_attr_fw_mode.attr,
-	&dev_attr_pm_timeout_ms.attr,
+	&dev_attr_pm_stdby_timeout_ms.attr,
+	&dev_attr_pm_active_timeout_ms.attr,
 	&dev_attr_vibe_state.attr,
 	&dev_attr_boost_disable_delay.attr,
 	&dev_attr_f0_offset.attr,
