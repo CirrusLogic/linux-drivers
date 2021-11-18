@@ -630,9 +630,6 @@
 #define CS40L26_SPK_DEFAULT_HIZ_MASK BIT(28)
 #define CS40L26_SPK_DEFAULT_HIZ_SHIFT 28
 
-/* Firmware control defaults */
-#define CS40L26_PM_TIMER_TIMEOUT_TICKS4_DEFAULT 0x00001F40
-
 /* Device */
 #define CS40L26_DEV_NAME		"CS40L26"
 #define CS40L26_DEVID_A			0x40A260
@@ -731,15 +728,16 @@
 
 #define CS40L26_PM_STDBY_TIMEOUT_LOWER_OFFSET	16
 #define CS40L26_PM_STDBY_TIMEOUT_UPPER_OFFSET	20
-#define CS40L26_PM_TIMER_TIMEOUT_TICKS4_LOWER_OFFSET   0x18
-#define CS40L26_PM_TIMER_TIMEOUT_TICKS4_UPPER_OFFSET   0x1C
+#define CS40L26_PM_STDBY_TIMEOUT_MS_DEFAULT	5000
+#define CS40L26_PM_TIMEOUT_MS_MIN	100
+#define CS40L26_PM_TIMEOUT_MS_MAX	4880
+#define CS40L26_PM_ACTIVE_TIMEOUT_LOWER_OFFSET	24
+#define CS40L26_PM_ACTIVE_TIMEOUT_UPPER_OFFSET	28
+#define CS40L26_PM_ACTIVE_TIMEOUT_MS_DEFAULT	250
 #define CS40L26_PM_TIMEOUT_TICKS_LOWER_MASK	GENMASK(23, 0)
 #define CS40L26_PM_TIMEOUT_TICKS_UPPER_MASK	GENMASK(7, 0)
 #define CS40L26_PM_TIMEOUT_TICKS_UPPER_SHIFT	24
-#define CS40L26_PM_TICKS_MS_DIV		32
-
-#define CS40L26_PM_TIMEOUT_MS_MIN		100
-#define CS40L26_PM_TIMEOUT_MS_MAX		4880
+#define CS40L26_PM_TICKS_MS_DIV			32
 
 #define CS40L26_AUTOSUSPEND_DELAY_MS		2000
 
@@ -1371,8 +1369,9 @@ struct cs40l26_platform_data {
 	u32 vpbr_rel_rate;
 	bool bst_dcm_en;
 	u32 bst_ipk;
-	u32 pm_timer_timeout_ticks4;
 	u32 asp_scale_pct;
+	u32 pm_active_timeout_ms;
+	u32 pm_stdby_timeout_ms;
 	u32 f0_default;
 	u32 redc_default;
 	u32 q_default;
@@ -1466,9 +1465,13 @@ int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves);
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id);
 void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26,
 		enum cs40l26_vibe_state_event event);
-int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26,
+int cs40l26_pm_stdby_timeout_ms_get(struct cs40l26_private *cs40l26,
 		u32 *timeout_ms);
-int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26,
+int cs40l26_pm_stdby_timeout_ms_set(struct cs40l26_private *cs40l26,
+		u32 timeout_ms);
+int cs40l26_pm_active_timeout_ms_get(struct cs40l26_private *cs40l26,
+		u32 *timeout_ms);
+int cs40l26_pm_active_timeout_ms_set(struct cs40l26_private *cs40l26,
 		u32 timeout_ms);
 int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 		enum cs40l26_pm_state state);
