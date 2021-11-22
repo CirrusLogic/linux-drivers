@@ -3145,12 +3145,23 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26, u32 id)
 			cs40l26->fw.min_rev = CS40L26_FW_CALIB_MIN_REV;
 
 		cs40l26->fw.num_coeff_files = CS40L26_TUNING_FILES_MAX;
-		cs40l26->fw.coeff_files = devm_kcalloc(cs40l26->dev,
-			CS40L26_TUNING_FILES_MAX, sizeof(char *), GFP_KERNEL);
 
-		for (i = 0; i < CS40L26_TUNING_FILES_MAX; i++)
-			cs40l26->fw.coeff_files[i] = devm_kzalloc(cs40l26->dev,
-				CS40L26_TUNING_FILE_NAME_MAX_LEN, GFP_KERNEL);
+		if (!cs40l26->fw.coeff_files)
+			cs40l26->fw.coeff_files = devm_kcalloc(cs40l26->dev,
+				CS40L26_TUNING_FILES_MAX, sizeof(char *),
+				GFP_KERNEL);
+
+		for (i = 0; i < CS40L26_TUNING_FILES_MAX; i++) {
+			if (!cs40l26->fw.coeff_files[i]) {
+				cs40l26->fw.coeff_files[i] =
+					devm_kzalloc(cs40l26->dev,
+						CS40L26_TUNING_FILE_NAME_MAX_LEN,
+						GFP_KERNEL);
+			} else {
+				memset(cs40l26->fw.coeff_files[i], 0,
+					CS40L26_TUNING_FILE_NAME_MAX_LEN);
+			}
+		}
 
 		strncpy(cs40l26->fw.coeff_files[0], CS40L26_WT_FILE_NAME,
 				CS40L26_WT_FILE_NAME_LEN);
@@ -3916,6 +3927,11 @@ static void cs40l26_coeff_load(struct cs40l26_private *cs40l26)
 	int i, ret;
 
 	for (i = 0; i < cs40l26->fw.num_coeff_files; i++) {
+		if (strncmp(cs40l26->fw.coeff_files[i], CS40L26_WT_FILE_NAME,
+			CS40L26_WT_FILE_NAME_LEN)
+			&& cs40l26->fw.id == CS40L26_FW_CALIB_ID)
+			continue;
+
 		ret = request_firmware(&coeff, cs40l26->fw.coeff_files[i], dev);
 		if (ret) {
 			dev_warn(dev, "Continuing...");
