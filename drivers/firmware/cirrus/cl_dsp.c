@@ -248,7 +248,7 @@ static int cl_dsp_read_wt(struct cl_dsp *dsp, int pos, int size)
 		if (entry->type == WT_TYPE_TERMINATOR) {
 			dsp->wt_desc->owt.nwaves = i;
 			dsp->wt_desc->owt.bytes = max(ch.bytes,
-					(int)((void*)max - buf));
+					(int)((void *)max - buf));
 
 			return dsp->wt_desc->owt.bytes;
 		}
