@@ -2750,6 +2750,8 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 		{CS35L45_ASP_FRAME_CONTROL1, CS35L45_ASP_TX_ALL_SLOTS, 0},
 		{CS35L45_ASP_FRAME_CONTROL5, CS35L45_ASP_RX_ALL_SLOTS, 0},
 		{CS35L45_REFCLK_INPUT, CS35L45_PLL_FORCE_EN_MASK, 0},
+		{CS35L45_IRQ1_MASK_3, 0xffffffff, 0},
+		{CS35L45_IRQ1_MASK_18, 0xffffffff, 0},
 	};
 
 	if (!cs35l45->dsp.booted) {
