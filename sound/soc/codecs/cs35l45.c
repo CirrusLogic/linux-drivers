@@ -33,7 +33,6 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en);
 static int cs35l45_set_sysclk(struct cs35l45_private *cs35l45, int clk_id,
 			      unsigned int freq);
 static int cs35l45_gpio_configuration(struct cs35l45_private *cs35l45);
-static void cs35l45_hibernate_work(struct work_struct *work);
 static int cs35l45_activate_ctl(struct cs35l45_private *cs35l45,
 				const char *ctl_name, bool active);
 static int cs35l45_buffer_update_avail(struct cs35l45_private *cs35l45);
@@ -642,10 +641,6 @@ static const char * const amplifier_mode_texts[] = {"None", "SPK", "RCV"};
 static SOC_ENUM_SINGLE_DECL(amplifier_mode_enum, SND_SOC_NOPM, 0,
 			    amplifier_mode_texts);
 
-static const char * const hibernate_mode_texts[] = {"Off", "On"};
-static SOC_ENUM_SINGLE_DECL(hibernate_mode_enum, SND_SOC_NOPM, 0,
-			    hibernate_mode_texts);
-
 static const DECLARE_TLV_DB_RANGE(dig_pcm_vol_tlv, 0, 0,
 				  TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
 				  1, 913, TLV_DB_SCALE_ITEM(-10200, 25, 0));
@@ -751,34 +746,6 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int cs35l45_hibernate_mode_get(struct snd_kcontrol *kcontrol,
-				      struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component =
-			snd_soc_kcontrol_component(kcontrol);
-	struct cs35l45_private *cs35l45 =
-			snd_soc_component_get_drvdata(component);
-
-	ucontrol->value.integer.value[0] = cs35l45->hibernate_mode;
-
-	return 0;
-}
-
-static int cs35l45_hibernate_mode_put(struct snd_kcontrol *kcontrol,
-				      struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component =
-			snd_soc_kcontrol_component(kcontrol);
-	struct cs35l45_private *cs35l45 =
-			snd_soc_component_get_drvdata(component);
-
-	dev_dbg(cs35l45->dev, "Set hibernation mode to (%d)\n",
-			(int) (ucontrol->value.integer.value[0]));
-	cs35l45->hibernate_mode = ucontrol->value.integer.value[0];
-
-	return 0;
-}
-
 static int cs35l45_dsp_boot_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
@@ -818,7 +785,6 @@ static int cs35l45_dsp_boot_put(struct snd_kcontrol *kcontrol,
 				   CS35L45_SYNC_SW_EN_MASK);
 		pm_runtime_put_noidle(cs35l45->dev);
 	} else {
-		cancel_delayed_work_sync(&cs35l45->hb_work);
 		pm_runtime_resume_and_get(cs35l45->dev);
 
 		snd_soc_component_disable_pin(component, "DSP1");
@@ -1120,8 +1086,6 @@ static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 
 	SOC_ENUM_EXT("Amplifier Mode", amplifier_mode_enum,
 		     cs35l45_amplifier_mode_get, cs35l45_amplifier_mode_put),
-	SOC_ENUM_EXT("Hibernate Mode", hibernate_mode_enum,
-		     cs35l45_hibernate_mode_get, cs35l45_hibernate_mode_put),
 
 	{
 		.name = "Digital PCM Volume",
@@ -1322,42 +1286,7 @@ static int cs35l45_dai_set_sysclk(struct snd_soc_dai *dai,
 	return cs35l45_set_sysclk(cs35l45, clk_id, freq);
 }
 
-static int cs35l45_dai_startup(struct snd_pcm_substream *substream,
-			       struct snd_soc_dai *dai)
-{
-	struct cs35l45_private *cs35l45 =
-			snd_soc_component_get_drvdata(dai->component);
-
-	cancel_delayed_work_sync(&cs35l45->hb_work);
-
-	if (cs35l45->hibernate_state == HIBER_MODE_EN) {
-		dev_dbg(cs35l45->dev, "Wake up AMP\n");
-		mutex_lock(&cs35l45->hb_lock);
-		cs35l45_hibernate(cs35l45, false);
-		mutex_unlock(&cs35l45->hb_lock);
-	}
-
-	return 0;
-}
-
-static void cs35l45_dai_shutdown(struct snd_pcm_substream *substream,
-			       struct snd_soc_dai *dai)
-{
-	struct cs35l45_private *cs35l45 =
-			snd_soc_component_get_drvdata(dai->component);
-
-	cancel_delayed_work_sync(&cs35l45->hb_work);
-
-	if ((cs35l45->hibernate_mode == HIBER_MODE_EN) &&
-	    (cs35l45->hibernate_state == HIBER_MODE_DIS))  {
-		dev_dbg(cs35l45->dev, "Schedule sleep time\n");
-		queue_delayed_work(cs35l45->wq, &cs35l45->hb_work,
-					msecs_to_jiffies(2000));
-	}
-}
 static const struct snd_soc_dai_ops cs35l45_dai_ops = {
-	.shutdown = cs35l45_dai_shutdown,
-	.startup = cs35l45_dai_startup,
 	.set_fmt = cs35l45_dai_set_fmt,
 	.hw_params = cs35l45_dai_hw_params,
 	.set_tdm_slot = cs35l45_dai_set_tdm_slot,
@@ -2687,17 +2616,6 @@ static int cs35l45_activate_ctl(struct cs35l45_private *cs35l45,
 	return 0;
 }
 
-static void cs35l45_hibernate_work(struct work_struct *work)
-{
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct cs35l45_private *cs35l45 =
-		container_of(dwork, struct cs35l45_private, hb_work);
-
-	mutex_lock(&cs35l45->hb_lock);
-	cs35l45_hibernate(cs35l45, true);
-	mutex_unlock(&cs35l45->hb_lock);
-}
-
 int cs35l45_suspend_runtime(struct device *dev)
 {
 	struct cs35l45_private *cs35l45 = dev_get_drvdata(dev);
@@ -3069,11 +2987,9 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 	INIT_WORK(&cs35l45->dsp_pmu_work, cs35l45_dsp_pmu_work);
 	INIT_WORK(&cs35l45->dsp_pmd_work, cs35l45_dsp_pmd_work);
 
-	INIT_DELAYED_WORK(&cs35l45->hb_work, cs35l45_hibernate_work);
 	INIT_DELAYED_WORK(&cs35l45->global_err_rls_work, cs35l45_global_err_rls_work);
 
 	mutex_init(&cs35l45->dsp_power_lock);
-	mutex_init(&cs35l45->hb_lock);
 
 	init_completion(&cs35l45->virt2_mbox_comp);
 
@@ -3146,7 +3062,6 @@ err_dsp:
 	wm_adsp2_remove(&cs35l45->dsp);
 err:
 	mutex_destroy(&cs35l45->dsp_power_lock);
-	mutex_destroy(&cs35l45->hb_lock);
 	regulator_bulk_disable(CS35L45_NUM_SUPPLIES, cs35l45->supplies);
 	return ret;
 }
@@ -3159,7 +3074,6 @@ int cs35l45_remove(struct cs35l45_private *cs35l45)
 
 	pm_runtime_disable(cs35l45->dev);
 	mutex_destroy(&cs35l45->dsp_power_lock);
-	mutex_destroy(&cs35l45->hb_lock);
 	destroy_workqueue(cs35l45->wq);
 	wm_adsp2_remove(&cs35l45->dsp);
 	regulator_bulk_disable(CS35L45_NUM_SUPPLIES, cs35l45->supplies);
