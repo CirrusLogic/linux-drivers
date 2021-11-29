@@ -331,6 +331,30 @@ static int cs35l45_dsp_power_ev(struct snd_soc_dapm_widget *w,
 	return ret;
 }
 
+static int cs35l45_hibernate_dapm(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component =
+		snd_soc_dapm_to_component(w->dapm);
+	struct cs35l45_private *cs35l45 =
+		snd_soc_component_get_drvdata(component);
+	int ret = 0;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		if (pm_runtime_suspended(cs35l45->dev)) {
+			dev_dbg(cs35l45->dev, "Resume suspended AMP.\n");
+			pm_runtime_resume(cs35l45->dev);
+		}
+		break;
+
+	default:
+		dev_err(cs35l45->dev, "Invalid event = 0x%x\n", event);
+		ret = -EINVAL;
+	}
+	return ret;
+}
+
 static int cs35l45_global_en_ev(struct snd_soc_dapm_widget *w,
 				struct snd_kcontrol *kcontrol, int event)
 {
@@ -494,6 +518,8 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 			   cs35l45_global_en_ev, SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD),
 
+	SND_SOC_DAPM_SUPPLY("Hibernate",  SND_SOC_NOPM, 0, 0,
+			    cs35l45_hibernate_dapm, SND_SOC_DAPM_PRE_PMU),
 	SND_SOC_DAPM_SUPPLY("VMON", CS35L45_BLOCK_ENABLES, 12, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("IMON", CS35L45_BLOCK_ENABLES, 13, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("BATTMON", CS35L45_BLOCK_ENABLES, 8, 0, NULL, 0),
@@ -602,6 +628,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"Exit", NULL, "GLOBAL_EN"},
 
 	{"SPK", NULL, "Exit"},
+	{"SPK", NULL, "Hibernate"},
 };
 
 static const char * const gain_texts[] = {"10dB", "13dB", "16dB", "19dB"};
