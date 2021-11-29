@@ -1422,7 +1422,7 @@ static int cs40l26_pseq_add_op(struct cs40l26_private *cs40l26,
 
 	cs40l26->pseq_num_ops++;
 
-	/* bump end of script offset to accomodate new operation */
+	/* bump end of script offset to accommodate new operation */
 	pseq_op_end->offset += num_words * CL_DSP_BYTES_PER_WORD;
 
 	list_for_each_entry(op, &cs40l26->pseq_op_head, list) {
