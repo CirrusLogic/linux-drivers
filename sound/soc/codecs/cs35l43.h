@@ -522,6 +522,12 @@
 #define CS35L43_ASP_FSYNC_MSTR_WIDTH		1
 
 /************************************************/
+/* DATAIF_ASP_CONTROL3				*/
+/************************************************/
+#define CS35L41_ASP_DOUT_HIZ_CTRL_SHIFT		0
+#define CS35L41_ASP_DOUT_HIZ_CTRL_MASK		0x00000003
+
+/************************************************/
 /* DATAIF_ASP_DATA_CONTROL1			*/
 /************************************************/
 #define CS35L43_ASP_TX_WL_MASK			0x0000003F
