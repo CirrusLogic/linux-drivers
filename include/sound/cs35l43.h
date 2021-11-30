@@ -25,6 +25,7 @@ struct cs35l43_platform_data {
 	bool gpio2_out_enable;
 	bool classh_disable;
 	bool dsp_ng_enable;
+	int asp_sdout_hiz;
 	int dsp_ng_pcm_thld;
 	int dsp_ng_delay;
 	int dout_hiz;

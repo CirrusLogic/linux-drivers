@@ -1570,6 +1570,12 @@ static int cs35l43_set_pdata(struct cs35l43_private *cs35l43)
 		}
 	}
 
+	if (cs35l43->pdata.asp_sdout_hiz)
+		regmap_update_bits(cs35l43->regmap,
+				CS35L43_ASP_CONTROL3,
+				CS35L41_ASP_DOUT_HIZ_CTRL_MASK,
+				cs35l43->pdata.asp_sdout_hiz);
+
 	if (cs35l43->pdata.hw_ng_sel)
 		regmap_update_bits(cs35l43->regmap,
 				CS35L43_NG_CONFIG,
@@ -1628,6 +1634,9 @@ static int cs35l43_handle_of_data(struct device *dev,
 					"cirrus,gpio1-output-enable");
 	pdata->gpio2_out_enable = of_property_read_bool(np,
 					"cirrus,gpio2-output-enable");
+
+	if (of_property_read_u32(np, "cirrus,asp-sdout-hiz", &val) >= 0)
+		pdata->asp_sdout_hiz = val | CS35L43_VALID_PDATA;
 
 	pdata->classh_disable = of_property_read_bool(np,
 						"cirrus,classh-disable");
