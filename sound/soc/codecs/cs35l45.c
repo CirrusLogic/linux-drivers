@@ -651,6 +651,13 @@ static const DECLARE_TLV_DB_RANGE(dig_pcm_vol_tlv, 0, 0,
 				  TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
 				  1, 913, TLV_DB_SCALE_ITEM(-10200, 25, 0));
 
+static const char * const cs35l45_pcm_sftramp_text[] =  {
+	"Off", ".5ms", "1ms", "2ms", "4ms", "8ms", "16ms", "32ms"};
+
+static SOC_ENUM_SINGLE_DECL(pcm_sft_ramp, CS35L45_AMP_PCM_CONTROL,
+			    CS35L45_AMP_RAMP_PCM_SHIFT,
+			    cs35l45_pcm_sftramp_text);
+
 static int cs35l45_amplifier_mode_get(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
@@ -1250,6 +1257,7 @@ static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 	WM_ADSP_FW_CONTROL("DSP1", 0),
 	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
 
+	SOC_ENUM("PCM Soft Ramp", pcm_sft_ramp),
 	SOC_SINGLE("AMP Mute", CS35L45_AMP_OUTPUT_MUTE, 0, 1, 0),
 	SOC_SINGLE("SYNC Enable Switch", CS35L45_BLOCK_ENABLES2, 8, 1, 0),
 	SOC_SINGLE("PLL Force Enable Switch", CS35L45_REFCLK_INPUT, 16, 1, 0),
