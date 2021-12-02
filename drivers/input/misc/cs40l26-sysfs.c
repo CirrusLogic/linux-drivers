@@ -194,32 +194,57 @@ static ssize_t power_on_seq_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	struct list_head *op_head = &cs40l26->pseq_op_head;
-	u32 base = cs40l26->pseq_base;
-	int i, count = 0;
-	struct cs40l26_pseq_op *pseq_op;
+	struct cs40l26_pseq_op *op;
+	u32 addr, data, base;
+	int ret;
 
 	mutex_lock(&cs40l26->lock);
 
-	list_for_each_entry_reverse(pseq_op, op_head, list) {
-		dev_info(cs40l26->dev, "%d: Address: 0x%08X, Size: %d words\n",
-			count + 1, base + pseq_op->offset, pseq_op->size);
+	base = cs40l26->pseq_base;
 
-		for (i = 0; i < pseq_op->size; i++)
-			dev_info(cs40l26->dev, "0x%08X\n",
-					*(pseq_op->words + i));
+	list_for_each_entry_reverse(op, &cs40l26->pseq_op_head, list) {
+		switch (op->operation) {
+		case CS40L26_PSEQ_OP_WRITE_FULL:
+			addr = ((op->words[0] & 0xFFFF) << 16) |
+					((op->words[1] & 0x00FFFF00) >> 8);
+			data = ((op->words[1] & 0xFF) << 24) |
+					(op->words[2] & 0xFFFFFF);
+			break;
+		case CS40L26_PSEQ_OP_WRITE_H16:
+		case CS40L26_PSEQ_OP_WRITE_L16:
+			addr = ((op->words[0] & 0xFFFF) << 8) |
+					((op->words[1] & 0xFF0000) >> 16);
+			data = (op->words[1] & 0xFFFF);
 
-		count++;
+			if (op->operation == CS40L26_PSEQ_OP_WRITE_H16)
+				data <<= 16;
+			break;
+		case CS40L26_PSEQ_OP_WRITE_ADDR8:
+			addr = (op->words[0] & 0xFF00) >> 8;
+			data = ((op->words[0] & 0xFF) << 24) |
+					(op->words[1] & 0xFFFFFF);
+			break;
+		case CS40L26_PSEQ_OP_END:
+			addr = CS40L26_PSEQ_OP_END_ADDR;
+			data = CS40L26_PSEQ_OP_END_DATA;
+			break;
+		default:
+			dev_err(cs40l26->dev, "Unrecognized Op Code: 0x%02X\n",
+					op->operation);
+			ret = -EINVAL;
+			goto err_mutex;
+		}
+
+		dev_dbg(cs40l26->dev,
+		"0x%08x: code = 0x%02X, Addr = 0x%08X, Data = 0x%08X\n",
+		base + op->offset, op->operation, addr, data);
 	}
 
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->pseq_num_ops);
+
+err_mutex:
 	mutex_unlock(&cs40l26->lock);
-
-	if (count != cs40l26->pseq_num_ops) {
-		dev_err(cs40l26->dev, "Malformed Power on seq.\n");
-		return -EINVAL;
-	}
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->pseq_num_ops);
+	return ret;
 }
 static DEVICE_ATTR_RO(power_on_seq);
 
