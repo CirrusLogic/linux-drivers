@@ -935,11 +935,6 @@
 #define CS40L26_IRQ_STATUS_DEASSERT		0x0
 #define CS40L26_IRQ_STATUS_ASSERT		0x1
 
-#define CS40L26_ISEQ_MAX_ENTRIES		4
-
-#define CS40L26_IRQ_UNMASK			0
-#define CS40L26_IRQ_MASK			1
-
 #define CS40L26_IRQ_EINT1_ALL_MASK		0xFFDC7FFF
 #define CS40L26_IRQ_EINT2_ALL_MASK		0x07DE0400
 
@@ -1240,13 +1235,6 @@ enum cs40l26_fw_mode {
 	CS40L26_FW_MODE_NONE,
 };
 
-enum cs40l26_iseq {
-	CS40L26_ISEQ_MASK1,
-	CS40L26_ISEQ_MASK2,
-	CS40L26_ISEQ_EDGE1,
-	CS40L26_ISEQ_POL1,
-};
-
 enum cs40l26_err_rls {
 	CS40L26_RSRVD_ERR_RLS,/* 0 */
 	CS40L26_AMP_SHORT_ERR_RLS,/* 1 */
@@ -1349,11 +1337,6 @@ struct cs40l26_owt_section {
 	u16 duration;
 };
 
-struct cs40l26_iseq_pair {
-	u32 addr;
-	u32 val;
-};
-
 struct cs40l26_pseq_op {
 	u8 size;
 	u16 offset; /* offset in bytes from pseq_base */
@@ -1428,7 +1411,6 @@ struct cs40l26_private {
 	u32 pseq_base;
 	struct list_head pseq_op_head;
 	enum cs40l26_pm_state pm_state;
-	struct cs40l26_iseq_pair iseq_table[CS40L26_ISEQ_MAX_ENTRIES];
 	enum cs40l26_fw_mode fw_mode;
 	enum cs40l26_vibe_state vibe_state;
 	int num_loaded_coeff_files;
