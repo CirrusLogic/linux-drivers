@@ -2911,7 +2911,7 @@ int madera_set_sysclk(struct snd_soc_component *component, int clk_id,
 		reg = MADERA_SYSTEM_CLOCK_1;
 		clk = &priv->sysclk;
 		clk_freq_sel = madera_get_sysclk_setting(freq);
-		mask |= MADERA_SYSCLK_FRAC;
+		mask |= MADERA_SYSCLK_FRAC | MADERA_SYSCLK_ENA;
 		break;
 	case MADERA_CLK_ASYNCCLK_1:
 		name = "ASYNCCLK";
@@ -2971,7 +2971,24 @@ int madera_set_sysclk(struct snd_soc_component *component, int clk_id,
 
 	dev_dbg(madera->dev, "%s set to %uHz\n", name, freq);
 
-	return regmap_update_bits(madera->regmap, reg, mask, val);
+	ret = regmap_update_bits(madera->regmap, reg, mask, val);
+	if (ret)
+	{
+		dev_err(madera->dev, "Failed to set sysclk\n");
+		return ret;
+	}
+
+	if (clk_id == MADERA_CLK_SYSCLK_1)
+	{
+		ret = regmap_update_bits(madera->regmap, reg, MADERA_SYSCLK_ENA_MASK, MADERA_SYSCLK_ENA);
+		if (ret)
+		{
+			dev_err(madera->dev, "Failed to set SYSCLK_ENA");
+			return ret;
+		}
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(madera_set_sysclk);
 
