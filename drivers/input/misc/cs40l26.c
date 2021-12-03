@@ -885,105 +885,6 @@ static int cs40l26_error_release(struct cs40l26_private *cs40l26,
 	return ret;
 }
 
-static int cs40l26_iseq_update(struct cs40l26_private *cs40l26,
-		enum cs40l26_iseq update)
-{
-	int ret;
-	u32 val;
-
-	ret = regmap_read(cs40l26->regmap, cs40l26->iseq_table[update].addr,
-			&val);
-	if (ret) {
-		dev_err(cs40l26->dev, "Failed to get IRQ seq. information\n");
-		return ret;
-	}
-
-	cs40l26->iseq_table[update].val = val;
-
-	return 0;
-}
-
-static int cs40l26_iseq_init(struct cs40l26_private *cs40l26)
-{
-	struct device *dev = cs40l26->dev;
-	struct regmap *regmap = cs40l26->regmap;
-	int ret, i;
-
-	cs40l26->iseq_table[CS40L26_ISEQ_MASK1].addr = CS40L26_IRQ1_MASK_1;
-	cs40l26->iseq_table[CS40L26_ISEQ_MASK2].addr = CS40L26_IRQ1_MASK_2;
-	cs40l26->iseq_table[CS40L26_ISEQ_EDGE1].addr = CS40L26_IRQ1_EDGE_1;
-	cs40l26->iseq_table[CS40L26_ISEQ_POL1].addr = CS40L26_IRQ1_POL_1;
-
-	for (i = 0; i < CS40L26_ISEQ_MAX_ENTRIES; i++) {
-		ret = regmap_read(regmap, cs40l26->iseq_table[i].addr,
-				&cs40l26->iseq_table[i].val);
-		if (ret) {
-			dev_err(dev, "Failed to read IRQ settings\n");
-			return ret;
-		}
-	}
-
-	return ret;
-}
-
-static int cs40l26_iseq_populate(struct cs40l26_private *cs40l26)
-{
-	int ret, i;
-
-	for (i = 0; i < CS40L26_ISEQ_MAX_ENTRIES; i++) {
-		ret = regmap_write(cs40l26->regmap,
-				cs40l26->iseq_table[i].addr,
-				cs40l26->iseq_table[i].val);
-		if (ret) {
-			dev_err(cs40l26->dev,
-				"Failed to update IRQ settings\n");
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
-static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 irq_reg,
-		u32 bits, bool mask)
-{
-	struct regmap *regmap = cs40l26->regmap;
-	struct device *dev = cs40l26->dev;
-	enum cs40l26_iseq update;
-	u32 eint_reg;
-	int ret;
-
-	switch (irq_reg) {
-	case CS40L26_IRQ1_MASK_1:
-		update = CS40L26_ISEQ_MASK1;
-		eint_reg = CS40L26_IRQ1_EINT_1;
-		break;
-	case CS40L26_IRQ1_MASK_2:
-		update = CS40L26_ISEQ_MASK2;
-		eint_reg = CS40L26_IRQ1_EINT_2;
-		break;
-	default:
-		dev_err(dev, "Invalid IRQ mask register 0x%08X\n", irq_reg);
-		return -EINVAL;
-	}
-
-	ret = regmap_write(regmap, eint_reg, bits);
-	if (ret) {
-		dev_err(dev,
-			"Failed to clear status of bits 0x%08X\n",
-			eint_reg);
-		return ret;
-	}
-
-	ret = regmap_update_bits(regmap, irq_reg, bits, mask ? bits : ~bits);
-	if (ret) {
-		dev_err(dev, "Failed to update IRQ mask 0x%08X\n", irq_reg);
-		return ret;
-	}
-
-	return cs40l26_iseq_update(cs40l26, update);
-}
-
 static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 		enum cs40l26_irq1 irq1)
 {
@@ -1019,10 +920,6 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 		break;
 	case CS40L26_IRQ1_WKSRC_STS_ANY:
 		dev_dbg(dev, "Wakesource detected (ANY)\n");
-
-		ret = cs40l26_iseq_populate(cs40l26);
-		if (ret)
-			goto err;
 
 		ret = regmap_read(cs40l26->regmap, CS40L26_PWRMGT_STS, &val);
 		if (ret) {
@@ -1657,6 +1554,46 @@ static int cs40l26_update_reg_defaults_via_pseq(struct cs40l26_private *cs40l26)
 		dev_err(dev, "Failed to sequence register default updates\n");
 
 	return ret;
+}
+
+static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 reg,
+		u32 val, u32 bit_mask)
+{
+	u32 eint_reg, cur_mask, new_mask;
+	int ret;
+
+	if (reg == CS40L26_IRQ1_MASK_1) {
+		eint_reg = CS40L26_IRQ1_EINT_1;
+	} else if (reg == CS40L26_IRQ1_MASK_2) {
+		eint_reg = CS40L26_IRQ1_EINT_2;
+	} else {
+		dev_err(cs40l26->dev, "Invalid IRQ mask reg: 0x%08X\n", reg);
+		return -EINVAL;
+	}
+
+	ret = regmap_read(cs40l26->regmap, reg, &cur_mask);
+	if  (ret) {
+		dev_err(cs40l26->dev, "Failed to get IRQ mask\n");
+		return ret;
+	}
+
+	new_mask = (cur_mask & ~bit_mask) | val;
+
+	/* Clear interrupt prior to masking/unmasking */
+	ret = regmap_write(cs40l26->regmap, eint_reg, bit_mask);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to clear IRQ\n");
+		return ret;
+	}
+
+	ret = regmap_write(cs40l26->regmap, reg, new_mask);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to update IRQ mask\n");
+		return ret;
+	}
+
+	return cs40l26_pseq_write(cs40l26, reg,
+			new_mask, CS40L26_PSEQ_OP_WRITE_FULL);
 }
 
 static int cs40l26_buzzgen_set(struct cs40l26_private *cs40l26, u16 freq,
@@ -3124,37 +3061,29 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26, u32 id)
 
 static int cs40l26_wksrc_config(struct cs40l26_private *cs40l26)
 {
-	u32 unmask_bits, mask_bits;
-	int ret;
+	u8 mask_wksrc = (cs40l26->devid == CS40L26_DEVID_A) ? 1 : 0;
+	u32 val, mask;
 
-	unmask_bits = BIT(CS40L26_IRQ1_WKSRC_STS_ANY) |
+	val = BIT(CS40L26_IRQ1_WKSRC_STS_SPI) |
+			(mask_wksrc << CS40L26_IRQ1_WKSRC_STS_GPIO2) |
+			(mask_wksrc << CS40L26_IRQ1_WKSRC_STS_GPIO3) |
+			(mask_wksrc << CS40L26_IRQ1_WKSRC_STS_GPIO4);
+
+	mask = BIT(CS40L26_IRQ1_WKSRC_STS_ANY) |
 			BIT(CS40L26_IRQ1_WKSRC_STS_GPIO1) |
-			BIT(CS40L26_IRQ1_WKSRC_STS_I2C);
+			BIT(CS40L26_IRQ1_WKSRC_STS_I2C) |
+			BIT(CS40L26_IRQ1_WKSRC_STS_SPI) |
+			BIT(CS40L26_IRQ1_WKSRC_STS_GPIO2) |
+			BIT(CS40L26_IRQ1_WKSRC_STS_GPIO3) |
+			BIT(CS40L26_IRQ1_WKSRC_STS_GPIO4);
 
-	/* SPI support is not yet available */
-	mask_bits = BIT(CS40L26_IRQ1_WKSRC_STS_SPI);
-
-	if (cs40l26->devid == CS40L26_DEVID_A)
-		mask_bits |= (BIT(CS40L26_IRQ1_WKSRC_STS_GPIO2) |
-				BIT(CS40L26_IRQ1_WKSRC_STS_GPIO3) |
-				BIT(CS40L26_IRQ1_WKSRC_STS_GPIO4));
-	else
-		unmask_bits |= (BIT(CS40L26_IRQ1_WKSRC_STS_GPIO2) |
-				BIT(CS40L26_IRQ1_WKSRC_STS_GPIO3) |
-				BIT(CS40L26_IRQ1_WKSRC_STS_GPIO4));
-
-	ret = cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, mask_bits,
-			CS40L26_IRQ_MASK);
-	if (ret)
-		return ret;
-
-	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1,
-			unmask_bits, CS40L26_IRQ_UNMASK);
+	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, val, mask);
 }
 
 static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 {
-	u32 unmask_bits;
+	u32 mask_gpio = (cs40l26->devid == CS40L26_DEVID_A) ? 1 : 0;
+	u32 val, mask;
 	int ret;
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "ENT_MAP_TABLE_EVENT_DATA_PACKED",
@@ -3163,27 +3092,29 @@ static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	unmask_bits = BIT(CS40L26_IRQ1_GPIO1_RISE)
-			| BIT(CS40L26_IRQ1_GPIO1_FALL);
+	mask = (u32) (GENMASK(CS40L26_IRQ1_GPIO4_FALL,
+			CS40L26_IRQ1_GPIO1_RISE));
 
-	if (cs40l26->devid == CS40L26_DEVID_B) /* 4 GPIO config */
-		unmask_bits |= (u32) (GENMASK(CS40L26_IRQ1_GPIO4_FALL,
-				CS40L26_IRQ1_GPIO2_RISE));
+	if (mask_gpio)
+		val = (u32) GENMASK(CS40L26_IRQ1_GPIO4_FALL,
+				CS40L26_IRQ1_GPIO2_RISE);
+	else
+		val = 0;
 
-	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1,
-			unmask_bits, CS40L26_IRQ_UNMASK);
+	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, val, mask);
 }
 
 static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
 	struct regmap *regmap = cs40l26->regmap;
-	u32 vbbr_thld = 0, vpbr_thld = 0;
-	u32 vbbr_max_att = 0, vpbr_max_att = 0;
 	u32 vpbr_atk_step = 0, vbbr_atk_step = 0;
 	u32 vpbr_atk_rate = 0, vbbr_atk_rate = 0;
-	u32 vpbr_wait = 0, vbbr_wait = 0;
 	u32 vpbr_rel_rate = 0, vbbr_rel_rate = 0;
+	u32 vbbr_max_att = 0, vpbr_max_att = 0;
+	u32 vbbr_thld = 0, vpbr_thld = 0;
+	u32 vpbr_wait = 0, vbbr_wait = 0;
+	u32 pseq_val = 0, pseq_mask = 0;
 	u32 val;
 	int ret;
 
@@ -3210,12 +3141,8 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 	}
 
 	if (cs40l26->pdata.vbbr_en) {
-		ret = cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_2,
-				BIT(CS40L26_IRQ2_VBBR_ATT_CLR) |
-				BIT(CS40L26_IRQ2_VBBR_FLAG),
-				CS40L26_IRQ_UNMASK);
-		if (ret)
-			return ret;
+		pseq_mask |= BIT(CS40L26_IRQ2_VBBR_ATT_CLR) |
+				BIT(CS40L26_IRQ2_VBBR_FLAG);
 
 		ret = regmap_read(regmap, CS40L26_VBBR_CONFIG, &val);
 		if (ret) {
@@ -3320,12 +3247,8 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 	}
 
 	if (cs40l26->pdata.vpbr_en) {
-		ret = cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_2,
-				BIT(CS40L26_IRQ2_VPBR_ATT_CLR) |
-				BIT(CS40L26_IRQ2_VPBR_FLAG),
-				CS40L26_IRQ_UNMASK);
-		if (ret)
-			return ret;
+		pseq_mask |= BIT(CS40L26_IRQ2_VPBR_ATT_CLR) |
+				BIT(CS40L26_IRQ2_VPBR_FLAG);
 
 		if (cs40l26->pdata.vpbr_thld) {
 			if (cs40l26->pdata.vpbr_thld
@@ -3420,7 +3343,8 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 			return ret;
 	}
 
-	return 0;
+	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_2,
+			pseq_val, pseq_mask);
 }
 
 static int cs40l26_verify_fw(struct cs40l26_private *cs40l26)
@@ -3597,7 +3521,8 @@ static int calib_device_tree_config(struct cs40l26_private *cs40l26)
 				bst_ctl_cfg, CS40L26_PSEQ_OP_WRITE_FULL);
 	}
 
-	return ret;
+	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, 0,
+			BIT(CS40L26_IRQ1_BST_IPK_FLAG));
 }
 
 static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
@@ -3699,12 +3624,8 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	ret = cs40l26_iseq_init(cs40l26);
-	if (ret)
-		return ret;
-
-	ret = cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1,
-			BIT(CS40L26_IRQ1_VIRTUAL2_MBOX_WR), CS40L26_IRQ_UNMASK);
+	ret = cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, 0,
+			BIT(CS40L26_IRQ1_VIRTUAL2_MBOX_WR));
 	if (ret)
 		return ret;
 
