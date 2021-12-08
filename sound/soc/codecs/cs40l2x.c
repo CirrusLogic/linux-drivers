@@ -372,7 +372,8 @@ static int cs40l2x_tuning_swap(struct cs40l2x_codec *priv, int tuning)
 	int ret;
 
 	if (tuning > 0)
-		snprintf(bin_file, PAGE_SIZE, "cs40l25a_a2h%d.bin", tuning);
+		snprintf(bin_file, sizeof(bin_file), "cs40l25a_a2h%d.bin",
+			tuning);
 
 	ret = request_firmware(&fw, bin_file, priv->dev);
 	if (ret) {
