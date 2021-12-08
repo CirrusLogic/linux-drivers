@@ -318,6 +318,24 @@ properties:
       ("cs40l26-svc.bin" and "cs40l26.bin") will be loaded.
       See examples section for how to use these controls.
 
+  cirrus,pm-active-timeout-ms:
+    description:
+      Time (in milliseconds) it takes for the DSP to transition from active
+      mode to standby mode.
+    $ref: "/schemas/type.yaml#/definitions/uint32"
+    minimum: 100
+    maximum: 4880
+    default: 250
+
+  cirrus,pm-stdby-timeout-ms:
+    description:
+      Time (in milliseconds) it takes for the DSP to transition from standby
+      mode to hibernate mode.
+    $ref: "/schemas/type.yaml#/definitions/uint32"
+    minimum: 100
+    maximum: 4880
+    default: 100
+
 required:
   - compatible
 
