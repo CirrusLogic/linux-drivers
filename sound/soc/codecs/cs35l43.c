@@ -192,12 +192,6 @@ static int cs35l43_ultrasonic_mode_put(struct snd_kcontrol *kcontrol,
 	cs35l43->ultrasonic_mode = ucontrol->value.integer.value[0];
 
 	switch (cs35l43->ultrasonic_mode) {
-	case CS35L43_ULTRASONIC_MODE_DISABLED:
-		mon_rates = CS35L43_BASE_RATE;
-		rx_rates = CS35L43_BASE_RATE;
-		tx_rates = CS35L43_BASE_RATE;
-		high_rate_enable = 0;
-		break;
 	case CS35L43_ULTRASONIC_MODE_INBAND:
 		mon_rates = CS35L43_BASE_RATE;
 		rx_rates = CS35L43_HIGH_RATE;
@@ -211,7 +205,12 @@ static int cs35l43_ultrasonic_mode_put(struct snd_kcontrol *kcontrol,
 		tx_rates = CS35L43_HIGH_RATE;
 		high_rate_enable = 1;
 		break;
+	case CS35L43_ULTRASONIC_MODE_DISABLED:
 	default:
+		mon_rates = CS35L43_BASE_RATE;
+		rx_rates = CS35L43_BASE_RATE;
+		tx_rates = CS35L43_BASE_RATE;
+		high_rate_enable = 0;
 		break;
 	}
 
