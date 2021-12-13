@@ -96,7 +96,6 @@ struct cs35l43_private {
 	int lrclk_fmt;
 	int sclk_fmt;
 	int asp_fmt;
-	int clock_mode;
 	int hibernate_state;
 	int hibernate_delay_ms;
 	int ultrasonic_mode;
