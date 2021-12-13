@@ -1207,15 +1207,11 @@ static int cs35l43_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	dev_dbg(cs35l43->dev, "%s\n", __func__);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-		cs35l43->clock_mode = 1;
-		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
-		cs35l43->clock_mode = 0;
 		break;
 	default:
 		dev_warn(cs35l43->dev,
-			"%s: Mixed master mode unsupported\n", __func__);
+			"%s: Master mode unsupported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1255,6 +1251,12 @@ static int cs35l43_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
+	regmap_update_bits(cs35l43->regmap, CS35L43_ASP_CONTROL2,
+				CS35L43_ASP_FMT_MASK | CS35L43_ASP_BCLK_INV_MASK |
+				CS35L43_ASP_FSYNC_INV_MASK,
+				(cs35l43->asp_fmt << CS35L43_ASP_FMT_SHIFT) |
+				(cs35l43->lrclk_fmt << CS35L43_ASP_FSYNC_INV_SHIFT) |
+				(cs35l43->sclk_fmt << CS35L43_ASP_BCLK_INV_SHIFT));
 	return 0;
 }
 
