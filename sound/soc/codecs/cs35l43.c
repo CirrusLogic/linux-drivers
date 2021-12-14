@@ -59,6 +59,9 @@ static const DECLARE_TLV_DB_RANGE(dig_vol_tlv,
 		1, 913, TLV_DB_SCALE_ITEM(-10200, 25, 0));
 static DECLARE_TLV_DB_SCALE(amp_gain_tlv, 0, 1, 1);
 
+static const struct snd_kcontrol_new amp_enable_ctrl =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
 static const char * const cs35l43_tx_input_texts[] = {
 	"Zero", "ASPRX1", "ASPRX2", "VMON", "IMON", "VMON FS2", "IMON FS2",
 	"VPMON", "VBSTMON", "DSP", "DSP FS2"};
@@ -940,6 +943,7 @@ static const struct snd_soc_dapm_widget cs35l43_dapm_widgets[] = {
 					CS35L43_VBSTMON_EN_SHIFT, 0),
 	SND_SOC_DAPM_ADC("TEMPMON ADC", NULL, CS35L43_BLOCK_ENABLES,
 					CS35L43_TEMPMON_EN_SHIFT, 0),
+	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_NOPM, 0, 1, &amp_enable_ctrl),
 };
 
 static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
@@ -964,8 +968,6 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 	{"DSP RX2 Source", "Zero", "ASPRX1"},
 	{"DSP1", NULL, "DSP RX2 Source"},
 
-	{"ASPRX1", NULL, "AMP Playback"},
-	{"ASPRX2", NULL, "AMP Playback"},
 	{"PCM Source", "ASPRX1", "ASPRX1"},
 	{"PCM Source", "ASPRX1", "ASPRX1"},
 	{"PCM Source", "DSP", "DSP1"},
@@ -1048,11 +1050,15 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 	{"DSP1", NULL, "VPMON ADC"},
 	{"DSP1", NULL, "TEMPMON ADC"},
 
-	{"VMON ADC", NULL, "AMP Playback"},
-	{"IMON ADC", NULL, "AMP Playback"},
-	{"VPMON ADC", NULL, "AMP Playback"},
-	{"VBSTMON ADC", NULL, "AMP Playback"},
-	{"TEMPMON ADC", NULL, "AMP Playback"},
+	{"AMP Enable", "Switch", "AMP Playback"},
+
+	{"ASPRX1", NULL, "AMP Enable"},
+	{"ASPRX2", NULL, "AMP Enable"},
+	{"VMON ADC", NULL, "AMP Enable"},
+	{"IMON ADC", NULL, "AMP Enable"},
+	{"VPMON ADC", NULL, "AMP Enable"},
+	{"VBSTMON ADC", NULL, "AMP Enable"},
+	{"TEMPMON ADC", NULL, "AMP Enable"},
 };
 
 
