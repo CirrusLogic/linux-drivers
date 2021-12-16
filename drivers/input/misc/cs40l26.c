@@ -3629,6 +3629,14 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
+	ret = cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, 0,
+			BIT(CS40L26_IRQ1_AMP_ERR) | BIT(CS40L26_IRQ1_TEMP_ERR) |
+			BIT(CS40L26_IRQ1_BST_SHORT_ERR) |
+			BIT(CS40L26_IRQ1_BST_DCM_UVP_ERR) |
+			BIT(CS40L26_IRQ1_BST_OVP_ERR));
+	if (ret)
+		return ret;
+
 	ret = cs40l26_wksrc_config(cs40l26);
 	if (ret)
 		return ret;
