@@ -390,7 +390,8 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 		break;
 	case CS40L26_PM_STATE_PREVENT_HIBERNATE:
 		for (i = 0; i < CS40L26_DSP_STATE_ATTEMPTS; i++) {
-			ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+			ret = cs40l26_ack_write(cs40l26,
+					CS40L26_DSP_VIRTUAL1_MBOX_1,
 					cmd, CS40L26_DSP_MBOX_RESET);
 			if (ret)
 				return ret;
@@ -1542,7 +1543,7 @@ static int cs40l26_update_reg_defaults_via_pseq(struct cs40l26_private *cs40l26)
 			CS40L26_MIXER_NGATE_CH1_CFG_DEFAULT_NEW,
 			CS40L26_PSEQ_OP_WRITE_FULL);
 	if (ret) {
-		dev_err(dev, "Failed to sequence Mixer Noise Gate register default updates\n");
+		dev_err(dev, "Failed to sequence Mixer Noise Gate\n");
 		return ret;
 	}
 
@@ -3032,8 +3033,8 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26, u32 id)
 			if (!cs40l26->fw.coeff_files[i]) {
 				cs40l26->fw.coeff_files[i] =
 					devm_kzalloc(cs40l26->dev,
-						CS40L26_TUNING_FILE_NAME_MAX_LEN,
-						GFP_KERNEL);
+					CS40L26_TUNING_FILE_NAME_MAX_LEN,
+					GFP_KERNEL);
 			} else {
 				memset(cs40l26->fw.coeff_files[i], 0,
 					CS40L26_TUNING_FILE_NAME_MAX_LEN);
@@ -3445,25 +3446,29 @@ static int calib_device_tree_config(struct cs40l26_private *cs40l26)
 	if (cs40l26->pdata.f0_default <= CS40L26_F0_EST_MAX &&
 			cs40l26->pdata.f0_default >= CS40L26_F0_EST_MIN) {
 		ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED",
-				CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
+				CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_VIBEGEN_ALGO_ID, &reg);
 		if (ret)
 			return ret;
 
-		ret = regmap_write(cs40l26->regmap, reg, cs40l26->pdata.f0_default);
+		ret = regmap_write(cs40l26->regmap, reg,
+				cs40l26->pdata.f0_default);
 		if (ret) {
 			dev_err(cs40l26->dev, "Failed to write default f0\n");
 			return ret;
 		}
 	}
 
-	if (cs40l26->pdata.redc_default &&
-			cs40l26->pdata.redc_default <= CS40L26_UINT_24_BITS_MAX) {
+	if (cs40l26->pdata.redc_default && cs40l26->pdata.redc_default <=
+			CS40L26_UINT_24_BITS_MAX) {
 		ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED",
-				CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
+				CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_VIBEGEN_ALGO_ID, &reg);
 		if (ret)
 			return ret;
 
-		ret = regmap_write(cs40l26->regmap, reg, cs40l26->pdata.redc_default);
+		ret = regmap_write(cs40l26->regmap, reg,
+				cs40l26->pdata.redc_default);
 		if (ret) {
 			dev_err(cs40l26->dev, "Failed to write default ReDC\n");
 			return ret;
@@ -3473,11 +3478,13 @@ static int calib_device_tree_config(struct cs40l26_private *cs40l26)
 	if (cs40l26->pdata.q_default <= CS40L26_Q_EST_MAX &&
 			cs40l26->pdata.q_default >= CS40L26_Q_EST_MIN) {
 		ret = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED",
-				CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
+				CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_VIBEGEN_ALGO_ID, &reg);
 		if (ret)
 			return ret;
 
-		ret = regmap_write(cs40l26->regmap, reg, cs40l26->pdata.q_default);
+		ret = regmap_write(cs40l26->regmap, reg,
+				cs40l26->pdata.q_default);
 		if (ret) {
 			dev_err(cs40l26->dev, "Failed to write default Q\n");
 			return ret;
@@ -3944,11 +3951,12 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 		return ret;
 
 	if (register_irq) {
-		ret = devm_request_threaded_irq(dev, cs40l26->irq, NULL, cs40l26_irq,
-						IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_LOW,
-						"cs40l26", cs40l26);
+		ret = devm_request_threaded_irq(dev, cs40l26->irq, NULL,
+				cs40l26_irq, IRQF_ONESHOT | IRQF_SHARED |
+				IRQF_TRIGGER_LOW, "cs40l26", cs40l26);
 		if (ret) {
-			dev_err(dev, "Failed to request threaded IRQ: %d\n", ret);
+			dev_err(dev, "Failed to request threaded IRQ: %d\n",
+					ret);
 			return ret;
 		}
 	} else {
@@ -4263,9 +4271,9 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 		if (ret)
 			goto err;
 
-		ret = devm_request_threaded_irq(dev, cs40l26->irq, NULL, cs40l26_irq,
-				IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_LOW,
-				"cs40l26", cs40l26);
+		ret = devm_request_threaded_irq(dev, cs40l26->irq, NULL,
+				cs40l26_irq, IRQF_ONESHOT | IRQF_SHARED |
+				IRQF_TRIGGER_LOW, "cs40l26", cs40l26);
 		if (ret) {
 			dev_err(dev, "Failed to request threaded IRQ\n");
 			goto err;
