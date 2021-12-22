@@ -421,12 +421,17 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 
 		break;
 	case CS40L26_PM_STATE_ALLOW_HIBERNATE:
-	case CS40L26_PM_STATE_SHUTDOWN:
 		cs40l26->wksrc_sts = 0x00;
 		ret = cs40l26_dsp_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				cmd);
 		if (ret)
 			return ret;
+
+		break;
+	case CS40L26_PM_STATE_SHUTDOWN:
+		cs40l26->wksrc_sts = 0x00;
+		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+			cmd, CS40L26_DSP_MBOX_RESET);
 
 		break;
 	default:
@@ -472,52 +477,6 @@ static int cs40l26_dsp_start(struct cs40l26_private *cs40l26)
 		dev_err(cs40l26->dev, "Failed to wake DSP core\n");
 		return -EINVAL;
 	}
-
-	return 0;
-}
-
-static int cs40l26_dsp_wake(struct cs40l26_private *cs40l26)
-{
-	u8 dsp_state;
-	int ret;
-
-	ret = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_WAKEUP);
-	if (ret)
-		return ret;
-
-	ret = cs40l26_pm_state_transition(cs40l26,
-			CS40L26_PM_STATE_PREVENT_HIBERNATE);
-	if (ret)
-		return ret;
-
-	ret = cs40l26_dsp_state_get(cs40l26, &dsp_state);
-	if (ret)
-		return ret;
-
-	if (dsp_state != CS40L26_DSP_STATE_STANDBY &&
-			dsp_state != CS40L26_DSP_STATE_ACTIVE) {
-		dev_err(cs40l26->dev, "Failed to wake DSP\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int cs40l26_dsp_shutdown(struct cs40l26_private *cs40l26)
-{
-	u32 timeout_ms;
-	int ret;
-
-	ret = cs40l26_pm_stdby_timeout_ms_get(cs40l26, &timeout_ms);
-	if (ret)
-		return ret;
-
-	ret = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_SHUTDOWN);
-	if (ret)
-		return ret;
-
-	usleep_range(CS40L26_MS_TO_US(timeout_ms),
-			CS40L26_MS_TO_US(timeout_ms) + 100);
 
 	return 0;
 }
@@ -833,19 +792,12 @@ void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26,
 EXPORT_SYMBOL(cs40l26_vibe_state_update);
 
 static int cs40l26_error_release(struct cs40l26_private *cs40l26,
-		unsigned int err_rls, bool bst_err)
+		unsigned int err_rls)
 {
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
 	u32 err_sts, err_cfg;
 	int ret;
-
-	/* Boost related errors must be handled with DSP turned off */
-	if (bst_err) {
-		ret = cs40l26_dsp_shutdown(cs40l26);
-		if (ret)
-			return ret;
-	}
 
 	ret = regmap_read(regmap, CS40L26_ERROR_RELEASE, &err_sts);
 	if (ret) {
@@ -872,16 +824,8 @@ static int cs40l26_error_release(struct cs40l26_private *cs40l26,
 	err_cfg &= ~BIT(err_rls);
 
 	ret = regmap_write(cs40l26->regmap, CS40L26_ERROR_RELEASE, err_cfg);
-	if (ret) {
+	if (ret)
 		dev_err(dev, "Actuator Safe Mode release sequence failed\n");
-		return ret;
-	}
-
-	if (bst_err) {
-		ret = cs40l26_dsp_wake(cs40l26);
-		if (ret)
-			return ret;
-	}
 
 	return ret;
 }
@@ -891,9 +835,8 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 {
 	struct device *dev = cs40l26->dev;
 	u32 err_rls = 0;
-	unsigned int reg, val;
-	bool bst_err = false;
 	int ret = 0;
+	unsigned int reg, val;
 
 	switch (irq1) {
 	case CS40L26_IRQ1_GPIO1_RISE:
@@ -988,23 +931,19 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 			"BST voltage returned below warning threshold\n");
 		break;
 	case CS40L26_IRQ1_BST_OVP_ERR:
-		dev_alert(dev, "BST overvolt. error, CS40L26 shutting down\n");
+		dev_alert(dev, "BST overvolt. error\n");
 		err_rls = CS40L26_BST_OVP_ERR_RLS;
-		bst_err = true;
 		break;
 	case CS40L26_IRQ1_BST_DCM_UVP_ERR:
-		dev_alert(dev,
-			"BST undervolt. error, CS40L26 shutting down\n");
+		dev_alert(dev, "BST undervolt. error\n");
 		err_rls = CS40L26_BST_UVP_ERR_RLS;
-		bst_err = true;
 		break;
 	case CS40L26_IRQ1_BST_SHORT_ERR:
-		dev_alert(dev, "LBST short detected, CS40L26 shutting down\n");
+		dev_alert(dev, "LBST short detected\n");
 		err_rls = CS40L26_BST_SHORT_ERR_RLS;
-		bst_err = true;
 		break;
 	case CS40L26_IRQ1_BST_IPK_FLAG:
-		dev_warn(dev, "Current is being limited by LBST inductor\n");
+		dev_dbg(dev, "Current is being limited by LBST inductor\n");
 		break;
 	case CS40L26_IRQ1_TEMP_WARN_RISE:
 		dev_err(dev, "Die overtemperature warning\n");
@@ -1015,11 +954,11 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 		break;
 	case CS40L26_IRQ1_TEMP_ERR:
 		dev_alert(dev,
-			"Die overtemperature error, CS40L26 shutting down\n");
+			"Die overtemperature error\n");
 		err_rls = CS40L26_TEMP_ERR_RLS;
 		break;
 	case CS40L26_IRQ1_AMP_ERR:
-		dev_alert(dev, "AMP short detected, CS40L26 shutting down\n");
+		dev_alert(dev, "AMP short detected\n");
 		err_rls = CS40L26_AMP_SHORT_ERR_RLS;
 		break;
 	case CS40L26_IRQ1_DC_WATCHDOG_RISE:
@@ -1042,7 +981,7 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 	}
 
 	if (err_rls)
-		ret = cs40l26_error_release(cs40l26, err_rls, bst_err);
+		ret = cs40l26_error_release(cs40l26, err_rls);
 
 err:
 	regmap_write(cs40l26->regmap, CS40L26_IRQ1_EINT_1, BIT(irq1));
