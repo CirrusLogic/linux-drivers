@@ -1504,8 +1504,12 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 	bool a = false, v = false;
 	int ret;
 
+	if (count > CS40L2X_PWLE_TOTAL_VALS - 1) {
+		dev_err(dev, "PWLE string too large\n");
+		return -E2BIG;
+	}
 
-	pwle_str = kzalloc(count, GFP_KERNEL);
+	pwle_str = kzalloc(count+1, GFP_KERNEL);
 	if (!pwle_str)
 		return -ENOMEM;
 
@@ -1529,7 +1533,9 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 
 	section = pwle->sections;
 
-	strlcpy(pwle_str, buf, count);
+	ret = strscpy(pwle_str, buf, count+1);
+	if (ret == -E2BIG)
+		goto err_exit;
 
 	cur = pwle_str;
 
@@ -1542,6 +1548,13 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 		}
 
 		type = strsep(&token, ":");
+		if (!type || !token) {
+			dev_err(cs40l2x->dev,
+				"Malformed PWLE. : not found\n");
+			ret = -EINVAL;
+			goto err_exit;
+		}
+
 		token = strim(token);
 
 		if (type[0] == 'S') {
@@ -1720,7 +1733,10 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 
 	pwle->nsections = num_segs;
 
-	strlcpy(cs40l2x->pwle_str, buf, count);
+	ret = strscpy_pad(cs40l2x->pwle_str, buf, CS40L2X_PWLE_TOTAL_VALS);
+	if (ret == -E2BIG)
+		goto err_exit;
+
 	cs40l2x->pwle_str_size = count;
 
 	pwle->wlength *= pwle->repeat + 1;
@@ -8792,15 +8808,15 @@ int cs40l2x_coeff_file_parse(struct cs40l2x_private *cs40l2x,
 		if (!strncmp(cs40l2x->wt_file,
 				CS40L2X_WT_FILE_NAME_MISSING,
 				CS40L2X_WT_FILE_NAME_LEN_MAX))
-			strlcpy(cs40l2x->wt_file,
+			strscpy(cs40l2x->wt_file,
 					CS40L2X_WT_FILE_NAME_DEFAULT,
 					CS40L2X_WT_FILE_NAME_LEN_MAX);
 
 		if (*wt_date != '\0')
-			strlcpy(cs40l2x->wt_date, wt_date,
+			strscpy(cs40l2x->wt_date, wt_date,
 					CS40L2X_WT_FILE_DATE_LEN_MAX);
 		else
-			strlcpy(cs40l2x->wt_date,
+			strscpy(cs40l2x->wt_date,
 					CS40L2X_WT_FILE_DATE_MISSING,
 					CS40L2X_WT_FILE_DATE_LEN_MAX);
 
@@ -9273,7 +9289,7 @@ static int cs40l2x_wavetable_swap(struct cs40l2x_private *cs40l2x,
 	if (ret1)
 		return ret1;
 
-	strlcpy(cs40l2x->wt_file, wt_file, CS40L2X_WT_FILE_NAME_LEN_MAX);
+	strscpy(cs40l2x->wt_file, wt_file, CS40L2X_WT_FILE_NAME_LEN_MAX);
 
 	ret1 = regmap_write(regmap,
 			cs40l2x_dsp_reg(cs40l2x, "NUMBEROFWAVES",
@@ -10907,10 +10923,10 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	cs40l2x->wt_ym.waves[0].type = WT_TYPE_TERMINATOR;
 	cs40l2x->wt_ym.waves[0].flags = WT_FLAG_TERMINATOR;
 
-	strlcpy(cs40l2x->wt_file,
+	strscpy(cs40l2x->wt_file,
 			CS40L2X_WT_FILE_NAME_MISSING,
 			CS40L2X_WT_FILE_NAME_LEN_MAX);
-	strlcpy(cs40l2x->wt_date,
+	strscpy(cs40l2x->wt_date,
 			CS40L2X_WT_FILE_DATE_MISSING,
 			CS40L2X_WT_FILE_DATE_LEN_MAX);
 
