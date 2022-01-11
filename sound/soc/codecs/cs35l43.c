@@ -1632,6 +1632,11 @@ static int cs35l43_handle_of_data(struct device *dev,
 		pdata->bst_vctrl = ((val - 2550) / 100) + 1;
 	}
 
+	ret = of_property_read_string(np, "cirrus,dsp-part-name",
+						&pdata->dsp_part_name);
+	if (ret < 0)
+		pdata->dsp_part_name = "cs35l43";
+
 	return 0;
 }
 
@@ -1669,7 +1674,7 @@ static int cs35l43_dsp_init(struct cs35l43_private *cs35l43)
 	int ret;
 
 	dsp = &cs35l43->dsp;
-	dsp->part = "cs35l43";
+	dsp->part = cs35l43->pdata.dsp_part_name;
 	dsp->cs_dsp.num = 1;
 	dsp->cs_dsp.type = WMFW_HALO;
 	dsp->cs_dsp.rev = 0;
