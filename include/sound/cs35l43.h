@@ -35,6 +35,7 @@ struct cs35l43_platform_data {
 	int hw_ng_thld;
 	int gpio1_src_sel;
 	int gpio2_src_sel;
+	const char *dsp_part_name;
 };
 
 struct cs35l43_pll_sysclk_config {
