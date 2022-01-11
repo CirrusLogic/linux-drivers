@@ -284,6 +284,41 @@ static int cs35l43_ultrasonic_mode_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int cs35l43_reinit_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = 0;
+
+	return 0;
+}
+
+static int cs35l43_reinit_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component;
+	struct cs35l43_private *cs35l43;
+	int ret = 0;
+
+	component = snd_soc_kcontrol_component(kcontrol);
+	cs35l43 = snd_soc_component_get_drvdata(component);
+
+	if (ucontrol->value.integer.value[0]) {
+		mutex_lock(&cs35l43->hb_lock);
+		if (cs35l43->hibernate_state == CS35L43_HIBERNATE_STANDBY) {
+			ret = cs35l43_exit_hibernate(cs35l43);
+			regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
+					CS35L43_MBOX_CMD_AUDIO_REINIT);
+			queue_delayed_work(cs35l43->wq, &cs35l43->hb_work,
+					msecs_to_jiffies(cs35l43->hibernate_delay_ms));
+		} else
+			ret = regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
+					CS35L43_MBOX_CMD_AUDIO_REINIT);
+		mutex_unlock(&cs35l43->hb_lock);
+	}
+
+	return ret;
+}
+
 static const struct snd_kcontrol_new cs35l43_aud_controls[] = {
 	SOC_SINGLE("DC Watchdog Enable", CS35L43_ALIVE_DCIN_WD,
 			CS35L43_DCIN_WD_EN_SHIFT, 1, 0),
@@ -300,6 +335,8 @@ static const struct snd_kcontrol_new cs35l43_aud_controls[] = {
 			amp_gain_tlv),
 	SOC_ENUM_EXT("Ultrasonic Mode", cs35l43_ultrasonic_mode_enum,
 			cs35l43_ultrasonic_mode_get, cs35l43_ultrasonic_mode_put),
+	SOC_SINGLE_EXT("Reinit", SND_SOC_NOPM, 0, 1, 0,
+			cs35l43_reinit_get, cs35l43_reinit_put),
 	SOC_SINGLE_RANGE("ASPTX1 Slot Position", CS35L43_ASP_FRAME_CONTROL1, 0, 0, 7, 0),
 	SOC_SINGLE_RANGE("ASPTX2 Slot Position", CS35L43_ASP_FRAME_CONTROL1, 8, 0, 7, 0),
 	SOC_SINGLE_RANGE("ASPTX3 Slot Position", CS35L43_ASP_FRAME_CONTROL1, 16, 0, 7, 0),
