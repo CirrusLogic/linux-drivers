@@ -3679,6 +3679,28 @@ pm_err:
 	return ret;
 }
 
+static void cs40l26_gain_adjust(struct cs40l26_private *cs40l26, s32 adjust)
+{
+	u16 total, asp, change;
+
+	asp = cs40l26->pdata.asp_scale_pct;
+
+	if (adjust < 0) {
+		change = (u16) ((adjust * -1) & 0xFFFF);
+		if (asp < change)
+			total = 0;
+		else
+			total = asp - change;
+	} else {
+		change = (u16) (adjust & 0xFFFF);
+		total = asp + change;
+		if (total > CS40L26_GAIN_FULL_SCALE)
+			total = CS40L26_GAIN_FULL_SCALE;
+	}
+
+	cs40l26->pdata.asp_scale_pct = total;
+}
+
 static int cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26)
 {
 	unsigned int reg, le = 0;
@@ -3722,6 +3744,9 @@ static int cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26)
 
 				strncat(svc_bin_file, n_str, 2);
 				strncat(wt_bin_file, n_str, 2);
+
+				cs40l26_gain_adjust(cs40l26,
+					cs40l26->svc_le_vals[j]->gain_adjust);
 
 				break;
 			}
@@ -3927,7 +3952,9 @@ static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 	int i, ret = 0, init_count, node_count = 0;
 	struct fwnode_handle *child;
 	unsigned int min, max, index;
+	const char *gain_adjust_str;
 	const char *node_name;
+	s32 gain_adjust;
 
 	init_count = device_get_child_node_count(dev);
 	if (!init_count)
@@ -3960,6 +3987,17 @@ static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 			continue;
 		}
 
+		if (fwnode_property_read_string(child, "cirrus,gain-adjust",
+				&gain_adjust_str)) {
+			gain_adjust = 0;
+		} else {
+			ret = kstrtos32(gain_adjust_str, 10, &gain_adjust);
+			if (ret) {
+				dev_warn(dev, "Failed to get gain adjust\n");
+				gain_adjust = 0;
+			}
+		}
+
 		if (fwnode_property_read_u32(child, "cirrus,index", &index)) {
 			dev_err(dev, "No index specified for SVC LE node\n");
 			continue;
@@ -3986,6 +4024,7 @@ static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 
 		cs40l26->svc_le_vals[node_count]->min = min;
 		cs40l26->svc_le_vals[node_count]->max = max;
+		cs40l26->svc_le_vals[node_count]->gain_adjust = gain_adjust;
 		cs40l26->svc_le_vals[node_count]->n = index;
 		node_count++;
 	}
