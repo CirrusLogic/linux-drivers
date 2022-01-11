@@ -1346,6 +1346,7 @@ struct cs40l26_pseq_op {
 };
 
 struct cs40l26_svc_le {
+	s32 gain_adjust;
 	u32 min;
 	u32 max;
 	u32 n;
