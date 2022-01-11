@@ -300,6 +300,13 @@ static const struct snd_kcontrol_new cs35l43_aud_controls[] = {
 			amp_gain_tlv),
 	SOC_ENUM_EXT("Ultrasonic Mode", cs35l43_ultrasonic_mode_enum,
 			cs35l43_ultrasonic_mode_get, cs35l43_ultrasonic_mode_put),
+	SOC_SINGLE_RANGE("ASPTX1 Slot Position", CS35L43_ASP_FRAME_CONTROL1, 0, 0, 7, 0),
+	SOC_SINGLE_RANGE("ASPTX2 Slot Position", CS35L43_ASP_FRAME_CONTROL1, 8, 0, 7, 0),
+	SOC_SINGLE_RANGE("ASPTX3 Slot Position", CS35L43_ASP_FRAME_CONTROL1, 16, 0, 7, 0),
+	SOC_SINGLE_RANGE("ASPTX4 Slot Position", CS35L43_ASP_FRAME_CONTROL1, 24, 0, 7, 0),
+	SOC_SINGLE_RANGE("ASPRX1 Slot Position", CS35L43_ASP_FRAME_CONTROL5, 0, 0, 7, 0),
+	SOC_SINGLE_RANGE("ASPRX2 Slot Position", CS35L43_ASP_FRAME_CONTROL5, 8, 0, 7, 0),
+	SOC_SINGLE_RANGE("ASPRX3 Slot Position", CS35L43_ASP_FRAME_CONTROL5, 16, 0, 7, 0),
 	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
 	WM_ADSP_FW_CONTROL("DSP1", 0),
 };
