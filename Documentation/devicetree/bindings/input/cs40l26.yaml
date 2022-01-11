@@ -313,6 +313,11 @@ properties:
       files should be loaded by the driver. The files must be named
       "cs40l26-svcX.bin" for SVC tunings and "cs40l26-wtX.bin" for wavetables,
       where 'X' corresponds to the value given to "cirrus,index".
+      The optional property "cirrus,gain-adjust" is used to alter the global
+      digital gain based on which LRA is being used. This value has a range of
+      -100 to +100 and will change the digital gain percentage by this amount.
+      Note that the full gain value must still be valid, the maximum is 100% and
+      the minimum is 0%.
       If the LE value found for the attached LRA does not match a provided
       range, or if these properties are omitted/malformed, the default tunings
       ("cs40l26-svc.bin" and "cs40l26.bin") will be loaded.
@@ -365,16 +370,19 @@ examples:
         cirrus,min = <500>; //59.6 uH
         cirrus,max = <750>; //89.4 uH
         cirrus,index = <1>;
+        cirrus,gain-adjust = "-5";
       };
       svc-le2 {
         cirrus,min = <1000>; //119.2 uH
         cirrus,max = <1500>; //178.8 uH
         cirrus,index = <2>;
+        cirrus,gain-adjust = "10";
       };
       svc-le3 {
         cirrus,min = <2000>; //238.4 uH
         cirrus,max = <2400>; //286.1 uH
         cirrus,index = <3>;
+        cirrus,gain-adjust = "20";
       };
     };
 };
