@@ -3467,8 +3467,7 @@ static int calib_device_tree_config(struct cs40l26_private *cs40l26)
 				bst_ctl_cfg, CS40L26_PSEQ_OP_WRITE_FULL);
 	}
 
-	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, 0,
-			BIT(CS40L26_IRQ1_BST_IPK_FLAG));
+	return ret;
 }
 
 static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
@@ -3491,8 +3490,13 @@ static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
 		return ret;
 	}
 
-	return cs40l26_pseq_write(cs40l26, CS40L26_BST_IPK_CTL, val,
+	ret = cs40l26_pseq_write(cs40l26, CS40L26_BST_IPK_CTL, val,
 			CS40L26_PSEQ_OP_WRITE_L16);
+	if (ret)
+		return ret;
+
+	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, 0,
+			BIT(CS40L26_IRQ1_BST_IPK_FLAG));
 }
 
 static int cs40l26_owt_setup(struct cs40l26_private *cs40l26)
