@@ -928,6 +928,10 @@ static const struct snd_soc_dapm_widget cs35l43_dapm_widgets[] = {
 					CS35L43_ASP_TX1_EN_SHIFT, 0),
 	SND_SOC_DAPM_AIF_OUT("ASPTX2", NULL, 0, CS35L43_ASP_ENABLES1,
 					CS35L43_ASP_TX2_EN_SHIFT, 0),
+	SND_SOC_DAPM_AIF_OUT("ASPTX3", NULL, 0, CS35L43_ASP_ENABLES1,
+					CS35L43_ASP_TX3_EN_SHIFT, 0),
+	SND_SOC_DAPM_AIF_OUT("ASPTX4", NULL, 0, CS35L43_ASP_ENABLES1,
+					CS35L43_ASP_TX4_EN_SHIFT, 0),
 
 	SND_SOC_DAPM_MUX("ASP TX1 Source", SND_SOC_NOPM, 0, 0, &asp_tx1_mux),
 	SND_SOC_DAPM_MUX("ASP TX2 Source", SND_SOC_NOPM, 0, 0, &asp_tx2_mux),
@@ -1047,8 +1051,12 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 	{"ASP TX4 Source", "DSP FS2", "DSP1"},
 	{"ASPTX1", NULL, "ASP TX1 Source"},
 	{"ASPTX2", NULL, "ASP TX2 Source"},
+	{"ASPTX3", NULL, "ASP TX3 Source"},
+	{"ASPTX4", NULL, "ASP TX4 Source"},
 	{"AMP Capture", NULL, "ASPTX1"},
 	{"AMP Capture", NULL, "ASPTX2"},
+	{"AMP Capture", NULL, "ASPTX3"},
+	{"AMP Capture", NULL, "ASPTX4"},
 
 	{"DSP1", NULL, "IMON ADC"},
 	{"DSP1", NULL, "VMON ADC"},
