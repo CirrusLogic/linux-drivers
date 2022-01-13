@@ -516,6 +516,156 @@ static ssize_t delay_before_stop_playback_us_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(delay_before_stop_playback_us);
 
+static ssize_t f0_comp_enable_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+
+	mutex_lock(&cs40l26->lock);
+
+	if (cs40l26->fw.id == CS40L26_FW_CALIB_ID) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
+	if (cs40l26->comp_enable_pend) {
+		ret = -EIO;
+		goto err_mutex;
+	}
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->comp_enable_f0);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	return ret;
+}
+
+static ssize_t f0_comp_enable_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	unsigned int val;
+	u32 reg, value;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	cs40l26->comp_enable_pend = true;
+	cs40l26->comp_enable_f0 = val > 0;
+
+	value = (cs40l26->comp_enable_redc << CS40L26_COMP_EN_REDC_SHIFT) |
+		(cs40l26->comp_enable_f0 << CS40L26_COMP_EN_F0_SHIFT);
+
+	if (cs40l26->fw.id == CS40L26_FW_CALIB_ID) {
+		ret = -EPERM;
+	} else {
+		ret = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE",
+				CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_VIBEGEN_ALGO_ID, &reg);
+		if (ret)
+			goto err_mutex;
+
+		ret = regmap_write(cs40l26->regmap, reg, value);
+	}
+
+	if (ret)
+		goto err_mutex;
+
+	ret = count;
+
+err_mutex:
+	cs40l26->comp_enable_pend = false;
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	return ret;
+}
+static DEVICE_ATTR_RW(f0_comp_enable);
+
+static ssize_t redc_comp_enable_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+
+	mutex_lock(&cs40l26->lock);
+
+	if (cs40l26->fw.id == CS40L26_FW_CALIB_ID) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
+	if (cs40l26->comp_enable_pend) {
+		ret = -EIO;
+		goto err_mutex;
+	}
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->comp_enable_redc);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	return ret;
+}
+
+static ssize_t redc_comp_enable_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	unsigned int val;
+	u32 reg, value;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return -EINVAL;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	cs40l26->comp_enable_pend = true;
+	cs40l26->comp_enable_redc = val > 0;
+
+	value = (cs40l26->comp_enable_redc << CS40L26_COMP_EN_REDC_SHIFT) |
+		(cs40l26->comp_enable_f0 << CS40L26_COMP_EN_F0_SHIFT);
+
+	if (cs40l26->fw.id == CS40L26_FW_CALIB_ID) {
+		ret = -EPERM;
+	} else {
+		ret = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE",
+				CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_VIBEGEN_ALGO_ID, &reg);
+		if (ret)
+			goto err_mutex;
+
+		ret = regmap_write(cs40l26->regmap, reg, value);
+	}
+
+	if (ret)
+		goto err_mutex;
+
+	ret = count;
+
+err_mutex:
+	cs40l26->comp_enable_pend = false;
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	return ret;
+}
+static DEVICE_ATTR_RW(redc_comp_enable);
+
 static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_num_waves.attr,
 	&dev_attr_die_temp.attr,
@@ -530,6 +680,8 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_boost_disable_delay.attr,
 	&dev_attr_f0_offset.attr,
 	&dev_attr_delay_before_stop_playback_us.attr,
+	&dev_attr_f0_comp_enable.attr,
+	&dev_attr_redc_comp_enable.attr,
 	NULL,
 };
 
