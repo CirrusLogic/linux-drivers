@@ -3535,7 +3535,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
 	unsigned int val;
-	u32 reg, nwaves;
+	u32 reg, nwaves, value;
 	int ret;
 
 	ret = cs40l26_verify_fw(cs40l26);
@@ -3671,6 +3671,21 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	ret = cs40l26_owt_setup(cs40l26);
 	if (ret)
 		goto pm_err;
+
+	value = (cs40l26->comp_enable_redc << CS40L26_COMP_EN_REDC_SHIFT) |
+			(cs40l26->comp_enable_f0 << CS40L26_COMP_EN_F0_SHIFT);
+
+	if (cs40l26->fw.id != CS40L26_FW_CALIB_ID) {
+		ret = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE",
+				CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_VIBEGEN_ALGO_ID, &reg);
+		if (ret)
+			goto pm_err;
+
+		ret = regmap_write(cs40l26->regmap, reg, value);
+		if (ret)
+			dev_err(dev, "Failed to configure compensation\n");
+	}
 
 pm_err:
 	pm_runtime_mark_last_busy(dev);
