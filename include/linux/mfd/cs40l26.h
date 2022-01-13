@@ -1196,6 +1196,10 @@
 
 #define CS40L26_UINT_24_BITS_MAX	16777215
 
+/* Compensation */
+#define CS40L26_COMP_EN_REDC_SHIFT  1
+#define CS40L26_COMP_EN_F0_SHIFT    0
+
 /* MFD */
 #define CS40L26_NUM_MFD_DEVS		1
 
@@ -1434,6 +1438,9 @@ struct cs40l26_private {
 	int upload_ret;
 	int erase_ret;
 	int effects_in_flight;
+	bool comp_enable_pend;
+	bool comp_enable_redc;
+	bool comp_enable_f0;
 };
 
 struct cs40l26_codec {
