@@ -1395,9 +1395,9 @@ static int cs35l43_pcm_startup(struct snd_pcm_substream *substream,
 	int ret = 0;
 
 	dev_dbg(cs35l43->dev, "%s\n", __func__);
+	cancel_delayed_work(&cs35l43->hb_work);
 
 	if (cs35l43->hibernate_state == CS35L43_HIBERNATE_STANDBY) {
-		cancel_delayed_work(&cs35l43->hb_work);
 		mutex_lock(&cs35l43->hb_lock);
 		ret = cs35l43_exit_hibernate(cs35l43);
 		mutex_unlock(&cs35l43->hb_lock);
