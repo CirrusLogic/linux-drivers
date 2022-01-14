@@ -3574,8 +3574,8 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	ret = cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, 0,
-			BIT(CS40L26_IRQ1_VIRTUAL2_MBOX_WR));
+	ret = cs40l26_pm_stdby_timeout_ms_set(cs40l26,
+			CS40L26_PM_TIMEOUT_MS_MAX);
 	if (ret)
 		return ret;
 
@@ -3583,7 +3583,8 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 			BIT(CS40L26_IRQ1_AMP_ERR) | BIT(CS40L26_IRQ1_TEMP_ERR) |
 			BIT(CS40L26_IRQ1_BST_SHORT_ERR) |
 			BIT(CS40L26_IRQ1_BST_DCM_UVP_ERR) |
-			BIT(CS40L26_IRQ1_BST_OVP_ERR));
+			BIT(CS40L26_IRQ1_BST_OVP_ERR) |
+			BIT(CS40L26_IRQ1_VIRTUAL2_MBOX_WR));
 	if (ret)
 		return ret;
 
@@ -3610,6 +3611,11 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	}
 
 	ret = cs40l26_brownout_prevention_init(cs40l26);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_pm_stdby_timeout_ms_set(cs40l26,
+			cs40l26->pdata.pm_stdby_timeout_ms);
 	if (ret)
 		return ret;
 
