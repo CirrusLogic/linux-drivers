@@ -637,6 +637,11 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 		case CS40L26_DSP_MBOX_COMPLETE_I2S:
 			dev_dbg(dev, "Mailbox: COMPLETE_I2S\n");
 			break;
+		case CS40L26_DSP_MBOX_TRIGGER_CP:
+			dev_dbg(dev, "Mailbox: TRIGGER_CP\n");
+			cs40l26_vibe_state_update(cs40l26,
+					CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK);
+			break;
 		case CS40L26_DSP_MBOX_TRIGGER_GPIO:
 			dev_dbg(dev, "Mailbox: TRIGGER_GPIO\n");
 			cs40l26_vibe_state_update(cs40l26,
@@ -1769,8 +1774,6 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 				index, CS40L26_DSP_MBOX_RESET);
 		if (ret)
 			goto err_mutex;
-		cs40l26_vibe_state_update(cs40l26,
-					CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK);
 		break;
 	default:
 		dev_err(dev, "Invalid waveform type: 0x%X\n",
