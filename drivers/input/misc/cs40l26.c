@@ -1245,7 +1245,7 @@ static int cs40l26_pseq_find_end(struct cs40l26_private *cs40l26,
 }
 
 static int cs40l26_pseq_write(struct cs40l26_private *cs40l26, u32 addr,
-		u32 data, u8 op_code)
+		u32 data, bool update, u8 op_code)
 {
 	struct device *dev = cs40l26->dev;
 	bool is_new = true;
@@ -1300,7 +1300,7 @@ static int cs40l26_pseq_write(struct cs40l26_private *cs40l26, u32 addr,
 
 	list_for_each_entry(op, &cs40l26->pseq_op_head, list) {
 		if (op->words[0] == op_words[0] && (op->words[1] & op_mask) ==
-				(op_words[1] & op_mask)) {
+				(op_words[1] & op_mask) && update) {
 			if (op->size != num_op_words) {
 				dev_err(dev, "Failed to replace PSEQ op.\n");
 				ret = -EINVAL;
@@ -1372,7 +1372,7 @@ static int cs40l26_pseq_multi_write(struct cs40l26_private *cs40l26,
 
 	for (i = 0; i < num_regs; i++) {
 		ret = cs40l26_pseq_write(cs40l26, reg_seq[i].reg,
-				reg_seq[i].def, op_code);
+				reg_seq[i].def, update, op_code);
 		if (ret)
 			return ret;
 	}
@@ -1479,12 +1479,13 @@ static int cs40l26_update_reg_defaults_via_pseq(struct cs40l26_private *cs40l26)
 	int ret;
 
 	ret = cs40l26_pseq_write(cs40l26, CS40L26_NGATE1_INPUT,
-			CS40L26_DATA_SRC_DSP1TX4, CS40L26_PSEQ_OP_WRITE_L16);
+			CS40L26_DATA_SRC_DSP1TX4, true,
+			CS40L26_PSEQ_OP_WRITE_L16);
 	if (ret)
 		return ret;
 
 	ret = cs40l26_pseq_write(cs40l26, CS40L26_MIXER_NGATE_CH1_CFG,
-			CS40L26_MIXER_NGATE_CH1_CFG_DEFAULT_NEW,
+			CS40L26_MIXER_NGATE_CH1_CFG_DEFAULT_NEW, true,
 			CS40L26_PSEQ_OP_WRITE_FULL);
 	if (ret) {
 		dev_err(dev, "Failed to sequence Mixer Noise Gate\n");
@@ -1494,7 +1495,7 @@ static int cs40l26_update_reg_defaults_via_pseq(struct cs40l26_private *cs40l26)
 	/* set SPK_DEFAULT_HIZ to 1 */
 	ret = cs40l26_pseq_write(cs40l26, CS40L26_TST_DAC_MSM_CONFIG,
 			CS40L26_TST_DAC_MSM_CONFIG_DEFAULT_CHANGE_VALUE_H16,
-			CS40L26_PSEQ_OP_WRITE_H16);
+			true, CS40L26_PSEQ_OP_WRITE_H16);
 	if (ret)
 		dev_err(dev, "Failed to sequence register default updates\n");
 
@@ -1538,7 +1539,7 @@ static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 reg,
 	}
 
 	return cs40l26_pseq_write(cs40l26, reg,
-			new_mask, CS40L26_PSEQ_OP_WRITE_FULL);
+			new_mask, true, CS40L26_PSEQ_OP_WRITE_FULL);
 }
 
 static int cs40l26_buzzgen_set(struct cs40l26_private *cs40l26, u16 freq,
@@ -3077,7 +3078,7 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 	}
 
 	ret = cs40l26_pseq_write(cs40l26, CS40L26_BLOCK_ENABLES2,
-			val, CS40L26_PSEQ_OP_WRITE_FULL);
+			val, true, CS40L26_PSEQ_OP_WRITE_FULL);
 	if (ret) {
 		dev_err(dev, "Failed to sequence brownout prevention\n");
 		return ret;
@@ -3178,7 +3179,7 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 		}
 
 		ret = cs40l26_pseq_write(cs40l26, CS40L26_VBBR_CONFIG, val,
-				CS40L26_PSEQ_OP_WRITE_FULL);
+				true, CS40L26_PSEQ_OP_WRITE_FULL);
 		if (ret)
 			return ret;
 	}
@@ -3281,7 +3282,7 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 		}
 
 		ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG, val,
-				CS40L26_PSEQ_OP_WRITE_FULL);
+				true, CS40L26_PSEQ_OP_WRITE_FULL);
 		if (ret)
 			return ret;
 	}
@@ -3374,7 +3375,7 @@ static int cs40l26_bst_dcm_config(struct cs40l26_private *cs40l26)
 			return ret;
 
 		ret = cs40l26_pseq_write(cs40l26, CS40L26_BST_DCM_CTL,
-				val, CS40L26_PSEQ_OP_WRITE_FULL);
+				val, true, CS40L26_PSEQ_OP_WRITE_FULL);
 	}
 
 	return ret;
@@ -3446,7 +3447,7 @@ static int calib_device_tree_config(struct cs40l26_private *cs40l26)
 		}
 
 		ret = cs40l26_pseq_write(cs40l26, CS40L26_VBST_CTL_1, bst_ctl,
-				CS40L26_PSEQ_OP_WRITE_L16);
+				true, CS40L26_PSEQ_OP_WRITE_L16);
 		if (ret)
 			return ret;
 
@@ -3467,7 +3468,7 @@ static int calib_device_tree_config(struct cs40l26_private *cs40l26)
 		}
 
 		ret = cs40l26_pseq_write(cs40l26, CS40L26_VBST_CTL_2,
-				bst_ctl_cfg, CS40L26_PSEQ_OP_WRITE_FULL);
+				bst_ctl_cfg, true, CS40L26_PSEQ_OP_WRITE_FULL);
 	}
 
 	return ret;
@@ -3494,7 +3495,7 @@ static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
 	}
 
 	ret = cs40l26_pseq_write(cs40l26, CS40L26_BST_IPK_CTL, val,
-			CS40L26_PSEQ_OP_WRITE_L16);
+			true, CS40L26_PSEQ_OP_WRITE_L16);
 	if (ret)
 		return ret;
 
