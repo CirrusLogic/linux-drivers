@@ -529,14 +529,6 @@ static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 		return -EINVAL;
 	}
 
-	/* errata write fixing indeterminent PLL lock time */
-	ret = regmap_update_bits(cs40l26->regmap, CS40L26_PLL_REFCLK_DETECT_0,
-			CS40L26_PLL_REFCLK_DET_EN_MASK, 0);
-	if (ret) {
-		dev_err(cs40l26->dev, "Failed to disable PLL refclk detect\n");
-		return ret;
-	}
-
 	ret = regmap_write(cs40l26->regmap, CS40L26_DSP1_CCM_CORE_CONTROL,
 			CS40L26_DSP_CCM_CORE_KILL);
 	if (ret)
@@ -3534,6 +3526,92 @@ static int cs40l26_owt_setup(struct cs40l26_private *cs40l26)
 	return ret;
 }
 
+static int cs40l26_lbst_short_test(struct cs40l26_private *cs40l26)
+{
+	struct regmap *regmap = cs40l26->regmap;
+	struct device *dev = cs40l26->dev;
+	unsigned int err;
+	int ret;
+
+	ret = regmap_update_bits(regmap, CS40L26_VBST_CTL_2,
+			CS40L26_BST_CTL_SEL_MASK, CS40L26_BST_CTL_SEL_FIXED);
+	if (ret) {
+		dev_err(dev, "Failed to set VBST_CTL_2\n");
+		return ret;
+	}
+
+	ret = regmap_update_bits(regmap, CS40L26_VBST_CTL_1,
+			CS40L26_BST_CTL_MASK, CS40L26_BST_CTL_VP);
+	if (ret) {
+		dev_err(dev, "Failed to set VBST_CTL_1\n");
+		return ret;
+	}
+
+	/* Set GLOBAL_EN; safe because DSP is guaranteed to be off here */
+	ret = regmap_update_bits(regmap, CS40L26_GLOBAL_ENABLES,
+			CS40L26_GLOBAL_EN_MASK, 1);
+	if (ret) {
+		dev_err(dev, "Failed to set GLOBAL_EN\n");
+		return ret;
+	}
+
+	/* Wait until boost converter is guranteed to be powered up */
+	usleep_range(CS40L26_BST_TIME_MIN_US, CS40L26_BST_TIME_MAX_US);
+
+	ret = regmap_read(regmap, CS40L26_ERROR_RELEASE, &err);
+	if (ret) {
+		dev_err(dev, "Failed to get ERROR_RELEASE contents\n");
+		return ret;
+	}
+
+	if (err & BIT(CS40L26_BST_SHORT_ERR_RLS)) {
+		dev_alert(dev, "FATAL: Boost shorted at startup\n");
+		return ret;
+	}
+
+	/* Clear GLOBAL_EN; safe because DSP is guaranteed to be off here */
+	ret = regmap_update_bits(regmap, CS40L26_GLOBAL_ENABLES,
+			CS40L26_GLOBAL_EN_MASK, 0);
+	if (ret) {
+		dev_err(dev, "Failed to clear GLOBAL_EN\n");
+		return ret;
+	}
+
+	ret = regmap_update_bits(regmap, CS40L26_VBST_CTL_2,
+			CS40L26_BST_CTL_SEL_MASK, CS40L26_BST_CTL_SEL_CLASS_H);
+	if (ret) {
+		dev_err(dev, "Failed to set VBST_CTL_2\n");
+		return ret;
+	}
+
+	ret = regmap_update_bits(regmap, CS40L26_VBST_CTL_1,
+			CS40L26_BST_CTL_MASK, CS40L26_BST_CTL_VP);
+	if (ret)
+		dev_err(dev, "Failed to set VBST_CTL_1\n");
+
+	return ret;
+}
+
+static int cs40l26_handle_errata(struct cs40l26_private *cs40l26)
+{
+	int ret;
+
+	ret = cs40l26_lbst_short_test(cs40l26);
+	if (ret)
+		return ret;
+
+	ret = regmap_register_patch(cs40l26->regmap, cs40l26_a1_errata,
+			CS40L26_ERRATA_A1_NUM_WRITES);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to patch A1 errata\n");
+		return ret;
+	}
+
+	return cs40l26_pseq_multi_write(cs40l26, cs40l26_a1_errata,
+			CS40L26_ERRATA_A1_NUM_WRITES, false,
+			CS40L26_PSEQ_OP_WRITE_FULL);
+}
+
 static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
@@ -3571,6 +3649,11 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		return ret;
 
 	ret = cs40l26_update_reg_defaults_via_pseq(cs40l26);
+	if (ret)
+		return ret;
+
+
+	ret = cs40l26_handle_errata(cs40l26);
 	if (ret)
 		return ret;
 
