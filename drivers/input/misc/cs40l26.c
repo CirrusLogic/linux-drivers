@@ -3837,6 +3837,8 @@ static int cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26)
 			goto pm_err;
 		}
 
+		dev_dbg(cs40l26->dev, "Measured LE estimate = 0x%08X\n", le);
+
 		for (j = 0; j < cs40l26->num_svc_le_vals; j++) {
 			if (le >= cs40l26->svc_le_vals[j]->min &&
 					le <= cs40l26->svc_le_vals[j]->max) {
