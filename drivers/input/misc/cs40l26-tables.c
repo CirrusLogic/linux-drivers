@@ -34,6 +34,13 @@ const struct regmap_config cs40l26_regmap = {
 	.cache_type = REGCACHE_NONE,
 };
 
+const struct reg_sequence cs40l26_a1_errata[CS40L26_ERRATA_A1_NUM_WRITES] = {
+	{CS40L26_PLL_REFCLK_DETECT_0, 0x00000000},
+	{CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE1},
+	{CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE2},
+	{CS40L26_TEST_LBST, CS40L26_DISABLE_EXPL_MODE},
+};
+
 const struct dev_pm_ops cs40l26_pm_ops = {
 	SET_RUNTIME_PM_OPS(cs40l26_suspend, cs40l26_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(cs40l26_sys_suspend, cs40l26_sys_resume)
