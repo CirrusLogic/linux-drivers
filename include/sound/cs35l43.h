@@ -100,6 +100,7 @@ struct cs35l43_private {
 	int hibernate_state;
 	int hibernate_delay_ms;
 	int ultrasonic_mode;
+	int slot_width;
 	struct gpio_desc *reset_gpio;
 	struct delayed_work hb_work;
 	struct workqueue_struct *wq;
