@@ -1016,11 +1016,11 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 	{"DSP1", NULL, "DSP RX2 Source"},
 
 	{"PCM Source", "ASPRX1", "ASPRX1"},
-	{"PCM Source", "ASPRX1", "ASPRX1"},
+	{"PCM Source", "ASPRX2", "ASPRX2"},
 	{"PCM Source", "DSP", "DSP1"},
 	{"PCM Source", "DSP FS2", "DSP1"},
 	{"High Rate PCM Source", "ASPRX1", "ASPRX1"},
-	{"High Rate PCM Source", "ASPRX1", "ASPRX1"},
+	{"High Rate PCM Source", "ASPRX2", "ASPRX2"},
 	{"High Rate PCM Source", "DSP", "DSP1"},
 	{"High Rate PCM Source", "DSP FS2", "DSP1"},
 	{"Ultrasonic Mode", "In Band", "High Rate PCM Source"},
@@ -1344,7 +1344,8 @@ static int cs35l43_pcm_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	asp_wl = params_width(params);
-	asp_width = params_physical_width(params);
+	asp_width = cs35l43->slot_width ?
+			    cs35l43->slot_width : params_physical_width(params);
 	dev_dbg(cs35l43->dev, "%s\n wl=%d, width=%d, rate=%d", __func__,
 				asp_wl, asp_width, rate);
 
@@ -1758,11 +1759,24 @@ err:
 	return ret;
 }
 
+static int cs35l43_dai_set_tdm_slot(struct snd_soc_dai *dai,
+				    unsigned int tx_mask, unsigned int rx_mask,
+				    int slots, int slot_width)
+{
+	struct cs35l43_private *cs35l43 =
+			snd_soc_component_get_drvdata(dai->component);
+
+	cs35l43->slot_width = slot_width;
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops cs35l43_ops = {
 	.startup = cs35l43_pcm_startup,
 	.set_fmt = cs35l43_set_dai_fmt,
 	.hw_params = cs35l43_pcm_hw_params,
 	.set_sysclk = cs35l43_dai_set_sysclk,
+	.set_tdm_slot = cs35l43_dai_set_tdm_slot,
 };
 
 static struct snd_soc_dai_driver cs35l43_dai[] = {
