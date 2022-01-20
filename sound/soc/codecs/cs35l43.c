@@ -156,9 +156,6 @@ static const char * const cs35l43_ultrasonic_mode_texts[] = {
 static SOC_ENUM_SINGLE_DECL(cs35l43_ultrasonic_mode_enum, SND_SOC_NOPM, 0,
 				cs35l43_ultrasonic_mode_texts);
 
-static const struct snd_kcontrol_new ultra_mux =
-	SOC_DAPM_ENUM("Ultrasonic Mode", cs35l43_ultrasonic_mode_enum);
-
 static const char * const cs35l43_wd_mode_texts[] = {"Normal", "Mute"};
 static const unsigned int cs35l43_wd_mode_values[] = {0x0, 0x3};
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l43_dc_wd_mode_enum, CS35L43_ALIVE_DCIN_WD,
@@ -171,7 +168,7 @@ static int cs35l43_ultrasonic_mode_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component;
 	struct cs35l43_private *cs35l43;
 
-	component = snd_soc_kcontrol_component(kcontrol);
+	component = snd_soc_dapm_kcontrol_component(kcontrol);
 	cs35l43 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = cs35l43->ultrasonic_mode;
@@ -186,7 +183,7 @@ static int cs35l43_ultrasonic_mode_put(struct snd_kcontrol *kcontrol,
 	struct cs35l43_private *cs35l43;
 	unsigned int mon_rates, rx_rates, tx_rates, high_rate_enable;
 
-	component = snd_soc_kcontrol_component(kcontrol);
+	component = snd_soc_dapm_kcontrol_component(kcontrol);
 	cs35l43 = snd_soc_component_get_drvdata(component);
 
 	cs35l43->ultrasonic_mode = ucontrol->value.integer.value[0];
@@ -319,6 +316,10 @@ static int cs35l43_reinit_put(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 
+static const struct snd_kcontrol_new ultra_mux =
+	SOC_DAPM_ENUM_EXT("Ultrasonic Mode", cs35l43_ultrasonic_mode_enum,
+			cs35l43_ultrasonic_mode_get, cs35l43_ultrasonic_mode_put);
+
 static const struct snd_kcontrol_new cs35l43_aud_controls[] = {
 	SOC_SINGLE("DC Watchdog Enable", CS35L43_ALIVE_DCIN_WD,
 			CS35L43_DCIN_WD_EN_SHIFT, 1, 0),
@@ -333,8 +334,6 @@ static const struct snd_kcontrol_new cs35l43_aud_controls[] = {
 	SOC_SINGLE_TLV("Amp Gain", CS35L43_AMP_GAIN,
 			CS35L43_AMP_GAIN_PCM_SHIFT, 20, 0,
 			amp_gain_tlv),
-	SOC_ENUM_EXT("Ultrasonic Mode", cs35l43_ultrasonic_mode_enum,
-			cs35l43_ultrasonic_mode_get, cs35l43_ultrasonic_mode_put),
 	SOC_SINGLE_EXT("Reinit", SND_SOC_NOPM, 0, 1, 0,
 			cs35l43_reinit_get, cs35l43_reinit_put),
 	SOC_SINGLE_RANGE("ASPTX1 Slot Position", CS35L43_ASP_FRAME_CONTROL1, 0, 0, 7, 0),
@@ -782,7 +781,7 @@ static void cs35l43_pll_config(struct cs35l43_private *cs35l43)
 			CS35L43_PLL_REFCLK_EN_MASK);
 }
 
-static int cs35l45_check_mailbox(struct cs35l43_private *cs35l43)
+static int cs35l43_check_mailbox(struct cs35l43_private *cs35l43)
 {
 	unsigned int *mbox;
 	int i;
@@ -930,7 +929,7 @@ static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
 		regmap_write(cs35l43->regmap, CS35L43_BLOCK_ENABLES, 0);
 		regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 				CS35L43_MBOX_CMD_AUDIO_PAUSE);
-		cs35l45_check_mailbox(cs35l43);
+		cs35l43_check_mailbox(cs35l43);
 		break;
 	default:
 		dev_err(cs35l43->dev, "Invalid event = 0x%x\n", event);
@@ -1225,7 +1224,7 @@ static irqreturn_t cs35l43_irq(int irq, void *data)
 		dev_info(cs35l43->dev, "Received Mailbox INT\n");
 		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_1,
 				CS35L43_DSP_VIRTUAL2_MBOX_WR_EINT1_MASK);
-		cs35l45_check_mailbox(cs35l43);
+		cs35l43_check_mailbox(cs35l43);
 	}
 
 	return IRQ_HANDLED;
