@@ -47,6 +47,8 @@
 #include "cs35l43.h"
 #include <sound/cs35l43.h>
 
+#define DRV_NAME "cs35l43"
+
 static const char * const cs35l43_supplies[] = {
 	"VA",
 	"VP",
@@ -1770,6 +1772,25 @@ static int cs35l43_dai_set_tdm_slot(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static int cs35l43_compr_open(struct snd_soc_component *component,
+			       struct snd_compr_stream *stream)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct cs35l43_private *cs35l43 =
+			snd_soc_component_get_drvdata(component);
+	struct snd_soc_dai *codec_dai = NULL;
+	int i;
+
+	for_each_rtd_dais(rtd, i, codec_dai) {
+		if (!strcmp(codec_dai->name, "cs35l43-dsp-textlog"))
+			return wm_adsp_compr_open(&cs35l43->dsp, stream);
+	}
+
+	dev_err(cs35l43->dev, "No DSP log DAI found\n");
+
+	return -EINVAL;
+}
+
 static const struct snd_soc_dai_ops cs35l43_ops = {
 	.startup = cs35l43_pcm_startup,
 	.set_fmt = cs35l43_set_dai_fmt,
@@ -1799,9 +1820,41 @@ static struct snd_soc_dai_driver cs35l43_dai[] = {
 		.ops = &cs35l43_ops,
 		.symmetric_rate = 1,
 	},
+	{
+		.name = "cs35l43-cpu-textlog",
+		.capture = {
+			.stream_name = "Audio Log CPU",
+			.channels_min = 1,
+			.channels_max = 1,
+			.rates = SNDRV_PCM_RATE_KNOT,
+			.formats = CS35L43_RX_FORMATS,
+		},
+		.compress_new = &snd_soc_new_compress,
+	},
+	{
+		.name = "cs35l43-dsp-textlog",
+		.capture = {
+			.stream_name = "Audio Log DSP",
+			.channels_min = 1,
+			.channels_max = 1,
+			.rates = SNDRV_PCM_RATE_KNOT,
+			.formats = CS35L43_RX_FORMATS,
+		},
+	}
+};
+
+static const struct snd_compress_ops cs35l43_compr_ops = {
+	.open = &cs35l43_compr_open,
+	.free = &wm_adsp_compr_free,
+	.set_params = &wm_adsp_compr_set_params,
+	.get_caps = &wm_adsp_compr_get_caps,
+	.trigger = &wm_adsp_compr_trigger,
+	.pointer = &wm_adsp_compr_pointer,
+	.copy = &wm_adsp_compr_copy,
 };
 
 static const struct snd_soc_component_driver soc_component_dev_cs35l43 = {
+	.name = DRV_NAME,
 	.probe = cs35l43_component_probe,
 	.remove = cs35l43_component_remove,
 
@@ -1817,6 +1870,8 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l43 = {
 
 	.write = cs35l43_component_write,
 	.read = cs35l43_component_read,
+
+	.compress_ops = &cs35l43_compr_ops,
 };
 
 static struct reg_sequence cs35l43_errata_patch[] = {
