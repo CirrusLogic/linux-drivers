@@ -474,7 +474,7 @@ struct wm_adsp_compr {
 
 #define WM_ADSP_MIN_FRAGMENTS          1
 #define WM_ADSP_MAX_FRAGMENTS          256
-#define WM_ADSP_MIN_FRAGMENT_SIZE      (64 * WM_ADSP_DATA_WORD_SIZE)
+#define WM_ADSP_MIN_FRAGMENT_SIZE      (16 * WM_ADSP_DATA_WORD_SIZE)
 #define WM_ADSP_MAX_FRAGMENT_SIZE      (4096 * WM_ADSP_DATA_WORD_SIZE)
 
 #define WM_ADSP_ALG_XM_STRUCT_MAGIC    0x49aec7
@@ -590,7 +590,12 @@ static const struct {
 		.num_caps = ARRAY_SIZE(trace_caps),
 		.caps = trace_caps,
 	},
-	[WM_ADSP_FW_SPK_PROT] = { .file = "spk-prot" },
+	[WM_ADSP_FW_SPK_PROT] = {
+		.file = "spk-prot",
+		.compr_direction = SND_COMPRESS_CAPTURE,
+		.num_caps = ARRAY_SIZE(trace_caps),
+		.caps = trace_caps,
+	},
 	[WM_ADSP_FW_SPK_CALI] = { .file = "spk-cali" },
 	[WM_ADSP_FW_SPK_DIAG] = { .file = "spk-diag" },
 	[WM_ADSP_FW_MISC] =     { .file = "misc" },
