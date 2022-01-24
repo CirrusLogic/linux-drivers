@@ -630,6 +630,11 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 			dev_dbg(dev, "Mailbox: COMPLETE_I2S\n");
 			break;
 		case CS40L26_DSP_MBOX_TRIGGER_CP:
+			if (!cs40l26->pdata.vibe_state_reporting) {
+				dev_err(dev, "cirrus,vibe-state not in DT\n");
+				return -EPERM;
+			}
+
 			dev_dbg(dev, "Mailbox: TRIGGER_CP\n");
 			cs40l26_vibe_state_update(cs40l26,
 					CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK);
@@ -1778,6 +1783,9 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		goto err_mutex;
 	}
 
+	if (!cs40l26->pdata.vibe_state_reporting)
+		cs40l26_vibe_state_update(cs40l26,
+				CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK);
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 	pm_runtime_mark_last_busy(dev);
@@ -4180,6 +4188,11 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 
 	if (of_property_read_bool(np, "cirrus,fw-defer"))
 		cs40l26->fw_mode = CS40L26_FW_MODE_NONE;
+
+	if (of_property_read_bool(np, "cirrus,vibe-state"))
+		cs40l26->pdata.vibe_state_reporting = true;
+	else
+		cs40l26->pdata.vibe_state_reporting = false;
 
 	cs40l26->pdata.vbbr_en =
 			of_property_read_bool(np, "cirrus,vbbr-enable");
