@@ -1117,15 +1117,6 @@ static irqreturn_t cs40l26_irq(int irq, void *data)
 	unsigned long num_irq;
 	int ret;
 
-	if (cs40l26_dsp_read(cs40l26, CS40L26_IRQ1_STATUS, &sts)) {
-		dev_err(dev, "Failed to read IRQ1 Status\n");
-		return IRQ_NONE;
-	}
-
-	if (sts != CS40L26_IRQ_STATUS_ASSERT) {
-		dev_err(dev, "IRQ1 asserted with no pending interrupts\n");
-		return IRQ_NONE;
-	}
 
 	ret = pm_runtime_get_sync(dev);
 
@@ -1141,6 +1132,18 @@ static irqreturn_t cs40l26_irq(int irq, void *data)
 		cs40l26_dsp_write(cs40l26, CS40L26_IRQ1_EINT_2,
 				CS40L26_IRQ_EINT2_ALL_MASK);
 
+		goto err;
+	}
+
+	if (regmap_read(regmap, CS40L26_IRQ1_STATUS, &sts)) {
+		dev_err(dev, "Failed to read IRQ1 Status\n");
+		ret = IRQ_NONE;
+		goto err;
+	}
+
+	if (sts != CS40L26_IRQ_STATUS_ASSERT) {
+		dev_err(dev, "IRQ1 asserted with no pending interrupts\n");
+		ret = IRQ_NONE;
 		goto err;
 	}
 
