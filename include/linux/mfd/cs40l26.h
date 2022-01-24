@@ -1413,6 +1413,7 @@ struct cs40l26_platform_data {
 	u32 redc_default;
 	u32 q_default;
 	u32 boost_ctl;
+	bool vibe_state_reporting;
 };
 
 struct cs40l26_owt {
