@@ -184,6 +184,11 @@ static ssize_t vibe_state_show(struct device *dev,
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int state;
 
+	if (!cs40l26->pdata.vibe_state_reporting)  {
+		dev_err(cs40l26->dev, "cirrus,vibe-state not in DT\n");
+		return -EPERM;
+	}
+
 	mutex_lock(&cs40l26->lock);
 	state = cs40l26->vibe_state;
 	mutex_unlock(&cs40l26->lock);
