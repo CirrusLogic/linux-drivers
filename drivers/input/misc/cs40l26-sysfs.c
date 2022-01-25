@@ -20,7 +20,11 @@ static ssize_t dsp_state_show(struct device *dev,
 	u8 dsp_state;
 	int ret;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
 
 	ret = cs40l26_dsp_state_get(cs40l26, &dsp_state);
 
@@ -47,7 +51,11 @@ static ssize_t halo_heartbeat_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
 
 	ret = regmap_read(cs40l26->regmap, reg, &halo_heartbeat);
 
@@ -95,7 +103,11 @@ static ssize_t pm_stdby_timeout_ms_show(struct device *dev,
 	u32 timeout_ms;
 	int ret;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
 
 	ret = cs40l26_pm_stdby_timeout_ms_get(cs40l26, &timeout_ms);
 
@@ -119,7 +131,11 @@ static ssize_t pm_stdby_timeout_ms_store(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
 
 	ret = cs40l26_pm_stdby_timeout_ms_set(cs40l26, timeout_ms);
 
@@ -140,7 +156,11 @@ static ssize_t pm_active_timeout_ms_show(struct device *dev,
 	u32 timeout_ms;
 	int ret;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
 
 	ret = cs40l26_pm_active_timeout_ms_get(cs40l26, &timeout_ms);
 
@@ -164,7 +184,11 @@ static ssize_t pm_active_timeout_ms_store(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
 
 	ret = cs40l26_pm_active_timeout_ms_set(cs40l26, timeout_ms);
 
@@ -262,7 +286,11 @@ static ssize_t owt_free_space_show(struct device *dev,
 	u32 reg, words;
 	int ret;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "OWT_SIZE_XM",
 		CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
@@ -294,7 +322,11 @@ static ssize_t die_temp_show(struct device *dev,
 	int ret;
 	u32 val;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
 
 	ret = regmap_read(regmap, CS40L26_GLOBAL_ENABLES, &val);
 	if (ret) {
@@ -335,7 +367,11 @@ static ssize_t num_waves_show(struct device *dev,
 	u32 nwaves;
 	int ret;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
 
 	ret = cs40l26_get_num_waves(cs40l26, &nwaves);
 	if (ret)
@@ -359,7 +395,11 @@ static ssize_t boost_disable_delay_show(struct device *dev,
 	u32 reg, boost_disable_delay;
 	int ret;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
@@ -395,7 +435,11 @@ static ssize_t boost_disable_delay_store(struct device *dev,
 		boost_disable_delay > CS40L26_BOOST_DISABLE_DELAY_MAX)
 		return -EINVAL;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
@@ -422,7 +466,12 @@ static ssize_t f0_offset_show(struct device *dev,
 	unsigned int reg, val;
 	int ret;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OFFSET",
@@ -460,7 +509,12 @@ static ssize_t f0_offset_store(struct device *dev,
 	if (val > CS40L26_F0_OFFSET_MAX && val < CS40L26_F0_OFFSET_MIN)
 		return -EINVAL;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OFFSET",
@@ -560,7 +614,12 @@ static ssize_t f0_comp_enable_store(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	cs40l26->comp_enable_pend = true;
@@ -635,7 +694,11 @@ static ssize_t redc_comp_enable_store(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
 	mutex_lock(&cs40l26->lock);
 
 	cs40l26->comp_enable_pend = true;
@@ -717,7 +780,12 @@ static ssize_t trigger_calibration_store(struct device *dev,
 				CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK);
 
 	/* pm_runtime_put occurs is irq_handler after diagnostic is finished */
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
@@ -744,7 +812,12 @@ static ssize_t f0_measured_show(struct device *dev,
 	int ret;
 	u32 reg, f0_measured;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_EST",
@@ -776,7 +849,12 @@ static ssize_t q_measured_show(struct device *dev,
 	int ret;
 	u32 reg, q_measured;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "Q_EST",
@@ -808,7 +886,12 @@ static ssize_t redc_measured_show(struct device *dev,
 	int ret;
 	u32 reg, redc_measured;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "RE_EST_STATUS",
@@ -840,7 +923,12 @@ static ssize_t redc_est_show(struct device *dev, struct device_attribute *attr,
 	int ret;
 	u32 reg, redc_est;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC",
@@ -877,7 +965,12 @@ static ssize_t redc_est_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC",
@@ -909,7 +1002,12 @@ static ssize_t f0_stored_show(struct device *dev,
 	int ret;
 	u32 reg, f0_stored;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED",
@@ -949,7 +1047,12 @@ static ssize_t f0_stored_store(struct device *dev,
 		f0_stored > CS40L26_F0_EST_MAX)
 		return -EINVAL;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED",
@@ -981,7 +1084,12 @@ static ssize_t q_stored_show(struct device *dev, struct device_attribute *attr,
 	int ret;
 	u32 reg, q_stored;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED",
@@ -1019,7 +1127,12 @@ static ssize_t q_stored_store(struct device *dev, struct device_attribute *attr,
 	if (ret || q_stored < CS40L26_Q_EST_MIN || q_stored > CS40L26_Q_EST_MAX)
 		return -EINVAL;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED",
@@ -1051,7 +1164,12 @@ static ssize_t redc_stored_show(struct device *dev,
 	int ret;
 	u32 reg, redc_stored;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED",
@@ -1088,7 +1206,12 @@ static ssize_t redc_stored_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED",
@@ -1120,7 +1243,12 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev,
 	int ret;
 	u32 reg, freq_span, freq_centre, f0_and_q_cal_time_ms;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "FREQ_SPAN",
@@ -1166,7 +1294,12 @@ static ssize_t redc_cal_time_ms_show(struct device *dev,
 	int ret;
 	u32 reg, redc_playtime_ms, redc_total_cal_time_ms;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_PLAYTIME_MS",
@@ -1200,7 +1333,12 @@ static ssize_t logging_en_show(struct device *dev,
 	u32 reg, enable;
 	int ret;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "ENABLE", CL_DSP_XM_UNPACKED_TYPE,
@@ -1239,7 +1377,12 @@ static ssize_t logging_en_store(struct device *dev,
 	if (enable != 0 && enable != 1)
 		return -EINVAL;
 
-	pm_runtime_get_sync(cdev);
+	ret = pm_runtime_get_sync(cdev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cdev);
+		return ret;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
 	ret = cl_dsp_get_reg(dsp, "COUNT", CL_DSP_XM_UNPACKED_TYPE,
@@ -1347,7 +1490,11 @@ static ssize_t logging_max_reset_store(struct device *dev,
 	if (rst != 1)
 		return -EINVAL;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
 
 	cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 		CS40L26_DSP_MBOX_CMD_LOGGER_MAX_RESET, CS40L26_DSP_MBOX_RESET);
