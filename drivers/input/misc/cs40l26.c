@@ -1122,23 +1122,20 @@ static irqreturn_t cs40l26_irq(int irq, void *data)
 	unsigned long num_irq;
 	int ret;
 
+	if (pm_runtime_get_sync(dev) < 0) {
+		cs40l26_resume_error_handle(dev);
 
-	ret = pm_runtime_get_sync(dev);
-
-	mutex_lock(&cs40l26->lock);
-
-	if (ret < 0) {
-		pm_runtime_set_active(dev);
-
-		dev_alert(dev, "PM Runtime Resume failed, interrupts missed\n");
+		dev_alert(dev, "Interrupts missed\n");
 
 		cs40l26_dsp_write(cs40l26, CS40L26_IRQ1_EINT_1,
 				CS40L26_IRQ_EINT1_ALL_MASK);
 		cs40l26_dsp_write(cs40l26, CS40L26_IRQ1_EINT_2,
 				CS40L26_IRQ_EINT2_ALL_MASK);
 
-		goto err;
+		return IRQ_NONE;
 	}
+
+	mutex_lock(&cs40l26->lock);
 
 	if (regmap_read(regmap, CS40L26_IRQ1_STATUS, &sts)) {
 		dev_err(dev, "Failed to read IRQ1 Status\n");
@@ -1626,7 +1623,11 @@ static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26,
 			(ev_handler_bank_ram << CS40L26_BTN_BANK_SHIFT) |
 			(owt << CS40L26_BTN_OWT_SHIFT);
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
 
 	ret = regmap_write(cs40l26->regmap, reg, write_val);
 	if (ret)
@@ -1669,7 +1670,9 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 	u32 reg;
 	int ret;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	if (pm_runtime_get_sync(cs40l26->dev) < 0)
+		return cs40l26_resume_error_handle(cs40l26->dev);
+
 	mutex_lock(&cs40l26->lock);
 
 	if (cs40l26->vibe_state == CS40L26_VIBE_STATE_ASP) {
@@ -1715,7 +1718,9 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	pm_runtime_get_sync(dev);
+	if (pm_runtime_get_sync(dev) < 0)
+		return cs40l26_resume_error_handle(dev);
+
 	mutex_lock(&cs40l26->lock);
 
 	effect = cs40l26->trigger_effect;
@@ -1800,7 +1805,9 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 
 	dev_dbg(cs40l26->dev, "%s\n", __func__);
 
-	pm_runtime_get_sync(cs40l26->dev);
+	if (pm_runtime_get_sync(cs40l26->dev) < 0)
+		return cs40l26_resume_error_handle(cs40l26->dev);
+
 	mutex_lock(&cs40l26->lock);
 
 	if (cs40l26->vibe_state != CS40L26_VIBE_STATE_HAPTIC)
@@ -2085,7 +2092,11 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, u8 *data,
 	unsigned int write_reg, reg, wt_offset, wt_size_words, wt_base;
 	int ret;
 
-	pm_runtime_get_sync(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(dev);
+		return ret;
+	}
 
 	ret = cl_dsp_get_reg(dsp, "OWT_NEXT_XM", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
@@ -2502,7 +2513,9 @@ static void cs40l26_upload_worker(struct work_struct *work)
 	u16 index, bank;
 	bool pwle;
 
-	pm_runtime_get_sync(cdev);
+	if (pm_runtime_get_sync(cdev) < 0)
+		return cs40l26_resume_error_handle(cdev);
+
 	mutex_lock(&cs40l26->lock);
 
 	effect = &cs40l26->upload_effect;
@@ -2775,8 +2788,10 @@ static void cs40l26_erase_worker(struct work_struct *work)
 	int effect_id;
 	u32 index;
 
+	if (pm_runtime_get_sync(cs40l26->dev) < 0)
+		return cs40l26_resume_error_handle(cs40l26->dev);
+
 	mutex_lock(&cs40l26->lock);
-	pm_runtime_get_sync(cs40l26->dev);
 
 	effect_id = cs40l26->erase_effect->id;
 	index = cs40l26->trigger_indices[effect_id];
@@ -3766,7 +3781,11 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	cs40l26_pm_runtime_setup(cs40l26);
 
-	pm_runtime_get_sync(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(dev);
+		return ret;
+	}
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "TIMEOUT_MS",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
@@ -3846,7 +3865,11 @@ static int cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26)
 	char n_str[2];
 	int ret, i, j;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
 
 	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 			CS40L26_DSP_MBOX_CMD_LE_EST, CS40L26_DSP_MBOX_RESET);
@@ -4027,7 +4050,12 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 	}
 
 	if (cs40l26->fw_loaded) {
-		pm_runtime_get_sync(dev);
+		ret = pm_runtime_get_sync(dev);
+		if (ret < 0) {
+			cs40l26_resume_error_handle(dev);
+			return ret;
+		}
+
 		ret = cs40l26_pm_stdby_timeout_ms_set(cs40l26,
 				CS40L26_PM_TIMEOUT_MS_MAX);
 		if (ret) {
@@ -4511,6 +4539,17 @@ int cs40l26_sys_suspend_noirq(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(cs40l26_sys_suspend_noirq);
+
+void cs40l26_resume_error_handle(struct device *dev)
+{
+	dev_alert(dev, "PM Runtime Resume failed\n");
+
+	pm_runtime_set_active(dev);
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+}
+EXPORT_SYMBOL(cs40l26_resume_error_handle);
 
 int cs40l26_resume(struct device *dev)
 {
