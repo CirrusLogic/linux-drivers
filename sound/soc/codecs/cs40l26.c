@@ -297,7 +297,11 @@ static int cs40l26_i2s_vmon_get(struct snd_kcontrol *kcontrol,
 	int ret;
 	u32 val;
 
-	pm_runtime_get_sync(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
 
 	ret = regmap_read(cs40l26->regmap, CS40L26_SPKMON_VMON_DEC_OUT_DATA,
 			&val);
@@ -489,7 +493,11 @@ static int cs40l26_a2h_volume_get(struct snd_kcontrol *kcontrol,
 	if (ret)
 		return ret;
 
-	pm_runtime_get_sync(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(dev);
+		return ret;
+	}
 
 	ret = regmap_read(regmap, reg, &val);
 	if (ret)
@@ -526,7 +534,11 @@ static int cs40l26_a2h_volume_put(struct snd_kcontrol *kcontrol,
 	else
 		val = ucontrol->value.integer.value[0];
 
-	pm_runtime_get_sync(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(dev);
+		return ret;
+	}
 
 	ret = regmap_write(regmap, reg, val);
 	if (ret)
@@ -554,7 +566,11 @@ static int cs40l26_a2h_delay_get(struct snd_kcontrol *kcontrol,
 	if (ret)
 		return ret;
 
-	pm_runtime_get_sync(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(dev);
+		return ret;
+	}
 
 	ret = regmap_read(regmap, reg, &val);
 	if (ret) {
@@ -594,7 +610,11 @@ static int cs40l26_a2h_delay_put(struct snd_kcontrol *kcontrol,
 	else
 		val = ucontrol->value.integer.value[0];
 
-	pm_runtime_get_sync(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(dev);
+		return ret;
+	}
 
 	ret = regmap_write(regmap, reg, val);
 	if (ret)
@@ -742,7 +762,11 @@ static int cs40l26_pcm_hw_params(struct snd_pcm_substream *substream,
 	u8 asp_rx_wl, asp_rx_width, global_fs;
 	int ret, lrck;
 
-	pm_runtime_get_sync(codec->dev);
+	ret = pm_runtime_get_sync(codec->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(codec->dev);
+		return ret;
+	}
 
 	lrck = params_rate(params);
 	switch (lrck) {
