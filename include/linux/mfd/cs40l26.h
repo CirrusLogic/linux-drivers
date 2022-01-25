@@ -1229,9 +1229,10 @@
 #define CS40L26_COMP_EN_F0_SHIFT    0
 
 /* Errata */
-#define CS40L26_ERRATA_A1_NUM_WRITES	4
-#define CS40L26_PLL_REFCLK_DET_EN	0x00000001
-#define CS40L26_DISABLE_EXPL_MODE	0x014DC080
+#define CS40L26_ERRATA_A1_NUM_WRITES		4
+#define CS40L26_ERRATA_A1_EXPL_EN_NUM_WRITES	1
+#define CS40L26_PLL_REFCLK_DET_EN		0x00000001
+#define CS40L26_DISABLE_EXPL_MODE		0x014DC080
 
 /* MFD */
 #define CS40L26_NUM_MFD_DEVS		1
@@ -1414,6 +1415,7 @@ struct cs40l26_platform_data {
 	u32 q_default;
 	u32 boost_ctl;
 	bool vibe_state_reporting;
+	bool expl_mode_enabled;
 };
 
 struct cs40l26_owt {
