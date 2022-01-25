@@ -740,7 +740,8 @@ static int cs40l2x_convert_and_save_comp_data(struct cs40l2x_private *cs40l2x,
 
 	if (comp_size > (cs40l2x->comp_bytes / CS40L2X_WT_NUM_VIRT_SLOTS)) {
 		dev_err(cs40l2x->dev, "Waveform size exceeds available space\n");
-		return -ENOSPC;
+		ret = -ENOSPC;
+		goto err_free;
 	}
 
 	if (over_write)
@@ -1313,6 +1314,7 @@ static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x,
 
 	if (ret > (cs40l2x->comp_bytes / CS40L2X_WT_NUM_VIRT_SLOTS)) {
 		dev_err(cs40l2x->dev, "PWLE size exceeds available space\n");
+		kfree(zero_pad_data);
 		return -ENOSPC;
 	}
 
