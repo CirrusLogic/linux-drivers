@@ -3618,22 +3618,27 @@ static int cs40l26_lbst_short_test(struct cs40l26_private *cs40l26)
 
 static int cs40l26_handle_errata(struct cs40l26_private *cs40l26)
 {
-	int ret;
+	int ret, num_writes;
 
-	ret = cs40l26_lbst_short_test(cs40l26);
-	if (ret)
-		return ret;
+	if (!cs40l26->pdata.expl_mode_enabled) {
+		ret = cs40l26_lbst_short_test(cs40l26);
+		if (ret)
+			return ret;
+
+		num_writes = CS40L26_ERRATA_A1_NUM_WRITES;
+	} else {
+		num_writes = CS40L26_ERRATA_A1_EXPL_EN_NUM_WRITES;
+	}
 
 	ret = regmap_register_patch(cs40l26->regmap, cs40l26_a1_errata,
-			CS40L26_ERRATA_A1_NUM_WRITES);
+			num_writes);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to patch A1 errata\n");
 		return ret;
 	}
 
-	return cs40l26_pseq_multi_write(cs40l26, cs40l26_a1_errata,
-			CS40L26_ERRATA_A1_NUM_WRITES, false,
-			CS40L26_PSEQ_OP_WRITE_FULL);
+	return cs40l26_pseq_multi_write(cs40l26, cs40l26_a1_errata, num_writes,
+			false, CS40L26_PSEQ_OP_WRITE_FULL);
 }
 
 static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
@@ -4193,6 +4198,11 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 		cs40l26->pdata.vibe_state_reporting = true;
 	else
 		cs40l26->pdata.vibe_state_reporting = false;
+
+	if (of_property_read_bool(np, "cirrus,bst-expl-mode-disable"))
+		cs40l26->pdata.expl_mode_enabled = false;
+	else
+		cs40l26->pdata.expl_mode_enabled = true;
 
 	cs40l26->pdata.vbbr_en =
 			of_property_read_bool(np, "cirrus,vbbr-enable");

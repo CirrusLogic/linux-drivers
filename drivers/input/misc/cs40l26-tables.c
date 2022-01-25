@@ -329,6 +329,7 @@ bool cs40l26_readable_reg(struct device *dev, unsigned int reg)
 	case CS40L26_DCM_FORCE:
 	case CS40L26_VBST_OVP:
 	case CS40L26_BST_DCR:
+	case CS40L26_TEST_LBST:
 	case CS40L26_VPI_LIMIT_MODE:
 	case CS40L26_VPI_LIMITING:
 	case CS40L26_VPI_VP_THLDS:
