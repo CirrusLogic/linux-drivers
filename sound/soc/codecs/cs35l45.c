@@ -1599,19 +1599,30 @@ static void cs35l45_compr_stop_work(struct work_struct *work)
 	cs35l45_compr_switch(dsp, 0);
 }
 
+static struct snd_soc_dai *cs35l45_find_rtd_dai(
+					struct snd_soc_pcm_runtime *rtd,
+					char *name)
+{
+	struct snd_soc_dai *codec_dai = NULL;
+	int i;
+
+	for_each_rtd_dais(rtd, i, codec_dai)
+		if (!strcmp(codec_dai->name, name))
+			return codec_dai;
+	return NULL;
+}
+
 static int cs35l45_compr_open(struct snd_soc_component *component,
 					struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 2);
 	struct cs35l45_private *cs35l45 = snd_soc_component_get_drvdata(component);
 	__be32 buffer_size;
 	int ret;
 
-	if (strcmp(codec_dai->name, "cs35l45-dsp-dsplog")) {
+	if (!cs35l45_find_rtd_dai(rtd, "cs35l45-dsp-dsplog")) {
 		dev_err(cs35l45->dev,
-			"No suitable compressed stream for DAI '%s'\n",
-			codec_dai->name);
+			"No suitable compressed stream for DAI 'cs35l45-dsp-dsplog'\n");
 		return -EINVAL;
 	}
 
