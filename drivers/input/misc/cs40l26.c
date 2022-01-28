@@ -2696,7 +2696,7 @@ static int cs40l26_clear_gpi_event_reg(struct cs40l26_private *cs40l26, u32 reg)
 	struct regmap *regmap = cs40l26->regmap;
 	int ret;
 
-	ret = regmap_write(regmap, reg, 0);
+	ret = regmap_write(regmap, reg, CS40L26_EVENT_MAP_GPI_EVENT_DISABLE);
 	if (ret)
 		dev_err(cs40l26->dev, "Failed to clear gpi reg: %08X", reg);
 
