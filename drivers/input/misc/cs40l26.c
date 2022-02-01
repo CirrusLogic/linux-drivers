@@ -185,11 +185,8 @@ static int cs40l26_pm_timeout_ticks_write(struct cs40l26_private *cs40l26,
 	u8 upper_val;
 	int ret;
 
-	if (ms < CS40L26_PM_TIMEOUT_MS_MIN) {
-		dev_warn(dev, "Timeout out of bounds, using minimum\n");
-		ticks = CS40L26_PM_TIMEOUT_MS_MIN * CS40L26_PM_TICKS_MS_DIV;
-	} else if (ms > CS40L26_PM_TIMEOUT_MS_MAX) {
-		dev_warn(dev, "Timeout out of bounds, using maximum\n");
+	if (ms > CS40L26_PM_TIMEOUT_MS_MAX) {
+		dev_warn(dev, "Timeout (%u ms) invalid, using maximum\n", ms);
 		ticks = CS40L26_PM_TIMEOUT_MS_MAX * CS40L26_PM_TICKS_MS_DIV;
 	} else {
 		ticks = ms * CS40L26_PM_TICKS_MS_DIV;
@@ -4302,7 +4299,7 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 		cs40l26->pdata.pm_stdby_timeout_ms = val;
 	else
 		cs40l26->pdata.pm_stdby_timeout_ms =
-				CS40L26_PM_TIMEOUT_MS_MIN;
+				CS40L26_PM_STDBY_TIMEOUT_MS_DEFAULT;
 
 	if (!of_property_read_u32(np, "cirrus,pm-active-timeout-ms", &val))
 		cs40l26->pdata.pm_active_timeout_ms = val;
