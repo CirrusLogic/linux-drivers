@@ -1228,6 +1228,17 @@
 #define CS40L26_COMP_EN_REDC_SHIFT  1
 #define CS40L26_COMP_EN_F0_SHIFT    0
 
+/* DBC */
+#define CS40L26_DBC_ENABLE_MASK			BIT(1)
+#define CS40L26_DBC_ENABLE_SHIFT		1
+#define CS40L26_DBC_TX_LVL_HOLD_OFF_MS_MAX	1000
+#define CS40L26_DBC_CONTROLS_MAX		0x7FFFFF
+#define CS40L26_DBC_ENV_REL_COEF_NAME		"DBC_ENV_REL_COEF"
+#define CS40L26_DBC_RISE_HEADROOM_NAME		"DBC_RISE_HEADROOM"
+#define CS40L26_DBC_FALL_HEADROOM_NAME		"DBC_FALL_HEADROOM"
+#define CS40L26_DBC_TX_LVL_THRESH_FS_NAME	"DBC_TX_LVL_THRESH_FS"
+#define CS40L26_DBC_TX_LVL_HOLD_OFF_MS_NAME	"DBC_TX_LVL_HOLD_OFF_MS"
+
 /* Errata */
 #define CS40L26_ERRATA_A1_NUM_WRITES		4
 #define CS40L26_ERRATA_A1_EXPL_EN_NUM_WRITES	1
@@ -1252,6 +1263,15 @@
 #define CS40L26_SAMPS_TO_MS(n)	((n) / 8)
 
 /* enums */
+enum cs40l26_dbc {
+	CS40L26_DBC_ENV_REL_COEF, /* 0 */
+	CS40L26_DBC_RISE_HEADROOM,
+	CS40L26_DBC_FALL_HEADROOM,
+	CS40L26_DBC_TX_LVL_THRESH_FS,
+	CS40L26_DBC_TX_LVL_HOLD_OFF_MS,
+	CS40L26_DBC_NUM_CONTROLS, /* 5 */
+};
+
 enum cs40l26_vibe_state {
 	CS40L26_VIBE_STATE_STOPPED,
 	CS40L26_VIBE_STATE_HAPTIC,
@@ -1361,6 +1381,7 @@ enum cs40l26_pm_state {
 /* structs */
 struct cs40l26_fw {
 	unsigned int id;
+	unsigned int rev;
 	unsigned int min_rev;
 	unsigned int num_coeff_files;
 	char **coeff_files;
@@ -1502,6 +1523,10 @@ struct cs40l26_pll_sysclk_config {
 };
 
 /* exported function prototypes */
+int cs40l26_dbc_get(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc,
+		unsigned int *val);
+int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc,
+		const char *buf);
 int cs40l26_asp_start(struct cs40l26_private *cs40l26);
 int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves);
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id);
@@ -1545,10 +1570,12 @@ extern const u8 cs40l26_pseq_op_sizes[CS40L26_PSEQ_NUM_OPS][2];
 extern const u32 cs40l26_attn_q21_2_vals[CS40L26_NUM_PCT_MAP_VALUES];
 extern const struct reg_sequence
 		cs40l26_a1_errata[CS40L26_ERRATA_A1_NUM_WRITES];
+extern const char * const cs40l26_dbc_names[CS40L26_DBC_NUM_CONTROLS];
 
 
 /* sysfs */
 extern struct attribute_group cs40l26_dev_attr_group;
 extern struct attribute_group cs40l26_dev_attr_cal_group;
+extern struct attribute_group cs40l26_dev_attr_dbc_group;
 
 #endif /* __CS40L26_H__ */

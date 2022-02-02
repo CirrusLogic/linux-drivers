@@ -758,6 +758,223 @@ struct attribute_group cs40l26_dev_attr_group = {
 	.attrs = cs40l26_dev_attrs,
 };
 
+static ssize_t dbc_enable_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 val, reg;
+	int ret;
+
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_EXT_ALGO_ID, &reg);
+	if (ret)
+		goto err_pm;
+
+	ret = regmap_read(cs40l26->regmap, reg, &val);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to get FLAGS\n");
+		goto err_pm;
+	}
+
+
+	val &= CS40L26_DBC_ENABLE_MASK;
+	val >>= CS40L26_DBC_ENABLE_SHIFT;
+
+	ret = snprintf(buf, PAGE_SIZE, "%u\n", val);
+
+err_pm:
+	mutex_unlock(&cs40l26->lock);
+
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	return ret;
+}
+
+static ssize_t dbc_enable_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	unsigned int reg;
+	int ret;
+	u32 val;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret || (val != 0 && val != 1))
+		return -EINVAL;
+
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_EXT_ALGO_ID, &reg);
+	if (ret)
+		goto err_pm;
+
+	ret = regmap_update_bits(cs40l26->regmap, reg, CS40L26_DBC_ENABLE_MASK,
+			val << CS40L26_DBC_ENABLE_SHIFT);
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to update FLAGS\n");
+
+err_pm:
+	mutex_unlock(&cs40l26->lock);
+
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	return ret ? ret : count;
+}
+static DEVICE_ATTR_RW(dbc_enable);
+
+static ssize_t dbc_env_rel_coef_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	unsigned int val;
+	int ret;
+
+	ret = cs40l26_dbc_get(cs40l26, CS40L26_DBC_ENV_REL_COEF, &val);
+
+	return ret ? ret : snprintf(buf, PAGE_SIZE, "%u\n", val);
+}
+
+static ssize_t dbc_env_rel_coef_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_ENV_REL_COEF, buf);
+
+	return ret ? ret : count;
+
+}
+static DEVICE_ATTR_RW(dbc_env_rel_coef);
+
+static ssize_t dbc_rise_headroom_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	unsigned int val;
+	int ret;
+
+	ret = cs40l26_dbc_get(cs40l26, CS40L26_DBC_RISE_HEADROOM, &val);
+
+	return ret ? ret : snprintf(buf, PAGE_SIZE, "%u\n", val);
+}
+
+static ssize_t dbc_rise_headroom_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_RISE_HEADROOM, buf);
+
+	return ret ? ret : count;
+}
+static DEVICE_ATTR_RW(dbc_rise_headroom);
+
+static ssize_t dbc_fall_headroom_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	unsigned int val;
+	int ret;
+
+	ret = cs40l26_dbc_get(cs40l26, CS40L26_DBC_FALL_HEADROOM, &val);
+
+	return ret ? ret : snprintf(buf, PAGE_SIZE, "%u\n", val);
+}
+
+static ssize_t dbc_fall_headroom_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_FALL_HEADROOM, buf);
+
+	return ret ? ret : count;
+}
+static DEVICE_ATTR_RW(dbc_fall_headroom);
+
+static ssize_t dbc_tx_lvl_thresh_fs_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	unsigned int val;
+	int ret;
+
+	ret = cs40l26_dbc_get(cs40l26, CS40L26_DBC_TX_LVL_THRESH_FS, &val);
+
+	return ret ? ret : snprintf(buf, PAGE_SIZE, "%u\n", val);
+}
+
+static ssize_t dbc_tx_lvl_thresh_fs_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_TX_LVL_THRESH_FS, buf);
+
+	return ret ? ret : count;
+}
+static DEVICE_ATTR_RW(dbc_tx_lvl_thresh_fs);
+
+static ssize_t dbc_tx_lvl_hold_off_ms_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	unsigned int val;
+	int ret;
+
+	ret = cs40l26_dbc_get(cs40l26, CS40L26_DBC_TX_LVL_HOLD_OFF_MS, &val);
+
+	return ret ? ret : snprintf(buf, PAGE_SIZE, "%u\n", val);
+}
+
+static ssize_t dbc_tx_lvl_hold_off_ms_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_TX_LVL_HOLD_OFF_MS, buf);
+
+	return ret ? ret : count;
+}
+static DEVICE_ATTR_RW(dbc_tx_lvl_hold_off_ms);
+
+static struct attribute *cs40l26_dev_attrs_dbc[] = {
+	&dev_attr_dbc_enable.attr,
+	&dev_attr_dbc_env_rel_coef.attr,
+	&dev_attr_dbc_rise_headroom.attr,
+	&dev_attr_dbc_fall_headroom.attr,
+	&dev_attr_dbc_tx_lvl_thresh_fs.attr,
+	&dev_attr_dbc_tx_lvl_hold_off_ms.attr,
+	NULL,
+};
+
+struct attribute_group cs40l26_dev_attr_dbc_group = {
+	.name = "dbc",
+	.attrs = cs40l26_dev_attrs_dbc,
+};
+
 static ssize_t trigger_calibration_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {

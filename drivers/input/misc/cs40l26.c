@@ -176,6 +176,90 @@ int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 }
 EXPORT_SYMBOL(cs40l26_dsp_state_get);
 
+int cs40l26_dbc_get(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc,
+		unsigned int *val)
+{
+	struct device *dev = cs40l26->dev;
+	unsigned int reg;
+	int ret;
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(dev);
+		return ret;
+	}
+
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, cs40l26_dbc_names[dbc],
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+	if (ret)
+		goto err_pm;
+
+	ret = regmap_read(cs40l26->regmap, reg, val);
+	if (ret)
+		dev_err(dev, "Failed to read Dynamic Boost Control value\n");
+
+err_pm:
+	mutex_unlock(&cs40l26->lock);
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
+	return ret;
+}
+EXPORT_SYMBOL(cs40l26_dbc_get);
+
+int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc,
+		const char *buf)
+{
+	struct device *dev = cs40l26->dev;
+	unsigned int val, reg, max;
+	int ret;
+
+	if (dbc == CS40L26_DBC_TX_LVL_HOLD_OFF_MS)
+		max = CS40L26_DBC_TX_LVL_HOLD_OFF_MS_MAX;
+	else
+		max = CS40L26_DBC_CONTROLS_MAX;
+
+	ret = kstrtou32(buf, 10, &val);
+	if (ret) {
+		dev_err(dev, "Failed to kstrstou32()\n");
+		return ret;
+	}
+
+	if (val > max) {
+		dev_err(dev, "DBC input %u out of bounds\n", val);
+		return -EINVAL;
+	}
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(dev);
+		return ret;
+	}
+
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, cs40l26_dbc_names[dbc],
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+	if (ret)
+		goto err_pm;
+
+	ret = regmap_write(cs40l26->regmap, reg, val);
+	if (ret)
+		dev_err(dev, "Failed to write Dynamic Boost Control value\n");
+
+err_pm:
+	mutex_unlock(&cs40l26->lock);
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
+	return ret;
+}
+EXPORT_SYMBOL(cs40l26_dbc_set);
+
 static int cs40l26_pm_timeout_ticks_write(struct cs40l26_private *cs40l26,
 		u32 ms, unsigned int lower_offset, unsigned int upper_offset)
 {
@@ -2848,8 +2932,8 @@ static int cs40l26_erase_effect(struct input_dev *dev, int effect_id)
 
 static int cs40l26_input_init(struct cs40l26_private *cs40l26)
 {
-	int ret;
 	struct device *dev = cs40l26->dev;
+	int ret;
 
 	cs40l26->input = devm_input_allocate_device(dev);
 	if (!cs40l26->input)
@@ -2899,6 +2983,13 @@ static int cs40l26_input_init(struct cs40l26_private *cs40l26)
 			&cs40l26_dev_attr_cal_group);
 	if (ret) {
 		dev_err(dev, "Failed to create cal sysfs group: %d\n", ret);
+		return ret;
+	}
+
+	ret = sysfs_create_group(&cs40l26->input->dev.kobj,
+			&cs40l26_dev_attr_dbc_group);
+	if (ret) {
+		dev_err(dev, "Failed to create DBC sysfs group\n");
 		return ret;
 	}
 
@@ -3350,6 +3441,8 @@ static int cs40l26_verify_fw(struct cs40l26_private *cs40l26)
 			(int) CL_DSP_GET_MAJOR(val),
 			(int) CL_DSP_GET_MINOR(val),
 			(int) CL_DSP_GET_PATCH(val));
+
+	cs40l26->fw.rev = val;
 
 	return 0;
 }
@@ -4487,6 +4580,8 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 				&cs40l26_dev_attr_group);
 		sysfs_remove_group(&cs40l26->input->dev.kobj,
 				&cs40l26_dev_attr_cal_group);
+		sysfs_remove_group(&cs40l26->input->dev.kobj,
+			&cs40l26_dev_attr_dbc_group);
 	}
 
 	if (cs40l26->input)
