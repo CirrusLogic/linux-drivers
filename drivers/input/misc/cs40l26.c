@@ -3095,21 +3095,21 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26, u32 id)
 			}
 		}
 
-		strncpy(cs40l26->fw.coeff_files[0], CS40L26_WT_FILE_NAME,
+		strscpy(cs40l26->fw.coeff_files[0], CS40L26_WT_FILE_NAME,
 				CS40L26_WT_FILE_NAME_LEN);
 
 		if (id == CS40L26_FW_ID) {
-			strncpy(cs40l26->fw.coeff_files[1],
+			strscpy(cs40l26->fw.coeff_files[1],
 					CS40L26_A2H_TUNING_FILE_NAME,
 					CS40L26_A2H_TUNING_FILE_NAME_LEN);
-			strncpy(cs40l26->fw.coeff_files[2],
+			strscpy(cs40l26->fw.coeff_files[2],
 					CS40L26_SVC_TUNING_FILE_NAME,
 					CS40L26_SVC_TUNING_FILE_NAME_LEN);
-			strncpy(cs40l26->fw.coeff_files[3],
+			strscpy(cs40l26->fw.coeff_files[3],
 					CS40L26_DVL_FILE_NAME,
 					CS40L26_DVL_FILE_NAME_LEN);
 		} else {
-			strncpy(cs40l26->fw.coeff_files[1],
+			strscpy(cs40l26->fw.coeff_files[1],
 					CS40L26_CALIB_BIN_FILE_NAME,
 					CS40L26_CALIB_BIN_FILE_NAME_LEN);
 		}
@@ -3984,11 +3984,11 @@ static int cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26)
 		for (j = 0; j < cs40l26->num_svc_le_vals; j++) {
 			if (le >= cs40l26->svc_le_vals[j]->min &&
 					le <= cs40l26->svc_le_vals[j]->max) {
-				strncpy(svc_bin_file,
+				strscpy(svc_bin_file,
 					CS40L26_SVC_TUNING_FILE_PREFIX,
 					CS40L26_SVC_TUNING_FILE_PREFIX_LEN);
 
-				strncpy(wt_bin_file, CS40L26_WT_FILE_PREFIX,
+				strscpy(wt_bin_file, CS40L26_WT_FILE_PREFIX,
 					CS40L26_WT_FILE_PREFIX_LEN);
 
 				snprintf(n_str, 2, "%d",
@@ -4015,9 +4015,9 @@ static int cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26)
 		strncat(wt_bin_file, CS40L26_TUNING_FILE_SUFFIX,
 				CS40L26_TUNING_FILE_SUFFIX_LEN);
 
-		strncpy(cs40l26->fw.coeff_files[0], wt_bin_file,
+		strscpy(cs40l26->fw.coeff_files[0], wt_bin_file,
 				CS40L26_WT_FILE_CONCAT_NAME_LEN);
-		strncpy(cs40l26->fw.coeff_files[2], svc_bin_file,
+		strscpy(cs40l26->fw.coeff_files[2], svc_bin_file,
 				CS40L26_SVC_TUNING_FILE_NAME_LEN);
 	}
 
