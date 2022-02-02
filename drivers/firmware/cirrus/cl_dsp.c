@@ -548,10 +548,10 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 
 	if (wt_found) {
 		if (*wt_date != '\0')
-			strlcpy(dsp->wt_desc->wt_date, wt_date,
+			strscpy(dsp->wt_desc->wt_date, wt_date,
 					CL_DSP_WMDR_DATE_LEN);
 		else
-			strlcpy(dsp->wt_desc->wt_date,
+			strscpy(dsp->wt_desc->wt_date,
 					CL_DSP_WMDR_FILE_DATE_MISSING,
 					CL_DSP_WMDR_DATE_LEN);
 	}
