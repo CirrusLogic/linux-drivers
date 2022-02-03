@@ -240,7 +240,9 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 		if (ret)
 			goto err_mutex;
 
-		ret = regmap_write(regmap, reg, codec->svc_for_streaming_data);
+		ret = regmap_update_bits(regmap, reg,
+				CS40L26_SVC_FOR_STREAMING_MASK,
+				codec->svc_for_streaming_data);
 		if (ret) {
 			dev_err(dev, "Failed to specify SVC for streaming\n");
 			goto err_mutex;
