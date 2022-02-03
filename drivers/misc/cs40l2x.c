@@ -412,10 +412,8 @@ static int cs40l2x_get_wlength(struct cs40l2x_private *cs40l2x, int index)
 	case WT_TYPE_V6_PCM_F0_REDC:
 	case WT_TYPE_V6_PCM_F0_REDC_VAR:
 	case WT_TYPE_V6_PWLE:
-		break;
 	case WT_TYPE_V6_COMPOSITE:
-		dev_err(cs40l2x->dev, "Nested composites not allowed\n");
-		return -EINVAL;
+		break;
 	default:
 		dev_err(cs40l2x->dev, "Can't size waveform: %x\n", entry->type);
 		return -EINVAL;
@@ -712,9 +710,21 @@ static int cs40l2x_add_wt_slots(struct cs40l2x_private *cs40l2x,
 static int cs40l2x_convert_and_save_comp_data(struct cs40l2x_private *cs40l2x,
 					      bool over_write)
 {
+	struct wt_type10_comp *comp = &cs40l2x->pbq_comp;
+	struct wt_entry *entry;
 	unsigned int comp_size;
 	char *raw_composite_data;
-	int ret = 0;
+	int i, ret = 0;
+
+	/* Check for composite waveform */
+	for (i = 0; i < comp->nsections; i++) {
+		entry = cs40l2x_get_wave(cs40l2x, comp->sections[i].index);
+		if (entry->type == WT_TYPE_V6_COMPOSITE) {
+			dev_err(cs40l2x->dev,
+				"Nested composite waveforms can't be saved\n");
+				return -EINVAL;
+		}
+	}
 
 	raw_composite_data = kzalloc(CS40L2X_SINGLE_PACKED_MAX, GFP_KERNEL);
 	if (!raw_composite_data)
