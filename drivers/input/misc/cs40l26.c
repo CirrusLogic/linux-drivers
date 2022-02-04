@@ -4134,11 +4134,6 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 	bool register_irq = false;
 	int ret;
 
-	if (id == cs40l26->fw.id) {
-		dev_warn(dev, "Cannot swap to same ID as running firmware\n");
-		return 0;
-	}
-
 	if (cs40l26->fw_loaded) {
 		ret = pm_runtime_get_sync(dev);
 		if (ret < 0) {
