@@ -390,8 +390,9 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 				goto err_free;
 			}
 
-			algo_rev =
-				CL_DSP_SHIFT_REV(data_block.header.algo_rev);
+			algo_rev = data_block.header.algo_rev >>
+					CL_DSP_REV_OFFSET_SHIFT;
+
 			if (CL_DSP_GET_MAJOR(algo_rev) !=
 				CL_DSP_GET_MAJOR(dsp->algo_info[i].rev)) {
 				dev_err(dev,
