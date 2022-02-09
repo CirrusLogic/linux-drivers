@@ -286,7 +286,7 @@ static int cl_dsp_coeff_header_parse(struct cl_dsp *dsp,
 
 	if (header.fw_revision != dsp->algo_info[0].rev) {
 		dev_warn(dev,
-			"Coeff. rev. 0x%06X mistmatches 0x%06X, continuing..\n",
+			"Coeff. rev. 0x%06X mismatches 0x%06X, continuing..\n",
 			header.fw_revision, dsp->algo_info[0].rev);
 	}
 
