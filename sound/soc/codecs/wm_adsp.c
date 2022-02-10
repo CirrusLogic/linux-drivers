@@ -3878,7 +3878,7 @@ static int wm_adsp_buffer_parse_coeff(struct wm_coeff_ctl *ctl)
 {
 	struct wm_adsp_host_buf_coeff_v1 coeff_v1;
 	struct wm_adsp_compr_buf *buf;
-	unsigned int reg, version;
+	unsigned int reg, version = 0;
 	__be32 bufp;
 	int ret, i;
 
@@ -3917,10 +3917,8 @@ static int wm_adsp_buffer_parse_coeff(struct wm_coeff_ctl *ctl)
 	 * v0 host_buffer coefficients didn't have versioning, so if the
 	 * control is one word, assume version 0.
 	 */
-	if (ctl->len == 4) {
-		compr_dbg(buf, "host_buf_ptr=%x\n", buf->host_buf_ptr);
-		return 0;
-	}
+	if (ctl->len == 4)
+		goto done;
 
 	ret = regmap_raw_read(ctl->dsp->regmap, reg, &coeff_v1,
 			      sizeof(coeff_v1));
@@ -3943,6 +3941,7 @@ static int wm_adsp_buffer_parse_coeff(struct wm_coeff_ctl *ctl)
 	buf->name = kasprintf(GFP_KERNEL, "%s-dsp-%s", ctl->dsp->part,
 			      (char *)&coeff_v1.name);
 
+done:
 	list_add_tail(&buf->list, &ctl->dsp->buffer_list);
 
 	compr_dbg(buf, "host_buf_ptr=%x coeff version %u\n",
