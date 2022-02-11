@@ -16,6 +16,8 @@
 const struct of_device_id cs40l26_of_match[CS40L26_NUM_DEVS + 1] = {
 	{ .compatible = "cirrus,cs40l26a" },
 	{ .compatible = "cirrus,cs40l26b" },
+	{ .compatible = "cirrus,cs40l27a" },
+	{ .compatible = "cirrus,cs40l27b" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, cs40l26_of_match);
