@@ -3019,7 +3019,8 @@ static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
 	}
 
 	val &= CS40L26_DEVID_MASK;
-	if (val != CS40L26_DEVID_A && val != CS40L26_DEVID_B) {
+	if (val != CS40L26_DEVID_A && val != CS40L26_DEVID_B && val !=
+			CS40L26_DEVID_L27_A && val != CS40L26_DEVID_L27_B) {
 		dev_err(dev, "Invalid device ID: 0x%06X\n", val);
 		return -EINVAL;
 	}
@@ -3033,7 +3034,7 @@ static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
 	}
 
 	val &= CS40L26_REVID_MASK;
-	if (val == CS40L26_REVID_A1) {
+	if (val == CS40L26_REVID_A1 || val == CS40L26_REVID_B0) {
 		cs40l26->revid = val;
 	} else {
 		dev_err(dev, "Invalid device revision: 0x%02X\n", val);
@@ -3131,8 +3132,14 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26, u32 id)
 
 static int cs40l26_wksrc_config(struct cs40l26_private *cs40l26)
 {
-	u8 mask_wksrc = (cs40l26->devid == CS40L26_DEVID_A) ? 1 : 0;
+	u8 mask_wksrc;
 	u32 val, mask;
+
+	if (cs40l26->devid == CS40L26_DEVID_A ||
+			cs40l26->devid == CS40L26_DEVID_L27_A)
+		mask_wksrc = 1;
+	else
+		mask_wksrc = 0;
 
 	val = BIT(CS40L26_IRQ1_WKSRC_STS_SPI) |
 			(mask_wksrc << CS40L26_IRQ1_WKSRC_STS_GPIO2) |
@@ -3152,9 +3159,15 @@ static int cs40l26_wksrc_config(struct cs40l26_private *cs40l26)
 
 static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 {
-	u32 mask_gpio = (cs40l26->devid == CS40L26_DEVID_A) ? 1 : 0;
 	u32 val, mask;
+	u8 mask_gpio;
 	int ret;
+
+	if (cs40l26->devid == CS40L26_DEVID_A ||
+			cs40l26->devid == CS40L26_DEVID_L27_A)
+		mask_gpio = 1;
+	else
+		mask_gpio = 0;
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "ENT_MAP_TABLE_EVENT_DATA_PACKED",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EVENT_HANDLER_ALGO_ID,
@@ -4157,7 +4170,8 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 
 	cs40l26->fw_loaded = false;
 
-	if (cs40l26->revid != CS40L26_REVID_A1) {
+	if (cs40l26->revid != CS40L26_REVID_A1 &&
+			cs40l26->revid != CS40L26_REVID_B0) {
 		dev_err(dev, "pseq unrecognized revid: %d\n", cs40l26->revid);
 		return -EINVAL;
 	}
