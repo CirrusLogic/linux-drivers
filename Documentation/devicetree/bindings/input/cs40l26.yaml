@@ -18,6 +18,8 @@ properties:
     enum:
       - cirrus,cs40l26a
       - cirrus,cs40l26b
+      - cirrus,cs40l27a
+      - cirrus,cs40l27b
 
   reg:
     maxItems: 1
