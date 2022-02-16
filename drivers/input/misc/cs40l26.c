@@ -1402,6 +1402,13 @@ static int cs40l26_pseq_write(struct cs40l26_private *cs40l26, u32 addr,
 	if (ret)
 		goto op_new_free;
 
+	if (((CS40L26_PSEQ_MAX_WORDS * CL_DSP_BYTES_PER_WORD) - op_end->offset)
+				< (op_new->size * CL_DSP_BYTES_PER_WORD)) {
+		dev_err(dev, "Not enough space in pseq to add op\n");
+		ret = -ENOMEM;
+		goto op_new_free;
+	}
+
 	if (is_new) {
 		op_new->offset = op_end->offset;
 		op_end->offset += (num_op_words * CL_DSP_BYTES_PER_WORD);
