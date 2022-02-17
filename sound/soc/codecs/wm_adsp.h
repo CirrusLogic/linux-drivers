@@ -211,5 +211,5 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name,  int type,
 		      unsigned int alg, void *buf, size_t len);
 int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name,  int type,
 		      unsigned int alg, void *buf, size_t len);
-
+int wm_adsp_load_coeff(struct wm_adsp *dsp);
 #endif
