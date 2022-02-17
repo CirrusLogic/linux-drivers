@@ -164,6 +164,70 @@ static SOC_VALUE_ENUM_SINGLE_DECL(cs35l43_dc_wd_mode_enum, CS35L43_ALIVE_DCIN_WD
 			CS35L43_WD_MODE_SHIFT, 0x3,
 			cs35l43_wd_mode_texts, cs35l43_wd_mode_values);
 
+static int cs35l43_delta_select_get(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component;
+	struct cs35l43_private *cs35l43;
+
+	component = snd_soc_kcontrol_component(kcontrol);
+	cs35l43 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = 0;
+
+	return 0;
+}
+
+static int cs35l43_delta_select_put(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+				 snd_soc_kcontrol_component(kcontrol);
+	struct cs35l43_private *cs35l43 =
+				 snd_soc_component_get_drvdata(component);
+	const struct firmware *firmware;
+	struct wm_adsp *dsp = &cs35l43->dsp;
+	int ret = 0, delta = ucontrol->value.integer.value[0];
+	const char *fwf_name;
+	char filename[NAME_MAX];
+	bool hibernate = false;
+
+	if (delta == 0)
+		return 0;
+
+	if (cs35l43->hibernate_state == CS35L43_HIBERNATE_STANDBY) {
+		hibernate = true;
+		mutex_lock(&cs35l43->hb_lock);
+		ret = cs35l43_exit_hibernate(cs35l43);
+	}
+
+	fwf_name = dsp->fwf_name;
+	snprintf(filename, NAME_MAX, "delta-%d", delta);
+	dsp->fwf_name = filename;
+
+	ret = request_firmware(&firmware, filename, cs35l43->dev);
+	if (ret != 0) {
+		dev_err(cs35l43->dev, "Failed to request '%s'\n", filename);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	ret = cs_dsp_load_coeff(&dsp->cs_dsp, firmware, filename);
+	if (ret)
+		dev_err(cs35l43->dev, "Error applying delta file %s: %d\n",
+				filename, ret);
+err:
+	dsp->fwf_name = fwf_name;
+
+	if (hibernate) {
+		mutex_unlock(&cs35l43->hb_lock);
+		queue_delayed_work(cs35l43->wq, &cs35l43->hb_work,
+				msecs_to_jiffies(cs35l43->hibernate_delay_ms));
+	}
+
+	return ret;
+}
+
 static int cs35l43_ultrasonic_mode_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
@@ -345,6 +409,8 @@ static const struct snd_kcontrol_new cs35l43_aud_controls[] = {
 	SOC_SINGLE_RANGE("ASPRX1 Slot Position", CS35L43_ASP_FRAME_CONTROL5, 0, 0, 7, 0),
 	SOC_SINGLE_RANGE("ASPRX2 Slot Position", CS35L43_ASP_FRAME_CONTROL5, 8, 0, 7, 0),
 	SOC_SINGLE_RANGE("ASPRX3 Slot Position", CS35L43_ASP_FRAME_CONTROL5, 16, 0, 7, 0),
+	SOC_SINGLE_EXT("Delta Select", SND_SOC_NOPM, 0, 10, 0,
+			cs35l43_delta_select_get, cs35l43_delta_select_put),
 	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
 	WM_ADSP_FW_CONTROL("DSP1", 0),
 };
