@@ -1696,6 +1696,48 @@ static int cs35l43_set_pdata(struct cs35l43_private *cs35l43)
 				cs35l43->pdata.hw_ng_delay <<
 				CS35L43_NG_DELAY_SHIFT);
 
+	if (cs35l43->pdata.vpbr_rel_rate)
+		regmap_update_bits(cs35l43->regmap,
+				CS35L43_VPBR_CONFIG,
+				CS35L43_VPBR_REL_RATE_MASK,
+				cs35l43->pdata.vpbr_rel_rate <<
+				CS35L43_VPBR_REL_RATE_SHIFT);
+	if (cs35l43->pdata.vpbr_wait)
+		regmap_update_bits(cs35l43->regmap,
+				CS35L43_VPBR_CONFIG,
+				CS35L43_VPBR_WAIT_MASK,
+				cs35l43->pdata.vpbr_wait <<
+				CS35L43_VPBR_WAIT_SHIFT);
+	if (cs35l43->pdata.vpbr_atk_rate)
+		regmap_update_bits(cs35l43->regmap,
+				CS35L43_VPBR_CONFIG,
+				CS35L43_VPBR_ATK_RATE_MASK,
+				cs35l43->pdata.vpbr_atk_rate <<
+				CS35L43_VPBR_ATK_RATE_SHIFT);
+	if (cs35l43->pdata.vpbr_atk_vol)
+		regmap_update_bits(cs35l43->regmap,
+				CS35L43_VPBR_CONFIG,
+				CS35L43_VPBR_ATK_VOL_MASK,
+				cs35l43->pdata.vpbr_atk_vol <<
+				CS35L43_VPBR_ATK_VOL_SHIFT);
+	if (cs35l43->pdata.vpbr_max_att)
+		regmap_update_bits(cs35l43->regmap,
+				CS35L43_VPBR_CONFIG,
+				CS35L43_VPBR_MAX_ATT_MASK,
+				cs35l43->pdata.vpbr_max_att <<
+				CS35L43_VPBR_MAX_ATT_SHIFT);
+	if (cs35l43->pdata.vpbr_thld)
+		regmap_update_bits(cs35l43->regmap,
+				CS35L43_VPBR_CONFIG,
+				CS35L43_VPBR_THLD1_MASK,
+				cs35l43->pdata.vpbr_thld <<
+				CS35L43_VPBR_THLD1_SHIFT);
+	if (cs35l43->pdata.vpbr_enable)
+		regmap_update_bits(cs35l43->regmap,
+				CS35L43_BLOCK_ENABLES2,
+				CS35L43_VPBR_EN_MASK,
+				CS35L43_VPBR_EN_MASK);
+
 	return 0;
 }
 
@@ -1733,6 +1775,21 @@ static int cs35l43_handle_of_data(struct device *dev,
 					"cirrus,gpio1-output-enable");
 	pdata->gpio2_out_enable = of_property_read_bool(np,
 					"cirrus,gpio2-output-enable");
+
+	pdata->vpbr_enable = of_property_read_bool(np,
+					"cirrus,vpbr-enable");
+	if (of_property_read_u32(np, "cirrus,vpbr-rel-rate", &val) >= 0)
+		pdata->vpbr_rel_rate = val | CS35L43_VALID_PDATA;
+	if (of_property_read_u32(np, "cirrus,vpbr-wait", &val) >= 0)
+		pdata->vpbr_wait = val | CS35L43_VALID_PDATA;
+	if (of_property_read_u32(np, "cirrus,vpbr-atk-rate", &val) >= 0)
+		pdata->vpbr_atk_rate = val | CS35L43_VALID_PDATA;
+	if (of_property_read_u32(np, "cirrus,vpbr-atk-vol", &val) >= 0)
+		pdata->vpbr_atk_vol = val | CS35L43_VALID_PDATA;
+	if (of_property_read_u32(np, "cirrus,vpbr-max-att", &val) >= 0)
+		pdata->vpbr_max_att = val | CS35L43_VALID_PDATA;
+	if (of_property_read_u32(np, "cirrus,vpbr-thld", &val) >= 0)
+		pdata->vpbr_thld = val | CS35L43_VALID_PDATA;
 
 	if (of_property_read_u32(np, "cirrus,asp-sdout-hiz", &val) >= 0)
 		pdata->asp_sdout_hiz = val | CS35L43_VALID_PDATA;
