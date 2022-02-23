@@ -985,8 +985,6 @@ static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		regmap_update_bits(cs35l43->regmap,
-					CS35L43_BLOCK_ENABLES, 1, 1);
 		regmap_write(cs35l43->regmap, CS35L43_GLOBAL_ENABLES, 1);
 		regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 				CS35L43_MBOX_CMD_AUDIO_PLAY);
@@ -994,7 +992,6 @@ static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		regmap_write(cs35l43->regmap, CS35L43_GLOBAL_ENABLES, 0);
-		regmap_write(cs35l43->regmap, CS35L43_BLOCK_ENABLES, 0);
 		regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 				CS35L43_MBOX_CMD_AUDIO_PAUSE);
 		cs35l43_check_mailbox(cs35l43);
