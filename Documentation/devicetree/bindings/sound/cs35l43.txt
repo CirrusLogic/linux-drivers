@@ -3,3 +3,199 @@ CS35L43 Speaker Amplifier
 Required properties:
 
   - compatible : "cirrus,cs35l43"
+
+  - reg : the I2C address of the device for I2C
+
+  - VA-supply, VP-supply : power supplies for the device,
+    as covered in
+    Documentation/devicetree/bindings/regulator/regulator.txt.
+
+Optional properties:
+
+  - reset-gpios : gpio used to reset the amplifier
+
+  - interrupts : IRQ line info CS35L43.
+  (See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+  for further information relating to interrupt properties)
+
+  - cirrus,asp-sdout-hiz : Audio serial port SDOUT Hi-Z control. Sets the Hi-Z
+  configuration for SDOUT pin of amplifier.
+
+  0 = Logic 0 during unused slots, and while all transmit channels disabled
+  1 = Hi-Z during unused slots but logic 0 while all transmit channels disabled
+  2 = (Default) Logic 0 during unused slots, but Hi-Z while all transmit channels disabled
+  3 = Hi-Z during unused slots and while all transmit channels disabled
+
+  - cirrus,boost-ctl-millivolt : Boost Voltage Value. Configures the
+  boost converter's output voltage in mV. The range is from 2550 mV to
+  11000 mV with increments of 50 mV. This value will only be used if
+  'cirrus,classh-disable' is also set to true.
+  (Default) VP
+
+  - cirrus,classh-disable : Boolean which will disable Class H tracking and
+  set Boost voltage to the value in the 'boost-ctl-millivolt' property
+
+  - cirrus,hw-noise-gate-select : Hardware Noise Gate feature. Each bit selects
+  a different block for detection.
+
+  000000 - All noise gating functionality disabled
+  xxxxx1 - Amplifier noise gating detection enabled
+  xxxx1x - Boost converter DCM detection enabled
+  xxx1xx - VMON and IMON low power mode detection enabled
+  x1xxxx - VP brownout prevention detection enabled
+  1xxxxx - VBST brownout prevention detection enabled
+
+  - cirrus,hw-noise-gate-delay : Time that the incoming audio signal must be
+  below the noise gate threshold prior to entering a noise gated state
+
+  0 = 5 ms
+  1 = 10 ms
+  2 = 25 ms
+  3 = 50 ms (default)
+  4 = 100 ms
+  5 = 250 ms
+  6 = 500 ms
+  7 = 1 s
+
+  - cirrus,hw-noise-gate-threshold : Threshold of audio signal input which the
+  noise gate considers the input audio to be at a low enough level to be
+  valid to enter a noise gating state of operation.
+
+  0 = 0.654 mVpk
+  1 = 0.328 mVpk
+  2 = 0.164 mVpk
+  3 = 0.082 mVpk (default)
+  4 = 0.041 mVpk
+  5 = 0.021 mVpk
+  6 = 0.010 mVpk
+  7 = True zero data (no LSB dither)
+
+  - cirrus,dsp-noise-gate-enable : DSP Noise Gate feature. If present, noise
+  gate feature will be enabled.
+
+  - cirrus,dsp-noise-gate-threshold : Threshold of audio signal input which the
+  noise gate considers the input audio to be at a low enough level to be
+  valid to enter a noise gating state of operation.
+
+  0 = -66 dBFS
+  1 = -72 dBFS
+  2 = -78 dBFS
+  3 = -84 dBFS (default)
+  4 = -90 dBFS
+  5 = -96 dBFS
+  6 = -102 dBFS
+  7 = -108 dBFS
+
+  - cirrus,dsp-noise-gate-delay : Time that the incoming audio signal must be
+  below the noise gate threshold prior to entering a noise gated state
+
+  0 = 5 ms
+  1 = 10 ms
+  2 = 25 ms
+  3 = 50 ms (default)
+  4 = 100 ms
+  5 = 250 ms
+  6 = 500 ms
+  7 = 1 s
+  8 = 5 s
+  9 = 10 s
+  10 = 20 s
+  11 = 30 s
+  12 = 40 s
+  13 = 50 s
+  14 = 60 s
+  15 = 120 s
+
+  - cirrus,gpio1-output-enable : Boolean which specifies whether the GPIO1 pin
+  is configured as an output. If this property is not present the
+  pin will be configured as an input.
+
+  - cirrus,gpio1-src-select : Configures the function of the GPIO1 pin.
+  Note that the options are different from the GPIO2 pin.
+
+  0 = High Impedance (Default)
+  1 = GPIO
+  2 = Sync
+  3 = MCLK input
+
+  - cirrus,gpio2-output-enable : Boolean which specifies whether the GPIO2 pin
+  is configured as an output. If this property is not present the
+  pin will be configured as an input.
+
+  - cirrus,gpio2-src-select : Configures the function of the GPIO2 pin.
+  Note that the options are different from the GPIO1 pin.
+
+  0 = High Impedance (Default)
+  1 = GPIO
+  2 = Open Drain INTB
+  3 = MCLK input
+  4 = Push-pull INTB (active low)
+  5 = Push-pull INT (active high)
+
+  - cirrus,vpbr-enable : Enable VP brownout prevention (Boolean)
+
+  - cirrus,vpbr-rel-rate : VP brownout prevention attenuation release step rate.
+  Configures the delay between consecutive volume attenuation release steps when
+  a brownout condition is no longer present and the VP brownout is in an attenuation
+  release state.
+
+  0 = 5 ms
+  1 = 10 ms
+  2 = 25 ms
+  3 = 50 ms
+  4 = 100 ms
+  5 = 250 ms (default)
+  6 = 500 ms
+  7 = 1 s
+
+  - cirrus,vpbr-wait : Configures the delay between a brownout condition no longer being
+  present and the VP brownout prevention entering an attenuation release state.
+
+  0 = 10 ms
+  1 = 100 ms (default)
+  2 = 250 ms
+  3 = 500 ms
+
+  - cirrus,vpbr-atk-rate : Attenuation attack step rate. Configures the amount of delay
+  in microseconds between consecutive volume attenuation steps when a brownout condition is
+  present and the VP brownout condition is in an attacking state.
+
+  0 = 2.5 us
+  1 = 5 us
+  2 = 10 us (default)
+  3 = 25 us
+  4 = 50 us
+  5 = 100 us
+  6 = 250 ms
+  7 = 500 us
+
+  - cirrus,vpbr-atk-vol : VP brownout prevention attack step size. COnfigures the VP brownout
+  prevention attacking attenuation step size.
+
+  - cirrus,vpbr-max-att: Maximum attenuation that the VP brownout prevention can apply to the
+  audio signal. Step size is 1 dB.
+
+  0 = 0 dB
+  1 = 1 dB
+  ...
+  9 = 9 dB (default)
+  ...
+  15 = 15 dB
+
+  - cirrus,vpbr-thld : Configures the VP brownout threshold voltage
+
+
+Example:
+
+cs35l43: cs35l43@40 {
+  compatible = "cirrus,cs35l43";
+  reg = <0x40>;
+  VA-supply = <&dummy_vreg>;
+  VP-supply = <&dummy_vreg>;
+  interrupt-parent = <&gpio8>;
+  interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+  reset-gpios = <&gpio 110 0>;
+
+  cirrus,asp-sdout-hiz = <3>;
+  cirrus,gpio2-src-sel = <4>;
+};
