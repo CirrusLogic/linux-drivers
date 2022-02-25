@@ -1516,7 +1516,7 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 	bool a = false, v = false;
 	int ret;
 
-	if (count > CS40L2X_PWLE_TOTAL_VALS - 1) {
+	if (count > CS40L2X_PWLE_BYTES_MAX - 1) {
 		dev_err(dev, "PWLE string too large\n");
 		return -E2BIG;
 	}
@@ -1745,7 +1745,7 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 
 	pwle->nsections = num_segs;
 
-	ret = strscpy_pad(cs40l2x->pwle_str, buf, CS40L2X_PWLE_TOTAL_VALS);
+	ret = strscpy_pad(cs40l2x->pwle_str, buf, CS40L2X_PWLE_BYTES_MAX);
 	if (ret == -E2BIG)
 		goto err_exit;
 
