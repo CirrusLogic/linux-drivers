@@ -3802,10 +3802,27 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	ret = cs40l26_pm_stdby_timeout_ms_set(cs40l26,
-			CS40L26_PM_TIMEOUT_MS_MAX);
+	ret = cs40l26_pm_state_transition(cs40l26,
+			CS40L26_PM_STATE_PREVENT_HIBERNATE);
 	if (ret)
 		return ret;
+
+	/* ensure firmware running */
+	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_STATE",
+			     CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw.id, &reg);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(regmap, reg, &val);
+	if (ret) {
+		dev_err(dev, "Failed to read HALO_STATE\n");
+		return ret;
+	}
+
+	if (val != CS40L26_DSP_HALO_STATE_RUN) {
+		dev_err(dev, "Firmware in unexpected state: 0x%X\n", val);
+		return ret;
+	}
 
 	ret = cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, 0,
 			BIT(CS40L26_IRQ1_AMP_ERR) | BIT(CS40L26_IRQ1_TEMP_ERR) |
@@ -3841,35 +3858,6 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	ret = cs40l26_brownout_prevention_init(cs40l26);
 	if (ret)
 		return ret;
-
-	ret = cs40l26_pm_stdby_timeout_ms_set(cs40l26,
-			cs40l26->pdata.pm_stdby_timeout_ms);
-	if (ret)
-		return ret;
-
-	/* ensure firmware running */
-	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_STATE",
-			CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw.id, &reg);
-	if (ret)
-		return ret;
-
-	/* Send prevent hibernate to ensure we can read HALO STATE */
-	ret = cs40l26_pm_state_transition(cs40l26,
-			CS40L26_PM_STATE_PREVENT_HIBERNATE);
-	if (ret)
-		return ret;
-
-	/* ensure firmware running */
-	ret = regmap_read(regmap, reg, &val);
-	if (ret) {
-		dev_err(dev, "Failed to read HALO_STATE\n");
-		return ret;
-	}
-
-	if (val != CS40L26_DSP_HALO_STATE_RUN) {
-		dev_err(dev, "Firmware in unexpected state: 0x%X\n", val);
-		return ret;
-	}
 
 	ret = cs40l26_pm_state_transition(cs40l26,
 			CS40L26_PM_STATE_ALLOW_HIBERNATE);
