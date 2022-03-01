@@ -842,11 +842,6 @@ static int cs40l26_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(dai->component);
 
-	if (dai->id != 0) {
-		dev_err(codec->dev, "Invalid DAI ID: %d\n", dai->id);
-		return -EINVAL;
-	}
-
 	codec->tdm_width = slot_width;
 	codec->tdm_slots = slots;
 
