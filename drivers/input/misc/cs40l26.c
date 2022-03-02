@@ -4139,7 +4139,7 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 {
 	struct device *dev = cs40l26->dev;
 	bool register_irq = false;
-	u32 pseq_rom_end_of_script_offset_words;
+	u32 pseq_rom_end_of_script_loc;
 	int ret;
 
 	if (cs40l26->fw_loaded) {
@@ -4169,20 +4169,16 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 
 	cs40l26->fw_loaded = false;
 
-	/* reset pseq END_OF_SCRIPT to location from ROM */
-	if (cs40l26->revid == CS40L26_REVID_A1) {
-		pseq_rom_end_of_script_offset_words =
-					CS40L26_PSEQ_ROM_OFFSET_WORDS_A1;
-	} else {
+	if (cs40l26->revid != CS40L26_REVID_A1) {
 		dev_err(dev, "pseq unrecognized revid: %d\n", cs40l26->revid);
 		return -EINVAL;
 	}
 
-	ret = regmap_write(cs40l26->regmap,
-				cs40l26->pseq_base +
-				pseq_rom_end_of_script_offset_words *
-				CL_DSP_BYTES_PER_WORD,
-				CS40L26_PSEQ_OP_END << CS40L26_PSEQ_OP_SHIFT);
+	/* reset pseq END_OF_SCRIPT to location from ROM */
+	pseq_rom_end_of_script_loc = CS40L26_PSEQ_ROM_END_OF_SCRIPT;
+
+	ret = cs40l26_dsp_write(cs40l26, pseq_rom_end_of_script_loc,
+			CS40L26_PSEQ_OP_END << CS40L26_PSEQ_OP_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to reset pseq END_OF_SCRIPT %d\n", ret);
 		return ret;
