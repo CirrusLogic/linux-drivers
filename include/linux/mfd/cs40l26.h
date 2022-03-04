@@ -30,6 +30,7 @@
 #include <linux/uaccess.h>
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
+#include <linux/completion.h>
 #include <linux/firmware.h>
 #include <linux/sysfs.h>
 #include <linux/bitops.h>
@@ -813,6 +814,7 @@
 #define CS40L26_DSP_MBOX_COMPLETE_I2S		0x01000002
 #define CS40L26_DSP_MBOX_TRIGGER_CP		0x01000010
 #define CS40L26_DSP_MBOX_TRIGGER_GPIO		0x01000011
+#define CS40L26_DSP_MBOX_TRIGGER_I2S		0x01000012
 #define CS40L26_DSP_MBOX_PM_AWAKE		0x02000002
 #define CS40L26_DSP_MBOX_F0_EST_START		0x07000011
 #define CS40L26_DSP_MBOX_F0_EST_DONE		0x07000021
@@ -856,7 +858,7 @@
 #define CS40L26_FW_ID			0x1800D4
 #define CS40L26_FW_ROM_MIN_REV		0x040000
 #define CS40L26_FW_A0_RAM_MIN_REV	0x050004
-#define CS40L26_FW_A1_RAM_MIN_REV	0x070218
+#define CS40L26_FW_A1_RAM_MIN_REV	0x07021C
 #define CS40L26_FW_CALIB_ID		0x1800DA
 #define CS40L26_FW_CALIB_MIN_REV	0x010000
 #define CS40L26_FW_BRANCH_MASK		GENMASK(23, 21)
@@ -1089,6 +1091,8 @@
 #define CS40L26_ASP_FMT_TDM1_DSPA		0x0
 #define CS40L26_ASP_FMT_I2S			0x2
 #define CS40L26_ASP_FMT_TDM1P5			0x4
+
+#define CS40L26_ASP_START_TIMEOUT		50 /* milliseconds */
 
 #define CS40L26_PLL_REFCLK_BCLK		0x0
 #define CS40L26_PLL_REFCLK_FSYNC		0x1
@@ -1505,6 +1509,7 @@ struct cs40l26_private {
 	bool comp_enable_pend;
 	bool comp_enable_redc;
 	bool comp_enable_f0;
+	struct completion i2s_cont;
 };
 
 struct cs40l26_codec {

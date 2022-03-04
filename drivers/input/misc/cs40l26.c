@@ -709,6 +709,13 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 			break;
 		case CS40L26_DSP_MBOX_COMPLETE_I2S:
 			dev_dbg(dev, "Mailbox: COMPLETE_I2S\n");
+			/* ASP is interrupted */
+			if (cs40l26->asp_enable)
+				complete(&cs40l26->i2s_cont);
+			break;
+		case CS40L26_DSP_MBOX_TRIGGER_I2S:
+			dev_dbg(dev, "Mailbox: TRIGGER_I2S\n");
+			complete(&cs40l26->i2s_cont);
 			break;
 		case CS40L26_DSP_MBOX_TRIGGER_CP:
 			if (!cs40l26->pdata.vibe_state_reporting) {
@@ -785,7 +792,6 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 
 int cs40l26_asp_start(struct cs40l26_private *cs40l26)
 {
-	struct device *dev = cs40l26->dev;
 	bool ack = false;
 	unsigned int val;
 	int ret;
@@ -796,9 +802,12 @@ int cs40l26_asp_start(struct cs40l26_private *cs40l26)
 	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				CS40L26_STOP_PLAYBACK, CS40L26_DSP_MBOX_RESET);
 	if (ret) {
-		dev_err(dev, "Failed to stop playback before I2S start\n");
+		dev_err(cs40l26->dev,
+			"Failed to stop playback before I2S start\n");
 		return ret;
 	}
+
+	reinit_completion(&cs40l26->i2s_cont);
 
 	ret = regmap_write(cs40l26->regmap, CS40L26_DSP_VIRTUAL1_MBOX_1,
 			CS40L26_DSP_MBOX_CMD_START_I2S);
@@ -4532,6 +4541,8 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 
 	cs40l26->pm_ready = false;
 	cs40l26->fw_loaded = false;
+
+	init_completion(&cs40l26->i2s_cont);
 
 	if (cs40l26->fw_mode != CS40L26_FW_MODE_NONE) {
 		ret = cs40l26_fw_upload(cs40l26, CS40L26_FW_ID);
