@@ -1054,10 +1054,13 @@ static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
 		dev_dbg(dev, "Virtual 1 MBOX write occurred\n");
 		break;
 	case CS40L26_IRQ1_VIRTUAL2_MBOX_WR:
-		ret = cs40l26_handle_mbox_buffer(cs40l26);
-		if (ret)
+		ret = regmap_write(cs40l26->regmap, CS40L26_IRQ1_EINT_1, BIT(irq1));
+		if (ret) {
+			dev_err(dev, "Failed to clear Mailbox IRQ\n");
 			goto err;
-		break;
+		}
+
+		return cs40l26_handle_mbox_buffer(cs40l26);
 	default:
 		dev_err(dev, "Unrecognized IRQ1 EINT1 status\n");
 		return -EINVAL;
