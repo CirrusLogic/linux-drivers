@@ -6441,8 +6441,9 @@ static void cs40l2x_vibe_mode_worker(struct work_struct *work)
 		if (ret)
 			goto err_exit;
 
-		ret = regmap_write(regmap, CS40L2X_MBOX_USER_CONTROL,
-					CS40L2X_A2H_I2S_START);
+		ret = cs40l2x_ack_write(cs40l2x, CS40L2X_MBOX_USER_CONTROL,
+					CS40L2X_A2H_I2S_START,
+					CS40L2X_USER_CTRL_SUCCESS);
 		if (ret)
 			goto err_exit;
 
