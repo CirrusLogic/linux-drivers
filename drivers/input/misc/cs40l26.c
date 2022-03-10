@@ -2818,7 +2818,8 @@ static int cs40l26_erase_gpi_mapping(struct cs40l26_private *cs40l26,
 		reg = cs40l26->event_map_base + (i * 4);
 		ret = regmap_read(cs40l26->regmap, reg, &val);
 		if (ret) {
-			dev_err(dev, "Failed to read gpi event reg: %u",  reg);
+			dev_err(dev, "Failed to read gpi event reg: 0x%08X",
+					reg);
 			return ret;
 		}
 		gpi_index = val & 0xFF;
