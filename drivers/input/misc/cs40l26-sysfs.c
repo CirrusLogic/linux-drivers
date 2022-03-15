@@ -69,33 +69,6 @@ static ssize_t halo_heartbeat_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(halo_heartbeat);
 
-static ssize_t fw_mode_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret = 0;
-	unsigned int mode;
-
-	mutex_lock(&cs40l26->lock);
-
-	if (cs40l26->fw_mode != CS40L26_FW_MODE_ROM
-			&& cs40l26->fw_mode != CS40L26_FW_MODE_RAM) {
-		dev_err(cs40l26->dev, "Invalid firmware mode: %u\n",
-				cs40l26->fw_mode);
-		ret = -EINVAL;
-	} else {
-		mode = cs40l26->fw_mode;
-	}
-
-	mutex_unlock(&cs40l26->lock);
-
-	if (ret)
-		return ret;
-
-	return snprintf(buf, PAGE_SIZE, "%u\n", mode);
-}
-static DEVICE_ATTR_RO(fw_mode);
-
 static ssize_t pm_stdby_timeout_ms_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -741,7 +714,6 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_power_on_seq.attr,
 	&dev_attr_dsp_state.attr,
 	&dev_attr_halo_heartbeat.attr,
-	&dev_attr_fw_mode.attr,
 	&dev_attr_pm_stdby_timeout_ms.attr,
 	&dev_attr_pm_active_timeout_ms.attr,
 	&dev_attr_vibe_state.attr,
