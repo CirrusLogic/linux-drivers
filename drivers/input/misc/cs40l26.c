@@ -3080,65 +3080,59 @@ static int cs40l26_cl_dsp_init(struct cs40l26_private *cs40l26, u32 id)
 		return -ENOMEM;
 	}
 
-	if (cs40l26->fw_mode == CS40L26_FW_MODE_ROM) {
-		cs40l26->fw.id = CS40L26_FW_ID;
-		cs40l26->fw.min_rev = CS40L26_FW_ROM_MIN_REV;
-		cs40l26->fw.num_coeff_files = 0;
+	cs40l26->fw.id = id;
+
+	if (id == CS40L26_FW_ID) {
+		cs40l26->fw.min_rev = CS40L26_FW_A1_RAM_MIN_REV;
+		cs40l26->fw.num_coeff_files = CS40L26_TUNING_FILES_RT;
+	} else if (id == CS40L26_FW_CALIB_ID) {
+		cs40l26->fw.min_rev = CS40L26_FW_CALIB_MIN_REV;
+		cs40l26->fw.num_coeff_files = CS40L26_TUNING_FILES_CAL;
 	} else {
-		cs40l26->fw.id = id;
-
-		if (id == CS40L26_FW_ID) {
-			cs40l26->fw.min_rev = CS40L26_FW_A1_RAM_MIN_REV;
-			cs40l26->fw.num_coeff_files = CS40L26_TUNING_FILES_RT;
-		} else if (id == CS40L26_FW_CALIB_ID) {
-			cs40l26->fw.min_rev = CS40L26_FW_CALIB_MIN_REV;
-			cs40l26->fw.num_coeff_files = CS40L26_TUNING_FILES_CAL;
-		} else {
-			dev_err(cs40l26->dev, "Invalid firmware ID 0x%06X\n",
-					id);
-			return -EINVAL;
-		}
-
-		if (!cs40l26->fw.coeff_files)
-			cs40l26->fw.coeff_files = devm_kcalloc(cs40l26->dev,
-				cs40l26->fw.num_coeff_files, sizeof(char *),
-				GFP_KERNEL);
-
-		for (i = 0; i < cs40l26->fw.num_coeff_files; i++) {
-			if (!cs40l26->fw.coeff_files[i]) {
-				cs40l26->fw.coeff_files[i] =
-					devm_kzalloc(cs40l26->dev,
-					CS40L26_TUNING_FILE_NAME_MAX_LEN,
-					GFP_KERNEL);
-			} else {
-				memset(cs40l26->fw.coeff_files[i], 0,
-					CS40L26_TUNING_FILE_NAME_MAX_LEN);
-			}
-		}
-
-		strscpy(cs40l26->fw.coeff_files[0], CS40L26_WT_FILE_NAME,
-				CS40L26_WT_FILE_NAME_LEN);
-
-		if (id == CS40L26_FW_ID) {
-			strscpy(cs40l26->fw.coeff_files[1],
-					CS40L26_A2H_TUNING_FILE_NAME,
-					CS40L26_A2H_TUNING_FILE_NAME_LEN);
-			strscpy(cs40l26->fw.coeff_files[2],
-					CS40L26_SVC_TUNING_FILE_NAME,
-					CS40L26_SVC_TUNING_FILE_NAME_LEN);
-			strscpy(cs40l26->fw.coeff_files[3],
-					CS40L26_DVL_FILE_NAME,
-					CS40L26_DVL_FILE_NAME_LEN);
-		} else {
-			strscpy(cs40l26->fw.coeff_files[1],
-					CS40L26_CALIB_BIN_FILE_NAME,
-					CS40L26_CALIB_BIN_FILE_NAME_LEN);
-		}
-
-		ret = cl_dsp_wavetable_create(cs40l26->dsp,
-				CS40L26_VIBEGEN_ALGO_ID, CS40L26_WT_NAME_XM,
-				CS40L26_WT_NAME_YM, CS40L26_WT_FILE_NAME);
+		dev_err(cs40l26->dev, "Invalid firmware ID 0x%06X\n",
+				id);
+		return -EINVAL;
 	}
+
+	if (!cs40l26->fw.coeff_files)
+		cs40l26->fw.coeff_files = devm_kcalloc(cs40l26->dev,
+			cs40l26->fw.num_coeff_files, sizeof(char *),
+			GFP_KERNEL);
+
+	for (i = 0; i < cs40l26->fw.num_coeff_files; i++) {
+		if (!cs40l26->fw.coeff_files[i]) {
+			cs40l26->fw.coeff_files[i] =
+				devm_kzalloc(cs40l26->dev,
+				CS40L26_TUNING_FILE_NAME_MAX_LEN,
+				GFP_KERNEL);
+		} else {
+			memset(cs40l26->fw.coeff_files[i], 0,
+				CS40L26_TUNING_FILE_NAME_MAX_LEN);
+		}
+	}
+
+	strscpy(cs40l26->fw.coeff_files[0], CS40L26_WT_FILE_NAME,
+			CS40L26_WT_FILE_NAME_LEN);
+
+	if (id == CS40L26_FW_ID) {
+		strscpy(cs40l26->fw.coeff_files[1],
+				CS40L26_A2H_TUNING_FILE_NAME,
+				CS40L26_A2H_TUNING_FILE_NAME_LEN);
+		strscpy(cs40l26->fw.coeff_files[2],
+				CS40L26_SVC_TUNING_FILE_NAME,
+				CS40L26_SVC_TUNING_FILE_NAME_LEN);
+		strscpy(cs40l26->fw.coeff_files[3],
+				CS40L26_DVL_FILE_NAME,
+				CS40L26_DVL_FILE_NAME_LEN);
+	} else {
+		strscpy(cs40l26->fw.coeff_files[1],
+				CS40L26_CALIB_BIN_FILE_NAME,
+				CS40L26_CALIB_BIN_FILE_NAME_LEN);
+	}
+
+	ret = cl_dsp_wavetable_create(cs40l26->dsp,
+			CS40L26_VIBEGEN_ALGO_ID, CS40L26_WT_NAME_XM,
+			CS40L26_WT_NAME_YM, CS40L26_WT_FILE_NAME);
 
 	return ret;
 }
@@ -3798,16 +3792,14 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		return ret;
 	}
 
-	if (cs40l26->fw_mode == CS40L26_FW_MODE_RAM) {
-		ret = cl_dsp_get_reg(cs40l26->dsp, "CALL_RAM_INIT",
-				CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw.id, &reg);
-		if (ret)
-			return ret;
+	ret = cl_dsp_get_reg(cs40l26->dsp, "CALL_RAM_INIT",
+			CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw.id, &reg);
+	if (ret)
+		return ret;
 
-		ret = cs40l26_dsp_write(cs40l26, reg, 1);
-		if (ret)
-			return ret;
-	}
+	ret = cs40l26_dsp_write(cs40l26, reg, 1);
+	if (ret)
+		return ret;
 
 	cs40l26->fw_loaded = true;
 
@@ -4173,8 +4165,8 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 		pm_runtime_put_autosuspend(dev);
 	}
 
-	if (cs40l26->fw_mode == CS40L26_FW_MODE_NONE) {
-		cs40l26->fw_mode = CS40L26_FW_MODE_RAM;
+	if (cs40l26->fw_defer) {
+		cs40l26->fw_defer = false;
 		register_irq = true;
 	} else {
 		disable_irq(cs40l26->irq);
@@ -4337,13 +4329,8 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 		return -ENOENT;
 	}
 
-	if (of_property_read_bool(np, "cirrus,basic-config"))
-		cs40l26->fw_mode = CS40L26_FW_MODE_ROM;
-	else
-		cs40l26->fw_mode = CS40L26_FW_MODE_RAM;
-
 	if (of_property_read_bool(np, "cirrus,fw-defer"))
-		cs40l26->fw_mode = CS40L26_FW_MODE_NONE;
+		cs40l26->fw_defer = true;
 
 	if (of_property_read_bool(np, "cirrus,vibe-state"))
 		cs40l26->pdata.vibe_state_reporting = true;
@@ -4545,7 +4532,7 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 
 	init_completion(&cs40l26->i2s_cont);
 
-	if (cs40l26->fw_mode != CS40L26_FW_MODE_NONE) {
+	if (!cs40l26->fw_defer) {
 		ret = cs40l26_fw_upload(cs40l26, CS40L26_FW_ID);
 		if (ret)
 			goto err;
