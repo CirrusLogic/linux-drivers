@@ -1298,12 +1298,6 @@ enum cs40l26_vibe_state_event {
 	CS40L26_VIBE_STATE_EVENT_ASP_STOP,
 };
 
-enum cs40l26_fw_mode {
-	CS40L26_FW_MODE_ROM,
-	CS40L26_FW_MODE_RAM,
-	CS40L26_FW_MODE_NONE,
-};
-
 enum cs40l26_err_rls {
 	CS40L26_RSRVD_ERR_RLS,/* 0 */
 	CS40L26_AMP_SHORT_ERR_RLS,/* 1 */
@@ -1484,7 +1478,7 @@ struct cs40l26_private {
 	u32 pseq_base;
 	struct list_head pseq_op_head;
 	enum cs40l26_pm_state pm_state;
-	enum cs40l26_fw_mode fw_mode;
+	bool fw_defer;
 	enum cs40l26_vibe_state vibe_state;
 	int num_loaded_coeff_files;
 	struct cs40l26_fw fw;
