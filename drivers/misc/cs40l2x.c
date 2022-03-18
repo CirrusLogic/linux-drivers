@@ -1467,10 +1467,12 @@ static int cs40l2x_pwle_frequency_entry(struct cs40l2x_private *cs40l2x,
 		return ret;
 	}
 
-	if (cs40l2x->ext_freq_min_fw)
+	if (cs40l2x->ext_freq_min_fw) {
 		section->frequency = (val / (1000 / 4));
-	else
+		section->flags |= WT_T12_FLAG_EXT_FREQ;
+	} else {
 		section->frequency = (val / (1000 / 8)) - 400;
+	}
 
 	return ret;
 }
