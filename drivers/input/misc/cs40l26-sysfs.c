@@ -1473,8 +1473,8 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 reg, freq_span, freq_centre, f0_and_q_cal_time_ms, tone_dur_ms;
 	int ret;
-	u32 reg, freq_span, freq_centre, f0_and_q_cal_time_ms;
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
@@ -1484,28 +1484,52 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "FREQ_SPAN",
-			CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_F0_EST_ALGO_ID, &reg);
+	ret = cl_dsp_get_reg(cs40l26->dsp, "TONE_DURATION_MS",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_F0_EST_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
 
-	ret = regmap_read(cs40l26->regmap, reg, &freq_span);
-	if (ret)
+	ret = regmap_read(cs40l26->regmap, reg, &tone_dur_ms);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to get tone duration\n");
 		goto err_mutex;
+	}
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "FREQ_CENTRE",
-			CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_F0_EST_ALGO_ID, &reg);
-	if (ret)
-		goto err_mutex;
+	if (tone_dur_ms == 0) { /* Calculate value */
+		ret = cl_dsp_get_reg(cs40l26->dsp, "FREQ_SPAN",
+				CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_F0_EST_ALGO_ID, &reg);
+		if (ret)
+			goto err_mutex;
 
-	ret = regmap_read(cs40l26->regmap, reg, &freq_centre);
+		ret = regmap_read(cs40l26->regmap, reg, &freq_span);
+		if (ret) {
+			dev_err(cs40l26->dev, "Failed to get FREQ_SPAN\n");
+			goto err_mutex;
+		}
 
-	f0_and_q_cal_time_ms = ((CS40L26_F0_CHIRP_DURATION_FACTOR *
+		ret = cl_dsp_get_reg(cs40l26->dsp, "FREQ_CENTRE",
+				CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_F0_EST_ALGO_ID, &reg);
+		if (ret)
+			goto err_mutex;
+
+		ret = regmap_read(cs40l26->regmap, reg, &freq_centre);
+		if (ret) {
+			dev_err(cs40l26->dev, "Failed to get FREQ_CENTRE\n");
+			goto err_mutex;
+		}
+
+		f0_and_q_cal_time_ms = (CS40L26_F0_CHIRP_DURATION_FACTOR *
 				(freq_span >> CS40L26_F0_EST_FREQ_SHIFT)) /
-				(freq_centre >> CS40L26_F0_EST_FREQ_SHIFT)) +
-				CS40L26_F0_AND_Q_CALIBRATION_BUFFER_MS;
+				(freq_centre >> CS40L26_F0_EST_FREQ_SHIFT);
+	} else if (tone_dur_ms < CS40L26_F0_AND_Q_CALIBRATION_MIN_MS) {
+		f0_and_q_cal_time_ms = CS40L26_F0_AND_Q_CALIBRATION_MIN_MS;
+	} else if (tone_dur_ms > CS40L26_F0_AND_Q_CALIBRATION_MAX_MS) {
+		f0_and_q_cal_time_ms = CS40L26_F0_AND_Q_CALIBRATION_MAX_MS;
+	} else {
+		f0_and_q_cal_time_ms = tone_dur_ms;
+	}
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
