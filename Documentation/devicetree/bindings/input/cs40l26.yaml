@@ -364,6 +364,70 @@ properties:
       (Default) Enabled
     type: boolean
 
+ cirrus,dbc-enable:
+    description:
+      If present, Dynamic Boost Control will be enabled automatically after
+      firmware is loaded.
+      (Default) Disabled
+    type: boolean
+
+  cirrus,dbc-env-rel-coef:
+    description:
+      Envelope release time represented as a scaling coefficient; Q0.23 format.
+      See Cirrus Logic release notes for more information on how to program
+      this parameter. Maximum is 1 second, default is 999.5 ms.
+    $ref: "/schemas/type.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 8388607
+    default: 8384414
+
+  cirrus,dbc-fall-headroom:
+    description:
+      Headroom for falling envelope in Dynamic Boost Control. Value is a ratio
+      of full-scale (12.3 V) and is in Q0.23 format. To program a headroom of x
+      Volts, the following formula is used. (x/12.3) * 2^(23). Maximum is 12.3
+      V, default is 1.1 V.
+    $ref: "/schemas/type.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 8388607
+    default: 750193
+
+  cirrus,dbc-rise-headroom:
+    description:
+      Headroom for rising envelope in Dynamic Boost Control. Value is a ratio
+      of full-scale (12.3 V) and is in Q0.23 format. To program a headroom of x
+      Volts, the following formula is used. (x/12.3) * 2^(23). Maximum is 12.3
+      V, default is 2.1 V.
+    $ref: "/schemas/type.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 8388607
+    default: 1432204
+
+  cirrus,dbc-tx-lvl-hold-off-ms:
+    description:
+      Amount of time that the input signal must be lower than the threshold
+      (TX_LVL_THRESH, programmed via dbc-tx-lvl-thresh-fs). The algorithm
+      registers this as silence. The signal rising back to the threshold will
+      trigger an immediate rise to the max boost level.
+      The value is provided in milliseconds with a maximum of 1 second.
+    $ref: "/schemas/type.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 1000
+    default: 10
+
+  cirrus,dbc-tx-lvl-thresh-fs:
+    description:
+      Full-scale threshold used by the rise edge detector in the Dynamic Boost
+      Control algorithm. When silence is detected and the signal rises above
+      this threshold an immediate rise to the max boost level is triggered.
+      The value must be provided as a percentage of full scale and is in Q0.23
+      format. To program a threshold of x dBFs use the following formula.
+      10^(x/20) * 2^(23). Default value is -80 dBFs.
+    $ref: "/schemas/type.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 8388607
+    default: 839
+
 required:
   - compatible
 
@@ -386,6 +450,13 @@ examples:
       cirrus,vbbr-thld-mv = <300>;
       cirrus,vpbr-enable;
       cirrus,vpbr-thld-mv = <2592>;
+
+      cirrus,dbc-enable;
+      cirrus,dbc-env-rel-coef = <8377777>; // 16 ms
+      cirrus,dbc-fall-headroom = <750000>; // 1.09 V
+      cirrus,dbc-rise-headroom = <1400000>; // 2.05 V
+      cirrus,dbc-tx-lvl-hold-off-ms = <50>; // 50 ms
+      cirrus,dbc-tx-lvl-thresh-fs = <800>; // -80.4 dBFs
 
       cirrus,asp-gain-scale-pct = <30>;
 
