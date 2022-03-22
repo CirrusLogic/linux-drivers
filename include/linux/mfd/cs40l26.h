@@ -1250,6 +1250,7 @@
 #define CS40L26_DBC_FALL_HEADROOM_NAME		"DBC_FALL_HEADROOM"
 #define CS40L26_DBC_TX_LVL_THRESH_FS_NAME	"DBC_TX_LVL_THRESH_FS"
 #define CS40L26_DBC_TX_LVL_HOLD_OFF_MS_NAME	"DBC_TX_LVL_HOLD_OFF_MS"
+#define CS40L26_DBC_USE_DEFAULT		0xFFFFFFFF
 
 /* Errata */
 #define CS40L26_ERRATA_A1_NUM_WRITES		4
@@ -1443,6 +1444,8 @@ struct cs40l26_platform_data {
 	u32 boost_ctl;
 	bool vibe_state_reporting;
 	bool expl_mode_enabled;
+	bool dbc_enable_default;
+	u32 dbc_defaults[CS40L26_DBC_NUM_CONTROLS];
 };
 
 struct cs40l26_owt {
@@ -1530,10 +1533,11 @@ struct cs40l26_pll_sysclk_config {
 };
 
 /* exported function prototypes */
+int cs40l26_dbc_enable(struct cs40l26_private *cs40l26, u32 enable);
 int cs40l26_dbc_get(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc,
 		unsigned int *val);
 int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc,
-		const char *buf);
+		u32 val);
 int cs40l26_asp_start(struct cs40l26_private *cs40l26);
 int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves);
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id);
@@ -1578,7 +1582,6 @@ extern const u32 cs40l26_attn_q21_2_vals[CS40L26_NUM_PCT_MAP_VALUES];
 extern const struct reg_sequence
 		cs40l26_a1_errata[CS40L26_ERRATA_A1_NUM_WRITES];
 extern const char * const cs40l26_dbc_names[CS40L26_DBC_NUM_CONTROLS];
-
 
 /* sysfs */
 extern struct attribute_group cs40l26_dev_attr_group;
