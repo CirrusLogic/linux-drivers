@@ -211,10 +211,10 @@ err_pm:
 EXPORT_SYMBOL(cs40l26_dbc_get);
 
 int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc,
-		const char *buf)
+		u32 val)
 {
 	struct device *dev = cs40l26->dev;
-	unsigned int val, reg, max;
+	unsigned int reg, max;
 	int ret;
 
 	if (dbc == CS40L26_DBC_TX_LVL_HOLD_OFF_MS)
@@ -222,39 +222,19 @@ int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc,
 	else
 		max = CS40L26_DBC_CONTROLS_MAX;
 
-	ret = kstrtou32(buf, 10, &val);
-	if (ret) {
-		dev_err(dev, "Failed to kstrstou32()\n");
-		return ret;
-	}
-
 	if (val > max) {
 		dev_err(dev, "DBC input %u out of bounds\n", val);
 		return -EINVAL;
 	}
 
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		cs40l26_resume_error_handle(dev);
-		return ret;
-	}
-
-	mutex_lock(&cs40l26->lock);
-
 	ret = cl_dsp_get_reg(cs40l26->dsp, cs40l26_dbc_names[dbc],
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
 	if (ret)
-		goto err_pm;
+		return ret;
 
 	ret = regmap_write(cs40l26->regmap, reg, val);
 	if (ret)
 		dev_err(dev, "Failed to write Dynamic Boost Control value\n");
-
-err_pm:
-	mutex_unlock(&cs40l26->lock);
-
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
 
 	return ret;
 }
@@ -3773,6 +3753,51 @@ static int cs40l26_handle_errata(struct cs40l26_private *cs40l26)
 			false, CS40L26_PSEQ_OP_WRITE_FULL);
 }
 
+int cs40l26_dbc_enable(struct cs40l26_private *cs40l26, u32 enable)
+{
+	unsigned int reg;
+	int ret;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_EXT_ALGO_ID, &reg);
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(cs40l26->regmap, reg, CS40L26_DBC_ENABLE_MASK,
+			enable << CS40L26_DBC_ENABLE_SHIFT);
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to %s DBC\n",
+				(enable == 1) ? "enable" : "disable");
+
+	return ret;
+}
+EXPORT_SYMBOL(cs40l26_dbc_enable);
+
+static int cs40l26_handle_dbc_defaults(struct cs40l26_private *cs40l26)
+{
+	unsigned int i;
+	u32 val;
+	int ret;
+
+	for (i = 0; i < CS40L26_DBC_NUM_CONTROLS; i++) {
+		val = cs40l26->pdata.dbc_defaults[i];
+
+		if (val != CS40L26_DBC_USE_DEFAULT) {
+			ret = cs40l26_dbc_set(cs40l26, i, val);
+			if (ret)
+				return ret;
+		}
+	}
+
+	if (cs40l26->pdata.dbc_enable_default) {
+		ret = cs40l26_dbc_enable(cs40l26, 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
@@ -3810,7 +3835,6 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	ret = cs40l26_update_reg_defaults_via_pseq(cs40l26);
 	if (ret)
 		return ret;
-
 
 	ret = cs40l26_handle_errata(cs40l26);
 	if (ret)
@@ -3864,6 +3888,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		return ret;
 
 	ret = cs40l26_bst_ipk_config(cs40l26);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_handle_dbc_defaults(cs40l26);
 	if (ret)
 		return ret;
 
@@ -4450,6 +4478,42 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 	if (!of_property_read_u32(np, "cirrus,q-default", &val))
 		cs40l26->pdata.q_default = val;
 
+	if (of_property_read_bool(np, "cirrus,dbc-enable"))
+		cs40l26->pdata.dbc_enable_default = true;
+	else
+		cs40l26->pdata.dbc_enable_default = false;
+
+	if (!of_property_read_u32(np, "cirrus,dbc-env-rel-coef", &val))
+		cs40l26->pdata.dbc_defaults[CS40L26_DBC_ENV_REL_COEF] = val;
+	else
+		cs40l26->pdata.dbc_defaults[CS40L26_DBC_ENV_REL_COEF] =
+				CS40L26_DBC_USE_DEFAULT;
+
+	if (!of_property_read_u32(np, "cirrus,dbc-fall-headroom", &val))
+		cs40l26->pdata.dbc_defaults[CS40L26_DBC_FALL_HEADROOM] = val;
+	else
+		cs40l26->pdata.dbc_defaults[CS40L26_DBC_FALL_HEADROOM] =
+				CS40L26_DBC_USE_DEFAULT;
+
+	if (!of_property_read_u32(np, "cirrus,dbc-rise-headroom", &val))
+		cs40l26->pdata.dbc_defaults[CS40L26_DBC_RISE_HEADROOM] = val;
+	else
+		cs40l26->pdata.dbc_defaults[CS40L26_DBC_RISE_HEADROOM] =
+				CS40L26_DBC_USE_DEFAULT;
+
+	if (!of_property_read_u32(np, "cirrus,dbc-tx-lvl-hold-off-ms", &val))
+		cs40l26->pdata.dbc_defaults[CS40L26_DBC_TX_LVL_HOLD_OFF_MS] =
+				val;
+	else
+		cs40l26->pdata.dbc_defaults[CS40L26_DBC_TX_LVL_HOLD_OFF_MS] =
+				CS40L26_DBC_USE_DEFAULT;
+
+	if (!of_property_read_u32(np, "cirrus,dbc-tx-lvl-thresh-fs", &val))
+		cs40l26->pdata.dbc_defaults[CS40L26_DBC_TX_LVL_THRESH_FS] = val;
+	else
+		cs40l26->pdata.dbc_defaults[CS40L26_DBC_TX_LVL_THRESH_FS] =
+				CS40L26_DBC_USE_DEFAULT;
+
 	return 0;
 }
 
@@ -4544,7 +4608,6 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 			dev_err(dev, "Failed to request threaded IRQ\n");
 			goto err;
 		}
-
 	}
 
 	ret = cs40l26_input_init(cs40l26);

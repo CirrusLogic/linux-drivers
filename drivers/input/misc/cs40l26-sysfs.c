@@ -819,12 +819,14 @@ static ssize_t dbc_enable_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	unsigned int reg;
 	int ret;
 	u32 val;
 
 	ret = kstrtou32(buf, 10, &val);
-	if (ret || (val != 0 && val != 1))
+	if (ret)
+		return ret;
+
+	if (val > 1)
 		return -EINVAL;
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
@@ -835,17 +837,8 @@ static ssize_t dbc_enable_store(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_EXT_ALGO_ID, &reg);
-	if (ret)
-		goto err_pm;
+	ret = cs40l26_dbc_enable(cs40l26, val);
 
-	ret = regmap_update_bits(cs40l26->regmap, reg, CS40L26_DBC_ENABLE_MASK,
-			val << CS40L26_DBC_ENABLE_SHIFT);
-	if (ret)
-		dev_err(cs40l26->dev, "Failed to update FLAGS\n");
-
-err_pm:
 	mutex_unlock(&cs40l26->lock);
 
 	pm_runtime_mark_last_busy(cs40l26->dev);
@@ -871,12 +864,30 @@ static ssize_t dbc_env_rel_coef_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	struct device *cdev = cs40l26->dev;
+	u32 val;
 	int ret;
 
-	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_ENV_REL_COEF, buf);
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	ret = pm_runtime_get_sync(cdev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cdev);
+		return ret;
+	}
+
+	mutex_lock(&cs40l26->lock);
+
+	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_ENV_REL_COEF, val);
+
+	mutex_unlock(&cs40l26->lock);
+
+	pm_runtime_mark_last_busy(cdev);
+	pm_runtime_put_autosuspend(cdev);
 
 	return ret ? ret : count;
-
 }
 static DEVICE_ATTR_RW(dbc_env_rel_coef);
 
@@ -896,9 +907,28 @@ static ssize_t dbc_rise_headroom_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	struct device *cdev = cs40l26->dev;
+	u32 val;
 	int ret;
 
-	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_RISE_HEADROOM, buf);
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	ret = pm_runtime_get_sync(cdev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cdev);
+		return ret;
+	}
+
+	mutex_lock(&cs40l26->lock);
+
+	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_RISE_HEADROOM, val);
+
+	mutex_unlock(&cs40l26->lock);
+
+	pm_runtime_mark_last_busy(cdev);
+	pm_runtime_put_autosuspend(cdev);
 
 	return ret ? ret : count;
 }
@@ -920,9 +950,28 @@ static ssize_t dbc_fall_headroom_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	struct device *cdev = cs40l26->dev;
+	u32 val;
 	int ret;
 
-	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_FALL_HEADROOM, buf);
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	ret = pm_runtime_get_sync(cdev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cdev);
+		return ret;
+	}
+
+	mutex_lock(&cs40l26->lock);
+
+	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_FALL_HEADROOM, val);
+
+	mutex_unlock(&cs40l26->lock);
+
+	pm_runtime_mark_last_busy(cdev);
+	pm_runtime_put_autosuspend(cdev);
 
 	return ret ? ret : count;
 }
@@ -944,9 +993,28 @@ static ssize_t dbc_tx_lvl_thresh_fs_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	struct device *cdev = cs40l26->dev;
+	u32 val;
 	int ret;
 
-	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_TX_LVL_THRESH_FS, buf);
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	ret = pm_runtime_get_sync(cdev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cdev);
+		return ret;
+	}
+
+	mutex_lock(&cs40l26->lock);
+
+	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_TX_LVL_THRESH_FS, val);
+
+	mutex_unlock(&cs40l26->lock);
+
+	pm_runtime_mark_last_busy(cdev);
+	pm_runtime_put_autosuspend(cdev);
 
 	return ret ? ret : count;
 }
@@ -968,9 +1036,28 @@ static ssize_t dbc_tx_lvl_hold_off_ms_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	struct device *cdev = cs40l26->dev;
+	u32 val;
 	int ret;
 
-	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_TX_LVL_HOLD_OFF_MS, buf);
+	ret = kstrtou32(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	ret = pm_runtime_get_sync(cdev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cdev);
+		return ret;
+	}
+
+	mutex_lock(&cs40l26->lock);
+
+	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_TX_LVL_HOLD_OFF_MS, val);
+
+	mutex_unlock(&cs40l26->lock);
+
+	pm_runtime_mark_last_busy(cdev);
+	pm_runtime_put_autosuspend(cdev);
 
 	return ret ? ret : count;
 }
