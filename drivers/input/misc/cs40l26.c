@@ -2312,7 +2312,7 @@ static int cs40l26_owt_comp_data_size(struct cs40l26_private *cs40l26,
 }
 
 static int cs40l26_refactor_owt(struct cs40l26_private *cs40l26, s16 *in_data,
-		u32 in_data_nibbles, bool pwle, u8 **out_data)
+		u32 in_data_nibbles, bool pwle, bool svc_waveform, u8 **out_data)
 {
 	u8 nsections, global_rep, out_nsections = 0;
 	int ret = 0, pos_byte = 0, in_pos_nib = 2;
@@ -2339,10 +2339,14 @@ static int cs40l26_refactor_owt(struct cs40l26_private *cs40l26, s16 *in_data,
 		out_ch = cl_dsp_memchunk_create((void *) *out_data,
 					out_data_bytes);
 		cl_dsp_memchunk_write(&out_ch, 16,
-					CS40L26_WT_HEADER_DEFAULT_FLAGS);
+					CS40L26_WT_HEADER_DEFAULT_FLAGS |
+					(svc_waveform ? CS40L26_OWT_SVC_METADATA : 0));
 		cl_dsp_memchunk_write(&out_ch, 8, WT_TYPE_V6_PWLE);
-		cl_dsp_memchunk_write(&out_ch, 24, CS40L26_WT_HEADER_OFFSET);
-		cl_dsp_memchunk_write(&out_ch, 24, in_data_bytes / 4);
+		cl_dsp_memchunk_write(&out_ch, 24, CS40L26_WT_HEADER_OFFSET +
+					(svc_waveform ? CS40L26_WT_METADATA_OFFSET : 0));
+		cl_dsp_memchunk_write(&out_ch, 24, (in_data_bytes / 4) -
+					(svc_waveform ? CS40L26_WT_METADATA_OFFSET : 0));
+
 
 		memcpy(*out_data + out_ch.bytes, in_data, in_data_bytes);
 
@@ -2591,7 +2595,7 @@ static void cs40l26_upload_worker(struct work_struct *work)
 	u32 trigger_index, min_index, max_index, nwaves;
 	struct ff_effect *effect;
 	u16 index, bank;
-	bool pwle;
+	bool pwle, svc_waveform;
 
 	if (pm_runtime_get_sync(cdev) < 0)
 		return cs40l26_resume_error_handle(cdev);
@@ -2608,13 +2612,16 @@ static void cs40l26_upload_worker(struct work_struct *work)
 
 	switch (effect->u.periodic.waveform) {
 	case FF_CUSTOM:
-		pwle = (cs40l26->raw_custom_data[0] == 0x0000) ? false : true;
+		pwle = (cs40l26->raw_custom_data[0] ==
+			CS40L26_WT_TYPE10_COMP_BUFFER) ? false : true;
+		svc_waveform = (cs40l26->raw_custom_data[0] ==
+			CS40L26_SVC_ID) ? true : false;
 
 		len = effect->u.periodic.custom_len;
 
 		if (len > CS40L26_CUSTOM_DATA_SIZE) {
 			refactored_size = cs40l26_refactor_owt(cs40l26,
-				cs40l26->raw_custom_data, len, pwle,
+				cs40l26->raw_custom_data, len, pwle, svc_waveform,
 				&refactored_data);
 
 			if (refactored_size <= 0) {
