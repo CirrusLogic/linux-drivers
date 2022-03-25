@@ -108,9 +108,9 @@ struct cs35l43_private {
 	int hibernate_delay_ms;
 	int ultrasonic_mode;
 	int slot_width;
+	int delta_requested;
+	int delta_applied;
 	struct gpio_desc *reset_gpio;
-	struct delayed_work hb_work;
-	struct workqueue_struct *wq;
 	struct mutex hb_lock;
 	struct cs35l43_write_seq power_on_seq;
 };
@@ -123,6 +123,11 @@ bool cs35l43_readable_reg(struct device *dev, unsigned int reg);
 bool cs35l43_precious_reg(struct device *dev, unsigned int reg);
 bool cs35l43_volatile_reg(struct device *dev, unsigned int reg);
 
+/* Power management */
+int cs35l43_suspend_runtime(struct device *dev);
+int cs35l43_resume_runtime(struct device *dev);
+
+extern const struct dev_pm_ops cs35l43_pm_ops;
 extern const struct reg_default cs35l43_reg[1];
 
 #endif /* __CS35L43_H */

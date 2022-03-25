@@ -21,13 +21,13 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
-#include <linux/workqueue.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/regmap.h>
+#include <linux/pm_runtime.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -55,6 +55,7 @@ static const char * const cs35l43_supplies[] = {
 };
 
 static int cs35l43_exit_hibernate(struct cs35l43_private *cs35l43);
+static void cs35l43_pm_runtime_setup(struct cs35l43_private *cs35l43);
 
 static const DECLARE_TLV_DB_RANGE(dig_vol_tlv,
 		0, 0, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
@@ -173,36 +174,27 @@ static int cs35l43_delta_select_get(struct snd_kcontrol *kcontrol,
 	component = snd_soc_kcontrol_component(kcontrol);
 	cs35l43 = snd_soc_component_get_drvdata(component);
 
-	ucontrol->value.integer.value[0] = 0;
+	ucontrol->value.integer.value[0] = cs35l43->delta_applied;
 
 	return 0;
 }
 
-static int cs35l43_delta_select_put(struct snd_kcontrol *kcontrol,
-			   struct snd_ctl_elem_value *ucontrol)
+static int cs35l43_apply_delta_tuning(struct cs35l43_private *cs35l43)
 {
-	struct snd_soc_component *component =
-				 snd_soc_kcontrol_component(kcontrol);
-	struct cs35l43_private *cs35l43 =
-				 snd_soc_component_get_drvdata(component);
 	const struct firmware *firmware;
 	struct wm_adsp *dsp = &cs35l43->dsp;
-	int ret = 0, delta = ucontrol->value.integer.value[0];
+	int ret = 0;
 	const char *fwf_name;
 	char filename[NAME_MAX];
-	bool hibernate = false;
 
-	if (delta == 0)
+	if (!cs35l43->delta_requested ||
+	     cs35l43->delta_applied == cs35l43->delta_requested)
 		return 0;
 
-	if (cs35l43->hibernate_state == CS35L43_HIBERNATE_STANDBY) {
-		hibernate = true;
-		mutex_lock(&cs35l43->hb_lock);
-		ret = cs35l43_exit_hibernate(cs35l43);
-	}
+	dev_dbg(cs35l43->dev, "Applying delta file %d\n", cs35l43->delta_requested);
 
 	fwf_name = dsp->fwf_name;
-	snprintf(filename, NAME_MAX, "delta-%d", delta);
+	snprintf(filename, NAME_MAX, "delta-%d", cs35l43->delta_requested);
 	dsp->fwf_name = filename;
 
 	ret = request_firmware(&firmware, filename, cs35l43->dev);
@@ -216,16 +208,31 @@ static int cs35l43_delta_select_put(struct snd_kcontrol *kcontrol,
 	if (ret)
 		dev_err(cs35l43->dev, "Error applying delta file %s: %d\n",
 				filename, ret);
+	else
+		cs35l43->delta_applied = cs35l43->delta_requested;
+
 err:
 	dsp->fwf_name = fwf_name;
 
-	if (hibernate) {
-		mutex_unlock(&cs35l43->hb_lock);
-		queue_delayed_work(cs35l43->wq, &cs35l43->hb_work,
-				msecs_to_jiffies(cs35l43->hibernate_delay_ms));
-	}
-
 	return ret;
+}
+
+static int cs35l43_delta_select_put(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+				 snd_soc_kcontrol_component(kcontrol);
+	struct cs35l43_private *cs35l43 =
+				 snd_soc_component_get_drvdata(component);
+
+	cs35l43->delta_requested = ucontrol->value.integer.value[0];
+
+	mutex_lock(&cs35l43->hb_lock);
+	if (cs35l43->hibernate_state == CS35L43_HIBERNATE_AWAKE)
+		cs35l43_apply_delta_tuning(cs35l43);
+	mutex_unlock(&cs35l43->hb_lock);
+
+	return 0;
 }
 
 static int cs35l43_ultrasonic_mode_get(struct snd_kcontrol *kcontrol,
@@ -276,6 +283,8 @@ static int cs35l43_ultrasonic_mode_put(struct snd_kcontrol *kcontrol,
 		high_rate_enable = 0;
 		break;
 	}
+
+	pm_runtime_get_sync(cs35l43->dev);
 
 	regmap_update_bits(cs35l43->regmap,
 			CS35L43_DSP1_SAMPLE_RATE_RX1,
@@ -344,6 +353,9 @@ static int cs35l43_ultrasonic_mode_put(struct snd_kcontrol *kcontrol,
 	regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 			CS35L43_MBOX_CMD_AUDIO_REINIT);
 
+	pm_runtime_mark_last_busy(cs35l43->dev);
+	pm_runtime_put_autosuspend(cs35l43->dev);
+
 	return 0;
 }
 
@@ -366,17 +378,13 @@ static int cs35l43_reinit_put(struct snd_kcontrol *kcontrol,
 	cs35l43 = snd_soc_component_get_drvdata(component);
 
 	if (ucontrol->value.integer.value[0]) {
-		mutex_lock(&cs35l43->hb_lock);
-		if (cs35l43->hibernate_state == CS35L43_HIBERNATE_STANDBY) {
-			ret = cs35l43_exit_hibernate(cs35l43);
-			regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
+		pm_runtime_get_sync(cs35l43->dev);
+
+		ret = regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 					CS35L43_MBOX_CMD_AUDIO_REINIT);
-			queue_delayed_work(cs35l43->wq, &cs35l43->hb_work,
-					msecs_to_jiffies(cs35l43->hibernate_delay_ms));
-		} else
-			ret = regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
-					CS35L43_MBOX_CMD_AUDIO_REINIT);
-		mutex_unlock(&cs35l43->hb_lock);
+
+		pm_runtime_mark_last_busy(cs35l43->dev);
+		pm_runtime_put_autosuspend(cs35l43->dev);
 	}
 
 	return ret;
@@ -505,7 +513,7 @@ static int cs35l43_write_seq_add(struct cs35l43_private *cs35l43,
 			if (read)
 				regmap_read(cs35l43->regmap, addr, &update_value);
 
-			dev_info(dev, "%s: Updating register 0x%x with value 0x%x\n",
+			dev_dbg(dev, "%s: Updating register 0x%x with value 0x%x\n",
 					__func__, addr, update_value);
 			cs35l43_write_seq_elem_update(write_seq_elem, update_reg, update_value);
 			memcpy(buf + write_seq_elem->offset, write_seq_elem->words,
@@ -569,7 +577,7 @@ static int cs35l43_write_seq_add(struct cs35l43_private *cs35l43,
 
 	memcpy(&buf[i], op_words, write_seq_elem->size * sizeof(u32));
 
-	dev_info(dev, "%s: Added register 0x%x with value 0x%x\n",
+	dev_dbg(dev, "%s: Added register 0x%x with value 0x%x\n",
 			__func__, update_reg, update_value);
 	for (i = 0; i < write_seq_elem->size; i++)
 		dev_dbg(dev, "elem[%d]: 0x%x\n", i, write_seq_elem->words[i]);
@@ -655,7 +663,7 @@ static int cs35l43_write_seq_update(struct cs35l43_private *cs35l43,
 
 		if (reg_value != value && addr != CS35L43_TEST_KEY_CTRL &&
 					cs35l43_readable_reg(dev, addr)) {
-			dev_info(dev,
+			dev_dbg(dev,
 				"%s: Updating register 0x%x with value 0x%x\t(prev value: 0x%x)\n",
 					__func__, addr, reg_value, value);
 			cs35l43_write_seq_elem_update(write_seq_elem, addr, reg_value);
@@ -790,13 +798,22 @@ static int cs35l43_dsp_preload_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+		if (cs35l43->dsp.cs_dsp.booted)
+			return 0;
+
 		wm_adsp_early_event(w, kcontrol, event);
 		break;
 	case SND_SOC_DAPM_POST_PMU:
+		if (cs35l43->dsp.cs_dsp.running)
+			return 0;
 		regmap_write(cs35l43->regmap, CS35L43_PWRMGT_CTL, CS35L43_MEM_RDY);
 		wm_adsp_event(w, kcontrol, event);
+		cs35l43->delta_applied = 0;
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
+		if (cs35l43->dsp.preloaded)
+			return 0;
+
 		wm_adsp_early_event(w, kcontrol, event);
 		wm_adsp_event(w, kcontrol, event);
 		cs35l43->hibernate_state = CS35L43_HIBERNATE_NOT_LOADED;
@@ -881,6 +898,9 @@ static int cs35l43_enter_hibernate(struct cs35l43_private *cs35l43)
 					CS35L43_MBOX_CMD_HIBERNATE);
 
 	cs35l43->hibernate_state = CS35L43_HIBERNATE_STANDBY;
+	/* Do changes in cache during hibernation */
+	regcache_cache_only(cs35l43->regmap, true);
+
 	return 0;
 }
 
@@ -892,14 +912,22 @@ static int cs35l43_exit_hibernate(struct cs35l43_private *cs35l43)
 
 	dev_info(cs35l43->dev, "%s\n", __func__);
 
+	regcache_cache_only(cs35l43->regmap, false);
 	regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 					CS35L43_MBOX_CMD_WAKEUP);
 	regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 					CS35L43_MBOX_CMD_PREVENT_HIBERNATE);
+	/*
+	 * At this point FW applies register values stored in the sequencer
+	 * Do sync to apply registes values changed in cache during hibernation
+	 */
+	regcache_sync(cs35l43->regmap);
 	regcache_drop_region(cs35l43->regmap, CS35L43_DEVID,
 					CS35L43_MIXER_NGATE_CH2_CFG);
 
 	cs35l43->hibernate_state = CS35L43_HIBERNATE_AWAKE;
+
+	usleep_range(2000, 2100);
 
 	regmap_write(cs35l43->regmap, CS35L43_IRQ1_MASK_1, 0xFFFFFFFF);
 	regmap_update_bits(cs35l43->regmap, CS35L43_IRQ1_MASK_1,
@@ -915,62 +943,52 @@ static int cs35l43_exit_hibernate(struct cs35l43_private *cs35l43)
 	return 0;
 }
 
-static void cs35l43_hibernate_work(struct work_struct *work)
+int cs35l43_suspend_runtime(struct device *dev)
 {
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct cs35l43_private *cs35l43 =
-		container_of(dwork, struct cs35l43_private, hb_work);
+	struct cs35l43_private *cs35l43 = dev_get_drvdata(dev);
+	int i, ret = 0;
 
 	mutex_lock(&cs35l43->hb_lock);
-	cs35l43_enter_hibernate(cs35l43);
-	mutex_unlock(&cs35l43->hb_lock);
-}
 
-static int cs35l43_hibernate(struct snd_soc_dapm_widget *w,
-		struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_component *component =
-		snd_soc_dapm_to_component(w->dapm);
-	struct cs35l43_private *cs35l43 =
-		snd_soc_component_get_drvdata(component);
-	int ret = 0, i;
+	if (cs35l43->hibernate_state == CS35L43_HIBERNATE_NOT_LOADED &&
+						cs35l43->dsp.cs_dsp.running) {
+		cs35l43->power_on_seq.name = "POWER_ON_SEQUENCE";
+		cs35l43->power_on_seq.length = CS35L43_POWER_SEQ_MAX_WORDS;
+		cs35l43_write_seq_init(cs35l43, &cs35l43->power_on_seq);
+		cs35l43_write_seq_update(cs35l43, &cs35l43->power_on_seq);
 
-	if (cs35l43->hibernate_state == CS35L43_HIBERNATE_DISABLED)
-		return 0;
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		break;
-	case SND_SOC_DAPM_POST_PMD:
-		if (cs35l43->hibernate_state == CS35L43_HIBERNATE_NOT_LOADED &&
-				cs35l43->dsp.cs_dsp.running) {
-			cs35l43->power_on_seq.name = "POWER_ON_SEQUENCE";
-			cs35l43->power_on_seq.length = CS35L43_POWER_SEQ_MAX_WORDS;
-			cs35l43_write_seq_init(cs35l43, &cs35l43->power_on_seq);
-			cs35l43_write_seq_update(cs35l43, &cs35l43->power_on_seq);
-
-			for (i = 0; i < ARRAY_SIZE(cs35l43_hibernate_update_regs); i++) {
-				if (cs35l43_hibernate_update_regs[i] == 0)
-					break;
-				cs35l43_write_seq_add(cs35l43, &cs35l43->power_on_seq,
-						cs35l43_hibernate_update_regs[i],
-						0, true);
-			}
-
-			cs35l43->hibernate_state = CS35L43_HIBERNATE_AWAKE;
-			cs35l43->hibernate_delay_ms = 2000;
+		for (i = 0; i < ARRAY_SIZE(cs35l43_hibernate_update_regs); i++) {
+			if (cs35l43_hibernate_update_regs[i] == 0)
+				break;
+			cs35l43_write_seq_add(cs35l43, &cs35l43->power_on_seq,
+					cs35l43_hibernate_update_regs[i],
+					0, true);
 		}
-		if (cs35l43->hibernate_state == CS35L43_HIBERNATE_AWAKE &&
-				cs35l43->dsp.cs_dsp.running)
-			queue_delayed_work(cs35l43->wq, &cs35l43->hb_work,
-				msecs_to_jiffies(cs35l43->hibernate_delay_ms));
-		break;
-	default:
-		dev_err(cs35l43->dev, "Invalid event = 0x%x\n", event);
-		ret = -EINVAL;
+
+		cs35l43->hibernate_state = CS35L43_HIBERNATE_AWAKE;
 	}
+
+	if (cs35l43->dsp.cs_dsp.running)
+		ret = cs35l43_enter_hibernate(cs35l43);
+	mutex_unlock(&cs35l43->hb_lock);
+
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cs35l43_suspend_runtime);
+
+int cs35l43_resume_runtime(struct device *dev)
+{
+	struct cs35l43_private *cs35l43 = dev_get_drvdata(dev);
+	int ret = 0;
+
+	mutex_lock(&cs35l43->hb_lock);
+	if (cs35l43->dsp.cs_dsp.running)
+		ret = cs35l43_exit_hibernate(cs35l43);
+	mutex_unlock(&cs35l43->hb_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cs35l43_resume_runtime);
 
 static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
@@ -985,6 +1003,8 @@ static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		if (cs35l43->dsp.cs_dsp.running)
+			cs35l43_apply_delta_tuning(cs35l43);
 		regmap_write(cs35l43->regmap, CS35L43_GLOBAL_ENABLES, 1);
 		regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 				CS35L43_MBOX_CMD_AUDIO_PLAY);
@@ -1008,9 +1028,6 @@ static const struct snd_soc_dapm_widget cs35l43_dapm_widgets[] = {
 	SND_SOC_DAPM_OUT_DRV_E("Main AMP", SND_SOC_NOPM, 0, 0, NULL, 0,
 			cs35l43_main_amp_event,
 			SND_SOC_DAPM_POST_PMD |	SND_SOC_DAPM_POST_PMU),
-	SND_SOC_DAPM_SUPPLY("Hibernate",  SND_SOC_NOPM, 0, 0,
-			    cs35l43_hibernate,
-			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_OUTPUT("SPK"),
 
 	SND_SOC_DAPM_SPK("DSP1 Preload", NULL),
@@ -1100,7 +1117,6 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 	{"Main AMP", NULL, "Ultrasonic Mode"},
 	{"Main AMP", NULL, "PCM Source"},
 	{"SPK", NULL, "Main AMP"},
-	{"SPK", NULL, "Hibernate"},
 
 	{"ASP TX1 Source", "ASPRX1", "ASPRX1"},
 	{"ASP TX2 Source", "ASPRX1", "ASPRX1"},
@@ -1166,7 +1182,6 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 	{"AMP Capture", NULL, "ASPTX2"},
 	{"AMP Capture", NULL, "ASPTX3"},
 	{"AMP Capture", NULL, "ASPTX4"},
-	{"AMP Capture", NULL, "Hibernate"},
 
 	{"DSP1", NULL, "VMON"},
 	{"DSP1", NULL, "IMON"},
@@ -1197,14 +1212,16 @@ static irqreturn_t cs35l43_irq(int irq, void *data)
 {
 	struct cs35l43_private *cs35l43 = data;
 	unsigned int status, mask;
+	int ret = IRQ_NONE;
 
+	pm_runtime_get_sync(cs35l43->dev);
 
 	regmap_read(cs35l43->regmap, CS35L43_IRQ1_EINT_1, &status);
 	regmap_read(cs35l43->regmap, CS35L43_IRQ1_MASK_1, &mask);
 
 	/* Check to see if unmasked bits are active */
 	if (!(status & ~mask))
-		return IRQ_NONE;
+		goto done;
 
 	/*
 	 * The following interrupts require a
@@ -1307,8 +1324,13 @@ static irqreturn_t cs35l43_irq(int irq, void *data)
 				CS35L43_DSP_VIRTUAL2_MBOX_WR_EINT1_MASK);
 		cs35l43_check_mailbox(cs35l43);
 	}
+	ret = IRQ_HANDLED;
 
-	return IRQ_HANDLED;
+done:
+	pm_runtime_mark_last_busy(cs35l43->dev);
+	pm_runtime_put_autosuspend(cs35l43->dev);
+
+	return ret;
 }
 
 static int cs35l43_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
@@ -1476,13 +1498,6 @@ static int cs35l43_pcm_startup(struct snd_pcm_substream *substream,
 	int ret = 0;
 
 	dev_dbg(cs35l43->dev, "%s\n", __func__);
-	cancel_delayed_work(&cs35l43->hb_work);
-
-	if (cs35l43->hibernate_state == CS35L43_HIBERNATE_STANDBY) {
-		mutex_lock(&cs35l43->hb_lock);
-		ret = cs35l43_exit_hibernate(cs35l43);
-		mutex_unlock(&cs35l43->hb_lock);
-	}
 
 	if (substream->runtime)
 		return snd_pcm_hw_constraint_list(substream->runtime, 0,
@@ -1570,16 +1585,11 @@ int cs35l43_component_write(struct snd_soc_component *component,
 				snd_soc_component_get_drvdata(component);
 	int ret = 0;
 
-	if (cs35l43->hibernate_state == CS35L43_HIBERNATE_STANDBY) {
-		mutex_lock(&cs35l43->hb_lock);
-		ret = cs35l43_exit_hibernate(cs35l43);
-		regmap_write(cs35l43->regmap, reg, val);
-		mutex_unlock(&cs35l43->hb_lock);
-		queue_delayed_work(cs35l43->wq, &cs35l43->hb_work,
-				msecs_to_jiffies(cs35l43->hibernate_delay_ms));
-		return ret;
-	} else
-		return regmap_write(cs35l43->regmap, reg, val);
+	mutex_lock(&cs35l43->hb_lock);
+	ret = regmap_write(cs35l43->regmap, reg, val);
+	mutex_unlock(&cs35l43->hb_lock);
+
+	return ret;
 }
 
 unsigned int cs35l43_component_read(struct snd_soc_component *component,
@@ -1876,6 +1886,7 @@ static int cs35l43_dsp_init(struct cs35l43_private *cs35l43)
 	dsp->cs_dsp.mem = cs35l43_dsp1_regions;
 	dsp->cs_dsp.num_mems = ARRAY_SIZE(cs35l43_dsp1_regions);
 	dsp->cs_dsp.lock_regions = 0xFFFFFFFF;
+	dsp->toggle_preload = true;
 
 	ret = wm_halo_init(dsp);
 	if (ret != 0) {
@@ -2121,28 +2132,32 @@ int cs35l43_probe(struct cs35l43_private *cs35l43,
 				irq_pol, "cs35l43", cs35l43);
 
 	cs35l43->hibernate_state = CS35L43_HIBERNATE_NOT_LOADED;
-	INIT_DELAYED_WORK(&cs35l43->hb_work, cs35l43_hibernate_work);
 	mutex_init(&cs35l43->hb_lock);
 
-	cs35l43->wq = create_singlethread_workqueue("cs35l43");
-	if (cs35l43->wq == NULL) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
 	cs35l43_dsp_init(cs35l43);
+
+	cs35l43_pm_runtime_setup(cs35l43);
 
 	ret = snd_soc_register_component(cs35l43->dev,
 					&soc_component_dev_cs35l43,
 					cs35l43_dai, ARRAY_SIZE(cs35l43_dai));
 	if (ret < 0) {
 		dev_err(cs35l43->dev, "%s: Register codec failed\n", __func__);
-		goto err;
+		goto err_pm;
 	}
+
+	pm_runtime_put_autosuspend(cs35l43->dev);
 
 	dev_info(cs35l43->dev, "Cirrus Logic cs35l43 (%x), Revision: %02X\n",
 			regid, revid);
 
+	return 0;
+
+err_pm:
+	pm_runtime_disable(cs35l43->dev);
+	pm_runtime_put_noidle(cs35l43->dev);
+	wm_adsp2_remove(&cs35l43->dsp);
+	mutex_destroy(&cs35l43->hb_lock);
 err:
 	regulator_bulk_disable(cs35l43->num_supplies, cs35l43->supplies);
 	return ret;
@@ -2150,9 +2165,27 @@ err:
 
 int cs35l43_remove(struct cs35l43_private *cs35l43)
 {
+	pm_runtime_get_sync(cs35l43->dev);
+	pm_runtime_disable(cs35l43->dev);
 	regulator_bulk_disable(cs35l43->num_supplies, cs35l43->supplies);
 	snd_soc_unregister_component(cs35l43->dev);
+	wm_adsp2_remove(&cs35l43->dsp);
+	pm_runtime_put_noidle(cs35l43->dev);
+	mutex_destroy(&cs35l43->hb_lock);
+
 	return 0;
+}
+
+static void cs35l43_pm_runtime_setup(struct cs35l43_private *cs35l43)
+{
+	struct device *dev = cs35l43->dev;
+
+	pm_runtime_set_autosuspend_delay(dev, 3000);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_get_noresume(dev);
+	pm_runtime_enable(dev);
 }
 
 MODULE_DESCRIPTION("ASoC CS35L43 driver");
