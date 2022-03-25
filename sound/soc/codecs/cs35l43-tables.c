@@ -270,7 +270,6 @@ bool cs35l43_precious_reg(struct device *dev, unsigned int reg)
 bool cs35l43_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case CS35L43_DACPCM1_INPUT:
 	case CS35L43_IRQ1_STATUS:
 	case CS35L43_IRQ1_EINT_1:
 	case CS35L43_IRQ1_EINT_2:
@@ -456,4 +455,8 @@ const u8 cs35l43_write_seq_op_sizes[CS35L43_POWER_SEQ_NUM_OPS][2] = {
 		CS35L43_POWER_SEQ_OP_DELAY_WORDS},
 	{	CS35L43_POWER_SEQ_OP_END,
 		CS35L43_POWER_SEQ_OP_END_WORDS},
+};
+
+const struct dev_pm_ops cs35l43_pm_ops = {
+	SET_RUNTIME_PM_OPS(cs35l43_suspend_runtime, cs35l43_resume_runtime, NULL)
 };
