@@ -3516,6 +3516,26 @@ static int cs40l26_bst_dcm_config(struct cs40l26_private *cs40l26)
 	return ret;
 }
 
+static int cs40l26_zero_cross_config(struct cs40l26_private *cs40l26)
+{
+	int ret = 0;
+	u32 reg;
+
+	if (cs40l26->pdata.pwle_zero_cross) {
+		ret = cl_dsp_get_reg(cs40l26->dsp, "PWLE_EXTEND_ZERO_CROSS",
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(cs40l26->regmap, reg, 1);
+		if (ret)
+			dev_err(cs40l26->dev, "Failed to set PWLE_EXTEND_ZERO_CROSS\n");
+
+	}
+
+	return ret;
+}
+
 static int calib_device_tree_config(struct cs40l26_private *cs40l26)
 {
 	int ret = 0;
@@ -3899,6 +3919,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		return ret;
 
 	ret = cs40l26_handle_dbc_defaults(cs40l26);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_zero_cross_config(cs40l26);
 	if (ret)
 		return ret;
 
@@ -4520,6 +4544,11 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 	else
 		cs40l26->pdata.dbc_defaults[CS40L26_DBC_TX_LVL_THRESH_FS] =
 				CS40L26_DBC_USE_DEFAULT;
+
+	if (of_property_read_bool(np, "cirrus,pwle-zero-cross-en"))
+		cs40l26->pdata.pwle_zero_cross = true;
+	else
+		cs40l26->pdata.pwle_zero_cross = false;
 
 	return 0;
 }
