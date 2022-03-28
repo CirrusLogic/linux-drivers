@@ -1450,6 +1450,7 @@ struct cs40l26_platform_data {
 	bool expl_mode_enabled;
 	bool dbc_enable_default;
 	u32 dbc_defaults[CS40L26_DBC_NUM_CONTROLS];
+	bool pwle_zero_cross;
 };
 
 struct cs40l26_owt {
