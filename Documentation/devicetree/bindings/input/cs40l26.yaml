@@ -428,6 +428,13 @@ properties:
     maximum: 8388607
     default: 839
 
+  cirrus,pwle-zero-cross-en:
+    description:
+      Boolean to ensure that PWLE waveforms always end on a zero crossing,
+      extending the length of the waveform if necessary.
+      (Default) Disabled
+    type: boolean
+
 required:
   - compatible
 
