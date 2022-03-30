@@ -132,8 +132,10 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 	if (!dsp)
 		return -EPERM;
 
-	if (list_empty(&dsp->coeff_desc_head))
+	if (list_empty(&dsp->coeff_desc_head)) {
+		dev_err(dsp->dev, "Coefficient list is empty\n");
 		return -ENOENT;
+	}
 
 	list_for_each_entry(coeff_desc, &dsp->coeff_desc_head, list) {
 		if (strncmp(coeff_desc->name, coeff_name,
