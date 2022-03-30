@@ -1305,12 +1305,12 @@ static int cs40l2x_save_packed_pwle_data(struct cs40l2x_private *cs40l2x,
 	char *zero_pad_data;
 	int ret;
 
-	zero_pad_data = kzalloc(CS40L2X_PWLE_BYTES_MAX, GFP_KERNEL);
+	zero_pad_data = kzalloc(CS40L2X_PWLE_STRING_MAX, GFP_KERNEL);
 	if (!zero_pad_data)
 		return -ENOMEM;
 
 	ret = cs40l2x_write_pwle(cs40l2x, zero_pad_data,
-				 CS40L2X_PWLE_BYTES_MAX, pwle);
+				 CS40L2X_PWLE_STRING_MAX, pwle);
 
 	if (ret > (cs40l2x->comp_bytes / CS40L2X_WT_NUM_VIRT_SLOTS)) {
 		dev_err(cs40l2x->dev, "PWLE size exceeds available space\n");
@@ -1518,7 +1518,7 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 	bool a = false, v = false;
 	int ret;
 
-	if (count > CS40L2X_PWLE_BYTES_MAX - 1) {
+	if (count > CS40L2X_PWLE_STRING_MAX - 1) {
 		dev_err(dev, "PWLE string too large\n");
 		return -E2BIG;
 	}
@@ -1747,7 +1747,7 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 
 	pwle->nsections = num_segs;
 
-	ret = strscpy_pad(cs40l2x->pwle_str, buf, CS40L2X_PWLE_BYTES_MAX);
+	ret = strscpy_pad(cs40l2x->pwle_str, buf, CS40L2X_PWLE_STRING_MAX);
 	if (ret == -E2BIG)
 		goto err_exit;
 

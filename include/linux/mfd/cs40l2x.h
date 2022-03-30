@@ -904,6 +904,12 @@
 	CS40L2X_PWLE_MAX_SEGS *\
 	CS40L2X_PWLE_MAX_SEG_BYTES) +\
 	CS40L2X_PWLE_NON_SEG_BYTES)
+#define CS40L2X_PWLE_MAX_SEG_STRING			67
+#define CS40L2X_PWLE_MAX_NON_SEG_STRING		28
+#define CS40L2X_PWLE_STRING_MAX ((\
+	CS40L2X_PWLE_MAX_SEGS *\
+	CS40L2X_PWLE_MAX_SEG_STRING) +\
+	CS40L2X_PWLE_MAX_NON_SEG_STRING)
 #define CS40L2X_PWLE_SEG_LEN_MAX		11
 #define CS40L2X_PWLE_MAX_RP_VAL			255
 #define CS40L2X_PWLE_MAX_WT_VAL			1023
@@ -1060,7 +1066,7 @@ struct cs40l2x_private {
 	bool xm_append;
 	char wt_file[CS40L2X_WT_FILE_NAME_LEN_MAX];
 	char wt_date[CS40L2X_WT_FILE_DATE_LEN_MAX];
-	char pwle_str[CS40L2X_PWLE_BYTES_MAX];
+	char pwle_str[CS40L2X_PWLE_STRING_MAX];
 	bool vibe_init_success;
 	bool vibe_state;
 	bool safe_save_state;
