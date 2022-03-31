@@ -47,7 +47,7 @@ static ssize_t halo_heartbeat_show(struct device *dev,
 	int ret;
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_HEARTBEAT",
-			CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw.id, &reg);
+			CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw_id, &reg);
 	if (ret)
 		return ret;
 
@@ -556,7 +556,7 @@ static ssize_t f0_comp_enable_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	if (cs40l26->fw.id == CS40L26_FW_CALIB_ID) {
+	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
 		ret = -EPERM;
 		goto err_mutex;
 	}
@@ -601,7 +601,7 @@ static ssize_t f0_comp_enable_store(struct device *dev,
 	value = (cs40l26->comp_enable_redc << CS40L26_COMP_EN_REDC_SHIFT) |
 		(cs40l26->comp_enable_f0 << CS40L26_COMP_EN_F0_SHIFT);
 
-	if (cs40l26->fw.id == CS40L26_FW_CALIB_ID) {
+	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
 		ret = -EPERM;
 	} else {
 		ret = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE",
@@ -636,7 +636,7 @@ static ssize_t redc_comp_enable_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	if (cs40l26->fw.id == CS40L26_FW_CALIB_ID) {
+	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
 		ret = -EPERM;
 		goto err_mutex;
 	}
@@ -680,7 +680,7 @@ static ssize_t redc_comp_enable_store(struct device *dev,
 	value = (cs40l26->comp_enable_redc << CS40L26_COMP_EN_REDC_SHIFT) |
 		(cs40l26->comp_enable_f0 << CS40L26_COMP_EN_F0_SHIFT);
 
-	if (cs40l26->fw.id == CS40L26_FW_CALIB_ID) {
+	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
 		ret = -EPERM;
 	} else {
 		ret = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE",
@@ -715,9 +715,9 @@ static ssize_t swap_firmware_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	if (cs40l26->fw.id == CS40L26_FW_ID)
+	if (cs40l26->fw_id == CS40L26_FW_ID)
 		ret = snprintf(buf, PAGE_SIZE, "%d\n", 0);
-	else if (cs40l26->fw.id == CS40L26_FW_CALIB_ID)
+	else if (cs40l26->fw_id == CS40L26_FW_CALIB_ID)
 		ret = snprintf(buf, PAGE_SIZE, "%d\n", 1);
 	else
 		ret = -EINVAL;
@@ -1648,7 +1648,7 @@ static ssize_t redc_cal_time_ms_show(struct device *dev,
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_PLAYTIME_MS",
 			CL_DSP_XM_UNPACKED_TYPE,
-			cs40l26->fw.id, &reg);
+			cs40l26->fw_id, &reg);
 	if (ret)
 		goto err_mutex;
 
@@ -1745,7 +1745,7 @@ static ssize_t logging_en_store(struct device *dev,
 	if (ret)
 		goto exit_mutex;
 
-	if (cs40l26->fw.id == CS40L26_FW_ID) {
+	if (cs40l26->fw_id == CS40L26_FW_ID) {
 		if (src_count != CS40L26_LOGGER_SRC_COUNT) {
 			dev_err(cdev, "Unexpected source count %u\n",
 					src_count);
@@ -1767,7 +1767,7 @@ static ssize_t logging_en_store(struct device *dev,
 			ret = -EINVAL;
 			goto exit_mutex;
 		}
-	} else if (cs40l26->fw.id == CS40L26_FW_CALIB_ID) {
+	} else if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
 		if (src_count != CS40L26_LOGGER_SRC_COUNT_CALIB) {
 			dev_err(cdev, "Unexpected source count %u\n",
 					src_count);
@@ -1795,7 +1795,7 @@ static ssize_t logging_en_store(struct device *dev,
 		}
 	} else {
 		dev_err(cdev, "Invalid firmware ID 0x%06X\n",
-			cs40l26->fw.id);
+			cs40l26->fw_id);
 		goto exit_mutex;
 	}
 
@@ -1858,7 +1858,7 @@ static ssize_t max_bemf_show(struct device *dev, struct device_attribute *attr,
 	u32 reg, max_bemf;
 	int ret;
 
-	if (cs40l26->fw.id != CS40L26_FW_CALIB_ID) {
+	if (cs40l26->fw_id != CS40L26_FW_CALIB_ID) {
 		dev_err(cs40l26->dev, "Calib. FW required for BEMF logging\n");
 		return -EPERM;
 	}
@@ -1896,7 +1896,7 @@ static ssize_t max_vbst_show(struct device *dev, struct device_attribute *attr,
 	u32 reg, max_vbst;
 	int ret;
 
-	if (cs40l26->fw.id != CS40L26_FW_CALIB_ID) {
+	if (cs40l26->fw_id != CS40L26_FW_CALIB_ID) {
 		dev_err(cs40l26->dev, "Calib. FW required for VBST logging\n");
 		return -EPERM;
 	}
@@ -1935,7 +1935,7 @@ static ssize_t max_vmon_show(struct device *dev, struct device_attribute *attr,
 	u8 offset;
 	int ret;
 
-	if (cs40l26->fw.id == CS40L26_FW_CALIB_ID)
+	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID)
 		offset = CS40L26_LOGGER_DATA_3_MAX_OFFSET;
 	else
 		offset = CS40L26_LOGGER_DATA_1_MAX_OFFSET;
