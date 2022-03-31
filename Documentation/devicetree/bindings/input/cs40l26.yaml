@@ -343,17 +343,6 @@ properties:
     maximum: 4880
     default: 100
 
-  cirrus,vibe-state:
-    description:
-      Enable the driver to report the device's state: Active [3], Standby [2],
-      Shutdown [1], Hibernate [0]. This can only be enabled for firmware types
-      which support the "CP_TRIGGER" DSP to host mailbox message.
-
-      If this control is present, vibe_state tracking is enabled and the driver
-      will report the current state via the "vibe_state" sysfs control.
-      (Default) Disabled
-    type: boolean
-
   cirrus,bst-expl-mode-disable:
     description:
       Disable boost exploratory mode if this boolean is present in the
