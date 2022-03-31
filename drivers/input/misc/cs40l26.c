@@ -4380,6 +4380,9 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 	if (of_property_read_bool(np, "cirrus,fw-defer"))
 		cs40l26->fw_defer = true;
 
+	if (of_property_read_bool(np, "cirrus,calib-fw"))
+		cs40l26->calib_fw = true;
+
 	if (of_property_read_bool(np, "cirrus,vibe-state"))
 		cs40l26->pdata.vibe_state_reporting = true;
 	else
