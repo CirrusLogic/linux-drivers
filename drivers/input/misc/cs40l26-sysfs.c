@@ -1560,8 +1560,8 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 reg, freq_span, freq_centre, f0_and_q_cal_time_ms, tone_dur_ms;
-	int ret;
+	u32 reg, tone_dur_ms, freq_span_raw, freq_centre;
+	int ret, freq_span, f0_and_q_cal_time_ms;
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
@@ -1589,11 +1589,16 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev,
 		if (ret)
 			goto err_mutex;
 
-		ret = regmap_read(cs40l26->regmap, reg, &freq_span);
+		ret = regmap_read(cs40l26->regmap, reg, &freq_span_raw);
 		if (ret) {
 			dev_err(cs40l26->dev, "Failed to get FREQ_SPAN\n");
 			goto err_mutex;
 		}
+
+		if (freq_span_raw & CS40L26_F0_FREQ_SPAN_SIGN) /* Negative */
+			freq_span = (int) (0xFF000000 | freq_span_raw);
+		else
+			freq_span = (int) freq_span_raw;
 
 		ret = cl_dsp_get_reg(cs40l26->dsp, "FREQ_CENTRE",
 				CL_DSP_XM_UNPACKED_TYPE,
@@ -1607,9 +1612,10 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev,
 			goto err_mutex;
 		}
 
-		f0_and_q_cal_time_ms = (CS40L26_F0_CHIRP_DURATION_FACTOR *
-				(freq_span >> CS40L26_F0_EST_FREQ_SHIFT)) /
-				(freq_centre >> CS40L26_F0_EST_FREQ_SHIFT);
+		f0_and_q_cal_time_ms =
+			((CS40L26_F0_CHIRP_DURATION_FACTOR *
+			  (int) (freq_span / CS40L26_F0_EST_FREQ_SCALE)) /
+			 (int) (freq_centre / CS40L26_F0_EST_FREQ_SCALE));
 	} else if (tone_dur_ms < CS40L26_F0_AND_Q_CALIBRATION_MIN_MS) {
 		f0_and_q_cal_time_ms = CS40L26_F0_AND_Q_CALIBRATION_MIN_MS;
 	} else if (tone_dur_ms > CS40L26_F0_AND_Q_CALIBRATION_MAX_MS) {
