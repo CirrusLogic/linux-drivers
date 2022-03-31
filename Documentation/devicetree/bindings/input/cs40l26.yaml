@@ -435,6 +435,14 @@ properties:
       (Default) Disabled
     type: boolean
 
+  cirrus,calib-fw:
+    description:
+      Boolean to load calibration firmware ("cs40l26-calib.wmfw")
+      instead of runtime firmware at boot time. Allows user to avoid
+      using the swap_firmware sysfs control to load calibration firmware.
+      (Default) Runtime firmware loaded at boot
+    type: boolean
+
 required:
   - compatible
 
