@@ -829,38 +829,29 @@
 #define CS40L26_FW_FILE_NAME		"cs40l26.wmfw"
 #define CS40L26_FW_CALIB_NAME		"cs40l26-calib.wmfw"
 
-#define CS40L26_TUNING_FILES_MAX	4
-#define CS40L26_TUNING_FILES_RT		4
+#define CS40L26_TUNING_FILES_RUNTIME	4
 #define CS40L26_TUNING_FILES_CAL	2
 
 #define CS40L26_WT_FILE_NAME			"cs40l26.bin"
-#define CS40L26_WT_FILE_NAME_LEN		12
 #define CS40L26_WT_FILE_PREFIX			"cs40l26-wt"
 #define CS40L26_WT_FILE_PREFIX_LEN		11
-#define CS40L26_WT_FILE_CONCAT_NAME_LEN		16
 #define CS40L26_SVC_TUNING_FILE_PREFIX		"cs40l26-svc"
 #define CS40L26_SVC_TUNING_FILE_PREFIX_LEN	12
 #define CS40L26_SVC_TUNING_FILE_NAME		"cs40l26-svc.bin"
-#define CS40L26_SVC_TUNING_FILE_NAME_LEN	17
 #define CS40L26_A2H_TUNING_FILE_NAME		"cs40l26-a2h.bin"
-#define CS40L26_A2H_TUNING_FILE_NAME_LEN	16
 #define CS40L26_TUNING_FILE_NAME_MAX_LEN	20
 #define CS40L26_TUNING_FILE_SUFFIX		".bin"
 #define CS40L26_TUNING_FILE_SUFFIX_LEN		4
 #define CS40L26_DVL_FILE_NAME			"cs40l26-dvl.bin"
-#define CS40L26_DVL_FILE_NAME_LEN		16
 #define CS40L26_CALIB_BIN_FILE_NAME		"cs40l26-calib.bin"
-#define CS40L26_CALIB_BIN_FILE_NAME_LEN		18
 
 #define CS40L26_SVC_LE_MAX_ATTEMPTS	2
 #define CS40L26_SVC_DT_PREFIX		"svc-le"
 
 #define CS40L26_FW_ID			0x1800D4
-#define CS40L26_FW_ROM_MIN_REV		0x040000
-#define CS40L26_FW_A0_RAM_MIN_REV	0x050004
 #define CS40L26_FW_A1_RAM_MIN_REV	0x07021C
 #define CS40L26_FW_CALIB_ID		0x1800DA
-#define CS40L26_FW_CALIB_MIN_REV	0x010000
+#define CS40L26_FW_CALIB_MIN_REV	0x010014
 #define CS40L26_FW_BRANCH_MASK		GENMASK(23, 21)
 
 #define CS40L26_CCM_CORE_RESET		0x00000200
@@ -1390,13 +1381,6 @@ enum cs40l26_pm_state {
 };
 
 /* structs */
-struct cs40l26_fw {
-	unsigned int id;
-	unsigned int rev;
-	unsigned int min_rev;
-	unsigned int num_coeff_files;
-	char **coeff_files;
-};
 
 struct cs40l26_owt_section {
 	u8 flags;
@@ -1487,11 +1471,11 @@ struct cs40l26_private {
 	u32 pseq_base;
 	struct list_head pseq_op_head;
 	enum cs40l26_pm_state pm_state;
+	u32 fw_id;
 	bool fw_defer;
-	enum cs40l26_vibe_state vibe_state;
-	int num_loaded_coeff_files;
-	struct cs40l26_fw fw;
 	bool fw_loaded;
+	bool calib_fw;
+	enum cs40l26_vibe_state vibe_state;
 	bool pm_ready;
 	bool asp_enable;
 	u8 last_wksrc_pol;
