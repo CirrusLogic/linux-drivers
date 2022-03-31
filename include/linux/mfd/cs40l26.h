@@ -1430,7 +1430,6 @@ struct cs40l26_platform_data {
 	u32 redc_default;
 	u32 q_default;
 	u32 boost_ctl;
-	bool vibe_state_reporting;
 	bool expl_mode_enabled;
 	bool dbc_enable_default;
 	u32 dbc_defaults[CS40L26_DBC_NUM_CONTROLS];
@@ -1476,6 +1475,7 @@ struct cs40l26_private {
 	bool fw_loaded;
 	bool calib_fw;
 	enum cs40l26_vibe_state vibe_state;
+	bool vibe_state_reporting;
 	bool pm_ready;
 	bool asp_enable;
 	u8 last_wksrc_pol;
