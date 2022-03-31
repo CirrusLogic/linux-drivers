@@ -698,8 +698,8 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 			complete(&cs40l26->i2s_cont);
 			break;
 		case CS40L26_DSP_MBOX_TRIGGER_CP:
-			if (!cs40l26->pdata.vibe_state_reporting) {
-				dev_err(dev, "cirrus,vibe-state not in DT\n");
+			if (!cs40l26->vibe_state_reporting) {
+				dev_err(dev, "vibe_state not supported\n");
 				return -EPERM;
 			}
 
@@ -1868,7 +1868,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		goto err_mutex;
 	}
 
-	if (!cs40l26->pdata.vibe_state_reporting)
+	if (!cs40l26->vibe_state_reporting)
 		cs40l26_vibe_state_update(cs40l26,
 				CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK);
 err_mutex:
@@ -1890,7 +1890,8 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 
 	mutex_lock(&cs40l26->lock);
 
-	if (cs40l26->vibe_state != CS40L26_VIBE_STATE_HAPTIC)
+	if (cs40l26->vibe_state != CS40L26_VIBE_STATE_HAPTIC &&
+		!cs40l26->vibe_state_reporting)
 		goto mutex_exit;
 
 	/* wait for SVC init phase to complete */
@@ -4104,6 +4105,12 @@ static int cs40l26_get_fw_params(struct cs40l26_private *cs40l26)
 		return -EINVAL;
 	}
 
+	if ((rev & CS40L26_FW_BRANCH_MASK) ==
+			(CS40L26_FW_A1_RAM_MIN_REV & CS40L26_FW_BRANCH_MASK))
+		cs40l26->vibe_state_reporting = true;
+	else
+		cs40l26->vibe_state_reporting = false;
+
 	cs40l26->fw_id = id;
 
 	dev_info(cs40l26->dev, "Firmware revision %d.%d.%d\n", maj, min, patch);
@@ -4382,11 +4389,6 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 
 	if (of_property_read_bool(np, "cirrus,calib-fw"))
 		cs40l26->calib_fw = true;
-
-	if (of_property_read_bool(np, "cirrus,vibe-state"))
-		cs40l26->pdata.vibe_state_reporting = true;
-	else
-		cs40l26->pdata.vibe_state_reporting = false;
 
 	if (of_property_read_bool(np, "cirrus,bst-expl-mode-disable"))
 		cs40l26->pdata.expl_mode_enabled = false;
