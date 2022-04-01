@@ -1542,7 +1542,7 @@ static int cs35l43_pcm_startup(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static int cs35l41_get_fs_mon_config_index(int freq)
+static int cs35l43_get_fs_mon_config_index(int freq)
 {
 	int i;
 
@@ -1573,7 +1573,7 @@ static int cs35l43_component_set_sysclk(struct snd_soc_component *component,
 
 	if (freq <= 6000000) {
 		/* Use the lookup table */
-		fsIndex = cs35l41_get_fs_mon_config_index(freq);
+		fsIndex = cs35l43_get_fs_mon_config_index(freq);
 		if (fsIndex < 0) {
 			dev_err(cs35l43->dev, "Invalid CLK Config freq: %u\n", freq);
 			return -EINVAL;
