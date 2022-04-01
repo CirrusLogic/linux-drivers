@@ -990,6 +990,30 @@ int cs35l43_resume_runtime(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(cs35l43_resume_runtime);
 
+static int cs35l43_hibernate_dapm(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component =
+		snd_soc_dapm_to_component(w->dapm);
+	struct cs35l43_private *cs35l43 =
+		snd_soc_component_get_drvdata(component);
+	int ret = 0;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		if (pm_runtime_suspended(cs35l43->dev)) {
+			dev_info(cs35l43->dev, "resume from hibernate dapm\n");
+			pm_runtime_resume(cs35l43->dev);
+		}
+		break;
+
+	default:
+		dev_err(cs35l43->dev, "Invalid event = 0x%x\n", event);
+		ret = -EINVAL;
+	}
+	return ret;
+}
+
 static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
@@ -1028,6 +1052,8 @@ static const struct snd_soc_dapm_widget cs35l43_dapm_widgets[] = {
 	SND_SOC_DAPM_OUT_DRV_E("Main AMP", SND_SOC_NOPM, 0, 0, NULL, 0,
 			cs35l43_main_amp_event,
 			SND_SOC_DAPM_POST_PMD |	SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_SUPPLY("Hibernate",  SND_SOC_NOPM, 0, 0,
+			    cs35l43_hibernate_dapm, SND_SOC_DAPM_PRE_PMU),
 	SND_SOC_DAPM_OUTPUT("SPK"),
 
 	SND_SOC_DAPM_SPK("DSP1 Preload", NULL),
@@ -1117,6 +1143,7 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 	{"Main AMP", NULL, "Ultrasonic Mode"},
 	{"Main AMP", NULL, "PCM Source"},
 	{"SPK", NULL, "Main AMP"},
+	{"SPK", NULL, "Hibernate"},
 
 	{"ASP TX1 Source", "ASPRX1", "ASPRX1"},
 	{"ASP TX2 Source", "ASPRX1", "ASPRX1"},
@@ -1182,6 +1209,7 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 	{"AMP Capture", NULL, "ASPTX2"},
 	{"AMP Capture", NULL, "ASPTX3"},
 	{"AMP Capture", NULL, "ASPTX4"},
+	{"AMP Capture", NULL, "Hibernate"},
 
 	{"DSP1", NULL, "VMON"},
 	{"DSP1", NULL, "IMON"},
