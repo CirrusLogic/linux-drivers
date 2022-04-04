@@ -221,6 +221,7 @@
 /* Diagnostic Signal Generator			*/
 /************************************************/
 #define CS35L43_DAC_MSM_CONFIG			0x0007400
+#define CS35L43_TST_DAC_MSM_CONFIG		0x0007404
 #define CS35L43_ALIVE_DCIN_WD			0x0007424
 
 /************************************************/
