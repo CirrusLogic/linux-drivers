@@ -157,6 +157,7 @@ bool cs35l43_readable_reg(struct device *dev, unsigned int reg)
 	case CS35L43_NG_CONFIG:
 	case CS35L43_AMP_GAIN:
 	case CS35L43_DAC_MSM_CONFIG:
+	case CS35L43_TST_DAC_MSM_CONFIG:
 	case CS35L43_ALIVE_DCIN_WD:
 	case CS35L43_IRQ1_CFG:
 	case CS35L43_IRQ1_STATUS:
@@ -367,7 +368,7 @@ const unsigned int cs35l43_hibernate_update_regs[CS35L43_POWER_SEQ_LENGTH] = {
 	CS35L43_MIXER_NGATE_CH2_CFG,
 	CS35L43_IRQ1_MASK_1,
 	CS35L43_FS_MON_0,
-	0x7404,
+	CS35L43_TST_DAC_MSM_CONFIG,
 };
 
 const struct cs35l43_pll_sysclk_config cs35l43_pll_sysclk[64] = {
