@@ -275,7 +275,7 @@ properties:
   cirrus,redc-default:
     description:
       Default LRA series resistance (ReDC), expressed as follows
-      cirrus,redc-default = ReDC (ohms) / 5.857 * 2^17.
+      cirrus,redc-default = ReDC (ohms) * 2^15.
       This value represents the unit-specific ReDC input to the click compensation
       algorithm. It can be overwritten at a later time by writing to the redc_stored
       sysfs control.
