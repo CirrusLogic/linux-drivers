@@ -197,7 +197,7 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 	struct device *dev = cs40l26->dev;
 	u32 asp_en_mask = CS40L26_ASP_TX1_EN_MASK | CS40L26_ASP_TX2_EN_MASK |
 			CS40L26_ASP_RX1_EN_MASK | CS40L26_ASP_RX2_EN_MASK;
-	u32 asp_enables, reg;
+	u32 asp_enables;
 	u8 data_src;
 	int ret;
 
@@ -233,30 +233,6 @@ static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 				asp_en_mask, asp_enables);
 		if (ret) {
 			dev_err(dev, "Failed to enable ASP channels\n");
-			goto err_mutex;
-		}
-
-		ret = cl_dsp_get_reg(cs40l26->dsp, "FLAGS",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
-		if (ret)
-			goto err_mutex;
-
-		ret = regmap_update_bits(regmap, reg,
-				CS40L26_SVC_FOR_STREAMING_MASK,
-				codec->svc_for_streaming_data);
-		if (ret) {
-			dev_err(dev, "Failed to specify SVC for streaming\n");
-			goto err_mutex;
-		}
-
-		ret = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_INVERT",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
-		if (ret)
-			goto err_mutex;
-
-		ret = regmap_write(regmap, reg, codec->invert_streaming_data);
-		if (ret) {
-			dev_err(dev, "Failed to specify SVC for streaming\n");
 			goto err_mutex;
 		}
 
@@ -373,17 +349,31 @@ static int cs40l26_svc_for_streaming_data_get(struct snd_kcontrol *kcontrol,
 	struct cs40l26_codec *codec =
 	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
+	struct regmap *regmap = cs40l26->regmap;
+	unsigned int val = 0, reg;
+	int ret = 0;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "FLAGS",
+		CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+	if (ret)
+		return ret;
 
 	mutex_lock(&cs40l26->lock);
 
-	if (codec->svc_for_streaming_data)
+	ret = regmap_read(regmap, reg, &val);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to read FLAGS\n");
+		return ret;
+	}
+
+	if (val & CS40L26_SVC_FOR_STREAMING_MASK)
 		ucontrol->value.enumerated.item[0] = 1;
 	else
 		ucontrol->value.enumerated.item[0] = 0;
 
 	mutex_unlock(&cs40l26->lock);
 
-	return 0;
+	return ret;
 }
 static int cs40l26_svc_for_streaming_data_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
@@ -391,17 +381,26 @@ static int cs40l26_svc_for_streaming_data_put(struct snd_kcontrol *kcontrol,
 	struct cs40l26_codec *codec =
 	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
+	struct regmap *regmap = cs40l26->regmap;
+	int ret = 0;
+	unsigned int reg;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "FLAGS",
+		CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+	if (ret)
+		return ret;
 
 	mutex_lock(&cs40l26->lock);
 
-	if (ucontrol->value.enumerated.item[0])
-		codec->svc_for_streaming_data = true;
-	else
-		codec->svc_for_streaming_data = false;
+	ret = regmap_update_bits(regmap, reg,
+			CS40L26_SVC_FOR_STREAMING_MASK,
+			ucontrol->value.enumerated.item[0]);
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to specify SVC for streaming\n");
 
 	mutex_unlock(&cs40l26->lock);
 
-	return 0;
+	return ret;
 }
 
 static int cs40l26_invert_streaming_data_get(struct snd_kcontrol *kcontrol,
@@ -410,17 +409,31 @@ static int cs40l26_invert_streaming_data_get(struct snd_kcontrol *kcontrol,
 	struct cs40l26_codec *codec =
 	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
+	struct regmap *regmap = cs40l26->regmap;
+	unsigned int val = 0, reg;
+	int ret = 0;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_INVERT",
+		CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+	if (ret)
+		return ret;
 
 	mutex_lock(&cs40l26->lock);
 
-	if (codec->invert_streaming_data)
+	ret = regmap_read(regmap, reg, &val);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to read SOURCE_INVERT\n");
+		return ret;
+	}
+
+	if (val)
 		ucontrol->value.enumerated.item[0] = 1;
 	else
 		ucontrol->value.enumerated.item[0] = 0;
 
 	mutex_unlock(&cs40l26->lock);
 
-	return 0;
+	return ret;
 }
 
 static int cs40l26_invert_streaming_data_put(struct snd_kcontrol *kcontrol,
@@ -429,17 +442,24 @@ static int cs40l26_invert_streaming_data_put(struct snd_kcontrol *kcontrol,
 	struct cs40l26_codec *codec =
 	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
+	struct regmap *regmap = cs40l26->regmap;
+	int ret = 0;
+	unsigned int reg;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_INVERT",
+		CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+	if (ret)
+		return ret;
 
 	mutex_lock(&cs40l26->lock);
 
-	if (ucontrol->value.enumerated.item[0])
-		codec->invert_streaming_data = true;
-	else
-		codec->invert_streaming_data = false;
+	ret = regmap_write(regmap, reg, ucontrol->value.enumerated.item[0]);
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to specify invert streaming data\n");
 
 	mutex_unlock(&cs40l26->lock);
 
-	return 0;
+	return ret;
 }
 
 static int cs40l26_tuning_get(struct snd_kcontrol *kcontrol,
