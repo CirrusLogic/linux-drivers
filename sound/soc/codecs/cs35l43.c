@@ -885,10 +885,19 @@ static int cs35l43_check_mailbox(struct cs35l43_private *cs35l43)
 
 static int cs35l43_enter_hibernate(struct cs35l43_private *cs35l43)
 {
+	unsigned int pm_state, audio_state;
+
 	if (cs35l43->hibernate_state != CS35L43_HIBERNATE_AWAKE)
 		return 0;
 
 	dev_info(cs35l43->dev, "%s\n", __func__);
+
+	wm_adsp_read_ctl(&cs35l43->dsp, "PM_CUR_STATE",
+		WMFW_ADSP2_XM, CS35L43_ALG_ID_PM, &pm_state, sizeof(u32));
+	wm_adsp_read_ctl(&cs35l43->dsp, "AUDIO_STATE",
+		WMFW_ADSP2_XM, 0x5f212, &pm_state, sizeof(u32));
+
+	dev_dbg(cs35l43->dev, "PM_STATE: 0x%x\tAUDIO_STATE: 0x%x\n", pm_state, audio_state);
 
 	cs35l43_write_seq_update(cs35l43, &cs35l43->power_on_seq);
 
