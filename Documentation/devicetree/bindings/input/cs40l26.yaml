@@ -331,7 +331,7 @@ properties:
       mode to standby mode.
     $ref: "/schemas/type.yaml#/definitions/uint32"
     minimum: 100
-    maximum: 4880
+    maximum: 10000
     default: 250
 
   cirrus,pm-stdby-timeout-ms:
@@ -340,7 +340,7 @@ properties:
       mode to hibernate mode.
     $ref: "/schemas/type.yaml#/definitions/uint32"
     minimum: 100
-    maximum: 4880
+    maximum: 10000
     default: 100
 
   cirrus,bst-expl-mode-disable:
