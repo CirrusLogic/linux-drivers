@@ -1110,28 +1110,28 @@ static int cs35l45_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
 	struct cs35l45_private *cs35l45 =
 			snd_soc_component_get_drvdata(codec_dai->component);
-	unsigned int asp_fmt, fsync_inv, bclk_inv, master_mode;
+	unsigned int asp_fmt, fsync_inv, bclk_inv, clock_mode;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-		master_mode = 1;
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
+		clock_mode = 1;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
-		master_mode = 0;
+	case SND_SOC_DAIFMT_CBC_CFC:
+		clock_mode = 0;
 		break;
 	default:
-		dev_warn(cs35l45->dev, "Mixed master mode unsupported (%d)\n",
-			 fmt & SND_SOC_DAIFMT_MASTER_MASK);
+		dev_warn(cs35l45->dev, "Mixed clock provider/consumer mode unsupported (%d)\n",
+			 fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK);
 		return -EINVAL;
 	}
 
 	regmap_update_bits(cs35l45->regmap, CS35L45_ASP_CONTROL2,
 			   CS35L45_ASP_BCLK_MSTR_MASK,
-			   master_mode << CS35L45_ASP_BCLK_MSTR_SHIFT);
+			   clock_mode << CS35L45_ASP_BCLK_MSTR_SHIFT);
 
 	regmap_update_bits(cs35l45->regmap, CS35L45_ASP_CONTROL2,
 			   CS35L45_ASP_FSYNC_MSTR_MASK,
-			   master_mode << CS35L45_ASP_FSYNC_MSTR_SHIFT);
+			   clock_mode << CS35L45_ASP_FSYNC_MSTR_SHIFT);
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
