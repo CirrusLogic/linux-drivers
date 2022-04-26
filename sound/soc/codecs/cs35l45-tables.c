@@ -762,3 +762,4 @@ const struct of_entry classh_map[CLASSH_PARAMS] = {
 const struct dev_pm_ops cs35l45_pm_ops = {
 	SET_RUNTIME_PM_OPS(cs35l45_suspend_runtime, cs35l45_resume_runtime, NULL)
 };
+EXPORT_SYMBOL_GPL(cs35l45_pm_ops);
