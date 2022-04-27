@@ -1415,14 +1415,14 @@ struct cs40l26_svc_le {
 
 struct cs40l26_platform_data {
 	bool vbbr_en;
-	u32 vbbr_thld;
+	u32 vbbr_thld_mv;
 	u32 vbbr_max_att;
 	u32 vbbr_atk_step;
 	u32 vbbr_atk_rate;
 	u32 vbbr_wait;
 	u32 vbbr_rel_rate;
 	bool vpbr_en;
-	u32 vpbr_thld;
+	u32 vpbr_thld_mv;
 	u32 vpbr_max_att;
 	u32 vpbr_atk_step;
 	u32 vpbr_atk_rate;
@@ -1504,6 +1504,7 @@ struct cs40l26_private {
 	bool comp_enable_redc;
 	bool comp_enable_f0;
 	struct completion i2s_cont;
+	u8 vpbr_thld;
 };
 
 struct cs40l26_codec {
@@ -1565,6 +1566,8 @@ int cs40l26_remove(struct cs40l26_private *cs40l26);
 bool cs40l26_precious_reg(struct device *dev, unsigned int ret);
 bool cs40l26_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l26_volatile_reg(struct device *dev, unsigned int reg);
+int cs40l26_pseq_write(struct cs40l26_private *cs40l26, u32 addr,
+	u32 data, bool update, u8 op_code);
 
 /* external tables */
 extern const struct of_device_id cs40l26_of_match[CS40L26_NUM_DEVS + 1];
