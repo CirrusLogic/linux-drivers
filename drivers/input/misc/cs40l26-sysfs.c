@@ -750,6 +750,89 @@ static ssize_t swap_firmware_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(swap_firmware);
 
+static ssize_t vpbr_thld_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+
+	mutex_lock(&cs40l26->lock);
+
+	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->vpbr_thld);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	return ret;
+}
+
+static ssize_t vpbr_thld_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	struct regmap *regmap = cs40l26->regmap;
+	int ret;
+	u8 sysfs_val;
+	u32 vpbr_config_reg_val;
+
+	ret = kstrtou8(buf, 10, &sysfs_val);
+	if (ret ||
+		sysfs_val > CS40L26_VPBR_THLD_MAX ||
+		sysfs_val < CS40L26_VPBR_THLD_MIN)
+		return -EINVAL;
+
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(cs40l26->dev);
+		return ret;
+	}
+	mutex_lock(&cs40l26->lock);
+
+	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
+		ret = -EPERM;
+		goto err_mutex;
+	}
+
+	cs40l26->vpbr_thld = sysfs_val;
+
+	ret = regmap_read(regmap, CS40L26_VPBR_CONFIG, &vpbr_config_reg_val);
+	if (ret) {
+		dev_err(dev, "Failed to read VPBR_CONFIG reg\n");
+		goto err_mutex;
+	}
+
+	vpbr_config_reg_val &= ~CS40L26_VPBR_THLD_MASK;
+	vpbr_config_reg_val |= (cs40l26->vpbr_thld & CS40L26_VPBR_THLD_MASK);
+
+	ret = regmap_write(regmap, CS40L26_VPBR_CONFIG, vpbr_config_reg_val);
+	if (ret) {
+		dev_err(dev, "Failed to write VPBR config.\n");
+		goto err_mutex;
+	}
+
+	ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG,
+		vpbr_config_reg_val, true, CS40L26_PSEQ_OP_WRITE_FULL);
+	if (ret) {
+		dev_err(dev, "Failed to update VPBR config PSEQ\n");
+		goto err_mutex;
+	}
+
+	ret = count;
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	return ret;
+}
+static DEVICE_ATTR_RW(vpbr_thld);
+
 static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_num_waves.attr,
 	&dev_attr_die_temp.attr,
@@ -766,6 +849,7 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_f0_comp_enable.attr,
 	&dev_attr_redc_comp_enable.attr,
 	&dev_attr_swap_firmware.attr,
+	&dev_attr_vpbr_thld.attr,
 	NULL,
 };
 
