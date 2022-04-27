@@ -1343,7 +1343,7 @@ static int cs40l26_pseq_find_end(struct cs40l26_private *cs40l26,
 	return 0;
 }
 
-static int cs40l26_pseq_write(struct cs40l26_private *cs40l26, u32 addr,
+int cs40l26_pseq_write(struct cs40l26_private *cs40l26, u32 addr,
 		u32 data, bool update, u8 op_code)
 {
 	struct device *dev = cs40l26->dev;
@@ -1469,6 +1469,7 @@ op_words_free:
 
 	return ret;
 }
+EXPORT_SYMBOL(cs40l26_pseq_write);
 
 static int cs40l26_pseq_multi_write(struct cs40l26_private *cs40l26,
 		const struct reg_sequence *reg_seq, int num_regs, bool update,
@@ -3179,15 +3180,15 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 			return ret;
 		}
 
-		if (cs40l26->pdata.vbbr_thld) {
-			if (cs40l26->pdata.vbbr_thld
+		if (cs40l26->pdata.vbbr_thld_mv) {
+			if (cs40l26->pdata.vbbr_thld_mv
 					>= CS40L26_VBBR_THLD_MV_MAX)
 				vbbr_thld = CS40L26_VBBR_THLD_MAX;
-			else if (cs40l26->pdata.vbbr_thld
+			else if (cs40l26->pdata.vbbr_thld_mv
 					<= CS40L26_VBBR_THLD_MV_MIN)
 				vbbr_thld = CS40L26_VBBR_THLD_MIN;
 			else
-				vbbr_thld = cs40l26->pdata.vbbr_thld /
+				vbbr_thld = cs40l26->pdata.vbbr_thld_mv /
 					CS40L26_VBBR_THLD_MV_STEP;
 
 			val &= ~CS40L26_VBBR_THLD_MASK;
@@ -3279,17 +3280,20 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 		pseq_mask |= BIT(CS40L26_IRQ2_VPBR_ATT_CLR) |
 				BIT(CS40L26_IRQ2_VPBR_FLAG);
 
-		if (cs40l26->pdata.vpbr_thld) {
-			if (cs40l26->pdata.vpbr_thld
-					>= CS40L26_VPBR_THLD_MV_MAX)
+		if (cs40l26->pdata.vpbr_thld_mv) {
+			if (cs40l26->pdata.vpbr_thld_mv
+					>= CS40L26_VPBR_THLD_MV_MAX) {
 				vpbr_thld = CS40L26_VPBR_THLD_MAX;
-			else if (cs40l26->pdata.vpbr_thld
-					<= CS40L26_VPBR_THLD_MV_MIN)
+			} else if (cs40l26->pdata.vpbr_thld_mv
+					<= CS40L26_VPBR_THLD_MV_MIN) {
 				vpbr_thld = CS40L26_VPBR_THLD_MIN;
-			else
-				vpbr_thld = (cs40l26->pdata.vpbr_thld /
+			} else {
+				vpbr_thld = (cs40l26->pdata.vpbr_thld_mv /
 						CS40L26_VPBR_THLD_MV_DIV)
 						- CS40L26_VPBR_THLD_OFFSET;
+			}
+
+			cs40l26->vpbr_thld = vpbr_thld & CS40L26_VPBR_THLD_MASK;
 
 			val &= ~CS40L26_VPBR_THLD_MASK;
 			val |= (vpbr_thld & CS40L26_VPBR_THLD_MASK);
@@ -4427,7 +4431,7 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 			of_property_read_bool(np, "cirrus,vbbr-enable");
 
 	if (!of_property_read_u32(np, "cirrus,vbbr-thld-mv", &val))
-		cs40l26->pdata.vbbr_thld = val;
+		cs40l26->pdata.vbbr_thld_mv = val;
 
 	if (!of_property_read_u32(np, "cirrus,vbbr-max-att-db", &val))
 		cs40l26->pdata.vbbr_max_att = val;
@@ -4454,7 +4458,7 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 			of_property_read_bool(np, "cirrus,vpbr-enable");
 
 	if (!of_property_read_u32(np, "cirrus,vpbr-thld-mv", &val))
-		cs40l26->pdata.vpbr_thld = val;
+		cs40l26->pdata.vpbr_thld_mv = val;
 
 	if (!of_property_read_u32(np, "cirrus,vpbr-max-att-db", &val))
 		cs40l26->pdata.vpbr_max_att = val;
