@@ -1051,6 +1051,7 @@ static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 	SOC_SINGLE("SYNC Enable Switch", CS35L45_BLOCK_ENABLES2, 8, 1, 0),
 	SOC_SINGLE("PLL Force Enable Switch", CS35L45_REFCLK_INPUT, 16, 1, 0),
 	SOC_SINGLE("GLOBAL_EN from GPIO", CS35L45_GLOBAL_ENABLES, 8, 1, 0),
+	SOC_SINGLE("Boost Converter Enable", CS35L45_BLOCK_ENABLES, 4, 3, 0),
 	SOC_SINGLE_EXT("DSP1 Boot Switch", SND_SOC_NOPM, 1, 1, 0,
 		       cs35l45_dsp_boot_get, cs35l45_dsp_boot_put),
 	SOC_SINGLE_EXT("Fast Use Case Switch Enable", SND_SOC_NOPM, 0, 1, 0,
