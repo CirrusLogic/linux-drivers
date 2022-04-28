@@ -176,6 +176,35 @@ int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 }
 EXPORT_SYMBOL(cs40l26_dsp_state_get);
 
+int cs40l26_set_pll_loop(struct cs40l26_private *cs40l26, unsigned int pll_loop)
+{
+	int ret, i;
+
+	if (pll_loop != CS40L26_PLL_REFCLK_SET_OPEN_LOOP &&
+			pll_loop != CS40L26_PLL_REFCLK_SET_CLOSED_LOOP) {
+		dev_err(cs40l26->dev, "Invalid PLL Loop setting: %u\n",
+				pll_loop);
+		return -EINVAL;
+	}
+
+	/* Retry in case DSP is hibernating */
+	for (i = 0; i < CS40L26_PLL_REFCLK_SET_ATTEMPTS; i++) {
+		ret = regmap_update_bits(cs40l26->regmap, CS40L26_REFCLK_INPUT,
+				CS40L26_PLL_REFCLK_LOOP_MASK, pll_loop <<
+				CS40L26_PLL_REFCLK_LOOP_SHIFT);
+		if (!ret)
+			break;
+	}
+
+	if (i == CS40L26_PLL_REFCLK_SET_ATTEMPTS) {
+		dev_err(cs40l26->dev, "Failed to configure PLL\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(cs40l26_set_pll_loop);
+
 int cs40l26_dbc_get(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc,
 		unsigned int *val)
 {
@@ -566,7 +595,7 @@ static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 		return -EINVAL;
 	}
 
-	ret = cs40l26_pm_stdby_timeout_ms_get(cs40l26, &timeout_ms);
+	ret = cs40l26_pm_active_timeout_ms_get(cs40l26, &timeout_ms);
 	if (ret)
 		return ret;
 
@@ -4610,6 +4639,27 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 
 	usleep_range(CS40L26_CONTROL_PORT_READY_DELAY,
 			CS40L26_CONTROL_PORT_READY_DELAY + 100);
+
+	/*
+	 * The DSP may lock up if a haptic effect is triggered via
+	 * GPI event or control port and the PLL is set to closed-loop.
+	 *
+	 * Set PLL to open-loop and remove any default GPI mappings
+	 * to prevent this while the driver is loading and configuring RAM
+	 * firmware.
+	 */
+
+	ret = cs40l26_set_pll_loop(cs40l26, CS40L26_PLL_REFCLK_SET_OPEN_LOOP);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_clear_gpi_event_reg(cs40l26, CS40L26_A1_EVENT_MAP_1);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_clear_gpi_event_reg(cs40l26, CS40L26_A1_EVENT_MAP_2);
+	if (ret)
+		return ret;
 
 	ret = cs40l26_part_num_resolve(cs40l26);
 	if (ret)
