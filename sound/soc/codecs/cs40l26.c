@@ -60,13 +60,10 @@ static int cs40l26_swap_ext_clk(struct cs40l26_codec *codec, u8 clk_src)
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L26_REFCLK_INPUT,
-			CS40L26_PLL_REFCLK_OPEN_LOOP_MASK, 1 <<
-			CS40L26_PLL_REFCLK_OPEN_LOOP_SHIFT);
-	if (ret) {
-		dev_err(dev, "Failed to set Open-Loop PLL\n");
+	ret = cs40l26_set_pll_loop(codec->core,
+			CS40L26_PLL_REFCLK_SET_OPEN_LOOP);
+	if (ret)
 		return ret;
-	}
 
 	ret = regmap_update_bits(regmap, CS40L26_REFCLK_INPUT,
 			CS40L26_PLL_REFCLK_FREQ_MASK |
@@ -77,11 +74,8 @@ static int cs40l26_swap_ext_clk(struct cs40l26_codec *codec, u8 clk_src)
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L26_REFCLK_INPUT,
-			CS40L26_PLL_REFCLK_OPEN_LOOP_MASK, 0 <<
-			CS40L26_PLL_REFCLK_OPEN_LOOP_SHIFT);
-	if (ret)
-		dev_err(dev, "Failed to close PLL loop\n");
+	ret = cs40l26_set_pll_loop(codec->core,
+			CS40L26_PLL_REFCLK_SET_CLOSED_LOOP);
 
 	return ret;
 }
