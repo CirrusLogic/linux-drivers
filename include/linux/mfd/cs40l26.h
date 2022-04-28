@@ -688,6 +688,8 @@
 #define CS40L26_A1_PM_TIMEOUT_TICKS_STATIC_REG		0x02800350
 #define CS40L26_A1_DSP_HALO_STATE_REG			0x02800fa8
 #define CS40L26_A1_DSP_REQ_ACTIVE_REG			0x02800c08
+#define CS40L26_A1_EVENT_MAP_1				0x02806FC4
+#define CS40L26_A1_EVENT_MAP_2				0x02806FC8
 
 
 /* algorithms */
@@ -869,7 +871,7 @@
 #define CS40L26_VA_SUPPLY_NAME		"VA"
 
 #define CS40L26_MIN_RESET_PULSE_WIDTH		1500
-#define CS40L26_CONTROL_PORT_READY_DELAY	3000
+#define CS40L26_CONTROL_PORT_READY_DELAY	6000
 
 /* haptic triggering */
 #define CS40L26_TRIGGER_EFFECT			1
@@ -1096,6 +1098,11 @@
 #define CS40L26_PLL_REFCLK_FREQ_SHIFT		5
 #define CS40L26_PLL_REFCLK_OPEN_LOOP_MASK	BIT(11)
 #define CS40L26_PLL_REFCLK_OPEN_LOOP_SHIFT	11
+#define CS40L26_PLL_REFCLK_LOOP_MASK		BIT(11)
+#define CS40L26_PLL_REFCLK_LOOP_SHIFT		11
+#define CS40L26_PLL_REFCLK_SET_OPEN_LOOP	1
+#define CS40L26_PLL_REFCLK_SET_CLOSED_LOOP	0
+#define CS40L26_PLL_REFCLK_SET_ATTEMPTS		5
 #define CS40L26_PLL_REFCLK_FORCE_EN_MASK	BIT(16)
 #define CS40L26_PLL_REFCLK_FORCE_EN_SHIFT	16
 
@@ -1524,6 +1531,8 @@ struct cs40l26_pll_sysclk_config {
 };
 
 /* exported function prototypes */
+int cs40l26_set_pll_loop(struct cs40l26_private *cs40l26,
+		unsigned int pll_loop);
 int cs40l26_dbc_enable(struct cs40l26_private *cs40l26, u32 enable);
 int cs40l26_dbc_get(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc,
 		unsigned int *val);
