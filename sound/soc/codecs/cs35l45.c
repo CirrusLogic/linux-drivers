@@ -1043,6 +1043,82 @@ static int cs35l45_get_speaker_status(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int cs35l45_force_int_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct cs35l45_private *cs35l45 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = cs35l45->force_int;
+
+	return 0;
+}
+
+static int cs35l45_force_int_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct cs35l45_private *cs35l45 = snd_soc_component_get_drvdata(component);
+	bool force_int_changed;
+	int ret = 0;
+
+	force_int_changed = (cs35l45->force_int != (bool)ucontrol->value.integer.value[0]);
+
+	mutex_lock(&cs35l45->force_int_lock);
+
+	cs35l45->force_int = ucontrol->value.integer.value[0];
+
+	if (force_int_changed) {
+		if (cs35l45->force_int) {
+			pm_runtime_resume_and_get(cs35l45->dev);
+
+			disable_irq(cs35l45->irq);
+
+			ret = regmap_set_bits(cs35l45->regmap, CS35L45_GPIO2_CTRL1,
+						CS35L45_GPIO_OP_CFG_MASK);
+			if (ret)
+				goto out;
+
+			ret = regmap_clear_bits(cs35l45->regmap, CS35L45_GPIO2_CTRL1,
+						CS35L45_GPIO_DIR_MASK);
+			if (ret)
+				goto out;
+
+			ret = regmap_update_bits(cs35l45->regmap, CS35L45_INTB_GPIO2_MCLK_REF,
+						 CS35L45_GPIO_CTRL_MASK, CS35L45_GP2_CTRL_GPIO <<
+						 CS35L45_GPIO_CTRL_SHIFT);
+			if (ret)
+				goto out;
+		} else {
+			ret = regmap_update_bits(cs35l45->regmap, CS35L45_INTB_GPIO2_MCLK_REF,
+						 CS35L45_GPIO_CTRL_MASK,
+						 CS35L45_GP2_CTRL_INTB_OPENDRAIN <<
+						 CS35L45_GPIO_CTRL_SHIFT);
+			if (ret)
+				goto out;
+
+			ret = regmap_set_bits(cs35l45->regmap, CS35L45_GPIO2_CTRL1,
+						CS35L45_GPIO_DIR_MASK);
+			if (ret)
+				goto out;
+
+			ret = regmap_clear_bits(cs35l45->regmap, CS35L45_GPIO2_CTRL1,
+						CS35L45_GPIO_OP_CFG_MASK);
+			if (ret)
+				goto out;
+
+			enable_irq(cs35l45->irq);
+
+			pm_runtime_mark_last_busy(cs35l45->dev);
+			pm_runtime_put_sync_autosuspend(cs35l45->dev);
+		}
+	}
+
+out:
+	mutex_unlock(&cs35l45->force_int_lock);
+	return ret;
+}
+
 static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 	WM_ADSP_FW_CONTROL("DSP1", 0),
 	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
@@ -1059,6 +1135,8 @@ static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 	SOC_SINGLE_EXT("Speaker Open / Short Status", SND_SOC_NOPM, 0,
 			SPK_STATUS_SHORT_CIRCUIT, 0,
 			cs35l45_get_speaker_status, NULL),
+	SOC_SINGLE_EXT("Force Interrupt", SND_SOC_NOPM, 0, 1, 0,
+			cs35l45_force_int_get, cs35l45_force_int_put),
 	SOC_SINGLE_RANGE("ASPTX1 Slot Position", CS35L45_ASP_FRAME_CONTROL1, 0,
 			 0, 63, 0),
 	SOC_SINGLE_RANGE("ASPTX2 Slot Position", CS35L45_ASP_FRAME_CONTROL1, 8,
@@ -3003,6 +3081,7 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 	INIT_DELAYED_WORK(&cs35l45->global_err_rls_work, cs35l45_global_err_rls_work);
 
 	mutex_init(&cs35l45->dsp_power_lock);
+	mutex_init(&cs35l45->force_int_lock);
 
 	init_completion(&cs35l45->virt2_mbox_comp);
 
@@ -3075,6 +3154,7 @@ err_dsp:
 	wm_adsp2_remove(&cs35l45->dsp);
 err:
 	mutex_destroy(&cs35l45->dsp_power_lock);
+	mutex_destroy(&cs35l45->force_int_lock);
 	regulator_bulk_disable(CS35L45_NUM_SUPPLIES, cs35l45->supplies);
 	return ret;
 }
@@ -3087,6 +3167,7 @@ int cs35l45_remove(struct cs35l45_private *cs35l45)
 
 	pm_runtime_disable(cs35l45->dev);
 	mutex_destroy(&cs35l45->dsp_power_lock);
+	mutex_destroy(&cs35l45->force_int_lock);
 	destroy_workqueue(cs35l45->wq);
 	wm_adsp2_remove(&cs35l45->dsp);
 	regulator_bulk_disable(CS35L45_NUM_SUPPLIES, cs35l45->supplies);
