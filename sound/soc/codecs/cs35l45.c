@@ -2133,77 +2133,57 @@ static void cs35l45_global_err_rls_work(struct work_struct *work)
 static irqreturn_t cs35l45_global_err(int irq, void *data)
 {
 	struct cs35l45_private *cs35l45 = data;
-	unsigned int val;
 
 	dev_err(cs35l45->dev, "Global error detected!");
 
 	queue_delayed_work(cs35l45->wq, &cs35l45->global_err_rls_work,
 			   msecs_to_jiffies(100));
 
-	regmap_read(cs35l45->regmap, CS35L45_IRQ1_EINT_1, &val);
-
-	if (val & CS35L45_AMP_SHORT_ERR_MASK) {
-		dev_err(cs35l45->dev, "Amplifier short error condition detected\n");
-		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_1,
-					CS35L45_AMP_SHORT_ERR_MASK);
-	}
-
-	if (val & CS35L45_UVLO_VDDBATT_ERR_MASK) {
-		dev_err(cs35l45->dev, "VDDBATT undervoltage error condition detected\n");
-		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_1,
-			     CS35L45_UVLO_VDDBATT_ERR_MASK);
-	}
-
-	if (val & CS35L45_BST_SHORT_ERR_MASK) {
-		dev_err(cs35l45->dev, "Boost inductor short error condition detected\n");
-		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_1,
-				CS35L45_BST_SHORT_ERR_MASK);
-	}
-
-	if (val & CS35L45_BST_UVP_ERR_MASK) {
-		dev_err(cs35l45->dev, "Boost undervoltage error condition detected\n");
-		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_1,
-			     CS35L45_BST_UVP_ERR_MASK);
-	}
-
-	if (val & CS35L45_TEMP_ERR_MASK) {
-		dev_err(cs35l45->dev, "Overtemperature error condition detected\n");
-		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_1,
-			     CS35L45_TEMP_ERR_MASK);
-	}
-
-	regmap_read(cs35l45->regmap, CS35L45_IRQ1_EINT_3, &val);
-
-	if (val & CS35L45_AMP_CAL_ERR_MASK) {
-		dev_err(cs35l45->dev, "Amplifier calibration error condition detected\n");
-		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_3,
-				CS35L45_AMP_CAL_ERR_MASK);
-	}
-
-	regmap_read(cs35l45->regmap, CS35L45_IRQ1_EINT_18, &val);
-
-	if (val & CS35L45_UVLO_VDDLV_ERR_MASK) {
-		dev_err(cs35l45->dev, "LV threshold detector error condition detected\n");
-		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_18,
-				 CS35L45_UVLO_VDDLV_ERR_MASK);
-	}
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t cs35l45_spk_safe_err(int irq, void *data);
+
 static const struct cs35l45_irq cs35l45_irqs[] = {
-	CS35L45_IRQ(DSP_VIRT2_MBOX, "DSP virtual MBOX 2 write flag", cs35l45_dsp_virt2_mbox_cb),
+	CS35L45_IRQ(AMP_SHORT_ERR, "Amplifier short error", cs35l45_spk_safe_err),
+	CS35L45_IRQ(UVLO_VDDBATT_ERR, "VDDBATT undervoltage error", cs35l45_spk_safe_err),
+	CS35L45_IRQ(BST_SHORT_ERR, "Boost inductor error", cs35l45_spk_safe_err),
+	CS35L45_IRQ(BST_UVP_ERR, "Boost undervoltage error", cs35l45_spk_safe_err),
+	CS35L45_IRQ(TEMP_ERR, "Overtemperature error", cs35l45_spk_safe_err),
+	CS35L45_IRQ(AMP_CAL_ERR, "Amplifier calibration error", cs35l45_spk_safe_err),
+	CS35L45_IRQ(UVLO_VDDLV_ERR, "LV threshold detector error", cs35l45_spk_safe_err),
+	CS35L45_IRQ(GLOBAL_ERROR, "Global error", cs35l45_global_err),
 	CS35L45_IRQ(DSP_WDT_EXPIRE, "DSP Watchdog Timer", cs35l45_dsp_wdt_expire),
 	CS35L45_IRQ(PLL_UNLOCK_FLAG_RISE, "PLL unlock flag rise", cs35l45_pll_unlock),
 	CS35L45_IRQ(PLL_LOCK_FLAG, "PLL lock", cs35l45_pll_lock),
-	CS35L45_IRQ(GLOBAL_ERROR, "Global error", cs35l45_global_err),
+	CS35L45_IRQ(DSP_VIRT2_MBOX, "DSP virtual MBOX 2 write flag", cs35l45_dsp_virt2_mbox_cb),
 };
 
+static irqreturn_t cs35l45_spk_safe_err(int irq, void *data)
+{
+	struct cs35l45_private *cs35l45 = data;
+	int i;
+
+	i = irq - regmap_irq_get_virq(cs35l45->irq_data, 0);
+
+	dev_err(cs35l45->dev, "%s condition detected!\n", cs35l45_irqs[i].name);
+
+	return IRQ_HANDLED;
+}
+
 static const struct regmap_irq cs35l45_reg_irqs[] = {
-	CS35L45_REG_IRQ(IRQ1_EINT_2, DSP_VIRT2_MBOX),
+	CS35L45_REG_IRQ(IRQ1_EINT_1, AMP_SHORT_ERR),
+	CS35L45_REG_IRQ(IRQ1_EINT_1, UVLO_VDDBATT_ERR),
+	CS35L45_REG_IRQ(IRQ1_EINT_1, BST_SHORT_ERR),
+	CS35L45_REG_IRQ(IRQ1_EINT_1, BST_UVP_ERR),
+	CS35L45_REG_IRQ(IRQ1_EINT_1, TEMP_ERR),
+	CS35L45_REG_IRQ(IRQ1_EINT_3, AMP_CAL_ERR),
+	CS35L45_REG_IRQ(IRQ1_EINT_18, UVLO_VDDLV_ERR),
+	CS35L45_REG_IRQ(IRQ1_EINT_18, GLOBAL_ERROR),
 	CS35L45_REG_IRQ(IRQ1_EINT_2, DSP_WDT_EXPIRE),
 	CS35L45_REG_IRQ(IRQ1_EINT_3, PLL_UNLOCK_FLAG_RISE),
 	CS35L45_REG_IRQ(IRQ1_EINT_3, PLL_LOCK_FLAG),
-	CS35L45_REG_IRQ(IRQ1_EINT_18, GLOBAL_ERROR),
+	CS35L45_REG_IRQ(IRQ1_EINT_2, DSP_VIRT2_MBOX),
 };
 
 static const struct regmap_irq_chip cs35l45_regmap_irq_chip = {
