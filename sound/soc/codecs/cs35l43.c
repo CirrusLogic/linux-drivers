@@ -953,9 +953,19 @@ int cs35l43_suspend_runtime(struct device *dev)
 
 	if (cs35l43->hibernate_state == CS35L43_HIBERNATE_NOT_LOADED &&
 						cs35l43->dsp.running) {
-		cs35l43->power_on_seq.name = "POWER_ON_SEQUENCE";
+		cs35l43->power_on_seq.name = "PM_PWR_ON_SEQ";
 		cs35l43->power_on_seq.length = CS35L43_POWER_SEQ_MAX_WORDS;
-		cs35l43_write_seq_init(cs35l43, &cs35l43->power_on_seq);
+		ret = cs35l43_write_seq_init(cs35l43, &cs35l43->power_on_seq);
+		if (ret == -EINVAL) {
+			/* Fall back to control used before 7.15.3 */
+			cs35l43->power_on_seq.name = "POWER_ON_SEQUENCE";
+			ret = cs35l43_write_seq_init(cs35l43,
+							&cs35l43->power_on_seq);
+		}
+
+		if (ret)
+			goto err;
+
 		cs35l43_write_seq_update(cs35l43, &cs35l43->power_on_seq);
 
 		for (i = 0; i < ARRAY_SIZE(cs35l43_hibernate_update_regs); i++) {
@@ -971,6 +981,7 @@ int cs35l43_suspend_runtime(struct device *dev)
 
 	if (cs35l43->dsp.running)
 		ret = cs35l43_enter_hibernate(cs35l43);
+err:
 	mutex_unlock(&cs35l43->hb_lock);
 
 	return ret;
