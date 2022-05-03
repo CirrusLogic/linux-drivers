@@ -816,9 +816,18 @@ static ssize_t vpbr_thld_store(struct device *dev,
 	}
 
 	ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG,
-		vpbr_config_reg_val, true, CS40L26_PSEQ_OP_WRITE_FULL);
+				(vpbr_config_reg_val & GENMASK(31, 16)) >> 16,
+				true, CS40L26_PSEQ_OP_WRITE_H16);
 	if (ret) {
-		dev_err(dev, "Failed to update VPBR config PSEQ\n");
+		dev_err(dev, "Failed to update VPBR config PSEQ H16\n");
+		goto err_mutex;
+	}
+
+	ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG,
+				(vpbr_config_reg_val & GENMASK(15, 0)),
+				true, CS40L26_PSEQ_OP_WRITE_L16);
+	if (ret) {
+		dev_err(dev, "Failed to update VPBR config PSEQ L16\n");
 		goto err_mutex;
 	}
 
