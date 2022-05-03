@@ -1356,6 +1356,22 @@ int cs40l26_pseq_write(struct cs40l26_private *cs40l26, u32 addr,
 	u32 *op_words;
 	int ret;
 
+
+	/*
+	 * Due to a bug in the DSP ROM, if data[23] = 1 for a WRITE_FULL
+	 * operation, then, when the DSP power-on write sequencer
+	 * actually applies these writes when coming out of hibernate,
+	 * the DSP sign-extends bit 23 to bits[31:24]. So, warn if it
+	 * appears the PSEQ will not function as expected.
+	 */
+	if ((op_code == CS40L26_PSEQ_OP_WRITE_FULL) &&
+				(data & BIT(23)) &&
+				(((data & GENMASK(31, 24)) >> 24) != 0xFF)) {
+		dev_warn(dev,
+			"PSEQ to set data[31:24] to 0xFF reg: %08X, data: %08X",
+								addr, data);
+	}
+
 	if (op_code == CS40L26_PSEQ_OP_WRITE_FULL) {
 		num_op_words = CS40L26_PSEQ_OP_WRITE_FULL_WORDS;
 		l_addr_shift = CS40L26_PSEQ_WRITE_FULL_LOWER_ADDR_SHIFT;
@@ -1645,8 +1661,27 @@ static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 reg,
 		return ret;
 	}
 
-	return cs40l26_pseq_write(cs40l26, reg,
-			new_mask, true, CS40L26_PSEQ_OP_WRITE_FULL);
+	if (bit_mask & GENMASK(31, 16)) {
+		ret = cs40l26_pseq_write(cs40l26, reg,
+			(new_mask & GENMASK(31, 16)) >> 16,
+			true, CS40L26_PSEQ_OP_WRITE_H16);
+		if (ret) {
+			dev_err(cs40l26->dev, "Failed to update IRQ mask H16");
+			return ret;
+		}
+	}
+
+	if (bit_mask & GENMASK(15, 0)) {
+		ret = cs40l26_pseq_write(cs40l26, reg,
+			(new_mask & GENMASK(15, 0)),
+			true, CS40L26_PSEQ_OP_WRITE_L16);
+		if (ret) {
+			dev_err(cs40l26->dev, "Failed to update IRQ mask L16");
+			return ret;
+		}
+	}
+
+	return ret;
 }
 
 static int cs40l26_buzzgen_set(struct cs40l26_private *cs40l26, u16 freq,
@@ -3264,8 +3299,15 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 			return ret;
 		}
 
-		ret = cs40l26_pseq_write(cs40l26, CS40L26_VBBR_CONFIG, val,
-				true, CS40L26_PSEQ_OP_WRITE_FULL);
+		ret = cs40l26_pseq_write(cs40l26, CS40L26_VBBR_CONFIG,
+				(val & GENMASK(31, 16)) >> 16,
+				true, CS40L26_PSEQ_OP_WRITE_H16);
+		if (ret)
+			return ret;
+
+		ret = cs40l26_pseq_write(cs40l26, CS40L26_VBBR_CONFIG,
+				(val & GENMASK(15, 0)),
+				true, CS40L26_PSEQ_OP_WRITE_L16);
 		if (ret)
 			return ret;
 	}
@@ -3370,8 +3412,15 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 			return ret;
 		}
 
-		ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG, val,
-				true, CS40L26_PSEQ_OP_WRITE_FULL);
+		ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG,
+				(val & GENMASK(31, 16)) >> 16,
+				true, CS40L26_PSEQ_OP_WRITE_H16);
+		if (ret)
+			return ret;
+
+		ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG,
+				(val & GENMASK(15, 0)),
+				true, CS40L26_PSEQ_OP_WRITE_L16);
 		if (ret)
 			return ret;
 	}
