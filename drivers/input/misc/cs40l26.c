@@ -4154,8 +4154,17 @@ static int cs40l26_change_fw_control_defaults(struct cs40l26_private *cs40l26)
 
 static int cs40l26_get_fw_params(struct cs40l26_private *cs40l26)
 {
+	u32 id, min_rev, rev, branch;
 	int ret, maj, min, patch;
-	u32 id, min_rev, rev;
+
+	ret = cl_dsp_fw_rev_get(cs40l26->dsp, &rev);
+	if (ret)
+		return ret;
+
+	branch = CL_DSP_GET_MAJOR(rev);
+	maj = (int) branch;
+	min = (int) CL_DSP_GET_MINOR(rev);
+	patch = (int) CL_DSP_GET_PATCH(rev);
 
 	ret = cl_dsp_fw_id_get(cs40l26->dsp, &id);
 	if (ret)
@@ -4163,34 +4172,42 @@ static int cs40l26_get_fw_params(struct cs40l26_private *cs40l26)
 
 	switch (id) {
 	case CS40L26_FW_ID:
-		min_rev = CS40L26_FW_A1_RAM_MIN_REV;
+		if (branch == CS40L26_FW_BRANCH) {
+			min_rev = CS40L26_FW_MIN_REV;
+			cs40l26->vibe_state_reporting = true;
+		} else if (branch == CS40L26_FW_MAINT_BRANCH) {
+			min_rev = CS40L26_FW_MAINT_MIN_REV;
+			cs40l26->vibe_state_reporting = false;
+		} else {
+			ret = -EINVAL;
+		}
 		break;
 	case CS40L26_FW_CALIB_ID:
-		min_rev = CS40L26_FW_CALIB_MIN_REV;
+		if (branch == CS40L26_FW_CALIB_BRANCH) {
+			min_rev = CS40L26_FW_CALIB_MIN_REV;
+			cs40l26->vibe_state_reporting = true;
+		} else if (branch == CS40L26_FW_MAINT_CALIB_BRANCH) {
+			min_rev = CS40L26_FW_MAINT_CALIB_MIN_REV;
+			cs40l26->vibe_state_reporting = false;
+		} else {
+			ret = -EINVAL;
+		}
 		break;
 	default:
 		dev_err(cs40l26->dev, "Invalid FW ID: 0x%06X\n", id);
+		return -EINVAL;
 	}
 
-	ret = cl_dsp_fw_rev_get(cs40l26->dsp, &rev);
-	if (ret)
+	if (ret) {
+		dev_err(cs40l26->dev, "Rev. Branch 0x%02X invalid\n", maj);
 		return ret;
+	}
 
-	maj = (int) CL_DSP_GET_MAJOR(rev);
-	min = (int) CL_DSP_GET_MINOR(rev);
-	patch = (int) CL_DSP_GET_PATCH(rev);
-
-	if ((rev & ~CS40L26_FW_BRANCH_MASK) < min_rev) {
+	if (rev < min_rev) {
 		dev_err(cs40l26->dev, "Invalid firmware revision: %d.%d.%d\n",
 				maj, min, patch);
 		return -EINVAL;
 	}
-
-	if ((rev & CS40L26_FW_BRANCH_MASK) ==
-			(CS40L26_FW_A1_RAM_MIN_REV & CS40L26_FW_BRANCH_MASK))
-		cs40l26->vibe_state_reporting = true;
-	else
-		cs40l26->vibe_state_reporting = false;
 
 	cs40l26->fw_id = id;
 
@@ -4229,14 +4246,13 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 	const struct firmware *fw;
 	int ret;
 
-start:
 	cs40l26->fw_loaded = false;
 
 	ret = cs40l26_cl_dsp_reinit(cs40l26);
 	if (ret)
 		return ret;
 
-	if (svc_le_required || cs40l26->calib_fw)
+	if (cs40l26->calib_fw)
 		ret = request_firmware(&fw, CS40L26_FW_CALIB_NAME, dev);
 	else
 		ret = request_firmware(&fw, CS40L26_FW_FILE_NAME, dev);
@@ -4264,8 +4280,6 @@ start:
 		return ret;
 
 	if (svc_le_required) {
-		svc_le_required = false;
-
 		ret = cs40l26_dsp_config(cs40l26);
 		if (ret)
 			return ret;
@@ -4275,7 +4289,10 @@ start:
 			return ret;
 
 		cs40l26_pm_runtime_teardown(cs40l26);
-		goto start;
+
+		ret = cs40l26_dsp_pre_config(cs40l26);
+		if (ret)
+			return ret;
 	}
 
 	ret = cs40l26_coeff_load(cs40l26, tuning_num);
