@@ -2063,7 +2063,31 @@ err_mutex:
 }
 static DEVICE_ATTR_RO(max_vmon);
 
+static ssize_t svc_le_est_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	unsigned int le;
+	int ret;
+
+	pm_runtime_get_sync(cs40l26->dev);
+	mutex_lock(&cs40l26->lock);
+
+	ret = cs40l26_svc_le_estimate(cs40l26, &le);
+
+	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
+
+	if (ret)
+		return ret;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", le);
+}
+static DEVICE_ATTR_RO(svc_le_est);
+
 static struct attribute *cs40l26_dev_attrs_cal[] = {
+	&dev_attr_svc_le_est.attr,
 	&dev_attr_max_vbst.attr,
 	&dev_attr_max_bemf.attr,
 	&dev_attr_max_vmon.attr,

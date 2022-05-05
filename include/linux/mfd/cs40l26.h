@@ -847,6 +847,7 @@
 #define CS40L26_DVL_FILE_NAME			"cs40l26-dvl.bin"
 #define CS40L26_CALIB_BIN_FILE_NAME		"cs40l26-calib.bin"
 
+#define CS40L26_SVC_LE_EST_TIME_US	8000
 #define CS40L26_SVC_LE_MAX_ATTEMPTS	2
 #define CS40L26_SVC_DT_PREFIX		"svc-le"
 
@@ -1534,6 +1535,7 @@ struct cs40l26_pll_sysclk_config {
 };
 
 /* exported function prototypes */
+int cs40l26_svc_le_estimate(struct cs40l26_private *cs40l26, unsigned int *le);
 int cs40l26_set_pll_loop(struct cs40l26_private *cs40l26,
 		unsigned int pll_loop);
 int cs40l26_dbc_enable(struct cs40l26_private *cs40l26, u32 enable);
