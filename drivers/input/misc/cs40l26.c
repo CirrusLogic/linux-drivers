@@ -3983,11 +3983,48 @@ static void cs40l26_gain_adjust(struct cs40l26_private *cs40l26, s32 adjust)
 	cs40l26->pdata.asp_scale_pct = total;
 }
 
+int cs40l26_svc_le_estimate(struct cs40l26_private *cs40l26, unsigned int *le)
+{
+	struct device *dev = cs40l26->dev;
+	unsigned int reg, le_est = 0;
+	int ret, i;
+
+	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+			CS40L26_DSP_MBOX_CMD_LE_EST, CS40L26_DSP_MBOX_RESET);
+	if (ret)
+		return ret;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "LE_EST_STATUS",
+			CL_DSP_YM_UNPACKED_TYPE, CS40l26_SVC_ALGO_ID, &reg);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < CS40L26_SVC_LE_MAX_ATTEMPTS; i++) {
+		usleep_range(CS40L26_SVC_LE_EST_TIME_US,
+				CS40L26_SVC_LE_EST_TIME_US + 100);
+		ret = regmap_read(cs40l26->regmap, reg, &le_est);
+		if (ret) {
+			dev_err(dev, "Failed to get LE_EST_STATUS\n");
+			return ret;
+		}
+
+		dev_info(dev, "Measured Le Estimation = %u\n", le_est);
+
+		if (le_est)
+			break;
+	}
+
+	*le = le_est;
+
+	return 0;
+}
+EXPORT_SYMBOL(cs40l26_svc_le_estimate);
+
 static int cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26,
 		u32 *tuning_num)
 {
-	unsigned int reg, le = 0;
-	int ret, i, j;
+	unsigned int le;
+	int ret, i;
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
@@ -3995,42 +4032,24 @@ static int cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26,
 		return ret;
 	}
 
-	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-			CS40L26_DSP_MBOX_CMD_LE_EST, CS40L26_DSP_MBOX_RESET);
+	ret = cs40l26_svc_le_estimate(cs40l26, &le);
 	if (ret)
 		goto pm_err;
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "LE_EST_STATUS",
-			CL_DSP_YM_UNPACKED_TYPE, CS40l26_SVC_ALGO_ID, &reg);
-	if (ret)
-		goto pm_err;
-
-	for (i = 0; i < CS40L26_SVC_LE_MAX_ATTEMPTS; i++) {
-		usleep_range(5000, 5100);
-		ret = regmap_read(cs40l26->regmap, reg, &le);
-		if (ret) {
-			dev_err(cs40l26->dev, "Failed to get LE_EST_STATUS\n");
-			goto pm_err;
-		}
-
-		dev_dbg(cs40l26->dev, "Measured LE estimate = 0x%08X\n", le);
-
-		for (j = 0; j < cs40l26->num_svc_le_vals; j++) {
-			if (le >= cs40l26->svc_le_vals[j]->min &&
-					le <= cs40l26->svc_le_vals[j]->max) {
-				*tuning_num = cs40l26->svc_le_vals[j]->n;
+	if (le) {
+		for (i = 0; i < cs40l26->num_svc_le_vals; i++) {
+			if (le >= cs40l26->svc_le_vals[i]->min &&
+					le <= cs40l26->svc_le_vals[i]->max) {
+				*tuning_num = cs40l26->svc_le_vals[i]->n;
 
 				cs40l26_gain_adjust(cs40l26,
-					cs40l26->svc_le_vals[j]->gain_adjust);
-
+					cs40l26->svc_le_vals[i]->gain_adjust);
 				break;
 			}
 		}
-		if (j < cs40l26->num_svc_le_vals)
-			break;
 	}
 
-	if (i == CS40L26_SVC_LE_MAX_ATTEMPTS)
+	if (!le || i == cs40l26->num_svc_le_vals)
 		dev_warn(cs40l26->dev, "Using default tunings\n");
 
 pm_err:
