@@ -22,7 +22,7 @@ static ssize_t dsp_state_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -53,7 +53,7 @@ static ssize_t halo_heartbeat_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -78,7 +78,7 @@ static ssize_t pm_stdby_timeout_ms_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -106,7 +106,7 @@ static ssize_t pm_stdby_timeout_ms_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -131,7 +131,7 @@ static ssize_t pm_active_timeout_ms_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -159,7 +159,7 @@ static ssize_t pm_active_timeout_ms_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -261,7 +261,7 @@ static ssize_t owt_free_space_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -297,7 +297,7 @@ static ssize_t die_temp_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -342,7 +342,7 @@ static ssize_t num_waves_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -370,7 +370,7 @@ static ssize_t boost_disable_delay_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -410,7 +410,7 @@ static ssize_t boost_disable_delay_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -441,7 +441,7 @@ static ssize_t f0_offset_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -484,7 +484,7 @@ static ssize_t f0_offset_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -589,7 +589,7 @@ static ssize_t f0_comp_enable_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -669,7 +669,7 @@ static ssize_t redc_comp_enable_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 	mutex_lock(&cs40l26->lock);
@@ -788,7 +788,7 @@ static ssize_t vpbr_thld_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 	mutex_lock(&cs40l26->lock);
@@ -876,7 +876,7 @@ static ssize_t dbc_enable_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -924,7 +924,7 @@ static ssize_t dbc_enable_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -967,7 +967,7 @@ static ssize_t dbc_env_rel_coef_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cdev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cdev);
+		cs40l26_resume_error_handle(cdev, ret);
 		return ret;
 	}
 
@@ -1010,7 +1010,7 @@ static ssize_t dbc_rise_headroom_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cdev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cdev);
+		cs40l26_resume_error_handle(cdev, ret);
 		return ret;
 	}
 
@@ -1053,7 +1053,7 @@ static ssize_t dbc_fall_headroom_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cdev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cdev);
+		cs40l26_resume_error_handle(cdev, ret);
 		return ret;
 	}
 
@@ -1096,7 +1096,7 @@ static ssize_t dbc_tx_lvl_thresh_fs_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cdev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cdev);
+		cs40l26_resume_error_handle(cdev, ret);
 		return ret;
 	}
 
@@ -1139,7 +1139,7 @@ static ssize_t dbc_tx_lvl_hold_off_ms_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cdev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cdev);
+		cs40l26_resume_error_handle(cdev, ret);
 		return ret;
 	}
 
@@ -1195,7 +1195,7 @@ static ssize_t trigger_calibration_store(struct device *dev,
 	/* pm_runtime_put occurs is irq_handler after diagnostic is finished */
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -1227,7 +1227,7 @@ static ssize_t f0_measured_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -1264,7 +1264,7 @@ static ssize_t q_measured_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -1301,7 +1301,7 @@ static ssize_t redc_measured_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -1338,7 +1338,7 @@ static ssize_t redc_est_show(struct device *dev, struct device_attribute *attr,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -1380,7 +1380,7 @@ static ssize_t redc_est_store(struct device *dev, struct device_attribute *attr,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -1417,7 +1417,7 @@ static ssize_t f0_stored_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -1462,7 +1462,7 @@ static ssize_t f0_stored_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -1499,7 +1499,7 @@ static ssize_t q_stored_show(struct device *dev, struct device_attribute *attr,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -1542,7 +1542,7 @@ static ssize_t q_stored_store(struct device *dev, struct device_attribute *attr,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -1579,7 +1579,7 @@ static ssize_t redc_stored_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -1621,7 +1621,7 @@ static ssize_t redc_stored_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -1658,7 +1658,7 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -1739,7 +1739,7 @@ static ssize_t redc_cal_time_ms_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -1778,7 +1778,7 @@ static ssize_t logging_en_show(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -1822,7 +1822,7 @@ static ssize_t logging_en_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cdev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cdev);
+		cs40l26_resume_error_handle(cdev, ret);
 		return ret;
 	}
 
@@ -1935,7 +1935,7 @@ static ssize_t logging_max_reset_store(struct device *dev,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
