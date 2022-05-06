@@ -214,7 +214,7 @@ int cs40l26_dbc_get(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc,
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(dev);
+		cs40l26_resume_error_handle(dev, ret);
 		return ret;
 	}
 
@@ -1224,8 +1224,9 @@ static irqreturn_t cs40l26_irq(int irq, void *data)
 	unsigned long num_irq;
 	int ret;
 
-	if (pm_runtime_get_sync(dev) < 0) {
-		cs40l26_resume_error_handle(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(dev, ret);
 
 		dev_alert(dev, "Interrupts missed\n");
 
@@ -1770,7 +1771,7 @@ static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -1815,8 +1816,9 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 	u32 reg;
 	int ret;
 
-	if (pm_runtime_get_sync(cs40l26->dev) < 0)
-		return cs40l26_resume_error_handle(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0)
+		return cs40l26_resume_error_handle(cs40l26->dev, ret);
 
 	mutex_lock(&cs40l26->lock);
 
@@ -1863,8 +1865,9 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	if (pm_runtime_get_sync(dev) < 0)
-		return cs40l26_resume_error_handle(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0)
+		return cs40l26_resume_error_handle(dev, ret);
 
 	mutex_lock(&cs40l26->lock);
 
@@ -1950,8 +1953,9 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 
 	dev_dbg(cs40l26->dev, "%s\n", __func__);
 
-	if (pm_runtime_get_sync(cs40l26->dev) < 0)
-		return cs40l26_resume_error_handle(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0)
+		return cs40l26_resume_error_handle(cs40l26->dev, ret);
 
 	/* wait for SVC init phase to complete */
 	if (cs40l26->delay_before_stop_playback_us)
@@ -2239,7 +2243,7 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, u8 *data,
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(dev);
+		cs40l26_resume_error_handle(dev, ret);
 		return ret;
 	}
 
@@ -2662,8 +2666,9 @@ static void cs40l26_upload_worker(struct work_struct *work)
 	u16 index, bank;
 	bool pwle, svc_waveform;
 
-	if (pm_runtime_get_sync(cdev) < 0)
-		return cs40l26_resume_error_handle(cdev);
+	ret = pm_runtime_get_sync(cdev);
+	if (ret < 0)
+		return cs40l26_resume_error_handle(cdev, ret);
 
 	mutex_lock(&cs40l26->lock);
 
@@ -2941,8 +2946,9 @@ static void cs40l26_erase_worker(struct work_struct *work)
 	int effect_id;
 	u32 index;
 
-	if (pm_runtime_get_sync(cs40l26->dev) < 0)
-		return cs40l26_resume_error_handle(cs40l26->dev);
+	ret = pm_runtime_get_sync(cs40l26->dev);
+	if (ret < 0)
+		return cs40l26_resume_error_handle(cs40l26->dev, ret);
 
 	mutex_lock(&cs40l26->lock);
 
@@ -3900,16 +3906,16 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
+	cs40l26_pm_runtime_setup(cs40l26);
+
 	ret = cs40l26_pm_state_transition(cs40l26,
 			CS40L26_PM_STATE_ALLOW_HIBERNATE);
 	if (ret)
 		return ret;
 
-	cs40l26_pm_runtime_setup(cs40l26);
-
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(dev);
+		cs40l26_resume_error_handle(dev, ret);
 		return ret;
 	}
 
@@ -4028,7 +4034,7 @@ static int cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle(cs40l26->dev, ret);
 		return ret;
 	}
 
@@ -4884,9 +4890,9 @@ int cs40l26_sys_suspend_noirq(struct device *dev)
 }
 EXPORT_SYMBOL(cs40l26_sys_suspend_noirq);
 
-void cs40l26_resume_error_handle(struct device *dev)
+void cs40l26_resume_error_handle(struct device *dev, int ret)
 {
-	dev_alert(dev, "PM Runtime Resume failed\n");
+	dev_alert(dev, "PM Runtime Resume failed: %d\n", ret);
 
 	pm_runtime_set_active(dev);
 
