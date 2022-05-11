@@ -1158,20 +1158,7 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 	{ "DSP1", NULL, "DSP1 Preloader" },
 	{ "DSP1 Preload", NULL, "DSP1 Preloader" },
 
-	{"DSP RX1 Source", "VMON", "VMON ADC"},
-	{"DSP RX1 Source", "IMON", "IMON ADC"},
-	{"DSP RX1 Source", "VPMON", "VPMON ADC"},
-	{"DSP RX1 Source", "ASPRX1", "ASPRX1"},
-	{"DSP RX1 Source", "ASPRX2", "ASPRX2"},
-	{"DSP RX1 Source", "Zero", "ASPRX1"},
 	{"DSP1", NULL, "DSP RX1 Source"},
-
-	{"DSP RX2 Source", "VMON", "VMON ADC"},
-	{"DSP RX2 Source", "IMON", "IMON ADC"},
-	{"DSP RX2 Source", "VPMON", "VPMON ADC"},
-	{"DSP RX2 Source", "ASPRX1", "ASPRX1"},
-	{"DSP RX2 Source", "ASPRX2", "ASPRX2"},
-	{"DSP RX2 Source", "Zero", "ASPRX1"},
 	{"DSP1", NULL, "DSP RX2 Source"},
 
 	{"PCM Source", "ASPRX1", "ASPRX1"},
