@@ -9143,7 +9143,7 @@ static void cs40l2x_firmware_load(const struct firmware *fw, void *context)
 				CS40L2X_CLAB_CONFIG_FILE_NAME,
 				CS40L2X_WT_FILE_NAME_LEN_MAX))
 			cs40l2x->clab_bin_found = true;
-		request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+		request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				cs40l2x->fw_desc->coeff_files[i], dev,
 				GFP_KERNEL, cs40l2x, cs40l2x_coeff_file_load);
 	}
@@ -11041,7 +11041,7 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 	if (ret)
 		goto err;
 
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 			cs40l2x->fw_desc->fw_file, dev, GFP_KERNEL, cs40l2x,
 			cs40l2x_firmware_load);
 
