@@ -142,6 +142,15 @@ static SOC_VALUE_ENUM_SINGLE_DECL(cs35l43_dsprx2_enum,
 static const struct snd_kcontrol_new dsp_rx2_mux =
 	SOC_DAPM_ENUM("DSPRX2 SRC", cs35l43_dsprx2_enum);
 
+static SOC_VALUE_ENUM_SINGLE_DECL(cs35l43_dsprx3_enum,
+				CS35L43_DSP1RX3_INPUT,
+				0, CS35L43_INPUT_MASK,
+				cs35l43_tx_input_texts,
+				cs35l43_tx_input_values);
+
+static const struct snd_kcontrol_new dsp_rx3_mux =
+	SOC_DAPM_ENUM("DSPRX3 SRC", cs35l43_dsprx3_enum);
+
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l43_dacpcm_enum,
 				CS35L43_DACPCM1_INPUT,
 				0, CS35L43_INPUT_MASK,
@@ -1135,6 +1144,7 @@ static const struct snd_soc_dapm_widget cs35l43_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("ASP TX4 Source", SND_SOC_NOPM, 0, 0, &asp_tx4_mux),
 	SND_SOC_DAPM_MUX("DSP RX1 Source", SND_SOC_NOPM, 0, 0, &dsp_rx1_mux),
 	SND_SOC_DAPM_MUX("DSP RX2 Source", SND_SOC_NOPM, 0, 0, &dsp_rx2_mux),
+	SND_SOC_DAPM_MUX("DSP RX3 Source", SND_SOC_NOPM, 0, 0, &dsp_rx3_mux),
 	SND_SOC_DAPM_MUX("PCM Source", SND_SOC_NOPM, 0, 0, &dacpcm_mux),
 	SND_SOC_DAPM_MUX("High Rate PCM Source", SND_SOC_NOPM, 0, 0, &dacpcm2_mux),
 	SND_SOC_DAPM_MUX("Ultrasonic Mode", SND_SOC_NOPM, 0, 0, &ultra_mux),
@@ -1160,6 +1170,7 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 
 	{"DSP1", NULL, "DSP RX1 Source"},
 	{"DSP1", NULL, "DSP RX2 Source"},
+	{"DSP1", NULL, "DSP RX3 Source"},
 
 	{"PCM Source", "ASPRX1", "ASPRX1"},
 	{"PCM Source", "ASPRX2", "ASPRX2"},
@@ -1182,48 +1193,56 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 	{"ASP TX4 Source", "ASPRX1", "ASPRX1"},
 	{"DSP RX1 Source", "ASPRX1", "ASPRX1"},
 	{"DSP RX2 Source", "ASPRX1", "ASPRX1"},
+	{"DSP RX3 Source", "ASPRX1", "ASPRX1"},
 	{"ASP TX1 Source", "ASPRX2", "ASPRX2"},
 	{"ASP TX2 Source", "ASPRX2", "ASPRX2"},
 	{"ASP TX3 Source", "ASPRX2", "ASPRX2"},
 	{"ASP TX4 Source", "ASPRX2", "ASPRX2"},
 	{"DSP RX1 Source", "ASPRX2", "ASPRX2"},
 	{"DSP RX2 Source", "ASPRX2", "ASPRX2"},
+	{"DSP RX3 Source", "ASPRX2", "ASPRX2"},
 	{"ASP TX1 Source", "VMON", "VMON ADC"},
 	{"ASP TX2 Source", "VMON", "VMON ADC"},
 	{"ASP TX3 Source", "VMON", "VMON ADC"},
 	{"ASP TX4 Source", "VMON", "VMON ADC"},
 	{"DSP RX1 Source", "VMON", "VMON ADC"},
 	{"DSP RX2 Source", "VMON", "VMON ADC"},
+	{"DSP RX3 Source", "VMON", "VMON ADC"},
 	{"ASP TX1 Source", "VMON FS2", "VMON ADC"},
 	{"ASP TX2 Source", "VMON FS2", "VMON ADC"},
 	{"ASP TX3 Source", "VMON FS2", "VMON ADC"},
 	{"ASP TX4 Source", "VMON FS2", "VMON ADC"},
 	{"DSP RX1 Source", "VMON FS2", "VMON ADC"},
 	{"DSP RX2 Source", "VMON FS2", "VMON ADC"},
+	{"DSP RX3 Source", "VMON FS2", "VMON ADC"},
 	{"ASP TX1 Source", "IMON", "IMON ADC"},
 	{"ASP TX2 Source", "IMON", "IMON ADC"},
 	{"ASP TX3 Source", "IMON", "IMON ADC"},
 	{"ASP TX4 Source", "IMON", "IMON ADC"},
 	{"DSP RX1 Source", "IMON", "IMON ADC"},
 	{"DSP RX2 Source", "IMON", "IMON ADC"},
+	{"DSP RX3 Source", "IMON", "IMON ADC"},
 	{"ASP TX1 Source", "IMON FS2", "IMON ADC"},
 	{"ASP TX2 Source", "IMON FS2", "IMON ADC"},
 	{"ASP TX3 Source", "IMON FS2", "IMON ADC"},
 	{"ASP TX4 Source", "IMON FS2", "IMON ADC"},
 	{"DSP RX1 Source", "IMON FS2", "IMON ADC"},
 	{"DSP RX2 Source", "IMON FS2", "IMON ADC"},
+	{"DSP RX3 Source", "IMON FS2", "IMON ADC"},
 	{"ASP TX1 Source", "VPMON", "VPMON ADC"},
 	{"ASP TX2 Source", "VPMON", "VPMON ADC"},
 	{"ASP TX3 Source", "VPMON", "VPMON ADC"},
 	{"ASP TX4 Source", "VPMON", "VPMON ADC"},
 	{"DSP RX1 Source", "VPMON", "VPMON ADC"},
 	{"DSP RX2 Source", "VPMON", "VPMON ADC"},
+	{"DSP RX3 Source", "VPMON", "VPMON ADC"},
 	{"ASP TX1 Source", "VBSTMON", "VBSTMON ADC"},
 	{"ASP TX2 Source", "VBSTMON", "VBSTMON ADC"},
 	{"ASP TX3 Source", "VBSTMON", "VBSTMON ADC"},
 	{"ASP TX4 Source", "VBSTMON", "VBSTMON ADC"},
 	{"DSP RX1 Source", "VBSTMON", "VBSTMON ADC"},
 	{"DSP RX2 Source", "VBSTMON", "VBSTMON ADC"},
+	{"DSP RX3 Source", "VBSTMON", "VBSTMON ADC"},
 	{"ASP TX1 Source", "DSP", "DSP1"},
 	{"ASP TX2 Source", "DSP", "DSP1"},
 	{"ASP TX3 Source", "DSP", "DSP1"},
@@ -1965,7 +1984,7 @@ static int cs35l43_dsp_init(struct cs35l43_private *cs35l43)
 
 	cs_dsp_stop(&dsp->cs_dsp);
 
-	regmap_write(cs35l43->regmap, CS35L43_DSP1RX3_INPUT, 0x00);
+	regmap_write(cs35l43->regmap, CS35L43_DSP1RX3_INPUT, CS35L43_INPUT_SRC_VBSTMON);
 	regmap_write(cs35l43->regmap, CS35L43_DSP1RX4_INPUT, CS35L43_INPUT_SRC_IMON);
 	regmap_write(cs35l43->regmap, CS35L43_DSP1RX5_INPUT, CS35L43_INPUT_SRC_VMON);
 	regmap_write(cs35l43->regmap, CS35L43_DSP1RX6_INPUT, CS35L43_INPUT_SRC_VPMON);
