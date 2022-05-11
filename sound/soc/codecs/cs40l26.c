@@ -15,6 +15,16 @@ static const struct cs40l26_pll_sysclk_config cs40l26_pll_sysclk[] = {
 	{CS40L26_PLL_CLK_FRQ_12288000, CS40L26_PLL_CLK_CFG_12288000},
 };
 
+static void cs40l26_resume_error_handle_asoc(struct device *dev)
+{
+	dev_alert(dev, "PM Runtime Resume failed\n");
+
+	pm_runtime_set_active(dev);
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+}
+
 static int cs40l26_get_clk_config(u32 freq, u8 *clk_cfg)
 {
 	int i;
@@ -278,7 +288,7 @@ static int cs40l26_i2s_vmon_get(struct snd_kcontrol *kcontrol,
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev);
+		cs40l26_resume_error_handle_asoc(cs40l26->dev);
 		return ret;
 	}
 
@@ -518,7 +528,7 @@ static int cs40l26_a2h_volume_get(struct snd_kcontrol *kcontrol,
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(dev);
+		cs40l26_resume_error_handle_asoc(dev);
 		return ret;
 	}
 
@@ -559,7 +569,7 @@ static int cs40l26_a2h_volume_put(struct snd_kcontrol *kcontrol,
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(dev);
+		cs40l26_resume_error_handle_asoc(dev);
 		return ret;
 	}
 
@@ -591,7 +601,7 @@ static int cs40l26_a2h_delay_get(struct snd_kcontrol *kcontrol,
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(dev);
+		cs40l26_resume_error_handle_asoc(dev);
 		return ret;
 	}
 
@@ -635,7 +645,7 @@ static int cs40l26_a2h_delay_put(struct snd_kcontrol *kcontrol,
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(dev);
+		cs40l26_resume_error_handle_asoc(dev);
 		return ret;
 	}
 
@@ -787,7 +797,7 @@ static int cs40l26_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	ret = pm_runtime_get_sync(codec->dev);
 	if (ret < 0) {
-		cs40l26_resume_error_handle(codec->dev);
+		cs40l26_resume_error_handle_asoc(codec->dev);
 		return ret;
 	}
 
