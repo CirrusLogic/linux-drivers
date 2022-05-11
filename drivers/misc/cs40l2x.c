@@ -368,7 +368,7 @@ static int cs40l2x_read_wavetable(struct cs40l2x_private *cs40l2x, void *buf,
 
 		if (entry->type == WT_TYPE_TERMINATOR) {
 			table->nwaves = i;
-			table->bytes = max(dspmem_chunk_bytes(&ch),
+			table->bytes = max_t(int, dspmem_chunk_bytes(&ch),
 					   (void *)max - buf);
 
 			return table->bytes;
