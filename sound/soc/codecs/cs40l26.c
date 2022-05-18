@@ -350,6 +350,7 @@ static int cs40l26_svc_for_streaming_data_get(struct snd_kcontrol *kcontrol,
 	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
 	struct regmap *regmap = cs40l26->regmap;
+	struct device *dev = cs40l26->dev;
 	unsigned int val = 0, reg;
 	int ret = 0;
 
@@ -358,7 +359,11 @@ static int cs40l26_svc_for_streaming_data_get(struct snd_kcontrol *kcontrol,
 	if (ret)
 		return ret;
 
-	mutex_lock(&cs40l26->lock);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(dev, ret);
+		return ret;
+	}
 
 	ret = regmap_read(regmap, reg, &val);
 	if (ret) {
@@ -366,12 +371,13 @@ static int cs40l26_svc_for_streaming_data_get(struct snd_kcontrol *kcontrol,
 		return ret;
 	}
 
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
 	if (val & CS40L26_SVC_FOR_STREAMING_MASK)
 		ucontrol->value.enumerated.item[0] = 1;
 	else
 		ucontrol->value.enumerated.item[0] = 0;
-
-	mutex_unlock(&cs40l26->lock);
 
 	return ret;
 }
@@ -382,6 +388,7 @@ static int cs40l26_svc_for_streaming_data_put(struct snd_kcontrol *kcontrol,
 	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
 	struct regmap *regmap = cs40l26->regmap;
+	struct device *dev = cs40l26->dev;
 	int ret = 0;
 	unsigned int reg;
 
@@ -390,7 +397,11 @@ static int cs40l26_svc_for_streaming_data_put(struct snd_kcontrol *kcontrol,
 	if (ret)
 		return ret;
 
-	mutex_lock(&cs40l26->lock);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(dev, ret);
+		return ret;
+	}
 
 	ret = regmap_update_bits(regmap, reg,
 			CS40L26_SVC_FOR_STREAMING_MASK,
@@ -398,7 +409,8 @@ static int cs40l26_svc_for_streaming_data_put(struct snd_kcontrol *kcontrol,
 	if (ret)
 		dev_err(cs40l26->dev, "Failed to specify SVC for streaming\n");
 
-	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return ret;
 }
@@ -410,6 +422,7 @@ static int cs40l26_invert_streaming_data_get(struct snd_kcontrol *kcontrol,
 	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
 	struct regmap *regmap = cs40l26->regmap;
+	struct device *dev = cs40l26->dev;
 	unsigned int val = 0, reg;
 	int ret = 0;
 
@@ -418,7 +431,11 @@ static int cs40l26_invert_streaming_data_get(struct snd_kcontrol *kcontrol,
 	if (ret)
 		return ret;
 
-	mutex_lock(&cs40l26->lock);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(dev, ret);
+		return ret;
+	}
 
 	ret = regmap_read(regmap, reg, &val);
 	if (ret) {
@@ -426,12 +443,13 @@ static int cs40l26_invert_streaming_data_get(struct snd_kcontrol *kcontrol,
 		return ret;
 	}
 
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
 	if (val)
 		ucontrol->value.enumerated.item[0] = 1;
 	else
 		ucontrol->value.enumerated.item[0] = 0;
-
-	mutex_unlock(&cs40l26->lock);
 
 	return ret;
 }
@@ -443,6 +461,7 @@ static int cs40l26_invert_streaming_data_put(struct snd_kcontrol *kcontrol,
 	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
 	struct regmap *regmap = cs40l26->regmap;
+	struct device *dev = cs40l26->dev;
 	int ret = 0;
 	unsigned int reg;
 
@@ -451,13 +470,18 @@ static int cs40l26_invert_streaming_data_put(struct snd_kcontrol *kcontrol,
 	if (ret)
 		return ret;
 
-	mutex_lock(&cs40l26->lock);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(dev, ret);
+		return ret;
+	}
 
 	ret = regmap_write(regmap, reg, ucontrol->value.enumerated.item[0]);
 	if (ret)
 		dev_err(cs40l26->dev, "Failed to specify invert streaming data\n");
 
-	mutex_unlock(&cs40l26->lock);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return ret;
 }
