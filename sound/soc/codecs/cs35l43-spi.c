@@ -51,6 +51,25 @@ static const struct spi_device_id cs35l43_id_spi[] = {
 
 MODULE_DEVICE_TABLE(spi, cs35l43_id_spi);
 
+static void cs35l43_limit_spi_clock(struct cs35l43_private *cs35l43, bool state)
+{
+	struct spi_device *spi;
+
+	spi = to_spi_device(cs35l43->dev);
+	if (!spi) {
+		dev_err(cs35l43->dev, "%s: No SPI device\n", __func__);
+		return;
+	}
+
+	if (state)
+		spi->max_speed_hz = CS35L43_SPI_MAX_FREQ_NO_PLL;
+	else
+		spi->max_speed_hz = cs35l43->max_spi_freq;
+
+	dev_dbg(&spi->dev, "Set SPI freq: %d\n", spi->max_speed_hz);
+	spi_setup(spi);
+}
+
 static int cs35l43_spi_probe(struct spi_device *spi)
 {
 	const struct regmap_config *regmap_config = &cs35l43_regmap_spi;
@@ -65,7 +84,6 @@ static int cs35l43_spi_probe(struct spi_device *spi)
 	if (cs35l43 == NULL)
 		return -ENOMEM;
 
-
 	spi_set_drvdata(spi, cs35l43);
 	cs35l43->regmap = devm_regmap_init_spi(spi, regmap_config);
 	if (IS_ERR(cs35l43->regmap)) {
@@ -77,6 +95,11 @@ static int cs35l43_spi_probe(struct spi_device *spi)
 
 	cs35l43->dev = &spi->dev;
 	cs35l43->irq = spi->irq;
+	cs35l43->max_spi_freq = spi->max_speed_hz;
+
+	cs35l43->limit_spi_clock = cs35l43_limit_spi_clock;
+
+	cs35l43_limit_spi_clock(cs35l43, true);
 
 	return cs35l43_probe(cs35l43, pdata);
 }

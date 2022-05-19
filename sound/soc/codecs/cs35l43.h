@@ -102,6 +102,9 @@
 #define CS35L43_PWRMGT_RST			0x0002910
 #define CS35L43_TEST_CTL			0x0002914
 
+#define CS35L43_WKSRC_SPI			0x200
+#define CS35L43_WKSRC_I2C			0x400
+
 /************************************************/
 /* Device Clocking and Sample Rate Control	*/
 /************************************************/
@@ -938,3 +941,5 @@
 #define CS35L43_POWER_SEQ_OP_DELAY_WORDS		1
 #define CS35L43_POWER_SEQ_OP_END			0xFF
 #define CS35L43_POWER_SEQ_OP_END_WORDS			1
+
+#define CS35L43_SPI_MAX_FREQ_NO_PLL			4000000
