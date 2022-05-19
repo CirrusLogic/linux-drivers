@@ -800,7 +800,13 @@ static int cs35l43_dsp_preload_ev(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMU:
 		if (cs35l43->dsp.cs_dsp.booted)
 			return 0;
-
+		if (cs35l43->limit_spi_clock) {
+			regmap_update_bits(cs35l43->regmap,
+					   CS35L43_REFCLK_INPUT,
+					   CS35L43_PLL_FORCE_EN_MASK,
+					   CS35L43_PLL_FORCE_EN_MASK);
+			cs35l43->limit_spi_clock(cs35l43, false);
+		}
 		wm_adsp_early_event(w, kcontrol, event);
 		break;
 	case SND_SOC_DAPM_POST_PMU:
@@ -809,6 +815,13 @@ static int cs35l43_dsp_preload_ev(struct snd_soc_dapm_widget *w,
 		regmap_write(cs35l43->regmap, CS35L43_PWRMGT_CTL, CS35L43_MEM_RDY);
 		wm_adsp_event(w, kcontrol, event);
 		cs35l43->delta_applied = 0;
+		if (cs35l43->limit_spi_clock) {
+			cs35l43->limit_spi_clock(cs35l43, true);
+			regmap_update_bits(cs35l43->regmap,
+					   CS35L43_REFCLK_INPUT,
+					   CS35L43_PLL_FORCE_EN_MASK,
+					   0);
+		}
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		if (cs35l43->dsp.preloaded)
@@ -891,6 +904,13 @@ static int cs35l43_enter_hibernate(struct cs35l43_private *cs35l43)
 		return 0;
 
 	dev_info(cs35l43->dev, "%s\n", __func__);
+
+	if (cs35l43->limit_spi_clock)
+		regmap_write(cs35l43->regmap, CS35L43_WAKESRC_CTL,
+						CS35L43_WKSRC_SPI);
+	else
+		regmap_write(cs35l43->regmap, CS35L43_WAKESRC_CTL,
+						CS35L43_WKSRC_I2C);
 
 	wm_adsp_read_ctl(&cs35l43->dsp, "PM_CUR_STATE",
 		WMFW_ADSP2_XM, CS35L43_ALG_ID_PM, &pm_state, sizeof(u32));
@@ -1053,9 +1073,12 @@ static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
 		regmap_write(cs35l43->regmap, CS35L43_GLOBAL_ENABLES, 1);
 		regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 				CS35L43_MBOX_CMD_AUDIO_PLAY);
-
+		if (cs35l43->limit_spi_clock)
+			cs35l43->limit_spi_clock(cs35l43, false);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
+		if (cs35l43->limit_spi_clock)
+			cs35l43->limit_spi_clock(cs35l43, true);
 		regmap_write(cs35l43->regmap, CS35L43_GLOBAL_ENABLES, 0);
 		regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 				CS35L43_MBOX_CMD_AUDIO_PAUSE);
@@ -1595,6 +1618,8 @@ static int cs35l43_component_set_sysclk(struct snd_soc_component *component,
 	if (cs35l43->hibernate_state != CS35L43_HIBERNATE_STANDBY) {
 		cs35l43_pll_config(cs35l43);
 		regmap_write(cs35l43->regmap, CS35L43_FS_MON_0, val);
+		if (cs35l43->limit_spi_clock)
+			cs35l43->limit_spi_clock(cs35l43, false);
 	}
 
 	return 0;
