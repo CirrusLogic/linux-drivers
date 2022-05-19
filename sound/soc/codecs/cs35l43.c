@@ -65,6 +65,13 @@ static DECLARE_TLV_DB_SCALE(amp_gain_tlv, 0, 1, 1);
 static const struct snd_kcontrol_new amp_enable_ctrl =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
+static const char * const cs35l43_pcm_sftramp_text[] =  {
+	"Off", ".5ms", "1ms", "2ms", "4ms", "8ms", "15ms", "30ms"};
+
+static SOC_ENUM_SINGLE_DECL(pcm_sft_ramp,
+			    CS35L43_AMP_CTRL, 0,
+			    cs35l43_pcm_sftramp_text);
+
 static const char * const cs35l43_tx_input_texts[] = {
 	"Zero", "ASPRX1", "ASPRX2", "VMON", "IMON", "VMON FS2", "IMON FS2",
 	"VPMON", "VBSTMON", "DSP", "DSP FS2"};
@@ -410,6 +417,7 @@ static const struct snd_kcontrol_new cs35l43_aud_controls[] = {
 			amp_gain_tlv),
 	SOC_SINGLE_EXT("Reinit", SND_SOC_NOPM, 0, 1, 0,
 			cs35l43_reinit_get, cs35l43_reinit_put),
+	SOC_ENUM("PCM Soft Ramp", pcm_sft_ramp),
 	SOC_SINGLE_RANGE("ASPTX1 Slot Position", CS35L43_ASP_FRAME_CONTROL1, 0, 0, 7, 0),
 	SOC_SINGLE_RANGE("ASPTX2 Slot Position", CS35L43_ASP_FRAME_CONTROL1, 8, 0, 7, 0),
 	SOC_SINGLE_RANGE("ASPTX3 Slot Position", CS35L43_ASP_FRAME_CONTROL1, 16, 0, 7, 0),
