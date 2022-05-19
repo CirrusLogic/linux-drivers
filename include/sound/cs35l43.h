@@ -31,6 +31,7 @@ struct cs35l43_platform_data {
 	int dsp_ng_delay;
 	int dout_hiz;
 	int bst_vctrl;
+	int bst_ipk;
 	int hw_ng_sel;
 	int hw_ng_delay;
 	int hw_ng_thld;
