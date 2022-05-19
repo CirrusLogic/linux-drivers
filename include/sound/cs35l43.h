@@ -110,9 +110,11 @@ struct cs35l43_private {
 	int slot_width;
 	int delta_requested;
 	int delta_applied;
+	unsigned int max_spi_freq;
 	struct gpio_desc *reset_gpio;
 	struct mutex hb_lock;
 	struct cs35l43_write_seq power_on_seq;
+	void (*limit_spi_clock)(struct cs35l43_private *cs35l43, bool state);
 };
 
 int cs35l43_probe(struct cs35l43_private *cs35l43,
