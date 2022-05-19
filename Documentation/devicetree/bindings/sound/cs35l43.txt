@@ -32,6 +32,12 @@ Optional properties:
   'cirrus,classh-disable' is also set to true.
   (Default) VP
 
+  - cirrus,bst-ipk-ma : Boost-converter peak current limit in mA.
+  Configures the peak current by monitoring the current through the boost FET.
+  Range starts at 1600 mA and goes to a maximum of 4500 mA with increments
+  of 50 mA.
+  (Default) 4.50 Amps
+
   - cirrus,classh-disable : Boolean which will disable Class H tracking and
   set Boost voltage to the value in the 'boost-ctl-millivolt' property
 
@@ -196,6 +202,7 @@ cs35l43: cs35l43@40 {
   interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
   reset-gpios = <&gpio 110 0>;
 
+  cirrus,bst-ipk-ma = <4000>;
   cirrus,asp-sdout-hiz = <3>;
   cirrus,gpio2-src-sel = <4>;
 };

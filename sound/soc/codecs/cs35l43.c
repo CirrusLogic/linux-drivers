@@ -1726,6 +1726,13 @@ static int cs35l43_set_pdata(struct cs35l43_private *cs35l43)
 				CS35L43_BST_CTL_LIM_EN_MASK);
 	}
 
+	if (cs35l43->pdata.bst_ipk) {
+		regmap_update_bits(cs35l43->regmap,
+				CS35L43_BST_IPK_CTL,
+				CS35L43_BST_IPK_MASK,
+				cs35l43->pdata.bst_ipk);
+	}
+
 	if (cs35l43->pdata.dsp_ng_enable) {
 		regmap_update_bits(cs35l43->regmap,
 				CS35L43_MIXER_NGATE_CH1_CFG,
@@ -1885,6 +1892,15 @@ static int cs35l43_handle_of_data(struct device *dev,
 
 	if (of_property_read_u32(np, "cirrus,asp-sdout-hiz", &val) >= 0)
 		pdata->asp_sdout_hiz = val | CS35L43_VALID_PDATA;
+
+	if (of_property_read_u32(np, "cirrus,bst-ipk-ma", &val) >= 0) {
+		if ((val < 1600) || (val > 4500)) {
+			dev_err(dev, "Invalid boost inductor peak current: %d mA\n",
+					val);
+			return -EINVAL;
+		}
+		pdata->bst_ipk = ((val - 1600) / 50) + 0x10;
+	}
 
 	pdata->classh_disable = of_property_read_bool(np,
 						"cirrus,classh-disable");
