@@ -481,6 +481,32 @@
 #define CS35L43_GP2_CTRL_PUSH_PULL_ACTV_HI	5
 
 /************************************************/
+/* Digital Boost Converter			*/
+/************************************************/
+
+/************************************************/
+/* Boost Converter Voltage Control 1		*/
+/************************************************/
+#define CS35L43_BST_CTL_MASK			0x000000FF
+#define CS35L43_BST_CTL_SHIFT			0
+
+/************************************************/
+/* Boost Converter Voltage Control 2		*/
+/************************************************/
+#define CS35L43_BST_CTL_EXT_EN_MASK		0x00000100
+#define CS35L43_BST_CTL_EXT_EN_SHIFT		8
+#define CS35L43_BST_CTL_LIM_EN_MASK		0x00000004
+#define CS35L43_BST_CTL_LIM_EN_SHIFT		2
+#define CS35L43_BST_CTL_SEL_MASK		0x00000003
+#define CS35L43_BST_CTL_SEL_SHIFT		0
+
+/************************************************/
+/* Boost Converter Peak Current			*/
+/************************************************/
+#define CS35L43_BST_IPK_MASK			0x0000007F
+#define CS35L43_BST_IPK_SHIFT			0
+
+/************************************************/
 /* DATAIF_ASP_ENABLES1				*/
 /************************************************/
 #define CS35L43_ASP_RX3_EN_MASK			0x00040000
@@ -882,27 +908,6 @@
 #define CS35L43_NG_DELAY_SHIFT			4
 #define CS35L43_NG_PCM_THLD_MASK		0x00000007
 #define CS35L43_NG_PCM_THLD_SHIFT		0
-
-/************************************************/
-/* Digital Boost Converter			*/
-/************************************************/
-
-/************************************************/
-/* Boost Converter Voltage Control 1		*/
-/************************************************/
-#define CS35L43_BST_CTL_MASK			0x000000FF
-#define CS35L43_BST_CTL_SHIFT			0
-
-/************************************************/
-/* Boost Converter Voltage Control 2		*/
-/************************************************/
-#define CS35L43_BST_CTL_EXT_EN_MASK		0x00000100
-#define CS35L43_BST_CTL_EXT_EN_SHIFT		8
-#define CS35L43_BST_CTL_LIM_EN_MASK		0x00000004
-#define CS35L43_BST_CTL_LIM_EN_SHIFT		2
-#define CS35L43_BST_CTL_SEL_MASK		0x00000003
-#define CS35L43_BST_CTL_SEL_SHIFT		0
-
 
 /* #####################################################*/
 /* Software Values					*/
