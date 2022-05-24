@@ -1274,13 +1274,14 @@ static ssize_t cs40l2x_cp_trigger_queue_store(struct device *dev,
 			goto err_mutex;
 	}
 
-	if (comp->repeat == WT_REPEAT_LOOP_MARKER) {
-		comp->wlength = WT_WAVELEN_INDEFINITE;
-	} else {
-		comp->wlength *= comp->repeat + 1;
-		clamp_t(unsigned int, comp->wlength, 0, WT_WAVELEN_MAX);
-	}
-	comp->wlength |= WT_WAVELEN_CALCULATED;
+	comp->wlength *= comp->repeat + 1;
+	clamp_t(unsigned int, comp->wlength, 0, WT_WAVELEN_MAX);
+
+	if (comp->wlength)
+		comp->wlength |= WT_WAVELEN_CALCULATED;
+
+	if (comp->repeat == WT_REPEAT_LOOP_MARKER)
+		comp->wlength |= WT_WAVELEN_INDEFINITE;
 
 	cs40l2x->last_type_entered = CS40L2X_WT_TYPE_10_COMP_FILE;
 	cs40l2x->queue_stored = true;
@@ -1422,7 +1423,7 @@ static int cs40l2x_pwle_time_entry(struct cs40l2x_private *cs40l2x, char *token,
 
 	section->time = val / (100 / 4);
 
-	if (val == CS40L2X_PWLE_INDEF_TIME_VAL)
+	if (section->time == CS40L2X_PWLE_INDEF_TIME_VAL)
 		*indef = true;
 	else
 		pwle->wlength += section->time;
@@ -1760,10 +1761,11 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 	/* Convert from 1/4mS's to samples at 8kHz for waveform length */
 	pwle->wlength *= 2;
 
+	if (pwle->wlength)
+		pwle->wlength |= WT_WAVELEN_CALCULATED;
+
 	if (indef)
 		pwle->wlength |= WT_WAVELEN_INDEFINITE;
-
-	pwle->wlength |= WT_WAVELEN_CALCULATED;
 
 	ret = cs40l2x_save_packed_pwle_data(cs40l2x, pwle, feature, save_pwle);
 	if (ret) {
