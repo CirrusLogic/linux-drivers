@@ -1149,6 +1149,7 @@ static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 			 0, 63, 0),
 	SOC_SINGLE_RANGE("ASPRX2 Slot Position", CS35L45_ASP_FRAME_CONTROL5, 8,
 			 0, 63, 0),
+	SOC_SINGLE_RANGE("Boost Target Voltage", CS35L45_BOOST_VOLTAGE_CFG, 0, 0x50, 0xbe, 0),
 
 	SOC_ENUM("DSP_RX1 Source", mux_enums[DSP_RX1]),
 	SOC_ENUM("DSP_RX2 Source", mux_enums[DSP_RX2]),
