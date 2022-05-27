@@ -934,6 +934,8 @@ static int cs35l43_enter_hibernate(struct cs35l43_private *cs35l43)
 
 	cs35l43_write_seq_update(cs35l43, &cs35l43->power_on_seq);
 
+	regmap_write(cs35l43->regmap, CS35L43_GLOBAL_ENABLES, 0);
+
 	regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 					CS35L43_MBOX_CMD_ALLOW_HIBERNATE);
 	regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
@@ -1108,6 +1110,8 @@ static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
 		if (cs35l43->dsp.cs_dsp.running)
 			cs35l43_apply_delta_tuning(cs35l43);
 		regmap_write(cs35l43->regmap, CS35L43_GLOBAL_ENABLES, 1);
+		regmap_update_bits(cs35l43->regmap, CS35L43_BLOCK_ENABLES,
+				CS35L43_AMP_EN_MASK, CS35L43_AMP_EN_MASK);
 		regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 				CS35L43_MBOX_CMD_AUDIO_PLAY);
 		if (cs35l43->limit_spi_clock)
@@ -1116,9 +1120,10 @@ static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMD:
 		if (cs35l43->limit_spi_clock)
 			cs35l43->limit_spi_clock(cs35l43, true);
-		regmap_write(cs35l43->regmap, CS35L43_GLOBAL_ENABLES, 0);
 		regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 				CS35L43_MBOX_CMD_AUDIO_PAUSE);
+		regmap_update_bits(cs35l43->regmap, CS35L43_BLOCK_ENABLES,
+				CS35L43_AMP_EN_MASK, 0);
 		cs35l43_check_mailbox(cs35l43);
 		break;
 	default:
