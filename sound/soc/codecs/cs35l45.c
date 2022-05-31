@@ -1119,6 +1119,127 @@ out:
 	return ret;
 }
 
+static int cs35l45_classh_en_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct cs35l45_private *cs35l45 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = cs35l45->classh_tracking;
+
+	return 0;
+}
+
+static int cs35l45_classh_en_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct cs35l45_private *cs35l45 = snd_soc_component_get_drvdata(component);
+	bool classh_tracking_changed;
+	int ret = 0;
+
+	classh_tracking_changed = (cs35l45->classh_tracking !=
+					(bool)ucontrol->value.integer.value[0]);
+
+	mutex_lock(&cs35l45->classh_lock);
+
+	cs35l45->classh_tracking = ucontrol->value.integer.value[0];
+
+	pm_runtime_resume_and_get(cs35l45->dev);
+
+	if (classh_tracking_changed) {
+		if (cs35l45->classh_tracking) {
+			ret = regmap_update_bits(cs35l45->regmap, CS35L45_BOOST_VOLTAGE_CFG,
+						 CS35L45_BST_CTL_SEL_MASK,
+						 CS35L45_BST_CTL_SET_CLASSH <<
+						 CS35L45_BST_CTL_SEL_SHIFT);
+			if (ret)
+				goto out;
+
+			ret = regmap_set_bits(cs35l45->regmap, CS35L45_BOOST_OV_CFG,
+					      CS35L45_BST_ACTLOAD_BYP);
+			if (ret)
+				goto out;
+
+			ret = regmap_update_bits(cs35l45->regmap, CS35L45_BOOST_OV_CFG,
+						 CS35L45_BST_ACTLOAD_VHYST_MASK,
+						 0x30 << CS35L45_BST_ACTLOAD_VHYST_SHIFT);
+			if (ret)
+				goto out;
+
+			ret = regmap_set_bits(cs35l45->regmap, CS35L45_BOOST_UV_CFG,
+					      CS35L45_BST_UV_BYP);
+			if (ret)
+				goto out;
+
+			ret = regmap_set_bits(cs35l45->regmap, CS35L45_BOOST_DCM_CFG,
+					      CS35L45_BST_DCM_MINFREQ_BYP);
+			if (ret)
+				goto out;
+
+			ret = regmap_update_bits(cs35l45->regmap, CS35L45_BOOST_DCM_CFG,
+						 CS35L45_BST_DCM_THLD_MASK,
+						 CS35L45_BST_DCM_THLD_2_CYCLES);
+			if (ret)
+				goto out;
+
+			ret = regmap_update_bits(cs35l45->regmap, CS35L45_BOOST_LPMODE_CFG,
+						 CS35L45_BST_LPMODE_SEL_MASK,
+						 CS35L45_BST_LPMODE_FRC_STATIC_BYP);
+			if (ret)
+				goto out;
+		} else {
+			ret = regmap_update_bits(cs35l45->regmap, CS35L45_BOOST_VOLTAGE_CFG,
+						 CS35L45_BST_CTL_SEL_MASK,
+						 CS35L45_BST_CTL_SET_REGISTER <<
+						 CS35L45_BST_CTL_SEL_SHIFT);
+			if (ret)
+				goto out;
+
+			ret = regmap_clear_bits(cs35l45->regmap, CS35L45_BOOST_OV_CFG,
+						CS35L45_BST_ACTLOAD_BYP);
+			if (ret)
+				goto out;
+
+			ret = regmap_update_bits(cs35l45->regmap, CS35L45_BOOST_OV_CFG,
+						 CS35L45_BST_ACTLOAD_VHYST_MASK,
+						 0x14 << CS35L45_BST_ACTLOAD_VHYST_SHIFT);
+			if (ret)
+				goto out;
+
+			ret = regmap_clear_bits(cs35l45->regmap, CS35L45_BOOST_UV_CFG,
+						CS35L45_BST_UV_BYP);
+			if (ret)
+				goto out;
+
+			ret = regmap_clear_bits(cs35l45->regmap, CS35L45_BOOST_DCM_CFG,
+						CS35L45_BST_DCM_MINFREQ_BYP);
+			if (ret)
+				goto out;
+
+			ret = regmap_update_bits(cs35l45->regmap, CS35L45_BOOST_DCM_CFG,
+						 CS35L45_BST_DCM_THLD_MASK,
+						 CS35L45_BST_DCM_THLD_0_CYCLES);
+			if (ret)
+				goto out;
+
+			ret = regmap_update_bits(cs35l45->regmap, CS35L45_BOOST_LPMODE_CFG,
+						 CS35L45_BST_LPMODE_SEL_MASK,
+						 CS35L45_BST_LPMODE_FRC_DCM_LP);
+			if (ret)
+				goto out;
+		}
+	}
+
+out:
+	mutex_unlock(&cs35l45->classh_lock);
+
+	pm_runtime_mark_last_busy(cs35l45->dev);
+	pm_runtime_put_sync_autosuspend(cs35l45->dev);
+
+	return ret;
+}
+
 static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 	WM_ADSP_FW_CONTROL("DSP1", 0),
 	WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
@@ -1137,6 +1258,8 @@ static const struct snd_kcontrol_new cs35l45_aud_controls[] = {
 			cs35l45_get_speaker_status, NULL),
 	SOC_SINGLE_EXT("Force Interrupt", SND_SOC_NOPM, 0, 1, 0,
 			cs35l45_force_int_get, cs35l45_force_int_put),
+	SOC_SINGLE_EXT("Boost Class-H Tracking Enable", SND_SOC_NOPM, 0, 1, 0,
+			cs35l45_classh_en_get, cs35l45_classh_en_put),
 	SOC_SINGLE_RANGE("ASPTX1 Slot Position", CS35L45_ASP_FRAME_CONTROL1, 0,
 			 0, 63, 0),
 	SOC_SINGLE_RANGE("ASPTX2 Slot Position", CS35L45_ASP_FRAME_CONTROL1, 8,
@@ -2894,6 +3017,8 @@ static int __cs35l45_initialize(struct cs35l45_private *cs35l45)
 		dev_err(dev, "Failed to apply init patch %d\n", ret);
 		return ret;
 	}
+
+	cs35l45->classh_tracking = true;
 
 	ret = cs35l45_apply_of_data(cs35l45);
 	if (ret < 0) {

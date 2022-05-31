@@ -169,12 +169,14 @@ struct cs35l45_private {
 	struct mutex dsp_power_lock;
 	struct mutex hb_lock;
 	struct mutex force_int_lock;
+	struct mutex classh_lock;
 	struct completion virt2_mbox_comp;
 	enum control_bus_type bus_type;
 	bool initialized;
 	bool fast_switch_en;
 	bool hibernate_state;
 	bool force_int;
+	bool classh_tracking;
 	unsigned int i2c_addr;
 	unsigned int speaker_status;
 	int irq;
