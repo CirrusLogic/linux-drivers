@@ -926,6 +926,9 @@
 
 #define CS40L26_AMP_VOL_PCM_MAX		0x07FF
 
+#define CS40L26_ERASE_BUFFER_MS		500
+#define CS40L26_MAX_WAIT_VIBE_COMPLETE_MS	10000
+
 /* GPI Triggering */
 #define CS40L26_GPIO1			1
 #define CS40L26_EVENT_MAP_INDEX_MASK	GENMASK(8, 0)
@@ -1511,6 +1514,7 @@ struct cs40l26_private {
 	bool comp_enable_redc;
 	bool comp_enable_f0;
 	struct completion i2s_cont;
+	struct completion erase_cont;
 	u8 vpbr_thld;
 };
 
