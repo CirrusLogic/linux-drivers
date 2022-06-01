@@ -497,6 +497,9 @@ static const struct snd_kcontrol_new ngate_en_ctl =
 static const struct snd_kcontrol_new nfr_en_ctl =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
+static const struct snd_kcontrol_new vbstmon_out_ctl =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
 static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("DSP1 Preload", NULL),
 	SND_SOC_DAPM_SPK("DSP1", NULL),
@@ -550,6 +553,7 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_SWITCH("NFR Enable", CS35L45_BLOCK_ENABLES, 1, 0,
 			    &nfr_en_ctl),
 	SND_SOC_DAPM_SWITCH("NGATE Enable", SND_SOC_NOPM, 0, 0, &ngate_en_ctl),
+	SND_SOC_DAPM_SWITCH("VBSTMON Output", SND_SOC_NOPM, 0, 0, &vbstmon_out_ctl),
 
 	SND_SOC_DAPM_MIXER("Exit", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("Entry", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -599,9 +603,11 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	/* Playback */
 	{"AMP Enable", "Switch", "Playback"},
 	{"DSP1 Enable", "Switch", "Playback"},
+	{"VBSTMON Output", "Switch", "AP"},
 
 	{"Entry", NULL, "AMP Enable"},
 	{"Entry", NULL, "DSP1 Enable"},
+	{"Entry", NULL, "VBSTMON Output"},
 
 	{"GLOBAL_EN", NULL, "Entry"},
 
