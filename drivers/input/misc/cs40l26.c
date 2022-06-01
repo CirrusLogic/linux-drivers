@@ -708,6 +708,7 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 		switch (val) {
 		case CS40L26_DSP_MBOX_COMPLETE_MBOX:
 			dev_dbg(dev, "Mailbox: COMPLETE_MBOX\n");
+			complete_all(&cs40l26->erase_cont);
 			cs40l26_vibe_state_update(cs40l26,
 					CS40L26_VIBE_STATE_EVENT_MBOX_COMPLETE);
 			break;
@@ -1939,6 +1940,8 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	if (!cs40l26->vibe_state_reporting)
 		cs40l26_vibe_state_update(cs40l26,
 				CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK);
+
+	reinit_completion(&cs40l26->erase_cont);
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 	pm_runtime_mark_last_busy(dev);
@@ -2944,6 +2947,7 @@ static void cs40l26_erase_worker(struct work_struct *work)
 			struct cs40l26_private, erase_work);
 	int ret = 0;
 	int effect_id;
+	u16 duration;
 	u32 index;
 
 	ret = pm_runtime_get_sync(cs40l26->dev);
@@ -2954,6 +2958,22 @@ static void cs40l26_erase_worker(struct work_struct *work)
 
 	effect_id = cs40l26->erase_effect->id;
 	index = cs40l26->trigger_indices[effect_id];
+	duration = (cs40l26->erase_effect->replay.length == 0) ?
+		CS40L26_MAX_WAIT_VIBE_COMPLETE_MS :
+		cs40l26->erase_effect->replay.length + CS40L26_ERASE_BUFFER_MS;
+
+	/* Check for ongoing effect playback. */
+	if (cs40l26->vibe_state == CS40L26_VIBE_STATE_HAPTIC) {
+		/* Wait for effect to complete. */
+		mutex_unlock(&cs40l26->lock);
+		if (!wait_for_completion_timeout(&cs40l26->erase_cont,
+				msecs_to_jiffies(duration))) {
+			ret = -ETIME;
+			dev_err(cs40l26->dev, "Failed to erase effect: %d", ret);
+			goto pm_err;
+		}
+		mutex_lock(&cs40l26->lock);
+	}
 
 	dev_dbg(cs40l26->dev, "%s: effect ID = %d\n", __func__, effect_id);
 
@@ -2979,6 +2999,7 @@ static void cs40l26_erase_worker(struct work_struct *work)
 
 out_mutex:
 	mutex_unlock(&cs40l26->lock);
+pm_err:
 	pm_runtime_mark_last_busy(cs40l26->dev);
 	pm_runtime_put_autosuspend(cs40l26->dev);
 
@@ -4768,6 +4789,7 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 	cs40l26->pm_ready = false;
 
 	init_completion(&cs40l26->i2s_cont);
+	init_completion(&cs40l26->erase_cont);
 
 	if (!cs40l26->fw_defer) {
 		ret = cs40l26_fw_upload(cs40l26);
