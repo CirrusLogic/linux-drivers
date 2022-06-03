@@ -860,8 +860,17 @@ static int cs35l43_dsp_audio_ev(struct snd_soc_dapm_widget *w,
 
 	dev_dbg(cs35l43->dev, "%s\n", __func__);
 
+	if (!cs35l43->dsp.cs_dsp.running)
+		return 0;
+
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
+				CS35L43_MBOX_CMD_AUDIO_PLAY);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
+				CS35L43_MBOX_CMD_AUDIO_PAUSE);
 		break;
 	default:
 		break;
@@ -1112,16 +1121,12 @@ static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
 		regmap_write(cs35l43->regmap, CS35L43_GLOBAL_ENABLES, 1);
 		regmap_update_bits(cs35l43->regmap, CS35L43_BLOCK_ENABLES,
 				CS35L43_AMP_EN_MASK, CS35L43_AMP_EN_MASK);
-		regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
-				CS35L43_MBOX_CMD_AUDIO_PLAY);
 		if (cs35l43->limit_spi_clock)
 			cs35l43->limit_spi_clock(cs35l43, false);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		if (cs35l43->limit_spi_clock)
 			cs35l43->limit_spi_clock(cs35l43, true);
-		regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
-				CS35L43_MBOX_CMD_AUDIO_PAUSE);
 		regmap_update_bits(cs35l43->regmap, CS35L43_BLOCK_ENABLES,
 				CS35L43_AMP_EN_MASK, 0);
 		cs35l43_check_mailbox(cs35l43);
@@ -1148,7 +1153,8 @@ static const struct snd_soc_dapm_widget cs35l43_dapm_widgets[] = {
 				SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 				SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_OUT_DRV_E("DSP1", SND_SOC_NOPM, 0, 0, NULL, 0,
-				cs35l43_dsp_audio_ev, SND_SOC_DAPM_POST_PMU),
+				cs35l43_dsp_audio_ev, SND_SOC_DAPM_POST_PMU |
+				SND_SOC_DAPM_PRE_PMD),
 
 	SND_SOC_DAPM_AIF_IN("ASPRX1", NULL, 0, CS35L43_ASP_ENABLES1,
 					CS35L43_ASP_RX1_EN_SHIFT, 0),
