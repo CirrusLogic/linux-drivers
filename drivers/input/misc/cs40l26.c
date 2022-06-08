@@ -2427,7 +2427,12 @@ static int cs40l26_refactor_owt(struct cs40l26_private *cs40l26, s16 *in_data,
 
 	ch = cl_dsp_memchunk_create((void *) in_data, in_data_bytes);
 	cl_dsp_memchunk_read(&ch, 8); /* Skip padding */
-	nsections = cl_dsp_memchunk_read(&ch, 8);
+	ret = cl_dsp_memchunk_read(&ch, 8);
+	if (ret < 0)
+		return ret;
+
+	nsections = ret;
+
 	global_rep = cl_dsp_memchunk_read(&ch, 8);
 
 	sections = kcalloc(nsections, sizeof(struct cs40l26_owt_section),
