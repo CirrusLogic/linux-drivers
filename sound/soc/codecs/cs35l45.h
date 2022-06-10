@@ -891,6 +891,11 @@ enum speaker_status {
 	SPK_STATUS_SHORT_CIRCUIT = 4,
 };
 
+#define CS35L45_MAX_AUTO_RAMP_TIMEOUT	65535
+#define CS35L45_MAX_PCM_VOL		913
+#define CS35L45_MAX_VOL_ATT		120
+#define CS35L45_ZERO_PCM_VOL		817
+
 /* Power management */
 extern const struct dev_pm_ops cs35l45_pm_ops;
 int cs35l45_suspend_runtime(struct device *dev);
