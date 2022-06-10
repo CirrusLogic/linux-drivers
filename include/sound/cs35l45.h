@@ -153,6 +153,24 @@ struct cs35l45_compr {
 	int buffer_count;
 };
 
+struct cs35l45_vol_ctl {
+	struct workqueue_struct *ramp_wq;
+	struct work_struct ramp_work;
+	struct mutex vol_mutex; /* Protect set volume */
+	atomic_t manual_ramp; /* boolean */
+	atomic_t ramp_abort; /* boolean */
+	atomic_t vol_ramp; /* boolean */
+	atomic_t playback; /* boolean */
+	int ramp_init_att;
+	int ramp_knee_att;
+	unsigned int ramp_knee_time;
+	unsigned int ramp_end_time;
+	int dig_vol;
+	unsigned int auto_ramp_timeout;
+	unsigned int prev_active_dev;
+	ktime_t dev_timestamp;
+};
+
 struct cs35l45_private {
 	struct wm_adsp dsp; /* needs to be first member */
 	struct device *dev;
@@ -191,6 +209,7 @@ struct cs35l45_private {
 	const char **fast_switch_names;
 	struct regmap_irq_chip_data *irq_data;
 	struct snd_soc_component *component;
+	struct cs35l45_vol_ctl vol_ctl;
 };
 
 int cs35l45_initialize(struct cs35l45_private *cs35l45);
