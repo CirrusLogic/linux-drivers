@@ -854,18 +854,20 @@ void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26,
 		return;
 	}
 
+	dev_dbg(cs40l26->dev, "effects_in_flight = %d\n",
+			cs40l26->effects_in_flight);
+
 	switch (event) {
 	case CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK:
 	case CS40L26_VIBE_STATE_EVENT_GPIO_TRIGGER:
 		cs40l26_remove_asp_scaling(cs40l26);
-		cs40l26->effects_in_flight++;
+		cs40l26->effects_in_flight = cs40l26->effects_in_flight <= 0 ? 1 :
+			cs40l26->effects_in_flight + 1;
 		break;
 	case CS40L26_VIBE_STATE_EVENT_MBOX_COMPLETE:
 	case CS40L26_VIBE_STATE_EVENT_GPIO_COMPLETE:
-		cs40l26->effects_in_flight--;
-		if (cs40l26->effects_in_flight < 0)
-			dev_err(cs40l26->dev, "effects_in_flight < 0, %d\n",
-						cs40l26->effects_in_flight);
+		cs40l26->effects_in_flight = cs40l26->effects_in_flight <= 0 ? 0 :
+			cs40l26->effects_in_flight - 1;
 		if (cs40l26->effects_in_flight == 0 && cs40l26->asp_enable)
 			if (cs40l26_asp_start(cs40l26))
 				return;
@@ -1967,8 +1969,11 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 
 	mutex_lock(&cs40l26->lock);
 
-	if (cs40l26->vibe_state != CS40L26_VIBE_STATE_HAPTIC)
+	if (cs40l26->vibe_state != CS40L26_VIBE_STATE_HAPTIC) {
+		dev_warn(cs40l26->dev, "Attempted stop when vibe_state = %d\n",
+				cs40l26->vibe_state);
 		goto mutex_exit;
+	}
 
 	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 				CS40L26_STOP_PLAYBACK, CS40L26_DSP_MBOX_RESET);
