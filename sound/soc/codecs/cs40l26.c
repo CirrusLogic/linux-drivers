@@ -368,22 +368,26 @@ static int cs40l26_svc_for_streaming_data_get(struct snd_kcontrol *kcontrol,
 	ret = regmap_read(regmap, reg, &val);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to read FLAGS\n");
-		return ret;
+		goto pm_err;
 	}
-
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
 
 	if (val & CS40L26_SVC_FOR_STREAMING_MASK)
 		ucontrol->value.enumerated.item[0] = 1;
 	else
 		ucontrol->value.enumerated.item[0] = 0;
 
+pm_err:
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
 	return ret;
 }
+
 static int cs40l26_svc_for_streaming_data_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
+	struct snd_soc_dapm_context *dapm =
+	snd_soc_component_get_dapm(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_codec *codec =
 	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
@@ -403,11 +407,15 @@ static int cs40l26_svc_for_streaming_data_put(struct snd_kcontrol *kcontrol,
 		return ret;
 	}
 
+	snd_soc_dapm_mutex_lock(dapm);
+
 	ret = regmap_update_bits(regmap, reg,
 			CS40L26_SVC_FOR_STREAMING_MASK,
 			ucontrol->value.enumerated.item[0]);
 	if (ret)
 		dev_err(cs40l26->dev, "Failed to specify SVC for streaming\n");
+
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -440,16 +448,17 @@ static int cs40l26_invert_streaming_data_get(struct snd_kcontrol *kcontrol,
 	ret = regmap_read(regmap, reg, &val);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to read SOURCE_INVERT\n");
-		return ret;
+		goto pm_err;
 	}
-
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
 
 	if (val)
 		ucontrol->value.enumerated.item[0] = 1;
 	else
 		ucontrol->value.enumerated.item[0] = 0;
+
+pm_err:
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return ret;
 }
@@ -457,6 +466,8 @@ static int cs40l26_invert_streaming_data_get(struct snd_kcontrol *kcontrol,
 static int cs40l26_invert_streaming_data_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
+	struct snd_soc_dapm_context *dapm =
+	snd_soc_component_get_dapm(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_codec *codec =
 	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
@@ -476,9 +487,13 @@ static int cs40l26_invert_streaming_data_put(struct snd_kcontrol *kcontrol,
 		return ret;
 	}
 
+	snd_soc_dapm_mutex_lock(dapm);
+
 	ret = regmap_write(regmap, reg, ucontrol->value.enumerated.item[0]);
 	if (ret)
 		dev_err(cs40l26->dev, "Failed to specify invert streaming data\n");
+
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -547,13 +562,16 @@ static int cs40l26_a2h_volume_get(struct snd_kcontrol *kcontrol,
 	}
 
 	ret = regmap_read(regmap, reg, &val);
-	if (ret)
+	if (ret) {
 		dev_err(dev, "Failed to get VOLUMELEVEL\n");
-
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
+		goto pm_err;
+	}
 
 	ucontrol->value.integer.value[0] = val;
+
+pm_err:
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return ret;
 }
@@ -561,6 +579,8 @@ static int cs40l26_a2h_volume_get(struct snd_kcontrol *kcontrol,
 static int cs40l26_a2h_volume_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
+	struct snd_soc_dapm_context *dapm =
+	snd_soc_component_get_dapm(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_codec *codec =
 	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
@@ -574,6 +594,14 @@ static int cs40l26_a2h_volume_put(struct snd_kcontrol *kcontrol,
 	if (ret)
 		return ret;
 
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(dev, ret);
+		return ret;
+	}
+
+	snd_soc_dapm_mutex_lock(dapm);
+
 	if (ucontrol->value.integer.value[0] > CS40L26_A2H_VOLUME_MAX)
 		val = CS40L26_A2H_VOLUME_MAX;
 	else if (ucontrol->value.integer.value[0] < 0)
@@ -581,15 +609,11 @@ static int cs40l26_a2h_volume_put(struct snd_kcontrol *kcontrol,
 	else
 		val = ucontrol->value.integer.value[0];
 
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		cs40l26_resume_error_handle(dev, ret);
-		return ret;
-	}
-
 	ret = regmap_write(regmap, reg, val);
 	if (ret)
 		dev_err(dev, "Failed to set VOLUMELEVEL\n");
+
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -637,6 +661,8 @@ err:
 static int cs40l26_a2h_delay_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
+	struct snd_soc_dapm_context *dapm =
+	snd_soc_component_get_dapm(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_codec *codec =
 	snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
@@ -650,6 +676,14 @@ static int cs40l26_a2h_delay_put(struct snd_kcontrol *kcontrol,
 	if (ret)
 		return ret;
 
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		cs40l26_resume_error_handle(dev, ret);
+		return ret;
+	}
+
+	snd_soc_dapm_mutex_lock(dapm);
+
 	if (ucontrol->value.integer.value[0] > CS40L26_A2H_DELAY_MAX)
 		val = CS40L26_A2H_DELAY_MAX;
 	else if (ucontrol->value.integer.value[0] < 0)
@@ -657,15 +691,11 @@ static int cs40l26_a2h_delay_put(struct snd_kcontrol *kcontrol,
 	else
 		val = ucontrol->value.integer.value[0];
 
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		cs40l26_resume_error_handle(dev, ret);
-		return ret;
-	}
-
 	ret = regmap_write(regmap, reg, val);
 	if (ret)
 		dev_err(dev, "Failed to set LRADELAYSAMPS\n");
+
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
