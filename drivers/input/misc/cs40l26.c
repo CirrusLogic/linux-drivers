@@ -4378,35 +4378,30 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 	return cs40l26_dsp_config(cs40l26);
 }
 
-int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
+int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 {
 	struct device *dev = cs40l26->dev;
-	bool deferred = cs40l26->fw_defer;
-	u32 pseq_rom_end_of_script_loc;
-	int ret;
-
-	if (cs40l26->fw_defer) {
-		cs40l26->fw_defer = false;
-	} else {
-		disable_irq(cs40l26->irq);
-		cs40l26_pm_runtime_teardown(cs40l26);
-	}
+	bool re_enable = false;
+	int ret = 0;
 
 	if (cs40l26->revid != CS40L26_REVID_A1 &&
 			cs40l26->revid != CS40L26_REVID_B0) {
 		dev_err(dev, "pseq unrecognized revid: %d\n", cs40l26->revid);
-		ret = -EINVAL;
-		goto defer_err;
+		return -EINVAL;
+	}
+
+	if (cs40l26->fw_loaded) {
+		disable_irq(cs40l26->irq);
+		cs40l26_pm_runtime_teardown(cs40l26);
+		re_enable = true;
 	}
 
 	/* reset pseq END_OF_SCRIPT to location from ROM */
-	pseq_rom_end_of_script_loc = CS40L26_PSEQ_ROM_END_OF_SCRIPT;
-
-	ret = cs40l26_dsp_write(cs40l26, pseq_rom_end_of_script_loc,
+	ret = cs40l26_dsp_write(cs40l26, CS40L26_PSEQ_ROM_END_OF_SCRIPT,
 			CS40L26_PSEQ_OP_END << CS40L26_PSEQ_OP_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to reset pseq END_OF_SCRIPT %d\n", ret);
-		goto defer_err;
+		return ret;
 	}
 
 	if (id == CS40L26_FW_CALIB_ID)
@@ -4416,26 +4411,23 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, u32 id)
 
 	ret = cs40l26_fw_upload(cs40l26);
 	if (ret)
-		goto defer_err;
+		return ret;
 
-	if (deferred) {
+	if (cs40l26->fw_defer && cs40l26->fw_loaded) {
 		ret = devm_request_threaded_irq(dev, cs40l26->irq, NULL,
 				cs40l26_irq, IRQF_ONESHOT | IRQF_SHARED |
 				IRQF_TRIGGER_LOW, "cs40l26", cs40l26);
 		if (ret) {
 			dev_err(dev, "Failed to request threaded IRQ: %d\n",
 					ret);
-			goto defer_err;
+			return ret;
 		}
-	} else {
-		enable_irq(cs40l26->irq);
+
+		cs40l26->fw_defer = false;
 	}
 
-	return 0;
-
-defer_err:
-	if (deferred)
-		cs40l26->fw_defer = true;
+	if (re_enable)
+		enable_irq(cs40l26->irq);
 
 	return ret;
 }
