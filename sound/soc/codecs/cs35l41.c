@@ -3472,12 +3472,6 @@ static int cs35l41_exit_hibernate(struct cs35l41_private *cs35l41)
 	regcache_drop_region(cs35l41->regmap, CS35L41_DEVID,
 					CS35L41_MIXER_NGATE_CH2_CFG);
 
-	/* sync all control regs to cache value */
-	for (i = 0; i < CS35L41_CTRL_CACHE_SIZE; i++)
-		regmap_write(cs35l41->regmap,
-				cs35l41_ctl_cache_regs[i],
-				cs35l41->ctl_cache[i]);
-
 	regmap_write(cs35l41->regmap, CS35L41_TEST_KEY_CTL, 0x00000055);
 	regmap_write(cs35l41->regmap, CS35L41_TEST_KEY_CTL, 0x000000AA);
 
@@ -3493,6 +3487,12 @@ static int cs35l41_exit_hibernate(struct cs35l41_private *cs35l41)
 
 	regmap_write(cs35l41->regmap, CS35L41_TEST_KEY_CTL, 0x000000CC);
 	regmap_write(cs35l41->regmap, CS35L41_TEST_KEY_CTL, 0x00000033);
+
+	/* sync all control regs to cache value */
+	for (i = 0; i < CS35L41_CTRL_CACHE_SIZE; i++)
+		regmap_write(cs35l41->regmap,
+				cs35l41_ctl_cache_regs[i],
+				cs35l41->ctl_cache[i]);
 
 	retries = 5;
 
