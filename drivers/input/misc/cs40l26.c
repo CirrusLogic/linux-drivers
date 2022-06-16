@@ -4433,17 +4433,6 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 }
 EXPORT_SYMBOL(cs40l26_fw_swap);
 
-static int cs40l26_update_reg_defaults(struct cs40l26_private *cs40l26)
-{
-	int ret;
-
-	ret = regmap_update_bits(cs40l26->regmap, CS40L26_TST_DAC_MSM_CONFIG,
-			CS40L26_SPK_DEFAULT_HIZ_MASK, 1 <<
-			CS40L26_SPK_DEFAULT_HIZ_SHIFT);
-
-	return ret;
-}
-
 static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
@@ -4802,9 +4791,12 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 	if (ret)
 		goto err;
 
-	ret = cs40l26_update_reg_defaults(cs40l26);
+	/* Set LRA to high-z to avoid fault conditions */
+	ret = regmap_update_bits(cs40l26->regmap, CS40L26_TST_DAC_MSM_CONFIG,
+			CS40L26_SPK_DEFAULT_HIZ_MASK, 1 <<
+			CS40L26_SPK_DEFAULT_HIZ_SHIFT);
 	if (ret) {
-		dev_err(dev, "Failed to update reg defaults\n");
+		dev_err(dev, "Failed to set LRA to HI-Z\n");
 		goto err;
 	}
 
