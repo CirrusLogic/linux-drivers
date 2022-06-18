@@ -4058,20 +4058,10 @@ int cs40l26_svc_le_estimate(struct cs40l26_private *cs40l26, unsigned int *le)
 EXPORT_SYMBOL(cs40l26_svc_le_estimate);
 
 static int cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26,
-		u32 *tuning_num)
+		unsigned int le, u32 *tuning_num)
 {
-	unsigned int le;
-	int ret, i;
-
-	ret = pm_runtime_get_sync(cs40l26->dev);
-	if (ret < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev, ret);
-		return ret;
-	}
-
-	ret = cs40l26_svc_le_estimate(cs40l26, &le);
-	if (ret)
-		goto pm_err;
+	int ret = 0;
+	int i;
 
 	if (le) {
 		for (i = 0; i < cs40l26->num_svc_le_vals; i++) {
@@ -4088,10 +4078,6 @@ static int cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26,
 
 	if (!le || i == cs40l26->num_svc_le_vals)
 		dev_warn(cs40l26->dev, "Using default tunings\n");
-
-pm_err:
-	pm_runtime_mark_last_busy(cs40l26->dev);
-	pm_runtime_put_autosuspend(cs40l26->dev);
 
 	return ret;
 }
@@ -4301,6 +4287,7 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 	u32 tuning_num = 0;
 	const struct firmware *fw;
 	int ret;
+	unsigned int le = 0;
 
 	cs40l26->fw_loaded = false;
 
@@ -4340,13 +4327,26 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 		if (ret)
 			return ret;
 
-		ret = cs40l26_tuning_select_from_svc_le(cs40l26, &tuning_num);
-		if (ret)
+		ret = pm_runtime_get_sync(dev);
+		if (ret < 0) {
+			cs40l26_resume_error_handle(dev, ret);
 			return ret;
+		}
+
+		ret = cs40l26_svc_le_estimate(cs40l26, &le);
+		if (ret)
+			dev_warn(dev, "svc_le_estimate failed, %d", ret);
+
+		pm_runtime_mark_last_busy(dev);
+		pm_runtime_put_autosuspend(dev);
 
 		cs40l26_pm_runtime_teardown(cs40l26);
 
 		ret = cs40l26_dsp_pre_config(cs40l26);
+		if (ret)
+			return ret;
+
+		ret = cs40l26_tuning_select_from_svc_le(cs40l26, le, &tuning_num);
 		if (ret)
 			return ret;
 	}
