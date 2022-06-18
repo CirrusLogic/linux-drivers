@@ -1516,6 +1516,7 @@ struct cs40l26_private {
 	struct completion i2s_cont;
 	struct completion erase_cont;
 	u8 vpbr_thld;
+	unsigned int svc_le_est_stored;
 };
 
 struct cs40l26_codec {
