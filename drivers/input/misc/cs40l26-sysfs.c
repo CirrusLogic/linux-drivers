@@ -2086,8 +2086,45 @@ static ssize_t svc_le_est_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(svc_le_est);
 
+static ssize_t svc_le_stored_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+
+	mutex_lock(&cs40l26->lock);
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->svc_le_est_stored);
+
+	mutex_unlock(&cs40l26->lock);
+
+	return ret;
+}
+
+static ssize_t svc_le_stored_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+	u32 svc_le_stored;
+
+	ret = kstrtou32(buf, 10, &svc_le_stored);
+	if (ret)
+		return ret;
+
+	mutex_lock(&cs40l26->lock);
+
+	cs40l26->svc_le_est_stored = svc_le_stored;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return count;
+}
+static DEVICE_ATTR_RW(svc_le_stored);
+
 static struct attribute *cs40l26_dev_attrs_cal[] = {
 	&dev_attr_svc_le_est.attr,
+	&dev_attr_svc_le_stored.attr,
 	&dev_attr_max_vbst.attr,
 	&dev_attr_max_bemf.attr,
 	&dev_attr_max_vmon.attr,
