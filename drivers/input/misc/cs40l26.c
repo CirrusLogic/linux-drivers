@@ -4284,7 +4284,7 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 {
 	bool svc_le_required = cs40l26->num_svc_le_vals && !cs40l26->calib_fw;
 	struct device *dev = cs40l26->dev;
-	u32 tuning_num = 0;
+	u32 rev, branch, tuning_num = 0;
 	const struct firmware *fw;
 	int ret;
 	unsigned int le = 0;
@@ -4323,30 +4323,50 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 		return ret;
 
 	if (svc_le_required) {
-		ret = cs40l26_dsp_config(cs40l26);
+		ret = cl_dsp_fw_rev_get(cs40l26->dsp, &rev);
 		if (ret)
 			return ret;
 
-		ret = pm_runtime_get_sync(dev);
-		if (ret < 0) {
-			cs40l26_resume_error_handle(dev, ret);
-			return ret;
+		branch = CL_DSP_GET_MAJOR(rev);
+
+		switch (branch) {
+		case CS40L26_FW_MAINT_BRANCH:
+			ret = cs40l26_dsp_config(cs40l26);
+			if (ret)
+				return ret;
+
+			ret = pm_runtime_get_sync(dev);
+			if (ret < 0) {
+				cs40l26_resume_error_handle(dev, ret);
+				return ret;
+			}
+
+			ret = cs40l26_svc_le_estimate(cs40l26, &le);
+			if (ret)
+				dev_warn(dev, "svc_le est failed, %d", ret);
+
+			pm_runtime_mark_last_busy(dev);
+			pm_runtime_put_autosuspend(dev);
+
+			cs40l26_pm_runtime_teardown(cs40l26);
+
+			ret = cs40l26_dsp_pre_config(cs40l26);
+			if (ret)
+				return ret;
+
+			break;
+
+		case CS40L26_FW_BRANCH:
+			le = cs40l26->svc_le_est_stored;
+			break;
+
+		default:
+			dev_err(dev, "Invalid firmware branch, %d", branch);
+			return -EINVAL;
 		}
 
-		ret = cs40l26_svc_le_estimate(cs40l26, &le);
-		if (ret)
-			dev_warn(dev, "svc_le_estimate failed, %d", ret);
-
-		pm_runtime_mark_last_busy(dev);
-		pm_runtime_put_autosuspend(dev);
-
-		cs40l26_pm_runtime_teardown(cs40l26);
-
-		ret = cs40l26_dsp_pre_config(cs40l26);
-		if (ret)
-			return ret;
-
-		ret = cs40l26_tuning_select_from_svc_le(cs40l26, le, &tuning_num);
+		ret = cs40l26_tuning_select_from_svc_le(cs40l26,
+							le, &tuning_num);
 		if (ret)
 			return ret;
 	}
