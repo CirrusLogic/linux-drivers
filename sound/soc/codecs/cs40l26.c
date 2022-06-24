@@ -2,7 +2,7 @@
 //
 // cs40l26.c -- ALSA SoC Audio driver for Cirrus Logic Haptic Device: CS40L26
 //
-// Copyright 2021 Cirrus Logic. Inc.
+// Copyright 2022 Cirrus Logic. Inc.
 
 #include <linux/mfd/cs40l26.h>
 
