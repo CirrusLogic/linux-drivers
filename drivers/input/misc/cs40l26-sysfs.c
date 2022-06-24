@@ -1845,13 +1845,6 @@ static ssize_t logging_en_store(struct device *dev,
 		goto exit_mutex;
 
 	if (cs40l26->fw_id == CS40L26_FW_ID) {
-		if (src_count != CS40L26_LOGGER_SRC_COUNT) {
-			dev_err(cdev, "Unexpected source count %u\n",
-					src_count);
-			ret = -EINVAL;
-			goto exit_mutex;
-		}
-
 		ret = regmap_read(regmap, reg, &src);
 		if (ret) {
 			dev_err(cdev, "Failed to get Logger Source\n");
@@ -1867,13 +1860,6 @@ static ssize_t logging_en_store(struct device *dev,
 			goto exit_mutex;
 		}
 	} else if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
-		if (src_count != CS40L26_LOGGER_SRC_COUNT_CALIB) {
-			dev_err(cdev, "Unexpected source count %u\n",
-					src_count);
-			ret = -EINVAL;
-			goto exit_mutex;
-		}
-
 		for (i = 0; i < src_count; i++) {
 			ret = regmap_read(regmap, reg +
 					(i * CL_DSP_BYTES_PER_WORD), &src);
