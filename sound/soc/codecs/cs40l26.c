@@ -167,8 +167,15 @@ static int cs40l26_a2h_ev(struct snd_soc_dapm_widget *w,
 
 			ret = cl_dsp_coeff_file_parse(cs40l26->dsp, fw);
 			release_firmware(fw);
-			if (ret)
+			if (ret) {
+				dev_warn(dev,
+					"Failed to load %s, %d. Continuing...",
+					codec->bin_file, ret);
 				return ret;
+			}
+
+			dev_info(dev, "%s Loaded Successfully\n",
+							codec->bin_file);
 
 			codec->tuning_prev = codec->tuning;
 
