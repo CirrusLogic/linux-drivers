@@ -3173,6 +3173,10 @@ static int cs40l26_input_init(struct cs40l26_private *cs40l26)
 		return ret;
 	}
 
+	#ifdef CONFIG_DEBUG_FS
+	cs40l26_debugfs_init(cs40l26);
+	#endif
+
 	cs40l26->vibe_init_success = true;
 
 	return ret;
@@ -4941,6 +4945,10 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 		sysfs_remove_group(&cs40l26->input->dev.kobj,
 			&cs40l26_dev_attr_dbc_group);
 	}
+
+	#ifdef CONFIG_DEBUG_FS
+	cs40l26_debugfs_cleanup(cs40l26);
+	#endif
 
 	if (cs40l26->input)
 		input_unregister_device(cs40l26->input);
