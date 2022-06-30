@@ -5,8 +5,8 @@
 
 # Each configuration option enables a list of files.
 
-input-cs40l26-i2c-objs := cs40l26.o cs40l26-tables.o cs40l26-sysfs.o cs40l26-i2c.o
-input-cs40l26-spi-objs := cs40l26.o cs40l26-tables.o cs40l26-sysfs.o cs40l26-spi.o
+input-cs40l26-i2c-objs := cs40l26.o cs40l26-tables.o cs40l26-sysfs.o cs40l26-i2c.o cs40l26-debugfs.o
+input-cs40l26-spi-objs := cs40l26.o cs40l26-tables.o cs40l26-sysfs.o cs40l26-spi.o cs40l26-debugfs.o
 
 obj-$(CONFIG_INPUT_88PM860X_ONKEY)	+= 88pm860x_onkey.o
 obj-$(CONFIG_INPUT_88PM80X_ONKEY)	+= 88pm80x_onkey.o
