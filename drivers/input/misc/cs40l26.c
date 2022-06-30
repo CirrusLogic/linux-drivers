@@ -4032,7 +4032,8 @@ int cs40l26_svc_le_estimate(struct cs40l26_private *cs40l26, unsigned int *le)
 		return ret;
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "LE_EST_STATUS",
-			CL_DSP_YM_UNPACKED_TYPE, CS40l26_SVC_ALGO_ID, &reg);
+			     CL_DSP_YM_UNPACKED_TYPE, CS40L26_SVC_ALGO_ID,
+			     &reg);
 	if (ret)
 		return ret;
 
