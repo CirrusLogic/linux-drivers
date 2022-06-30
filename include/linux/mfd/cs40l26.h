@@ -35,6 +35,7 @@
 #include <linux/sysfs.h>
 #include <linux/bitops.h>
 #include <linux/pm_runtime.h>
+#include <linux/debugfs.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -707,6 +708,11 @@
 #define CS40L26_LOGGER_ALGO_ID		0x0004013D
 #define CS40L26_EXT_ALGO_ID		0x0004013C
 #define CS40L26_DVL_ALGO_ID		0x00040140
+
+/* DebugFS */
+#define CS40L26_ALGO_ID_MAX_STR_LEN	12
+#define CS40L26_NUM_DEBUGFS		3
+#define CS40L26_DEBUGFS_PERM		0600
 
 /* power management */
 #define CS40L26_PSEQ_ROM_END_OF_SCRIPT	0x028003E8
@@ -1527,6 +1533,12 @@ struct cs40l26_private {
 	unsigned int svc_le_est_stored;
 	u32 *no_wait_ram_indices;
 	ssize_t num_no_wait_ram_indices;
+	#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_root;
+	char *dbg_fw_ctrl_name;
+	u32 dbg_fw_algo_id;
+	bool dbg_fw_ym;
+	#endif
 };
 
 struct cs40l26_codec {
@@ -1611,5 +1623,12 @@ extern const char * const cs40l26_dbc_names[CS40L26_DBC_NUM_CONTROLS];
 extern struct attribute_group cs40l26_dev_attr_group;
 extern struct attribute_group cs40l26_dev_attr_cal_group;
 extern struct attribute_group cs40l26_dev_attr_dbc_group;
+
+/* debugfs */
+#ifdef CONFIG_DEBUG_FS
+void cs40l26_debugfs_init(struct cs40l26_private *cs40l26);
+void cs40l26_debugfs_cleanup(struct cs40l26_private *cs40l26);
+
+#endif
 
 #endif /* __CS40L26_H__ */
