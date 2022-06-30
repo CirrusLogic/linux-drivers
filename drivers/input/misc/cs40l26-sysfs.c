@@ -1309,7 +1309,7 @@ static ssize_t redc_measured_show(struct device *dev,
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "RE_EST_STATUS",
 			CL_DSP_YM_UNPACKED_TYPE,
-			CS40l26_SVC_ALGO_ID, &reg);
+			CS40L26_SVC_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
 
