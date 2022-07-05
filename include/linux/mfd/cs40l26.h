@@ -1565,6 +1565,8 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26,
 		enum cs40l26_pm_state state);
 int cs40l26_ack_write(struct cs40l26_private *cs40l26, u32 reg, u32 write_val,
 		u32 reset_val);
+int cs40l26_pm_enter(struct device *dev);
+void cs40l26_pm_exit(struct device *dev);
 void cs40l26_resume_error_handle(struct device *dev, int ret);
 int cs40l26_resume(struct device *dev);
 int cs40l26_sys_resume(struct device *dev);
