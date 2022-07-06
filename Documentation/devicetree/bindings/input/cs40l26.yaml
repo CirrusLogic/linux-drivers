@@ -432,6 +432,16 @@ properties:
       (Default) Runtime firmware loaded at boot
     type: boolean
 
+cirrus,fw-defer:
+    description:
+      Boolean to probe and register the driver without loading RAM firmware.
+      This puts the driver in a partially usable state.
+      To gain full functionality, write the designated values for
+      runtime (0) or calibration (1) firmware to the swap_firmware
+      sysfs control.
+      (Default) Firmware is loaded when driver probes
+    type: boolean
+
 required:
   - compatible
 
