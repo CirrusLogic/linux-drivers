@@ -406,6 +406,7 @@
 /* Hibernation Control                          */
 /************************************************/
 #define CS35L43_MEM_RDY				0x00000002
+#define CS35L43_WKSRC_STS_MASK			0x000003F0
 
 /************************************************/
 /* Global Clocking Control			*/

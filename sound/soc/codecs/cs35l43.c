@@ -948,6 +948,9 @@ static int cs35l43_enter_hibernate(struct cs35l43_private *cs35l43)
 
 static int cs35l43_exit_hibernate(struct cs35l43_private *cs35l43)
 {
+	int timeout = 10, ret  = 0;
+	unsigned int status;
+
 	if (cs35l43->hibernate_state != CS35L43_HIBERNATE_STANDBY &&
 		cs35l43->hibernate_state != CS35L43_HIBERNATE_UPDATE)
 		return 0;
@@ -955,10 +958,32 @@ static int cs35l43_exit_hibernate(struct cs35l43_private *cs35l43)
 	dev_info(cs35l43->dev, "%s\n", __func__);
 
 	regcache_cache_only(cs35l43->regmap, false);
-	regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
+
+	do {
+		ret = regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 					CS35L43_MBOX_CMD_WAKEUP);
+	} while (ret < 0 && timeout-- > 0);
+
 	regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 					CS35L43_MBOX_CMD_PREVENT_HIBERNATE);
+
+	usleep_range(2000, 2100);
+
+	ret = regmap_read(cs35l43->regmap, CS35L43_PWRMGT_STS, &status);
+	if (ret < 0 || !(status & CS35L43_WKSRC_STS_MASK))
+		dev_err(cs35l43->dev, "Error during wakeup, PWRMGT_STS = 0x%x\n", status);
+
+	/* PM_CUR_STATE should be non-zero */
+	wm_adsp_read_ctl(&cs35l43->dsp, "PM_CUR_STATE",
+		WMFW_ADSP2_XM, CS35L43_ALG_ID_PM, &status, sizeof(u32));
+	if (!status)
+		dev_err(cs35l43->dev, "Error during wakeup, PM_CUR_STATE = 0x%x\n", status);
+
+	/* First MBOX outbound message should be AWAKE = CMD_WAKEUP */
+	ret = regmap_read(cs35l43->regmap, CS35L43_DSP_MBOX_2, &status);
+	if (ret < 0 || (status != CS35L43_MBOX_CMD_WAKEUP))
+		dev_err(cs35l43->dev, "Error during wakeup, MBOX2 = 0x%x\n", status);
+
 	/*
 	 * At this point FW applies register values stored in the sequencer
 	 * Do sync to apply registes values changed in cache during hibernation
@@ -968,8 +993,6 @@ static int cs35l43_exit_hibernate(struct cs35l43_private *cs35l43)
 					CS35L43_MIXER_NGATE_CH2_CFG);
 
 	cs35l43->hibernate_state = CS35L43_HIBERNATE_AWAKE;
-
-	usleep_range(2000, 2100);
 
 	regmap_write(cs35l43->regmap, CS35L43_IRQ1_MASK_1, 0xFFFFFFFF);
 	regmap_update_bits(cs35l43->regmap, CS35L43_IRQ1_MASK_1,
