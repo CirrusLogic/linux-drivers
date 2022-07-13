@@ -982,9 +982,13 @@ static int cs35l43_exit_hibernate(struct cs35l43_private *cs35l43)
 
 	/*
 	 * At this point FW applies register values stored in the sequencer
-	 * Do sync to apply registes values changed in cache during hibernation
+	 * Do sync to apply register values changed in cache during hibernation
 	 */
 	regcache_sync(cs35l43->regmap);
+
+	/* Update write seq with values that could have changed in the cache */
+	cs35l43_write_seq_update(cs35l43, &cs35l43->power_on_seq);
+
 	regcache_drop_region(cs35l43->regmap, CS35L43_DEVID,
 					CS35L43_MIXER_NGATE_CH2_CFG);
 
