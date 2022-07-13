@@ -1747,7 +1747,7 @@ static ssize_t cs40l2x_pwle_store(struct device *dev,
 
 	pwle->nsections = num_segs;
 
-	ret = strscpy_pad(cs40l2x->pwle_str, buf, CS40L2X_PWLE_STRING_MAX);
+	ret = strscpy(cs40l2x->pwle_str, buf, CS40L2X_PWLE_STRING_MAX);
 	if (ret == -E2BIG)
 		goto err_exit;
 
