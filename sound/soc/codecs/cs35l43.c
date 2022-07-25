@@ -1041,10 +1041,37 @@ static const struct reg_sequence cs35l43_pdn_patch[] = {
 	{0x00000040, 0x00000033},
 };
 
+static void cs35l43_log_status(struct cs35l43_private *cs35l43)
+{
+	unsigned int pm_state, audio_state, reg;
+
+	dev_info(cs35l43->dev, "%s\n", __func__);
+
+	cs35l43_check_mailbox(cs35l43);
+
+	wm_adsp_read_ctl(&cs35l43->dsp, "PM_CUR_STATE",
+		WMFW_ADSP2_XM, CS35L43_ALG_ID_PM, &pm_state, sizeof(u32));
+	wm_adsp_read_ctl(&cs35l43->dsp, "AUDIO_STATE",
+		WMFW_ADSP2_XM, 0x5f212, &audio_state, sizeof(u32));
+
+	dev_info(cs35l43->dev, "PM_STATE: 0x%x\tAUDIO_STATE: 0x%x\n",
+			       pm_state, audio_state);
+
+	regmap_read(cs35l43->regmap, CS35L43_DACPCM1_INPUT, &reg);
+	dev_info(cs35l43->dev, "DACPCM1_INPUT: 0x%x\n", reg);
+
+	regmap_read(cs35l43->regmap, CS35L43_AMP_GAIN, &reg);
+	dev_info(cs35l43->dev, "AMP_GAIN: 0x%x\n", reg);
+
+	regmap_read(cs35l43->regmap, CS35L43_AMP_CTRL, &reg);
+	dev_info(cs35l43->dev, "AMP_CTRL: 0x%x\n", reg);
+
+	regmap_read(cs35l43->regmap, CS35L43_IRQ1_EINT_1, &reg);
+	dev_info(cs35l43->dev, "IRQ1_EINT1: 0x%x\n", reg);
+}
+
 static int cs35l43_enter_hibernate(struct cs35l43_private *cs35l43)
 {
-	unsigned int pm_state, audio_state;
-
 	if (cs35l43->hibernate_state != CS35L43_HIBERNATE_AWAKE)
 		return 0;
 
@@ -1056,14 +1083,6 @@ static int cs35l43_enter_hibernate(struct cs35l43_private *cs35l43)
 	else
 		regmap_write(cs35l43->regmap, CS35L43_WAKESRC_CTL,
 						CS35L43_WKSRC_I2C);
-
-	wm_adsp_read_ctl(&cs35l43->dsp, "PM_CUR_STATE",
-		WMFW_ADSP2_XM, CS35L43_ALG_ID_PM, &pm_state, sizeof(u32));
-	wm_adsp_read_ctl(&cs35l43->dsp, "AUDIO_STATE",
-		WMFW_ADSP2_XM, 0x5f212, &audio_state, sizeof(u32));
-
-	dev_dbg(cs35l43->dev, "PM_STATE: 0x%x\tAUDIO_STATE: 0x%x\n",
-			       pm_state, audio_state);
 
 	if (cs35l43->write_seq_initialized)
 		cs35l43_write_seq_update(cs35l43, &cs35l43->power_on_seq);
@@ -1100,6 +1119,13 @@ static int cs35l43_exit_hibernate(struct cs35l43_private *cs35l43)
 		ret = regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 					CS35L43_MBOX_CMD_WAKEUP);
 	} while (ret < 0 && timeout-- > 0);
+
+
+	if (timeout == 0)
+		dev_err(cs35l43->dev, "Timeout at MBOX_CMD_WAKEUP\n");
+	else if (ret == 0)
+		dev_info(cs35l43->dev, "%s wakeup command success: %d\n",
+						__func__, 10 - timeout);
 
 	regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 					CS35L43_MBOX_CMD_PREVENT_HIBERNATE);
@@ -1263,6 +1289,7 @@ static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		dev_info(cs35l43->dev, "%s PMU\n", __func__);
 		if (cs35l43->dsp.running)
 			cs35l43_apply_delta_tuning(cs35l43);
 		regmap_multi_reg_write_bypassed(cs35l43->regmap,
@@ -1273,8 +1300,11 @@ static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
 				CS35L43_AMP_EN_MASK, CS35L43_AMP_EN_MASK);
 		if (cs35l43->limit_spi_clock)
 			cs35l43->limit_spi_clock(cs35l43, false);
+
+		cs35l43_log_status(cs35l43);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
+		dev_info(cs35l43->dev, "%s PMD\n", __func__);
 		if (cs35l43->limit_spi_clock)
 			cs35l43->limit_spi_clock(cs35l43, true);
 		regmap_update_bits(cs35l43->regmap, CS35L43_BLOCK_ENABLES,
