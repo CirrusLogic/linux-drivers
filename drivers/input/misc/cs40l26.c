@@ -797,8 +797,6 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 
 int cs40l26_asp_start(struct cs40l26_private *cs40l26)
 {
-	bool ack = false;
-	unsigned int val;
 	int ret;
 
 	if (cs40l26->pdata.asp_scale_pct < CS40L26_GAIN_FULL_SCALE)
@@ -814,29 +812,8 @@ int cs40l26_asp_start(struct cs40l26_private *cs40l26)
 
 	reinit_completion(&cs40l26->i2s_cont);
 
-	ret = regmap_write(cs40l26->regmap, CS40L26_DSP_VIRTUAL1_MBOX_1,
-			CS40L26_DSP_MBOX_CMD_START_I2S);
-	if (ret) {
-		dev_err(cs40l26->dev, "Failed to start I2S\n");
-		return ret;
-	}
-
-	while (!ack) {
-		usleep_range(CS40L26_DSP_TIMEOUT_US_MIN,
-				CS40L26_DSP_TIMEOUT_US_MAX);
-
-		ret = regmap_read(cs40l26->regmap, CS40L26_DSP_VIRTUAL1_MBOX_1,
-				&val);
-		if (ret) {
-			dev_err(cs40l26->dev, "Failed to read from MBOX_1\n");
-			return ret;
-		}
-
-		if (val == CS40L26_DSP_MBOX_RESET)
-			ack = true;
-	}
-
-	return 0;
+	return cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+			CS40L26_DSP_MBOX_CMD_START_I2S, CS40L26_DSP_MBOX_RESET);
 }
 EXPORT_SYMBOL(cs40l26_asp_start);
 
