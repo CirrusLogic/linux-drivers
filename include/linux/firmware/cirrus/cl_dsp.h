@@ -17,6 +17,8 @@
 #include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/debugfs.h>
+#include <linux/pm_runtime.h>
 
 #ifndef __CL_DSP_H__
 #define __CL_DSP_H__
@@ -299,6 +301,72 @@ struct cl_dsp {
 	struct cl_dsp_wt_desc *wt_desc;
 };
 
+#ifdef CONFIG_DEBUG_FS
+/* Debug Logger */
+struct cl_dsp_host_buffer {
+	__be32 buf1_base;
+	__be32 buf1_size;
+	__be32 buf2_base;
+	__be32 buf1_buf2_size;
+	__be32 buf3_base;
+	__be32 buf_total_size;
+	__be32 high_water_mark;
+	__be32 irq_count;
+	__be32 irq_ack;
+	__be32 next_write_index;
+	__be32 next_read_index;
+	__be32 error;
+	__be32 oldest_block_index;
+	__be32 requested_rewind;
+	__be32 reserved_space;
+	__be32 min_free;
+	__be32 blocks_written[2];
+	__be32 words_written[2];
+} __packed;
+
+struct cl_dsp_logger {
+	u32 *buf_data;
+	u32 buf_data_size;
+	u32 algo_id;
+	u32 host_buf_ptr;
+	u32 host_buf_base;
+	int host_buf_size_words;
+	u32 high_watermark;
+};
+
+struct cl_dsp_debugfs {
+	struct cl_dsp *core;
+	struct dentry *debugfs_root;
+	struct dentry *debugfs_node;
+	struct mutex lock;
+	struct cl_dsp_logger dl;
+};
+
+#define CL_DSP_DEBUGFS_NUM_CONTROLS		3
+#define CL_DSP_DEBUGFS_RW_FILE_MODE		0600
+#define CL_DSP_DEBUGFS_RO_FILE_MODE		0400
+#define CL_DSP_DEBUGFS_WO_FILE_MOADE		0200
+#define CL_DSP_DEBUGFS_TRACE_LOG_STRING_SIZE	3
+#define CL_DSP_DEBUGFS_TRACE_LOG_DISABLE	0
+#define CL_DSP_DEBUGFS_TRACE_LOG_ENABLE		1
+
+#define CL_DSP_HOST_BUFFER_DATA_MASK		0x00FFFFFFu
+#define CL_DSP_HOST_BUFFER_ERROR_OVERFLOW	BIT(0)
+#define CL_DSP_HOST_BUFFER_READ_INDEX_RESET	0x00FFFFFF
+#define CL_DSP_HOST_BUFFER_IRQ_MASK		BIT(0)
+#define CL_DSP_HOST_BUFFER_DATA_SLOT_SIZE	10
+
+#define HOST_BUFFER_FIELD(field)                                               \
+	(offsetof(struct cl_dsp_host_buffer, field) / sizeof(__be32))
+
+int cl_dsp_logger_update(struct cl_dsp_debugfs *db);
+struct cl_dsp_debugfs *cl_dsp_debugfs_create(struct cl_dsp *dsp,
+		struct dentry *parent_node, u32 event_log_algo_id);
+void cl_dsp_debugfs_destroy(struct cl_dsp_debugfs *db);
+
+#endif /* CONFIG_DEBUG_FS */
+
+/* Exported Functions */
 struct cl_dsp *cl_dsp_create(struct device *dev, struct regmap *regmap);
 int cl_dsp_destroy(struct cl_dsp *dsp);
 int cl_dsp_wavetable_create(struct cl_dsp *dsp, unsigned int id,
