@@ -680,6 +680,7 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
 	u32 val = 0;
+	int ret;
 
 	while (!cs40l26_mbox_buffer_read(cs40l26, &val)) {
 		if ((val & CS40L26_DSP_MBOX_CMD_INDEX_MASK)
@@ -687,6 +688,17 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 			dev_alert(dev, "DSP PANIC! Error condition: 0x%06X\n",
 			(u32) (val & CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK));
 			return -ENOTRECOVERABLE;
+		}
+
+		if ((val & CS40L26_DSP_MBOX_CMD_INDEX_MASK) ==
+				CS40L26_DSP_MBOX_WATERMARK) {
+			dev_dbg(dev, "Mailbox: WATERMARK\n");
+
+			ret = cl_dsp_logger_update(cs40l26->cl_dsp_db);
+			if (ret)
+				return ret;
+
+			continue;
 		}
 
 		switch (val) {
