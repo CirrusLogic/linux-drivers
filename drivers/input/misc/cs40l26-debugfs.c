@@ -218,22 +218,30 @@ void cs40l26_debugfs_init(struct cs40l26_private *cs40l26)
 	if (!root)
 		return;
 
-	debugfs_create_bool("fw_ym_space", CS40L26_DEBUGFS_PERM,
+	debugfs_create_bool("fw_ym_space", CL_DSP_DEBUGFS_RW_FILE_MODE,
 			root, &cs40l26->dbg_fw_ym);
 
 	for (i = 0; i < CS40L26_NUM_DEBUGFS; i++)
 		debugfs_create_file(cs40l26_debugfs_fops[i].name,
-				CS40L26_DEBUGFS_PERM, root, cs40l26,
+				CL_DSP_DEBUGFS_RW_FILE_MODE, root, cs40l26,
 				&cs40l26_debugfs_fops[i].fops);
 
 	cs40l26->dbg_fw_ym = false;
 	cs40l26->dbg_fw_algo_id = CS40L26_VIBEGEN_ALGO_ID;
 	cs40l26->debugfs_root = root;
+
+	cs40l26->cl_dsp_db = cl_dsp_debugfs_create(cs40l26->dsp,
+			cs40l26->debugfs_root,
+			(u32) CS40L26_EVENT_LOGGER_ALGO_ID);
+
+	if (IS_ERR(cs40l26->cl_dsp_db) || !cs40l26->cl_dsp_db)
+		dev_err(cs40l26->dev, "Failed to create CL DSP Debugfs\n");
 }
 EXPORT_SYMBOL(cs40l26_debugfs_init);
 
 void cs40l26_debugfs_cleanup(struct cs40l26_private *cs40l26)
 {
+	cl_dsp_debugfs_destroy(cs40l26->cl_dsp_db);
 	kfree(cs40l26->dbg_fw_ctrl_name);
 	cs40l26->dbg_fw_ctrl_name = NULL;
 	debugfs_remove_recursive(cs40l26->debugfs_root);
