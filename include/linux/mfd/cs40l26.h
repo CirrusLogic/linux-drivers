@@ -706,13 +706,13 @@
 #define CS40L26_SVC_ALGO_ID		0x0001F207
 #define CS40L26_VIBEGEN_ALGO_ID	0x000100BD
 #define CS40L26_LOGGER_ALGO_ID		0x0004013D
+#define CS40L26_EVENT_LOGGER_ALGO_ID	0x0004F222
 #define CS40L26_EXT_ALGO_ID		0x0004013C
 #define CS40L26_DVL_ALGO_ID		0x00040140
 
 /* DebugFS */
 #define CS40L26_ALGO_ID_MAX_STR_LEN	12
 #define CS40L26_NUM_DEBUGFS		3
-#define CS40L26_DEBUGFS_PERM		0600
 
 /* power management */
 #define CS40L26_PSEQ_ROM_END_OF_SCRIPT	0x028003E8
@@ -833,6 +833,7 @@
 #define CS40L26_DSP_MBOX_LE_EST_DONE		0x07000024
 #define CS40L26_DSP_MBOX_SYS_ACK		0x0A000000
 #define CS40L26_DSP_MBOX_PANIC			0x0C000000
+#define CS40L26_DSP_MBOX_WATERMARK		0x0D000000
 
 /* Firmware Mode */
 #define CS40L26_FW_FILE_NAME		"cs40l26.wmfw"
@@ -1538,6 +1539,7 @@ struct cs40l26_private {
 	char *dbg_fw_ctrl_name;
 	u32 dbg_fw_algo_id;
 	bool dbg_fw_ym;
+	struct cl_dsp_debugfs *cl_dsp_db;
 	#endif
 };
 
