@@ -1022,6 +1022,10 @@ static int cs35l43_exit_hibernate(struct cs35l43_private *cs35l43)
 				CS35L43_DC_WATCHDOG_IRQ_RISE_EINT1_MASK |
 				CS35L43_WKSRC_STATUS6_EINT1_MASK |
 				CS35L43_WKSRC_STATUS_ANY_EINT1_MASK, 0);
+	regmap_write(cs35l43->regmap, CS35L43_IRQ1_MASK_2, 0xFFFFFFFF);
+	regmap_update_bits(cs35l43->regmap, CS35L43_IRQ1_MASK_2,
+				CS35L43_PLL_UNLOCK_FLAG_RISE_EINT1_MASK |
+				CS35L43_PLL_LOCK_EINT1_MASK, 0);
 
 	return 0;
 }
@@ -1317,24 +1321,32 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 static irqreturn_t cs35l43_irq(int irq, void *data)
 {
 	struct cs35l43_private *cs35l43 = data;
-	unsigned int status, mask;
-	int ret = IRQ_NONE;
+	unsigned int status[2], masks[2];
+	int ret = IRQ_NONE, i;
 
 	pm_runtime_get_sync(cs35l43->dev);
 
-	regmap_read(cs35l43->regmap, CS35L43_IRQ1_EINT_1, &status);
-	regmap_read(cs35l43->regmap, CS35L43_IRQ1_MASK_1, &mask);
+	for (i = 0; i < ARRAY_SIZE(status); i++) {
+		regmap_read(cs35l43->regmap,
+			    CS35L43_IRQ1_EINT_1 + (i * 4),
+			    &status[i]);
+		regmap_read(cs35l43->regmap,
+			    CS35L43_IRQ1_MASK_1 + (i * 4),
+			    &masks[i]);
+	}
 
 	/* Check to see if unmasked bits are active */
-	if (!(status & ~mask))
+	if (!(status[0] & ~masks[0]) && !(status[1] & ~masks[1])){
+		ret = IRQ_NONE;
 		goto done;
+	}
 
 	/*
 	 * The following interrupts require a
 	 * protection release cycle to get the
 	 * speaker out of Safe-Mode.
 	 */
-	if (status & CS35L43_AMP_ERR_EINT1_MASK) {
+	if (status[0] & CS35L43_AMP_ERR_EINT1_MASK) {
 		dev_crit(cs35l43->dev, "Amp short error\n");
 		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_1,
 					CS35L43_AMP_ERR_EINT1_MASK);
@@ -1346,7 +1358,7 @@ static irqreturn_t cs35l43_irq(int irq, void *data)
 					CS35L43_AMP_SHORT_ERR_RLS_MASK, 0);
 	}
 
-	if (status & CS35L43_BST_OVP_ERR_EINT1_MASK) {
+	if (status[0] & CS35L43_BST_OVP_ERR_EINT1_MASK) {
 		dev_crit(cs35l43->dev, "VBST Over Voltage error\n");
 		regmap_update_bits(cs35l43->regmap, CS35L43_BLOCK_ENABLES,
 					CS35L43_BST_EN_MASK <<
@@ -1366,7 +1378,7 @@ static irqreturn_t cs35l43_irq(int irq, void *data)
 					CS35L43_BST_EN_SHIFT);
 	}
 
-	if (status & CS35L43_BST_DCM_UVP_ERR_EINT1_MASK) {
+	if (status[0] & CS35L43_BST_DCM_UVP_ERR_EINT1_MASK) {
 		dev_crit(cs35l43->dev, "DCM VBST Under Voltage Error\n");
 		regmap_update_bits(cs35l43->regmap, CS35L43_BLOCK_ENABLES,
 					CS35L43_BST_EN_MASK <<
@@ -1386,7 +1398,7 @@ static irqreturn_t cs35l43_irq(int irq, void *data)
 					CS35L43_BST_EN_SHIFT);
 	}
 
-	if (status & CS35L43_BST_SHORT_ERR_EINT1_MASK) {
+	if (status[0] & CS35L43_BST_SHORT_ERR_EINT1_MASK) {
 		dev_crit(cs35l43->dev, "LBST error: powering off!\n");
 		regmap_update_bits(cs35l43->regmap, CS35L43_BLOCK_ENABLES,
 					CS35L43_BST_EN_MASK <<
@@ -1406,7 +1418,7 @@ static irqreturn_t cs35l43_irq(int irq, void *data)
 					CS35L43_BST_EN_SHIFT);
 	}
 
-	if (status & CS35L43_DC_WATCHDOG_IRQ_RISE_EINT1_MASK) {
+	if (status[0] & CS35L43_DC_WATCHDOG_IRQ_RISE_EINT1_MASK) {
 		dev_err(cs35l43->dev, "DC Detect INT\n");
 		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_1,
 				CS35L43_DC_WATCHDOG_IRQ_RISE_EINT1_MASK);
@@ -1414,8 +1426,8 @@ static irqreturn_t cs35l43_irq(int irq, void *data)
 				CS35L43_DC_WATCHDOG_IRQ_RISE_EINT1_MASK);
 	}
 
-	if (status & CS35L43_DSP_VIRTUAL2_MBOX_WR_EINT1_MASK ||
-		status & CS35L43_WKSRC_STATUS6_EINT1_MASK) {
+	if (status[0] & CS35L43_WKSRC_STATUS_ANY_EINT1_MASK ||
+		status[0] & CS35L43_WKSRC_STATUS6_EINT1_MASK) {
 		dev_info(cs35l43->dev, "Wakeup INT\n");
 		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_1,
 				CS35L43_WKSRC_STATUS_ANY_EINT1_MASK);
@@ -1424,12 +1436,25 @@ static irqreturn_t cs35l43_irq(int irq, void *data)
 	}
 
 
-	if (status & CS35L43_DSP_VIRTUAL2_MBOX_WR_EINT1_MASK) {
+	if (status[0] & CS35L43_DSP_VIRTUAL2_MBOX_WR_EINT1_MASK) {
 		dev_info(cs35l43->dev, "Received Mailbox INT\n");
 		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_1,
 				CS35L43_DSP_VIRTUAL2_MBOX_WR_EINT1_MASK);
 		cs35l43_check_mailbox(cs35l43);
 	}
+
+	if (status[1] & CS35L43_PLL_UNLOCK_FLAG_RISE_EINT1_MASK) {
+		dev_info(cs35l43->dev, "PLL Unlock INT\n");
+		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_2,
+				CS35L43_PLL_UNLOCK_FLAG_RISE_EINT1_MASK);
+	}
+
+	if (status[1] & CS35L43_PLL_LOCK_EINT1_MASK) {
+		dev_info(cs35l43->dev, "PLL Lock INT\n");
+		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_2,
+				CS35L43_PLL_LOCK_EINT1_MASK);
+	}
+
 	ret = IRQ_HANDLED;
 
 done:
@@ -2243,6 +2268,10 @@ int cs35l43_probe(struct cs35l43_private *cs35l43,
 				CS35L43_DC_WATCHDOG_IRQ_RISE_EINT1_MASK |
 				CS35L43_WKSRC_STATUS6_EINT1_MASK |
 				CS35L43_WKSRC_STATUS_ANY_EINT1_MASK, 0);
+	regmap_write(cs35l43->regmap, CS35L43_IRQ1_MASK_2, 0xFFFFFFFF);
+	regmap_update_bits(cs35l43->regmap, CS35L43_IRQ1_MASK_2,
+				CS35L43_PLL_UNLOCK_FLAG_RISE_EINT1_MASK |
+				CS35L43_PLL_LOCK_EINT1_MASK, 0);
 
 	regmap_update_bits(cs35l43->regmap, CS35L43_ALIVE_DCIN_WD,
 				CS35L43_DCIN_WD_EN_MASK,
