@@ -19,6 +19,7 @@
 				| SNDRV_PCM_FMTBIT_S32_LE)
 
 #define CS35L43_VALID_PDATA		0x80000000
+#define CS35L43_NUM_DEFAULTS	41
 
 struct cs35l43_platform_data {
 	bool gpio1_out_enable;
@@ -131,6 +132,6 @@ int cs35l43_suspend_runtime(struct device *dev);
 int cs35l43_resume_runtime(struct device *dev);
 
 extern const struct dev_pm_ops cs35l43_pm_ops;
-extern const struct reg_default cs35l43_reg[1];
+extern const struct reg_default cs35l43_reg[CS35L43_NUM_DEFAULTS];
 
 #endif /* __CS35L43_H */
