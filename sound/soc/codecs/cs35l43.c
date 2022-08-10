@@ -949,6 +949,7 @@ static int cs35l43_enter_hibernate(struct cs35l43_private *cs35l43)
 	cs35l43->hibernate_state = CS35L43_HIBERNATE_STANDBY;
 	/* Do changes in cache during hibernation */
 	regcache_cache_only(cs35l43->regmap, true);
+	regcache_mark_dirty(cs35l43->regmap);
 
 	return 0;
 }
