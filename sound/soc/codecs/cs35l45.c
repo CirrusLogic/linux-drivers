@@ -3534,7 +3534,7 @@ static int __cs35l45_initialize(struct cs35l45_private *cs35l45)
 	regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_4,
 		     CS35L45_OTP_BOOT_DONE_STS_MASK | CS35L45_OTP_BUSY_MASK);
 
-	ret = regmap_register_patch(cs35l45->regmap, cs35l45_init_patch,
+	ret = regmap_multi_reg_write(cs35l45->regmap, cs35l45_init_patch,
 				    ARRAY_SIZE(cs35l45_init_patch));
 	if (ret < 0) {
 		dev_err(dev, "Failed to apply init patch %d\n", ret);
