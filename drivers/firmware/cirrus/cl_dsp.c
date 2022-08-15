@@ -30,35 +30,45 @@ static inline bool cl_dsp_memchunk_valid_addr(struct cl_dsp_memchunk *ch,
 	return (u8 *)addr <= ch->max;
 }
 
-int cl_dsp_memchunk_read(struct cl_dsp_memchunk *ch, int nbits)
+int cl_dsp_memchunk_read(struct cl_dsp *dsp, struct cl_dsp_memchunk *ch,
+		int nbits, void *val)
 {
-	int nread, i;
-	u32 result;
+	int nbytes = nbits / 8, nread, i;
+	u32 result = 0;
 
-	if (!ch->cachebits) {
-		if (cl_dsp_memchunk_end(ch))
-			return -ENOSPC;
-
-		ch->cache = 0;
-		ch->cachebits = 24;
-
-		for (i = 0; i < sizeof(ch->cache); i++, ch->cache <<= 8)
-			ch->cache |= *ch->data++;
-
-		ch->bytes += sizeof(ch->cache);
+	if (nbits > 32) {
+		dev_err(dsp->dev, "Exceeded maximum read length: %d > 32\n", nbits);
+		return -EINVAL;
 	}
 
-	nread = min(ch->cachebits, nbits);
-	nbits -= nread;
+	while (nbits) {
+		if (!ch->cachebits) {
+			if (cl_dsp_memchunk_end(ch)) {
+				dev_err(dsp->dev, "Read past end of memory chunk\n");
+				return -ENOSPC;
+			}
 
-	result = ch->cache >> (32 - nread);
-	ch->cache <<= nread;
-	ch->cachebits -= nread;
+			ch->cache = 0;
+			ch->cachebits = 24;
 
-	if (nbits)
-		result = (result << nbits) | cl_dsp_memchunk_read(ch, nbits);
+			for (i = 0; i < sizeof(ch->cache); i++, ch->cache <<= 8)
+				ch->cache |= *ch->data++;
 
-	return result;
+			ch->bytes += sizeof(ch->cache);
+		}
+
+		nread = min(ch->cachebits, nbits);
+		nbits -= nread;
+
+		result |= ((ch->cache >> (32 - nread)) << nbits);
+		ch->cache <<= nread;
+		ch->cachebits -= nread;
+	}
+
+	if (val)
+		memcpy(val, &result, nbytes);
+
+	return 0;
 }
 EXPORT_SYMBOL(cl_dsp_memchunk_read);
 
@@ -241,11 +251,16 @@ static int cl_dsp_read_wt(struct cl_dsp *dsp, int pos, int size)
 	void *buf = (void *)(dsp->wt_desc->owt.raw_data + pos);
 	struct cl_dsp_memchunk ch = cl_dsp_memchunk_create(buf, size);
 	u32 *wbuf = buf, *max = buf;
-	int i;
+	int i, ret;
 
 	for (i = 0; i < ARRAY_SIZE(dsp->wt_desc->owt.waves); i++, entry++) {
-		entry->flags = cl_dsp_memchunk_read(&ch, 16);
-		entry->type = cl_dsp_memchunk_read(&ch, 8);
+		ret = cl_dsp_memchunk_read(dsp, &ch, 16, &entry->flags);
+		if (ret)
+			return ret;
+
+		ret = cl_dsp_memchunk_read(dsp, &ch, 8, &entry->type);
+		if (ret)
+			return ret;
 
 		if (entry->type == WT_TYPE_TERMINATOR) {
 			dsp->wt_desc->owt.nwaves = i;
@@ -255,8 +270,14 @@ static int cl_dsp_read_wt(struct cl_dsp *dsp, int pos, int size)
 			return dsp->wt_desc->owt.bytes;
 		}
 
-		entry->offset = cl_dsp_memchunk_read(&ch, 24);
-		entry->size = cl_dsp_memchunk_read(&ch, 24);
+		ret = cl_dsp_memchunk_read(dsp, &ch, 24, &entry->offset);
+		if (ret)
+			return ret;
+
+		ret = cl_dsp_memchunk_read(dsp, &ch, 24, &entry->size);
+		if (ret)
+			return ret;
+
 		entry->data = wbuf + entry->offset;
 
 		if (wbuf + entry->offset + entry->size > max) {
