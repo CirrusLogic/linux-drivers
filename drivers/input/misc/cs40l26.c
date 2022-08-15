@@ -2050,28 +2050,28 @@ EXPORT_SYMBOL(cs40l26_get_num_waves);
 static struct cl_dsp_owt_header *cs40l26_header(struct cs40l26_private *cs40l26,
 		u8 index)
 {
-	if (!cs40l26->dsp || !cs40l26->dsp->wt_desc)
-		return NULL;
-
-	if (index >= cs40l26->dsp->wt_desc->owt.nwaves)
-		return NULL;
+	if (!cs40l26->dsp || !cs40l26->dsp->wt_desc ||
+			index >= cs40l26->dsp->wt_desc->owt.nwaves)
+		return ERR_PTR(-EINVAL);
 
 	return &cs40l26->dsp->wt_desc->owt.waves[index];
-
 }
 
-static int cs40l26_owt_get_wlength(struct cs40l26_private *cs40l26, u8 index)
+static int cs40l26_owt_get_wlength(struct cs40l26_private *cs40l26,
+		u8 index, u32 *wlen_whole)
 {
 	struct device *dev = cs40l26->dev;
 	struct cl_dsp_owt_header *entry;
 	struct cl_dsp_memchunk ch;
 
-	if (index == 0)
+	if (index == 0) {
+		*wlen_whole = 0;
 		return 0;
+	}
 
 	entry = cs40l26_header(cs40l26, index);
-	if (entry == NULL)
-		return -EINVAL;
+	if (IS_ERR(entry))
+		return PTR_ERR(entry);
 
 	switch (entry->type) {
 	case WT_TYPE_V6_PCM_F0_REDC:
@@ -2086,7 +2086,7 @@ static int cs40l26_owt_get_wlength(struct cs40l26_private *cs40l26, u8 index)
 	ch = cl_dsp_memchunk_create(entry->data, sizeof(u32));
 
 	/* First 24 bits of each waveform is the length in samples @ 8 kHz */
-	return cl_dsp_memchunk_read(&ch, 24);
+	return cl_dsp_memchunk_read(cs40l26->dsp, &ch, 24, wlen_whole);
 }
 
 static void cs40l26_owt_set_section_info(struct cs40l26_private *cs40l26,
@@ -2109,35 +2109,59 @@ static void cs40l26_owt_set_section_info(struct cs40l26_private *cs40l26,
 	}
 }
 
-static void cs40l26_owt_get_section_info(struct cs40l26_private *cs40l26,
+static int cs40l26_owt_get_section_info(struct cs40l26_private *cs40l26,
 		struct cl_dsp_memchunk *ch,
 		struct cs40l26_owt_section *sections, u8 nsections)
 {
-	int i;
+	int ret = 0, i;
 
 	for (i = 0; i < nsections; i++) {
-		sections[i].amplitude = cl_dsp_memchunk_read(ch, 8);
-		sections[i].index = cl_dsp_memchunk_read(ch, 8);
-		sections[i].repeat = cl_dsp_memchunk_read(ch, 8);
-		sections[i].flags = cl_dsp_memchunk_read(ch, 8);
-		sections[i].delay = cl_dsp_memchunk_read(ch, 16);
+		ret = cl_dsp_memchunk_read(cs40l26->dsp, ch, 8,
+				&sections[i].amplitude);
+		if (ret)
+			return ret;
+
+		ret = cl_dsp_memchunk_read(cs40l26->dsp, ch, 8, &sections[i].index);
+		if (ret)
+			return ret;
+
+		ret = cl_dsp_memchunk_read(cs40l26->dsp, ch, 8, &sections[i].repeat);
+		if (ret)
+			return ret;
+
+		ret = cl_dsp_memchunk_read(cs40l26->dsp, ch, 8, &sections[i].flags);
+		if (ret)
+			return ret;
+
+		ret = cl_dsp_memchunk_read(cs40l26->dsp, ch, 16, &sections[i].delay);
+		if (ret)
+			return ret;
 
 		if (sections[i].flags & CS40L26_WT_TYPE10_COMP_DURATION_FLAG) {
-			cl_dsp_memchunk_read(ch, 8); /* Skip padding */
-			sections[i].duration = cl_dsp_memchunk_read(ch, 16);
+			/* Skip padding */
+			ret = cl_dsp_memchunk_read(cs40l26->dsp, ch, 8, NULL);
+			if (ret)
+				return ret;
+
+			ret = cl_dsp_memchunk_read(cs40l26->dsp, ch, 16,
+					&sections[i].duration);
+			if (ret)
+				return ret;
 		}
 	}
+
+	return ret;
 }
 
 static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26,
 	u8 nsections, u8 global_rep, u8 *data, u32 data_size_bytes,
 	u32 *owt_wlen)
 {
-	struct cl_dsp_memchunk ch;
-	u32 total_len = 0, section_len = 0, loop_len = 0;
+	u32 total_len = 0, section_len = 0, loop_len = 0, wlen_whole = 0;
 	bool in_loop = false;
+	int ret = 0, i;
 	struct cs40l26_owt_section *sections;
-	int ret = 0, i, wlen_whole;
+	struct cl_dsp_memchunk ch;
 	u32 dlen, wlen;
 
 	if (nsections < 1) {
@@ -2151,16 +2175,18 @@ static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26,
 		return -ENOMEM;
 
 	ch = cl_dsp_memchunk_create((void *) data, data_size_bytes);
-	cs40l26_owt_get_section_info(cs40l26, &ch, sections, nsections);
+	ret = cs40l26_owt_get_section_info(cs40l26, &ch, sections, nsections);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to get section info\n");
+		goto err_free;
+	}
 
 	for (i = 0; i < nsections; i++) {
-		wlen_whole = cs40l26_owt_get_wlength(cs40l26,
-				sections[i].index);
-		if (wlen_whole < 0) {
+		ret = cs40l26_owt_get_wlength(cs40l26, sections[i].index, &wlen_whole);
+		if (ret < 0) {
 			dev_err(cs40l26->dev,
 					"Failed to get wlength for index %u\n",
 					sections[i].index);
-			ret = wlen_whole;
 			goto err_free;
 		}
 
@@ -2306,21 +2332,25 @@ static u8 *cs40l26_ncw_amp_scaling(struct cs40l26_private *cs40l26, u8 amp,
 	struct cl_dsp_memchunk in_ch, out_ch;
 	u16 amp_product;
 	u8 *out_data;
-	int i;
+	int i, ret;
 
 	if (nsections <= 0) {
 		dev_err(cs40l26->dev, "Too few sections for NCW\n");
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	sections = kcalloc(nsections, sizeof(struct cs40l26_owt_section),
 			GFP_KERNEL);
 	if (!sections)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	in_ch = cl_dsp_memchunk_create(in_data, data_bytes);
 
-	cs40l26_owt_get_section_info(cs40l26, &in_ch, sections, nsections);
+	ret = cs40l26_owt_get_section_info(cs40l26, &in_ch, sections, nsections);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to get section info\n");
+		return ERR_PTR(ret);
+	}
 
 	for (i = 0; i < nsections; i++) {
 		if (sections[i].index != 0) {
@@ -2331,15 +2361,13 @@ static u8 *cs40l26_ncw_amp_scaling(struct cs40l26_private *cs40l26, u8 amp,
 	}
 
 	out_data = kcalloc(data_bytes, sizeof(u8), GFP_KERNEL);
-	if (!out_data)
-		goto sections_free;
+	if (!out_data) {
+		kfree(sections);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	out_ch = cl_dsp_memchunk_create((void *) out_data, data_bytes);
 	cs40l26_owt_set_section_info(cs40l26, &out_ch, sections, nsections);
-
-
-sections_free:
-	kfree(sections);
 
 	return out_data;
 }
@@ -2357,8 +2385,8 @@ static int cs40l26_owt_comp_data_size(struct cs40l26_private *cs40l26,
 		}
 
 		header = cs40l26_header(cs40l26, sections[i].index);
-		if (header == NULL)
-			return -ENOMEM;
+		if (IS_ERR(header))
+			return PTR_ERR(header);
 
 		if (header->type == WT_TYPE_V6_COMPOSITE) {
 			size += (header->size - 2) * 4;
@@ -2418,21 +2446,28 @@ static int cs40l26_refactor_owt(struct cs40l26_private *cs40l26, s16 *in_data,
 	}
 
 	ch = cl_dsp_memchunk_create((void *) in_data, in_data_bytes);
-	cl_dsp_memchunk_read(&ch, 8); /* Skip padding */
-	ret = cl_dsp_memchunk_read(&ch, 8);
-	if (ret < 0)
+	ret = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8, NULL); /* Skip padding */
+	if (ret)
 		return ret;
 
-	nsections = ret;
+	ret = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8, &nsections);
+	if (ret)
+		return ret;
 
-	global_rep = cl_dsp_memchunk_read(&ch, 8);
+	ret = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8, &global_rep);
+	if (ret)
+		return ret;
 
 	sections = kcalloc(nsections, sizeof(struct cs40l26_owt_section),
 			GFP_KERNEL);
 	if (!sections)
 		return -ENOMEM;
 
-	cs40l26_owt_get_section_info(cs40l26, &ch, sections, nsections);
+	ret = cs40l26_owt_get_section_info(cs40l26, &ch, sections, nsections);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to get section info\n");
+		return ret;
+	}
 
 	data_bytes = cs40l26_owt_comp_data_size(cs40l26, nsections,
 			sections);
@@ -2472,18 +2507,31 @@ static int cs40l26_refactor_owt(struct cs40l26_private *cs40l26, s16 *in_data,
 		}
 
 		header = cs40l26_header(cs40l26, sections[i].index);
-		if (header == NULL) {
-			ret = -ENOMEM;
+		if (IS_ERR(header)) {
+			ret = PTR_ERR(header);
 			goto data_err_free;
 		}
 
 		if (header->type == WT_TYPE_V6_COMPOSITE) {
 			ch = cl_dsp_memchunk_create(header->data, 8);
-			cl_dsp_memchunk_read(&ch, 24); /* Skip Wlength */
-			cl_dsp_memchunk_read(&ch, 8); /* Skip Padding */
-			ncw_nsections = cl_dsp_memchunk_read(&ch, 8);
+			/* Skip Wlength */
+			ret = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 24, NULL);
+			if (ret)
+				return ret;
 
-			ncw_global_rep = cl_dsp_memchunk_read(&ch, 8);
+			/* Skip Padding */
+			ret = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8, NULL);
+			if (ret)
+				return ret;
+
+			ret = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8, &ncw_nsections);
+			if (ret)
+				return ret;
+
+			ret = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8, &ncw_global_rep);
+			if (ret)
+				return ret;
+
 			if (ncw_global_rep != 0) {
 				dev_err(dev,
 					"No NCW support for outer repeat\n");
@@ -2497,8 +2545,8 @@ static int cs40l26_refactor_owt(struct cs40l26_private *cs40l26, s16 *in_data,
 			ncw_data = cs40l26_ncw_amp_scaling(cs40l26,
 					sections[i].amplitude, ncw_nsections,
 					header->data + 8, ncw_bytes);
-			if (ncw_data == NULL) {
-				ret = -ENOMEM;
+			if (IS_ERR(ncw_data)) {
+				ret = PTR_ERR(ncw_data);
 				goto data_err_free;
 			}
 
