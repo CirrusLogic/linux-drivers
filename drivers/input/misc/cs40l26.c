@@ -1764,7 +1764,7 @@ static struct cs40l26_owt *cs40l26_owt_find(struct cs40l26_private *cs40l26,
 
 	if (list_empty(&cs40l26->owt_head)) {
 		dev_err(cs40l26->dev, "OWT list is empty\n");
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	list_for_each_entry(owt, &cs40l26->owt_head, list) {
@@ -1774,7 +1774,7 @@ static struct cs40l26_owt *cs40l26_owt_find(struct cs40l26_private *cs40l26,
 
 	if (owt->effect_id != id) {
 		dev_err(cs40l26->dev, "OWT effect with ID %d not found\n", id);
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	return owt;
@@ -1850,8 +1850,8 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 
 	if (is_owt(index)) {
 		owt = cs40l26_owt_find(cs40l26, effect->id);
-		if (owt == NULL) {
-			ret = -ENOMEM;
+		if (IS_ERR(owt)) {
+			ret = PTR_ERR(owt);
 			goto err_mutex;
 		}
 	}
@@ -2936,8 +2936,8 @@ static int cs40l26_erase_owt(struct cs40l26_private *cs40l26, int effect_id)
 	int ret;
 
 	owt = cs40l26_owt_find(cs40l26, effect_id);
-	if (owt == NULL)
-		return -ENOMEM;
+	if (IS_ERR(owt))
+		return PTR_ERR(owt);
 
 	cmd |= (owt->trigger_index & 0xFF);
 
@@ -4101,7 +4101,7 @@ static char **cs40l26_get_tuning_names(struct cs40l26_private *cs40l26, int n,
 
 	coeff_files = kcalloc(n, sizeof(char *), GFP_KERNEL);
 	if (!coeff_files)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < n; i++) {
 		coeff_files[i] =
@@ -4150,7 +4150,7 @@ static char **cs40l26_get_tuning_names(struct cs40l26_private *cs40l26, int n,
 
 err_free:
 	kfree(coeff_files);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 static int cs40l26_coeff_load(struct cs40l26_private *cs40l26, u32 tuning)
@@ -4164,8 +4164,8 @@ static int cs40l26_coeff_load(struct cs40l26_private *cs40l26, u32 tuning)
 		CS40L26_TUNING_FILES_RUNTIME : CS40L26_TUNING_FILES_CAL;
 
 	coeff_files = cs40l26_get_tuning_names(cs40l26, num_files, tuning);
-	if (!coeff_files)
-		return -ENOMEM;
+	if (IS_ERR(coeff_files))
+		return PTR_ERR(coeff_files);
 
 	for (i = 0; i < num_files; i++) {
 		ret = request_firmware(&coeff, coeff_files[i], dev);
@@ -4282,8 +4282,8 @@ static int cs40l26_cl_dsp_reinit(struct cs40l26_private *cs40l26)
 	}
 
 	cs40l26->dsp = cl_dsp_create(cs40l26->dev, cs40l26->regmap);
-	if (!cs40l26->dsp)
-		return -ENOMEM;
+	if (IS_ERR(cs40l26->dsp))
+		return PTR_ERR(cs40l26->dsp);
 
 	return cl_dsp_wavetable_create(cs40l26->dsp, CS40L26_VIBEGEN_ALGO_ID,
 		CS40L26_WT_NAME_XM, CS40L26_WT_NAME_YM, CS40L26_WT_FILE_NAME);
