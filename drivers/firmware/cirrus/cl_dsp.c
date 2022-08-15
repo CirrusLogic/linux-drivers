@@ -1125,7 +1125,7 @@ struct cl_dsp *cl_dsp_create(struct device *dev, struct regmap *regmap)
 
 	dsp = devm_kzalloc(dev, sizeof(struct cl_dsp), GFP_KERNEL);
 	if (!dsp)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	dsp->dev = dev;
 	dsp->regmap = regmap;
