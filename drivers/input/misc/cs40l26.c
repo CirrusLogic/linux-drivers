@@ -3785,13 +3785,6 @@ static int cs40l26_handle_errata(struct cs40l26_private *cs40l26)
 		num_writes = CS40L26_ERRATA_A1_EXPL_EN_NUM_WRITES;
 	}
 
-	ret = regmap_register_patch(cs40l26->regmap, cs40l26_a1_errata,
-			num_writes);
-	if (ret) {
-		dev_err(cs40l26->dev, "Failed to patch A1 errata\n");
-		return ret;
-	}
-
 	return cs40l26_pseq_multi_write(cs40l26, cs40l26_a1_errata, num_writes,
 			false, CS40L26_PSEQ_OP_WRITE_FULL);
 }
