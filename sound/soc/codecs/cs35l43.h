@@ -772,8 +772,14 @@
 /************************************************/
 /* IRQ1_IRQ1_EINT_3				*/
 /************************************************/
-#define CS35L43_OTP_BOOT_ERR_EINT1_MASK		0x00040000
+#define CS35L43_OTP_BOOT_ERR_EINT1_MASK			0x00040000
 #define CS35L43_OTP_BOOT_ERR_EINT1_SHIFT		18
+#define CS35L43_DSP1_NMI_ERR_EINT1_MASK			0x00000001
+#define CS35L43_DSP1_NMI_ERR_EINT1_SHIFT		0
+#define CS35L43_DSP1_MPU_ERR_EINT1_MASK			0x00000040
+#define CS35L43_DSP1_MPU_ERR_EINT1_SHIFT		6
+#define CS35L43_DSP1_STRM_ARB_ERR_EINT1_MASK		0x00000080
+#define CS35L43_DSP1_STRM_ARB_ERR_EINT1_SHIFT		7
 
 /************************************************/
 /* Protection Release and Error Ignore Control	*/
