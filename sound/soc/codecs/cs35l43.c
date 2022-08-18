@@ -1026,6 +1026,11 @@ static int cs35l43_exit_hibernate(struct cs35l43_private *cs35l43)
 	regmap_update_bits(cs35l43->regmap, CS35L43_IRQ1_MASK_2,
 				CS35L43_PLL_UNLOCK_FLAG_RISE_EINT1_MASK |
 				CS35L43_PLL_LOCK_EINT1_MASK, 0);
+	regmap_write(cs35l43->regmap, CS35L43_IRQ1_MASK_3, 0xFFFFFFFF);
+	regmap_update_bits(cs35l43->regmap, CS35L43_IRQ1_MASK_3,
+				CS35L43_DSP1_NMI_ERR_EINT1_MASK |
+				CS35L43_DSP1_MPU_ERR_EINT1_MASK |
+				CS35L43_DSP1_STRM_ARB_ERR_EINT1_MASK, 0);
 
 	return 0;
 }
@@ -1321,7 +1326,7 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 static irqreturn_t cs35l43_irq(int irq, void *data)
 {
 	struct cs35l43_private *cs35l43 = data;
-	unsigned int status[2], masks[2];
+	unsigned int status[3], masks[3];
 	int ret = IRQ_NONE, i;
 
 	pm_runtime_get_sync(cs35l43->dev);
@@ -1336,7 +1341,9 @@ static irqreturn_t cs35l43_irq(int irq, void *data)
 	}
 
 	/* Check to see if unmasked bits are active */
-	if (!(status[0] & ~masks[0]) && !(status[1] & ~masks[1])) {
+	if (!(status[0] & ~masks[0]) &&
+		!(status[1] & ~masks[1]) &&
+		!(status[2] & ~masks[2])) {
 		ret = IRQ_NONE;
 		goto done;
 	}
@@ -1453,6 +1460,24 @@ static irqreturn_t cs35l43_irq(int irq, void *data)
 		dev_info(cs35l43->dev, "PLL Lock INT\n");
 		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_2,
 				CS35L43_PLL_LOCK_EINT1_MASK);
+	}
+
+	if (status[2] & CS35L43_DSP1_NMI_ERR_EINT1_MASK) {
+		dev_err(cs35l43->dev, "NMI Error INT\n");
+		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_3,
+				CS35L43_DSP1_NMI_ERR_EINT1_MASK);
+	}
+
+	if (status[2] & CS35L43_DSP1_MPU_ERR_EINT1_MASK) {
+		dev_err(cs35l43->dev, "MPU Error INT\n");
+		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_3,
+				CS35L43_DSP1_MPU_ERR_EINT1_MASK);
+	}
+
+	if (status[2] & CS35L43_DSP1_STRM_ARB_ERR_EINT1_MASK) {
+		dev_err(cs35l43->dev, "Stream Arb Error INT\n");
+		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_3,
+				CS35L43_DSP1_STRM_ARB_ERR_EINT1_MASK);
 	}
 
 	ret = IRQ_HANDLED;
@@ -2272,6 +2297,11 @@ int cs35l43_probe(struct cs35l43_private *cs35l43,
 	regmap_update_bits(cs35l43->regmap, CS35L43_IRQ1_MASK_2,
 				CS35L43_PLL_UNLOCK_FLAG_RISE_EINT1_MASK |
 				CS35L43_PLL_LOCK_EINT1_MASK, 0);
+	regmap_write(cs35l43->regmap, CS35L43_IRQ1_MASK_3, 0xFFFFFFFF);
+	regmap_update_bits(cs35l43->regmap, CS35L43_IRQ1_MASK_3,
+				CS35L43_DSP1_NMI_ERR_EINT1_MASK |
+				CS35L43_DSP1_MPU_ERR_EINT1_MASK |
+				CS35L43_DSP1_STRM_ARB_ERR_EINT1_MASK, 0);
 
 	regmap_update_bits(cs35l43->regmap, CS35L43_ALIVE_DCIN_WD,
 				CS35L43_DCIN_WD_EN_MASK,
