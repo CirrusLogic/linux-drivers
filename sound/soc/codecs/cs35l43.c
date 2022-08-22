@@ -1332,7 +1332,7 @@ static irqreturn_t cs35l43_irq(int irq, void *data)
 	}
 
 	/* Check to see if unmasked bits are active */
-	if (!(status[0] & ~masks[0]) && !(status[1] & ~masks[1])){
+	if (!(status[0] & ~masks[0]) && !(status[1] & ~masks[1])) {
 		ret = IRQ_NONE;
 		goto done;
 	}
