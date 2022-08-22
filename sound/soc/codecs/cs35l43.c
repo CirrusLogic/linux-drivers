@@ -907,7 +907,8 @@ static void cs35l43_pll_config(struct cs35l43_private *cs35l43)
 static int cs35l43_check_mailbox(struct cs35l43_private *cs35l43)
 {
 	unsigned int *mbox;
-	int i;
+	unsigned int write_ptr, read_ptr, read_idx, write_idx, type, msg;
+	int i, ret;
 
 	mbox = kmalloc_array(8, sizeof(*mbox), GFP_KERNEL);
 	if (!mbox)
@@ -917,6 +918,67 @@ static int cs35l43_check_mailbox(struct cs35l43_private *cs35l43)
 	for (i = 0; i < 8; i++)
 		dev_dbg(cs35l43->dev, "mbox[%d]: 0x%x\n", i + 1, mbox[i]);
 
+	ret = wm_adsp_read_ctl(&cs35l43->dsp, "QUEUE_WT",
+		WMFW_ADSP2_XM, CS35L43_ALG_ID_MAILBOX, &write_ptr, sizeof(u32));
+	if (ret < 0)
+		return ret;
+	ret = wm_adsp_read_ctl(&cs35l43->dsp, "QUEUE_RD",
+		WMFW_ADSP2_XM, CS35L43_ALG_ID_MAILBOX, &read_ptr, sizeof(u32));
+	if (ret < 0)
+		return ret;
+
+	write_ptr = be32_to_cpu(write_ptr);
+	read_ptr = be32_to_cpu(read_ptr);
+
+	dev_dbg(cs35l43->dev, "QUEUE_WT: 0x%x\n", write_ptr);
+	dev_dbg(cs35l43->dev, "QUEUE_RD: 0x%x\n", read_ptr);
+	read_idx = (read_ptr & 0x1F) / 4;
+	write_idx = (write_ptr & 0x1F) / 4;
+
+	if (write_idx == 0 || write_idx == read_idx)
+		goto exit;
+
+	do {
+		dev_info(cs35l43->dev, "MESSAGE: 0x%x\n", mbox[read_idx]);
+
+		type = mbox[read_idx] >> 24;
+		msg = mbox[read_idx];
+
+		switch (type) {
+		case CS35L43_MBOX_TYPE_PWR:
+			if (msg == CS35L43_MBOX_MSG_AWAKE)
+				dev_info(cs35l43->dev, "AWAKE\n");
+			break;
+		case CS35L43_MBOX_TYPE_SYS:
+			if (msg == CS35L43_MBOX_MSG_ACK)
+				dev_info(cs35l43->dev, "ACK\n");
+			break;
+		case CS35L43_MBOX_TYPE_AUDIO:
+			break;
+		case CS35L43_MBOX_TYPE_ERROR:
+			dev_err(cs35l43->dev, "Mailbox error: 0x%x\n", msg);
+			break;
+		case CS35L43_MBOX_TYPE_EVENT:
+			dev_info(cs35l43->dev, "Mailbox Event: 0x%x\n", msg);
+			break;
+		case CS35L43_MBOX_TYPE_WDT:
+			dev_info(cs35l43->dev, "WDT Warn: 0x%x\n", msg);
+			break;
+		default:
+			dev_err(cs35l43->dev, "Unknown msg type: 0x%x\n", type);
+		}
+
+		read_idx++;
+		read_idx = read_idx % 8;
+		if (read_idx == 0)
+			read_idx++;
+	}  while (read_idx != write_idx);
+
+	write_ptr = cpu_to_be32(write_ptr);
+	wm_adsp_write_ctl(&cs35l43->dsp, "QUEUE_RD",
+		WMFW_ADSP2_XM, CS35L43_ALG_ID_MAILBOX, &write_ptr, sizeof(u32));
+
+exit:
 	kfree(mbox);
 	return 0;
 }
@@ -1143,7 +1205,6 @@ static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
 			cs35l43->limit_spi_clock(cs35l43, true);
 		regmap_update_bits(cs35l43->regmap, CS35L43_BLOCK_ENABLES,
 				CS35L43_AMP_EN_MASK, 0);
-		cs35l43_check_mailbox(cs35l43);
 		break;
 	default:
 		dev_err(cs35l43->dev, "Invalid event = 0x%x\n", event);
@@ -2309,6 +2370,10 @@ int cs35l43_probe(struct cs35l43_private *cs35l43,
 	regmap_update_bits(cs35l43->regmap, CS35L43_ALIVE_DCIN_WD,
 				CS35L43_DCIN_WD_THLD_MASK,
 				1 << CS35L43_DCIN_WD_THLD_SHIFT);
+
+	/* ACK core wakeup message before core disabled in dsp_init */
+	regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_1,
+					CS35L43_DSP_VIRTUAL2_MBOX_WR_EINT1_MASK);
 
 	ret = devm_request_threaded_irq(cs35l43->dev, cs35l43->irq, NULL,
 				cs35l43_irq, IRQF_ONESHOT | IRQF_SHARED |
