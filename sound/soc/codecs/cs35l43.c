@@ -861,6 +861,7 @@ static int cs35l43_dsp_audio_ev(struct snd_soc_dapm_widget *w,
 		snd_soc_dapm_to_component(w->dapm);
 	struct cs35l43_private *cs35l43 =
 		snd_soc_component_get_drvdata(component);
+	unsigned int audio_state;
 
 	dev_dbg(cs35l43->dev, "%s\n", __func__);
 
@@ -871,10 +872,29 @@ static int cs35l43_dsp_audio_ev(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 				CS35L43_MBOX_CMD_AUDIO_PLAY);
+		usleep_range(2000, 2200);
+		wm_adsp_read_ctl(&cs35l43->dsp, "AUDIO_STATE",
+			WMFW_ADSP2_XM, 0x5f212, &audio_state, sizeof(u32));
+		audio_state = be32_to_cpu(audio_state);
+		dev_info(cs35l43->dev, "PMU audio state post: 0x%x\n", audio_state);
+		if (audio_state != CS35L43_AUDIO_STATE_WAITING &&
+			audio_state != CS35L43_AUDIO_STATE_RUNNING &&
+			audio_state != CS35L43_AUDIO_STATE_RAMPDOWN &&
+			audio_state != CS35L43_AUDIO_STATE_ANG_MUTED)
+			dev_err(cs35l43->dev, "Failed to set MBOX cmd PLAY\n");
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 				CS35L43_MBOX_CMD_AUDIO_PAUSE);
+		usleep_range(2000, 2200);
+		wm_adsp_read_ctl(&cs35l43->dsp, "AUDIO_STATE",
+			WMFW_ADSP2_XM, 0x5f212, &audio_state, sizeof(u32));
+		audio_state = be32_to_cpu(audio_state);
+		dev_info(cs35l43->dev, "PMD audio state post: 0x%x\n", audio_state);
+		if (audio_state != CS35L43_AUDIO_STATE_READY &&
+			audio_state != CS35L43_AUDIO_STATE_RUNNING &&
+			audio_state != CS35L43_AUDIO_STATE_RAMPDOWN)
+			dev_err(cs35l43->dev, "Failed to set MBOX cmd PAUSE\n");
 		break;
 	default:
 		break;
