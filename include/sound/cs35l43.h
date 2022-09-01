@@ -86,6 +86,12 @@ struct cs35l43_write_seq {
 	unsigned int length;
 };
 
+struct cs35l43_dsp_reg {
+	const char *name;
+	unsigned int id;
+	unsigned int check_value;
+};
+
 enum cs35l43_hibernate_mode {
 	CS35L43_ULTRASONIC_MODE_DISABLED = 0,
 	CS35L43_ULTRASONIC_MODE_INBAND = 1,
