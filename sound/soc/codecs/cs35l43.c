@@ -974,6 +974,9 @@ static int cs35l43_check_mailbox(struct cs35l43_private *cs35l43)
 		case CS35L43_MBOX_TYPE_ERROR:
 			dev_err(cs35l43->dev, "Mailbox error: 0x%x\n", msg);
 			break;
+		case CS35L43_MBOX_TYPE_MEM_VAL:
+			dev_err(cs35l43->dev, "Memory Validation error: 0x%x\n", msg);
+			break;
 		case CS35L43_MBOX_TYPE_EVENT:
 			dev_info(cs35l43->dev, "Mailbox Event: 0x%x\n", msg);
 			break;
