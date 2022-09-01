@@ -4644,7 +4644,7 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 	}
 
 	if (!of_property_read_u32(np, "cirrus,boost-ctl-microvolt", &val))
-		cs40l26->pdata.boost_ctl = val | CS40L26_PDATA_PRESENT;
+		cs40l26->pdata.boost_ctl = val;
 	else
 		cs40l26->pdata.boost_ctl = CS40L26_BST_CTL_DEFAULT;
 
