@@ -917,6 +917,34 @@ static int cs35l43_dsp_audio_ev(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int cs35l43_log_dsp_err(struct cs35l43_private *cs35l43)
+{
+	int i;
+	unsigned int reg;
+	struct cs35l43_dsp_reg regs[] = {
+		{ "PM_CUR_STATE",	CS35L43_ALG_ID_PM },
+		{ "AUDIO_STATE",	0x5f212 },
+		{ "ERROR",		0x5f212 },
+		{ "HALO_STATE",		0x1800d6 },
+		{ "HALO_HEARTBEAT",	0x1800d6 },
+		{ "AUDIO_BLK_SIZE",	0x1800d6 },
+		{ "RAM_INIT_COUNT",	0x5f224 },
+		{ "HIBER_COUNT",	0x5f224 },
+		{ "WDT_WARN_COUNT",	0x5f224 },
+		{ "MIPS_OVERRUN_FLG",	0x5f224 } };
+
+	dev_info(cs35l43->dev, "%s\n", __func__);
+
+	for (i = 0; i < ARRAY_SIZE(regs); i++) {
+		wm_adsp_read_ctl(&cs35l43->dsp, regs[i].name,
+				WMFW_ADSP2_XM, regs[i].id, &reg, sizeof(u32));
+		dev_info(cs35l43->dev, "%s (0x%x): 0x%x\n",
+				regs[i].name, regs[i].id, reg);
+	}
+
+	return 0;
+}
+
 static void cs35l43_pll_config(struct cs35l43_private *cs35l43)
 {
 
@@ -991,6 +1019,7 @@ static int cs35l43_check_mailbox(struct cs35l43_private *cs35l43)
 			break;
 		case CS35L43_MBOX_TYPE_ERROR:
 			dev_err(cs35l43->dev, "Mailbox error: 0x%x\n", msg);
+			cs35l43_log_dsp_err(cs35l43);
 			break;
 		case CS35L43_MBOX_TYPE_MEM_VAL:
 			dev_err(cs35l43->dev, "Memory Validation error: 0x%x\n", msg);
@@ -1643,18 +1672,21 @@ static irqreturn_t cs35l43_irq(int irq, void *data)
 		dev_err(cs35l43->dev, "NMI Error INT\n");
 		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_3,
 				CS35L43_DSP1_NMI_ERR_EINT1_MASK);
+		cs35l43_log_dsp_err(cs35l43);
 	}
 
 	if (status[2] & CS35L43_DSP1_MPU_ERR_EINT1_MASK) {
 		dev_err(cs35l43->dev, "MPU Error INT\n");
 		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_3,
 				CS35L43_DSP1_MPU_ERR_EINT1_MASK);
+		cs35l43_log_dsp_err(cs35l43);
 	}
 
 	if (status[2] & CS35L43_DSP1_STRM_ARB_ERR_EINT1_MASK) {
 		dev_err(cs35l43->dev, "Stream Arb Error INT\n");
 		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_3,
 				CS35L43_DSP1_STRM_ARB_ERR_EINT1_MASK);
+		cs35l43_log_dsp_err(cs35l43);
 	}
 
 	ret = IRQ_HANDLED;
