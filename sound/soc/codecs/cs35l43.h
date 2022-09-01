@@ -921,6 +921,7 @@
 /* #####################################################*/
 
 #define CS35L43_MBOX_TYPE_PWR		0x2
+#define CS35L43_MBOX_TYPE_MEM_VAL	0x6
 #define CS35L43_MBOX_TYPE_SYS		0xA
 #define CS35L43_MBOX_TYPE_AUDIO		0xB
 #define CS35L43_MBOX_TYPE_ERROR		0xC
