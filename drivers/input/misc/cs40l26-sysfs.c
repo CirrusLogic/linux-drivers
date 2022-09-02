@@ -1118,6 +1118,11 @@ static ssize_t trigger_calibration_store(struct device *dev,
 
 	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
 
+	if (!cs40l26->calib_fw) {
+		dev_err(cs40l26->dev, "Must use calibration firmware\n");
+		return -EPERM;
+	}
+
 	ret = kstrtou32(buf, 16, &calibration_request_payload);
 	if (ret ||
 		calibration_request_payload < 1 ||
