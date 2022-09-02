@@ -537,7 +537,6 @@ static int cs40l26_dsp_start(struct cs40l26_private *cs40l26)
 	unsigned int val;
 	int ret;
 
-
 	ret = regmap_read(cs40l26->regmap, CS40L26_A1_DSP_REQ_ACTIVE_REG,
 			&val);
 	if (ret) {
@@ -2961,7 +2960,6 @@ static int cs40l26_erase_owt(struct cs40l26_private *cs40l26, int effect_id)
 
 	return 0;
 }
-
 
 static void cs40l26_erase_worker(struct work_struct *work)
 {
