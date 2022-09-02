@@ -1109,9 +1109,9 @@ int cl_dsp_wavetable_create(struct cl_dsp *dsp, unsigned int id,
 		return -ENOMEM;
 
 	wt_desc->id = id;
-	memcpy(wt_desc->wt_name_xm, wt_name_xm, CL_DSP_WMDR_NAME_LEN);
-	memcpy(wt_desc->wt_name_ym, wt_name_ym, CL_DSP_WMDR_NAME_LEN);
-	memcpy(wt_desc->wt_file, wt_file, CL_DSP_WMDR_NAME_LEN);
+	strscpy(wt_desc->wt_name_xm, wt_name_xm, strlen(wt_name_xm) + 1);
+	strscpy(wt_desc->wt_name_ym, wt_name_ym, strlen(wt_name_ym) + 1);
+	strscpy(wt_desc->wt_file, wt_file, strlen(wt_file) + 1);
 
 	dsp->wt_desc = wt_desc;
 
