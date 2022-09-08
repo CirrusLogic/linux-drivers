@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// cs40l26-syfs.c -- CS40L26 Boosted Haptic Driver with Integrated DSP and
+// cs40l26-sysfs.c -- CS40L26 Boosted Haptic Driver with Integrated DSP and
 // Waveform Memory with Advanced Closed Loop Algorithms and LRA protection
 //
 // Copyright 2022 Cirrus Logic, Inc.
