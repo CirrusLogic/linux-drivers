@@ -2097,19 +2097,23 @@ static int cs40l26_owt_get_section_info(struct cs40l26_private *cs40l26,
 		if (ret)
 			return ret;
 
-		ret = cl_dsp_memchunk_read(cs40l26->dsp, ch, 8, &sections[i].index);
+		ret = cl_dsp_memchunk_read(cs40l26->dsp, ch, 8,
+				&sections[i].index);
 		if (ret)
 			return ret;
 
-		ret = cl_dsp_memchunk_read(cs40l26->dsp, ch, 8, &sections[i].repeat);
+		ret = cl_dsp_memchunk_read(cs40l26->dsp, ch, 8,
+				&sections[i].repeat);
 		if (ret)
 			return ret;
 
-		ret = cl_dsp_memchunk_read(cs40l26->dsp, ch, 8, &sections[i].flags);
+		ret = cl_dsp_memchunk_read(cs40l26->dsp, ch, 8,
+				&sections[i].flags);
 		if (ret)
 			return ret;
 
-		ret = cl_dsp_memchunk_read(cs40l26->dsp, ch, 16, &sections[i].delay);
+		ret = cl_dsp_memchunk_read(cs40l26->dsp, ch, 16,
+				&sections[i].delay);
 		if (ret)
 			return ret;
 
@@ -2158,7 +2162,8 @@ static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26,
 	}
 
 	for (i = 0; i < nsections; i++) {
-		ret = cs40l26_owt_get_wlength(cs40l26, sections[i].index, &wlen_whole);
+		ret = cs40l26_owt_get_wlength(cs40l26, sections[i].index,
+				&wlen_whole);
 		if (ret < 0) {
 			dev_err(cs40l26->dev,
 					"Failed to get wlength for index %u\n",
@@ -2322,7 +2327,8 @@ static u8 *cs40l26_ncw_amp_scaling(struct cs40l26_private *cs40l26, u8 amp,
 
 	in_ch = cl_dsp_memchunk_create(in_data, data_bytes);
 
-	ret = cs40l26_owt_get_section_info(cs40l26, &in_ch, sections, nsections);
+	ret = cs40l26_owt_get_section_info(cs40l26, &in_ch, sections,
+			nsections);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to get section info\n");
 		return ERR_PTR(ret);
@@ -2380,7 +2386,8 @@ static int cs40l26_owt_comp_data_size(struct cs40l26_private *cs40l26,
 }
 
 static int cs40l26_refactor_owt(struct cs40l26_private *cs40l26, s16 *in_data,
-		u32 in_data_nibbles, bool pwle, bool svc_waveform, u8 **out_data)
+		u32 in_data_nibbles, bool pwle, bool svc_waveform,
+		u8 **out_data)
 {
 	u8 nsections, global_rep, out_nsections = 0;
 	int ret = 0, pos_byte = 0, in_pos_nib = 2;
@@ -2408,12 +2415,15 @@ static int cs40l26_refactor_owt(struct cs40l26_private *cs40l26, s16 *in_data,
 					out_data_bytes);
 		cl_dsp_memchunk_write(&out_ch, 16,
 					CS40L26_WT_HEADER_DEFAULT_FLAGS |
-					(svc_waveform ? CS40L26_OWT_SVC_METADATA : 0));
+					(svc_waveform ?
+					CS40L26_OWT_SVC_METADATA : 0));
 		cl_dsp_memchunk_write(&out_ch, 8, WT_TYPE_V6_PWLE);
 		cl_dsp_memchunk_write(&out_ch, 24, CS40L26_WT_HEADER_OFFSET +
-					(svc_waveform ? CS40L26_WT_METADATA_OFFSET : 0));
+					(svc_waveform ?
+					CS40L26_WT_METADATA_OFFSET : 0));
 		cl_dsp_memchunk_write(&out_ch, 24, (in_data_bytes / 4) -
-					(svc_waveform ? CS40L26_WT_METADATA_OFFSET : 0));
+					(svc_waveform ?
+					CS40L26_WT_METADATA_OFFSET : 0));
 
 
 		memcpy(*out_data + out_ch.bytes, in_data, in_data_bytes);
@@ -2422,7 +2432,8 @@ static int cs40l26_refactor_owt(struct cs40l26_private *cs40l26, s16 *in_data,
 	}
 
 	ch = cl_dsp_memchunk_create((void *) in_data, in_data_bytes);
-	ret = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8, NULL); /* Skip padding */
+	/* Skip padding */
+	ret = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8, NULL);
 	if (ret)
 		return ret;
 
@@ -2500,11 +2511,13 @@ static int cs40l26_refactor_owt(struct cs40l26_private *cs40l26, s16 *in_data,
 			if (ret)
 				return ret;
 
-			ret = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8, &ncw_nsections);
+			ret = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8,
+					&ncw_nsections);
 			if (ret)
 				return ret;
 
-			ret = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8, &ncw_global_rep);
+			ret = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8,
+					&ncw_global_rep);
 			if (ret)
 				return ret;
 
@@ -2721,8 +2734,9 @@ static void cs40l26_upload_worker(struct work_struct *work)
 
 		if (len > CS40L26_CUSTOM_DATA_SIZE) {
 			refactored_size = cs40l26_refactor_owt(cs40l26,
-				cs40l26->raw_custom_data, len, pwle, svc_waveform,
-				&refactored_data);
+				cs40l26->raw_custom_data, len,
+						pwle, svc_waveform,
+						&refactored_data);
 
 			if (refactored_size <= 0) {
 				dev_err(cdev,
