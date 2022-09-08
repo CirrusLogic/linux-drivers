@@ -2704,6 +2704,12 @@ static void cs40l26_upload_worker(struct work_struct *work)
 		goto out_mutex;
 	}
 
+	if (is_owt(cs40l26->trigger_indices[effect->id])) {
+		dev_err(cdev, "Open Wavetable effects cannot be edited\n");
+		ret = -EPERM;
+		goto out_mutex;
+	}
+
 	switch (effect->u.periodic.waveform) {
 	case FF_CUSTOM:
 		pwle = (cs40l26->raw_custom_data[0] ==
@@ -2953,6 +2959,8 @@ static int cs40l26_erase_owt(struct cs40l26_private *cs40l26, int effect_id)
 			cs40l26->trigger_indices[owt_tmp->effect_id]--;
 		}
 	}
+
+	cs40l26->trigger_indices[effect_id] = 0;
 
 	list_del(&owt->list);
 	kfree(owt);
