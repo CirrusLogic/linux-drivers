@@ -131,6 +131,9 @@ struct cs35l43_private {
 	struct mutex hb_lock;
 	struct workqueue_struct *mbox_wq;
 	struct work_struct mbox_work;
+	struct mutex err_lock;
+	struct workqueue_struct *err_wq;
+	struct work_struct err_work;
 	struct cs35l43_write_seq power_on_seq;
 	void (*limit_spi_clock)(struct cs35l43_private *cs35l43, bool state);
 };
