@@ -849,4 +849,18 @@ config CHARGER_SURFACE
 	  Microsoft Surface devices, i.e. Surface Pro 7, Surface Laptop 3,
 	  Surface Book 3, and Surface Laptop Go.
 
+config CHARGER_LN8411
+	tristate "Cirrus LN8411 battery charger driver"
+	depends on I2C
+	depends on EXTCON
+	depends on REGULATOR
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the Cirrus LN8411 battery charging IC.
+	  The LN8411 is a switched capacitor fast charger for 1S battery
+	  applications. This driver provides support for the LN8411 single
+	  and dual input use cases as well as the synchronous dual LN8411 use
+	  case.
+
 endif # POWER_SUPPLY
