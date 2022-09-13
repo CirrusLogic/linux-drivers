@@ -918,4 +918,18 @@ config BATTERY_UG3105
 	  device is off or suspended, the functionality of this driver is
 	  limited to reporting capacity only.
 
+config CHARGER_LN8411
+	tristate "Cirrus LN8411 battery charger driver"
+	depends on I2C
+	depends on EXTCON
+	depends on REGULATOR
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the Cirrus LN8411 battery charging IC.
+	  The LN8411 is a switched capacitor fast charger for 1S battery
+	  applications. This driver provides support for the LN8411 single
+	  and dual input use cases as well as the synchronous dual LN8411 use
+	  case.
+
 endif # POWER_SUPPLY
