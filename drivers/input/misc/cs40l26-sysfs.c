@@ -188,6 +188,12 @@ static ssize_t power_on_seq_show(struct device *dev,
 
 	base = cs40l26->pseq_base;
 
+	if (list_empty(&cs40l26->pseq_op_head)) {
+		dev_err(cs40l26->dev, "Power on sequence is empty\n");
+		ret = -EINVAL;
+		goto err_mutex;
+	}
+
 	list_for_each_entry_reverse(op, &cs40l26->pseq_op_head, list) {
 		switch (op->operation) {
 		case CS40L26_PSEQ_OP_WRITE_FULL:
