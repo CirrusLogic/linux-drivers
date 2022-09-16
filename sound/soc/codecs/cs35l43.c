@@ -466,7 +466,7 @@ static int cs35l43_write_seq_add(struct cs35l43_private *cs35l43,
 				bool read)
 {
 	struct device *dev = cs35l43->dev;
-	u32 *buf, *op_words, addr, prev_addr, value;
+	u32 *buf, *op_words, addr = 0, prev_addr = 0, value = 0;
 	u8 operation;
 	unsigned int i, j, num_words, ret = 0;
 	struct cs35l43_write_seq_elem *write_seq_elem;
@@ -615,7 +615,7 @@ static int cs35l43_write_seq_update(struct cs35l43_private *cs35l43,
 {
 	struct device *dev = cs35l43->dev;
 	u32 *buf;
-	u32 addr, prev_addr, value, reg_value;
+	u32 addr = 0, prev_addr = 0, value = 0, reg_value = 0;
 	unsigned int ret = 0, i;
 	struct cs35l43_write_seq_elem *write_seq_elem;
 
