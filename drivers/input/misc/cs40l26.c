@@ -2888,6 +2888,7 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 out_free:
 	memset(&cs40l26->upload_effect, 0, sizeof(struct ff_effect));
 	kfree(cs40l26->raw_custom_data);
+	cs40l26->raw_custom_data = NULL;
 
 	return ret;
 }
