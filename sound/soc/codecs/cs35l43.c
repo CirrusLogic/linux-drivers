@@ -752,12 +752,16 @@ static int cs35l43_write_seq_init(struct cs35l43_private *cs35l43,
 
 		if (j == CS35L43_POWER_SEQ_NUM_OPS) {
 			dev_err(dev, "Failed to determine op size\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_free;
 		}
 
 		op_words = kzalloc(num_words * sizeof(u32), GFP_KERNEL);
-		if (!op_words)
-			return -ENOMEM;
+		if (!op_words) {
+			ret = -ENOMEM;
+			goto err_free;
+		}
+
 		memcpy(op_words, &buf[i], num_words * sizeof(u32));
 
 		write_seq_elem = devm_kzalloc(dev, sizeof(*write_seq_elem), GFP_KERNEL);
