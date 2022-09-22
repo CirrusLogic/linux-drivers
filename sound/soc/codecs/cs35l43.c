@@ -57,6 +57,7 @@ static const char * const cs35l43_supplies[] = {
 static int cs35l43_exit_hibernate(struct cs35l43_private *cs35l43);
 static void cs35l43_pm_runtime_setup(struct cs35l43_private *cs35l43);
 static void cs35l43_log_status(struct cs35l43_private *cs35l43);
+static int cs35l43_check_dsp_regs(struct cs35l43_private *cs35l43);
 
 static const DECLARE_TLV_DB_RANGE(dig_vol_tlv,
 		0, 0, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
@@ -920,6 +921,9 @@ static int cs35l43_dsp_reset(struct cs35l43_private *cs35l43)
 	snd_soc_component_disable_pin(cs35l43->component, "DSP1 Preload");
 	snd_soc_dapm_sync(dapm);
 
+	if (cs35l43_check_dsp_regs(cs35l43) != 0)
+		dev_err(cs35l43->dev, "Failed to reset DSP\n");
+
 	if (pm_runtime_enabled(cs35l43->dev))
 		pm_runtime_put_autosuspend(cs35l43->dev);
 
@@ -1029,6 +1033,11 @@ static int cs35l43_dsp_audio_ev(struct snd_soc_dapm_widget *w,
 			audio_state != CS35L43_AUDIO_STATE_RAMPDOWN &&
 			audio_state != CS35L43_AUDIO_STATE_ANG_MUTED)
 			dev_err(cs35l43->dev, "Failed to set MBOX cmd PLAY\n");
+
+		if (cs35l43_check_dsp_regs(cs35l43) != 0) {
+			if (!mutex_is_locked(&cs35l43->err_lock))
+				queue_work(cs35l43->err_wq, &cs35l43->err_work);
+		}
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
@@ -1042,9 +1051,65 @@ static int cs35l43_dsp_audio_ev(struct snd_soc_dapm_widget *w,
 			audio_state != CS35L43_AUDIO_STATE_RUNNING &&
 			audio_state != CS35L43_AUDIO_STATE_RAMPDOWN)
 			dev_err(cs35l43->dev, "Failed to set MBOX cmd PAUSE\n");
+
+		if (cs35l43_check_dsp_regs(cs35l43) != 0) {
+			if (!mutex_is_locked(&cs35l43->err_lock))
+				queue_work(cs35l43->err_wq, &cs35l43->err_work);
+		}
 		break;
 	default:
 		break;
+	}
+
+	return 0;
+}
+
+static int cs35l43_check_dsp_regs(struct cs35l43_private *cs35l43)
+{
+	int ret = 0;
+	unsigned int val;
+
+	ret = wm_adsp_read_ctl(&cs35l43->dsp, "HALO_STATE", WMFW_ADSP2_XM, 0x1800d6,
+				&val, sizeof(u32));
+	if (ret < 0) {
+		dev_err(cs35l43->dev, "Failed to read HALO_STATE\n");
+		return ret;
+	}
+
+	val = be32_to_cpu(val);
+	if (val != 2) {
+		dev_err(cs35l43->dev, "%s: Error HALO_STATE = %u\n", __func__, val);
+		return -EINVAL;
+	}
+
+	ret = wm_adsp_read_ctl(&cs35l43->dsp, "ERROR", WMFW_ADSP2_XM, 0x5f212,
+				&val, sizeof(u32));
+	if (ret < 0) {
+		dev_err(cs35l43->dev, "Failed to read AUDIO_SYSTEM ERROR\n");
+		return ret;
+	}
+
+	val = be32_to_cpu(val);
+	if (val != 0) {
+		dev_err(cs35l43->dev, "%s: Error AUDIO_SYSTEM ERROR = %u\n", __func__, val);
+		return -EINVAL;
+	}
+
+	regmap_read(cs35l43->regmap, CS35L43_DSP1_SCRATCH1, &val);
+	if (val)
+		ret = -EINVAL;
+	regmap_read(cs35l43->regmap, CS35L43_DSP1_SCRATCH2, &val);
+	if (val)
+		ret = -EINVAL;
+	regmap_read(cs35l43->regmap, CS35L43_DSP1_SCRATCH3, &val);
+	if (val)
+		ret = -EINVAL;
+	regmap_read(cs35l43->regmap, CS35L43_DSP1_SCRATCH4, &val);
+	if (val)
+		ret = -EINVAL;
+	if (ret) {
+		dev_err(cs35l43->dev, "%s: Error DSP SCRATCH\n", __func__);
+		return ret;
 	}
 
 	return 0;
@@ -1074,6 +1139,13 @@ static int cs35l43_log_dsp_err(struct cs35l43_private *cs35l43)
 		dev_info(cs35l43->dev, "%s (0x%x): 0x%x\n",
 				regs[i].name, regs[i].id, reg);
 	}
+
+	regmap_read(cs35l43->regmap, CS35L43_DSP1_MPU_XM_VIO_STATUS, &reg);
+	dev_info(cs35l43->dev, "%s: CS35L43_DSP1_MPU_XM_VIO_STATUS 0x%x\n", __func__, reg);
+	regmap_read(cs35l43->regmap, CS35L43_DSP1_MPU_YM_VIO_STATUS, &reg);
+	dev_info(cs35l43->dev, "%s: CS35L43_DSP1_MPU_YM_VIO_STATUS 0x%x\n", __func__, reg);
+	regmap_read(cs35l43->regmap, CS35L43_DSP1_MPU_PM_VIO_STATUS, &reg);
+	dev_info(cs35l43->dev, "%s: CS35L43_DSP1_MPU_PM_VIO_STATUS 0x%x\n", __func__, reg);
 
 	return 0;
 }
