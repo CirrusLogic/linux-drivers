@@ -915,7 +915,7 @@ static int cs35l43_dsp_reset(struct cs35l43_private *cs35l43)
 	snd_soc_component_force_enable_pin(cs35l43->component, "DSP1 Preload");
 	snd_soc_dapm_sync(dapm);
 	flush_work(&cs35l43->dsp.boot_work);
-	snd_soc_component_enable_pin(cs35l43->component, "AMP SPK");
+	snd_soc_dapm_enable_pin(dapm, "AMP SPK");
 	snd_soc_dapm_sync(dapm);
 	cs35l43->dsp.preloaded = 1;
 	snd_soc_component_disable_pin(cs35l43->component, "DSP1 Preload");
