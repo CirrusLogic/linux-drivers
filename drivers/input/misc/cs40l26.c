@@ -1705,11 +1705,12 @@ static int cs40l26_buzzgen_set(struct cs40l26_private *cs40l26, u16 freq,
 static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26,
 				u32 index, u8 bank, struct ff_effect *effect)
 {
-	int ret;
-	bool edge, ev_handler_bank_ram, owt;
-	u32 reg, write_val;
 	u16 button = effect->trigger.button;
 	u8 gpio = (button & CS40L26_BTN_NUM_MASK) >> CS40L26_BTN_NUM_SHIFT;
+	bool edge, ev_handler_bank_ram, owt, use_timeout;
+	unsigned int fw_rev;
+	u32 reg, write_val;
+	int ret;
 
 	edge = (button & CS40L26_BTN_EDGE_MASK) >> CS40L26_BTN_EDGE_SHIFT;
 
@@ -1748,9 +1749,33 @@ static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26,
 		return ret;
 
 	ret = regmap_write(cs40l26->regmap, reg, write_val);
-	if (ret)
+	if (ret) {
 		dev_err(cs40l26->dev, "Failed to update event map\n");
+		goto pm_exit;
+	}
 
+	ret = cl_dsp_fw_rev_get(cs40l26->dsp, &fw_rev);
+	if (ret)
+		goto pm_exit;
+
+	use_timeout = (!cs40l26->calib_fw &&
+			fw_rev >= CS40L26_FW_GPI_TIMEOUT_MIN_REV) ||
+			(cs40l26->calib_fw && fw_rev >=
+			CS40L26_FW_GPI_TIMEOUT_CALIB_MIN_REV);
+
+	if (use_timeout) {
+		ret = cl_dsp_get_reg(cs40l26->dsp, "TIMEOUT_GPI_MS",
+				CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_VIBEGEN_ALGO_ID, &reg);
+		if (ret)
+			goto pm_exit;
+
+		ret = regmap_write(cs40l26->regmap, reg, effect->replay.length);
+		if (ret)
+			dev_err(cs40l26->dev, "Failed to set GPI timeout\n");
+	}
+
+pm_exit:
 	cs40l26_pm_exit(cs40l26->dev);
 
 	return ret;
@@ -3012,7 +3037,8 @@ static void cs40l26_erase_worker(struct work_struct *work)
 		if (!wait_for_completion_timeout(&cs40l26->erase_cont,
 				msecs_to_jiffies(duration))) {
 			ret = -ETIME;
-			dev_err(cs40l26->dev, "Failed to erase effect: %d", ret);
+			dev_err(cs40l26->dev, "Failed to erase effect: %d",
+					ret);
 			goto pm_err;
 		}
 		mutex_lock(&cs40l26->lock);
@@ -3020,25 +3046,19 @@ static void cs40l26_erase_worker(struct work_struct *work)
 
 	dev_dbg(cs40l26->dev, "%s: effect ID = %d\n", __func__, effect_id);
 
-	if (is_owt(index)) {
-		ret = cs40l26_erase_owt(cs40l26, effect_id);
-		if (ret)
-			dev_err(cs40l26->dev, "Failed to erase OWT effect: %d",
-									ret);
-		goto out_mutex;
-	}
-
-	if (is_buzz(index)) {
-		ret = cs40l26_erase_buzz(cs40l26, effect_id);
-		if (ret)
-			dev_err(cs40l26->dev, "Failed to erase buzz effect: %d",
-									ret);
-		goto out_mutex;
-	}
-
 	ret = cs40l26_erase_gpi_mapping(cs40l26, effect_id);
-	if (ret)
+	if (ret) {
 		dev_err(cs40l26->dev, "Failed to erase gpi mapping: %d", ret);
+		goto out_mutex;
+	}
+
+	if (is_owt(index))
+		ret = cs40l26_erase_owt(cs40l26, effect_id);
+	else if (is_buzz(index))
+		ret = cs40l26_erase_buzz(cs40l26, effect_id);
+
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to erase effect: %d", ret);
 
 out_mutex:
 	mutex_unlock(&cs40l26->lock);
