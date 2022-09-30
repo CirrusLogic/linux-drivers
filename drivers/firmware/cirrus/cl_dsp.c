@@ -213,6 +213,22 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 }
 EXPORT_SYMBOL(cl_dsp_get_reg);
 
+bool cl_dsp_algo_is_present(struct cl_dsp *dsp, const unsigned int algo_id)
+{
+	int i;
+
+	if (!dsp)
+		return false;
+
+	for (i = 0; i < dsp->num_algos; i++) {
+		if (dsp->algo_info[i].id == algo_id)
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(cl_dsp_algo_is_present);
+
 static int cl_dsp_process_data_be(const u8 *data,
 		const unsigned int num_bytes, unsigned int *val)
 {
