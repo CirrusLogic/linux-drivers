@@ -4116,64 +4116,70 @@ static int cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26,
 	return ret;
 }
 
-static char **cs40l26_get_tuning_names(struct cs40l26_private *cs40l26, int n,
-		u32 tuning)
+static char **cs40l26_get_tuning_names(struct cs40l26_private *cs40l26,
+					int *actual_num_files, u32 tuning)
 {
-	char svc_tuning[CS40L26_TUNING_FILE_NAME_MAX_LEN];
-	char wt_tuning[CS40L26_TUNING_FILE_NAME_MAX_LEN];
-	char **coeff_files, tuning_str[2];
-	int i;
+	char **coeff_files;
+	int i, file_count = 0;
 
-	coeff_files = kcalloc(n, sizeof(char *), GFP_KERNEL);
+	coeff_files = kcalloc(
+			CS40L26_MAX_TUNING_FILES, sizeof(char *), GFP_KERNEL);
 	if (!coeff_files)
 		return ERR_PTR(-ENOMEM);
 
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < CS40L26_MAX_TUNING_FILES; i++) {
 		coeff_files[i] =
 			kzalloc(CS40L26_TUNING_FILE_NAME_MAX_LEN, GFP_KERNEL);
 		if (!coeff_files[i])
 			goto err_free;
 	}
 
-	strscpy(svc_tuning, CS40L26_SVC_TUNING_FILE_PREFIX,
-			CS40L26_TUNING_FILE_NAME_MAX_LEN);
-
-	if (tuning) { /* Concatenate tuning number if required */
-		strscpy(wt_tuning, CS40L26_WT_FILE_PREFIX,
-			CS40L26_TUNING_FILE_NAME_MAX_LEN);
-
-		snprintf(tuning_str, 2, "%d", tuning);
-
-		strncat(wt_tuning, tuning_str, 2);
-		strncat(svc_tuning, tuning_str, 2);
-
-		strncat(wt_tuning, CS40L26_TUNING_FILE_SUFFIX,
-				CS40L26_TUNING_FILE_NAME_MAX_LEN);
+	if (tuning) {
+		snprintf(coeff_files[file_count++],
+			CS40L26_TUNING_FILE_NAME_MAX_LEN, "%s%d%s",
+			CS40L26_WT_FILE_PREFIX, tuning,
+			CS40L26_TUNING_FILE_SUFFIX);
 	} else {
-		strscpy(wt_tuning, CS40L26_WT_FILE_NAME,
-				CS40L26_TUNING_FILE_NAME_MAX_LEN);
+		strscpy(coeff_files[file_count++],
+			CS40L26_WT_FILE_NAME,
+			CS40L26_TUNING_FILE_NAME_MAX_LEN);
 	}
 
-	strncat(svc_tuning, CS40L26_TUNING_FILE_SUFFIX,
+	if (tuning) {
+		snprintf(coeff_files[file_count++],
+			CS40L26_TUNING_FILE_NAME_MAX_LEN, "%s%d%s",
+			CS40L26_SVC_TUNING_FILE_PREFIX, tuning,
+			CS40L26_TUNING_FILE_SUFFIX);
+	} else {
+		strscpy(coeff_files[file_count++],
+			CS40L26_SVC_TUNING_FILE_NAME,
 			CS40L26_TUNING_FILE_NAME_MAX_LEN);
-
-	strscpy(coeff_files[0], wt_tuning, CS40L26_TUNING_FILE_NAME_MAX_LEN);
-	strscpy(coeff_files[1], svc_tuning, CS40L26_TUNING_FILE_NAME_MAX_LEN);
+	}
 
 	if (cs40l26->fw_id == CS40L26_FW_ID) {
-		strscpy(coeff_files[2], CS40L26_A2H_TUNING_FILE_NAME,
-			CS40L26_TUNING_FILE_NAME_MAX_LEN);
-		strscpy(coeff_files[3], CS40L26_DVL_FILE_NAME,
-			CS40L26_TUNING_FILE_NAME_MAX_LEN);
+		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID))
+			strscpy(coeff_files[file_count++],
+				CS40L26_A2H_TUNING_FILE_NAME,
+				CS40L26_TUNING_FILE_NAME_MAX_LEN);
+
+		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_DVL_ALGO_ID))
+			strscpy(coeff_files[file_count++],
+				CS40L26_DVL_FILE_NAME,
+				CS40L26_TUNING_FILE_NAME_MAX_LEN);
 	} else {
-		strscpy(coeff_files[2], CS40L26_CALIB_BIN_FILE_NAME,
+		strscpy(coeff_files[file_count++],
+			CS40L26_CALIB_BIN_FILE_NAME,
 			CS40L26_TUNING_FILE_NAME_MAX_LEN);
 	}
 
+	*actual_num_files = file_count;
 	return coeff_files;
 
 err_free:
+	for (; i >= 0; i--)
+		kfree(coeff_files[i]);
 	kfree(coeff_files);
+	*actual_num_files = 0;
 	return ERR_PTR(-ENOMEM);
 }
 
@@ -4181,17 +4187,15 @@ static int cs40l26_coeff_load(struct cs40l26_private *cs40l26, u32 tuning)
 {
 	struct device *dev = cs40l26->dev;
 	const struct firmware *coeff;
-	int i, ret, num_files;
+	int i, ret, num_files_to_load;
 	char **coeff_files;
 
-	num_files = (cs40l26->fw_id == CS40L26_FW_ID) ?
-		CS40L26_TUNING_FILES_RUNTIME : CS40L26_TUNING_FILES_CAL;
-
-	coeff_files = cs40l26_get_tuning_names(cs40l26, num_files, tuning);
+	coeff_files = cs40l26_get_tuning_names(
+					cs40l26, &num_files_to_load, tuning);
 	if (IS_ERR(coeff_files))
 		return PTR_ERR(coeff_files);
 
-	for (i = 0; i < num_files; i++) {
+	for (i = 0; i < num_files_to_load; i++) {
 		ret = request_firmware(&coeff, coeff_files[i], dev);
 		if (ret) {
 			dev_warn(dev, "Continuing...\n");
