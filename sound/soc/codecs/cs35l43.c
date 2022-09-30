@@ -433,6 +433,11 @@ static const struct snd_kcontrol_new cs35l43_aud_controls[] = {
 	WM_ADSP_FW_CONTROL("DSP1", 0),
 };
 
+static int cs35l43_dsp_preload_ev(struct snd_soc_dapm_widget *w,
+                       struct snd_kcontrol *kcontrol, int event);
+static int cs35l43_dsp_audio_ev(struct snd_soc_dapm_widget *w,
+		       struct snd_kcontrol *kcontrol, int event);
+
 static int cs35l43_write_seq_elem_update(struct cs35l43_write_seq_elem *write_seq_elem,
 						unsigned int addr, unsigned int value)
 {
@@ -805,6 +810,7 @@ err_free:
 static int cs35l43_dsp_reset(struct cs35l43_private *cs35l43)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cs35l43->component);
+	struct snd_soc_dapm_widget fake_dapm_widget = {.dapm = dapm};
 
 	unsigned int val = 0;
 	int ret, retry = 10;
@@ -819,8 +825,6 @@ static int cs35l43_dsp_reset(struct cs35l43_private *cs35l43)
 	regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 					CS35L43_MBOX_CMD_AUDIO_PAUSE);
 	usleep_range(5000, 5100);
-
-	regmap_write(cs35l43->regmap, CS35L43_GLOBAL_ENABLES, 0);
 
 	/* Disable DSP and reset state variables */
 	regmap_write(cs35l43->regmap, CS35L43_DSP1_CCM_CORE_CONTROL, 0x80);
@@ -900,22 +904,13 @@ static int cs35l43_dsp_reset(struct cs35l43_private *cs35l43)
 		dev_err(cs35l43->dev, "Failed to set CALL_RAM_INIT\n");
 
 	cs35l43->dsp.preloaded = 0;
-	snd_soc_component_disable_pin(cs35l43->component, "AMP SPK");
-	snd_soc_component_force_enable_pin(cs35l43->component, "DSP1 Preload");
-	snd_soc_dapm_sync(dapm);
-	cs35l43->dsp.preloaded = 0;
-	snd_soc_component_disable_pin(cs35l43->component, "DSP1 Preload");
-	snd_soc_dapm_sync(dapm);
-
+	cs35l43_dsp_audio_ev(&fake_dapm_widget, NULL, SND_SOC_DAPM_PRE_PMD);
+	cs35l43_dsp_preload_ev(&fake_dapm_widget, NULL, SND_SOC_DAPM_PRE_PMD);
 	usleep_range(5000, 5100);
-	snd_soc_component_force_enable_pin(cs35l43->component, "DSP1 Preload");
-	snd_soc_dapm_sync(dapm);
-	flush_work(&cs35l43->dsp.boot_work);
-	snd_soc_dapm_enable_pin(dapm, "AMP SPK");
-	snd_soc_dapm_sync(dapm);
+	cs35l43_dsp_preload_ev(&fake_dapm_widget, NULL, SND_SOC_DAPM_PRE_PMU);
+	cs35l43_dsp_preload_ev(&fake_dapm_widget, NULL, SND_SOC_DAPM_POST_PMU);
+	cs35l43_dsp_audio_ev(&fake_dapm_widget, NULL, SND_SOC_DAPM_POST_PMU);
 	cs35l43->dsp.preloaded = 1;
-	snd_soc_component_disable_pin(cs35l43->component, "DSP1 Preload");
-	snd_soc_dapm_sync(dapm);
 
 	if (cs35l43_check_dsp_regs(cs35l43) != 0)
 		dev_err(cs35l43->dev, "Failed to reset DSP\n");
