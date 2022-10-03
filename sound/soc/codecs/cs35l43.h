@@ -81,6 +81,7 @@
 #define CS35L43_PLL_OVERRIDE			0x0002038
 #define CS35L43_CHIP_STATUS			0x0002040
 #define CS35L43_CHIP_STATUS2			0x0002044
+#define CS35L43_TST_OSC				0x0002084
 
 /************************************************/
 /* Digital I/O Pad Control			*/
@@ -116,6 +117,7 @@
 #define CS35L43_DSP1_SAMPLE_RATE_RX2		0x0002D40
 #define CS35L43_DSP1_SAMPLE_RATE_TX1		0x0002D60
 #define CS35L43_DSP1_SAMPLE_RATE_TX2		0x0002D64
+#define CS35L43_LDOA_CTRL			0x000300C
 
 /************************************************/
 /* Multidevice Synchronization			*/
