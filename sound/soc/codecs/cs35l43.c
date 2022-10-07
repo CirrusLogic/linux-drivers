@@ -438,9 +438,9 @@ static const struct snd_kcontrol_new cs35l43_aud_controls[] = {
 };
 
 static int cs35l43_dsp_preload_ev(struct snd_soc_dapm_widget *w,
-                       struct snd_kcontrol *kcontrol, int event);
+		struct snd_kcontrol *kcontrol, int event);
 static int cs35l43_dsp_audio_ev(struct snd_soc_dapm_widget *w,
-		       struct snd_kcontrol *kcontrol, int event);
+		struct snd_kcontrol *kcontrol, int event);
 static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event);
 
@@ -1031,7 +1031,7 @@ static int cs35l43_dsp_audio_ev(struct snd_soc_dapm_widget *w,
 		if (audio_state != CS35L43_AUDIO_STATE_WAITING &&
 			audio_state != CS35L43_AUDIO_STATE_RUNNING &&
 			audio_state != CS35L43_AUDIO_STATE_RAMPDOWN &&
-			audio_state != CS35L43_AUDIO_STATE_ANG_MUTED)
+			audio_state != CS35L43_AUDIO_STATE_AUX_NG_MUTED)
 			dev_err(cs35l43->dev, "Failed to set MBOX cmd PLAY\n");
 
 		if (cs35l43_check_dsp_regs(cs35l43) != 0) {
