@@ -1,0 +1,290 @@
+# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+# Copyright (C) 2022 Cirrus Logic, Inc.
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/power/supply/ln8411.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Cirrus Logic LN8411 Switched Cap Charger
+
+maintainers:
+ - Ricardo Rivera-Matos <rriveram@opensource.cirrus.com>
+
+description: |
+  The LN8411 is a 16-A, 4:1 switched capacitor fast charger for 1S
+  battery applications. The architecture supports dual inputs by controlling
+  2 external FETs which enable 20V PPS fast USB charging and 20V
+  fast wireless charging with a single device.
+
+properties:
+  compatible:
+    enum:
+      - cirrus,ln8411-usb
+      - cirrus,ln8411-dual
+      - cirrus,ln8411-main
+      - cirrus,ln8411-secondary
+
+  reg:
+    maxItems: 1
+
+  cirrus,vbat-ovp-dis:
+    type: boolean
+    description: |
+      Disable the VBAT_OVP.
+
+  cirrus,vbat-ovp-dg-set:
+    type: boolean
+    description: |
+      Set extra deglitch time for the VBAT_OVP.
+
+  cirrus,vbat-ovp-mask:
+    type: boolean
+    description: |
+      Mask interrupt outputs related to VBAT_OVP.
+
+  cirrus,vbat-ovp-microvolt:
+    description: |
+      Battery over-voltage protection setting. When the battery voltage
+      goes above this threshold, an interrupt is sent and the charging is
+      disabled.
+    default: 4450000
+    minimum: 4450000
+    maximum: 5225000
+
+  cirrus,ibat-ocp-dis:
+    type: boolean
+    description: |
+      Disable the IBAT_OCP.
+
+  cirrus,ibat-ocp-mask:
+    type: boolean
+    description: |
+      Mask interrupt outputs related to IBAT_OCP.
+
+  cirrus,ibat-ocp-microamp:
+    description: |
+      Battery over-current protection setting. When the battery current
+      goes above this threshold, an interrupt is sent and the charging is
+      disabled.
+    default: 12000000
+    minimum: 10000000
+    maximum: 17500000
+
+  cirrus,ovpgate-on-dg-set:
+    type: boolean
+    description: |
+      Set extra turn-on deglitch time for the OVPGATE.
+
+  cirrus,vusb-ovp-mask:
+    type: boolean
+    description: |
+      Mask interrupt outputs related to VUSB_OVP.
+
+  cirrus,vusb-ovp-microvolt:
+    description: |
+      VUSB over-voltage protection setting. When the VUSB voltage
+      goes above this threshold, the external back-to-back MOSFET will be
+      turned off.
+    default: 6500000
+    minimum: 6500000
+    maximum: 25000000
+
+  cirrus,wpcgate-on-dg-set:
+    type: boolean
+    description: |
+      Set extra turn-on deglitch time for the WPCGATE.
+
+  cirrus,wpc-ovp-mask:
+    type: boolean
+    description: |
+      Mask interrupt outputs related to VUSB_OVP.
+
+  cirrus,vwpc-ovp-microvolt:
+    description: |
+      VUSB over-voltage protection setting. When the VUSB voltage
+      goes above this threshold, the external back-to-back MOSFET will be
+      turned off.
+    default: 6500000
+    minimum: 6500000
+    maximum: 25000000
+
+  cirrus,ibus-ucp-dis:
+    type: boolean
+    description: |
+      Disable the IBUS_UCP.
+
+  cirrus,ibus-ucp-rise-mask:
+    type: boolean
+    description: |
+      Mask interrupt outputs related to IBUS_UCP rising.
+
+  cirrus,ibus-ucp-fall-mask:
+    type: boolean
+    description: |
+      Mask interrupt outputs related to IBUS_UCP falling.
+
+  cirrus,ibus-ocp-dis:
+    type: boolean
+    description: |
+      Disable the IBUS_OCP.
+
+  cirrus,ibus-ocp-mask:
+    type: boolean
+    description: |
+      Mask interrupt outputs related to IBUS_OCP.
+
+  cirrus,ibus-ocp-microamp:
+    description: |
+      Bus over-current protection setting. When the bus current
+      goes above this threshold, an interrupt is sent and the charging is
+      disabled.
+    default: 3500000
+    minimum: 2500000
+    maximum: 6250000
+
+  cirrus,pmid2out-ovp-dis:
+    type: boolean
+    description: |
+      Disable the PMID2OUT_OVP.
+
+  cirrus,pmid2out-ovp-mask:
+    type: boolean
+    description: |
+      Mask interrupt outputs related to PMID2OUT_OVP.
+
+  cirrus,pmid2out-ovp:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      PMID/N-VOUT over-voltage-protection setting. When the PMID/N-VOUT
+      voltage goes above the programmed threshold, an INT is sent and charging
+      is disabled.
+
+      0 = 5%
+      1 = 7%
+      2 = 9%
+      ...
+      7 = 19%
+    default: 2
+    minimum: 0
+    maximum: 7
+
+  cirrus,pmid2out-uvp-dis:
+    type: boolean
+    description: |
+      Disable the PMID2OUT_UVP.
+
+  cirrus,pmid2out-uvp-mask:
+    type: boolean
+    description: |
+      Mask interrupt outputs related to PMID2OUT_UVP.
+
+  cirrus,pmid2out-uvp:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      PMID/N-VOUT under-voltage-protection setting. When the PMID/N-VOUT
+      voltage falls below the programmed threshold, an INT is sent and charging
+      is disabled.
+
+      0 = 2.5%
+      1 = 4%
+      2 = 6%
+      ...
+      7 = 16%
+    default: 1
+    minimum: 0
+    maximum: 7
+
+  cirrus,sync-function-en:
+    type: boolean
+    description: |
+      Enable parallel charging function.
+
+  cirrus,sync-main-en:
+    type: boolean
+    description: |
+      Set as primary charger in parallel charging scheme. This has no
+      effect if "cirrus,sync-function-en" is not set.
+
+  cirrus,vbus-ovp-set:
+    type: boolean
+    description: |
+      Set VBUS_OVP threshold across different modes.
+
+      0: 5.6V in 1:1 mode, 12V in 2:1 mode, and 22V in 4:1 mode
+      1: 16V in 1:1 mode, 13V in 2:1 mode, and 23V in 4:1 mode
+
+  cirrus,set-ibat-sns-res:
+    type: boolean
+    description: |
+      Selects the external BAT_SNS resistor value.
+
+      0: 1mΩ
+      1: 2mΩ
+
+  cirrus,freq-shift:
+    type: boolean
+    description: |
+      Adjust switching frequency for improved EMI performance.
+
+      0: Nominal frequency
+      1: Spread spectrum varies frequency +/-10%
+
+  cirrus,wd-timeout-ms:
+    description: |
+      Watchdog timeout proteciton, 0 disables the watchdog.
+    default: 0
+    minimum: 0
+    maximum: 255000
+    enum: [ 0, 200, 500, 1000, 5000, 30000, 100000, 255000 ]
+
+  cirrus,switching-frequency-hz:
+    description: |
+      Sets the converter switching frequency in Hz.
+    default: 390
+    minimum: 235
+    maximum: 1070
+    enum: [ 235000, 260000, 290000, 315000, 340000, 365000, 390000, 420000, 435000, 460000, 480000, 505000, 530000, 550000, 570000, 595000, 470000, 530000, 580000, 635000, 685000, 735000, 785000, 835000, 870000, 920000, 965000, 1015000, 1060000, 1105000, 1150000, 1070000 ]
+
+  interrupts:
+    maxItems: 1
+    description: |
+      Active low logic output for alerting status change to a corresponding
+      event.
+
+  monitored-battery:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle to the battery node being monitored
+
+required:
+  - compatible
+  - reg
+  - monitored-battery
+
+unevaluatedProperties: false
+
+examples:
+ - |
+  battery {
+    compatible = "simple-battery";
+  };
+
+  i2c {
+    charger@6e {
+      compatible = "cirrus,ln8411-main";
+      reg = <0x6e>;
+      monitored-battery = <&bat>;
+
+      interrupt-parent = <&bat>;
+      interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
+    };
+
+    charger@6f {
+      compatible = "cirrus,ln8411-secondary"
+      reg = <0x6e>;
+      monitored-battery = <&bat>;
+
+      interrupt-parent = <&bat>;
+      interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
+    };
+  };
+...
