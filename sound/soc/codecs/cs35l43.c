@@ -441,6 +441,8 @@ static int cs35l43_dsp_preload_ev(struct snd_soc_dapm_widget *w,
                        struct snd_kcontrol *kcontrol, int event);
 static int cs35l43_dsp_audio_ev(struct snd_soc_dapm_widget *w,
 		       struct snd_kcontrol *kcontrol, int event);
+static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *kcontrol, int event);
 
 static int cs35l43_write_seq_elem_update(struct cs35l43_write_seq_elem *write_seq_elem,
 						unsigned int addr, unsigned int value)
@@ -909,11 +911,14 @@ static int cs35l43_dsp_reset(struct cs35l43_private *cs35l43)
 
 	cs35l43->dsp.preloaded = 0;
 	cs35l43_dsp_audio_ev(&fake_dapm_widget, NULL, SND_SOC_DAPM_PRE_PMD);
+	cs35l43_main_amp_event(&fake_dapm_widget, NULL, SND_SOC_DAPM_POST_PMD);
 	cs35l43_dsp_preload_ev(&fake_dapm_widget, NULL, SND_SOC_DAPM_PRE_PMD);
+	regmap_write(cs35l43->regmap, CS35L43_GLOBAL_ENABLES, 0);
 	usleep_range(5000, 5100);
 	cs35l43_dsp_preload_ev(&fake_dapm_widget, NULL, SND_SOC_DAPM_PRE_PMU);
 	cs35l43_dsp_preload_ev(&fake_dapm_widget, NULL, SND_SOC_DAPM_POST_PMU);
 	cs35l43_dsp_audio_ev(&fake_dapm_widget, NULL, SND_SOC_DAPM_POST_PMU);
+	cs35l43_main_amp_event(&fake_dapm_widget, NULL, SND_SOC_DAPM_POST_PMU);
 	cs35l43->dsp.preloaded = 1;
 
 	if (cs35l43_check_dsp_regs(cs35l43) != 0)
