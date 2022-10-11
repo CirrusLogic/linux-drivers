@@ -115,6 +115,8 @@ struct cs35l43_private {
 	unsigned int max_spi_freq;
 	struct gpio_desc *reset_gpio;
 	struct mutex hb_lock;
+	struct workqueue_struct *mbox_wq;
+	struct work_struct mbox_work;
 	struct cs35l43_write_seq power_on_seq;
 	void (*limit_spi_clock)(struct cs35l43_private *cs35l43, bool state);
 };
