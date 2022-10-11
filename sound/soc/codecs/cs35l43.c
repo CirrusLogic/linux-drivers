@@ -830,6 +830,8 @@ static int cs35l43_dsp_preload_ev(struct snd_soc_dapm_widget *w,
 			return 0;
 		regmap_write(cs35l43->regmap, CS35L43_PWRMGT_CTL, CS35L43_MEM_RDY);
 		wm_adsp_event(w, kcontrol, event);
+
+		cs35l43->first_event = 0;
 		cs35l43->delta_applied = 0;
 		if (cs35l43->limit_spi_clock) {
 			cs35l43->limit_spi_clock(cs35l43, true);
@@ -870,6 +872,13 @@ static int cs35l43_dsp_audio_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+
+		if (!cs35l43->first_event) {
+			regmap_update_bits(cs35l43->regmap, CS35L43_IRQ1_MASK_1,
+				CS35L43_DSP_VIRTUAL2_MBOX_WR_EINT1_MASK, 0);
+			cs35l43->first_event = true;
+		}
+
 		regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
 				CS35L43_MBOX_CMD_AUDIO_PLAY);
 		usleep_range(2000, 2200);
@@ -2392,7 +2401,6 @@ int cs35l43_probe(struct cs35l43_private *cs35l43,
 				CS35L43_BST_SHORT_ERR_EINT1_MASK |
 				CS35L43_BST_DCM_UVP_ERR_EINT1_MASK |
 				CS35L43_BST_OVP_ERR_EINT1_MASK |
-				CS35L43_DSP_VIRTUAL2_MBOX_WR_EINT1_MASK |
 				CS35L43_DC_WATCHDOG_IRQ_RISE_EINT1_MASK |
 				CS35L43_WKSRC_STATUS6_EINT1_MASK |
 				CS35L43_WKSRC_STATUS_ANY_EINT1_MASK, 0);
