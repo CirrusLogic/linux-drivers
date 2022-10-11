@@ -1002,6 +1002,15 @@ exit:
 	return 0;
 }
 
+static void cs35l43_mbox_work(struct work_struct *wk)
+{
+	struct cs35l43_private *cs35l43;
+
+	cs35l43 = container_of(wk, struct cs35l43_private, mbox_work);
+
+	cs35l43_check_mailbox(cs35l43);
+}
+
 static int cs35l43_enter_hibernate(struct cs35l43_private *cs35l43)
 {
 	unsigned int pm_state, audio_state;
@@ -1527,7 +1536,7 @@ static irqreturn_t cs35l43_irq(int irq, void *data)
 		dev_info(cs35l43->dev, "Received Mailbox INT\n");
 		regmap_write(cs35l43->regmap, CS35L43_IRQ1_EINT_1,
 				CS35L43_DSP_VIRTUAL2_MBOX_WR_EINT1_MASK);
-		cs35l43_check_mailbox(cs35l43);
+		queue_work(cs35l43->mbox_wq, &cs35l43->mbox_work);
 	}
 
 	if (status[1] & CS35L43_PLL_UNLOCK_FLAG_RISE_EINT1_MASK) {
@@ -2362,6 +2371,12 @@ int cs35l43_probe(struct cs35l43_private *cs35l43,
 		goto err;
 	}
 
+	cs35l43->hibernate_state = CS35L43_HIBERNATE_NOT_LOADED;
+	mutex_init(&cs35l43->hb_lock);
+
+	cs35l43->mbox_wq = create_singlethread_workqueue("cs35l43_mbox");
+	INIT_WORK(&cs35l43->mbox_work, cs35l43_mbox_work);
+
 	irq_pol = cs35l43_irq_gpio_config(cs35l43);
 	regmap_write(cs35l43->regmap, CS35L43_IRQ1_MASK_1, 0xFFFFFFFF);
 	regmap_update_bits(cs35l43->regmap, CS35L43_IRQ1_MASK_1,
@@ -2397,9 +2412,6 @@ int cs35l43_probe(struct cs35l43_private *cs35l43,
 	ret = devm_request_threaded_irq(cs35l43->dev, cs35l43->irq, NULL,
 				cs35l43_irq, IRQF_ONESHOT | IRQF_SHARED |
 				irq_pol, "cs35l43", cs35l43);
-
-	cs35l43->hibernate_state = CS35L43_HIBERNATE_NOT_LOADED;
-	mutex_init(&cs35l43->hb_lock);
 
 	cs35l43_dsp_init(cs35l43);
 
