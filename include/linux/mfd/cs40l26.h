@@ -935,7 +935,7 @@
 #define CS40L26_GPIO1			1
 #define CS40L26_EVENT_MAP_INDEX_MASK	GENMASK(8, 0)
 #define CS40L26_EVENT_MAP_NUM_GPI_REGS	4
-#define CS40L26_EVENT_MAP_GPI_EVENT_DISABLE 0x1FF
+#define CS40L26_EVENT_MAP_GPI_DISABLE	0x1FF
 
 #define CS40L26_BTN_INDEX_MASK	GENMASK(7, 0)
 #define CS40L26_BTN_BUZZ_MASK	BIT(7)
@@ -1287,6 +1287,13 @@
 #define CS40L26_SAMPS_TO_MS(n)	((n) / 8)
 
 /* enums */
+enum cs40l26_gpio_map {
+	CS40L26_GPIO_MAP_A_PRESS,
+	CS40L26_GPIO_MAP_A_RELEASE,
+	CS40L26_GPIO_MAP_NUM_AVAILABLE,
+	CS40L26_GPIO_MAP_INVALID,
+};
+
 enum cs40l26_dbc {
 	CS40L26_DBC_ENV_REL_COEF, /* 0 */
 	CS40L26_DBC_RISE_HEADROOM,
@@ -1469,6 +1476,7 @@ struct cs40l26_private {
 	struct input_dev *input;
 	struct cl_dsp *dsp;
 	unsigned int trigger_indices[FF_MAX_EFFECTS];
+	int gpi_ids[CS40L26_GPIO_MAP_NUM_AVAILABLE];
 	struct ff_effect *trigger_effect;
 	struct ff_effect upload_effect;
 	struct ff_effect *erase_effect;
