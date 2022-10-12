@@ -1775,6 +1775,11 @@ static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26,
 			dev_err(cs40l26->dev, "Failed to set GPI timeout\n");
 	}
 
+	if (edge)
+		cs40l26->gpi_ids[CS40L26_GPIO_MAP_A_PRESS] = effect->id;
+	else
+		cs40l26->gpi_ids[CS40L26_GPIO_MAP_A_RELEASE] = effect->id;
+
 pm_exit:
 	cs40l26_pm_exit(cs40l26->dev);
 
@@ -2918,50 +2923,43 @@ out_free:
 	return ret;
 }
 
-static int cs40l26_clear_gpi_event_reg(struct cs40l26_private *cs40l26, u32 reg)
+static enum cs40l26_gpio_map cs40l26_map_get(struct cs40l26_private *cs40l26,
+		int effect_id)
 {
-	struct regmap *regmap = cs40l26->regmap;
-	int ret;
+	if (cs40l26->gpi_ids[CS40L26_GPIO_MAP_A_PRESS] == effect_id)
+		return CS40L26_GPIO_MAP_A_PRESS;
+	else if (cs40l26->gpi_ids[CS40L26_GPIO_MAP_A_RELEASE] == effect_id)
+		return CS40L26_GPIO_MAP_A_RELEASE;
 
-	ret = regmap_write(regmap, reg, CS40L26_EVENT_MAP_GPI_EVENT_DISABLE);
-	if (ret)
-		dev_err(cs40l26->dev, "Failed to clear gpi reg: %08X", reg);
-
-	return ret;
+	return CS40L26_GPIO_MAP_INVALID;
 }
 
 static int cs40l26_erase_gpi_mapping(struct cs40l26_private *cs40l26,
-								int effect_id)
+		enum cs40l26_gpio_map mapping)
 {
-	struct device *dev = cs40l26->dev;
-	u32 index = cs40l26->trigger_indices[effect_id];
-	u8 trigger_index, gpi_index;
-	u32 reg, val;
-	int i, ret;
+	int ret = 0;
+	u32 reg;
 
-	trigger_index = index & 0xFF;
+	if (mapping == CS40L26_GPIO_MAP_A_PRESS)
+		reg = CS40L26_A1_EVENT_MAP_1;
+	else if (mapping == CS40L26_GPIO_MAP_A_RELEASE)
+		reg = CS40L26_A1_EVENT_MAP_2;
+	else
+		ret = -EINVAL;
 
-	for (i = 0; i < CS40L26_EVENT_MAP_NUM_GPI_REGS; i++) {
-		reg = cs40l26->event_map_base + (i * 4);
-		ret = regmap_read(cs40l26->regmap, reg, &val);
-		if (ret) {
-			dev_err(dev, "Failed to read gpi event reg: 0x%08X",
-					reg);
-			return ret;
-		}
-		gpi_index = val & 0xFF;
-
-		if (is_buzz(index) ||
-			(is_owt(index) && val & CS40L26_BTN_OWT_MASK) ||
-			(is_ram(index) && val & CS40L26_BTN_BANK_MASK) ||
-			(is_rom(index) && ~val & CS40L26_BTN_BANK_MASK)) {
-			if (trigger_index == gpi_index) {
-				ret = cs40l26_clear_gpi_event_reg(cs40l26, reg);
-				if (ret)
-					return ret;
-			}
-		}
+	if (ret) {
+		dev_err(cs40l26->dev, "Invalid GPI mapping %u\n", mapping);
+		return ret;
 	}
+
+	ret = regmap_write(cs40l26->regmap, reg, CS40L26_EVENT_MAP_GPI_DISABLE);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to clear GPI mapping %u\n",
+				mapping);
+		return ret;
+	}
+
+	cs40l26->gpi_ids[mapping] = -1;
 
 	return 0;
 }
@@ -3014,6 +3012,7 @@ static void cs40l26_erase_worker(struct work_struct *work)
 	struct cs40l26_private *cs40l26 = container_of(work,
 			struct cs40l26_private, erase_work);
 	int ret = 0;
+	enum cs40l26_gpio_map mapping;
 	int effect_id;
 	u16 duration;
 	u32 index;
@@ -3046,10 +3045,11 @@ static void cs40l26_erase_worker(struct work_struct *work)
 
 	dev_dbg(cs40l26->dev, "%s: effect ID = %d\n", __func__, effect_id);
 
-	ret = cs40l26_erase_gpi_mapping(cs40l26, effect_id);
-	if (ret) {
-		dev_err(cs40l26->dev, "Failed to erase gpi mapping: %d", ret);
-		goto out_mutex;
+	mapping = cs40l26_map_get(cs40l26, effect_id);
+	if (mapping != CS40L26_GPIO_MAP_INVALID) {
+		ret = cs40l26_erase_gpi_mapping(cs40l26, mapping);
+		if (ret)
+			goto out_mutex;
 	}
 
 	if (is_owt(index))
@@ -4816,15 +4816,15 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 
 	ret = cs40l26_set_pll_loop(cs40l26, CS40L26_PLL_REFCLK_SET_OPEN_LOOP);
 	if (ret)
-		return ret;
+		goto err;
 
-	ret = cs40l26_clear_gpi_event_reg(cs40l26, CS40L26_A1_EVENT_MAP_1);
+	ret = cs40l26_erase_gpi_mapping(cs40l26, CS40L26_GPIO_MAP_A_PRESS);
 	if (ret)
-		return ret;
+		goto err;
 
-	ret = cs40l26_clear_gpi_event_reg(cs40l26, CS40L26_A1_EVENT_MAP_2);
+	ret = cs40l26_erase_gpi_mapping(cs40l26, CS40L26_GPIO_MAP_A_RELEASE);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = cs40l26_part_num_resolve(cs40l26);
 	if (ret)
