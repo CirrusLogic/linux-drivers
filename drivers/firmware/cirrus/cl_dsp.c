@@ -457,7 +457,7 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 		pos += CL_DSP_COEFF_DBLK_HEADER_SIZE;
 
 		data_len = data_block.header.data_len;
-		data_block.payload = kmalloc(data_len, GFP_KERNEL);
+		data_block.payload = kvmalloc(data_len, GFP_KERNEL);
 		if (!data_block.payload)
 			return -ENOMEM;
 
@@ -581,7 +581,7 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 		/* Blocks are word-aligned */
 		pos += (data_len + 3) & ~CL_DSP_ALIGN;
 
-		kfree(data_block.payload);
+		kvfree(data_block.payload);
 	}
 
 	if (wt_found) {
@@ -597,7 +597,7 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 	return 0;
 
 err_free:
-	kfree(data_block.payload);
+	kvfree(data_block.payload);
 
 	return ret;
 }
@@ -1033,7 +1033,7 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw,
 		pos += CL_DSP_DBLK_HEADER_SIZE;
 
 		data_block.payload =
-			kmalloc(data_block.header.data_len, GFP_KERNEL);
+			kvmalloc(data_block.header.data_len, GFP_KERNEL);
 		memcpy(data_block.payload, &fw->data[pos],
 				data_block.header.data_len);
 
@@ -1096,13 +1096,13 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw,
 		/* Blocks are word-aligned */
 		pos += (data_block.header.data_len + 3) & ~CL_DSP_ALIGN;
 
-		kfree(data_block.payload);
+		kvfree(data_block.payload);
 	}
 
 	return cl_dsp_coeff_init(dsp);
 
 err_free:
-	kfree(data_block.payload);
+	kvfree(data_block.payload);
 
 	return ret;
 }
