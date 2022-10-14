@@ -16,6 +16,7 @@
 #include <linux/regmap.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
 
 #ifndef __CL_DSP_H__
 #define __CL_DSP_H__
