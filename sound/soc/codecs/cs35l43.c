@@ -1044,7 +1044,8 @@ static int cs35l43_enter_hibernate(struct cs35l43_private *cs35l43)
 	dev_dbg(cs35l43->dev, "PM_STATE: 0x%x\tAUDIO_STATE: 0x%x\n",
 			       pm_state, audio_state);
 
-	cs35l43_write_seq_update(cs35l43, &cs35l43->power_on_seq);
+	if (cs35l43->write_seq_initialized)
+		cs35l43_write_seq_update(cs35l43, &cs35l43->power_on_seq);
 
 	regmap_write(cs35l43->regmap, CS35L43_GLOBAL_ENABLES, 0);
 
@@ -1107,7 +1108,8 @@ static int cs35l43_exit_hibernate(struct cs35l43_private *cs35l43)
 					CS35L43_MIXER_NGATE_CH2_CFG);
 
 	/* Update write seq with values that could have changed in the cache */
-	cs35l43_write_seq_update(cs35l43, &cs35l43->power_on_seq);
+	if (cs35l43->write_seq_initialized)
+		cs35l43_write_seq_update(cs35l43, &cs35l43->power_on_seq);
 
 	cs35l43->hibernate_state = CS35L43_HIBERNATE_AWAKE;
 
@@ -1141,7 +1143,7 @@ int cs35l43_suspend_runtime(struct device *dev)
 
 	mutex_lock(&cs35l43->hb_lock);
 
-	if (cs35l43->hibernate_state == CS35L43_HIBERNATE_NOT_LOADED &&
+	if (!cs35l43->write_seq_initialized && cs35l43->first_event &&
 						cs35l43->dsp.running) {
 		cs35l43->power_on_seq.name = "PM_PWR_ON_SEQ";
 		cs35l43->power_on_seq.length = CS35L43_POWER_SEQ_MAX_WORDS;
@@ -1165,9 +1167,12 @@ int cs35l43_suspend_runtime(struct device *dev)
 					cs35l43_hibernate_update_regs[i],
 					0, true);
 		}
-
-		cs35l43->hibernate_state = CS35L43_HIBERNATE_AWAKE;
+		cs35l43->write_seq_initialized = true;
 	}
+
+	if (cs35l43->hibernate_state == CS35L43_HIBERNATE_NOT_LOADED &&
+						cs35l43->dsp.running)
+		cs35l43->hibernate_state = CS35L43_HIBERNATE_AWAKE;
 
 	if (cs35l43->dsp.running)
 		ret = cs35l43_enter_hibernate(cs35l43);
