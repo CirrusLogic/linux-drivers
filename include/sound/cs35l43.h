@@ -113,6 +113,7 @@ struct cs35l43_private {
 	int delta_requested;
 	int delta_applied;
 	bool first_event;
+	bool write_seq_initialized;
 	unsigned int max_spi_freq;
 	struct gpio_desc *reset_gpio;
 	struct mutex hb_lock;
