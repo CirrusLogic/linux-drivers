@@ -6578,9 +6578,11 @@ static int cs40l2x_pbq_play(struct cs40l2x_private *cs40l2x,
 
 	ret = cs40l2x_ack_write(cs40l2x, CS40L2X_MBOX_TRIGGERINDEX,
 				section->index, CS40L2X_MBOX_TRIGGERRESET);
-	if (ret)
+	if (ret) {
+		cs40l2x_set_state(cs40l2x, CS40L2X_VIBE_STATE_STOPPED);
+		dev_err(cs40l2x->dev, "Cannot set PBQ index %d\n", section->index);
 		return ret;
-
+	}
 	cs40l2x->pbq_state = CS40L2X_PBQ_STATE_PLAYING;
 
 	if (cs40l2x->event_control & CS40L2X_EVENT_END_ENABLED)
@@ -7306,6 +7308,9 @@ static void cs40l2x_vibe_start_worker(struct work_struct *work)
 		ret = cs40l2x_ack_write(cs40l2x, CS40L2X_MBOX_TRIGGERINDEX,
 				cs40l2x->cp_trailer_index,
 				CS40L2X_MBOX_TRIGGERRESET);
+		if (ret)
+			dev_err(dev, "Cannot set %d index to mailbox\n",
+				cs40l2x->cp_trailer_index);
 		break;
 
 	case CS40L2X_INDEX_PBQ:
