@@ -127,8 +127,18 @@ static int cs40l2x_clk_en(struct snd_soc_dapm_widget *w,
 		core->a2h_enable = true;
 		mutex_unlock(&core->lock);
 
-		if (!completion_done(&core->hap_done))
-			wait_for_completion(&core->hap_done);
+		if (!completion_done(&core->hap_done)) {
+			ret = wait_for_completion_timeout(&core->hap_done,
+							msecs_to_jiffies(500));
+			if (ret < 0) {
+				dev_err(dev, "Error on completion event %d\n",
+						ret);
+				return ret;
+			}
+
+			if (ret == 0)
+				dev_dbg(dev, "Completion timeout\n");
+		}
 
 		ret = cs40l2x_swap_ext_clk(priv, CS40L2X_SCLK);
 		if (ret)
