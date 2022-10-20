@@ -1476,6 +1476,7 @@ struct cs40l26_private {
 	struct input_dev *input;
 	struct cl_dsp *dsp;
 	unsigned int trigger_indices[FF_MAX_EFFECTS];
+	unsigned int cur_index;
 	int gpi_ids[CS40L26_GPIO_MAP_NUM_AVAILABLE];
 	struct ff_effect *trigger_effect;
 	struct ff_effect upload_effect;
@@ -1524,6 +1525,8 @@ struct cs40l26_private {
 	struct completion erase_cont;
 	u8 vpbr_thld;
 	unsigned int svc_le_est_stored;
+	u32 *no_wait_ram_indices;
+	ssize_t num_no_wait_ram_indices;
 };
 
 struct cs40l26_codec {

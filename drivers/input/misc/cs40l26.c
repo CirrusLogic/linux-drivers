@@ -1797,6 +1797,19 @@ static struct cs40l26_owt *cs40l26_owt_find(struct cs40l26_private *cs40l26,
 	return owt;
 }
 
+static bool cs40l26_is_no_wait_ram_index(struct cs40l26_private *cs40l26,
+		u32 index)
+{
+	int i;
+
+	for (i = 0; i < cs40l26->num_no_wait_ram_indices; i++) {
+		if (cs40l26->no_wait_ram_indices[i] == index)
+			return true;
+	}
+
+	return false;
+}
+
 static void cs40l26_set_gain_worker(struct work_struct *work)
 {
 	struct cs40l26_private *cs40l26 =
@@ -1916,6 +1929,8 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 				index, CS40L26_DSP_MBOX_RESET);
 		if (ret)
 			goto err_mutex;
+
+		cs40l26->cur_index = index;
 		break;
 	default:
 		dev_err(dev, "Invalid waveform type: 0x%X\n",
@@ -1939,6 +1954,8 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 {
 	struct cs40l26_private *cs40l26 = container_of(work,
 			struct cs40l26_private, vibe_stop_work);
+	bool skip_delay;
+	u32 delay_us;
 	int ret;
 
 	dev_dbg(cs40l26->dev, "%s\n", __func__);
@@ -1947,12 +1964,23 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	if (ret)
 		return;
 
-	/* wait for SVC init phase to complete */
-	if (cs40l26->delay_before_stop_playback_us)
-		usleep_range(cs40l26->delay_before_stop_playback_us,
-				cs40l26->delay_before_stop_playback_us + 100);
-
 	mutex_lock(&cs40l26->lock);
+
+	delay_us = cs40l26->delay_before_stop_playback_us;
+	skip_delay = cs40l26_is_no_wait_ram_index(cs40l26, cs40l26->cur_index);
+
+	if (delay_us && !skip_delay) {
+		mutex_unlock(&cs40l26->lock);
+
+		dev_info(cs40l26->dev, "Applying delay\n");
+
+		/* wait for SVC init phase to complete */
+		usleep_range(delay_us, delay_us + 100);
+
+		mutex_lock(&cs40l26->lock);
+	} else {
+		dev_info(cs40l26->dev, "Skipping delay\n");
+	}
 
 	if (cs40l26->vibe_state != CS40L26_VIBE_STATE_HAPTIC) {
 		dev_warn(cs40l26->dev, "Attempted stop when vibe_state = %d\n",
@@ -4529,6 +4557,40 @@ err:
 	return ret;
 }
 
+static int cs40l26_no_wait_ram_indices_get(struct cs40l26_private *cs40l26,
+		struct device_node *np)
+{
+	int ret, i;
+
+	cs40l26->num_no_wait_ram_indices = of_property_count_u32_elems(np,
+		"cirrus,no-wait-ram-indices");
+
+	if (cs40l26->num_no_wait_ram_indices <= 0)
+		return 0;
+
+	cs40l26->no_wait_ram_indices = devm_kcalloc(cs40l26->dev,
+			cs40l26->num_no_wait_ram_indices, sizeof(u32),
+			GFP_KERNEL);
+	if (!cs40l26->no_wait_ram_indices)
+		return -ENOMEM;
+
+	ret = of_property_read_u32_array(np, "cirrus,no-wait-ram-indices",
+			cs40l26->no_wait_ram_indices,
+			cs40l26->num_no_wait_ram_indices);
+	if (ret)
+		goto err_free;
+
+	for (i = 0; i < cs40l26->num_no_wait_ram_indices; i++)
+		cs40l26->no_wait_ram_indices[i] += CS40L26_RAM_INDEX_START;
+
+	return 0;
+
+err_free:
+	devm_kfree(cs40l26->dev, cs40l26->no_wait_ram_indices);
+	cs40l26->num_no_wait_ram_indices = 0;
+	return ret;
+}
+
 static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
@@ -4701,7 +4763,7 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 	else
 		cs40l26->pdata.pwle_zero_cross = false;
 
-	return 0;
+	return cs40l26_no_wait_ram_indices_get(cs40l26, np);
 }
 
 int cs40l26_probe(struct cs40l26_private *cs40l26,
