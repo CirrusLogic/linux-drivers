@@ -25,18 +25,6 @@ static inline bool is_buzz(unsigned int index)
 					index <= CS40L26_BUZZGEN_INDEX_END);
 }
 
-static inline bool is_ram(unsigned int index)
-{
-	return (index >= CS40L26_RAM_INDEX_START &&
-					index <= CS40L26_RAM_INDEX_END);
-}
-
-static inline bool is_rom(unsigned int index)
-{
-	return (index >= CS40L26_ROM_INDEX_START &&
-					index <= CS40L26_ROM_INDEX_END);
-}
-
 static inline bool section_complete(struct cs40l26_owt_section *s)
 {
 	return s->delay ? true : false;
