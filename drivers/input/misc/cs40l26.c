@@ -762,6 +762,13 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 		case CS40L26_DSP_MBOX_LE_EST_DONE:
 			dev_dbg(dev, "Mailbox: LE_EST_DONE\n");
 			break;
+		case CS40L26_DSP_MBOX_PEQ_CALCULATION_START:
+			dev_dbg(dev, "Mailbox: PEQ_CALCULATION_START\n");
+			break;
+		case CS40L26_DSP_MBOX_PEQ_CALCULATION_DONE:
+			dev_dbg(dev, "Mailbox: PEQ_CALCULATION_DONE\n");
+			complete(&cs40l26->cal_dvl_peq_cont);
+			break;
 		case CS40L26_DSP_MBOX_SYS_ACK:
 			dev_err(dev, "Mailbox: ACK\n");
 			return -EPERM;
@@ -774,6 +781,53 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 
 	return 0;
 }
+
+int cs40l26_copy_f0_est_to_dvl(struct cs40l26_private *cs40l26)
+{
+	u32 reg, f0_measured_q9_14, global_sample_rate, normalized_f0_q1_23;
+	int ret, sample_rate;
+
+	/* Must be awake and under mutex lock */
+	ret = regmap_read(cs40l26->regmap, CS40L26_GLOBAL_SAMPLE_RATE,
+							&global_sample_rate);
+	if (ret)
+		return ret;
+
+	switch (global_sample_rate & CS40L26_GLOBAL_FS_MASK) {
+	case CS40L26_GLOBAL_FS_48K:
+		sample_rate = 48000;
+		break;
+	case CS40L26_GLOBAL_FS_96K:
+		sample_rate = 96000;
+		break;
+	default:
+		dev_warn(cs40l26->dev, "Invalid GLOBAL_FS, %08X",
+							global_sample_rate);
+		return -EINVAL;
+	}
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_EST",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_F0_EST_ALGO_ID, &reg);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(cs40l26->regmap, reg, &f0_measured_q9_14);
+	if (ret)
+		return ret;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "LRA_NORM_F0",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_DVL_ALGO_ID, &reg);
+	if (ret)
+		return ret;
+
+	normalized_f0_q1_23 = (f0_measured_q9_14 << 9) / sample_rate;
+	ret = regmap_write(cs40l26->regmap, reg, normalized_f0_q1_23);
+
+	return ret;
+}
+EXPORT_SYMBOL(cs40l26_copy_f0_est_to_dvl);
 
 int cs40l26_asp_start(struct cs40l26_private *cs40l26)
 {
@@ -4867,6 +4921,7 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 	init_completion(&cs40l26->erase_cont);
 	init_completion(&cs40l26->cal_f0_cont);
 	init_completion(&cs40l26->cal_redc_cont);
+	init_completion(&cs40l26->cal_dvl_peq_cont);
 
 	if (!cs40l26->fw_defer) {
 		ret = cs40l26_fw_upload(cs40l26);
