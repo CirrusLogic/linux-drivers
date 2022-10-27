@@ -747,33 +747,14 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 			break;
 		case CS40L26_DSP_MBOX_F0_EST_DONE:
 			dev_dbg(dev, "Mailbox: F0_EST_DONE\n");
-			if (cs40l26->cal_requested &
-				CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q) {
-				cs40l26->cal_requested &=
-				~CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q;
-				/* for pm_runtime_get see trigger_calibration */
-				cs40l26_pm_exit(cs40l26->dev);
-			} else {
-				dev_err(dev, "Unexpected mbox msg: %d", val);
-				return -EINVAL;
-			}
-
+			complete(&cs40l26->cal_f0_cont);
 			break;
 		case CS40L26_DSP_MBOX_REDC_EST_START:
 			dev_dbg(dev, "Mailbox: REDC_EST_START\n");
 			break;
 		case CS40L26_DSP_MBOX_REDC_EST_DONE:
 			dev_dbg(dev, "Mailbox: REDC_EST_DONE\n");
-			if (cs40l26->cal_requested &
-				CS40L26_CALIBRATION_CONTROL_REQUEST_REDC) {
-				cs40l26->cal_requested &=
-				~CS40L26_CALIBRATION_CONTROL_REQUEST_REDC;
-				/* for pm_runtime_get see trigger_calibration */
-				cs40l26_pm_exit(cs40l26->dev);
-			} else {
-				dev_err(dev, "Unexpected mbox msg: %d", val);
-				return -EINVAL;
-			}
+			complete(&cs40l26->cal_redc_cont);
 			break;
 		case CS40L26_DSP_MBOX_LE_EST_START:
 			dev_dbg(dev, "Mailbox: LE_EST_START\n");
@@ -4884,6 +4865,8 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 
 	init_completion(&cs40l26->i2s_cont);
 	init_completion(&cs40l26->erase_cont);
+	init_completion(&cs40l26->cal_f0_cont);
+	init_completion(&cs40l26->cal_redc_cont);
 
 	if (!cs40l26->fw_defer) {
 		ret = cs40l26_fw_upload(cs40l26);
