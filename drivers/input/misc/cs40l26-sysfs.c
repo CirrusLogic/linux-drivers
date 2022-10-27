@@ -1719,6 +1719,99 @@ err_mutex:
 }
 static DEVICE_ATTR_RO(redc_cal_time_ms);
 
+static ssize_t dvl_peq_coefficients_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	u32 reg, dvl_peq_coefficients[CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS];
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = cs40l26_pm_enter(cs40l26->dev);
+	if (ret)
+		return ret;
+
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "PEQ_COEF1_X",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_DVL_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_bulk_read(cs40l26->regmap, reg, dvl_peq_coefficients,
+			CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
+	if (ret)
+		goto err_mutex;
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	if (ret)
+		return ret;
+
+	return snprintf(buf, PAGE_SIZE,
+			"%08X %08X %08X %08X %08X %08X\n",
+			dvl_peq_coefficients[0], dvl_peq_coefficients[1],
+			dvl_peq_coefficients[2], dvl_peq_coefficients[3],
+			dvl_peq_coefficients[4], dvl_peq_coefficients[5]);
+}
+
+static ssize_t dvl_peq_coefficients_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	u32 reg, dvl_peq_coefficients[CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS];
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	char *coeffs_str, *coeffs_str_temp, *coeff_str;
+	int ret, coeffs_found = 0;
+
+	coeffs_str = kstrdup(buf, GFP_KERNEL);
+	if (!coeffs_str)
+		return -ENOMEM;
+
+	coeffs_str_temp = coeffs_str;
+	while ((coeff_str = strsep(&coeffs_str_temp, " ")) != NULL) {
+		ret = kstrtou32(coeff_str, 16,
+					&dvl_peq_coefficients[coeffs_found++]);
+		if (ret)
+			goto err_free;
+	}
+
+	if (coeffs_found != CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS) {
+		dev_err(cs40l26->dev, "Num DVL PEQ coeffs, %d, expecting %d\n",
+			coeffs_found, CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
+		ret = -EINVAL;
+		goto err_free;
+	}
+
+	ret = cs40l26_pm_enter(cs40l26->dev);
+	if (ret)
+		goto err_free;
+
+	mutex_lock(&cs40l26->lock);
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "PEQ_COEF1_X",
+			CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_DVL_ALGO_ID, &reg);
+	if (ret)
+		goto err_mutex;
+
+	ret = regmap_bulk_write(cs40l26->regmap, reg, dvl_peq_coefficients,
+					CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
+	if (ret)
+		dev_err(cs40l26->dev, "Failed to write DVL PEQ coefficients,%d",
+									ret);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+	cs40l26_pm_exit(cs40l26->dev);
+err_free:
+	kfree(coeffs_str);
+	return ret ? ret : count;
+}
+static DEVICE_ATTR_RW(dvl_peq_coefficients);
+
 static ssize_t logging_en_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -2074,6 +2167,7 @@ static struct attribute *cs40l26_dev_attrs_cal[] = {
 	&dev_attr_f0_measured.attr,
 	&dev_attr_q_measured.attr,
 	&dev_attr_redc_measured.attr,
+	&dev_attr_dvl_peq_coefficients.attr,
 	&dev_attr_redc_est.attr,
 	&dev_attr_f0_stored.attr,
 	&dev_attr_q_stored.attr,
