@@ -831,6 +831,8 @@
 #define CS40L26_DSP_MBOX_REDC_EST_DONE		0x07000022
 #define CS40L26_DSP_MBOX_LE_EST_START		0x07000014
 #define CS40L26_DSP_MBOX_LE_EST_DONE		0x07000024
+#define CS40L26_DSP_MBOX_PEQ_CALCULATION_START	0x07000018
+#define CS40L26_DSP_MBOX_PEQ_CALCULATION_DONE	0x07000028
 #define CS40L26_DSP_MBOX_SYS_ACK		0x0A000000
 #define CS40L26_DSP_MBOX_PANIC			0x0C000000
 #define CS40L26_DSP_MBOX_WATERMARK		0x0D000000
@@ -859,10 +861,10 @@
 #define CS40L26_SVC_DT_PREFIX		"svc-le"
 
 #define CS40L26_FW_ID				0x1800D4
-#define CS40L26_FW_MIN_REV			0x07021C
+#define CS40L26_FW_MIN_REV			0x07022B
 #define CS40L26_FW_BRANCH			0x07
 #define CS40L26_FW_CALIB_ID			0x1800DA
-#define CS40L26_FW_CALIB_MIN_REV		0x010014
+#define CS40L26_FW_CALIB_MIN_REV		0x010123
 #define CS40L26_FW_CALIB_BRANCH			0x01
 #define CS40L26_FW_MAINT_MIN_REV		0x270216
 #define CS40L26_FW_MAINT_BRANCH			0x27
@@ -1227,6 +1229,7 @@
 #define CS40L26_F0_CHIRP_DURATION_FACTOR		3750
 #define CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q	BIT(0)
 #define CS40L26_CALIBRATION_CONTROL_REQUEST_REDC	BIT(1)
+#define CS40L26_CALIBRATION_CONTROL_REQUEST_DVL_PEQ	BIT(3)
 #define CS40L26_F0_FREQ_SPAN_MASK			GENMASK(23, 0)
 #define CS40L26_F0_FREQ_SPAN_SIGN			BIT(23)
 
@@ -1535,6 +1538,7 @@ struct cs40l26_private {
 	struct completion erase_cont;
 	struct completion cal_f0_cont;
 	struct completion cal_redc_cont;
+	struct completion cal_dvl_peq_cont;
 	u8 vpbr_thld;
 	unsigned int svc_le_est_stored;
 	u32 *no_wait_ram_indices;
@@ -1612,6 +1616,7 @@ bool cs40l26_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l26_volatile_reg(struct device *dev, unsigned int reg);
 int cs40l26_pseq_write(struct cs40l26_private *cs40l26, u32 addr,
 	u32 data, bool update, u8 op_code);
+int cs40l26_copy_f0_est_to_dvl(struct cs40l26_private *cs40l26);
 
 /* external tables */
 extern const struct of_device_id cs40l26_of_match[CS40L26_NUM_DEVS + 1];
