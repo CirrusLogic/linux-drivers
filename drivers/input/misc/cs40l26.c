@@ -4149,15 +4149,15 @@ static char **cs40l26_get_tuning_names(struct cs40l26_private *cs40l26,
 			CS40L26_TUNING_FILE_NAME_MAX_LEN);
 	}
 
+	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_DVL_ALGO_ID))
+		strscpy(coeff_files[file_count++],
+			CS40L26_DVL_FILE_NAME,
+			CS40L26_TUNING_FILE_NAME_MAX_LEN);
+
 	if (cs40l26->fw_id == CS40L26_FW_ID) {
 		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID))
 			strscpy(coeff_files[file_count++],
 				CS40L26_A2H_TUNING_FILE_NAME,
-				CS40L26_TUNING_FILE_NAME_MAX_LEN);
-
-		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_DVL_ALGO_ID))
-			strscpy(coeff_files[file_count++],
-				CS40L26_DVL_FILE_NAME,
 				CS40L26_TUNING_FILE_NAME_MAX_LEN);
 	} else {
 		strscpy(coeff_files[file_count++],
