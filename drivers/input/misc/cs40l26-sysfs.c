@@ -1141,6 +1141,9 @@ static ssize_t trigger_calibration_store(struct device *dev,
 	case CS40L26_CALIBRATION_CONTROL_REQUEST_REDC:
 		completion = &cs40l26->cal_redc_cont;
 		break;
+	case CS40L26_CALIBRATION_CONTROL_REQUEST_DVL_PEQ:
+		completion = &cs40l26->cal_dvl_peq_cont;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1174,8 +1177,17 @@ static ssize_t trigger_calibration_store(struct device *dev,
 		ret = -ETIME;
 		dev_err(cs40l26->dev, "Failed to complete cal req, %d, err: %d",
 				calibration_request_payload, ret);
+		goto err_pm;
 	}
 
+	mutex_lock(&cs40l26->lock);
+
+	if (calibration_request_payload ==
+				CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q){
+		ret = cs40l26_copy_f0_est_to_dvl(cs40l26);
+	}
+
+	mutex_unlock(&cs40l26->lock);
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
 	return ret ? ret : count;
