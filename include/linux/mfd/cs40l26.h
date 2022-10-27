@@ -1251,6 +1251,9 @@
 
 #define CS40L26_UINT_24_BITS_MAX	16777215
 
+#define CS40L26_CALIBRATION_TIMEOUT_MS 2000
+
+
 /* Compensation */
 #define CS40L26_COMP_EN_REDC_SHIFT  1
 #define CS40L26_COMP_EN_F0_SHIFT    0
@@ -1530,6 +1533,8 @@ struct cs40l26_private {
 	bool comp_enable_f0;
 	struct completion i2s_cont;
 	struct completion erase_cont;
+	struct completion cal_f0_cont;
+	struct completion cal_redc_cont;
 	u8 vpbr_thld;
 	unsigned int svc_le_est_stored;
 	u32 *no_wait_ram_indices;
