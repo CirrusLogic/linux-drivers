@@ -1121,6 +1121,7 @@ static ssize_t trigger_calibration_store(struct device *dev,
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 mailbox_command, calibration_request_payload;
 	int ret;
+	struct completion *completion;
 
 	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
 
@@ -1130,10 +1131,19 @@ static ssize_t trigger_calibration_store(struct device *dev,
 	}
 
 	ret = kstrtou32(buf, 16, &calibration_request_payload);
-	if (ret ||
-		calibration_request_payload < 1 ||
-		calibration_request_payload > 2)
+	if (ret)
 		return -EINVAL;
+
+	switch (calibration_request_payload) {
+	case CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q:
+		completion = &cs40l26->cal_f0_cont;
+		break;
+	case CS40L26_CALIBRATION_CONTROL_REQUEST_REDC:
+		completion = &cs40l26->cal_redc_cont;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	mailbox_command = ((CS40L26_DSP_MBOX_CMD_INDEX_CALIBRATION_CONTROL <<
 				CS40L26_DSP_MBOX_CMD_INDEX_SHIFT) &
@@ -1141,27 +1151,34 @@ static ssize_t trigger_calibration_store(struct device *dev,
 				(calibration_request_payload &
 				CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK);
 
-	/* pm_exit occurs is irq_handler after diagnostic is finished */
 	ret = cs40l26_pm_enter(cs40l26->dev);
 	if (ret)
 		return ret;
 
 	mutex_lock(&cs40l26->lock);
+	reinit_completion(completion);
 
 	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 		mailbox_command, CS40L26_DSP_MBOX_RESET);
 
-	if (ret) {
-		dev_err(cs40l26->dev, "Failed to request calibration\n");
-		cs40l26->cal_requested = 0;
-	} else {
-		cs40l26->cal_requested = calibration_request_payload;
-		ret = count;
-	}
-
 	mutex_unlock(&cs40l26->lock);
 
-	return ret;
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to request calibration\n");
+		goto err_pm;
+	}
+
+	if (!wait_for_completion_timeout(
+			completion,
+			msecs_to_jiffies(CS40L26_CALIBRATION_TIMEOUT_MS))) {
+		ret = -ETIME;
+		dev_err(cs40l26->dev, "Failed to complete cal req, %d, err: %d",
+				calibration_request_payload, ret);
+	}
+
+err_pm:
+	cs40l26_pm_exit(cs40l26->dev);
+	return ret ? ret : count;
 }
 static DEVICE_ATTR_WO(trigger_calibration);
 
