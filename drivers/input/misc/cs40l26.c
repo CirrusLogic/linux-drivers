@@ -381,10 +381,11 @@ static void cs40l26_remove_asp_scaling(struct cs40l26_private *cs40l26)
 int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26, enum cs40l26_pm_state state)
 {
 	struct device *dev = cs40l26->dev;
+	u32 cmd, he_time_cmd, he_time_cmd_payload;
+	ktime_t time_since_allow_hibernate;
 	u8 curr_state;
 	bool dsp_lock;
 	int ret, i;
-	u32 cmd;
 
 	cmd = (u32) CS40L26_DSP_MBOX_PM_CMD_BASE + state;
 
@@ -426,12 +427,53 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26, enum cs40l26_pm
 			return -ETIMEDOUT;
 		}
 
+		if (cs40l26->allow_hibernate_sent) {
+			/*
+			 * send time elapsed since last ALLOW_HIBERNATE mailbox
+			 * command to provide input to thermal model
+			 */
+			if (timer_pending(&cs40l26->hibernate_timer)) {
+				time_since_allow_hibernate = ktime_sub(
+						ktime_get_boottime(),
+						cs40l26->allow_hibernate_ts);
+				if (ktime_to_ms(time_since_allow_hibernate) <
+					CS40L26_DSP_MBOX_HE_PAYLOAD_MAX_MS)
+					he_time_cmd_payload = ktime_to_ms(
+						time_since_allow_hibernate);
+				else
+					he_time_cmd_payload =
+					CS40L26_DSP_MBOX_HE_PAYLOAD_OVERFLOW;
+			} else {
+				he_time_cmd_payload =
+					CS40L26_DSP_MBOX_HE_PAYLOAD_OVERFLOW;
+			}
+
+			dev_dbg(dev, "HE_TIME payload, 0x%06X",
+							he_time_cmd_payload);
+
+			he_time_cmd = CS40L26_DSP_MBOX_CMD_HE_TIME_BASE |
+					he_time_cmd_payload;
+
+			ret = cs40l26_dsp_write(cs40l26,
+						CS40L26_DSP_VIRTUAL1_MBOX_1,
+						he_time_cmd);
+			if (ret)
+				return ret;
+		}
+
 		break;
 	case CS40L26_PM_STATE_ALLOW_HIBERNATE:
 		cs40l26->wksrc_sts = 0x00;
 		ret = cs40l26_dsp_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, cmd);
 		if (ret)
 			return ret;
+
+		cs40l26->allow_hibernate_sent = true;
+
+		mod_timer(&cs40l26->hibernate_timer, jiffies +
+			msecs_to_jiffies(CS40L26_DSP_MBOX_HE_PAYLOAD_MAX_MS));
+
+		cs40l26->allow_hibernate_ts = ktime_get_boottime();
 
 		break;
 	case CS40L26_PM_STATE_SHUTDOWN:
@@ -4551,6 +4593,13 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 	return cs40l26_no_wait_ram_indices_get(cs40l26, np);
 }
 
+static void cs40l26_hibernate_timer_callback(struct timer_list *t)
+{
+	struct cs40l26_private *cs40l26 = from_timer(cs40l26, t, hibernate_timer);
+
+	dev_dbg(cs40l26->dev, "Time since ALLOW_HIBERNATE exceeded HE_TIME max");
+}
+
 int cs40l26_probe(struct cs40l26_private *cs40l26, struct cs40l26_platform_data *pdata)
 {
 	struct device *dev = cs40l26->dev;
@@ -4569,6 +4618,8 @@ int cs40l26_probe(struct cs40l26_private *cs40l26, struct cs40l26_platform_data 
 	INIT_WORK(&cs40l26->set_gain_work, cs40l26_set_gain_worker);
 	INIT_WORK(&cs40l26->upload_work, cs40l26_upload_worker);
 	INIT_WORK(&cs40l26->erase_work, cs40l26_erase_worker);
+
+	timer_setup(&cs40l26->hibernate_timer, cs40l26_hibernate_timer_callback, 0);
 
 	ret = devm_regulator_bulk_get(dev, CS40L26_NUM_SUPPLIES, cs40l26_supplies);
 	if (ret) {
