@@ -36,6 +36,7 @@
 #include <linux/bitops.h>
 #include <linux/pm_runtime.h>
 #include <linux/debugfs.h>
+#include <linux/timer.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -810,6 +811,7 @@
 #define CS40L26_DSP_MBOX_CMD_LE_EST		0x07000004
 
 #define CS40L26_DSP_MBOX_CMD_OWT_DELETE_BASE	0x0D000000
+#define CS40L26_DSP_MBOX_CMD_HE_TIME_BASE	0x0E000000
 
 #define CS40L26_DSP_MBOX_CMD_INDEX_MASK		GENMASK(28, 24)
 #define CS40L26_DSP_MBOX_CMD_INDEX_SHIFT	24
@@ -838,6 +840,9 @@
 #define CS40L26_DSP_MBOX_SYS_ACK		0x0A000000
 #define CS40L26_DSP_MBOX_PANIC			0x0C000000
 #define CS40L26_DSP_MBOX_WATERMARK		0x0D000000
+
+#define CS40L26_DSP_MBOX_HE_PAYLOAD_MAX_MS	GENMASK(22, 0)
+#define CS40L26_DSP_MBOX_HE_PAYLOAD_OVERFLOW	BIT(23)
 
 /* Firmware Mode */
 #define CS40L26_FW_FILE_NAME		"cs40l26.wmfw"
@@ -1552,6 +1557,9 @@ struct cs40l26_private {
 	unsigned int svc_le_est_stored;
 	u32 *no_wait_ram_indices;
 	ssize_t num_no_wait_ram_indices;
+	struct timer_list hibernate_timer;
+	ktime_t allow_hibernate_ts;
+	bool allow_hibernate_sent;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_root;
 	char *dbg_fw_ctrl_name;
