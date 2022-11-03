@@ -1697,8 +1697,8 @@ static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 reg,
 static int cs40l26_buzzgen_set(struct cs40l26_private *cs40l26, u16 freq,
 		u16 level, u16 duration, u8 buzzgen_num)
 {
-	int ret;
 	unsigned int base_reg, freq_reg, level_reg, duration_reg;
+	int ret;
 
 	/* BUZZ_EFFECTS1_BUZZ_xxx are initially populated by contents of OTP.
 	 * The buzz specified by these controls is triggered by writing
@@ -1738,7 +1738,8 @@ static int cs40l26_buzzgen_set(struct cs40l26_private *cs40l26, u16 freq,
 }
 
 static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26,
-				u32 index, u8 bank, struct ff_effect *effect)
+		struct ff_effect *effect,
+		struct cs40l26_uploaded_effect *ueffect)
 {
 	u16 button = effect->trigger.button;
 	u8 gpio = (button & CS40L26_BTN_NUM_MASK) >> CS40L26_BTN_NUM_SHIFT;
@@ -1749,8 +1750,9 @@ static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26,
 
 	edge = (button & CS40L26_BTN_EDGE_MASK) >> CS40L26_BTN_EDGE_SHIFT;
 
-	switch (bank) {
+	switch (ueffect->wvfrm_bank) {
 	case CS40L26_RAM_BANK_ID:
+	case CS40L26_BUZ_BANK_ID:
 		owt = false;
 		ev_handler_bank_ram = true;
 		break;
@@ -1764,7 +1766,7 @@ static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26,
 		break;
 	default:
 		dev_err(cs40l26->dev, "Effect bank %u not supported\n",
-								bank);
+							ueffect->wvfrm_bank);
 		return -EINVAL;
 	}
 
@@ -1775,23 +1777,19 @@ static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26,
 	}
 
 	reg = cs40l26->event_map_base + (edge ? 0 : 4);
-	write_val = (index & CS40L26_BTN_INDEX_MASK) |
+	write_val = (ueffect->trigger_index & CS40L26_BTN_INDEX_MASK) |
 			(ev_handler_bank_ram << CS40L26_BTN_BANK_SHIFT) |
 			(owt << CS40L26_BTN_OWT_SHIFT);
-
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
 
 	ret = regmap_write(cs40l26->regmap, reg, write_val);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to update event map\n");
-		goto pm_exit;
+		return ret;
 	}
 
 	ret = cl_dsp_fw_rev_get(cs40l26->dsp, &fw_rev);
 	if (ret)
-		goto pm_exit;
+		return ret;
 
 	use_timeout = (!cs40l26->calib_fw &&
 			fw_rev >= CS40L26_FW_GPI_TIMEOUT_MIN_REV) ||
@@ -1803,45 +1801,45 @@ static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26,
 				CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_VIBEGEN_ALGO_ID, &reg);
 		if (ret)
-			goto pm_exit;
+			return ret;
 
 		ret = regmap_write(cs40l26->regmap, reg, effect->replay.length);
 		if (ret)
-			dev_err(cs40l26->dev, "Failed to set GPI timeout\n");
+			dev_warn(cs40l26->dev,
+				"Failed to set GPI timeout, continuing...\n");
 	}
 
 	if (edge)
-		cs40l26->gpi_ids[CS40L26_GPIO_MAP_A_PRESS] = effect->id;
+		ueffect->mapping = CS40L26_GPIO_MAP_A_PRESS;
 	else
-		cs40l26->gpi_ids[CS40L26_GPIO_MAP_A_RELEASE] = effect->id;
-
-pm_exit:
-	cs40l26_pm_exit(cs40l26->dev);
+		ueffect->mapping = CS40L26_GPIO_MAP_A_RELEASE;
 
 	return ret;
 }
 
-static struct cs40l26_owt *cs40l26_owt_find(struct cs40l26_private *cs40l26,
+static struct cs40l26_uploaded_effect
+		*cs40l26_uploaded_effect_find(struct cs40l26_private *cs40l26,
 		int id)
 {
-	struct cs40l26_owt *owt;
+	struct list_head *head = &cs40l26->effect_head;
+	struct cs40l26_uploaded_effect *ueffect;
 
-	if (list_empty(&cs40l26->owt_head)) {
-		dev_err(cs40l26->dev, "OWT list is empty\n");
-		return ERR_PTR(-EINVAL);
+	if (list_empty(head)) {
+		dev_dbg(cs40l26->dev, "Effect list is empty\n");
+		return ERR_PTR(-ENODATA);
 	}
 
-	list_for_each_entry(owt, &cs40l26->owt_head, list) {
-		if (owt->effect_id == id)
+	list_for_each_entry(ueffect, head, list) {
+		if (ueffect->id == id)
 			break;
 	}
 
-	if (owt->effect_id != id) {
-		dev_err(cs40l26->dev, "OWT effect with ID %d not found\n", id);
-		return ERR_PTR(-EINVAL);
+	if (ueffect->id != id) {
+		dev_dbg(cs40l26->dev, "No such effect (ID = %d)\n", id);
+		return ERR_PTR(-ENODEV);
 	}
 
-	return owt;
+	return ueffect;
 }
 
 static bool cs40l26_is_no_wait_ram_index(struct cs40l26_private *cs40l26,
@@ -1903,13 +1901,12 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	struct cs40l26_private *cs40l26 = container_of(work,
 			struct cs40l26_private, vibe_start_work);
 	struct device *dev = cs40l26->dev;
-	u32 index = 0;
-	int ret = 0;
+	struct cs40l26_uploaded_effect *ueffect;
 	struct ff_effect *effect;
-	struct cs40l26_owt *owt;
 	unsigned int reg;
-	bool invert;
 	u16 duration;
+	bool invert;
+	int ret;
 
 	dev_dbg(dev, "%s\n", __func__);
 
@@ -1921,16 +1918,11 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 
 	effect = cs40l26->trigger_effect;
 
-	if (effect->u.periodic.waveform == FF_CUSTOM ||
-			effect->u.periodic.waveform == FF_SINE)
-		index = cs40l26->trigger_indices[effect->id];
-
-	if (is_owt(index)) {
-		owt = cs40l26_owt_find(cs40l26, effect->id);
-		if (IS_ERR(owt)) {
-			ret = PTR_ERR(owt);
-			goto err_mutex;
-		}
+	ueffect = cs40l26_uploaded_effect_find(cs40l26, effect->id);
+	if (IS_ERR_OR_NULL(ueffect)) {
+		dev_err(dev, "No such effect to play back\n");
+		ret = PTR_ERR(ueffect);
+		goto err_mutex;
 	}
 
 	duration = effect->replay.length;
@@ -1973,11 +1965,11 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	case FF_CUSTOM:
 	case FF_SINE:
 		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-				index, CS40L26_DSP_MBOX_RESET);
+				ueffect->trigger_index, CS40L26_DSP_MBOX_RESET);
 		if (ret)
 			goto err_mutex;
 
-		cs40l26->cur_index = index;
+		cs40l26->cur_index = ueffect->trigger_index;
 		break;
 	default:
 		dev_err(dev, "Invalid waveform type: 0x%X\n",
@@ -2311,24 +2303,6 @@ err_free:
 	kfree(sections);
 
 	return ret;
-}
-
-static int cs40l26_owt_add(struct cs40l26_private *cs40l26, int effect_id,
-		u32 index)
-{
-	struct cs40l26_owt *owt_new;
-
-	owt_new = kzalloc(sizeof(*owt_new), GFP_KERNEL);
-	if (!owt_new)
-		return -ENOMEM;
-
-	owt_new->effect_id = effect_id;
-	owt_new->trigger_index = index;
-	list_add(&owt_new->list, &cs40l26->owt_head);
-
-	cs40l26->num_owt_effects++;
-
-	return 0;
 }
 
 static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, u8 *data,
@@ -2705,62 +2679,44 @@ sections_err_free:
 
 static u8 cs40l26_get_lowest_free_buzzgen(struct cs40l26_private *cs40l26)
 {
-	int buzzgen, i;
+	u8 buzzgen = 1;
+	struct cs40l26_uploaded_effect *ueffect;
 
-	/* Note that this search starts at RAM_BUZZ1 and does not utilize the
-	 * OTP buzz
-	 */
-	for (buzzgen = 1; buzzgen <= CS40L26_BUZZGEN_NUM_CONFIGS; buzzgen++) {
-		for (i = 0; i < FF_MAX_EFFECTS; i++) {
-			if (cs40l26->trigger_indices[i] ==
-					CS40L26_BUZZGEN_INDEX_START + buzzgen)
-				break;
-		}
+	if (list_empty(&cs40l26->effect_head))
+		return buzzgen;
 
-		if (i == FF_MAX_EFFECTS)
-			break;
+	list_for_each_entry(ueffect, &cs40l26->effect_head, list) {
+		if (ueffect->wvfrm_bank == CS40L26_BUZ_BANK_ID)
+			buzzgen++;
 	}
 
 	return buzzgen;
 }
 
 static int cs40l26_sine_upload(struct cs40l26_private *cs40l26,
-						struct ff_effect *effect)
+		struct ff_effect *effect,
+		struct cs40l26_uploaded_effect *ueffect)
 {
 	struct device *dev = cs40l26->dev;
-	int ret;
 	u8 lowest_free_buzzgen, level;
-	u16 freq;
-	u32 trigger_index;
+	u16 freq, period;
+	int ret;
 
-	if (effect->u.periodic.period) {
-		if (effect->u.periodic.period < CS40L26_BUZZGEN_PERIOD_MIN ||
-		effect->u.periodic.period > CS40L26_BUZZGEN_PERIOD_MAX) {
-			dev_err(dev,
-				"%u ms period not within range (4-10 ms)\n",
-				effect->u.periodic.period);
-			return -EINVAL;
-		}
-	} else {
-		dev_err(dev, "Sine wave period not specified\n");
-		return -EINVAL;
-	}
+	if (effect->u.periodic.period < CS40L26_BUZZGEN_PER_MIN)
+		period = CS40L26_BUZZGEN_PER_MIN;
+	else if (effect->u.periodic.period > CS40L26_BUZZGEN_PER_MAX)
+		period = CS40L26_BUZZGEN_PER_MAX;
+	else
+		period = effect->u.periodic.period;
 
-	if (effect->u.periodic.magnitude) {
-		if (effect->u.periodic.magnitude < CS40L26_BUZZGEN_LEVEL_MIN ||
-		effect->u.periodic.magnitude > CS40L26_BUZZGEN_LEVEL_MAX) {
-			dev_err(dev,
-				"%u magnitude not within range (%d-%d)\n",
-				effect->u.periodic.magnitude,
-				CS40L26_BUZZGEN_LEVEL_MIN,
-				CS40L26_BUZZGEN_LEVEL_MAX);
-			return -EINVAL;
-		}
+	freq = CS40L26_MS_TO_HZ(period);
 
+	if (effect->u.periodic.magnitude < CS40L26_BUZZGEN_LEVEL_MIN)
+		level = CS40L26_BUZZGEN_LEVEL_MIN;
+	else if (effect->u.periodic.magnitude > CS40L26_BUZZGEN_LEVEL_MAX)
+		level = CS40L26_BUZZGEN_LEVEL_MAX;
+	else
 		level = effect->u.periodic.magnitude;
-	} else {
-		level = CS40L26_BUZZGEN_LEVEL_DEFAULT;
-	}
 
 	lowest_free_buzzgen = cs40l26_get_lowest_free_buzzgen(cs40l26);
 	dev_dbg(dev, "lowest_free_buzzgen: %d", lowest_free_buzzgen);
@@ -2770,19 +2726,147 @@ static int cs40l26_sine_upload(struct cs40l26_private *cs40l26,
 		return -ENOSPC;
 	}
 
-	freq = CS40L26_MS_TO_HZ(effect->u.periodic.period);
-
 	ret = cs40l26_buzzgen_set(cs40l26, freq, level,
 				effect->replay.length, lowest_free_buzzgen);
 	if (ret)
 		return ret;
 
-	trigger_index = CS40L26_BUZZGEN_INDEX_START + lowest_free_buzzgen;
-	cs40l26->trigger_indices[effect->id] = trigger_index;
+	ueffect->id = effect->id;
+	ueffect->wvfrm_bank = CS40L26_BUZ_BANK_ID;
+	ueffect->trigger_index = CS40L26_BUZZGEN_INDEX_START +
+					lowest_free_buzzgen;
 
-	if (effect->trigger.button)
-		ret = cs40l26_map_gpi_to_haptic(cs40l26, trigger_index,
-						CS40L26_RAM_BANK_ID, effect);
+	return ret;
+}
+
+static int cs40l26_custom_upload(struct cs40l26_private *cs40l26,
+		struct ff_effect *effect,
+		struct cs40l26_uploaded_effect *ueffect)
+{
+	s16 first = cs40l26->raw_custom_data[0];
+	bool is_pwle = (first != CS40L26_WT_TYPE10_COMP_BUFFER);
+	bool is_svc = (first == CS40L26_SVC_ID);
+	struct device *dev = cs40l26->dev;
+	u32 nwaves, min_index, max_index, trigger_index;
+	int ret, data_len, refactored_data_len;
+	u8 *refactored_data;
+	u16 index, bank;
+
+	data_len = effect->u.periodic.custom_len;
+
+	if (data_len > CS40L26_CUSTOM_DATA_SIZE) {
+		refactored_data_len = cs40l26_refactor_owt(cs40l26,
+				cs40l26->raw_custom_data, data_len, is_pwle,
+				is_svc, &refactored_data);
+		if (refactored_data_len <= 0) {
+			dev_err(cs40l26->dev, "Failed to refactor OWT\n");
+			return -ENOMEM;
+		}
+
+		ret = cs40l26_owt_upload(cs40l26, refactored_data,
+				refactored_data_len);
+		kfree(refactored_data);
+		if (ret)
+			return ret;
+
+		bank = (u16) CS40L26_OWT_BANK_ID;
+		index = (u16) cs40l26->num_owt_effects;
+	} else {
+		bank = (u16) first;
+		index = (u16) (cs40l26->raw_custom_data[1] &
+				CS40L26_MAX_INDEX_MASK);
+	}
+
+	ret = cs40l26_get_num_waves(cs40l26, &nwaves);
+	if (ret)
+		return ret;
+
+	switch (bank) {
+	case CS40L26_RAM_BANK_ID:
+		if (nwaves - cs40l26->num_owt_effects == 0) {
+			dev_err(dev, "No waveforms in RAM bank\n");
+			return -EINVAL;
+		}
+
+		min_index = CS40L26_RAM_INDEX_START;
+		max_index = min_index + nwaves - cs40l26->num_owt_effects - 1;
+		break;
+	case CS40L26_ROM_BANK_ID:
+		min_index = CS40L26_ROM_INDEX_START;
+		max_index = CS40L26_ROM_INDEX_END;
+		break;
+	case CS40L26_OWT_BANK_ID:
+		min_index = CS40L26_OWT_INDEX_START;
+		max_index = CS40L26_OWT_INDEX_END;
+		break;
+	default:
+		dev_err(dev, "Bank ID (%u) invalid\n", bank);
+		return -EINVAL;
+	}
+
+	trigger_index = index + min_index;
+	if (trigger_index < min_index || trigger_index > max_index) {
+		dev_err(dev, "Index 0x%X out of bounds (0x%X - 0x%X)\n",
+				trigger_index, min_index, max_index);
+		return -EINVAL;
+	}
+	dev_dbg(dev, "ID = %d, trigger index = 0x%08X\n", effect->id,
+			trigger_index);
+
+	if (bank == CS40L26_OWT_BANK_ID)
+		cs40l26->num_owt_effects++;
+
+	ueffect->id = effect->id;
+	ueffect->wvfrm_bank = bank;
+	ueffect->trigger_index = trigger_index;
+
+	return ret;
+}
+
+static int cs40l26_uploaded_effect_add(struct cs40l26_private *cs40l26,
+		struct ff_effect *effect)
+{
+	struct device *dev = cs40l26->dev;
+	bool is_new = false;
+	struct cs40l26_uploaded_effect *ueffect;
+	int ret;
+
+	ueffect = cs40l26_uploaded_effect_find(cs40l26, effect->id);
+	if (IS_ERR_OR_NULL(ueffect)) {
+		is_new = true;
+		ueffect = kzalloc(sizeof(*ueffect), GFP_KERNEL);
+		if (!ueffect)
+			return -ENOMEM;
+	}
+
+	if (effect->u.periodic.waveform == FF_CUSTOM) {
+		ret = cs40l26_custom_upload(cs40l26, effect, ueffect);
+	} else if (effect->u.periodic.waveform == FF_SINE) {
+		ret = cs40l26_sine_upload(cs40l26, effect, ueffect);
+	} else {
+		dev_err(dev, "Periodic waveform type 0x%X not supported\n",
+				effect->u.periodic.waveform);
+		ret = -EINVAL;
+	}
+
+	if (ret)
+		goto err_free;
+
+	if (effect->trigger.button) {
+		ret = cs40l26_map_gpi_to_haptic(cs40l26, effect, ueffect);
+		if (ret)
+			goto err_free;
+	} else {
+		ueffect->mapping = CS40L26_GPIO_MAP_INVALID;
+	}
+
+	if (is_new)
+		list_add(&ueffect->list, &cs40l26->effect_head);
+
+	return 0;
+err_free:
+	if (is_new)
+		kfree(ueffect);
 
 	return ret;
 }
@@ -2792,12 +2876,9 @@ static void cs40l26_upload_worker(struct work_struct *work)
 	struct cs40l26_private *cs40l26 = container_of(work,
 			struct cs40l26_private, upload_work);
 	struct device *cdev = cs40l26->dev;
-	u8 *refactored_data = NULL;
-	int ret = 0, refactored_size, len;
-	u32 trigger_index, min_index, max_index, nwaves;
 	struct ff_effect *effect;
-	u16 index, bank;
-	bool pwle, svc_waveform;
+	u32 nwaves;
+	int ret;
 
 	ret = cs40l26_pm_enter(cdev);
 	if (ret)
@@ -2813,128 +2894,15 @@ static void cs40l26_upload_worker(struct work_struct *work)
 		goto out_mutex;
 	}
 
-	if (is_owt(cs40l26->trigger_indices[effect->id])) {
-		dev_err(cdev, "Open Wavetable effects cannot be edited\n");
-		ret = -EPERM;
+	ret = cs40l26_uploaded_effect_add(cs40l26, effect);
+	if (ret)
 		goto out_mutex;
-	}
-
-	switch (effect->u.periodic.waveform) {
-	case FF_CUSTOM:
-		pwle = (cs40l26->raw_custom_data[0] ==
-			CS40L26_WT_TYPE10_COMP_BUFFER) ? false : true;
-		svc_waveform = (cs40l26->raw_custom_data[0] ==
-			CS40L26_SVC_ID) ? true : false;
-
-		len = effect->u.periodic.custom_len;
-
-		if (len > CS40L26_CUSTOM_DATA_SIZE) {
-			refactored_size = cs40l26_refactor_owt(cs40l26,
-				cs40l26->raw_custom_data, len,
-						pwle, svc_waveform,
-						&refactored_data);
-
-			if (refactored_size <= 0) {
-				dev_err(cdev,
-					"Failed to refactor OWT waveform\n");
-				ret = refactored_size;
-				goto out_mutex;
-			}
-
-			ret = cs40l26_owt_upload(cs40l26, refactored_data,
-					refactored_size);
-			if (ret)
-				goto out_free;
-
-			bank = CS40L26_OWT_BANK_ID;
-			index = cs40l26->num_owt_effects;
-		} else {
-			bank = ((u16) cs40l26->raw_custom_data[0]);
-			index = ((u16) cs40l26->raw_custom_data[1]) &
-					CS40L26_MAX_INDEX_MASK;
-		}
-
-		ret = cs40l26_get_num_waves(cs40l26, &nwaves);
-		if (ret)
-			goto out_free;
-
-		switch (bank) {
-		case CS40L26_RAM_BANK_ID:
-			if (nwaves - cs40l26->num_owt_effects == 0) {
-				dev_err(cdev, "No waveforms in RAM bank\n");
-				ret = -EINVAL;
-				goto out_free;
-			} else {
-				min_index = CS40L26_RAM_INDEX_START;
-				max_index = min_index + nwaves - 1 -
-						cs40l26->num_owt_effects;
-			}
-			break;
-		case CS40L26_ROM_BANK_ID:
-			min_index = CS40L26_ROM_INDEX_START;
-			max_index = CS40L26_ROM_INDEX_END;
-			break;
-		case CS40L26_OWT_BANK_ID:
-			min_index = CS40L26_OWT_INDEX_START;
-			max_index = CS40L26_OWT_INDEX_END;
-			break;
-		default:
-			dev_err(cdev, "Bank ID (%u) out of bounds\n", bank);
-			ret = -EINVAL;
-			goto out_free;
-		}
-
-		trigger_index = index + min_index;
-
-		if (trigger_index >= min_index && trigger_index <= max_index) {
-			cs40l26->trigger_indices[effect->id] = trigger_index;
-		} else {
-			dev_err(cdev,
-				"Index (0x%X) out of bounds (0x%X - 0x%X)\n",
-				trigger_index, min_index, max_index);
-			ret = -EINVAL;
-			goto out_free;
-		}
-
-		if (is_owt(trigger_index)) {
-			ret = cs40l26_owt_add(cs40l26, effect->id,
-					trigger_index);
-			if (ret)
-				goto out_free;
-		}
-
-		dev_dbg(cdev, "%s: ID = %u, index = 0x%08X\n",
-				__func__, effect->id, trigger_index);
-
-		if (effect->trigger.button) {
-			ret = cs40l26_map_gpi_to_haptic(cs40l26,
-						trigger_index, bank, effect);
-			if (ret)
-				goto out_free;
-		}
-
-		break;
-	case FF_SINE:
-		ret = cs40l26_sine_upload(cs40l26, effect);
-		if (ret)
-			goto out_mutex;
-
-		break;
-	default:
-		dev_err(cdev, "Periodic waveform type 0x%X not supported\n",
-				effect->u.periodic.waveform);
-		ret = -EINVAL;
-		goto out_mutex;
-	}
 
 	ret = cs40l26_get_num_waves(cs40l26, &nwaves);
 	if (ret)
-		goto out_free;
+		goto out_mutex;
 
 	dev_dbg(cdev, "Total number of waveforms = %u\n", nwaves);
-
-out_free:
-	kfree(refactored_data);
 
 out_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -2989,17 +2957,6 @@ out_free:
 	return ret;
 }
 
-static enum cs40l26_gpio_map cs40l26_map_get(struct cs40l26_private *cs40l26,
-		int effect_id)
-{
-	if (cs40l26->gpi_ids[CS40L26_GPIO_MAP_A_PRESS] == effect_id)
-		return CS40L26_GPIO_MAP_A_PRESS;
-	else if (cs40l26->gpi_ids[CS40L26_GPIO_MAP_A_RELEASE] == effect_id)
-		return CS40L26_GPIO_MAP_A_RELEASE;
-
-	return CS40L26_GPIO_MAP_INVALID;
-}
-
 static int cs40l26_erase_gpi_mapping(struct cs40l26_private *cs40l26,
 		enum cs40l26_gpio_map mapping)
 {
@@ -3025,30 +2982,18 @@ static int cs40l26_erase_gpi_mapping(struct cs40l26_private *cs40l26,
 		return ret;
 	}
 
-	cs40l26->gpi_ids[mapping] = -1;
-
 	return 0;
 }
 
-static int cs40l26_erase_buzz(struct cs40l26_private *cs40l26, int effect_id)
-{
-	cs40l26->trigger_indices[effect_id] = 0;
-
-	return 0;
-}
-
-static int cs40l26_erase_owt(struct cs40l26_private *cs40l26, int effect_id)
+static int cs40l26_erase_owt(struct cs40l26_private *cs40l26,
+		struct cs40l26_uploaded_effect *ueffect)
 {
 	u32 cmd = CS40L26_DSP_MBOX_CMD_OWT_DELETE_BASE;
-	struct cs40l26_owt *owt, *owt_tmp;
-	u32 index;
+	u32 index = ueffect->trigger_index;
+	struct cs40l26_uploaded_effect *ueffect_tmp;
 	int ret;
 
-	owt = cs40l26_owt_find(cs40l26, effect_id);
-	if (IS_ERR(owt))
-		return PTR_ERR(owt);
-
-	cmd |= (owt->trigger_index & 0xFF);
+	cmd |= (index & 0xFF);
 
 	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, cmd,
 			CS40L26_DSP_MBOX_RESET);
@@ -3056,18 +3001,12 @@ static int cs40l26_erase_owt(struct cs40l26_private *cs40l26, int effect_id)
 		return ret;
 
 	/* Update indices for OWT waveforms uploaded after erased effect */
-	index = cs40l26->trigger_indices[effect_id];
-	list_for_each_entry(owt_tmp, &cs40l26->owt_head, list) {
-		if (owt_tmp->trigger_index > index) {
-			owt_tmp->trigger_index--;
-			cs40l26->trigger_indices[owt_tmp->effect_id]--;
-		}
+	list_for_each_entry(ueffect_tmp, &cs40l26->effect_head, list) {
+		if (ueffect_tmp->wvfrm_bank == CS40L26_OWT_BANK_ID &&
+				ueffect_tmp->trigger_index > index)
+			ueffect_tmp->trigger_index--;
 	}
 
-	cs40l26->trigger_indices[effect_id] = 0;
-
-	list_del(&owt->list);
-	kfree(owt);
 	cs40l26->num_owt_effects--;
 
 	return 0;
@@ -3077,11 +3016,9 @@ static void cs40l26_erase_worker(struct work_struct *work)
 {
 	struct cs40l26_private *cs40l26 = container_of(work,
 			struct cs40l26_private, erase_work);
-	int ret = 0;
-	enum cs40l26_gpio_map mapping;
-	int effect_id;
+	struct cs40l26_uploaded_effect *ueffect;
+	int effect_id, ret;
 	u16 duration;
-	u32 index;
 
 	ret = cs40l26_pm_enter(cs40l26->dev);
 	if (ret)
@@ -3090,7 +3027,14 @@ static void cs40l26_erase_worker(struct work_struct *work)
 	mutex_lock(&cs40l26->lock);
 
 	effect_id = cs40l26->erase_effect->id;
-	index = cs40l26->trigger_indices[effect_id];
+	ueffect = cs40l26_uploaded_effect_find(cs40l26, effect_id);
+	if (IS_ERR_OR_NULL(ueffect)) {
+		dev_err(cs40l26->dev, "No such effect to erase (%d)\n",
+				effect_id);
+		ret = PTR_ERR(ueffect);
+		goto out_mutex;
+	}
+
 	duration = (cs40l26->erase_effect->replay.length == 0) ?
 		CS40L26_MAX_WAIT_VIBE_COMPLETE_MS :
 		cs40l26->erase_effect->replay.length + CS40L26_ERASE_BUFFER_MS;
@@ -3102,8 +3046,8 @@ static void cs40l26_erase_worker(struct work_struct *work)
 		if (!wait_for_completion_timeout(&cs40l26->erase_cont,
 				msecs_to_jiffies(duration))) {
 			ret = -ETIME;
-			dev_err(cs40l26->dev, "Failed to erase effect: %d",
-					ret);
+			dev_err(cs40l26->dev, "Failed to erase effect (%d)\n",
+					effect_id);
 			goto pm_err;
 		}
 		mutex_lock(&cs40l26->lock);
@@ -3111,20 +3055,23 @@ static void cs40l26_erase_worker(struct work_struct *work)
 
 	dev_dbg(cs40l26->dev, "%s: effect ID = %d\n", __func__, effect_id);
 
-	mapping = cs40l26_map_get(cs40l26, effect_id);
-	if (mapping != CS40L26_GPIO_MAP_INVALID) {
-		ret = cs40l26_erase_gpi_mapping(cs40l26, mapping);
+	if (ueffect->mapping != CS40L26_GPIO_MAP_INVALID) {
+		ret = cs40l26_erase_gpi_mapping(cs40l26, ueffect->mapping);
 		if (ret)
 			goto out_mutex;
+		ueffect->mapping = CS40L26_GPIO_MAP_INVALID;
 	}
 
-	if (is_owt(index))
-		ret = cs40l26_erase_owt(cs40l26, effect_id);
-	else if (is_buzz(index))
-		ret = cs40l26_erase_buzz(cs40l26, effect_id);
+	if (ueffect->wvfrm_bank == CS40L26_OWT_BANK_ID)
+		ret = cs40l26_erase_owt(cs40l26, ueffect);
 
-	if (ret)
+	if (ret) {
 		dev_err(cs40l26->dev, "Failed to erase effect: %d", ret);
+		goto out_mutex;
+	}
+
+	list_del(&ueffect->list);
+	kfree(ueffect);
 
 out_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -4054,7 +4001,6 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	dev_info(dev, "%s loaded with %u RAM waveforms\n", CS40L26_DEV_NAME,
 			nwaves);
 
-	INIT_LIST_HEAD(&cs40l26->owt_head);
 	cs40l26->num_owt_effects = 0;
 
 	value = (cs40l26->comp_enable_redc << CS40L26_COMP_EN_REDC_SHIFT) |
@@ -4940,6 +4886,8 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 	ret = cs40l26_input_init(cs40l26);
 	if (ret)
 		goto err;
+
+	INIT_LIST_HEAD(&cs40l26->effect_head);
 
 	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO, cs40l26_devs,
 			CS40L26_NUM_MFD_DEVS, NULL, 0, NULL);
