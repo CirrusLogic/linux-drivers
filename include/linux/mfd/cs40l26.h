@@ -913,22 +913,26 @@
 #define CS40L26_RAM_BANK_ID			0
 #define CS40L26_ROM_BANK_ID			1
 #define CS40L26_OWT_BANK_ID			2
+#define CS40L26_BUZ_BANK_ID			3
 
 #define CS40L26_BUZZGEN_CONFIG_OFFSET		12
 #define CS40L26_BUZZGEN_NUM_CONFIGS		(CS40L26_BUZZGEN_INDEX_END - \
 						CS40L26_BUZZGEN_INDEX_START)
+
 #define CS40L26_BUZZGEN_INDEX_START		0x01800080
 #define CS40L26_BUZZGEN_INDEX_CP_TRIGGER	0x01800081
 #define CS40L26_BUZZGEN_INDEX_END		0x01800085
+
 #define CS40L26_BUZZGEN_FREQ_MAX		250 /* Hz */
 #define CS40L26_BUZZGEN_FREQ_MIN		100
-#define CS40L26_BUZZGEN_PERIOD_MAX		10 /* ms */
-#define CS40L26_BUZZGEN_PERIOD_MIN		4
+
+#define CS40L26_BUZZGEN_PER_MAX			10 /* ms */
+#define CS40L26_BUZZGEN_PER_MIN			4
+
 #define CS40L26_BUZZGEN_DURATION_OFFSET		8
 #define CS40L26_BUZZGEN_DURATION_DIV_STEP	4
-#define CS40L26_BUZZGEN_LEVEL_OFFSET		4
-#define CS40L26_BUZZGEN_LEVEL_DEFAULT		0x50
 
+#define CS40L26_BUZZGEN_LEVEL_OFFSET		4
 #define CS40L26_BUZZGEN_LEVEL_MIN               0x00
 #define CS40L26_BUZZGEN_LEVEL_MAX               0xFF
 
@@ -1474,12 +1478,13 @@ struct cs40l26_platform_data {
 	bool pwle_zero_cross;
 };
 
-struct cs40l26_owt {
-	int effect_id;
+struct cs40l26_uploaded_effect {
+	int id;
 	u32 trigger_index;
+	u16 wvfrm_bank;
+	enum cs40l26_gpio_map mapping;
 	struct list_head list;
 };
-
 struct cs40l26_private {
 	struct device *dev;
 	struct regmap *regmap;
@@ -1490,9 +1495,8 @@ struct cs40l26_private {
 	struct gpio_desc *reset_gpio;
 	struct input_dev *input;
 	struct cl_dsp *dsp;
-	unsigned int trigger_indices[FF_MAX_EFFECTS];
+	struct list_head effect_head;
 	unsigned int cur_index;
-	int gpi_ids[CS40L26_GPIO_MAP_NUM_AVAILABLE];
 	struct ff_effect *trigger_effect;
 	struct ff_effect upload_effect;
 	struct ff_effect *erase_effect;
@@ -1520,7 +1524,6 @@ struct cs40l26_private {
 	bool asp_enable;
 	u8 last_wksrc_pol;
 	u8 wksrc_sts;
-	struct list_head owt_head;
 	int num_owt_effects;
 	int cal_requested;
 	u16 gain_pct;
