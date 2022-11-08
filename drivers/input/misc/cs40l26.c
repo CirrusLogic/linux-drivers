@@ -733,6 +733,17 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 			dev_dbg(dev, "Mailbox: REDC_EST_DONE\n");
 			complete(&cs40l26->cal_redc_cont);
 			break;
+		case CS40L26_DSP_MBOX_LS_CALIBRATION_START:
+			dev_dbg(dev, "Mailbox: LS_CALIBRATION_START\n");
+			break;
+		case CS40L26_DSP_MBOX_LS_CALIBRATION_DONE:
+			dev_dbg(dev, "Mailbox: LS_CALIBRATION_DONE\n");
+			complete(&cs40l26->cal_ls_cont);
+			break;
+		case CS40L26_DSP_MBOX_LS_CALIBRATION_ERROR:
+			dev_warn(dev, "Mailbox: LS_CALIBRATION_ERROR\n");
+			complete(&cs40l26->cal_ls_cont);
+			break;
 		case CS40L26_DSP_MBOX_LE_EST_START:
 			dev_dbg(dev, "Mailbox: LE_EST_START\n");
 			break;
@@ -4760,6 +4771,8 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 	init_completion(&cs40l26->cal_f0_cont);
 	init_completion(&cs40l26->cal_redc_cont);
 	init_completion(&cs40l26->cal_dvl_peq_cont);
+	init_completion(&cs40l26->cal_ls_cont);
+
 
 	ret = cs40l26_rom_wt_init(cs40l26);
 	if (ret) {
