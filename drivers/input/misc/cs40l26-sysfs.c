@@ -1030,6 +1030,9 @@ static ssize_t trigger_calibration_store(struct device *dev,
 	case CS40L26_CALIBRATION_CONTROL_REQUEST_DVL_PEQ:
 		completion = &cs40l26->cal_dvl_peq_cont;
 		break;
+	case CS40L26_CALIBRATION_CONTROL_REQUEST_LS_CALIBRATION:
+		completion = &cs40l26->cal_ls_cont;
+		break;
 	default:
 		return -EINVAL;
 	}
