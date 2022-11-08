@@ -207,6 +207,7 @@
 #define CS40L26_EXT_ALGO_ID		0x0004013C
 #define CS40L26_DVL_ALGO_ID		0x00040140
 #define CS40L26_EP_ALGO_ID		0x00040141
+#define CS40L26_LS_ALGO_ID		0x000A0144
 #define CS40L26_LF0T_ALGO_ID		0x00040143
 
 /* DebugFS */
@@ -388,6 +389,7 @@
 #define CS40L26_EP_FILE_NAME		"cs40l26-ep.bin"
 #define CS40L26_LF0T_FILE_NAME		"cs40l26-lf0t.bin"
 #define CS40L26_DBC_FILE_NAME		"cs40l26-dbc.bin"
+#define CS40L26_LS_CAL_FILE_NAME	"cs40l26-ls.bin"
 
 #define CS40L26_SVC_LE_EST_TIME_US	8000
 #define CS40L26_SVC_LE_MAX_ATTEMPTS	2
@@ -762,6 +764,10 @@
 #define CS40L26_F0_EST_MAX			0x7FC000
 #define CS40L26_Q_EST_MIN			0
 #define CS40L26_Q_EST_MAX			0x7FFFFF
+
+#define CS40L26_LS_CAL_NUM_REGS			47
+#define CS40L26_LS_CAL_REINIT_MASK		BIT(2)
+#define CS40L26_LS_CAL_REINIT_SHIFT		2
 
 #define CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS	6
 
@@ -1260,6 +1266,7 @@ extern const struct mfd_cell cs40l26_devs[CS40L26_NUM_MFD_DEVS];
 extern const u8 cs40l26_pseq_op_sizes[CS40L26_PSEQ_NUM_OPS][2];
 extern const u32 cs40l26_attn_q21_2_vals[CS40L26_NUM_PCT_MAP_VALUES];
 extern const struct reg_sequence cs40l26_a1_errata[CS40L26_ERRATA_A1_NUM_WRITES];
+extern const struct cs40l26_ls_cal_param cs40l26_ls_cal_params[CS40L26_LS_CAL_NUM_REGS];
 
 /* sysfs */
 extern const struct attribute_group *cs40l26_attr_groups[];
