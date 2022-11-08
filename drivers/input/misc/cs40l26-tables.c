@@ -28,6 +28,245 @@ const struct regmap_config cs40l26_regmap = {
 };
 EXPORT_SYMBOL_GPL(cs40l26_regmap);
 
+const struct cs40l26_ls_cal_param cs40l26_ls_cal_params[CS40L26_LS_CAL_NUM_REGS] = {
+	{
+		.calib_name = "STATE_OL_RESULTS_REDC",
+		.runtime_name = "TA_TEMP_EST_INITIAL_REDC",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_RESULTS_LE",
+		.runtime_name = NULL,
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_RESULTS_F0",
+		.runtime_name = NULL,
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_RESULTS_RES",
+		.runtime_name = NULL,
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_RESULTS_Q",
+		.runtime_name = NULL,
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_RESULTS_REDC",
+		.runtime_name = NULL,
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_RESULTS_LE",
+		.runtime_name = NULL,
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_RESULTS_F0",
+		.runtime_name = NULL,
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_RESULTS_RES",
+		.runtime_name = NULL,
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_RESULTS_Q",
+		.runtime_name = NULL,
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_BQ1Z1_REAL",
+		.runtime_name = "FF_SVC_OL_ZP1_REAL",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_BQ1Z1_IMAG",
+		.runtime_name = "FF_SVC_OL_ZP1_IMAG",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_BQ1Z2_REAL",
+		.runtime_name = "FF_SVC_OL_ZP2_REAL",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_BQ1Z2_IMAG",
+		.runtime_name = "FF_SVC_OL_ZP2_IMAG",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_BQ1P1_REAL",
+		.runtime_name = "FF_SVC_OL_ZP3_REAL",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_BQ1P1_IMAG",
+		.runtime_name = "FF_SVC_OL_ZP3_IMAG",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_BQ1P2_REAL",
+		.runtime_name = "FF_SVC_OL_ZP4_REAL",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_BQ1P2_IMAG",
+		.runtime_name = "FF_SVC_OL_ZP4_IMAG",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_BQ2Z1_REAL",
+		.runtime_name = "FF_SVC_OL_ZP5_REAL",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_BQ2Z1_IMAG",
+		.runtime_name = "FF_SVC_OL_ZP5_IMAG",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_BQ2Z2_REAL",
+		.runtime_name = "FF_SVC_OL_ZP6_REAL",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_BQ2Z2_IMAG",
+		.runtime_name = "FF_SVC_OL_ZP6_IMAG",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_BQ2P1_REAL",
+		.runtime_name = "FF_SVC_OL_ZP7_REAL",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_BQ2P1_IMAG",
+		.runtime_name = "FF_SVC_OL_ZP7_IMAG",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_BQ2P2_REAL",
+		.runtime_name = "FF_SVC_OL_ZP8_REAL",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_BQ2P2_IMAG",
+		.runtime_name = "FF_SVC_OL_ZP8_IMAG",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_GAIN",
+		.runtime_name = "FF_SVC_OL_K",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_OL_ZPK_GAIN",
+		.runtime_name = "FF_SVC_OL_K",
+		.word_num = 2,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_BQ1Z1_REAL",
+		.runtime_name = "FF_SVC_CL_ZP1_REAL",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_BQ1Z1_IMAG",
+		.runtime_name = "FF_SVC_CL_ZP1_IMAG",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_BQ1Z2_REAL",
+		.runtime_name = "FF_SVC_CL_ZP2_REAL",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_BQ1Z2_IMAG",
+		.runtime_name = "FF_SVC_CL_ZP2_IMAG",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_BQ1P1_REAL",
+		.runtime_name = "FF_SVC_CL_ZP3_REAL",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_BQ1P1_IMAG",
+		.runtime_name = "FF_SVC_CL_ZP3_IMAG",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_BQ1P2_REAL",
+		.runtime_name = "FF_SVC_CL_ZP4_REAL",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_BQ1P2_IMAG",
+		.runtime_name = "FF_SVC_CL_ZP4_IMAG",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_BQ2Z1_REAL",
+		.runtime_name = "FF_SVC_CL_ZP5_REAL",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_BQ2Z1_IMAG",
+		.runtime_name = "FF_SVC_CL_ZP5_IMAG",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_BQ2Z2_REAL",
+		.runtime_name = "FF_SVC_CL_ZP6_REAL",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_BQ2Z2_IMAG",
+		.runtime_name = "FF_SVC_CL_ZP6_IMAG",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_BQ2P1_REAL",
+		.runtime_name = "FF_SVC_CL_ZP7_REAL",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_BQ2P1_IMAG",
+		.runtime_name = "FF_SVC_CL_ZP7_IMAG",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_BQ2P2_REAL",
+		.runtime_name = "FF_SVC_CL_ZP8_REAL",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_BQ2P2_IMAG",
+		.runtime_name = "FF_SVC_CL_ZP8_IMAG",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_GAIN",
+		.runtime_name = "FF_SVC_CL_K",
+		.word_num = 1,
+	},
+	{
+		.calib_name = "STATE_CL_ZPK_GAIN",
+		.runtime_name = "FF_SVC_CL_K",
+		.word_num = 2,
+	},
+	{
+		.calib_name = "STATE_TEMPERATURE",
+		.runtime_name = "TA_TEMP_EST_INITIAL_TEMP",
+		.word_num = 1,
+	},
+};
+EXPORT_SYMBOL_GPL(cs40l26_ls_cal_params);
+
 const struct reg_sequence cs40l26_a1_errata[CS40L26_ERRATA_A1_NUM_WRITES] = {
 	{ CS40L26_PLL_REFCLK_DETECT_0, 0x00000000 },
 	{ CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE1 },
