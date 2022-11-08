@@ -1515,6 +1515,215 @@ err_free:
 }
 static DEVICE_ATTR_RW(dvl_peq_coefficients);
 
+static ssize_t ls_calibration_params_temp_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 params_temp, reg;
+	int error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "PARAMS_TEMPERATURE", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_LS_ALGO_ID, &reg);
+	if (error)
+		goto err_mutex;
+
+	error = regmap_read(cs40l26->regmap, reg, &params_temp);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : snprintf(buf, PAGE_SIZE, "0x%06X\n", params_temp);
+}
+
+static ssize_t ls_calibration_params_temp_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 params_temp, reg;
+	int error;
+
+	error = kstrtou32(buf, 16, &params_temp);
+	if (error)
+		return error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "PARAMS_TEMPERATURE", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_LS_ALGO_ID, &reg);
+	if (error)
+		goto err_mutex;
+
+	error = regmap_write(cs40l26->regmap, reg, params_temp);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : count;
+}
+static DEVICE_ATTR_RW(ls_calibration_params_temp);
+
+static ssize_t ls_calibration_results_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int count = 0, error, i;
+	u32 error_code, reg, val;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "STATE_CAL_RETURN_CODE", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_LS_ALGO_ID, &reg);
+	if (error)
+		goto err_mutex;
+
+	error = regmap_read(cs40l26->regmap, reg, &error_code);
+	if (error)
+		goto err_mutex;
+
+	switch (error_code) {
+	case CS40L26_LS_CAL_OK:
+		dev_dbg(cs40l26->dev, "LS Calibration Succeeded\n");
+		break;
+	case CS40L26_LS_CAL_IN_PROGRESS:
+		dev_err(cs40l26->dev, "LS Calibration still in progress\n");
+		error = -EALREADY;
+		break;
+	case CS40L26_LS_CAL_FAIL_DET:
+		dev_err(cs40l26->dev, "LS Calibration failed: matrix singular/nearly singular\n");
+		error = -EINVAL;
+		break;
+	case CS40L26_LS_CAL_FAIL_ROOTS:
+		dev_err(cs40l26->dev, "LS Calibration failed: real roots instead of 1\n");
+		error = -EINVAL;
+		break;
+	case CS40L26_LS_CAL_SATURATION:
+		dev_err(cs40l26->dev, "LS Calibration failed: saturation when publishing\n");
+		error = -EINVAL;
+		break;
+	case CS40L26_LS_CAL_STEP2_FREQ:
+		dev_err(cs40l26->dev, "LS Calibration failed: frequency for step 2 out of range\n");
+		error = -EINVAL;
+		break;
+	default:
+		dev_err(cs40l26->dev, "LS Calibration failed: unknown error code %u\n",
+				error_code);
+		error = -EINVAL;
+	}
+	if (error)
+		goto err_mutex;
+
+	for (i = 0; i < CS40L26_LS_CAL_NUM_REGS; i++) {
+		error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_ls_cal_params[i].calib_name,
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_LS_ALGO_ID, &reg);
+		if (error)
+			goto err_mutex;
+
+		if (cs40l26_ls_cal_params[i].word_num == 2)
+			reg += sizeof(u32);
+
+		error = regmap_read(cs40l26->regmap, reg, &val);
+		if (error)
+			goto err_mutex;
+
+		count += snprintf(&buf[count], PAGE_SIZE, "0x%06X\n", val);
+	}
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : count;
+}
+
+static ssize_t ls_calibration_results_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error, i, results_found = 0;
+	u32 reg, results[CS40L26_LS_CAL_NUM_REGS];
+	char *str, *str_full;
+
+	str_full = kstrdup(buf, GFP_KERNEL);
+	if (!str_full)
+		return -ENOMEM;
+
+	while ((str = strsep(&str_full, "\n")) != NULL &&
+			results_found < CS40L26_LS_CAL_NUM_REGS) {
+		error = kstrtou32(str, 16, &results[results_found++]);
+		if (error)
+			goto err_free;
+	}
+
+	if (results_found != CS40L26_LS_CAL_NUM_REGS) {
+		dev_err(cs40l26->dev, "Num results = %d, expecting %d\n",
+				results_found, CS40L26_LS_CAL_NUM_REGS);
+		error = -EINVAL;
+		goto err_free;
+	}
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		goto err_free;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "CFG", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_EP_ALGO_ID, &reg);
+	if (error)
+		goto err_mutex;
+
+	error = regmap_update_bits(cs40l26->regmap, reg, CS40L26_LS_CAL_REINIT_MASK,
+			1 << CS40L26_LS_CAL_REINIT_SHIFT);
+	if (error)
+		goto err_mutex;
+
+	for (i = 0; i < results_found; i++) {
+		if (cs40l26_ls_cal_params[i].runtime_name == NULL)
+			continue;
+
+		error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_ls_cal_params[i].runtime_name,
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_EP_ALGO_ID, &reg);
+		if (error)
+			goto err_mutex;
+
+		if (cs40l26_ls_cal_params[i].word_num == 2)
+			reg += sizeof(u32);
+
+		error = regmap_write(cs40l26->regmap, reg, results[i]);
+		if (error)
+			goto err_mutex;
+	}
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+err_free:
+	kfree(str_full);
+
+	return error ? error : count;
+}
+static DEVICE_ATTR_RW(ls_calibration_results);
+
 static ssize_t svc_le_est_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -1582,6 +1791,8 @@ static struct attribute *cs40l26_dev_attrs_cal[] = {
 	&dev_attr_f0_measured.attr,
 	&dev_attr_q_measured.attr,
 	&dev_attr_redc_measured.attr,
+	&dev_attr_ls_calibration_params_temp.attr,
+	&dev_attr_ls_calibration_results.attr,
 	&dev_attr_dvl_peq_coefficients.attr,
 	&dev_attr_redc_est.attr,
 	&dev_attr_f0_stored.attr,

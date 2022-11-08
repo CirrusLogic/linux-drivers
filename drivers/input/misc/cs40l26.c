@@ -3526,7 +3526,8 @@ static int cs40l26_calib_dt_config(struct cs40l26_private *cs40l26)
 		}
 	}
 
-	if (cs40l26->revid < CS40L26_REVID_B2) {
+	if (cs40l26->revid < CS40L26_REVID_B2 &&
+			cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_VIBEGEN_ALGO_ID)) {
 		if (cs40l26->q_default <= CS40L26_Q_EST_MAX) {
 			error = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED", CL_DSP_XM_UNPACKED_TYPE,
 					CS40L26_VIBEGEN_ALGO_ID, &reg);
@@ -4292,6 +4293,10 @@ static char **cs40l26_get_tuning_names(struct cs40l26_private *cs40l26, int *act
 	} else {
 		strscpy(coeff_files[file_count++], CS40L26_CALIB_FILE_NAME,
 				CS40L26_FILE_NAME_MAX_LEN);
+
+		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_LS_ALGO_ID))
+			strscpy(coeff_files[file_count++], CS40L26_LS_CAL_FILE_NAME,
+					CS40L26_FILE_NAME_MAX_LEN);
 	}
 
 	*actual_num_files = file_count;
