@@ -447,6 +447,16 @@ cirrus,no-wait-ram-indices:
       List of RAM indices that will not use the delay_before_stop_playback_us
       prior to sending a STOP_PLAYBACK command.
 
+cirrus,release-index:
+    descrption:
+      Bank and index of effect to be mapped to GPI release event upon driver
+      probe.
+
+cirrus,press-index:
+    description:
+      Bank and index of effect to be mapped to GPI press event upon driver
+      probe.
+
 required:
   - compatible
 
@@ -480,6 +490,9 @@ examples:
       cirrus,asp-gain-scale-pct = <30>;
 
       cirrus,no-wait-ram-indices = <5 10 25>;
+
+      cirrus,release-index = "RAM", <1>;
+      cirrus,press-index = "ROM", <2>;
 
       svc-le1 {
         cirrus,min = <500>; //59.6 uH
