@@ -13,6 +13,20 @@
 
 #define CS35L45_NUM_SUPPLIES 2
 
+struct bpe_inst_lvl_config {
+	bool is_present;
+	unsigned int thld;
+	unsigned int attn;
+};
+
+struct bpe_inst_config {
+	bool is_present;
+	struct bpe_inst_lvl_config l0;
+	struct bpe_inst_lvl_config l1;
+	struct bpe_inst_lvl_config l2;
+	struct bpe_inst_lvl_config l3;
+};
+
 struct bst_bpe_inst_lvl_config {
 	unsigned int thld;
 	unsigned int ilim;
@@ -117,6 +131,7 @@ struct cs35l45_irq_monitor {
 };
 
 struct cs35l45_platform_data {
+	struct bpe_inst_config bpe_inst_cfg;
 	struct bst_bpe_inst_config bst_bpe_inst_cfg;
 	struct bst_bpe_misc_config bst_bpe_misc_cfg;
 	struct bst_bpe_il_lim_config bst_bpe_il_lim_cfg;
@@ -223,6 +238,7 @@ struct of_entry {
 	unsigned int shift;
 };
 
+#define BPE_INST_LEVELS 4
 enum bst_bpe_inst_level {
 	L0 = 0,
 	L1,
@@ -230,6 +246,12 @@ enum bst_bpe_inst_level {
 	L3,
 	L4,
 	BST_BPE_INST_LEVELS
+};
+
+enum bpe_inst_of_param {
+	BPE_INST_THLD = 0,
+	BPE_INST_ATTN,
+	BPE_INST_PARAMS
 };
 
 enum bst_bpe_inst_of_param {
@@ -292,7 +314,8 @@ enum classh_of_param {
 	AUD_MEM_DEPTH,
 	CLASSH_PARAMS
 };
-
+extern const struct of_entry bpe_inst_thld_map[BPE_INST_LEVELS];
+extern const struct of_entry bpe_inst_attn_map[BPE_INST_LEVELS];
 extern const struct of_entry bst_bpe_inst_thld_map[BST_BPE_INST_LEVELS];
 extern const struct of_entry bst_bpe_inst_ilim_map[BST_BPE_INST_LEVELS];
 extern const struct of_entry bst_bpe_inst_ss_ilim_map[BST_BPE_INST_LEVELS];
@@ -303,6 +326,57 @@ extern const struct of_entry bst_bpe_misc_map[BST_BPE_MISC_PARAMS];
 extern const struct of_entry bst_bpe_il_lim_map[BST_BPE_IL_LIM_PARAMS];
 extern const struct of_entry ldpm_map[LDPM_PARAMS];
 extern const struct of_entry classh_map[CLASSH_PARAMS];
+
+static inline const struct of_entry *cs35l45_get_bpe_inst_entry(
+					enum bst_bpe_inst_level level,
+					enum bpe_inst_of_param param)
+{
+	if ((level < L0) || (level > L3))
+		return NULL;
+
+	switch (param) {
+	case BPE_INST_THLD:
+		return &bpe_inst_thld_map[level];
+	case BPE_INST_ATTN:
+		return &bpe_inst_attn_map[level];
+	default:
+		return NULL;
+	}
+}
+
+static inline u32 *cs35l45_get_bpe_inst_param(
+					struct cs35l45_private *cs35l45,
+					enum bst_bpe_inst_level level,
+					enum bpe_inst_of_param param)
+{
+	struct bpe_inst_lvl_config *cfg;
+
+	switch (level) {
+	case L0:
+		cfg = &cs35l45->pdata.bpe_inst_cfg.l0;
+		break;
+	case L1:
+		cfg = &cs35l45->pdata.bpe_inst_cfg.l1;
+		break;
+	case L2:
+		cfg = &cs35l45->pdata.bpe_inst_cfg.l2;
+		break;
+	case L3:
+		cfg = &cs35l45->pdata.bpe_inst_cfg.l3;
+		break;
+	default:
+		return NULL;
+	}
+
+	switch (param) {
+	case BPE_INST_THLD:
+		return &cfg->thld;
+	case BPE_INST_ATTN:
+		return &cfg->attn;
+	default:
+		return NULL;
+	}
+}
 
 static inline const struct of_entry *cs35l45_get_bst_bpe_inst_entry(
 					enum bst_bpe_inst_level level,
