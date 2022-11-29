@@ -931,6 +931,9 @@ static const struct snd_kcontrol_new amp_en_ctl =
 static const struct snd_kcontrol_new dsp_en_ctl =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
+static const struct snd_kcontrol_new abpe_en_ctl =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
 static const struct snd_kcontrol_new bbpe_en_ctl =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
@@ -991,6 +994,8 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_SWITCH("Force Enable", SND_SOC_NOPM, 0, 0, &force_en_ctl),
 	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_NOPM, 0, 0, &amp_en_ctl),
 	SND_SOC_DAPM_SWITCH("DSP1 Enable", SND_SOC_NOPM, 0, 0, &dsp_en_ctl),
+	SND_SOC_DAPM_SWITCH("ABPE Enable", CS35L45_BLOCK_ENABLES2, 12, 0,
+			    &abpe_en_ctl),
 	SND_SOC_DAPM_SWITCH("BBPE Enable", CS35L45_BLOCK_ENABLES2, 13, 0,
 			    &bbpe_en_ctl),
 	SND_SOC_DAPM_SWITCH("NFR Enable", CS35L45_BLOCK_ENABLES, 1, 0,
@@ -1054,6 +1059,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 
 	{"GLOBAL_EN", NULL, "Entry"},
 
+	{"ABPE Enable", "Switch", "Entry"},
 	{"BBPE Enable", "Switch", "Entry"},
 	{"NFR Enable", "Switch", "Entry"},
 
@@ -1070,6 +1076,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"NGATE Enable", "Switch", "NGATE_CH2"},
 
 	{"Exit", NULL, "ASP"},
+	{"Exit", NULL, "ABPE Enable"},
 	{"Exit", NULL, "BBPE Enable"},
 	{"Exit", NULL, "NFR Enable"},
 	{"Exit", NULL, "NGATE Enable"},
@@ -2962,6 +2969,21 @@ static int cs35l45_apply_of_data(struct cs35l45_private *cs35l45)
 				   val << CS35L45_GLOB_EN_GPIO_SHIFT);
 	}
 
+	if (!pdata->bpe_inst_cfg.is_present)
+		goto bst_bpe_inst_cfg;
+
+	for (i = BPE_INST_THLD; i < BPE_INST_PARAMS; i++) {
+		for (j = L0; j < BPE_INST_LEVELS; j++) {
+			entry = cs35l45_get_bpe_inst_entry(j, i);
+			ptr = cs35l45_get_bpe_inst_param(cs35l45, j, i);
+			val = ((*ptr) & (~CS35L45_VALID_PDATA)) << entry->shift;
+			if ((entry->reg) && ((*ptr) & CS35L45_VALID_PDATA))
+				regmap_update_bits(cs35l45->regmap, entry->reg,
+						   entry->mask, val);
+		}
+	}
+
+bst_bpe_inst_cfg:
 	if (!pdata->bst_bpe_inst_cfg.is_present)
 		goto bst_bpe_misc_cfg;
 
@@ -3160,6 +3182,27 @@ static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
 	if (!ret)
 		pdata->global_en_gpio = val | CS35L45_VALID_PDATA;
 
+	child = of_get_child_by_name(node, "cirrus,bpe-inst-config");
+	pdata->bpe_inst_cfg.is_present = child ? true : false;
+	if (!pdata->bpe_inst_cfg.is_present)
+		goto bst_bpe_inst_cfg;
+
+	for (i = BPE_INST_THLD; i < BPE_INST_PARAMS; i++) {
+		entry = cs35l45_get_bpe_inst_entry(L0, i);
+		ret = of_property_read_u32_array(child, entry->name, params,
+						 BPE_INST_LEVELS);
+		if (ret)
+			continue;
+
+		for (j = L0; j < BPE_INST_LEVELS; j++) {
+			ptr = cs35l45_get_bpe_inst_param(cs35l45, j, i);
+			(*ptr) = params[j] | CS35L45_VALID_PDATA;
+		}
+	}
+
+	of_node_put(child);
+
+bst_bpe_inst_cfg:
 	child = of_get_child_by_name(node, "cirrus,bst-bpe-inst-config");
 	pdata->bst_bpe_inst_cfg.is_present = child ? true : false;
 	if (!pdata->bst_bpe_inst_cfg.is_present)
