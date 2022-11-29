@@ -937,6 +937,9 @@ static const struct snd_kcontrol_new abpe_en_ctl =
 static const struct snd_kcontrol_new bbpe_en_ctl =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
+static const struct snd_kcontrol_new dre_en_ctl =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
 static const struct snd_kcontrol_new ngate_en_ctl =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
@@ -998,6 +1001,8 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 			    &abpe_en_ctl),
 	SND_SOC_DAPM_SWITCH("BBPE Enable", CS35L45_BLOCK_ENABLES2, 13, 0,
 			    &bbpe_en_ctl),
+	SND_SOC_DAPM_SWITCH("DRE Enable", CS35L45_BLOCK_ENABLES2, 20, 0,
+			    &dre_en_ctl),
 	SND_SOC_DAPM_SWITCH("NFR Enable", CS35L45_BLOCK_ENABLES, 1, 0,
 			    &nfr_en_ctl),
 	SND_SOC_DAPM_SWITCH("NGATE Enable", SND_SOC_NOPM, 0, 0, &ngate_en_ctl),
@@ -1061,6 +1066,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 
 	{"ABPE Enable", "Switch", "Entry"},
 	{"BBPE Enable", "Switch", "Entry"},
+	{"DRE Enable", "Switch", "Entry"},
 	{"NFR Enable", "Switch", "Entry"},
 
 	{"NGATE_CH1", NULL, "Entry"},
@@ -1078,6 +1084,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"Exit", NULL, "ASP"},
 	{"Exit", NULL, "ABPE Enable"},
 	{"Exit", NULL, "BBPE Enable"},
+	{"Exit", NULL, "DRE Enable"},
 	{"Exit", NULL, "NFR Enable"},
 	{"Exit", NULL, "NGATE Enable"},
 	{"Exit", NULL, "GLOBAL_EN"},
