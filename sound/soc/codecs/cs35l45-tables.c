@@ -539,6 +539,36 @@ const struct cs35l45_pll_sysclk_config
 	{ 27000000,	0x3F },
 };
 
+const struct of_entry bpe_inst_thld_map[BPE_INST_LEVELS] = {
+	[L0] = {"bpe-inst-thld", CS35L45_BPE_INST_THLD,
+		CS35L45_BPE_INST_L0_THLD_MASK,
+		CS35L45_BPE_INST_L0_THLD_SHIFT},
+	[L1] = {"bpe-inst-thld", CS35L45_BPE_INST_THLD,
+		CS35L45_BPE_INST_L1_THLD_MASK,
+		CS35L45_BPE_INST_L1_THLD_SHIFT},
+	[L2] = {"bpe-inst-thld", CS35L45_BPE_INST_THLD,
+		CS35L45_BPE_INST_L2_THLD_MASK,
+		CS35L45_BPE_INST_L2_THLD_SHIFT},
+	[L3] = {"bpe-inst-thld", CS35L45_BPE_INST_THLD,
+		CS35L45_BPE_INST_L3_THLD_MASK,
+		CS35L45_BPE_INST_L3_THLD_SHIFT},
+};
+
+const struct of_entry bpe_inst_attn_map[BPE_INST_LEVELS] = {
+	[L0] = {"bpe-inst-attn", CS35L45_BPE_INST_ATTN,
+		CS35L45_BPE_INST_L0_ATTN_MASK,
+		CS35L45_BPE_INST_L0_ATTN_SHIFT},
+	[L1] = {"bpe-inst-attn", CS35L45_BPE_INST_ATTN,
+		CS35L45_BPE_INST_L1_ATTN_MASK,
+		CS35L45_BPE_INST_L1_ATTN_SHIFT},
+	[L2] = {"bpe-inst-attn", CS35L45_BPE_INST_ATTN,
+		CS35L45_BPE_INST_L2_ATTN_MASK,
+		CS35L45_BPE_INST_L2_ATTN_SHIFT},
+	[L3] = {"bpe-inst-attn", CS35L45_BPE_INST_ATTN,
+		CS35L45_BPE_INST_L3_ATTN_MASK,
+		CS35L45_BPE_INST_L3_ATTN_SHIFT},
+};
+
 const struct of_entry bst_bpe_inst_thld_map[BST_BPE_INST_LEVELS] = {
 	[L0] = {"bst-bpe-inst-thld", CS35L45_BST_BPE_INST_THLD,
 		CS35L45_BST_BPE_INST_L0_THLD_MASK,
