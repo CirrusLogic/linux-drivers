@@ -69,6 +69,27 @@ Optional properties:
     2 = GPIO2
     3 = GPIO3
 
+Optional Voltage Based Amplifier BPE Sub-node:
+
+  Details found in section 4.10
+
+  The cs35l45 node can have a single "cirrus,bpe-inst-config" sub-node
+  to set configuration properties for the voltage based amplifier brownout
+  prevention engine.
+
+  There are 4 'levels' associated with voltage based ABPE. Each sub-node
+  property will parse values for each level, but the driver might only
+  utilize a subset of those level. Please refer to section 4.10.3 for complete
+  information.
+
+  Sub-node properties:
+
+  - bpe-inst-thld : Array of four 32-bit values representing boost BPE
+    instant voltage thresholds.
+
+  - bpe-inst-attn : Array of four 32-bit values representing boost BPE
+    instant current limits.
+
 Optional Voltage Based Boost BPE Sub-node:
 
   Details found in section 4.9.4
@@ -306,6 +327,11 @@ cs35l45: cs35l45@30 {
 	cirrus,dsp-part-name = "cs35l45";
 	cirrus,fast-switch = "sample_fast_switch1.txt",
 		"sample_fast_switch2.txt";
+
+	cirrus,bpe-inst-config {
+		bpe-inst-thld = <0x1E 0x32 0x46 0x5A>;
+		bpe-inst-attn = <0x18 0x12 0x0C 0x06>;
+	};
 
 	cirrus,bst-bpe-inst-config {
 		bst-bpe-inst-thld = <0x1E 0x32 0x46 0x5A 0>;
