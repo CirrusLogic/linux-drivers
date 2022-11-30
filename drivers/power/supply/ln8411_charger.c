@@ -106,6 +106,43 @@ static int ln8411_get_adc(struct ln8411_device *ln8411,
 	return ret;
 }
 
+static int ln8411_hw_init(struct ln8411_device *ln8411);
+static int ln8411_soft_reset(struct ln8411_device *ln8411);
+
+static int ln8411_set_present(struct ln8411_device *ln8411, const union power_supply_propval *val)
+{
+	int ret;
+
+	if (!val->intval) {
+		mutex_lock(&ln8411->lock);
+
+		disable_irq(ln8411->irq);
+
+		ret = ln8411_soft_reset(ln8411);
+		if (ret)
+			goto err_out;
+
+		regcache_mark_dirty(ln8411->regmap);
+		ret = regcache_sync(ln8411->regmap);
+		if (ret)
+			goto err_out;
+
+		ret = ln8411_hw_init(ln8411);
+		if (ret)
+			goto err_out;
+
+		enable_irq(ln8411->irq);
+
+		mutex_unlock(&ln8411->lock);
+	}
+
+	return 0;
+
+err_out:
+	mutex_unlock(&ln8411->lock);
+	return ret;
+}
+
 static int ln8411_set_status_charging(struct ln8411_device *ln8411)
 {
 	int ret;
@@ -1140,6 +1177,7 @@ static int ln8411_property_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 	case POWER_SUPPLY_PROP_ONLINE:
+	case POWER_SUPPLY_PROP_PRESENT:
 		return true;
 	default:
 		return false;
@@ -1400,6 +1438,8 @@ static int ln8411_set_charger_property(struct power_supply *psy,
 		return ln8411_set_mode(ln8411, val->intval);
 	case POWER_SUPPLY_PROP_STATUS:
 		return ln8411_set_status(ln8411, val->intval);
+	case POWER_SUPPLY_PROP_PRESENT:
+		return ln8411_set_present(ln8411, val);
 	default:
 		return -EINVAL;
 	}
@@ -1413,7 +1453,7 @@ static int ln8411_get_charger_property(struct power_supply *psy,
 {
 	struct ln8411_device *ln8411 = power_supply_get_drvdata(psy);
 	unsigned int reg_code;
-	int ret;
+	int ret = 0;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
@@ -1453,6 +1493,9 @@ static int ln8411_get_charger_property(struct power_supply *psy,
 		ret = ln8411_get_status(ln8411);
 		val->intval = ln8411->state.charging_status;
 		break;
+	case POWER_SUPPLY_PROP_PRESENT:
+		val->intval = true;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1479,6 +1522,7 @@ static enum power_supply_property ln8411_charger_props[] = {
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_PRESENT,
 };
 
 static void ln8411_charger_external_power_changed(struct power_supply *psy)
@@ -2047,7 +2091,7 @@ static int ln8411_soft_reset(struct ln8411_device *ln8411)
 	if (ret)
 		return ret;
 
-	usleep_range(30000, 50000);
+	msleep(250);
 
 	return ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_LOCK);
 }
