@@ -412,7 +412,7 @@ static void cl_dsp_coeff_handle_info_text(struct cl_dsp *dsp, const u8 *data,
 {
 	char *info_str;
 
-	info_str = kzalloc(len, GFP_KERNEL);
+	info_str = kzalloc(len + 1, GFP_KERNEL);
 	if (!info_str)
 		return;
 
@@ -1043,7 +1043,7 @@ static void cl_dsp_handle_info_text(struct cl_dsp *dsp,
 {
 	char *info_str;
 
-	info_str = kzalloc(len, GFP_KERNEL);
+	info_str = kzalloc(len + 1, GFP_KERNEL);
 	if (!info_str)
 		/* info block is empty or memory not allocated */
 		return;
