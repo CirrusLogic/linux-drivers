@@ -106,9 +106,6 @@ static int ln8411_get_adc(struct ln8411_device *ln8411,
 	return ret;
 }
 
-static int ln8411_hw_init(struct ln8411_device *ln8411);
-static int ln8411_soft_reset(struct ln8411_device *ln8411);
-
 static int ln8411_set_present(struct ln8411_device *ln8411, const union power_supply_propval *val)
 {
 	int ret;
@@ -609,8 +606,6 @@ static irqreturn_t ln8411_conv_ocp_handler(int irq, void *private)
 
 	return IRQ_HANDLED;
 }
-
-static int ln8411_hw_init(struct ln8411_device *ln8411);
 
 static irqreturn_t ln8411_wd_timeout_handler(int irq, void *private)
 {
