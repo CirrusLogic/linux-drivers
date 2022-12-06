@@ -1250,6 +1250,8 @@ static int ln8411_get_wpc_property(struct power_supply *psy,
 			val->intval = false;
 		}
 		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		return ln8411_get_adc(ln8411, LN8411_ADC_CHAN_VWPC, &val->intval);
 	default:
 		return -EINVAL;
 	}
@@ -1328,6 +1330,8 @@ static int ln8411_get_usb_property(struct power_supply *psy,
 			val->intval = false;
 		}
 		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		return ln8411_get_adc(ln8411, LN8411_ADC_CHAN_VUSB, &val->intval);
 	default:
 		return -EINVAL;
 	}
@@ -1360,6 +1364,7 @@ static enum power_supply_property ln8411_input_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 };
 
 static struct power_supply_desc ln8411_wpc_desc = {
