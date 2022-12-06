@@ -106,6 +106,117 @@ static int ln8411_get_adc(struct ln8411_device *ln8411,
 	return ret;
 }
 
+static int ln8411_get_wpc_health(struct ln8411_device *ln8411, union power_supply_propval *val)
+{
+	unsigned int reg_code;
+	int ret;
+
+	val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
+
+	ret = regmap_read(ln8411->regmap, LN8411_FAULT2_STS, &reg_code);
+	if (ret)
+		return ret;
+
+	if (reg_code & LN8411_VWPC_OV_STS) {
+		val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+		dev_dbg(ln8411->dev, "VWPC overvoltage condition detected!\n");
+		return ret;
+	}
+
+	val->intval = POWER_SUPPLY_HEALTH_GOOD;
+
+	return ret;
+}
+
+static int ln8411_get_usb_health(struct ln8411_device *ln8411, union power_supply_propval *val)
+{
+	unsigned int reg_code;
+	int ret;
+
+	val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
+
+	ret = regmap_read(ln8411->regmap, LN8411_FAULT2_STS, &reg_code);
+	if (ret)
+		return ret;
+
+	if (reg_code & LN8411_VUSB_OV_STS) {
+		val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+		dev_dbg(ln8411->dev, "VUSB overvoltage condition detected!\n");
+		return ret;
+	}
+
+	val->intval = POWER_SUPPLY_HEALTH_GOOD;
+
+	return ret;
+}
+
+static int ln8411_get_batt_health(struct ln8411_device *ln8411, union power_supply_propval *val)
+{
+	unsigned int reg_code;
+	int ret;
+
+	val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
+
+	ret = regmap_read(ln8411->regmap, LN8411_FAULT3_STS, &reg_code);
+	if (ret)
+		return ret;
+
+	if (reg_code & LN8411_IBAT_OC_DETECTED) {
+		val->intval = POWER_SUPPLY_HEALTH_OVERCURRENT;
+		dev_dbg(ln8411->dev, "IBAT overcurrent detected!\n");
+		return ret;
+	}
+
+	if (reg_code & LN8411_VBAT_OV_STS) {
+		val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+		dev_dbg(ln8411->dev, "VBAT overvoltage detected!\n");
+		return ret;
+	}
+
+	ret = regmap_read(ln8411->regmap, LN8411_SAFETY_STS, &reg_code);
+	if (ret)
+		return ret;
+
+	if (reg_code & (LN8411_TSBAT_ALARM_STS | LN8411_TSBAT_SHUTDOWN_STS)) {
+		val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
+		dev_dbg(ln8411->dev, "TSBAT condition detected!\n");
+		return ret;
+	}
+
+	val->intval = POWER_SUPPLY_HEALTH_GOOD;
+
+	return ret;
+}
+
+static int ln8411_get_charger_health(struct ln8411_device *ln8411, union power_supply_propval *val)
+{
+	u8 buf[3];
+	int ret;
+
+	val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
+
+	ret = regmap_bulk_read(ln8411->regmap, LN8411_FAULT1_STS, buf, 3);
+	if (ret)
+		return ret;
+
+	if (buf[0] & LN8411_WATCHDOG_TIMER_STS) {
+		val->intval = POWER_SUPPLY_HEALTH_WATCHDOG_TIMER_EXPIRE;
+	} else if (buf[0] & LN8411_PMID2OUT_OV_STS) {
+		val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+		dev_dbg(ln8411->dev, "PMID2OUT overvoltage condition detected!\n");
+	} else if (buf[2] & LN8411_IBUS_OC_DETECTED) {
+		val->intval = POWER_SUPPLY_HEALTH_OVERCURRENT;
+		dev_dbg(ln8411->dev, "IBUS overcurrent condition detected!\n");
+	} else if (buf[0] & LN8411_VOLT_FAULT_DETECTED) {
+		val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
+		dev_dbg(ln8411->dev, "Voltage fault condition detected! FAULT1_STS:0x%x, FAULT2_STS:0x%x, FAULT3_STS:0x%x\n", buf[0], buf[1], buf[2]);
+	} else {
+		val->intval = POWER_SUPPLY_HEALTH_GOOD;
+	}
+
+	return ret;
+}
+
 static int ln8411_set_present(struct ln8411_device *ln8411, const union power_supply_propval *val)
 {
 	int ret;
@@ -1252,6 +1363,8 @@ static int ln8411_get_wpc_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		return ln8411_get_adc(ln8411, LN8411_ADC_CHAN_VWPC, &val->intval);
+	case POWER_SUPPLY_PROP_HEALTH:
+		return ln8411_get_wpc_health(ln8411, val);
 	default:
 		return -EINVAL;
 	}
@@ -1332,6 +1445,8 @@ static int ln8411_get_usb_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		return ln8411_get_adc(ln8411, LN8411_ADC_CHAN_VUSB, &val->intval);
+	case POWER_SUPPLY_PROP_HEALTH:
+		return ln8411_get_usb_health(ln8411, val);
 	default:
 		return -EINVAL;
 	}
@@ -1365,6 +1480,7 @@ static enum power_supply_property ln8411_input_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_MAX,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_HEALTH,
 };
 
 static struct power_supply_desc ln8411_wpc_desc = {
@@ -1400,6 +1516,8 @@ static int ln8411_get_battery_property(struct power_supply *psy,
 		return ln8411_get_adc(ln8411, LN8411_ADC_CHAN_VBAT, &val->intval);
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		return ln8411_get_adc(ln8411, LN8411_ADC_CHAN_IBAT, &val->intval);
+	case POWER_SUPPLY_PROP_HEALTH:
+		return ln8411_get_batt_health(ln8411, val);
 	default:
 		return -EINVAL;
 	}
@@ -1410,6 +1528,7 @@ static int ln8411_get_battery_property(struct power_supply *psy,
 static enum power_supply_property ln8411_battery_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_HEALTH,
 };
 
 static struct power_supply_desc ln8411_battery_desc = {
@@ -1496,6 +1615,8 @@ static int ln8411_get_charger_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = true;
 		break;
+	case POWER_SUPPLY_PROP_HEALTH:
+		return ln8411_get_charger_health(ln8411, val);
 	default:
 		return -EINVAL;
 	}
@@ -1510,6 +1631,7 @@ static enum power_supply_property ln8411_2nd_charger_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_HEALTH,
 };
 
 static enum power_supply_property ln8411_charger_props[] = {
@@ -1523,6 +1645,7 @@ static enum power_supply_property ln8411_charger_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_HEALTH,
 };
 
 static void ln8411_charger_external_power_changed(struct power_supply *psy)
