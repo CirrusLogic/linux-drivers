@@ -293,18 +293,18 @@ static int ln8411_get_status(struct ln8411_device *ln8411)
 	unsigned int reg_code;
 	int ret;
 
+	ln8411->state.charging_status = POWER_SUPPLY_STATUS_UNKNOWN;
+
 	ret = regmap_read(ln8411->regmap, LN8411_SYS_STS, &reg_code);
 	if (ret)
 		return ret;
 
-	if (reg_code & LN8411_ACTIVE_STS & (ln8411->state.mode < LN8411_REV1TO4))
+	if (reg_code & LN8411_ACTIVE_STS && (ln8411->state.mode < LN8411_REV1TO4))
 		ln8411->state.charging_status = POWER_SUPPLY_STATUS_CHARGING;
-	else if ((reg_code & LN8411_ACTIVE_STS) & (ln8411->state.mode > LN8411_FWD1TO1))
+	else if (reg_code & LN8411_SHUTDOWN_STS)
 		ln8411->state.charging_status = POWER_SUPPLY_STATUS_DISCHARGING;
 	else if (reg_code & LN8411_STANDBY_STS)
 		ln8411->state.charging_status = POWER_SUPPLY_STATUS_NOT_CHARGING;
-	else
-		ln8411->state.charging_status = POWER_SUPPLY_STATUS_UNKNOWN;
 
 	return ret;
 }
