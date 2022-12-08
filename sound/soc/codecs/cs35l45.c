@@ -2977,7 +2977,7 @@ static int cs35l45_apply_of_data(struct cs35l45_private *cs35l45)
 	}
 
 	if (!pdata->bpe_inst_cfg.is_present)
-		goto bst_bpe_inst_cfg;
+		goto bpe_misc_cfg;
 
 	for (i = BPE_INST_THLD; i < BPE_INST_PARAMS; i++) {
 		for (j = L0; j < BPE_INST_LEVELS; j++) {
@@ -2988,6 +2988,20 @@ static int cs35l45_apply_of_data(struct cs35l45_private *cs35l45)
 				regmap_update_bits(cs35l45->regmap, entry->reg,
 						   entry->mask, val);
 		}
+	}
+
+bpe_misc_cfg:
+	if (!pdata->bpe_misc_cfg.is_present)
+		goto bst_bpe_inst_cfg;
+
+	for (i = BPE_INST_INF_HOLD_RLS; i < BPE_MISC_PARAMS; i++) {
+		ptr = cs35l45_get_bpe_misc_param(cs35l45, i);
+		val = ((*ptr) & (~CS35L45_VALID_PDATA))
+			<< bpe_misc_map[i].shift;
+		if ((*ptr) & CS35L45_VALID_PDATA)
+			regmap_update_bits(cs35l45->regmap,
+					   bpe_misc_map[i].reg,
+					   bpe_misc_map[i].mask, val);
 	}
 
 bst_bpe_inst_cfg:
@@ -3192,7 +3206,7 @@ static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
 	child = of_get_child_by_name(node, "cirrus,bpe-inst-config");
 	pdata->bpe_inst_cfg.is_present = child ? true : false;
 	if (!pdata->bpe_inst_cfg.is_present)
-		goto bst_bpe_inst_cfg;
+		goto bpe_misc_cfg;
 
 	for (i = BPE_INST_THLD; i < BPE_INST_PARAMS; i++) {
 		entry = cs35l45_get_bpe_inst_entry(L0, i);
@@ -3205,6 +3219,22 @@ static int cs35l45_parse_of_data(struct cs35l45_private *cs35l45)
 			ptr = cs35l45_get_bpe_inst_param(cs35l45, j, i);
 			(*ptr) = params[j] | CS35L45_VALID_PDATA;
 		}
+	}
+
+	of_node_put(child);
+
+bpe_misc_cfg:
+	child = of_get_child_by_name(node, "cirrus,bpe-misc-config");
+	pdata->bpe_misc_cfg.is_present = child ? true : false;
+	if (!pdata->bpe_misc_cfg.is_present)
+		goto bst_bpe_inst_cfg;
+
+	for (i = BPE_INST_INF_HOLD_RLS; i < BPE_MISC_PARAMS; i++) {
+		ptr = cs35l45_get_bpe_misc_param(cs35l45, i);
+		ret = of_property_read_u32(child, bpe_misc_map[i].name,
+					   &val);
+		if (!ret)
+			(*ptr) = val | CS35L45_VALID_PDATA;
 	}
 
 	of_node_put(child);
