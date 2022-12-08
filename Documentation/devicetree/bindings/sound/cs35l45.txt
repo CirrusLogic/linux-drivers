@@ -84,11 +84,38 @@ Optional Voltage Based Amplifier BPE Sub-node:
 
   Sub-node properties:
 
-  - bpe-inst-thld : Array of four 32-bit values representing boost BPE
+  - bpe-inst-thld : Array of four 32-bit values representing amplifier BPE
     instant voltage thresholds.
 
-  - bpe-inst-attn : Array of four 32-bit values representing boost BPE
+  - bpe-inst-attn : Array of four 32-bit values representing amplifier BPE
     instant current limits.
+
+  - bpe-inst-atk-rate : Array of four 32-bit values representing amplifier BPE
+    instant attack rates.
+
+  - bpe-inst-hold-time : Array of four 32-bit values representing amplifier BPE
+    instant hold times.
+
+  - bpe-inst-rls-rate : Array of four 32-bit values representing amplifier BPE
+    instant release rates.
+
+Optional Miscellaneous Based Amplifier BPE Configuration Sub-node:
+
+  Details found in section 4.10
+
+  The cs35l45 node can have a single "cirrus,bpe-misc-config" sub-node
+  to set various settings related to both voltage based amplifier BPE
+
+  Sub-node properties:
+
+  Section 7.21.12
+  - bst-bpe-inst-bpe-byp
+  - bst-bpe-inst-inf-hold-rls
+  - bst-bpe-inst-l3-byp
+  - bst-bpe-inst-l2-byp
+  - bst-bpe-inst-l1-byp
+  - bst-bpe-mode-sel
+  - bst-bpe-filt-sel
 
 Optional Voltage Based Boost BPE Sub-node:
 
@@ -331,6 +358,19 @@ cs35l45: cs35l45@30 {
 	cirrus,bpe-inst-config {
 		bpe-inst-thld = <0x1E 0x32 0x46 0x5A>;
 		bpe-inst-attn = <0x18 0x12 0x0C 0x06>;
+		bpe-inst-atk-rate = <0x6 0x6 0x6 0x6>;
+		bpe-inst-hold-time = <0x2 0x2 0x2 0x2>;
+		bpe-inst-rls-rate = <0x05 0x05 0x05 0x05>;
+	};
+
+	cirrus,bpe-misc-config {
+		bpe-inst-bpe-byp = <0x0>;
+		bpe-inst-inf-hold-rls = <0x0>;
+		bpe-inst-l3-byp = <0x0>;
+		bpe-inst-l2-byp = <0x0>;
+		bpe-inst-l1-byp = <0x0>;
+		bpe-mode-sel = <0x0>;
+		bpe-filt-sel = <0x0>;
 	};
 
 	cirrus,bst-bpe-inst-config {
