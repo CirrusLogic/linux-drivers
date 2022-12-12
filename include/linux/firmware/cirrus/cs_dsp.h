@@ -248,6 +248,8 @@ int cs_dsp_read_raw_data_block(struct cs_dsp *dsp, int mem_type, unsigned int me
 int cs_dsp_read_data_word(struct cs_dsp *dsp, int mem_type, unsigned int mem_addr, u32 *data);
 int cs_dsp_write_data_word(struct cs_dsp *dsp, int mem_type, unsigned int mem_addr, u32 data);
 void cs_dsp_remove_padding(u32 *buf, int nwords);
+int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware,
+			     const char *file);
 
 struct cs_dsp_alg_region *cs_dsp_find_alg_region(struct cs_dsp *dsp,
 						 int type, unsigned int id);
