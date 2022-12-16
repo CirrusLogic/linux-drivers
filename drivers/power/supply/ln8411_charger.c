@@ -2369,18 +2369,16 @@ static int ln8411_probe(struct i2c_client *client, const struct i2c_device_id *i
 	return ret;
 }
 
-static int ln8411_remove(struct i2c_client *client)
+static void ln8411_remove(struct i2c_client *client)
 {
 	struct ln8411_device *ln8411 = i2c_get_clientdata(client);
 	int ret;
 
 	ret = ln8411_soft_reset(ln8411);
 	if (ret)
-		return ret;
+		dev_err(ln8411->dev, "Failed to reset: %d\n", ret);
 
 	mutex_destroy(&ln8411->lock);
-
-	return ret;
 }
 
 static const struct i2c_device_id ln8411_i2c_ids[] = {
