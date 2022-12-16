@@ -2124,11 +2124,11 @@ static int ln8411_parse_dt_vusb(struct device *dev, struct ln8411_init_data *ini
 
 static void ln8411_parse_battery(struct device *dev, struct ln8411_device *ln8411)
 {
-	struct power_supply_battery_info info = { };
+	struct power_supply_battery_info *info;
 
 	if (dev->of_node && !power_supply_get_battery_info(ln8411->charger, &info)) {
-		ln8411->init_data.vbat_ovp_uv = info.overvoltage_limit_uv;
-		ln8411->init_data.ibat_ocp_ua = info.constant_charge_current_max_ua;
+		ln8411->init_data.vbat_ovp_uv = info->overvoltage_limit_uv;
+		ln8411->init_data.ibat_ocp_ua = info->constant_charge_current_max_ua;
 		dev_dbg(dev, "Found battery info\n");
 	} else {
 		dev_dbg(dev, "Battery info not found!\n");
