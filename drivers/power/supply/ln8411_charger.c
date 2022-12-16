@@ -1454,12 +1454,24 @@ static int ln8411_get_usb_property(struct power_supply *psy,
 	return 0;
 }
 
+static int ln8411_set_input_current_limit_from_supplier(struct power_supply *psy)
+{
+	union power_supply_propval val;
+	int ret;
+
+	ret = power_supply_get_property_from_supplier(psy, POWER_SUPPLY_PROP_CURRENT_MAX, &val);
+	if (ret)
+		return ret;
+
+	return power_supply_set_property(psy, POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT, &val);
+}
+
 static void ln8411_usb_external_power_changed(struct power_supply *psy)
 {
 	struct ln8411_device *ln8411 = power_supply_get_drvdata(psy);
 	int ret;
 
-	ret = power_supply_set_input_current_limit_from_supplier(ln8411->vusb);
+	ret = ln8411_set_input_current_limit_from_supplier(ln8411->vusb);
 	if (ret)
 		dev_dbg(ln8411->dev, "Failed to set USB current limit from supplier: %d!\n", ret);
 }
@@ -1469,7 +1481,7 @@ static void ln8411_wpc_external_power_changed(struct power_supply *psy)
 	struct ln8411_device *ln8411 = power_supply_get_drvdata(psy);
 	int ret;
 
-	ret = power_supply_set_input_current_limit_from_supplier(ln8411->vwpc);
+	ret = ln8411_set_input_current_limit_from_supplier(ln8411->vwpc);
 	if (ret)
 		dev_dbg(ln8411->dev, "Failed to set WPC current limit from supplier: %d!\n", ret);
 }
@@ -1653,7 +1665,7 @@ static void ln8411_charger_external_power_changed(struct power_supply *psy)
 	struct ln8411_device *ln8411 = power_supply_get_drvdata(psy);
 	int ret;
 
-	ret = power_supply_set_input_current_limit_from_supplier(ln8411->charger);
+	ret = ln8411_set_input_current_limit_from_supplier(ln8411->charger);
 	if (ret)
 		dev_dbg(ln8411->dev, "Failed to set bus current limit from supplier: %d!\n", ret);
 }
