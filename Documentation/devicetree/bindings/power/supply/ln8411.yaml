@@ -194,17 +194,6 @@ properties:
     minimum: 0
     maximum: 7
 
-  cirrus,sync-function-en:
-    type: boolean
-    description: |
-      Enable parallel charging function.
-
-  cirrus,sync-main-en:
-    type: boolean
-    description: |
-      Set as primary charger in parallel charging scheme. This has no
-      effect if "cirrus,sync-function-en" is not set.
-
   cirrus,vbus-ovp-set:
     type: boolean
     description: |
