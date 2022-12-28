@@ -1848,6 +1848,16 @@ static int ln8411_power_supply_init(struct ln8411_device *ln8411,
 	}
 }
 
+static int ln8411_cfg_sync(struct ln8411_device *ln8411)
+{
+	unsigned int reg_code = LN8411_SYNC_FUNCTION_EN;
+
+	if (ln8411->role == LN8411_MAIN)
+		reg_code |= LN8411_SYNC_MASTER_EN;
+
+	return regmap_update_bits(ln8411->regmap, LN8411_CTRL4, LN8411_SYNC_MASK, reg_code);
+}
+
 static int ln8411_apply_conv_dt(struct ln8411_device *ln8411, struct ln8411_init_data *init_data)
 {
 	unsigned int reg_code = 0;
@@ -1876,10 +1886,6 @@ static int ln8411_apply_conv_dt(struct ln8411_device *ln8411, struct ln8411_init
 	if (ret)
 		return ret;
 
-	if (init_data->sync_func_en)
-		reg_code |= LN8411_SYNC_FUNCTION_EN;
-	if (init_data->sync_main_en)
-		reg_code |= LN8411_SYNC_MASTER_EN;
 	if (init_data->vbus_ovp_set)
 		reg_code |= LN8411_VBUS_OVP_SET;
 	if (init_data->set_ibat_sns_res)
@@ -1981,6 +1987,9 @@ static int ln8411_hw_init(struct ln8411_device *ln8411)
 	ret = ln8411_apply_conv_dt(ln8411, init_data);
 	if (ret)
 		return ret;
+
+	if (ln8411->role > LN8411_DUAL)
+		return ln8411_cfg_sync(ln8411);
 
 	return ret;
 }

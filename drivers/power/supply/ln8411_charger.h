@@ -153,6 +153,7 @@
 #define LN8411_CTRL4                    0xd
 #define LN8411_SYNC_FUNCTION_EN         BIT(7)
 #define LN8411_SYNC_MASTER_EN           BIT(6)
+#define LN8411_SYNC_MASK		(LN8411_SYNC_FUNCTION_EN | LN8411_SYNC_MASTER_EN)
 #define LN8411_VBUS_OVP_SET             BIT(5)
 #define LN8411_SET_IBAT_SNS_RES         BIT(4)
 #define LN8411_MODE_MASK                GENMASK(2, 0)
