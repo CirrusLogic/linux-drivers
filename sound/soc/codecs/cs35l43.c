@@ -209,15 +209,13 @@ static int cs35l43_apply_delta_tuning(struct cs35l43_private *cs35l43)
 
 	dev_dbg(cs35l43->dev, "Applying delta file %d\n", cs35l43->delta_requested);
 
-	fwf_name = dsp->fwf_name;
-	snprintf(filename, NAME_MAX, "delta-%d", cs35l43->delta_requested);
-	dsp->fwf_name = filename;
+	snprintf(filename, NAME_MAX, "%s-delta-%d-spk-prot.bin",
+			cs35l43->pdata.dsp_part_name, cs35l43->delta_requested);
 
 	ret = request_firmware(&firmware, filename, cs35l43->dev);
 	if (ret != 0) {
 		dev_err(cs35l43->dev, "Failed to request '%s'\n", filename);
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	ret = cs_dsp_load_coeff(&dsp->cs_dsp, firmware, filename);
@@ -226,9 +224,6 @@ static int cs35l43_apply_delta_tuning(struct cs35l43_private *cs35l43)
 				filename, ret);
 	else
 		cs35l43->delta_applied = cs35l43->delta_requested;
-
-err:
-	dsp->fwf_name = fwf_name;
 
 	return ret;
 }
