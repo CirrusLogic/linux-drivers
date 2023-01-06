@@ -379,6 +379,8 @@ enum ln8411_keys {
  */
 struct ln8411_state {
 	u32 vbat_ovp_uv;
+	u32 vwpc_ovp_uv;
+	u32 vusb_ovp_uv;
 	u32 ibat_ocp_ua;
 	u32 ibus_ocp_ua;
 	u32 iwpc_ocp_ua;

@@ -515,11 +515,10 @@ static int ln8411_cfg_vwpc_ovp(struct ln8411_device *ln8411)
 				  LN8411_VWPC_OVP_SET_MASK, reg_code);
 }
 
-static int ln8411_set_vwpc_ovp(struct ln8411_device *ln8411)
+static int ln8411_set_vwpc_ovp(struct ln8411_device *ln8411, int val)
 {
-	struct ln8411_init_data *init_data = &ln8411->init_data;
-	int val = init_data->vwpc_ovp_uv;
 	unsigned int reg_code;
+	int ret;
 
 	if (val == LN8411_VWPC_OVP_DFLT_UV) {
 		reg_code = LN8411_VWPC_OVP_DFLT;
@@ -528,8 +527,14 @@ static int ln8411_set_vwpc_ovp(struct ln8411_device *ln8411)
 		reg_code = (val - LN8411_VWPC_OVP_OFFSET_UV) / LN8411_VWPC_OVP_STEP_UV;
 	}
 
-	return regmap_update_bits(ln8411->regmap,
-				  LN8411_VWPC_OVP, LN8411_VWPC_OVP_CFG_MASK, reg_code);
+	ret = regmap_update_bits(ln8411->regmap,
+				 LN8411_VWPC_OVP, LN8411_VWPC_OVP_CFG_MASK, reg_code);
+	if (ret)
+		return ret;
+
+	ln8411->state.vwpc_ovp_uv = val;
+
+	return ret;
 }
 
 static int ln8411_cfg_vusb_ovp(struct ln8411_device *ln8411)
@@ -546,11 +551,10 @@ static int ln8411_cfg_vusb_ovp(struct ln8411_device *ln8411)
 				  LN8411_VUSB_OVP_SET_MASK, reg_code);
 }
 
-static int ln8411_set_vusb_ovp(struct ln8411_device *ln8411)
+static int ln8411_set_vusb_ovp(struct ln8411_device *ln8411, int val)
 {
-	struct ln8411_init_data init_data = ln8411->init_data;
-	int val = init_data.vusb_ovp_uv;
 	unsigned int reg_code;
+	int ret;
 
 	if (val == LN8411_VUSB_OVP_DFLT_UV) {
 		reg_code = LN8411_VUSB_OVP_DFLT;
@@ -559,8 +563,14 @@ static int ln8411_set_vusb_ovp(struct ln8411_device *ln8411)
 		reg_code = (val - LN8411_VUSB_OVP_OFFSET_UV) / LN8411_VUSB_OVP_STEP_UV;
 	}
 
-	return regmap_update_bits(ln8411->regmap,
-				  LN8411_VUSB_OVP, LN8411_VUSB_OVP_CFG_MASK, reg_code);
+	ret = regmap_update_bits(ln8411->regmap,
+				 LN8411_VUSB_OVP, LN8411_VUSB_OVP_CFG_MASK, reg_code);
+	if (ret)
+		return ret;
+
+	ln8411->state.vusb_ovp_uv = val;
+
+	return ret;
 }
 
 static int ln8411_cfg_ibat_ocp(struct ln8411_device *ln8411)
@@ -1275,6 +1285,7 @@ static int ln8411_property_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT:
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 	case POWER_SUPPLY_PROP_STATUS:
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
@@ -1318,6 +1329,8 @@ static int ln8411_set_wpc_property(struct power_supply *psy,
 	struct ln8411_device *ln8411 = power_supply_get_drvdata(psy);
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT:
+		return ln8411_set_vwpc_ovp(ln8411, val->intval);
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 		ln8411->state.iwpc_ocp_ua = val->intval;
 		break;
@@ -1339,8 +1352,9 @@ static int ln8411_get_wpc_property(struct power_supply *psy,
 	int ret;
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT:
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
-		val->intval = ln8411->init_data.vwpc_ovp_uv;
+		val->intval = ln8411->state.vwpc_ovp_uv;
 		break;
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
@@ -1400,6 +1414,8 @@ static int ln8411_set_usb_property(struct power_supply *psy,
 	struct ln8411_device *ln8411 = power_supply_get_drvdata(psy);
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT:
+		return ln8411_set_vusb_ovp(ln8411, val->intval);
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 		ln8411->state.iusb_ocp_ua = val->intval;
 		break;
@@ -1421,8 +1437,9 @@ static int ln8411_get_usb_property(struct power_supply *psy,
 	int ret;
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT:
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
-		val->intval = ln8411->init_data.vusb_ovp_uv;
+		val->intval = ln8411->state.vusb_ovp_uv;
 		break;
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
@@ -1484,6 +1501,7 @@ static void ln8411_wpc_external_power_changed(struct power_supply *psy)
 }
 
 static enum power_supply_property ln8411_input_props[] = {
+	POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
@@ -1926,7 +1944,7 @@ static int ln8411_apply_vwpc_dt(struct ln8411_device *ln8411, struct ln8411_init
 	if (ret)
 		return ret;
 
-	return ln8411_set_vwpc_ovp(ln8411);
+	return ln8411_set_vwpc_ovp(ln8411, init_data->vwpc_ovp_uv);
 }
 
 static int ln8411_apply_vusb_dt(struct ln8411_device *ln8411, struct ln8411_init_data *init_data)
@@ -1937,7 +1955,7 @@ static int ln8411_apply_vusb_dt(struct ln8411_device *ln8411, struct ln8411_init
 	if (ret)
 		return ret;
 
-	return ln8411_set_vusb_ovp(ln8411);
+	return ln8411_set_vusb_ovp(ln8411, init_data->vusb_ovp_uv);
 }
 
 static int ln8411_apply_ibat_dt(struct ln8411_device *ln8411, struct ln8411_init_data *init_data)
