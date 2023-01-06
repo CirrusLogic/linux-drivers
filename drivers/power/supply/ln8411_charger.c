@@ -201,15 +201,12 @@ static int ln8411_get_charger_health(struct ln8411_device *ln8411, union power_s
 
 	if (buf[0] & LN8411_WATCHDOG_TIMER_STS) {
 		val->intval = POWER_SUPPLY_HEALTH_WATCHDOG_TIMER_EXPIRE;
-	} else if (buf[0] & LN8411_PMID2OUT_OV_STS) {
-		val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
-		dev_dbg(ln8411->dev, "PMID2OUT overvoltage condition detected!\n");
 	} else if (buf[2] & LN8411_IBUS_OC_DETECTED) {
 		val->intval = POWER_SUPPLY_HEALTH_OVERCURRENT;
 		dev_dbg(ln8411->dev, "IBUS overcurrent condition detected!\n");
-	} else if (buf[0] & LN8411_VOLT_FAULT_DETECTED) {
-		val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
-		dev_dbg(ln8411->dev, "Voltage fault condition detected! FAULT1_STS:0x%x, FAULT2_STS:0x%x, FAULT3_STS:0x%x\n", buf[0], buf[1], buf[2]);
+	} else if (buf[0] & LN8411_PMID2OUT_OV_STS) {
+		val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+		dev_dbg(ln8411->dev, "PMID2OUT overvoltage condition detected!\n");
 	} else {
 		val->intval = POWER_SUPPLY_HEALTH_GOOD;
 	}
