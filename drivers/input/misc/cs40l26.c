@@ -3185,10 +3185,6 @@ static int cs40l26_input_init(struct cs40l26_private *cs40l26)
 		return ret;
 	}
 
-	#ifdef CONFIG_DEBUG_FS
-	cs40l26_debugfs_init(cs40l26);
-	#endif
-
 	cs40l26->vibe_init_success = true;
 
 	return ret;
@@ -3918,6 +3914,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		return ret;
 
 	cs40l26->fw_loaded = true;
+
+#ifdef CONFIG_DEBUG_FS
+	cs40l26_debugfs_init(cs40l26);
+#endif
 
 	ret = cs40l26_pseq_init(cs40l26);
 	if (ret)
@@ -4979,9 +4979,9 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 			&cs40l26_dev_attr_dbc_group);
 	}
 
-	#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DEBUG_FS
 	cs40l26_debugfs_cleanup(cs40l26);
-	#endif
+#endif
 
 	if (cs40l26->input)
 		input_unregister_device(cs40l26->input);
