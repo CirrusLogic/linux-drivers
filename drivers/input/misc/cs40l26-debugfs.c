@@ -214,6 +214,8 @@ void cs40l26_debugfs_init(struct cs40l26_private *cs40l26)
 	struct dentry *root = NULL;
 	int i;
 
+	cs40l26_debugfs_cleanup(cs40l26);
+
 	root = debugfs_create_dir("cs40l26", NULL);
 	if (!root)
 		return;
@@ -230,18 +232,21 @@ void cs40l26_debugfs_init(struct cs40l26_private *cs40l26)
 	cs40l26->dbg_fw_algo_id = CS40L26_VIBEGEN_ALGO_ID;
 	cs40l26->debugfs_root = root;
 
-	cs40l26->cl_dsp_db = cl_dsp_debugfs_create(cs40l26->dsp,
-			cs40l26->debugfs_root,
-			(u32) CS40L26_EVENT_LOGGER_ALGO_ID);
+	if (cs40l26->fw_id == CS40L26_FW_ID) {
+		cs40l26->cl_dsp_db = cl_dsp_debugfs_create(cs40l26->dsp,
+				cs40l26->debugfs_root,
+				(u32) CS40L26_EVENT_LOGGER_ALGO_ID);
 
-	if (IS_ERR(cs40l26->cl_dsp_db) || !cs40l26->cl_dsp_db)
-		dev_err(cs40l26->dev, "Failed to create CL DSP Debugfs\n");
+		if (IS_ERR(cs40l26->cl_dsp_db) || !cs40l26->cl_dsp_db)
+			dev_err(cs40l26->dev, "Failed to create CL DSP Debugfs\n");
+	}
 }
 EXPORT_SYMBOL(cs40l26_debugfs_init);
 
 void cs40l26_debugfs_cleanup(struct cs40l26_private *cs40l26)
 {
 	cl_dsp_debugfs_destroy(cs40l26->cl_dsp_db);
+	cs40l26->cl_dsp_db = NULL;
 	kfree(cs40l26->dbg_fw_ctrl_name);
 	cs40l26->dbg_fw_ctrl_name = NULL;
 	debugfs_remove_recursive(cs40l26->debugfs_root);
