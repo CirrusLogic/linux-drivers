@@ -1550,13 +1550,13 @@ struct cs40l26_private {
 	unsigned int svc_le_est_stored;
 	u32 *no_wait_ram_indices;
 	ssize_t num_no_wait_ram_indices;
-	#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_root;
 	char *dbg_fw_ctrl_name;
 	u32 dbg_fw_algo_id;
 	bool dbg_fw_ym;
 	struct cl_dsp_debugfs *cl_dsp_db;
-	#endif
+#endif
 };
 
 struct cs40l26_codec {
