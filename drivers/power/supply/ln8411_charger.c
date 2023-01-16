@@ -973,6 +973,10 @@ static int ln8411_enable_otg(struct ln8411_device *ln8411)
 {
 	int ret;
 
+	ret = regmap_set_bits(ln8411->regmap, LN8411_IBUS_UCP, LN8411_IBUS_UCP_DIS);
+	if (ret)
+		return ret;
+
 	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_UNLOCK);
 	if (ret)
 		return ret;
@@ -1033,6 +1037,12 @@ static int ln8411_disable_otg(struct ln8411_device *ln8411)
 	if (ret) {
 		dev_err(ln8411->dev, "Failed to disable charge pump: %d\n", ret);
 		return ret;
+	}
+
+	if (!ln8411->init_data.ibus_ocp_dis) {
+		ret = regmap_clear_bits(ln8411->regmap, LN8411_IBUS_UCP, LN8411_IBUS_UCP_DIS);
+		if (ret)
+			return ret;
 	}
 
 	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_UNLOCK);
