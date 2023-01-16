@@ -1319,6 +1319,11 @@ static int cs35l43_enter_hibernate(struct cs35l43_private *cs35l43)
 
 	dev_info(cs35l43->dev, "%s\n", __func__);
 
+
+	regmap_write(cs35l43->regmap, CS35L43_IRQ1_MASK_1, 0xFFFFFFFF);
+	regmap_write(cs35l43->regmap, CS35L43_IRQ1_MASK_2, 0xFFFFFFFF);
+	regmap_write(cs35l43->regmap, CS35L43_IRQ1_MASK_3, 0xFFFFFFFF);
+
 	if (cs35l43->limit_spi_clock)
 		regmap_write(cs35l43->regmap, CS35L43_WAKESRC_CTL,
 						CS35L43_WKSRC_SPI);
