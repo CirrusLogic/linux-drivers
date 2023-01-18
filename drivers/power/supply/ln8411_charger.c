@@ -973,6 +973,8 @@ static int ln8411_enable_otg(struct ln8411_device *ln8411)
 {
 	int ret;
 
+	dev_dbg(ln8411->dev, "Entering reverse mode\n");
+
 	ret = regmap_set_bits(ln8411->regmap, LN8411_IBUS_UCP, LN8411_IBUS_UCP_DIS);
 	if (ret)
 		return ret;
@@ -981,7 +983,15 @@ static int ln8411_enable_otg(struct ln8411_device *ln8411)
 	if (ret)
 		return ret;
 
+	ret = regmap_set_bits(ln8411->regmap, LN8411_LION_COMP_CTRL_1, LN8411_PMID_SWITCH_OK_DIS);
+	if (ret)
+		return ret;
+
 	ret = regmap_set_bits(ln8411->regmap, LN8411_LION_COMP_CTRL_2, LN8411_VBUS_UVP_DIS);
+	if (ret)
+		return ret;
+
+	ret = regmap_set_bits(ln8411->regmap, LN8411_LION_COMP_CTRL_4, LN8411_INFET_OFF_DET_DIS);
 	if (ret)
 		return ret;
 
@@ -1031,6 +1041,7 @@ static int ln8411_disable_otg(struct ln8411_device *ln8411)
 	union power_supply_propval val = {0};
 	int ret;
 
+	dev_info(ln8411->dev, "Exiting reverse mode\n");
 
 	val.intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 
@@ -1050,9 +1061,18 @@ static int ln8411_disable_otg(struct ln8411_device *ln8411)
 	if (ret)
 		return ret;
 
+	ret = regmap_clear_bits(ln8411->regmap, LN8411_LION_COMP_CTRL_1, LN8411_PMID_SWITCH_OK_DIS);
+	if (ret)
+		return ret;
+
 	ret = regmap_clear_bits(ln8411->regmap, LN8411_LION_COMP_CTRL_2, LN8411_VBUS_UVP_DIS);
 	if (ret)
 		return ret;
+
+	ret = regmap_clear_bits(ln8411->regmap, LN8411_LION_COMP_CTRL_4, LN8411_INFET_OFF_DET_DIS);
+	if (ret)
+		return ret;
+
 
 	return ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_LOCK);
 }
