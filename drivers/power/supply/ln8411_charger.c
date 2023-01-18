@@ -940,14 +940,14 @@ static int ln8411_get_current_limit_otg(struct regulator_dev *rdev)
 
 static int ln8411_is_enabled_otg(struct ln8411_device *ln8411)
 {
-	union power_supply_propval val;
+	unsigned int reg_code;
 	int ret;
 
-	ret = power_supply_get_property(ln8411->charger, POWER_SUPPLY_PROP_STATUS, &val);
+	ret = regmap_read(ln8411->regmap, LN8411_SYS_STS, &reg_code);
 	if (ret)
 		return ret;
 
-	if (val.intval == POWER_SUPPLY_STATUS_DISCHARGING)
+	if (reg_code & LN8411_ACTIVE_STS && (ln8411->state.mode > LN8411_FWD1TO1))
 		return true;
 	else
 		return false;
