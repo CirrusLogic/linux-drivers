@@ -914,19 +914,19 @@ static int ln8411_get_voltage_sel(struct regulator_dev *rdev)
 static int ln8411_set_current_limit_otg(struct regulator_dev *rdev, int min_uA, int max_uA)
 {
 	struct ln8411_device *ln8411 = rdev_get_drvdata(rdev);
-	union power_supply_propval *val = {0};
+	union power_supply_propval val = {0};
 
-	val->intval = max_uA;
+	val.intval = max_uA;
 
 	return power_supply_set_property(ln8411->charger,
 					 POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
-					 val);
+					 &val);
 }
 
 static int ln8411_get_current_limit_otg(struct regulator_dev *rdev)
 {
 	struct ln8411_device *ln8411 = rdev_get_drvdata(rdev);
-	union power_supply_propval val;
+	union power_supply_propval val = {0};
 	int ret;
 
 	ret = power_supply_get_property(ln8411->charger,
@@ -1001,7 +1001,7 @@ static int ln8411_enable_otg(struct ln8411_device *ln8411)
 static int ln8411_enable_vwpc_otg(struct regulator_dev *rdev)
 {
 	struct ln8411_device *ln8411 = rdev_get_drvdata(rdev);
-	union power_supply_propval *val;
+	union power_supply_propval val = {0};
 	int ret;
 
 	ret = ln8411_enable_otg(ln8411);
@@ -1011,11 +1011,11 @@ static int ln8411_enable_vwpc_otg(struct regulator_dev *rdev)
 	if (ln8411->role == LN8411_SECONDARY)
 		return ret;
 
-	val->intval = true;
+	val.intval = true;
 
 	usleep_range(21000, 22000);
 
-	return power_supply_set_property(ln8411->vwpc, POWER_SUPPLY_PROP_ONLINE, val);
+	return power_supply_set_property(ln8411->vwpc, POWER_SUPPLY_PROP_ONLINE, &val);
 }
 
 static void ln8411_pulldown_res_work(struct work_struct *work)
@@ -1028,12 +1028,13 @@ static void ln8411_pulldown_res_work(struct work_struct *work)
 
 static int ln8411_disable_otg(struct ln8411_device *ln8411)
 {
-	union power_supply_propval *val = {0};
+	union power_supply_propval val = {0};
 	int ret;
 
-	val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 
-	ret = power_supply_set_property(ln8411->charger, POWER_SUPPLY_PROP_STATUS, val);
+	val.intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+
+	ret = power_supply_set_property(ln8411->charger, POWER_SUPPLY_PROP_STATUS, &val);
 	if (ret) {
 		dev_err(ln8411->dev, "Failed to disable charge pump: %d\n", ret);
 		return ret;
@@ -1059,7 +1060,7 @@ static int ln8411_disable_otg(struct ln8411_device *ln8411)
 static int ln8411_disable_vwpc_otg(struct regulator_dev *rdev)
 {
 	struct ln8411_device *ln8411 = rdev_get_drvdata(rdev);
-	union power_supply_propval *val;
+	union power_supply_propval val = {0};
 	int ret;
 
 	ret = ln8411_disable_otg(ln8411);
@@ -1069,9 +1070,9 @@ static int ln8411_disable_vwpc_otg(struct regulator_dev *rdev)
 	if (ln8411->role == LN8411_SECONDARY)
 		return ret;
 
-	val->intval = false;
+	val.intval = false;
 
-	ret = power_supply_set_property(ln8411->vwpc, POWER_SUPPLY_PROP_ONLINE, val);
+	ret = power_supply_set_property(ln8411->vwpc, POWER_SUPPLY_PROP_ONLINE, &val);
 	if (ret)
 		return ret;
 
@@ -1152,7 +1153,7 @@ static int ln8411_is_enabled_vusb_otg(struct regulator_dev *rdev)
 static int ln8411_enable_vusb_otg(struct regulator_dev *rdev)
 {
 	struct ln8411_device *ln8411 = rdev_get_drvdata(rdev);
-	union power_supply_propval *val;
+	union power_supply_propval val = {0};
 	int ret;
 
 	ret = ln8411_enable_otg(ln8411);
@@ -1162,17 +1163,17 @@ static int ln8411_enable_vusb_otg(struct regulator_dev *rdev)
 	if (ln8411->role == LN8411_SECONDARY)
 		return ret;
 
-	val->intval = true;
+	val.intval = true;
 
 	usleep_range(21000, 22000);
 
-	return power_supply_set_property(ln8411->vusb, POWER_SUPPLY_PROP_ONLINE, val);
+	return power_supply_set_property(ln8411->vusb, POWER_SUPPLY_PROP_ONLINE, &val);
 }
 
 static int ln8411_disable_vusb_otg(struct regulator_dev *rdev)
 {
 	struct ln8411_device *ln8411 = rdev_get_drvdata(rdev);
-	union power_supply_propval *val;
+	union power_supply_propval val = {0};
 	int ret;
 
 	ret = ln8411_disable_otg(ln8411);
@@ -1182,9 +1183,9 @@ static int ln8411_disable_vusb_otg(struct regulator_dev *rdev)
 	if (ln8411->role == LN8411_SECONDARY)
 		return ret;
 
-	val->intval = false;
+	val.intval = false;
 
-	ret = power_supply_set_property(ln8411->vusb, POWER_SUPPLY_PROP_ONLINE, val);
+	ret = power_supply_set_property(ln8411->vusb, POWER_SUPPLY_PROP_ONLINE, &val);
 	if (ret)
 		return ret;
 
