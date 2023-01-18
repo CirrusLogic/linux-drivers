@@ -3854,7 +3854,7 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 	}
 
 	mutex_init(&cs35l45->vol_ctl.vol_mutex);
-	cs35l45->vol_ctl.dig_vol = 0;
+	cs35l45->vol_ctl.dig_vol = CS35L45_ZERO_PCM_VOL;
 	cs35l45->vol_ctl.ramp_init_att = 0;
 	cs35l45->vol_ctl.ramp_knee_att = 0;
 	cs35l45->vol_ctl.ramp_knee_time = 0;
