@@ -1041,7 +1041,7 @@ static int ln8411_disable_otg(struct ln8411_device *ln8411)
 	union power_supply_propval val = {0};
 	int ret;
 
-	dev_info(ln8411->dev, "Exiting reverse mode\n");
+	dev_dbg(ln8411->dev, "Exiting reverse mode\n");
 
 	val.intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 
