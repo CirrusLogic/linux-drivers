@@ -244,6 +244,18 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: phandle to the battery node being monitored
 
+  ln8411-otg-vwpc:
+    $ref: /schemas/regulator/regulator.yaml#
+    description: |
+      Regulator that is used to control the VWPC voltage direction for
+      either host mode or for charging on the wireless charging power path
+
+  ln8411-otg-vusb:
+    $ref: /schemas/regulator/regulator.yaml#
+    description: |
+      Regulator that is used to control the VUSB voltage direction for
+      either host mode or for charging on the USB charging power path
+
 required:
   - compatible
   - reg
@@ -265,6 +277,9 @@ examples:
 
       interrupt-parent = <&bat>;
       interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
+
+      otg_vusb: ln8411-otg-vusb { };
+      otg_vwpc: ln8411-otg-vwpc { };
     };
 
     charger@6f {
