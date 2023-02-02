@@ -269,13 +269,20 @@ examples:
     compatible = "simple-battery";
   };
 
+  #include <dt-bindings/gpio/gpio.h>
+  #include <dt-bindings/interrupt-controller/irq.h>
+
   i2c {
+
+    #address-cells = <1>;
+    #size-cells = <0>;
+
     charger@6e {
       compatible = "cirrus,ln8411-main";
       reg = <0x6e>;
-      monitored-battery = <&bat>;
+      monitored-battery = <&battery>;
 
-      interrupt-parent = <&bat>;
+      interrupt-parent = <&gpio>;
       interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
 
       otg_vusb: ln8411-otg-vusb { };
@@ -283,11 +290,11 @@ examples:
     };
 
     charger@6f {
-      compatible = "cirrus,ln8411-secondary"
-      reg = <0x6e>;
-      monitored-battery = <&bat>;
+      compatible = "cirrus,ln8411-secondary";
+      reg = <0x6f>;
+      monitored-battery = <&battery>;
 
-      interrupt-parent = <&bat>;
+      interrupt-parent = <&gpio>;
       interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
     };
   };
