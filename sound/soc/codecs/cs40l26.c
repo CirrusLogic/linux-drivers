@@ -132,7 +132,7 @@ static int cs40l26_clk_en(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int cs40l26_dsp_tx(struct snd_soc_dapm_widget *w,
+static int cs40l26_a2h_ev(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {	struct cs40l26_codec *codec =
 	snd_soc_component_get_drvdata(snd_soc_dapm_to_component(w->dapm));
@@ -145,8 +145,8 @@ static int cs40l26_dsp_tx(struct snd_soc_dapm_widget *w,
 	dev_dbg(dev, "%s: %s\n", __func__,
 			event == SND_SOC_DAPM_POST_PMU ? "PMU" : "PMD");
 
-	if (!codec->a2h_enable) {
-		dev_err(dev, "A2H algorithm is not enabled\n");
+	if (codec->bypass_dsp) {
+		dev_err(dev, "Cannot apply A2H if DSP is bypassed\n");
 		return -EPERM;
 	}
 
@@ -195,7 +195,7 @@ static int cs40l26_dsp_tx(struct snd_soc_dapm_widget *w,
 	}
 }
 
-static int cs40l26_asp_rx(struct snd_soc_dapm_widget *w,
+static int cs40l26_pcm_ev(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {	struct cs40l26_codec *codec =
 	snd_soc_component_get_drvdata(snd_soc_dapm_to_component(w->dapm));
@@ -213,8 +213,8 @@ static int cs40l26_asp_rx(struct snd_soc_dapm_widget *w,
 
 	mutex_lock(&cs40l26->lock);
 
-	data_src = codec->a2h_enable ? CS40L26_DATA_SRC_DSP1TX1 :
-			CS40L26_DATA_SRC_ASPRX1;
+	data_src = codec->bypass_dsp ? CS40L26_DATA_SRC_ASPRX1 :
+			CS40L26_DATA_SRC_DSP1TX1;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -309,7 +309,7 @@ pm_err:
 	return ret;
 }
 
-static int cs40l26_a2h_en_get(struct snd_kcontrol *kcontrol,
+static int cs40l26_bypass_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct cs40l26_codec *codec =
@@ -318,7 +318,7 @@ static int cs40l26_a2h_en_get(struct snd_kcontrol *kcontrol,
 
 	mutex_lock(&cs40l26->lock);
 
-	if (codec->a2h_enable)
+	if (codec->bypass_dsp)
 		ucontrol->value.enumerated.item[0] = 1;
 	else
 		ucontrol->value.enumerated.item[0] = 0;
@@ -328,7 +328,7 @@ static int cs40l26_a2h_en_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int cs40l26_a2h_en_put(struct snd_kcontrol *kcontrol,
+static int cs40l26_bypass_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct cs40l26_codec *codec =
@@ -338,16 +338,16 @@ static int cs40l26_a2h_en_put(struct snd_kcontrol *kcontrol,
 	mutex_lock(&cs40l26->lock);
 
 	if (ucontrol->value.enumerated.item[0])
-		codec->a2h_enable = true;
+		codec->bypass_dsp = true;
 	else
-		codec->a2h_enable = false;
+		codec->bypass_dsp = false;
 
 	mutex_unlock(&cs40l26->lock);
 
 	return 0;
 }
 
-static int cs40l26_svc_en_get(struct snd_kcontrol *kcontrol,
+static int cs40l26_svc_for_streaming_data_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct cs40l26_codec *codec =
@@ -373,7 +373,7 @@ static int cs40l26_svc_en_get(struct snd_kcontrol *kcontrol,
 		goto pm_err;
 	}
 
-	if (val & CS40L26_SVC_EN_MASK)
+	if (val & CS40L26_SVC_FOR_STREAMING_MASK)
 		ucontrol->value.enumerated.item[0] = 1;
 	else
 		ucontrol->value.enumerated.item[0] = 0;
@@ -384,7 +384,7 @@ pm_err:
 	return ret;
 }
 
-static int cs40l26_svc_en_put(struct snd_kcontrol *kcontrol,
+static int cs40l26_svc_for_streaming_data_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_dapm_context *dapm =
@@ -409,7 +409,7 @@ static int cs40l26_svc_en_put(struct snd_kcontrol *kcontrol,
 	snd_soc_dapm_mutex_lock(dapm);
 
 	ret = regmap_update_bits(regmap, reg,
-			CS40L26_SVC_EN_MASK,
+			CS40L26_SVC_FOR_STREAMING_MASK,
 			ucontrol->value.enumerated.item[0]);
 	if (ret)
 		dev_err(cs40l26->dev, "Failed to specify SVC for streaming\n");
@@ -531,7 +531,7 @@ static int cs40l26_tuning_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int cs40l26_a2h_level_get(struct snd_kcontrol *kcontrol,
+static int cs40l26_a2h_volume_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct cs40l26_codec *codec =
@@ -565,7 +565,7 @@ pm_err:
 	return ret;
 }
 
-static int cs40l26_a2h_level_put(struct snd_kcontrol *kcontrol,
+static int cs40l26_a2h_volume_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_dapm_context *dapm =
@@ -589,8 +589,8 @@ static int cs40l26_a2h_level_put(struct snd_kcontrol *kcontrol,
 
 	snd_soc_dapm_mutex_lock(dapm);
 
-	if (ucontrol->value.integer.value[0] > CS40L26_A2H_LEVEL_MAX)
-		val = CS40L26_A2H_LEVEL_MAX;
+	if (ucontrol->value.integer.value[0] > CS40L26_A2H_VOLUME_MAX)
+		val = CS40L26_A2H_VOLUME_MAX;
 	else if (ucontrol->value.integer.value[0] < 0)
 		val = 0;
 	else
@@ -686,25 +686,26 @@ static int cs40l26_a2h_delay_put(struct snd_kcontrol *kcontrol,
 static const struct snd_kcontrol_new cs40l26_controls[] = {
 	SOC_SINGLE_EXT("A2H Tuning", 0, 0, CS40L26_A2H_MAX_TUNINGS, 0,
 			cs40l26_tuning_get, cs40l26_tuning_put),
-	SOC_SINGLE_EXT("A2H Level", 0, 0, CS40L26_A2H_LEVEL_MAX, 0,
-			cs40l26_a2h_level_get, cs40l26_a2h_level_put),
-	SOC_SINGLE_EXT("SVC Algo Enable", 0, 0, 1, 0, cs40l26_svc_en_get,
-			cs40l26_svc_en_put),
+	SOC_SINGLE_EXT("A2H Volume", 0, 0, CS40L26_A2H_VOLUME_MAX, 0,
+			cs40l26_a2h_volume_get, cs40l26_a2h_volume_put),
+	SOC_SINGLE_EXT("SVC for streaming data", 0, 0, 1, 0,
+			cs40l26_svc_for_streaming_data_get,
+			cs40l26_svc_for_streaming_data_put),
 	SOC_SINGLE_EXT("Invert streaming data", 0, 0, 1, 0,
 			cs40l26_invert_streaming_data_get,
 			cs40l26_invert_streaming_data_put),
 	SOC_SINGLE_EXT("I2S VMON", 0, 0, CS40L26_VMON_DEC_OUT_DATA_MAX, 0,
 			cs40l26_i2s_vmon_get, NULL),
-	SOC_SINGLE_EXT("A2H Algo Enable", 0, 0, 1, 0, cs40l26_a2h_en_get,
-			cs40l26_a2h_en_put),
+	SOC_SINGLE_EXT("DSP Bypass", 0, 0, 1, 0, cs40l26_bypass_get,
+			cs40l26_bypass_put),
 	SOC_SINGLE_EXT("A2H Delay", 0, 0, CS40L26_A2H_DELAY_MAX, 0,
 			cs40l26_a2h_delay_get, cs40l26_a2h_delay_put),
 };
 
-static const char * const cs40l26_out_mux_texts[] = { "None", "ASP Rx", "DSP Tx" };
+static const char * const cs40l26_out_mux_texts[] = { "Off", "PCM", "A2H" };
 static SOC_ENUM_SINGLE_VIRT_DECL(cs40l26_out_mux_enum, cs40l26_out_mux_texts);
 static const struct snd_kcontrol_new cs40l26_out_mux =
-	SOC_DAPM_ENUM("Haptics Streaming Source", cs40l26_out_mux_enum);
+	SOC_DAPM_ENUM("Haptics Source", cs40l26_out_mux_enum);
 
 static const struct snd_soc_dapm_widget
 		cs40l26_dapm_widgets[] = {
@@ -713,12 +714,12 @@ static const struct snd_soc_dapm_widget
 	SND_SOC_DAPM_AIF_IN("ASPRX1", NULL, 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("ASPRX2", NULL, 0, SND_SOC_NOPM, 0, 0),
 
-	SND_SOC_DAPM_PGA_E("ASP Rx", SND_SOC_NOPM, 0, 0, NULL, 0, cs40l26_asp_rx,
+	SND_SOC_DAPM_PGA_E("PCM", SND_SOC_NOPM, 0, 0, NULL, 0, cs40l26_pcm_ev,
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_MIXER_E("DSP Tx", SND_SOC_NOPM, 0, 0, NULL, 0, cs40l26_dsp_tx,
+	SND_SOC_DAPM_MIXER_E("A2H", SND_SOC_NOPM, 0, 0, NULL, 0, cs40l26_a2h_ev,
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_MUX("Haptics Streaming Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Haptics Source", SND_SOC_NOPM, 0, 0,
 			&cs40l26_out_mux),
 	SND_SOC_DAPM_OUTPUT("OUT"),
 };
@@ -729,13 +730,13 @@ static const struct snd_soc_dapm_route
 	{ "ASPRX1", NULL, "ASP Playback" },
 	{ "ASPRX2", NULL, "ASP Playback" },
 
-	{ "ASP Rx", NULL, "ASPRX1" },
-	{ "ASP Rx", NULL, "ASPRX2" },
-	{ "DSP Tx", NULL, "ASP Rx" },
+	{ "PCM", NULL, "ASPRX1" },
+	{ "PCM", NULL, "ASPRX2" },
+	{ "A2H", NULL, "PCM" },
 
-	{ "Haptics Streaming Source", "ASP Rx", "ASP Rx" },
-	{ "Haptics Streaming Source", "DSP Tx", "DSP Tx" },
-	{ "OUT", NULL, "Haptics Streaming Source" },
+	{ "Haptics Source", "PCM", "PCM" },
+	{ "Haptics Source", "A2H", "A2H" },
+	{ "OUT", NULL, "Haptics Source" },
 };
 
 static int cs40l26_component_set_sysclk(struct snd_soc_component *component,

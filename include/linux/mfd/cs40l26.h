@@ -1177,7 +1177,7 @@
 
 #define CS40L26_A2H_MAX_TUNINGS	5
 
-#define CS40L26_A2H_LEVEL_MAX		0x7FFFFF
+#define CS40L26_A2H_VOLUME_MAX		0x7FFFFF
 
 #define CS40L26_A2H_DELAY_MAX		0x190
 
@@ -1268,7 +1268,7 @@
 #define CS40L26_COMP_EN_F0_SHIFT    0
 
 /* FW EXT */
-#define CS40L26_SVC_EN_MASK	BIT(0)
+#define CS40L26_SVC_FOR_STREAMING_MASK	BIT(0)
 
 /* DBC */
 #define CS40L26_DBC_ENABLE_MASK			BIT(1)
@@ -1571,7 +1571,7 @@ struct cs40l26_codec {
 	int tdm_width;
 	int tdm_slots;
 	int tdm_slot[2];
-	bool a2h_enable;
+	bool bypass_dsp;
 };
 
 struct cs40l26_pll_sysclk_config {
