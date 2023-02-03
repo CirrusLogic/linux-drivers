@@ -842,12 +842,14 @@ static int cs35l43_dsp_reset(struct cs35l43_private *cs35l43)
 	/* Clear WDT status */
 	regmap_write(cs35l43->regmap, CS35L43_DSP1_WDT_STATUS, 0x03);
 
-	ret = wm_adsp_write_ctl(&cs35l43->dsp, "CALL_RAM_INIT", WMFW_ADSP2_XM, 0x1800d6,
+	ret = wm_adsp_write_ctl(&cs35l43->dsp, "CALL_RAM_INIT", WMFW_ADSP2_XM,
+				cs35l43->dsp.cs_dsp.fw_id,
 				&val, sizeof(u32));
 	if (ret < 0)
 		dev_err(cs35l43->dev, "Failed to clear CALL_RAM_INIT\n");
 
-	ret = wm_adsp_write_ctl(&cs35l43->dsp, "HALO_STATE", WMFW_ADSP2_XM, 0x1800d6,
+	ret = wm_adsp_write_ctl(&cs35l43->dsp, "HALO_STATE", WMFW_ADSP2_XM,
+				cs35l43->dsp.cs_dsp.fw_id,
 				&val, sizeof(u32));
 	if (ret < 0)
 		dev_err(cs35l43->dev, "Failed to clear HALO_STATE\n");
@@ -872,7 +874,7 @@ static int cs35l43_dsp_reset(struct cs35l43_private *cs35l43)
 	do {
 		usleep_range(10000, 10100);
 		wm_adsp_read_ctl(&cs35l43->dsp, "HALO_STATE",
-			WMFW_ADSP2_XM, 0x1800d6, &val, sizeof(u32));
+			WMFW_ADSP2_XM, cs35l43->dsp.cs_dsp.fw_id, &val, sizeof(u32));
 		val = be32_to_cpu(val);
 		dev_info(cs35l43->dev, "halo_state: %x\n", val);
 	} while (val != 2 && retry-- >= 0);
@@ -904,7 +906,8 @@ static int cs35l43_dsp_reset(struct cs35l43_private *cs35l43)
 	regmap_write(cs35l43->regmap, CS35L43_DSP1_CCM_CORE_CONTROL, 0x80);
 
 	val = cpu_to_be32(1);
-	ret = wm_adsp_write_ctl(&cs35l43->dsp, "CALL_RAM_INIT", WMFW_ADSP2_XM, 0x1800d6,
+	ret = wm_adsp_write_ctl(&cs35l43->dsp, "CALL_RAM_INIT", WMFW_ADSP2_XM,
+				cs35l43->dsp.cs_dsp.fw_id,
 				&val, sizeof(u32));
 	if (ret < 0)
 		dev_err(cs35l43->dev, "Failed to set CALL_RAM_INIT\n");
@@ -1069,7 +1072,8 @@ static int cs35l43_check_dsp_regs(struct cs35l43_private *cs35l43)
 	int ret = 0;
 	unsigned int val;
 
-	ret = wm_adsp_read_ctl(&cs35l43->dsp, "HALO_STATE", WMFW_ADSP2_XM, 0x1800d6,
+	ret = wm_adsp_read_ctl(&cs35l43->dsp, "HALO_STATE", WMFW_ADSP2_XM,
+				cs35l43->dsp.cs_dsp.fw_id,
 				&val, sizeof(u32));
 	if (ret < 0) {
 		dev_err(cs35l43->dev, "Failed to read HALO_STATE\n");
@@ -1123,9 +1127,9 @@ static int cs35l43_log_dsp_err(struct cs35l43_private *cs35l43)
 		{ "PM_CUR_STATE",	CS35L43_ALG_ID_PM },
 		{ "AUDIO_STATE",	0x5f212 },
 		{ "ERROR",		0x5f212 },
-		{ "HALO_STATE",		0x1800d6 },
-		{ "HALO_HEARTBEAT",	0x1800d6 },
-		{ "AUDIO_BLK_SIZE",	0x1800d6 },
+		{ "HALO_STATE",		cs35l43->dsp.cs_dsp.fw_id },
+		{ "HALO_HEARTBEAT",	cs35l43->dsp.cs_dsp.fw_id },
+		{ "AUDIO_BLK_SIZE",	cs35l43->dsp.cs_dsp.fw_id },
 		{ "RAM_INIT_COUNT",	0x5f224 },
 		{ "HIBER_COUNT",	0x5f224 },
 		{ "WDT_WARN_COUNT",	0x5f224 },
