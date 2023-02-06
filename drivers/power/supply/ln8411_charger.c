@@ -1003,13 +1003,13 @@ static int ln8411_enable_otg(struct ln8411_device *ln8411)
 	if (ret)
 		return ret;
 
-	ret = regmap_set_bits(ln8411->regmap, LN8411_CTRL1, LN8411_CP_EN);
+	ret = regmap_set_bits(ln8411->regmap, LN8411_CTRL1, LN8411_QB_EN);
 	if (ret)
 		return ret;
 
 	usleep_range(21000, 22000);
 
-	return regmap_set_bits(ln8411->regmap, LN8411_CTRL1, LN8411_QB_EN);
+	return regmap_set_bits(ln8411->regmap, LN8411_CTRL1, LN8411_CP_EN);
 }
 
 static int ln8411_enable_vwpc_otg(struct regulator_dev *rdev)
