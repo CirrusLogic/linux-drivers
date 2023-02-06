@@ -979,6 +979,10 @@ static int ln8411_enable_otg(struct ln8411_device *ln8411)
 	if (ret)
 		return ret;
 
+	ret = regmap_set_bits(ln8411->regmap, LN8411_PMID2OUT_UVP, LN8411_PMID2OUT_UVP_DIS);
+	if (ret)
+		return ret;
+
 	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_UNLOCK);
 	if (ret)
 		return ret;
@@ -1053,6 +1057,13 @@ static int ln8411_disable_otg(struct ln8411_device *ln8411)
 
 	if (!ln8411->init_data.ibus_ocp_dis) {
 		ret = regmap_clear_bits(ln8411->regmap, LN8411_IBUS_UCP, LN8411_IBUS_UCP_DIS);
+		if (ret)
+			return ret;
+	}
+
+	if (!ln8411->init_data.pmid2out_uvp_dis) {
+		ret = regmap_clear_bits(ln8411->regmap,
+					LN8411_PMID2OUT_UVP, LN8411_PMID2OUT_UVP_DIS);
 		if (ret)
 			return ret;
 	}
