@@ -895,6 +895,8 @@ static int ln8411_set_voltage_sel(struct regulator_dev *rdev, unsigned int selec
 	struct ln8411_device *ln8411 = rdev_get_drvdata(rdev);
 	int ret;
 
+	selector += LN8411_REV1TO4;
+
 	ret = regmap_update_bits(ln8411->regmap, LN8411_CTRL4, LN8411_MODE_MASK, selector);
 	if (ret)
 		return ret;
@@ -1120,10 +1122,10 @@ static int ln8411_disable_vwpc_otg(struct regulator_dev *rdev)
 }
 
 static const struct linear_range ln8411_otg_range = {
-	.min = 4,
-	.min_sel = 4,
-	.max_sel = 6,
-	.step = 1,
+	.min = 3500000,
+	.min_sel = 0,
+	.max_sel = 2,
+	.step = 3500000,
 };
 
 static const struct regulator_ops ln8411_chg_vwpc_otg_ops = {
