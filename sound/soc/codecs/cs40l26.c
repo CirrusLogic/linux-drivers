@@ -591,8 +591,8 @@ static int cs40l26_a2h_level_put(struct snd_kcontrol *kcontrol,
 
 	if (ucontrol->value.integer.value[0] > CS40L26_A2H_LEVEL_MAX)
 		val = CS40L26_A2H_LEVEL_MAX;
-	else if (ucontrol->value.integer.value[0] < 0)
-		val = 0;
+	else if (ucontrol->value.integer.value[0] < CS40L26_A2H_LEVEL_MIN)
+		val = CS40L26_A2H_LEVEL_MIN;
 	else
 		val = ucontrol->value.integer.value[0];
 
