@@ -711,11 +711,11 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 		if ((val & CS40L26_DSP_MBOX_CMD_INDEX_MASK) ==
 				CS40L26_DSP_MBOX_WATERMARK) {
 			dev_dbg(dev, "Mailbox: WATERMARK\n");
-
+#ifdef CONFIG_DEBUG_FS
 			ret = cl_dsp_logger_update(cs40l26->cl_dsp_db);
 			if (ret)
 				return ret;
-
+#endif
 			continue;
 		}
 
