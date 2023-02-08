@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/regulator/driver.h>
+#include <linux/regulator/machine.h>
 #include "ln8411_charger.h"
 
 static int ln8411_set_lion_ctrl(struct ln8411_device *ln8411, enum ln8411_keys key)
@@ -1142,6 +1143,15 @@ static int ln8411_disable_vwpc_otg(struct regulator_dev *rdev)
 	return ret;
 }
 
+static const struct regulator_init_data ln8411_otg_init_data = {
+	.constraints = {
+		.valid_ops_mask = (REGULATOR_CHANGE_VOLTAGE |
+				   REGULATOR_CHANGE_CURRENT |
+				   REGULATOR_CHANGE_STATUS),
+		.max_uV = 20900000,
+		.min_uV = 3500000,
+	},
+};
 
 static const struct regulator_ops ln8411_chg_vwpc_otg_ops = {
 	.disable = ln8411_disable_vwpc_otg,
@@ -1167,6 +1177,8 @@ static int ln8411_wpc_otg_regulator_register(struct ln8411_device *ln8411)
 
 	reg_cfg.dev = ln8411->dev;
 	reg_cfg.driver_data = ln8411;
+	reg_cfg.init_data = &ln8411_otg_init_data;
+	reg_cfg.regmap = ln8411->regmap;
 
 	ln8411->otg_wpc_reg = devm_regulator_register(ln8411->dev,
 						      &ln8411_vwpc_otg_desc,
@@ -1270,6 +1282,8 @@ static int ln8411_usb_otg_regulator_register(struct ln8411_device *ln8411)
 
 	reg_cfg.dev = ln8411->dev;
 	reg_cfg.driver_data = ln8411;
+	reg_cfg.init_data = &ln8411_otg_init_data;
+	reg_cfg.regmap = ln8411->regmap;
 
 	ln8411->otg_usb_reg = devm_regulator_register(ln8411->dev,
 						      &ln8411_vusb_otg_desc,
