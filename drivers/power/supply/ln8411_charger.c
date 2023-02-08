@@ -890,27 +890,48 @@ static int ln8411_regmap_irq_init(struct ln8411_device *ln8411, struct device *d
 	return 0;
 }
 
-static int ln8411_set_voltage_sel(struct regulator_dev *rdev, unsigned int selector)
+static int ln8411_otg_get_voltage(struct regulator_dev *rdev)
 {
 	struct ln8411_device *ln8411 = rdev_get_drvdata(rdev);
+	union power_supply_propval val = {0};
 	int ret;
 
-	selector += LN8411_REV1TO4;
+	if (ln8411->state.mode < LN8411_REV1TO4)
+		return LN8411_OTG_MIN_UV;
 
-	ret = regmap_update_bits(ln8411->regmap, LN8411_CTRL4, LN8411_MODE_MASK, selector);
+	ret = power_supply_get_property(ln8411->charger,
+					POWER_SUPPLY_PROP_VOLTAGE_NOW,
+					&val);
 	if (ret)
 		return ret;
 
-	ln8411->state.mode = selector;
-
-	return 0;
+	return val.intval;
 }
 
-static int ln8411_get_voltage_sel(struct regulator_dev *rdev)
+static int ln8411_otg_set_voltage(struct regulator_dev *rdev,
+				  int min_uV, int max_uV, unsigned int *selector)
 {
 	struct ln8411_device *ln8411 = rdev_get_drvdata(rdev);
+	unsigned int val;
+	int ret;
 
-	return ln8411->state.mode;
+	if (min_uV <= LN8411_OTG_MIN_UV)
+		val = LN8411_REV1TO1;
+	else if (min_uV <= LN8411_OTG_MIN_1TO2_MIN_UV)
+		val = LN8411_REV1TO2;
+	else if (min_uV <= LN8411_OTG_MIN_1TO4_MIN_UV)
+		val = LN8411_REV1TO4;
+	else
+		return -EPERM;
+
+	ret = regmap_update_bits(ln8411->regmap, LN8411_CTRL4, LN8411_MODE_MASK, val);
+	if (ret)
+		return ret;
+
+	ln8411->state.mode = val;
+
+	return ret;
+
 }
 
 static int ln8411_set_current_limit_otg(struct regulator_dev *rdev, int min_uA, int max_uA)
@@ -1121,12 +1142,6 @@ static int ln8411_disable_vwpc_otg(struct regulator_dev *rdev)
 	return ret;
 }
 
-static const struct linear_range ln8411_otg_range = {
-	.min = 3500000,
-	.min_sel = 0,
-	.max_sel = 2,
-	.step = 3500000,
-};
 
 static const struct regulator_ops ln8411_chg_vwpc_otg_ops = {
 	.disable = ln8411_disable_vwpc_otg,
@@ -1134,9 +1149,8 @@ static const struct regulator_ops ln8411_chg_vwpc_otg_ops = {
 	.is_enabled = ln8411_is_enabled_vwpc_otg,
 	.get_current_limit = ln8411_get_current_limit_otg,
 	.set_current_limit = ln8411_set_current_limit_otg,
-	.get_voltage_sel = ln8411_get_voltage_sel,
-	.set_voltage_sel = ln8411_set_voltage_sel,
-	.list_voltage = regulator_list_voltage_linear,
+	.set_voltage = ln8411_otg_set_voltage,
+	.get_voltage = ln8411_otg_get_voltage,
 };
 
 static const struct regulator_desc ln8411_vwpc_otg_desc = {
@@ -1145,8 +1159,6 @@ static const struct regulator_desc ln8411_vwpc_otg_desc = {
 	.owner = THIS_MODULE,
 	.type = REGULATOR_VOLTAGE,
 	.of_match = "ln8411-otg-vwpc",
-	.linear_ranges = &ln8411_otg_range,
-	.n_linear_ranges = 1,
 };
 
 static int ln8411_wpc_otg_regulator_register(struct ln8411_device *ln8411)
@@ -1240,9 +1252,8 @@ static const struct regulator_ops ln8411_chg_vusb_otg_ops = {
 	.is_enabled = ln8411_is_enabled_vusb_otg,
 	.get_current_limit = ln8411_get_current_limit_otg,
 	.set_current_limit = ln8411_set_current_limit_otg,
-	.get_voltage_sel = ln8411_get_voltage_sel,
-	.set_voltage_sel = ln8411_set_voltage_sel,
-	.list_voltage = regulator_list_voltage_linear,
+	.set_voltage = ln8411_otg_set_voltage,
+	.get_voltage = ln8411_otg_get_voltage,
 };
 
 static const struct regulator_desc ln8411_vusb_otg_desc = {
@@ -1251,8 +1262,6 @@ static const struct regulator_desc ln8411_vusb_otg_desc = {
 	.owner = THIS_MODULE,
 	.type = REGULATOR_VOLTAGE,
 	.of_match = "ln8411-otg-vusb",
-	.linear_ranges = &ln8411_otg_range,
-	.n_linear_ranges = 1,
 };
 
 static int ln8411_usb_otg_regulator_register(struct ln8411_device *ln8411)
