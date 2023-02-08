@@ -655,7 +655,7 @@
 #define CS40L2X_DSP_TIMEOUT_COUNT		10 /* 1 count = 10 ms */
 #define CS40L2X_ACK_TIMEOUT_COUNT		10 /* 1 count = 1 ms */
 #define CS40L2X_OTP_TIMEOUT_COUNT		10 /* 1 count = 10 ms */
-#define CS40L2X_BASIC_TIMEOUT_COUNT		10 /* 1 count = 5 ms */
+#define CS40L2X_BASIC_TIMEOUT_COUNT		200 /* 1 count = 5 ms */
 
 #define CS40L2X_NUM_OTP_MAPS			3
 #define CS40L2X_NUM_OTP_WORDS			32
@@ -1009,6 +1009,7 @@ struct cs40l2x_wseq_pair {
 struct cs40l2x_fw_desc {
 	unsigned int id;
 	unsigned int min_rev;
+	unsigned int halo_state_started;
 	unsigned int halo_state_run;
 	unsigned int num_coeff_files;
 	const char * const *coeff_files;
