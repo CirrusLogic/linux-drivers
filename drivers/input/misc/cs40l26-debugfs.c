@@ -144,7 +144,7 @@ static ssize_t cs40l26_fw_ctrl_val_read(struct file *file,
 		goto err_mutex;
 	}
 
-	snprintf(input, strlen(cs40l26->dbg_fw_ctrl_name),
+	snprintf(input, strlen(cs40l26->dbg_fw_ctrl_name), "%s",
 			cs40l26->dbg_fw_ctrl_name);
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, input, mem_type,
