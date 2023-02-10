@@ -1064,8 +1064,9 @@ static void ln8411_pulldown_res_work(struct work_struct *work)
 	regmap_clear_bits(ln8411->regmap, LN8411_CTRL1, LN8411_PD_EN_MASK);
 }
 
-static int ln8411_disable_otg(struct ln8411_device *ln8411)
+static int ln8411_disable_otg(struct regulator_dev *rdev)
 {
+	struct ln8411_device *ln8411 = rdev_get_drvdata(rdev);
 	union power_supply_propval val = {0};
 	int ret;
 
@@ -1112,37 +1113,6 @@ static int ln8411_disable_otg(struct ln8411_device *ln8411)
 	return ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_LOCK);
 }
 
-static int ln8411_disable_vwpc_otg(struct regulator_dev *rdev)
-{
-	struct ln8411_device *ln8411 = rdev_get_drvdata(rdev);
-	union power_supply_propval val = {0};
-	int ret;
-
-	ret = ln8411_disable_otg(ln8411);
-	if (ret)
-		return ret;
-
-	if (ln8411->role == LN8411_SECONDARY)
-		return ret;
-
-	val.intval = false;
-
-	ret = power_supply_set_property(ln8411->vwpc, POWER_SUPPLY_PROP_ONLINE, &val);
-	if (ret)
-		return ret;
-
-	ret = regmap_set_bits(ln8411->regmap,
-			      LN8411_CTRL1,
-			      (LN8411_VBUS_PD_EN | LN8411_VWPC_PD_EN));
-	if (ret)
-		return ret;
-
-	queue_delayed_work(system_wq, &ln8411->pulldown_res_work,
-			   msecs_to_jiffies(320));
-
-	return ret;
-}
-
 static const struct regulator_init_data ln8411_otg_init_data = {
 	.constraints = {
 		.valid_ops_mask = (REGULATOR_CHANGE_VOLTAGE |
@@ -1154,7 +1124,7 @@ static const struct regulator_init_data ln8411_otg_init_data = {
 };
 
 static const struct regulator_ops ln8411_chg_vwpc_otg_ops = {
-	.disable = ln8411_disable_vwpc_otg,
+	.disable = ln8411_disable_otg,
 	.enable = ln8411_enable_vwpc_otg,
 	.is_enabled = ln8411_is_enabled_vwpc_otg,
 	.get_current_limit = ln8411_get_current_limit_otg,
@@ -1227,39 +1197,8 @@ static int ln8411_enable_vusb_otg(struct regulator_dev *rdev)
 	return power_supply_set_property(ln8411->vusb, POWER_SUPPLY_PROP_ONLINE, &val);
 }
 
-static int ln8411_disable_vusb_otg(struct regulator_dev *rdev)
-{
-	struct ln8411_device *ln8411 = rdev_get_drvdata(rdev);
-	union power_supply_propval val = {0};
-	int ret;
-
-	ret = ln8411_disable_otg(ln8411);
-	if (ret)
-		return ret;
-
-	if (ln8411->role == LN8411_SECONDARY)
-		return ret;
-
-	val.intval = false;
-
-	ret = power_supply_set_property(ln8411->vusb, POWER_SUPPLY_PROP_ONLINE, &val);
-	if (ret)
-		return ret;
-
-	ret = regmap_set_bits(ln8411->regmap,
-			      LN8411_CTRL1,
-			      (LN8411_VBUS_PD_EN | LN8411_VUSB_PD_EN));
-	if (ret)
-		return ret;
-
-	queue_delayed_work(system_wq, &ln8411->pulldown_res_work,
-			   msecs_to_jiffies(320));
-
-	return ret;
-}
-
 static const struct regulator_ops ln8411_chg_vusb_otg_ops = {
-	.disable = ln8411_disable_vusb_otg,
+	.disable = ln8411_disable_otg,
 	.enable = ln8411_enable_vusb_otg,
 	.is_enabled = ln8411_is_enabled_vusb_otg,
 	.get_current_limit = ln8411_get_current_limit_otg,
