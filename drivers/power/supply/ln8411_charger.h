@@ -18,8 +18,8 @@
 #ifndef LN8411_CHARGER_H
 #define LN8411_CHARGER_H
 
-#define LN8411_MANUFACTURER             "Cirrus Logic"
-#define LN8411_MODEL_NAME               "ln8411"
+#define LN8411_MANUFACTURER             "Cirrus Logic, Inc."
+#define LN8411_MODEL_NAME               "LN8411"
 
 #define LN8411_REG_BITS                 8
 #define LN8411_VAL_BITS                 8

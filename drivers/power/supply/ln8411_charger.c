@@ -1650,6 +1650,12 @@ static int ln8411_get_charger_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		return ln8411_get_charger_health(ln8411, val);
+	case POWER_SUPPLY_PROP_MODEL_NAME:
+		val->strval = LN8411_MODEL_NAME;
+		break;
+	case POWER_SUPPLY_PROP_MANUFACTURER:
+		val->strval = LN8411_MANUFACTURER;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1658,6 +1664,8 @@ static int ln8411_get_charger_property(struct power_supply *psy,
 }
 
 static enum power_supply_property ln8411_2nd_charger_props[] = {
+	POWER_SUPPLY_PROP_MODEL_NAME,
+	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
@@ -1668,6 +1676,8 @@ static enum power_supply_property ln8411_2nd_charger_props[] = {
 };
 
 static enum power_supply_property ln8411_charger_props[] = {
+	POWER_SUPPLY_PROP_MODEL_NAME,
+	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
