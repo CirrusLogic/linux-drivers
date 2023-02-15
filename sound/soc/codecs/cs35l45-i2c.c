@@ -53,6 +53,10 @@ static int cs35l45_i2c_probe(struct i2c_client *client,
 	ret = cs35l45_initialize(cs35l45);
 	if (ret < 0) {
 		dev_err(dev, "Failed device initialization: %d\n", ret);
+		if (ret == -ENOTCONN) {
+			ret = -EPROBE_DEFER;
+			dev_err(dev, "Defer probe on ENOTCONN error\n");
+		}
 		goto fail;
 	}
 
