@@ -701,10 +701,10 @@ static const struct snd_kcontrol_new cs40l26_controls[] = {
 			cs40l26_a2h_delay_get, cs40l26_a2h_delay_put),
 };
 
-static const char * const cs40l26_out_mux_texts[] = { "None", "ASP Rx", "DSP Tx" };
+static const char * const cs40l26_out_mux_texts[] = { "Off", "PCM", "A2H" };
 static SOC_ENUM_SINGLE_VIRT_DECL(cs40l26_out_mux_enum, cs40l26_out_mux_texts);
 static const struct snd_kcontrol_new cs40l26_out_mux =
-	SOC_DAPM_ENUM("Haptics Streaming Source", cs40l26_out_mux_enum);
+	SOC_DAPM_ENUM("Haptics Source", cs40l26_out_mux_enum);
 
 static const struct snd_soc_dapm_widget
 		cs40l26_dapm_widgets[] = {
@@ -713,12 +713,12 @@ static const struct snd_soc_dapm_widget
 	SND_SOC_DAPM_AIF_IN("ASPRX1", NULL, 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("ASPRX2", NULL, 0, SND_SOC_NOPM, 0, 0),
 
-	SND_SOC_DAPM_PGA_E("ASP Rx", SND_SOC_NOPM, 0, 0, NULL, 0, cs40l26_asp_rx,
+	SND_SOC_DAPM_PGA_E("PCM", SND_SOC_NOPM, 0, 0, NULL, 0, cs40l26_asp_rx,
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_MIXER_E("DSP Tx", SND_SOC_NOPM, 0, 0, NULL, 0, cs40l26_dsp_tx,
+	SND_SOC_DAPM_MIXER_E("A2H", SND_SOC_NOPM, 0, 0, NULL, 0, cs40l26_dsp_tx,
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_MUX("Haptics Streaming Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Haptics Source", SND_SOC_NOPM, 0, 0,
 			&cs40l26_out_mux),
 	SND_SOC_DAPM_OUTPUT("OUT"),
 };
@@ -729,13 +729,13 @@ static const struct snd_soc_dapm_route
 	{ "ASPRX1", NULL, "ASP Playback" },
 	{ "ASPRX2", NULL, "ASP Playback" },
 
-	{ "ASP Rx", NULL, "ASPRX1" },
-	{ "ASP Rx", NULL, "ASPRX2" },
-	{ "DSP Tx", NULL, "ASP Rx" },
+	{ "PCM", NULL, "ASPRX1" },
+	{ "PCM", NULL, "ASPRX2" },
+	{ "A2H", NULL, "PCM" },
 
-	{ "Haptics Streaming Source", "ASP Rx", "ASP Rx" },
-	{ "Haptics Streaming Source", "DSP Tx", "DSP Tx" },
-	{ "OUT", NULL, "Haptics Streaming Source" },
+	{ "Haptics Source", "PCM", "PCM" },
+	{ "Haptics Source", "A2H", "A2H" },
+	{ "OUT", NULL, "Haptics Source" },
 };
 
 static int cs40l26_component_set_sysclk(struct snd_soc_component *component,
