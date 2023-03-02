@@ -4168,6 +4168,10 @@ static char **cs40l26_get_tuning_names(struct cs40l26_private *cs40l26,
 			CS40L26_SVC_TUNING_FILE_NAME,
 			CS40L26_TUNING_FILE_NAME_MAX_LEN);
 	}
+	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_LF0T_ALGO_ID))
+		strscpy(coeff_files[file_count++],
+			CS40L26_LF0T_FILE_NAME,
+			CS40L26_TUNING_FILE_NAME_MAX_LEN);
 
 	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_DVL_ALGO_ID))
 		strscpy(coeff_files[file_count++],
