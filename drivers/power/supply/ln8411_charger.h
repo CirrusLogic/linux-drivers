@@ -275,6 +275,12 @@
 #define LN8411_TEST_MODE_CTRL		0x56
 #define LN8411_SOFT_RESET_REQ		BIT(0)
 
+#define LN8411_BC_STS_C			0x62
+#define LN8411_CHIP_REV_MASK		GENMASK(7, 4)
+#define LN8411_A0_DEV_REV_ID		0xa000
+#define LN8411_A1_DEV_REV_ID		0xa010
+#define LN8411_B0_DEV_REV_ID		0xa020
+
 #define LN8411_ADC_CFG_2                0x76
 #define LN8411_PAUSE_ADC_UPDATES        BIT(5)
 
@@ -485,6 +491,7 @@ struct ln8411_init_data {
  * @irq_data: Regmap irq data
  * @irq: IRQ number
  * @role: Sync function role
+ * @rev: chip revision
  */
 struct ln8411_device {
 	struct device *dev;
@@ -506,6 +513,7 @@ struct ln8411_device {
 
 	int irq;
 	enum ln8411_roles role;
+	u16 rev;
 };
 
 static const unsigned int ln8411_usb_extcon_cable[] = {

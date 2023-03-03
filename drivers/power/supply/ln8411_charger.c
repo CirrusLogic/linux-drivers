@@ -2274,23 +2274,39 @@ static int ln8411_soft_reset(struct ln8411_device *ln8411)
 static int ln8411_is_supported(struct ln8411_device *ln8411)
 {
 	unsigned int val;
+	u16 dev_rev_id;
 	int ret;
 
 	ret = regmap_read(ln8411->regmap, LN8411_DEVICE_ID, &val);
 	if (ret)
 		return ret;
 
-	switch (val) {
-	case 0x0:
-		dev_info(ln8411->dev, "Sample LN8411 found: 0x%x\n", val);
-		return 0;
-	case 0xa0:
-		dev_info(ln8411->dev, "Supported LN8411 found: 0x%x\n", val);
-		return 0;
+	dev_rev_id = val << LN8411_REG_BITS;
+
+	ret = regmap_read(ln8411->regmap, LN8411_BC_STS_C, &val);
+	if (ret)
+		return ret;
+
+	dev_rev_id |= (val & LN8411_CHIP_REV_MASK);
+
+	switch (dev_rev_id) {
+	case LN8411_A0_DEV_REV_ID:
+		dev_info(ln8411->dev, "LN8411 A0 found: 0x%x\n", dev_rev_id);
+		break;
+	case LN8411_A1_DEV_REV_ID:
+		dev_info(ln8411->dev, "LN8411 A1 found: 0x%x\n", dev_rev_id);
+		break;
+	case LN8411_B0_DEV_REV_ID:
+		dev_info(ln8411->dev, "LN8411 B0 found: 0x%x\n", dev_rev_id);
+		break;
 	default:
-		dev_err(ln8411->dev, "Unsupported device ID: 0x%x\n", val);
+		dev_err(ln8411->dev, "Unsupported device found: 0x%x\n", dev_rev_id);
 		return -EINVAL;
 	}
+
+	ln8411->rev = dev_rev_id;
+
+	return ret;
 }
 
 static bool ln8411_is_volatile_reg(struct device *dev, unsigned int reg)
