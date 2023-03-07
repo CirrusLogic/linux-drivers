@@ -296,6 +296,9 @@
 #define LN8411_LION_COMP_CTRL_4		0x7c
 #define LN8411_INFET_OFF_DET_DIS	BIT(3)
 
+#define LN8411_SWAP_CTRL_3		0x93
+#define LN8411_SWAP_EN_0		BIT(1)
+
 #define LN8411_SYS_STS                  0x98
 #define LN8411_PMID_SWITCH_OK_STS       BIT(7)
 #define LN8411_INFET_OK_STS		BIT(6)

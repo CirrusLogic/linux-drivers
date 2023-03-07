@@ -27,6 +27,27 @@ static int ln8411_set_lion_ctrl(struct ln8411_device *ln8411, enum ln8411_keys k
 	return ret;
 }
 
+static int ln8411_a1_2to1_workaround(struct ln8411_device *ln8411, const bool enable)
+{
+	unsigned int val;
+	int ret;
+
+	if (enable)
+		val = LN8411_SWAP_EN_0;
+	else
+		val = 0;
+
+	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_UNLOCK);
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(ln8411->regmap, LN8411_SWAP_CTRL_3, LN8411_SWAP_EN_0, val);
+	if (ret)
+		return ret;
+
+	return ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_LOCK);
+}
+
 static int __ln8411_get_adc__(struct ln8411_device *ln8411,
 			      const enum ln8411_adc_chan chan, u16 *val)
 {
@@ -249,9 +270,30 @@ err_out:
 	return ret;
 }
 
+static int ln8411_set_status_not_charging(struct ln8411_device *ln8411)
+{
+	int ret;
+
+	if ((ln8411->rev == LN8411_A1_DEV_REV_ID) && ln8411->state.mode == LN8411_FWD2TO1) {
+		/* Disable A1 2:1 workaround */
+		ret = ln8411_a1_2to1_workaround(ln8411, false);
+		if (ret)
+			return ret;
+	}
+
+	return regmap_clear_bits(ln8411->regmap, LN8411_CTRL1, (LN8411_CP_EN | LN8411_QB_EN));
+}
+
 static int ln8411_set_status_charging(struct ln8411_device *ln8411)
 {
 	int ret;
+
+	if ((ln8411->rev == LN8411_A1_DEV_REV_ID) && ln8411->state.mode == LN8411_FWD2TO1) {
+		/* Enable A1 2:1 workaround */
+		ret = ln8411_a1_2to1_workaround(ln8411, true);
+		if (ret)
+			return ret;
+	}
 
 	ret = regmap_set_bits(ln8411->regmap, LN8411_CTRL1, LN8411_QB_EN);
 	if (ret)
@@ -271,8 +313,7 @@ static int ln8411_set_status(struct ln8411_device *ln8411, const int psp)
 		ret = ln8411_set_status_charging(ln8411);
 		break;
 	case POWER_SUPPLY_STATUS_NOT_CHARGING:
-		ret = regmap_clear_bits(ln8411->regmap,
-					LN8411_CTRL1, (LN8411_CP_EN | LN8411_QB_EN));
+		ret = ln8411_set_status_not_charging(ln8411);
 		break;
 	default:
 		return -EINVAL;
