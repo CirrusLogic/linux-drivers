@@ -713,6 +713,13 @@ static int ln8411_set_vbat_ovp(struct ln8411_device *ln8411, int val)
 	return ret;
 }
 
+static int ln8411_pre_irq_handler(void *irq_drv_data)
+{
+	struct ln8411_device *ln8411 = irq_drv_data;
+
+	return regmap_set_bits(ln8411->regmap, LN8411_LION_INT_MASK_2, LN8411_PAUSE_INT_UPDATE);
+}
+
 static int ln8411_post_irq_handler(void *irq_drv_data)
 {
 	struct ln8411_device *ln8411 = irq_drv_data;
@@ -731,7 +738,17 @@ static int ln8411_post_irq_handler(void *irq_drv_data)
 
 	dev_dbg(ln8411->dev, "COMP_FLAG1: 0x%x\n", reg);
 
-	return ret;
+	ret = regmap_set_bits(ln8411->regmap, LN8411_LION_INT_MASK_2, LN8411_CLEAR_INT);
+	if (ret)
+		return ret;
+
+	usleep_range(5000, 5100);
+
+	ret = regmap_clear_bits(ln8411->regmap, LN8411_LION_INT_MASK_2, LN8411_CLEAR_INT);
+	if (ret)
+		return ret;
+
+	return regmap_clear_bits(ln8411->regmap, LN8411_LION_INT_MASK_2, LN8411_PAUSE_INT_UPDATE);
 }
 
 static irqreturn_t ln8411_vout_ovp_handler(int irq, void *private)
@@ -895,6 +912,7 @@ static struct regmap_irq_chip ln8411_regmap_irq_chip = {
 	.irqs = ln8411_reg_irqs,
 	.num_irqs = ARRAY_SIZE(ln8411_reg_irqs),
 	.handle_post_irq = ln8411_post_irq_handler,
+	.handle_pre_irq = ln8411_pre_irq_handler,
 };
 
 static int ln8411_regmap_irq_init(struct ln8411_device *ln8411, struct device *dev)
