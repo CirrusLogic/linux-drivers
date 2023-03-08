@@ -3819,6 +3819,7 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 		if (ret == -EBUSY) {
 			dev_info(dev,
 				 "Reset line busy, assuming shared reset\n");
+			usleep_range(2000, 2100);
 		} else {
 			dev_err(dev, "Failed to get reset GPIO: %d\n", ret);
 			goto err;
