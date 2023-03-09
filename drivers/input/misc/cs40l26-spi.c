@@ -19,8 +19,16 @@ static const struct spi_device_id cs40l26_id_spi[] = {
 	{"cs40l27b", 3},
 	{}
 };
-
 MODULE_DEVICE_TABLE(spi, cs40l26_id_spi);
+
+static const struct of_device_id cs40l26_of_match[CS40L26_NUM_DEVS + 1] = {
+	{ .compatible = "cirrus,cs40l26a" },
+	{ .compatible = "cirrus,cs40l26b" },
+	{ .compatible = "cirrus,cs40l27a" },
+	{ .compatible = "cirrus,cs40l27b" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, cs40l26_of_match);
 
 static int cs40l26_spi_probe(struct spi_device *spi)
 {
@@ -48,11 +56,11 @@ static int cs40l26_spi_probe(struct spi_device *spi)
 	return cs40l26_probe(cs40l26, pdata);
 }
 
-static int cs40l26_spi_remove(struct spi_device *spi)
+static void cs40l26_spi_remove(struct spi_device *spi)
 {
 	struct cs40l26_private *cs40l26 = spi_get_drvdata(spi);
 
-	return cs40l26_remove(cs40l26);
+	cs40l26_remove(cs40l26);
 }
 
 static struct spi_driver cs40l26_spi_driver = {
