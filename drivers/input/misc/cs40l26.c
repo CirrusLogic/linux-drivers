@@ -3186,9 +3186,14 @@ static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
 	}
 
 	val &= CS40L26_REVID_MASK;
-	if (val == CS40L26_REVID_A1 || val == CS40L26_REVID_B0) {
+
+	switch (val) {
+	case CS40L26_REVID_A1:
+	case CS40L26_REVID_B0:
+	case CS40L26_REVID_B1:
 		cs40l26->revid = val;
-	} else {
+		break;
+	default:
 		dev_err(dev, "Invalid device revision: 0x%02X\n", val);
 		return -EINVAL;
 	}
@@ -4414,16 +4419,20 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 	bool re_enable = false;
 	int ret = 0;
 
-	if (cs40l26->revid != CS40L26_REVID_A1 &&
-			cs40l26->revid != CS40L26_REVID_B0) {
-		dev_err(dev, "pseq unrecognized revid: %d\n", cs40l26->revid);
-		return -EINVAL;
-	}
-
 	if (cs40l26->fw_loaded) {
 		disable_irq(cs40l26->irq);
 		cs40l26_pm_runtime_teardown(cs40l26);
 		re_enable = true;
+	}
+
+	switch (cs40l26->revid) {
+	case CS40L26_REVID_A1:
+	case CS40L26_REVID_B0:
+	case CS40L26_REVID_B1:
+		break;
+	default:
+		dev_err(dev, "pseq unrecognized revid: %d\n", cs40l26->revid);
+		return -EINVAL;
 	}
 
 	/* reset pseq END_OF_SCRIPT to location from ROM */
