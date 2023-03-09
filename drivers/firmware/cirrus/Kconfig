@@ -8,7 +8,7 @@ menuconfig CIRRUS_FIRMWARE
 
 if CIRRUS_FIRMWARE
 
-config CIRRUS_FIRMWARE_CL_DSP
+config CL_DSP
          tristate "Cirrus Logic Haptics DSP driver"
          help
            This driver is used to handle firmware loading
