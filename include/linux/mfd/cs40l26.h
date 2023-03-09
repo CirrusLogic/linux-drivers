@@ -1630,7 +1630,6 @@ int cs40l26_pseq_write(struct cs40l26_private *cs40l26, u32 addr,
 int cs40l26_copy_f0_est_to_dvl(struct cs40l26_private *cs40l26);
 
 /* external tables */
-extern const struct of_device_id cs40l26_of_match[CS40L26_NUM_DEVS + 1];
 extern struct regulator_bulk_data
 		cs40l26_supplies[CS40L26_NUM_SUPPLIES];
 extern const struct dev_pm_ops cs40l26_pm_ops;

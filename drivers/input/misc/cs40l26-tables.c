@@ -13,15 +13,6 @@
 
 #include <linux/mfd/cs40l26.h>
 
-const struct of_device_id cs40l26_of_match[CS40L26_NUM_DEVS + 1] = {
-	{ .compatible = "cirrus,cs40l26a" },
-	{ .compatible = "cirrus,cs40l26b" },
-	{ .compatible = "cirrus,cs40l27a" },
-	{ .compatible = "cirrus,cs40l27b" },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, cs40l26_of_match);
-
 const struct regmap_config cs40l26_regmap = {
 	.reg_bits = 32,
 	.val_bits = 32,
@@ -35,6 +26,7 @@ const struct regmap_config cs40l26_regmap = {
 	.volatile_reg = cs40l26_volatile_reg,
 	.cache_type = REGCACHE_NONE,
 };
+EXPORT_SYMBOL_GPL(cs40l26_regmap);
 
 const char * const cs40l26_dbc_names[CS40L26_DBC_NUM_CONTROLS] = {
 		CS40L26_DBC_ENV_REL_COEF_NAME,
@@ -49,13 +41,6 @@ const struct reg_sequence cs40l26_a1_errata[CS40L26_ERRATA_A1_NUM_WRITES] = {
 	{CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE1},
 	{CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE2},
 	{CS40L26_TEST_LBST, CS40L26_DISABLE_EXPL_MODE},
-};
-
-const struct dev_pm_ops cs40l26_pm_ops = {
-	SET_RUNTIME_PM_OPS(cs40l26_suspend, cs40l26_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(cs40l26_sys_suspend, cs40l26_sys_resume)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(cs40l26_sys_suspend_noirq,
-			cs40l26_sys_resume_noirq)
 };
 
 const u8 cs40l26_pseq_op_sizes[CS40L26_PSEQ_NUM_OPS][2] = {
