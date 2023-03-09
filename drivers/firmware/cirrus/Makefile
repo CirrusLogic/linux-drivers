@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-cirrus-firmware-cl_dsp-objs := cl_dsp.o cl_dsp-debugfs.o
+cl_dsp-core-objs := cl_dsp.o cl_dsp-debugfs.o
 
-obj-$(CONFIG_CIRRUS_FIRMWARE_CL_DSP)	+= cirrus-firmware-cl_dsp.o
+obj-$(CONFIG_CL_DSP)	+= cl_dsp-core.o
 
