@@ -5084,6 +5084,13 @@ int cs40l26_sys_resume_noirq(struct device *dev)
 }
 EXPORT_SYMBOL(cs40l26_sys_resume_noirq);
 
+const struct dev_pm_ops cs40l26_pm_ops = {
+	SET_RUNTIME_PM_OPS(cs40l26_suspend, cs40l26_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(cs40l26_sys_suspend, cs40l26_sys_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(cs40l26_sys_suspend_noirq, cs40l26_sys_resume_noirq)
+};
+EXPORT_SYMBOL_GPL(cs40l26_pm_ops);
+
 MODULE_DESCRIPTION("CS40L26 Boosted Mono Class D Amplifier for Haptics");
 MODULE_AUTHOR("Fred Treven, Cirrus Logic Inc. <fred.treven@cirrus.com>");
 MODULE_LICENSE("GPL");
