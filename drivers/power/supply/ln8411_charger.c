@@ -8,6 +8,7 @@
 
 #include <linux/errno.h>
 #include <linux/extcon-provider.h>
+#include <linux/gpio/consumer.h>
 #include <linux/irq.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
@@ -2330,6 +2331,17 @@ static int ln8411_soft_reset(struct ln8411_device *ln8411)
 	return ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_LOCK);
 }
 
+static int ln8411_gpio_cfg(struct ln8411_device *ln8411)
+{
+	ln8411->reset_gpio = devm_gpiod_get_optional(ln8411->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(ln8411->reset_gpio)) {
+		return dev_err_probe(ln8411->dev, PTR_ERR(ln8411->reset_gpio),
+				     "Failed to get reset GPIO\n");
+	}
+
+	return 0;
+}
+
 static int ln8411_is_supported(struct ln8411_device *ln8411)
 {
 	unsigned int val;
@@ -2442,6 +2454,13 @@ static int ln8411_probe(struct i2c_client *client, const struct i2c_device_id *i
 	ret = ln8411_is_supported(ln8411);
 	if (ret)
 		return ret;
+
+	/* Only revision B0 and beyond support GPIOs */
+	if (ln8411->rev >= LN8411_B0_DEV_REV_ID) {
+		ret = ln8411_gpio_cfg(ln8411);
+		if (ret)
+			return ret;
+	}
 
 	ret = ln8411_power_supply_init(ln8411, &psy_cfg, dev);
 	if (ret) {
