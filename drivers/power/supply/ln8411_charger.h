@@ -485,6 +485,7 @@ struct ln8411_init_data {
 /**
  * struct ln8411_device -
  * @dev: Device structure
+ * @reset_gpio: Reset GPIO line
  * @client: I2C client structure
  * @init_data: Boot time data
  * @state: Run time state
@@ -503,6 +504,7 @@ struct ln8411_init_data {
 struct ln8411_device {
 	struct device *dev;
 	struct extcon_dev *edev;
+	struct gpio_desc *reset_gpio;
 	struct i2c_client *client;
 	struct ln8411_init_data init_data;
 	struct ln8411_state state;
