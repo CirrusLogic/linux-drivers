@@ -282,7 +282,11 @@ static int ln8411_set_status_not_charging(struct ln8411_device *ln8411)
 			return ret;
 	}
 
-	return regmap_clear_bits(ln8411->regmap, LN8411_CTRL1, (LN8411_CP_EN | LN8411_QB_EN));
+	ret = regmap_clear_bits(ln8411->regmap, LN8411_CTRL1, LN8411_CP_EN);
+	if (ret)
+		return ret;
+
+	return regmap_clear_bits(ln8411->regmap, LN8411_CTRL1, LN8411_QB_EN);
 }
 
 static void ln8411_charge_en_work(struct work_struct *work)
