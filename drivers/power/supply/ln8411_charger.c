@@ -285,6 +285,33 @@ static int ln8411_set_status_not_charging(struct ln8411_device *ln8411)
 	return regmap_clear_bits(ln8411->regmap, LN8411_CTRL1, (LN8411_CP_EN | LN8411_QB_EN));
 }
 
+static void ln8411_charge_en_work(struct work_struct *work)
+{
+	struct ln8411_device *ln8411 =
+		container_of(work, struct ln8411_device, charge_en_work.work);
+	union power_supply_propval psy_val = {0};
+	unsigned int reg_val;
+
+	regmap_read(ln8411->regmap, LN8411_SYS_STS, &reg_val);
+
+	if (reg_val & LN8411_ACTIVE_STS) {
+		dev_dbg(ln8411->dev, "Successfully initiated charging\n");
+	} else {
+		dev_err(ln8411->dev, "Failed to initiate charging\n");
+
+		if (!(reg_val & LN8411_PMID_SWITCH_OK_STS))
+			dev_dbg(ln8411->dev, "Check PMID voltage\n");
+		if (!(reg_val & LN8411_INFET_OK_STS))
+			dev_dbg(ln8411->dev, "Power path blocked, check INFET\n");
+
+		/* Converter cannot be re-initiated without clearing CP_EN*/
+		psy_val.intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		power_supply_set_property(ln8411->charger, POWER_SUPPLY_PROP_STATUS, &psy_val);
+	}
+
+	power_supply_changed(ln8411->charger);
+}
+
 static int ln8411_set_status_charging(struct ln8411_device *ln8411)
 {
 	int ret;
@@ -302,7 +329,13 @@ static int ln8411_set_status_charging(struct ln8411_device *ln8411)
 
 	usleep_range(21000, 22000);
 
-	return regmap_set_bits(ln8411->regmap, LN8411_CTRL1, LN8411_CP_EN);
+	ret = regmap_set_bits(ln8411->regmap, LN8411_CTRL1, LN8411_CP_EN);
+	if (ret)
+		return ret;
+
+	queue_delayed_work(system_wq, &ln8411->charge_en_work, msecs_to_jiffies(200));
+
+	return ret;
 }
 
 static int ln8411_set_status(struct ln8411_device *ln8411, const int psp)
@@ -2463,6 +2496,7 @@ static int ln8411_probe(struct i2c_client *client, const struct i2c_device_id *i
 	mutex_init(&ln8411->lock);
 
 	INIT_DELAYED_WORK(&ln8411->pulldown_res_work, ln8411_pulldown_res_work);
+	INIT_DELAYED_WORK(&ln8411->charge_en_work, ln8411_charge_en_work);
 
 	i2c_set_clientdata(client, ln8411);
 
