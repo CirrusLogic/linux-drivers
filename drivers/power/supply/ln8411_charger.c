@@ -38,7 +38,7 @@ static int ln8411_a1_2to1_workaround(struct ln8411_device *ln8411, const bool en
 	else
 		val = 0;
 
-	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_UNLOCK);
+	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_TEST_MODE);
 	if (ret)
 		return ret;
 
@@ -55,7 +55,7 @@ static int __ln8411_get_adc__(struct ln8411_device *ln8411,
 	unsigned int lsb, msb, reg;
 	int ret;
 
-	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_UNLOCK);
+	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_TEST_MODE);
 	if (ret)
 		return ret;
 
@@ -1067,7 +1067,7 @@ static int ln8411_enable_otg(struct ln8411_device *ln8411)
 	if (ret)
 		return ret;
 
-	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_UNLOCK);
+	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_TEST_MODE);
 	if (ret)
 		return ret;
 
@@ -1153,7 +1153,7 @@ static int ln8411_disable_otg(struct regulator_dev *rdev)
 			return ret;
 	}
 
-	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_UNLOCK);
+	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_TEST_MODE);
 	if (ret)
 		return ret;
 

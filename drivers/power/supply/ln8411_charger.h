@@ -386,9 +386,9 @@ enum ln8411_modes {
 };
 
 enum ln8411_keys {
-	LN8411_LION_CTRL_UNLOCK = 0x5b,
 	LN8411_LION_CTRL_LOCK = 0x0,
 	LN8411_LION_CTRL_EN_RESET = 0xc6,
+	LN8411_LION_CTRL_TEST_MODE = 0xaa,
 };
 
 /**
