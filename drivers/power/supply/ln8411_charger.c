@@ -1954,6 +1954,11 @@ static int ln8411_power_supply_init(struct ln8411_device *ln8411,
 static int ln8411_cfg_sync(struct ln8411_device *ln8411)
 {
 	unsigned int reg_code = LN8411_SYNC_FUNCTION_EN;
+	int ret;
+
+	ret = regmap_clear_bits(ln8411->regmap, LN8411_CTRL4, LN8411_TSBAT_EN_PIN);
+	if (ret)
+		return ret;
 
 	if (ln8411->role == LN8411_MAIN)
 		reg_code |= LN8411_SYNC_MASTER_EN;
@@ -2333,10 +2338,26 @@ static int ln8411_soft_reset(struct ln8411_device *ln8411)
 
 static int ln8411_gpio_cfg(struct ln8411_device *ln8411)
 {
+	int ret;
+
 	ln8411->reset_gpio = devm_gpiod_get_optional(ln8411->dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ln8411->reset_gpio)) {
 		return dev_err_probe(ln8411->dev, PTR_ERR(ln8411->reset_gpio),
 				     "Failed to get reset GPIO\n");
+	}
+
+	/* Enable GPIO cannot be used in sync mode */
+	if (ln8411->role >= LN8411_MAIN)
+		return 0;
+
+	ret = regmap_set_bits(ln8411->regmap, LN8411_CTRL4, LN8411_TSBAT_EN_PIN);
+	if (ret)
+		return ret;
+
+	ln8411->en_gpio = devm_gpiod_get_optional(ln8411->dev, "enable", GPIOD_OUT_LOW);
+	if (IS_ERR(ln8411->en_gpio)) {
+		return dev_err_probe(ln8411->dev, PTR_ERR(ln8411->en_gpio),
+				     "Failed to get charge enable GPIO\n");
 	}
 
 	return 0;
