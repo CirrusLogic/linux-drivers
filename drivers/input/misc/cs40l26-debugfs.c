@@ -232,7 +232,8 @@ void cs40l26_debugfs_init(struct cs40l26_private *cs40l26)
 	cs40l26->dbg_fw_algo_id = CS40L26_VIBEGEN_ALGO_ID;
 	cs40l26->debugfs_root = root;
 
-	if (cs40l26->fw_id == CS40L26_FW_ID) {
+	if (cs40l26->fw_id == CS40L26_FW_ID &&
+			cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EVENT_LOGGER_ALGO_ID)) {
 		cs40l26->cl_dsp_db = cl_dsp_debugfs_create(cs40l26->dsp,
 				cs40l26->debugfs_root,
 				(u32) CS40L26_EVENT_LOGGER_ALGO_ID);
