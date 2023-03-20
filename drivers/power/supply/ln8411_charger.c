@@ -2368,7 +2368,15 @@ static int ln8411_parse_dt(struct device *dev, struct ln8411_device *ln8411)
 
 static int ln8411_soft_reset(struct ln8411_device *ln8411)
 {
+	const union power_supply_propval val = { .intval = POWER_SUPPLY_STATUS_NOT_CHARGING };
 	int ret;
+
+	/* Converter must be in standby mode before soft resetting to prevent damage*/
+	if (ln8411->state.charging_status != POWER_SUPPLY_STATUS_NOT_CHARGING) {
+		ret = power_supply_set_property(ln8411->charger, POWER_SUPPLY_PROP_STATUS, &val);
+		if (ret)
+			return ret;
+	}
 
 	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_EN_RESET);
 	if (ret)
