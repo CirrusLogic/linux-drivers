@@ -1114,6 +1114,10 @@ static int ln8411_enable_otg(struct ln8411_device *ln8411)
 	if (ret)
 		return ret;
 
+	ret = regmap_clear_bits(ln8411->regmap, LN8411_LION_CFG_1, LN8411_DEVICE_MODE);
+	if (ret)
+		return ret;
+
 	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_TEST_MODE);
 	if (ret)
 		return ret;
@@ -1130,9 +1134,20 @@ static int ln8411_enable_otg(struct ln8411_device *ln8411)
 	if (ret)
 		return ret;
 
+	ret = regmap_set_bits(ln8411->regmap, LN8411_TRIM_8, LN8411_IBUS_REV_ISNS_EN);
+	if (ret)
+		return ret;
+
 	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_LOCK);
 	if (ret)
 		return ret;
+
+	if ((ln8411->rev == LN8411_A1_DEV_REV_ID) && (ln8411->state.mode == LN8411_REV1TO2)) {
+		/* Enable A1 2:1 workaround */
+		ret = ln8411_a1_2to1_workaround(ln8411, true);
+		if (ret)
+			return ret;
+	}
 
 	ret = regmap_set_bits(ln8411->regmap, LN8411_CTRL1, LN8411_QB_EN);
 	if (ret)
@@ -1200,6 +1215,17 @@ static int ln8411_disable_otg(struct regulator_dev *rdev)
 			return ret;
 	}
 
+	ret = regmap_set_bits(ln8411->regmap, LN8411_LION_CFG_1, LN8411_DEVICE_MODE);
+	if (ret)
+		return ret;
+
+	if ((ln8411->rev == LN8411_A1_DEV_REV_ID) && (ln8411->state.mode == LN8411_REV1TO2)) {
+		/* Disable A1 2:1 workaround */
+		ret = ln8411_a1_2to1_workaround(ln8411, false);
+		if (ret)
+			return ret;
+	}
+
 	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_TEST_MODE);
 	if (ret)
 		return ret;
@@ -1216,6 +1242,9 @@ static int ln8411_disable_otg(struct regulator_dev *rdev)
 	if (ret)
 		return ret;
 
+	ret = regmap_clear_bits(ln8411->regmap, LN8411_TRIM_8, LN8411_IBUS_REV_ISNS_EN);
+	if (ret)
+		return ret;
 
 	return ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_LOCK);
 }
