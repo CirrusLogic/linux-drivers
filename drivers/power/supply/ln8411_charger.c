@@ -771,12 +771,24 @@ static int ln8411_pre_irq_handler(void *irq_drv_data)
 static int ln8411_post_irq_handler(void *irq_drv_data)
 {
 	struct ln8411_device *ln8411 = irq_drv_data;
+	union power_supply_propval val = {0};
 	unsigned int reg;
 	int ret;
 
 	ret = regmap_read(ln8411->regmap, LN8411_COMP_FLAG0, &reg);
 	if (ret)
 		return ret;
+
+	/* CP_EN bit does not auto clear during unplug, must be manually cleared*/
+	if (reg & LN8411_IBUS_UCP_FALL_FLAG) {
+		val.intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+
+		ret = power_supply_set_property(ln8411->charger, POWER_SUPPLY_PROP_STATUS, &val);
+		if (ret)
+			return ret;
+
+		dev_dbg(ln8411->dev, "Unplug detected, disabling converter\n");
+	}
 
 	dev_dbg(ln8411->dev, "COMP_FLAG0: 0x%x\n", reg);
 
