@@ -1413,6 +1413,7 @@ static int ln8411_extcon_dev_init(struct ln8411_device *ln8411, struct device *d
 
 static int ln8411_cfg_adc(struct ln8411_device *ln8411)
 {
+	unsigned int val;
 	int ret;
 
 	ret = regmap_write(ln8411->regmap, LN8411_ADC_FN_DISABLE1, 0);
@@ -1423,11 +1424,18 @@ static int ln8411_cfg_adc(struct ln8411_device *ln8411)
 	if (ret)
 		return ret;
 
+	ret = regmap_read(ln8411->regmap, LN8411_SYS_STS, &val);
+	if (ret)
+		return ret;
+
 	ret = regmap_set_bits(ln8411->regmap, LN8411_ADC_CTRL, LN8411_ADC_EN);
 	if (ret)
 		return ret;
 
-	usleep_range(120, 130);
+	if (val & LN8411_SHUTDOWN_STS)
+		msleep(375);
+	else
+		usleep_range(120, 130);
 
 	return ret;
 }
