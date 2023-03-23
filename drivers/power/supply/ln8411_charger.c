@@ -2494,9 +2494,6 @@ static int ln8411_is_supported(struct ln8411_device *ln8411)
 	dev_rev_id |= (val & LN8411_CHIP_REV_MASK);
 
 	switch (dev_rev_id) {
-	case LN8411_A0_DEV_REV_ID:
-		dev_info(ln8411->dev, "LN8411 A0 found: 0x%x\n", dev_rev_id);
-		break;
 	case LN8411_A1_DEV_REV_ID:
 		dev_info(ln8411->dev, "LN8411 A1 found: 0x%x\n", dev_rev_id);
 		break;
