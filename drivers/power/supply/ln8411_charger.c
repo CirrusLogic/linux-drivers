@@ -2090,6 +2090,13 @@ static int ln8411_apply_conv_dt(struct ln8411_device *ln8411, struct ln8411_init
 	if (ret)
 		return ret;
 
+	if (init_data->ovpfetdr_v_cfg) {
+		ret = regmap_set_bits(ln8411->regmap,
+				      LN8411_OVPGATE_CTRL_0, LN8411_OVPFETDR_V_CFG);
+		if (ret)
+			return ret;
+	}
+
 	if (init_data->vbus_ovp_set)
 		reg_code |= LN8411_VBUS_OVP_SET;
 	if (init_data->set_ibat_sns_res)
@@ -2221,6 +2228,7 @@ static int ln8411_parse_dt_conv(struct device *dev, struct ln8411_init_data *ini
 	init_data->sync_main_en = device_property_read_bool(dev, "cirrus,sync-main-en");
 	init_data->vbus_ovp_set = device_property_read_bool(dev, "cirrus,vbus-ovp-set");
 	init_data->set_ibat_sns_res = device_property_read_bool(dev, "cirrus,set-ibat-sns-res");
+	init_data->ovpfetdr_v_cfg = device_property_read_bool(dev, "cirrus,use-si-ovp-fets");
 
 	return 0;
 }
