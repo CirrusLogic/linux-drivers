@@ -316,6 +316,9 @@
 #define LN8411_LION_COMP_CTRL_4		0x7c
 #define LN8411_INFET_OFF_DET_DIS	BIT(3)
 
+#define LN8411_OVPGATE_CTRL_0		0x89
+#define LN8411_OVPFETDR_V_CFG		BIT(6)
+
 #define LN8411_SWAP_CTRL_3		0x93
 #define LN8411_SWAP_EN_0		BIT(1)
 
@@ -462,6 +465,7 @@ struct ln8411_state {
  * @sync_main_en: Set sync function role
  * @vbus_ovp_set: Bus over-voltage protection setting
  * @set_ibat_sns_res: External sense resistor setting
+ * @ovpfetdr_v_cfg: External FET gate drive strength
  */
 struct ln8411_init_data {
 	bool vbat_ovp_dis;
@@ -496,6 +500,7 @@ struct ln8411_init_data {
 	bool sync_main_en;
 	bool vbus_ovp_set;
 	bool set_ibat_sns_res;
+	bool ovpfetdr_v_cfg;
 };
 
 /**
