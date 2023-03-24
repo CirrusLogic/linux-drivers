@@ -2529,6 +2529,48 @@ static int ln8411_gpio_cfg(struct ln8411_device *ln8411)
 	return 0;
 }
 
+static const struct reg_sequence ln8411_a1_otp_9dec02[] = {
+	{LN8411_VBAT_OVP, 0x28},
+	{LN8411_IBAT_OCP, 0xaf},
+	{LN8411_VUSB_OVP, 0xcb},
+	{LN8411_VWPC_OVP, 0xcb},
+	{LN8411_IBUS_OCP, 0x28},
+	{LN8411_IBUS_UCP, 0x1a},
+	{LN8411_PMID2OUT_OVP, 0x14},
+	{LN8411_PMID2OUT_UVP, 0x11},
+	{LN8411_CTRL1, 0x18},
+	{LN8411_CTRL2, 0xa0},
+	{LN8411_CTRL3, 0x0},
+	{LN8411_CTRL4, 0x0},
+	{LN8411_INT_MASK, 0x3f},
+	{LN8411_FLT_MASK, 0xff},
+	{LN8411_ADC_CTRL, 0x08},
+	{LN8411_ADC_FN_DISABLE1, 0x6},
+	{LN8411_LION_COMP_CTRL_1, 0x70},
+	{LN8411_LION_COMP_CTRL_2, 0x0},
+	{LN8411_LION_COMP_CTRL_4, 0x5},
+	{LN8411_OVPGATE_CTRL_0, 0x0},
+	{LN8411_SWAP_CTRL_3, 0x80},
+	{LN8411_LION_CFG_1, 0x8f},
+};
+
+static int ln8411_apply_otp(struct ln8411_device *ln8411, const struct reg_sequence *regs)
+{
+	int ret;
+
+	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_TEST_MODE);
+	if (ret)
+		return ret;
+
+	ret = regmap_register_patch(ln8411->regmap,
+					ln8411_a1_otp_9dec02,
+					ARRAY_SIZE(ln8411_a1_otp_9dec02));
+	if (ret)
+		return ret;
+
+	return ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_LOCK);
+}
+
 static int ln8411_is_supported(struct ln8411_device *ln8411)
 {
 	unsigned int val;
@@ -2550,6 +2592,7 @@ static int ln8411_is_supported(struct ln8411_device *ln8411)
 	switch (dev_rev_id) {
 	case LN8411_A1_DEV_REV_ID:
 		dev_info(ln8411->dev, "LN8411 A1 found: 0x%x\n", dev_rev_id);
+		ret = ln8411_apply_otp(ln8411, ln8411_a1_otp_9dec02);
 		break;
 	case LN8411_B0_DEV_REV_ID:
 		dev_info(ln8411->dev, "LN8411 B0 found: 0x%x\n", dev_rev_id);
@@ -2578,23 +2621,28 @@ static bool ln8411_is_volatile_reg(struct device *dev, unsigned int reg)
 }
 
 static struct reg_default ln8411_reg_defs[] = {
-	{LN8411_VBAT_OVP, 0x28},
-	{LN8411_IBAT_OCP, 0xaf},
-	{LN8411_VUSB_OVP, 0xcb},
-	{LN8411_VWPC_OVP, 0xcb},
-	{LN8411_IBUS_OCP, 0x28},
-	{LN8411_IBUS_UCP, 0x1a},
-	{LN8411_PMID2OUT_OVP, 0x14},
-	{LN8411_PMID2OUT_UVP, 0x11},
-	{LN8411_CTRL1, 0x18},
-	{LN8411_CTRL2, 0xa0},
-	{LN8411_CTRL3, 0x0},
-	{LN8411_CTRL4, 0x0},
-	{LN8411_INT_MASK, 0x3f},
-	{LN8411_FLT_MASK, 0xff},
-	{LN8411_ADC_CTRL, 0x08},
-	{LN8411_ADC_FN_DISABLE1, 0x6},
-	{LN8411_ADC_CFG_2, 0xc4},
+	{LN8411_VBAT_OVP, 0x4},
+	{LN8411_IBAT_OCP, 0x4},
+	{LN8411_VUSB_OVP, 0x8f},
+	{LN8411_VWPC_OVP, 0x83},
+	{LN8411_IBUS_OCP, 0x04},
+	{LN8411_IBUS_UCP, 0x00},
+	{LN8411_PMID2OUT_OVP, 0x62},
+	{LN8411_PMID2OUT_UVP, 0x1},
+	{LN8411_CTRL1, 0x00},
+	{LN8411_CTRL2, 0x60},
+	{LN8411_CTRL3, 0x38},
+	{LN8411_CTRL4, 0x1},
+	{LN8411_INT_MASK, 0x00},
+	{LN8411_FLT_MASK, 0x00},
+	{LN8411_ADC_CTRL, 0x00},
+	{LN8411_ADC_FN_DISABLE1, 0x0},
+	{LN8411_LION_COMP_CTRL_1, 0x0},
+	{LN8411_LION_COMP_CTRL_2, 0x0},
+	{LN8411_LION_COMP_CTRL_4, 0x0},
+	{LN8411_OVPGATE_CTRL_0, 0xf},
+	{LN8411_SWAP_CTRL_3, 0x0},
+	{LN8411_LION_CFG_1, 0x0},
 };
 
 static const struct regmap_config ln8411_regmap_config = {
