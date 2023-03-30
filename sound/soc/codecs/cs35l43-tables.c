@@ -108,6 +108,7 @@ bool cs35l43_readable_reg(struct device *dev, unsigned int reg)
 	case CS35L43_BST_DCM_CTL:
 	case CS35L43_DCM_FORCE:
 	case CS35L43_VBST_OVP:
+	case CS35L43_BST_RSVD_1:
 	case CS35L43_MONITOR_FILT:
 	case CS35L43_WARN_LIMIT_THRESHOLD:
 	case CS35L43_CONFIGURATION:

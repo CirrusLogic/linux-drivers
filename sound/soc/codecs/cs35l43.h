@@ -137,6 +137,7 @@
 #define CS35L43_BST_DCM_CTL			0x000381C
 #define CS35L43_DCM_FORCE			0x0003820
 #define CS35L43_VBST_OVP			0x0003830
+#define CS35L43_BST_RSVD_1			0x0003850
 
 /************************************************/
 /* VMON and IMON Signal Monitoring		*/

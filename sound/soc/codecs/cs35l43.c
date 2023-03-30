@@ -2629,7 +2629,8 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l43 = {
 };
 
 static struct reg_sequence cs35l43_errata_patch[] = {
-	{CS35L43_TST_DAC_MSM_CONFIG,	0x11330000},
+	{ CS35L43_TST_DAC_MSM_CONFIG,	0x11330000 },
+	{ CS35L43_BST_RSVD_1,		0x50000802 },
 };
 
 int cs35l43_probe(struct cs35l43_private *cs35l43,
