@@ -446,6 +446,15 @@ static int cl_dsp_logger_init(struct cl_dsp_debugfs *db)
 	ret = cl_dsp_host_buffer_field_read(db,
 			HOST_BUFFER_FIELD(high_water_mark),
 			&db->dl.high_watermark);
+	if (ret)
+		return ret;
+
+	/* Set next_read_index to -1 to reset logger */
+	ret = cl_dsp_host_buffer_field_write(db,
+			HOST_BUFFER_FIELD(next_read_index),
+			CL_DSP_HOST_BUFFER_READ_INDEX_RESET);
+	if (ret)
+		dev_err(db->core->dev, "Failed to reset event logger\n");
 
 	return ret;
 }
@@ -502,17 +511,8 @@ EXPORT_SYMBOL(cl_dsp_debugfs_create);
 
 void cl_dsp_debugfs_destroy(struct cl_dsp_debugfs *db)
 {
-	int ret;
-
-	if (!db || IS_ERR(db))
+	if (IS_ERR_OR_NULL(db))
 		return;
-
-	/* Set next_read_index to -1 to reset logger */
-	ret = cl_dsp_host_buffer_field_write(db,
-			HOST_BUFFER_FIELD(next_read_index),
-			CL_DSP_HOST_BUFFER_READ_INDEX_RESET);
-	if (ret)
-		dev_err(db->core->dev, "Failed to reset event logger\n");
 
 	debugfs_remove_recursive(db->debugfs_node);
 	kfree(db);
