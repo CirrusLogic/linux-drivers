@@ -234,6 +234,12 @@ properties:
     maximum: 1070
     enum: [ 235000, 260000, 290000, 315000, 340000, 365000, 390000, 420000, 435000, 460000, 480000, 505000, 530000, 550000, 570000, 595000, 470000, 530000, 580000, 635000, 685000, 735000, 785000, 835000, 870000, 920000, 965000, 1015000, 1060000, 1105000, 1150000, 1070000 ]
 
+  cirrus,use-si-ovp-fets:
+    type: boolean
+    description: |
+      Adjusts the OVP and WPC FET gate drive strength for use with silicon FETs
+      rather than the default GaN FET strength.
+
   interrupts:
     maxItems: 1
     description: |
