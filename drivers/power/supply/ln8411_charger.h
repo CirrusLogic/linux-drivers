@@ -83,10 +83,16 @@
 #define LN8411_IBUS_OCP_MASK            BIT(5)
 #define LN8411_IBUS_OCP_SET_MASK        (LN8411_IBUS_OCP_DIS | LN8411_IBUS_OCP_MASK)
 #define LN8411_IBUS_OCP_CFG_MASK        GENMASK(3, 0)
-#define LN8411_IBUS_OCP_OFFSET_UA       2500000
-#define LN8411_IBUS_OCP_STEP_UA         250000
-#define LN8411_IBUS_OCP_MIN_UA          LN8411_IBUS_OCP_OFFSET_UA
-#define LN8411_IBUS_OCP_MAX_UA          6250000
+#define LN8411_IBUS_OCP_OFFSET_L_UA	900000
+#define LN8411_IBUS_OCP_STEP_L_UA	100000
+#define LN8411_IBUS_OCP_MIN_L_UA	LN8411_IBUS_OCP_OFFSET_L_UA
+#define LN8411_IBUS_OCP_MAX_L_UA	2400000
+#define LN8411_IBUS_OCP_OFFSET_U_UA	2500000
+#define LN8411_IBUS_OCP_STEP_U_UA	250000
+#define LN8411_IBUS_OCP_MIN_U_UA	LN8411_IBUS_OCP_OFFSET_U_UA
+#define LN8411_IBUS_OCP_MAX_U_UA	6250000
+#define LN8411_IBUS_OCP_MIN_UA		LN8411_IBUS_OCP_MIN_L_UA
+#define LN8411_IBUS_OCP_MAX_UA		LN8411_IBUS_OCP_MAX_U_UA
 #define LN8411_IBUS_OCP_DLFT_UA         3500000
 
 #define LN8411_IBUS_UCP                 0x6
@@ -295,6 +301,9 @@
 #define LN8411_TEST_MODE_CTRL		0x56
 #define LN8411_SOFT_RESET_REQ		BIT(0)
 
+#define LN8411_CFG_10			0x5a
+#define LN8411_IBUS_OC_LVL_LOW_RANGE	BIT(0)
+
 #define LN8411_BC_STS_C			0x62
 #define LN8411_CHIP_REV_MASK		GENMASK(7, 4)
 #define LN8411_A1_DEV_REV_ID		0xa010
@@ -417,6 +426,7 @@ enum ln8411_keys {
  * @iusb_ocp_ua: Placeholder USB over-current target in microamps
  * @mode: Current converter operating mode
  * @charging_status: Current charging status
+ * @ibus_oc_lvl: The configured IBUS OCP range level
  */
 struct ln8411_state {
 	u32 vbat_ovp_uv;
@@ -428,6 +438,7 @@ struct ln8411_state {
 	u32 iusb_ocp_ua;
 	enum ln8411_modes mode;
 	int charging_status;
+	bool ibus_oc_lvl;
 };
 
 /**
