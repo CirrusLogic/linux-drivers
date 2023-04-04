@@ -557,14 +557,55 @@ static int ln8411_cfg_ibus_ocp(struct ln8411_device *ln8411)
 				  LN8411_IBUS_OCP_SET_MASK, reg_code);
 }
 
+static inline int ln8411_set_ibus_oc_lvl(struct ln8411_device *ln8411, const bool ibus_oc_lvl)
+{
+	int ret;
+
+	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_TEST_MODE);
+	if (ret)
+		return ret;
+
+	if (ibus_oc_lvl)
+		ret = regmap_set_bits(ln8411->regmap, LN8411_CFG_10, LN8411_IBUS_OC_LVL_LOW_RANGE);
+	else
+		ret = regmap_clear_bits(ln8411->regmap, LN8411_CFG_10,
+					LN8411_IBUS_OC_LVL_LOW_RANGE);
+	if (ret)
+		return ret;
+
+	ln8411->state.ibus_oc_lvl = ibus_oc_lvl;
+
+	return ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_LOCK);
+}
+
 static int ln8411_set_ibus_ocp(struct ln8411_device *ln8411, int val)
 {
-	unsigned int reg_code;
+	unsigned int offset_ua, reg_code, step_ua;
 	int ret;
 
 	val = clamp(val, LN8411_IBUS_OCP_MIN_UA, LN8411_IBUS_OCP_MAX_UA);
 
-	reg_code = (val - LN8411_IBUS_OCP_OFFSET_UA) / LN8411_IBUS_OCP_STEP_UA;
+	if (val < LN8411_IBUS_OCP_MIN_U_UA) {
+		if (!ln8411->state.ibus_oc_lvl) {
+			ret = ln8411_set_ibus_oc_lvl(ln8411, true);
+			if (ret)
+				return ret;
+		}
+
+		offset_ua = LN8411_IBUS_OCP_OFFSET_L_UA;
+		step_ua = LN8411_IBUS_OCP_STEP_L_UA;
+	} else {
+		if (ln8411->state.ibus_oc_lvl) {
+			ret = ln8411_set_ibus_oc_lvl(ln8411, false);
+			if (ret)
+				return ret;
+		}
+
+		offset_ua = LN8411_IBUS_OCP_OFFSET_U_UA;
+		step_ua = LN8411_IBUS_OCP_STEP_U_UA;
+	}
+
+	reg_code = (val - offset_ua) / step_ua;
 
 	ret = regmap_update_bits(ln8411->regmap,
 				 LN8411_IBUS_OCP, LN8411_IBUS_OCP_CFG_MASK, reg_code);
@@ -578,15 +619,28 @@ static int ln8411_set_ibus_ocp(struct ln8411_device *ln8411, int val)
 
 static int ln8411_get_ibus_ocp(struct ln8411_device *ln8411)
 {
-	unsigned int reg_code;
+	unsigned int offset_ua, reg_code, step_ua;
 	int ret;
+
+	ret = regmap_read(ln8411->regmap, LN8411_CFG_10, &reg_code);
+	if (ret)
+		return ret;
+
+	if (reg_code & LN8411_IBUS_OC_LVL_LOW_RANGE) {
+		ln8411->state.ibus_oc_lvl = true;
+		offset_ua = LN8411_IBUS_OCP_OFFSET_L_UA;
+		step_ua = LN8411_IBUS_OCP_STEP_L_UA;
+	} else {
+		ln8411->state.ibus_oc_lvl = false;
+		offset_ua = LN8411_IBUS_OCP_OFFSET_U_UA;
+		step_ua = LN8411_IBUS_OCP_STEP_U_UA;
+	}
 
 	ret = regmap_read(ln8411->regmap, LN8411_IBUS_OCP, &reg_code);
 	if (ret)
 		return ret;
 
-	ln8411->state.ibus_ocp_ua = ((reg_code & LN8411_IBUS_OCP_CFG_MASK) *
-			      LN8411_IBUS_OCP_STEP_UA) + LN8411_IBUS_OCP_OFFSET_UA;
+	ln8411->state.ibus_ocp_ua = ((reg_code & LN8411_IBUS_OCP_CFG_MASK) * step_ua) + offset_ua;
 
 	return ret;
 }
