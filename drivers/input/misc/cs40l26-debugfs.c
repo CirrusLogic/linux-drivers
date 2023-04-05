@@ -242,7 +242,7 @@ void cs40l26_debugfs_init(struct cs40l26_private *cs40l26)
 			dev_err(cs40l26->dev, "Failed to create CL DSP Debugfs\n");
 	}
 }
-EXPORT_SYMBOL(cs40l26_debugfs_init);
+EXPORT_SYMBOL_GPL(cs40l26_debugfs_init);
 
 void cs40l26_debugfs_cleanup(struct cs40l26_private *cs40l26)
 {
@@ -252,6 +252,6 @@ void cs40l26_debugfs_cleanup(struct cs40l26_private *cs40l26)
 	cs40l26->dbg_fw_ctrl_name = NULL;
 	debugfs_remove_recursive(cs40l26->debugfs_root);
 }
-EXPORT_SYMBOL(cs40l26_debugfs_cleanup);
+EXPORT_SYMBOL_GPL(cs40l26_debugfs_cleanup);
 
 #endif /* CONFIG_DEBUG_FS */

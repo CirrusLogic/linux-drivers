@@ -179,13 +179,13 @@ bool cs40l26_precious_reg(struct device *dev, unsigned int reg)
 {
 	return false;
 }
-EXPORT_SYMBOL(cs40l26_precious_reg);
+EXPORT_SYMBOL_GPL(cs40l26_precious_reg);
 
 bool cs40l26_volatile_reg(struct device *dev, unsigned int reg)
 {
 	return false;
 }
-EXPORT_SYMBOL(cs40l26_volatile_reg);
+EXPORT_SYMBOL_GPL(cs40l26_volatile_reg);
 
 bool cs40l26_readable_reg(struct device *dev, unsigned int reg)
 {
@@ -717,4 +717,4 @@ CS40L26_DSP1_PROM_30714:
 		return false;
 	}
 }
-EXPORT_SYMBOL(cs40l26_readable_reg);
+EXPORT_SYMBOL_GPL(cs40l26_readable_reg);
