@@ -553,6 +553,7 @@ struct ln8411_device {
 	struct regulator_dev *otg_wpc_reg;
 	struct delayed_work pulldown_res_work;
 	struct delayed_work charge_en_work;
+	struct delayed_work otg_en_work;
 
 	int irq;
 	enum ln8411_roles role;

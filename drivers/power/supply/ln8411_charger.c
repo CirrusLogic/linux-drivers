@@ -1166,6 +1166,14 @@ static int ln8411_is_enabled_vwpc_otg(struct regulator_dev *rdev)
 		return false;
 }
 
+static void ln8411_otg_en_work(struct work_struct *work)
+{
+	struct ln8411_device *ln8411 = container_of(work, struct ln8411_device, otg_en_work.work);
+
+	if (!ln8411->init_data.pmid2out_uvp_dis)
+		regmap_clear_bits(ln8411->regmap, LN8411_PMID2OUT_UVP, LN8411_PMID2OUT_UVP_DIS);
+}
+
 static int ln8411_enable_otg(struct ln8411_device *ln8411)
 {
 	int ret;
@@ -1221,7 +1229,13 @@ static int ln8411_enable_otg(struct ln8411_device *ln8411)
 
 	usleep_range(21000, 22000);
 
-	return regmap_set_bits(ln8411->regmap, LN8411_CTRL1, LN8411_CP_EN);
+	ret = regmap_set_bits(ln8411->regmap, LN8411_CTRL1, LN8411_CP_EN);
+	if (ret)
+		return ret;
+
+	queue_delayed_work(system_wq, &ln8411->otg_en_work, msecs_to_jiffies(200));
+
+	return ret;
 }
 
 static int ln8411_enable_vwpc_otg(struct regulator_dev *rdev)
@@ -1270,13 +1284,6 @@ static int ln8411_disable_otg(struct regulator_dev *rdev)
 
 	if (!ln8411->init_data.ibus_ocp_dis) {
 		ret = regmap_clear_bits(ln8411->regmap, LN8411_IBUS_UCP, LN8411_IBUS_UCP_DIS);
-		if (ret)
-			return ret;
-	}
-
-	if (!ln8411->init_data.pmid2out_uvp_dis) {
-		ret = regmap_clear_bits(ln8411->regmap,
-					LN8411_PMID2OUT_UVP, LN8411_PMID2OUT_UVP_DIS);
 		if (ret)
 			return ret;
 	}
@@ -2675,6 +2682,7 @@ static int ln8411_probe(struct i2c_client *client, const struct i2c_device_id *i
 
 	INIT_DELAYED_WORK(&ln8411->pulldown_res_work, ln8411_pulldown_res_work);
 	INIT_DELAYED_WORK(&ln8411->charge_en_work, ln8411_charge_en_work);
+	INIT_DELAYED_WORK(&ln8411->otg_en_work, ln8411_otg_en_work);
 
 	i2c_set_clientdata(client, ln8411);
 
