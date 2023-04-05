@@ -131,7 +131,7 @@ int cs40l26_ack_write(struct cs40l26_private *cs40l26, u32 reg, u32 write_val,
 
 	return cs40l26_ack_read(cs40l26, reg, reset_val);
 }
-EXPORT_SYMBOL(cs40l26_ack_write);
+EXPORT_SYMBOL_GPL(cs40l26_ack_write);
 
 int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 {
@@ -168,7 +168,7 @@ int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 
 	return ret;
 }
-EXPORT_SYMBOL(cs40l26_dsp_state_get);
+EXPORT_SYMBOL_GPL(cs40l26_dsp_state_get);
 
 int cs40l26_set_pll_loop(struct cs40l26_private *cs40l26, unsigned int pll_loop)
 {
@@ -197,7 +197,7 @@ int cs40l26_set_pll_loop(struct cs40l26_private *cs40l26, unsigned int pll_loop)
 
 	return 0;
 }
-EXPORT_SYMBOL(cs40l26_set_pll_loop);
+EXPORT_SYMBOL_GPL(cs40l26_set_pll_loop);
 
 int cs40l26_dbc_get(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc,
 		unsigned int *val)
@@ -228,7 +228,7 @@ err_pm:
 
 	return ret;
 }
-EXPORT_SYMBOL(cs40l26_dbc_get);
+EXPORT_SYMBOL_GPL(cs40l26_dbc_get);
 
 int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc,
 		u32 val)
@@ -258,7 +258,7 @@ int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc,
 
 	return ret;
 }
-EXPORT_SYMBOL(cs40l26_dbc_set);
+EXPORT_SYMBOL_GPL(cs40l26_dbc_set);
 
 static int cs40l26_pm_timeout_ticks_write(struct cs40l26_private *cs40l26,
 		u32 ms, unsigned int lower_offset, unsigned int upper_offset)
@@ -339,7 +339,7 @@ int cs40l26_pm_active_timeout_ms_set(struct cs40l26_private *cs40l26,
 			CS40L26_PM_ACTIVE_TIMEOUT_LOWER_OFFSET,
 			CS40L26_PM_ACTIVE_TIMEOUT_UPPER_OFFSET);
 }
-EXPORT_SYMBOL(cs40l26_pm_active_timeout_ms_set);
+EXPORT_SYMBOL_GPL(cs40l26_pm_active_timeout_ms_set);
 
 int cs40l26_pm_active_timeout_ms_get(struct cs40l26_private *cs40l26,
 		u32 *timeout_ms)
@@ -357,7 +357,7 @@ int cs40l26_pm_active_timeout_ms_get(struct cs40l26_private *cs40l26,
 
 	return 0;
 }
-EXPORT_SYMBOL(cs40l26_pm_active_timeout_ms_get);
+EXPORT_SYMBOL_GPL(cs40l26_pm_active_timeout_ms_get);
 
 int cs40l26_pm_stdby_timeout_ms_set(struct cs40l26_private *cs40l26,
 		u32 timeout_ms)
@@ -366,7 +366,7 @@ int cs40l26_pm_stdby_timeout_ms_set(struct cs40l26_private *cs40l26,
 			CS40L26_PM_STDBY_TIMEOUT_LOWER_OFFSET,
 			CS40L26_PM_STDBY_TIMEOUT_UPPER_OFFSET);
 }
-EXPORT_SYMBOL(cs40l26_pm_stdby_timeout_ms_set);
+EXPORT_SYMBOL_GPL(cs40l26_pm_stdby_timeout_ms_set);
 
 int cs40l26_pm_stdby_timeout_ms_get(struct cs40l26_private *cs40l26,
 		u32 *timeout_ms)
@@ -384,7 +384,7 @@ int cs40l26_pm_stdby_timeout_ms_get(struct cs40l26_private *cs40l26,
 
 	return 0;
 }
-EXPORT_SYMBOL(cs40l26_pm_stdby_timeout_ms_get);
+EXPORT_SYMBOL_GPL(cs40l26_pm_stdby_timeout_ms_get);
 
 static void cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
 {
@@ -833,7 +833,7 @@ int cs40l26_copy_f0_est_to_dvl(struct cs40l26_private *cs40l26)
 
 	return ret;
 }
-EXPORT_SYMBOL(cs40l26_copy_f0_est_to_dvl);
+EXPORT_SYMBOL_GPL(cs40l26_copy_f0_est_to_dvl);
 
 int cs40l26_asp_start(struct cs40l26_private *cs40l26)
 {
@@ -855,7 +855,7 @@ int cs40l26_asp_start(struct cs40l26_private *cs40l26)
 	return cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 			CS40L26_DSP_MBOX_CMD_START_I2S, CS40L26_DSP_MBOX_RESET);
 }
-EXPORT_SYMBOL(cs40l26_asp_start);
+EXPORT_SYMBOL_GPL(cs40l26_asp_start);
 
 void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26,
 		enum cs40l26_vibe_state_event event)
@@ -905,7 +905,7 @@ void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26,
 
 	sysfs_notify(&cs40l26->dev->kobj, NULL, "vibe_state");
 }
-EXPORT_SYMBOL(cs40l26_vibe_state_update);
+EXPORT_SYMBOL_GPL(cs40l26_vibe_state_update);
 
 static int cs40l26_error_release(struct cs40l26_private *cs40l26,
 		unsigned int err_rls)
@@ -1501,7 +1501,7 @@ op_words_free:
 
 	return ret;
 }
-EXPORT_SYMBOL(cs40l26_pseq_write);
+EXPORT_SYMBOL_GPL(cs40l26_pseq_write);
 
 static int cs40l26_pseq_multi_write(struct cs40l26_private *cs40l26,
 		const struct reg_sequence *reg_seq, int num_regs, bool update,
@@ -2112,7 +2112,7 @@ int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves)
 
 	return 0;
 }
-EXPORT_SYMBOL(cs40l26_get_num_waves);
+EXPORT_SYMBOL_GPL(cs40l26_get_num_waves);
 
 static struct cl_dsp_owt_header *cs40l26_header(struct cs40l26_private *cs40l26,
 		u8 index)
@@ -3834,7 +3834,7 @@ int cs40l26_dbc_enable(struct cs40l26_private *cs40l26, u32 enable)
 
 	return ret;
 }
-EXPORT_SYMBOL(cs40l26_dbc_enable);
+EXPORT_SYMBOL_GPL(cs40l26_dbc_enable);
 
 static int cs40l26_handle_dbc_defaults(struct cs40l26_private *cs40l26)
 {
@@ -4086,7 +4086,7 @@ int cs40l26_svc_le_estimate(struct cs40l26_private *cs40l26, unsigned int *le)
 
 	return 0;
 }
-EXPORT_SYMBOL(cs40l26_svc_le_estimate);
+EXPORT_SYMBOL_GPL(cs40l26_svc_le_estimate);
 
 static int cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26,
 		unsigned int le, u32 *tuning_num)
@@ -4470,7 +4470,7 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 
 	return ret;
 }
-EXPORT_SYMBOL(cs40l26_fw_swap);
+EXPORT_SYMBOL_GPL(cs40l26_fw_swap);
 
 static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 {
@@ -4917,7 +4917,7 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL(cs40l26_probe);
+EXPORT_SYMBOL_GPL(cs40l26_probe);
 
 int cs40l26_remove(struct cs40l26_private *cs40l26)
 {
@@ -4968,7 +4968,7 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 
 	return 0;
 }
-EXPORT_SYMBOL(cs40l26_remove);
+EXPORT_SYMBOL_GPL(cs40l26_remove);
 
 int cs40l26_pm_enter(struct device *dev)
 {
@@ -4982,14 +4982,14 @@ int cs40l26_pm_enter(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL(cs40l26_pm_enter);
+EXPORT_SYMBOL_GPL(cs40l26_pm_enter);
 
 void cs40l26_pm_exit(struct device *dev)
 {
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 }
-EXPORT_SYMBOL(cs40l26_pm_exit);
+EXPORT_SYMBOL_GPL(cs40l26_pm_exit);
 
 int cs40l26_suspend(struct device *dev)
 {
@@ -5005,7 +5005,7 @@ int cs40l26_suspend(struct device *dev)
 	return cs40l26_pm_state_transition(cs40l26,
 			CS40L26_PM_STATE_ALLOW_HIBERNATE);
 }
-EXPORT_SYMBOL(cs40l26_suspend);
+EXPORT_SYMBOL_GPL(cs40l26_suspend);
 
 int cs40l26_sys_suspend(struct device *dev)
 {
@@ -5018,7 +5018,7 @@ int cs40l26_sys_suspend(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL(cs40l26_sys_suspend);
+EXPORT_SYMBOL_GPL(cs40l26_sys_suspend);
 
 int cs40l26_sys_suspend_noirq(struct device *dev)
 {
@@ -5030,7 +5030,7 @@ int cs40l26_sys_suspend_noirq(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL(cs40l26_sys_suspend_noirq);
+EXPORT_SYMBOL_GPL(cs40l26_sys_suspend_noirq);
 
 void cs40l26_resume_error_handle(struct device *dev, int ret)
 {
@@ -5040,7 +5040,7 @@ void cs40l26_resume_error_handle(struct device *dev, int ret)
 
 	cs40l26_pm_exit(dev);
 }
-EXPORT_SYMBOL(cs40l26_resume_error_handle);
+EXPORT_SYMBOL_GPL(cs40l26_resume_error_handle);
 
 int cs40l26_resume(struct device *dev)
 {
@@ -5056,7 +5056,7 @@ int cs40l26_resume(struct device *dev)
 	return cs40l26_pm_state_transition(cs40l26,
 			CS40L26_PM_STATE_PREVENT_HIBERNATE);
 }
-EXPORT_SYMBOL(cs40l26_resume);
+EXPORT_SYMBOL_GPL(cs40l26_resume);
 
 int cs40l26_sys_resume(struct device *dev)
 {
@@ -5069,7 +5069,7 @@ int cs40l26_sys_resume(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL(cs40l26_sys_resume);
+EXPORT_SYMBOL_GPL(cs40l26_sys_resume);
 
 int cs40l26_sys_resume_noirq(struct device *dev)
 {
@@ -5082,7 +5082,7 @@ int cs40l26_sys_resume_noirq(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL(cs40l26_sys_resume_noirq);
+EXPORT_SYMBOL_GPL(cs40l26_sys_resume_noirq);
 
 const struct dev_pm_ops cs40l26_pm_ops = {
 	SET_RUNTIME_PM_OPS(cs40l26_suspend, cs40l26_resume, NULL)
