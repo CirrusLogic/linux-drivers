@@ -327,6 +327,11 @@ static int ln8411_set_status_charging(struct ln8411_device *ln8411)
 {
 	int ret;
 
+	if (ln8411->state.mode > LN8411_REV1TO4) {
+		dev_err(ln8411->dev, "Not configured for forward mode\n");
+		return -EINVAL;
+	}
+
 	if ((ln8411->rev == LN8411_A1_DEV_REV_ID) && ln8411->state.mode == LN8411_FWD2TO1) {
 		/* Enable A1 2:1 workaround */
 		ret = ln8411_a1_2to1_workaround(ln8411, true);
@@ -420,6 +425,8 @@ static int ln8411_set_mode(struct ln8411_device *ln8411, const int val)
 		return ret;
 
 	ln8411->state.mode = mode;
+
+	dev_dbg(ln8411->dev, "Configured for forward mode: %d\n", ln8411->state.mode);
 
 	return ret;
 }
@@ -1104,6 +1111,8 @@ static int ln8411_otg_set_voltage(struct regulator_dev *rdev,
 
 	ln8411->state.mode = val;
 
+	dev_dbg(ln8411->dev, "Configured for reverse mode: %d\n", ln8411->state.mode);
+
 	return ret;
 
 }
@@ -1179,6 +1188,11 @@ static int ln8411_enable_otg(struct ln8411_device *ln8411)
 	int ret;
 
 	dev_dbg(ln8411->dev, "Entering reverse mode\n");
+
+	if (ln8411->state.mode < LN8411_REV1TO4) {
+		dev_err(ln8411->dev, "Not configured for reverse mode: %d\n", ln8411->state.mode);
+		return -EINVAL;
+	}
 
 	ret = regmap_set_bits(ln8411->regmap, LN8411_IBUS_UCP, LN8411_IBUS_UCP_DIS);
 	if (ret)
