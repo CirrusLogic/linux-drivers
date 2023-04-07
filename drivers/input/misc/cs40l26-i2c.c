@@ -30,15 +30,13 @@ static const struct of_device_id cs40l26_of_match[CS40L26_NUM_DEVS + 1] = {
 };
 MODULE_DEVICE_TABLE(of, cs40l26_of_match);
 
-static int cs40l26_i2c_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int cs40l26_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
-	int ret;
+	struct cs40l26_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct cs40l26_private *cs40l26;
-	struct device *dev = &client->dev;
-	struct cs40l26_platform_data *pdata = dev_get_platdata(dev);
+	int ret;
 
-	cs40l26 = devm_kzalloc(dev, sizeof(struct cs40l26_private), GFP_KERNEL);
+	cs40l26 = devm_kzalloc(&client->dev, sizeof(struct cs40l26_private), GFP_KERNEL);
 	if (!cs40l26)
 		return -ENOMEM;
 
@@ -47,11 +45,11 @@ static int cs40l26_i2c_probe(struct i2c_client *client,
 	cs40l26->regmap = devm_regmap_init_i2c(client, &cs40l26_regmap);
 	if (IS_ERR(cs40l26->regmap)) {
 		ret = PTR_ERR(cs40l26->regmap);
-		dev_err(dev, "Failed to allocate register map: %d\n", ret);
+		dev_err(&client->dev, "Failed to allocate register map: %d\n", ret);
 		return ret;
 	}
 
-	cs40l26->dev = dev;
+	cs40l26->dev = &client->dev;
 	cs40l26->irq = client->irq;
 
 	return cs40l26_probe(cs40l26, pdata);
