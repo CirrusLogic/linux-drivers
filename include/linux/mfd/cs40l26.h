@@ -760,17 +760,16 @@
 #define CS40L26_PSEQ_WRITE_X16_UPPER_DATA_MASK		GENMASK(31, 0)
 #define CS40L26_PSEQ_WRITE_X16_OP_MASK			GENMASK(23, 16)
 
-#define CS40L26_PM_STDBY_TIMEOUT_LOWER_OFFSET	16
-#define CS40L26_PM_STDBY_TIMEOUT_UPPER_OFFSET	20
-#define CS40L26_PM_STDBY_TIMEOUT_MS_DEFAULT	100
+#define CS40L26_PM_STDBY_TIMEOUT_OFFSET		16
+#define CS40L26_PM_STDBY_TIMEOUT_MS_MIN		100
 #define CS40L26_PM_TIMEOUT_MS_MAX		10000
-#define CS40L26_PM_ACTIVE_TIMEOUT_LOWER_OFFSET	24
-#define CS40L26_PM_ACTIVE_TIMEOUT_UPPER_OFFSET	28
+#define CS40L26_PM_ACTIVE_TIMEOUT_OFFSET	24
 #define CS40L26_PM_ACTIVE_TIMEOUT_MS_DEFAULT	250
+#define CS40L26_PM_ACTIVE_TIMEOUT_MS_MIN	0
 #define CS40L26_PM_TIMEOUT_TICKS_LOWER_MASK	GENMASK(23, 0)
 #define CS40L26_PM_TIMEOUT_TICKS_UPPER_MASK	GENMASK(7, 0)
 #define CS40L26_PM_TIMEOUT_TICKS_UPPER_SHIFT	24
-#define CS40L26_PM_TICKS_MS_DIV			32
+#define CS40L26_PM_TICKS_PER_MS			32
 
 #define CS40L26_AUTOSUSPEND_DELAY_MS		2000
 
@@ -1591,10 +1590,10 @@ int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves);
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id);
 void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26,
 		enum cs40l26_vibe_state_event event);
-int cs40l26_pm_stdby_timeout_ms_get(struct cs40l26_private *cs40l26, u32 *timeout_ms);
-int cs40l26_pm_stdby_timeout_ms_set(struct cs40l26_private *cs40l26, u32 timeout_ms);
-int cs40l26_pm_active_timeout_ms_get(struct cs40l26_private *cs40l26, u32 *timeout_ms);
-int cs40l26_pm_active_timeout_ms_set(struct cs40l26_private *cs40l26, u32 timeout_ms);
+int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26, unsigned int dsp_state,
+		u32 timeout_ms);
+int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26, unsigned int dsp_state,
+		u32 *timeout_ms);
 int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26, enum cs40l26_pm_state state);
 int cs40l26_ack_write(struct cs40l26_private *cs40l26, u32 reg, u32 write_val, u32 reset_val);
 int cs40l26_pm_enter(struct device *dev);
