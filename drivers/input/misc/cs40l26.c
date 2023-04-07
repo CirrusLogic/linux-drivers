@@ -247,123 +247,83 @@ int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc, u32 v
 }
 EXPORT_SYMBOL_GPL(cs40l26_dbc_set);
 
-static int cs40l26_pm_timeout_ticks_write(struct cs40l26_private *cs40l26,
-		u32 ms, unsigned int lower_offset, unsigned int upper_offset)
+int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26, unsigned int dsp_state,
+		u32 timeout_ms)
 {
-	struct regmap *regmap = cs40l26->regmap;
-	struct device *dev = cs40l26->dev;
-	u32 lower_val, reg, ticks;
-	u8 upper_val;
+	u32 reg, timeout_ticks;
+	unsigned int min;
 	int ret;
 
-	if (ms > CS40L26_PM_TIMEOUT_MS_MAX) {
-		dev_warn(dev, "Timeout (%u ms) invalid, using maximum\n", ms);
-		ticks = CS40L26_PM_TIMEOUT_MS_MAX * CS40L26_PM_TICKS_MS_DIV;
+	if (cs40l26->fw_loaded) {
+		ret = cl_dsp_get_reg(cs40l26->dsp, "PM_TIMER_TIMEOUT_TICKS",
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
+		if (ret)
+			return ret;
 	} else {
-		ticks = ms * CS40L26_PM_TICKS_MS_DIV;
+		reg = CS40L26_A1_PM_TIMEOUT_TICKS_STATIC_REG;
 	}
 
-	upper_val = (ticks >> CS40L26_PM_TIMEOUT_TICKS_UPPER_SHIFT) &
-			CS40L26_PM_TIMEOUT_TICKS_UPPER_MASK;
-
-	lower_val = ticks & CS40L26_PM_TIMEOUT_TICKS_LOWER_MASK;
-
-	ret = cl_dsp_get_reg(cs40l26->dsp, "PM_TIMER_TIMEOUT_TICKS",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(regmap, reg + lower_offset, lower_val);
-	if (ret) {
-		dev_err(dev, "Failed to write timeout ticks to 0x%08X\n", reg + lower_offset);
-		return ret;
+	if (dsp_state == CS40L26_DSP_STATE_STANDBY) {
+		reg += CS40L26_PM_STDBY_TIMEOUT_OFFSET;
+		min = CS40L26_PM_STDBY_TIMEOUT_MS_MIN;
+	} else if (dsp_state == CS40L26_DSP_STATE_ACTIVE) {
+		reg += CS40L26_PM_ACTIVE_TIMEOUT_OFFSET;
+		min = CS40L26_PM_ACTIVE_TIMEOUT_MS_MIN;
+	} else {
+		dev_err(cs40l26->dev, "Invalid DSP state: %u\n", dsp_state);
+		return -EINVAL;
 	}
 
-	ret = regmap_write(regmap, reg + upper_offset, upper_val);
+	if (timeout_ms > CS40L26_PM_TIMEOUT_MS_MAX)
+		timeout_ticks = CS40L26_PM_TIMEOUT_MS_MAX * CS40L26_PM_TICKS_PER_MS;
+	else if (timeout_ms < min)
+		timeout_ticks = min * CS40L26_PM_TICKS_PER_MS;
+	else
+		timeout_ticks = timeout_ms * CS40L26_PM_TICKS_PER_MS;
+
+	ret = regmap_write(cs40l26->regmap, reg, timeout_ticks);
 	if (ret)
-		dev_err(dev, "Failed to write timeout ticks to 0x%08X\n", reg + upper_offset);
+		dev_err(cs40l26->dev, "Failed to set PM timeout: %d\n", ret);
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cs40l26_pm_timeout_ms_set);
 
-static int cs40l26_pm_timeout_ticks_read(struct cs40l26_private *cs40l26,
-		unsigned int lower_offset, unsigned int upper_offset, u32 *ticks)
+int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26, unsigned int dsp_state,
+		u32 *timeout_ms)
 {
-	u32 lower_val, upper_val, reg;
-	int ret = 0;
+	u32 reg, timeout_ticks;
+	int ret;
 
-	if (cs40l26->fw_loaded)
+	if (cs40l26->fw_loaded) {
 		ret = cl_dsp_get_reg(cs40l26->dsp, "PM_TIMER_TIMEOUT_TICKS",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
-	else
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
+		if (ret)
+			return ret;
+	} else {
 		reg = CS40L26_A1_PM_TIMEOUT_TICKS_STATIC_REG;
+	}
 
-	if (ret)
+	if (dsp_state == CS40L26_DSP_STATE_STANDBY) {
+		reg += CS40L26_PM_STDBY_TIMEOUT_OFFSET;
+	} else if (dsp_state == CS40L26_DSP_STATE_ACTIVE) {
+		reg += CS40L26_PM_ACTIVE_TIMEOUT_OFFSET;
+	} else {
+		dev_err(cs40l26->dev, "Invalid DSP state: %u\n", dsp_state);
+		return -EINVAL;
+	}
+
+	ret = regmap_read(cs40l26->regmap, reg, &timeout_ticks);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to get PM timeout: %d\n", ret);
 		return ret;
+	}
 
-	ret = regmap_read(cs40l26->regmap, reg + lower_offset, &lower_val);
-	if (ret)
-		return ret;
-
-	ret = regmap_read(cs40l26->regmap, reg + upper_offset, &upper_val);
-	if (ret)
-		return ret;
-
-	*ticks = ((lower_val & CS40L26_PM_TIMEOUT_TICKS_LOWER_MASK) |
-		((upper_val & CS40L26_PM_TIMEOUT_TICKS_UPPER_MASK) <<
-		CS40L26_PM_TIMEOUT_TICKS_UPPER_SHIFT));
+	*timeout_ms = timeout_ticks / CS40L26_PM_TICKS_PER_MS;
 
 	return 0;
 }
-
-int cs40l26_pm_active_timeout_ms_set(struct cs40l26_private *cs40l26, u32 timeout_ms)
-{
-	return cs40l26_pm_timeout_ticks_write(cs40l26, timeout_ms,
-			CS40L26_PM_ACTIVE_TIMEOUT_LOWER_OFFSET,
-			CS40L26_PM_ACTIVE_TIMEOUT_UPPER_OFFSET);
-}
-EXPORT_SYMBOL_GPL(cs40l26_pm_active_timeout_ms_set);
-
-int cs40l26_pm_active_timeout_ms_get(struct cs40l26_private *cs40l26, u32 *timeout_ms)
-{
-	u32 ticks;
-	int ret;
-
-	ret = cs40l26_pm_timeout_ticks_read(cs40l26, CS40L26_PM_ACTIVE_TIMEOUT_LOWER_OFFSET,
-			CS40L26_PM_ACTIVE_TIMEOUT_UPPER_OFFSET, &ticks);
-	if (ret)
-		return ret;
-
-	*timeout_ms = ticks / CS40L26_PM_TICKS_MS_DIV;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(cs40l26_pm_active_timeout_ms_get);
-
-int cs40l26_pm_stdby_timeout_ms_set(struct cs40l26_private *cs40l26,
-		u32 timeout_ms)
-{
-	return cs40l26_pm_timeout_ticks_write(cs40l26, timeout_ms,
-			CS40L26_PM_STDBY_TIMEOUT_LOWER_OFFSET,
-			CS40L26_PM_STDBY_TIMEOUT_UPPER_OFFSET);
-}
-EXPORT_SYMBOL_GPL(cs40l26_pm_stdby_timeout_ms_set);
-
-int cs40l26_pm_stdby_timeout_ms_get(struct cs40l26_private *cs40l26, u32 *timeout_ms)
-{
-	u32 ticks;
-	int ret;
-
-	ret = cs40l26_pm_timeout_ticks_read(cs40l26, CS40L26_PM_STDBY_TIMEOUT_LOWER_OFFSET,
-			CS40L26_PM_STDBY_TIMEOUT_UPPER_OFFSET, &ticks);
-	if (ret)
-		return ret;
-
-	*timeout_ms = ticks / CS40L26_PM_TICKS_MS_DIV;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(cs40l26_pm_stdby_timeout_ms_get);
+EXPORT_SYMBOL_GPL(cs40l26_pm_timeout_ms_get);
 
 static inline void cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
 {
@@ -545,7 +505,7 @@ static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 		return -EINVAL;
 	}
 
-	ret = cs40l26_pm_active_timeout_ms_get(cs40l26, &timeout_ms);
+	ret = cs40l26_pm_timeout_ms_get(cs40l26, CS40L26_DSP_STATE_ACTIVE, &timeout_ms);
 	if (ret)
 		return ret;
 
@@ -4045,11 +4005,13 @@ static int cs40l26_change_fw_control_defaults(struct cs40l26_private *cs40l26)
 {
 	int ret;
 
-	ret = cs40l26_pm_stdby_timeout_ms_set(cs40l26, cs40l26->pdata.pm_stdby_timeout_ms);
+	ret = cs40l26_pm_timeout_ms_set(cs40l26, CS40L26_DSP_STATE_STANDBY,
+			cs40l26->pdata.pm_stdby_timeout_ms);
 	if (ret)
 		return ret;
 
-	return cs40l26_pm_active_timeout_ms_set(cs40l26, cs40l26->pdata.pm_active_timeout_ms);
+	return cs40l26_pm_timeout_ms_set(cs40l26, CS40L26_DSP_STATE_ACTIVE,
+			cs40l26->pdata.pm_active_timeout_ms);
 }
 
 static int cs40l26_get_fw_params(struct cs40l26_private *cs40l26)
@@ -4502,7 +4464,7 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 	if (!of_property_read_u32(np, "cirrus,pm-stdby-timeout-ms", &val))
 		cs40l26->pdata.pm_stdby_timeout_ms = val;
 	else
-		cs40l26->pdata.pm_stdby_timeout_ms = CS40L26_PM_STDBY_TIMEOUT_MS_DEFAULT;
+		cs40l26->pdata.pm_stdby_timeout_ms = CS40L26_PM_STDBY_TIMEOUT_MS_MIN;
 
 	if (!of_property_read_u32(np, "cirrus,pm-active-timeout-ms", &val))
 		cs40l26->pdata.pm_active_timeout_ms = val;
