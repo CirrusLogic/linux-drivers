@@ -13,8 +13,7 @@
 
 #include <linux/mfd/cs40l26.h>
 
-static ssize_t dsp_state_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t dsp_state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u8 dsp_state;
@@ -31,20 +30,18 @@ static ssize_t dsp_state_show(struct device *dev,
 	if (ret)
 		return ret;
 	else
-		return snprintf(buf, PAGE_SIZE, "%u\n",
-				(unsigned int) (dsp_state & 0xFF));
+		return snprintf(buf, PAGE_SIZE, "%u\n", (unsigned int) (dsp_state & 0xFF));
 }
 static DEVICE_ATTR_RO(dsp_state);
 
-static ssize_t halo_heartbeat_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t halo_heartbeat_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, halo_heartbeat;
 	int ret;
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_HEARTBEAT",
-			CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw_id, &reg);
+	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_HEARTBEAT", CL_DSP_XM_UNPACKED_TYPE,
+			cs40l26->fw_id, &reg);
 	if (ret)
 		return ret;
 
@@ -63,8 +60,8 @@ static ssize_t halo_heartbeat_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(halo_heartbeat);
 
-static ssize_t pm_stdby_timeout_ms_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t pm_stdby_timeout_ms_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 timeout_ms;
@@ -157,8 +154,7 @@ static ssize_t pm_active_timeout_ms_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(pm_active_timeout_ms);
 
-static ssize_t vibe_state_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t vibe_state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int state;
@@ -176,8 +172,7 @@ static ssize_t vibe_state_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(vibe_state);
 
-static ssize_t power_on_seq_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t power_on_seq_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	struct cs40l26_pseq_op *op;
@@ -197,15 +192,12 @@ static ssize_t power_on_seq_show(struct device *dev,
 	list_for_each_entry_reverse(op, &cs40l26->pseq_op_head, list) {
 		switch (op->operation) {
 		case CS40L26_PSEQ_OP_WRITE_FULL:
-			addr = ((op->words[0] & 0xFFFF) << 16) |
-					((op->words[1] & 0x00FFFF00) >> 8);
-			data = ((op->words[1] & 0xFF) << 24) |
-					(op->words[2] & 0xFFFFFF);
+			addr = ((op->words[0] & 0xFFFF) << 16) | ((op->words[1] & 0x00FFFF00) >> 8);
+			data = ((op->words[1] & 0xFF) << 24) | (op->words[2] & 0xFFFFFF);
 			break;
 		case CS40L26_PSEQ_OP_WRITE_H16:
 		case CS40L26_PSEQ_OP_WRITE_L16:
-			addr = ((op->words[0] & 0xFFFF) << 8) |
-					((op->words[1] & 0xFF0000) >> 16);
+			addr = ((op->words[0] & 0xFFFF) << 8) | ((op->words[1] & 0xFF0000) >> 16);
 			data = (op->words[1] & 0xFFFF);
 
 			if (op->operation == CS40L26_PSEQ_OP_WRITE_H16)
@@ -213,23 +205,20 @@ static ssize_t power_on_seq_show(struct device *dev,
 			break;
 		case CS40L26_PSEQ_OP_WRITE_ADDR8:
 			addr = (op->words[0] & 0xFF00) >> 8;
-			data = ((op->words[0] & 0xFF) << 24) |
-					(op->words[1] & 0xFFFFFF);
+			data = ((op->words[0] & 0xFF) << 24) | (op->words[1] & 0xFFFFFF);
 			break;
 		case CS40L26_PSEQ_OP_END:
 			addr = CS40L26_PSEQ_OP_END_ADDR;
 			data = CS40L26_PSEQ_OP_END_DATA;
 			break;
 		default:
-			dev_err(cs40l26->dev, "Unrecognized Op Code: 0x%02X\n",
-					op->operation);
+			dev_err(cs40l26->dev, "Unrecognized Op Code: 0x%02X\n", op->operation);
 			ret = -EINVAL;
 			goto err_mutex;
 		}
 
-		dev_dbg(cs40l26->dev,
-		"0x%08x: code = 0x%02X, Addr = 0x%08X, Data = 0x%08X\n",
-		base + op->offset, op->operation, addr, data);
+		dev_dbg(cs40l26->dev, "0x%08x: code = 0x%02X, Addr = 0x%08X, Data = 0x%08X\n",
+				base + op->offset, op->operation, addr, data);
 	}
 
 	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->pseq_num_ops);
@@ -252,7 +241,7 @@ static ssize_t owt_free_space_show(struct device *dev,
 		return ret;
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "OWT_SIZE_XM",
-		CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
 	if (ret)
 		goto err_pm;
 
@@ -291,8 +280,7 @@ static ssize_t die_temp_show(struct device *dev,
 	}
 
 	if (!(val & CS40L26_GLOBAL_EN_MASK)) {
-		dev_err(cs40l26->dev,
-			"Global enable must be set to get die temp.\n");
+		dev_err(cs40l26->dev, "Global enable must be set to get die temp.\n");
 		ret = -EPERM;
 		goto err_pm;
 	}
@@ -303,8 +291,7 @@ static ssize_t die_temp_show(struct device *dev,
 		goto err_pm;
 	}
 
-	die_temp = (val & CS40L26_TEMP_RESULT_FILT_MASK) >>
-			CS40L26_TEMP_RESULT_FILT_SHIFT;
+	die_temp = (val & CS40L26_TEMP_RESULT_FILT_MASK) >> CS40L26_TEMP_RESULT_FILT_SHIFT;
 
 	ret = snprintf(buf, PAGE_SIZE, "0x%03X\n", die_temp);
 
@@ -315,8 +302,7 @@ err_pm:
 }
 static DEVICE_ATTR_RO(die_temp);
 
-static ssize_t num_waves_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t num_waves_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 nwaves;
@@ -340,8 +326,8 @@ err_pm:
 static DEVICE_ATTR_RO(num_waves);
 
 /* boost_disable_delay is in units of 125us, e.g. 8 ->  1ms */
-static ssize_t boost_disable_delay_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t boost_disable_delay_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, boost_disable_delay;
@@ -379,9 +365,8 @@ static ssize_t boost_disable_delay_store(struct device *dev,
 
 	ret = kstrtou32(buf, 10, &boost_disable_delay);
 
-	if (ret ||
-		boost_disable_delay < CS40L26_BOOST_DISABLE_DELAY_MIN ||
-		boost_disable_delay > CS40L26_BOOST_DISABLE_DELAY_MAX)
+	if (ret || boost_disable_delay < CS40L26_BOOST_DISABLE_DELAY_MIN ||
+			boost_disable_delay > CS40L26_BOOST_DISABLE_DELAY_MAX)
 		return -EINVAL;
 
 	ret = cs40l26_pm_enter(cs40l26->dev);
@@ -405,8 +390,7 @@ err_pm:
 }
 static DEVICE_ATTR_RW(boost_disable_delay);
 
-static ssize_t f0_offset_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t f0_offset_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int reg, val;
@@ -418,9 +402,8 @@ static ssize_t f0_offset_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OFFSET",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID,
-			&reg);
+	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OFFSET", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
 
@@ -439,8 +422,8 @@ err_mutex:
 	return ret;
 }
 
-static ssize_t f0_offset_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t f0_offset_store(struct device *dev, struct device_attribute *attr, const char *buf,
+		size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int reg, val;
@@ -459,9 +442,8 @@ static ssize_t f0_offset_store(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OFFSET",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID,
-			&reg);
+	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OFFSET", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
 
@@ -488,8 +470,7 @@ static ssize_t delay_before_stop_playback_us_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = snprintf(buf, PAGE_SIZE, "%d\n",
-					cs40l26->delay_before_stop_playback_us);
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->delay_before_stop_playback_us);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -517,8 +498,7 @@ static ssize_t delay_before_stop_playback_us_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(delay_before_stop_playback_us);
 
-static ssize_t f0_comp_enable_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t f0_comp_enable_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	int ret;
@@ -543,9 +523,8 @@ err_mutex:
 	return ret;
 }
 
-static ssize_t f0_comp_enable_store(struct device *dev,
-			struct device_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t f0_comp_enable_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	int ret;
@@ -566,13 +545,12 @@ static ssize_t f0_comp_enable_store(struct device *dev,
 	cs40l26->comp_enable_f0 = val > 0;
 
 	value = (cs40l26->comp_enable_redc << CS40L26_COMP_EN_REDC_SHIFT) |
-		(cs40l26->comp_enable_f0 << CS40L26_COMP_EN_F0_SHIFT);
+			(cs40l26->comp_enable_f0 << CS40L26_COMP_EN_F0_SHIFT);
 
 	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
 		ret = -EPERM;
 	} else {
-		ret = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE",
-				CL_DSP_XM_UNPACKED_TYPE,
+		ret = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_VIBEGEN_ALGO_ID, &reg);
 		if (ret)
 			goto err_mutex;
@@ -595,8 +573,7 @@ err_mutex:
 }
 static DEVICE_ATTR_RW(f0_comp_enable);
 
-static ssize_t redc_comp_enable_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t redc_comp_enable_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	int ret;
@@ -621,9 +598,8 @@ err_mutex:
 	return ret;
 }
 
-static ssize_t redc_comp_enable_store(struct device *dev,
-			struct device_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t redc_comp_enable_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	int ret;
@@ -644,13 +620,12 @@ static ssize_t redc_comp_enable_store(struct device *dev,
 	cs40l26->comp_enable_redc = val > 0;
 
 	value = (cs40l26->comp_enable_redc << CS40L26_COMP_EN_REDC_SHIFT) |
-		(cs40l26->comp_enable_f0 << CS40L26_COMP_EN_F0_SHIFT);
+			(cs40l26->comp_enable_f0 << CS40L26_COMP_EN_F0_SHIFT);
 
 	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
 		ret = -EPERM;
 	} else {
-		ret = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE",
-				CL_DSP_XM_UNPACKED_TYPE,
+		ret = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_VIBEGEN_ALGO_ID, &reg);
 		if (ret)
 			goto err_mutex;
@@ -673,8 +648,7 @@ err_mutex:
 }
 static DEVICE_ATTR_RW(redc_comp_enable);
 
-static ssize_t swap_firmware_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+static ssize_t swap_firmware_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	int ret;
@@ -693,9 +667,8 @@ static ssize_t swap_firmware_show(struct device *dev,
 	return ret;
 }
 
-static ssize_t swap_firmware_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t swap_firmware_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	int ret;
@@ -716,8 +689,7 @@ static ssize_t swap_firmware_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(swap_firmware);
 
-static ssize_t vpbr_thld_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t vpbr_thld_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	int ret;
@@ -736,20 +708,17 @@ err_mutex:
 	return ret;
 }
 
-static ssize_t vpbr_thld_store(struct device *dev,
-			struct device_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vpbr_thld_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	struct regmap *regmap = cs40l26->regmap;
+	u32 vpbr_config_reg_val;
 	int ret;
 	u8 sysfs_val;
-	u32 vpbr_config_reg_val;
 
 	ret = kstrtou8(buf, 10, &sysfs_val);
-	if (ret ||
-		sysfs_val > CS40L26_VPBR_THLD_MAX ||
-		sysfs_val < CS40L26_VPBR_THLD_MIN)
+	if (ret || sysfs_val > CS40L26_VPBR_THLD_MAX || sysfs_val < CS40L26_VPBR_THLD_MIN)
 		return -EINVAL;
 
 	ret = cs40l26_pm_enter(cs40l26->dev);
@@ -781,16 +750,15 @@ static ssize_t vpbr_thld_store(struct device *dev,
 	}
 
 	ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG,
-				(vpbr_config_reg_val & GENMASK(31, 16)) >> 16,
-				true, CS40L26_PSEQ_OP_WRITE_H16);
+			(vpbr_config_reg_val & GENMASK(31, 16)) >> 16, true,
+			CS40L26_PSEQ_OP_WRITE_H16);
 	if (ret) {
 		dev_err(dev, "Failed to update VPBR config PSEQ H16\n");
 		goto err_mutex;
 	}
 
 	ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG,
-				(vpbr_config_reg_val & GENMASK(15, 0)),
-				true, CS40L26_PSEQ_OP_WRITE_L16);
+			(vpbr_config_reg_val & GENMASK(15, 0)), true, CS40L26_PSEQ_OP_WRITE_L16);
 	if (ret) {
 		dev_err(dev, "Failed to update VPBR config PSEQ L16\n");
 		goto err_mutex;
@@ -845,8 +813,8 @@ static ssize_t dbc_enable_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_EXT_ALGO_ID, &reg);
+	ret = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID,
+			&reg);
 	if (ret)
 		goto err_pm;
 
@@ -900,8 +868,7 @@ static ssize_t dbc_enable_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(dbc_enable);
 
-static ssize_t dbc_env_rel_coef_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t dbc_env_rel_coef_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int val;
@@ -980,8 +947,7 @@ static ssize_t dbc_rise_headroom_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(dbc_rise_headroom);
 
-static ssize_t dbc_fall_headroom_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t dbc_fall_headroom_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int val;
@@ -1020,8 +986,8 @@ static ssize_t dbc_fall_headroom_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(dbc_fall_headroom);
 
-static ssize_t dbc_tx_lvl_thresh_fs_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t dbc_tx_lvl_thresh_fs_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int val;
@@ -1060,8 +1026,8 @@ static ssize_t dbc_tx_lvl_thresh_fs_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(dbc_tx_lvl_thresh_fs);
 
-static ssize_t dbc_tx_lvl_hold_off_ms_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t dbc_tx_lvl_hold_off_ms_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int val;
@@ -1149,10 +1115,8 @@ static ssize_t trigger_calibration_store(struct device *dev,
 	}
 
 	mailbox_command = ((CS40L26_DSP_MBOX_CMD_INDEX_CALIBRATION_CONTROL <<
-				CS40L26_DSP_MBOX_CMD_INDEX_SHIFT) &
-				CS40L26_DSP_MBOX_CMD_INDEX_MASK) |
-				(calibration_request_payload &
-				CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK);
+			CS40L26_DSP_MBOX_CMD_INDEX_SHIFT) & CS40L26_DSP_MBOX_CMD_INDEX_MASK) |
+			(calibration_request_payload & CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK);
 
 	ret = cs40l26_pm_enter(cs40l26->dev);
 	if (ret)
@@ -1161,8 +1125,8 @@ static ssize_t trigger_calibration_store(struct device *dev,
 	mutex_lock(&cs40l26->lock);
 	reinit_completion(completion);
 
-	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-		mailbox_command, CS40L26_DSP_MBOX_RESET);
+	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, mailbox_command,
+			CS40L26_DSP_MBOX_RESET);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1182,10 +1146,8 @@ static ssize_t trigger_calibration_store(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	if (calibration_request_payload ==
-				CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q){
+	if (calibration_request_payload == CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q)
 		ret = cs40l26_copy_f0_est_to_dvl(cs40l26);
-	}
 
 	mutex_unlock(&cs40l26->lock);
 err_pm:
@@ -1194,12 +1156,11 @@ err_pm:
 }
 static DEVICE_ATTR_WO(trigger_calibration);
 
-static ssize_t f0_measured_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t f0_measured_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
 	u32 reg, f0_measured;
+	int ret;
 
 	ret = cs40l26_pm_enter(cs40l26->dev);
 	if (ret)
@@ -1207,8 +1168,7 @@ static ssize_t f0_measured_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_EST",
-			CL_DSP_XM_UNPACKED_TYPE,
+	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_EST", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
@@ -1229,12 +1189,11 @@ err_mutex:
 }
 static DEVICE_ATTR_RO(f0_measured);
 
-static ssize_t q_measured_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t q_measured_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
 	u32 reg, q_measured;
+	int ret;
 
 	ret = cs40l26_pm_enter(cs40l26->dev);
 	if (ret)
@@ -1242,8 +1201,7 @@ static ssize_t q_measured_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "Q_EST",
-			CL_DSP_XM_UNPACKED_TYPE,
+	ret = cl_dsp_get_reg(cs40l26->dsp, "Q_EST", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
@@ -1264,12 +1222,11 @@ err_mutex:
 }
 static DEVICE_ATTR_RO(q_measured);
 
-static ssize_t redc_measured_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t redc_measured_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
 	u32 reg, redc_measured;
+	int ret;
 
 	ret = cs40l26_pm_enter(cs40l26->dev);
 	if (ret)
@@ -1277,8 +1234,7 @@ static ssize_t redc_measured_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "RE_EST_STATUS",
-			CL_DSP_YM_UNPACKED_TYPE,
+	ret = cl_dsp_get_reg(cs40l26->dsp, "RE_EST_STATUS", CL_DSP_YM_UNPACKED_TYPE,
 			CS40L26_SVC_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
@@ -1299,12 +1255,11 @@ err_mutex:
 }
 static DEVICE_ATTR_RO(redc_measured);
 
-static ssize_t redc_est_show(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t redc_est_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
 	u32 reg, redc_est;
+	int ret;
 
 	ret = cs40l26_pm_enter(cs40l26->dev);
 	if (ret)
@@ -1312,8 +1267,7 @@ static ssize_t redc_est_show(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC",
-			CL_DSP_XM_UNPACKED_TYPE,
+	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
@@ -1333,12 +1287,12 @@ err_mutex:
 		return snprintf(buf, PAGE_SIZE, "%08X\n", redc_est);
 }
 
-static ssize_t redc_est_store(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t redc_est_store(struct device *dev, struct device_attribute *attr, const char *buf,
+		size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
 	u32 reg, redc_est;
+	int ret;
 
 	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
 
@@ -1352,8 +1306,7 @@ static ssize_t redc_est_store(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC",
-			CL_DSP_XM_UNPACKED_TYPE,
+	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
@@ -1374,12 +1327,11 @@ err_mutex:
 }
 static DEVICE_ATTR_RW(redc_est);
 
-static ssize_t f0_stored_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t f0_stored_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
 	u32 reg, f0_stored;
+	int ret;
 
 	ret = cs40l26_pm_enter(cs40l26->dev);
 	if (ret)
@@ -1387,8 +1339,7 @@ static ssize_t f0_stored_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED",
-			CL_DSP_XM_UNPACKED_TYPE,
+	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
@@ -1408,20 +1359,18 @@ err_mutex:
 		return snprintf(buf, PAGE_SIZE, "%08X\n", f0_stored);
 }
 
-static ssize_t f0_stored_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t f0_stored_store(struct device *dev, struct device_attribute *attr, const char *buf,
+		size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
 	u32 reg, f0_stored;
+	int ret;
 
 	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
 
 	ret = kstrtou32(buf, 16, &f0_stored);
 
-	if (ret ||
-		f0_stored < CS40L26_F0_EST_MIN ||
-		f0_stored > CS40L26_F0_EST_MAX)
+	if (ret || f0_stored < CS40L26_F0_EST_MIN || f0_stored > CS40L26_F0_EST_MAX)
 		return -EINVAL;
 
 	ret = cs40l26_pm_enter(cs40l26->dev);
@@ -1430,8 +1379,7 @@ static ssize_t f0_stored_store(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED",
-			CL_DSP_XM_UNPACKED_TYPE,
+	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
@@ -1452,12 +1400,11 @@ err_mutex:
 }
 static DEVICE_ATTR_RW(f0_stored);
 
-static ssize_t q_stored_show(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t q_stored_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
 	u32 reg, q_stored;
+	int ret;
 
 	ret = cs40l26_pm_enter(cs40l26->dev);
 	if (ret)
@@ -1465,8 +1412,7 @@ static ssize_t q_stored_show(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED",
-			CL_DSP_XM_UNPACKED_TYPE,
+	ret = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
@@ -1486,12 +1432,12 @@ err_mutex:
 		return snprintf(buf, PAGE_SIZE, "%08X\n", q_stored);
 }
 
-static ssize_t q_stored_store(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t q_stored_store(struct device *dev, struct device_attribute *attr, const char *buf,
+		size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
 	u32 reg, q_stored;
+	int ret;
 
 	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
 
@@ -1506,8 +1452,7 @@ static ssize_t q_stored_store(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED",
-			CL_DSP_XM_UNPACKED_TYPE,
+	ret = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
@@ -1528,12 +1473,11 @@ err_mutex:
 }
 static DEVICE_ATTR_RW(q_stored);
 
-static ssize_t redc_stored_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t redc_stored_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
 	u32 reg, redc_stored;
+	int ret;
 
 	ret = cs40l26_pm_enter(cs40l26->dev);
 	if (ret)
@@ -1541,8 +1485,7 @@ static ssize_t redc_stored_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED",
-			CL_DSP_XM_UNPACKED_TYPE,
+	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
@@ -1562,12 +1505,12 @@ err_mutex:
 		return snprintf(buf, PAGE_SIZE, "%08X\n", redc_stored);
 }
 
-static ssize_t redc_stored_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t redc_stored_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
 	u32 reg, redc_stored;
+	int ret;
 
 	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
 
@@ -1581,8 +1524,7 @@ static ssize_t redc_stored_store(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED",
-			CL_DSP_XM_UNPACKED_TYPE,
+	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
@@ -1603,8 +1545,8 @@ err_mutex:
 }
 static DEVICE_ATTR_RW(redc_stored);
 
-static ssize_t f0_and_q_cal_time_ms_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t f0_and_q_cal_time_ms_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, tone_dur_ms, freq_span_raw, freq_centre;
@@ -1616,8 +1558,8 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "TONE_DURATION_MS",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_F0_EST_ALGO_ID, &reg);
+	ret = cl_dsp_get_reg(cs40l26->dsp, "TONE_DURATION_MS", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_F0_EST_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
 
@@ -1628,8 +1570,7 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev,
 	}
 
 	if (tone_dur_ms == 0) { /* Calculate value */
-		ret = cl_dsp_get_reg(cs40l26->dsp, "FREQ_SPAN",
-				CL_DSP_XM_UNPACKED_TYPE,
+		ret = cl_dsp_get_reg(cs40l26->dsp, "FREQ_SPAN", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_F0_EST_ALGO_ID, &reg);
 		if (ret)
 			goto err_mutex;
@@ -1645,8 +1586,7 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev,
 		else
 			freq_span = (int) freq_span_raw;
 
-		ret = cl_dsp_get_reg(cs40l26->dsp, "FREQ_CENTRE",
-				CL_DSP_XM_UNPACKED_TYPE,
+		ret = cl_dsp_get_reg(cs40l26->dsp, "FREQ_CENTRE", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_F0_EST_ALGO_ID, &reg);
 		if (ret)
 			goto err_mutex;
@@ -1657,10 +1597,9 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev,
 			goto err_mutex;
 		}
 
-		f0_and_q_cal_time_ms =
-			((CS40L26_F0_CHIRP_DURATION_FACTOR *
-			  (int) (freq_span / CS40L26_F0_EST_FREQ_SCALE)) /
-			 (int) (freq_centre / CS40L26_F0_EST_FREQ_SCALE));
+		f0_and_q_cal_time_ms = ((CS40L26_F0_CHIRP_DURATION_FACTOR *
+				(int) (freq_span / CS40L26_F0_EST_FREQ_SCALE)) /
+				(int) (freq_centre / CS40L26_F0_EST_FREQ_SCALE));
 	} else if (tone_dur_ms < CS40L26_F0_AND_Q_CALIBRATION_MIN_MS) {
 		f0_and_q_cal_time_ms = CS40L26_F0_AND_Q_CALIBRATION_MIN_MS;
 	} else if (tone_dur_ms > CS40L26_F0_AND_Q_CALIBRATION_MAX_MS) {
@@ -1681,13 +1620,12 @@ err_mutex:
 }
 static DEVICE_ATTR_RO(f0_and_q_cal_time_ms);
 
-static ssize_t redc_cal_time_ms_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t redc_cal_time_ms_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	/* FIRMWARE_STUMPY_CALIB_REDC_PLAYTIME_MS + SVC_INIT + buffer */
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
 	u32 reg, redc_playtime_ms, redc_total_cal_time_ms;
+	int ret;
 
 	ret = cs40l26_pm_enter(cs40l26->dev);
 	if (ret)
@@ -1695,17 +1633,15 @@ static ssize_t redc_cal_time_ms_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_PLAYTIME_MS",
-			CL_DSP_XM_UNPACKED_TYPE,
+	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_PLAYTIME_MS", CL_DSP_XM_UNPACKED_TYPE,
 			cs40l26->fw_id, &reg);
 	if (ret)
 		goto err_mutex;
 
 	ret = regmap_read(cs40l26->regmap, reg, &redc_playtime_ms);
 
-	redc_total_cal_time_ms = redc_playtime_ms +
-					CS40L26_SVC_INITIALIZATION_PERIOD_MS +
-					CS40L26_REDC_CALIBRATION_BUFFER_MS;
+	redc_total_cal_time_ms = redc_playtime_ms + CS40L26_SVC_INITIALIZATION_PERIOD_MS +
+			CS40L26_REDC_CALIBRATION_BUFFER_MS;
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -1719,8 +1655,8 @@ err_mutex:
 }
 static DEVICE_ATTR_RO(redc_cal_time_ms);
 
-static ssize_t dvl_peq_coefficients_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t dvl_peq_coefficients_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	u32 reg, dvl_peq_coefficients[CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS];
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -1732,8 +1668,7 @@ static ssize_t dvl_peq_coefficients_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "PEQ_COEF1_X",
-			CL_DSP_XM_UNPACKED_TYPE,
+	ret = cl_dsp_get_reg(cs40l26->dsp, "PEQ_COEF1_X", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_DVL_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
@@ -1751,11 +1686,9 @@ err_mutex:
 	if (ret)
 		return ret;
 
-	return snprintf(buf, PAGE_SIZE,
-			"%08X %08X %08X %08X %08X %08X\n",
-			dvl_peq_coefficients[0], dvl_peq_coefficients[1],
-			dvl_peq_coefficients[2], dvl_peq_coefficients[3],
-			dvl_peq_coefficients[4], dvl_peq_coefficients[5]);
+	return snprintf(buf, PAGE_SIZE, "%08X %08X %08X %08X %08X %08X\n",
+			dvl_peq_coefficients[0], dvl_peq_coefficients[1], dvl_peq_coefficients[2],
+			dvl_peq_coefficients[3], dvl_peq_coefficients[4], dvl_peq_coefficients[5]);
 }
 
 static ssize_t dvl_peq_coefficients_store(struct device *dev,
@@ -1772,15 +1705,14 @@ static ssize_t dvl_peq_coefficients_store(struct device *dev,
 
 	coeffs_str_temp = coeffs_str;
 	while ((coeff_str = strsep(&coeffs_str_temp, " ")) != NULL) {
-		ret = kstrtou32(coeff_str, 16,
-					&dvl_peq_coefficients[coeffs_found++]);
+		ret = kstrtou32(coeff_str, 16, &dvl_peq_coefficients[coeffs_found++]);
 		if (ret)
 			goto err_free;
 	}
 
 	if (coeffs_found != CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS) {
 		dev_err(cs40l26->dev, "Num DVL PEQ coeffs, %d, expecting %d\n",
-			coeffs_found, CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
+				coeffs_found, CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
 		ret = -EINVAL;
 		goto err_free;
 	}
@@ -1791,17 +1723,15 @@ static ssize_t dvl_peq_coefficients_store(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "PEQ_COEF1_X",
-			CL_DSP_XM_UNPACKED_TYPE,
+	ret = cl_dsp_get_reg(cs40l26->dsp, "PEQ_COEF1_X", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_DVL_ALGO_ID, &reg);
 	if (ret)
 		goto err_mutex;
 
 	ret = regmap_bulk_write(cs40l26->regmap, reg, dvl_peq_coefficients,
-					CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
+			CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
 	if (ret)
-		dev_err(cs40l26->dev, "Failed to write DVL PEQ coefficients,%d",
-									ret);
+		dev_err(cs40l26->dev, "Failed to write DVL PEQ coefficients,%d", ret);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -1812,8 +1742,7 @@ err_free:
 }
 static DEVICE_ATTR_RW(dvl_peq_coefficients);
 
-static ssize_t logging_en_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t logging_en_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, enable;
@@ -1844,8 +1773,8 @@ err_mutex:
 	return ret;
 }
 
-static ssize_t logging_en_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t logging_en_store(struct device *dev, struct device_attribute *attr, const char *buf,
+		size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	struct regmap *regmap = cs40l26->regmap;
@@ -1867,8 +1796,7 @@ static ssize_t logging_en_store(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(dsp, "COUNT", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_LOGGER_ALGO_ID, &reg);
+	ret = cl_dsp_get_reg(dsp, "COUNT", CL_DSP_XM_UNPACKED_TYPE, CS40L26_LOGGER_ALGO_ID, &reg);
 	if (ret)
 		goto exit_mutex;
 
@@ -1878,8 +1806,7 @@ static ssize_t logging_en_store(struct device *dev,
 		goto exit_mutex;
 	}
 
-	ret = cl_dsp_get_reg(dsp, "SOURCE", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_LOGGER_ALGO_ID, &reg);
+	ret = cl_dsp_get_reg(dsp, "SOURCE", CL_DSP_XM_UNPACKED_TYPE, CS40L26_LOGGER_ALGO_ID, &reg);
 	if (ret)
 		goto exit_mutex;
 
@@ -1900,8 +1827,7 @@ static ssize_t logging_en_store(struct device *dev,
 		}
 	} else if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
 		for (i = 0; i < src_count; i++) {
-			ret = regmap_read(regmap, reg +
-					(i * CL_DSP_BYTES_PER_WORD), &src);
+			ret = regmap_read(regmap, reg + (i * CL_DSP_BYTES_PER_WORD), &src);
 			if (ret) {
 				dev_err(dev, "Failed to get Logger Source\n");
 				goto exit_mutex;
@@ -1911,27 +1837,23 @@ static ssize_t logging_en_store(struct device *dev,
 			src >>= CS40L26_LOGGER_SRC_ID_SHIFT;
 
 			if (src != (i + 1)) {
-				dev_err(cdev, "Invalid Logger Source %u\n",
-						src);
+				dev_err(cdev, "Invalid Logger Source %u\n", src);
 				ret = -EINVAL;
 				goto exit_mutex;
 			}
 		}
 	} else {
-		dev_err(cdev, "Invalid firmware ID 0x%06X\n",
-			cs40l26->fw_id);
+		dev_err(cdev, "Invalid firmware ID 0x%06X\n", cs40l26->fw_id);
 		goto exit_mutex;
 	}
 
-	ret = cl_dsp_get_reg(dsp, "ENABLE", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_LOGGER_ALGO_ID, &reg);
+	ret = cl_dsp_get_reg(dsp, "ENABLE", CL_DSP_XM_UNPACKED_TYPE, CS40L26_LOGGER_ALGO_ID, &reg);
 	if (ret)
 		goto exit_mutex;
 
 	ret = regmap_write(regmap, reg, enable);
 	if (ret)
-		dev_err(cdev, "Failed to %s logging\n",
-				enable ? "enable" : "disable");
+		dev_err(cdev, "Failed to %s logging\n", enable ? "enable" : "disable");
 
 exit_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -1962,7 +1884,7 @@ static ssize_t logging_max_reset_store(struct device *dev,
 		return ret;
 
 	cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-		CS40L26_DSP_MBOX_CMD_LOGGER_MAX_RESET, CS40L26_DSP_MBOX_RESET);
+			CS40L26_DSP_MBOX_CMD_LOGGER_MAX_RESET, CS40L26_DSP_MBOX_RESET);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
@@ -1970,8 +1892,7 @@ static ssize_t logging_max_reset_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(logging_max_reset);
 
-static ssize_t max_bemf_show(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t max_bemf_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -1994,8 +1915,7 @@ static ssize_t max_bemf_show(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		goto err_mutex;
 
-	ret = regmap_read(cs40l26->regmap, reg +
-			CS40L26_LOGGER_DATA_1_MAX_OFFSET, &max_bemf);
+	ret = regmap_read(cs40l26->regmap, reg + CS40L26_LOGGER_DATA_1_MAX_OFFSET, &max_bemf);
 	if (ret)
 		dev_err(cs40l26->dev, "Failed to get max. back EMF\n");
 
@@ -2011,8 +1931,7 @@ err_mutex:
 }
 static DEVICE_ATTR_RO(max_bemf);
 
-static ssize_t max_vbst_show(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t max_vbst_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -2035,8 +1954,7 @@ static ssize_t max_vbst_show(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		goto err_mutex;
 
-	ret = regmap_read(cs40l26->regmap, reg +
-			CS40L26_LOGGER_DATA_2_MAX_OFFSET, &max_vbst);
+	ret = regmap_read(cs40l26->regmap, reg + CS40L26_LOGGER_DATA_2_MAX_OFFSET, &max_vbst);
 	if (ret)
 		dev_err(cs40l26->dev, "Failed to get max. VBST\n");
 
@@ -2052,8 +1970,7 @@ err_mutex:
 }
 static DEVICE_ATTR_RO(max_vbst);
 
-static ssize_t max_vmon_show(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t max_vmon_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -2093,8 +2010,7 @@ err_mutex:
 }
 static DEVICE_ATTR_RO(max_vmon);
 
-static ssize_t svc_le_est_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t svc_le_est_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int le;
@@ -2119,8 +2035,7 @@ static ssize_t svc_le_est_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(svc_le_est);
 
-static ssize_t svc_le_stored_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t svc_le_stored_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	int ret;
@@ -2138,8 +2053,8 @@ static ssize_t svc_le_stored_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
 	u32 svc_le_stored;
+	int ret;
 
 	ret = kstrtou32(buf, 10, &svc_le_stored);
 	if (ret)

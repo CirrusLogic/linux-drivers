@@ -14,8 +14,8 @@
 #include <linux/mfd/cs40l26.h>
 
 #ifdef CONFIG_DEBUG_FS
-static ssize_t cs40l26_fw_ctrl_name_read(struct file *file,
-		char __user *user_buf, size_t count, loff_t *ppos)
+static ssize_t cs40l26_fw_ctrl_name_read(struct file *file, char __user *user_buf, size_t count,
+		loff_t *ppos)
 {
 	struct cs40l26_private *cs40l26 = file->private_data;
 	ssize_t ret = 0;
@@ -23,8 +23,7 @@ static ssize_t cs40l26_fw_ctrl_name_read(struct file *file,
 	mutex_lock(&cs40l26->lock);
 
 	if (cs40l26->dbg_fw_ctrl_name)
-		ret = simple_read_from_buffer(user_buf, count, ppos,
-				cs40l26->dbg_fw_ctrl_name,
+		ret = simple_read_from_buffer(user_buf, count, ppos, cs40l26->dbg_fw_ctrl_name,
 				strlen(cs40l26->dbg_fw_ctrl_name));
 
 	mutex_unlock(&cs40l26->lock);
@@ -32,8 +31,8 @@ static ssize_t cs40l26_fw_ctrl_name_read(struct file *file,
 	return ret;
 }
 
-static ssize_t cs40l26_fw_ctrl_name_write(struct file *file,
-		const char __user *user_buf, size_t count, loff_t *ppos)
+static ssize_t cs40l26_fw_ctrl_name_write(struct file *file, const char __user *user_buf,
+		size_t count, loff_t *ppos)
 {
 	struct cs40l26_private *cs40l26 = file->private_data;
 	ssize_t ret = 0;
@@ -49,8 +48,7 @@ static ssize_t cs40l26_fw_ctrl_name_write(struct file *file,
 		goto err_mutex;
 	}
 
-	ret = simple_write_to_buffer(cs40l26->dbg_fw_ctrl_name,
-			count, ppos, user_buf, count);
+	ret = simple_write_to_buffer(cs40l26->dbg_fw_ctrl_name, count, ppos, user_buf, count);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -58,8 +56,8 @@ err_mutex:
 	return ret ? ret : count;
 }
 
-static ssize_t cs40l26_fw_algo_id_read(struct file *file,
-		char __user *user_buf, size_t count, loff_t *ppos)
+static ssize_t cs40l26_fw_algo_id_read(struct file *file, char __user *user_buf, size_t count,
+		loff_t *ppos)
 {
 	struct cs40l26_private *cs40l26 = file->private_data;
 	ssize_t ret;
@@ -82,8 +80,8 @@ static ssize_t cs40l26_fw_algo_id_read(struct file *file,
 	return ret;
 }
 
-static ssize_t cs40l26_fw_algo_id_write(struct file *file,
-		const char __user *user_buf, size_t count, loff_t *ppos)
+static ssize_t cs40l26_fw_algo_id_write(struct file *file, const char __user *user_buf,
+		size_t count, loff_t *ppos)
 {
 	struct cs40l26_private *cs40l26 = file->private_data;
 	ssize_t ret;
@@ -113,8 +111,8 @@ exit_free:
 	return ret ? ret : count;
 }
 
-static ssize_t cs40l26_fw_ctrl_val_read(struct file *file,
-		char __user *user_buf, size_t count, loff_t *ppos)
+static ssize_t cs40l26_fw_ctrl_val_read(struct file *file, char __user *user_buf, size_t count,
+		loff_t *ppos)
 {
 	struct cs40l26_private *cs40l26 = file->private_data;
 	u32 reg, val, mem_type;
@@ -135,8 +133,7 @@ static ssize_t cs40l26_fw_ctrl_val_read(struct file *file,
 
 	mutex_lock(&cs40l26->lock);
 
-	mem_type  = cs40l26->dbg_fw_ym ?
-			CL_DSP_YM_UNPACKED_TYPE : CL_DSP_XM_UNPACKED_TYPE;
+	mem_type  = cs40l26->dbg_fw_ym ? CL_DSP_YM_UNPACKED_TYPE : CL_DSP_XM_UNPACKED_TYPE;
 
 	input = kzalloc(strlen(cs40l26->dbg_fw_ctrl_name), GFP_KERNEL);
 	if (!input) {
@@ -144,11 +141,9 @@ static ssize_t cs40l26_fw_ctrl_val_read(struct file *file,
 		goto err_mutex;
 	}
 
-	snprintf(input, strlen(cs40l26->dbg_fw_ctrl_name), "%s",
-			cs40l26->dbg_fw_ctrl_name);
+	snprintf(input, strlen(cs40l26->dbg_fw_ctrl_name), "%s", cs40l26->dbg_fw_ctrl_name);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, input, mem_type,
-			cs40l26->dbg_fw_algo_id, &reg);
+	ret = cl_dsp_get_reg(cs40l26->dsp, input, mem_type, cs40l26->dbg_fw_algo_id, &reg);
 	kfree(input);
 	if (ret)
 		goto err_mutex;
@@ -166,8 +161,7 @@ static ssize_t cs40l26_fw_ctrl_val_read(struct file *file,
 	}
 
 	snprintf(result, CS40L26_ALGO_ID_MAX_STR_LEN, "0x%08X\n", val);
-	ret = simple_read_from_buffer(user_buf, count, ppos, result,
-			strlen(result));
+	ret = simple_read_from_buffer(user_buf, count, ppos, result, strlen(result));
 
 	kfree(result);
 
@@ -220,13 +214,11 @@ void cs40l26_debugfs_init(struct cs40l26_private *cs40l26)
 	if (!root)
 		return;
 
-	debugfs_create_bool("fw_ym_space", CL_DSP_DEBUGFS_RW_FILE_MODE,
-			root, &cs40l26->dbg_fw_ym);
+	debugfs_create_bool("fw_ym_space", CL_DSP_DEBUGFS_RW_FILE_MODE, root, &cs40l26->dbg_fw_ym);
 
 	for (i = 0; i < CS40L26_NUM_DEBUGFS; i++)
-		debugfs_create_file(cs40l26_debugfs_fops[i].name,
-				CL_DSP_DEBUGFS_RW_FILE_MODE, root, cs40l26,
-				&cs40l26_debugfs_fops[i].fops);
+		debugfs_create_file(cs40l26_debugfs_fops[i].name, CL_DSP_DEBUGFS_RW_FILE_MODE,
+				root, cs40l26, &cs40l26_debugfs_fops[i].fops);
 
 	cs40l26->dbg_fw_ym = false;
 	cs40l26->dbg_fw_algo_id = CS40L26_VIBEGEN_ALGO_ID;
@@ -234,8 +226,7 @@ void cs40l26_debugfs_init(struct cs40l26_private *cs40l26)
 
 	if (cs40l26->fw_id == CS40L26_FW_ID &&
 			cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EVENT_LOGGER_ALGO_ID)) {
-		cs40l26->cl_dsp_db = cl_dsp_debugfs_create(cs40l26->dsp,
-				cs40l26->debugfs_root,
+		cs40l26->cl_dsp_db = cl_dsp_debugfs_create(cs40l26->dsp, cs40l26->debugfs_root,
 				(u32) CS40L26_EVENT_LOGGER_ALGO_ID);
 
 		if (IS_ERR(cs40l26->cl_dsp_db) || !cs40l26->cl_dsp_db)
