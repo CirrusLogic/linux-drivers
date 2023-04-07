@@ -71,7 +71,7 @@ static ssize_t pm_stdby_timeout_ms_show(struct device *dev, struct device_attrib
 	if (ret)
 		return ret;
 
-	ret = cs40l26_pm_stdby_timeout_ms_get(cs40l26, &timeout_ms);
+	ret = cs40l26_pm_timeout_ms_get(cs40l26, CS40L26_DSP_STATE_STANDBY, &timeout_ms);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
@@ -96,7 +96,7 @@ static ssize_t pm_stdby_timeout_ms_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = cs40l26_pm_stdby_timeout_ms_set(cs40l26, timeout_ms);
+	ret = cs40l26_pm_timeout_ms_set(cs40l26, CS40L26_DSP_STATE_STANDBY, timeout_ms);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
@@ -118,7 +118,7 @@ static ssize_t pm_active_timeout_ms_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = cs40l26_pm_active_timeout_ms_get(cs40l26, &timeout_ms);
+	ret = cs40l26_pm_timeout_ms_get(cs40l26, CS40L26_DSP_STATE_ACTIVE, &timeout_ms);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
@@ -143,7 +143,7 @@ static ssize_t pm_active_timeout_ms_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = cs40l26_pm_active_timeout_ms_set(cs40l26, timeout_ms);
+	ret = cs40l26_pm_timeout_ms_set(cs40l26, CS40L26_DSP_STATE_ACTIVE, timeout_ms);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
