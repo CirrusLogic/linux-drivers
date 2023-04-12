@@ -606,6 +606,6 @@ enum ln8411_irq_list {
 };
 
 static int ln8411_hw_init(struct ln8411_device *ln8411);
-static int ln8411_soft_reset(struct ln8411_device *ln8411);
+static inline int ln8411_do_soft_reset(struct ln8411_device *ln8411);
 
 #endif /* LN8411_CHARGER_H */

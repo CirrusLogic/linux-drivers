@@ -237,34 +237,40 @@ static int ln8411_get_charger_health(struct ln8411_device *ln8411, union power_s
 	return ret;
 }
 
-static int ln8411_set_present(struct ln8411_device *ln8411, const union power_supply_propval *val)
+static int ln8411_reset(struct ln8411_device *ln8411)
 {
-	int ret;
+	int ret = 0;
 
-	if (!val->intval) {
-		mutex_lock(&ln8411->lock);
+	cancel_delayed_work_sync(&ln8411->pulldown_res_work);
+	cancel_delayed_work_sync(&ln8411->charge_en_work);
+	cancel_delayed_work_sync(&ln8411->otg_en_work);
 
+	mutex_lock(&ln8411->lock);
+
+	if (ln8411->irq)
 		disable_irq(ln8411->irq);
 
-		ret = ln8411_soft_reset(ln8411);
+	if (ln8411->reset_gpio) {
+		gpiod_set_value_cansleep(ln8411->reset_gpio, 0);
+		msleep(50);
+		gpiod_set_value_cansleep(ln8411->reset_gpio, 1);
+	} else {
+		ret = ln8411_do_soft_reset(ln8411);
 		if (ret)
 			goto err_out;
-
-		regcache_mark_dirty(ln8411->regmap);
-		ret = regcache_sync(ln8411->regmap);
-		if (ret)
-			goto err_out;
-
-		ret = ln8411_hw_init(ln8411);
-		if (ret)
-			goto err_out;
-
-		enable_irq(ln8411->irq);
-
-		mutex_unlock(&ln8411->lock);
 	}
 
-	return 0;
+	regcache_mark_dirty(ln8411->regmap);
+	ret = regcache_sync(ln8411->regmap);
+	if (ret)
+		goto err_out;
+
+	ret = ln8411_hw_init(ln8411);
+	if (ret)
+		goto err_out;
+
+	if (ln8411->irq)
+		enable_irq(ln8411->irq);
 
 err_out:
 	mutex_unlock(&ln8411->lock);
@@ -1822,7 +1828,9 @@ static int ln8411_set_charger_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_STATUS:
 		return ln8411_set_status(ln8411, val->intval);
 	case POWER_SUPPLY_PROP_PRESENT:
-		return ln8411_set_present(ln8411, val);
+		if (!val->intval)
+			return ln8411_reset(ln8411);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -2498,7 +2506,7 @@ static int ln8411_parse_dt(struct device *dev, struct ln8411_device *ln8411)
 	return ln8411_parse_dt_conv(dev, init_data);
 }
 
-static int ln8411_soft_reset(struct ln8411_device *ln8411)
+static inline int ln8411_do_soft_reset(struct ln8411_device *ln8411)
 {
 	const union power_supply_propval val = { .intval = POWER_SUPPLY_STATUS_NOT_CHARGING };
 	int ret;
@@ -2763,7 +2771,7 @@ static void ln8411_remove(struct i2c_client *client)
 	struct ln8411_device *ln8411 = i2c_get_clientdata(client);
 	int ret;
 
-	ret = ln8411_soft_reset(ln8411);
+	ret = ln8411_reset(ln8411);
 	if (ret)
 		dev_err(ln8411->dev, "Failed to reset: %d\n", ret);
 
