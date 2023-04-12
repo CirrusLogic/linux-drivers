@@ -3950,8 +3950,14 @@ static char **cs40l26_get_tuning_names(struct cs40l26_private *cs40l26, int *act
 
 	if (cs40l26->fw_id == CS40L26_FW_ID) {
 		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID))
-			strscpy(coeff_files[file_count++], CS40L26_A2H_TUNING_FILE_NAME,
-					CS40L26_TUNING_FILE_NAME_MAX_LEN);
+			strscpy(coeff_files[file_count++],
+				CS40L26_A2H_TUNING_FILE_NAME,
+				CS40L26_TUNING_FILE_NAME_MAX_LEN);
+
+		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID))
+			strscpy(coeff_files[file_count++],
+				CS40L26_EP_TUNING_FILE_NAME,
+				CS40L26_TUNING_FILE_NAME_MAX_LEN);
 	} else {
 		strscpy(coeff_files[file_count++], CS40L26_CALIB_BIN_FILE_NAME,
 				CS40L26_TUNING_FILE_NAME_MAX_LEN);
