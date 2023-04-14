@@ -2185,7 +2185,8 @@ static int ln8411_apply_conv_dt(struct ln8411_device *ln8411, struct ln8411_init
 	if (init_data->set_ibat_sns_res)
 		reg_code |= LN8411_SET_IBAT_SNS_RES;
 
-	return regmap_update_bits(ln8411->regmap, LN8411_CTRL4, ~(LN8411_MODE_MASK), reg_code);
+	return regmap_update_bits(ln8411->regmap,
+				  LN8411_CTRL4, ~(unsigned int)LN8411_MODE_MASK, reg_code);
 }
 
 static int ln8411_apply_ibus_dt(struct ln8411_device *ln8411, struct ln8411_init_data *init_data)
