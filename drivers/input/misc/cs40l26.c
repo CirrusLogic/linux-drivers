@@ -2003,15 +2003,20 @@ int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves)
 }
 EXPORT_SYMBOL_GPL(cs40l26_get_num_waves);
 
-static struct cl_dsp_owt_header *cs40l26_header(struct cs40l26_private *cs40l26, u8 index)
+static struct cl_dsp_owt_header *cs40l26_owt_header(struct cs40l26_private *cs40l26, u8 index,
+		u16 bank)
 {
-	if (!cs40l26->dsp || !cs40l26->dsp->wt_desc || index >= cs40l26->dsp->wt_desc->owt.nwaves)
-		return ERR_PTR(-EINVAL);
+	if (bank == CS40L26_RAM_BANK_ID && cs40l26->dsp->wt_desc &&
+			index < cs40l26->dsp->wt_desc->owt.nwaves)
+		return &cs40l26->dsp->wt_desc->owt.waves[index];
+	if (bank == CS40L26_ROM_BANK_ID && index < cs40l26->rom_wt.nwaves)
+		return &cs40l26->rom_wt.waves[index];
 
-	return &cs40l26->dsp->wt_desc->owt.waves[index];
+	return ERR_PTR(-EINVAL);
 }
 
-static int cs40l26_owt_get_wlength(struct cs40l26_private *cs40l26, u8 index, u32 *wlen_whole)
+static int cs40l26_owt_get_wlength(struct cs40l26_private *cs40l26, u8 index, u32 *wlen_whole,
+		u16 bank)
 {
 	struct device *dev = cs40l26->dev;
 	struct cl_dsp_owt_header *entry;
@@ -2022,7 +2027,7 @@ static int cs40l26_owt_get_wlength(struct cs40l26_private *cs40l26, u8 index, u3
 		return 0;
 	}
 
-	entry = cs40l26_header(cs40l26, index);
+	entry = cs40l26_owt_header(cs40l26, index, bank);
 	if (IS_ERR(entry))
 		return PTR_ERR(entry);
 
@@ -2097,6 +2102,11 @@ static int cs40l26_owt_get_section_info(struct cs40l26_private *cs40l26, struct 
 			if (ret)
 				return ret;
 		}
+
+		if (sections[i].flags & CS40L26_WT_TYPE10_COMP_ROM_FLAG)
+			sections[i].wvfrm_bank = CS40L26_ROM_BANK_ID;
+		else
+			sections[i].wvfrm_bank = CS40L26_RAM_BANK_ID;
 	}
 
 	return ret;
@@ -2129,10 +2139,11 @@ static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26, u8 nse
 	}
 
 	for (i = 0; i < nsections; i++) {
-		ret = cs40l26_owt_get_wlength(cs40l26, sections[i].index, &wlen_whole);
+		ret = cs40l26_owt_get_wlength(cs40l26, sections[i].index, &wlen_whole,
+				sections[i].wvfrm_bank);
 		if (ret < 0) {
-			dev_err(cs40l26->dev, "Failed to get wlength for index %u\n",
-					sections[i].index);
+			dev_err(cs40l26->dev, "Failed to get wlength for index %u: %d\n",
+					sections[i].index, ret);
 			goto err_free;
 		}
 
@@ -2248,8 +2259,8 @@ err_pm:
 	return ret;
 }
 
-static u8 *cs40l26_ncw_amp_scaling(struct cs40l26_private *cs40l26, u8 amp, u8 nsections,
-		void *in_data, u32 data_bytes)
+static u8 *cs40l26_ncw_refactor_data(struct cs40l26_private *cs40l26, u8 amp, u8 nsections,
+		void *in_data, u32 data_bytes, u16 bank)
 {
 	struct cs40l26_owt_section *sections;
 	struct cl_dsp_memchunk in_ch, out_ch;
@@ -2279,6 +2290,8 @@ static u8 *cs40l26_ncw_amp_scaling(struct cs40l26_private *cs40l26, u8 amp, u8 n
 			amp_product = sections[i].amplitude * amp;
 			sections[i].amplitude = (u8) DIV_ROUND_UP(amp_product, 100);
 		}
+		if (bank == CS40L26_ROM_BANK_ID)
+			sections[i].flags |= CS40L26_WT_TYPE10_COMP_ROM_FLAG;
 	}
 
 	out_data = kcalloc(data_bytes, sizeof(u8), GFP_KERNEL);
@@ -2308,7 +2321,7 @@ static int cs40l26_owt_comp_data_size(struct cs40l26_private *cs40l26,
 			continue;
 		}
 
-		header = cs40l26_header(cs40l26, sections[i].index);
+		header = cs40l26_owt_header(cs40l26, sections[i].index, sections[i].wvfrm_bank);
 		if (IS_ERR(header))
 			return PTR_ERR(header);
 
@@ -2404,7 +2417,7 @@ static int cs40l26_refactor_owt_composite(struct cs40l26_private *cs40l26, s16 *
 			goto data_err_free;
 		}
 
-		header = cs40l26_header(cs40l26, sections[i].index);
+		header = cs40l26_owt_header(cs40l26, sections[i].index, sections[i].wvfrm_bank);
 		if (IS_ERR(header)) {
 			ret = PTR_ERR(header);
 			goto data_err_free;
@@ -2440,8 +2453,9 @@ static int cs40l26_refactor_owt_composite(struct cs40l26_private *cs40l26, s16 *
 			cl_dsp_memchunk_flush(&ch);
 
 			ncw_bytes = (header->size - 2) * 4;
-			ncw_data = cs40l26_ncw_amp_scaling(cs40l26, sections[i].amplitude,
-					ncw_nsections, header->data + 8, ncw_bytes);
+			ncw_data = cs40l26_ncw_refactor_data(cs40l26, sections[i].amplitude,
+					ncw_nsections, header->data + 8,
+					ncw_bytes, sections[i].wvfrm_bank);
 			if (IS_ERR(ncw_data)) {
 				ret = PTR_ERR(ncw_data);
 				goto data_err_free;
@@ -2493,7 +2507,7 @@ static int cs40l26_refactor_owt_composite(struct cs40l26_private *cs40l26, s16 *
 	ret = cs40l26_owt_calculate_wlength(cs40l26, out_nsections, global_rep, data, data_bytes,
 			&wlen);
 	if (ret) {
-		kfree(out_data);
+		kfree(*out_data);
 		goto data_err_free;
 	}
 
@@ -2510,6 +2524,57 @@ sections_err_free:
 	kfree(sections);
 
 	return ret ? ret : out_data_bytes;
+}
+
+static int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26)
+{
+	u32 *wt_be;
+	int ret, i;
+	u32 reg;
+
+	cs40l26->rom_wt.nwaves = CS40L26_ROM_NUM_WAVES;
+	cs40l26->rom_wt.raw_data = devm_kzalloc(cs40l26->dev,
+			CS40L26_ROM_WT_SIZE_BYTES, GFP_KERNEL);
+	if (!cs40l26->rom_wt.raw_data)
+		return -ENOMEM;
+
+	ret = regmap_read(cs40l26->regmap, CS40L26_ROM_WT_START, &reg);
+	if (ret)
+		goto data_free;
+
+	wt_be = kcalloc(CS40L26_ROM_WT_SIZE_BYTES / CL_DSP_BYTES_PER_WORD,
+			sizeof(u32), GFP_KERNEL);
+	if (!wt_be) {
+		ret = -ENOMEM;
+		goto data_free;
+	}
+
+	ret = regmap_bulk_read(cs40l26->regmap, (reg * CL_DSP_BYTES_PER_WORD) +
+			CS40L26_DSP1_XMEM_UNPACKED24_0, wt_be,
+			CS40L26_ROM_WT_SIZE_BYTES / CL_DSP_BYTES_PER_WORD);
+	if (ret)
+		goto wt_free;
+
+	for (i = 0; i < cs40l26->rom_wt.nwaves; i++) {
+		cs40l26->rom_wt.waves[i].type = *(wt_be + (i * CS40L26_WT_HEADER_OFFSET)) & 0xFF;
+		cs40l26->rom_wt.waves[i].offset = *(wt_be + (i * CS40L26_WT_HEADER_OFFSET + 1));
+		cs40l26->rom_wt.waves[i].size = *(wt_be + (i * CS40L26_WT_HEADER_OFFSET + 2));
+		cs40l26->rom_wt.waves[i].data = (u32 *)cs40l26->rom_wt.raw_data +
+				cs40l26->rom_wt.waves[i].offset;
+	}
+
+	for (i = 0; i < CS40L26_ROM_WT_SIZE_BYTES/CL_DSP_BYTES_PER_WORD; i++)
+		wt_be[i] = be32_to_cpu(wt_be[i]);
+
+	memcpy(cs40l26->rom_wt.raw_data, wt_be, CS40L26_ROM_WT_SIZE_BYTES);
+	kfree(wt_be);
+
+	return 0;
+wt_free:
+	kfree(wt_be);
+data_free:
+	devm_kfree(cs40l26->dev, cs40l26->rom_wt.raw_data);
+	return ret;
 }
 
 static u8 cs40l26_get_lowest_free_buzzgen(struct cs40l26_private *cs40l26)
@@ -4699,6 +4764,12 @@ int cs40l26_probe(struct cs40l26_private *cs40l26, struct cs40l26_platform_data 
 	init_completion(&cs40l26->cal_redc_cont);
 	init_completion(&cs40l26->cal_dvl_peq_cont);
 
+	ret = cs40l26_rom_wt_init(cs40l26);
+	if (ret) {
+		dev_err(cs40l26->dev, "Unable to store ROM wavetable\n");
+		goto err;
+	}
+
 	if (!cs40l26->fw_defer) {
 		ret = cs40l26_fw_upload(cs40l26);
 		if (ret)
@@ -4740,7 +4811,6 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 
 	disable_irq(cs40l26->irq);
 	mutex_destroy(&cs40l26->lock);
-
 
 	cs40l26_pm_runtime_teardown(cs40l26);
 
