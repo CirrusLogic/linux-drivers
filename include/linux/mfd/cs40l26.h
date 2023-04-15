@@ -917,7 +917,10 @@
 
 #define CS40L26_OWT_INDEX_START			0x01400000
 #define CS40L26_OWT_INDEX_END			0x01400010
-
+#define CS40L26_ROM_WT_SIZE_WORDS	1549
+#define CS40L26_ROM_WT_SIZE_BYTES	(CS40L26_ROM_WT_SIZE_WORDS * CL_DSP_BYTES_PER_WORD)
+#define CS40L26_ROM_WT_START		0x02802154
+#define CS40L26_ROM_NUM_WAVES		39
 
 #define CS40L26_RAM_BANK_ID			0
 #define CS40L26_ROM_BANK_ID			1
@@ -1221,6 +1224,7 @@
 #define CS40L26_WT_TYPE10_WAVELEN_INDEF		0x400000
 #define CS40L26_WT_TYPE10_WAVELEN_CALCULATED	0x800000
 #define CS40L26_WT_TYPE10_COMP_DURATION_FLAG	0x80
+#define CS40L26_WT_TYPE10_COMP_ROM_FLAG			0x40
 #define CS40L26_WT_TYPE10_COMP_BUFFER		0x0000
 
 /* F0 Offset represented as Q10.14 format */
@@ -1439,6 +1443,7 @@ struct cs40l26_owt_section {
 	u8 index;
 	u16 delay;
 	u16 duration;
+	u16 wvfrm_bank;
 };
 
 struct cs40l26_pseq_op {
@@ -1560,6 +1565,7 @@ struct cs40l26_private {
 	struct timer_list hibernate_timer;
 	ktime_t allow_hibernate_ts;
 	bool allow_hibernate_sent;
+	struct cl_dsp_owt_desc rom_wt;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_root;
 	char *dbg_fw_ctrl_name;
