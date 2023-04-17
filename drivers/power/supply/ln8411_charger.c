@@ -258,6 +258,8 @@ static int ln8411_reset(struct ln8411_device *ln8411)
 		ret = ln8411_do_soft_reset(ln8411);
 		if (ret)
 			goto err_out;
+
+		dev_dbg(ln8411->dev, "Soft reset complete\n");
 	}
 
 	regcache_mark_dirty(ln8411->regmap);
@@ -2509,12 +2511,14 @@ static int ln8411_parse_dt(struct device *dev, struct ln8411_device *ln8411)
 
 static inline int ln8411_do_soft_reset(struct ln8411_device *ln8411)
 {
-	const union power_supply_propval val = { .intval = POWER_SUPPLY_STATUS_NOT_CHARGING };
+	const union power_supply_propval psy_val = { .intval = POWER_SUPPLY_STATUS_NOT_CHARGING };
+	unsigned int reg_val;
 	int ret;
 
 	/* Converter must be in standby mode before soft resetting to prevent damage*/
 	if (ln8411->state.charging_status != POWER_SUPPLY_STATUS_NOT_CHARGING) {
-		ret = power_supply_set_property(ln8411->charger, POWER_SUPPLY_PROP_STATUS, &val);
+		ret = power_supply_set_property(ln8411->charger,
+						POWER_SUPPLY_PROP_STATUS, &psy_val);
 		if (ret)
 			return ret;
 	}
@@ -2527,9 +2531,15 @@ static inline int ln8411_do_soft_reset(struct ln8411_device *ln8411)
 	if (ret)
 		return ret;
 
-	msleep(250);
+	dev_dbg(ln8411->dev, "Soft reset initiated\n");
 
-	return ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_LOCK);
+	if (ln8411->rev == LN8411_A1_DEV_REV_ID)
+		msleep(135);
+	else
+		msleep(35);
+
+	return regmap_read_poll_timeout(ln8411->regmap,
+					LN8411_LION_CTRL, reg_val, !reg_val, 15000, 100000);
 }
 
 static int ln8411_gpio_cfg(struct ln8411_device *ln8411)
