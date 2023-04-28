@@ -92,6 +92,11 @@ enum cs35l43_hibernate_mode {
 	CS35L43_ULTRASONIC_MODE_OUT_OF_BAND = 2,
 };
 
+enum cs35l43_low_pwr_mode {
+	CS35L43_LOW_PWR_MODE_HIBERNATE = 0,
+	CS35L43_LOW_PWR_MODE_STANDBY = 1,
+};
+
 struct cs35l43_private {
 	struct wm_adsp dsp; /* needs to be first member */
 	struct snd_soc_component *component;
@@ -112,6 +117,7 @@ struct cs35l43_private {
 	int slot_width;
 	int delta_requested;
 	int delta_applied;
+	int low_pwr_mode;
 	bool first_event;
 	bool write_seq_initialized;
 	unsigned int max_spi_freq;
