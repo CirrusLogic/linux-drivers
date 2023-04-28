@@ -827,6 +827,11 @@ static int cs35l43_dsp_preload_ev(struct snd_soc_dapm_widget *w,
 		regmap_write(cs35l43->regmap, CS35L43_PWRMGT_CTL, CS35L43_MEM_RDY);
 		wm_adsp_event(w, kcontrol, event);
 
+		if (cs35l43->low_pwr_mode == CS35L43_LOW_PWR_MODE_STANDBY)
+			regmap_write(cs35l43->regmap, CS35L43_DSP_VIRTUAL1_MBOX_1,
+					CS35L43_MBOX_CMD_PREVENT_HIBERNATE);
+
+
 		cs35l43->first_event = 0;
 		cs35l43->delta_applied = 0;
 		if (cs35l43->limit_spi_clock) {
@@ -1020,6 +1025,22 @@ static void cs35l43_mbox_work(struct work_struct *wk)
 	cs35l43_check_mailbox(cs35l43);
 }
 
+static const struct reg_sequence cs35l43_pup_patch[] = {
+	{0x00000040, 0x00000055},
+	{0x00000040, 0x000000AA},
+	{0x00002084, 0x000F1AA0},
+	{0x00000040, 0x000000CC},
+	{0x00000040, 0x00000033},
+};
+
+static const struct reg_sequence cs35l43_pdn_patch[] = {
+	{0x00000040, 0x00000055},
+	{0x00000040, 0x000000AA},
+	{0x00002084, 0x000F1AA3},
+	{0x00000040, 0x000000CC},
+	{0x00000040, 0x00000033},
+};
+
 static int cs35l43_enter_hibernate(struct cs35l43_private *cs35l43)
 {
 	unsigned int pm_state, audio_state;
@@ -1133,6 +1154,10 @@ static int cs35l43_exit_hibernate(struct cs35l43_private *cs35l43)
 				CS35L43_DSP1_MPU_ERR_EINT1_MASK |
 				CS35L43_DSP1_STRM_ARB_ERR_EINT1_MASK, 0);
 
+	regmap_multi_reg_write_bypassed(cs35l43->regmap,
+				cs35l43_pdn_patch,
+				ARRAY_SIZE(cs35l43_pdn_patch));
+
 	return 0;
 }
 
@@ -1206,6 +1231,10 @@ static int cs35l43_hibernate_dapm(struct snd_soc_dapm_widget *w,
 		snd_soc_component_get_drvdata(component);
 	int ret = 0;
 
+	if (cs35l43->low_pwr_mode == CS35L43_LOW_PWR_MODE_STANDBY)
+		return 0;
+
+
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		if (pm_runtime_suspended(cs35l43->dev)) {
@@ -1236,6 +1265,9 @@ static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		if (cs35l43->dsp.running)
 			cs35l43_apply_delta_tuning(cs35l43);
+		regmap_multi_reg_write_bypassed(cs35l43->regmap,
+					cs35l43_pup_patch,
+					ARRAY_SIZE(cs35l43_pup_patch));
 		regmap_write(cs35l43->regmap, CS35L43_GLOBAL_ENABLES, 1);
 		regmap_update_bits(cs35l43->regmap, CS35L43_BLOCK_ENABLES,
 				CS35L43_AMP_EN_MASK, CS35L43_AMP_EN_MASK);
@@ -1247,6 +1279,14 @@ static int cs35l43_main_amp_event(struct snd_soc_dapm_widget *w,
 			cs35l43->limit_spi_clock(cs35l43, true);
 		regmap_update_bits(cs35l43->regmap, CS35L43_BLOCK_ENABLES,
 				CS35L43_AMP_EN_MASK, 0);
+		regmap_multi_reg_write_bypassed(cs35l43->regmap,
+					cs35l43_pdn_patch,
+					ARRAY_SIZE(cs35l43_pdn_patch));
+		if (cs35l43->low_pwr_mode == CS35L43_LOW_PWR_MODE_STANDBY) {
+			usleep_range(1000, 1100);
+			regmap_write(cs35l43->regmap, CS35L43_GLOBAL_ENABLES, 0);
+		}
+
 		break;
 	default:
 		dev_err(cs35l43->dev, "Invalid event = 0x%x\n", event);
@@ -2114,6 +2154,8 @@ static int cs35l43_handle_of_data(struct device *dev,
 	if (ret < 0)
 		pdata->dsp_part_name = "cs35l43";
 
+	cs35l43->low_pwr_mode = of_property_read_bool(np, "cirrus,low-pwr-mode-standby");
+
 	return 0;
 }
 
@@ -2428,7 +2470,8 @@ int cs35l43_probe(struct cs35l43_private *cs35l43,
 
 	cs35l43_dsp_init(cs35l43);
 
-	cs35l43_pm_runtime_setup(cs35l43);
+	if (cs35l43->low_pwr_mode == CS35L43_LOW_PWR_MODE_HIBERNATE)
+		cs35l43_pm_runtime_setup(cs35l43);
 
 	ret = snd_soc_register_component(cs35l43->dev,
 					&soc_component_dev_cs35l43,
@@ -2438,7 +2481,8 @@ int cs35l43_probe(struct cs35l43_private *cs35l43,
 		goto err_pm;
 	}
 
-	pm_runtime_put_autosuspend(cs35l43->dev);
+	if (cs35l43->low_pwr_mode == CS35L43_LOW_PWR_MODE_HIBERNATE)
+		pm_runtime_put_autosuspend(cs35l43->dev);
 
 	dev_info(cs35l43->dev, "Cirrus Logic cs35l43 (%x), Revision: %02X\n",
 			regid, revid);
