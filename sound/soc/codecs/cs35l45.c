@@ -2,7 +2,7 @@
 /*
  * cs35l45.c - CS35L45 ALSA SoC audio driver
  *
- * Copyright 2019 Cirrus Logic, Inc.
+ * Copyright 2019-2023 Cirrus Logic, Inc.
  *
  * Author: James Schulman <james.schulman@cirrus.com>
  *
@@ -205,9 +205,8 @@ static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 			return -EPERM;
 		}
 
-		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-				   CS35L45_PLL_FORCE_EN_MASK,
-				   CS35L45_PLL_FORCE_EN_MASK);
+		regmap_set_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+				CS35L45_PLL_FORCE_EN_MASK);
 
 		wm_adsp_early_event(w, kcontrol, event);
 		break;
@@ -224,8 +223,8 @@ static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 
 		wm_adsp_event(w, kcontrol, event);
 
-		regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-				   CS35L45_PLL_FORCE_EN_MASK, 0);
+		regmap_clear_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+				  CS35L45_PLL_FORCE_EN_MASK);
 		break;
 	default:
 		dev_err(cs35l45->dev, "Invalid event = 0x%x\n", event);
@@ -261,19 +260,19 @@ static int cs35l45_dsp_boot_ev(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMD:
 		flush_work(&cs35l45->dsp_pmd_work);
 
-		regmap_update_bits(cs35l45->regmap,
-				   CS35L45_DSP1_STREAM_ARB_TX1_CONFIG_0,
-				   CS35L45_DSP1_STREAM_ARB_TX1_EN_MASK, 0);
+		regmap_clear_bits(cs35l45->regmap,
+				  CS35L45_DSP1_STREAM_ARB_TX1_CONFIG_0,
+				  CS35L45_DSP1_STREAM_ARB_TX1_EN_MASK);
 
-		regmap_update_bits(cs35l45->regmap,
-				   CS35L45_DSP1_STREAM_ARB_MSTR1_CONFIG_0,
-				   CS35L45_DSP1_STREAM_ARB_MSTR0_EN_MASK, 0);
+		regmap_clear_bits(cs35l45->regmap,
+				  CS35L45_DSP1_STREAM_ARB_MSTR1_CONFIG_0,
+				  CS35L45_DSP1_STREAM_ARB_MSTR0_EN_MASK);
 
 		wm_adsp_early_event(w, kcontrol, event);
 		wm_adsp_event(w, kcontrol, event);
 
-		regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
-				   CS35L45_MEM_RDY_MASK, 0);
+		regmap_clear_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
+				  CS35L45_MEM_RDY_MASK);
 		break;
 	default:
 		dev_err(cs35l45->dev, "Invalid event = 0x%x\n", event);
@@ -1144,8 +1143,8 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 
 		flush_work(&cs35l45->dsp_pmd_work);
 
-		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES,
-				   CS35L45_RCV_EN_MASK, 0);
+		regmap_clear_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES,
+				  CS35L45_RCV_EN_MASK);
 
 		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES,
 				   CS35L45_BST_EN_MASK,
@@ -1184,8 +1183,8 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 
 		flush_work(&cs35l45->dsp_pmd_work);
 
-		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES,
-				   CS35L45_RCV_EN_MASK, CS35L45_RCV_EN_MASK);
+		regmap_set_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES,
+				CS35L45_RCV_EN_MASK);
 
 		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES,
 				   CS35L45_BST_EN_MASK,
@@ -1197,9 +1196,9 @@ static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 				   CS35L45_FORCE_LV_OPERATION <<
 				   CS35L45_HVLV_MODE_SHIFT);
 
-		regmap_update_bits(cs35l45->regmap,
-				   CS35L45_BLOCK_ENABLES2,
-				   CS35L45_AMP_DRE_EN_MASK, 0);
+		regmap_clear_bits(cs35l45->regmap,
+				  CS35L45_BLOCK_ENABLES2,
+				  CS35L45_AMP_DRE_EN_MASK);
 
 		regmap_update_bits(cs35l45->regmap, CS35L45_AMP_GAIN,
 				   CS35L45_AMP_GAIN_PCM_MASK,
@@ -1254,9 +1253,8 @@ static int cs35l45_dsp_boot_put(struct snd_kcontrol *kcontrol,
 
 		snd_soc_dapm_sync(dapm);
 
-		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
-				   CS35L45_SYNC_SW_EN_MASK,
-				   CS35L45_SYNC_SW_EN_MASK);
+		regmap_set_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
+				CS35L45_SYNC_SW_EN_MASK);
 		pm_runtime_put_noidle(cs35l45->dev);
 	} else {
 		pm_runtime_resume_and_get(cs35l45->dev);
@@ -1265,8 +1263,8 @@ static int cs35l45_dsp_boot_put(struct snd_kcontrol *kcontrol,
 
 		snd_soc_dapm_sync(dapm);
 
-		regmap_update_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
-				   CS35L45_SYNC_SW_EN_MASK, 0);
+		regmap_clear_bits(cs35l45->regmap, CS35L45_SYNC_TX_RX_ENABLES,
+				  CS35L45_SYNC_SW_EN_MASK);
 	}
 
 	return 0;
@@ -2562,27 +2560,25 @@ static int cs35l45_set_sysclk(struct cs35l45_private *cs35l45, int clk_id,
 	if (val == extclk_cfg)
 		return 0;
 
-	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-			   CS35L45_PLL_OPEN_LOOP_MASK,
-			   CS35L45_PLL_OPEN_LOOP_MASK);
+	regmap_set_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+			CS35L45_PLL_OPEN_LOOP_MASK);
 
 	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
 			   CS35L45_PLL_REFCLK_FREQ_MASK,
 			   extclk_cfg << CS35L45_PLL_REFCLK_FREQ_SHIFT);
 
-	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-			   CS35L45_PLL_REFCLK_EN_MASK, 0);
+	regmap_clear_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+			  CS35L45_PLL_REFCLK_EN_MASK);
 
 	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
 			   CS35L45_PLL_REFCLK_SEL_MASK,
 			   clksrc << CS35L45_PLL_REFCLK_SEL_SHIFT);
 
-	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-			   CS35L45_PLL_OPEN_LOOP_MASK, 0);
+	regmap_clear_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+			   CS35L45_PLL_OPEN_LOOP_MASK);
 
-	regmap_update_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
-			   CS35L45_PLL_REFCLK_EN_MASK,
-			   CS35L45_PLL_REFCLK_EN_MASK);
+	regmap_set_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
+			CS35L45_PLL_REFCLK_EN_MASK);
 
 	return 0;
 }
@@ -2743,15 +2739,14 @@ static void cs35l45_global_err_rls_work(struct work_struct *work)
 	struct cs35l45_private *cs35l45 =
 		container_of(dwork, struct cs35l45_private, global_err_rls_work);
 
-	regmap_update_bits(cs35l45->regmap, CS35L45_ERROR_RELEASE,
-			   CS35L45_GLOBAL_ERR_RLS_MASK, 0);
+	regmap_clear_bits(cs35l45->regmap, CS35L45_ERROR_RELEASE,
+			  CS35L45_GLOBAL_ERR_RLS_MASK);
 
-	regmap_update_bits(cs35l45->regmap, CS35L45_ERROR_RELEASE,
-			   CS35L45_GLOBAL_ERR_RLS_MASK,
-			   CS35L45_GLOBAL_ERR_RLS_MASK);
+	regmap_set_bits(cs35l45->regmap, CS35L45_ERROR_RELEASE,
+			CS35L45_GLOBAL_ERR_RLS_MASK);
 
-	regmap_update_bits(cs35l45->regmap, CS35L45_ERROR_RELEASE,
-			   CS35L45_GLOBAL_ERR_RLS_MASK, 0);
+	regmap_clear_bits(cs35l45->regmap, CS35L45_ERROR_RELEASE,
+			  CS35L45_GLOBAL_ERR_RLS_MASK);
 }
 
 static irqreturn_t cs35l45_global_err(int irq, void *data)
@@ -3058,12 +3053,11 @@ classh_cfg:
 					   classh_map[i].mask, val);
 	}
 
-	regmap_update_bits(cs35l45->regmap, CS35L45_CLASSH_CONFIG3,
-			   CS35L45_CH_OVB_LATCH_MASK,
-			   CS35L45_CH_OVB_LATCH_MASK);
+	regmap_set_bits(cs35l45->regmap, CS35L45_CLASSH_CONFIG3,
+			CS35L45_CH_OVB_LATCH_MASK);
 
-	regmap_update_bits(cs35l45->regmap, CS35L45_CLASSH_CONFIG3,
-			   CS35L45_CH_OVB_LATCH_MASK, 0);
+	regmap_clear_bits(cs35l45->regmap, CS35L45_CLASSH_CONFIG3,
+			  CS35L45_CH_OVB_LATCH_MASK);
 
 gpio_cfg:
 	ret = cs35l45_gpio_configuration(cs35l45);
@@ -3492,8 +3486,8 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 			return ret;
 		}
 
-		regmap_update_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
-				   CS35L45_MEM_RDY_MASK, CS35L45_MEM_RDY_MASK);
+		regmap_set_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
+				CS35L45_MEM_RDY_MASK);
 
 		usleep_range(100, 200);
 
@@ -3510,8 +3504,8 @@ static int cs35l45_hibernate(struct cs35l45_private *cs35l45, bool hiber_en)
 		regmap_write(cs35l45->regmap, CS35L45_IRQ1_EINT_2,
 				   CS35L45_DSP_VIRT2_MBOX_MASK);
 
-		regmap_update_bits(cs35l45->regmap, CS35L45_IRQ1_MASK_2,
-				   CS35L45_DSP_VIRT2_MBOX_MASK, 0);
+		regmap_clear_bits(cs35l45->regmap, CS35L45_IRQ1_MASK_2,
+				  CS35L45_DSP_VIRT2_MBOX_MASK);
 
 		for (i = 0; i < ARRAY_SIZE(mixer_cache); i++)
 			regmap_update_bits(cs35l45->regmap, mixer_cache[i].reg,
@@ -3599,14 +3593,14 @@ static int __cs35l45_initialize(struct cs35l45_private *cs35l45)
 			   CS35L45_WKSRC_EN_MASK,
 			   wksrc << CS35L45_WKSRC_EN_SHIFT);
 
-	regmap_update_bits(cs35l45->regmap, CS35L45_WAKESRC_CTL,
-			   CS35L45_UPDT_WKCTL_MASK, CS35L45_UPDT_WKCTL_MASK);
+	regmap_set_bits(cs35l45->regmap, CS35L45_WAKESRC_CTL,
+			CS35L45_UPDT_WKCTL_MASK);
 
 	regmap_update_bits(cs35l45->regmap, CS35L45_WKI2C_CTL,
 			   CS35L45_WKI2C_ADDR_MASK, cs35l45->i2c_addr);
 
-	regmap_update_bits(cs35l45->regmap, CS35L45_WKI2C_CTL,
-			   CS35L45_UPDT_WKI2C_MASK, CS35L45_UPDT_WKI2C_MASK);
+	regmap_set_bits(cs35l45->regmap, CS35L45_WKI2C_CTL,
+			CS35L45_UPDT_WKI2C_MASK);
 
 	cs35l45->initialized = true;
 
@@ -3625,16 +3619,16 @@ int cs35l45_initialize(struct cs35l45_private *cs35l45)
 		return ret;
 	}
 
-	regmap_update_bits(cs35l45->regmap,
-			   CS35L45_DSP1_STREAM_ARB_TX1_CONFIG_0,
-			   CS35L45_DSP1_STREAM_ARB_TX1_EN_MASK, 0);
+	regmap_clear_bits(cs35l45->regmap,
+			  CS35L45_DSP1_STREAM_ARB_TX1_CONFIG_0,
+			  CS35L45_DSP1_STREAM_ARB_TX1_EN_MASK);
 
-	regmap_update_bits(cs35l45->regmap,
-			   CS35L45_DSP1_STREAM_ARB_MSTR1_CONFIG_0,
-			   CS35L45_DSP1_STREAM_ARB_MSTR0_EN_MASK, 0);
+	regmap_clear_bits(cs35l45->regmap,
+			  CS35L45_DSP1_STREAM_ARB_MSTR1_CONFIG_0,
+			  CS35L45_DSP1_STREAM_ARB_MSTR0_EN_MASK);
 
-	regmap_update_bits(cs35l45->regmap, CS35L45_DSP1_CCM_CORE_CONTROL,
-			   CS35L45_CCM_CORE_EN_MASK, 0);
+	regmap_clear_bits(cs35l45->regmap, CS35L45_DSP1_CCM_CORE_CONTROL,
+			  CS35L45_CCM_CORE_EN_MASK);
 
 	if (cs35l45->irq) {
 		if (cs35l45->pdata.gpio_ctrl2.invert & (~CS35L45_VALID_PDATA))
