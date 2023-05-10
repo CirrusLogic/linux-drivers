@@ -3524,8 +3524,8 @@ static int cs40l26_zero_cross_config(struct cs40l26_private *cs40l26)
 
 static int calib_device_tree_config(struct cs40l26_private *cs40l26)
 {
-	int ret = 0;
-	u32 reg, bst_ctl, bst_ctl_cfg;
+	int ret;
+	u32 reg;
 
 	if (cs40l26->pdata.f0_default <= CS40L26_F0_EST_MAX &&
 			cs40l26->pdata.f0_default >= CS40L26_F0_EST_MIN) {
@@ -3543,16 +3543,14 @@ static int calib_device_tree_config(struct cs40l26_private *cs40l26)
 		}
 	}
 
-	if (cs40l26->pdata.redc_default && cs40l26->pdata.redc_default <=
-			CS40L26_UINT_24_BITS_MAX) {
-		ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED",
-				CL_DSP_XM_UNPACKED_TYPE,
+	if (cs40l26->pdata.redc_default &&
+			cs40l26->pdata.redc_default <= CS40L26_UINT_24_BITS_MAX) {
+		ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_VIBEGEN_ALGO_ID, &reg);
 		if (ret)
 			return ret;
 
-		ret = regmap_write(cs40l26->regmap, reg,
-				cs40l26->pdata.redc_default);
+		ret = regmap_write(cs40l26->regmap, reg, cs40l26->pdata.redc_default);
 		if (ret) {
 			dev_err(cs40l26->dev, "Failed to write default ReDC\n");
 			return ret;
@@ -3561,87 +3559,66 @@ static int calib_device_tree_config(struct cs40l26_private *cs40l26)
 
 	if (cs40l26->pdata.q_default <= CS40L26_Q_EST_MAX &&
 			cs40l26->pdata.q_default >= CS40L26_Q_EST_MIN) {
-		ret = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED",
-				CL_DSP_XM_UNPACKED_TYPE,
+		ret = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_VIBEGEN_ALGO_ID, &reg);
 		if (ret)
 			return ret;
 
-		ret = regmap_write(cs40l26->regmap, reg,
-				cs40l26->pdata.q_default);
+		ret = regmap_write(cs40l26->regmap, reg, cs40l26->pdata.q_default);
 		if (ret) {
 			dev_err(cs40l26->dev, "Failed to write default Q\n");
 			return ret;
 		}
 	}
 
-	if (cs40l26->pdata.boost_ctl <= CS40L26_BST_VOLT_MAX &&
-			cs40l26->pdata.boost_ctl >= CS40L26_BST_VOLT_MIN) {
-		bst_ctl = ((cs40l26->pdata.boost_ctl - CS40L26_BST_VOLT_MIN)
-						/ CS40L26_BST_VOLT_STEP) + 1;
-
-		ret = regmap_write(cs40l26->regmap, CS40L26_VBST_CTL_1,
-				bst_ctl);
-		if (ret) {
-			dev_err(cs40l26->dev, "Failed to write VBST limit\n");
-			return ret;
-		}
-
-		ret = cs40l26_pseq_write(cs40l26, CS40L26_VBST_CTL_1, bst_ctl,
-				true, CS40L26_PSEQ_OP_WRITE_L16);
-		if (ret)
-			return ret;
-
-		ret = regmap_read(cs40l26->regmap, CS40L26_VBST_CTL_2,
-				&bst_ctl_cfg);
-		if (ret) {
-			dev_err(cs40l26->dev, "Failed to get VBST config\n");
-			return ret;
-		}
-
-		bst_ctl_cfg |= (1 << CS40L26_BST_CTL_LIM_EN_SHIFT);
-
-		ret = regmap_write(cs40l26->regmap, CS40L26_VBST_CTL_2,
-				bst_ctl_cfg);
-		if (ret) {
-			dev_err(cs40l26->dev, "Failed to write VBST config\n");
-			return ret;
-		}
-
-		ret = cs40l26_pseq_write(cs40l26, CS40L26_VBST_CTL_2,
-				bst_ctl_cfg, true, CS40L26_PSEQ_OP_WRITE_FULL);
-	}
-
-	return ret;
+	return 0;
 }
 
 static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
 {
-	u32 val, bst_ipk_ma = cs40l26->pdata.bst_ipk / MILLIAMPS_PER_AMPS;
+	u32 bst_ipk;
 	int ret;
 
-	if (bst_ipk_ma < CS40L26_BST_IPK_MILLIAMP_MIN ||
-			bst_ipk_ma > CS40L26_BST_IPK_MILLIAMP_MAX) {
-		val = CS40L26_BST_IPK_DEFAULT;
-		dev_dbg(cs40l26->dev, "Using default BST_IPK\n");
-	} else {
-		val = (bst_ipk_ma / CS40L26_BST_IPK_CTL_STEP_SIZE) -
-				CS40L26_BST_IPK_CTL_RESERVED;
-	}
+	if (cs40l26->pdata.bst_ipk < CS40L26_BST_IPK_UA_MIN ||
+			cs40l26->pdata.bst_ipk > CS40L26_BST_IPK_UA_MAX)
+		bst_ipk = CS40L26_BST_IPK_DEFAULT;
+	else
+		bst_ipk = (cs40l26->pdata.bst_ipk / CS40L26_BST_IPK_UA_STEP) - 16;
 
-	ret = regmap_write(cs40l26->regmap, CS40L26_BST_IPK_CTL, val);
+	ret = regmap_write(cs40l26->regmap, CS40L26_BST_IPK_CTL, bst_ipk);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to update BST peak current\n");
 		return ret;
 	}
 
-	ret = cs40l26_pseq_write(cs40l26, CS40L26_BST_IPK_CTL, val,
-			true, CS40L26_PSEQ_OP_WRITE_L16);
+	ret = cs40l26_pseq_write(cs40l26, CS40L26_BST_IPK_CTL, bst_ipk, true,
+			CS40L26_PSEQ_OP_WRITE_L16);
 	if (ret)
 		return ret;
 
 	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, 0,
 			BIT(CS40L26_IRQ1_BST_IPK_FLAG));
+}
+
+static int cs40l26_bst_ctl_config(struct cs40l26_private *cs40l26)
+{
+	u32 bst_ctl;
+	int ret;
+
+	if (cs40l26->pdata.bst_ctl < CS40L26_BST_UV_MIN ||
+			cs40l26->pdata.bst_ctl > CS40L26_BST_UV_MAX)
+		bst_ctl = CS40L26_BST_CTL_DEFAULT;
+	else
+		bst_ctl = (cs40l26->pdata.bst_ctl - CS40L26_BST_UV_MIN) / CS40L26_BST_UV_STEP;
+
+	ret = regmap_write(cs40l26->regmap, CS40L26_VBST_CTL_1, bst_ctl);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to write VBST limit\n");
+		return ret;
+	}
+
+	return cs40l26_pseq_write(cs40l26, CS40L26_VBST_CTL_1, bst_ctl, true,
+			CS40L26_PSEQ_OP_WRITE_L16);
 }
 
 static int cs40l26_lbst_short_test(struct cs40l26_private *cs40l26)
@@ -3860,6 +3837,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		return ret;
 
 	ret = cs40l26_bst_ipk_config(cs40l26);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_bst_ctl_config(cs40l26);
 	if (ret)
 		return ret;
 
@@ -4572,7 +4553,12 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 	if (!of_property_read_u32(np, "cirrus,bst-ipk-microamp", &val))
 		cs40l26->pdata.bst_ipk = val;
 	else
-		cs40l26->pdata.bst_ipk = 0;
+		cs40l26->pdata.bst_ipk = CS40L26_BST_IPK_UA_DEFAULT;
+
+	if (!of_property_read_u32(np, "cirrus,bst-ctl-microvolt", &val))
+		cs40l26->pdata.bst_ctl = val;
+	else
+		cs40l26->pdata.bst_ctl = CS40L26_BST_UV_MAX;
 
 	if (!of_property_read_u32(np, "cirrus,pm-stdby-timeout-ms", &val))
 		cs40l26->pdata.pm_stdby_timeout_ms = val;
@@ -4599,11 +4585,6 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 		else
 			dev_warn(dev, "ASP scaling > 100 %%, using maximum\n");
 	}
-
-	if (!of_property_read_u32(np, "cirrus,boost-ctl-microvolt", &val))
-		cs40l26->pdata.boost_ctl = val;
-	else
-		cs40l26->pdata.boost_ctl = CS40L26_BST_CTL_DEFAULT;
 
 	if (!of_property_read_u32(np, "cirrus,f0-default", &val))
 		cs40l26->pdata.f0_default = val;
