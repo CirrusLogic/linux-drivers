@@ -3609,6 +3609,63 @@ static int cs40l26_bst_ctl_config(struct cs40l26_private *cs40l26)
 			CS40L26_PSEQ_OP_WRITE_L16);
 }
 
+static int cs40l26_clip_lvl_config(struct cs40l26_private *cs40l26)
+{
+	u32 clip_lvl, digpwm_config;
+	int ret;
+
+	ret = regmap_write(cs40l26->regmap, CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE1);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_pseq_write(cs40l26, CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE1,
+			false, CS40L26_PSEQ_OP_WRITE_L16);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(cs40l26->regmap, CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE2);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_pseq_write(cs40l26, CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE2,
+			false, CS40L26_PSEQ_OP_WRITE_ADDR8);
+	if (ret)
+		return ret;
+
+	if (cs40l26->pdata.clip_lvl < CS40L26_CLIP_LVL_UV_MIN ||
+			cs40l26->pdata.clip_lvl > CS40L26_CLIP_LVL_UV_MAX)
+		clip_lvl = CS40L26_CLIP_LVL_DEFAULT;
+	else
+		clip_lvl = cs40l26->pdata.clip_lvl / CS40L26_CLIP_LVL_UV_STEP;
+
+	ret = regmap_read(cs40l26->regmap, CS40L26_DIGPWM_CONFIG2, &digpwm_config);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to get DIGPWM config\n");
+		return ret;
+	}
+
+	digpwm_config &= ~CS40L26_CLIP_LVL_MASK;
+	digpwm_config |= ((clip_lvl << CS40L26_CLIP_LVL_SHIFT) & CS40L26_CLIP_LVL_MASK);
+
+	ret = regmap_write(cs40l26->regmap, CS40L26_DIGPWM_CONFIG2, digpwm_config);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to set DIGPWM config\n");
+		return ret;
+	}
+
+	ret = cs40l26_pseq_write(cs40l26, CS40L26_DIGPWM_CONFIG2, digpwm_config, true,
+			CS40L26_PSEQ_OP_WRITE_FULL);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(cs40l26->regmap, CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_LOCK_CODE);
+	if (ret)
+		return ret;
+
+	return cs40l26_pseq_write(cs40l26, CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_LOCK_CODE,
+			false, CS40L26_PSEQ_OP_WRITE_L16);
+}
+
 static int cs40l26_lbst_short_test(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
@@ -3825,6 +3882,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		return ret;
 
 	ret = cs40l26_bst_ctl_config(cs40l26);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_clip_lvl_config(cs40l26);
 	if (ret)
 		return ret;
 
@@ -4543,6 +4604,11 @@ static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
 		cs40l26->pdata.bst_ctl = val;
 	else
 		cs40l26->pdata.bst_ctl = CS40L26_BST_UV_MAX;
+
+	if (!of_property_read_u32(np, "cirrus,clip-lvl-microvolt", &val))
+		cs40l26->pdata.clip_lvl = val;
+	else
+		cs40l26->pdata.clip_lvl = CS40L26_CLIP_LVL_UV_MAX;
 
 	if (!of_property_read_u32(np, "cirrus,pm-stdby-timeout-ms", &val))
 		cs40l26->pdata.pm_stdby_timeout_ms = val;
