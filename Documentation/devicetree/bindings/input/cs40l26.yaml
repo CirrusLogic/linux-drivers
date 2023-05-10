@@ -247,13 +247,13 @@ properties:
     maximum: 4800000
     default: 4500000
 
-  cirrus,boost-ctl-microvolt:
+  cirrus,bst-ctl-microvolt:
     description:
       Maximum target voltage to which the class H algorithm may increase the
-      VBST supply, expressed in uV. Valid values range from 2550000 to 11000000
-      (inclusive) in steps of 50000. If this value is specified as zero or VP
-      rises above this value, VBST is bypassed to VP. If this value is omitted,
-      the maximum target voltage remains at 11 V.
+      VBST supply, expressed in uV. Valid values range from 2550000 uV to
+      11000000 uV (inclusive) in steps of 50000 uV. If this value is specified as
+      zero or VP rises above this value, VBST is bypassed to VP. If this value
+      is omitted, the maximum target voltage remains at 11 V.
     $ref: "/schemas/types.yaml#/definitions/uint32"
     minimum: 2550000
     maximum: 11000000
