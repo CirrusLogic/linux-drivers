@@ -389,6 +389,7 @@ bool cs40l26_readable_reg(struct device *dev, unsigned int reg)
 	case CS40L26_VBBR_FILTER_CONFIG:
 	case CS40L26_VOL_STATUS_TO_DSP:
 	case CS40L26_AMP_GAIN:
+	case CS40L26_DIGPWM_CONFIG2:
 	case CS40L26_SVC_CTRL:
 	case CS40L26_SVC_SER_R:
 	case CS40L26_SVC_R_LPF:
