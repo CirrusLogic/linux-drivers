@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 //
 // cs35l45-i2c.c -- CS35L45 I2C driver
 //
@@ -9,22 +9,38 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
+#include <sound/cs35l45.h>
 
 #include "cs35l45.h"
 
-static int cs35l45_i2c_probe(struct i2c_client *client)
+static struct regmap_config cs35l45_regmap = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+	.max_register = CS35L45_LASTREG,
+	.reg_defaults = cs35l45_reg,
+	.num_reg_defaults = ARRAY_SIZE(cs35l45_reg),
+	.volatile_reg = cs35l45_volatile_reg,
+	.readable_reg = cs35l45_readable_reg,
+	.cache_type = REGCACHE_RBTREE,
+};
+
+static int cs35l45_i2c_probe(struct i2c_client *client,
+			     const struct i2c_device_id *id)
 {
 	struct cs35l45_private *cs35l45;
 	struct device *dev = &client->dev;
 	int ret;
 
 	cs35l45 = devm_kzalloc(dev, sizeof(struct cs35l45_private), GFP_KERNEL);
-	if (!cs35l45)
+	if (cs35l45 == NULL)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, cs35l45);
-	cs35l45->regmap = devm_regmap_init_i2c(client, &cs35l45_i2c_regmap);
+	cs35l45->regmap = devm_regmap_init_i2c(client, &cs35l45_regmap);
 	if (IS_ERR(cs35l45->regmap)) {
 		ret = PTR_ERR(cs35l45->regmap);
 		dev_err(dev, "Failed to allocate register map: %d\n", ret);
@@ -32,11 +48,16 @@ static int cs35l45_i2c_probe(struct i2c_client *client)
 	}
 
 	cs35l45->dev = dev;
-	cs35l45->irq = client->irq;
-	cs35l45->bus_type = CONTROL_BUS_I2C;
-	cs35l45->i2c_addr = client->addr;
 
-	return cs35l45_probe(cs35l45);
+	ret = cs35l45_probe(cs35l45);
+	if (ret < 0) {
+		dev_err(dev, "Failed device probe: %d\n", ret);
+		return ret;
+	}
+
+	usleep_range(2000, 2100);
+
+	return cs35l45_initialize(cs35l45);
 }
 
 static void cs35l45_i2c_remove(struct i2c_client *client)
@@ -62,7 +83,6 @@ static struct i2c_driver cs35l45_i2c_driver = {
 	.driver = {
 		.name		= "cs35l45",
 		.of_match_table = cs35l45_of_match,
-		.pm		= &cs35l45_pm_ops,
 	},
 	.id_table	= cs35l45_id_i2c,
 	.probe		= cs35l45_i2c_probe,
@@ -73,4 +93,3 @@ module_i2c_driver(cs35l45_i2c_driver);
 MODULE_DESCRIPTION("I2C CS35L45 driver");
 MODULE_AUTHOR("James Schulman, Cirrus Logic Inc, <james.schulman@cirrus.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(SND_SOC_CS35L45);
