@@ -3670,20 +3670,32 @@ static int cs40l26_lbst_short_test(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
-	unsigned int err;
+	unsigned int err, vbst_ctl_1, vbst_ctl_2;
 	int ret;
+
+	ret = regmap_read(regmap, CS40L26_VBST_CTL_1, &vbst_ctl_1);
+	if (ret) {
+		dev_err(dev, "Failed to read VBST_CTL_1\n");
+		return ret;
+	}
+
+	ret = regmap_read(regmap, CS40L26_VBST_CTL_2, &vbst_ctl_2);
+	if (ret) {
+		dev_err(dev, "Failed to read VBST_CTL_2\n");
+		return ret;
+	}
+
+	ret = regmap_update_bits(regmap, CS40L26_VBST_CTL_1,
+				 CS40L26_BST_CTL_MASK, CS40L26_BST_CTL_VP);
+	if (ret) {
+		dev_err(dev, "Failed to set VBST_CTL_1\n");
+		return ret;
+	}
 
 	ret = regmap_update_bits(regmap, CS40L26_VBST_CTL_2,
 			CS40L26_BST_CTL_SEL_MASK, CS40L26_BST_CTL_SEL_FIXED);
 	if (ret) {
 		dev_err(dev, "Failed to set VBST_CTL_2\n");
-		return ret;
-	}
-
-	ret = regmap_update_bits(regmap, CS40L26_VBST_CTL_1,
-			CS40L26_BST_CTL_MASK, CS40L26_BST_CTL_VP);
-	if (ret) {
-		dev_err(dev, "Failed to set VBST_CTL_1\n");
 		return ret;
 	}
 
@@ -3717,17 +3729,15 @@ static int cs40l26_lbst_short_test(struct cs40l26_private *cs40l26)
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L26_VBST_CTL_2,
-			CS40L26_BST_CTL_SEL_MASK, CS40L26_BST_CTL_SEL_CLASS_H);
+	ret = regmap_write(regmap, CS40L26_VBST_CTL_1, vbst_ctl_1);
 	if (ret) {
-		dev_err(dev, "Failed to set VBST_CTL_2\n");
+		dev_err(dev, "Failed to set VBST_CTL_1\n");
 		return ret;
 	}
 
-	ret = regmap_update_bits(regmap, CS40L26_VBST_CTL_1,
-			CS40L26_BST_CTL_MASK, CS40L26_BST_CTL_VP);
+	ret = regmap_write(regmap, CS40L26_VBST_CTL_2, vbst_ctl_2);
 	if (ret)
-		dev_err(dev, "Failed to set VBST_CTL_1\n");
+		dev_err(dev, "Failed to set VBST_CTL_2\n");
 
 	return ret;
 }
