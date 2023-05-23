@@ -480,7 +480,7 @@ static int cs35l43_write_seq_add(struct cs35l43_private *cs35l43,
 {
 	struct device *dev = cs35l43->dev;
 	u32 *buf, *op_words, addr = 0, prev_addr = 0, value = 0;
-	u8 operation;
+	u8 operation = CS35L43_POWER_SEQ_OP_END;
 	unsigned int i, j, num_words, ret = 0;
 	struct cs35l43_write_seq_elem *write_seq_elem;
 
@@ -715,7 +715,7 @@ static int cs35l43_write_seq_init(struct cs35l43_private *cs35l43,
 {
 	struct device *dev = cs35l43->dev;
 	u32 *buf, *op_words;
-	u8 operation;
+	u8 operation = CS35L43_POWER_SEQ_OP_END;
 	unsigned int i, j, num_words, ret = 0;
 	struct cs35l43_write_seq_elem *write_seq_elem;
 
@@ -2443,7 +2443,6 @@ static int cs35l43_handle_of_data(struct device *dev,
 	return 0;
 }
 
-
 static int cs35l43_component_probe(struct snd_soc_component *component)
 {
 	int ret = 0;
@@ -2756,6 +2755,10 @@ int cs35l43_probe(struct cs35l43_private *cs35l43,
 	ret = devm_request_threaded_irq(cs35l43->dev, cs35l43->irq, NULL,
 				cs35l43_irq, IRQF_ONESHOT | IRQF_SHARED |
 				irq_pol, "cs35l43", cs35l43);
+	if (ret != 0) {
+		dev_err(cs35l43->dev, "Failed to request IRQ: %d\n", ret);
+		goto err;
+	}
 
 	cs35l43_dsp_init(cs35l43);
 
