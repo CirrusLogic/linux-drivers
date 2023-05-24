@@ -10476,15 +10476,8 @@ static int cs40l2x_basic_mode_exit(struct cs40l2x_private *cs40l2x)
 	}
 
 	if (i == CS40L2X_BASIC_TIMEOUT_COUNT) {
-		dev_warn(dev, "Timed out waiting for basic-mode heartbeat\n");
-
-		ret = regmap_update_bits(regmap, CS40L2X_DSP1_CCM_CORE_CONTROL,
-				 CS40L2X_DSP1_CCM_CORE_EN_MASK, 0);
-		if (ret) {
-			dev_err(dev, "Failed to stop DSP\n");
-			return ret;
-		}
-		goto heartbeat_timeout;
+		dev_err(dev, "Timed out waiting for basic-mode heartbeat\n");
+		return -EPROBE_DEFER;
 	}
 
 	ret = cs40l2x_ack_write(cs40l2x, CS40L2X_BASIC_SHUTDOWNREQUEST, 1, 0);
@@ -10530,7 +10523,7 @@ static int cs40l2x_basic_mode_exit(struct cs40l2x_private *cs40l2x)
 		if (ret)
 			return ret;
 	}
-heartbeat_timeout:
+
 	ret = regmap_multi_reg_write(regmap, cs40l2x_basic_mode_revert,
 			ARRAY_SIZE(cs40l2x_basic_mode_revert));
 	if (ret) {
