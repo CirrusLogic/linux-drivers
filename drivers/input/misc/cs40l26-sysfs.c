@@ -34,6 +34,12 @@ static ssize_t dsp_state_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(dsp_state);
 
+static ssize_t owt_lib_compat_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "1.0.0\n");
+}
+static DEVICE_ATTR_RO(owt_lib_compat);
+
 static ssize_t halo_heartbeat_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -792,6 +798,7 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_redc_comp_enable.attr,
 	&dev_attr_swap_firmware.attr,
 	&dev_attr_vpbr_thld.attr,
+	&dev_attr_owt_lib_compat.attr,
 	NULL,
 };
 
