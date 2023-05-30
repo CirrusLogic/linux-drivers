@@ -4751,7 +4751,7 @@ int cs40l26_probe(struct cs40l26_private *cs40l26, struct cs40l26_platform_data 
 		goto err;
 	}
 
-	cs40l26->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
+	cs40l26->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(cs40l26->reset_gpio)) {
 		dev_err(dev, "Failed to get reset GPIO\n");
 
@@ -4762,7 +4762,7 @@ int cs40l26_probe(struct cs40l26_private *cs40l26, struct cs40l26_platform_data 
 
 	usleep_range(CS40L26_MIN_RESET_PULSE_WIDTH, CS40L26_MIN_RESET_PULSE_WIDTH + 100);
 
-	gpiod_set_value_cansleep(cs40l26->reset_gpio, 1);
+	gpiod_set_value_cansleep(cs40l26->reset_gpio, 0);
 
 	usleep_range(CS40L26_CONTROL_PORT_READY_DELAY, CS40L26_CONTROL_PORT_READY_DELAY + 100);
 
@@ -4870,7 +4870,7 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 	if (va_consumer)
 		regulator_disable(va_consumer);
 
-	gpiod_set_value_cansleep(cs40l26->reset_gpio, 0);
+	gpiod_set_value_cansleep(cs40l26->reset_gpio, 1);
 
 	if (cs40l26->vibe_init_success) {
 		sysfs_remove_group(&cs40l26->input->dev.kobj, &cs40l26_dev_attr_group);
