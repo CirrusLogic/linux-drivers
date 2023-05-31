@@ -1596,46 +1596,6 @@ static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 reg, u32
 	return ret;
 }
 
-static int cs40l26_buzzgen_set(struct cs40l26_private *cs40l26, u16 freq, u16 level, u16 duration,
-		u8 buzzgen_num)
-{
-	unsigned int base_reg, freq_reg, level_reg, duration_reg;
-	int ret;
-
-	/* BUZZ_EFFECTS1_BUZZ_xxx are initially populated by contents of OTP.
-	 * The buzz specified by these controls is triggered by writing
-	 * 0x01800080 to the DSP mailbox
-	 */
-	ret = cl_dsp_get_reg(cs40l26->dsp, "BUZZ_EFFECTS1_BUZZ_FREQ",
-		CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID, &base_reg);
-	if (ret)
-		return ret;
-
-	freq_reg = base_reg + ((buzzgen_num) * CS40L26_BUZZGEN_CONFIG_OFFSET);
-	level_reg = base_reg + ((buzzgen_num) * CS40L26_BUZZGEN_CONFIG_OFFSET)
-			+ CS40L26_BUZZGEN_LEVEL_OFFSET;
-	duration_reg = base_reg + ((buzzgen_num) * CS40L26_BUZZGEN_CONFIG_OFFSET)
-			+ CS40L26_BUZZGEN_DURATION_OFFSET;
-
-	ret = regmap_write(cs40l26->regmap, freq_reg, freq);
-	if (ret) {
-		dev_err(cs40l26->dev, "Failed to write BUZZGEN frequency\n");
-		return ret;
-	}
-
-	ret = regmap_write(cs40l26->regmap, level_reg, level);
-	if (ret) {
-		dev_err(cs40l26->dev, "Failed to write BUZZGEN level\n");
-		return ret;
-	}
-
-	ret = regmap_write(cs40l26->regmap, duration_reg, duration / 4);
-	if (ret)
-		dev_err(cs40l26->dev, "Failed to write BUZZGEN duration\n");
-
-	return ret;
-}
-
 static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26, struct ff_effect *effect,
 		struct cs40l26_uploaded_effect *ueffect)
 {
@@ -1730,6 +1690,69 @@ static struct cs40l26_uploaded_effect *cs40l26_uploaded_effect_find(struct cs40l
 	}
 
 	return ueffect;
+}
+
+static struct cs40l26_buzzgen_config cs40l26_buzzgen_configs[] = {
+	{
+		.duration_name = "BUZZ_EFFECTS2_BUZZ_DURATION",
+		.freq_name = "BUZZ_EFFECTS2_BUZZ_FREQ",
+		.level_name = "BUZZ_EFFECTS2_BUZZ_LEVEL",
+		.effect_id = -1
+	},
+	{
+		.duration_name = "BUZZ_EFFECTS3_BUZZ_DURATION",
+		.freq_name = "BUZZ_EFFECTS3_BUZZ_FREQ",
+		.level_name = "BUZZ_EFFECTS3_BUZZ_LEVEL",
+		.effect_id = -1
+	},
+	{
+		.duration_name = "BUZZ_EFFECTS4_BUZZ_DURATION",
+		.freq_name = "BUZZ_EFFECTS4_BUZZ_FREQ",
+		.level_name = "BUZZ_EFFECTS4_BUZZ_LEVEL",
+		.effect_id = -1
+	},
+	{
+		.duration_name = "BUZZ_EFFECTS5_BUZZ_DURATION",
+		.freq_name = "BUZZ_EFFECTS5_BUZZ_FREQ",
+		.level_name = "BUZZ_EFFECTS5_BUZZ_LEVEL",
+		.effect_id = -1
+	},
+	{
+		.duration_name = "BUZZ_EFFECTS6_BUZZ_DURATION",
+		.freq_name = "BUZZ_EFFECTS6_BUZZ_FREQ",
+		.level_name = "BUZZ_EFFECTS6_BUZZ_LEVEL",
+		.effect_id = -1
+	},
+};
+
+static int cs40l26_buzzgen_find_slot(struct cs40l26_private *cs40l26, int id)
+{
+	int i, slot = -1;
+
+	for (i = CS40L26_BUZZGEN_NUM_CONFIGS - 1; i >= 0; i--) {
+		if (cs40l26_buzzgen_configs[i].effect_id == id) {
+			slot = i;
+			break;
+		} else if (cs40l26_buzzgen_configs[i].effect_id == -1) {
+			slot = i;
+		}
+	}
+
+	return slot;
+}
+
+static int cs40l26_erase_buzzgen(struct cs40l26_private *cs40l26, int id)
+{
+	int slot = cs40l26_buzzgen_find_slot(cs40l26, id);
+
+	if (slot == -1) {
+		dev_err(cs40l26->dev, "Failed to erase BUZZGEN config for id %d\n", id);
+		return -EINVAL;
+	}
+
+	cs40l26_buzzgen_configs[slot].effect_id = -1;
+
+	return 0;
 }
 
 static bool cs40l26_is_no_wait_ram_index(struct cs40l26_private *cs40l26,
@@ -2565,38 +2588,30 @@ data_free:
 	return ret;
 }
 
-static u8 cs40l26_get_lowest_free_buzzgen(struct cs40l26_private *cs40l26)
-{
-	u8 buzzgen = 1;
-	struct cs40l26_uploaded_effect *ueffect;
-
-	if (list_empty(&cs40l26->effect_head))
-		return buzzgen;
-
-	list_for_each_entry(ueffect, &cs40l26->effect_head, list) {
-		if (ueffect->wvfrm_bank == CS40L26_BUZ_BANK_ID)
-			buzzgen++;
-	}
-
-	return buzzgen;
-}
-
 static int cs40l26_sine_upload(struct cs40l26_private *cs40l26, struct ff_effect *effect,
 		struct cs40l26_uploaded_effect *ueffect)
 {
-	struct device *dev = cs40l26->dev;
-	u8 lowest_free_buzzgen, level;
-	u16 freq, period;
-	int ret;
+	unsigned int duration, freq, level;
+	int ret, slot;
+	u32 reg;
+
+	slot = cs40l26_buzzgen_find_slot(cs40l26, effect->id);
+	if (slot == -1) {
+		dev_err(cs40l26->dev, "No free BUZZGEN slot available\n");
+		return -ENOSPC;
+	}
+
+	cs40l26_buzzgen_configs[slot].effect_id = effect->id;
+
+	/* Divide duration by 4 to match firmware's expectation */
+	duration = (unsigned int) (effect->replay.length / 4);
 
 	if (effect->u.periodic.period < CS40L26_BUZZGEN_PER_MIN)
-		period = CS40L26_BUZZGEN_PER_MIN;
+		freq = 1000 / CS40L26_BUZZGEN_PER_MIN;
 	else if (effect->u.periodic.period > CS40L26_BUZZGEN_PER_MAX)
-		period = CS40L26_BUZZGEN_PER_MAX;
+		freq = 1000 / CS40L26_BUZZGEN_PER_MAX;
 	else
-		period = effect->u.periodic.period;
-
-	freq = CS40L26_MS_TO_HZ(period);
+		freq = 1000 / effect->u.periodic.period;
 
 	if (effect->u.periodic.magnitude < CS40L26_BUZZGEN_LEVEL_MIN)
 		level = CS40L26_BUZZGEN_LEVEL_MIN;
@@ -2605,23 +2620,43 @@ static int cs40l26_sine_upload(struct cs40l26_private *cs40l26, struct ff_effect
 	else
 		level = effect->u.periodic.magnitude;
 
-	lowest_free_buzzgen = cs40l26_get_lowest_free_buzzgen(cs40l26);
-	dev_dbg(dev, "lowest_free_buzzgen: %d", lowest_free_buzzgen);
+	ret = cl_dsp_get_reg(cs40l26->dsp, cs40l26_buzzgen_configs[slot].duration_name,
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID, &reg);
+	if (ret)
+		return ret;
 
-	if (lowest_free_buzzgen > CS40L26_BUZZGEN_NUM_CONFIGS) {
-		dev_err(dev, "Unable to upload buzzgen effect\n");
-		return -ENOSPC;
-	}
+	ret = regmap_write(cs40l26->regmap, reg, duration);
+	if (ret)
+		return ret;
 
-	ret = cs40l26_buzzgen_set(cs40l26, freq, level, effect->replay.length, lowest_free_buzzgen);
+	ret = cl_dsp_get_reg(cs40l26->dsp, cs40l26_buzzgen_configs[slot].freq_name,
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID, &reg);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(cs40l26->regmap, reg, freq);
+	if (ret)
+		return ret;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, cs40l26_buzzgen_configs[slot].level_name,
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID, &reg);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(cs40l26->regmap, reg, level);
 	if (ret)
 		return ret;
 
 	ueffect->id = effect->id;
 	ueffect->wvfrm_bank = CS40L26_BUZ_BANK_ID;
-	ueffect->trigger_index = CS40L26_BUZZGEN_INDEX_START + lowest_free_buzzgen;
 
-	return ret;
+	/*
+	 * BUZZGEN 1 is reserved for OTP buzz; BUZZGEN 2 - BUZZGEN 6 are valid.
+	 * Add an offset of 1 for this reason.
+	 */
+	ueffect->trigger_index = CS40L26_BUZZGEN_INDEX_START + slot + 1;
+
+	return 0;
 }
 
 static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effect *effect,
@@ -2939,6 +2974,12 @@ static void cs40l26_erase_worker(struct work_struct *work)
 	}
 
 	dev_dbg(cs40l26->dev, "%s: effect ID = %d\n", __func__, effect_id);
+
+	if (ueffect->wvfrm_bank == CS40L26_BUZ_BANK_ID) {
+		ret = cs40l26_erase_buzzgen(cs40l26, ueffect->id);
+		if (ret)
+			goto out_mutex;
+	}
 
 	if (ueffect->mapping != CS40L26_GPIO_MAP_INVALID) {
 		ret = cs40l26_erase_gpi_mapping(cs40l26, ueffect->mapping);
