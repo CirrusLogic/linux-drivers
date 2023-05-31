@@ -932,23 +932,14 @@
 #define CS40L26_OWT_BANK_ID			2
 #define CS40L26_BUZ_BANK_ID			3
 
-#define CS40L26_BUZZGEN_CONFIG_OFFSET	12
 #define CS40L26_BUZZGEN_NUM_CONFIGS	(CS40L26_BUZZGEN_INDEX_END - CS40L26_BUZZGEN_INDEX_START)
 
 #define CS40L26_BUZZGEN_INDEX_START		0x01800080
-#define CS40L26_BUZZGEN_INDEX_CP_TRIGGER	0x01800081
 #define CS40L26_BUZZGEN_INDEX_END		0x01800085
-
-#define CS40L26_BUZZGEN_FREQ_MAX		250 /* Hz */
-#define CS40L26_BUZZGEN_FREQ_MIN		100
 
 #define CS40L26_BUZZGEN_PER_MAX			10 /* ms */
 #define CS40L26_BUZZGEN_PER_MIN			4
 
-#define CS40L26_BUZZGEN_DURATION_OFFSET		8
-#define CS40L26_BUZZGEN_DURATION_DIV_STEP	4
-
-#define CS40L26_BUZZGEN_LEVEL_OFFSET		4
 #define CS40L26_BUZZGEN_LEVEL_MIN               0x00
 #define CS40L26_BUZZGEN_LEVEL_MAX               0xFF
 
@@ -1313,17 +1304,7 @@
 #define CS40L26_NUM_MFD_DEVS			1
 
 /* macros */
-#define CS40L26_OTP_MEM(n)	(CS40L26_OTP_MEM0 + ((n) * CL_DSP_BYTES_PER_WORD))
-
-#define CS40L26_MS_TO_SECS(n)	((n) / 1000)
-
 #define CS40L26_MS_TO_US(n)	((n) * 1000)
-
-#define CS40L26_MS_TO_NS(n)	((n) * 1000000)
-
-#define CS40L26_MS_TO_HZ(n)	(1000 / (n))
-
-#define CS40L26_SAMPS_TO_MS(n)	((n) / 8)
 
 /* enums */
 enum cs40l26_gpio_map {
@@ -1443,6 +1424,12 @@ enum cs40l26_pm_state {
 };
 
 /* structs */
+struct cs40l26_buzzgen_config {
+	const char *duration_name;
+	const char *freq_name;
+	const char *level_name;
+	int effect_id;
+};
 
 struct cs40l26_owt_section {
 	u8 flags;
