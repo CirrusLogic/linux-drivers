@@ -796,8 +796,6 @@
 #define CS40L26_DSP_TIMEOUT_US_MAX		1100
 #define CS40L26_DSP_TIMEOUT_COUNT		100
 
-#define CS40L26_DSP_MBOX_RESET			0x0
-
 #define CS40L26_DSP_MBOX_CMD_HIBER		0x02000001
 #define CS40L26_DSP_MBOX_CMD_WAKEUP		0x02000002
 #define CS40L26_DSP_MBOX_CMD_PREVENT_HIBER	0x02000003
@@ -1607,7 +1605,7 @@ int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26, unsigned int dsp_
 int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26, unsigned int dsp_state,
 		u32 *timeout_ms);
 int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26, enum cs40l26_pm_state state);
-int cs40l26_ack_write(struct cs40l26_private *cs40l26, u32 reg, u32 write_val, u32 reset_val);
+int cs40l26_mailbox_write(struct cs40l26_private *cs40l26, u32 write_val);
 int cs40l26_pm_enter(struct device *dev);
 void cs40l26_pm_exit(struct device *dev);
 void cs40l26_resume_error_handle(struct device *dev, int ret);
