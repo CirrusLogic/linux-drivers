@@ -163,8 +163,7 @@ static int cs40l26_dsp_tx(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 
 			codec->tuning_prev = codec->tuning;
 
-			ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-					CS40L26_DSP_MBOX_CMD_A2H_REINIT, CS40L26_DSP_MBOX_RESET);
+			ret = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_A2H_REINIT);
 			if (ret)
 				return ret;
 		}
@@ -222,8 +221,7 @@ static int cs40l26_asp_rx(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-				CS40L26_DSP_MBOX_CMD_STOP_I2S, CS40L26_DSP_MBOX_RESET);
+		ret = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_STOP_I2S);
 		if (ret)
 			goto err_mutex;
 
