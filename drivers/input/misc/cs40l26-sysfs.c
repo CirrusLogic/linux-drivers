@@ -1132,8 +1132,7 @@ static ssize_t trigger_calibration_store(struct device *dev,
 	mutex_lock(&cs40l26->lock);
 	reinit_completion(completion);
 
-	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, mailbox_command,
-			CS40L26_DSP_MBOX_RESET);
+	ret = cs40l26_mailbox_write(cs40l26, mailbox_command);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1890,8 +1889,7 @@ static ssize_t logging_max_reset_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-			CS40L26_DSP_MBOX_CMD_LOGGER_MAX_RESET, CS40L26_DSP_MBOX_RESET);
+	cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_LOGGER_MAX_RESET);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
