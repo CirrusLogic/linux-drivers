@@ -2759,7 +2759,7 @@ static int cs40l26_uploaded_effect_add(struct cs40l26_private *cs40l26, struct f
 	ueffect = cs40l26_uploaded_effect_find(cs40l26, effect->id);
 	if (IS_ERR_OR_NULL(ueffect)) {
 		is_new = true;
-		ueffect = kzalloc(sizeof(*ueffect), GFP_KERNEL);
+		ueffect = devm_kzalloc(dev, sizeof(*ueffect), GFP_KERNEL);
 		if (!ueffect)
 			return -ENOMEM;
 	}
@@ -2791,7 +2791,7 @@ static int cs40l26_uploaded_effect_add(struct cs40l26_private *cs40l26, struct f
 	return 0;
 err_free:
 	if (is_new)
-		kfree(ueffect);
+		devm_kfree(dev, ueffect);
 
 	return ret;
 }
@@ -3000,7 +3000,7 @@ static void cs40l26_erase_worker(struct work_struct *work)
 	}
 
 	list_del(&ueffect->list);
-	kfree(ueffect);
+	devm_kfree(cs40l26->dev, ueffect);
 
 out_mutex:
 	mutex_unlock(&cs40l26->lock);
