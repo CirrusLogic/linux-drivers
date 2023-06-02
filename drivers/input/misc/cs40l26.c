@@ -582,7 +582,7 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 {
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
-	u32 base, last, len, write_ptr, read_ptr, mbox_response, reg;
+	u32 base, last, len,  mbox_response, read_ptr, reg, status, write_ptr;
 	u32 buffer[CS40L26_DSP_MBOX_BUFFER_NUM_REGS];
 	int ret;
 
@@ -603,8 +603,19 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 	read_ptr = buffer[3];
 	last = base + ((len - 1) * CL_DSP_BYTES_PER_WORD);
 
-	if ((read_ptr - CL_DSP_BYTES_PER_WORD) == write_ptr) {
-		dev_err(dev, "Mailbox buffer is full, info missing\n");
+	ret = cl_dsp_get_reg(cs40l26->dsp, "STATUS", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_MAILBOX_ALGO_ID, &reg);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(regmap, reg, &status);
+	if (ret) {
+		dev_err(dev, "Failed to read mailbox status\n");
+		return ret;
+	}
+
+	if (status) {
+		dev_err(dev, "Mailbox status error: 0x%X\n", status);
 		return -ENOSPC;
 	}
 
