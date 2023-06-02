@@ -86,42 +86,34 @@ static int cs40l26_dsp_write(struct cs40l26_private *cs40l26, u32 reg, u32 val)
 	return 0;
 }
 
-static int cs40l26_ack_read(struct cs40l26_private *cs40l26, u32 reg, u32 ack_val)
+int cs40l26_mailbox_write(struct cs40l26_private *cs40l26, u32 write_val)
 {
-	struct device *dev = cs40l26->dev;
-	int ret, i;
+	int i, ret;
 	u32 val;
 
+	ret = cs40l26_dsp_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, write_val);
+	if (ret)
+		return ret;
+
 	for (i = 0; i < CS40L26_DSP_TIMEOUT_COUNT; i++) {
-		ret = cs40l26_dsp_read(cs40l26, reg, &val);
+		ret = cs40l26_dsp_read(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, &val);
 		if (ret)
 			return ret;
 
-		if (val == ack_val)
+		if (val == 0x0)
 			break;
 
 		usleep_range(CS40L26_DSP_TIMEOUT_US_MIN, CS40L26_DSP_TIMEOUT_US_MAX);
 	}
 
 	if (i >= CS40L26_DSP_TIMEOUT_COUNT) {
-		dev_err(dev, "Ack timed out (0x%08X != 0x%08X) reg. 0x%08X\n", val, ack_val, reg);
-		return -ETIME;
+		dev_err(cs40l26->dev, "Mailbox not acknowledged (0x%08X != 0x0)\n", val);
+		return -ETIMEDOUT;
 	}
 
 	return 0;
 }
-
-int cs40l26_ack_write(struct cs40l26_private *cs40l26, u32 reg, u32 write_val, u32 reset_val)
-{
-	int ret;
-
-	ret = cs40l26_dsp_write(cs40l26, reg, write_val);
-	if (ret)
-		return ret;
-
-	return cs40l26_ack_read(cs40l26, reg, reset_val);
-}
-EXPORT_SYMBOL_GPL(cs40l26_ack_write);
+EXPORT_SYMBOL_GPL(cs40l26_mailbox_write);
 
 int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 {
@@ -391,16 +383,14 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26, enum cs40l26_pm
 
 	switch (state) {
 	case CS40L26_PM_STATE_WAKEUP:
-		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, cmd,
-				CS40L26_DSP_MBOX_RESET);
+		ret = cs40l26_mailbox_write(cs40l26, cmd);
 		if (ret)
 			return ret;
 
 		break;
 	case CS40L26_PM_STATE_PREVENT_HIBERNATE:
 		for (i = 0; i < CS40L26_DSP_STATE_ATTEMPTS; i++) {
-			ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, cmd,
-					CS40L26_DSP_MBOX_RESET);
+			ret = cs40l26_mailbox_write(cs40l26, cmd);
 			if (ret)
 				return ret;
 
@@ -478,8 +468,7 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26, enum cs40l26_pm
 		break;
 	case CS40L26_PM_STATE_SHUTDOWN:
 		cs40l26->wksrc_sts = 0x00;
-		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, cmd,
-				CS40L26_DSP_MBOX_RESET);
+		ret = cs40l26_mailbox_write(cs40l26, cmd);
 
 		break;
 	default:
@@ -800,8 +789,7 @@ int cs40l26_asp_start(struct cs40l26_private *cs40l26)
 	if (cs40l26->pdata.asp_scale_pct < CS40L26_GAIN_FULL_SCALE)
 		queue_work(cs40l26->vibe_workqueue, &cs40l26->set_gain_work);
 
-	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, CS40L26_STOP_PLAYBACK,
-			CS40L26_DSP_MBOX_RESET);
+	ret = cs40l26_mailbox_write(cs40l26, CS40L26_STOP_PLAYBACK);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to stop playback before I2S start\n");
 		return ret;
@@ -809,8 +797,7 @@ int cs40l26_asp_start(struct cs40l26_private *cs40l26)
 
 	reinit_completion(&cs40l26->i2s_cont);
 
-	return cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-			CS40L26_DSP_MBOX_CMD_START_I2S, CS40L26_DSP_MBOX_RESET);
+	return cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_START_I2S);
 }
 EXPORT_SYMBOL_GPL(cs40l26_asp_start);
 
@@ -1885,8 +1872,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	switch (effect->u.periodic.waveform) {
 	case FF_CUSTOM:
 	case FF_SINE:
-		ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-				ueffect->trigger_index, CS40L26_DSP_MBOX_RESET);
+		ret = cs40l26_mailbox_write(cs40l26, ueffect->trigger_index);
 		if (ret)
 			goto err_mutex;
 
@@ -1946,8 +1932,7 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 		goto mutex_exit;
 	}
 
-	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-				CS40L26_STOP_PLAYBACK, CS40L26_DSP_MBOX_RESET);
+	ret = cs40l26_mailbox_write(cs40l26, CS40L26_STOP_PLAYBACK);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to stop playback\n");
 		goto mutex_exit;
@@ -2267,8 +2252,7 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, u8 *data, u32 dat
 		goto err_pm;
 	}
 
-	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-			CS40L26_DSP_MBOX_CMD_OWT_PUSH, CS40L26_DSP_MBOX_RESET);
+	ret = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_OWT_PUSH);
 	if (ret)
 		goto err_pm;
 
@@ -2929,8 +2913,7 @@ static int cs40l26_erase_owt(struct cs40l26_private *cs40l26,
 
 	cmd |= (index & 0xFF);
 
-	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, cmd,
-			CS40L26_DSP_MBOX_RESET);
+	ret = cs40l26_mailbox_write(cs40l26, cmd);
 	if (ret)
 		return ret;
 
@@ -4053,8 +4036,7 @@ int cs40l26_svc_le_estimate(struct cs40l26_private *cs40l26, unsigned int *le)
 	unsigned int reg, le_est = 0;
 	int ret, i;
 
-	ret = cs40l26_ack_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
-			CS40L26_DSP_MBOX_CMD_LE_EST, CS40L26_DSP_MBOX_RESET);
+	ret = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_LE_EST);
 	if (ret)
 		return ret;
 
