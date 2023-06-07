@@ -448,12 +448,20 @@ cirrus,no-wait-ram-indices:
       prior to sending a STOP_PLAYBACK command.
 
 cirrus,release-index:
-    descrption:
+  $ref: /schemas/types.yaml#/definitions/uint32-array
+  items:
+    description: Waveform BANK (RAM = 0, ROM = 1)
+    description: Waveform offset from bank base
+  description: >
       Bank and index of effect to be mapped to GPI release event upon driver
       probe.
 
 cirrus,press-index:
-    description:
+  $ref: /schemas/types.yaml#/definitions/uint32-array
+  items:
+    description: Waveform BANK (RAM = 0, ROM = 1)
+    description: Waveform offset from bank base
+  description: >
       Bank and index of effect to be mapped to GPI press event upon driver
       probe.
 
@@ -500,8 +508,8 @@ examples:
 
       cirrus,no-wait-ram-indices = <5 10 25>;
 
-      cirrus,release-index = "RAM", <1>;
-      cirrus,press-index = "ROM", <2>;
+      cirrus,release-index = <0 1>; // RAM bank, index 1
+      cirrus,press-index = <1 2>; // ROM bank, index 2
 
       svc-le1 {
         cirrus,min = <500>; //59.6 uH
