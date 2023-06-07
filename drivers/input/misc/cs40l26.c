@@ -18,19 +18,21 @@ static inline bool section_complete(struct cs40l26_owt_section *s)
 	return s->delay ? true : false;
 }
 
-static u32 gpio_map_get(struct device_node *np, enum cs40l26_gpio_map gpio)
+static u32 gpio_map_get(struct device *dev, enum cs40l26_gpio_map gpio)
 {
-	const char *bank, *name = gpio == CS40L26_GPIO_MAP_A_PRESS ?
+	const char *name = (gpio == CS40L26_GPIO_MAP_A_PRESS) ?
 			"cirrus,press-index" : "cirrus,release-index";
-	u32 val;
+	u32 bank_idx_pair[2];
+	int ret;
 
-	if (!of_property_read_string_index(np, name, 0, &bank) &&
-		!of_property_read_u32_index(np, name, 1, &val)) {
-		if (!strncmp(bank, "RAM", 3))
-			return (val & CS40L26_BTN_INDEX_MASK) | (1 << CS40L26_BTN_BANK_SHIFT);
-		else if (!strncmp(bank, "ROM", 3))
-			return val & CS40L26_BTN_INDEX_MASK;
-	}
+	ret = device_property_read_u32_array(dev, name, bank_idx_pair, 2);
+	if (ret)
+		return ret;
+
+	if (bank_idx_pair[0] == CS40L26_RAM_BANK_ID)
+		return (bank_idx_pair[1] & CS40L26_BTN_INDEX_MASK) | (1 << CS40L26_BTN_BANK_SHIFT);
+	else if (bank_idx_pair[0] == CS40L26_ROM_BANK_ID)
+		return (bank_idx_pair[1] & CS40L26_BTN_INDEX_MASK);
 
 	return CS40L26_EVENT_MAP_GPI_DISABLE;
 }
@@ -180,7 +182,7 @@ int cs40l26_set_pll_loop(struct cs40l26_private *cs40l26, unsigned int pll_loop)
 }
 EXPORT_SYMBOL_GPL(cs40l26_set_pll_loop);
 
-int cs40l26_dbc_get(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc, unsigned int *val)
+int cs40l26_dbc_get(struct cs40l26_private *cs40l26, enum cs40l26_dbc_type dbc, unsigned int *val)
 {
 	struct device *dev = cs40l26->dev;
 	unsigned int reg;
@@ -192,7 +194,7 @@ int cs40l26_dbc_get(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc, unsig
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, cs40l26_dbc_names[dbc], CL_DSP_XM_UNPACKED_TYPE,
+	ret = cl_dsp_get_reg(cs40l26->dsp, cs40l26_dbc_params[dbc].name, CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_EXT_ALGO_ID, &reg);
 	if (ret)
 		goto err_pm;
@@ -210,28 +212,25 @@ err_pm:
 }
 EXPORT_SYMBOL_GPL(cs40l26_dbc_get);
 
-int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc, u32 val)
+int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc_type dbc, u32 val)
 {
 	struct device *dev = cs40l26->dev;
-	unsigned int reg, max;
+	u32 reg, write_val;
 	int ret;
 
-	if (dbc == CS40L26_DBC_TX_LVL_HOLD_OFF_MS)
-		max = CS40L26_DBC_TX_LVL_HOLD_OFF_MS_MAX;
+	if (val > cs40l26_dbc_params[dbc].max)
+		write_val = cs40l26_dbc_params[dbc].max;
+	else if (val < cs40l26_dbc_params[dbc].min)
+		write_val = cs40l26_dbc_params[dbc].min;
 	else
-		max = CS40L26_DBC_CONTROLS_MAX;
+		write_val = val;
 
-	if (val > max) {
-		dev_err(dev, "DBC input %u out of bounds\n", val);
-		return -EINVAL;
-	}
-
-	ret = cl_dsp_get_reg(cs40l26->dsp, cs40l26_dbc_names[dbc],
+	ret = cl_dsp_get_reg(cs40l26->dsp, cs40l26_dbc_params[dbc].name,
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(cs40l26->regmap, reg, val);
+	ret = regmap_write(cs40l26->regmap, reg, write_val);
 	if (ret)
 		dev_err(dev, "Failed to write Dynamic Boost Control value\n");
 
@@ -354,7 +353,7 @@ static void cs40l26_remove_asp_scaling(struct cs40l26_private *cs40l26)
 	struct device *dev = cs40l26->dev;
 	u16 gain;
 
-	if (cs40l26->pdata.asp_scale_pct >= CS40L26_GAIN_FULL_SCALE || !cs40l26->scaling_applied)
+	if (cs40l26->asp_scale_pct >= CS40L26_GAIN_FULL_SCALE || !cs40l26->scaling_applied)
 		return;
 
 	gain = cs40l26->gain_tmp;
@@ -786,7 +785,7 @@ int cs40l26_asp_start(struct cs40l26_private *cs40l26)
 {
 	int ret;
 
-	if (cs40l26->pdata.asp_scale_pct < CS40L26_GAIN_FULL_SCALE)
+	if (cs40l26->asp_scale_pct < CS40L26_GAIN_FULL_SCALE)
 		queue_work(cs40l26->vibe_workqueue, &cs40l26->set_gain_work);
 
 	ret = cs40l26_mailbox_write(cs40l26, CS40L26_STOP_PLAYBACK);
@@ -1780,7 +1779,7 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 	mutex_lock(&cs40l26->lock);
 
 	if (cs40l26->vibe_state == CS40L26_VIBE_STATE_ASP) {
-		gain = (cs40l26->pdata.asp_scale_pct * cs40l26->gain_pct) / CS40L26_GAIN_FULL_SCALE;
+		gain = (cs40l26->asp_scale_pct * cs40l26->gain_pct) / CS40L26_GAIN_FULL_SCALE;
 		cs40l26->gain_tmp = cs40l26->gain_pct;
 		cs40l26->gain_pct = gain;
 		cs40l26->scaling_applied = true;
@@ -3171,8 +3170,8 @@ static int cs40l26_wksrc_config(struct cs40l26_private *cs40l26)
 
 static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 {
-	u32 val, mask;
 	u8 mask_gpio;
+	u32 val;
 	int ret;
 
 	if (cs40l26->devid == CS40L26_DEVID_A ||
@@ -3187,9 +3186,6 @@ static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	mask = (u32) (GENMASK(CS40L26_IRQ1_GPIO4_FALL,
-			CS40L26_IRQ1_GPIO1_RISE));
-
 	if (mask_gpio)
 		val = (u32) GENMASK(CS40L26_IRQ1_GPIO4_FALL,
 				CS40L26_IRQ1_GPIO2_RISE);
@@ -3197,20 +3193,21 @@ static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 		val = 0;
 
 	ret = regmap_write(cs40l26->regmap, CS40L26_A1_EVENT_MAP_1,
-			cs40l26->pdata.press_idx);
+			cs40l26->press_idx);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to map press GPI event\n");
 		return ret;
 	}
 
 	ret = regmap_write(cs40l26->regmap, CS40L26_A1_EVENT_MAP_2,
-			cs40l26->pdata.release_idx);
+			cs40l26->release_idx);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to map release GPI event\n");
 		return ret;
 	}
 
-	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, val, mask);
+	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, val,
+			GENMASK(CS40L26_IRQ1_GPIO4_FALL, CS40L26_IRQ1_GPIO1_RISE));
 }
 
 static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
@@ -3233,8 +3230,8 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 		return ret;
 	}
 
-	val |= ((cs40l26->pdata.vbbr_en << CS40L26_VBBR_EN_SHIFT)
-			| (cs40l26->pdata.vpbr_en << CS40L26_VPBR_EN_SHIFT));
+	val |= ((cs40l26->vbbr_en << CS40L26_VBBR_EN_SHIFT) |
+			(cs40l26->vpbr_en << CS40L26_VPBR_EN_SHIFT));
 
 	ret = regmap_write(regmap, CS40L26_BLOCK_ENABLES2, val);
 	if (ret) {
@@ -3242,16 +3239,15 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 		return ret;
 	}
 
-	ret = cs40l26_pseq_write(cs40l26, CS40L26_BLOCK_ENABLES2,
-			val, true, CS40L26_PSEQ_OP_WRITE_FULL);
+	ret = cs40l26_pseq_write(cs40l26, CS40L26_BLOCK_ENABLES2, val, true,
+			CS40L26_PSEQ_OP_WRITE_FULL);
 	if (ret) {
 		dev_err(dev, "Failed to sequence brownout prevention\n");
 		return ret;
 	}
 
-	if (cs40l26->pdata.vbbr_en) {
-		pseq_mask |= BIT(CS40L26_IRQ2_VBBR_ATT_CLR) |
-				BIT(CS40L26_IRQ2_VBBR_FLAG);
+	if (cs40l26->vbbr_en) {
+		pseq_mask = BIT(CS40L26_IRQ2_VBBR_ATT_CLR) | BIT(CS40L26_IRQ2_VBBR_FLAG);
 
 		ret = regmap_read(regmap, CS40L26_VBBR_CONFIG, &val);
 		if (ret) {
@@ -3259,78 +3255,67 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 			return ret;
 		}
 
-		if (cs40l26->pdata.vbbr_thld_mv) {
-			if (cs40l26->pdata.vbbr_thld_mv
-					>= CS40L26_VBBR_THLD_MV_MAX)
+		if (cs40l26->vbbr_thld_mv) {
+			if (cs40l26->vbbr_thld_mv >= CS40L26_VBBR_THLD_MV_MAX)
 				vbbr_thld = CS40L26_VBBR_THLD_MAX;
-			else if (cs40l26->pdata.vbbr_thld_mv
-					<= CS40L26_VBBR_THLD_MV_MIN)
+			else if (cs40l26->vbbr_thld_mv <= CS40L26_VBBR_THLD_MV_MIN)
 				vbbr_thld = CS40L26_VBBR_THLD_MIN;
 			else
-				vbbr_thld = cs40l26->pdata.vbbr_thld_mv /
-					CS40L26_VBBR_THLD_MV_STEP;
+				vbbr_thld = cs40l26->vbbr_thld_mv / CS40L26_VBBR_THLD_MV_STEP;
 
 			val &= ~CS40L26_VBBR_THLD_MASK;
 			val |= (vbbr_thld & CS40L26_VBBR_THLD_MASK);
 		}
 
-		if (cs40l26->pdata.vbbr_max_att != CS40L26_VXBR_DEFAULT) {
-			if (cs40l26->pdata.vbbr_max_att >=
-					CS40L26_VXBR_MAX_ATT_MAX)
+		if (cs40l26->vbbr_max_att != CS40L26_VXBR_DEFAULT) {
+			if (cs40l26->vbbr_max_att >= CS40L26_VXBR_MAX_ATT_MAX)
 				vbbr_max_att = CS40L26_VXBR_MAX_ATT_MAX;
 			else
-				vbbr_max_att = cs40l26->pdata.vbbr_max_att;
+				vbbr_max_att = cs40l26->vbbr_max_att;
 
 			val &= ~CS40L26_VXBR_MAX_ATT_MASK;
 			val |= ((vbbr_max_att << CS40L26_VXBR_MAX_ATT_SHIFT)
 					& CS40L26_VXBR_MAX_ATT_MASK);
 		}
 
-		if (cs40l26->pdata.vbbr_atk_step) {
-			if (cs40l26->pdata.vbbr_atk_step
-					<= CS40L26_VXBR_ATK_STEP_MIN)
-				vbbr_atk_step = CS40L26_VXBR_ATK_STEP_MIN;
-			else if (cs40l26->pdata.vbbr_atk_step
-					>= CS40L26_VXBR_ATK_STEP_MAX_DB)
+		if (cs40l26->vbbr_atk_step) {
+			if (cs40l26->vbbr_atk_step >= CS40L26_VXBR_ATK_STEP_MAX)
 				vbbr_atk_step = CS40L26_VXBR_ATK_STEP_MAX;
 			else
-				vbbr_atk_step = cs40l26->pdata.vbbr_atk_step;
+				vbbr_atk_step = cs40l26->vbbr_atk_step;
 
 			val &= ~CS40L26_VXBR_ATK_STEP_MASK;
 			val |= ((vbbr_atk_step << CS40L26_VXBR_ATK_STEP_SHIFT)
 					& CS40L26_VXBR_ATK_STEP_MASK);
 		}
 
-		if (cs40l26->pdata.vbbr_atk_rate !=
-				CS40L26_VXBR_DEFAULT) {
-			if (cs40l26->pdata.vbbr_atk_rate
-					> CS40L26_VXBR_ATK_RATE_MAX)
+		if (cs40l26->vbbr_atk_rate != CS40L26_VXBR_DEFAULT) {
+			if (cs40l26->vbbr_atk_rate > CS40L26_VXBR_ATK_RATE_MAX)
 				vbbr_atk_rate = CS40L26_VXBR_ATK_RATE_MAX;
 			else
-				vbbr_atk_rate = cs40l26->pdata.vbbr_atk_rate;
+				vbbr_atk_rate = cs40l26->vbbr_atk_rate;
 
 			val &= ~CS40L26_VXBR_ATK_RATE_MASK;
 			val |= ((vbbr_atk_rate << CS40L26_VXBR_ATK_RATE_SHIFT)
 					& CS40L26_VXBR_ATK_RATE_MASK);
 		}
 
-		if (cs40l26->pdata.vbbr_wait != CS40L26_VXBR_DEFAULT) {
-			if (cs40l26->pdata.vbbr_wait > CS40L26_VXBR_WAIT_MAX)
+		if (cs40l26->vbbr_wait != CS40L26_VXBR_DEFAULT) {
+			if (cs40l26->vbbr_wait > CS40L26_VXBR_WAIT_MAX)
 				vbbr_wait = CS40L26_VXBR_WAIT_MAX;
 			else
-				vbbr_wait = cs40l26->pdata.vbbr_wait;
+				vbbr_wait = cs40l26->vbbr_wait;
 
 			val &= ~CS40L26_VXBR_WAIT_MASK;
 			val |= ((vbbr_wait << CS40L26_VXBR_WAIT_SHIFT)
 					& CS40L26_VXBR_WAIT_MASK);
 		}
 
-		if (cs40l26->pdata.vbbr_rel_rate != CS40L26_VXBR_DEFAULT) {
-			if (cs40l26->pdata.vbbr_rel_rate
-					> CS40L26_VXBR_REL_RATE_MAX)
+		if (cs40l26->vbbr_rel_rate != CS40L26_VXBR_DEFAULT) {
+			if (cs40l26->vbbr_rel_rate > CS40L26_VXBR_REL_RATE_MAX)
 				vbbr_rel_rate = CS40L26_VXBR_REL_RATE_MAX;
 			else
-				vbbr_rel_rate = cs40l26->pdata.vbbr_rel_rate;
+				vbbr_rel_rate = cs40l26->vbbr_rel_rate;
 
 			val &= ~CS40L26_VXBR_REL_RATE_MASK;
 			val |= ((vbbr_rel_rate << CS40L26_VXBR_REL_RATE_SHIFT)
@@ -3343,14 +3328,12 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 			return ret;
 		}
 
-		ret = cs40l26_pseq_write(cs40l26, CS40L26_VBBR_CONFIG,
-				(val & GENMASK(31, 16)) >> 16,
-				true, CS40L26_PSEQ_OP_WRITE_H16);
+		ret = cs40l26_pseq_write(cs40l26, CS40L26_VBBR_CONFIG, (val & GENMASK(31, 16)) >>
+				16, true, CS40L26_PSEQ_OP_WRITE_H16);
 		if (ret)
 			return ret;
 
-		ret = cs40l26_pseq_write(cs40l26, CS40L26_VBBR_CONFIG,
-				(val & GENMASK(15, 0)),
+		ret = cs40l26_pseq_write(cs40l26, CS40L26_VBBR_CONFIG, (val & GENMASK(15, 0)),
 				true, CS40L26_PSEQ_OP_WRITE_L16);
 		if (ret)
 			return ret;
@@ -3362,22 +3345,17 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 		return ret;
 	}
 
-	if (cs40l26->pdata.vpbr_en) {
-		pseq_mask |= BIT(CS40L26_IRQ2_VPBR_ATT_CLR) |
-				BIT(CS40L26_IRQ2_VPBR_FLAG);
+	if (cs40l26->vpbr_en) {
+		pseq_mask |= BIT(CS40L26_IRQ2_VPBR_ATT_CLR) | BIT(CS40L26_IRQ2_VPBR_FLAG);
 
-		if (cs40l26->pdata.vpbr_thld_mv) {
-			if (cs40l26->pdata.vpbr_thld_mv
-					>= CS40L26_VPBR_THLD_MV_MAX) {
+		if (cs40l26->vpbr_thld_mv) {
+			if (cs40l26->vpbr_thld_mv >= CS40L26_VPBR_THLD_MV_MAX)
 				vpbr_thld = CS40L26_VPBR_THLD_MAX;
-			} else if (cs40l26->pdata.vpbr_thld_mv
-					<= CS40L26_VPBR_THLD_MV_MIN) {
+			else if (cs40l26->vpbr_thld_mv <= CS40L26_VPBR_THLD_MV_MIN)
 				vpbr_thld = CS40L26_VPBR_THLD_MIN;
-			} else {
-				vpbr_thld = (cs40l26->pdata.vpbr_thld_mv /
-						CS40L26_VPBR_THLD_MV_DIV)
-						- CS40L26_VPBR_THLD_OFFSET;
-			}
+			else
+				vpbr_thld = (cs40l26->vpbr_thld_mv / CS40L26_VPBR_THLD_MV_DIV) -
+						CS40L26_VPBR_THLD_OFFSET;
 
 			cs40l26->vpbr_thld = vpbr_thld & CS40L26_VPBR_THLD_MASK;
 
@@ -3386,40 +3364,35 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 
 		}
 
-		if (cs40l26->pdata.vpbr_max_att != CS40L26_VXBR_DEFAULT) {
-			if (cs40l26->pdata.vpbr_max_att >=
-					CS40L26_VXBR_MAX_ATT_MAX)
+		if (cs40l26->vpbr_max_att != CS40L26_VXBR_DEFAULT) {
+			if (cs40l26->vpbr_max_att >= CS40L26_VXBR_MAX_ATT_MAX)
 				vpbr_max_att = CS40L26_VXBR_MAX_ATT_MAX;
 			else
-				vpbr_max_att = cs40l26->pdata.vpbr_max_att;
+				vpbr_max_att = cs40l26->vpbr_max_att;
 
 			val &= ~CS40L26_VXBR_MAX_ATT_MASK;
 			val |= ((vpbr_max_att << CS40L26_VXBR_MAX_ATT_SHIFT)
 					& CS40L26_VXBR_MAX_ATT_MASK);
 		}
 
-		if (cs40l26->pdata.vpbr_atk_step) {
-			if (cs40l26->pdata.vpbr_atk_step
-					<= CS40L26_VXBR_ATK_STEP_MIN)
+		if (cs40l26->vpbr_atk_step) {
+			if (cs40l26->vpbr_atk_step <= CS40L26_VXBR_ATK_STEP_MIN)
 				vpbr_atk_step = CS40L26_VXBR_ATK_STEP_MIN;
-			else if (cs40l26->pdata.vpbr_atk_step
-					>= CS40L26_VXBR_ATK_STEP_MAX_DB)
+			else if (cs40l26->vpbr_atk_step >= CS40L26_VXBR_ATK_STEP_MAX)
 				vpbr_atk_step = CS40L26_VXBR_ATK_STEP_MAX;
 			else
-				vpbr_atk_step = cs40l26->pdata.vpbr_atk_step;
+				vpbr_atk_step = cs40l26->vpbr_atk_step;
 
 			val &= ~CS40L26_VXBR_ATK_STEP_MASK;
 			val |= ((vpbr_atk_step << CS40L26_VXBR_ATK_STEP_SHIFT)
 					& CS40L26_VXBR_ATK_STEP_MASK);
 		}
 
-		if (cs40l26->pdata.vpbr_atk_rate !=
-				CS40L26_VXBR_DEFAULT) {
-			if (cs40l26->pdata.vpbr_atk_rate
-					> CS40L26_VXBR_ATK_RATE_MAX)
+		if (cs40l26->vpbr_atk_rate != CS40L26_VXBR_DEFAULT) {
+			if (cs40l26->vpbr_atk_rate > CS40L26_VXBR_ATK_RATE_MAX)
 				vpbr_atk_rate = CS40L26_VXBR_ATK_RATE_MAX;
 			else
-				vpbr_atk_rate = cs40l26->pdata.vpbr_atk_rate;
+				vpbr_atk_rate = cs40l26->vpbr_atk_rate;
 
 			val &= ~CS40L26_VXBR_ATK_RATE_MASK;
 			val |= ((vpbr_atk_rate << CS40L26_VXBR_ATK_RATE_SHIFT)
@@ -3427,23 +3400,21 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 
 		}
 
-		if (cs40l26->pdata.vpbr_wait != CS40L26_VXBR_DEFAULT) {
-			if (cs40l26->pdata.vpbr_wait > CS40L26_VXBR_WAIT_MAX)
+		if (cs40l26->vpbr_wait != CS40L26_VXBR_DEFAULT) {
+			if (cs40l26->vpbr_wait > CS40L26_VXBR_WAIT_MAX)
 				vpbr_wait = CS40L26_VXBR_WAIT_MAX;
 			else
-				vpbr_wait = cs40l26->pdata.vpbr_wait;
+				vpbr_wait = cs40l26->vpbr_wait;
 
 			val &= ~CS40L26_VXBR_WAIT_MASK;
-			val |= ((vpbr_wait << CS40L26_VXBR_WAIT_SHIFT)
-					& CS40L26_VXBR_WAIT_MASK);
+			val |= ((vpbr_wait << CS40L26_VXBR_WAIT_SHIFT) & CS40L26_VXBR_WAIT_MASK);
 		}
 
-		if (cs40l26->pdata.vpbr_rel_rate != CS40L26_VXBR_DEFAULT) {
-			if (cs40l26->pdata.vpbr_rel_rate
-					> CS40L26_VXBR_REL_RATE_MAX)
+		if (cs40l26->vpbr_rel_rate != CS40L26_VXBR_DEFAULT) {
+			if (cs40l26->vpbr_rel_rate > CS40L26_VXBR_REL_RATE_MAX)
 				vpbr_rel_rate = CS40L26_VXBR_REL_RATE_MAX;
 			else
-				vpbr_rel_rate = cs40l26->pdata.vpbr_rel_rate;
+				vpbr_rel_rate = cs40l26->vpbr_rel_rate;
 
 			val &= ~CS40L26_VXBR_REL_RATE_MASK;
 			val |= ((vpbr_rel_rate << CS40L26_VXBR_REL_RATE_SHIFT)
@@ -3456,21 +3427,18 @@ static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
 			return ret;
 		}
 
-		ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG,
-				(val & GENMASK(31, 16)) >> 16,
-				true, CS40L26_PSEQ_OP_WRITE_H16);
+		ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG, (val & GENMASK(31, 16)) >>
+				16, true, CS40L26_PSEQ_OP_WRITE_H16);
 		if (ret)
 			return ret;
 
-		ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG,
-				(val & GENMASK(15, 0)),
+		ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG, (val & GENMASK(15, 0)),
 				true, CS40L26_PSEQ_OP_WRITE_L16);
 		if (ret)
 			return ret;
 	}
 
-	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_2,
-			pseq_val, pseq_mask);
+	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_2, pseq_val, pseq_mask);
 }
 
 static int cs40l26_asp_config(struct cs40l26_private *cs40l26)
@@ -3509,13 +3477,13 @@ static int cs40l26_bst_dcm_config(struct cs40l26_private *cs40l26)
 	int ret = 0;
 	u32 val;
 
-	if (cs40l26->pdata.bst_dcm_en != CS40L26_BST_DCM_EN_DEFAULT) {
+	if (cs40l26->bst_dcm_en != CS40L26_BST_DCM_EN_DEFAULT) {
 		ret = regmap_read(cs40l26->regmap, CS40L26_BST_DCM_CTL, &val);
 		if (ret)
 			return ret;
 
 		val &= ~CS40L26_BST_DCM_EN_MASK;
-		val |= cs40l26->pdata.bst_dcm_en << CS40L26_BST_DCM_EN_SHIFT;
+		val |= cs40l26->bst_dcm_en << CS40L26_BST_DCM_EN_SHIFT;
 
 		ret = regmap_write(cs40l26->regmap, CS40L26_BST_DCM_CTL, val);
 		if (ret)
@@ -3533,7 +3501,7 @@ static int cs40l26_zero_cross_config(struct cs40l26_private *cs40l26)
 	int ret = 0;
 	u32 reg;
 
-	if (cs40l26->pdata.pwle_zero_cross) {
+	if (cs40l26->pwle_zero_cross) {
 		ret = cl_dsp_get_reg(cs40l26->dsp, "PWLE_EXTEND_ZERO_CROSS",
 				CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
 		if (ret)
@@ -3553,44 +3521,41 @@ static int calib_device_tree_config(struct cs40l26_private *cs40l26)
 	int ret;
 	u32 reg;
 
-	if (cs40l26->pdata.f0_default <= CS40L26_F0_EST_MAX &&
-			cs40l26->pdata.f0_default >= CS40L26_F0_EST_MIN) {
+	if (cs40l26->f0_default <= CS40L26_F0_EST_MAX &&
+			cs40l26->f0_default >= CS40L26_F0_EST_MIN) {
 		ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED",
 				CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_VIBEGEN_ALGO_ID, &reg);
 		if (ret)
 			return ret;
 
-		ret = regmap_write(cs40l26->regmap, reg,
-				cs40l26->pdata.f0_default);
+		ret = regmap_write(cs40l26->regmap, reg, cs40l26->f0_default);
 		if (ret) {
 			dev_err(cs40l26->dev, "Failed to write default f0\n");
 			return ret;
 		}
 	}
 
-	if (cs40l26->pdata.redc_default &&
-			cs40l26->pdata.redc_default <= CS40L26_UINT_24_BITS_MAX) {
+	if (cs40l26->redc_default && cs40l26->redc_default <= CS40L26_UINT_24_BITS_MAX) {
 		ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_VIBEGEN_ALGO_ID, &reg);
 		if (ret)
 			return ret;
 
-		ret = regmap_write(cs40l26->regmap, reg, cs40l26->pdata.redc_default);
+		ret = regmap_write(cs40l26->regmap, reg, cs40l26->redc_default);
 		if (ret) {
 			dev_err(cs40l26->dev, "Failed to write default ReDC\n");
 			return ret;
 		}
 	}
 
-	if (cs40l26->pdata.q_default <= CS40L26_Q_EST_MAX &&
-			cs40l26->pdata.q_default >= CS40L26_Q_EST_MIN) {
+	if (cs40l26->q_default <= CS40L26_Q_EST_MAX && cs40l26->q_default >= CS40L26_Q_EST_MIN) {
 		ret = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_VIBEGEN_ALGO_ID, &reg);
 		if (ret)
 			return ret;
 
-		ret = regmap_write(cs40l26->regmap, reg, cs40l26->pdata.q_default);
+		ret = regmap_write(cs40l26->regmap, reg, cs40l26->q_default);
 		if (ret) {
 			dev_err(cs40l26->dev, "Failed to write default Q\n");
 			return ret;
@@ -3605,11 +3570,10 @@ static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
 	u32 bst_ipk;
 	int ret;
 
-	if (cs40l26->pdata.bst_ipk < CS40L26_BST_IPK_UA_MIN ||
-			cs40l26->pdata.bst_ipk > CS40L26_BST_IPK_UA_MAX)
+	if (cs40l26->bst_ipk < CS40L26_BST_IPK_UA_MIN || cs40l26->bst_ipk > CS40L26_BST_IPK_UA_MAX)
 		bst_ipk = CS40L26_BST_IPK_DEFAULT;
 	else
-		bst_ipk = (cs40l26->pdata.bst_ipk / CS40L26_BST_IPK_UA_STEP) - 16;
+		bst_ipk = (cs40l26->bst_ipk / CS40L26_BST_IPK_UA_STEP) - 16;
 
 	ret = regmap_write(cs40l26->regmap, CS40L26_BST_IPK_CTL, bst_ipk);
 	if (ret) {
@@ -3631,11 +3595,10 @@ static int cs40l26_bst_ctl_config(struct cs40l26_private *cs40l26)
 	u32 bst_ctl;
 	int ret;
 
-	if (cs40l26->pdata.bst_ctl < CS40L26_BST_UV_MIN ||
-			cs40l26->pdata.bst_ctl > CS40L26_BST_UV_MAX)
+	if (cs40l26->bst_ctl < CS40L26_BST_UV_MIN || cs40l26->bst_ctl > CS40L26_BST_UV_MAX)
 		bst_ctl = CS40L26_BST_CTL_DEFAULT;
 	else
-		bst_ctl = (cs40l26->pdata.bst_ctl - CS40L26_BST_UV_MIN) / CS40L26_BST_UV_STEP;
+		bst_ctl = (cs40l26->bst_ctl - CS40L26_BST_UV_MIN) / CS40L26_BST_UV_STEP;
 
 	ret = regmap_write(cs40l26->regmap, CS40L26_VBST_CTL_1, bst_ctl);
 	if (ret) {
@@ -3670,11 +3633,11 @@ static int cs40l26_clip_lvl_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	if (cs40l26->pdata.clip_lvl < CS40L26_CLIP_LVL_UV_MIN ||
-			cs40l26->pdata.clip_lvl > CS40L26_CLIP_LVL_UV_MAX)
+	if (cs40l26->clip_lvl < CS40L26_CLIP_LVL_UV_MIN ||
+			cs40l26->clip_lvl > CS40L26_CLIP_LVL_UV_MAX)
 		clip_lvl = CS40L26_CLIP_LVL_DEFAULT;
 	else
-		clip_lvl = cs40l26->pdata.clip_lvl / CS40L26_CLIP_LVL_UV_STEP;
+		clip_lvl = cs40l26->clip_lvl / CS40L26_CLIP_LVL_UV_STEP;
 
 	ret = regmap_read(cs40l26->regmap, CS40L26_DIGPWM_CONFIG2, &digpwm_config);
 	if (ret) {
@@ -3784,7 +3747,7 @@ static int cs40l26_handle_errata(struct cs40l26_private *cs40l26)
 {
 	int ret, num_writes;
 
-	if (!cs40l26->pdata.expl_mode_enabled) {
+	if (!cs40l26->expl_mode_enabled) {
 		ret = cs40l26_lbst_short_test(cs40l26);
 		if (ret)
 			return ret;
@@ -3811,8 +3774,7 @@ int cs40l26_dbc_enable(struct cs40l26_private *cs40l26, u32 enable)
 	ret = regmap_update_bits(cs40l26->regmap, reg, CS40L26_DBC_ENABLE_MASK,
 			enable << CS40L26_DBC_ENABLE_SHIFT);
 	if (ret)
-		dev_err(cs40l26->dev, "Failed to %s DBC\n",
-				(enable == 1) ? "enable" : "disable");
+		dev_err(cs40l26->dev, "Failed to %s DBC\n", enable ? "enable" : "disable");
 
 	return ret;
 }
@@ -3825,7 +3787,7 @@ static int cs40l26_handle_dbc_defaults(struct cs40l26_private *cs40l26)
 	int ret;
 
 	for (i = 0; i < CS40L26_DBC_NUM_CONTROLS; i++) {
-		val = cs40l26->pdata.dbc_defaults[i];
+		val = cs40l26->dbc_defaults[i];
 
 		if (val != CS40L26_DBC_USE_DEFAULT) {
 			ret = cs40l26_dbc_set(cs40l26, i, val);
@@ -3834,7 +3796,7 @@ static int cs40l26_handle_dbc_defaults(struct cs40l26_private *cs40l26)
 		}
 	}
 
-	if (cs40l26->pdata.dbc_enable_default) {
+	if (cs40l26->dbc_enable_default) {
 		ret = cs40l26_dbc_enable(cs40l26, 1);
 		if (ret)
 			return ret;
@@ -4012,7 +3974,7 @@ static void cs40l26_gain_adjust(struct cs40l26_private *cs40l26, s32 adjust)
 {
 	u16 total, asp, change;
 
-	asp = cs40l26->pdata.asp_scale_pct;
+	asp = cs40l26->asp_scale_pct;
 
 	if (adjust < 0) {
 		change = (u16) ((adjust * -1) & 0xFFFF);
@@ -4027,7 +3989,7 @@ static void cs40l26_gain_adjust(struct cs40l26_private *cs40l26, s32 adjust)
 			total = CS40L26_GAIN_FULL_SCALE;
 	}
 
-	cs40l26->pdata.asp_scale_pct = total;
+	cs40l26->asp_scale_pct = total;
 }
 
 int cs40l26_svc_le_estimate(struct cs40l26_private *cs40l26, unsigned int *le)
@@ -4192,12 +4154,12 @@ static int cs40l26_change_fw_control_defaults(struct cs40l26_private *cs40l26)
 	int ret;
 
 	ret = cs40l26_pm_timeout_ms_set(cs40l26, CS40L26_DSP_STATE_STANDBY,
-			cs40l26->pdata.pm_stdby_timeout_ms);
+			cs40l26->pm_stdby_timeout_ms);
 	if (ret)
 		return ret;
 
 	return cs40l26_pm_timeout_ms_set(cs40l26, CS40L26_DSP_STATE_ACTIVE,
-			cs40l26->pdata.pm_active_timeout_ms);
+			cs40l26->pm_active_timeout_ms);
 }
 
 static int cs40l26_get_fw_params(struct cs40l26_private *cs40l26)
@@ -4528,29 +4490,27 @@ err:
 	return ret;
 }
 
-static int cs40l26_no_wait_ram_indices_get(struct cs40l26_private *cs40l26, struct device_node *np)
+static int cs40l26_no_wait_ram_indices_get(struct cs40l26_private *cs40l26)
 {
-	int ret, i;
+	int i, num, ret;
 
-	cs40l26->num_no_wait_ram_indices = of_property_count_u32_elems(np,
-			"cirrus,no-wait-ram-indices");
-
-	if (cs40l26->num_no_wait_ram_indices <= 0)
+	num = device_property_count_u32(cs40l26->dev, "cirrus,no-wait-ram-indices");
+	if (num <= 0)
 		return 0;
 
-	cs40l26->no_wait_ram_indices = devm_kcalloc(cs40l26->dev,
-			cs40l26->num_no_wait_ram_indices, sizeof(u32),
-			GFP_KERNEL);
+	cs40l26->no_wait_ram_indices = devm_kcalloc(cs40l26->dev, num, sizeof(u32), GFP_KERNEL);
 	if (!cs40l26->no_wait_ram_indices)
 		return -ENOMEM;
 
-	ret = of_property_read_u32_array(np, "cirrus,no-wait-ram-indices",
-			cs40l26->no_wait_ram_indices, cs40l26->num_no_wait_ram_indices);
+	ret = device_property_read_u32_array(cs40l26->dev, "cirrus,no-wait-ram-indices",
+			cs40l26->no_wait_ram_indices, num);
 	if (ret)
 		goto err_free;
 
-	for (i = 0; i < cs40l26->num_no_wait_ram_indices; i++)
+	for (i = 0; i < num; i++)
 		cs40l26->no_wait_ram_indices[i] += CS40L26_RAM_INDEX_START;
+
+	cs40l26->num_no_wait_ram_indices = num;
 
 	return 0;
 
@@ -4560,182 +4520,6 @@ err_free:
 	return ret;
 }
 
-static int cs40l26_handle_platform_data(struct cs40l26_private *cs40l26)
-{
-	struct device *dev = cs40l26->dev;
-	struct device_node *np = dev->of_node;
-	int ret;
-	u32 val;
-
-	if (!np) {
-		dev_err(dev, "No platform data found\n");
-		return -ENOENT;
-	}
-
-	if (of_property_read_bool(np, "cirrus,fw-defer"))
-		cs40l26->fw_defer = true;
-
-	if (of_property_read_bool(np, "cirrus,calib-fw"))
-		cs40l26->calib_fw = true;
-
-	if (of_property_read_bool(np, "cirrus,bst-expl-mode-disable"))
-		cs40l26->pdata.expl_mode_enabled = false;
-	else
-		cs40l26->pdata.expl_mode_enabled = true;
-
-	cs40l26->pdata.vbbr_en = of_property_read_bool(np, "cirrus,vbbr-enable");
-
-	if (!of_property_read_u32(np, "cirrus,vbbr-thld-mv", &val))
-		cs40l26->pdata.vbbr_thld_mv = val;
-
-	if (!of_property_read_u32(np, "cirrus,vbbr-max-att-db", &val))
-		cs40l26->pdata.vbbr_max_att = val;
-	else
-		cs40l26->pdata.vbbr_max_att = CS40L26_VXBR_DEFAULT;
-
-	if (!of_property_read_u32(np, "cirrus,vbbr-atk-step", &val))
-		cs40l26->pdata.vbbr_atk_step = val;
-
-	if (!of_property_read_u32(np, "cirrus,vbbr-atk-rate", &val))
-		cs40l26->pdata.vbbr_atk_rate = val;
-
-	if (!of_property_read_u32(np, "cirrus,vbbr-wait", &val))
-		cs40l26->pdata.vbbr_wait = val;
-	else
-		cs40l26->pdata.vbbr_wait = CS40L26_VXBR_DEFAULT;
-
-	if (!of_property_read_u32(np, "cirrus,vbbr-rel-rate", &val))
-		cs40l26->pdata.vbbr_rel_rate = val;
-	else
-		cs40l26->pdata.vbbr_rel_rate = CS40L26_VXBR_DEFAULT;
-
-	cs40l26->pdata.vpbr_en = of_property_read_bool(np, "cirrus,vpbr-enable");
-
-	if (!of_property_read_u32(np, "cirrus,vpbr-thld-mv", &val))
-		cs40l26->pdata.vpbr_thld_mv = val;
-
-	if (!of_property_read_u32(np, "cirrus,vpbr-max-att-db", &val))
-		cs40l26->pdata.vpbr_max_att = val;
-	else
-		cs40l26->pdata.vpbr_max_att = CS40L26_VXBR_DEFAULT;
-
-	if (!of_property_read_u32(np, "cirrus,vpbr-atk-step", &val))
-		cs40l26->pdata.vpbr_atk_step = val;
-
-	if (!of_property_read_u32(np, "cirrus,vpbr-atk-rate", &val))
-		cs40l26->pdata.vpbr_atk_rate = val;
-	else
-		cs40l26->pdata.vpbr_atk_rate = CS40L26_VXBR_DEFAULT;
-
-	if (!of_property_read_u32(np, "cirrus,vpbr-wait", &val))
-		cs40l26->pdata.vpbr_wait = val;
-	else
-		cs40l26->pdata.vpbr_wait = CS40L26_VXBR_DEFAULT;
-
-	if (!of_property_read_u32(np, "cirrus,vpbr-rel-rate", &val))
-		cs40l26->pdata.vpbr_rel_rate = val;
-	else
-		cs40l26->pdata.vpbr_rel_rate = CS40L26_VXBR_DEFAULT;
-
-	if (!of_property_read_u32(np, "cirrus,bst-dcm-en", &val))
-		cs40l26->pdata.bst_dcm_en = val;
-	else
-		cs40l26->pdata.bst_dcm_en = CS40L26_BST_DCM_EN_DEFAULT;
-
-	if (!of_property_read_u32(np, "cirrus,bst-ipk-microamp", &val))
-		cs40l26->pdata.bst_ipk = val;
-	else
-		cs40l26->pdata.bst_ipk = CS40L26_BST_IPK_UA_DEFAULT;
-
-	if (!of_property_read_u32(np, "cirrus,bst-ctl-microvolt", &val))
-		cs40l26->pdata.bst_ctl = val;
-	else
-		cs40l26->pdata.bst_ctl = CS40L26_BST_UV_MAX;
-
-	if (!of_property_read_u32(np, "cirrus,clip-lvl-microvolt", &val))
-		cs40l26->pdata.clip_lvl = val;
-	else
-		cs40l26->pdata.clip_lvl = CS40L26_CLIP_LVL_UV_MAX;
-
-	if (!of_property_read_u32(np, "cirrus,pm-stdby-timeout-ms", &val))
-		cs40l26->pdata.pm_stdby_timeout_ms = val;
-	else
-		cs40l26->pdata.pm_stdby_timeout_ms = CS40L26_PM_STDBY_TIMEOUT_MS_MIN;
-
-	if (!of_property_read_u32(np, "cirrus,pm-active-timeout-ms", &val))
-		cs40l26->pdata.pm_active_timeout_ms = val;
-	else
-		cs40l26->pdata.pm_active_timeout_ms = CS40L26_PM_ACTIVE_TIMEOUT_MS_DEFAULT;
-
-	ret = cs40l26_handle_svc_le_nodes(cs40l26);
-	if (ret < 0)
-		cs40l26->num_svc_le_vals = 0;
-	else
-		cs40l26->num_svc_le_vals = ret;
-
-	cs40l26->pdata.asp_scale_pct = CS40L26_GAIN_FULL_SCALE;
-	cs40l26->gain_pct = CS40L26_GAIN_FULL_SCALE;
-	cs40l26->gain_tmp = CS40L26_GAIN_FULL_SCALE;
-	if (!of_property_read_u32(np, "cirrus,asp-gain-scale-pct", &val)) {
-		if (val <= CS40L26_GAIN_FULL_SCALE)
-			cs40l26->pdata.asp_scale_pct = val;
-		else
-			dev_warn(dev, "ASP scaling > 100 %%, using maximum\n");
-	}
-
-	if (!of_property_read_u32(np, "cirrus,f0-default", &val))
-		cs40l26->pdata.f0_default = val;
-
-	if (!of_property_read_u32(np, "cirrus,redc-default", &val))
-		cs40l26->pdata.redc_default = val;
-
-	if (!of_property_read_u32(np, "cirrus,q-default", &val))
-		cs40l26->pdata.q_default = val;
-
-	if (of_property_read_bool(np, "cirrus,dbc-enable"))
-		cs40l26->pdata.dbc_enable_default = true;
-	else
-		cs40l26->pdata.dbc_enable_default = false;
-
-	if (!of_property_read_u32(np, "cirrus,dbc-env-rel-coef", &val))
-		cs40l26->pdata.dbc_defaults[CS40L26_DBC_ENV_REL_COEF] = val;
-	else
-		cs40l26->pdata.dbc_defaults[CS40L26_DBC_ENV_REL_COEF] =
-				CS40L26_DBC_USE_DEFAULT;
-
-	if (!of_property_read_u32(np, "cirrus,dbc-fall-headroom", &val))
-		cs40l26->pdata.dbc_defaults[CS40L26_DBC_FALL_HEADROOM] = val;
-	else
-		cs40l26->pdata.dbc_defaults[CS40L26_DBC_FALL_HEADROOM] =
-				CS40L26_DBC_USE_DEFAULT;
-
-	if (!of_property_read_u32(np, "cirrus,dbc-rise-headroom", &val))
-		cs40l26->pdata.dbc_defaults[CS40L26_DBC_RISE_HEADROOM] = val;
-	else
-		cs40l26->pdata.dbc_defaults[CS40L26_DBC_RISE_HEADROOM] = CS40L26_DBC_USE_DEFAULT;
-
-	if (!of_property_read_u32(np, "cirrus,dbc-tx-lvl-hold-off-ms", &val))
-		cs40l26->pdata.dbc_defaults[CS40L26_DBC_TX_LVL_HOLD_OFF_MS] = val;
-	else
-		cs40l26->pdata.dbc_defaults[CS40L26_DBC_TX_LVL_HOLD_OFF_MS] =
-				CS40L26_DBC_USE_DEFAULT;
-
-	if (!of_property_read_u32(np, "cirrus,dbc-tx-lvl-thresh-fs", &val))
-		cs40l26->pdata.dbc_defaults[CS40L26_DBC_TX_LVL_THRESH_FS] = val;
-	else
-		cs40l26->pdata.dbc_defaults[CS40L26_DBC_TX_LVL_THRESH_FS] = CS40L26_DBC_USE_DEFAULT;
-
-	if (of_property_read_bool(np, "cirrus,pwle-zero-cross-en"))
-		cs40l26->pdata.pwle_zero_cross = true;
-	else
-		cs40l26->pdata.pwle_zero_cross = false;
-
-	cs40l26->pdata.press_idx = gpio_map_get(np, CS40L26_GPIO_MAP_A_PRESS);
-	cs40l26->pdata.release_idx = gpio_map_get(np, CS40L26_GPIO_MAP_A_RELEASE);
-
-	return cs40l26_no_wait_ram_indices_get(cs40l26, np);
-}
-
 static void cs40l26_hibernate_timer_callback(struct timer_list *t)
 {
 	struct cs40l26_private *cs40l26 = from_timer(cs40l26, t, hibernate_timer);
@@ -4743,7 +4527,166 @@ static void cs40l26_hibernate_timer_callback(struct timer_list *t)
 	dev_dbg(cs40l26->dev, "Time since ALLOW_HIBERNATE exceeded HE_TIME max");
 }
 
-int cs40l26_probe(struct cs40l26_private *cs40l26, struct cs40l26_platform_data *pdata)
+static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
+{
+	struct device *dev = cs40l26->dev;
+	int ret;
+
+	cs40l26->fw_defer = device_property_present(dev, "cirrus,fw-defer");
+
+	cs40l26->calib_fw = device_property_present(dev, "cirrus,calib-fw");
+
+	cs40l26->expl_mode_enabled = !device_property_present(dev, "cirrus,bst-expl-mode-disable");
+
+	if (device_property_present(dev, "cirrus,vbbr-enable")) {
+		cs40l26->vbbr_en = true;
+
+		ret = device_property_read_u32(dev, "cirrus,vbbr-thld-mv", &cs40l26->vbbr_thld_mv);
+		if (ret && ret != -EINVAL)
+			return ret;
+
+		ret = device_property_read_u32(dev, "cirrus,vbbr-max-att-db",
+				&cs40l26->vbbr_max_att);
+		if (ret)
+			cs40l26->vbbr_max_att = CS40L26_VXBR_DEFAULT;
+
+		ret = device_property_read_u32(dev, "cirrus,vbbr-atk-step",
+				&cs40l26->vbbr_atk_step);
+		if (ret && ret != -EINVAL)
+			return ret;
+
+		ret = device_property_read_u32(dev, "cirrus,vbbr-atk-rate",
+				&cs40l26->vbbr_atk_rate);
+		if (ret && ret != -EINVAL)
+			return ret;
+
+		ret = device_property_read_u32(dev, "cirrus,vbbr-wait", &cs40l26->vbbr_wait);
+		if (ret)
+			cs40l26->vbbr_wait = CS40L26_VXBR_DEFAULT;
+
+		ret = device_property_read_u32(dev, "cirrus,vbbr-rel-rate",
+				&cs40l26->vbbr_rel_rate);
+		if (ret)
+			cs40l26->vbbr_rel_rate = CS40L26_VXBR_DEFAULT;
+	}
+
+	if (device_property_present(dev, "cirrus,vpbr-enable")) {
+		cs40l26->vpbr_en = true;
+
+		ret = device_property_read_u32(dev, "cirrus,vpbr-thld-mv", &cs40l26->vpbr_thld_mv);
+		if (ret && ret != -EINVAL)
+			return ret;
+
+		ret = device_property_read_u32(dev, "cirrus,vpbr-max-att-db",
+				&cs40l26->vpbr_max_att);
+		if (ret)
+			cs40l26->vpbr_max_att = CS40L26_VXBR_DEFAULT;
+
+		ret = device_property_read_u32(dev, "cirrus,vpbr-atk-step",
+				&cs40l26->vpbr_atk_step);
+		if (ret && ret != -EINVAL)
+			return ret;
+
+		ret = device_property_read_u32(dev, "cirrus,vpbr-atk-rate",
+				&cs40l26->vpbr_atk_rate);
+		if (ret && ret != -EINVAL)
+			return ret;
+
+		ret = device_property_read_u32(dev, "cirrus,vpbr-wait", &cs40l26->vpbr_wait);
+		if (ret)
+			cs40l26->vpbr_wait = CS40L26_VXBR_DEFAULT;
+
+		ret = device_property_read_u32(dev, "cirrus,vpbr-rel-rate",
+				&cs40l26->vpbr_rel_rate);
+		if (ret)
+			cs40l26->vpbr_rel_rate = CS40L26_VXBR_DEFAULT;
+	}
+
+	cs40l26->bst_dcm_en = device_property_present(dev, "cirrus,bst-dcm-en");
+
+	ret = device_property_read_u32(dev, "cirrus,bst-ipk-microamp", &cs40l26->bst_ipk);
+	if (ret)
+		cs40l26->bst_ipk = CS40L26_BST_IPK_UA_DEFAULT;
+
+	ret = device_property_read_u32(dev, "cirrus,bst-ctl-microvolt", &cs40l26->bst_ctl);
+	if (ret)
+		cs40l26->bst_ctl = CS40L26_BST_UV_MAX;
+
+	ret = device_property_read_u32(dev, "cirrus,clip-lvl-microvolt", &cs40l26->clip_lvl);
+	if (ret)
+		cs40l26->clip_lvl = CS40L26_CLIP_LVL_UV_MAX;
+
+	ret = device_property_read_u32(dev, "cirrus,pm-stdby-timeout-ms",
+			&cs40l26->pm_stdby_timeout_ms);
+	if (ret)
+		cs40l26->pm_stdby_timeout_ms = CS40L26_PM_STDBY_TIMEOUT_MS_MIN;
+
+	ret = device_property_read_u32(dev, "cirrus,pm-active-timeout-ms",
+			&cs40l26->pm_active_timeout_ms);
+	if (ret)
+		cs40l26->pm_active_timeout_ms = CS40L26_PM_ACTIVE_TIMEOUT_MS_DEFAULT;
+
+	ret = cs40l26_handle_svc_le_nodes(cs40l26);
+	if (ret < 0)
+		cs40l26->num_svc_le_vals = 0;
+	else
+		cs40l26->num_svc_le_vals = ret;
+
+	ret = device_property_read_u32(dev, "cirrus,asp-gain-scale-pct", &cs40l26->asp_scale_pct);
+	if (ret)
+		cs40l26->asp_scale_pct = CS40L26_GAIN_FULL_SCALE;
+
+	cs40l26->gain_pct = CS40L26_GAIN_FULL_SCALE;
+	cs40l26->gain_tmp = CS40L26_GAIN_FULL_SCALE;
+
+	ret = device_property_read_u32(dev, "cirrus,f0-default", &cs40l26->f0_default);
+	if (ret && ret != -EINVAL)
+		return ret;
+
+	ret = device_property_read_u32(dev, "cirrus,redc-default", &cs40l26->redc_default);
+	if (ret && ret != -EINVAL)
+		return ret;
+
+	ret = device_property_read_u32(dev, "cirrus,q-default", &cs40l26->q_default);
+	if (ret && ret != -EINVAL)
+		return ret;
+
+	cs40l26->dbc_enable_default = device_property_present(dev, "cirrus,dbc-enable");
+
+	ret = device_property_read_u32(dev, "cirrus,dbc-env-rel-coef",
+			&cs40l26->dbc_defaults[CS40L26_DBC_ENV_REL_COEF]);
+	if (ret)
+		cs40l26->dbc_defaults[CS40L26_DBC_ENV_REL_COEF] = CS40L26_DBC_USE_DEFAULT;
+
+	ret = device_property_read_u32(dev, "cirrus,dbc-fall-headroom",
+			&cs40l26->dbc_defaults[CS40L26_DBC_FALL_HEADROOM]);
+	if (ret)
+		cs40l26->dbc_defaults[CS40L26_DBC_FALL_HEADROOM] = CS40L26_DBC_USE_DEFAULT;
+
+	ret = device_property_read_u32(dev, "cirrus,dbc-rise-headroom",
+		&cs40l26->dbc_defaults[CS40L26_DBC_RISE_HEADROOM]);
+	if (ret)
+		cs40l26->dbc_defaults[CS40L26_DBC_RISE_HEADROOM] = CS40L26_DBC_USE_DEFAULT;
+
+	ret = device_property_read_u32(dev, "cirrus,dbc-tx-lvl-hold-off-ms",
+			&cs40l26->dbc_defaults[CS40L26_DBC_TX_LVL_HOLD_OFF_MS]);
+	if (ret)
+		cs40l26->dbc_defaults[CS40L26_DBC_TX_LVL_HOLD_OFF_MS] = CS40L26_DBC_USE_DEFAULT;
+
+	ret = device_property_read_u32(dev, "cirrus,dbc-tx-lvl-thresh-fs",
+			&cs40l26->dbc_defaults[CS40L26_DBC_TX_LVL_THRESH_FS]);
+	if (ret)
+		cs40l26->dbc_defaults[CS40L26_DBC_TX_LVL_THRESH_FS] = CS40L26_DBC_USE_DEFAULT;
+
+	cs40l26->pwle_zero_cross = device_property_present(dev, "cirrus,pwle-zero-cross-en");
+
+	cs40l26->press_idx = gpio_map_get(dev, CS40L26_GPIO_MAP_A_PRESS);
+	cs40l26->release_idx = gpio_map_get(dev, CS40L26_GPIO_MAP_A_RELEASE);
+
+	return cs40l26_no_wait_ram_indices_get(cs40l26);
+}
+
+int cs40l26_probe(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
 	int ret;
@@ -4770,17 +4713,10 @@ int cs40l26_probe(struct cs40l26_private *cs40l26, struct cs40l26_platform_data 
 		goto err;
 	}
 
-	if (pdata) {
-		cs40l26->pdata = *pdata;
-	} else if (cs40l26->dev->of_node) {
-		ret = cs40l26_handle_platform_data(cs40l26);
-		if (ret)
-			goto err;
-	} else {
-		dev_err(dev, "No platform data found\n");
-		ret = -ENOENT;
+	ret = cs40l26_parse_properties(cs40l26);
+	if (ret)
 		goto err;
-	}
+
 
 	ret = regulator_bulk_enable(CS40L26_NUM_SUPPLIES, cs40l26_supplies);
 	if  (ret) {
