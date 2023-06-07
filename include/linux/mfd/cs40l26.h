@@ -1038,25 +1038,22 @@
 
 #define CS40L26_VPBR_THLD_MIN			0x02
 #define CS40L26_VPBR_THLD_MAX			0x1F
-#define CS40L26_VPBR_THLD_MV_DIV		47
+#define CS40L26_VPBR_THLD_MV_DIV		47000
 #define CS40L26_VPBR_THLD_OFFSET		51
-#define CS40L26_VPBR_THLD_MV_MIN		2497
-#define CS40L26_VPBR_THLD_MV_MAX		3874
+#define CS40L26_VPBR_THLD_MV_MIN		2497000
+#define CS40L26_VPBR_THLD_MV_MAX		3874000
 
 #define CS40L26_VBBR_THLD_MASK			GENMASK(5, 0)
 #define CS40L26_VBBR_THLD_MIN			0x02
 #define CS40L26_VBBR_THLD_MAX			0x3F
-#define CS40L26_VBBR_THLD_MV_STEP		55
-#define CS40L26_VBBR_THLD_MV_MIN		109
-#define CS40L26_VBBR_THLD_MV_MAX		3445
+#define CS40L26_VBBR_THLD_MV_STEP		55000
+#define CS40L26_VBBR_THLD_MV_MIN		109000
+#define CS40L26_VBBR_THLD_MV_MAX		3445000
 
 #define CS40L26_VXBR_MAX_ATT_MASK		GENMASK(11, 8)
 #define CS40L26_VXBR_MAX_ATT_SHIFT		8
 #define CS40L26_VXBR_MAX_ATT_MAX		0xF
 
-#define CS40L26_VXBR_ATK_STEP_DIV_DB		1000
-#define CS40L26_VXBR_ATK_STEP_MIN_DB		250
-#define CS40L26_VXBR_ATK_STEP_MAX_DB		6000
 #define CS40L26_VXBR_ATK_STEP_MIN		0x0
 #define CS40L26_VXBR_ATK_STEP_MAX		0x7
 #define CS40L26_VXBR_ATK_STEP_MASK		GENMASK(15, 12)
@@ -1283,12 +1280,17 @@
 /* DBC */
 #define CS40L26_DBC_ENABLE_MASK			BIT(1)
 #define CS40L26_DBC_ENABLE_SHIFT		1
-#define CS40L26_DBC_TX_LVL_HOLD_OFF_MS_MAX	1000
 #define CS40L26_DBC_CONTROLS_MAX		0x7FFFFF
+#define CS40L26_DBC_ENV_REL_COEF_MIN		8384414
 #define CS40L26_DBC_ENV_REL_COEF_NAME		"DBC_ENV_REL_COEF"
+#define CS40L26_DBC_RISE_HEADROOM_MIN		1432204
 #define CS40L26_DBC_RISE_HEADROOM_NAME		"DBC_RISE_HEADROOM"
+#define CS40L26_DBC_FALL_HEADROOM_MIN		750193
 #define CS40L26_DBC_FALL_HEADROOM_NAME		"DBC_FALL_HEADROOM"
+#define CS40L26_DBC_TX_LVL_THRESH_FS_MIN	839
 #define CS40L26_DBC_TX_LVL_THRESH_FS_NAME	"DBC_TX_LVL_THRESH_FS"
+#define CS40L26_DBC_TX_LVL_HOLD_OFF_MS_MAX	1000
+#define CS40L26_DBC_TX_LVL_HOLD_OFF_MS_MIN	10
 #define CS40L26_DBC_TX_LVL_HOLD_OFF_MS_NAME	"DBC_TX_LVL_HOLD_OFF_MS"
 #define CS40L26_DBC_USE_DEFAULT			0xFFFFFFFF
 
@@ -1312,7 +1314,7 @@ enum cs40l26_gpio_map {
 	CS40L26_GPIO_MAP_INVALID,
 };
 
-enum cs40l26_dbc {
+enum cs40l26_dbc_type {
 	CS40L26_DBC_ENV_REL_COEF, /* 0 */
 	CS40L26_DBC_RISE_HEADROOM,
 	CS40L26_DBC_FALL_HEADROOM,
@@ -1422,6 +1424,12 @@ enum cs40l26_pm_state {
 };
 
 /* structs */
+struct cs40l26_dbc {
+	enum cs40l26_dbc_type type;
+	const char *const name;
+	u32 max;
+	u32 min;
+};
 struct cs40l26_buzzgen_config {
 	const char *duration_name;
 	const char *freq_name;
@@ -1454,39 +1462,6 @@ struct cs40l26_svc_le {
 	u32 n;
 };
 
-struct cs40l26_platform_data {
-	bool vbbr_en;
-	u32 vbbr_thld_mv;
-	u32 vbbr_max_att;
-	u32 vbbr_atk_step;
-	u32 vbbr_atk_rate;
-	u32 vbbr_wait;
-	u32 vbbr_rel_rate;
-	bool vpbr_en;
-	u32 vpbr_thld_mv;
-	u32 vpbr_max_att;
-	u32 vpbr_atk_step;
-	u32 vpbr_atk_rate;
-	u32 vpbr_wait;
-	u32 vpbr_rel_rate;
-	bool bst_dcm_en;
-	u32 bst_ipk;
-	u32 asp_scale_pct;
-	u32 pm_active_timeout_ms;
-	u32 pm_stdby_timeout_ms;
-	u32 f0_default;
-	u32 redc_default;
-	u32 q_default;
-	u32 bst_ctl;
-	bool expl_mode_enabled;
-	bool dbc_enable_default;
-	u32 dbc_defaults[CS40L26_DBC_NUM_CONTROLS];
-	bool pwle_zero_cross;
-	u32 press_idx;
-	u32 release_idx;
-	u32 clip_lvl;
-};
-
 struct cs40l26_uploaded_effect {
 	int id;
 	u32 trigger_index;
@@ -1500,7 +1475,6 @@ struct cs40l26_private {
 	u32 devid : 24;
 	u8 revid;
 	struct mutex lock;
-	struct cs40l26_platform_data pdata;
 	struct gpio_desc *reset_gpio;
 	struct input_dev *input;
 	struct cl_dsp *dsp;
@@ -1567,6 +1541,36 @@ struct cs40l26_private {
 	bool dbg_fw_ym;
 	struct cl_dsp_debugfs *cl_dsp_db;
 #endif
+	bool vbbr_en;
+	u32 vbbr_thld_mv;
+	u32 vbbr_max_att;
+	u32 vbbr_atk_step;
+	u32 vbbr_atk_rate;
+	u32 vbbr_wait;
+	u32 vbbr_rel_rate;
+	bool vpbr_en;
+	u32 vpbr_thld_mv;
+	u32 vpbr_max_att;
+	u32 vpbr_atk_step;
+	u32 vpbr_atk_rate;
+	u32 vpbr_wait;
+	u32 vpbr_rel_rate;
+	bool bst_dcm_en;
+	u32 bst_ipk;
+	u32 asp_scale_pct;
+	u32 pm_active_timeout_ms;
+	u32 pm_stdby_timeout_ms;
+	u32 f0_default;
+	u32 redc_default;
+	u32 q_default;
+	u32 bst_ctl;
+	bool expl_mode_enabled;
+	bool dbc_enable_default;
+	u32 dbc_defaults[CS40L26_DBC_NUM_CONTROLS];
+	bool pwle_zero_cross;
+	u32 press_idx;
+	u32 release_idx;
+	u32 clip_lvl;
 };
 
 struct cs40l26_codec {
@@ -1593,8 +1597,8 @@ struct cs40l26_pll_sysclk_config {
 int cs40l26_svc_le_estimate(struct cs40l26_private *cs40l26, unsigned int *le);
 int cs40l26_set_pll_loop(struct cs40l26_private *cs40l26, unsigned int pll_loop);
 int cs40l26_dbc_enable(struct cs40l26_private *cs40l26, u32 enable);
-int cs40l26_dbc_get(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc, unsigned int *val);
-int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc dbc, u32 val);
+int cs40l26_dbc_get(struct cs40l26_private *cs40l26, enum cs40l26_dbc_type dbc, unsigned int *val);
+int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc_type dbc, u32 val);
 int cs40l26_asp_start(struct cs40l26_private *cs40l26);
 int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves);
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id);
@@ -1616,7 +1620,7 @@ int cs40l26_suspend(struct device *dev);
 int cs40l26_sys_suspend(struct device *dev);
 int cs40l26_sys_suspend_noirq(struct device *dev);
 int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state);
-int cs40l26_probe(struct cs40l26_private *cs40l26, struct cs40l26_platform_data *pdata);
+int cs40l26_probe(struct cs40l26_private *cs40l26);
 int cs40l26_remove(struct cs40l26_private *cs40l26);
 bool cs40l26_precious_reg(struct device *dev, unsigned int ret);
 bool cs40l26_readable_reg(struct device *dev, unsigned int reg);
@@ -1633,7 +1637,7 @@ extern const struct mfd_cell cs40l26_devs[CS40L26_NUM_MFD_DEVS];
 extern const u8 cs40l26_pseq_op_sizes[CS40L26_PSEQ_NUM_OPS][2];
 extern const u32 cs40l26_attn_q21_2_vals[CS40L26_NUM_PCT_MAP_VALUES];
 extern const struct reg_sequence cs40l26_a1_errata[CS40L26_ERRATA_A1_NUM_WRITES];
-extern const char * const cs40l26_dbc_names[CS40L26_DBC_NUM_CONTROLS];
+extern const struct cs40l26_dbc cs40l26_dbc_params[CS40L26_DBC_NUM_CONTROLS];
 
 /* sysfs */
 extern struct attribute_group cs40l26_dev_attr_group;

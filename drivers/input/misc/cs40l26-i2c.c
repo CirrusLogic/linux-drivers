@@ -32,7 +32,6 @@ MODULE_DEVICE_TABLE(of, cs40l26_of_match);
 
 static int cs40l26_i2c_probe(struct i2c_client *client)
 {
-	struct cs40l26_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct cs40l26_private *cs40l26;
 	int ret;
 
@@ -52,7 +51,7 @@ static int cs40l26_i2c_probe(struct i2c_client *client)
 	cs40l26->dev = &client->dev;
 	cs40l26->irq = client->irq;
 
-	return cs40l26_probe(cs40l26, pdata);
+	return cs40l26_probe(cs40l26);
 }
 
 static void cs40l26_i2c_remove(struct i2c_client *client)
