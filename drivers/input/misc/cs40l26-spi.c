@@ -32,7 +32,6 @@ MODULE_DEVICE_TABLE(of, cs40l26_of_match);
 
 static int cs40l26_spi_probe(struct spi_device *spi)
 {
-	struct cs40l26_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct cs40l26_private *cs40l26;
 	int ret;
 
@@ -52,7 +51,7 @@ static int cs40l26_spi_probe(struct spi_device *spi)
 	cs40l26->dev = &spi->dev;
 	cs40l26->irq = spi->irq;
 
-	return cs40l26_probe(cs40l26, pdata);
+	return cs40l26_probe(cs40l26);
 }
 
 static void cs40l26_spi_remove(struct spi_device *spi)
