@@ -24,14 +24,6 @@ properties:
   reg:
     maxItems: 1
 
-  cirrus,basic-config:
-    description:
-      Boolean which, if present, will launch the device in basic (ROM) mode.
-      If this property is not included, the device will boot into full
-      featured (RAM) mode.
-      (Default) RAM mode
-    type: boolean
-
   cirrus,vbbr-enable:
     type: boolean
     description:
