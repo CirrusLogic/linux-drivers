@@ -3080,42 +3080,43 @@ static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
+	u32 devid, revid, fullid;
 	int ret;
-	u32 val;
 
-	ret = regmap_read(regmap, CS40L26_DEVID, &val);
+	ret = regmap_read(regmap, CS40L26_DEVID, &devid);
 	if (ret) {
 		dev_err(dev, "Failed to read device ID\n");
 		return ret;
 	}
 
-	val &= CS40L26_DEVID_MASK;
-	if (val != CS40L26_DEVID_A && val != CS40L26_DEVID_B && val !=
-			CS40L26_DEVID_L27_A && val != CS40L26_DEVID_L27_B) {
-		dev_err(dev, "Invalid device ID: 0x%06X\n", val);
-		return -EINVAL;
-	}
-
-	cs40l26->devid = val;
-
-	ret = regmap_read(regmap, CS40L26_REVID, &val);
+	ret = regmap_read(regmap, CS40L26_REVID, &revid);
 	if (ret) {
 		dev_err(dev, "Failed to read revision ID\n");
 		return ret;
 	}
 
-	val &= CS40L26_REVID_MASK;
+	devid &= CS40L26_DEVID_MASK;
+	revid &= CS40L26_REVID_MASK;
+	fullid = (devid << 8) | revid;
 
-	switch (val) {
-	case CS40L26_REVID_A1:
-	case CS40L26_REVID_B0:
-	case CS40L26_REVID_B1:
-		cs40l26->revid = val;
+	switch (fullid) {
+	case CS40L26_ID_L26A_A1:
+	case CS40L26_ID_L26B_A1:
+	case CS40L26_ID_L27A_A1:
+	case CS40L26_ID_L27B_A1:
+	case CS40L26_ID_L26A_B0:
+	case CS40L26_ID_L26B_B0:
+	case CS40L26_ID_L27A_B0:
+	case CS40L26_ID_L27B_B0:
+	case CS40L26_ID_L27A_B1:
 		break;
 	default:
-		dev_err(dev, "Invalid device revision: 0x%02X\n", val);
+		dev_err(dev, "Invalid ID: 0x%06X 0x%02X\n", devid, revid);
 		return -EINVAL;
 	}
+
+	cs40l26->devid = devid;
+	cs40l26->revid = revid;
 
 	dev_info(dev, "Cirrus Logic %s ID: 0x%06X, Revision: 0x%02X\n",
 			CS40L26_DEV_NAME, cs40l26->devid, cs40l26->revid);
