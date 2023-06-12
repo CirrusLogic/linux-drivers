@@ -4332,9 +4332,9 @@ static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 	int i, ret = 0, init_count, node_count = 0;
 	struct device *dev = cs40l26->dev;
 	unsigned int min, max, index;
-	const char *gain_adjust_str;
 	struct fwnode_handle *child;
 	const char *node_name;
+	u32 gain_adjust_raw;
 	s32 gain_adjust;
 
 	init_count = device_get_child_node_count(dev);
@@ -4368,13 +4368,15 @@ static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 			continue;
 		}
 
-		if (fwnode_property_read_string(child, "cirrus,gain-adjust", &gain_adjust_str)) {
+		if (fwnode_property_read_u32(child, "cirrus,gain-adjust", &gain_adjust_raw)) {
 			gain_adjust = 0;
 		} else {
-			ret = kstrtos32(gain_adjust_str, 10, &gain_adjust);
-			if (ret) {
-				dev_warn(dev, "Failed to get gain adjust\n");
+			if (gain_adjust_raw > 100) {
 				gain_adjust = 0;
+				dev_warn(dev, "Gain adjust %u invalid, not applied\n",
+						gain_adjust_raw);
+			} else {
+				gain_adjust = (s32) gain_adjust_raw;
 			}
 		}
 
