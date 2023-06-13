@@ -696,13 +696,6 @@
 
 #define CS40L26_DSP_SHUTDOWN_MAX_ATTEMPTS	10
 
-/* ROM Controls A1 */
-#define CS40L26_A1_PM_CUR_STATE_STATIC_REG	0x02800370
-#define CS40L26_A1_PM_STATE_LOCKS_STATIC_REG	0x02800378
-#define CS40L26_A1_PM_TIMEOUT_TICKS_STATIC_REG	0x02800350
-#define CS40L26_A1_DSP_HALO_STATE_REG		0x02800fa8
-#define CS40L26_A1_EVENT_MAP_TABLE_EVENT_DATA_PACKED	0x02806FC4
-
 /* algorithms */
 #define CS40L26_A2H_ALGO_ID		0x00040110
 #define CS40L26_BUZZGEN_ALGO_ID		0x0001F202
@@ -727,7 +720,6 @@
 #define CS40L26_NUM_DEBUGFS		3
 
 /* power management */
-#define CS40L26_PSEQ_ROM_END_OF_SCRIPT		0x028003E8
 #define CS40L26_PSEQ_MAX_WORDS_PER_OP		CS40L26_PSEQ_OP_WRITE_FIELD_WORDS
 #define CS40L26_PSEQ_MAX_WORDS			129
 #define CS40L26_PSEQ_NUM_OPS			8
@@ -926,9 +918,6 @@
 
 #define CS40L26_OWT_INDEX_START			0x01400000
 #define CS40L26_OWT_INDEX_END			0x01400010
-#define CS40L26_ROM_WT_SIZE_WORDS	1549
-#define CS40L26_ROM_WT_START		0x02802154
-#define CS40L26_ROM_NUM_WAVES		39
 
 #define CS40L26_RAM_BANK_ID			0
 #define CS40L26_ROM_BANK_ID			1
@@ -1483,6 +1472,21 @@ struct cs40l26_svc_le {
 	u32 n;
 };
 
+struct cs40l26_rom_regs {
+	u32 pm_cur_state;
+	u32 pm_state_locks;
+	u32 pm_timeout_ticks;
+	u32 dsp_halo_state;
+	u32 event_map_table_event_data_packed;
+	u32 p_vibegen_rom;
+	u32 rom_pseq_end_of_script;
+};
+
+struct cs40l26_rom_data {
+	u32 rom_wt_size_words;
+	u32 rom_num_waves;
+};
+
 struct cs40l26_uploaded_effect {
 	int id;
 	u32 trigger_index;
@@ -1565,6 +1569,8 @@ struct cs40l26_private {
 	ktime_t allow_hibernate_ts;
 	bool allow_hibernate_sent;
 	struct cl_dsp_owt_desc rom_wt;
+	const struct cs40l26_rom_regs *rom_regs;
+	const struct cs40l26_rom_data *rom_data;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_root;
 	char *dbg_fw_ctrl_name;
