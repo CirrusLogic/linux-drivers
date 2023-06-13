@@ -13,6 +13,21 @@
 
 #include <linux/mfd/cs40l26.h>
 
+static const struct cs40l26_rom_regs cs40l26_rom_regs_a1_b0_b1 = {
+	.pm_cur_state = 0x02800370,
+	.pm_state_locks = 0x02800378,
+	.pm_timeout_ticks = 0x02800350,
+	.dsp_halo_state = 0x02800fa8,
+	.event_map_table_event_data_packed = 0x02806FC4,
+	.p_vibegen_rom = 0x02802154,
+	.rom_pseq_end_of_script = 0x028003E8,
+};
+
+static const struct cs40l26_rom_data cs40l26_rom_data_a1_b0_b1 = {
+	.rom_wt_size_words = 1549,
+	.rom_num_waves = 39,
+};
+
 static inline bool section_complete(struct cs40l26_owt_section *s)
 {
 	return s->delay ? true : false;
@@ -126,7 +141,7 @@ int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 		ret = cl_dsp_get_reg(cs40l26->dsp, "PM_CUR_STATE", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_PM_ALGO_ID, &reg);
 	else
-		reg = CS40L26_A1_PM_CUR_STATE_STATIC_REG;
+		reg = cs40l26->rom_regs->pm_cur_state;
 
 	if (ret)
 		return ret;
@@ -251,7 +266,7 @@ int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26, unsigned int dsp_
 		if (ret)
 			return ret;
 	} else {
-		reg = CS40L26_A1_PM_TIMEOUT_TICKS_STATIC_REG;
+		reg = cs40l26->rom_regs->pm_timeout_ticks;
 	}
 
 	if (dsp_state == CS40L26_DSP_STATE_STANDBY) {
@@ -292,7 +307,7 @@ int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26, unsigned int dsp_
 		if (ret)
 			return ret;
 	} else {
-		reg = CS40L26_A1_PM_TIMEOUT_TICKS_STATIC_REG;
+		reg = cs40l26->rom_regs->pm_timeout_ticks;
 	}
 
 	if (dsp_state == CS40L26_DSP_STATE_STANDBY) {
@@ -335,7 +350,7 @@ static int cs40l26_check_pm_lock(struct cs40l26_private *cs40l26, bool *locked)
 	int ret;
 	unsigned int dsp_lock;
 
-	ret = regmap_read(cs40l26->regmap, CS40L26_A1_PM_STATE_LOCKS_STATIC_REG +
+	ret = regmap_read(cs40l26->regmap, cs40l26->rom_regs->pm_state_locks +
 			CS40L26_DSP_LOCK3_OFFSET, &dsp_lock);
 	if (ret)
 		return ret;
@@ -514,7 +529,7 @@ static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 	if (ret)
 		return ret;
 
-	ret = regmap_read(cs40l26->regmap, CS40L26_A1_DSP_HALO_STATE_REG, &halo_state);
+	ret = regmap_read(cs40l26->regmap, cs40l26->rom_regs->dsp_halo_state, &halo_state);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to get HALO state\n");
 		return ret;
@@ -2523,19 +2538,21 @@ sections_err_free:
 
 static int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26)
 {
-	u32 *wt_be, reg, rom_wt_size_bytes = CS40L26_ROM_WT_SIZE_WORDS * CL_DSP_BYTES_PER_WORD;
+	u32 *wt_be, reg, rom_wt_size_bytes;
 	int ret, i;
 
-	cs40l26->rom_wt.nwaves = CS40L26_ROM_NUM_WAVES;
+	rom_wt_size_bytes = cs40l26->rom_data->rom_wt_size_words * CL_DSP_BYTES_PER_WORD;
+
+	cs40l26->rom_wt.nwaves = cs40l26->rom_data->rom_num_waves;
 	cs40l26->rom_wt.raw_data = devm_kzalloc(cs40l26->dev, rom_wt_size_bytes, GFP_KERNEL);
 	if (!cs40l26->rom_wt.raw_data)
 		return -ENOMEM;
 
-	ret = regmap_read(cs40l26->regmap, CS40L26_ROM_WT_START, &reg);
+	ret = regmap_read(cs40l26->regmap, cs40l26->rom_regs->p_vibegen_rom, &reg);
 	if (ret)
 		goto data_free;
 
-	wt_be = kcalloc(CS40L26_ROM_WT_SIZE_WORDS, sizeof(u32), GFP_KERNEL);
+	wt_be = kcalloc(cs40l26->rom_data->rom_wt_size_words, sizeof(u32), GFP_KERNEL);
 	if (!wt_be) {
 		ret = -ENOMEM;
 		goto data_free;
@@ -2543,7 +2560,7 @@ static int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26)
 
 	ret = regmap_bulk_read(cs40l26->regmap, (reg * CL_DSP_BYTES_PER_WORD) +
 			CS40L26_DSP1_XMEM_UNPACKED24_0, wt_be,
-			CS40L26_ROM_WT_SIZE_WORDS);
+			cs40l26->rom_data->rom_wt_size_words);
 	if (ret)
 		goto wt_free;
 
@@ -2555,7 +2572,7 @@ static int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26)
 				cs40l26->rom_wt.waves[i].offset;
 	}
 
-	for (i = 0; i < CS40L26_ROM_WT_SIZE_WORDS; i++)
+	for (i = 0; i < cs40l26->rom_data->rom_wt_size_words; i++)
 		wt_be[i] = be32_to_cpu(wt_be[i]);
 
 	memcpy(cs40l26->rom_wt.raw_data, wt_be, rom_wt_size_bytes);
@@ -2864,15 +2881,17 @@ out_free:
 
 static int cs40l26_erase_gpi_mapping(struct cs40l26_private *cs40l26, enum cs40l26_gpio_map mapping)
 {
+	u32 reg, base, offset;
 	int ret;
-	u32 reg;
 
 	if (mapping != CS40L26_GPIO_MAP_A_PRESS && mapping != CS40L26_GPIO_MAP_A_RELEASE) {
 		dev_err(cs40l26->dev, "Invalid GPI mapping %u\n", mapping);
 		return -EINVAL;
 	}
 
-	reg = CS40L26_A1_EVENT_MAP_TABLE_EVENT_DATA_PACKED + (mapping * CL_DSP_BYTES_PER_WORD);
+	base = cs40l26->rom_regs->event_map_table_event_data_packed;
+	offset = mapping * CL_DSP_BYTES_PER_WORD;
+	reg = base + offset;
 
 	ret = regmap_write(cs40l26->regmap, reg, CS40L26_EVENT_MAP_GPI_DISABLE);
 	if (ret) {
@@ -3109,6 +3128,8 @@ static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
 	case CS40L26_ID_L27A_B0:
 	case CS40L26_ID_L27B_B0:
 	case CS40L26_ID_L27A_B1:
+		cs40l26->rom_regs = &cs40l26_rom_regs_a1_b0_b1;
+		cs40l26->rom_data = &cs40l26_rom_data_a1_b0_b1;
 		break;
 	default:
 		dev_err(dev, "Invalid ID: 0x%06X 0x%02X\n", devid, revid);
@@ -4278,7 +4299,7 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 	}
 
 	/* reset pseq END_OF_SCRIPT to location from ROM */
-	ret = cs40l26_dsp_write(cs40l26, CS40L26_PSEQ_ROM_END_OF_SCRIPT,
+	ret = cs40l26_dsp_write(cs40l26, cs40l26->rom_regs->rom_pseq_end_of_script,
 			CS40L26_PSEQ_OP_END << CS40L26_PSEQ_OP_SHIFT);
 	if (ret) {
 		dev_err(dev, "Failed to reset pseq END_OF_SCRIPT %d\n", ret);
