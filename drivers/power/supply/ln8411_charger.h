@@ -9,6 +9,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/extcon-provider.h>
 #include <linux/interrupt.h>
 #include <linux/power_supply.h>
 #include <linux/regmap.h>

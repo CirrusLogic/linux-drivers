@@ -7,7 +7,6 @@
 // Author: Ricardo Rivera-Matos <rriveram@opensource.cirrus.com>
 
 #include <linux/errno.h>
-#include <linux/extcon-provider.h>
 #include <linux/gpio/consumer.h>
 #include <linux/irq.h>
 #include <linux/i2c.h>
