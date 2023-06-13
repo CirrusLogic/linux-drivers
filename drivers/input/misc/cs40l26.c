@@ -28,6 +28,21 @@ static const struct cs40l26_rom_data cs40l26_rom_data_a1_b0_b1 = {
 	.rom_num_waves = 39,
 };
 
+static const struct cs40l26_rom_regs cs40l26_rom_regs_b2 = { /* RC2 8.1.2 */
+	.pm_cur_state = 0x02801F98,
+	.pm_state_locks = 0x02801FA0,
+	.pm_timeout_ticks = 0x02801F78,
+	.dsp_halo_state = 0x02806AF8,
+	.event_map_table_event_data_packed = 0x02806FB0,
+	.p_vibegen_rom = 0x02802F50,
+	.rom_pseq_end_of_script = 0x02802040,
+};
+
+static const struct cs40l26_rom_data cs40l26_rom_data_b2 = {
+	.rom_wt_size_words = 1549,
+	.rom_num_waves = 39,
+};
+
 static inline bool section_complete(struct cs40l26_owt_section *s)
 {
 	return s->delay ? true : false;
@@ -3130,6 +3145,10 @@ static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
 	case CS40L26_ID_L27A_B1:
 		cs40l26->rom_regs = &cs40l26_rom_regs_a1_b0_b1;
 		cs40l26->rom_data = &cs40l26_rom_data_a1_b0_b1;
+		break;
+	case CS40L26_ID_L27A_B2:
+		cs40l26->rom_regs = &cs40l26_rom_regs_b2;
+		cs40l26->rom_data = &cs40l26_rom_data_b2;
 		break;
 	default:
 		dev_err(dev, "Invalid ID: 0x%06X 0x%02X\n", devid, revid);
