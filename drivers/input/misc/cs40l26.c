@@ -2867,20 +2867,15 @@ out_free:
 
 static int cs40l26_erase_gpi_mapping(struct cs40l26_private *cs40l26, enum cs40l26_gpio_map mapping)
 {
-	int ret = 0;
+	int ret;
 	u32 reg;
 
-	if (mapping == CS40L26_GPIO_MAP_A_PRESS)
-		reg = CS40L26_A1_EVENT_MAP_1;
-	else if (mapping == CS40L26_GPIO_MAP_A_RELEASE)
-		reg = CS40L26_A1_EVENT_MAP_2;
-	else
-		ret = -EINVAL;
-
-	if (ret) {
+	if (mapping != CS40L26_GPIO_MAP_A_PRESS && mapping != CS40L26_GPIO_MAP_A_RELEASE) {
 		dev_err(cs40l26->dev, "Invalid GPI mapping %u\n", mapping);
-		return ret;
+		return -EINVAL;
 	}
+
+	reg = CS40L26_A1_EVENT_MAP_TABLE_EVENT_DATA_PACKED + (mapping * CL_DSP_BYTES_PER_WORD);
 
 	ret = regmap_write(cs40l26->regmap, reg, CS40L26_EVENT_MAP_GPI_DISABLE);
 	if (ret) {
@@ -3160,8 +3155,8 @@ static int cs40l26_wksrc_config(struct cs40l26_private *cs40l26)
 
 static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 {
+	u32 val, reg;
 	u8 mask_gpio;
-	u32 val;
 	int ret;
 
 	if (cs40l26->devid == CS40L26_DEVID_A ||
@@ -3182,15 +3177,17 @@ static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 	else
 		val = 0;
 
-	ret = regmap_write(cs40l26->regmap, CS40L26_A1_EVENT_MAP_1,
-			cs40l26->press_idx);
+	reg = cs40l26->event_map_base + (CS40L26_GPIO_MAP_A_PRESS * CL_DSP_BYTES_PER_WORD);
+
+	ret = regmap_write(cs40l26->regmap, reg, cs40l26->press_idx);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to map press GPI event\n");
 		return ret;
 	}
 
-	ret = regmap_write(cs40l26->regmap, CS40L26_A1_EVENT_MAP_2,
-			cs40l26->release_idx);
+	reg = cs40l26->event_map_base + (CS40L26_GPIO_MAP_A_RELEASE * CL_DSP_BYTES_PER_WORD);
+
+	ret = regmap_write(cs40l26->regmap, reg, cs40l26->release_idx);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to map release GPI event\n");
 		return ret;
