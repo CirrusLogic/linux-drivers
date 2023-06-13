@@ -2523,13 +2523,11 @@ sections_err_free:
 
 static int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26)
 {
-	u32 *wt_be;
+	u32 *wt_be, reg, rom_wt_size_bytes = CS40L26_ROM_WT_SIZE_WORDS * CL_DSP_BYTES_PER_WORD;
 	int ret, i;
-	u32 reg;
 
 	cs40l26->rom_wt.nwaves = CS40L26_ROM_NUM_WAVES;
-	cs40l26->rom_wt.raw_data = devm_kzalloc(cs40l26->dev,
-			CS40L26_ROM_WT_SIZE_BYTES, GFP_KERNEL);
+	cs40l26->rom_wt.raw_data = devm_kzalloc(cs40l26->dev, rom_wt_size_bytes, GFP_KERNEL);
 	if (!cs40l26->rom_wt.raw_data)
 		return -ENOMEM;
 
@@ -2537,8 +2535,7 @@ static int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26)
 	if (ret)
 		goto data_free;
 
-	wt_be = kcalloc(CS40L26_ROM_WT_SIZE_BYTES / CL_DSP_BYTES_PER_WORD,
-			sizeof(u32), GFP_KERNEL);
+	wt_be = kcalloc(CS40L26_ROM_WT_SIZE_WORDS, sizeof(u32), GFP_KERNEL);
 	if (!wt_be) {
 		ret = -ENOMEM;
 		goto data_free;
@@ -2546,7 +2543,7 @@ static int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26)
 
 	ret = regmap_bulk_read(cs40l26->regmap, (reg * CL_DSP_BYTES_PER_WORD) +
 			CS40L26_DSP1_XMEM_UNPACKED24_0, wt_be,
-			CS40L26_ROM_WT_SIZE_BYTES / CL_DSP_BYTES_PER_WORD);
+			CS40L26_ROM_WT_SIZE_WORDS);
 	if (ret)
 		goto wt_free;
 
@@ -2558,10 +2555,10 @@ static int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26)
 				cs40l26->rom_wt.waves[i].offset;
 	}
 
-	for (i = 0; i < CS40L26_ROM_WT_SIZE_BYTES/CL_DSP_BYTES_PER_WORD; i++)
+	for (i = 0; i < CS40L26_ROM_WT_SIZE_WORDS; i++)
 		wt_be[i] = be32_to_cpu(wt_be[i]);
 
-	memcpy(cs40l26->rom_wt.raw_data, wt_be, CS40L26_ROM_WT_SIZE_BYTES);
+	memcpy(cs40l26->rom_wt.raw_data, wt_be, rom_wt_size_bytes);
 	kfree(wt_be);
 
 	return 0;
