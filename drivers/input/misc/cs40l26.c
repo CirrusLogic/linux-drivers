@@ -482,18 +482,8 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26, enum cs40l26_pm
 
 static int cs40l26_dsp_start(struct cs40l26_private *cs40l26)
 {
-	unsigned int val;
 	u8 dsp_state;
 	int ret;
-
-	ret = regmap_read(cs40l26->regmap, CS40L26_A1_DSP_REQ_ACTIVE_REG, &val);
-	if (ret) {
-		dev_err(cs40l26->dev, "Can't read REQ ACTIVE %d\n", ret);
-		return ret;
-	}
-
-	if (val & CS40L26_DSP_PM_ACTIVE)
-		dev_warn(cs40l26->dev, "REQ ACTIVE is 0x%x\n", val);
 
 	ret = regmap_write(cs40l26->regmap, CS40L26_DSP1_CCM_CORE_CONTROL,
 			CS40L26_DSP_CCM_CORE_RESET);
