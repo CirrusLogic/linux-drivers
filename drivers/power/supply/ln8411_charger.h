@@ -294,6 +294,9 @@
 
 #define LN8411_LION_CTRL		0x40
 
+#define LN8411_PRODUCT_ID		0x41
+#define LN8411_PRODUCT_CFG_MASK		GENMASK(3, 0)
+
 #define LN8411_TRIM_8			0x49
 #define LN8411_IBUS_REV_ISNS_EN		BIT(7)
 #define LN8411_IBUS_REV_VT_MODE		BIT(6)
@@ -515,6 +518,16 @@ struct ln8411_init_data {
 };
 
 /**
+ * struct ln8411_otp_tbl -
+ * @num_otp_regs: Number of registers in OTP patch
+ * @otp_regs: OTP register sequence
+ */
+struct ln8411_otp_tbl {
+	int num_otp_regs;
+	const struct reg_sequence *otp_regs;
+};
+
+/**
  * struct ln8411_device -
  * @dev: Device structure
  * @reset_gpio: Reset GPIO line
@@ -549,6 +562,7 @@ struct ln8411_device {
 	struct power_supply *vusb;
 	struct regmap *regmap;
 	const struct regmap_config *regmap_config;
+	struct ln8411_otp_tbl *otp_tbl;
 	struct regmap_irq_chip_data *irq_data;
 	struct regulator_dev *otg_usb_reg;
 	struct regulator_dev *otg_wpc_reg;

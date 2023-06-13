@@ -2660,22 +2660,28 @@ static const struct reg_sequence ln8411_a1_otp_9dec02[] = {
 	{LN8411_LION_CFG_1, 0x8f},
 };
 
-static int ln8411_apply_otp(struct ln8411_device *ln8411, const struct reg_sequence *regs)
-{
-	int ret;
-
-	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_TEST_MODE);
-	if (ret)
-		return ret;
-
-	ret = regmap_register_patch(ln8411->regmap,
-					ln8411_a1_otp_9dec02,
-					ARRAY_SIZE(ln8411_a1_otp_9dec02));
-	if (ret)
-		return ret;
-
-	return ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_LOCK);
-}
+static const struct ln8411_otp_tbl ln8411_otp_tbls[5] = {
+	[0] = {
+		.otp_regs = ln8411_a1_otp_9dec02,
+		.num_otp_regs = ARRAY_SIZE(ln8411_a1_otp_9dec02),
+	},
+	[1] = {
+		.otp_regs = NULL,
+		.num_otp_regs = 0,
+	},
+	[2] = {
+		.otp_regs = NULL,
+		.num_otp_regs = 0,
+	},
+	[3] = {
+		.otp_regs = NULL,
+		.num_otp_regs = 0,
+	},
+	[4] = {
+		.otp_regs = ln8411_b0_v4_otp,
+		.num_otp_regs = ARRAY_SIZE(ln8411_b0_v4_otp),
+	},
+};
 
 static int ln8411_is_supported(struct ln8411_device *ln8411)
 {
@@ -2695,22 +2701,42 @@ static int ln8411_is_supported(struct ln8411_device *ln8411)
 
 	dev_rev_id |= (val & LN8411_CHIP_REV_MASK);
 
+	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_TEST_MODE);
+	if (ret)
+		return ret;
+
 	switch (dev_rev_id) {
 	case LN8411_A1_DEV_REV_ID:
 		dev_info(ln8411->dev, "LN8411 A1 found: 0x%x\n", dev_rev_id);
-		ret = ln8411_apply_otp(ln8411, ln8411_a1_otp_9dec02);
+		/* Assume ln8411_a1_otp_9dec02 applies */
+		val = 0;
 		break;
 	case LN8411_B0_DEV_REV_ID:
 		dev_info(ln8411->dev, "LN8411 B0 found: 0x%x\n", dev_rev_id);
+		ret = regmap_read(ln8411->regmap, LN8411_PRODUCT_ID, &val);
+		if (ret)
+			return ret;
 		break;
 	default:
 		dev_err(ln8411->dev, "Unsupported device found: 0x%x\n", dev_rev_id);
 		return -EINVAL;
 	}
 
+	val &= LN8411_PRODUCT_CFG_MASK;
+
+	if (!ln8411_otp_tbls[val].otp_regs || !ln8411_otp_tbls[val].num_otp_regs) {
+		dev_err(ln8411->dev, "Invalid product code found: 0x%x\n", val);
+		return -EINVAL;
+	}
+
+	ret = regmap_register_patch(ln8411->regmap, ln8411_otp_tbls[val].otp_regs,
+					ln8411_otp_tbls[val].num_otp_regs);
+	if (ret)
+		return ret;
+
 	ln8411->rev = dev_rev_id;
 
-	return ret;
+	return ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_LOCK);
 }
 
 static bool ln8411_is_volatile_reg(struct device *dev, unsigned int reg)
