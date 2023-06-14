@@ -2603,8 +2603,11 @@ static int cs40l26_sine_upload(struct cs40l26_private *cs40l26, struct ff_effect
 
 	cs40l26_buzzgen_configs[slot].effect_id = effect->id;
 
-	/* Divide duration by 4 to match firmware's expectation */
-	duration = (unsigned int) (effect->replay.length / 4);
+	/*
+	 * Divide duration by 4 to match firmware's expectation.
+	 * Round up to avoid inadvertently setting a duration of 0.
+	 */
+	duration = (unsigned int) DIV_ROUND_UP(effect->replay.length, 4);
 
 	if (effect->u.periodic.period < CS40L26_BUZZGEN_PER_MIN)
 		freq = 1000 / CS40L26_BUZZGEN_PER_MIN;
