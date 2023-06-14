@@ -250,9 +250,9 @@ static int ln8411_reset(struct ln8411_device *ln8411)
 		disable_irq(ln8411->irq);
 
 	if (ln8411->reset_gpio) {
-		gpiod_set_value_cansleep(ln8411->reset_gpio, 0);
-		msleep(50);
 		gpiod_set_value_cansleep(ln8411->reset_gpio, 1);
+		msleep(50);
+		gpiod_set_value_cansleep(ln8411->reset_gpio, 0);
 	} else {
 		ret = ln8411_do_soft_reset(ln8411);
 		if (ret)
@@ -2545,7 +2545,7 @@ static int ln8411_gpio_cfg(struct ln8411_device *ln8411)
 {
 	int ret;
 
-	ln8411->reset_gpio = devm_gpiod_get_optional(ln8411->dev, "reset", GPIOD_OUT_HIGH);
+	ln8411->reset_gpio = devm_gpiod_get_optional(ln8411->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ln8411->reset_gpio)) {
 		return dev_err_probe(ln8411->dev, PTR_ERR(ln8411->reset_gpio),
 				     "Failed to get reset GPIO\n");
