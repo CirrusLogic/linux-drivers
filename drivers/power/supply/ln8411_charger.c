@@ -249,6 +249,9 @@ static int ln8411_reset(struct ln8411_device *ln8411)
 	if (ln8411->irq)
 		disable_irq(ln8411->irq);
 
+	if (ln8411->en_gpio)
+		gpiod_set_value(ln8411->en_gpio, 0);
+
 	if (ln8411->reset_gpio) {
 		gpiod_set_value_cansleep(ln8411->reset_gpio, 1);
 		msleep(50);
