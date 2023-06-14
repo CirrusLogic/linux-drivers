@@ -4687,15 +4687,15 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 	if (ret)
 		goto err;
 
+	ret = cs40l26_part_num_resolve(cs40l26);
+	if (ret)
+		goto err;
+
 	ret = cs40l26_erase_gpi_mapping(cs40l26, CS40L26_GPIO_MAP_A_PRESS);
 	if (ret)
 		goto err;
 
 	ret = cs40l26_erase_gpi_mapping(cs40l26, CS40L26_GPIO_MAP_A_RELEASE);
-	if (ret)
-		goto err;
-
-	ret = cs40l26_part_num_resolve(cs40l26);
 	if (ret)
 		goto err;
 
