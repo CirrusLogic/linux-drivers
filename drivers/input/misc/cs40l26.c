@@ -3210,235 +3210,163 @@ static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 			GENMASK(CS40L26_IRQ1_GPIO4_FALL, CS40L26_IRQ1_GPIO1_RISE));
 }
 
-static int cs40l26_brownout_prevention_init(struct cs40l26_private *cs40l26)
+static const struct cs40l26_brwnout_limits cs40l26_brwnout_params[] = {
+	{
+		.max = CS40L26_VBBR_THLD_UV_MAX,
+		.min = CS40L26_VBBR_THLD_UV_MIN,
+	},
+	{
+		.max = CS40L26_VPBR_THLD_UV_MAX,
+		.min = CS40L26_VPBR_THLD_UV_MIN,
+	},
+	{
+		.max = CS40L26_VXBR_MAX_ATT_MAX,
+		.min = CS40L26_VXBR_MAX_ATT_MIN,
+	},
+	{
+		.max = CS40L26_VXBR_ATK_STEP_MAX,
+		.min = CS40L26_VXBR_ATK_STEP_MIN,
+	},
+	{
+		.max = CS40L26_VXBR_ATK_RATE_MAX,
+		.min = CS40L26_VXBR_ATK_RATE_MIN,
+	},
+	{
+		.max = CS40L26_VXBR_WAIT_MAX,
+		.min = CS40L26_VXBR_WAIT_MIN,
+	},
+	{
+		.max = CS40L26_VXBR_REL_RATE_MAX,
+		.min = CS40L26_VXBR_REL_RATE_MIN,
+	},
+};
+
+static int cs40l26_brwnout_prevention_init(struct cs40l26_private *cs40l26)
 {
+	u32 enables, pseq_mask = 0, val, vbbr_config, vpbr_config;
 	struct device *dev = cs40l26->dev;
 	struct regmap *regmap = cs40l26->regmap;
-	u32 vpbr_atk_step = 0, vbbr_atk_step = 0;
-	u32 vpbr_atk_rate = 0, vbbr_atk_rate = 0;
-	u32 vpbr_rel_rate = 0, vbbr_rel_rate = 0;
-	u32 vbbr_max_att = 0, vpbr_max_att = 0;
-	u32 vbbr_thld = 0, vpbr_thld = 0;
-	u32 vpbr_wait = 0, vbbr_wait = 0;
-	u32 pseq_val = 0, pseq_mask = 0;
-	u32 val;
 	int ret;
 
-	ret = regmap_read(regmap, CS40L26_BLOCK_ENABLES2, &val);
+	ret = regmap_read(regmap, CS40L26_BLOCK_ENABLES2, &enables);
 	if (ret) {
 		dev_err(dev, "Failed to read block enables 2\n");
 		return ret;
 	}
 
-	val |= ((cs40l26->vbbr_en << CS40L26_VBBR_EN_SHIFT) |
-			(cs40l26->vpbr_en << CS40L26_VPBR_EN_SHIFT));
+	enables |= ((cs40l26->vbbr.enable << CS40L26_VBBR_EN_SHIFT) |
+			(cs40l26->vpbr.enable << CS40L26_VPBR_EN_SHIFT));
 
-	ret = regmap_write(regmap, CS40L26_BLOCK_ENABLES2, val);
+	ret = regmap_write(regmap, CS40L26_BLOCK_ENABLES2, enables);
 	if (ret) {
 		dev_err(dev, "Failed to enable brownout prevention\n");
 		return ret;
 	}
 
-	ret = cs40l26_pseq_write(cs40l26, CS40L26_BLOCK_ENABLES2, val, true,
+	ret = cs40l26_pseq_write(cs40l26, CS40L26_BLOCK_ENABLES2, enables, true,
 			CS40L26_PSEQ_OP_WRITE_FULL);
 	if (ret) {
 		dev_err(dev, "Failed to sequence brownout prevention\n");
 		return ret;
 	}
 
-	if (cs40l26->vbbr_en) {
+	if (cs40l26->vbbr.enable) {
 		pseq_mask = BIT(CS40L26_IRQ2_VBBR_ATT_CLR) | BIT(CS40L26_IRQ2_VBBR_FLAG);
+
+		vbbr_config = (cs40l26->vbbr.thld_uv / CS40L26_VBBR_THLD_UV_DIV) &
+								CS40L26_VBBR_THLD_MASK;
+
+		vbbr_config |= ((cs40l26->vbbr.max_att_db << CS40L26_VXBR_MAX_ATT_SHIFT) &
+								CS40L26_VXBR_MAX_ATT_MASK);
+
+		vbbr_config |= ((cs40l26->vbbr.atk_step << CS40L26_VXBR_ATK_STEP_SHIFT) &
+								CS40L26_VXBR_ATK_STEP_MASK);
+
+		vbbr_config |= ((cs40l26->vbbr.atk_rate << CS40L26_VXBR_ATK_RATE_SHIFT) &
+								CS40L26_VXBR_ATK_RATE_MASK);
+
+		vbbr_config |= ((cs40l26->vbbr.wait << CS40L26_VXBR_WAIT_SHIFT) &
+								CS40L26_VXBR_WAIT_MASK);
+
+		vbbr_config |= ((cs40l26->vbbr.rel_rate << CS40L26_VXBR_REL_RATE_SHIFT) &
+								CS40L26_VXBR_REL_RATE_MASK);
 
 		ret = regmap_read(regmap, CS40L26_VBBR_CONFIG, &val);
 		if (ret) {
-			dev_err(dev, "Failed to get VBBR config.\n");
+			dev_err(dev, "Failed to read VBBR_CONFIG\n");
 			return ret;
 		}
 
-		if (cs40l26->vbbr_thld_mv) {
-			if (cs40l26->vbbr_thld_mv >= CS40L26_VBBR_THLD_MV_MAX)
-				vbbr_thld = CS40L26_VBBR_THLD_MAX;
-			else if (cs40l26->vbbr_thld_mv <= CS40L26_VBBR_THLD_MV_MIN)
-				vbbr_thld = CS40L26_VBBR_THLD_MIN;
-			else
-				vbbr_thld = cs40l26->vbbr_thld_mv / CS40L26_VBBR_THLD_MV_STEP;
+		vbbr_config |= (val & CS40L26_VXBR_DEFAULT_MASK);
 
-			val &= ~CS40L26_VBBR_THLD_MASK;
-			val |= (vbbr_thld & CS40L26_VBBR_THLD_MASK);
-		}
-
-		if (cs40l26->vbbr_max_att != CS40L26_VXBR_DEFAULT) {
-			if (cs40l26->vbbr_max_att >= CS40L26_VXBR_MAX_ATT_MAX)
-				vbbr_max_att = CS40L26_VXBR_MAX_ATT_MAX;
-			else
-				vbbr_max_att = cs40l26->vbbr_max_att;
-
-			val &= ~CS40L26_VXBR_MAX_ATT_MASK;
-			val |= ((vbbr_max_att << CS40L26_VXBR_MAX_ATT_SHIFT)
-					& CS40L26_VXBR_MAX_ATT_MASK);
-		}
-
-		if (cs40l26->vbbr_atk_step) {
-			if (cs40l26->vbbr_atk_step >= CS40L26_VXBR_ATK_STEP_MAX)
-				vbbr_atk_step = CS40L26_VXBR_ATK_STEP_MAX;
-			else
-				vbbr_atk_step = cs40l26->vbbr_atk_step;
-
-			val &= ~CS40L26_VXBR_ATK_STEP_MASK;
-			val |= ((vbbr_atk_step << CS40L26_VXBR_ATK_STEP_SHIFT)
-					& CS40L26_VXBR_ATK_STEP_MASK);
-		}
-
-		if (cs40l26->vbbr_atk_rate != CS40L26_VXBR_DEFAULT) {
-			if (cs40l26->vbbr_atk_rate > CS40L26_VXBR_ATK_RATE_MAX)
-				vbbr_atk_rate = CS40L26_VXBR_ATK_RATE_MAX;
-			else
-				vbbr_atk_rate = cs40l26->vbbr_atk_rate;
-
-			val &= ~CS40L26_VXBR_ATK_RATE_MASK;
-			val |= ((vbbr_atk_rate << CS40L26_VXBR_ATK_RATE_SHIFT)
-					& CS40L26_VXBR_ATK_RATE_MASK);
-		}
-
-		if (cs40l26->vbbr_wait != CS40L26_VXBR_DEFAULT) {
-			if (cs40l26->vbbr_wait > CS40L26_VXBR_WAIT_MAX)
-				vbbr_wait = CS40L26_VXBR_WAIT_MAX;
-			else
-				vbbr_wait = cs40l26->vbbr_wait;
-
-			val &= ~CS40L26_VXBR_WAIT_MASK;
-			val |= ((vbbr_wait << CS40L26_VXBR_WAIT_SHIFT)
-					& CS40L26_VXBR_WAIT_MASK);
-		}
-
-		if (cs40l26->vbbr_rel_rate != CS40L26_VXBR_DEFAULT) {
-			if (cs40l26->vbbr_rel_rate > CS40L26_VXBR_REL_RATE_MAX)
-				vbbr_rel_rate = CS40L26_VXBR_REL_RATE_MAX;
-			else
-				vbbr_rel_rate = cs40l26->vbbr_rel_rate;
-
-			val &= ~CS40L26_VXBR_REL_RATE_MASK;
-			val |= ((vbbr_rel_rate << CS40L26_VXBR_REL_RATE_SHIFT)
-					& CS40L26_VXBR_REL_RATE_MASK);
-		}
-
-		ret = regmap_write(regmap, CS40L26_VBBR_CONFIG, val);
+		ret = regmap_write(regmap, CS40L26_VBBR_CONFIG, vbbr_config);
 		if (ret) {
-			dev_err(dev, "Failed to write VBBR config.\n");
+			dev_err(dev, "Failed to write VBBR_CONFIG\n");
 			return ret;
 		}
 
-		ret = cs40l26_pseq_write(cs40l26, CS40L26_VBBR_CONFIG, (val & GENMASK(31, 16)) >>
-				16, true, CS40L26_PSEQ_OP_WRITE_H16);
+		ret = cs40l26_pseq_write(cs40l26, CS40L26_VBBR_CONFIG,
+				(vbbr_config & GENMASK(31, 16)) >> 16,
+				true, CS40L26_PSEQ_OP_WRITE_H16);
 		if (ret)
 			return ret;
 
-		ret = cs40l26_pseq_write(cs40l26, CS40L26_VBBR_CONFIG, (val & GENMASK(15, 0)),
+		ret = cs40l26_pseq_write(cs40l26, CS40L26_VBBR_CONFIG,
+				(vbbr_config & GENMASK(15, 0)),
 				true, CS40L26_PSEQ_OP_WRITE_L16);
 		if (ret)
 			return ret;
 	}
 
-	ret = regmap_read(regmap, CS40L26_VPBR_CONFIG, &val);
-	if (ret) {
-		dev_err(dev, "Failed to get VBBR config.\n");
-		return ret;
-	}
-
-	if (cs40l26->vpbr_en) {
+	if (cs40l26->vpbr.enable) {
 		pseq_mask |= BIT(CS40L26_IRQ2_VPBR_ATT_CLR) | BIT(CS40L26_IRQ2_VPBR_FLAG);
 
-		if (cs40l26->vpbr_thld_mv) {
-			if (cs40l26->vpbr_thld_mv >= CS40L26_VPBR_THLD_MV_MAX)
-				vpbr_thld = CS40L26_VPBR_THLD_MAX;
-			else if (cs40l26->vpbr_thld_mv <= CS40L26_VPBR_THLD_MV_MIN)
-				vpbr_thld = CS40L26_VPBR_THLD_MIN;
-			else
-				vpbr_thld = (cs40l26->vpbr_thld_mv / CS40L26_VPBR_THLD_MV_DIV) -
-						CS40L26_VPBR_THLD_OFFSET;
+		vpbr_config = ((cs40l26->vpbr.thld_uv / CS40L26_VPBR_THLD_UV_DIV) - 51) &
+								CS40L26_VPBR_THLD_MASK;
 
-			cs40l26->vpbr_thld = vpbr_thld & CS40L26_VPBR_THLD_MASK;
+		vpbr_config |= ((cs40l26->vpbr.max_att_db << CS40L26_VXBR_MAX_ATT_SHIFT) &
+								CS40L26_VXBR_MAX_ATT_MASK);
 
-			val &= ~CS40L26_VPBR_THLD_MASK;
-			val |= (vpbr_thld & CS40L26_VPBR_THLD_MASK);
+		vpbr_config |= ((cs40l26->vpbr.atk_step << CS40L26_VXBR_ATK_STEP_SHIFT) &
+								CS40L26_VXBR_ATK_STEP_MASK);
 
-		}
+		vpbr_config |= ((cs40l26->vpbr.atk_rate << CS40L26_VXBR_ATK_RATE_SHIFT) &
+								CS40L26_VXBR_ATK_RATE_MASK);
 
-		if (cs40l26->vpbr_max_att != CS40L26_VXBR_DEFAULT) {
-			if (cs40l26->vpbr_max_att >= CS40L26_VXBR_MAX_ATT_MAX)
-				vpbr_max_att = CS40L26_VXBR_MAX_ATT_MAX;
-			else
-				vpbr_max_att = cs40l26->vpbr_max_att;
+		vpbr_config |= ((cs40l26->vpbr.wait << CS40L26_VXBR_WAIT_SHIFT) &
+								CS40L26_VXBR_WAIT_MASK);
 
-			val &= ~CS40L26_VXBR_MAX_ATT_MASK;
-			val |= ((vpbr_max_att << CS40L26_VXBR_MAX_ATT_SHIFT)
-					& CS40L26_VXBR_MAX_ATT_MASK);
-		}
+		vpbr_config |= ((cs40l26->vpbr.rel_rate << CS40L26_VXBR_REL_RATE_SHIFT) &
+								CS40L26_VXBR_REL_RATE_MASK);
 
-		if (cs40l26->vpbr_atk_step) {
-			if (cs40l26->vpbr_atk_step <= CS40L26_VXBR_ATK_STEP_MIN)
-				vpbr_atk_step = CS40L26_VXBR_ATK_STEP_MIN;
-			else if (cs40l26->vpbr_atk_step >= CS40L26_VXBR_ATK_STEP_MAX)
-				vpbr_atk_step = CS40L26_VXBR_ATK_STEP_MAX;
-			else
-				vpbr_atk_step = cs40l26->vpbr_atk_step;
-
-			val &= ~CS40L26_VXBR_ATK_STEP_MASK;
-			val |= ((vpbr_atk_step << CS40L26_VXBR_ATK_STEP_SHIFT)
-					& CS40L26_VXBR_ATK_STEP_MASK);
-		}
-
-		if (cs40l26->vpbr_atk_rate != CS40L26_VXBR_DEFAULT) {
-			if (cs40l26->vpbr_atk_rate > CS40L26_VXBR_ATK_RATE_MAX)
-				vpbr_atk_rate = CS40L26_VXBR_ATK_RATE_MAX;
-			else
-				vpbr_atk_rate = cs40l26->vpbr_atk_rate;
-
-			val &= ~CS40L26_VXBR_ATK_RATE_MASK;
-			val |= ((vpbr_atk_rate << CS40L26_VXBR_ATK_RATE_SHIFT)
-					& CS40L26_VXBR_ATK_RATE_MASK);
-
-		}
-
-		if (cs40l26->vpbr_wait != CS40L26_VXBR_DEFAULT) {
-			if (cs40l26->vpbr_wait > CS40L26_VXBR_WAIT_MAX)
-				vpbr_wait = CS40L26_VXBR_WAIT_MAX;
-			else
-				vpbr_wait = cs40l26->vpbr_wait;
-
-			val &= ~CS40L26_VXBR_WAIT_MASK;
-			val |= ((vpbr_wait << CS40L26_VXBR_WAIT_SHIFT) & CS40L26_VXBR_WAIT_MASK);
-		}
-
-		if (cs40l26->vpbr_rel_rate != CS40L26_VXBR_DEFAULT) {
-			if (cs40l26->vpbr_rel_rate > CS40L26_VXBR_REL_RATE_MAX)
-				vpbr_rel_rate = CS40L26_VXBR_REL_RATE_MAX;
-			else
-				vpbr_rel_rate = cs40l26->vpbr_rel_rate;
-
-			val &= ~CS40L26_VXBR_REL_RATE_MASK;
-			val |= ((vpbr_rel_rate << CS40L26_VXBR_REL_RATE_SHIFT)
-					& CS40L26_VXBR_REL_RATE_MASK);
-		}
-
-		ret = regmap_write(regmap, CS40L26_VPBR_CONFIG, val);
+		ret = regmap_read(regmap, CS40L26_VPBR_CONFIG, &val);
 		if (ret) {
-			dev_err(dev, "Failed to write VPBR config.\n");
+			dev_err(dev, "Failed to read VPBR_CONFIG\n");
 			return ret;
 		}
 
-		ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG, (val & GENMASK(31, 16)) >>
-				16, true, CS40L26_PSEQ_OP_WRITE_H16);
+		vpbr_config |= (val & CS40L26_VXBR_DEFAULT_MASK);
+
+		ret = regmap_write(regmap, CS40L26_VPBR_CONFIG, vpbr_config);
+		if (ret) {
+			dev_err(dev, "Failed to write VPBR_CONFIG\n");
+			return ret;
+		}
+
+		ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG,
+				(vpbr_config & GENMASK(31, 16)) >> 16,
+				true, CS40L26_PSEQ_OP_WRITE_H16);
 		if (ret)
 			return ret;
 
-		ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG, (val & GENMASK(15, 0)),
+		ret = cs40l26_pseq_write(cs40l26, CS40L26_VPBR_CONFIG,
+				(vpbr_config & GENMASK(15, 0)),
 				true, CS40L26_PSEQ_OP_WRITE_L16);
 		if (ret)
 			return ret;
 	}
 
-	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_2, pseq_val, pseq_mask);
+	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_2, 0, pseq_mask);
 }
 
 static int cs40l26_asp_config(struct cs40l26_private *cs40l26)
@@ -3913,7 +3841,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 			return ret;
 	}
 
-	ret = cs40l26_brownout_prevention_init(cs40l26);
+	ret = cs40l26_brwnout_prevention_init(cs40l26);
 	if (ret)
 		return ret;
 
@@ -4527,6 +4455,88 @@ static void cs40l26_hibernate_timer_callback(struct timer_list *t)
 	dev_dbg(cs40l26->dev, "Time since ALLOW_HIBERNATE exceeded HE_TIME max");
 }
 
+static inline bool cs40l26_brwnout_is_valid(enum cs40l26_brwnout_type type, u32 val)
+{
+	if (type >= CS40L26_NUM_BRWNOUT_TYPES)
+		return false;
+
+	return (val <= cs40l26_brwnout_params[type].max) &&
+			(val >= cs40l26_brwnout_params[type].min);
+}
+
+static void cs40l26_parse_brwnout_properties(struct cs40l26_private *cs40l26)
+{
+	struct device *dev = cs40l26->dev;
+	int ret;
+
+	if (device_property_present(dev, "cirrus,vbbr-enable")) {
+		cs40l26->vbbr.enable = true;
+
+		ret = device_property_read_u32(dev, "cirrus,vbbr-thld-uv", &cs40l26->vbbr.thld_uv);
+		if (ret || !cs40l26_brwnout_is_valid(CS40L26_VBBR_THLD, cs40l26->vbbr.thld_uv))
+			cs40l26->vbbr.thld_uv = CS40L26_VBBR_THLD_UV_DEFAULT;
+
+		ret = device_property_read_u32(dev, "cirrus,vbbr-max-att-db",
+						&cs40l26->vbbr.max_att_db);
+		if (ret || !cs40l26_brwnout_is_valid(CS40L26_VXBR_MAX_ATT,
+							cs40l26->vbbr.max_att_db))
+			cs40l26->vbbr.max_att_db = CS40L26_VXBR_MAX_ATT_DEFAULT;
+
+		ret = device_property_read_u32(dev, "cirrus,vbbr-atk-step",
+						&cs40l26->vbbr.atk_step);
+		if (ret || !cs40l26_brwnout_is_valid(CS40L26_VXBR_ATK_STEP, cs40l26->vbbr.atk_step))
+			cs40l26->vbbr.atk_step = CS40L26_VXBR_ATK_STEP_DEFAULT;
+
+		ret = device_property_read_u32(dev, "cirrus,vbbr-atk-rate",
+						&cs40l26->vbbr.atk_rate);
+		if (ret || !cs40l26_brwnout_is_valid(CS40L26_VXBR_ATK_RATE, cs40l26->vbbr.atk_rate))
+			cs40l26->vbbr.atk_rate = CS40L26_VXBR_ATK_RATE_DEFAULT;
+
+		ret = device_property_read_u32(dev, "cirrus,vbbr-wait", &cs40l26->vbbr.wait);
+		if (ret || !cs40l26_brwnout_is_valid(CS40L26_VXBR_WAIT, cs40l26->vbbr.wait))
+			cs40l26->vbbr.wait = CS40L26_VXBR_WAIT_DEFAULT;
+
+		ret = device_property_read_u32(dev, "cirrus,vbbr-rel-rate",
+						&cs40l26->vbbr.rel_rate);
+		if (ret || !cs40l26_brwnout_is_valid(CS40L26_VXBR_REL_RATE, cs40l26->vbbr.rel_rate))
+			cs40l26->vbbr.rel_rate = CS40L26_VXBR_REL_RATE_DEFAULT;
+	}
+
+	if (device_property_present(dev, "cirrus,vpbr-enable")) {
+		cs40l26->vpbr.enable = true;
+
+		ret = device_property_read_u32(dev, "cirrus,vpbr-thld-uv", &cs40l26->vpbr.thld_uv);
+		if (ret || !cs40l26_brwnout_is_valid(CS40L26_VPBR_THLD, cs40l26->vpbr.thld_uv))
+			cs40l26->vpbr.thld_uv = CS40L26_VPBR_THLD_UV_DEFAULT;
+
+		ret = device_property_read_u32(dev, "cirrus,vpbr-max-att-db",
+						&cs40l26->vpbr.max_att_db);
+		if (ret || !cs40l26_brwnout_is_valid(CS40L26_VXBR_MAX_ATT,
+							cs40l26->vpbr.max_att_db))
+			cs40l26->vpbr.max_att_db = CS40L26_VXBR_MAX_ATT_DEFAULT;
+
+		ret = device_property_read_u32(dev, "cirrus,vpbr-atk-step",
+						&cs40l26->vpbr.atk_step);
+		if (ret || !cs40l26_brwnout_is_valid(CS40L26_VXBR_ATK_STEP, cs40l26->vpbr.atk_step))
+			cs40l26->vpbr.atk_step = CS40L26_VXBR_ATK_STEP_DEFAULT;
+
+		ret = device_property_read_u32(dev, "cirrus,vpbr-atk-rate",
+						&cs40l26->vpbr.atk_rate);
+		if (ret || !cs40l26_brwnout_is_valid(CS40L26_VXBR_ATK_RATE, cs40l26->vpbr.atk_rate))
+			cs40l26->vpbr.atk_rate = CS40L26_VXBR_ATK_RATE_DEFAULT;
+
+		ret = device_property_read_u32(dev, "cirrus,vpbr-wait", &cs40l26->vpbr.wait);
+		if (ret || !cs40l26_brwnout_is_valid(CS40L26_VXBR_WAIT, cs40l26->vpbr.wait))
+			cs40l26->vpbr.wait = CS40L26_VXBR_WAIT_DEFAULT;
+
+		ret = device_property_read_u32(dev, "cirrus,vpbr-rel-rate",
+						&cs40l26->vpbr.rel_rate);
+		if (ret || !cs40l26_brwnout_is_valid(CS40L26_VXBR_REL_RATE, cs40l26->vpbr.rel_rate))
+			cs40l26->vpbr.rel_rate = CS40L26_VXBR_REL_RATE_DEFAULT;
+	}
+
+}
+
 static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
@@ -4538,69 +4548,7 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 
 	cs40l26->expl_mode_enabled = !device_property_present(dev, "cirrus,bst-expl-mode-disable");
 
-	if (device_property_present(dev, "cirrus,vbbr-enable")) {
-		cs40l26->vbbr_en = true;
-
-		ret = device_property_read_u32(dev, "cirrus,vbbr-thld-mv", &cs40l26->vbbr_thld_mv);
-		if (ret && ret != -EINVAL)
-			return ret;
-
-		ret = device_property_read_u32(dev, "cirrus,vbbr-max-att-db",
-				&cs40l26->vbbr_max_att);
-		if (ret)
-			cs40l26->vbbr_max_att = CS40L26_VXBR_DEFAULT;
-
-		ret = device_property_read_u32(dev, "cirrus,vbbr-atk-step",
-				&cs40l26->vbbr_atk_step);
-		if (ret && ret != -EINVAL)
-			return ret;
-
-		ret = device_property_read_u32(dev, "cirrus,vbbr-atk-rate",
-				&cs40l26->vbbr_atk_rate);
-		if (ret && ret != -EINVAL)
-			return ret;
-
-		ret = device_property_read_u32(dev, "cirrus,vbbr-wait", &cs40l26->vbbr_wait);
-		if (ret)
-			cs40l26->vbbr_wait = CS40L26_VXBR_DEFAULT;
-
-		ret = device_property_read_u32(dev, "cirrus,vbbr-rel-rate",
-				&cs40l26->vbbr_rel_rate);
-		if (ret)
-			cs40l26->vbbr_rel_rate = CS40L26_VXBR_DEFAULT;
-	}
-
-	if (device_property_present(dev, "cirrus,vpbr-enable")) {
-		cs40l26->vpbr_en = true;
-
-		ret = device_property_read_u32(dev, "cirrus,vpbr-thld-mv", &cs40l26->vpbr_thld_mv);
-		if (ret && ret != -EINVAL)
-			return ret;
-
-		ret = device_property_read_u32(dev, "cirrus,vpbr-max-att-db",
-				&cs40l26->vpbr_max_att);
-		if (ret)
-			cs40l26->vpbr_max_att = CS40L26_VXBR_DEFAULT;
-
-		ret = device_property_read_u32(dev, "cirrus,vpbr-atk-step",
-				&cs40l26->vpbr_atk_step);
-		if (ret && ret != -EINVAL)
-			return ret;
-
-		ret = device_property_read_u32(dev, "cirrus,vpbr-atk-rate",
-				&cs40l26->vpbr_atk_rate);
-		if (ret && ret != -EINVAL)
-			return ret;
-
-		ret = device_property_read_u32(dev, "cirrus,vpbr-wait", &cs40l26->vpbr_wait);
-		if (ret)
-			cs40l26->vpbr_wait = CS40L26_VXBR_DEFAULT;
-
-		ret = device_property_read_u32(dev, "cirrus,vpbr-rel-rate",
-				&cs40l26->vpbr_rel_rate);
-		if (ret)
-			cs40l26->vpbr_rel_rate = CS40L26_VXBR_DEFAULT;
-	}
+	cs40l26_parse_brwnout_properties(cs40l26);
 
 	cs40l26->bst_dcm_en = device_property_present(dev, "cirrus,bst-dcm-en");
 
