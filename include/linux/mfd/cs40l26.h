@@ -1017,20 +1017,12 @@
 #define CS40L26_BOOST_DISABLE_DELAY_MAX		8388608
 
 /* brownout prevention */
-#define CS40L26_VXBR_DEFAULT			0xFFFFFFFF
-
 #define CS40L26_VXBR_STATUS_DIV_STEP		625
 #define CS40L26_VXBR_STATUS_MASK		GENMASK(7, 0)
-#define CS40L26_VXBR_STATUS_MUTE_MASK		BIT(8)
-#define CS40L26_VXBR_STATUS_MUTE_SHIFT		8
+#define CS40L26_VXBR_DEFAULT_MASK		GENMASK(31, 24)
 
 #define CS40L26_VBBR_EN_MASK			BIT(13)
 #define CS40L26_VBBR_EN_SHIFT			13
-
-#define CS40L26_VBBR_FLAG_MASK			BIT(19)
-#define CS40L26_VBBR_FLAG_SHIFT				19
-#define CS40L26_VBBR_ATT_CLR_MASK		BIT(20)
-#define CS40L26_VBBR_ATT_CLR_SHIFT		20
 
 #define CS40L26_VPBR_EN_MASK			BIT(12)
 #define CS40L26_VPBR_EN_SHIFT			12
@@ -1038,41 +1030,48 @@
 
 #define CS40L26_VPBR_THLD_MIN			0x02
 #define CS40L26_VPBR_THLD_MAX			0x1F
-#define CS40L26_VPBR_THLD_MV_DIV		47000
-#define CS40L26_VPBR_THLD_OFFSET		51
-#define CS40L26_VPBR_THLD_MV_MIN		2497000
-#define CS40L26_VPBR_THLD_MV_MAX		3874000
+#define CS40L26_VPBR_THLD_UV_DIV		47000
+#define CS40L26_VPBR_THLD_UV_MIN		2497000
+#define CS40L26_VPBR_THLD_UV_MAX		3874000
+#define CS40L26_VPBR_THLD_UV_DEFAULT		2639000
 
 #define CS40L26_VBBR_THLD_MASK			GENMASK(5, 0)
 #define CS40L26_VBBR_THLD_MIN			0x02
 #define CS40L26_VBBR_THLD_MAX			0x3F
-#define CS40L26_VBBR_THLD_MV_STEP		55000
-#define CS40L26_VBBR_THLD_MV_MIN		109000
-#define CS40L26_VBBR_THLD_MV_MAX		3445000
+#define CS40L26_VBBR_THLD_UV_DIV		55000
+#define CS40L26_VBBR_THLD_UV_MIN		109000
+#define CS40L26_VBBR_THLD_UV_MAX		3445000
+#define CS40L26_VBBR_THLD_UV_DEFAULT		273000
 
 #define CS40L26_VXBR_MAX_ATT_MASK		GENMASK(11, 8)
 #define CS40L26_VXBR_MAX_ATT_SHIFT		8
-#define CS40L26_VXBR_MAX_ATT_MAX		0xF
+#define CS40L26_VXBR_MAX_ATT_MAX		15
+#define CS40L26_VXBR_MAX_ATT_MIN		0
+#define CS40L26_VXBR_MAX_ATT_DEFAULT		9
 
-#define CS40L26_VXBR_ATK_STEP_MIN		0x0
-#define CS40L26_VXBR_ATK_STEP_MAX		0x7
 #define CS40L26_VXBR_ATK_STEP_MASK		GENMASK(15, 12)
 #define CS40L26_VXBR_ATK_STEP_SHIFT		12
-#define CS40L26_VXBR_ATK_STEP_OFFSET		1
+#define CS40L26_VXBR_ATK_STEP_MIN		0
+#define CS40L26_VXBR_ATK_STEP_MAX		7
+#define CS40L26_VXBR_ATK_STEP_DEFAULT		1
 
-#define CS40L26_VXBR_ATK_RATE_MIN		0x0
-#define CS40L26_VXBR_ATK_RATE_MAX		0x7
 #define CS40L26_VXBR_ATK_RATE_MASK		GENMASK(18, 16)
 #define CS40L26_VXBR_ATK_RATE_SHIFT		16
-#define CS40L26_VXBR_ATK_RATE_OFFSET		1
+#define CS40L26_VXBR_ATK_RATE_MIN		0
+#define CS40L26_VXBR_ATK_RATE_MAX		7
+#define CS40L26_VXBR_ATK_RATE_DEFAULT		2
 
-#define CS40L26_VXBR_WAIT_MAX			0x3
 #define CS40L26_VXBR_WAIT_MASK			GENMASK(20, 19)
 #define CS40L26_VXBR_WAIT_SHIFT			19
+#define CS40L26_VXBR_WAIT_MAX			3
+#define CS40L26_VXBR_WAIT_MIN			0
+#define CS40L26_VXBR_WAIT_DEFAULT		1
 
-#define CS40L26_VXBR_REL_RATE_MAX		0x7
 #define CS40L26_VXBR_REL_RATE_MASK		GENMASK(23, 21)
 #define CS40L26_VXBR_REL_RATE_SHIFT		21
+#define CS40L26_VXBR_REL_RATE_MAX		7
+#define CS40L26_VXBR_REL_RATE_MIN		0
+#define CS40L26_VXBR_REL_RATE_DEFAULT		5
 
 /* mixer noise gate */
 #define CS40L26_MIXER_NGATE_CH1_CFG_DEFAULT_NEW	0x00010003
@@ -1307,6 +1306,17 @@
 #define CS40L26_MS_TO_US(n)	((n) * 1000)
 
 /* enums */
+enum cs40l26_brwnout_type {
+	CS40L26_VBBR_THLD,
+	CS40L26_VPBR_THLD,
+	CS40L26_VXBR_MAX_ATT,
+	CS40L26_VXBR_ATK_STEP,
+	CS40L26_VXBR_ATK_RATE,
+	CS40L26_VXBR_WAIT,
+	CS40L26_VXBR_REL_RATE,
+	CS40L26_NUM_BRWNOUT_TYPES,
+};
+
 enum cs40l26_gpio_map {
 	CS40L26_GPIO_MAP_A_PRESS,
 	CS40L26_GPIO_MAP_A_RELEASE,
@@ -1424,12 +1434,18 @@ enum cs40l26_pm_state {
 };
 
 /* structs */
+struct cs40l26_brwnout_limits {
+	u32 max;
+	u32 min;
+};
+
 struct cs40l26_dbc {
 	enum cs40l26_dbc_type type;
 	const char *const name;
 	u32 max;
 	u32 min;
 };
+
 struct cs40l26_buzzgen_config {
 	const char *duration_name;
 	const char *freq_name;
@@ -1469,6 +1485,17 @@ struct cs40l26_uploaded_effect {
 	enum cs40l26_gpio_map mapping;
 	struct list_head list;
 };
+
+struct cs40l26_brwnout {
+	bool enable;
+	u32 thld_uv;
+	u32 max_att_db;
+	u32 atk_step;
+	u32 atk_rate;
+	u32 wait;
+	u32 rel_rate;
+};
+
 struct cs40l26_private {
 	struct device *dev;
 	struct regmap *regmap;
@@ -1526,7 +1553,6 @@ struct cs40l26_private {
 	struct completion cal_f0_cont;
 	struct completion cal_redc_cont;
 	struct completion cal_dvl_peq_cont;
-	u8 vpbr_thld;
 	unsigned int svc_le_est_stored;
 	u32 *no_wait_ram_indices;
 	ssize_t num_no_wait_ram_indices;
@@ -1541,20 +1567,8 @@ struct cs40l26_private {
 	bool dbg_fw_ym;
 	struct cl_dsp_debugfs *cl_dsp_db;
 #endif
-	bool vbbr_en;
-	u32 vbbr_thld_mv;
-	u32 vbbr_max_att;
-	u32 vbbr_atk_step;
-	u32 vbbr_atk_rate;
-	u32 vbbr_wait;
-	u32 vbbr_rel_rate;
-	bool vpbr_en;
-	u32 vpbr_thld_mv;
-	u32 vpbr_max_att;
-	u32 vpbr_atk_step;
-	u32 vpbr_atk_rate;
-	u32 vpbr_wait;
-	u32 vpbr_rel_rate;
+	struct cs40l26_brwnout vbbr;
+	struct cs40l26_brwnout vpbr;
 	bool bst_dcm_en;
 	u32 bst_ipk;
 	u32 asp_scale_pct;
