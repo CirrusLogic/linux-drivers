@@ -285,11 +285,18 @@ static int ln8411_set_status_not_charging(struct ln8411_device *ln8411)
 {
 	int ret;
 
-	if ((ln8411->rev == LN8411_A1_DEV_REV_ID) && ln8411->state.mode == LN8411_FWD2TO1) {
-		/* Disable A1 2:1 workaround */
-		ret = ln8411_a1_2to1_workaround(ln8411, false);
-		if (ret)
-			return ret;
+	if (ln8411->state.mode == LN8411_FWD2TO1) {
+		if (ln8411->rev == LN8411_A1_DEV_REV_ID) {
+			/* Disable A1 2:1 workaround */
+			ret = ln8411_a1_2to1_workaround(ln8411, false);
+			if (ret)
+				return ret;
+		} else {
+			ret = regmap_clear_bits(ln8411->regmap, LN8411_IBUS_UCP,
+						LN8411_GX_PD_STARTUP_MSK);
+			if (ret)
+				return ret;
+		}
 	}
 
 	ret = regmap_clear_bits(ln8411->regmap, LN8411_CTRL1, LN8411_CP_EN);
@@ -342,11 +349,18 @@ static int ln8411_set_status_charging(struct ln8411_device *ln8411)
 		return -EINVAL;
 	}
 
-	if ((ln8411->rev == LN8411_A1_DEV_REV_ID) && ln8411->state.mode == LN8411_FWD2TO1) {
-		/* Enable A1 2:1 workaround */
-		ret = ln8411_a1_2to1_workaround(ln8411, true);
-		if (ret)
-			return ret;
+	if (ln8411->state.mode == LN8411_FWD2TO1) {
+		if (ln8411->rev == LN8411_A1_DEV_REV_ID) {
+			/* Enable A1 2:1 workaround */
+			ret = ln8411_a1_2to1_workaround(ln8411, true);
+			if (ret)
+				return ret;
+		} else {
+			ret = regmap_set_bits(ln8411->regmap, LN8411_IBUS_UCP,
+						LN8411_GX_PD_STARTUP_MSK);
+			if (ret)
+				return ret;
+		}
 	}
 
 	if (ln8411->en_gpio)
@@ -1240,11 +1254,18 @@ static int ln8411_enable_otg(struct ln8411_device *ln8411)
 	if (ret)
 		return ret;
 
-	if ((ln8411->rev == LN8411_A1_DEV_REV_ID) && (ln8411->state.mode == LN8411_REV1TO2)) {
-		/* Enable A1 2:1 workaround */
-		ret = ln8411_a1_2to1_workaround(ln8411, true);
-		if (ret)
-			return ret;
+	if (ln8411->state.mode == LN8411_FWD2TO1) {
+		if (ln8411->rev == LN8411_A1_DEV_REV_ID) {
+			/* Enable A1 2:1 workaround */
+			ret = ln8411_a1_2to1_workaround(ln8411, true);
+			if (ret)
+				return ret;
+		} else {
+			ret = regmap_set_bits(ln8411->regmap, LN8411_IBUS_UCP,
+						LN8411_GX_PD_STARTUP_MSK);
+			if (ret)
+				return ret;
+		}
 	}
 
 	ret = regmap_set_bits(ln8411->regmap, LN8411_CTRL1, LN8411_QB_EN);
@@ -1316,11 +1337,18 @@ static int ln8411_disable_otg(struct regulator_dev *rdev)
 	if (ret)
 		return ret;
 
-	if ((ln8411->rev == LN8411_A1_DEV_REV_ID) && (ln8411->state.mode == LN8411_REV1TO2)) {
-		/* Disable A1 2:1 workaround */
-		ret = ln8411_a1_2to1_workaround(ln8411, false);
-		if (ret)
-			return ret;
+	if (ln8411->state.mode == LN8411_FWD2TO1) {
+		if (ln8411->rev == LN8411_A1_DEV_REV_ID) {
+			/* Disable A1 2:1 workaround */
+			ret = ln8411_a1_2to1_workaround(ln8411, false);
+			if (ret)
+				return ret;
+		} else {
+			ret = regmap_clear_bits(ln8411->regmap, LN8411_IBUS_UCP,
+						LN8411_GX_PD_STARTUP_MSK);
+			if (ret)
+				return ret;
+		}
 	}
 
 	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_TEST_MODE);
