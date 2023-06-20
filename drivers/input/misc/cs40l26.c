@@ -658,25 +658,32 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 	return 0;
 }
 
-static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
+static irqreturn_t cs40l26_handle_mbox_buffer(int irq, void *data)
 {
+	struct cs40l26_private *cs40l26 = data;
+	irqreturn_t irq_status = IRQ_HANDLED;
 	struct device *dev = cs40l26->dev;
 	u32 val = 0;
 	int error;
+
+	mutex_lock(&cs40l26->lock);
 
 	while (!cs40l26_mbox_buffer_read(cs40l26, &val)) {
 		if ((val & CS40L26_DSP_MBOX_CMD_INDEX_MASK) == CS40L26_DSP_MBOX_PANIC) {
 			dev_alert(dev, "DSP PANIC! Error condition: 0x%06X\n",
 			(u32) (val & CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK));
-			return -ENOTRECOVERABLE;
+			irq_status = IRQ_HANDLED;
+			goto err_mutex;
 		}
 
 		if ((val & CS40L26_DSP_MBOX_CMD_INDEX_MASK) == CS40L26_DSP_MBOX_WATERMARK) {
 			dev_dbg(dev, "Mailbox: WATERMARK\n");
 #ifdef CONFIG_DEBUG_FS
 			error = cl_dsp_logger_update(cs40l26->cl_dsp_db);
-			if (error)
-				return error;
+			if (error) {
+				irq_status = IRQ_NONE;
+				goto err_mutex;
+			}
 #endif
 			continue;
 		}
@@ -704,7 +711,8 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 		case CS40L26_DSP_MBOX_TRIGGER_CP:
 			if (!cs40l26->vibe_state_reporting) {
 				dev_err(dev, "vibe_state not supported\n");
-				return -EPERM;
+				irq_status = IRQ_HANDLED;
+				goto err_mutex;
 			}
 
 			dev_dbg(dev, "Mailbox: TRIGGER_CP\n");
@@ -758,14 +766,19 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 			break;
 		case CS40L26_DSP_MBOX_SYS_ACK:
 			dev_err(dev, "Mailbox: ACK\n");
-			return -EPERM;
+			irq_status = IRQ_HANDLED;
+			goto err_mutex;
 		default:
 			dev_err(dev, "MBOX buffer value (0x%X) is invalid\n", val);
-			return -EINVAL;
+			irq_status = IRQ_HANDLED;
+			goto err_mutex;
 		}
 	}
 
-	return 0;
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	return irq_status;
 }
 
 int cs40l26_copy_f0_est_to_dvl(struct cs40l26_private *cs40l26)
@@ -915,381 +928,260 @@ static int cs40l26_error_release(struct cs40l26_private *cs40l26,
 	return error;
 }
 
-static int cs40l26_handle_irq1(struct cs40l26_private *cs40l26,
-		enum cs40l26_irq1 irq1)
+static irqreturn_t cs40l26_gpio_rise(int irq, void *data)
 {
-	struct device *dev = cs40l26->dev;
-	u32 err_rls = 0;
-	int error = 0;
-	unsigned int reg, val;
+	struct cs40l26_private *cs40l26 = data;
 
-	switch (irq1) {
-	case CS40L26_IRQ1_GPIO1_RISE:
-	/* intentionally fall through */
-	case CS40L26_IRQ1_GPIO1_FALL:
-	/* intentionally fall through */
-	case CS40L26_IRQ1_GPIO2_RISE:
-	/* intentionally fall through */
-	case CS40L26_IRQ1_GPIO2_FALL:
-	/* intentionally fall through */
-	case CS40L26_IRQ1_GPIO3_RISE:
-	/* intentionally fall through */
-	case CS40L26_IRQ1_GPIO3_FALL:
-	/* intentionally fall through */
-	case CS40L26_IRQ1_GPIO4_RISE:
-	/* intentionally fall through */
-	case CS40L26_IRQ1_GPIO4_FALL:
-		if (cs40l26->wksrc_sts & CS40L26_WKSRC_STS_EN) {
-			dev_dbg(dev, "GPIO%u %s edge detected\n", (irq1 / 2) + 1,
-					(irq1 % 2) ? "falling" : "rising");
-		}
+	mutex_lock(&cs40l26->lock);
 
-		cs40l26->wksrc_sts |= CS40L26_WKSRC_STS_EN;
-		break;
-	case CS40L26_IRQ1_WKSRC_STS_ANY:
-		dev_dbg(dev, "Wakesource detected (ANY)\n");
+	if (cs40l26->wksrc_sts & CS40L26_WKSRC_STS_EN)
+		dev_dbg(cs40l26->dev, "GPIO rising edge detected\n");
 
-		error = regmap_read(cs40l26->regmap, CS40L26_PWRMGT_STS, &val);
-		if (error) {
-			dev_err(dev, "Failed to get Power Management Status\n");
-			goto err;
-		}
+	cs40l26->wksrc_sts |= CS40L26_WKSRC_STS_EN;
 
-		cs40l26->wksrc_sts = (u8) ((val & CS40L26_WKSRC_STS_MASK) >>
-				CS40L26_WKSRC_STS_SHIFT);
+	mutex_unlock(&cs40l26->lock);
 
-		error = cl_dsp_get_reg(cs40l26->dsp, "LAST_WAKESRC_CTL",
-				CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw_id, &reg);
-		if (error)
-			goto err;
-
-		error = regmap_read(cs40l26->regmap, reg, &val);
-		if (error) {
-			dev_err(dev, "Failed to read LAST_WAKESRC_CTL\n");
-			goto err;
-		}
-		cs40l26->last_wksrc_pol = (u8) (val & CS40L26_WKSRC_GPIO_POL_MASK);
-		break;
-	case CS40L26_IRQ1_WKSRC_STS_GPIO1:
-	/* intentionally fall through */
-	case CS40L26_IRQ1_WKSRC_STS_GPIO2:
-	/* intentionally fall through */
-	case CS40L26_IRQ1_WKSRC_STS_GPIO3:
-	/* intentionally fall through */
-	case CS40L26_IRQ1_WKSRC_STS_GPIO4:
-		dev_dbg(dev, "GPIO%u event woke device from hibernate\n",
-				irq1 - CS40L26_IRQ1_WKSRC_STS_GPIO1 + 1);
-
-		if (cs40l26->wksrc_sts & cs40l26->last_wksrc_pol) {
-			dev_dbg(dev, "GPIO%u falling edge detected\n", irq1 - 8);
-			cs40l26->wksrc_sts |= CS40L26_WKSRC_STS_EN;
-		} else {
-			dev_dbg(dev, "GPIO%u rising edge detected\n", irq1 - 8);
-		}
-		break;
-	case CS40L26_IRQ1_WKSRC_STS_SPI:
-		dev_dbg(dev, "SPI event woke device from hibernate\n");
-		break;
-	case CS40L26_IRQ1_WKSRC_STS_I2C:
-		dev_dbg(dev, "I2C event woke device from hibernate\n");
-		break;
-	case CS40L26_IRQ1_GLOBAL_EN_ASSERT:
-		dev_dbg(dev, "Started power up seq. (GLOBAL_EN asserted)\n");
-		break;
-	case CS40L26_IRQ1_PDN_DONE:
-		dev_dbg(dev, "Completed power down seq. (GLOBAL_EN cleared)\n");
-		break;
-	case CS40L26_IRQ1_PUP_DONE:
-		dev_dbg(dev, "Completed power up seq. (GLOBAL_EN asserted)\n");
-		break;
-	case CS40L26_IRQ1_BST_OVP_FLAG_RISE:
-		dev_warn(dev, "BST overvoltage warning\n");
-		break;
-	case CS40L26_IRQ1_BST_OVP_FLAG_FALL:
-		dev_warn(dev, "BST voltage returned below warning threshold\n");
-		break;
-	case CS40L26_IRQ1_BST_OVP_ERR:
-		dev_alert(dev, "BST overvolt. error\n");
-		err_rls = CS40L26_BST_OVP_ERR_RLS;
-		break;
-	case CS40L26_IRQ1_BST_DCM_UVP_ERR:
-		dev_alert(dev, "BST undervolt. error\n");
-		err_rls = CS40L26_BST_UVP_ERR_RLS;
-		break;
-	case CS40L26_IRQ1_BST_SHORT_ERR:
-		dev_alert(dev, "LBST short detected\n");
-		err_rls = CS40L26_BST_SHORT_ERR_RLS;
-		break;
-	case CS40L26_IRQ1_BST_IPK_FLAG:
-		dev_dbg(dev, "Current is being limited by LBST inductor\n");
-		break;
-	case CS40L26_IRQ1_TEMP_WARN_RISE:
-		dev_err(dev, "Die overtemperature warning\n");
-		err_rls = CS40L26_TEMP_WARN_ERR_RLS;
-		break;
-	case CS40L26_IRQ1_TEMP_WARN_FALL:
-		dev_warn(dev, "Die temperature returned below threshold\n");
-		break;
-	case CS40L26_IRQ1_TEMP_ERR:
-		dev_alert(dev, "Die overtemperature error\n");
-		err_rls = CS40L26_TEMP_ERR_RLS;
-		break;
-	case CS40L26_IRQ1_AMP_ERR:
-		dev_alert(dev, "AMP short detected\n");
-		err_rls = CS40L26_AMP_SHORT_ERR_RLS;
-		break;
-	case CS40L26_IRQ1_DC_WATCHDOG_RISE:
-		dev_err(dev, "DC level detected\n");
-		break;
-	case CS40L26_IRQ1_DC_WATCHDOG_FALL:
-		dev_warn(dev, "Previously detected DC level removed\n");
-		break;
-	case CS40L26_IRQ1_VIRTUAL1_MBOX_WR:
-		dev_dbg(dev, "Virtual 1 MBOX write occurred\n");
-		break;
-	case CS40L26_IRQ1_VIRTUAL2_MBOX_WR:
-		error = regmap_write(cs40l26->regmap, CS40L26_IRQ1_EINT_1, BIT(irq1));
-		if (error) {
-			dev_err(dev, "Failed to clear Mailbox IRQ\n");
-			goto err;
-		}
-
-		return cs40l26_handle_mbox_buffer(cs40l26);
-	default:
-		dev_err(dev, "Unrecognized IRQ1 EINT1 status\n");
-		return -EINVAL;
-	}
-
-	if (err_rls)
-		error = cs40l26_error_release(cs40l26, err_rls);
-
-err:
-	regmap_write(cs40l26->regmap, CS40L26_IRQ1_EINT_1, BIT(irq1));
-
-	return error;
+	return IRQ_HANDLED;
 }
 
-static int cs40l26_handle_irq2(struct cs40l26_private *cs40l26,
-		enum cs40l26_irq2 irq2)
+static irqreturn_t cs40l26_gpio_fall(int irq, void *data)
 {
-	struct device *dev = cs40l26->dev;
-	u32 vbbr_status, vpbr_status;
-	unsigned int val;
-	int error;
+	struct cs40l26_private *cs40l26 = data;
 
-	switch (irq2) {
-	case CS40L26_IRQ2_PLL_LOCK:
-		dev_dbg(dev, "PLL achieved lock\n");
-		break;
-	case CS40L26_IRQ2_PLL_PHASE_LOCK:
-		dev_dbg(dev, "PLL achieved phase lock\n");
-		break;
-	case CS40L26_IRQ2_PLL_FREQ_LOCK:
-		dev_dbg(dev, "PLL achieved frequency lock\n");
-		break;
-	case CS40L26_IRQ2_PLL_UNLOCK_RISE:
-		dev_err(dev, "PLL has lost lock\n");
-		break;
-	case CS40L26_IRQ2_PLL_UNLOCK_FALL:
-		dev_warn(dev, "PLL has regained lock\n");
-		break;
-	case CS40L26_IRQ2_PLL_READY:
-		dev_dbg(dev, "PLL ready for use\n");
-		break;
-	case CS40L26_IRQ2_PLL_REFCLK_PRESENT:
-		dev_warn(dev, "REFCLK present for PLL\n");
-		break;
-	case CS40L26_IRQ2_REFCLK_MISSING_RISE:
-		dev_err(dev, "REFCLK input for PLL is missing\n");
-		break;
-	case CS40L26_IRQ2_REFCLK_MISSING_FALL:
-		dev_warn(dev, "REFCLK reported missing is now present\n");
-		break;
-	case CS40L26_IRQ2_ASP_RXSLOT_CFG_ERR:
-		dev_err(dev, "Misconfig. of ASP_RX 1 2 or 3 SLOT fields\n");
-			break;
-	case CS40L26_IRQ2_AUX_NG_CH1_ENTRY:
-		dev_warn(dev, "CH1 data of noise gate has fallen below threshold\n");
-		break;
-	case CS40L26_IRQ2_AUX_NG_CH1_EXIT:
-		dev_err(dev, "CH1 data of noise gate has risen above threshold\n");
-		break;
-	case CS40L26_IRQ2_AUX_NG_CH2_ENTRY:
-		dev_warn(dev, "CH2 data of noise gate has fallen below threshold\n");
-		break;
-	case CS40L26_IRQ2_AUX_NG_CH2_EXIT:
-		dev_err(dev, "CH2 data of noise gate has risen above threshold\n");
-		break;
-	case CS40L26_IRQ2_AMP_NG_ON_RISE:
-		dev_warn(dev, "Amplifier entered noise-gated state\n");
-		break;
-	case CS40L26_IRQ2_AMP_NG_ON_FALL:
-		dev_warn(dev, "Amplifier exited noise-gated state\n");
-		break;
-	case CS40L26_IRQ2_VPBR_FLAG:
-		dev_alert(dev, "VP voltage has dropped below brownout threshold\n");
-		error = regmap_read(cs40l26->regmap, CS40L26_VPBR_STATUS, &val);
-		if (error) {
-			dev_err(dev, "Failed to get VPBR_STATUS\n");
-			return error;
-		}
+	mutex_lock(&cs40l26->lock);
 
-		vpbr_status = (val & CS40L26_VXBR_STATUS_MASK);
-		dev_alert(dev, "VPBR Attenuation applied = %u x 10^-4 dB\n",
-				vpbr_status * CS40L26_VXBR_STATUS_DIV_STEP);
-		break;
-	case CS40L26_IRQ2_VPBR_ATT_CLR:
-		dev_warn(dev, "Cleared attenuation applied by VP brownout event\n");
-		break;
-	case CS40L26_IRQ2_VBBR_FLAG:
-		dev_alert(dev, "VBST voltage has dropped below brownout threshold\n");
-		error = regmap_read(cs40l26->regmap, CS40L26_VBBR_STATUS, &val);
-		if (error) {
-			dev_err(dev, "Failed to get VPBR_STATUS\n");
-			return error;
-		}
+	if (cs40l26->wksrc_sts & CS40L26_WKSRC_STS_EN)
+		dev_dbg(cs40l26->dev, "GPIO falling edge detected\n");
 
-		vbbr_status = (val & CS40L26_VXBR_STATUS_MASK);
-		dev_alert(dev, "VBBR Attenuation applied = %u x 10^-4 dB\n",
-				vbbr_status * CS40L26_VXBR_STATUS_DIV_STEP);
-		break;
-	case CS40L26_IRQ2_VBBR_ATT_CLR:
-		dev_warn(dev, "Cleared attenuation caused by VBST brownout\n");
-		break;
-	case CS40L26_IRQ2_I2C_NACK_ERR:
-		dev_err(dev, "I2C interface NACK during Broadcast Mode\n");
-		break;
-	case CS40L26_IRQ2_VPMON_CLIPPED:
-		dev_err(dev, "Input larger than full-scale value (VPMON)\n");
-		break;
-	case CS40L26_IRQ2_VBSTMON_CLIPPED:
-		dev_err(dev, "Input larger than full-scale value (VBSTMON)\n");
-		break;
-	case CS40L26_IRQ2_VMON_CLIPPED:
-		dev_err(dev, "Input larger than full-scale value (VMON)\n");
-		break;
-	case CS40L26_IRQ2_IMON_CLIPPED:
-		dev_err(dev, "Input larger than full-scale value (IMON)\n");
-		break;
-	default:
-		dev_err(dev, "Unrecognized IRQ1 EINT2 status\n");
-		return -EINVAL;
-	}
+	cs40l26->wksrc_sts |= CS40L26_WKSRC_STS_EN;
 
-	/* write 1 to clear the interrupt flag */
-	error = regmap_write(cs40l26->regmap, CS40L26_IRQ1_EINT_2, BIT(irq2));
-	if (error)
-		dev_err(dev, "Failed to clear IRQ1 EINT2 %u\n", irq2);
+	mutex_unlock(&cs40l26->lock);
 
-	return error;
+	return IRQ_HANDLED;
 }
 
-static irqreturn_t cs40l26_irq(int irq, void *data)
+static irqreturn_t cs40l26_wakesource_any(int irq, void *data)
 {
-	struct cs40l26_private *cs40l26 = (struct cs40l26_private *)data;
-	unsigned int sts, val, eint, mask, i, irq1_count = 0, irq2_count = 0;
-	struct regmap *regmap = cs40l26->regmap;
-	struct device *dev = cs40l26->dev;
-	unsigned long num_irq;
+	struct cs40l26_private *cs40l26 = data;
 	int error;
+	u32 val, reg;
 
-	error = pm_runtime_get_sync(dev);
-	if (error < 0) {
-		cs40l26_resume_error_handle(dev, error);
+	dev_dbg(cs40l26->dev, "Wakesource detected (ANY)\n");
 
-		dev_alert(dev, "Interrupts missed\n");
-
-		cs40l26_dsp_write(cs40l26, CS40L26_IRQ1_EINT_1, CS40L26_IRQ_EINT1_ALL_MASK);
-		cs40l26_dsp_write(cs40l26, CS40L26_IRQ1_EINT_2, CS40L26_IRQ_EINT2_ALL_MASK);
-
+	error = regmap_read(cs40l26->regmap, CS40L26_PWRMGT_STS, &val);
+	if (error) {
+		dev_err(cs40l26->dev, "Failed to get Power Management Status\n");
 		return IRQ_NONE;
 	}
 
 	mutex_lock(&cs40l26->lock);
 
-	if (regmap_read(regmap, CS40L26_IRQ1_STATUS, &sts)) {
-		dev_err(dev, "Failed to read IRQ1 Status\n");
-		error = IRQ_NONE;
-		goto err;
-	}
+	cs40l26->wksrc_sts = (u8) ((val & CS40L26_WKSRC_STS_MASK) >>
+				CS40L26_WKSRC_STS_SHIFT);
 
-	if (sts != CS40L26_IRQ_STATUS_ASSERT) {
-		dev_err(dev, "IRQ1 asserted with no pending interrupts\n");
-		error = IRQ_NONE;
-		goto err;
-	}
+	error = cl_dsp_get_reg(cs40l26->dsp, "LAST_WAKESRC_CTL",
+			CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw_id, &reg);
+	if (error)
+		return IRQ_NONE;
 
-	error = regmap_read(regmap, CS40L26_IRQ1_EINT_1, &eint);
+	error = regmap_read(cs40l26->regmap, reg, &val);
 	if (error) {
-		dev_err(dev, "Failed to read interrupts status 1\n");
-		goto err;
+		dev_err(cs40l26->dev, "Failed to read LAST_WAKESRC_CTL\n");
+		return IRQ_NONE;
 	}
 
-	error = regmap_read(regmap, CS40L26_IRQ1_MASK_1, &mask);
-	if (error) {
-		dev_err(dev, "Failed to get interrupts mask 1\n");
-		goto err;
-	}
+	cs40l26->last_wksrc_pol = (u8) (val & CS40L26_WKSRC_GPIO_POL_MASK);
 
-	val = eint & ~mask;
-	if (val) {
-		num_irq = hweight_long(val);
-		i = 0;
-		while (irq1_count < num_irq && i < CS40L26_IRQ1_NUM_IRQS) {
-			if (val & BIT(i)) {
-				error = cs40l26_handle_irq1(cs40l26, i);
-				if (error)
-					goto err;
-				else
-					irq1_count++;
-			}
-			i++;
-		}
-	}
-
-	error = regmap_read(regmap, CS40L26_IRQ1_EINT_2, &eint);
-	if (error) {
-		dev_err(dev, "Failed to read interrupts status 2\n");
-		goto err;
-	}
-
-	error = regmap_read(regmap, CS40L26_IRQ1_MASK_2, &mask);
-	if (error) {
-		dev_err(dev, "Failed to get interrupts mask 2\n");
-		goto err;
-	}
-
-	val = eint & ~mask;
-	if (val) {
-		num_irq = hweight_long(val);
-
-		i = 0;
-		while (irq2_count < num_irq && i < CS40L26_IRQ2_NUM_IRQS) {
-			if (val & BIT(i)) {
-				error = cs40l26_handle_irq2(cs40l26, i);
-				if (error)
-					goto err;
-				else
-					irq2_count++;
-			}
-			i++;
-		}
-	}
-
-err:
 	mutex_unlock(&cs40l26->lock);
 
-	cs40l26_pm_exit(dev);
-
-	/* if an error has occurred, all IRQs have not been successfully
-	 * processed; however, IRQ_HANDLED is still returned if at least one
-	 * interrupt request generated by CS40L26 was handled successfully.
-	 */
-	if (error)
-		dev_err(dev, "Failed to process IRQ (%d): %d\n", irq, error);
-
-	return (irq1_count + irq2_count) ? IRQ_HANDLED : IRQ_NONE;
+	return IRQ_HANDLED;
 }
+
+static irqreturn_t cs40l26_wakesource_gpio(int irq, void *data)
+{
+	struct cs40l26_private *cs40l26 = data;
+
+	dev_dbg(cs40l26->dev, "GPIO event woke device from hibernate\n");
+
+	mutex_lock(&cs40l26->lock);
+
+	if (cs40l26->wksrc_sts & cs40l26->last_wksrc_pol) {
+		dev_dbg(cs40l26->dev, "GPIO falling edge detected\n");
+		cs40l26->wksrc_sts |= CS40L26_WKSRC_STS_EN;
+	} else {
+		dev_dbg(cs40l26->dev, "GPIO rising edge detected\n");
+	}
+
+	mutex_unlock(&cs40l26->lock);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs40l26_wakesource_iic(int irq, void *data)
+{
+	struct cs40l26_private *cs40l26 = data;
+
+	dev_dbg(cs40l26->dev, "I2C event woke device from hibernate\n");
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs40l26_bst_ovp_err(int irq, void *data)
+{
+	struct cs40l26_private *cs40l26 = data;
+
+	dev_err(cs40l26->dev, "BST overvolt. error\n");
+
+	return IRQ_RETVAL(!cs40l26_error_release(cs40l26, CS40L26_BST_OVP_ERR_RLS));
+}
+
+static irqreturn_t cs40l26_bst_uv_err(int irq, void *data)
+{
+	struct cs40l26_private *cs40l26 = data;
+
+	dev_err(cs40l26->dev, "BST undervolt. error\n");
+
+	return IRQ_RETVAL(!cs40l26_error_release(cs40l26, CS40L26_BST_UVP_ERR_RLS));
+}
+
+static irqreturn_t cs40l26_bst_short(int irq, void *data)
+{
+	struct cs40l26_private *cs40l26 = data;
+
+	dev_err(cs40l26->dev, "LBST short detected\n");
+
+	return IRQ_RETVAL(!cs40l26_error_release(cs40l26, CS40L26_BST_SHORT_ERR_RLS));
+}
+
+static irqreturn_t cs40l26_ipk_flag(int irq, void *data)
+{
+	struct cs40l26_private *cs40l26 = data;
+
+	dev_dbg(cs40l26->dev, "Current is being limited by LBST inductor\\n");
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs40l26_temp_err(int irq, void *data)
+{
+	struct cs40l26_private *cs40l26 = data;
+
+	dev_err(cs40l26->dev, "Die overtemperature error\n");
+
+	return IRQ_RETVAL(!cs40l26_error_release(cs40l26, CS40L26_TEMP_ERR_RLS));
+}
+
+static irqreturn_t cs40l26_amp_short(int irq, void *data)
+{
+	struct cs40l26_private *cs40l26 = data;
+
+	dev_err(cs40l26->dev, "AMP short detected\n");
+
+	return IRQ_RETVAL(!cs40l26_error_release(cs40l26, CS40L26_AMP_SHORT_ERR_RLS));
+}
+
+static irqreturn_t cs40l26_vpbr_flag(int irq, void *data)
+{
+	struct cs40l26_private *cs40l26 = data;
+
+	dev_err(cs40l26->dev, "VP voltage has dropped below brownout threshold\n");
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs40l26_vpbr_att_clr(int irq, void *data)
+{
+	struct cs40l26_private *cs40l26 = data;
+
+	dev_warn(cs40l26->dev, "Cleared attenuation applied by VP brownout event\n");
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs40l26_vbbr_flag(int irq, void *data)
+{
+	struct cs40l26_private *cs40l26 = data;
+
+	dev_err(cs40l26->dev, "VBST voltage has dropped below brownout threshold\n");
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs40l26_vbst_att_clr(int irq, void *data)
+{
+	struct cs40l26_private *cs40l26 = data;
+
+	dev_dbg(cs40l26->dev, "Cleared attenuation caused by VBST brownout\n");
+
+	return IRQ_HANDLED;
+}
+
+static const struct cs40l26_irq cs40l26_irqs[] = {
+	CS40L26_IRQ(GPIO1_RISE, "GPIO1 rise", cs40l26_gpio_rise),
+	CS40L26_IRQ(GPIO1_FALL, "GPIO1 fall", cs40l26_gpio_fall),
+	CS40L26_IRQ(GPIO2_RISE, "GPIO2 rise", cs40l26_gpio_rise),
+	CS40L26_IRQ(GPIO2_FALL, "GPIO2 fall", cs40l26_gpio_fall),
+	CS40L26_IRQ(GPIO3_RISE, "GPIO3 rise", cs40l26_gpio_rise),
+	CS40L26_IRQ(GPIO3_FALL, "GPIO3 fall", cs40l26_gpio_fall),
+	CS40L26_IRQ(GPIO4_RISE, "GPIO4 rise", cs40l26_gpio_rise),
+	CS40L26_IRQ(GPIO4_FALL, "GPIO4 fall", cs40l26_gpio_fall),
+	CS40L26_IRQ(WKSRC_STS_ANY, "Wakesource any", cs40l26_wakesource_any),
+	CS40L26_IRQ(WKSRC_STS_GPIO1, "Wakesource GPIO1", cs40l26_wakesource_gpio),
+	CS40L26_IRQ(WKSRC_STS_GPIO2, "Wakesource GPIO2", cs40l26_wakesource_gpio),
+	CS40L26_IRQ(WKSRC_STS_GPIO3, "Wakesource GPIO3", cs40l26_wakesource_gpio),
+	CS40L26_IRQ(WKSRC_STS_GPIO4, "Wakesource GPIO4", cs40l26_wakesource_gpio),
+	CS40L26_IRQ(WKSRC_STS_I2C, "Wakesource I2C", cs40l26_wakesource_iic),
+	CS40L26_IRQ(BST_OVP_ERR, "Boost overvoltage error", cs40l26_bst_ovp_err),
+	CS40L26_IRQ(BST_DCM_UVP_ERR, "Boost undervoltage error", cs40l26_bst_uv_err),
+	CS40L26_IRQ(BST_SHORT_ERR, "Boost short", cs40l26_bst_short),
+	CS40L26_IRQ(BST_IPK_FLAG, "Current limited", cs40l26_ipk_flag),
+	CS40L26_IRQ(TEMP_ERR, "Die overtemperature error", cs40l26_temp_err),
+	CS40L26_IRQ(AMP_ERR, "Amp short", cs40l26_amp_short),
+	CS40L26_IRQ(VIRTUAL2_MBOX_WR, "Mailbox interrupt", cs40l26_handle_mbox_buffer),
+	CS40L26_IRQ(VPBR_FLAG, "VP brownout", cs40l26_vpbr_flag),
+	CS40L26_IRQ(VPBR_ATT_CLR, "VPBR attenuation cleared", cs40l26_vpbr_att_clr),
+	CS40L26_IRQ(VBBR_FLAG, "VBST brownout", cs40l26_vbbr_flag),
+	CS40L26_IRQ(VBBR_ATT_CLR, "VBST attenuation cleared", cs40l26_vbst_att_clr),
+};
+
+static const struct regmap_irq cs40l26_reg_irqs[] = {
+	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO1_RISE),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO1_FALL),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO2_RISE),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO2_FALL),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO3_RISE),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO3_FALL),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO4_RISE),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO4_FALL),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_ANY),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_GPIO1),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_GPIO2),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_GPIO3),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_GPIO4),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_I2C),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, BST_OVP_ERR),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, BST_DCM_UVP_ERR),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, BST_SHORT_ERR),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, BST_IPK_FLAG),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, TEMP_ERR),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, AMP_ERR),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, VIRTUAL2_MBOX_WR),
+	CS40L26_REG_IRQ(IRQ1_EINT_2, VPBR_FLAG),
+	CS40L26_REG_IRQ(IRQ1_EINT_2, VPBR_ATT_CLR),
+	CS40L26_REG_IRQ(IRQ1_EINT_2, VBBR_FLAG),
+	CS40L26_REG_IRQ(IRQ1_EINT_2, VBBR_ATT_CLR),
+};
+
+static const struct regmap_irq_chip cs40l26_regmap_irq_chip = {
+	.name = "cs40l26 IRQ1 Controller",
+	.status_base = CS40L26_IRQ1_EINT_1,
+	.mask_base = CS40L26_IRQ1_MASK_1,
+	.ack_base = CS40L26_IRQ1_EINT_1,
+	.num_regs = 2,
+	.irqs = cs40l26_reg_irqs,
+	.num_irqs = ARRAY_SIZE(cs40l26_reg_irqs),
+	.runtime_pm = true,
+};
 
 static struct cs40l26_pseq_op *cs40l26_pseq_op_format(struct cs40l26_private *cs40l26,
 		u32 addr, u32 data, u8 op_code)
@@ -3182,18 +3074,15 @@ static int cs40l26_wksrc_config(struct cs40l26_private *cs40l26)
 	else
 		mask_wksrc = 0;
 
-	val = BIT(CS40L26_IRQ1_WKSRC_STS_SPI) |
-			(mask_wksrc << CS40L26_IRQ1_WKSRC_STS_GPIO2) |
-			(mask_wksrc << CS40L26_IRQ1_WKSRC_STS_GPIO3) |
-			(mask_wksrc << CS40L26_IRQ1_WKSRC_STS_GPIO4);
+	val = CS40L26_WKSRC_STS_SPI_MASK |
+			(mask_wksrc ? CS40L26_WKSRC_STS_GPIO2_MASK : 0) |
+			(mask_wksrc ? CS40L26_WKSRC_STS_GPIO3_MASK : 0) |
+			(mask_wksrc ? CS40L26_WKSRC_STS_GPIO4_MASK : 0);
 
-	mask = BIT(CS40L26_IRQ1_WKSRC_STS_ANY) |
-			BIT(CS40L26_IRQ1_WKSRC_STS_GPIO1) |
-			BIT(CS40L26_IRQ1_WKSRC_STS_I2C) |
-			BIT(CS40L26_IRQ1_WKSRC_STS_SPI) |
-			BIT(CS40L26_IRQ1_WKSRC_STS_GPIO2) |
-			BIT(CS40L26_IRQ1_WKSRC_STS_GPIO3) |
-			BIT(CS40L26_IRQ1_WKSRC_STS_GPIO4);
+	mask = CS40L26_WKSRC_STS_ANY_MASK | CS40L26_WKSRC_STS_GPIO1_MASK |
+			CS40L26_WKSRC_STS_I2C_MASK | CS40L26_WKSRC_STS_SPI_MASK |
+			CS40L26_WKSRC_STS_GPIO2_MASK | CS40L26_WKSRC_STS_GPIO3_MASK |
+			CS40L26_WKSRC_STS_GPIO4_MASK;
 
 	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, val, mask);
 }
@@ -3217,8 +3106,8 @@ static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 		return error;
 
 	if (mask_gpio)
-		val = (u32) GENMASK(CS40L26_IRQ1_GPIO4_FALL,
-				CS40L26_IRQ1_GPIO2_RISE);
+		val = (u32) GENMASK(CS40L26_GPIO4_FALL_IRQ,
+				CS40L26_GPIO2_RISE_IRQ);
 	else
 		val = 0;
 
@@ -3239,7 +3128,7 @@ static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 	}
 
 	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, val,
-			GENMASK(CS40L26_IRQ1_GPIO4_FALL, CS40L26_IRQ1_GPIO1_RISE));
+			GENMASK(CS40L26_GPIO4_FALL_IRQ, CS40L26_GPIO1_RISE_IRQ));
 }
 
 static const struct cs40l26_brwnout_limits cs40l26_brwnout_params[] = {
@@ -3303,7 +3192,7 @@ static int cs40l26_brwnout_prevention_init(struct cs40l26_private *cs40l26)
 	}
 
 	if (cs40l26->vbbr.enable) {
-		pseq_mask = BIT(CS40L26_IRQ2_VBBR_ATT_CLR) | BIT(CS40L26_IRQ2_VBBR_FLAG);
+		pseq_mask = CS40L26_VBBR_ATT_CLR_MASK | CS40L26_VBBR_FLAG_MASK;
 
 		vbbr_config = (cs40l26->vbbr.thld_uv / CS40L26_VBBR_THLD_UV_DIV) &
 								CS40L26_VBBR_THLD_MASK;
@@ -3351,7 +3240,7 @@ static int cs40l26_brwnout_prevention_init(struct cs40l26_private *cs40l26)
 	}
 
 	if (cs40l26->vpbr.enable) {
-		pseq_mask |= BIT(CS40L26_IRQ2_VPBR_ATT_CLR) | BIT(CS40L26_IRQ2_VPBR_FLAG);
+		pseq_mask |= CS40L26_VPBR_ATT_CLR_MASK | CS40L26_VPBR_FLAG_MASK;
 
 		vpbr_config = ((cs40l26->vpbr.thld_uv / CS40L26_VPBR_THLD_UV_DIV) - 51) &
 								CS40L26_VPBR_THLD_MASK;
@@ -3550,7 +3439,7 @@ static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
 		return error;
 
 	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, 0,
-			BIT(CS40L26_IRQ1_BST_IPK_FLAG));
+			CS40L26_BST_IPK_FLAG_MASK);
 }
 
 static int cs40l26_bst_ctl_config(struct cs40l26_private *cs40l26)
@@ -3836,9 +3725,9 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	}
 
 	error = cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, 0,
-			BIT(CS40L26_IRQ1_AMP_ERR) | BIT(CS40L26_IRQ1_TEMP_ERR) |
-			BIT(CS40L26_IRQ1_BST_SHORT_ERR) | BIT(CS40L26_IRQ1_BST_DCM_UVP_ERR) |
-			BIT(CS40L26_IRQ1_BST_OVP_ERR) | BIT(CS40L26_IRQ1_VIRTUAL2_MBOX_WR));
+			CS40L26_AMP_ERR_MASK | CS40L26_TEMP_ERR_MASK |
+			CS40L26_BST_SHORT_ERR_MASK | CS40L26_BST_DCM_UVP_ERR_MASK |
+			CS40L26_BST_OVP_ERR_MASK | CS40L26_VIRTUAL2_MBOX_WR_MASK);
 	if (error)
 		return error;
 
@@ -4314,6 +4203,38 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 	return cs40l26_dsp_config(cs40l26);
 }
 
+static int cs40l26_request_irq(struct cs40l26_private *cs40l26)
+{
+	int error, irq, i;
+
+	error = devm_regmap_add_irq_chip(cs40l26->dev, cs40l26->regmap,
+			cs40l26->irq, IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_LOW,
+			-1, &cs40l26_regmap_irq_chip, &cs40l26->irq_data);
+	if (error < 0) {
+		dev_err(cs40l26->dev, "Failed to request threaded IRQ: %d\n", error);
+		return error;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cs40l26_irqs); i++) {
+		irq = regmap_irq_get_virq(cs40l26->irq_data, cs40l26_irqs[i].irq);
+		if (irq < 0) {
+			dev_err(cs40l26->dev, "Failed to get %s\n", cs40l26_irqs[i].name);
+			return irq;
+		}
+
+		error = devm_request_threaded_irq(cs40l26->dev, irq, NULL, cs40l26_irqs[i].handler,
+				IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_LOW,
+				cs40l26_irqs[i].name, cs40l26);
+		if (error) {
+			dev_err(cs40l26->dev, "Failed to request IRQ %s: %d\n",
+					cs40l26_irqs[i].name, error);
+			return error;
+		}
+	}
+
+	return error;
+}
+
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 {
 	struct device *dev = cs40l26->dev;
@@ -4354,12 +4275,9 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 		return error;
 
 	if (cs40l26->fw_defer && cs40l26->fw_loaded) {
-		error = devm_request_threaded_irq(dev, cs40l26->irq, NULL, cs40l26_irq,
-				IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_LOW, "cs40l26", cs40l26);
-		if (error) {
-			dev_err(dev, "Failed to request threaded IRQ: %d\n", error);
+		error = cs40l26_request_irq(cs40l26);
+		if (error)
 			return error;
-		}
 
 		cs40l26->fw_defer = false;
 	}
@@ -4795,12 +4713,9 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 		if (error)
 			goto err;
 
-		error = devm_request_threaded_irq(dev, cs40l26->irq, NULL, cs40l26_irq,
-				IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_LOW, "cs40l26", cs40l26);
-		if (error) {
-			dev_err(dev, "Failed to request threaded IRQ\n");
+		error = cs40l26_request_irq(cs40l26);
+		if (error)
 			goto err;
-		}
 	}
 
 	error = cs40l26_input_init(cs40l26);
