@@ -273,8 +273,19 @@ static int ln8411_reset(struct ln8411_device *ln8411)
 	if (ret)
 		goto err_out;
 
-	if (ln8411->irq)
+	if (ln8411->irq) {
 		enable_irq(ln8411->irq);
+		usleep_range(5000, 5100);
+
+		ret = regmap_clear_bits(ln8411->regmap, LN8411_LION_INT_MASK_2, LN8411_CLEAR_INT);
+		if (ret)
+			goto err_out;
+
+		ret = regmap_clear_bits(ln8411->regmap, LN8411_LION_INT_MASK_2,
+					LN8411_PAUSE_INT_UPDATE);
+		if (ret)
+			goto err_out;
+	}
 
 err_out:
 	mutex_unlock(&ln8411->lock);
@@ -2318,7 +2329,11 @@ static int ln8411_hw_init(struct ln8411_device *ln8411)
 	if (ln8411->role > LN8411_DUAL)
 		return ln8411_cfg_sync(ln8411);
 
-	return ret;
+	ret = regmap_set_bits(ln8411->regmap, LN8411_LION_INT_MASK_2, LN8411_PAUSE_INT_UPDATE);
+	if (ret)
+		return ret;
+
+	return regmap_set_bits(ln8411->regmap, LN8411_LION_INT_MASK_2, LN8411_CLEAR_INT);
 }
 
 static int ln8411_parse_dt_conv(struct device *dev, struct ln8411_init_data *init_data)
@@ -2895,6 +2910,15 @@ static int ln8411_probe(struct i2c_client *client, const struct i2c_device_id *i
 		ret = ln8411_regmap_irq_init(ln8411, dev);
 		if (ret)
 			return ret;
+
+		usleep_range(5000, 5100);
+
+		ret = regmap_clear_bits(ln8411->regmap, LN8411_LION_INT_MASK_2, LN8411_CLEAR_INT);
+		if (ret)
+			return ret;
+
+		return regmap_clear_bits(ln8411->regmap, LN8411_LION_INT_MASK_2,
+					 LN8411_PAUSE_INT_UPDATE);
 	}
 
 	return ret;
