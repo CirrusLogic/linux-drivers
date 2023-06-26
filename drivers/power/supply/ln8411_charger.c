@@ -238,6 +238,7 @@ static int ln8411_get_charger_health(struct ln8411_device *ln8411, union power_s
 
 static int ln8411_reset(struct ln8411_device *ln8411)
 {
+	const union power_supply_propval psy_val = { .intval = POWER_SUPPLY_STATUS_NOT_CHARGING };
 	int ret = 0;
 
 	cancel_delayed_work_sync(&ln8411->pulldown_res_work);
@@ -246,11 +247,16 @@ static int ln8411_reset(struct ln8411_device *ln8411)
 
 	mutex_lock(&ln8411->lock);
 
+	/* Converter must be in standby mode before resetting to prevent damage*/
+	if (ln8411->state.charging_status != POWER_SUPPLY_STATUS_NOT_CHARGING) {
+		ret = power_supply_set_property(ln8411->charger,
+						POWER_SUPPLY_PROP_STATUS, &psy_val);
+		if (ret)
+			return ret;
+	}
+
 	if (ln8411->irq)
 		disable_irq(ln8411->irq);
-
-	if (ln8411->en_gpio)
-		gpiod_set_value(ln8411->en_gpio, 0);
 
 	if (ln8411->reset_gpio) {
 		gpiod_set_value_cansleep(ln8411->reset_gpio, 1);
@@ -2556,17 +2562,8 @@ static int ln8411_parse_dt(struct device *dev, struct ln8411_device *ln8411)
 
 static inline int ln8411_do_soft_reset(struct ln8411_device *ln8411)
 {
-	const union power_supply_propval psy_val = { .intval = POWER_SUPPLY_STATUS_NOT_CHARGING };
 	unsigned int reg_val;
 	int ret;
-
-	/* Converter must be in standby mode before soft resetting to prevent damage*/
-	if (ln8411->state.charging_status != POWER_SUPPLY_STATUS_NOT_CHARGING) {
-		ret = power_supply_set_property(ln8411->charger,
-						POWER_SUPPLY_PROP_STATUS, &psy_val);
-		if (ret)
-			return ret;
-	}
 
 	ret = ln8411_set_lion_ctrl(ln8411, LN8411_LION_CTRL_EN_RESET);
 	if (ret)
