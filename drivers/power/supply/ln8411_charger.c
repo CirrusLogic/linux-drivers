@@ -2775,10 +2775,19 @@ static int ln8411_is_supported(struct ln8411_device *ln8411)
 		return -EINVAL;
 	}
 
-	ret = regmap_register_patch(ln8411->regmap, ln8411_otp_tbls[val].otp_regs,
+	mutex_lock(&ln8411->lock);
+	regcache_cache_only(ln8411->regmap, true);
+
+	/* We must sync the regmap cache with the overrides form the in-house MCU applied at POR */
+	ret = regmap_multi_reg_write(ln8411->regmap, ln8411_otp_tbls[val].otp_regs,
 					ln8411_otp_tbls[val].num_otp_regs);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&ln8411->lock);
 		return ret;
+	}
+
+	regcache_cache_only(ln8411->regmap, false);
+	mutex_unlock(&ln8411->lock);
 
 	ln8411->rev = dev_rev_id;
 
