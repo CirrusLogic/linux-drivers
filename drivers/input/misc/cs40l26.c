@@ -3773,21 +3773,23 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	u32 reg, nwaves, value;
 	int error;
 
-	error = regmap_update_bits(regmap, CS40L26_PWRMGT_CTL,
-			CS40L26_MEM_RDY_MASK, 1 << CS40L26_MEM_RDY_SHIFT);
-	if (error) {
-		dev_err(dev, "Failed to set MEM_RDY to initialize RAM\n");
-		return error;
+	if (!cs40l26->fw_rom_only) {
+		error = regmap_update_bits(regmap, CS40L26_PWRMGT_CTL,
+				CS40L26_MEM_RDY_MASK, 1 << CS40L26_MEM_RDY_SHIFT);
+		if (error) {
+			dev_err(dev, "Failed to set MEM_RDY to initialize RAM\n");
+			return error;
+		}
+
+		error = cl_dsp_get_reg(cs40l26->dsp, "CALL_RAM_INIT", CL_DSP_XM_UNPACKED_TYPE,
+				cs40l26->fw_id, &reg);
+		if (error)
+			return error;
+
+		error = cs40l26_dsp_write(cs40l26, reg, 1);
+		if (error)
+			return error;
 	}
-
-	error = cl_dsp_get_reg(cs40l26->dsp, "CALL_RAM_INIT", CL_DSP_XM_UNPACKED_TYPE,
-			cs40l26->fw_id, &reg);
-	if (error)
-		return error;
-
-	error = cs40l26_dsp_write(cs40l26, reg, 1);
-	if (error)
-		return error;
 
 	cs40l26->fw_loaded = true;
 
@@ -3803,9 +3805,11 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (error)
 		return error;
 
-	error = cs40l26_dsp_start(cs40l26);
-	if (error)
-		return error;
+	if (!cs40l26->fw_rom_only) {
+		error = cs40l26_dsp_start(cs40l26);
+		if (error)
+			return error;
+	}
 
 	error = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_PREVENT_HIBERNATE);
 	if (error)
@@ -4238,11 +4242,13 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 		return error;
 	}
 
-	error = cs40l26_dsp_pre_config(cs40l26);
-	if (error)
-		return error;
+	if (!cs40l26->fw_rom_only) {
+		error = cs40l26_dsp_pre_config(cs40l26);
+		if (error)
+			return error;
+	}
 
-	error = cl_dsp_firmware_parse(cs40l26->dsp, fw, true);
+	error = cl_dsp_firmware_parse(cs40l26->dsp, fw, !cs40l26->fw_rom_only);
 	release_firmware(fw);
 	if (error)
 		return error;
@@ -4588,6 +4594,8 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 	int error;
 
 	cs40l26->fw_defer = device_property_present(dev, "cirrus,fw-defer");
+
+	cs40l26->fw_rom_only = device_property_present(dev, "cirrus,fw-rom-only");
 
 	cs40l26->calib_fw = device_property_present(dev, "cirrus,calib-fw");
 
