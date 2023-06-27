@@ -1859,7 +1859,6 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	ueffect = cs40l26_uploaded_effect_find(cs40l26, effect->id);
 	if (IS_ERR_OR_NULL(ueffect)) {
 		dev_err(dev, "No such effect to play back\n");
-		error = PTR_ERR(ueffect);
 		goto err_mutex;
 	}
 
@@ -1890,7 +1889,6 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		break;
 	default:
 		dev_err(dev, "Invalid ff_effect direction: 0x%X\n", effect->direction);
-		error = -EINVAL;
 		goto err_mutex;
 	}
 
@@ -1909,7 +1907,6 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		break;
 	default:
 		dev_err(dev, "Invalid waveform type: 0x%X\n", effect->u.periodic.waveform);
-		error = -EINVAL;
 		goto err_mutex;
 	}
 
@@ -2217,8 +2214,6 @@ static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26, u8 nse
 			total_len += section_len;
 			loop_len = 0;
 		}
-
-		section_len = 0;
 	}
 
 	*owt_wlen = (total_len * (global_rep + 1)) | CS40L26_WT_TYPE10_WAVELEN_CALCULATED;
@@ -2540,10 +2535,8 @@ static int cs40l26_refactor_owt_composite(struct cs40l26_private *cs40l26, s16 *
 
 	error = cs40l26_owt_calculate_wlength(cs40l26, out_nsections, global_rep, data, data_bytes,
 			&wlen);
-	if (error) {
-		kfree(*out_data);
+	if (error)
 		goto data_err_free;
-	}
 
 	cl_dsp_memchunk_write(&out_ch, 24, wlen);
 	cl_dsp_memchunk_write(&out_ch, 8, 0x00); /* Pad */
@@ -2688,9 +2681,9 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 		struct cs40l26_uploaded_effect *ueffect)
 {
 	struct device *dev = cs40l26->dev;
+	u8 *refactored_data = NULL;
 	u32 nwaves, min_index, max_index, trigger_index;
 	int error, data_len, refactored_data_len;
-	u8 *refactored_data;
 	u16 index, bank;
 
 	data_len = effect->u.periodic.custom_len;
@@ -2710,14 +2703,14 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 					cs40l26->raw_custom_data, data_len, &refactored_data);
 			if (refactored_data_len <= 0) {
 				dev_err(dev, "Failed to refactor OWT\n");
-				return -ENOMEM;
+				error = -ENOMEM;
+				goto err_free;
 			}
 		}
 
 		error = cs40l26_owt_upload(cs40l26, refactored_data, refactored_data_len);
-		kfree(refactored_data);
 		if (error)
-			return error;
+			goto err_free;
 
 		bank = (u16) CS40L26_OWT_BANK_ID;
 		index = (u16) cs40l26->num_owt_effects;
@@ -2728,13 +2721,14 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 
 	error = cs40l26_get_num_waves(cs40l26, &nwaves);
 	if (error)
-		return error;
+		goto err_free;
 
 	switch (bank) {
 	case CS40L26_RAM_BANK_ID:
 		if (nwaves - cs40l26->num_owt_effects == 0) {
 			dev_err(dev, "No waveforms in RAM bank\n");
-			return -EINVAL;
+			error = -EINVAL;
+			goto err_free;
 		}
 
 		min_index = CS40L26_RAM_INDEX_START;
@@ -2750,14 +2744,16 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 		break;
 	default:
 		dev_err(dev, "Bank ID (%u) invalid\n", bank);
-		return -EINVAL;
+		error = -EINVAL;
+		goto err_free;
 	}
 
 	trigger_index = index + min_index;
 	if (trigger_index < min_index || trigger_index > max_index) {
 		dev_err(dev, "Index 0x%X out of bounds (0x%X - 0x%X)\n", trigger_index, min_index,
 				max_index);
-		return -EINVAL;
+		error = -EINVAL;
+		goto err_free;
 	}
 	dev_dbg(dev, "ID = %d, trigger index = 0x%08X\n", effect->id, trigger_index);
 
@@ -2768,6 +2764,8 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 	ueffect->wvfrm_bank = bank;
 	ueffect->trigger_index = trigger_index;
 
+err_free:
+	kfree(refactored_data);
 	return error;
 }
 
