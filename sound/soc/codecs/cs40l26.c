@@ -762,35 +762,31 @@ static int cs40l26_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 static int cs40l26_pcm_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
-	struct cs40l26_codec *codec =
-			snd_soc_component_get_drvdata(dai->component);
-	u8 asp_rx_wl, asp_rx_width, global_fs;
-	int error, lrck;
+	struct cs40l26_codec *codec = snd_soc_component_get_drvdata(dai->component);
+	int error, lrck = params_rate(params);
+	u32 asp_rx_wl, asp_rx_width, ultrasonic;
 
 	error = cs40l26_pm_enter(codec->dev);
 	if (error)
 		return error;
 
-	lrck = params_rate(params);
-	switch (lrck) {
-	case 48000:
-		global_fs = CS40L26_GLOBAL_FS_48K;
-		break;
-	case 96000:
-		global_fs = CS40L26_GLOBAL_FS_96K;
-		break;
-	default:
+	if (lrck == 48000)
+		ultrasonic = 0;
+	else if (lrck == 96000)
+		ultrasonic = 1;
+	else
 		error = -EINVAL;
+
+	if (error) {
 		dev_err(codec->dev, "Invalid sample rate: %d Hz\n", lrck);
 		goto err_pm;
 	}
 
-	error = regmap_update_bits(codec->regmap, CS40L26_GLOBAL_SAMPLE_RATE,
-			CS40L26_GLOBAL_FS_MASK, global_fs);
-	if (error) {
-		dev_err(codec->dev, "Failed to write global fs\n");
+	error = regmap_update_bits(codec->regmap, CS40L26_MONITOR_FILT,
+				   CS40L26_VIMON_DUAL_RATE_MASK,
+				   FIELD_PREP(CS40L26_VIMON_DUAL_RATE_MASK, ultrasonic));
+	if (error)
 		goto err_pm;
-	}
 
 	asp_rx_wl = (u8) (params_width(params) & 0xFF);
 	error = regmap_update_bits(codec->regmap, CS40L26_ASP_DATA_CONTROL5,

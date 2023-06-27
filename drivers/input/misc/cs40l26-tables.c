@@ -225,6 +225,7 @@ bool cs40l26_readable_reg(struct device *dev, unsigned int reg)
 	case CS40L26_BST_IPK_CTL:
 	case CS40L26_BST_DCM_CTL:
 	case CS40L26_TEST_LBST:
+	case CS40L26_MONITOR_FILT:
 	case CS40L26_SPKMON_VMON_DEC_OUT_DATA:
 	case CS40L26_ENABLES_AND_CODES_DIG:
 	case CS40L26_ASP_ENABLES1:
