@@ -1003,6 +1003,7 @@ struct cs40l26_private {
 	enum cs40l26_pm_state pm_state;
 	u32 fw_id;
 	bool fw_defer;
+	bool fw_rom_only;
 	bool fw_loaded;
 	bool calib_fw;
 	enum cs40l26_vibe_state vibe_state;
