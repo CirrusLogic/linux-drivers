@@ -151,7 +151,7 @@
 #define LN8411_FSW_SET_MASK             GENMASK(7, 3)
 #define LN8411_FSW_DFLT                 0x6
 #define LN8411_FSW_DFLT_HZ             390000
-#define LN8411_FSW_SHIFT                4
+#define LN8411_FSW_SHIFT                3
 #define LN8411_FREQ_SHIFT               BIT(1)
 #define LN8411_NUM_FREQ_VAL             32
 
