@@ -2336,6 +2336,10 @@ static int ln8411_hw_init(struct ln8411_device *ln8411)
 	if (ln8411->role > LN8411_DUAL)
 		return ln8411_cfg_sync(ln8411);
 
+	ret = regmap_set_bits(ln8411->regmap, LN8411_ADC_CFG_2, LN8411_AUTO_CLEAR_LATCHED_STS);
+	if (ret)
+		return ret;
+
 	ret = regmap_set_bits(ln8411->regmap, LN8411_LION_INT_MASK_2, LN8411_PAUSE_INT_UPDATE);
 	if (ret)
 		return ret;
