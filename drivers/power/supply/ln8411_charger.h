@@ -318,6 +318,7 @@
 #define LN8411_B0_DEV_REV_ID		0xa020
 
 #define LN8411_ADC_CFG_2                0x76
+#define LN8411_AUTO_CLEAR_LATCHED_STS	BIT(7)
 #define LN8411_PAUSE_ADC_UPDATES        BIT(5)
 
 #define LN8411_LION_COMP_CTRL_1		0x79
