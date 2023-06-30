@@ -1328,6 +1328,11 @@ static ssize_t q_stored_show(struct device *dev, struct device_attribute *attr, 
 	u32 reg, q_stored;
 	int ret;
 
+	if (cs40l26->revid == CS40L26_REVID_B2) {
+		dev_err(cs40l26->dev, "q_stored not support for revision %02X\n", cs40l26->revid);
+		return -EPERM;
+	}
+
 	ret = cs40l26_pm_enter(cs40l26->dev);
 	if (ret)
 		return ret;
@@ -1360,6 +1365,11 @@ static ssize_t q_stored_store(struct device *dev, struct device_attribute *attr,
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, q_stored;
 	int ret;
+
+	if (cs40l26->revid == CS40L26_REVID_B2) {
+		dev_err(cs40l26->dev, "q_stored not support for revision %02X\n", cs40l26->revid);
+		return -EPERM;
+	}
 
 	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
 
