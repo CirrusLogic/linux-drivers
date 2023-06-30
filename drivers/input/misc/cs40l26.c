@@ -3509,16 +3509,19 @@ static int calib_device_tree_config(struct cs40l26_private *cs40l26)
 		}
 	}
 
-	if (cs40l26->q_default <= CS40L26_Q_EST_MAX && cs40l26->q_default >= CS40L26_Q_EST_MIN) {
-		error = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_VIBEGEN_ALGO_ID, &reg);
-		if (error)
-			return error;
+	if (cs40l26->revid < CS40L26_REVID_B2) {
+		if (cs40l26->q_default <= CS40L26_Q_EST_MAX &&
+							cs40l26->q_default >= CS40L26_Q_EST_MIN) {
+			error = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED", CL_DSP_XM_UNPACKED_TYPE,
+					CS40L26_VIBEGEN_ALGO_ID, &reg);
+			if (error)
+				return error;
 
-		error = regmap_write(cs40l26->regmap, reg, cs40l26->q_default);
-		if (error) {
-			dev_err(cs40l26->dev, "Failed to write default Q\n");
-			return error;
+			error = regmap_write(cs40l26->regmap, reg, cs40l26->q_default);
+			if (error) {
+				dev_err(cs40l26->dev, "Failed to write default Q\n");
+				return error;
+			}
 		}
 	}
 
