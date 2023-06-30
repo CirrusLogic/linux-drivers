@@ -40,6 +40,39 @@ static ssize_t owt_lib_compat_show(struct device *dev, struct device_attribute *
 }
 static DEVICE_ATTR_RO(owt_lib_compat);
 
+static ssize_t excursion_limit_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 reg, ep_limit;
+	int ret;
+
+	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID))
+		return -EPERM;
+
+	ret = kstrtou32(buf, 10, &ep_limit);
+
+	if (ret || ep_limit < CS40L26_EXCURSION_LIMIT_MIN || ep_limit > CS40L26_UINT_24_BITS_MAX)
+		return -EINVAL;
+
+	ret = cs40l26_pm_enter(cs40l26->dev);
+	if (ret)
+		return ret;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "PROTECTION_XM_OP_GAIN",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EP_ALGO_ID, &reg);
+	if (ret)
+		goto err_pm;
+
+	ret = regmap_write(cs40l26->regmap, reg, ep_limit);
+
+err_pm:
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return ret ? ret : count;
+}
+static DEVICE_ATTR_WO(excursion_limit);
+
 static ssize_t halo_heartbeat_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -712,6 +745,7 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_redc_comp_enable.attr,
 	&dev_attr_swap_firmware.attr,
 	&dev_attr_owt_lib_compat.attr,
+	&dev_attr_excursion_limit.attr,
 	NULL,
 };
 
@@ -1831,7 +1865,6 @@ exit_mutex:
 
 	return ret ? ret : count;
 }
-
 static DEVICE_ATTR_RW(logging_en);
 
 static ssize_t logging_max_reset_store(struct device *dev,
