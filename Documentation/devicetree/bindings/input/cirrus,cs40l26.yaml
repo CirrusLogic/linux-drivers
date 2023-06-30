@@ -385,6 +385,13 @@ properties:
       Load calibration firmware ("cs40l26-calib.wmfw")
       instead of runtime firmware ("cs40l26.wmfw") at boot time.
 
+  cirrus,fw-rom-only:
+    type: boolean
+    description:
+      Probe and register the driver with ROM FW only. Not compatible with
+      cirrus,fw-defer or cirrus,calib-fw. Intended for use with device
+      revision 0xB2 and greater.
+
   cirrus,fw-defer:
     type: boolean
     description:
