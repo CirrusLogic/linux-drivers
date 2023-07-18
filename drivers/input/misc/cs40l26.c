@@ -2262,13 +2262,14 @@ static int cs40l26_owt_comp_data_size(struct cs40l26_private *cs40l26,
 	return size;
 }
 
-static int cs40l26_refactor_owt_composite(struct cs40l26_private *cs40l26, s16 *in_data,
-		u32 in_data_nibbles, u8 **out_data)
+static int cs40l26_composite_upload(struct cs40l26_private *cs40l26, s16 *in_data,
+		u32 in_data_nibbles)
 {
 	int pos_byte = 0, in_pos_nib = 2, in_data_bytes = 2 * in_data_nibbles;
 	u8 nsections, global_rep, out_nsections = 0;
 	int out_data_bytes = 0, data_bytes = 0;
 	struct device *dev = cs40l26->dev;
+	u8 *out_data = NULL;
 	u8 delay_section_data[CS40L26_WT_TYPE10_SECTION_BYTES_MIN];
 	u8 ncw_nsections, ncw_global_rep, *data, *ncw_data;
 	struct cs40l26_owt_section *sections;
@@ -2300,7 +2301,7 @@ static int cs40l26_refactor_owt_composite(struct cs40l26_private *cs40l26, s16 *
 	error = cs40l26_owt_get_section_info(cs40l26, &ch, sections, nsections);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to get section info\n");
-		return error;
+		goto sections_err_free;
 	}
 
 	data_bytes = cs40l26_owt_comp_data_size(cs40l26, nsections, sections);
@@ -2349,20 +2350,20 @@ static int cs40l26_refactor_owt_composite(struct cs40l26_private *cs40l26, s16 *
 			/* Skip Wlength */
 			error = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 24, NULL);
 			if (error)
-				return error;
+				goto data_err_free;
 
 			/* Skip Padding */
 			error = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8, NULL);
 			if (error)
-				return error;
+				goto data_err_free;
 
 			error = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8, &ncw_nsections);
 			if (error)
-				return error;
+				goto data_err_free;
 
 			error = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8, &ncw_global_rep);
 			if (error)
-				return error;
+				goto data_err_free;
 
 			if (ncw_global_rep != 0) {
 				dev_err(dev,
@@ -2412,14 +2413,14 @@ static int cs40l26_refactor_owt_composite(struct cs40l26_private *cs40l26, s16 *
 	}
 
 	out_data_bytes = data_bytes + CS40L26_WT_HEADER_COMP_SIZE;
-	*out_data = kcalloc(out_data_bytes, sizeof(u8), GFP_KERNEL);
-	if (!*out_data) {
+	out_data = kcalloc(out_data_bytes, sizeof(u8), GFP_KERNEL);
+	if (!out_data) {
 		dev_err(dev, "Failed to allocate space for composite\n");
 		error = -ENOMEM;
 		goto data_err_free;
 	}
 
-	out_ch = cl_dsp_memchunk_create((void *) *out_data, out_data_bytes);
+	out_ch = cl_dsp_memchunk_create((void *) out_data, out_data_bytes);
 	cl_dsp_memchunk_write(&out_ch, 16, CS40L26_WT_HEADER_DEFAULT_FLAGS);
 	cl_dsp_memchunk_write(&out_ch, 8, WT_TYPE_V6_COMPOSITE);
 	cl_dsp_memchunk_write(&out_ch, 24, CS40L26_WT_HEADER_OFFSET);
@@ -2428,21 +2429,25 @@ static int cs40l26_refactor_owt_composite(struct cs40l26_private *cs40l26, s16 *
 	error = cs40l26_owt_calculate_wlength(cs40l26, out_nsections, global_rep, data, data_bytes,
 			&wlen);
 	if (error)
-		goto data_err_free;
+		goto out_data_err_free;
 
 	cl_dsp_memchunk_write(&out_ch, 24, wlen);
 	cl_dsp_memchunk_write(&out_ch, 8, 0x00); /* Pad */
 	cl_dsp_memchunk_write(&out_ch, 8, out_nsections);
 	cl_dsp_memchunk_write(&out_ch, 8, global_rep);
 
-	memcpy(*out_data + out_ch.bytes, data, data_bytes);
+	memcpy(out_data + out_ch.bytes, data, data_bytes);
 
+	error = cs40l26_owt_upload(cs40l26, out_data, out_data_bytes);
+
+out_data_err_free:
+	kfree(out_data);
 data_err_free:
 	kfree(data);
 sections_err_free:
 	kfree(sections);
 
-	return error ? error : out_data_bytes;
+	return error;
 }
 
 static int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26)
@@ -2573,36 +2578,35 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 		struct cs40l26_uploaded_effect *ueffect)
 {
 	struct device *dev = cs40l26->dev;
-	u8 *refactored_data = NULL;
+	u8 *pwle_data = NULL;
 	u32 nwaves, min_index, max_index, trigger_index;
-	int error, data_len, refactored_data_len;
+	int error, data_len, pwle_data_len;
 	u16 index, bank;
 
 	data_len = effect->u.periodic.custom_len;
 
 	if (data_len > CS40L26_CUSTOM_DATA_SIZE) {
 		if (cs40l26->raw_custom_data[1] == CS40L26_WT_TYPE12_IDENTIFIER) {
-			refactored_data_len = cs40l26->raw_custom_data_len * 2;
-			refactored_data = kcalloc(refactored_data_len, sizeof(u8), GFP_KERNEL);
-			if (!refactored_data) {
+			pwle_data_len = cs40l26->raw_custom_data_len * 2;
+			pwle_data = kcalloc(pwle_data_len, sizeof(u8), GFP_KERNEL);
+			if (!pwle_data) {
 				dev_err(dev, "Failed to allocate space for PWLE\n");
 				return -ENOMEM;
 			}
 
-			memcpy(refactored_data, cs40l26->raw_custom_data, refactored_data_len);
+			memcpy(pwle_data, cs40l26->raw_custom_data, pwle_data_len);
+
+			error = cs40l26_owt_upload(cs40l26, pwle_data, pwle_data_len);
+			if (error)
+				return error;
 		} else {
-			refactored_data_len = cs40l26_refactor_owt_composite(cs40l26,
-					cs40l26->raw_custom_data, data_len, &refactored_data);
-			if (refactored_data_len <= 0) {
+			error = cs40l26_composite_upload(cs40l26, cs40l26->raw_custom_data,
+					data_len);
+			if (error) {
 				dev_err(dev, "Failed to refactor OWT\n");
-				error = -ENOMEM;
-				goto err_free;
+				return error;
 			}
 		}
-
-		error = cs40l26_owt_upload(cs40l26, refactored_data, refactored_data_len);
-		if (error)
-			goto err_free;
 
 		bank = (u16) CS40L26_OWT_BANK_ID;
 		index = (u16) cs40l26->num_owt_effects;
@@ -2613,14 +2617,13 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 
 	error = cs40l26_get_num_waves(cs40l26, &nwaves);
 	if (error)
-		goto err_free;
+		return error;
 
 	switch (bank) {
 	case CS40L26_RAM_BANK_ID:
 		if (nwaves - cs40l26->num_owt_effects == 0) {
 			dev_err(dev, "No waveforms in RAM bank\n");
-			error = -EINVAL;
-			goto err_free;
+			return -EINVAL;
 		}
 
 		min_index = CS40L26_RAM_INDEX_START;
@@ -2636,16 +2639,14 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 		break;
 	default:
 		dev_err(dev, "Bank ID (%u) invalid\n", bank);
-		error = -EINVAL;
-		goto err_free;
+		return -EINVAL;
 	}
 
 	trigger_index = index + min_index;
 	if (trigger_index < min_index || trigger_index > max_index) {
 		dev_err(dev, "Index 0x%X out of bounds (0x%X - 0x%X)\n", trigger_index, min_index,
 				max_index);
-		error = -EINVAL;
-		goto err_free;
+		return -EINVAL;
 	}
 	dev_dbg(dev, "ID = %d, trigger index = 0x%08X\n", effect->id, trigger_index);
 
@@ -2656,8 +2657,6 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 	ueffect->wvfrm_bank = bank;
 	ueffect->trigger_index = trigger_index;
 
-err_free:
-	kfree(refactored_data);
 	return error;
 }
 
