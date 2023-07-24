@@ -1057,7 +1057,7 @@ static irqreturn_t cs40l26_ipk_flag(int irq, void *data)
 {
 	struct cs40l26_private *cs40l26 = data;
 
-	dev_dbg(cs40l26->dev, "Current is being limited by LBST inductor\\n");
+	dev_dbg(cs40l26->dev, "Current is being limited by LBST inductor\n");
 
 	return IRQ_HANDLED;
 }
@@ -1230,7 +1230,7 @@ static struct cs40l26_pseq_op *cs40l26_pseq_op_format(struct cs40l26_private *cs
 		op->words[0] |= ((data & CS40L26_PSEQ_WRITE_ADDR8_UPPER_DATA_MASK) >>
 				CS40L26_PSEQ_WRITE_ADDR8_UPPER_DATA_SHIFT);
 		op->words[1] = data & CS40L26_PSEQ_WRITE_ADDR8_LOWER_DATA_MASK;
-			break;
+		break;
 	default:
 		dev_err(cs40l26->dev, "Invalid PSEQ Op. Code 0x%02X\n", op_code);
 		return ERR_PTR(-EINVAL);
@@ -1241,14 +1241,16 @@ static struct cs40l26_pseq_op *cs40l26_pseq_op_format(struct cs40l26_private *cs
 
 static int cs40l26_pseq_find_end(struct cs40l26_private *cs40l26, struct cs40l26_pseq_op **op_end)
 {
+	u8 operation = 0;
 	struct cs40l26_pseq_op *op;
 
 	list_for_each_entry(op, &cs40l26->pseq_op_head, list) {
-		if (op->operation == CS40L26_PSEQ_OP_END)
+		operation = op->operation;
+		if (operation == CS40L26_PSEQ_OP_END)
 			break;
 	}
 
-	if (op->operation != CS40L26_PSEQ_OP_END) {
+	if (operation != CS40L26_PSEQ_OP_END) {
 		dev_err(cs40l26->dev, "Failed to find PSEQ list terminator\n");
 		return -ENOENT;
 	}
@@ -1268,7 +1270,7 @@ int cs40l26_pseq_write(struct cs40l26_private *cs40l26, u32 addr,
 
 	op_new = cs40l26_pseq_op_format(cs40l26, addr, data, op_code);
 	if (IS_ERR_OR_NULL(op_new))
-		return PTR_ERR(op_new);
+		return op_new ? PTR_ERR(op_new) : -EINVAL;
 
 	if (update) {
 		list_for_each_entry(op, &cs40l26->pseq_op_head, list) {
@@ -1591,6 +1593,7 @@ static struct cs40l26_uploaded_effect *cs40l26_uploaded_effect_find(struct cs40l
 		int id)
 {
 	struct list_head *head = &cs40l26->effect_head;
+	int uid = -1;
 	struct cs40l26_uploaded_effect *ueffect;
 
 	if (list_empty(head)) {
@@ -1599,13 +1602,14 @@ static struct cs40l26_uploaded_effect *cs40l26_uploaded_effect_find(struct cs40l
 	}
 
 	list_for_each_entry(ueffect, head, list) {
-		if (ueffect->id == id)
+		uid = ueffect->id;
+		if (uid == id)
 			break;
 	}
 
-	if (ueffect->id != id) {
+	if (uid != id) {
 		dev_dbg(cs40l26->dev, "No such effect (ID = %d)\n", id);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EINVAL);
 	}
 
 	return ueffect;
@@ -2861,7 +2865,7 @@ static void cs40l26_erase_worker(struct work_struct *work)
 	if (IS_ERR_OR_NULL(ueffect)) {
 		dev_err(cs40l26->dev, "No such effect to erase (%d)\n",
 				effect_id);
-		error = PTR_ERR(ueffect);
+		error = ueffect ? PTR_ERR(ueffect) : -EINVAL;
 		goto out_mutex;
 	}
 
@@ -2969,7 +2973,7 @@ static int cs40l26_input_init(struct cs40l26_private *cs40l26)
 	 * input_ff_create() automatically sets FF_RUMBLE capabilities;
 	 * we want to restrtict this to only FF_PERIODIC
 	 */
-	__clear_bit(FF_RUMBLE, cs40l26->input->ffbit);
+	clear_bit(FF_RUMBLE, cs40l26->input->ffbit);
 
 	cs40l26->input->ff->upload = cs40l26_upload_effect;
 	cs40l26->input->ff->playback = cs40l26_playback_effect;
@@ -3364,7 +3368,7 @@ static int cs40l26_zero_cross_config(struct cs40l26_private *cs40l26)
 	return error;
 }
 
-static int calib_device_tree_config(struct cs40l26_private *cs40l26)
+static int cs40l26_calib_dt_config(struct cs40l26_private *cs40l26)
 {
 	int error = 0;
 	u32 reg;
@@ -3398,8 +3402,7 @@ static int calib_device_tree_config(struct cs40l26_private *cs40l26)
 	}
 
 	if (cs40l26->revid < CS40L26_REVID_B2) {
-		if (cs40l26->q_default <= CS40L26_Q_EST_MAX &&
-							cs40l26->q_default >= CS40L26_Q_EST_MIN) {
+		if (cs40l26->q_default <= CS40L26_Q_EST_MAX) {
 			error = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED", CL_DSP_XM_UNPACKED_TYPE,
 					CS40L26_VIBEGEN_ALGO_ID, &reg);
 			if (error)
@@ -3810,7 +3813,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	if (val != CS40L26_DSP_HALO_STATE_RUN) {
 		dev_err(dev, "Firmware in unexpected state: 0x%X\n", val);
-		return error;
+		return -EINVAL;
 	}
 
 	error = cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, 0,
@@ -3853,7 +3856,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		return error;
 
 	if (!cs40l26->vibe_init_success) {
-		error = calib_device_tree_config(cs40l26);
+		error = cs40l26_calib_dt_config(cs40l26);
 		if (error)
 			return error;
 	}
