@@ -214,15 +214,6 @@ static int cs35l45_dsp_loader_ev(struct snd_soc_dapm_widget *w,
 		if (cs35l45->dsp.cs_dsp.running)
 			return 0;
 
-		regmap_set_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
-				   CS35L45_MEM_RDY_MASK);
-
-		regmap_write(cs35l45->regmap, CS35L45_DSP1_CCM_CORE_CONTROL,
-			     CS35L45_CCM_PM_REMAP_MASK |
-			     CS35L45_CCM_CORE_RESET_MASK);
-
-		wm_adsp_event(w, kcontrol, event);
-
 		regmap_clear_bits(cs35l45->regmap, CS35L45_REFCLK_INPUT,
 				  CS35L45_PLL_FORCE_EN_MASK);
 		break;
@@ -249,6 +240,15 @@ static int cs35l45_dsp_boot_ev(struct snd_soc_dapm_widget *w,
 			dev_err(cs35l45->dev, "Preload DSP before boot\n");
 			return -EPERM;
 		}
+
+		regmap_set_bits(cs35l45->regmap, CS35L45_PWRMGT_CTL,
+				   CS35L45_MEM_RDY_MASK);
+
+		regmap_write(cs35l45->regmap, CS35L45_DSP1_CCM_CORE_CONTROL,
+			     CS35L45_CCM_PM_REMAP_MASK |
+			     CS35L45_CCM_CORE_RESET_MASK);
+
+		wm_adsp_event(w, kcontrol, event);
 
 		ret = cs35l45_gpio_configuration(cs35l45);
 		if (ret < 0) {
