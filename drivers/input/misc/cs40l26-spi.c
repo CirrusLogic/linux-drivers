@@ -33,7 +33,7 @@ MODULE_DEVICE_TABLE(of, cs40l26_of_match);
 static int cs40l26_spi_probe(struct spi_device *spi)
 {
 	struct cs40l26_private *cs40l26;
-	int ret;
+	int error;
 
 	cs40l26 = devm_kzalloc(&spi->dev, sizeof(struct cs40l26_private), GFP_KERNEL);
 	if (!cs40l26)
@@ -43,9 +43,9 @@ static int cs40l26_spi_probe(struct spi_device *spi)
 
 	cs40l26->regmap = devm_regmap_init_spi(spi, &cs40l26_regmap);
 	if (IS_ERR(cs40l26->regmap)) {
-		ret = PTR_ERR(cs40l26->regmap);
-		dev_err(&spi->dev, "Failed to allocate register map: %d\n", ret);
-		return ret;
+		error = PTR_ERR(cs40l26->regmap);
+		dev_err(&spi->dev, "Failed to allocate register map: %d\n", error);
+		return error;
 	}
 
 	cs40l26->dev = &spi->dev;
