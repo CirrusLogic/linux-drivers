@@ -17,18 +17,18 @@ static ssize_t dsp_state_show(struct device *dev, struct device_attribute *attr,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u8 dsp_state;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
-	ret = cs40l26_dsp_state_get(cs40l26, &dsp_state);
+	error = cs40l26_dsp_state_get(cs40l26, &dsp_state);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 	else
 		return snprintf(buf, PAGE_SIZE, "%u\n", (unsigned int) (dsp_state & 0xFF));
 }
@@ -45,31 +45,31 @@ static ssize_t excursion_limit_store(struct device *dev, struct device_attribute
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, ep_limit;
-	int ret;
+	int error;
 
 	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID))
 		return -EPERM;
 
-	ret = kstrtou32(buf, 10, &ep_limit);
+	error = kstrtou32(buf, 10, &ep_limit);
 
-	if (ret || ep_limit < CS40L26_EXCURSION_LIMIT_MIN || ep_limit > CS40L26_UINT_24_BITS_MAX)
+	if (error || ep_limit < CS40L26_EXCURSION_LIMIT_MIN || ep_limit > CS40L26_UINT_24_BITS_MAX)
 		return -EINVAL;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "PROTECTION_XM_OP_GAIN",
+	error = cl_dsp_get_reg(cs40l26->dsp, "PROTECTION_XM_OP_GAIN",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EP_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_pm;
 
-	ret = regmap_write(cs40l26->regmap, reg, ep_limit);
+	error = regmap_write(cs40l26->regmap, reg, ep_limit);
 
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return ret ? ret : count;
+	return error ? error : count;
 }
 static DEVICE_ATTR_WO(excursion_limit);
 
@@ -77,23 +77,23 @@ static ssize_t halo_heartbeat_show(struct device *dev, struct device_attribute *
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, halo_heartbeat;
-	int ret;
+	int error;
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "HALO_HEARTBEAT", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "HALO_HEARTBEAT", CL_DSP_XM_UNPACKED_TYPE,
 			cs40l26->fw_id, &reg);
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
-	ret = regmap_read(cs40l26->regmap, reg, &halo_heartbeat);
+	error = regmap_read(cs40l26->regmap, reg, &halo_heartbeat);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", halo_heartbeat);
 }
@@ -104,18 +104,18 @@ static ssize_t pm_stdby_timeout_ms_show(struct device *dev, struct device_attrib
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 timeout_ms;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
-	ret = cs40l26_pm_timeout_ms_get(cs40l26, CS40L26_DSP_STATE_STANDBY, &timeout_ms);
+	error = cs40l26_pm_timeout_ms_get(cs40l26, CS40L26_DSP_STATE_STANDBY, &timeout_ms);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", timeout_ms);
 }
@@ -125,22 +125,22 @@ static ssize_t pm_stdby_timeout_ms_store(struct device *dev,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 timeout_ms;
-	int ret;
+	int error;
 
-	ret = kstrtou32(buf, 10, &timeout_ms);
-	if (ret)
+	error = kstrtou32(buf, 10, &timeout_ms);
+	if (error)
 		return -EINVAL;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
-	ret = cs40l26_pm_timeout_ms_set(cs40l26, CS40L26_DSP_STATE_STANDBY, timeout_ms);
+	error = cs40l26_pm_timeout_ms_set(cs40l26, CS40L26_DSP_STATE_STANDBY, timeout_ms);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 
 	return count;
 }
@@ -151,18 +151,18 @@ static ssize_t pm_active_timeout_ms_show(struct device *dev,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 timeout_ms;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
-	ret = cs40l26_pm_timeout_ms_get(cs40l26, CS40L26_DSP_STATE_ACTIVE, &timeout_ms);
+	error = cs40l26_pm_timeout_ms_get(cs40l26, CS40L26_DSP_STATE_ACTIVE, &timeout_ms);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", timeout_ms);
 }
@@ -172,22 +172,22 @@ static ssize_t pm_active_timeout_ms_store(struct device *dev,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 timeout_ms;
-	int ret;
+	int error;
 
-	ret = kstrtou32(buf, 10, &timeout_ms);
-	if (ret)
+	error = kstrtou32(buf, 10, &timeout_ms);
+	if (error)
 		return -EINVAL;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
-	ret = cs40l26_pm_timeout_ms_set(cs40l26, CS40L26_DSP_STATE_ACTIVE, timeout_ms);
+	error = cs40l26_pm_timeout_ms_set(cs40l26, CS40L26_DSP_STATE_ACTIVE, timeout_ms);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 
 	return count;
 }
@@ -216,7 +216,7 @@ static ssize_t power_on_seq_show(struct device *dev, struct device_attribute *at
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	struct cs40l26_pseq_op *op;
 	u32 addr, data, base;
-	int ret;
+	int error;
 
 	mutex_lock(&cs40l26->lock);
 
@@ -224,7 +224,7 @@ static ssize_t power_on_seq_show(struct device *dev, struct device_attribute *at
 
 	if (list_empty(&cs40l26->pseq_op_head)) {
 		dev_err(cs40l26->dev, "Power on sequence is empty\n");
-		ret = -EINVAL;
+		error = -EINVAL;
 		goto err_mutex;
 	}
 
@@ -252,7 +252,7 @@ static ssize_t power_on_seq_show(struct device *dev, struct device_attribute *at
 			break;
 		default:
 			dev_err(cs40l26->dev, "Unrecognized Op Code: 0x%02X\n", op->operation);
-			ret = -EINVAL;
+			error = -EINVAL;
 			goto err_mutex;
 		}
 
@@ -260,11 +260,11 @@ static ssize_t power_on_seq_show(struct device *dev, struct device_attribute *at
 				base + op->offset, op->operation, addr, data);
 	}
 
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->pseq_num_ops);
+	error = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->pseq_num_ops);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
-	return ret;
+	return error;
 }
 static DEVICE_ATTR_RO(power_on_seq);
 
@@ -273,29 +273,29 @@ static ssize_t owt_free_space_show(struct device *dev,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, words;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "OWT_SIZE_XM",
+	error = cl_dsp_get_reg(cs40l26->dsp, "OWT_SIZE_XM",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_pm;
 
-	ret = regmap_read(cs40l26->regmap, reg, &words);
-	if (ret) {
+	error = regmap_read(cs40l26->regmap, reg, &words);
+	if (error) {
 		dev_err(cs40l26->dev, "Failed to get remaining OWT space\n");
 		goto err_pm;
 	}
 
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", words * CL_DSP_BYTES_PER_WORD);
+	error = snprintf(buf, PAGE_SIZE, "%d\n", words * CL_DSP_BYTES_PER_WORD);
 
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return ret;
+	return error;
 }
 static DEVICE_ATTR_RO(owt_free_space);
 
@@ -305,39 +305,39 @@ static ssize_t die_temp_show(struct device *dev,
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	struct regmap *regmap = cs40l26->regmap;
 	u16 die_temp;
-	int ret;
+	int error;
 	u32 val;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
-	ret = regmap_read(regmap, CS40L26_GLOBAL_ENABLES, &val);
-	if (ret) {
+	error = regmap_read(regmap, CS40L26_GLOBAL_ENABLES, &val);
+	if (error) {
 		dev_err(cs40l26->dev, "Failed to read GLOBAL_EN status\n");
 		goto err_pm;
 	}
 
 	if (!(val & CS40L26_GLOBAL_EN_MASK)) {
 		dev_err(cs40l26->dev, "Global enable must be set to get die temp.\n");
-		ret = -EPERM;
+		error = -EPERM;
 		goto err_pm;
 	}
 
-	ret = regmap_read(regmap, CS40L26_ENABLES_AND_CODES_DIG, &val);
-	if (ret) {
+	error = regmap_read(regmap, CS40L26_ENABLES_AND_CODES_DIG, &val);
+	if (error) {
 		dev_err(cs40l26->dev, "Failed to get die temperature\n");
 		goto err_pm;
 	}
 
 	die_temp = (val & CS40L26_TEMP_RESULT_FILT_MASK) >> CS40L26_TEMP_RESULT_FILT_SHIFT;
 
-	ret = snprintf(buf, PAGE_SIZE, "0x%03X\n", die_temp);
+	error = snprintf(buf, PAGE_SIZE, "0x%03X\n", die_temp);
 
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return ret;
+	return error;
 }
 static DEVICE_ATTR_RO(die_temp);
 
@@ -345,22 +345,22 @@ static ssize_t num_waves_show(struct device *dev, struct device_attribute *attr,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 nwaves;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
-	ret = cs40l26_get_num_waves(cs40l26, &nwaves);
-	if (ret)
+	error = cs40l26_get_num_waves(cs40l26, &nwaves);
+	if (error)
 		goto err_pm;
 
-	ret = snprintf(buf, PAGE_SIZE, "%u\n", nwaves);
+	error = snprintf(buf, PAGE_SIZE, "%u\n", nwaves);
 
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return ret;
+	return error;
 }
 static DEVICE_ATTR_RO(num_waves);
 
@@ -370,27 +370,27 @@ static ssize_t boost_disable_delay_show(struct device *dev, struct device_attrib
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, boost_disable_delay;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY",
+	error = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_pm;
 
-	ret = regmap_read(cs40l26->regmap, reg, &boost_disable_delay);
-	if (ret)
+	error = regmap_read(cs40l26->regmap, reg, &boost_disable_delay);
+	if (error)
 		goto err_pm;
 
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", boost_disable_delay);
+	error = snprintf(buf, PAGE_SIZE, "%d\n", boost_disable_delay);
 
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return ret;
+	return error;
 }
 
 static ssize_t boost_disable_delay_store(struct device *dev,
@@ -398,32 +398,32 @@ static ssize_t boost_disable_delay_store(struct device *dev,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, boost_disable_delay;
-	int ret;
+	int error;
 
 	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
 
-	ret = kstrtou32(buf, 10, &boost_disable_delay);
+	error = kstrtou32(buf, 10, &boost_disable_delay);
 
-	if (ret || boost_disable_delay < CS40L26_BOOST_DISABLE_DELAY_MIN ||
+	if (error || boost_disable_delay < CS40L26_BOOST_DISABLE_DELAY_MIN ||
 			boost_disable_delay > CS40L26_BOOST_DISABLE_DELAY_MAX)
 		return -EINVAL;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY",
+	error = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_pm;
 
-	ret = regmap_write(cs40l26->regmap, reg, boost_disable_delay);
+	error = regmap_write(cs40l26->regmap, reg, boost_disable_delay);
 
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 	else
 		return count;
 }
@@ -433,32 +433,32 @@ static ssize_t f0_offset_show(struct device *dev, struct device_attribute *attr,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int reg, val;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OFFSET", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "F0_OFFSET", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
 
-	ret = regmap_read(cs40l26->regmap, reg, &val);
-	if (ret)
+	error = regmap_read(cs40l26->regmap, reg, &val);
+	if (error)
 		goto err_mutex;
 
-	ret = snprintf(buf, PAGE_SIZE, "%u\n", val);
+	error = snprintf(buf, PAGE_SIZE, "%u\n", val);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return ret;
+	return error;
 }
 
 static ssize_t f0_offset_store(struct device *dev, struct device_attribute *attr, const char *buf,
@@ -466,38 +466,38 @@ static ssize_t f0_offset_store(struct device *dev, struct device_attribute *attr
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int reg, val;
-	int ret;
+	int error;
 
-	ret = kstrtou32(buf, 10, &val);
-	if (ret)
+	error = kstrtou32(buf, 10, &val);
+	if (error)
 		return -EINVAL;
 
 	if (val > CS40L26_F0_OFFSET_MAX && val < CS40L26_F0_OFFSET_MIN)
 		return -EINVAL;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OFFSET", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "F0_OFFSET", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_write(cs40l26->regmap, reg, val);
-	if (ret)
+	error = regmap_write(cs40l26->regmap, reg, val);
+	if (error)
 		goto err_mutex;
 
-	ret = count;
+	error = count;
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return ret;
+	return error;
 }
 static DEVICE_ATTR_RW(f0_offset);
 
@@ -505,15 +505,15 @@ static ssize_t delay_before_stop_playback_us_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
+	int error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->delay_before_stop_playback_us);
+	error = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->delay_before_stop_playback_us);
 
 	mutex_unlock(&cs40l26->lock);
 
-	return ret;
+	return error;
 }
 
 static ssize_t delay_before_stop_playback_us_store(struct device *dev,
@@ -521,10 +521,10 @@ static ssize_t delay_before_stop_playback_us_store(struct device *dev,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 val;
-	int ret;
+	int error;
 
-	ret = kstrtou32(buf, 10, &val);
-	if (ret)
+	error = kstrtou32(buf, 10, &val);
+	if (error)
 		return -EINVAL;
 
 	mutex_lock(&cs40l26->lock);
@@ -540,43 +540,43 @@ static DEVICE_ATTR_RW(delay_before_stop_playback_us);
 static ssize_t f0_comp_enable_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
+	int error;
 
 	mutex_lock(&cs40l26->lock);
 
 	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
-		ret = -EPERM;
+		error = -EPERM;
 		goto err_mutex;
 	}
 
 	if (cs40l26->comp_enable_pend) {
-		ret = -EIO;
+		error = -EIO;
 		goto err_mutex;
 	}
 
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->comp_enable_f0);
+	error = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->comp_enable_f0);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
-	return ret;
+	return error;
 }
 
 static ssize_t f0_comp_enable_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
+	int error;
 	unsigned int val;
 	u32 reg, value;
 
-	ret = kstrtou32(buf, 10, &val);
-	if (ret)
+	error = kstrtou32(buf, 10, &val);
+	if (error)
 		return -EINVAL;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
@@ -587,20 +587,20 @@ static ssize_t f0_comp_enable_store(struct device *dev, struct device_attribute 
 			(cs40l26->comp_enable_f0 << CS40L26_COMP_EN_F0_SHIFT);
 
 	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
-		ret = -EPERM;
+		error = -EPERM;
 	} else {
-		ret = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
+		error = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_VIBEGEN_ALGO_ID, &reg);
-		if (ret)
+		if (error)
 			goto err_mutex;
 
-		ret = regmap_write(cs40l26->regmap, reg, value);
+		error = regmap_write(cs40l26->regmap, reg, value);
 	}
 
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = count;
+	error = count;
 
 err_mutex:
 	cs40l26->comp_enable_pend = false;
@@ -608,50 +608,50 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return ret;
+	return error;
 }
 static DEVICE_ATTR_RW(f0_comp_enable);
 
 static ssize_t redc_comp_enable_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
+	int error;
 
 	mutex_lock(&cs40l26->lock);
 
 	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
-		ret = -EPERM;
+		error = -EPERM;
 		goto err_mutex;
 	}
 
 	if (cs40l26->comp_enable_pend) {
-		ret = -EIO;
+		error = -EIO;
 		goto err_mutex;
 	}
 
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->comp_enable_redc);
+	error = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->comp_enable_redc);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
-	return ret;
+	return error;
 }
 
 static ssize_t redc_comp_enable_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
+	int error;
 	unsigned int val;
 	u32 reg, value;
 
-	ret = kstrtou32(buf, 10, &val);
-	if (ret)
+	error = kstrtou32(buf, 10, &val);
+	if (error)
 		return -EINVAL;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
@@ -662,20 +662,20 @@ static ssize_t redc_comp_enable_store(struct device *dev, struct device_attribut
 			(cs40l26->comp_enable_f0 << CS40L26_COMP_EN_F0_SHIFT);
 
 	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
-		ret = -EPERM;
+		error = -EPERM;
 	} else {
-		ret = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
+		error = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_VIBEGEN_ALGO_ID, &reg);
-		if (ret)
+		if (error)
 			goto err_mutex;
 
-		ret = regmap_write(cs40l26->regmap, reg, value);
+		error = regmap_write(cs40l26->regmap, reg, value);
 	}
 
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = count;
+	error = count;
 
 err_mutex:
 	cs40l26->comp_enable_pend = false;
@@ -683,48 +683,48 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return ret;
+	return error;
 }
 static DEVICE_ATTR_RW(redc_comp_enable);
 
 static ssize_t swap_firmware_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
+	int error;
 
 	mutex_lock(&cs40l26->lock);
 
 	if (cs40l26->fw_id == CS40L26_FW_ID)
-		ret = snprintf(buf, PAGE_SIZE, "%d\n", 0);
+		error = snprintf(buf, PAGE_SIZE, "%d\n", 0);
 	else if (cs40l26->fw_id == CS40L26_FW_CALIB_ID)
-		ret = snprintf(buf, PAGE_SIZE, "%d\n", 1);
+		error = snprintf(buf, PAGE_SIZE, "%d\n", 1);
 	else
-		ret = -EINVAL;
+		error = -EINVAL;
 
 	mutex_unlock(&cs40l26->lock);
 
-	return ret;
+	return error;
 }
 
 static ssize_t swap_firmware_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
+	int error;
 	unsigned int variant;
 
-	ret = kstrtou32(buf, 10, &variant);
-	if (ret)
-		return ret;
+	error = kstrtou32(buf, 10, &variant);
+	if (error)
+		return error;
 
 	if (variant == 0)
-		ret = cs40l26_fw_swap(cs40l26, CS40L26_FW_ID);
+		error = cs40l26_fw_swap(cs40l26, CS40L26_FW_ID);
 	else if (variant == 1)
-		ret = cs40l26_fw_swap(cs40l26, CS40L26_FW_CALIB_ID);
+		error = cs40l26_fw_swap(cs40l26, CS40L26_FW_CALIB_ID);
 	else
-		ret = -EINVAL;
+		error = -EINVAL;
 
-	return ret ? ret : count;
+	return error ? error : count;
 }
 static DEVICE_ATTR_RW(swap_firmware);
 
@@ -759,21 +759,21 @@ static ssize_t dbc_enable_show(struct device *dev,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 val, reg;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID,
+	error = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID,
 			&reg);
-	if (ret)
+	if (error)
 		goto err_pm;
 
-	ret = regmap_read(cs40l26->regmap, reg, &val);
-	if (ret) {
+	error = regmap_read(cs40l26->regmap, reg, &val);
+	if (error) {
 		dev_err(cs40l26->dev, "Failed to get FLAGS\n");
 		goto err_pm;
 	}
@@ -782,43 +782,43 @@ static ssize_t dbc_enable_show(struct device *dev,
 	val &= CS40L26_DBC_ENABLE_MASK;
 	val >>= CS40L26_DBC_ENABLE_SHIFT;
 
-	ret = snprintf(buf, PAGE_SIZE, "%u\n", val);
+	error = snprintf(buf, PAGE_SIZE, "%u\n", val);
 
 err_pm:
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return ret;
+	return error;
 }
 
 static ssize_t dbc_enable_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
+	int error;
 	u32 val;
 
-	ret = kstrtou32(buf, 10, &val);
-	if (ret)
-		return ret;
+	error = kstrtou32(buf, 10, &val);
+	if (error)
+		return error;
 
 	if (val > 1)
 		return -EINVAL;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cs40l26_dbc_enable(cs40l26, val);
+	error = cs40l26_dbc_enable(cs40l26, val);
 
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return ret ? ret : count;
+	return error ? error : count;
 }
 static DEVICE_ATTR_RW(dbc_enable);
 
@@ -826,11 +826,11 @@ static ssize_t dbc_env_rel_coef_show(struct device *dev, struct device_attribute
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int val;
-	int ret;
+	int error;
 
-	ret = cs40l26_dbc_get(cs40l26, CS40L26_DBC_ENV_REL_COEF, &val);
+	error = cs40l26_dbc_get(cs40l26, CS40L26_DBC_ENV_REL_COEF, &val);
 
-	return ret ? ret : snprintf(buf, PAGE_SIZE, "%u\n", val);
+	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", val);
 }
 
 static ssize_t dbc_env_rel_coef_store(struct device *dev,
@@ -839,25 +839,25 @@ static ssize_t dbc_env_rel_coef_store(struct device *dev,
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	struct device *cdev = cs40l26->dev;
 	u32 val;
-	int ret;
+	int error;
 
-	ret = kstrtou32(buf, 10, &val);
-	if (ret)
-		return ret;
+	error = kstrtou32(buf, 10, &val);
+	if (error)
+		return error;
 
-	ret = cs40l26_pm_enter(cdev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cdev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_ENV_REL_COEF, val);
+	error = cs40l26_dbc_set(cs40l26, CS40L26_DBC_ENV_REL_COEF, val);
 
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cdev);
 
-	return ret ? ret : count;
+	return error ? error : count;
 }
 static DEVICE_ATTR_RW(dbc_env_rel_coef);
 
@@ -866,11 +866,11 @@ static ssize_t dbc_rise_headroom_show(struct device *dev,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int val;
-	int ret;
+	int error;
 
-	ret = cs40l26_dbc_get(cs40l26, CS40L26_DBC_RISE_HEADROOM, &val);
+	error = cs40l26_dbc_get(cs40l26, CS40L26_DBC_RISE_HEADROOM, &val);
 
-	return ret ? ret : snprintf(buf, PAGE_SIZE, "%u\n", val);
+	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", val);
 }
 
 static ssize_t dbc_rise_headroom_store(struct device *dev,
@@ -879,25 +879,25 @@ static ssize_t dbc_rise_headroom_store(struct device *dev,
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	struct device *cdev = cs40l26->dev;
 	u32 val;
-	int ret;
+	int error;
 
-	ret = kstrtou32(buf, 10, &val);
-	if (ret)
-		return ret;
+	error = kstrtou32(buf, 10, &val);
+	if (error)
+		return error;
 
-	ret = cs40l26_pm_enter(cdev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cdev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_RISE_HEADROOM, val);
+	error = cs40l26_dbc_set(cs40l26, CS40L26_DBC_RISE_HEADROOM, val);
 
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cdev);
 
-	return ret ? ret : count;
+	return error ? error : count;
 }
 static DEVICE_ATTR_RW(dbc_rise_headroom);
 
@@ -905,11 +905,11 @@ static ssize_t dbc_fall_headroom_show(struct device *dev, struct device_attribut
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int val;
-	int ret;
+	int error;
 
-	ret = cs40l26_dbc_get(cs40l26, CS40L26_DBC_FALL_HEADROOM, &val);
+	error = cs40l26_dbc_get(cs40l26, CS40L26_DBC_FALL_HEADROOM, &val);
 
-	return ret ? ret : snprintf(buf, PAGE_SIZE, "%u\n", val);
+	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", val);
 }
 
 static ssize_t dbc_fall_headroom_store(struct device *dev,
@@ -918,25 +918,25 @@ static ssize_t dbc_fall_headroom_store(struct device *dev,
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	struct device *cdev = cs40l26->dev;
 	u32 val;
-	int ret;
+	int error;
 
-	ret = kstrtou32(buf, 10, &val);
-	if (ret)
-		return ret;
+	error = kstrtou32(buf, 10, &val);
+	if (error)
+		return error;
 
-	ret = cs40l26_pm_enter(cdev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cdev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_FALL_HEADROOM, val);
+	error = cs40l26_dbc_set(cs40l26, CS40L26_DBC_FALL_HEADROOM, val);
 
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cdev);
 
-	return ret ? ret : count;
+	return error ? error : count;
 }
 static DEVICE_ATTR_RW(dbc_fall_headroom);
 
@@ -945,11 +945,11 @@ static ssize_t dbc_tx_lvl_thresh_fs_show(struct device *dev, struct device_attri
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int val;
-	int ret;
+	int error;
 
-	ret = cs40l26_dbc_get(cs40l26, CS40L26_DBC_TX_LVL_THRESH_FS, &val);
+	error = cs40l26_dbc_get(cs40l26, CS40L26_DBC_TX_LVL_THRESH_FS, &val);
 
-	return ret ? ret : snprintf(buf, PAGE_SIZE, "%u\n", val);
+	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", val);
 }
 
 static ssize_t dbc_tx_lvl_thresh_fs_store(struct device *dev,
@@ -958,25 +958,25 @@ static ssize_t dbc_tx_lvl_thresh_fs_store(struct device *dev,
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	struct device *cdev = cs40l26->dev;
 	u32 val;
-	int ret;
+	int error;
 
-	ret = kstrtou32(buf, 10, &val);
-	if (ret)
-		return ret;
+	error = kstrtou32(buf, 10, &val);
+	if (error)
+		return error;
 
-	ret = cs40l26_pm_enter(cdev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cdev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_TX_LVL_THRESH_FS, val);
+	error = cs40l26_dbc_set(cs40l26, CS40L26_DBC_TX_LVL_THRESH_FS, val);
 
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cdev);
 
-	return ret ? ret : count;
+	return error ? error : count;
 }
 static DEVICE_ATTR_RW(dbc_tx_lvl_thresh_fs);
 
@@ -985,11 +985,11 @@ static ssize_t dbc_tx_lvl_hold_off_ms_show(struct device *dev, struct device_att
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int val;
-	int ret;
+	int error;
 
-	ret = cs40l26_dbc_get(cs40l26, CS40L26_DBC_TX_LVL_HOLD_OFF_MS, &val);
+	error = cs40l26_dbc_get(cs40l26, CS40L26_DBC_TX_LVL_HOLD_OFF_MS, &val);
 
-	return ret ? ret : snprintf(buf, PAGE_SIZE, "%u\n", val);
+	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", val);
 }
 
 static ssize_t dbc_tx_lvl_hold_off_ms_store(struct device *dev,
@@ -998,25 +998,25 @@ static ssize_t dbc_tx_lvl_hold_off_ms_store(struct device *dev,
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	struct device *cdev = cs40l26->dev;
 	u32 val;
-	int ret;
+	int error;
 
-	ret = kstrtou32(buf, 10, &val);
-	if (ret)
-		return ret;
+	error = kstrtou32(buf, 10, &val);
+	if (error)
+		return error;
 
-	ret = cs40l26_pm_enter(cdev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cdev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cs40l26_dbc_set(cs40l26, CS40L26_DBC_TX_LVL_HOLD_OFF_MS, val);
+	error = cs40l26_dbc_set(cs40l26, CS40L26_DBC_TX_LVL_HOLD_OFF_MS, val);
 
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cdev);
 
-	return ret ? ret : count;
+	return error ? error : count;
 }
 static DEVICE_ATTR_RW(dbc_tx_lvl_hold_off_ms);
 
@@ -1040,7 +1040,7 @@ static ssize_t trigger_calibration_store(struct device *dev,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 mailbox_command, calibration_request_payload;
-	int ret;
+	int error;
 	struct completion *completion;
 
 	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
@@ -1050,8 +1050,8 @@ static ssize_t trigger_calibration_store(struct device *dev,
 		return -EPERM;
 	}
 
-	ret = kstrtou32(buf, 16, &calibration_request_payload);
-	if (ret)
+	error = kstrtou32(buf, 16, &calibration_request_payload);
+	if (error)
 		return -EINVAL;
 
 	switch (calibration_request_payload) {
@@ -1075,18 +1075,18 @@ static ssize_t trigger_calibration_store(struct device *dev,
 			CS40L26_DSP_MBOX_CMD_INDEX_SHIFT) & CS40L26_DSP_MBOX_CMD_INDEX_MASK) |
 			(calibration_request_payload & CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK);
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 	reinit_completion(completion);
 
-	ret = cs40l26_mailbox_write(cs40l26, mailbox_command);
+	error = cs40l26_mailbox_write(cs40l26, mailbox_command);
 
 	mutex_unlock(&cs40l26->lock);
 
-	if (ret) {
+	if (error) {
 		dev_err(cs40l26->dev, "Failed to request calibration\n");
 		goto err_pm;
 	}
@@ -1094,21 +1094,21 @@ static ssize_t trigger_calibration_store(struct device *dev,
 	if (!wait_for_completion_timeout(
 			completion,
 			msecs_to_jiffies(CS40L26_CALIBRATION_TIMEOUT_MS))) {
-		ret = -ETIME;
+		error = -ETIME;
 		dev_err(cs40l26->dev, "Failed to complete cal req, %d, err: %d",
-				calibration_request_payload, ret);
+				calibration_request_payload, error);
 		goto err_pm;
 	}
 
 	mutex_lock(&cs40l26->lock);
 
 	if (calibration_request_payload == CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q)
-		ret = cs40l26_copy_f0_est_to_dvl(cs40l26);
+		error = cs40l26_copy_f0_est_to_dvl(cs40l26);
 
 	mutex_unlock(&cs40l26->lock);
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
-	return ret ? ret : count;
+	return error ? error : count;
 }
 static DEVICE_ATTR_WO(trigger_calibration);
 
@@ -1116,21 +1116,21 @@ static ssize_t f0_measured_show(struct device *dev, struct device_attribute *att
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, f0_measured;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_EST", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "F0_EST", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_read(cs40l26->regmap, reg, &f0_measured);
-	if (ret)
+	error = regmap_read(cs40l26->regmap, reg, &f0_measured);
+	if (error)
 		goto err_mutex;
 
 err_mutex:
@@ -1138,8 +1138,8 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 	else
 		return snprintf(buf, PAGE_SIZE, "%08X\n", f0_measured);
 }
@@ -1149,21 +1149,21 @@ static ssize_t q_measured_show(struct device *dev, struct device_attribute *attr
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, q_measured;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "Q_EST", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "Q_EST", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_read(cs40l26->regmap, reg, &q_measured);
-	if (ret)
+	error = regmap_read(cs40l26->regmap, reg, &q_measured);
+	if (error)
 		goto err_mutex;
 
 err_mutex:
@@ -1171,8 +1171,8 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 	else
 		return snprintf(buf, PAGE_SIZE, "%08X\n", q_measured);
 }
@@ -1182,21 +1182,21 @@ static ssize_t redc_measured_show(struct device *dev, struct device_attribute *a
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, redc_measured;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "RE_EST_STATUS", CL_DSP_YM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "RE_EST_STATUS", CL_DSP_YM_UNPACKED_TYPE,
 			CS40L26_SVC_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_read(cs40l26->regmap, reg, &redc_measured);
-	if (ret)
+	error = regmap_read(cs40l26->regmap, reg, &redc_measured);
+	if (error)
 		goto err_mutex;
 
 err_mutex:
@@ -1204,8 +1204,8 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 	else
 		return snprintf(buf, PAGE_SIZE, "%08X\n", redc_measured);
 }
@@ -1215,21 +1215,21 @@ static ssize_t redc_est_show(struct device *dev, struct device_attribute *attr, 
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, redc_est;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "REDC", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_read(cs40l26->regmap, reg, &redc_est);
-	if (ret)
+	error = regmap_read(cs40l26->regmap, reg, &redc_est);
+	if (error)
 		goto err_mutex;
 
 err_mutex:
@@ -1237,8 +1237,8 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 	else
 		return snprintf(buf, PAGE_SIZE, "%08X\n", redc_est);
 }
@@ -1248,27 +1248,27 @@ static ssize_t redc_est_store(struct device *dev, struct device_attribute *attr,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, redc_est;
-	int ret;
+	int error;
 
 	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
 
-	ret = kstrtou32(buf, 16, &redc_est);
-	if (ret)
-		return ret;
+	error = kstrtou32(buf, 16, &redc_est);
+	if (error)
+		return error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "REDC", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_write(cs40l26->regmap, reg, redc_est);
-	if (ret)
+	error = regmap_write(cs40l26->regmap, reg, redc_est);
+	if (error)
 		goto err_mutex;
 
 err_mutex:
@@ -1276,8 +1276,8 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 	else
 		return count;
 }
@@ -1287,21 +1287,21 @@ static ssize_t f0_stored_show(struct device *dev, struct device_attribute *attr,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, f0_stored;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_read(cs40l26->regmap, reg, &f0_stored);
-	if (ret)
+	error = regmap_read(cs40l26->regmap, reg, &f0_stored);
+	if (error)
 		goto err_mutex;
 
 err_mutex:
@@ -1309,8 +1309,8 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 	else
 		return snprintf(buf, PAGE_SIZE, "%08X\n", f0_stored);
 }
@@ -1320,28 +1320,28 @@ static ssize_t f0_stored_store(struct device *dev, struct device_attribute *attr
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, f0_stored;
-	int ret;
+	int error;
 
 	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
 
-	ret = kstrtou32(buf, 16, &f0_stored);
+	error = kstrtou32(buf, 16, &f0_stored);
 
-	if (ret || f0_stored < CS40L26_F0_EST_MIN || f0_stored > CS40L26_F0_EST_MAX)
+	if (error || f0_stored < CS40L26_F0_EST_MIN || f0_stored > CS40L26_F0_EST_MAX)
 		return -EINVAL;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_write(cs40l26->regmap, reg, f0_stored);
-	if (ret)
+	error = regmap_write(cs40l26->regmap, reg, f0_stored);
+	if (error)
 		goto err_mutex;
 
 err_mutex:
@@ -1349,8 +1349,8 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 	else
 		return count;
 }
@@ -1360,26 +1360,26 @@ static ssize_t q_stored_show(struct device *dev, struct device_attribute *attr, 
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, q_stored;
-	int ret;
+	int error;
 
 	if (cs40l26->revid == CS40L26_REVID_B2) {
 		dev_err(cs40l26->dev, "q_stored not support for revision %02X\n", cs40l26->revid);
 		return -EPERM;
 	}
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_read(cs40l26->regmap, reg, &q_stored);
-	if (ret)
+	error = regmap_read(cs40l26->regmap, reg, &q_stored);
+	if (error)
 		goto err_mutex;
 
 err_mutex:
@@ -1387,8 +1387,8 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 	else
 		return snprintf(buf, PAGE_SIZE, "%08X\n", q_stored);
 }
@@ -1398,7 +1398,7 @@ static ssize_t q_stored_store(struct device *dev, struct device_attribute *attr,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, q_stored;
-	int ret;
+	int error;
 
 	if (cs40l26->revid == CS40L26_REVID_B2) {
 		dev_err(cs40l26->dev, "q_stored not support for revision %02X\n", cs40l26->revid);
@@ -1407,24 +1407,24 @@ static ssize_t q_stored_store(struct device *dev, struct device_attribute *attr,
 
 	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
 
-	ret = kstrtou32(buf, 16, &q_stored);
+	error = kstrtou32(buf, 16, &q_stored);
 
-	if (ret || q_stored < CS40L26_Q_EST_MIN || q_stored > CS40L26_Q_EST_MAX)
+	if (error || q_stored < CS40L26_Q_EST_MIN || q_stored > CS40L26_Q_EST_MAX)
 		return -EINVAL;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_write(cs40l26->regmap, reg, q_stored);
-	if (ret)
+	error = regmap_write(cs40l26->regmap, reg, q_stored);
+	if (error)
 		goto err_mutex;
 
 err_mutex:
@@ -1432,8 +1432,8 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 	else
 		return count;
 }
@@ -1443,21 +1443,21 @@ static ssize_t redc_stored_show(struct device *dev, struct device_attribute *att
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, redc_stored;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_read(cs40l26->regmap, reg, &redc_stored);
-	if (ret)
+	error = regmap_read(cs40l26->regmap, reg, &redc_stored);
+	if (error)
 		goto err_mutex;
 
 err_mutex:
@@ -1465,8 +1465,8 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 	else
 		return snprintf(buf, PAGE_SIZE, "%08X\n", redc_stored);
 }
@@ -1476,27 +1476,27 @@ static ssize_t redc_stored_store(struct device *dev, struct device_attribute *at
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, redc_stored;
-	int ret;
+	int error;
 
 	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
 
-	ret = kstrtou32(buf, 16, &redc_stored);
-	if (ret)
-		return ret;
+	error = kstrtou32(buf, 16, &redc_stored);
+	if (error)
+		return error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_write(cs40l26->regmap, reg, redc_stored);
-	if (ret)
+	error = regmap_write(cs40l26->regmap, reg, redc_stored);
+	if (error)
 		goto err_mutex;
 
 err_mutex:
@@ -1504,8 +1504,8 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 	else
 		return count;
 }
@@ -1516,33 +1516,33 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev, struct device_attri
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, tone_dur_ms, freq_span_raw, freq_centre;
-	int ret, freq_span, f0_and_q_cal_time_ms;
+	int error, freq_span, f0_and_q_cal_time_ms;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "TONE_DURATION_MS", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "TONE_DURATION_MS", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_read(cs40l26->regmap, reg, &tone_dur_ms);
-	if (ret) {
+	error = regmap_read(cs40l26->regmap, reg, &tone_dur_ms);
+	if (error) {
 		dev_err(cs40l26->dev, "Failed to get tone duration\n");
 		goto err_mutex;
 	}
 
 	if (tone_dur_ms == 0) { /* Calculate value */
-		ret = cl_dsp_get_reg(cs40l26->dsp, "FREQ_SPAN", CL_DSP_XM_UNPACKED_TYPE,
+		error = cl_dsp_get_reg(cs40l26->dsp, "FREQ_SPAN", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_F0_EST_ALGO_ID, &reg);
-		if (ret)
+		if (error)
 			goto err_mutex;
 
-		ret = regmap_read(cs40l26->regmap, reg, &freq_span_raw);
-		if (ret) {
+		error = regmap_read(cs40l26->regmap, reg, &freq_span_raw);
+		if (error) {
 			dev_err(cs40l26->dev, "Failed to get FREQ_SPAN\n");
 			goto err_mutex;
 		}
@@ -1552,13 +1552,13 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev, struct device_attri
 		else
 			freq_span = (int) freq_span_raw;
 
-		ret = cl_dsp_get_reg(cs40l26->dsp, "FREQ_CENTRE", CL_DSP_XM_UNPACKED_TYPE,
+		error = cl_dsp_get_reg(cs40l26->dsp, "FREQ_CENTRE", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_F0_EST_ALGO_ID, &reg);
-		if (ret)
+		if (error)
 			goto err_mutex;
 
-		ret = regmap_read(cs40l26->regmap, reg, &freq_centre);
-		if (ret) {
+		error = regmap_read(cs40l26->regmap, reg, &freq_centre);
+		if (error) {
 			dev_err(cs40l26->dev, "Failed to get FREQ_CENTRE\n");
 			goto err_mutex;
 		}
@@ -1579,8 +1579,8 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 	else
 		return snprintf(buf, PAGE_SIZE, "%d\n", f0_and_q_cal_time_ms);
 }
@@ -1591,20 +1591,20 @@ static ssize_t redc_cal_time_ms_show(struct device *dev, struct device_attribute
 	/* FIRMWARE_STUMPY_CALIB_REDC_PLAYTIME_MS + SVC_INIT + buffer */
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, redc_playtime_ms, redc_total_cal_time_ms;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "REDC_PLAYTIME_MS", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "REDC_PLAYTIME_MS", CL_DSP_XM_UNPACKED_TYPE,
 			cs40l26->fw_id, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_read(cs40l26->regmap, reg, &redc_playtime_ms);
+	error = regmap_read(cs40l26->regmap, reg, &redc_playtime_ms);
 
 	redc_total_cal_time_ms = redc_playtime_ms + CS40L26_SVC_INITIALIZATION_PERIOD_MS +
 			CS40L26_REDC_CALIBRATION_BUFFER_MS;
@@ -1614,8 +1614,8 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 	else
 		return snprintf(buf, PAGE_SIZE, "%d\n", redc_total_cal_time_ms);
 }
@@ -1626,22 +1626,22 @@ static ssize_t dvl_peq_coefficients_show(struct device *dev, struct device_attri
 {
 	u32 reg, dvl_peq_coefficients[CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS];
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "PEQ_COEF1_X", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "PEQ_COEF1_X", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_DVL_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_bulk_read(cs40l26->regmap, reg, dvl_peq_coefficients,
+	error = regmap_bulk_read(cs40l26->regmap, reg, dvl_peq_coefficients,
 			CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
 err_mutex:
@@ -1649,8 +1649,8 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 
 	return snprintf(buf, PAGE_SIZE, "%08X %08X %08X %08X %08X %08X\n",
 			dvl_peq_coefficients[0], dvl_peq_coefficients[1], dvl_peq_coefficients[2],
@@ -1663,7 +1663,7 @@ static ssize_t dvl_peq_coefficients_store(struct device *dev,
 	u32 reg, dvl_peq_coefficients[CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS];
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	char *coeffs_str, *coeffs_str_temp, *coeff_str;
-	int ret, coeffs_found = 0;
+	int error, coeffs_found = 0;
 
 	coeffs_str = kstrdup(buf, GFP_KERNEL);
 	if (!coeffs_str)
@@ -1671,40 +1671,40 @@ static ssize_t dvl_peq_coefficients_store(struct device *dev,
 
 	coeffs_str_temp = coeffs_str;
 	while ((coeff_str = strsep(&coeffs_str_temp, " ")) != NULL) {
-		ret = kstrtou32(coeff_str, 16, &dvl_peq_coefficients[coeffs_found++]);
-		if (ret)
+		error = kstrtou32(coeff_str, 16, &dvl_peq_coefficients[coeffs_found++]);
+		if (error)
 			goto err_free;
 	}
 
 	if (coeffs_found != CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS) {
 		dev_err(cs40l26->dev, "Num DVL PEQ coeffs, %d, expecting %d\n",
 				coeffs_found, CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
-		ret = -EINVAL;
+		error = -EINVAL;
 		goto err_free;
 	}
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
 		goto err_free;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "PEQ_COEF1_X", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "PEQ_COEF1_X", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_DVL_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_bulk_write(cs40l26->regmap, reg, dvl_peq_coefficients,
+	error = regmap_bulk_write(cs40l26->regmap, reg, dvl_peq_coefficients,
 			CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
-	if (ret)
-		dev_err(cs40l26->dev, "Failed to write DVL PEQ coefficients,%d", ret);
+	if (error)
+		dev_err(cs40l26->dev, "Failed to write DVL PEQ coefficients,%d", error);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 	cs40l26_pm_exit(cs40l26->dev);
 err_free:
 	kfree(coeffs_str);
-	return ret ? ret : count;
+	return error ? error : count;
 }
 static DEVICE_ATTR_RW(dvl_peq_coefficients);
 
@@ -1775,18 +1775,18 @@ static ssize_t logging_max_reset_store(struct device *dev,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 rst;
-	int ret;
+	int error;
 
-	ret = kstrtou32(buf, 10, &rst);
-	if (ret)
-		return ret;
+	error = kstrtou32(buf, 10, &rst);
+	if (error)
+		return error;
 
 	if (rst != 1)
 		return -EINVAL;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_LOGGER_MAX_RESET);
 
@@ -1886,22 +1886,22 @@ static ssize_t svc_le_est_show(struct device *dev, struct device_attribute *attr
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	unsigned int le;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cs40l26_svc_le_estimate(cs40l26, &le);
+	error = cs40l26_svc_le_estimate(cs40l26, &le);
 
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	if (error)
+		return error;
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", le);
 }
@@ -1910,15 +1910,15 @@ static DEVICE_ATTR_RO(svc_le_est);
 static ssize_t svc_le_stored_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int ret;
+	int error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->svc_le_est_stored);
+	error = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->svc_le_est_stored);
 
 	mutex_unlock(&cs40l26->lock);
 
-	return ret;
+	return error;
 }
 
 static ssize_t svc_le_stored_store(struct device *dev,
@@ -1926,11 +1926,11 @@ static ssize_t svc_le_stored_store(struct device *dev,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 svc_le_stored;
-	int ret;
+	int error;
 
-	ret = kstrtou32(buf, 10, &svc_le_stored);
-	if (ret)
-		return ret;
+	error = kstrtou32(buf, 10, &svc_le_stored);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
