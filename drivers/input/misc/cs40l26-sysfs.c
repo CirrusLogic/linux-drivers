@@ -1712,158 +1712,61 @@ static ssize_t logging_en_show(struct device *dev, struct device_attribute *attr
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 reg, enable;
-	int ret;
+	int error;
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "ENABLE", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_get_reg(cs40l26->dsp, "ENABLE", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_LOGGER_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_read(cs40l26->regmap, reg, &enable);
-	if (ret)
-		dev_err(cs40l26->dev, "Failed to read logging enable\n");
-	else
-		ret = snprintf(buf, PAGE_SIZE, "%d\n", enable);
+	error = regmap_read(cs40l26->regmap, reg, &enable);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return ret;
+	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", enable);
 }
 
 static ssize_t logging_en_store(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	struct regmap *regmap = cs40l26->regmap;
-	struct device *cdev = cs40l26->dev;
-	struct cl_dsp *dsp = cs40l26->dsp;
-	u32 enable, count_reg, reg, dbg_reg, src_count, src, est_excursion;
-	int ret, i;
+	u32 enable, reg;
+	int error;
 
-	ret = kstrtou32(buf, 10, &enable);
-	if (ret)
-		return ret;
+	error = kstrtou32(buf, 10, &enable);
+	if (error)
+		return error;
 
-	if (enable != 0 && enable != 1)
-		return -EINVAL;
+	enable &= CS40L26_LOGGER_EN_MASK;
 
-	ret = cs40l26_pm_enter(cdev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(dsp, "COUNT", CL_DSP_XM_UNPACKED_TYPE, CS40L26_LOGGER_ALGO_ID,
-			&count_reg);
-	if (ret)
-		goto exit_mutex;
+	error = cl_dsp_get_reg(cs40l26->dsp, "ENABLE", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_LOGGER_ALGO_ID, &reg);
+	if (error)
+		goto err_mutex;
 
-	ret = regmap_read(regmap, count_reg, &src_count);
-	if (ret) {
-		dev_err(cdev, "Failed to get logger source count\n");
-		goto exit_mutex;
-	}
+	error = regmap_write(cs40l26->regmap, reg, enable);
 
-	ret = cl_dsp_get_reg(dsp, "SOURCE", CL_DSP_XM_UNPACKED_TYPE, CS40L26_LOGGER_ALGO_ID, &reg);
-	if (ret)
-		goto exit_mutex;
-
-	if (cs40l26->fw_id == CS40L26_FW_ID) {
-		ret = regmap_read(regmap, reg, &src);
-		if (ret) {
-			dev_err(cdev, "Failed to get Logger Source\n");
-			goto exit_mutex;
-		}
-
-		src &= CS40L26_LOGGER_SRC_ID_MASK;
-		src >>= CS40L26_LOGGER_SRC_ID_SHIFT;
-
-		if (src != CS40L26_LOGGER_SRC_ID_VMON) {
-			dev_err(cdev, "Invalid Logger Source %u\n", src);
-			ret = -EINVAL;
-			goto exit_mutex;
-		}
-	} else if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
-		for (i = 0; i < src_count; i++) {
-			ret = regmap_read(regmap, reg + (i * CL_DSP_BYTES_PER_WORD), &src);
-			if (ret) {
-				dev_err(dev, "Failed to get Logger Source\n");
-				goto exit_mutex;
-			}
-
-			src &= CS40L26_LOGGER_SRC_ID_MASK;
-			src >>= CS40L26_LOGGER_SRC_ID_SHIFT;
-
-			if (src != (i + 1)) {
-				dev_err(cdev, "Invalid Logger Source %u\n", src);
-				ret = -EINVAL;
-				goto exit_mutex;
-			}
-		}
-	} else {
-		dev_err(cdev, "Invalid firmware ID 0x%06X\n", cs40l26->fw_id);
-		goto exit_mutex;
-	}
-
-	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID)) {
-		/* Add estimated excursion logger source */
-		ret = regmap_write(cs40l26->regmap, count_reg, src_count + 1);
-		if (ret)
-			goto exit_mutex;
-
-		ret = cl_dsp_get_reg(cs40l26->dsp, "DBG_SRC_CFG", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_EP_ALGO_ID, &reg);
-		if (ret)
-			goto exit_mutex;
-
-		ret = regmap_write(cs40l26->regmap, reg, CS40L26_SOURCE_FF_OUT);
-		if (ret)
-			goto exit_mutex;
-
-		ret = cl_dsp_get_reg(cs40l26->dsp, "DBG_ADDR", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_EP_ALGO_ID, &dbg_reg);
-		if (ret)
-			goto exit_mutex;
-
-		ret = regmap_read(cs40l26->regmap, dbg_reg, &est_excursion);
-		if (ret)
-			goto exit_mutex;
-
-		ret = cl_dsp_get_reg(cs40l26->dsp, "SOURCE", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_LOGGER_ALGO_ID, &reg);
-		if (ret)
-			goto exit_mutex;
-
-		ret = regmap_write(cs40l26->regmap, reg + (src_count * CL_DSP_BYTES_PER_WORD),
-				(est_excursion & CS40L26_SOURCE_ADDR_MASK) |
-				(1 << CS40L26_SOURCE_SIGNED_SHIFT));
-		if (ret)
-			goto exit_mutex;
-	}
-
-	ret = cl_dsp_get_reg(dsp, "ENABLE", CL_DSP_XM_UNPACKED_TYPE, CS40L26_LOGGER_ALGO_ID, &reg);
-	if (ret)
-		goto exit_mutex;
-
-	ret = regmap_write(regmap, reg, enable);
-	if (ret)
-		dev_err(cdev, "Failed to %s logging\n", enable ? "enable" : "disable");
-
-exit_mutex:
+err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
-	cs40l26_pm_exit(cdev);
+	cs40l26_pm_exit(cs40l26->dev);
 
-	return ret ? ret : count;
+	return error ? error : count;
 }
 static DEVICE_ATTR_RW(logging_en);
 
@@ -1893,159 +1796,89 @@ static ssize_t logging_max_reset_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(logging_max_reset);
 
-static ssize_t max_bemf_show(struct device *dev, struct device_attribute *attr, char *buf)
+static int cs40l26_logger_max_get(struct cs40l26_private *cs40l26, u32 src_id, u32 *max)
 {
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 reg, max_bemf;
-	int ret;
+	int error, reg, src_num = 0;
+	bool found = false;
+	u32 offset;
 
-	if (cs40l26->fw_id != CS40L26_FW_CALIB_ID) {
-		dev_err(cs40l26->dev, "Calib. FW required for BEMF logging\n");
-		return -EPERM;
-	}
-
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	ret = cl_dsp_get_reg(cs40l26->dsp, "DATA", CL_DSP_XM_UNPACKED_TYPE,
+	while (!found && src_num < cs40l26->num_log_srcs) {
+		if (cs40l26->log_srcs[src_num++].id == src_id)
+			found = true;
+	}
+	if (!found) {
+		error = -ENODEV;
+		goto err_mutex;
+	}
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "DATA", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_LOGGER_ALGO_ID, &reg);
-	if (ret)
+	if (error)
 		goto err_mutex;
 
-	ret = regmap_read(cs40l26->regmap, reg + CS40L26_LOGGER_DATA_1_MAX_OFFSET, &max_bemf);
-	if (ret)
-		dev_err(cs40l26->dev, "Failed to get max. back EMF\n");
+	offset = ((src_num - 1) * CS40L26_LOGGER_DATA_MAX_STEP) + CS40L26_LOGGER_DATA_MAX_OFFSET;
+
+	error = regmap_read(cs40l26->regmap, reg + offset, max);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (ret)
-		return ret;
+	return error;
+}
 
-	return snprintf(buf, PAGE_SIZE, "0x%06X\n", max_bemf);
+static ssize_t max_bemf_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 max_bemf;
+	int error;
+
+	error = cs40l26_logger_max_get(cs40l26, CS40L26_LOGGER_SRC_ID_BEMF, &max_bemf);
+
+	return error ? error : snprintf(buf, PAGE_SIZE, "0x%06X\n", max_bemf);
 }
 static DEVICE_ATTR_RO(max_bemf);
 
 static ssize_t max_vbst_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 reg, max_vbst;
-	int ret;
+	u32 max_vbst;
+	int error;
 
-	if (cs40l26->fw_id != CS40L26_FW_CALIB_ID) {
-		dev_err(cs40l26->dev, "Calib. FW required for VBST logging\n");
-		return -EPERM;
-	}
+	error = cs40l26_logger_max_get(cs40l26, CS40L26_LOGGER_SRC_ID_VBST, &max_vbst);
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
-
-	mutex_lock(&cs40l26->lock);
-
-	ret = cl_dsp_get_reg(cs40l26->dsp, "DATA", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_LOGGER_ALGO_ID, &reg);
-	if (ret)
-		goto err_mutex;
-
-	ret = regmap_read(cs40l26->regmap, reg + CS40L26_LOGGER_DATA_2_MAX_OFFSET, &max_vbst);
-	if (ret)
-		dev_err(cs40l26->dev, "Failed to get max. VBST\n");
-
-err_mutex:
-	mutex_unlock(&cs40l26->lock);
-
-	cs40l26_pm_exit(cs40l26->dev);
-
-	if (ret)
-		return ret;
-
-	return snprintf(buf, PAGE_SIZE, "0x%06X\n", max_vbst);
+	return error ? error : snprintf(buf, PAGE_SIZE, "0x%06X\n", max_vbst);
 }
 static DEVICE_ATTR_RO(max_vbst);
 
 static ssize_t max_vmon_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 reg, max_vmon;
-	u8 offset;
-	int ret;
+	u32 max_vmon;
+	int error;
 
-	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID)
-		offset = CS40L26_LOGGER_DATA_3_MAX_OFFSET;
-	else
-		offset = CS40L26_LOGGER_DATA_1_MAX_OFFSET;
+	error = cs40l26_logger_max_get(cs40l26, CS40L26_LOGGER_SRC_ID_VMON, &max_vmon);
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
-
-	mutex_lock(&cs40l26->lock);
-
-	ret = cl_dsp_get_reg(cs40l26->dsp, "DATA", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_LOGGER_ALGO_ID, &reg);
-	if (ret)
-		goto err_mutex;
-
-	ret = regmap_read(cs40l26->regmap, reg + offset, &max_vmon);
-	if (ret)
-		dev_err(cs40l26->dev, "Failed to get max. VMON\n");
-
-err_mutex:
-	mutex_unlock(&cs40l26->lock);
-
-	cs40l26_pm_exit(cs40l26->dev);
-
-	if (ret)
-		return ret;
-
-	return snprintf(buf, PAGE_SIZE, "0x%06X\n", max_vmon);
+	return error ? error : snprintf(buf, PAGE_SIZE, "0x%06X\n", max_vmon);
 }
 static DEVICE_ATTR_RO(max_vmon);
 
 static ssize_t max_excursion_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 reg, max_excursion, src_count;
-	int ret;
+	u32 max_excursion;
+	int error;
 
-	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID))
-		return -EPERM;
+	error = cs40l26_logger_max_get(cs40l26, CS40L26_LOGGER_SRC_ID_EP, &max_excursion);
 
-	ret = cs40l26_pm_enter(cs40l26->dev);
-	if (ret)
-		return ret;
-
-	mutex_lock(&cs40l26->lock);
-
-	ret = cl_dsp_get_reg(cs40l26->dsp, "COUNT", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_LOGGER_ALGO_ID, &reg);
-	if (ret)
-		goto err_mutex;
-
-	ret = regmap_read(cs40l26->regmap, reg, &src_count);
-	if (ret)
-		goto err_mutex;
-
-	ret = cl_dsp_get_reg(cs40l26->dsp, "DATA", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_LOGGER_ALGO_ID, &reg);
-	if (ret)
-		goto err_mutex;
-
-	ret = regmap_read(cs40l26->regmap, reg + ((src_count - 1) * CL_DSP_BYTES_PER_WORD) +
-			CS40L26_LOGGER_DATA_1_MAX_OFFSET, &max_excursion);
-
-err_mutex:
-	mutex_unlock(&cs40l26->lock);
-
-	cs40l26_pm_exit(cs40l26->dev);
-
-	return ret ? ret : snprintf(buf, PAGE_SIZE, "0x%06X\n", max_excursion);
+	return error ? error : snprintf(buf, PAGE_SIZE, "0x%06X\n", max_excursion);
 }
 static DEVICE_ATTR_RO(max_excursion);
 
