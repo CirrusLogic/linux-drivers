@@ -3656,6 +3656,96 @@ static int cs40l26_handle_dbc_defaults(struct cs40l26_private *cs40l26)
 	return 0;
 }
 
+static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
+{
+	u32 exc_offset, exc_reg, exc_src, reg, src;
+	int error, i;
+
+	if (cs40l26->log_srcs != NULL) {
+		memset(cs40l26->log_srcs, 0, cs40l26->num_log_srcs * CL_DSP_BYTES_PER_WORD);
+		cs40l26->num_log_srcs = 0;
+		devm_kfree(cs40l26->dev, cs40l26->log_srcs);
+	}
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "COUNT", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_LOGGER_ALGO_ID, &reg);
+	if (error)
+		return error;
+
+	error = regmap_read(cs40l26->regmap, reg, &cs40l26->num_log_srcs);
+	if (error)
+		return error;
+
+	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID)) {
+		/* Add excursion logger source */
+		cs40l26->num_log_srcs++;
+
+		error = regmap_write(cs40l26->regmap, reg, cs40l26->num_log_srcs);
+		if (error)
+			return error;
+
+		error = cl_dsp_get_reg(cs40l26->dsp, "DBG_SRC_CFG", CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_EP_ALGO_ID, &reg);
+		if (error)
+			return error;
+
+		error = regmap_write(cs40l26->regmap, reg, CS40L26_LOGGER_SRC_FF_OUT);
+		if (error)
+			return error;
+
+		error = cl_dsp_get_reg(cs40l26->dsp, "DBG_ADDR", CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_EP_ALGO_ID, &exc_reg);
+		if (error)
+			return error;
+
+		exc_reg &= CS40L26_LOGGER_SRC_ADDR_MASK;
+		exc_reg /= CL_DSP_BYTES_PER_WORD;
+
+		exc_src = exc_reg | FIELD_PREP(CS40L26_LOGGER_SRC_ID_MASK,
+				CS40L26_LOGGER_SRC_ID_EP) | FIELD_PREP(CS40L26_LOGGER_SRC_TYPE_MASK,
+				CS40L26_LOGGER_SRC_TYPE_XM_TO_XM) | CS40L26_LOGGER_SRC_SIGN_MASK;
+
+		error = cl_dsp_get_reg(cs40l26->dsp, "SOURCE", CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_LOGGER_ALGO_ID, &reg);
+		if (error)
+			return error;
+
+		exc_offset = (cs40l26->num_log_srcs - 1) * CL_DSP_BYTES_PER_WORD;
+
+		error = regmap_write(cs40l26->regmap, reg + exc_offset, exc_src);
+		if (error)
+			return error;
+	}
+
+	cs40l26->log_srcs = devm_kcalloc(cs40l26->dev, cs40l26->num_log_srcs,
+			sizeof(struct cs40l26_log_src), GFP_KERNEL);
+	if (IS_ERR_OR_NULL(cs40l26->log_srcs))
+		return cs40l26->log_srcs ? PTR_ERR(cs40l26->log_srcs) : -ENOMEM;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "SOURCE", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_LOGGER_ALGO_ID, &reg);
+	if (error)
+		goto err_free;
+
+	for (i = 0; i < cs40l26->num_log_srcs; i++) {
+		error = regmap_read(cs40l26->regmap, reg + (i * CL_DSP_BYTES_PER_WORD), &src);
+		if (error)
+			goto err_free;
+
+		cs40l26->log_srcs[i].sign = FIELD_GET(CS40L26_LOGGER_SRC_SIGN_MASK, src);
+		cs40l26->log_srcs[i].size = FIELD_GET(CS40L26_LOGGER_SRC_SIZE_MASK, src);
+		cs40l26->log_srcs[i].type = FIELD_GET(CS40L26_LOGGER_SRC_TYPE_MASK, src);
+		cs40l26->log_srcs[i].id = FIELD_GET(CS40L26_LOGGER_SRC_ID_MASK, src);
+		cs40l26->log_srcs[i].addr = FIELD_GET(CS40L26_LOGGER_SRC_ADDR_MASK, src);
+	}
+
+	return 0;
+
+err_free:
+	devm_kfree(cs40l26->dev, cs40l26->log_srcs);
+	return error;
+}
+
 static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
@@ -3792,6 +3882,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		dev_err(dev, "Failed to set TIMEOUT_MS\n");
 		goto pm_err;
 	}
+
+	error = cs40l26_logger_setup(cs40l26);
+	if (error)
+		goto pm_err;
 
 	error = cs40l26_asp_config(cs40l26);
 	if (error)
