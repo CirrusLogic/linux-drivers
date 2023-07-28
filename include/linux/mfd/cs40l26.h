@@ -735,34 +735,29 @@
 #define CS40L26_F0_FREQ_SPAN_MASK			GENMASK(23, 0)
 #define CS40L26_F0_FREQ_SPAN_SIGN			BIT(23)
 
-#define CS40L26_LOGGER_SRC_SIZE_MASK		BIT(22)
-#define CS40L26_LOGGER_SRC_SIZE_SHIFT		22
-#define CS40L26_LOGGER_SRC_ID_MASK		GENMASK(19, 16)
-#define CS40L26_LOGGER_SRC_ID_SHIFT		16
-#define CS40L26_LOGGER_SRC_COUNT_CALIB		3
-#define CS40L26_LOGGER_SRC_COUNT		1
+#define CS40L26_LOGGER_EN_MASK			BIT(0)
+
 #define CS40L26_LOGGER_SRC_ID_BEMF		1
 #define CS40L26_LOGGER_SRC_ID_VBST		2
 #define CS40L26_LOGGER_SRC_ID_VMON		3
-#define CS40L26_LOGGER_DATA_1_MIN_OFFSET	0
-#define CS40L26_LOGGER_DATA_1_MAX_OFFSET	4
-#define CS40L26_LOGGER_DATA_1_MEAN_OFFSET	8
-#define CS40L26_LOGGER_DATA_2_MIN_OFFSET	12
-#define CS40L26_LOGGER_DATA_2_MAX_OFFSET	16
-#define CS40L26_LOGGER_DATA_2_MEAN_OFFSET	20
-#define CS40L26_LOGGER_DATA_3_MIN_OFFSET	24
-#define CS40L26_LOGGER_DATA_3_MAX_OFFSET	28
-#define CS40L26_LOGGER_DATA_3_MEAN_OFFSET	32
-#define CS40L26_LOGGER_DATA_4_MAX_OFFSET	40
+#define CS40L26_LOGGER_SRC_ID_EP		4
+
+#define CS40L26_LOGGER_SRC_TYPE_XM_TO_XM	1
+
+#define CS40L26_LOGGER_SRC_FF_OUT		2
+
+#define CS40L26_LOGGER_SRC_SIGN_MASK		BIT(23)
+#define CS40L26_LOGGER_SRC_SIZE_MASK		BIT(22)
+#define CS40L26_LOGGER_SRC_TYPE_MASK		GENMASK(21, 20)
+#define CS40L26_LOGGER_SRC_ID_MASK		GENMASK(19, 16)
+#define CS40L26_LOGGER_SRC_ADDR_MASK		GENMASK(15, 0)
+
+#define CS40L26_LOGGER_DATA_MAX_STEP		12
+#define CS40L26_LOGGER_DATA_MAX_OFFSET		4
 
 #define CS40L26_UINT_24_BITS_MAX		16777215
 
 #define CS40L26_CALIBRATION_TIMEOUT_MS	2000
-
-#define CS40L26_SOURCE_FF_OUT			2
-#define CS40L26_SOURCE_ADDR_MASK		GENMASK(15, 0)
-#define CS40L26_SOURCE_SIGNED_SHIFT		23
-#define CS40L26_SOURCE_TYPE_SHIFT		20
 
 /* Compensation */
 #define CS40L26_COMP_EN_REDC_SHIFT  1
@@ -897,6 +892,20 @@ enum cs40l26_irq_list {
 };
 
 /* structs */
+struct cs40l26_log_src {
+	u8 sign;
+	u8 size;
+	u8 type;
+	u8 id;
+	u16 addr;
+};
+
+struct cs40l26_ls_cal_param {
+	const char *calib_name;
+	const char *runtime_name;
+	int word_num;
+};
+
 struct cs40l26_irq {
 	int irq;
 	const char *name;
@@ -1074,6 +1083,8 @@ struct cs40l26_private {
 	u32 release_idx;
 	u32 clip_lvl;
 	struct regmap_irq_chip_data *irq_data;
+	struct cs40l26_log_src *log_srcs;
+	u32 num_log_srcs;
 };
 
 struct cs40l26_codec {
