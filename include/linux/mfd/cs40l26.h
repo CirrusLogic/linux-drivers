@@ -80,6 +80,7 @@
 #define CS40L26_VBBR_CONFIG				0x6408
 #define CS40L26_VPBR_STATUS				0x640C
 #define CS40L26_VBBR_STATUS				0x6410
+#define CS40L26_NG_CONFIG				0x6808
 #define CS40L26_DIGPWM_CONFIG2				0x7068
 #define CS40L26_TST_DAC_MSM_CONFIG			0x7404
 #define CS40L26_IRQ1_CFG				0x10000
@@ -276,6 +277,17 @@
 #define CS40L26_WKSRC_GPIO_POL_MASK		GENMASK(3, 0)
 
 #define CS40L26_WKSRC_STS_EN			BIT(7)
+
+
+#define CS40L26_NG_THRESHOLD_MASK		GENMASK(2, 0)
+#define CS40L26_NG_DELAY_MASK			GENMASK(6, 4)
+#define CS40L26_NG_ENABLE_MASK			GENMASK(13, 8)
+#define CS40L26_NG_THRESHOLD_DEFAULT		3
+#define CS40L26_NG_THRESHOLD_MIN		0
+#define CS40L26_NG_THRESHOLD_MAX		7
+#define CS40L26_NG_DELAY_DEFAULT		3
+#define CS40L26_NG_DELAY_MIN			0
+#define CS40L26_NG_DELAY_MAX			7
 
 /* DSP mailbox controls */
 #define CS40L26_DSP_TIMEOUT_US_MIN		1000
@@ -1085,6 +1097,9 @@ struct cs40l26_private {
 	struct regmap_irq_chip_data *irq_data;
 	struct cs40l26_log_src *log_srcs;
 	u32 num_log_srcs;
+	u32 ng_thld;
+	u32 ng_delay;
+	bool ng_enable;
 };
 
 struct cs40l26_codec {

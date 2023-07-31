@@ -3464,6 +3464,30 @@ static int cs40l26_bst_ctl_config(struct cs40l26_private *cs40l26)
 			CS40L26_PSEQ_OP_WRITE_L16);
 }
 
+static int cs40l26_noise_gate_config(struct cs40l26_private *cs40l26)
+{
+	u32 ng_config;
+	int error;
+
+	if (cs40l26->ng_thld < CS40L26_NG_THRESHOLD_MIN ||
+			cs40l26->ng_thld > CS40L26_NG_THRESHOLD_MAX)
+		cs40l26->ng_thld = CS40L26_NG_THRESHOLD_DEFAULT;
+
+	if (cs40l26->ng_delay < CS40L26_NG_DELAY_MIN || cs40l26->ng_delay > CS40L26_NG_DELAY_MAX)
+		cs40l26->ng_delay = CS40L26_NG_DELAY_DEFAULT;
+
+	ng_config = FIELD_PREP(CS40L26_NG_THRESHOLD_MASK, cs40l26->ng_thld) |
+			FIELD_PREP(CS40L26_NG_DELAY_MASK, cs40l26->ng_delay) |
+			FIELD_PREP(CS40L26_NG_ENABLE_MASK, cs40l26->ng_enable);
+
+	error = regmap_write(cs40l26->regmap, CS40L26_NG_CONFIG, ng_config);
+	if (error)
+		return error;
+
+	return cs40l26_pseq_write(cs40l26, CS40L26_NG_CONFIG, ng_config, true,
+			CS40L26_PSEQ_OP_WRITE_FULL);
+}
+
 static int cs40l26_clip_lvl_config(struct cs40l26_private *cs40l26)
 {
 	u32 clip_lvl, digpwm_config;
@@ -3852,6 +3876,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		return error;
 
 	error = cs40l26_zero_cross_config(cs40l26);
+	if (error)
+		return error;
+
+	error = cs40l26_noise_gate_config(cs40l26);
 	if (error)
 		return error;
 
@@ -4622,6 +4650,8 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 
 	cs40l26->bst_dcm_en = device_property_present(dev, "cirrus,bst-dcm-en");
 
+	cs40l26->ng_enable = device_property_present(dev, "cirrus,ng-enable");
+
 	error = device_property_read_u32(dev, "cirrus,bst-ipk-microamp", &cs40l26->bst_ipk);
 	if (error)
 		cs40l26->bst_ipk = CS40L26_BST_IPK_UA_DEFAULT;
@@ -4656,6 +4686,14 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 
 	cs40l26->gain_pct = CS40L26_GAIN_FULL_SCALE;
 	cs40l26->gain_tmp = CS40L26_GAIN_FULL_SCALE;
+
+	error = device_property_read_u32(dev, "cirrus,ng-thld", &cs40l26->ng_thld);
+	if (error)
+		cs40l26->ng_thld = CS40L26_NG_THRESHOLD_DEFAULT;
+
+	error = device_property_read_u32(dev, "cirrus,ng-delay", &cs40l26->ng_delay);
+	if (error)
+		cs40l26->ng_delay = CS40L26_NG_DELAY_DEFAULT;
 
 	error = device_property_read_u32(dev, "cirrus,f0-default", &cs40l26->f0_default);
 	if (error && error != -EINVAL)
