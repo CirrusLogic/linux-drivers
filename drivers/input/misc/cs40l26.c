@@ -353,8 +353,8 @@ static inline void cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
 
 static inline void cs40l26_pm_runtime_teardown(struct cs40l26_private *cs40l26)
 {
-	pm_runtime_disable(cs40l26->dev);
 	pm_runtime_dont_use_autosuspend(cs40l26->dev);
+	pm_runtime_disable(cs40l26->dev);
 }
 
 static int cs40l26_check_pm_lock(struct cs40l26_private *cs40l26, bool *locked)
