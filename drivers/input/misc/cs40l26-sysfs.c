@@ -1538,12 +1538,143 @@ err_mutex:
 }
 static DEVICE_ATTR_RW(redc_stored);
 
+static ssize_t freq_centre_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 freq_centre, reg;
+	int error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "FREQ_CENTRE", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_F0_EST_ALGO_ID, &reg);
+	if (error)
+		goto err_mutex;
+
+	error = regmap_read(cs40l26->regmap, reg, &freq_centre);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : snprintf(buf, PAGE_SIZE, "%08X\n", freq_centre);
+}
+
+static ssize_t freq_centre_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 freq_centre, reg;
+	int error;
+
+	error = kstrtou32(buf, 16, &freq_centre);
+	if (error)
+		return error;
+
+	if (freq_centre < CS40L26_F0_FREQ_CENTRE_MIN ||
+			freq_centre > CS40L26_F0_FREQ_CENTRE_MAX)
+		return -EINVAL;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "FREQ_CENTRE", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_F0_EST_ALGO_ID, &reg);
+	if (error)
+		goto err_mutex;
+
+	error = regmap_write(cs40l26->regmap, reg, freq_centre);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : count;
+}
+static DEVICE_ATTR_RW(freq_centre);
+
+static ssize_t freq_span_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error, freq_span;
+	u32 reg;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "FREQ_SPAN", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_F0_EST_ALGO_ID, &reg);
+	if (error)
+		goto err_mutex;
+
+	error = regmap_read(cs40l26->regmap, reg, &freq_span);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : snprintf(buf, PAGE_SIZE, "%08X\n", freq_span);
+}
+
+static ssize_t freq_span_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error, s_freq_span;
+	u32 freq_span, reg;
+
+	error = kstrtou32(buf, 16, &freq_span);
+	if (error)
+		return error;
+
+	freq_span &= GENMASK(23, 0);
+	s_freq_span = (freq_span & BIT(23)) ? (freq_span | GENMASK(31, 24)) : freq_span;
+
+	if (abs(s_freq_span) < CS40L26_F0_FREQ_SPAN_MIN ||
+			abs(s_freq_span) > CS40L26_F0_FREQ_SPAN_MAX)
+		return -EINVAL;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "FREQ_SPAN", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_F0_EST_ALGO_ID, &reg);
+	if (error)
+		goto err_mutex;
+
+	error = regmap_write(cs40l26->regmap, reg, freq_span);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : count;
+}
+static DEVICE_ATTR_RW(freq_span);
+
 static ssize_t f0_and_q_cal_time_ms_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 reg, tone_dur_ms, freq_span_raw, freq_centre;
-	int error, freq_span, f0_and_q_cal_time_ms;
+	u32 reg, tone_dur_ms, freq_centre, freq_span;
+	int error, f0_and_q_cal_time_ms;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -1568,16 +1699,11 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev, struct device_attri
 		if (error)
 			goto err_mutex;
 
-		error = regmap_read(cs40l26->regmap, reg, &freq_span_raw);
+		error = regmap_read(cs40l26->regmap, reg, &freq_span);
 		if (error) {
 			dev_err(cs40l26->dev, "Failed to get FREQ_SPAN\n");
 			goto err_mutex;
 		}
-
-		if (freq_span_raw & CS40L26_F0_FREQ_SPAN_SIGN) /* Negative */
-			freq_span = (int) (0xFF000000 | freq_span_raw);
-		else
-			freq_span = (int) freq_span_raw;
 
 		error = cl_dsp_get_reg(cs40l26->dsp, "FREQ_CENTRE", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_F0_EST_ALGO_ID, &reg);
@@ -1591,8 +1717,8 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev, struct device_attri
 		}
 
 		f0_and_q_cal_time_ms = ((CS40L26_F0_CHIRP_DURATION_FACTOR *
-				(int) (freq_span / CS40L26_F0_EST_FREQ_SCALE)) /
-				(int) (freq_centre / CS40L26_F0_EST_FREQ_SCALE));
+				(int) (freq_span >> CS40L26_F0_EST_FREQ_FRAC_BITS)) /
+				(int) (freq_centre >> CS40L26_F0_EST_FREQ_FRAC_BITS));
 	} else if (tone_dur_ms < CS40L26_F0_AND_Q_CALIBRATION_MIN_MS) {
 		f0_and_q_cal_time_ms = CS40L26_F0_AND_Q_CALIBRATION_MIN_MS;
 	} else if (tone_dur_ms > CS40L26_F0_AND_Q_CALIBRATION_MAX_MS) {
@@ -1987,6 +2113,8 @@ static struct attribute *cs40l26_dev_attrs_cal[] = {
 	&dev_attr_f0_stored.attr,
 	&dev_attr_q_stored.attr,
 	&dev_attr_redc_stored.attr,
+	&dev_attr_freq_centre.attr,
+	&dev_attr_freq_span.attr,
 	&dev_attr_f0_and_q_cal_time_ms.attr,
 	&dev_attr_redc_cal_time_ms.attr,
 	NULL,
