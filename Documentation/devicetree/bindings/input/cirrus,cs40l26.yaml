@@ -431,6 +431,45 @@ properties:
     description:
       Input clipping level after Virtual Impedance correction.
 
+  cirrus,ng-enable:
+    type: boolean
+    description:
+      Configures whether the amplifier noise gating detection
+      is enabled.
+
+  cirrus,ng-thld:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 3
+    description: |
+      Amplifier noise gate threshold at which the amplifier's
+      noise gating activates:
+      0: 654 uVpk
+      1: 328 uVpk
+      2: 164 uvPk
+      3: 82 uvPk
+      4: 41 uVpk
+      5: 21 uVpk
+      6: 10 uVpk
+      7: 0 uVpk
+
+  cirrus,ng-delay:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 3
+    description: |
+      Amplifier noise gate entry delay. Time that the signal must
+      be below the configured threshold prior to entering a noise
+      gated state:
+      0: 5 ms
+      1: 10 ms
+      2: 25 ms
+      3: 50 ms
+      4: 100 ms
+      5: 250 ms
+      6: 500 ms
+      7: 1000 ms
+
 required:
   - compatible
   - reg
@@ -536,6 +575,10 @@ examples:
         cirrus,bst-expl-mode-disable;
 
         cirrus,no-wait-ram-indices = <5 10 25>;
+
+        cirrus,ng-enable;
+        cirrus,ng-thld = <4>;
+        cirrus,ng-delay = <2>;
 
         svc-le1 {
           cirrus,min = <671>;
