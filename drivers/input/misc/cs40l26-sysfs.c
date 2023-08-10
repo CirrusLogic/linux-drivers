@@ -40,19 +40,46 @@ static ssize_t owt_lib_compat_show(struct device *dev, struct device_attribute *
 }
 static DEVICE_ATTR_RO(owt_lib_compat);
 
-static ssize_t excursion_limit_store(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t overprotection_gain_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 reg, ep_limit;
+	u32 reg, op_gain;
 	int error;
 
 	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID))
 		return -EPERM;
 
-	error = kstrtou32(buf, 10, &ep_limit);
+	error = cl_dsp_get_reg(cs40l26->dsp, "PROTECTION_XM_OP_GAIN",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EP_ALGO_ID, &reg);
+	if (error)
+		return error;
 
-	if (error || ep_limit < CS40L26_EXCURSION_LIMIT_MIN || ep_limit > CS40L26_UINT_24_BITS_MAX)
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	error = regmap_read(cs40l26->regmap, reg, &op_gain);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : snprintf(buf, PAGE_SIZE, "%d\n", op_gain);
+}
+
+static ssize_t overprotection_gain_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 reg, op_gain;
+	int error;
+
+	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID))
+		return -EPERM;
+
+	error = kstrtou32(buf, 10, &op_gain);
+
+	if (error || op_gain < CS40L26_OVERPROTECTION_GAIN_MIN ||
+			op_gain > CS40L26_UINT_24_BITS_MAX)
 		return -EINVAL;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
@@ -64,14 +91,14 @@ static ssize_t excursion_limit_store(struct device *dev, struct device_attribute
 	if (error)
 		goto err_pm;
 
-	error = regmap_write(cs40l26->regmap, reg, ep_limit);
+	error = regmap_write(cs40l26->regmap, reg, op_gain);
 
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
 
 	return error ? error : count;
 }
-static DEVICE_ATTR_WO(excursion_limit);
+static DEVICE_ATTR_RW(overprotection_gain);
 
 static ssize_t halo_heartbeat_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -745,7 +772,7 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_redc_comp_enable.attr,
 	&dev_attr_swap_firmware.attr,
 	&dev_attr_owt_lib_compat.attr,
-	&dev_attr_excursion_limit.attr,
+	&dev_attr_overprotection_gain.attr,
 	NULL,
 };
 
