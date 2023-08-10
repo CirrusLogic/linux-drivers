@@ -3716,7 +3716,8 @@ static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 		if (error)
 			return error;
 
-		error = regmap_write(cs40l26->regmap, reg, CS40L26_LOGGER_SRC_FF_OUT);
+		error = regmap_write(cs40l26->regmap, reg,
+				CS40L26_LOGGER_SRC_PROTECTION_OUT << 8);
 		if (error)
 			return error;
 
@@ -3725,6 +3726,7 @@ static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 		if (error)
 			return error;
 
+		exc_reg += CL_DSP_BYTES_PER_WORD;
 		exc_reg &= CS40L26_LOGGER_SRC_ADDR_MASK;
 		exc_reg /= CL_DSP_BYTES_PER_WORD;
 
