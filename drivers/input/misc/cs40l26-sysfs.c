@@ -1951,8 +1951,7 @@ static DEVICE_ATTR_WO(logging_max_reset);
 
 static int cs40l26_logger_max_get(struct cs40l26_private *cs40l26, u32 src_id, u32 *max)
 {
-	int error, reg, src_num = 0;
-	bool found = false;
+	int error, reg, src_num;
 	u32 offset;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
@@ -1961,11 +1960,12 @@ static int cs40l26_logger_max_get(struct cs40l26_private *cs40l26, u32 src_id, u
 
 	mutex_lock(&cs40l26->lock);
 
-	while (!found && src_num < cs40l26->num_log_srcs) {
-		if (cs40l26->log_srcs[src_num++].id == src_id)
-			found = true;
+	for (src_num = 0; src_num < cs40l26->num_log_srcs; src_num++) {
+		if (cs40l26->log_srcs[src_num].id == src_id)
+			break;
 	}
-	if (!found) {
+
+	if (src_num == cs40l26->num_log_srcs) {
 		error = -ENODEV;
 		goto err_mutex;
 	}
@@ -1975,7 +1975,7 @@ static int cs40l26_logger_max_get(struct cs40l26_private *cs40l26, u32 src_id, u
 	if (error)
 		goto err_mutex;
 
-	offset = ((src_num - 1) * CS40L26_LOGGER_DATA_MAX_STEP) + CS40L26_LOGGER_DATA_MAX_OFFSET;
+	offset = (src_num * CS40L26_LOGGER_DATA_MAX_STEP) + CS40L26_LOGGER_DATA_MAX_OFFSET;
 
 	error = regmap_read(cs40l26->regmap, reg + offset, max);
 
