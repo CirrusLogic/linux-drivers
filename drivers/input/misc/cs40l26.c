@@ -2220,7 +2220,7 @@ static u8 *cs40l26_ncw_refactor_data(struct cs40l26_private *cs40l26, u8 amp, u8
 			sections[i].flags |= CS40L26_WT_TYPE10_COMP_ROM_FLAG;
 	}
 
-	out_data = kcalloc(data_bytes, sizeof(u8), GFP_KERNEL);
+	out_data = kzalloc(data_bytes, GFP_KERNEL);
 	if (!out_data) {
 		error = -ENOMEM;
 		goto sections_free;
@@ -2273,9 +2273,8 @@ static int cs40l26_composite_upload(struct cs40l26_private *cs40l26, s16 *in_dat
 	u8 nsections, global_rep, out_nsections = 0;
 	int out_data_bytes = 0, data_bytes = 0;
 	struct device *dev = cs40l26->dev;
-	u8 *out_data = NULL;
+	u8 ncw_nsections, ncw_global_rep, *data, *ncw_data, *out_data;
 	u8 delay_section_data[CS40L26_WT_TYPE10_SECTION_BYTES_MIN];
-	u8 ncw_nsections, ncw_global_rep, *data, *ncw_data;
 	struct cs40l26_owt_section *sections;
 	struct cl_dsp_memchunk ch, out_ch;
 	struct cl_dsp_owt_header *header;
@@ -3689,7 +3688,6 @@ static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 	int error, i;
 
 	if (cs40l26->log_srcs != NULL) {
-		memset(cs40l26->log_srcs, 0, cs40l26->num_log_srcs * CL_DSP_BYTES_PER_WORD);
 		cs40l26->num_log_srcs = 0;
 		devm_kfree(cs40l26->dev, cs40l26->log_srcs);
 	}
