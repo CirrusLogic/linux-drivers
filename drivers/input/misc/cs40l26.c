@@ -400,7 +400,6 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26, enum cs40l26_pm
 {
 	struct device *dev = cs40l26->dev;
 	u32 cmd, he_time_cmd, he_time_cmd_payload;
-	ktime_t time_since_allow_hibernate;
 	u8 curr_state;
 	bool dsp_lock;
 	int error, i;
@@ -449,16 +448,11 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26, enum cs40l26_pm
 			 * command to provide input to thermal model
 			 */
 			if (timer_pending(&cs40l26->hibernate_timer)) {
-				time_since_allow_hibernate = ktime_sub(
+				he_time_cmd_payload = ktime_to_ms(ktime_sub(
 						ktime_get_boottime(),
-						cs40l26->allow_hibernate_ts);
-				if (ktime_to_ms(time_since_allow_hibernate) <
-					CS40L26_DSP_MBOX_HE_PAYLOAD_MAX_MS)
-					he_time_cmd_payload = ktime_to_ms(
-						time_since_allow_hibernate);
-				else
-					he_time_cmd_payload =
-					CS40L26_DSP_MBOX_HE_PAYLOAD_OVERFLOW;
+						cs40l26->allow_hibernate_ts));
+				if (he_time_cmd_payload > CS40L26_DSP_MBOX_HE_PAYLOAD_MAX_MS)
+					he_time_cmd_payload = CS40L26_DSP_MBOX_HE_PAYLOAD_OVERFLOW;
 			} else {
 				he_time_cmd_payload =
 					CS40L26_DSP_MBOX_HE_PAYLOAD_OVERFLOW;
