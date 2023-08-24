@@ -2033,6 +2033,37 @@ static ssize_t logging_max_reset_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(logging_max_reset);
 
+static ssize_t available_logger_srcs_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	char log_srcs[20] = "";
+	int i;
+
+	for (i = 0; i < cs40l26->num_log_srcs; i++) {
+		switch (cs40l26->log_srcs[i].id) {
+		case CS40L26_LOGGER_SRC_ID_BEMF:
+			strncat(log_srcs, "BEMF\n", 5);
+			break;
+		case CS40L26_LOGGER_SRC_ID_VBST:
+			strncat(log_srcs, "VBST\n", 5);
+			break;
+		case CS40L26_LOGGER_SRC_ID_VMON:
+			strncat(log_srcs, "VMON\n", 5);
+			break;
+		case CS40L26_LOGGER_SRC_ID_EP:
+			strncat(log_srcs, "EP\n", 3);
+			break;
+		default:
+			dev_err(cs40l26->dev, "Invalid source ID %d\n", cs40l26->log_srcs[i].id);
+			return -EINVAL;
+		}
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%s", log_srcs);
+}
+static DEVICE_ATTR_RO(available_logger_srcs);
+
 static int cs40l26_logger_max_get(struct cs40l26_private *cs40l26, u32 src_id, u32 *max)
 {
 	int error, reg, src_num;
@@ -2122,6 +2153,7 @@ static DEVICE_ATTR_RO(max_excursion);
 static struct attribute *cs40l26_dev_attrs_dlog[] = {
 	&dev_attr_logging_en.attr,
 	&dev_attr_logging_max_reset.attr,
+	&dev_attr_available_logger_srcs.attr,
 	&dev_attr_max_bemf.attr,
 	&dev_attr_max_vbst.attr,
 	&dev_attr_max_vmon.attr,
