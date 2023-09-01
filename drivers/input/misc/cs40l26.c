@@ -3933,6 +3933,11 @@ static void cs40l26_gain_adjust(struct cs40l26_private *cs40l26, s32 adjust)
 {
 	u16 total, asp, change;
 
+	if (abs(adjust) > 100) {
+		dev_warn(cs40l26->dev, "Gain adjust %d invalid, not applied\n", adjust);
+		return;
+	}
+
 	asp = cs40l26->asp_scale_pct;
 
 	if (adjust < 0) {
@@ -4433,17 +4438,10 @@ static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 			continue;
 		}
 
-		if (fwnode_property_read_u32(child, "cirrus,gain-adjust", &gain_adjust_raw)) {
+		if (fwnode_property_read_u32(child, "cirrus,gain-adjust", &gain_adjust_raw))
 			gain_adjust = 0;
-		} else {
-			if (gain_adjust_raw > 100) {
-				gain_adjust = 0;
-				dev_warn(dev, "Gain adjust %u invalid, not applied\n",
-						gain_adjust_raw);
-			} else {
-				gain_adjust = (s32) gain_adjust_raw;
-			}
-		}
+		else
+			gain_adjust = (s32) gain_adjust_raw;
 
 		if (fwnode_property_read_u32(child, "cirrus,index", &index)) {
 			dev_err(dev, "No index specified for SVC LE node\n");
