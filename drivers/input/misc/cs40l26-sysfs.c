@@ -396,15 +396,19 @@ static ssize_t boost_disable_delay_show(struct device *dev, struct device_attrib
 		char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 reg, boost_disable_delay;
+	u32 reg, boost_disable_delay, algo_id;
 	int error;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
 		return error;
 
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		goto err_pm;
+
 	error = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+			CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
 	if (error)
 		goto err_pm;
 
@@ -424,7 +428,7 @@ static ssize_t boost_disable_delay_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 reg, boost_disable_delay;
+	u32 reg, boost_disable_delay, algo_id;
 	int error;
 
 	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
@@ -439,8 +443,12 @@ static ssize_t boost_disable_delay_store(struct device *dev,
 	if (error)
 		return error;
 
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		goto err_pm;
+
 	error = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+			CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
 	if (error)
 		goto err_pm;
 
