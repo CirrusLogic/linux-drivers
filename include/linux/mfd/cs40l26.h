@@ -786,6 +786,7 @@
 
 /* FW EXT */
 #define CS40L26_SVC_EN_MASK	BIT(0)
+#define CS40L26_FW_RAM_EXT_RELOC_REV 0x080102 /* FW rev relocating FW_RAM_EXT FW controls */
 
 /* DBC */
 #define CS40L26_DBC_ENABLE_MASK			BIT(1)
@@ -1144,6 +1145,7 @@ int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26, unsigned int dsp_
 int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26, unsigned int dsp_state,
 		u32 *timeout_ms);
 int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26, enum cs40l26_pm_state state);
+int cs40l26_get_ram_ext_algo_id(struct cs40l26_private *cs40l26, unsigned int *algo_id);
 int cs40l26_mailbox_write(struct cs40l26_private *cs40l26, u32 write_val);
 int cs40l26_pm_enter(struct device *dev);
 void cs40l26_pm_exit(struct device *dev);

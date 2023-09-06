@@ -116,6 +116,21 @@ static int cs40l26_dsp_write(struct cs40l26_private *cs40l26, u32 reg, u32 val)
 	return 0;
 }
 
+int cs40l26_get_ram_ext_algo_id(struct cs40l26_private *cs40l26, unsigned int *algo_id)
+{
+	unsigned int fw_rev;
+	int error;
+
+	error = cl_dsp_fw_rev_get(cs40l26->dsp, &fw_rev);
+	if (error)
+		return error;
+
+	*algo_id = (fw_rev >= CS40L26_FW_RAM_EXT_RELOC_REV) ? cs40l26->fw_id : CS40L26_EXT_ALGO_ID;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs40l26_get_ram_ext_algo_id);
+
 int cs40l26_mailbox_write(struct cs40l26_private *cs40l26, u32 write_val)
 {
 	int i, error;
@@ -1684,9 +1699,9 @@ static bool cs40l26_is_no_wait_ram_index(struct cs40l26_private *cs40l26,
 static void cs40l26_set_gain_worker(struct work_struct *work)
 {
 	struct cs40l26_private *cs40l26 = container_of(work, struct cs40l26_private, set_gain_work);
+	u32 algo_id, reg;
 	int error;
 	u16 gain;
-	u32 reg;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -1706,8 +1721,12 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 	dev_dbg(cs40l26->dev, "%s: gain = %u%%\n", __func__, gain);
 
 	/* Write Q21.2 value to SOURCE_ATTENUATION */
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		goto err_mutex;
+
 	error = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_ATTENUATION",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+			CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
 	if (error)
 		goto err_mutex;
 
@@ -1727,7 +1746,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	struct device *dev = cs40l26->dev;
 	struct cs40l26_uploaded_effect *ueffect;
 	struct ff_effect *effect;
-	unsigned int reg;
+	u32 algo_id, reg;
 	u16 duration;
 	bool invert;
 	int error;
@@ -1761,8 +1780,12 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		goto err_mutex;
 	}
 
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		goto err_mutex;
+
 	error = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_INVERT",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+			CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
 	if (error)
 		goto err_mutex;
 
@@ -3615,7 +3638,7 @@ static int cs40l26_handle_errata(struct cs40l26_private *cs40l26)
 
 static int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc_type dbc, u32 val)
 {
-	u32 reg, write_val;
+	u32 algo_id, reg, write_val;
 	int error;
 
 	if (val > cs40l26_dbc_params[dbc].max)
@@ -3625,8 +3648,12 @@ static int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc_typ
 	else
 		write_val = val;
 
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		return error;
+
 	error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_dbc_params[dbc].name, CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_EXT_ALGO_ID, &reg);
+			algo_id, &reg);
 	if (error)
 		return error;
 
@@ -3635,8 +3662,8 @@ static int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc_typ
 
 static int cs40l26_dbc_config(struct cs40l26_private *cs40l26)
 {
+	u32 algo_id, reg, val;
 	int error, i;
-	u32 reg, val;
 
 	for (i = 0; i < CS40L26_DBC_NUM_CONTROLS; i++) {
 		val = cs40l26->dbc_configs[i];
@@ -3649,8 +3676,12 @@ static int cs40l26_dbc_config(struct cs40l26_private *cs40l26)
 	}
 
 	if (cs40l26->dbc_enable) {
+		error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+		if (error)
+			return error;
+
 		error = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_EXT_ALGO_ID, &reg);
+				algo_id, &reg);
 		if (error)
 			return error;
 
