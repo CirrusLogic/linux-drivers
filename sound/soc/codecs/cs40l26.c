@@ -883,7 +883,7 @@ static int cs40l26_codec_probe(struct snd_soc_component *component)
 		return -ENOMEM;
 
 	codec->bin_file[PAGE_SIZE - 1] = '\0';
-	snprintf(codec->bin_file, PAGE_SIZE, CS40L26_A2H_TUNING_FILE_NAME);
+	snprintf(codec->bin_file, PAGE_SIZE, "cs40l26-a2h.bin");
 
 	/* Default audio SCLK frequency */
 	codec->sysclk_rate = CS40L26_PLL_CLK_FRQ_1536000;
