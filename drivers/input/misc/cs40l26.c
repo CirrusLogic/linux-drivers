@@ -4047,47 +4047,42 @@ static char **cs40l26_get_tuning_names(struct cs40l26_private *cs40l26, int *act
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < CS40L26_MAX_TUNING_FILES; i++) {
-		coeff_files[i] = kzalloc(CS40L26_TUNING_FILE_NAME_MAX_LEN, GFP_KERNEL);
+		coeff_files[i] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
 		if (!coeff_files[i])
 			goto err_free;
 	}
 
 	if (tuning) {
-		snprintf(coeff_files[file_count++], CS40L26_TUNING_FILE_NAME_MAX_LEN, "%s%d%s",
-				CS40L26_WT_FILE_PREFIX, tuning, CS40L26_TUNING_FILE_SUFFIX);
+		snprintf(coeff_files[file_count++], CS40L26_FILE_NAME_MAX_LEN, "%s%d%s",
+				CS40L26_WT_FILE_PREFIX, tuning, CS40L26_FILE_SUFFIX);
+		snprintf(coeff_files[file_count++], CS40L26_FILE_NAME_MAX_LEN, "%s%d%s",
+				CS40L26_SVC_FILE_PREFIX, tuning, CS40L26_FILE_SUFFIX);
 	} else {
 		strscpy(coeff_files[file_count++], CS40L26_WT_FILE_NAME,
-				CS40L26_TUNING_FILE_NAME_MAX_LEN);
+				CS40L26_FILE_NAME_MAX_LEN);
+		strscpy(coeff_files[file_count++], CS40L26_SVC_FILE_NAME,
+				CS40L26_FILE_NAME_MAX_LEN);
 	}
 
-	if (tuning) {
-		snprintf(coeff_files[file_count++], CS40L26_TUNING_FILE_NAME_MAX_LEN, "%s%d%s",
-				CS40L26_SVC_TUNING_FILE_PREFIX, tuning, CS40L26_TUNING_FILE_SUFFIX);
-	} else {
-		strscpy(coeff_files[file_count++], CS40L26_SVC_TUNING_FILE_NAME,
-				CS40L26_TUNING_FILE_NAME_MAX_LEN);
-	}
 	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_LF0T_ALGO_ID))
 		strscpy(coeff_files[file_count++], CS40L26_LF0T_FILE_NAME,
-				CS40L26_TUNING_FILE_NAME_MAX_LEN);
+				CS40L26_FILE_NAME_MAX_LEN);
 
 	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_DVL_ALGO_ID))
 		strscpy(coeff_files[file_count++], CS40L26_DVL_FILE_NAME,
-				CS40L26_TUNING_FILE_NAME_MAX_LEN);
+				CS40L26_FILE_NAME_MAX_LEN);
 
 	if (cs40l26->fw_id == CS40L26_FW_ID) {
 		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID))
-			strscpy(coeff_files[file_count++],
-				CS40L26_A2H_TUNING_FILE_NAME,
-				CS40L26_TUNING_FILE_NAME_MAX_LEN);
+			strscpy(coeff_files[file_count++], CS40L26_A2H_FILE_NAME,
+					CS40L26_FILE_NAME_MAX_LEN);
 
 		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID))
-			strscpy(coeff_files[file_count++],
-				CS40L26_EP_TUNING_FILE_NAME,
-				CS40L26_TUNING_FILE_NAME_MAX_LEN);
+			strscpy(coeff_files[file_count++], CS40L26_EP_FILE_NAME,
+					CS40L26_FILE_NAME_MAX_LEN);
 	} else {
-		strscpy(coeff_files[file_count++], CS40L26_CALIB_BIN_FILE_NAME,
-				CS40L26_TUNING_FILE_NAME_MAX_LEN);
+		strscpy(coeff_files[file_count++], CS40L26_CALIB_FILE_NAME,
+				CS40L26_FILE_NAME_MAX_LEN);
 	}
 
 	*actual_num_files = file_count;
