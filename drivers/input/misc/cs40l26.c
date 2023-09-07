@@ -209,61 +209,33 @@ int cs40l26_set_pll_loop(struct cs40l26_private *cs40l26, unsigned int pll_loop)
 }
 EXPORT_SYMBOL_GPL(cs40l26_set_pll_loop);
 
-int cs40l26_dbc_get(struct cs40l26_private *cs40l26, enum cs40l26_dbc_type dbc, unsigned int *val)
-{
-	struct device *dev = cs40l26->dev;
-	unsigned int reg;
-	int error;
-
-	error = cs40l26_pm_enter(dev);
-	if (error)
-		return error;
-
-	mutex_lock(&cs40l26->lock);
-
-	error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_dbc_params[dbc].name, CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_EXT_ALGO_ID, &reg);
-	if (error)
-		goto err_pm;
-
-	error = regmap_read(cs40l26->regmap, reg, val);
-	if (error)
-		dev_err(dev, "Failed to read Dynamic Boost Control value\n");
-
-err_pm:
-	mutex_unlock(&cs40l26->lock);
-
-	cs40l26_pm_exit(dev);
-
-	return error;
-}
-EXPORT_SYMBOL_GPL(cs40l26_dbc_get);
-
-int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc_type dbc, u32 val)
-{
-	struct device *dev = cs40l26->dev;
-	u32 reg, write_val;
-	int error;
-
-	if (val > cs40l26_dbc_params[dbc].max)
-		write_val = cs40l26_dbc_params[dbc].max;
-	else if (val < cs40l26_dbc_params[dbc].min)
-		write_val = cs40l26_dbc_params[dbc].min;
-	else
-		write_val = val;
-
-	error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_dbc_params[dbc].name,
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
-	if (error)
-		return error;
-
-	error = regmap_write(cs40l26->regmap, reg, write_val);
-	if (error)
-		dev_err(dev, "Failed to write Dynamic Boost Control value\n");
-
-	return error;
-}
-EXPORT_SYMBOL_GPL(cs40l26_dbc_set);
+static const struct cs40l26_dbc cs40l26_dbc_params[CS40L26_DBC_NUM_CONTROLS] = {
+	{
+		.name = CS40L26_DBC_ENV_REL_COEF_NAME,
+		.max = CS40L26_DBC_CONTROLS_MAX,
+		.min = CS40L26_DBC_ENV_REL_COEF_MIN,
+	},
+	{
+		.name = CS40L26_DBC_RISE_HEADROOM_NAME,
+		.max = CS40L26_DBC_CONTROLS_MAX,
+		.min = CS40L26_DBC_RISE_HEADROOM_MIN,
+	},
+	{
+		.name = CS40L26_DBC_FALL_HEADROOM_NAME,
+		.max = CS40L26_DBC_CONTROLS_MAX,
+		.min = CS40L26_DBC_FALL_HEADROOM_MIN,
+	},
+	{
+		.name = CS40L26_DBC_TX_LVL_THRESH_FS_NAME,
+		.max = CS40L26_DBC_CONTROLS_MAX,
+		.min = CS40L26_DBC_TX_LVL_THRESH_FS_MIN,
+	},
+	{
+		.name = CS40L26_DBC_TX_LVL_HOLD_OFF_MS_NAME,
+		.max = CS40L26_DBC_TX_LVL_HOLD_OFF_MS_MAX,
+		.min = CS40L26_DBC_TX_LVL_HOLD_OFF_MS_MIN,
+	},
+};
 
 int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26, unsigned int dsp_state,
 		u32 timeout_ms)
@@ -3641,43 +3613,49 @@ static int cs40l26_handle_errata(struct cs40l26_private *cs40l26)
 			false, CS40L26_PSEQ_OP_WRITE_FULL);
 }
 
-int cs40l26_dbc_enable(struct cs40l26_private *cs40l26, u32 enable)
+static int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc_type dbc, u32 val)
 {
-	unsigned int reg;
+	u32 reg, write_val;
 	int error;
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
+	if (val > cs40l26_dbc_params[dbc].max)
+		write_val = cs40l26_dbc_params[dbc].max;
+	else if (val < cs40l26_dbc_params[dbc].min)
+		write_val = cs40l26_dbc_params[dbc].min;
+	else
+		write_val = val;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_dbc_params[dbc].name, CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_EXT_ALGO_ID, &reg);
 	if (error)
 		return error;
 
-	error = regmap_update_bits(cs40l26->regmap, reg, CS40L26_DBC_ENABLE_MASK,
-			enable << CS40L26_DBC_ENABLE_SHIFT);
-	if (error)
-		dev_err(cs40l26->dev, "Failed to %s DBC\n", enable ? "enable" : "disable");
-
-	return error;
+	return regmap_write(cs40l26->regmap, reg, write_val);
 }
-EXPORT_SYMBOL_GPL(cs40l26_dbc_enable);
 
-static int cs40l26_handle_dbc_defaults(struct cs40l26_private *cs40l26)
+static int cs40l26_dbc_config(struct cs40l26_private *cs40l26)
 {
-	unsigned int i;
-	int error;
-	u32 val;
+	int error, i;
+	u32 reg, val;
 
 	for (i = 0; i < CS40L26_DBC_NUM_CONTROLS; i++) {
-		val = cs40l26->dbc_defaults[i];
+		val = cs40l26->dbc_configs[i];
 
-		if (val != CS40L26_DBC_USE_DEFAULT) {
-			error = cs40l26_dbc_set(cs40l26, i, val);
+		if (val != CS40L26_DBC_DEFAULT) {
+			error = cs40l26_dbc_set(cs40l26, (enum cs40l26_dbc_type) i, val);
 			if (error)
 				return error;
 		}
 	}
 
-	if (cs40l26->dbc_enable_default) {
-		error = cs40l26_dbc_enable(cs40l26, 1);
+	if (cs40l26->dbc_enable) {
+		error = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_EXT_ALGO_ID, &reg);
+		if (error)
+			return error;
+
+		error = regmap_update_bits(cs40l26->regmap, reg, CS40L26_DBC_ENABLE_MASK,
+				1 << CS40L26_DBC_ENABLE_SHIFT);
 		if (error)
 			return error;
 	}
@@ -3875,7 +3853,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		return error;
 
 	if (!cs40l26->dbc_tuning_loaded) {
-		error = cs40l26_handle_dbc_defaults(cs40l26);
+		error = cs40l26_dbc_config(cs40l26);
 		if (error)
 			return error;
 	}
@@ -4714,32 +4692,32 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 	if (error && error != -EINVAL)
 		return error;
 
-	cs40l26->dbc_enable_default = device_property_present(dev, "cirrus,dbc-enable");
+	cs40l26->dbc_enable = device_property_present(dev, "cirrus,dbc-enable");
 
 	error = device_property_read_u32(dev, "cirrus,dbc-env-rel-coef",
-			&cs40l26->dbc_defaults[CS40L26_DBC_ENV_REL_COEF]);
+			&cs40l26->dbc_configs[CS40L26_DBC_ENV_REL_COEF]);
 	if (error)
-		cs40l26->dbc_defaults[CS40L26_DBC_ENV_REL_COEF] = CS40L26_DBC_USE_DEFAULT;
+		cs40l26->dbc_configs[CS40L26_DBC_ENV_REL_COEF] = CS40L26_DBC_DEFAULT;
 
 	error = device_property_read_u32(dev, "cirrus,dbc-fall-headroom",
-			&cs40l26->dbc_defaults[CS40L26_DBC_FALL_HEADROOM]);
+			&cs40l26->dbc_configs[CS40L26_DBC_FALL_HEADROOM]);
 	if (error)
-		cs40l26->dbc_defaults[CS40L26_DBC_FALL_HEADROOM] = CS40L26_DBC_USE_DEFAULT;
+		cs40l26->dbc_configs[CS40L26_DBC_FALL_HEADROOM] = CS40L26_DBC_DEFAULT;
 
 	error = device_property_read_u32(dev, "cirrus,dbc-rise-headroom",
-		&cs40l26->dbc_defaults[CS40L26_DBC_RISE_HEADROOM]);
+			&cs40l26->dbc_configs[CS40L26_DBC_RISE_HEADROOM]);
 	if (error)
-		cs40l26->dbc_defaults[CS40L26_DBC_RISE_HEADROOM] = CS40L26_DBC_USE_DEFAULT;
+		cs40l26->dbc_configs[CS40L26_DBC_RISE_HEADROOM] = CS40L26_DBC_DEFAULT;
 
 	error = device_property_read_u32(dev, "cirrus,dbc-tx-lvl-hold-off-ms",
-			&cs40l26->dbc_defaults[CS40L26_DBC_TX_LVL_HOLD_OFF_MS]);
+			&cs40l26->dbc_configs[CS40L26_DBC_TX_LVL_HOLD_OFF_MS]);
 	if (error)
-		cs40l26->dbc_defaults[CS40L26_DBC_TX_LVL_HOLD_OFF_MS] = CS40L26_DBC_USE_DEFAULT;
+		cs40l26->dbc_configs[CS40L26_DBC_TX_LVL_HOLD_OFF_MS] = CS40L26_DBC_DEFAULT;
 
 	error = device_property_read_u32(dev, "cirrus,dbc-tx-lvl-thresh-fs",
-			&cs40l26->dbc_defaults[CS40L26_DBC_TX_LVL_THRESH_FS]);
+			&cs40l26->dbc_configs[CS40L26_DBC_TX_LVL_THRESH_FS]);
 	if (error)
-		cs40l26->dbc_defaults[CS40L26_DBC_TX_LVL_THRESH_FS] = CS40L26_DBC_USE_DEFAULT;
+		cs40l26->dbc_configs[CS40L26_DBC_TX_LVL_THRESH_FS] = CS40L26_DBC_DEFAULT;
 
 	cs40l26->pwle_zero_cross = device_property_present(dev, "cirrus,pwle-zero-cross-en");
 

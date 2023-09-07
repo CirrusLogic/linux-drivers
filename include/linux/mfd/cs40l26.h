@@ -802,7 +802,7 @@
 #define CS40L26_DBC_TX_LVL_HOLD_OFF_MS_MAX	1000
 #define CS40L26_DBC_TX_LVL_HOLD_OFF_MS_MIN	10
 #define CS40L26_DBC_TX_LVL_HOLD_OFF_MS_NAME	"DBC_TX_LVL_HOLD_OFF_MS"
-#define CS40L26_DBC_USE_DEFAULT			0xFFFFFFFF
+#define CS40L26_DBC_DEFAULT			0xFFFFFFFF
 
 /* Errata */
 #define CS40L26_ERRATA_A1_NUM_WRITES		5
@@ -836,12 +836,12 @@ enum cs40l26_gpio_map {
 };
 
 enum cs40l26_dbc_type {
-	CS40L26_DBC_ENV_REL_COEF, /* 0 */
+	CS40L26_DBC_ENV_REL_COEF,
 	CS40L26_DBC_RISE_HEADROOM,
 	CS40L26_DBC_FALL_HEADROOM,
 	CS40L26_DBC_TX_LVL_THRESH_FS,
 	CS40L26_DBC_TX_LVL_HOLD_OFF_MS,
-	CS40L26_DBC_NUM_CONTROLS, /* 5 */
+	CS40L26_DBC_NUM_CONTROLS,
 };
 
 enum cs40l26_vibe_state {
@@ -939,7 +939,6 @@ struct cs40l26_brwnout_limits {
 };
 
 struct cs40l26_dbc {
-	enum cs40l26_dbc_type type;
 	const char *const name;
 	u32 max;
 	u32 min;
@@ -1098,8 +1097,8 @@ struct cs40l26_private {
 	u32 bst_ctl;
 	bool expl_mode_enabled;
 	bool dbc_tuning_loaded;
-	bool dbc_enable_default;
-	u32 dbc_defaults[CS40L26_DBC_NUM_CONTROLS];
+	bool dbc_enable;
+	u32 dbc_configs[CS40L26_DBC_NUM_CONTROLS];
 	bool pwle_zero_cross;
 	u32 press_idx;
 	u32 release_idx;
@@ -1135,9 +1134,6 @@ struct cs40l26_pll_sysclk_config {
 /* exported function prototypes */
 int cs40l26_svc_le_estimate(struct cs40l26_private *cs40l26, unsigned int *le);
 int cs40l26_set_pll_loop(struct cs40l26_private *cs40l26, unsigned int pll_loop);
-int cs40l26_dbc_enable(struct cs40l26_private *cs40l26, u32 enable);
-int cs40l26_dbc_get(struct cs40l26_private *cs40l26, enum cs40l26_dbc_type dbc, unsigned int *val);
-int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc_type dbc, u32 val);
 int cs40l26_asp_start(struct cs40l26_private *cs40l26);
 int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves);
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id);
@@ -1176,7 +1172,6 @@ extern const struct mfd_cell cs40l26_devs[CS40L26_NUM_MFD_DEVS];
 extern const u8 cs40l26_pseq_op_sizes[CS40L26_PSEQ_NUM_OPS][2];
 extern const u32 cs40l26_attn_q21_2_vals[CS40L26_NUM_PCT_MAP_VALUES];
 extern const struct reg_sequence cs40l26_a1_errata[CS40L26_ERRATA_A1_NUM_WRITES];
-extern const struct cs40l26_dbc cs40l26_dbc_params[CS40L26_DBC_NUM_CONTROLS];
 
 /* sysfs */
 extern const struct attribute_group *cs40l26_attr_groups[];
