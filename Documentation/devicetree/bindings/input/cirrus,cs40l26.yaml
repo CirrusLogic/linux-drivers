@@ -45,7 +45,6 @@ properties:
 
   cirrus,vbbr-thld-uv:
     $ref: /schemas/types.yaml#/definitions/uint32
-    multipleOf: 55000
     minimum: 109000
     maximum: 3445000
     default: 273000
@@ -53,6 +52,8 @@ properties:
       Boost converter brownout prevention delta voltage threshold
       Brownout prevention mode is entered if the condition
       "VBST(target) - VBST(actual) <= VBBR_THLD" is met.
+      Values accepted by the hardware register are in steps of
+      55000 microvolts starting from the minimum.
 
   cirrus,vbbr-max-att-db:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -136,13 +137,14 @@ properties:
 
   cirrus,vpbr-thld-uv:
     $ref: /schemas/types.yaml#/definitions/uint32
-    multipleOf: 47000
     minimum: 2497000
     maximum: 3874000
     default: 2639000
     description:
       Battery voltage (VP) brownout prevention threshold.
       Brownout prevention mode is entered if VP falls below VPBR_THLD.
+      Values accepted by the hardware register are in steps of
+      47000 microvolts starting from the minimum.
 
   cirrus,vpbr-max-att-db:
     $ref: /schemas/types.yaml#/definitions/uint32
