@@ -922,6 +922,29 @@ static int cs40l26_error_release(struct cs40l26_private *cs40l26,
 	return error;
 }
 
+static int cs40l26_handle_pre_irq(void *irq_drv_data)
+{
+	struct cs40l26_private *cs40l26 = irq_drv_data;
+	unsigned int sts;
+	int error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	error = regmap_read(cs40l26->regmap, CS40L26_IRQ1_STATUS, &sts);
+	if (error)
+		goto err_pm;
+
+	if (!sts & CS40L26_IRQ_STATUS_MASK)
+		dev_err(cs40l26->dev, "IRQ1 asserted with no pending interrupts\n");
+
+err_pm:
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error;
+}
+
 static irqreturn_t cs40l26_gpio_rise(int irq, void *data)
 {
 	struct cs40l26_private *cs40l26 = data;
@@ -1166,7 +1189,7 @@ static const struct regmap_irq cs40l26_reg_irqs[] = {
 	CS40L26_REG_IRQ(IRQ1_EINT_2, VBBR_ATT_CLR),
 };
 
-static const struct regmap_irq_chip cs40l26_regmap_irq_chip = {
+static struct regmap_irq_chip cs40l26_regmap_irq_chip = {
 	.name = "cs40l26 IRQ1 Controller",
 	.status_base = CS40L26_IRQ1_EINT_1,
 	.mask_base = CS40L26_IRQ1_MASK_1,
@@ -1174,6 +1197,7 @@ static const struct regmap_irq_chip cs40l26_regmap_irq_chip = {
 	.num_regs = 2,
 	.irqs = cs40l26_reg_irqs,
 	.num_irqs = ARRAY_SIZE(cs40l26_reg_irqs),
+	.handle_pre_irq = cs40l26_handle_pre_irq,
 	.runtime_pm = true,
 };
 
@@ -4314,6 +4338,8 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 static int cs40l26_request_irq(struct cs40l26_private *cs40l26)
 {
 	int error, irq, i;
+
+	cs40l26_regmap_irq_chip.irq_drv_data = cs40l26;
 
 	error = devm_regmap_add_irq_chip(cs40l26->dev, cs40l26->regmap,
 			cs40l26->irq, IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_LOW,
