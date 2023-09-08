@@ -352,7 +352,7 @@
 #define CS40L26_FW_FILE_NAME		"cs40l26.wmfw"
 #define CS40L26_FW_CALIB_NAME		"cs40l26-calib.wmfw"
 
-#define CS40L26_MAX_TUNING_FILES	6
+#define CS40L26_MAX_TUNING_FILES	7
 
 #define CS40L26_WT_FILE_NAME		"cs40l26.bin"
 #define CS40L26_WT_FILE_PREFIX		"cs40l26-wt"
@@ -368,6 +368,7 @@
 #define CS40L26_CALIB_FILE_NAME		"cs40l26-calib.bin"
 #define CS40L26_EP_FILE_NAME		"cs40l26-ep.bin"
 #define CS40L26_LF0T_FILE_NAME		"cs40l26-lf0t.bin"
+#define CS40L26_DBC_FILE_NAME		"cs40l26-dbc.bin"
 
 #define CS40L26_SVC_LE_EST_TIME_US	8000
 #define CS40L26_SVC_LE_MAX_ATTEMPTS	2
@@ -1096,6 +1097,7 @@ struct cs40l26_private {
 	u32 q_default;
 	u32 bst_ctl;
 	bool expl_mode_enabled;
+	bool dbc_tuning_loaded;
 	bool dbc_enable_default;
 	u32 dbc_defaults[CS40L26_DBC_NUM_CONTROLS];
 	bool pwle_zero_cross;
