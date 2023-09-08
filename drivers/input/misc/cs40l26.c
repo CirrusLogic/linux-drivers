@@ -3874,9 +3874,11 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (error)
 		return error;
 
-	error = cs40l26_handle_dbc_defaults(cs40l26);
-	if (error)
-		return error;
+	if (!cs40l26->dbc_tuning_loaded) {
+		error = cs40l26_handle_dbc_defaults(cs40l26);
+		if (error)
+			return error;
+	}
 
 	error = cs40l26_zero_cross_config(cs40l26);
 	if (error)
@@ -4080,6 +4082,9 @@ static char **cs40l26_get_tuning_names(struct cs40l26_private *cs40l26, int *act
 		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID))
 			strscpy(coeff_files[file_count++], CS40L26_EP_FILE_NAME,
 					CS40L26_FILE_NAME_MAX_LEN);
+
+		strscpy(coeff_files[file_count++], CS40L26_DBC_FILE_NAME,
+				CS40L26_FILE_NAME_MAX_LEN);
 	} else {
 		strscpy(coeff_files[file_count++], CS40L26_CALIB_FILE_NAME,
 				CS40L26_FILE_NAME_MAX_LEN);
@@ -4115,11 +4120,15 @@ static int cs40l26_coeff_load(struct cs40l26_private *cs40l26, u32 tuning)
 		}
 
 		error = cl_dsp_coeff_file_parse(cs40l26->dsp, coeff);
-		if (error)
+		if (error) {
 			dev_warn(dev, "Failed to load %s, %d. Continuing...\n", coeff_files[i],
 					error);
-		else
+		} else {
 			dev_info(dev, "%s Loaded Successfully\n", coeff_files[i]);
+			if (!strncmp(coeff_files[i], CS40L26_DBC_FILE_NAME,
+					CS40L26_FILE_NAME_MAX_LEN))
+				cs40l26->dbc_tuning_loaded = true;
+		}
 
 		release_firmware(coeff);
 	}
