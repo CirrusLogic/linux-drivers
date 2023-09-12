@@ -707,6 +707,9 @@ static irqreturn_t cs40l26_handle_mbox_buffer(int irq, void *data)
 			cs40l26->wksrc_sts |= CS40L26_WKSRC_STS_EN;
 			dev_dbg(dev, "Mailbox: AWAKE\n");
 			break;
+		case CS40L26_DSP_MBOX_INIT:
+			dev_dbg(dev, "Mailbox: INIT\n");
+			break;
 		case CS40L26_DSP_MBOX_F0_EST_START:
 			dev_dbg(dev, "Mailbox: F0_EST_START\n");
 			break;
