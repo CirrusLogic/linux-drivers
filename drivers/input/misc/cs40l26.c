@@ -1361,7 +1361,6 @@ static int cs40l26_pseq_multi_write(struct cs40l26_private *cs40l26,
 
 static int cs40l26_update_reg_defaults_via_pseq(struct cs40l26_private *cs40l26)
 {
-	struct device *dev = cs40l26->dev;
 	int error;
 
 	error = cs40l26_pseq_write(cs40l26, CS40L26_NGATE1_INPUT, CS40L26_DATA_SRC_DSP1TX4, true,
@@ -1371,19 +1370,13 @@ static int cs40l26_update_reg_defaults_via_pseq(struct cs40l26_private *cs40l26)
 
 	error = cs40l26_pseq_write(cs40l26, CS40L26_MIXER_NGATE_CH1_CFG,
 			CS40L26_MIXER_NGATE_CH1_CFG_DEFAULT_NEW, true, CS40L26_PSEQ_OP_WRITE_FULL);
-	if (error) {
-		dev_err(dev, "Failed to sequence Mixer Noise Gate\n");
+	if (error)
 		return error;
-	}
 
 	/* set SPK_DEFAULT_HIZ to 1 */
-	error = cs40l26_pseq_write(cs40l26, CS40L26_TST_DAC_MSM_CONFIG,
+	return cs40l26_pseq_write(cs40l26, CS40L26_TST_DAC_MSM_CONFIG,
 			CS40L26_TST_DAC_MSM_CONFIG_DEFAULT_CHANGE_VALUE_H16,
 			true, CS40L26_PSEQ_OP_WRITE_H16);
-	if (error)
-		dev_err(dev, "Failed to sequence register default updates\n");
-
-	return error;
 }
 
 static int cs40l26_pseq_init(struct cs40l26_private *cs40l26)
@@ -1507,19 +1500,15 @@ static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 reg, u32
 	if (bit_mask & GENMASK(31, 16)) {
 		error = cs40l26_pseq_write(cs40l26, reg, (new_mask & GENMASK(31, 16)) >> 16,
 			true, CS40L26_PSEQ_OP_WRITE_H16);
-		if (error) {
-			dev_err(cs40l26->dev, "Failed to update IRQ mask H16");
+		if (error)
 			return error;
-		}
 	}
 
 	if (bit_mask & GENMASK(15, 0)) {
 		error = cs40l26_pseq_write(cs40l26, reg, (new_mask & GENMASK(15, 0)),
 			true, CS40L26_PSEQ_OP_WRITE_L16);
-		if (error) {
-			dev_err(cs40l26->dev, "Failed to update IRQ mask L16");
+		if (error)
 			return error;
-		}
 	}
 
 	return error;
@@ -3189,10 +3178,8 @@ static int cs40l26_brwnout_prevention_init(struct cs40l26_private *cs40l26)
 
 	error = cs40l26_pseq_write(cs40l26, CS40L26_BLOCK_ENABLES2, enables, true,
 			CS40L26_PSEQ_OP_WRITE_FULL);
-	if (error) {
-		dev_err(dev, "Failed to sequence brownout prevention\n");
+	if (error)
 		return error;
-	}
 
 	if (cs40l26->vbbr.enable) {
 		pseq_mask = CS40L26_VBBR_ATT_CLR_MASK | CS40L26_VBBR_FLAG_MASK;
