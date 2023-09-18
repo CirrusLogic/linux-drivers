@@ -1734,7 +1734,7 @@ static int cs40l26_logger_max_get(struct cs40l26_private *cs40l26, u32 src_id, u
 	}
 
 	if (src_num == cs40l26->num_log_srcs) {
-		error = -ENODEV;
+		error = -ENODATA;
 		goto err_mutex;
 	}
 
