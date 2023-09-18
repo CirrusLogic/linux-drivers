@@ -391,79 +391,6 @@ err_pm:
 }
 static DEVICE_ATTR_RO(num_waves);
 
-/* boost_disable_delay is in units of 125us, e.g. 8 ->  1ms */
-static ssize_t boost_disable_delay_show(struct device *dev, struct device_attribute *attr,
-		char *buf)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 reg, boost_disable_delay, algo_id;
-	int error;
-
-	error = cs40l26_pm_enter(cs40l26->dev);
-	if (error)
-		return error;
-
-	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
-	if (error)
-		goto err_pm;
-
-	error = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY",
-			CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
-	if (error)
-		goto err_pm;
-
-	error = regmap_read(cs40l26->regmap, reg, &boost_disable_delay);
-	if (error)
-		goto err_pm;
-
-	error = snprintf(buf, PAGE_SIZE, "%d\n", boost_disable_delay);
-
-err_pm:
-	cs40l26_pm_exit(cs40l26->dev);
-
-	return error;
-}
-
-static ssize_t boost_disable_delay_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 reg, boost_disable_delay, algo_id;
-	int error;
-
-	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
-
-	error = kstrtou32(buf, 10, &boost_disable_delay);
-
-	if (error || boost_disable_delay < CS40L26_BOOST_DISABLE_DELAY_MIN ||
-			boost_disable_delay > CS40L26_BOOST_DISABLE_DELAY_MAX)
-		return -EINVAL;
-
-	error = cs40l26_pm_enter(cs40l26->dev);
-	if (error)
-		return error;
-
-	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
-	if (error)
-		goto err_pm;
-
-	error = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY",
-			CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
-	if (error)
-		goto err_pm;
-
-	error = regmap_write(cs40l26->regmap, reg, boost_disable_delay);
-
-err_pm:
-	cs40l26_pm_exit(cs40l26->dev);
-
-	if (error)
-		return error;
-	else
-		return count;
-}
-static DEVICE_ATTR_RW(boost_disable_delay);
-
 static ssize_t f0_offset_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -773,7 +700,6 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_pm_stdby_timeout_ms.attr,
 	&dev_attr_pm_active_timeout_ms.attr,
 	&dev_attr_vibe_state.attr,
-	&dev_attr_boost_disable_delay.attr,
 	&dev_attr_f0_offset.attr,
 	&dev_attr_delay_before_stop_playback_us.attr,
 	&dev_attr_f0_comp_enable.attr,
