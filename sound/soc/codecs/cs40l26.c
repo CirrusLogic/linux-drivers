@@ -657,6 +657,76 @@ static int cs40l26_a2h_delay_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return error;
 }
 
+static int cs40l26_boost_disable_delay_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct cs40l26_codec *codec =
+			snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
+	struct cs40l26_private *cs40l26 = codec->core;
+	u32 algo_id, delay, reg;
+	int error;
+
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		return error;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY", CL_DSP_XM_UNPACKED_TYPE,
+			algo_id, &reg);
+	if (error)
+		return error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	error = regmap_read(cs40l26->regmap, reg, &delay);
+	if (error)
+		goto err;
+
+	ucontrol->value.integer.value[0] = delay;
+
+err:
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error;
+}
+
+static int cs40l26_boost_disable_delay_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(comp);
+	struct cs40l26_codec *codec = snd_soc_component_get_drvdata(comp);
+	struct cs40l26_private *cs40l26 = codec->core;
+	u32 algo_id, delay, reg;
+	int error;
+
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		return error;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY", CL_DSP_XM_UNPACKED_TYPE,
+			algo_id, &reg);
+	if (error)
+		return error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	snd_soc_dapm_mutex_lock(dapm);
+
+	delay = ucontrol->value.integer.value[0];
+
+	error = regmap_write(cs40l26->regmap, reg, delay);
+
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error;
+}
+
 static const struct snd_kcontrol_new cs40l26_controls[] = {
 	SOC_SINGLE_EXT("A2H Tuning", 0, 0, CS40L26_A2H_MAX_TUNINGS, 0, cs40l26_tuning_get,
 			cs40l26_tuning_put),
@@ -670,6 +740,8 @@ static const struct snd_kcontrol_new cs40l26_controls[] = {
 	SOC_SINGLE_EXT("DSP Bypass", 0, 0, 1, 0, cs40l26_dsp_bypass_get, cs40l26_dsp_bypass_put),
 	SOC_SINGLE_EXT("A2H Delay", 0, 0, CS40L26_A2H_DELAY_MAX, 0, cs40l26_a2h_delay_get,
 			cs40l26_a2h_delay_put),
+	SOC_SINGLE_EXT("Boost Disable Delay", 0, 0, CS40L26_BOOST_DISABLE_DELAY_MAX, 0,
+			cs40l26_boost_disable_delay_get, cs40l26_boost_disable_delay_put),
 };
 
 static const char * const cs40l26_out_mux_texts[] = { "Off", "PCM", "A2H" };
