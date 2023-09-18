@@ -1,0 +1,179 @@
+What:		/sys/class/input/input(x)/default/delay_before_stop_playback_us
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Minimum time (in microseconds) that must elapse before a "stop playback" call
+		can be issued after a haptics effect has been triggered.
+
+		Access: Read, Write
+
+		Valid values: Represented as integer
+			Minimum: 0
+			Default: 0
+
+What:		/sys/class/input/input(x)/default/die_temp
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Filtered die temeprature in Celsius.
+		Device must be active in order to get result.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal using two's complement for negative values
+
+What:		/sys/class/input/input(x)/default/dsp_state
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Current state of the DSP.
+
+		Access: Read
+
+		Valid values: Represented as enum
+			0: Hibernate
+			1: Shutdown
+			2: Standby
+			3: Active
+
+What:		/sys/class/input/input(x)/default/owt_lib_compat
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Display compatible version of Cirrus OWT C library.
+
+		Access: Read
+
+What:		/sys/class/input/input(x)/default/power_on_seq
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Display number of words in the power on sequencer.
+		Contents of sequencer will be printed to dmesg.
+
+		Access: Read
+
+What:		/sys/class/input/input(x)/default/swap_firmware
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Load/reload firmware.
+
+		Access: Read, Write
+
+		Valid values: Represented as enum
+			0: Runtime firmware
+			1: Calibration firmware
+
+What:		/sys/class/input/input(x)/default/vibe_state
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Current state of haptics playback.
+		Requires firmware variant that supports vibe_state reporting.
+
+		Access: Read
+
+		Valid values: Represented as enum
+			0: Stopped
+			1: Haptic
+			2: ASP
+
+What:		/sys/class/input/input(x)/calibration/trigger_calibration
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Write to this control to start calibration.
+
+		Access: Write
+
+		Valid values: Represented as hexadecimal
+			0x1: F0 and Q
+			0x2: ReDC
+			0x4: DVL PEQ
+			0x10: Least Squares
+
+What:		/sys/class/input/input(x)/data_logger/available_logger_srcs
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Displays data logger sources supported by the loaded firmware.
+
+		Access: Read
+
+		Valid values: Represented as text
+			"BEMF"
+			"EP"
+			"VBST"
+			"VMON"
+
+
+What:		/sys/class/input/input(x)/data_logger/logging_en
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Enables data logging for all available sources.
+
+		Access: Read, Write
+
+		Valid values: Represented as integer
+			0: Disable logging
+			1: Enable logging
+
+What:		/sys/class/input/input(x)/data_logger/logging_max_reset
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Reset maximum logging values when 1 is written to the control.
+
+		Access: Write
+
+		Valid values: Represented as integer
+			1: Reset calculated logging maximums
+
+What:		/sys/class/input/input(x)/data_logger/max_bemf
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Maximum logged value of back EMF since logging was enabled
+		or maximum calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q0.23 format.
+			Full scale corresponds to a back EMF of 12.3 V.
+
+What:		/sys/class/input/input(x)/data_logger/max_excursion
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Maximum logged value of excursion since logging was enabled
+		or maximum calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q0.23 format.
+
+What:		/sys/class/input/input(x)/data_logger/max_vbst
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Maximum logged value of VBST since logging was enabled
+		or maximum calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in unsigned Q0.24 format.
+			Full scale corresponds to a boost voltage of 14 V.
+
+What:		/sys/class/input/input(x)/data_logger/max_vmon
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Maximum logged value of amplifier output voltage since logging was enabled
+		or maximum calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q0.23 format.
+			Full scale corresponds to an amplifier voltage of 12.3 V.
