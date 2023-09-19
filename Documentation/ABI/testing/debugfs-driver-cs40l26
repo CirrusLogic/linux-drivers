@@ -1,0 +1,42 @@
+What:		/sys/kernel/debug/cs40l26/fw_algo_id
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		See external driver or firmware documentation for details on firmware algorithm IDs.
+
+		Access: Read, Write
+
+		Valid values: Represented as hexadecimal
+			Default: 0x100BD
+
+What:		/sys/kernel/debug/cs40l26/fw_ctrl_name
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Name of the firmware control which fw_ctrl_val will read.
+		Must exist in the algorithm programmed in fw_algo_id to be valid.
+
+		Access: Read, Write
+
+		Valid values: Represented as a string
+
+What:		/sys/kernel/debug/cs40l26/fw_ctrl_val
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Value of the control determined by fw_algo_id, fw_ctrl_name, and fw_ym_space.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal
+
+What:		/sys/kernel/debug/cs40l26/fw_ym_space
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		If desired control exists in YM memory, set to Y.
+
+		Access: Read, Write
+
+		Valid values: Represented as a boolean
+			Default: N
