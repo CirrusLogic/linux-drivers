@@ -321,11 +321,15 @@ static int cs40l26_svc_en_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 			snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
 	struct regmap *regmap = cs40l26->regmap;
+	unsigned int algo_id, val = 0, reg;
 	struct device *dev = cs40l26->dev;
-	unsigned int val = 0, reg;
 	int error;
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID,
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		return error;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE, algo_id,
 			&reg);
 	if (error)
 		return error;
@@ -360,10 +364,14 @@ static int cs40l26_svc_en_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	struct cs40l26_private *cs40l26 = codec->core;
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
-	unsigned int reg;
+	unsigned int algo_id, reg;
 	int error;
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID,
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		return error;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE, algo_id,
 			&reg);
 	if (error)
 		return error;
@@ -393,12 +401,16 @@ static int cs40l26_invert_streaming_data_get(struct snd_kcontrol *kcontrol,
 			snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
 	struct regmap *regmap = cs40l26->regmap;
+	unsigned int algo_id, val = 0, reg;
 	struct device *dev = cs40l26->dev;
-	unsigned int val = 0, reg;
 	int error;
 
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		return error;
+
 	error = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_INVERT",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+			CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
 	if (error)
 		return error;
 
@@ -433,11 +445,15 @@ static int cs40l26_invert_streaming_data_put(struct snd_kcontrol *kcontrol,
 	struct cs40l26_private *cs40l26 = codec->core;
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
-	unsigned int reg;
+	unsigned int algo_id, reg;
 	int error;
 
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		return error;
+
 	error = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_INVERT",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EXT_ALGO_ID, &reg);
+			CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
 	if (error)
 		return error;
 
