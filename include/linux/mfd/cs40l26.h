@@ -1176,9 +1176,7 @@ extern const struct reg_sequence cs40l26_a1_errata[CS40L26_ERRATA_A1_NUM_WRITES]
 extern const struct cs40l26_dbc cs40l26_dbc_params[CS40L26_DBC_NUM_CONTROLS];
 
 /* sysfs */
-extern struct attribute_group cs40l26_dev_attr_group;
-extern struct attribute_group cs40l26_dev_attr_cal_group;
-extern struct attribute_group cs40l26_dev_attr_dbc_group;
+extern const struct attribute_group *cs40l26_attr_groups[];
 
 /* debugfs */
 #ifdef CONFIG_DEBUG_FS
