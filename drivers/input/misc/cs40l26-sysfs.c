@@ -776,7 +776,7 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	NULL,
 };
 
-struct attribute_group cs40l26_dev_attr_group = {
+static struct attribute_group cs40l26_dev_attr_group = {
 	.name = "default",
 	.attrs = cs40l26_dev_attrs,
 };
@@ -1057,7 +1057,7 @@ static struct attribute *cs40l26_dev_attrs_dbc[] = {
 	NULL,
 };
 
-struct attribute_group cs40l26_dev_attr_dbc_group = {
+static struct attribute_group cs40l26_dev_attr_dbc_group = {
 	.name = "dbc",
 	.attrs = cs40l26_dev_attrs_dbc,
 };
@@ -1861,6 +1861,66 @@ err_free:
 }
 static DEVICE_ATTR_RW(dvl_peq_coefficients);
 
+static ssize_t svc_le_est_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	unsigned int le;
+	int error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cs40l26_svc_le_estimate(cs40l26, &le);
+
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	if (error)
+		return error;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", le);
+}
+static DEVICE_ATTR_RO(svc_le_est);
+
+static ssize_t svc_le_stored_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->svc_le_est_stored);
+
+	mutex_unlock(&cs40l26->lock);
+
+	return error;
+}
+
+static ssize_t svc_le_stored_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 svc_le_stored;
+	int error;
+
+	error = kstrtou32(buf, 10, &svc_le_stored);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	cs40l26->svc_le_est_stored = svc_le_stored;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return count;
+}
+static DEVICE_ATTR_RW(svc_le_stored);
+
 static ssize_t logging_en_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -2035,66 +2095,6 @@ static ssize_t max_excursion_show(struct device *dev, struct device_attribute *a
 }
 static DEVICE_ATTR_RO(max_excursion);
 
-static ssize_t svc_le_est_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	unsigned int le;
-	int error;
-
-	error = cs40l26_pm_enter(cs40l26->dev);
-	if (error)
-		return error;
-
-	mutex_lock(&cs40l26->lock);
-
-	error = cs40l26_svc_le_estimate(cs40l26, &le);
-
-	mutex_unlock(&cs40l26->lock);
-
-	cs40l26_pm_exit(cs40l26->dev);
-
-	if (error)
-		return error;
-
-	return snprintf(buf, PAGE_SIZE, "%u\n", le);
-}
-static DEVICE_ATTR_RO(svc_le_est);
-
-static ssize_t svc_le_stored_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int error;
-
-	mutex_lock(&cs40l26->lock);
-
-	error = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->svc_le_est_stored);
-
-	mutex_unlock(&cs40l26->lock);
-
-	return error;
-}
-
-static ssize_t svc_le_stored_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 svc_le_stored;
-	int error;
-
-	error = kstrtou32(buf, 10, &svc_le_stored);
-	if (error)
-		return error;
-
-	mutex_lock(&cs40l26->lock);
-
-	cs40l26->svc_le_est_stored = svc_le_stored;
-
-	mutex_unlock(&cs40l26->lock);
-
-	return count;
-}
-static DEVICE_ATTR_RW(svc_le_stored);
-
 static struct attribute *cs40l26_dev_attrs_cal[] = {
 	&dev_attr_svc_le_est.attr,
 	&dev_attr_svc_le_stored.attr,
@@ -2120,7 +2120,14 @@ static struct attribute *cs40l26_dev_attrs_cal[] = {
 	NULL,
 };
 
-struct attribute_group cs40l26_dev_attr_cal_group = {
+static struct attribute_group cs40l26_dev_attr_cal_group = {
 	.name = "calibration",
 	.attrs = cs40l26_dev_attrs_cal,
+};
+
+const struct attribute_group *cs40l26_attr_groups[] = {
+	&cs40l26_dev_attr_group,
+	&cs40l26_dev_attr_cal_group,
+	&cs40l26_dev_attr_dbc_group,
+	NULL,
 };
