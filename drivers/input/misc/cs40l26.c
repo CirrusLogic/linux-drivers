@@ -2979,30 +2979,15 @@ static int cs40l26_input_init(struct cs40l26_private *cs40l26)
 		return error;
 	}
 
-	error = sysfs_create_group(&cs40l26->input->dev.kobj,
-			&cs40l26_dev_attr_group);
+	error = sysfs_create_groups(&cs40l26->input->dev.kobj, cs40l26_attr_groups);
 	if (error) {
-		dev_err(dev, "Failed to create sysfs group: %d\n", error);
-		return error;
-	}
-
-	error = sysfs_create_group(&cs40l26->input->dev.kobj,
-			&cs40l26_dev_attr_cal_group);
-	if (error) {
-		dev_err(dev, "Failed to create cal sysfs group: %d\n", error);
-		return error;
-	}
-
-	error = sysfs_create_group(&cs40l26->input->dev.kobj,
-			&cs40l26_dev_attr_dbc_group);
-	if (error) {
-		dev_err(dev, "Failed to create DBC sysfs group\n");
+		dev_err(dev, "Failed to create sysfs groups\n");
 		return error;
 	}
 
 	cs40l26->vibe_init_success = true;
 
-	return error;
+	return 0;
 }
 
 static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
@@ -4894,11 +4879,8 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 
 	gpiod_set_value_cansleep(cs40l26->reset_gpio, 1);
 
-	if (cs40l26->vibe_init_success) {
-		sysfs_remove_group(&cs40l26->input->dev.kobj, &cs40l26_dev_attr_group);
-		sysfs_remove_group(&cs40l26->input->dev.kobj, &cs40l26_dev_attr_cal_group);
-		sysfs_remove_group(&cs40l26->input->dev.kobj, &cs40l26_dev_attr_dbc_group);
-	}
+	if (cs40l26->vibe_init_success)
+		sysfs_remove_groups(&cs40l26->input->dev.kobj, cs40l26_attr_groups);
 
 #ifdef CONFIG_DEBUG_FS
 	cs40l26_debugfs_cleanup(cs40l26);
