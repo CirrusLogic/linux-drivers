@@ -1921,6 +1921,30 @@ static ssize_t svc_le_stored_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(svc_le_stored);
 
+static struct attribute *cs40l26_dev_attrs_cal[] = {
+	&dev_attr_svc_le_est.attr,
+	&dev_attr_svc_le_stored.attr,
+	&dev_attr_trigger_calibration.attr,
+	&dev_attr_f0_measured.attr,
+	&dev_attr_q_measured.attr,
+	&dev_attr_redc_measured.attr,
+	&dev_attr_dvl_peq_coefficients.attr,
+	&dev_attr_redc_est.attr,
+	&dev_attr_f0_stored.attr,
+	&dev_attr_q_stored.attr,
+	&dev_attr_redc_stored.attr,
+	&dev_attr_freq_centre.attr,
+	&dev_attr_freq_span.attr,
+	&dev_attr_f0_and_q_cal_time_ms.attr,
+	&dev_attr_redc_cal_time_ms.attr,
+	NULL,
+};
+
+static struct attribute_group cs40l26_dev_attr_cal_group = {
+	.name = "calibration",
+	.attrs = cs40l26_dev_attrs_cal,
+};
+
 static ssize_t logging_en_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -2095,39 +2119,25 @@ static ssize_t max_excursion_show(struct device *dev, struct device_attribute *a
 }
 static DEVICE_ATTR_RO(max_excursion);
 
-static struct attribute *cs40l26_dev_attrs_cal[] = {
-	&dev_attr_svc_le_est.attr,
-	&dev_attr_svc_le_stored.attr,
-	&dev_attr_max_vbst.attr,
+static struct attribute *cs40l26_dev_attrs_dlog[] = {
+	&dev_attr_logging_en.attr,
+	&dev_attr_logging_max_reset.attr,
 	&dev_attr_max_bemf.attr,
+	&dev_attr_max_vbst.attr,
 	&dev_attr_max_vmon.attr,
 	&dev_attr_max_excursion.attr,
-	&dev_attr_logging_max_reset.attr,
-	&dev_attr_logging_en.attr,
-	&dev_attr_trigger_calibration.attr,
-	&dev_attr_f0_measured.attr,
-	&dev_attr_q_measured.attr,
-	&dev_attr_redc_measured.attr,
-	&dev_attr_dvl_peq_coefficients.attr,
-	&dev_attr_redc_est.attr,
-	&dev_attr_f0_stored.attr,
-	&dev_attr_q_stored.attr,
-	&dev_attr_redc_stored.attr,
-	&dev_attr_freq_centre.attr,
-	&dev_attr_freq_span.attr,
-	&dev_attr_f0_and_q_cal_time_ms.attr,
-	&dev_attr_redc_cal_time_ms.attr,
 	NULL,
 };
 
-static struct attribute_group cs40l26_dev_attr_cal_group = {
-	.name = "calibration",
-	.attrs = cs40l26_dev_attrs_cal,
+static struct attribute_group cs40l26_dev_attr_dlog_group = {
+	.name = "data_logger",
+	.attrs = cs40l26_dev_attrs_dlog,
 };
 
 const struct attribute_group *cs40l26_attr_groups[] = {
 	&cs40l26_dev_attr_group,
 	&cs40l26_dev_attr_cal_group,
 	&cs40l26_dev_attr_dbc_group,
+	&cs40l26_dev_attr_dlog_group,
 	NULL,
 };
