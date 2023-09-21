@@ -817,6 +817,9 @@ static int cs35l43_dsp_reset(struct cs35l43_private *cs35l43)
 	unsigned int val = 0;
 	int ret, retry = 10;
 
+	if (!dapm || !cs35l43->component || !cs35l43->dsp.booted)
+		return -EINVAL;
+
 	dev_info(cs35l43->dev, "%s\n", __func__);
 
 	if (pm_runtime_enabled(cs35l43->dev))
