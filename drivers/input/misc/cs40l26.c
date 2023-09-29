@@ -1908,17 +1908,20 @@ static int cs40l26_playback_effect(struct input_dev *dev,
 	return 0;
 }
 
-int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves)
+int cs40l26_num_waves(struct cs40l26_private *cs40l26)
 {
-	u32 reg, nwaves, nowt;
+	u32 nowt, nram, reg;
 	int error;
+
+	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_VIBEGEN_ALGO_ID))
+		return 0;
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "NUM_OF_WAVES", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
 	if (error)
 		return error;
 
-	error = cs40l26_dsp_read(cs40l26, reg, &nwaves);
+	error = cs40l26_dsp_read(cs40l26, reg, &nram);
 	if (error)
 		return error;
 
@@ -1931,11 +1934,9 @@ int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves)
 	if (error)
 		return error;
 
-	*num_waves = nwaves + nowt;
-
-	return 0;
+	return (int) (nram + nowt);
 }
-EXPORT_SYMBOL_GPL(cs40l26_get_num_waves);
+EXPORT_SYMBOL_GPL(cs40l26_num_waves);
 
 static struct cl_dsp_owt_header *cs40l26_owt_header(struct cs40l26_private *cs40l26, u8 index,
 		u16 bank)
@@ -2587,8 +2588,8 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 {
 	struct device *dev = cs40l26->dev;
 	u8 *pwle_data = NULL;
-	u32 nwaves, min_index, max_index, trigger_index;
-	int error, data_len, pwle_data_len;
+	u32 min_index, max_index, trigger_index;
+	int error, data_len, pwle_data_len, nwaves;
 	u16 index, bank;
 
 	data_len = effect->u.periodic.custom_len;
@@ -2623,9 +2624,9 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 		index = (u16) (cs40l26->raw_custom_data[1] & CS40L26_MAX_INDEX_MASK);
 	}
 
-	error = cs40l26_get_num_waves(cs40l26, &nwaves);
-	if (error)
-		return error;
+	nwaves = cs40l26_num_waves(cs40l26);
+	if (nwaves < 0)
+		return nwaves;
 
 	switch (bank) {
 	case CS40L26_RAM_BANK_ID:
@@ -2721,8 +2722,7 @@ static void cs40l26_upload_worker(struct work_struct *work)
 			struct cs40l26_private, upload_work);
 	struct device *cdev = cs40l26->dev;
 	struct ff_effect *effect;
-	u32 nwaves;
-	int error;
+	int error, nwaves;
 
 	error = cs40l26_pm_enter(cdev);
 	if (error)
@@ -2742,11 +2742,13 @@ static void cs40l26_upload_worker(struct work_struct *work)
 	if (error)
 		goto out_mutex;
 
-	error = cs40l26_get_num_waves(cs40l26, &nwaves);
-	if (error)
+	nwaves = cs40l26_num_waves(cs40l26);
+	if (nwaves < 0) {
+		error = nwaves;
 		goto out_mutex;
+	}
 
-	dev_dbg(cdev, "Total number of waveforms = %u\n", nwaves);
+	dev_dbg(cdev, "Total number of waveforms = %d\n", nwaves);
 
 out_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -3779,9 +3781,9 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
+	int error, nwaves;
 	unsigned int val;
-	u32 reg, nwaves, value;
-	int error;
+	u32 reg, value;
 
 	if (!cs40l26->fw_rom_only) {
 		error = regmap_update_bits(regmap, CS40L26_PWRMGT_CTL,
@@ -3926,9 +3928,11 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (error)
 		goto pm_err;
 
-	error = cs40l26_get_num_waves(cs40l26, &nwaves);
-	if (error)
+	nwaves = cs40l26_num_waves(cs40l26);
+	if (nwaves < 0) {
+		error = nwaves;
 		goto pm_err;
+	}
 
 	dev_info(dev, "%s loaded with %u RAM waveforms\n", CS40L26_DEV_NAME, nwaves);
 
