@@ -371,18 +371,19 @@ static DEVICE_ATTR_RO(die_temp);
 static ssize_t num_waves_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 nwaves;
-	int error;
+	int error, nwaves;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
 		return error;
 
-	error = cs40l26_get_num_waves(cs40l26, &nwaves);
-	if (error)
+	nwaves = cs40l26_num_waves(cs40l26);
+	if (nwaves < 0) {
+		error = nwaves;
 		goto err_pm;
+	}
 
-	error = snprintf(buf, PAGE_SIZE, "%u\n", nwaves);
+	error = snprintf(buf, PAGE_SIZE, "%d\n", nwaves);
 
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
