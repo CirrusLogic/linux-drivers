@@ -1136,7 +1136,7 @@ struct cs40l26_pll_sysclk_config {
 int cs40l26_svc_le_estimate(struct cs40l26_private *cs40l26, unsigned int *le);
 int cs40l26_set_pll_loop(struct cs40l26_private *cs40l26, unsigned int pll_loop);
 int cs40l26_asp_start(struct cs40l26_private *cs40l26);
-int cs40l26_get_num_waves(struct cs40l26_private *cs40l26, u32 *num_waves);
+int cs40l26_num_waves(struct cs40l26_private *cs40l26);
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id);
 void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26,
 		enum cs40l26_vibe_state_event event);
