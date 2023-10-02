@@ -2614,7 +2614,7 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 {
 	struct device *dev = cs40l26->dev;
 	u8 *pwle_data = NULL;
-	int error, data_len, pwle_data_len, nowt, nram;
+	int data_len, error, index_tmp, max_index_tmp, nowt, nram, pwle_data_len;
 	u32 min_index, max_index, trigger_index;
 	u16 index, bank;
 
@@ -2648,7 +2648,12 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 			return nowt;
 
 		bank = (u16) CS40L26_OWT_BANK_ID;
-		index = (u16) (nowt - 1);
+		index_tmp = nowt - 1;
+		if (index_tmp < 0) {
+			dev_err(dev, "Invalid OWT index %d\n", index_tmp);
+			return -EINVAL;
+		}
+		index = (u16) (index_tmp & CS40L26_MAX_INDEX_MASK);
 	} else {
 		bank = (u16) cs40l26->raw_custom_data[0];
 		index = (u16) (cs40l26->raw_custom_data[1] & CS40L26_MAX_INDEX_MASK);
@@ -2665,7 +2670,8 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 		}
 
 		min_index = CS40L26_RAM_INDEX_START;
-		max_index = min_index + nram - 1;
+		max_index_tmp = min_index + nram - 1;
+		max_index = (u32) max_index_tmp;
 		break;
 	case CS40L26_ROM_BANK_ID:
 		min_index = CS40L26_ROM_INDEX_START;
