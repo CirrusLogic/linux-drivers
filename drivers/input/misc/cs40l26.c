@@ -2609,94 +2609,140 @@ static int cs40l26_sine_upload(struct cs40l26_private *cs40l26, struct ff_effect
 	return 0;
 }
 
+static int cs40l26_custom_rom(struct cs40l26_private *cs40l26, u32 *trigger_index)
+{
+	u16 index;
+
+	index = (u16) (cs40l26->raw_custom_data[1] & CS40L26_MAX_INDEX_MASK);
+
+	*trigger_index = index + CS40L26_ROM_INDEX_START;
+	if (*trigger_index > CS40L26_ROM_INDEX_END) {
+		dev_err(cs40l26->dev, "Index 0x%X out of bounds\n", *trigger_index);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int cs40l26_custom_ram(struct cs40l26_private *cs40l26, u32 *trigger_index)
+{
+	int max_index_tmp, nram;
+	u32 max_index;
+	u16 index;
+
+	index = (u16) (cs40l26->raw_custom_data[1] & CS40L26_MAX_INDEX_MASK);
+
+	nram = cs40l26_num_ram_waves(cs40l26);
+	if (nram < 0) {
+		return nram;
+	} else if (nram == 0) {
+		dev_err(cs40l26->dev, "No waveforms in RAM bank\n");
+		return -ENODATA;
+	}
+
+	max_index_tmp = CS40L26_RAM_INDEX_START + nram - 1;
+	max_index = (u32) max_index_tmp;
+
+	*trigger_index = index + CS40L26_RAM_INDEX_START;
+
+	if (*trigger_index > max_index) {
+		dev_err(cs40l26->dev, "RAM Index 0x%X out of bounds\n", *trigger_index);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int cs40l26_custom_owt(struct cs40l26_private *cs40l26, size_t data_len, u32 *trigger_index)
+{
+	bool pwle = (cs40l26->raw_custom_data[1] == CS40L26_WT_TYPE12_IDENTIFIER);
+	u8 *pwle_data = NULL;
+	int error, index_tmp, nowt;
+	size_t pwle_data_len;
+	u16 index;
+
+	if (pwle) {
+		pwle_data_len = cs40l26->raw_custom_data_len * 2;
+
+		pwle_data = kcalloc(pwle_data_len, sizeof(u8), GFP_KERNEL);
+		if (IS_ERR_OR_NULL(pwle_data)) {
+			error = pwle_data ? PTR_ERR(pwle_data) : -ENOMEM;
+			return error;
+		}
+
+		memcpy(pwle_data, cs40l26->raw_custom_data, pwle_data_len);
+
+		error = cs40l26_owt_upload(cs40l26, pwle_data, pwle_data_len);
+		if (error)
+			goto err_free;
+	} else {
+		error = cs40l26_composite_upload(cs40l26, cs40l26->raw_custom_data, data_len);
+		if (error)
+			goto err_free;
+	}
+
+	nowt = cs40l26_num_owt_waves(cs40l26);
+	if (nowt < 0) {
+		error = nowt;
+		goto err_free;
+	}
+
+	index_tmp = nowt - 1;
+	if (index_tmp < 0) {
+		dev_err(cs40l26->dev, "Invalid OWT index: %d\n", index_tmp);
+		error = -EINVAL;
+		goto err_free;
+	}
+	index = (u16) (index_tmp & CS40L26_MAX_INDEX_MASK);
+	*trigger_index = index + CS40L26_OWT_INDEX_START;
+
+	if (*trigger_index > CS40L26_OWT_INDEX_END) {
+		dev_err(cs40l26->dev, "Index 0x%X out of bounds\n", *trigger_index);
+		error = -EINVAL;
+	}
+
+err_free:
+	kfree(pwle_data);
+
+	return error;
+}
+
 static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effect *effect,
 		struct cs40l26_uploaded_effect *ueffect)
 {
-	struct device *dev = cs40l26->dev;
-	u8 *pwle_data = NULL;
-	int data_len, error, index_tmp, max_index_tmp, nowt, nram, pwle_data_len;
-	u32 min_index, max_index, trigger_index;
-	u16 index, bank;
-
-	data_len = effect->u.periodic.custom_len;
+	size_t data_len = effect->u.periodic.custom_len;
+	u32 trigger_index = 0;
+	int error;
+	u16 bank;
 
 	if (data_len > CS40L26_CUSTOM_DATA_SIZE) {
-		if (cs40l26->raw_custom_data[1] == CS40L26_WT_TYPE12_IDENTIFIER) {
-			pwle_data_len = cs40l26->raw_custom_data_len * 2;
-			pwle_data = kcalloc(pwle_data_len, sizeof(u8), GFP_KERNEL);
-			if (!pwle_data) {
-				dev_err(dev, "Failed to allocate space for PWLE\n");
-				return -ENOMEM;
-			}
+		bank = (u16) CS40L26_OWT_BANK_ID;
 
-			memcpy(pwle_data, cs40l26->raw_custom_data, pwle_data_len);
+		error = cs40l26_custom_owt(cs40l26, data_len, &trigger_index);
+		if (error)
+			return error;
+	} else {
+		bank = (u16) cs40l26->raw_custom_data[0];
 
-			error = cs40l26_owt_upload(cs40l26, pwle_data, pwle_data_len);
+		if (bank == CS40L26_RAM_BANK_ID) {
+			error = cs40l26_custom_ram(cs40l26, &trigger_index);
+			if (error)
+				return error;
+		} else if (bank == CS40L26_ROM_BANK_ID) {
+			error = cs40l26_custom_rom(cs40l26, &trigger_index);
 			if (error)
 				return error;
 		} else {
-			error = cs40l26_composite_upload(cs40l26, cs40l26->raw_custom_data,
-					data_len);
-			if (error) {
-				dev_err(dev, "Failed to refactor OWT\n");
-				return error;
-			}
-		}
-
-		nowt = cs40l26_num_owt_waves(cs40l26);
-		if (nowt < 0)
-			return nowt;
-
-		bank = (u16) CS40L26_OWT_BANK_ID;
-		index_tmp = nowt - 1;
-		if (index_tmp < 0) {
-			dev_err(dev, "Invalid OWT index %d\n", index_tmp);
+			dev_err(cs40l26->dev, "Invalid custom waveform bank: %u\n", bank);
 			return -EINVAL;
 		}
-		index = (u16) (index_tmp & CS40L26_MAX_INDEX_MASK);
-	} else {
-		bank = (u16) cs40l26->raw_custom_data[0];
-		index = (u16) (cs40l26->raw_custom_data[1] & CS40L26_MAX_INDEX_MASK);
 	}
-
-	switch (bank) {
-	case CS40L26_RAM_BANK_ID:
-		nram = cs40l26_num_ram_waves(cs40l26);
-		if (nram < 0) {
-			return nram;
-		} else if (nram == 0) {
-			dev_err(dev, "No waveforms in RAM bank\n");
-			return -ENODATA;
-		}
-
-		min_index = CS40L26_RAM_INDEX_START;
-		max_index_tmp = min_index + nram - 1;
-		max_index = (u32) max_index_tmp;
-		break;
-	case CS40L26_ROM_BANK_ID:
-		min_index = CS40L26_ROM_INDEX_START;
-		max_index = CS40L26_ROM_INDEX_END;
-		break;
-	case CS40L26_OWT_BANK_ID:
-		min_index = CS40L26_OWT_INDEX_START;
-		max_index = CS40L26_OWT_INDEX_END;
-		break;
-	default:
-		dev_err(dev, "Bank ID (%u) invalid\n", bank);
-		return -EINVAL;
-	}
-
-	trigger_index = index + min_index;
-	if (trigger_index < min_index || trigger_index > max_index) {
-		dev_err(dev, "Index 0x%X out of bounds (0x%X - 0x%X)\n", trigger_index, min_index,
-				max_index);
-		return -EINVAL;
-	}
-	dev_dbg(dev, "ID = %d, trigger index = 0x%08X\n", effect->id, trigger_index);
 
 	ueffect->id = effect->id;
 	ueffect->wvfrm_bank = bank;
 	ueffect->trigger_index = trigger_index;
+
+	dev_dbg(cs40l26->dev, "ID = %d, trigger index = 0x%08X\n", effect->id, trigger_index);
 
 	return 0;
 }
