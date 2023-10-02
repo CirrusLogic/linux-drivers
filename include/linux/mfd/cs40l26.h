@@ -1048,7 +1048,6 @@ struct cs40l26_private {
 	bool asp_enable;
 	u8 last_wksrc_pol;
 	u8 wksrc_sts;
-	int num_owt_effects;
 	int cal_requested;
 	u16 gain_pct;
 	u16 gain_tmp;
