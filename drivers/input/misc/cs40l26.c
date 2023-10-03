@@ -2665,7 +2665,7 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 	ueffect->wvfrm_bank = bank;
 	ueffect->trigger_index = trigger_index;
 
-	return error;
+	return 0;
 }
 
 static int cs40l26_uploaded_effect_add(struct cs40l26_private *cs40l26, struct ff_effect *effect)
