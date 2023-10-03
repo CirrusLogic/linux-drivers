@@ -926,7 +926,7 @@ static int cs40l26_handle_pre_irq(void *irq_drv_data)
 	if (error)
 		goto err_pm;
 
-	if (!sts & CS40L26_IRQ_STATUS_MASK)
+	if (!(sts & CS40L26_IRQ_STATUS_MASK))
 		dev_err(cs40l26->dev, "IRQ1 asserted with no pending interrupts\n");
 
 err_pm:
