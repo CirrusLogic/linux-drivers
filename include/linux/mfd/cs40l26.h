@@ -289,6 +289,14 @@
 #define CS40L26_NG_DELAY_MIN			0
 #define CS40L26_NG_DELAY_MAX			7
 
+#define CS40L26_AUX_NG_THLD_MASK		GENMASK(2, 0)
+#define CS40L26_AUX_NG_HOLD_MASK		GENMASK(11, 8)
+#define CS40L26_AUX_NG_EN_MASK			BIT(16)
+#define CS40L26_AUX_NG_THLD_DEFAULT		3
+#define CS40L26_AUX_NG_THLD_MAX			7
+#define CS40L26_AUX_NG_HOLD_DEFAULT		3
+#define CS40L26_AUX_NG_HOLD_MAX			15
+
 /* DSP mailbox controls */
 #define CS40L26_DSP_TIMEOUT_US_MIN		1000
 #define CS40L26_DSP_TIMEOUT_US_MAX		1100
@@ -1109,6 +1117,9 @@ struct cs40l26_private {
 	u32 ng_thld;
 	u32 ng_delay;
 	bool ng_enable;
+	u32 aux_ng_thld;
+	u32 aux_ng_delay;
+	bool aux_ng_enable;
 };
 
 struct cs40l26_codec {
