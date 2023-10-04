@@ -484,6 +484,52 @@ properties:
       6: 500 ms
       7: 1000 ms
 
+  cirrus,aux-ng-enable:
+    type: boolean
+    description:
+      Configures whether the auxiliary noise gating detection
+      is enabled.
+
+  cirrus,aux-ng-thld:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 3
+    description: |
+      Auxiliary noise gate threshold at which noise gating activates:
+      0: -66 dBFS
+      1: -72 dBFS
+      2: -78 dBFS
+      3: -84 dBFS
+      4: -90 dBFS
+      5: -96 dBFS
+      6: -102 dBFS
+      7: -108 dBFS
+
+  cirrus,aux-ng-delay:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    default: 3
+    description: |
+      Amplifier noise gate entry delay. Time that the signal must
+      be below the configured threshold prior to entering a noise
+      gated state:
+      0: 5 ms
+      1: 10 ms
+      2: 25 ms
+      3: 50 ms
+      4: 100 ms
+      5: 250 ms
+      6: 500 ms
+      7: 1000 ms
+      8: 5000 ms
+      9: 10000 ms
+      10: 20000 ms
+      11: 30000 ms
+      12: 40000 ms
+      13: 50000 ms
+      14: 60000 ms
+      15: 120000 ms
+
 required:
   - compatible
   - reg
@@ -593,6 +639,10 @@ examples:
         cirrus,ng-enable;
         cirrus,ng-thld = <4>;
         cirrus,ng-delay = <2>;
+
+        cirrus,aux-ng-enable;
+        cirrus,aux-ng-thld = <1>;
+        cirrus,aux-ng-delay = <14>;
 
         svc-le1 {
           cirrus,min = <671>;
