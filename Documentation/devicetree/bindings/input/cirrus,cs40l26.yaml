@@ -321,6 +321,8 @@ properties:
     type: boolean
     description:
       Enable Dynamic Boost Control automatically after firmware is loaded.
+      Settings for DBC from the devicetree will not be used if "cs40l26-dbc.bin"
+      is loaded as a tuning file.
 
   cirrus,dbc-env-rel-coef:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -331,6 +333,8 @@ properties:
       Envelope release time represented as a scaling coefficient; Q0.23 format.
       See Cirrus Logic release notes for more information on how to program
       this parameter.
+      Settings for DBC from the devicetree will not be used if "cs40l26-dbc.bin"
+      is loaded as a tuning file.
 
   cirrus,dbc-fall-headroom:
     $ref: "/schemas/types.yaml#/definitions/uint32"
@@ -341,6 +345,8 @@ properties:
       Headroom for falling envelope in Dynamic Boost Control. Value is a ratio
       of full-scale (12.3 V) and is in Q0.23 format. To program a headroom of x
       Volts, the following formula is used. (x/12.3) * 2^(23).
+      Settings for DBC from the devicetree will not be used if "cs40l26-dbc.bin"
+      is loaded as a tuning file.
 
   cirrus,dbc-rise-headroom:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -351,6 +357,8 @@ properties:
       Headroom for rising envelope in Dynamic Boost Control. Value is a ratio
       of full-scale (12.3 V) and is in Q0.23 format. To program a headroom of x
       Volts, the following formula is used. (x/12.3) * 2^(23).
+      Settings for DBC from the devicetree will not be used if "cs40l26-dbc.bin"
+      is loaded as a tuning file.
 
   cirrus,dbc-tx-lvl-hold-off-ms:
     minimum: 0
@@ -361,6 +369,8 @@ properties:
       (TX_LVL_THRESH, programmed via dbc-tx-lvl-thresh-fs). The algorithm
       registers this as silence. The signal rising back to the threshold will
       trigger an immediate rise to the max boost level.
+      Settings for DBC from the devicetree will not be used if "cs40l26-dbc.bin"
+      is loaded as a tuning file.
 
   cirrus,dbc-tx-lvl-thresh-fs:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -374,6 +384,8 @@ properties:
       The value must be provided as a percentage of full scale and is in Q0.23
       format. To program a threshold of x dBFs use the following formula.
       10^(x/20) * 2^(23).
+      Settings for DBC from the devicetree will not be used if "cs40l26-dbc.bin"
+      is loaded as a tuning file.
 
   cirrus,pwle-zero-cross-en:
     type: boolean
