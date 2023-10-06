@@ -621,6 +621,13 @@ examples:
         cirrus,vpbr-wait = <3>;
         cirrus,vpbr-rel-rate = <4>;
 
+        cirrus,dbc-enable;
+        cirrus,dbc-env-rel-coef = <8000000>;
+        cirrus,dbc-fall-headroom = <7000000>;
+        cirrus,dbc-rise-headroom = <6000000>;
+        cirrus,dbc-tx-lvl-hold-off-ms = <50>;
+        cirrus,dbc-tx-lvl-thresh-fs = <900>;
+
         cirrus,bst-dcm-en;
 
         cirrus,bst-ipk-microamp = <4550000>;
