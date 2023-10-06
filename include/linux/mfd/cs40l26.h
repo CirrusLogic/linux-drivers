@@ -950,7 +950,6 @@ struct cs40l26_brwnout_limits {
 struct cs40l26_dbc {
 	const char *const name;
 	u32 max;
-	u32 min;
 };
 
 struct cs40l26_buzzgen_config {

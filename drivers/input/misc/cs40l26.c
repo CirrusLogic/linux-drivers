@@ -228,27 +228,22 @@ static const struct cs40l26_dbc cs40l26_dbc_params[CS40L26_DBC_NUM_CONTROLS] = {
 	{
 		.name = CS40L26_DBC_ENV_REL_COEF_NAME,
 		.max = CS40L26_DBC_CONTROLS_MAX,
-		.min = CS40L26_DBC_ENV_REL_COEF_MIN,
 	},
 	{
 		.name = CS40L26_DBC_RISE_HEADROOM_NAME,
 		.max = CS40L26_DBC_CONTROLS_MAX,
-		.min = CS40L26_DBC_RISE_HEADROOM_MIN,
 	},
 	{
 		.name = CS40L26_DBC_FALL_HEADROOM_NAME,
 		.max = CS40L26_DBC_CONTROLS_MAX,
-		.min = CS40L26_DBC_FALL_HEADROOM_MIN,
 	},
 	{
 		.name = CS40L26_DBC_TX_LVL_THRESH_FS_NAME,
 		.max = CS40L26_DBC_CONTROLS_MAX,
-		.min = CS40L26_DBC_TX_LVL_THRESH_FS_MIN,
 	},
 	{
 		.name = CS40L26_DBC_TX_LVL_HOLD_OFF_MS_NAME,
 		.max = CS40L26_DBC_TX_LVL_HOLD_OFF_MS_MAX,
-		.min = CS40L26_DBC_TX_LVL_HOLD_OFF_MS_MIN,
 	},
 };
 
@@ -3729,8 +3724,6 @@ static int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc_typ
 
 	if (val > cs40l26_dbc_params[dbc].max)
 		write_val = cs40l26_dbc_params[dbc].max;
-	else if (val < cs40l26_dbc_params[dbc].min)
-		write_val = cs40l26_dbc_params[dbc].min;
 	else
 		write_val = val;
 
@@ -3748,17 +3741,17 @@ static int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc_typ
 
 static int cs40l26_dbc_config(struct cs40l26_private *cs40l26)
 {
-	u32 algo_id, reg, val;
+	u32 algo_id, reg;
 	int error, i;
 
 	for (i = 0; i < CS40L26_DBC_NUM_CONTROLS; i++) {
-		val = cs40l26->dbc_configs[i];
+		if (cs40l26->dbc_configs[i] == CS40L26_DBC_DEFAULT)
+			continue;
 
-		if (val != CS40L26_DBC_DEFAULT) {
-			error = cs40l26_dbc_set(cs40l26, (enum cs40l26_dbc_type) i, val);
-			if (error)
-				return error;
-		}
+		error = cs40l26_dbc_set(cs40l26, (enum cs40l26_dbc_type) i,
+				cs40l26->dbc_configs[i]);
+		if (error)
+			return error;
 	}
 
 	if (cs40l26->dbc_enable) {
