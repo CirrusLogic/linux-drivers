@@ -325,18 +325,18 @@ static int cs40l26_svc_en_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	struct device *dev = cs40l26->dev;
 	int error;
 
-	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	error = cs40l26_pm_enter(dev);
 	if (error)
 		return error;
+
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		goto pm_err;
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE, algo_id,
 			&reg);
 	if (error)
-		return error;
-
-	error = cs40l26_pm_enter(dev);
-	if (error)
-		return error;
+		goto pm_err;
 
 	error = regmap_read(regmap, reg, &val);
 	if (error) {
@@ -367,18 +367,18 @@ static int cs40l26_svc_en_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	unsigned int algo_id, reg;
 	int error;
 
-	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	error = cs40l26_pm_enter(dev);
 	if (error)
 		return error;
+
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		goto pm_err;
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE, algo_id,
 			&reg);
 	if (error)
-		return error;
-
-	error = cs40l26_pm_enter(dev);
-	if (error)
-		return error;
+		goto pm_err;
 
 	snd_soc_dapm_mutex_lock(dapm);
 
@@ -389,6 +389,7 @@ static int cs40l26_svc_en_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 
 	snd_soc_dapm_mutex_unlock(dapm);
 
+pm_err:
 	cs40l26_pm_exit(dev);
 
 	return error;
@@ -405,18 +406,18 @@ static int cs40l26_invert_streaming_data_get(struct snd_kcontrol *kcontrol,
 	struct device *dev = cs40l26->dev;
 	int error;
 
-	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	error = cs40l26_pm_enter(dev);
 	if (error)
 		return error;
+
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		goto pm_err;
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_INVERT",
 			CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
 	if (error)
-		return error;
-
-	error = cs40l26_pm_enter(dev);
-	if (error)
-		return error;
+		goto pm_err;
 
 	error = regmap_read(regmap, reg, &val);
 	if (error) {
@@ -448,18 +449,18 @@ static int cs40l26_invert_streaming_data_put(struct snd_kcontrol *kcontrol,
 	unsigned int algo_id, reg;
 	int error;
 
-	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	error = cs40l26_pm_enter(dev);
 	if (error)
 		return error;
+
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		goto pm_err;
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_INVERT",
 			CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
 	if (error)
-		return error;
-
-	error = cs40l26_pm_enter(dev);
-	if (error)
-		return error;
+		goto pm_err;
 
 	snd_soc_dapm_mutex_lock(dapm);
 
@@ -469,6 +470,7 @@ static int cs40l26_invert_streaming_data_put(struct snd_kcontrol *kcontrol,
 
 	snd_soc_dapm_mutex_unlock(dapm);
 
+pm_err:
 	cs40l26_pm_exit(dev);
 
 	return error;
@@ -666,26 +668,26 @@ static int cs40l26_boost_disable_delay_get(struct snd_kcontrol *kcontrol,
 	u32 algo_id, delay, reg;
 	int error;
 
-	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
-	if (error)
-		return error;
-
-	error = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY", CL_DSP_XM_UNPACKED_TYPE,
-			algo_id, &reg);
-	if (error)
-		return error;
-
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
 		return error;
 
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		goto pm_err;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY", CL_DSP_XM_UNPACKED_TYPE,
+			algo_id, &reg);
+	if (error)
+		goto pm_err;
+
 	error = regmap_read(cs40l26->regmap, reg, &delay);
 	if (error)
-		goto err;
+		goto pm_err;
 
 	ucontrol->value.integer.value[0] = delay;
 
-err:
+pm_err:
 	cs40l26_pm_exit(cs40l26->dev);
 
 	return error;
@@ -701,18 +703,18 @@ static int cs40l26_boost_disable_delay_put(struct snd_kcontrol *kcontrol,
 	u32 algo_id, delay, reg;
 	int error;
 
-	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
 		return error;
+
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		goto pm_err;
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "BOOST_DISABLE_DELAY", CL_DSP_XM_UNPACKED_TYPE,
 			algo_id, &reg);
 	if (error)
-		return error;
-
-	error = cs40l26_pm_enter(cs40l26->dev);
-	if (error)
-		return error;
+		goto pm_err;
 
 	snd_soc_dapm_mutex_lock(dapm);
 
@@ -722,6 +724,7 @@ static int cs40l26_boost_disable_delay_put(struct snd_kcontrol *kcontrol,
 
 	snd_soc_dapm_mutex_unlock(dapm);
 
+pm_err:
 	cs40l26_pm_exit(cs40l26->dev);
 
 	return error;
