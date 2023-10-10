@@ -3739,9 +3739,26 @@ static int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc_typ
 	return regmap_write(cs40l26->regmap, reg, write_val);
 }
 
-static int cs40l26_dbc_config(struct cs40l26_private *cs40l26)
+static int cs40l26_dbc_enable(struct cs40l26_private *cs40l26)
 {
 	u32 algo_id, reg;
+	int error;
+
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		return error;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
+			algo_id, &reg);
+	if (error)
+		return error;
+
+	return regmap_update_bits(cs40l26->regmap, reg, CS40L26_DBC_ENABLE_MASK,
+			1 << CS40L26_DBC_ENABLE_SHIFT);
+}
+
+static int cs40l26_dbc_config(struct cs40l26_private *cs40l26)
+{
 	int error, i;
 
 	for (i = 0; i < CS40L26_DBC_NUM_CONTROLS; i++) {
@@ -3754,23 +3771,7 @@ static int cs40l26_dbc_config(struct cs40l26_private *cs40l26)
 			return error;
 	}
 
-	if (cs40l26->dbc_enable) {
-		error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
-		if (error)
-			return error;
-
-		error = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
-				algo_id, &reg);
-		if (error)
-			return error;
-
-		error = regmap_update_bits(cs40l26->regmap, reg, CS40L26_DBC_ENABLE_MASK,
-				1 << CS40L26_DBC_ENABLE_SHIFT);
-		if (error)
-			return error;
-	}
-
-	return 0;
+	return cs40l26->dbc_enable ? cs40l26_dbc_enable(cs40l26) : 0;
 }
 
 static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
@@ -3964,6 +3965,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	if (!cs40l26->dbc_tuning_loaded) {
 		error = cs40l26_dbc_config(cs40l26);
+		if (error)
+			return error;
+	} else {
+		error = cs40l26_dbc_enable(cs40l26);
 		if (error)
 			return error;
 	}
