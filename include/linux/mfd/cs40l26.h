@@ -214,11 +214,11 @@
 
 /* DebugFS */
 #define CS40L26_ALGO_ID_MAX_STR_LEN	12
-#define CS40L26_NUM_DEBUGFS		3
 
 /* Power management */
 #define CS40L26_PSEQ_MAX_WORDS			129
 #define CS40L26_PSEQ_NUM_OPS			8
+#define CS40L26_PSEQ_STR_LINE_LEN		64
 #define CS40L26_PSEQ_OP_MASK			GENMASK(23, 16)
 #define CS40L26_PSEQ_OP_SHIFT			16
 #define CS40L26_PSEQ_OP_WRITE_FULL		0x00
@@ -257,6 +257,18 @@
 #define CS40L26_PSEQ_WRITE_ADDR8_UPPER_DATA_SHIFT	24
 #define CS40L26_PSEQ_WRITE_ADDR8_UPPER_DATA_MASK	GENMASK(31, 24)
 #define CS40L26_PSEQ_WRITE_ADDR8_LOWER_DATA_MASK	GENMASK(23, 0)
+
+#define CS40L26_PSEQ_FULL_ADDR_GET(x, y)	((((x) & 0xFFFF) << 16) |\
+						(((y) & 0xFFFF00) >> 8))
+#define CS40L26_PSEQ_FULL_DATA_GET(x, y)	((((x) & 0xFF) << 24) |\
+						((y) & 0xFFFFFF))
+#define CS40L26_PSEQ_X16_ADDR_GET(x, y)		((((x) & 0xFFFF) << 8) |\
+						(((y) & 0xFF0000) >> 16))
+#define CS40L26_PSEQ_L16_DATA_GET(x)		((x) & 0xFFFF)
+#define CS40L26_PSEQ_H16_DATA_GET(x)		(CS40L26_PSEQ_L16_DATA_GET((x)) << 16)
+#define CS40L26_PSEQ_ADDR8_ADDR_GET(x)		(((x) & 0xFF00) >> 8)
+#define CS40L26_PSEQ_ADDR8_DATA_GET(x, y)	((((x) & 0xFF) << 24) |\
+						((y) & 0xFFFFFF))
 
 #define CS40L26_PM_STDBY_TIMEOUT_OFFSET		16
 #define CS40L26_PM_STDBY_TIMEOUT_MS_MIN		100
