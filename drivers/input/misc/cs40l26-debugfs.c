@@ -171,6 +171,80 @@ err_mutex:
 	return error;
 }
 
+static ssize_t cs40l26_power_on_seq_read(struct file *file, char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct cs40l26_private *cs40l26 = file->private_data;
+	char *pseq_str = NULL;
+	char str[CS40L26_PSEQ_STR_LINE_LEN];
+	ssize_t error, pseq_str_size;
+	struct cs40l26_pseq_op *op;
+	u32 addr, data;
+
+	mutex_lock(&cs40l26->lock);
+
+	if (list_empty(&cs40l26->pseq_op_head) || cs40l26->pseq_num_ops <= 0) {
+		dev_err(cs40l26->dev, "Power on sequence is empty\n");
+		error = -ENODATA;
+		goto err_mutex;
+	}
+
+	pseq_str_size = CS40L26_PSEQ_STR_LINE_LEN * cs40l26->pseq_num_ops;
+	pseq_str = kzalloc(pseq_str_size, GFP_KERNEL);
+	if (!pseq_str) {
+		error = -ENOMEM;
+		goto err_mutex;
+	}
+
+	list_for_each_entry_reverse(op, &cs40l26->pseq_op_head, list) {
+		switch (op->operation) {
+		case CS40L26_PSEQ_OP_WRITE_FULL:
+			addr = CS40L26_PSEQ_FULL_ADDR_GET(op->words[0], op->words[1]);
+			data = CS40L26_PSEQ_FULL_DATA_GET(op->words[1], op->words[2]);
+			break;
+		case CS40L26_PSEQ_OP_WRITE_H16:
+		case CS40L26_PSEQ_OP_WRITE_L16:
+			addr = CS40L26_PSEQ_X16_ADDR_GET(op->words[0], op->words[1]);
+			if (op->operation == CS40L26_PSEQ_OP_WRITE_H16)
+				data = CS40L26_PSEQ_H16_DATA_GET(op->words[1]);
+			else
+				data = CS40L26_PSEQ_L16_DATA_GET(op->words[1]);
+			break;
+		case CS40L26_PSEQ_OP_WRITE_ADDR8:
+			addr = CS40L26_PSEQ_ADDR8_ADDR_GET(op->words[0]);
+			data = CS40L26_PSEQ_ADDR8_DATA_GET(op->words[0], op->words[1]);
+			break;
+		case CS40L26_PSEQ_OP_END:
+			addr = CS40L26_PSEQ_OP_END_ADDR;
+			data = CS40L26_PSEQ_OP_END_DATA;
+			break;
+		default:
+			dev_err(cs40l26->dev, "Unrecognized Op Code: 0x%02X\n", op->operation);
+			error = -EINVAL;
+			goto err_mutex;
+		}
+
+		error = snprintf(str, CS40L26_PSEQ_STR_LINE_LEN,
+				"0x%08X: code = 0x%02X, Addr = 0x%08X, Data = 0x%08X\n",
+				cs40l26->pseq_base + op->offset, op->operation, addr, data);
+		if (error <= 0) {
+			error = -EINVAL;
+			goto err_mutex;
+		}
+
+		strncat(pseq_str, str, CS40L26_PSEQ_STR_LINE_LEN);
+	}
+
+	error = simple_read_from_buffer(user_buf, count, ppos, pseq_str, pseq_str_size);
+
+err_mutex:
+	kfree(pseq_str);
+
+	mutex_unlock(&cs40l26->lock);
+
+	return error;
+}
+
 static const struct {
 	const char *name;
 	const struct file_operations fops;
@@ -198,6 +272,13 @@ static const struct {
 			.read = cs40l26_fw_ctrl_val_read,
 		},
 	},
+	{
+		.name = "power_on_seq",
+		.fops = {
+			.open = simple_open,
+			.read = cs40l26_power_on_seq_read,
+		},
+	},
 };
 
 void cs40l26_debugfs_init(struct cs40l26_private *cs40l26)
@@ -213,7 +294,7 @@ void cs40l26_debugfs_init(struct cs40l26_private *cs40l26)
 
 	debugfs_create_bool("fw_ym_space", CL_DSP_DEBUGFS_RW_FILE_MODE, root, &cs40l26->dbg_fw_ym);
 
-	for (i = 0; i < CS40L26_NUM_DEBUGFS; i++)
+	for (i = 0; i < ARRAY_SIZE(cs40l26_debugfs_fops); i++)
 		debugfs_create_file(cs40l26_debugfs_fops[i].name, CL_DSP_DEBUGFS_RW_FILE_MODE,
 				root, cs40l26, &cs40l26_debugfs_fops[i].fops);
 
