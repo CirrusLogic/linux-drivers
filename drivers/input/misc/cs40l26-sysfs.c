@@ -238,63 +238,6 @@ static ssize_t vibe_state_show(struct device *dev, struct device_attribute *attr
 }
 static DEVICE_ATTR_RO(vibe_state);
 
-static ssize_t power_on_seq_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	struct cs40l26_pseq_op *op;
-	u32 addr, data, base;
-	int error;
-
-	mutex_lock(&cs40l26->lock);
-
-	base = cs40l26->pseq_base;
-
-	if (list_empty(&cs40l26->pseq_op_head)) {
-		dev_err(cs40l26->dev, "Power on sequence is empty\n");
-		error = -EINVAL;
-		goto err_mutex;
-	}
-
-	list_for_each_entry_reverse(op, &cs40l26->pseq_op_head, list) {
-		switch (op->operation) {
-		case CS40L26_PSEQ_OP_WRITE_FULL:
-			addr = ((op->words[0] & 0xFFFF) << 16) | ((op->words[1] & 0x00FFFF00) >> 8);
-			data = ((op->words[1] & 0xFF) << 24) | (op->words[2] & 0xFFFFFF);
-			break;
-		case CS40L26_PSEQ_OP_WRITE_H16:
-		case CS40L26_PSEQ_OP_WRITE_L16:
-			addr = ((op->words[0] & 0xFFFF) << 8) | ((op->words[1] & 0xFF0000) >> 16);
-			data = (op->words[1] & 0xFFFF);
-
-			if (op->operation == CS40L26_PSEQ_OP_WRITE_H16)
-				data <<= 16;
-			break;
-		case CS40L26_PSEQ_OP_WRITE_ADDR8:
-			addr = (op->words[0] & 0xFF00) >> 8;
-			data = ((op->words[0] & 0xFF) << 24) | (op->words[1] & 0xFFFFFF);
-			break;
-		case CS40L26_PSEQ_OP_END:
-			addr = CS40L26_PSEQ_OP_END_ADDR;
-			data = CS40L26_PSEQ_OP_END_DATA;
-			break;
-		default:
-			dev_err(cs40l26->dev, "Unrecognized Op Code: 0x%02X\n", op->operation);
-			error = -EINVAL;
-			goto err_mutex;
-		}
-
-		dev_dbg(cs40l26->dev, "0x%08x: code = 0x%02X, Addr = 0x%08X, Data = 0x%08X\n",
-				base + op->offset, op->operation, addr, data);
-	}
-
-	error = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->pseq_num_ops);
-
-err_mutex:
-	mutex_unlock(&cs40l26->lock);
-	return error;
-}
-static DEVICE_ATTR_RO(power_on_seq);
-
 static ssize_t owt_free_space_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -695,7 +638,6 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_num_waves.attr,
 	&dev_attr_die_temp.attr,
 	&dev_attr_owt_free_space.attr,
-	&dev_attr_power_on_seq.attr,
 	&dev_attr_dsp_state.attr,
 	&dev_attr_halo_heartbeat.attr,
 	&dev_attr_pm_stdby_timeout_ms.attr,
