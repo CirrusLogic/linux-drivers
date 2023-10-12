@@ -125,11 +125,9 @@ static ssize_t cs40l26_fw_ctrl_val_read(struct file *file, char __user *user_buf
 	if (strlen(cs40l26->dbg_fw_ctrl_name) == 0)
 		return -ENODATA;
 
-	error = pm_runtime_get_sync(cs40l26->dev);
-	if (error < 0) {
-		cs40l26_resume_error_handle(cs40l26->dev, (int) error);
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
 		return error;
-	}
 
 	mutex_lock(&cs40l26->lock);
 
@@ -168,8 +166,7 @@ static ssize_t cs40l26_fw_ctrl_val_read(struct file *file, char __user *user_buf
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
-	pm_runtime_mark_last_busy(cs40l26->dev);
-	pm_runtime_put_autosuspend(cs40l26->dev);
+	cs40l26_pm_exit(cs40l26->dev);
 
 	return error;
 }
