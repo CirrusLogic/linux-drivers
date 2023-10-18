@@ -585,6 +585,75 @@ static int cs40l26_a2h_level_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return error;
 }
 
+static int cs40l26_i2s_atten_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct cs40l26_codec *codec =
+			snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
+	struct cs40l26_private *cs40l26 = codec->core;
+	struct regmap *regmap = cs40l26->regmap;
+	struct device *dev = cs40l26->dev;
+	unsigned int val = 0, reg;
+	int error;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "I2S_ATTENUATION", CL_DSP_XM_UNPACKED_TYPE,
+			cs40l26->fw_id, &reg);
+	if (error)
+		goto pm_err;
+
+	error = cs40l26_pm_enter(dev);
+	if (error)
+		return error;
+
+	error = regmap_read(regmap, reg, &val);
+	if (error)
+		goto pm_err;
+
+	ucontrol->value.integer.value[0] = val;
+
+pm_err:
+	cs40l26_pm_exit(dev);
+
+	return error;
+}
+
+static int cs40l26_i2s_atten_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(comp);
+	struct cs40l26_codec *codec = snd_soc_component_get_drvdata(comp);
+	struct cs40l26_private *cs40l26 = codec->core;
+	struct regmap *regmap = cs40l26->regmap;
+	struct device *dev = cs40l26->dev;
+	u32 val = 0, reg;
+	int error;
+
+	error = cs40l26_pm_enter(dev);
+	if (error)
+		return error;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "I2S_ATTENUATION", CL_DSP_XM_UNPACKED_TYPE,
+			cs40l26->fw_id, &reg);
+	if (error)
+		goto pm_err;
+
+	snd_soc_dapm_mutex_lock(dapm);
+
+	if (ucontrol->value.integer.value[0] > CS40L26_I2S_ATTENUATION_MAX)
+		val = CS40L26_I2S_ATTENUATION_MAX;
+	else if (ucontrol->value.integer.value[0] < 0)
+		val = 0;
+	else
+		val = ucontrol->value.integer.value[0];
+
+	error = regmap_write(regmap, reg, val);
+
+	snd_soc_dapm_mutex_unlock(dapm);
+pm_err:
+	cs40l26_pm_exit(dev);
+
+	return error;
+}
+
 static int cs40l26_a2h_delay_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct cs40l26_codec *codec =
@@ -745,6 +814,11 @@ static const struct snd_kcontrol_new cs40l26_controls[] = {
 			cs40l26_a2h_delay_put),
 	SOC_SINGLE_EXT("Boost Disable Delay", 0, 0, CS40L26_BOOST_DISABLE_DELAY_MAX, 0,
 			cs40l26_boost_disable_delay_get, cs40l26_boost_disable_delay_put),
+};
+
+static const struct snd_kcontrol_new cs40l26_b2_controls[] = {
+	SOC_SINGLE_EXT("I2S Attenuation", 0, 0, CS40L26_I2S_ATTENUATION_MAX, 0,
+			cs40l26_i2s_atten_get, cs40l26_i2s_atten_put),
 };
 
 static const char * const cs40l26_out_mux_texts[] = { "Off", "PCM", "A2H" };
@@ -981,6 +1055,10 @@ static int cs40l26_codec_probe(struct snd_soc_component *component)
 
 	codec->tdm_slot[0] = 0;
 	codec->tdm_slot[1] = 1;
+
+	if (codec->core->revid == CS40L26_REVID_B2)
+		snd_soc_add_component_controls(component, cs40l26_b2_controls,
+				ARRAY_SIZE(cs40l26_b2_controls));
 
 	return 0;
 }
