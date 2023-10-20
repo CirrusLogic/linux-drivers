@@ -341,11 +341,19 @@ static inline void cs40l26_pm_runtime_teardown(struct cs40l26_private *cs40l26)
 
 static int cs40l26_check_pm_lock(struct cs40l26_private *cs40l26, bool *locked)
 {
-	unsigned int dsp_lock;
+	unsigned int dsp_lock, reg;
 	int error;
 
-	error = regmap_read(cs40l26->regmap, cs40l26->rom_regs->pm_state_locks +
-			CS40L26_DSP_LOCK3_OFFSET, &dsp_lock);
+	if (cs40l26->fw_loaded) {
+		error = cl_dsp_get_reg(cs40l26->dsp, "PM_STATE_LOCKS", CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_PM_ALGO_ID, &reg);
+		if (error)
+			return error;
+	} else {
+		reg = cs40l26->rom_regs->pm_state_locks;
+	}
+
+	error = regmap_read(cs40l26->regmap, reg + CS40L26_DSP_LOCK3_OFFSET, &dsp_lock);
 	if (error)
 		return error;
 
