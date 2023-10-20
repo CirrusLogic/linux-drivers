@@ -214,6 +214,7 @@
 
 /* DebugFS */
 #define CS40L26_ALGO_ID_MAX_STR_LEN	12
+#define CS40L26_HW_STR_LEN		16
 
 /* Power management */
 #define CS40L26_PSEQ_MAX_WORDS			129
@@ -1095,9 +1096,11 @@ struct cs40l26_private {
 	const struct cs40l26_rom_data *rom_data;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_root;
+	struct dentry *debugfs_hw_node;
 	char *dbg_fw_ctrl_name;
 	u32 dbg_fw_algo_id;
 	bool dbg_fw_ym;
+	u32 dbg_hw_reg;
 	struct cl_dsp_debugfs *cl_dsp_db;
 #endif
 	struct cs40l26_brwnout vbbr;
