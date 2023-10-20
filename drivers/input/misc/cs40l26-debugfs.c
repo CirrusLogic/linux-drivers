@@ -245,6 +245,165 @@ err_mutex:
 	return error;
 }
 
+static ssize_t cs40l26_hw_reg_read(struct file *file, char __user *user_buf, size_t count,
+		loff_t *ppos)
+{
+	struct cs40l26_private *cs40l26 = file->private_data;
+	char result[CS40L26_HW_STR_LEN];
+	ssize_t error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = snprintf(result, count, "0x%08X\n", cs40l26->dbg_hw_reg);
+	if (error <= 0) {
+		error = -EINVAL;
+		goto err_mutex;
+	}
+
+	error = simple_read_from_buffer(user_buf, count, ppos, result, strlen(result));
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	return error;
+}
+
+static ssize_t cs40l26_hw_reg_write(struct file *file, const char __user *user_buf,
+		size_t count, loff_t *ppos)
+{
+	struct cs40l26_private *cs40l26 = file->private_data;
+	char str[CS40L26_HW_STR_LEN];
+	ssize_t error;
+	u32 reg;
+
+	memset(str, 0, CS40L26_HW_STR_LEN);
+
+	mutex_lock(&cs40l26->lock);
+
+	simple_write_to_buffer(str, count, ppos, user_buf, count);
+
+	error = kstrtou32(str, CS40L26_HW_STR_LEN, &reg);
+	if (error)
+		goto err_mutex;
+
+	cs40l26->dbg_hw_reg = reg;
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	return error ? error : count;
+}
+
+static ssize_t cs40l26_hw_val_read(struct file *file, char __user *user_buf, size_t count,
+		loff_t *ppos)
+{
+	struct cs40l26_private *cs40l26 = file->private_data;
+	char result[CS40L26_HW_STR_LEN];
+	ssize_t error;
+	u32 val;
+
+	if (cs40l26->dbg_hw_reg % CL_DSP_BYTES_PER_WORD) {
+		dev_err(cs40l26->dev, "Reg. address 0x%08X not multiple of 4\n",
+				cs40l26->dbg_hw_reg);
+		return -EINVAL;
+	}
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = regmap_read(cs40l26->regmap, cs40l26->dbg_hw_reg, &val);
+	if (error)
+		goto err_mutex;
+
+	error = snprintf(result, CS40L26_HW_STR_LEN, "0x%08X\n", val);
+	if (error <= 0) {
+		error = -EINVAL;
+		goto err_mutex;
+	}
+
+	error = simple_read_from_buffer(user_buf, count, ppos, result, strlen(result));
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error;
+}
+
+static ssize_t cs40l26_hw_val_write(struct file *file, const char __user *user_buf,
+		size_t count, loff_t *ppos)
+{
+	struct cs40l26_private *cs40l26 = file->private_data;
+	char str[CS40L26_HW_STR_LEN];
+	ssize_t error;
+	u32 val;
+
+	if (cs40l26->dbg_hw_reg % CL_DSP_BYTES_PER_WORD) {
+		dev_err(cs40l26->dev, "Reg. address 0x%08X not multiple of 4\n",
+				cs40l26->dbg_hw_reg);
+		return -EINVAL;
+	}
+
+	memset(str, 0, CS40L26_HW_STR_LEN);
+
+	simple_write_to_buffer(str, count, ppos, user_buf, count);
+
+	error = kstrtou32(str, CS40L26_HW_STR_LEN, &val);
+	if (error)
+		return error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = regmap_write(cs40l26->regmap, cs40l26->dbg_hw_reg, val);
+	if (error)
+		goto exit_mutex;
+
+	error = cs40l26_pseq_write(cs40l26, cs40l26->dbg_hw_reg, (val & GENMASK(31, 16)) >> 16,
+			true, CS40L26_PSEQ_OP_WRITE_H16);
+	if (error)
+		goto exit_mutex;
+
+	error = cs40l26_pseq_write(cs40l26, cs40l26->dbg_hw_reg, (val & GENMASK(15, 0)),
+			true, CS40L26_PSEQ_OP_WRITE_L16);
+
+exit_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : count;
+}
+
+static const struct {
+	const char *name;
+	const struct file_operations fops;
+} cs40l26_hw_debugfs_fops[] = {
+	{
+		.name = "register",
+		.fops = {
+			.open = simple_open,
+			.read = cs40l26_hw_reg_read,
+			.write = cs40l26_hw_reg_write,
+		},
+	},
+	{
+		.name = "value",
+		.fops = {
+			.open = simple_open,
+			.read = cs40l26_hw_val_read,
+			.write = cs40l26_hw_val_write,
+		},
+	},
+};
+
 static const struct {
 	const char *name;
 	const struct file_operations fops;
@@ -281,6 +440,23 @@ static const struct {
 	},
 };
 
+static void cs40l26_hw_debugfs_init(struct cs40l26_private *cs40l26)
+{
+	int i;
+
+	cs40l26->debugfs_hw_node = debugfs_create_dir("hardware", cs40l26->debugfs_root);
+	if (IS_ERR_OR_NULL(cs40l26->debugfs_hw_node)) {
+		dev_err(cs40l26->dev, "Failed to mount hardware debugfs directory\n");
+		kfree(cs40l26->debugfs_hw_node);
+		return;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cs40l26_hw_debugfs_fops); i++)
+		debugfs_create_file(cs40l26_hw_debugfs_fops[i].name, CL_DSP_DEBUGFS_RW_FILE_MODE,
+				cs40l26->debugfs_hw_node, cs40l26,
+				&cs40l26_hw_debugfs_fops[i].fops);
+}
+
 void cs40l26_debugfs_init(struct cs40l26_private *cs40l26)
 {
 	struct dentry *root = NULL;
@@ -302,12 +478,14 @@ void cs40l26_debugfs_init(struct cs40l26_private *cs40l26)
 	cs40l26->dbg_fw_algo_id = CS40L26_VIBEGEN_ALGO_ID;
 	cs40l26->debugfs_root = root;
 
+	cs40l26_hw_debugfs_init(cs40l26);
+
 	if (cs40l26->fw_id == CS40L26_FW_ID &&
 			cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EVENT_LOGGER_ALGO_ID)) {
 		cs40l26->cl_dsp_db = cl_dsp_debugfs_create(cs40l26->dsp, cs40l26->debugfs_root,
 				(u32) CS40L26_EVENT_LOGGER_ALGO_ID);
 
-		if (IS_ERR(cs40l26->cl_dsp_db) || !cs40l26->cl_dsp_db)
+		if (IS_ERR_OR_NULL(cs40l26->cl_dsp_db))
 			dev_err(cs40l26->dev, "Failed to create CL DSP Debugfs\n");
 	}
 }
