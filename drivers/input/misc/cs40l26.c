@@ -814,7 +814,7 @@ int cs40l26_asp_start(struct cs40l26_private *cs40l26)
 {
 	int error;
 
-	if (cs40l26->asp_scale_pct < CS40L26_GAIN_FULL_SCALE)
+	if (cs40l26->revid != CS40L26_REVID_B2 && cs40l26->asp_scale_pct < CS40L26_GAIN_FULL_SCALE)
 		queue_work(cs40l26->vibe_workqueue, &cs40l26->set_gain_work);
 
 	error = cs40l26_mailbox_write(cs40l26, CS40L26_STOP_PLAYBACK);
@@ -845,7 +845,8 @@ void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26, enum cs40l26_vib
 	switch (event) {
 	case CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK:
 	case CS40L26_VIBE_STATE_EVENT_GPIO_TRIGGER:
-		cs40l26_remove_asp_scaling(cs40l26);
+		if (cs40l26->revid != CS40L26_REVID_B2)
+			cs40l26_remove_asp_scaling(cs40l26);
 		cs40l26->effects_in_flight = cs40l26->effects_in_flight <= 0 ? 1 :
 			cs40l26->effects_in_flight + 1;
 		break;
@@ -861,7 +862,8 @@ void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26, enum cs40l26_vib
 		cs40l26->asp_enable = true;
 		break;
 	case CS40L26_VIBE_STATE_EVENT_ASP_STOP:
-		cs40l26_remove_asp_scaling(cs40l26);
+		if (cs40l26->revid != CS40L26_REVID_B2)
+			cs40l26_remove_asp_scaling(cs40l26);
 
 		/* Restore PLL configuration */
 		if (cs40l26_set_pll_loop(cs40l26, cs40l26->refclk_input &
