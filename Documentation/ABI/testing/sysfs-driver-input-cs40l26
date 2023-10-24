@@ -44,15 +44,6 @@ Description:
 
 		Access: Read
 
-What:		/sys/class/input/input(x)/default/power_on_seq
-Date:		September 2023
-Contact:	patches@opensource.cirrus.com
-Description:
-		Display number of words in the power on sequencer.
-		Contents of sequencer will be printed to dmesg.
-
-		Access: Read
-
 What:		/sys/class/input/input(x)/default/swap_firmware
 Date:		September 2023
 Contact:	patches@opensource.cirrus.com
