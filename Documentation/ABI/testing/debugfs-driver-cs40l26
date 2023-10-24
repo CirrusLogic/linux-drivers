@@ -40,3 +40,11 @@ Description:
 
 		Valid values: Represented as a boolean
 			Default: N
+
+What:		/sys/kernel/debug/cs40l26/power_on_seq
+Date:		October 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Display contents of the power-on write sequencer.
+
+		Access: Read
