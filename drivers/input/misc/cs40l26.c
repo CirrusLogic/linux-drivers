@@ -1863,19 +1863,14 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 		dev_info(cs40l26->dev, "Skipping delay\n");
 	}
 
-	if (cs40l26->vibe_state != CS40L26_VIBE_STATE_HAPTIC) {
-		dev_warn(cs40l26->dev, "Attempted stop when vibe_state = %d\n",
-				cs40l26->vibe_state);
-		goto mutex_exit;
+	if (!skip_delay) {
+		error = cs40l26_mailbox_write(cs40l26, CS40L26_STOP_PLAYBACK);
+		if (error)
+			dev_err(cs40l26->dev, "Failed to stop playback\n");
+	} else {
+		dev_dbg(cs40l26->dev, "Stop command skipped\n");
 	}
 
-	error = cs40l26_mailbox_write(cs40l26, CS40L26_STOP_PLAYBACK);
-	if (error) {
-		dev_err(cs40l26->dev, "Failed to stop playback\n");
-		goto mutex_exit;
-	}
-
-mutex_exit:
 	mutex_unlock(&cs40l26->lock);
 	cs40l26_pm_exit(cs40l26->dev);
 }
