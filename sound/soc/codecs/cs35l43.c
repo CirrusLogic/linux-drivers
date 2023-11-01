@@ -2109,6 +2109,8 @@ static int cs35l43_component_set_sysclk(struct snd_soc_component *component,
 {
 	struct cs35l43_private *cs35l43 =
 				snd_soc_component_get_drvdata(component);
+	bool update_required = true;
+	unsigned int extclk_cfg_new;
 	unsigned int fs1_val;
 	unsigned int fs2_val;
 	unsigned int val;
@@ -2117,7 +2119,9 @@ static int cs35l43_component_set_sysclk(struct snd_soc_component *component,
 	dev_dbg(cs35l43->dev, "%s\n", __func__);
 	dev_dbg(cs35l43->dev, "%s id = %d, freq=%d\n", __func__, clk_id, freq);
 
-	cs35l43->extclk_cfg = cs35l43_get_clk_config(freq);
+	extclk_cfg_new = cs35l43_get_clk_config(freq);
+	update_required = (cs35l43->extclk_cfg != extclk_cfg_new);
+	cs35l43->extclk_cfg = extclk_cfg_new;
 	cs35l43->clk_id = clk_id;
 
 	if (freq <= 6000000) {
@@ -2146,8 +2150,10 @@ static int cs35l43_component_set_sysclk(struct snd_soc_component *component,
 	}
 
 	if (cs35l43->hibernate_state != CS35L43_HIBERNATE_STANDBY) {
-		cs35l43_pll_config(cs35l43);
-		regmap_write(cs35l43->regmap, CS35L43_FS_MON_0, val);
+		if (update_required) {
+			cs35l43_pll_config(cs35l43);
+			regmap_write(cs35l43->regmap, CS35L43_FS_MON_0, val);
+		}
 		if (cs35l43->limit_spi_clock)
 			cs35l43->limit_spi_clock(cs35l43, false);
 	}
