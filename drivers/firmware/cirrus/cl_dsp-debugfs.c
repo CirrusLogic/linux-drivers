@@ -220,17 +220,21 @@ static int cl_dsp_host_buffer_data_read(struct cl_dsp_debugfs *db,
 	u32 start_reg, offset = db->dl.buf_data_size;
 	struct regmap *regmap = db->core->regmap;
 	struct device *dev = db->core->dev;
+	size_t new_data_size;
+	u32 *new_data;
 	int ret;
 
 	start_reg = host_buffer_data_reg(&db->dl, (unsigned long)read_index);
 
-	db->dl.buf_data_size += num_words;
-	db->dl.buf_data = krealloc(db->dl.buf_data, db->dl.buf_data_size * 4,
-			GFP_KERNEL);
-	if (!db->dl.buf_data || IS_ERR(db->dl.buf_data)) {
-		dev_err(dev, "Failed to allocate buffer data space\n");
+	new_data_size = db->dl.buf_data_size + num_words;
+	new_data = krealloc(db->dl.buf_data, new_data_size * sizeof(u32), GFP_KERNEL);
+	if (IS_ERR_OR_NULL(new_data)) {
+		dev_err(dev, "Failed to re-allocate buffer data space\n");
 		return -ENOMEM;
 	}
+	db->dl.buf_data_size = new_data_size;
+
+	db->dl.buf_data = new_data;
 
 	ret = regmap_bulk_read(regmap, start_reg, db->dl.buf_data + offset,
 			num_words);
