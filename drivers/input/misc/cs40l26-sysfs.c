@@ -634,6 +634,32 @@ static ssize_t swap_firmware_store(struct device *dev, struct device_attribute *
 }
 static DEVICE_ATTR_RW(swap_firmware);
 
+static ssize_t fw_rev_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	unsigned int val;
+	int error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+	error = cl_dsp_fw_rev_get(cs40l26->dsp, &val);
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	if (error)
+		return error;
+
+	return snprintf(buf, PAGE_SIZE, "%d.%d.%d\n",
+			(int) CL_DSP_GET_MAJOR(val),
+			(int) CL_DSP_GET_MINOR(val),
+			(int) CL_DSP_GET_PATCH(val));
+}
+static DEVICE_ATTR_RO(fw_rev);
+
 static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_num_waves.attr,
 	&dev_attr_die_temp.attr,
@@ -648,6 +674,7 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_f0_comp_enable.attr,
 	&dev_attr_redc_comp_enable.attr,
 	&dev_attr_swap_firmware.attr,
+	&dev_attr_fw_rev.attr,
 	&dev_attr_owt_lib_compat.attr,
 	&dev_attr_overprotection_gain.attr,
 	NULL,
