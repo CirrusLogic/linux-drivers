@@ -56,6 +56,16 @@ Description:
 			0: Runtime firmware
 			1: Calibration firmware
 
+What:		/sys/class/input/input(x)/default/fw_rev
+Date:		November 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Get revision of the firmware running on the DSP.
+
+		Access: Read
+
+		Valid values:	Represented as string "major.minor.patch"
+
 What:		/sys/class/input/input(x)/default/vibe_state
 Date:		September 2023
 Contact:	patches@opensource.cirrus.com
