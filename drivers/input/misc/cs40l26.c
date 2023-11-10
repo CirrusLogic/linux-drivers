@@ -4895,7 +4895,6 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 	if (error)
 		goto err;
 
-
 	error = regulator_bulk_enable(CS40L26_NUM_SUPPLIES, cs40l26_supplies);
 	if  (error) {
 		dev_err(dev, "Failed to enable core supplies\n");
