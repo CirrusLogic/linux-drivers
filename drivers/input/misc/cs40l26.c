@@ -825,6 +825,10 @@ int cs40l26_asp_start(struct cs40l26_private *cs40l26)
 
 	reinit_completion(&cs40l26->i2s_cont);
 
+	error = regmap_read(cs40l26->regmap, CS40L26_REFCLK_INPUT, &cs40l26->refclk_input);
+	if (error)
+		return error;
+
 	return cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_START_I2S);
 }
 EXPORT_SYMBOL_GPL(cs40l26_asp_start);
@@ -858,6 +862,12 @@ void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26, enum cs40l26_vib
 		break;
 	case CS40L26_VIBE_STATE_EVENT_ASP_STOP:
 		cs40l26_remove_asp_scaling(cs40l26);
+
+		/* Restore PLL configuration */
+		if (cs40l26_set_pll_loop(cs40l26, cs40l26->refclk_input &
+				CS40L26_PLL_REFCLK_LOOP_MASK))
+			return;
+
 		cs40l26->asp_enable = false;
 		break;
 	default:
