@@ -4042,6 +4042,12 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (error)
 		goto pm_err;
 
+	if (cs40l26->revid == CS40L26_REVID_B2) {
+		error = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_OWT_RESET);
+		if (error)
+			goto pm_err;
+	}
+
 	nwaves = cs40l26_num_waves(cs40l26);
 	if (nwaves < 0) {
 		error = nwaves;
@@ -4434,11 +4440,9 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 				return error;
 
 			break;
-
 		case CS40L26_FW_BRANCH:
 			le = cs40l26->svc_le_est_stored;
 			break;
-
 		default:
 			dev_err(dev, "Invalid firmware branch, %d", branch);
 			return -EINVAL;
@@ -4504,9 +4508,10 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 	case CS40L26_REVID_A1:
 	case CS40L26_REVID_B0:
 	case CS40L26_REVID_B1:
+	case CS40L26_REVID_B2:
 		break;
 	default:
-		dev_err(dev, "pseq unrecognized revid: %d\n", cs40l26->revid);
+		dev_err(dev, "Unrecognized revid: 0x%02X\n", cs40l26->revid);
 		return -EINVAL;
 	}
 
