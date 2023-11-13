@@ -3260,7 +3260,7 @@ static int cs40l26_brwnout_prevention_init(struct cs40l26_private *cs40l26)
 	if (cs40l26->vbbr.enable) {
 		pseq_mask = CS40L26_VBBR_ATT_CLR_MASK | CS40L26_VBBR_FLAG_MASK;
 
-		vbbr_config = (cs40l26->vbbr.thld_uv / CS40L26_VBBR_THLD_UV_DIV) &
+		vbbr_config = ((cs40l26->vbbr.thld_uv / CS40L26_VBBR_THLD_UV_DIV) + 1) &
 								CS40L26_VBBR_THLD_MASK;
 
 		vbbr_config |= ((cs40l26->vbbr.max_att_db << CS40L26_VXBR_MAX_ATT_SHIFT) &
