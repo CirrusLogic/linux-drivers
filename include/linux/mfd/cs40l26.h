@@ -1131,6 +1131,7 @@ struct cs40l26_private {
 	u32 aux_ng_thld;
 	u32 aux_ng_delay;
 	bool aux_ng_enable;
+	u32 refclk_input;
 };
 
 struct cs40l26_codec {
