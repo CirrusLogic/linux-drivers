@@ -221,7 +221,8 @@ struct cs35l45_private {
 	struct completion virt2_mbox_comp;
 	enum control_bus_type bus_type;
 	bool initialized;
-	bool fast_switch_en;
+	unsigned int fast_switch_requested;
+	unsigned int fast_switch_applied;
 	bool hibernate_state;
 	bool force_int;
 	bool classh_tracking;
@@ -232,11 +233,6 @@ struct cs35l45_private {
 	int amplifier_mode;
 	int hibernate_mode;
 	int max_quirks_read_nwords;
-	/* Run-time mixer */
-	struct snd_kcontrol_new fast_ctl;
-	unsigned int fast_switch_file_idx;
-	struct soc_enum fast_switch_enum;
-	const char **fast_switch_names;
 	struct regmap_irq_chip_data *irq_data;
 	struct snd_soc_component *component;
 	struct cs35l45_vol_ctl vol_ctl;
