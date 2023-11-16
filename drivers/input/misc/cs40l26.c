@@ -275,11 +275,11 @@ int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26, unsigned int dsp_
 	}
 
 	if (timeout_ms > CS40L26_PM_TIMEOUT_MS_MAX)
-		timeout_ticks = CS40L26_PM_TIMEOUT_MS_MAX * CS40L26_PM_TICKS_PER_MS;
+		timeout_ticks = (CS40L26_PM_TIMEOUT_MS_MAX * CS40L26_PM_TICKS_PER_SEC) / 1000;
 	else if (timeout_ms < min)
-		timeout_ticks = min * CS40L26_PM_TICKS_PER_MS;
+		timeout_ticks = (min * CS40L26_PM_TICKS_PER_SEC) / 1000;
 	else
-		timeout_ticks = timeout_ms * CS40L26_PM_TICKS_PER_MS;
+		timeout_ticks = (timeout_ms * CS40L26_PM_TICKS_PER_SEC) / 1000;
 
 	error = regmap_write(cs40l26->regmap, reg, timeout_ticks);
 	if (error)
@@ -319,7 +319,7 @@ int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26, unsigned int dsp_
 		return error;
 	}
 
-	*timeout_ms = timeout_ticks / CS40L26_PM_TICKS_PER_MS;
+	*timeout_ms = DIV_ROUND_UP(timeout_ticks * 1000, CS40L26_PM_TICKS_PER_SEC);
 
 	return 0;
 }
