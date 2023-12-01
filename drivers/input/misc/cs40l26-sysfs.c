@@ -79,7 +79,7 @@ static ssize_t overprotection_gain_store(struct device *dev, struct device_attri
 	error = kstrtou32(buf, 10, &op_gain);
 
 	if (error || op_gain < CS40L26_OVERPROTECTION_GAIN_MIN ||
-			op_gain > CS40L26_UINT_24_BITS_MAX)
+			op_gain > CS40L26_OVERPROTECTION_GAIN_MAX)
 		return -EINVAL;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
