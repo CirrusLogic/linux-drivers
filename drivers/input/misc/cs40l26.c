@@ -3114,13 +3114,9 @@ static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
 
 	switch (fullid) {
 	case CS40L26_ID_L26A_A1:
-	case CS40L26_ID_L26B_A1:
 	case CS40L26_ID_L27A_A1:
-	case CS40L26_ID_L27B_A1:
 	case CS40L26_ID_L26A_B0:
-	case CS40L26_ID_L26B_B0:
 	case CS40L26_ID_L27A_B0:
-	case CS40L26_ID_L27B_B0:
 	case CS40L26_ID_L27A_B1:
 		cs40l26->rom_regs = &cs40l26_rom_regs_a1_b0_b1;
 		cs40l26->rom_data = &cs40l26_rom_data_a1_b0_b1;
