@@ -44,7 +44,7 @@
 
 #define CL_DSP_TARGET_CORE_ADSP1	0x01
 #define CL_DSP_TARGET_CORE_ADSP2	0x02
-#define CL_DSP_TARGET_CORE_HALO	0x04
+#define CL_DSP_TARGET_CORE_HALO		0x04
 #define CL_DSP_TARGET_CORE_WARP2	0x12
 #define CL_DSP_TARGET_CORE_MCU		0x45
 
@@ -54,14 +54,14 @@
 #define CL_DSP_ALGO_NAME_LEN_SIZE	1
 #define CL_DSP_ALGO_DESC_LEN_SIZE	2
 #define CL_DSP_ALGO_ID_SIZE		4
-#define CL_DSP_COEFF_COUNT_SIZE	4
+#define CL_DSP_COEFF_COUNT_SIZE		4
 #define CL_DSP_COEFF_OFFSET_SIZE	2
 #define CL_DSP_COEFF_TYPE_SIZE		2
 #define CL_DSP_COEFF_NAME_LEN_SIZE	1
 #define CL_DSP_COEFF_FULLNAME_LEN_SIZE	1
 #define CL_DSP_COEFF_DESC_LEN_SIZE	2
 #define CL_DSP_COEFF_LEN_SIZE		4
-#define CL_DSP_COEFF_FLAGS_SIZE	4
+#define CL_DSP_COEFF_FLAGS_SIZE		4
 #define CL_DSP_COEFF_FLAGS_SHIFT	16
 #define CL_DSP_COEFF_NAME_LEN_MAX	32
 #define CL_DSP_COEFF_MIN_FORMAT_VERSION	0x01
@@ -82,8 +82,8 @@
 
 #define CL_DSP_MAX_WLEN			4096
 
-#define CL_DSP_XM_UNPACKED_TYPE	0x0005
-#define CL_DSP_YM_UNPACKED_TYPE	0x0006
+#define CL_DSP_XM_UNPACKED_TYPE		0x0005
+#define CL_DSP_YM_UNPACKED_TYPE		0x0006
 #define CL_DSP_PM_PACKED_TYPE		0x0010
 #define CL_DSP_XM_PACKED_TYPE		0x0011
 #define CL_DSP_YM_PACKED_TYPE		0x0012
@@ -116,7 +116,7 @@
 #define CL_DSP_WMDR_NAME_TYPE		0xFE00
 #define CL_DSP_WMDR_INFO_TYPE		0xFF00
 
-//HALO core specific registers
+/* HALO core */
 #define CL_DSP_HALO_XMEM_PACKED_BASE		0x02000000
 #define CL_DSP_HALO_XROM_PACKED_BASE		0x02006000
 #define CL_DSP_HALO_XMEM_UNPACKED32_BASE	0x02400000
@@ -131,12 +131,16 @@
 #define CL_DSP_HALO_XM_FW_ID_REG		0x0280000C
 #define CL_DSP_HALO_NUM_ALGOS_REG		0x02800024
 
-#define CL_DSP_HALO_ALGO_REV_OFFSET		4
+#define CL_DSP_HALO_ALGO_REV_OFFSET	4
 #define CL_DSP_HALO_ALGO_XM_BASE_OFFSET	8
 #define CL_DSP_HALO_ALGO_XM_SIZE_OFFSET	12
 #define CL_DSP_HALO_ALGO_YM_BASE_OFFSET	16
 #define CL_DSP_HALO_ALGO_YM_SIZE_OFFSET	20
-#define CL_DSP_ALGO_ENTRY_SIZE			24
+#define CL_DSP_ALGO_ENTRY_SIZE		24
+
+#define CL_DSP_HALO_FLAG_READ		BIT(0)
+#define CL_DSP_HALO_FLAG_WRITE		BIT(1)
+#define CL_DSP_HALO_FLAG_VOLATILE	BIT(2)
 
 /* open wavetable */
 #define CL_DSP_OWT_HEADER_MAX_LEN		254
@@ -154,6 +158,9 @@
 				CL_DSP_REV_MINOR_SHIFT)
 
 #define CL_DSP_GET_PATCH(n)	((n) & CL_DSP_REV_PATCH_MASK)
+
+#define CL_DSP_MEM_REGION_PREFIX(n)	(((n) & CL_DSP_MEM_REG_TYPE_MASK) >>\
+					CL_DSP_MEM_REG_TYPE_SHIFT)
 
 enum cl_dsp_wt_type {
 	WT_TYPE_V4_PCM			= 0,
@@ -356,8 +363,8 @@ struct cl_dsp_debugfs {
 #define CL_DSP_HOST_BUFFER_IRQ_MASK		BIT(0)
 #define CL_DSP_HOST_BUFFER_DATA_SLOT_SIZE	10
 
-#define HOST_BUFFER_FIELD(field)                                               \
-	(offsetof(struct cl_dsp_host_buffer, field) / sizeof(__be32))
+#define HOST_BUFFER_FIELD(field) (offsetof(struct cl_dsp_host_buffer, field) / sizeof(__be32))
+
 
 int cl_dsp_logger_update(struct cl_dsp_debugfs *db);
 struct cl_dsp_debugfs *cl_dsp_debugfs_create(struct cl_dsp *dsp,
@@ -378,6 +385,9 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw);
 int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 		const unsigned int block_type, const unsigned int algo_id,
 		unsigned int *reg);
+int cl_dsp_get_flags(struct cl_dsp *dsp, const char *coeff_name,
+		const unsigned int block_type, const unsigned int algo_id,
+		unsigned int *flags);
 bool cl_dsp_algo_is_present(struct cl_dsp *dsp, const unsigned int algo_id);
 struct cl_dsp_memchunk cl_dsp_memchunk_create(void *data, int size);
 int cl_dsp_memchunk_write(struct cl_dsp_memchunk *ch, int nbits, u32 val);
