@@ -14,163 +14,6 @@
 #include <linux/mfd/cs40l26.h>
 
 #ifdef CONFIG_DEBUG_FS
-static ssize_t cs40l26_fw_ctrl_name_read(struct file *file, char __user *user_buf, size_t count,
-		loff_t *ppos)
-{
-	struct cs40l26_private *cs40l26 = file->private_data;
-	ssize_t error = 0;
-
-	mutex_lock(&cs40l26->lock);
-
-	if (cs40l26->dbg_fw_ctrl_name)
-		error = simple_read_from_buffer(user_buf, count, ppos, cs40l26->dbg_fw_ctrl_name,
-				strlen(cs40l26->dbg_fw_ctrl_name));
-
-	mutex_unlock(&cs40l26->lock);
-
-	return error;
-}
-
-static ssize_t cs40l26_fw_ctrl_name_write(struct file *file, const char __user *user_buf,
-		size_t count, loff_t *ppos)
-{
-	struct cs40l26_private *cs40l26 = file->private_data;
-	ssize_t error = 0;
-
-	mutex_lock(&cs40l26->lock);
-
-	kfree(cs40l26->dbg_fw_ctrl_name);
-	cs40l26->dbg_fw_ctrl_name = NULL;
-
-	cs40l26->dbg_fw_ctrl_name = kzalloc(count, GFP_KERNEL);
-	if (!cs40l26->dbg_fw_ctrl_name) {
-		error = -ENOMEM;
-		goto err_mutex;
-	}
-
-	error = simple_write_to_buffer(cs40l26->dbg_fw_ctrl_name, count, ppos, user_buf, count);
-
-err_mutex:
-	mutex_unlock(&cs40l26->lock);
-
-	return error ? error : count;
-}
-
-static ssize_t cs40l26_fw_algo_id_read(struct file *file, char __user *user_buf, size_t count,
-		loff_t *ppos)
-{
-	struct cs40l26_private *cs40l26 = file->private_data;
-	ssize_t error;
-	char *str;
-
-	str = kzalloc(CS40L26_ALGO_ID_MAX_STR_LEN, GFP_KERNEL);
-	if (!str)
-		return -ENOMEM;
-
-	mutex_lock(&cs40l26->lock);
-
-	snprintf(str, count, "0x%06X\n", cs40l26->dbg_fw_algo_id);
-
-	mutex_unlock(&cs40l26->lock);
-
-	error = simple_read_from_buffer(user_buf, count, ppos, str, strlen(str));
-
-	kfree(str);
-
-	return error;
-}
-
-static ssize_t cs40l26_fw_algo_id_write(struct file *file, const char __user *user_buf,
-		size_t count, loff_t *ppos)
-{
-	struct cs40l26_private *cs40l26 = file->private_data;
-	ssize_t error;
-	char *str;
-	u32 val;
-
-	str = kzalloc(count, GFP_KERNEL);
-	if (!str)
-		return -ENOMEM;
-
-	simple_write_to_buffer(str, count, ppos, user_buf, count);
-
-	error = kstrtou32(str, 16, &val);
-	if (error)
-		goto exit_free;
-
-	mutex_lock(&cs40l26->lock);
-
-	cs40l26->dbg_fw_algo_id = val;
-
-	mutex_unlock(&cs40l26->lock);
-
-exit_free:
-
-	kfree(str);
-
-	return error ? error : count;
-}
-
-static ssize_t cs40l26_fw_ctrl_val_read(struct file *file, char __user *user_buf, size_t count,
-		loff_t *ppos)
-{
-	struct cs40l26_private *cs40l26 = file->private_data;
-	u32 reg, val, mem_type;
-	char *result, *input;
-	ssize_t error;
-
-	if (!cs40l26->dbg_fw_ctrl_name || !cs40l26->dbg_fw_algo_id)
-		return -ENODEV;
-
-	if (strlen(cs40l26->dbg_fw_ctrl_name) == 0)
-		return -ENODATA;
-
-	error = cs40l26_pm_enter(cs40l26->dev);
-	if (error)
-		return error;
-
-	mutex_lock(&cs40l26->lock);
-
-	mem_type  = cs40l26->dbg_fw_ym ? CL_DSP_YM_UNPACKED_TYPE : CL_DSP_XM_UNPACKED_TYPE;
-
-	input = kzalloc(strlen(cs40l26->dbg_fw_ctrl_name), GFP_KERNEL);
-	if (!input) {
-		error = -ENOMEM;
-		goto err_mutex;
-	}
-
-	snprintf(input, strlen(cs40l26->dbg_fw_ctrl_name), "%s", cs40l26->dbg_fw_ctrl_name);
-
-	error = cl_dsp_get_reg(cs40l26->dsp, input, mem_type, cs40l26->dbg_fw_algo_id, &reg);
-	kfree(input);
-	if (error)
-		goto err_mutex;
-
-	error = regmap_read(cs40l26->regmap, reg, &val);
-	if (error) {
-		dev_err(cs40l26->dev, "Failed to read fw control\n");
-		goto err_mutex;
-	}
-
-	result = kzalloc(CS40L26_ALGO_ID_MAX_STR_LEN, GFP_KERNEL);
-	if (!result) {
-		error = -ENOMEM;
-		goto err_mutex;
-	}
-
-	snprintf(result, CS40L26_ALGO_ID_MAX_STR_LEN, "0x%08X\n", val);
-	error = simple_read_from_buffer(user_buf, count, ppos, result, strlen(result));
-
-	kfree(result);
-
-err_mutex:
-	mutex_unlock(&cs40l26->lock);
-
-	cs40l26_pm_exit(cs40l26->dev);
-
-	return error;
-}
-
 static ssize_t cs40l26_power_on_seq_read(struct file *file, char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
@@ -409,29 +252,6 @@ static const struct {
 	const struct file_operations fops;
 } cs40l26_debugfs_fops[] = {
 	{
-		.name = "fw_ctrl_name",
-		.fops = {
-			.open = simple_open,
-			.read = cs40l26_fw_ctrl_name_read,
-			.write = cs40l26_fw_ctrl_name_write,
-		},
-	},
-	{
-		.name = "fw_algo_id",
-		.fops = {
-			.open = simple_open,
-			.read = cs40l26_fw_algo_id_read,
-			.write = cs40l26_fw_algo_id_write,
-		},
-	},
-	{
-		.name = "fw_ctrl_val",
-		.fops = {
-			.open = simple_open,
-			.read = cs40l26_fw_ctrl_val_read,
-		},
-	},
-	{
 		.name = "power_on_seq",
 		.fops = {
 			.open = simple_open,
@@ -468,14 +288,10 @@ void cs40l26_debugfs_init(struct cs40l26_private *cs40l26)
 	if (!root)
 		return;
 
-	debugfs_create_bool("fw_ym_space", CL_DSP_DEBUGFS_RW_FILE_MODE, root, &cs40l26->dbg_fw_ym);
-
 	for (i = 0; i < ARRAY_SIZE(cs40l26_debugfs_fops); i++)
 		debugfs_create_file(cs40l26_debugfs_fops[i].name, CL_DSP_DEBUGFS_RW_FILE_MODE,
 				root, cs40l26, &cs40l26_debugfs_fops[i].fops);
 
-	cs40l26->dbg_fw_ym = false;
-	cs40l26->dbg_fw_algo_id = CS40L26_VIBEGEN_ALGO_ID;
 	cs40l26->debugfs_root = root;
 
 	cs40l26_hw_debugfs_init(cs40l26);
@@ -495,8 +311,6 @@ void cs40l26_debugfs_cleanup(struct cs40l26_private *cs40l26)
 {
 	cl_dsp_debugfs_destroy(cs40l26->cl_dsp_db);
 	cs40l26->cl_dsp_db = NULL;
-	kfree(cs40l26->dbg_fw_ctrl_name);
-	cs40l26->dbg_fw_ctrl_name = NULL;
 	debugfs_remove_recursive(cs40l26->debugfs_root);
 }
 EXPORT_SYMBOL_GPL(cs40l26_debugfs_cleanup);
