@@ -498,3 +498,65 @@ Description:
 			Full scale corresponds to an amplifier voltage of 12.3 V.
 			Minimum: 0x000000 (0 V)
 			Maximum: 0x7FFFFF (0.999999 * 12.3 =~ 12.3 V)
+
+What:		/sys/class/input/input(x)/firmware/fw_algo_id
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		See external driver or firmware documentation for details on firmware algorithm IDs.
+
+		Access: Read, Write
+
+		Valid values: Represented as hexadecimal (3 bytes)
+
+What:		/sys/class/input/input(x)/firmware/fw_ctrl_name
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Name of the firmware control to access.
+
+		Short name with no algorithm prefix should be used instead of FullName.
+
+		Access: Read, Write
+
+		Valid values: Represented as a string
+
+What:		/sys/class/input/input(x)/firmware/fw_ctrl_reg
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Register address of control with properties as defined by
+		fw_ctrl_name, fw_algo_id, and fw_mem_block_type.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal
+
+What:		/sys/class/input/input(x)/firmware/fw_ctrl_val
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Value of the control defined by fw_algo_id, fw_ctrl_name, and fw_mem_block_type.
+
+		Access for the control is determined by its access flags: volatile, read, and write.
+		Volatile or read-only controls can not be written to. Write-only controls can not be read from.
+
+		Access: Read, Write
+
+		Valid values: Represented as hexadecimal
+
+What:		/sys/class/input/input(x)/firmware/fw_mem_block_type
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Memory block type in which firmware control to access resides.
+		Firmware docuemntation can be used to determine the block type of each control.
+
+		Access: Read, Write
+
+		Valid values: Represented as hexadecimal (2 bytes)
+			0x0005: XM Unpacked
+			0x0006: YM Unpacked
+			0x0010: PM Packed
+			0x0011: XM Packed
+			0x0012: YM Packed
