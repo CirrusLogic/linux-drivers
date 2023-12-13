@@ -131,87 +131,97 @@ int cl_dsp_raw_write(struct cl_dsp *dsp, unsigned int reg,
 }
 EXPORT_SYMBOL(cl_dsp_raw_write);
 
-int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
-		const unsigned int block_type,
-		const unsigned int algo_id, unsigned int *reg)
+static struct cl_dsp_coeff_desc *cl_dsp_get_coeff(struct cl_dsp *dsp, const char *coeff_name,
+		const unsigned int block_type, const unsigned int algo_id)
 {
-	int ret = 0;
 	struct cl_dsp_coeff_desc *coeff_desc;
 	unsigned int mem_region_prefix;
 
 	if (!dsp)
-		return -EPERM;
+		return ERR_PTR(-EPERM);
 
 	if (list_empty(&dsp->coeff_desc_head)) {
 		dev_err(dsp->dev, "Coefficient list is empty\n");
-		return -ENOENT;
+		return ERR_PTR(-ENODATA);
 	}
 
 	list_for_each_entry(coeff_desc, &dsp->coeff_desc_head, list) {
-		if (strncmp(coeff_desc->name, coeff_name,
-				CL_DSP_COEFF_NAME_LEN_MAX))
+		if (strncmp(coeff_desc->name, coeff_name, CL_DSP_COEFF_NAME_LEN_MAX))
 			continue;
 		if (coeff_desc->block_type != block_type)
 			continue;
 		if ((coeff_desc->parent_id & 0xFFFF) != (algo_id & 0xFFFF))
 			continue;
 
-		*reg = coeff_desc->reg;
-		if (*reg == 0) {
-			dev_err(dsp->dev,
-				"No DSP control called %s for block 0x%X\n",
-				coeff_name, block_type);
-			return -ENXIO;
+		if (coeff_desc->reg == 0) {
+			dev_err(dsp->dev, "No control %s for block type 0x%X\n",
+					coeff_name, block_type);
+			return ERR_PTR(-EINVAL);
 		}
-
 		break;
 	}
 
 	/* verify register found in expected region */
 	switch (block_type) {
 	case CL_DSP_XM_PACKED_TYPE:
-		mem_region_prefix = (CL_DSP_HALO_XMEM_PACKED_BASE
-				& CL_DSP_MEM_REG_TYPE_MASK)
-				>> CL_DSP_MEM_REG_TYPE_SHIFT;
+		mem_region_prefix = CL_DSP_MEM_REGION_PREFIX(CL_DSP_HALO_XMEM_PACKED_BASE);
 		break;
 	case CL_DSP_XM_UNPACKED_TYPE:
-		mem_region_prefix = (CL_DSP_HALO_XMEM_UNPACKED24_BASE
-				& CL_DSP_MEM_REG_TYPE_MASK)
-				>> CL_DSP_MEM_REG_TYPE_SHIFT;
+		mem_region_prefix = CL_DSP_MEM_REGION_PREFIX(CL_DSP_HALO_XMEM_UNPACKED24_BASE);
 		break;
 	case CL_DSP_YM_PACKED_TYPE:
-		mem_region_prefix = (CL_DSP_HALO_YMEM_PACKED_BASE
-				& CL_DSP_MEM_REG_TYPE_MASK)
-				>> CL_DSP_MEM_REG_TYPE_SHIFT;
+		mem_region_prefix = CL_DSP_MEM_REGION_PREFIX(CL_DSP_HALO_YMEM_PACKED_BASE);
 		break;
 	case CL_DSP_YM_UNPACKED_TYPE:
-		mem_region_prefix = (CL_DSP_HALO_YMEM_UNPACKED24_BASE
-				& CL_DSP_MEM_REG_TYPE_MASK)
-				>> CL_DSP_MEM_REG_TYPE_SHIFT;
+		mem_region_prefix = CL_DSP_MEM_REGION_PREFIX(CL_DSP_HALO_YMEM_UNPACKED24_BASE);
 		break;
 	case CL_DSP_PM_PACKED_TYPE:
-		mem_region_prefix = (CL_DSP_HALO_PMEM_BASE
-				& CL_DSP_MEM_REG_TYPE_MASK)
-				>> CL_DSP_MEM_REG_TYPE_SHIFT;
+		mem_region_prefix = CL_DSP_MEM_REGION_PREFIX(CL_DSP_HALO_PMEM_BASE);
 		break;
 	default:
-		dev_err(dsp->dev, "Unrecognized block type: 0x%X\n",
-				block_type);
-		return -EINVAL;
+		dev_err(dsp->dev, "Unrecognized block type: 0x%X\n", block_type);
+		return ERR_PTR(-EINVAL);
 	}
 
-	if (((*reg & CL_DSP_MEM_REG_TYPE_MASK) >> CL_DSP_MEM_REG_TYPE_SHIFT)
-			!= mem_region_prefix) {
-		dev_err(dsp->dev,
-			"DSP control %s at 0x%X found in unexpected region\n",
-			coeff_name, *reg);
+	if (CL_DSP_MEM_REGION_PREFIX(coeff_desc->reg) != mem_region_prefix) {
+		dev_err(dsp->dev, "DSP control %s at 0x%X found in unexpected region\n",
+				coeff_name, coeff_desc->reg);
 
-		ret = -EFAULT;
+		return ERR_PTR(-EFAULT);
 	}
 
-	return ret;
+	return coeff_desc;
+}
+
+int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name, const unsigned int block_type,
+		const unsigned int algo_id, unsigned int *reg)
+{
+	struct cl_dsp_coeff_desc *coeff_desc;
+
+	coeff_desc = cl_dsp_get_coeff(dsp, coeff_name, block_type, algo_id);
+	if (IS_ERR_OR_NULL(coeff_desc))
+		return coeff_desc ? PTR_ERR(coeff_desc) : -ENXIO;
+
+	*reg = coeff_desc->reg;
+
+	return 0;
 }
 EXPORT_SYMBOL(cl_dsp_get_reg);
+
+int cl_dsp_get_flags(struct cl_dsp *dsp, const char *coeff_name, const unsigned int block_type,
+		const unsigned int algo_id, unsigned int *flags)
+{
+	struct cl_dsp_coeff_desc *coeff_desc;
+
+	coeff_desc = cl_dsp_get_coeff(dsp, coeff_name, block_type, algo_id);
+	if (IS_ERR_OR_NULL(coeff_desc))
+		return coeff_desc ? PTR_ERR(coeff_desc) : -ENXIO;
+
+	*flags = coeff_desc->flags;
+
+	return 0;
+}
+EXPORT_SYMBOL(cl_dsp_get_flags);
 
 bool cl_dsp_algo_is_present(struct cl_dsp *dsp, const unsigned int algo_id)
 {
