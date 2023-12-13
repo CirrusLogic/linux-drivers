@@ -411,6 +411,8 @@
 #define CS40L26_CCM_CORE_RESET		0x00000200
 #define CS40L26_CCM_CORE_ENABLE		0x00000281
 
+#define CS40L26_COEFF_NAME_MAX_LEN	64
+
 /* Wavetable */
 #define CS40L26_WT_NAME_XM	"WAVE_XM_TABLE"
 #define CS40L26_WT_NAME_YM	"WAVE_YM_TABLE"
@@ -1026,6 +1028,12 @@ struct cs40l26_brwnout {
 	u32 rel_rate;
 };
 
+struct cs40l26_sysfs_fw {
+	u32 algo_id;
+	u32 block_type;
+	char ctrl_name[CS40L26_COEFF_NAME_MAX_LEN];
+};
+
 struct cs40l26_private {
 	struct device *dev;
 	struct regmap *regmap;
@@ -1096,12 +1104,10 @@ struct cs40l26_private {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_root;
 	struct dentry *debugfs_hw_node;
-	char *dbg_fw_ctrl_name;
-	u32 dbg_fw_algo_id;
-	bool dbg_fw_ym;
 	u32 dbg_hw_reg;
 	struct cl_dsp_debugfs *cl_dsp_db;
 #endif
+	struct cs40l26_sysfs_fw sysfs_fw;
 	struct cs40l26_brwnout vbbr;
 	struct cs40l26_brwnout vpbr;
 	bool bst_dcm_en;

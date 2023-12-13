@@ -1789,9 +1789,252 @@ static struct attribute_group cs40l26_dev_attr_dlog_group = {
 	.attrs = cs40l26_dev_attrs_dlog,
 };
 
+static ssize_t fw_algo_id_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = snprintf(buf, PAGE_SIZE, "0x%06X\n", cs40l26->sysfs_fw.algo_id);
+
+	mutex_unlock(&cs40l26->lock);
+
+	return error;
+}
+
+static ssize_t fw_algo_id_store(struct device *dev, struct device_attribute *attr, const char *buf,
+		size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 algo_id;
+	int error;
+
+	error = kstrtou32(buf, 16, &algo_id);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	cs40l26->sysfs_fw.algo_id = algo_id;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return count;
+}
+static DEVICE_ATTR_RW(fw_algo_id);
+
+static ssize_t fw_ctrl_name_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = snprintf(buf, PAGE_SIZE, "%s\n", cs40l26->sysfs_fw.ctrl_name);
+
+	mutex_unlock(&cs40l26->lock);
+
+	return error;
+}
+
+static ssize_t fw_ctrl_name_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+
+	if (strlen(buf) > CS40L26_COEFF_NAME_MAX_LEN) {
+		dev_err(cs40l26->dev, "Control name %s longer than 64 char limit\n", buf);
+		return -E2BIG;
+	}
+
+	mutex_lock(&cs40l26->lock);
+
+	memset(cs40l26->sysfs_fw.ctrl_name, 0, CS40L26_COEFF_NAME_MAX_LEN);
+
+	strscpy(cs40l26->sysfs_fw.ctrl_name, buf, count);
+
+	mutex_unlock(&cs40l26->lock);
+
+	return count;
+}
+static DEVICE_ATTR_RW(fw_ctrl_name);
+
+static inline int cs40l26_sysfs_fw_get_reg(struct cs40l26_private *cs40l26, u32 *reg)
+{
+	return cl_dsp_get_reg(cs40l26->dsp, cs40l26->sysfs_fw.ctrl_name,
+			cs40l26->sysfs_fw.block_type, cs40l26->sysfs_fw.algo_id, reg);
+}
+
+static inline int cs40l26_sysfs_fw_get_flags(struct cs40l26_private *cs40l26, unsigned int *flags)
+{
+	return cl_dsp_get_flags(cs40l26->dsp, cs40l26->sysfs_fw.ctrl_name,
+			cs40l26->sysfs_fw.block_type, cs40l26->sysfs_fw.algo_id, flags);
+}
+
+static ssize_t fw_ctrl_reg_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error;
+	u32 reg;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cs40l26_sysfs_fw_get_reg(cs40l26, &reg);
+
+	mutex_unlock(&cs40l26->lock);
+
+	return error ? error : snprintf(buf, PAGE_SIZE, "0x%08X\n", reg);
+}
+static DEVICE_ATTR_RO(fw_ctrl_reg);
+
+static ssize_t fw_ctrl_val_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	unsigned int flags;
+	u32 reg, val;
+	int error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cs40l26_sysfs_fw_get_flags(cs40l26, &flags);
+	if (error)
+		goto mutex_exit;
+
+	if (!(flags & CL_DSP_HALO_FLAG_READ)) {
+		dev_err(cs40l26->dev, "Cannot read from control %s with flags = 0x%X\n",
+				cs40l26->sysfs_fw.ctrl_name, flags);
+		error = -EPERM;
+		goto mutex_exit;
+	}
+
+	error = cs40l26_sysfs_fw_get_reg(cs40l26, &reg);
+	if (error)
+		goto mutex_exit;
+
+	error = regmap_read(cs40l26->regmap, reg, &val);
+
+mutex_exit:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : snprintf(buf, PAGE_SIZE, "0x%08X\n", val);
+}
+
+static ssize_t fw_ctrl_val_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	unsigned int flags;
+	u32 reg, val;
+	int error;
+
+	error = kstrtou32(buf, 16, &val);
+	if (error)
+		return error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cs40l26_sysfs_fw_get_flags(cs40l26, &flags);
+	if (error)
+		goto mutex_exit;
+
+	if (flags & CL_DSP_HALO_FLAG_VOLATILE || !(flags & CL_DSP_HALO_FLAG_WRITE)) {
+		dev_err(cs40l26->dev, "Cannot write to control %s with flags = 0x%X\n",
+				cs40l26->sysfs_fw.ctrl_name, flags);
+		error = -EPERM;
+		goto mutex_exit;
+	}
+
+	error = cs40l26_sysfs_fw_get_reg(cs40l26, &reg);
+	if (error)
+		goto mutex_exit;
+
+	error = regmap_write(cs40l26->regmap, reg, val);
+
+mutex_exit:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : count;
+}
+static DEVICE_ATTR_RW(fw_ctrl_val);
+
+static ssize_t fw_mem_block_type_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = snprintf(buf, PAGE_SIZE, "0x%04X\n", cs40l26->sysfs_fw.block_type);
+
+	mutex_unlock(&cs40l26->lock);
+
+	return error;
+}
+
+static ssize_t fw_mem_block_type_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 block_type;
+	int error;
+
+	error = kstrtou32(buf, 16, &block_type);
+	if (error)
+		return error;
+
+	switch (block_type) {
+	case CL_DSP_XM_UNPACKED_TYPE:
+	case CL_DSP_YM_UNPACKED_TYPE:
+	case CL_DSP_PM_PACKED_TYPE:
+	case CL_DSP_XM_PACKED_TYPE:
+	case CL_DSP_YM_PACKED_TYPE:
+		break;
+	default:
+		dev_err(cs40l26->dev, "Invalid block type 0x%X\n", block_type);
+		return -EINVAL;
+	}
+
+	mutex_lock(&cs40l26->lock);
+
+	cs40l26->sysfs_fw.block_type = block_type;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return count;
+}
+static DEVICE_ATTR_RW(fw_mem_block_type);
+
+static struct attribute *cs40l26_dev_attrs_fw[] = {
+	&dev_attr_fw_algo_id.attr,
+	&dev_attr_fw_ctrl_name.attr,
+	&dev_attr_fw_ctrl_reg.attr,
+	&dev_attr_fw_ctrl_val.attr,
+	&dev_attr_fw_mem_block_type.attr,
+	NULL,
+};
+
+static struct attribute_group cs40l26_dev_attr_fw_group = {
+	.name = "firmware",
+	.attrs = cs40l26_dev_attrs_fw,
+};
+
 const struct attribute_group *cs40l26_attr_groups[] = {
 	&cs40l26_dev_attr_group,
 	&cs40l26_dev_attr_cal_group,
 	&cs40l26_dev_attr_dlog_group,
+	&cs40l26_dev_attr_fw_group,
 	NULL,
 };
