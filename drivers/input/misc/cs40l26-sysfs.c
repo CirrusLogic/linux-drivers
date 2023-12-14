@@ -660,6 +660,36 @@ static ssize_t fw_rev_show(struct device *dev, struct device_attribute *attr, ch
 }
 static DEVICE_ATTR_RO(fw_rev);
 
+static ssize_t init_rom_wavetable_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 enable;
+	int error;
+
+	error = kstrtou32(buf, 10, &enable);
+	if (error)
+		return error;
+
+	if (enable != 1)
+		return -EINVAL;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cs40l26_rom_wt_init(cs40l26);
+
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : count;
+}
+static DEVICE_ATTR_WO(init_rom_wavetable);
+
 static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_num_waves.attr,
 	&dev_attr_die_temp.attr,
@@ -677,6 +707,7 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_fw_rev.attr,
 	&dev_attr_owt_lib_compat.attr,
 	&dev_attr_overprotection_gain.attr,
+	&dev_attr_init_rom_wavetable.attr,
 	NULL,
 };
 
