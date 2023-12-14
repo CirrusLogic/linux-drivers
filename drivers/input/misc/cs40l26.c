@@ -3885,9 +3885,9 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
-	int error, nwaves;
 	unsigned int val;
 	u32 reg, value;
+	int error;
 
 	if (!cs40l26->fw_rom_only) {
 		error = regmap_update_bits(regmap, CS40L26_PWRMGT_CTL,
@@ -4046,13 +4046,9 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 			goto pm_err;
 	}
 
-	nwaves = cs40l26_num_waves(cs40l26);
-	if (nwaves < 0) {
-		error = nwaves;
-		goto pm_err;
-	}
-
-	dev_info(dev, "%s loaded with %u RAM waveforms\n", CS40L26_DEV_NAME, nwaves);
+	dev_info(dev, "%s loaded with %d RAM waveforms (%d from cs40l26.bin + %d from OWT)\n",
+			CS40L26_DEV_NAME, cs40l26_num_waves(cs40l26),
+			cs40l26_num_ram_waves(cs40l26), cs40l26_num_owt_waves(cs40l26));
 
 	value = (cs40l26->comp_enable_redc << CS40L26_COMP_EN_REDC_SHIFT) |
 			(cs40l26->comp_enable_f0 << CS40L26_COMP_EN_F0_SHIFT);
