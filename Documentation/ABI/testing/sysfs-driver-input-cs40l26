@@ -83,6 +83,18 @@ Description:
 
 		Valid values: Represented as integer
 
+What:		/sys/class/input/input(x)/default/init_rom_wavetable
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Initiate ROM wavetable parsing by writing '1' to
+		this control. Allows use of ROM waveforms in Open Wavetable
+		effects.
+
+		Access: Write
+
+		Valid values: 1 (integer)
+
 What:		/sys/class/input/input(x)/default/num_waves
 Date:		December 2023
 Contact:	patches@opensource.cirrus.com
