@@ -2495,7 +2495,7 @@ sections_err_free:
 	return error;
 }
 
-static int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26)
+int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26)
 {
 	u32 *wt_be, reg, rom_wt_size_bytes;
 	int error, i;
@@ -2544,6 +2544,7 @@ data_free:
 	devm_kfree(cs40l26->dev, cs40l26->rom_wt.raw_data);
 	return error;
 }
+EXPORT_SYMBOL_GPL(cs40l26_rom_wt_init);
 
 static int cs40l26_sine_upload(struct cs40l26_private *cs40l26, struct ff_effect *effect,
 		struct cs40l26_uploaded_effect *ueffect)
@@ -4964,13 +4965,6 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 	init_completion(&cs40l26->cal_redc_cont);
 	init_completion(&cs40l26->cal_dvl_peq_cont);
 	init_completion(&cs40l26->cal_ls_cont);
-
-
-	error = cs40l26_rom_wt_init(cs40l26);
-	if (error) {
-		dev_err(cs40l26->dev, "Unable to store ROM wavetable\n");
-		goto err;
-	}
 
 	if (!cs40l26->fw_defer) {
 		error = cs40l26_fw_upload(cs40l26);
