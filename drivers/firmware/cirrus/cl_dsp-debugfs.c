@@ -323,7 +323,7 @@ int cl_dsp_logger_update(struct cl_dsp_debugfs *db)
 
 	return 0;
 }
-EXPORT_SYMBOL(cl_dsp_logger_update);
+EXPORT_SYMBOL_GPL(cl_dsp_logger_update);
 
 static int cl_dsp_debugfs_logger_open(struct inode *inode, struct file *file)
 {
@@ -511,7 +511,7 @@ struct cl_dsp_debugfs *cl_dsp_debugfs_create(struct cl_dsp *dsp,
 
 	return db;
 }
-EXPORT_SYMBOL(cl_dsp_debugfs_create);
+EXPORT_SYMBOL_GPL(cl_dsp_debugfs_create);
 
 void cl_dsp_debugfs_destroy(struct cl_dsp_debugfs *db)
 {
@@ -521,7 +521,7 @@ void cl_dsp_debugfs_destroy(struct cl_dsp_debugfs *db)
 	debugfs_remove_recursive(db->debugfs_node);
 	kfree(db);
 }
-EXPORT_SYMBOL(cl_dsp_debugfs_destroy);
+EXPORT_SYMBOL_GPL(cl_dsp_debugfs_destroy);
 
 #endif /* CONFIG_DEBUG_FS */
 

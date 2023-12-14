@@ -17,7 +17,7 @@ struct cl_dsp_memchunk cl_dsp_memchunk_create(void *data, int size)
 
 	return ch;
 }
-EXPORT_SYMBOL(cl_dsp_memchunk_create);
+EXPORT_SYMBOL_GPL(cl_dsp_memchunk_create);
 
 static inline bool cl_dsp_memchunk_end(struct cl_dsp_memchunk *ch)
 {
@@ -70,7 +70,7 @@ int cl_dsp_memchunk_read(struct cl_dsp *dsp, struct cl_dsp_memchunk *ch,
 
 	return 0;
 }
-EXPORT_SYMBOL(cl_dsp_memchunk_read);
+EXPORT_SYMBOL_GPL(cl_dsp_memchunk_read);
 
 int cl_dsp_memchunk_write(struct cl_dsp_memchunk *ch, int nbits, u32 val)
 {
@@ -100,7 +100,7 @@ int cl_dsp_memchunk_write(struct cl_dsp_memchunk *ch, int nbits, u32 val)
 
 	return 0;
 }
-EXPORT_SYMBOL(cl_dsp_memchunk_write);
+EXPORT_SYMBOL_GPL(cl_dsp_memchunk_write);
 
 int cl_dsp_memchunk_flush(struct cl_dsp_memchunk *ch)
 {
@@ -109,7 +109,7 @@ int cl_dsp_memchunk_flush(struct cl_dsp_memchunk *ch)
 
 	return cl_dsp_memchunk_write(ch, 24 - ch->cachebits, 0);
 }
-EXPORT_SYMBOL(cl_dsp_memchunk_flush);
+EXPORT_SYMBOL_GPL(cl_dsp_memchunk_flush);
 
 int cl_dsp_raw_write(struct cl_dsp *dsp, unsigned int reg,
 		const void *val, size_t val_len, size_t limit)
@@ -129,7 +129,7 @@ int cl_dsp_raw_write(struct cl_dsp *dsp, unsigned int reg,
 
 	return ret;
 }
-EXPORT_SYMBOL(cl_dsp_raw_write);
+EXPORT_SYMBOL_GPL(cl_dsp_raw_write);
 
 static struct cl_dsp_coeff_desc *cl_dsp_get_coeff(struct cl_dsp *dsp, const char *coeff_name,
 		const unsigned int block_type, const unsigned int algo_id)
@@ -206,7 +206,7 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name, const unsigned in
 
 	return 0;
 }
-EXPORT_SYMBOL(cl_dsp_get_reg);
+EXPORT_SYMBOL_GPL(cl_dsp_get_reg);
 
 int cl_dsp_get_flags(struct cl_dsp *dsp, const char *coeff_name, const unsigned int block_type,
 		const unsigned int algo_id, unsigned int *flags)
@@ -221,7 +221,7 @@ int cl_dsp_get_flags(struct cl_dsp *dsp, const char *coeff_name, const unsigned 
 
 	return 0;
 }
-EXPORT_SYMBOL(cl_dsp_get_flags);
+EXPORT_SYMBOL_GPL(cl_dsp_get_flags);
 
 bool cl_dsp_algo_is_present(struct cl_dsp *dsp, const unsigned int algo_id)
 {
@@ -238,7 +238,7 @@ bool cl_dsp_algo_is_present(struct cl_dsp *dsp, const unsigned int algo_id)
 
 	return false;
 }
-EXPORT_SYMBOL(cl_dsp_algo_is_present);
+EXPORT_SYMBOL_GPL(cl_dsp_algo_is_present);
 
 static int cl_dsp_process_data_be(const u8 *data,
 		const unsigned int num_bytes, unsigned int *val)
@@ -611,7 +611,7 @@ err_free:
 
 	return ret;
 }
-EXPORT_SYMBOL(cl_dsp_coeff_file_parse);
+EXPORT_SYMBOL_GPL(cl_dsp_coeff_file_parse);
 
 static int cl_dsp_algo_parse(struct cl_dsp *dsp, const unsigned char *data)
 {
@@ -779,7 +779,7 @@ int cl_dsp_fw_id_get(struct cl_dsp *dsp, unsigned int *id)
 
 	return ret;
 }
-EXPORT_SYMBOL(cl_dsp_fw_id_get);
+EXPORT_SYMBOL_GPL(cl_dsp_fw_id_get);
 
 int cl_dsp_fw_rev_get(struct cl_dsp *dsp, unsigned int *rev)
 {
@@ -792,7 +792,7 @@ int cl_dsp_fw_rev_get(struct cl_dsp *dsp, unsigned int *rev)
 
 	return ret;
 }
-EXPORT_SYMBOL(cl_dsp_fw_rev_get);
+EXPORT_SYMBOL_GPL(cl_dsp_fw_rev_get);
 
 static int cl_dsp_coeff_init(struct cl_dsp *dsp)
 {
@@ -1116,7 +1116,7 @@ err_free:
 
 	return ret;
 }
-EXPORT_SYMBOL(cl_dsp_firmware_parse);
+EXPORT_SYMBOL_GPL(cl_dsp_firmware_parse);
 
 int cl_dsp_wavetable_create(struct cl_dsp *dsp, unsigned int id,
 		const char *wt_name_xm, const char *wt_name_ym,
@@ -1141,7 +1141,7 @@ int cl_dsp_wavetable_create(struct cl_dsp *dsp, unsigned int id,
 
 	return 0;
 }
-EXPORT_SYMBOL(cl_dsp_wavetable_create);
+EXPORT_SYMBOL_GPL(cl_dsp_wavetable_create);
 
 struct cl_dsp *cl_dsp_create(struct device *dev, struct regmap *regmap)
 {
@@ -1158,7 +1158,7 @@ struct cl_dsp *cl_dsp_create(struct device *dev, struct regmap *regmap)
 
 	return dsp;
 }
-EXPORT_SYMBOL(cl_dsp_create);
+EXPORT_SYMBOL_GPL(cl_dsp_create);
 
 int cl_dsp_destroy(struct cl_dsp *dsp)
 {
@@ -1175,7 +1175,7 @@ int cl_dsp_destroy(struct cl_dsp *dsp)
 
 	return 0;
 }
-EXPORT_SYMBOL(cl_dsp_destroy);
+EXPORT_SYMBOL_GPL(cl_dsp_destroy);
 
 MODULE_DESCRIPTION("Cirrus Logic DSP Firmware Driver");
 MODULE_AUTHOR("Fred Treven, Cirrus Logic Inc, <fred.treven@cirrus.com>");
