@@ -530,6 +530,50 @@ properties:
       14: 60000 ms
       15: 120000 ms
 
+  cirrus,dc-wd-enable:
+    type: boolean
+    description: |
+      Enables DC input watchdog and unmasks rise/fall interrupts
+      for watchdog messages to the user.
+
+  cirrus,dc-wd-thld:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    maximum: 40
+    default: 40
+    description: |
+      DC input watchdog amplitude threshold provided as
+      percentage of the full-scale signal in steps of 2.5%
+      (1 = 2.5%, 40 = 100%).
+      Configures the amplitude the amplifier's digital
+      input signal must exceed before triggering the watchdog.
+
+  cirrus,dc-wd-dur:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 0
+    description: |
+      DC input watchdog duration time. The amount of time
+      the digital input signal must exceed the DC watchdog
+      amplitude threshold before triggering the watchdog.
+      0: 20 ms
+      1: 49 ms
+      2: 98 ms
+      3: 195 ms
+      4: 488 ms
+      5: 977 ms
+      6: 1953 ms
+      7: 4883 ms
+
+  cirrus,dc-wd-mute:
+    type: boolean
+    description: |
+      DC input watchdog response. Configures the response of
+      the amplifier hardware path when an error condition has
+      been detected. If this property is present and the DC
+      watchdog has been enabled, the device will mute digital
+      PCM volume upon the watchdog event being triggered.
+
 required:
   - compatible
   - reg
@@ -650,6 +694,11 @@ examples:
         cirrus,aux-ng-enable;
         cirrus,aux-ng-thld = <1>;
         cirrus,aux-ng-delay = <14>;
+
+        cirrus,dc-wd-enable;
+        cirrus,dc-wd-thld = <20>;
+        cirrus,dc-wd-dur = <5>;
+        cirrus,dc-wd-mute;
 
         svc-le1 {
           cirrus,min = <671>;
