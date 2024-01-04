@@ -1102,6 +1102,24 @@ static irqreturn_t cs40l26_amp_short(int irq, void *data)
 	return IRQ_RETVAL(!cs40l26_error_release(cs40l26, CS40L26_AMP_SHORT_ERR_RLS));
 }
 
+static irqreturn_t cs40l26_watchdog_rise(int irq, void *data)
+{
+	struct cs40l26_private *cs40l26 = data;
+
+	dev_warn(cs40l26->dev, "Watchdog: A DC level has been detected\n");
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs40l26_watchdog_fall(int irq, void *data)
+{
+	struct cs40l26_private *cs40l26 = data;
+
+	dev_info(cs40l26->dev, "Watchdog: The previously-detected DC level has been removed\n");
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t cs40l26_vpbr_flag(int irq, void *data)
 {
 	struct cs40l26_private *cs40l26 = data;
@@ -1159,6 +1177,8 @@ static const struct cs40l26_irq cs40l26_irqs[] = {
 	CS40L26_IRQ(BST_IPK_FLAG, "Current limited", cs40l26_ipk_flag),
 	CS40L26_IRQ(TEMP_ERR, "Die overtemperature error", cs40l26_temp_err),
 	CS40L26_IRQ(AMP_ERR, "Amp short", cs40l26_amp_short),
+	CS40L26_IRQ(DC_WD_RISE, "DC watchdog triggered", cs40l26_watchdog_rise),
+	CS40L26_IRQ(DC_WD_FALL, "DC watchdog cleared", cs40l26_watchdog_fall),
 	CS40L26_IRQ(VIRTUAL2_MBOX_WR, "Mailbox interrupt", cs40l26_handle_mbox_buffer),
 	CS40L26_IRQ(VPBR_FLAG, "VP brownout", cs40l26_vpbr_flag),
 	CS40L26_IRQ(VPBR_ATT_CLR, "VPBR attenuation cleared", cs40l26_vpbr_att_clr),
@@ -1187,6 +1207,8 @@ static const struct regmap_irq cs40l26_reg_irqs[] = {
 	CS40L26_REG_IRQ(IRQ1_EINT_1, BST_IPK_FLAG),
 	CS40L26_REG_IRQ(IRQ1_EINT_1, TEMP_ERR),
 	CS40L26_REG_IRQ(IRQ1_EINT_1, AMP_ERR),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, DC_WD_RISE),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, DC_WD_FALL),
 	CS40L26_REG_IRQ(IRQ1_EINT_1, VIRTUAL2_MBOX_WR),
 	CS40L26_REG_IRQ(IRQ1_EINT_2, VPBR_FLAG),
 	CS40L26_REG_IRQ(IRQ1_EINT_2, VPBR_ATT_CLR),
@@ -3360,6 +3382,42 @@ static int cs40l26_brwnout_prevention_init(struct cs40l26_private *cs40l26)
 	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_2, 0, pseq_mask);
 }
 
+static int cs40l26_dc_wd_config(struct cs40l26_private *cs40l26)
+{
+	u32 wd_config;
+	int error;
+
+	if (cs40l26->dc_wd_enabled)
+		wd_config = FIELD_PREP(CS40L26_DCIN_WD_EN_MASK, CS40L26_DCIN_WD_ENABLE);
+	else
+		return 0;
+
+	wd_config |= FIELD_PREP(CS40L26_DCIN_WD_THLD_MASK,
+		clamp_val(cs40l26->dc_wd_thld, CS40L26_DCIN_WD_THLD_2P5PCT_FS,
+		CS40L26_DCIN_WD_THLD_100P0PCT_FS));
+
+	wd_config |= FIELD_PREP(CS40L26_DCIN_WD_DUR_MASK,
+		clamp_val(cs40l26->dc_wd_dur, CS40L26_DCIN_WD_DUR_20_MS,
+		CS40L26_DCIN_WD_DUR_4883_MS));
+
+	if (cs40l26->dc_wd_mute)
+		wd_config |= FIELD_PREP(CS40L26_DCIN_WD_MODE_MASK, CS40L26_DCIN_WD_MODE_MUTE);
+	else
+		wd_config |= FIELD_PREP(CS40L26_DCIN_WD_MODE_MASK, CS40L26_DCIN_WD_MODE_NORMAL);
+
+	error = regmap_write(cs40l26->regmap, CS40L26_ALIVE_DCIN_WD, wd_config);
+	if (error)
+		return error;
+
+	error = cs40l26_pseq_write(cs40l26, CS40L26_ALIVE_DCIN_WD, wd_config, true,
+			CS40L26_PSEQ_OP_WRITE_L16);
+	if (error)
+		return error;
+
+	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, 0,
+			CS40L26_DC_WD_RISE_MASK | CS40L26_DC_WD_FALL_MASK);
+}
+
 static int cs40l26_asp_config(struct cs40l26_private *cs40l26)
 {
 	struct reg_sequence *dsp1rx_config =
@@ -4004,6 +4062,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	}
 
 	error = cs40l26_brwnout_prevention_init(cs40l26);
+	if (error)
+		return error;
+
+	error = cs40l26_dc_wd_config(cs40l26);
 	if (error)
 		return error;
 
@@ -4750,6 +4812,26 @@ static void cs40l26_parse_brwnout_properties(struct cs40l26_private *cs40l26)
 
 }
 
+static void cs40l26_wd_parse_properties(struct cs40l26_private *cs40l26)
+{
+	int error;
+
+	if (device_property_present(cs40l26->dev, "cirrus,dc-wd-enable"))
+		cs40l26->dc_wd_enabled = true;
+	else
+		return;
+
+	error = device_property_read_u32(cs40l26->dev, "cirrus,dc-wd-thld", &cs40l26->dc_wd_thld);
+	if (error)
+		cs40l26->dc_wd_thld = CS40L26_DCIN_WD_THLD_100P0PCT_FS;
+
+	error = device_property_read_u32(cs40l26->dev, "cirrus,dc-wd-dur", &cs40l26->dc_wd_dur);
+	if (error)
+		cs40l26->dc_wd_dur = CS40L26_DCIN_WD_DUR_20_MS;
+
+	cs40l26->dc_wd_mute = device_property_present(cs40l26->dev, "cirrus,dc-wd-mute");
+}
+
 static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
@@ -4821,6 +4903,8 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 	error = device_property_read_u32(dev, "cirrus,aux-ng-delay", &cs40l26->aux_ng_delay);
 	if (error)
 		cs40l26->aux_ng_delay = CS40L26_AUX_NG_HOLD_DEFAULT;
+
+	cs40l26_wd_parse_properties(cs40l26);
 
 	error = device_property_read_u32(dev, "cirrus,f0-default", &cs40l26->f0_default);
 	if (error && error != -EINVAL)
