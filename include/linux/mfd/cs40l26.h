@@ -83,6 +83,7 @@
 #define CS40L26_NG_CONFIG				0x6808
 #define CS40L26_DIGPWM_CONFIG2				0x7068
 #define CS40L26_TST_DAC_MSM_CONFIG			0x7404
+#define CS40L26_ALIVE_DCIN_WD				0x7424
 #define CS40L26_IRQ1_CFG				0x10000
 #define CS40L26_IRQ1_STATUS				0x10004
 #define CS40L26_IRQ1_EINT_1				0x10010
@@ -487,6 +488,7 @@
 
 /* Interrupts */
 #define CS40L26_IRQ_STATUS_MASK		BIT(0)
+
 #define CS40L26_GPIO1_RISE_MASK		BIT(0)
 #define CS40L26_GPIO1_FALL_MASK		BIT(1)
 #define CS40L26_GPIO2_RISE_MASK		BIT(2)
@@ -508,11 +510,15 @@
 #define CS40L26_BST_IPK_FLAG_MASK	BIT(23)
 #define CS40L26_TEMP_ERR_MASK		BIT(26)
 #define CS40L26_AMP_ERR_MASK		BIT(27)
+#define CS40L26_DC_WD_RISE_MASK		BIT(28)
+#define CS40L26_DC_WD_FALL_MASK		BIT(29)
 #define CS40L26_VIRTUAL2_MBOX_WR_MASK	BIT(31)
+
 #define CS40L26_VPBR_FLAG_MASK		BIT(17)
 #define CS40L26_VPBR_ATT_CLR_MASK	BIT(18)
 #define CS40L26_VBBR_FLAG_MASK		BIT(19)
 #define CS40L26_VBBR_ATT_CLR_MASK	BIT(20)
+
 #define CS40L26_IRQ(_irq, _name, _hand)	\
 	{				\
 		.irq = CS40L26_ ## _irq ## _IRQ,		\
@@ -524,7 +530,6 @@
 		.reg_offset = (CS40L26_ ## _reg) - CS40L26_IRQ1_EINT_1,	\
 		.mask = CS40L26_ ## _irq ## _MASK			\
 	}
-
 
 /* temp monitoring */
 #define CS40L26_TEMP_RESULT_FILT_MASK		GENMASK(24, 16)
@@ -833,6 +838,23 @@
 /* MFD */
 #define CS40L26_NUM_MFD_DEVS			1
 
+/* DC Watchdog */
+#define CS40L26_DCIN_WD_EN_MASK			BIT(0)
+#define CS40L26_DCIN_WD_THLD_MASK		GENMASK(6, 1)
+#define CS40L26_DCIN_WD_DUR_MASK		GENMASK(9, 7)
+#define CS40L26_DCIN_WD_MODE_MASK		GENMASK(11, 10)
+
+#define CS40L26_DCIN_WD_ENABLE			1
+
+#define CS40L26_DCIN_WD_THLD_2P5PCT_FS		0x01
+#define CS40L26_DCIN_WD_THLD_100P0PCT_FS	0x28
+
+#define CS40L26_DCIN_WD_DUR_20_MS		0x0
+#define CS40L26_DCIN_WD_DUR_4883_MS		0x7
+
+#define CS40L26_DCIN_WD_MODE_NORMAL		0
+#define CS40L26_DCIN_WD_MODE_MUTE		3
+
 /* macros */
 #define CS40L26_MS_TO_US(n)	((n) * 1000)
 
@@ -925,6 +947,8 @@ enum cs40l26_irq_list {
 	CS40L26_BST_IPK_FLAG_IRQ,
 	CS40L26_TEMP_ERR_IRQ,
 	CS40L26_AMP_ERR_IRQ,
+	CS40L26_DC_WD_RISE_IRQ,
+	CS40L26_DC_WD_FALL_IRQ,
 	CS40L26_VIRTUAL2_MBOX_WR_IRQ,
 	CS40L26_VPBR_FLAG_IRQ,
 	CS40L26_VPBR_ATT_CLR_IRQ,
@@ -1137,6 +1161,10 @@ struct cs40l26_private {
 	u32 aux_ng_delay;
 	bool aux_ng_enable;
 	u32 refclk_input;
+	bool dc_wd_enabled;
+	u32 dc_wd_thld;
+	u32 dc_wd_dur;
+	bool dc_wd_mute;
 };
 
 struct cs40l26_codec {
