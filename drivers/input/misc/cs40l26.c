@@ -4363,14 +4363,22 @@ static int cs40l26_get_fw_params(struct cs40l26_private *cs40l26)
 		}
 		break;
 	case CS40L26_FW_CALIB_ID:
-		if (branch == CS40L26_FW_CALIB_BRANCH) {
+		switch (branch) {
+		case CS40L26_FW_CALIB_BRANCH:
 			min_rev = CS40L26_FW_CALIB_MIN_REV;
 			cs40l26->vibe_state_reporting = true;
-		} else if (branch == CS40L26_FW_MAINT_CALIB_BRANCH) {
+			break;
+		case CS40L26_FW_MAINT_CALIB_BRANCH:
 			min_rev = CS40L26_FW_MAINT_CALIB_MIN_REV;
 			cs40l26->vibe_state_reporting = false;
-		} else {
+			break;
+		case CS40L26_FW_B2_CALIB_BRANCH:
+			min_rev = CS40L26_FW_B2_CALIB_MIN_REV;
+			cs40l26->vibe_state_reporting = true;
+			break;
+		default:
 			error = -EINVAL;
+			break;
 		}
 		break;
 	default:
