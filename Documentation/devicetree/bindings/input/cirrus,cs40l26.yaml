@@ -337,7 +337,7 @@ properties:
       is loaded as a tuning file.
 
   cirrus,dbc-fall-headroom:
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 8388607
     default: 750193
