@@ -3844,9 +3844,43 @@ static int cs40l26_dbc_config(struct cs40l26_private *cs40l26)
 	return cs40l26->dbc_enable ? cs40l26_dbc_enable(cs40l26) : 0;
 }
 
+static int cs40l26_logger_src_add(struct cs40l26_private *cs40l26,
+		enum cs40l26_logger_src_sign sign, enum cs40l26_logger_src_size size,
+		enum cs40l26_logger_src_type type, enum cs40l26_logger_src_id id, u32 addr)
+{
+	u32 offset, reg, src;
+	int error;
+
+	src = FIELD_PREP(CS40L26_LOGGER_SRC_ADDR_MASK, addr) |
+			FIELD_PREP(CS40L26_LOGGER_SRC_ID_MASK, id) |
+			FIELD_PREP(CS40L26_LOGGER_SRC_TYPE_MASK, type) |
+			FIELD_PREP(CS40L26_LOGGER_SRC_SIZE_MASK, size) |
+			FIELD_PREP(CS40L26_LOGGER_SRC_SIGN_MASK, sign);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "SOURCE", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_LOGGER_ALGO_ID, &reg);
+	if (error)
+		return error;
+
+	offset = cs40l26->num_log_srcs * CL_DSP_BYTES_PER_WORD;
+
+	error = regmap_write(cs40l26->regmap, reg + offset, src);
+	if (error)
+		return error;
+
+	cs40l26->num_log_srcs++;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "COUNT", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_LOGGER_ALGO_ID, &reg);
+	if (error)
+		return error;
+
+	return regmap_write(cs40l26->regmap, reg, cs40l26->num_log_srcs);
+}
+
 static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 {
-	u32 exc_offset, exc_reg, exc_src, reg, src;
+	u32 exc_reg, reg, src;
 	int error, i;
 
 	if (cs40l26->log_srcs != NULL) {
@@ -3864,20 +3898,12 @@ static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 		return error;
 
 	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID)) {
-		/* Add excursion logger source */
-		cs40l26->num_log_srcs++;
-
-		error = regmap_write(cs40l26->regmap, reg, cs40l26->num_log_srcs);
-		if (error)
-			return error;
-
 		error = cl_dsp_get_reg(cs40l26->dsp, "DBG_SRC_CFG", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_EP_ALGO_ID, &reg);
 		if (error)
 			return error;
 
-		error = regmap_write(cs40l26->regmap, reg,
-				CS40L26_LOGGER_SRC_PROTECTION_OUT << 8);
+		error = regmap_write(cs40l26->regmap, reg, CS40L26_LOGGER_SRC_PROTECTION_OUT << 8);
 		if (error)
 			return error;
 
@@ -3887,21 +3913,11 @@ static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 			return error;
 
 		exc_reg += CL_DSP_BYTES_PER_WORD;
-		exc_reg &= CS40L26_LOGGER_SRC_ADDR_MASK;
 		exc_reg /= CL_DSP_BYTES_PER_WORD;
 
-		exc_src = exc_reg | FIELD_PREP(CS40L26_LOGGER_SRC_ID_MASK,
-				CS40L26_LOGGER_SRC_ID_EP) | FIELD_PREP(CS40L26_LOGGER_SRC_TYPE_MASK,
-				CS40L26_LOGGER_SRC_TYPE_XM_TO_XM) | CS40L26_LOGGER_SRC_SIGN_MASK;
-
-		error = cl_dsp_get_reg(cs40l26->dsp, "SOURCE", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_LOGGER_ALGO_ID, &reg);
-		if (error)
-			return error;
-
-		exc_offset = (cs40l26->num_log_srcs - 1) * CL_DSP_BYTES_PER_WORD;
-
-		error = regmap_write(cs40l26->regmap, reg + exc_offset, exc_src);
+		error = cs40l26_logger_src_add(cs40l26, CS40L26_LOGGER_SRC_SIGN_SIGNED,
+				CS40L26_LOGGER_SRC_SIZE_SINGLE, CS40L26_LOGGER_SRC_TYPE_XM_TO_XM,
+				CS40L26_LOGGER_SRC_ID_EP, exc_reg);
 		if (error)
 			return error;
 	}
