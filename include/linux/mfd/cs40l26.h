@@ -1133,6 +1133,13 @@ struct cs40l26_sysfs_fw {
 	char ctrl_name[CS40L26_COEFF_NAME_MAX_LEN];
 };
 
+struct cs40l26_work {
+	struct work_struct work;
+	struct cs40l26_private *cs40l26;
+	struct ff_effect *effect;
+	int error;
+};
+
 struct cs40l26_private {
 	struct device *dev;
 	struct regmap *regmap;
@@ -1144,16 +1151,8 @@ struct cs40l26_private {
 	struct cl_dsp *dsp;
 	struct list_head effect_head;
 	unsigned int cur_index;
-	struct ff_effect *trigger_effect;
-	struct ff_effect upload_effect;
-	struct ff_effect *erase_effect;
 	s16 *raw_custom_data;
 	int raw_custom_data_len;
-	struct work_struct vibe_start_work;
-	struct work_struct vibe_stop_work;
-	struct work_struct set_gain_work;
-	struct work_struct upload_work;
-	struct work_struct erase_work;
 	struct workqueue_struct *vibe_workqueue;
 	int irq;
 	bool vibe_init_success;
