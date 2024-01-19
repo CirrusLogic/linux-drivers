@@ -870,6 +870,7 @@ enum cs40l26_logger_src_id {
 	CS40L26_LOGGER_SRC_ID_VBST,
 	CS40L26_LOGGER_SRC_ID_VMON,
 	CS40L26_LOGGER_SRC_ID_EP,
+	CS40L26_LOGGER_SRC_ID_IMON,
 };
 
 enum cs40l26_logger_src_type {

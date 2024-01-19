@@ -3880,7 +3880,7 @@ static int cs40l26_logger_src_add(struct cs40l26_private *cs40l26,
 
 static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 {
-	u32 exc_reg, reg, src;
+	u32 exc_reg, imon_reg, reg, src;
 	int error, i;
 
 	if (cs40l26->log_srcs != NULL) {
@@ -3921,6 +3921,17 @@ static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 		if (error)
 			return error;
 	}
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "LOGGER_IMON", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_EXT_ALGO_ID, &imon_reg);
+	if (error)
+		return error;
+
+	error = cs40l26_logger_src_add(cs40l26, CS40L26_LOGGER_SRC_SIGN_SIGNED,
+			CS40L26_LOGGER_SRC_SIZE_BLOCK, CS40L26_LOGGER_SRC_TYPE_XM_TO_XM,
+			CS40L26_LOGGER_SRC_ID_IMON, imon_reg / 4);
+	if (error)
+		return error;
 
 	cs40l26->log_srcs = devm_kcalloc(cs40l26->dev, cs40l26->num_log_srcs,
 			sizeof(struct cs40l26_log_src), GFP_KERNEL);
