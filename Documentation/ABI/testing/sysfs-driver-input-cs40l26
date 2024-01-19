@@ -483,6 +483,20 @@ Description:
 			Minimum: 0x000000 (0 mm)
 			Maximum: 0x7FFFFF (0.999999 * 10.5 =~ 10.5 mm)
 
+What:		/sys/class/input/input(x)/data_logger/max_imon
+Date:		January 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Maximum logged value of IMON since logging was enabled
+		or maximum calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q0.23 format.
+			Full scale corresponds to 2.1 Amperes
+			Minimum: 0x000000 (0 A)
+			Maximum: 0x7FFFFF (0.999999 * 2.1 =~ 2.1 A)
+
 What:		/sys/class/input/input(x)/data_logger/max_vbst
 Date:		September 2023
 Contact:	patches@opensource.cirrus.com
