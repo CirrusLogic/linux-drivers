@@ -3880,6 +3880,7 @@ static int cs40l26_logger_src_add(struct cs40l26_private *cs40l26,
 
 static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 {
+	enum cs40l26_logger_src_type ep_src_type;
 	u32 exc_reg, imon_reg, reg, src;
 	int error, i;
 
@@ -3915,8 +3916,11 @@ static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 		exc_reg += CL_DSP_BYTES_PER_WORD;
 		exc_reg /= CL_DSP_BYTES_PER_WORD;
 
+		ep_src_type = cs40l26->revid == CS40L26_REVID_B2 ?
+				CS40L26_LOGGER_SRC_TYPE_XM_TO_YM : CS40L26_LOGGER_SRC_TYPE_XM_TO_XM;
+
 		error = cs40l26_logger_src_add(cs40l26, CS40L26_LOGGER_SRC_SIGN_SIGNED,
-				CS40L26_LOGGER_SRC_SIZE_SINGLE, CS40L26_LOGGER_SRC_TYPE_XM_TO_XM,
+				CS40L26_LOGGER_SRC_SIZE_BLOCK, ep_src_type,
 				CS40L26_LOGGER_SRC_ID_EP, exc_reg);
 		if (error)
 			return error;
