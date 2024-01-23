@@ -296,6 +296,38 @@ Description:
 			Maximum: 0x1E0000 (120 Hz) or 0x9E0000 (-120 Hz)
 			Default: 0x1E0000 (120 Hz)
 
+What:		/sys/class/input/input(x)/calibration/ls_calibration_params_temp
+Date:		January 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Temperature during calibration.
+
+		Access: Read, Write
+
+		Valid values: Hex value in signed Q8.15 format representing degrees in Celsius
+			Minimum: 0xE70000 (-50 C)
+			Maximum: 0x190000 (50 C)
+			Default: 0x0A0000 (20 C)
+
+What:		/sys/class/input/input(x)/calibration/ls_calibration_results
+Date:		January 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Coefficients calibrated by the least squares algorithm.
+
+		After running LS Calibration via the trigger_calibration control,
+		read out the coefficients and store them in persistent memory.
+		After loading runtime firmware, write the coefficients back to this
+		control in the exact way that they were first printed when reading
+		the control. This will apply the correct coefficient configuration
+		to the excursion protection algorithm.
+
+		Access: Read, Write
+
+		Valid values: Hex values representing each coefficient setting
+			See firmware documentation for more detailed information
+			on each coefficient.
+
 What:		/sys/class/input/input(x)/calibration/q_measured
 Date:		December 2023
 Contact:	patches@opensource.cirrus.com
