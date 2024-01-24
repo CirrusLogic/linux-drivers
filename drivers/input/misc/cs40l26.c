@@ -35,7 +35,7 @@ static const struct cs40l26_rom_regs cs40l26_rom_regs_b2 = { /* RC2 8.1.2 */
 	.dsp_halo_state = 0x02806AF8,
 	.event_map_table_event_data_packed = 0x02806FB0,
 	.p_vibegen_rom = 0x02802F50,
-	.rom_pseq_end_of_script = 0x02802040,
+	.rom_pseq_end_of_script = 0x02802018,
 };
 
 static const struct cs40l26_rom_data cs40l26_rom_data_b2 = {
