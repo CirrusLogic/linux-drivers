@@ -3806,7 +3806,7 @@ static int cs40l26_lbst_short_test(struct cs40l26_private *cs40l26)
 	return error;
 }
 
-static int cs40l26_handle_errata(struct cs40l26_private *cs40l26)
+static int cs40l26_handle_a1_errata(struct cs40l26_private *cs40l26)
 {
 	int error, num_writes;
 
@@ -4039,9 +4039,11 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (error)
 		return error;
 
-	error = cs40l26_handle_errata(cs40l26);
-	if (error)
-		return error;
+	if (cs40l26->revid < CS40L26_REVID_B2) {
+		error = cs40l26_handle_a1_errata(cs40l26);
+		if (error)
+			return error;
+	}
 
 	if (!cs40l26->fw_rom_only) {
 		error = cs40l26_dsp_start(cs40l26);
