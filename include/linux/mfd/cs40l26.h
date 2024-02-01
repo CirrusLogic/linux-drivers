@@ -130,6 +130,8 @@
 #define CS40L26_TST_DAC_MSM_CONFIG_DEFAULT_CHANGE_VALUE_FULL	0x11330000
 #define CS40L26_TST_DAC_MSM_CONFIG_DEFAULT_CHANGE_VALUE_H16 (\
 		CS40L26_TST_DAC_MSM_CONFIG_DEFAULT_CHANGE_VALUE_FULL >> 16)
+
+#define CS40L26_SPK_DEFAULT_HIZ					0x1133
 #define CS40L26_SPK_DEFAULT_HIZ_MASK				BIT(28)
 #define CS40L26_SPK_DEFAULT_HIZ_SHIFT				28
 
@@ -216,6 +218,8 @@
 
 /* Power management */
 #define CS40L26_PSEQ_MAX_WORDS			129
+#define CS40L26_PSEQ_MAX_BYTES			(CS40L26_PSEQ_MAX_WORDS * CL_DSP_BYTES_PER_WORD)
+#define CS40L26_PSEQ_OP_MAX_WORDS		3
 #define CS40L26_PSEQ_NUM_OPS			8
 #define CS40L26_PSEQ_STR_LINE_LEN		64
 #define CS40L26_PSEQ_OP_MASK			GENMASK(23, 16)
@@ -269,6 +273,9 @@
 #define CS40L26_PSEQ_ADDR8_DATA_GET(x, y)	((((x) & 0xFF) << 24) |\
 						((y) & 0xFFFFFF))
 
+#define CS40L26_PSEQ_LOWER_MASK			GENMASK(15, 0)
+#define CS40L26_PSEQ_UPPER_MASK			GENMASK(31, 16)
+
 #define CS40L26_PM_STDBY_TIMEOUT_OFFSET		16
 #define CS40L26_PM_STDBY_TIMEOUT_MS_MIN		100
 #define CS40L26_PM_TIMEOUT_MS_MAX		10000
@@ -288,7 +295,6 @@
 #define CS40L26_WKSRC_GPIO_POL_MASK		GENMASK(3, 0)
 
 #define CS40L26_WKSRC_STS_EN			BIT(7)
-
 
 #define CS40L26_NG_THRESHOLD_MASK		GENMASK(2, 0)
 #define CS40L26_NG_DELAY_MASK			GENMASK(6, 4)
@@ -1041,11 +1047,11 @@ struct cs40l26_owt_section {
 };
 
 struct cs40l26_pseq_op {
-	u8 size;
-	u16 offset; /* offset in bytes from pseq_base */
-	u8 operation;
-	u32 words[3];
 	struct list_head list;
+	u32 address;
+	u32 data;
+	u16 offset;
+	u8 operation;
 };
 
 struct cs40l26_svc_le {
@@ -1253,8 +1259,8 @@ int cs40l26_remove(struct cs40l26_private *cs40l26);
 bool cs40l26_precious_reg(struct device *dev, unsigned int ret);
 bool cs40l26_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l26_volatile_reg(struct device *dev, unsigned int reg);
-int cs40l26_pseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data, bool update,
-		u8 op_code);
+int cs40l26_pseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data,
+		bool update, u8 op_code);
 int cs40l26_copy_f0_est_to_dvl(struct cs40l26_private *cs40l26);
 int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26);
 

@@ -22,7 +22,6 @@ static ssize_t cs40l26_power_on_seq_read(struct file *file, char __user *user_bu
 	char str[CS40L26_PSEQ_STR_LINE_LEN];
 	ssize_t error, pseq_str_size;
 	struct cs40l26_pseq_op *op;
-	u32 addr, data;
 
 	mutex_lock(&cs40l26->lock);
 
@@ -40,36 +39,10 @@ static ssize_t cs40l26_power_on_seq_read(struct file *file, char __user *user_bu
 	}
 
 	list_for_each_entry_reverse(op, &cs40l26->pseq_op_head, list) {
-		switch (op->operation) {
-		case CS40L26_PSEQ_OP_WRITE_FULL:
-			addr = CS40L26_PSEQ_FULL_ADDR_GET(op->words[0], op->words[1]);
-			data = CS40L26_PSEQ_FULL_DATA_GET(op->words[1], op->words[2]);
-			break;
-		case CS40L26_PSEQ_OP_WRITE_H16:
-		case CS40L26_PSEQ_OP_WRITE_L16:
-			addr = CS40L26_PSEQ_X16_ADDR_GET(op->words[0], op->words[1]);
-			if (op->operation == CS40L26_PSEQ_OP_WRITE_H16)
-				data = CS40L26_PSEQ_H16_DATA_GET(op->words[1]);
-			else
-				data = CS40L26_PSEQ_L16_DATA_GET(op->words[1]);
-			break;
-		case CS40L26_PSEQ_OP_WRITE_ADDR8:
-			addr = CS40L26_PSEQ_ADDR8_ADDR_GET(op->words[0]);
-			data = CS40L26_PSEQ_ADDR8_DATA_GET(op->words[0], op->words[1]);
-			break;
-		case CS40L26_PSEQ_OP_END:
-			addr = CS40L26_PSEQ_OP_END_ADDR;
-			data = CS40L26_PSEQ_OP_END_DATA;
-			break;
-		default:
-			dev_err(cs40l26->dev, "Unrecognized Op Code: 0x%02X\n", op->operation);
-			error = -EINVAL;
-			goto err_mutex;
-		}
-
 		error = snprintf(str, CS40L26_PSEQ_STR_LINE_LEN,
 				"0x%08X: code = 0x%02X, Addr = 0x%08X, Data = 0x%08X\n",
-				cs40l26->pseq_base + op->offset, op->operation, addr, data);
+				cs40l26->pseq_base + op->offset, op->operation,
+				op->address, op->data);
 		if (error <= 0) {
 			error = -EINVAL;
 			goto err_mutex;
