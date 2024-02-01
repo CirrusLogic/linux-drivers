@@ -19,10 +19,11 @@ struct cl_dsp_memchunk cl_dsp_memchunk_create(void *data, int size)
 }
 EXPORT_SYMBOL_GPL(cl_dsp_memchunk_create);
 
-static inline bool cl_dsp_memchunk_end(struct cl_dsp_memchunk *ch)
+inline bool cl_dsp_memchunk_end(struct cl_dsp_memchunk *ch)
 {
 	return ch->data == ch->max;
 }
+EXPORT_SYMBOL_GPL(cl_dsp_memchunk_end);
 
 static inline bool cl_dsp_memchunk_valid_addr(struct cl_dsp_memchunk *ch,
 		void *addr)
