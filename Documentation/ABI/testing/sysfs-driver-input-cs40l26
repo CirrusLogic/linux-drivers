@@ -328,6 +328,23 @@ Description:
 			See firmware documentation for more detailed information
 			on each coefficient.
 
+What:		/sys/class/input/input(x)/calibration/ls_calibration_results_name
+Date:		February 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Coefficients calibrated by the least squares algorithm.
+
+		After running LS Calibration via the trigger_calibration control,
+		read out the coefficient values and the firmware control name to which
+		they apply.
+
+		Access: Read
+
+		Valid values: Firmware control name - hex value pairs
+			representing each coefficient setting.
+			See firmware documentation for more detailed information
+			on each coefficient.
+
 What:		/sys/class/input/input(x)/calibration/q_measured
 Date:		December 2023
 Contact:	patches@opensource.cirrus.com
