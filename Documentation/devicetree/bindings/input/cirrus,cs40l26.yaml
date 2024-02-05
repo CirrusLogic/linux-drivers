@@ -286,7 +286,7 @@ properties:
       Gain scaling applied to gain for ASP streaming.
 
   cirrus,pm-active-timeout-ms:
-    minimum: 100
+    minimum: 0
     maximum: 10000
     default: 250
     description:
