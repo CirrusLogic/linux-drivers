@@ -2833,3 +2833,4 @@ static void cs35l43_pm_runtime_setup(struct cs35l43_private *cs35l43)
 MODULE_DESCRIPTION("ASoC CS35L43 driver");
 MODULE_AUTHOR("David Rhodes, Cirrus Logic Inc, <david.rhodes@cirrus.com>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(FW_CS_DSP);
