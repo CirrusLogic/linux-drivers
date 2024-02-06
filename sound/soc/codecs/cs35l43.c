@@ -202,7 +202,6 @@ static int cs35l43_apply_delta_tuning(struct cs35l43_private *cs35l43)
 	const struct firmware *firmware;
 	struct wm_adsp *dsp = &cs35l43->dsp;
 	int ret = 0;
-	const char *fwf_name;
 	char filename[NAME_MAX];
 
 	if (!cs35l43->delta_requested ||
