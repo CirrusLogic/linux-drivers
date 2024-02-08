@@ -57,7 +57,7 @@ static u32 gpio_map_get(struct device *dev, enum cs40l26_gpio_map gpio)
 
 	error = device_property_read_u32_array(dev, name, bank_idx_pair, 2);
 	if (error)
-		return error;
+		return CS40L26_EVENT_MAP_GPI_DISABLE;
 
 	if (bank_idx_pair[0] == CS40L26_RAM_BANK_ID)
 		return (bank_idx_pair[1] & CS40L26_BTN_INDEX_MASK) | (1 << CS40L26_BTN_BANK_SHIFT);
