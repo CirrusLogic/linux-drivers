@@ -191,6 +191,22 @@ Description:
 			0: Runtime firmware
 			1: Calibration firmware
 
+What:		/sys/class/input/input(x)/default/swap_wavetable
+Date:		February 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Switch wavetable tuning .bin files at runtime.
+		All uploaded effects from userspace must be erased
+		prior to swapping wavetable tunings.
+
+		Access: Read, Write
+
+		Valid values: Represented as integer
+			0: Loads cs40l26.bin
+			1: Loads cs40l26-wt1.bin
+			2: Loads cs40l26-wt2.bin
+			etc.
+
 What:		/sys/class/input/input(x)/default/vibe_state
 Date:		September 2023
 Contact:	patches@opensource.cirrus.com
