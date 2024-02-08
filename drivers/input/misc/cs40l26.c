@@ -2954,7 +2954,11 @@ static int cs40l26_erase_gpi_mapping(struct cs40l26_private *cs40l26, enum cs40l
 		return -EINVAL;
 	}
 
-	base = cs40l26->rom_regs->event_map_table_event_data_packed;
+	if (cs40l26->fw_loaded)
+		base = cs40l26->event_map_base;
+	else
+		base = cs40l26->rom_regs->event_map_table_event_data_packed;
+
 	offset = mapping * CL_DSP_BYTES_PER_WORD;
 	reg = base + offset;
 
