@@ -325,19 +325,21 @@ int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26, unsigned int dsp_
 }
 EXPORT_SYMBOL_GPL(cs40l26_pm_timeout_ms_get);
 
-static inline void cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
+inline void cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
 {
 	pm_runtime_mark_last_busy(cs40l26->dev);
 	pm_runtime_use_autosuspend(cs40l26->dev);
 	pm_runtime_set_autosuspend_delay(cs40l26->dev, CS40L26_AUTOSUSPEND_DELAY_MS);
 	pm_runtime_enable(cs40l26->dev);
 }
+EXPORT_SYMBOL_GPL(cs40l26_pm_runtime_setup);
 
-static inline void cs40l26_pm_runtime_teardown(struct cs40l26_private *cs40l26)
+inline void cs40l26_pm_runtime_teardown(struct cs40l26_private *cs40l26)
 {
 	pm_runtime_dont_use_autosuspend(cs40l26->dev);
 	pm_runtime_disable(cs40l26->dev);
 }
+EXPORT_SYMBOL_GPL(cs40l26_pm_runtime_teardown);
 
 static int cs40l26_check_pm_lock(struct cs40l26_private *cs40l26, bool *locked)
 {
@@ -3221,11 +3223,25 @@ static int cs40l26_wksrc_config(struct cs40l26_private *cs40l26)
 	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, val, mask);
 }
 
+static int cs40l26_set_gpio_from_dt(struct cs40l26_private *cs40l26)
+{
+	u32 reg = cs40l26->event_map_base + (CS40L26_GPIO_MAP_A_PRESS * CL_DSP_BYTES_PER_WORD);
+	int error;
+
+	error = regmap_write(cs40l26->regmap, reg, cs40l26->press_idx);
+	if (error)
+		return error;
+
+	reg += CL_DSP_BYTES_PER_WORD;
+
+	return regmap_write(cs40l26->regmap, reg, cs40l26->release_idx);
+}
+
 static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 {
-	u32 val, reg;
 	u8 mask_gpio;
 	int error;
+	u32 val;
 
 	if (cs40l26->devid == CS40L26_DEVID_A ||
 			cs40l26->devid == CS40L26_DEVID_L27_A)
@@ -3239,27 +3255,15 @@ static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 	if (error)
 		return error;
 
+	error = cs40l26_set_gpio_from_dt(cs40l26);
+	if (error)
+		return error;
+
 	if (mask_gpio)
 		val = (u32) GENMASK(CS40L26_GPIO4_FALL_IRQ,
 				CS40L26_GPIO2_RISE_IRQ);
 	else
 		val = 0;
-
-	reg = cs40l26->event_map_base + (CS40L26_GPIO_MAP_A_PRESS * CL_DSP_BYTES_PER_WORD);
-
-	error = regmap_write(cs40l26->regmap, reg, cs40l26->press_idx);
-	if (error) {
-		dev_err(cs40l26->dev, "Failed to map press GPI event\n");
-		return error;
-	}
-
-	reg = cs40l26->event_map_base + (CS40L26_GPIO_MAP_A_RELEASE * CL_DSP_BYTES_PER_WORD);
-
-	error = regmap_write(cs40l26->regmap, reg, cs40l26->release_idx);
-	if (error) {
-		dev_err(cs40l26->dev, "Failed to map release GPI event\n");
-		return error;
-	}
 
 	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, val,
 			GENMASK(CS40L26_GPIO4_FALL_IRQ, CS40L26_GPIO1_RISE_IRQ));
@@ -4696,6 +4700,125 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 	return error;
 }
 EXPORT_SYMBOL_GPL(cs40l26_fw_swap);
+
+int cs40l26_wt_swap(struct cs40l26_private *cs40l26)
+{
+	struct device *dev = cs40l26->dev;
+	u32 active_timeout, stdby_timeout;
+	const struct firmware *wt;
+	char *wt_file_name;
+	u8 dsp_state;
+	int error, i;
+
+	if (!list_empty(&cs40l26->effect_head)) {
+		dev_err(dev, "All uploaded effects must be removed before swapping wavetable\n");
+		return -EPERM;
+	}
+
+	error = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_PREVENT_HIBERNATE);
+	if (error)
+		return error;
+
+	error = cs40l26_erase_gpi_mapping(cs40l26, CS40L26_GPIO_MAP_A_PRESS);
+	if (error)
+		goto gpio_restore;
+
+	error = cs40l26_erase_gpi_mapping(cs40l26, CS40L26_GPIO_MAP_A_RELEASE);
+	if (error)
+		goto gpio_restore;
+
+	error = cs40l26_pm_timeout_ms_get(cs40l26, CS40L26_DSP_STATE_ACTIVE, &active_timeout);
+	if (error)
+		goto gpio_restore;
+
+	error = cs40l26_pm_timeout_ms_get(cs40l26, CS40L26_DSP_STATE_STANDBY, &stdby_timeout);
+	if (error)
+		goto gpio_restore;
+
+	/* Set timeouts to minimum values for quick transition to shutdown */
+	error = cs40l26_pm_timeout_ms_set(cs40l26, CS40L26_DSP_STATE_ACTIVE,
+			CS40L26_PM_ACTIVE_TIMEOUT_MS_MIN);
+	if (error)
+		goto gpio_restore;
+
+	error = cs40l26_pm_timeout_ms_set(cs40l26, CS40L26_DSP_STATE_STANDBY,
+			CS40L26_PM_STDBY_TIMEOUT_MS_MIN);
+	if (error)
+		goto timeout_restore;
+
+	error = cs40l26_mailbox_write(cs40l26, CS40L26_STOP_PLAYBACK);
+	if (error)
+		goto timeout_restore;
+
+	error = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_STOP_I2S);
+	if (error)
+		goto timeout_restore;
+
+	error = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_SHUTDOWN);
+	if (error)
+		goto timeout_restore;
+
+	for (i = 0; i < CS40L26_DSP_TIMEOUT_COUNT; i++) {
+		error = cs40l26_dsp_state_get(cs40l26, &dsp_state);
+		if (error)
+			goto wake;
+
+		if (dsp_state == CS40L26_DSP_STATE_SHUTDOWN)
+			break;
+
+		usleep_range(CS40L26_PM_STDBY_TIMEOUT_US_MIN,
+				CS40L26_PM_STDBY_TIMEOUT_US_MIN + 100);
+	}
+	if (i >= CS40L26_DSP_TIMEOUT_COUNT) {
+		dev_err(dev, "Timed out waiting for DSP shutdown\n");
+		error = -ETIMEDOUT;
+		goto wake;
+	}
+
+	wt_file_name = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
+	if (!wt_file_name) {
+		error = -ENOMEM;
+		goto wake;
+	}
+
+	if (cs40l26->wt_num)
+		snprintf(wt_file_name, CS40L26_FILE_NAME_MAX_LEN, "%s%d%s",
+				CS40L26_WT_FILE_PREFIX, cs40l26->wt_num, CS40L26_FILE_SUFFIX);
+	else
+		strscpy(wt_file_name, CS40L26_WT_FILE_NAME, CS40L26_FILE_NAME_MAX_LEN);
+
+	error = request_firmware(&wt, wt_file_name, cs40l26->dev);
+	if (error) {
+		dev_err(cs40l26->dev, "Failed to request wavetable\n");
+		goto free;
+	}
+
+	error = cl_dsp_coeff_file_parse(cs40l26->dsp, wt);
+	release_firmware(wt);
+	if (error)
+		goto free;
+
+	dev_info(dev, "%s Loaded Successfully\n", wt_file_name);
+
+free:
+	kfree(wt_file_name);
+
+wake:
+	cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_WAKEUP);
+
+	cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_PREVENT_HIBERNATE);
+
+timeout_restore:
+	cs40l26_pm_timeout_ms_set(cs40l26, CS40L26_DSP_STATE_ACTIVE, active_timeout);
+
+	cs40l26_pm_timeout_ms_set(cs40l26, CS40L26_DSP_STATE_STANDBY, stdby_timeout);
+
+gpio_restore:
+	cs40l26_set_gpio_from_dt(cs40l26);
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(cs40l26_wt_swap);
 
 static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 {

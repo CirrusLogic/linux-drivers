@@ -634,6 +634,77 @@ static ssize_t swap_firmware_store(struct device *dev, struct device_attribute *
 }
 static DEVICE_ATTR_RW(swap_firmware);
 
+static ssize_t swap_wavetable_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = snprintf(buf, PAGE_SIZE, "%u\n", cs40l26->wt_num);
+
+	mutex_unlock(&cs40l26->lock);
+
+	return error;
+}
+
+static ssize_t swap_wavetable_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error;
+
+	/* Bypass PM runtime framework for DSP shutdown & wake */
+	disable_irq(cs40l26->irq);
+	cs40l26_pm_runtime_teardown(cs40l26);
+
+	mutex_lock(&cs40l26->lock);
+
+	error = kstrtou32(buf, 10, &cs40l26->wt_num);
+	if (error)
+		goto err_setup;
+
+	error = cs40l26_wt_swap(cs40l26);
+	if (error)
+		goto err_setup;
+
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_runtime_setup(cs40l26);
+
+	enable_irq(cs40l26->irq);
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_OWT_RESET);
+	if (error)
+		goto err_mutex;
+
+	dev_info(cs40l26->dev, "Loaded new wavetable with %d waveforms\n",
+			cs40l26_num_waves(cs40l26));
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : count;
+
+err_setup:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_runtime_setup(cs40l26);
+
+	enable_irq(cs40l26->irq);
+
+	return error;
+}
+static DEVICE_ATTR_RW(swap_wavetable);
+
 static ssize_t fw_rev_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -704,6 +775,7 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_f0_comp_enable.attr,
 	&dev_attr_redc_comp_enable.attr,
 	&dev_attr_swap_firmware.attr,
+	&dev_attr_swap_wavetable.attr,
 	&dev_attr_fw_rev.attr,
 	&dev_attr_owt_lib_compat.attr,
 	&dev_attr_overprotection_gain.attr,
