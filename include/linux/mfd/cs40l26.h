@@ -278,6 +278,7 @@
 
 #define CS40L26_PM_STDBY_TIMEOUT_OFFSET		16
 #define CS40L26_PM_STDBY_TIMEOUT_MS_MIN		100
+#define CS40L26_PM_STDBY_TIMEOUT_US_MIN		100000
 #define CS40L26_PM_TIMEOUT_MS_MAX		10000
 #define CS40L26_PM_ACTIVE_TIMEOUT_OFFSET	24
 #define CS40L26_PM_ACTIVE_TIMEOUT_MS_DEFAULT	250
@@ -1133,6 +1134,7 @@ struct cs40l26_private {
 	bool fw_rom_only;
 	bool fw_loaded;
 	bool calib_fw;
+	u32 wt_num;
 	enum cs40l26_vibe_state vibe_state;
 	bool vibe_state_reporting;
 	bool asp_enable;
@@ -1235,6 +1237,7 @@ int cs40l26_set_pll_loop(struct cs40l26_private *cs40l26, unsigned int pll_loop)
 int cs40l26_asp_start(struct cs40l26_private *cs40l26);
 int cs40l26_num_waves(struct cs40l26_private *cs40l26);
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id);
+int cs40l26_wt_swap(struct cs40l26_private *cs40l26);
 void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26,
 		enum cs40l26_vibe_state_event event);
 int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26, unsigned int dsp_state,
@@ -1244,6 +1247,8 @@ int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26, unsigned int dsp_
 int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26, enum cs40l26_pm_state state);
 int cs40l26_get_ram_ext_algo_id(struct cs40l26_private *cs40l26, unsigned int *algo_id);
 int cs40l26_mailbox_write(struct cs40l26_private *cs40l26, u32 write_val);
+inline void cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26);
+inline void cs40l26_pm_runtime_teardown(struct cs40l26_private *cs40l26);
 int cs40l26_pm_enter(struct device *dev);
 void cs40l26_pm_exit(struct device *dev);
 void cs40l26_resume_error_handle(struct device *dev, int ret);
