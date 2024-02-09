@@ -437,6 +437,16 @@ properties:
       Bank and index of effect to be mapped to GPI press event upon driver
       probe.
 
+  cirrus,gpo-playback-monitor:
+    type: boolean
+    description:
+      Configures GPIO1 to act as GPO to report the state of the device.
+      When playback or SVC braking is ongoing, GPIO1 will be set LOW.
+      When there is no playback, GPIO1 will be set HIGH.
+
+      If this property is present, the ability to map effects to GPIO1
+      events (either from the devicetree or at runtime) is disabled.
+
   cirrus,clip-lvl-microvolt:
     multipleOf: 250000
     minimum: 250000
