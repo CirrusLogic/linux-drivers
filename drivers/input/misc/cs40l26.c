@@ -1610,6 +1610,12 @@ static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26, struct ff_
 	u32 reg, write_val;
 	int error;
 
+	if (cs40l26->gpo_playback_mon) {
+		dev_err(cs40l26->dev, "Cannot use GPIO1 when playback status monitoring enabled\n");
+		ueffect->mapping = CS40L26_GPIO_MAP_INVALID;
+		return -EPERM;
+	}
+
 	edge = (effect->trigger.button & CS40L26_BTN_EDGE_MASK) >> CS40L26_BTN_EDGE_SHIFT;
 
 	switch (ueffect->wvfrm_bank) {
@@ -2860,7 +2866,7 @@ static int cs40l26_uploaded_effect_add(struct cs40l26_private *cs40l26, struct f
 
 	if (effect->trigger.button) {
 		error = cs40l26_map_gpi_to_haptic(cs40l26, effect, ueffect);
-		if (error)
+		if (error && error != -EPERM)
 			goto err_free;
 	} else {
 		ueffect->mapping = CS40L26_GPIO_MAP_INVALID;
@@ -3256,9 +3262,9 @@ static int cs40l26_set_gpio_from_dt(struct cs40l26_private *cs40l26)
 
 static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 {
+	u32 irq_val, pad_val, reg;
 	u8 mask_gpio;
 	int error;
-	u32 val;
 
 	if (cs40l26->devid == CS40L26_DEVID_A ||
 			cs40l26->devid == CS40L26_DEVID_L27_A)
@@ -3276,13 +3282,57 @@ static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 	if (error)
 		return error;
 
+	if (cs40l26->gpo_playback_mon) {
+		error = regmap_read(cs40l26->regmap, CS40L26_GPIO_PAD_CONTROL, &pad_val);
+		if (error)
+			return error;
+
+		pad_val |= CS40L26_GP1_CTRL_GPIO << CS40L26_GP1_CTRL_SHIFT;
+
+		error = regmap_write(cs40l26->regmap, CS40L26_GPIO_PAD_CONTROL, pad_val);
+		if (error)
+			return error;
+
+		error = cs40l26_wseq_write(cs40l26, CS40L26_GPIO_PAD_CONTROL, pad_val, true,
+				CS40L26_WSEQ_OP_WRITE_FULL, &cs40l26->pseq);
+		if (error)
+			return error;
+
+		error = cl_dsp_get_reg(cs40l26->dsp, "GPI_ENABLE_BITMASK", CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_GPIO_ALGO_ID, &reg);
+		if (error)
+			return error;
+
+		error = regmap_write(cs40l26->regmap, reg, 0);
+		if (error)
+			return error;
+
+		error = cl_dsp_get_reg(cs40l26->dsp, "GPO_ENABLE_BITMASK", CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_GPIO_ALGO_ID, &reg);
+		if (error)
+			return error;
+
+		error = regmap_write(cs40l26->regmap, reg, 1);
+		if (error)
+			return error;
+
+		error = cl_dsp_get_reg(cs40l26->dsp, "SUP_GPI_COUNT", CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_GPIO_ALGO_ID, &reg);
+		if (error)
+			return error;
+
+		error = regmap_write(cs40l26->regmap, reg, 0);
+		if (error)
+			return error;
+	}
+
 	if (mask_gpio)
-		val = (u32) GENMASK(CS40L26_GPIO4_FALL_IRQ,
+		irq_val = (u32) GENMASK(CS40L26_GPIO4_FALL_IRQ,
 				CS40L26_GPIO2_RISE_IRQ);
 	else
-		val = 0;
+		irq_val = 0;
 
-	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, val,
+	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, irq_val,
 			GENMASK(CS40L26_GPIO4_FALL_IRQ, CS40L26_GPIO1_RISE_IRQ));
 }
 
@@ -5186,8 +5236,15 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 
 	cs40l26->pwle_zero_cross = device_property_present(dev, "cirrus,pwle-zero-cross-en");
 
-	cs40l26->press_idx = gpio_map_get(dev, CS40L26_GPIO_MAP_A_PRESS);
-	cs40l26->release_idx = gpio_map_get(dev, CS40L26_GPIO_MAP_A_RELEASE);
+	if (device_property_present(dev, "cirrus,gpo-playback-monitor")) {
+		cs40l26->gpo_playback_mon = true;
+		cs40l26->press_idx = CS40L26_EVENT_MAP_GPI_DISABLE;
+		cs40l26->release_idx = CS40L26_EVENT_MAP_GPI_DISABLE;
+	}  else {
+		cs40l26->gpo_playback_mon = false;
+		cs40l26->press_idx = gpio_map_get(dev, CS40L26_GPIO_MAP_A_PRESS);
+		cs40l26->release_idx = gpio_map_get(dev, CS40L26_GPIO_MAP_A_RELEASE);
+	}
 
 	return cs40l26_no_wait_ram_indices_get(cs40l26);
 }
