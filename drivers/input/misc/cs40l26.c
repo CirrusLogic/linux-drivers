@@ -3263,14 +3263,7 @@ static int cs40l26_set_gpio_from_dt(struct cs40l26_private *cs40l26)
 static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 {
 	u32 irq_val, pad_val, reg;
-	u8 mask_gpio;
 	int error;
-
-	if (cs40l26->devid == CS40L26_DEVID_A ||
-			cs40l26->devid == CS40L26_DEVID_L27_A)
-		mask_gpio = 1;
-	else
-		mask_gpio = 0;
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "ENT_MAP_TABLE_EVENT_DATA_PACKED",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EVENT_HANDLER_ALGO_ID,
@@ -3326,9 +3319,8 @@ static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 			return error;
 	}
 
-	if (mask_gpio)
-		irq_val = (u32) GENMASK(CS40L26_GPIO4_FALL_IRQ,
-				CS40L26_GPIO2_RISE_IRQ);
+	if (cs40l26->devid == CS40L26_DEVID_A || cs40l26->devid == CS40L26_DEVID_L27_A)
+		irq_val = GENMASK(CS40L26_GPIO4_FALL_IRQ, CS40L26_GPIO2_RISE_IRQ);
 	else
 		irq_val = 0;
 
