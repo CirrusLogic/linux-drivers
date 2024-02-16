@@ -219,62 +219,51 @@
 /* Power management */
 #define CS40L26_PSEQ_MAX_WORDS			129
 #define CS40L26_PSEQ_MAX_BYTES			(CS40L26_PSEQ_MAX_WORDS * CL_DSP_BYTES_PER_WORD)
-#define CS40L26_PSEQ_OP_MAX_WORDS		3
-#define CS40L26_PSEQ_NUM_OPS			8
-#define CS40L26_PSEQ_STR_LINE_LEN		64
-#define CS40L26_PSEQ_OP_MASK			GENMASK(23, 16)
-#define CS40L26_PSEQ_OP_SHIFT			16
-#define CS40L26_PSEQ_OP_WRITE_FULL		0x00
-#define CS40L26_PSEQ_OP_WRITE_FULL_WORDS	3
-#define CS40L26_PSEQ_OP_WRITE_FIELD		0x01
-#define CS40L26_PSEQ_OP_WRITE_FIELD_WORDS	4
-#define CS40L26_PSEQ_OP_WRITE_ADDR8		0x02
-#define CS40L26_PSEQ_OP_WRITE_ADDR8_WORDS	2
-#define CS40L26_PSEQ_OP_WRITE_INCR		0x03
-#define CS40L26_PSEQ_OP_WRITE_INCR_WORDS	2
-#define CS40L26_PSEQ_OP_WRITE_L16		0x04
-#define CS40L26_PSEQ_OP_WRITE_H16		0x05
-#define CS40L26_PSEQ_OP_WRITE_X16_WORDS		2
-#define CS40L26_PSEQ_OP_DELAY			0xFE
-#define CS40L26_PSEQ_OP_DELAY_WORDS		1
-#define CS40L26_PSEQ_OP_END			0xFF
-#define CS40L26_PSEQ_OP_END_WORDS		1
-#define CS40L26_PSEQ_OP_END_ADDR		0xFFFFFF
-#define CS40L26_PSEQ_OP_END_DATA		0xFFFFFF
-#define CS40L26_PSEQ_INVALID_ADDR		0xFF000000
-#define CS40L26_PSEQ_WRITE_FULL_LOWER_ADDR_SHIFT	8
-#define CS40L26_PSEQ_WRITE_FULL_UPPER_ADDR_SHIFT	16
-#define CS40L26_PSEQ_WRITE_FULL_LOWER_ADDR_MASK		GENMASK(15, 0)
-#define CS40L26_PSEQ_WRITE_FULL_UPPER_ADDR_MASK		GENMASK(31, 0)
-#define CS40L26_PSEQ_WRITE_FULL_UPPER_DATA_SHIFT	24
-#define CS40L26_PSEQ_WRITE_FULL_LOWER_DATA_MASK		GENMASK(23, 0)
-#define CS40L26_PSEQ_WRITE_FULL_UPPER_DATA_MASK		GENMASK(31, 24)
-#define CS40L26_PSEQ_WRITE_X16_LOWER_ADDR_SHIFT		16
-#define CS40L26_PSEQ_WRITE_X16_LOWER_ADDR_MASK		GENMASK(7, 0)
-#define CS40L26_PSEQ_WRITE_X16_UPPER_ADDR_SHIFT		8
-#define CS40L26_PSEQ_WRITE_X16_UPPER_ADDR_MASK		GENMASK(23, 8)
-#define CS40L26_PSEQ_WRITE_X16_UPPER_DATA_SHIFT		0
-#define CS40L26_PSEQ_WRITE_X16_UPPER_DATA_MASK		GENMASK(31, 0)
-#define CS40L26_PSEQ_WRITE_ADDR8_ADDR_SHIFT		8
-#define CS40L26_PSEQ_WRITE_ADDR8_ADDR_MASK		GENMASK(7, 0)
-#define CS40L26_PSEQ_WRITE_ADDR8_UPPER_DATA_SHIFT	24
-#define CS40L26_PSEQ_WRITE_ADDR8_UPPER_DATA_MASK	GENMASK(31, 24)
-#define CS40L26_PSEQ_WRITE_ADDR8_LOWER_DATA_MASK	GENMASK(23, 0)
 
-#define CS40L26_PSEQ_FULL_ADDR_GET(x, y)	((((x) & 0xFFFF) << 16) |\
-						(((y) & 0xFFFF00) >> 8))
-#define CS40L26_PSEQ_FULL_DATA_GET(x, y)	((((x) & 0xFF) << 24) |\
-						((y) & 0xFFFFFF))
-#define CS40L26_PSEQ_X16_ADDR_GET(x, y)		((((x) & 0xFFFF) << 8) |\
-						(((y) & 0xFF0000) >> 16))
-#define CS40L26_PSEQ_L16_DATA_GET(x)		((x) & 0xFFFF)
-#define CS40L26_PSEQ_H16_DATA_GET(x)		(CS40L26_PSEQ_L16_DATA_GET((x)) << 16)
-#define CS40L26_PSEQ_ADDR8_ADDR_GET(x)		(((x) & 0xFF00) >> 8)
-#define CS40L26_PSEQ_ADDR8_DATA_GET(x, y)	((((x) & 0xFF) << 24) |\
-						((y) & 0xFFFFFF))
+#define CS40L26_WSEQ_OP_MAX_WORDS		3
+#define CS40L26_WSEQ_NUM_OPS			8
+#define CS40L26_WSEQ_STR_LINE_LEN		64
+#define CS40L26_WSEQ_OP_MASK			GENMASK(23, 16)
+#define CS40L26_WSEQ_OP_SHIFT			16
+#define CS40L26_WSEQ_OP_WRITE_FULL		0x00
+#define CS40L26_WSEQ_OP_WRITE_FULL_WORDS	3
+#define CS40L26_WSEQ_OP_WRITE_FIELD		0x01
+#define CS40L26_WSEQ_OP_WRITE_FIELD_WORDS	4
+#define CS40L26_WSEQ_OP_WRITE_ADDR8		0x02
+#define CS40L26_WSEQ_OP_WRITE_ADDR8_WORDS	2
+#define CS40L26_WSEQ_OP_WRITE_INCR		0x03
+#define CS40L26_WSEQ_OP_WRITE_INCR_WORDS	2
+#define CS40L26_WSEQ_OP_WRITE_L16		0x04
+#define CS40L26_WSEQ_OP_WRITE_H16		0x05
+#define CS40L26_WSEQ_OP_WRITE_X16_WORDS		2
+#define CS40L26_WSEQ_OP_DELAY			0xFE
+#define CS40L26_WSEQ_OP_DELAY_WORDS		1
+#define CS40L26_WSEQ_OP_END			0xFF
+#define CS40L26_WSEQ_OP_END_WORDS		1
+#define CS40L26_WSEQ_OP_END_ADDR		0xFFFFFF
+#define CS40L26_WSEQ_OP_END_DATA		0xFFFFFF
+#define CS40L26_WSEQ_INVALID_ADDR		0xFF000000
+#define CS40L26_WSEQ_WRITE_FULL_LOWER_ADDR_SHIFT	8
+#define CS40L26_WSEQ_WRITE_FULL_UPPER_ADDR_SHIFT	16
+#define CS40L26_WSEQ_WRITE_FULL_LOWER_ADDR_MASK		GENMASK(15, 0)
+#define CS40L26_WSEQ_WRITE_FULL_UPPER_ADDR_MASK		GENMASK(31, 0)
+#define CS40L26_WSEQ_WRITE_FULL_UPPER_DATA_SHIFT	24
+#define CS40L26_WSEQ_WRITE_FULL_LOWER_DATA_MASK		GENMASK(23, 0)
+#define CS40L26_WSEQ_WRITE_FULL_UPPER_DATA_MASK		GENMASK(31, 24)
+#define CS40L26_WSEQ_WRITE_X16_LOWER_ADDR_SHIFT		16
+#define CS40L26_WSEQ_WRITE_X16_LOWER_ADDR_MASK		GENMASK(7, 0)
+#define CS40L26_WSEQ_WRITE_X16_UPPER_ADDR_SHIFT		8
+#define CS40L26_WSEQ_WRITE_X16_UPPER_ADDR_MASK		GENMASK(23, 8)
+#define CS40L26_WSEQ_WRITE_X16_UPPER_DATA_SHIFT		0
+#define CS40L26_WSEQ_WRITE_X16_UPPER_DATA_MASK		GENMASK(31, 0)
+#define CS40L26_WSEQ_WRITE_ADDR8_ADDR_SHIFT		8
+#define CS40L26_WSEQ_WRITE_ADDR8_ADDR_MASK		GENMASK(7, 0)
+#define CS40L26_WSEQ_WRITE_ADDR8_UPPER_DATA_SHIFT	24
+#define CS40L26_WSEQ_WRITE_ADDR8_UPPER_DATA_MASK	GENMASK(31, 24)
+#define CS40L26_WSEQ_WRITE_ADDR8_LOWER_DATA_MASK	GENMASK(23, 0)
 
-#define CS40L26_PSEQ_LOWER_MASK			GENMASK(15, 0)
-#define CS40L26_PSEQ_UPPER_MASK			GENMASK(31, 16)
+#define CS40L26_WSEQ_LOWER_MASK			GENMASK(15, 0)
+#define CS40L26_WSEQ_UPPER_MASK			GENMASK(31, 16)
 
 #define CS40L26_PM_STDBY_TIMEOUT_OFFSET		16
 #define CS40L26_PM_STDBY_TIMEOUT_MS_MIN		100
@@ -1047,7 +1036,15 @@ struct cs40l26_owt_section {
 	u16 wvfrm_bank;
 };
 
-struct cs40l26_pseq_op {
+struct cs40l26_wseq {
+	struct list_head ops;
+	size_t size_bytes;
+	size_t size_words;
+	u32 base_addr;
+	int num_ops;
+};
+
+struct cs40l26_wseq_op {
 	struct list_head list;
 	u32 address;
 	u32 data;
@@ -1125,9 +1122,7 @@ struct cs40l26_private {
 	struct workqueue_struct *vibe_workqueue;
 	int irq;
 	bool vibe_init_success;
-	int pseq_num_ops;
-	u32 pseq_base;
-	struct list_head pseq_op_head;
+	struct cs40l26_wseq pseq;
 	enum cs40l26_pm_state pm_state;
 	u32 fw_id;
 	bool fw_defer;
@@ -1264,8 +1259,8 @@ int cs40l26_remove(struct cs40l26_private *cs40l26);
 bool cs40l26_precious_reg(struct device *dev, unsigned int ret);
 bool cs40l26_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l26_volatile_reg(struct device *dev, unsigned int reg);
-int cs40l26_pseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data,
-		bool update, u8 op_code);
+int cs40l26_wseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data,
+		bool update, u8 op_code, struct cs40l26_wseq *wseq);
 int cs40l26_copy_f0_est_to_dvl(struct cs40l26_private *cs40l26);
 int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26);
 
@@ -1274,7 +1269,6 @@ extern struct regulator_bulk_data cs40l26_supplies[CS40L26_NUM_SUPPLIES];
 extern const struct dev_pm_ops cs40l26_pm_ops;
 extern const struct regmap_config cs40l26_regmap;
 extern const struct mfd_cell cs40l26_devs[CS40L26_NUM_MFD_DEVS];
-extern const u8 cs40l26_pseq_op_sizes[CS40L26_PSEQ_NUM_OPS][2];
 extern const u32 cs40l26_attn_q21_2_vals[CS40L26_NUM_PCT_MAP_VALUES];
 extern const struct reg_sequence cs40l26_a1_errata[CS40L26_ERRATA_A1_NUM_WRITES];
 extern const struct cs40l26_ls_cal_param cs40l26_ls_cal_params[CS40L26_LS_CAL_NUM_REGS];
