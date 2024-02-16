@@ -219,6 +219,9 @@
 #define CS40L26_HW_STR_LEN		16
 
 /* Power management */
+#define CS40L26_ASEQ_MAX_WORDS			33
+#define CS40L26_ASEQ_MAX_BYTES			(CS40L26_ASEQ_MAX_WORDS * CL_DSP_BYTES_PER_WORD)
+
 #define CS40L26_PSEQ_MAX_WORDS			129
 #define CS40L26_PSEQ_MAX_BYTES			(CS40L26_PSEQ_MAX_WORDS * CL_DSP_BYTES_PER_WORD)
 
@@ -1136,6 +1139,7 @@ struct cs40l26_private {
 	struct workqueue_struct *vibe_workqueue;
 	int irq;
 	bool vibe_init_success;
+	struct cs40l26_wseq aseq;
 	struct cs40l26_wseq pseq;
 	enum cs40l26_pm_state pm_state;
 	u32 fw_id;
