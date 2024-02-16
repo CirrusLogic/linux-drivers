@@ -1,3 +1,11 @@
+What:		/sys/kernel/debug/cs40l26/active_seq
+Date:		February 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Display contents of the active write sequencer.
+
+		Access: Read
+
 What:		/sys/kernel/debug/cs40l26/power_on_seq
 Date:		October 2023
 Contact:	patches@opensource.cirrus.com
