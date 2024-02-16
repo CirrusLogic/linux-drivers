@@ -19,36 +19,36 @@ static ssize_t cs40l26_power_on_seq_read(struct file *file, char __user *user_bu
 {
 	struct cs40l26_private *cs40l26 = file->private_data;
 	char *pseq_str = NULL;
-	char str[CS40L26_PSEQ_STR_LINE_LEN];
+	char str[CS40L26_WSEQ_STR_LINE_LEN];
 	ssize_t error, pseq_str_size;
-	struct cs40l26_pseq_op *op;
+	struct cs40l26_wseq_op *op;
 
 	mutex_lock(&cs40l26->lock);
 
-	if (list_empty(&cs40l26->pseq_op_head) || cs40l26->pseq_num_ops <= 0) {
+	if (list_empty(&cs40l26->pseq.ops) || cs40l26->pseq.num_ops <= 0) {
 		dev_err(cs40l26->dev, "Power on sequence is empty\n");
 		error = -ENODATA;
 		goto err_mutex;
 	}
 
-	pseq_str_size = CS40L26_PSEQ_STR_LINE_LEN * cs40l26->pseq_num_ops;
+	pseq_str_size = CS40L26_WSEQ_STR_LINE_LEN * cs40l26->pseq.num_ops;
 	pseq_str = kzalloc(pseq_str_size, GFP_KERNEL);
 	if (!pseq_str) {
 		error = -ENOMEM;
 		goto err_mutex;
 	}
 
-	list_for_each_entry_reverse(op, &cs40l26->pseq_op_head, list) {
-		error = snprintf(str, CS40L26_PSEQ_STR_LINE_LEN,
+	list_for_each_entry(op, &cs40l26->pseq.ops, list) {
+		error = snprintf(str, CS40L26_WSEQ_STR_LINE_LEN,
 				"0x%08X: code = 0x%02X, Addr = 0x%08X, Data = 0x%08X\n",
-				cs40l26->pseq_base + op->offset, op->operation,
+				cs40l26->pseq.base_addr + op->offset, op->operation,
 				op->address, op->data);
 		if (error <= 0) {
 			error = -EINVAL;
 			goto err_mutex;
 		}
 
-		strncat(pseq_str, str, CS40L26_PSEQ_STR_LINE_LEN);
+		strncat(pseq_str, str, CS40L26_WSEQ_STR_LINE_LEN);
 	}
 
 	error = simple_read_from_buffer(user_buf, count, ppos, pseq_str, pseq_str_size);
@@ -182,13 +182,13 @@ static ssize_t cs40l26_hw_val_write(struct file *file, const char __user *user_b
 	if (error)
 		goto exit_mutex;
 
-	error = cs40l26_pseq_write(cs40l26, cs40l26->dbg_hw_reg, (val & GENMASK(31, 16)) >> 16,
-			true, CS40L26_PSEQ_OP_WRITE_H16);
+	error = cs40l26_wseq_write(cs40l26, cs40l26->dbg_hw_reg, (val & GENMASK(31, 16)) >> 16,
+			true, CS40L26_WSEQ_OP_WRITE_H16, &cs40l26->pseq);
 	if (error)
 		goto exit_mutex;
 
-	error = cs40l26_pseq_write(cs40l26, cs40l26->dbg_hw_reg, (val & GENMASK(15, 0)),
-			true, CS40L26_PSEQ_OP_WRITE_L16);
+	error = cs40l26_wseq_write(cs40l26, cs40l26->dbg_hw_reg, (val & GENMASK(15, 0)),
+			true, CS40L26_WSEQ_OP_WRITE_L16, &cs40l26->pseq);
 
 exit_mutex:
 	mutex_unlock(&cs40l26->lock);
