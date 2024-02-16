@@ -1522,6 +1522,20 @@ static int cs40l26_wseq_init(struct cs40l26_private *cs40l26)
 {
 	int error;
 
+	cs40l26->aseq.size_bytes = CS40L26_ASEQ_MAX_BYTES;
+	cs40l26->aseq.size_words = CS40L26_ASEQ_MAX_WORDS;
+
+	INIT_LIST_HEAD(&cs40l26->aseq.ops);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "ACTIVE_SEQUENCE", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_PM_ALGO_ID, &cs40l26->aseq.base_addr);
+	if (error)
+		return error;
+
+	error = cs40l26_wseq_populate(cs40l26, &cs40l26->aseq);
+	if (error)
+		return error;
+
 	cs40l26->pseq.size_bytes = CS40L26_PSEQ_MAX_BYTES;
 	cs40l26->pseq.size_words = CS40L26_PSEQ_MAX_WORDS;
 
@@ -4735,6 +4749,7 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 		return error;
 	}
 
+	cs40l26_wseq_clear(cs40l26, &cs40l26->aseq);
 	cs40l26_wseq_clear(cs40l26, &cs40l26->pseq);
 
 	if (id == CS40L26_FW_CALIB_ID)
@@ -5394,6 +5409,7 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 	if (cs40l26->vibe_init_success)
 		sysfs_remove_groups(&cs40l26->input->dev.kobj, cs40l26_attr_groups);
 
+	cs40l26_wseq_clear(cs40l26, &cs40l26->aseq);
 	cs40l26_wseq_clear(cs40l26, &cs40l26->pseq);
 
 #ifdef CONFIG_DEBUG_FS
