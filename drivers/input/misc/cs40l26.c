@@ -3750,8 +3750,17 @@ static int cs40l26_aux_noise_gate_config(struct cs40l26_private *cs40l26)
 	if (error)
 		return error;
 
-	return cs40l26_wseq_write(cs40l26, CS40L26_MIXER_NGATE_CH1_CFG, aux_ng_config, true,
+	error = cs40l26_wseq_write(cs40l26, CS40L26_MIXER_NGATE_CH1_CFG, aux_ng_config, true,
 			CS40L26_WSEQ_OP_WRITE_FULL, &cs40l26->pseq);
+	if (error)
+		return error;
+
+	if (cs40l26->revid == CS40L26_REVID_B2)
+		return cs40l26_wseq_write(cs40l26, CS40L26_MIXER_NGATE_CH1_CFG,
+				CS40L26_AUX_NG_DEFAULT, true, CS40L26_WSEQ_OP_WRITE_FULL,
+				&cs40l26->aseq);
+	else
+		return 0;
 }
 
 static int cs40l26_clip_lvl_config(struct cs40l26_private *cs40l26)
