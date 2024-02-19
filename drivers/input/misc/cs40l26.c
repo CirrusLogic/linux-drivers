@@ -3725,6 +3725,7 @@ static int cs40l26_bst_ctl_config(struct cs40l26_private *cs40l26)
 static int cs40l26_noise_gate_config(struct cs40l26_private *cs40l26)
 {
 	u32 ng_config;
+	u8 enable;
 	int error;
 
 	if (cs40l26->ng_thld < CS40L26_NG_THRESHOLD_MIN ||
@@ -3734,9 +3735,15 @@ static int cs40l26_noise_gate_config(struct cs40l26_private *cs40l26)
 	if (cs40l26->ng_delay < CS40L26_NG_DELAY_MIN || cs40l26->ng_delay > CS40L26_NG_DELAY_MAX)
 		cs40l26->ng_delay = CS40L26_NG_DELAY_DEFAULT;
 
+	/* Disable noise gate during calibration on 0xB2 */
+	if (cs40l26->calib_fw && cs40l26->revid == CS40L26_REVID_B2)
+		enable = 0;
+	else
+		enable = cs40l26->ng_enable;
+
 	ng_config = FIELD_PREP(CS40L26_NG_THRESHOLD_MASK, cs40l26->ng_thld) |
 			FIELD_PREP(CS40L26_NG_DELAY_MASK, cs40l26->ng_delay) |
-			FIELD_PREP(CS40L26_NG_ENABLE_MASK, cs40l26->ng_enable);
+			FIELD_PREP(CS40L26_NG_ENABLE_MASK, enable);
 
 	error = regmap_write(cs40l26->regmap, CS40L26_NG_CONFIG, ng_config);
 	if (error)
