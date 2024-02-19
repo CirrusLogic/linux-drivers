@@ -3689,7 +3689,7 @@ static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
 
 static int cs40l26_bst_ctl_config(struct cs40l26_private *cs40l26)
 {
-	u32 bst_ctl;
+	u32 bst_ctl, vbst_ctl_2;
 	int error;
 
 	if (cs40l26->bst_ctl < CS40L26_BST_UV_MIN || cs40l26->bst_ctl > CS40L26_BST_UV_MAX)
@@ -3703,8 +3703,23 @@ static int cs40l26_bst_ctl_config(struct cs40l26_private *cs40l26)
 		return error;
 	}
 
-	return cs40l26_wseq_write(cs40l26, CS40L26_VBST_CTL_1, bst_ctl, true,
+	error = cs40l26_wseq_write(cs40l26, CS40L26_VBST_CTL_1, bst_ctl, true,
 			CS40L26_WSEQ_OP_WRITE_L16, &cs40l26->pseq);
+	if (error)
+		return error;
+
+	error = regmap_read(cs40l26->regmap, CS40L26_VBST_CTL_2, &vbst_ctl_2);
+	if (error)
+		return error;
+
+	vbst_ctl_2 |= FIELD_PREP(CS40L26_BST_CTL_LIM_EN_MASK, 1);
+
+	error = regmap_write(cs40l26->regmap, CS40L26_VBST_CTL_2, vbst_ctl_2);
+	if (error)
+		return error;
+
+	return cs40l26_wseq_write(cs40l26, CS40L26_VBST_CTL_2, vbst_ctl_2, true,
+			CS40L26_WSEQ_OP_WRITE_FULL, &cs40l26->pseq);
 }
 
 static int cs40l26_noise_gate_config(struct cs40l26_private *cs40l26)
