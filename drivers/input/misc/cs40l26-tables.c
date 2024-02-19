@@ -436,6 +436,7 @@ bool cs40l26_readable_reg(struct device *dev, unsigned int reg)
 	case CS40L26_VBBR_CONFIG:
 	case CS40L26_VPBR_STATUS:
 	case CS40L26_VBBR_STATUS:
+	case CS40L26_NG_CONFIG:
 	case CS40L26_DIGPWM_CONFIG2:
 	case CS40L26_TST_DAC_MSM_CONFIG:
 	case CS40L26_ALIVE_DCIN_WD:
