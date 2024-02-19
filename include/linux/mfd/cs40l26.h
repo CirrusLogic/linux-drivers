@@ -744,6 +744,9 @@
 
 #define CS40L26_A2H_DELAY_MAX		0x190
 
+#define CS40L26_FLAGS_I2S_SVC_EN_MASK		BIT(0)
+#define CS40L26_FLAGS_I2S_SVC_LOOP_MASK		BIT(2)
+
 #define CS40L26_VMON_DEC_OUT_DATA_MASK	GENMASK(23, 0)
 #define CS40L26_VMON_OVFL_FLAG_MASK	BIT(31)
 #define CS40L26_VMON_DEC_OUT_DATA_MAX	CS40L26_VMON_DEC_OUT_DATA_MASK
@@ -1240,6 +1243,7 @@ struct cs40l26_codec {
 	int tdm_slots;
 	int tdm_slot[2];
 	bool dsp_bypass;
+	bool svc_ol_forced;
 };
 
 struct cs40l26_pll_sysclk_config {
