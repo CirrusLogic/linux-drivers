@@ -224,6 +224,21 @@ int cl_dsp_get_flags(struct cl_dsp *dsp, const char *coeff_name, const unsigned 
 }
 EXPORT_SYMBOL_GPL(cl_dsp_get_flags);
 
+int cl_dsp_get_length(struct cl_dsp *dsp, const char *coeff_name, const unsigned int block_type,
+		const unsigned int algo_id, size_t *length)
+{
+	struct cl_dsp_coeff_desc *coeff_desc;
+
+	coeff_desc = cl_dsp_get_coeff(dsp, coeff_name, block_type, algo_id);
+	if (IS_ERR_OR_NULL(coeff_desc))
+		return coeff_desc ? PTR_ERR(coeff_desc) : -EINVAL;
+
+	*length = (size_t) coeff_desc->length;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cl_dsp_get_length);
+
 bool cl_dsp_algo_is_present(struct cl_dsp *dsp, const unsigned int algo_id)
 {
 	int i;

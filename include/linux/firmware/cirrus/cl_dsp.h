@@ -388,6 +388,9 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name,
 int cl_dsp_get_flags(struct cl_dsp *dsp, const char *coeff_name,
 		const unsigned int block_type, const unsigned int algo_id,
 		unsigned int *flags);
+int cl_dsp_get_length(struct cl_dsp *dsp, const char *coeff_name,
+		const unsigned int block_type, const unsigned int algo_id,
+		size_t *length);
 bool cl_dsp_algo_is_present(struct cl_dsp *dsp, const unsigned int algo_id);
 struct cl_dsp_memchunk cl_dsp_memchunk_create(void *data, int size);
 int cl_dsp_memchunk_write(struct cl_dsp_memchunk *ch, int nbits, u32 val);
