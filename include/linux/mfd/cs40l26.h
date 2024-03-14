@@ -1297,6 +1297,9 @@ extern const struct cs40l26_ls_cal_param cs40l26_ls_cal_params[CS40L26_LS_CAL_NU
 /* sysfs */
 extern const struct attribute_group *cs40l26_attr_groups[];
 
+#define CS40L26_FW_CTRL_VAL_STR_SIZE		12
+#define CS40L26_FW_CTRL_VAL_STR_SIZE_NO_NEWLINE	(CS40L26_FW_CTRL_VAL_STR_SIZE - 1)
+
 /* debugfs */
 #ifdef CONFIG_DEBUG_FS
 void cs40l26_debugfs_init(struct cs40l26_private *cs40l26);

@@ -2251,6 +2251,12 @@ static inline int cs40l26_sysfs_fw_get_flags(struct cs40l26_private *cs40l26, un
 			cs40l26->sysfs_fw.block_type, cs40l26->sysfs_fw.algo_id, flags);
 }
 
+static inline int cs40l26_sysfs_fw_get_length(struct cs40l26_private *cs40l26, size_t *nbytes)
+{
+	return cl_dsp_get_length(cs40l26->dsp, cs40l26->sysfs_fw.ctrl_name,
+			cs40l26->sysfs_fw.block_type, cs40l26->sysfs_fw.algo_id, nbytes);
+}
+
 static ssize_t fw_ctrl_reg_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -2267,12 +2273,32 @@ static ssize_t fw_ctrl_reg_show(struct device *dev, struct device_attribute *att
 }
 static DEVICE_ATTR_RO(fw_ctrl_reg);
 
+static ssize_t fw_ctrl_size_words_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	size_t nbytes;
+	int error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cs40l26_sysfs_fw_get_length(cs40l26, &nbytes);
+
+	mutex_unlock(&cs40l26->lock);
+
+	return error ? error : snprintf(buf, PAGE_SIZE, "%zd\n", nbytes / CL_DSP_BYTES_PER_WORD);
+}
+static DEVICE_ATTR_RO(fw_ctrl_size_words);
+
 static ssize_t fw_ctrl_val_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	char *final_str = NULL;
+	u32 reg, *val = NULL;
+	char str[CS40L26_FW_CTRL_VAL_STR_SIZE];
+	size_t nbytes, num_words;
 	unsigned int flags;
-	u32 reg, val;
-	int error;
+	ssize_t nwritten;
+	int error, i;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -2291,35 +2317,74 @@ static ssize_t fw_ctrl_val_show(struct device *dev, struct device_attribute *att
 		goto mutex_exit;
 	}
 
+	error = cs40l26_sysfs_fw_get_length(cs40l26, &nbytes);
+	if (error)
+		goto mutex_exit;
+
+	num_words = nbytes / CL_DSP_BYTES_PER_WORD;
+
 	error = cs40l26_sysfs_fw_get_reg(cs40l26, &reg);
 	if (error)
 		goto mutex_exit;
 
-	error = regmap_read(cs40l26->regmap, reg, &val);
+	val = kcalloc(num_words, sizeof(u32), GFP_KERNEL);
+	if (!val) {
+		error = -ENOMEM;
+		goto mutex_exit;
+	}
+
+	error = regmap_bulk_read(cs40l26->regmap, reg, val, num_words);
+	if (error)
+		goto mutex_exit;
+
+	final_str = kzalloc(CS40L26_FW_CTRL_VAL_STR_SIZE * num_words, GFP_KERNEL);
+	if (!final_str) {
+		error = -ENOMEM;
+		goto mutex_exit;
+	}
+
+	for (i = 0; i < num_words; i++) {
+		nwritten = snprintf(str, CS40L26_FW_CTRL_VAL_STR_SIZE, "0x%08X\n", val[i]);
+		if (nwritten <= 0) {
+			error = -EINVAL;
+			goto mutex_exit;
+		}
+
+		strncat(final_str, str, CS40L26_FW_CTRL_VAL_STR_SIZE);
+	}
 
 mutex_exit:
+
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "0x%08X\n", val);
+	if (!error)
+		nwritten = snprintf(buf, PAGE_SIZE, "%s", final_str);
+
+	kfree(final_str);
+	kfree(val);
+
+	return error ? error : nwritten;
 }
 
 static ssize_t fw_ctrl_val_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
+	size_t nbytes, num_buf_words, num_ctl_words, wcount = 0;
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 reg, *val = NULL;
+	char *str, *str_full;
 	unsigned int flags;
-	u32 reg, val;
 	int error;
 
-	error = kstrtou32(buf, 16, &val);
-	if (error)
-		return error;
+	str_full = kstrdup(buf, GFP_KERNEL);
+	if (!str_full)
+		return -ENOMEM;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
-		return error;
+		goto free_exit;
 
 	mutex_lock(&cs40l26->lock);
 
@@ -2334,16 +2399,55 @@ static ssize_t fw_ctrl_val_store(struct device *dev, struct device_attribute *at
 		goto mutex_exit;
 	}
 
+	error = cs40l26_sysfs_fw_get_length(cs40l26, &nbytes);
+	if (error)
+		goto mutex_exit;
+
+	num_ctl_words = nbytes / CL_DSP_BYTES_PER_WORD;
+
+	if (num_ctl_words > 1) {
+		num_buf_words = strlen(str_full) / CS40L26_FW_CTRL_VAL_STR_SIZE_NO_NEWLINE;
+
+		if (num_ctl_words != num_buf_words) {
+			dev_err(cs40l26->dev, "Expected %zd words, received %zd\n",
+					num_ctl_words, num_buf_words);
+			error = -EINVAL;
+			goto mutex_exit;
+		}
+
+		if (strlen(str_full) % CS40L26_FW_CTRL_VAL_STR_SIZE_NO_NEWLINE) {
+			dev_err(cs40l26->dev, "Unexpected input string size\n");
+			error = -EINVAL;
+			goto mutex_exit;
+		}
+	}
+
+	val = kcalloc(num_ctl_words, sizeof(u32), GFP_KERNEL);
+	if (!val) {
+		error = -ENOMEM;
+		goto mutex_exit;
+	}
+
+	while ((str = strsep(&str_full, "\n")) != NULL && wcount < num_ctl_words) {
+		error = kstrtou32(str, 16, &val[wcount++]);
+		if (error)
+			goto mutex_exit;
+	}
+
 	error = cs40l26_sysfs_fw_get_reg(cs40l26, &reg);
 	if (error)
 		goto mutex_exit;
 
-	error = regmap_write(cs40l26->regmap, reg, val);
+	error = regmap_bulk_write(cs40l26->regmap, reg, val, num_ctl_words);
 
 mutex_exit:
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cs40l26->dev);
+
+free_exit:
+	kfree(val);
+	kfree(str_full);
 
 	return error ? error : count;
 }
@@ -2400,6 +2504,7 @@ static struct attribute *cs40l26_dev_attrs_fw[] = {
 	&dev_attr_fw_algo_id.attr,
 	&dev_attr_fw_ctrl_name.attr,
 	&dev_attr_fw_ctrl_reg.attr,
+	&dev_attr_fw_ctrl_size_words.attr,
 	&dev_attr_fw_ctrl_val.attr,
 	&dev_attr_fw_mem_block_type.attr,
 	NULL,
