@@ -635,6 +635,16 @@ Description:
 		Access: Read, Write
 
 		Valid values: Represented as hexadecimal
+			If reading from a firmware control that consists of more than one word
+			of data, the output will be displayed as a list of values separated by
+			a new line. The data will be displayed in increasing register order
+			as 32-bit hexadecimal words.
+
+			If writing to a firmware control that consists of more than one word
+			of data, the input must be formatted as 32-bit hexadecimal words separated
+			by a new line and listed in order of increasing register (i.e. the first
+			value in the list will be written to the first register that makes up
+			the firmware control etc.).
 
 What:		/sys/class/input/input(x)/firmware/fw_mem_block_type
 Date:		December 2023
