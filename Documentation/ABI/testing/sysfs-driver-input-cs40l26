@@ -623,6 +623,17 @@ Description:
 
 		Valid values: Represented as hexadecimal
 
+What:		/sys/class/input/input(x)/firmware/fw_ctrl_size_words
+Date:		March 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Number of 32-bit words of the control defined by
+		fw_algo_id, fw_ctrl_name, and fw_mem_block_type.
+
+		Access: Read
+
+		Valid values: Represented as an integer
+
 What:		/sys/class/input/input(x)/firmware/fw_ctrl_val
 Date:		December 2023
 Contact:	patches@opensource.cirrus.com
