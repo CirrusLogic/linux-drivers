@@ -1550,12 +1550,6 @@ static int cs40l26_wseq_init(struct cs40l26_private *cs40l26)
 	if (error)
 		return error;
 
-	/* Configure noise gate source */
-	error = cs40l26_wseq_write(cs40l26, CS40L26_NGATE1_INPUT, CS40L26_DATA_SRC_DSP1TX4,
-			true, CS40L26_WSEQ_OP_WRITE_L16, &cs40l26->pseq);
-	if (error)
-		return error;
-
 	/* Set speaker output to HI-Z when amplifier is disabled */
 	return cs40l26_wseq_write(cs40l26, CS40L26_TST_DAC_MSM_CONFIG, CS40L26_SPK_DEFAULT_HIZ,
 			true, CS40L26_WSEQ_OP_WRITE_H16, &cs40l26->pseq);
@@ -3755,8 +3749,15 @@ static int cs40l26_noise_gate_config(struct cs40l26_private *cs40l26)
 
 static int cs40l26_aux_noise_gate_config(struct cs40l26_private *cs40l26)
 {
+	struct cs40l26_wseq *seq;
 	u32 aux_ng_config;
 	int error;
+
+	/* Configure AUX noise gate source */
+	error = cs40l26_wseq_write(cs40l26, CS40L26_NGATE1_INPUT, CS40L26_DATA_SRC_DSP1TX4,
+			true, CS40L26_WSEQ_OP_WRITE_L16, &cs40l26->pseq);
+	if (error)
+		return error;
 
 	if (cs40l26->aux_ng_thld > CS40L26_AUX_NG_THLD_MAX)
 		cs40l26->aux_ng_thld = CS40L26_AUX_NG_THLD_DEFAULT;
@@ -3768,21 +3769,13 @@ static int cs40l26_aux_noise_gate_config(struct cs40l26_private *cs40l26)
 			FIELD_PREP(CS40L26_AUX_NG_HOLD_MASK, cs40l26->aux_ng_delay) |
 			FIELD_PREP(CS40L26_AUX_NG_EN_MASK, cs40l26->aux_ng_enable);
 
-	error = regmap_write(cs40l26->regmap, CS40L26_MIXER_NGATE_CH1_CFG, aux_ng_config);
-	if (error)
-		return error;
-
-	error = cs40l26_wseq_write(cs40l26, CS40L26_MIXER_NGATE_CH1_CFG, aux_ng_config, true,
-			CS40L26_WSEQ_OP_WRITE_FULL, &cs40l26->pseq);
-	if (error)
-		return error;
-
 	if (cs40l26->revid == CS40L26_REVID_B2)
-		return cs40l26_wseq_write(cs40l26, CS40L26_MIXER_NGATE_CH1_CFG,
-				CS40L26_AUX_NG_DEFAULT, true, CS40L26_WSEQ_OP_WRITE_FULL,
-				&cs40l26->aseq);
+		seq = &cs40l26->aseq;
 	else
-		return 0;
+		seq = &cs40l26->pseq;
+
+	return cs40l26_wseq_write(cs40l26, CS40L26_MIXER_NGATE_CH1_CFG, aux_ng_config, true,
+			CS40L26_WSEQ_OP_WRITE_FULL, seq);
 }
 
 static int cs40l26_clip_lvl_config(struct cs40l26_private *cs40l26)
