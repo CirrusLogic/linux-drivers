@@ -1546,13 +1546,7 @@ static int cs40l26_wseq_init(struct cs40l26_private *cs40l26)
 	if (error)
 		return error;
 
-	error = cs40l26_wseq_populate(cs40l26, &cs40l26->pseq);
-	if (error)
-		return error;
-
-	/* Set speaker output to HI-Z when amplifier is disabled */
-	return cs40l26_wseq_write(cs40l26, CS40L26_TST_DAC_MSM_CONFIG, CS40L26_SPK_DEFAULT_HIZ,
-			true, CS40L26_WSEQ_OP_WRITE_H16, &cs40l26->pseq);
+	return cs40l26_wseq_populate(cs40l26, &cs40l26->pseq);
 }
 
 static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 reg, u32 val, u32 bit_mask)
@@ -4141,6 +4135,12 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 #endif
 
 	error = cs40l26_wseq_init(cs40l26);
+	if (error)
+		return error;
+
+	/* Set speaker output to HI-Z when amplifier is disabled */
+	error = cs40l26_wseq_write(cs40l26, CS40L26_TST_DAC_MSM_CONFIG, CS40L26_SPK_DEFAULT_HIZ,
+			true, CS40L26_WSEQ_OP_WRITE_H16, &cs40l26->pseq);
 	if (error)
 		return error;
 
