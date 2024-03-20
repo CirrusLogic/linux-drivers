@@ -15,8 +15,7 @@
 #include "cs35l45.h"
 #include <sound/cs35l45.h>
 
-static int cs35l45_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int cs35l45_i2c_probe(struct i2c_client *client)
 {
 	struct cs35l45_private *cs35l45;
 	struct device *dev = &client->dev;
