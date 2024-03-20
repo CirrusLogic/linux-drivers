@@ -2009,6 +2009,10 @@ static const struct snd_soc_dai_ops cs35l45_dai_ops = {
 	.set_sysclk = cs35l45_dai_set_sysclk,
 };
 
+static const struct snd_soc_dai_ops cs35l45_compress_dai_ops = {
+	.compress_new = &snd_soc_new_compress,
+};
+
 #define CS35L45_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
 			 SNDRV_PCM_FMTBIT_S24_3LE| \
 			 SNDRV_PCM_FMTBIT_S24_LE | \
@@ -2049,7 +2053,7 @@ static struct snd_soc_dai_driver cs35l45_dai[] = {
 			.rates = CS35L45_RATES,
 			.formats = CS35L45_FORMATS,
 		},
-		.compress_new = &snd_soc_new_compress,
+		.ops = &cs35l45_compress_dai_ops,
 	},
 	{
 		.name = "cs35l45-dsp-dsplog",
