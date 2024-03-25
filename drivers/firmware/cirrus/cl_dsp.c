@@ -201,7 +201,7 @@ int cl_dsp_get_reg(struct cl_dsp *dsp, const char *coeff_name, const unsigned in
 
 	coeff_desc = cl_dsp_get_coeff(dsp, coeff_name, block_type, algo_id);
 	if (IS_ERR_OR_NULL(coeff_desc))
-		return coeff_desc ? PTR_ERR(coeff_desc) : -ENXIO;
+		return coeff_desc ? PTR_ERR(coeff_desc) : -EINVAL;
 
 	*reg = coeff_desc->reg;
 
@@ -216,7 +216,7 @@ int cl_dsp_get_flags(struct cl_dsp *dsp, const char *coeff_name, const unsigned 
 
 	coeff_desc = cl_dsp_get_coeff(dsp, coeff_name, block_type, algo_id);
 	if (IS_ERR_OR_NULL(coeff_desc))
-		return coeff_desc ? PTR_ERR(coeff_desc) : -ENXIO;
+		return coeff_desc ? PTR_ERR(coeff_desc) : -EINVAL;
 
 	*flags = coeff_desc->flags;
 
