@@ -4749,17 +4749,6 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 		re_enable = true;
 	}
 
-	switch (cs40l26->revid) {
-	case CS40L26_REVID_A1:
-	case CS40L26_REVID_B0:
-	case CS40L26_REVID_B1:
-	case CS40L26_REVID_B2:
-		break;
-	default:
-		dev_err(dev, "Unrecognized revid: 0x%02X\n", cs40l26->revid);
-		return -EINVAL;
-	}
-
 	/* Clear write sequence memory following the end of script operation */
 	pseq_bytes_after_end = CS40L26_PSEQ_MAX_BYTES -
 			(cs40l26->rom_regs->rom_pseq_end_of_script -
