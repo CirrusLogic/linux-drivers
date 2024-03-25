@@ -987,38 +987,44 @@ static irqreturn_t cs40l26_gpio_fall(int irq, void *data)
 static irqreturn_t cs40l26_wakesource_any(int irq, void *data)
 {
 	struct cs40l26_private *cs40l26 = data;
+	irqreturn_t irq_return = IRQ_HANDLED;
+	u32 reg, val;
 	int error;
-	u32 val, reg;
 
 	dev_dbg(cs40l26->dev, "Wakesource detected (ANY)\n");
+
+	mutex_lock(&cs40l26->lock);
 
 	error = regmap_read(cs40l26->regmap, CS40L26_PWRMGT_STS, &val);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to get Power Management Status\n");
-		return IRQ_NONE;
+		irq_return = IRQ_NONE;
+		goto mutex_exit;
 	}
-
-	mutex_lock(&cs40l26->lock);
 
 	cs40l26->wksrc_sts = (u8) ((val & CS40L26_WKSRC_STS_MASK) >>
 				CS40L26_WKSRC_STS_SHIFT);
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "LAST_WAKESRC_CTL",
 			CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw_id, &reg);
-	if (error)
-		return IRQ_NONE;
+	if (error) {
+		irq_return = IRQ_NONE;
+		goto mutex_exit;
+	}
 
 	error = regmap_read(cs40l26->regmap, reg, &val);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to read LAST_WAKESRC_CTL\n");
-		return IRQ_NONE;
+		irq_return = IRQ_NONE;
+		goto mutex_exit;
 	}
 
 	cs40l26->last_wksrc_pol = (u8) (val & CS40L26_WKSRC_GPIO_POL_MASK);
 
+mutex_exit:
 	mutex_unlock(&cs40l26->lock);
 
-	return IRQ_HANDLED;
+	return irq_return;
 }
 
 static irqreturn_t cs40l26_wakesource_gpio(int irq, void *data)
