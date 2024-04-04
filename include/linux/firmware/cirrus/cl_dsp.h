@@ -146,6 +146,15 @@
 #define CL_DSP_OWT_HEADER_MAX_LEN		254
 #define CL_DSP_OWT_HEADER_ENTRY_SIZE		12
 
+/* Waveform metadata */
+#define CL_DSP_SVC_MD_ID		1
+#define CL_DSP_SVC_MD_LEN		1
+#define CL_DSP_MD_SIZE_MAX_BYTES	28
+#define CL_DSP_MD_PRESENT		BIT(10)
+#define CL_DSP_MD_TERMINATOR		0xFFFFFF
+#define CL_DSP_MD_TYPE_MASK		GENMASK(23, 16)
+#define CL_DSP_MD_LENGTH_MASK		GENMASK(15, 8)
+
 /* macros */
 #define CL_DSP_WORD_ALIGN(n)	(CL_DSP_BYTES_PER_WORD +\
 				(((n) / CL_DSP_BYTES_PER_WORD) *\
@@ -266,6 +275,7 @@ struct cl_dsp_owt_header {
 	u32 offset;
 	u32 size;
 	void *data;
+	u32 braking_time;
 };
 
 struct cl_dsp_owt_desc {
