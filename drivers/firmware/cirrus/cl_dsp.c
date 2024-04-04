@@ -292,8 +292,8 @@ static int cl_dsp_read_wt(struct cl_dsp *dsp, int pos, int size)
 {
 	struct cl_dsp_owt_header *entry = dsp->wt_desc->owt.waves;
 	void *buf = (void *)(dsp->wt_desc->owt.raw_data + pos);
-	struct cl_dsp_memchunk ch = cl_dsp_memchunk_create(buf, size);
-	u32 *wbuf = buf, *max = buf;
+	struct cl_dsp_memchunk md_ch, ch = cl_dsp_memchunk_create(buf, size);
+	u32 *wbuf = buf, *max = buf, word = 0;
 	int i, ret;
 
 	for (i = 0; i < ARRAY_SIZE(dsp->wt_desc->owt.waves); i++, entry++) {
@@ -322,6 +322,34 @@ static int cl_dsp_read_wt(struct cl_dsp *dsp, int pos, int size)
 			return ret;
 
 		entry->data = wbuf + entry->offset;
+
+		if (entry->flags & CL_DSP_MD_PRESENT) {
+			/*
+			 * In the RAM wavetable, the metadata is appended to the end
+			 * of the waveform data section. Skip to metadata location
+			 * designated by data location + size of the data.
+			 */
+			md_ch = cl_dsp_memchunk_create((u32 *)entry->data + entry->size,
+					CL_DSP_MD_SIZE_MAX_BYTES);
+
+			while (word != CL_DSP_MD_TERMINATOR) {
+				ret = cl_dsp_memchunk_read(dsp, &md_ch, 24, &word);
+				if (ret)
+					return ret;
+
+				if (FIELD_GET(CL_DSP_MD_TYPE_MASK, word) == CL_DSP_SVC_ID &&
+				    FIELD_GET(CL_DSP_MD_LENGTH_MASK, word) == CL_DSP_SVC_LEN) {
+					/* Braking time is the second word of the SVC metadata */
+					ret = cl_dsp_memchunk_read(dsp, &md_ch, 24,
+							&entry->braking_time);
+					if (ret)
+						return ret;
+
+					entry->braking_time /= 8;
+					break;
+				}
+			}
+		}
 
 		if (wbuf + entry->offset + entry->size > max) {
 			max = wbuf + entry->offset + entry->size;
