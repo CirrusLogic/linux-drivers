@@ -593,6 +593,12 @@ properties:
     maximum: 0x78
     description: Enables I2C writes to device at 7-bit broadcast address.
 
+  cirrus,asp-dout-enable:
+    type: boolean
+    description: |
+      Reconfigures the ALERT pin to act as ASP DOUT. GPIO2 will also be reconfigured
+      to act as an open drain interrupt output.
+
 required:
   - compatible
   - reg
