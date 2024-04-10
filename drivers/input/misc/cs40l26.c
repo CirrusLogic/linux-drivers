@@ -3814,6 +3814,40 @@ static int cs40l26_aux_noise_gate_config(struct cs40l26_private *cs40l26)
 			CS40L26_WSEQ_OP_WRITE_FULL, wseq_params);
 }
 
+static struct reg_sequence cs40l26_asp_dout_cfg_seq[] = {
+	{ CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE1 },
+	{ CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE2 },
+	{ CS40L26_CALIB_OTP_CONFIG, },
+	{ CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_LOCK_CODE},
+	{ CS40L26_GPIO_PAD_CONTROL, CS40L26_ASP_DOUT_CONFIG },
+};
+
+static int cs40l26_config_asp_dout(struct cs40l26_private *cs40l26)
+{
+	int error;
+	u32 val;
+
+	if (device_property_present(cs40l26->dev, "cirrus,asp-dout-enable")) {
+		error = regmap_read(cs40l26->regmap, CS40L26_CALIB_OTP_CONFIG, &val);
+		if (error)
+			return error;
+
+		/* Clear the GP8 override bit of CS40L26_CALIB_OTP_CONFIG */
+		cs40l26_asp_dout_cfg_seq[2].def = (val & ~CS40L26_GP8_OVERRIDE_MASK);
+
+		error = regmap_multi_reg_write(cs40l26->regmap, cs40l26_asp_dout_cfg_seq,
+				ARRAY_SIZE(cs40l26_asp_dout_cfg_seq));
+		if (error)
+			return error;
+
+		return cs40l26_wseq_multi_write(cs40l26, cs40l26_asp_dout_cfg_seq,
+				ARRAY_SIZE(cs40l26_asp_dout_cfg_seq), false,
+				CS40L26_WSEQ_OP_WRITE_FULL, &pseq_params);
+	}
+
+	return 0;
+}
+
 static int cs40l26_clip_lvl_config(struct cs40l26_private *cs40l26)
 {
 	u32 clip_lvl, digpwm_config;
@@ -4312,6 +4346,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		return error;
 
 	error = cs40l26_aux_noise_gate_config(cs40l26);
+	if (error)
+		return error;
+
+	error = cs40l26_config_asp_dout(cs40l26);
 	if (error)
 		return error;
 
