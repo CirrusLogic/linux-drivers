@@ -14,89 +14,118 @@
 #include <linux/mfd/cs40l26.h>
 
 #ifdef CONFIG_DEBUG_FS
-static int cs40l26_wseq_get(struct cs40l26_private *cs40l26,
-		struct cs40l26_wseq *wseq, char **wseq_str)
+
+static ssize_t cs40l26_wseq_format_string(struct cs40l26_private *cs40l26,
+		struct cs40l26_wseq_params *wseq_params, char **wseq_str)
 {
 	char str[CS40L26_WSEQ_STR_LINE_LEN];
-	struct cs40l26_wseq_op *op;
-	int error;
+	struct cs40l26_wseq_op op;
+	struct cl_dsp_memchunk ch;
+	ssize_t error, str_size;
+	u8 *seq_data;
 
-	if (list_empty(&wseq->ops) || wseq->num_ops <= 0) {
-		dev_err(cs40l26->dev, "Write sequencer is empty\n");
-		return -ENODATA;
-	}
+	str_size = CS40L26_WSEQ_STR_LINE_LEN * wseq_params->size_bytes / CL_DSP_BYTES_PER_WORD;
+	*wseq_str = kzalloc(str_size, GFP_KERNEL);
+	if (!*wseq_str)
+		return -ENOMEM;
 
-	list_for_each_entry(op, &wseq->ops, list) {
+	seq_data = kzalloc(wseq_params->size_bytes, GFP_KERNEL);
+	if (!seq_data)
+		return -ENOMEM;
+
+	error = regmap_raw_read(cs40l26->regmap, wseq_params->base_addr,
+			seq_data, wseq_params->size_bytes);
+	if (error)
+		goto err_free;
+
+	ch = cl_dsp_memchunk_create(seq_data, wseq_params->size_bytes);
+
+	while (!cl_dsp_memchunk_end(&ch)) {
+		memset((void *) &op, 0, sizeof(struct cs40l26_wseq_op));
+
+		error = cs40l26_wseq_read(cs40l26, &ch, &op);
+		if (error)
+			goto err_free;
+
 		error = snprintf(str, CS40L26_WSEQ_STR_LINE_LEN,
 				"0x%08X: Code = 0x%02X, Addr = 0x%08X, Data = 0x%08X\n",
-				wseq->base_addr + op->offset, op->operation, op->address, op->data);
-		if (error <= 0)
-			return -EINVAL;
+				wseq_params->base_addr + op.offset, op.code,
+				op.addr, op.data);
+		if (error != strlen(str)) {
+			dev_err(cs40l26->dev, "Failed to format sequence string\n");
+			error = -EINVAL;
+			goto err_free;
+		} else {
+			error = 0;
+		}
 
 		strncat(*wseq_str, str, CS40L26_WSEQ_STR_LINE_LEN);
 	}
 
-	return 0;
+err_free:
+	kfree(seq_data);
+
+	return error ? error : str_size;
 }
 
 static ssize_t cs40l26_active_seq_read(struct file *file, char __user *user_buf,
-					size_t count, loff_t *ppos)
+		size_t count, loff_t *ppos)
 {
 	struct cs40l26_private *cs40l26 = file->private_data;
 	char *aseq_str = NULL;
-	ssize_t error, aseq_str_size;
+	ssize_t aseq_str_size, error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
 
 	mutex_lock(&cs40l26->lock);
 
-	aseq_str_size = CS40L26_WSEQ_STR_LINE_LEN * cs40l26->aseq.num_ops;
-	aseq_str = kzalloc(aseq_str_size, GFP_KERNEL);
-	if (!aseq_str) {
-		error = -ENOMEM;
+	aseq_str_size = cs40l26_wseq_format_string(cs40l26, &aseq_params, &aseq_str);
+	if (aseq_str_size < 0) {
+		error = aseq_str_size;
 		goto err_mutex;
 	}
 
-	error = cs40l26_wseq_get(cs40l26, &cs40l26->aseq, &aseq_str);
-	if (error)
-		goto err_free;
-
 	error = simple_read_from_buffer(user_buf, count, ppos, aseq_str, aseq_str_size);
-
-err_free:
-	kfree(aseq_str);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	kfree(aseq_str);
 
 	return error;
 }
 
 static ssize_t cs40l26_power_on_seq_read(struct file *file, char __user *user_buf,
-					size_t count, loff_t *ppos)
+		size_t count, loff_t *ppos)
 {
 	struct cs40l26_private *cs40l26 = file->private_data;
 	char *pseq_str = NULL;
 	ssize_t error, pseq_str_size;
 
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
 	mutex_lock(&cs40l26->lock);
 
-	pseq_str_size = CS40L26_WSEQ_STR_LINE_LEN * cs40l26->pseq.num_ops;
-	pseq_str = kzalloc(pseq_str_size, GFP_KERNEL);
-	if (!pseq_str) {
-		error = -ENOMEM;
+	pseq_str_size = cs40l26_wseq_format_string(cs40l26, &pseq_params, &pseq_str);
+	if (pseq_str_size < 0) {
+		error = pseq_str_size;
 		goto err_mutex;
 	}
 
-	error = cs40l26_wseq_get(cs40l26, &cs40l26->pseq, &pseq_str);
-	if (error)
-		goto err_free;
-
 	error = simple_read_from_buffer(user_buf, count, ppos, pseq_str, pseq_str_size);
-
-err_free:
-	kfree(pseq_str);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	kfree(pseq_str);
 
 	return error;
 }
@@ -223,12 +252,12 @@ static ssize_t cs40l26_hw_val_write(struct file *file, const char __user *user_b
 		goto exit_mutex;
 
 	error = cs40l26_wseq_write(cs40l26, cs40l26->dbg_hw_reg, (val & GENMASK(31, 16)) >> 16,
-			true, CS40L26_WSEQ_OP_WRITE_H16, &cs40l26->pseq);
+			true, CS40L26_WSEQ_OP_WRITE_H16, &pseq_params);
 	if (error)
 		goto exit_mutex;
 
 	error = cs40l26_wseq_write(cs40l26, cs40l26->dbg_hw_reg, (val & GENMASK(15, 0)),
-			true, CS40L26_WSEQ_OP_WRITE_L16, &cs40l26->pseq);
+			true, CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 
 exit_mutex:
 	mutex_unlock(&cs40l26->lock);
