@@ -20,6 +20,7 @@ static const struct cs40l26_rom_regs cs40l26_rom_regs_a1_b0_b1 = {
 	.dsp_halo_state = 0x02800fa8,
 	.event_map_table_event_data_packed = 0x02806FC4,
 	.p_vibegen_rom = 0x02802154,
+	.rom_aseq_end_of_script = 0x0280058C,
 	.rom_pseq_end_of_script = 0x028003E8,
 };
 
@@ -35,6 +36,7 @@ static const struct cs40l26_rom_regs cs40l26_rom_regs_b2 = { /* RC2 8.1.2 */
 	.dsp_halo_state = 0x02806AF8,
 	.event_map_table_event_data_packed = 0x02806FB0,
 	.p_vibegen_rom = 0x02802F50,
+	.rom_aseq_end_of_script = 0x028021B4,
 	.rom_pseq_end_of_script = 0x02802018,
 };
 
@@ -1236,162 +1238,189 @@ static struct regmap_irq_chip cs40l26_regmap_irq_chip = {
 	.runtime_pm = true,
 };
 
-static struct cs40l26_wseq_op *cs40l26_wseq_find_op(u32 addr, u8 op_code,
-		struct list_head *wseq_ops)
+static int cs40l26_wseq_get_reg_addr(struct cs40l26_private *cs40l26, u32 op_addr, u8 op_code,
+		struct cs40l26_wseq_params *wseq_params, size_t nbytes, u32 *reg_addr)
 {
-	struct cs40l26_wseq_op *op;
-
-	list_for_each_entry(op, wseq_ops, list) {
-		if (op->operation == op_code && op->address == addr)
-			return op;
-	}
-
-	return NULL;
-}
-
-static int cs40l26_wseq_op_format(struct cs40l26_private *cs40l26, struct cs40l26_wseq *wseq,
-		struct cs40l26_wseq_op *op, struct cl_dsp_memchunk *ch)
-{
+	struct cs40l26_wseq_op op;
+	struct cl_dsp_memchunk ch;
+	u8 *seq_data;
 	int error;
 
-	error = cl_dsp_memchunk_write(ch, 8, op->operation);
+	seq_data = kzalloc(nbytes, GFP_KERNEL);
+	if (!seq_data)
+		return -ENOMEM;
+
+	error = regmap_raw_read(cs40l26->regmap, wseq_params->base_addr, seq_data, nbytes);
 	if (error)
-		return error;
+		goto err_free;
 
-	switch (op->operation) {
-	case CS40L26_WSEQ_OP_WRITE_FULL:
-		error = cl_dsp_memchunk_write(ch, 32, op->address);
+	ch = cl_dsp_memchunk_create(seq_data, nbytes);
+
+	while (!cl_dsp_memchunk_end(&ch)) {
+		memset((void *) &op, 0, sizeof(struct cs40l26_wseq_op));
+
+		error = cs40l26_wseq_read(cs40l26, &ch, &op);
 		if (error)
-			return error;
+			goto err_free;
 
-		error = cl_dsp_memchunk_write(ch, 32, op->data);
-		break;
-	case CS40L26_WSEQ_OP_WRITE_L16:
-	case CS40L26_WSEQ_OP_WRITE_H16:
-		error = cl_dsp_memchunk_write(ch, 24, op->address);
-		if (error)
-			return error;
-
-		error = cl_dsp_memchunk_write(ch, 16, op->data);
-		break;
-	case CS40L26_WSEQ_OP_WRITE_ADDR8:
-		error = cl_dsp_memchunk_write(ch, 8, op->address);
-		if (error)
-			return error;
-
-		error = cl_dsp_memchunk_write(ch, 32, op->data);
-		break;
-	default:
-		dev_err(cs40l26->dev, "Write Sequencer Op. code not supported 0x%02X\n",
-				op->operation);
-		return -EINVAL;
+		/*
+		 * Return 1 if operation is found (replace)
+		 * Return 0 if operation not found (add new)
+		 * Return error if error encountered (no-op)
+		 */
+		if (op.code == op_code && op.addr == op_addr) {
+			*reg_addr = wseq_params->base_addr + op.offset;
+			error = 1;
+			goto err_free;
+		}
 	}
+
+err_free:
+	kfree(seq_data);
 
 	return error;
 }
 
-static int cs40l26_wseq_update(struct cs40l26_private *cs40l26, u32 data,
-		struct cs40l26_wseq *wseq, struct cs40l26_wseq_op *op)
+int cs40l26_wseq_read(struct cs40l26_private *cs40l26, struct cl_dsp_memchunk *ch,
+		struct cs40l26_wseq_op *op)
 {
-	u32 words[CS40L26_WSEQ_OP_MAX_WORDS];
-	struct cl_dsp_memchunk ch;
-	int error, i;
+	struct cl_dsp *dsp = cs40l26->dsp;
+	int error;
 
-	op->data = data;
+	op->offset = ch->bytes;
 
-	ch = cl_dsp_memchunk_create(words, sizeof(words));
-
-	error = cs40l26_wseq_op_format(cs40l26, wseq, op, &ch);
+	error = cl_dsp_memchunk_read(dsp, ch, 8, &op->code);
 	if (error)
 		return error;
 
-	for (i = 0; i < ch.bytes / CL_DSP_BYTES_PER_WORD; i++)
-		words[i] = be32_to_cpu(words[i]);
+	switch (op->code) {
+	case CS40L26_WSEQ_OP_END:
+		op->data = CS40L26_WSEQ_OP_END_DATA;
+		op->addr = CS40L26_WSEQ_OP_END_ADDR;
+		break;
+	case CS40L26_WSEQ_OP_WRITE_ADDR8:
+		error = cl_dsp_memchunk_read(dsp, ch, 8, &op->addr);
+		if (error)
+			return error;
 
-	return regmap_bulk_write(cs40l26->regmap, wseq->base_addr + op->offset,
-			words, ch.bytes / CL_DSP_BYTES_PER_WORD);
-}
+		error = cl_dsp_memchunk_read(dsp, ch, 32, &op->data);
+		if (error)
+			return error;
+		break;
+	case CS40L26_WSEQ_OP_WRITE_H16:
+	case CS40L26_WSEQ_OP_WRITE_L16:
+		error = cl_dsp_memchunk_read(dsp, ch, 24, &op->addr);
+		if (error)
+			return error;
 
-static int cs40l26_wseq_new(struct cs40l26_private *cs40l26, u32 addr, u32 data,
-		u8 op_code, struct cs40l26_wseq *wseq, struct cs40l26_wseq_op *op_end)
-{
-	u32 words[CS40L26_WSEQ_OP_MAX_WORDS];
-	struct cs40l26_wseq_op *op_new;
-	struct cl_dsp_memchunk ch;
-	int error, i;
+		error = cl_dsp_memchunk_read(dsp, ch, 16, &op->data);
+		if (error)
+			return error;
+		break;
+	case CS40L26_WSEQ_OP_WRITE_FULL:
+		error = cl_dsp_memchunk_read(dsp, ch, 32, &op->addr);
+		if (error)
+			return error;
 
-	op_new = kzalloc(sizeof(struct cs40l26_wseq_op), GFP_KERNEL);
-	if (!op_new)
-		return -ENOMEM;
-
-	op_new->operation = op_code;
-	op_new->address = addr;
-	op_new->offset = op_end->offset;
-	op_new->data = data;
-
-	ch = cl_dsp_memchunk_create(words, sizeof(words));
-
-	error = cs40l26_wseq_op_format(cs40l26, wseq, op_new, &ch);
-	if (error)
-		goto err_free;
-
-	/* Check if there's enough space to add new operation */
-	if ((wseq->size_bytes - op_end->offset) < ch.bytes) {
-		dev_err(cs40l26->dev, "Not enough space to add new power on sequence op\n");
-		error = -ENOSPC;
-		goto err_free;
-	}
-
-	for (i = 0; i < ch.bytes / CL_DSP_BYTES_PER_WORD; i++)
-		words[i] = be32_to_cpu(words[i]);
-
-	error = regmap_bulk_write(cs40l26->regmap, wseq->base_addr + op_new->offset,
-			words, ch.bytes / CL_DSP_BYTES_PER_WORD);
-	if (error)
-		goto err_free;
-
-	list_add(&op_new->list, op_end->list.prev);
-	wseq->num_ops++;
-
-	op_end->offset += ch.bytes;
-
-	error = regmap_write(cs40l26->regmap, wseq->base_addr + op_end->offset,
-			CS40L26_WSEQ_OP_END_DATA);
-	if (error) {
-		list_del(&op_new->list);
-		goto err_free;
+		error = cl_dsp_memchunk_read(dsp, ch, 32, &op->data);
+		if (error)
+			return error;
+		break;
+	default:
+		dev_err(cs40l26->dev, "Invalid OP code 0x%02X\n", op->code);
+		return -EINVAL;
 	}
 
 	return 0;
-
-err_free:
-	kfree(op_new);
-
-	return error;
 }
+EXPORT_SYMBOL_GPL(cs40l26_wseq_read);
 
 int cs40l26_wseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data,
-		bool update, u8 op_code, struct cs40l26_wseq *wseq)
+		bool update, u8 op_code, struct cs40l26_wseq_params *wseq_params)
 {
-	struct cs40l26_wseq_op *op, *op_end;
-	int error;
+	u32 reg_addr = 0, words[CS40L26_WSEQ_OP_MAX_WORDS];
+	size_t nbits_addr, nbits_data, nwrite;
+	struct cl_dsp_memchunk ch;
+	bool op_found;
+	int error, i;
 
-	op_end = cs40l26_wseq_find_op(CS40L26_WSEQ_OP_END_ADDR, CS40L26_WSEQ_OP_END,
-			&wseq->ops);
-	if (!op_end) {
-		dev_err(cs40l26->dev, "Write sequencer list terminator\n");
+	switch (op_code) {
+	case CS40L26_WSEQ_OP_WRITE_FULL:
+		nbits_addr = (size_t) CS40L26_WSEQ_OP_WRITE_FULL_ADDR_NBITS;
+		nbits_data = (size_t) CS40L26_WSEQ_OP_WRITE_FULL_DATA_NBITS;
+		break;
+	case CS40L26_WSEQ_OP_WRITE_L16:
+	case CS40L26_WSEQ_OP_WRITE_H16:
+		nbits_addr = (size_t) CS40L26_WSEQ_OP_WRITE_X16_ADDR_NBITS;
+		nbits_data = (size_t) CS40L26_WSEQ_OP_WRITE_X16_DATA_NBITS;
+		break;
+	case CS40L26_WSEQ_OP_WRITE_ADDR8:
+		nbits_addr = (size_t) CS40L26_WSEQ_OP_WRITE_ADDR8_ADDR_NBITS;
+		nbits_data = (size_t) CS40L26_WSEQ_OP_WRITE_ADDR8_DATA_NBITS;
+		break;
+	default:
+		dev_err(cs40l26->dev, "Invalid Write Sequence Op. Code: 0x%02X\n", op_code);
 		return -EINVAL;
 	}
 
-	op = cs40l26_wseq_find_op(addr, op_code, &wseq->ops);
-	if (!op || !update) {
-		error = cs40l26_wseq_new(cs40l26, addr, data, op_code, wseq, op_end);
+	ch = cl_dsp_memchunk_create(words, sizeof(words));
+
+	error = cl_dsp_memchunk_write(&ch, (size_t) CS40L26_WSEQ_OP_CODE_NBITS, op_code);
+	if (error)
+		return error;
+
+	error = cl_dsp_memchunk_write(&ch, nbits_addr, addr);
+	if (error)
+		return error;
+
+	error = cl_dsp_memchunk_write(&ch, nbits_data, data);
+	if (error)
+		return error;
+
+	nwrite = ch.bytes / CL_DSP_BYTES_PER_WORD;
+
+	for (i = 0; i < nwrite; i++)
+		words[i] = be32_to_cpu(words[i]);
+
+	error = cs40l26_wseq_get_reg_addr(cs40l26, addr, op_code, wseq_params,
+			wseq_params->size_bytes, &reg_addr);
+	switch (error) {
+	case 0:
+		op_found = false;
+		break;
+	case 1:
+		op_found = true;
+		break;
+	default:
+		return error;
+	}
+
+	if (op_found && update) {
+		error = regmap_bulk_write(cs40l26->regmap, reg_addr, words, nwrite);
 		if (error)
 			return error;
 	} else {
-		error = cs40l26_wseq_update(cs40l26, data, wseq, op);
+		wseq_params->size_bytes += ch.bytes;
+
+		if (wseq_params->size_bytes > wseq_params->max_size_bytes) {
+			dev_err(cs40l26->dev, "Write sequence out of space\n");
+			wseq_params->size_bytes -= ch.bytes;
+			return -ENOSPC;
+		}
+
+		error = regmap_bulk_write(cs40l26->regmap, wseq_params->list_term_addr,
+				words, nwrite);
 		if (error)
 			return error;
+
+		wseq_params->list_term_addr += ch.bytes;
+
+		error = regmap_write(cs40l26->regmap, wseq_params->list_term_addr,
+				CS40L26_WSEQ_LIST_TERMINATOR);
+		if (error)  {
+			wseq_params->list_term_addr -= ch.bytes;
+			return error;
+		}
 	}
 
 	return 0;
@@ -1400,13 +1429,13 @@ EXPORT_SYMBOL_GPL(cs40l26_wseq_write);
 
 static int cs40l26_wseq_multi_write(struct cs40l26_private *cs40l26,
 		const struct reg_sequence *reg_seq, int num_regs, bool update, u8 op_code,
-		struct cs40l26_wseq *wseq)
+		struct cs40l26_wseq_params *wseq_params)
 {
 	int error, i;
 
 	for (i = 0; i < num_regs; i++) {
-		error = cs40l26_wseq_write(cs40l26, reg_seq[i].reg,
-				reg_seq[i].def, update, op_code, wseq);
+		error = cs40l26_wseq_write(cs40l26, reg_seq[i].reg, reg_seq[i].def,
+				update, op_code, wseq_params);
 		if (error)
 			return error;
 	}
@@ -1414,145 +1443,67 @@ static int cs40l26_wseq_multi_write(struct cs40l26_private *cs40l26,
 	return 0;
 }
 
-static void cs40l26_wseq_clear(struct cs40l26_private *cs40l26, struct cs40l26_wseq *wseq)
+static int cs40l26_wseq_clear(struct cs40l26_private *cs40l26,
+		struct cs40l26_wseq_params *wseq_params)
 {
-	struct cs40l26_wseq_op *op_tmp;
-	struct cs40l26_wseq_op *op;
-
-	if (wseq->num_ops == 0)
-		return;
-
-	list_for_each_entry_safe(op, op_tmp, &wseq->ops, list) {
-		list_del(&op->list);
-		kfree(op);
-	}
-
-	wseq->num_ops = 0;
-}
-
-static int cs40l26_wseq_populate(struct cs40l26_private *cs40l26, struct cs40l26_wseq *wseq)
-{
-	struct cs40l26_wseq_op *op = NULL;
-	struct cl_dsp *dsp = cs40l26->dsp;
-	struct cl_dsp_memchunk ch;
-	u8 *words;
+	u32 addr = wseq_params->rom_list_term_addr;
 	int error;
 
-	words = kzalloc(wseq->size_bytes, GFP_KERNEL);
-	if (!words)
-		return -ENOMEM;
-
-	error = regmap_raw_read(cs40l26->regmap, wseq->base_addr, words, wseq->size_bytes);
-	if (error)
-		goto err_free;
-
-	ch = cl_dsp_memchunk_create(words, wseq->size_bytes);
-
-	while (!cl_dsp_memchunk_end(&ch)) {
-		op = kzalloc(sizeof(struct cs40l26_wseq_op), GFP_KERNEL);
-		if (!op) {
-			error = -ENOMEM;
-			goto err_free;
-		}
-
-		op->offset = ch.bytes;
-		error = cl_dsp_memchunk_read(dsp, &ch, 8, &op->operation);
+	while (addr < wseq_params->list_term_addr) {
+		error = regmap_write(cs40l26->regmap, addr, 0);
 		if (error)
-			goto err_op_free;
+			return error;
 
-		switch (op->operation) {
-		case CS40L26_WSEQ_OP_END:
-			op->data = CS40L26_WSEQ_OP_END_DATA;
-			op->address = CS40L26_WSEQ_OP_END_ADDR;
-			break;
-		case CS40L26_WSEQ_OP_WRITE_ADDR8:
-			error = cl_dsp_memchunk_read(dsp, &ch, 8, &op->address);
-			if (error)
-				goto err_op_free;
-
-			error = cl_dsp_memchunk_read(dsp, &ch, 32, &op->data);
-			if (error)
-				goto err_op_free;
-			break;
-		case CS40L26_WSEQ_OP_WRITE_H16:
-		case CS40L26_WSEQ_OP_WRITE_L16:
-			error = cl_dsp_memchunk_read(dsp, &ch, 24, &op->address);
-			if (error)
-				goto err_op_free;
-
-			error = cl_dsp_memchunk_read(dsp, &ch, 16, &op->data);
-			if (error)
-				goto err_op_free;
-			break;
-		case CS40L26_WSEQ_OP_WRITE_FULL:
-			error = cl_dsp_memchunk_read(dsp, &ch, 32, &op->address);
-			if (error)
-				goto err_op_free;
-
-			error = cl_dsp_memchunk_read(dsp, &ch, 32, &op->data);
-			if (error)
-				goto err_op_free;
-			break;
-		default:
-			dev_err(cs40l26->dev, "Invalid OP code 0x%02X\n", op->operation);
-			error = -EINVAL;
-			goto err_op_free;
-		}
-
-		list_add_tail(&op->list, &wseq->ops);
-		wseq->num_ops++;
-
-		if (op->operation == CS40L26_WSEQ_OP_END)
-			break;
+		addr += 4;
 	}
 
-	if (op && op->operation != CS40L26_WSEQ_OP_END) {
-		dev_err(cs40l26->dev, "Write sequence missing terminator\n");
-		error = -EINVAL;
-		goto err_free;
-	}
+	/* Reset list terminator to ROM location */
+	error = regmap_write(cs40l26->regmap, wseq_params->rom_list_term_addr,
+			CS40L26_WSEQ_LIST_TERMINATOR);
+	if (error)
+		return error;
 
-err_free:
-	kfree(words);
+	memset((void *) wseq_params, 0, sizeof(struct cs40l26_wseq_params));
 
-	return error;
-
-err_op_free:
-	kfree(words);
-	kfree(op);
-
-	return error;
+	return 0;
 }
 
-static int cs40l26_wseq_init(struct cs40l26_private *cs40l26)
+static int cs40l26_wseq_init(struct cs40l26_private *cs40l26, const char *wseq_name,
+		struct cs40l26_wseq_params *wseq_params)
 {
 	int error;
 
-	cs40l26->aseq.size_bytes = CS40L26_ASEQ_MAX_BYTES;
-	cs40l26->aseq.size_words = CS40L26_ASEQ_MAX_WORDS;
+	if (!strncmp(wseq_name, CS40L26_WSEQ_ACTIVE_NAME, strlen(wseq_name))) {
+		wseq_params->rom_list_term_addr = cs40l26->rom_regs->rom_aseq_end_of_script;
+	} else if (!strncmp(wseq_name, CS40L26_WSEQ_POWER_ON_NAME, strlen(wseq_name))) {
+		wseq_params->rom_list_term_addr = cs40l26->rom_regs->rom_pseq_end_of_script;
+	} else {
+		dev_err(cs40l26->dev, "Invalid sequence name: %s\n", wseq_name);
+		return -EINVAL;
+	}
 
-	INIT_LIST_HEAD(&cs40l26->aseq.ops);
-
-	error = cl_dsp_get_reg(cs40l26->dsp, "ACTIVE_SEQUENCE", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_PM_ALGO_ID, &cs40l26->aseq.base_addr);
+	error = cl_dsp_get_length(cs40l26->dsp, wseq_name, CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_PM_ALGO_ID, &wseq_params->max_size_bytes);
 	if (error)
 		return error;
 
-	error = cs40l26_wseq_populate(cs40l26, &cs40l26->aseq);
+	error = cl_dsp_get_reg(cs40l26->dsp, wseq_name, CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_PM_ALGO_ID, &wseq_params->base_addr);
 	if (error)
 		return error;
 
-	cs40l26->pseq.size_bytes = CS40L26_PSEQ_MAX_BYTES;
-	cs40l26->pseq.size_words = CS40L26_PSEQ_MAX_WORDS;
-
-	INIT_LIST_HEAD(&cs40l26->pseq.ops);
-
-	error = cl_dsp_get_reg(cs40l26->dsp, "POWER_ON_SEQUENCE", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_PM_ALGO_ID, &cs40l26->pseq.base_addr);
-	if (error)
+	error = cs40l26_wseq_get_reg_addr(cs40l26, CS40L26_WSEQ_OP_END_ADDR, CS40L26_WSEQ_OP_END,
+			wseq_params, wseq_params->max_size_bytes, &wseq_params->list_term_addr);
+	if (error < 0) {
 		return error;
+	} else if (error == 0) {
+		dev_err(cs40l26->dev, "Failed to find list terminator for %s\n", wseq_name);
+		return -EINVAL;
+	}
 
-	return cs40l26_wseq_populate(cs40l26, &cs40l26->pseq);
+	wseq_params->size_bytes = wseq_params->list_term_addr - wseq_params->base_addr + 4;
+
+	return 0;
 }
 
 static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 reg, u32 val, u32 bit_mask)
@@ -1593,7 +1544,7 @@ static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 reg, u32
 	if (bit_mask & CS40L26_WSEQ_UPPER_MASK) {
 		error = cs40l26_wseq_write(cs40l26, reg,
 				FIELD_GET(CS40L26_WSEQ_UPPER_MASK, new_mask),
-				true, CS40L26_WSEQ_OP_WRITE_H16, &cs40l26->pseq);
+				true, CS40L26_WSEQ_OP_WRITE_H16, &pseq_params);
 		if (error)
 			return error;
 	}
@@ -1601,7 +1552,7 @@ static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 reg, u32
 	if (bit_mask & CS40L26_WSEQ_LOWER_MASK) {
 		error = cs40l26_wseq_write(cs40l26, reg,
 				FIELD_GET(CS40L26_WSEQ_LOWER_MASK, new_mask),
-				true, CS40L26_WSEQ_OP_WRITE_L16, &cs40l26->pseq);
+				true, CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 		if (error)
 			return error;
 	}
@@ -3295,7 +3246,7 @@ static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 			return error;
 
 		error = cs40l26_wseq_write(cs40l26, CS40L26_GPIO_PAD_CONTROL, pad_val, true,
-				CS40L26_WSEQ_OP_WRITE_FULL, &cs40l26->pseq);
+				CS40L26_WSEQ_OP_WRITE_FULL, &pseq_params);
 		if (error)
 			return error;
 
@@ -3390,7 +3341,7 @@ static int cs40l26_brwnout_prevention_init(struct cs40l26_private *cs40l26)
 	}
 
 	error = cs40l26_wseq_write(cs40l26, CS40L26_BLOCK_ENABLES2, enables, true,
-			CS40L26_WSEQ_OP_WRITE_FULL, &cs40l26->pseq);
+			CS40L26_WSEQ_OP_WRITE_FULL, &pseq_params);
 	if (error)
 		return error;
 
@@ -3431,13 +3382,13 @@ static int cs40l26_brwnout_prevention_init(struct cs40l26_private *cs40l26)
 
 		error = cs40l26_wseq_write(cs40l26, CS40L26_VBBR_CONFIG,
 				(vbbr_config & CS40L26_WSEQ_UPPER_MASK) >> 16,
-				true, CS40L26_WSEQ_OP_WRITE_H16, &cs40l26->pseq);
+				true, CS40L26_WSEQ_OP_WRITE_H16, &pseq_params);
 		if (error)
 			return error;
 
 		error = cs40l26_wseq_write(cs40l26, CS40L26_VBBR_CONFIG,
 				(vbbr_config & CS40L26_WSEQ_LOWER_MASK),
-				true, CS40L26_WSEQ_OP_WRITE_L16, &cs40l26->pseq);
+				true, CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 		if (error)
 			return error;
 	}
@@ -3479,13 +3430,13 @@ static int cs40l26_brwnout_prevention_init(struct cs40l26_private *cs40l26)
 
 		error = cs40l26_wseq_write(cs40l26, CS40L26_VPBR_CONFIG,
 				(vpbr_config & CS40L26_WSEQ_UPPER_MASK) >> 16,
-				true, CS40L26_WSEQ_OP_WRITE_H16, &cs40l26->pseq);
+				true, CS40L26_WSEQ_OP_WRITE_H16, &pseq_params);
 		if (error)
 			return error;
 
 		error = cs40l26_wseq_write(cs40l26, CS40L26_VPBR_CONFIG,
 				(vpbr_config & GENMASK(15, 0)),
-				true, CS40L26_WSEQ_OP_WRITE_L16, &cs40l26->pseq);
+				true, CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 		if (error)
 			return error;
 	}
@@ -3521,7 +3472,7 @@ static int cs40l26_dc_wd_config(struct cs40l26_private *cs40l26)
 		return error;
 
 	error = cs40l26_wseq_write(cs40l26, CS40L26_ALIVE_DCIN_WD, wd_config, true,
-			CS40L26_WSEQ_OP_WRITE_L16, &cs40l26->pseq);
+			CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 	if (error)
 		return error;
 
@@ -3552,7 +3503,7 @@ static int cs40l26_asp_config(struct cs40l26_private *cs40l26)
 	}
 
 	error = cs40l26_wseq_multi_write(cs40l26, dsp1rx_config, 2, true,
-			CS40L26_WSEQ_OP_WRITE_L16, &cs40l26->pseq);
+			CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 
 err_free:
 	kfree(dsp1rx_config);
@@ -3577,8 +3528,8 @@ static int cs40l26_bst_dcm_config(struct cs40l26_private *cs40l26)
 		if (error)
 			return error;
 
-		error = cs40l26_wseq_write(cs40l26, CS40L26_BST_DCM_CTL,
-				val, true, CS40L26_WSEQ_OP_WRITE_FULL, &cs40l26->pseq);
+		error = cs40l26_wseq_write(cs40l26, CS40L26_BST_DCM_CTL, val, true,
+				CS40L26_WSEQ_OP_WRITE_FULL, &pseq_params);
 	}
 
 	return error;
@@ -3673,7 +3624,7 @@ static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
 	}
 
 	error = cs40l26_wseq_write(cs40l26, CS40L26_BST_IPK_CTL, bst_ipk, true,
-			CS40L26_WSEQ_OP_WRITE_L16, &cs40l26->pseq);
+			CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 	if (error)
 		return error;
 
@@ -3698,7 +3649,7 @@ static int cs40l26_bst_ctl_config(struct cs40l26_private *cs40l26)
 	}
 
 	error = cs40l26_wseq_write(cs40l26, CS40L26_VBST_CTL_1, bst_ctl, true,
-			CS40L26_WSEQ_OP_WRITE_L16, &cs40l26->pseq);
+			CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 	if (error)
 		return error;
 
@@ -3713,7 +3664,7 @@ static int cs40l26_bst_ctl_config(struct cs40l26_private *cs40l26)
 		return error;
 
 	return cs40l26_wseq_write(cs40l26, CS40L26_VBST_CTL_2, vbst_ctl_2, true,
-			CS40L26_WSEQ_OP_WRITE_FULL, &cs40l26->pseq);
+			CS40L26_WSEQ_OP_WRITE_FULL, &pseq_params);
 }
 
 static int cs40l26_noise_gate_config(struct cs40l26_private *cs40l26)
@@ -3744,18 +3695,18 @@ static int cs40l26_noise_gate_config(struct cs40l26_private *cs40l26)
 		return error;
 
 	return cs40l26_wseq_write(cs40l26, CS40L26_NG_CONFIG, ng_config, true,
-			CS40L26_WSEQ_OP_WRITE_FULL, &cs40l26->pseq);
+			CS40L26_WSEQ_OP_WRITE_FULL, &pseq_params);
 }
 
 static int cs40l26_aux_noise_gate_config(struct cs40l26_private *cs40l26)
 {
-	struct cs40l26_wseq *seq;
+	struct cs40l26_wseq_params *wseq_params;
 	u32 aux_ng_config;
 	int error;
 
 	/* Configure AUX noise gate source */
 	error = cs40l26_wseq_write(cs40l26, CS40L26_NGATE1_INPUT, CS40L26_DATA_SRC_DSP1TX4,
-			true, CS40L26_WSEQ_OP_WRITE_L16, &cs40l26->pseq);
+			true, CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 	if (error)
 		return error;
 
@@ -3770,12 +3721,12 @@ static int cs40l26_aux_noise_gate_config(struct cs40l26_private *cs40l26)
 			FIELD_PREP(CS40L26_AUX_NG_EN_MASK, cs40l26->aux_ng_enable);
 
 	if (cs40l26->revid == CS40L26_REVID_B2)
-		seq = &cs40l26->aseq;
+		wseq_params = &aseq_params;
 	else
-		seq = &cs40l26->pseq;
+		wseq_params = &pseq_params;
 
 	return cs40l26_wseq_write(cs40l26, CS40L26_MIXER_NGATE_CH1_CFG, aux_ng_config, true,
-			CS40L26_WSEQ_OP_WRITE_FULL, seq);
+			CS40L26_WSEQ_OP_WRITE_FULL, wseq_params);
 }
 
 static int cs40l26_clip_lvl_config(struct cs40l26_private *cs40l26)
@@ -3787,8 +3738,9 @@ static int cs40l26_clip_lvl_config(struct cs40l26_private *cs40l26)
 	if (error)
 		return error;
 
-	error = cs40l26_wseq_write(cs40l26, CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE1,
-			false, CS40L26_WSEQ_OP_WRITE_L16, &cs40l26->pseq);
+	error = cs40l26_wseq_write(cs40l26, CS40L26_TEST_KEY_CTRL,
+			CS40L26_TEST_KEY_UNLOCK_CODE1, false,
+			CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 	if (error)
 		return error;
 
@@ -3796,8 +3748,9 @@ static int cs40l26_clip_lvl_config(struct cs40l26_private *cs40l26)
 	if (error)
 		return error;
 
-	error = cs40l26_wseq_write(cs40l26, CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE2,
-			false, CS40L26_WSEQ_OP_WRITE_ADDR8, &cs40l26->pseq);
+	error = cs40l26_wseq_write(cs40l26, CS40L26_TEST_KEY_CTRL,
+			CS40L26_TEST_KEY_UNLOCK_CODE2, false,
+			CS40L26_WSEQ_OP_WRITE_ADDR8, &pseq_params);
 	if (error)
 		return error;
 
@@ -3823,7 +3776,7 @@ static int cs40l26_clip_lvl_config(struct cs40l26_private *cs40l26)
 	}
 
 	error = cs40l26_wseq_write(cs40l26, CS40L26_DIGPWM_CONFIG2, digpwm_config, false,
-			CS40L26_WSEQ_OP_WRITE_FULL, &cs40l26->pseq);
+			CS40L26_WSEQ_OP_WRITE_FULL, &pseq_params);
 	if (error)
 		return error;
 
@@ -3832,7 +3785,7 @@ static int cs40l26_clip_lvl_config(struct cs40l26_private *cs40l26)
 		return error;
 
 	return cs40l26_wseq_write(cs40l26, CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_LOCK_CODE,
-			false, CS40L26_WSEQ_OP_WRITE_L16, &cs40l26->pseq);
+			false, CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 }
 
 static int cs40l26_lbst_short_test(struct cs40l26_private *cs40l26)
@@ -3926,7 +3879,7 @@ static int cs40l26_handle_a1_errata(struct cs40l26_private *cs40l26)
 	}
 
 	return cs40l26_wseq_multi_write(cs40l26, cs40l26_a1_errata, num_writes,
-			false, CS40L26_WSEQ_OP_WRITE_FULL, &cs40l26->pseq);
+			false, CS40L26_WSEQ_OP_WRITE_FULL, &pseq_params);
 }
 
 static int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc_type dbc, u32 val)
@@ -4140,13 +4093,17 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	cs40l26_debugfs_init(cs40l26);
 #endif
 
-	error = cs40l26_wseq_init(cs40l26);
+	error = cs40l26_wseq_init(cs40l26, CS40L26_WSEQ_ACTIVE_NAME, &aseq_params);
+	if (error)
+		return error;
+
+	error = cs40l26_wseq_init(cs40l26, CS40L26_WSEQ_POWER_ON_NAME, &pseq_params);
 	if (error)
 		return error;
 
 	/* Set speaker output to HI-Z when amplifier is disabled */
 	error = cs40l26_wseq_write(cs40l26, CS40L26_TST_DAC_MSM_CONFIG, CS40L26_SPK_DEFAULT_HIZ,
-			true, CS40L26_WSEQ_OP_WRITE_H16, &cs40l26->pseq);
+			true, CS40L26_WSEQ_OP_WRITE_H16, &pseq_params);
 	if (error)
 		return error;
 
@@ -4739,9 +4696,8 @@ static int cs40l26_request_irq(struct cs40l26_private *cs40l26)
 
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 {
-	struct device *dev = cs40l26->dev;
 	bool re_enable = false;
-	int error, i, pseq_bytes_after_end;
+	int error;
 
 	if (cs40l26->fw_loaded) {
 		disable_irq(cs40l26->irq);
@@ -4749,27 +4705,13 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 		re_enable = true;
 	}
 
-	/* Clear write sequence memory following the end of script operation */
-	pseq_bytes_after_end = CS40L26_PSEQ_MAX_BYTES -
-			(cs40l26->rom_regs->rom_pseq_end_of_script -
-			cs40l26->pseq.base_addr);
-	for (i = 0; i < pseq_bytes_after_end / CL_DSP_BYTES_PER_WORD; i++) {
-		error = cs40l26_dsp_write(cs40l26,
-				cs40l26->rom_regs->rom_pseq_end_of_script + (i * 4), 0);
-		if (error)
-			return error;
-	}
-
-	/* reset pseq END_OF_SCRIPT to location from ROM */
-	error = cs40l26_dsp_write(cs40l26, cs40l26->rom_regs->rom_pseq_end_of_script,
-			CS40L26_WSEQ_OP_END << CS40L26_WSEQ_OP_SHIFT);
-	if (error) {
-		dev_err(dev, "Failed to reset pseq END_OF_SCRIPT %d\n", error);
+	error = cs40l26_wseq_clear(cs40l26, &pseq_params);
+	if (error)
 		return error;
-	}
 
-	cs40l26_wseq_clear(cs40l26, &cs40l26->aseq);
-	cs40l26_wseq_clear(cs40l26, &cs40l26->pseq);
+	error = cs40l26_wseq_clear(cs40l26, &aseq_params);
+	if (error)
+		return error;
 
 	if (id == CS40L26_FW_CALIB_ID)
 		cs40l26->calib_fw = true;
@@ -5402,6 +5344,7 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 {
 	struct regulator *vp_consumer = cs40l26_supplies[CS40L26_VP_SUPPLY].consumer;
 	struct regulator *va_consumer = cs40l26_supplies[CS40L26_VA_SUPPLY].consumer;
+	int error;
 
 	disable_irq(cs40l26->irq);
 	mutex_destroy(&cs40l26->lock);
@@ -5428,8 +5371,13 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 	if (cs40l26->vibe_init_success)
 		sysfs_remove_groups(&cs40l26->input->dev.kobj, cs40l26_attr_groups);
 
-	cs40l26_wseq_clear(cs40l26, &cs40l26->aseq);
-	cs40l26_wseq_clear(cs40l26, &cs40l26->pseq);
+	error = cs40l26_wseq_clear(cs40l26, &pseq_params);
+	if (error)
+		return error;
+
+	error = cs40l26_wseq_clear(cs40l26, &aseq_params);
+	if (error)
+		return error;
 
 #ifdef CONFIG_DEBUG_FS
 	cs40l26_debugfs_cleanup(cs40l26);
@@ -5441,6 +5389,12 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cs40l26_remove);
+
+struct cs40l26_wseq_params aseq_params;
+EXPORT_SYMBOL_GPL(aseq_params);
+
+struct cs40l26_wseq_params pseq_params;
+EXPORT_SYMBOL_GPL(pseq_params);
 
 int cs40l26_pm_enter(struct device *dev)
 {
