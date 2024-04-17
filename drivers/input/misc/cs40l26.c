@@ -5396,21 +5396,13 @@ EXPORT_SYMBOL_GPL(aseq_params);
 struct cs40l26_wseq_params pseq_params;
 EXPORT_SYMBOL_GPL(pseq_params);
 
-int cs40l26_pm_enter(struct device *dev)
+inline int cs40l26_pm_enter(struct device *dev)
 {
-	int error;
-
-	error = pm_runtime_get_sync(dev);
-	if (error < 0) {
-		cs40l26_resume_error_handle(dev, error);
-		return error;
-	}
-
-	return 0;
+	return pm_runtime_resume_and_get(dev);
 }
 EXPORT_SYMBOL_GPL(cs40l26_pm_enter);
 
-void cs40l26_pm_exit(struct device *dev)
+inline void cs40l26_pm_exit(struct device *dev)
 {
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -5451,16 +5443,6 @@ int cs40l26_sys_suspend_noirq(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cs40l26_sys_suspend_noirq);
-
-void cs40l26_resume_error_handle(struct device *dev, int error)
-{
-	dev_alert(dev, "PM Runtime Resume failed: %d\n", error);
-
-	pm_runtime_set_active(dev);
-
-	cs40l26_pm_exit(dev);
-}
-EXPORT_SYMBOL_GPL(cs40l26_resume_error_handle);
 
 int cs40l26_resume(struct device *dev)
 {
