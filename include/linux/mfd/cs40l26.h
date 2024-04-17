@@ -1260,9 +1260,8 @@ int cs40l26_get_ram_ext_algo_id(struct cs40l26_private *cs40l26, unsigned int *a
 int cs40l26_mailbox_write(struct cs40l26_private *cs40l26, u32 write_val);
 inline void cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26);
 inline void cs40l26_pm_runtime_teardown(struct cs40l26_private *cs40l26);
-int cs40l26_pm_enter(struct device *dev);
-void cs40l26_pm_exit(struct device *dev);
-void cs40l26_resume_error_handle(struct device *dev, int ret);
+inline int cs40l26_pm_enter(struct device *dev);
+inline void cs40l26_pm_exit(struct device *dev);
 int cs40l26_resume(struct device *dev);
 int cs40l26_sys_resume(struct device *dev);
 int cs40l26_sys_resume_noirq(struct device *dev);
