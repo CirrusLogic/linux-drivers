@@ -15,7 +15,6 @@
 #include <sound/madera-pdata.h>
 
 #define MADERA_MAX_MICBIAS		4
-#define MADERA_MAX_CHILD_MICBIAS	4
 
 #define MADERA_MAX_GPSW			2
 

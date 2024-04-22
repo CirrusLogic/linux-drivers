@@ -12,6 +12,7 @@
 #include <linux/completion.h>
 #include <sound/soc.h>
 #include <sound/madera-pdata.h>
+#include <linux/mfd/madera/registers.h>
 
 #include "wm_adsp.h"
 
@@ -117,17 +118,94 @@ struct madera_dai_priv {
 	struct snd_pcm_hw_constraint_list constraint;
 };
 
+#define MADERA_MICD_LVL_1_TO_7 \
+		(MADERA_MICD_LVL_1 | MADERA_MICD_LVL_2 | \
+		 MADERA_MICD_LVL_3 | MADERA_MICD_LVL_4 | \
+		 MADERA_MICD_LVL_5 | MADERA_MICD_LVL_6 | \
+		 MADERA_MICD_LVL_7)
+
+#define MADERA_MICD_LVL_0_TO_7 (MADERA_MICD_LVL_0 | MADERA_MICD_LVL_1_TO_7)
+
+#define MADERA_MICD_LVL_0_TO_8 (MADERA_MICD_LVL_0_TO_7 | MADERA_MICD_LVL_8)
+
+struct madera_micd_bias {
+	unsigned int bias;
+	bool enabled;
+};
+
+struct madera_hpdet_trims {
+	int off_x4;
+	int grad_x4;
+};
+
+enum madera_accdet_mode {
+	MADERA_ACCDET_MODE_MIC,
+	MADERA_ACCDET_MODE_HPL,
+	MADERA_ACCDET_MODE_HPR,
+	MADERA_ACCDET_MODE_HPM,
+	MADERA_ACCDET_MODE_ADC,
+	MADERA_ACCDET_MODE_INVALID,
+};
+
+struct madera_jack {
+	const struct madera_accdet_pdata *pdata;
+	struct mutex lock;
+	struct regulator *micvdd;
+	struct snd_soc_jack *jack;
+	struct gpio_desc *micd_pol_gpio;
+	bool probed;
+	int jack_state;
+	u16 last_jackdet;
+
+	const struct madera_hpdet_calibration_data *hpdet_ranges;
+	int num_hpdet_ranges;
+	unsigned int hpdet_init_range;
+	const struct madera_hpdet_trims *hpdet_trims;
+	unsigned int hpdet_short_x100;
+	int micd_mode;
+	const struct madera_micd_config *micd_modes;
+	int num_micd_modes;
+	const struct madera_micd_range *micd_ranges;
+	int num_micd_ranges;
+	int micd_button_mask;
+
+	int micd_res_old;
+	int micd_debounce;
+	int micd_count;
+
+	struct completion manual_mic_completion;
+	struct delayed_work micd_detect_work;
+
+	bool have_mic;
+	bool detecting;
+	int jack_flips;
+
+	const struct madera_jd_state *state;
+	struct delayed_work state_timeout_work;
+	struct madera_micd_bias micd_bias;
+
+	unsigned int out_clamp[MADERA_MAX_OUTPUT];
+	unsigned int out_shorted[MADERA_MAX_OUTPUT];
+	unsigned int hp_ena;
+	unsigned int ep_sel;
+	unsigned int hp_impedance_x100[MADERA_MAX_ACCESSORY];
+	/** MICBIAS configurations */
+	struct madera_micbias_pdata micbias[MADERA_MAX_MICBIAS];
+	/** Accessory detection configurations */
+	struct madera_accdet_pdata accdet[MADERA_MAX_ACCESSORY];
+};
+
 struct madera_priv {
 	struct wm_adsp adsp[MADERA_MAX_ADSP];
 	struct madera *madera;
 	struct device *dev;
+	struct madera_jack jack;
 	int sysclk;
 	int asyncclk;
 	int dspclk;
 	struct madera_dai_priv dai[MADERA_MAX_DAI];
 
 	int num_inputs;
-
 	unsigned int in_pending;
 
 	unsigned int out_up_pending;
@@ -434,6 +512,11 @@ int madera_init_dai(struct madera_priv *priv, int id);
 
 int madera_set_output_mode(struct snd_soc_component *component, int output,
 			   bool differential);
+
+int madera_jack_probe(struct madera_priv *info, struct device *dev);
+void madera_jack_remove(struct madera_priv *info);
+int madera_jack_set(struct snd_soc_component *component,
+		    struct snd_soc_jack *jack, void *data);
 
 /* Following functions are for use by machine drivers */
 static inline int madera_register_notifier(struct snd_soc_component *component,

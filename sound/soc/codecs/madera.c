@@ -471,7 +471,7 @@ int madera_core_init(struct madera_priv *priv)
 	mutex_init(&priv->rate_lock);
 
 	for (i = 0; i < MADERA_MAX_HP_OUTPUT; i++)
-		priv->madera->out_clamp[i] = true;
+		priv->jack.out_clamp[i] = true;
 
 	return 0;
 }
@@ -576,7 +576,7 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 
 	/* change demux setting */
 	ret = 0;
-	if (madera->out_clamp[0])
+	if (priv->jack.out_clamp[0])
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_OUTPUT_ENABLES_1,
 					 MADERA_EP_SEL_MASK, ep_sel);
@@ -600,16 +600,16 @@ int madera_out1_demux_put(struct snd_kcontrol *kcontrol,
 	 * OUT1 should remain disabled
 	 */
 	if (ep_sel ||
-	    (madera->out_clamp[0] && !madera->out_shorted[0])) {
+	    (priv->jack.out_clamp[0] && !priv->jack.out_shorted[0])) {
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_OUTPUT_ENABLES_1,
 					 MADERA_OUT1L_ENA | MADERA_OUT1R_ENA,
-					 madera->hp_ena);
+					 priv->jack.hp_ena);
 		if (ret)
 			dev_warn(madera->dev,
 				 "Failed to restore earpiece outputs: %d\n",
 				 ret);
-		else if (madera->hp_ena)
+		else if (priv->jack.hp_ena)
 			msleep(34); /* wait for enable wseq */
 		else
 			usleep_range(2000, 3000); /* wait for disable wseq */
@@ -2434,8 +2434,8 @@ int madera_hp_ev(struct snd_soc_dapm_widget *w,
 	}
 
 	/* Store the desired state for the HP outputs */
-	madera->hp_ena &= ~mask;
-	madera->hp_ena |= val;
+	priv->jack.hp_ena &= ~mask;
+	priv->jack.hp_ena |= val;
 
 	switch (madera->type) {
 	case CS42L92:
@@ -2451,7 +2451,7 @@ int madera_hp_ev(struct snd_soc_dapm_widget *w,
 
 	/* Force off if HPDET has disabled the clamp for this output */
 	if (!ep_sel &&
-	    (!madera->out_clamp[out_num] || madera->out_shorted[out_num]))
+	    (!priv->jack.out_clamp[out_num] || priv->jack.out_shorted[out_num]))
 		val = 0;
 
 	regmap_update_bits(madera->regmap, MADERA_OUTPUT_ENABLES_1, mask, val);

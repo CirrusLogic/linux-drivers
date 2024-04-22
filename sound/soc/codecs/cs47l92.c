@@ -1959,6 +1959,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs47l92 = {
 	.set_sysclk		= &madera_set_sysclk,
 	.set_pll		= &cs47l92_set_fll,
 	.name			= DRV_NAME,
+	.set_jack		= &madera_jack_set,
 	.compress_ops		= &cs47l92_compress_ops,
 	.controls		= cs47l92_snd_controls,
 	.num_controls		= ARRAY_SIZE(cs47l92_snd_controls),
@@ -2056,7 +2057,12 @@ static int cs47l92_probe(struct platform_device *pdev)
 		goto error_pm_runtime;
 	}
 
-	return ret;
+	/* Madera jack is not configured in DT,
+	 * just ignore an error and continue without jack support
+	 */
+	madera_jack_probe(&cs47l92->core, madera->dev);
+
+	return 0;
 
 error_pm_runtime:
 	pm_runtime_disable(&pdev->dev);
@@ -2078,6 +2084,7 @@ static void cs47l92_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
+	madera_jack_remove(&cs47l92->core);
 	madera_free_bus_error_irq(&cs47l92->core, 0);
 	wm_adsp2_remove(&cs47l92->core.adsp[0]);
 
