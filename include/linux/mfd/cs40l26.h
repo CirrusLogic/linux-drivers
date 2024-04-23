@@ -754,7 +754,6 @@
 #define CS40L26_WT_HEADER_DEFAULT_FLAGS		0x0000
 #define CS40L26_WT_HEADER_PWLE_SIZE		12
 #define CS40L26_WT_HEADER_COMP_SIZE		20
-#define CS40L26_WT_SVC_METADATA			BIT(10)
 #define CS40L26_WT_TYPE12_IDENTIFIER		0xC00
 
 #define CS40L26_WT_TYPE10_SECTION_BYTES_MIN	8
@@ -1219,6 +1218,8 @@ struct cs40l26_private {
 	u32 dc_wd_thld;
 	u32 dc_wd_dur;
 	bool dc_wd_mute;
+	u32 braking_time_bank;
+	u32 braking_time_index;
 };
 
 struct cs40l26_codec {
@@ -1246,6 +1247,8 @@ struct cs40l26_pll_sysclk_config {
 int cs40l26_svc_le_estimate(struct cs40l26_private *cs40l26, unsigned int *le);
 int cs40l26_set_pll_loop(struct cs40l26_private *cs40l26, unsigned int pll_loop);
 int cs40l26_asp_start(struct cs40l26_private *cs40l26);
+int cs40l26_num_ram_waves(struct cs40l26_private *cs40l26);
+int cs40l26_num_owt_waves(struct cs40l26_private *cs40l26);
 int cs40l26_num_waves(struct cs40l26_private *cs40l26);
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id);
 int cs40l26_wt_swap(struct cs40l26_private *cs40l26);
