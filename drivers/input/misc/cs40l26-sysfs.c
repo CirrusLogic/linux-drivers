@@ -761,6 +761,256 @@ static ssize_t init_rom_wavetable_store(struct device *dev, struct device_attrib
 }
 static DEVICE_ATTR_WO(init_rom_wavetable);
 
+static int cs40l26_braking_time_find(struct cs40l26_private *cs40l26, struct cl_dsp_memchunk *ch,
+		u32 index, u32 current_index)
+{
+	u32 metadata_word = 0, period = 0;
+	int error;
+
+	/*
+	 * In the OWT wavetable, the metadata is appended to the end
+	 * of the waveform header section.
+	 */
+	do {
+		error = cl_dsp_memchunk_read(cs40l26->dsp, ch, 24, &metadata_word);
+		if (error)
+			return error;
+
+		if (FIELD_GET(CL_DSP_MD_TYPE_MASK, metadata_word) == CL_DSP_SVC_ID &&
+				FIELD_GET(CL_DSP_MD_LENGTH_MASK, metadata_word) ==
+				CL_DSP_SVC_LEN && (index == current_index)) {
+			/* Braking period is second word of SVC metadata */
+			error = cl_dsp_memchunk_read(cs40l26->dsp, ch, 24, &period);
+			if (error)
+				return error;
+
+			/* Braking period is stored as milliseconds * 8 */
+			return (period / 8);
+		}
+	} while (metadata_word != CL_DSP_MD_TERMINATOR);
+
+	return 0;
+}
+
+static int cs40l26_owt_size_get(struct cs40l26_private *cs40l26)
+{
+	u32 offset, offset_reg, owt_base, owt_base_reg;
+	int error;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "OWT_BASE_XM", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &owt_base_reg);
+	if (error)
+		return error;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "OWT_NEXT_XM", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &offset_reg);
+	if (error)
+		return error;
+
+	error = regmap_read(cs40l26->regmap, offset_reg, &offset);
+	if (error)
+		return error;
+
+	error = regmap_read(cs40l26->regmap, owt_base_reg, &owt_base);
+	if (error)
+		return error;
+
+	if (owt_base > offset)
+		return -ENOMEM;
+
+	return ((offset - owt_base) * CL_DSP_BYTES_PER_WORD);
+}
+
+static int cs40l26_owt_braking_time_get(struct cs40l26_private *cs40l26, u32 index,
+		unsigned int *braking_time)
+{
+	u32 current_index = 0, size = 0;
+	u32 owt_base, owt_base_reg, wavetable_reg;
+	struct cl_dsp_memchunk ch;
+	int error, owt_size_bytes;
+	u8 type, *wavetable;
+	u16 flags;
+
+	owt_size_bytes = cs40l26_owt_size_get(cs40l26);
+	if (owt_size_bytes < 0)
+		return owt_size_bytes;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "OWT_BASE_XM", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &owt_base_reg);
+	if (error)
+		return error;
+
+	error = regmap_read(cs40l26->regmap, owt_base_reg, &owt_base);
+	if (error)
+		return error;
+
+	wavetable = kmalloc(owt_size_bytes, GFP_KERNEL);
+	if (!wavetable)
+		return -ENOMEM;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "WAVE_XM_TABLE", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &wavetable_reg);
+	if (error)
+		goto wt_free;
+
+	error = regmap_raw_read(cs40l26->regmap, wavetable_reg +
+			(owt_base * CL_DSP_BYTES_PER_WORD), wavetable, owt_size_bytes);
+	if (error)
+		goto wt_free;
+
+	ch = cl_dsp_memchunk_create(wavetable, owt_size_bytes);
+
+	/* Ensure there's enough unread space to read at least one header */
+	while ((ch.max - ch.data) >= CS40L26_WT_HEADER_PWLE_SIZE) {
+		error = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 16, &flags);
+		if (error)
+			goto wt_free;
+
+		error = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8, &type);
+		if (error)
+			goto wt_free;
+
+		error = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 24, NULL);
+		if (error)
+			goto wt_free;
+
+		error = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 24, &size);
+		if (error)
+			goto wt_free;
+
+		if (flags & CL_DSP_MD_PRESENT) {
+			error = cs40l26_braking_time_find(cs40l26, &ch,
+					index, current_index);
+			if (error < 0) {
+				goto wt_free;
+			} else if (error > 0) {
+				*braking_time = error;
+				error = 0;
+				goto wt_free;
+			}
+		} else {
+			/* Skip header terminator word */
+			error = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 24, NULL);
+			if (error)
+				goto wt_free;
+		}
+
+		/* Skip to the start of the next waveform's header */
+		while (size-- > 0) {
+			error = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 24, NULL);
+			if (error)
+				goto wt_free;
+		}
+
+		/* Exit if we are looking past the desired index */
+		if (++current_index > index) {
+			error = -EINVAL;
+			goto wt_free;
+		}
+	}
+wt_free:
+	if (error)
+		dev_err(cs40l26->dev, "Braking time not found for OWT index %u\n", index);
+
+	kfree(wavetable);
+
+	return error;
+}
+
+static ssize_t braking_time_bank_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error;
+	u32 bank;
+
+	error = kstrtou32(buf, 10, &bank);
+	if (error)
+		return error;
+
+	if (bank != CS40L26_RAM_BANK_ID && bank != CS40L26_OWT_BANK_ID) {
+		dev_err(cs40l26->dev, "Bank %u unsupported\n", bank);
+		return -EINVAL;
+	}
+
+	mutex_lock(&cs40l26->lock);
+
+	cs40l26->braking_time_bank = bank;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return count;
+}
+static DEVICE_ATTR_WO(braking_time_bank);
+
+static ssize_t braking_time_index_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error;
+	u32 index;
+
+	error = kstrtou32(buf, 10, &index);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	cs40l26->braking_time_index = index;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return count;
+}
+static DEVICE_ATTR_WO(braking_time_index);
+
+static ssize_t braking_time_ms_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 index = cs40l26->braking_time_index;
+	unsigned int braking_time = 0;
+	int error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	switch (cs40l26->braking_time_bank) {
+	case CS40L26_RAM_BANK_ID:
+		if (index > (cs40l26_num_ram_waves(cs40l26) - 1)) {
+			dev_err(cs40l26->dev, "Index exceeds number of RAM effects\n");
+			error = -EINVAL;
+			goto err_mutex;
+		}
+
+		braking_time = cs40l26->dsp->wt_desc->owt.waves[index].braking_time;
+		break;
+	case CS40L26_OWT_BANK_ID:
+		if (index > (cs40l26_num_owt_waves(cs40l26) - 1)) {
+			dev_err(cs40l26->dev, "Index exceeds number of OWT effects\n");
+			error = -EINVAL;
+			goto err_mutex;
+		}
+
+		error = cs40l26_owt_braking_time_get(cs40l26, index, &braking_time);
+		break;
+	default:
+		dev_err(cs40l26->dev, "Bank %u unsupported\n", cs40l26->braking_time_bank);
+		error = -EINVAL;
+		break;
+	}
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", braking_time);
+}
+static DEVICE_ATTR_RO(braking_time_ms);
+
 static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_num_waves.attr,
 	&dev_attr_die_temp.attr,
@@ -780,6 +1030,9 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_owt_lib_compat.attr,
 	&dev_attr_overprotection_gain.attr,
 	&dev_attr_init_rom_wavetable.attr,
+	&dev_attr_braking_time_bank.attr,
+	&dev_attr_braking_time_index.attr,
+	&dev_attr_braking_time_ms.attr,
 	NULL,
 };
 

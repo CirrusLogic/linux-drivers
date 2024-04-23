@@ -1955,7 +1955,7 @@ static int cs40l26_playback_effect(struct input_dev *dev,
 	return 0;
 }
 
-static int cs40l26_num_ram_waves(struct cs40l26_private *cs40l26)
+int cs40l26_num_ram_waves(struct cs40l26_private *cs40l26)
 {
 	u32 num_of_waves, reg;
 	int error;
@@ -1974,8 +1974,9 @@ static int cs40l26_num_ram_waves(struct cs40l26_private *cs40l26)
 
 	return (int) num_of_waves;
 }
+EXPORT_SYMBOL_GPL(cs40l26_num_ram_waves);
 
-static int cs40l26_num_owt_waves(struct cs40l26_private *cs40l26)
+int cs40l26_num_owt_waves(struct cs40l26_private *cs40l26)
 {
 	u32 owt_num_of_waves, reg;
 	int error;
@@ -1994,6 +1995,7 @@ static int cs40l26_num_owt_waves(struct cs40l26_private *cs40l26)
 
 	return (int) owt_num_of_waves;
 }
+EXPORT_SYMBOL_GPL(cs40l26_num_owt_waves);
 
 int cs40l26_num_waves(struct cs40l26_private *cs40l26)
 {
