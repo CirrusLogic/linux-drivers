@@ -95,6 +95,42 @@ Description:
 
 		Valid values: 1 (integer)
 
+What:		/sys/class/input/input(x)/default/braking_time_bank
+Date:		April 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Specify the bank of the effect from which braking time
+		information is to be read.
+
+		Access: Write
+
+		Valid values:
+			0: RAM bank
+			2: OWT bank
+
+What:		/sys/class/input/input(x)/default/braking_time_index
+Date:		April 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Specify the index in the 0-indexed wavetable of the effect from
+		which braking time information is to be read.
+
+		Access: Write
+
+		Valid values:
+			Minimum: 0
+
+What:		/sys/class/input/input(x)/default/braking_time_ms
+Date:		April 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Braking time in milliseconds of SVC effect specified by
+		braking_time_index and braking_time_bank.
+
+		A non-SVC effect will return a braking time of 0 ms.
+
+		Access: Read
+
 What:		/sys/class/input/input(x)/default/num_waves
 Date:		December 2023
 Contact:	patches@opensource.cirrus.com
