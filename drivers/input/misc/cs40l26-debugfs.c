@@ -311,37 +311,41 @@ static const struct {
 
 static void cs40l26_hw_debugfs_init(struct cs40l26_private *cs40l26)
 {
+	struct dentry *hw_node;
 	int i;
 
-	cs40l26->debugfs_hw_node = debugfs_create_dir("hardware", cs40l26->debugfs_root);
-	if (IS_ERR_OR_NULL(cs40l26->debugfs_hw_node)) {
+	hw_node = debugfs_create_dir("hardware", cs40l26->debugfs_root);
+
+	if (IS_ERR_OR_NULL(hw_node)) {
 		dev_err(cs40l26->dev, "Failed to mount hardware debugfs directory\n");
-		kfree(cs40l26->debugfs_hw_node);
 		return;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(cs40l26_hw_debugfs_fops); i++)
 		debugfs_create_file(cs40l26_hw_debugfs_fops[i].name, CL_DSP_DEBUGFS_RW_FILE_MODE,
-				cs40l26->debugfs_hw_node, cs40l26,
-				&cs40l26_hw_debugfs_fops[i].fops);
+				hw_node, cs40l26, &cs40l26_hw_debugfs_fops[i].fops);
 }
 
 void cs40l26_debugfs_init(struct cs40l26_private *cs40l26)
 {
-	struct dentry *root = NULL;
-	int i;
+	struct i2c_client *client = to_i2c_client(cs40l26->dev);
+	char name[CS40L26_DEBUGFS_DIR_NAME_LEN];
+	int error, i;
 
 	cs40l26_debugfs_cleanup(cs40l26);
 
-	root = debugfs_create_dir("cs40l26", NULL);
-	if (!root)
+	error = snprintf(name, CS40L26_DEBUGFS_DIR_NAME_LEN, "%s-%d-00%X",
+			client->name, client->adapter->nr, client->addr);
+	if (error < 0) {
+		dev_err(cs40l26->dev, "Failed to format debugFS name: %d\n", error);
 		return;
+	}
+
+	cs40l26->debugfs_root = debugfs_create_dir(name, NULL);
 
 	for (i = 0; i < ARRAY_SIZE(cs40l26_debugfs_fops); i++)
 		debugfs_create_file(cs40l26_debugfs_fops[i].name, CL_DSP_DEBUGFS_RW_FILE_MODE,
-				root, cs40l26, &cs40l26_debugfs_fops[i].fops);
-
-	cs40l26->debugfs_root = root;
+				cs40l26->debugfs_root, cs40l26, &cs40l26_debugfs_fops[i].fops);
 
 	cs40l26_hw_debugfs_init(cs40l26);
 
@@ -361,6 +365,7 @@ void cs40l26_debugfs_cleanup(struct cs40l26_private *cs40l26)
 	cl_dsp_debugfs_destroy(cs40l26->cl_dsp_db);
 	cs40l26->cl_dsp_db = NULL;
 	debugfs_remove_recursive(cs40l26->debugfs_root);
+	cs40l26->debugfs_root = NULL;
 }
 EXPORT_SYMBOL_GPL(cs40l26_debugfs_cleanup);
 
