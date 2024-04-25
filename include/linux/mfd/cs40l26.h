@@ -213,6 +213,7 @@
 /* DebugFS */
 #define CS40L26_ALGO_ID_MAX_STR_LEN	12
 #define CS40L26_HW_STR_LEN		16
+#define CS40L26_DEBUGFS_DIR_NAME_LEN	20
 
 /* Write Sequencer */
 #define CS40L26_WSEQ_NAME_MAX_LEN	17
@@ -1180,7 +1181,6 @@ struct cs40l26_private {
 	const struct cs40l26_rom_data *rom_data;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_root;
-	struct dentry *debugfs_hw_node;
 	u32 dbg_hw_reg;
 	struct cl_dsp_debugfs *cl_dsp_db;
 #endif
