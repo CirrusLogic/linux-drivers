@@ -147,8 +147,8 @@
 #define CL_DSP_OWT_HEADER_ENTRY_SIZE		12
 
 /* Waveform metadata */
-#define CL_DSP_SVC_MD_ID		1
-#define CL_DSP_SVC_MD_LEN		1
+#define CL_DSP_SVC_ID			1
+#define CL_DSP_SVC_LEN			1
 #define CL_DSP_MD_SIZE_MAX_BYTES	28
 #define CL_DSP_MD_PRESENT		BIT(10)
 #define CL_DSP_MD_TERMINATOR		0xFFFFFF
