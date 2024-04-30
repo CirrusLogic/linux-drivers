@@ -115,4 +115,127 @@ properties:
     minItems: 2
     maxItems: 2
 
+  cirrus,micd-detect-debounce-ms:
+    description: |
+     Extra debounce timeout during initial mic detect (milliseconds)
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maxItems: 1
+
+  cirrus,micd-manual-debounce:
+    description: |
+      Extra software debounces during button detection
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maxItems: 1
+
+  cirrus,micd-bias-start-time:
+    description: |
+      Time allowed for MICBIAS to startup prior to
+      performing microphone detection, specified as per the MICD_BIAS_STARTTIME
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maxItems: 1
+
+  cirrus,micd-rate:
+    description: |
+      Delay between successive microphone detection
+      measurements, specified as per the MICD_RATE bits in the register
+      MIC_DETECT_1.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maxItems: 1
+
+  cirrus,micd-dbtime:
+    description: |
+      Mic detect debounce level
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maxItems: 1
+
+  cirrus,micd-timeout-ms:
+    description: |
+      Mic detect timeout (milliseconds)
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maxItems: 1
+
+  cirrus,micd-force-micbias:
+    description: |
+    $ref: /schemas/types.yaml#/definitions/bool
+    maxItems: 1
+
+  cirrus,jd-use-jd2:
+    description: |
+      Set whether JD2 is used for jack detection
+    $ref: /schemas/types.yaml#/definitions/bool
+    maxItems: 1
+
+  cirrus,jd-invert:
+    description: |
+      Set to true if jackdet contact opens on insert
+    $ref: /schemas/types.yaml#/definitions/bool
+    maxItems: 1
+
+  cirrus,fixed-hpdet-imp:
+    description: |
+      If non-zero don't run headphone detection, just report this value
+      Specified as hundredths-of-an-ohm, that is (ohms * 100)
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maxItems: 1
+
+  cirrus,hpdet-short-circuit-imp:
+    description: |
+      If non-zero, specifies the maximum impedance in ohms
+      that will be considered as a short circuit.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maxItems: 1
+
+  cirrus,hpdet-channel:
+    description: |
+      Channel to use for headphone detection, valid values are 0 for
+      left and 1 for right.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maxItems: 1
+
+  cirrus,micd-clamp-mode:
+    description: |
+      Mic detect clamp function
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maxItems: 1
+
+  cirrus,hpdet-ext-res:
+    description: |
+      Impedance of external series resistor on hpdet.
+      Specified as hundredths-of-an-ohm, that is (ohms * 100)
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maxItems: 1
+
+  cirrus,hpd-pins:
+    description: |
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 1
+
+  cirrus,micd-configs:
+    description: |
+      Headset polarity configurations, variable length but
+      must be a multiple of 5 cells, each 5-cell group represents one
+      polarity configuration. First cell is the value of ACCDET_SRC
+      register field (CS47L15, CS47L90 etc.), MICD_SENSE_SEL register
+      field (all other codecs). Second cell is the accessory detection
+      ground as per the MICD_GND_SEL register field. The third cell is
+      the MICBIAS to be used as per the MICD_BIAS_SRC register field.
+      Fourth cell is the value of the micd-pol-gpio pin, a non-zero value
+      indicates this should be on. Fifth cell is set to zero (cs47l15)
+      value of HPn_GND_SEL register field (all other codecs)
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 1
+
+  cirrus,micd-ranges:
+    description: |
+      Microphone detection level and key configuration, this
+      field can be of variable length but should always be a multiple of 2 cells
+      long, each two cell group represents one button configuration
+      The first cell is the maximum impedance for this button in ohms
+      The second cell the key that should be reported to the input layer
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 1
+
 additionalProperties: true
