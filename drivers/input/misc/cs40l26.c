@@ -87,7 +87,7 @@ static int cs40l26_dsp_read(struct cs40l26_private *cs40l26, u32 reg, u32 *val)
 
 	if (i >= CS40L26_DSP_TIMEOUT_COUNT) {
 		dev_err(dev, "Timed out attempting to read 0x%X\n", reg);
-		return -ETIME;
+		return -ETIMEDOUT;
 	}
 
 	*val = read_val;
@@ -112,7 +112,7 @@ static int cs40l26_dsp_write(struct cs40l26_private *cs40l26, u32 reg, u32 val)
 
 	if (i >= CS40L26_DSP_TIMEOUT_COUNT) {
 		dev_err(dev, "Timed out attempting to write to 0x%X\n", reg);
-		return -ETIME;
+		return -ETIMEDOUT;
 	}
 
 	return 0;
