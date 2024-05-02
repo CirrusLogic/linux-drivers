@@ -870,6 +870,12 @@ static int cs40l26_owt_braking_time_get(struct cs40l26_private *cs40l26, u32 ind
 		if (error)
 			goto wt_free;
 
+		if (type != WT_TYPE_V6_PWLE && current_index == index) {
+			dev_err(cs40l26->dev, "Braking time only available for PWLE effects\n");
+			error = -EINVAL;
+			goto wt_free;
+		}
+
 		error = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 24, NULL);
 		if (error)
 			goto wt_free;
@@ -888,7 +894,7 @@ static int cs40l26_owt_braking_time_get(struct cs40l26_private *cs40l26, u32 ind
 				error = 0;
 				goto wt_free;
 			}
-		} else {
+		} else if (type == WT_TYPE_V6_PWLE) {
 			/* Skip header terminator word */
 			error = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 24, NULL);
 			if (error)
