@@ -469,16 +469,7 @@ struct cl_dsp_debugfs *cl_dsp_debugfs_create(struct cl_dsp *dsp,
 	struct cl_dsp_debugfs *db;
 	int ret, i;
 
-	if (IS_ERR(dsp))
-		return ERR_CAST(dsp);
-
-	if (!dsp)
-		return NULL;
-
-	if (IS_ERR(parent_node))
-		return ERR_CAST(parent_node);
-
-	if (!parent_node)
+	if (!dsp || !parent_node)
 		return NULL;
 
 	db = kzalloc(sizeof(*db), GFP_KERNEL);
