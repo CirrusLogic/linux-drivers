@@ -4707,6 +4707,10 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 		re_enable = true;
 	}
 
+	error = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_PREVENT_HIBERNATE);
+	if (error)
+		return error;
+
 	error = cs40l26_wseq_clear(cs40l26, &pseq_params);
 	if (error)
 		return error;
