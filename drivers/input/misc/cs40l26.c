@@ -3706,7 +3706,10 @@ static int cs40l26_aux_noise_gate_config(struct cs40l26_private *cs40l26)
 	u32 aux_ng_config;
 	int error;
 
-	/* Configure AUX noise gate source */
+	error = regmap_write(cs40l26->regmap, CS40L26_NGATE1_INPUT, CS40L26_DATA_SRC_DSP1TX4);
+	if (error)
+		return error;
+
 	error = cs40l26_wseq_write(cs40l26, CS40L26_NGATE1_INPUT, CS40L26_DATA_SRC_DSP1TX4,
 			true, CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 	if (error)
