@@ -3981,7 +3981,7 @@ static int cs40l26_logger_src_add(struct cs40l26_private *cs40l26,
 static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 {
 	enum cs40l26_logger_src_type ep_src_type;
-	u32 exc_reg, imon_reg, reg, src;
+	u32 ep_buf_ptr, imon_buf_ptr, reg, src;
 	int error, i;
 
 	if (cs40l26->log_srcs != NULL) {
@@ -4009,31 +4009,33 @@ static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 			return error;
 
 		error = cl_dsp_get_reg(cs40l26->dsp, "DBG_ADDR", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_EP_ALGO_ID, &exc_reg);
+				CS40L26_EP_ALGO_ID, &ep_buf_ptr);
 		if (error)
 			return error;
 
-		exc_reg += CL_DSP_BYTES_PER_WORD;
-		exc_reg /= CL_DSP_BYTES_PER_WORD;
+		ep_buf_ptr += CL_DSP_BYTES_PER_WORD;
+		ep_buf_ptr /= CL_DSP_BYTES_PER_WORD;
 
 		ep_src_type = cs40l26->revid == CS40L26_REVID_B2 ?
 				CS40L26_LOGGER_SRC_TYPE_XM_TO_YM : CS40L26_LOGGER_SRC_TYPE_XM_TO_XM;
 
 		error = cs40l26_logger_src_add(cs40l26, CS40L26_LOGGER_SRC_SIGN_SIGNED,
 				CS40L26_LOGGER_SRC_SIZE_BLOCK, ep_src_type,
-				CS40L26_LOGGER_SRC_ID_EP, exc_reg);
+				CS40L26_LOGGER_SRC_ID_EP, ep_buf_ptr);
 		if (error)
 			return error;
 	}
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "LOGGER_IMON", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_EXT_ALGO_ID, &imon_reg);
+			CS40L26_EXT_ALGO_ID, &imon_buf_ptr);
 	if (error)
 		return error;
 
+	imon_buf_ptr /= CL_DSP_BYTES_PER_WORD;
+
 	error = cs40l26_logger_src_add(cs40l26, CS40L26_LOGGER_SRC_SIGN_SIGNED,
 			CS40L26_LOGGER_SRC_SIZE_BLOCK, CS40L26_LOGGER_SRC_TYPE_XM_TO_XM,
-			CS40L26_LOGGER_SRC_ID_IMON, imon_reg / 4);
+			CS40L26_LOGGER_SRC_ID_IMON, imon_buf_ptr);
 	if (error)
 		return error;
 
