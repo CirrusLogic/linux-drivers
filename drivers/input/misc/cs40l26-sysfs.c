@@ -2759,6 +2759,47 @@ static ssize_t fw_mem_block_type_store(struct device *dev, struct device_attribu
 }
 static DEVICE_ATTR_RW(fw_mem_block_type);
 
+static ssize_t rth_latch_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 cmd, latch;
+	int error;
+
+	if (cs40l26->revid != CS40L26_REVID_A1 && cs40l26->revid != CS40L26_REVID_B1)
+		return -EPERM;
+
+	error = kstrtou32(buf, 10, &latch);
+	if (error)
+		return error;
+
+	switch (latch) {
+	case CS40L26_RTH_LATCH_MBOX:
+		cmd = CS40L26_DSP_MBOX_CMD_RTH_UPDATE_MBOX;
+		break;
+	case CS40L26_RTH_LATCH_GPI:
+		cmd = CS40L26_DSP_MBOX_CMD_RTH_UPDATE_GPI;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cs40l26_mailbox_write(cs40l26, cmd);
+
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : count;
+}
+static DEVICE_ATTR_WO(rth_latch);
+
 static struct attribute *cs40l26_dev_attrs_fw[] = {
 	&dev_attr_fw_algo_id.attr,
 	&dev_attr_fw_ctrl_name.attr,
@@ -2766,6 +2807,7 @@ static struct attribute *cs40l26_dev_attrs_fw[] = {
 	&dev_attr_fw_ctrl_size_words.attr,
 	&dev_attr_fw_ctrl_val.attr,
 	&dev_attr_fw_mem_block_type.attr,
+	&dev_attr_rth_latch.attr,
 	NULL,
 };
 
