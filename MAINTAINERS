@@ -4950,6 +4950,19 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/cirrus/ep93xx_eth.c
 
+CIRRUS LOGIC CS40L26 HAPTICS DRIVER
+M:	Fred Treven <fred.treven@cirrus.com>
+M:	Ben Bright <ben.bright@cirrus.com>
+M:	James Ogletree <james.ogletree@cirrus.com>
+L:	patches@opensource.cirrus.com
+S:	Supported
+W:	https://github.com/CirrusLogic/linux-drivers/wiki
+T:	git https://github.com/CirrusLogic/linux-drivers.git
+F:	Documentation/devicetree/bindings/input/cs40l26.yaml
+F:	drivers/input/misc/cs40l26*
+F:	include/linux/mfd/cs40l26.h
+F:	sound/soc/codecs/cs40l26.c
+
 CIRRUS LOGIC LOCHNAGAR DRIVER
 M:	Charles Keepax <ckeepax@opensource.cirrus.com>
 M:	Richard Fitzgerald <rf@opensource.cirrus.com>
