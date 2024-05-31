@@ -693,6 +693,19 @@ Description:
 			value in the list will be written to the first register that makes up
 			the firmware control etc.).
 
+What:		/sys/class/input/input(x)/firmware/rth_latch
+Date:		May 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Apply settings configured via firmware RTH controls to the ongoing/upcoming
+		haptics playback.
+
+		Access: Write
+
+		Valid values: Represented as integer
+			1: Apply RTH settings for control-port triggered haptics
+			2: Apply RTH settings for GPI triggered haptics
+
 What:		/sys/class/input/input(x)/firmware/fw_mem_block_type
 Date:		December 2023
 Contact:	patches@opensource.cirrus.com
