@@ -411,18 +411,6 @@ Description:
 			Minimum: 0x000000 (0)
 			Maximum: 0x7FFFFF (127.999985)
 
-What:		/sys/class/input/input(x)/calibration/q_stored
-Date:		December 2023
-Contact:	patches@opensource.cirrus.com
-Description:
-		Value from q_measured should be stored and written to q_stored upon loading runtime firmware.
-
-		Access: Read, Write
-
-		Valid values: Hex value in unsigned Q7.16 format representing Q (unitless)
-		Minimum: 0x000000 (0)
-		Maximum: 0x7FFFFF (127.999985)
-
 What:		/sys/class/input/input(x)/calibration/redc_cal_time_ms
 Date:		December 2023
 Contact:	patches@opensource.cirrus.com
