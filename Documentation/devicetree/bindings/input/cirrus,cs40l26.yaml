@@ -266,17 +266,6 @@ properties:
       This value represents the unit-specific ReDC input to the click compensation
       algorithm.
 
-  cirrus,q-default:
-    $ref: /schemas/types.yaml#/definitions/uint32
-    minimum: 0
-    maximum: 8388607
-    default: 1769472
-    description:
-      Default LRA Q factor (silicon revision B1 only), expressed as follows
-      cirrus,q-default = Q * 2^16.
-      This value represents the unit-specific Q factor used to select the correct
-      sub-waveform for Q-dependent wavetable indexes.
-
   cirrus,asp-gain-scale-pct:
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
