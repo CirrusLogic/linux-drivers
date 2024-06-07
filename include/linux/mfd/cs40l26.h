@@ -782,8 +782,6 @@
 /* Calibration */
 #define CS40L26_F0_EST_MIN			0xC8000
 #define CS40L26_F0_EST_MAX			0x7FC000
-#define CS40L26_Q_EST_MIN			0
-#define CS40L26_Q_EST_MAX			0x7FFFFF
 
 #define CS40L26_LS_CAL_NUM_REGS			47
 #define CS40L26_LS_CAL_REINIT_MASK		BIT(2)
@@ -1215,7 +1213,6 @@ struct cs40l26_private {
 	u32 pm_stdby_timeout_ms;
 	u32 f0_default;
 	u32 redc_default;
-	u32 q_default;
 	u32 bst_ctl;
 	bool expl_mode_enabled;
 	bool dbc_tuning_loaded;
