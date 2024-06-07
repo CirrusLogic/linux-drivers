@@ -1368,89 +1368,6 @@ err_mutex:
 }
 static DEVICE_ATTR_RW(f0_stored);
 
-static ssize_t q_stored_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 reg, q_stored;
-	int error;
-
-	if (cs40l26->revid == CS40L26_REVID_B2) {
-		dev_err(cs40l26->dev, "q_stored not support for revision %02X\n", cs40l26->revid);
-		return -EPERM;
-	}
-
-	error = cs40l26_pm_enter(cs40l26->dev);
-	if (error)
-		return error;
-
-	mutex_lock(&cs40l26->lock);
-
-	error = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_VIBEGEN_ALGO_ID, &reg);
-	if (error)
-		goto err_mutex;
-
-	error = regmap_read(cs40l26->regmap, reg, &q_stored);
-	if (error)
-		goto err_mutex;
-
-err_mutex:
-	mutex_unlock(&cs40l26->lock);
-
-	cs40l26_pm_exit(cs40l26->dev);
-
-	if (error)
-		return error;
-	else
-		return snprintf(buf, PAGE_SIZE, "%08X\n", q_stored);
-}
-
-static ssize_t q_stored_store(struct device *dev, struct device_attribute *attr, const char *buf,
-		size_t count)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 reg, q_stored;
-	int error;
-
-	if (cs40l26->revid == CS40L26_REVID_B2) {
-		dev_err(cs40l26->dev, "q_stored not support for revision %02X\n", cs40l26->revid);
-		return -EPERM;
-	}
-
-	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
-
-	error = kstrtou32(buf, 16, &q_stored);
-
-	if (error || q_stored < CS40L26_Q_EST_MIN || q_stored > CS40L26_Q_EST_MAX)
-		return -EINVAL;
-
-	error = cs40l26_pm_enter(cs40l26->dev);
-	if (error)
-		return error;
-
-	mutex_lock(&cs40l26->lock);
-
-	error = cl_dsp_get_reg(cs40l26->dsp, "Q_STORED", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_VIBEGEN_ALGO_ID, &reg);
-	if (error)
-		goto err_mutex;
-
-	error = regmap_write(cs40l26->regmap, reg, q_stored);
-	if (error)
-		goto err_mutex;
-
-err_mutex:
-	mutex_unlock(&cs40l26->lock);
-
-	cs40l26_pm_exit(cs40l26->dev);
-
-	if (error)
-		return error;
-	else
-		return count;
-}
-static DEVICE_ATTR_RW(q_stored);
-
 static ssize_t redc_stored_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -2176,7 +2093,6 @@ static struct attribute *cs40l26_dev_attrs_cal[] = {
 	&dev_attr_dvl_peq_coefficients.attr,
 	&dev_attr_redc_est.attr,
 	&dev_attr_f0_stored.attr,
-	&dev_attr_q_stored.attr,
 	&dev_attr_redc_stored.attr,
 	&dev_attr_freq_centre.attr,
 	&dev_attr_freq_span.attr,
