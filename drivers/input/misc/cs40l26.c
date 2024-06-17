@@ -13,6 +13,8 @@
 
 #include <linux/mfd/cs40l26.h>
 
+static int cs40l26_parse_properties(struct cs40l26_private *cs40l26);
+
 static const struct cs40l26_rom_regs cs40l26_rom_regs_a1_b0_b1 = {
 	.pm_cur_state = 0x02800370,
 	.pm_state_locks = 0x02800378,
@@ -4751,6 +4753,49 @@ static int cs40l26_request_irq(struct cs40l26_private *cs40l26)
 	return error;
 }
 
+static int cs40l26_device_init(struct cs40l26_private *cs40l26, const bool reinit)
+{
+	int error;
+
+	if (reinit)
+		gpiod_set_value_cansleep(cs40l26->reset_gpio, 1);
+
+	usleep_range(CS40L26_MIN_RESET_PULSE_WIDTH, CS40L26_MIN_RESET_PULSE_WIDTH + 100);
+
+	gpiod_set_value_cansleep(cs40l26->reset_gpio, 0);
+
+	usleep_range(CS40L26_CONTROL_PORT_READY_DELAY, CS40L26_CONTROL_PORT_READY_DELAY + 100);
+
+	/*
+	 * The DSP may lock up if a haptic effect is triggered via
+	 * GPI event or control port and the PLL is set to closed-loop.
+	 *
+	 * Set PLL to open-loop and remove any default GPI mappings
+	 * to prevent this while the driver is loading and configuring RAM
+	 * firmware.
+	 */
+
+	error = cs40l26_set_pll_loop(cs40l26, CS40L26_PLL_REFCLK_SET_OPEN_LOOP);
+	if (error)
+		return error;
+
+	error = cs40l26_part_num_resolve(cs40l26);
+	if (error)
+		return error;
+
+	error = cs40l26_erase_gpi_mapping(cs40l26, CS40L26_GPIO_MAP_A_PRESS);
+	if (error)
+		return error;
+
+	error = cs40l26_erase_gpi_mapping(cs40l26, CS40L26_GPIO_MAP_A_RELEASE);
+	if (error)
+		return error;
+
+	/* Set LRA to high-z to avoid fault conditions */
+	return regmap_set_bits(cs40l26->regmap, CS40L26_TST_DAC_MSM_CONFIG,
+			CS40L26_SPK_DEFAULT_HIZ_MASK);
+}
+
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 {
 	bool re_enable = false;
@@ -4762,15 +4807,7 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 		re_enable = true;
 	}
 
-	error = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_PREVENT_HIBERNATE);
-	if (error)
-		return error;
-
-	error = cs40l26_wseq_clear(cs40l26, &pseq_params);
-	if (error)
-		return error;
-
-	error = cs40l26_wseq_clear(cs40l26, &aseq_params);
+	error = cs40l26_device_init(cs40l26, true);
 	if (error)
 		return error;
 
@@ -4780,8 +4817,14 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 		cs40l26->calib_fw = false;
 
 	error = cs40l26_fw_upload(cs40l26);
-	if (error)
+	if (error) {
+		/*
+		 * If firmware upload fails reinstate PM runtime functionality so certain driver
+		 * features can still be used and firmware swap can be reattempted
+		 */
+		cs40l26_pm_runtime_setup(cs40l26);
 		return error;
+	}
 
 	if (cs40l26->fw_defer && cs40l26->fw_loaded) {
 		error = cs40l26_request_irq(cs40l26);
@@ -5280,7 +5323,6 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 
 int cs40l26_probe(struct cs40l26_private *cs40l26)
 {
-	struct device *dev = cs40l26->dev;
 	int error;
 
 	mutex_init(&cs40l26->lock);
@@ -5293,9 +5335,9 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 
 	timer_setup(&cs40l26->hibernate_timer, cs40l26_hibernate_timer_callback, 0);
 
-	error = devm_regulator_bulk_get(dev, CS40L26_NUM_SUPPLIES, cs40l26_supplies);
+	error = devm_regulator_bulk_get(cs40l26->dev, CS40L26_NUM_SUPPLIES, cs40l26_supplies);
 	if (error) {
-		dev_err(dev, "Failed to request core supplies: %d\n", error);
+		dev_err(cs40l26->dev, "Failed to request core supplies\n");
 		goto err;
 	}
 
@@ -5304,58 +5346,21 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 		goto err;
 
 	error = regulator_bulk_enable(CS40L26_NUM_SUPPLIES, cs40l26_supplies);
-	if  (error) {
-		dev_err(dev, "Failed to enable core supplies\n");
-		goto err;
-	}
-
-	cs40l26->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(cs40l26->reset_gpio)) {
-		dev_err(dev, "Failed to get reset GPIO\n");
-
-		error = PTR_ERR(cs40l26->reset_gpio);
-		cs40l26->reset_gpio = NULL;
-		goto err;
-	}
-
-	usleep_range(CS40L26_MIN_RESET_PULSE_WIDTH, CS40L26_MIN_RESET_PULSE_WIDTH + 100);
-
-	gpiod_set_value_cansleep(cs40l26->reset_gpio, 0);
-
-	usleep_range(CS40L26_CONTROL_PORT_READY_DELAY, CS40L26_CONTROL_PORT_READY_DELAY + 100);
-
-	/*
-	 * The DSP may lock up if a haptic effect is triggered via
-	 * GPI event or control port and the PLL is set to closed-loop.
-	 *
-	 * Set PLL to open-loop and remove any default GPI mappings
-	 * to prevent this while the driver is loading and configuring RAM
-	 * firmware.
-	 */
-
-	error = cs40l26_set_pll_loop(cs40l26, CS40L26_PLL_REFCLK_SET_OPEN_LOOP);
-	if (error)
-		goto err;
-
-	error = cs40l26_part_num_resolve(cs40l26);
-	if (error)
-		goto err;
-
-	error = cs40l26_erase_gpi_mapping(cs40l26, CS40L26_GPIO_MAP_A_PRESS);
-	if (error)
-		goto err;
-
-	error = cs40l26_erase_gpi_mapping(cs40l26, CS40L26_GPIO_MAP_A_RELEASE);
-	if (error)
-		goto err;
-
-	/* Set LRA to high-z to avoid fault conditions */
-	error = regmap_set_bits(cs40l26->regmap, CS40L26_TST_DAC_MSM_CONFIG,
-			CS40L26_SPK_DEFAULT_HIZ_MASK);
 	if (error) {
-		dev_err(dev, "Failed to set LRA to HI-Z\n");
+		dev_err(cs40l26->dev, "Failed to enable core supplies\n");
 		goto err;
 	}
+
+	cs40l26->reset_gpio = devm_gpiod_get(cs40l26->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(cs40l26->reset_gpio)) {
+		error = PTR_ERR(cs40l26->reset_gpio);
+		dev_err(cs40l26->dev, "Failed to get reset GPIO: %d\n", error);
+		goto err;
+	}
+
+	error = cs40l26_device_init(cs40l26, false);
+	if (error)
+		goto err;
 
 	init_completion(&cs40l26->i2s_cont);
 	init_completion(&cs40l26->erase_cont);
@@ -5380,10 +5385,10 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 
 	INIT_LIST_HEAD(&cs40l26->effect_head);
 
-	error = devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO, cs40l26_devs,
+	error = devm_mfd_add_devices(cs40l26->dev, PLATFORM_DEVID_AUTO, cs40l26_devs,
 			CS40L26_NUM_MFD_DEVS, NULL, 0, NULL);
 	if (error) {
-		dev_err(dev, "Failed to register codec component\n");
+		dev_err(cs40l26->dev, "Failed to register codec component\n");
 		goto err;
 	}
 
