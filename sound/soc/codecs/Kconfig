@@ -67,6 +67,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_CS35L41_I2C
 	imply SND_SOC_CS35L45_I2C
 	imply SND_SOC_CS35L45_SPI
+	imply SND_SOC_CS40L50
 	imply SND_SOC_CS42L42
 	imply SND_SOC_CS42L51_I2C
 	imply SND_SOC_CS42L52
@@ -691,6 +692,16 @@ config SND_SOC_CS35L45_I2C
 	help
 	  Enable support for Cirrus Logic CS35L45 smart speaker amplifier
 	  with I2C control.
+
+config SND_SOC_CS40L50
+	tristate "Cirrus Logic CS40L50 CODEC"
+	depends on MFD_CS40L50_CORE
+	help
+	  This option enables support for I2S streaming to Cirrus Logic CS40L50.
+
+	  CS40L50 is a haptic driver with waveform memory, an integrated
+	  DSP, and closed-loop algorithms. If built as a module, it will be
+	  called snd-soc-cs40l50.
 
 config SND_SOC_CS42L42_CORE
 	tristate
