@@ -199,15 +199,9 @@ int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 }
 EXPORT_SYMBOL_GPL(cs40l26_dsp_state_get);
 
-int cs40l26_set_pll_loop(struct cs40l26_private *cs40l26, unsigned int pll_loop)
+int cs40l26_set_pll_loop(struct cs40l26_private *cs40l26, u8 pll_loop)
 {
 	int i;
-
-	if (pll_loop != CS40L26_PLL_REFCLK_SET_OPEN_LOOP &&
-			pll_loop != CS40L26_PLL_REFCLK_SET_CLOSED_LOOP) {
-		dev_err(cs40l26->dev, "Invalid PLL Loop setting: %u\n", pll_loop);
-		return -EINVAL;
-	}
 
 	/* Retry in case DSP is hibernating */
 	for (i = 0; i < CS40L26_PLL_REFCLK_SET_ATTEMPTS; i++) {
@@ -899,6 +893,8 @@ EXPORT_SYMBOL_GPL(cs40l26_asp_start);
 
 void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26, enum cs40l26_vibe_state_event event)
 {
+	unsigned int pll_loop;
+
 	if (!mutex_is_locked(&cs40l26->lock)) {
 		dev_err(cs40l26->dev, "%s must be called under mutex lock\n", __func__);
 		return;
@@ -930,8 +926,9 @@ void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26, enum cs40l26_vib
 			cs40l26_remove_asp_scaling(cs40l26);
 
 		/* Restore PLL configuration */
-		if (cs40l26_set_pll_loop(cs40l26, cs40l26->refclk_input &
-				CS40L26_PLL_REFCLK_LOOP_MASK))
+		pll_loop = (unsigned int) FIELD_GET(CS40L26_PLL_REFCLK_LOOP_MASK,
+				cs40l26->refclk_input);
+		if (cs40l26_set_pll_loop(cs40l26, pll_loop))
 			return;
 
 		cs40l26->asp_enable = false;
