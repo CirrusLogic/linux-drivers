@@ -3845,8 +3845,7 @@ static int cs40l26_lbst_short_test(struct cs40l26_private *cs40l26)
 	}
 
 	/* Set GLOBAL_EN; safe because DSP is guaranteed to be off here */
-	error = regmap_update_bits(regmap, CS40L26_GLOBAL_ENABLES,
-			CS40L26_GLOBAL_EN_MASK, 1);
+	error = regmap_set_bits(regmap, CS40L26_GLOBAL_ENABLES, CS40L26_GLOBAL_EN_MASK);
 	if (error) {
 		dev_err(dev, "Failed to set GLOBAL_EN\n");
 		return error;
@@ -3867,10 +3866,9 @@ static int cs40l26_lbst_short_test(struct cs40l26_private *cs40l26)
 	}
 
 	/* Clear GLOBAL_EN; safe because DSP is guaranteed to be off here */
-	error = regmap_update_bits(regmap, CS40L26_GLOBAL_ENABLES,
-			CS40L26_GLOBAL_EN_MASK, 0);
+	error = regmap_clear_bits(regmap, CS40L26_GLOBAL_ENABLES, CS40L26_GLOBAL_EN_MASK);
 	if (error) {
-		dev_err(dev, "Failed to clear GLOBAL_EN\n");
+		dev_err(dev, "Failed to set GLOBAL_EN\n");
 		return error;
 	}
 
@@ -3941,8 +3939,7 @@ static int cs40l26_dbc_enable(struct cs40l26_private *cs40l26)
 	if (error)
 		return error;
 
-	return regmap_update_bits(cs40l26->regmap, reg, CS40L26_DBC_ENABLE_MASK,
-			1 << CS40L26_DBC_ENABLE_SHIFT);
+	return regmap_set_bits(cs40l26->regmap, reg, CS40L26_DBC_ENABLE_MASK);
 }
 
 static int cs40l26_dbc_config(struct cs40l26_private *cs40l26)
@@ -4134,10 +4131,9 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	int error;
 
 	if (!cs40l26->fw_rom_only) {
-		error = regmap_update_bits(regmap, CS40L26_PWRMGT_CTL,
-				CS40L26_MEM_RDY_MASK, 1 << CS40L26_MEM_RDY_SHIFT);
+		error = regmap_set_bits(regmap, CS40L26_PWRMGT_CTL, CS40L26_MEM_RDY_MASK);
 		if (error) {
-			dev_err(dev, "Failed to set MEM_RDY to initialize RAM\n");
+			dev_err(dev, "Failed to set MEM_RDY\n");
 			return error;
 		}
 
@@ -5361,8 +5357,8 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 		goto err;
 
 	/* Set LRA to high-z to avoid fault conditions */
-	error = regmap_update_bits(cs40l26->regmap, CS40L26_TST_DAC_MSM_CONFIG,
-			CS40L26_SPK_DEFAULT_HIZ_MASK, 1 << CS40L26_SPK_DEFAULT_HIZ_SHIFT);
+	error = regmap_set_bits(cs40l26->regmap, CS40L26_TST_DAC_MSM_CONFIG,
+			CS40L26_SPK_DEFAULT_HIZ_MASK);
 	if (error) {
 		dev_err(dev, "Failed to set LRA to HI-Z\n");
 		goto err;

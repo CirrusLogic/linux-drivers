@@ -1944,8 +1944,7 @@ static ssize_t ls_calibration_results_store(struct device *dev, struct device_at
 	if (error)
 		goto err_mutex;
 
-	error = regmap_update_bits(cs40l26->regmap, reg, CS40L26_LS_CAL_REINIT_MASK,
-			1 << CS40L26_LS_CAL_REINIT_SHIFT);
+	error = regmap_set_bits(cs40l26->regmap, reg, CS40L26_LS_CAL_REINIT_MASK);
 	if (error)
 		goto err_mutex;
 
