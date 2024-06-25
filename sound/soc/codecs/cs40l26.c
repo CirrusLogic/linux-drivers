@@ -181,10 +181,7 @@ static int cs40l26_asp_rx(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 	struct cs40l26_private *cs40l26 = codec->core;
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
-	u32 asp_en_mask = CS40L26_ASP_TX1_EN_MASK | CS40L26_ASP_TX2_EN_MASK |
-			CS40L26_ASP_RX1_EN_MASK | CS40L26_ASP_RX2_EN_MASK;
 	u32 flags = 0, reg = 0;
-	u32 asp_enables;
 	u8 data_src;
 	int error;
 
@@ -221,14 +218,9 @@ static int cs40l26_asp_rx(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 			goto err_mutex;
 		}
 
-		asp_enables = 1 | (1 << CS40L26_ASP_TX2_EN_SHIFT) | (1 << CS40L26_ASP_RX1_EN_SHIFT)
-				| (1 << CS40L26_ASP_RX2_EN_SHIFT);
-
-		error = regmap_update_bits(regmap, CS40L26_ASP_ENABLES1, asp_en_mask, asp_enables);
-		if (error) {
-			dev_err(dev, "Failed to enable ASP channels\n");
+		error = regmap_set_bits(regmap, CS40L26_ASP_ENABLES1, CS40L26_ASP_ENABLE_MASK);
+		if (error)
 			goto err_mutex;
-		}
 
 		/* Force open-loop if closed-loop not set */
 		if (!(flags & CS40L26_FLAGS_I2S_SVC_EN_MASK) && is_revid_b2) {
@@ -253,11 +245,9 @@ static int cs40l26_asp_rx(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 				goto err_mutex;
 		}
 
-		error = regmap_update_bits(regmap, CS40L26_ASP_ENABLES1, asp_en_mask, 0);
-		if (error) {
-			dev_err(dev, "Failed to clear ASPTX1 input\n");
+		error = regmap_clear_bits(regmap, CS40L26_ASP_ENABLES1, CS40L26_ASP_ENABLE_MASK);
+		if (error)
 			goto err_mutex;
-		}
 
 		error = regmap_update_bits(regmap, CS40L26_ASPTX1_INPUT, CS40L26_DATA_SRC_MASK,
 				CS40L26_DATA_SRC_VMON);
@@ -958,30 +948,30 @@ static int cs40l26_pcm_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
 	struct cs40l26_codec *codec = snd_soc_component_get_drvdata(dai->component);
-	int error, lrck = params_rate(params);
-	u32 asp_rx_wl, asp_rx_width, ultrasonic;
+	u32 asp_rx_wl, asp_rx_width;
+	int error;
 
 	error = cs40l26_pm_enter(codec->dev);
 	if (error)
 		return error;
 
-	if (lrck == 48000)
-		ultrasonic = 0;
-	else if (lrck == 96000)
-		ultrasonic = 1;
-	else
+	switch (params_rate(params)) {
+	case 48000:
+		error = regmap_clear_bits(codec->regmap, CS40L26_MONITOR_FILT,
+				CS40L26_VIMON_DUAL_RATE_MASK);
+		break;
+	case 96000:
+		error = regmap_set_bits(codec->regmap, CS40L26_MONITOR_FILT,
+				CS40L26_VIMON_DUAL_RATE_MASK);
+		break;
+	default:
+		dev_err(codec->dev, "Invalid sample rate: %d Hz\n", params_rate(params));
 		error = -EINVAL;
-
+	}
 	if (error) {
-		dev_err(codec->dev, "Invalid sample rate: %d Hz\n", lrck);
+		dev_err(codec->dev, "%s Failed with error %d\n", __func__, error);
 		goto err_pm;
 	}
-
-	error = regmap_update_bits(codec->regmap, CS40L26_MONITOR_FILT,
-				   CS40L26_VIMON_DUAL_RATE_MASK,
-				   FIELD_PREP(CS40L26_VIMON_DUAL_RATE_MASK, ultrasonic));
-	if (error)
-		goto err_pm;
 
 	asp_rx_wl = (u8) (params_width(params) & 0xFF);
 	error = regmap_update_bits(codec->regmap, CS40L26_ASP_DATA_CONTROL5,
