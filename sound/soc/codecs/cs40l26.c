@@ -174,6 +174,29 @@ static int cs40l26_dsp_tx(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 	}
 }
 
+static int cs40l26_sdout_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol, int event)
+{
+	struct cs40l26_codec *codec =
+			snd_soc_component_get_drvdata(snd_soc_dapm_to_component(w->dapm));
+
+	if (!device_property_present(codec->core->dev, "cirrus,asp-dout-enable")) {
+		dev_err(codec->dev, "GP8 pin is not configured to function as SDOUT\n");
+		return -EPERM;
+	}
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		return regmap_set_bits(codec->regmap, CS40L26_GPIO_PAD_CONTROL,
+				CS40L26_GP8_SDOUT_MASK);
+	case SND_SOC_DAPM_POST_PMD:
+		return regmap_clear_bits(codec->regmap, CS40L26_GPIO_PAD_CONTROL,
+				CS40L26_GP8_SDOUT_MASK);
+	default:
+		dev_err(codec->dev, "Invalid event: %d\n", event);
+		return -EINVAL;
+	}
+}
+
 static int cs40l26_asp_rx(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol, int event)
 {	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(snd_soc_dapm_to_component(w->dapm));
@@ -859,6 +882,10 @@ static const struct snd_soc_dapm_widget cs40l26_dapm_widgets[] = {
 
 	SND_SOC_DAPM_MUX("Haptics Source", SND_SOC_NOPM, 0, 0, &cs40l26_out_mux),
 	SND_SOC_DAPM_OUTPUT("OUT"),
+	SND_SOC_DAPM_INPUT("VSNS"),
+
+	SND_SOC_DAPM_AIF_OUT_E("SDOUT", NULL, 0, SND_SOC_NOPM, 0, 0,
+		cs40l26_sdout_ev, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
 static const struct snd_soc_dapm_route cs40l26_dapm_routes[] = {
@@ -873,6 +900,9 @@ static const struct snd_soc_dapm_route cs40l26_dapm_routes[] = {
 	{ "Haptics Source", "PCM", "PCM" },
 	{ "Haptics Source", "A2H", "A2H" },
 	{ "OUT", NULL, "Haptics Source" },
+
+	{ "SDOUT", NULL, "VSNS" },
+	{ "ASP Capture", NULL, "SDOUT" },
 };
 
 static int cs40l26_component_set_sysclk(struct snd_soc_component *component,
@@ -1049,6 +1079,13 @@ static struct snd_soc_dai_driver cs40l26_dai[] = {
 		.id = 0,
 		.playback = {
 			.stream_name = "ASP Playback",
+			.channels_min = 1,
+			.channels_max = 2,
+			.rates = CS40L26_RATES,
+			.formats = CS40L26_FORMATS,
+		},
+		.capture = {
+			.stream_name = "ASP Capture",
 			.channels_min = 1,
 			.channels_max = 2,
 			.rates = CS40L26_RATES,
