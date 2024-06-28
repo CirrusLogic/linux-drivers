@@ -1093,8 +1093,9 @@ struct cs40l26_rom_regs {
 };
 
 struct cs40l26_rom_data {
-	u32 rom_wt_size_words;
-	u32 rom_num_waves;
+	size_t wt_num_waves;
+	size_t wt_size_bytes;
+	size_t wt_size_words;
 };
 
 struct cs40l26_uploaded_effect {
