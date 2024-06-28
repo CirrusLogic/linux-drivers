@@ -24,9 +24,10 @@ static const struct cs40l26_rom_regs cs40l26_rom_regs_a1_b0_b1 = {
 	.rom_pseq_end_of_script = 0x028003E8,
 };
 
-static const struct cs40l26_rom_data cs40l26_rom_data_a1_b0_b1 = {
-	.rom_wt_size_words = 1549,
-	.rom_num_waves = 39,
+static const struct cs40l26_rom_data cs40l26_rom_data_all = {
+	.wt_num_waves = 39,
+	.wt_size_bytes = 6196,
+	.wt_size_words = 1549,
 };
 
 static const struct cs40l26_rom_regs cs40l26_rom_regs_b2 = { /* RC2 8.1.2 */
@@ -38,11 +39,6 @@ static const struct cs40l26_rom_regs cs40l26_rom_regs_b2 = { /* RC2 8.1.2 */
 	.p_vibegen_rom = 0x02802F50,
 	.rom_aseq_end_of_script = 0x028021B4,
 	.rom_pseq_end_of_script = 0x02802018,
-};
-
-static const struct cs40l26_rom_data cs40l26_rom_data_b2 = {
-	.rom_wt_size_words = 1549,
-	.rom_num_waves = 39,
 };
 
 static inline bool section_complete(struct cs40l26_owt_section *s)
@@ -2567,13 +2563,12 @@ sections_err_free:
 
 int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26)
 {
-	u32 *wt_be, reg, rom_wt_size_bytes;
+	u32 reg, *wt_be;
 	int error, i;
 
-	rom_wt_size_bytes = cs40l26->rom_data->rom_wt_size_words * CL_DSP_BYTES_PER_WORD;
-
-	cs40l26->rom_wt.nwaves = cs40l26->rom_data->rom_num_waves;
-	cs40l26->rom_wt.raw_data = devm_kzalloc(cs40l26->dev, rom_wt_size_bytes, GFP_KERNEL);
+	cs40l26->rom_wt.nwaves = cs40l26->rom_data->wt_num_waves;
+	cs40l26->rom_wt.raw_data = devm_kzalloc(cs40l26->dev,
+			cs40l26->rom_data->wt_size_bytes, GFP_KERNEL);
 	if (!cs40l26->rom_wt.raw_data)
 		return -ENOMEM;
 
@@ -2581,15 +2576,14 @@ int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26)
 	if (error)
 		goto data_free;
 
-	wt_be = kcalloc(cs40l26->rom_data->rom_wt_size_words, sizeof(u32), GFP_KERNEL);
+	wt_be = kcalloc(cs40l26->rom_data->wt_size_words, sizeof(u32), GFP_KERNEL);
 	if (!wt_be) {
 		error = -ENOMEM;
 		goto data_free;
 	}
 
 	error = regmap_bulk_read(cs40l26->regmap, (reg * CL_DSP_BYTES_PER_WORD) +
-			CS40L26_DSP1_XMEM_UNPACKED24_0, wt_be,
-			cs40l26->rom_data->rom_wt_size_words);
+			CS40L26_DSP1_XMEM_UNPACKED24_0, wt_be, cs40l26->rom_data->wt_size_words);
 	if (error)
 		goto wt_free;
 
@@ -2601,10 +2595,10 @@ int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26)
 				cs40l26->rom_wt.waves[i].offset;
 	}
 
-	for (i = 0; i < cs40l26->rom_data->rom_wt_size_words; i++)
+	for (i = 0; i < cs40l26->rom_data->wt_size_words; i++)
 		wt_be[i] = be32_to_cpu(wt_be[i]);
 
-	memcpy(cs40l26->rom_wt.raw_data, wt_be, rom_wt_size_bytes);
+	memcpy(cs40l26->rom_wt.raw_data, wt_be, cs40l26->rom_data->wt_size_bytes);
 	kfree(wt_be);
 
 	return 0;
@@ -3197,16 +3191,15 @@ static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
 	case CS40L26_ID_L27A_B0:
 	case CS40L26_ID_L27A_B1:
 		cs40l26->rom_regs = &cs40l26_rom_regs_a1_b0_b1;
-		cs40l26->rom_data = &cs40l26_rom_data_a1_b0_b1;
 		break;
 	case CS40L26_ID_L27A_B2:
 		cs40l26->rom_regs = &cs40l26_rom_regs_b2;
-		cs40l26->rom_data = &cs40l26_rom_data_b2;
 		break;
 	default:
 		dev_err(dev, "Invalid ID: 0x%06X 0x%02X\n", devid, revid);
 		return -EINVAL;
 	}
+	cs40l26->rom_data = &cs40l26_rom_data_all;
 
 	cs40l26->devid = devid;
 	cs40l26->revid = revid;
