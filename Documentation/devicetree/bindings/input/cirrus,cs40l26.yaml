@@ -584,6 +584,20 @@ properties:
       watchdog has been enabled, the device will mute digital
       PCM volume upon the watchdog event being triggered.
 
+  cirrus,amp-drv-slope:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+    default: 2
+    description: |
+      Controls the rise and fall time edge rates of the amplifier's
+      OUT +/- switching. Slower slopes reduce common mode EMI emissions,
+      but at a reduced efficiency. Faster slopes produce higher efficiency.
+      There are 4 possible drive slope values:
+      0: Slowest (0x33): Rise = 40 ns, Fall = 30 ns
+      1: Slow (0x47): Rise = 25 ns, Fall = 20 ns
+      2: Normal (0x58): Rise = 20 ns, Fall = 15 ns
+      3: Fast (0x5B): Rise = 15 ns, Fall = 10 ns
+
 required:
   - compatible
   - reg
