@@ -4068,6 +4068,45 @@ err_free:
 	return error;
 }
 
+static int cs40l26_amp_drv_slope_config(struct cs40l26_private *cs40l26)
+{
+	u8 slope_cfg = CS40L26_AMP_DRV_NORMAL_RISE;
+	u32 dac_msm_cfg, dac_msm_cfg_default;
+	int error;
+
+	switch (cs40l26->amp_drv_slope) {
+	case CS40L26_AMP_DRV_SLOPE_TYPE_SLOWEST:
+		slope_cfg = CS40L26_AMP_DRV_SLOWEST_RISE;
+		break;
+	case CS40L26_AMP_DRV_SLOPE_TYPE_SLOW:
+		slope_cfg = CS40L26_AMP_DRV_SLOW_RISE;
+		break;
+	case CS40L26_AMP_DRV_SLOPE_TYPE_NORMAL:
+		break;
+	case CS40L26_AMP_DRV_SLOPE_TYPE_FAST:
+		slope_cfg = CS40L26_AMP_DRV_FAST_RISE;
+		break;
+	default:
+		dev_warn(cs40l26->dev, "Invalid AMP_DRV_SLOPE: %u, using normal slope\n",
+				cs40l26->amp_drv_slope);
+	}
+
+	error = regmap_read(cs40l26->regmap, CS40L26_DAC_MSM_CONFIG, &dac_msm_cfg_default);
+	if (error)
+		return error;
+
+	dac_msm_cfg = (dac_msm_cfg_default & ~CS40L26_AMP_DRV_SLOPE_MASK) |
+			(slope_cfg << CS40L26_AMP_DRV_SLOPE_SHIFT);
+
+	error = regmap_write(cs40l26->regmap, CS40L26_DAC_MSM_CONFIG, dac_msm_cfg);
+	if (error)
+		return error;
+
+	return cs40l26_wseq_write(cs40l26, CS40L26_DAC_MSM_CONFIG,
+			FIELD_GET(CS40L26_WSEQ_UPPER_MASK, dac_msm_cfg), true,
+			CS40L26_WSEQ_OP_WRITE_H16, &pseq_params);
+}
+
 static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
@@ -4212,6 +4251,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	error = cs40l26_dc_wd_config(cs40l26);
 	if (error)
+		return error;
+
+	error = cs40l26_amp_drv_slope_config(cs40l26);
+	if  (error)
 		return error;
 
 	cs40l26_pm_runtime_setup(cs40l26);
@@ -5212,6 +5255,10 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 			&cs40l26->dbc_configs[CS40L26_DBC_TX_LVL_THRESH_FS]);
 	if (error)
 		cs40l26->dbc_configs[CS40L26_DBC_TX_LVL_THRESH_FS] = CS40L26_DBC_DEFAULT;
+
+	error = device_property_read_u32(dev, "cirrus,amp-drv-slope", &cs40l26->amp_drv_slope);
+	if (error)
+		cs40l26->amp_drv_slope = CS40L26_AMP_DRV_SLOPE_TYPE_NORMAL;
 
 	cs40l26->pwle_zero_cross = device_property_present(dev, "cirrus,pwle-zero-cross-en");
 
