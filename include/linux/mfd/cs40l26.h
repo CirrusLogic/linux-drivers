@@ -83,6 +83,7 @@
 #define CS40L26_VBBR_STATUS				0x6410
 #define CS40L26_NG_CONFIG				0x6808
 #define CS40L26_DIGPWM_CONFIG2				0x7068
+#define CS40L26_DAC_MSM_CONFIG				0x7400
 #define CS40L26_TST_DAC_MSM_CONFIG			0x7404
 #define CS40L26_ALIVE_DCIN_WD				0x7424
 #define CS40L26_IRQ1_CFG				0x10000
@@ -587,6 +588,13 @@
 
 #define CS40L26_BOOST_DISABLE_DELAY_MAX		8388608
 
+#define CS40L26_AMP_DRV_SLOPE_MASK		GENMASK(23, 16)
+#define CS40L26_AMP_DRV_SLOPE_SHIFT		16
+#define CS40L26_AMP_DRV_SLOWEST_RISE		0x33
+#define CS40L26_AMP_DRV_SLOW_RISE		0x47
+#define CS40L26_AMP_DRV_NORMAL_RISE		0x58
+#define CS40L26_AMP_DRV_FAST_RISE		0x5B
+
 /* Brownout prevention */
 #define CS40L26_VXBR_STATUS_DIV_STEP		625
 #define CS40L26_VXBR_STATUS_MASK		GENMASK(7, 0)
@@ -877,6 +885,13 @@
 #define CS40L26_MS_TO_US(n)	((n) * 1000)
 
 /* enums */
+enum cs40l26_amp_drv_slope_type {
+	CS40L26_AMP_DRV_SLOPE_TYPE_SLOWEST,
+	CS40L26_AMP_DRV_SLOPE_TYPE_SLOW,
+	CS40L26_AMP_DRV_SLOPE_TYPE_NORMAL,
+	CS40L26_AMP_DRV_SLOPE_TYPE_FAST,
+};
+
 enum cs40l26_logger_src_sign {
 	CS40L26_LOGGER_SRC_SIGN_UNSIGNED,
 	CS40L26_LOGGER_SRC_SIGN_SIGNED,
@@ -1227,6 +1242,7 @@ struct cs40l26_private {
 	bool dc_wd_mute;
 	u32 braking_time_bank;
 	u32 braking_time_index;
+	enum cs40l26_amp_drv_slope_type amp_drv_slope;
 };
 
 struct cs40l26_codec {
