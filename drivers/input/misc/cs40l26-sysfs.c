@@ -77,9 +77,10 @@ static ssize_t overprotection_gain_store(struct device *dev, struct device_attri
 		return -EPERM;
 
 	error = kstrtou32(buf, 10, &op_gain);
+	if (error)
+		return error;
 
-	if (error || op_gain < CS40L26_OVERPROTECTION_GAIN_MIN ||
-			op_gain > CS40L26_OVERPROTECTION_GAIN_MAX)
+	if (op_gain < CS40L26_OVERPROTECTION_GAIN_MIN || op_gain > CS40L26_OVERPROTECTION_GAIN_MAX)
 		return -EINVAL;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
@@ -1337,8 +1338,10 @@ static ssize_t f0_stored_store(struct device *dev, struct device_attribute *attr
 	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
 
 	error = kstrtou32(buf, 16, &f0_stored);
+	if (error)
+		return error;
 
-	if (error || f0_stored < CS40L26_F0_EST_MIN || f0_stored > CS40L26_F0_EST_MAX)
+	if (f0_stored < CS40L26_F0_FREQ_CENTRE_MIN || f0_stored > CS40L26_F0_FREQ_CENTRE_MAX)
 		return -EINVAL;
 
 	error = cs40l26_pm_enter(cs40l26->dev);

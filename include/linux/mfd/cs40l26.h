@@ -770,9 +770,6 @@
 #define CS40L26_F0_OFFSET_MIN		0xE70000 /* -100 Hz */
 
 /* Calibration */
-#define CS40L26_F0_EST_MIN			0xC8000
-#define CS40L26_F0_EST_MAX			0x7FC000
-
 #define CS40L26_LS_CAL_NUM_REGS			47
 #define CS40L26_LS_CAL_REINIT_MASK		BIT(2)
 
