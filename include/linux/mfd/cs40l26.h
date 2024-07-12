@@ -1126,6 +1126,8 @@ struct cs40l26_work {
 	struct work_struct work;
 	struct cs40l26_private *cs40l26;
 	struct ff_effect *effect;
+	int raw_custom_data_len;
+	s16 *raw_custom_data;
 	int error;
 };
 
@@ -1140,8 +1142,6 @@ struct cs40l26_private {
 	struct cl_dsp *dsp;
 	struct list_head effect_head;
 	unsigned int cur_index;
-	s16 *raw_custom_data;
-	int raw_custom_data_len;
 	struct workqueue_struct *vibe_workqueue;
 	int irq;
 	bool vibe_init_success;
