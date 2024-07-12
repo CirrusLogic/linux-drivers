@@ -2685,11 +2685,12 @@ static int cs40l26_sine_upload(struct cs40l26_private *cs40l26, struct ff_effect
 	return 0;
 }
 
-static int cs40l26_custom_rom(struct cs40l26_private *cs40l26, u32 *trigger_index)
+static int cs40l26_custom_rom(struct cs40l26_private *cs40l26, struct cs40l26_work *work_data,
+		u32 *trigger_index)
 {
 	u16 index;
 
-	index = (u16) (cs40l26->raw_custom_data[1] & CS40L26_MAX_INDEX_MASK);
+	index = (u16) (work_data->raw_custom_data[1] & CS40L26_MAX_INDEX_MASK);
 
 	*trigger_index = index + CS40L26_ROM_INDEX_START;
 	if (*trigger_index > CS40L26_ROM_INDEX_END) {
@@ -2700,13 +2701,14 @@ static int cs40l26_custom_rom(struct cs40l26_private *cs40l26, u32 *trigger_inde
 	return 0;
 }
 
-static int cs40l26_custom_ram(struct cs40l26_private *cs40l26, u32 *trigger_index)
+static int cs40l26_custom_ram(struct cs40l26_private *cs40l26, struct cs40l26_work *work_data,
+		u32 *trigger_index)
 {
 	int max_index_tmp, nram;
 	u32 max_index;
 	u16 index;
 
-	index = (u16) (cs40l26->raw_custom_data[1] & CS40L26_MAX_INDEX_MASK);
+	index = (u16) (work_data->raw_custom_data[1] & CS40L26_MAX_INDEX_MASK);
 
 	nram = cs40l26_num_ram_waves(cs40l26);
 	if (nram < 0) {
@@ -2729,16 +2731,16 @@ static int cs40l26_custom_ram(struct cs40l26_private *cs40l26, u32 *trigger_inde
 	return 0;
 }
 
-static int cs40l26_custom_owt(struct cs40l26_private *cs40l26, size_t data_len, u32 *trigger_index)
+static int cs40l26_custom_owt(struct cs40l26_private *cs40l26, struct cs40l26_work *work_data,
+		size_t data_len, u32 *trigger_index)
 {
-	bool pwle = (cs40l26->raw_custom_data[1] == CS40L26_WT_TYPE12_IDENTIFIER);
 	u8 *pwle_data = NULL;
 	int error, index_tmp, nowt;
 	size_t pwle_data_len;
 	u16 index;
 
-	if (pwle) {
-		pwle_data_len = cs40l26->raw_custom_data_len * 2;
+	if (work_data->raw_custom_data[1] == CS40L26_WT_TYPE12_IDENTIFIER) {
+		pwle_data_len = work_data->raw_custom_data_len * 2;
 
 		pwle_data = kcalloc(pwle_data_len, sizeof(u8), GFP_KERNEL);
 		if (IS_ERR_OR_NULL(pwle_data)) {
@@ -2746,13 +2748,13 @@ static int cs40l26_custom_owt(struct cs40l26_private *cs40l26, size_t data_len, 
 			return error;
 		}
 
-		memcpy(pwle_data, cs40l26->raw_custom_data, pwle_data_len);
+		memcpy(pwle_data, work_data->raw_custom_data, pwle_data_len);
 
 		error = cs40l26_owt_upload(cs40l26, pwle_data, pwle_data_len);
 		if (error)
 			goto err_free;
 	} else {
-		error = cs40l26_composite_upload(cs40l26, cs40l26->raw_custom_data, data_len);
+		error = cs40l26_composite_upload(cs40l26, work_data->raw_custom_data, data_len);
 		if (error)
 			goto err_free;
 	}
@@ -2783,8 +2785,8 @@ err_free:
 	return error;
 }
 
-static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effect *effect,
-		struct cs40l26_uploaded_effect *ueffect)
+static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct cs40l26_work *work_data,
+		struct ff_effect *effect, struct cs40l26_uploaded_effect *ueffect)
 {
 	size_t data_len = effect->u.periodic.custom_len;
 	u32 trigger_index = 0;
@@ -2794,18 +2796,18 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 	if (data_len > CS40L26_CUSTOM_DATA_SIZE) {
 		bank = (u16) CS40L26_OWT_BANK_ID;
 
-		error = cs40l26_custom_owt(cs40l26, data_len, &trigger_index);
+		error = cs40l26_custom_owt(cs40l26, work_data, data_len, &trigger_index);
 		if (error)
 			return error;
 	} else {
-		bank = (u16) cs40l26->raw_custom_data[0];
+		bank = (u16) work_data->raw_custom_data[0];
 
 		if (bank == CS40L26_RAM_BANK_ID) {
-			error = cs40l26_custom_ram(cs40l26, &trigger_index);
+			error = cs40l26_custom_ram(cs40l26, work_data, &trigger_index);
 			if (error)
 				return error;
 		} else if (bank == CS40L26_ROM_BANK_ID) {
-			error = cs40l26_custom_rom(cs40l26, &trigger_index);
+			error = cs40l26_custom_rom(cs40l26, work_data, &trigger_index);
 			if (error)
 				return error;
 		} else {
@@ -2823,7 +2825,8 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct ff_effe
 	return 0;
 }
 
-static int cs40l26_uploaded_effect_add(struct cs40l26_private *cs40l26, struct ff_effect *effect)
+static int cs40l26_uploaded_effect_add(struct cs40l26_private *cs40l26,
+		struct cs40l26_work *work_data, struct ff_effect *effect)
 {
 	struct device *dev = cs40l26->dev;
 	bool is_new = false;
@@ -2839,7 +2842,7 @@ static int cs40l26_uploaded_effect_add(struct cs40l26_private *cs40l26, struct f
 	}
 
 	if (effect->u.periodic.waveform == FF_CUSTOM) {
-		error = cs40l26_custom_upload(cs40l26, effect, ueffect);
+		error = cs40l26_custom_upload(cs40l26, work_data, effect, ueffect);
 	} else if (effect->u.periodic.waveform == FF_SINE) {
 		error = cs40l26_sine_upload(cs40l26, effect, ueffect);
 	} else {
@@ -2892,7 +2895,7 @@ static void cs40l26_upload_worker(struct work_struct *work)
 		goto out_mutex;
 	}
 
-	error = cs40l26_uploaded_effect_add(cs40l26, effect);
+	error = cs40l26_uploaded_effect_add(cs40l26, work_data, effect);
 	if (error)
 		goto out_mutex;
 
@@ -2923,15 +2926,13 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 	dev_dbg(cs40l26->dev, "%s: effect ID = %d\n", __func__, effect->id);
 
 	if (effect->u.periodic.waveform == FF_CUSTOM) {
-		cs40l26->raw_custom_data_len = len;
+		work_data.raw_custom_data_len = len;
 
-		cs40l26->raw_custom_data = kcalloc(len, sizeof(s16), GFP_KERNEL);
-		if (!cs40l26->raw_custom_data) {
-			error = -ENOMEM;
-			goto out_free;
-		}
+		work_data.raw_custom_data = kcalloc(len, sizeof(s16), GFP_KERNEL);
+		if (!work_data.raw_custom_data)
+			return -ENOMEM;
 
-		if (copy_from_user(cs40l26->raw_custom_data, effect->u.periodic.custom_data,
+		if (copy_from_user(work_data.raw_custom_data, effect->u.periodic.custom_data,
 				sizeof(s16) * len)) {
 			dev_err(cs40l26->dev, "Failed to get user data\n");
 			error = -EFAULT;
@@ -2950,8 +2951,7 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 	error = work_data.error;
 
 out_free:
-	kfree(cs40l26->raw_custom_data);
-	cs40l26->raw_custom_data = NULL;
+	kfree(work_data.raw_custom_data);
 
 	return error;
 }
