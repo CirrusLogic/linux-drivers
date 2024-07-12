@@ -3590,8 +3590,8 @@ static int cs40l26_calib_dt_config(struct cs40l26_private *cs40l26)
 	int error = 0;
 	u32 reg;
 
-	if (cs40l26->f0_default <= CS40L26_F0_EST_MAX &&
-			cs40l26->f0_default >= CS40L26_F0_EST_MIN) {
+	if (cs40l26->f0_default <= CS40L26_F0_FREQ_CENTRE_MAX &&
+			cs40l26->f0_default >= CS40L26_F0_FREQ_CENTRE_MIN) {
 		error = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED",
 				CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_VIBEGEN_ALGO_ID, &reg);
