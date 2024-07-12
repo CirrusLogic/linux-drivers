@@ -317,8 +317,8 @@ Description:
 		Access: Read, Write
 
 		Valid values: Hex value in unsigned Q9.14 format representing F0 in Hz
-		Minimum: 0x000000 (0 Hz)
-		Maximum: 0x7FFFFF (511.9999 Hz)
+		Minimum: 0xC8000 (50 Hz)
+		Maximum: 0x7FC000 (511 Hz)
 
 What:		/sys/class/input/input(x)/calibration/freq_centre
 Date:		December 2023
