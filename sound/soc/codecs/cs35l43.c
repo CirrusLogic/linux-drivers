@@ -75,12 +75,13 @@ static SOC_ENUM_SINGLE_DECL(pcm_sft_ramp,
 			    cs35l43_pcm_sftramp_text);
 
 static const char * const cs35l43_tx_input_texts[] = {
-	"Zero", "ASPRX1", "ASPRX2", "VMON", "IMON", "VMON FS2", "IMON FS2",
-	"VPMON", "VBSTMON", "DSP", "DSP FS2"};
+	"Zero", "ASPRX1", "ASPRX2", "ASPRX3", "VMON", "IMON",
+	"VMON FS2", "IMON FS2", "VPMON", "VBSTMON", "DSP", "DSP FS2"};
 
 static const unsigned int cs35l43_tx_input_values[] = {0x00,
 						CS35L43_INPUT_SRC_ASPRX1,
 						CS35L43_INPUT_SRC_ASPRX2,
+						CS35L43_INPUT_SRC_ASPRX3,
 						CS35L43_INPUT_SRC_VMON,
 						CS35L43_INPUT_SRC_IMON,
 						CS35L43_INPUT_SRC_VMON_FS2,
@@ -1597,6 +1598,8 @@ static const struct snd_soc_dapm_widget cs35l43_dapm_widgets[] = {
 					CS35L43_ASP_RX1_EN_SHIFT, 0),
 	SND_SOC_DAPM_AIF_IN("ASPRX2", NULL, 0, CS35L43_ASP_ENABLES1,
 					CS35L43_ASP_RX2_EN_SHIFT, 0),
+	SND_SOC_DAPM_AIF_IN("ASPRX3", NULL, 0, CS35L43_ASP_ENABLES1,
+					CS35L43_ASP_RX3_EN_SHIFT, 0),
 	SND_SOC_DAPM_AIF_OUT("ASPTX1", NULL, 0, CS35L43_ASP_ENABLES1,
 					CS35L43_ASP_TX1_EN_SHIFT, 0),
 	SND_SOC_DAPM_AIF_OUT("ASPTX2", NULL, 0, CS35L43_ASP_ENABLES1,
@@ -1642,10 +1645,12 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 
 	{"PCM Source", "ASPRX1", "ASPRX1"},
 	{"PCM Source", "ASPRX2", "ASPRX2"},
+	{"PCM Source", "ASPRX3", "ASPRX3"},
 	{"PCM Source", "DSP", "DSP1"},
 	{"PCM Source", "DSP FS2", "DSP1"},
 	{"High Rate PCM Source", "ASPRX1", "ASPRX1"},
 	{"High Rate PCM Source", "ASPRX2", "ASPRX2"},
+	{"High Rate PCM Source", "ASPRX3", "ASPRX3"},
 	{"High Rate PCM Source", "DSP", "DSP1"},
 	{"High Rate PCM Source", "DSP FS2", "DSP1"},
 	{"Ultrasonic Mode", "In Band", "High Rate PCM Source"},
@@ -1669,6 +1674,13 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 	{"DSP RX1 Source", "ASPRX2", "ASPRX2"},
 	{"DSP RX2 Source", "ASPRX2", "ASPRX2"},
 	{"DSP RX3 Source", "ASPRX2", "ASPRX2"},
+	{"ASP TX1 Source", "ASPRX3", "ASPRX3"},
+	{"ASP TX2 Source", "ASPRX3", "ASPRX3"},
+	{"ASP TX3 Source", "ASPRX3", "ASPRX3"},
+	{"ASP TX4 Source", "ASPRX3", "ASPRX3"},
+	{"DSP RX1 Source", "ASPRX3", "ASPRX3"},
+	{"DSP RX2 Source", "ASPRX3", "ASPRX3"},
+	{"DSP RX3 Source", "ASPRX3", "ASPRX3"},
 	{"ASP TX1 Source", "VMON", "VMON ADC"},
 	{"ASP TX2 Source", "VMON", "VMON ADC"},
 	{"ASP TX3 Source", "VMON", "VMON ADC"},
@@ -1738,6 +1750,7 @@ static const struct snd_soc_dapm_route cs35l43_audio_map[] = {
 
 	{"ASPRX1", NULL, "AMP Enable"},
 	{"ASPRX2", NULL, "AMP Enable"},
+	{"ASPRX3", NULL, "AMP Enable"},
 	{"VMON ADC", NULL, "AMP Enable"},
 	{"IMON ADC", NULL, "AMP Enable"},
 	{"VPMON ADC", NULL, "AMP Enable"},
