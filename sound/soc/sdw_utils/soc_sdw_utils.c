@@ -565,12 +565,12 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 	},
 	{
 		.part_id = 0x4243,
-		.codec_name = "cs42l43-codec",
 		.count_sidecar = asoc_sdw_bridge_cs35l56_count_sidecar,
 		.add_sidecar = asoc_sdw_bridge_cs35l56_add_sidecar,
 		.dais = {
 			{
 				.direction = {true, false},
+				.codec_name = "cs42l43-codec",
 				.dai_name = "cs42l43-dp5",
 				.dai_type = SOC_SDW_DAI_TYPE_JACK,
 				.dailink = {SOC_SDW_JACK_OUT_DAI_ID, SOC_SDW_UNUSED_DAI_ID},
@@ -582,6 +582,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 			},
 			{
 				.direction = {false, true},
+				.codec_name = "cs42l43-codec",
 				.dai_name = "cs42l43-dp1",
 				.dai_type = SOC_SDW_DAI_TYPE_MIC,
 				.dailink = {SOC_SDW_UNUSED_DAI_ID, SOC_SDW_DMIC_DAI_ID},
@@ -593,12 +594,14 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 			},
 			{
 				.direction = {false, true},
+				.codec_name = "cs42l43-codec",
 				.dai_name = "cs42l43-dp2",
 				.dai_type = SOC_SDW_DAI_TYPE_JACK,
 				.dailink = {SOC_SDW_UNUSED_DAI_ID, SOC_SDW_JACK_IN_DAI_ID},
 			},
 			{
 				.direction = {true, false},
+				.codec_name = "cs42l43-codec",
 				.dai_name = "cs42l43-dp6",
 				.component_name = "cs42l43",
 				.dai_type = SOC_SDW_DAI_TYPE_AMP,
@@ -1022,11 +1025,12 @@ static const char *_asoc_sdw_get_codec_name(struct device *dev,
 
 const char *asoc_sdw_get_codec_name(struct device *dev,
 				    const struct asoc_sdw_codec_info *codec_info,
+				    const struct asoc_sdw_dai_info *dai_info,
 				    const struct snd_soc_acpi_link_adr *adr_link,
 				    int adr_index)
 {
-	if (codec_info->codec_name)
-		return devm_kstrdup(dev, codec_info->codec_name, GFP_KERNEL);
+	if (dai_info->codec_name)
+		return devm_kstrdup(dev, dai_info->codec_name, GFP_KERNEL);
 
 	return _asoc_sdw_get_codec_name(dev, codec_info, adr_link, adr_index);
 }
@@ -1426,6 +1430,7 @@ int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
 				list_add_tail(&soc_end->list, &soc_dai->endpoints);
 
 				codec_name = asoc_sdw_get_codec_name(dev, codec_info,
+								     dai_info,
 								     adr_link, i);
 				if (!codec_name)
 					return -ENOMEM;
