@@ -891,7 +891,7 @@ EXPORT_SYMBOL_GPL(cs40l26_asp_start);
 
 void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26, enum cs40l26_vibe_state_event event)
 {
-	unsigned int pll_loop;
+	u8 pll_loop;
 
 	if (!mutex_is_locked(&cs40l26->lock)) {
 		dev_err(cs40l26->dev, "%s must be called under mutex lock\n", __func__);
@@ -924,8 +924,7 @@ void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26, enum cs40l26_vib
 			cs40l26_remove_asp_scaling(cs40l26);
 
 		/* Restore PLL configuration */
-		pll_loop = (unsigned int) FIELD_GET(CS40L26_PLL_REFCLK_LOOP_MASK,
-				cs40l26->refclk_input);
+		pll_loop = (u8) FIELD_GET(CS40L26_PLL_REFCLK_LOOP_MASK, cs40l26->refclk_input);
 		if (cs40l26_set_pll_loop(cs40l26, pll_loop))
 			return;
 
