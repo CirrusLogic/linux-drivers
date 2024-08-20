@@ -140,6 +140,8 @@ Description:
 		as well as any Open Wavetable (OWT) waveforms uploaded
 		at runtime.
 
+		Access: Read
+
 What:		/sys/class/input/input(x)/default/overprotection_gain
 Date:		December 2023
 Contact:	patches@opensource.cirrus.com
