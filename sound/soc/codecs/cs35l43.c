@@ -220,12 +220,16 @@ static int cs35l43_apply_delta_tuning(struct cs35l43_private *cs35l43)
 		return -EINVAL;
 	}
 
+	mutex_lock(&dsp->cs_dsp.pwr_lock);
+
 	ret = cs_dsp_load_coeff(&dsp->cs_dsp, firmware, filename);
 	if (ret)
 		dev_err(cs35l43->dev, "Error applying delta file %s: %d\n",
 				filename, ret);
 	else
 		cs35l43->delta_applied = cs35l43->delta_requested;
+
+	mutex_unlock(&dsp->cs_dsp.pwr_lock);
 
 	return ret;
 }
