@@ -328,14 +328,13 @@ static void cs40l26_hw_debugfs_init(struct cs40l26_private *cs40l26)
 
 void cs40l26_debugfs_init(struct cs40l26_private *cs40l26)
 {
-	struct i2c_client *client = to_i2c_client(cs40l26->dev);
 	char name[CS40L26_DEBUGFS_DIR_NAME_LEN];
 	int error, i;
 
 	cs40l26_debugfs_cleanup(cs40l26);
 
-	error = snprintf(name, CS40L26_DEBUGFS_DIR_NAME_LEN, "%s-%d-00%X",
-			client->name, client->adapter->nr, client->addr);
+	error = snprintf(name, CS40L26_DEBUGFS_DIR_NAME_LEN, "cs40l26a-%s",
+			dev_name(cs40l26->dev));
 	if (error < 0) {
 		dev_err(cs40l26->dev, "Failed to format debugFS name: %d\n", error);
 		return;
