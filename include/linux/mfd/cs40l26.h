@@ -56,6 +56,7 @@
 #define CS40L26_ERROR_RELEASE				0x2034
 #define CS40L26_GPIO_PAD_CONTROL			0x242C
 #define CS40L26_PWRMGT_CTL				0x2900
+#define CS40L26_WAKESRC_CTL				0x2904
 #define CS40L26_PWRMGT_STS				0x290C
 #define CS40L26_REFCLK_INPUT				0x2C04
 #define CS40L26_GLOBAL_SAMPLE_RATE			0x2C0C
@@ -282,6 +283,10 @@
 #define CS40L26_WKSRC_GPIO_POL_MASK		GENMASK(3, 0)
 
 #define CS40L26_WKSRC_STS_EN			BIT(7)
+
+#define CS40L26_WKSRC_POL_SPI			BIT(4)
+#define CS40L26_WKSRC_EN_SPI			BIT(9)
+#define CS40L26_WKSRC_EN_I2C			BIT(10)
 
 #define CS40L26_NG_THRESHOLD_MASK		GENMASK(2, 0)
 #define CS40L26_NG_DELAY_MASK			GENMASK(6, 4)
@@ -534,6 +539,14 @@
 
 #define	CS40L26_IRQ_DISABLE		0
 #define	CS40L26_IRQ_ENABLE		1
+
+#define CS40L26_WKSRC_STS_IRQ_MASK	(CS40L26_WKSRC_STS_ANY_MASK | \
+					CS40L26_WKSRC_STS_GPIO1_MASK | \
+					CS40L26_WKSRC_STS_I2C_MASK | \
+					CS40L26_WKSRC_STS_SPI_MASK | \
+					CS40L26_WKSRC_STS_GPIO2_MASK | \
+					CS40L26_WKSRC_STS_GPIO3_MASK | \
+					CS40L26_WKSRC_STS_GPIO4_MASK)
 
 #define CS40L26_IRQ(_irq, _name, _hand)	\
 	{				\
@@ -994,6 +1007,7 @@ enum cs40l26_irq_list {
 	CS40L26_WKSRC_STS_GPIO2_IRQ,
 	CS40L26_WKSRC_STS_GPIO3_IRQ,
 	CS40L26_WKSRC_STS_GPIO4_IRQ,
+	CS40L26_WKSRC_STS_SPI_IRQ,
 	CS40L26_WKSRC_STS_I2C_IRQ,
 	CS40L26_BST_OVP_ERR_IRQ,
 	CS40L26_BST_DCM_UVP_ERR_IRQ,
@@ -1008,6 +1022,11 @@ enum cs40l26_irq_list {
 	CS40L26_VPBR_ATT_CLR_IRQ,
 	CS40L26_VBBR_FLAG_IRQ,
 	CS40L26_VBBR_ATT_CLR_IRQ
+};
+
+enum cs40l26_bus_type {
+	CS40L26_BUS_TYPE_SPI,
+	CS40L26_BUS_TYPE_I2C,
 };
 
 /* structs */
@@ -1230,6 +1249,7 @@ struct cs40l26_private {
 	u32 braking_time_bank;
 	u32 braking_time_index;
 	enum cs40l26_amp_drv_slope_type amp_drv_slope;
+	enum cs40l26_bus_type bus_type;
 };
 
 struct cs40l26_codec {
@@ -1300,7 +1320,6 @@ extern struct cs40l26_wseq_params aseq_params;
 extern struct cs40l26_wseq_params pseq_params;
 extern struct regulator_bulk_data cs40l26_supplies[CS40L26_NUM_SUPPLIES];
 extern const struct dev_pm_ops cs40l26_pm_ops;
-extern const struct regmap_config cs40l26_regmap;
 extern const struct mfd_cell cs40l26_devs[CS40L26_NUM_MFD_DEVS];
 extern const u32 cs40l26_attn_q21_2_vals[CS40L26_NUM_PCT_MAP_VALUES];
 extern const struct reg_sequence cs40l26_a1_errata[CS40L26_ERRATA_A1_NUM_WRITES];

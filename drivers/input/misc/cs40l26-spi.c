@@ -12,6 +12,21 @@
 
 #include <linux/mfd/cs40l26.h>
 
+static const struct regmap_config cs40l26_regmap = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.pad_bits = 16,
+	.reg_stride = 4,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+	.max_register = CS40L26_LASTREG,
+	.num_reg_defaults = 0,
+	.precious_reg = cs40l26_precious_reg,
+	.readable_reg = cs40l26_readable_reg,
+	.volatile_reg = cs40l26_volatile_reg,
+	.cache_type = REGCACHE_NONE,
+};
+
 static const struct spi_device_id cs40l26_id_spi[] = {
 	{"cs40l26a", 0},
 	{"cs40l26b", 1},
@@ -50,6 +65,7 @@ static int cs40l26_spi_probe(struct spi_device *spi)
 
 	cs40l26->dev = &spi->dev;
 	cs40l26->irq = spi->irq;
+	cs40l26->bus_type = CS40L26_BUS_TYPE_SPI;
 
 	return cs40l26_probe(cs40l26);
 }
