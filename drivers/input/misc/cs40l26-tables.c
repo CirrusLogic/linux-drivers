@@ -13,21 +13,6 @@
 
 #include <linux/mfd/cs40l26.h>
 
-const struct regmap_config cs40l26_regmap = {
-	.reg_bits = 32,
-	.val_bits = 32,
-	.reg_stride = 4,
-	.reg_format_endian = REGMAP_ENDIAN_BIG,
-	.val_format_endian = REGMAP_ENDIAN_BIG,
-	.max_register = CS40L26_LASTREG,
-	.num_reg_defaults = 0,
-	.precious_reg = cs40l26_precious_reg,
-	.readable_reg = cs40l26_readable_reg,
-	.volatile_reg = cs40l26_volatile_reg,
-	.cache_type = REGCACHE_NONE,
-};
-EXPORT_SYMBOL_GPL(cs40l26_regmap);
-
 const struct cs40l26_ls_cal_param cs40l26_ls_cal_params[CS40L26_LS_CAL_NUM_REGS] = {
 	{
 		.calib_name = "STATE_OL_RESULTS_REDC",
@@ -411,6 +396,7 @@ bool cs40l26_readable_reg(struct device *dev, unsigned int reg)
 	case CS40L26_ERROR_RELEASE:
 	case CS40L26_GPIO_PAD_CONTROL:
 	case CS40L26_PWRMGT_CTL:
+	case CS40L26_WAKESRC_CTL:
 	case CS40L26_PWRMGT_STS:
 	case CS40L26_REFCLK_INPUT:
 	case CS40L26_GLOBAL_SAMPLE_RATE:

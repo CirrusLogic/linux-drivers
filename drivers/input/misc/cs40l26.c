@@ -1109,6 +1109,15 @@ static irqreturn_t cs40l26_wakesource_gpio(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t cs40l26_wakesource_spi(int irq, void *data)
+{
+	struct cs40l26_private *cs40l26 = data;
+
+	dev_dbg(cs40l26->dev, "SPI event woke device from hibernate\n");
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t cs40l26_wakesource_iic(int irq, void *data)
 {
 	struct cs40l26_private *cs40l26 = data;
@@ -1240,6 +1249,7 @@ static const struct cs40l26_irq cs40l26_irqs[] = {
 	CS40L26_IRQ(WKSRC_STS_GPIO2, "Wakesource GPIO2", cs40l26_wakesource_gpio),
 	CS40L26_IRQ(WKSRC_STS_GPIO3, "Wakesource GPIO3", cs40l26_wakesource_gpio),
 	CS40L26_IRQ(WKSRC_STS_GPIO4, "Wakesource GPIO4", cs40l26_wakesource_gpio),
+	CS40L26_IRQ(WKSRC_STS_SPI, "Wakesource SPI", cs40l26_wakesource_spi),
 	CS40L26_IRQ(WKSRC_STS_I2C, "Wakesource I2C", cs40l26_wakesource_iic),
 	CS40L26_IRQ(BST_OVP_ERR, "Boost overvoltage error", cs40l26_bst_ovp_err),
 	CS40L26_IRQ(BST_DCM_UVP_ERR, "Boost undervoltage error", cs40l26_bst_uv_err),
@@ -1270,6 +1280,7 @@ static const struct regmap_irq cs40l26_reg_irqs[] = {
 	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_GPIO2),
 	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_GPIO3),
 	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_GPIO4),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_SPI),
 	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_I2C),
 	CS40L26_REG_IRQ(IRQ1_EINT_1, BST_OVP_ERR),
 	CS40L26_REG_IRQ(IRQ1_EINT_1, BST_DCM_UVP_ERR),
@@ -3219,26 +3230,42 @@ static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
 
 static int cs40l26_wksrc_config(struct cs40l26_private *cs40l26)
 {
-	u8 mask_wksrc;
-	u32 val, mask;
+	u32 wksrc = 0, wksrc_mask = 0;
+	bool mask_gpio_wksrc = false;
+	int error;
 
-	if (cs40l26->devid == CS40L26_DEVID_A ||
-			cs40l26->devid == CS40L26_DEVID_L27_A)
-		mask_wksrc = 1;
-	else
-		mask_wksrc = 0;
+	if (cs40l26->devid == CS40L26_DEVID_A || cs40l26->devid == CS40L26_DEVID_L27_A)
+		mask_gpio_wksrc = true;
 
-	val = CS40L26_WKSRC_STS_SPI_MASK |
-			(mask_wksrc ? CS40L26_WKSRC_STS_GPIO2_MASK : 0) |
-			(mask_wksrc ? CS40L26_WKSRC_STS_GPIO3_MASK : 0) |
-			(mask_wksrc ? CS40L26_WKSRC_STS_GPIO4_MASK : 0);
+	switch (cs40l26->bus_type) {
+	case CS40L26_BUS_TYPE_SPI:
+		wksrc_mask = CS40L26_WKSRC_STS_I2C_MASK;
+		wksrc = CS40L26_WKSRC_POL_SPI | CS40L26_WKSRC_EN_SPI;
+		break;
+	case CS40L26_BUS_TYPE_I2C:
+		wksrc_mask = CS40L26_WKSRC_STS_SPI_MASK;
+		wksrc = CS40L26_WKSRC_EN_I2C;
+		break;
+	default:
+		dev_err(cs40l26->dev, "Invalid bus type\n");
+		return -EINVAL;
+	}
 
-	mask = CS40L26_WKSRC_STS_ANY_MASK | CS40L26_WKSRC_STS_GPIO1_MASK |
-			CS40L26_WKSRC_STS_I2C_MASK | CS40L26_WKSRC_STS_SPI_MASK |
-			CS40L26_WKSRC_STS_GPIO2_MASK | CS40L26_WKSRC_STS_GPIO3_MASK |
-			CS40L26_WKSRC_STS_GPIO4_MASK;
+	error = regmap_write(cs40l26->regmap, CS40L26_WAKESRC_CTL, wksrc);
+	if (error)
+		return error;
 
-	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, val, mask);
+	error = cs40l26_wseq_write(cs40l26, CS40L26_WAKESRC_CTL, wksrc, true,
+			CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
+	if (error)
+		return error;
+
+	if (mask_gpio_wksrc)
+		wksrc_mask |= (CS40L26_WKSRC_STS_GPIO2_MASK | CS40L26_WKSRC_STS_GPIO3_MASK |
+				CS40L26_WKSRC_STS_GPIO4_MASK);
+
+	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, wksrc_mask,
+			CS40L26_WKSRC_STS_IRQ_MASK);
 }
 
 static int cs40l26_set_gpio_from_dt(struct cs40l26_private *cs40l26)
