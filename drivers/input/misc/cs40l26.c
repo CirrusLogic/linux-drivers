@@ -4800,7 +4800,7 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 	bool re_enable = false;
 	int error;
 
-	if (cs40l26->fw_loaded) {
+	if (cs40l26->fw_loaded || cs40l26->prev_fw_load_failed) {
 		disable_irq(cs40l26->irq);
 		cs40l26_pm_runtime_teardown(cs40l26);
 		re_enable = true;
@@ -4817,6 +4817,7 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 
 	error = cs40l26_fw_upload(cs40l26);
 	if (error) {
+		cs40l26->prev_fw_load_failed = true;
 		/*
 		 * If firmware upload fails reinstate PM runtime functionality so certain driver
 		 * features can still be used and firmware swap can be reattempted
@@ -4824,6 +4825,7 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 		cs40l26_pm_runtime_setup(cs40l26);
 		return error;
 	}
+	cs40l26->prev_fw_load_failed = false;
 
 	if (cs40l26->fw_defer && cs40l26->fw_loaded) {
 		error = cs40l26_request_irq(cs40l26);
