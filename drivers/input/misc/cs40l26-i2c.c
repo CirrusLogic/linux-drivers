@@ -26,6 +26,16 @@ static const struct regmap_config cs40l26_regmap = {
 	.cache_type = REGCACHE_NONE,
 };
 
+const struct regmap_config cs40l26_broadcast_regmap = {
+	.reg_bits =		32,
+	.reg_stride =		4,
+	.val_bits =		32,
+	.reg_format_endian =	REGMAP_ENDIAN_BIG,
+	.val_format_endian =	REGMAP_ENDIAN_BIG,
+	.writeable_reg =	cs40l26_broadcast_writeable_reg,
+	.readable_reg =		cs40l26_broadcast_readable_reg,
+};
+
 static const struct i2c_device_id cs40l26_id_i2c[] = {
 	{"cs40l26a", 0},
 	{"cs40l26b", 1},
@@ -66,6 +76,33 @@ static int cs40l26_i2c_probe(struct i2c_client *client)
 	cs40l26->irq = client->irq;
 	cs40l26->bus_type = CS40L26_BUS_TYPE_I2C;
 
+	error = device_property_read_u32(cs40l26->dev, "cirrus,i2c-broadcast-addr",
+			&cs40l26->broadcast_addr);
+	if (error || cs40l26->broadcast_addr > CS40L26_I2C_BROADCAST_ADDR_MAX ||
+			cs40l26->broadcast_addr < CS40L26_I2C_BROADCAST_ADDR_MIN) {
+		cs40l26->broadcast_addr = 0;
+	} else {
+		cs40l26->broadcast_client = devm_i2c_new_dummy_device(cs40l26->dev,
+				client->adapter, cs40l26->broadcast_addr);
+		if (IS_ERR(cs40l26->broadcast_client)) {
+			if (PTR_ERR(cs40l26->broadcast_client) == -EBUSY) {
+				cs40l26->broadcast_client = NULL;
+				goto probe;
+			} else {
+				return PTR_ERR(cs40l26->broadcast_client);
+			}
+		}
+
+		cs40l26->broadcast_regmap = devm_regmap_init_i2c(cs40l26->broadcast_client,
+				&cs40l26_broadcast_regmap);
+		if (IS_ERR(cs40l26->broadcast_regmap)) {
+			dev_err(cs40l26->dev, "Failed to allocate broadcast regmap\n");
+			return PTR_ERR(cs40l26->broadcast_regmap);
+		}
+
+		dev_dbg(cs40l26->dev, "Designated broadcast I2C master\n");
+	}
+probe:
 	return cs40l26_probe(cs40l26);
 }
 
