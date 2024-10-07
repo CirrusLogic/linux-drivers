@@ -13,6 +13,23 @@
 
 #include <linux/mfd/cs40l26.h>
 
+bool cs40l26_broadcast_readable_reg(struct device *dev, unsigned int reg)
+{
+	return false;
+}
+EXPORT_SYMBOL_GPL(cs40l26_broadcast_readable_reg);
+
+bool cs40l26_broadcast_writeable_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case CS40L26_DSP_VIRTUAL1_MBOX_1:
+		return true;
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL_GPL(cs40l26_broadcast_writeable_reg);
+
 const struct cs40l26_ls_cal_param cs40l26_ls_cal_params[CS40L26_LS_CAL_NUM_REGS] = {
 	{
 		.calib_name = "STATE_OL_RESULTS_REDC",
@@ -391,6 +408,7 @@ bool cs40l26_readable_reg(struct device *dev, unsigned int reg)
 	case CS40L26_DEVID:
 	case CS40L26_REVID:
 	case CS40L26_TEST_KEY_CTRL:
+	case CS40L26_CTRL_I2C_BROADCAST:
 	case CS40L26_GLOBAL_ENABLES:
 	case CS40L26_BLOCK_ENABLES2:
 	case CS40L26_ERROR_RELEASE:

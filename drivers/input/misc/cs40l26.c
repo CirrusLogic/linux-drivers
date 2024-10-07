@@ -160,6 +160,25 @@ int cs40l26_mailbox_write(struct cs40l26_private *cs40l26, u32 write_val)
 }
 EXPORT_SYMBOL_GPL(cs40l26_mailbox_write);
 
+static int cs40l26_broadcast_write(struct cs40l26_private *cs40l26, u32 reg, u32 val, bool mbox)
+{
+	int error;
+	u32 ack;
+
+	error = regmap_write(cs40l26->broadcast_regmap, reg, val);
+	if (error)
+		return error;
+
+	if (mbox) {
+		/* Consider an ACK on this device as the case for all devices */
+		error = regmap_read_poll_timeout(cs40l26->regmap, reg, ack, !ack,
+				CS40L26_DSP_TIMEOUT_US_MIN, CS40L26_DSP_TIMEOUT_COUNT *
+				CS40L26_DSP_TIMEOUT_US_MIN);
+	}
+
+	return error;
+}
+
 int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 {
 	u32 reg, dsp_state;
@@ -1880,9 +1899,18 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	switch (effect->u.periodic.waveform) {
 	case FF_CUSTOM:
 	case FF_SINE:
-		error = cs40l26_mailbox_write(cs40l26, ueffect->trigger_index);
-		if (error)
-			goto err_mutex;
+		if (!cs40l26->broadcast_client) {
+			error = cs40l26_mailbox_write(cs40l26, ueffect->trigger_index);
+			if (error)
+				goto err_mutex;
+		} else {
+			error = cs40l26_broadcast_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+					ueffect->trigger_index, true);
+			if (error) {
+				dev_err(cs40l26->dev, "Broadcast trigger failed: %d\n", error);
+				goto err_mutex;
+			}
+		}
 
 		cs40l26->cur_index = ueffect->trigger_index;
 		break;
@@ -1936,9 +1964,16 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	}
 
 	if (!skip_delay) {
-		error = cs40l26_mailbox_write(cs40l26, CS40L26_STOP_PLAYBACK);
-		if (error)
-			dev_err(cs40l26->dev, "Failed to stop playback\n");
+		if (!cs40l26->broadcast_client) {
+			error = cs40l26_mailbox_write(cs40l26, CS40L26_STOP_PLAYBACK);
+			if (error)
+				dev_err(cs40l26->dev, "Failed to stop playback\n");
+		} else {
+			error = cs40l26_broadcast_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
+					CS40L26_STOP_PLAYBACK, true);
+			if (error)
+				dev_err(cs40l26->dev, "Broadcast stop failed: %d\n", error);
+		}
 	} else {
 		dev_dbg(cs40l26->dev, "Stop command skipped\n");
 	}
@@ -4785,12 +4820,13 @@ static int cs40l26_device_init(struct cs40l26_private *cs40l26, const bool reini
 {
 	int error;
 
-	if (reinit)
+	if (reinit && cs40l26->reset_gpio)
 		gpiod_set_value_cansleep(cs40l26->reset_gpio, 1);
 
 	usleep_range(CS40L26_MIN_RESET_PULSE_WIDTH, CS40L26_MIN_RESET_PULSE_WIDTH + 100);
 
-	gpiod_set_value_cansleep(cs40l26->reset_gpio, 0);
+	if (cs40l26->reset_gpio)
+		gpiod_set_value_cansleep(cs40l26->reset_gpio, 0);
 
 	usleep_range(CS40L26_CONTROL_PORT_READY_DELAY, CS40L26_CONTROL_PORT_READY_DELAY + 100);
 
@@ -4818,6 +4854,16 @@ static int cs40l26_device_init(struct cs40l26_private *cs40l26, const bool reini
 	error = cs40l26_erase_gpi_mapping(cs40l26, CS40L26_GPIO_MAP_A_RELEASE);
 	if (error)
 		return error;
+
+	if (cs40l26->broadcast_addr) {
+		error = regmap_write(cs40l26->regmap, CS40L26_CTRL_I2C_BROADCAST,
+				(cs40l26->broadcast_addr << CS40L26_I2C_BROADCAST_ADDR_SHIFT) |
+				CS40L26_I2C_BROADCAST_ENABLE_MASK);
+		if (error) {
+			dev_err(cs40l26->dev, "Failed to enable I2C broadcast: %d\n", error);
+			return error;
+		}
+	}
 
 	/* Set LRA to high-z to avoid fault conditions */
 	return regmap_set_bits(cs40l26->regmap, CS40L26_TST_DAC_MSM_CONFIG,
@@ -5395,8 +5441,13 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 	cs40l26->reset_gpio = devm_gpiod_get(cs40l26->dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(cs40l26->reset_gpio)) {
 		error = PTR_ERR(cs40l26->reset_gpio);
-		dev_err(cs40l26->dev, "Failed to get reset GPIO: %d\n", error);
-		goto err;
+		if (error == -EBUSY && cs40l26->broadcast_addr) {
+			dev_warn(cs40l26->dev, "Reset GPIO taken by other device\n");
+			cs40l26->reset_gpio = NULL;
+		} else {
+			dev_err(cs40l26->dev, "Failed to get reset GPIO: %d\n", error);
+			goto err;
+		}
 	}
 
 	error = cs40l26_device_init(cs40l26, false);
@@ -5463,7 +5514,8 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 	if (va_consumer)
 		regulator_disable(va_consumer);
 
-	gpiod_set_value_cansleep(cs40l26->reset_gpio, 1);
+	if (cs40l26->reset_gpio)
+		gpiod_set_value_cansleep(cs40l26->reset_gpio, 1);
 
 	if (cs40l26->vibe_init_success)
 		sysfs_remove_groups(&cs40l26->input->dev.kobj, cs40l26_attr_groups);
@@ -5512,7 +5564,8 @@ int cs40l26_suspend(struct device *dev)
 
 	dev_dbg(cs40l26->dev, "%s: Enabling hibernation\n", __func__);
 
-	return cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_ALLOW_HIBERNATE);
+	return cs40l26->broadcast_addr ? 0 :
+			cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_ALLOW_HIBERNATE);
 }
 EXPORT_SYMBOL_GPL(cs40l26_suspend);
 
