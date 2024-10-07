@@ -51,6 +51,7 @@
 #define CS40L26_DEVID					0x0
 #define CS40L26_REVID					0x4
 #define CS40L26_TEST_KEY_CTRL				0x40
+#define CS40L26_CTRL_I2C_BROADCAST			0x164
 #define CS40L26_GLOBAL_ENABLES				0x2014
 #define CS40L26_BLOCK_ENABLES2				0x201C
 #define CS40L26_ERROR_RELEASE				0x2034
@@ -160,6 +161,11 @@
 
 #define CS40L26_DSP_CCM_CORE_KILL	0x00000080
 #define CS40L26_DSP_CCM_CORE_RESET	0x00000281
+
+#define CS40L26_I2C_BROADCAST_ENABLE_MASK	BIT(15)
+#define CS40L26_I2C_BROADCAST_ADDR_SHIFT	1
+#define CS40L26_I2C_BROADCAST_ADDR_MAX		0x78
+#define CS40L26_I2C_BROADCAST_ADDR_MIN		0x7
 
 #define CS40L26_GLOBAL_FS_MASK		GENMASK(4, 0)
 #define CS40L26_GLOBAL_FS_48K		0x03
@@ -1153,6 +1159,7 @@ struct cs40l26_work {
 struct cs40l26_private {
 	struct device *dev;
 	struct regmap *regmap;
+	struct regmap *broadcast_regmap;
 	u32 devid : 24;
 	u8 revid;
 	struct mutex lock;
@@ -1162,6 +1169,7 @@ struct cs40l26_private {
 	struct list_head effect_head;
 	unsigned int cur_index;
 	struct workqueue_struct *vibe_workqueue;
+	struct i2c_client *broadcast_client;
 	int irq;
 	unsigned int irq_depth : 1;
 	bool vibe_init_success;
@@ -1250,6 +1258,7 @@ struct cs40l26_private {
 	u32 braking_time_index;
 	enum cs40l26_amp_drv_slope_type amp_drv_slope;
 	enum cs40l26_bus_type bus_type;
+	u32 broadcast_addr;
 };
 
 struct cs40l26_codec {
@@ -1307,6 +1316,8 @@ int cs40l26_remove(struct cs40l26_private *cs40l26);
 bool cs40l26_precious_reg(struct device *dev, unsigned int ret);
 bool cs40l26_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l26_volatile_reg(struct device *dev, unsigned int reg);
+bool cs40l26_broadcast_readable_reg(struct device *dev, unsigned int reg);
+bool cs40l26_broadcast_writeable_reg(struct device *dev, unsigned int reg);
 int cs40l26_wseq_read(struct cs40l26_private *cs40l26, struct cl_dsp_memchunk *ch,
 		struct cs40l26_wseq_op *op);
 int cs40l26_wseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data,
