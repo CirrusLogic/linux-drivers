@@ -532,6 +532,9 @@
 #define CS40L26_VBBR_FLAG_MASK		BIT(19)
 #define CS40L26_VBBR_ATT_CLR_MASK	BIT(20)
 
+#define	CS40L26_IRQ_DISABLE		0
+#define	CS40L26_IRQ_ENABLE		1
+
 #define CS40L26_IRQ(_irq, _name, _hand)	\
 	{				\
 		.irq = CS40L26_ ## _irq ## _IRQ,		\
@@ -1141,6 +1144,7 @@ struct cs40l26_private {
 	unsigned int cur_index;
 	struct workqueue_struct *vibe_workqueue;
 	int irq;
+	unsigned int irq_depth : 1;
 	bool vibe_init_success;
 	enum cs40l26_pm_state pm_state;
 	u32 fw_id;
@@ -1289,6 +1293,7 @@ int cs40l26_wseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data,
 		bool update, u8 op_code, struct cs40l26_wseq_params *wseq_params);
 int cs40l26_copy_f0_est_to_dvl(struct cs40l26_private *cs40l26);
 int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26);
+void cs40l26_irq_enable(struct cs40l26_private *cs40l26, const unsigned int en);
 
 /* external tables */
 extern struct cs40l26_wseq_params aseq_params;
