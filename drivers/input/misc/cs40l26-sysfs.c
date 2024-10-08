@@ -656,7 +656,7 @@ static ssize_t swap_wavetable_store(struct device *dev, struct device_attribute 
 	int error;
 
 	/* Bypass PM runtime framework for DSP shutdown & wake */
-	disable_irq(cs40l26->irq);
+	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_DISABLE);
 	cs40l26_pm_runtime_teardown(cs40l26);
 
 	mutex_lock(&cs40l26->lock);
@@ -673,7 +673,7 @@ static ssize_t swap_wavetable_store(struct device *dev, struct device_attribute 
 
 	cs40l26_pm_runtime_setup(cs40l26);
 
-	enable_irq(cs40l26->irq);
+	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_ENABLE);
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -700,7 +700,7 @@ err_setup:
 
 	cs40l26_pm_runtime_setup(cs40l26);
 
-	enable_irq(cs40l26->irq);
+	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_ENABLE);
 
 	return error;
 }
