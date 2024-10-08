@@ -4749,6 +4749,8 @@ static int cs40l26_request_irq(struct cs40l26_private *cs40l26)
 		}
 	}
 
+	cs40l26->irq_depth = 1;
+
 	return error;
 }
 
@@ -4795,15 +4797,25 @@ static int cs40l26_device_init(struct cs40l26_private *cs40l26, const bool reini
 			CS40L26_SPK_DEFAULT_HIZ_MASK);
 }
 
+void cs40l26_irq_enable(struct cs40l26_private *cs40l26, const unsigned int en)
+{
+	if (en && cs40l26->irq_depth == 0) {
+		enable_irq(cs40l26->irq);
+		cs40l26->irq_depth = 1;
+	} else if (!en && cs40l26->irq_depth == 1) {
+		disable_irq(cs40l26->irq);
+		cs40l26->irq_depth = 0;
+	}
+}
+EXPORT_SYMBOL_GPL(cs40l26_irq_enable);
+
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 {
-	bool re_enable = false;
 	int error;
 
 	if (cs40l26->fw_loaded || cs40l26->prev_fw_load_failed) {
-		disable_irq(cs40l26->irq);
+		cs40l26_irq_enable(cs40l26, CS40L26_IRQ_DISABLE);
 		cs40l26_pm_runtime_teardown(cs40l26);
-		re_enable = true;
 	}
 
 	error = cs40l26_device_init(cs40l26, true);
@@ -4835,8 +4847,7 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 		cs40l26->fw_defer = false;
 	}
 
-	if (re_enable)
-		enable_irq(cs40l26->irq);
+	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_ENABLE);
 
 	return error;
 }
@@ -5407,7 +5418,7 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 	struct regulator *va_consumer = cs40l26_supplies[CS40L26_VA_SUPPLY].consumer;
 	int error;
 
-	disable_irq(cs40l26->irq);
+	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_DISABLE);
 	mutex_destroy(&cs40l26->lock);
 
 	cs40l26_pm_runtime_teardown(cs40l26);
@@ -5481,11 +5492,10 @@ EXPORT_SYMBOL_GPL(cs40l26_suspend);
 int cs40l26_sys_suspend(struct device *dev)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	struct i2c_client *i2c_client = to_i2c_client(dev);
 
 	dev_dbg(cs40l26->dev, "System suspend, disabling IRQ\n");
 
-	disable_irq(i2c_client->irq);
+	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_DISABLE);
 
 	return 0;
 }
@@ -5494,10 +5504,10 @@ EXPORT_SYMBOL_GPL(cs40l26_sys_suspend);
 int cs40l26_sys_suspend_noirq(struct device *dev)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	struct i2c_client *i2c_client = to_i2c_client(dev);
 
 	dev_dbg(cs40l26->dev, "Late system suspend, re-enabling IRQ\n");
-	enable_irq(i2c_client->irq);
+
+	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_ENABLE);
 
 	return 0;
 }
@@ -5516,11 +5526,10 @@ EXPORT_SYMBOL_GPL(cs40l26_resume);
 int cs40l26_sys_resume(struct device *dev)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	struct i2c_client *i2c_client = to_i2c_client(dev);
 
 	dev_dbg(cs40l26->dev, "System resume, re-enabling IRQ\n");
 
-	enable_irq(i2c_client->irq);
+	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_ENABLE);
 
 	return 0;
 }
@@ -5529,11 +5538,10 @@ EXPORT_SYMBOL_GPL(cs40l26_sys_resume);
 int cs40l26_sys_resume_noirq(struct device *dev)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	struct i2c_client *i2c_client = to_i2c_client(dev);
 
 	dev_dbg(cs40l26->dev, "Early system resume, disabling IRQ\n");
 
-	disable_irq(i2c_client->irq);
+	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_DISABLE);
 
 	return 0;
 }
