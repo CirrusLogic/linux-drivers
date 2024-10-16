@@ -587,6 +587,12 @@ properties:
       2: Normal (0x58): Rise = 20 ns, Fall = 15 ns
       3: Fast (0x5B): Rise = 15 ns, Fall = 10 ns
 
+  cirrus,i2c-broadcast-addr:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0x7
+    maximum: 0x78
+    description: Enables I2C writes to device at 7-bit broadcast address.
+
 required:
   - compatible
   - reg
