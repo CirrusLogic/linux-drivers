@@ -671,7 +671,9 @@ static ssize_t swap_wavetable_store(struct device *dev, struct device_attribute 
 
 	mutex_unlock(&cs40l26->lock);
 
-	cs40l26_pm_runtime_setup(cs40l26);
+	error = cs40l26_pm_runtime_setup(cs40l26);
+	if (error)
+		return error;
 
 	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_ENABLE);
 
@@ -698,7 +700,8 @@ err_mutex:
 err_setup:
 	mutex_unlock(&cs40l26->lock);
 
-	cs40l26_pm_runtime_setup(cs40l26);
+	if (cs40l26_pm_runtime_setup(cs40l26))
+		dev_err(cs40l26->dev, "Failed to re-initialize PM runtime\n");
 
 	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_ENABLE);
 

@@ -319,12 +319,18 @@ int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26, unsigned int dsp_
 }
 EXPORT_SYMBOL_GPL(cs40l26_pm_timeout_ms_get);
 
-inline void cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
+int cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
 {
-	pm_runtime_mark_last_busy(cs40l26->dev);
-	pm_runtime_use_autosuspend(cs40l26->dev);
+	int error;
+
 	pm_runtime_set_autosuspend_delay(cs40l26->dev, CS40L26_AUTOSUSPEND_DELAY_MS);
-	pm_runtime_enable(cs40l26->dev);
+	pm_runtime_use_autosuspend(cs40l26->dev);
+	pm_runtime_get_noresume(cs40l26->dev);
+	error = pm_runtime_set_active(cs40l26->dev);
+	if (error)
+		return error;
+
+	return devm_pm_runtime_enable(cs40l26->dev);
 }
 EXPORT_SYMBOL_GPL(cs40l26_pm_runtime_setup);
 
@@ -4265,13 +4271,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if  (error)
 		return error;
 
-	cs40l26_pm_runtime_setup(cs40l26);
-
-	error = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_ALLOW_HIBERNATE);
-	if (error)
-		return error;
-
-	error = cs40l26_pm_enter(dev);
+	error = cs40l26_pm_runtime_setup(cs40l26);
 	if (error)
 		return error;
 
@@ -4834,7 +4834,9 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 		 * If firmware upload fails reinstate PM runtime functionality so certain driver
 		 * features can still be used and firmware swap can be reattempted
 		 */
-		cs40l26_pm_runtime_setup(cs40l26);
+		if (cs40l26_pm_runtime_setup(cs40l26))
+			dev_err(cs40l26->dev, "Failed to re-initialize PM runtime\n");
+
 		return error;
 	}
 	cs40l26->prev_fw_load_failed = false;
@@ -5420,8 +5422,6 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 
 	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_DISABLE);
 	mutex_destroy(&cs40l26->lock);
-
-	cs40l26_pm_runtime_teardown(cs40l26);
 
 	if (cs40l26->vibe_workqueue) {
 		flush_workqueue(cs40l26->vibe_workqueue);
