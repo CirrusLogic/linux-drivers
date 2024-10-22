@@ -2935,7 +2935,7 @@ static void cs40l26_upload_worker(struct work_struct *work)
 
 	error = cs40l26_pm_enter(cdev);
 	if (error)
-		return;
+		goto out_err;
 
 	mutex_lock(&cs40l26->lock);
 
@@ -2964,6 +2964,7 @@ out_mutex:
 
 	cs40l26_pm_exit(cdev);
 
+out_err:
 	work_data->error = error;
 }
 
@@ -3072,7 +3073,7 @@ static void cs40l26_erase_worker(struct work_struct *work)
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
-		return;
+		goto out_err;
 
 	mutex_lock(&cs40l26->lock);
 
@@ -3098,7 +3099,7 @@ static void cs40l26_erase_worker(struct work_struct *work)
 			error = -ETIME;
 			dev_err(cs40l26->dev, "Failed to erase effect (%d)\n",
 					effect_id);
-			goto pm_err;
+			goto out_pm;
 		}
 		mutex_lock(&cs40l26->lock);
 	}
@@ -3131,9 +3132,9 @@ static void cs40l26_erase_worker(struct work_struct *work)
 
 out_mutex:
 	mutex_unlock(&cs40l26->lock);
-pm_err:
+out_pm:
 	cs40l26_pm_exit(cs40l26->dev);
-
+out_err:
 	work_data->error = error;
 }
 
