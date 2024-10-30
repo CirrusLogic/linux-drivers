@@ -4507,98 +4507,132 @@ static void cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26,
 		dev_warn(cs40l26->dev, "Using default tunings\n");
 }
 
-static char **cs40l26_get_tuning_names(struct cs40l26_private *cs40l26, int *actual_num_files,
-		u32 tuning)
-{
-	int i, file_count = 0;
-	char **coeff_files;
-
-	coeff_files = kcalloc(CS40L26_MAX_TUNING_FILES, sizeof(char *), GFP_KERNEL);
-	if (!coeff_files)
-		return ERR_PTR(-ENOMEM);
-
-	for (i = 0; i < CS40L26_MAX_TUNING_FILES; i++) {
-		coeff_files[i] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
-		if (!coeff_files[i])
-			goto err_free;
-	}
-
-	if (tuning) {
-		snprintf(coeff_files[file_count++], CS40L26_FILE_NAME_MAX_LEN, "%s%d%s",
-				CS40L26_WT_FILE_PREFIX, tuning, CS40L26_FILE_SUFFIX);
-		snprintf(coeff_files[file_count++], CS40L26_FILE_NAME_MAX_LEN, "%s%d%s",
-				CS40L26_SVC_FILE_PREFIX, tuning, CS40L26_FILE_SUFFIX);
-	} else {
-		strscpy(coeff_files[file_count++], CS40L26_WT_FILE_NAME,
-				CS40L26_FILE_NAME_MAX_LEN);
-		strscpy(coeff_files[file_count++], CS40L26_SVC_FILE_NAME,
-				CS40L26_FILE_NAME_MAX_LEN);
-	}
-
-	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_LF0T_ALGO_ID))
-		strscpy(coeff_files[file_count++], CS40L26_LF0T_FILE_NAME,
-				CS40L26_FILE_NAME_MAX_LEN);
-
-	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_DVL_ALGO_ID))
-		strscpy(coeff_files[file_count++], CS40L26_DVL_FILE_NAME,
-				CS40L26_FILE_NAME_MAX_LEN);
-
-	if (cs40l26->fw_id == CS40L26_FW_ID) {
-		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID))
-			strscpy(coeff_files[file_count++], CS40L26_A2H_FILE_NAME,
-					CS40L26_FILE_NAME_MAX_LEN);
-
-		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID))
-			strscpy(coeff_files[file_count++], CS40L26_EP_FILE_NAME,
-					CS40L26_FILE_NAME_MAX_LEN);
-
-		strscpy(coeff_files[file_count++], CS40L26_DBC_FILE_NAME,
-				CS40L26_FILE_NAME_MAX_LEN);
-	} else {
-		strscpy(coeff_files[file_count++], CS40L26_CALIB_FILE_NAME,
-				CS40L26_FILE_NAME_MAX_LEN);
-
-		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_LS_ALGO_ID))
-			strscpy(coeff_files[file_count++], CS40L26_LS_CAL_FILE_NAME,
-					CS40L26_FILE_NAME_MAX_LEN);
-	}
-
-	*actual_num_files = file_count;
-	return coeff_files;
-
-err_free:
-	for (; i >= 0; i--)
-		kfree(coeff_files[i]);
-	kfree(coeff_files);
-	*actual_num_files = 0;
-	return ERR_PTR(-ENOMEM);
-}
-
 static int cs40l26_coeff_load(struct cs40l26_private *cs40l26, u32 tuning)
 {
-	struct device *dev = cs40l26->dev;
-	int i, error, num_files_to_load;
+	int error, i, nfiles = 0;
 	const struct firmware *coeff;
-	char **coeff_files;
+	char *coeff_names[CS40L26_MAX_TUNING_FILES];
 
-	coeff_files = cs40l26_get_tuning_names(cs40l26, &num_files_to_load, tuning);
-	if (IS_ERR(coeff_files))
-		return PTR_ERR(coeff_files);
+	if (tuning) {
+		coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
+		if (!coeff_names[nfiles]) {
+			error = -ENOMEM;
+			goto err_free;
+		}
 
-	for (i = 0; i < num_files_to_load; i++) {
-		error = request_firmware(&coeff, coeff_files[i], dev);
+		snprintf(coeff_names[nfiles++], CS40L26_FILE_NAME_MAX_LEN, "%s%d%s",
+				CS40L26_WT_FILE_PREFIX, tuning, CS40L26_FILE_SUFFIX);
+
+		coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
+		if (!coeff_names[nfiles]) {
+			error = -ENOMEM;
+			goto err_free;
+		}
+
+		snprintf(coeff_names[nfiles++], CS40L26_FILE_NAME_MAX_LEN, "%s%d%s",
+				CS40L26_SVC_FILE_PREFIX, tuning, CS40L26_FILE_SUFFIX);
+	} else {
+		coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
+		if (!coeff_names[nfiles]) {
+			error = -ENOMEM;
+			goto err_free;
+		}
+
+		strscpy(coeff_names[nfiles++], CS40L26_WT_FILE_NAME, CS40L26_FILE_NAME_MAX_LEN);
+
+		coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
+		if (!coeff_names[nfiles]) {
+			error = -ENOMEM;
+			goto err_free;
+		}
+
+		strscpy(coeff_names[nfiles++], CS40L26_SVC_FILE_NAME, CS40L26_FILE_NAME_MAX_LEN);
+	}
+
+	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_LF0T_ALGO_ID)) {
+		coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
+		if (!coeff_names[nfiles]) {
+			error = -ENOMEM;
+			goto err_free;
+		}
+
+		strscpy(coeff_names[nfiles++], CS40L26_LF0T_FILE_NAME, CS40L26_FILE_NAME_MAX_LEN);
+	}
+
+	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_DVL_ALGO_ID)) {
+		coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
+		if (!coeff_names[nfiles]) {
+			error = -ENOMEM;
+			goto err_free;
+		}
+
+		strscpy(coeff_names[nfiles++], CS40L26_DVL_FILE_NAME, CS40L26_FILE_NAME_MAX_LEN);
+	}
+
+	if (cs40l26->fw_id == CS40L26_FW_ID) {
+		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID)) {
+			coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
+			if (!coeff_names[nfiles]) {
+				error = -ENOMEM;
+				goto err_free;
+			}
+
+			strscpy(coeff_names[nfiles++], CS40L26_A2H_FILE_NAME,
+					CS40L26_FILE_NAME_MAX_LEN);
+		}
+
+		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID)) {
+			coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
+			if (!coeff_names[nfiles]) {
+				error = -ENOMEM;
+				goto err_free;
+			}
+
+			strscpy(coeff_names[nfiles++], CS40L26_EP_FILE_NAME,
+					CS40L26_FILE_NAME_MAX_LEN);
+		}
+		coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
+		if (!coeff_names[nfiles]) {
+			error = -ENOMEM;
+			goto err_free;
+		}
+
+		strscpy(coeff_names[nfiles++], CS40L26_DBC_FILE_NAME, CS40L26_FILE_NAME_MAX_LEN);
+	} else {
+		coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
+		if (!coeff_names[nfiles]) {
+			error = -ENOMEM;
+			goto err_free;
+		}
+
+		strscpy(coeff_names[nfiles++], CS40L26_CALIB_FILE_NAME, CS40L26_FILE_NAME_MAX_LEN);
+
+		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_LS_ALGO_ID)) {
+			coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
+			if (!coeff_names[nfiles]) {
+				error = -ENOMEM;
+				goto err_free;
+			}
+
+			strscpy(coeff_names[nfiles++], CS40L26_LS_CAL_FILE_NAME,
+					CS40L26_FILE_NAME_MAX_LEN);
+		}
+	}
+
+	for (i = 0; i < nfiles; i++) {
+		error = request_firmware(&coeff, coeff_names[i], cs40l26->dev);
 		if (error) {
-			dev_warn(dev, "Continuing...\n");
+			dev_warn(cs40l26->dev, "Continuing...\n");
 			continue;
 		}
 
 		error = cl_dsp_coeff_file_parse(cs40l26->dsp, coeff);
 		if (error) {
-			dev_warn(dev, "Failed to load %s, %d. Continuing...\n", coeff_files[i],
-					error);
+			dev_warn(cs40l26->dev, "Failed to load %s, %d. Continuing...\n",
+					coeff_names[i], error);
 		} else {
-			dev_info(dev, "%s Loaded Successfully\n", coeff_files[i]);
-			if (!strncmp(coeff_files[i], CS40L26_DBC_FILE_NAME,
+			dev_info(cs40l26->dev, "%s Loaded Successfully\n", coeff_names[i]);
+			if (!strncmp(coeff_names[i], CS40L26_DBC_FILE_NAME,
 					CS40L26_FILE_NAME_MAX_LEN))
 				cs40l26->dbc_tuning_loaded = true;
 		}
@@ -4606,9 +4640,13 @@ static int cs40l26_coeff_load(struct cs40l26_private *cs40l26, u32 tuning)
 		release_firmware(coeff);
 	}
 
-	kfree(coeff_files);
+	error = 0;
 
-	return 0;
+err_free:
+	for (i = 0; i < nfiles; i++)
+		kfree(coeff_names[i]);
+
+	return error;
 }
 
 static int cs40l26_change_fw_control_defaults(struct cs40l26_private *cs40l26)
