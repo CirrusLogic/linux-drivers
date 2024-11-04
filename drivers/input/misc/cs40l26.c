@@ -2977,6 +2977,8 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 
 	dev_dbg(cs40l26->dev, "%s: effect ID = %d\n", __func__, effect->id);
 
+	memset((void *) &work_data, 0, sizeof(struct cs40l26_work));
+
 	if (effect->u.periodic.waveform == FF_CUSTOM) {
 		work_data.raw_custom_data_len = len;
 
@@ -3141,6 +3143,8 @@ static int cs40l26_erase_effect(struct input_dev *dev, int effect_id)
 	struct cs40l26_work work_data;
 
 	dev_dbg(cs40l26->dev, "%s: effect ID = %d\n", __func__, effect_id);
+
+	memset((void *) &work_data, 0, sizeof(struct cs40l26_work));
 
 	work_data.effect = &dev->ff->effects[effect_id];
 
