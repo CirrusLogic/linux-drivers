@@ -1863,10 +1863,16 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	if (error)
 		goto err_mutex;
 
-	error = regmap_write(cs40l26->regmap, reg, duration);
-	if (error) {
-		dev_err(dev, "Failed to set TIMEOUT_MS\n");
-		goto err_mutex;
+	if (cs40l26->broadcast_client) {
+		error = cs40l26_broadcast_write(cs40l26, reg, duration, false);
+		if (error)
+			goto err_mutex;
+	} else {
+		error = regmap_write(cs40l26->regmap, reg, duration);
+		if (error) {
+			dev_err(dev, "Failed to set TIMEOUT_MS\n");
+			goto err_mutex;
+		}
 	}
 
 	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
@@ -1897,17 +1903,17 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	switch (effect->u.periodic.waveform) {
 	case FF_CUSTOM:
 	case FF_SINE:
-		if (!cs40l26->broadcast_client) {
-			error = cs40l26_mailbox_write(cs40l26, ueffect->trigger_index);
-			if (error)
-				goto err_mutex;
-		} else {
+		if (cs40l26->broadcast_client) {
 			error = cs40l26_broadcast_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 					ueffect->trigger_index, true);
 			if (error) {
 				dev_err(cs40l26->dev, "Broadcast trigger failed: %d\n", error);
 				goto err_mutex;
 			}
+		} else {
+			error = cs40l26_mailbox_write(cs40l26, ueffect->trigger_index);
+			if (error)
+				goto err_mutex;
 		}
 
 		cs40l26->cur_index = ueffect->trigger_index;
@@ -1962,15 +1968,15 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	}
 
 	if (!skip_delay) {
-		if (!cs40l26->broadcast_client) {
-			error = cs40l26_mailbox_write(cs40l26, CS40L26_STOP_PLAYBACK);
-			if (error)
-				dev_err(cs40l26->dev, "Failed to stop playback\n");
-		} else {
+		if (cs40l26->broadcast_client) {
 			error = cs40l26_broadcast_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 					CS40L26_STOP_PLAYBACK, true);
 			if (error)
 				dev_err(cs40l26->dev, "Broadcast stop failed: %d\n", error);
+		} else {
+			error = cs40l26_mailbox_write(cs40l26, CS40L26_STOP_PLAYBACK);
+			if (error)
+				dev_err(cs40l26->dev, "Failed to stop playback\n");
 		}
 	} else {
 		dev_dbg(cs40l26->dev, "Stop command skipped\n");

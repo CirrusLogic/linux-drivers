@@ -23,6 +23,8 @@ bool cs40l26_broadcast_writeable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case CS40L26_DSP_VIRTUAL1_MBOX_1:
+	case CS40L26_DSP1_XMEM_UNPACKED32_0 ... CS40L26_DSP1_XROM_UNPACKED32_3070:
+	case CS40L26_DSP1_XMEM_UNPACKED24_0 ... CS40L26_DSP1_XMEM_UNPACKED24_8191:
 		return true;
 	default:
 		return false;
