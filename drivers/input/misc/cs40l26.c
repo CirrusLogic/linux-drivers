@@ -3817,6 +3817,33 @@ static int cs40l26_aux_noise_gate_config(struct cs40l26_private *cs40l26)
 			CS40L26_WSEQ_OP_WRITE_FULL, wseq_params);
 }
 
+static int cs40l26_broadcast_config(struct cs40l26_private *cs40l26)
+{
+	u32 broadcast_config;
+	int error;
+
+	if (cs40l26->broadcast_addr) {
+		broadcast_config = (cs40l26->broadcast_addr << CS40L26_I2C_BROADCAST_ADDR_SHIFT) |
+				CS40L26_I2C_BROADCAST_ENABLE_MASK;
+
+		error = regmap_write(cs40l26->regmap, CS40L26_CTRL_I2C_BROADCAST, broadcast_config);
+		if (error) {
+			dev_err(cs40l26->dev, "Failed to enable broadcast: %d\n", error);
+			return error;
+		}
+
+		error = cs40l26_wseq_write(cs40l26, CS40L26_CTRL_I2C_BROADCAST, broadcast_config,
+				true, CS40L26_WSEQ_OP_WRITE_FULL, &pseq_params);
+		if (error) {
+			dev_err(cs40l26->dev,
+					"Failed to add broadcast config to write sequence\n");
+			return error;
+		}
+	}
+
+	return 0;
+}
+
 static struct reg_sequence cs40l26_asp_dout_cfg_seq[] = {
 	{ CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE1 },
 	{ CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE2 },
@@ -4349,6 +4376,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		return error;
 
 	error = cs40l26_aux_noise_gate_config(cs40l26);
+	if (error)
+		return error;
+
+	error = cs40l26_broadcast_config(cs40l26);
 	if (error)
 		return error;
 
@@ -4947,16 +4978,6 @@ static int cs40l26_device_init(struct cs40l26_private *cs40l26, const bool reini
 	error = cs40l26_erase_gpi_mapping(cs40l26, CS40L26_GPIO_MAP_A_RELEASE);
 	if (error)
 		return error;
-
-	if (cs40l26->broadcast_addr) {
-		error = regmap_write(cs40l26->regmap, CS40L26_CTRL_I2C_BROADCAST,
-				(cs40l26->broadcast_addr << CS40L26_I2C_BROADCAST_ADDR_SHIFT) |
-				CS40L26_I2C_BROADCAST_ENABLE_MASK);
-		if (error) {
-			dev_err(cs40l26->dev, "Failed to enable I2C broadcast: %d\n", error);
-			return error;
-		}
-	}
 
 	/* Set LRA to high-z to avoid fault conditions */
 	return regmap_set_bits(cs40l26->regmap, CS40L26_TST_DAC_MSM_CONFIG,
@@ -5643,8 +5664,7 @@ int cs40l26_suspend(struct device *dev)
 
 	dev_dbg(cs40l26->dev, "%s: Enabling hibernation\n", __func__);
 
-	return cs40l26->broadcast_addr ? 0 :
-			cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_ALLOW_HIBERNATE);
+	return cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_ALLOW_HIBERNATE);
 }
 EXPORT_SYMBOL_GPL(cs40l26_suspend);
 
