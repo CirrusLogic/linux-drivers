@@ -1832,6 +1832,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 {
 	struct cs40l26_work *work_data = container_of(work, struct cs40l26_work, work);
 	struct cs40l26_private *cs40l26 = work_data->cs40l26;
+	struct i2c_client *sibling_client = NULL;
 	struct device *dev = cs40l26->dev;
 	struct cs40l26_uploaded_effect *ueffect;
 	struct ff_effect *effect;
@@ -1845,6 +1846,20 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	error = cs40l26_pm_enter(dev);
 	if (error)
 		goto err_free;
+
+	if (cs40l26->broadcast_client) {
+		sibling_client = of_find_i2c_device_by_node(dev->of_node->sibling);
+		if (!sibling_client) {
+			dev_err(dev, "Unable to find sibling client\n");
+			goto err_pm;
+		}
+
+		error = cs40l26_pm_enter(&sibling_client->dev);
+		if (error) {
+			dev_err(dev, "Unable to resume sibling device\n");
+			goto err_pm;
+		}
+	}
 
 	mutex_lock(&cs40l26->lock);
 
@@ -1930,6 +1945,9 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
+	if (sibling_client)
+		cs40l26_pm_exit(&sibling_client->dev);
+err_pm:
 	cs40l26_pm_exit(dev);
 err_free:
 	kfree(work_data);
@@ -1939,6 +1957,7 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 {
 	struct cs40l26_work *work_data = container_of(work, struct cs40l26_work, work);
 	struct cs40l26_private *cs40l26 = work_data->cs40l26;
+	struct i2c_client *sibling_client = NULL;
 	bool skip_delay;
 	u32 delay_us;
 	int error;
@@ -1948,6 +1967,20 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
 		goto err_free;
+
+	if (cs40l26->broadcast_client) {
+		sibling_client = of_find_i2c_device_by_node(cs40l26->dev->of_node->sibling);
+		if (!sibling_client) {
+			dev_err(cs40l26->dev, "Unable to find sibling client\n");
+			goto err_pm;
+		}
+
+		error = cs40l26_pm_enter(&sibling_client->dev);
+		if (error) {
+			dev_err(cs40l26->dev, "Unable to resume sibling device\n");
+			goto err_pm;
+		}
+	}
 
 	mutex_lock(&cs40l26->lock);
 
@@ -1983,6 +2016,9 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	}
 
 	mutex_unlock(&cs40l26->lock);
+	if (sibling_client)
+		cs40l26_pm_exit(&sibling_client->dev);
+err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
 err_free:
 	kfree(work_data);
