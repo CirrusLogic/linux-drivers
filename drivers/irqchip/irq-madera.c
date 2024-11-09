@@ -14,6 +14,9 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/irqchip/irq-madera.h>
 #include <linux/mfd/madera/core.h>
 #include <linux/mfd/madera/pdata.h>
@@ -21,7 +24,7 @@
 
 #define MADERA_IRQ(_irq, _reg)					\
 	[MADERA_IRQ_ ## _irq] = {				\
-		.reg_offset = (_reg) - MADERA_IRQ1_STATUS_2,	\
+		.reg_offset = (_reg) - MADERA_IRQ1_STATUS_1,	\
 		.mask = MADERA_ ## _irq ## _EINT1		\
 	}
 
@@ -40,6 +43,10 @@ static const struct regmap_irq madera_irqs[MADERA_NUM_IRQ] = {
 	MADERA_IRQ(MICD_CLAMP_FALL,	MADERA_IRQ1_STATUS_7),
 	MADERA_IRQ(JD1_RISE,		MADERA_IRQ1_STATUS_7),
 	MADERA_IRQ(JD1_FALL,		MADERA_IRQ1_STATUS_7),
+	MADERA_IRQ(JD2_RISE,		MADERA_IRQ1_STATUS_7),
+	MADERA_IRQ(JD2_FALL,		MADERA_IRQ1_STATUS_7),
+	MADERA_IRQ(JD3_RISE,		MADERA_IRQ1_STATUS_7),
+	MADERA_IRQ(JD3_FALL,		MADERA_IRQ1_STATUS_7),
 
 	MADERA_IRQ(ASRC2_IN1_LOCK,	MADERA_IRQ1_STATUS_9),
 	MADERA_IRQ(ASRC2_IN2_LOCK,	MADERA_IRQ1_STATUS_9),
@@ -82,15 +89,17 @@ static const struct regmap_irq madera_irqs[MADERA_NUM_IRQ] = {
 	MADERA_IRQ(DSP5_BUS_ERR,	MADERA_IRQ1_STATUS_33),
 	MADERA_IRQ(DSP6_BUS_ERR,	MADERA_IRQ1_STATUS_33),
 	MADERA_IRQ(DSP7_BUS_ERR,	MADERA_IRQ1_STATUS_33),
+
+	MADERA_IRQ(BOOT_DONE,		MADERA_IRQ1_STATUS_1),
 };
 
 static const struct regmap_irq_chip madera_irq_chip = {
 	.name		= "madera IRQ",
-	.status_base	= MADERA_IRQ1_STATUS_2,
-	.mask_base	= MADERA_IRQ1_MASK_2,
-	.ack_base	= MADERA_IRQ1_STATUS_2,
+	.status_base	= MADERA_IRQ1_STATUS_1,
+	.mask_base	= MADERA_IRQ1_MASK_1,
+	.ack_base	= MADERA_IRQ1_STATUS_1,
 	.runtime_pm	= true,
-	.num_regs	= 32,
+	.num_regs	= 33,
 	.irqs		= madera_irqs,
 	.num_irqs	= ARRAY_SIZE(madera_irqs),
 };
@@ -151,6 +160,15 @@ static int madera_resume(struct device *dev)
 	return 0;
 }
 #endif
+
+static irqreturn_t madera_boot_done(int irq, void *data)
+{
+	struct madera *madera = data;
+
+	dev_warn(madera->dev, "BOOT_DONE\n");
+
+	return IRQ_HANDLED;
+}
 
 static const struct dev_pm_ops madera_irq_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(madera_suspend, madera_resume)
@@ -219,6 +237,9 @@ static int madera_irq_probe(struct platform_device *pdev)
 	/* Save dev in parent MFD struct so it is accessible to siblings */
 	madera->irq_dev = &pdev->dev;
 
+	madera_request_irq(madera, MADERA_IRQ_BOOT_DONE, "BOOT_DONE",
+			  madera_boot_done, madera);
+
 	return 0;
 }
 
@@ -230,6 +251,9 @@ static int madera_irq_remove(struct platform_device *pdev)
 	 * The IRQ is disabled by the parent MFD driver before
 	 * it starts cleaning up all child drivers
 	 */
+
+	madera_free_irq(madera, MADERA_IRQ_BOOT_DONE, madera);
+
 	madera->irq_dev = NULL;
 	regmap_del_irq_chip(madera->irq, madera->irq_data);
 

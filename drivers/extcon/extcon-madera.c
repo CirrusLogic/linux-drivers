@@ -39,6 +39,9 @@
 
 #define MADERA_MAX_MICD_RANGE		8
 
+#define MADERA_MICD_CLAMP2_MODE_JD3L	0x2
+#define MADERA_MICD_CLAMP2_MODE_JD3H	0x3
+
 #define MADERA_MICD_CLAMP_MODE_JD1L	0x4
 #define MADERA_MICD_CLAMP_MODE_JD1H	0x5
 #define MADERA_MICD_CLAMP_MODE_JD1L_JD2L 0x8
@@ -67,6 +70,28 @@ static const unsigned int madera_cable[] = {
 	EXTCON_NONE,
 };
 
+struct madera_extcon_config madera_extcon_defaults[] = {
+	{
+	 .micdet_irq = MADERA_IRQ_MICDET1,
+	 .jackrise_irq = MADERA_IRQ_JD1_RISE,
+	 .jackfall_irq = MADERA_IRQ_JD1_FALL,
+	 .micdet_ctrl_0 = MADERA_MIC_DETECT_1_CONTROL_0,
+	 .micdet_ctrl_1 = MADERA_MIC_DETECT_1_CONTROL_1,
+	 .micdet_ctrl_2 = MADERA_MIC_DETECT_1_CONTROL_2,
+	 .micdet_ctrl_3 = MADERA_MIC_DETECT_1_CONTROL_3,
+	 .micdet_ctrl_4 = MADERA_MIC_DETECT_1_CONTROL_4,
+	},
+	{
+	 .micdet_irq = MADERA_IRQ_MICDET2,
+	 .jackrise_irq = MADERA_IRQ_JD3_RISE,
+	 .jackfall_irq = MADERA_IRQ_JD3_FALL,
+	 .micdet_ctrl_0 = MADERA_MIC_DETECT_2_CONTROL_0,
+	 .micdet_ctrl_1 = MADERA_MIC_DETECT_2_CONTROL_1,
+	 .micdet_ctrl_2 = MADERA_MIC_DETECT_2_CONTROL_2,
+	 .micdet_ctrl_3 = MADERA_MIC_DETECT_2_CONTROL_3,
+	 .micdet_ctrl_4 = MADERA_MIC_DETECT_2_CONTROL_4,
+	},
+};
 static const struct madera_micd_config cs47l85_micd_default_modes[] = {
 	{ MADERA_ACCD_SENSE_MICDET2, 0, MADERA_ACCD_BIAS_SRC_MICBIAS1, 0, 0 },
 	{ MADERA_ACCD_SENSE_MICDET1, 0, MADERA_ACCD_BIAS_SRC_MICBIAS2, 1, 0 },
@@ -776,6 +801,19 @@ static void madera_jds_timeout_work(struct work_struct *work)
 	mutex_unlock(&info->lock);
 }
 
+static irqreturn_t madera_hpdet_handler(int irq, void *data);
+
+static void madera_hpdet_work(struct work_struct *work)
+{
+	struct madera_extcon *info =
+		container_of(work, struct madera_extcon,
+			     hp_detect_work.work);
+
+	dev_info(info->dev,
+		"No HPDET irq registered: do delayed reading\n");
+	madera_hpdet_handler(0, (void *)info);
+}
+
 static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 {
 	struct madera *madera = info->madera;
@@ -1155,17 +1193,17 @@ static void madera_extcon_set_mode(struct madera_extcon *info, int mode)
 		break;
 	default:
 		regmap_update_bits(madera->regmap,
-				   MADERA_MIC_DETECT_1_CONTROL_1,
+				   madera_extcon_defaults[info->id].micdet_ctrl_1,
 				   MADERA_MICD_BIAS_SRC_MASK,
 				   info->micd_modes[mode].bias <<
 				   MADERA_MICD_BIAS_SRC_SHIFT);
 		regmap_update_bits(madera->regmap,
-				   MADERA_MIC_DETECT_1_CONTROL_0,
+				   madera_extcon_defaults[info->id].micdet_ctrl_0,
 				   MADERA_MICD1_SENSE_MASK,
 				   info->micd_modes[mode].src <<
 				   MADERA_MICD1_SENSE_SHIFT);
 		regmap_update_bits(madera->regmap,
-				   MADERA_MIC_DETECT_1_CONTROL_0,
+				   madera_extcon_defaults[info->id].micdet_ctrl_0,
 				   MADERA_MICD1_GND_MASK,
 				   info->micd_modes[mode].gnd <<
 				   MADERA_MICD1_GND_SHIFT);
@@ -1219,14 +1257,14 @@ static int madera_micd_adc_read(struct madera_extcon *info)
 	int ret;
 
 	/* Must disable MICD before we read the ADCVAL */
-	ret = regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
+	ret = regmap_update_bits(madera->regmap, madera_extcon_defaults[info->id].micdet_ctrl_1,
 				 MADERA_MICD_ENA, 0);
 	if (ret) {
 		dev_err(info->dev, "Failed to disable MICD: %d\n", ret);
 		return ret;
 	}
 
-	ret = regmap_read(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_4, &val);
+	ret = regmap_read(madera->regmap, madera_extcon_defaults[info->id].micdet_ctrl_4, &val);
 	if (ret) {
 		dev_err(info->dev, "Failed to read MICDET_ADCVAL: %d\n", ret);
 		return ret;
@@ -1251,7 +1289,7 @@ static int madera_micd_read(struct madera_extcon *info)
 
 	for (i = 0; i < 10 && !(val & MADERA_MICD_LVL_0_TO_8); i++) {
 		ret = regmap_read(madera->regmap,
-				  MADERA_MIC_DETECT_1_CONTROL_3, &val);
+				  madera_extcon_defaults[info->id].micdet_ctrl_3, &val);
 		if (ret) {
 			dev_err(info->dev,
 				"Failed to read MICDET: %d\n", ret);
@@ -1457,6 +1495,9 @@ static int madera_hpdet_read(struct madera_extcon *info)
 				   MADERA_HP_IMPEDANCE_RANGE_MASK,
 				   range <<
 				   MADERA_HP_IMPEDANCE_RANGE_SHIFT);
+		if (info->id)
+			schedule_delayed_work(&info->hp_detect_work,
+				      msecs_to_jiffies(100));
 		return -EAGAIN;
 	}
 
@@ -1608,10 +1649,10 @@ static void madera_hpdet_start_micd(struct madera_extcon *info)
 	regmap_update_bits(madera->regmap, MADERA_IRQ1_MASK_6,
 			   MADERA_IM_MICDET1_EINT1_MASK,
 			   MADERA_IM_MICDET1_EINT1);
-	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_0,
+	regmap_update_bits(madera->regmap, madera_extcon_defaults[info->id].micdet_ctrl_0,
 			   MADERA_MICD1_ADC_MODE_MASK,
 			   MADERA_MICD1_ADC_MODE_MASK);
-	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
+	regmap_update_bits(madera->regmap, madera_extcon_defaults[info->id].micdet_ctrl_1,
 			   MADERA_MICD_BIAS_STARTTIME_MASK |
 			   MADERA_MICD_RATE_MASK |
 			   MADERA_MICD_DBTIME_MASK |
@@ -1632,7 +1673,7 @@ static void madera_hpdet_stop_micd(struct madera_extcon *info)
 	if (info->pdata->micd_dbtime)
 		dbtime = info->pdata->micd_dbtime;
 
-	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
+	regmap_update_bits(madera->regmap, madera_extcon_defaults[info->id].micdet_ctrl_1,
 			   MADERA_MICD_BIAS_STARTTIME_MASK |
 			   MADERA_MICD_RATE_MASK |
 			   MADERA_MICD_DBTIME_MASK |
@@ -1703,7 +1744,7 @@ int madera_hpdet_start(struct madera_extcon *info)
 				(hpd_gnd << MADERA_HPD_GND_SEL_SHIFT);
 
 		ret = regmap_update_bits(madera->regmap,
-					 MADERA_MIC_DETECT_1_CONTROL_0,
+					 madera_extcon_defaults[info->id].micdet_ctrl_0,
 					 MADERA_MICD1_GND_MASK,
 					 hpd_gnd << MADERA_MICD1_GND_SHIFT);
 		if (ret) {
@@ -1736,6 +1777,10 @@ int madera_hpdet_start(struct madera_extcon *info)
 		goto err;
 	}
 
+	if (info->id)
+		schedule_delayed_work(&info->hp_detect_work,
+			      msecs_to_jiffies(100));
+
 	return 0;
 
 err:
@@ -1753,7 +1798,7 @@ void madera_hpdet_restart(struct madera_extcon *info)
 	struct madera *madera = info->madera;
 
 	/* Reset back to starting range */
-	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
+	regmap_update_bits(madera->regmap, madera_extcon_defaults[info->id].micdet_ctrl_1,
 			   MADERA_MICD_ENA_MASK, 0);
 
 	regmap_update_bits(madera->regmap, MADERA_HEADPHONE_DETECT_1,
@@ -1768,7 +1813,7 @@ void madera_hpdet_restart(struct madera_extcon *info)
 		break;
 	default:
 		regmap_update_bits(madera->regmap,
-				   MADERA_MIC_DETECT_1_CONTROL_1,
+				   madera_extcon_defaults[info->id].micdet_ctrl_1,
 				   MADERA_MICD_ENA_MASK, MADERA_MICD_ENA);
 		break;
 	}
@@ -1876,7 +1921,8 @@ int madera_micd_start(struct madera_extcon *info)
 	dev_dbg(info->dev, "Disabling MICD_OVD\n");
 	regmap_update_bits(madera->regmap,
 			   MADERA_MICD_CLAMP_CONTROL,
-			   MADERA_MICD_CLAMP_OVD_MASK, 0);
+			   MADERA_MICD_CLAMP_OVD_MASK|MADERA_MICD_CLAMP2_OVD_MASK,
+			   0);
 
 	ret = regulator_enable(info->micvdd);
 	if (ret)
@@ -1897,14 +1943,14 @@ int madera_micd_start(struct madera_extcon *info)
 			micd_mode = 0;
 
 		regmap_update_bits(madera->regmap,
-				   MADERA_MIC_DETECT_1_CONTROL_0,
+				   madera_extcon_defaults[info->id].micdet_ctrl_0,
 				   MADERA_MICD1_ADC_MODE_MASK, micd_mode);
 		break;
 	}
 
 	madera_extcon_enable_micbias(info);
 
-	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
+	regmap_update_bits(madera->regmap, madera_extcon_defaults[info->id].micdet_ctrl_1,
 			   MADERA_MICD_ENA, MADERA_MICD_ENA);
 
 	return 0;
@@ -1915,7 +1961,7 @@ void madera_micd_stop(struct madera_extcon *info)
 {
 	struct madera *madera = info->madera;
 
-	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
+	regmap_update_bits(madera->regmap, madera_extcon_defaults[info->id].micdet_ctrl_1,
 			   MADERA_MICD_ENA, 0);
 
 	madera_extcon_disable_micbias(info);
@@ -1937,7 +1983,8 @@ void madera_micd_stop(struct madera_extcon *info)
 
 	dev_dbg(info->dev, "Enabling MICD_OVD\n");
 	regmap_update_bits(madera->regmap, MADERA_MICD_CLAMP_CONTROL,
-			   MADERA_MICD_CLAMP_OVD_MASK, MADERA_MICD_CLAMP_OVD);
+			   MADERA_MICD_CLAMP_OVD_MASK|MADERA_MICD_CLAMP2_OVD_MASK,
+			   MADERA_MICD_CLAMP_OVD|MADERA_MICD_CLAMP2_OVD);
 
 	pm_runtime_mark_last_busy(info->dev);
 	pm_runtime_put_autosuspend(info->dev);
@@ -1948,9 +1995,9 @@ static void madera_micd_restart(struct madera_extcon *info)
 {
 	struct madera *madera = info->madera;
 
-	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
+	regmap_update_bits(madera->regmap, madera_extcon_defaults[info->id].micdet_ctrl_1,
 			   MADERA_MICD_ENA, 0);
-	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
+	regmap_update_bits(madera->regmap, madera_extcon_defaults[info->id].micdet_ctrl_1,
 			   MADERA_MICD_ENA, MADERA_MICD_ENA);
 }
 
@@ -2094,14 +2141,14 @@ int madera_micd_mic_reading(struct madera_extcon *info, int val)
 	 * plain headphones.  If both polarities report a low
 	 * impedence then give up and report headphones.
 	 */
-	if (ohms > info->micd_ranges[0].max &&
-	    info->num_micd_modes > 1) {
+	if (info->num_micd_modes > 1) {
 		if (info->jack_flips >= info->num_micd_modes * 10) {
 			dev_dbg(info->dev, "Detected HP/line\n");
 			goto done;
 		} else {
-			madera_extcon_next_mode(info);
+			dev_dbg(info->dev, "Repeat with next micd config\n");
 
+			madera_extcon_next_mode(info);
 			info->jack_flips++;
 
 			return -EAGAIN;
@@ -2170,17 +2217,26 @@ static int madera_jack_present(struct madera_extcon *info,
 
 	dev_dbg(info->dev, "IRQ1_RAW_STATUS_7=0x%x\n", val);
 
-	if (info->pdata->jd_use_jd2) {
-		val &= MADERA_MICD_CLAMP_RISE_STS1;
-		present = 0;
-	} else if (info->pdata->jd_invert) {
-		val &= MADERA_JD1_FALL_STS1_MASK;
-		present = MADERA_JD1_FALL_STS1;
+	if (info->id) {
+		if (info->pdata->jd_invert) {
+			val &= MADERA_JD3_FALL_STS1_MASK;
+			present = MADERA_JD3_FALL_STS1;
+		} else {
+			val &= MADERA_JD3_RISE_STS1_MASK;
+			present = MADERA_JD3_RISE_STS1;
+		}
 	} else {
-		val &= MADERA_JD1_RISE_STS1_MASK;
-		present = MADERA_JD1_RISE_STS1;
+		if (info->pdata->jd_use_jd2) {
+			val &= MADERA_MICD_CLAMP_RISE_STS1;
+			present = 0;
+		} else if (info->pdata->jd_invert) {
+			val &= MADERA_JD1_FALL_STS1_MASK;
+			present = MADERA_JD1_FALL_STS1;
+		} else {
+			val &= MADERA_JD1_RISE_STS1_MASK;
+			present = MADERA_JD1_RISE_STS1;
+		}
 	}
-
 	dev_dbg(info->dev, "jackdet val=0x%x present=0x%x\n", val, present);
 
 	if (jack_val)
@@ -2408,7 +2464,11 @@ static irqreturn_t madera_jackdet(int irq, void *data)
 	}
 	info->last_jackdet = val;
 
-	mask = MADERA_MICD_CLAMP_DB | MADERA_JD1_DB;
+	mask = MADERA_MICD_CLAMP_DB;
+	if (info->id)
+		mask |= MADERA_JD3_DB;
+	else
+		mask |= MADERA_JD1_DB;
 
 	if (info->pdata->jd_use_jd2)
 		mask |= MADERA_JD2_DB;
@@ -2704,12 +2764,6 @@ static void madera_extcon_process_accdet_node(struct madera_extcon *info,
 	else
 		gpio_status = GPIOD_OUT_LOW;
 
-//	info->micd_pol_gpio = devm_fwnode_get_gpiod_from_child(info->dev,
-//							"cirrus,micd-pol",
-//							node,
-//							gpio_status,
-//							"cirrus,micd-pol");
-
 	info->micd_pol_gpio = devm_fwnode_gpiod_get_index(info->dev,
 							node,
 							"cirrus,micd-pol",
@@ -2730,7 +2784,7 @@ static int madera_extcon_get_device_pdata(struct madera_extcon *info)
 {
 	struct device_node *parent, *child;
 	struct madera *madera = info->madera;
-
+	int i=0;
 	/*
 	 * a GPSW is not necessarily exclusive to a single accessory detect
 	 * channel so is not in the subnodes
@@ -2745,9 +2799,11 @@ static int madera_extcon_get_device_pdata(struct madera_extcon *info)
 		return 0;
 	}
 
-	for_each_child_of_node(parent, child)
-		madera_extcon_process_accdet_node(info, &child->fwnode);
-
+	for_each_child_of_node(parent, child) {
+		if (info->id == i)
+			madera_extcon_process_accdet_node(info, &child->fwnode);
+		i++;
+	}
 	of_node_put(parent);
 
 	return 0;
@@ -2755,7 +2811,7 @@ static int madera_extcon_get_device_pdata(struct madera_extcon *info)
 
 #ifdef DEBUG
 #define MADERA_EXTCON_PDATA_DUMP(x, f) \
-	dev_dbg(info->dev, "\t" #x ": " f "\n", pdata->x)
+	dev_info(info->dev, "\t" #x ": " f "\n", pdata->x)
 
 static void madera_extcon_dump_config(struct madera_extcon *info)
 {
@@ -2768,7 +2824,7 @@ static void madera_extcon_dump_config(struct madera_extcon *info)
 	for (i = 0; i < ARRAY_SIZE(info->madera->pdata.accdet); ++i) {
 		pdata = &info->madera->pdata.accdet[i];
 
-		dev_dbg(info->dev, "extcon pdata OUT%u\n", pdata->output);
+		dev_info(info->dev, "extcon pdata OUT%u\n", pdata->output);
 		MADERA_EXTCON_PDATA_DUMP(enabled, "%u");
 		MADERA_EXTCON_PDATA_DUMP(jd_use_jd2, "%u");
 		MADERA_EXTCON_PDATA_DUMP(jd_invert, "%u");
@@ -2926,25 +2982,35 @@ static void madera_extcon_set_micd_clamp_mode(struct madera_extcon *info)
 	 * If the user has supplied a micd_clamp_mode, assume they know
 	 * what they are doing and just write it out
 	 */
-	if (info->pdata->micd_clamp_mode) {
-		clamp_ctrl_val = info->pdata->micd_clamp_mode;
-	} else if (info->pdata->jd_use_jd2) {
-		if (info->pdata->jd_invert)
-			clamp_ctrl_val = MADERA_MICD_CLAMP_MODE_JD1H_JD2H;
-		else
-			clamp_ctrl_val = MADERA_MICD_CLAMP_MODE_JD1L_JD2L;
+	if (!info->id) {
+		if (info->pdata->micd_clamp_mode) {
+			clamp_ctrl_val = info->pdata->micd_clamp_mode;
+		} else if (info->pdata->jd_use_jd2) {
+			if (info->pdata->jd_invert)
+				clamp_ctrl_val = MADERA_MICD_CLAMP_MODE_JD1H_JD2H;
+			else
+				clamp_ctrl_val = MADERA_MICD_CLAMP_MODE_JD1L_JD2L;
+		} else {
+			if (info->pdata->jd_invert)
+				clamp_ctrl_val = MADERA_MICD_CLAMP_MODE_JD1H;
+			else
+				clamp_ctrl_val = MADERA_MICD_CLAMP_MODE_JD1L;
+		}
+
+		regmap_update_bits(info->madera->regmap,
+				   MADERA_MICD_CLAMP_CONTROL,
+				   MADERA_MICD_CLAMP_MODE_MASK,
+				   clamp_ctrl_val);
 	} else {
 		if (info->pdata->jd_invert)
-			clamp_ctrl_val = MADERA_MICD_CLAMP_MODE_JD1H;
+			clamp_ctrl_val = MADERA_MICD_CLAMP2_MODE_JD3H;
 		else
-			clamp_ctrl_val = MADERA_MICD_CLAMP_MODE_JD1L;
+			clamp_ctrl_val = MADERA_MICD_CLAMP2_MODE_JD3L;
+		regmap_update_bits(info->madera->regmap,
+				   MADERA_MICD_CLAMP_CONTROL,
+				   MADERA_MICD_CLAMP2_MODE_MASK,
+				   clamp_ctrl_val);
 	}
-
-	regmap_update_bits(info->madera->regmap,
-			   MADERA_MICD_CLAMP_CONTROL,
-			   MADERA_MICD_CLAMP_MODE_MASK,
-			   clamp_ctrl_val);
-
 	regmap_update_bits(info->madera->regmap,
 			   MADERA_INTERRUPT_DEBOUNCE_7,
 			   MADERA_MICD_CLAMP_DB,
@@ -2961,7 +3027,7 @@ static int madera_extcon_add_micd_levels(struct madera_extcon *info)
 		     MADERA_NUM_MICD_BUTTON_LEVELS);
 
 	/* Disable all buttons by default */
-	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_2,
+	regmap_update_bits(madera->regmap, madera_extcon_defaults[info->id].micdet_ctrl_2,
 			   MADERA_MICD_LVL_SEL_MASK, 0x81);
 
 	/* Set up all the buttons the user specified */
@@ -2987,7 +3053,7 @@ static int madera_extcon_add_micd_levels(struct madera_extcon *info)
 
 		/* Enable reporting of that range */
 		regmap_update_bits(madera->regmap,
-				   MADERA_MIC_DETECT_1_CONTROL_2,
+				   madera_extcon_defaults[info->id].micdet_ctrl_2,
 				   1 << i, 1 << i);
 	}
 
@@ -3066,11 +3132,12 @@ static void madera_extcon_xlate_pdata(struct madera_accdet_pdata *pdata)
 static int madera_extcon_probe(struct platform_device *pdev)
 {
 	struct madera *madera = dev_get_drvdata(pdev->dev.parent);
-	struct madera_accdet_pdata *pdata = &madera->pdata.accdet[0];
+	struct madera_accdet_pdata *pdata;
 	struct madera_extcon *info;
 	unsigned int debounce_val, analog_val;
 	int jack_irq_fall, jack_irq_rise;
 	int ret, mode, i, hpdet_short_measured;
+	char *name;
 
 	/* quick exit if Madera irqchip driver hasn't completed probe */
 	if (!madera->irq_dev) {
@@ -3085,6 +3152,8 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	if (!info)
 		return -ENOMEM;
 
+	info->id = pdev->id;
+	pdata = &madera->pdata.accdet[info->id];
 	info->pdata = pdata;
 	info->madera = madera;
 	info->dev = &pdev->dev;
@@ -3092,6 +3161,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	init_completion(&info->manual_mic_completion);
 	INIT_DELAYED_WORK(&info->micd_detect_work, madera_micd_handler);
 	INIT_DELAYED_WORK(&info->state_timeout_work, madera_jds_timeout_work);
+	INIT_DELAYED_WORK(&info->hp_detect_work, madera_hpdet_work);
 	platform_set_drvdata(pdev, info);
 
 	switch (madera->type) {
@@ -3193,14 +3263,21 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		dev_err(info->dev, "Failed to get MICVDD: %d\n", ret);
 		return ret;
 	}
-
-	if (pdata->jd_invert)
-		info->last_jackdet =
-			~(MADERA_MICD_CLAMP_RISE_STS1 | MADERA_JD1_FALL_STS1);
-	else
-		info->last_jackdet =
-			~(MADERA_MICD_CLAMP_RISE_STS1 | MADERA_JD1_RISE_STS1);
-
+	if (!info->id) {
+		if (pdata->jd_invert)
+			info->last_jackdet =
+				~(MADERA_MICD_CLAMP_RISE_STS1 | MADERA_JD1_FALL_STS1);
+		else
+			info->last_jackdet =
+				~(MADERA_MICD_CLAMP_RISE_STS1 | MADERA_JD1_RISE_STS1);
+	} else {
+		if (pdata->jd_invert)
+			info->last_jackdet =
+				~(MADERA_MICD_CLAMP_RISE_STS1 | MADERA_JD3_FALL_STS1);
+		else
+			info->last_jackdet =
+				~(MADERA_MICD_CLAMP_RISE_STS1 | MADERA_JD3_RISE_STS1);
+	}
 	info->edev = devm_extcon_dev_allocate(&pdev->dev, madera_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(&pdev->dev, "failed to allocate extcon device\n");
@@ -3249,21 +3326,21 @@ static int madera_extcon_probe(struct platform_device *pdev)
 
 	if (info->pdata->micd_bias_start_time)
 		regmap_update_bits(madera->regmap,
-				   MADERA_MIC_DETECT_1_CONTROL_1,
+				   madera_extcon_defaults[info->id].micdet_ctrl_1,
 				   MADERA_MICD_BIAS_STARTTIME_MASK,
 				   info->pdata->micd_bias_start_time
 				   << MADERA_MICD_BIAS_STARTTIME_SHIFT);
 
 	if (info->pdata->micd_rate)
 		regmap_update_bits(madera->regmap,
-				   MADERA_MIC_DETECT_1_CONTROL_1,
+				   madera_extcon_defaults[info->id].micdet_ctrl_1,
 				   MADERA_MICD_RATE_MASK,
 				   info->pdata->micd_rate
 				   << MADERA_MICD_RATE_SHIFT);
 
 	if (info->pdata->micd_dbtime)
 		regmap_update_bits(madera->regmap,
-				   MADERA_MIC_DETECT_1_CONTROL_1,
+				   madera_extcon_defaults[info->id].micdet_ctrl_1,
 				   MADERA_MICD_DBTIME_MASK,
 				   info->pdata->micd_dbtime
 				   << MADERA_MICD_DBTIME_SHIFT);
@@ -3293,9 +3370,6 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	pm_runtime_idle(&pdev->dev);
 
 	pm_runtime_get_sync(&pdev->dev);
-
-	// Debug: Force disable state
-	regmap_update_bits(madera->regmap, MADERA_JACK_DETECT_ANALOGUE, 0xffff, 0);
 
 	madera_extcon_read_calibration(info);
 	if (info->hpdet_trims) {
@@ -3343,30 +3417,42 @@ static int madera_extcon_probe(struct platform_device *pdev)
 			   info->hpdet_init_range <<
 			   MADERA_HP_IMPEDANCE_RANGE_SHIFT);
 
-	ret = madera_request_irq(madera, MADERA_IRQ_MICDET1,
-				"MICDET", madera_micdet, info);
+
+	name = kasprintf(GFP_KERNEL, "MICDET%d", info->id);
+
+
+	ret = madera_request_irq(madera, madera_extcon_defaults[info->id].micdet_irq,
+				 name, madera_micdet, info);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to get MICDET IRQ: %d\n", ret);
 		goto err_input;
 	}
 
-	ret = madera_request_irq(madera, MADERA_IRQ_HPDET,
-				"HPDET", madera_hpdet_handler, info);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to get HPDET IRQ: %d\n", ret);
-		goto err_micdet;
-	}
+	name = kasprintf(GFP_KERNEL, "HPDET%d", info->id);
 
+	if (!info->id) {
+		ret = madera_request_irq(madera, MADERA_IRQ_HPDET,
+				 name, madera_hpdet_handler, info);
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to get HPDET IRQ: %d\n", ret);
+			goto err_micdet;
+		}
+	}
 	if (info->pdata->jd_use_jd2) {
 		debounce_val = MADERA_JD1_DB | MADERA_JD2_DB;
 		analog_val = MADERA_JD1_ENA | MADERA_JD2_ENA;
 		jack_irq_rise = MADERA_IRQ_MICD_CLAMP_RISE;
 		jack_irq_fall = MADERA_IRQ_MICD_CLAMP_FALL;
 	} else {
-		debounce_val = MADERA_JD1_DB;
-		analog_val = MADERA_JD1_ENA;
-		jack_irq_rise = MADERA_IRQ_JD1_RISE;
-		jack_irq_fall = MADERA_IRQ_JD1_FALL;
+		if (!info->id) {
+			debounce_val = MADERA_JD1_DB;
+			analog_val = MADERA_JD1_ENA;
+		} else {
+			analog_val = MADERA_JD3_ENA;
+			debounce_val = MADERA_JD3_DB;
+		}
+		jack_irq_rise = madera_extcon_defaults[info->id].jackrise_irq;
+		jack_irq_fall = madera_extcon_defaults[info->id].jackfall_irq;
 	}
 
 	regmap_update_bits(madera->regmap, MADERA_INTERRUPT_DEBOUNCE_7,
@@ -3374,11 +3460,12 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	regmap_update_bits(madera->regmap, MADERA_JACK_DETECT_ANALOGUE,
 			   analog_val, analog_val);
 
+	name = kasprintf(GFP_KERNEL, "JACKDET%d rise", info->id);
 	ret = madera_request_irq(madera, jack_irq_rise,
-				 "JACKDET rise", madera_jackdet, info);
+				 name, madera_jackdet, info);
 	if (ret) {
 		dev_err(&pdev->dev,
-			"Failed to get JACKDET rise IRQ: %d\n", ret);
+			"%s, Failed to get JACKDET rise IRQ: %d \n",name, ret);
 		goto err_hpdet;
 	}
 
@@ -3389,8 +3476,9 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		goto err_rise;
 	}
 
+	name = kasprintf(GFP_KERNEL, "JACKDET%d fall", info->id);
 	ret = madera_request_irq(madera, jack_irq_fall,
-				 "JACKDET fall", madera_jackdet, info);
+				 name, madera_jackdet, info);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to get JD fall IRQ: %d\n", ret);
 		goto err_rise_wake;
@@ -3447,9 +3535,10 @@ err_rise_wake:
 err_rise:
 	madera_free_irq(madera, jack_irq_rise, info);
 err_hpdet:
-	madera_free_irq(madera, MADERA_IRQ_HPDET, info);
+	if (!info->id)
+		madera_free_irq(madera, MADERA_IRQ_HPDET, info);
 err_micdet:
-	madera_free_irq(madera, MADERA_IRQ_MICDET1, info);
+	madera_free_irq(madera, madera_extcon_defaults[info->id].micdet_irq, info);
 err_input:
 err_register:
 	pm_runtime_disable(&pdev->dev);
@@ -3472,18 +3561,19 @@ static int madera_extcon_remove(struct platform_device *pdev)
 		jack_irq_rise = MADERA_IRQ_MICD_CLAMP_RISE;
 		jack_irq_fall = MADERA_IRQ_MICD_CLAMP_FALL;
 	} else {
-		jack_irq_rise = MADERA_IRQ_JD1_RISE;
-		jack_irq_fall = MADERA_IRQ_JD1_FALL;
+		jack_irq_rise = madera_extcon_defaults[info->id].jackrise_irq;
+		jack_irq_fall = madera_extcon_defaults[info->id].jackfall_irq;
 	}
 
 	madera_set_irq_wake(madera, jack_irq_rise, 0);
 	madera_set_irq_wake(madera, jack_irq_fall, 0);
-	madera_free_irq(madera, MADERA_IRQ_HPDET, info);
-	madera_free_irq(madera, MADERA_IRQ_MICDET1, info);
+	if (!info->id)
+		madera_free_irq(madera, MADERA_IRQ_HPDET, info);
+	madera_free_irq(madera, madera_extcon_defaults[info->id].micdet_irq, info);
 	madera_free_irq(madera, jack_irq_rise, info);
 	madera_free_irq(madera, jack_irq_fall, info);
 	regmap_update_bits(madera->regmap, MADERA_JACK_DETECT_ANALOGUE,
-			   MADERA_JD1_ENA | MADERA_JD2_ENA, 0);
+			   MADERA_JD1_ENA | MADERA_JD2_ENA | MADERA_JD3_ENA, 0);
 
 	device_remove_file(&pdev->dev, &dev_attr_hp1_impedance);
 

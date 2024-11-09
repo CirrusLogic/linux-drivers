@@ -13,7 +13,7 @@
 
 #include <linux/kernel.h>
 
-#define MADERA_MAX_ACCESSORY		1
+#define MADERA_MAX_ACCESSORY		2
 
 /* Treat INT_MAX impedance as open circuit */
 #define MADERA_HP_Z_OPEN		INT_MAX

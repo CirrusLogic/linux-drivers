@@ -62,7 +62,19 @@ struct madera_hpdet_trims {
 	int grad_x4;
 };
 
+struct madera_extcon_config {
+	int micdet_irq;
+	int jackrise_irq;
+	int jackfall_irq;
+	unsigned int micdet_ctrl_0;
+	unsigned int micdet_ctrl_1;
+	unsigned int micdet_ctrl_2;
+	unsigned int micdet_ctrl_3;
+	unsigned int micdet_ctrl_4;
+};
+
 struct madera_extcon {
+	u32 id;
 	struct device *dev;
 	struct madera *madera;
 	const struct madera_accdet_pdata *pdata;
@@ -105,6 +117,8 @@ struct madera_extcon {
 	struct delayed_work state_timeout_work;
 
 	struct madera_micd_bias micd_bias;
+
+	struct delayed_work hp_detect_work;
 };
 
 enum madera_accdet_mode {
