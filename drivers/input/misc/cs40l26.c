@@ -1835,6 +1835,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	struct i2c_client *sibling_client = NULL;
 	struct device *dev = cs40l26->dev;
 	struct cs40l26_uploaded_effect *ueffect;
+	struct device_node *dev_node;
 	struct ff_effect *effect;
 	u32 algo_id, reg;
 	u16 duration;
@@ -1848,7 +1849,12 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		goto err_free;
 
 	if (cs40l26->broadcast_client) {
-		sibling_client = of_find_i2c_device_by_node(dev->of_node->sibling);
+		dev_node = cs40l26->dev->parent->of_node->child;
+
+		while (dev_node == cs40l26->dev->of_node)
+			dev_node = dev_node->sibling;
+
+		sibling_client = of_find_i2c_device_by_node(dev_node);
 		if (!sibling_client) {
 			dev_err(dev, "Unable to find sibling client\n");
 			goto err_pm;
@@ -1958,6 +1964,7 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	struct cs40l26_work *work_data = container_of(work, struct cs40l26_work, work);
 	struct cs40l26_private *cs40l26 = work_data->cs40l26;
 	struct i2c_client *sibling_client = NULL;
+	struct device_node *dev_node;
 	bool skip_delay;
 	u32 delay_us;
 	int error;
@@ -1969,7 +1976,12 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 		goto err_free;
 
 	if (cs40l26->broadcast_client) {
-		sibling_client = of_find_i2c_device_by_node(cs40l26->dev->of_node->sibling);
+		dev_node = cs40l26->dev->parent->of_node->child;
+
+		while (dev_node == cs40l26->dev->of_node)
+			dev_node = dev_node->sibling;
+
+		sibling_client = of_find_i2c_device_by_node(dev_node);
 		if (!sibling_client) {
 			dev_err(cs40l26->dev, "Unable to find sibling client\n");
 			goto err_pm;
@@ -5561,6 +5573,12 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 		cs40l26->release_idx = gpio_map_get(dev, CS40L26_GPIO_MAP_A_RELEASE);
 	}
 
+	error = device_property_read_u32(cs40l26->dev, "cirrus,i2c-broadcast-addr",
+			&cs40l26->broadcast_addr);
+	if (error || cs40l26->broadcast_addr > CS40L26_I2C_BROADCAST_ADDR_MAX ||
+			cs40l26->broadcast_addr < CS40L26_I2C_BROADCAST_ADDR_MIN)
+		cs40l26->broadcast_addr = 0;
+
 	return cs40l26_no_wait_ram_indices_get(cs40l26);
 }
 
@@ -5676,6 +5694,12 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 #ifdef CONFIG_DEBUG_FS
 	cs40l26_debugfs_cleanup(cs40l26);
 #endif
+
+	if (cs40l26->broadcast_regmap)
+		regmap_exit(cs40l26->broadcast_regmap);
+
+	if (cs40l26->broadcast_client)
+		i2c_unregister_device(cs40l26->broadcast_client);
 
 	return 0;
 }
