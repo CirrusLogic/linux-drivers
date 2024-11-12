@@ -13,6 +13,96 @@
 
 #include <linux/mfd/cs40l26.h>
 
+static const struct regmap_config cs40l26_broadcast_regmap = {
+	.reg_bits =		32,
+	.reg_stride =		4,
+	.val_bits =		32,
+	.reg_format_endian =	REGMAP_ENDIAN_BIG,
+	.val_format_endian =	REGMAP_ENDIAN_BIG,
+	.writeable_reg =	cs40l26_broadcast_writeable_reg,
+	.readable_reg =		cs40l26_broadcast_readable_reg,
+};
+
+static ssize_t broadcast_master_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+
+	if (!cs40l26->broadcast_addr) {
+		dev_err(cs40l26->dev, "Broadcast I2C disabled on this device\n");
+		return -EPERM;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", cs40l26->broadcast_client ? 1 : 0);
+}
+
+static ssize_t broadcast_master_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	struct i2c_client *client;
+	int error = 0;
+	u32 broadcast;
+
+	if (!cs40l26->broadcast_addr) {
+		dev_err(cs40l26->dev, "Broadcast I2C disabled on this device\n");
+		return -EPERM;
+	}
+
+	error = kstrtou32(buf, 10, &broadcast);
+	if (error)
+		return error;
+
+	if (broadcast == 0) {
+		if (cs40l26->broadcast_regmap) {
+			regmap_exit(cs40l26->broadcast_regmap);
+			cs40l26->broadcast_regmap = NULL;
+		}
+
+		if (cs40l26->broadcast_client) {
+			i2c_unregister_device(cs40l26->broadcast_client);
+			cs40l26->broadcast_client = NULL;
+		}
+	} else if (broadcast == 1) {
+		if (cs40l26->broadcast_client) {
+			dev_err(cs40l26->dev, "Already broadcast master device\n");
+			return -EINVAL;
+		}
+
+		client = of_find_i2c_device_by_node(cs40l26->dev->of_node);
+		if (!client) {
+			dev_err(cs40l26->dev, "Failed to get i2c client\n");
+			return -ENODATA;
+		}
+
+		cs40l26->broadcast_client = i2c_new_dummy_device(client->adapter,
+				cs40l26->broadcast_addr);
+		if (IS_ERR(cs40l26->broadcast_client)) {
+			dev_err(cs40l26->dev, "Unable to create broadcast client: %ld\n",
+					PTR_ERR(cs40l26->broadcast_client));
+			error = PTR_ERR(cs40l26->broadcast_client);
+			cs40l26->broadcast_client = NULL;
+			return error;
+		}
+
+		cs40l26->broadcast_regmap = regmap_init_i2c(cs40l26->broadcast_client,
+				&cs40l26_broadcast_regmap);
+		if (IS_ERR(cs40l26->broadcast_regmap)) {
+			dev_err(cs40l26->dev, "Failed to allocate broadcast regmap: %ld\n",
+					PTR_ERR(cs40l26->broadcast_regmap));
+			error = PTR_ERR(cs40l26->broadcast_regmap);
+			i2c_unregister_device(cs40l26->broadcast_client);
+			cs40l26->broadcast_client = NULL;
+			cs40l26->broadcast_regmap = NULL;
+			return error;
+		}
+	} else {
+		return -EINVAL;
+	}
+
+	return error ? error : count;
+}
+static DEVICE_ATTR_RW(broadcast_master);
+
 static ssize_t dsp_state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -1022,6 +1112,7 @@ err_mutex:
 static DEVICE_ATTR_RO(braking_time_ms);
 
 static struct attribute *cs40l26_dev_attrs[] = {
+	&dev_attr_broadcast_master.attr,
 	&dev_attr_num_waves.attr,
 	&dev_attr_die_temp.attr,
 	&dev_attr_owt_free_space.attr,
