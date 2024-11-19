@@ -5489,6 +5489,13 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 	return cs40l26_no_wait_ram_indices_get(cs40l26);
 }
 
+static void cs40l26_reset_assert(void *data)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(data);
+
+	gpiod_set_value_cansleep(cs40l26->reset_gpio, 1);
+}
+
 int cs40l26_probe(struct cs40l26_private *cs40l26)
 {
 	int error;
@@ -5529,6 +5536,12 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 			dev_err(cs40l26->dev, "Failed to get reset GPIO: %d\n", error);
 			goto err;
 		}
+	}
+
+	error = devm_add_action_or_reset(cs40l26->dev, cs40l26_reset_assert, cs40l26->dev);
+	if (error) {
+		dev_err(cs40l26->dev, "Failed to add reset operation: %d\n", error);
+		goto err;
 	}
 
 	error = cs40l26_device_init(cs40l26, false);
@@ -5594,9 +5607,6 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 
 	if (va_consumer)
 		regulator_disable(va_consumer);
-
-	if (cs40l26->reset_gpio)
-		gpiod_set_value_cansleep(cs40l26->reset_gpio, 1);
 
 	if (cs40l26->vibe_init_success)
 		sysfs_remove_groups(&cs40l26->input->dev.kobj, cs40l26_attr_groups);
