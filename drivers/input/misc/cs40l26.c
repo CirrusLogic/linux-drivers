@@ -4897,17 +4897,31 @@ static int cs40l26_request_irq(struct cs40l26_private *cs40l26)
 	return error;
 }
 
+static void cs40l26_reset_assert(void *data)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(data);
+
+	gpiod_set_value_cansleep(cs40l26->reset_gpio, 1);
+}
+
+static void cs40l26_reset_deassert(void *data)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(data);
+
+	gpiod_set_value_cansleep(cs40l26->reset_gpio, 0);
+}
+
 static int cs40l26_device_init(struct cs40l26_private *cs40l26, const bool reinit)
 {
 	int error;
 
 	if (reinit && cs40l26->reset_gpio)
-		gpiod_set_value_cansleep(cs40l26->reset_gpio, 1);
+		cs40l26_reset_assert(cs40l26->dev);
 
 	usleep_range(CS40L26_MIN_RESET_PULSE_WIDTH, CS40L26_MIN_RESET_PULSE_WIDTH + 100);
 
 	if (cs40l26->reset_gpio)
-		gpiod_set_value_cansleep(cs40l26->reset_gpio, 0);
+		cs40l26_reset_deassert(cs40l26->dev);
 
 	usleep_range(CS40L26_CONTROL_PORT_READY_DELAY, CS40L26_CONTROL_PORT_READY_DELAY + 100);
 
@@ -5487,13 +5501,6 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 	}
 
 	return cs40l26_no_wait_ram_indices_get(cs40l26);
-}
-
-static void cs40l26_reset_assert(void *data)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(data);
-
-	gpiod_set_value_cansleep(cs40l26->reset_gpio, 1);
 }
 
 int cs40l26_probe(struct cs40l26_private *cs40l26)
