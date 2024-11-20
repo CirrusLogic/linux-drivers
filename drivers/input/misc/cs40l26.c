@@ -5618,11 +5618,11 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 
 	error = cs40l26_wseq_clear(cs40l26, &pseq_params);
 	if (error)
-		return error;
+		dev_err(cs40l26->dev, "Failed to clear POWER_ON sequence\n");
 
 	error = cs40l26_wseq_clear(cs40l26, &aseq_params);
 	if (error)
-		return error;
+		dev_err(cs40l26->dev, "Failed to clear ACTIVE sequence\n");
 
 #ifdef CONFIG_DEBUG_FS
 	cs40l26_debugfs_cleanup(cs40l26);
