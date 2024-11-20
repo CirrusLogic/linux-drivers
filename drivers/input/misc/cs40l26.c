@@ -13,8 +13,6 @@
 
 #include <linux/mfd/cs40l26.h>
 
-static int cs40l26_parse_properties(struct cs40l26_private *cs40l26);
-
 static const struct cs40l26_rom_regs cs40l26_rom_regs_a1_b0_b1 = {
 	.pm_cur_state = 0x02800370,
 	.pm_state_locks = 0x02800378,
