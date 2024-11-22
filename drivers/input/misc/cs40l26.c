@@ -5503,6 +5503,7 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 
 int cs40l26_probe(struct cs40l26_private *cs40l26)
 {
+	static const char * const regulator_names[] = { "VP", "VA" };
 	int error;
 
 	mutex_init(&cs40l26->lock);
@@ -5515,21 +5516,14 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 
 	timer_setup(&cs40l26->hibernate_timer, cs40l26_hibernate_timer_callback, 0);
 
-	error = devm_regulator_bulk_get(cs40l26->dev, CS40L26_NUM_SUPPLIES, cs40l26_supplies);
-	if (error) {
-		dev_err(cs40l26->dev, "Failed to request core supplies\n");
-		goto err;
-	}
-
 	error = cs40l26_parse_properties(cs40l26);
 	if (error)
 		goto err;
 
-	error = regulator_bulk_enable(CS40L26_NUM_SUPPLIES, cs40l26_supplies);
-	if (error) {
-		dev_err(cs40l26->dev, "Failed to enable core supplies\n");
+	error = devm_regulator_bulk_get_enable(cs40l26->dev,
+			ARRAY_SIZE(regulator_names), regulator_names);
+	if (error)
 		goto err;
-	}
 
 	cs40l26->reset_gpio = devm_gpiod_get(cs40l26->dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(cs40l26->reset_gpio)) {
@@ -5593,8 +5587,6 @@ EXPORT_SYMBOL_GPL(cs40l26_probe);
 
 int cs40l26_remove(struct cs40l26_private *cs40l26)
 {
-	struct regulator *vp_consumer = cs40l26_supplies[CS40L26_VP_SUPPLY].consumer;
-	struct regulator *va_consumer = cs40l26_supplies[CS40L26_VA_SUPPLY].consumer;
 	int error;
 
 	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_DISABLE);
@@ -5606,12 +5598,6 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 	}
 
 	timer_delete_sync(&cs40l26->hibernate_timer);
-
-	if (vp_consumer)
-		regulator_disable(vp_consumer);
-
-	if (va_consumer)
-		regulator_disable(va_consumer);
 
 	if (cs40l26->vibe_init_success)
 		sysfs_remove_groups(&cs40l26->input->dev.kobj, cs40l26_attr_groups);

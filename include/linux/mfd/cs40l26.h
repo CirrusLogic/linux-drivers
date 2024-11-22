@@ -174,6 +174,9 @@
 
 #define CS40L26_MEM_RDY_MASK		BIT(1)
 
+#define CS40L26_MIN_RESET_PULSE_WIDTH		1500
+#define CS40L26_CONTROL_PORT_READY_DELAY	6000
+
 #define CS40L26_DSP_HALO_STATE_RUN	2
 
 #define CS40L26_NUM_PCT_MAP_VALUES	101
@@ -430,16 +433,6 @@
 /* Wavetable */
 #define CS40L26_WT_NAME_XM	"WAVE_XM_TABLE"
 #define CS40L26_WT_NAME_YM	"WAVE_YM_TABLE"
-
-/* Power supplies */
-#define CS40L26_VP_SUPPLY		0
-#define CS40L26_VA_SUPPLY		1
-#define CS40L26_NUM_SUPPLIES		2
-#define CS40L26_VP_SUPPLY_NAME		"VP"
-#define CS40L26_VA_SUPPLY_NAME		"VA"
-
-#define CS40L26_MIN_RESET_PULSE_WIDTH		1500
-#define CS40L26_CONTROL_PORT_READY_DELAY	6000
 
 /* Haptic triggering */
 #define CS40L26_STOP_PLAYBACK			0x05000000
@@ -1335,7 +1328,6 @@ void cs40l26_irq_enable(struct cs40l26_private *cs40l26, const unsigned int en);
 /* external tables */
 extern struct cs40l26_wseq_params aseq_params;
 extern struct cs40l26_wseq_params pseq_params;
-extern struct regulator_bulk_data cs40l26_supplies[CS40L26_NUM_SUPPLIES];
 extern const struct dev_pm_ops cs40l26_pm_ops;
 extern const struct mfd_cell cs40l26_devs[CS40L26_NUM_MFD_DEVS];
 extern const u32 cs40l26_attn_q21_2_vals[CS40L26_NUM_PCT_MAP_VALUES];

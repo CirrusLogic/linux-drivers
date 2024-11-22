@@ -277,11 +277,6 @@ const struct reg_sequence cs40l26_a1_errata[CS40L26_ERRATA_A1_NUM_WRITES] = {
 	{ CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_LOCK_CODE },
 };
 
-struct regulator_bulk_data cs40l26_supplies[CS40L26_NUM_SUPPLIES] = {
-	{ .supply = CS40L26_VP_SUPPLY_NAME },
-	{ .supply = CS40L26_VA_SUPPLY_NAME },
-};
-
 const struct mfd_cell cs40l26_devs[CS40L26_NUM_MFD_DEVS] = {
 	{ .name = "cs40l26-codec" },
 };
