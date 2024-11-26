@@ -158,6 +158,26 @@ int cs40l26_mailbox_write(struct cs40l26_private *cs40l26, u32 write_val)
 }
 EXPORT_SYMBOL_GPL(cs40l26_mailbox_write);
 
+static int cs40l26_find_sibling(struct device *dev, struct device **sibling_dev)
+{
+	struct device_node *dev_node = dev->parent->of_node->child;
+	struct i2c_client *sibling_client;
+
+	/* Search parent’s children until we find one that isn’t ourself, i.e., our sibling. */
+	while (dev_node == dev->of_node)
+		dev_node = dev_node->sibling;
+
+	sibling_client = of_find_i2c_device_by_node(dev_node);
+	if (!sibling_client) {
+		dev_err(dev, "Sibling I2C device does not exist\n");
+		return -ENODATA;
+	}
+
+	*sibling_dev = &sibling_client->dev;
+
+	return 0;
+}
+
 static int cs40l26_broadcast_write(struct cs40l26_private *cs40l26, u32 reg, u32 val, bool mbox)
 {
 	int error;
@@ -1832,10 +1852,8 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 {
 	struct cs40l26_work *work_data = container_of(work, struct cs40l26_work, work);
 	struct cs40l26_private *cs40l26 = work_data->cs40l26;
-	struct i2c_client *sibling_client = NULL;
-	struct device *dev = cs40l26->dev;
+	struct device *dev = cs40l26->dev, *sibling_dev = NULL;
 	struct cs40l26_uploaded_effect *ueffect;
-	struct device_node *dev_node;
 	struct ff_effect *effect;
 	u32 algo_id, reg;
 	u16 duration;
@@ -1849,22 +1867,13 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		goto err_free;
 
 	if (cs40l26->broadcast_client) {
-		dev_node = cs40l26->dev->parent->of_node->child;
-
-		while (dev_node == cs40l26->dev->of_node)
-			dev_node = dev_node->sibling;
-
-		sibling_client = of_find_i2c_device_by_node(dev_node);
-		if (!sibling_client) {
-			dev_err(dev, "Unable to find sibling client\n");
+		error = cs40l26_find_sibling(dev, &sibling_dev);
+		if (error)
 			goto err_pm;
-		}
 
-		error = cs40l26_pm_enter(&sibling_client->dev);
-		if (error) {
-			dev_err(dev, "Unable to resume sibling device\n");
+		error = cs40l26_pm_enter(sibling_dev);
+		if (error)
 			goto err_pm;
-		}
 	}
 
 	mutex_lock(&cs40l26->lock);
@@ -1950,9 +1959,8 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	reinit_completion(&cs40l26->erase_cont);
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
-
-	if (sibling_client)
-		cs40l26_pm_exit(&sibling_client->dev);
+	if (sibling_dev)
+		cs40l26_pm_exit(sibling_dev);
 err_pm:
 	cs40l26_pm_exit(dev);
 err_free:
@@ -1963,8 +1971,7 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 {
 	struct cs40l26_work *work_data = container_of(work, struct cs40l26_work, work);
 	struct cs40l26_private *cs40l26 = work_data->cs40l26;
-	struct i2c_client *sibling_client = NULL;
-	struct device_node *dev_node;
+	struct device *sibling_dev = NULL;
 	bool skip_delay;
 	u32 delay_us;
 	int error;
@@ -1976,22 +1983,13 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 		goto err_free;
 
 	if (cs40l26->broadcast_client) {
-		dev_node = cs40l26->dev->parent->of_node->child;
-
-		while (dev_node == cs40l26->dev->of_node)
-			dev_node = dev_node->sibling;
-
-		sibling_client = of_find_i2c_device_by_node(dev_node);
-		if (!sibling_client) {
-			dev_err(cs40l26->dev, "Unable to find sibling client\n");
+		error = cs40l26_find_sibling(cs40l26->dev, &sibling_dev);
+		if (error)
 			goto err_pm;
-		}
 
-		error = cs40l26_pm_enter(&sibling_client->dev);
-		if (error) {
-			dev_err(cs40l26->dev, "Unable to resume sibling device\n");
+		error = cs40l26_pm_enter(sibling_dev);
+		if (error)
 			goto err_pm;
-		}
 	}
 
 	mutex_lock(&cs40l26->lock);
@@ -2028,8 +2026,8 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	}
 
 	mutex_unlock(&cs40l26->lock);
-	if (sibling_client)
-		cs40l26_pm_exit(&sibling_client->dev);
+	if (sibling_dev)
+		cs40l26_pm_exit(sibling_dev);
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
 err_free:
