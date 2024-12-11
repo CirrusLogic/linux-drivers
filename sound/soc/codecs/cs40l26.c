@@ -178,6 +178,7 @@ static int cs40l26_sdout_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *
 {
 	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(snd_soc_dapm_to_component(w->dapm));
+	int ret;
 
 	if (!device_property_present(codec->core->dev, "cirrus,asp-dout-enable")) {
 		dev_err(codec->dev, "GP8 pin is not configured to function as SDOUT\n");
@@ -186,9 +187,23 @@ static int cs40l26_sdout_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+		if (!codec->asp_rx) {
+			ret = regmap_set_bits(codec->regmap, CS40L26_ASP_ENABLES1,
+					CS40L26_ASP_ENABLE_MASK);
+			if (ret)
+				return ret;
+		}
+
 		return regmap_set_bits(codec->regmap, CS40L26_GPIO_PAD_CONTROL,
 				CS40L26_GP8_SDOUT_MASK);
 	case SND_SOC_DAPM_POST_PMD:
+		if (!codec->asp_rx) {
+			ret = regmap_clear_bits(codec->regmap, CS40L26_ASP_ENABLES1,
+					CS40L26_ASP_ENABLE_MASK);
+			if (ret)
+				return ret;
+		}
+
 		return regmap_clear_bits(codec->regmap, CS40L26_GPIO_PAD_CONTROL,
 				CS40L26_GP8_SDOUT_MASK);
 	default:
@@ -245,6 +260,8 @@ static int cs40l26_asp_rx(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 		if (ret)
 			goto err_mutex;
 
+		codec->asp_rx = true;
+
 		/* Force open-loop if closed-loop not set */
 		if (!(flags & CS40L26_FLAGS_I2S_SVC_EN_MASK) && is_revid_b2) {
 			codec->svc_ol_forced = true;
@@ -271,6 +288,8 @@ static int cs40l26_asp_rx(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 		ret = regmap_clear_bits(regmap, CS40L26_ASP_ENABLES1, CS40L26_ASP_ENABLE_MASK);
 		if (ret)
 			goto err_mutex;
+
+		codec->asp_rx = false;
 
 		ret = regmap_update_bits(regmap, CS40L26_ASPTX1_INPUT, CS40L26_DATA_SRC_MASK,
 				CS40L26_DATA_SRC_VMON);

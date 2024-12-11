@@ -1274,6 +1274,7 @@ struct cs40l26_codec {
 	int tdm_slot[2];
 	bool dsp_bypass;
 	bool svc_ol_forced;
+	bool asp_rx;
 };
 
 struct cs40l26_pll_sysclk_config {
