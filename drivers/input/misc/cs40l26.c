@@ -3708,7 +3708,7 @@ static int cs40l26_zero_cross_config(struct cs40l26_private *cs40l26)
 	return error;
 }
 
-static int cs40l26_calib_dt_config(struct cs40l26_private *cs40l26)
+static int cs40l26_lra_dt_config(struct cs40l26_private *cs40l26)
 {
 	int error = 0;
 	u32 reg;
@@ -4439,11 +4439,9 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (error)
 		return error;
 
-	if (!cs40l26->vibe_init_success) {
-		error = cs40l26_calib_dt_config(cs40l26);
-		if (error)
-			return error;
-	}
+	error = cs40l26_lra_dt_config(cs40l26);
+	if (error)
+		return error;
 
 	error = cs40l26_brwnout_prevention_init(cs40l26);
 	if (error)
