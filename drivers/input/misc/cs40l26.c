@@ -5519,12 +5519,12 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 	cs40l26_wd_parse_properties(cs40l26);
 
 	error = device_property_read_u32(dev, "cirrus,f0-default", &cs40l26->f0_default);
-	if (error && error != -EINVAL)
-		return error;
+	if (error)
+		cs40l26->f0_default = 0;
 
 	error = device_property_read_u32(dev, "cirrus,redc-default", &cs40l26->redc_default);
-	if (error && error != -EINVAL)
-		return error;
+	if (error)
+		cs40l26->redc_default = 0;
 
 	cs40l26->dbc_enable = device_property_present(dev, "cirrus,dbc-enable");
 
