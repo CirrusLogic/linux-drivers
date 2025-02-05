@@ -2026,8 +2026,6 @@ static int cs35l45_compr_free(struct snd_soc_component *component,
 	struct cs35l45_compr *compr = stream->runtime->private_data;
 	struct wm_adsp *dsp = compr->dsp;
 
-	flush_scheduled_work();
-
 	cancel_work_sync(&compr->start_work);
 	cancel_work_sync(&compr->stop_work);
 
