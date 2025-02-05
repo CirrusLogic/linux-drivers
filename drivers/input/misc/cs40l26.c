@@ -5674,7 +5674,7 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 		destroy_workqueue(cs40l26->vibe_workqueue);
 	}
 
-	timer_delete_sync(&cs40l26->hibernate_timer);
+	timer_shutdown_sync(&cs40l26->hibernate_timer);
 
 	if (cs40l26->vibe_init_success)
 		sysfs_remove_groups(&cs40l26->input->dev.kobj, cs40l26_attr_groups);
