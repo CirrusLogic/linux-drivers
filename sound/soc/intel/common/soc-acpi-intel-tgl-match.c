@@ -437,6 +437,16 @@ static const struct snd_soc_acpi_endpoint cs42l43_endpoints[] = {
 	},
 };
 
+static const struct snd_soc_acpi_adr_device cs42l45_0_adr[] = {
+	{
+		.adr = 0x00003001fa424501,
+		/* Re-use endpoints, but cs42l45 has no speaker */
+		.num_endpoints = ARRAY_SIZE(cs42l43_endpoints) - 1,
+		.endpoints = cs42l43_endpoints,
+		.name_prefix = "cs42l45"
+	}
+};
+
 static const struct snd_soc_acpi_adr_device cs42l43_3_adr[] = {
 	{
 		.adr = 0x00033001FA424301ull,
@@ -444,6 +454,15 @@ static const struct snd_soc_acpi_adr_device cs42l43_3_adr[] = {
 		.endpoints = cs42l43_endpoints,
 		.name_prefix = "cs42l43"
 	}
+};
+
+static const struct snd_soc_acpi_link_adr up_extreme_cs42l45_sdw0[] = {
+	{
+		.mask = 0x1,
+		.num_adr = ARRAY_SIZE(cs42l45_0_adr),
+		.adr_d = cs42l45_0_adr,
+	},
+	{}
 };
 
 static const struct snd_soc_acpi_adr_device cs35l56_0_adr[] = {
@@ -828,6 +847,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 		.links = up_extreme_cs35l56_sdw_eight,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-tgl-cs35l56-l01-fb8.tplg"
+	},
+	{
+		.link_mask = 0x1, /* cb2 on link 0 */
+		.links = up_extreme_cs42l45_sdw0,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-tgl-cs42l45-sdw0.tplg"
 	},
 	{},
 };
