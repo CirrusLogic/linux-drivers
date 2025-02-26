@@ -1179,7 +1179,7 @@ static ssize_t trigger_calibration_store(struct device *dev,
 	}
 
 	mailbox_command = ((CS40L26_DSP_MBOX_CMD_INDEX_CALIBRATION_CONTROL <<
-			CS40L26_DSP_MBOX_CMD_INDEX_SHIFT) & CS40L26_DSP_MBOX_CMD_INDEX_MASK) |
+			CS40L26_DSP_MBOX_CMD_TYPE_SHIFT) & CS40L26_DSP_MBOX_CMD_TYPE_MASK) |
 			(calibration_request_payload & CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK);
 
 	error = cs40l26_pm_enter(cs40l26->dev);
