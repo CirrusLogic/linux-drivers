@@ -732,70 +732,132 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 	return 0;
 }
 
+static int cs40l26_handle_haptic(struct cs40l26_private *cs40l26, u32 val)
+{
+	struct device *dev = cs40l26->dev;
+	bool owt = false, rom = false;
+	u8 event, src;
+	u16 index;
+
+	index = (u16) FIELD_GET(CS40L26_DSP_MBOX_INDEX_MASK, val);
+	src = (u8) FIELD_GET(CS40L26_DSP_MBOX_SOURCE_MASK, val);
+	event = (u8) FIELD_GET(CS40L26_DSP_MBOX_EVENT_MASK, val);
+
+	if (val & CS40L26_DSP_MBOX_FLAG_OWT)
+		owt = true;
+
+	if (val & CS40L26_DSP_MBOX_FLAG_ROM)
+		rom = true;
+
+	switch (src) {
+	case CS40L26_DSP_MBOX_SOURCE_MBOX:
+		if (event == CS40L26_DSP_MBOX_EVENT_COMPLETE) {
+			dev_dbg(dev, "%s%sMailbox Playback Complete (Index %u)\n",
+					owt ? "OWT: " : "", rom ? "ROM: " : "", index);
+
+			complete_all(&cs40l26->erase_cont);
+
+			cs40l26_vibe_state_update(cs40l26, CS40L26_VIBE_STATE_EVENT_MBOX_COMPLETE);
+		} else if (event == CS40L26_DSP_MBOX_EVENT_TRIGGER) {
+			if (!cs40l26->vibe_state_reporting) {
+				dev_err(dev, "vibe_state not supported\n");
+				return -EPERM;
+			}
+
+			dev_dbg(dev, "%s%sMailbox Playback Trigger (Index %u)\n",
+					owt ? "OWT: " : "", rom ? "ROM: " : "", index);
+
+			cs40l26_vibe_state_update(cs40l26, CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK);
+		} else {
+			dev_err(dev, "Invalid haptic mailbox event (MBOX) 0x%02X\n", event);
+			return -EINVAL;
+		}
+		break;
+	case CS40L26_DSP_MBOX_SOURCE_GPIO:
+		if (event == CS40L26_DSP_MBOX_EVENT_COMPLETE) {
+			dev_dbg(dev, "%s%sGPIO Playback Complete (Index %u)\n",
+					owt ? "OWT: " : "", rom ? "ROM: " : "", index);
+
+			cs40l26_vibe_state_update(cs40l26, CS40L26_VIBE_STATE_EVENT_GPIO_COMPLETE);
+		} else if (event == CS40L26_DSP_MBOX_EVENT_TRIGGER) {
+			dev_dbg(dev, "%s%sGPIO Playback Trigger (Index %u)\n",
+					owt ? "OWT: " : "", rom ? "ROM: " : "", index);
+
+			cs40l26_vibe_state_update(cs40l26, CS40L26_VIBE_STATE_EVENT_GPIO_TRIGGER);
+		} else {
+			dev_err(dev, "Invalid haptic mailbox event (GPIO) 0x%02X\n", event);
+			return -EINVAL;
+		}
+		break;
+	case CS40L26_DSP_MBOX_SOURCE_I2S:
+		if (event == CS40L26_DSP_MBOX_EVENT_COMPLETE) {
+			dev_dbg(dev, "Mailbox I2S Playback Complete\n");
+
+			if (cs40l26->asp_enable) /* ASP Interrupted */
+				complete(&cs40l26->i2s_cont);
+		} else if (event == CS40L26_DSP_MBOX_EVENT_TRIGGER) {
+			dev_dbg(dev, "Mailbox I2S Playback Trigger\n");
+
+			complete(&cs40l26->i2s_cont);
+		} else {
+			dev_err(dev, "Invalid haptic mailbox event (I2S) 0x%02X\n", event);
+			return -EINVAL;
+		}
+		break;
+	default:
+		dev_err(dev, "Invalid source from DSP to host mailbox: 0x%02X\n", src);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static irqreturn_t cs40l26_handle_mbox_buffer(int irq, void *data)
 {
 	struct cs40l26_private *cs40l26 = data;
 	irqreturn_t irq_status = IRQ_HANDLED;
 	struct device *dev = cs40l26->dev;
 	u32 val = 0;
+	u8 cmd = 0;
 	int error;
 
 	mutex_lock(&cs40l26->lock);
 
 	while (!cs40l26_mbox_buffer_read(cs40l26, &val)) {
-		if ((val & CS40L26_DSP_MBOX_CMD_INDEX_MASK) == CS40L26_DSP_MBOX_PANIC) {
-			dev_alert(dev, "DSP PANIC! Error condition: 0x%06X\n",
-			(u32) (val & CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK));
-			irq_status = IRQ_HANDLED;
-			goto err_mutex;
+		cmd = (u8) FIELD_GET(CS40L26_DSP_MBOX_CMD_TYPE_MASK, val);
+
+		if (cmd == CS40L26_DSP_MBOX_CMD_TYPE_ACK) {
+			dev_err(dev, "Mailbox: ACK\n");
+			goto exit_mutex;
 		}
 
-		if ((val & CS40L26_DSP_MBOX_CMD_INDEX_MASK) == CS40L26_DSP_MBOX_WATERMARK) {
+		if (cmd == CS40L26_DSP_MBOX_CMD_TYPE_PANIC) {
+			dev_alert(dev, "DSP PANIC! Error condition: 0x%06X\n",
+					(u32) (val & CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK));
+			goto exit_mutex;
+		}
+
+		if (cmd == CS40L26_DSP_MBOX_CMD_TYPE_WATERMARK) {
 			dev_dbg(dev, "Mailbox: WATERMARK\n");
 #ifdef CONFIG_DEBUG_FS
 			error = cl_dsp_logger_update(cs40l26->cl_dsp_db);
 			if (error) {
 				irq_status = IRQ_NONE;
-				goto err_mutex;
+				goto exit_mutex;
 			}
 #endif
 			continue;
 		}
 
-		switch (val) {
-		case CS40L26_DSP_MBOX_COMPLETE_MBOX:
-			dev_dbg(dev, "Mailbox: COMPLETE_MBOX\n");
-			complete_all(&cs40l26->erase_cont);
-			cs40l26_vibe_state_update(cs40l26, CS40L26_VIBE_STATE_EVENT_MBOX_COMPLETE);
-			break;
-		case CS40L26_DSP_MBOX_COMPLETE_GPIO:
-			dev_dbg(dev, "Mailbox: COMPLETE_GPIO\n");
-			cs40l26_vibe_state_update(cs40l26, CS40L26_VIBE_STATE_EVENT_GPIO_COMPLETE);
-			break;
-		case CS40L26_DSP_MBOX_COMPLETE_I2S:
-			dev_dbg(dev, "Mailbox: COMPLETE_I2S\n");
-			/* ASP is interrupted */
-			if (cs40l26->asp_enable)
-				complete(&cs40l26->i2s_cont);
-			break;
-		case CS40L26_DSP_MBOX_TRIGGER_I2S:
-			dev_dbg(dev, "Mailbox: TRIGGER_I2S\n");
-			complete(&cs40l26->i2s_cont);
-			break;
-		case CS40L26_DSP_MBOX_TRIGGER_CP:
-			if (!cs40l26->vibe_state_reporting) {
-				dev_err(dev, "vibe_state not supported\n");
-				irq_status = IRQ_HANDLED;
-				goto err_mutex;
-			}
+		if (cmd == CS40L26_DSP_MBOX_CMD_TYPE_HAPTIC) {
+			error = cs40l26_handle_haptic(cs40l26, val);
+			if (error)
+				goto exit_mutex;
 
-			dev_dbg(dev, "Mailbox: TRIGGER_CP\n");
-			cs40l26_vibe_state_update(cs40l26, CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK);
-			break;
-		case CS40L26_DSP_MBOX_TRIGGER_GPIO:
-			dev_dbg(dev, "Mailbox: TRIGGER_GPIO\n");
-			cs40l26_vibe_state_update(cs40l26, CS40L26_VIBE_STATE_EVENT_GPIO_TRIGGER);
-			break;
+			continue;
+		}
+
+		switch (val) {
 		case CS40L26_DSP_MBOX_PM_AWAKE:
 			cs40l26->wksrc_sts |= CS40L26_WKSRC_STS_EN;
 			dev_dbg(dev, "Mailbox: AWAKE\n");
@@ -841,18 +903,13 @@ static irqreturn_t cs40l26_handle_mbox_buffer(int irq, void *data)
 			dev_dbg(dev, "Mailbox: PEQ_CALCULATION_DONE\n");
 			complete(&cs40l26->cal_dvl_peq_cont);
 			break;
-		case CS40L26_DSP_MBOX_SYS_ACK:
-			dev_err(dev, "Mailbox: ACK\n");
-			irq_status = IRQ_HANDLED;
-			goto err_mutex;
 		default:
 			dev_err(dev, "MBOX buffer value (0x%X) is invalid\n", val);
-			irq_status = IRQ_HANDLED;
-			goto err_mutex;
+			goto exit_mutex;
 		}
 	}
 
-err_mutex:
+exit_mutex:
 	mutex_unlock(&cs40l26->lock);
 
 	return irq_status;
