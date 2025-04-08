@@ -735,7 +735,7 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 static int cs40l26_handle_haptic(struct cs40l26_private *cs40l26, u32 val)
 {
 	struct device *dev = cs40l26->dev;
-	bool owt = false, rom = false;
+	char prefix[CS40L26_DSP_MBOX_MSG_PREFIX_LEN];
 	u8 event, src;
 	u16 index;
 
@@ -743,17 +743,23 @@ static int cs40l26_handle_haptic(struct cs40l26_private *cs40l26, u32 val)
 	src = (u8) FIELD_GET(CS40L26_DSP_MBOX_SOURCE_MASK, val);
 	event = (u8) FIELD_GET(CS40L26_DSP_MBOX_EVENT_MASK, val);
 
-	if (val & CS40L26_DSP_MBOX_FLAG_OWT)
-		owt = true;
-
-	if (val & CS40L26_DSP_MBOX_FLAG_ROM)
-		rom = true;
+	if (val & CS40L26_DSP_MBOX_FLAG_OWT) {
+		strscpy(prefix, "OWT:", CS40L26_DSP_MBOX_MSG_PREFIX_LEN);
+	} else if (val & CS40L26_DSP_MBOX_FLAG_ROM) {
+		if (index >= CS40L26_NUM_ROM_EFFECTS) {
+			strscpy(prefix, "BUZZ:", CS40L26_DSP_MBOX_MSG_PREFIX_LEN);
+			index -= CS40L26_BUZZGEN_MIN_INDEX;
+		} else {
+			strscpy(prefix, "ROM:", CS40L26_DSP_MBOX_MSG_PREFIX_LEN);
+		}
+	} else {
+		strscpy(prefix, "RAM:", CS40L26_DSP_MBOX_MSG_PREFIX_LEN);
+	}
 
 	switch (src) {
 	case CS40L26_DSP_MBOX_SOURCE_MBOX:
 		if (event == CS40L26_DSP_MBOX_EVENT_COMPLETE) {
-			dev_dbg(dev, "%s%sMailbox Playback Complete (Index %u)\n",
-					owt ? "OWT: " : "", rom ? "ROM: " : "", index);
+			dev_dbg(dev, "%s Mailbox Playback Complete (Index %u)\n", prefix, index);
 
 			complete_all(&cs40l26->erase_cont);
 
@@ -764,8 +770,7 @@ static int cs40l26_handle_haptic(struct cs40l26_private *cs40l26, u32 val)
 				return -EPERM;
 			}
 
-			dev_dbg(dev, "%s%sMailbox Playback Trigger (Index %u)\n",
-					owt ? "OWT: " : "", rom ? "ROM: " : "", index);
+			dev_dbg(dev, "%s Mailbox Playback Trigger (Index %u)\n", prefix, index);
 
 			cs40l26_vibe_state_update(cs40l26, CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK);
 		} else {
@@ -775,13 +780,11 @@ static int cs40l26_handle_haptic(struct cs40l26_private *cs40l26, u32 val)
 		break;
 	case CS40L26_DSP_MBOX_SOURCE_GPIO:
 		if (event == CS40L26_DSP_MBOX_EVENT_COMPLETE) {
-			dev_dbg(dev, "%s%sGPIO Playback Complete (Index %u)\n",
-					owt ? "OWT: " : "", rom ? "ROM: " : "", index);
+			dev_dbg(dev, "%s GPIO Playback Complete (Index %u)\n", prefix, index);
 
 			cs40l26_vibe_state_update(cs40l26, CS40L26_VIBE_STATE_EVENT_GPIO_COMPLETE);
 		} else if (event == CS40L26_DSP_MBOX_EVENT_TRIGGER) {
-			dev_dbg(dev, "%s%sGPIO Playback Trigger (Index %u)\n",
-					owt ? "OWT: " : "", rom ? "ROM: " : "", index);
+			dev_dbg(dev, "%s GPIO Playback Trigger (Index %u)\n", prefix, index);
 
 			cs40l26_vibe_state_update(cs40l26, CS40L26_VIBE_STATE_EVENT_GPIO_TRIGGER);
 		} else {
@@ -1744,9 +1747,12 @@ static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26, struct ff_
 
 	switch (ueffect->wvfrm_bank) {
 	case CS40L26_RAM_BANK_ID:
-	case CS40L26_BUZ_BANK_ID:
 		owt = false;
 		ev_handler_bank_ram = true;
+		break;
+	case CS40L26_BUZ_BANK_ID:
+		owt = false;
+		ev_handler_bank_ram = false;
 		break;
 	case CS40L26_ROM_BANK_ID:
 		owt = false;
