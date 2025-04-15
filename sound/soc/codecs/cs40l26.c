@@ -829,8 +829,12 @@ static int cs40l26_a2h_delay_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	if (ret) {
 		dev_err(dev, "Failed to set LRADELAYSAMPS\n");
 		cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_CP, __func__);
+		goto mutex_exit;
 	}
 
+	ret = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_A2H_REINIT);
+
+mutex_exit:
 	snd_soc_dapm_mutex_unlock(dapm);
 
 	cs40l26_pm_exit(dev);
