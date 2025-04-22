@@ -913,6 +913,10 @@
 /* macros */
 #define CS40L26_MS_TO_US(n)	((n) * 1000)
 
+/* Error Logging */
+#define CS40L26_FXN_NAME_MAX_LEN	40
+#define CS40L26_ERR_STR_MAX_LEN		100
+
 /* enums */
 enum cs40l26_amp_drv_slope_type {
 	CS40L26_AMP_DRV_SLOPE_TYPE_SLOWEST,
@@ -1059,6 +1063,30 @@ enum cs40l26_bus_type {
 	CS40L26_BUS_TYPE_I2C,
 };
 
+enum cs40l26_err_type {
+	CS40L26_ERR_TYPE_AMP,
+	CS40L26_ERR_TYPE_ASP,
+	CS40L26_ERR_TYPE_BRWNOUT,
+	CS40L26_ERR_TYPE_BST,
+	CS40L26_ERR_TYPE_COEFF,
+	CS40L26_ERR_TYPE_CP,
+	CS40L26_ERR_TYPE_DC_WD,
+	CS40L26_ERR_TYPE_DRIVER,
+	CS40L26_ERR_TYPE_DSP,
+	CS40L26_ERR_TYPE_DT,
+	CS40L26_ERR_TYPE_FW,
+	CS40L26_ERR_TYPE_HW,
+	CS40L26_ERR_TYPE_ID,
+	CS40L26_ERR_TYPE_INIT,
+	CS40L26_ERR_TYPE_IOCTL,
+	CS40L26_ERR_TYPE_IRQ,
+	CS40L26_ERR_TYPE_PM,
+	CS40L26_ERR_TYPE_RST,
+	CS40L26_ERR_TYPE_SYSFS,
+	CS40L26_ERR_TYPE_TEMP,
+	CS40L26_ERR_TYPE_WSEQ,
+};
+
 /* structs */
 struct cs40l26_log_src {
 	u8 sign;
@@ -1180,6 +1208,13 @@ struct cs40l26_work {
 	int error;
 };
 
+struct cs40l26_err {
+	int code;
+	u32 type;
+	char fxn_name[CS40L26_FXN_NAME_MAX_LEN];
+	struct list_head list;
+};
+
 struct cs40l26_private {
 	struct device *dev;
 	struct regmap *regmap;
@@ -1283,6 +1318,7 @@ struct cs40l26_private {
 	enum cs40l26_amp_drv_slope_type amp_drv_slope;
 	enum cs40l26_bus_type bus_type;
 	u32 broadcast_addr;
+	struct list_head err_head;
 };
 
 struct cs40l26_codec {
@@ -1350,6 +1386,7 @@ int cs40l26_wseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data,
 int cs40l26_copy_f0_est_to_dvl(struct cs40l26_private *cs40l26);
 int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26);
 void cs40l26_irq_enable(struct cs40l26_private *cs40l26, const unsigned int en);
+int cs40l26_log_err(struct cs40l26_private *cs40l26, int code, u32 type, const char *fxn_name);
 
 /* external tables */
 extern struct cs40l26_wseq_params aseq_params;
