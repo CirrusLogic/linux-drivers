@@ -83,7 +83,7 @@ static int cs40l26_dsp_read(struct cs40l26_private *cs40l26, u32 reg, u32 *val)
 
 	if (i >= CS40L26_DSP_TIMEOUT_COUNT) {
 		dev_err(dev, "Timed out attempting to read 0x%X\n", reg);
-		return -ETIMEDOUT;
+		return cs40l26_log_err(cs40l26, -ETIMEDOUT, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	*val = read_val;
@@ -108,7 +108,7 @@ static int cs40l26_dsp_write(struct cs40l26_private *cs40l26, u32 reg, u32 val)
 
 	if (i >= CS40L26_DSP_TIMEOUT_COUNT) {
 		dev_err(dev, "Timed out attempting to write to 0x%X\n", reg);
-		return -ETIMEDOUT;
+		return cs40l26_log_err(cs40l26, -ETIMEDOUT, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	return 0;
@@ -121,7 +121,7 @@ int cs40l26_get_ram_ext_algo_id(struct cs40l26_private *cs40l26, unsigned int *a
 
 	error = cl_dsp_fw_rev_get(cs40l26->dsp, &fw_rev);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DRIVER, __func__);
 
 	*algo_id = (fw_rev >= CS40L26_FW_RAM_EXT_RELOC_REV) ? cs40l26->fw_id : CS40L26_EXT_ALGO_ID;
 
@@ -151,7 +151,7 @@ int cs40l26_mailbox_write(struct cs40l26_private *cs40l26, u32 write_val)
 
 	if (i >= CS40L26_DSP_TIMEOUT_COUNT) {
 		dev_err(cs40l26->dev, "Mailbox not acknowledged (0x%08X != 0x0)\n", val);
-		return -ETIMEDOUT;
+		return cs40l26_log_err(cs40l26, -ETIMEDOUT, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
 	return 0;
@@ -192,9 +192,11 @@ static int cs40l26_broadcast_write(struct cs40l26_private *cs40l26, u32 reg, u32
 		error = regmap_read_poll_timeout(cs40l26->regmap, reg, ack, !ack,
 				CS40L26_DSP_TIMEOUT_US_MIN, CS40L26_DSP_TIMEOUT_COUNT *
 				CS40L26_DSP_TIMEOUT_US_MIN);
+		if (error)
+			return error;
 	}
 
-	return error;
+	return 0;
 }
 
 int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
@@ -227,10 +229,10 @@ int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 		break;
 	default:
 		dev_err(cs40l26->dev, "DSP state %u is invalid\n", dsp_state);
-		error = -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
-	return error;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(cs40l26_dsp_state_get);
 
@@ -248,7 +250,7 @@ int cs40l26_set_pll_loop(struct cs40l26_private *cs40l26, u8 pll_loop)
 
 	if (i == CS40L26_PLL_REFCLK_SET_ATTEMPTS) {
 		dev_err(cs40l26->dev, "Failed to configure PLL\n");
-		return -ETIMEDOUT;
+		return cs40l26_log_err(cs40l26, -ETIMEDOUT, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	return 0;
@@ -302,7 +304,7 @@ int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26, unsigned int dsp_
 		min = CS40L26_PM_ACTIVE_TIMEOUT_MS_MIN;
 	} else {
 		dev_err(cs40l26->dev, "Invalid DSP state: %u\n", dsp_state);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
 	if (timeout_ms > CS40L26_PM_TIMEOUT_MS_MAX)
@@ -316,7 +318,7 @@ int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26, unsigned int dsp_
 	if (error)
 		dev_err(cs40l26->dev, "Failed to set PM timeout: %d\n", error);
 
-	return error;
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__) : 0;
 }
 EXPORT_SYMBOL_GPL(cs40l26_pm_timeout_ms_set);
 
@@ -341,13 +343,13 @@ int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26, unsigned int dsp_
 		reg += CS40L26_PM_ACTIVE_TIMEOUT_OFFSET;
 	} else {
 		dev_err(cs40l26->dev, "Invalid DSP state: %u\n", dsp_state);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
 	error = regmap_read(cs40l26->regmap, reg, &timeout_ticks);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to get PM timeout: %d\n", error);
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	*timeout_ms = DIV_ROUND_UP(timeout_ticks * 1000, CS40L26_PM_TICKS_PER_SEC);
@@ -365,9 +367,11 @@ int cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
 	pm_runtime_get_noresume(cs40l26->dev);
 	error = pm_runtime_set_active(cs40l26->dev);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__);
 
-	return devm_pm_runtime_enable(cs40l26->dev);
+	error = devm_pm_runtime_enable(cs40l26->dev);
+
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__) : 0;
 }
 EXPORT_SYMBOL_GPL(cs40l26_pm_runtime_setup);
 
@@ -440,8 +444,10 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 		goto err_mutex;
 
 	error = regmap_write(cs40l26->regmap, reg, cs40l26_attn_q21_2_vals[gain]);
-	if (error)
+	if (error) {
 		dev_err(cs40l26->dev, "Failed to set attenuation\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+	}
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -463,6 +469,7 @@ static void cs40l26_remove_asp_scaling(struct cs40l26_private *cs40l26)
 
 	if (gain >= CS40L26_NUM_PCT_MAP_VALUES) {
 		dev_err(dev, "Gain %u%% out of bounds\n", gain);
+		cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_ASP, __func__);
 		return;
 	}
 
@@ -592,7 +599,7 @@ static int cs40l26_dsp_start(struct cs40l26_private *cs40l26)
 			CS40L26_DSP_CCM_CORE_RESET);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to reset DSP core\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	error = cs40l26_dsp_state_get(cs40l26, &dsp_state);
@@ -601,7 +608,7 @@ static int cs40l26_dsp_start(struct cs40l26_private *cs40l26)
 
 	if (dsp_state != CS40L26_DSP_STATE_ACTIVE && dsp_state != CS40L26_DSP_STATE_STANDBY) {
 		dev_err(cs40l26->dev, "Failed to wake DSP core\n");
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
 	return 0;
@@ -620,12 +627,12 @@ static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 	error = regmap_read(cs40l26->regmap, cs40l26->rom_regs->dsp_halo_state, &halo_state);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to get HALO state\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	if (halo_state != CS40L26_DSP_HALO_STATE_RUN) {
 		dev_err(cs40l26->dev, "DSP not Ready: HALO_STATE: %08X\n", halo_state);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
 	error = cs40l26_pm_timeout_ms_get(cs40l26, CS40L26_DSP_STATE_ACTIVE, &timeout_ms);
@@ -648,15 +655,17 @@ static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 
 	if (i == CS40L26_DSP_SHUTDOWN_MAX_ATTEMPTS) {
 		dev_err(cs40l26->dev, "DSP Core could not be shut down\n");
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -ETIMEDOUT, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
 	error = regmap_write(cs40l26->regmap, CS40L26_DSP1_CCM_CORE_CONTROL,
 			CS40L26_DSP_CCM_CORE_KILL);
-	if (error)
+	if (error) {
 		dev_err(cs40l26->dev, "Failed to kill DSP core\n");
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DSP, __func__);
+	}
 
-	return error;
+	return 0;
 }
 
 static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
@@ -675,7 +684,7 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 	error = regmap_bulk_read(regmap, reg, buffer, CS40L26_DSP_MBOX_BUFFER_NUM_REGS);
 	if (error) {
 		dev_err(dev, "Failed to read buffer contents\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	base = buffer[0];
@@ -692,12 +701,12 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 	error = regmap_read(regmap, reg, &status);
 	if (error) {
 		dev_err(dev, "Failed to read mailbox status\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	if (status) {
 		dev_err(dev, "Mailbox status error: 0x%X\n", status);
-		return -ENOSPC;
+		return cs40l26_log_err(cs40l26, -ENOSPC, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
 	if (read_ptr == write_ptr) {
@@ -708,7 +717,7 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 	error = regmap_read(regmap, read_ptr, &mbox_response);
 	if (error) {
 		dev_err(dev, "Failed to read from mailbox buffer\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	if (read_ptr == last)
@@ -724,7 +733,7 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 	error = regmap_write(regmap, reg, read_ptr);
 	if (error) {
 		dev_err(dev, "Failed to update read pointer\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	*val = mbox_response;
@@ -767,7 +776,8 @@ static int cs40l26_handle_haptic(struct cs40l26_private *cs40l26, u32 val)
 		} else if (event == CS40L26_DSP_MBOX_EVENT_TRIGGER) {
 			if (!cs40l26->vibe_state_reporting) {
 				dev_err(dev, "vibe_state not supported\n");
-				return -EPERM;
+				return cs40l26_log_err(cs40l26, -EPERM,
+						CS40L26_ERR_TYPE_FW, __func__);
 			}
 
 			dev_dbg(dev, "%s Mailbox Playback Trigger (Index %u)\n", prefix, index);
@@ -775,7 +785,7 @@ static int cs40l26_handle_haptic(struct cs40l26_private *cs40l26, u32 val)
 			cs40l26_vibe_state_update(cs40l26, CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK);
 		} else {
 			dev_err(dev, "Invalid haptic mailbox event (MBOX) 0x%02X\n", event);
-			return -EINVAL;
+			return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 		}
 		break;
 	case CS40L26_DSP_MBOX_SOURCE_GPIO:
@@ -789,7 +799,7 @@ static int cs40l26_handle_haptic(struct cs40l26_private *cs40l26, u32 val)
 			cs40l26_vibe_state_update(cs40l26, CS40L26_VIBE_STATE_EVENT_GPIO_TRIGGER);
 		} else {
 			dev_err(dev, "Invalid haptic mailbox event (GPIO) 0x%02X\n", event);
-			return -EINVAL;
+			return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 		}
 		break;
 	case CS40L26_DSP_MBOX_SOURCE_I2S:
@@ -804,12 +814,12 @@ static int cs40l26_handle_haptic(struct cs40l26_private *cs40l26, u32 val)
 			complete(&cs40l26->i2s_cont);
 		} else {
 			dev_err(dev, "Invalid haptic mailbox event (I2S) 0x%02X\n", event);
-			return -EINVAL;
+			return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 		}
 		break;
 	default:
 		dev_err(dev, "Invalid source from DSP to host mailbox: 0x%02X\n", src);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
 	return 0;
@@ -837,6 +847,7 @@ static irqreturn_t cs40l26_handle_mbox_buffer(int irq, void *data)
 		if (cmd == CS40L26_DSP_MBOX_CMD_TYPE_PANIC) {
 			dev_alert(dev, "DSP PANIC! Error condition: 0x%06X\n",
 					(u32) (val & CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK));
+			cs40l26_log_err(cs40l26, 0, CS40L26_ERR_TYPE_DSP, __func__);
 			goto exit_mutex;
 		}
 
@@ -908,6 +919,7 @@ static irqreturn_t cs40l26_handle_mbox_buffer(int irq, void *data)
 			break;
 		default:
 			dev_err(dev, "MBOX buffer value (0x%X) is invalid\n", val);
+			cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 			goto exit_mutex;
 		}
 	}
@@ -979,7 +991,7 @@ int cs40l26_asp_start(struct cs40l26_private *cs40l26)
 	error = cs40l26_mailbox_write(cs40l26, CS40L26_STOP_PLAYBACK);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to stop playback before I2S start\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	reinit_completion(&cs40l26->i2s_cont);
@@ -998,6 +1010,7 @@ void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26, enum cs40l26_vib
 
 	if (!mutex_is_locked(&cs40l26->lock)) {
 		dev_err(cs40l26->dev, "%s must be called under mutex lock\n", __func__);
+		cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_DRIVER, __func__);
 		return;
 	}
 
@@ -1035,6 +1048,7 @@ void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26, enum cs40l26_vib
 		break;
 	default:
 		dev_err(cs40l26->dev, "Invalid vibe state event: %d\n", event);
+		cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DRIVER, __func__);
 		break;
 	}
 
@@ -1060,7 +1074,7 @@ static int cs40l26_error_release(struct cs40l26_private *cs40l26,
 	error = regmap_read(regmap, CS40L26_ERROR_RELEASE, &err_sts);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to get error status\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	err_cfg = err_sts & ~BIT(err_rls);
@@ -1068,7 +1082,7 @@ static int cs40l26_error_release(struct cs40l26_private *cs40l26,
 	error = regmap_write(cs40l26->regmap, CS40L26_ERROR_RELEASE, err_cfg);
 	if (error) {
 		dev_err(dev, "Actuator Safe Mode release sequence failed\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	err_cfg |= BIT(err_rls);
@@ -1076,16 +1090,18 @@ static int cs40l26_error_release(struct cs40l26_private *cs40l26,
 	error = regmap_write(regmap, CS40L26_ERROR_RELEASE, err_cfg);
 	if (error) {
 		dev_err(dev, "Actuator Safe Mode release sequence failed\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	err_cfg &= ~BIT(err_rls);
 
 	error = regmap_write(cs40l26->regmap, CS40L26_ERROR_RELEASE, err_cfg);
-	if (error)
+	if (error) {
 		dev_err(dev, "Actuator Safe Mode release sequence failed\n");
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+	}
 
-	return error;
+	return 0;
 }
 
 static int cs40l26_handle_pre_irq(void *irq_drv_data)
@@ -1099,11 +1115,15 @@ static int cs40l26_handle_pre_irq(void *irq_drv_data)
 		return error;
 
 	error = regmap_read(cs40l26->regmap, CS40L26_IRQ1_STATUS, &sts);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		goto err_pm;
+	}
 
-	if (!(sts & CS40L26_IRQ_STATUS_MASK))
+	if (!(sts & CS40L26_IRQ_STATUS_MASK)) {
 		dev_err(cs40l26->dev, "IRQ1 asserted with no pending interrupts\n");
+		cs40l26_log_err(cs40l26, 0, CS40L26_ERR_TYPE_IRQ, __func__);
+	}
 
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
@@ -1158,6 +1178,7 @@ static irqreturn_t cs40l26_wakesource_any(int irq, void *data)
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to get Power Management Status\n");
 		irq_return = IRQ_NONE;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		goto mutex_exit;
 	}
 
@@ -1175,6 +1196,7 @@ static irqreturn_t cs40l26_wakesource_any(int irq, void *data)
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to read LAST_WAKESRC_CTL\n");
 		irq_return = IRQ_NONE;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		goto mutex_exit;
 	}
 
@@ -1230,6 +1252,8 @@ static irqreturn_t cs40l26_bst_ovp_err(int irq, void *data)
 
 	dev_err(cs40l26->dev, "BST overvolt. error\n");
 
+	cs40l26_log_err(cs40l26, 0, CS40L26_ERR_TYPE_BST, __func__);
+
 	return IRQ_RETVAL(!cs40l26_error_release(cs40l26, CS40L26_BST_OVP_ERR_RLS));
 }
 
@@ -1238,6 +1262,8 @@ static irqreturn_t cs40l26_bst_uv_err(int irq, void *data)
 	struct cs40l26_private *cs40l26 = data;
 
 	dev_err(cs40l26->dev, "BST undervolt. error\n");
+
+	cs40l26_log_err(cs40l26, 0, CS40L26_ERR_TYPE_BST, __func__);
 
 	return IRQ_RETVAL(!cs40l26_error_release(cs40l26, CS40L26_BST_UVP_ERR_RLS));
 }
@@ -1248,6 +1274,8 @@ static irqreturn_t cs40l26_bst_short(int irq, void *data)
 
 	dev_err(cs40l26->dev, "LBST short detected\n");
 
+	cs40l26_log_err(cs40l26, 0, CS40L26_ERR_TYPE_BST, __func__);
+
 	return IRQ_RETVAL(!cs40l26_error_release(cs40l26, CS40L26_BST_SHORT_ERR_RLS));
 }
 
@@ -1256,6 +1284,8 @@ static irqreturn_t cs40l26_ipk_flag(int irq, void *data)
 	struct cs40l26_private *cs40l26 = data;
 
 	dev_dbg(cs40l26->dev, "Current is being limited by LBST inductor\n");
+
+	cs40l26_log_err(cs40l26, 0, CS40L26_ERR_TYPE_BST, __func__);
 
 	return IRQ_HANDLED;
 }
@@ -1266,6 +1296,8 @@ static irqreturn_t cs40l26_temp_err(int irq, void *data)
 
 	dev_err(cs40l26->dev, "Die overtemperature error\n");
 
+	cs40l26_log_err(cs40l26, 0, CS40L26_ERR_TYPE_TEMP, __func__);
+
 	return IRQ_RETVAL(!cs40l26_error_release(cs40l26, CS40L26_TEMP_ERR_RLS));
 }
 
@@ -1275,6 +1307,8 @@ static irqreturn_t cs40l26_amp_short(int irq, void *data)
 
 	dev_err(cs40l26->dev, "AMP short detected\n");
 
+	cs40l26_log_err(cs40l26, 0, CS40L26_ERR_TYPE_AMP, __func__);
+
 	return IRQ_RETVAL(!cs40l26_error_release(cs40l26, CS40L26_AMP_SHORT_ERR_RLS));
 }
 
@@ -1283,6 +1317,8 @@ static irqreturn_t cs40l26_watchdog_rise(int irq, void *data)
 	struct cs40l26_private *cs40l26 = data;
 
 	dev_warn(cs40l26->dev, "Watchdog: A DC level has been detected\n");
+
+	cs40l26_log_err(cs40l26, 0, CS40L26_ERR_TYPE_DC_WD, __func__);
 
 	return IRQ_HANDLED;
 }
@@ -1302,6 +1338,8 @@ static irqreturn_t cs40l26_vpbr_flag(int irq, void *data)
 
 	dev_err(cs40l26->dev, "VP voltage has dropped below brownout threshold\n");
 
+	cs40l26_log_err(cs40l26, 0, CS40L26_ERR_TYPE_BRWNOUT, __func__);
+
 	return IRQ_HANDLED;
 }
 
@@ -1319,6 +1357,8 @@ static irqreturn_t cs40l26_vbbr_flag(int irq, void *data)
 	struct cs40l26_private *cs40l26 = data;
 
 	dev_err(cs40l26->dev, "VBST voltage has dropped below brownout threshold\n");
+
+	cs40l26_log_err(cs40l26, 0, CS40L26_ERR_TYPE_BRWNOUT, __func__);
 
 	return IRQ_HANDLED;
 }
@@ -1428,8 +1468,10 @@ static int cs40l26_wseq_get_reg_addr(struct cs40l26_private *cs40l26, u32 op_add
 		memset((void *) &op, 0, sizeof(struct cs40l26_wseq_op));
 
 		error = cs40l26_wseq_read(cs40l26, &ch, &op);
-		if (error)
+		if (error) {
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 			goto err_free;
+		}
 
 		/*
 		 * Return 1 if operation is found (replace)
@@ -1496,7 +1538,7 @@ int cs40l26_wseq_read(struct cs40l26_private *cs40l26, struct cl_dsp_memchunk *c
 		break;
 	default:
 		dev_err(cs40l26->dev, "Invalid OP code 0x%02X\n", op->code);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_FW, __func__);
 	}
 
 	return 0;
@@ -1528,7 +1570,7 @@ int cs40l26_wseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data,
 		break;
 	default:
 		dev_err(cs40l26->dev, "Invalid Write Sequence Op. Code: 0x%02X\n", op_code);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_FW, __func__);
 	}
 
 	ch = cl_dsp_memchunk_create(words, sizeof(words));
@@ -1560,7 +1602,7 @@ int cs40l26_wseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data,
 		op_found = true;
 		break;
 	default:
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 	}
 
 	if (op_found && update) {
@@ -1573,7 +1615,7 @@ int cs40l26_wseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data,
 		if (wseq_params->size_bytes > wseq_params->max_size_bytes) {
 			dev_err(cs40l26->dev, "Write sequence out of space\n");
 			wseq_params->size_bytes -= ch.bytes;
-			return -ENOSPC;
+			return cs40l26_log_err(cs40l26, -ENOSPC, CS40L26_ERR_TYPE_DSP, __func__);
 		}
 
 		error = regmap_bulk_write(cs40l26->regmap, wseq_params->list_term_addr,
@@ -1605,7 +1647,7 @@ static int cs40l26_wseq_multi_write(struct cs40l26_private *cs40l26,
 		error = cs40l26_wseq_write(cs40l26, reg_seq[i].reg, reg_seq[i].def,
 				update, op_code, wseq_params);
 		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 	}
 
 	return 0;
@@ -1647,7 +1689,7 @@ static int cs40l26_wseq_init(struct cs40l26_private *cs40l26, const char *wseq_n
 		wseq_params->rom_list_term_addr = cs40l26->rom_regs->rom_pseq_end_of_script;
 	} else {
 		dev_err(cs40l26->dev, "Invalid sequence name: %s\n", wseq_name);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_WSEQ, __func__);
 	}
 
 	error = cl_dsp_get_length(cs40l26->dsp, wseq_name, CL_DSP_XM_UNPACKED_TYPE,
@@ -1663,10 +1705,10 @@ static int cs40l26_wseq_init(struct cs40l26_private *cs40l26, const char *wseq_n
 	error = cs40l26_wseq_get_reg_addr(cs40l26, CS40L26_WSEQ_OP_END_ADDR, CS40L26_WSEQ_OP_END,
 			wseq_params, wseq_params->max_size_bytes, &wseq_params->list_term_addr);
 	if (error < 0) {
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 	} else if (error == 0) {
 		dev_err(cs40l26->dev, "Failed to find list terminator for %s\n", wseq_name);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_WSEQ, __func__);
 	}
 
 	wseq_params->size_bytes = wseq_params->list_term_addr - wseq_params->base_addr + 4;
@@ -1685,13 +1727,13 @@ static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 reg, u32
 		eint_reg = CS40L26_IRQ1_EINT_2;
 	} else {
 		dev_err(cs40l26->dev, "Invalid IRQ mask reg: 0x%08X\n", reg);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_IRQ, __func__);
 	}
 
 	error = regmap_read(cs40l26->regmap, reg, &cur_mask);
 	if  (error) {
 		dev_err(cs40l26->dev, "Failed to get IRQ mask\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	new_mask = (cur_mask & ~bit_mask) | val;
@@ -1700,13 +1742,13 @@ static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 reg, u32
 	error = regmap_write(cs40l26->regmap, eint_reg, bit_mask);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to clear IRQ\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	error = regmap_write(cs40l26->regmap, reg, new_mask);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to update IRQ mask\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	if (bit_mask & CS40L26_WSEQ_UPPER_MASK) {
@@ -1714,7 +1756,7 @@ static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 reg, u32
 				FIELD_GET(CS40L26_WSEQ_UPPER_MASK, new_mask),
 				true, CS40L26_WSEQ_OP_WRITE_H16, &pseq_params);
 		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 	}
 
 	if (bit_mask & CS40L26_WSEQ_LOWER_MASK) {
@@ -1722,7 +1764,7 @@ static int cs40l26_irq_update_mask(struct cs40l26_private *cs40l26, u32 reg, u32
 				FIELD_GET(CS40L26_WSEQ_LOWER_MASK, new_mask),
 				true, CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 	}
 
 	return 0;
@@ -1740,7 +1782,7 @@ static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26, struct ff_
 	if (cs40l26->gpo_playback_mon) {
 		dev_err(cs40l26->dev, "Cannot use GPIO1 when playback status monitoring enabled\n");
 		ueffect->mapping = CS40L26_GPIO_MAP_INVALID;
-		return -EPERM;
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_DT, __func__);
 	}
 
 	edge = (effect->trigger.button & CS40L26_BTN_EDGE_MASK) >> CS40L26_BTN_EDGE_SHIFT;
@@ -1764,12 +1806,12 @@ static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26, struct ff_
 		break;
 	default:
 		dev_err(cs40l26->dev, "Effect bank %u not supported\n", ueffect->wvfrm_bank);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_IOCTL, __func__);
 	}
 
 	if (gpio != CS40L26_GPIO1) {
 		dev_err(cs40l26->dev, "GPIO%u not supported on 0x%02X\n", gpio, cs40l26->revid);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_HW, __func__);
 	}
 
 	reg = cs40l26->event_map_base + (edge ? 0 : 4);
@@ -1780,7 +1822,7 @@ static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26, struct ff_
 	error = regmap_write(cs40l26->regmap, reg, write_val);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to update event map\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	error = cl_dsp_fw_rev_get(cs40l26->dsp, &fw_rev);
@@ -1797,8 +1839,10 @@ static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26, struct ff_
 			return error;
 
 		error = regmap_write(cs40l26->regmap, reg, effect->replay.length);
-		if (error)
+		if (error) {
 			dev_warn(cs40l26->dev, "Failed to set GPI timeout, continuing...\n");
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+		}
 	}
 
 	if (edge)
@@ -1890,7 +1934,7 @@ static int cs40l26_erase_buzzgen(struct cs40l26_private *cs40l26, int id)
 
 	if (slot == -1) {
 		dev_err(cs40l26->dev, "Failed to erase BUZZGEN config for id %d\n", id);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_IOCTL, __func__);
 	}
 
 	cs40l26_buzzgen_configs[slot].effect_id = -1;
@@ -1931,8 +1975,10 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 
 	if (cs40l26->broadcast_client) {
 		error = cs40l26_find_sibling(dev, &sibling_dev);
-		if (error)
+		if (error) {
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DT, __func__);
 			goto err_pm;
+		}
 
 		error = cs40l26_pm_enter(sibling_dev);
 		if (error)
@@ -1946,6 +1992,8 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	ueffect = cs40l26_uploaded_effect_find(cs40l26, effect->id);
 	if (IS_ERR_OR_NULL(ueffect)) {
 		dev_err(dev, "No such effect to play back\n");
+		error = ueffect ? PTR_ERR(ueffect) : -ENODATA;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 		goto err_mutex;
 	}
 
@@ -1958,12 +2006,15 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 
 	if (cs40l26->broadcast_client) {
 		error = cs40l26_broadcast_write(cs40l26, reg, duration, false);
-		if (error)
+		if (error) {
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 			goto err_mutex;
+		}
 	} else {
 		error = regmap_write(cs40l26->regmap, reg, duration);
 		if (error) {
 			dev_err(dev, "Failed to set TIMEOUT_MS\n");
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 			goto err_mutex;
 		}
 	}
@@ -1986,6 +2037,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		break;
 	default:
 		dev_err(dev, "Invalid ff_effect direction: 0x%X\n", work_data->effect->direction);
+		cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_IOCTL, __func__);
 		goto err_mutex;
 	}
 
@@ -2001,6 +2053,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 					ueffect->trigger_index, true);
 			if (error) {
 				dev_err(cs40l26->dev, "Broadcast trigger failed: %d\n", error);
+				cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 				goto err_mutex;
 			}
 		} else {
@@ -2013,6 +2066,7 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		break;
 	default:
 		dev_err(dev, "Invalid waveform type: 0x%X\n", effect->u.periodic.waveform);
+		cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_IOCTL, __func__);
 		goto err_mutex;
 	}
 
@@ -2047,8 +2101,10 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 
 	if (cs40l26->broadcast_client) {
 		error = cs40l26_find_sibling(cs40l26->dev, &sibling_dev);
-		if (error)
+		if (error) {
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DT, __func__);
 			goto err_pm;
+		}
 
 		error = cs40l26_pm_enter(sibling_dev);
 		if (error)
@@ -2077,12 +2133,16 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 		if (cs40l26->broadcast_client) {
 			error = cs40l26_broadcast_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1,
 					CS40L26_STOP_PLAYBACK, true);
-			if (error)
+			if (error) {
 				dev_err(cs40l26->dev, "Broadcast stop failed: %d\n", error);
+				cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+			}
 		} else {
 			error = cs40l26_mailbox_write(cs40l26, CS40L26_STOP_PLAYBACK);
-			if (error)
+			if (error) {
 				dev_err(cs40l26->dev, "Failed to stop playback\n");
+				cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+			}
 		}
 	} else {
 		dev_dbg(cs40l26->dev, "Stop command skipped\n");
@@ -2104,6 +2164,7 @@ static void cs40l26_set_gain(struct input_dev *dev, u16 gain)
 
 	if (gain >= CS40L26_NUM_PCT_MAP_VALUES) {
 		dev_err(cs40l26->dev, "Gain value %u %% out of bounds\n", gain);
+		cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_IOCTL, __func__);
 		return;
 	}
 
@@ -2135,7 +2196,7 @@ static int cs40l26_playback_effect(struct input_dev *dev, int effect_id, int val
 	if (!work_data->effect) {
 		dev_err(cs40l26->dev, "No such effect to playback\n");
 		kfree(work_data);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_IOCTL, __func__);
 	}
 
 	if (val > 0)
@@ -2241,7 +2302,7 @@ static int cs40l26_owt_get_wlength(struct cs40l26_private *cs40l26, u8 index, u3
 		break;
 	default:
 		dev_err(dev, "Cannot size waveform type %u\n", entry->type);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_IOCTL, __func__);
 	}
 
 	ch = cl_dsp_memchunk_create(entry->data, sizeof(u32));
@@ -2327,7 +2388,7 @@ static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26, u8 nse
 
 	if (nsections < 1) {
 		dev_err(cs40l26->dev, "Not enough sections for composite\n");
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_IOCTL, __func__);
 	}
 
 	sections = kcalloc(nsections, sizeof(struct cs40l26_owt_section), GFP_KERNEL);
@@ -2338,6 +2399,7 @@ static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26, u8 nse
 	error = cs40l26_owt_get_section_info(cs40l26, &ch, sections, nsections);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to get section info\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 		goto err_free;
 	}
 
@@ -2347,6 +2409,7 @@ static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26, u8 nse
 		if (error) {
 			dev_err(cs40l26->dev, "Failed to get wlength for index %u: %d\n",
 					sections[i].index, error);
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 			goto err_free;
 		}
 
@@ -2354,6 +2417,7 @@ static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26, u8 nse
 			if (!(sections[i].flags & CS40L26_WT_TYPE10_COMP_DURATION_FLAG)) {
 				dev_err(cs40l26->dev, "Indefinite entry needs duration\n");
 				error = -EINVAL;
+				cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 				goto err_free;
 			}
 
@@ -2413,6 +2477,7 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, u8 *data, u32 dat
 	error = regmap_read(cs40l26->regmap, reg, &wt_offset);
 	if (error) {
 		dev_err(dev, "Failed to get wavetable offset\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		goto err_pm;
 	}
 
@@ -2424,12 +2489,14 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, u8 *data, u32 dat
 	error = regmap_read(cs40l26->regmap, reg, &wt_size_words);
 	if (error) {
 		dev_err(dev, "Failed to get available WT size\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		goto err_pm;
 	}
 
 	if ((wt_size_words * CL_DSP_BYTES_PER_WORD) < data_size_bytes) {
 		dev_err(dev, "No space for OWT waveform\n");
 		error = -ENOSPC;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 		goto err_pm;
 	}
 
@@ -2443,6 +2510,7 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, u8 *data, u32 dat
 	error = cl_dsp_raw_write(cs40l26->dsp, write_reg, data, data_size_bytes, CL_DSP_MAX_WLEN);
 	if (error) {
 		dev_err(dev, "Failed to sync OWT\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		goto err_pm;
 	}
 
@@ -2470,6 +2538,7 @@ static u8 *cs40l26_ncw_refactor_data(struct cs40l26_private *cs40l26, u8 amp, u8
 
 	if (nsections <= 0) {
 		dev_err(cs40l26->dev, "Too few sections for NCW\n");
+		cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_IOCTL, __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -2482,6 +2551,7 @@ static u8 *cs40l26_ncw_refactor_data(struct cs40l26_private *cs40l26, u8 amp, u8
 	error = cs40l26_owt_get_section_info(cs40l26, &in_ch, sections, nsections);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to get section info\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 		goto sections_free;
 	}
 
@@ -2578,13 +2648,15 @@ static int cs40l26_composite_upload(struct cs40l26_private *cs40l26, s16 *in_dat
 	error = cs40l26_owt_get_section_info(cs40l26, &ch, sections, nsections);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to get section info\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 		goto sections_err_free;
 	}
 
 	data_bytes = cs40l26_owt_comp_data_size(cs40l26, nsections, sections);
-	if (data_bytes <= 0) {
+	if (data_bytes < 0) {
 		dev_err(dev, "Failed to get OWT Composite Data Size\n");
 		error = data_bytes;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 		goto sections_err_free;
 	}
 
@@ -2613,12 +2685,14 @@ static int cs40l26_composite_upload(struct cs40l26_private *cs40l26, s16 *in_dat
 		if (sections[i].repeat != 0) {
 			dev_err(dev, "Inner repeats not allowed for NCWs\n");
 			error = -EPERM;
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 			goto data_err_free;
 		}
 
 		header = cs40l26_owt_header(cs40l26, sections[i].index, sections[i].wvfrm_bank);
 		if (IS_ERR(header)) {
 			error = PTR_ERR(header);
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 			goto data_err_free;
 		}
 
@@ -2646,6 +2720,7 @@ static int cs40l26_composite_upload(struct cs40l26_private *cs40l26, s16 *in_dat
 				dev_err(dev,
 					"No NCW support for outer repeat\n");
 				error = -EPERM;
+				cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 				goto data_err_free;
 			}
 
@@ -2657,6 +2732,7 @@ static int cs40l26_composite_upload(struct cs40l26_private *cs40l26, s16 *in_dat
 					ncw_bytes, sections[i].wvfrm_bank);
 			if (IS_ERR(ncw_data)) {
 				error = PTR_ERR(ncw_data);
+				cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 				goto data_err_free;
 			}
 
@@ -2786,7 +2862,7 @@ static int cs40l26_sine_upload(struct cs40l26_private *cs40l26, struct ff_effect
 	slot = cs40l26_buzzgen_find_slot(cs40l26, effect->id);
 	if (slot == -1) {
 		dev_err(cs40l26->dev, "No free BUZZGEN slot available\n");
-		return -ENOSPC;
+		return cs40l26_log_err(cs40l26, -ENOSPC, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
 	cs40l26_buzzgen_configs[slot].effect_id = effect->id;
@@ -2860,7 +2936,7 @@ static int cs40l26_custom_rom(struct cs40l26_private *cs40l26, struct cs40l26_wo
 	*trigger_index = index + CS40L26_ROM_INDEX_START;
 	if (*trigger_index > CS40L26_ROM_INDEX_END) {
 		dev_err(cs40l26->dev, "Index 0x%X out of bounds\n", *trigger_index);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_IOCTL, __func__);
 	}
 
 	return 0;
@@ -2880,7 +2956,7 @@ static int cs40l26_custom_ram(struct cs40l26_private *cs40l26, struct cs40l26_wo
 		return nram;
 	} else if (nram == 0) {
 		dev_err(cs40l26->dev, "No waveforms in RAM bank\n");
-		return -ENODATA;
+		return cs40l26_log_err(cs40l26, -ENODATA, CS40L26_ERR_TYPE_IOCTL, __func__);
 	}
 
 	max_index_tmp = CS40L26_RAM_INDEX_START + nram - 1;
@@ -2890,7 +2966,7 @@ static int cs40l26_custom_ram(struct cs40l26_private *cs40l26, struct cs40l26_wo
 
 	if (*trigger_index > max_index) {
 		dev_err(cs40l26->dev, "RAM Index 0x%X out of bounds\n", *trigger_index);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_IOCTL, __func__);
 	}
 
 	return 0;
@@ -2934,6 +3010,7 @@ static int cs40l26_custom_owt(struct cs40l26_private *cs40l26, struct cs40l26_wo
 	if (index_tmp < 0) {
 		dev_err(cs40l26->dev, "Invalid OWT index: %d\n", index_tmp);
 		error = -EINVAL;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 		goto err_free;
 	}
 	index = (u16) (index_tmp & CS40L26_MAX_INDEX_MASK);
@@ -2942,6 +3019,7 @@ static int cs40l26_custom_owt(struct cs40l26_private *cs40l26, struct cs40l26_wo
 	if (*trigger_index > CS40L26_OWT_INDEX_END) {
 		dev_err(cs40l26->dev, "Index 0x%X out of bounds\n", *trigger_index);
 		error = -EINVAL;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 	}
 
 err_free:
@@ -2977,7 +3055,7 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct cs40l26
 				return error;
 		} else {
 			dev_err(cs40l26->dev, "Invalid custom waveform bank: %u\n", bank);
-			return -EINVAL;
+			return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_IOCTL, __func__);
 		}
 	}
 
@@ -3014,6 +3092,7 @@ static int cs40l26_uploaded_effect_add(struct cs40l26_private *cs40l26,
 		dev_err(dev, "Periodic waveform type 0x%X not supported\n",
 				effect->u.periodic.waveform);
 		error = -EINVAL;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 	}
 
 	if (error)
@@ -3057,6 +3136,7 @@ static void cs40l26_upload_worker(struct work_struct *work)
 	if (effect->type != FF_PERIODIC) {
 		dev_err(cdev, "Effect type 0x%X not supported\n", effect->type);
 		error = -EINVAL;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 		goto out_mutex;
 	}
 
@@ -3104,6 +3184,7 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 				sizeof(s16) * len)) {
 			dev_err(cs40l26->dev, "Failed to get user data\n");
 			error = -EFAULT;
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 			goto out_free;
 		}
 	}
@@ -3131,7 +3212,7 @@ static int cs40l26_erase_gpi_mapping(struct cs40l26_private *cs40l26, enum cs40l
 
 	if (mapping != CS40L26_GPIO_MAP_A_PRESS && mapping != CS40L26_GPIO_MAP_A_RELEASE) {
 		dev_err(cs40l26->dev, "Invalid GPI mapping %u\n", mapping);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_IOCTL, __func__);
 	}
 
 	if (cs40l26->fw_loaded)
@@ -3146,7 +3227,7 @@ static int cs40l26_erase_gpi_mapping(struct cs40l26_private *cs40l26, enum cs40l
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to clear GPI mapping %u\n",
 				mapping);
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	return 0;
@@ -3195,7 +3276,8 @@ static void cs40l26_erase_worker(struct work_struct *work)
 	if (IS_ERR_OR_NULL(ueffect)) {
 		dev_err(cs40l26->dev, "No such effect to erase (%d)\n",
 				effect_id);
-		error = ueffect ? PTR_ERR(ueffect) : -EINVAL;
+		error = ueffect ? PTR_ERR(ueffect) : -ENODATA;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IOCTL, __func__);
 		goto out_mutex;
 	}
 
@@ -3212,6 +3294,7 @@ static void cs40l26_erase_worker(struct work_struct *work)
 			error = -ETIME;
 			dev_err(cs40l26->dev, "Failed to erase effect (%d)\n",
 					effect_id);
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DSP, __func__);
 			goto out_pm;
 		}
 		mutex_lock(&cs40l26->lock);
@@ -3232,12 +3315,10 @@ static void cs40l26_erase_worker(struct work_struct *work)
 		ueffect->mapping = CS40L26_GPIO_MAP_INVALID;
 	}
 
-	if (ueffect->wvfrm_bank == CS40L26_OWT_BANK_ID)
+	if (ueffect->wvfrm_bank == CS40L26_OWT_BANK_ID) {
 		error = cs40l26_erase_owt(cs40l26, ueffect);
-
-	if (error) {
-		dev_err(cs40l26->dev, "Failed to erase effect: %d", error);
-		goto out_mutex;
+		if (error)
+			goto out_mutex;
 	}
 
 	list_del(&ueffect->list);
@@ -3264,7 +3345,7 @@ static int cs40l26_erase_effect(struct input_dev *dev, int effect_id)
 
 	if (!work_data.effect) {
 		dev_err(cs40l26->dev, "No such effect to erase\n");
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_IOCTL, __func__);
 	}
 
 	work_data.cs40l26 = cs40l26;
@@ -3301,7 +3382,7 @@ static int cs40l26_input_init(struct cs40l26_private *cs40l26)
 	error = input_ff_create(cs40l26->input, FF_MAX_EFFECTS);
 	if (error) {
 		dev_err(dev, "Failed to create FF device: %d\n", error);
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DRIVER, __func__);
 	}
 
 	/*
@@ -3318,13 +3399,13 @@ static int cs40l26_input_init(struct cs40l26_private *cs40l26)
 	error = input_register_device(cs40l26->input);
 	if (error) {
 		dev_err(dev, "Cannot register input device: %d\n", error);
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DRIVER, __func__);
 	}
 
 	error = sysfs_create_groups(&cs40l26->input->dev.kobj, cs40l26_attr_groups);
 	if (error) {
 		dev_err(dev, "Failed to create sysfs groups\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 	}
 
 	cs40l26->vibe_init_success = true;
@@ -3342,13 +3423,13 @@ static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
 	error = regmap_read(regmap, CS40L26_DEVID, &devid);
 	if (error) {
 		dev_err(dev, "Failed to read device ID\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	error = regmap_read(regmap, CS40L26_REVID, &revid);
 	if (error) {
 		dev_err(dev, "Failed to read revision ID\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	devid &= CS40L26_DEVID_MASK;
@@ -3368,7 +3449,7 @@ static int cs40l26_part_num_resolve(struct cs40l26_private *cs40l26)
 		break;
 	default:
 		dev_err(dev, "Invalid ID: 0x%06X 0x%02X\n", devid, revid);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_ID, __func__);
 	}
 	cs40l26->rom_data = &cs40l26_rom_data_all;
 
@@ -3401,7 +3482,7 @@ static int cs40l26_wksrc_config(struct cs40l26_private *cs40l26)
 		break;
 	default:
 		dev_err(cs40l26->dev, "Invalid bus type\n");
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_HW, __func__);
 	}
 
 	error = regmap_write(cs40l26->regmap, CS40L26_WAKESRC_CTL, wksrc);
@@ -3411,7 +3492,7 @@ static int cs40l26_wksrc_config(struct cs40l26_private *cs40l26)
 	error = cs40l26_wseq_write(cs40l26, CS40L26_WAKESRC_CTL, wksrc, true,
 			CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 
 	if (mask_gpio_wksrc)
 		wksrc_mask |= (CS40L26_WKSRC_STS_GPIO2_MASK | CS40L26_WKSRC_STS_GPIO3_MASK |
@@ -3464,7 +3545,7 @@ static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 		error = cs40l26_wseq_write(cs40l26, CS40L26_GPIO_PAD_CONTROL, pad_val, true,
 				CS40L26_WSEQ_OP_WRITE_FULL, &pseq_params);
 		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 
 		error = cl_dsp_get_reg(cs40l26->dsp, "GPI_ENABLE_BITMASK", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_GPIO_ALGO_ID, &reg);
@@ -3544,7 +3625,7 @@ static int cs40l26_brwnout_prevention_init(struct cs40l26_private *cs40l26)
 	error = regmap_read(regmap, CS40L26_BLOCK_ENABLES2, &enables);
 	if (error) {
 		dev_err(dev, "Failed to read block enables 2\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	enables |= ((cs40l26->vbbr.enable << CS40L26_VBBR_EN_SHIFT) |
@@ -3553,13 +3634,13 @@ static int cs40l26_brwnout_prevention_init(struct cs40l26_private *cs40l26)
 	error = regmap_write(regmap, CS40L26_BLOCK_ENABLES2, enables);
 	if (error) {
 		dev_err(dev, "Failed to enable brownout prevention\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	error = cs40l26_wseq_write(cs40l26, CS40L26_BLOCK_ENABLES2, enables, true,
 			CS40L26_WSEQ_OP_WRITE_FULL, &pseq_params);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 
 	if (cs40l26->vbbr.enable) {
 		pseq_mask = CS40L26_VBBR_ATT_CLR_MASK | CS40L26_VBBR_FLAG_MASK;
@@ -3585,7 +3666,7 @@ static int cs40l26_brwnout_prevention_init(struct cs40l26_private *cs40l26)
 		error = regmap_read(regmap, CS40L26_VBBR_CONFIG, &val);
 		if (error) {
 			dev_err(dev, "Failed to read VBBR_CONFIG\n");
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		}
 
 		vbbr_config |= (val & CS40L26_VXBR_DEFAULT_MASK);
@@ -3593,20 +3674,20 @@ static int cs40l26_brwnout_prevention_init(struct cs40l26_private *cs40l26)
 		error = regmap_write(regmap, CS40L26_VBBR_CONFIG, vbbr_config);
 		if (error) {
 			dev_err(dev, "Failed to write VBBR_CONFIG\n");
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		}
 
 		error = cs40l26_wseq_write(cs40l26, CS40L26_VBBR_CONFIG,
 				(vbbr_config & CS40L26_WSEQ_UPPER_MASK) >> 16,
 				true, CS40L26_WSEQ_OP_WRITE_H16, &pseq_params);
 		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 
 		error = cs40l26_wseq_write(cs40l26, CS40L26_VBBR_CONFIG,
 				(vbbr_config & CS40L26_WSEQ_LOWER_MASK),
 				true, CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 	}
 
 	if (cs40l26->vpbr.enable) {
@@ -3633,7 +3714,7 @@ static int cs40l26_brwnout_prevention_init(struct cs40l26_private *cs40l26)
 		error = regmap_read(regmap, CS40L26_VPBR_CONFIG, &val);
 		if (error) {
 			dev_err(dev, "Failed to read VPBR_CONFIG\n");
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		}
 
 		vpbr_config |= (val & CS40L26_VXBR_DEFAULT_MASK);
@@ -3641,20 +3722,20 @@ static int cs40l26_brwnout_prevention_init(struct cs40l26_private *cs40l26)
 		error = regmap_write(regmap, CS40L26_VPBR_CONFIG, vpbr_config);
 		if (error) {
 			dev_err(dev, "Failed to write VPBR_CONFIG\n");
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		}
 
 		error = cs40l26_wseq_write(cs40l26, CS40L26_VPBR_CONFIG,
 				(vpbr_config & CS40L26_WSEQ_UPPER_MASK) >> 16,
 				true, CS40L26_WSEQ_OP_WRITE_H16, &pseq_params);
 		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 
 		error = cs40l26_wseq_write(cs40l26, CS40L26_VPBR_CONFIG,
 				(vpbr_config & GENMASK(15, 0)),
 				true, CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 	}
 
 	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_2, 0, pseq_mask);
@@ -3690,7 +3771,7 @@ static int cs40l26_dc_wd_config(struct cs40l26_private *cs40l26)
 	error = cs40l26_wseq_write(cs40l26, CS40L26_ALIVE_DCIN_WD, wd_config, true,
 			CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 
 	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, 0,
 			CS40L26_DC_WD_RISE_MASK | CS40L26_DC_WD_FALL_MASK);
@@ -3702,10 +3783,8 @@ static int cs40l26_asp_config(struct cs40l26_private *cs40l26)
 			kcalloc(2, sizeof(struct reg_sequence), GFP_KERNEL);
 	int error;
 
-	if (!dsp1rx_config) {
-		dev_err(cs40l26->dev, "Failed to allocate reg. sequence\n");
+	if (!dsp1rx_config)
 		return -ENOMEM;
-	}
 
 	dsp1rx_config[0].reg = CS40L26_DSP1RX1_INPUT;
 	dsp1rx_config[0].def = CS40L26_DATA_SRC_ASPRX1;
@@ -3715,6 +3794,7 @@ static int cs40l26_asp_config(struct cs40l26_private *cs40l26)
 	error = regmap_multi_reg_write(cs40l26->regmap, dsp1rx_config, 2);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to configure ASP\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		goto err_free;
 	}
 
@@ -3729,7 +3809,7 @@ err_free:
 
 static int cs40l26_bst_dcm_config(struct cs40l26_private *cs40l26)
 {
-	int error = 0;
+	int error;
 	u32 val;
 
 	if (cs40l26->bst_dcm_en != CS40L26_BST_DCM_EN_DEFAULT) {
@@ -3746,14 +3826,16 @@ static int cs40l26_bst_dcm_config(struct cs40l26_private *cs40l26)
 
 		error = cs40l26_wseq_write(cs40l26, CS40L26_BST_DCM_CTL, val, true,
 				CS40L26_WSEQ_OP_WRITE_FULL, &pseq_params);
+		if (error)
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 	}
 
-	return error;
+	return 0;
 }
 
 static int cs40l26_zero_cross_config(struct cs40l26_private *cs40l26)
 {
-	int error = 0;
+	int error;
 	u32 reg;
 
 	if (cs40l26->pwle_zero_cross) {
@@ -3763,12 +3845,14 @@ static int cs40l26_zero_cross_config(struct cs40l26_private *cs40l26)
 			return error;
 
 		error = regmap_write(cs40l26->regmap, reg, 1);
-		if (error)
+		if (error) {
 			dev_err(cs40l26->dev, "Failed to set PWLE_EXTEND_ZERO_CROSS\n");
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+		}
 
 	}
 
-	return error;
+	return 0;
 }
 
 static int cs40l26_lra_dt_config(struct cs40l26_private *cs40l26)
@@ -3787,7 +3871,7 @@ static int cs40l26_lra_dt_config(struct cs40l26_private *cs40l26)
 		error = regmap_write(cs40l26->regmap, reg, cs40l26->f0_default);
 		if (error) {
 			dev_err(cs40l26->dev, "Failed to write default f0\n");
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		}
 	}
 
@@ -3800,7 +3884,7 @@ static int cs40l26_lra_dt_config(struct cs40l26_private *cs40l26)
 		error = regmap_write(cs40l26->regmap, reg, cs40l26->redc_default);
 		if (error) {
 			dev_err(cs40l26->dev, "Failed to write default ReDC\n");
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		}
 	}
 
@@ -3820,13 +3904,13 @@ static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
 	error = regmap_write(cs40l26->regmap, CS40L26_BST_IPK_CTL, bst_ipk);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to update BST peak current\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	error = cs40l26_wseq_write(cs40l26, CS40L26_BST_IPK_CTL, bst_ipk, true,
 			CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 
 	return cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, 0,
 			CS40L26_BST_IPK_FLAG_MASK);
@@ -3845,13 +3929,13 @@ static int cs40l26_bst_ctl_config(struct cs40l26_private *cs40l26)
 	error = regmap_write(cs40l26->regmap, CS40L26_VBST_CTL_1, bst_ctl);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to write VBST limit\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	error = cs40l26_wseq_write(cs40l26, CS40L26_VBST_CTL_1, bst_ctl, true,
 			CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 
 	error = regmap_read(cs40l26->regmap, CS40L26_VBST_CTL_2, &vbst_ctl_2);
 	if (error)
@@ -3863,8 +3947,10 @@ static int cs40l26_bst_ctl_config(struct cs40l26_private *cs40l26)
 	if (error)
 		return error;
 
-	return cs40l26_wseq_write(cs40l26, CS40L26_VBST_CTL_2, vbst_ctl_2, true,
+	error = cs40l26_wseq_write(cs40l26, CS40L26_VBST_CTL_2, vbst_ctl_2, true,
 			CS40L26_WSEQ_OP_WRITE_FULL, &pseq_params);
+
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__) : 0;
 }
 
 static int cs40l26_noise_gate_config(struct cs40l26_private *cs40l26)
@@ -3894,8 +3980,10 @@ static int cs40l26_noise_gate_config(struct cs40l26_private *cs40l26)
 	if (error)
 		return error;
 
-	return cs40l26_wseq_write(cs40l26, CS40L26_NG_CONFIG, ng_config, true,
+	error = cs40l26_wseq_write(cs40l26, CS40L26_NG_CONFIG, ng_config, true,
 			CS40L26_WSEQ_OP_WRITE_FULL, &pseq_params);
+
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__) : 0;
 }
 
 static int cs40l26_aux_noise_gate_config(struct cs40l26_private *cs40l26)
@@ -3911,7 +3999,7 @@ static int cs40l26_aux_noise_gate_config(struct cs40l26_private *cs40l26)
 	error = cs40l26_wseq_write(cs40l26, CS40L26_NGATE1_INPUT, CS40L26_DATA_SRC_DSP1TX4,
 			true, CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 
 	if (cs40l26->aux_ng_thld > CS40L26_AUX_NG_THLD_MAX)
 		cs40l26->aux_ng_thld = CS40L26_AUX_NG_THLD_DEFAULT;
@@ -3928,8 +4016,10 @@ static int cs40l26_aux_noise_gate_config(struct cs40l26_private *cs40l26)
 	else
 		wseq_params = &pseq_params;
 
-	return cs40l26_wseq_write(cs40l26, CS40L26_MIXER_NGATE_CH1_CFG, aux_ng_config, true,
+	error = cs40l26_wseq_write(cs40l26, CS40L26_MIXER_NGATE_CH1_CFG, aux_ng_config, true,
 			CS40L26_WSEQ_OP_WRITE_FULL, wseq_params);
+
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__) : 0;
 }
 
 static int cs40l26_broadcast_config(struct cs40l26_private *cs40l26)
@@ -3944,7 +4034,7 @@ static int cs40l26_broadcast_config(struct cs40l26_private *cs40l26)
 		error = regmap_write(cs40l26->regmap, CS40L26_CTRL_I2C_BROADCAST, broadcast_config);
 		if (error) {
 			dev_err(cs40l26->dev, "Failed to enable broadcast: %d\n", error);
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		}
 
 		error = cs40l26_wseq_write(cs40l26, CS40L26_CTRL_I2C_BROADCAST, broadcast_config,
@@ -3952,7 +4042,7 @@ static int cs40l26_broadcast_config(struct cs40l26_private *cs40l26)
 		if (error) {
 			dev_err(cs40l26->dev,
 					"Failed to add broadcast config to write sequence\n");
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 		}
 	}
 
@@ -4006,7 +4096,7 @@ static int cs40l26_clip_lvl_config(struct cs40l26_private *cs40l26)
 			CS40L26_TEST_KEY_UNLOCK_CODE1, false,
 			CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 
 	error = regmap_write(cs40l26->regmap, CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE2);
 	if (error)
@@ -4016,7 +4106,7 @@ static int cs40l26_clip_lvl_config(struct cs40l26_private *cs40l26)
 			CS40L26_TEST_KEY_UNLOCK_CODE2, false,
 			CS40L26_WSEQ_OP_WRITE_ADDR8, &pseq_params);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 
 	if (cs40l26->clip_lvl < CS40L26_CLIP_LVL_UV_MIN ||
 			cs40l26->clip_lvl > CS40L26_CLIP_LVL_UV_MAX)
@@ -4027,7 +4117,7 @@ static int cs40l26_clip_lvl_config(struct cs40l26_private *cs40l26)
 	error = regmap_read(cs40l26->regmap, CS40L26_DIGPWM_CONFIG2, &digpwm_config);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to get DIGPWM config\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	digpwm_config &= ~CS40L26_CLIP_LVL_MASK;
@@ -4036,20 +4126,22 @@ static int cs40l26_clip_lvl_config(struct cs40l26_private *cs40l26)
 	error = regmap_write(cs40l26->regmap, CS40L26_DIGPWM_CONFIG2, digpwm_config);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to set DIGPWM config\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	error = cs40l26_wseq_write(cs40l26, CS40L26_DIGPWM_CONFIG2, digpwm_config, false,
 			CS40L26_WSEQ_OP_WRITE_FULL, &pseq_params);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 
 	error = regmap_write(cs40l26->regmap, CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_LOCK_CODE);
 	if (error)
 		return error;
 
-	return cs40l26_wseq_write(cs40l26, CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_LOCK_CODE,
+	error = cs40l26_wseq_write(cs40l26, CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_LOCK_CODE,
 			false, CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
+
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__) : 0;
 }
 
 static int cs40l26_lbst_short_test(struct cs40l26_private *cs40l26)
@@ -4062,34 +4154,34 @@ static int cs40l26_lbst_short_test(struct cs40l26_private *cs40l26)
 	error = regmap_read(regmap, CS40L26_VBST_CTL_1, &vbst_ctl_1);
 	if (error) {
 		dev_err(dev, "Failed to read VBST_CTL_1\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	error = regmap_read(regmap, CS40L26_VBST_CTL_2, &vbst_ctl_2);
 	if (error) {
 		dev_err(dev, "Failed to read VBST_CTL_2\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	error = regmap_update_bits(regmap, CS40L26_VBST_CTL_1,
 				 CS40L26_BST_CTL_MASK, CS40L26_BST_CTL_VP);
 	if (error) {
 		dev_err(dev, "Failed to set VBST_CTL_1\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	error = regmap_update_bits(regmap, CS40L26_VBST_CTL_2,
 			CS40L26_BST_CTL_SEL_MASK, CS40L26_BST_CTL_SEL_FIXED);
 	if (error) {
 		dev_err(dev, "Failed to set VBST_CTL_2\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	/* Set GLOBAL_EN; safe because DSP is guaranteed to be off here */
 	error = regmap_set_bits(regmap, CS40L26_GLOBAL_ENABLES, CS40L26_GLOBAL_EN_MASK);
 	if (error) {
 		dev_err(dev, "Failed to set GLOBAL_EN\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	/* Wait until boost converter is guranteed to be powered up */
@@ -4098,32 +4190,32 @@ static int cs40l26_lbst_short_test(struct cs40l26_private *cs40l26)
 	error = regmap_read(regmap, CS40L26_ERROR_RELEASE, &err);
 	if (error) {
 		dev_err(dev, "Failed to get ERROR_RELEASE contents\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	if (err & BIT(CS40L26_BST_SHORT_ERR_RLS)) {
 		dev_alert(dev, "FATAL: Boost shorted at startup\n");
-		return -ENOTRECOVERABLE;
+		return cs40l26_log_err(cs40l26, -ENOTRECOVERABLE, CS40L26_ERR_TYPE_BST, __func__);
 	}
 
 	/* Clear GLOBAL_EN; safe because DSP is guaranteed to be off here */
 	error = regmap_clear_bits(regmap, CS40L26_GLOBAL_ENABLES, CS40L26_GLOBAL_EN_MASK);
 	if (error) {
 		dev_err(dev, "Failed to set GLOBAL_EN\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	error = regmap_write(regmap, CS40L26_VBST_CTL_1, vbst_ctl_1);
 	if (error) {
 		dev_err(dev, "Failed to set VBST_CTL_1\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	error = regmap_write(regmap, CS40L26_VBST_CTL_2, vbst_ctl_2);
 	if (error)
 		dev_err(dev, "Failed to set VBST_CTL_2\n");
 
-	return error;
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__) : 0;
 }
 
 static int cs40l26_handle_a1_errata(struct cs40l26_private *cs40l26)
@@ -4168,7 +4260,7 @@ static int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc_typ
 
 static int cs40l26_dbc_enable(struct cs40l26_private *cs40l26)
 {
-	u32 algo_id, reg;
+	u32 algo_id = 0, reg;
 	int error;
 
 	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
@@ -4358,9 +4450,11 @@ static int cs40l26_amp_drv_slope_config(struct cs40l26_private *cs40l26)
 	if (error)
 		return error;
 
-	return cs40l26_wseq_write(cs40l26, CS40L26_DAC_MSM_CONFIG,
+	error = cs40l26_wseq_write(cs40l26, CS40L26_DAC_MSM_CONFIG,
 			FIELD_GET(CS40L26_WSEQ_UPPER_MASK, dac_msm_cfg), true,
 			CS40L26_WSEQ_OP_WRITE_H16, &pseq_params);
+
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__) : 0;
 }
 
 static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
@@ -4375,7 +4469,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		error = regmap_set_bits(regmap, CS40L26_PWRMGT_CTL, CS40L26_MEM_RDY_MASK);
 		if (error) {
 			dev_err(dev, "Failed to set MEM_RDY\n");
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		}
 
 		error = cl_dsp_get_reg(cs40l26->dsp, "CALL_RAM_INIT", CL_DSP_XM_UNPACKED_TYPE,
@@ -4406,7 +4500,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	error = cs40l26_wseq_write(cs40l26, CS40L26_TST_DAC_MSM_CONFIG, CS40L26_SPK_DEFAULT_HIZ,
 			true, CS40L26_WSEQ_OP_WRITE_H16, &pseq_params);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 
 	if (cs40l26->revid < CS40L26_REVID_B2) {
 		error = cs40l26_handle_a1_errata(cs40l26);
@@ -4433,12 +4527,12 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	error = regmap_read(regmap, reg, &val);
 	if (error) {
 		dev_err(dev, "Failed to read HALO_STATE\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
 	if (val != CS40L26_DSP_HALO_STATE_RUN) {
 		dev_err(dev, "Firmware in unexpected state: 0x%X\n", val);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
 	error = cs40l26_irq_update_mask(cs40l26, CS40L26_IRQ1_MASK_1, 0,
@@ -4454,69 +4548,69 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	error = cs40l26_gpio_config(cs40l26);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 
 	error = cs40l26_bst_dcm_config(cs40l26);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 
 	error = cs40l26_bst_ipk_config(cs40l26);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 
 	error = cs40l26_bst_ctl_config(cs40l26);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 
 	error = cs40l26_clip_lvl_config(cs40l26);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 
 	if (!cs40l26->dbc_tuning_loaded) {
 		error = cs40l26_dbc_config(cs40l26);
 		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 	} else {
 		error = cs40l26_dbc_enable(cs40l26);
 		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 	}
 
 	error = cs40l26_zero_cross_config(cs40l26);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 
 	error = cs40l26_noise_gate_config(cs40l26);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 
 	error = cs40l26_aux_noise_gate_config(cs40l26);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 
 	error = cs40l26_broadcast_config(cs40l26);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 
 	error = cs40l26_config_asp_dout(cs40l26);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 
 	error = cs40l26_lra_dt_config(cs40l26);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 
 	error = cs40l26_brwnout_prevention_init(cs40l26);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 
 	error = cs40l26_dc_wd_config(cs40l26);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 
 	error = cs40l26_amp_drv_slope_config(cs40l26);
 	if  (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 
 	error = cs40l26_pm_runtime_setup(cs40l26);
 	if (error)
@@ -4530,6 +4624,7 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	error = regmap_write(regmap, reg, 0);
 	if (error) {
 		dev_err(dev, "Failed to set TIMEOUT_MS\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		goto pm_err;
 	}
 
@@ -4538,8 +4633,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		goto pm_err;
 
 	error = cs40l26_asp_config(cs40l26);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 		goto pm_err;
+	}
 
 	if (cs40l26->revid == CS40L26_REVID_B2) {
 		error = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_OWT_RESET);
@@ -4561,8 +4658,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 			goto pm_err;
 
 		error = regmap_write(cs40l26->regmap, reg, value);
-		if (error)
+		if (error) {
 			dev_err(dev, "Failed to configure compensation\n");
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+		}
 	}
 
 pm_err:
@@ -4618,7 +4717,7 @@ int cs40l26_svc_le_estimate(struct cs40l26_private *cs40l26, unsigned int *le)
 		error = regmap_read(cs40l26->regmap, reg, &le_est);
 		if (error) {
 			dev_err(dev, "Failed to get LE_EST_STATUS\n");
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		}
 
 		dev_info(dev, "Measured Le Estimation = %u\n", le_est);
@@ -4868,18 +4967,18 @@ static int cs40l26_get_fw_params(struct cs40l26_private *cs40l26)
 		break;
 	default:
 		dev_err(cs40l26->dev, "Invalid FW ID: 0x%06X\n", id);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_ID, __func__);
 	}
 
 	if (error) {
 		dev_err(cs40l26->dev, "Rev. Branch 0x%02X invalid\n", maj);
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_ID, __func__);
 	}
 
 	if (rev < min_rev) {
 		dev_err(cs40l26->dev, "Invalid firmware revision: %d.%d.%d\n",
 				maj, min, patch);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_ID, __func__);
 	}
 
 	cs40l26->fw_id = id;
@@ -4897,7 +4996,7 @@ static int cs40l26_cl_dsp_reinit(struct cs40l26_private *cs40l26)
 		error = cl_dsp_destroy(cs40l26->dsp);
 		if (error) {
 			dev_err(cs40l26->dev, "Failed to destroy DSP struct\n");
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DRIVER, __func__);
 		}
 
 		cs40l26->dsp = NULL;
@@ -4945,7 +5044,7 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 	error = cl_dsp_firmware_parse(cs40l26->dsp, fw, !cs40l26->fw_rom_only);
 	release_firmware(fw);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	error = cs40l26_change_fw_control_defaults(cs40l26);
 	if (error)
@@ -4958,7 +5057,7 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 	if (svc_le_required) {
 		error = cl_dsp_fw_rev_get(cs40l26->dsp, &rev);
 		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 		branch = CL_DSP_GET_MAJOR(rev);
 
@@ -4990,7 +5089,7 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 			break;
 		default:
 			dev_err(dev, "Invalid firmware branch, %d", branch);
-			return -EINVAL;
+			return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_ID, __func__);
 		}
 
 		cs40l26_tuning_select_from_svc_le(cs40l26, le, &tuning_num);
@@ -4998,7 +5097,7 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 
 	error = cs40l26_coeff_load(cs40l26, tuning_num);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_COEFF, __func__);
 
 	return cs40l26_dsp_config(cs40l26);
 }
@@ -5014,14 +5113,14 @@ static int cs40l26_request_irq(struct cs40l26_private *cs40l26)
 			-1, &cs40l26_regmap_irq_chip, &cs40l26->irq_data);
 	if (error < 0) {
 		dev_err(cs40l26->dev, "Failed to request threaded IRQ: %d\n", error);
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IRQ, __func__);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(cs40l26_irqs); i++) {
 		irq = regmap_irq_get_virq(cs40l26->irq_data, cs40l26_irqs[i].irq);
 		if (irq < 0) {
 			dev_err(cs40l26->dev, "Failed to get %s\n", cs40l26_irqs[i].name);
-			return irq;
+			return cs40l26_log_err(cs40l26, irq, CS40L26_ERR_TYPE_IRQ, __func__);
 		}
 
 		error = devm_request_threaded_irq(cs40l26->dev, irq, NULL, cs40l26_irqs[i].handler,
@@ -5030,13 +5129,13 @@ static int cs40l26_request_irq(struct cs40l26_private *cs40l26)
 		if (error) {
 			dev_err(cs40l26->dev, "Failed to request IRQ %s: %d\n",
 					cs40l26_irqs[i].name, error);
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IRQ, __func__);
 		}
 	}
 
 	cs40l26->irq_depth = 1;
 
-	return error;
+	return 0;
 }
 
 static void cs40l26_reset_assert(void *data)
@@ -5120,7 +5219,7 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 
 	error = cs40l26_device_init(cs40l26, true);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_INIT, __func__);
 
 	if (id == CS40L26_FW_CALIB_ID)
 		cs40l26->calib_fw = true;
@@ -5151,7 +5250,7 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 
 	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_ENABLE);
 
-	return error;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(cs40l26_fw_swap);
 
@@ -5166,7 +5265,7 @@ int cs40l26_wt_swap(struct cs40l26_private *cs40l26)
 
 	if (!list_empty(&cs40l26->effect_head)) {
 		dev_err(dev, "All uploaded effects must be removed before swapping wavetable\n");
-		return -EPERM;
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_DRIVER, __func__);
 	}
 
 	error = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_PREVENT_HIBERNATE);
@@ -5226,6 +5325,7 @@ int cs40l26_wt_swap(struct cs40l26_private *cs40l26)
 	if (i >= CS40L26_DSP_TIMEOUT_COUNT) {
 		dev_err(dev, "Timed out waiting for DSP shutdown\n");
 		error = -ETIMEDOUT;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DSP, __func__);
 		goto wake;
 	}
 
@@ -5244,6 +5344,7 @@ int cs40l26_wt_swap(struct cs40l26_private *cs40l26)
 	error = request_firmware(&wt, wt_file_name, cs40l26->dev);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to request wavetable\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_COEFF, __func__);
 		goto free;
 	}
 
@@ -5302,16 +5403,19 @@ static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 
 		if (fwnode_property_read_u32(child, "cirrus,min", &min)) {
 			dev_err(dev, "No minimum value for SVC LE node\n");
+			cs40l26_log_err(cs40l26, 0, CS40L26_ERR_TYPE_DT, __func__);
 			continue;
 		}
 
 		if (fwnode_property_read_u32(child, "cirrus,max", &max)) {
 			dev_err(dev, "No maximum value for SVC LE node\n");
+			cs40l26_log_err(cs40l26, 0, CS40L26_ERR_TYPE_DT, __func__);
 			continue;
 		}
 
 		if (max <= min) {
 			dev_err(dev, "Max <= Min, SVC LE node malformed\n");
+			cs40l26_log_err(cs40l26, 0, CS40L26_ERR_TYPE_DT, __func__);
 			continue;
 		}
 
@@ -5322,6 +5426,7 @@ static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 
 		if (fwnode_property_read_u32(child, "cirrus,index", &index)) {
 			dev_err(dev, "No index specified for SVC LE node\n");
+			cs40l26_log_err(cs40l26, 0, CS40L26_ERR_TYPE_DT, __func__);
 			continue;
 		}
 
@@ -5332,7 +5437,7 @@ static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 
 		if (i < node_count) {
 			dev_err(dev, "SVC LE nodes must have unique index\n");
-			return -EINVAL;
+			return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DT, __func__);
 		}
 
 		cs40l26->svc_le_vals[node_count] = devm_kzalloc(dev, sizeof(struct cs40l26_svc_le),
@@ -5641,10 +5746,31 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 	return cs40l26_no_wait_ram_indices_get(cs40l26);
 }
 
+int cs40l26_log_err(struct cs40l26_private *cs40l26, int code, u32 type, const char *fxn_name)
+{
+	struct cs40l26_err *err;
+
+	err = devm_kzalloc(cs40l26->dev, sizeof(*err), GFP_KERNEL);
+	if (!err)
+		return code;
+
+	err->code = code;
+	err->type = type;
+
+	strscpy(err->fxn_name, fxn_name, CS40L26_FXN_NAME_MAX_LEN);
+
+	list_add(&err->list, &cs40l26->err_head);
+
+	return code;
+}
+EXPORT_SYMBOL_GPL(cs40l26_log_err);
+
 int cs40l26_probe(struct cs40l26_private *cs40l26)
 {
 	static const char * const regulator_names[] = { "VP", "VA" };
 	int error;
+
+	INIT_LIST_HEAD(&cs40l26->err_head);
 
 	mutex_init(&cs40l26->lock);
 
@@ -5657,13 +5783,17 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 	timer_setup(&cs40l26->hibernate_timer, cs40l26_hibernate_timer_callback, 0);
 
 	error = cs40l26_parse_properties(cs40l26);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DT, __func__);
 		goto err;
+	}
 
 	error = devm_regulator_bulk_get_enable(cs40l26->dev,
 			ARRAY_SIZE(regulator_names), regulator_names);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 		goto err;
+	}
 
 	cs40l26->reset_gpio = devm_gpiod_get(cs40l26->dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(cs40l26->reset_gpio)) {
@@ -5673,6 +5803,7 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 			cs40l26->reset_gpio = NULL;
 		} else {
 			dev_err(cs40l26->dev, "Failed to get reset GPIO: %d\n", error);
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_RST, __func__);
 			goto err;
 		}
 	}
@@ -5680,12 +5811,15 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 	error = devm_add_action_or_reset(cs40l26->dev, cs40l26_reset_assert, cs40l26->dev);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to add reset operation: %d\n", error);
+		cs40l26_log_err(cs40l26, error,	CS40L26_ERR_TYPE_RST, __func__);
 		goto err;
 	}
 
 	error = cs40l26_device_init(cs40l26, false);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error,	CS40L26_ERR_TYPE_INIT, __func__);
 		goto err;
+	}
 
 	init_completion(&cs40l26->i2s_cont);
 	init_completion(&cs40l26->erase_cont);
@@ -5696,17 +5830,23 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 
 	if (!cs40l26->fw_defer) {
 		error = cs40l26_fw_upload(cs40l26);
-		if (error)
+		if (error) {
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 			goto err;
+		}
 
 		error = cs40l26_request_irq(cs40l26);
-		if (error)
+		if (error) {
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IRQ, __func__);
 			goto err;
+		}
 	}
 
 	error = cs40l26_input_init(cs40l26);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_INIT, __func__);
 		goto err;
+	}
 
 	INIT_LIST_HEAD(&cs40l26->effect_head);
 
@@ -5714,6 +5854,7 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 			CS40L26_NUM_MFD_DEVS, NULL, 0, NULL);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to register codec component\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DRIVER, __func__);
 		goto err;
 	}
 
@@ -5743,12 +5884,16 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 		sysfs_remove_groups(&cs40l26->input->dev.kobj, cs40l26_attr_groups);
 
 	error = cs40l26_wseq_clear(cs40l26, &pseq_params);
-	if (error)
+	if (error) {
 		dev_err(cs40l26->dev, "Failed to clear POWER_ON sequence\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
+	}
 
 	error = cs40l26_wseq_clear(cs40l26, &aseq_params);
-	if (error)
+	if (error) {
 		dev_err(cs40l26->dev, "Failed to clear ACTIVE sequence\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
+	}
 
 #ifdef CONFIG_DEBUG_FS
 	cs40l26_debugfs_cleanup(cs40l26);
@@ -5786,10 +5931,13 @@ EXPORT_SYMBOL_GPL(cs40l26_pm_exit);
 int cs40l26_suspend(struct device *dev)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error;
 
 	dev_dbg(cs40l26->dev, "%s: Enabling hibernation\n", __func__);
 
-	return cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_ALLOW_HIBERNATE);
+	error = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_ALLOW_HIBERNATE);
+
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__) : 0;
 }
 EXPORT_SYMBOL_GPL(cs40l26_suspend);
 
@@ -5820,10 +5968,13 @@ EXPORT_SYMBOL_GPL(cs40l26_sys_suspend_noirq);
 int cs40l26_resume(struct device *dev)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error;
 
 	dev_dbg(cs40l26->dev, "%s: Disabling hibernation\n", __func__);
 
-	return cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_PREVENT_HIBERNATE);
+	error = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_PREVENT_HIBERNATE);
+
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__) : 0;
 }
 EXPORT_SYMBOL_GPL(cs40l26_resume);
 
