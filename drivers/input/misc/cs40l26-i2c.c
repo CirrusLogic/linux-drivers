@@ -59,7 +59,7 @@ static int cs40l26_i2c_probe(struct i2c_client *client)
 	if (IS_ERR(cs40l26->regmap)) {
 		error = PTR_ERR(cs40l26->regmap);
 		dev_err(&client->dev, "Failed to allocate register map: %d\n", error);
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DRIVER, __func__);
 	}
 
 	cs40l26->dev = &client->dev;

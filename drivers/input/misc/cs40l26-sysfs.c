@@ -29,7 +29,7 @@ static ssize_t broadcast_master_show(struct device *dev, struct device_attribute
 
 	if (!cs40l26->broadcast_addr) {
 		dev_err(cs40l26->dev, "Broadcast I2C disabled on this device\n");
-		return -EPERM;
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_HW, __func__);
 	}
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", cs40l26->broadcast_client ? 1 : 0);
@@ -45,7 +45,7 @@ static ssize_t broadcast_master_store(struct device *dev, struct device_attribut
 
 	if (!cs40l26->broadcast_addr) {
 		dev_err(cs40l26->dev, "Broadcast I2C disabled on this device\n");
-		return -EPERM;
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_HW, __func__);
 	}
 
 	error = kstrtou32(buf, 10, &broadcast);
@@ -65,13 +65,13 @@ static ssize_t broadcast_master_store(struct device *dev, struct device_attribut
 	} else if (broadcast == 1) {
 		if (cs40l26->broadcast_client) {
 			dev_err(cs40l26->dev, "Already broadcast master device\n");
-			return -EINVAL;
+			return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_HW, __func__);
 		}
 
 		client = of_find_i2c_device_by_node(cs40l26->dev->of_node);
 		if (!client) {
 			dev_err(cs40l26->dev, "Failed to get i2c client\n");
-			return -ENODATA;
+			return cs40l26_log_err(cs40l26, -ENODATA, CS40L26_ERR_TYPE_DT, __func__);
 		}
 
 		cs40l26->broadcast_client = i2c_new_dummy_device(client->adapter,
@@ -81,7 +81,7 @@ static ssize_t broadcast_master_store(struct device *dev, struct device_attribut
 					PTR_ERR(cs40l26->broadcast_client));
 			error = PTR_ERR(cs40l26->broadcast_client);
 			cs40l26->broadcast_client = NULL;
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 		}
 
 		cs40l26->broadcast_regmap = regmap_init_i2c(cs40l26->broadcast_client,
@@ -93,7 +93,7 @@ static ssize_t broadcast_master_store(struct device *dev, struct device_attribut
 			i2c_unregister_device(cs40l26->broadcast_client);
 			cs40l26->broadcast_client = NULL;
 			cs40l26->broadcast_regmap = NULL;
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 		}
 	} else {
 		return -EINVAL;
@@ -318,7 +318,7 @@ static ssize_t vibe_state_show(struct device *dev, struct device_attribute *attr
 
 	if (!cs40l26->vibe_state_reporting)  {
 		dev_err(cs40l26->dev, "vibe_state not supported\n");
-		return -EPERM;
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_FW, __func__);
 	}
 
 	mutex_lock(&cs40l26->lock);
@@ -348,6 +348,7 @@ static ssize_t owt_free_space_show(struct device *dev,
 	error = regmap_read(cs40l26->regmap, reg, &words);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to get remaining OWT space\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		goto err_pm;
 	}
 
@@ -376,18 +377,21 @@ static ssize_t die_temp_show(struct device *dev,
 	error = regmap_read(regmap, CS40L26_GLOBAL_ENABLES, &val);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to read GLOBAL_EN status\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		goto err_pm;
 	}
 
 	if (!(val & CS40L26_GLOBAL_EN_MASK)) {
 		dev_err(cs40l26->dev, "Global enable must be set to get die temp.\n");
 		error = -EPERM;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 		goto err_pm;
 	}
 
 	error = regmap_read(regmap, CS40L26_ENABLES_AND_CODES_DIG, &val);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to get die temperature\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		goto err_pm;
 	}
 
@@ -967,6 +971,7 @@ static int cs40l26_owt_braking_time_get(struct cs40l26_private *cs40l26, u32 ind
 		if (type != WT_TYPE_V6_PWLE && current_index == index) {
 			dev_err(cs40l26->dev, "Braking time only available for PWLE effects\n");
 			error = -EINVAL;
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 			goto wt_free;
 		}
 
@@ -1009,8 +1014,10 @@ static int cs40l26_owt_braking_time_get(struct cs40l26_private *cs40l26, u32 ind
 		}
 	}
 wt_free:
-	if (error)
+	if (error) {
 		dev_err(cs40l26->dev, "Braking time not found for OWT index %u\n", index);
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DSP, __func__);
+	}
 
 	kfree(wavetable);
 
@@ -1030,7 +1037,7 @@ static ssize_t braking_time_bank_store(struct device *dev, struct device_attribu
 
 	if (bank != CS40L26_RAM_BANK_ID && bank != CS40L26_OWT_BANK_ID) {
 		dev_err(cs40l26->dev, "Bank %u unsupported\n", bank);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
 	}
 
 	mutex_lock(&cs40l26->lock);
@@ -1082,6 +1089,7 @@ static ssize_t braking_time_ms_show(struct device *dev, struct device_attribute 
 		if (index > (cs40l26_num_ram_waves(cs40l26) - 1)) {
 			dev_err(cs40l26->dev, "Index exceeds number of RAM effects\n");
 			error = -EINVAL;
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 			goto err_mutex;
 		}
 
@@ -1091,6 +1099,7 @@ static ssize_t braking_time_ms_show(struct device *dev, struct device_attribute 
 		if (index > (cs40l26_num_owt_waves(cs40l26) - 1)) {
 			dev_err(cs40l26->dev, "Index exceeds number of OWT effects\n");
 			error = -EINVAL;
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 			goto err_mutex;
 		}
 
@@ -1099,6 +1108,7 @@ static ssize_t braking_time_ms_show(struct device *dev, struct device_attribute 
 	default:
 		dev_err(cs40l26->dev, "Bank %u unsupported\n", cs40l26->braking_time_bank);
 		error = -EINVAL;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 		break;
 	}
 
@@ -1110,6 +1120,86 @@ err_mutex:
 	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", braking_time);
 }
 static DEVICE_ATTR_RO(braking_time_ms);
+
+static ssize_t error_log_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int count, error = 0, tmp_count;
+	char tmp_str[CS40L26_ERR_STR_MAX_LEN];
+	struct cs40l26_err *err;
+	ssize_t str_size;
+	size_t nelements;
+	char *str;
+
+	mutex_lock(&cs40l26->lock);
+
+	nelements = list_count_nodes(&cs40l26->err_head);
+	if (!nelements) {
+		dev_err(cs40l26->dev, "Error Log is Empty\n");
+		error = -ENODATA;
+		goto mutex_exit;
+	}
+
+	str_size = nelements * CS40L26_ERR_STR_MAX_LEN;
+
+	str = kzalloc(str_size, GFP_KERNEL);
+	if (!str) {
+		error = -ENOMEM;
+		goto mutex_exit;
+	}
+
+	list_for_each_entry(err, &cs40l26->err_head, list) {
+		tmp_count = snprintf(tmp_str, CS40L26_ERR_STR_MAX_LEN,
+				"%s: code = %d, type = %u\n", err->fxn_name, err->code, err->type);
+		if (tmp_count != strlen(tmp_str)) {
+			dev_err(cs40l26->dev, "Failed to format error string\n");
+			if (tmp_count < 0)
+				error = tmp_count;
+			else
+				error = -EINVAL;
+
+			goto free_exit;
+		}
+
+		strncat(str, tmp_str, CS40L26_ERR_STR_MAX_LEN);
+	}
+
+	count = snprintf(buf, PAGE_SIZE, str);
+
+free_exit:
+	kfree(str);
+
+mutex_exit:
+	mutex_unlock(&cs40l26->lock);
+
+	return error ? error : count;
+}
+
+static ssize_t error_log_store(struct device *dev, struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	struct cs40l26_err *err, *err_tmp;
+	int error;
+	u32 val;
+
+	error = kstrtou32(buf, 10, &val);
+	if (error)
+		return error;
+
+	if (val <= 0)
+		return -EINVAL;
+
+	mutex_lock(&cs40l26->lock);
+
+	list_for_each_entry_safe(err, err_tmp, &cs40l26->err_head, list)
+		list_del(&err->list);
+
+	mutex_unlock(&cs40l26->lock);
+
+	return count;
+}
+static DEVICE_ATTR_RW(error_log);
 
 static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_broadcast_master.attr,
@@ -1134,6 +1224,7 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_braking_time_bank.attr,
 	&dev_attr_braking_time_index.attr,
 	&dev_attr_braking_time_ms.attr,
+	&dev_attr_error_log.attr,
 	NULL,
 };
 
@@ -1154,7 +1245,7 @@ static ssize_t trigger_calibration_store(struct device *dev,
 
 	if (!cs40l26->calib_fw) {
 		dev_err(cs40l26->dev, "Must use calibration firmware\n");
-		return -EPERM;
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_FW, __func__);
 	}
 
 	error = kstrtou32(buf, 16, &calibration_request_payload);
@@ -1195,6 +1286,7 @@ static ssize_t trigger_calibration_store(struct device *dev,
 
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to request calibration\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DSP, __func__);
 		goto err_pm;
 	}
 
@@ -1204,6 +1296,7 @@ static ssize_t trigger_calibration_store(struct device *dev,
 		error = -ETIME;
 		dev_err(cs40l26->dev, "Failed to complete cal req, %d, err: %d",
 				calibration_request_payload, error);
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DSP, __func__);
 		goto err_pm;
 	}
 
@@ -1689,18 +1782,22 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev, struct device_attri
 	error = regmap_read(cs40l26->regmap, reg, &tone_dur_ms);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to get tone duration\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		goto err_mutex;
 	}
 
 	if (tone_dur_ms == 0) { /* Calculate value */
 		error = cl_dsp_get_reg(cs40l26->dsp, "FREQ_SPAN", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_F0_EST_ALGO_ID, &reg);
-		if (error)
+		if (error) {
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 			goto err_mutex;
+		}
 
 		error = regmap_read(cs40l26->regmap, reg, &freq_span);
 		if (error) {
 			dev_err(cs40l26->dev, "Failed to get FREQ_SPAN\n");
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 			goto err_mutex;
 		}
 
@@ -1712,6 +1809,7 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev, struct device_attri
 		error = regmap_read(cs40l26->regmap, reg, &freq_centre);
 		if (error) {
 			dev_err(cs40l26->dev, "Failed to get FREQ_CENTRE\n");
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 			goto err_mutex;
 		}
 
@@ -1832,6 +1930,7 @@ static ssize_t dvl_peq_coefficients_store(struct device *dev,
 		dev_err(cs40l26->dev, "Num DVL PEQ coeffs, %d, expecting %d\n",
 				coeffs_found, CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
 		error = -EINVAL;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_COEFF, __func__);
 		goto err_free;
 	}
 
@@ -1848,8 +1947,10 @@ static ssize_t dvl_peq_coefficients_store(struct device *dev,
 
 	error = regmap_bulk_write(cs40l26->regmap, reg, dvl_peq_coefficients,
 			CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
-	if (error)
+	if (error) {
 		dev_err(cs40l26->dev, "Failed to write DVL PEQ coefficients,%d", error);
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+	}
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -1941,23 +2042,23 @@ static int cs40l26_ls_calibration_check_results(struct cs40l26_private *cs40l26)
 		break;
 	case CS40L26_LS_CAL_IN_PROGRESS:
 		dev_err(cs40l26->dev, "LS Calibration still in progress\n");
-		return -EALREADY;
+		return cs40l26_log_err(cs40l26, -EALREADY, CS40L26_ERR_TYPE_DSP, __func__);
 	case CS40L26_LS_CAL_FAIL_DET:
 		dev_err(cs40l26->dev, "LS Calibration failed: matrix singular/nearly singular\n");
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 	case CS40L26_LS_CAL_FAIL_ROOTS:
 		dev_err(cs40l26->dev, "LS Calibration failed: real roots instead of 1\n");
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 	case CS40L26_LS_CAL_SATURATION:
 		dev_err(cs40l26->dev, "LS Calibration failed: saturation when publishing\n");
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 	case CS40L26_LS_CAL_STEP2_FREQ:
 		dev_err(cs40l26->dev, "LS Calibration failed: frequency for step 2 out of range\n");
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 	default:
 		dev_err(cs40l26->dev, "LS Calibration failed: unknown error code %u\n",
 				return_code);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
 	return 0;
@@ -2316,7 +2417,7 @@ static ssize_t available_logger_srcs_show(struct device *dev, struct device_attr
 			break;
 		default:
 			dev_err(cs40l26->dev, "Invalid source ID %d\n", cs40l26->log_srcs[i].id);
-			return -EINVAL;
+			return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_FW, __func__);
 		}
 	}
 
@@ -2495,7 +2596,7 @@ static ssize_t fw_ctrl_name_store(struct device *dev, struct device_attribute *a
 
 	if (strlen(buf) > CS40L26_COEFF_NAME_MAX_LEN) {
 		dev_err(cs40l26->dev, "Control name %s longer than 64 char limit\n", buf);
-		return -E2BIG;
+		return cs40l26_log_err(cs40l26, -E2BIG, CS40L26_ERR_TYPE_SYSFS, __func__);
 	}
 
 	mutex_lock(&cs40l26->lock);
@@ -2585,6 +2686,7 @@ static ssize_t fw_ctrl_val_show(struct device *dev, struct device_attribute *att
 		dev_err(cs40l26->dev, "Cannot read from control %s with flags = 0x%X\n",
 				cs40l26->sysfs_fw.ctrl_name, flags);
 		error = -EPERM;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 		goto mutex_exit;
 	}
 
@@ -2667,6 +2769,7 @@ static ssize_t fw_ctrl_val_store(struct device *dev, struct device_attribute *at
 		dev_err(cs40l26->dev, "Cannot write to control %s with flags = 0x%X\n",
 				cs40l26->sysfs_fw.ctrl_name, flags);
 		error = -EPERM;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 		goto mutex_exit;
 	}
 
@@ -2683,12 +2786,14 @@ static ssize_t fw_ctrl_val_store(struct device *dev, struct device_attribute *at
 			dev_err(cs40l26->dev, "Expected %zd words, received %zd\n",
 					num_ctl_words, num_buf_words);
 			error = -EINVAL;
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 			goto mutex_exit;
 		}
 
 		if (strlen(str_full) % CS40L26_FW_CTRL_VAL_STR_SIZE_NO_NEWLINE) {
 			dev_err(cs40l26->dev, "Unexpected input string size\n");
 			error = -EINVAL;
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 			goto mutex_exit;
 		}
 	}
@@ -2758,7 +2863,7 @@ static ssize_t fw_mem_block_type_store(struct device *dev, struct device_attribu
 		break;
 	default:
 		dev_err(cs40l26->dev, "Invalid block type 0x%X\n", block_type);
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
 	}
 
 	mutex_lock(&cs40l26->lock);
