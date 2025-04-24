@@ -761,12 +761,7 @@ static int cs40l26_a2h_delay_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 
 	snd_soc_dapm_mutex_lock(dapm);
 
-	if (ucontrol->value.integer.value[0] > CS40L26_A2H_DELAY_MAX)
-		val = CS40L26_A2H_DELAY_MAX;
-	else if (ucontrol->value.integer.value[0] < 0)
-		val = 0;
-	else
-		val = ucontrol->value.integer.value[0];
+	val = ucontrol->value.integer.value[0];
 
 	ret = regmap_write(regmap, reg, val);
 	if (ret)
@@ -861,7 +856,7 @@ static const struct snd_kcontrol_new cs40l26_controls[] = {
 	SOC_SINGLE_EXT("I2S VMON", 0, 0, CS40L26_VMON_DEC_OUT_DATA_MAX, 0,
 			cs40l26_i2s_vmon_get, NULL),
 	SOC_SINGLE_EXT("DSP Bypass", 0, 0, 1, 0, cs40l26_dsp_bypass_get, cs40l26_dsp_bypass_put),
-	SOC_SINGLE_EXT("A2H Delay", 0, 0, CS40L26_A2H_DELAY_MAX, 0, cs40l26_a2h_delay_get,
+	SOC_SINGLE_EXT("A2H Delay", 0, 0, CS40L26_A2H_DELAY_MS_MAX, 0, cs40l26_a2h_delay_get,
 			cs40l26_a2h_delay_put),
 	SOC_SINGLE_EXT("Boost Disable Delay", 0, 0, CS40L26_BOOST_DISABLE_DELAY_MAX, 0,
 			cs40l26_boost_disable_delay_get, cs40l26_boost_disable_delay_put),
