@@ -36,6 +36,45 @@ Description:
 			2: Standby
 			3: Active
 
+What:		/sys/class/input/input(x)/default/error_log
+Date:		April 2025
+Contact:	patches@opensource.cirrus.com
+Description:
+		Critical errors cataloged by the driver when encountered describing the error code,
+		error type (as enumerated by driver), and the function in which the error occurred.
+
+		The errors are displayed in this format: function_name: code = <X>, type = <Y>
+		where <X> is the Linux error code and <Y> is the error type as enumerated by the
+		driver.
+
+		Any positive integer can be written to this control in order to clear the log.
+
+		Access: Read, Write
+
+		Valid values: Driver Error Types Represented as enum
+			0: Amplifier Error
+			1: Auxiliary Serial Port Error
+			2: Brownout Error
+			3: Boost Error
+			4: Coefficient/.bin File error
+			5: Control Port Error
+			6: DC Watchdog Error
+			7: Driver Error
+			8: DSP Error
+			9: Devicetree Error
+			10: Firmware Error
+			11: Hardware Error
+			12: Invalid ID Error
+			13: Initialization Error
+			14: IOCTL Error
+			15: IRQ Error
+			16: Power Management Error
+			17: Reset Error
+			18: Sysfs Error
+			19: Temperature Error
+			20: Write Sequencer Error
+
+
 What:		/sys/class/input/input(x)/default/f0_comp_enable
 Date:		December 2023
 Contact:	patches@opensource.cirrus.com
