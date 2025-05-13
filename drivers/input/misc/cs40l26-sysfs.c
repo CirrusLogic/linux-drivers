@@ -96,7 +96,7 @@ static ssize_t broadcast_master_store(struct device *dev, struct device_attribut
 			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 		}
 	} else {
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
 	}
 
 	return error ? error : count;
@@ -138,7 +138,7 @@ static ssize_t overprotection_gain_show(struct device *dev, struct device_attrib
 	int error;
 
 	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID))
-		return -EPERM;
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_FW, __func__);
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "PROTECTION_XM_OP_GAIN",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EP_ALGO_ID, &reg);
@@ -164,14 +164,14 @@ static ssize_t overprotection_gain_store(struct device *dev, struct device_attri
 	int error;
 
 	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID))
-		return -EPERM;
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_FW, __func__);
 
 	error = kstrtou32(buf, 10, &op_gain);
 	if (error)
 		return error;
 
 	if (op_gain < CS40L26_OVERPROTECTION_GAIN_MIN || op_gain > CS40L26_OVERPROTECTION_GAIN_MAX)
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -258,7 +258,7 @@ static ssize_t pm_stdby_timeout_ms_store(struct device *dev,
 	cs40l26_pm_exit(cs40l26->dev);
 
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 
 	return count;
 }
@@ -280,7 +280,7 @@ static ssize_t pm_active_timeout_ms_show(struct device *dev,
 	cs40l26_pm_exit(cs40l26->dev);
 
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", timeout_ms);
 }
@@ -305,7 +305,7 @@ static ssize_t pm_active_timeout_ms_store(struct device *dev,
 	cs40l26_pm_exit(cs40l26->dev);
 
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 
 	return count;
 }
@@ -418,6 +418,7 @@ static ssize_t num_waves_show(struct device *dev, struct device_attribute *attr,
 	nwaves = cs40l26_num_waves(cs40l26);
 	if (nwaves < 0) {
 		error = nwaves;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_COEFF, __func__);
 		goto err_pm;
 	}
 
@@ -474,7 +475,7 @@ static ssize_t f0_offset_store(struct device *dev, struct device_attribute *attr
 		return -EINVAL;
 
 	if (val > CS40L26_F0_OFFSET_MAX && val < CS40L26_F0_OFFSET_MIN)
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -551,7 +552,8 @@ static ssize_t f0_comp_enable_show(struct device *dev, struct device_attribute *
 	}
 
 	if (cs40l26->comp_enable_pend) {
-		error = -EIO;
+		error = -EPERM;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 		goto err_mutex;
 	}
 
@@ -589,6 +591,7 @@ static ssize_t f0_comp_enable_store(struct device *dev, struct device_attribute 
 
 	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
 		error = -EPERM;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 	} else {
 		error = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_VIBEGEN_ALGO_ID, &reg);
@@ -622,11 +625,13 @@ static ssize_t redc_comp_enable_show(struct device *dev, struct device_attribute
 
 	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
 		error = -EPERM;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 		goto err_mutex;
 	}
 
 	if (cs40l26->comp_enable_pend) {
-		error = -EIO;
+		error = -EPERM;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 		goto err_mutex;
 	}
 
@@ -664,6 +669,7 @@ static ssize_t redc_comp_enable_store(struct device *dev, struct device_attribut
 
 	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
 		error = -EPERM;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 	} else {
 		error = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_VIBEGEN_ALGO_ID, &reg);
@@ -695,12 +701,14 @@ static ssize_t swap_firmware_show(struct device *dev, struct device_attribute *a
 
 	mutex_lock(&cs40l26->lock);
 
-	if (cs40l26->fw_id == CS40L26_FW_ID)
+	if (cs40l26->fw_id == CS40L26_FW_ID) {
 		error = snprintf(buf, PAGE_SIZE, "%d\n", 0);
-	else if (cs40l26->fw_id == CS40L26_FW_CALIB_ID)
+	} else if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
 		error = snprintf(buf, PAGE_SIZE, "%d\n", 1);
-	else
+	} else {
 		error = -EINVAL;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
+	}
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -725,7 +733,7 @@ static ssize_t swap_firmware_store(struct device *dev, struct device_attribute *
 	else
 		error = -EINVAL;
 
-	return error ? error : count;
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__) : count;
 }
 static DEVICE_ATTR_RW(swap_firmware);
 
@@ -820,7 +828,7 @@ static ssize_t fw_rev_show(struct device *dev, struct device_attribute *attr, ch
 	cs40l26_pm_exit(cs40l26->dev);
 
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 
 	return snprintf(buf, PAGE_SIZE, "%d.%d.%d\n",
 			(int) CL_DSP_GET_MAJOR(val),
@@ -841,7 +849,7 @@ static ssize_t init_rom_wavetable_store(struct device *dev, struct device_attrib
 		return error;
 
 	if (enable != 1)
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -855,7 +863,7 @@ static ssize_t init_rom_wavetable_store(struct device *dev, struct device_attrib
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : count;
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__) : count;
 }
 static DEVICE_ATTR_WO(init_rom_wavetable);
 
@@ -914,7 +922,7 @@ static int cs40l26_owt_size_get(struct cs40l26_private *cs40l26)
 		return error;
 
 	if (owt_base > offset)
-		return -ENOMEM;
+		return cs40l26_log_err(cs40l26, -ENOMEM, CS40L26_ERR_TYPE_DSP, __func__);
 
 	return ((offset - owt_base) * CL_DSP_BYTES_PER_WORD);
 }
@@ -931,7 +939,7 @@ static int cs40l26_owt_braking_time_get(struct cs40l26_private *cs40l26, u32 ind
 
 	owt_size_bytes = cs40l26_owt_size_get(cs40l26);
 	if (owt_size_bytes < 0)
-		return owt_size_bytes;
+		return cs40l26_log_err(cs40l26, owt_size_bytes, CS40L26_ERR_TYPE_DSP, __func__);
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "OWT_BASE_XM", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &owt_base_reg);
@@ -987,6 +995,7 @@ static int cs40l26_owt_braking_time_get(struct cs40l26_private *cs40l26, u32 ind
 			error = cs40l26_braking_time_find(cs40l26, &ch,
 					index, current_index);
 			if (error < 0) {
+				cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_COEFF, __func__);
 				goto wt_free;
 			} else if (error > 0) {
 				*braking_time = error;
@@ -1010,6 +1019,7 @@ static int cs40l26_owt_braking_time_get(struct cs40l26_private *cs40l26, u32 ind
 		/* Exit if we are looking past the desired index */
 		if (++current_index > index) {
 			error = -EINVAL;
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_COEFF, __func__);
 			goto wt_free;
 		}
 	}
@@ -1266,7 +1276,7 @@ static ssize_t trigger_calibration_store(struct device *dev,
 		completion = &cs40l26->cal_ls_cont;
 		break;
 	default:
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
 	}
 
 	mailbox_command = ((CS40L26_DSP_MBOX_CMD_INDEX_CALIBRATION_CONTROL <<
@@ -1529,7 +1539,7 @@ static ssize_t f0_stored_store(struct device *dev, struct device_attribute *attr
 		return error;
 
 	if (f0_stored < CS40L26_F0_FREQ_CENTRE_MIN || f0_stored > CS40L26_F0_FREQ_CENTRE_MAX)
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -1670,7 +1680,7 @@ static ssize_t freq_centre_store(struct device *dev, struct device_attribute *at
 
 	if (freq_centre < CS40L26_F0_FREQ_CENTRE_MIN ||
 			freq_centre > CS40L26_F0_FREQ_CENTRE_MAX)
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -1737,7 +1747,7 @@ static ssize_t freq_span_store(struct device *dev, struct device_attribute *attr
 
 	if (abs(s_freq_span) < CS40L26_F0_FREQ_SPAN_MIN ||
 			abs(s_freq_span) > CS40L26_F0_FREQ_SPAN_MAX)
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -2641,7 +2651,8 @@ static ssize_t fw_ctrl_reg_show(struct device *dev, struct device_attribute *att
 
 	mutex_unlock(&cs40l26->lock);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "0x%08X\n", reg);
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__) :
+			snprintf(buf, PAGE_SIZE, "0x%08X\n", reg);
 }
 static DEVICE_ATTR_RO(fw_ctrl_reg);
 
@@ -2657,7 +2668,8 @@ static ssize_t fw_ctrl_size_words_show(struct device *dev, struct device_attribu
 
 	mutex_unlock(&cs40l26->lock);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%zd\n", nbytes / CL_DSP_BYTES_PER_WORD);
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__) :
+			snprintf(buf, PAGE_SIZE, "%zd\n", nbytes / CL_DSP_BYTES_PER_WORD);
 }
 static DEVICE_ATTR_RO(fw_ctrl_size_words);
 
@@ -2679,8 +2691,10 @@ static ssize_t fw_ctrl_val_show(struct device *dev, struct device_attribute *att
 	mutex_lock(&cs40l26->lock);
 
 	error = cs40l26_sysfs_fw_get_flags(cs40l26, &flags);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 		goto mutex_exit;
+	}
 
 	if (!(flags & CL_DSP_HALO_FLAG_READ)) {
 		dev_err(cs40l26->dev, "Cannot read from control %s with flags = 0x%X\n",
@@ -2691,14 +2705,18 @@ static ssize_t fw_ctrl_val_show(struct device *dev, struct device_attribute *att
 	}
 
 	error = cs40l26_sysfs_fw_get_length(cs40l26, &nbytes);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 		goto mutex_exit;
+	}
 
 	num_words = nbytes / CL_DSP_BYTES_PER_WORD;
 
 	error = cs40l26_sysfs_fw_get_reg(cs40l26, &reg);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 		goto mutex_exit;
+	}
 
 	val = kcalloc(num_words, sizeof(u32), GFP_KERNEL);
 	if (!val) {
@@ -2707,8 +2725,10 @@ static ssize_t fw_ctrl_val_show(struct device *dev, struct device_attribute *att
 	}
 
 	error = regmap_bulk_read(cs40l26->regmap, reg, val, num_words);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		goto mutex_exit;
+	}
 
 	final_str = kzalloc(CS40L26_FW_CTRL_VAL_STR_SIZE * num_words, GFP_KERNEL);
 	if (!final_str) {
@@ -2762,8 +2782,10 @@ static ssize_t fw_ctrl_val_store(struct device *dev, struct device_attribute *at
 	mutex_lock(&cs40l26->lock);
 
 	error = cs40l26_sysfs_fw_get_flags(cs40l26, &flags);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 		goto mutex_exit;
+	}
 
 	if (flags & CL_DSP_HALO_FLAG_VOLATILE || !(flags & CL_DSP_HALO_FLAG_WRITE)) {
 		dev_err(cs40l26->dev, "Cannot write to control %s with flags = 0x%X\n",
@@ -2774,8 +2796,10 @@ static ssize_t fw_ctrl_val_store(struct device *dev, struct device_attribute *at
 	}
 
 	error = cs40l26_sysfs_fw_get_length(cs40l26, &nbytes);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 		goto mutex_exit;
+	}
 
 	num_ctl_words = nbytes / CL_DSP_BYTES_PER_WORD;
 
@@ -2811,10 +2835,14 @@ static ssize_t fw_ctrl_val_store(struct device *dev, struct device_attribute *at
 	}
 
 	error = cs40l26_sysfs_fw_get_reg(cs40l26, &reg);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 		goto mutex_exit;
+	}
 
 	error = regmap_bulk_write(cs40l26->regmap, reg, val, num_ctl_words);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 
 mutex_exit:
 	mutex_unlock(&cs40l26->lock);
@@ -2898,7 +2926,7 @@ static ssize_t rth_latch_store(struct device *dev, struct device_attribute *attr
 		cmd = CS40L26_DSP_MBOX_CMD_RTH_UPDATE_GPI;
 		break;
 	default:
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
 	}
 
 	error = cs40l26_pm_enter(cs40l26->dev);
