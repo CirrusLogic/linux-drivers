@@ -298,6 +298,20 @@ Description:
 			1: Haptic
 			2: ASP
 
+What:		/sys/class/input/input(x)/calibration/dvl_peq_coeff_apply
+Date:		May 2025
+Contact:	patches@opensource.cirrus.com
+Description:
+		Apply DVL PEQ coefficients if they need to take effect during
+		ongoing haptics playback. This only needs to be used if the user
+		wants the coefficients to be applied as playback is ongoing.
+		Otherwise, only dvl_peq_coefficients needs to be updated.
+		Write '1' to this control to apply DVL PEQ coefficients.
+
+		Access: Write
+
+		Valid values: 1
+
 What:		/sys/class/input/input(x)/calibration/dvl_peq_coefficients
 Date:		December 2023
 Contact:	patches@opensource.cirrus.com
