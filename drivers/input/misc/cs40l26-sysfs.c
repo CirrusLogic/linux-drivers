@@ -1971,6 +1971,36 @@ err_free:
 }
 static DEVICE_ATTR_RW(dvl_peq_coefficients);
 
+static ssize_t dvl_peq_coeff_apply_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error;
+	u32 val;
+
+	error = kstrtou32(buf, 10, &val);
+	if (error)
+		return error;
+
+	if (val != 1)
+		return -EINVAL;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_DVL_REINIT);
+
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : count;
+}
+static DEVICE_ATTR_WO(dvl_peq_coeff_apply);
+
 static ssize_t ls_calibration_params_temp_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
@@ -2298,6 +2328,7 @@ static struct attribute *cs40l26_dev_attrs_cal[] = {
 	&dev_attr_ls_calibration_results.attr,
 	&dev_attr_ls_calibration_results_name.attr,
 	&dev_attr_dvl_peq_coefficients.attr,
+	&dev_attr_dvl_peq_coeff_apply.attr,
 	&dev_attr_redc_est.attr,
 	&dev_attr_f0_stored.attr,
 	&dev_attr_redc_stored.attr,
