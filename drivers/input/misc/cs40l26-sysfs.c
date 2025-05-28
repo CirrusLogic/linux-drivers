@@ -40,8 +40,8 @@ static ssize_t broadcast_master_store(struct device *dev, struct device_attribut
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	struct i2c_client *client;
-	int error = 0;
 	u32 broadcast;
+	int error;
 
 	if (!cs40l26->broadcast_addr) {
 		dev_err(cs40l26->dev, "Broadcast I2C disabled on this device\n");
@@ -99,7 +99,7 @@ static ssize_t broadcast_master_store(struct device *dev, struct device_attribut
 		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
 	}
 
-	return error ? error : count;
+	return count;
 }
 static DEVICE_ATTR_RW(broadcast_master);
 
@@ -117,10 +117,7 @@ static ssize_t dsp_state_show(struct device *dev, struct device_attribute *attr,
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return error;
-	else
-		return snprintf(buf, PAGE_SIZE, "%u\n", (unsigned int) (dsp_state & 0xFF));
+	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", (unsigned int) (dsp_state & 0xFF));
 }
 static DEVICE_ATTR_RO(dsp_state);
 
@@ -232,10 +229,7 @@ static ssize_t pm_stdby_timeout_ms_show(struct device *dev, struct device_attrib
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return error;
-
-	return snprintf(buf, PAGE_SIZE, "%u\n", timeout_ms);
+	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", timeout_ms);
 }
 
 static ssize_t pm_stdby_timeout_ms_store(struct device *dev,
@@ -257,10 +251,7 @@ static ssize_t pm_stdby_timeout_ms_store(struct device *dev,
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
-
-	return count;
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__) : count;
 }
 static DEVICE_ATTR_RW(pm_stdby_timeout_ms);
 
@@ -279,10 +270,8 @@ static ssize_t pm_active_timeout_ms_show(struct device *dev,
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
-
-	return snprintf(buf, PAGE_SIZE, "%u\n", timeout_ms);
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__) :
+			snprintf(buf, PAGE_SIZE, "%u\n", timeout_ms);
 }
 
 static ssize_t pm_active_timeout_ms_store(struct device *dev,
@@ -304,10 +293,7 @@ static ssize_t pm_active_timeout_ms_store(struct device *dev,
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
-
-	return count;
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__) : count;
 }
 static DEVICE_ATTR_RW(pm_active_timeout_ms);
 
@@ -522,8 +508,8 @@ static ssize_t delay_before_stop_playback_us_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 val;
 	int error;
+	u32 val;
 
 	error = kstrtou32(buf, 10, &val);
 	if (error)
@@ -569,9 +555,9 @@ static ssize_t f0_comp_enable_store(struct device *dev, struct device_attribute 
 		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int error;
 	unsigned int val;
 	u32 reg, value;
+	int error;
 
 	error = kstrtou32(buf, 10, &val);
 	if (error)
@@ -647,9 +633,9 @@ static ssize_t redc_comp_enable_store(struct device *dev, struct device_attribut
 		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int error;
 	unsigned int val;
 	u32 reg, value;
+	int error;
 
 	error = kstrtou32(buf, 10, &val);
 	if (error)
@@ -719,8 +705,8 @@ static ssize_t swap_firmware_store(struct device *dev, struct device_attribute *
 		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int error;
 	unsigned int variant;
+	int error;
 
 	error = kstrtou32(buf, 10, &variant);
 	if (error)
@@ -1162,7 +1148,6 @@ static ssize_t error_log_show(struct device *dev, struct device_attribute *attr,
 		tmp_count = snprintf(tmp_str, CS40L26_ERR_STR_MAX_LEN,
 				"%s: code = %d, type = %u\n", err->fxn_name, err->code, err->type);
 		if (tmp_count != strlen(tmp_str)) {
-			dev_err(cs40l26->dev, "Failed to format error string\n");
 			if (tmp_count < 0)
 				error = tmp_count;
 			else
@@ -1248,8 +1233,8 @@ static ssize_t trigger_calibration_store(struct device *dev,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	u32 mailbox_command, calibration_request_payload;
-	int error;
 	struct completion *completion;
+	int error;
 
 	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
 
@@ -1348,10 +1333,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return error;
-	else
-		return snprintf(buf, PAGE_SIZE, "%08X\n", f0_measured);
+	return error ? error : snprintf(buf, PAGE_SIZE, "%08X\n", f0_measured);
 }
 static DEVICE_ATTR_RO(f0_measured);
 
@@ -1381,10 +1363,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return error;
-	else
-		return snprintf(buf, PAGE_SIZE, "%08X\n", q_measured);
+	return error ? error : snprintf(buf, PAGE_SIZE, "%08X\n", q_measured);
 }
 static DEVICE_ATTR_RO(q_measured);
 
@@ -1414,10 +1393,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return error;
-	else
-		return snprintf(buf, PAGE_SIZE, "%08X\n", redc_measured);
+	return error ? error : snprintf(buf, PAGE_SIZE, "%08X\n", redc_measured);
 }
 static DEVICE_ATTR_RO(redc_measured);
 
@@ -1447,10 +1423,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return error;
-	else
-		return snprintf(buf, PAGE_SIZE, "%08X\n", redc_est);
+	return error ? error : snprintf(buf, PAGE_SIZE, "%08X\n", redc_est);
 }
 
 static ssize_t redc_est_store(struct device *dev, struct device_attribute *attr, const char *buf,
@@ -1486,10 +1459,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return error;
-	else
-		return count;
+	return error ? error : count;
 }
 static DEVICE_ATTR_RW(redc_est);
 
@@ -1519,10 +1489,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return error;
-	else
-		return snprintf(buf, PAGE_SIZE, "%08X\n", f0_stored);
+	return error ? error : snprintf(buf, PAGE_SIZE, "%08X\n", f0_stored);
 }
 
 static ssize_t f0_stored_store(struct device *dev, struct device_attribute *attr, const char *buf,
@@ -1561,10 +1528,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return error;
-	else
-		return count;
+	return error ? error : count;
 }
 static DEVICE_ATTR_RW(f0_stored);
 
@@ -1594,10 +1558,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return error;
-	else
-		return snprintf(buf, PAGE_SIZE, "%08X\n", redc_stored);
+	return error ? error : snprintf(buf, PAGE_SIZE, "%08X\n", redc_stored);
 }
 
 static ssize_t redc_stored_store(struct device *dev, struct device_attribute *attr,
@@ -1633,10 +1594,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return error;
-	else
-		return count;
+	return error ? error : count;
 }
 static DEVICE_ATTR_RW(redc_stored);
 
@@ -1839,10 +1797,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return error;
-	else
-		return snprintf(buf, PAGE_SIZE, "%d\n", f0_and_q_cal_time_ms);
+	return error ? error : snprintf(buf, PAGE_SIZE, "%d\n", f0_and_q_cal_time_ms);
 }
 static DEVICE_ATTR_RO(f0_and_q_cal_time_ms);
 
@@ -1874,10 +1829,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return error;
-	else
-		return snprintf(buf, PAGE_SIZE, "%d\n", redc_total_cal_time_ms);
+	return error ? error : snprintf(buf, PAGE_SIZE, "%d\n", redc_total_cal_time_ms);
 }
 static DEVICE_ATTR_RO(redc_cal_time_ms);
 
@@ -2275,10 +2227,7 @@ static ssize_t svc_le_est_show(struct device *dev, struct device_attribute *attr
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error)
-		return error;
-
-	return snprintf(buf, PAGE_SIZE, "%u\n", le);
+	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", le);
 }
 static DEVICE_ATTR_RO(svc_le_est);
 
@@ -2410,8 +2359,8 @@ static ssize_t logging_max_reset_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 rst;
 	int error;
+	u32 rst;
 
 	error = kstrtou32(buf, 10, &rst);
 	if (error)
@@ -2424,11 +2373,11 @@ static ssize_t logging_max_reset_store(struct device *dev,
 	if (error)
 		return error;
 
-	cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_LOGGER_MAX_RESET);
+	error = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_LOGGER_MAX_RESET);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return count;
+	return error ? error : count;
 }
 static DEVICE_ATTR_WO(logging_max_reset);
 
