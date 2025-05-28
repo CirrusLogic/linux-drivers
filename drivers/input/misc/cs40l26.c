@@ -5750,7 +5750,7 @@ int cs40l26_log_err(struct cs40l26_private *cs40l26, int code, u32 type, const c
 {
 	struct cs40l26_err *err;
 
-	err = devm_kzalloc(cs40l26->dev, sizeof(*err), GFP_KERNEL);
+	err = devm_kzalloc(cs40l26->dev, sizeof(*err), GFP_ATOMIC);
 	if (!err)
 		return code;
 
