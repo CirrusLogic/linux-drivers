@@ -2014,7 +2014,7 @@ err_mutex:
 }
 static DEVICE_ATTR_RW(ls_calibration_params_temp);
 
-static int cs40l26_ls_calibration_check_results(struct cs40l26_private *cs40l26)
+static int cs40l26_ls_calibration_check_results(struct cs40l26_private *cs40l26, u32 *status)
 {
 	u32 reg, return_code;
 	int error;
@@ -2034,27 +2034,51 @@ static int cs40l26_ls_calibration_check_results(struct cs40l26_private *cs40l26)
 		break;
 	case CS40L26_LS_CAL_IN_PROGRESS:
 		dev_err(cs40l26->dev, "LS Calibration still in progress\n");
-		return cs40l26_log_err(cs40l26, -EALREADY, CS40L26_ERR_TYPE_DSP, __func__);
+		break;
 	case CS40L26_LS_CAL_FAIL_DET:
 		dev_err(cs40l26->dev, "LS Calibration failed: matrix singular/nearly singular\n");
-		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
+		break;
 	case CS40L26_LS_CAL_FAIL_ROOTS:
 		dev_err(cs40l26->dev, "LS Calibration failed: real roots instead of 1\n");
-		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
+		break;
 	case CS40L26_LS_CAL_SATURATION:
 		dev_err(cs40l26->dev, "LS Calibration failed: saturation when publishing\n");
-		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
+		break;
 	case CS40L26_LS_CAL_STEP2_FREQ:
 		dev_err(cs40l26->dev, "LS Calibration failed: frequency for step 2 out of range\n");
-		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
+		break;
 	default:
 		dev_err(cs40l26->dev, "LS Calibration failed: unknown error code %u\n",
 				return_code);
-		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 	}
+
+	*status = return_code;
 
 	return 0;
 }
+
+static ssize_t ls_calibration_status_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 status;
+	int error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cs40l26_ls_calibration_check_results(cs40l26, &status);
+
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", status);
+}
+static DEVICE_ATTR_RO(ls_calibration_status);
 
 static ssize_t ls_calibration_results_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -2068,10 +2092,6 @@ static ssize_t ls_calibration_results_show(struct device *dev, struct device_att
 		return error;
 
 	mutex_lock(&cs40l26->lock);
-
-	error = cs40l26_ls_calibration_check_results(cs40l26);
-	if (error)
-		goto err_mutex;
 
 	for (i = 0; i < CS40L26_LS_CAL_NUM_REGS; i++) {
 		error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_ls_cal_params[i].calib_name,
@@ -2179,10 +2199,6 @@ static ssize_t ls_calibration_results_name_show(struct device *dev, struct devic
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_ls_calibration_check_results(cs40l26);
-	if (error)
-		goto err_mutex;
-
 	for (i = 0; i < CS40L26_LS_CAL_NUM_REGS; i++) {
 		error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_ls_cal_params[i].calib_name,
 				CL_DSP_XM_UNPACKED_TYPE, CS40L26_LS_ALGO_ID, &reg);
@@ -2274,6 +2290,7 @@ static struct attribute *cs40l26_dev_attrs_cal[] = {
 	&dev_attr_q_measured.attr,
 	&dev_attr_redc_measured.attr,
 	&dev_attr_ls_calibration_params_temp.attr,
+	&dev_attr_ls_calibration_status.attr,
 	&dev_attr_ls_calibration_results.attr,
 	&dev_attr_ls_calibration_results_name.attr,
 	&dev_attr_dvl_peq_coefficients.attr,
