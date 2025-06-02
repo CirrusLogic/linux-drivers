@@ -885,6 +885,7 @@ static irqreturn_t cs40l26_handle_mbox_buffer(int irq, void *data)
 		case CS40L26_DSP_MBOX_F0_EST_DONE:
 			dev_dbg(dev, "Mailbox: F0_EST_DONE\n");
 			complete(&cs40l26->cal_f0_cont);
+			cs40l26->cal_ongoing = false;
 			break;
 		case CS40L26_DSP_MBOX_REDC_EST_START:
 			dev_dbg(dev, "Mailbox: REDC_EST_START\n");
@@ -892,6 +893,7 @@ static irqreturn_t cs40l26_handle_mbox_buffer(int irq, void *data)
 		case CS40L26_DSP_MBOX_REDC_EST_DONE:
 			dev_dbg(dev, "Mailbox: REDC_EST_DONE\n");
 			complete(&cs40l26->cal_redc_cont);
+			cs40l26->cal_ongoing = false;
 			break;
 		case CS40L26_DSP_MBOX_LS_CALIBRATION_START:
 			dev_dbg(dev, "Mailbox: LS_CALIBRATION_START\n");
@@ -899,10 +901,12 @@ static irqreturn_t cs40l26_handle_mbox_buffer(int irq, void *data)
 		case CS40L26_DSP_MBOX_LS_CALIBRATION_DONE:
 			dev_dbg(dev, "Mailbox: LS_CALIBRATION_DONE\n");
 			complete(&cs40l26->cal_ls_cont);
+			cs40l26->cal_ongoing = false;
 			break;
 		case CS40L26_DSP_MBOX_LS_CALIBRATION_ERROR:
 			dev_warn(dev, "Mailbox: LS_CALIBRATION_ERROR\n");
 			complete(&cs40l26->cal_ls_cont);
+			cs40l26->cal_ongoing = false;
 			break;
 		case CS40L26_DSP_MBOX_LE_EST_START:
 			dev_dbg(dev, "Mailbox: LE_EST_START\n");
@@ -916,6 +920,7 @@ static irqreturn_t cs40l26_handle_mbox_buffer(int irq, void *data)
 		case CS40L26_DSP_MBOX_PEQ_CALCULATION_DONE:
 			dev_dbg(dev, "Mailbox: PEQ_CALCULATION_DONE\n");
 			complete(&cs40l26->cal_dvl_peq_cont);
+			cs40l26->cal_ongoing = false;
 			break;
 		default:
 			dev_err(dev, "MBOX buffer value (0x%X) is invalid\n", val);
@@ -2184,6 +2189,11 @@ static int cs40l26_playback_effect(struct input_dev *dev, int effect_id, int val
 {
 	struct cs40l26_private *cs40l26 = input_get_drvdata(dev);
 	struct cs40l26_work *work_data;
+
+	if (cs40l26->cal_ongoing) {
+		dev_err(cs40l26->dev, "Must wait for calibration to finish before playback\n");
+		return -EPERM;
+	}
 
 	dev_dbg(cs40l26->dev, "%s: effect ID = %d, val = %d\n", __func__, effect_id, val);
 
