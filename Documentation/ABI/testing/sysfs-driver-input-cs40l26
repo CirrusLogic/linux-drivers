@@ -298,6 +298,20 @@ Description:
 			1: Haptic
 			2: ASP
 
+What:		/sys/class/input/input(x)/calibration/cal_status
+Date:		June 2025
+Contact:	patches@opensource.cirrus.com
+Description:
+		Report status 0 if calibration is not in progress and 1 if otherwise.
+
+		Reset status to false by writing 1 to the control.
+
+		Access: Read, Write
+
+		Valid values:
+			0: Calibration not in progress
+			1: Calibration in progress -- reset if written
+
 What:		/sys/class/input/input(x)/calibration/dvl_peq_coeff_apply
 Date:		May 2025
 Contact:	patches@opensource.cirrus.com
