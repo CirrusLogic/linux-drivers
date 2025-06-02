@@ -1277,6 +1277,7 @@ static ssize_t trigger_calibration_store(struct device *dev,
 
 	error = cs40l26_mailbox_write(cs40l26, mailbox_command);
 
+	cs40l26->cal_ongoing = true;
 	mutex_unlock(&cs40l26->lock);
 
 	if (error) {
@@ -1303,9 +1304,53 @@ static ssize_t trigger_calibration_store(struct device *dev,
 	mutex_unlock(&cs40l26->lock);
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
-	return error ? error : count;
+
+	if (error) {
+		cs40l26->cal_ongoing = false;
+		return error;
+	} else {
+		return count;
+	}
 }
 static DEVICE_ATTR_WO(trigger_calibration);
+
+static ssize_t cal_status_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	ssize_t count;
+
+	mutex_lock(&cs40l26->lock);
+
+	count = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->cal_ongoing ? 1 : 0);
+
+	mutex_unlock(&cs40l26->lock);
+
+	return count;
+}
+
+static ssize_t cal_status_store(struct device *dev, struct device_attribute *attr, const char *buf,
+		size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error;
+	u32 val;
+
+	error = kstrtou32(buf, 10, &val);
+	if (error)
+		return error;
+
+	if (val != 1)
+		return -EINVAL;
+
+	mutex_lock(&cs40l26->lock);
+
+	cs40l26->cal_ongoing = false;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return count;
+}
+static DEVICE_ATTR_RW(cal_status);
 
 static ssize_t f0_measured_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -2286,6 +2331,7 @@ static struct attribute *cs40l26_dev_attrs_cal[] = {
 	&dev_attr_svc_le_est.attr,
 	&dev_attr_svc_le_stored.attr,
 	&dev_attr_trigger_calibration.attr,
+	&dev_attr_cal_status.attr,
 	&dev_attr_f0_measured.attr,
 	&dev_attr_q_measured.attr,
 	&dev_attr_redc_measured.attr,

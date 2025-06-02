@@ -1320,6 +1320,7 @@ struct cs40l26_private {
 	enum cs40l26_bus_type bus_type;
 	u32 broadcast_addr;
 	struct list_head err_head;
+	bool cal_ongoing;
 };
 
 struct cs40l26_codec {
