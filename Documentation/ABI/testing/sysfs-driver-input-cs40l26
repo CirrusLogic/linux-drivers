@@ -452,6 +452,24 @@ Description:
 			See firmware documentation for more detailed information
 			on each coefficient.
 
+What:		/sys/class/input/input(x)/calibration/ls_calibration_status
+Date:		June 2025
+Contact:	patches@opensource.cirrus.com
+Description:
+		Provide status of LS Calibration after it has been run.
+		Any status other than 0 implies the results are invalid.
+
+		Access: Read
+
+		Valid values:
+			Represented as enum
+				0: OK
+				1: In Progress
+				2: Singular Matrix
+				3: Real Roots Instead of 1
+				4: Saturation When Publishing
+				5: Step 2 Frequency Out of Range
+
 What:		/sys/class/input/input(x)/calibration/q_measured
 Date:		December 2023
 Contact:	patches@opensource.cirrus.com
