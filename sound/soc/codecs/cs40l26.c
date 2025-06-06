@@ -241,11 +241,9 @@ static int cs40l26_sdout_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *
 static int cs40l26_asp_rx(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol, int event)
 {	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(snd_soc_dapm_to_component(w->dapm));
-	bool is_revid_b2 = (codec->core->revid == (CS40L26_REVID_B2)) ? true : false;
 	struct cs40l26_private *cs40l26 = codec->core;
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
-	u32 flags = 0, reg = 0;
 	u8 data_src;
 	int ret;
 
@@ -254,21 +252,6 @@ static int cs40l26_asp_rx(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 	mutex_lock(&cs40l26->lock);
 
 	data_src = codec->dsp_bypass ? CS40L26_DATA_SRC_ASPRX1 : CS40L26_DATA_SRC_DSP1TX1;
-
-	if (is_revid_b2) {
-		ret = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
-				cs40l26->fw_id, &reg);
-		if (ret) {
-			cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_FW, __func__);
-			goto err_mutex;
-		}
-
-		ret = regmap_read(regmap, reg, &flags);
-		if (ret) {
-			cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_CP, __func__);
-			goto err_mutex;
-		}
-	}
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -288,32 +271,11 @@ static int cs40l26_asp_rx(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 
 		codec->asp_rx = true;
 
-		/* Force open-loop if closed-loop not set */
-		if (!(flags & CS40L26_FLAGS_I2S_SVC_EN_MASK) && is_revid_b2) {
-			codec->svc_ol_forced = true;
-			ret = regmap_set_bits(regmap, reg, CS40L26_FLAGS_I2S_SVC_EN_MASK |
-					CS40L26_FLAGS_I2S_SVC_LOOP_MASK);
-			if (ret) {
-				cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_CP, __func__);
-				goto err_mutex;
-			}
-		} else {
-			codec->svc_ol_forced = false;
-		}
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		ret = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_STOP_I2S);
 		if (ret)
 			goto err_mutex;
-
-		if (codec->svc_ol_forced) {
-			ret = regmap_clear_bits(regmap, reg, CS40L26_FLAGS_I2S_SVC_EN_MASK |
-					CS40L26_FLAGS_I2S_SVC_LOOP_MASK);
-			if (ret) {
-				cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_CP, __func__);
-				goto err_mutex;
-			}
-		}
 
 		ret = regmap_clear_bits(regmap, CS40L26_ASP_ENABLES1, CS40L26_ASP_ENABLE_MASK);
 		if (ret) {
