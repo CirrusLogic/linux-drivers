@@ -980,7 +980,17 @@ EXPORT_SYMBOL_GPL(cs40l26_copy_f0_est_to_dvl);
 int cs40l26_asp_start(struct cs40l26_private *cs40l26)
 {
 	struct cs40l26_work *work_data;
+	u8 dsp_state;
 	int error;
+
+	if (cs40l26->disable_asp_preempt) {
+		error = cs40l26_dsp_state_get(cs40l26, &dsp_state);
+		if (error)
+			return error;
+
+		if (dsp_state == CS40L26_DSP_STATE_ACTIVE)
+			return 0;
+	}
 
 	if (cs40l26->revid != CS40L26_REVID_B2 &&
 	    cs40l26->asp_scale_pct < CS40L26_GAIN_FULL_SCALE) {
