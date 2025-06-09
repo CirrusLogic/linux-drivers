@@ -455,6 +455,91 @@ pm_err:
 	return ret;
 }
 
+static int cs40l26_svc_loop_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct cs40l26_codec *codec =
+			snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
+	struct cs40l26_private *cs40l26 = codec->core;
+	struct regmap *regmap = cs40l26->regmap;
+	unsigned int algo_id, val = 0, reg;
+	struct device *dev = cs40l26->dev;
+	int ret;
+
+	ret = cs40l26_pm_enter(dev);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (ret)
+		goto pm_err;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
+	if (ret) {
+		cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_FW, __func__);
+		goto pm_err;
+	}
+
+	ret = regmap_read(regmap, reg, &val);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to read FLAGS\n");
+		cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_CP, __func__);
+		goto pm_err;
+	}
+
+	if (val & CS40L26_I2S_SVC_LOOP_MASK)
+		ucontrol->value.enumerated.item[0] = 1;
+	else
+		ucontrol->value.enumerated.item[0] = 0;
+
+pm_err:
+	cs40l26_pm_exit(dev);
+
+	return ret;
+}
+
+static int cs40l26_svc_loop_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_context *dapm =
+			snd_soc_component_get_dapm(snd_soc_kcontrol_component(kcontrol));
+	struct cs40l26_codec *codec =
+			snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
+	struct cs40l26_private *cs40l26 = codec->core;
+	struct regmap *regmap = cs40l26->regmap;
+	struct device *dev = cs40l26->dev;
+	unsigned int algo_id, reg;
+	int ret;
+
+	ret = cs40l26_pm_enter(dev);
+	if (ret)
+		return ret;
+
+	ret = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (ret)
+		goto pm_err;
+
+	ret = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
+	if (ret) {
+		cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_FW, __func__);
+		goto pm_err;
+	}
+
+	snd_soc_dapm_mutex_lock(dapm);
+
+	ret = regmap_update_bits(regmap, reg, CS40L26_I2S_SVC_LOOP_MASK,
+			ucontrol->value.enumerated.item[0] << CS40L26_I2S_SVC_LOOP_SHIFT);
+	if (ret) {
+		dev_err(cs40l26->dev, "Failed to specify I2S SVC loop type\n");
+		cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_CP, __func__);
+	}
+
+	snd_soc_dapm_mutex_unlock(dapm);
+
+pm_err:
+	cs40l26_pm_exit(dev);
+
+	return ret;
+}
+
 static int cs40l26_invert_streaming_data_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
@@ -885,6 +970,7 @@ static const struct snd_kcontrol_new cs40l26_controls[] = {
 	SOC_SINGLE_EXT("A2H Level", 0, 0, CS40L26_A2H_LEVEL_MAX, 0, cs40l26_a2h_level_get,
 			cs40l26_a2h_level_put),
 	SOC_SINGLE_EXT("SVC Algo Enable", 0, 0, 1, 0, cs40l26_svc_en_get, cs40l26_svc_en_put),
+	SOC_SINGLE_EXT("SVC Open Loop", 0, 0, 1, 0, cs40l26_svc_loop_get, cs40l26_svc_loop_put),
 	SOC_SINGLE_EXT("Invert streaming data", 0, 0, 1, 0, cs40l26_invert_streaming_data_get,
 			cs40l26_invert_streaming_data_put),
 	SOC_SINGLE_EXT("I2S VMON", 0, 0, CS40L26_VMON_DEC_OUT_DATA_MAX, 0,
