@@ -401,7 +401,7 @@ static int cs40l26_svc_en_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 		goto pm_err;
 	}
 
-	if (val & CS40L26_SVC_EN_MASK)
+	if (val & CS40L26_I2S_SVC_EN_MASK)
 		ucontrol->value.enumerated.item[0] = 1;
 	else
 		ucontrol->value.enumerated.item[0] = 0;
@@ -440,7 +440,7 @@ static int cs40l26_svc_en_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 
 	snd_soc_dapm_mutex_lock(dapm);
 
-	ret = regmap_update_bits(regmap, reg, CS40L26_SVC_EN_MASK,
+	ret = regmap_update_bits(regmap, reg, CS40L26_I2S_SVC_EN_MASK,
 			ucontrol->value.enumerated.item[0]);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to specify SVC for streaming\n");
