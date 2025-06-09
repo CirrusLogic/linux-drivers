@@ -370,6 +370,44 @@ static int cs40l26_dsp_bypass_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int cs40l26_disable_asp_preempt_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct cs40l26_codec *codec =
+			snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
+	struct cs40l26_private *cs40l26 = codec->core;
+
+	mutex_lock(&cs40l26->lock);
+
+	if (cs40l26->disable_asp_preempt)
+		ucontrol->value.enumerated.item[0] = 1;
+	else
+		ucontrol->value.enumerated.item[0] = 0;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return 0;
+}
+
+static int cs40l26_disable_asp_preempt_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct cs40l26_codec *codec =
+			snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
+	struct cs40l26_private *cs40l26 = codec->core;
+
+	mutex_lock(&cs40l26->lock);
+
+	if (ucontrol->value.enumerated.item[0])
+		cs40l26->disable_asp_preempt = true;
+	else
+		cs40l26->disable_asp_preempt = false;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return 0;
+}
+
 static int cs40l26_svc_en_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct cs40l26_codec *codec =
@@ -971,6 +1009,8 @@ static const struct snd_kcontrol_new cs40l26_controls[] = {
 			cs40l26_a2h_level_put),
 	SOC_SINGLE_EXT("SVC Algo Enable", 0, 0, 1, 0, cs40l26_svc_en_get, cs40l26_svc_en_put),
 	SOC_SINGLE_EXT("SVC Open Loop", 0, 0, 1, 0, cs40l26_svc_loop_get, cs40l26_svc_loop_put),
+	SOC_SINGLE_EXT("Disable ASP Preemption", 0, 0, 1, 0, cs40l26_disable_asp_preempt_get,
+			cs40l26_disable_asp_preempt_put),
 	SOC_SINGLE_EXT("Invert streaming data", 0, 0, 1, 0, cs40l26_invert_streaming_data_get,
 			cs40l26_invert_streaming_data_put),
 	SOC_SINGLE_EXT("I2S VMON", 0, 0, CS40L26_VMON_DEC_OUT_DATA_MAX, 0,
