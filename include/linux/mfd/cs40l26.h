@@ -1321,6 +1321,7 @@ struct cs40l26_private {
 	u32 broadcast_addr;
 	struct list_head err_head;
 	bool cal_ongoing;
+	bool disable_asp_preempt;
 };
 
 struct cs40l26_codec {
