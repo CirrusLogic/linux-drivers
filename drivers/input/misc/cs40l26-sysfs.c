@@ -1187,8 +1187,10 @@ static ssize_t error_log_store(struct device *dev, struct device_attribute *attr
 
 	mutex_lock(&cs40l26->lock);
 
-	list_for_each_entry_safe(err, err_tmp, &cs40l26->err_head, list)
+	list_for_each_entry_safe(err, err_tmp, &cs40l26->err_head, list) {
 		list_del(&err->list);
+		devm_kfree(cs40l26->dev, err);
+	}
 
 	mutex_unlock(&cs40l26->lock);
 
