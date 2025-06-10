@@ -477,6 +477,9 @@ static void cs40l26_remove_asp_scaling(struct cs40l26_private *cs40l26)
 	cs40l26->scaling_applied = false;
 
 	work_data = kzalloc(sizeof(*work_data), GFP_KERNEL);
+	if (!work_data)
+		return;
+
 	work_data->cs40l26 = cs40l26;
 
 	INIT_WORK(&work_data->work, cs40l26_set_gain_worker);
