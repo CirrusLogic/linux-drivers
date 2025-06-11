@@ -2141,8 +2141,16 @@ static ssize_t ls_calibration_results_show(struct device *dev, struct device_att
 	mutex_lock(&cs40l26->lock);
 
 	for (i = 0; i < CS40L26_LS_CAL_NUM_REGS; i++) {
-		error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_ls_cal_params[i].calib_name,
-				CL_DSP_XM_UNPACKED_TYPE, CS40L26_LS_ALGO_ID, &reg);
+		if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
+			error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_ls_cal_params[i].calib_name,
+					CL_DSP_XM_UNPACKED_TYPE, CS40L26_LS_ALGO_ID, &reg);
+		} else {
+			if (cs40l26_ls_cal_params[i].runtime_name == NULL)
+				continue;
+
+			error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_ls_cal_params[i].runtime_name,
+					CL_DSP_XM_UNPACKED_TYPE, CS40L26_EP_ALGO_ID, &reg);
+		}
 		if (error)
 			goto err_mutex;
 
@@ -2247,8 +2255,16 @@ static ssize_t ls_calibration_results_name_show(struct device *dev, struct devic
 	mutex_lock(&cs40l26->lock);
 
 	for (i = 0; i < CS40L26_LS_CAL_NUM_REGS; i++) {
-		error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_ls_cal_params[i].calib_name,
-				CL_DSP_XM_UNPACKED_TYPE, CS40L26_LS_ALGO_ID, &reg);
+		if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
+			error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_ls_cal_params[i].calib_name,
+					CL_DSP_XM_UNPACKED_TYPE, CS40L26_LS_ALGO_ID, &reg);
+		} else {
+			if (cs40l26_ls_cal_params[i].runtime_name == NULL)
+				continue;
+
+			error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_ls_cal_params[i].runtime_name,
+					CL_DSP_XM_UNPACKED_TYPE, CS40L26_EP_ALGO_ID, &reg);
+		}
 		if (error)
 			goto err_mutex;
 
@@ -2259,8 +2275,12 @@ static ssize_t ls_calibration_results_name_show(struct device *dev, struct devic
 		if (error)
 			goto err_mutex;
 
-		count += snprintf(&buf[count], PAGE_SIZE, "%s: 0x%06X\n",
-				cs40l26_ls_cal_params[i].calib_name, val);
+		if (cs40l26->fw_id == CS40L26_FW_CALIB_ID)
+			count += snprintf(&buf[count], PAGE_SIZE, "%s: 0x%06X\n",
+					cs40l26_ls_cal_params[i].calib_name, val);
+		else
+			count += snprintf(&buf[count], PAGE_SIZE, "%s: 0x%06X\n",
+					cs40l26_ls_cal_params[i].runtime_name, val);
 	}
 
 err_mutex:
