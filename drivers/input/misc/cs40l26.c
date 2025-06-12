@@ -4914,6 +4914,10 @@ static int cs40l26_get_fw_params(struct cs40l26_private *cs40l26)
 			min_rev = CS40L26_FW_B2_MIN_REV;
 			cs40l26->vibe_state_reporting = true;
 			break;
+		case CS40L26_FW_B2_MAINT_BRANCH:
+			min_rev = CS40L26_FW_B2_MAINT_MIN_REV;
+			cs40l26->vibe_state_reporting = true;
+			break;
 		default:
 			error = -EINVAL;
 			break;
@@ -4931,6 +4935,10 @@ static int cs40l26_get_fw_params(struct cs40l26_private *cs40l26)
 			break;
 		case CS40L26_FW_B2_CALIB_BRANCH:
 			min_rev = CS40L26_FW_B2_CALIB_MIN_REV;
+			cs40l26->vibe_state_reporting = true;
+			break;
+		case CS40L26_FW_B2_MAINT_BRANCH:
+			min_rev = CS40L26_FW_B2_MAINT_MIN_REV;
 			cs40l26->vibe_state_reporting = true;
 			break;
 		default:
