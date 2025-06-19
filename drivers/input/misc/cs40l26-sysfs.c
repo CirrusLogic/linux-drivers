@@ -2000,6 +2000,42 @@ static ssize_t dvl_peq_coeff_apply_store(struct device *dev, struct device_attri
 }
 static DEVICE_ATTR_WO(dvl_peq_coeff_apply);
 
+static ssize_t ls_calibration_f0_closed_loop_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	ssize_t count;
+
+	mutex_lock(&cs40l26->lock);
+
+	count = sysfs_emit(buf, "%d\n", cs40l26->ls_cal_f0_closed_loop ? 1 : 0);
+
+	mutex_unlock(&cs40l26->lock);
+
+	return count;
+}
+
+static ssize_t ls_calibration_f0_closed_loop_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	bool closed_loop;
+	int error;
+
+	error = kstrtobool(buf, &closed_loop);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	cs40l26->ls_cal_f0_closed_loop = closed_loop;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return count;
+}
+static DEVICE_ATTR_RW(ls_calibration_f0_closed_loop);
+
 static ssize_t ls_calibration_params_temp_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
@@ -2127,6 +2163,30 @@ static ssize_t ls_calibration_status_show(struct device *dev, struct device_attr
 }
 static DEVICE_ATTR_RO(ls_calibration_status);
 
+static int cs40l26_copy_ls_cal_f0_result(struct cs40l26_private *cs40l26, u32 ls_cal_f0)
+{
+	u32 reg, vib_f0;
+	int error;
+
+	/*
+	 * LS Calibration F0 controls use Q11.12 format, but F0_OTP_STORED in VIBEGEN requires
+	 * the value in Q9.14. Shift left by two places to convert the value to the fixed-point type
+	 * expected by this control.
+	 */
+	vib_f0 = ls_cal_f0 << CS40L26_LS_CAL_F0_TO_VIB_SHIFT;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (error)
+		return error;
+
+	error = regmap_write(cs40l26->regmap, reg, vib_f0);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+
+	return 0;
+}
+
 static ssize_t ls_calibration_results_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
@@ -2176,7 +2236,7 @@ static ssize_t ls_calibration_results_store(struct device *dev, struct device_at
 		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int error, i, results_found = 0;
+	int error, f0_index, i, results_found = 0;
 	u32 reg, results[CS40L26_LS_CAL_NUM_REGS];
 	char *str, *str_full;
 
@@ -2213,7 +2273,18 @@ static ssize_t ls_calibration_results_store(struct device *dev, struct device_at
 	if (error)
 		goto err_mutex;
 
+	f0_index = cs40l26->ls_cal_f0_closed_loop ?
+			CS40L26_LS_CAL_F0_CL_INDEX : CS40L26_LS_CAL_F0_OL_INDEX;
+
 	for (i = 0; i < results_found; i++) {
+		if (i == f0_index) {
+			error = cs40l26_copy_ls_cal_f0_result(cs40l26, results[i]);
+			if (error)
+				goto err_mutex;
+
+			continue;
+		}
+
 		if (cs40l26_ls_cal_params[i].runtime_name == NULL)
 			continue;
 
@@ -2357,6 +2428,7 @@ static struct attribute *cs40l26_dev_attrs_cal[] = {
 	&dev_attr_f0_measured.attr,
 	&dev_attr_q_measured.attr,
 	&dev_attr_redc_measured.attr,
+	&dev_attr_ls_calibration_f0_closed_loop.attr,
 	&dev_attr_ls_calibration_params_temp.attr,
 	&dev_attr_ls_calibration_status.attr,
 	&dev_attr_ls_calibration_results.attr,
