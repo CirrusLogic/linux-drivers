@@ -821,6 +821,11 @@
 #define CS40L26_LS_CAL_NUM_REGS			47
 #define CS40L26_LS_CAL_REINIT_MASK		BIT(2)
 
+#define CS40L26_LS_CAL_F0_OL_INDEX		2
+#define CS40L26_LS_CAL_F0_CL_INDEX		7
+
+#define CS40L26_LS_CAL_F0_TO_VIB_SHIFT		2
+
 #define CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS	6
 
 #define CS40L26_F0_EST_FREQ_FRAC_BITS		14
@@ -1322,6 +1327,7 @@ struct cs40l26_private {
 	struct list_head err_head;
 	bool cal_ongoing;
 	bool disable_asp_preempt;
+	bool ls_cal_f0_closed_loop;
 };
 
 struct cs40l26_codec {
