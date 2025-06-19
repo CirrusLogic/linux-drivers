@@ -417,6 +417,20 @@ Description:
 			Maximum: 0x1E0000 (120 Hz) or 0x9E0000 (-120 Hz)
 			Default: 0x1E0000 (120 Hz)
 
+What:		/sys/class/input/input(x)/calibration/ls_calibration_f0_closed_loop
+Date:		June 2025
+Contact:	patches@opensource.cirrus.com
+Description:
+		Determines whether STATE_OL_RESULTS_F0 or STATE_CL_RESULTS_F0
+		will be applied to F0_OTP_STORED when LS Calibration values
+		are written to ls_calibration_results.
+
+		Access: Read, Write
+
+		Valid values: boolean
+			0: STATE_OL_RESULTS_F0 is used
+			1: STATE_CL_RESULTS_F0 is used
+
 What:		/sys/class/input/input(x)/calibration/ls_calibration_params_temp
 Date:		January 2024
 Contact:	patches@opensource.cirrus.com
