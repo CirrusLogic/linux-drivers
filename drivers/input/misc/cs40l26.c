@@ -1077,7 +1077,7 @@ void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26, enum cs40l26_vib
 	else
 		cs40l26->vibe_state = CS40L26_VIBE_STATE_STOPPED;
 
-	sysfs_notify(&cs40l26->dev->kobj, NULL, "vibe_state");
+	sysfs_notify(&cs40l26->dev->kobj, "default", "vibe_state");
 }
 EXPORT_SYMBOL_GPL(cs40l26_vibe_state_update);
 
