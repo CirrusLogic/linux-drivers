@@ -5781,6 +5781,8 @@ int cs40l26_log_err(struct cs40l26_private *cs40l26, int code, u32 type, const c
 
 	cs40l26->num_errs++;
 
+	sysfs_notify(&cs40l26->dev->kobj, "default", "error_log");
+
 	return code;
 }
 EXPORT_SYMBOL_GPL(cs40l26_log_err);
