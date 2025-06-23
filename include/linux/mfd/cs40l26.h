@@ -921,7 +921,17 @@
 
 /* Error Logging */
 #define CS40L26_FXN_NAME_MAX_LEN	40
-#define CS40L26_ERR_STR_MAX_LEN		100
+#define CS40L26_ERR_STR_MAX_LEN		64
+
+/*
+ * Maximum size of log needs to be constrained
+ * such that PAGE_SIZE divided by maximum string
+ * length is greather than the log size.
+ * For example, for PAGE_SIZE = 4096, with a maximum
+ * string length of 64, the log size can be set to 64.
+ * (4096 / 64 = 64)
+ */
+#define CS40L26_ERR_LOG_SIZE		64
 
 /* enums */
 enum cs40l26_amp_drv_slope_type {
@@ -1218,7 +1228,7 @@ struct cs40l26_err {
 	int code;
 	u32 type;
 	char fxn_name[CS40L26_FXN_NAME_MAX_LEN];
-	struct list_head list;
+	int num;
 };
 
 struct cs40l26_private {
@@ -1324,7 +1334,8 @@ struct cs40l26_private {
 	enum cs40l26_amp_drv_slope_type amp_drv_slope;
 	enum cs40l26_bus_type bus_type;
 	u32 broadcast_addr;
-	struct list_head err_head;
+	struct cs40l26_err errs[CS40L26_ERR_LOG_SIZE];
+	int num_errs;
 	bool cal_ongoing;
 	bool disable_asp_preempt;
 	bool ls_cal_f0_closed_loop;
