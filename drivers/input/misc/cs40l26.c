@@ -5771,18 +5771,15 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 
 int cs40l26_log_err(struct cs40l26_private *cs40l26, int code, u32 type, const char *fxn_name)
 {
-	struct cs40l26_err *err;
+	int index = cs40l26->num_errs % CS40L26_ERR_LOG_SIZE;
 
-	err = devm_kzalloc(cs40l26->dev, sizeof(*err), GFP_ATOMIC);
-	if (!err)
-		return code;
+	cs40l26->errs[index].code = code;
+	cs40l26->errs[index].type = type;
+	cs40l26->errs[index].num = cs40l26->num_errs;
 
-	err->code = code;
-	err->type = type;
+	strscpy(cs40l26->errs[index].fxn_name, fxn_name, CS40L26_FXN_NAME_MAX_LEN);
 
-	strscpy(err->fxn_name, fxn_name, CS40L26_FXN_NAME_MAX_LEN);
-
-	list_add(&err->list, &cs40l26->err_head);
+	cs40l26->num_errs++;
 
 	return code;
 }
@@ -5792,8 +5789,6 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 {
 	static const char * const regulator_names[] = { "VP", "VA" };
 	int error;
-
-	INIT_LIST_HEAD(&cs40l26->err_head);
 
 	mutex_init(&cs40l26->lock);
 
