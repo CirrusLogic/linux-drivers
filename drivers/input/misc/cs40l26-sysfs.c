@@ -1120,23 +1120,23 @@ static DEVICE_ATTR_RO(braking_time_ms);
 static ssize_t error_log_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int count, error = 0, tmp_count;
+	int count, error = 0, i, nelements, tmp_count;
 	char tmp_str[CS40L26_ERR_STR_MAX_LEN];
-	struct cs40l26_err *err;
 	ssize_t str_size;
-	size_t nelements;
 	char *str;
 
 	mutex_lock(&cs40l26->lock);
 
-	nelements = list_count_nodes(&cs40l26->err_head);
+	nelements = cs40l26->num_errs > CS40L26_ERR_LOG_SIZE ?
+			CS40L26_ERR_LOG_SIZE : cs40l26->num_errs;
+
 	if (!nelements) {
 		dev_err(cs40l26->dev, "Error Log is Empty\n");
 		error = -ENODATA;
 		goto mutex_exit;
 	}
 
-	str_size = nelements * CS40L26_ERR_STR_MAX_LEN;
+	str_size = cs40l26->num_errs * CS40L26_ERR_STR_MAX_LEN;
 
 	str = kzalloc(str_size, GFP_KERNEL);
 	if (!str) {
@@ -1144,9 +1144,12 @@ static ssize_t error_log_show(struct device *dev, struct device_attribute *attr,
 		goto mutex_exit;
 	}
 
-	list_for_each_entry(err, &cs40l26->err_head, list) {
+	for (i = 0; i < nelements; i++) {
 		tmp_count = snprintf(tmp_str, CS40L26_ERR_STR_MAX_LEN,
-				"%s: code = %d, type = %u\n", err->fxn_name, err->code, err->type);
+				"%d. %s: code = %d, type = %u\n", cs40l26->errs[i].num + 1,
+				cs40l26->errs[i].fxn_name, cs40l26->errs[i].code,
+				cs40l26->errs[i].type);
+
 		if (tmp_count != strlen(tmp_str)) {
 			if (tmp_count < 0)
 				error = tmp_count;
@@ -1171,26 +1174,28 @@ mutex_exit:
 }
 
 static ssize_t error_log_store(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count)
+		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	struct cs40l26_err *err, *err_tmp;
-	int error;
-	u32 val;
+	int error, i, nelements;
+	bool clear;
 
-	error = kstrtou32(buf, 10, &val);
+	error = kstrtobool(buf, &clear);
 	if (error)
 		return error;
 
-	if (val <= 0)
-		return -EINVAL;
+	if (!clear)
+		return count;
 
 	mutex_lock(&cs40l26->lock);
 
-	list_for_each_entry_safe(err, err_tmp, &cs40l26->err_head, list) {
-		list_del(&err->list);
-		devm_kfree(cs40l26->dev, err);
-	}
+	nelements = cs40l26->num_errs > CS40L26_ERR_LOG_SIZE ?
+			CS40L26_ERR_LOG_SIZE : cs40l26->num_errs;
+
+	for (i = 0; i < nelements; i++)
+		memset((void *) &cs40l26->errs[i], 0, sizeof(struct cs40l26_err));
+
+	cs40l26->num_errs = 0;
 
 	mutex_unlock(&cs40l26->lock);
 
