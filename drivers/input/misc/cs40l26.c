@@ -192,11 +192,9 @@ static int cs40l26_broadcast_write(struct cs40l26_private *cs40l26, u32 reg, u32
 		error = regmap_read_poll_timeout(cs40l26->regmap, reg, ack, !ack,
 				CS40L26_DSP_TIMEOUT_US_MIN, CS40L26_DSP_TIMEOUT_COUNT *
 				CS40L26_DSP_TIMEOUT_US_MIN);
-		if (error)
-			return error;
 	}
 
-	return 0;
+	return error;
 }
 
 int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
