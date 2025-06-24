@@ -4776,118 +4776,75 @@ static void cs40l26_tuning_select_from_svc_le(struct cs40l26_private *cs40l26,
 
 static int cs40l26_coeff_load(struct cs40l26_private *cs40l26, u32 tuning)
 {
-	int error, i, nfiles = 0;
+	int error, nfiles, lf0t, dvl, a2h, ep, ls, i, head = 0;
 	const struct firmware *coeff;
-	char *coeff_names[CS40L26_MAX_TUNING_FILES];
+	char *coeff_names;
+	bool fw_match;
+
+	fw_match = (cs40l26->fw_id == CS40L26_FW_ID);
+
+	lf0t = cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_LF0T_ALGO_ID) ? 1 : 0;
+	dvl = cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_DVL_ALGO_ID) ? 1 : 0;
+	a2h = fw_match ? cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID) : 0;
+	ep = fw_match ? cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID) : 0;
+	ls = !fw_match ? cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_LS_ALGO_ID) : 0;
+
+	nfiles = 3 + lf0t + dvl + a2h + ep + ls;
+
+	coeff_names = kzalloc(CS40L26_FILE_NAME_MAX_LEN * nfiles, GFP_KERNEL);
+	if (!coeff_names) {
+		error = -ENOMEM;
+		goto err_free;
+	}
 
 	if (tuning) {
-		coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
-		if (!coeff_names[nfiles]) {
-			error = -ENOMEM;
-			goto err_free;
-		}
+		snprintf(coeff_names + head++ * CS40L26_FILE_NAME_MAX_LEN,
+				 CS40L26_FILE_NAME_MAX_LEN,
+				 "%s%d%s", CS40L26_WT_FILE_PREFIX, tuning, CS40L26_FILE_SUFFIX);
 
-		snprintf(coeff_names[nfiles++], CS40L26_FILE_NAME_MAX_LEN, "%s%d%s",
-				CS40L26_WT_FILE_PREFIX, tuning, CS40L26_FILE_SUFFIX);
-
-		coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
-		if (!coeff_names[nfiles]) {
-			error = -ENOMEM;
-			goto err_free;
-		}
-
-		snprintf(coeff_names[nfiles++], CS40L26_FILE_NAME_MAX_LEN, "%s%d%s",
-				CS40L26_SVC_FILE_PREFIX, tuning, CS40L26_FILE_SUFFIX);
+		snprintf(coeff_names + head++ * CS40L26_FILE_NAME_MAX_LEN,
+				 CS40L26_FILE_NAME_MAX_LEN,
+				 "%s%d%s", CS40L26_SVC_FILE_PREFIX, tuning, CS40L26_FILE_SUFFIX);
 	} else {
-		coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
-		if (!coeff_names[nfiles]) {
-			error = -ENOMEM;
-			goto err_free;
-		}
+		strscpy(coeff_names + head++ * CS40L26_FILE_NAME_MAX_LEN, CS40L26_WT_FILE_NAME,
+				CS40L26_FILE_NAME_MAX_LEN);
 
-		strscpy(coeff_names[nfiles++], CS40L26_WT_FILE_NAME, CS40L26_FILE_NAME_MAX_LEN);
-
-		coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
-		if (!coeff_names[nfiles]) {
-			error = -ENOMEM;
-			goto err_free;
-		}
-
-		strscpy(coeff_names[nfiles++], CS40L26_SVC_FILE_NAME, CS40L26_FILE_NAME_MAX_LEN);
+		strscpy(coeff_names + head++ * CS40L26_FILE_NAME_MAX_LEN, CS40L26_SVC_FILE_NAME,
+				CS40L26_FILE_NAME_MAX_LEN);
 	}
 
-	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_LF0T_ALGO_ID)) {
-		coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
-		if (!coeff_names[nfiles]) {
-			error = -ENOMEM;
-			goto err_free;
-		}
-
-		strscpy(coeff_names[nfiles++], CS40L26_LF0T_FILE_NAME, CS40L26_FILE_NAME_MAX_LEN);
-	}
-
-	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_DVL_ALGO_ID)) {
-		coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
-		if (!coeff_names[nfiles]) {
-			error = -ENOMEM;
-			goto err_free;
-		}
-
-		strscpy(coeff_names[nfiles++], CS40L26_DVL_FILE_NAME, CS40L26_FILE_NAME_MAX_LEN);
-	}
-
-	if (cs40l26->fw_id == CS40L26_FW_ID) {
-		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID)) {
-			coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
-			if (!coeff_names[nfiles]) {
-				error = -ENOMEM;
-				goto err_free;
-			}
-
-			strscpy(coeff_names[nfiles++], CS40L26_A2H_FILE_NAME,
-					CS40L26_FILE_NAME_MAX_LEN);
-		}
-
-		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID)) {
-			coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
-			if (!coeff_names[nfiles]) {
-				error = -ENOMEM;
-				goto err_free;
-			}
-
-			strscpy(coeff_names[nfiles++], CS40L26_EP_FILE_NAME,
-					CS40L26_FILE_NAME_MAX_LEN);
-		}
-		coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
-		if (!coeff_names[nfiles]) {
-			error = -ENOMEM;
-			goto err_free;
-		}
-
-		strscpy(coeff_names[nfiles++], CS40L26_DBC_FILE_NAME, CS40L26_FILE_NAME_MAX_LEN);
+	if (fw_match) {
+		strscpy(coeff_names + head++ * CS40L26_FILE_NAME_MAX_LEN, CS40L26_DBC_FILE_NAME,
+				CS40L26_FILE_NAME_MAX_LEN);
 	} else {
-		coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
-		if (!coeff_names[nfiles]) {
-			error = -ENOMEM;
-			goto err_free;
-		}
-
-		strscpy(coeff_names[nfiles++], CS40L26_CALIB_FILE_NAME, CS40L26_FILE_NAME_MAX_LEN);
-
-		if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_LS_ALGO_ID)) {
-			coeff_names[nfiles] = kzalloc(CS40L26_FILE_NAME_MAX_LEN, GFP_KERNEL);
-			if (!coeff_names[nfiles]) {
-				error = -ENOMEM;
-				goto err_free;
-			}
-
-			strscpy(coeff_names[nfiles++], CS40L26_LS_CAL_FILE_NAME,
-					CS40L26_FILE_NAME_MAX_LEN);
-		}
+		strscpy(coeff_names + head++ * CS40L26_FILE_NAME_MAX_LEN, CS40L26_CALIB_FILE_NAME,
+				CS40L26_FILE_NAME_MAX_LEN);
 	}
+
+	if (lf0t)
+		strscpy(coeff_names + head++ * CS40L26_FILE_NAME_MAX_LEN, CS40L26_LF0T_FILE_NAME,
+				CS40L26_FILE_NAME_MAX_LEN);
+
+	if (dvl)
+		strscpy(coeff_names + head++ * CS40L26_FILE_NAME_MAX_LEN, CS40L26_DVL_FILE_NAME,
+				CS40L26_FILE_NAME_MAX_LEN);
+
+	if (a2h)
+		strscpy(coeff_names + head++ * CS40L26_FILE_NAME_MAX_LEN, CS40L26_A2H_FILE_NAME,
+				CS40L26_FILE_NAME_MAX_LEN);
+
+	if (ep)
+		strscpy(coeff_names + head++ * CS40L26_FILE_NAME_MAX_LEN, CS40L26_EP_FILE_NAME,
+				CS40L26_FILE_NAME_MAX_LEN);
+
+	if (ls)
+		strscpy(coeff_names + head++ * CS40L26_FILE_NAME_MAX_LEN, CS40L26_LS_CAL_FILE_NAME,
+				CS40L26_FILE_NAME_MAX_LEN);
 
 	for (i = 0; i < nfiles; i++) {
-		error = request_firmware(&coeff, coeff_names[i], cs40l26->dev);
+		char *coeff_names_i = coeff_names + i * CS40L26_FILE_NAME_MAX_LEN;
+
+		error = request_firmware(&coeff, coeff_names_i, cs40l26->dev);
 		if (error) {
 			dev_warn(cs40l26->dev, "Continuing...\n");
 			continue;
@@ -4896,10 +4853,10 @@ static int cs40l26_coeff_load(struct cs40l26_private *cs40l26, u32 tuning)
 		error = cl_dsp_coeff_file_parse(cs40l26->dsp, coeff);
 		if (error) {
 			dev_warn(cs40l26->dev, "Failed to load %s, %d. Continuing...\n",
-					coeff_names[i], error);
+					coeff_names_i, error);
 		} else {
-			dev_info(cs40l26->dev, "%s Loaded Successfully\n", coeff_names[i]);
-			if (!strncmp(coeff_names[i], CS40L26_DBC_FILE_NAME,
+			dev_info(cs40l26->dev, "%s Loaded Successfully\n", coeff_names_i);
+			if (!strncmp(coeff_names_i, CS40L26_DBC_FILE_NAME,
 					CS40L26_FILE_NAME_MAX_LEN))
 				cs40l26->dbc_tuning_loaded = true;
 		}
@@ -4910,8 +4867,7 @@ static int cs40l26_coeff_load(struct cs40l26_private *cs40l26, u32 tuning)
 	error = 0;
 
 err_free:
-	for (i = 0; i < nfiles; i++)
-		kfree(coeff_names[i]);
+	kfree(coeff_names);
 
 	return error;
 }
