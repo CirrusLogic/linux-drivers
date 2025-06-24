@@ -117,13 +117,13 @@ static ssize_t dsp_state_show(struct device *dev, struct device_attribute *attr,
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", (unsigned int) (dsp_state & 0xFF));
+	return error ? error : sysfs_emit(buf, "%u\n", (unsigned int) (dsp_state & 0xFF));
 }
 static DEVICE_ATTR_RO(dsp_state);
 
 static ssize_t owt_lib_compat_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "1.0.0\n");
+	return sysfs_emit(buf, "1.0.0\n");
 }
 static DEVICE_ATTR_RO(owt_lib_compat);
 
@@ -150,7 +150,7 @@ static ssize_t overprotection_gain_show(struct device *dev, struct device_attrib
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%d\n", op_gain);
+	return error ? error : sysfs_emit(buf, "%d\n", op_gain);
 }
 
 static ssize_t overprotection_gain_store(struct device *dev, struct device_attribute *attr,
@@ -210,7 +210,7 @@ static ssize_t halo_heartbeat_show(struct device *dev, struct device_attribute *
 	if (error)
 		return error;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", halo_heartbeat);
+	return sysfs_emit(buf, "%d\n", halo_heartbeat);
 }
 static DEVICE_ATTR_RO(halo_heartbeat);
 
@@ -229,7 +229,7 @@ static ssize_t pm_stdby_timeout_ms_show(struct device *dev, struct device_attrib
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", timeout_ms);
+	return error ? error : sysfs_emit(buf, "%u\n", timeout_ms);
 }
 
 static ssize_t pm_stdby_timeout_ms_store(struct device *dev,
@@ -271,7 +271,7 @@ static ssize_t pm_active_timeout_ms_show(struct device *dev,
 	cs40l26_pm_exit(cs40l26->dev);
 
 	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__) :
-			snprintf(buf, PAGE_SIZE, "%u\n", timeout_ms);
+			sysfs_emit(buf, "%u\n", timeout_ms);
 }
 
 static ssize_t pm_active_timeout_ms_store(struct device *dev,
@@ -311,7 +311,7 @@ static ssize_t vibe_state_show(struct device *dev, struct device_attribute *attr
 	state = cs40l26->vibe_state;
 	mutex_unlock(&cs40l26->lock);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", state);
+	return sysfs_emit(buf, "%u\n", state);
 }
 static DEVICE_ATTR_RO(vibe_state);
 
@@ -338,7 +338,7 @@ static ssize_t owt_free_space_show(struct device *dev,
 		goto err_pm;
 	}
 
-	error = snprintf(buf, PAGE_SIZE, "%d\n", words * CL_DSP_BYTES_PER_WORD);
+	error = sysfs_emit(buf, "%d\n", words * CL_DSP_BYTES_PER_WORD);
 
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
@@ -383,7 +383,7 @@ static ssize_t die_temp_show(struct device *dev,
 
 	die_temp = (val & CS40L26_TEMP_RESULT_FILT_MASK) >> CS40L26_TEMP_RESULT_FILT_SHIFT;
 
-	error = snprintf(buf, PAGE_SIZE, "0x%03X\n", die_temp);
+	error = sysfs_emit(buf, "0x%03X\n", die_temp);
 
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
@@ -408,7 +408,7 @@ static ssize_t num_waves_show(struct device *dev, struct device_attribute *attr,
 		goto err_pm;
 	}
 
-	error = snprintf(buf, PAGE_SIZE, "%d\n", nwaves);
+	error = sysfs_emit(buf, "%d\n", nwaves);
 
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
@@ -439,7 +439,7 @@ static ssize_t f0_offset_show(struct device *dev, struct device_attribute *attr,
 	if (error)
 		goto err_mutex;
 
-	error = snprintf(buf, PAGE_SIZE, "%u\n", val);
+	error = sysfs_emit(buf, "%u\n", val);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -497,7 +497,7 @@ static ssize_t delay_before_stop_playback_us_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	error = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->delay_before_stop_playback_us);
+	error = sysfs_emit(buf, "%d\n", cs40l26->delay_before_stop_playback_us);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -543,7 +543,7 @@ static ssize_t f0_comp_enable_show(struct device *dev, struct device_attribute *
 		goto err_mutex;
 	}
 
-	error = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->comp_enable_f0);
+	error = sysfs_emit(buf, "%d\n", cs40l26->comp_enable_f0);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -621,7 +621,7 @@ static ssize_t redc_comp_enable_show(struct device *dev, struct device_attribute
 		goto err_mutex;
 	}
 
-	error = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->comp_enable_redc);
+	error = sysfs_emit(buf, "%d\n", cs40l26->comp_enable_redc);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -688,9 +688,9 @@ static ssize_t swap_firmware_show(struct device *dev, struct device_attribute *a
 	mutex_lock(&cs40l26->lock);
 
 	if (cs40l26->fw_id == CS40L26_FW_ID) {
-		error = snprintf(buf, PAGE_SIZE, "%d\n", 0);
+		error = sysfs_emit(buf, "%d\n", 0);
 	} else if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
-		error = snprintf(buf, PAGE_SIZE, "%d\n", 1);
+		error = sysfs_emit(buf, "%d\n", 1);
 	} else {
 		error = -EINVAL;
 		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
@@ -730,7 +730,7 @@ static ssize_t swap_wavetable_show(struct device *dev, struct device_attribute *
 
 	mutex_lock(&cs40l26->lock);
 
-	error = snprintf(buf, PAGE_SIZE, "%u\n", cs40l26->wt_num);
+	error = sysfs_emit(buf, "%u\n", cs40l26->wt_num);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -816,7 +816,7 @@ static ssize_t fw_rev_show(struct device *dev, struct device_attribute *attr, ch
 	if (error)
 		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 
-	return snprintf(buf, PAGE_SIZE, "%d.%d.%d\n",
+	return sysfs_emit(buf, "%d.%d.%d\n",
 			(int) CL_DSP_GET_MAJOR(val),
 			(int) CL_DSP_GET_MINOR(val),
 			(int) CL_DSP_GET_PATCH(val));
@@ -1113,7 +1113,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", braking_time);
+	return error ? error : sysfs_emit(buf, "%u\n", braking_time);
 }
 static DEVICE_ATTR_RO(braking_time_ms);
 
@@ -1162,7 +1162,7 @@ static ssize_t error_log_show(struct device *dev, struct device_attribute *attr,
 		strncat(str, tmp_str, CS40L26_ERR_STR_MAX_LEN);
 	}
 
-	count = snprintf(buf, PAGE_SIZE, str);
+	count = sysfs_emit(buf, str);
 
 free_exit:
 	kfree(str);
@@ -1328,7 +1328,7 @@ static ssize_t cal_status_show(struct device *dev, struct device_attribute *attr
 
 	mutex_lock(&cs40l26->lock);
 
-	count = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->cal_ongoing ? 1 : 0);
+	count = sysfs_emit(buf, "%d\n", cs40l26->cal_ongoing ? 1 : 0);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1385,7 +1385,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%08X\n", f0_measured);
+	return error ? error : sysfs_emit(buf, "%08X\n", f0_measured);
 }
 static DEVICE_ATTR_RO(f0_measured);
 
@@ -1415,7 +1415,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%08X\n", q_measured);
+	return error ? error : sysfs_emit(buf, "%08X\n", q_measured);
 }
 static DEVICE_ATTR_RO(q_measured);
 
@@ -1445,7 +1445,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%08X\n", redc_measured);
+	return error ? error : sysfs_emit(buf, "%08X\n", redc_measured);
 }
 static DEVICE_ATTR_RO(redc_measured);
 
@@ -1475,7 +1475,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%08X\n", redc_est);
+	return error ? error : sysfs_emit(buf, "%08X\n", redc_est);
 }
 
 static ssize_t redc_est_store(struct device *dev, struct device_attribute *attr, const char *buf,
@@ -1541,7 +1541,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%08X\n", f0_stored);
+	return error ? error : sysfs_emit(buf, "%08X\n", f0_stored);
 }
 
 static ssize_t f0_stored_store(struct device *dev, struct device_attribute *attr, const char *buf,
@@ -1610,7 +1610,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%08X\n", redc_stored);
+	return error ? error : sysfs_emit(buf, "%08X\n", redc_stored);
 }
 
 static ssize_t redc_stored_store(struct device *dev, struct device_attribute *attr,
@@ -1674,7 +1674,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%08X\n", freq_centre);
+	return error ? error : sysfs_emit(buf, "%08X\n", freq_centre);
 }
 
 static ssize_t freq_centre_store(struct device *dev, struct device_attribute *attr,
@@ -1738,7 +1738,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%08X\n", freq_span);
+	return error ? error : sysfs_emit(buf, "%08X\n", freq_span);
 }
 
 static ssize_t freq_span_store(struct device *dev, struct device_attribute *attr,
@@ -1849,7 +1849,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%d\n", f0_and_q_cal_time_ms);
+	return error ? error : sysfs_emit(buf, "%d\n", f0_and_q_cal_time_ms);
 }
 static DEVICE_ATTR_RO(f0_and_q_cal_time_ms);
 
@@ -1881,7 +1881,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%d\n", redc_total_cal_time_ms);
+	return error ? error : sysfs_emit(buf, "%d\n", redc_total_cal_time_ms);
 }
 static DEVICE_ATTR_RO(redc_cal_time_ms);
 
@@ -1916,7 +1916,7 @@ err_mutex:
 	if (error)
 		return error;
 
-	return snprintf(buf, PAGE_SIZE, "%08X %08X %08X %08X %08X %08X\n",
+	return sysfs_emit(buf, "%08X %08X %08X %08X %08X %08X\n",
 			dvl_peq_coefficients[0], dvl_peq_coefficients[1], dvl_peq_coefficients[2],
 			dvl_peq_coefficients[3], dvl_peq_coefficients[4], dvl_peq_coefficients[5]);
 }
@@ -2066,7 +2066,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "0x%06X\n", params_temp);
+	return error ? error : sysfs_emit(buf, "0x%06X\n", params_temp);
 }
 
 static ssize_t ls_calibration_params_temp_store(struct device *dev, struct device_attribute *attr,
@@ -2164,7 +2164,7 @@ static ssize_t ls_calibration_status_show(struct device *dev, struct device_attr
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", status);
+	return error ? error : sysfs_emit(buf, "%u\n", status);
 }
 static DEVICE_ATTR_RO(ls_calibration_status);
 
@@ -2196,7 +2196,7 @@ static ssize_t ls_calibration_results_show(struct device *dev, struct device_att
 		char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int count = 0, error, i;
+	int at = 0, error, i;
 	u32 reg, val;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
@@ -2226,7 +2226,11 @@ static ssize_t ls_calibration_results_show(struct device *dev, struct device_att
 		if (error)
 			goto err_mutex;
 
-		count += snprintf(&buf[count], PAGE_SIZE, "0x%06X\n", val);
+		error = sysfs_emit_at(buf, at, "0x%06X\n", val);
+		if (error < 0)
+			goto err_mutex;
+
+		at += error;
 	}
 
 err_mutex:
@@ -2234,7 +2238,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : count;
+	return error < 0 ? error : at;
 }
 
 static ssize_t ls_calibration_results_store(struct device *dev, struct device_attribute *attr,
@@ -2321,7 +2325,7 @@ static ssize_t ls_calibration_results_name_show(struct device *dev, struct devic
 		char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int count = 0, error, i;
+	int at = 0, error, i;
 	u32 reg, val;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
@@ -2352,11 +2356,16 @@ static ssize_t ls_calibration_results_name_show(struct device *dev, struct devic
 			goto err_mutex;
 
 		if (cs40l26->fw_id == CS40L26_FW_CALIB_ID)
-			count += snprintf(&buf[count], PAGE_SIZE, "%s: 0x%06X\n",
+			error = sysfs_emit_at(buf, at, "%s: 0x%06X\n",
 					cs40l26_ls_cal_params[i].calib_name, val);
 		else
-			count += snprintf(&buf[count], PAGE_SIZE, "%s: 0x%06X\n",
+			error = sysfs_emit_at(buf, at, "%s: 0x%06X\n",
 					cs40l26_ls_cal_params[i].runtime_name, val);
+
+		if (error < 0)
+			goto err_mutex;
+
+		at += error;
 	}
 
 err_mutex:
@@ -2364,7 +2373,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : count;
+	return error < 0 ? error : at;
 }
 static DEVICE_ATTR_RO(ls_calibration_results_name);
 
@@ -2386,7 +2395,7 @@ static ssize_t svc_le_est_show(struct device *dev, struct device_attribute *attr
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", le);
+	return error ? error : sysfs_emit(buf, "%u\n", le);
 }
 static DEVICE_ATTR_RO(svc_le_est);
 
@@ -2397,7 +2406,7 @@ static ssize_t svc_le_stored_show(struct device *dev, struct device_attribute *a
 
 	mutex_lock(&cs40l26->lock);
 
-	error = snprintf(buf, PAGE_SIZE, "%d\n", cs40l26->svc_le_est_stored);
+	error = sysfs_emit(buf, "%d\n", cs40l26->svc_le_est_stored);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -2479,7 +2488,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "%u\n", enable);
+	return error ? error : sysfs_emit(buf, "%u\n", enable);
 }
 
 static ssize_t logging_en_store(struct device *dev, struct device_attribute *attr, const char *buf,
@@ -2551,21 +2560,24 @@ static ssize_t available_logger_srcs_show(struct device *dev, struct device_attr
 	int i;
 
 	for (i = 0; i < cs40l26->num_log_srcs; i++) {
+		if (i != 0 || i == cs40l26->num_log_srcs - 1)
+			strncat(log_srcs, "\n", 1);
+
 		switch (cs40l26->log_srcs[i].id) {
 		case CS40L26_LOGGER_SRC_ID_BEMF:
-			strncat(log_srcs, "BEMF\n", 5);
+			strncat(log_srcs, "BEMF", 4);
 			break;
 		case CS40L26_LOGGER_SRC_ID_VBST:
-			strncat(log_srcs, "VBST\n", 5);
+			strncat(log_srcs, "VBST", 4);
 			break;
 		case CS40L26_LOGGER_SRC_ID_VMON:
-			strncat(log_srcs, "VMON\n", 5);
+			strncat(log_srcs, "VMON", 4);
 			break;
 		case CS40L26_LOGGER_SRC_ID_EP:
-			strncat(log_srcs, "EP\n", 3);
+			strncat(log_srcs, "EP", 2);
 			break;
 		case CS40L26_LOGGER_SRC_ID_IMON:
-			strncat(log_srcs, "IMON\n", 5);
+			strncat(log_srcs, "IMON", 4);
 			break;
 		default:
 			dev_err(cs40l26->dev, "Invalid source ID %d\n", cs40l26->log_srcs[i].id);
@@ -2573,7 +2585,7 @@ static ssize_t available_logger_srcs_show(struct device *dev, struct device_attr
 		}
 	}
 
-	return snprintf(buf, PAGE_SIZE, "%s", log_srcs);
+	return sysfs_emit(buf, "%s\n", log_srcs);
 }
 static DEVICE_ATTR_RO(available_logger_srcs);
 
@@ -2623,7 +2635,7 @@ static ssize_t max_bemf_show(struct device *dev, struct device_attribute *attr, 
 
 	error = cs40l26_logger_max_get(cs40l26, CS40L26_LOGGER_SRC_ID_BEMF, &max_bemf);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "0x%06X\n", max_bemf);
+	return error ? error : sysfs_emit(buf, "0x%06X\n", max_bemf);
 }
 static DEVICE_ATTR_RO(max_bemf);
 
@@ -2635,7 +2647,7 @@ static ssize_t max_vbst_show(struct device *dev, struct device_attribute *attr, 
 
 	error = cs40l26_logger_max_get(cs40l26, CS40L26_LOGGER_SRC_ID_VBST, &max_vbst);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "0x%06X\n", max_vbst);
+	return error ? error : sysfs_emit(buf, "0x%06X\n", max_vbst);
 }
 static DEVICE_ATTR_RO(max_vbst);
 
@@ -2647,7 +2659,7 @@ static ssize_t max_vmon_show(struct device *dev, struct device_attribute *attr, 
 
 	error = cs40l26_logger_max_get(cs40l26, CS40L26_LOGGER_SRC_ID_VMON, &max_vmon);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "0x%06X\n", max_vmon);
+	return error ? error : sysfs_emit(buf, "0x%06X\n", max_vmon);
 }
 static DEVICE_ATTR_RO(max_vmon);
 
@@ -2659,7 +2671,7 @@ static ssize_t max_excursion_show(struct device *dev, struct device_attribute *a
 
 	error = cs40l26_logger_max_get(cs40l26, CS40L26_LOGGER_SRC_ID_EP, &max_excursion);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "0x%06X\n", max_excursion);
+	return error ? error : sysfs_emit(buf, "0x%06X\n", max_excursion);
 }
 static DEVICE_ATTR_RO(max_excursion);
 
@@ -2671,7 +2683,7 @@ static ssize_t max_imon_show(struct device *dev, struct device_attribute *attr, 
 
 	error = cs40l26_logger_max_get(cs40l26, CS40L26_LOGGER_SRC_ID_IMON, &max_imon);
 
-	return error ? error : snprintf(buf, PAGE_SIZE, "0x%06X\n", max_imon);
+	return error ? error : sysfs_emit(buf, "0x%06X\n", max_imon);
 }
 DEVICE_ATTR_RO(max_imon);
 
@@ -2699,7 +2711,7 @@ static ssize_t fw_algo_id_show(struct device *dev, struct device_attribute *attr
 
 	mutex_lock(&cs40l26->lock);
 
-	error = snprintf(buf, PAGE_SIZE, "0x%06X\n", cs40l26->sysfs_fw.algo_id);
+	error = sysfs_emit(buf, "0x%06X\n", cs40l26->sysfs_fw.algo_id);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -2734,7 +2746,7 @@ static ssize_t fw_ctrl_name_show(struct device *dev, struct device_attribute *at
 
 	mutex_lock(&cs40l26->lock);
 
-	error = snprintf(buf, PAGE_SIZE, "%s\n", cs40l26->sysfs_fw.ctrl_name);
+	error = sysfs_emit(buf, "%s\n", cs40l26->sysfs_fw.ctrl_name);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -2794,7 +2806,7 @@ static ssize_t fw_ctrl_reg_show(struct device *dev, struct device_attribute *att
 	mutex_unlock(&cs40l26->lock);
 
 	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__) :
-			snprintf(buf, PAGE_SIZE, "0x%08X\n", reg);
+			sysfs_emit(buf, "0x%08X\n", reg);
 }
 static DEVICE_ATTR_RO(fw_ctrl_reg);
 
@@ -2811,7 +2823,7 @@ static ssize_t fw_ctrl_size_words_show(struct device *dev, struct device_attribu
 	mutex_unlock(&cs40l26->lock);
 
 	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__) :
-			snprintf(buf, PAGE_SIZE, "%zd\n", nbytes / CL_DSP_BYTES_PER_WORD);
+			sysfs_emit(buf, "%zd\n", nbytes / CL_DSP_BYTES_PER_WORD);
 }
 static DEVICE_ATTR_RO(fw_ctrl_size_words);
 
@@ -2895,7 +2907,7 @@ mutex_exit:
 	cs40l26_pm_exit(cs40l26->dev);
 
 	if (!error)
-		nwritten = snprintf(buf, PAGE_SIZE, "%s", final_str);
+		nwritten = sysfs_emit(buf, "%s", final_str);
 
 	kfree(final_str);
 	kfree(val);
@@ -3006,7 +3018,7 @@ static ssize_t fw_mem_block_type_show(struct device *dev, struct device_attribut
 
 	mutex_lock(&cs40l26->lock);
 
-	error = snprintf(buf, PAGE_SIZE, "0x%04X\n", cs40l26->sysfs_fw.block_type);
+	error = sysfs_emit(buf, "0x%04X\n", cs40l26->sysfs_fw.block_type);
 
 	mutex_unlock(&cs40l26->lock);
 
