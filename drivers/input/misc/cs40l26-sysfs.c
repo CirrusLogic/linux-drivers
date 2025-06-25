@@ -1120,10 +1120,8 @@ static DEVICE_ATTR_RO(braking_time_ms);
 static ssize_t error_log_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int count, error = 0, i, nelements, tmp_count;
-	char tmp_str[CS40L26_ERR_STR_MAX_LEN];
-	ssize_t str_size;
-	char *str;
+	int nelements, i, error = 0, at = 0;
+	char str[CS40L26_ERR_STR_MAX_LEN];
 
 	mutex_lock(&cs40l26->lock);
 
@@ -1136,41 +1134,29 @@ static ssize_t error_log_show(struct device *dev, struct device_attribute *attr,
 		goto mutex_exit;
 	}
 
-	str_size = cs40l26->num_errs * CS40L26_ERR_STR_MAX_LEN;
-
-	str = kzalloc(str_size, GFP_KERNEL);
-	if (!str) {
-		error = -ENOMEM;
-		goto mutex_exit;
-	}
-
 	for (i = 0; i < nelements; i++) {
-		tmp_count = snprintf(tmp_str, CS40L26_ERR_STR_MAX_LEN,
-				"%d. %s: code = %d, type = %u\n", cs40l26->errs[i].num + 1,
-				cs40l26->errs[i].fxn_name, cs40l26->errs[i].code,
-				cs40l26->errs[i].type);
+		error = snprintf(str, CS40L26_ERR_STR_MAX_LEN, "%d. %s: code = %d, type = %u\n",
+			cs40l26->errs[i].num + 1, cs40l26->errs[i].fxn_name,
+			cs40l26->errs[i].code, cs40l26->errs[i].type);
+		if (error < 0)
+			goto mutex_exit;
 
-		if (tmp_count != strlen(tmp_str)) {
-			if (tmp_count < 0)
-				error = tmp_count;
-			else
-				error = -EINVAL;
-
-			goto free_exit;
+		if (at + error >= PAGE_SIZE) {
+			dev_info(cs40l26->dev, "Error log truncated due to page size\n");
+			goto mutex_exit;
 		}
 
-		strncat(str, tmp_str, CS40L26_ERR_STR_MAX_LEN);
+		error = sysfs_emit_at(buf, at, str);
+		if (error < 0)
+			goto mutex_exit;
+
+		at += error;
 	}
-
-	count = sysfs_emit(buf, str);
-
-free_exit:
-	kfree(str);
 
 mutex_exit:
 	mutex_unlock(&cs40l26->lock);
 
-	return error ? error : count;
+	return error < 0 ? error : at;
 }
 
 static ssize_t error_log_store(struct device *dev, struct device_attribute *attr,
