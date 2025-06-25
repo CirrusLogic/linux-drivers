@@ -3800,10 +3800,10 @@ static int cs40l26_dc_wd_config(struct cs40l26_private *cs40l26)
 
 static int cs40l26_asp_config(struct cs40l26_private *cs40l26)
 {
-	struct reg_sequence *dsp1rx_config =
-			kcalloc(2, sizeof(struct reg_sequence), GFP_KERNEL);
+	struct reg_sequence *dsp1rx_config;
 	int error;
 
+	dsp1rx_config = kcalloc(2, sizeof(struct reg_sequence), GFP_KERNEL);
 	if (!dsp1rx_config)
 		return -ENOMEM;
 
