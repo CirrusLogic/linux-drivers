@@ -407,22 +407,6 @@ static int cl_dsp_coeff_header_parse(struct cl_dsp *dsp,
 	return 0;
 }
 
-static void cl_dsp_coeff_handle_info_text(struct cl_dsp *dsp, const u8 *data,
-		u32 len)
-{
-	char *info_str;
-
-	info_str = kzalloc(len + 1, GFP_KERNEL);
-	if (!info_str)
-		return;
-
-	memcpy(info_str, data, len);
-
-	dev_dbg(dsp->dev, "WMDR Info: %s\n", info_str);
-
-	kfree(info_str);
-}
-
 static int cl_dsp_wavetable_check(struct cl_dsp *dsp, const struct firmware *fw,
 		unsigned int reg, unsigned int pos, u32 data_len, u32 type)
 {
@@ -558,8 +542,7 @@ int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw)
 		case CL_DSP_WMDR_INFO_TYPE:
 			reg = 0;
 
-			cl_dsp_coeff_handle_info_text(dsp, data_block.payload,
-					data_len);
+			dev_dbg(dsp->dev, "WMDR Info: %s\n", (char *)data_block.payload);
 
 			if (data_len < CL_DSP_WMDR_DATE_LEN)
 				break;
@@ -1038,23 +1021,6 @@ static int cl_dsp_header_parse(struct cl_dsp *dsp,
 	return 0;
 }
 
-static void cl_dsp_handle_info_text(struct cl_dsp *dsp,
-		const u8 *data, u32 len)
-{
-	char *info_str;
-
-	info_str = kzalloc(len + 1, GFP_KERNEL);
-	if (!info_str)
-		/* info block is empty or memory not allocated */
-		return;
-
-	memcpy(info_str, data, len);
-
-	dev_info(dsp->dev, "WMFW Info: %s\n", info_str);
-
-	kfree(info_str);
-}
-
 int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw,
 		bool write_fw)
 {
@@ -1094,8 +1060,7 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw,
 		switch (data_block.header.block_type) {
 		case CL_DSP_WMFW_INFO_TYPE:
 			reg = 0;
-			cl_dsp_handle_info_text(dsp, data_block.payload,
-					data_block.header.data_len);
+			dev_info(dsp->dev, "WMFW Info: %s\n", (char *)data_block.payload);
 			break;
 		case CL_DSP_PM_PACKED_TYPE:
 			reg = CL_DSP_HALO_PMEM_BASE +
