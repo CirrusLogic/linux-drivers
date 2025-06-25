@@ -5438,7 +5438,11 @@ static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 	return node_count;
 
 err:
+	for (i = 0; i < node_count; i++)
+		devm_kfree(dev, cs40l26->svc_le_vals[i]);
+
 	devm_kfree(dev, cs40l26->svc_le_vals);
+
 	return error;
 }
 
