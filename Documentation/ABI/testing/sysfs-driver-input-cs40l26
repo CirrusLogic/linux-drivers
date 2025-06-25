@@ -43,11 +43,11 @@ Description:
 		Critical errors cataloged by the driver when encountered describing the error code,
 		error type (as enumerated by driver), and the function in which the error occurred.
 
-		The errors are displayed in this format: function_name: code = <X>, type = <Y>
-		where <X> is the Linux error code and <Y> is the error type as enumerated by the
-		driver.
+		The errors are displayed in this format: error number. function_name:
+		code = <X>, type = <Y> where <X> is the Linux error code and <Y> is the error type
+		as enumerated by the driver.
 
-		Any positive integer can be written to this control in order to clear the log.
+		Write 1 to this control in order to clear the log.
 
 		Access: Read, Write
 
