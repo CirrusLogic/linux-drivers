@@ -1128,8 +1128,7 @@ err_free:
 EXPORT_SYMBOL_GPL(cl_dsp_firmware_parse);
 
 int cl_dsp_wavetable_create(struct cl_dsp *dsp, unsigned int id,
-		const char *wt_name_xm, const char *wt_name_ym,
-		const char *wt_file)
+		const char *wt_name_xm, const char *wt_name_ym)
 {
 	struct cl_dsp_wt_desc *wt_desc;
 
@@ -1144,7 +1143,6 @@ int cl_dsp_wavetable_create(struct cl_dsp *dsp, unsigned int id,
 	wt_desc->id = id;
 	strscpy(wt_desc->wt_name_xm, wt_name_xm, CL_DSP_WMDR_NAME_LEN);
 	strscpy(wt_desc->wt_name_ym, wt_name_ym, CL_DSP_WMDR_NAME_LEN);
-	strscpy(wt_desc->wt_file, wt_file, strlen(wt_desc->wt_file) + 1);
 
 	dsp->wt_desc = wt_desc;
 
