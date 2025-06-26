@@ -291,7 +291,6 @@ struct cl_dsp_wt_desc {
 	char wt_name_ym[CL_DSP_WMDR_NAME_LEN];
 	unsigned int wt_limit_xm;
 	unsigned int wt_limit_ym;
-	char wt_file[CL_DSP_WMDR_NAME_LEN];
 	char wt_date[CL_DSP_WMDR_DATE_LEN];
 	struct cl_dsp_owt_desc owt;
 	bool is_xm;
@@ -387,8 +386,7 @@ void cl_dsp_debugfs_destroy(struct cl_dsp_debugfs *db);
 struct cl_dsp *cl_dsp_create(struct device *dev, struct regmap *regmap);
 int cl_dsp_destroy(struct cl_dsp *dsp);
 int cl_dsp_wavetable_create(struct cl_dsp *dsp, unsigned int id,
-		const char *wt_name_xm, const char *wt_name_ym,
-		const char *wt_file);
+		const char *wt_name_xm, const char *wt_name_ym);
 int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw,
 		bool write_fw);
 int cl_dsp_coeff_file_parse(struct cl_dsp *dsp, const struct firmware *fw);
