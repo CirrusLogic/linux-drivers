@@ -4984,7 +4984,7 @@ static int cs40l26_cl_dsp_reinit(struct cs40l26_private *cs40l26)
 		return PTR_ERR(cs40l26->dsp);
 
 	return cl_dsp_wavetable_create(cs40l26->dsp, CS40L26_VIBEGEN_ALGO_ID,
-			CS40L26_WT_NAME_XM, CS40L26_WT_NAME_YM, CS40L26_WT_FILE_NAME);
+			CS40L26_WT_NAME_XM, CS40L26_WT_NAME_YM);
 }
 
 static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
