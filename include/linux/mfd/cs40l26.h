@@ -1251,7 +1251,6 @@ struct cs40l26_private {
 	enum cs40l26_pm_state pm_state;
 	u32 fw_id;
 	bool fw_defer;
-	bool fw_rom_only;
 	bool fw_loaded;
 	bool prev_fw_load_failed;
 	bool calib_fw;
