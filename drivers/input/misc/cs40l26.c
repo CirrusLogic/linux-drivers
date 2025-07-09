@@ -4486,22 +4486,20 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	u32 reg, value;
 	int error;
 
-	if (!cs40l26->fw_rom_only) {
-		error = regmap_set_bits(regmap, CS40L26_PWRMGT_CTL, CS40L26_MEM_RDY_MASK);
-		if (error) {
-			dev_err(dev, "Failed to set MEM_RDY\n");
-			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
-		}
-
-		error = cl_dsp_get_reg(cs40l26->dsp, "CALL_RAM_INIT", CL_DSP_XM_UNPACKED_TYPE,
-				cs40l26->fw_id, &reg);
-		if (error)
-			return error;
-
-		error = cs40l26_dsp_write(cs40l26, reg, 1);
-		if (error)
-			return error;
+	error = regmap_set_bits(regmap, CS40L26_PWRMGT_CTL, CS40L26_MEM_RDY_MASK);
+	if (error) {
+		dev_err(dev, "Failed to set MEM_RDY\n");
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "CALL_RAM_INIT", CL_DSP_XM_UNPACKED_TYPE,
+			cs40l26->fw_id, &reg);
+	if (error)
+		return error;
+
+	error = cs40l26_dsp_write(cs40l26, reg, 1);
+	if (error)
+		return error;
 
 	cs40l26->fw_loaded = true;
 
@@ -4529,11 +4527,9 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 			return error;
 	}
 
-	if (!cs40l26->fw_rom_only) {
-		error = cs40l26_dsp_start(cs40l26);
-		if (error)
-			return error;
-	}
+	error = cs40l26_dsp_start(cs40l26);
+	if (error)
+		return error;
 
 	error = cs40l26_pm_state_transition(cs40l26, CS40L26_PM_STATE_PREVENT_HIBERNATE);
 	if (error)
@@ -5012,13 +5008,11 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 		return error;
 	}
 
-	if (!cs40l26->fw_rom_only) {
-		error = cs40l26_dsp_pre_config(cs40l26);
-		if (error)
-			return error;
-	}
+	error = cs40l26_dsp_pre_config(cs40l26);
+	if (error)
+		return error;
 
-	error = cl_dsp_firmware_parse(cs40l26->dsp, fw, !cs40l26->fw_rom_only);
+	error = cl_dsp_firmware_parse(cs40l26->dsp, fw);
 	release_firmware(fw);
 	if (error)
 		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
@@ -5599,8 +5593,6 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 	int error;
 
 	cs40l26->fw_defer = device_property_present(dev, "cirrus,fw-defer");
-
-	cs40l26->fw_rom_only = device_property_present(dev, "cirrus,fw-rom-only");
 
 	cs40l26->calib_fw = device_property_present(dev, "cirrus,calib-fw");
 
