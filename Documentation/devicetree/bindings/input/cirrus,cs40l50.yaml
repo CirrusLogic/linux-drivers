@@ -39,6 +39,12 @@ properties:
   vdd-b-supply:
     description: Power supply for the boost converter.
 
+  cirrus,i2c-broadcast-addr:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0x8
+    maximum: 0x78
+    description: Enables I2C writes to device at 7-bit broadcast address.
+
 required:
   - compatible
   - reg
