@@ -9,6 +9,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/mfd/cs40l50.h>
 #include <linux/platform_device.h>
@@ -354,10 +355,28 @@ static void cs40l50_start_worker(struct work_struct *work)
 {
 	struct cs40l50_work *work_data = container_of(work, struct cs40l50_work, work);
 	struct cs40l50_vibra *vib = work_data->vib;
+	struct cs40l50 *cs40l50 = dev_get_drvdata(vib->dev);
+	struct i2c_client *sibling_client = NULL;
 	struct cs40l50_effect *start_effect;
+	int error;
+
 
 	if (pm_runtime_resume_and_get(vib->dev) < 0)
 		goto err_free;
+
+	if (cs40l50->broadcast_client) {
+		sibling_client = of_find_i2c_device_by_node(vib->dev->of_node->sibling);
+		if (!sibling_client) {
+			dev_err(vib->dev, "Unable to find sibling client\n");
+			goto err_free;
+		}
+
+		error = pm_runtime_resume_and_get(&sibling_client->dev);
+		if (error) {
+			dev_err(vib->dev, "Unable to resume sibling device\n");
+			goto err_free;
+		}
+	}
 
 	start_effect = cs40l50_find_effect(work_data->effect->id, &vib->effect_head);
 	if (start_effect) {
@@ -368,6 +387,11 @@ static void cs40l50_start_worker(struct work_struct *work)
 		}
 	} else {
 		dev_err(vib->dev, "Effect to play not found\n");
+	}
+
+	if (sibling_client) {
+		pm_runtime_mark_last_busy(&sibling_client->dev);
+		pm_runtime_put_autosuspend(&sibling_client->dev);
 	}
 
 	pm_runtime_mark_last_busy(vib->dev);

@@ -112,9 +112,17 @@ enum cs40l50_wseqs {
 #define CS40L50_DEVID_A			0x40A50
 #define CS40L50_REVID_B0		0xB0
 
+/* Broadcast */
+#define CS40L50_CTRL_I2C_BROADCAST			0x168
+#define CS40L50_I2C_BROADCAST_ENABLE_MASK	BIT(15)
+#define CS40L50_I2C_BROADCAST_ADDR_SHIFT	1
+#define CS40L50_I2C_BROADCAST_ADDR_MAX		0x78
+#define CS40L50_I2C_BROADCAST_ADDR_MIN		0x8
+
 struct cs40l50 {
 	struct device *dev;
 	struct regmap *regmap;
+	struct regmap *broadcast_regmap;
 	struct mutex lock;
 	struct cs_dsp dsp;
 	struct gpio_desc *reset_gpio;
@@ -122,14 +130,19 @@ struct cs40l50 {
 	const struct firmware *fw;
 	const struct firmware *bin;
 	struct cs_dsp_wseq wseqs[CS40L50_NUM_WSEQS];
+	struct i2c_client *broadcast_client;
+	int i2c_id;
 	int irq;
 	u32 devid;
 	u32 revid;
+	u32 broadcast_addr;
 };
 
 int cs40l50_dsp_write(struct device *dev, struct regmap *regmap, u32 val);
 int cs40l50_probe(struct cs40l50 *cs40l50);
 int cs40l50_remove(struct cs40l50 *cs40l50);
+bool cs40l50_broadcast_readable_reg(struct device *dev, unsigned int reg);
+bool cs40l50_broadcast_writeable_reg(struct device *dev, unsigned int reg);
 
 extern const struct regmap_config cs40l50_regmap;
 extern const struct dev_pm_ops cs40l50_pm_ops;

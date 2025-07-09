@@ -29,6 +29,23 @@ const struct regmap_config cs40l50_regmap = {
 };
 EXPORT_SYMBOL_GPL(cs40l50_regmap);
 
+bool cs40l50_broadcast_readable_reg(struct device *dev, unsigned int reg)
+{
+	return false;
+}
+EXPORT_SYMBOL_GPL(cs40l50_broadcast_readable_reg);
+
+bool cs40l50_broadcast_writeable_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case CS40L50_DSP_QUEUE:
+		return true;
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL_GPL(cs40l50_broadcast_writeable_reg);
+
 static const char * const cs40l50_supplies[] = {
 	"vdd-io",
 };
@@ -65,12 +82,17 @@ static struct regmap_irq_chip cs40l50_irq_chip = {
 
 int cs40l50_dsp_write(struct device *dev, struct regmap *regmap, u32 val)
 {
+	struct cs40l50 *cs40l50 = dev_get_drvdata(dev);
 	int i, ret;
 	u32 ack;
 
 	/* Device NAKs if hibernating, so optionally retry */
 	for (i = 0; i < CS40L50_DSP_TIMEOUT_COUNT; i++) {
-		ret = regmap_write(regmap, CS40L50_DSP_QUEUE, val);
+		if (cs40l50->broadcast_client &&
+			((val == CS40L50_STOP_PLAYBACK) || (val < CS40L50_PREVENT_HIBER)))
+			ret = regmap_write(cs40l50->broadcast_regmap, CS40L50_DSP_QUEUE, val);
+		else
+			ret = regmap_write(regmap, CS40L50_DSP_QUEUE, val);
 		if (!ret)
 			break;
 
@@ -145,6 +167,20 @@ static int cs40l50_wseq_init(struct cs40l50 *cs40l50)
 static int cs40l50_dsp_config(struct cs40l50 *cs40l50)
 {
 	int ret;
+
+	if (cs40l50->broadcast_addr) {
+		cs_dsp_wseq_write(&cs40l50->dsp, &cs40l50->wseqs[CS40L50_PWR_ON], CS40L50_CTRL_I2C_BROADCAST,
+				(cs40l50->broadcast_addr << CS40L50_I2C_BROADCAST_ADDR_SHIFT) |
+				CS40L50_I2C_BROADCAST_ENABLE_MASK, CS_DSP_WSEQ_FULL, false);
+
+		ret = regmap_write(cs40l50->regmap, CS40L50_CTRL_I2C_BROADCAST,
+				(cs40l50->broadcast_addr << CS40L50_I2C_BROADCAST_ADDR_SHIFT) |
+				CS40L50_I2C_BROADCAST_ENABLE_MASK);
+		if (ret) {
+			dev_err(cs40l50->dev, "Failed to enable I2C broadcast: %d\n", ret);
+			return ret;
+		}
+	}
 
 	/* Configure internal V_AMP supply */
 	ret = regmap_multi_reg_write(cs40l50->regmap, cs40l50_internal_vamp_config,
@@ -510,7 +546,8 @@ int cs40l50_probe(struct cs40l50 *cs40l50)
 	/* Ensure minimum reset pulse width */
 	usleep_range(CS40L50_RESET_PULSE_US, CS40L50_RESET_PULSE_US + 100);
 
-	gpiod_set_value_cansleep(cs40l50->reset_gpio, 0);
+	if (cs40l50->reset_gpio)
+		gpiod_set_value_cansleep(cs40l50->reset_gpio, 0);
 
 	/* Wait for control port to be ready */
 	usleep_range(CS40L50_CP_READY_US, CS40L50_CP_READY_US + 100);
@@ -545,7 +582,8 @@ EXPORT_SYMBOL_GPL(cs40l50_probe);
 
 int cs40l50_remove(struct cs40l50 *cs40l50)
 {
-	gpiod_set_value_cansleep(cs40l50->reset_gpio, 1);
+	if (cs40l50->reset_gpio)
+		gpiod_set_value_cansleep(cs40l50->reset_gpio, 1);
 
 	return 0;
 }
@@ -555,7 +593,8 @@ static int cs40l50_runtime_suspend(struct device *dev)
 {
 	struct cs40l50 *cs40l50 = dev_get_drvdata(dev);
 
-	return regmap_write(cs40l50->regmap, CS40L50_DSP_QUEUE, CS40L50_ALLOW_HIBER);
+	return cs40l50->broadcast_addr ? 0 :
+		regmap_write(cs40l50->regmap, CS40L50_DSP_QUEUE, CS40L50_ALLOW_HIBER);
 }
 
 static int cs40l50_runtime_resume(struct device *dev)
