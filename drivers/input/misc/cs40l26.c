@@ -5086,6 +5086,7 @@ static int cs40l26_request_irq(struct cs40l26_private *cs40l26)
 	int error, irq, i;
 
 	cs40l26_regmap_irq_chip.irq_drv_data = cs40l26;
+	cs40l26_regmap_irq_chip.runtime_pm = pm_runtime_enabled(cs40l26->dev);
 
 	error = devm_regmap_add_irq_chip(cs40l26->dev, cs40l26->regmap,
 			cs40l26->irq, IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_LOW,
@@ -5193,7 +5194,9 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 
 	if (cs40l26->fw_loaded || cs40l26->prev_fw_load_failed) {
 		cs40l26_irq_enable(cs40l26, CS40L26_IRQ_DISABLE);
-		cs40l26_pm_runtime_teardown(cs40l26);
+
+		if (pm_runtime_enabled(cs40l26->dev))
+			cs40l26_pm_runtime_teardown(cs40l26);
 	}
 
 	error = cs40l26_device_init(cs40l26, true);
@@ -5809,15 +5812,13 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 	if (!cs40l26->fw_defer) {
 		error = cs40l26_fw_upload(cs40l26);
 		if (error) {
+			cs40l26->prev_fw_load_failed = true;
 			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
-			goto err;
 		}
 
 		error = cs40l26_request_irq(cs40l26);
-		if (error) {
+		if (error)
 			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_IRQ, __func__);
-			goto err;
-		}
 	}
 
 	error = cs40l26_input_init(cs40l26);
