@@ -711,6 +711,9 @@ static int cs40l26_a2h_level_get(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	unsigned int val = 0, reg;
 	int ret;
 
+	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID))
+		return 0;
+
 	ret = cl_dsp_get_reg(cs40l26->dsp, "VOLUMELEVEL", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_A2H_ALGO_ID, &reg);
 	if (ret)
@@ -746,6 +749,9 @@ static int cs40l26_a2h_level_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	struct device *dev = cs40l26->dev;
 	unsigned int val = 0, reg;
 	int ret;
+
+	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID))
+		return 0;
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "VOLUMELEVEL", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_A2H_ALGO_ID, &reg);
@@ -859,7 +865,18 @@ static int cs40l26_a2h_delay_get(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
 	unsigned int val = 0, reg;
+	u32 a2h_algo_rev;
 	int ret;
+
+	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID))
+		return 0;
+
+	ret = cl_dsp_get_algo_rev(cs40l26->dsp, CS40L26_A2H_ALGO_ID, &a2h_algo_rev);
+	if (ret)
+		return cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_FW, __func__);
+
+	if (cs40l26->revid == CS40L26_REVID_B2 && a2h_algo_rev >= CS40L26_A2H_V5_MIN_REV)
+		return 0;
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "LRADELAYSAMPS",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_A2H_ALGO_ID, &reg);
@@ -895,7 +912,18 @@ static int cs40l26_a2h_delay_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
 	unsigned int val = 0, reg;
+	u32 a2h_algo_rev;
 	int ret;
+
+	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID))
+		return 0;
+
+	ret = cl_dsp_get_algo_rev(cs40l26->dsp, CS40L26_A2H_ALGO_ID, &a2h_algo_rev);
+	if (ret)
+		return cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_FW, __func__);
+
+	if (cs40l26->revid == CS40L26_REVID_B2 && a2h_algo_rev >= CS40L26_A2H_V5_MIN_REV)
+		return 0;
 
 	ret = cl_dsp_get_reg(cs40l26->dsp, "LRADELAYSAMPS",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_A2H_ALGO_ID, &reg);
