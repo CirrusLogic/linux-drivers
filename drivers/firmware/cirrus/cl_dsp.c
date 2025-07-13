@@ -239,6 +239,26 @@ int cl_dsp_get_length(struct cl_dsp *dsp, const char *coeff_name, const unsigned
 }
 EXPORT_SYMBOL_GPL(cl_dsp_get_length);
 
+int cl_dsp_get_algo_rev(struct cl_dsp *dsp, const unsigned int algo_id, u32 *algo_rev)
+{
+	int i;
+
+	for (i = 0; i < dsp->num_algos; i++) {
+		if ((algo_id & CL_DSP_ALGO_ID_MASK) == (dsp->algo_info[i].id & CL_DSP_ALGO_ID_MASK))
+			break;
+	}
+
+	if (i == dsp->num_algos) {
+		dev_err(dsp->dev, "Algorithm ID 0x%06X not found\n", algo_id);
+		return -EINVAL;
+	}
+
+	*algo_rev = dsp->algo_info[i].rev;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cl_dsp_get_algo_rev);
+
 bool cl_dsp_algo_is_present(struct cl_dsp *dsp, const unsigned int algo_id)
 {
 	int i;
