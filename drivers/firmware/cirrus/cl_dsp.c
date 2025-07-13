@@ -267,8 +267,7 @@ bool cl_dsp_algo_is_present(struct cl_dsp *dsp, const unsigned int algo_id)
 		return false;
 
 	for (i = 0; i < dsp->num_algos; i++) {
-		if ((GENMASK(15, 0) & dsp->algo_info[i].id) ==
-						(GENMASK(15, 0) & algo_id))
+		if ((CL_DSP_ALGO_ID_MASK & dsp->algo_info[i].id) == (CL_DSP_ALGO_ID_MASK & algo_id))
 			return true;
 	}
 
