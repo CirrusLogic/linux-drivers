@@ -80,6 +80,8 @@
 
 #define CL_DSP_NUM_ALGOS_MAX		32
 
+#define CL_DSP_ALGO_ID_MASK		GENMASK(15, 0)
+
 #define CL_DSP_MAX_WLEN			4096
 
 #define CL_DSP_XM_UNPACKED_TYPE		0x0005
@@ -399,6 +401,7 @@ int cl_dsp_get_flags(struct cl_dsp *dsp, const char *coeff_name,
 int cl_dsp_get_length(struct cl_dsp *dsp, const char *coeff_name,
 		const unsigned int block_type, const unsigned int algo_id,
 		size_t *length);
+int cl_dsp_get_algo_rev(struct cl_dsp *dsp, const unsigned int algo_id, u32 *algo_rev);
 bool cl_dsp_algo_is_present(struct cl_dsp *dsp, const unsigned int algo_id);
 struct cl_dsp_memchunk cl_dsp_memchunk_create(void *data, int size);
 int cl_dsp_memchunk_write(struct cl_dsp_memchunk *ch, int nbits, u32 val);
