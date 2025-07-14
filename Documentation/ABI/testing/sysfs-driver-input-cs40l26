@@ -715,6 +715,146 @@ Description:
 			Minimum: 0x000000 (0 V)
 			Maximum: 0x7FFFFF (0.999999 * 12.3 =~ 12.3 V)
 
+What:		/sys/class/input/input(x)/data_logger/mean_bemf
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Mean of logged values of back EMF since logging was enabled
+		or calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q0.23 format.
+			Full scale corresponds to a back EMF of 12.3 V.
+			Minimum: 0x000000 (0 V)
+			Maximum: 0x7FFFFF (0.999999 * 12.3 =~ 12.3 V)
+
+What:		/sys/class/input/input(x)/data_logger/mean_excursion
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Mean of logged values of excursion since logging was enabled
+		or calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q0.23 format.
+			Full scale corresponds to an excursion of 10.5 mm
+			Minimum: 0x000000 (0 mm)
+			Maximum: 0x7FFFFF (0.999999 * 10.5 =~ 10.5 mm)
+
+What:		/sys/class/input/input(x)/data_logger/mean_imon
+Date:		January 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Mean of logged values of IMON since logging was enabled
+		or calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q0.23 format.
+			Full scale corresponds to 2.1 Amperes
+			Minimum: 0x000000 (0 A)
+			Maximum: 0x7FFFFF (0.999999 * 2.1 =~ 2.1 A)
+
+What:		/sys/class/input/input(x)/data_logger/mean_vbst
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Mean of logged values of VBST since logging was enabled
+		or calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in unsigned Q0.24 format.
+			Full scale corresponds to a boost voltage of 14 V.
+			Minimum: 0x000000 (0 V)
+			Maximum: 0xFFFFFF (1 * 14 = 14 V)
+
+What:		/sys/class/input/input(x)/data_logger/mean_vmon
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Mean of logged values of amplifier output voltage since logging was enabled
+		or calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q0.23 format.
+			Full scale corresponds to an amplifier voltage of 12.3 V.
+			Minimum: 0x000000 (0 V)
+			Maximum: 0x7FFFFF (0.999999 * 12.3 =~ 12.3 V)
+
+What:		/sys/class/input/input(x)/data_logger/min_bemf
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Minimum logged value of back EMF since logging was enabled
+		or minimum calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q0.23 format.
+			Full scale corresponds to a back EMF of 12.3 V.
+			Minimum: 0x000000 (0 V)
+			Maximum: 0x7FFFFF (0.999999 * 12.3 =~ 12.3 V)
+
+What:		/sys/class/input/input(x)/data_logger/min_excursion
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Minimum logged value of excursion since logging was enabled
+		or minimum calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q0.23 format.
+			Full scale corresponds to an excursion of 10.5 mm
+			Minimum: 0x000000 (0 mm)
+			Maximum: 0x7FFFFF (0.999999 * 10.5 =~ 10.5 mm)
+
+What:		/sys/class/input/input(x)/data_logger/min_imon
+Date:		January 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Minimum logged value of IMON since logging was enabled
+		or minimum calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q0.23 format.
+			Full scale corresponds to 2.1 Amperes
+			Minimum: 0x000000 (0 A)
+			Maximum: 0x7FFFFF (0.999999 * 2.1 =~ 2.1 A)
+
+What:		/sys/class/input/input(x)/data_logger/min_vbst
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Minimum logged value of VBST since logging was enabled
+		or minimum calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in unsigned Q0.24 format.
+			Full scale corresponds to a boost voltage of 14 V.
+			Minimum: 0x000000 (0 V)
+			Maximum: 0xFFFFFF (1 * 14 = 14 V)
+
+What:		/sys/class/input/input(x)/data_logger/min_vmon
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Minimum logged value of amplifier output voltage since logging was enabled
+		or minimum calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q0.23 format.
+			Full scale corresponds to an amplifier voltage of 12.3 V.
+			Minimum: 0x000000 (0 V)
+			Maximum: 0x7FFFFF (0.999999 * 12.3 =~ 12.3 V)
+
 What:		/sys/class/input/input(x)/firmware/fw_algo_id
 Date:		December 2023
 Contact:	patches@opensource.cirrus.com
