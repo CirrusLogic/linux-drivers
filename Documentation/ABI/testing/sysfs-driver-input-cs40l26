@@ -634,16 +634,16 @@ Description:
 			0: Disable logging
 			1: Enable logging
 
-What:		/sys/class/input/input(x)/data_logger/logging_max_reset
+What:		/sys/class/input/input(x)/data_logger/logging_reset
 Date:		September 2023
 Contact:	patches@opensource.cirrus.com
 Description:
-		Reset maximum logging values when 1 is written to the control.
+		Reset maximum and minimum logged values when 1 is written to the control.
 
 		Access: Write
 
 		Valid values: Represented as integer
-			1: Reset calculated logging maximums
+			1: Reset logged maximum and minimum values for all sources
 
 What:		/sys/class/input/input(x)/data_logger/max_bemf
 Date:		September 2023
