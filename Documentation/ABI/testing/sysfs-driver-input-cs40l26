@@ -620,6 +620,7 @@ Description:
 			"EP"
 			"VBST"
 			"VMON"
+			"IMON"
 
 
 What:		/sys/class/input/input(x)/data_logger/logging_en
