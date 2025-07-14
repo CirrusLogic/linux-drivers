@@ -2512,7 +2512,7 @@ err_mutex:
 }
 static DEVICE_ATTR_RW(logging_en);
 
-static ssize_t logging_max_reset_store(struct device *dev,
+static ssize_t logging_reset_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -2530,13 +2530,13 @@ static ssize_t logging_max_reset_store(struct device *dev,
 	if (error)
 		return error;
 
-	error = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_LOGGER_MAX_RESET);
+	error = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_LOGGER_RESET);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
 	return error ? error : count;
 }
-static DEVICE_ATTR_WO(logging_max_reset);
+static DEVICE_ATTR_WO(logging_reset);
 
 static ssize_t available_logger_srcs_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -2575,7 +2575,8 @@ static ssize_t available_logger_srcs_show(struct device *dev, struct device_attr
 }
 static DEVICE_ATTR_RO(available_logger_srcs);
 
-static int cs40l26_logger_max_get(struct cs40l26_private *cs40l26, u32 src_id, u32 *max)
+static int cs40l26_logger_data_get(struct cs40l26_private *cs40l26, enum cs40l26_logger_src_id id,
+		enum cs40l26_logger_data_type type, u32 *val)
 {
 	int error, reg, src_num;
 	u32 offset;
@@ -2587,7 +2588,7 @@ static int cs40l26_logger_max_get(struct cs40l26_private *cs40l26, u32 src_id, u
 	mutex_lock(&cs40l26->lock);
 
 	for (src_num = 0; src_num < cs40l26->num_log_srcs; src_num++) {
-		if (cs40l26->log_srcs[src_num].id == src_id)
+		if (cs40l26->log_srcs[src_num].id == id)
 			break;
 	}
 
@@ -2601,9 +2602,10 @@ static int cs40l26_logger_max_get(struct cs40l26_private *cs40l26, u32 src_id, u
 	if (error)
 		goto err_mutex;
 
-	offset = (src_num * CS40L26_LOGGER_DATA_MAX_STEP) + CS40L26_LOGGER_DATA_MAX_OFFSET;
+	offset = (src_num * CS40L26_LOGGER_DATA_SRC_STEP) +
+			(type * CS40L26_LOGGER_DATA_OFFSET_STEP);
 
-	error = regmap_read(cs40l26->regmap, reg + offset, max);
+	error = regmap_read(cs40l26->regmap, reg + offset, val);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -2613,75 +2615,58 @@ err_mutex:
 	return error;
 }
 
-static ssize_t max_bemf_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 max_bemf;
-	int error;
+#define CS40L26_SYSFS_LOGGER_ATTR(name, id, data_type)						\
+static ssize_t name##_show(struct device *dev, struct device_attribute *attr, char *buf)\
+{											\
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);				\
+	int error;									\
+	u32 val;									\
+											\
+	error = cs40l26_logger_data_get(cs40l26, id, data_type, &val);			\
+											\
+	return error ? error : sysfs_emit(buf, "0x%06X\n", val);			\
+}											\
+static DEVICE_ATTR_RO(name)
 
-	error = cs40l26_logger_max_get(cs40l26, CS40L26_LOGGER_SRC_ID_BEMF, &max_bemf);
+CS40L26_SYSFS_LOGGER_ATTR(min_bemf, CS40L26_LOGGER_SRC_ID_BEMF, CS40L26_LOGGER_DATA_TYPE_MIN);
+CS40L26_SYSFS_LOGGER_ATTR(max_bemf, CS40L26_LOGGER_SRC_ID_BEMF, CS40L26_LOGGER_DATA_TYPE_MAX);
+CS40L26_SYSFS_LOGGER_ATTR(mean_bemf, CS40L26_LOGGER_SRC_ID_BEMF, CS40L26_LOGGER_DATA_TYPE_MEAN);
 
-	return error ? error : sysfs_emit(buf, "0x%06X\n", max_bemf);
-}
-static DEVICE_ATTR_RO(max_bemf);
+CS40L26_SYSFS_LOGGER_ATTR(min_vbst, CS40L26_LOGGER_SRC_ID_VBST, CS40L26_LOGGER_DATA_TYPE_MIN);
+CS40L26_SYSFS_LOGGER_ATTR(max_vbst, CS40L26_LOGGER_SRC_ID_VBST, CS40L26_LOGGER_DATA_TYPE_MAX);
+CS40L26_SYSFS_LOGGER_ATTR(mean_vbst, CS40L26_LOGGER_SRC_ID_VBST, CS40L26_LOGGER_DATA_TYPE_MEAN);
 
-static ssize_t max_vbst_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 max_vbst;
-	int error;
+CS40L26_SYSFS_LOGGER_ATTR(min_vmon, CS40L26_LOGGER_SRC_ID_VMON, CS40L26_LOGGER_DATA_TYPE_MIN);
+CS40L26_SYSFS_LOGGER_ATTR(max_vmon, CS40L26_LOGGER_SRC_ID_VMON, CS40L26_LOGGER_DATA_TYPE_MAX);
+CS40L26_SYSFS_LOGGER_ATTR(mean_vmon, CS40L26_LOGGER_SRC_ID_VMON, CS40L26_LOGGER_DATA_TYPE_MEAN);
 
-	error = cs40l26_logger_max_get(cs40l26, CS40L26_LOGGER_SRC_ID_VBST, &max_vbst);
+CS40L26_SYSFS_LOGGER_ATTR(min_excursion, CS40L26_LOGGER_SRC_ID_EP, CS40L26_LOGGER_DATA_TYPE_MIN);
+CS40L26_SYSFS_LOGGER_ATTR(max_excursion, CS40L26_LOGGER_SRC_ID_EP, CS40L26_LOGGER_DATA_TYPE_MAX);
+CS40L26_SYSFS_LOGGER_ATTR(mean_excursion, CS40L26_LOGGER_SRC_ID_EP, CS40L26_LOGGER_DATA_TYPE_MEAN);
 
-	return error ? error : sysfs_emit(buf, "0x%06X\n", max_vbst);
-}
-static DEVICE_ATTR_RO(max_vbst);
-
-static ssize_t max_vmon_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 max_vmon;
-	int error;
-
-	error = cs40l26_logger_max_get(cs40l26, CS40L26_LOGGER_SRC_ID_VMON, &max_vmon);
-
-	return error ? error : sysfs_emit(buf, "0x%06X\n", max_vmon);
-}
-static DEVICE_ATTR_RO(max_vmon);
-
-static ssize_t max_excursion_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 max_excursion;
-	int error;
-
-	error = cs40l26_logger_max_get(cs40l26, CS40L26_LOGGER_SRC_ID_EP, &max_excursion);
-
-	return error ? error : sysfs_emit(buf, "0x%06X\n", max_excursion);
-}
-static DEVICE_ATTR_RO(max_excursion);
-
-static ssize_t max_imon_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 max_imon;
-	int error;
-
-	error = cs40l26_logger_max_get(cs40l26, CS40L26_LOGGER_SRC_ID_IMON, &max_imon);
-
-	return error ? error : sysfs_emit(buf, "0x%06X\n", max_imon);
-}
-DEVICE_ATTR_RO(max_imon);
+CS40L26_SYSFS_LOGGER_ATTR(min_imon, CS40L26_LOGGER_SRC_ID_IMON, CS40L26_LOGGER_DATA_TYPE_MIN);
+CS40L26_SYSFS_LOGGER_ATTR(max_imon, CS40L26_LOGGER_SRC_ID_IMON, CS40L26_LOGGER_DATA_TYPE_MAX);
+CS40L26_SYSFS_LOGGER_ATTR(mean_imon, CS40L26_LOGGER_SRC_ID_IMON, CS40L26_LOGGER_DATA_TYPE_MEAN);
 
 static struct attribute *cs40l26_dev_attrs_dlog[] = {
 	&dev_attr_logging_en.attr,
-	&dev_attr_logging_max_reset.attr,
+	&dev_attr_logging_reset.attr,
 	&dev_attr_available_logger_srcs.attr,
+	&dev_attr_min_bemf.attr,
 	&dev_attr_max_bemf.attr,
+	&dev_attr_mean_bemf.attr,
+	&dev_attr_min_vbst.attr,
 	&dev_attr_max_vbst.attr,
+	&dev_attr_mean_vbst.attr,
+	&dev_attr_min_vmon.attr,
 	&dev_attr_max_vmon.attr,
+	&dev_attr_mean_vmon.attr,
+	&dev_attr_min_excursion.attr,
 	&dev_attr_max_excursion.attr,
+	&dev_attr_mean_excursion.attr,
+	&dev_attr_min_imon.attr,
 	&dev_attr_max_imon.attr,
+	&dev_attr_mean_imon.attr,
 	NULL,
 };
 
