@@ -1040,8 +1040,7 @@ static int cl_dsp_header_parse(struct cl_dsp *dsp,
 	return 0;
 }
 
-int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw,
-		bool write_fw)
+int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 {
 	unsigned int pos = CL_DSP_FW_FILE_HEADER_SIZE, reg = 0;
 	struct cl_dsp_data_block data_block;
@@ -1066,15 +1065,12 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw,
 	}
 
 	while (pos < fw->size) {
-		memcpy(data_block.header.data, &fw->data[pos],
-				CL_DSP_DBLK_HEADER_SIZE);
+		memcpy(data_block.header.data, &fw->data[pos], CL_DSP_DBLK_HEADER_SIZE);
 
 		pos += CL_DSP_DBLK_HEADER_SIZE;
 
-		data_block.payload =
-			kvmalloc(data_block.header.data_len, GFP_KERNEL);
-		memcpy(data_block.payload, &fw->data[pos],
-				data_block.header.data_len);
+		data_block.payload = kvmalloc(data_block.header.data_len, GFP_KERNEL);
+		memcpy(data_block.payload, &fw->data[pos], data_block.header.data_len);
 
 		switch (data_block.header.block_type) {
 		case CL_DSP_WMFW_INFO_TYPE:
@@ -1120,13 +1116,11 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw,
 			goto err_free;
 		}
 
-		if (write_fw && reg) {
+		if (reg) {
 			ret = cl_dsp_raw_write(dsp, reg, data_block.payload,
-					data_block.header.data_len,
-					CL_DSP_MAX_WLEN);
+					data_block.header.data_len, CL_DSP_MAX_WLEN);
 			if (ret) {
-				dev_err(dev,
-					"Failed to write to base 0x%X\n", reg);
+				dev_err(dev, "Failed to write to base 0x%X\n", reg);
 				goto err_free;
 			}
 		}
