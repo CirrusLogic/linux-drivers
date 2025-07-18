@@ -937,6 +937,9 @@
  */
 #define CS40L26_ERR_LOG_SIZE		64
 
+/* Excursion Protection */
+#define CS40L26_EP_REINIT		BIT(2)
+
 /* enums */
 enum cs40l26_amp_drv_slope_type {
 	CS40L26_AMP_DRV_SLOPE_TYPE_SLOWEST,
