@@ -134,6 +134,22 @@ Description:
 
 		Valid values: 1 (integer)
 
+What:		/sys/class/input/input(x)/default/lf0t_freq_centre
+Date:		July 2025
+Contact:	patches@opensource.cirrus.com
+Description:
+		Center frequency used for initialization of LAST_TRACKED_F0
+		(at system startup) and/or the Live F0 Tracking algorithm.
+		Will only be used if non-zero and lf0t_init is set to 1.
+
+		Access: Read, Write
+
+		Valid values: Hex value in unsigned Q9.14 format representing
+		center frequency in Hz
+			Minimum: 0x000000 (0 Hz)
+			Maximum: 0x7FFFFF (511 Hz)
+			Default: 0x000000 (0 Hz)
+
 What:		/sys/class/input/input(x)/default/braking_time_bank
 Date:		April 2024
 Contact:	patches@opensource.cirrus.com
