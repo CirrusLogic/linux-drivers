@@ -1208,6 +1208,69 @@ static ssize_t error_log_store(struct device *dev, struct device_attribute *attr
 }
 static DEVICE_ATTR_RW(error_log);
 
+static ssize_t lf0t_freq_centre_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 freq_centre, reg;
+	int error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "F_CENTRE_SET", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (error)
+		goto err_mutex;
+
+	error = regmap_read(cs40l26->regmap, reg, &freq_centre);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : sysfs_emit(buf, "0x%06X\n", freq_centre);
+}
+
+static ssize_t lf0t_freq_centre_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 freq_centre, reg;
+	int error;
+
+	error = kstrtou32(buf, 16, &freq_centre);
+	if (error)
+		return error;
+
+	if (freq_centre > CS40L26_LF0T_FREQ_CENTRE_MAX)
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "F_CENTRE_SET", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (error)
+		goto err_mutex;
+
+	error = regmap_write(cs40l26->regmap, reg, freq_centre);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : count;
+}
+static DEVICE_ATTR_RW(lf0t_freq_centre);
+
 static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_broadcast_master.attr,
 	&dev_attr_num_waves.attr,
@@ -1232,6 +1295,7 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_braking_time_index.attr,
 	&dev_attr_braking_time_ms.attr,
 	&dev_attr_error_log.attr,
+	&dev_attr_lf0t_freq_centre.attr,
 	NULL,
 };
 
