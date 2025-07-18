@@ -867,8 +867,10 @@
 #define CS40L26_CALIBRATION_TIMEOUT_MS	5000
 
 /* Compensation */
-#define CS40L26_COMP_EN_REDC_SHIFT  1
-#define CS40L26_COMP_EN_F0_SHIFT    0
+#define CS40L26_COMP_EN_F0_MASK		BIT(0)
+#define CS40L26_COMP_EN_F0_SHIFT	0
+#define CS40L26_COMP_EN_REDC_MASK	BIT(1)
+#define CS40L26_COMP_EN_REDC_SHIFT	1
 
 /* FW EXT */
 #define CS40L26_FW_RAM_EXT_RELOC_REV 0x080102 /* FW rev relocating FW_RAM_EXT FW controls */
@@ -1284,9 +1286,6 @@ struct cs40l26_private {
 	int upload_ret;
 	int erase_ret;
 	int effects_in_flight;
-	bool comp_enable_pend;
-	bool comp_enable_redc;
-	bool comp_enable_f0;
 	struct completion i2s_cont;
 	struct completion erase_cont;
 	struct completion cal_f0_cont;
