@@ -2296,6 +2296,13 @@ static ssize_t ls_calibration_results_store(struct device *dev, struct device_at
 			goto err_mutex;
 	}
 
+	error = cl_dsp_get_reg(cs40l26->dsp, "CFG", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_EP_ALGO_ID, &reg);
+	if (error)
+		goto err_mutex;
+
+	error = regmap_set_bits(cs40l26->regmap, reg, CS40L26_EP_REINIT);
+
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
