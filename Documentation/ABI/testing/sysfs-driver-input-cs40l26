@@ -150,6 +150,26 @@ Description:
 			Maximum: 0x7FFFFF (511 Hz)
 			Default: 0x000000 (0 Hz)
 
+What:		/sys/class/input/input(x)/default/lf0t_init
+Date:		July 2025
+Contact:	patches@opensource.cirrus.com
+Description:
+		Choose which control is used to initialize the
+		Live F0 Tracking algorithm.
+
+		Set by default to 0 (F0_OTP_STORED) and both
+		0 and 2 are used for F0_OTP_STORED as this is
+		how the firmware control is defined.
+
+		Access: Read, Write
+
+		Valid values:
+			0: F0_OTP_STORED
+			1: F_CENTRE_SET (if 0, F0_OTP_STORED will be used)
+			2: F0_OTP_STORED
+			3: LAST_TRACKED_F0
+
+
 What:		/sys/class/input/input(x)/default/braking_time_bank
 Date:		April 2024
 Contact:	patches@opensource.cirrus.com
