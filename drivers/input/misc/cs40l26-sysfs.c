@@ -1271,6 +1271,70 @@ err_mutex:
 }
 static DEVICE_ATTR_RW(lf0t_freq_centre);
 
+static ssize_t lf0t_init_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 init, reg;
+	int error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (error)
+		goto err_mutex;
+
+	error = regmap_read(cs40l26->regmap, reg, &init);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : sysfs_emit(buf, "%lu\n", FIELD_GET(CS40L26_LF0T_INIT_MASK, init));
+}
+
+static ssize_t lf0t_init_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 init, reg;
+	int error;
+
+	error = kstrtou32(buf, 10, &init);
+	if (error)
+		return error;
+
+	if (init > CS40L26_LF0T_INIT_LAST_TRACKED)
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return error;
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (error)
+		goto err_mutex;
+
+	error = regmap_update_bits(cs40l26->regmap, reg, CS40L26_LF0T_INIT_MASK,
+			init << CS40L26_LF0T_INIT_SHIFT);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : count;
+}
+static DEVICE_ATTR_RW(lf0t_init);
+
 static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_broadcast_master.attr,
 	&dev_attr_num_waves.attr,
@@ -1296,6 +1360,7 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_braking_time_ms.attr,
 	&dev_attr_error_log.attr,
 	&dev_attr_lf0t_freq_centre.attr,
+	&dev_attr_lf0t_init.attr,
 	NULL,
 };
 
