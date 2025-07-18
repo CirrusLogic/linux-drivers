@@ -4483,8 +4483,8 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
 	unsigned int val;
-	u32 reg, value;
 	int error;
+	u32 reg;
 
 	error = regmap_set_bits(regmap, CS40L26_PWRMGT_CTL, CS40L26_MEM_RDY_MASK);
 	if (error) {
@@ -4645,6 +4645,18 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		goto pm_err;
 	}
 
+	error = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &reg);
+	if (error)
+		goto pm_err;
+
+	error = regmap_write(regmap, reg, 0);
+	if (error) {
+		dev_err(dev, "Failed to set COMPENSATION_ENABLE\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+		goto pm_err;
+	}
+
 	error = cs40l26_logger_setup(cs40l26);
 	if (error)
 		goto pm_err;
@@ -4664,22 +4676,6 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	dev_info(dev, "%s loaded with %d RAM waveforms (%d from cs40l26.bin + %d from OWT)\n",
 			CS40L26_DEV_NAME, cs40l26_num_waves(cs40l26),
 			cs40l26_num_ram_waves(cs40l26), cs40l26_num_owt_waves(cs40l26));
-
-	value = (cs40l26->comp_enable_redc << CS40L26_COMP_EN_REDC_SHIFT) |
-			(cs40l26->comp_enable_f0 << CS40L26_COMP_EN_F0_SHIFT);
-
-	if (cs40l26->fw_id != CS40L26_FW_CALIB_ID) {
-		error = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_VIBEGEN_ALGO_ID, &reg);
-		if (error)
-			goto pm_err;
-
-		error = regmap_write(cs40l26->regmap, reg, value);
-		if (error) {
-			dev_err(dev, "Failed to configure compensation\n");
-			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
-		}
-	}
 
 pm_err:
 	cs40l26_pm_exit(dev);
