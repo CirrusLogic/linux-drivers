@@ -199,7 +199,9 @@ static int cs40l50_effect_gpio_mapping_set(struct cs40l50_work *work_data,
 	if (button) {
 		gpio_num = FIELD_GET(CS40L50_GPIO_NUM_MASK, button);
 		gpio_edge = FIELD_GET(CS40L50_GPIO_EDGE_MASK, button);
-		effect->gpio_reg = vib->dsp.gpio_base_reg + (gpio_num * 8) - gpio_edge;
+		effect->gpio_reg = vib->dsp.gpio_base_reg + (gpio_num * 8) - gpio_edge * 4 + 4;
+
+		dev_info(vib->dev, "gpio_num: %u, gpio_edge: %u, gpio_reg: %x\n", gpio_num, gpio_edge, effect->gpio_reg);
 
 		return regmap_write(vib->regmap, effect->gpio_reg, button);
 	}
