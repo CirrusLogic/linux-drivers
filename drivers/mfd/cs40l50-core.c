@@ -184,7 +184,7 @@ static int cs40l50_dsp_post_run(struct cs_dsp *dsp)
 		return ret;
 	}
 
-	ret = devm_mfd_add_devices(cs40l50->dev, PLATFORM_DEVID_NONE, cs40l50_devs,
+	ret = devm_mfd_add_devices(cs40l50->dev, PLATFORM_DEVID_AUTO, cs40l50_devs,
 				   ARRAY_SIZE(cs40l50_devs), NULL, 0, NULL);
 	if (ret)
 		dev_err(cs40l50->dev, "Failed to add child devices: %d\n", ret);
