@@ -493,9 +493,14 @@ int cs40l50_probe(struct cs40l50 *cs40l50)
 	mutex_init(&cs40l50->lock);
 
 	cs40l50->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(cs40l50->reset_gpio))
-		return dev_err_probe(dev, PTR_ERR(cs40l50->reset_gpio),
-				     "Failed getting reset GPIO\n");
+	if (IS_ERR(cs40l50->reset_gpio)) {
+		if (cs40l50->reset_gpio == -EBUSY) {
+			dev_warn(cs40l50->dev, "Reset GPIO taken by other device\n");
+			cs40l50->reset_gpio = NULL;
+		} else
+			return dev_err_probe(dev, PTR_ERR(cs40l50->reset_gpio),
+					     "Failed getting reset GPIO\n");
+	}
 
 	ret = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(cs40l50_supplies),
 					     cs40l50_supplies);
