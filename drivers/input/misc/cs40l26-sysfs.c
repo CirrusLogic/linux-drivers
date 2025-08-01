@@ -2310,6 +2310,40 @@ static int cs40l26_copy_ls_cal_f0_result(struct cs40l26_private *cs40l26, u32 ls
 	return 0;
 }
 
+static int cs40l26_copy_re0_to_therm_lim(struct cs40l26_private *cs40l26, const u32 ls_cal_re0)
+{
+	int error;
+	u32 reg;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "RE0", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_THERM_LIM_ALGO_ID, &reg);
+	if (error)
+		return error;
+
+	error = regmap_write(cs40l26->regmap, reg, ls_cal_re0);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+
+	return 0;
+}
+
+static int cs40l26_copy_t0_to_therm_lim(struct cs40l26_private *cs40l26, const u32 ls_cal_t0)
+{
+	int error;
+	u32 reg;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "T0", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_THERM_LIM_ALGO_ID, &reg);
+	if (error)
+		return error;
+
+	error = regmap_write(cs40l26->regmap, reg, ls_cal_t0);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+
+	return 0;
+}
+
 static ssize_t ls_calibration_results_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
@@ -2410,6 +2444,18 @@ static ssize_t ls_calibration_results_store(struct device *dev, struct device_at
 				goto err_mutex;
 
 			continue;
+		}
+
+		if (i == CS40L26_LS_CAL_REDC_INDEX) {
+			error = cs40l26_copy_re0_to_therm_lim(cs40l26, results[i]);
+			if (error)
+				goto err_mutex;
+		}
+
+		if (i == CS40L26_LS_CAL_TEMP_INDEX) {
+			error = cs40l26_copy_t0_to_therm_lim(cs40l26, results[i]);
+			if (error)
+				goto err_mutex;
 		}
 
 		if (cs40l26_ls_cal_params[i].runtime_name == NULL)
