@@ -2404,7 +2404,7 @@ static ssize_t ls_calibration_results_show(struct device *dev, struct device_att
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	int at = 0, error, i;
-	u32 reg, val;
+	u32 reg, rev, val;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -2440,6 +2440,19 @@ static ssize_t ls_calibration_results_show(struct device *dev, struct device_att
 		at += error;
 	}
 
+	if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
+		error = cl_dsp_get_algo_rev(cs40l26->dsp, CS40L26_LS_ALGO_ID, &rev);
+		if (error)
+			goto err_mutex;
+
+		error = sysfs_emit_at(buf, at, "v%ld.%ld.%ld\n", CL_DSP_GET_MAJOR(rev),
+				CL_DSP_GET_MINOR(rev), CL_DSP_GET_PATCH(rev));
+		if (error < 0)
+			goto err_mutex;
+
+		at += error;
+	}
+
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
@@ -2465,6 +2478,13 @@ static ssize_t ls_calibration_results_store(struct device *dev, struct device_at
 		error = kstrtou32(str, 16, &results[results_found++]);
 		if (error)
 			goto err_free;
+	}
+
+	if (str != NULL) {
+		dev_info(cs40l26->dev, "LS calibration %s", str);
+		/* Ignore any values present after LS calibration algorithm revision. */
+		while (strsep(&str_full, "\n") != NULL)
+			continue;
 	}
 
 	if (results_found != CS40L26_LS_CAL_NUM_REGS) {
