@@ -1369,24 +1369,105 @@ static struct attribute_group cs40l26_dev_attr_group = {
 	.attrs = cs40l26_dev_attrs,
 };
 
+static int cs40l26_run_calibration(struct cs40l26_private *cs40l26, struct completion *completion,
+		const u32 calibration_request_payload)
+{
+	u32 mailbox_command;
+	int error;
+
+	mailbox_command = ((CS40L26_DSP_MBOX_CMD_INDEX_CALIBRATION_CONTROL <<
+			CS40L26_DSP_MBOX_CMD_TYPE_SHIFT) & CS40L26_DSP_MBOX_CMD_TYPE_MASK) |
+			(calibration_request_payload & CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK);
+
+	mutex_lock(&cs40l26->lock);
+
+	reinit_completion(completion);
+
+	error = cs40l26_mailbox_write(cs40l26, mailbox_command);
+	if (!error)
+		cs40l26->cal_ongoing = true;
+
+	mutex_unlock(&cs40l26->lock);
+
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DSP, __func__);
+
+	/* Cannot wait for completion under mutex lock */
+	if (!wait_for_completion_timeout(completion,
+				msecs_to_jiffies(CS40L26_CALIBRATION_TIMEOUT_MS))) {
+		error = -ETIME;
+		dev_err(cs40l26->dev, "Failed to complete cal req, %d, err: %d",
+				calibration_request_payload, error);
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DSP, __func__);
+	}
+
+	return 0;
+}
+
+static int cs40l26_copy_f0_est_to_dvl(struct cs40l26_private *cs40l26)
+{
+	u32 f0_measured, f0_normalized, global_sample_rate, reg;
+	int error, sample_rate;
+
+	error = regmap_read(cs40l26->regmap, CS40L26_GLOBAL_SAMPLE_RATE, &global_sample_rate);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+
+	switch (global_sample_rate & CS40L26_GLOBAL_FS_MASK) {
+	case CS40L26_GLOBAL_FS_48K:
+		sample_rate = 48000;
+		break;
+	case CS40L26_GLOBAL_FS_96K:
+		sample_rate = 96000;
+		break;
+	default:
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
+	}
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "F0_EST", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_F0_EST_ALGO_ID, &reg);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = regmap_read(cs40l26->regmap, reg, &f0_measured);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+
+	f0_normalized = (f0_measured << CS40L26_F0_NORM_SHIFT) / sample_rate;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "LRA_NORM_F0", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_DVL_ALGO_ID, &reg);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = regmap_write(cs40l26->regmap, reg, f0_normalized);
+
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__) : 0;
+}
+
 static ssize_t trigger_calibration_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 mailbox_command, calibration_request_payload;
+	u32 calibration_request_payload;
 	struct completion *completion;
 	int error;
-
-	dev_dbg(cs40l26->dev, "%s: %s", __func__, buf);
-
-	if (!cs40l26->calib_fw) {
-		dev_err(cs40l26->dev, "Must use calibration firmware\n");
-		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_FW, __func__);
-	}
 
 	error = kstrtou32(buf, 16, &calibration_request_payload);
 	if (error)
 		return -EINVAL;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__);
+
+	mutex_lock(&cs40l26->lock);
+
+	if (!cs40l26->calib_fw) {
+		error = -EPERM;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+		goto err_mutex;
+	}
 
 	switch (calibration_request_payload) {
 	case CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q:
@@ -1402,56 +1483,30 @@ static ssize_t trigger_calibration_store(struct device *dev,
 		completion = &cs40l26->cal_ls_cont;
 		break;
 	default:
-		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
+		error = -EINVAL;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
+		goto err_mutex;
 	}
 
-	mailbox_command = ((CS40L26_DSP_MBOX_CMD_INDEX_CALIBRATION_CONTROL <<
-			CS40L26_DSP_MBOX_CMD_TYPE_SHIFT) & CS40L26_DSP_MBOX_CMD_TYPE_MASK) |
-			(calibration_request_payload & CS40L26_DSP_MBOX_CMD_PAYLOAD_MASK);
-
-	error = cs40l26_pm_enter(cs40l26->dev);
-	if (error)
-		return error;
-
-	mutex_lock(&cs40l26->lock);
-	reinit_completion(completion);
-
-	error = cs40l26_mailbox_write(cs40l26, mailbox_command);
-
-	cs40l26->cal_ongoing = true;
 	mutex_unlock(&cs40l26->lock);
 
-	if (error) {
-		dev_err(cs40l26->dev, "Failed to request calibration\n");
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DSP, __func__);
+	/* Cannot run calibration under mutex lock */
+	error = cs40l26_run_calibration(cs40l26, completion, calibration_request_payload);
+	if (error)
 		goto err_pm;
-	}
-
-	if (!wait_for_completion_timeout(
-			completion,
-			msecs_to_jiffies(CS40L26_CALIBRATION_TIMEOUT_MS))) {
-		error = -ETIME;
-		dev_err(cs40l26->dev, "Failed to complete cal req, %d, err: %d",
-				calibration_request_payload, error);
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DSP, __func__);
-		goto err_pm;
-	}
 
 	mutex_lock(&cs40l26->lock);
 
 	if (calibration_request_payload == CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q)
 		error = cs40l26_copy_f0_est_to_dvl(cs40l26);
 
+err_mutex:
 	mutex_unlock(&cs40l26->lock);
+
 err_pm:
 	cs40l26_pm_exit(cs40l26->dev);
 
-	if (error) {
-		cs40l26->cal_ongoing = false;
-		return error;
-	} else {
-		return count;
-	}
+	return error ? error : count;
 }
 static DEVICE_ATTR_WO(trigger_calibration);
 
