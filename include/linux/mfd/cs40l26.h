@@ -821,6 +821,7 @@
 /* F0 Offset represented as Q10.14 format */
 #define CS40L26_F0_OFFSET_MAX		0x190000 /* +100 Hz */
 #define CS40L26_F0_OFFSET_MIN		0xE70000 /* -100 Hz */
+#define CS40L26_F0_NORM_SHIFT		9
 
 /* Calibration */
 #define CS40L26_LS_CAL_NUM_REGS			47
@@ -1426,7 +1427,6 @@ int cs40l26_wseq_read(struct cs40l26_private *cs40l26, struct cl_dsp_memchunk *c
 		struct cs40l26_wseq_op *op);
 int cs40l26_wseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data,
 		bool update, u8 op_code, struct cs40l26_wseq_params *wseq_params);
-int cs40l26_copy_f0_est_to_dvl(struct cs40l26_private *cs40l26);
 int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26);
 void cs40l26_irq_enable(struct cs40l26_private *cs40l26, const unsigned int en);
 int cs40l26_log_err(struct cs40l26_private *cs40l26, int code, u32 type, const char *fxn_name);
