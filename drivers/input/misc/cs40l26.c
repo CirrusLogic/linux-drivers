@@ -995,14 +995,12 @@ void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26, enum cs40l26_vib
 	case CS40L26_VIBE_STATE_EVENT_GPIO_TRIGGER:
 		if (cs40l26->revid != CS40L26_REVID_B2)
 			cs40l26_remove_asp_scaling(cs40l26);
-		cs40l26->effects_in_flight = cs40l26->effects_in_flight <= 0 ? 1 :
-			cs40l26->effects_in_flight + 1;
+		cs40l26->effects_in_flight = 1;
 		break;
 	case CS40L26_VIBE_STATE_EVENT_MBOX_COMPLETE:
 	case CS40L26_VIBE_STATE_EVENT_GPIO_COMPLETE:
-		cs40l26->effects_in_flight = cs40l26->effects_in_flight <= 0 ? 0 :
-			cs40l26->effects_in_flight - 1;
-		if (cs40l26->effects_in_flight == 0 && cs40l26->asp_enable)
+		cs40l26->effects_in_flight = 0;
+		if (cs40l26->asp_enable)
 			if (cs40l26_asp_start(cs40l26))
 				return;
 		break;
