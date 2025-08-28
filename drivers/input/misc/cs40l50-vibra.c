@@ -91,6 +91,7 @@ struct cs40l50_work {
 	struct cs40l50_vibra *vib;
 	struct ff_effect *effect;
 	struct work_struct work;
+	unsigned int gain_pct;
 	s16 *custom_data;
 	int custom_len;
 	int count;
@@ -441,6 +442,42 @@ static int cs40l50_playback(struct input_dev *dev, int effect_id, int val)
 	return 0;
 }
 
+static void cs40l50_set_gain_worker(struct work_struct *work)
+{
+	struct cs40l50_work *work_data = container_of(work, struct cs40l50_work, work);
+	struct cs40l50_vibra *vib = work_data->vib;
+
+	if (pm_runtime_resume_and_get(vib->dev) < 0)
+		return;
+
+	cs40l50_set_dsp_gain(vib->dev, work_data->gain_pct);
+
+	pm_runtime_mark_last_busy(vib->dev);
+	pm_runtime_put_autosuspend(vib->dev);
+
+	kfree(work_data);
+}
+
+static void cs40l50_set_gain(struct input_dev *dev, u16 gain)
+{
+	struct cs40l50_vibra *vib = input_get_drvdata(dev);
+	struct cs40l50_work *work_data;
+
+	if (gain > CS40L50_NUM_PCT_MAP_VALUES)
+		return;
+
+	work_data = kzalloc(sizeof(*work_data), GFP_ATOMIC);
+	if (!work_data)
+		return;
+
+	work_data->vib = vib;
+	work_data->gain_pct = gain;
+
+	INIT_WORK(&work_data->work, cs40l50_set_gain_worker);
+
+	queue_work(vib->vib_wq, &work_data->work);
+}
+
 static void cs40l50_erase_worker(struct work_struct *work)
 {
 	struct cs40l50_work *work_data = container_of(work, struct cs40l50_work, work);
@@ -537,6 +574,7 @@ static int cs40l50_vibra_probe(struct platform_device *pdev)
 	input_set_drvdata(vib->input, vib);
 	input_set_capability(vib->input, EV_FF, FF_PERIODIC);
 	input_set_capability(vib->input, EV_FF, FF_CUSTOM);
+	input_set_capability(vib->input, EV_FF, FF_GAIN);
 
 	error = input_ff_create(vib->input, CS40L50_EFFECTS_MAX);
 	if (error) {
@@ -547,6 +585,7 @@ static int cs40l50_vibra_probe(struct platform_device *pdev)
 	vib->input->ff->upload = cs40l50_add;
 	vib->input->ff->playback = cs40l50_playback;
 	vib->input->ff->erase = cs40l50_erase;
+	vib->input->ff->set_gain = cs40l50_set_gain;
 
 	INIT_LIST_HEAD(&vib->effect_head);
 

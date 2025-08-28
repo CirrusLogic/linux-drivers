@@ -115,6 +115,32 @@ int cs40l50_dsp_write(struct device *dev, struct regmap *regmap, u32 val)
 }
 EXPORT_SYMBOL_GPL(cs40l50_dsp_write);
 
+int cs40l50_set_dsp_gain(struct device *dev, u16 gain_pct)
+{
+	struct cs40l50 *cs40l50 = dev_get_drvdata(dev);
+	struct cs_dsp_coeff_ctl *atten_ctl;
+	struct cs_dsp *dsp = &cs40l50->dsp;
+	u32 gain_value;
+
+	mutex_lock(&dsp->pwr_lock);
+
+	atten_ctl = cs_dsp_get_ctl(dsp, "URCE_ATTENUATION",
+				   WMFW_ADSP2_XM, CS40L50_HAPTICS_ALGO);
+	if (!atten_ctl) {
+		dev_err(cs40l50->dev, "Control not found for haptic attenuation\n");
+		mutex_unlock(&dsp->pwr_lock);
+		return -ENOENT;
+	}
+
+	gain_value = cpu_to_be32(cs40l50_attn_q21_2_vals[gain_pct]);
+	cs_dsp_coeff_write_ctrl(atten_ctl, 0, &gain_value, sizeof(u32));
+
+	mutex_unlock(&dsp->pwr_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs40l50_set_dsp_gain);
+
 static const struct cs_dsp_region cs40l50_dsp_regions[] = {
 	{ .type = WMFW_HALO_PM_PACKED, .base = CS40L50_PMEM_0 },
 	{ .type = WMFW_HALO_XM_PACKED, .base = CS40L50_XMEM_PACKED_0 },

@@ -79,6 +79,7 @@ enum cs40l50_irq_list {
 #define CS40L50_CP_READY_US		3100
 #define CS40L50_AUTOSUSPEND_MS		2000
 #define CS40L50_PM_ALGO			0x9F206
+#define CS40L50_HAPTICS_ALGO		0x9013C
 #define CS40L50_GLOBAL_ERR_RLS_SET	BIT(11)
 #define CS40L50_GLOBAL_ERR_RLS_CLEAR	0
 
@@ -139,6 +140,7 @@ struct cs40l50 {
 };
 
 int cs40l50_dsp_write(struct device *dev, struct regmap *regmap, u32 val);
+int cs40l50_set_dsp_gain(struct device *dev, u16 gain_pct);
 int cs40l50_probe(struct cs40l50 *cs40l50);
 int cs40l50_remove(struct cs40l50 *cs40l50);
 bool cs40l50_broadcast_readable_reg(struct device *dev, unsigned int reg);
@@ -146,5 +148,19 @@ bool cs40l50_broadcast_writeable_reg(struct device *dev, unsigned int reg);
 
 extern const struct regmap_config cs40l50_regmap;
 extern const struct dev_pm_ops cs40l50_pm_ops;
+
+#define CS40L50_NUM_PCT_MAP_VALUES	101
+
+const u32 cs40l50_attn_q21_2_vals[CS40L50_NUM_PCT_MAP_VALUES] = {
+	400, /* MUTE */
+	160, /* 1% */
+	136, 122, 112, 104, 98, 92, 88, 84, 80, 77, 74, 71,
+	68, 66, 64, 62, 60, 58, 56, 54, 53, 51, 50, 48, /* 25% */
+	47, 45, 44, 43, 42, 41, 40, 39, 37, 36, 35, 35, 34,
+	33, 32, 31, 30, 29, 29, 28, 27, 26, 26, 25, 24, /* 50 % */
+	23, 23, 22, 21, 21, 20, 20, 19, 18, 18, 17, 17, 16,
+	16, 15, 14, 14, 13, 13, 12, 12, 11, 11, 10, 10, /* 75% */
+	10, 9, 9, 8, 8, 7, 7, 6, 6, 6, 5, 5, 4, 4, 4, 3, 3, 3, 2, 2, 1, 1, 1, 0, 0, /* 100% */
+};
 
 #endif /* __MFD_CS40L50_H__ */
