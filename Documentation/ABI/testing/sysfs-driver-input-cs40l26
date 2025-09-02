@@ -77,7 +77,6 @@ Description:
 			19: Temperature Error
 			20: Write Sequencer Error
 
-
 What:		/sys/class/input/input(x)/default/f0_comp_enable
 Date:		December 2023
 Contact:	patches@opensource.cirrus.com
@@ -172,7 +171,6 @@ Description:
 			1: F_CENTRE_SET (if 0, F0_OTP_STORED will be used)
 			2: F0_OTP_STORED
 			3: LAST_TRACKED_F0
-
 
 What:		/sys/class/input/input(x)/default/braking_time_bank
 Date:		April 2024
@@ -666,7 +664,6 @@ Description:
 			"VBST"
 			"VMON"
 			"IMON"
-
 
 What:		/sys/class/input/input(x)/data_logger/logging_en
 Date:		September 2023
