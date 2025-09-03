@@ -231,7 +231,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : sysfs_emit(buf, "%d\n", halo_heartbeat);
+	return error ? error : sysfs_emit(buf, "%u\n", halo_heartbeat);
 }
 static DEVICE_ATTR_RO(halo_heartbeat);
 
@@ -462,7 +462,7 @@ static ssize_t num_waves_show(struct device *dev, struct device_attribute *attr,
 		goto err_mutex;
 	}
 
-	error = sysfs_emit(buf, "%d\n", nwaves);
+	error = sysfs_emit(buf, "%u\n", nwaves);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -476,7 +476,7 @@ static DEVICE_ATTR_RO(num_waves);
 static ssize_t f0_offset_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	unsigned int reg, val;
+	u32 reg, val;
 	int error;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
@@ -495,7 +495,7 @@ static ssize_t f0_offset_show(struct device *dev, struct device_attribute *attr,
 	if (error)
 		goto err_mutex;
 
-	error = sysfs_emit(buf, "%u\n", val);
+	error = sysfs_emit(buf, "0x%06X\n", val);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -509,12 +509,12 @@ static ssize_t f0_offset_store(struct device *dev, struct device_attribute *attr
 		size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	unsigned int reg, val;
+	u32 reg, val;
 	int error;
 
-	error = kstrtou32(buf, 10, &val);
+	error = kstrtou32(buf, 16, &val);
 	if (error)
-		return -EINVAL;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 
 	if ((val > CS40L26_F0_OFFSET_MAX && val < CS40L26_F0_OFFSET_MIN) ||
 			val > CS40L26_F0_MASK)
@@ -554,7 +554,7 @@ static ssize_t delay_before_stop_playback_us_show(struct device *dev,
 
 	mutex_lock(&cs40l26->lock);
 
-	error = sysfs_emit(buf, "%d\n", cs40l26->delay_before_stop_playback_us);
+	error = sysfs_emit(buf, "%u\n", cs40l26->delay_before_stop_playback_us);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1589,7 +1589,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : sysfs_emit(buf, "%08X\n", f0_measured);
+	return error ? error : sysfs_emit(buf, "0x%06X\n", f0_measured);
 }
 static DEVICE_ATTR_RO(f0_measured);
 
@@ -1619,7 +1619,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : sysfs_emit(buf, "%08X\n", q_measured);
+	return error ? error : sysfs_emit(buf, "0x%06X\n", q_measured);
 }
 static DEVICE_ATTR_RO(q_measured);
 
@@ -1647,7 +1647,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : sysfs_emit(buf, "%08X\n", redc_measured);
+	return error ? error : sysfs_emit(buf, "0x%06X\n", redc_measured);
 }
 static DEVICE_ATTR_RO(redc_measured);
 
@@ -1675,7 +1675,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : sysfs_emit(buf, "%08X\n", redc_est);
+	return error ? error : sysfs_emit(buf, "0x%06X\n", redc_est);
 }
 
 static ssize_t redc_est_store(struct device *dev, struct device_attribute *attr, const char *buf,
@@ -1740,7 +1740,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : sysfs_emit(buf, "%08X\n", f0_stored);
+	return error ? error : sysfs_emit(buf, "0x%06X\n", f0_stored);
 }
 
 static ssize_t f0_stored_store(struct device *dev, struct device_attribute *attr, const char *buf,
@@ -1805,7 +1805,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : sysfs_emit(buf, "%08X\n", redc_stored);
+	return error ? error : sysfs_emit(buf, "0x%06X\n", redc_stored);
 }
 
 static ssize_t redc_stored_store(struct device *dev, struct device_attribute *attr,
@@ -1870,7 +1870,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : sysfs_emit(buf, "%08X\n", freq_centre);
+	return error ? error : sysfs_emit(buf, "0x%06X\n", freq_centre);
 }
 
 static ssize_t freq_centre_store(struct device *dev, struct device_attribute *attr,
@@ -1934,7 +1934,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : sysfs_emit(buf, "%08X\n", freq_span);
+	return error ? error : sysfs_emit(buf, "0x%06X\n", freq_span);
 }
 
 static ssize_t freq_span_store(struct device *dev, struct device_attribute *attr,
@@ -2108,7 +2108,7 @@ err_mutex:
 	if (error)
 		return error;
 
-	return sysfs_emit(buf, "%08X %08X %08X %08X %08X %08X\n",
+	return sysfs_emit(buf, "0x%06X 0x%06X 0x%06X 0x%06X 0x%06X 0x%06X\n",
 			dvl_peq_coefficients[0], dvl_peq_coefficients[1], dvl_peq_coefficients[2],
 			dvl_peq_coefficients[3], dvl_peq_coefficients[4], dvl_peq_coefficients[5]);
 }
@@ -2652,8 +2652,8 @@ static DEVICE_ATTR_RO(ls_calibration_results_name);
 static ssize_t svc_le_est_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	unsigned int le;
 	int error;
+	u32 le;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -2667,7 +2667,7 @@ static ssize_t svc_le_est_show(struct device *dev, struct device_attribute *attr
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : sysfs_emit(buf, "%u\n", le);
+	return error ? error : sysfs_emit(buf, "0x%06X\n", le);
 }
 static DEVICE_ATTR_RO(svc_le_est);
 
@@ -2678,7 +2678,7 @@ static ssize_t svc_le_stored_show(struct device *dev, struct device_attribute *a
 
 	mutex_lock(&cs40l26->lock);
 
-	error = sysfs_emit(buf, "%d\n", cs40l26->svc_le_est_stored);
+	error = sysfs_emit(buf, "0x%06X\n", cs40l26->svc_le_est_stored);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -2692,7 +2692,7 @@ static ssize_t svc_le_stored_store(struct device *dev,
 	u32 svc_le_stored;
 	int error;
 
-	error = kstrtou32(buf, 10, &svc_le_stored);
+	error = kstrtou32(buf, 16, &svc_le_stored);
 	if (error)
 		return error;
 
