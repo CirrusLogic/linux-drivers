@@ -965,6 +965,7 @@
  * (4096 / 64 = 64)
  */
 #define CS40L26_ERR_LOG_SIZE		64
+#define CS40L26_ERR_LOG_CLEAR		1
 
 /* Excursion Protection */
 #define CS40L26_EP_REINIT		BIT(2)

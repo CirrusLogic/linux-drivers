@@ -614,13 +614,15 @@ static ssize_t f0_comp_enable_store(struct device *dev, struct device_attribute 
 		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	bool enable;
+	u32 enable, reg;
 	int error;
-	u32 reg;
 
-	error = kstrtobool(buf, &enable);
+	error = kstrtou32(buf, 10, &enable);
 	if (error)
 		return error;
+
+	if (enable > 1)
+		return -EINVAL;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -676,12 +678,14 @@ static ssize_t redc_comp_enable_store(struct device *dev, struct device_attribut
 		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	bool enable;
+	u32 enable, reg;
 	int error;
-	u32 reg;
 
-	error = kstrtobool(buf, &enable);
+	error = kstrtou32(buf, 10, &enable);
 	if (error)
+		return -EINVAL;
+
+	if (enable > 1)
 		return -EINVAL;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
@@ -1194,14 +1198,14 @@ static ssize_t error_log_store(struct device *dev, struct device_attribute *attr
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	int error, i, nelements;
-	bool clear;
+	u32 clear;
 
-	error = kstrtobool(buf, &clear);
+	error = kstrtou32(buf, 10, &clear);
 	if (error)
 		return error;
 
-	if (!clear)
-		return count;
+	if (clear != CS40L26_ERR_LOG_CLEAR)
+		return -EINVAL;
 
 	mutex_lock(&cs40l26->lock);
 
@@ -2212,12 +2216,15 @@ static ssize_t ls_calibration_f0_closed_loop_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	bool closed_loop;
+	u32 closed_loop;
 	int error;
 
-	error = kstrtobool(buf, &closed_loop);
+	error = kstrtou32(buf, 10, &closed_loop);
 	if (error)
 		return error;
+
+	if (closed_loop > 1)
+		return -EINVAL;
 
 	mutex_lock(&cs40l26->lock);
 
