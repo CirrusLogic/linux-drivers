@@ -268,6 +268,9 @@ static ssize_t pm_stdby_timeout_ms_store(struct device *dev,
 	if (error)
 		return -EINVAL;
 
+	if (timeout_ms < CS40L26_PM_STDBY_TIMEOUT_MS_MIN || timeout_ms > CS40L26_PM_TIMEOUT_MS_MAX)
+		return -EINVAL;
+
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
 		return error;
@@ -316,6 +319,10 @@ static ssize_t pm_active_timeout_ms_store(struct device *dev,
 
 	error = kstrtou32(buf, 10, &timeout_ms);
 	if (error)
+		return -EINVAL;
+
+	if (timeout_ms < CS40L26_PM_ACTIVE_TIMEOUT_MS_MIN ||
+			timeout_ms > CS40L26_PM_TIMEOUT_MS_MAX)
 		return -EINVAL;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
@@ -509,7 +516,8 @@ static ssize_t f0_offset_store(struct device *dev, struct device_attribute *attr
 	if (error)
 		return -EINVAL;
 
-	if (val > CS40L26_F0_OFFSET_MAX && val < CS40L26_F0_OFFSET_MIN)
+	if ((val > CS40L26_F0_OFFSET_MAX && val < CS40L26_F0_OFFSET_MIN) ||
+			val > CS40L26_F0_MASK)
 		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
 
 	error = cs40l26_pm_enter(cs40l26->dev);
@@ -1676,6 +1684,9 @@ static ssize_t redc_est_store(struct device *dev, struct device_attribute *attr,
 	if (error)
 		return error;
 
+	if (redc_est > CS40L26_F0_EST_REDC_MAX)
+		return -EINVAL;
+
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
 		return error;
@@ -1803,6 +1814,9 @@ static ssize_t redc_stored_store(struct device *dev, struct device_attribute *at
 	if (error)
 		return error;
 
+	if (redc_stored > CS40L26_F0_EST_REDC_MAX)
+		return -EINVAL;
+
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
 		return error;
@@ -1920,18 +1934,16 @@ static ssize_t freq_span_store(struct device *dev, struct device_attribute *attr
 		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int error, s_freq_span;
 	u32 freq_span, reg;
+	int error;
 
 	error = kstrtou32(buf, 16, &freq_span);
 	if (error)
 		return error;
 
-	freq_span &= GENMASK(23, 0);
-	s_freq_span = (freq_span & BIT(23)) ? (freq_span | GENMASK(31, 24)) : freq_span;
-
-	if (abs(s_freq_span) < CS40L26_F0_FREQ_SPAN_MIN ||
-			abs(s_freq_span) > CS40L26_F0_FREQ_SPAN_MAX)
+	if ((freq_span > CS40L26_F0_FREQ_SPAN_POS_MAX && freq_span < CS40L26_F0_FREQ_SPAN_NEG_MIN)
+			|| freq_span < CS40L26_F0_FREQ_SPAN_POS_MIN
+			|| freq_span > CS40L26_F0_FREQ_SPAN_NEG_MAX)
 		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
 
 	error = cs40l26_pm_enter(cs40l26->dev);
@@ -2252,6 +2264,10 @@ static ssize_t ls_calibration_params_temp_store(struct device *dev, struct devic
 	error = kstrtou32(buf, 16, &params_temp);
 	if (error)
 		return error;
+
+	if ((params_temp > CS40L26_LS_CAL_TEMP_MAX && params_temp < CS40L26_LS_CAL_TEMP_MIN) ||
+			params_temp > CS40L26_LS_CAL_TEMP_MASK)
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -2670,6 +2686,9 @@ static ssize_t svc_le_stored_store(struct device *dev,
 	if (error)
 		return error;
 
+	if (svc_le_stored > CS40L26_SVC_LE_MAX)
+		return -EINVAL;
+
 	mutex_lock(&cs40l26->lock);
 
 	cs40l26->svc_le_est_stored = svc_le_stored;
@@ -2748,7 +2767,8 @@ static ssize_t logging_en_store(struct device *dev, struct device_attribute *att
 	if (error)
 		return error;
 
-	enable &= CS40L26_LOGGER_EN_MASK;
+	if (enable > 1)
+		return -EINVAL;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
