@@ -282,7 +282,6 @@ int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26, unsigned int dsp_
 		u32 timeout_ms)
 {
 	u32 reg, timeout_ticks;
-	unsigned int min;
 	int error;
 
 	if (cs40l26->fw_loaded) {
@@ -294,23 +293,19 @@ int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26, unsigned int dsp_
 		reg = cs40l26->rom_regs->pm_timeout_ticks;
 	}
 
-	if (dsp_state == CS40L26_DSP_STATE_STANDBY) {
+	switch (dsp_state) {
+	case CS40L26_DSP_STATE_STANDBY:
 		reg += CS40L26_PM_STDBY_TIMEOUT_OFFSET;
-		min = CS40L26_PM_STDBY_TIMEOUT_MS_MIN;
-	} else if (dsp_state == CS40L26_DSP_STATE_ACTIVE) {
+		break;
+	case CS40L26_DSP_STATE_ACTIVE:
 		reg += CS40L26_PM_ACTIVE_TIMEOUT_OFFSET;
-		min = CS40L26_PM_ACTIVE_TIMEOUT_MS_MIN;
-	} else {
+		break;
+	default:
 		dev_err(cs40l26->dev, "Invalid DSP state: %u\n", dsp_state);
 		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
-	if (timeout_ms > CS40L26_PM_TIMEOUT_MS_MAX)
-		timeout_ticks = (CS40L26_PM_TIMEOUT_MS_MAX * CS40L26_PM_TICKS_PER_SEC) / 1000;
-	else if (timeout_ms < min)
-		timeout_ticks = (min * CS40L26_PM_TICKS_PER_SEC) / 1000;
-	else
-		timeout_ticks = (timeout_ms * CS40L26_PM_TICKS_PER_SEC) / 1000;
+	timeout_ticks = (timeout_ms * CS40L26_PM_TICKS_PER_SEC) / 1000;
 
 	error = regmap_write(cs40l26->regmap, reg, timeout_ticks);
 	if (error)
