@@ -1408,7 +1408,7 @@ int cs40l26_num_ram_waves(struct cs40l26_private *cs40l26);
 int cs40l26_num_owt_waves(struct cs40l26_private *cs40l26);
 int cs40l26_num_waves(struct cs40l26_private *cs40l26);
 int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id);
-int cs40l26_wt_swap(struct cs40l26_private *cs40l26);
+int cs40l26_wt_swap(struct cs40l26_private *cs40l26, const u32 wt_num);
 void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26,
 		enum cs40l26_vibe_state_event event);
 int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26, unsigned int dsp_state,

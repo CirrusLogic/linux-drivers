@@ -768,6 +768,7 @@ static ssize_t swap_wavetable_store(struct device *dev, struct device_attribute 
 		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 wt_num;
 	int error;
 
 	/* Bypass PM runtime framework for DSP shutdown & wake */
@@ -776,13 +777,15 @@ static ssize_t swap_wavetable_store(struct device *dev, struct device_attribute 
 
 	mutex_lock(&cs40l26->lock);
 
-	error = kstrtou32(buf, 10, &cs40l26->wt_num);
+	error = kstrtou32(buf, 10, &wt_num);
 	if (error)
 		goto err_setup;
 
-	error = cs40l26_wt_swap(cs40l26);
+	error = cs40l26_wt_swap(cs40l26, wt_num);
 	if (error)
 		goto err_setup;
+
+	cs40l26->wt_num = wt_num;
 
 	mutex_unlock(&cs40l26->lock);
 

@@ -5183,7 +5183,7 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 }
 EXPORT_SYMBOL_GPL(cs40l26_fw_swap);
 
-int cs40l26_wt_swap(struct cs40l26_private *cs40l26)
+int cs40l26_wt_swap(struct cs40l26_private *cs40l26, const u32 wt_num)
 {
 	struct device *dev = cs40l26->dev;
 	u32 active_timeout, stdby_timeout;
@@ -5264,9 +5264,9 @@ int cs40l26_wt_swap(struct cs40l26_private *cs40l26)
 		goto wake;
 	}
 
-	if (cs40l26->wt_num)
+	if (wt_num)
 		snprintf(wt_file_name, CS40L26_FILE_NAME_MAX_LEN, "%s%d%s",
-				CS40L26_WT_FILE_PREFIX, cs40l26->wt_num, CS40L26_FILE_SUFFIX);
+				CS40L26_WT_FILE_PREFIX, wt_num, CS40L26_FILE_SUFFIX);
 	else
 		strscpy(wt_file_name, CS40L26_WT_FILE_NAME, CS40L26_FILE_NAME_MAX_LEN);
 
