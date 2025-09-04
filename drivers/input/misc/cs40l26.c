@@ -206,7 +206,7 @@ int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 		error = cl_dsp_get_reg(cs40l26->dsp, "PM_CUR_STATE", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_PM_ALGO_ID, &reg);
 		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 	} else {
 		reg = cs40l26->rom_regs->pm_cur_state;
 	}
@@ -325,7 +325,7 @@ int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26, unsigned int dsp_
 		error = cl_dsp_get_reg(cs40l26->dsp, "PM_TIMER_TIMEOUT_TICKS",
 				CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
 		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 	} else {
 		reg = cs40l26->rom_regs->pm_timeout_ticks;
 	}
