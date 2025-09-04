@@ -199,7 +199,7 @@ static int cs40l26_broadcast_write(struct cs40l26_private *cs40l26, u32 reg, u32
 
 int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 {
-	u32 reg, dsp_state;
+	u32 dsp_state, reg;
 	int error;
 
 	if (cs40l26->fw_loaded) {
@@ -217,13 +217,10 @@ int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 
 	switch (dsp_state) {
 	case CS40L26_DSP_STATE_HIBERNATE:
-		/* intentionally fall through */
 	case CS40L26_DSP_STATE_SHUTDOWN:
-		/* intentionally fall through */
 	case CS40L26_DSP_STATE_STANDBY:
-		/* intentionally fall through */
 	case CS40L26_DSP_STATE_ACTIVE:
-		*state = CS40L26_DSP_STATE_MASK & dsp_state;
+		*state = (u8)(CS40L26_DSP_STATE_MASK & dsp_state);
 		break;
 	default:
 		dev_err(cs40l26->dev, "DSP state %u is invalid\n", dsp_state);
@@ -481,8 +478,8 @@ static void cs40l26_remove_asp_scaling(struct cs40l26_private *cs40l26)
 
 int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26, enum cs40l26_pm_state state)
 {
-	struct device *dev = cs40l26->dev;
 	u32 cmd, he_time_cmd, he_time_cmd_payload;
+	struct device *dev = cs40l26->dev;
 	u8 curr_state;
 	bool dsp_lock;
 	int error, i;
