@@ -1975,12 +1975,42 @@ err_mutex:
 }
 static DEVICE_ATTR_RW(freq_span);
 
+static int calc_f0_and_q_cal_time_ms(struct cs40l26_private *cs40l26, u32 *f0_and_q_cal_time_ms)
+{
+	u32 freq_centre, freq_span, reg;
+	int error;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "FREQ_SPAN", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_F0_EST_ALGO_ID, &reg);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = regmap_read(cs40l26->regmap, reg, &freq_span);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "FREQ_CENTRE", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_F0_EST_ALGO_ID, &reg);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = regmap_read(cs40l26->regmap, reg, &freq_centre);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+
+	*f0_and_q_cal_time_ms = (u32)((CS40L26_F0_CHIRP_DURATION_FACTOR *
+			(int) (freq_span >> CS40L26_F0_EST_FREQ_FRAC_BITS)) /
+			(int) (freq_centre >> CS40L26_F0_EST_FREQ_FRAC_BITS));
+
+	return 0;
+}
+
 static ssize_t f0_and_q_cal_time_ms_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 reg, tone_dur_ms, freq_centre, freq_span;
-	int error, f0_and_q_cal_time_ms;
+	u32 f0_and_q_cal_time_ms = 0, reg, tone_dur_ms;
+	int error;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -2000,36 +2030,8 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev, struct device_attri
 		goto err_mutex;
 	}
 
-	if (tone_dur_ms == 0) { /* Calculate value */
-		error = cl_dsp_get_reg(cs40l26->dsp, "FREQ_SPAN", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_F0_EST_ALGO_ID, &reg);
-		if (error) {
-			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
-			goto err_mutex;
-		}
-
-		error = regmap_read(cs40l26->regmap, reg, &freq_span);
-		if (error) {
-			dev_err(cs40l26->dev, "Failed to get FREQ_SPAN\n");
-			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
-			goto err_mutex;
-		}
-
-		error = cl_dsp_get_reg(cs40l26->dsp, "FREQ_CENTRE", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_F0_EST_ALGO_ID, &reg);
-		if (error)
-			goto err_mutex;
-
-		error = regmap_read(cs40l26->regmap, reg, &freq_centre);
-		if (error) {
-			dev_err(cs40l26->dev, "Failed to get FREQ_CENTRE\n");
-			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
-			goto err_mutex;
-		}
-
-		f0_and_q_cal_time_ms = ((CS40L26_F0_CHIRP_DURATION_FACTOR *
-				(int) (freq_span >> CS40L26_F0_EST_FREQ_FRAC_BITS)) /
-				(int) (freq_centre >> CS40L26_F0_EST_FREQ_FRAC_BITS));
+	if (tone_dur_ms == 0) {
+		error = calc_f0_and_q_cal_time_ms(cs40l26, &f0_and_q_cal_time_ms);
 	} else if (tone_dur_ms < CS40L26_F0_AND_Q_CALIBRATION_MIN_MS) {
 		f0_and_q_cal_time_ms = CS40L26_F0_AND_Q_CALIBRATION_MIN_MS;
 	} else if (tone_dur_ms > CS40L26_F0_AND_Q_CALIBRATION_MAX_MS) {
