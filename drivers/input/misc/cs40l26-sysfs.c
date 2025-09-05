@@ -2221,7 +2221,8 @@ static ssize_t dvl_peq_coefficients_store(struct device *dev, struct device_attr
 		return -ENOMEM;
 
 	coeffs_str_temp = coeffs_str;
-	while ((coeff_str = strsep(&coeffs_str_temp, " ")) != NULL) {
+	while ((coeff_str = strsep(&coeffs_str_temp, " ")) != NULL &&
+			coeffs_found < CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS) {
 		error = kstrtou32(coeff_str, 16, &dvl_peq_coefficients[coeffs_found++]);
 		if (error)
 			goto err_free;
