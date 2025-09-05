@@ -2208,57 +2208,72 @@ err_mutex:
 			dvl_peq_coefficients[3], dvl_peq_coefficients[4], dvl_peq_coefficients[5]);
 }
 
+static int process_coeff_buf(struct cs40l26_private *cs40l26, const char *buf, u32 *copy_buf,
+		const u32 num_coeffs, u32 *coeffs_found)
+{
+	char *coeff, *coeffs, *coeffs_temp;
+	int error = 0;
+
+	coeffs = kstrdup(buf, GFP_KERNEL);
+	if (!coeffs)
+		return -ENOMEM;
+
+	coeffs_temp = coeffs;
+
+	while ((coeff = strsep(&coeffs_temp, " ")) != NULL && *coeffs_found < num_coeffs) {
+		error = kstrtou32(coeff, 16, &copy_buf[(*coeffs_found)++]);
+		if (error) {
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
+			goto err_free;
+		}
+	}
+
+	if (*coeffs_found != CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS) {
+		error = -EINVAL;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
+	}
+
+err_free:
+	kfree(coeffs);
+
+	return error;
+}
+
 static ssize_t dvl_peq_coefficients_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	u32 dvl_peq_coefficients[CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS], reg;
+	u32 dvl_peq_coeffs[CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS], reg;
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	char *coeffs_str, *coeffs_str_temp, *coeff_str;
 	int coeffs_found = 0, error;
 
-	coeffs_str = kstrdup(buf, GFP_KERNEL);
-	if (!coeffs_str)
-		return -ENOMEM;
-
-	coeffs_str_temp = coeffs_str;
-	while ((coeff_str = strsep(&coeffs_str_temp, " ")) != NULL &&
-			coeffs_found < CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS) {
-		error = kstrtou32(coeff_str, 16, &dvl_peq_coefficients[coeffs_found++]);
-		if (error)
-			goto err_free;
-	}
-
-	if (coeffs_found != CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS) {
-		dev_err(cs40l26->dev, "Num DVL PEQ coeffs, %d, expecting %d\n",
-				coeffs_found, CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
-		error = -EINVAL;
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_COEFF, __func__);
-		goto err_free;
-	}
+	error = process_coeff_buf(cs40l26, buf, dvl_peq_coeffs,
+			CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS, &coeffs_found);
+	if (error)
+		return error;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
-		goto err_free;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__);
 
 	mutex_lock(&cs40l26->lock);
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "PEQ_COEF1_X", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_DVL_ALGO_ID, &reg);
-	if (error)
-		goto err_mutex;
-
-	error = regmap_bulk_write(cs40l26->regmap, reg, dvl_peq_coefficients,
-			CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
 	if (error) {
-		dev_err(cs40l26->dev, "Failed to write DVL PEQ coefficients,%d", error);
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+		goto err_mutex;
 	}
+
+	error = regmap_bulk_write(cs40l26->regmap, reg, dvl_peq_coeffs,
+			CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
+
 	cs40l26_pm_exit(cs40l26->dev);
-err_free:
-	kfree(coeffs_str);
+
 	return error ? error : count;
 }
 static DEVICE_ATTR_RW(dvl_peq_coefficients);
