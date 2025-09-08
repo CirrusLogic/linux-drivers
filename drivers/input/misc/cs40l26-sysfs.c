@@ -2203,7 +2203,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : sysfs_emit(buf, "0x%06X 0x%06X 0x%06X 0x%06X 0x%06X 0x%06X\n",
+	return error ? error : sysfs_emit(buf, "0x%06X\n0x%06X\n0x%06X\n0x%06X\n0x%06X\n0x%06X\n",
 			dvl_peq_coefficients[0], dvl_peq_coefficients[1], dvl_peq_coefficients[2],
 			dvl_peq_coefficients[3], dvl_peq_coefficients[4], dvl_peq_coefficients[5]);
 }
