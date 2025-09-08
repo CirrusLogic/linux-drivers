@@ -2209,7 +2209,7 @@ err_mutex:
 }
 
 static int process_coeff_buf(struct cs40l26_private *cs40l26, const char *buf, u32 *copy_buf,
-		const u32 num_coeffs, u32 *coeffs_found)
+		const u32 num_coeffs, u32 *coeffs_found, char *revision)
 {
 	char *coeff, *coeffs, *coeffs_temp;
 	int error = 0;
@@ -2220,7 +2220,7 @@ static int process_coeff_buf(struct cs40l26_private *cs40l26, const char *buf, u
 
 	coeffs_temp = coeffs;
 
-	while ((coeff = strsep(&coeffs_temp, " ")) != NULL && *coeffs_found < num_coeffs) {
+	while ((coeff = strsep(&coeffs_temp, "\n")) != NULL && *coeffs_found < num_coeffs) {
 		error = kstrtou32(coeff, 16, &copy_buf[(*coeffs_found)++]);
 		if (error) {
 			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
@@ -2228,7 +2228,15 @@ static int process_coeff_buf(struct cs40l26_private *cs40l26, const char *buf, u
 		}
 	}
 
-	if (*coeffs_found != CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS) {
+	if (coeff != NULL && revision != NULL) {
+		error = snprintf(revision, CS40L26_ALGO_ID_MAX_STR_LEN, coeff);
+		if (error < 0) {
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DRIVER, __func__);
+			goto err_free;
+		}
+	}
+
+	if (*coeffs_found != num_coeffs) {
 		error = -EINVAL;
 		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 	}
@@ -2236,7 +2244,7 @@ static int process_coeff_buf(struct cs40l26_private *cs40l26, const char *buf, u
 err_free:
 	kfree(coeffs);
 
-	return error;
+	return error < 0 ? error : 0;
 }
 
 static ssize_t dvl_peq_coefficients_store(struct device *dev, struct device_attribute *attr,
@@ -2247,7 +2255,7 @@ static ssize_t dvl_peq_coefficients_store(struct device *dev, struct device_attr
 	int coeffs_found = 0, error;
 
 	error = process_coeff_buf(cs40l26, buf, dvl_peq_coeffs,
-			CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS, &coeffs_found);
+			CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS, &coeffs_found, NULL);
 	if (error)
 		return error;
 
@@ -2615,103 +2623,85 @@ static ssize_t ls_calibration_results_store(struct device *dev, struct device_at
 		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 ls_cal_results[CS40L26_LS_CAL_NUM_REGS], reg;
+	char revision[CS40L26_ALGO_ID_MAX_STR_LEN];
 	int error, f0_index, i, results_found = 0;
-	u32 reg, results[CS40L26_LS_CAL_NUM_REGS];
-	char *str, *str_full;
 
-	str_full = kstrdup(buf, GFP_KERNEL);
-	if (!str_full)
-		return -ENOMEM;
+	error = process_coeff_buf(cs40l26, buf, ls_cal_results, CS40L26_LS_CAL_NUM_REGS,
+			&results_found, revision);
+	if (error)
+		return error;
 
-	while ((str = strsep(&str_full, "\n")) != NULL &&
-			results_found < CS40L26_LS_CAL_NUM_REGS) {
-		error = kstrtou32(str, 16, &results[results_found++]);
-		if (error)
-			goto err_free;
-	}
-
-	if (str != NULL) {
-		dev_info(cs40l26->dev, "LS calibration %s", str);
-		/* Ignore any values present after LS calibration algorithm revision. */
-		while (strsep(&str_full, "\n") != NULL)
-			continue;
-	}
-
-	if (results_found != CS40L26_LS_CAL_NUM_REGS) {
-		dev_err(cs40l26->dev, "Num results = %d, expecting %d\n",
-				results_found, CS40L26_LS_CAL_NUM_REGS);
-		error = -EINVAL;
-		goto err_free;
-	}
+	dev_info(cs40l26->dev, "LS calibration %s", revision);
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
-		goto err_free;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__);
 
 	mutex_lock(&cs40l26->lock);
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "CFG", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_EP_ALGO_ID, &reg);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 		goto err_mutex;
+	}
 
 	error = regmap_set_bits(cs40l26->regmap, reg, CS40L26_LS_CAL_REINIT_MASK);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		goto err_mutex;
+	}
 
 	f0_index = cs40l26->ls_cal_f0_closed_loop ?
 			CS40L26_LS_CAL_F0_CL_INDEX : CS40L26_LS_CAL_F0_OL_INDEX;
 
 	for (i = 0; i < results_found; i++) {
 		if (i == f0_index) {
-			error = cs40l26_copy_ls_cal_f0_result(cs40l26, results[i]);
-			if (error)
-				goto err_mutex;
-
-			continue;
+			error = cs40l26_copy_ls_cal_f0_result(cs40l26, ls_cal_results[i]);
+		} else if (i == CS40L26_LS_CAL_REDC_INDEX) {
+			error = cs40l26_copy_re0_to_therm_lim(cs40l26, ls_cal_results[i]);
+		} else if (i == CS40L26_LS_CAL_TEMP_INDEX) {
+			error = cs40l26_copy_t0_to_therm_lim(cs40l26, ls_cal_results[i]);
 		}
-
-		if (i == CS40L26_LS_CAL_REDC_INDEX) {
-			error = cs40l26_copy_re0_to_therm_lim(cs40l26, results[i]);
-			if (error)
-				goto err_mutex;
-		}
-
-		if (i == CS40L26_LS_CAL_TEMP_INDEX) {
-			error = cs40l26_copy_t0_to_therm_lim(cs40l26, results[i]);
-			if (error)
-				goto err_mutex;
-		}
+		if (error)
+			goto err_mutex;
 
 		if (cs40l26_ls_cal_params[i].runtime_name == NULL)
 			continue;
 
 		error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_ls_cal_params[i].runtime_name,
 				CL_DSP_XM_UNPACKED_TYPE, CS40L26_EP_ALGO_ID, &reg);
-		if (error)
+		if (error) {
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 			goto err_mutex;
+		}
 
 		if (cs40l26_ls_cal_params[i].word_num == 2)
 			reg += sizeof(u32);
 
-		error = regmap_write(cs40l26->regmap, reg, results[i]);
-		if (error)
+		error = regmap_write(cs40l26->regmap, reg, ls_cal_results[i]);
+		if (error) {
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 			goto err_mutex;
+		}
 	}
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "CFG", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_EP_ALGO_ID, &reg);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 		goto err_mutex;
+	}
 
 	error = regmap_set_bits(cs40l26->regmap, reg, CS40L26_EP_REINIT);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cs40l26->dev);
-err_free:
-	kfree(str_full);
 
 	return error ? error : count;
 }
