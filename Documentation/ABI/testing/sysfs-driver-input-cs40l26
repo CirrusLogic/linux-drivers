@@ -384,8 +384,13 @@ Description:
 		with cs40l26-dvl.bin to update the DVL PEQ coefficients with the
 		values obtained during calibration.
 
-		The format is the coefficients in order in hex format (signed Q4.20) separated by spaces.
-		<PEQ_COEF1_X> <PEQ_COEF1_Y> <PEQ_COEF2_X> <PEQ_COEF2_Y> <PEQ_COEF3_X> <PEQ_COEF3_Y>
+		Coefficients are outputted in order with newlines as the separator.
+			<PEQ_COEF1_X>
+			<PEQ_COEF1_Y>
+			<PEQ_COEF2_X>
+			<PEQ_COEF2_Y>
+			<PEQ_COEF3_X>
+			<PEQ_COEF3_Y>
 
 		Access: Read, Write
 
