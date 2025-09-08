@@ -2208,41 +2208,41 @@ err_mutex:
 			dvl_peq_coefficients[3], dvl_peq_coefficients[4], dvl_peq_coefficients[5]);
 }
 
-static int process_coeff_buf(struct cs40l26_private *cs40l26, const char *buf, u32 *copy_buf,
-		const u32 num_coeffs, u32 *coeffs_found, char *revision)
+static int cs40l26_process_word_buf(struct cs40l26_private *cs40l26, const char *buf,
+		u32 *copy_buf, const u32 num_words, u32 *words_found, char *revision)
 {
-	char *coeff, *coeffs, *coeffs_temp;
+	char *word, *words, *words_temp;
 	int error = 0;
 
-	coeffs = kstrdup(buf, GFP_KERNEL);
-	if (!coeffs)
+	words = kstrdup(buf, GFP_KERNEL);
+	if (!words)
 		return -ENOMEM;
 
-	coeffs_temp = coeffs;
+	words_temp = words;
 
-	while ((coeff = strsep(&coeffs_temp, "\n")) != NULL && *coeffs_found < num_coeffs) {
-		error = kstrtou32(coeff, 16, &copy_buf[(*coeffs_found)++]);
+	while ((word = strsep(&words_temp, "\n")) != NULL && *words_found < num_words) {
+		error = kstrtou32(word, 16, &copy_buf[(*words_found)++]);
 		if (error) {
 			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 			goto err_free;
 		}
 	}
 
-	if (coeff != NULL && revision != NULL) {
-		error = snprintf(revision, CS40L26_ALGO_ID_MAX_STR_LEN, coeff);
+	if (word != NULL && revision != NULL) {
+		error = snprintf(revision, CS40L26_ALGO_ID_MAX_STR_LEN, word);
 		if (error < 0) {
 			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DRIVER, __func__);
 			goto err_free;
 		}
 	}
 
-	if (*coeffs_found != num_coeffs) {
+	if (*words_found != num_words) {
 		error = -EINVAL;
 		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 	}
 
 err_free:
-	kfree(coeffs);
+	kfree(words);
 
 	return error < 0 ? error : 0;
 }
@@ -2254,7 +2254,7 @@ static ssize_t dvl_peq_coefficients_store(struct device *dev, struct device_attr
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	int coeffs_found = 0, error;
 
-	error = process_coeff_buf(cs40l26, buf, dvl_peq_coeffs,
+	error = cs40l26_process_word_buf(cs40l26, buf, dvl_peq_coeffs,
 			CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS, &coeffs_found, NULL);
 	if (error)
 		return error;
@@ -2627,7 +2627,7 @@ static ssize_t ls_calibration_results_store(struct device *dev, struct device_at
 	char revision[CS40L26_ALGO_ID_MAX_STR_LEN];
 	int error, f0_index, i, results_found = 0;
 
-	error = process_coeff_buf(cs40l26, buf, ls_cal_results, CS40L26_LS_CAL_NUM_REGS,
+	error = cs40l26_process_word_buf(cs40l26, buf, ls_cal_results, CS40L26_LS_CAL_NUM_REGS,
 			&results_found, revision);
 	if (error)
 		return error;
@@ -3225,11 +3225,12 @@ static ssize_t fw_ctrl_reg_show(struct device *dev, struct device_attribute *att
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_sysfs_fw_get_reg(cs40l26, &reg);
+	error = cl_dsp_get_reg(cs40l26->dsp, cs40l26->sysfs_fw.ctrl_name,
+			cs40l26->sysfs_fw.block_type, cs40l26->sysfs_fw.algo_id, &reg);
 
 	mutex_unlock(&cs40l26->lock);
 
-	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__) :
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__) :
 			sysfs_emit(buf, "0x%08X\n", reg);
 }
 static DEVICE_ATTR_RO(fw_ctrl_reg);
@@ -3242,99 +3243,107 @@ static ssize_t fw_ctrl_size_words_show(struct device *dev, struct device_attribu
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_sysfs_fw_get_length(cs40l26, &nbytes);
+	error = cl_dsp_get_length(cs40l26->dsp, cs40l26->sysfs_fw.ctrl_name,
+			cs40l26->sysfs_fw.block_type, cs40l26->sysfs_fw.algo_id, &nbytes);
 
 	mutex_unlock(&cs40l26->lock);
 
-	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__) :
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__) :
 			sysfs_emit(buf, "%zd\n", nbytes / CL_DSP_BYTES_PER_WORD);
 }
 static DEVICE_ATTR_RO(fw_ctrl_size_words);
 
+static int cs40l26_fw_ctrl_properties(struct cs40l26_private *cs40l26, u32 *reg,
+		size_t *num_words, bool show)
+{
+	size_t nbytes;
+	int error;
+	u32 flags;
+
+	error = cl_dsp_get_flags(cs40l26->dsp, cs40l26->sysfs_fw.ctrl_name,
+			cs40l26->sysfs_fw.block_type, cs40l26->sysfs_fw.algo_id, &flags);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	if (show && !(flags & CL_DSP_HALO_FLAG_READ))
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_SYSFS, __func__);
+	else if (!show && (flags & CL_DSP_HALO_FLAG_VOLATILE || !(flags & CL_DSP_HALO_FLAG_WRITE)))
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_SYSFS, __func__);
+
+	error = cl_dsp_get_length(cs40l26->dsp, cs40l26->sysfs_fw.ctrl_name,
+			cs40l26->sysfs_fw.block_type, cs40l26->sysfs_fw.algo_id, &nbytes);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	*num_words = nbytes / CL_DSP_BYTES_PER_WORD;
+
+	error = cl_dsp_get_reg(cs40l26->dsp, cs40l26->sysfs_fw.ctrl_name,
+			cs40l26->sysfs_fw.block_type, cs40l26->sysfs_fw.algo_id, reg);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	return 0;
+}
+
 static ssize_t fw_ctrl_val_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	char *final_str = NULL;
-	u32 reg, *val = NULL;
 	char str[CS40L26_FW_CTRL_VAL_STR_SIZE];
-	size_t nbytes, num_words;
-	unsigned int flags;
-	ssize_t nwritten;
+	size_t num_words = 0, nwritten;
+	u32 reg = 0, *val = NULL;
+	char *final_str = NULL;
 	int error, i;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__);
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_sysfs_fw_get_flags(cs40l26, &flags);
-	if (error) {
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
-		goto mutex_exit;
-	}
-
-	if (!(flags & CL_DSP_HALO_FLAG_READ)) {
-		dev_err(cs40l26->dev, "Cannot read from control %s with flags = 0x%X\n",
-				cs40l26->sysfs_fw.ctrl_name, flags);
-		error = -EPERM;
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
-		goto mutex_exit;
-	}
-
-	error = cs40l26_sysfs_fw_get_length(cs40l26, &nbytes);
-	if (error) {
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
-		goto mutex_exit;
-	}
-
-	num_words = nbytes / CL_DSP_BYTES_PER_WORD;
-
-	error = cs40l26_sysfs_fw_get_reg(cs40l26, &reg);
-	if (error) {
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
-		goto mutex_exit;
-	}
+	error = cs40l26_fw_ctrl_properties(cs40l26, &reg, &num_words, true);
+	if (error)
+		goto err_mutex;
 
 	val = kcalloc(num_words, sizeof(u32), GFP_KERNEL);
 	if (!val) {
 		error = -ENOMEM;
-		goto mutex_exit;
-	}
-
-	error = regmap_bulk_read(cs40l26->regmap, reg, val, num_words);
-	if (error) {
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
-		goto mutex_exit;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_INIT, __func__);
+		goto err_mutex;
 	}
 
 	final_str = kzalloc(CS40L26_FW_CTRL_VAL_STR_SIZE * num_words, GFP_KERNEL);
 	if (!final_str) {
 		error = -ENOMEM;
-		goto mutex_exit;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_INIT, __func__);
+		goto err_free;
+	}
+
+	error = regmap_bulk_read(cs40l26->regmap, reg, val, num_words);
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+		goto err_free_all;
 	}
 
 	for (i = 0; i < num_words; i++) {
-		nwritten = snprintf(str, CS40L26_FW_CTRL_VAL_STR_SIZE, "0x%08X\n", val[i]);
-		if (nwritten <= 0) {
-			error = -EINVAL;
-			goto mutex_exit;
-		}
+		error = snprintf(str, CS40L26_FW_CTRL_VAL_STR_SIZE, "0x%08X\n", val[i]);
+		if (error <= 0)
+			break;
 
 		strncat(final_str, str, CS40L26_FW_CTRL_VAL_STR_SIZE);
 	}
 
-mutex_exit:
+	nwritten = sysfs_emit(buf, "%s", final_str);
 
+err_free_all:
+	kfree(final_str);
+
+err_free:
+	kfree(val);
+
+err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cs40l26->dev);
-
-	if (!error)
-		nwritten = sysfs_emit(buf, "%s", final_str);
-
-	kfree(final_str);
-	kfree(val);
 
 	return error ? error : nwritten;
 }
@@ -3342,94 +3351,43 @@ mutex_exit:
 static ssize_t fw_ctrl_val_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	size_t nbytes, num_buf_words, num_ctl_words, wcount = 0;
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 reg, *val = NULL;
-	char *str, *str_full;
-	unsigned int flags;
+	u32 reg = 0, *val = NULL, wcount = 0;
+	size_t num_words = 0;
 	int error;
-
-	str_full = kstrdup(buf, GFP_KERNEL);
-	if (!str_full)
-		return -ENOMEM;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
-		goto free_exit;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__);
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_sysfs_fw_get_flags(cs40l26, &flags);
-	if (error) {
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
-		goto mutex_exit;
-	}
+	error = cs40l26_fw_ctrl_properties(cs40l26, &reg, &num_words, false);
+	if (error)
+		goto err_mutex;
 
-	if (flags & CL_DSP_HALO_FLAG_VOLATILE || !(flags & CL_DSP_HALO_FLAG_WRITE)) {
-		dev_err(cs40l26->dev, "Cannot write to control %s with flags = 0x%X\n",
-				cs40l26->sysfs_fw.ctrl_name, flags);
-		error = -EPERM;
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
-		goto mutex_exit;
-	}
-
-	error = cs40l26_sysfs_fw_get_length(cs40l26, &nbytes);
-	if (error) {
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
-		goto mutex_exit;
-	}
-
-	num_ctl_words = nbytes / CL_DSP_BYTES_PER_WORD;
-
-	if (num_ctl_words > 1) {
-		num_buf_words = strlen(str_full) / CS40L26_FW_CTRL_VAL_STR_SIZE_NO_NEWLINE;
-
-		if (num_ctl_words != num_buf_words) {
-			dev_err(cs40l26->dev, "Expected %zd words, received %zd\n",
-					num_ctl_words, num_buf_words);
-			error = -EINVAL;
-			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
-			goto mutex_exit;
-		}
-
-		if (strlen(str_full) % CS40L26_FW_CTRL_VAL_STR_SIZE_NO_NEWLINE) {
-			dev_err(cs40l26->dev, "Unexpected input string size\n");
-			error = -EINVAL;
-			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
-			goto mutex_exit;
-		}
-	}
-
-	val = kcalloc(num_ctl_words, sizeof(u32), GFP_KERNEL);
+	val = kcalloc(num_words, sizeof(u32), GFP_KERNEL);
 	if (!val) {
 		error = -ENOMEM;
-		goto mutex_exit;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_INIT, __func__);
+		goto err_mutex;
 	}
 
-	while ((str = strsep(&str_full, "\n")) != NULL && wcount < num_ctl_words) {
-		error = kstrtou32(str, 16, &val[wcount++]);
-		if (error)
-			goto mutex_exit;
-	}
+	error = cs40l26_process_word_buf(cs40l26, buf, val, num_words, &wcount, NULL);
+	if (error)
+		goto err_free;
 
-	error = cs40l26_sysfs_fw_get_reg(cs40l26, &reg);
-	if (error) {
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
-		goto mutex_exit;
-	}
-
-	error = regmap_bulk_write(cs40l26->regmap, reg, val, num_ctl_words);
+	error = regmap_bulk_write(cs40l26->regmap, reg, val, num_words);
 	if (error)
 		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 
-mutex_exit:
+err_free:
+	kfree(val);
+
+err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cs40l26->dev);
-
-free_exit:
-	kfree(val);
-	kfree(str_full);
 
 	return error ? error : count;
 }
