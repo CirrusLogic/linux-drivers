@@ -65,6 +65,82 @@ static u32 gpio_map_get(struct device *dev, enum cs40l26_gpio_map gpio)
 	return CS40L26_EVENT_MAP_GPI_DISABLE;
 }
 
+int cs40l26_dsp_read_ctl_reg(struct cs40l26_private *cs40l26, const char *coeff_name,
+		const u32 block_type, const u32 algo_id, u32 *val)
+{
+	int error;
+	u32 reg;
+
+	if (algo_id != cs40l26->fw_id && !cl_dsp_algo_is_present(cs40l26->dsp, algo_id))
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, coeff_name, block_type, algo_id, &reg);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = regmap_read(cs40l26->regmap, reg, val);
+
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__) : 0;
+}
+EXPORT_SYMBOL_GPL(cs40l26_dsp_read_ctl_reg);
+
+int cs40l26_dsp_write_ctl_reg(struct cs40l26_private *cs40l26, const char *coeff_name,
+		const u32 block_type, const u32 algo_id, const u32 val)
+{
+	int error;
+	u32 reg;
+
+	if (algo_id != cs40l26->fw_id && !cl_dsp_algo_is_present(cs40l26->dsp, algo_id))
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, coeff_name, block_type, algo_id, &reg);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = regmap_write(cs40l26->regmap, reg, val);
+
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__) : 0;
+}
+EXPORT_SYMBOL_GPL(cs40l26_dsp_write_ctl_reg);
+
+int cs40l26_dsp_update_ctl_reg(struct cs40l26_private *cs40l26, const char *coeff_name,
+		const u32 block_type, const u32 algo_id, const u32 val, const u32 mask)
+{
+	int error;
+	u32 reg;
+
+	if (algo_id != cs40l26->fw_id && !cl_dsp_algo_is_present(cs40l26->dsp, algo_id))
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, coeff_name, block_type, algo_id, &reg);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = regmap_update_bits(cs40l26->regmap, reg, mask, val << (ffs(mask) - 1));
+
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__) : 0;
+}
+EXPORT_SYMBOL_GPL(cs40l26_dsp_update_ctl_reg);
+
+int cs40l26_dsp_set_ctl_reg(struct cs40l26_private *cs40l26, const char *coeff_name,
+		const u32 block_type, const u32 algo_id, const u32 mask)
+{
+	int error;
+	u32 reg;
+
+	if (algo_id != cs40l26->fw_id && !cl_dsp_algo_is_present(cs40l26->dsp, algo_id))
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, coeff_name, block_type, algo_id, &reg);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = regmap_set_bits(cs40l26->regmap, reg, mask);
+
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__) : 0;
+}
+EXPORT_SYMBOL_GPL(cs40l26_dsp_set_ctl_reg);
+
 static int cs40l26_dsp_read(struct cs40l26_private *cs40l26, u32 reg, u32 *val)
 {
 	struct regmap *regmap = cs40l26->regmap;
