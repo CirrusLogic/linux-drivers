@@ -1461,6 +1461,14 @@ int cs40l26_wseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data,
 int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26);
 void cs40l26_irq_enable(struct cs40l26_private *cs40l26, const unsigned int en);
 int cs40l26_log_err(struct cs40l26_private *cs40l26, int code, u32 type, const char *fxn_name);
+int cs40l26_dsp_read_ctl_reg(struct cs40l26_private *cs40l26, const char *coeff_name,
+		const u32 block_type, const u32 algo_id, u32 *val);
+int cs40l26_dsp_write_ctl_reg(struct cs40l26_private *cs40l26, const char *coeff_name,
+		const u32 block_type, const u32 algo_id, const u32 val);
+int cs40l26_dsp_update_ctl_reg(struct cs40l26_private *cs40l26, const char *coeff_name,
+		const u32 block_type, const u32 algo_id, const u32 val, const u32 mask);
+int cs40l26_dsp_set_ctl_reg(struct cs40l26_private *cs40l26, const char *coeff_name,
+		const u32 block_type, const u32 algo_id, const u32 mask);
 
 /* external tables */
 extern struct cs40l26_wseq_params aseq_params;
