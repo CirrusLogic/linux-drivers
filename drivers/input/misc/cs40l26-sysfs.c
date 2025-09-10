@@ -700,6 +700,34 @@ static ssize_t swap_wavetable_show(struct device *dev, struct device_attribute *
 	return sysfs_emit(buf, "%u\n", wt_num);
 }
 
+static int cs40l26_handle_wt_swap(struct cs40l26_private *cs40l26, const u32 wt_num)
+{
+	int error_pm, error_wt;
+
+	/* Bypass PM runtime framework for DSP shutdown & wake */
+	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_DISABLE);
+	cs40l26_pm_runtime_teardown(cs40l26);
+
+	mutex_lock(&cs40l26->lock);
+
+	error_wt = cs40l26_wt_swap(cs40l26, wt_num);
+
+	mutex_unlock(&cs40l26->lock);
+
+	if (error_wt)
+		cs40l26_log_err(cs40l26, error_wt, CS40L26_ERR_TYPE_FW, __func__);
+	else
+		cs40l26->wt_num = wt_num;
+
+	error_pm = cs40l26_pm_runtime_setup(cs40l26);
+	if (error_pm)
+		return cs40l26_log_err(cs40l26, error_pm, CS40L26_ERR_TYPE_PM, __func__);
+
+	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_ENABLE);
+
+	return error_wt;
+}
+
 static ssize_t swap_wavetable_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
@@ -711,25 +739,9 @@ static ssize_t swap_wavetable_store(struct device *dev, struct device_attribute 
 	if (error)
 		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 
-	/* Bypass PM runtime framework for DSP shutdown & wake */
-	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_DISABLE);
-	cs40l26_pm_runtime_teardown(cs40l26);
-
-	mutex_lock(&cs40l26->lock);
-
-	error = cs40l26_wt_swap(cs40l26, wt_num);
+	error = cs40l26_handle_wt_swap(cs40l26, wt_num);
 	if (error)
-		goto err_setup;
-
-	cs40l26->wt_num = wt_num;
-
-	mutex_unlock(&cs40l26->lock);
-
-	error = cs40l26_pm_runtime_setup(cs40l26);
-	if (error)
-		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__);
-
-	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_ENABLE);
+		return error;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -742,10 +754,8 @@ static ssize_t swap_wavetable_store(struct device *dev, struct device_attribute 
 		goto err_mutex;
 
 	error = cs40l26_num_waves(cs40l26, &nwaves);
-	if (error)
-		goto err_mutex;
-
-	dev_info(cs40l26->dev, "Loaded new wavetable with %d waveforms\n", nwaves);
+	if (!error)
+		dev_info(cs40l26->dev, "Loaded new wavetable with %d waveforms\n", nwaves);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -753,16 +763,6 @@ err_mutex:
 	cs40l26_pm_exit(cs40l26->dev);
 
 	return error ? error : count;
-
-err_setup:
-	mutex_unlock(&cs40l26->lock);
-
-	if (cs40l26_pm_runtime_setup(cs40l26))
-		dev_err(cs40l26->dev, "Failed to re-initialize PM runtime\n");
-
-	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_ENABLE);
-
-	return error;
 }
 static DEVICE_ATTR_RW(swap_wavetable);
 
