@@ -419,6 +419,7 @@ static DEVICE_ATTR_RO(die_temp);
 static ssize_t num_waves_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 nwaves;
 	int error;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
@@ -427,15 +428,14 @@ static ssize_t num_waves_show(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_num_waves(cs40l26);
-	if (error < 0)
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_COEFF, __func__);
+	error = cs40l26_num_waves(cs40l26, &nwaves);
 
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error < 0 ? error : sysfs_emit(buf, "%u\n", error);
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_COEFF, __func__) :
+			sysfs_emit(buf, "%u\n", nwaves);
 }
 static DEVICE_ATTR_RO(num_waves);
 
@@ -704,7 +704,7 @@ static ssize_t swap_wavetable_store(struct device *dev, struct device_attribute 
 		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 wt_num;
+	u32 nwaves, wt_num;
 	int error;
 
 	error = kstrtou32(buf, 10, &wt_num);
@@ -741,8 +741,11 @@ static ssize_t swap_wavetable_store(struct device *dev, struct device_attribute 
 	if (error)
 		goto err_mutex;
 
-	dev_info(cs40l26->dev, "Loaded new wavetable with %d waveforms\n",
-			cs40l26_num_waves(cs40l26));
+	error = cs40l26_num_waves(cs40l26, &nwaves);
+	if (error)
+		goto err_mutex;
+
+	dev_info(cs40l26->dev, "Loaded new wavetable with %d waveforms\n", nwaves);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -1033,7 +1036,7 @@ static DEVICE_ATTR_WO(braking_time_index);
 static ssize_t braking_time_ms_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 braking_time = 0, index;
+	u32 braking_time = 0, index, nowt, nram;
 	int error;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
@@ -1046,36 +1049,46 @@ static ssize_t braking_time_ms_show(struct device *dev, struct device_attribute 
 
 	switch (cs40l26->braking_time_bank) {
 	case CS40L26_RAM_BANK_ID:
-		if (index > (cs40l26_num_ram_waves(cs40l26) - 1)) {
-			dev_err(cs40l26->dev, "Index exceeds number of RAM effects\n");
+		error = cs40l26_num_ram_waves(cs40l26, &nram);
+		if (error) {
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_COEFF, __func__);
+			break;
+		}
+
+		if (index > nram - 1) {
 			error = -EINVAL;
-			goto err_mutex;
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
+			break;
 		}
 
 		braking_time = cs40l26->dsp->wt_desc->owt.waves[index].braking_time;
 		break;
 	case CS40L26_OWT_BANK_ID:
-		if (index > (cs40l26_num_owt_waves(cs40l26) - 1)) {
-			dev_err(cs40l26->dev, "Index exceeds number of OWT effects\n");
+		error = cs40l26_num_owt_waves(cs40l26, &nowt);
+		if (error) {
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_COEFF, __func__);
+			break;
+		}
+
+		if (index > nowt - 1) {
 			error = -EINVAL;
-			goto err_mutex;
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
+			break;
 		}
 
 		error = cs40l26_owt_braking_time_get(cs40l26, index, &braking_time);
 		break;
 	default:
-		dev_err(cs40l26->dev, "Bank %u unsupported\n", cs40l26->braking_time_bank);
 		error = -EINVAL;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 		break;
 	}
 
-err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__) :
-			sysfs_emit(buf, "%u\n", braking_time);
+	return error ? error : sysfs_emit(buf, "%u\n", braking_time);
 }
 static DEVICE_ATTR_RO(braking_time_ms);
 
