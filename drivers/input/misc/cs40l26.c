@@ -2254,61 +2254,60 @@ static int cs40l26_playback_effect(struct input_dev *dev, int effect_id, int val
 	return 0;
 }
 
-int cs40l26_num_ram_waves(struct cs40l26_private *cs40l26)
+int cs40l26_num_ram_waves(struct cs40l26_private *cs40l26, u32 *nram)
 {
-	u32 num_of_waves, reg;
 	int error;
+	u32 reg;
 
-	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_VIBEGEN_ALGO_ID))
+	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_VIBEGEN_ALGO_ID)) {
+		*nram = 0;
 		return 0;
+	}
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "NUM_OF_WAVES", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
 	if (error)
 		return error;
 
-	error = cs40l26_dsp_read(cs40l26, reg, &num_of_waves);
-	if (error)
-		return error;
-
-	return (int) num_of_waves;
+	return cs40l26_dsp_read(cs40l26, reg, nram);
 }
 EXPORT_SYMBOL_GPL(cs40l26_num_ram_waves);
 
-int cs40l26_num_owt_waves(struct cs40l26_private *cs40l26)
+int cs40l26_num_owt_waves(struct cs40l26_private *cs40l26, u32 *nowt)
 {
-	u32 owt_num_of_waves, reg;
 	int error;
+	u32 reg;
 
-	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_VIBEGEN_ALGO_ID))
+	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_VIBEGEN_ALGO_ID)) {
+		*nowt = 0;
 		return 0;
+	}
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "OWT_NUM_OF_WAVES_XM", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
 	if (error)
 		return error;
 
-	error = cs40l26_dsp_read(cs40l26, reg, &owt_num_of_waves);
-	if (error)
-		return error;
-
-	return (int) owt_num_of_waves;
+	return cs40l26_dsp_read(cs40l26, reg, nowt);
 }
 EXPORT_SYMBOL_GPL(cs40l26_num_owt_waves);
 
-int cs40l26_num_waves(struct cs40l26_private *cs40l26)
+int cs40l26_num_waves(struct cs40l26_private *cs40l26, u32 *nwaves)
 {
-	int nowt, nram;
+	u32 nowt, nram;
+	int error;
 
-	nram = cs40l26_num_ram_waves(cs40l26);
-	if (nram < 0)
-		return nram;
+	error = cs40l26_num_ram_waves(cs40l26, &nram);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_COEFF, __func__);
 
-	nowt = cs40l26_num_owt_waves(cs40l26);
-	if (nowt <  0)
-		return nowt;
+	nowt = cs40l26_num_owt_waves(cs40l26, &nowt);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_COEFF, __func__);
 
-	return nram + nowt;
+	*nwaves = nowt + nram;
+
+	return error;
 }
 EXPORT_SYMBOL_GPL(cs40l26_num_waves);
 
@@ -2990,15 +2989,15 @@ static int cs40l26_custom_rom(struct cs40l26_private *cs40l26, struct cs40l26_wo
 static int cs40l26_custom_ram(struct cs40l26_private *cs40l26, struct cs40l26_work *work_data,
 		u32 *trigger_index)
 {
-	int max_index_tmp, nram;
+	int error, max_index_tmp, nram;
 	u32 max_index;
 	u16 index;
 
 	index = (u16) (work_data->raw_custom_data[1] & CS40L26_MAX_INDEX_MASK);
 
-	nram = cs40l26_num_ram_waves(cs40l26);
-	if (nram < 0) {
-		return nram;
+	error = cs40l26_num_ram_waves(cs40l26, &nram);
+	if (error) {
+		return error;
 	} else if (nram == 0) {
 		dev_err(cs40l26->dev, "No waveforms in RAM bank\n");
 		return cs40l26_log_err(cs40l26, -ENODATA, CS40L26_ERR_TYPE_IOCTL, __func__);
@@ -3020,8 +3019,8 @@ static int cs40l26_custom_ram(struct cs40l26_private *cs40l26, struct cs40l26_wo
 static int cs40l26_custom_owt(struct cs40l26_private *cs40l26, struct cs40l26_work *work_data,
 		size_t data_len, u32 *trigger_index)
 {
-	u8 *pwle_data = NULL;
 	int error, index_tmp, nowt;
+	u8 *pwle_data = NULL;
 	size_t pwle_data_len;
 	u16 index;
 
@@ -3045,11 +3044,9 @@ static int cs40l26_custom_owt(struct cs40l26_private *cs40l26, struct cs40l26_wo
 			goto err_free;
 	}
 
-	nowt = cs40l26_num_owt_waves(cs40l26);
-	if (nowt < 0) {
-		error = nowt;
+	error = cs40l26_num_owt_waves(cs40l26, &nowt);
+	if (error)
 		goto err_free;
-	}
 
 	index_tmp = nowt - 1;
 	if (index_tmp < 0) {
@@ -3189,11 +3186,9 @@ static void cs40l26_upload_worker(struct work_struct *work)
 	if (error)
 		goto out_mutex;
 
-	nwaves = cs40l26_num_waves(cs40l26);
-	if (nwaves < 0) {
-		error = nwaves;
+	error = cs40l26_num_waves(cs40l26, &nwaves);
+	if (error)
 		goto out_mutex;
-	}
 
 	dev_dbg(cdev, "Total number of waveforms = %d\n", nwaves);
 
@@ -4506,9 +4501,9 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
 	struct device *dev = cs40l26->dev;
+	u32 nowt, nram, nwaves, reg;
 	unsigned int val;
 	int error;
-	u32 reg;
 
 	error = regmap_set_bits(regmap, CS40L26_PWRMGT_CTL, CS40L26_MEM_RDY_MASK);
 	if (error) {
@@ -4697,9 +4692,20 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 			goto pm_err;
 	}
 
+	error = cs40l26_num_waves(cs40l26, &nwaves);
+	if (error)
+		goto pm_err;
+
+	error = cs40l26_num_ram_waves(cs40l26, &nram);
+	if (error)
+		goto pm_err;
+
+	error = cs40l26_num_owt_waves(cs40l26, &nowt);
+	if (error)
+		goto pm_err;
+
 	dev_info(dev, "%s loaded with %d RAM waveforms (%d from cs40l26.bin + %d from OWT)\n",
-			CS40L26_DEV_NAME, cs40l26_num_waves(cs40l26),
-			cs40l26_num_ram_waves(cs40l26), cs40l26_num_owt_waves(cs40l26));
+			CS40L26_DEV_NAME, nwaves, nram, nowt);
 
 pm_err:
 	cs40l26_pm_exit(dev);
