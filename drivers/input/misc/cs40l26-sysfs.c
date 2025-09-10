@@ -1813,7 +1813,7 @@ static DEVICE_ATTR_RW(freq_span);
 static int calc_f0_and_q_cal_time_ms(struct cs40l26_private *cs40l26, u32 *f0_and_q_cal_time_ms)
 {
 	u32 freq_centre, freq_span;
-	int error;
+	int abs_freq_span, error;
 
 	error = cs40l26_dsp_read_ctl_reg(cs40l26, "FREQ_SPAN", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &freq_span);
@@ -1825,8 +1825,11 @@ static int calc_f0_and_q_cal_time_ms(struct cs40l26_private *cs40l26, u32 *f0_an
 	if (error)
 		return error;
 
+	abs_freq_span = (freq_span & BIT(23)) ? abs((int)(freq_span | GENMASK(31, 24)))
+			: freq_span;
+
 	*f0_and_q_cal_time_ms = (u32)((CS40L26_F0_CHIRP_DURATION_FACTOR *
-			(int) (freq_span >> CS40L26_F0_EST_FREQ_FRAC_BITS)) /
+			(int) (abs_freq_span >> CS40L26_F0_EST_FREQ_FRAC_BITS)) /
 			(int) (freq_centre >> CS40L26_F0_EST_FREQ_FRAC_BITS));
 
 	return 0;
