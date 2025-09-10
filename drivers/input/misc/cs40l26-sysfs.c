@@ -375,11 +375,28 @@ static ssize_t owt_free_space_show(struct device *dev, struct device_attribute *
 }
 static DEVICE_ATTR_RO(owt_free_space);
 
+static int cs40l26_get_die_temp(struct cs40l26_private *cs40l26, u32 *die_temp)
+{
+	u32 global_enable;
+	int error;
+
+	error = regmap_read(cs40l26->regmap, CS40L26_GLOBAL_ENABLES, &global_enable);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+
+	if (!(global_enable & CS40L26_GLOBAL_EN_MASK))
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_HW, __func__);
+
+	error = regmap_read(cs40l26->regmap, CS40L26_ENABLES_AND_CODES_DIG, die_temp);
+
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__) : 0;
+}
+
 static ssize_t die_temp_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 die_temp = 0;
 	int error;
-	u32 val;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -387,29 +404,15 @@ static ssize_t die_temp_show(struct device *dev, struct device_attribute *attr, 
 
 	mutex_lock(&cs40l26->lock);
 
-	error = regmap_read(cs40l26->regmap, CS40L26_GLOBAL_ENABLES, &val);
-	if (error) {
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
-		goto err_mutex;
-	}
+	error = cs40l26_get_die_temp(cs40l26, &die_temp);
 
-	if (!(val & CS40L26_GLOBAL_EN_MASK)) {
-		error = -EPERM;
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
-		goto err_mutex;
-	}
-
-	error = regmap_read(cs40l26->regmap, CS40L26_ENABLES_AND_CODES_DIG, &val);
-	if (error)
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
-
-err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : sysfs_emit(buf, "0x%03lX\n",
-			(val & CS40L26_TEMP_RESULT_FILT_MASK) >> CS40L26_TEMP_RESULT_FILT_SHIFT);
+	die_temp = (die_temp & CS40L26_TEMP_RESULT_FILT_MASK) >> CS40L26_TEMP_RESULT_FILT_SHIFT;
+
+	return error ? error : sysfs_emit(buf, "0x%03X\n", die_temp);
 }
 static DEVICE_ATTR_RO(die_temp);
 
