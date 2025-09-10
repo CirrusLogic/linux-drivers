@@ -5234,6 +5234,8 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 	else
 		cs40l26->calib_fw = false;
 
+	cs40l26->cal_ongoing = false;
+
 	error = cs40l26_fw_upload(cs40l26);
 	if (error) {
 		cs40l26->prev_fw_load_failed = true;
