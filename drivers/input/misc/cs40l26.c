@@ -5250,6 +5250,8 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 	}
 	cs40l26->prev_fw_load_failed = false;
 
+	cs40l26->wt_num = 0;
+
 	if (cs40l26->fw_defer && cs40l26->fw_loaded) {
 		error = cs40l26_request_irq(cs40l26);
 		if (error)
