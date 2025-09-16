@@ -111,6 +111,9 @@ enum cs40l50_wseqs {
 #define CS40L50_DEVID			0x0
 #define CS40L50_REVID			0x4
 #define CS40L50_DEVID_A			0x40A50
+#define CS40L51_DEVID			0x40A51
+#define CS40L52_DEVID			0x40A52
+#define CS40L53_DEVID			0x40A53
 #define CS40L50_REVID_B0		0xB0
 
 /* Broadcast */

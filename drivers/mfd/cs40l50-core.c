@@ -518,17 +518,21 @@ static int cs40l50_get_model(struct cs40l50 *cs40l50)
 	if (ret)
 		return ret;
 
-	if (cs40l50->devid != CS40L50_DEVID_A)
+	if (cs40l50->devid != CS40L50_DEVID_A &&
+		cs40l50->devid != CS40L51_DEVID &&
+		cs40l50->devid != CS40L52_DEVID &&
+		cs40l50->devid != CS40L53_DEVID)
 		return -EINVAL;
 
 	ret = regmap_read(cs40l50->regmap, CS40L50_REVID, &cs40l50->revid);
 	if (ret)
 		return ret;
 
-	if (cs40l50->revid < CS40L50_REVID_B0)
+	if (cs40l50->devid != CS40L50_DEVID_A && cs40l50->revid < CS40L50_REVID_B0)
 		return -EINVAL;
 
-	dev_dbg(cs40l50->dev, "Cirrus Logic CS40L50 rev. %02X\n", cs40l50->revid);
+	dev_dbg(cs40l50->dev, "Cirrus Logic CS40L50(%02X) rev. %02X\n",
+			cs40l50->devid, cs40l50->revid);
 
 	return 0;
 }
