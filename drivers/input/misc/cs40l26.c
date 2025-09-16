@@ -1693,31 +1693,6 @@ static int cs40l26_wseq_multi_write(struct cs40l26_private *cs40l26,
 	return 0;
 }
 
-static int cs40l26_wseq_clear(struct cs40l26_private *cs40l26,
-		struct cs40l26_wseq_params *wseq_params)
-{
-	u32 addr = wseq_params->rom_list_term_addr;
-	int error;
-
-	while (addr < wseq_params->list_term_addr) {
-		error = regmap_write(cs40l26->regmap, addr, 0);
-		if (error)
-			return error;
-
-		addr += 4;
-	}
-
-	/* Reset list terminator to ROM location */
-	error = regmap_write(cs40l26->regmap, wseq_params->rom_list_term_addr,
-			CS40L26_WSEQ_LIST_TERMINATOR);
-	if (error)
-		return error;
-
-	memset((void *) wseq_params, 0, sizeof(struct cs40l26_wseq_params));
-
-	return 0;
-}
-
 static int cs40l26_wseq_init(struct cs40l26_private *cs40l26, const char *wseq_name,
 		struct cs40l26_wseq_params *wseq_params)
 {
@@ -5877,8 +5852,6 @@ EXPORT_SYMBOL_GPL(cs40l26_probe);
 
 int cs40l26_remove(struct cs40l26_private *cs40l26)
 {
-	int error;
-
 	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_DISABLE);
 	mutex_destroy(&cs40l26->lock);
 
@@ -5891,18 +5864,6 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 
 	if (cs40l26->vibe_init_success)
 		sysfs_remove_groups(&cs40l26->input->dev.kobj, cs40l26_attr_groups);
-
-	error = cs40l26_wseq_clear(cs40l26, &pseq_params);
-	if (error) {
-		dev_err(cs40l26->dev, "Failed to clear POWER_ON sequence\n");
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
-	}
-
-	error = cs40l26_wseq_clear(cs40l26, &aseq_params);
-	if (error) {
-		dev_err(cs40l26->dev, "Failed to clear ACTIVE sequence\n");
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
-	}
 
 #ifdef CONFIG_DEBUG_FS
 	cs40l26_debugfs_cleanup(cs40l26);
