@@ -34,7 +34,6 @@ Description:
 		Access: Read
 
 		Valid values: Represented as enum
-			0: Hibernate
 			1: Shutdown
 			2: Standby
 			3: Active
