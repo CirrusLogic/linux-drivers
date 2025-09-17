@@ -292,7 +292,6 @@ int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 		return error;
 
 	switch (dsp_state) {
-	case CS40L26_DSP_STATE_HIBERNATE:
 	case CS40L26_DSP_STATE_SHUTDOWN:
 	case CS40L26_DSP_STATE_STANDBY:
 	case CS40L26_DSP_STATE_ACTIVE:
