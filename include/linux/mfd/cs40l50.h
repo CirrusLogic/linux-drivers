@@ -14,6 +14,7 @@
 #include <linux/firmware/cirrus/cs_dsp.h>
 #include <linux/gpio/consumer.h>
 #include <linux/pm.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 
 /* Power Supply Configuration */
@@ -135,6 +136,7 @@ struct cs40l50 {
 	const struct firmware *bin;
 	struct cs_dsp_wseq wseqs[CS40L50_NUM_WSEQS];
 	struct i2c_client *broadcast_client;
+	bool external_boost;
 	int i2c_id;
 	int irq;
 	u32 devid;

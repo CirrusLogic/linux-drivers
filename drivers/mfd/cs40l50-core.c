@@ -149,6 +149,20 @@ static const struct cs_dsp_region cs40l50_dsp_regions[] = {
 	{ .type = WMFW_ADSP2_YM, .base = CS40L50_YMEM_UNPACKED24_0 },
 };
 
+
+static const struct reg_sequence cs40l50_external_vbst_config[] = {
+	{ 0x00002018, 0x00003201 },
+	{ 0x00004404, 0x01000000 },
+	{ 0x00000040, 0x00000055 },
+	{ 0x00000040, 0x000000AA },
+	{ 0x00005C00, 0x00000400 },
+	{ 0x00004220, 0x8000007D },
+	{ 0x00004200, 0x00000008 },
+	{ 0x00004240, 0x510002B5 },
+	{ 0x00006024, 0x00522303 },
+	{ CS40L50_BLOCK_ENABLES2, CS40L50_OVERTEMP_WARN },
+};
+
 static const struct reg_sequence cs40l50_internal_vamp_config[] = {
 	{ CS40L50_BST_LPMODE_SEL, CS40L50_DCM_LOW_POWER },
 	{ CS40L50_BLOCK_ENABLES2, CS40L50_OVERTEMP_WARN },
@@ -208,17 +222,32 @@ static int cs40l50_dsp_config(struct cs40l50 *cs40l50)
 		}
 	}
 
-	/* Configure internal V_AMP supply */
-	ret = regmap_multi_reg_write(cs40l50->regmap, cs40l50_internal_vamp_config,
-				     ARRAY_SIZE(cs40l50_internal_vamp_config));
-	if (ret)
-		return ret;
+	if (cs40l50->external_boost) {
+		/* Configure external boost supply */
+		ret = regmap_multi_reg_write(cs40l50->regmap, cs40l50_external_vbst_config,
+					     ARRAY_SIZE(cs40l50_external_vbst_config));
+		if (ret)
+			return ret;
 
-	ret = cs_dsp_wseq_multi_write(&cs40l50->dsp, &cs40l50->wseqs[CS40L50_PWR_ON],
-				      cs40l50_internal_vamp_config, CS_DSP_WSEQ_FULL,
-				      ARRAY_SIZE(cs40l50_internal_vamp_config), false);
-	if (ret)
-		return ret;
+		ret = cs_dsp_wseq_multi_write(&cs40l50->dsp, &cs40l50->wseqs[CS40L50_PWR_ON],
+					      cs40l50_external_vbst_config, CS_DSP_WSEQ_FULL,
+					      ARRAY_SIZE(cs40l50_external_vbst_config), false);
+		if (ret)
+			return ret;
+
+	} else {
+		/* Configure internal V_AMP supply */
+		ret = regmap_multi_reg_write(cs40l50->regmap, cs40l50_internal_vamp_config,
+					     ARRAY_SIZE(cs40l50_internal_vamp_config));
+		if (ret)
+			return ret;
+
+		ret = cs_dsp_wseq_multi_write(&cs40l50->dsp, &cs40l50->wseqs[CS40L50_PWR_ON],
+					      cs40l50_internal_vamp_config, CS_DSP_WSEQ_FULL,
+					      ARRAY_SIZE(cs40l50_internal_vamp_config), false);
+		if (ret)
+			return ret;
+	}
 
 	/* Override firmware defaults for IRQ masks */
 	ret = regmap_multi_reg_write(cs40l50->regmap, cs40l50_irq_mask_override,
@@ -533,6 +562,8 @@ static int cs40l50_get_model(struct cs40l50 *cs40l50)
 
 	dev_dbg(cs40l50->dev, "Cirrus Logic CS40L50(%02X) rev. %02X\n",
 			cs40l50->devid, cs40l50->revid);
+
+	cs40l50->external_boost = device_property_read_bool(cs40l50->dev, "cirrus,external-boost");
 
 	return 0;
 }
