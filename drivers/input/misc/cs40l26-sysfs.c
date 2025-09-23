@@ -2582,6 +2582,9 @@ static ssize_t available_logger_srcs_show(struct device *dev, struct device_attr
 		case CS40L26_LOGGER_SRC_ID_VMON:
 			strncat(log_srcs, "VMON", 4);
 			break;
+		case CS40L26_LOGGER_SRC_ID_PWR:
+			strncat(log_srcs, "PWR", 3);
+			break;
 		case CS40L26_LOGGER_SRC_ID_EP:
 			strncat(log_srcs, "EP", 2);
 			break;
@@ -2660,6 +2663,9 @@ static ssize_t name##_show(struct device *dev, struct device_attribute *attr, ch
 }											\
 static DEVICE_ATTR_RO(name)
 
+CS40L26_SYSFS_LOGGER_ATTR(avg_power, CS40L26_LOGGER_SRC_ID_PWR, CS40L26_LOGGER_DATA_TYPE_MEAN);
+CS40L26_SYSFS_LOGGER_ATTR(max_power, CS40L26_LOGGER_SRC_ID_PWR, CS40L26_LOGGER_DATA_TYPE_MAX);
+
 CS40L26_SYSFS_LOGGER_ATTR(min_bemf, CS40L26_LOGGER_SRC_ID_BEMF, CS40L26_LOGGER_DATA_TYPE_MIN);
 CS40L26_SYSFS_LOGGER_ATTR(max_bemf, CS40L26_LOGGER_SRC_ID_BEMF, CS40L26_LOGGER_DATA_TYPE_MAX);
 CS40L26_SYSFS_LOGGER_ATTR(mean_bemf, CS40L26_LOGGER_SRC_ID_BEMF, CS40L26_LOGGER_DATA_TYPE_MEAN);
@@ -2684,6 +2690,8 @@ static struct attribute *cs40l26_dev_attrs_dlog[] = {
 	&dev_attr_logging_en.attr,
 	&dev_attr_logging_reset.attr,
 	&dev_attr_available_logger_srcs.attr,
+	&dev_attr_avg_power.attr,
+	&dev_attr_max_power.attr,
 	&dev_attr_min_bemf.attr,
 	&dev_attr_max_bemf.attr,
 	&dev_attr_mean_bemf.attr,
