@@ -7,3 +7,17 @@ config CS_DSP
 config CL_DSP
 	tristate
 	default n
+
+menu "CL_DSP Firmware Driver"
+	depends on CL_DSP
+
+config CL_DSP_MAX_TRANSMISSION_LENGTH
+	int "Max Transmission Length"
+	default 4096
+	range 128 4096
+	help
+	  Maximum write length in bytes per I2C/SPI
+	  transaction. Use to limit length of blocking
+	  writes in case of control port contention.
+
+endmenu
