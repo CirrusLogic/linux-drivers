@@ -666,8 +666,22 @@ Description:
 			"BEMF"
 			"EP"
 			"VBST"
+			"PWR"
 			"VMON"
 			"IMON"
+
+What:		/sys/class/input/input(x)/data_logger/avg_power
+Date:		September 2025
+Contact:	patches@opensource.cirrus.com
+Description:
+		Average power output in Watts since logging was enabled. Only
+		sampled during wavetable playback.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q5.18 format
+			Maximum: 0x7FFFFF (31.999996 W)
+			Reset: 0x000000 (0 W)
 
 What:		/sys/class/input/input(x)/data_logger/logging_en
 Date:		September 2023
@@ -739,6 +753,19 @@ Description:
 			Minimum: 0x800000 (-1 * 2.1 = -2.1 A)
 			Maximum: 0x7FFFFF (0.999999 * 2.1 =~ 2.1 A)
 			Reset: 0x800000 (-1 * 2.1 = -2.1 A)
+
+What:		/sys/class/input/input(x)/data_logger/max_power
+Date:		September 2025
+Contact:	patches@opensource.cirrus.com
+Description:
+		Maximum power output in Watts since logging was enabled or maximum
+		calculations were reset. Only sampled during wavetable playback.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q5.18 format
+			Maximum: 0x7FFFFF (31.999996 W)
+			Reset: 0x000000 (0 W)
 
 What:		/sys/class/input/input(x)/data_logger/max_vbst
 Date:		September 2023
