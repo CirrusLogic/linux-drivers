@@ -402,8 +402,6 @@ int sdca_fdl_process(struct sdca_interrupt *interrupt)
 	unsigned int reg, status;
 	int response, ret;
 
-	guard(mutex)(&fdl_state->lock);
-
 	ret = sdca_ump_get_owner_host(dev, interrupt->function_regmap,
 				      interrupt->function, interrupt->entity,
 				      interrupt->control);
@@ -411,6 +409,8 @@ int sdca_fdl_process(struct sdca_interrupt *interrupt)
 		goto reset_function;
 
 	sdca_ump_cancel_timeout(&fdl_state->timeout);
+
+	guard(mutex)(&fdl_state->lock);
 
 	reg = SDW_SDCA_CTL(interrupt->function->desc->adr, interrupt->entity->id,
 			   SDCA_CTL_XU_FDL_STATUS, 0);
