@@ -691,7 +691,6 @@ static int cs40l26_tuning_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	codec->tuning = ucontrol->value.enumerated.item[0];
 
 	memset(codec->bin_file, 0, PAGE_SIZE);
-	codec->bin_file[PAGE_SIZE - 1] = '\0';
 
 	if (codec->tuning > 0)
 		snprintf(codec->bin_file, PAGE_SIZE, "cs40l26-a2h%d.bin", codec->tuning);
@@ -1303,7 +1302,6 @@ static int cs40l26_codec_probe(struct snd_soc_component *component)
 	if (!codec->bin_file)
 		return -ENOMEM;
 
-	codec->bin_file[PAGE_SIZE - 1] = '\0';
 	snprintf(codec->bin_file, PAGE_SIZE, "cs40l26-a2h.bin");
 
 	/* Default audio SCLK frequency */
