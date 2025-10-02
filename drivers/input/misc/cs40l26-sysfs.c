@@ -332,23 +332,12 @@ static DEVICE_ATTR_RW(pm_active_timeout_ms);
 static ssize_t vibe_state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int error = 0;
-	u32 state;
 
-	mutex_lock(&cs40l26->lock);
+	if (!cs40l26->vibe_state_reporting)
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_FW, __func__);
 
-	if (!cs40l26->vibe_state_reporting) {
-		error = -EPERM;
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
-		goto err_mutex;
-	}
-
-	state = cs40l26->vibe_state;
-
-err_mutex:
-	mutex_unlock(&cs40l26->lock);
-
-	return error ? error : sysfs_emit(buf, "%u\n", state);
+	/* Intentionally emit without mutex lock to allow for reporting during haptic playback */
+	return sysfs_emit(buf, "%u\n", cs40l26->vibe_state);
 }
 static DEVICE_ATTR_RO(vibe_state);
 
