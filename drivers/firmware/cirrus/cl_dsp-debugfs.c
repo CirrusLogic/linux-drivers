@@ -327,14 +327,11 @@ EXPORT_SYMBOL_GPL(cl_dsp_logger_update);
 
 static int cl_dsp_debugfs_logger_open(struct inode *inode, struct file *file)
 {
-	struct cl_dsp_debugfs *db;
 	int ret;
 
 	ret = simple_open(inode, file);
 	if (ret)
 		return ret;
-
-	db = file->private_data;
 
 	return 0;
 }
