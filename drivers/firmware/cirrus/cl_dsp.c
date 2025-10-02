@@ -1070,6 +1070,9 @@ int cl_dsp_firmware_parse(struct cl_dsp *dsp, const struct firmware *fw)
 		pos += CL_DSP_DBLK_HEADER_SIZE;
 
 		data_block.payload = kvmalloc(data_block.header.data_len, GFP_KERNEL);
+		if (!data_block.payload)
+			return -ENOMEM;
+
 		memcpy(data_block.payload, &fw->data[pos], data_block.header.data_len);
 
 		switch (data_block.header.block_type) {
