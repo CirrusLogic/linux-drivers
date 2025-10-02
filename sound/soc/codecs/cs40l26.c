@@ -1335,7 +1335,7 @@ static int cs40l26_codec_driver_probe(struct platform_device *pdev)
 	struct cs40l26_codec *codec;
 	int ret;
 
-	codec = devm_kzalloc(&pdev->dev, sizeof(struct cs40l26_codec), GFP_KERNEL);
+	codec = devm_kzalloc(&pdev->dev, sizeof(*codec), GFP_KERNEL);
 	if (!codec)
 		return -ENOMEM;
 
