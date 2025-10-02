@@ -4198,7 +4198,7 @@ static int cs40l26_lbst_short_test(struct cs40l26_private *cs40l26)
 		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
-	/* Wait until boost converter is guranteed to be powered up */
+	/* Wait until boost converter is guaranteed to be powered up */
 	usleep_range(CS40L26_BST_TIME_MIN_US, CS40L26_BST_TIME_MAX_US);
 
 	error = regmap_read(regmap, CS40L26_ERROR_RELEASE, &err);
