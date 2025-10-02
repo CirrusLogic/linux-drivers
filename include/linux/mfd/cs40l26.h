@@ -971,7 +971,7 @@
 /*
  * Maximum size of log needs to be constrained
  * such that PAGE_SIZE divided by maximum string
- * length is greather than the log size.
+ * length is greater than the log size.
  * For example, for PAGE_SIZE = 4096, with a maximum
  * string length of 64, the log size can be set to 64.
  * (4096 / 64 = 64)
