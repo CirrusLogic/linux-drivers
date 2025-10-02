@@ -2607,33 +2607,29 @@ static ssize_t available_logger_srcs_show(struct device *dev, struct device_attr
 		char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	char log_srcs[CS40L26_LOGGER_SRC_MAX_STR_LEN] = "";
-	int error = 0, i;
+	int at = 0, error = 0, i;
 
 	mutex_lock(&cs40l26->lock);
 
 	for (i = 0; i < cs40l26->num_log_srcs; i++) {
-		if (i != 0 || i == cs40l26->num_log_srcs - 1)
-			strncat(log_srcs, "\n", 1);
-
 		switch (cs40l26->log_srcs[i].id) {
 		case CS40L26_LOGGER_SRC_ID_BEMF:
-			strncat(log_srcs, "BEMF", 4);
+			at += sysfs_emit_at(buf, at, "BEMF\n");
 			break;
 		case CS40L26_LOGGER_SRC_ID_VBST:
-			strncat(log_srcs, "VBST", 4);
+			at += sysfs_emit_at(buf, at, "VBST\n");
 			break;
 		case CS40L26_LOGGER_SRC_ID_VMON:
-			strncat(log_srcs, "VMON", 4);
+			at += sysfs_emit_at(buf, at, "VMON\n");
 			break;
 		case CS40L26_LOGGER_SRC_ID_PWR:
-			strncat(log_srcs, "PWR", 3);
+			at += sysfs_emit_at(buf, at, "PWR\n");
 			break;
 		case CS40L26_LOGGER_SRC_ID_EP:
-			strncat(log_srcs, "EP", 2);
+			at += sysfs_emit_at(buf, at, "EP\n");
 			break;
 		case CS40L26_LOGGER_SRC_ID_IMON:
-			strncat(log_srcs, "IMON", 4);
+			at += sysfs_emit_at(buf, at, "IMON\n");
 			break;
 		default:
 			error = -EINVAL;
@@ -2644,8 +2640,7 @@ static ssize_t available_logger_srcs_show(struct device *dev, struct device_attr
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
-	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__) :
-			sysfs_emit(buf, "%s\n", log_srcs);
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__) : at;
 }
 static DEVICE_ATTR_RO(available_logger_srcs);
 
