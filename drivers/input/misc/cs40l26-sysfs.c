@@ -2923,11 +2923,9 @@ static int cs40l26_fw_ctrl_properties(struct cs40l26_private *cs40l26, u32 *reg,
 static ssize_t fw_ctrl_val_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	char str[CS40L26_FW_CTRL_VAL_STR_SIZE];
-	size_t num_words = 0, nwritten;
 	u32 reg = 0, *val = NULL;
-	char *final_str = NULL;
-	int error, i;
+	int at = 0, error, i;
+	size_t num_words = 0;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -2946,31 +2944,14 @@ static ssize_t fw_ctrl_val_show(struct device *dev, struct device_attribute *att
 		goto err_mutex;
 	}
 
-	final_str = kzalloc(CS40L26_FW_CTRL_VAL_STR_SIZE * num_words, GFP_KERNEL);
-	if (!final_str) {
-		error = -ENOMEM;
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_INIT, __func__);
-		goto err_free;
-	}
-
 	error = regmap_bulk_read(cs40l26->regmap, reg, val, num_words);
 	if (error) {
 		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
-		goto err_free_all;
+		goto err_free;
 	}
 
-	for (i = 0; i < num_words; i++) {
-		error = snprintf(str, CS40L26_FW_CTRL_VAL_STR_SIZE, "0x%08X\n", val[i]);
-		if (error <= 0)
-			break;
-
-		strncat(final_str, str, CS40L26_FW_CTRL_VAL_STR_SIZE);
-	}
-
-	nwritten = sysfs_emit(buf, "%s", final_str);
-
-err_free_all:
-	kfree(final_str);
+	for (i = 0; i < num_words; i++)
+		at += sysfs_emit_at(buf, at, "0x%08X\n", val[i]);
 
 err_free:
 	kfree(val);
@@ -2980,7 +2961,7 @@ err_mutex:
 
 	cs40l26_pm_exit(cs40l26->dev);
 
-	return error ? error : nwritten;
+	return error ? error : at;
 }
 
 static ssize_t fw_ctrl_val_store(struct device *dev, struct device_attribute *attr,
