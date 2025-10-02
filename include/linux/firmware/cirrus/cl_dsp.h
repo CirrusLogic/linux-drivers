@@ -266,7 +266,7 @@ struct cl_dsp_coeff_desc {
 struct cl_dsp_memchunk {
 	u8 *data;
 	u8 *max;
-	int bytes;
+	u32 bytes;
 	u32 cache;
 	int cachebits;
 };
@@ -283,7 +283,7 @@ struct cl_dsp_owt_header {
 struct cl_dsp_owt_desc {
 	struct cl_dsp_owt_header waves[CL_DSP_OWT_HEADER_MAX_LEN];
 	int nwaves;
-	int bytes;
+	u32 bytes;
 	u8 *raw_data;
 };
 

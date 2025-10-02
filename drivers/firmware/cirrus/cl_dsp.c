@@ -327,9 +327,9 @@ static int cl_dsp_read_wt(struct cl_dsp *dsp, int pos, int size)
 		if (entry->type == WT_TYPE_TERMINATOR) {
 			dsp->wt_desc->owt.nwaves = i;
 			dsp->wt_desc->owt.bytes = max(ch.bytes,
-					(int)((void *)max - buf));
+					(u32)((void *)max - buf));
 
-			return dsp->wt_desc->owt.bytes;
+			return (int)dsp->wt_desc->owt.bytes;
 		}
 
 		ret = cl_dsp_memchunk_read(dsp, &ch, 24, &entry->offset);
