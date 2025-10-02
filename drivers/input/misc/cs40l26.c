@@ -921,13 +921,15 @@ static irqreturn_t cs40l26_handle_mbox_buffer(int irq, void *data)
 
 		if (cmd == CS40L26_DSP_MBOX_CMD_TYPE_WATERMARK) {
 			dev_dbg(dev, "Mailbox: WATERMARK\n");
-#ifdef CONFIG_DEBUG_FS
-			error = cl_dsp_logger_update(cs40l26->cl_dsp_db);
-			if (error) {
-				irq_status = IRQ_NONE;
-				goto exit_mutex;
+
+			if (IS_ENABLED(CONFIG_DEBUG_FS)) {
+				error = cl_dsp_logger_update(cs40l26->cl_dsp_db);
+				if (error) {
+					irq_status = IRQ_NONE;
+					goto exit_mutex;
+				}
 			}
-#endif
+
 			continue;
 		}
 
@@ -4496,9 +4498,8 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 
 	cs40l26->fw_loaded = true;
 
-#ifdef CONFIG_DEBUG_FS
-	cs40l26_debugfs_init(cs40l26);
-#endif
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		cs40l26_debugfs_init(cs40l26);
 
 	error = cs40l26_wseq_init(cs40l26, CS40L26_WSEQ_ACTIVE_NAME, &aseq_params);
 	if (error)
@@ -5864,9 +5865,8 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 	if (cs40l26->vibe_init_success)
 		sysfs_remove_groups(&cs40l26->input->dev.kobj, cs40l26_attr_groups);
 
-#ifdef CONFIG_DEBUG_FS
-	cs40l26_debugfs_cleanup(cs40l26);
-#endif
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		cs40l26_debugfs_cleanup(cs40l26);
 
 	if (cs40l26->broadcast_regmap)
 		regmap_exit(cs40l26->broadcast_regmap);
