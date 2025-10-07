@@ -76,6 +76,19 @@ Description:
 			19: Temperature Error
 			20: Write Sequencer Error
 
+What:		/sys/class/input/input(x)/default/error_log_clear_method
+Date:		October 2025
+Contact:	patches@opensource.cirrus.com
+Description:
+		Allow user to determine if the contents of the error log are cleared via
+		clear-on-read or clear-on-write when interacting with the error_log sysfs control.
+
+		Access: Read, Write
+
+		Valid values: Represented as enum
+			0: clear-on-read
+			1: clear-on-write
+
 What:		/sys/class/input/input(x)/default/f0_comp_enable
 Date:		December 2023
 Contact:	patches@opensource.cirrus.com
