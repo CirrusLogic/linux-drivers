@@ -564,15 +564,19 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26, enum cs40l26_pm
 	switch (state) {
 	case CS40L26_PM_STATE_WAKEUP:
 		error = cs40l26_mailbox_write(cs40l26, cmd);
-		if (error)
+		if (error) {
+			dev_err(cs40l26->dev, "WAKEUP failed, %d", error);
 			return error;
+		}
 
 		break;
 	case CS40L26_PM_STATE_PREVENT_HIBERNATE:
 		for (i = 0; i < CS40L26_DSP_STATE_ATTEMPTS; i++) {
 			error = cs40l26_mailbox_write(cs40l26, cmd);
-			if (error)
+			if (error) {
+				dev_err(cs40l26->dev, "PREVENT_HIBERNATE failed, %d", error);
 				return error;
+			}
 
 			error = cs40l26_dsp_state_get(cs40l26, &curr_state);
 			if (error)
@@ -630,8 +634,10 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26, enum cs40l26_pm
 	case CS40L26_PM_STATE_ALLOW_HIBERNATE:
 		cs40l26->wksrc_sts = 0x00;
 		error = cs40l26_dsp_write(cs40l26, CS40L26_DSP_VIRTUAL1_MBOX_1, cmd);
-		if (error)
+		if (error) {
+			dev_err(cs40l26->dev, "ALLOW_HIBERNATE failed, %d", error);
 			return error;
+		}
 
 		cs40l26->allow_hibernate_sent = true;
 
@@ -644,8 +650,10 @@ int cs40l26_pm_state_transition(struct cs40l26_private *cs40l26, enum cs40l26_pm
 	case CS40L26_PM_STATE_SHUTDOWN:
 		cs40l26->wksrc_sts = 0x00;
 		error = cs40l26_mailbox_write(cs40l26, cmd);
-		if (error)
+		if (error) {
+			dev_err(cs40l26->dev, "SHUTDOWN failed, %d", error);
 			return error;
+		}
 
 		break;
 	default:
