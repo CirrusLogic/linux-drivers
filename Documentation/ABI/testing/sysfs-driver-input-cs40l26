@@ -49,7 +49,8 @@ Description:
 		code = <X>, type = <Y> where <X> is the Linux error code and <Y> is the error type
 		as enumerated by the driver.
 
-		Write 1 to this control in order to clear the log.
+		If error_log_clear_method is 0: The log will be cleared as soon as it is read.
+		If error_log_clear_method is 1:	Write 1 to this control in order to clear the log.
 
 		Access: Read, Write
 
