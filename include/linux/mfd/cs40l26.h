@@ -540,6 +540,7 @@
 /* Alternate pinout configuration */
 #define CS40L26_GP8_OVERRIDE_MASK	0x80000000
 #define CS40L26_ASP_DOUT_CONFIG		0x04010000
+#define CS40L26_ASP_DOUT_WLEN		5
 #define CS40L26_GP8_SDOUT_MASK		GENMASK(30, 29)
 
 /* Interrupts */

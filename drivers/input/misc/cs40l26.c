@@ -4073,16 +4073,9 @@ static int cs40l26_broadcast_config(struct cs40l26_private *cs40l26)
 	return 0;
 }
 
-static struct reg_sequence cs40l26_asp_dout_cfg_seq[] = {
-	{ CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE1 },
-	{ CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_UNLOCK_CODE2 },
-	{ CS40L26_CALIB_OTP_CONFIG, },
-	{ CS40L26_TEST_KEY_CTRL, CS40L26_TEST_KEY_LOCK_CODE},
-	{ CS40L26_GPIO_PAD_CONTROL, CS40L26_ASP_DOUT_CONFIG },
-};
-
 static int cs40l26_config_asp_dout(struct cs40l26_private *cs40l26)
 {
+	struct reg_sequence cs40l26_asp_dout_cfg_seq[CS40L26_ASP_DOUT_WLEN];
 	int error;
 	u32 val;
 
@@ -4091,8 +4084,17 @@ static int cs40l26_config_asp_dout(struct cs40l26_private *cs40l26)
 		if (error)
 			return error;
 
+		cs40l26_asp_dout_cfg_seq[0].reg = CS40L26_TEST_KEY_CTRL;
+		cs40l26_asp_dout_cfg_seq[0].def = CS40L26_TEST_KEY_UNLOCK_CODE1;
+		cs40l26_asp_dout_cfg_seq[1].reg = CS40L26_TEST_KEY_CTRL;
+		cs40l26_asp_dout_cfg_seq[1].def = CS40L26_TEST_KEY_UNLOCK_CODE2;
+		cs40l26_asp_dout_cfg_seq[2].reg = CS40L26_CALIB_OTP_CONFIG;
 		/* Clear the GP8 override bit of CS40L26_CALIB_OTP_CONFIG */
 		cs40l26_asp_dout_cfg_seq[2].def = (val & ~CS40L26_GP8_OVERRIDE_MASK);
+		cs40l26_asp_dout_cfg_seq[3].reg = CS40L26_TEST_KEY_CTRL;
+		cs40l26_asp_dout_cfg_seq[3].def = CS40L26_TEST_KEY_LOCK_CODE;
+		cs40l26_asp_dout_cfg_seq[4].reg = CS40L26_GPIO_PAD_CONTROL;
+		cs40l26_asp_dout_cfg_seq[4].def = CS40L26_ASP_DOUT_CONFIG;
 
 		error = regmap_multi_reg_write(cs40l26->regmap, cs40l26_asp_dout_cfg_seq,
 				ARRAY_SIZE(cs40l26_asp_dout_cfg_seq));
