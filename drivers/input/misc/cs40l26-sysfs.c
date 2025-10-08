@@ -1071,7 +1071,6 @@ static ssize_t error_log_show(struct device *dev, struct device_attribute *attr,
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	int at = 0, error = 0, i, nelements;
-	char str[CS40L26_ERR_STR_MAX_LEN];
 
 	mutex_lock(&cs40l26->lock);
 
@@ -1083,24 +1082,10 @@ static ssize_t error_log_show(struct device *dev, struct device_attribute *attr,
 		goto err_mutex;
 	}
 
-	for (i = 0; i < nelements; i++) {
-		error = snprintf(str, CS40L26_ERR_STR_MAX_LEN, "%d. %s: code = %d, type = %u\n",
-				cs40l26->errs[i].num + 1, cs40l26->errs[i].fxn_name,
-				cs40l26->errs[i].code, cs40l26->errs[i].type);
-		if (error < 0)
-			break;
-
-		if (at + error >= PAGE_SIZE) {
-			dev_info(cs40l26->dev, "Error log truncated due to page size\n");
-			break;
-		}
-
-		error = sysfs_emit_at(buf, at, str);
-		if (error < 0)
-			break;
-
-		at += error;
-	}
+	for (i = 0; i < nelements; i++)
+		at += sysfs_emit_at(buf, at, "%d, %s, %d, %u\n", cs40l26->errs[i].num + 1,
+				cs40l26->errs[i].fxn_name, cs40l26->errs[i].code,
+				cs40l26->errs[i].type);
 
 	if (cs40l26->err_clear_method == CS40L26_ERR_CLEAR_ON_READ)
 		cs40l26_clear_err_log(cs40l26);
@@ -1108,7 +1093,7 @@ static ssize_t error_log_show(struct device *dev, struct device_attribute *attr,
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
-	return error < 0 ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__) : at;
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__) : at;
 }
 
 static ssize_t error_log_store(struct device *dev, struct device_attribute *attr,
