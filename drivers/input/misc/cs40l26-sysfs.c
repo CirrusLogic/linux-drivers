@@ -2804,8 +2804,8 @@ err_mutex:
 static ssize_t name##_show(struct device *dev, struct device_attribute *attr, char *buf)\
 {											\
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);				\
+	u32 val = 0;									\
 	int error;									\
-	u32 val;									\
 											\
 	error = cs40l26_logger_data_get(cs40l26, id, data_type, &val);			\
 											\
