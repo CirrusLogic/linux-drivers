@@ -1164,6 +1164,11 @@ enum cs40l26_err_type {
 	CS40L26_ERR_TYPE_WSEQ,
 };
 
+enum cs40l26_err_clear {
+	CS40L26_ERR_CLEAR_ON_READ,
+	CS40L26_ERR_CLEAR_ON_WRITE,
+};
+
 /* structs */
 struct cs40l26_log_src {
 	u8 sign;
@@ -1396,6 +1401,7 @@ struct cs40l26_private {
 	bool cal_ongoing;
 	bool disable_asp_preempt;
 	bool ls_cal_f0_closed_loop;
+	enum cs40l26_err_clear err_clear_method;
 };
 
 struct cs40l26_codec {

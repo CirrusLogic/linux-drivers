@@ -1071,6 +1071,13 @@ static ssize_t braking_time_ms_show(struct device *dev, struct device_attribute 
 }
 static DEVICE_ATTR_RO(braking_time_ms);
 
+static void cs40l26_clear_err_log(struct cs40l26_private *cs40l26)
+{
+	memset((void *) cs40l26->errs, 0, sizeof(cs40l26->errs));
+
+	cs40l26->num_errs = 0;
+}
+
 static ssize_t error_log_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
@@ -1106,6 +1113,9 @@ static ssize_t error_log_show(struct device *dev, struct device_attribute *attr,
 		at += error;
 	}
 
+	if (cs40l26->err_clear_method == CS40L26_ERR_CLEAR_ON_READ)
+		cs40l26_clear_err_log(cs40l26);
+
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
@@ -1116,8 +1126,11 @@ static ssize_t error_log_store(struct device *dev, struct device_attribute *attr
 		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int error, i, nelements;
+	int error;
 	u32 clear;
+
+	if (cs40l26->err_clear_method == CS40L26_ERR_CLEAR_ON_READ)
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_SYSFS, __func__);
 
 	error = kstrtou32(buf, 10, &clear);
 	if (error)
@@ -1128,19 +1141,60 @@ static ssize_t error_log_store(struct device *dev, struct device_attribute *attr
 
 	mutex_lock(&cs40l26->lock);
 
-	nelements = cs40l26->num_errs > CS40L26_ERR_LOG_SIZE ? CS40L26_ERR_LOG_SIZE :
-			cs40l26->num_errs;
-
-	for (i = 0; i < nelements; i++)
-		memset((void *) &cs40l26->errs[i], 0, sizeof(struct cs40l26_err));
-
-	cs40l26->num_errs = 0;
+	cs40l26_clear_err_log(cs40l26);
 
 	mutex_unlock(&cs40l26->lock);
 
 	return count;
 }
 static DEVICE_ATTR_RW(error_log);
+
+
+static ssize_t error_log_clear_method_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	enum cs40l26_err_clear clear;
+
+	mutex_lock(&cs40l26->lock);
+
+	clear = cs40l26->err_clear_method;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return sysfs_emit(buf, "%u\n", clear);
+}
+
+static ssize_t error_log_clear_method_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 clear;
+	int error;
+
+	error = kstrtou32(buf, 10, &clear);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
+
+	mutex_lock(&cs40l26->lock);
+
+	switch (clear) {
+	case CS40L26_ERR_CLEAR_ON_READ:
+		cs40l26->err_clear_method = CS40L26_ERR_CLEAR_ON_READ;
+		break;
+	case CS40L26_ERR_CLEAR_ON_WRITE:
+		cs40l26->err_clear_method = CS40L26_ERR_CLEAR_ON_WRITE;
+		break;
+	default:
+		error = -EINVAL;
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
+	}
+
+	mutex_unlock(&cs40l26->lock);
+
+	return error ? error : count;
+}
+static DEVICE_ATTR_RW(error_log_clear_method);
 
 static ssize_t lf0t_freq_centre_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -1273,6 +1327,7 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_braking_time_index.attr,
 	&dev_attr_braking_time_ms.attr,
 	&dev_attr_error_log.attr,
+	&dev_attr_error_log_clear_method.attr,
 	&dev_attr_lf0t_freq_centre.attr,
 	&dev_attr_lf0t_init.attr,
 	NULL,
