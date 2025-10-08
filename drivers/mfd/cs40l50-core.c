@@ -89,10 +89,14 @@ int cs40l50_dsp_write(struct device *dev, struct regmap *regmap, u32 val)
 	/* Device NAKs if hibernating, so optionally retry */
 	for (i = 0; i < CS40L50_DSP_TIMEOUT_COUNT; i++) {
 		if (cs40l50->broadcast_client &&
-			((val == CS40L50_STOP_PLAYBACK) || (val < CS40L50_PREVENT_HIBER)))
-			ret = regmap_write(cs40l50->broadcast_regmap, CS40L50_DSP_QUEUE, val);
-		else
-			ret = regmap_write(regmap, CS40L50_DSP_QUEUE, val);
+			((val == CS40L50_STOP_PLAYBACK) || (val < CS40L50_PREVENT_HIBER)) &&
+			(val & CS40L50_BROADCAST_TRIGGER_MASK)) {
+			ret = regmap_write(cs40l50->broadcast_regmap, CS40L50_DSP_QUEUE,
+						val & ~(CS40L50_BROADCAST_TRIGGER_MASK));
+		} else {
+			ret = regmap_write(regmap, CS40L50_DSP_QUEUE,
+						val & ~(CS40L50_BROADCAST_TRIGGER_MASK));
+		}
 		if (!ret)
 			break;
 

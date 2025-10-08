@@ -177,14 +177,16 @@ static int cs40l50_effect_index_set(struct cs40l50_work *work_data,
 		break;
 	case CS40L50_WVFRM_BANK_ROM:
 	case CS40L50_WVFRM_BANK_RAM:
-		effect->index += work_data->custom_data[1] & CS40L50_CUSTOM_DATA_MASK;
+		effect->index += work_data->custom_data[1] &
+				(CS40L50_CUSTOM_DATA_MASK | CS40L50_BROADCAST_TRIGGER_MASK);
 		break;
 	default:
 		dev_err(vib->dev, "Bank type %d not supported\n", effect->type);
 		return -EINVAL;
 	}
 
-	if (effect->index > max_index || effect->index < base_index) {
+	if ((effect->index & ~(CS40L50_BROADCAST_TRIGGER_MASK)) > max_index ||
+		(effect->index & ~(CS40L50_BROADCAST_TRIGGER_MASK)) < base_index) {
 		dev_err(vib->dev, "Index out of bounds: %u\n", effect->index);
 		return -ENOSPC;
 	}
@@ -379,7 +381,8 @@ static void cs40l50_start_worker(struct work_struct *work)
 		}
 	}
 
-	start_effect = cs40l50_find_effect(work_data->effect->id, &vib->effect_head);
+	start_effect = cs40l50_find_effect(work_data->effect->id,
+					   &vib->effect_head);
 	if (start_effect) {
 		while (--work_data->count >= 0) {
 			vib->dsp.write(vib->dev, vib->regmap, start_effect->index);
