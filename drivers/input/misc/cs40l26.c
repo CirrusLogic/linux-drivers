@@ -5005,7 +5005,7 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 
 	if (error) {
 		release_firmware(fw);
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 	}
 
 	error = cs40l26_dsp_pre_config(cs40l26);
