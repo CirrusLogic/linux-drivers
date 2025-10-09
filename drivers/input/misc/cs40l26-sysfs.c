@@ -2764,32 +2764,8 @@ static ssize_t fw_algo_id_store(struct device *dev, struct device_attribute *att
 	if (error)
 		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 
-	switch (algo_id) {
-	case CS40L26_A2H_ALGO_ID:
-	case CS40L26_BUZZGEN_ALGO_ID:
-	case CS40L26_DVL_ALGO_ID:
-	case CS40L26_DYNAMIC_F0_ALGO_ID:
-	case CS40L26_EP_ALGO_ID:
-	case CS40L26_EVENT_HANDLER_ALGO_ID:
-	case CS40L26_EVENT_LOGGER_ALGO_ID:
-	case CS40L26_EXT_ALGO_ID:
-	case CS40L26_F0_EST_ALGO_ID:
-	case CS40L26_FW_CALIB_ID:
-	case CS40L26_FW_ID:
-	case CS40L26_GPIO_ALGO_ID:
-	case CS40L26_LF0T_ALGO_ID:
-	case CS40L26_LOGGER_ALGO_ID:
-	case CS40L26_LS_ALGO_ID:
-	case CS40L26_MAILBOX_ALGO_ID:
-	case CS40L26_MDSYNC_ALGO_ID:
-	case CS40L26_PM_ALGO_ID:
-	case CS40L26_SVC_ALGO_ID:
-	case CS40L26_THERM_LIM_ALGO_ID:
-	case CS40L26_VIBEGEN_ALGO_ID:
-		break;
-	default:
+	if (!cl_dsp_algo_is_present(cs40l26->dsp, algo_id))
 		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
-	}
 
 	mutex_lock(&cs40l26->lock);
 
