@@ -4459,6 +4459,7 @@ static int cs40l26_amp_drv_slope_config(struct cs40l26_private *cs40l26)
 	default:
 		dev_warn(cs40l26->dev, "Invalid AMP_DRV_SLOPE: %u, using normal slope\n",
 				cs40l26->amp_drv_slope);
+		break;
 	}
 
 	error = regmap_read(cs40l26->regmap, CS40L26_DAC_MSM_CONFIG, &dac_msm_cfg_default);
