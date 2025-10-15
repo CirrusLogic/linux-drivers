@@ -80,7 +80,7 @@ static int cs40l26_clk_en(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 	struct device *dev = cs40l26->dev;
 	int ret;
 
-	dev_dbg(dev, "%s: %s\n", __func__, event == SND_SOC_DAPM_POST_PMU ? "PMU" : "PMD");
+	dev_info(dev, "%s: %s\n", __func__, event == SND_SOC_DAPM_POST_PMU ? "PMU" : "PMD");
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -130,7 +130,7 @@ static int cs40l26_dsp_tx(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 	int ret;
 	u32 reg;
 
-	dev_dbg(dev, "%s: %s\n", __func__, event == SND_SOC_DAPM_POST_PMU ? "PMU" : "PMD");
+	dev_info(dev, "%s: %s\n", __func__, event == SND_SOC_DAPM_POST_PMU ? "PMU" : "PMD");
 
 	if (codec->dsp_bypass) {
 		dev_err(dev, "Cannot use A2H while bypassing DSP\n");
@@ -247,7 +247,7 @@ static int cs40l26_asp_rx(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 	u8 data_src;
 	int ret;
 
-	dev_dbg(dev, "%s: %s\n", __func__, event == SND_SOC_DAPM_POST_PMU ? "PMU" : "PMD");
+	dev_info(dev, "%s: %s\n", __func__, event == SND_SOC_DAPM_POST_PMU ? "PMU" : "PMD");
 
 	mutex_lock(&cs40l26->lock);
 
