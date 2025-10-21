@@ -746,8 +746,6 @@ static int cs40l26_dsp_pre_config(struct cs40l26_private *cs40l26)
 
 static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 {
-	struct regmap *regmap = cs40l26->regmap;
-	struct device *dev = cs40l26->dev;
 	u32 base, last, len,  mbox_response, read_ptr, reg, status, write_ptr;
 	u32 buffer[CS40L26_DSP_MBOX_BUFFER_NUM_REGS];
 	int error;
@@ -757,9 +755,9 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 	if (error)
 		return error;
 
-	error = regmap_bulk_read(regmap, reg, buffer, CS40L26_DSP_MBOX_BUFFER_NUM_REGS);
+	error = regmap_bulk_read(cs40l26->regmap, reg, buffer, CS40L26_DSP_MBOX_BUFFER_NUM_REGS);
 	if (error) {
-		dev_err(dev, "Failed to read buffer contents\n");
+		dev_err(cs40l26->dev, "Failed to read buffer contents\n");
 		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
@@ -774,25 +772,25 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 	if (error)
 		return error;
 
-	error = regmap_read(regmap, reg, &status);
+	error = regmap_read(cs40l26->regmap, reg, &status);
 	if (error) {
-		dev_err(dev, "Failed to read mailbox status\n");
-		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+		dev_err(cs40l26->dev, "Failed to read mailbox status\n");
+		return error;
 	}
 
 	if (status) {
-		dev_err(dev, "Mailbox status error: 0x%X\n", status);
+		dev_err(cs40l26->dev, "Mailbox status error: 0x%X\n", status);
 		return cs40l26_log_err(cs40l26, -ENOSPC, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
 	if (read_ptr == write_ptr) {
-		dev_dbg(dev, "Reached end of queue\n");
+		dev_dbg(cs40l26->dev, "Reached end of queue\n");
 		return 1;
 	}
 
-	error = regmap_read(regmap, read_ptr, &mbox_response);
+	error = regmap_read(cs40l26->regmap, read_ptr, &mbox_response);
 	if (error) {
-		dev_err(dev, "Failed to read from mailbox buffer\n");
+		dev_err(cs40l26->dev, "Failed to read from mailbox buffer\n");
 		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
@@ -806,10 +804,10 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 	if (error)
 		return error;
 
-	error = regmap_write(regmap, reg, read_ptr);
+	error = regmap_write(cs40l26->regmap, reg, read_ptr);
 	if (error) {
-		dev_err(dev, "Failed to update read pointer\n");
-		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+		dev_err(cs40l26->dev, "Failed to update read pointer\n");
+		return error;
 	}
 
 	*val = mbox_response;
