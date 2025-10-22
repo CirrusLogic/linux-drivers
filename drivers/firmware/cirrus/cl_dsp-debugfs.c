@@ -64,39 +64,34 @@ static ssize_t cl_dsp_debugfs_logger_en_read(struct file *file,
 		char __user *user_buf, size_t count, loff_t *ppos)
 {
 	struct cl_dsp_debugfs *db = file->private_data;
-	struct regmap *regmap = db->core->regmap;
+	struct cl_dsp *dsp = db->core;
 	char str[CL_DSP_DEBUGFS_TRACE_LOG_STRING_SIZE];
-	u32 reg, val;
 	ssize_t ret;
-
-	ret = cl_dsp_get_reg(db->core, "ENABLED", CL_DSP_XM_UNPACKED_TYPE,
-			db->dl.algo_id, &reg);
-	if (ret)
-		return ret;
+	u32 val;
 
 	ret = pm_runtime_get_sync(db->core->dev);
 	if (ret < 0) {
-		dev_err(db->core->dev, "PM Runtime Resume Failed\n");
+		dev_err(dsp->dev, "PM Runtime Resume Failed\n");
 		return ret;
 	}
 
-	ret = regmap_read(regmap, reg, &val);
+	ret = cl_dsp_read_ctl_reg(dsp, "ENABLED", CL_DSP_XM_UNPACKED_TYPE, db->dl.algo_id, &val);
 	if (ret) {
-		dev_err(db->core->dev, "Failed to get host buffer status\n");
+		dev_err(dsp->dev, "Failed to get host buffer status\n");
 		goto pm_exit;
 	}
 
 	ret = snprintf(str, CL_DSP_DEBUGFS_TRACE_LOG_STRING_SIZE, "%d\n", val);
 	if (ret <= 0) {
-		dev_err(db->core->dev, "Failed to parse host buffer status\n");
+		dev_err(dsp->dev, "Failed to parse host buffer status\n");
 		goto pm_exit;
 	}
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, str, strlen(str));
 
 pm_exit:
-	pm_runtime_mark_last_busy(db->core->dev);
-	pm_runtime_put_autosuspend(db->core->dev);
+	pm_runtime_mark_last_busy(dsp->dev);
+	pm_runtime_put_autosuspend(dsp->dev);
 
 	return ret;
 }
@@ -105,11 +100,10 @@ static ssize_t cl_dsp_debugfs_logger_en_write(struct file *file,
 		const char __user *user_buf, size_t count, loff_t *ppos)
 {
 	struct cl_dsp_debugfs *db = file->private_data;
-	struct regmap *regmap = db->core->regmap;
-	struct device *dev = db->core->dev;
-	u32 reg, val;
+	struct cl_dsp *dsp = db->core;
 	ssize_t ret;
 	char *str;
+	u32 val;
 
 	str = kzalloc(count, GFP_KERNEL);
 	if (!str)
@@ -117,7 +111,7 @@ static ssize_t cl_dsp_debugfs_logger_en_write(struct file *file,
 
 	ret = simple_write_to_buffer(str, count, ppos, user_buf, count);
 	if (ret <= 0) {
-		dev_err(dev, "Failed to write debugfs data\n");
+		dev_err(dsp->dev, "Failed to write debugfs data\n");
 		goto exit_free;
 	}
 
@@ -125,27 +119,21 @@ static ssize_t cl_dsp_debugfs_logger_en_write(struct file *file,
 	if (ret)
 		goto exit_free;
 
-	if (val != CL_DSP_DEBUGFS_TRACE_LOG_DISABLE &&
-			val != CL_DSP_DEBUGFS_TRACE_LOG_ENABLE) {
-		dev_err(dev, "Invalid trace log write: %u\n", val);
+	if (val != CL_DSP_DEBUGFS_TRACE_LOG_DISABLE && val != CL_DSP_DEBUGFS_TRACE_LOG_ENABLE) {
+		dev_err(dsp->dev, "Invalid trace log write: %u\n", val);
 		ret = -EINVAL;
 		goto exit_free;
 	}
 
-	ret = cl_dsp_get_reg(db->core, "ENABLED", CL_DSP_XM_UNPACKED_TYPE,
-			     db->dl.algo_id, &reg);
-	if (ret)
-		goto exit_free;
-
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_get_sync(dsp->dev);
 	if (ret < 0) {
-		dev_err(db->core->dev, "PM Runtime Resume Failed\n");
+		dev_err(dsp->dev, "PM Runtime Resume Failed\n");
 		goto exit_free;
 	}
 
-	ret = regmap_write(regmap, reg, val);
+	ret = cl_dsp_write_ctl_reg(dsp, "ENABLED", CL_DSP_XM_UNPACKED_TYPE, db->dl.algo_id, val);
 	if (ret) {
-		dev_err(dev, "Failed to set trace log status\n");
+		dev_err(dsp->dev, "Failed to set trace log status\n");
 		goto exit_pm;
 	}
 
@@ -155,7 +143,7 @@ static ssize_t cl_dsp_debugfs_logger_en_write(struct file *file,
 				HOST_BUFFER_FIELD(next_read_index),
 				CL_DSP_HOST_BUFFER_READ_INDEX_RESET);
 		if (ret) {
-			dev_err(dev, "Failed to reset event logger\n");
+			dev_err(dsp->dev, "Failed to reset event logger\n");
 			goto exit_pm;
 		}
 
@@ -164,8 +152,8 @@ static ssize_t cl_dsp_debugfs_logger_en_write(struct file *file,
 	}
 
 exit_pm:
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_mark_last_busy(dsp->dev);
+	pm_runtime_put_autosuspend(dsp->dev);
 
 exit_free:
 	kfree(str);
@@ -177,39 +165,35 @@ static ssize_t cl_dsp_debugfs_timestamp_shift_read(struct file *file,
 		char __user *user_buf, size_t count, loff_t *ppos)
 {
 	struct cl_dsp_debugfs *db = file->private_data;
-	struct regmap *regmap = db->core->regmap;
+	struct cl_dsp *dsp = db->core;
 	char str[CL_DSP_DEBUGFS_TRACE_LOG_STRING_SIZE];
-	u32 reg, val;
 	ssize_t ret;
+	u32 val;
 
-	ret = cl_dsp_get_reg(db->core, "TIMESTAMP_SHIFT",
-			CL_DSP_XM_UNPACKED_TYPE, db->dl.algo_id, &reg);
-	if (ret)
-		return ret;
-
-	ret = pm_runtime_get_sync(db->core->dev);
+	ret = pm_runtime_get_sync(dsp->dev);
 	if (ret < 0) {
-		dev_err(db->core->dev, "PM Runtime Resume Failed\n");
+		dev_err(dsp->dev, "PM Runtime Resume Failed\n");
 		return ret;
 	}
 
-	ret = regmap_read(regmap, reg, &val);
+	ret = cl_dsp_read_ctl_reg(dsp, "TIMESTAMP_SHIFT", CL_DSP_XM_UNPACKED_TYPE,
+			db->dl.algo_id, &val);
 	if (ret) {
-		dev_err(db->core->dev, "Failed to get timestamp shift\n");
+		dev_err(dsp->dev, "Failed to get timestamp shift\n");
 		goto pm_exit;
 	}
 
 	ret = snprintf(str, CL_DSP_DEBUGFS_TRACE_LOG_STRING_SIZE, "%d\n", val);
 	if (ret <= 0) {
-		dev_err(db->core->dev, "Failed to parse host buffer status\n");
+		dev_err(dsp->dev, "Failed to parse host buffer status\n");
 		goto pm_exit;
 	}
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, str, strlen(str));
 
 pm_exit:
-	pm_runtime_mark_last_busy(db->core->dev);
-	pm_runtime_put_autosuspend(db->core->dev);
+	pm_runtime_mark_last_busy(dsp->dev);
+	pm_runtime_put_autosuspend(dsp->dev);
 
 	return ret;
 }
@@ -417,19 +401,13 @@ static const struct {
 
 static int cl_dsp_logger_init(struct cl_dsp_debugfs *db)
 {
-	struct regmap *regmap = db->core->regmap;
 	struct cl_dsp *dsp = db->core;
-	u32 reg;
 	int ret;
 
-	ret = cl_dsp_get_reg(dsp, "EVENT_LOG_HEADER", CL_DSP_XM_UNPACKED_TYPE,
-			     db->dl.algo_id, &reg);
-	if (ret)
-		return ret;
-
-	ret = regmap_read(regmap, reg, &db->dl.host_buf_ptr);
+	ret = cl_dsp_read_ctl_reg(dsp, "EVENT_LOG_HEADER", CL_DSP_XM_UNPACKED_TYPE,
+			db->dl.algo_id, &db->dl.host_buf_ptr);
 	if (ret) {
-		dev_err(db->core->dev, "Failed to get host buffer address\n");
+		dev_err(dsp->dev, "Failed to get host buffer address\n");
 		return ret;
 	}
 
@@ -455,7 +433,7 @@ static int cl_dsp_logger_init(struct cl_dsp_debugfs *db)
 			HOST_BUFFER_FIELD(next_read_index),
 			CL_DSP_HOST_BUFFER_READ_INDEX_RESET);
 	if (ret)
-		dev_err(db->core->dev, "Failed to reset event logger\n");
+		dev_err(dsp->dev, "Failed to reset event logger\n");
 
 	return ret;
 }
