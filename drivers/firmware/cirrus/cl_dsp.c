@@ -275,6 +275,112 @@ bool cl_dsp_algo_is_present(struct cl_dsp *dsp, const unsigned int algo_id)
 }
 EXPORT_SYMBOL_GPL(cl_dsp_algo_is_present);
 
+int cl_dsp_read_ctl_reg(struct cl_dsp *dsp, const char *coeff_name, const u32 block_type,
+		const u32 algo_id, u32 *val)
+{
+	int error;
+	u32 reg;
+
+	if (!cl_dsp_algo_is_present(dsp, algo_id))
+		return -EPERM;
+
+	error = cl_dsp_get_reg(dsp, coeff_name, block_type, algo_id, &reg);
+	if (error)
+		return error;
+
+	return regmap_read(dsp->regmap, reg, val);
+}
+EXPORT_SYMBOL_GPL(cl_dsp_read_ctl_reg);
+
+int cl_dsp_read_ctl_reg_offset(struct cl_dsp *dsp, const char *coeff_name, const u32 block_type,
+		const u32 algo_id, const u32 offset, u32 *val)
+{
+	int error;
+	u32 reg;
+
+	if (!cl_dsp_algo_is_present(dsp, algo_id))
+		return -EPERM;
+
+	error = cl_dsp_get_reg(dsp, coeff_name, block_type, algo_id, &reg);
+	if (error)
+		return error;
+
+	return regmap_read(dsp->regmap, reg + offset, val);
+}
+EXPORT_SYMBOL_GPL(cl_dsp_read_ctl_reg_offset);
+
+int cl_dsp_write_ctl_reg(struct cl_dsp *dsp, const char *coeff_name, const u32 block_type,
+		const u32 algo_id, const u32 val)
+{
+	int error;
+	u32 reg;
+
+	if (!cl_dsp_algo_is_present(dsp, algo_id))
+		return -EPERM;
+
+	error = cl_dsp_get_reg(dsp, coeff_name, block_type, algo_id, &reg);
+	if (error)
+		return error;
+
+	return regmap_write(dsp->regmap, reg, val);
+}
+EXPORT_SYMBOL_GPL(cl_dsp_write_ctl_reg);
+
+int cl_dsp_write_ctl_reg_offset(struct cl_dsp *dsp, const char *coeff_name, const u32 block_type,
+		const u32 algo_id, const u32 offset, const u32 val)
+{
+	int error;
+	u32 reg;
+
+	if (!cl_dsp_algo_is_present(dsp, algo_id))
+		return -EPERM;
+
+	error = cl_dsp_get_reg(dsp, coeff_name, block_type, algo_id, &reg);
+	if (error)
+		return error;
+
+	return regmap_write(dsp->regmap, reg + offset, val);
+}
+EXPORT_SYMBOL_GPL(cl_dsp_write_ctl_reg_offset);
+
+int cl_dsp_update_ctl_reg(struct cl_dsp *dsp, const char *coeff_name, const u32 block_type,
+		const u32 algo_id, const u32 val, const u32 mask)
+{
+	int error;
+	u32 reg;
+
+	if (!cl_dsp_algo_is_present(dsp, algo_id))
+		return -EPERM;
+
+	error = cl_dsp_get_reg(dsp, coeff_name, block_type, algo_id, &reg);
+	if (error)
+		return error;
+
+	error = regmap_update_bits(dsp->regmap, reg, mask, val << (ffs(mask) - 1));
+
+	return error ? error : 0;
+}
+EXPORT_SYMBOL_GPL(cl_dsp_update_ctl_reg);
+
+int cl_dsp_set_ctl_reg(struct cl_dsp *dsp, const char *coeff_name, const u32 block_type,
+		const u32 algo_id, const u32 mask)
+{
+	int error;
+	u32 reg;
+
+	if (!cl_dsp_algo_is_present(dsp, algo_id))
+		return -EPERM;
+
+	error = cl_dsp_get_reg(dsp, coeff_name, block_type, algo_id, &reg);
+	if (error)
+		return error;
+
+	error = regmap_set_bits(dsp->regmap, reg, mask);
+
+	return error ? error : 0;
+}
+EXPORT_SYMBOL_GPL(cl_dsp_set_ctl_reg);
+
 static int cl_dsp_process_data_be(const u8 *data,
 		const unsigned int num_bytes, unsigned int *val)
 {
