@@ -65,82 +65,6 @@ static u32 gpio_map_get(struct device *dev, enum cs40l26_gpio_map gpio)
 	return CS40L26_EVENT_MAP_GPI_DISABLE;
 }
 
-int cs40l26_dsp_read_ctl_reg(struct cs40l26_private *cs40l26, const char *coeff_name,
-		const u32 block_type, const u32 algo_id, u32 *val)
-{
-	int error;
-	u32 reg;
-
-	if (algo_id != cs40l26->fw_id && !cl_dsp_algo_is_present(cs40l26->dsp, algo_id))
-		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_FW, __func__);
-
-	error = cl_dsp_get_reg(cs40l26->dsp, coeff_name, block_type, algo_id, &reg);
-	if (error)
-		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
-
-	error = regmap_read(cs40l26->regmap, reg, val);
-
-	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__) : 0;
-}
-EXPORT_SYMBOL_GPL(cs40l26_dsp_read_ctl_reg);
-
-int cs40l26_dsp_write_ctl_reg(struct cs40l26_private *cs40l26, const char *coeff_name,
-		const u32 block_type, const u32 algo_id, const u32 val)
-{
-	int error;
-	u32 reg;
-
-	if (algo_id != cs40l26->fw_id && !cl_dsp_algo_is_present(cs40l26->dsp, algo_id))
-		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_FW, __func__);
-
-	error = cl_dsp_get_reg(cs40l26->dsp, coeff_name, block_type, algo_id, &reg);
-	if (error)
-		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
-
-	error = regmap_write(cs40l26->regmap, reg, val);
-
-	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__) : 0;
-}
-EXPORT_SYMBOL_GPL(cs40l26_dsp_write_ctl_reg);
-
-int cs40l26_dsp_update_ctl_reg(struct cs40l26_private *cs40l26, const char *coeff_name,
-		const u32 block_type, const u32 algo_id, const u32 val, const u32 mask)
-{
-	int error;
-	u32 reg;
-
-	if (algo_id != cs40l26->fw_id && !cl_dsp_algo_is_present(cs40l26->dsp, algo_id))
-		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_FW, __func__);
-
-	error = cl_dsp_get_reg(cs40l26->dsp, coeff_name, block_type, algo_id, &reg);
-	if (error)
-		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
-
-	error = regmap_update_bits(cs40l26->regmap, reg, mask, val << (ffs(mask) - 1));
-
-	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__) : 0;
-}
-EXPORT_SYMBOL_GPL(cs40l26_dsp_update_ctl_reg);
-
-int cs40l26_dsp_set_ctl_reg(struct cs40l26_private *cs40l26, const char *coeff_name,
-		const u32 block_type, const u32 algo_id, const u32 mask)
-{
-	int error;
-	u32 reg;
-
-	if (algo_id != cs40l26->fw_id && !cl_dsp_algo_is_present(cs40l26->dsp, algo_id))
-		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_FW, __func__);
-
-	error = cl_dsp_get_reg(cs40l26->dsp, coeff_name, block_type, algo_id, &reg);
-	if (error)
-		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
-
-	error = regmap_set_bits(cs40l26->regmap, reg, mask);
-
-	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__) : 0;
-}
-EXPORT_SYMBOL_GPL(cs40l26_dsp_set_ctl_reg);
-
 static int cs40l26_dsp_read(struct cs40l26_private *cs40l26, u32 reg, u32 *val)
 {
 	struct regmap *regmap = cs40l26->regmap;
@@ -275,21 +199,17 @@ static int cs40l26_broadcast_write(struct cs40l26_private *cs40l26, u32 reg, u32
 
 int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 {
-	u32 dsp_state, reg;
+	u32 dsp_state;
 	int error;
 
-	if (cs40l26->fw_loaded) {
-		error = cl_dsp_get_reg(cs40l26->dsp, "PM_CUR_STATE", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_PM_ALGO_ID, &reg);
-		if (error)
-			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
-	} else {
-		reg = cs40l26->rom_regs->pm_cur_state;
-	}
+	if (cs40l26->fw_loaded)
+		error = cl_dsp_read_ctl_reg(cs40l26->dsp, "PM_CUR_STATE", CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_PM_ALGO_ID, &dsp_state);
+	else
+		error = cs40l26_dsp_read(cs40l26, cs40l26->rom_regs->pm_cur_state, &dsp_state);
 
-	error = cs40l26_dsp_read(cs40l26, reg, &dsp_state);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DSP, __func__);
 
 	switch (dsp_state) {
 	case CS40L26_DSP_STATE_SHUTDOWN:
@@ -353,24 +273,15 @@ static const struct cs40l26_dbc cs40l26_dbc_params[CS40L26_DBC_NUM_CONTROLS] = {
 int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26, unsigned int dsp_state,
 		u32 timeout_ms)
 {
-	u32 reg, timeout_ticks;
+	u32 offset, timeout_ticks;
 	int error;
-
-	if (cs40l26->fw_loaded) {
-		error = cl_dsp_get_reg(cs40l26->dsp, "PM_TIMER_TIMEOUT_TICKS",
-				CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
-		if (error)
-			return error;
-	} else {
-		reg = cs40l26->rom_regs->pm_timeout_ticks;
-	}
 
 	switch (dsp_state) {
 	case CS40L26_DSP_STATE_STANDBY:
-		reg += CS40L26_PM_STDBY_TIMEOUT_OFFSET;
+		offset = CS40L26_PM_STDBY_TIMEOUT_OFFSET;
 		break;
 	case CS40L26_DSP_STATE_ACTIVE:
-		reg += CS40L26_PM_ACTIVE_TIMEOUT_OFFSET;
+		offset = CS40L26_PM_ACTIVE_TIMEOUT_OFFSET;
 		break;
 	default:
 		dev_err(cs40l26->dev, "Invalid DSP state: %u\n", dsp_state);
@@ -379,7 +290,13 @@ int cs40l26_pm_timeout_ms_set(struct cs40l26_private *cs40l26, unsigned int dsp_
 
 	timeout_ticks = (timeout_ms * CS40L26_PM_TICKS_PER_SEC) / 1000;
 
-	error = regmap_write(cs40l26->regmap, reg, timeout_ticks);
+	if (cs40l26->fw_loaded)
+		error = cl_dsp_write_ctl_reg_offset(cs40l26->dsp, "PM_TIMER_TIMEOUT_TICKS",
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, offset, timeout_ticks);
+	else
+		error = regmap_write(cs40l26->regmap, cs40l26->rom_regs->pm_timeout_ticks +
+				offset, timeout_ticks);
+
 	if (error)
 		dev_err(cs40l26->dev, "Failed to set PM timeout: %d\n", error);
 
@@ -390,30 +307,28 @@ EXPORT_SYMBOL_GPL(cs40l26_pm_timeout_ms_set);
 int cs40l26_pm_timeout_ms_get(struct cs40l26_private *cs40l26, unsigned int dsp_state,
 		u32 *timeout_ms)
 {
-	u32 reg, timeout_ticks;
+	u32 offset, timeout_ticks;
 	int error;
 
-	if (cs40l26->fw_loaded) {
-		error = cl_dsp_get_reg(cs40l26->dsp, "PM_TIMER_TIMEOUT_TICKS",
-				CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &reg);
-		if (error)
-			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
-	} else {
-		reg = cs40l26->rom_regs->pm_timeout_ticks;
-	}
-
 	if (dsp_state == CS40L26_DSP_STATE_STANDBY) {
-		reg += CS40L26_PM_STDBY_TIMEOUT_OFFSET;
+		offset = CS40L26_PM_STDBY_TIMEOUT_OFFSET;
 	} else if (dsp_state == CS40L26_DSP_STATE_ACTIVE) {
-		reg += CS40L26_PM_ACTIVE_TIMEOUT_OFFSET;
+		offset = CS40L26_PM_ACTIVE_TIMEOUT_OFFSET;
 	} else {
 		dev_err(cs40l26->dev, "Invalid DSP state: %u\n", dsp_state);
 		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
-	error = regmap_read(cs40l26->regmap, reg, &timeout_ticks);
+	if (cs40l26->fw_loaded)
+		error = cl_dsp_read_ctl_reg_offset(cs40l26->dsp, "PM_TIMER_TIMEOUT_TICKS",
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, offset,
+				&timeout_ticks);
+	else
+		error = regmap_read(cs40l26->regmap, cs40l26->rom_regs->pm_timeout_ticks + offset,
+				&timeout_ticks);
+
 	if (error) {
-		dev_err(cs40l26->dev, "Failed to get PM timeout: %d\n", error);
+		dev_err(cs40l26->dev, "Failed to get timeout\n");
 		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
 
@@ -449,21 +364,19 @@ EXPORT_SYMBOL_GPL(cs40l26_pm_runtime_teardown);
 
 static int cs40l26_check_pm_lock(struct cs40l26_private *cs40l26, bool *locked)
 {
-	unsigned int dsp_lock, reg;
+	u32 dsp_lock;
 	int error;
 
-	if (cs40l26->fw_loaded) {
-		error = cl_dsp_get_reg(cs40l26->dsp, "PM_STATE_LOCKS", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_PM_ALGO_ID, &reg);
-		if (error)
-			return error;
-	} else {
-		reg = cs40l26->rom_regs->pm_state_locks;
-	}
+	if (cs40l26->fw_loaded)
+		error = cl_dsp_read_ctl_reg_offset(cs40l26->dsp, "PM_STATE_LOCKS",
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID,
+				CS40L26_DSP_LOCK3_OFFSET, &dsp_lock);
+	else
+		error = regmap_read(cs40l26->regmap, cs40l26->rom_regs->pm_state_locks +
+				CS40L26_DSP_LOCK3_OFFSET, &dsp_lock);
 
-	error = regmap_read(cs40l26->regmap, reg + CS40L26_DSP_LOCK3_OFFSET, &dsp_lock);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 
 	if (dsp_lock & CS40L26_DSP_LOCK3_MASK)
 		*locked = true;
@@ -477,7 +390,7 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 {
 	struct cs40l26_work *work_data = container_of(work, struct cs40l26_work, work);
 	struct cs40l26_private *cs40l26 = work_data->cs40l26;
-	u32 algo_id, reg;
+	u32 algo_id;
 	int error;
 	u16 gain;
 
@@ -503,15 +416,11 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 	if (error)
 		goto err_mutex;
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_ATTENUATION",
-			CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
-	if (error)
-		goto err_mutex;
-
-	error = regmap_write(cs40l26->regmap, reg, cs40l26_attn_q21_2_vals[gain]);
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "SOURCE_ATTENUATION",
+			CL_DSP_XM_UNPACKED_TYPE, algo_id, cs40l26_attn_q21_2_vals[gain]);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to set attenuation\n");
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 	}
 
 err_mutex:
@@ -767,15 +676,11 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 	read_ptr = buffer[3];
 	last = base + ((len - 1) * CL_DSP_BYTES_PER_WORD);
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "STATUS", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_MAILBOX_ALGO_ID, &reg);
-	if (error)
-		return error;
-
-	error = regmap_read(cs40l26->regmap, reg, &status);
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "STATUS", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_MAILBOX_ALGO_ID, &status);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to read mailbox status\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 	}
 
 	if (status) {
@@ -799,15 +704,11 @@ static int cs40l26_mbox_buffer_read(struct cs40l26_private *cs40l26, u32 *val)
 	else
 		read_ptr += CL_DSP_BYTES_PER_WORD;
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "QUEUE_RD", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_MAILBOX_ALGO_ID, &reg);
-	if (error)
-		return error;
-
-	error = regmap_write(cs40l26->regmap, reg, read_ptr);
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "QUEUE_RD", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_MAILBOX_ALGO_ID, read_ptr);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to update read pointer\n");
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 	}
 
 	*val = mbox_response;
@@ -1214,14 +1115,14 @@ static irqreturn_t cs40l26_wakesource_any(int irq, void *data)
 {
 	struct cs40l26_private *cs40l26 = data;
 	irqreturn_t irq_return = IRQ_HANDLED;
-	u32 reg, val;
+	u32 last_wksrc_ctl, pwrmgt_sts;
 	int error;
 
 	dev_dbg(cs40l26->dev, "Wakesource detected (ANY)\n");
 
 	mutex_lock(&cs40l26->lock);
 
-	error = regmap_read(cs40l26->regmap, CS40L26_PWRMGT_STS, &val);
+	error = regmap_read(cs40l26->regmap, CS40L26_PWRMGT_STS, &pwrmgt_sts);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to get Power Management Status\n");
 		irq_return = IRQ_NONE;
@@ -1229,25 +1130,19 @@ static irqreturn_t cs40l26_wakesource_any(int irq, void *data)
 		goto mutex_exit;
 	}
 
-	cs40l26->wksrc_sts = (u8) ((val & CS40L26_WKSRC_STS_MASK) >>
-				CS40L26_WKSRC_STS_SHIFT);
+	cs40l26->wksrc_sts = (u8) ((pwrmgt_sts & CS40L26_WKSRC_STS_MASK) >>
+			CS40L26_WKSRC_STS_SHIFT);
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "LAST_WAKESRC_CTL",
-			CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw_id, &reg);
-	if (error) {
-		irq_return = IRQ_NONE;
-		goto mutex_exit;
-	}
-
-	error = regmap_read(cs40l26->regmap, reg, &val);
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "LAST_WAKESRC_CTL",
+			CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw_id, &last_wksrc_ctl);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to read LAST_WAKESRC_CTL\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 		irq_return = IRQ_NONE;
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		goto mutex_exit;
 	}
 
-	cs40l26->last_wksrc_pol = (u8) (val & CS40L26_WKSRC_GPIO_POL_MASK);
+	cs40l26->last_wksrc_pol = (u8) (last_wksrc_ctl & CS40L26_WKSRC_GPIO_POL_MASK);
 
 mutex_exit:
 	mutex_unlock(&cs40l26->lock);
@@ -1855,15 +1750,12 @@ static int cs40l26_map_gpi_to_haptic(struct cs40l26_private *cs40l26, struct ff_
 			(cs40l26->calib_fw && fw_rev >= CS40L26_FW_GPI_TIMEOUT_CALIB_MIN_REV);
 
 	if (use_timeout) {
-		error = cl_dsp_get_reg(cs40l26->dsp, "TIMEOUT_GPI_MS", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_VIBEGEN_ALGO_ID, &reg);
-		if (error)
-			return error;
-
-		error = regmap_write(cs40l26->regmap, reg, effect->replay.length);
+		error = cl_dsp_write_ctl_reg(cs40l26->dsp, "TIMEOUT_GPI_MS",
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID,
+				effect->replay.length);
 		if (error) {
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 			dev_warn(cs40l26->dev, "Failed to set GPI timeout, continuing...\n");
-			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 		}
 	}
 
@@ -2041,12 +1933,6 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		}
 	}
 
-	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
-	if (error)
-		goto err_mutex;
-
-	error = cl_dsp_get_reg(cs40l26->dsp, "SOURCE_INVERT",
-			CL_DSP_XM_UNPACKED_TYPE, algo_id, &reg);
 	if (error)
 		goto err_mutex;
 
@@ -2063,9 +1949,17 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 		goto err_mutex;
 	}
 
-	error = regmap_write(cs40l26->regmap, reg, invert);
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
 	if (error)
 		goto err_mutex;
+
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "SOURCE_INVERT", CL_DSP_XM_UNPACKED_TYPE,
+			algo_id, invert);
+	if (error) {
+		dev_err(dev, "Failed to set SOURCE_INVERT\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+		goto err_mutex;
+	}
 
 	switch (effect->u.periodic.waveform) {
 	case FF_CUSTOM:
@@ -2488,34 +2382,26 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, u8 *data, u32 dat
 {
 	struct device *dev = cs40l26->dev;
 	struct cl_dsp *dsp = cs40l26->dsp;
-	unsigned int write_reg, reg, wt_offset, wt_size_words, wt_base;
+	unsigned int write_reg, wt_offset, wt_size_words, wt_base;
 	int error;
 
 	error = cs40l26_pm_enter(dev);
 	if (error)
 		return error;
 
-	error = cl_dsp_get_reg(dsp, "OWT_NEXT_XM", CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID,
-			&reg);
-	if (error)
-		goto err_pm;
-
-	error = regmap_read(cs40l26->regmap, reg, &wt_offset);
+	error = cl_dsp_read_ctl_reg(dsp, "OWT_NEXT_XM", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &wt_offset);
 	if (error) {
 		dev_err(dev, "Failed to get wavetable offset\n");
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 		goto err_pm;
 	}
 
-	error = cl_dsp_get_reg(dsp, "OWT_SIZE_XM", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_VIBEGEN_ALGO_ID, &reg);
-	if (error)
-		goto err_pm;
-
-	error = regmap_read(cs40l26->regmap, reg, &wt_size_words);
+	error = cl_dsp_read_ctl_reg(dsp, "OWT_SIZE_XM", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, &wt_size_words);
 	if (error) {
-		dev_err(dev, "Failed to get available WT size\n");
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+		dev_err(dev, "Failed to get available wavetable size\n");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 		goto err_pm;
 	}
 
@@ -2883,7 +2769,6 @@ static int cs40l26_sine_upload(struct cs40l26_private *cs40l26, struct ff_effect
 {
 	unsigned int duration, freq, level;
 	int error, slot;
-	u32 reg;
 
 	slot = cs40l26_buzzgen_find_slot(cs40l26, effect->id);
 	if (slot == -1) {
@@ -2913,32 +2798,20 @@ static int cs40l26_sine_upload(struct cs40l26_private *cs40l26, struct ff_effect
 	else
 		level = effect->u.periodic.magnitude;
 
-	error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_buzzgen_configs[slot].duration_name,
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID, &reg);
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, cs40l26_buzzgen_configs[slot].duration_name,
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID, duration);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
-	error = regmap_write(cs40l26->regmap, reg, duration);
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, cs40l26_buzzgen_configs[slot].freq_name,
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID, freq);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
-	error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_buzzgen_configs[slot].freq_name,
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID, &reg);
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, cs40l26_buzzgen_configs[slot].level_name,
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID, level);
 	if (error)
-		return error;
-
-	error = regmap_write(cs40l26->regmap, reg, freq);
-	if (error)
-		return error;
-
-	error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_buzzgen_configs[slot].level_name,
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_BUZZGEN_ALGO_ID, &reg);
-	if (error)
-		return error;
-
-	error = regmap_write(cs40l26->regmap, reg, level);
-	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	ueffect->id = effect->id;
 	ueffect->wvfrm_bank = CS40L26_BUZ_BANK_ID;
@@ -3536,7 +3409,7 @@ static int cs40l26_set_gpio_from_dt(struct cs40l26_private *cs40l26)
 
 static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 {
-	u32 irq_val, pad_val, reg;
+	u32 irq_val, pad_val;
 	int error;
 
 	error = cl_dsp_get_reg(cs40l26->dsp, "ENT_MAP_TABLE_EVENT_DATA_PACKED",
@@ -3565,32 +3438,20 @@ static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 		if (error)
 			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__);
 
-		error = cl_dsp_get_reg(cs40l26->dsp, "GPI_ENABLE_BITMASK", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_GPIO_ALGO_ID, &reg);
+		error = cl_dsp_write_ctl_reg(cs40l26->dsp, "GPI_ENABLE_BITMASK",
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_GPIO_ALGO_ID, 0);
 		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
-		error = regmap_write(cs40l26->regmap, reg, 0);
+		error = cl_dsp_write_ctl_reg(cs40l26->dsp, "GPO_ENABLE_BITMASK",
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_GPIO_ALGO_ID, 1);
 		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
-		error = cl_dsp_get_reg(cs40l26->dsp, "GPO_ENABLE_BITMASK", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_GPIO_ALGO_ID, &reg);
+		error = cl_dsp_write_ctl_reg(cs40l26->dsp, "SUP_GPI_COUNT", CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_GPIO_ALGO_ID, 0);
 		if (error)
-			return error;
-
-		error = regmap_write(cs40l26->regmap, reg, 1);
-		if (error)
-			return error;
-
-		error = cl_dsp_get_reg(cs40l26->dsp, "SUP_GPI_COUNT", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_GPIO_ALGO_ID, &reg);
-		if (error)
-			return error;
-
-		error = regmap_write(cs40l26->regmap, reg, 0);
-		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 	}
 
 	if (cs40l26->devid == CS40L26_DEVID_A || cs40l26->devid == CS40L26_DEVID_L27_A)
@@ -3851,62 +3712,39 @@ static int cs40l26_bst_dcm_config(struct cs40l26_private *cs40l26)
 	return 0;
 }
 
-static int cs40l26_zero_cross_config(struct cs40l26_private *cs40l26)
+static inline int cs40l26_zero_cross_config(struct cs40l26_private *cs40l26)
 {
-	int error;
-	u32 reg;
-
-	if (cs40l26->pwle_zero_cross) {
-		error = cl_dsp_get_reg(cs40l26->dsp, "PWLE_EXTEND_ZERO_CROSS",
-				CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
-		if (error)
-			return error;
-
-		error = regmap_write(cs40l26->regmap, reg, 1);
-		if (error) {
-			dev_err(cs40l26->dev, "Failed to set PWLE_EXTEND_ZERO_CROSS\n");
-			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
-		}
-
-	}
-
-	return 0;
+	return cs40l26->pwle_zero_cross ? cl_dsp_write_ctl_reg(cs40l26->dsp,
+			"PWLE_EXTEND_ZERO_CROSS", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, 1) : 0;
 }
 
 static int cs40l26_lra_dt_config(struct cs40l26_private *cs40l26)
 {
-	int error = 0;
-	u32 reg;
+	int error;
 
 	if (cs40l26->f0_default <= CS40L26_F0_FREQ_CENTRE_MAX &&
 			cs40l26->f0_default >= CS40L26_F0_FREQ_CENTRE_MIN) {
-		error = cl_dsp_get_reg(cs40l26->dsp, "F0_OTP_STORED",
-				CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_VIBEGEN_ALGO_ID, &reg);
-		if (error)
-			return error;
-
-		error = regmap_write(cs40l26->regmap, reg, cs40l26->f0_default);
+		error = cl_dsp_write_ctl_reg(cs40l26->dsp, "F0_OTP_STORED",
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID,
+				cs40l26->f0_default);
 		if (error) {
 			dev_err(cs40l26->dev, "Failed to write default f0\n");
-			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 		}
 	}
 
 	if (cs40l26->redc_default && cs40l26->redc_default <= CS40L26_UINT_24_BITS_MAX) {
-		error = cl_dsp_get_reg(cs40l26->dsp, "REDC_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_VIBEGEN_ALGO_ID, &reg);
-		if (error)
-			return error;
-
-		error = regmap_write(cs40l26->regmap, reg, cs40l26->redc_default);
+		error = cl_dsp_write_ctl_reg(cs40l26->dsp, "REDC_OTP_STORED",
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID,
+				cs40l26->redc_default);
 		if (error) {
 			dev_err(cs40l26->dev, "Failed to write default ReDC\n");
-			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 		}
 	}
 
-	return error;
+	return 0;
 }
 
 static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
@@ -4258,7 +4096,7 @@ static int cs40l26_handle_a1_errata(struct cs40l26_private *cs40l26)
 
 static int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc_type dbc, u32 val)
 {
-	u32 algo_id, reg, write_val;
+	u32 algo_id, write_val;
 	int error;
 
 	if (val > cs40l26_dbc_params[dbc].max)
@@ -4270,29 +4108,21 @@ static int cs40l26_dbc_set(struct cs40l26_private *cs40l26, enum cs40l26_dbc_typ
 	if (error)
 		return error;
 
-	error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_dbc_params[dbc].name, CL_DSP_XM_UNPACKED_TYPE,
-			algo_id, &reg);
-	if (error)
-		return error;
-
-	return regmap_write(cs40l26->regmap, reg, write_val);
+	return cl_dsp_write_ctl_reg(cs40l26->dsp, cs40l26_dbc_params[dbc].name,
+			CL_DSP_XM_UNPACKED_TYPE, algo_id, write_val);
 }
 
 static int cs40l26_dbc_enable(struct cs40l26_private *cs40l26)
 {
-	u32 algo_id = 0, reg;
+	u32 algo_id = 0;
 	int error;
 
 	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
 	if (error)
 		return error;
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
-			algo_id, &reg);
-	if (error)
-		return error;
-
-	return regmap_set_bits(cs40l26->regmap, reg, CS40L26_DBC_ENABLE_MASK);
+	return cl_dsp_set_ctl_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
+			algo_id, CS40L26_DBC_ENABLE_MASK);
 }
 
 static int cs40l26_dbc_config(struct cs40l26_private *cs40l26)
@@ -4316,7 +4146,7 @@ static int cs40l26_logger_src_add(struct cs40l26_private *cs40l26,
 		enum cs40l26_logger_src_sign sign, enum cs40l26_logger_src_size size,
 		enum cs40l26_logger_src_type type, enum cs40l26_logger_src_id id, u32 addr)
 {
-	u32 offset, reg, src;
+	u32 offset, src;
 	int error;
 
 	src = FIELD_PREP(CS40L26_LOGGER_SRC_ADDR_MASK, addr) |
@@ -4325,31 +4155,23 @@ static int cs40l26_logger_src_add(struct cs40l26_private *cs40l26,
 			FIELD_PREP(CS40L26_LOGGER_SRC_SIZE_MASK, size) |
 			FIELD_PREP(CS40L26_LOGGER_SRC_SIGN_MASK, sign);
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "SOURCE", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_LOGGER_ALGO_ID, &reg);
-	if (error)
-		return error;
-
 	offset = cs40l26->num_log_srcs * CL_DSP_BYTES_PER_WORD;
 
-	error = regmap_write(cs40l26->regmap, reg + offset, src);
+	error = cl_dsp_write_ctl_reg_offset(cs40l26->dsp, "SOURCE", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_LOGGER_ALGO_ID, offset, src);
 	if (error)
 		return error;
 
 	cs40l26->num_log_srcs++;
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "COUNT", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_LOGGER_ALGO_ID, &reg);
-	if (error)
-		return error;
-
-	return regmap_write(cs40l26->regmap, reg, cs40l26->num_log_srcs);
+	return cl_dsp_write_ctl_reg(cs40l26->dsp, "COUNT", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_LOGGER_ALGO_ID, cs40l26->num_log_srcs);
 }
 
 static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 {
 	enum cs40l26_logger_src_type ep_src_type;
-	u32 ep_buf_ptr, imon_buf_ptr, reg, src;
+	u32 ep_buf_ptr, imon_buf_ptr, src;
 	int error, i;
 
 	if (cs40l26->log_srcs != NULL) {
@@ -4357,24 +4179,16 @@ static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 		devm_kfree(cs40l26->dev, cs40l26->log_srcs);
 	}
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "COUNT", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_LOGGER_ALGO_ID, &reg);
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "COUNT", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_LOGGER_ALGO_ID, &cs40l26->num_log_srcs);
 	if (error)
-		return error;
-
-	error = regmap_read(cs40l26->regmap, reg, &cs40l26->num_log_srcs);
-	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID)) {
-		error = cl_dsp_get_reg(cs40l26->dsp, "DBG_SRC_CFG", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_EP_ALGO_ID, &reg);
+		error = cl_dsp_write_ctl_reg(cs40l26->dsp, "DBG_SRC_CFG", CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_EP_ALGO_ID, CS40L26_LOGGER_SRC_PROTECTION_OUT << 8);
 		if (error)
-			return error;
-
-		error = regmap_write(cs40l26->regmap, reg, CS40L26_LOGGER_SRC_PROTECTION_OUT << 8);
-		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 		error = cl_dsp_get_reg(cs40l26->dsp, "DBG_ADDR", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_EP_ALGO_ID, &ep_buf_ptr);
@@ -4412,13 +4226,9 @@ static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 	if (IS_ERR_OR_NULL(cs40l26->log_srcs))
 		return cs40l26->log_srcs ? PTR_ERR(cs40l26->log_srcs) : -ENOMEM;
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "SOURCE", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_LOGGER_ALGO_ID, &reg);
-	if (error)
-		goto err_free;
-
 	for (i = 0; i < cs40l26->num_log_srcs; i++) {
-		error = regmap_read(cs40l26->regmap, reg + (i * CL_DSP_BYTES_PER_WORD), &src);
+		error = cl_dsp_read_ctl_reg_offset(cs40l26->dsp, "SOURCE", CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_LOGGER_ALGO_ID, i * CL_DSP_BYTES_PER_WORD, &src);
 		if (error)
 			goto err_free;
 
@@ -4535,15 +4345,11 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		return error;
 
 	/* ensure firmware running */
-	error = cl_dsp_get_reg(cs40l26->dsp, "HALO_STATE", CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw_id,
-			&reg);
-	if (error)
-		return error;
-
-	error = regmap_read(regmap, reg, &val);
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "HALO_STATE", CL_DSP_XM_UNPACKED_TYPE,
+			cs40l26->fw_id,	&val);
 	if (error) {
 		dev_err(dev, "Failed to read HALO_STATE\n");
-		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 	}
 
 	if (val != CS40L26_DSP_HALO_STATE_RUN) {
@@ -4632,27 +4438,19 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	if (error)
 		return error;
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "TIMEOUT_MS",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
-	if (error)
-		goto pm_err;
-
-	error = regmap_write(regmap, reg, 0);
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "TIMEOUT_MS",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, 0);
 	if (error) {
 		dev_err(dev, "Failed to set TIMEOUT_MS\n");
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 		goto pm_err;
 	}
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_VIBEGEN_ALGO_ID, &reg);
-	if (error)
-		goto pm_err;
-
-	error = regmap_write(regmap, reg, 0);
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, 0);
 	if (error) {
 		dev_err(dev, "Failed to set COMPENSATION_ENABLE\n");
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 		goto pm_err;
 	}
 
@@ -4723,24 +4521,20 @@ static void cs40l26_gain_adjust(struct cs40l26_private *cs40l26, s32 adjust)
 int cs40l26_svc_le_estimate(struct cs40l26_private *cs40l26, unsigned int *le)
 {
 	struct device *dev = cs40l26->dev;
-	unsigned int reg, le_est = 0;
+	unsigned int le_est = 0;
 	int error, i;
 
 	error = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_LE_EST);
 	if (error)
 		return error;
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "LE_EST_STATUS", CL_DSP_YM_UNPACKED_TYPE,
-			CS40L26_SVC_ALGO_ID, &reg);
-	if (error)
-		return error;
-
 	for (i = 0; i < CS40L26_SVC_LE_MAX_ATTEMPTS; i++) {
 		usleep_range(CS40L26_SVC_LE_EST_TIME_US, CS40L26_SVC_LE_EST_TIME_US + 100);
-		error = regmap_read(cs40l26->regmap, reg, &le_est);
+		error = cl_dsp_read_ctl_reg(cs40l26->dsp, "LE_EST_STATUS", CL_DSP_YM_UNPACKED_TYPE,
+				CS40L26_SVC_ALGO_ID, &le_est);
 		if (error) {
 			dev_err(dev, "Failed to get LE_EST_STATUS\n");
-			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 		}
 
 		dev_info(dev, "Measured Le Estimation = %u\n", le_est);
