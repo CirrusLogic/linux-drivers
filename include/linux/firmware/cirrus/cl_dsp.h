@@ -402,6 +402,18 @@ int cl_dsp_get_length(struct cl_dsp *dsp, const char *coeff_name,
 		size_t *length);
 int cl_dsp_get_algo_rev(struct cl_dsp *dsp, const unsigned int algo_id, u32 *algo_rev);
 bool cl_dsp_algo_is_present(struct cl_dsp *dsp, const unsigned int algo_id);
+int cl_dsp_read_ctl_reg(struct cl_dsp *dsp, const char *coeff_name,
+		const u32 block_type, const u32 algo_id, u32 *val);
+int cl_dsp_read_ctl_reg_offset(struct cl_dsp *dsp, const char *coeff_name, const u32 block_type,
+		const u32 algo_id, const u32 offset, u32 *val);
+int cl_dsp_write_ctl_reg(struct cl_dsp *dsp, const char *coeff_name, const u32 block_type,
+		const u32 algo_id, const u32 val);
+int cl_dsp_write_ctl_reg_offset(struct cl_dsp *dsp, const char *coeff_name, const u32 block_type,
+		const u32 algo_id, const u32 offset, const u32 val);
+int cl_dsp_update_ctl_reg(struct cl_dsp *dsp, const char *coeff_name, const u32 block_type,
+		const u32 algo_id, const u32 val, const u32 mask);
+int cl_dsp_set_ctl_reg(struct cl_dsp *dsp, const char *coeff_name, const u32 block_type,
+		const u32 algo_id, const u32 mask);
 struct cl_dsp_memchunk cl_dsp_memchunk_create(void *data, int size);
 int cl_dsp_memchunk_write(struct cl_dsp_memchunk *ch, int nbits, u32 val);
 inline bool cl_dsp_memchunk_end(struct cl_dsp_memchunk *ch);
