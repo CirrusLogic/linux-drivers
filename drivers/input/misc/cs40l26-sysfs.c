@@ -160,8 +160,10 @@ static ssize_t overprotection_gain_show(struct device *dev, struct device_attrib
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "PROTECTION_XM_OP_GAIN", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "PROTECTION_XM_OP_GAIN", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_EP_ALGO_ID, &op_gain);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -190,8 +192,10 @@ static ssize_t overprotection_gain_store(struct device *dev, struct device_attri
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_write_ctl_reg(cs40l26, "PROTECTION_XM_OP_GAIN", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "PROTECTION_XM_OP_GAIN", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_EP_ALGO_ID, op_gain);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -213,8 +217,10 @@ static ssize_t halo_heartbeat_show(struct device *dev, struct device_attribute *
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "HALO_HEARTBEAT", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "HALO_HEARTBEAT", CL_DSP_XM_UNPACKED_TYPE,
 			cs40l26->fw_id, &halo_heartbeat);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -353,8 +359,10 @@ static ssize_t owt_free_space_show(struct device *dev, struct device_attribute *
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "OWT_SIZE_XM", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "OWT_SIZE_XM", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &words);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -440,8 +448,10 @@ static ssize_t f0_offset_show(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "F0_OFFSET", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "F0_OFFSET", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &f0_offset);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -471,8 +481,10 @@ static ssize_t f0_offset_store(struct device *dev, struct device_attribute *attr
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_write_ctl_reg(cs40l26, "F0_OFFSET", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "F0_OFFSET", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, f0_offset);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -530,8 +542,10 @@ static ssize_t f0_comp_enable_show(struct device *dev, struct device_attribute *
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &comp_en);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -561,8 +575,10 @@ static ssize_t f0_comp_enable_store(struct device *dev, struct device_attribute 
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_update_ctl_reg(cs40l26, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_update_ctl_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, comp_en, CS40L26_COMP_EN_F0_MASK);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -584,8 +600,10 @@ static ssize_t redc_comp_enable_show(struct device *dev, struct device_attribute
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &comp_en);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -615,8 +633,10 @@ static ssize_t redc_comp_enable_store(struct device *dev, struct device_attribut
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_update_ctl_reg(cs40l26, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_update_ctl_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, comp_en, CS40L26_COMP_EN_REDC_MASK);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -869,15 +889,15 @@ static int cs40l26_owt_size_get(struct cs40l26_private *cs40l26, u32 *owt_size, 
 	u32 offset;
 	int error;
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "OWT_BASE_XM", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "OWT_BASE_XM", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, owt_base);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "OWT_NEXT_XM", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "OWT_NEXT_XM", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &offset);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	if (*owt_base > offset)
 		return cs40l26_log_err(cs40l26, -ENOMEM, CS40L26_ERR_TYPE_DSP, __func__);
@@ -1182,8 +1202,10 @@ static ssize_t lf0t_freq_centre_show(struct device *dev, struct device_attribute
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "F_CENTRE_SET", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "F_CENTRE_SET", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &freq_centre);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1212,8 +1234,10 @@ static ssize_t lf0t_freq_centre_store(struct device *dev, struct device_attribut
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_write_ctl_reg(cs40l26, "F_CENTRE_SET", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "F_CENTRE_SET", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, lf0t_freq_centre);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1235,8 +1259,10 @@ static ssize_t lf0t_init_show(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_VIBEGEN_ALGO_ID, &lf0t_init);
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "COMPENSATION_ENABLE",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &lf0t_init);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1266,8 +1292,10 @@ static ssize_t lf0t_init_store(struct device *dev, struct device_attribute *attr
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_update_ctl_reg(cs40l26, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_update_ctl_reg(cs40l26->dsp, "COMPENSATION_ENABLE", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, lf0t_init, CS40L26_LF0T_INIT_MASK);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1367,15 +1395,19 @@ static int cs40l26_copy_f0_est_to_dvl(struct cs40l26_private *cs40l26)
 		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "F0_EST", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "F0_EST", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &f0_measured);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	f0_normalized = (f0_measured << CS40L26_F0_NORM_SHIFT) / sample_rate;
 
-	return cs40l26_dsp_write_ctl_reg(cs40l26, "LRA_NORM_F0", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "LRA_NORM_F0", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_DVL_ALGO_ID, f0_normalized);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	return 0;
 }
 
 static ssize_t trigger_calibration_store(struct device *dev, struct device_attribute *attr,
@@ -1493,8 +1525,10 @@ static ssize_t f0_measured_show(struct device *dev, struct device_attribute *att
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "F0_EST", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "F0_EST", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &f0_measured);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1516,8 +1550,10 @@ static ssize_t q_measured_show(struct device *dev, struct device_attribute *attr
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "Q_EST", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "Q_EST", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &q_measured);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1539,8 +1575,10 @@ static ssize_t redc_measured_show(struct device *dev, struct device_attribute *a
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "RE_EST_STATUS", CL_DSP_YM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "RE_EST_STATUS", CL_DSP_YM_UNPACKED_TYPE,
 			CS40L26_SVC_ALGO_ID, &redc_measured);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1562,8 +1600,10 @@ static ssize_t redc_est_show(struct device *dev, struct device_attribute *attr, 
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "REDC", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "REDC", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &redc_est);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1592,8 +1632,10 @@ static ssize_t redc_est_store(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_write_ctl_reg(cs40l26, "REDC", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "REDC", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, redc_est);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1615,8 +1657,10 @@ static ssize_t f0_stored_show(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "F0_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "F0_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &f0_stored);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1645,8 +1689,10 @@ static ssize_t f0_stored_store(struct device *dev, struct device_attribute *attr
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_write_ctl_reg(cs40l26, "F0_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "F0_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, f0_stored);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1668,8 +1714,10 @@ static ssize_t redc_stored_show(struct device *dev, struct device_attribute *att
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "REDC_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "REDC_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &redc_stored);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1698,8 +1746,10 @@ static ssize_t redc_stored_store(struct device *dev, struct device_attribute *at
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_write_ctl_reg(cs40l26, "REDC_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "REDC_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, redc_stored);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1721,8 +1771,10 @@ static ssize_t freq_centre_show(struct device *dev, struct device_attribute *att
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "FREQ_CENTRE", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "FREQ_CENTRE", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &freq_centre);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1752,8 +1804,10 @@ static ssize_t freq_centre_store(struct device *dev, struct device_attribute *at
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_write_ctl_reg(cs40l26, "FREQ_CENTRE", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "FREQ_CENTRE", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, freq_centre);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1775,8 +1829,10 @@ static ssize_t freq_span_show(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "FREQ_SPAN", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "FREQ_SPAN", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &freq_span);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1807,8 +1863,10 @@ static ssize_t freq_span_store(struct device *dev, struct device_attribute *attr
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_write_ctl_reg(cs40l26, "FREQ_SPAN", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "FREQ_SPAN", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, freq_span);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1823,15 +1881,15 @@ static int calc_f0_and_q_cal_time_ms(struct cs40l26_private *cs40l26, u32 *f0_an
 	u32 freq_centre, freq_span;
 	int abs_freq_span, error;
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "FREQ_SPAN", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "FREQ_SPAN", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &freq_span);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "FREQ_CENTRE", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "FREQ_CENTRE", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &freq_centre);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	abs_freq_span = (freq_span & BIT(23)) ? abs((int)(freq_span | GENMASK(31, 24)))
 			: freq_span;
@@ -1856,10 +1914,12 @@ static ssize_t f0_and_q_cal_time_ms_show(struct device *dev, struct device_attri
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "TONE_DURATION_MS", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "TONE_DURATION_MS", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_F0_EST_ALGO_ID, &tone_dur_ms);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 		goto err_mutex;
+	}
 
 	if (tone_dur_ms == CS40L26_F0_AND_Q_CALIBRATION_TIME_UNSET) {
 		error = calc_f0_and_q_cal_time_ms(cs40l26, &f0_and_q_cal_time_ms);
@@ -1892,8 +1952,10 @@ static ssize_t redc_cal_time_ms_show(struct device *dev, struct device_attribute
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "REDC_PLAYTIME_MS", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "REDC_PLAYTIME_MS", CL_DSP_XM_UNPACKED_TYPE,
 			cs40l26->fw_id, &redc_playtime_ms);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -2102,8 +2164,10 @@ static ssize_t ls_calibration_params_temp_show(struct device *dev, struct device
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "PARAMS_TEMPERATURE", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "PARAMS_TEMPERATURE", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_LS_ALGO_ID, &params_temp);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -2133,8 +2197,10 @@ static ssize_t ls_calibration_params_temp_store(struct device *dev, struct devic
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_write_ctl_reg(cs40l26, "PARAMS_TEMPERATURE", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "PARAMS_TEMPERATURE", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_LS_ALGO_ID, params_temp);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -2149,10 +2215,10 @@ static int cs40l26_ls_calibration_check_results(struct cs40l26_private *cs40l26,
 	u32 return_code;
 	int error;
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "STATE_CAL_RETURN_CODE", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_LS_ALGO_ID, &return_code);
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "STATE_CAL_RETURN_CODE",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_LS_ALGO_ID, &return_code);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	switch (return_code) {
 	case CS40L26_LS_CAL_OK:
@@ -2211,7 +2277,7 @@ static ssize_t ls_calibration_results_show(struct device *dev, struct device_att
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	int at = 0, error, i;
-	u32 reg, rev, val;
+	u32 offset, rev, val;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -2220,27 +2286,26 @@ static ssize_t ls_calibration_results_show(struct device *dev, struct device_att
 	mutex_lock(&cs40l26->lock);
 
 	for (i = 0; i < CS40L26_LS_CAL_NUM_REGS; i++) {
+		if (cs40l26_ls_cal_params[i].word_num == 2)
+			offset = sizeof(u32);
+		else
+			offset = 0;
+
 		if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
-			error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_ls_cal_params[i].calib_name,
-					CL_DSP_XM_UNPACKED_TYPE, CS40L26_LS_ALGO_ID, &reg);
+			error = cl_dsp_read_ctl_reg_offset(cs40l26->dsp,
+					cs40l26_ls_cal_params[i].calib_name,
+					CL_DSP_XM_UNPACKED_TYPE, CS40L26_LS_ALGO_ID, offset, &val);
 		} else {
 			if (cs40l26_ls_cal_params[i].runtime_name == NULL)
 				continue;
 
-			error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_ls_cal_params[i].runtime_name,
-					CL_DSP_XM_UNPACKED_TYPE, CS40L26_EP_ALGO_ID, &reg);
+			error = cl_dsp_read_ctl_reg_offset(cs40l26->dsp,
+					cs40l26_ls_cal_params[i].runtime_name,
+					CL_DSP_XM_UNPACKED_TYPE, CS40L26_EP_ALGO_ID, offset, &val);
 		}
+
 		if (error) {
 			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
-			goto err_mutex;
-		}
-
-		if (cs40l26_ls_cal_params[i].word_num == 2)
-			reg += sizeof(u32);
-
-		error = regmap_read(cs40l26->regmap, reg, &val);
-		if (error) {
-			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 			goto err_mutex;
 		}
 
@@ -2282,7 +2347,7 @@ static ssize_t ls_calibration_results_store(struct device *dev, struct device_at
 		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 ls_cal_results[CS40L26_LS_CAL_NUM_REGS], reg;
+	u32 ls_cal_results[CS40L26_LS_CAL_NUM_REGS], offset;
 	char revision[CS40L26_ALGO_ID_MAX_STR_LEN];
 	int error, f0_index, i, results_found = 0;
 
@@ -2299,51 +2364,53 @@ static ssize_t ls_calibration_results_store(struct device *dev, struct device_at
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_set_ctl_reg(cs40l26, "CFG", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_set_ctl_reg(cs40l26->dsp, "CFG", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_EP_ALGO_ID, CS40L26_LS_CAL_REINIT_MASK);
-	if (error)
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 		goto err_mutex;
+	}
 
 	f0_index = cs40l26->ls_cal_f0_closed_loop ?
 			CS40L26_LS_CAL_F0_CL_INDEX : CS40L26_LS_CAL_F0_OL_INDEX;
 
 	for (i = 0; i < results_found; i++) {
-		if (i == f0_index) {
-			error = cs40l26_dsp_write_ctl_reg(cs40l26, "F0_OTP_STORED",
+		if (i == f0_index)
+			error = cl_dsp_write_ctl_reg(cs40l26->dsp, "F0_OTP_STORED",
 					CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID,
 					ls_cal_results[i] << CS40L26_LS_CAL_F0_TO_VIB_SHIFT);
-		} else if (i == CS40L26_LS_CAL_REDC_INDEX) {
-			error = cs40l26_dsp_write_ctl_reg(cs40l26, "RE0", CL_DSP_XM_UNPACKED_TYPE,
+		else if (i == CS40L26_LS_CAL_REDC_INDEX)
+			error = cl_dsp_write_ctl_reg(cs40l26->dsp, "RE0", CL_DSP_XM_UNPACKED_TYPE,
 					CS40L26_THERM_LIM_ALGO_ID, ls_cal_results[i]);
-		} else if (i == CS40L26_LS_CAL_TEMP_INDEX) {
-			error = cs40l26_dsp_write_ctl_reg(cs40l26, "T0", CL_DSP_XM_UNPACKED_TYPE,
+		else if (i == CS40L26_LS_CAL_TEMP_INDEX)
+			error = cl_dsp_write_ctl_reg(cs40l26->dsp, "T0", CL_DSP_XM_UNPACKED_TYPE,
 					CS40L26_THERM_LIM_ALGO_ID, ls_cal_results[i]);
-		}
-		if (error)
-			goto err_mutex;
-
-		if (cs40l26_ls_cal_params[i].runtime_name == NULL)
-			continue;
-
-		error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_ls_cal_params[i].runtime_name,
-				CL_DSP_XM_UNPACKED_TYPE, CS40L26_EP_ALGO_ID, &reg);
 		if (error) {
 			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 			goto err_mutex;
 		}
 
-		if (cs40l26_ls_cal_params[i].word_num == 2)
-			reg += sizeof(u32);
+		if (cs40l26_ls_cal_params[i].runtime_name == NULL)
+			continue;
 
-		error = regmap_write(cs40l26->regmap, reg, ls_cal_results[i]);
+		if (cs40l26_ls_cal_params[i].word_num == 2)
+			offset = sizeof(u32);
+		else
+			offset = 0;
+
+		error = cl_dsp_write_ctl_reg_offset(cs40l26->dsp,
+				cs40l26_ls_cal_params[i].runtime_name, CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_EP_ALGO_ID, offset, ls_cal_results[i]);
 		if (error) {
-			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 			goto err_mutex;
 		}
 	}
 
-	error = cs40l26_dsp_set_ctl_reg(cs40l26, "CFG", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_set_ctl_reg(cs40l26->dsp, "CFG", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_EP_ALGO_ID, CS40L26_EP_REINIT);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -2359,7 +2426,7 @@ static ssize_t ls_calibration_results_name_show(struct device *dev, struct devic
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 	int at = 0, error, i;
-	u32 reg, val;
+	u32 offset, val;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
@@ -2368,27 +2435,25 @@ static ssize_t ls_calibration_results_name_show(struct device *dev, struct devic
 	mutex_lock(&cs40l26->lock);
 
 	for (i = 0; i < CS40L26_LS_CAL_NUM_REGS; i++) {
+		if (cs40l26_ls_cal_params[i].word_num == 2)
+			offset = sizeof(u32);
+		else
+			offset = 0;
+
 		if (cs40l26->fw_id == CS40L26_FW_CALIB_ID) {
-			error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_ls_cal_params[i].calib_name,
-					CL_DSP_XM_UNPACKED_TYPE, CS40L26_LS_ALGO_ID, &reg);
+			error = cl_dsp_read_ctl_reg_offset(cs40l26->dsp,
+					cs40l26_ls_cal_params[i].calib_name,
+					CL_DSP_XM_UNPACKED_TYPE, CS40L26_LS_ALGO_ID, offset, &val);
 		} else {
 			if (cs40l26_ls_cal_params[i].runtime_name == NULL)
 				continue;
-
-			error = cl_dsp_get_reg(cs40l26->dsp, cs40l26_ls_cal_params[i].runtime_name,
-					CL_DSP_XM_UNPACKED_TYPE, CS40L26_EP_ALGO_ID, &reg);
+			error = cl_dsp_read_ctl_reg_offset(cs40l26->dsp,
+					cs40l26_ls_cal_params[i].runtime_name,
+					CL_DSP_XM_UNPACKED_TYPE, CS40L26_EP_ALGO_ID, offset, &val);
 		}
+
 		if (error) {
 			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
-			goto err_mutex;
-		}
-
-		if (cs40l26_ls_cal_params[i].word_num == 2)
-			reg += sizeof(u32);
-
-		error = regmap_read(cs40l26->regmap, reg, &val);
-		if (error) {
-			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 			goto err_mutex;
 		}
 
@@ -2517,8 +2582,10 @@ static ssize_t logging_en_show(struct device *dev, struct device_attribute *attr
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_read_ctl_reg(cs40l26, "ENABLE", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "ENABLE", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_LOGGER_ALGO_ID, &logging_en);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -2547,8 +2614,10 @@ static ssize_t logging_en_store(struct device *dev, struct device_attribute *att
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cs40l26_dsp_write_ctl_reg(cs40l26, "ENABLE", CL_DSP_XM_UNPACKED_TYPE,
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "ENABLE", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_LOGGER_ALGO_ID, logging_en);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -2632,7 +2701,7 @@ static DEVICE_ATTR_RO(available_logger_srcs);
 static int cs40l26_logger_data_get(struct cs40l26_private *cs40l26, enum cs40l26_logger_src_id id,
 		enum cs40l26_logger_data_type type, u32 *val)
 {
-	int error, reg, src_num;
+	int error, src_num;
 	u32 offset;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
@@ -2652,19 +2721,13 @@ static int cs40l26_logger_data_get(struct cs40l26_private *cs40l26, enum cs40l26
 		goto err_mutex;
 	}
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "DATA", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_LOGGER_ALGO_ID, &reg);
-	if (error) {
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
-		goto err_mutex;
-	}
-
 	offset = (src_num * CS40L26_LOGGER_DATA_SRC_STEP) +
 			(type * CS40L26_LOGGER_DATA_OFFSET_STEP);
 
-	error = regmap_read(cs40l26->regmap, reg + offset, val);
+	error = cl_dsp_read_ctl_reg_offset(cs40l26->dsp, "DATA", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_LOGGER_ALGO_ID, offset, val);
 	if (error)
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
