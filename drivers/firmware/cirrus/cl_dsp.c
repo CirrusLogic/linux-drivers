@@ -21,7 +21,7 @@ EXPORT_SYMBOL_GPL(cl_dsp_memchunk_create);
 
 inline bool cl_dsp_memchunk_end(struct cl_dsp_memchunk *ch)
 {
-	return ch->data == ch->max;
+	return ch->data >= ch->max;
 }
 EXPORT_SYMBOL_GPL(cl_dsp_memchunk_end);
 
