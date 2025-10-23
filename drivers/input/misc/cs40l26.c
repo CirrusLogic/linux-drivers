@@ -3066,6 +3066,11 @@ static int cs40l26_upload_effect(struct input_dev *dev,
 
 	dev_dbg(cs40l26->dev, "%s: effect ID = %d\n", __func__, effect->id);
 
+	if (len < CS40L26_UPLOAD_MIN_SIZE) {
+		dev_err(cs40l26->dev, "Data length (%d) must be at least 2\n", len);
+		return -EINVAL;
+	}
+
 	if (effect->u.periodic.waveform == FF_CUSTOM) {
 		work_data.raw_custom_data_len = len;
 
