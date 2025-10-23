@@ -2253,6 +2253,7 @@ static void cs40l26_owt_set_section_info(struct cs40l26_private *cs40l26,
 static int cs40l26_owt_get_section_info(struct cs40l26_private *cs40l26, struct cl_dsp_memchunk *ch,
 		struct cs40l26_owt_section *sections, u8 nsections)
 {
+	bool duration = false;
 	int error = 0, i;
 
 	for (i = 0; i < nsections; i++) {
@@ -2272,11 +2273,26 @@ static int cs40l26_owt_get_section_info(struct cs40l26_private *cs40l26, struct 
 		if (error)
 			return error;
 
+		if (sections[i].flags & CS40L26_WT_TYPE10_COMP_DURATION_FLAG)
+			duration = true;
+
 		error = cl_dsp_memchunk_read(cs40l26->dsp, ch, 16, &sections[i].delay);
 		if (error)
 			return error;
 
-		if (sections[i].flags & CS40L26_WT_TYPE10_COMP_DURATION_FLAG) {
+		/*
+		 * Index 0 is exclusively used as a "delay only" index in a composite OWT effect.
+		 * Therefore, if used, it must carry with it a delay value and must not contain
+		 * a duration value.
+		 */
+		if (sections[i].index == 0) {
+			if (duration || !sections[i].delay) {
+				dev_err(cs40l26->dev, "Index 0 in OWT composite is delay only\n");
+				return -EINVAL;
+			}
+		}
+
+		if (duration) {
 			/* Skip padding */
 			error = cl_dsp_memchunk_read(cs40l26->dsp, ch, 8, NULL);
 			if (error)
