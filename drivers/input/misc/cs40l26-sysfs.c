@@ -2698,6 +2698,75 @@ err_mutex:
 }
 static DEVICE_ATTR_RO(available_logger_srcs);
 
+static ssize_t power_en_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u8 power_en;
+	int error;
+	u32 flags;
+
+	if (cs40l26->revid != CS40L26_REVID_B2)
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_SYSFS, __func__);
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__);
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
+			cs40l26->fw_id, &flags);
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+		goto err_mutex;
+	}
+
+	power_en = (u8)FIELD_GET(CS40L26_LOGGER_POWER_EN_MASK, flags);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : sysfs_emit(buf, "%u\n", power_en);
+}
+
+static ssize_t power_en_store(struct device *dev, struct device_attribute *attr, const char *buf,
+		size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 power_en;
+	int error;
+
+	if (cs40l26->revid != CS40L26_REVID_B2)
+		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_SYSFS, __func__);
+
+	error = kstrtou32(buf, 10, &power_en);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
+
+	if (power_en > CS40L26_LOGGER_POWER_EN_MAX)
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__);
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cl_dsp_update_ctl_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
+			cs40l26->fw_id, power_en, CS40L26_LOGGER_POWER_EN_MASK);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : count;
+}
+static DEVICE_ATTR_RW(power_en);
+
 static int cs40l26_logger_data_get(struct cs40l26_private *cs40l26, enum cs40l26_logger_src_id id,
 		enum cs40l26_logger_data_type type, u32 *val)
 {
@@ -2777,6 +2846,7 @@ static struct attribute *cs40l26_dev_attrs_dlog[] = {
 	&dev_attr_logging_en.attr,
 	&dev_attr_logging_reset.attr,
 	&dev_attr_available_logger_srcs.attr,
+	&dev_attr_power_en.attr,
 	&dev_attr_avg_power.attr,
 	&dev_attr_max_power.attr,
 	&dev_attr_min_bemf.attr,
