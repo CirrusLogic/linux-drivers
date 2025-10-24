@@ -4144,13 +4144,15 @@ static int cs40l26_dbc_config(struct cs40l26_private *cs40l26)
 
 static int cs40l26_logger_src_add(struct cs40l26_private *cs40l26,
 		enum cs40l26_logger_src_sign sign, enum cs40l26_logger_src_size size,
-		enum cs40l26_logger_src_type type, enum cs40l26_logger_src_id id, u32 addr)
+		enum cs40l26_logger_src_type type, enum cs40l26_logger_src_avg avg,
+		enum cs40l26_logger_src_id id, u32 addr)
 {
 	u32 offset, src;
 	int error;
 
 	src = FIELD_PREP(CS40L26_LOGGER_SRC_ADDR_MASK, addr) |
 			FIELD_PREP(CS40L26_LOGGER_SRC_ID_MASK, id) |
+			FIELD_PREP(CS40L26_LOGGER_SRC_AVG_MASK, avg) |
 			FIELD_PREP(CS40L26_LOGGER_SRC_TYPE_MASK, type) |
 			FIELD_PREP(CS40L26_LOGGER_SRC_SIZE_MASK, size) |
 			FIELD_PREP(CS40L26_LOGGER_SRC_SIGN_MASK, sign);
@@ -4170,8 +4172,8 @@ static int cs40l26_logger_src_add(struct cs40l26_private *cs40l26,
 
 static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 {
+	u32 ep_buf_ptr, imon_buf_ptr, power_buf_ptr, src;
 	enum cs40l26_logger_src_type ep_src_type;
-	u32 ep_buf_ptr, imon_buf_ptr, src;
 	int error, i;
 
 	if (cs40l26->log_srcs != NULL) {
@@ -4202,7 +4204,7 @@ static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 				CS40L26_LOGGER_SRC_TYPE_XM_TO_YM : CS40L26_LOGGER_SRC_TYPE_XM_TO_XM;
 
 		error = cs40l26_logger_src_add(cs40l26, CS40L26_LOGGER_SRC_SIGN_SIGNED,
-				CS40L26_LOGGER_SRC_SIZE_BLOCK, ep_src_type,
+				CS40L26_LOGGER_SRC_SIZE_BLOCK, ep_src_type, CS40L26_LOGGER_SRC_AVG,
 				CS40L26_LOGGER_SRC_ID_EP, ep_buf_ptr);
 		if (error)
 			return error;
@@ -4217,9 +4219,25 @@ static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 
 	error = cs40l26_logger_src_add(cs40l26, CS40L26_LOGGER_SRC_SIGN_SIGNED,
 			CS40L26_LOGGER_SRC_SIZE_BLOCK, CS40L26_LOGGER_SRC_TYPE_XM_TO_XM,
-			CS40L26_LOGGER_SRC_ID_IMON, imon_buf_ptr);
+			CS40L26_LOGGER_SRC_AVG, CS40L26_LOGGER_SRC_ID_IMON, imon_buf_ptr);
 	if (error)
 		return error;
+
+	if (cs40l26->revid == CS40L26_REVID_B2) {
+		error = cl_dsp_get_reg(cs40l26->dsp, "LOGGER_AVG_POW", CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_EXT_ALGO_ID, &power_buf_ptr);
+		if (error)
+			return error;
+
+		power_buf_ptr /= CL_DSP_BYTES_PER_WORD;
+
+		error = cs40l26_logger_src_add(cs40l26, CS40L26_LOGGER_SRC_SIGN_SIGNED,
+				CS40L26_LOGGER_SRC_SIZE_SINGLE, CS40L26_LOGGER_SRC_TYPE_XM_TO_XM,
+				CS40L26_LOGGER_SRC_BYPASS_AVG, CS40L26_LOGGER_SRC_ID_PWR,
+				power_buf_ptr);
+		if (error)
+			return error;
+	}
 
 	cs40l26->log_srcs = devm_kcalloc(cs40l26->dev, cs40l26->num_log_srcs,
 			sizeof(struct cs40l26_log_src), GFP_KERNEL);
@@ -4235,6 +4253,7 @@ static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 		cs40l26->log_srcs[i].sign = FIELD_GET(CS40L26_LOGGER_SRC_SIGN_MASK, src);
 		cs40l26->log_srcs[i].size = FIELD_GET(CS40L26_LOGGER_SRC_SIZE_MASK, src);
 		cs40l26->log_srcs[i].type = FIELD_GET(CS40L26_LOGGER_SRC_TYPE_MASK, src);
+		cs40l26->log_srcs[i].avg = FIELD_GET(CS40L26_LOGGER_SRC_AVG_MASK, src);
 		cs40l26->log_srcs[i].id = FIELD_GET(CS40L26_LOGGER_SRC_ID_MASK, src);
 		cs40l26->log_srcs[i].addr = FIELD_GET(CS40L26_LOGGER_SRC_ADDR_MASK, src);
 	}
