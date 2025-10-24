@@ -689,7 +689,8 @@ Date:		September 2025
 Contact:	patches@opensource.cirrus.com
 Description:
 		Average power output in Watts since logging was enabled. Only
-		sampled during wavetable playback.
+		sampled during wavetable playback and only valid if power_en
+		is set to 1.
 
 		Access: Read
 
@@ -773,7 +774,8 @@ Date:		September 2025
 Contact:	patches@opensource.cirrus.com
 Description:
 		Maximum power output in Watts since logging was enabled or maximum
-		calculations were reset. Only sampled during wavetable playback.
+		calculations were reset. Only sampled during wavetable playback and
+		only valid if power_en is set to 1.
 
 		Access: Read
 
@@ -962,6 +964,19 @@ Description:
 			Minimum: 0x800000 (-1 * 12.3 = -12.3 V)
 			Maximum: 0x7FFFFF (0.999999 * 12.3 =~ 12.3 V)
 			Reset: 0x7FFFFF (0.999999 * 12.3 =~ 12.3 V)
+
+What:		/sys/class/input/input(x)/data_logger/power_en
+Date:		October 2025
+Contact:	patches@opensource.cirrus.com
+Description:
+		Enables or disables power calculations. If disabled,
+		avg_power and max_power will report their reset values.
+
+		Access: Read, Write
+
+		Valid values: Represented as enum
+			0: Disable average power calculation
+			1: Enable average power calculation
 
 What:		/sys/class/input/input(x)/firmware/fw_algo_id
 Date:		December 2023
