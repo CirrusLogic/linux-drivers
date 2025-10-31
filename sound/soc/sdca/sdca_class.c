@@ -44,14 +44,14 @@ static int class_sdw_update_status(struct sdw_slave *sdw, enum sdw_slave_status 
 
 	switch (status) {
 	case SDW_SLAVE_ATTACHED:
-		dev_info(drv->dev, "device attach\n");
+		dev_dbg(drv->dev, "device attach\n");
 
 		drv->attached = true;
 
 		complete(&drv->device_attach);
 		break;
 	case SDW_SLAVE_UNATTACHED:
-		dev_info(drv->dev, "device detach\n");
+		dev_dbg(drv->dev, "device detach\n");
 
 		drv->attached = false;
 

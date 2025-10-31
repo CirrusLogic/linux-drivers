@@ -139,6 +139,10 @@ static int class_function_sdw_add_peripheral(struct snd_pcm_substream *substream
 
 	snd_sdw_params_to_config(substream, params, &sconfig, &pconfig);
 
+	/*
+	 * FIXME: As also noted in sdca_asoc_get_port(), currently only
+	 * a single unshared port is supported for each DAI.
+	 */
 	ret = sdca_asoc_get_port(drv->dev, drv->regmap, drv->function, dai);
 	if (ret < 0)
 		return ret;
@@ -384,38 +388,35 @@ static int class_function_probe(struct auxiliary_device *auxdev,
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to register component\n");
 
-	dev_err(dev, "%s: %pfwP: probe completed\n", __func__, auxdev->dev.fwnode);
-
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 }
 
-static int class_function_codec_runtime_suspend(struct device *dev)
+static int class_function_runtime_suspend(struct device *dev)
 {
 	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
 	struct class_function_drv *drv = auxiliary_get_drvdata(auxdev);
 
 	/*
 	 * Whilst the driver doesn't power the chip down here, going into
-	 * runtime suspend lets the SoundWire bus power down, which means
-	 * the driver can't communicate with the device any more.
+	 * runtime suspend means the driver can't be sure the bus won't
+	 * power down which would prevent communication with the device.
 	 */
 	regcache_cache_only(drv->regmap, true);
 
 	return 0;
 }
 
-static int class_function_codec_runtime_resume(struct device *dev)
+static int class_function_runtime_resume(struct device *dev)
 {
 	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
 	struct class_function_drv *drv = auxiliary_get_drvdata(auxdev);
 	int ret;
 
-	regcache_cache_only(drv->regmap, false);
-
 	regcache_mark_dirty(drv->regmap);
+	regcache_cache_only(drv->regmap, false);
 
 	ret = regcache_sync(drv->regmap);
 	if (ret) {
@@ -432,8 +433,8 @@ err:
 }
 
 static const struct dev_pm_ops class_function_pm_ops = {
-	RUNTIME_PM_OPS(class_function_codec_runtime_suspend,
-		       class_function_codec_runtime_resume, NULL)
+	RUNTIME_PM_OPS(class_function_runtime_suspend,
+		       class_function_runtime_resume, NULL)
 };
 
 static const struct auxiliary_device_id class_function_id_table[] = {
