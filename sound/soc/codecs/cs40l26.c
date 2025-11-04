@@ -77,10 +77,9 @@ static int cs40l26_clk_en(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(snd_soc_dapm_to_component(w->dapm));
 	struct cs40l26_private *cs40l26 = codec->core;
-	struct device *dev = cs40l26->dev;
 	int ret;
 
-	dev_info(dev, "%s: %s\n", __func__, event == SND_SOC_DAPM_POST_PMU ? "PMU" : "PMD");
+	dev_info(codec->dev, "%s: %s\n", __func__, event == SND_SOC_DAPM_POST_PMU ? "PMU" : "PMD");
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -91,13 +90,8 @@ static int cs40l26_clk_en(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 		if (ret)
 			return cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_ASP, __func__);
 
-		if (!completion_done(&cs40l26->i2s_cont)) {
-			if (!wait_for_completion_timeout(&cs40l26->i2s_cont,
-					msecs_to_jiffies(CS40L26_ASP_START_TIMEOUT))) {
-				dev_warn(codec->dev, "SVC calibration not complete\n");
-				cs40l26_log_err(cs40l26, -ETIME, CS40L26_ERR_TYPE_DSP, __func__);
-			}
-		}
+		usleep_range(cs40l26->asp_svc_init_delay_time_us,
+				cs40l26->asp_svc_init_delay_time_us + 100);
 
 		ret = cs40l26_swap_ext_clk(codec, CS40L26_PLL_REFCLK_BCLK);
 		if (ret)
@@ -114,7 +108,7 @@ static int cs40l26_clk_en(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 
 		break;
 	default:
-		dev_err(dev, "Invalid event: %d\n", event);
+		dev_err(codec->dev, "Invalid event: %d\n", event);
 		return -EINVAL;
 	}
 
