@@ -747,6 +747,9 @@
 
 #define CS40L26_ASP_START_TIMEOUT		50 /* milliseconds */
 
+#define CS40L26_ASP_SVC_SAMPS_PER_MS		48
+#define CS40L26_ASP_SVC_INIT_MULT		6
+
 #define CS40L26_PLL_REFCLK_BCLK			0x0
 #define CS40L26_PLL_REFCLK_FSYNC		0x1
 #define CS40L26_PLL_REFCLK_MCLK			0x5
@@ -1377,6 +1380,7 @@ struct cs40l26_private {
 	bool bst_dcm_en;
 	u32 bst_ipk;
 	u32 asp_scale_pct;
+	u32 asp_svc_init_delay_time_us;
 	u32 pm_active_timeout_ms;
 	u32 pm_stdby_timeout_ms;
 	u32 f0_default;
