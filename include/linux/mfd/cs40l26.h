@@ -745,8 +745,6 @@
 #define CS40L26_ASP_FMT_I2S			0x2
 #define CS40L26_ASP_FMT_TDM1P5			0x4
 
-#define CS40L26_ASP_START_TIMEOUT		50 /* milliseconds */
-
 #define CS40L26_ASP_SVC_SAMPS_PER_MS		48
 #define CS40L26_ASP_SVC_INIT_MULT		6
 
@@ -1354,7 +1352,6 @@ struct cs40l26_private {
 	int upload_ret;
 	int erase_ret;
 	int effects_in_flight;
-	struct completion i2s_cont;
 	struct completion erase_cont;
 	struct completion cal_f0_cont;
 	struct completion cal_redc_cont;
