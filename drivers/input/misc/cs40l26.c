@@ -2705,7 +2705,8 @@ static int cs40l26_composite_upload(struct cs40l26_private *cs40l26, s16 *in_dat
 	cl_dsp_memchunk_write(&out_ch, 16, CS40L26_WT_HEADER_DEFAULT_FLAGS);
 	cl_dsp_memchunk_write(&out_ch, 8, WT_TYPE_V6_COMPOSITE);
 	cl_dsp_memchunk_write(&out_ch, 24, CS40L26_WT_HEADER_OFFSET);
-	cl_dsp_memchunk_write(&out_ch, 24, data_bytes / CL_DSP_BYTES_PER_WORD);
+	cl_dsp_memchunk_write(&out_ch, 24, CS40L26_WT_GLOBAL_DATA_OFFSET +
+			(data_bytes / CL_DSP_BYTES_PER_WORD));
 
 	error = cs40l26_owt_calculate_wlength(cs40l26, out_nsections, global_rep, data, data_bytes,
 			&wlen);
