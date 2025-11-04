@@ -780,13 +780,8 @@ static int cs40l26_handle_haptic(struct cs40l26_private *cs40l26, u32 val)
 	case CS40L26_DSP_MBOX_SOURCE_I2S:
 		if (event == CS40L26_DSP_MBOX_EVENT_COMPLETE) {
 			dev_dbg(dev, "Mailbox I2S Playback Complete\n");
-
-			if (cs40l26->asp_enable) /* ASP Interrupted */
-				complete(&cs40l26->i2s_cont);
 		} else if (event == CS40L26_DSP_MBOX_EVENT_TRIGGER) {
 			dev_dbg(dev, "Mailbox I2S Playback Trigger\n");
-
-			complete(&cs40l26->i2s_cont);
 		} else {
 			dev_err(dev, "Invalid haptic mailbox event (I2S) 0x%02X\n", event);
 			return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
@@ -943,8 +938,6 @@ int cs40l26_asp_start(struct cs40l26_private *cs40l26)
 		dev_err(cs40l26->dev, "Failed to stop playback before I2S start\n");
 		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
 	}
-
-	reinit_completion(&cs40l26->i2s_cont);
 
 	error = regmap_read(cs40l26->regmap, CS40L26_REFCLK_INPUT, &cs40l26->refclk_input);
 	if (error)
@@ -4329,6 +4322,43 @@ static int cs40l26_amp_drv_slope_config(struct cs40l26_private *cs40l26)
 	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_WSEQ, __func__) : 0;
 }
 
+static int cs40l26_get_asp_svc_init_time(struct cs40l26_private *cs40l26)
+{
+	u32 ofst_cal, ofst_cal_start, ofst_stl, ofst_total, pilot_hi_start;
+	int error;
+
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "INIT_PH_PILOT_HI_START_SMP",
+			CL_DSP_YM_UNPACKED_TYPE, CS40L26_SVC_ALGO_ID, &pilot_hi_start);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	/* Firmware rounds amp power-up settling time to next multiple of 6 when processing HFPT */
+	pilot_hi_start = (u32) roundup(pilot_hi_start, CS40L26_ASP_SVC_INIT_MULT);
+
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "INIT_PH_OFST_CAL_START_SMP",
+			CL_DSP_YM_UNPACKED_TYPE, CS40L26_SVC_ALGO_ID, &ofst_cal_start);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "INIT_PH_OFST_CAL_NSMP",
+			CL_DSP_YM_UNPACKED_TYPE, CS40L26_SVC_ALGO_ID, &ofst_cal);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "INIT_PH_OFST_STL_NSMP", CL_DSP_YM_UNPACKED_TYPE,
+			CS40L26_SVC_ALGO_ID, &ofst_stl);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	/* Firmware rounds offset total to next multiple of 6 when processing HFPT */
+	ofst_total = (u32) roundup(ofst_cal_start + ofst_cal + ofst_stl, CS40L26_ASP_SVC_INIT_MULT);
+
+	cs40l26->asp_svc_init_delay_time_us = 1000 * DIV_ROUND_UP(pilot_hi_start + ofst_total,
+			CS40L26_ASP_SVC_SAMPS_PER_MS);
+
+	return 0;
+}
+
 static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
@@ -4504,6 +4534,10 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_HW, __func__);
 		goto pm_err;
 	}
+
+	error = cs40l26_get_asp_svc_init_time(cs40l26);
+	if (error)
+		goto pm_err;
 
 	if (cs40l26->revid == CS40L26_REVID_B2) {
 		error = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_OWT_RESET);
@@ -5632,7 +5666,6 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 		goto err;
 	}
 
-	init_completion(&cs40l26->i2s_cont);
 	init_completion(&cs40l26->erase_cont);
 	init_completion(&cs40l26->cal_f0_cont);
 	init_completion(&cs40l26->cal_redc_cont);
