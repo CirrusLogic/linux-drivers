@@ -234,8 +234,8 @@ static int cs40l50_dsp_config(struct cs40l50 *cs40l50)
 			return ret;
 
 		ret = cs_dsp_wseq_multi_write(&cs40l50->dsp, &cs40l50->wseqs[CS40L50_PWR_ON],
-					      cs40l50_external_vbst_config, CS_DSP_WSEQ_FULL,
-					      ARRAY_SIZE(cs40l50_external_vbst_config), false);
+					      cs40l50_external_vbst_config, ARRAY_SIZE(cs40l50_external_vbst_config),
+					      CS_DSP_WSEQ_FULL, false);
 		if (ret)
 			return ret;
 
@@ -247,8 +247,8 @@ static int cs40l50_dsp_config(struct cs40l50 *cs40l50)
 			return ret;
 
 		ret = cs_dsp_wseq_multi_write(&cs40l50->dsp, &cs40l50->wseqs[CS40L50_PWR_ON],
-					      cs40l50_internal_vamp_config, CS_DSP_WSEQ_FULL,
-					      ARRAY_SIZE(cs40l50_internal_vamp_config), false);
+					      cs40l50_internal_vamp_config, ARRAY_SIZE(cs40l50_internal_vamp_config),
+					      CS_DSP_WSEQ_FULL, false);
 		if (ret)
 			return ret;
 	}
@@ -260,8 +260,8 @@ static int cs40l50_dsp_config(struct cs40l50 *cs40l50)
 		return ret;
 
 	return cs_dsp_wseq_multi_write(&cs40l50->dsp, &cs40l50->wseqs[CS40L50_PWR_ON],
-				       cs40l50_irq_mask_override, CS_DSP_WSEQ_FULL,
-				       ARRAY_SIZE(cs40l50_irq_mask_override), false);
+				       cs40l50_irq_mask_override, ARRAY_SIZE(cs40l50_irq_mask_override),
+				       CS_DSP_WSEQ_FULL, false);
 }
 
 static int cs40l50_dsp_post_run(struct cs_dsp *dsp)
