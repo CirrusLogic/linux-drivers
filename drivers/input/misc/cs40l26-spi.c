@@ -50,7 +50,7 @@ static int cs40l26_spi_probe(struct spi_device *spi)
 	struct cs40l26_private *cs40l26;
 	int error;
 
-	cs40l26 = devm_kzalloc(&spi->dev, sizeof(struct cs40l26_private), GFP_KERNEL);
+	cs40l26 = devm_kzalloc(&spi->dev, sizeof(*cs40l26), GFP_KERNEL);
 	if (!cs40l26)
 		return -ENOMEM;
 

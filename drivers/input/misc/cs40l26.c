@@ -1402,7 +1402,7 @@ static int cs40l26_wseq_get_reg_addr(struct cs40l26_private *cs40l26, u32 op_add
 	ch = cl_dsp_memchunk_create(seq_data, nbytes);
 
 	while (!cl_dsp_memchunk_end(&ch)) {
-		memset((void *) &op, 0, sizeof(struct cs40l26_wseq_op));
+		memset((void *) &op, 0, sizeof(op));
 
 		error = cs40l26_wseq_read(cs40l26, &ch, &op);
 		if (error) {
@@ -2322,7 +2322,7 @@ static int cs40l26_owt_calculate_wlength(struct cs40l26_private *cs40l26, u8 nse
 		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_IOCTL, __func__);
 	}
 
-	sections = kcalloc(nsections, sizeof(struct cs40l26_owt_section), GFP_KERNEL);
+	sections = kcalloc(nsections, sizeof(*sections), GFP_KERNEL);
 	if (!sections)
 		return -ENOMEM;
 
@@ -2465,7 +2465,7 @@ static u8 *cs40l26_ncw_refactor_data(struct cs40l26_private *cs40l26, u8 amp, u8
 		return ERR_PTR(-EINVAL);
 	}
 
-	sections = kcalloc(nsections, sizeof(struct cs40l26_owt_section), GFP_KERNEL);
+	sections = kcalloc(nsections, sizeof(*sections), GFP_KERNEL);
 	if (!sections)
 		return ERR_PTR(-ENOMEM);
 
@@ -2563,8 +2563,7 @@ static int cs40l26_composite_upload(struct cs40l26_private *cs40l26, s16 *in_dat
 	if (error)
 		return error;
 
-	sections = kcalloc(nsections, sizeof(struct cs40l26_owt_section),
-			GFP_KERNEL);
+	sections = kcalloc(nsections, sizeof(*sections), GFP_KERNEL);
 	if (!sections)
 		return -ENOMEM;
 
@@ -3678,7 +3677,7 @@ static int cs40l26_asp_config(struct cs40l26_private *cs40l26)
 	struct reg_sequence *dsp1rx_config;
 	int error;
 
-	dsp1rx_config = kcalloc(2, sizeof(struct reg_sequence), GFP_KERNEL);
+	dsp1rx_config = kcalloc(2, sizeof(*dsp1rx_config), GFP_KERNEL);
 	if (!dsp1rx_config)
 		return -ENOMEM;
 
@@ -5237,7 +5236,7 @@ static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 	if (!init_count)
 		return 0;
 
-	cs40l26->svc_le_vals = devm_kcalloc(dev, init_count, sizeof(struct cs40l26_svc_le *),
+	cs40l26->svc_le_vals = devm_kcalloc(dev, init_count, sizeof(*cs40l26->svc_le_vals),
 			GFP_KERNEL);
 
 	if (!cs40l26->svc_le_vals)
@@ -5288,7 +5287,7 @@ static int cs40l26_handle_svc_le_nodes(struct cs40l26_private *cs40l26)
 			return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DT, __func__);
 		}
 
-		cs40l26->svc_le_vals[node_count] = devm_kzalloc(dev, sizeof(struct cs40l26_svc_le),
+		cs40l26->svc_le_vals[node_count] = devm_kzalloc(dev, sizeof(**cs40l26->svc_le_vals),
 				GFP_KERNEL);
 
 		if (!cs40l26->svc_le_vals[node_count]) {
