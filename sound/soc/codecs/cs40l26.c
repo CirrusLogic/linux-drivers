@@ -787,24 +787,17 @@ static int cs40l26_i2s_atten_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return ret;
 }
 
-static int cs40l26_a2h_delay_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+static int cs40l26_a2h_i2s_delay_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
 {
 	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
 	struct device *dev = cs40l26->dev;
 	unsigned int val = 0;
-	u32 a2h_algo_rev;
 	int ret;
 
 	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID))
-		return 0;
-
-	ret = cl_dsp_get_algo_rev(cs40l26->dsp, CS40L26_A2H_ALGO_ID, &a2h_algo_rev);
-	if (ret)
-		return cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_FW, __func__);
-
-	if (cs40l26->revid == CS40L26_REVID_B2 && a2h_algo_rev >= CS40L26_A2H_V5_MIN_REV)
 		return 0;
 
 	ret = cs40l26_pm_enter(dev);
@@ -827,7 +820,8 @@ err:
 	return ret;
 }
 
-static int cs40l26_a2h_delay_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+static int cs40l26_a2h_i2s_delay_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_dapm_context *dapm =
 			snd_soc_component_get_dapm(snd_soc_kcontrol_component(kcontrol));
@@ -836,17 +830,9 @@ static int cs40l26_a2h_delay_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	struct cs40l26_private *cs40l26 = codec->core;
 	struct device *dev = cs40l26->dev;
 	unsigned int val = 0;
-	u32 a2h_algo_rev;
 	int ret;
 
 	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID))
-		return 0;
-
-	ret = cl_dsp_get_algo_rev(cs40l26->dsp, CS40L26_A2H_ALGO_ID, &a2h_algo_rev);
-	if (ret)
-		return cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_FW, __func__);
-
-	if (cs40l26->revid == CS40L26_REVID_B2 && a2h_algo_rev >= CS40L26_A2H_V5_MIN_REV)
 		return 0;
 
 	ret = cs40l26_pm_enter(dev);
@@ -956,8 +942,8 @@ static const struct snd_kcontrol_new cs40l26_controls[] = {
 	SOC_SINGLE_EXT("I2S VMON", 0, 0, CS40L26_VMON_DEC_OUT_DATA_MAX, 0,
 			cs40l26_i2s_vmon_get, NULL),
 	SOC_SINGLE_EXT("DSP Bypass", 0, 0, 1, 0, cs40l26_dsp_bypass_get, cs40l26_dsp_bypass_put),
-	SOC_SINGLE_EXT("A2H Delay", 0, 0, CS40L26_A2H_DELAY_MS_MAX, 0, cs40l26_a2h_delay_get,
-			cs40l26_a2h_delay_put),
+	SOC_SINGLE_EXT("A2H/I2S Delay", 0, 0, CS40L26_A2H_I2S_DELAY_MS_MAX, 0,
+			cs40l26_a2h_i2s_delay_get, cs40l26_a2h_i2s_delay_put),
 	SOC_SINGLE_EXT("Boost Disable Delay", 0, 0, CS40L26_BOOST_DISABLE_DELAY_MAX, 0,
 			cs40l26_boost_disable_delay_get, cs40l26_boost_disable_delay_put),
 };
