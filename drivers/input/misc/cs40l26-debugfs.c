@@ -41,7 +41,7 @@ static ssize_t cs40l26_wseq_format_string(struct cs40l26_private *cs40l26,
 	ch = cl_dsp_memchunk_create(seq_data, wseq_params->size_bytes);
 
 	while (!cl_dsp_memchunk_end(&ch)) {
-		memset((void *) &op, 0, sizeof(struct cs40l26_wseq_op));
+		memset((void *) &op, 0, sizeof(op));
 
 		error = cs40l26_wseq_read(cs40l26, &ch, &op);
 		if (error)
