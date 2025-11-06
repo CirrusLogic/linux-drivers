@@ -49,7 +49,7 @@ static int cs40l26_i2c_probe(struct i2c_client *client, const struct i2c_device_
 	struct cs40l26_private *cs40l26;
 	int error;
 
-	cs40l26 = devm_kzalloc(&client->dev, sizeof(struct cs40l26_private), GFP_KERNEL);
+	cs40l26 = devm_kzalloc(&client->dev, sizeof(*cs40l26), GFP_KERNEL);
 	if (!cs40l26)
 		return -ENOMEM;
 
