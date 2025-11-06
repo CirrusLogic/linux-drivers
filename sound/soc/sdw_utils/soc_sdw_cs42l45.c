@@ -48,8 +48,7 @@ int asoc_sdw_cs42l45_hs_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc
 	if (!card->components)
 		return -ENOMEM;
 
-	ret = snd_soc_card_jack_new_pins(card, "Jack",
-					 SND_JACK_MECHANICAL | SND_JACK_AVOUT |
+	ret = snd_soc_card_jack_new_pins(card, "Jack", SND_JACK_MECHANICAL |
 					 SND_JACK_HEADSET | SND_JACK_LINEOUT, jack,
 					 soc_jack_pins, ARRAY_SIZE(soc_jack_pins));
 	if (ret) {
