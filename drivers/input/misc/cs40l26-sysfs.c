@@ -1341,10 +1341,13 @@ static struct attribute_group cs40l26_dev_attr_group = {
 };
 
 static int cs40l26_run_calibration(struct cs40l26_private *cs40l26, struct completion *completion,
-		const u32 calibration_request_payload)
+		u32 calibration_request_payload)
 {
 	u32 mailbox_command;
 	int error;
+
+	if (calibration_request_payload == CS40L26_CALIBRATION_CONTROL_REQUEST_LS_AND_F0_AND_Q)
+		calibration_request_payload = CS40L26_CALIBRATION_CONTROL_REQUEST_LS_CALIBRATION;
 
 	mailbox_command = ((CS40L26_DSP_MBOX_CMD_INDEX_CALIBRATION_CONTROL <<
 			CS40L26_DSP_MBOX_CMD_TYPE_SHIFT) & CS40L26_DSP_MBOX_CMD_TYPE_MASK) |
@@ -1410,6 +1413,26 @@ static int cs40l26_copy_f0_est_to_dvl(struct cs40l26_private *cs40l26)
 	return 0;
 }
 
+static int cs40l26_copy_f0_est_to_dvl_and_ls(struct cs40l26_private *cs40l26)
+{
+	u32 f0_measured, f0_converted;
+	int error;
+
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "F0_EST", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_F0_EST_ALGO_ID, &f0_measured);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	f0_converted = f0_measured >> 2;
+
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "STATE_OL_RESULTS_F0", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_LS_ALGO_ID, f0_converted);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	return cs40l26_copy_f0_est_to_dvl(cs40l26);
+}
+
 static ssize_t trigger_calibration_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
@@ -1445,6 +1468,7 @@ static ssize_t trigger_calibration_store(struct device *dev, struct device_attri
 		completion = &cs40l26->cal_dvl_peq_cont;
 		break;
 	case CS40L26_CALIBRATION_CONTROL_REQUEST_LS_CALIBRATION:
+	case CS40L26_CALIBRATION_CONTROL_REQUEST_LS_AND_F0_AND_Q:
 		completion = &cs40l26->cal_ls_cont;
 		break;
 	default:
@@ -1460,10 +1484,25 @@ static ssize_t trigger_calibration_store(struct device *dev, struct device_attri
 	if (error)
 		goto err_pm;
 
+	if (calibration_request_payload == CS40L26_CALIBRATION_CONTROL_REQUEST_LS_AND_F0_AND_Q) {
+		error = cs40l26_run_calibration(cs40l26, &cs40l26->cal_f0_cont,
+				CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q);
+		if (error)
+			goto err_pm;
+	}
+
 	mutex_lock(&cs40l26->lock);
 
-	if (calibration_request_payload == CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q)
+	switch (calibration_request_payload) {
+	case CS40L26_CALIBRATION_CONTROL_REQUEST_F0_AND_Q:
 		error = cs40l26_copy_f0_est_to_dvl(cs40l26);
+		break;
+	case CS40L26_CALIBRATION_CONTROL_REQUEST_LS_AND_F0_AND_Q:
+		error = cs40l26_copy_f0_est_to_dvl_and_ls(cs40l26);
+		break;
+	default:
+		break;
+	}
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
