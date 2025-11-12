@@ -1,3 +1,16 @@
+What:		/sys/class/input/input(x)/default/asp_svc_init_buffer_us
+Date:		November 2025
+Contact:	patches@opensource.cirrus.com
+Description:
+		Additional delay (in microseconds) for the driver to wait for SVC initialization to
+		complete before powering up ASP stream.
+
+		Access: Read, Write
+
+		Valid values: Unsigned 32-bit integer in microseconds
+			Minimum: 0
+			Default: 5000
+
 What:		/sys/class/input/input(x)/default/delay_before_stop_playback_us
 Date:		September 2023
 Contact:	patches@opensource.cirrus.com
