@@ -93,6 +93,9 @@ static int cs40l26_clk_en(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 		usleep_range(cs40l26->asp_svc_init_delay_time_us,
 				cs40l26->asp_svc_init_delay_time_us + 100);
 
+		if (!cs40l26->asp_svc_init_complete)
+			dev_warn(cs40l26->dev, "ASP SVC initialization not complete\n");
+
 		ret = cs40l26_swap_ext_clk(codec, CS40L26_PLL_REFCLK_BCLK);
 		if (ret)
 			return ret;
