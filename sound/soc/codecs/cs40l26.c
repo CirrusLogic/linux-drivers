@@ -1015,7 +1015,8 @@ static int cs40l26_component_set_sysclk(struct snd_soc_component *component,
 
 	codec->sysclk_rate = (u32) (CS40L26_PLL_CLK_FREQ_MASK & freq);
 
-	cs40l26_swap_ext_clk(codec, CS40L26_PLL_REFCLK_BCLK);
+	if (codec->core->asp_dout)
+		cs40l26_swap_ext_clk(codec, CS40L26_PLL_REFCLK_BCLK);
 
 	return 0;
 }
