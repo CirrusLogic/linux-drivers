@@ -1378,6 +1378,7 @@ struct cs40l26_private {
 	u32 bst_ipk;
 	u32 asp_scale_pct;
 	u32 asp_svc_init_delay_time_us;
+	bool asp_svc_init_complete;
 	u32 pm_active_timeout_ms;
 	u32 pm_stdby_timeout_ms;
 	u32 f0_default;
