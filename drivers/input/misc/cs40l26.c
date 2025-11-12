@@ -780,8 +780,10 @@ static int cs40l26_handle_haptic(struct cs40l26_private *cs40l26, u32 val)
 	case CS40L26_DSP_MBOX_SOURCE_I2S:
 		if (event == CS40L26_DSP_MBOX_EVENT_COMPLETE) {
 			dev_dbg(dev, "Mailbox I2S Playback Complete\n");
+			cs40l26->asp_svc_init_complete = false;
 		} else if (event == CS40L26_DSP_MBOX_EVENT_TRIGGER) {
 			dev_dbg(dev, "Mailbox I2S Playback Trigger\n");
+			cs40l26->asp_svc_init_complete = true;
 		} else {
 			dev_err(dev, "Invalid haptic mailbox event (I2S) 0x%02X\n", event);
 			return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DSP, __func__);
