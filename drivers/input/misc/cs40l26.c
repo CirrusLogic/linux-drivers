@@ -4359,6 +4359,8 @@ static int cs40l26_get_asp_svc_init_time(struct cs40l26_private *cs40l26)
 	cs40l26->asp_svc_init_delay_time_us = 1000 * DIV_ROUND_UP(pilot_hi_start + ofst_total,
 			CS40L26_ASP_SVC_SAMPS_PER_MS);
 
+	cs40l26->asp_svc_init_delay_buffer_us = CS40L26_ASP_SVC_INIT_DELAY_DEFAULT_US;
+
 	return 0;
 }
 
