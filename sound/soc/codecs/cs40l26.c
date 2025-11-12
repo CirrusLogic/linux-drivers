@@ -77,6 +77,7 @@ static int cs40l26_clk_en(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(snd_soc_dapm_to_component(w->dapm));
 	struct cs40l26_private *cs40l26 = codec->core;
+	u32 total_delay_time_us;
 	int ret;
 
 	dev_info(codec->dev, "%s: %s\n", __func__, event == SND_SOC_DAPM_POST_PMU ? "PMU" : "PMD");
@@ -90,8 +91,10 @@ static int cs40l26_clk_en(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 		if (ret)
 			return cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_ASP, __func__);
 
-		usleep_range(cs40l26->asp_svc_init_delay_time_us,
-				cs40l26->asp_svc_init_delay_time_us + 100);
+		total_delay_time_us = cs40l26->asp_svc_init_delay_time_us +
+				cs40l26->asp_svc_init_delay_buffer_us;
+
+		usleep_range(total_delay_time_us, total_delay_time_us + 100);
 
 		if (!cs40l26->asp_svc_init_complete)
 			dev_warn(cs40l26->dev, "ASP SVC initialization not complete\n");
