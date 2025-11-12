@@ -3928,6 +3928,8 @@ static int cs40l26_config_asp_dout(struct cs40l26_private *cs40l26)
 	u32 val;
 
 	if (device_property_present(cs40l26->dev, "cirrus,asp-dout-enable")) {
+		cs40l26->asp_dout = true;
+
 		error = regmap_read(cs40l26->regmap, CS40L26_CALIB_OTP_CONFIG, &val);
 		if (error)
 			return error;
