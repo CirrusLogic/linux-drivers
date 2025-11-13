@@ -595,7 +595,7 @@ int cs40l50_probe(struct cs40l50 *cs40l50)
 
 	cs40l50->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(cs40l50->reset_gpio)) {
-		if (cs40l50->reset_gpio == -EBUSY) {
+		if (PTR_ERR(cs40l50->reset_gpio) == -EBUSY) {
 			dev_warn(cs40l50->dev, "Reset GPIO taken by other device\n");
 			cs40l50->reset_gpio = NULL;
 		} else
