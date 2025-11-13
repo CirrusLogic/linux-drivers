@@ -384,7 +384,8 @@ static void cs40l50_dsp_bringup(const struct firmware *bin, void *context)
 	if (ret)
 		goto err_fw;
 
-	dev_info(cs40l50->dev, "%u RAM effects loaded\n", nwaves);
+	dev_info(cs40l50->dev, "%u RAM effects loaded (%s)\n",
+		 nwaves, cs40l50->bin_filename);
 
 	/* Add teardown actions for first-time bringup */
 	ret = devm_add_action_or_reset(cs40l50->dev, cs40l50_dsp_power_down,
@@ -414,11 +415,11 @@ static void cs40l50_request_firmware(const struct firmware *fw, void *context)
 
 	cs40l50->fw = fw;
 
-	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT, CS40L50_WT,
+	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT, cs40l50->bin_filename,
 				      cs40l50->dev, GFP_KERNEL, cs40l50,
 				      cs40l50_dsp_bringup);
 	if (ret) {
-		dev_err(cs40l50->dev, "Failed to request %s: %d\n", CS40L50_WT, ret);
+		dev_err(cs40l50->dev, "Failed to request %s: %d\n", cs40l50->bin_filename, ret);
 		release_firmware(cs40l50->fw);
 	}
 }
@@ -568,6 +569,11 @@ static int cs40l50_get_model(struct cs40l50 *cs40l50)
 			cs40l50->devid, cs40l50->revid);
 
 	cs40l50->external_boost = device_property_read_bool(cs40l50->dev, "cirrus,external-boost");
+
+	ret = device_property_read_string(cs40l50->dev,
+					"cirrus,bin-filename", &cs40l50->bin_filename);
+	if (ret)
+		cs40l50->bin_filename = CS40L50_WT;
 
 	return 0;
 }

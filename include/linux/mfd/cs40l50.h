@@ -135,6 +135,7 @@ struct cs40l50 {
 	struct regmap_irq_chip_data *irq_data;
 	const struct firmware *fw;
 	const struct firmware *bin;
+	const char *bin_filename;
 	struct cs_dsp_wseq wseqs[CS40L50_NUM_WSEQS];
 	struct i2c_client *broadcast_client;
 	bool external_boost;
