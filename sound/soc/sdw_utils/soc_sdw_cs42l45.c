@@ -18,19 +18,19 @@
 
 static struct snd_soc_jack_pin soc_jack_pins[] = {
 	{
-		.pin    = "cs42l45 OT 43",
+		.pin    = "cs42l45 OT 43 Headphone",
 		.mask   = SND_JACK_HEADPHONE,
 	},
 	{
-		.pin    = "cs42l45 OT 45",
+		.pin    = "cs42l45 OT 45 Headset",
 		.mask   = SND_JACK_HEADPHONE,
 	},
 	{
-		.pin    = "cs42l45 IT 31",
+		.pin    = "cs42l45 IT 31 Microphone",
 		.mask   = SND_JACK_MICROPHONE,
 	},
 	{
-		.pin    = "cs42l45 IT 33",
+		.pin    = "cs42l45 IT 33 Headset",
 		.mask   = SND_JACK_MICROPHONE,
 	},
 };
