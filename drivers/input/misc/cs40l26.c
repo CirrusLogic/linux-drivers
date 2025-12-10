@@ -4866,6 +4866,7 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 	int error;
 
 	cs40l26->fw_loaded = false;
+	cs40l26->dbc_tuning_loaded = false;
 
 	error = cs40l26_cl_dsp_reinit(cs40l26);
 	if (error)
