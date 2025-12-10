@@ -443,13 +443,13 @@ static int class_function_runtime_resume(struct device *dev)
 		if (ret)
 			goto err;
 
-		sdca_irq_enable(drv->function, drv->core->irq_info, true);
+		sdca_irq_enable_early(drv->function, drv->core->irq_info);
 
 		ret = sdca_fdl_sync(drv->dev, drv->function, drv->core->irq_info);
 		if (ret)
 			goto err;
 
-		sdca_irq_enable(drv->function, drv->core->irq_info, false);
+		sdca_irq_enable(drv->function, drv->core->irq_info);
 
 		ret = regmap_write(drv->regmap, reg, 0xFF);
 		if (ret < 0) {

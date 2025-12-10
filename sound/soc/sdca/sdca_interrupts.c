@@ -549,14 +549,8 @@ struct sdca_interrupt_info *sdca_irq_allocate(struct device *sdev,
 }
 EXPORT_SYMBOL_NS_GPL(sdca_irq_allocate, "SND_SOC_SDCA");
 
-/**
- * sdca_irq_enable - Re-enable SDCA IRQs for a given function
- * @function: Pointer to the SDCA Function.
- * @info: Pointer to the SDCA interrupt info for this device.
- * @early: Boolean indicating if early or late IRQs should be enabled.
- */
-void sdca_irq_enable(struct sdca_function_data *function,
-		     struct sdca_interrupt_info *info, bool early)
+static void irq_enable_flags(struct sdca_function_data *function,
+			     struct sdca_interrupt_info *info, bool early)
 {
 	struct sdca_interrupt *interrupt;
 	int i;
@@ -579,6 +573,33 @@ void sdca_irq_enable(struct sdca_function_data *function,
 			break;
 		}
 	}
+}
+
+/**
+ * sdca_irq_enable_early - Re-enable early SDCA IRQs for a given function
+ * @function: Pointer to the SDCA Function.
+ * @info: Pointer to the SDCA interrupt info for this device.
+ *
+ * The early version of the IRQ enable allows enabling IRQs which may be
+ * necessary to bootstrap functionality for other IRQs, such as the FDL
+ * process.
+ */
+void sdca_irq_enable_early(struct sdca_function_data *function,
+			   struct sdca_interrupt_info *info)
+{
+	irq_enable_flags(function, info, true);
+}
+EXPORT_SYMBOL_NS_GPL(sdca_irq_enable_early, "SND_SOC_SDCA");
+
+/**
+ * sdca_irq_enable - Re-enable SDCA IRQs for a given function
+ * @function: Pointer to the SDCA Function.
+ * @info: Pointer to the SDCA interrupt info for this device.
+ */
+void sdca_irq_enable(struct sdca_function_data *function,
+		     struct sdca_interrupt_info *info)
+{
+	irq_enable_flags(function, info, false);
 }
 EXPORT_SYMBOL_NS_GPL(sdca_irq_enable, "SND_SOC_SDCA");
 
