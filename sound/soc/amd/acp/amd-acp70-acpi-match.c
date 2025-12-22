@@ -153,7 +153,7 @@ static const struct snd_soc_acpi_endpoint cs42l43_endpoints[] = {
 	},
 };
 
-static const struct snd_soc_acpi_adr_device cs42l43_0_adr[] = {
+static const struct snd_soc_acpi_adr_device cs42l43_l0u0_adr[] = {
 	{
 		.adr = 0x00003001FA424301ull,
 		.num_endpoints = ARRAY_SIZE(cs42l43_endpoints),
@@ -162,7 +162,7 @@ static const struct snd_soc_acpi_adr_device cs42l43_0_adr[] = {
 	}
 };
 
-static const struct snd_soc_acpi_adr_device cs42l43_1_cs35l56x4_1_adr[] = {
+static const struct snd_soc_acpi_adr_device cs42l43_l1u0_cs35l56x4_l1u0123_adr[] = {
 	{
 		.adr = 0x00013001FA424301ull,
 		.num_endpoints = ARRAY_SIZE(cs42l43_endpoints),
@@ -205,7 +205,7 @@ static const struct snd_soc_acpi_adr_device cs42l45_l1u0_adr[] = {
 	}
 };
 
-static const struct snd_soc_acpi_adr_device cs35l56x4_1_adr[] = {
+static const struct snd_soc_acpi_adr_device cs35l56x4_l1u3210_adr[] = {
 	{
 		.adr = 0x00013301FA355601ull,
 		.num_endpoints = 1,
@@ -259,11 +259,11 @@ static const struct snd_soc_acpi_adr_device cs35l63x4_l0u0246_adr[] = {
 	},
 };
 
-static const struct snd_soc_acpi_link_adr acp70_cs42l43_l1_cs35l56x4_l1[] = {
+static const struct snd_soc_acpi_link_adr acp70_cs42l43_l1u0_cs35l56x4_l1u0123[] = {
 	{
 		.mask = BIT(1),
-		.num_adr = ARRAY_SIZE(cs42l43_1_cs35l56x4_1_adr),
-		.adr_d = cs42l43_1_cs35l56x4_1_adr,
+		.num_adr = ARRAY_SIZE(cs42l43_l1u0_cs35l56x4_l1u0123_adr),
+		.adr_d = cs42l43_l1u0_cs35l56x4_l1u0123_adr,
 	},
 	{}
 };
@@ -286,25 +286,25 @@ static const struct snd_soc_acpi_link_adr acp70_cs35l63x4_l0u0246[] = {
 	{}
 };
 
-static const struct snd_soc_acpi_link_adr acp70_cs42l43_l0_cs35l56x4_l1[] = {
+static const struct snd_soc_acpi_link_adr acp70_cs42l43_l0u0_cs35l56x4_l1u3210[] = {
 	{
 		.mask = BIT(0),
-		.num_adr = ARRAY_SIZE(cs42l43_0_adr),
-		.adr_d = cs42l43_0_adr,
+		.num_adr = ARRAY_SIZE(cs42l43_l0u0_adr),
+		.adr_d = cs42l43_l0u0_adr,
 	},
 	{
 		.mask = BIT(1),
-		.num_adr = ARRAY_SIZE(cs35l56x4_1_adr),
-		.adr_d = cs35l56x4_1_adr,
+		.num_adr = ARRAY_SIZE(cs35l56x4_l1u3210_adr),
+		.adr_d = cs35l56x4_l1u3210_adr,
 	},
 	{}
 };
 
-static const struct snd_soc_acpi_link_adr acp70_cs35l56x4_l1[] = {
+static const struct snd_soc_acpi_link_adr acp70_cs35l56x4_l1u3210[] = {
 	{
 		.mask = BIT(1),
-		.num_adr = ARRAY_SIZE(cs35l56x4_1_adr),
-		.adr_d = cs35l56x4_1_adr,
+		.num_adr = ARRAY_SIZE(cs35l56x4_l1u3210_adr),
+		.adr_d = cs35l56x4_l1u3210_adr,
 	},
 	{}
 };
@@ -359,7 +359,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_sdw_machines[] = {
 	},
 	{
 		.link_mask = BIT(0) | BIT(1),
-		.links = acp70_cs42l43_l0_cs35l56x4_l1,
+		.links = acp70_cs42l43_l0u0_cs35l56x4_l1u3210,
 		.drv_name = "amd_sdw",
 	},
 	{
@@ -369,12 +369,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_sdw_machines[] = {
 	},
 	{
 		.link_mask = BIT(1),
-		.links = acp70_cs42l43_l1_cs35l56x4_l1,
+		.links = acp70_cs42l43_l1u0_cs35l56x4_l1u0123,
 		.drv_name = "amd_sdw",
 	},
 	{
 		.link_mask = BIT(1),
-		.links = acp70_cs35l56x4_l1,
+		.links = acp70_cs35l56x4_l1u3210,
 		.drv_name = "amd_sdw",
 	},
 	{
