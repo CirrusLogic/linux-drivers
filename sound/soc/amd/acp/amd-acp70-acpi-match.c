@@ -195,6 +195,21 @@ static const struct snd_soc_acpi_adr_device cs35l63x2_l0u01_adr[] = {
 	},
 };
 
+static const struct snd_soc_acpi_adr_device cs35l63x2_l1u01_adr[] = {
+	{
+		.adr = 0x00013001FA356301ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_l_endpoint,
+		.name_prefix = "AMP1"
+	},
+	{
+		.adr = 0x00013101FA356301ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_r_endpoint,
+		.name_prefix = "AMP2"
+	},
+};
+
 static const struct snd_soc_acpi_adr_device cs35l63x4_l0u0246_adr[] = {
 	{
 		.adr = 0x00003001FA356301ull,
@@ -353,6 +368,20 @@ static const struct snd_soc_acpi_link_adr acp70_cs42l45_l0u0[] = {
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr acp70_cs42l45_l0u0_cs35l63x2_l1u01[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(cs42l45_l0u0_adr),
+		.adr_d = cs42l45_l0u0_adr,
+	},
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(cs35l63x2_l1u01_adr),
+		.adr_d = cs35l63x2_l1u01_adr,
+	},
+	{}
+};
+
 static const struct snd_soc_acpi_link_adr acp70_cs42l45_l1u0[] = {
 	{
 		.mask = BIT(1),
@@ -437,6 +466,11 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_sdw_machines[] = {
 	{
 		.link_mask = BIT(0) | BIT(1),
 		.links = acp70_cs42l45_l1u0_cs35l63x2_l0u01,
+		.drv_name = "amd_sdw",
+	},
+	{
+		.link_mask = BIT(0) | BIT(1),
+		.links = acp70_cs42l45_l0u0_cs35l63x2_l1u01,
 		.drv_name = "amd_sdw",
 	},
 	{
