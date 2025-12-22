@@ -353,11 +353,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_sdw_machines[] = {
 		.drv_name = "amd_sdw",
 	},
 	{
-		.link_mask = BIT(0),
-		.links = acp70_rt722_only,
-		.drv_name = "amd_sdw",
-	},
-	{
 		.link_mask = BIT(0) | BIT(1),
 		.links = acp70_4_in_1_sdca,
 		.drv_name = "amd_sdw",
@@ -365,6 +360,11 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_sdw_machines[] = {
 	{
 		.link_mask = BIT(0) | BIT(1),
 		.links = acp70_cs42l43_l0_cs35l56x4_l1,
+		.drv_name = "amd_sdw",
+	},
+	{
+		.link_mask = BIT(0) | BIT(1),
+		.links = acp70_cs42l45_l1u0_cs35l63x4_l0u0246,
 		.drv_name = "amd_sdw",
 	},
 	{
@@ -378,18 +378,18 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_sdw_machines[] = {
 		.drv_name = "amd_sdw",
 	},
 	{
-		.link_mask = BIT(0) | BIT(1),
-		.links = acp70_cs42l45_l1u0_cs35l63x4_l0u0246,
+		.link_mask = BIT(0),
+		.links = acp70_cs35l63x4_l0u0246,
+		.drv_name = "amd_sdw",
+	},
+	{
+		.link_mask = BIT(0),
+		.links = acp70_rt722_only,
 		.drv_name = "amd_sdw",
 	},
 	{
 		.link_mask = BIT(1),
 		.links = acp70_cs42l45_l1u0,
-		.drv_name = "amd_sdw",
-	},
-	{
-		.link_mask = BIT(0),
-		.links = acp70_cs35l63x4_l0u0246,
 		.drv_name = "amd_sdw",
 	},
 	{},
