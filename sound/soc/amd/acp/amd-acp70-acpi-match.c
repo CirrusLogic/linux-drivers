@@ -195,7 +195,7 @@ static const struct snd_soc_acpi_adr_device cs42l43_1_cs35l56x4_1_adr[] = {
 	},
 };
 
-static const struct snd_soc_acpi_adr_device cs42l45_1_adr[] = {
+static const struct snd_soc_acpi_adr_device cs42l45_l1u0_adr[] = {
 	{
 		.adr = 0x00013001FA424501ull,
 		/* Re-use endpoints, but cs42l45 has no speaker */
@@ -232,7 +232,7 @@ static const struct snd_soc_acpi_adr_device cs35l56x4_1_adr[] = {
 	},
 };
 
-static const struct snd_soc_acpi_adr_device cs35l63x4_0_adr[] = {
+static const struct snd_soc_acpi_adr_device cs35l63x4_l0u0246_adr[] = {
 	{
 		.adr = 0x00003001FA356301ull,
 		.num_endpoints = 1,
@@ -268,20 +268,20 @@ static const struct snd_soc_acpi_link_adr acp70_cs42l43_l1_cs35l56x4_l1[] = {
 	{}
 };
 
-static const struct snd_soc_acpi_link_adr acp70_cs42l45_l1[] = {
+static const struct snd_soc_acpi_link_adr acp70_cs42l45_l1u0[] = {
 	{
 		.mask = BIT(1),
-		.num_adr = ARRAY_SIZE(cs42l45_1_adr),
-		.adr_d = cs42l45_1_adr,
+		.num_adr = ARRAY_SIZE(cs42l45_l1u0_adr),
+		.adr_d = cs42l45_l1u0_adr,
 	},
 	{}
 };
 
-static const struct snd_soc_acpi_link_adr acp70_cs35l63x4_l0[] = {
+static const struct snd_soc_acpi_link_adr acp70_cs35l63x4_l0u0246[] = {
 	{
 		.mask = BIT(0),
-		.num_adr = ARRAY_SIZE(cs35l63x4_0_adr),
-		.adr_d = cs35l63x4_0_adr,
+		.num_adr = ARRAY_SIZE(cs35l63x4_l0u0246_adr),
+		.adr_d = cs35l63x4_l0u0246_adr,
 	},
 	{}
 };
@@ -309,16 +309,16 @@ static const struct snd_soc_acpi_link_adr acp70_cs35l56x4_l1[] = {
 	{}
 };
 
-static const struct snd_soc_acpi_link_adr acp70_cs42l45_l1_cs35l63x4_l0[] = {
+static const struct snd_soc_acpi_link_adr acp70_cs42l45_l1u0_cs35l63x4_l0u0246[] = {
 	{
 		.mask = BIT(1),
-		.num_adr = ARRAY_SIZE(cs42l45_1_adr),
-		.adr_d = cs42l45_1_adr,
+		.num_adr = ARRAY_SIZE(cs42l45_l1u0_adr),
+		.adr_d = cs42l45_l1u0_adr,
 	},
 	{
 		.mask = BIT(0),
-		.num_adr = ARRAY_SIZE(cs35l63x4_0_adr),
-		.adr_d = cs35l63x4_0_adr,
+		.num_adr = ARRAY_SIZE(cs35l63x4_l0u0246_adr),
+		.adr_d = cs35l63x4_l0u0246_adr,
 	},
 	{}
 };
@@ -379,17 +379,17 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_sdw_machines[] = {
 	},
 	{
 		.link_mask = BIT(0) | BIT(1),
-		.links = acp70_cs42l45_l1_cs35l63x4_l0,
+		.links = acp70_cs42l45_l1u0_cs35l63x4_l0u0246,
 		.drv_name = "amd_sdw",
 	},
 	{
 		.link_mask = BIT(1),
-		.links = acp70_cs42l45_l1,
+		.links = acp70_cs42l45_l1u0,
 		.drv_name = "amd_sdw",
 	},
 	{
 		.link_mask = BIT(0),
-		.links = acp70_cs35l63x4_l0,
+		.links = acp70_cs35l63x4_l0u0246,
 		.drv_name = "amd_sdw",
 	},
 	{},
