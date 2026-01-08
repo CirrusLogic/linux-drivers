@@ -248,7 +248,7 @@ static int class_suspend(struct device *dev)
 
 	ret = pm_runtime_force_suspend(dev);
 	if (ret) {
-		dev_err(dev, "Failed to force suspend: %d\n", ret);
+		dev_err(dev, "failed to force suspend: %d\n", ret);
 		return ret;
 	}
 
@@ -262,7 +262,7 @@ static int class_resume(struct device *dev)
 
 	ret = pm_runtime_force_resume(dev);
 	if (ret) {
-		dev_err(dev, "Failed to force resume: %d\n", ret);
+		dev_err(dev, "failed to force resume: %d\n", ret);
 		return ret;
 	}
 

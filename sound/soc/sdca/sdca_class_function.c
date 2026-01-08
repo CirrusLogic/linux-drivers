@@ -207,7 +207,6 @@ static int class_function_set_jack(struct snd_soc_component *component,
 	return sdca_jack_set_jack(core->irq_info, jack);
 }
 
-
 static const struct snd_soc_component_driver class_function_component_drv = {
 	.probe			= class_function_component_probe,
 	.endianness		= 1,
@@ -486,7 +485,7 @@ static int class_function_suspend(struct device *dev)
 
 	ret = pm_runtime_force_suspend(dev);
 	if (ret) {
-		dev_err(dev, "Failed to force suspend: %d\n", ret);
+		dev_err(dev, "failed to force suspend: %d\n", ret);
 		return ret;
 	}
 
@@ -499,7 +498,7 @@ static int class_function_resume(struct device *dev)
 
 	ret = pm_runtime_force_resume(dev);
 	if (ret) {
-		dev_err(dev, "Failed to force resume: %d\n", ret);
+		dev_err(dev, "failed to force resume: %d\n", ret);
 		return ret;
 	}
 
