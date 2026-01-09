@@ -481,6 +481,13 @@ static int class_function_suspend(struct device *dev)
 
 	drv->suspended = true;
 
+	/* Ensure runtime resume runs on resume */
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret) {
+		dev_err(dev, "failed to resume for suspend: %d\n", ret);
+		return ret;
+	}
+
 	sdca_irq_disable(drv->function, drv->core->irq_info);
 
 	ret = pm_runtime_force_suspend(dev);
@@ -488,6 +495,8 @@ static int class_function_suspend(struct device *dev)
 		dev_err(dev, "failed to force suspend: %d\n", ret);
 		return ret;
 	}
+
+	pm_runtime_put_noidle(dev);
 
 	return 0;
 }

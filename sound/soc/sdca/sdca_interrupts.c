@@ -207,9 +207,9 @@ static irqreturn_t fdl_owner_handler(int irq, void *data)
 
 	/*
 	 * FDL has to run from the system resume handler, at which point
-	 * pm_runtime isn't yet active.
+	 * we can't wait for the pm runtime.
 	 */
-	if (pm_runtime_active(dev)) {
+	if (completion_done(&dev->power.completion)) {
 		ret = pm_runtime_get_sync(dev);
 		if (ret < 0) {
 			dev_err(dev, "failed to resume for fdl: %d\n", ret);
@@ -223,7 +223,7 @@ static irqreturn_t fdl_owner_handler(int irq, void *data)
 
 	irqret = IRQ_HANDLED;
 error:
-	if (pm_runtime_active(dev))
+	if (completion_done(&dev->power.completion))
 		pm_runtime_put(dev);
 	return irqret;
 }
