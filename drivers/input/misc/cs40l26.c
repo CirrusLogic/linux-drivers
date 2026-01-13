@@ -393,19 +393,28 @@ int cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
 	pm_runtime_set_autosuspend_delay(cs40l26->dev, CS40L26_AUTOSUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(cs40l26->dev);
 	pm_runtime_get_noresume(cs40l26->dev);
-	error = pm_runtime_set_active(cs40l26->dev);
-	if (error)
-		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__);
 
-	error = devm_pm_runtime_enable(cs40l26->dev);
+	if (!pm_runtime_enabled(cs40l26->dev)) {
+		error = pm_runtime_set_active(cs40l26->dev);
+		if (error)
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__);
 
-	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__) : 0;
+		pm_runtime_enable(cs40l26->dev);
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(cs40l26_pm_runtime_setup);
 
 inline void cs40l26_pm_runtime_teardown(struct cs40l26_private *cs40l26)
 {
+	int error;
 	pm_runtime_dont_use_autosuspend(cs40l26->dev);
+
+	error = pm_runtime_barrier(cs40l26->dev);
+	if (error)
+		dev_dbg(cs40l26->dev, "There was a pending resume request during RPM teardown\n");
+	pm_runtime_put_noidle(cs40l26->dev);
 	pm_runtime_disable(cs40l26->dev);
 }
 EXPORT_SYMBOL_GPL(cs40l26_pm_runtime_teardown);
