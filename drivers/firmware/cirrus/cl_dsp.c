@@ -356,9 +356,7 @@ int cl_dsp_update_ctl_reg(struct cl_dsp *dsp, const char *coeff_name, const u32 
 	if (error)
 		return error;
 
-	error = regmap_update_bits(dsp->regmap, reg, mask, val << (ffs(mask) - 1));
-
-	return error ? error : 0;
+	return regmap_update_bits(dsp->regmap, reg, mask, val << (ffs(mask) - 1));
 }
 EXPORT_SYMBOL_GPL(cl_dsp_update_ctl_reg);
 
@@ -375,9 +373,7 @@ int cl_dsp_set_ctl_reg(struct cl_dsp *dsp, const char *coeff_name, const u32 blo
 	if (error)
 		return error;
 
-	error = regmap_set_bits(dsp->regmap, reg, mask);
-
-	return error ? error : 0;
+	return regmap_set_bits(dsp->regmap, reg, mask);
 }
 EXPORT_SYMBOL_GPL(cl_dsp_set_ctl_reg);
 
