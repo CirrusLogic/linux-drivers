@@ -278,17 +278,7 @@ EXPORT_SYMBOL_GPL(cl_dsp_algo_is_present);
 int cl_dsp_read_ctl_reg(struct cl_dsp *dsp, const char *coeff_name, const u32 block_type,
 		const u32 algo_id, u32 *val)
 {
-	int error;
-	u32 reg;
-
-	if (!cl_dsp_algo_is_present(dsp, algo_id))
-		return -EPERM;
-
-	error = cl_dsp_get_reg(dsp, coeff_name, block_type, algo_id, &reg);
-	if (error)
-		return error;
-
-	return regmap_read(dsp->regmap, reg, val);
+	return cl_dsp_read_ctl_reg_offset(dsp, coeff_name, block_type, algo_id, 0, val);
 }
 EXPORT_SYMBOL_GPL(cl_dsp_read_ctl_reg);
 
@@ -312,17 +302,7 @@ EXPORT_SYMBOL_GPL(cl_dsp_read_ctl_reg_offset);
 int cl_dsp_write_ctl_reg(struct cl_dsp *dsp, const char *coeff_name, const u32 block_type,
 		const u32 algo_id, const u32 val)
 {
-	int error;
-	u32 reg;
-
-	if (!cl_dsp_algo_is_present(dsp, algo_id))
-		return -EPERM;
-
-	error = cl_dsp_get_reg(dsp, coeff_name, block_type, algo_id, &reg);
-	if (error)
-		return error;
-
-	return regmap_write(dsp->regmap, reg, val);
+	return cl_dsp_write_ctl_reg_offset(dsp, coeff_name, block_type, algo_id, 0, val);
 }
 EXPORT_SYMBOL_GPL(cl_dsp_write_ctl_reg);
 
