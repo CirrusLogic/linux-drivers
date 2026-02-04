@@ -13,6 +13,10 @@
 
 #include <linux/mfd/cs40l26.h>
 
+/* Prototypes */
+static int cs40l26_handle_pre_irq(void *irq_drv_data);
+
+/* Local Tables */
 static const struct cs40l26_rom_regs cs40l26_rom_regs_a1_b0_b1 = {
 	.pm_cur_state = 0x02800370,
 	.pm_state_locks = 0x02800378,
@@ -39,6 +43,49 @@ static const struct cs40l26_rom_regs cs40l26_rom_regs_b2 = { /* RC2 8.1.2 */
 	.p_vibegen_rom = 0x02802F50,
 	.rom_aseq_end_of_script = 0x028021B4,
 	.rom_pseq_end_of_script = 0x02802018,
+};
+
+static const struct regmap_irq cs40l26_reg_irqs[] = {
+	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO1_RISE),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO1_FALL),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO2_RISE),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO2_FALL),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO3_RISE),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO3_FALL),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO4_RISE),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO4_FALL),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_ANY),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_GPIO1),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_GPIO2),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_GPIO3),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_GPIO4),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_SPI),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_I2C),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, BST_OVP_ERR),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, BST_DCM_UVP_ERR),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, BST_SHORT_ERR),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, BST_IPK_FLAG),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, TEMP_ERR),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, AMP_ERR),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, DC_WD_RISE),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, DC_WD_FALL),
+	CS40L26_REG_IRQ(IRQ1_EINT_1, VIRTUAL2_MBOX_WR),
+	CS40L26_REG_IRQ(IRQ1_EINT_2, VPBR_FLAG),
+	CS40L26_REG_IRQ(IRQ1_EINT_2, VPBR_ATT_CLR),
+	CS40L26_REG_IRQ(IRQ1_EINT_2, VBBR_FLAG),
+	CS40L26_REG_IRQ(IRQ1_EINT_2, VBBR_ATT_CLR),
+};
+
+static struct regmap_irq_chip cs40l26_regmap_irq_chip = {
+	.name = "cs40l26 IRQ1 Controller",
+	.status_base = CS40L26_IRQ1_EINT_1,
+	.mask_base = CS40L26_IRQ1_MASK_1,
+	.ack_base = CS40L26_IRQ1_EINT_1,
+	.num_regs = 2,
+	.irqs = cs40l26_reg_irqs,
+	.num_irqs = ARRAY_SIZE(cs40l26_reg_irqs),
+	.handle_pre_irq = cs40l26_handle_pre_irq,
+	.runtime_pm = true,
 };
 
 static inline bool section_complete(struct cs40l26_owt_section *s)
@@ -151,6 +198,7 @@ int cs40l26_mailbox_write(struct cs40l26_private *cs40l26, u32 write_val)
 
 	if (i >= CS40L26_DSP_TIMEOUT_COUNT) {
 		dev_err(cs40l26->dev, "Mailbox not acknowledged (0x%08X != 0x0)\n", val);
+		cs40l26_regmap_irq_chip.runtime_pm = false;
 		return cs40l26_log_err(cs40l26, -ETIMEDOUT, CS40L26_ERR_TYPE_DSP, __func__);
 	}
 
@@ -1338,49 +1386,6 @@ static const struct cs40l26_irq cs40l26_irqs[] = {
 	CS40L26_IRQ(VPBR_ATT_CLR, "VPBR attenuation cleared", cs40l26_vpbr_att_clr),
 	CS40L26_IRQ(VBBR_FLAG, "VBST brownout", cs40l26_vbbr_flag),
 	CS40L26_IRQ(VBBR_ATT_CLR, "VBST attenuation cleared", cs40l26_vbst_att_clr),
-};
-
-static const struct regmap_irq cs40l26_reg_irqs[] = {
-	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO1_RISE),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO1_FALL),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO2_RISE),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO2_FALL),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO3_RISE),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO3_FALL),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO4_RISE),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, GPIO4_FALL),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_ANY),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_GPIO1),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_GPIO2),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_GPIO3),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_GPIO4),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_SPI),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, WKSRC_STS_I2C),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, BST_OVP_ERR),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, BST_DCM_UVP_ERR),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, BST_SHORT_ERR),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, BST_IPK_FLAG),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, TEMP_ERR),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, AMP_ERR),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, DC_WD_RISE),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, DC_WD_FALL),
-	CS40L26_REG_IRQ(IRQ1_EINT_1, VIRTUAL2_MBOX_WR),
-	CS40L26_REG_IRQ(IRQ1_EINT_2, VPBR_FLAG),
-	CS40L26_REG_IRQ(IRQ1_EINT_2, VPBR_ATT_CLR),
-	CS40L26_REG_IRQ(IRQ1_EINT_2, VBBR_FLAG),
-	CS40L26_REG_IRQ(IRQ1_EINT_2, VBBR_ATT_CLR),
-};
-
-static struct regmap_irq_chip cs40l26_regmap_irq_chip = {
-	.name = "cs40l26 IRQ1 Controller",
-	.status_base = CS40L26_IRQ1_EINT_1,
-	.mask_base = CS40L26_IRQ1_MASK_1,
-	.ack_base = CS40L26_IRQ1_EINT_1,
-	.num_regs = 2,
-	.irqs = cs40l26_reg_irqs,
-	.num_irqs = ARRAY_SIZE(cs40l26_reg_irqs),
-	.handle_pre_irq = cs40l26_handle_pre_irq,
-	.runtime_pm = true,
 };
 
 static int cs40l26_wseq_get_reg_addr(struct cs40l26_private *cs40l26, u32 op_addr, u8 op_code,
