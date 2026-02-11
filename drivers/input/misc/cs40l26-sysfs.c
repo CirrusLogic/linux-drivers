@@ -1406,6 +1406,7 @@ static int cs40l26_run_calibration(struct cs40l26_private *cs40l26, struct compl
 	/* Cannot wait for completion under mutex lock */
 	if (!wait_for_completion_timeout(completion,
 				msecs_to_jiffies(CS40L26_CALIBRATION_TIMEOUT_MS))) {
+		cs40l26->cal_ongoing = false;
 		error = -ETIME;
 		dev_err(cs40l26->dev, "Failed to complete cal req, %d, err: %d",
 				calibration_request_payload, error);
