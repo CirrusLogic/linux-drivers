@@ -4834,6 +4834,28 @@ static int cs40l26_get_fw_params(struct cs40l26_private *cs40l26)
 	return 0;
 }
 
+static int cs40l26_ls_cal_setup(struct cs40l26_private *cs40l26)
+{
+	struct cs40l26_ls_cal_range *r;
+	int error, i;
+
+	for (i = 0; i < CS40L26_LS_CAL_RANGE_COUNT; i++) {
+		r = &ls_cal_ranges[i];
+
+		error = cl_dsp_write_ctl_reg(cs40l26->dsp, r->min_name, CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_LS_ALGO_ID, r->min);
+		if (error)
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+		error = cl_dsp_write_ctl_reg(cs40l26->dsp, r->max_name, CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_LS_ALGO_ID, r->max);
+		if (error)
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+	}
+
+	return 0;
+}
+
 static int cs40l26_cl_dsp_reinit(struct cs40l26_private *cs40l26)
 {
 	int error;
@@ -4898,6 +4920,12 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 	error = cs40l26_get_fw_params(cs40l26);
 	if (error)
 		return error;
+
+	if (cs40l26->calib_fw) {
+		error = cs40l26_ls_cal_setup(cs40l26);
+		if (error)
+			return error;
+	}
 
 	if (svc_le_required) {
 		error = cl_dsp_fw_rev_get(cs40l26->dsp, &rev);
@@ -5468,6 +5496,33 @@ static void cs40l26_wd_parse_properties(struct cs40l26_private *cs40l26)
 	cs40l26->dc_wd_mute = device_property_present(cs40l26->dev, "cirrus,dc-wd-mute");
 }
 
+static void cs40l26_ls_cal_range_parse_properties(struct cs40l26_private *cs40l26)
+{
+	u32 vals[CS40L26_LS_CAL_RANGE_SIZE];
+	struct cs40l26_ls_cal_range *r;
+	int error, i;
+
+	for (i = 0; i < CS40L26_LS_CAL_RANGE_COUNT; i++) {
+		r = &ls_cal_ranges[i];
+
+		error = device_property_read_u32_array(cs40l26->dev, r->dt_prop, vals,
+				CS40L26_LS_CAL_RANGE_SIZE);
+		if (error) {
+			dev_dbg(cs40l26->dev, "Using defaults for %s\n", r->dt_prop);
+			continue;
+		}
+
+		if (vals[CS40L26_LS_CAL_MIN_INDEX] > vals[CS40L26_LS_CAL_MAX_INDEX]) {
+			dev_err(cs40l26->dev, "Invalid range for %s (min > max)\n", r->dt_prop);
+			cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DT, __func__);
+			continue;
+		}
+
+		r->min = vals[CS40L26_LS_CAL_MIN_INDEX];
+		r->max = vals[CS40L26_LS_CAL_MAX_INDEX];
+	}
+}
+
 static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
@@ -5539,6 +5594,8 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 		cs40l26->aux_ng_delay = CS40L26_AUX_NG_HOLD_DEFAULT;
 
 	cs40l26_wd_parse_properties(cs40l26);
+
+	cs40l26_ls_cal_range_parse_properties(cs40l26);
 
 	error = device_property_read_u32(dev, "cirrus,f0-default", &cs40l26->f0_default);
 	if (error)
