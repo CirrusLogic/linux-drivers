@@ -850,6 +850,13 @@
 #define CS40L26_LS_CAL_TEMP_MIN			0xE70000
 #define CS40L26_LS_CAL_TEMP_MAX			0x190000
 
+#define CS40L26_LS_CAL_RANGE_SIZE		2
+#define CS40L26_LS_CAL_MIN_INDEX		0
+#define CS40L26_LS_CAL_MAX_INDEX		1
+
+#define CS40L26_LS_CAL_MIN_DEFAULT		0x000000
+#define CS40L26_LS_CAL_MAX_DEFAULT		0x7FFFFF
+
 #define CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS	6
 #define CS40L26_DVL_PEQ_COEFF_APPLY		1
 
@@ -873,6 +880,9 @@
 #define CS40L26_F0_FREQ_CENTRE_HZ_MIN			50
 #define CS40L26_F0_FREQ_CENTRE_MAX (CS40L26_F0_FREQ_CENTRE_HZ_MAX << CS40L26_F0_EST_FREQ_FRAC_BITS)
 #define CS40L26_F0_FREQ_CENTRE_MIN (CS40L26_F0_FREQ_CENTRE_HZ_MIN << CS40L26_F0_EST_FREQ_FRAC_BITS)
+
+#define CS40L26_COPY_F0_TO_LS		BIT(0)
+#define CS40L26_COPY_F0_TO_DVL		BIT(1)
 
 #define CS40L26_F0_EST_REDC_MAX		0xFFFFFF
 
@@ -1038,6 +1048,20 @@ enum cs40l26_logger_data_type {
 	CS40L26_LOGGER_DATA_TYPE_MEAN,
 };
 
+enum cs40l26_ls_cal_range_id {
+	CS40L26_LS_CAL_RANGE_ID_OL_REDC,
+	CS40L26_LS_CAL_RANGE_ID_OL_LE,
+	CS40L26_LS_CAL_RANGE_ID_OL_F0,
+	CS40L26_LS_CAL_RANGE_ID_OL_RES,
+	CS40L26_LS_CAL_RANGE_ID_OL_Q,
+	CS40L26_LS_CAL_RANGE_ID_CL_REDC,
+	CS40L26_LS_CAL_RANGE_ID_CL_LE,
+	CS40L26_LS_CAL_RANGE_ID_CL_F0,
+	CS40L26_LS_CAL_RANGE_ID_CL_RES,
+	CS40L26_LS_CAL_RANGE_ID_CL_Q,
+	CS40L26_LS_CAL_RANGE_COUNT,
+};
+
 enum cs40l26_ls_cal_return_code {
 	CS40L26_LS_CAL_OK,
 	CS40L26_LS_CAL_IN_PROGRESS,
@@ -1045,6 +1069,7 @@ enum cs40l26_ls_cal_return_code {
 	CS40L26_LS_CAL_FAIL_ROOTS,
 	CS40L26_LS_CAL_SATURATION,
 	CS40L26_LS_CAL_STEP2_FREQ,
+	CS40L26_LS_CAL_OUT_OF_RANGE,
 };
 
 enum cs40l26_brwnout_type {
@@ -1193,6 +1218,15 @@ struct cs40l26_log_src {
 	u8 avg;
 	u8 id;
 	u16 addr;
+};
+
+struct cs40l26_ls_cal_range {
+	const char *name;
+	const char *min_name;
+	const char *max_name;
+	const char *dt_prop;
+	u32 min;
+	u32 max;
 };
 
 struct cs40l26_ls_cal_param {
@@ -1497,6 +1531,7 @@ extern const struct mfd_cell cs40l26_devs[CS40L26_NUM_MFD_DEVS];
 extern const u32 cs40l26_attn_q21_2_vals[CS40L26_NUM_PCT_MAP_VALUES];
 extern const struct reg_sequence cs40l26_a1_errata[CS40L26_ERRATA_A1_NUM_WRITES];
 extern const struct cs40l26_ls_cal_param cs40l26_ls_cal_params[CS40L26_LS_CAL_NUM_REGS];
+extern struct cs40l26_ls_cal_range ls_cal_ranges[CS40L26_LS_CAL_RANGE_COUNT];
 
 /* sysfs */
 extern const struct attribute_group *cs40l26_attr_groups[];
