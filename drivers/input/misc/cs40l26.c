@@ -2186,7 +2186,7 @@ int cs40l26_num_waves(struct cs40l26_private *cs40l26, u32 *nwaves)
 	if (error)
 		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_COEFF, __func__);
 
-	nowt = cs40l26_num_owt_waves(cs40l26, &nowt);
+	error = cs40l26_num_owt_waves(cs40l26, &nowt);
 	if (error)
 		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_COEFF, __func__);
 
