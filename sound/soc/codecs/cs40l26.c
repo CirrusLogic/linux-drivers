@@ -535,8 +535,8 @@ static int cs40l26_svc_loop_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 			ucontrol->value.enumerated.item[0] << CS40L26_I2S_SVC_LOOP_SHIFT,
 			CS40L26_I2S_SVC_LOOP_MASK);
 	if (ret) {
-		cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_FW, __func__);
 		dev_err(cs40l26->dev, "Failed to specify I2S SVC loop type\n");
+		cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_FW, __func__);
 	}
 
 	snd_soc_dapm_mutex_unlock(dapm);
