@@ -569,6 +569,20 @@ Description:
 			See firmware documentation for more detailed information
 			on each coefficient.
 
+What:		/sys/class/input/input(x)/calibration/ls_calibration_retries
+Date:		February 2026
+Contact:	patches@opensource.cirrus.com
+Description:
+		Number of retries the driver will automatically attempt to run LS Calibration
+		if any error conditions are encountered in the previous attempt.
+
+		Access: Read, Write
+
+		Valid values: Represented as an integer
+			Minimum: 0
+			Maximum: 20
+			Default: 0
+
 What:		/sys/class/input/input(x)/calibration/ls_calibration_status
 Date:		June 2025
 Contact:	patches@opensource.cirrus.com
