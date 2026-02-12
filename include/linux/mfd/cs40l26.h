@@ -1468,6 +1468,7 @@ struct cs40l26_private {
 	bool ls_cal_f0_closed_loop;
 	enum cs40l26_err_clear err_clear_method;
 	int ls_cal_num_retries;
+	u32 invert_state;
 };
 
 struct cs40l26_codec {
