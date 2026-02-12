@@ -1551,27 +1551,35 @@ static int cs40l26_ls_calibration_check_results(struct cs40l26_private *cs40l26,
 
 static int cs40l26_ls_calibration(struct cs40l26_private *cs40l26)
 {
+	int error, nretries = 0;
 	u32 status = 0;
-	int error;
 
 	lockdep_assert_held(&cs40l26->lock);
 
-	mutex_unlock(&cs40l26->lock);
+	do {
+		mutex_unlock(&cs40l26->lock);
 
-	error = cs40l26_run_calibration(cs40l26, &cs40l26->cal_ls_cont,
-			CS40L26_CALIBRATION_CONTROL_REQUEST_LS_CALIBRATION);
+		error = cs40l26_run_calibration(cs40l26, &cs40l26->cal_ls_cont,
+				CS40L26_CALIBRATION_CONTROL_REQUEST_LS_CALIBRATION);
 
-	mutex_lock(&cs40l26->lock);
+		mutex_lock(&cs40l26->lock);
 
-	if (error)
-		return error;
+		if (error)
+			return error;
 
-	error = cs40l26_ls_calibration_check_results(cs40l26, true, &status);
-	if (error)
-		return error;
+		error = cs40l26_ls_calibration_check_results(cs40l26, true, &status);
+		if (error)
+			return error;
 
-	if (status)
-		dev_err(cs40l26->dev, "LS Cal Failed with Error Code: %u\n", status);
+		if (status)
+			dev_err(cs40l26->dev, "LS Cal Failed with Error Code: %u\n", status);
+		else
+			break;
+
+		nretries++;
+
+		usleep_range(CS40L26_LS_CAL_DELAY_US, CS40L26_LS_CAL_DELAY_US + 100);
+	} while (nretries <= cs40l26->ls_cal_num_retries);
 
 	return 0;
 }
@@ -2392,6 +2400,45 @@ static ssize_t ls_calibration_params_temp_store(struct device *dev, struct devic
 }
 static DEVICE_ATTR_RW(ls_calibration_params_temp);
 
+static ssize_t ls_calibration_retries_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int nretries;
+
+	mutex_lock(&cs40l26->lock);
+
+	nretries = cs40l26->ls_cal_num_retries;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return sysfs_emit(buf, "%d\n", nretries);
+}
+
+static ssize_t ls_calibration_retries_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error;
+	u32 val;
+
+	error = kstrtou32(buf, 10, &val);
+	if (error)
+		return error;
+
+	if (val > CS40L26_LS_CAL_RETRIES_MAX)
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
+
+	mutex_lock(&cs40l26->lock);
+
+	cs40l26->ls_cal_num_retries = val;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return count;
+}
+static DEVICE_ATTR_RW(ls_calibration_retries);
+
 static ssize_t ls_calibration_status_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
@@ -2741,6 +2788,7 @@ static struct attribute *cs40l26_dev_attrs_cal[] = {
 	&dev_attr_ls_calibration_results.attr,
 	&dev_attr_ls_calibration_results_name.attr,
 	&dev_attr_ls_calibration_ranges.attr,
+	&dev_attr_ls_calibration_retries.attr,
 	&dev_attr_dvl_peq_coefficients.attr,
 	&dev_attr_dvl_peq_coeff_apply.attr,
 	&dev_attr_redc_est.attr,

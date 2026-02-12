@@ -864,6 +864,10 @@
 #define CS40L26_LS_CAL_MIN_DEFAULT		0x000000
 #define CS40L26_LS_CAL_MAX_DEFAULT		0x7FFFFF
 
+#define CS40L26_LS_CAL_RETRIES_MAX		20
+
+#define CS40L26_LS_CAL_DELAY_US			500000
+
 #define CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS	6
 #define CS40L26_DVL_PEQ_COEFF_APPLY		1
 
@@ -1463,6 +1467,7 @@ struct cs40l26_private {
 	bool disable_asp_preempt;
 	bool ls_cal_f0_closed_loop;
 	enum cs40l26_err_clear err_clear_method;
+	int ls_cal_num_retries;
 };
 
 struct cs40l26_codec {
