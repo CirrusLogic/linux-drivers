@@ -4938,7 +4938,7 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 	if (cs40l26->calib_fw) {
 		error = cs40l26_ls_cal_setup(cs40l26);
 		if (error)
-			return error;
+			dev_warn(cs40l26->dev, "Failed to set up LS Calibration Ranges\n");
 	}
 
 	if (svc_le_required) {
