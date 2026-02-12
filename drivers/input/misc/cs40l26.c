@@ -1962,6 +1962,14 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	if (error)
 		goto err_mutex;
 
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "SOURCE_INVERT", CL_DSP_XM_UNPACKED_TYPE,
+			algo_id, &cs40l26->invert_state);
+	if (error) {
+		dev_err(cs40l26->dev, "Failed to get SOURCE_INVERT");
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+		goto err_mutex;
+	}
+
 	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "SOURCE_INVERT", CL_DSP_XM_UNPACKED_TYPE,
 			algo_id, invert);
 	if (error) {
@@ -2014,8 +2022,8 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	struct cs40l26_work *work_data = container_of(work, struct cs40l26_work, work);
 	struct cs40l26_private *cs40l26 = work_data->cs40l26;
 	struct device *sibling_dev = NULL;
+	u32 algo_id = 0, delay_us;
 	bool skip_delay;
-	u32 delay_us;
 	int error;
 
 	dev_dbg(cs40l26->dev, "%s\n", __func__);
@@ -2077,6 +2085,15 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	if (sibling_dev)
 		cs40l26_pm_exit(sibling_dev);
 err_pm:
+	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
+	if (error)
+		dev_warn(cs40l26->dev, "Failed to get EXT algo ID\n");
+
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "SOURCE_INVERT", CL_DSP_XM_UNPACKED_TYPE,
+			algo_id, cs40l26->invert_state);
+	if (error)
+		dev_warn(cs40l26->dev, "Failed to set SOURCE_INVERT\n");
+
 	cs40l26_pm_exit(cs40l26->dev);
 err_free:
 	kfree(work_data);
