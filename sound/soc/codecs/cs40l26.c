@@ -793,6 +793,26 @@ static int cs40l26_i2s_atten_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return ret;
 }
 
+static bool cs40l26_a2h_delay_present(struct cs40l26_private *cs40l26)
+{
+	u32 fw_rev;
+	int ret;
+
+	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID))
+		return false;
+
+	if (cs40l26->revid == CS40L26_REVID_B2) {
+		ret = cl_dsp_fw_rev_get(cs40l26->dsp, &fw_rev);
+		if (ret)
+			return false;
+
+		if (CS40L26_A2H_DLY_MISS_REV_IN_RANGE(fw_rev))
+			return false;
+	}
+
+	return true;
+}
+
 static int cs40l26_a2h_i2s_delay_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
@@ -803,12 +823,15 @@ static int cs40l26_a2h_i2s_delay_get(struct snd_kcontrol *kcontrol,
 	unsigned int val = 0;
 	int ret;
 
-	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID))
-		return 0;
-
 	ret = cs40l26_pm_enter(dev);
 	if (ret)
 		return ret;
+
+	if (!cs40l26_a2h_delay_present(cs40l26)) {
+		dev_dbg(dev, "Not getting delay, wrong firmware\n");
+		ret = 0;
+		goto err;
+	}
 
 	ret = cl_dsp_read_ctl_reg(cs40l26->dsp, "LRADELAYSAMPS", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_A2H_ALGO_ID, &val);
@@ -838,14 +861,17 @@ static int cs40l26_a2h_i2s_delay_put(struct snd_kcontrol *kcontrol,
 	unsigned int val = 0;
 	int ret;
 
-	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_A2H_ALGO_ID))
-		return 0;
-
 	ret = cs40l26_pm_enter(dev);
 	if (ret)
 		return ret;
 
 	snd_soc_dapm_mutex_lock(dapm);
+
+	if (!cs40l26_a2h_delay_present(cs40l26)) {
+		dev_dbg(dev, "Not putting delay, wrong firmware\n");
+		ret = 0;
+		goto mutex_exit;
+	}
 
 	val = ucontrol->value.integer.value[0];
 
