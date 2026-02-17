@@ -520,6 +520,20 @@ Description:
 			Maximum: 0x190000 (50 C)
 			Default: 0x0A0000 (20 C)
 
+What:          /sys/class/input/input(x)/calibration/ls_calibration_ranges
+Date:          February 2026
+Contact:       patches@opensource.cirrus.com
+Description:
+               Displays ranges programmed for each LS Calibration parameter via the devicetree.
+
+               Access: Read
+
+               Valid values: Represented as string of min, max pairs preceded by the name of the
+                       corresponding devicetree property.
+                       If the controls are not present in the device the range will be displayed as the
+                       default: "<name>        min: 0x000000, max: 0x7FFFFF"
+
+
 What:		/sys/class/input/input(x)/calibration/ls_calibration_results
 Date:		January 2024
 Contact:	patches@opensource.cirrus.com
@@ -560,7 +574,7 @@ Date:		June 2025
 Contact:	patches@opensource.cirrus.com
 Description:
 		Provide status of LS Calibration after it has been run.
-		Any status other than 0 implies the results are invalid.
+		Any status other than 0 implies the results are invalid or out of bounds.
 
 		Access: Read
 
@@ -571,6 +585,7 @@ Description:
 			3: Real Roots Instead of 1
 			4: Saturation When Publishing
 			5: Step 2 Frequency Out of Range
+			6: Value out of range specified in devicetree
 
 What:		/sys/class/input/input(x)/calibration/q_measured
 Date:		December 2023
