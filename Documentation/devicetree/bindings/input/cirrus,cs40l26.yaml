@@ -266,6 +266,19 @@ properties:
       This value represents the unit-specific ReDC input to the click compensation
       algorithm.
 
+  cirrus,asp-gain-option:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2]
+    default: 0
+    description: |
+      Used by the driver to determine how the user can set ASP gain for 0xB2 devices:
+      0: Only via the "I2S Attenuation" mixer control
+      1: Only via the Input FF set_gain() callback
+      2: Via both the mixer control and the callback
+      Take caution if using this method (2) as changing the gain for other forms of
+      playback will also affect the ASP streaming gain so it will need to be set
+      every time streaming begins if the same gain is not desired.
+
   cirrus,asp-gain-scale-pct:
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
@@ -806,6 +819,7 @@ examples:
         cirrus,bst-ctl-microvolt = <2650000>;
         cirrus,clip-lvl-microvolt= <10750000>;
 
+        cirrus,asp-gain-option = <1>;
         cirrus,asp-gain-scale-pct = <80>;
 
         cirrus,pm-active-timeout-ms = <200>;
