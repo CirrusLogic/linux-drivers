@@ -764,7 +764,7 @@ static int cs40l26_i2s_atten_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	struct cs40l26_private *cs40l26 = codec->core;
 	struct device *dev = cs40l26->dev;
 	u32 val = 0;
-	int ret;
+	int ret = 0;
 
 	ret = cs40l26_pm_enter(dev);
 	if (ret)
@@ -779,11 +779,13 @@ static int cs40l26_i2s_atten_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	else
 		val = ucontrol->value.integer.value[0];
 
-	ret = cl_dsp_write_ctl_reg(cs40l26->dsp, "I2S_ATTENUATION", CL_DSP_XM_UNPACKED_TYPE,
-			cs40l26->fw_id, val);
-	if (ret) {
-		dev_err(dev, "Failed to write I2S_ATTENUATION\n");
-		cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_FW, __func__);
+	if (cs40l26->gain.asp_opt != CS40L26_ASP_GAIN_OPT_CALLBACK) {
+		ret = cl_dsp_write_ctl_reg(cs40l26->dsp, "I2S_ATTENUATION", CL_DSP_XM_UNPACKED_TYPE,
+				cs40l26->fw_id, val);
+		if (ret) {
+			dev_err(dev, "Failed to write I2S_ATTENUATION\n");
+			cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_FW, __func__);
+		}
 	}
 
 	snd_soc_dapm_mutex_unlock(dapm);
