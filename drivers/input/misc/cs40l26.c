@@ -458,12 +458,12 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 	mutex_lock(&cs40l26->lock);
 
 	if (cs40l26->vibe_state == CS40L26_VIBE_STATE_ASP) {
-		gain = (cs40l26->asp_scale_pct * cs40l26->gain_pct) / CS40L26_GAIN_FULL_SCALE;
-		cs40l26->gain_tmp = cs40l26->gain_pct;
-		cs40l26->gain_pct = gain;
-		cs40l26->scaling_applied = true;
+		gain = (cs40l26->gain.asp_scale_pct * cs40l26->gain.pct) / CS40L26_GAIN_FULL_SCALE;
+		cs40l26->gain.prev = cs40l26->gain.pct;
+		cs40l26->gain.pct = gain;
+		cs40l26->gain.scaling_applied = true;
 	} else {
-		gain = cs40l26->gain_pct;
+		gain = cs40l26->gain.pct;
 	}
 
 	dev_dbg(cs40l26->dev, "%s: gain = %u%%\n", __func__, gain);
@@ -478,6 +478,17 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to set attenuation\n");
 		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+		goto err_mutex;
+	}
+
+	if (cs40l26->revid == CS40L26_REVID_B2 &&
+			cs40l26->gain.asp_opt != CS40L26_ASP_GAIN_OPT_MIXER) {
+		error = cl_dsp_write_ctl_reg(cs40l26->dsp, "I2S_ATTENUATION",
+				CL_DSP_XM_UNPACKED_TYPE, algo_id, cs40l26_attn_q21_2_vals[gain]);
+		if (error) {
+			dev_err(cs40l26->dev, "Failed to set I2S attenuation\n");
+			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+		}
 	}
 
 err_mutex:
@@ -493,10 +504,11 @@ static void cs40l26_remove_asp_scaling(struct cs40l26_private *cs40l26)
 	struct cs40l26_work *work_data;
 	u16 gain;
 
-	if (cs40l26->asp_scale_pct >= CS40L26_GAIN_FULL_SCALE || !cs40l26->scaling_applied)
+	if (cs40l26->gain.asp_scale_pct >= CS40L26_GAIN_FULL_SCALE ||
+			!cs40l26->gain.scaling_applied)
 		return;
 
-	gain = cs40l26->gain_tmp;
+	gain = cs40l26->gain.prev;
 
 	if (gain >= CS40L26_NUM_PCT_MAP_VALUES) {
 		dev_err(dev, "Gain %u%% out of bounds\n", gain);
@@ -504,8 +516,8 @@ static void cs40l26_remove_asp_scaling(struct cs40l26_private *cs40l26)
 		return;
 	}
 
-	cs40l26->gain_pct = gain;
-	cs40l26->scaling_applied = false;
+	cs40l26->gain.pct = gain;
+	cs40l26->gain.scaling_applied = false;
 
 	work_data = kzalloc(sizeof(*work_data), GFP_KERNEL);
 	if (!work_data)
@@ -981,8 +993,7 @@ int cs40l26_asp_start(struct cs40l26_private *cs40l26)
 			return 0;
 	}
 
-	if (cs40l26->revid != CS40L26_REVID_B2 &&
-	    cs40l26->asp_scale_pct < CS40L26_GAIN_FULL_SCALE) {
+	if (cs40l26->gain.asp_scale_pct < CS40L26_GAIN_FULL_SCALE) {
 		work_data = kzalloc(sizeof(*work_data), GFP_KERNEL);
 		if (!work_data)
 			return -ENOMEM;
@@ -1021,8 +1032,7 @@ void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26, enum cs40l26_vib
 	switch (event) {
 	case CS40L26_VIBE_STATE_EVENT_MBOX_PLAYBACK:
 	case CS40L26_VIBE_STATE_EVENT_GPIO_TRIGGER:
-		if (cs40l26->revid != CS40L26_REVID_B2)
-			cs40l26_remove_asp_scaling(cs40l26);
+		cs40l26_remove_asp_scaling(cs40l26);
 		cs40l26->effects_in_flight = 1;
 		break;
 	case CS40L26_VIBE_STATE_EVENT_MBOX_COMPLETE:
@@ -1036,8 +1046,7 @@ void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26, enum cs40l26_vib
 		cs40l26->asp_enable = true;
 		break;
 	case CS40L26_VIBE_STATE_EVENT_ASP_STOP:
-		if (cs40l26->revid != CS40L26_REVID_B2)
-			cs40l26_remove_asp_scaling(cs40l26);
+		cs40l26_remove_asp_scaling(cs40l26);
 
 		/* Restore PLL configuration */
 		pll_loop = (u8) FIELD_GET(CS40L26_PLL_REFCLK_LOOP_MASK, cs40l26->refclk_input);
@@ -2116,7 +2125,7 @@ static void cs40l26_set_gain(struct input_dev *dev, u16 gain)
 
 	work_data->cs40l26 = cs40l26;
 
-	cs40l26->gain_pct = gain;
+	cs40l26->gain.pct = gain;
 
 	INIT_WORK(&work_data->work, cs40l26_set_gain_worker);
 	queue_work(cs40l26->vibe_workqueue, &work_data->work);
@@ -4611,7 +4620,7 @@ static void cs40l26_gain_adjust(struct cs40l26_private *cs40l26, s32 adjust)
 		return;
 	}
 
-	asp = cs40l26->asp_scale_pct;
+	asp = cs40l26->gain.asp_scale_pct;
 
 	if (adjust < 0) {
 		change = (u16) ((adjust * -1) & 0xFFFF);
@@ -4626,7 +4635,7 @@ static void cs40l26_gain_adjust(struct cs40l26_private *cs40l26, s32 adjust)
 			total = CS40L26_GAIN_FULL_SCALE;
 	}
 
-	cs40l26->asp_scale_pct = total;
+	cs40l26->gain.asp_scale_pct = total;
 }
 
 int cs40l26_svc_le_estimate(struct cs40l26_private *cs40l26, unsigned int *le)
@@ -5554,6 +5563,42 @@ static void cs40l26_ls_cal_range_parse_properties(struct cs40l26_private *cs40l2
 	}
 }
 
+static void cs40l26_gain_parse_properties(struct cs40l26_private *cs40l26)
+{
+	u32 asp_gain_opt, asp_scale_pct;
+	int error;
+
+	error = device_property_read_u32(cs40l26->dev, "cirrus,asp-gain-scale-pct", &asp_scale_pct);
+	if (error || asp_scale_pct > CS40L26_GAIN_FULL_SCALE)
+		cs40l26->gain.asp_scale_pct = CS40L26_GAIN_FULL_SCALE;
+	else
+		cs40l26->gain.asp_scale_pct = asp_scale_pct;
+
+	error = device_property_read_u32(cs40l26->dev, "cirrus,asp-gain-option", &asp_gain_opt);
+	if (error) {
+		cs40l26->gain.asp_opt = CS40L26_ASP_GAIN_OPT_MIXER;
+	} else {
+		switch (asp_gain_opt) {
+		case CS40L26_ASP_GAIN_OPT_MIXER:
+			cs40l26->gain.asp_opt = CS40L26_ASP_GAIN_OPT_MIXER;
+			break;
+		case CS40L26_ASP_GAIN_OPT_CALLBACK:
+			cs40l26->gain.asp_opt = CS40L26_ASP_GAIN_OPT_CALLBACK;
+			break;
+		case CS40L26_ASP_GAIN_OPT_BOTH:
+			cs40l26->gain.asp_opt = CS40L26_ASP_GAIN_OPT_BOTH;
+			break;
+		default:
+			dev_warn(cs40l26->dev, "cirrus,asp-gain-option invalid\n");
+			cs40l26->gain.asp_opt = CS40L26_ASP_GAIN_OPT_MIXER;
+		}
+	}
+
+	cs40l26->gain.pct = CS40L26_GAIN_FULL_SCALE;
+	cs40l26->gain.prev = CS40L26_GAIN_FULL_SCALE;
+	cs40l26->gain.scaling_applied = false;
+}
+
 static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
@@ -5599,12 +5644,7 @@ static int cs40l26_parse_properties(struct cs40l26_private *cs40l26)
 	else
 		cs40l26->num_svc_le_vals = error;
 
-	error = device_property_read_u32(dev, "cirrus,asp-gain-scale-pct", &cs40l26->asp_scale_pct);
-	if (error)
-		cs40l26->asp_scale_pct = CS40L26_GAIN_FULL_SCALE;
-
-	cs40l26->gain_pct = CS40L26_GAIN_FULL_SCALE;
-	cs40l26->gain_tmp = CS40L26_GAIN_FULL_SCALE;
+	cs40l26_gain_parse_properties(cs40l26);
 
 	error = device_property_read_u32(dev, "cirrus,ng-thld", &cs40l26->ng_thld);
 	if (error)
