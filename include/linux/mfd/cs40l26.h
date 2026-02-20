@@ -1221,6 +1221,12 @@ enum cs40l26_err_clear {
 	CS40L26_ERR_CLEAR_ON_WRITE,
 };
 
+enum cs40l26_asp_gain_option {
+	CS40L26_ASP_GAIN_OPT_MIXER,
+	CS40L26_ASP_GAIN_OPT_CALLBACK,
+	CS40L26_ASP_GAIN_OPT_BOTH,
+};
+
 /* structs */
 struct cs40l26_log_src {
 	u8 sign;
@@ -1359,6 +1365,14 @@ struct cs40l26_err {
 	int num;
 };
 
+struct cs40l26_gain {
+	u32 asp_scale_pct;
+	u32 asp_opt;
+	u16 pct;
+	u16 prev;
+	bool scaling_applied;
+};
+
 struct cs40l26_private {
 	struct device *dev;
 	struct regmap *regmap;
@@ -1389,9 +1403,6 @@ struct cs40l26_private {
 	u8 last_wksrc_pol;
 	u8 wksrc_sts;
 	int cal_requested;
-	u16 gain_pct;
-	u16 gain_tmp;
-	bool scaling_applied;
 	u32 event_map_base;
 	struct cs40l26_svc_le **svc_le_vals;
 	int num_svc_le_vals;
@@ -1423,7 +1434,6 @@ struct cs40l26_private {
 	struct cs40l26_brwnout vpbr;
 	bool bst_dcm_en;
 	u32 bst_ipk;
-	u32 asp_scale_pct;
 	u32 asp_svc_init_delay_time_us;
 	u32 asp_svc_init_delay_buffer_us;
 	bool asp_svc_init_complete;
@@ -1469,6 +1479,7 @@ struct cs40l26_private {
 	enum cs40l26_err_clear err_clear_method;
 	int ls_cal_num_retries;
 	u32 invert_state;
+	struct cs40l26_gain gain;
 };
 
 struct cs40l26_codec {
