@@ -3468,7 +3468,7 @@ static int cs40l26_gpio_config(struct cs40l26_private *cs40l26)
 	u32 irq_val, pad_val;
 	int error;
 
-	error = cl_dsp_get_reg(cs40l26->dsp, "ENT_MAP_TABLE_EVENT_DATA_PACKED",
+	error = cl_dsp_get_reg(cs40l26->dsp, "EVENT_MAP_TABLE_EVENT_DATA",
 			CL_DSP_XM_UNPACKED_TYPE, CS40L26_EVENT_HANDLER_ALGO_ID,
 			&cs40l26->event_map_base);
 	if (error)

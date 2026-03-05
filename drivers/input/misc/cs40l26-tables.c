@@ -119,7 +119,7 @@ EXPORT_SYMBOL_GPL(ls_cal_ranges);
 const struct cs40l26_ls_cal_param cs40l26_ls_cal_params[CS40L26_LS_CAL_NUM_REGS] = {
 	{
 		.calib_name = "STATE_OL_RESULTS_REDC",
-		.runtime_name = "TA_TEMP_EST_INITIAL_REDC",
+		.runtime_name = "TA_T_EST_INITIAL_REDC",
 		.word_num = 1,
 	},
 	{
@@ -349,7 +349,7 @@ const struct cs40l26_ls_cal_param cs40l26_ls_cal_params[CS40L26_LS_CAL_NUM_REGS]
 	},
 	{
 		.calib_name = "STATE_TEMPERATURE",
-		.runtime_name = "TA_TEMP_EST_INITIAL_TEMP",
+		.runtime_name = "TA_T_EST_INITIAL_TEMP",
 		.word_num = 1,
 	},
 };
