@@ -251,13 +251,16 @@ static ssize_t cs40l26_hw_val_write(struct file *file, const char __user *user_b
 	if (error)
 		goto exit_mutex;
 
-	error = cs40l26_wseq_write(cs40l26, cs40l26->dbg_hw_reg, (val & GENMASK(31, 16)) >> 16,
-			true, CS40L26_WSEQ_OP_WRITE_H16, &pseq_params);
-	if (error)
-		goto exit_mutex;
+	if (cs40l26->dbg_hw_reg < CS40L26_DSP1_XMEM_PACKED_0) {
+		error = cs40l26_wseq_write(cs40l26, cs40l26->dbg_hw_reg,
+				(val & GENMASK(31, 16)) >> 16, true, CS40L26_WSEQ_OP_WRITE_H16,
+				&pseq_params);
+		if (error)
+			goto exit_mutex;
 
-	error = cs40l26_wseq_write(cs40l26, cs40l26->dbg_hw_reg, (val & GENMASK(15, 0)),
-			true, CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
+		error = cs40l26_wseq_write(cs40l26, cs40l26->dbg_hw_reg, (val & GENMASK(15, 0)),
+				true, CS40L26_WSEQ_OP_WRITE_L16, &pseq_params);
+	}
 
 exit_mutex:
 	mutex_unlock(&cs40l26->lock);
