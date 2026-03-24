@@ -711,30 +711,36 @@ static ssize_t swap_wavetable_show(struct device *dev, struct device_attribute *
 
 static int cs40l26_handle_wt_swap(struct cs40l26_private *cs40l26, const u32 wt_num)
 {
-	int error_pm, error_wt;
+	int error;
 
 	/* Bypass PM runtime framework for DSP shutdown & wake */
 	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_DISABLE);
-	cs40l26_pm_runtime_teardown(cs40l26);
+	error = pm_runtime_resume_and_get(cs40l26->dev);
+	if (error) {
+		pm_runtime_suspend(cs40l26->dev);
+		pm_runtime_put_noidle(cs40l26->dev);
+		goto exit_irq;
+	}
 
 	mutex_lock(&cs40l26->lock);
 
-	error_wt = cs40l26_wt_swap(cs40l26, wt_num);
+	error = cs40l26_wt_swap(cs40l26, wt_num);
 
 	mutex_unlock(&cs40l26->lock);
 
-	if (error_wt)
-		cs40l26_log_err(cs40l26, error_wt, CS40L26_ERR_TYPE_FW, __func__);
+	if (error)
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 	else
 		cs40l26->wt_num = wt_num;
 
-	error_pm = cs40l26_pm_runtime_setup(cs40l26);
-	if (error_pm)
-		return cs40l26_log_err(cs40l26, error_pm, CS40L26_ERR_TYPE_PM, __func__);
+	/* Allow PM Runtime again after swap completes */
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_put_autosuspend(cs40l26->dev);
 
+exit_irq:
 	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_ENABLE);
 
-	return error_wt;
+	return error;
 }
 
 static ssize_t swap_wavetable_store(struct device *dev, struct device_attribute *attr,
