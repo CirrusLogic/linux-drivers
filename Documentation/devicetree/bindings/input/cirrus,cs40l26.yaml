@@ -609,10 +609,16 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description: |
       Inclusive range for STATE_OL_RESULTS_REDC represented as a two-element array <min max>.
-      This property must be formatted as s8.15 hex number and has a full range of
-      [0 - 255.999969] Ohms.
-      Will be rejected and set to defaults (0x000000, 0x7FFFFF) if minimum value is larger
-      than the maximum or if omitted from the devicetree.
+      Values are s8.15 fixed point (Ohms).
+
+      Full allowed range: [0 - 255.999969] Ohms
+      Default range: [7 - 14] Ohms
+
+      Will be rejected and set to defaults if minimum value is larger than the maximum or if
+      omitted from the devicetree.
+
+      default: [0x038000, 0x070000]
+
     items:
       - description: Minimum value
         minimum: 0x000000
@@ -625,10 +631,16 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description: |
       Inclusive range for STATE_OL_RESULTS_LE represented as a two-element array <min max>.
-      This property must be formatted as a s0.23 hex number and has a full range of
-      [0 - 1] Henries.
-      Will be rejected and set to defaults (0x000000, 0x7FFFFF) if minimum value is larger
-      than the maximum or if omitted from the devicetree.
+      Values are s0.23 fixed point (Henries).
+
+      Full allowed range: [0 - 1] Henries
+      Default range: [.00008 - .0008] Henries
+
+      Will be rejected and set to defaults if minimum value is larger than the maximum or if
+      omitted from the devicetree.
+
+      default: [0x00029F, 0x001A63]
+
     items:
       - description: Minimum value
         minimum: 0x000000
@@ -641,10 +653,16 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description: |
       Inclusive range for STATE_OL_RESULTS_F0 represented as a two-element array <min max>.
-      This property must be formatted as a s11.12 hex number and has a full range of
-      [0 - 2047.999756] Hz.
-      Will be rejected and set to defaults (0x000000, 0x7FFFFF) if minimum value is larger
-      than the maximum or if omitted from the devicetree.
+      Values are s11.12 fixed point (Hz).
+
+      Full allowed range: [0 - 2047.999756] Hz
+      Default range: [100 - 200] Hz
+
+      Will be rejected and set to defaults if minimum value is larger than the maximum or if
+      omitted from the devicetree.
+
+      default: [0x064000, 0x0C8000]
+
     items:
       - description: Minimum value
         minimum: 0x000000
@@ -657,10 +675,16 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description: |
       Inclusive range for STATE_OL_RESULTS_RES represented as a two-element array <min max>.
-      This property must be formatted as a s4.19 hex number and has a full range of
-      [0 - 15.999998] Ohms.
-      Will be rejected and set to defaults (0x000000, 0x7FFFFF) if minimum value is larger
-      than the maximum or if omitted from the devicetree.
+      Values are s4.19 fixed point (Ohms).
+
+      Full allowed range: [0 - 15.999998] Ohms
+      Default range: [0.6 - 8] Ohms
+
+      Will be rejected and set to defaults if minimum value is larger than the maximum or if
+      omitted from the devicetree.
+
+      default: [0x04CCCC, 0x400000]
+
     items:
       - description: Minimum value
         minimum: 0x000000
@@ -673,10 +697,16 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description: |
       Inclusive range for STATE_OL_RESULTS_Q represented as a two-element array <min max>.
-      This property must be formatted as a s6.17 hex number and has a full range of
-      [0 - 63.999992] (unitless).
-      Will be rejected and set to defaults (0x000000, 0x7FFFFF) if minimum value is larger
-      than the maximum or if omitted from the devicetree.
+      Values are s6.17 fixed point (unitless).
+
+      Full allowed range: [0 - 63.999992]
+      Default range: [5.5 - 35]
+
+      Will be rejected and set to defaults if minimum value is larger than the maximum or if
+      omitted from the devicetree.
+
+      default: [0x0B0000, 0x460000]
+
     items:
       - description: Minimum value
         minimum: 0x000000
@@ -689,10 +719,15 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description: |
       Inclusive range for STATE_CL_RESULTS_REDC represented as a two-element array <min max>.
-      This property must be formatted as a s8.15 hex number and has a full range of
-      [0 - 255.999969] Ohms.
-      Will be rejected and set to defaults (0x000000, 0x7FFFFF) if minimum value is larger
-      than the maximum or if omitted from the devicetree.
+      Values are s8.15 fixed point (Ohms).
+
+      Full allowed range: [0 - 255.999969] Ohms
+
+      Will be rejected and set to defaults if minimum value is larger than the maximum or if
+      omitted from the devicetree.
+
+      default: [0x038000, 0x070000]
+
     items:
       - description: Minimum value
         minimum: 0x000000
@@ -705,10 +740,16 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description: |
       Inclusive range for STATE_CL_RESULTS_LE represented as a two-element array <min max>.
-      This property must be formatted as a s0.23 hex number and has a full range of
-      [0 - 1] Henries.
-      Will be rejected and set to defaults (0x000000, 0x7FFFFF) if minimum value is larger
-      than the maximum or if omitted from the devicetree.
+      Values are s0.23 fixed point (Henries).
+
+      Full allowed range: [0 - 1] Henries
+      Default range: [.00008 - .0008] Henries
+
+      Will be rejected and set to defaults if minimum value is larger than the maximum or if
+      omitted from the devicetree.
+
+      default: [0x00029F, 0x001A63]
+
     items:
       - description: Minimum value
         minimum: 0x000000
@@ -721,10 +762,16 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description: |
       Inclusive range for STATE_CL_RESULTS_F0 represented as a two-element array <min max>.
-      This property must be formatted as a s11.12 hex number and has a full range of
-      [0 - 2047.999756] Hz.
-      Will be rejected and set to defaults (0x000000, 0x7FFFFF) if minimum value is larger
-      than the maximum or if omitted from the devicetree.
+      Values are s11.12 fixed point (Hz).
+
+      Full allowed range: [0 - 2047.999756] Hz
+      Default range: [100 - 200] Hz
+
+      Will be rejected and set to defaults if minimum value is larger than the maximum or if
+      omitted from the devicetree.
+
+      default: [0x064000, 0x0C8000]
+
     items:
       - description: Minimum value
         minimum: 0x000000
@@ -737,10 +784,16 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description: |
       Inclusive range for STATE_CL_RESULTS_RES represented as a two-element array <min max>.
-      This property must be formatted as a s4.19 hex number and has a full range of
-      [0 - 15.999998] Ohms.
-      Will be rejected and set to defaults (0x000000, 0x7FFFFF) if minimum value is larger
-      than the maximum or if omitted from the devicetree.
+      Values are s4.19 fixed point (Ohms).
+
+      Full allowed range: [0 - 15.999998] Ohms
+      Default range: [0.6 - 8] Ohms
+
+      Will be rejected and set to defaults if minimum value is larger than the maximum or if
+      omitted from the devicetree.
+
+      default: [0x04CCCC, 0x400000]
+
     items:
       - description: Minimum value
         minimum: 0x000000
@@ -753,10 +806,16 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description: |
       Inclusive range for STATE_CL_RESULTS_Q represented as a two-element array <min max>.
-      This property must be formatted as a s6.17 hex number and has a full range of
-      [0 - 63.999992] (unitless).
-      Will be rejected and set to defaults (0x000000, 0x7FFFFF) if minimum value is larger
-      than the maximum or if omitted from the devicetree.
+      Values are s6.17 fixed point (unitless).
+
+      Full allowed range: [0 - 63.999992]
+      Default range: [7 - 50]
+
+      Will be rejected and set to defaults if minimum value is larger than the maximum or if
+      omitted from the devicetree.
+
+      default: [0x0E0000, 0x640000]
+
     items:
       - description: Minimum value
         minimum: 0x000000
