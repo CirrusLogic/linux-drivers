@@ -5538,7 +5538,7 @@ static void cs40l26_wd_parse_properties(struct cs40l26_private *cs40l26)
 
 static void cs40l26_ls_cal_range_parse_properties(struct cs40l26_private *cs40l26)
 {
-	u32 vals[CS40L26_LS_CAL_RANGE_SIZE];
+	u32 max, min, vals[CS40L26_LS_CAL_RANGE_SIZE];
 	struct cs40l26_ls_cal_range *r;
 	int error, i;
 
@@ -5552,14 +5552,18 @@ static void cs40l26_ls_cal_range_parse_properties(struct cs40l26_private *cs40l2
 			continue;
 		}
 
-		if (vals[CS40L26_LS_CAL_MIN_INDEX] > vals[CS40L26_LS_CAL_MAX_INDEX]) {
+		min = vals[CS40L26_LS_CAL_MIN_INDEX];
+		max = vals[CS40L26_LS_CAL_MAX_INDEX];
+
+		if (min > max || min > CS40L26_LS_CAL_RANGE_MAX ||
+				max > CS40L26_LS_CAL_RANGE_MAX) {
 			dev_err(cs40l26->dev, "Invalid range for %s (min > max)\n", r->dt_prop);
 			cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DT, __func__);
 			continue;
 		}
 
-		r->min = vals[CS40L26_LS_CAL_MIN_INDEX];
-		r->max = vals[CS40L26_LS_CAL_MAX_INDEX];
+		r->min = min;
+		r->max = max;
 	}
 }
 
