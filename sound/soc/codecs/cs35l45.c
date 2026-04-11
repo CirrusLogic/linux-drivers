@@ -1138,6 +1138,7 @@ static int cs35l45_apply_property_config(struct cs35l45_private *cs35l45)
 				   CS35L45_INTB_GPIO2_MCLK_REF, CS35L45_GPIO3};
 	struct device_node *child;
 	unsigned int val;
+	const char *prop;
 	char of_name[32];
 	int ret, i;
 
@@ -1207,6 +1208,12 @@ static int cs35l45_apply_property_config(struct cs35l45_private *cs35l45)
 		cs35l45_apply_sync_property_config(cs35l45, child);
 
 	of_node_put(child);
+
+	/* If property is not available, fallback to legacy firmware path */
+	if (device_property_read_string(cs35l45->dev, "cirrus,firmware-uid", &prop) == 0) {
+		cs35l45->dsp.system_name = devm_kstrdup(cs35l45->dev, prop, GFP_KERNEL);
+		dev_dbg(cs35l45->dev, "Firmware UID: %s\n", cs35l45->dsp.system_name);
+	}
 
 	return 0;
 }
