@@ -85,14 +85,19 @@ static int cs40l26_clk_en(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kc
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		mutex_lock(&cs40l26->lock);
+
 		cs40l26_vibe_state_update(cs40l26, CS40L26_VIBE_STATE_EVENT_ASP_START);
+
 		ret = cs40l26_asp_start(cs40l26);
-		mutex_unlock(&cs40l26->lock);
-		if (ret)
+		if (ret) {
+			mutex_unlock(&cs40l26->lock);
 			return cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_ASP, __func__);
+		}
 
 		total_delay_time_us = cs40l26->asp_svc_init_delay_time_us +
 				cs40l26->asp_svc_init_delay_buffer_us;
+
+		mutex_unlock(&cs40l26->lock);
 
 		usleep_range(total_delay_time_us, total_delay_time_us + 100);
 
@@ -188,11 +193,15 @@ static int cs40l26_sdout_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *
 {
 	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(snd_soc_dapm_to_component(w->dapm));
-	int ret;
+	struct cs40l26_private *cs40l26 = codec->core;
+	int ret = 0;
+
+	mutex_lock(&cs40l26->lock);
 
 	if (!device_property_present(codec->core->dev, "cirrus,asp-dout-enable")) {
 		dev_err(codec->dev, "GP8 pin is not configured to function as SDOUT\n");
-		return cs40l26_log_err(codec->core, -EPERM, CS40L26_ERR_TYPE_HW, __func__);
+		ret = cs40l26_log_err(codec->core, -EPERM, CS40L26_ERR_TYPE_HW, __func__);
+		goto mutex_exit;
 	}
 
 	switch (event) {
@@ -200,38 +209,49 @@ static int cs40l26_sdout_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *
 		if (!codec->asp_rx) {
 			ret = regmap_set_bits(codec->regmap, CS40L26_ASP_ENABLES1,
 					CS40L26_ASP_ENABLE_MASK);
-			if (ret)
-				return cs40l26_log_err(codec->core, ret,
+			if (ret) {
+				cs40l26_log_err(codec->core, ret,
 						CS40L26_ERR_TYPE_CP, __func__);
+				goto mutex_exit;
+			}
 		}
 
 		ret = regmap_set_bits(codec->regmap, CS40L26_GPIO_PAD_CONTROL,
 				CS40L26_GP8_SDOUT_MASK);
-		if (ret)
-			return cs40l26_log_err(codec->core, ret, CS40L26_ERR_TYPE_CP, __func__);
+		if (ret) {
+			cs40l26_log_err(codec->core, ret, CS40L26_ERR_TYPE_CP, __func__);
+			goto mutex_exit;
+		}
 
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		if (!codec->asp_rx) {
 			ret = regmap_clear_bits(codec->regmap, CS40L26_ASP_ENABLES1,
 					CS40L26_ASP_ENABLE_MASK);
-			if (ret)
-				return cs40l26_log_err(codec->core, ret,
+			if (ret) {
+				cs40l26_log_err(codec->core, ret,
 						CS40L26_ERR_TYPE_CP, __func__);
+				goto mutex_exit;
+			}
 		}
 
 		ret = regmap_clear_bits(codec->regmap, CS40L26_GPIO_PAD_CONTROL,
 				CS40L26_GP8_SDOUT_MASK);
-		if (ret)
-			return cs40l26_log_err(codec->core, ret, CS40L26_ERR_TYPE_CP, __func__);
+		if (ret) {
+			cs40l26_log_err(codec->core, ret, CS40L26_ERR_TYPE_CP, __func__);
+			goto mutex_exit;
+		}
 
 		break;
 	default:
 		dev_err(codec->dev, "Invalid event: %d\n", event);
-		return cs40l26_log_err(codec->core, -EINVAL, CS40L26_ERR_TYPE_ASP, __func__);
+		ret = cs40l26_log_err(codec->core, -EINVAL, CS40L26_ERR_TYPE_ASP, __func__);
 	}
 
-	return 0;
+mutex_exit:
+	mutex_unlock(&cs40l26->lock);
+
+	return ret ? ret : 0;
 }
 
 static int cs40l26_asp_rx(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol, int event)
