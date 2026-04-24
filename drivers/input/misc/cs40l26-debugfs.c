@@ -187,17 +187,18 @@ static ssize_t cs40l26_hw_val_read(struct file *file, char __user *user_buf, siz
 	ssize_t error;
 	u32 val;
 
-	if (cs40l26->dbg_hw_reg % CL_DSP_BYTES_PER_WORD) {
-		dev_err(cs40l26->dev, "Reg. address 0x%08X not multiple of 4\n",
-				cs40l26->dbg_hw_reg);
-		return -EINVAL;
-	}
-
 	error = cs40l26_pm_enter(cs40l26->dev);
 	if (error)
 		return error;
 
 	mutex_lock(&cs40l26->lock);
+
+	if (cs40l26->dbg_hw_reg % CL_DSP_BYTES_PER_WORD) {
+		dev_err(cs40l26->dev, "Reg. address 0x%08X not multiple of 4\n",
+				cs40l26->dbg_hw_reg);
+		error = -EINVAL;
+		goto err_mutex;
+	}
 
 	error = regmap_read(cs40l26->regmap, cs40l26->dbg_hw_reg, &val);
 	if (error)
@@ -227,12 +228,6 @@ static ssize_t cs40l26_hw_val_write(struct file *file, const char __user *user_b
 	ssize_t error;
 	u32 val;
 
-	if (cs40l26->dbg_hw_reg % CL_DSP_BYTES_PER_WORD) {
-		dev_err(cs40l26->dev, "Reg. address 0x%08X not multiple of 4\n",
-				cs40l26->dbg_hw_reg);
-		return -EINVAL;
-	}
-
 	memset(str, 0, CS40L26_HW_STR_LEN);
 
 	simple_write_to_buffer(str, count, ppos, user_buf, count);
@@ -246,6 +241,13 @@ static ssize_t cs40l26_hw_val_write(struct file *file, const char __user *user_b
 		return error;
 
 	mutex_lock(&cs40l26->lock);
+
+	if (cs40l26->dbg_hw_reg % CL_DSP_BYTES_PER_WORD) {
+		dev_err(cs40l26->dev, "Reg. address 0x%08X not multiple of 4\n",
+				cs40l26->dbg_hw_reg);
+		error = -EINVAL;
+		goto exit_mutex;
+	}
 
 	error = regmap_write(cs40l26->regmap, cs40l26->dbg_hw_reg, val);
 	if (error)

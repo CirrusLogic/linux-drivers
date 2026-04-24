@@ -1129,9 +1129,6 @@ static ssize_t error_log_store(struct device *dev, struct device_attribute *attr
 	int error;
 	u32 clear;
 
-	if (cs40l26->err_clear_method == CS40L26_ERR_CLEAR_ON_READ)
-		return cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_SYSFS, __func__);
-
 	error = kstrtou32(buf, 10, &clear);
 	if (error)
 		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
@@ -1141,11 +1138,17 @@ static ssize_t error_log_store(struct device *dev, struct device_attribute *attr
 
 	mutex_lock(&cs40l26->lock);
 
+	if (cs40l26->err_clear_method == CS40L26_ERR_CLEAR_ON_READ) {
+		error = cs40l26_log_err(cs40l26, -EPERM, CS40L26_ERR_TYPE_SYSFS, __func__);
+		goto mutex_exit;
+	}
+
 	cs40l26_clear_err_log(cs40l26);
 
+mutex_exit:
 	mutex_unlock(&cs40l26->lock);
 
-	return count;
+	return error ? error : count;
 }
 static DEVICE_ATTR_RW(error_log);
 
