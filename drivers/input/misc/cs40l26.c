@@ -1920,19 +1920,19 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 	if (error)
 		goto err_free;
 
+	mutex_lock(&cs40l26->lock);
+
 	if (cs40l26->broadcast_client) {
 		error = cs40l26_find_sibling(dev, &sibling_dev);
 		if (error) {
 			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DT, __func__);
-			goto err_pm;
+			goto err_mutex;
 		}
 
 		error = cs40l26_pm_enter(sibling_dev);
 		if (error)
-			goto err_pm;
+			goto err_mutex;
 	}
-
-	mutex_lock(&cs40l26->lock);
 
 	effect = work_data->effect;
 
@@ -1953,16 +1953,13 @@ static void cs40l26_vibe_start_worker(struct work_struct *work)
 
 	if (cs40l26->broadcast_client) {
 		error = cs40l26_broadcast_write(cs40l26, reg, duration, false);
-		if (error) {
+		if (error)
 			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
-			goto err_mutex;
-		}
 	} else {
 		error = regmap_write(cs40l26->regmap, reg, duration);
 		if (error) {
 			dev_err(dev, "Failed to set TIMEOUT_MS\n");
 			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
-			goto err_mutex;
 		}
 	}
 
@@ -2035,7 +2032,7 @@ err_mutex:
 	mutex_unlock(&cs40l26->lock);
 	if (sibling_dev)
 		cs40l26_pm_exit(sibling_dev);
-err_pm:
+
 	cs40l26_pm_exit(dev);
 err_free:
 	kfree(work_data);
@@ -2056,19 +2053,19 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 	if (error)
 		goto err_free;
 
+	mutex_lock(&cs40l26->lock);
+
 	if (cs40l26->broadcast_client) {
 		error = cs40l26_find_sibling(cs40l26->dev, &sibling_dev);
 		if (error) {
 			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DT, __func__);
-			goto err_pm;
+			goto err_mutex;
 		}
 
 		error = cs40l26_pm_enter(sibling_dev);
 		if (error)
-			goto err_pm;
+			goto err_mutex;
 	}
-
-	mutex_lock(&cs40l26->lock);
 
 	delay_us = cs40l26->delay_before_stop_playback_us;
 	skip_delay = cs40l26_is_no_wait_ram_index(cs40l26, cs40l26->cur_index);
@@ -2105,10 +2102,11 @@ static void cs40l26_vibe_stop_worker(struct work_struct *work)
 		dev_dbg(cs40l26->dev, "Stop command skipped\n");
 	}
 
+err_mutex:
 	mutex_unlock(&cs40l26->lock);
 	if (sibling_dev)
 		cs40l26_pm_exit(sibling_dev);
-err_pm:
+
 	error = cs40l26_get_ram_ext_algo_id(cs40l26, &algo_id);
 	if (error)
 		dev_warn(cs40l26->dev, "Failed to get EXT algo ID\n");
