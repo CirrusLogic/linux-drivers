@@ -247,17 +247,31 @@ static int cs40l26_broadcast_write(struct cs40l26_private *cs40l26, u32 reg, u32
 
 int cs40l26_dsp_state_get(struct cs40l26_private *cs40l26, u8 *state)
 {
+	int error, i = 0;
 	u32 dsp_state;
-	int error;
 
-	if (cs40l26->fw_loaded)
-		error = cl_dsp_read_ctl_reg(cs40l26->dsp, "PM_CUR_STATE", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_PM_ALGO_ID, &dsp_state);
-	else
-		error = cs40l26_dsp_read(cs40l26, cs40l26->rom_regs->pm_cur_state, &dsp_state);
+	do {
+		if (cs40l26->fw_loaded)
+			error = cl_dsp_read_ctl_reg(cs40l26->dsp, "PM_CUR_STATE",
+					CL_DSP_XM_UNPACKED_TYPE, CS40L26_PM_ALGO_ID, &dsp_state);
+		else
+			error = cs40l26_dsp_read(cs40l26, cs40l26->rom_regs->pm_cur_state,
+					&dsp_state);
 
-	if (error)
-		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DSP, __func__);
+		if (error)
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DSP, __func__);
+
+		if (dsp_state != CS40L26_DSP_STATE_HIBERNATE)
+			break;
+
+		usleep_range(CS40L26_DSP_TIMEOUT_US_MIN, CS40L26_DSP_TIMEOUT_US_MAX);
+		i++;
+	} while (i < CS40L26_DSP_TIMEOUT_COUNT);
+
+	if (i == CS40L26_DSP_TIMEOUT_COUNT) {
+		dev_err(cs40l26->dev, "DSP does not wake from hibernation\n");
+		return cs40l26_log_err(cs40l26, -ETIMEDOUT, CS40L26_ERR_TYPE_DSP, __func__);
+	}
 
 	switch (dsp_state) {
 	case CS40L26_DSP_STATE_SHUTDOWN:
@@ -409,6 +423,7 @@ EXPORT_SYMBOL_GPL(cs40l26_pm_runtime_setup);
 inline void cs40l26_pm_runtime_teardown(struct cs40l26_private *cs40l26)
 {
 	int error;
+
 	pm_runtime_dont_use_autosuspend(cs40l26->dev);
 
 	error = pm_runtime_barrier(cs40l26->dev);
