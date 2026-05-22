@@ -32,6 +32,40 @@ bool cs40l26_broadcast_writeable_reg(struct device *dev, unsigned int reg)
 }
 EXPORT_SYMBOL_GPL(cs40l26_broadcast_writeable_reg);
 
+struct cs40l26_log_src_desc logger_src_descs[CS40L26_NUM_LOGGER_SRCS] = {
+	{
+		.id = CS40L26_LOGGER_SRC_ID_BEMF,
+		.mask = CS40L26_LOGGER_SRC_BEMF,
+		.name = "BEMF",
+	},
+	{
+		.id = CS40L26_LOGGER_SRC_ID_VBST,
+		.mask = CS40L26_LOGGER_SRC_VBST,
+		.name = "VBST",
+	},
+	{
+		.id = CS40L26_LOGGER_SRC_ID_VMON,
+		.mask = CS40L26_LOGGER_SRC_VMON,
+		.name = "VMON",
+	},
+	{
+		.id = CS40L26_LOGGER_SRC_ID_EP,
+		.mask = CS40L26_LOGGER_SRC_EP,
+		.name = "EP",
+	},
+	{
+		.id = CS40L26_LOGGER_SRC_ID_IMON,
+		.mask = CS40L26_LOGGER_SRC_IMON,
+		.name = "IMON",
+	},
+	{
+		.id = CS40L26_LOGGER_SRC_ID_PWR,
+		.mask = CS40L26_LOGGER_SRC_PWR,
+		.name = "PWR",
+	},
+};
+EXPORT_SYMBOL_GPL(logger_src_descs);
+
 struct cs40l26_ls_cal_range ls_cal_ranges[CS40L26_LS_CAL_RANGE_COUNT] = {
 	[CS40L26_LS_CAL_RANGE_ID_OL_REDC]	= {
 		.name		= "Open Loop REDC",

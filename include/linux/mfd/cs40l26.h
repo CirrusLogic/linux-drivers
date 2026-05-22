@@ -927,6 +927,8 @@
 #define CS40L26_LOGGER_SRC_FF_OUT		2
 #define CS40L26_LOGGER_SRC_PROTECTION_OUT	3
 
+#define CS40L26_LOGGER_SRC_BUFFER_2_SHIFT	8
+
 #define CS40L26_LOGGER_SRC_MAX_STR_LEN		25
 #define CS40L26_LOGGER_SRC_SIGN_MASK		BIT(23)
 #define CS40L26_LOGGER_SRC_SIZE_MASK		BIT(22)
@@ -940,6 +942,23 @@
 
 #define CS40L26_LOGGER_POWER_EN_MASK		BIT(5)
 #define CS40L26_LOGGER_POWER_EN_MAX		1
+
+#define CS40L26_LOGGER_SRC_BEMF			BIT(0)
+#define CS40L26_LOGGER_SRC_VBST			BIT(1)
+#define CS40L26_LOGGER_SRC_VMON			BIT(2)
+#define CS40L26_LOGGER_SRC_EP			BIT(3)
+#define CS40L26_LOGGER_SRC_IMON			BIT(4)
+#define CS40L26_LOGGER_SRC_PWR			BIT(5)
+
+#define CS40L26_LOGGER_SRC_ALL	\
+				(CS40L26_LOGGER_SRC_BEMF|\
+				CS40L26_LOGGER_SRC_VBST	|\
+				CS40L26_LOGGER_SRC_VMON	|\
+				CS40L26_LOGGER_SRC_EP	|\
+				CS40L26_LOGGER_SRC_IMON	|\
+				CS40L26_LOGGER_SRC_PWR)
+
+#define CS40L26_NUM_LOGGER_SRCS			6
 
 #define CS40L26_SVC_LE_MAX		0x7FFFFF
 
@@ -1250,6 +1269,12 @@ struct cs40l26_log_src {
 	u16 addr;
 };
 
+struct cs40l26_log_src_desc {
+	u8 id;
+	u32 mask;
+	const char *name;
+};
+
 struct cs40l26_ls_cal_range {
 	const char *name;
 	const char *min_name;
@@ -1467,7 +1492,10 @@ struct cs40l26_private {
 	u32 clip_lvl;
 	struct regmap_irq_chip_data *irq_data;
 	struct cs40l26_log_src *log_srcs;
-	u32 num_log_srcs;
+	int num_log_srcs_available;
+	u32 log_srcs_available;
+	u32 log_srcs_requested;
+	u32 log_srcs_default;
 	u32 ng_thld;
 	u32 ng_delay;
 	bool ng_enable;
@@ -1559,6 +1587,8 @@ int cs40l26_wseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data,
 int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26);
 void cs40l26_irq_enable(struct cs40l26_private *cs40l26, const unsigned int en);
 int cs40l26_log_err(struct cs40l26_private *cs40l26, int code, u32 type, const char *fxn_name);
+struct cs40l26_log_src_desc *cs40l26_log_src_desc_get(struct cs40l26_private *cs40l26, const u8 id);
+int cs40l26_logger_srcs_apply(struct cs40l26_private *cs40l26);
 
 /* external tables */
 extern struct cs40l26_wseq_params aseq_params;
@@ -1569,6 +1599,7 @@ extern const u32 cs40l26_attn_q21_2_vals[CS40L26_NUM_PCT_MAP_VALUES];
 extern const struct reg_sequence cs40l26_a1_errata[CS40L26_ERRATA_A1_NUM_WRITES];
 extern const struct cs40l26_ls_cal_param cs40l26_ls_cal_params[CS40L26_LS_CAL_NUM_REGS];
 extern struct cs40l26_ls_cal_range ls_cal_ranges[CS40L26_LS_CAL_RANGE_COUNT];
+extern struct cs40l26_log_src_desc logger_src_descs[CS40L26_NUM_LOGGER_SRCS];
 
 /* sysfs */
 extern const struct attribute_group *cs40l26_attr_groups[];
