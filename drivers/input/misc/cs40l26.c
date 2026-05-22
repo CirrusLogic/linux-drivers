@@ -4213,56 +4213,113 @@ static int cs40l26_dbc_config(struct cs40l26_private *cs40l26)
 	return cs40l26->dbc_enable ? cs40l26_dbc_enable(cs40l26) : 0;
 }
 
-static int cs40l26_logger_src_add(struct cs40l26_private *cs40l26,
-		enum cs40l26_logger_src_sign sign, enum cs40l26_logger_src_size size,
-		enum cs40l26_logger_src_type type, enum cs40l26_logger_src_avg avg,
-		enum cs40l26_logger_src_id id, u32 addr)
+struct cs40l26_log_src_desc *cs40l26_log_src_desc_get(struct cs40l26_private *cs40l26, const u8 id)
 {
-	u32 offset, src;
-	int error;
+	int i;
 
-	src = FIELD_PREP(CS40L26_LOGGER_SRC_ADDR_MASK, addr) |
-			FIELD_PREP(CS40L26_LOGGER_SRC_ID_MASK, id) |
-			FIELD_PREP(CS40L26_LOGGER_SRC_AVG_MASK, avg) |
-			FIELD_PREP(CS40L26_LOGGER_SRC_TYPE_MASK, type) |
-			FIELD_PREP(CS40L26_LOGGER_SRC_SIZE_MASK, size) |
-			FIELD_PREP(CS40L26_LOGGER_SRC_SIGN_MASK, sign);
-
-	offset = cs40l26->num_log_srcs * CL_DSP_BYTES_PER_WORD;
-
-	error = cl_dsp_write_ctl_reg_offset(cs40l26->dsp, "SOURCE", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_LOGGER_ALGO_ID, offset, src);
-	if (error)
-		return error;
-
-	cs40l26->num_log_srcs++;
-
-	return cl_dsp_write_ctl_reg(cs40l26->dsp, "COUNT", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_LOGGER_ALGO_ID, cs40l26->num_log_srcs);
-}
-
-static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
-{
-	u32 ep_buf_ptr, imon_buf_ptr, power_buf_ptr, src;
-	enum cs40l26_logger_src_type ep_src_type;
-	int error, i;
-
-	if (cs40l26->log_srcs != NULL) {
-		cs40l26->num_log_srcs = 0;
-		devm_kfree(cs40l26->dev, cs40l26->log_srcs);
+	for (i = 0; i < CS40L26_NUM_LOGGER_SRCS; i++) {
+		if (logger_src_descs[i].id == id)
+			return &logger_src_descs[i];
 	}
 
-	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "COUNT", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_LOGGER_ALGO_ID, &cs40l26->num_log_srcs);
-	if (error)
-		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+	return ERR_PTR(-EINVAL);
+}
+EXPORT_SYMBOL_GPL(cs40l26_log_src_desc_get);
 
-	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID)) {
-		error = cl_dsp_write_ctl_reg(cs40l26->dsp, "DBG_SRC_CFG", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_EP_ALGO_ID, CS40L26_LOGGER_SRC_PROTECTION_OUT << 8);
+int cs40l26_logger_srcs_apply(struct cs40l26_private *cs40l26)
+{
+	struct cs40l26_log_src_desc *desc;
+	u32 dbg_src_cfg, offset, src;
+	int count = 0, error, i;
+
+	for (i = 0; i < cs40l26->num_log_srcs_available; i++) {
+		desc = cs40l26_log_src_desc_get(cs40l26, cs40l26->log_srcs[i].id);
+		if (IS_ERR(desc))
+			return cs40l26_log_err(cs40l26, PTR_ERR(desc),
+					CS40L26_ERR_TYPE_DRIVER, __func__);
+
+		if (!(desc->mask & cs40l26->log_srcs_requested))
+			src = 0;
+		else
+			src = FIELD_PREP(CS40L26_LOGGER_SRC_ADDR_MASK, cs40l26->log_srcs[i].addr) |
+			FIELD_PREP(CS40L26_LOGGER_SRC_ID_MASK, cs40l26->log_srcs[i].id) |
+			FIELD_PREP(CS40L26_LOGGER_SRC_AVG_MASK, cs40l26->log_srcs[i].avg) |
+			FIELD_PREP(CS40L26_LOGGER_SRC_TYPE_MASK, cs40l26->log_srcs[i].type) |
+			FIELD_PREP(CS40L26_LOGGER_SRC_SIZE_MASK, cs40l26->log_srcs[i].size) |
+			FIELD_PREP(CS40L26_LOGGER_SRC_SIGN_MASK, cs40l26->log_srcs[i].sign);
+
+		offset = i * CL_DSP_BYTES_PER_WORD;
+
+		error = cl_dsp_write_ctl_reg_offset(cs40l26->dsp, "SOURCE",
+				CL_DSP_XM_UNPACKED_TYPE, CS40L26_LOGGER_ALGO_ID, offset, src);
 		if (error)
 			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
+		if (!strncmp(desc->name, "EP", strlen(desc->name))) {
+			error = cl_dsp_read_ctl_reg(cs40l26->dsp, "DBG_SRC_CFG",
+					CL_DSP_XM_UNPACKED_TYPE, CS40L26_EP_ALGO_ID, &dbg_src_cfg);
+			if (error)
+				return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW,
+						__func__);
+
+			if (src)
+				dbg_src_cfg |= (CS40L26_LOGGER_SRC_PROTECTION_OUT <<
+						CS40L26_LOGGER_SRC_BUFFER_2_SHIFT);
+			else
+				dbg_src_cfg &= ~(CS40L26_LOGGER_SRC_PROTECTION_OUT <<
+						CS40L26_LOGGER_SRC_BUFFER_2_SHIFT);
+
+			error = cl_dsp_write_ctl_reg(cs40l26->dsp, "DBG_SRC_CFG",
+					CL_DSP_XM_UNPACKED_TYPE, CS40L26_EP_ALGO_ID,
+					dbg_src_cfg);
+			if (error)
+				return cs40l26_log_err(cs40l26, error,
+						CS40L26_ERR_TYPE_FW, __func__);
+		}
+
+		if (src)
+			count++;
+	}
+
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "COUNT",
+			CL_DSP_XM_UNPACKED_TYPE, CS40L26_LOGGER_ALGO_ID, (u32) count);
+
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__) : 0;
+}
+EXPORT_SYMBOL_GPL(cs40l26_logger_srcs_apply);
+
+static int cs40l26_logger_src_add(struct cs40l26_private *cs40l26,
+		enum cs40l26_logger_src_sign sign, enum cs40l26_logger_src_size size,
+		enum cs40l26_logger_src_type type, enum cs40l26_logger_src_avg avg,
+		enum cs40l26_logger_src_id id, const u32 addr)
+{
+	int index = cs40l26->num_log_srcs_available;
+	struct cs40l26_log_src_desc *desc;
+
+	cs40l26->log_srcs[index].sign = sign;
+	cs40l26->log_srcs[index].size = size;
+	cs40l26->log_srcs[index].type = type;
+	cs40l26->log_srcs[index].avg = avg;
+	cs40l26->log_srcs[index].id = id;
+	cs40l26->log_srcs[index].addr = addr;
+
+	desc = cs40l26_log_src_desc_get(cs40l26, id);
+	if (IS_ERR(desc))
+		return cs40l26_log_err(cs40l26, PTR_ERR(desc), CS40L26_ERR_TYPE_DRIVER, __func__);
+
+	cs40l26->log_srcs_available |= desc->mask;
+	cs40l26->num_log_srcs_available++;
+
+	return 0;
+}
+
+static int cs40l26_logger_srcs_prepare(struct cs40l26_private *cs40l26)
+{
+	u32 ep_buf_ptr, imon_buf_ptr, pwr_buf_ptr;
+	enum cs40l26_logger_src_type ep_src_type;
+	int error;
+
+	if (cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_EP_ALGO_ID)) {
 		error = cl_dsp_get_reg(cs40l26->dsp, "DBG_ADDR", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_EP_ALGO_ID, &ep_buf_ptr);
 		if (error)
@@ -4284,7 +4341,7 @@ static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 	error = cl_dsp_get_reg(cs40l26->dsp, "LOGGER_IMON", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_EXT_ALGO_ID, &imon_buf_ptr);
 	if (error)
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
 	imon_buf_ptr /= CL_DSP_BYTES_PER_WORD;
 
@@ -4296,26 +4353,47 @@ static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 
 	if (cs40l26->revid == CS40L26_REVID_B2) {
 		error = cl_dsp_get_reg(cs40l26->dsp, "LOGGER_AVG_POW", CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_EXT_ALGO_ID, &power_buf_ptr);
+				CS40L26_EXT_ALGO_ID, &pwr_buf_ptr);
 		if (error)
-			return error;
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 
-		power_buf_ptr /= CL_DSP_BYTES_PER_WORD;
+		pwr_buf_ptr /= CL_DSP_BYTES_PER_WORD;
 
 		error = cs40l26_logger_src_add(cs40l26, CS40L26_LOGGER_SRC_SIGN_SIGNED,
 				CS40L26_LOGGER_SRC_SIZE_SINGLE, CS40L26_LOGGER_SRC_TYPE_XM_TO_XM,
 				CS40L26_LOGGER_SRC_BYPASS_AVG, CS40L26_LOGGER_SRC_ID_PWR,
-				power_buf_ptr);
+				pwr_buf_ptr);
 		if (error)
 			return error;
 	}
 
-	cs40l26->log_srcs = devm_kcalloc(cs40l26->dev, cs40l26->num_log_srcs,
-			sizeof(struct cs40l26_log_src), GFP_KERNEL);
-	if (IS_ERR_OR_NULL(cs40l26->log_srcs))
-		return cs40l26->log_srcs ? PTR_ERR(cs40l26->log_srcs) : -ENOMEM;
+	return 0;
+}
 
-	for (i = 0; i < cs40l26->num_log_srcs; i++) {
+static int cs40l26_logger_srcs_default_prepare(struct cs40l26_private *cs40l26)
+{
+	struct cs40l26_log_src_desc *desc;
+	u32 count, src;
+	int error, i;
+
+	devm_kfree(cs40l26->dev, cs40l26->log_srcs);
+	cs40l26->num_log_srcs_available = 0;
+
+	cs40l26->log_srcs = devm_kcalloc(cs40l26->dev, ARRAY_SIZE(logger_src_descs),
+			sizeof(*cs40l26->log_srcs), GFP_KERNEL);
+	if (!cs40l26->log_srcs)
+		return -ENOMEM;
+
+	/* Populate array with default sources */
+
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "COUNT", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_LOGGER_ALGO_ID, &count);
+	if (error)
+		goto err_free;
+
+	cs40l26->num_log_srcs_available = (int) count;
+
+	for (i = 0; i < cs40l26->num_log_srcs_available; i++) {
 		error = cl_dsp_read_ctl_reg_offset(cs40l26->dsp, "SOURCE", CL_DSP_XM_UNPACKED_TYPE,
 				CS40L26_LOGGER_ALGO_ID, i * CL_DSP_BYTES_PER_WORD, &src);
 		if (error)
@@ -4327,13 +4405,24 @@ static int cs40l26_logger_setup(struct cs40l26_private *cs40l26)
 		cs40l26->log_srcs[i].avg = FIELD_GET(CS40L26_LOGGER_SRC_AVG_MASK, src);
 		cs40l26->log_srcs[i].id = FIELD_GET(CS40L26_LOGGER_SRC_ID_MASK, src);
 		cs40l26->log_srcs[i].addr = FIELD_GET(CS40L26_LOGGER_SRC_ADDR_MASK, src);
+
+		desc = cs40l26_log_src_desc_get(cs40l26, cs40l26->log_srcs[i].id);
+		if (IS_ERR(desc)) {
+			error = PTR_ERR(desc);
+			goto err_free;
+		}
+
+		cs40l26->log_srcs_available |= desc->mask;
+		cs40l26->log_srcs_requested |= desc->mask;
+		cs40l26->log_srcs_default |= desc->mask;
 	}
 
 	return 0;
 
 err_free:
 	devm_kfree(cs40l26->dev, cs40l26->log_srcs);
-	return error;
+
+	return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DRIVER, __func__);
 }
 
 static int cs40l26_amp_drv_slope_config(struct cs40l26_private *cs40l26)
@@ -4583,7 +4672,15 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 		goto pm_err;
 	}
 
-	error = cs40l26_logger_setup(cs40l26);
+	error = cs40l26_logger_srcs_default_prepare(cs40l26);
+	if (error)
+		goto pm_err;
+
+	error = cs40l26_logger_srcs_prepare(cs40l26);
+	if (error)
+		goto pm_err;
+
+	error = cs40l26_logger_srcs_apply(cs40l26);
 	if (error)
 		goto pm_err;
 
