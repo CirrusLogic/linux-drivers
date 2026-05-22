@@ -2902,46 +2902,93 @@ static ssize_t logging_reset_store(struct device *dev, struct device_attribute *
 }
 static DEVICE_ATTR_WO(logging_reset);
 
+static ssize_t cs40l26_logger_srcs_show_common(struct cs40l26_private *cs40l26, char *buf, u32 mask)
+{
+	struct cs40l26_log_src_desc *desc;
+	int at = 0, i;
+
+	for (i = 0; i < cs40l26->num_log_srcs_available; i++) {
+		desc = cs40l26_log_src_desc_get(cs40l26, cs40l26->log_srcs[i].id);
+		if (IS_ERR(desc))
+			return cs40l26_log_err(cs40l26, PTR_ERR(desc),
+					CS40L26_ERR_TYPE_DRIVER, __func__);
+
+		if (mask & desc->mask) {
+			if (at > 0)
+				at += sysfs_emit_at(buf, at, " ");
+			at += sysfs_emit_at(buf, at, "%s", desc->name);
+		}
+	}
+
+	at += sysfs_emit_at(buf, at, "\n");
+
+	return at;
+}
+
 static ssize_t available_logger_srcs_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	int at = 0, error = 0, i;
+	ssize_t ret;
 
 	mutex_lock(&cs40l26->lock);
 
-	for (i = 0; i < cs40l26->num_log_srcs; i++) {
-		switch (cs40l26->log_srcs[i].id) {
-		case CS40L26_LOGGER_SRC_ID_BEMF:
-			at += sysfs_emit_at(buf, at, "BEMF\n");
-			break;
-		case CS40L26_LOGGER_SRC_ID_VBST:
-			at += sysfs_emit_at(buf, at, "VBST\n");
-			break;
-		case CS40L26_LOGGER_SRC_ID_VMON:
-			at += sysfs_emit_at(buf, at, "VMON\n");
-			break;
-		case CS40L26_LOGGER_SRC_ID_PWR:
-			at += sysfs_emit_at(buf, at, "PWR\n");
-			break;
-		case CS40L26_LOGGER_SRC_ID_EP:
-			at += sysfs_emit_at(buf, at, "EP\n");
-			break;
-		case CS40L26_LOGGER_SRC_ID_IMON:
-			at += sysfs_emit_at(buf, at, "IMON\n");
-			break;
-		default:
-			error = -EINVAL;
-			goto err_mutex;
-		}
-	}
+	ret = cs40l26_logger_srcs_show_common(cs40l26, buf, cs40l26->log_srcs_available);
 
-err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
-	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__) : at;
+	return ret;
 }
 static DEVICE_ATTR_RO(available_logger_srcs);
+
+static ssize_t requested_logger_srcs_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	ssize_t ret;
+
+	mutex_lock(&cs40l26->lock);
+
+	ret = cs40l26_logger_srcs_show_common(cs40l26, buf, cs40l26->log_srcs_requested);
+
+	mutex_unlock(&cs40l26->lock);
+
+	return ret;
+}
+
+static ssize_t requested_logger_srcs_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error;
+	u32 mask;
+
+	error = kstrtou32(buf, 16, &mask);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
+
+	if (mask & ~CS40L26_LOGGER_SRC_ALL)
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
+
+	mutex_lock(&cs40l26->lock);
+
+	/* Default sources cannot be disabled */
+	cs40l26->log_srcs_requested = mask | cs40l26->log_srcs_default;
+
+	error = cs40l26_logger_srcs_apply(cs40l26);
+
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : count;
+}
+
+static DEVICE_ATTR_RW(requested_logger_srcs);
 
 static ssize_t power_en_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -3024,12 +3071,12 @@ static int cs40l26_logger_data_get(struct cs40l26_private *cs40l26, enum cs40l26
 
 	mutex_lock(&cs40l26->lock);
 
-	for (src_num = 0; src_num < cs40l26->num_log_srcs; src_num++) {
+	for (src_num = 0; src_num < cs40l26->num_log_srcs_available; src_num++) {
 		if (cs40l26->log_srcs[src_num].id == id)
 			break;
 	}
 
-	if (src_num == cs40l26->num_log_srcs) {
+	if (src_num == cs40l26->num_log_srcs_available) {
 		error = -ENODATA;
 		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 		goto err_mutex;
@@ -3091,6 +3138,7 @@ static struct attribute *cs40l26_dev_attrs_dlog[] = {
 	&dev_attr_logging_en.attr,
 	&dev_attr_logging_reset.attr,
 	&dev_attr_available_logger_srcs.attr,
+	&dev_attr_requested_logger_srcs.attr,
 	&dev_attr_power_en.attr,
 	&dev_attr_avg_power.attr,
 	&dev_attr_max_power.attr,
