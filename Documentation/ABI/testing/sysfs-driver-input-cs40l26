@@ -1020,6 +1020,31 @@ Description:
 			0: Disable average power calculation
 			1: Enable average power calculation
 
+What:		/sys/class/input/input(x)/data_logger/requested_logger_srcs
+Date:		June 2026
+Contact:	patches@opensource.cirrus.com
+Description:
+		Allows user to set which logging sources are configured for use.
+
+		Uses a bitmask to determine which logger sources are set and will
+		be enabled when logger_en is set (0x3F will set all possible sources).
+
+		Prints text of logger sources that are requested by the user. Logging
+		cannot be enabled for sources that are not available in the loaded
+		firmware. See available_logger_srcs to determine which sources can
+		be configured. Sources that are built-in to the firmware and not
+		configured by the driver cannot be disabled.
+
+		Access: Read, Write
+
+		Valid values: Represented as hexadecimal bitmask
+			Bit 0: BEMF
+			Bit 1: VBST
+			Bit 2: VMON
+			Bit 3: EP
+			Bit 4: IMON
+			Bit 5: PWR
+
 What:		/sys/class/input/input(x)/firmware/fw_algo_id
 Date:		December 2023
 Contact:	patches@opensource.cirrus.com
