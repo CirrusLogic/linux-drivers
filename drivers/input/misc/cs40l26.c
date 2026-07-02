@@ -3416,20 +3416,17 @@ static void cs40l26_erase_worker(struct work_struct *work)
 		CS40L26_MAX_WAIT_VIBE_COMPLETE_MS :
 		work_data->effect->replay.length + CS40L26_ERASE_BUFFER_MS;
 
-	/* Check for ongoing effect playback. */
-	if (cs40l26->vibe_state == CS40L26_VIBE_STATE_HAPTIC) {
-		/* Wait for effect to complete. */
-		mutex_unlock(&cs40l26->lock);
-		if (!wait_for_completion_timeout(&cs40l26->erase_cont,
-				msecs_to_jiffies(duration))) {
-			error = -ETIME;
-			dev_err(cs40l26->dev, "Failed to erase effect (%d)\n",
-					effect_id);
-			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DSP, __func__);
-			goto out_pm;
-		}
-		mutex_lock(&cs40l26->lock);
+	/* Wait for effect to complete. */
+	mutex_unlock(&cs40l26->lock);
+	if (!wait_for_completion_timeout(&cs40l26->erase_cont,
+			msecs_to_jiffies(duration))) {
+		error = -ETIME;
+		dev_err(cs40l26->dev, "Failed to erase effect (%d)\n",
+				effect_id);
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DSP, __func__);
+		goto out_pm;
 	}
+	mutex_lock(&cs40l26->lock);
 
 	dev_dbg(cs40l26->dev, "%s: effect ID = %d\n", __func__, effect_id);
 
