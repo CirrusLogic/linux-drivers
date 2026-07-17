@@ -165,7 +165,9 @@ static ssize_t cs40l26_hw_reg_write(struct file *file, const char __user *user_b
 
 	mutex_lock(&cs40l26->lock);
 
-	simple_write_to_buffer(str, count, ppos, user_buf, count);
+	error = simple_write_to_buffer(str, count, ppos, user_buf, count);
+	if (error < 0)
+		goto err_mutex;
 
 	error = kstrtou32(str, CS40L26_HW_STR_LEN, &reg);
 	if (error)
@@ -230,7 +232,9 @@ static ssize_t cs40l26_hw_val_write(struct file *file, const char __user *user_b
 
 	memset(str, 0, CS40L26_HW_STR_LEN);
 
-	simple_write_to_buffer(str, count, ppos, user_buf, count);
+	error = simple_write_to_buffer(str, count, ppos, user_buf, count);
+	if (error < 0)
+		return error;
 
 	error = kstrtou32(str, CS40L26_HW_STR_LEN, &val);
 	if (error)
