@@ -488,7 +488,9 @@
 #define CS40L26_UPLOAD_MIN_SIZE			2
 
 #define CS40L26_OWT_INDEX_START			0x01400000
-#define CS40L26_OWT_INDEX_END			0x01400010
+#define CS40L26_OWT_INDEX_END			0x0140007F
+
+#define CS40L26_MAX_OWT_WAVES			128
 
 #define CS40L26_RAM_BANK_ID			0
 #define CS40L26_ROM_BANK_ID			1
@@ -830,7 +832,8 @@
 #define CS40L26_WT_TYPE10_WAVELEN_INDEF		0x400000
 #define CS40L26_WT_TYPE10_WAVELEN_CALCULATED	0x800000
 #define CS40L26_WT_TYPE10_COMP_DURATION_FLAG	0x80
-#define CS40L26_WT_TYPE10_COMP_ROM_FLAG			0x40
+#define CS40L26_WT_TYPE10_COMP_ROM_FLAG		0x40
+#define CS40L26_WT_TYPE10_COMP_OWT_FLAG		0x20
 #define CS40L26_WT_TYPE10_COMP_BUFFER		0x0000
 
 /* F0 Offset represented as Q10.14 format */
@@ -1369,6 +1372,10 @@ struct cs40l26_uploaded_effect {
 	u16 wvfrm_bank;
 	enum cs40l26_gpio_map mapping;
 	struct list_head list;
+	DECLARE_BITMAP(owt_refs, CS40L26_MAX_OWT_WAVES);
+	u8 *owt_data;
+	u32 owt_data_bytes;
+	struct cl_dsp_owt_header owt_header;
 };
 
 struct cs40l26_brwnout {
