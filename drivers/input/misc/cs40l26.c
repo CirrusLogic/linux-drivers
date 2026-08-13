@@ -2235,6 +2235,39 @@ int cs40l26_num_waves(struct cs40l26_private *cs40l26, u32 *nwaves)
 }
 EXPORT_SYMBOL_GPL(cs40l26_num_waves);
 
+static struct cs40l26_uploaded_effect *cs40l26_owt_bank_ueffect(struct cs40l26_private *cs40l26,
+		u8 index)
+{
+	struct cs40l26_uploaded_effect *ueffect;
+
+	if (index >= CS40L26_MAX_OWT_WAVES)
+		return ERR_PTR(-EINVAL);
+
+	list_for_each_entry(ueffect, &cs40l26->effect_head, list) {
+		if (ueffect->wvfrm_bank != CS40L26_OWT_BANK_ID)
+			continue;
+
+		if (ueffect->trigger_index == index + CS40L26_OWT_INDEX_START)
+			return ueffect;
+	}
+
+	return ERR_PTR(-EINVAL);
+}
+
+static struct cl_dsp_owt_header *cs40l26_owt_bank_header(struct cs40l26_private *cs40l26, u8 index)
+{
+	struct cs40l26_uploaded_effect *ueffect;
+
+	ueffect = cs40l26_owt_bank_ueffect(cs40l26, index);
+	if (IS_ERR(ueffect))
+		return ERR_CAST(ueffect);
+
+	if (!ueffect->owt_data)
+		return ERR_PTR(-ENODATA);
+
+	return &ueffect->owt_header;
+}
+
 static struct cl_dsp_owt_header *cs40l26_owt_header(struct cs40l26_private *cs40l26, u8 index,
 		u16 bank)
 {
@@ -2243,6 +2276,8 @@ static struct cl_dsp_owt_header *cs40l26_owt_header(struct cs40l26_private *cs40
 		return &cs40l26->dsp->wt_desc->owt.waves[index];
 	if (bank == CS40L26_ROM_BANK_ID && index < cs40l26->rom_wt.nwaves)
 		return &cs40l26->rom_wt.waves[index];
+	if (bank == CS40L26_OWT_BANK_ID)
+		return cs40l26_owt_bank_header(cs40l26, index);
 
 	return ERR_PTR(-EINVAL);
 }
@@ -2301,8 +2336,8 @@ static void cs40l26_owt_set_section_info(struct cs40l26_private *cs40l26,
 static int cs40l26_owt_get_section_info(struct cs40l26_private *cs40l26, struct cl_dsp_memchunk *ch,
 		struct cs40l26_owt_section *sections, u8 nsections)
 {
-	bool duration = false;
 	int error = 0, i;
+	bool duration;
 
 	for (i = 0; i < nsections; i++) {
 		error = cl_dsp_memchunk_read(cs40l26->dsp, ch, 8, &sections[i].amplitude);
@@ -2321,8 +2356,7 @@ static int cs40l26_owt_get_section_info(struct cs40l26_private *cs40l26, struct 
 		if (error)
 			return error;
 
-		if (sections[i].flags & CS40L26_WT_TYPE10_COMP_DURATION_FLAG)
-			duration = true;
+		duration = sections[i].flags & CS40L26_WT_TYPE10_COMP_DURATION_FLAG;
 
 		error = cl_dsp_memchunk_read(cs40l26->dsp, ch, 16, &sections[i].delay);
 		if (error)
@@ -2353,6 +2387,8 @@ static int cs40l26_owt_get_section_info(struct cs40l26_private *cs40l26, struct 
 
 		if (sections[i].flags & CS40L26_WT_TYPE10_COMP_ROM_FLAG)
 			sections[i].wvfrm_bank = CS40L26_ROM_BANK_ID;
+		else if (sections[i].flags & CS40L26_WT_TYPE10_COMP_OWT_FLAG)
+			sections[i].wvfrm_bank = CS40L26_OWT_BANK_ID;
 		else
 			sections[i].wvfrm_bank = CS40L26_RAM_BANK_ID;
 	}
@@ -2444,9 +2480,9 @@ err_free:
 
 static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, u8 *data, u32 data_size_bytes)
 {
+	u32 write_reg, wt_base, wt_offset, wt_size_words;
 	struct device *dev = cs40l26->dev;
 	struct cl_dsp *dsp = cs40l26->dsp;
-	unsigned int write_reg, wt_offset, wt_size_words, wt_base;
 	int error;
 
 	error = cs40l26_pm_enter(dev);
@@ -2481,7 +2517,7 @@ static int cs40l26_owt_upload(struct cs40l26_private *cs40l26, u8 *data, u32 dat
 	if (error)
 		goto err_pm;
 
-	write_reg = wt_base + (wt_offset * 4);
+	write_reg = wt_base + (wt_offset * CL_DSP_BYTES_PER_WORD);
 
 	error = cl_dsp_raw_write(cs40l26->dsp, write_reg, data, data_size_bytes, CL_DSP_MAX_WLEN);
 	if (error) {
@@ -2558,8 +2594,8 @@ sections_free:
 static int cs40l26_owt_comp_data_size(struct cs40l26_private *cs40l26,
 		u8 nsections, struct cs40l26_owt_section *sections)
 {
-	int i, size = 0;
 	struct cl_dsp_owt_header *header;
+	int i, size = 0;
 
 	for (i = 0; i < nsections; i++) {
 		if (sections[i].index == 0) {
@@ -2577,7 +2613,7 @@ static int cs40l26_owt_comp_data_size(struct cs40l26_private *cs40l26,
 			if (section_complete(&sections[i]))
 				size += CS40L26_WT_TYPE10_SECTION_BYTES_MIN;
 		} else {
-			size += sections[i].duration ?
+			size += (sections[i].flags & CS40L26_WT_TYPE10_COMP_DURATION_FLAG) ?
 					CS40L26_WT_TYPE10_SECTION_BYTES_MAX :
 					CS40L26_WT_TYPE10_SECTION_BYTES_MIN;
 		}
@@ -2586,16 +2622,40 @@ static int cs40l26_owt_comp_data_size(struct cs40l26_private *cs40l26,
 	return size;
 }
 
-static int cs40l26_composite_upload(struct cs40l26_private *cs40l26, s16 *in_data,
-		u32 in_data_nibbles)
+static int cs40l26_owt_cache(struct cs40l26_private *cs40l26,
+		struct cs40l26_uploaded_effect *ueffect, u8 type, const u8 *buf, u32 buf_bytes,
+		u32 offset_words, u32 size_words)
+{
+	u8 *copy;
+
+	copy = devm_kmemdup(cs40l26->dev, buf, buf_bytes, GFP_KERNEL);
+	if (!copy)
+		return -ENOMEM;
+
+	if (ueffect->owt_data)
+		devm_kfree(cs40l26->dev, ueffect->owt_data);
+
+	ueffect->owt_data = copy;
+	ueffect->owt_data_bytes = buf_bytes;
+	ueffect->owt_header.type = type;
+	ueffect->owt_header.offset = offset_words;
+	ueffect->owt_header.size = size_words;
+	ueffect->owt_header.data = copy + (offset_words * CL_DSP_BYTES_PER_WORD);
+
+	return 0;
+}
+
+static int cs40l26_composite_upload(struct cs40l26_private *cs40l26,
+		struct cs40l26_uploaded_effect *ueffect, s16 *in_data, u32 in_data_nibbles)
 {
 	int pos_byte = 0, in_pos_nib = 2, in_data_bytes = 2 * in_data_nibbles;
-	u8 nsections, global_rep, out_nsections = 0;
-	int out_data_bytes = 0, data_bytes = 0;
-	struct device *dev = cs40l26->dev;
 	u8 ncw_nsections, ncw_global_rep, *data, *ncw_data, *out_data;
 	u8 delay_section_data[CS40L26_WT_TYPE10_SECTION_BYTES_MIN];
+	u8 nsections, global_rep, out_nsections = 0;
+	int out_data_bytes = 0, data_bytes = 0;
+	struct cs40l26_uploaded_effect *child;
 	struct cs40l26_owt_section *sections;
+	struct device *dev = cs40l26->dev;
 	struct cl_dsp_memchunk ch, out_ch;
 	struct cl_dsp_owt_header *header;
 	u16 section_size_bytes;
@@ -2645,7 +2705,7 @@ static int cs40l26_composite_upload(struct cs40l26_private *cs40l26, s16 *in_dat
 	memset(&delay_section_data, 0, CS40L26_WT_TYPE10_SECTION_BYTES_MIN);
 
 	for (i = 0; i < nsections; i++) {
-		section_size_bytes = sections[i].duration ?
+		section_size_bytes = (sections[i].flags & CS40L26_WT_TYPE10_COMP_DURATION_FLAG) ?
 				CS40L26_WT_TYPE10_SECTION_BYTES_MAX :
 				CS40L26_WT_TYPE10_SECTION_BYTES_MIN;
 
@@ -2716,6 +2776,14 @@ static int cs40l26_composite_upload(struct cs40l26_private *cs40l26, s16 *in_dat
 			out_nsections += ncw_nsections;
 			kfree(ncw_data);
 
+			if (sections[i].wvfrm_bank == CS40L26_OWT_BANK_ID) {
+				child = cs40l26_owt_bank_ueffect(cs40l26, sections[i].index);
+				if (!IS_ERR(child))
+					bitmap_or(ueffect->owt_refs, ueffect->owt_refs,
+							child->owt_refs,
+							CS40L26_MAX_OWT_WAVES);
+			}
+
 			if (section_complete(&sections[i])) {
 				ch = cl_dsp_memchunk_create((void *) delay_section_data,
 						CS40L26_WT_TYPE10_SECTION_BYTES_MIN);
@@ -2733,6 +2801,9 @@ static int cs40l26_composite_upload(struct cs40l26_private *cs40l26, s16 *in_dat
 				out_nsections++;
 			}
 		} else {
+			if (sections[i].wvfrm_bank == CS40L26_OWT_BANK_ID)
+				set_bit(sections[i].index, ueffect->owt_refs);
+
 			memcpy(data + pos_byte, in_data + in_pos_nib, section_size_bytes);
 			pos_byte += section_size_bytes;
 			out_nsections++;
@@ -2768,6 +2839,12 @@ static int cs40l26_composite_upload(struct cs40l26_private *cs40l26, s16 *in_dat
 	memcpy(out_data + out_ch.bytes, data, data_bytes);
 
 	error = cs40l26_owt_upload(cs40l26, out_data, out_data_bytes);
+	if (error)
+		goto out_data_err_free;
+
+	error = cs40l26_owt_cache(cs40l26, ueffect, WT_TYPE_V6_COMPOSITE, out_data, out_data_bytes,
+			CS40L26_WT_HEADER_OFFSET,
+			CS40L26_WT_GLOBAL_DATA_OFFSET + (data_bytes / CL_DSP_BYTES_PER_WORD));
 
 out_data_err_free:
 	kfree(out_data);
@@ -2936,12 +3013,15 @@ static int cs40l26_custom_ram(struct cs40l26_private *cs40l26, struct cs40l26_wo
 }
 
 static int cs40l26_custom_owt(struct cs40l26_private *cs40l26, struct cs40l26_work *work_data,
-		size_t data_len, u32 *trigger_index)
+		size_t data_len, struct cs40l26_uploaded_effect *ueffect, u32 *trigger_index)
 {
+	u32 offset_words, size_words;
 	int error, index_tmp, nowt;
+	struct cl_dsp_memchunk ch;
 	u8 *pwle_data = NULL;
 	size_t pwle_data_len;
 	u16 index;
+	u8 type;
 
 	if (work_data->raw_custom_data[1] == CS40L26_WT_TYPE12_IDENTIFIER) {
 		pwle_data_len = work_data->raw_custom_data_len * 2;
@@ -2957,11 +3037,33 @@ static int cs40l26_custom_owt(struct cs40l26_private *cs40l26, struct cs40l26_wo
 		error = cs40l26_owt_upload(cs40l26, pwle_data, pwle_data_len);
 		if (error)
 			goto err_free;
-	} else {
-		error = cs40l26_composite_upload(cs40l26, work_data->raw_custom_data, data_len);
+
+		ch = cl_dsp_memchunk_create((void *) pwle_data, pwle_data_len);
+
+		error = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 16, NULL);
 		if (error)
 			goto err_free;
+
+		error = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 8, &type);
+		if (error)
+			goto err_free;
+
+		error = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 24, &offset_words);
+		if (error)
+			goto err_free;
+
+		error = cl_dsp_memchunk_read(cs40l26->dsp, &ch, 24, &size_words);
+		if (error)
+			goto err_free;
+
+		error = cs40l26_owt_cache(cs40l26, ueffect, type, pwle_data, pwle_data_len,
+				offset_words, size_words);
+	} else {
+		error = cs40l26_composite_upload(cs40l26, ueffect, work_data->raw_custom_data,
+				data_len);
 	}
+	if (error)
+		goto err_free;
 
 	error = cs40l26_num_owt_waves(cs40l26, &nowt);
 	if (error)
@@ -3000,7 +3102,7 @@ static int cs40l26_custom_upload(struct cs40l26_private *cs40l26, struct cs40l26
 	if (data_len > CS40L26_CUSTOM_DATA_SIZE) {
 		bank = (u16) CS40L26_OWT_BANK_ID;
 
-		error = cs40l26_custom_owt(cs40l26, work_data, data_len, &trigger_index);
+		error = cs40l26_custom_owt(cs40l26, work_data, data_len, ueffect, &trigger_index);
 		if (error)
 			return error;
 	} else {
@@ -3045,6 +3147,8 @@ static int cs40l26_uploaded_effect_add(struct cs40l26_private *cs40l26,
 			return -ENOMEM;
 	}
 
+	bitmap_zero(ueffect->owt_refs, CS40L26_MAX_OWT_WAVES);
+
 	if (effect->u.periodic.waveform == FF_CUSTOM) {
 		error = cs40l26_custom_upload(cs40l26, work_data, effect, ueffect);
 	} else if (effect->u.periodic.waveform == FF_SINE) {
@@ -3072,8 +3176,12 @@ static int cs40l26_uploaded_effect_add(struct cs40l26_private *cs40l26,
 
 	return 0;
 err_free:
-	if (is_new)
+	if (is_new) {
+		if (ueffect->owt_data)
+			devm_kfree(dev, ueffect->owt_data);
+
 		devm_kfree(dev, ueffect);
+	}
 
 	return error;
 }
@@ -3195,13 +3303,59 @@ static int cs40l26_erase_gpi_mapping(struct cs40l26_private *cs40l26, enum cs40l
 	return 0;
 }
 
+static void cs40l26_owt_is_referenced(struct cs40l26_private *cs40l26, u32 index,
+		struct cs40l26_uploaded_effect *current_ueffect)
+{
+	struct cs40l26_uploaded_effect *ueffect;
+	int bit;
+
+	list_for_each_entry(ueffect, &cs40l26->effect_head, list) {
+		if (ueffect == current_ueffect)
+			continue;
+
+		for_each_set_bit(bit, ueffect->owt_refs, CS40L26_MAX_OWT_WAVES) {
+			if (bit < index)
+				continue;
+
+			if (bit == index)
+				dev_warn(cs40l26->dev, "OWT Delete: effect %d is referenced by another effect\n",
+						current_ueffect->id);
+			else
+				dev_warn(cs40l26->dev, "OWT Delete: effect %d references a stale OWT effect\n",
+						ueffect->id);
+		}
+	}
+}
+
+static void cs40l26_owt_refs_shift(struct cs40l26_uploaded_effect *ueffect, u32 deleted)
+{
+	DECLARE_BITMAP(shifted, CS40L26_MAX_OWT_WAVES);
+	int bit;
+
+	bitmap_zero(shifted, CS40L26_MAX_OWT_WAVES);
+
+	for_each_set_bit(bit, ueffect->owt_refs, CS40L26_MAX_OWT_WAVES) {
+		if (bit < deleted)
+			set_bit(bit, shifted);
+		else if (bit > deleted)
+			set_bit(bit - 1, shifted);
+	}
+
+	bitmap_copy(ueffect->owt_refs, shifted, CS40L26_MAX_OWT_WAVES);
+}
+
 static int cs40l26_erase_owt(struct cs40l26_private *cs40l26,
 		struct cs40l26_uploaded_effect *ueffect)
 {
 	u32 cmd = CS40L26_DSP_MBOX_CMD_OWT_DELETE_BASE;
-	u32 index = ueffect->trigger_index;
 	struct cs40l26_uploaded_effect *ueffect_tmp;
+	u32 index = ueffect->trigger_index;
 	int error;
+
+	lockdep_assert_held(&cs40l26->lock);
+
+	if (ueffect->wvfrm_bank != CS40L26_OWT_BANK_ID)
+		return -EINVAL;
 
 	cmd |= (index & 0xFF);
 
@@ -3209,10 +3363,16 @@ static int cs40l26_erase_owt(struct cs40l26_private *cs40l26,
 	if (error)
 		return error;
 
+	cs40l26_owt_is_referenced(cs40l26, index - CS40L26_OWT_INDEX_START, ueffect);
+
 	/* Update indices for OWT waveforms uploaded after erased effect */
 	list_for_each_entry(ueffect_tmp, &cs40l26->effect_head, list) {
-		if (ueffect_tmp->wvfrm_bank == CS40L26_OWT_BANK_ID &&
-				ueffect_tmp->trigger_index > index)
+		if (ueffect_tmp->wvfrm_bank != CS40L26_OWT_BANK_ID)
+			continue;
+
+		cs40l26_owt_refs_shift(ueffect_tmp, index - CS40L26_OWT_INDEX_START);
+
+		if (ueffect_tmp->trigger_index > index)
 			ueffect_tmp->trigger_index--;
 	}
 
@@ -3284,6 +3444,7 @@ static void cs40l26_erase_worker(struct work_struct *work)
 	}
 
 	list_del(&ueffect->list);
+	devm_kfree(cs40l26->dev, ueffect->owt_data);
 	devm_kfree(cs40l26->dev, ueffect);
 
 out_mutex:
