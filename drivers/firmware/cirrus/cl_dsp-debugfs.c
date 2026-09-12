@@ -60,6 +60,103 @@ static int cl_dsp_host_buffer_field_write(struct cl_dsp_debugfs *db,
 	return ret;
 }
 
+static ssize_t cl_dsp_debugfs_logger_ctl_read(struct file *file, char __user *user_buf,
+		size_t count, loff_t *ppos)
+{
+	struct cl_dsp_debugfs *db = file->private_data;
+	char str[CL_DSP_DEBUGFS_TRACE_LOG_STRING_SIZE];
+	struct cl_dsp *dsp = db->core;
+	ssize_t ret;
+	u32 val;
+
+	ret = pm_runtime_get_sync(dsp->dev);
+	if (ret < 0) {
+		dev_err(dsp->dev, "PM Runtime Resume Failed\n");
+		return ret;
+	}
+
+	ret = cl_dsp_read_ctl_reg(dsp, "LOGGING_CONTROL", CL_DSP_XM_UNPACKED_TYPE, db->dl.algo_id,
+			&val);
+	if (ret) {
+		dev_err(dsp->dev, "Failed to get log control status\n");
+		goto pm_exit;
+	}
+
+	ret = snprintf(str, CL_DSP_DEBUGFS_TRACE_LOG_STRING_SIZE, "0x%02X\n", val);
+	if (ret <= 0) {
+		dev_err(dsp->dev, "Failed to parse log control status\n");
+		goto pm_exit;
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, str, strlen(str));
+
+pm_exit:
+	pm_runtime_mark_last_busy(dsp->dev);
+	pm_runtime_put_autosuspend(dsp->dev);
+
+	return ret;
+}
+
+static ssize_t cl_dsp_debugfs_logger_ctl_write(struct file *file, const char __user *user_buf,
+		size_t count, loff_t *ppos)
+{
+	struct cl_dsp_debugfs *db = file->private_data;
+	struct cl_dsp *dsp = db->core;
+	ssize_t ret;
+	char *str;
+	u32 val;
+
+	str = memdup_user_nul(user_buf, count);
+	if (IS_ERR(str))
+		return PTR_ERR(str);
+
+	ret = kstrtou32(str, 16, &val);
+	if (ret)
+		goto exit_free;
+
+	if (val > CL_DSP_DEBUGFS_LOG_CTL_MAX) {
+		dev_err(dsp->dev, "Invalid Log Control Value: 0x%X\n", val);
+		ret = -EINVAL;
+		goto exit_free;
+	}
+
+	ret = pm_runtime_get_sync(dsp->dev);
+	if (ret < 0) {
+		dev_err(dsp->dev, "PM Runtime Resume Failed\n");
+		goto exit_free;
+	}
+
+	ret = cl_dsp_write_ctl_reg(dsp, "LOGGING_CONTROL", CL_DSP_XM_UNPACKED_TYPE,
+			db->dl.algo_id, val);
+	if (ret) {
+		dev_err(dsp->dev, "Failed to set log control status\n");
+		goto exit_pm;
+	}
+
+	if (!(val & CL_DSP_DEBUGFS_LOG_CTL_EN)) {
+		/* Set next_read_index to -1 to reset logger */
+		ret = cl_dsp_host_buffer_field_write(db, HOST_BUFFER_FIELD(next_read_index),
+				CL_DSP_HOST_BUFFER_READ_INDEX_RESET);
+		if (ret) {
+			dev_err(dsp->dev, "Failed to reset event logger\n");
+			goto exit_pm;
+		}
+
+		kfree(db->dl.buf_data);
+		db->dl.buf_data = NULL;
+		db->dl.buf_data_size = 0;
+	}
+
+exit_pm:
+	pm_runtime_mark_last_busy(dsp->dev);
+	pm_runtime_put_autosuspend(dsp->dev);
+
+exit_free:
+	kfree(str);
+
+	return ret ? ret : count;
+}
+
 static ssize_t cl_dsp_debugfs_logger_en_read(struct file *file,
 		char __user *user_buf, size_t count, loff_t *ppos)
 {
@@ -378,6 +475,15 @@ static const struct {
 			.owner		= THIS_MODULE,
 			.open		= cl_dsp_debugfs_logger_open,
 			.read		= cl_dsp_debugfs_logger_read,
+		},
+	},
+	{
+		.name = "logger_ctl",
+		.fops = {
+			.owner		= THIS_MODULE,
+			.open		= simple_open,
+			.read		= cl_dsp_debugfs_logger_ctl_read,
+			.write		= cl_dsp_debugfs_logger_ctl_write,
 		},
 	},
 	{
