@@ -244,8 +244,9 @@ static ssize_t cl_dsp_debugfs_logger_en_write(struct file *file,
 			goto exit_pm;
 		}
 
-		db->dl.buf_data_size = 0;
 		kfree(db->dl.buf_data);
+		db->dl.buf_data = NULL;
+		db->dl.buf_data_size = 0;
 	}
 
 exit_pm:
