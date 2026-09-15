@@ -202,15 +202,9 @@ static ssize_t cl_dsp_debugfs_logger_en_write(struct file *file,
 	char *str;
 	u32 val;
 
-	str = kzalloc(count, GFP_KERNEL);
-	if (!str)
-		return -ENOMEM;
-
-	ret = simple_write_to_buffer(str, count, ppos, user_buf, count);
-	if (ret <= 0) {
-		dev_err(dsp->dev, "Failed to write debugfs data\n");
-		goto exit_free;
-	}
+	str = memdup_user_nul(user_buf, count);
+	if (IS_ERR(str))
+		return PTR_ERR(str);
 
 	ret = kstrtou32(str, 10, &val);
 	if (ret)
