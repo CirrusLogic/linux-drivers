@@ -296,8 +296,8 @@ static int cl_dsp_host_buffer_data_read(struct cl_dsp_debugfs *db,
 	u32 start_reg, offset = db->dl.buf_data_size;
 	struct regmap *regmap = db->core->regmap;
 	struct device *dev = db->core->dev;
+	u32 first_batch, *new_data;
 	size_t new_data_size;
-	u32 *new_data;
 	int ret;
 
 	start_reg = host_buffer_data_reg(&db->dl, (unsigned long)read_index);
@@ -312,10 +312,21 @@ static int cl_dsp_host_buffer_data_read(struct cl_dsp_debugfs *db,
 
 	db->dl.buf_data = new_data;
 
+	first_batch = min(num_words, db->dl.host_buf_size_words - read_index);
+
 	ret = regmap_bulk_read(regmap, start_reg, db->dl.buf_data + offset,
-			num_words);
-	if (ret)
+			first_batch);
+	if (ret) {
 		dev_err(dev, "Failed to get host buffer data\n");
+		return ret;
+	}
+
+	if (num_words > first_batch) {
+		ret = regmap_bulk_read(regmap, host_buffer_data_reg(&db->dl, 0),
+				db->dl.buf_data + offset + first_batch, num_words - first_batch);
+		if (ret)
+			dev_err(dev, "Failed to get host buffer data\n");
+	}
 
 	return ret;
 }
@@ -382,7 +393,7 @@ int cl_dsp_logger_update(struct cl_dsp_debugfs *db)
 
 	/* Set next_read_index to next_write_index */
 	ret = cl_dsp_host_buffer_field_write(db,
-			HOST_BUFFER_FIELD(next_read_index), n_write_index - 1);
+			HOST_BUFFER_FIELD(next_read_index), n_write_index);
 	if (ret)
 		return ret;
 
