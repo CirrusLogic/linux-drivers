@@ -485,6 +485,8 @@ static ssize_t f0_offset_store(struct device *dev, struct device_attribute *attr
 			CS40L26_VIBEGEN_ALGO_ID, f0_offset);
 	if (error)
 		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+	else
+		cs40l26->recovery.f0_offset = f0_offset;
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -682,10 +684,10 @@ static ssize_t swap_firmware_store(struct device *dev, struct device_attribute *
 
 	switch (variant) {
 	case CS40L26_FW_RUNTIME:
-		error = cs40l26_fw_swap(cs40l26, CS40L26_FW_ID);
+		error = cs40l26_reinit(cs40l26, CS40L26_FW_ID);
 		break;
 	case CS40L26_FW_CALIBRATION:
-		error = cs40l26_fw_swap(cs40l26, CS40L26_FW_CALIB_ID);
+		error = cs40l26_reinit(cs40l26, CS40L26_FW_CALIB_ID);
 		break;
 	default:
 		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
@@ -1350,6 +1352,75 @@ static ssize_t asp_svc_init_buffer_us_store(struct device *dev, struct device_at
 }
 static DEVICE_ATTR_RW(asp_svc_init_buffer_us);
 
+static int cs40l26_recovery_rate_limit(struct cs40l26_private *cs40l26)
+{
+	const u64 window_ns = CS40L26_RECOVERY_SLIDING_WINDOW_SECONDS * NSEC_PER_SEC;
+	u64 now = ktime_get_boottime_ns(), oldest;
+	int error;
+
+	while (!kfifo_is_empty(&cs40l26->recovery.timestamps)) {
+		if (!kfifo_out_peek(&cs40l26->recovery.timestamps, &oldest, 1))
+			break;
+
+		if (now - oldest < window_ns)
+			break;
+
+		error = kfifo_out(&cs40l26->recovery.timestamps, &oldest, 1);
+		if (error != 1)
+			return error;
+	}
+
+	if (kfifo_len(&cs40l26->recovery.timestamps) == CS40L26_RECOVERY_WINDOW_MAX_ATTEMPTS)
+		return -EAGAIN;
+
+	error = kfifo_in(&cs40l26->recovery.timestamps, &now, 1);
+	if (error != 1)
+		return error;
+
+	return 0;
+}
+
+static ssize_t recover_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	int error;
+	u32 id;
+
+	error = kstrtou32(buf, 10, &id);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
+
+	if (id != CS40L26_FW_RUNTIME)
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
+
+	error = cs40l26_recovery_rate_limit(cs40l26);
+	if (error) {
+		dev_err(cs40l26->dev, "Too many recovery attempts in %d-second window: %d\n",
+			CS40L26_RECOVERY_SLIDING_WINDOW_SECONDS, error);
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DRIVER, __func__);
+	}
+
+	error = cs40l26_reinit(cs40l26, CS40L26_FW_ID);
+	if (error)
+		return error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__);
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cs40l26_recover(cs40l26);
+
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : count;
+}
+static DEVICE_ATTR_WO(recover);
+
 static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_broadcast_master.attr,
 	&dev_attr_num_waves.attr,
@@ -1378,6 +1449,7 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_lf0t_freq_centre.attr,
 	&dev_attr_lf0t_init.attr,
 	&dev_attr_asp_svc_init_buffer_us.attr,
+	&dev_attr_recover.attr,
 	NULL,
 };
 
@@ -1892,6 +1964,8 @@ static ssize_t f0_stored_store(struct device *dev, struct device_attribute *attr
 			CS40L26_VIBEGEN_ALGO_ID, f0_stored);
 	if (error)
 		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+	else
+		cs40l26->recovery.f0_stored = f0_stored;
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -1949,6 +2023,8 @@ static ssize_t redc_stored_store(struct device *dev, struct device_attribute *at
 			CS40L26_VIBEGEN_ALGO_ID, redc_stored);
 	if (error)
 		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+	else
+		cs40l26->recovery.redc_stored = redc_stored;
 
 	mutex_unlock(&cs40l26->lock);
 
@@ -2271,6 +2347,9 @@ static ssize_t dvl_peq_coefficients_store(struct device *dev, struct device_attr
 			CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
 	if (error)
 		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+	else
+		memcpy(cs40l26->recovery.dvl_peq_coefficients, dvl_peq_coeffs,
+				sizeof(dvl_peq_coeffs));
 
 err_mutex:
 	mutex_unlock(&cs40l26->lock);
@@ -2546,9 +2625,9 @@ static ssize_t ls_calibration_results_store(struct device *dev, struct device_at
 		const char *buf, size_t count)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-	u32 ls_cal_results[CS40L26_LS_CAL_NUM_REGS], offset;
+	u32 ls_cal_results[CS40L26_LS_CAL_NUM_REGS];
 	char revision[CS40L26_ALGO_ID_MAX_STR_LEN];
-	int error, f0_index, i, results_found = 0;
+	int error, results_found = 0;
 
 	error = cs40l26_process_word_buf(cs40l26, buf, ls_cal_results, CS40L26_LS_CAL_NUM_REGS,
 			&results_found, revision);
@@ -2563,55 +2642,13 @@ static ssize_t ls_calibration_results_store(struct device *dev, struct device_at
 
 	mutex_lock(&cs40l26->lock);
 
-	error = cl_dsp_set_ctl_reg(cs40l26->dsp, "CFG", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_EP_ALGO_ID, CS40L26_LS_CAL_REINIT_MASK);
-	if (error) {
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
-		goto err_mutex;
+	error = cs40l26_write_ls_calibration_results(cs40l26, ls_cal_results, results_found);
+	if (!error) {
+		cs40l26->recovery.num_ls_calibration_results = results_found;
+		memcpy(cs40l26->recovery.ls_calibration_results, ls_cal_results,
+				sizeof(ls_cal_results));
 	}
 
-	f0_index = cs40l26->ls_cal_f0_closed_loop ?
-			CS40L26_LS_CAL_F0_CL_INDEX : CS40L26_LS_CAL_F0_OL_INDEX;
-
-	for (i = 0; i < results_found; i++) {
-		if (i == f0_index)
-			error = cl_dsp_write_ctl_reg(cs40l26->dsp, "F0_OTP_STORED",
-					CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID,
-					ls_cal_results[i] << CS40L26_LS_CAL_F0_TO_VIB_SHIFT);
-		else if (i == CS40L26_LS_CAL_REDC_INDEX)
-			error = cl_dsp_write_ctl_reg(cs40l26->dsp, "RE0", CL_DSP_XM_UNPACKED_TYPE,
-					CS40L26_THERM_LIM_ALGO_ID, ls_cal_results[i]);
-		else if (i == CS40L26_LS_CAL_TEMP_INDEX)
-			error = cl_dsp_write_ctl_reg(cs40l26->dsp, "T0", CL_DSP_XM_UNPACKED_TYPE,
-					CS40L26_THERM_LIM_ALGO_ID, ls_cal_results[i]);
-		if (error) {
-			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
-			goto err_mutex;
-		}
-
-		if (cs40l26_ls_cal_params[i].runtime_name == NULL)
-			continue;
-
-		if (cs40l26_ls_cal_params[i].word_num == 2)
-			offset = sizeof(u32);
-		else
-			offset = 0;
-
-		error = cl_dsp_write_ctl_reg_offset(cs40l26->dsp,
-				cs40l26_ls_cal_params[i].runtime_name, CL_DSP_XM_UNPACKED_TYPE,
-				CS40L26_EP_ALGO_ID, offset, ls_cal_results[i]);
-		if (error) {
-			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
-			goto err_mutex;
-		}
-	}
-
-	error = cl_dsp_set_ctl_reg(cs40l26->dsp, "CFG", CL_DSP_XM_UNPACKED_TYPE,
-			CS40L26_EP_ALGO_ID, CS40L26_EP_REINIT);
-	if (error)
-		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
-
-err_mutex:
 	mutex_unlock(&cs40l26->lock);
 
 	cs40l26_pm_exit(cs40l26->dev);

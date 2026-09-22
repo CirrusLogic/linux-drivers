@@ -5393,7 +5393,7 @@ void cs40l26_irq_enable(struct cs40l26_private *cs40l26, const unsigned int en)
 }
 EXPORT_SYMBOL_GPL(cs40l26_irq_enable);
 
-int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
+int cs40l26_reinit(struct cs40l26_private *cs40l26, const u32 id)
 {
 	int error;
 
@@ -5425,10 +5425,10 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 		if (cs40l26_pm_runtime_setup(cs40l26))
 			dev_err(cs40l26->dev, "Failed to re-initialize PM runtime\n");
 
-		return error;
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
 	}
-	cs40l26->prev_fw_load_failed = false;
 
+	cs40l26->prev_fw_load_failed = false;
 	cs40l26->wt_num = 0;
 
 	if (cs40l26->fw_defer && cs40l26->fw_loaded) {
@@ -5443,7 +5443,109 @@ int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cs40l26_fw_swap);
+EXPORT_SYMBOL_GPL(cs40l26_reinit);
+
+int cs40l26_write_ls_calibration_results(struct cs40l26_private *cs40l26, u32 *ls_cal_results,
+		int results_found)
+{
+	int error, f0_index, i;
+	u32 offset;
+
+	error = cl_dsp_set_ctl_reg(cs40l26->dsp, "CFG", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_EP_ALGO_ID, CS40L26_LS_CAL_REINIT_MASK);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	f0_index = cs40l26->ls_cal_f0_closed_loop ?
+			CS40L26_LS_CAL_F0_CL_INDEX : CS40L26_LS_CAL_F0_OL_INDEX;
+
+	for (i = 0; i < results_found; i++) {
+		if (i == f0_index)
+			error = cl_dsp_write_ctl_reg(cs40l26->dsp, "F0_OTP_STORED",
+					CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID,
+					ls_cal_results[i] << CS40L26_LS_CAL_F0_TO_VIB_SHIFT);
+		else if (i == CS40L26_LS_CAL_REDC_INDEX)
+			error = cl_dsp_write_ctl_reg(cs40l26->dsp, "RE0", CL_DSP_XM_UNPACKED_TYPE,
+					CS40L26_THERM_LIM_ALGO_ID, ls_cal_results[i]);
+		else if (i == CS40L26_LS_CAL_TEMP_INDEX)
+			error = cl_dsp_write_ctl_reg(cs40l26->dsp, "T0", CL_DSP_XM_UNPACKED_TYPE,
+					CS40L26_THERM_LIM_ALGO_ID, ls_cal_results[i]);
+		if (error)
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+		if (cs40l26_ls_cal_params[i].runtime_name == NULL)
+			continue;
+
+		if (cs40l26_ls_cal_params[i].word_num == 2)
+			offset = sizeof(u32);
+		else
+			offset = 0;
+
+		error = cl_dsp_write_ctl_reg_offset(cs40l26->dsp,
+				cs40l26_ls_cal_params[i].runtime_name, CL_DSP_XM_UNPACKED_TYPE,
+				CS40L26_EP_ALGO_ID, offset, ls_cal_results[i]);
+		if (error)
+			return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+	}
+
+	error = cl_dsp_set_ctl_reg(cs40l26->dsp, "CFG", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_EP_ALGO_ID, CS40L26_EP_REINIT);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs40l26_write_ls_calibration_results);
+
+int cs40l26_recover(struct cs40l26_private *cs40l26)
+{
+	int error;
+	u32 reg;
+
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "F0_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, cs40l26->recovery.f0_stored);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "F0_OFFSET", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, cs40l26->recovery.f0_offset);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "REDC_OTP_STORED", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_VIBEGEN_ALGO_ID, cs40l26->recovery.redc_stored);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = cl_dsp_get_reg(cs40l26->dsp, "PEQ_COEF1_X", CL_DSP_XM_UNPACKED_TYPE,
+			CS40L26_DVL_ALGO_ID, &reg);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+
+	error = regmap_bulk_write(cs40l26->regmap, reg, cs40l26->recovery.dvl_peq_coefficients,
+			CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_CP, __func__);
+
+	error = cs40l26_mailbox_write(cs40l26, CS40L26_DSP_MBOX_CMD_DVL_REINIT);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DSP, __func__);
+
+	error = cs40l26_write_ls_calibration_results(cs40l26,
+			cs40l26->recovery.ls_calibration_results,
+			cs40l26->recovery.num_ls_calibration_results);
+	if (error)
+		return error;
+
+	cs40l26->effects_in_flight = 0;
+	cs40l26->asp_enable = false;
+	cs40l26->vibe_state = CS40L26_VIBE_STATE_STOPPED;
+
+	sysfs_notify(&cs40l26->dev->kobj, "default", "vibe_state");
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs40l26_recover);
 
 int cs40l26_wt_swap(struct cs40l26_private *cs40l26, const u32 wt_num)
 {
@@ -6033,6 +6135,8 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 		error = -ENOMEM;
 		goto err;
 	}
+
+	INIT_KFIFO(cs40l26->recovery.timestamps);
 
 	timer_setup(&cs40l26->hibernate_timer, cs40l26_hibernate_timer_callback, 0);
 

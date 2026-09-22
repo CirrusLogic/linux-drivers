@@ -43,6 +43,7 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
+#include <linux/kfifo.h>
 
 #include <linux/firmware/cirrus/cl_dsp.h>
 
@@ -1048,6 +1049,10 @@
 /* Excursion Protection */
 #define CS40L26_EP_REINIT		BIT(2)
 
+/* Recovery Rate Limiting */
+#define CS40L26_RECOVERY_WINDOW_MAX_ATTEMPTS		10
+#define CS40L26_RECOVERY_SLIDING_WINDOW_SECONDS		300
+
 /* enums */
 enum cs40l26_amp_drv_slope_type {
 	CS40L26_AMP_DRV_SLOPE_TYPE_SLOWEST,
@@ -1418,6 +1423,16 @@ struct cs40l26_gain {
 	bool scaling_applied;
 };
 
+struct cs40l26_recovery {
+	u32 f0_stored;
+	u32 f0_offset;
+	u32 redc_stored;
+	u32 dvl_peq_coefficients[CS40L26_DVL_PEQ_COEFFICIENTS_NUM_REGS];
+	int num_ls_calibration_results;
+	u32 ls_calibration_results[CS40L26_LS_CAL_NUM_REGS];
+	DECLARE_KFIFO(timestamps, u64, roundup_pow_of_two(CS40L26_RECOVERY_WINDOW_MAX_ATTEMPTS));
+};
+
 struct cs40l26_private {
 	struct device *dev;
 	struct regmap *regmap;
@@ -1528,6 +1543,7 @@ struct cs40l26_private {
 	int ls_cal_num_retries;
 	u32 invert_state;
 	struct cs40l26_gain gain;
+	struct cs40l26_recovery recovery;
 };
 
 struct cs40l26_codec {
@@ -1558,7 +1574,7 @@ int cs40l26_asp_start(struct cs40l26_private *cs40l26);
 int cs40l26_num_ram_waves(struct cs40l26_private *cs40l26, u32 *nram);
 int cs40l26_num_owt_waves(struct cs40l26_private *cs40l26, u32 *nowt);
 int cs40l26_num_waves(struct cs40l26_private *cs40l26, u32 *nwaves);
-int cs40l26_fw_swap(struct cs40l26_private *cs40l26, const u32 id);
+int cs40l26_reinit(struct cs40l26_private *cs40l26, const u32 id);
 int cs40l26_wt_swap(struct cs40l26_private *cs40l26, const u32 wt_num);
 void cs40l26_vibe_state_update(struct cs40l26_private *cs40l26,
 		enum cs40l26_vibe_state_event event);
@@ -1596,6 +1612,9 @@ void cs40l26_irq_enable(struct cs40l26_private *cs40l26, const unsigned int en);
 int cs40l26_log_err(struct cs40l26_private *cs40l26, int code, u32 type, const char *fxn_name);
 struct cs40l26_log_src_desc *cs40l26_log_src_desc_get(struct cs40l26_private *cs40l26, const u8 id);
 int cs40l26_logger_srcs_apply(struct cs40l26_private *cs40l26);
+int cs40l26_recover(struct cs40l26_private *cs40l26);
+int cs40l26_write_ls_calibration_results(struct cs40l26_private *cs40l26, u32 *ls_cal_results,
+		int results_found);
 
 /* external tables */
 extern struct cs40l26_wseq_params aseq_params;
