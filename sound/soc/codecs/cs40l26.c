@@ -852,6 +852,73 @@ static int cs40l26_i2s_atten_offset_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int cs40l26_i2s_atten_pos_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct cs40l26_codec *codec =
+			snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
+	struct cs40l26_private *cs40l26 = codec->core;
+	struct device *dev = cs40l26->dev;
+	u32 val = 0;
+	int ret;
+
+	ret = cs40l26_pm_enter(dev);
+	if (ret)
+		return ret;
+
+	ret = cl_dsp_read_ctl_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw_id,
+			&val);
+	if (ret) {
+		cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_FW, __func__);
+		goto pm_err;
+	}
+
+	ucontrol->value.integer.value[0] = FIELD_GET(CS40L26_I2S_ATT_PRE_ALGOS, val);
+
+pm_err:
+	cs40l26_pm_exit(dev);
+
+	return ret;
+}
+
+static int cs40l26_i2s_atten_pos_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(comp);
+	struct cs40l26_codec *codec = snd_soc_component_get_drvdata(comp);
+	struct cs40l26_private *cs40l26 = codec->core;
+	struct device *dev = cs40l26->dev;
+	u32 val = 0;
+	int ret = 0;
+
+	ret = cs40l26_pm_enter(dev);
+	if (ret)
+		return ret;
+
+	snd_soc_dapm_mutex_lock(dapm);
+
+	if (ucontrol->value.integer.value[0] > CS40L26_I2S_ATT_PRE_ALGOS_MAX)
+		val = CS40L26_I2S_ATT_PRE_ALGOS_MAX;
+	else if (ucontrol->value.integer.value[0] < 0)
+		val = 0;
+	else
+		val = ucontrol->value.integer.value[0];
+
+	ret = cl_dsp_update_ctl_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE, cs40l26->fw_id,
+			val, CS40L26_I2S_ATT_PRE_ALGOS);
+	if (ret) {
+		dev_err(dev, "Failed to write I2S_ATT_PRE_ALGOS\n");
+		cs40l26_log_err(cs40l26, ret, CS40L26_ERR_TYPE_FW, __func__);
+	}
+
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	cs40l26_pm_exit(dev);
+
+	return ret;
+}
+
 static bool cs40l26_a2h_delay_present(struct cs40l26_private *cs40l26)
 {
 	u32 fw_rev;
@@ -1052,6 +1119,9 @@ static const struct snd_kcontrol_new cs40l26_controls[] = {
 			cs40l26_boost_disable_delay_get, cs40l26_boost_disable_delay_put),
 };
 
+static const char * const cs40l26_i2s_atten_pos_texts[] = { "Post Algorithm", "Pre Algorithm" };
+static SOC_ENUM_SINGLE_EXT_DECL(cs40l26_i2s_atten_pos_enum, cs40l26_i2s_atten_pos_texts);
+
 static const struct snd_kcontrol_new cs40l26_b2_controls[] = {
 	SOC_SINGLE_EXT("I2S Attenuation", 0, 0, CS40L26_I2S_ATTENUATION_MAX, 0,
 			cs40l26_i2s_atten_get, cs40l26_i2s_atten_put),
@@ -1071,6 +1141,8 @@ static const struct snd_kcontrol_new cs40l26_b2_controls[] = {
 			.invert = 0,
 		},
 	},
+	SOC_ENUM_EXT("I2S Attenuation Position", cs40l26_i2s_atten_pos_enum,
+			cs40l26_i2s_atten_pos_get, cs40l26_i2s_atten_pos_put),
 };
 
 static const char * const cs40l26_out_mux_texts[] = { "Off", "PCM", "A2H" };
