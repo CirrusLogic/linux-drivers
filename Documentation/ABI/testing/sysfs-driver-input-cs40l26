@@ -315,6 +315,18 @@ Description:
 			Maximum: 10000
 			Default: 100
 
+What:		/sys/class/input/input(x)/default/recover
+Date:		September 2026
+Contact:	patches@opensource.cirrus.com
+Description:
+		Reset the device and restore a subset of DSP register values in runtime
+		firmware.
+
+		Access: Write
+
+		Valid values: Represented as enum
+			0: Recover into runtime firmware
+
 What:		/sys/class/input/input(x)/default/redc_comp_enable
 Date:		December 2023
 Contact:	patches@opensource.cirrus.com
