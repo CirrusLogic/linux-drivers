@@ -339,6 +339,19 @@ Description:
 			0: Disable ReDC compensation
 			1: Enable ReDC compensation
 
+What:		/sys/class/input/input(x)/default/source_attenuation_position
+Date:		September 2026
+Contact:	patches@opensource.cirrus.com
+Description:
+		Select whether source attenuation is applied before or after firmware
+		algorithms.
+
+		Access: Read, Write
+
+		Valid values: Represented as enum
+			0: Attenuation applied post-algorithm
+			1: Attenuation applied pre-algorithm
+
 What:		/sys/class/input/input(x)/default/swap_firmware
 Date:		September 2023
 Contact:	patches@opensource.cirrus.com
