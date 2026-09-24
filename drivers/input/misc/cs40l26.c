@@ -462,7 +462,7 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 {
 	struct cs40l26_work *work_data = container_of(work, struct cs40l26_work, work);
 	struct cs40l26_private *cs40l26 = work_data->cs40l26;
-	u32 algo_id;
+	u32 algo_id, i2s_attenuation, source_attenuation;
 	int error;
 	u16 gain;
 
@@ -488,8 +488,10 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 	if (error)
 		goto err_mutex;
 
+	source_attenuation = cs40l26_attn_q21_2_vals[gain];
+
 	error = cl_dsp_write_ctl_reg(cs40l26->dsp, "SOURCE_ATTENUATION",
-			CL_DSP_XM_UNPACKED_TYPE, algo_id, cs40l26_attn_q21_2_vals[gain]);
+			CL_DSP_XM_UNPACKED_TYPE, algo_id, source_attenuation);
 	if (error) {
 		dev_err(cs40l26->dev, "Failed to set attenuation\n");
 		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
@@ -498,8 +500,15 @@ static void cs40l26_set_gain_worker(struct work_struct *work)
 
 	if (cs40l26->revid == CS40L26_REVID_B2 &&
 			cs40l26->gain.asp_opt != CS40L26_ASP_GAIN_OPT_MIXER) {
+		i2s_attenuation = source_attenuation + cs40l26->i2s_atten_offset;
+		if (!in_range32(i2s_attenuation, 0, CS40L26_I2S_ATTENUATION_MAX)) {
+			dev_err(cs40l26->dev, "I2S attenuation out of range\n");
+			cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_DRIVER, __func__);
+			goto err_mutex;
+		}
+
 		error = cl_dsp_write_ctl_reg(cs40l26->dsp, "I2S_ATTENUATION",
-				CL_DSP_XM_UNPACKED_TYPE, algo_id, cs40l26_attn_q21_2_vals[gain]);
+				CL_DSP_XM_UNPACKED_TYPE, algo_id, i2s_attenuation);
 		if (error) {
 			dev_err(cs40l26->dev, "Failed to set I2S attenuation\n");
 			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
