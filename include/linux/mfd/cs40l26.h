@@ -1544,6 +1544,7 @@ struct cs40l26_private {
 	u32 invert_state;
 	struct cs40l26_gain gain;
 	struct cs40l26_recovery recovery;
+	s32 i2s_atten_offset;
 };
 
 struct cs40l26_codec {

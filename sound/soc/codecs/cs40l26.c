@@ -815,6 +815,43 @@ static int cs40l26_i2s_atten_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return ret;
 }
 
+static int cs40l26_i2s_atten_offset_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct cs40l26_codec *codec =
+			snd_soc_component_get_drvdata(snd_soc_kcontrol_component(kcontrol));
+	struct cs40l26_private *cs40l26 = codec->core;
+
+	mutex_lock(&cs40l26->lock);
+
+	ucontrol->value.integer.value[0] = cs40l26->i2s_atten_offset;
+
+	mutex_unlock(&cs40l26->lock);
+
+	return 0;
+}
+
+static int cs40l26_i2s_atten_offset_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct cs40l26_codec *codec = snd_soc_component_get_drvdata(comp);
+	struct cs40l26_private *cs40l26 = codec->core;
+
+	mutex_lock(&cs40l26->lock);
+
+	if (ucontrol->value.integer.value[0] > CS40L26_I2S_ATTENUATION_MAX)
+		cs40l26->i2s_atten_offset = CS40L26_I2S_ATTENUATION_MAX;
+	else if (ucontrol->value.integer.value[0] < -CS40L26_I2S_ATTENUATION_MAX)
+		cs40l26->i2s_atten_offset = -CS40L26_I2S_ATTENUATION_MAX;
+	else
+		cs40l26->i2s_atten_offset = ucontrol->value.integer.value[0];
+
+	mutex_unlock(&cs40l26->lock);
+
+	return 0;
+}
+
 static bool cs40l26_a2h_delay_present(struct cs40l26_private *cs40l26)
 {
 	u32 fw_rev;
@@ -982,6 +1019,19 @@ pm_err:
 	return ret;
 }
 
+static int cs40l26_info_signed(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
+{
+	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = mc->min;
+	uinfo->value.integer.max = mc->max;
+	uinfo->value.integer.step = 1;
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new cs40l26_controls[] = {
 	SOC_SINGLE_EXT("A2H Tuning", 0, 0, CS40L26_A2H_MAX_TUNINGS, 0, cs40l26_tuning_get,
 			cs40l26_tuning_put),
@@ -1005,6 +1055,22 @@ static const struct snd_kcontrol_new cs40l26_controls[] = {
 static const struct snd_kcontrol_new cs40l26_b2_controls[] = {
 	SOC_SINGLE_EXT("I2S Attenuation", 0, 0, CS40L26_I2S_ATTENUATION_MAX, 0,
 			cs40l26_i2s_atten_get, cs40l26_i2s_atten_put),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "I2S Attenuation Offset",
+		.info = cs40l26_info_signed,
+		.get = cs40l26_i2s_atten_offset_get,
+		.put = cs40l26_i2s_atten_offset_put,
+		.private_value = (unsigned long)&(struct soc_mixer_control) {
+			.reg = 0,
+			.rreg = 0,
+			.shift = 0,
+			.rshift = 0,
+			.min = -CS40L26_I2S_ATTENUATION_MAX,
+			.max = CS40L26_I2S_ATTENUATION_MAX,
+			.invert = 0,
+		},
+	},
 };
 
 static const char * const cs40l26_out_mux_texts[] = { "Off", "PCM", "A2H" };
