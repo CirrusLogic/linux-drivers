@@ -1421,6 +1421,67 @@ static ssize_t recover_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_WO(recover);
 
+static ssize_t source_attenuation_position_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 source_att_pre_algos;
+	int error;
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__);
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cl_dsp_read_ctl_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
+			cs40l26->fw_id, &source_att_pre_algos);
+	if (error) {
+		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__);
+		goto err_mutex;
+	}
+
+	source_att_pre_algos = FIELD_GET(CS40L26_SOURCE_ATT_PRE_ALGOS, source_att_pre_algos);
+
+err_mutex:
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? error : sysfs_emit(buf, "%u\n", source_att_pre_algos);
+}
+
+static ssize_t source_attenuation_position_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
+	u32 source_att_pre_algos;
+	int error;
+
+	error = kstrtou32(buf, 10, &source_att_pre_algos);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
+
+	if (source_att_pre_algos > CS40L26_SOURCE_ATT_PRE_ALGOS_MAX)
+		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
+
+	error = cs40l26_pm_enter(cs40l26->dev);
+	if (error)
+		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_PM, __func__);
+
+	mutex_lock(&cs40l26->lock);
+
+	error = cl_dsp_update_ctl_reg(cs40l26->dsp, "FLAGS", CL_DSP_XM_UNPACKED_TYPE,
+			cs40l26->fw_id, source_att_pre_algos, CS40L26_SOURCE_ATT_PRE_ALGOS);
+
+	mutex_unlock(&cs40l26->lock);
+
+	cs40l26_pm_exit(cs40l26->dev);
+
+	return error ? cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_FW, __func__) : count;
+}
+static DEVICE_ATTR_RW(source_attenuation_position);
+
 static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_broadcast_master.attr,
 	&dev_attr_num_waves.attr,
@@ -1450,6 +1511,7 @@ static struct attribute *cs40l26_dev_attrs[] = {
 	&dev_attr_lf0t_init.attr,
 	&dev_attr_asp_svc_init_buffer_us.attr,
 	&dev_attr_recover.attr,
+	&dev_attr_source_attenuation_position.attr,
 	NULL,
 };
 
