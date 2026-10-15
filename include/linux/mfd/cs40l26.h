@@ -972,6 +972,8 @@
 				CS40L26_LOGGER_SRC_IMON	|\
 				CS40L26_LOGGER_SRC_PWR)
 
+#define CS40L26_LOGGER_SRC_SLOT_NONE		-1
+
 #define CS40L26_NUM_LOGGER_SRCS			6
 
 #define CS40L26_SVC_LE_MAX		0x7FFFFF
@@ -1285,6 +1287,7 @@ struct cs40l26_log_src {
 	u8 avg;
 	u8 id;
 	u16 addr;
+	int slot;
 };
 
 struct cs40l26_log_src_desc {
@@ -1624,6 +1627,7 @@ void cs40l26_irq_enable(struct cs40l26_private *cs40l26, const unsigned int en);
 int cs40l26_log_err(struct cs40l26_private *cs40l26, int code, u32 type, const char *fxn_name);
 struct cs40l26_log_src_desc *cs40l26_log_src_desc_get(struct cs40l26_private *cs40l26, const u8 id);
 int cs40l26_logger_srcs_apply(struct cs40l26_private *cs40l26);
+int cs40l26_logger_srcs_slot_get(struct cs40l26_private *cs40l26, const u8 id);
 int cs40l26_recover(struct cs40l26_private *cs40l26);
 int cs40l26_write_ls_calibration_results(struct cs40l26_private *cs40l26, u32 *ls_cal_results,
 		int results_found);
