@@ -241,12 +241,16 @@
 #define CS40L26_WSEQ_ACTIVE_NAME	"ACTIVE_SEQUENCE"
 #define CS40L26_WSEQ_POWER_ON_NAME	"POWER_ON_SEQUENCE"
 
-#define CS40L26_WSEQ_OP_MAX_WORDS		3
+#define CS40L26_WSEQ_OP_MAX_WORDS		4
 #define CS40L26_WSEQ_OP_CODE_NBITS		8
 #define CS40L26_WSEQ_STR_LINE_LEN		64
 #define CS40L26_WSEQ_OP_WRITE_FULL		0x00
 #define CS40L26_WSEQ_OP_WRITE_FULL_ADDR_NBITS	32
 #define CS40L26_WSEQ_OP_WRITE_FULL_DATA_NBITS	32
+#define CS40L26_WSEQ_OP_WRITE_FIELD		0x01
+#define CS40L26_WSEQ_OP_WRITE_FIELD_ADDR_NBITS	24
+#define CS40L26_WSEQ_OP_WRITE_FIELD_DATA_NBITS	32
+#define CS40L26_WSEQ_OP_WRITE_FIELD_MASK_NBITS	32
 #define CS40L26_WSEQ_OP_WRITE_ADDR8		0x02
 #define CS40L26_WSEQ_OP_WRITE_ADDR8_ADDR_NBITS	8
 #define CS40L26_WSEQ_OP_WRITE_ADDR8_DATA_NBITS	32
@@ -257,6 +261,7 @@
 #define CS40L26_WSEQ_OP_END			0xFF
 #define CS40L26_WSEQ_OP_END_ADDR		0xFFFFFF
 #define CS40L26_WSEQ_OP_END_DATA		0xFFFFFF
+#define CS40L26_WSEQ_OP_NO_MASK			0
 
 #define CS40L26_WSEQ_LIST_TERMINATOR		0xFFFFFF
 
@@ -1349,6 +1354,7 @@ struct cs40l26_wseq_op {
 	u32 addr;
 	u8 code;
 	u32 data;
+	u32 mask;
 	u16 offset;
 };
 
@@ -1611,7 +1617,7 @@ bool cs40l26_broadcast_readable_reg(struct device *dev, unsigned int reg);
 bool cs40l26_broadcast_writeable_reg(struct device *dev, unsigned int reg);
 int cs40l26_wseq_read(struct cs40l26_private *cs40l26, struct cl_dsp_memchunk *ch,
 		struct cs40l26_wseq_op *op);
-int cs40l26_wseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data,
+int cs40l26_wseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data, u32 mask,
 		bool update, u8 op_code, struct cs40l26_wseq_params *wseq_params);
 int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26);
 void cs40l26_irq_enable(struct cs40l26_private *cs40l26, const unsigned int en);
