@@ -3161,7 +3161,7 @@ static DEVICE_ATTR_RW(power_en);
 static int cs40l26_logger_data_get(struct cs40l26_private *cs40l26, enum cs40l26_logger_src_id id,
 		enum cs40l26_logger_data_type type, u32 *val)
 {
-	int error, src_num;
+	int error, slot;
 	u32 offset;
 
 	error = cs40l26_pm_enter(cs40l26->dev);
@@ -3170,19 +3170,14 @@ static int cs40l26_logger_data_get(struct cs40l26_private *cs40l26, enum cs40l26
 
 	mutex_lock(&cs40l26->lock);
 
-	for (src_num = 0; src_num < cs40l26->num_log_srcs_available; src_num++) {
-		if (cs40l26->log_srcs[src_num].id == id)
-			break;
-	}
-
-	if (src_num == cs40l26->num_log_srcs_available) {
+	slot = cs40l26_logger_srcs_slot_get(cs40l26, id);
+	if (slot < 0) {
 		error = -ENODATA;
 		cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 		goto err_mutex;
 	}
 
-	offset = (src_num * CS40L26_LOGGER_DATA_SRC_STEP) +
-			(type * CS40L26_LOGGER_DATA_OFFSET_STEP);
+	offset = (slot * CS40L26_LOGGER_DATA_SRC_STEP) + (type * CS40L26_LOGGER_DATA_OFFSET_STEP);
 
 	error = cl_dsp_read_ctl_reg_offset(cs40l26->dsp, "DATA", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_LOGGER_ALGO_ID, offset, val);
