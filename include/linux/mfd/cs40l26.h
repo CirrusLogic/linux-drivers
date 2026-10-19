@@ -1454,6 +1454,7 @@ struct cs40l26_private {
 	u32 devid : 24;
 	u8 revid;
 	struct mutex lock;
+	struct mutex swap_lock;
 	struct gpio_desc *reset_gpio;
 	struct input_dev *input;
 	struct cl_dsp *dsp;

@@ -682,6 +682,8 @@ static ssize_t swap_firmware_store(struct device *dev, struct device_attribute *
 	if (error)
 		return cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_SYSFS, __func__);
 
+	mutex_lock(&cs40l26->swap_lock);
+
 	switch (variant) {
 	case CS40L26_FW_RUNTIME:
 		error = cs40l26_reinit(cs40l26, CS40L26_FW_ID);
@@ -690,8 +692,11 @@ static ssize_t swap_firmware_store(struct device *dev, struct device_attribute *
 		error = cs40l26_reinit(cs40l26, CS40L26_FW_CALIB_ID);
 		break;
 	default:
-		return cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
+		error = cs40l26_log_err(cs40l26, -EINVAL, CS40L26_ERR_TYPE_SYSFS, __func__);
+		break;
 	}
+
+	mutex_unlock(&cs40l26->swap_lock);
 
 	return error ? error : count;
 }
