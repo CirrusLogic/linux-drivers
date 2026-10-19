@@ -6188,6 +6188,7 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 	int error;
 
 	mutex_init(&cs40l26->lock);
+	mutex_init(&cs40l26->swap_lock);
 
 	cs40l26->vibe_workqueue = alloc_ordered_workqueue("vibe_workqueue", WQ_HIGHPRI);
 	if (!cs40l26->vibe_workqueue) {
@@ -6284,6 +6285,7 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 {
 	cs40l26_irq_enable(cs40l26, CS40L26_IRQ_DISABLE);
 	mutex_destroy(&cs40l26->lock);
+	mutex_destroy(&cs40l26->swap_lock);
 
 	if (cs40l26->vibe_workqueue) {
 		flush_workqueue(cs40l26->vibe_workqueue);
