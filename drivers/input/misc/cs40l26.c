@@ -5490,6 +5490,8 @@ int cs40l26_reinit(struct cs40l26_private *cs40l26, const u32 id)
 	cs40l26->prev_fw_load_failed = false;
 	cs40l26->wt_num = 0;
 
+	complete_all(&cs40l26->erase_cont);
+
 	if (cs40l26->fw_defer && cs40l26->fw_loaded) {
 		error = cs40l26_request_irq(cs40l26);
 		if (error)
@@ -6244,6 +6246,8 @@ int cs40l26_probe(struct cs40l26_private *cs40l26)
 	init_completion(&cs40l26->cal_redc_cont);
 	init_completion(&cs40l26->cal_dvl_peq_cont);
 	init_completion(&cs40l26->cal_ls_cont);
+
+	complete_all(&cs40l26->erase_cont);
 
 	if (!cs40l26->fw_defer) {
 		error = cs40l26_fw_upload(cs40l26);
