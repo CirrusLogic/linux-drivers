@@ -2367,7 +2367,7 @@ static int cs40l26_process_word_buf(struct cs40l26_private *cs40l26, const char 
 	}
 
 	if (word != NULL && revision != NULL) {
-		error = snprintf(revision, CS40L26_ALGO_ID_MAX_STR_LEN, word);
+		error = snprintf(revision, CS40L26_ALGO_ID_MAX_STR_LEN, "%s", word);
 		if (error < 0) {
 			cs40l26_log_err(cs40l26, error, CS40L26_ERR_TYPE_DRIVER, __func__);
 			goto err_free;
