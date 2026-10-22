@@ -161,11 +161,14 @@ static ssize_t cs40l26_hw_reg_write(struct file *file, const char __user *user_b
 	ssize_t error;
 	u32 reg;
 
+	if (count > sizeof(str))
+		return -EINVAL;
+
 	memset(str, 0, CS40L26_HW_STR_LEN);
 
 	mutex_lock(&cs40l26->lock);
 
-	error = simple_write_to_buffer(str, count, ppos, user_buf, count);
+	error = simple_write_to_buffer(str, sizeof(str) - 1, ppos, user_buf, count);
 	if (error < 0)
 		goto err_mutex;
 
@@ -230,9 +233,12 @@ static ssize_t cs40l26_hw_val_write(struct file *file, const char __user *user_b
 	ssize_t error;
 	u32 val;
 
+	if (count > sizeof(str))
+		return -EINVAL;
+
 	memset(str, 0, CS40L26_HW_STR_LEN);
 
-	error = simple_write_to_buffer(str, count, ppos, user_buf, count);
+	error = simple_write_to_buffer(str, sizeof(str) - 1, ppos, user_buf, count);
 	if (error < 0)
 		return error;
 
